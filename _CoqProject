@@ -1,0 +1,11 @@
+-Q theories proba
+
+-arg -w -arg -notation-overridden
+-arg -w -arg -redundant-canonical-projection
+-arg -w -arg -convert_concl_no_check
+-arg -w -arg -undeclared-scope
+-arg -w -arg -ambiguous-paths
+-arg -w -arg -ssr-search-moved
+-arg -w -arg -deprecated-hint-without-locality
+-arg -w -arg -deprecated-instance-without-locality
+-arg -w -arg -deprecated-typeclasses-transparency-without-locality
