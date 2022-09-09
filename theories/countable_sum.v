@@ -1,6 +1,8 @@
-From Coq Require Import Reals Psatz ssreflect ssrfun.
+From Coq Require Import Reals Psatz.
+From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import countable.
+From proba Require Import Series_ext.
 Import Hierarchy.
 
 Section countable_sum.
@@ -17,6 +19,10 @@ Section countable_sum.
   Lemma countable_sum_0 f m :
     (∀ n, f n = 0) → countable_sum f m = 0.
   Proof. intros. rewrite /countable_sum. destruct (decode_nat _); eauto. Qed.
+
+  Lemma countable_sum_ge_0 f m :
+    (∀ n, 0 <= f n) → 0 <= countable_sum f m.
+  Proof. intros. rewrite /countable_sum. destruct (decode_nat _)=>//=. lra. Qed.
 
   Lemma countable_sum_ext f g m :
     (∀ n, f n = g n) → countable_sum f m = countable_sum g m.
@@ -54,17 +60,6 @@ Section countable_sum.
   Proof.
     intros. rewrite //=/countable_sum; destruct (decode_nat) => //=. nra. Qed.
 
-  (* TODO: move *)
-  Lemma is_series_0 a :
-    (∀ n, a n = 0) → is_series a 0.
-  Proof.
-    intros Ha. apply (is_series_ext (λ x, 0)); auto.
-    rewrite /is_series.
-    apply (filterlim_ext (λ x, 0)).
-    - intros m. rewrite sum_n_const Rmult_0_r //.
-    - apply filterlim_const.
-  Qed.
-
   (** * Series  *)
   Definition is_seriesC f := is_series (countable_sum f).
   Definition ex_seriesC f := ex_series (countable_sum f).
@@ -81,6 +76,12 @@ Section countable_sum.
     (∀ n, f n = g n) → is_seriesC f l → is_seriesC f l.
   Proof.
     intros ?. apply is_series_ext=> n. by apply countable_sum_ext.
+  Qed.
+
+  Lemma is_seriesC_unique f l :
+    is_seriesC f l → SeriesC f = l.
+  Proof.
+    apply is_series_unique.
   Qed.
 
   Lemma ex_seriesC_ext f g :
@@ -119,94 +120,26 @@ Section countable_sum.
     intros ?? ? ? ??. subst. eapply countable_sum_ext; eauto.
   Qed.
 
-  Implicit Types P Q : A → bool.
-
-  Lemma is_seriesC_filter_pos f P (v : R):
-    (∀ n, f n >= 0) →
-    is_seriesC f v →
-    ex_seriesC (λ n, if P n then f n else 0).
-  Proof.
-    intros Hge Hconv.
-    apply: ex_series_le; last by (exists v; eauto).
-    intros n. rewrite /norm /= /abs /countable_sum /=.
-    destruct (decode_nat _) as [x|] => //=.
-    - destruct (P x); rewrite Rabs_right => //=; try nra.
-      specialize (Hge x); nra.
-    - rewrite Rabs_right; nra.
-  Qed.
-
-  Lemma is_seriesC_filter_impl f P Q (v : R):
-    (∀ n, f n >= 0) →
-    is_seriesC (λ n, if P n then f n else 0) v →
-    (∀ n, Q n → P n) →
-    ex_seriesC (λ n, if Q n then f n else 0).
-  Proof.
-    intros Hge Hconv Himp. apply ex_series_Rabs.
-    apply: ex_series_le; last by (exists v; eauto).
-    intros n. rewrite /norm//=/abs//=.
-    rewrite /countable_sum//=.
-    destruct (decode_nat _) as [x|] => //=.
-    - specialize (Himp x); specialize (Hge x).
-      destruct (P x), (Q x); rewrite Rabs_Rabsolu Rabs_right => //=; try nra.
-      exfalso. by apply Himp.
-    - rewrite Rabs_Rabsolu Rabs_right; nra.
-  Qed.
-
-  Lemma ex_seriesC_filter_impl f P Q :
-    (∀ n, f n >= 0) →
-    ex_seriesC (λ n, if P n then f n else 0) →
-    (∀ n, Q n → P n) →
-    ex_seriesC (λ n, if Q n then f n else 0).
-  Proof. intros ? [? ?] ?. eapply is_seriesC_filter_impl; eauto. Qed.
-
-  Lemma ex_seriesC_filter_pos f P :
-    (∀ n, f n >= 0) →
-    ex_seriesC f →
-    ex_seriesC (λ n, if P n then f n else 0).
-  Proof. intros ? [v His]. by eapply is_seriesC_filter_pos. Qed.
-
-  Lemma is_seriesC_filter_union f P Q (v: R):
-    (∀ n, f n >= 0) →
-    is_seriesC (λ n, if P n || Q n then f n else 0) v →
-    SeriesC (λ n, if P n then f n else 0) +
-    SeriesC (λ n, if Q n then f n else 0) -
-    SeriesC (λ n, if P n && Q n then f n else 0) = v.
-  Proof.
-    intros Hge Hexists.
-    rewrite -Series_plus;
-      try (eapply (is_seriesC_filter_impl _ _ _ _ Hge Hexists); eauto;
-           try (intros n; destruct (P n), (Q n); auto)).
-    rewrite -Series_minus;
-      try (eapply (is_seriesC_filter_impl _ _ _ _ Hge Hexists); eauto;
-           try (intros n; destruct (P n), (Q n); auto)).
-    - rewrite -(is_series_unique _ v Hexists).
-      apply Series_ext => n.
-      rewrite /countable_sum//=.
-      destruct (decode_nat _) as [x|] => //=; last by nra.
-      destruct (P x) => //=; nra.
-    - apply: (ex_series_le _ (countable_sum (λ n, scal 2 (if P n || Q n then f n else 0)))).
-      + intros n.
-        rewrite /countable_sum//=.
-        rewrite /norm //= /abs //= /scal//= /mult/=.
-        destruct (decode_nat _) as [x|] => //=.
-        * specialize (Hge x).
-          destruct (P x), (Q x) => //=; rewrite Rabs_right; nra.
-        * rewrite Rabs_right; nra.
-      + exists (scal 2 v).
-        apply (is_series_ext _ _ _
-                 (λ n, Logic.eq_sym (countable_sum_scal 2 (λ x, if P x || Q x then f x else 0) n))).
-        by apply: is_series_scal.
-  Qed.
-
-  (* TODO: move *)
-  Lemma Series_0 a: (∀ n, a n = 0) → Series a = 0.
-  Proof.
-    intros Heq. apply is_series_unique, is_series_0. done.
-  Qed.
+  Lemma SeriesC_correct f :
+    ex_seriesC f → is_seriesC f (SeriesC f).
+  Proof. apply Series_correct. Qed.
 
   Lemma SeriesC_0 f :
     (∀ x, f x = 0) → SeriesC f = 0.
   Proof. intros Heq0. apply Series_0=> ?. by apply countable_sum_0. Qed.
+
+  Lemma SeriesC_ge_0 (f : A → R) :
+    (∀ x, 0 <= f x) →
+    ex_seriesC f →
+    0 <= SeriesC f.
+  Proof.
+    intros Heq0 Hex.
+    rewrite -(SeriesC_0 (λ _ : A, 0)); [|done].
+    apply Series_le; [|done].
+    intros n. split.
+    + apply countable_sum_ge_0. intros ?; nra.
+    + by apply countable_sum_le.
+  Qed.
 
   Lemma SeriesC_ext f g :
     (∀ n, f n = g n) → SeriesC f = SeriesC g.
@@ -220,19 +153,6 @@ Section countable_sum.
     intros Hrange Hex. apply Series_le => // n.
     rewrite /countable_sum.
     destruct (decode_nat _) => //=; nra.
-  Qed.
-
-  (* TODO: move *)
-  Lemma Series_le' f g :
-    ∀ a b : nat → R, (∀ n : nat, a n <= b n) → ex_series a → ex_series b → Series a <= Series b.
-  Proof.
-    intros a b Hle [av Hav] [bv Hbv].
-    erewrite is_series_unique; [|done].
-    erewrite is_series_unique; [|done].
-    cut (Rbar_le av bv); auto.
-    eapply @filterlim_le; eauto.
-    - apply Proper_StrongProper, eventually_filter.
-    - exists O => n Hn. by apply sum_n_m_le.
   Qed.
 
   Lemma SeriesC_le' f g :
@@ -336,3 +256,84 @@ Section countable_sum.
   Qed.
 
 End countable_sum.
+
+Section filter.
+  Context `{Countable A}.
+
+  Implicit Types P Q : A → Prop.
+
+  Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
+    (∀ n, 0 <= f n) →
+    is_seriesC f v →
+    ex_seriesC (λ n, if bool_decide (P n) then f n else 0).
+  Proof.
+    intros Hge Hconv.
+    apply: ex_series_le; last by (exists v; eauto).
+    intros n. rewrite /norm /= /abs /countable_sum /=.
+    destruct (decode_nat _) as [x|] => //=.
+    - case_bool_decide; rewrite Rabs_right => //=; try nra.
+      specialize (Hge x); nra.
+    - rewrite Rabs_right; nra.
+  Qed.
+
+  Lemma is_seriesC_filter_impl f v P Q `{∀ x, Decision (P x), ∀ x, Decision (Q x)} :
+    (∀ n, 0 <= f n) →
+    is_seriesC (λ n, if bool_decide (P n) then f n else 0) v →
+    (∀ n, Q n → P n) →
+    ex_seriesC (λ n, if bool_decide (Q n) then f n else 0).
+  Proof.
+    intros Hge Hconv Himp. apply ex_series_Rabs.
+    apply: ex_series_le; last by (exists v; eauto).
+    intros n. rewrite /norm//=/abs//=.
+    rewrite /countable_sum//=.
+    destruct (decode_nat _) as [x|] => //=.
+    - specialize (Himp x); specialize (Hge x).
+      do 2 case_bool_decide; rewrite Rabs_Rabsolu Rabs_right => //=; try nra.
+      exfalso; auto.
+    - rewrite Rabs_Rabsolu Rabs_right; nra.
+  Qed.
+
+  Lemma ex_seriesC_filter_impl f P Q `{∀ x, Decision (P x), ∀ x, Decision (Q x)} :
+    (∀ n, 0 <= f n) →
+    ex_seriesC (λ n, if bool_decide (P n) then f n else 0) →
+    (∀ n, Q n → P n) →
+    ex_seriesC (λ n, if bool_decide (Q n) then f n else 0).
+  Proof. intros ? [? ?] ?. eapply is_seriesC_filter_impl; eauto. Qed.
+
+  Lemma ex_seriesC_filter_pos f P `{∀ x, Decision (P x)} :
+    (∀ n, 0 <= f n) →
+    ex_seriesC f →
+    ex_seriesC (λ n, if bool_decide (P n) then f n else 0).
+  Proof. intros ? [v His]. by eapply is_seriesC_filter_pos. Qed.
+
+  Lemma is_seriesC_filter_union f v P Q `{∀ x, Decision (P x), ∀ x, Decision (Q x)} :
+    (∀ n, 0 <= f n) →
+    is_seriesC (λ n, if bool_decide (P n ∨ Q n) then f n else 0) v →
+    SeriesC (λ n, if bool_decide (P n) then f n else 0) +
+    SeriesC (λ n, if bool_decide (Q n) then f n else 0) -
+    SeriesC (λ n, if bool_decide (P n ∧ Q n) then f n else 0) = v.
+  Proof.
+    intros Hge Hexists.
+    rewrite -Series_plus; last first.
+    { apply (is_seriesC_filter_impl  _ _ _ _ Hge Hexists); eauto. }
+    { apply (is_seriesC_filter_impl  _ _ _ _ Hge Hexists); eauto. }
+    rewrite -Series_minus.
+    - rewrite -(is_series_unique _ v Hexists).
+      apply Series_ext => n.
+      rewrite /countable_sum//=.
+      destruct (decode_nat _) as [x|] => //=; last by nra.
+      do 2 repeat case_bool_decide=>//=; try tauto; nra.
+    - apply: (ex_series_le _ (countable_sum (λ n, scal 2 (if bool_decide (P n ∨ Q n) then f n else 0)))).
+      + intros n. rewrite /countable_sum//=.
+        rewrite /norm //= /abs //= /scal//= /mult/=.
+        destruct (decode_nat _) as [x|] => //=.
+        * specialize (Hge x).
+          repeat case_bool_decide => //=; rewrite Rabs_right; try tauto; nra.
+        * rewrite Rabs_right; nra.
+      + exists (scal 2 v).
+        apply (is_series_ext _ _ _
+                 (λ n, Logic.eq_sym (countable_sum_scal 2 (λ x, if bool_decide (P x ∨ Q x) then f x else 0) n))).
+        by apply: is_series_scal.
+    - eapply (is_seriesC_filter_impl  _ _ _ _ Hge Hexists). intros ? []; auto.
+  Qed.
+End filter.
