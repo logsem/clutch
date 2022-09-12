@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Coq.ssr Require Export ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
-From stdpp Require Import countable.
-From proba Require Import Series_ext.
+From stdpp Require Import countable option.
+From proba Require Import Series_ext stdpp_ext.
 Import Hierarchy.
 
 Section countable_sum.
@@ -13,42 +13,48 @@ Section countable_sum.
   Open Scope R.
 
   (** * Countable sums *)
-  Definition countable_sum f :=
-    λ n : nat, oapp f R0 (decode_nat n).
+  Definition countable_sum (f : A → R) :=
+    λ (n : nat), option_apply f 0 (encode_inv_nat n).
 
   Lemma countable_sum_0 f m :
     (∀ n, f n = 0) → countable_sum f m = 0.
-  Proof. intros. rewrite /countable_sum. destruct (decode_nat _); eauto. Qed.
+  Proof. intros. rewrite /countable_sum. destruct (encode_inv_nat _); eauto. Qed.
 
   Lemma countable_sum_ge_0 f m :
     (∀ n, 0 <= f n) → 0 <= countable_sum f m.
-  Proof. intros. rewrite /countable_sum. destruct (decode_nat _)=>//=. lra. Qed.
+  Proof. intros. rewrite /countable_sum. destruct (encode_inv_nat _)=>//=. lra. Qed.
 
   Lemma countable_sum_ext f g m :
     (∀ n, f n = g n) → countable_sum f m = countable_sum g m.
-  Proof. intros ?. rewrite /countable_sum. destruct (decode_nat _) => //=. Qed.
+  Proof. intros ?. rewrite /countable_sum. destruct (encode_inv_nat _) => //=. Qed.
 
   Lemma countable_sum_le f g m :
     (∀ n, f n <= g n) → countable_sum f m <= countable_sum g m.
-  Proof. intros ?. rewrite /countable_sum. destruct (decode_nat _) =>//=. lra. Qed.
+  Proof. intros ?. rewrite /countable_sum. destruct (encode_inv_nat _) =>//=. lra. Qed.
 
   Lemma countable_sum_scal c f n :
     countable_sum (λ x, scal c (f x)) n = scal c (countable_sum f n).
   Proof.
     intros. rewrite //= /countable_sum /scal //= /mult //=.
-    destruct (decode_nat _) => //=; nra.
+    destruct (encode_inv_nat _) => //=; nra.
   Qed.
 
   Lemma countable_sum_plus f g n :
     countable_sum (λ x, f x + g x) n = countable_sum f n + countable_sum g n.
   Proof.
-    intros. rewrite //=/countable_sum; destruct (decode_nat) => //=. nra.
+    intros. rewrite //=/countable_sum; destruct (encode_inv_nat) => //=. nra.
+  Qed.
+
+  Lemma countable_sum_mult f g n :
+    countable_sum (λ x, f x * g x) n = countable_sum f n * countable_sum g n.
+  Proof.
+    intros. rewrite //=/countable_sum; destruct (encode_inv_nat) => //=. nra.
   Qed.
 
   Lemma countable_sum_Rabs f n :
     countable_sum (λ x, Rabs (f x)) n = Rabs (countable_sum f n).
   Proof.
-    intros. rewrite //=/countable_sum; destruct (decode_nat _) => //=. rewrite Rabs_R0 //=.
+    intros. rewrite //=/countable_sum; destruct (encode_inv_nat _) => //=. rewrite Rabs_R0 //=.
   Qed.
 
   Lemma countable_sum_scal_l f c n :
@@ -58,7 +64,7 @@ Section countable_sum.
   Lemma countable_sum_scal_r f c n :
     countable_sum (λ x, f x * c) n = countable_sum f n * c.
   Proof.
-    intros. rewrite //=/countable_sum; destruct (decode_nat) => //=. nra. Qed.
+    intros. rewrite //=/countable_sum; destruct (encode_inv_nat) => //=. nra. Qed.
 
   (** * Series  *)
   Definition is_seriesC f := is_series (countable_sum f).
@@ -69,7 +75,7 @@ Section countable_sum.
     (∀ n, f n = 0) → is_seriesC f 0.
   Proof.
     intros ?. apply is_series_0=> n.
-    rewrite /countable_sum/oapp. destruct (decode_nat _); auto.
+    rewrite /countable_sum. destruct (encode_inv_nat _)=>/=; auto.
   Qed.
 
   Lemma is_seriesC_ext f g l :
@@ -111,7 +117,7 @@ Section countable_sum.
   Global Instance countable_sum_Proper:
     Proper (pointwise_relation A (@eq R) ==> pointwise_relation nat (@eq R)) countable_sum.
   Proof.
-    intros ?? ? x. rewrite /countable_sum. destruct (decode_nat _); eauto.
+    intros ?? ? x. rewrite /countable_sum. destruct (encode_inv_nat _); eauto.
   Qed.
 
   Global Instance countable_sum_Proper' :
@@ -152,7 +158,7 @@ Section countable_sum.
   Proof.
     intros Hrange Hex. apply Series_le => // n.
     rewrite /countable_sum.
-    destruct (decode_nat _) => //=; nra.
+    destruct (encode_inv_nat _) => //=; nra.
   Qed.
 
   Lemma SeriesC_le' f g :
@@ -162,7 +168,7 @@ Section countable_sum.
     SeriesC f <= SeriesC g.
   Proof.
     intros ???. apply Series_le' => //= n. rewrite /countable_sum.
-    destruct (decode_nat _) => //=. nra.
+    destruct (encode_inv_nat _) => //=. nra.
   Qed.
 
   Lemma SeriesC_scal_l f c :
@@ -172,7 +178,7 @@ Section countable_sum.
   Qed.
 
   Lemma SeriesC_scal_r f c :
-    SeriesC (λ x, f x * c) = Series (countable_sum f) * c.
+    SeriesC (λ x, f x * c) = SeriesC f * c.
   Proof.
     intros. rewrite -Series_scal_r. apply Series_ext. apply countable_sum_scal_r.
   Qed.
@@ -262,6 +268,23 @@ Section filter.
 
   Implicit Types P Q : A → Prop.
 
+  Lemma is_seriesC_singleton (a : A) v :
+    is_seriesC (λ (n : A), if bool_decide (n = a) then v else 0) v.
+  Proof.
+    rewrite /is_seriesC.
+    eapply is_series_ext; [|apply (is_series_singleton (encode_nat a))].
+    intros n =>/=. rewrite /countable_sum.
+    case_bool_decide as Hneq=>/=; subst.
+    - rewrite encode_inv_encode_nat //= bool_decide_eq_true_2 //.
+    - destruct (encode_inv_nat _) eqn:Heq=>//=.
+      case_bool_decide; [|done]; subst.
+      exfalso. apply Hneq. symmetry. by apply encode_inv_Some_nat.
+  Qed.
+
+  Lemma SeriesC_singleton (a : A) v :
+    SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
+  Proof. apply is_series_unique, is_seriesC_singleton. Qed.
+
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
     is_seriesC f v →
@@ -270,7 +293,7 @@ Section filter.
     intros Hge Hconv.
     apply: ex_series_le; last by (exists v; eauto).
     intros n. rewrite /norm /= /abs /countable_sum /=.
-    destruct (decode_nat _) as [x|] => //=.
+    destruct (encode_inv_nat _) as [x|] => //=.
     - case_bool_decide; rewrite Rabs_right => //=; try nra.
       specialize (Hge x); nra.
     - rewrite Rabs_right; nra.
@@ -286,7 +309,7 @@ Section filter.
     apply: ex_series_le; last by (exists v; eauto).
     intros n. rewrite /norm//=/abs//=.
     rewrite /countable_sum//=.
-    destruct (decode_nat _) as [x|] => //=.
+    destruct (encode_inv_nat _) as [x|] => //=.
     - specialize (Himp x); specialize (Hge x).
       do 2 case_bool_decide; rewrite Rabs_Rabsolu Rabs_right => //=; try nra.
       exfalso; auto.
@@ -321,12 +344,12 @@ Section filter.
     - rewrite -(is_series_unique _ v Hexists).
       apply Series_ext => n.
       rewrite /countable_sum//=.
-      destruct (decode_nat _) as [x|] => //=; last by nra.
+      destruct (encode_inv_nat _) as [x|] => //=; last by nra.
       do 2 repeat case_bool_decide=>//=; try tauto; nra.
     - apply: (ex_series_le _ (countable_sum (λ n, scal 2 (if bool_decide (P n ∨ Q n) then f n else 0)))).
       + intros n. rewrite /countable_sum//=.
         rewrite /norm //= /abs //= /scal//= /mult/=.
-        destruct (decode_nat _) as [x|] => //=.
+        destruct (encode_inv_nat _) as [x|] => //=.
         * specialize (Hge x).
           repeat case_bool_decide => //=; rewrite Rabs_right; try tauto; nra.
         * rewrite Rabs_right; nra.

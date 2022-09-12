@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz ssreflect Utf8.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
-From stdpp Require Import tactics.
+From stdpp Require Import tactics numbers.
 Import Hierarchy.
 
 Open Scope R.
@@ -89,6 +89,32 @@ Proof.
        rewrite Heq_infty in His_series. congruence.
      * intros Heq_infty. apply is_lim_seq_unique_series in His_series. exfalso.
        rewrite Heq_infty in His_series. congruence.
+Qed.
+
+Lemma is_series_singleton_hd v :
+  is_series (λ n, if bool_decide (n = 0)%nat then v else 0) v.
+Proof.
+  apply is_series_decr_1=>/=.
+  rewrite plus_opp_r.
+  by apply is_series_0.
+Qed.
+
+Lemma is_series_singleton m v :
+  is_series (λ n, if bool_decide (n = m) then v else 0) v.
+Proof.
+  induction m.
+  - apply is_series_singleton_hd.
+  - apply is_series_decr_1=>/=.
+    rewrite opp_zero plus_zero_r.
+    eapply is_series_ext; [|done].
+    intros ? => //=.
+    do 2 case_bool_decide; auto with lia.
+Qed.
+
+Lemma Series_bump m v :
+  Series (λ n, if bool_decide (n = m) then v else 0) = v.
+Proof.
+  apply is_series_unique, is_series_singleton.
 Qed.
 
 Lemma sum_n_partial_pos a :
