@@ -79,7 +79,7 @@ Section countable_sum.
   Qed.
 
   Lemma is_seriesC_ext f g l :
-    (∀ n, f n = g n) → is_seriesC f l → is_seriesC f l.
+    (∀ n, f n = g n) → is_seriesC g l → is_seriesC f l.
   Proof.
     intros ?. apply is_series_ext=> n. by apply countable_sum_ext.
   Qed.
@@ -94,6 +94,11 @@ Section countable_sum.
     (∀ n, f n = g n) → ex_seriesC f → ex_seriesC g.
   Proof.
     intros ?. apply ex_series_ext=> n. by apply countable_sum_ext.
+  Qed.
+
+  Lemma is_seriesC_chain f g v : is_seriesC g (SeriesC f) → is_seriesC f v → is_seriesC g v.
+  Proof.
+    intros Hs2 Hs1. apply is_seriesC_unique in Hs1. rewrite -Hs1. done.
   Qed.
 
   Global Instance is_series_Proper:
@@ -129,6 +134,10 @@ Section countable_sum.
   Lemma SeriesC_correct f :
     ex_seriesC f → is_seriesC f (SeriesC f).
   Proof. apply Series_correct. Qed.
+
+  Lemma SeriesC_correct' a v:
+    SeriesC a = v → ex_seriesC a → is_seriesC a v.
+  Proof. by intros <- ?; apply SeriesC_correct. Qed.
 
   Lemma SeriesC_0 f :
     (∀ x, f x = 0) → SeriesC f = 0.

@@ -124,3 +124,13 @@ Proof.
   intros Hpos n'; induction n' => //=; rewrite ?sum_O ?sum_Sn; eauto.
   specialize (Hpos (S n')). rewrite /plus //=. nra.
 Qed.
+
+Lemma is_series_chain s1 s2 v :
+  is_series s2 (Series s1) → is_series s1 v → is_series s2 v.
+Proof.
+  intros Hs2 Hs1. apply is_series_unique in Hs1. rewrite -Hs1. done.
+Qed.
+
+Lemma Series_correct' a v:
+  Series a = v → ex_series a → is_series a v.
+Proof. by intros <- ?; apply Series_correct. Qed.
