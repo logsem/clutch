@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Export ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import countable option.
-From proba Require Import Series_ext stdpp_ext.
+From proba.prelude Require Import Series_ext stdpp_ext.
 Import Hierarchy.
 
 Section countable_sum.

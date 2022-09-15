@@ -1,12 +1,11 @@
 From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
-From stdpp Require Import countable.
-From proba Require Import Series_ext Reals_ext countable_sum.
+From stdpp Require Export countable.
+From proba.prelude Require Export Series_ext Reals_ext.
+From proba.prob Require Export countable_sum.
 Set Default Proof Using "Type".
 Global Set Bullet Behavior "Strict Subproofs".
-
-Open Scope R.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
   μ :> A → R;
@@ -23,6 +22,8 @@ Notation Decidable P := (∀ x, Decision (P x)).
 
 Section distributions.
   Context `{Countable A}.
+
+  Open Scope R.
 
   Implicit Types μ d : distr A.
 
@@ -147,11 +148,11 @@ End distributions.
 Section monadic.
   Context `{Countable A}.
 
-  Definition dret_measure (a : A) : A → R :=
+  Definition dret_μ (a : A) : A → R :=
     λ (a' : A), if bool_decide (a' = a) then 1 else 0.
 
-  Program Definition dret_distr (a : A) : distr A := MkDistr (dret_measure a) _ _.
-  Next Obligation. intros. rewrite /dret_measure. case_bool_decide; nra. Qed.
+  Program Definition dret (a : A) : distr A := MkDistr (dret_μ a) _ _.
+  Next Obligation. intros. rewrite /dret_μ. case_bool_decide; nra. Qed.
   Next Obligation. intros. eapply is_seriesC_singleton. Qed.
 
   Context `{Countable B}.
@@ -178,13 +179,13 @@ Section monadic.
     intros a. rewrite SeriesC_scal_l //.
   Qed.
 
-  Definition dbind_measure (f : A → distr B) (μ : distr A) : B → R :=
+  Definition dbind_μ (f : A → distr B) (μ : distr A) : B → R :=
     λ (b : B), SeriesC (λ (a : A), μ a * f a b).
 
-  Program Definition dbind_distr (f : A → distr B) (μ : distr A) : distr B :=
-    MkDistr (dbind_measure f μ) _ _.
+  Program Definition dbind (f : A → distr B) (μ : distr A) : distr B :=
+    MkDistr (dbind_μ f μ) _ _.
   Next Obligation.
-    intros f μ b. rewrite /dbind_measure.
+    intros f μ b. rewrite /dbind_μ.
     apply SeriesC_ge_0.
     - intros a. by apply Rmult_le_pos.
     - eapply (ex_seriesC_le _ (λ a, μ a * 1)); [|by apply ex_seriesC_scal_r].
@@ -193,7 +194,7 @@ Section monadic.
       eapply distr_measure_le_1.
   Qed.
   Next Obligation.
-    intros f μ. rewrite /dbind_measure.
+    intros f μ. rewrite /dbind_μ.
     apply bar.
     apply baz.
     apply (is_seriesC_ext _ (λ a : A, μ a * 1)).
@@ -207,3 +208,14 @@ Section monadic.
   Qed.
 
 End monadic.
+
+Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope.
+Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope.
+Notation "(.≫= f )" := (dbind f) (only parsing) : stdpp_scope.
+Notation "(≫=)" := (λ m f, dbind f m) (only parsing) : stdpp_scope.
+
+Notation "x ← y ; z" := (y ≫= (λ x : _, z))
+  (at level 20, y at level 100, z at level 200, only parsing) : stdpp_scope.
+
+Notation "' x ← y ; z" := (y ≫= (λ x : _, z))
+  (at level 20, x pattern, y at level 100, z at level 200, only parsing) : stdpp_scope.
