@@ -1,20 +1,21 @@
 From Coq Require Import Reals Psatz.
-From Coq.ssr Require Export ssreflect.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
-From stdpp Require Import countable option.
-From proba.prelude Require Import Series_ext stdpp_ext.
+From Coquelicot Require Import Series Hierarchy.
+From stdpp Require Import option.
+From stdpp Require Export countable.
+From proba.prelude Require Import base Coquelicot_ext stdpp_ext.
 Import Hierarchy.
 
+Open Scope R.
+
+(** A theory of (in)finite series over countable types by.  *)
 Section countable_sum.
   Context `{Countable A}.
 
   Implicit Types f g : A → R.
 
-  Open Scope R.
-
-  (** * Countable sums *)
+  (** 'Traverses' the type in the order given by the valid countability *)
   Definition countable_sum (f : A → R) :=
-    λ (n : nat), option_apply f 0 (encode_inv_nat n).
+    λ (n : nat), from_option f 0 (encode_inv_nat n).
 
   Lemma countable_sum_0 f m :
     (∀ n, f n = 0) → countable_sum f m = 0.
@@ -66,7 +67,22 @@ Section countable_sum.
   Proof.
     intros. rewrite //=/countable_sum; destruct (encode_inv_nat) => //=. nra. Qed.
 
-  (** * Series  *)
+  Global Instance countable_sum_Proper:
+    Proper (pointwise_relation A (@eq R) ==> pointwise_relation nat (@eq R)) countable_sum.
+  Proof. intros ?? ? x. rewrite /countable_sum. destruct (encode_inv_nat _); eauto. Qed.
+
+  Global Instance countable_sum_Proper' :
+    Proper (pointwise_relation A (@eq R) ==> eq ==> eq) countable_sum.
+  Proof. intros ?? ? ? ??. subst. eapply countable_sum_ext; eauto. Qed.
+
+End countable_sum.
+
+Section series.
+  Context `{Countable A}.
+
+  Implicit Types f g : A → R.
+
+  (** Lifting of the Coquliecot predicates for working with series *)
   Definition is_seriesC f := is_series (countable_sum f).
   Definition ex_seriesC f := ex_series (countable_sum f).
   Definition SeriesC f := Series (countable_sum f).
@@ -99,36 +115,6 @@ Section countable_sum.
   Lemma is_seriesC_chain f g v : is_seriesC g (SeriesC f) → is_seriesC f v → is_seriesC g v.
   Proof.
     intros Hs2 Hs1. apply is_seriesC_unique in Hs1. rewrite -Hs1. done.
-  Qed.
-
-  Global Instance is_series_Proper:
-    Proper (pointwise_relation nat (@eq R) ==> @eq R ==> iff) is_series.
-  Proof.
-    intros ?? ? ?? ?; subst; split; eapply is_series_ext; eauto.
-  Qed.
-
-  Global Instance ex_series_Proper:
-    Proper (pointwise_relation nat (@eq R) ==> iff) ex_series.
-  Proof.
-    intros ?? ?; split; eapply ex_series_ext; eauto.
-  Qed.
-
-  Global Instance Series_Proper:
-    Proper (pointwise_relation nat (@eq R) ==> eq) Series.
-  Proof.
-    intros ?? ?; eapply Series_ext; eauto.
-  Qed.
-
-  Global Instance countable_sum_Proper:
-    Proper (pointwise_relation A (@eq R) ==> pointwise_relation nat (@eq R)) countable_sum.
-  Proof.
-    intros ?? ? x. rewrite /countable_sum. destruct (encode_inv_nat _); eauto.
-  Qed.
-
-  Global Instance countable_sum_Proper' :
-    Proper (pointwise_relation A (@eq R) ==> eq ==> eq) countable_sum.
-  Proof.
-    intros ?? ? ? ??. subst. eapply countable_sum_ext; eauto.
   Qed.
 
   Lemma SeriesC_correct f :
@@ -270,7 +256,19 @@ Section countable_sum.
     eauto.
   Qed.
 
-End countable_sum.
+  Global Instance is_series_Proper:
+    Proper (pointwise_relation A (@eq R) ==> @eq R ==> iff) is_seriesC.
+  Proof. intros ?? ? ?? ?; subst; split; eapply is_seriesC_ext; eauto. Qed.
+
+  Global Instance ex_series_Proper:
+    Proper (pointwise_relation A (@eq R) ==> iff) ex_seriesC.
+  Proof. intros ?? ?; split; eapply ex_seriesC_ext; eauto. Qed.
+
+  Global Instance Series_Proper:
+    Proper (pointwise_relation A (@eq R) ==> eq) SeriesC.
+  Proof. intros ?? ?; eapply SeriesC_ext; eauto. Qed.
+
+End series.
 
 Section filter.
   Context `{Countable A}.

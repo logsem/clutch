@@ -10,6 +10,9 @@ Section language_mixin.
   Context `{Countable expr, Countable state}.
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
+
+  (** TODO: We need to add either a bottom element or require a sub-probability measure
+      that is not required to sum to 1 *)
   Context (prim_step : expr → state → action → distr (expr * state)).
 
   Record LanguageMixin := {
@@ -68,8 +71,8 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
     to_val e1' = None → prim_step (K e1') σ1 α (e2, σ2) > 0 →
     ∃ e2', e2 = K e2' ∧ prim_step e1' σ1 α (e2', σ2) > 0;
   fill_step_prob e1 σ1 α e2 σ2 :
-      to_val e1 = None →
-      prim_step e1 σ1 α (e2, σ2) = prim_step (K e1) σ1 α (K e2, σ2);
+    to_val e1 = None →
+    prim_step e1 σ1 α (e2, σ2) = prim_step (K e1) σ1 α (K e2, σ2);
   }.
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
@@ -115,17 +118,19 @@ Section language.
     intros. rewrite /kernel_conf. destruct (f !! ρ); [done|nra].
   Qed.
   Next Obligation.
+    intros f ρ. rewrite /kernel_conf. destruct (f !! ρ); [done|].
+
     (* of course doesn't hold because it doesn't sum to one :-) *)
     Admitted.
 
 
 
-  (* Inductive step (ρ1 : cfg Λ) (α : action Λ) (d : distr (cfg Λ)) : Prop := *)
-  (* | step_atomic e1 σ1 e2 σ2 : *)
-  (*   ρ1 = (e1, σ1) → *)
-  (*   d = prim_step e1 σ1 α → *)
-  (*   step ρ1 α d. *)
-  (* Local Hint Constructors step : core. *)
+  Inductive step (ρ1 : cfg Λ) (α : action Λ) (ρ2 : cfg Λ) : Prop :=
+  | step_atomic e1 σ1 :
+    ρ1 = (e1, σ1) →
+    prim_step e1 σ1 α ρ2 > 0 →
+    step ρ1 α ρ2.
+  Local Hint Constructors step : core.
 
   (* Inductive nsteps : nat → cfg Λ → scheduler Λ → distr (cfg Λ) → Prop := *)
   (* | nsteps_refl ρ : *)

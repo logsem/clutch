@@ -1,16 +1,36 @@
-From Coq Require Import Reals Psatz ssreflect Utf8.
+From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
-From stdpp Require Import tactics numbers.
+From stdpp Require Import numbers.
+From proba.prelude Require Import base.
 Import Hierarchy.
 
-Open Scope R.
+Local Open Scope R.
 
-Global Instance : Transitive Rle.
-Proof. rewrite /Transitive; eapply Rle_trans. Qed.
+Instance Rbar_le_Transitive: Transitive Rbar_le.
+Proof. intros ???. eapply Rbar_le_trans. Qed.
+Instance Rbar_le_Reflexive: Reflexive Rbar_le.
+Proof. intros ?. eapply Rbar_le_refl. Qed.
+Instance Rbar_lt_Transitive: Transitive Rbar_lt.
+Proof. intros ???. eapply Rbar_lt_trans. Qed.
 
-Lemma Rbar_le_fin' x y: 0 <= y → Rbar_le x y → Rle x (real y).
+Lemma Rbar_le_fin' x y: 0 <= y → Rbar_le x y → x <= real y.
 Proof.
   rewrite /Rbar_le. destruct x => //=.
+Qed.
+
+Lemma norm_dist_mid x y z: norm (x - y) <= norm (x - z) + norm (z - y).
+Proof.
+  replace (x - y) with ((x - z) + (z - y)) by field.
+  etransitivity; last eapply norm_triangle.
+  apply Rle_refl.
+Qed.
+
+Lemma sum_n_m_filter (a: nat → R) (P: nat → Prop) `{∀ x, Decision (P x)} n m :
+  sum_n_m (λ n, if bool_decide (P n) then Rabs (a n) else 0) n m <= sum_n_m (Rabs ∘ a) n m.
+Proof.
+  apply sum_n_m_le => k.
+  destruct (bool_decide (P k)) => //=; try nra.
+  apply Rabs_pos.
 Qed.
 
 Lemma is_series_0 a :
@@ -134,3 +154,21 @@ Qed.
 Lemma Series_correct' a v:
   Series a = v → ex_series a → is_series a v.
 Proof. by intros <- ?; apply Series_correct. Qed.
+
+Global Instance is_series_Proper:
+  Proper (pointwise_relation nat (@eq R) ==> @eq R ==> iff) is_series.
+Proof.
+  intros ?? ? ?? ?; subst; split; eapply is_series_ext; eauto.
+Qed.
+
+Global Instance ex_series_Proper:
+  Proper (pointwise_relation nat (@eq R) ==> iff) ex_series.
+Proof.
+  intros ?? ?; split; eapply ex_series_ext; eauto.
+Qed.
+
+Global Instance Series_Proper:
+  Proper (pointwise_relation nat (@eq R) ==> eq) Series.
+Proof.
+  intros ?? ?; eapply Series_ext; eauto.
+Qed.

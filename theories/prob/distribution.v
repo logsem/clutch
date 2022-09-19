@@ -2,10 +2,8 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
-From proba.prelude Require Export Series_ext Reals_ext.
+From proba.prelude Require Export options Coquelicot_ext Reals_ext.
 From proba.prob Require Export countable_sum.
-Set Default Proof Using "Type".
-Global Set Bullet Behavior "Strict Subproofs".
 
 Record distr (A : Type) `{Countable A} := MkDistr {
   μ :> A → R;
@@ -20,10 +18,10 @@ Arguments μ {_ _ _ _}.
 
 Notation Decidable P := (∀ x, Decision (P x)).
 
+Open Scope R.
+
 Section distributions.
   Context `{Countable A}.
-
-  Open Scope R.
 
   Implicit Types μ d : distr A.
 
@@ -185,9 +183,9 @@ Section monadic.
   Program Definition dbind (f : A → distr B) (μ : distr A) : distr B :=
     MkDistr (dbind_μ f μ) _ _.
   Next Obligation.
-    intros f μ b. rewrite /dbind_μ.
+    rewrite /dbind_μ.
     apply SeriesC_ge_0.
-    - intros a. by apply Rmult_le_pos.
+    - intros a'. by apply Rmult_le_pos.
     - eapply (ex_seriesC_le _ (λ a, μ a * 1)); [|by apply ex_seriesC_scal_r].
       intros a. split; [by apply Rmult_le_pos|].
       eapply Rmult_le_compat_l; [done|].
