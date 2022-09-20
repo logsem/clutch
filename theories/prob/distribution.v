@@ -19,6 +19,7 @@ Arguments pmf_ex_seriesC {_ _ _}.
 Arguments pmf_SeriesC {_ _ _}.
 
 #[global] Hint Resolve pmf_pos pmf_ex_seriesC pmf_SeriesC : core.
+Notation Decidable P := (∀ x, Decision (P x)).
 
 Open Scope R.
 
@@ -34,6 +35,13 @@ Section distributions.
     etransitivity; [|eapply (pmf_SeriesC μ)].
     apply SeriesC_le; [|done].
     intros a'. case_bool_decide; subst; split; try (nra || done).
+  Qed.
+
+  Lemma pmf_SeriesC_ge_0 μ : 0 <= SeriesC μ.
+  Proof.
+    transitivity (SeriesC (λ (_ : A), 0)).
+    { apply SeriesC_ge_0; [done|]. apply ex_seriesC_0. }
+    apply SeriesC_le'; auto. apply ex_seriesC_0.
   Qed.
 
   Lemma pmf_ex_seriesC_mult (μ1 μ2 : distr A) :
@@ -53,23 +61,23 @@ End distributions.
 Section monadic.
   Context `{Countable A}.
 
-  Definition dret_μ (a : A) : A → R :=
+  Definition dret_pmf (a : A) : A → R :=
     λ (a' : A), if bool_decide (a' = a) then 1 else 0.
 
-  Program Definition dret (a : A) : distr A := MkDistr (dret_μ a) _ _ _.
-  Next Obligation. intros. rewrite /dret_μ. case_bool_decide; nra. Qed.
+  Program Definition dret (a : A) : distr A := MkDistr (dret_pmf a) _ _ _.
+  Next Obligation. intros. rewrite /dret_pmf. case_bool_decide; nra. Qed.
   Next Obligation. intros. apply ex_seriesC_singleton. Qed.
   Next Obligation. intros. rewrite SeriesC_singleton //. Qed.
 
   Context `{Countable B}.
 
-  Definition dbind_μ (f : A → distr B) (μ : distr A) : B → R :=
+  Definition dbind_pmf (f : A → distr B) (μ : distr A) : B → R :=
     λ (b : B), SeriesC (λ (a : A), μ a * f a b).
 
   Program Definition dbind (f : A → distr B) (μ : distr A) : distr B :=
-    MkDistr (dbind_μ f μ) _ _ _.
+    MkDistr (dbind_pmf f μ) _ _ _.
   Next Obligation.
-    intros f μ b. rewrite /dbind_μ.
+    intros f μ b. rewrite /dbind_pmf.
     apply SeriesC_ge_0.
     - intros a'. by apply Rmult_le_pos.
     - eapply (ex_seriesC_le _ (λ a, μ a * 1)); [|by apply ex_seriesC_scal_r].
@@ -78,7 +86,7 @@ Section monadic.
       eapply pmf_le_1.
   Qed.
   Next Obligation.
-    intros f μ. rewrite /dbind_μ.
+    intros f μ. rewrite /dbind_pmf.
     eapply (ex_seriesC_double_swap_impl (λ '(a, b), _)).
     eapply (ex_seriesC_ext (λ j, μ j * SeriesC (λ k, f j k))).
     { intros a. rewrite SeriesC_scal_l //. }
@@ -89,7 +97,7 @@ Section monadic.
     - by apply Rmult_le_compat_l.
   Qed.
   Next Obligation.
-    intros f μ. rewrite /dbind_μ.
+    intros f μ. rewrite /dbind_pmf.
     rewrite (SeriesC_double_swap (λ '(a, b), _)).
     rewrite -(SeriesC_ext (λ k, μ k * SeriesC (λ j, f k j))); last first.
     { intros a. rewrite SeriesC_scal_l //. }

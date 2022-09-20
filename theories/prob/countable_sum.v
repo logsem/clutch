@@ -75,6 +75,9 @@ Section countable_sum.
     Proper (pointwise_relation A (@eq R) ==> eq ==> eq) countable_sum.
   Proof. intros ?? ? ? ??. subst. eapply countable_sum_ext; eauto. Qed.
 
+  (** TODO: more lifted lemmas on [sumC] *)
+  Definition sumC_n (f : A → R) := sum_n (countable_sum f).
+
 End countable_sum.
 
 Section series.
@@ -84,7 +87,7 @@ Section series.
 
   (** Lifting of the Coquliecot predicates for working with series *)
   Definition is_seriesC f := is_series (countable_sum f).
-  Definition ex_seriesC f := ex_series (countable_sum f).
+  Definition ex_seriesC f := ∃ a, is_seriesC f a.
   Definition SeriesC f := Series (countable_sum f).
 
   Lemma is_seriesC_0 f :
@@ -199,7 +202,7 @@ Section series.
 
   Lemma ex_seriesC_scal_l f c :
     ex_seriesC f →
-    ex_series (countable_sum (λ x, c * f x)).
+    ex_seriesC (λ x, c * f x).
   Proof.
     intros. eapply ex_series_ext.
     { intros n. rewrite countable_sum_scal_l. done. }

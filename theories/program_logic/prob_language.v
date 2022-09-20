@@ -107,22 +107,79 @@ Section language.
       prim_step e σ α (e', σ') > 0 →
       if a is WeaklyAtomic then irreducible e' σ' α else is_Some (to_val e').
 
-  Definition kernel_conf (f : scheduler_fn Λ) (ρ ρ' : cfg Λ) : R :=
+  Definition kernel_fn_pmf (f : scheduler_fn Λ) (ρ ρ' : cfg Λ) : R :=
     if f ρ is Some α then prim_step ρ.1 ρ.2 α ρ' else 0.
 
-  Program Definition kernel_conf_distr (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    MkDistr (kernel_conf f ρ) _ _ _.
-  Next Obligation.
-    intros. rewrite /kernel_conf. destruct (f ρ); [done|lra].
+  Program Definition kernel_fn (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
+    MkDistr (kernel_fn_pmf f ρ) _ _ _.
+  Next Obligation. intros f ρ a. rewrite /kernel_fn_pmf. destruct (f ρ); [done|lra]. Qed.
+  Next Obligation. intros f ρ. rewrite /kernel_fn_pmf. destruct (f ρ); [done|]. eapply ex_seriesC_0. Qed.
+  Next Obligation. intros f ρ. rewrite /kernel_fn_pmf. destruct (f ρ); [done|]. rewrite SeriesC_0 //. lra. Qed.
+
+  Arguments kernel_fn _ _ : simpl never.
+  Arguments dret _ : simpl never.
+
+  Fixpoint kernel_scheduler_pmf (ξ : scheduler Λ) (ρ ρ' : cfg Λ) : R :=
+    match ξ with
+    | f :: ξ' => SeriesC (λ ρ'', kernel_fn f ρ ρ'' * kernel_scheduler_pmf ξ' ρ'' ρ')
+    | [] => dret ρ ρ'
+    end.
+
+  #[local] Lemma kernel_scheduler_pmf_range ξ ρ ρ' :
+    0 <= kernel_scheduler_pmf ξ ρ ρ' <= 1.
+  Proof.
+    revert ρ ρ'. induction ξ as [|f ξ IH]; intros ρ ρ'; cbn.
+    { split; [done|]. eapply pmf_le_1. }
+    split.
+    - eapply SeriesC_ge_0.
+      { intros ρ''. apply Rmult_le_pos; [done|]. apply IH. }
+      eapply (ex_seriesC_le _ (kernel_fn f ρ)); [|done].
+      intros ρ''.
+      split; [apply Rmult_le_pos; [done|apply IH]|].
+      rewrite -{2}(Rmult_1_r (kernel_fn _ _ _)).
+      apply Rmult_le_compat_l; [done|].
+      apply IH.
+    - transitivity (SeriesC (kernel_fn f ρ)); [|eapply pmf_SeriesC].
+      eapply SeriesC_le; [|done].
+      intros ρ''. split.
+      + apply Rmult_le_pos; [done|apply IH].
+      + rewrite -{2}(Rmult_1_r (kernel_fn _ _ _)).
+        apply Rmult_le_compat_l; [done|]. apply IH.
   Qed.
-  Next Obligation.
-    intros f ρ. rewrite /kernel_conf. destruct (f ρ); [done|].
-    eapply ex_seriesC_0.
+
+  #[local] Lemma kernel_scheduler_pmf_series ξ ρ :
+    ex_seriesC (kernel_scheduler_pmf ξ ρ) ∧ SeriesC (kernel_scheduler_pmf ξ ρ) <= 1.
+  Proof.
+    revert ρ. induction ξ as [|f ξ IH]; intros ρ; cbn; [done|].
+    split.
+    - eapply (ex_seriesC_double_swap_impl (λ '(a, b), _)).
+      eapply (ex_seriesC_ext (λ b, kernel_fn f ρ b * SeriesC _)).
+      { intros a. rewrite SeriesC_scal_l //. }
+      eapply (ex_seriesC_le _ (λ b , kernel_fn f ρ b * 1)); [|by apply ex_seriesC_scal_r].
+      intros a. split.
+      + apply Rmult_le_pos; [done|]. eapply SeriesC_ge_0.
+        { apply kernel_scheduler_pmf_range. }
+        apply IH.
+      + apply Rmult_le_compat_l; [done|]. apply IH.
+    - rewrite (SeriesC_double_swap (λ '(a, b), _)).
+      rewrite -(SeriesC_ext (λ b, kernel_fn f ρ b * SeriesC (kernel_scheduler_pmf ξ b))); last first.
+      { intros a. rewrite SeriesC_scal_l //. }
+      transitivity (SeriesC (kernel_fn f ρ)); [|done].
+      eapply SeriesC_le; [|done].
+      intros ρ'. split.
+      + apply Rmult_le_pos; [done|].
+        apply SeriesC_ge_0.
+        { apply kernel_scheduler_pmf_range. }
+        apply IH.
+      + rewrite -{2}(Rmult_1_r (kernel_fn _ _ _)).
+        apply Rmult_le_compat_l; [done|]. apply IH.
   Qed.
-  Next Obligation.
-    intros f ρ. rewrite /kernel_conf. destruct (f ρ); [done|].
-    rewrite SeriesC_0 //. lra.
-  Qed.
+
+  Program Fixpoint kernel_scheduler (ξ : scheduler Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
+    (MkDistr (kernel_scheduler_pmf ξ ρ) _ _ _).
+  Next Obligation. apply kernel_scheduler_pmf_range. Qed.
+  Next Obligation. apply kernel_scheduler_pmf_series. Qed.
+  Next Obligation. apply kernel_scheduler_pmf_series. Qed.
 
   Inductive step (ρ1 : cfg Λ) (α : action Λ) (ρ2 : cfg Λ) : Prop :=
   | step_atomic e1 σ1 :

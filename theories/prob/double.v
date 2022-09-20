@@ -891,28 +891,33 @@ Proof. Admitted.
 Section countable_sum.
   Context `{Countable A, Countable B}.
 
-  Variable (a : A * B → R).
+  Variable (f : A * B → R).
 
-  (** TODO: some proper lifting of [double_summable]?  *)
+  (** TODO: this should hopefully work?  *)
+  Definition double_summableC :=
+    ∃ (r: R), ∀ n, sumC_n (λ (a : A), sumC_n (λ (b : B), Rabs (f (a, b))) n) n <= r.
 
-  (** TODO: Three lemmas below needs to require the lifting of [double_summable]
-      of [a] *)
+  (** TODO: The lemmas below need to require [double_summableC] for [f] *)
   Lemma is_seriesC_double_swap :
-    is_seriesC (λ j, SeriesC (λ k, a (j, k))) (SeriesC (λ k, SeriesC (λ j, a (j, k)))).
+    is_seriesC (λ a, SeriesC (λ b, f (a, b))) (SeriesC (λ b, SeriesC (λ a, f (a, b)))).
   Proof. Admitted.
 
   Lemma SeriesC_double_swap :
-    SeriesC (λ j, SeriesC (λ k, a (j, k))) = SeriesC (λ k, SeriesC (λ j, a (j, k))).
+    SeriesC (λ a, SeriesC (λ b, f (a, b))) = SeriesC (λ b, SeriesC (λ a, f (a, b))).
   Proof. Admitted.
 
   Lemma is_seriesC_double_swap_impl v :
-    is_seriesC (λ j, SeriesC (λ k, a (j, k))) v →
-    is_seriesC (λ k, SeriesC (λ j, a (j, k))) v.
-  Proof. Admitted.
+    is_seriesC (λ b, SeriesC (λ a, f (a, b))) v →
+    is_seriesC (λ a, SeriesC (λ b, f (a, b))) v.
+  Proof.
+    intros <-%is_seriesC_unique. apply is_seriesC_double_swap.
+  Qed.
 
   Lemma ex_seriesC_double_swap_impl :
-    ex_seriesC (λ j, SeriesC (λ k, a (j, k))) →
-    ex_seriesC (λ k, SeriesC (λ j, a (j, k))).
-  Proof. Admitted.
+    ex_seriesC (λ b, SeriesC (λ a, f (a, b))) →
+    ex_seriesC (λ a, SeriesC (λ b, f (a, b))).
+  Proof.
+    intros [v ?]. exists v. by eapply is_seriesC_double_swap_impl.
+  Qed.
 
 End countable_sum.
