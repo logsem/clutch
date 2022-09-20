@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import fin.
-From proba.prelude Require Import base Reals_ext Coquelicot_ext stdpp_ext.
-From proba.prob Require Import countable_sum.
+From self.prelude Require Import base Reals_ext Coquelicot_ext stdpp_ext.
+From self.prob Require Import countable_sum.
 Import Hierarchy.
 
 (* TODO: move somewhere else? *)

@@ -3,16 +3,13 @@ From stdpp Require Import gmap.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From iris.bi Require Export weakestpre.
-From proba.prob Require Import distribution.
+From self.prob Require Import distribution.
 
 Section language_mixin.
   Context {expr val state action : Type}.
   Context `{Countable expr, Countable state}.
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
-
-  (** TODO: We need to add either a bottom element or require a sub-probability measure
-      that is not required to sum to 1 *)
   Context (prim_step : expr → state → action → distr (expr * state)).
 
   Record LanguageMixin := {
@@ -58,7 +55,8 @@ Canonical Structure exprO Λ := leibnizO (expr Λ).
 
 Definition cfg (Λ : language) := (expr Λ * state Λ)%type.
 
-Definition scheduler_fn (Λ : language) := gmap (cfg Λ) (action Λ).
+(* TODO: gmap or function? *)
+Definition scheduler_fn (Λ : language) := (cfg Λ) → option (action Λ).
 Definition scheduler (Λ : language) := list (scheduler_fn Λ).
 
 Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
@@ -110,20 +108,21 @@ Section language.
       if a is WeaklyAtomic then irreducible e' σ' α else is_Some (to_val e').
 
   Definition kernel_conf (f : scheduler_fn Λ) (ρ ρ' : cfg Λ) : R :=
-    if f !! ρ is Some α then prim_step ρ.1 ρ.2 α ρ' else 0.
+    if f ρ is Some α then prim_step ρ.1 ρ.2 α ρ' else 0.
 
   Program Definition kernel_conf_distr (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    MkDistr (kernel_conf f ρ) _ _.
+    MkDistr (kernel_conf f ρ) _ _ _.
   Next Obligation.
-    intros. rewrite /kernel_conf. destruct (f !! ρ); [done|nra].
+    intros. rewrite /kernel_conf. destruct (f ρ); [done|lra].
   Qed.
   Next Obligation.
-    intros f ρ. rewrite /kernel_conf. destruct (f !! ρ); [done|].
-
-    (* of course doesn't hold because it doesn't sum to one :-) *)
-    Admitted.
-
-
+    intros f ρ. rewrite /kernel_conf. destruct (f ρ); [done|].
+    eapply ex_seriesC_0.
+  Qed.
+  Next Obligation.
+    intros f ρ. rewrite /kernel_conf. destruct (f ρ); [done|].
+    rewrite SeriesC_0 //. lra.
+  Qed.
 
   Inductive step (ρ1 : cfg Λ) (α : action Λ) (ρ2 : cfg Λ) : Prop :=
   | step_atomic e1 σ1 :

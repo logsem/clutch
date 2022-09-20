@@ -1,16 +1,16 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import numbers.
-From proba.prelude Require Import base.
+From self.prelude Require Import base Reals_ext.
 Import Hierarchy.
 
 Local Open Scope R.
 
-Instance Rbar_le_Transitive: Transitive Rbar_le.
+#[global] Instance Rbar_le_Transitive: Transitive Rbar_le.
 Proof. intros ???. eapply Rbar_le_trans. Qed.
-Instance Rbar_le_Reflexive: Reflexive Rbar_le.
+#[global] Instance Rbar_le_Reflexive: Reflexive Rbar_le.
 Proof. intros ?. eapply Rbar_le_refl. Qed.
-Instance Rbar_lt_Transitive: Transitive Rbar_lt.
+#[global] Instance Rbar_lt_Transitive: Transitive Rbar_lt.
 Proof. intros ???. eapply Rbar_lt_trans. Qed.
 
 Lemma Rbar_le_fin' x y: 0 <= y → Rbar_le x y → x <= real y.
@@ -155,19 +155,19 @@ Lemma Series_correct' a v:
   Series a = v → ex_series a → is_series a v.
 Proof. by intros <- ?; apply Series_correct. Qed.
 
-Global Instance is_series_Proper:
+#[global] Instance is_series_Proper:
   Proper (pointwise_relation nat (@eq R) ==> @eq R ==> iff) is_series.
 Proof.
   intros ?? ? ?? ?; subst; split; eapply is_series_ext; eauto.
 Qed.
 
-Global Instance ex_series_Proper:
+#[global] Instance ex_series_Proper:
   Proper (pointwise_relation nat (@eq R) ==> iff) ex_series.
 Proof.
   intros ?? ?; split; eapply ex_series_ext; eauto.
 Qed.
 
-Global Instance Series_Proper:
+#[global] Instance Series_Proper:
   Proper (pointwise_relation nat (@eq R) ==> eq) Series.
 Proof.
   intros ?? ?; eapply Series_ext; eauto.

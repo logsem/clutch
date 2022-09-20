@@ -2,18 +2,18 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy.
 From stdpp Require Import option.
 From stdpp Require Export countable.
-From proba.prelude Require Import base Coquelicot_ext stdpp_ext.
+From self.prelude Require Import base Coquelicot_ext stdpp_ext.
 Import Hierarchy.
 
 Open Scope R.
 
-(** A theory of (in)finite series over countable types by.  *)
+(** A theory of (in)finite series over countable types.  *)
 Section countable_sum.
   Context `{Countable A}.
 
   Implicit Types f g : A → R.
 
-  (** 'Traverses' the type in the order given by the valid countability *)
+  (** 'Traverses' the type in the order given by decoding [0, 1, 2, ...] *)
   Definition countable_sum (f : A → R) :=
     λ (n : nat), from_option f 0 (encode_inv_nat n).
 
@@ -23,7 +23,7 @@ Section countable_sum.
 
   Lemma countable_sum_ge_0 f m :
     (∀ n, 0 <= f n) → 0 <= countable_sum f m.
-  Proof. intros. rewrite /countable_sum. destruct (encode_inv_nat _)=>//=. lra. Qed.
+  Proof. intros. rewrite /countable_sum. destruct (encode_inv_nat _)=>//=. Qed.
 
   Lemma countable_sum_ext f g m :
     (∀ n, f n = g n) → countable_sum f m = countable_sum g m.
@@ -31,7 +31,7 @@ Section countable_sum.
 
   Lemma countable_sum_le f g m :
     (∀ n, f n <= g n) → countable_sum f m <= countable_sum g m.
-  Proof. intros ?. rewrite /countable_sum. destruct (encode_inv_nat _) =>//=. lra. Qed.
+  Proof. intros ?. rewrite /countable_sum. destruct (encode_inv_nat _) =>//=. Qed.
 
   Lemma countable_sum_scal c f n :
     countable_sum (λ x, scal c (f x)) n = scal c (countable_sum f n).
@@ -162,8 +162,9 @@ Section series.
     ex_seriesC g →
     SeriesC f <= SeriesC g.
   Proof.
-    intros ???. apply Series_le' => //= n. rewrite /countable_sum.
-    destruct (encode_inv_nat _) => //=. nra.
+    intros ???. apply Series_le' => //= n.
+    rewrite /countable_sum.
+    destruct (encode_inv_nat _) => //=.
   Qed.
 
   Lemma SeriesC_scal_l f c :
@@ -176,6 +177,12 @@ Section series.
     SeriesC (λ x, f x * c) = SeriesC f * c.
   Proof.
     intros. rewrite -Series_scal_r. apply Series_ext. apply countable_sum_scal_r.
+  Qed.
+
+  Lemma ex_seriesC_0 :
+    ex_seriesC (λ _, 0).
+  Proof.
+    eexists; by eapply is_seriesC_0.
   Qed.
 
   Lemma ex_seriesC_le f g :
@@ -287,6 +294,10 @@ Section filter.
       case_bool_decide; [|done]; subst.
       exfalso. apply Hneq. symmetry. by apply encode_inv_Some_nat.
   Qed.
+
+  Lemma ex_seriesC_singleton (a : A) v :
+    ex_seriesC (λ (n : A), if bool_decide (n = a) then v else 0).
+  Proof. eexists. eapply is_seriesC_singleton. Qed.
 
   Lemma SeriesC_singleton (a : A) v :
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.

@@ -1,4 +1,4 @@
--Q theories proba
+-Q theories self
 
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection

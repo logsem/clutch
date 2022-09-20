@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import fin.
-From proba.prelude Require Import base Reals_ext Coquelicot_ext stdpp_ext.
-From proba.prob Require Import countable_sum rearrange.
+From self.prelude Require Import base Reals_ext Coquelicot_ext stdpp_ext.
+From self.prob Require Import countable_sum rearrange.
 Import Hierarchy.
 
 (** So-called "summable" double series converge and can be rearranged and
@@ -884,3 +884,35 @@ Lemma Series_double_swap a (DS: double_summable a):
   Series (λ j, Series (λ k, a (j, k))) =  (Series (λ k, Series (λ j, a (j, k)))).
 Proof. Admitted.
   (* apply is_series_unique. by apply series_double_swap. Qed. *)
+
+
+(** This section should lift the theorems above to the [is_seriesC] and
+    [SeriesC] predicates *)
+Section countable_sum.
+  Context `{Countable A, Countable B}.
+
+  Variable (a : A * B → R).
+
+  (** TODO: some proper lifting of [double_summable]?  *)
+
+  (** TODO: Three lemmas below needs to require the lifting of [double_summable]
+      of [a] *)
+  Lemma is_seriesC_double_swap :
+    is_seriesC (λ j, SeriesC (λ k, a (j, k))) (SeriesC (λ k, SeriesC (λ j, a (j, k)))).
+  Proof. Admitted.
+
+  Lemma SeriesC_double_swap :
+    SeriesC (λ j, SeriesC (λ k, a (j, k))) = SeriesC (λ k, SeriesC (λ j, a (j, k))).
+  Proof. Admitted.
+
+  Lemma is_seriesC_double_swap_impl v :
+    is_seriesC (λ j, SeriesC (λ k, a (j, k))) v →
+    is_seriesC (λ k, SeriesC (λ j, a (j, k))) v.
+  Proof. Admitted.
+
+  Lemma ex_seriesC_double_swap_impl :
+    ex_seriesC (λ j, SeriesC (λ k, a (j, k))) →
+    ex_seriesC (λ k, SeriesC (λ j, a (j, k))).
+  Proof. Admitted.
+
+End countable_sum.
