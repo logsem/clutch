@@ -15,6 +15,7 @@ From self.prob Require Import distribution.
 Section ectx_language_mixin.
   Context {expr val ectx state action : Type}.
   Context `{Countable expr, Countable state}.
+  Context (red_act : action).
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
   Context (empty_ectx : ectx).
@@ -25,8 +26,8 @@ Section ectx_language_mixin.
   Record EctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
-    mixin_val_head_stuck e1 σ1 α ρ :
-      head_step e1 σ1 α ρ > 0 → to_val e1 = None;
+    mixin_val_head_stuck e1 σ1 ρ :
+      head_step e1 σ1 red_act ρ > 0 → to_val e1 = None;
 
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
@@ -41,17 +42,17 @@ Section ectx_language_mixin.
 
         This implies there can be only one head redex, see
         [head_redex_unique]. *)
-    mixin_step_by_val K' K_redex e1' e1_redex σ1 α ρ :
+    mixin_step_by_val K' K_redex e1' e1_redex σ1 ρ :
       fill K' e1' = fill K_redex e1_redex →
       to_val e1' = None →
-      head_step e1_redex σ1 α ρ > 0 →
+      head_step e1_redex σ1 red_act ρ > 0 →
       ∃ K'', K_redex = comp_ectx K' K'';
 
   (** If [fill K e] takes a head step, then either [e] is a value or [K] is
       the empty evaluation context. In other words, if [e] is not a value
       wrapping it in a context does not add new head redex positions. *)
-  mixin_head_ctx_step_val K e σ1 α ρ :
-    head_step (fill K e) σ1 α ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx;
+  mixin_head_ctx_step_val K e σ1 ρ :
+    head_step (fill K e) σ1 red_act ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx;
 
   }.
 End ectx_language_mixin.
@@ -68,6 +69,7 @@ Structure ectxLanguage := EctxLanguage {
   expr_countable : Countable expr;
   state_countable : Countable state;
 
+  red_act : action;
   of_val : val → expr;
   to_val : expr → option val;
   empty_ectx : ectx;
@@ -76,7 +78,7 @@ Structure ectxLanguage := EctxLanguage {
   head_step : expr → state → action → distr (expr * state);
 
   ectx_language_mixin :
-    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill head_step
+    EctxLanguageMixin red_act of_val to_val empty_ectx comp_ectx fill head_step
 }.
 
 #[global] Existing Instance expr_eqdec.
@@ -88,6 +90,7 @@ Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
 Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments red_act {_}.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
@@ -103,7 +106,7 @@ Section ectx_language.
   Implicit Types K : ectx Λ.
 
   (* Only project stuff out of the mixin that is not also in language *)
-  Lemma val_head_stuck e1 σ1 α e2 σ2 : head_step e1 σ1 α (e2, σ2) > 0 → to_val e1 = None.
+  Lemma val_head_stuck e1 σ1 e2 σ2 : head_step e1 σ1 red_act (e2, σ2) > 0 → to_val e1 = None.
   Proof. apply ectx_language_mixin. Qed.
   Lemma fill_empty e : fill empty_ectx e = e.
   Proof. apply ectx_language_mixin. Qed.
@@ -113,28 +116,29 @@ Section ectx_language.
   Proof. apply ectx_language_mixin. Qed.
   Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma step_by_val K' K_redex e1' e1_redex σ1 α ρ :
+  Lemma step_by_val K' K_redex e1' e1_redex σ1 ρ :
       fill K' e1' = fill K_redex e1_redex →
       to_val e1' = None →
-      head_step e1_redex σ1 α ρ > 0 →
+      head_step e1_redex σ1 red_act ρ > 0 →
       ∃ K'', K_redex = comp_ectx K' K''.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma head_ctx_step_val K e σ1 α ρ :
-    head_step (fill K e) σ1 α ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx.
+  Lemma head_ctx_step_val K e σ1 ρ :
+    head_step (fill K e) σ1 red_act ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx.
   Proof. apply ectx_language_mixin. Qed.
 
-  Definition head_reducible (e : expr Λ) (σ : state Λ) (α : action Λ) :=
-    ∃ ρ, head_step e σ α ρ > 0.
-  Definition head_irreducible (e : expr Λ) (σ : state Λ) (α : action Λ) :=
-    ∀ ρ, head_step e σ α ρ = 0.
-  Definition head_stuck (e : expr Λ) (σ : state Λ) (α : action Λ) :=
-    to_val e = None ∧ head_irreducible e σ α.
+  Definition head_reducible (e : expr Λ) (σ : state Λ) :=
+    ∃ ρ, head_step e σ red_act ρ > 0.
+  Definition head_irreducible (e : expr Λ) (σ : state Λ) :=
+    ∀ ρ, head_step e σ red_act ρ = 0.
+  Definition head_stuck (e : expr Λ) (σ : state Λ) :=
+    to_val e = None ∧ head_irreducible e σ.
 
   (* All non-value redexes are at the root. In other words, all sub-redexes are
      values. *)
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
+  (* TODO: we can probably find [K], [e1'] and [e2'] constructively - any benefits?  *)
   #[local] Definition prim_step_decompose (e1 : expr Λ) (σ1 : state Λ) (α : action Λ) (e2 : expr Λ) (σ2 : state Λ) : Prop :=
     ∃ K e1' e2', e1 = fill K e1' ∧ e2 = fill K e2' ∧ head_step e1' σ1 α (e2', σ2) > 0.
   #[local] Instance decompose_instance e1 σ1 α e2 σ2 : Decision (prim_step_decompose e1 σ1 α e2 σ2).
@@ -164,32 +168,32 @@ Section ectx_language.
     pose proof (pmf_pos (head_step e1 σ1 α) (e, σ)). lra.
   Qed.
 
-  Definition ectx_lang_mixin : LanguageMixin (@of_val Λ) to_val prim_step.
+  Definition ectx_lang_mixin : LanguageMixin red_act (@of_val Λ) to_val prim_step.
   Proof.
     split.
     - apply ectx_language_mixin.
     - apply ectx_language_mixin.
-    - intros ??? [??]=>/=. case_bool_decide; [|lra].
+    - intros ??[??] =>/=. case_bool_decide; [|lra].
       eapply val_head_stuck.
   Qed.
 
   Canonical Structure ectx_lang : language := Language ectx_lang_mixin.
 
-  Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
-    ∀ σ α e' σ',
-      head_step e σ α (e', σ') > 0 →
-      if a is WeaklyAtomic then irreducible e' σ' α else is_Some (to_val e').
+  (* Definition head_atomic (a : atomicity) (e : expr Λ) : Prop := *)
+  (*   ∀ σ α e' σ', *)
+  (*     head_step e σ α (e', σ') > 0 → *)
+  (*     if a is WeaklyAtomic then irreducible e' σ' α else is_Some (to_val e'). *)
 
   (** * Some lemmas about this language *)
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
-  Lemma not_head_reducible e σ α : ¬head_reducible e σ α ↔ head_irreducible e σ α.
+  Lemma not_head_reducible e σ : ¬head_reducible e σ ↔ head_irreducible e σ.
   Proof.
     unfold head_reducible, head_irreducible. split.
     - intros Hnot ρ.
-      assert (¬ head_step e σ α ρ > 0) as H%Rnot_gt_ge; eauto.
-      pose proof (pmf_pos (head_step e σ α) ρ). lra.
+      assert (¬ head_step e σ red_act ρ > 0) as H%Rnot_gt_ge; eauto.
+      pose proof (pmf_pos (head_step e σ red_act) ρ). lra.
     - intros Hall [ρ ?]. specialize (Hall ρ). lra.
   Qed.
 
@@ -198,31 +202,43 @@ Section ectx_language.
       In all sensible instances, [comp_ectx K' empty_ectx] will be the same as
       [K'], so the conclusion is [K = K' ∧ e = e'], but we do not require a law
       to actually prove that so we cannot use that fact here. *)
-  Lemma head_redex_unique K K' e e' σ α :
+  Lemma head_redex_unique K K' e e' σ :
     fill K e = fill K' e' →
-    head_reducible e σ α →
-    head_reducible e' σ α →
+    head_reducible e σ →
+    head_reducible e' σ →
     K = comp_ectx K' empty_ectx ∧ e = e'.
   Proof.
     intros Heq [[e2 σ2] Hred] [[e2' σ2'] Hred'].
     edestruct (step_by_val K' K e' e) as [K'' HK];
       [by eauto using val_head_stuck..|].
     subst K. move: Heq. rewrite -fill_comp. intros <-%(inj (fill _)).
-    destruct (head_ctx_step_val _ _ _ _ _ Hred') as [[]%not_eq_None_Some|HK''].
+    destruct (head_ctx_step_val _ _ _ _ Hred') as [[]%not_eq_None_Some|HK''].
     { by eapply val_head_stuck. }
     subst K''. rewrite fill_empty. done.
   Qed.
 
   Lemma head_prim_step e1 σ1 α e2 σ2 :
     head_step e1 σ1 α (e2, σ2) > 0 → prim_step e1 σ1 α (e2, σ2) > 0.
-  Proof. done. Qed.
+  Proof.
+    rewrite /prim_step /=. intros Hstep.
+    rewrite bool_decide_eq_true_2 //.
+    exists empty_ectx, e1, e2. rewrite 2!fill_empty //.
+  Qed.
 
-  Lemma head_step_not_stuck e σ α e' σ' : head_step e σ α (e', σ') > 0 → not_stuck e σ α.
-  Proof. rewrite /not_stuck /reducible /=. eauto 10. Qed.
+  Lemma head_step_not_stuck e σ e' σ' : head_step e σ red_act (e', σ') > 0 → not_stuck e σ.
+  Proof.
+    rewrite /not_stuck /reducible /=.
+    intros Hstep. right. exists (e', σ').
+    rewrite bool_decide_eq_true_2 //.
+    exists empty_ectx, e, e'. rewrite 2!fill_empty //.
+  Qed.
 
   Lemma fill_prim_step K e1 σ1 α e2 σ2 :
     prim_step e1 σ1 α (e2, σ2) = prim_step (fill K e1) σ1 α (fill K e2, σ2).
-  Proof. apply fill_prob. Qed.
+  Proof.
+    Admitted.
+  Qed.
+
   Lemma fill_reducible K e σ α : reducible e σ α → reducible (fill K e) σ α.
   Proof.
     intros ([e' σ']&?). exists (fill K e', σ').
