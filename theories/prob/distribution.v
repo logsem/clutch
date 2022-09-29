@@ -130,14 +130,14 @@ End monadic.
 Section dmap.
   Context `{Countable A, Countable B}.
 
-  Definition dmap (f : A → B) (μ : distr A) : distr B :=
+  Program Definition dmap (f : A → B) (μ : distr A) : distr B :=
     dbind (λ a, dret (f a)) μ.
 End dmap.
 
 Section strength.
   Context `{Countable A, Countable B}.
   
-  Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
+  Program Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
     dbind (λ b, dret (a ,b)) μ.
 
 End strength. 
