@@ -111,6 +111,9 @@ Section monadic.
       by apply Rmult_le_compat_l.
   Qed.
 
+(*  Definition strength_l_pmf (a : A) (μ : distr B) : distr (A * B) :=
+    dbind (λ b, dret (a , b)) μ.
+
   Definition strength_l_pmf (a' : A) (μ : distr B) : A * B → R :=
     λ '(a, b), if bool_decide (a = a') then μ b else 0.
 
@@ -120,7 +123,24 @@ Section monadic.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
 
+*)
+
 End monadic.
+
+Section dmap.
+  Context `{Countable A, Countable B}.
+
+  Definition dmap (f : A → B) (μ : distr A) : distr B :=
+    dbind (λ a, dret (f a)) μ.
+End dmap.
+
+Section strength.
+  Context `{Countable A, Countable B}.
+  
+  Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
+    dbind (λ b, dret (a ,b)) μ.
+
+End strength. 
 
 (* Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope. *)
 (* Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope. *)
