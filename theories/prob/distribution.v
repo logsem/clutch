@@ -111,6 +111,15 @@ Section monadic.
       by apply Rmult_le_compat_l.
   Qed.
 
+  Definition strength_l_pmf (a' : A) (μ : distr B) : A * B → R :=
+    λ '(a, b), if bool_decide (a = a') then μ b else 0.
+
+  Program Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
+    MkDistr (strength_l_pmf a μ) _ _ _.
+  Next Obligation. intros ?? [? ?]=>/=. by case_bool_decide. Qed.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+
 End monadic.
 
 (* Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope. *)
