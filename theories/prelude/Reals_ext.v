@@ -17,6 +17,15 @@ Proof. intros ???. eapply Rgt_trans. Qed.
 #[global] Instance Rlt_Transitive: Transitive Rlt.
 Proof. intros ???. eapply Rlt_trans. Qed.
 
+#[global] Instance Rgt_decision (r1 r2 : R) : Decision (Rgt r1 r2).
+Proof. apply Rgt_dec. Qed.
+#[global] Instance Rge_decision (r1 r2 : R) : Decision (Rge r1 r2).
+Proof. apply Rge_dec. Qed.
+#[global] Instance Rlt_decision (r1 r2 : R) : Decision (Rlt r1 r2).
+Proof. apply Rlt_dec. Qed.
+#[global] Instance Rle_decision (r1 r2 : R) : Decision (Rle r1 r2).
+Proof. apply Rle_dec. Qed.
+
 #[global] Instance Rlt_plus_proper: Proper (Rlt ==> Rlt ==> Rlt) Rplus.
 Proof.
   intros ?? Hle ?? Hle'. apply Rplus_lt_compat; auto.
