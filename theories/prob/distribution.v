@@ -140,7 +140,74 @@ Section strength.
   Program Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
     dbind (λ b, dret (a ,b)) μ.
 
-End strength. 
+End strength.
+
+Section monadic_theory.
+  Context `{Countable A, Countable B}.
+  Context {μ1 : distr A} {μ2 : distr B}.
+
+  Lemma dret_id_left_pmf (f : A → distr B) a b :
+    (dbind f (dret a)) b = (f a) b.
+  Proof.
+    simpl.
+    rewrite /dbind_pmf.
+    simpl.
+    rewrite /dret_pmf.
+    assert
+      (SeriesC (λ a0 : A, (if bool_decide (a0 = a) then 1 else 0) * f a0 b) =
+         SeriesC (λ a0 : A, (if bool_decide (a0 = a) then f a b else 0))) as H2.
+    { apply SeriesC_ext; intro a0; case_eq (bool_decide (a0 = a)); intro Heq; try nra.
+      pose proof (bool_decide_eq_true_1 (a0 = a)) Heq as Heq';
+    destruct Heq'; nra. }
+    assert
+      (SeriesC (λ a0 : A, if bool_decide (a0 = a) then f a b else 0) = f a b).
+    { apply SeriesC_singleton. }
+    nra.
+  Qed.
+
+
+  Lemma dret_id_right_pmf (μ : distr A) a :
+    (dbind (λ x, dret x) μ) a = μ a.
+  Proof.
+    simpl.
+    rewrite /dbind_pmf.
+    simpl.
+    rewrite /dret_pmf.
+    assert
+      (SeriesC (λ a0 : A, μ a0 * (if bool_decide (a = a0) then 1 else 0)) =
+      SeriesC (λ a0 : A,  (if bool_decide (a0 = a) then μ a else 0))) as H2.
+    { apply SeriesC_ext; intro a0; case_eq (bool_decide (a0 = a)); intro Heq.
+      + assert (bool_decide (a = a0) = bool_decide (a0 = a)) as H2.
+        ++ apply bool_decide_ext; split; intros; auto.
+        ++ rewrite H2. rewrite Heq.
+           pose proof (bool_decide_eq_true_1 (a0 = a)) Heq as Heq'.
+           rewrite Rmult_1_r.
+           destruct Heq'.
+           done.
+     + assert (bool_decide (a = a0) = bool_decide (a0 = a)) as H2.
+        ++ apply bool_decide_ext; split; intros; auto.
+        ++ rewrite H2. rewrite Heq.
+           pose proof (bool_decide_eq_false_1 (a0 = a)) Heq as Heq'.
+           rewrite Rmult_0_r.
+           done.
+    }
+    rewrite H2.
+    apply SeriesC_singleton.
+  Qed.
+
+  Lemma dmap_dret_pmf (f : A → B) a b :
+    dmap f (dret a) b = dret (f a) b.
+  Proof.
+    rewrite /dmap.
+    rewrite dret_id_left_pmf.
+    done.
+  Qed.
+
+
+
+
+End monadic_theory.
+
 
 (* Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope. *)
 (* Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope. *)
