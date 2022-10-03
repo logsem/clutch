@@ -143,7 +143,7 @@ Section strength.
 End strength.
 
 Section monadic_theory.
-  Context `{Countable A, Countable B}.
+  Context `{Countable A, Countable B, Countable B'}.
   Context {μ1 : distr A} {μ2 : distr B}.
 
   Lemma dret_id_left_pmf (f : A → distr B) a b :
@@ -194,6 +194,31 @@ Section monadic_theory.
     rewrite H2.
     apply SeriesC_singleton.
   Qed.
+
+  Lemma dbind_assoc (f : A → distr B) (g : B → distr B') (μ : distr A) c :
+    dbind (λ a, dbind g (f a) ) μ c = dbind g ( dbind f μ ) c.
+  Proof.
+    simpl.
+    rewrite /dbind_pmf.
+    simpl.
+    rewrite /dbind_pmf.
+    assert (SeriesC (λ a : A, μ a * SeriesC (λ a0 : B, f a a0 * g a0 c)) =
+              SeriesC (λ a : A, SeriesC (λ a0 : B, μ a * f a a0 * g a0 c))) as Heq1.
+    { apply SeriesC_ext; intro a.
+      rewrite <- SeriesC_scal_l.
+      apply SeriesC_ext; intros n; lra. }
+    rewrite Heq1.
+    pose proof (SeriesC_double_swap (λ '(a ,a0), μ a * f a a0 * g a0 c)) as Heq2.
+    simpl in Heq2.
+    rewrite Heq2.
+    apply SeriesC_ext.
+    intro b.
+    rewrite <- SeriesC_scal_r.
+    apply SeriesC_ext.
+    intro a.
+    done.
+  Qed.
+
 
   Lemma dmap_dret_pmf (f : A → B) a b :
     dmap f (dret a) b = dret (f a) b.

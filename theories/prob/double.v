@@ -920,4 +920,11 @@ Section countable_sum.
     intros [v ?]. exists v. by eapply is_seriesC_double_swap_impl.
   Qed.
 
+
+(* These are also useful *)
+
+Lemma SeriesC_double_prod :
+  SeriesC (λ p, f (p.1, p.2)) = SeriesC (λ a, SeriesC (λ b, f (a, b))).
+Proof. Admitted.
+
 End countable_sum.
