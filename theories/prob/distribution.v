@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
-From self.prelude Require Export base Coquelicot_ext Reals_ext.
+From self.prelude Require Export base Coquelicot_ext Reals_ext classical.
 From self.prob Require Export countable_sum double.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
@@ -34,7 +34,7 @@ Section distributions.
     { eapply SeriesC_singleton. }
     etransitivity; [|eapply (pmf_SeriesC μ)].
     apply SeriesC_le; [|done].
-    intros a'. case_bool_decide; subst; split; try (nra || done).
+    intros a'. case_bool_decide; subst; split; try (lra || done).
   Qed.
 
   Lemma pmf_SeriesC_ge_0 μ : 0 <= SeriesC μ.
@@ -111,89 +111,58 @@ Section monadic.
       by apply Rmult_le_compat_l.
   Qed.
 
-(*  Definition strength_l_pmf (a : A) (μ : distr B) : distr (A * B) :=
-    dbind (λ b, dret (a , b)) μ.
-
-  Definition strength_l_pmf (a' : A) (μ : distr B) : A * B → R :=
-    λ '(a, b), if bool_decide (a = a') then μ b else 0.
-
-  Program Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
-    MkDistr (strength_l_pmf a μ) _ _ _.
-  Next Obligation. intros ?? [? ?]=>/=. by case_bool_decide. Qed.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-
-*)
-
 End monadic.
+
+(* Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope. *)
+(* Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope. *)
+(* Notation "(.≫= f )" := (dbind f) (only parsing) : stdpp_scope. *)
+(* Notation "(≫=)" := (λ m f, dbind f m) (only parsing) : stdpp_scope. *)
+
+(* Notation "x ← y ; z" := (y ≫= (λ x : _, z)) *)
+(*   (at level 20, y at level 100, z at level 200, only parsing) : stdpp_scope. *)
+
+(* Notation "' x ← y ; z" := (y ≫= (λ x : _, z)) *)
+(*   (at level 20, x pattern, y at level 100, z at level 200, only parsing) : stdpp_scope. *)
+
 
 Section dmap.
   Context `{Countable A, Countable B}.
 
-  Program Definition dmap (f : A → B) (μ : distr A) : distr B :=
+  Definition dmap (f : A → B) (μ : distr A) : distr B :=
     dbind (λ a, dret (f a)) μ.
 End dmap.
 
 Section strength.
   Context `{Countable A, Countable B}.
-  
-  Program Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
-    dbind (λ b, dret (a ,b)) μ.
+
+  Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
+    dbind (λ b, dret (a, b)) μ.
 
 End strength.
 
 Section monadic_theory.
-  Context `{Countable A, Countable B, Countable B'}.
-  Context {μ1 : distr A} {μ2 : distr B}.
+  Context `{Countable A, Countable B}.
 
   Lemma dret_id_left_pmf (f : A → distr B) a b :
     (dbind f (dret a)) b = (f a) b.
   Proof.
-    simpl.
-    rewrite /dbind_pmf.
-    simpl.
-    rewrite /dret_pmf.
-    assert
-      (SeriesC (λ a0 : A, (if bool_decide (a0 = a) then 1 else 0) * f a0 b) =
-         SeriesC (λ a0 : A, (if bool_decide (a0 = a) then f a b else 0))) as H2.
-    { apply SeriesC_ext; intro a0; case_eq (bool_decide (a0 = a)); intro Heq; try nra.
-      pose proof (bool_decide_eq_true_1 (a0 = a)) Heq as Heq';
-    destruct Heq'; nra. }
-    assert
-      (SeriesC (λ a0 : A, if bool_decide (a0 = a) then f a b else 0) = f a b).
-    { apply SeriesC_singleton. }
-    nra.
+    rewrite /= /dbind_pmf /= /dret_pmf.
+    rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then f a b else 0)).
+    { rewrite SeriesC_singleton //. }
+    intros a'. case_bool_decide; simplify_eq; lra.
   Qed.
-
 
   Lemma dret_id_right_pmf (μ : distr A) a :
     (dbind (λ x, dret x) μ) a = μ a.
   Proof.
-    simpl.
-    rewrite /dbind_pmf.
-    simpl.
-    rewrite /dret_pmf.
-    assert
-      (SeriesC (λ a0 : A, μ a0 * (if bool_decide (a = a0) then 1 else 0)) =
-      SeriesC (λ a0 : A,  (if bool_decide (a0 = a) then μ a else 0))) as H2.
-    { apply SeriesC_ext; intro a0; case_eq (bool_decide (a0 = a)); intro Heq.
-      + assert (bool_decide (a = a0) = bool_decide (a0 = a)) as H2.
-        ++ apply bool_decide_ext; split; intros; auto.
-        ++ rewrite H2. rewrite Heq.
-           pose proof (bool_decide_eq_true_1 (a0 = a)) Heq as Heq'.
-           rewrite Rmult_1_r.
-           destruct Heq'.
-           done.
-     + assert (bool_decide (a = a0) = bool_decide (a0 = a)) as H2.
-        ++ apply bool_decide_ext; split; intros; auto.
-        ++ rewrite H2. rewrite Heq.
-           pose proof (bool_decide_eq_false_1 (a0 = a)) Heq as Heq'.
-           rewrite Rmult_0_r.
-           done.
-    }
-    rewrite H2.
-    apply SeriesC_singleton.
+    rewrite /= /dbind_pmf /= /dret_pmf.
+    rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then μ a else 0)).
+    { rewrite SeriesC_singleton //. }
+    intros a'. case_bool_decide; simplify_eq.
+    - rewrite bool_decide_eq_true_2 //. lra.
+    - rewrite bool_decide_eq_false_2 //. lra.
   Qed.
+
 
   Lemma dbind_assoc (f : A → distr B) (g : B → distr B') (μ : distr A) c :
     dbind (λ a, dbind g (f a) ) μ c = dbind g ( dbind f μ ) c.
@@ -219,28 +188,30 @@ Section monadic_theory.
     done.
   Qed.
 
+  Lemma dbind_pos_support (f : A → distr B) (μ : distr A) (b : B) :
+    dbind f μ b > 0 ↔ ∃ a, f a b > 0 ∧ μ a > 0.
+  Proof.
+    rewrite /= /dbind_pmf. split.
+    - eapply contrapositive. intros Hna.
+      assert (∀ a, μ a * f a b = 0) as Hz.
+      { intros a.
+        pose proof (not_exists_forall_not _ _ Hna a) as [Hne | Hne]%not_and_or_not.
+        - pose proof (pmf_pos (f a) b). assert (f a b = 0) as ->; lra.
+        - pose proof (pmf_pos μ a). assert (μ a = 0) as ->; lra. }
+      apply Rge_not_gt. rewrite SeriesC_0 //.
+    - intros (a & Hf & Hμ). eapply Rlt_gt.
+      eapply (Rlt_le_trans _ (SeriesC (λ a', if bool_decide (a' = a) then μ a * f a b else 0))).
+      { rewrite SeriesC_singleton. eapply Rmult_gt_0_compat; lra. }
+      eapply SeriesC_le.
+      + intros ?. case_bool_decide; simplify_eq; split; done || by eapply Rmult_le_pos.
+      + apply (ex_seriesC_le _ (λ a : A, μ a * 1)); [|by apply ex_seriesC_scal_r].
+        intros a'. split.
+        * by apply Rmult_le_pos.
+        * apply Rmult_le_compat_l; [done|]. eapply pmf_le_1.
+  Qed.
 
   Lemma dmap_dret_pmf (f : A → B) a b :
     dmap f (dret a) b = dret (f a) b.
-  Proof.
-    rewrite /dmap.
-    rewrite dret_id_left_pmf.
-    done.
-  Qed.
-
-
-
+  Proof. rewrite /dmap dret_id_left_pmf //. Qed.
 
 End monadic_theory.
-
-
-(* Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope. *)
-(* Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope. *)
-(* Notation "(.≫= f )" := (dbind f) (only parsing) : stdpp_scope. *)
-(* Notation "(≫=)" := (λ m f, dbind f m) (only parsing) : stdpp_scope. *)
-
-(* Notation "x ← y ; z" := (y ≫= (λ x : _, z)) *)
-(*   (at level 20, y at level 100, z at level 200, only parsing) : stdpp_scope. *)
-
-(* Notation "' x ← y ; z" := (y ≫= (λ x : _, z)) *)
-(*   (at level 20, x pattern, y at level 100, z at level 200, only parsing) : stdpp_scope. *)

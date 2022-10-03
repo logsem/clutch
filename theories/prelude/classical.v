@@ -109,3 +109,12 @@ Proof.
   intros x; apply NNP_P; revert x.
   apply not_exists_forall_not; trivial.
 Qed.
+
+Lemma not_and_or_not P Q :
+  ¬ (P ∧ Q) →  ¬ P ∨ ¬ Q.
+Proof.
+  intros Hand.
+  destruct (ExcludedMiddle P) as [HP|HnP]; [|auto].
+  destruct (ExcludedMiddle Q) as [HQ|HnQ]; [|auto].
+  tauto.
+Qed.
