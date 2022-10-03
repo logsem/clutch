@@ -56,6 +56,15 @@ Section distributions.
 
 End distributions.
 
+Section zero_distr.
+  Context `{Countable A}.
+
+  Program Definition dzero : distr A := MkDistr (λ _, 0) _ _ _.
+  Next Obligation. done. Qed.
+  Next Obligation. eapply ex_seriesC_0. Qed.
+  Next Obligation. rewrite SeriesC_0 //. lra. Qed.
+End zero_distr.
+
 #[global] Hint Resolve pmf_ex_seriesC : core.
 
 Section monadic.
@@ -113,38 +122,58 @@ Section monadic.
 
 End monadic.
 
-(* Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope. *)
-(* Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope. *)
-(* Notation "(.≫= f )" := (dbind f) (only parsing) : stdpp_scope. *)
-(* Notation "(≫=)" := (λ m f, dbind f m) (only parsing) : stdpp_scope. *)
+(* TODO: generalize to distributions with countable support so that we can use
+   the [stdpp] typeclasses *)
+Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope.
+Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope.
+Notation "(.≫= f )" := (dbind f) (only parsing) : stdpp_scope.
+Notation "(≫=)" := (λ m f, dbind f m) (only parsing) : stdpp_scope.
 
-(* Notation "x ← y ; z" := (y ≫= (λ x : _, z)) *)
-(*   (at level 20, y at level 100, z at level 200, only parsing) : stdpp_scope. *)
+Notation "x ← y ; z" := (y ≫= (λ x : _, z))
+  (at level 20, y at level 100, z at level 200, only parsing) : stdpp_scope.
 
-(* Notation "' x ← y ; z" := (y ≫= (λ x : _, z)) *)
-(*   (at level 20, x pattern, y at level 100, z at level 200, only parsing) : stdpp_scope. *)
-
+Notation "' x ← y ; z" := (y ≫= (λ x : _, z))
+  (at level 20, x pattern, y at level 100, z at level 200, only parsing) : stdpp_scope.
 
 Section dmap.
   Context `{Countable A, Countable B}.
 
   Definition dmap (f : A → B) (μ : distr A) : distr B :=
-    dbind (λ a, dret (f a)) μ.
+    a ← μ; dret (f a).
 End dmap.
 
 Section strength.
   Context `{Countable A, Countable B}.
 
   Definition strength_l (a : A) (μ : distr B) : distr (A * B) :=
-    dbind (λ b, dret (a, b)) μ.
+    b ← μ; dret (a, b).
 
 End strength.
+
+(* N.B. uses [FunExt] and [ProofIrrelevance] axioms  *)
+Lemma distr_ext `{Countable A} (d1 d2 : distr A) :
+  (∀ a, d1.(pmf) a = d2.(pmf) a) →
+  d1 = d2.
+Proof.
+  destruct d1 as [pmf1 ?], d2 as [pmf2 ?] =>/=. intros Ha.
+  assert (pmf1 = pmf2) as ->; [by eapply FunExt|].
+  f_equal; apply ProofIrrelevance.
+Qed.
 
 Section monadic_theory.
   Context `{Countable A, Countable B}.
 
+  Lemma dret_one (a : A) :
+    dret a a = 1.
+  Proof. rewrite /= /dret_pmf bool_decide_eq_true_2 //. Qed.
+
+  Lemma dret_zero (a a' : A) :
+    a' ≠ a →
+    dret a a' = 0.
+  Proof. intros ?. rewrite /= /dret_pmf bool_decide_eq_false_2 //. Qed.
+
   Lemma dret_id_left_pmf (f : A → distr B) a b :
-    (dbind f (dret a)) b = (f a) b.
+    (a' ← dret a; f a') b = f a b.
   Proof.
     rewrite /= /dbind_pmf /= /dret_pmf.
     rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then f a b else 0)).
@@ -152,8 +181,12 @@ Section monadic_theory.
     intros a'. case_bool_decide; simplify_eq; lra.
   Qed.
 
+  Lemma dret_id_left (f : A → distr B) a :
+    (a' ← dret a; f a') = f a.
+  Proof. apply distr_ext, dret_id_left_pmf. Qed.
+
   Lemma dret_id_right_pmf (μ : distr A) a :
-    (dbind (λ x, dret x) μ) a = μ a.
+    (a ← μ; dret a) a = μ a.
   Proof.
     rewrite /= /dbind_pmf /= /dret_pmf.
     rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then μ a else 0)).
@@ -163,8 +196,11 @@ Section monadic_theory.
     - rewrite bool_decide_eq_false_2 //. lra.
   Qed.
 
+  Lemma dret_id_right (μ : distr A) :
+    (a ← μ; dret a) = μ.
+  Proof. apply distr_ext, dret_id_right_pmf. Qed.
 
-  Lemma dbind_assoc (f : A → distr B) (g : B → distr B') (μ : distr A) c :
+  Lemma dbind_assoc `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) c :
     dbind (λ a, dbind g (f a) ) μ c = dbind g ( dbind f μ ) c.
   Proof.
     simpl.
