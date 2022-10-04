@@ -1,6 +1,9 @@
 From Coq.Unicode Require Import Utf8.
 From stdpp Require Import prelude.
 
+(* TODO: the formalization of reals already uses some instances of the Axioms -
+let's reuse those *)
+
 Axiom FunExt :
   ∀ (A : Type) (B : A → Type) (f g : ∀ x, B x), (∀ x, f x = g x) → f = g.
 
