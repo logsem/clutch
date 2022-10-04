@@ -55,14 +55,13 @@ Section distributions.
     apply pmf_le_1.
   Qed.
 
-  (* N.B. uses [FunExt] and [ProofIrrelevance] axioms  *)
+  (* N.B. uses [functional_extensionality] and [proof_irrelevance] axioms  *)
   Lemma distr_ext (d1 d2 : distr A) :
-    (∀ a, d1.(pmf) a = d2.(pmf) a) →
-    d1 = d2.
+    (∀ a, d1.(pmf) a = d2.(pmf) a) → d1 = d2.
   Proof.
     destruct d1 as [pmf1 ?], d2 as [pmf2 ?] =>/=. intros Ha.
-    assert (pmf1 = pmf2) as ->; [by eapply FunExt|].
-    f_equal; apply ProofIrrelevance.
+    assert (pmf1 = pmf2) as ->; [by extensionality b|].
+    f_equal; apply proof_irrelevance.
   Qed.
 
 End distributions.
@@ -203,7 +202,7 @@ Qed.
 
 (* #[global] Instance Proper_dbind `{Countable A, Countable B} : *)
 (*   Proper (pointwise_relation A (=) ==> (=) ==> (=)) (@dbind A _ _ B _ _). *)
-(* Proof. intros ?? Hp ?? ->. f_equal. apply FunExt. done. Qed. *)
+(* Proof. intros ?? Hp ?? ->. f_equal. extensionality x. done. Qed. *)
 
 (* TODO: not all the lemmas rely on both A and B and the [Context {...}` will
    automatically add both [Countable X] instances as an assumption *)

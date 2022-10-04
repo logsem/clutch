@@ -1,23 +1,6 @@
 From Coq.Unicode Require Import Utf8.
+From Coq.Logic Require Export FunctionalExtensionality PropExtensionality ChoiceFacts.
 From stdpp Require Import prelude.
-
-(* TODO: the formalization of reals already uses some instances of the Axioms -
-let's reuse those *)
-
-Axiom FunExt :
-  ∀ (A : Type) (B : A → Type) (f g : ∀ x, B x), (∀ x, f x = g x) → f = g.
-
-Axiom PropExt : ∀ P Q : Prop, P ↔ Q → P = Q.
-
-Lemma ProofIrrelevance : ∀ P : Prop, ∀ p q : P, p = q.
-Proof.
-  intros P p q.
-  assert (True = P) as HP.
-  { apply PropExt; split; auto. }
-  revert p q.
-  refine (match HP in _ = u return ∀ p q : u, p = q :> u with eq_refl => _ end).
-  intros [] []; trivial.
-Qed.
 
 Axiom Choice :
   ∀ A B (R : A → B → Prop), (∀ x, ∃ y, R x y) → {f : A → B | ∀ x, R x (f x)}.
@@ -50,8 +33,8 @@ Proof.
       unfold A, B.
       assert (PA = PB) as ->.
       { unfold PA, PB.
-        apply FunExt; intros x; apply PropExt; tauto. }
-      rewrite (ProofIrrelevance _ (or_introl eq_refl) (or_intror eq_refl));
+        extensionality x; apply propositional_extensionality; tauto. }
+      rewrite (proof_irrelevance _ (or_introl eq_refl) (or_intror eq_refl));
         trivial.
     - intros HAB.
       assert (proj1_sig A = proj1_sig B) as HPAB; [rewrite HAB; trivial|].
@@ -69,7 +52,7 @@ Proof.
 Qed.
 
 Lemma make_proof_irrel (P : Prop) : ProofIrrel P.
-Proof. intros ??; apply ProofIrrelevance. Qed.
+Proof. intros ??; apply proof_irrelevance. Qed.
 
 Lemma make_decision P : Decision P.
 Proof.
