@@ -168,7 +168,7 @@ Section ectxi_language.
     reshape e = ([], e') → reshape_item e = None ∧ e = e'.
   Proof.
     rewrite /reshape WfExtensionality.fix_sub_eq_ext /= -/reshape.
-    destruct (reshape_item e) as [[Ki e'']| e''] eqn:Heq; [|by intros [=]].
+    destruct (reshape_item e) as [[Ki e'']|] eqn:Heq; [|by intros [=]].
     destruct (reshape e''). intros [= Hl He].
     assert (l = []) as ->.
     { destruct l; inversion Hl. }

@@ -530,3 +530,4 @@ Section couplings_theory.
       }
    Admitted.
 *)
+End couplings_theory.
