@@ -65,11 +65,9 @@ Section ectxi_language_mixin.
         structurally decreasing) *)
     mixin_reshape_ord Ki e e' : reshape_item e = Some (Ki, e') → expr_ord e' e;
 
-    mixin_reshape_fill_item Ki e e' : reshape_item e = Some (Ki, e') → fill_item Ki e' = e;
+    mixin_reshape_fill_item Ki e : reshape_item (fill_item Ki e) = Some (Ki, e);
+    mixin_reshape_fill_item_2 e e' Ki : reshape_item e = Some (Ki, e') → fill_item Ki e' = e;
     mixin_reshape_item_head e σ ρ : head_step e σ ρ > 0 → reshape_item e = None;
-    (* mixin_reshape_item_None e : reshape_item e = None → is_Some (to_val e); *)
-    (* mixin_reshape_item_fill_comp e e' e'' K K' K'' : *)
-    (*   reshape_item e = Some (Ki', e') → reshape_item (fill_item Ki e) = Some (Ki'', e'') → K'' = comp_ectx K K' ∧ e' = e'';       *)
 
     (** If [fill_item Ki e] takes a head step, then [e] is a value (unlike for
         [ectx_language], an empty context is impossible here).  In other words,
@@ -141,7 +139,10 @@ Section ectxi_language.
   Lemma reshape_ord Ki e e' :
     reshape_item e = Some (Ki, e') → expr_ord e' e.
   Proof. apply ectxi_language_mixin. Qed.
-  Lemma reshape_fill_item e e' Ki :
+  Lemma reshape_fill_item e Ki :
+    reshape_item (fill_item Ki e) = Some (Ki, e).
+  Proof. apply ectxi_language_mixin. Qed.
+  Lemma reshape_fill_item_2 e e' Ki :
     reshape_item e = Some (Ki, e') → fill_item Ki e' = e.
   Proof. apply ectxi_language_mixin. Qed.
   Lemma reshape_item_head e σ ρ :
@@ -162,19 +163,6 @@ Section ectxi_language.
     | None => ([], e)
     end.
   Solve Obligations with eauto using reshape_ord, expr_ord_wf.
-
-  
-  (* Program Fixpoint reshape_aux (e : expr Λ) (K : ectx) {wf expr_ord e} : ectx * expr Λ := *)
-  (*   match reshape_item e with *)
-  (*   | Some (Ki, e') => reshape_aux e' (Ki :: K) *)
-  (*   | None => (K, e) *)
-  (*   end. *)
-  (* Solve Obligations with eauto using reshape_ord, expr_ord_wf. *)
-  (* Definition reshape (e : expr Λ)  : ectx * expr Λ := *)
-  (*   let '(K, e) := reshape_aux e [] in (reverse K, e). *)
-
-  (* Axiom reshape_item_None : ∀ e, reshape_item e = None → to_val e = None. *)
-
 
   Lemma reshape_inv_nil e e' :
     reshape e = ([], e') → reshape_item e = None ∧ e = e'.
@@ -198,11 +186,6 @@ Section ectxi_language.
     - intros [= -> []%IHl1]. simplify_eq=>//.
   Qed.
 
-  Search rev_ind.
-
-  Lemma snoc_case {A} (xs : list A) : xs = [] ∨ ∃ x xs', xs = xs' ++ [x].
-  Proof. induction xs using rev_ind; eauto. Qed.
-
   Lemma reshape_inv_cons Ki K e e'' :
     reshape e = (K ++ [Ki], e'') → ∃ e', reshape_item e = Some (Ki, e') ∧ reshape e' = (K, e'').
   Proof.
@@ -212,56 +195,6 @@ Section ectxi_language.
     destruct (reshape e') as [K' e'''] eqn:Heq.
     intros [= [<- <-]%list_snoc_singleton_inv ->].
     eauto.
-  Qed.
-
-  #[local] Lemma reshape_fill K e e' : reshape e = (K, e') → fill K e' = e.
-  Proof.
-    revert e e'; induction K as [|Ki K] using rev_ind; intros e e'.
-    { intros [? ->]%reshape_inv_nil=>//. }
-    intros (e'' & Hrei%reshape_fill_item & Hre)%reshape_inv_cons.
-    rewrite fill_app /= (IHK e'') //.
-  Qed.
-
-  (* Axiom bar : ∀e Ki, reshape_item (fill_item Ki e) = Some (Ki, e). *)
-
-  Lemma foo K Ki e :
-    reshape (fill K e) = (K, e) →
-    reshape (fill_item Ki (fill K e)) = (K ++ [Ki], e).
-  Proof.
-    (* intros Hr.  *)
-    (* rewrite /reshape WfExtensionality.fix_sub_eq_ext /= -/reshape. *)
-    (* case_match eqn:Heq. *)
-    (* 2 : {  *)
-
-
-    (* revert Ki e. induction K as [|Ki' K] using rev_ind; intros Ki e He=>/=.  *)
-    (* - rewrite /reshape WfExtensionality.fix_sub_eq_ext /= -/reshape. *)
-    (*   rewrite bar He //. *)
-    (* -  *)
-    (*   rewrite fill_app /=.  *)
-    (*   rewrite fill_app /= in He. *)
-    (*   specialize (IHK Ki). *)
-    (*   eapply IHK. *)
-    (*   rewrite -app_assoc.  *)
-
-    (*   destruct (reshape_item (fill_item Ki e)) as [[Ki' e']|] eqn:Heq. *)
-    (*   + destruct (reshape e') as [K' e'']. *)
-    (*     apply reshape_fill_item in Heq.  *)
-
-
-    (* destruct (reshape_item (fill_item Ki (fill K e))) as [[Ki' e']|] eqn:Heq. *)
-    (* - apply reshape_fill_item in Heq.  *)
-    (*   destruct (reshape e') as [K' e'']. *)
-
-
-  Admitted.
-
-  Lemma reshape_filled e K :
-    reshape_item e = None → reshape (fill K e) = (K, e).
-  Proof.
-    revert e; induction K as [|Ki K] using rev_ind; intros e.
-    - rewrite /reshape WfExtensionality.fix_sub_eq_ext /= -/reshape. intros ->=>//.
-    - intros Hre. rewrite fill_app /=. apply foo; eauto.
   Qed.
 
   Definition ectxi_lang_ectx_mixin :
@@ -279,16 +212,23 @@ Section ectxi_language.
     - intros K1 K2 e. by rewrite /fill /= foldl_app.
     - intros K; induction K as [|Ki K IH]; rewrite /Inj; naive_solver.
     - done.
-    - apply reshape_fill.
+    - induction K as [|Ki K] using rev_ind; intros e e'.
+      { intros [? ->]%reshape_inv_nil=>//. }
+      intros (e'' & Hrei & Hre)%reshape_inv_cons.
+      rewrite fill_app /= (IHK e'') //.
+      by apply reshape_fill_item_2.
     - intros e e' K σ ρ Hs.
-      destruct (snoc_case K) as [-> | (Ki & K' & ->)].
+      induction K as [|Ki K] using rev_ind.
       { intros [? <-]%reshape_inv_nil=>//. }
       intros (e'' & Hrei & Hre)%reshape_inv_cons.
       apply reshape_item_head in Hs. simplify_eq.
-    - intros e e' K K'. revert K.
-      induction K' as [|Ki K'] using rev_ind.
-      { intros K [? <-]%reshape_inv_nil. simpl. by apply reshape_filled. }
-      admit.
+    - intros e e' K K'. revert K' e e'.
+      induction K as [|Ki K] using rev_ind.
+      { intros ??? =>/=. rewrite app_nil_r //. }
+      intros K' e e' Hre. rewrite fill_app /=.
+      rewrite /reshape WfExtensionality.fix_sub_eq_ext /= -/reshape.
+      rewrite reshape_fill_item (IHK K' _ e') //=.
+      rewrite !app_assoc //.
     - intros K K' e1 e1' σ1 [e2 σ2] Hfill Hred Hstep; revert K' Hfill.
       induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
       destruct K' as [|Ki' K' _] using @rev_ind; simplify_eq/=.
@@ -304,9 +244,9 @@ Section ectxi_language.
       destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
       rewrite fill_app /=.
       intros ?%head_ctx_step_val; eauto using fill_val.
-  Admitted.
+  Qed.
 
-  Canonical Structure ectxi_lang_ectx := EctxLanguage ectxi_lang_ectx_mixin.
+  Canonical Structure ectxi_lang_ectx := EctxLanguage (state_step := state_step) ectxi_lang_ectx_mixin.
   Canonical Structure ectxi_lang := LanguageOfEctx ectxi_lang_ectx.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
@@ -330,8 +270,8 @@ Coercion ectxi_lang_ectx : ectxiLanguage >-> ectxLanguage.
 Coercion ectxi_lang : ectxiLanguage >-> language.
 
 Definition EctxLanguageOfEctxi (Λ : ectxiLanguage) : ectxLanguage :=
-  let '@EctxiLanguage E V C St K of_val to_val fill head mix := Λ in
-  @EctxLanguage E V (list C) St K of_val to_val _ _ _ _
-    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St K of_val to_val fill head mix)).
+  let '@EctxiLanguage E V C St _ _ _ _ of_val to_val fill reshape expr_ord head state mix := Λ in
+  @EctxLanguage E V (list C) St _ _ _ _ of_val to_val _ _ _ _ _ state
+    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St _ _ _ _ of_val to_val fill reshape expr_ord head state mix)).
 
 Global Arguments EctxLanguageOfEctxi : simpl never.

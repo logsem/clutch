@@ -102,7 +102,7 @@ Structure ectxLanguage := EctxLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
