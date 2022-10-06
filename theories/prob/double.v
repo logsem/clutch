@@ -923,8 +923,12 @@ Section countable_sum.
 
 (* These are also useful *)
 
-Lemma SeriesC_double_prod :
-  SeriesC (λ p, f (p.1, p.2)) = SeriesC (λ a, SeriesC (λ b, f (a, b))).
+Lemma SeriesC_double_prod_lr :
+  SeriesC f = SeriesC (λ a, SeriesC (λ b, f (a, b))).
+Proof. Admitted.
+
+Lemma SeriesC_double_prod_rl :
+  SeriesC f = SeriesC (λ b, SeriesC (λ a, f (a, b))).
 Proof. Admitted.
 
 End countable_sum.

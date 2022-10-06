@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy.
 From stdpp Require Import option.
 From stdpp Require Export countable.
-From self.prelude Require Import base Coquelicot_ext stdpp_ext.
+From self.prelude Require Import base Coquelicot_ext stdpp_ext classical.
 Import Hierarchy.
 
 Open Scope R.
@@ -79,6 +79,7 @@ Section countable_sum.
   Definition sumC_n (f : A → R) := sum_n (countable_sum f).
 
 End countable_sum.
+
 
 Section series.
   Context `{Countable A}.
@@ -256,6 +257,21 @@ Section series.
     apply: is_series_plus; eauto.
   Qed.
 
+ (* TODO: Clean up proof *)
+  Lemma SeriesC_plus f g :
+    ex_seriesC f →
+    ex_seriesC g →
+    SeriesC (λ x, f x + g x) = SeriesC f + SeriesC g.
+  Proof.
+    intros.
+    rewrite -Series_plus; auto.
+    rewrite /SeriesC.
+    apply Series_ext.
+    intro n.
+    rewrite  countable_sum_plus; auto.
+  Qed.
+
+
   Lemma ex_seriesC_Rabs f :
     ex_seriesC (λ x, Rabs (f x)) →
     ex_seriesC f.
@@ -305,6 +321,26 @@ Section filter.
   Lemma SeriesC_singleton (a : A) v :
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
   Proof. apply is_series_unique, is_seriesC_singleton. Qed.
+
+  (* These are sometimes convenient *)
+  Lemma ex_seriesC_singleton' (a : A) v :
+    ex_seriesC (λ (n : A), if bool_decide (a = n) then v else 0).
+  Proof.
+    apply (ex_seriesC_ext (λ n : A, if bool_decide (n = a) then v else 0)
+             (λ n : A, if bool_decide (a = n) then v else 0)).
+    + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
+    + apply ex_seriesC_singleton.
+  Qed.
+
+  Lemma SeriesC_singleton' (a : A) v :
+    SeriesC (λ n, if bool_decide (a = n) then v else 0) = v.
+  Proof.
+    rewrite (SeriesC_ext (λ n : A, if bool_decide (a = n) then v else 0)
+             (λ n : A, if bool_decide (n = a) then v else 0)).
+    + apply SeriesC_singleton.
+    + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
+  Qed.
+
 
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
@@ -381,3 +417,77 @@ Section filter.
     - eapply (is_seriesC_filter_impl  _ _ _ _ Hge Hexists). intros ? []; auto.
   Qed.
 End filter.
+
+
+Section strict.
+
+  Context `{Countable A}.
+
+  Implicit Types f g : A → R.
+
+(** Some extra theorems about strict inequalities, etc. **)
+  Lemma SeriesC_lt f g :
+  (∀ n, 0 <= f n <= g n) →
+  (∃ m, f m < g m) →
+   ex_seriesC g → SeriesC f < SeriesC g.
+  Proof.
+    intros Hle Hlt Hg.
+    assert (ex_seriesC f) as Hf.
+    { apply (ex_seriesC_le f g); auto. }
+    destruct Hlt as (m & Hlt).
+    assert (g m - f m > 0) as Hgtz ; try lra.
+    set (d := g m - f m).
+    set (h := (λ n, if bool_decide (n = m) then d else 0) ).
+    assert (ex_seriesC h) as Hh.
+    { apply ex_seriesC_singleton. }
+    assert (SeriesC h > 0) as Hhgt.
+    { rewrite SeriesC_singleton; auto. }
+    assert (SeriesC f + SeriesC h <= SeriesC g); try lra.
+    rewrite <- SeriesC_plus; auto.
+    apply SeriesC_le; auto.
+    intro n.
+    specialize (Hle n) as (Hle1 & Hle2).
+    rewrite /h /d.
+    case_bool_decide as Hnm; split; try lra.
+    rewrite Hnm; lra.
+  Qed.
+
+ (* Classical proof. This may be provable constructively, but
+  for now this works *)
+  Lemma SeriesC_const0 f :
+  (∀ n, 0 <= f n) →
+  is_seriesC f 0 →
+  (∀ n, f n = 0).
+  Proof.
+   intros Hf Hz n.
+   pose proof (is_seriesC_unique _ _ Hz) as Hz'.
+   pose proof (Rtotal_order (f n) 0) as Htri.
+   destruct Htri as [H1 | [H2 | H3]] ; try lra.
+   + specialize (Hf n); lra.
+   + assert (0 < SeriesC f); try lra.
+     assert (SeriesC (λ _ : A, 0) = 0) as H4.
+     { apply SeriesC_0; auto. }
+     destruct H4.
+     eapply (SeriesC_lt (λ n, 0) f).
+     ++ intro n0; specialize (Hf n0); lra.
+     ++ exists n; lra.
+     ++ exists 0; done.
+  Qed.
+
+  Lemma SeriesC_gtz_ex f :
+  (∀ n, 0 <= f n) →
+  (SeriesC f > 0) →
+  (exists n, f n > 0).
+  Proof.
+    intro Hf.
+    eapply contrapositive. intros Hna.
+    assert (∀ a, f a = 0) as Hz.
+    { intros a.
+      pose proof (not_exists_forall_not _ _ Hna a).
+      specialize (Hf a); lra.
+    }
+    apply Rge_not_gt. rewrite SeriesC_0 //.
+   Qed.
+
+
+End strict.

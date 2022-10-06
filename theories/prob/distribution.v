@@ -200,8 +200,8 @@ Section monadic_theory.
     (a ← μ; dret a) = μ.
   Proof. apply distr_ext, dret_id_right_pmf. Qed.
 
-  Lemma dbind_assoc `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) c :
-    dbind (λ a, dbind g (f a) ) μ c = dbind g ( dbind f μ ) c.
+  Lemma dbind_assoc_pmf `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) c :
+    (a ← μ ; b ← f a; g b) c = (b ← (a ← μ; f a); g b) c.
   Proof.
     simpl.
     rewrite /dbind_pmf.
@@ -223,6 +223,11 @@ Section monadic_theory.
     intro a.
     done.
   Qed.
+
+  Lemma dbind_assoc `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) :
+    (a ← μ ; b ← f a; g b) = (b ← (a ← μ; f a); g b).
+  Proof. apply distr_ext, dbind_assoc_pmf. Qed.
+
 
   Lemma dbind_pos_support (f : A → distr B) (μ : distr A) (b : B) :
     dbind f μ b > 0 ↔ ∃ a, f a b > 0 ∧ μ a > 0.
@@ -249,5 +254,102 @@ Section monadic_theory.
   Lemma dmap_dret_pmf (f : A → B) a b :
     dmap f (dret a) b = dret (f a) b.
   Proof. rewrite /dmap dret_id_left_pmf //. Qed.
+
+  Lemma dmap_dret (f : A → B) a :
+    dmap f (dret a) = dret (f a) .
+  Proof. apply distr_ext, dmap_dret_pmf. Qed.
+
+  Lemma dbind_dzero_pmf (f : A → distr B) b :
+    (a ← dzero; f a) b = 0.
+  Proof.
+    rewrite /= /dbind_pmf.
+    rewrite /= /dzero.
+    apply SeriesC_0.
+    intros.
+    rewrite Rmult_0_l; auto.
+  Qed.
+
+  Lemma dbind_dzero (f : A → distr B) :
+    (a ← dzero; f a) = dzero.
+  Proof. apply distr_ext, dbind_dzero_pmf. Qed.
+
+  Lemma dmap_mass (μ : distr A) (f : A → B):
+    SeriesC μ = SeriesC (dmap f μ).
+  Proof.
+    rewrite /= /dmap /= /dbind_pmf.
+    rewrite <- (SeriesC_double_swap (λ '(a , b), (μ a * dret (f a) b) )).
+    apply SeriesC_ext.
+    intro n.
+    rewrite /= /dret /dret_pmf.
+    rewrite SeriesC_scal_l.
+    rewrite SeriesC_singleton.
+    lra.
+  Qed.
+
+
+
+  Lemma dzero_ext (μ : distr A) :
+    (forall a, μ a = 0) -> μ = dzero.
+  Proof.
+    intro Hμ.
+    apply distr_ext; auto.
+  Qed.
+
+
+  Lemma SeriesC_zero_dzero (μ : distr A) :
+    SeriesC μ = 0 -> μ = dzero.
+  Proof.
+    intro Hμ.
+    apply dzero_ext.
+    apply SeriesC_const0; auto.
+    pose proof (pmf_ex_seriesC μ).
+    apply SeriesC_correct'; auto.
+  Qed.
+
+
+  Lemma dmap_dzero (f : A → B):
+    (dmap f dzero) = dzero.
+  Proof.
+    apply dbind_dzero.
+  Qed.
+
+(*  Lemma dmap_dzero (f : A → B):
+    dmap f dzero = dzero.
+  Proof.
+    apply dbind_dzero.
+  Qed.
+
+  Lemma dmap_dzero_inv (f : A → B) (μ : distr A) :
+    dmap f μ = dzero -> μ = dzero.
+  Proof.
+    rewrite /= /dmap.
+    intro Hμ.
+    assert (forall b, (μ ≫= (λ a : A, dret (f a))) b = 0) as Hμ'.
+    {
+      intro b.
+      rewrite Hμ.
+      auto.
+    }
+    rewrite /= /dbind_pmf in Hμ'.
+    apply distr_ext.
+    rewrite /= /dzero.
+    intro a.
+    specialize (Hμ' (f a)).
+    rewrite <- Hμ'.
+    rewrite /= /dret_pmf.
+    assert (SeriesC (λ a0 : A, μ a0 * (if bool_decide (f a = f a0) then 1 else 0))
+           = SeriesC (λ a0 : A, (if bool_decide (f a0 = f a) then μ a0 else 0))) as Heq.
+    { apply SeriesC_ext.
+      intro n.
+      assert (bool_decide (f n = f a) = bool_decide (f a = f n)) as Haux; try (apply bool_decide_ext; split; auto).
+      rewrite Haux.
+      destruct (bool_decide (f a = f n)); try lra.
+    }
+    rewrite Heq.
+    apply SeriesC_singleton.
+*)
+
+
+
 
 End monadic_theory.
