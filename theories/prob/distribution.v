@@ -19,6 +19,7 @@ Arguments pmf_ex_seriesC {_ _ _}.
 Arguments pmf_SeriesC {_ _ _}.
 
 #[global] Hint Resolve pmf_pos pmf_ex_seriesC pmf_SeriesC : core.
+
 Notation Decidable P := (∀ x, Decision (P x)).
 
 Open Scope R.
@@ -54,6 +55,15 @@ Section distributions.
     apply pmf_le_1.
   Qed.
 
+  (* N.B. uses [functional_extensionality] and [proof_irrelevance] axioms  *)
+  Lemma distr_ext (d1 d2 : distr A) :
+    (∀ a, d1.(pmf) a = d2.(pmf) a) → d1 = d2.
+  Proof.
+    destruct d1 as [pmf1 ?], d2 as [pmf2 ?] =>/=. intros Ha.
+    assert (pmf1 = pmf2) as ->; [by extensionality b|].
+    f_equal; apply proof_irrelevance.
+  Qed.
+
 End distributions.
 
 Section zero_distr.
@@ -64,8 +74,6 @@ Section zero_distr.
   Next Obligation. eapply ex_seriesC_0. Qed.
   Next Obligation. rewrite SeriesC_0 //. lra. Qed.
 End zero_distr.
-
-#[global] Hint Resolve pmf_ex_seriesC : core.
 
 Section monadic.
   Context `{Countable A}.
@@ -150,29 +158,58 @@ Section strength.
 
 End strength.
 
-(* N.B. uses [FunExt] and [ProofIrrelevance] axioms  *)
-Lemma distr_ext `{Countable A} (d1 d2 : distr A) :
-  (∀ a, d1.(pmf) a = d2.(pmf) a) →
-  d1 = d2.
+Lemma dret_1 `{Countable A} (a a' : A) :
+  a = a' → dret a a' = 1.
+Proof. intros -> ; rewrite /= /dret_pmf bool_decide_eq_true_2 //. Qed.
+
+Lemma dret_0 `{Countable A} (a a' : A) :
+  a' ≠ a → dret a a' = 0.
+Proof. intros ?. rewrite /= /dret_pmf bool_decide_eq_false_2 //. Qed.
+
+Lemma dret_Rgt_zero_inv `{Countable A} (a a' : A) :
+  dret a a' > 0 → a' = a.
+Proof. rewrite /= /dret_pmf. intros ?. case_bool_decide; [done|lra]. Qed.
+
+Lemma dret_pmf_map `{Countable A} (f : A → A) (a a' : A) `{Inj A A (=) (=) f} :
+  dret (f a) (f a') = dret a a'.
 Proof.
-  destruct d1 as [pmf1 ?], d2 as [pmf2 ?] =>/=. intros Ha.
-  assert (pmf1 = pmf2) as ->; [by eapply FunExt|].
-  f_equal; apply ProofIrrelevance.
+  rewrite /= /dret_pmf. case_bool_decide as Hcase.
+  - apply (inj f) in Hcase as ->.  rewrite bool_decide_eq_true_2 //.
+  - case_bool_decide; [|done]. simplify_eq.
 Qed.
 
+Lemma dbind_dret_pmf_map `{Countable A} (μ : distr A) (a : A) (f : A → A) `{Inj A A (=) (=) f} :
+  (μ ≫= (λ a', dret (f a'))) (f a) = μ a.
+Proof.
+  rewrite /= /dbind_pmf /= /dret_pmf.
+  rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then μ a else 0)).
+  { rewrite SeriesC_singleton //. }
+  intros a'. case_bool_decide as Heq; simplify_eq.
+  - rewrite bool_decide_eq_true_2 //. lra.
+  - rewrite bool_decide_eq_false_2; [lra|].
+    by intros ->.
+Qed.
+
+Lemma dbind_pmf_ext `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) (b1 b2 : B) :
+  (∀ a b, f a b = g a b) →
+  μ1 = μ2 →
+  b1 = b2 →
+  dbind f μ1 b1 = dbind g μ2 b2.
+Proof.
+  intros Hfg -> ->=>/=. rewrite /dbind_pmf.
+  setoid_rewrite Hfg. done.
+Qed.
+
+(* #[global] Instance Proper_dbind `{Countable A, Countable B} : *)
+(*   Proper (pointwise_relation A (=) ==> (=) ==> (=)) (@dbind A _ _ B _ _). *)
+(* Proof. intros ?? Hp ?? ->. f_equal. extensionality x. done. Qed. *)
+
+(* TODO: not all the lemmas rely on both A and B and the [Context {...}` will
+   automatically add both [Countable X] instances as an assumption *)
 Section monadic_theory.
   Context `{Countable A, Countable B}.
 
-  Lemma dret_one (a : A) :
-    dret a a = 1.
-  Proof. rewrite /= /dret_pmf bool_decide_eq_true_2 //. Qed.
-
-  Lemma dret_zero (a a' : A) :
-    a' ≠ a →
-    dret a a' = 0.
-  Proof. intros ?. rewrite /= /dret_pmf bool_decide_eq_false_2 //. Qed.
-
-  Lemma dret_id_left_pmf (f : A → distr B) a b :
+  Lemma dret_id_left_pmf (f : A → distr B) (a : A) (b : B) :
     (a' ← dret a; f a') b = f a b.
   Proof.
     rewrite /= /dbind_pmf /= /dret_pmf.
@@ -181,11 +218,11 @@ Section monadic_theory.
     intros a'. case_bool_decide; simplify_eq; lra.
   Qed.
 
-  Lemma dret_id_left (f : A → distr B) a :
+  Lemma dret_id_left (f : A → distr B) (a : A) :
     (a' ← dret a; f a') = f a.
   Proof. apply distr_ext, dret_id_left_pmf. Qed.
 
-  Lemma dret_id_right_pmf (μ : distr A) a :
+  Lemma dret_id_right_pmf (μ : distr A) (a : A) :
     (a ← μ; dret a) a = μ a.
   Proof.
     rewrite /= /dbind_pmf /= /dret_pmf.
@@ -251,7 +288,7 @@ Section monadic_theory.
         * apply Rmult_le_compat_l; [done|]. eapply pmf_le_1.
   Qed.
 
-  Lemma dmap_dret_pmf (f : A → B) a b :
+  Lemma dmap_dret_pmf (f : A → B) (a : A) (b : B) :
     dmap f (dret a) b = dret (f a) b.
   Proof. rewrite /dmap dret_id_left_pmf //. Qed.
 

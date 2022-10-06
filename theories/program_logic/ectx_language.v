@@ -1,4 +1,4 @@
-(** An axiomatization of evaluation-context based languages, including a proof
+ (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
 From Coq Require Import Reals Psatz ClassicalEpsilon.
 From stdpp Require Import decidable countable.
@@ -30,18 +30,18 @@ Section ectx_language_mixin.
   Record EctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
-    mixin_val_head_stuck e1 σ1 ρ :
-      head_step e1 σ1 ρ > 0 → to_val e1 = None;
+    mixin_val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None;
 
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_inj K : Inj (=) (=) (fill K);
     mixin_fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e);
 
-    mixin_fill_reshape K e e' : reshape e = Some (K, e') → fill K e' = e;
-    mixin_reshape_Some K e e' : reshape e = Some (K, e') → to_val e' = None;
+    mixin_reshape_Some K e e' : reshape e = Some (K, e') → fill K e' = e ∧ to_val e' = None;
     mixin_reshape_None e : reshape e = None → is_Some (to_val e);
-    mixin_reshape_not_val e : to_val e = None → ∃ K e', reshape e = Some (K, e');
+    mixin_reshape_fill_comp e e' e'' K K' K'' :
+      reshape e = Some (K', e') → reshape (fill K e) = Some (K'', e'') → K'' = comp_ectx K K' ∧ e' = e'';
+
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is
         not a value, then the head redex context is [e1']'s context [K']
@@ -73,7 +73,6 @@ Structure ectxLanguage := EctxLanguage {
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
-  ectx_eqdec : EqDecision ectx;
   expr_countable : Countable expr;
   state_countable : Countable state;
 
@@ -94,7 +93,6 @@ Structure ectxLanguage := EctxLanguage {
 
 #[global] Existing Instance expr_eqdec.
 #[global] Existing Instance state_eqdec.
-#[global] Existing Instance ectx_eqdec.
 #[global] Existing Instance expr_countable.
 #[global] Existing Instance state_countable.
 
@@ -129,14 +127,14 @@ Section ectx_language.
   Proof. apply ectx_language_mixin. Qed.
   Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma fill_reshape K e e' : reshape e = Some (K, e') → fill K e' = e.
-  Proof. apply ectx_language_mixin. Qed.
-  Lemma reshape_Some K e e' : reshape e = Some (K, e') → to_val e' = None.
+  Lemma reshape_Some K e e' : reshape e = Some (K, e') → fill K e' = e ∧ to_val e' = None.
   Proof. apply ectx_language_mixin. Qed.
   Lemma reshape_None e : reshape e = None → is_Some (to_val e).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma reshape_not_val e :
-    to_val e = None → ∃ K e', reshape e = Some (K, e').
+  Lemma reshape_fill_comp e e' e'' K K' K'' :
+    reshape e = Some (K', e') →
+    reshape (fill K e) = Some (K'', e'') →
+    K'' = comp_ectx K K' ∧ e' = e''.
   Proof. apply ectx_language_mixin. Qed.
   Lemma step_by_val K' K_redex e1' e1_redex σ1 ρ :
       fill K' e1' = fill K_redex e1_redex →
@@ -158,12 +156,18 @@ Section ectx_language.
   (* All non-value redexes are at the root. In other words, all sub-redexes are
      values. *)
   Definition sub_redexes_are_values (e : expr Λ) :=
-    ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.  
-  
+    ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
+
   Definition prim_step (e1 : expr Λ) (σ1 : state Λ) : distr (expr Λ * state Λ) :=
     if reshape e1 is Some (K, e1')
     then '(e2', σ2) ← head_step e1' σ1; dret (fill K e2', σ2)
     else dzero.
+
+  Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
+    (λ '(e, σ), (fill K e, σ)).
+
+  Instance inj_fill (K : ectx Λ) : Inj eq eq (fill_lift K).
+  Proof. intros [] [] [=<-%(inj _) ->]=>//. Qed.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
@@ -174,12 +178,11 @@ Section ectx_language.
     - apply ectx_language_mixin.
     - apply ectx_language_mixin.
     - intros e1 σ1 [e2 σ2] =>/=. rewrite /prim_step.
-      destruct (reshape e1) as [[K e1'] |] eqn:Heq.
-      + intros [[e2' σ2'] [_ Hs]]%dbind_pos_support.
-        apply val_head_stuck in Hs.
-        apply fill_reshape in Heq as <-.
-        by eapply fill_not_val.
-      + simpl; lra.
+      destruct (reshape e1) as [[K e1'] |] eqn:Heq; [|simpl; lra].
+      intros [[e2' σ2'] [_ Hs]]%dbind_pos_support.
+      apply val_head_stuck in Hs.
+      apply reshape_Some in Heq as [<- ?].
+      by eapply fill_not_val.
   Qed.
 
   Canonical Structure ectx_lang : language := Language (state_step := state_step) ectx_lang_mixin.
@@ -218,92 +221,95 @@ Section ectx_language.
     { by eapply val_head_stuck. }
     subst K''. rewrite fill_empty. done.
   Qed.
-  
+
   Lemma head_step_not_stuck e σ ρ : head_step e σ ρ > 0 → not_stuck e σ.
   Proof.
     rewrite /not_stuck /reducible /=. intros Hs. right.
     eexists ρ. rewrite /prim_step.
     pose proof (val_head_stuck _ _ _ Hs) as Hval.
-    destruct (reshape e) as [[K e1' ] | ?] eqn:Heq.
-    2 : { apply (reshape_not_val) in Hval as (?&?&?). simplify_eq. }
-    rewrite -(fill_reshape _ _ _ Heq) in Hs, Hval.
+    destruct (reshape e) as [[K e1' ] |] eqn:Heq.
+    2 : { eapply reshape_None in Heq as []. simplify_eq. }
+    destruct (reshape_Some _ _ _ Heq) as [<- ?].
     destruct (head_ctx_step_val _ _ _ _ Hs) as [Hv | ->].
     - apply reshape_Some in Heq. destruct Hv. simplify_eq.
     - eapply dbind_pos_support.
       exists ρ. destruct ρ. rewrite fill_empty.
-      rewrite fill_empty // in Hs. rewrite dret_one; lra.
+      rewrite fill_empty // in Hs.
+      rewrite dret_1 //; lra.
   Qed.
 
-  Lemma fill_prim_step K e1 σ1 e2 σ2 :
+  #[local] Lemma fill_prim_step K e1 σ1 e2 σ2 :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
   Proof.
     intros Hval. rewrite /prim_step.
-    destruct (reshape e1) as [[K1 e1' ] | ?] eqn:Heq.
-    2 : { eapply (reshape_not_val) in Hval as (?&?&?). simplify_eq. }
-    destruct (reshape (fill _ e1)) as [[K1' e1'' ] | ?] eqn:Heq'.
-    2 : { eapply reshape_None in Heq'. eapply fill_val in Heq'.
-          destruct Heq' ; simplify_eq. }
-
-    assert (K1' = K) as -> by admit.
-    assert (e1 = e1'') as <- by admit.
-    assert (K = K1) as <- by admit.
-
-    simpl.
-
-
-    eapply fill_reshape in Heq', Heq.
-    epose proof (dmap_dret_pmf (λ '(e2', σ0), dret (fill K1 e2', σ0)) (e2, σ2) (head_step e1' σ1)).
-    unfold dmap in H.
-
-
-    simpl in H.
-
-
-    rewrite dmap_dret_pmf.
-    rewrite -Heq in Heq'.
-    rewrite Heq in Heq'. 
-    (* simplify_eq.  *)
-
-
-    simplify_eq.
-    rewrite fill_comp in Heq'.
-
-
-    destruct 1 as [K' e1' e2' -> ->].
-    rewrite !fill_comp. by econstructor.
+    destruct (reshape e1) as [[K1 e1' ] | ] eqn:Heq.
+    2 : { eapply reshape_None in Heq as []; simplify_eq. }
+    destruct (reshape (fill _ e1)) as [[K1' e1'' ] | ] eqn:Heq'.
+    2 : { eapply reshape_None, fill_val in Heq' as []; simplify_eq. }
+    rewrite /= /dbind_pmf.
+    eapply SeriesC_ext.
+    intros [e σ].
+    edestruct (reshape_fill_comp e1) as [HK He]; eauto.
+    rewrite HK He -fill_comp.
+    rewrite (dret_pmf_map (fill_lift K) (fill K1 e, σ) (e2, σ2)) //.
   Qed.
+
+  Lemma head_prim_step e1 σ1 ρ :
+    head_step e1 σ1 ρ > 0 → prim_step e1 σ1 ρ > 0.
+  Proof.
+    rewrite /prim_step /=. intros Hs.
+    pose proof (val_head_stuck _ _ _ Hs) as Hval.
+    destruct (reshape e1) as [[K1 e1' ] | ] eqn:Heq.
+    2 : { eapply reshape_None in Heq as []. simplify_eq. }
+    eapply reshape_Some in Heq as [? ?]. simplify_eq.
+    destruct (head_ctx_step_val _ _ _ _ Hs) as [[] | ->]; [simplify_eq|].
+    eapply dbind_pos_support. exists ρ. destruct ρ.
+    rewrite fill_empty. rewrite dret_1 //.
+    split; [lra|]. rewrite fill_empty // in Hs.
+  Qed.
+
+  Lemma prim_step_iff e1 e2 σ1 σ2 :
+    prim_step e1 σ1 (e2, σ2) > 0 ↔
+    ∃ K e1' e2',
+      fill K e1' = e1 ∧
+      fill K e2' = e2 ∧
+      to_val e1' = None ∧
+      head_step e1' σ1 (e2', σ2) > 0.
+  Proof.
+    split.
+    - rewrite /= /prim_step. intros Hs.
+      destruct (reshape e1) as [[K e1']|] eqn:Heq; [|simplify_eq/=; lra].
+      eapply reshape_Some in Heq as [].
+      eapply dbind_pos_support in Hs as [[] [Hr%dret_Rgt_zero_inv ?]].
+      simplify_eq. do 3 eexists. eauto.
+    - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hv & Hs). simplify_eq.
+      rewrite -fill_prim_step //. by apply head_prim_step.
+  Qed.
+
   Lemma fill_reducible K e σ : reducible e σ → reducible (fill K e) σ.
   Proof.
-    intros (κ&e'&σ'&efs&?). exists κ, (fill K e'), σ', efs.
-    by apply fill_prim_step.
-  Qed.
-  Lemma fill_reducible_no_obs K e σ : reducible_no_obs e σ → reducible_no_obs (fill K e) σ.
-  Proof.
-    intros (e'&σ'&efs&?). exists (fill K e'), σ', efs.
-    by apply fill_prim_step.
+    rewrite /reducible /=. intros [[e2 σ2] (K' & e1' & e2' & <- & <- & Hv & Hs)%prim_step_iff].
+    exists (fill (comp_ectx K K') e2', σ2).
+    eapply prim_step_iff. do 3 eexists. rewrite !fill_comp //.
   Qed.
   Lemma head_prim_reducible e σ : head_reducible e σ → reducible e σ.
-  Proof. intros (κ&e'&σ'&efs&?). eexists κ, e', σ', efs. by apply head_prim_step. Qed.
+  Proof. intros [ρ Hstep]. exists ρ. by apply head_prim_step. Qed.
   Lemma head_prim_fill_reducible e K σ :
     head_reducible e σ → reducible (fill K e) σ.
   Proof. intro. by apply fill_reducible, head_prim_reducible. Qed.
-  Lemma head_prim_reducible_no_obs e σ : head_reducible_no_obs e σ → reducible_no_obs e σ.
-  Proof. intros (e'&σ'&efs&?). eexists e', σ', efs. by apply head_prim_step. Qed.
   Lemma head_prim_irreducible e σ : irreducible e σ → head_irreducible e σ.
   Proof.
     rewrite -not_reducible -not_head_reducible. eauto using head_prim_reducible.
   Qed.
-  Lemma head_prim_fill_reducible_no_obs e K σ :
-    head_reducible_no_obs e σ → reducible_no_obs (fill K e) σ.
-  Proof. intro. by apply fill_reducible_no_obs, head_prim_reducible_no_obs. Qed.
 
   Lemma prim_head_reducible e σ :
     reducible e σ → sub_redexes_are_values e → head_reducible e σ.
   Proof.
-    intros (κ&e'&σ'&efs&[K e1' e2' -> -> Hstep]) ?.
+    rewrite /reducible.
+    intros [[e2 σ2] (K & e1' & e2' & <- & <- & Hv & Hs)%prim_step_iff] Hsub.
     assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
-    rewrite fill_empty /head_reducible; eauto.
+    simplify_eq. rewrite fill_empty. eexists; eauto.
   Qed.
   Lemma prim_head_irreducible e σ :
     head_irreducible e σ → sub_redexes_are_values e → irreducible e σ.
@@ -321,32 +327,31 @@ Section ectx_language.
   Lemma ectx_language_atomic a e :
     head_atomic a e → sub_redexes_are_values e → Atomic a e.
   Proof.
-    intros Hatomic_step Hatomic_fill σ κ e' σ' efs [K e1' e2' -> -> Hstep].
+    intros Hatomic Hsub σ e' σ' (K & e1' & e2' & <- & <- & Hv & Hs)%prim_step_iff.
     assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
-    rewrite fill_empty. eapply Hatomic_step. by rewrite fill_empty.
+    rewrite fill_empty in Hatomic.
+    eapply Hatomic. rewrite fill_empty. eauto.
   Qed.
 
-  Lemma head_reducible_prim_step_ctx K e1 σ1 κ e2 σ2 efs :
+  Lemma head_reducible_prim_step_ctx K e1 σ1 e2 σ2:
     head_reducible e1 σ1 →
-    prim_step (fill K e1) σ1 κ e2 σ2 efs →
-    ∃ e2', e2 = fill K e2' ∧ head_step e1 σ1 κ e2' σ2 efs.
+    prim_step (fill K e1) σ1 (e2, σ2) > 0 →
+    ∃ e2', e2 = fill K e2' ∧ head_step e1 σ1 (e2', σ2) > 0.
   Proof.
-    intros (κ'&e2''&σ2''&efs''&HhstepK) [K' e1' e2' HKe1 -> Hstep].
-    edestruct (step_by_val K) as [K'' ?];
-      eauto using val_head_stuck; simplify_eq/=.
+    intros [[e2'' σ2''] HhstepK] (K' & e1' & e2' & HKe1 & HKe2 & Hv & Hs)%prim_step_iff.
+    symmetry in HKe1.
+    edestruct (step_by_val K) as [K'' HK]; eauto using val_head_stuck; simplify_eq/=.
     rewrite -fill_comp in HKe1; simplify_eq.
-    exists (fill K'' e2'). rewrite fill_comp; split; first done.
+    exists (fill K'' e2'). rewrite fill_comp. split; [done|].
     apply head_ctx_step_val in HhstepK as [[v ?]|?]; simplify_eq.
-    { apply val_head_stuck in Hstep; simplify_eq. }
-    by rewrite !fill_empty.
+    rewrite !fill_empty //.
   Qed.
 
-  Lemma head_reducible_prim_step e1 σ1 κ e2 σ2 efs :
+  Lemma head_reducible_prim_step e1 σ1 ρ :
     head_reducible e1 σ1 →
-    prim_step e1 σ1 κ e2 σ2 efs →
-    head_step e1 σ1 κ e2 σ2 efs.
+    prim_step e1 σ1 ρ > 0 → head_step e1 σ1 ρ > 0.
   Proof.
-    intros.
+    intros. destruct ρ.
     edestruct (head_reducible_prim_step_ctx empty_ectx) as (?&?&?);
       rewrite ?fill_empty; eauto.
     by simplify_eq; rewrite fill_empty.
@@ -357,27 +362,32 @@ Section ectx_language.
   Proof.
     split; simpl.
     - eauto using fill_not_val.
-    - intros ?????? [K' e1' e2' Heq1 Heq2 Hstep].
-      by exists (comp_ectx K K') e1' e2'; rewrite ?Heq1 ?Heq2 ?fill_comp.
-    - intros e1 σ1 κ e2 σ2 efs Hnval [K'' e1'' e2'' Heq1 -> Hstep].
-      destruct (step_by_val K K'' e1 e1'' σ1 κ e2'' σ2 efs) as [K' ->]; eauto.
+    - intros ???? (K' & e1' & e2' & Heq1 & Heq2 & Hv & Hs)%prim_step_iff.
+      eapply prim_step_iff.
+      exists (comp_ectx K K'), e1', e2'.
+      simplify_eq. rewrite !fill_comp //.
+    - intros e1 σ1 e2 σ2 Hnval (K'' & e1'' & e2'' & Heq1 & Heq2 & Hv & Hstep)%prim_step_iff.
+      simplify_eq.
+      destruct (step_by_val K K'' e1 e1'' σ1 (e2'', σ2)) as [K' ->]; eauto.
       rewrite -fill_comp in Heq1; apply (inj (fill _)) in Heq1.
-      exists (fill K' e2''); rewrite -fill_comp; split; auto.
-      econstructor; eauto.
+      exists (fill K' e2'').
+      rewrite -fill_comp. split; [done|].
+      eapply prim_step_iff. do 3 eexists; eauto.
+    - apply fill_prim_step.
   Qed.
 
   Record pure_head_step (e1 e2 : expr Λ) := {
-    pure_head_step_safe σ1 : head_reducible_no_obs e1 σ1;
-    pure_head_step_det σ1 κ e2' σ2 efs :
-      head_step e1 σ1 κ e2' σ2 efs → κ = [] ∧ σ2 = σ1 ∧ e2' = e2 ∧ efs = []
+    pure_head_step_safe σ1 : head_reducible e1 σ1;
+    pure_head_step_det σ1 e2' σ2 :
+      head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2
   }.
 
   Lemma pure_head_step_pure_step e1 e2 : pure_head_step e1 e2 → pure_step e1 e2.
   Proof.
     intros [Hp1 Hp2]. split.
-    - intros σ. destruct (Hp1 σ) as (e2' & σ2 & efs & ?).
-      eexists e2', σ2, efs. by apply head_prim_step.
-    - intros σ1 κ e2' σ2 efs ?%head_reducible_prim_step; eauto using head_reducible_no_obs_reducible.
+    - intros σ. destruct (Hp1 σ) as ([e2' σ2] & ?).
+      eexists (e2', σ2). by apply head_prim_step.
+    - intros σ1 e2' σ2 ?%head_reducible_prim_step; eauto.
   Qed.
 
   (** This is not an instance because HeapLang's [wp_pure] tactic already takes
@@ -392,7 +402,6 @@ Section ectx_language.
 End ectx_language.
 
 Global Arguments ectx_lang : clear implicits.
-Global Arguments Ectx_step {Λ e1 σ1 κ e2 σ2 efs}.
 Coercion ectx_lang : ectxLanguage >-> language.
 
 (* This definition makes sure that the fields of the [language] record do not
@@ -403,8 +412,8 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 Definition LanguageOfEctx (Λ : ectxLanguage) : language :=
-  let '@EctxLanguage E V C St K of_val to_val empty comp fill head mix := Λ in
-  @Language E V St K of_val to_val _
-    (@ectx_lang_mixin (@EctxLanguage E V C St K of_val to_val empty comp fill head mix)).
+  let '@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill reshape head state mix := Λ in
+  @Language E V St _ _ _  _ of_val to_val _ state
+    (@ectx_lang_mixin (@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill reshape head state mix )).
 
 Global Arguments LanguageOfEctx : simpl never.
