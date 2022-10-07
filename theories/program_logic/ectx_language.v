@@ -1,16 +1,11 @@
  (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
-From Coq Require Import Reals Psatz ClassicalEpsilon.
+From Coq Require Import Reals Psatz.
 From stdpp Require Import decidable countable.
 From iris.prelude Require Export prelude.
 From self.prelude Require Import classical.
 From self.program_logic Require Import language.
 From self.prob Require Import distribution.
-
-(** TAKE CARE: When you define an [ectxLanguage] canonical structure for your
-    language, you need to also define a corresponding [language] canonical
-    structure. Use the coercion [LanguageOfEctx] as defined in the bottom of this
-    file for doing that. *)
 
 Section ectx_language_mixin.
   Context {expr val ectx state : Type}.
@@ -22,7 +17,7 @@ Section ectx_language_mixin.
   Context (empty_ectx : ectx).
   Context (comp_ectx : ectx → ectx → ectx).
   Context (fill : ectx → expr → expr).
-  Context (reshape : expr → ectx * expr).
+  Context (decomp : expr → ectx * expr).
 
   Context (head_step  : expr → state → distr (expr * state)).
   Context (state_step : state → distr state).
@@ -37,13 +32,13 @@ Section ectx_language_mixin.
     mixin_fill_inj K : Inj (=) (=) (fill K);
     mixin_fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e);
 
-    (** [reshape] decomposes an expression into an evaluation context and its head redex  *)
-    mixin_reshape_fill K e e' :
-      reshape e = (K, e') → fill K e' = e;
-    mixin_head_reshape e e' K σ ρ :
-      head_step e σ ρ > 0 → reshape e = (K, e') → K = empty_ectx ∧ e = e';
-    mixin_reshape_fill_comp e e' K K' :
-      reshape e = (K', e') → reshape (fill K e) = (comp_ectx K K', e');
+    (** [decomp] decomposes an expression into an evaluation context and its head redex  *)
+    mixin_decomp_fill K e e' :
+      decomp e = (K, e') → fill K e' = e;
+    mixin_head_decomp e e' K σ ρ :
+      head_step e σ ρ > 0 → decomp e = (K, e') → K = empty_ectx ∧ e = e';
+    mixin_decomp_fill_comp e e' K K' :
+      decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e');
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is
@@ -85,13 +80,13 @@ Structure ectxLanguage := EctxLanguage {
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
   fill : ectx → expr → expr;
-  reshape : expr → ectx * expr;
+  decomp : expr → ectx * expr;
 
   head_step : expr → state → distr (expr * state);
   state_step : state → distr state;
 
   ectx_language_mixin :
-    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill reshape head_step
+    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp head_step
 }.
 
 #[global] Existing Instance expr_eqdec.
@@ -107,7 +102,7 @@ Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
 Global Arguments comp_ectx {_} _ _.
-Global Arguments reshape {_} _.
+Global Arguments decomp {_} _.
 Global Arguments fill {_} _ _.
 Global Arguments head_step {_} _ _.
 Global Arguments state_step {_} _.
@@ -130,14 +125,14 @@ Section ectx_language.
   Proof. apply ectx_language_mixin. Qed.
   Lemma fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e).
   Proof. apply ectx_language_mixin. Qed.
-  Lemma reshape_fill K e e' : reshape e = (K, e') → fill K e' = e.
+  Lemma decomp_fill K e e' : decomp e = (K, e') → fill K e' = e.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma head_reshape K e e' σ ρ :
-    head_step e σ ρ > 0 → reshape e = (K, e') → K = empty_ectx ∧ e = e'.
+  Lemma head_decomp K e e' σ ρ :
+    head_step e σ ρ > 0 → decomp e = (K, e') → K = empty_ectx ∧ e = e'.
   Proof. apply ectx_language_mixin. Qed.
 
-  Lemma reshape_fill_comp K K' e e' :
-    reshape e = (K', e') → reshape (fill K e) = (comp_ectx K K', e').
+  Lemma decomp_fill_comp K K' e e' :
+    decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e').
   Proof. apply ectx_language_mixin. Qed.
   Lemma step_by_val K' K_redex e1' e1_redex σ1 ρ :
       fill K' e1' = fill K_redex e1_redex →
@@ -162,7 +157,7 @@ Section ectx_language.
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
   Definition prim_step (e1 : expr Λ) (σ1 : state Λ) : distr (expr Λ * state Λ) :=
-    let '(K, e1') := reshape e1 in
+    let '(K, e1') := decomp e1 in
     '(e2', σ2) ← head_step e1' σ1; dret (fill K e2', σ2).
 
   Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
@@ -180,10 +175,10 @@ Section ectx_language.
     - apply ectx_language_mixin.
     - apply ectx_language_mixin.
     - intros e1 σ1 [e2 σ2] =>/=. rewrite /prim_step.
-      destruct (reshape e1) as [K e1'] eqn:Heq.
+      destruct (decomp e1) as [K e1'] eqn:Heq.
       intros [[e2' σ2'] [_ Hs]]%dbind_pos_support.
       apply val_head_stuck in Hs.
-      apply reshape_fill in Heq as <-.
+      apply decomp_fill in Heq as <-.
       by eapply fill_not_val.
   Qed.
 
@@ -229,11 +224,11 @@ Section ectx_language.
     prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
   Proof.
     intros Hval. rewrite /prim_step.
-    destruct (reshape e1) as [K1 e1'] eqn:Heq.
-    destruct (reshape (fill _ e1)) as [K1' e1''] eqn:Heq'.
+    destruct (decomp e1) as [K1 e1'] eqn:Heq.
+    destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
     rewrite /= /dbind_pmf. eapply SeriesC_ext.
     intros [e σ].
-    apply (reshape_fill_comp K) in Heq.
+    apply (decomp_fill_comp K) in Heq.
     rewrite Heq in Heq'; simplify_eq.
     rewrite -fill_comp.
     rewrite (dret_pmf_map (fill_lift K) (fill K1 e, σ) (e2, σ2)) //.
@@ -244,8 +239,8 @@ Section ectx_language.
   Proof.
     rewrite /prim_step /=. intros Hs.
     pose proof (val_head_stuck _ _ _ Hs) as Hval.
-    destruct (reshape e1) as [K1 e1'] eqn:Heq.
-    edestruct (head_reshape _ _ _ _ _ Hs Heq); simplify_eq.
+    destruct (decomp e1) as [K1 e1'] eqn:Heq.
+    edestruct (head_decomp _ _ _ _ _ Hs Heq); simplify_eq.
     assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
             = (head_step e1' σ1 ≫= dret) ρ) as ->.
     { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
@@ -261,8 +256,8 @@ Section ectx_language.
   Proof.
     split.
     - rewrite /= /prim_step. intros Hs.
-      destruct (reshape e1) as [K e1'] eqn:Heq.
-      eapply reshape_fill in Heq.
+      destruct (decomp e1) as [K e1'] eqn:Heq.
+      eapply decomp_fill in Heq.
       eapply dbind_pos_support in Hs as [[] [Hr%dret_Rgt_zero_inv ?]].
       simplify_eq. do 3 eexists; eauto.
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
@@ -402,8 +397,8 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 Definition LanguageOfEctx (Λ : ectxLanguage) : language :=
-  let '@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill reshape head state mix := Λ in
+  let '@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill decomp head state mix := Λ in
   @Language E V St _ _ _  _ of_val to_val _ state
-    (@ectx_lang_mixin (@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill reshape head state mix )).
+    (@ectx_lang_mixin (@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill decomp head state mix )).
 
 Global Arguments LanguageOfEctx : simpl never.

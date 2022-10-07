@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coq.ssr Require Import ssreflect ssrfun.
+From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
 From self.prelude Require Export base Coquelicot_ext Reals_ext classical.
@@ -22,7 +22,7 @@ Arguments pmf_SeriesC {_ _ _}.
 
 Notation Decidable P := (∀ x, Decision (P x)).
 
-Open Scope R.
+#[local] Open Scope R.
 
 Section distributions.
   Context `{Countable A}.
