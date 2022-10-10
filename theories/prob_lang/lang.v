@@ -525,12 +525,64 @@ Next Obligation.
   - destruct e; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0. destruct l; try eq_ex_seriesC_0.
     destruct (σ1.(tapes) !! l) as [[|b bs]|] eqn:Heq. 
     + rewrite /head_step_pmf Heq.
-      admit.
+      assert (∀ p, (λ pat : expr * state, match pat with
+                                    | (Val (LitV (LitBool _)), σ2) => if bool_decide (σ1 = σ2) then 0.5 else 0
+                                    | _ => 0
+                                    end) p =
+            (λ pat : expr * state, match pat with
+                                    | (Val (LitV (LitBool true)), σ2) => if bool_decide (σ1 = σ2) then 0.5 else 0
+                                    | _ => 0
+                                    end) p
+            +
+            (λ pat : expr * state, match pat with
+                                    | (Val (LitV (LitBool false)), σ2) => if bool_decide (σ1 = σ2) then 0.5 else 0
+                                    | _ => 0
+                                    end) p 
+             ).
+      {intro p. destruct p; destruct e; try lra.
+      destruct v; try lra. destruct l0; try lra.
+      case_bool_decide; destruct b; try lra.}
+      apply (ex_seriesC_ext (λ p,
+               (λ pat : expr * state,
+           let (e, σ2) := pat in match e with
+                                 | Val (LitV (LitBool true)) => if bool_decide (σ1 = σ2) then 0.5 else 0
+                                 | _ => 0
+                                 end) p +
+        (λ pat : expr * state,
+           let (e, σ2) := pat in match e with
+                                 | Val (LitV (LitBool false)) => if bool_decide (σ1 = σ2) then 0.5 else 0
+                                 | _ => 0
+                                 end) p)); auto.
+      apply ex_seriesC_plus.
+      ++ eapply ex_seriesC_ext.
+         2 : { apply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1)). }
+         intros []. case_bool_decide as Heq'.
+         { inversion Heq'.
+         rewrite bool_decide_eq_true_2 //. }
+         destruct e; try lra.
+         destruct v; try lra.
+         destruct l0; try lra.
+         destruct b; try lra.
+         case_bool_decide; try lra.
+         simplify_eq.
+      ++ eapply ex_seriesC_ext.
+         2 : { apply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1)). }
+         intros []. case_bool_decide as Heq'.
+         { inversion Heq'.
+         rewrite bool_decide_eq_true_2 //. }
+         destruct e; try lra.
+         destruct v; try lra.
+         destruct l0; try lra.
+         destruct b; try lra.
+         case_bool_decide; try lra.
+         simplify_eq.
     + rewrite /head_step_pmf Heq.
       solve_ex_single (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ1).
     + eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=.
       rewrite Heq. by repeat case_match. 
-Admitted.
+Qed.
+
+Next Obligation.
 
 (* (** Basic properties about the language *) *)
 (* Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki). *)
