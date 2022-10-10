@@ -457,132 +457,120 @@ Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
   | _, _ => 0
   end.
 
-Tactic Notation "split_and'" :=
+(* helpers tactics to make the [head_step] proofs more tractable *)
+#[local] Tactic Notation "split_and'" :=
   match goal with
   | H : _ ∧ _ |- _ => destruct H
   end.
-Tactic Notation "split_and'" "?" := repeat split_and'.
-Tactic Notation "split_and'" "!" := hnf; split_and'; split_and'?.
+#[local] Tactic Notation "split_and'" "?" := repeat split_and'.
+#[local] Tactic Notation "split_and'" "!" := hnf; split_and'; split_and'?.
 
-Tactic Notation "eq_ex_seriesC_0" :=
-  by (eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//).
+#[local] Tactic Notation "solve_ex_seriesC_0" :=
+  by (eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]).
 
-Tactic Notation "solve_ex_single" constr(T) :=
-  eapply ex_seriesC_ext; [|eapply (ex_seriesC_singleton T 1)];
-  intros [e' σ2]=>/=; case_bool_decide;
-  simplify_eq/=;
-    [rewrite bool_decide_eq_true_2 // |
-      repeat (case_bool_decide || case_match); try done; split_and'!; simplify_eq].
+#[local] Tactic Notation "solve_ex_single" :=
+  repeat case_match; try solve_ex_seriesC_0; subst;
+  eapply ex_seriesC_ext; [|eapply (ex_seriesC_singleton (_, _) 1)];
+  intros []=>/=; case_bool_decide;
+  subst;
+  [| repeat (case_bool_decide || case_match); try done; split_and'!; simplify_eq];
+  simplify_eq; rewrite bool_decide_eq_true_2 //.
+
+#[local] Tactic Notation "solve_SeriesC_0" :=
+  by (rewrite SeriesC_0; [lra|]; intros [[]]; repeat case_match).
+
+#[local] Tactic Notation "solve_SeriesC_single"  :=
+  repeat case_match; try solve_SeriesC_0; subst;
+  erewrite SeriesC_ext; [erewrite (SeriesC_singleton (_,_) 1); lra|];
+  intros []=>/=; case_bool_decide;
+  subst; split_and'?;
+  [|repeat (case_bool_decide || case_match); try done; split_and'?; simplify_eq; exfalso; auto];
+  simplify_eq; rewrite bool_decide_eq_true_2 //.
 
 Program Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
   MkDistr (head_step_pmf e1 σ1) _ _ _.
 Next Obligation. intros ???. rewrite /head_step_pmf. repeat case_match; lra. Qed.
 Next Obligation.
-  intros [] ?.
-  - eq_ex_seriesC_0.
-  - eq_ex_seriesC_0.
-  - solve_ex_single (Val (RecV f x e), σ1).
-  - destruct e1; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0. destruct e2; try eq_ex_seriesC_0.
-    solve_ex_single ((subst' x v (subst' f (RecV f x e) e), σ1)).
-  - destruct e; try eq_ex_seriesC_0. rewrite /head_step_pmf /=.
-    destruct (un_op_eval op v) as [v'|].
-    + solve_ex_single (Val v', σ1).
-    + eq_ex_seriesC_0.
-  - destruct e1; try eq_ex_seriesC_0. destruct e2; try eq_ex_seriesC_0. rewrite /head_step_pmf /=.
-    destruct (bin_op_eval op v v0) as [v'|].
-    + solve_ex_single (Val v', σ1).
-    + eq_ex_seriesC_0.
-  - destruct e0; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0. destruct l; try eq_ex_seriesC_0.
-    destruct b; [solve_ex_single (e1, σ1)| solve_ex_single (e2, σ1)].
-  - destruct e1; try eq_ex_seriesC_0. destruct e2; try eq_ex_seriesC_0.
-    solve_ex_single (Val (PairV v v0), σ1).
-  - destruct e; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0.
-    solve_ex_single (Val v1, σ1).
-  - destruct e; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0.
-    solve_ex_single (Val v2, σ1).
-  - destruct e; try eq_ex_seriesC_0. solve_ex_single (Val (InjLV v), σ1).
-  - destruct e; try eq_ex_seriesC_0. solve_ex_single (Val (InjRV v), σ1).
-  - destruct e0; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0.
-    + solve_ex_single (App e1 (Val v), σ1).
-    + solve_ex_single (App e2 (Val v), σ1).
-  - destruct e; try eq_ex_seriesC_0.    
-    solve_ex_single (Val (LitV (LitLoc (fresh_loc σ1.(heap)))),
-                      state_upd_heap <[fresh_loc σ1.(heap):=v]> σ1).
-  - destruct e; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0. destruct l; try eq_ex_seriesC_0.
-    destruct (σ1.(heap) !! l) as [v|] eqn:Heq.
-    + solve_ex_single (Val v, σ1).
-    + eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=.
-      rewrite bool_decide_eq_false_2 //. intros; set_solver.
-  - destruct e1; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0.
-    destruct l; try eq_ex_seriesC_0. destruct e2; try eq_ex_seriesC_0.
-    destruct (σ1.(heap) !! l) as [w|] eqn:Heq.
-    + solve_ex_single (Val (LitV LitUnit), state_upd_heap <[l:=v]> σ1).
-    + eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=.
-      destruct v0; try done. destruct l0; try done. 
-      rewrite bool_decide_eq_false_2 //. intros [[] ?]. set_solver.
-  - solve_ex_single (Val (LitV (LitLbl (fresh_loc σ1.(tapes)))),
-                      state_upd_tapes <[fresh_loc σ1.(tapes):=[]]> σ1).
-  - destruct e; try eq_ex_seriesC_0. destruct v; try eq_ex_seriesC_0. destruct l; try eq_ex_seriesC_0.
-    destruct (σ1.(tapes) !! l) as [[|b bs]|] eqn:Heq. 
-    + rewrite /head_step_pmf Heq.
-      assert (∀ p, (λ pat : expr * state, match pat with
-                                    | (Val (LitV (LitBool _)), σ2) => if bool_decide (σ1 = σ2) then 0.5 else 0
-                                    | _ => 0
-                                    end) p =
-            (λ pat : expr * state, match pat with
-                                    | (Val (LitV (LitBool true)), σ2) => if bool_decide (σ1 = σ2) then 0.5 else 0
-                                    | _ => 0
-                                    end) p
-            +
-            (λ pat : expr * state, match pat with
-                                    | (Val (LitV (LitBool false)), σ2) => if bool_decide (σ1 = σ2) then 0.5 else 0
-                                    | _ => 0
-                                    end) p 
-             ).
-      {intro p. destruct p; destruct e; try lra.
-      destruct v; try lra. destruct l0; try lra.
-      case_bool_decide; destruct b; try lra.}
-      apply (ex_seriesC_ext (λ p,
-               (λ pat : expr * state,
-           let (e, σ2) := pat in match e with
-                                 | Val (LitV (LitBool true)) => if bool_decide (σ1 = σ2) then 0.5 else 0
-                                 | _ => 0
-                                 end) p +
-        (λ pat : expr * state,
-           let (e, σ2) := pat in match e with
-                                 | Val (LitV (LitBool false)) => if bool_decide (σ1 = σ2) then 0.5 else 0
-                                 | _ => 0
-                                 end) p)); auto.
-      apply ex_seriesC_plus.
-      ++ eapply ex_seriesC_ext.
-         2 : { apply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1)). }
-         intros []. case_bool_decide as Heq'.
-         { inversion Heq'.
-         rewrite bool_decide_eq_true_2 //. }
-         destruct e; try lra.
-         destruct v; try lra.
-         destruct l0; try lra.
-         destruct b; try lra.
-         case_bool_decide; try lra.
-         simplify_eq.
-      ++ eapply ex_seriesC_ext.
-         2 : { apply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1)). }
-         intros []. case_bool_decide as Heq'.
-         { inversion Heq'.
-         rewrite bool_decide_eq_true_2 //. }
-         destruct e; try lra.
-         destruct v; try lra.
-         destruct l0; try lra.
-         destruct b; try lra.
-         case_bool_decide; try lra.
-         simplify_eq.
-    + rewrite /head_step_pmf Heq.
-      solve_ex_single (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ1).
-    + eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=.
-      rewrite Heq. by repeat case_match. 
+  intros [] ?; rewrite /head_step_pmf.
+  - solve_ex_seriesC_0.
+  - solve_ex_seriesC_0.
+  - solve_ex_single.
+  - solve_ex_single.
+  - case_match; try solve_ex_seriesC_0; subst.
+    destruct (un_op_eval op v); [solve_ex_single|solve_ex_seriesC_0].
+  - do 2 (case_match; try solve_ex_seriesC_0); subst.
+    destruct (bin_op_eval op v v0); [solve_ex_single|solve_ex_seriesC_0].
+  - do 3 (case_match; try solve_ex_seriesC_0). destruct b; solve_ex_single.
+  - solve_ex_single.
+  - solve_ex_single.
+  - solve_ex_single.
+  - solve_ex_single.
+  - solve_ex_single.
+  - do 2 (case_match; try solve_ex_seriesC_0); solve_ex_single.
+  - solve_ex_single.
+  - do 3 (case_match; try solve_ex_seriesC_0).
+    destruct (heap σ1 !! l0); [solve_ex_single|solve_ex_seriesC_0].
+  - do 4 (case_match; try solve_ex_seriesC_0).
+    destruct (heap σ1 !! l0); [solve_ex_single|].
+    eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=.
+    repeat case_match; done.
+  - solve_ex_single.
+  - do 3 (case_match; try solve_ex_seriesC_0).
+    destruct (σ1.(tapes) !! l0) as [[|b bs]|] eqn:Heq.
+    + eapply ex_seriesC_ext;
+        [|eapply ex_seriesC_plus;
+          [eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)|
+           eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)]].
+      intros [? σ2]. simplify_eq. symmetry.
+      do 3 (case_match; simpl; try lra).
+      destruct b; repeat case_bool_decide; simplify_eq; try lra.
+    + solve_ex_single.
+    + eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=. by repeat case_match.
+Qed.
+Next Obligation.
+  intros [] ?; rewrite /head_step_pmf.
+  - solve_SeriesC_0.
+  - solve_SeriesC_0.
+  - solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - case_match; try solve_SeriesC_0; subst.
+    destruct (un_op_eval op v); [solve_SeriesC_single|solve_SeriesC_0].
+  - do 2 (case_match; try solve_SeriesC_0); subst.
+    destruct (bin_op_eval op v v0); [solve_SeriesC_single|solve_SeriesC_0].
+  - do 3 (case_match; try solve_SeriesC_0). destruct b; solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - do 2 (case_match; try solve_SeriesC_0); solve_SeriesC_single.
+  - solve_SeriesC_single.
+  - do 3 (case_match; try solve_SeriesC_0).
+    destruct (heap σ1 !! l0); [solve_SeriesC_single|solve_SeriesC_0].
+  - do 4 (case_match; try solve_SeriesC_0).
+    destruct (heap σ1 !! l0); [|solve_SeriesC_0].
+    repeat case_match; try solve_SeriesC_0; subst.
+    erewrite SeriesC_ext; [erewrite (SeriesC_singleton (Val (LitV LitUnit), _) 1); lra|].
+    intros []. symmetry.
+    case_bool_decide; simplify_eq.
+    + rewrite bool_decide_eq_true_2 //.
+    + do 3 (case_match; try done).
+      rewrite bool_decide_eq_false_2 //. intros ?; split_and'; simplify_eq.
+  - solve_SeriesC_single.
+  - do 3 (case_match; try solve_SeriesC_0).
+    destruct (σ1.(tapes) !! l0) as [[|b bs]|] eqn:Heq.
+    + erewrite SeriesC_ext.
+      { erewrite SeriesC_plus;
+          [erewrite (SeriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5);
+           erewrite (SeriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5); lra|
+          |]; apply ex_seriesC_singleton. }
+      intros [? σ2]. simplify_eq.
+      do 3 (case_match; simpl; try lra).
+      destruct b; repeat case_bool_decide; simplify_eq; try lra.
+    + solve_SeriesC_single.
+    + solve_SeriesC_0.
 Qed.
 
-Next Obligation.
 
 (* (** Basic properties about the language *) *)
 (* Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki). *)
