@@ -129,14 +129,7 @@ Section couplings_theory.
   Proposition is_coupl_ret :
     forall (a : A) (b : B), isCoupl (dret a) (dret b) (dret (a, b)).
   Proof.
-    intros a b.
-    split.
-    - rewrite /lmarg.
-      rewrite dmap_dret.
-      auto.
-    - rewrite /rmarg.
-      rewrite dmap_dret.
-      auto.
+    intros a b; split; [rewrite /lmarg dmap_dret // | rewrite /rmarg dmap_dret //].
    Qed.
     
   Proposition coupl_ret :
@@ -151,15 +144,10 @@ Section couplings_theory.
     forall (a : A) (b : B) (R : A → B → Prop), R a b -> isRcoupl (dret a) (dret b) R (dret (a, b)).
   Proof.
     intros a b R HR.
-    split.
-    + apply is_coupl_ret.
-    + intro p.
-      simpl.
-      rewrite /dret_pmf.
-      case_eq (bool_decide (p = (a, b))); intros Heq Hineq; try lra.
-      pose proof (bool_decide_eq_true_1 (p = (a, b))) Heq as Heq'.
-      rewrite Heq'.
-      auto.
+    split; [apply is_coupl_ret | ].
+    intro p.
+    rewrite /= /dret_pmf /=.
+    case_bool_decide as H3; [rewrite H3; auto | lra ].
   Qed.
 
   Proposition Rcoupl_ret :
@@ -186,10 +174,7 @@ Section couplings_theory.
       assert (forall a0 : A * B, μ a0 * (if bool_decide ((b, a) = (let '(a1, b0) := a0 in (b0, a1))) then 1 else 0)
                                      = if bool_decide ((a, b) = a0 ) then μ (a, b) else 0) as Heq1.
       { intros (a' & b').
-        case_bool_decide; case_bool_decide; try lra.
-        + rewrite H4; lra.
-        + inversion H3. rewrite H6 H7 in H4; done.
-        + inversion H4. rewrite H6 H7 in H3; done.
+        case_bool_decide; case_bool_decide; simplify_eq; try lra.
       }
       rewrite (SeriesC_ext _ _ Heq1).
       apply SeriesC_singleton'.
@@ -203,11 +188,7 @@ Section couplings_theory.
       assert (forall a0 : A * B, μ a0 * (if bool_decide ((b, a) = (let '(a1, b0) := a0 in (b0, a1))) then 1 else 0)
                                      = if bool_decide ((a, b) = a0 ) then μ (a, b) else 0) as Heq1.
       { intros (a' & b').
-        case_bool_decide; case_bool_decide; try lra.
-        + rewrite H4; lra.
-        + inversion H3. rewrite H6 H7 in H4; done.
-        + inversion H4. rewrite H6 H7 in H3; done.
-      }
+        case_bool_decide; case_bool_decide; simplify_eq; try lra. }
       rewrite (SeriesC_ext _ _ Heq1).
       apply SeriesC_singleton'.
   Qed. 
@@ -326,90 +307,50 @@ Section couplings_theory.
  (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
     fact that μ and (Ch p) are couplings *)
     + apply distr_ext; intro a'.
-      rewrite lmarg_pmf.
-      simpl.
-      unfold dbind_pmf.
-      rewrite (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
-      assert (∀ b, SeriesC (λ a : B', μ b * Ch b (a', a)) = μ b * SeriesC (λ a : B', Ch b (a', a))) as Heq1.
-      {
-        intro b; apply SeriesC_scal_l.
-      }
-      rewrite (SeriesC_ext _ _ Heq1).
-      assert (∀ p , μ p * SeriesC (λ b' : B', Ch p (a', b')) = μ p * f p.1 a') as Heq2.
-      { intros (a & b).
-        pose proof (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
-        + pose proof (pmf_pos μ (a, b)); lra.
-        + rewrite Heqz; lra.
-        + specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS).
-          rewrite <- HChL.
-          rewrite lmarg_pmf.
-          auto.
-      }
-      rewrite (SeriesC_ext _ _ Heq2).
+      rewrite lmarg_pmf /= /dbind_pmf
+       (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
+      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
+      [ | intro p; apply SeriesC_scal_l]. 
+      erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
+      {intros (a & b);
+        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
+        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
+        specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS);
+        rewrite -HChL lmarg_pmf //=].
+          }.
       rewrite SeriesC_double_prod_lr.
-      assert (∀ a : A, SeriesC (λ b : B, μ (a, b) * f (a, b).1 a')
-               = SeriesC (λ b : B, μ (a, b) ) * f a a') as Heq3.
-      {
-        intro a; simpl; apply SeriesC_scal_r.
-      }
-      rewrite (SeriesC_ext _ _ Heq3).
-      assert (∀ a, SeriesC (λ b : B, μ (a, b)) = μ1 a) as Heq4.
-      {
-        intro a.
-        destruct HμC as (Hμ1 & Hμ2).
-        rewrite <- Hμ1;
-        rewrite lmarg_pmf; auto.
-      }
-      apply SeriesC_ext.
+      erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
+      [ | intro a; simpl; apply SeriesC_scal_r ].
+      erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
       intro a.
-      rewrite (Heq4 a); auto.
+      destruct HμC as (Hμ1 & Hμ2).
+      rewrite <- Hμ1;
+      rewrite lmarg_pmf; auto.
 (* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
     + apply distr_ext; intro b'.
-      rewrite rmarg_pmf.
-      simpl.
-      unfold dbind_pmf.
-      rewrite (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
-      assert (∀ p, SeriesC (λ a : A', μ p * Ch p (a, b')) = μ p * SeriesC (λ a : A', Ch p (a, b'))) as Heq1.
-      {
-        intro p; apply SeriesC_scal_l.
-      }
-      rewrite (SeriesC_ext _ _ Heq1).
-      assert (∀ p , μ p * SeriesC (λ a' : A', Ch p (a', b')) = μ p * g p.2 b') as Heq2.
-      { intros (a & b).
-        pose proof (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
-        + pose proof (pmf_pos μ (a, b)); lra.
-        + rewrite Heqz; lra.
-        + specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS).
-          rewrite <- HChR.
-          rewrite rmarg_pmf.
-          auto.
-      }
-      rewrite (SeriesC_ext _ _ Heq2).
+      rewrite rmarg_pmf /= /dbind_pmf
+      (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
+      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
+      [ | intro p; apply SeriesC_scal_l]. 
+      erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first.
+      {intros (a & b);
+        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
+        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
+        specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS);
+        rewrite -HChR rmarg_pmf //=].
+       }
       rewrite SeriesC_double_prod_rl.
-      assert (∀ b : B, SeriesC (λ a : A, μ (a, b) * g (a, b).2 b')
-               = SeriesC (λ a : A, μ (a, b) ) * g b b') as Heq3.
-      {
-        intro b; simpl; apply SeriesC_scal_r.
-      }
-      rewrite (SeriesC_ext _ _ Heq3).
-      assert (∀ b, SeriesC (λ a : A, μ (a, b)) = μ2 b) as Heq4.
-      {
-        intro b.
-        destruct HμC as (Hμ1 & Hμ2).
-        rewrite <- Hμ2;
-        rewrite rmarg_pmf; auto.
-      }
-      apply SeriesC_ext.
+      erewrite (SeriesC_ext _ (λ b, SeriesC (λ a : A, μ (a, b) ) * g b b'));
+      [ | intro b; simpl; apply SeriesC_scal_r].
+      erewrite (SeriesC_ext _ (λ b, (μ2 b) * g b b')); auto.
       intro b.
-      rewrite (Heq4 b); auto.
-    + intro p.
-      destruct p as (a' & b').
-      intro H3; simpl.
+      destruct HμC as (Hμ1 & Hμ2).
+      rewrite <- Hμ2;
+      rewrite rmarg_pmf; auto.
+    + intros (a' & b') H3; simpl.
       pose proof (dbind_pos_support Ch μ (a', b')) as (H4 & H5).
       specialize (H4 H3) as ((a0, b0) & H7 & H8).
-      specialize (HμS (a0, b0) H8).
-      specialize (HCh (a0, b0) HμS).
-      destruct HCh as (HCh1 & HCh2).
+      specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
       specialize (HCh2 (a', b') H7).
       done.
   Qed.
