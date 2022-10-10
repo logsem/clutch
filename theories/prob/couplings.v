@@ -307,6 +307,7 @@ Section couplings_theory.
   Proof.
     intros f g μ1 μ2 R S Hfg (μ & HμC & HμS).
     rewrite /Rcoupl /isRcoupl in Hfg.
+    (* First we rewrite Hfg to be able to use Choice *)
     assert (∀ (p : A * B), ∃ μ' : distr (A' * B'), R p.1 p.2 → (isCoupl (f p.1) (g p.2) μ' ∧
                                                      (∀ q : A' * B', μ' q > 0 → S q.1 q.2))) as Hfg'; auto.
     {
@@ -322,6 +323,8 @@ Section couplings_theory.
     pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as (Ch & HCh).
     rewrite /Rcoupl /isRcoupl.
     exists (dbind Ch μ); split; try split.
+ (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
+    fact that μ and (Ch p) are couplings *)
     + apply distr_ext; intro a'.
       rewrite lmarg_pmf.
       simpl.
@@ -412,6 +415,31 @@ Section couplings_theory.
   Qed.
 
 
+  Proposition eqcoupl_elim :
+    forall (μ1 μ2 : distr A),
+      Rcoupl μ1 μ2 (=) → μ1 = μ2.
+  Proof.
+    intros μ1 μ2 (μ & (HμL & HμR) & HμS).
+    rewrite <- HμL, <- HμR.
+    apply distr_ext.
+    intro a1.
+    rewrite lmarg_pmf rmarg_pmf.
+    apply SeriesC_ext.
+    intro a2.
+    specialize (HμS (a1, a2)) as HμS12.
+    specialize (HμS (a2, a1)) as HμS21.
+    simpl in HμS12.
+    simpl in HμS21.
+    pose proof (Rtotal_order (μ (a1, a2)) (μ (a2, a1))) as [Hlt | [Heq | Hgt]]; auto.
+    + pose proof (pmf_pos μ (a1, a2)).
+      assert (μ (a2, a1) > 0) as H'; try lra.
+      specialize (HμS21 H'); destruct HμS21; auto.
+    + pose proof (pmf_pos μ (a2, a1)).
+      assert (μ (a1, a2) > 0) as H'; try lra.
+      specialize (HμS12 H'); destruct HμS12; auto.
+  Qed.
+
+End couplings_theory.
 
 (* Old proof attempts below, can probably be deleted
 
