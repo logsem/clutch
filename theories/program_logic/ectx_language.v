@@ -35,10 +35,10 @@ Section ectx_language_mixin.
     (** [decomp] decomposes an expression into an evaluation context and its head redex  *)
     mixin_decomp_fill K e e' :
       decomp e = (K, e') → fill K e' = e;
-    mixin_head_decomp e e' K σ ρ :
-      head_step e σ ρ > 0 → decomp e = (K, e') → K = empty_ectx ∧ e = e';
+    mixin_decomp_val_empty K e e' :
+      decomp e = (K, e') → is_Some (to_val e') → K = empty_ectx;
     mixin_decomp_fill_comp e e' K K' :
-      decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e');
+      to_val e = None → decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e');
 
     (** Given a head redex [e1_redex] somewhere in a term, and another
         decomposition of the same term into [fill K' e1'] such that [e1'] is
@@ -127,12 +127,11 @@ Section ectx_language.
   Proof. apply ectx_language_mixin. Qed.
   Lemma decomp_fill K e e' : decomp e = (K, e') → fill K e' = e.
   Proof. apply ectx_language_mixin. Qed.
-  Lemma head_decomp K e e' σ ρ :
-    head_step e σ ρ > 0 → decomp e = (K, e') → K = empty_ectx ∧ e = e'.
+  Lemma decomp_val_empty K e e' :
+    decomp e = (K, e') → is_Some (to_val e') → K = empty_ectx.
   Proof. apply ectx_language_mixin. Qed.
-
   Lemma decomp_fill_comp K K' e e' :
-    decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e').
+    to_val e = None → decomp e = (K', e') → decomp (fill K e) = (comp_ectx K K', e').
   Proof. apply ectx_language_mixin. Qed.
   Lemma step_by_val K' K_redex e1' e1_redex σ1 ρ :
       fill K' e1' = fill K_redex e1_redex →
@@ -177,8 +176,8 @@ Section ectx_language.
     - intros e1 σ1 [e2 σ2] =>/=. rewrite /prim_step.
       destruct (decomp e1) as [K e1'] eqn:Heq.
       intros [[e2' σ2'] [_ Hs]]%dbind_pos_support.
+      rewrite -(decomp_fill _ _ _ Heq).
       apply val_head_stuck in Hs.
-      apply decomp_fill in Heq as <-.
       by eapply fill_not_val.
   Qed.
 
@@ -228,7 +227,7 @@ Section ectx_language.
     destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
     rewrite /= /dbind_pmf. eapply SeriesC_ext.
     intros [e σ].
-    apply (decomp_fill_comp K) in Heq.
+    apply (decomp_fill_comp K) in Heq; [|done].
     rewrite Heq in Heq'; simplify_eq.
     rewrite -fill_comp.
     rewrite (dret_pmf_map (fill_lift K) (fill K1 e, σ) (e2, σ2)) //.
@@ -240,11 +239,19 @@ Section ectx_language.
     rewrite /prim_step /=. intros Hs.
     pose proof (val_head_stuck _ _ _ Hs) as Hval.
     destruct (decomp e1) as [K1 e1'] eqn:Heq.
-    edestruct (head_decomp _ _ _ _ _ Hs Heq); simplify_eq.
-    assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
-            = (head_step e1' σ1 ≫= dret) ρ) as ->.
-    { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
-    rewrite dret_id_right_pmf //.
+    edestruct (decomp_fill _ _ _ Heq) as [<- ?].
+    edestruct (head_ctx_step_val _ _ _ _ Hs) as [[]|HK]; simplify_eq.
+    - assert (K1 = empty_ectx) as -> by eauto using decomp_val_empty.
+      assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
+              = (head_step e1' σ1 ≫= dret) ρ) as ->.
+      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
+      rewrite fill_empty in Hs.
+      rewrite dret_id_right_pmf //.
+    - assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
+              = (head_step e1' σ1 ≫= dret) ρ) as ->.
+      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
+      rewrite fill_empty in Hs.
+      rewrite dret_id_right_pmf //.
   Qed.
 
   Lemma prim_step_iff e1 e2 σ1 σ2 :
@@ -257,7 +264,7 @@ Section ectx_language.
     split.
     - rewrite /= /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
-      eapply decomp_fill in Heq.
+      edestruct (decomp_fill _ _ _ Heq) as [? ?].
       eapply dbind_pos_support in Hs as [[] [Hr%dret_Rgt_zero_inv ?]].
       simplify_eq. do 3 eexists; eauto.
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
@@ -327,9 +334,9 @@ Section ectx_language.
     edestruct (step_by_val K) as [K'' HK]; eauto using val_head_stuck; simplify_eq/=.
     rewrite -fill_comp in HKe1; simplify_eq.
     exists (fill K'' e2'). rewrite fill_comp. split; [done|].
-    apply head_ctx_step_val in HhstepK as [[v ?]| ->].
-    - apply val_head_stuck in Hs. simplify_eq.
-    - rewrite !fill_empty //.
+    destruct (head_ctx_step_val _ _ _ _ HhstepK) as [[]%not_eq_None_Some|HK''].
+    { by eapply val_head_stuck. }
+    subst. rewrite !fill_empty //.
   Qed.
 
   Lemma head_reducible_prim_step e1 σ1 ρ :

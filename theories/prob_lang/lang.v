@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
-From stdpp Require Import gmap.
+From stdpp Require Import gmap fin_maps.
 From iris.algebra Require Export ofe.
 From self.prob Require Import distribution.
 From self.program_logic Require Export language ectx_language ectxi_language.
@@ -305,25 +305,39 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   match e with
-  | App e (Val v)      => Some (AppLCtx v, e)
-  | App e1 e2          => Some (AppRCtx e1, e2)
-  | UnOp op e          => Some (UnOpCtx op, e)
-  | BinOp op e (Val v) => Some (BinOpLCtx op v, e)
-  | BinOp op e1 e2     => Some (BinOpRCtx op e1, e2)
-  | If e0 e1 e2        => Some (IfCtx e1 e2, e0)
-  | Pair e (Val v)     => Some (PairLCtx v, e)
-  | Pair e1 e2         => Some (PairRCtx e1, e2)
-  | Fst e              => Some (FstCtx, e)
-  | Snd e              => Some (SndCtx, e)
-  | InjL e             => Some (InjLCtx, e)
-  | InjR e             => Some (InjRCtx, e)
-  | Case e0 e1 e2      => Some (CaseCtx e1 e2, e0)
-  | Alloc e            => Some (AllocCtx, e)
-  | Load e             => Some (LoadCtx, e)
-  | Store e (Val v)    => Some (StoreLCtx v, e)
-  | Store e1 e2        => Some (StoreRCtx e1, e2)
-  | Flip e1            => Some (FlipCtx, e)
-  | _                  => None
+  | App (Val _) (Val _)      => None
+  | App e (Val v)            => Some (AppLCtx v, e)
+  | App e1 e2                => Some (AppRCtx e1, e2)
+  | UnOp _ (Val _)           => None
+  | UnOp op e                => Some (UnOpCtx op, e)
+  | BinOp _ (Val _) (Val _)  => None
+  | BinOp op e (Val v)       => Some (BinOpLCtx op v, e)
+  | BinOp op e1 e2           => Some (BinOpRCtx op e1, e2)
+  | If (Val _) _ _           => None
+  | If e0 e1 e2              => Some (IfCtx e1 e2, e0)
+  | Pair (Val _) (Val _)     => None
+  | Pair e (Val v)           => Some (PairLCtx v, e)
+  | Pair e1 e2               => Some (PairRCtx e1, e2)
+  | Fst (Val _)              => None
+  | Fst e                    => Some (FstCtx, e)
+  | Snd (Val _)              => None
+  | Snd e                    => Some (SndCtx, e)
+  | InjL (Val _)             => None
+  | InjL e                   => Some (InjLCtx, e)
+  | InjR (Val _)             => None
+  | InjR e                   => Some (InjRCtx, e)
+  | Case (Val _) _ _         => None
+  | Case e0 e1 e2            => Some (CaseCtx e1 e2, e0)
+  | Alloc (Val _)            => None
+  | Alloc e                  => Some (AllocCtx, e)
+  | Load (Val _)             => None
+  | Load e                   => Some (LoadCtx, e)
+  | Store (Val _) (Val _)    => None
+  | Store e (Val v)          => Some (StoreLCtx v, e)
+  | Store e1 e2              => Some (StoreRCtx e1, e2)
+  | Flip (Val _)             => None
+  | Flip e                   => Some (FlipCtx, e)
+  | _                        => None
   end.
 
 (** Substitution *)
@@ -457,23 +471,19 @@ Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
   | _, _ => 0
   end.
 
-(* helpers tactics to make the [head_step] proofs more tractable *)
-#[local] Tactic Notation "split_and'" :=
-  match goal with
-  | H : _ ∧ _ |- _ => destruct H
-  end.
-#[local] Tactic Notation "split_and'" "?" := repeat split_and'.
-#[local] Tactic Notation "split_and'" "!" := hnf; split_and'; split_and'?.
-
+(* helper tactics to make the [head_step] proofs more tractable *)
 #[local] Tactic Notation "solve_ex_seriesC_0" :=
   by (eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]).
 
 #[local] Tactic Notation "solve_ex_single" :=
+  (* decompose the expression as much as possible *)
   repeat case_match; try solve_ex_seriesC_0; subst;
+  (* use that its equivalent to a singleton *)
   eapply ex_seriesC_ext; [|eapply (ex_seriesC_singleton (_, _) 1)];
-  intros []=>/=; case_bool_decide;
-  subst;
-  [| repeat (case_bool_decide || case_match); try done; split_and'!; simplify_eq];
+  (* we can now decompose more to infer which singleton it is *)
+  intros []=>/=; case_bool_decide; subst;
+  [| repeat (case_bool_decide || case_match); try done; destruct_and!; simplify_eq];
+  (* the only case we're really intered in *)
   simplify_eq; rewrite bool_decide_eq_true_2 //.
 
 #[local] Tactic Notation "solve_SeriesC_0" :=
@@ -483,8 +493,8 @@ Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
   repeat case_match; try solve_SeriesC_0; subst;
   erewrite SeriesC_ext; [erewrite (SeriesC_singleton (_,_) 1); lra|];
   intros []=>/=; case_bool_decide;
-  subst; split_and'?;
-  [|repeat (case_bool_decide || case_match); try done; split_and'?; simplify_eq; exfalso; auto];
+  subst; destruct_and?;
+  [|repeat (case_bool_decide || case_match); try done; destruct_and?; simplify_eq; exfalso; auto];
   simplify_eq; rewrite bool_decide_eq_true_2 //.
 
 Program Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
@@ -555,7 +565,7 @@ Next Obligation.
     case_bool_decide; simplify_eq.
     + rewrite bool_decide_eq_true_2 //.
     + do 3 (case_match; try done).
-      rewrite bool_decide_eq_false_2 //. intros ?; split_and'; simplify_eq.
+      rewrite bool_decide_eq_false_2 //. intros ?; destruct_and!; simplify_eq.
   - solve_SeriesC_single.
   - do 3 (case_match; try solve_SeriesC_0).
     destruct (σ1.(tapes) !! l0) as [[|b bs]|] eqn:Heq.
@@ -571,60 +581,106 @@ Next Obligation.
     + solve_SeriesC_0.
 Qed.
 
+(* Intuitively, we want the to give [state_step] weight 0.5 to all transitions
+   where [σ1] and [σ2] agree on all tapes except one where a bit has been added
+   to end of some tape---this is a bit cumbersome to specify...*)
+Definition test (σ1 σ2 : state) : Prop :=
 
-(* (** Basic properties about the language *) *)
-(* Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki). *)
-(* Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed. *)
 
-(* Lemma fill_item_val Ki e : *)
-(*   is_Some (to_val (fill_item Ki e)) → is_Some (to_val e). *)
-(* Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed. *)
+  map_to_list (σ1.(tapes)) ≡ₚ map_to_list (σ2.(tapes)).
 
-(* Lemma val_head_stuck e1 σ1 e2 σ2 : head_step e1 σ1 (e2 σ2) > 0 → to_val e1 = None. *)
-(* Proof. destruct 1; naive_solver. Qed. *)
+#[local] Instance test_dec σ1 σ2 : Decision (test σ1 σ2).
+Proof. rewrite /test. apply _. Qed.
 
-(* Lemma head_ctx_step_val Ki e σ1 κ e2 σ2 efs : *)
-(*   head_step (fill_item Ki e) σ1 κ e2 σ2 efs → is_Some (to_val e). *)
-(* Proof. revert κ e2. induction Ki; inversion_clear 1; simplify_option_eq; eauto. Qed. *)
+Definition state_step_pmf (σ1 σ2 : state) : R :=
+  if bool_decide (test σ1 σ2) then 0.5 else 0.
 
-(* Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 : *)
-(*   to_val e1 = None → to_val e2 = None → *)
-(*   fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2. *)
-(* Proof. *)
-(*   revert Ki1. induction Ki2; intros Ki1; induction Ki1; naive_solver eauto with f_equal. *)
-(* Qed. *)
+Program Definition state_step (σ1 : state) : distr state :=
+  MkDistr (state_step_pmf σ1) _ _ _.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
 
-(* Lemma alloc_fresh v n σ : *)
-(*   let l := fresh_locs (dom σ.(heap)) in *)
-(*   (0 < n)%Z → *)
-(*   head_step (AllocN ((Val $ LitV $ LitInt $ n)) (Val v)) σ [] *)
-(*             (Val $ LitV $ LitLoc l) (state_init_heap l n v σ) []. *)
-(* Proof. *)
-(*   intros. *)
-(*   apply AllocNS; first done. *)
-(*   intros. apply not_elem_of_dom. *)
-(*   by apply fresh_locs_fresh. *)
-(* Qed. *)
+(** Basic properties about the language *)
+Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
+Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
 
-(* Lemma new_proph_id_fresh σ : *)
-(*   let p := fresh σ.(used_proph_id) in *)
-(*   head_step NewProph σ [] (Val $ LitV $ LitProphecy p) (state_upd_used_proph_id ({[ p ]} ∪.) σ) []. *)
-(* Proof. constructor. apply is_fresh. Qed. *)
+Lemma fill_item_val Ki e :
+  is_Some (to_val (fill_item Ki e)) → is_Some (to_val e).
+Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 
-(* Lemma heap_lang_mixin : EctxiLanguageMixin of_val to_val fill_item head_step. *)
-(* Proof. *)
-(*   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck, *)
-(*     fill_item_val, fill_item_no_val_inj, head_ctx_step_val. *)
-(* Qed. *)
-End heap_lang.
+Lemma val_head_stuck e σ ρ :
+  head_step e σ ρ > 0 → to_val e = None.
+Proof. destruct ρ, e; [|done..]. simpl. lra. Qed.
+Lemma head_ctx_step_val Ki e σ ρ :
+  head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
+Proof. destruct ρ, Ki; simpl; repeat case_match; try (done || lra). Qed.
 
-(* (** Language *) *)
-(* Canonical Structure heap_ectxi_lang := EctxiLanguage heap_lang.heap_lang_mixin. *)
-(* Canonical Structure heap_ectx_lang := EctxLanguageOfEctxi heap_ectxi_lang. *)
-(* Canonical Structure heap_lang := LanguageOfEctx heap_ectx_lang. *)
+Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
+  to_val e1 = None → to_val e2 = None →
+  fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
+Proof. destruct Ki2, Ki1; naive_solver eauto with f_equal. Qed.
 
-(* (* Prefer heap_lang names over ectx_language names. *) *)
-(* Export heap_lang. *)
+(* TODO: expr_rod and decomp_ord *)
+Fixpoint height (e : expr) : nat :=
+  match e with
+  | Val _ => 1
+  | Var _ => 1
+  | Rec _ _ e => 1 + height e
+  | App e1 e2 => 1 + height e1 + height e2
+  | UnOp _ e => 1 + height e
+  | BinOp _ e1 e2 => 1 + height e1 + height e2
+  | If e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | Pair e1 e2 => 1 + height e1 + height e2
+  | Fst e => 1 + height e
+  | Snd e => 1 + height e
+  | InjL e => 1 + height e
+  | InjR e => 1 + height e
+  | Case e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | Alloc e => 1 + height e
+  | Load e => 1 + height e
+  | Store e1 e2 => 1 + height e1 + height e2
+  | AllocTape => 1
+  | Flip e => 1 + height e
+  end .
+
+Definition expr_ord (e1 e2 : expr) : Prop := height e1 ≤ height e2.
+
+Lemma expr_ord_wf : well_founded expr_ord.
+Proof. Admitted.
+
+Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
+Proof. Admitted.
+
+Lemma decomp_fill_item Ki e :
+  to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
+Proof. destruct Ki; simpl; by repeat case_match. Qed.
+
+(* TODO: this proof is slow, but I do not see how to make it faster... *)
+Lemma decomp_fill_item_2 e e' Ki :
+  decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
+Proof.
+  destruct e; try done;
+    destruct Ki; simpl;
+    repeat case_match; intros [=]; subst; done.
+Qed.
+
+Lemma prob_lang_mixin :
+  EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step .
+Proof.
+  split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
+    fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
+    decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
+Qed.
+End prob_lang.
+
+(** Language *)
+Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.state_step prob_lang.prob_lang_mixin.
+Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
+Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
+
+(* Prefer prob_lang names over ectx_language names. *)
+Export prob_lang.
 
 (* (** The following lemma is not provable using the axioms of [ectxi_language]. *)
 (* The proof requires a case analysis over context items ([destruct i] on the *)
@@ -657,19 +713,3 @@ End heap_lang.
 (*   head_step e1 σ1 κ e2 σ2 efs → *)
 (*   head_step e1 σ1' κ' e2' σ2' efs' → is_Some (to_val e2) → is_Some (to_val e2'). *)
 (* Proof. destruct 1; inversion 1; naive_solver. Qed. *)
-
-(* Lemma irreducible_resolve e v1 v2 σ : *)
-(*   irreducible e σ → irreducible (Resolve e (Val v1) (Val v2)) σ. *)
-(* Proof. *)
-(*   intros H κs ? σ' efs [Ks e1' e2' Hfill -> step]. simpl in *. *)
-(*   induction Ks as [|K Ks _] using rev_ind; simpl in Hfill. *)
-(*   - subst e1'. inversion step. eapply H. by apply head_prim_step. *)
-(*   - rewrite fill_app /= in Hfill. *)
-(*     destruct K; (inversion Hfill; subst; clear Hfill; try *)
-(*       match goal with | H : Val ?v = fill Ks ?e |- _ => *)
-(*         (assert (to_val (fill Ks e) = Some v) as HEq by rewrite -H //); *)
-(*         apply to_val_fill_some in HEq; destruct HEq as [-> ->]; inversion step *)
-(*       end). *)
-(*     eapply (H κs (fill_item _ (foldl (flip fill_item) e2' Ks)) σ' efs). *)
-(*     eapply (Ectx_step (Ks ++ [_])); last done; simpl; by rewrite fill_app. *)
-(* Qed. *)

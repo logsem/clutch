@@ -43,9 +43,11 @@ Section ectxi_language_mixin.
         structurally decreasing) *)
     mixin_decomp_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e;
 
-    mixin_decomp_fill_item Ki e : decomp_item (fill_item Ki e) = Some (Ki, e);
-    mixin_decomp_fill_item_2 e e' Ki : decomp_item e = Some (Ki, e') → fill_item Ki e' = e;
-    mixin_decomp_item_head e σ ρ : head_step e σ ρ > 0 → decomp_item e = None;
+    mixin_decomp_fill_item Ki e :
+      to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e);
+    mixin_decomp_fill_item_2 e e' Ki :
+      decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None;
+
 
     (** If [fill_item Ki e] takes a head step, then [e] is a value (unlike for
         [ectx_language], an empty context is impossible here).  In other words,
@@ -89,7 +91,7 @@ Structure ectxiLanguage := EctxiLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _} _.
+Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments fill_item {_} _ _.
@@ -118,17 +120,17 @@ Section ectxi_language.
     decomp_item e = Some (Ki, e') → expr_ord e' e.
   Proof. apply ectxi_language_mixin. Qed.
   Lemma decomp_fill_item e Ki :
-    decomp_item (fill_item Ki e) = Some (Ki, e).
+    to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
   Proof. apply ectxi_language_mixin. Qed.
   Lemma decomp_fill_item_2 e e' Ki :
-    decomp_item e = Some (Ki, e') → fill_item Ki e' = e.
-  Proof. apply ectxi_language_mixin. Qed.
-  Lemma decomp_item_head e σ ρ :
-    head_step e σ ρ > 0 → decomp_item e = None.
+    decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
   Proof. apply ectxi_language_mixin. Qed.
   Lemma head_ctx_step_val Ki e σ1 ρ :
     head_step (fill_item Ki e) σ1 ρ > 0 → is_Some (to_val e).
   Proof. apply ectxi_language_mixin. Qed.
+
+  Lemma fill_item_not_val K e : to_val e = None → to_val (fill_item K e) = None.
+  Proof. rewrite !eq_None_not_Some. eauto using fill_item_val. Qed.
 
   Definition fill (K : ectx) (e : expr Λ) : expr Λ := foldl (flip fill_item) e K.
 
@@ -145,6 +147,7 @@ Section ectxi_language.
   Lemma decomp_inv_nil e e' :
     decomp e = ([], e') → decomp_item e = None ∧ e = e'.
   Proof.
+    (* TODO: can we make do without [WfExtensionality]?  *)
     rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
     destruct (decomp_item e) as [[Ki e'']|] eqn:Heq; [|by intros [=]].
     destruct (decomp e''). intros [= Hl He].
@@ -195,17 +198,18 @@ Section ectxi_language.
       intros (e'' & Hrei & Hre)%decomp_inv_cons.
       rewrite fill_app /= (IHK e'') //.
       by apply decomp_fill_item_2.
-    - intros e e' K σ ρ Hs.
-      induction K as [|Ki K] using rev_ind.
-      { intros [? <-]%decomp_inv_nil=>//. }
-      intros (e'' & Hrei & Hre)%decomp_inv_cons.
-      apply decomp_item_head in Hs. simplify_eq.
+    - intros K. induction K as [|Ki K] using rev_ind; [done|].
+      intros ?? (e'' & Hrei & Hre)%decomp_inv_cons Hv.
+      specialize (IHK _ _ Hre Hv). simplify_eq.
+      apply decomp_inv_nil in Hre as [? ?]; simplify_eq.
+      by apply decomp_fill_item_2 in Hrei as [_ ?%eq_None_not_Some].
     - intros e e' K K'. revert K' e e'.
       induction K as [|Ki K] using rev_ind.
       { intros ??? =>/=. rewrite app_nil_r //. }
-      intros K' e e' Hre. rewrite fill_app /=.
+      intros K' e e' Hval Hre. rewrite fill_app /=.
       rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
-      rewrite decomp_fill_item (IHK K' _ e') //=.
+      rewrite decomp_fill_item; [|auto using fill_item_not_val].
+      rewrite (IHK K' _ e') //=.
       rewrite !app_assoc //.
     - intros K K' e1 e1' σ1 [e2 σ2] Hfill Hred Hstep; revert K' Hfill.
       induction K as [|Ki K IH] using rev_ind=> /= K' Hfill; eauto using app_nil_r.
