@@ -581,24 +581,26 @@ Next Obligation.
     + solve_SeriesC_0.
 Qed.
 
-(* Intuitively, we want the to give [state_step] weight 0.5 to all transitions
-   where [σ1] and [σ2] agree on all tapes except one where a bit has been added
-   to end of some tape---this is a bit cumbersome to specify...*)
-Definition test (σ1 σ2 : state) : Prop :=
+Variant valid_state_step : state → state → Prop :=
+| MkValidStateStep σ1 σ2 l bs b :
+  σ1.(tapes) !! l = Some bs →
+  σ2.(tapes) = <[ l:= bs++[b] ]> σ1.(tapes) →
+  valid_state_step σ1 σ2.
 
-
-  map_to_list (σ1.(tapes)) ≡ₚ map_to_list (σ2.(tapes)).
-
-#[local] Instance test_dec σ1 σ2 : Decision (test σ1 σ2).
-Proof. rewrite /test. apply _. Qed.
+#[local] Instance valid_state_step_dec σ1 σ2 : Decision (valid_state_step σ1 σ2).
+Proof. apply make_decision. Qed.
 
 Definition state_step_pmf (σ1 σ2 : state) : R :=
-  if bool_decide (test σ1 σ2) then 0.5 else 0.
+  if bool_decide (valid_state_step σ1 σ2) then 0.5 else 0.
 
 Program Definition state_step (σ1 : state) : distr state :=
   MkDistr (state_step_pmf σ1) _ _ _.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+Next Obligation. rewrite /state_step_pmf. intros ??. case_bool_decide; lra. Qed.
+Next Obligation.
+  rewrite /state_step_pmf. intros σ1.
+
+  (* Hmm, now we really want to compute our σ2.... *)
+Admitted.
 Next Obligation. Admitted.
 
 (** Basic properties about the language *)
@@ -621,7 +623,6 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
 Proof. destruct Ki2, Ki1; naive_solver eauto with f_equal. Qed.
 
-(* TODO: expr_rod and decomp_ord *)
 Fixpoint height (e : expr) : nat :=
   match e with
   | Val _ => 1
@@ -644,13 +645,29 @@ Fixpoint height (e : expr) : nat :=
   | Flip e => 1 + height e
   end .
 
-Definition expr_ord (e1 e2 : expr) : Prop := height e1 ≤ height e2.
+Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
+
+Lemma expr_ord_wf' h e : (height e ≤ h)%nat → Acc expr_ord e.
+Proof.
+  rewrite /expr_ord. revert e; induction h.
+  { destruct e; simpl; lia. }
+  intros []; simpl;
+    constructor; simpl; intros []; eauto with lia.
+Defined.
 
 Lemma expr_ord_wf : well_founded expr_ord.
-Proof. Admitted.
+Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
+(* TODO: this proof is slow, but I do not see how to make it faster... *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
-Proof. Admitted.
+Proof.
+  rewrite /expr_ord /decomp_item.
+  destruct e; try done;
+  destruct Ki; simpl;
+    repeat case_match; intros [=]; subst; lia.
+Qed.
+
+Print decomp_expr_ord.
 
 Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
