@@ -298,12 +298,12 @@ Section couplings_theory.
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
       [ | intro p; apply SeriesC_scal_l]. 
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
-      {intros (a & b);
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
-        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
-        specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS);
-        rewrite -HChL lmarg_pmf //=].
-          }.
+      { intros (a & b).
+        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
+        - pose proof (pmf_pos μ (a, b)); lra.
+        - rewrite Heqz; lra.
+        - specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
+          rewrite -HChL lmarg_pmf //=. }
       rewrite SeriesC_double_prod_lr.
       erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
       [ | intro a; simpl; apply SeriesC_scal_r ].
@@ -622,4 +622,3 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       }
    Admitted.
 *)
-End couplings_theory.
