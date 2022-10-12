@@ -6,14 +6,14 @@ From self.prelude Require Import classical.
 From self.prob Require Import distribution.
 
 Section language_mixin.
-  Context {expr val state : Type}.
+  Context {expr val state state_idx : Type}.
   Context `{Countable expr, Countable state}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
   Context (prim_step  : expr → state → distr (expr * state)).
-  Context (state_step : state → distr state).
+  Context (state_step : state → state_idx → distr state).
 
   Record LanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -26,6 +26,7 @@ Structure language := Language {
   expr : Type;
   val : Type;
   state : Type;
+  state_idx : Type;
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
@@ -35,7 +36,7 @@ Structure language := Language {
   of_val : val → expr;
   to_val : expr → option val;
   prim_step : expr → state → distr (expr * state);
-  state_step : state → distr state;
+  state_step : state → state_idx → distr state;
 
   language_mixin : LanguageMixin of_val to_val prim_step
 }.
@@ -43,7 +44,7 @@ Structure language := Language {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments state_step {_}.
@@ -111,10 +112,10 @@ Section language.
     ρ1 = (e1, σ1) →
     prim_step e1 σ1 ρ2 > 0 →
     step ρ1 ρ2
-  | step_state e σ1 σ2 :
+  | step_state e α σ1 σ2 :
     ρ1 = (e, σ1) →
     ρ2 = (e, σ2) →
-    state_step σ1 σ2 > 0 →
+    state_step σ1 α σ2 > 0 →
     step ρ1 ρ2.
   Local Hint Constructors step : core.
 
@@ -256,10 +257,13 @@ Section distribution.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
+  Implicit Types α : state_idx Λ.
 
   Inductive action :=
-  | PRIM  (* prim_step *)
-  | STATE (* state_step *).
+  (* prim_step *)
+  | PRIM
+  (* state_step *)
+  | STATE (α : state_idx Λ).
 
   Definition scheduler_fn (Λ : language) := cfg Λ → option action.
   Definition scheduler (Λ : language) := list (scheduler_fn Λ).
@@ -269,7 +273,7 @@ Section distribution.
   Definition kernel_fn_pmf (f : scheduler_fn Λ) '(e, σ) ρ : R :=
     match f (e, σ) with
     | Some PRIM  => prim_step e σ ρ
-    | Some STATE => strength_l e (state_step σ) ρ
+    | Some (STATE α) => strength_l e (state_step σ α) ρ
     | _ => 0
     end.
   Program Definition kernel_fn (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=

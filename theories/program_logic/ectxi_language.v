@@ -9,7 +9,7 @@ From self.program_logic Require Import language ectx_language.
 From self.prob Require Import distribution.
 
 Section ectxi_language_mixin.
-  Context {expr val ectx_item state : Type}.
+  Context {expr val ectx_item state state_idx : Type}.
   Context `{Countable expr, Countable state}.
 
   Context (of_val : val → expr).
@@ -20,7 +20,7 @@ Section ectxi_language_mixin.
   Context (expr_ord : expr → expr → Prop).
 
   Context (head_step  : expr → state → distr (expr * state)).
-  Context (state_step : state → distr state).
+  Context (state_step : state → state_idx → distr state).
 
   Record EctxiLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -63,6 +63,7 @@ Structure ectxiLanguage := EctxiLanguage {
   val : Type;
   ectx_item : Type;
   state : Type;
+  state_idx : Type;
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
@@ -77,7 +78,7 @@ Structure ectxiLanguage := EctxiLanguage {
   expr_ord : expr → expr → Prop;
 
   head_step : expr → state → distr (expr * state);
-  state_step : state → distr state;
+  state_step : state → state_idx → distr state;
 
   ectxi_language_mixin :
     EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step
@@ -91,7 +92,7 @@ Structure ectxiLanguage := EctxiLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
+Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments fill_item {_} _ _.
@@ -252,8 +253,8 @@ Coercion ectxi_lang_ectx : ectxiLanguage >-> ectxLanguage.
 Coercion ectxi_lang : ectxiLanguage >-> language.
 
 Definition EctxLanguageOfEctxi (Λ : ectxiLanguage) : ectxLanguage :=
-  let '@EctxiLanguage E V C St _ _ _ _ of_val to_val fill decomp expr_ord head state mix := Λ in
-  @EctxLanguage E V (list C) St _ _ _ _ of_val to_val _ _ _ _ _ state
-    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St _ _ _ _ of_val to_val fill decomp expr_ord head state mix)).
+  let '@EctxiLanguage E V C St StI _ _ _ _ of_val to_val fill decomp expr_ord head state mix := Λ in
+  @EctxLanguage E V (list C) St StI _ _ _ _ of_val to_val _ _ _ _ _ state
+    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St StI _ _ _ _ of_val to_val fill decomp expr_ord head state mix)).
 
 Global Arguments EctxLanguageOfEctxi : simpl never.

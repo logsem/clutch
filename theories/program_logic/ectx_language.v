@@ -8,7 +8,7 @@ From self.program_logic Require Import language.
 From self.prob Require Import distribution.
 
 Section ectx_language_mixin.
-  Context {expr val ectx state : Type}.
+  Context {expr val ectx state state_idx : Type}.
   Context `{Countable expr, Countable state}.
 
   Context (of_val : val → expr).
@@ -20,7 +20,7 @@ Section ectx_language_mixin.
   Context (decomp : expr → ectx * expr).
 
   Context (head_step  : expr → state → distr (expr * state)).
-  Context (state_step : state → distr state).
+  Context (state_step : state → state_idx → distr state).
 
   Record EctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -68,6 +68,7 @@ Structure ectxLanguage := EctxLanguage {
   val : Type;
   ectx : Type;
   state : Type;
+  state_idx : Type;
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
@@ -83,7 +84,7 @@ Structure ectxLanguage := EctxLanguage {
   decomp : expr → ectx * expr;
 
   head_step : expr → state → distr (expr * state);
-  state_step : state → distr state;
+  state_step : state → state_idx → distr state;
 
   ectx_language_mixin :
     EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp head_step
@@ -97,7 +98,7 @@ Structure ectxLanguage := EctxLanguage {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
@@ -181,7 +182,7 @@ Section ectx_language.
       by eapply fill_not_val.
   Qed.
 
-  Canonical Structure ectx_lang : language := Language (state_step := state_step) ectx_lang_mixin.
+  Canonical Structure ectx_lang : language := Language (state_step := state_step)  ectx_lang_mixin.
 
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ',
@@ -239,7 +240,7 @@ Section ectx_language.
     rewrite /prim_step /=. intros Hs.
     pose proof (val_head_stuck _ _ _ Hs) as Hval.
     destruct (decomp e1) as [K1 e1'] eqn:Heq.
-    edestruct (decomp_fill _ _ _ Heq) as [<- ?].
+    erewrite <-(decomp_fill _ _ _ Heq) in Hs.
     edestruct (head_ctx_step_val _ _ _ _ Hs) as [[]|HK]; simplify_eq.
     - assert (K1 = empty_ectx) as -> by eauto using decomp_val_empty.
       assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
@@ -264,7 +265,7 @@ Section ectx_language.
     split.
     - rewrite /= /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
-      edestruct (decomp_fill _ _ _ Heq) as [? ?].
+      edestruct (decomp_fill _ _ _ Heq).
       eapply dbind_pos_support in Hs as [[] [Hr%dret_Rgt_zero_inv ?]].
       simplify_eq. do 3 eexists; eauto.
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
@@ -404,8 +405,8 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 Definition LanguageOfEctx (Λ : ectxLanguage) : language :=
-  let '@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill decomp head state mix := Λ in
-  @Language E V St _ _ _  _ of_val to_val _ state
-    (@ectx_lang_mixin (@EctxLanguage E V C St _ _ _ _ of_val to_val empty comp fill decomp head state mix )).
+  let '@EctxLanguage E V C St StI _ _ _ _ of_val to_val empty comp fill decomp head state mix := Λ in
+  @Language E V St StI _ _ _  _ of_val to_val _ state
+    (@ectx_lang_mixin (@EctxLanguage E V C St StI _ _ _ _ of_val to_val empty comp fill decomp head state mix )).
 
 Global Arguments LanguageOfEctx : simpl never.

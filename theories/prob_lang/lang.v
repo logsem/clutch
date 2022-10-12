@@ -571,9 +571,9 @@ Next Obligation.
     destruct (σ1.(tapes) !! l0) as [[|b bs]|] eqn:Heq.
     + erewrite SeriesC_ext.
       { erewrite SeriesC_plus;
-          [erewrite (SeriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5);
-           erewrite (SeriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5); lra|
-          |]; apply ex_seriesC_singleton. }
+          [|eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)
+           |eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)].
+        rewrite 2!SeriesC_singleton. lra. }
       intros [? σ2]. simplify_eq.
       do 3 (case_match; simpl; try lra).
       destruct b; repeat case_bool_decide; simplify_eq; try lra.
@@ -581,27 +581,53 @@ Next Obligation.
     + solve_SeriesC_0.
 Qed.
 
-Variant valid_state_step : state → state → Prop :=
-| MkValidStateStep σ1 σ2 l bs b :
-  σ1.(tapes) !! l = Some bs →
-  σ2.(tapes) = <[ l:= bs++[b] ]> σ1.(tapes) →
-  valid_state_step σ1 σ2.
 
-#[local] Instance valid_state_step_dec σ1 σ2 : Decision (valid_state_step σ1 σ2).
-Proof. apply make_decision. Qed.
+Definition valid_state_step (σ1 : state) (α : loc) (σ2 : state) : Prop :=
+  (* heaps are the same *)
+  σ2.(heap) = σ1.(heap) ∧
+  (* but we add a bit to the [α] tape *)
+  ∃ b, σ2.(tapes) = <[α := σ1.(tapes) !!! α ++ [b]]>σ1.(tapes).
 
-Definition state_step_pmf (σ1 σ2 : state) : R :=
-  if bool_decide (valid_state_step σ1 σ2) then 0.5 else 0.
+#[local] Instance valid_state_step_dec σ1 α σ2 : Decision (valid_state_step σ1 α σ2).
+Proof. rewrite /valid_state_step. apply _. Qed.
 
-Program Definition state_step (σ1 : state) : distr state :=
-  MkDistr (state_step_pmf σ1) _ _ _.
-Next Obligation. rewrite /state_step_pmf. intros ??. case_bool_decide; lra. Qed.
+Definition state_step_pmf (σ1 : state) (α : loc) (σ2 : state) : R :=
+  if bool_decide (valid_state_step σ1 α σ2) then 0.5 else 0.
+
+Lemma state_step_pmf_eq σ1 α σ2 :
+  state_step_pmf σ1 α σ2 =
+    (if bool_decide (σ2 = state_upd_tapes (<[α := σ1.(tapes) !!! α ++ [true]]>) σ1)
+     then 0.5 else 0)
+  + (if bool_decide (σ2 = state_upd_tapes (<[α := σ1.(tapes) !!! α ++ [false]]>) σ1)
+     then 0.5 else 0).
+Proof.
+  destruct σ1 as [h1 t1], σ2 as [h2 t2].
+  rewrite /state_step_pmf /valid_state_step. case_bool_decide as Heq.
+  - destruct Heq as [? [[] ?]]; simplify_map_eq.
+    + rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2; [lra|].
+      case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
+    + rewrite bool_decide_eq_false_2.
+      { rewrite bool_decide_eq_true_2 //. lra. }
+      case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
+  - rewrite !bool_decide_eq_false_2; [lra| |]; case; intros; eauto.
+Qed.
+
+Program Definition state_step (σ1 : state) (α : loc) : distr state :=
+  MkDistr (state_step_pmf σ1 α) _ _ _.
+Next Obligation. rewrite /state_step_pmf. intros. case_bool_decide; lra. Qed.
 Next Obligation.
-  rewrite /state_step_pmf. intros σ1.
-
-  (* Hmm, now we really want to compute our σ2.... *)
-Admitted.
-Next Obligation. Admitted.
+  intros σ1 α.
+  eapply ex_seriesC_ext.
+  { intros σ2. rewrite state_step_pmf_eq //. }
+  eapply ex_seriesC_plus; eapply ex_seriesC_singleton.
+Qed.
+Next Obligation.
+  intros σ1 α.
+  erewrite SeriesC_ext.
+  2 : { intros σ2. rewrite state_step_pmf_eq //. }
+  erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
+  rewrite 2!SeriesC_singleton. lra.
+Qed.
 
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
@@ -666,8 +692,6 @@ Proof.
   destruct Ki; simpl;
     repeat case_match; intros [=]; subst; lia.
 Qed.
-
-Print decomp_expr_ord.
 
 Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
