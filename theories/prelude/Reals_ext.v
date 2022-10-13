@@ -49,5 +49,5 @@ Proof. intros ?? Hle ?? Hle'. nra. Qed.
 Lemma Rmax_INR a b: Rmax (INR a) (INR b) = INR (max a b).
 Proof.
   apply Rmax_case_strong; intros ?%INR_le; f_equal;
-    [ rewrite Max.max_l // | rewrite Max.max_r // ].
+    [ rewrite Nat.max_l // | rewrite Nat.max_r // ].
 Qed.
