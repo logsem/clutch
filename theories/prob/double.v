@@ -920,6 +920,36 @@ Section countable_sum.
     intros [v ?]. exists v. by eapply is_seriesC_double_swap_impl.
   Qed.
 
+  Lemma ex_seriesC_double_prod_lr :
+    ex_seriesC f →
+    ex_seriesC (λ a, SeriesC (λ b, f (a, b))).
+  Proof. Admitted.
+
+  Lemma ex_seriesC_double_prod_rl :
+    ex_seriesC f →
+    ex_seriesC (λ b, SeriesC (λ a, f (a, b))).
+  Proof. Admitted.
+
+  Lemma ex_seriesC_double_pos_l :
+    (forall a b, 0 <= f (a, b)) ->
+    ex_seriesC f →
+    (∀ a, ex_seriesC (λ b, f (a, b))).
+  Proof.
+    intros Hle Hex a.
+    pose proof (ex_seriesC_double_prod_rl Hex) as Hba.
+    eapply (ex_seriesC_le _ _ _ Hba).
+    Unshelve.
+    intro b; split; auto.
+    eapply (SeriesC_ge_elem (λ x, f (x, b))).
+    (* We now are where we started *)
+  Admitted.
+
+  Lemma ex_seriesC_double_pos_r :
+    (forall a b, 0 <= f (a, b)) ->
+    ex_seriesC f →
+    (∀ b, ex_seriesC (λ a, f (a, b))).
+  Proof. Admitted.
+
 
 (* These are also useful *)
 

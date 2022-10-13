@@ -146,6 +146,7 @@ Section series.
     + by apply countable_sum_le.
   Qed.
 
+
   Lemma SeriesC_ext f g :
     (∀ n, f n = g n) → SeriesC f = SeriesC g.
   Proof. intros Hext. apply Series_ext => // n. by apply countable_sum_ext. Qed.
@@ -339,6 +340,20 @@ Section filter.
              (λ n : A, if bool_decide (n = a) then v else 0)).
     + apply SeriesC_singleton.
     + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
+  Qed.
+
+
+  Lemma SeriesC_ge_elem  (f : A → R) (a : A) :
+    (∀ x, 0 <= f x) →
+    ex_seriesC f →
+    f a <= SeriesC f.
+  Proof.
+    intros Heq0 Hex.
+    rewrite -(SeriesC_singleton a (f a)).
+    apply Series_le; [|done].
+    intros n. split;
+    [apply countable_sum_ge_0 | apply countable_sum_le];
+      intros ?; case_bool_decide; simplify_eq; auto; lra.
   Qed.
 
 
