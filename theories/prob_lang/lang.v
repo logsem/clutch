@@ -135,7 +135,7 @@ Defined.
 Global Instance val_eq_dec : EqDecision val.
 Proof. solve_decision. Defined.
 Global Instance state_eq_dec : EqDecision state.
-Proof. solve_decision. Qed.
+Proof. solve_decision. Defined.
 
 Global Instance base_lit_countable : Countable base_lit.
 Proof.

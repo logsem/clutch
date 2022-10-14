@@ -355,6 +355,7 @@ Section ectx_language.
   Proof.
     split; simpl.
     - eauto using fill_not_val.
+    - apply _.
     - intros ???? (K' & e1' & e2' & Heq1 & Heq2 & Hs)%prim_step_iff.
       eapply prim_step_iff.
       exists (comp_ectx K K'), e1', e2'.
