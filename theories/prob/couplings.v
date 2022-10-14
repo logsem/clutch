@@ -397,25 +397,25 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
   Proposition refcoupl_elim :
     forall (μ1 μ2 : distr A),
       refRcoupl μ1 μ2 (=) → (∀ a, μ1 a <= μ2 a).
-  Proof.
-    intros μ1 μ2 (μ & (HμL & HμR) & HμS) a.
-    eapply (Rle_Transitive _ (lmarg μ a) _); auto.
-    rewrite <- HμR.
-    rewrite lmarg_pmf rmarg_pmf.
-    apply SeriesC_ext.
-    intro a2.
-    specialize (HμS (a1, a2)) as HμS12.
-    specialize (HμS (a2, a1)) as HμS21.
-    simpl in HμS12.
-    simpl in HμS21.
-    pose proof (Rtotal_order (μ (a1, a2)) (μ (a2, a1))) as [Hlt | [Heq | Hgt]]; auto.
-    + pose proof (pmf_pos μ (a1, a2)).
-      assert (μ (a2, a1) > 0) as H'; try lra.
-      specialize (HμS21 H'); destruct HμS21; auto.
-    + pose proof (pmf_pos μ (a2, a1)).
-      assert (μ (a1, a2) > 0) as H'; try lra.
-      specialize (HμS12 H'); destruct HμS12; auto.
-  Qed.
+  Proof. Admitted.
+  (*   intros μ1 μ2 (μ & (HμL & HμR) & HμS) a. *)
+  (*   eapply (Rle_Transitive _ (lmarg μ a) _); auto. *)
+  (*   rewrite <- HμR. *)
+  (*   rewrite lmarg_pmf rmarg_pmf. *)
+  (*   apply SeriesC_ext. *)
+  (*   intro a2. *)
+  (*   specialize (HμS (a1, a2)) as HμS12. *)
+  (*   specialize (HμS (a2, a1)) as HμS21. *)
+  (*   simpl in HμS12. *)
+  (*   simpl in HμS21. *)
+  (*   pose proof (Rtotal_order (μ (a1, a2)) (μ (a2, a1))) as [Hlt | [Heq | Hgt]]; auto. *)
+  (*   + pose proof (pmf_pos μ (a1, a2)). *)
+  (*     assert (μ (a2, a1) > 0) as H'; try lra. *)
+  (*     specialize (HμS21 H'); destruct HμS21; auto. *)
+  (*   + pose proof (pmf_pos μ (a2, a1)). *)
+  (*     assert (μ (a1, a2) > 0) as H'; try lra. *)
+  (*     specialize (HμS12 H'); destruct HμS12; auto. *)
+  (* Qed. *)
 
   Proposition is_ref_coupl_ret :
     forall (a : A) (b : B), isRefCoupl (dret a) (dret b) (dret (a, b)).
@@ -435,75 +435,75 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
  Proposition refRcoupl_bind :
     forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop),
       (∀ a b, R a b → refRcoupl (f a) (g b) S) → refRcoupl μ1 μ2 R → refRcoupl (dbind f μ1) (dbind g μ2) S.
-  Proof.
-    intros f g μ1 μ2 R S Hfg (μ & HμC & HμS).
-    rewrite /Rcoupl /isRcoupl in Hfg.
-    (* First we rewrite Hfg to be able to use Choice *)
-    assert (∀ (p : A * B), ∃ μ' : distr (A' * B'), R p.1 p.2 → (isRefCoupl (f p.1) (g p.2) μ' ∧
-                                                     (∀ q : A' * B', μ' q > 0 → S q.1 q.2))) as Hfg'; auto.
-    {
-      intro p.
-      specialize (HμS p).
-      specialize (Hfg p.1 p.2).
-      pose proof (ExcludedMiddle (R p.1 p.2)) as H3; destruct H3 as [HR | HnR].
-      + specialize (Hfg HR).
-        destruct Hfg as (μ' & Hμ'1 & Hμ'2).
-        exists μ'; auto.
-      + exists dzero; intro ; done.
-    }
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as (Ch & HCh).
-    rewrite /Rcoupl /isRcoupl.
-    exists (dbind Ch μ); split; try split.
- (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
-    fact that μ and (Ch p) are couplings *)
-    + intro a'.
-      rewrite lmarg_pmf /= /dbind_pmf
-       (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
-      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l]. 
-      erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
-      {intros (a & b);
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
-        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
-        specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS);
-        rewrite -HChL lmarg_pmf //=].
-          }.
-      rewrite SeriesC_double_prod_lr.
-      erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
-      [ | intro a; simpl; apply SeriesC_scal_r ].
-      erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
-      intro a.
-      destruct HμC as (Hμ1 & Hμ2).
-      rewrite <- Hμ1;
-      rewrite lmarg_pmf; auto.
-(* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
-    + apply distr_ext; intro b'.
-      rewrite rmarg_pmf /= /dbind_pmf
-      (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
-      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
-      [ | intro p; apply SeriesC_scal_l]. 
-      erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first.
-      {intros (a & b);
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
-        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
-        specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS);
-        rewrite -HChR rmarg_pmf //=].
-       }
-      rewrite SeriesC_double_prod_rl.
-      erewrite (SeriesC_ext _ (λ b, SeriesC (λ a : A, μ (a, b) ) * g b b'));
-      [ | intro b; simpl; apply SeriesC_scal_r].
-      erewrite (SeriesC_ext _ (λ b, (μ2 b) * g b b')); auto.
-      intro b.
-      destruct HμC as (Hμ1 & Hμ2).
-      rewrite <- Hμ2;
-      rewrite rmarg_pmf; auto.
-    + intros (a' & b') H3; simpl.
-      pose proof (dbind_pos_support Ch μ (a', b')) as (H4 & H5).
-      specialize (H4 H3) as ((a0, b0) & H7 & H8).
-      specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
-      specialize (HCh2 (a', b') H7).
-      done.
-  Qed.
+  Proof. Admitted.
+(*     intros f g μ1 μ2 R S Hfg (μ & HμC & HμS). *)
+(*     rewrite /Rcoupl /isRcoupl in Hfg. *)
+(*     (* First we rewrite Hfg to be able to use Choice *) *)
+(*     assert (∀ (p : A * B), ∃ μ' : distr (A' * B'), R p.1 p.2 → (isRefCoupl (f p.1) (g p.2) μ' ∧ *)
+(*                                                      (∀ q : A' * B', μ' q > 0 → S q.1 q.2))) as Hfg'; auto. *)
+(*     { *)
+(*       intro p. *)
+(*       specialize (HμS p). *)
+(*       specialize (Hfg p.1 p.2). *)
+(*       pose proof (ExcludedMiddle (R p.1 p.2)) as H3; destruct H3 as [HR | HnR]. *)
+(*       + specialize (Hfg HR). *)
+(*         destruct Hfg as (μ' & Hμ'1 & Hμ'2). *)
+(*         exists μ'; auto. *)
+(*       + exists dzero; intro ; done. *)
+(*     } *)
+(*     pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as (Ch & HCh). *)
+(*     rewrite /Rcoupl /isRcoupl. *)
+(*     exists (dbind Ch μ); split; try split. *)
+(*  (* To prove that the first marginal coincides is a matter of rearranging the sums and using the *)
+(*     fact that μ and (Ch p) are couplings *) *)
+(*     + intro a'. *)
+(*       rewrite lmarg_pmf /= /dbind_pmf *)
+(*        (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))). *)
+(*       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) ); *)
+(*       [ | intro p; apply SeriesC_scal_l].  *)
+(*       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first. *)
+(*       {intros (a & b); *)
+(*         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]]; *)
+(*         [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra | *)
+(*         specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS); *)
+(*         rewrite -HChL lmarg_pmf //=]. *)
+(*           }. *)
+(*       rewrite SeriesC_double_prod_lr. *)
+(*       erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a')); *)
+(*       [ | intro a; simpl; apply SeriesC_scal_r ]. *)
+(*       erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto. *)
+(*       intro a. *)
+(*       destruct HμC as (Hμ1 & Hμ2). *)
+(*       rewrite <- Hμ1; *)
+(*       rewrite lmarg_pmf; auto. *)
+(* (* The second half is esentially the same as the first, can it be proven somehow by symmetry? *) *)
+(*     + apply distr_ext; intro b'. *)
+(*       rewrite rmarg_pmf /= /dbind_pmf *)
+(*       (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))). *)
+(*       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) ); *)
+(*       [ | intro p; apply SeriesC_scal_l].  *)
+(*       erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first. *)
+(*       {intros (a & b); *)
+(*         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]]; *)
+(*         [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra | *)
+(*         specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS); *)
+(*         rewrite -HChR rmarg_pmf //=]. *)
+(*        } *)
+(*       rewrite SeriesC_double_prod_rl. *)
+(*       erewrite (SeriesC_ext _ (λ b, SeriesC (λ a : A, μ (a, b) ) * g b b')); *)
+(*       [ | intro b; simpl; apply SeriesC_scal_r]. *)
+(*       erewrite (SeriesC_ext _ (λ b, (μ2 b) * g b b')); auto. *)
+(*       intro b. *)
+(*       destruct HμC as (Hμ1 & Hμ2). *)
+(*       rewrite <- Hμ2; *)
+(*       rewrite rmarg_pmf; auto. *)
+(*     + intros (a' & b') H3; simpl. *)
+(*       pose proof (dbind_pos_support Ch μ (a', b')) as (H4 & H5). *)
+(*       specialize (H4 H3) as ((a0, b0) & H7 & H8). *)
+(*       specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2). *)
+(*       specialize (HCh2 (a', b') H7). *)
+(*       done. *)
+(*   Qed. *)
 
 (* Old proof attempts below, can probably be deleted
 
@@ -622,3 +622,4 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       }
    Admitted.
 *)
+End ref_couplings_theory.
