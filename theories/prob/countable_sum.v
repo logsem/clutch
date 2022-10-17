@@ -526,7 +526,6 @@ Section positive.
       simplify_eq; done.
     + destruct (PeanoNat.Nat.le_gt_cases p q) as [H1 | H1].
       ++ specialize (IHq H1).
-         Search sum_n_m.
          rewrite sum_n_Sm; auto with arith.
          rewrite /plus /=.
          specialize (Hge (S q)).
@@ -583,7 +582,7 @@ Section positive.
       rewrite /filtermap in Hs.
       specialize (Hs (ball r eps)).
       assert (∃ N : nat, ∀ n : nat, N ≤ n → ball r eps (sum_n h n)) as (N & HN).
-      {apply Hs. exists eps. auto.}
+      {apply Hs. exists eps. auto. }
       exists N; simpl.
       specialize (HN N (Nat.le_refl N)).
       specialize (Hpart N r Hge Hs').
@@ -674,6 +673,7 @@ Section positive.
 
   (** Fubini for non-negative series **)
 
+ (*
   Lemma fubini_pos_series (f : nat * nat → R) v :
     (forall n m, f (n, m) >= 0) ->
     is_series (λ b, Series (λ a, f (a, b))) v →
@@ -682,7 +682,8 @@ Section positive.
     intros Hpos Hse.
     apply sup_is_lim.
     + admit.
-    + Search Sup_seq. apply lim_is_sup.
+    + apply lim_is_sup.
+  Admitted.
 
 
 
@@ -709,6 +710,7 @@ Section positive.
     intro eps; split.
     + induction n; rewrite /countable_sum.
       ++ destruct (encode_inv_nat _) =>//=; try lra; admit.
-      ++ 
+      ++
+*)
 
 End positive.
