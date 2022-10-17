@@ -74,7 +74,9 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
   fill_step_prob e1 σ1 e2 σ2 :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (K e1) σ1 (K e2, σ2);
-  }.
+}.
+
+#[global] Existing Instance fill_inj.
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
@@ -174,6 +176,11 @@ Section language.
     - destruct (decide (to_val e = None)); eauto using reducible_fill_inv.
   Qed.
 
+  Lemma fill_step_prob' K `{!@LanguageCtx Λ K} e1 e2 σ1 σ2  :
+    prim_step e1 σ1 (e2, σ2) > 0 →
+    prim_step e1 σ1 (e2, σ2) = prim_step (K e1) σ1 (K e2, σ2).
+  Proof. intros ?%val_stuck. by apply fill_step_prob. Qed.
+
   Lemma stuck_fill `{!@LanguageCtx Λ K} e σ :
     stuck e σ → stuck (K e) σ.
   Proof. rewrite -!not_not_stuck. eauto using not_stuck_fill_inv. Qed.
@@ -253,103 +260,85 @@ Global Hint Mode PureExec + - - ! - : typeclass_instances.
 Global Arguments step_atomic {Λ ρ1 ρ2}.
 Global Arguments step_state {Λ ρ1 ρ2}.
 
+Inductive action (Λ : language) :=
+  (* prim_step *)
+  | PRIM
+  (* state_step *)
+  | STATE (α : state_idx Λ).
+
+Global Arguments PRIM {Λ}.
+Global Arguments STATE {Λ} _.
+
+Definition scheduler_fn (Λ : language) := cfg Λ → option (action Λ).
+Definition scheduler (Λ : language) := list (scheduler_fn Λ).
+
 Section distribution.
   Context {Λ : language}.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
   Implicit Types α : state_idx Λ.
-
-  Inductive action :=
-  (* prim_step *)
-  | PRIM
-  (* state_step *)
-  | STATE (α : state_idx Λ).
-
-  Definition scheduler_fn (Λ : language) := cfg Λ → option action.
-  Definition scheduler (Λ : language) := list (scheduler_fn Λ).
-
   Implicit Types ξ : scheduler Λ.
 
-  Definition exec_fn_pmf (f : scheduler_fn Λ) '(e, σ) ρ : R :=
+  Definition exec_fn_pmf '(e, σ) (f : scheduler_fn Λ) ρ : R :=
     match f (e, σ) with
-    | Some PRIM  => prim_step e σ ρ
+    | Some PRIM => prim_step e σ ρ
     | Some (STATE α) => strength_l e (state_step σ α) ρ
     | _ => 0
     end.
-  Program Definition exec_fn (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    MkDistr (exec_fn_pmf f ρ) _ _ _.
-  Next Obligation. intros f [] ρ. rewrite /exec_fn_pmf. destruct (f _) as [[]|]; [done|done|done]. Qed.
+  Program Definition exec_fn (ρ : cfg Λ) (f : scheduler_fn Λ) : distr (cfg Λ) :=
+    MkDistr (exec_fn_pmf ρ f) _ _ _.
+  Next Obligation. intros [] f ρ. rewrite /exec_fn_pmf. destruct (f _) as [[]|]; [done|done|done]. Qed.
   Next Obligation.
-    intros f [e σ]. rewrite /exec_fn_pmf.
+    intros [e σ] f. rewrite /exec_fn_pmf.
     destruct (f _) as [[]|]; [done|done|]. apply ex_seriesC_0.
   Qed.
   Next Obligation.
-    intros f [e σ]. rewrite /exec_fn_pmf.
+    intros [e σ] f. rewrite /exec_fn_pmf.
     destruct (f _) as [[]|]; [done|done|]. rewrite SeriesC_0 //; lra.
   Qed.
-  Arguments exec_fn _ _ : simpl never.
-  Arguments dret _ : simpl never.
 
-  Fixpoint exec_pmf (ξ : scheduler Λ) (ρ ρ' : cfg Λ) : R :=
-    match ξ with
-    | f :: ξ' => SeriesC (λ ρ'', exec_fn f ρ ρ'' * exec_pmf ξ' ρ'' ρ')
-    | [] => dret ρ ρ'
-    end.
-
-  #[local] Lemma exec_pmf_range ξ ρ ρ' :
-    0 <= exec_pmf ξ ρ ρ' <= 1.
+  Lemma exec_fn_pmf_unfold f ρ ρ' :
+    exec_fn ρ f ρ' =
+      match f ρ with
+      | Some PRIM => prim_step ρ.1 ρ.2 ρ'
+      | Some (STATE α) => strength_l ρ.1 (state_step ρ.2 α) ρ'
+      | _ => 0
+      end.
   Proof.
-    revert ρ ρ'. induction ξ as [|f ξ IH]; intros ρ ρ'; cbn.
-    { split; [done|]. eapply pmf_le_1. }
-    split.
-    - eapply SeriesC_ge_0.
-      { intros ρ''. apply Rmult_le_pos; [done|]. apply IH. }
-      eapply (ex_seriesC_le _ (exec_fn f ρ)); [|done].
-      intros ρ''. specialize (IH ρ'' ρ') as [? ?].
-      split; [apply Rmult_le_pos; auto|].
-      rewrite -{2}(Rmult_1_r (exec_fn _ _ _)).
-      by apply Rmult_le_compat_l.
-    - transitivity (SeriesC (exec_fn f ρ)); [|eapply pmf_SeriesC].
-      eapply SeriesC_le; [|done].
-      intros ρ''. specialize (IH ρ'' ρ') as [? ?].
-      split; [apply Rmult_le_pos; auto|].
-      rewrite -{2}(Rmult_1_r (exec_fn _ _ _)).
-      by apply Rmult_le_compat_l.
+    destruct ρ as [e σ].
+    rewrite /exec_fn {1}/pmf /= /exec_fn_pmf /=.
+    by destruct (f _) as [[]|].
   Qed.
 
-  #[local] Lemma exec_pmf_series ξ ρ :
-    ex_seriesC (exec_pmf ξ ρ) ∧ SeriesC (exec_pmf ξ ρ) <= 1.
+
+  Lemma exec_fn_unfold f ρ :
+    exec_fn ρ f =
+      match f ρ with
+      | Some PRIM => prim_step ρ.1 ρ.2
+      | Some (STATE α) => strength_l ρ.1 (state_step ρ.2 α)
+      | _ => dzero
+      end.
   Proof.
-    revert ρ. induction ξ as [|f ξ IH]; intros ρ; cbn; [done|].
-    split.
-    - eapply (ex_seriesC_double_swap_impl (λ '(a, b), _)).
-      eapply (ex_seriesC_ext (λ b, exec_fn f ρ b * SeriesC _)).
-      { intros a. rewrite SeriesC_scal_l //. }
-      eapply (ex_seriesC_le _ (λ b , exec_fn f ρ b * 1)); [|by apply ex_seriesC_scal_r].
-      intros a. split.
-      + apply Rmult_le_pos; [done|]. eapply SeriesC_ge_0.
-        { apply exec_pmf_range. }
-        apply IH.
-      + apply Rmult_le_compat_l; [done|]. apply IH.
-    - rewrite (SeriesC_double_swap (λ '(a, b), _)).
-      rewrite -(SeriesC_ext (λ b, exec_fn f ρ b * SeriesC (exec_pmf ξ b))); last first.
-      { intros a. rewrite SeriesC_scal_l //. }
-      transitivity (SeriesC (exec_fn f ρ)); [|done].
-      eapply SeriesC_le; [|done].
-      intros ρ'. split.
-      + apply Rmult_le_pos; [done|].
-        apply SeriesC_ge_0.
-        { apply exec_pmf_range. }
-        apply IH.
-      + rewrite -{2}(Rmult_1_r (exec_fn _ _ _)).
-        apply Rmult_le_compat_l; [done|]. apply IH.
+    apply distr_ext=>?. rewrite exec_fn_pmf_unfold. by repeat case_match.
   Qed.
 
-  Program Definition exec (ξ : scheduler Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    (MkDistr (exec_pmf ξ ρ) _ _ _).
-  Next Obligation. apply exec_pmf_range. Qed.
-  Next Obligation. apply exec_pmf_series. Qed.
-  Next Obligation. apply exec_pmf_series. Qed.
+  (* TODO: move *)
+  Definition foldlM {A B} `{Countable B} (f : B → A → distr B) (b : B) (xs : list A) : distr B :=
+    foldr (λ a m b, f b a ≫= m) dret xs b.
+
+  Definition exec (ξ : scheduler Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
+    foldlM exec_fn ρ ξ.
+
+  Lemma exec_nil ρ :
+    exec [] ρ = dret ρ.
+  Proof. done. Qed.
+
+  Lemma exec_cons ρ f ξ :
+    exec (f :: ξ) ρ = ρ'' ← exec_fn ρ f; exec ξ ρ''.
+  Proof. done. Qed.
 
 End distribution.
+
+Global Arguments exec_fn {_} _ _ : simpl never.
+Global Arguments exec {_} _ _ : simpl never.

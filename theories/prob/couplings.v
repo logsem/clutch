@@ -30,9 +30,9 @@ Section couplings.
     forall (a : A), (lmarg μ) a = SeriesC (λ (b : B), μ (a, b)).
   Proof.
     intro a.
-    rewrite /= /dbind_pmf (SeriesC_double_prod_rl (λ a0 : A * B, μ a0 * dret a0.1 a)).
+    rewrite /pmf /= /dbind_pmf (SeriesC_double_prod_rl (λ a0 : A * B, μ a0 * dret a0.1 a)).
     apply SeriesC_ext; intro b.
-    rewrite /= /dret_pmf /=.
+    rewrite /pmf /= /dret_pmf /=.
     erewrite SeriesC_ext;
     [ apply (SeriesC_singleton' a) | intro a0; simpl; case_bool_decide; simplify_eq; lra].
   Qed.
@@ -42,9 +42,9 @@ Section couplings.
     forall (b : B), (rmarg μ) b = SeriesC (λ (a : A), μ (a, b)).
   Proof.
     intro b.
-    rewrite /= /dbind_pmf (SeriesC_double_prod_lr (λ a : A * B, μ a * dret a.2 b)).
+    rewrite /pmf /= /dbind_pmf (SeriesC_double_prod_lr (λ a : A * B, μ a * dret a.2 b)).
     apply SeriesC_ext; intro a.
-    rewrite /= /dret_pmf /=.
+    rewrite /pmf /= /dret_pmf /=.
     erewrite SeriesC_ext;
     [ apply (SeriesC_singleton' b) | intro b0; simpl; case_bool_decide; simplify_eq; lra].
   Qed.
@@ -147,7 +147,7 @@ Section couplings_theory.
     intros a b R HR.
     split; [apply is_coupl_ret | ].
     intro p.
-    rewrite /= /dret_pmf /=.
+    rewrite /pmf /= /dret_pmf /=.
     case_bool_decide as H3; [rewrite H3; auto | lra ].
   Qed.
 
@@ -170,8 +170,8 @@ Section couplings_theory.
       rewrite lmarg_pmf rmarg_pmf.
       apply SeriesC_ext; intro a.
       simpl.
-      rewrite /dbind_pmf /=.
-      rewrite /dret_pmf /=.
+      rewrite {1}/pmf /= /dbind_pmf /=.
+      rewrite {2}/pmf /= /dret_pmf /=.
       assert (forall a0 : A * B, μ a0 * (if bool_decide ((b, a) = (let '(a1, b0) := a0 in (b0, a1))) then 1 else 0)
                                      = if bool_decide ((a, b) = a0 ) then μ (a, b) else 0) as Heq1.
       { intros (a' & b').
@@ -184,8 +184,8 @@ Section couplings_theory.
       rewrite lmarg_pmf rmarg_pmf.
       apply SeriesC_ext; intro b.
       simpl.
-      rewrite /dbind_pmf /=.
-      rewrite /dret_pmf /=.
+      rewrite {1}/pmf /= /dbind_pmf /=.
+      rewrite {2}/pmf /= /dret_pmf /=.
       assert (forall a0 : A * B, μ a0 * (if bool_decide ((b, a) = (let '(a1, b0) := a0 in (b0, a1))) then 1 else 0)
                                      = if bool_decide ((a, b) = a0 ) then μ (a, b) else 0) as Heq1.
       { intros (a' & b').

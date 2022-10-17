@@ -602,7 +602,7 @@ Lemma state_step_pmf_eq σ1 α σ2 :
      then 0.5 else 0).
 Proof.
   destruct σ1 as [h1 t1], σ2 as [h2 t2].
-  rewrite /state_step_pmf /valid_state_step. case_bool_decide as Heq.
+  rewrite /pmf /= /state_step_pmf /valid_state_step. case_bool_decide as Heq.
   - destruct Heq as [? [[] ?]]; simplify_map_eq.
     + rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2; [lra|].
       case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
@@ -639,10 +639,10 @@ Proof. intros [v ?]. induction Ki; simplify_option_eq; eauto. Qed.
 
 Lemma val_head_stuck e σ ρ :
   head_step e σ ρ > 0 → to_val e = None.
-Proof. destruct ρ, e; [|done..]. simpl. lra. Qed.
+Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
 Lemma head_ctx_step_val Ki e σ ρ :
   head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
-Proof. destruct ρ, Ki; simpl; repeat case_match; try (done || lra). Qed.
+Proof. destruct ρ, Ki; rewrite /pmf/=; repeat case_match; try (done || lra). Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →

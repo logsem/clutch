@@ -1,4 +1,5 @@
 From Coq Require Import Reals Psatz.
+From stdpp Require Import functions.
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre.
@@ -58,6 +59,7 @@ Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
 Implicit Types ρ : cfg Λ.
+Implicit Types ξ : scheduler Λ.
 
 (* Weakest pre *)
 Lemma wp_unfold s E e Φ :
@@ -152,45 +154,38 @@ Proof.
   iIntros (v) "H". by iApply "H".
 Qed.
 
-(* TODO: move *)
-Lemma exec_nil ρ ρ' :
-  exec [] ρ ρ' = dret ρ ρ'.
-Proof. done. Qed.
+Definition sch_ctx_lift K e σ ξ :=
+  match ξ with
+  | [] => []
+  | f :: ξ => <[(K e, σ) := f (e, σ)]> f :: ξ
+  end.
 
-Lemma exec_nil_distr ρ :
-  exec [] ρ = dret ρ.
-Proof. apply distr_ext, exec_nil. Qed.
-
-Lemma exec_cons ρ ρ' f ξ :
-  exec (f :: ξ) ρ ρ' = SeriesC (λ ρ'', exec_fn f ρ ρ'' * exec ξ ρ'' ρ').
-Proof. done. Qed.
 Lemma exec_fill K `{!LanguageCtx K} e1 σ1 ξ :
   to_val e1 = None →
-  exec ξ (K e1, σ1) = dbind (λ '(e2', σ2), dret (K e2', σ2)) (exec ξ (e1, σ1)).
+  exec (sch_ctx_lift K e1 σ1 ξ) (K e1, σ1) = dmap (λ '(e2', σ2), (K e2', σ2)) (exec ξ (e1, σ1)).
 Proof.
-  (* revert e1 σ1. *)
   intros Hv.
   eapply distr_ext=>ρ.
-  induction ξ as [|f ξ IH].
-  { rewrite exec_nil exec_nil_distr. rewrite dret_id_left_pmf //. }
+  destruct ξ as [|f ξ].
+  { rewrite 2!exec_nil. rewrite dmap_dret //.  }
+  rewrite /= 2!exec_cons.
+  rewrite 2!exec_fn_unfold fn_lookup_insert.
+  destruct (f _) as [[] |]=>/=.
+  - rewrite dmap_dbind_pmf.
+    Admitted.
 
-  rewrite exec_cons.
-  rewrite /exec /dbind /dbind_pmf /=.
-
-  (* the constructed scheduler should satisfy f (K e1, σ1) = f (e1, σ1) *)
-
-Admitted.
 
 (* TODO: we don't just get [ξ] in the conclusion - we'll need to "lift" the
    scheduler so it ignores the context *)
 Lemma Rcoupl_exec_fill_ctx K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' :
   to_val e1 = None →
   Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
-  Rcoupl (exec ξ (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
+  Rcoupl (exec (sch_ctx_lift K e1 σ1 ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
 Proof.
   intros Hv Hcpl.
   rewrite exec_fill //.
   rewrite -(dret_id_right (exec ξ' ρ)).
+  rewrite /dmap.
   eapply Rcoupl_bind; [|done].
   intros [e2' σ2] ρ' HR.
   apply Rcoupl_ret; eauto.

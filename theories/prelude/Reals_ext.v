@@ -1,4 +1,4 @@
-From Coq Require Import Morphisms RelationClasses Utf8 Reals Psatz.
+From Coq Require Import Reals Psatz.
 From self.prelude Require Import base.
 
 (* Notation "x ≤ y" := (Rle x y) (at level 70, no associativity) : R_scope. *)
