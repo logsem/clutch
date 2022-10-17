@@ -3,7 +3,7 @@ From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
-From self.prob Require Import couplings.
+From self.prob Require Import couplings distribution.
 From self.program_logic Require Export language.
 
 Import uPred.
@@ -12,9 +12,7 @@ Import uPred.
 
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen HasNoLc Σ;
-
   state_interp : state Λ → iProp Σ;
-
   ghost_interp : cfg Λ → iProp Σ;
 }.
 Global Opaque iris_invGS.
@@ -29,10 +27,10 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
      state_interp σ1 ∗ ghost_interp ρ ={E,∅}=∗
        ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
        ∃ ξ ξ' R,
-         ⌜Rcoupl (kernel_scheduler ξ (e1, σ1)) (kernel_scheduler ξ' ρ) R⌝ ∗
-           ∀ e2 σ2 ρ',
-             ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ∗ ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
-             state_interp σ2 ∗ ghost_interp ρ' ∗ wp E e2 Φ
+         ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
+         ∀ e2 σ2 ρ',
+           ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ∗ ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
+           state_interp σ2 ∗ ghost_interp ρ' ∗ wp E e2 Φ
   end%I.
 
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
@@ -58,6 +56,8 @@ Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
+Implicit Types σ : state Λ.
+Implicit Types ρ : cfg Λ.
 
 (* Weakest pre *)
 Lemma wp_unfold s E e Φ :
@@ -152,22 +152,72 @@ Proof.
   iIntros (v) "H". by iApply "H".
 Qed.
 
-(* Lemma wp_bind K `{!LanguageCtx K} s E e Φ : *)
-(*   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}. *)
-(* Proof. *)
-(*   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite wp_unfold /wp_pre. *)
-(*   destruct (to_val e) as [v|] eqn:He. *)
-(*   { apply of_to_val in He as <-. by iApply fupd_wp. } *)
-(*   rewrite wp_unfold /wp_pre fill_not_val /=; [|done]. *)
-(*   iIntros (σ1 step κ κs n) "Hσ". iMod ("H" with "[$]") as "[% H]". *)
-(*   iModIntro; iSplit. *)
-(*   { destruct s; eauto using reducible_fill. } *)
-(*   iIntros (e2 σ2 efs Hstep) "Hcred". *)
-(*   destruct (fill_step_inv e σ1 κ e2 σ2 efs) as (e2'&->&?); auto. *)
-(*   iMod ("H" $! e2' σ2 efs with "[//] Hcred") as "H". iIntros "!>!>". *)
-(*   iMod "H". iModIntro. iApply (step_fupdN_wand with "H"). iIntros "H". *)
-(*   iMod "H" as "($ & H & $)". iModIntro. by iApply "IH". *)
-(* Qed. *)
+(* TODO: move *)
+Lemma exec_nil ρ ρ' :
+  exec [] ρ ρ' = dret ρ ρ'.
+Proof. done. Qed.
+
+Lemma exec_nil_distr ρ :
+  exec [] ρ = dret ρ.
+Proof. apply distr_ext, exec_nil. Qed.
+
+Lemma exec_cons ρ ρ' f ξ :
+  exec (f :: ξ) ρ ρ' = SeriesC (λ ρ'', exec_fn f ρ ρ'' * exec ξ ρ'' ρ').
+Proof. done. Qed.
+Lemma exec_fill K `{!LanguageCtx K} e1 σ1 ξ :
+  to_val e1 = None →
+  exec ξ (K e1, σ1) = dbind (λ '(e2', σ2), dret (K e2', σ2)) (exec ξ (e1, σ1)).
+Proof.
+  (* revert e1 σ1. *)
+  intros Hv.
+  eapply distr_ext=>ρ.
+  induction ξ as [|f ξ IH].
+  { rewrite exec_nil exec_nil_distr. rewrite dret_id_left_pmf //. }
+
+  rewrite exec_cons.
+  rewrite /exec /dbind /dbind_pmf /=.
+
+  (* the constructed scheduler should satisfy f (K e1, σ1) = f (e1, σ1) *)
+
+Admitted.
+
+(* TODO: we don't just get [ξ] in the conclusion - we'll need to "lift" the
+   scheduler so it ignores the context *)
+Lemma Rcoupl_exec_fill_ctx K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' :
+  to_val e1 = None →
+  Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
+  Rcoupl (exec ξ (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
+Proof.
+  intros Hv Hcpl.
+  rewrite exec_fill //.
+  rewrite -(dret_id_right (exec ξ' ρ)).
+  eapply Rcoupl_bind; [|done].
+  intros [e2' σ2] ρ' HR.
+  apply Rcoupl_ret; eauto.
+Qed.
+
+Lemma wp_bind K `{!LanguageCtx K} s E e Φ :
+  WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
+Proof.
+  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite wp_unfold /wp_pre.
+  destruct (to_val e) as [v|] eqn:He.
+  { apply of_to_val in He as <-. by iApply fupd_wp. }
+  rewrite wp_unfold /wp_pre fill_not_val /=; [|done].
+  iIntros (σ1 ρ) "[Hσ Hρ]".
+  iMod ("H" with "[$]") as "(%Hs & %ξ & %ξ' & %R & %Hcpl & H)".
+  iModIntro; iSplit.
+  { destruct s; eauto using reducible_fill. }
+  iExists _, _, _. iSplit.
+  { iPureIntro. by eapply Rcoupl_exec_fill_ctx. }
+  iIntros (e2 σ2 ρ') "[%Hstep (%e2' & %Hfill & %HR)]".
+  destruct (fill_step_inv e σ1 e2 σ2) as (e2''&->&?); auto.
+  apply fill_inj in Hfill; simplify_eq.
+  iMod ("H"  with "[//]") as "H". iIntros "!>!>".
+  iMod "H" as "(Hσ & Hρ & H)".
+  iModIntro. iFrame "Hσ Hρ". by iApply "IH".
+Qed.
+
+
 
 (* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
 (*   WP K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }}. *)

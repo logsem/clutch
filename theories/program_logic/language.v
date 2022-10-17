@@ -64,6 +64,7 @@ Definition cfg (Λ : language) := (expr Λ * state Λ)%type.
 Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
   fill_not_val e :
     to_val e = None → to_val (K e) = None;
+  fill_inj : Inj (=) (=) K;
   fill_step e1 σ1 e2 σ2 :
     prim_step e1 σ1 (e2, σ2) > 0 →
     prim_step (K e1) σ1 (K e2, σ2) > 0;
@@ -270,85 +271,85 @@ Section distribution.
 
   Implicit Types ξ : scheduler Λ.
 
-  Definition kernel_fn_pmf (f : scheduler_fn Λ) '(e, σ) ρ : R :=
+  Definition exec_fn_pmf (f : scheduler_fn Λ) '(e, σ) ρ : R :=
     match f (e, σ) with
     | Some PRIM  => prim_step e σ ρ
     | Some (STATE α) => strength_l e (state_step σ α) ρ
     | _ => 0
     end.
-  Program Definition kernel_fn (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    MkDistr (kernel_fn_pmf f ρ) _ _ _.
-  Next Obligation. intros f [] ρ. rewrite /kernel_fn_pmf. destruct (f _) as [[]|]; [done|done|done]. Qed.
+  Program Definition exec_fn (f : scheduler_fn Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
+    MkDistr (exec_fn_pmf f ρ) _ _ _.
+  Next Obligation. intros f [] ρ. rewrite /exec_fn_pmf. destruct (f _) as [[]|]; [done|done|done]. Qed.
   Next Obligation.
-    intros f [e σ]. rewrite /kernel_fn_pmf.
+    intros f [e σ]. rewrite /exec_fn_pmf.
     destruct (f _) as [[]|]; [done|done|]. apply ex_seriesC_0.
   Qed.
   Next Obligation.
-    intros f [e σ]. rewrite /kernel_fn_pmf.
+    intros f [e σ]. rewrite /exec_fn_pmf.
     destruct (f _) as [[]|]; [done|done|]. rewrite SeriesC_0 //; lra.
   Qed.
-  Arguments kernel_fn _ _ : simpl never.
+  Arguments exec_fn _ _ : simpl never.
   Arguments dret _ : simpl never.
 
-  Fixpoint kernel_scheduler_pmf (ξ : scheduler Λ) (ρ ρ' : cfg Λ) : R :=
+  Fixpoint exec_pmf (ξ : scheduler Λ) (ρ ρ' : cfg Λ) : R :=
     match ξ with
-    | f :: ξ' => SeriesC (λ ρ'', kernel_fn f ρ ρ'' * kernel_scheduler_pmf ξ' ρ'' ρ')
+    | f :: ξ' => SeriesC (λ ρ'', exec_fn f ρ ρ'' * exec_pmf ξ' ρ'' ρ')
     | [] => dret ρ ρ'
     end.
 
-  #[local] Lemma kernel_scheduler_pmf_range ξ ρ ρ' :
-    0 <= kernel_scheduler_pmf ξ ρ ρ' <= 1.
+  #[local] Lemma exec_pmf_range ξ ρ ρ' :
+    0 <= exec_pmf ξ ρ ρ' <= 1.
   Proof.
     revert ρ ρ'. induction ξ as [|f ξ IH]; intros ρ ρ'; cbn.
     { split; [done|]. eapply pmf_le_1. }
     split.
     - eapply SeriesC_ge_0.
       { intros ρ''. apply Rmult_le_pos; [done|]. apply IH. }
-      eapply (ex_seriesC_le _ (kernel_fn f ρ)); [|done].
+      eapply (ex_seriesC_le _ (exec_fn f ρ)); [|done].
       intros ρ''. specialize (IH ρ'' ρ') as [? ?].
       split; [apply Rmult_le_pos; auto|].
-      rewrite -{2}(Rmult_1_r (kernel_fn _ _ _)).
+      rewrite -{2}(Rmult_1_r (exec_fn _ _ _)).
       by apply Rmult_le_compat_l.
-    - transitivity (SeriesC (kernel_fn f ρ)); [|eapply pmf_SeriesC].
+    - transitivity (SeriesC (exec_fn f ρ)); [|eapply pmf_SeriesC].
       eapply SeriesC_le; [|done].
       intros ρ''. specialize (IH ρ'' ρ') as [? ?].
       split; [apply Rmult_le_pos; auto|].
-      rewrite -{2}(Rmult_1_r (kernel_fn _ _ _)).
+      rewrite -{2}(Rmult_1_r (exec_fn _ _ _)).
       by apply Rmult_le_compat_l.
   Qed.
 
-  #[local] Lemma kernel_scheduler_pmf_series ξ ρ :
-    ex_seriesC (kernel_scheduler_pmf ξ ρ) ∧ SeriesC (kernel_scheduler_pmf ξ ρ) <= 1.
+  #[local] Lemma exec_pmf_series ξ ρ :
+    ex_seriesC (exec_pmf ξ ρ) ∧ SeriesC (exec_pmf ξ ρ) <= 1.
   Proof.
     revert ρ. induction ξ as [|f ξ IH]; intros ρ; cbn; [done|].
     split.
     - eapply (ex_seriesC_double_swap_impl (λ '(a, b), _)).
-      eapply (ex_seriesC_ext (λ b, kernel_fn f ρ b * SeriesC _)).
+      eapply (ex_seriesC_ext (λ b, exec_fn f ρ b * SeriesC _)).
       { intros a. rewrite SeriesC_scal_l //. }
-      eapply (ex_seriesC_le _ (λ b , kernel_fn f ρ b * 1)); [|by apply ex_seriesC_scal_r].
+      eapply (ex_seriesC_le _ (λ b , exec_fn f ρ b * 1)); [|by apply ex_seriesC_scal_r].
       intros a. split.
       + apply Rmult_le_pos; [done|]. eapply SeriesC_ge_0.
-        { apply kernel_scheduler_pmf_range. }
+        { apply exec_pmf_range. }
         apply IH.
       + apply Rmult_le_compat_l; [done|]. apply IH.
     - rewrite (SeriesC_double_swap (λ '(a, b), _)).
-      rewrite -(SeriesC_ext (λ b, kernel_fn f ρ b * SeriesC (kernel_scheduler_pmf ξ b))); last first.
+      rewrite -(SeriesC_ext (λ b, exec_fn f ρ b * SeriesC (exec_pmf ξ b))); last first.
       { intros a. rewrite SeriesC_scal_l //. }
-      transitivity (SeriesC (kernel_fn f ρ)); [|done].
+      transitivity (SeriesC (exec_fn f ρ)); [|done].
       eapply SeriesC_le; [|done].
       intros ρ'. split.
       + apply Rmult_le_pos; [done|].
         apply SeriesC_ge_0.
-        { apply kernel_scheduler_pmf_range. }
+        { apply exec_pmf_range. }
         apply IH.
-      + rewrite -{2}(Rmult_1_r (kernel_fn _ _ _)).
+      + rewrite -{2}(Rmult_1_r (exec_fn _ _ _)).
         apply Rmult_le_compat_l; [done|]. apply IH.
   Qed.
 
-  Program Definition kernel_scheduler (ξ : scheduler Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    (MkDistr (kernel_scheduler_pmf ξ ρ) _ _ _).
-  Next Obligation. apply kernel_scheduler_pmf_range. Qed.
-  Next Obligation. apply kernel_scheduler_pmf_series. Qed.
-  Next Obligation. apply kernel_scheduler_pmf_series. Qed.
+  Program Definition exec (ξ : scheduler Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
+    (MkDistr (exec_pmf ξ ρ) _ _ _).
+  Next Obligation. apply exec_pmf_range. Qed.
+  Next Obligation. apply exec_pmf_series. Qed.
+  Next Obligation. apply exec_pmf_series. Qed.
 
 End distribution.
