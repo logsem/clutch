@@ -49,6 +49,21 @@ Section couplings.
     [ apply (SeriesC_singleton' b) | intro b0; simpl; case_bool_decide; simplify_eq; lra].
   Qed.
 
+  Lemma ex_seriesC_lmarg (μ : distr (A * B)):
+    ∀ (a : A), ex_seriesC (λ b, μ (a, b)).
+  Proof.
+    intro a.
+    eapply ex_seriesC_double_pos_l; auto.
+  Qed.
+
+  Lemma ex_seriesC_rmarg (μ : distr (A * B)):
+    ∀ (b : B), ex_seriesC (λ a, μ (a, b)).
+  Proof.
+    intro b.
+    eapply ex_seriesC_double_pos_r; auto.
+  Qed.
+
+
 (* There are multiple options we could try here. We have the usual
    existential definition, but we can also define it universally via
    Strassens theorem,
@@ -402,19 +417,14 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
     eapply (Rle_Transitive _ (lmarg μ a) _); auto.
     rewrite <- HμR.
     rewrite lmarg_pmf rmarg_pmf.
-    apply SeriesC_ext.
-    intro a2.
-    specialize (HμS (a1, a2)) as HμS12.
-    specialize (HμS (a2, a1)) as HμS21.
-    simpl in HμS12.
-    simpl in HμS21.
-    pose proof (Rtotal_order (μ (a1, a2)) (μ (a2, a1))) as [Hlt | [Heq | Hgt]]; auto.
-    + pose proof (pmf_pos μ (a1, a2)).
-      assert (μ (a2, a1) > 0) as H'; try lra.
-      specialize (HμS21 H'); destruct HμS21; auto.
-    + pose proof (pmf_pos μ (a2, a1)).
-      assert (μ (a1, a2) > 0) as H'; try lra.
-      specialize (HμS12 H'); destruct HμS12; auto.
+    eapply SeriesC_le.
+    { intro .  specialize (HμS (a,n)). simpl in HμS.
+      destruct (Rtotal_order (μ (a,n)) 0) as [? | [? | H3]];
+      [ pose proof (pmf_pos μ (a, n)); lra |
+       pose proof (pmf_pos μ (n, a)); lra |
+      pose proof (HμS H3); simplify_eq; lra ].
+    }
+    apply ex_seriesC_rmarg.
   Qed.
 
   Proposition is_ref_coupl_ret :
@@ -462,11 +472,12 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
       [ | intro p; apply SeriesC_scal_l]. 
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
-      {intros (a & b);
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
-        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
-        specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS);
-        rewrite -HChL lmarg_pmf //=].
+      {intros (a & b).
+        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
+        + pose proof (pmf_pos μ (a, b)); lra.
+        + rewrite Heqz; lra.
+        + specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
+          rewrite -HChL lmarg_pmf //=.
           }.
       rewrite SeriesC_double_prod_lr.
       erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));

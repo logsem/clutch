@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Series Hierarchy.
+From Coquelicot Require Import Series Hierarchy Lim_seq Rbar.
 From stdpp Require Import option.
 From stdpp Require Export countable.
 From self.prelude Require Import base Coquelicot_ext stdpp_ext classical.
@@ -506,3 +506,209 @@ Section strict.
 
 
 End strict.
+
+Section positive.
+
+ (* Results about positive (non-negative) series *)
+
+  Context `{Countable A}.
+  Implicit Types f g : A → R.
+
+  Lemma partial_sum_mon (h : nat → R) p q :
+    (∀ n, 0 <= h n) ->
+    (p ≤ q) →
+    sum_n h p <= sum_n h q.
+  Proof.
+    intros Hge Hpq.
+    rewrite /sum_n.
+    induction q.
+    + assert (p = 0%nat); auto with arith.
+      simplify_eq; done.
+    + destruct (PeanoNat.Nat.le_gt_cases p q) as [H1 | H1].
+      ++ specialize (IHq H1).
+         Search sum_n_m.
+         rewrite sum_n_Sm; auto with arith.
+         rewrite /plus /=.
+         specialize (Hge (S q)).
+         lra.
+      ++ assert (p = S q); auto with arith.
+         rewrite -> H0; auto.
+         lra.
+  Qed.
+
+  (* Strangely, this was not in Coquelicot *)
+  Lemma is_series_ge0 (h : nat → R) r:
+    (∀ n, 0 <= h n) ->
+    is_series h r →
+    0 <= r.
+  Proof.
+    intros Hge Hs.
+    erewrite <- (Series_0 (λ y, 0)); auto.
+    rewrite  <- (is_series_unique _ _ Hs).
+    eapply (Series_le).
+    { intro n; split; auto; lra. }
+    rewrite /ex_series.
+    exists r; auto.
+  Qed.
+
+  (*
+  Lemma Series_ge0 (h : nat → R):
+    (∀ n, 0 <= h n) ->
+    0 <= Series h.
+  Proof.
+  Admitted.
+  *)
+
+
+  Lemma lim_is_sup (h: nat -> R) r :
+    (∀ n, 0 <= h n) ->
+    is_series h r →
+    is_sup_seq (sum_n h) (Finite r).
+  Proof.
+    intros Hge Hs.
+    rewrite /is_sup_seq.
+    pose proof (is_series_partial_pos h) as Hpart.
+    pose proof (is_series_ge0 _ _ Hge Hs) as Hr.
+    intro eps; split.
+    + intro n.
+      specialize (Hpart n r Hge Hs).
+      rewrite /Rbar_lt.
+      assert (eps > 0); try lra.
+      pose proof (cond_pos eps); lra.
+    + pose proof (Hs) as Hs'.
+      rewrite /is_series in Hs.
+      rewrite /locally /eventually in Hs.
+      rewrite /filterlim in Hs.
+      rewrite /filter_le in Hs.
+      rewrite /filtermap in Hs.
+      specialize (Hs (ball r eps)).
+      assert (∃ N : nat, ∀ n : nat, N ≤ n → ball r eps (sum_n h n)) as (N & HN).
+      {apply Hs. exists eps. auto.}
+      exists N; simpl.
+      specialize (HN N (Nat.le_refl N)).
+      specialize (Hpart N r Hge Hs').
+      rewrite /ball /= /AbsRing_ball in HN.
+      cut (r - (sum_n h N) < eps); try lra.
+      rewrite abs_minus /abs /= in HN.
+      assert (Rabs (minus r (sum_n h N)) = minus r (sum_n h N)) as Habs.
+      { apply Rabs_right.
+        rewrite /minus /plus /= /opp /=.
+        lra.
+      }
+      rewrite Habs in HN.
+      rewrite /minus /plus /= /opp /= in HN.
+      lra.
+  Qed.
+
+  Lemma sup_is_lim (h: nat -> R) r :
+    (∀ n, 0 <= h n) ->
+    is_sup_seq (sum_n h) (Finite r) ->
+    is_series h r.
+  Proof.
+    intros Hge Hsup.
+    rewrite /is_series.
+      rewrite /is_series
+       /locally /eventually
+       /filterlim
+       /filter_le
+       /filtermap.
+    rewrite /is_sup_seq in Hsup.
+    intros P (eps & Heps).
+    rewrite /ball /= /AbsRing_ball in Heps.
+    destruct (Hsup eps) as (HsupFor & (N & HsupN)).
+    exists N; intros n Hn.
+    specialize (HsupFor n).
+    specialize (Heps (sum_n h n)).
+    assert (sum_n h N <= sum_n h n) as HNn.
+    { by apply partial_sum_mon. }
+    apply Heps.
+    rewrite /Rbar_lt in HsupFor.
+    rewrite /Rbar_lt in HsupN.
+    assert (r - eps < sum_n h n); [try lra | ].
+    rewrite /abs /= /Rabs /minus /plus /= /opp /=.
+    destruct Rcase_abs; lra.
+  Qed.
+
+
+  Lemma sup_is_upper_bound (h : nat → Rbar) n :
+    Rbar_le (h n) (Sup_seq h).
+  Proof.
+    apply is_sup_seq_major.
+    apply Sup_seq_correct.
+  Qed.
+
+  Lemma upper_bound_ge_sup (h : nat → Rbar) r :
+    (forall n, Rbar_le (h n) r) ->
+    Rbar_le (Sup_seq h) r.
+  Proof.
+    intro H2.
+    pose proof (is_sup_seq_lub h (Sup_seq h) (Sup_seq_correct h)) as H3.
+    rewrite /Lub.Rbar_is_lub in H3.
+    apply H3.
+    rewrite /Lub.Rbar_is_upper_bound.
+    intros q (n & Hn).
+    rewrite Hn; auto.
+  Qed.
+
+
+  Lemma swap_sup_seq (h : nat * nat → R) :
+    Sup_seq (λ m, Sup_seq (λ n, h (n, m))) =
+    Sup_seq (λ n, Sup_seq (λ m, h (n, m))).
+  Proof.
+    apply Rbar_le_antisym.
+    + apply upper_bound_ge_sup.
+      intro m.
+      apply upper_bound_ge_sup.
+      intro n.
+      eapply Rbar_le_trans; last first.
+      ++ apply (sup_is_upper_bound _ n).
+      ++ apply (sup_is_upper_bound (λ x, h(n, x)) m).
+    + apply upper_bound_ge_sup.
+      intro n.
+      apply upper_bound_ge_sup.
+      intro m.
+      eapply Rbar_le_trans; last first.
+      ++ apply (sup_is_upper_bound _ m).
+      ++ apply (sup_is_upper_bound (λ x, h(x, m)) n).
+  Qed.
+
+  (** Fubini for non-negative series **)
+
+  Lemma fubini_pos_series (f : nat * nat → R) v :
+    (forall n m, f (n, m) >= 0) ->
+    is_series (λ b, Series (λ a, f (a, b))) v →
+    is_series (λ a, Series (λ b, f (a, b))) v.
+  Proof.
+    intros Hpos Hse.
+    apply sup_is_lim.
+    + admit.
+    + Search Sup_seq. apply lim_is_sup.
+
+
+
+  (** Lifting of the Coquliecot predicates for limits *)
+  Definition is_sup_seqC f r := is_sup_seq (countable_sum f) r.
+
+  Lemma limC_is_sup (h: A -> R) r :
+    (∀ n, 0 <= h n) ->
+    is_seriesC h r →
+    is_sup_seq (sum_n (countable_sum h) ) (Finite r).
+  Proof.
+    intros Hge Hs.
+    rewrite /is_seriesC in Hs.
+    rewrite /is_series in Hs.
+    eapply (lim_is_sup (countable_sum h) r).
+    + rewrite /countable_sum. destruct (encode_inv_nat _); eauto.
+
+    rewrite /is_sup_seq.
+    rewrite /is_seriesC.
+    assert (0 <= r) as Hr.
+    {
+      rewrite <- (is_seriesC_unique _ _ Hs).
+      apply SeriesC_ge_0; auto. exists r; auto.}
+    intro eps; split.
+    + induction n; rewrite /countable_sum.
+      ++ destruct (encode_inv_nat _) =>//=; try lra; admit.
+      ++ 
+
+End positive.
