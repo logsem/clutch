@@ -5,7 +5,7 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
 From self.prob Require Import couplings distribution.
-From self.program_logic Require Export language.
+From self.program_logic Require Export language exec.
 
 Import uPred.
 
@@ -154,25 +154,128 @@ Proof.
   iIntros (v) "H". by iApply "H".
 Qed.
 
-Definition sch_ctx_lift K e σ ξ :=
-  match ξ with
-  | [] => []
-  | f :: ξ => <[(K e, σ) := f (e, σ)]> f :: ξ
-  end.
+Definition fill_lift K : cfg Λ → cfg Λ := (λ '(e, σ), (K e, σ)).
 
-Lemma exec_fill K `{!LanguageCtx K} e1 σ1 ξ :
-  to_val e1 = None →
-  exec (sch_ctx_lift K e1 σ1 ξ) (K e1, σ1) = dmap (λ '(e2', σ2), (K e2', σ2)) (exec ξ (e1, σ1)).
+#[global] Instance fill_lift_inj K `{!LanguageCtx K} : Inj (=) (=) (fill_lift K).
+Proof. rewrite /fill_lift. by intros [] [] [= <-%fill_inj <-]. Qed.
+
+Definition sch_fn_ctx_lift (K : expr Λ → expr Λ) (f : scheduler_fn Λ) : scheduler_fn Λ :=
+  kmap (fill_lift K) f.
+
+Definition sch_ctx_lift (K : expr Λ → expr Λ) (ξ : scheduler Λ) : scheduler Λ :=
+  sch_fn_ctx_lift K <$> ξ.
+
+Lemma sch_fn_ctx_lift_K K `{!LanguageCtx K} f e σ:
+  sch_fn_ctx_lift K f !! (K e, σ) = f !! (e, σ).
+Proof. rewrite /sch_fn_ctx_lift -(lookup_kmap (fill_lift _) _ (e , _)) //. Qed.
+
+Lemma sch_ctx_lift_cons K `{!LanguageCtx K} f ξ :
+  sch_ctx_lift K (f :: ξ) = sch_fn_ctx_lift K f :: sch_ctx_lift K ξ.
+Proof. done. Qed.
+
+(* Lemma exec_lift K ξ : *)
+
+(*       exec (sch_ctx_lift K ξ) (e, σ) (K e2', σ2) = exec ξ (e, σ) (e2', σ2) *)
+
+Lemma some_nice_lemma `{Countable A} (f : A → A) `{Inj A A (=) (=) f} (g : A → R) :
+  (∀ a, (∀ a', a ≠ f a') → g a = 0) →
+  SeriesC g = SeriesC (λ a, g (f a)).
+Proof. Admitted.
+Lemma exec_fill K `{!LanguageCtx K} e1 σ1 ξ e2 σ2 :
+  (* to_val e1 = None → *)
+  exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = (exec ξ (e1, σ1)) (e2, σ2) .
 Proof.
-  intros Hv.
-  eapply distr_ext=>ρ.
-  destruct ξ as [|f ξ].
-  { rewrite 2!exec_nil. rewrite dmap_dret //.  }
-  rewrite /= 2!exec_cons.
-  rewrite 2!exec_fn_unfold fn_lookup_insert.
-  destruct (f _) as [[] |]=>/=.
-  - rewrite dmap_dbind_pmf.
-    Admitted.
+
+  (* intros Hv. *)
+  (* eapply distr_ext; intros [e2 σ2]. *)
+  (* assert (∃ e2', (e2, σ2) = fill_lift K (e2', σ2)) by admit. *)
+  (* destruct H as [e2' ->]=>/=. *)
+  revert e1 σ1.
+  induction ξ as [|f ξ IH].
+  { intros. rewrite /= 2!exec_nil.
+    rewrite (dret_pmf_map (fill_lift _) (e1, _) (e2, _)) //. }
+  intros.
+  assert (∀ e σ, is_Some (to_val e) → f !! (e, σ) = None) as Hasm by admit.
+  rewrite sch_ctx_lift_cons.
+  rewrite 2!exec_cons.
+  rewrite 2!exec_fn_unfold.
+  rewrite sch_fn_ctx_lift_K.
+  destruct (to_val e1) as [v|] eqn:Heq.
+  { erewrite !Hasm; [|done|done].
+    rewrite 2!dbind_dzero //. }
+  destruct (f !! _) as [[] |]=>/=.
+  - rewrite /pmf /= /dbind_pmf.
+    rewrite (some_nice_lemma (fill_lift K)) /=; last first.
+    { intros [e3 σ3] Hmpty.
+      destruct (decide (prim_step (K e1) σ1 (e3, σ3) > 0)) as [H'|]; last first.
+      { pose proof ((pmf_pos (prim_step (K e1) σ1)) (e3, σ3)).
+        assert (prim_step (K e1) σ1 (e3, σ3) = 0) by lra.
+        rewrite H0. lra. }
+      apply fill_step_inv in H'; [|done].
+      destruct H' as (? & -> & H).
+      specialize (Hmpty (x, σ3)). simpl in Hmpty. done. }
+    apply SeriesC_ext; intros [e σ].
+    rewrite IH.
+    rewrite -fill_step_prob //.
+  - rewrite /pmf /= /dbind_pmf.
+    rewrite /strength_l.
+    admit.
+  - rewrite 2!dbind_dzero //.
+
+Admitted.
+
+Lemma foo `{Countable A} (μ1 μ2 : distr A) (f : A → A) `{Inj A A (=) (=) f} :
+  (* (∀ a, ∃ a', f a' = a) → *)
+  (∀ a, μ1 (f a) = μ2 a) →
+  μ1 = dmap f μ2.
+Proof. Admitted.
+(*   intros Hcov Hμ. *)
+(*   eapply distr_ext. *)
+(*   intros a. rewrite /dmap. *)
+(*   rewrite {2}/pmf /= /dbind_pmf. *)
+
+(*   rewrite {3}/pmf /= /dret_pmf. *)
+(*   destruct (Req_dec (μ1 a) 0). *)
+(*   -  *)
+
+(*   edestruct (Hcov a) as [a' Ha]. *)
+(*   {  *)
+
+(*   rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = aa) then μ2 aa else 0)). *)
+(*   { rewrite SeriesC_singleton //. rewrite -H1 Hμ //. } *)
+(*   intros a'. symmetry. case_bool_decide. *)
+(*   - simplify_eq. rewrite bool_decide_eq_true_2 //. lra.  *)
+(*   - rewrite bool_decide_eq_false_2; [lra|]. *)
+(*     rewrite -H1. intros ?%(inj _). simplify_eq. *)
+(* Admitted.  *)
+
+
+
+  (* setoid_rewrite <-Hμ. *)
+
+
+
+
+Lemma exec_fill' K `{!LanguageCtx K} e1 σ1 ξ :
+  exec (sch_ctx_lift K ξ) (K e1, σ1) = dmap (fill_lift K) (exec ξ (e1, σ1)).
+Proof.
+  apply foo.
+  - by apply fill_lift_inj.
+  - intros []. apply exec_fill. done.
+Qed.
+
+
+  (* rewrite (some_nice_lemma (fill_lift K)) /=; last first. *)
+  (* eapply some_nice_lemma  *)
+
+
+    (* rewrite !/pmf /= /dbind_pmf. *)
+    (* (* rewrite {4}/pmf /= /dbind_pmf. *) *)
+    (* apply SeriesC_ext. intros [e' σ']. *)
+
+    (* rewrite fill_step_prob //.  *)
+
+(* Admitted. *)
 
 
 (* TODO: we don't just get [ξ] in the conclusion - we'll need to "lift" the
@@ -180,14 +283,14 @@ Proof.
 Lemma Rcoupl_exec_fill_ctx K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' :
   to_val e1 = None →
   Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
-  Rcoupl (exec (sch_ctx_lift K e1 σ1 ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
+  Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
 Proof.
   intros Hv Hcpl.
   rewrite exec_fill //.
   rewrite -(dret_id_right (exec ξ' ρ)).
   rewrite /dmap.
   eapply Rcoupl_bind; [|done].
-  intros [e2' σ2] ρ' HR.
+  intros [e2' σ2] ρ' HR =>/=.
   apply Rcoupl_ret; eauto.
 Qed.
 
@@ -211,8 +314,6 @@ Proof.
   iMod "H" as "(Hσ & Hρ & H)".
   iModIntro. iFrame "Hσ Hρ". by iApply "IH".
 Qed.
-
-
 
 (* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
 (*   WP K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }}. *)

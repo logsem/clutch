@@ -66,7 +66,7 @@ Section distributions.
 
 End distributions.
 
-
+(** * Monadic return  *)
 Definition dret_pmf `{Countable A} (a : A) : A → R :=
   λ (a' : A), if bool_decide (a' = a) then 1 else 0.
 
@@ -100,6 +100,7 @@ Section dret.
 
 End dret.
 
+(** * Monadic bind  *)
 Definition dbind_pmf `{Countable A, Countable B} (f : A → distr B) (μ : distr A) : B → R :=
   λ (b : B), SeriesC (λ (a : A), μ a * f a b).
 
@@ -167,6 +168,7 @@ Notation "x ← y ; z" := (y ≫= (λ x : _, z))
 Notation "' x ← y ; z" := (y ≫= (λ x : _, z))
   (at level 20, x pattern, y at level 100, z at level 200, only parsing) : stdpp_scope.
 
+(** * Lemmas about the interplay of monadic bind and return  *)
 Section monadic.
   Context `{Countable A}.
 
@@ -259,6 +261,7 @@ Section monadic.
 
 End monadic.
 
+(** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=
     a ← μ; dret (f a).
 
@@ -283,9 +286,15 @@ Section dmap.
 
 End dmap.
 
+(** * Monadic strength  *)
 Definition strength_l `{Countable A, Countable B} (a : A) (μ : distr B) : distr (A * B) :=
   dmap (λ b, (a, b)) μ.
 
+(** * Monaidc fold left  *)
+Definition foldlM {A B} `{Countable B} (f : B → A → distr B) (b : B) (xs : list A) : distr B :=
+  foldr (λ a m b, f b a ≫= m) dret xs b.
+
+(** * The zero distribution  *)
 Program Definition dzero `{Countable A} : distr A := MkDistr (λ _, 0) _ _ _.
 Next Obligation. done. Qed.
 Next Obligation. intros. eapply ex_seriesC_0. Qed.
