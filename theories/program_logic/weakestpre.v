@@ -166,9 +166,9 @@ Proof.
   iMod ("H" with "[$]") as "(%Hs & %ξ & %ξ' & %R & %Hwf & %Hcpl & H)".
   iModIntro; iSplit.
   { destruct s; eauto using reducible_fill. }
-  iExists _, _, _.
+  iExists (sch_ctx_lift K ξ), _, _.
   iSplit.
-  { admit. }
+  { iPureIntro. apply _. }
   iSplit.
   { iPureIntro. by eapply Rcoupl_exec_ctx_lift. }
   iIntros (e2 σ2 ρ') "[%Hstep (%e2' & %Hfill & %HR)]".
@@ -177,7 +177,7 @@ Proof.
   iMod ("H"  with "[//]") as "H". iIntros "!>!>".
   iMod "H" as "(Hσ & Hρ & H)".
   iModIntro. iFrame "Hσ Hρ". by iApply "IH".
-Admitted.
+Qed.
 
 (* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
 (*   WP K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }}. *)

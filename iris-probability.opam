@@ -14,4 +14,5 @@ depends: [
   "coq-coquelicot" { (= "3.2.0") }
   "coq-iris" { (= "4.0.0") | (= "dev") }
   "coq-stdpp" { (= "1.8.0") | (= "dev") }
+  "coq-autosubst" { (= "dev") }
 ]

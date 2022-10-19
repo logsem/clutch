@@ -240,6 +240,10 @@ Section language.
     (∃ v, of_val v = e) → is_Some (to_val e).
   Proof. intros [v <-]. rewrite to_of_val. eauto. Qed.
 
+  Lemma fill_is_val e K `{@LanguageCtx Λ K} :
+    is_Some (to_val (K e)) → is_Some (to_val e).
+  Proof. rewrite -!not_eq_None_Some. eauto using fill_not_val. Qed.
+
   Lemma prim_step_not_stuck e σ e' σ' :
     prim_step e σ (e', σ') > 0 → not_stuck e σ.
   Proof. rewrite /not_stuck /reducible. eauto 10. Qed.

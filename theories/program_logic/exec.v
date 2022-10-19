@@ -131,13 +131,21 @@ Section ctx_lifting.
   Proof.
     intros Hwf. constructor.
     intros e σ Hval.
-    pose proof (scheduler_fn_val f _ e σ Hval).
     rewrite /sch_fn_ctx_lift.
-    rewrite (lookup_kmap_None (fill_lift K) f (e, σ) (A := action Λ)).
-    intros [e' σ'] [=]. simplify_eq.
-  Admitted.
+    rewrite lookup_kmap_None.
+    intros [e' σ'] [=]; simplify_eq.
+    eapply scheduler_fn_val; [done|].
+    by eapply fill_is_val.
+  Qed.
 
-
+  Global Instance sch_ctx_lift_wf ξ K `{!LanguageCtx K} :
+    SchedulerWf ξ → SchedulerWf (sch_ctx_lift K ξ).
+  Proof.
+    induction ξ; [done|].
+    inversion 1; simplify_eq.
+    rewrite sch_ctx_lift_cons.
+    apply TCForall_cons; [apply _|eauto].
+  Qed.
 
   (* TODO: move and prove *)
   Lemma SeriesC_rearrange_covering `{Countable A} (f : A → A) `{Inj A A (=) (=) f} (g : A → R) :
