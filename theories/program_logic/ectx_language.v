@@ -266,7 +266,7 @@ Section ectx_language.
     - rewrite /= /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
       edestruct (decomp_fill _ _ _ Heq).
-      eapply dbind_pos_support in Hs as [[] [Hr%dret_Rgt_zero_inv ?]].
+      eapply dbind_pos_support in Hs as [[] [Hr%dret_pos ?]].
       simplify_eq. do 3 eexists; eauto.
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
       rewrite -fill_prim_step //; [by apply head_prim_step|].

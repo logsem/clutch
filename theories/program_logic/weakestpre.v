@@ -27,7 +27,7 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
   | None => ∀ σ1 ρ,
      state_interp σ1 ∗ ghost_interp ρ ={E,∅}=∗
        ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
-       ∃ ξ ξ' R,
+       ∃ ξ ξ' R, ⌜SchedulerWf ξ⌝ ∗
          ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
          ∀ e2 σ2 ρ',
            ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ∗ ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
@@ -37,7 +37,7 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 27 (f_contractive || f_equiv).
+  do 28 (f_contractive || f_equiv).
   apply Hwp.
 Qed.
 
@@ -71,7 +71,7 @@ Global Instance wp_ne s E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 27 (f_contractive || f_equiv).
+  do 28 (f_contractive || f_equiv).
   rewrite IH; [done|lia|]. intros v. eapply dist_S, HΦ.
 Qed.
 Global Instance wp_proper s E e :
@@ -100,10 +100,10 @@ Proof.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
   iIntros (σ1 ρ) "[Hσ Hρ]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
-  iMod ("H" with "[$]") as "(%Hs & %ξ & %ξ' & %R & %Hcpl & H)".
+  iMod ("H" with "[$]") as "(%Hs & %ξ & %ξ' & %R & %Hwf & %Hcpl & H)".
   iModIntro. iSplit; [by destruct s1, s2|].
-  iExists _, _, _. iSplit; [done|].
-  iIntros (e2 σ2 ρ') "[%Hstep %HR]".
+  iExists _, _, _. iSplit; [done|]. iSplit; [done|].
+  iIntros (e2 σ2 ρ') "(%Hstep & %HR)".
   iMod ("H" with "[//]") as "H". iIntros "!> !>".  iMod "H" as "(Hσ & Hρ & H)".
   iMod "Hclose" as "_". iModIntro. iFrame.
   iApply ("IH" with "[] H"); auto.
@@ -124,9 +124,10 @@ Proof.
   iIntros "H". rewrite !wp_unfold /wp_pre.
   destruct (to_val e) as [v|] eqn:He.
   { by iDestruct "H" as ">>> $". }
-  iIntros (σ1 ρ) "[Hσ Hρ]". iMod "H". iMod ("H" with "[$Hσ $Hρ]") as "($ & %ξ & %ξ' & %R & %Hcpl & H)".
+  iIntros (σ1 ρ) "[Hσ Hρ]". iMod "H".
+  iMod ("H" with "[$Hσ $Hρ]") as "($ & %ξ & %ξ' & %R & %Wf & %Hcpl & H)".
   iModIntro.
-  iExists _, _, _. iSplit; [done|].
+  iExists _, _, _. iSplit; [done|]. iSplit; [done|].
   iIntros (e2 σ2 ρ') "[%Hstep %HR]".
   iMod ("H" with "[//]") as "H". iIntros "!>!>".
   iMod "H" as "(Hσ & Hρ & H)". destruct s.
@@ -145,153 +146,13 @@ Lemma wp_step_fupd s E1 E2 e P Φ :
 Proof.
   rewrite !wp_unfold /wp_pre. iIntros (-> ?) "HR H".
   iIntros (σ1 ρ) "[Hσ Hρ]". iMod "HR".
-  iMod ("H" with "[$]") as "($ & %ξ & %ξ' & %R & %Hcpl & H)".
-  iModIntro. iExists _,_,_. iSplit; [done|].
+  iMod ("H" with "[$]") as "($ & %ξ & %ξ' & %R & %Hwf & %Hcpl & H)".
+  iModIntro. iExists _,_,_. iSplit; [done|]. iSplit; [done|].
   iIntros (e2 σ2 ρ') "[%Hstep %HR]". iMod ("H" with "[% //]") as "H".
   iIntros "!>!>". iMod "H" as "(Hσ & Hρ & H)".
   iMod "HR". iModIntro. iFrame "Hσ Hρ".
   iApply (wp_strong_mono s s E2 with "H"); [done..|].
   iIntros (v) "H". by iApply "H".
-Qed.
-
-Definition fill_lift K : cfg Λ → cfg Λ := (λ '(e, σ), (K e, σ)).
-
-#[global] Instance fill_lift_inj K `{!LanguageCtx K} : Inj (=) (=) (fill_lift K).
-Proof. rewrite /fill_lift. by intros [] [] [= <-%fill_inj <-]. Qed.
-
-Definition sch_fn_ctx_lift (K : expr Λ → expr Λ) (f : scheduler_fn Λ) : scheduler_fn Λ :=
-  kmap (fill_lift K) f.
-
-Definition sch_ctx_lift (K : expr Λ → expr Λ) (ξ : scheduler Λ) : scheduler Λ :=
-  sch_fn_ctx_lift K <$> ξ.
-
-Lemma sch_fn_ctx_lift_K K `{!LanguageCtx K} f e σ:
-  sch_fn_ctx_lift K f !! (K e, σ) = f !! (e, σ).
-Proof. rewrite /sch_fn_ctx_lift -(lookup_kmap (fill_lift _) _ (e , _)) //. Qed.
-
-Lemma sch_ctx_lift_cons K `{!LanguageCtx K} f ξ :
-  sch_ctx_lift K (f :: ξ) = sch_fn_ctx_lift K f :: sch_ctx_lift K ξ.
-Proof. done. Qed.
-
-(* Lemma exec_lift K ξ : *)
-
-(*       exec (sch_ctx_lift K ξ) (e, σ) (K e2', σ2) = exec ξ (e, σ) (e2', σ2) *)
-
-Lemma some_nice_lemma `{Countable A} (f : A → A) `{Inj A A (=) (=) f} (g : A → R) :
-  (∀ a, (∀ a', a ≠ f a') → g a = 0) →
-  SeriesC g = SeriesC (λ a, g (f a)).
-Proof. Admitted.
-Lemma exec_fill K `{!LanguageCtx K} e1 σ1 ξ e2 σ2 :
-  (* to_val e1 = None → *)
-  exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = (exec ξ (e1, σ1)) (e2, σ2) .
-Proof.
-
-  (* intros Hv. *)
-  (* eapply distr_ext; intros [e2 σ2]. *)
-  (* assert (∃ e2', (e2, σ2) = fill_lift K (e2', σ2)) by admit. *)
-  (* destruct H as [e2' ->]=>/=. *)
-  revert e1 σ1.
-  induction ξ as [|f ξ IH].
-  { intros. rewrite /= 2!exec_nil.
-    rewrite (dret_pmf_map (fill_lift _) (e1, _) (e2, _)) //. }
-  intros.
-  assert (∀ e σ, is_Some (to_val e) → f !! (e, σ) = None) as Hasm by admit.
-  rewrite sch_ctx_lift_cons.
-  rewrite 2!exec_cons.
-  rewrite 2!exec_fn_unfold.
-  rewrite sch_fn_ctx_lift_K.
-  destruct (to_val e1) as [v|] eqn:Heq.
-  { erewrite !Hasm; [|done|done].
-    rewrite 2!dbind_dzero //. }
-  destruct (f !! _) as [[] |]=>/=.
-  - rewrite /pmf /= /dbind_pmf.
-    rewrite (some_nice_lemma (fill_lift K)) /=; last first.
-    { intros [e3 σ3] Hmpty.
-      destruct (decide (prim_step (K e1) σ1 (e3, σ3) > 0)) as [H'|]; last first.
-      { pose proof ((pmf_pos (prim_step (K e1) σ1)) (e3, σ3)).
-        assert (prim_step (K e1) σ1 (e3, σ3) = 0) by lra.
-        rewrite H0. lra. }
-      apply fill_step_inv in H'; [|done].
-      destruct H' as (? & -> & H).
-      specialize (Hmpty (x, σ3)). simpl in Hmpty. done. }
-    apply SeriesC_ext; intros [e σ].
-    rewrite IH.
-    rewrite -fill_step_prob //.
-  - rewrite /pmf /= /dbind_pmf.
-    rewrite /strength_l.
-    admit.
-  - rewrite 2!dbind_dzero //.
-
-Admitted.
-
-Lemma foo `{Countable A} (μ1 μ2 : distr A) (f : A → A) `{Inj A A (=) (=) f} :
-  (* (∀ a, ∃ a', f a' = a) → *)
-  (∀ a, μ1 (f a) = μ2 a) →
-  μ1 = dmap f μ2.
-Proof. Admitted.
-(*   intros Hcov Hμ. *)
-(*   eapply distr_ext. *)
-(*   intros a. rewrite /dmap. *)
-(*   rewrite {2}/pmf /= /dbind_pmf. *)
-
-(*   rewrite {3}/pmf /= /dret_pmf. *)
-(*   destruct (Req_dec (μ1 a) 0). *)
-(*   -  *)
-
-(*   edestruct (Hcov a) as [a' Ha]. *)
-(*   {  *)
-
-(*   rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = aa) then μ2 aa else 0)). *)
-(*   { rewrite SeriesC_singleton //. rewrite -H1 Hμ //. } *)
-(*   intros a'. symmetry. case_bool_decide. *)
-(*   - simplify_eq. rewrite bool_decide_eq_true_2 //. lra.  *)
-(*   - rewrite bool_decide_eq_false_2; [lra|]. *)
-(*     rewrite -H1. intros ?%(inj _). simplify_eq. *)
-(* Admitted.  *)
-
-
-
-  (* setoid_rewrite <-Hμ. *)
-
-
-
-
-Lemma exec_fill' K `{!LanguageCtx K} e1 σ1 ξ :
-  exec (sch_ctx_lift K ξ) (K e1, σ1) = dmap (fill_lift K) (exec ξ (e1, σ1)).
-Proof.
-  apply foo.
-  - by apply fill_lift_inj.
-  - intros []. apply exec_fill. done.
-Qed.
-
-
-  (* rewrite (some_nice_lemma (fill_lift K)) /=; last first. *)
-  (* eapply some_nice_lemma  *)
-
-
-    (* rewrite !/pmf /= /dbind_pmf. *)
-    (* (* rewrite {4}/pmf /= /dbind_pmf. *) *)
-    (* apply SeriesC_ext. intros [e' σ']. *)
-
-    (* rewrite fill_step_prob //.  *)
-
-(* Admitted. *)
-
-
-(* TODO: we don't just get [ξ] in the conclusion - we'll need to "lift" the
-   scheduler so it ignores the context *)
-Lemma Rcoupl_exec_fill_ctx K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' :
-  to_val e1 = None →
-  Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
-  Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
-Proof.
-  intros Hv Hcpl.
-  rewrite exec_fill //.
-  rewrite -(dret_id_right (exec ξ' ρ)).
-  rewrite /dmap.
-  eapply Rcoupl_bind; [|done].
-  intros [e2' σ2] ρ' HR =>/=.
-  apply Rcoupl_ret; eauto.
 Qed.
 
 Lemma wp_bind K `{!LanguageCtx K} s E e Φ :
@@ -302,18 +163,21 @@ Proof.
   { apply of_to_val in He as <-. by iApply fupd_wp. }
   rewrite wp_unfold /wp_pre fill_not_val /=; [|done].
   iIntros (σ1 ρ) "[Hσ Hρ]".
-  iMod ("H" with "[$]") as "(%Hs & %ξ & %ξ' & %R & %Hcpl & H)".
+  iMod ("H" with "[$]") as "(%Hs & %ξ & %ξ' & %R & %Hwf & %Hcpl & H)".
   iModIntro; iSplit.
   { destruct s; eauto using reducible_fill. }
-  iExists _, _, _. iSplit.
-  { iPureIntro. by eapply Rcoupl_exec_fill_ctx. }
+  iExists _, _, _.
+  iSplit.
+  { admit. }
+  iSplit.
+  { iPureIntro. by eapply Rcoupl_exec_ctx_lift. }
   iIntros (e2 σ2 ρ') "[%Hstep (%e2' & %Hfill & %HR)]".
   destruct (fill_step_inv e σ1 e2 σ2) as (e2''&->&?); auto.
   apply fill_inj in Hfill; simplify_eq.
   iMod ("H"  with "[//]") as "H". iIntros "!>!>".
   iMod "H" as "(Hσ & Hρ & H)".
   iModIntro. iFrame "Hσ Hρ". by iApply "IH".
-Qed.
+Admitted.
 
 (* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
 (*   WP K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }}. *)
