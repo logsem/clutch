@@ -17,6 +17,10 @@ Global Arguments STATE {Λ} _.
 Definition scheduler_fn (Λ : language) := gmap (cfg Λ) (action Λ).
 
 Class SchedulerFnWf {Λ} (f : scheduler_fn Λ) := {
+  (* For now, this well-formedness condition requires that the scheduler does
+     not schedule anything when the program has reached a value; conceptually it
+     should be fine to schedule state steps, however, and this requirement could
+     be relaxed. *)
   scheduler_fn_val e σ : is_Some (to_val e) → f !! (e, σ) = None;
 }.
 
@@ -92,6 +96,7 @@ Section distribution.
   Lemma exec_cons ρ f ξ :
     exec (f :: ξ) ρ = dbind (λ ρ'', exec ξ ρ'') (exec_fn ρ f).
   Proof. done. Qed.
+
 End distribution.
 
 Global Arguments exec_fn {_} _ _ : simpl never.
@@ -223,11 +228,10 @@ Section ctx_lifting.
   Qed.
 
   Lemma Rcoupl_exec_ctx_lift K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' `{!SchedulerWf ξ}:
-    to_val e1 = None →
     Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
     Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
   Proof.
-    intros Hv Hcpl.
+    intros Hcpl.
     rewrite exec_ctx_lift_fill //.
     rewrite -(dret_id_right (exec ξ' ρ)).
     rewrite /dmap.
