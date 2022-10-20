@@ -152,51 +152,6 @@ Section ctx_lifting.
     apply TCForall_cons; [apply _|eauto].
   Qed.
 
-  (* TODO: move and prove *)
-  Lemma SeriesC_rearrange_covering `{Countable A} (f : A → A) `{Inj A A (=) (=) f} (g : A → R) :
-    (∀ a, (∀ a', a ≠ f a') → g a = 0%R) →
-    SeriesC g = SeriesC (λ a, g (f a)).
-  Proof. Admitted.
-
-  Lemma exec_ctx_lift_pmf K `{!LanguageCtx K} ξ `{Hwf : !SchedulerWf ξ} e1 σ1 e2 σ2 :
-    exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = (exec ξ (e1, σ1)) (e2, σ2) .
-  Proof.
-    revert e1 σ1.
-    induction ξ as [|f ξ IH]; intros.
-    { rewrite 2!exec_nil. apply (dret_pmf_map (fill_lift _) (e1, _) (e2, _)). }
-    rewrite sch_ctx_lift_cons 2!exec_cons 2!exec_fn_unfold.
-    rewrite sch_fn_ctx_lift_lookup.
-    destruct (to_val e1) as [v|] eqn:Heq.
-    { erewrite 2!(scheduler_fn_val f); try (apply _ || eauto).
-      rewrite 2!dbind_dzero //. }
-    destruct (f !! _) as [[] |]=>/=.
-    - inversion Hwf; simplify_eq.
-      rewrite /pmf /= /dbind_pmf.
-      rewrite (SeriesC_rearrange_covering (fill_lift K)) /=; last first.
-      { intros [e3 σ3] Hdom.
-        destruct (decide (prim_step (K e1) σ1 (e3, σ3) > 0)) as [Hs|]; last first.
-        { rewrite Rmult_eq_0_compat_r //. by apply pmf_eq_0_not_gt_0. }
-        apply fill_step_inv in Hs as (e3' & -> & H); [|done].
-        exfalso; by eapply (Hdom (_, _)). }
-      apply SeriesC_ext; intros [e2' σ].
-      rewrite IH -fill_step_prob //.
-    - inversion Hwf; simplify_eq.
-      rewrite /pmf /= /dbind_pmf /strength_l.
-      rewrite (SeriesC_rearrange_covering (fill_lift K)) /=; last first.
-      { intros [e3 σ3] Hdom.
-        destruct (decide (dmap (λ σ, (K e1, σ)) (state_step σ1 α) (e3, σ3) > 0)) as [H'|]; last first.
-        { rewrite Rmult_eq_0_compat_r //. by apply pmf_eq_0_not_gt_0. }
-        apply dmap_pos in H' as [σ [? ?]]. simplify_eq.
-        exfalso. by eapply (Hdom (_,_)). }
-      apply SeriesC_ext; intros [e σ].
-      destruct (decide (e = e1)); [subst|].
-      + rewrite 2!dbind_dret_pmf_map IH. lra.
-      + rewrite /dmap {1 3}/pmf /= /dbind_pmf.
-        setoid_rewrite dret_0; [|intros ?; simplify_eq..].
-        rewrite SeriesC_0; [lra|]. intros; lra.
-    - rewrite 2!dbind_dzero //.
-  Qed.
-
   Lemma exec_ctx_lift_pmf_pos K `{!LanguageCtx K} e1 σ1 e2 σ2 ξ `{Hwf : !SchedulerWf ξ} :
     exec (sch_ctx_lift K ξ) (K e1, σ1) (e2, σ2) > 0 → ∃ e2', e2 = K e2'.
   Proof.
@@ -216,6 +171,50 @@ Section ctx_lifting.
       + intros [[e3 σ3] [Hexec [σ [? ?]]%dmap_pos]]%dbind_pos_support.
         simplify_eq. by eapply IH.
       + rewrite dbind_dzero_pmf. lra.
+  Qed.
+
+  Lemma exec_ctx_lift_pmf K `{!LanguageCtx K} ξ `{Hwf : !SchedulerWf ξ} e1 σ1 e2 σ2 :
+    exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = (exec ξ (e1, σ1)) (e2, σ2) .
+  Proof.
+    revert e1 σ1.
+    induction ξ as [|f ξ IH]; intros.
+    { rewrite 2!exec_nil. apply (dret_pmf_map (fill_lift _) (e1, _) (e2, _)). }
+    rewrite sch_ctx_lift_cons 2!exec_cons 2!exec_fn_unfold.
+    rewrite sch_fn_ctx_lift_lookup.
+    destruct (to_val e1) as [v|] eqn:Heq.
+    { erewrite 2!(scheduler_fn_val f); try (apply _ || eauto).
+      rewrite 2!dbind_dzero //. }
+    destruct (f !! _) as [[] |]=>/=.
+    - inversion Hwf; simplify_eq.
+      rewrite /pmf /= /dbind_pmf.
+      rewrite (SeriesC_rearrange_covering (fill_lift K)) /=; last first.
+      { eapply ex_seriesC_ext.
+        - intros ρ. rewrite Rabs_right //.
+          by apply Rle_ge, Rmult_le_pos.
+        - eapply pmf_ex_seriesC_mult_fn. eauto. }
+      { intros [] [Hs ?]%Rmult_neq_0_pos; [|done|done].
+        eapply fill_step_inv in Hs as (?&?&?); [|done]; subst. by eexists (_,_). }
+      { by intros ??? ?%(inj _). }
+      apply SeriesC_ext; intros [e2' σ]=>/=.
+      rewrite IH -fill_step_prob //.
+    - inversion Hwf; simplify_eq.
+      rewrite /pmf /= /dbind_pmf /strength_l.
+      rewrite (SeriesC_rearrange_covering (fill_lift K)) /=; last first.
+      { eapply ex_seriesC_ext.
+        - intros ρ. rewrite Rabs_right //.
+          by apply Rle_ge, Rmult_le_pos.
+        - eapply pmf_ex_seriesC_mult_fn. eauto. }
+      { intros [] [Hs ?]%Rmult_neq_0_pos; [|done|done].
+        eapply dmap_pos in Hs as (σ' & ? & ?); simplify_eq.
+        by eexists (_,_). }
+      { by intros ??? ?%(inj _). }
+      apply SeriesC_ext; intros [e σ]=>/=.
+      destruct (decide (e = e1)); [subst|].
+      + rewrite 2!dbind_dret_pmf_map IH. lra.
+      + rewrite /dmap {1 3}/pmf /= /dbind_pmf.
+        setoid_rewrite dret_0; [|intros ?; simplify_eq..].
+        rewrite SeriesC_0; [lra|]. intros; lra.
+    - rewrite 2!dbind_dzero //.
   Qed.
 
   Lemma exec_ctx_lift_fill K `{!LanguageCtx K} e1 σ1 ξ `{!SchedulerWf ξ}:

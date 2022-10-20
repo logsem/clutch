@@ -45,14 +45,22 @@ Section distributions.
     apply SeriesC_le'; auto. apply ex_seriesC_0.
   Qed.
 
+  Lemma pmf_ex_seriesC_mult_fn (μ : distr A) (f : A → R) :
+    (∃ n, ∀ a, 0 <= f a <= n) →
+    ex_seriesC (λ a, μ a * f a).
+  Proof.
+    intros [n Hf].
+    eapply (ex_seriesC_le _ (λ a, μ a * n)); [|by apply ex_seriesC_scal_r].
+    intros a. split.
+    - apply Rmult_le_pos; [done|]. eapply Hf.
+    - eapply Rmult_le_compat_l; [done|]. eapply Hf.
+  Qed.
+
   Lemma pmf_ex_seriesC_mult (μ1 μ2 : distr A) :
     ex_seriesC (λ a, μ1 a * μ2 a).
   Proof.
-    eapply (ex_seriesC_le _ (λ a, μ1 a * 1)); [|by apply ex_seriesC_scal_r].
-    intros a.
-    split; [by apply Rmult_le_pos|].
-    eapply Rmult_le_compat_l; [done|].
-    apply pmf_le_1.
+    eapply pmf_ex_seriesC_mult_fn.
+    exists 1. intros a; split; [apply pmf_pos|apply pmf_le_1].
   Qed.
 
   (* N.B. uses [functional_extensionality] and [proof_irrelevance] axioms  *)
@@ -73,6 +81,9 @@ Section distributions.
   Proof. intros ?%Rnot_gt_ge%Rge_le. by apply pmf_eq_0_le. Qed.
 
 End distributions.
+
+#[global] Hint Resolve pmf_le_1 : core.
+#[global] Hint Resolve pmf_SeriesC_ge_0 : core.
 
 (** * Monadic return  *)
 Definition dret_pmf `{Countable A} (a : A) : A → R :=

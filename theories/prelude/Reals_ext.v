@@ -2,7 +2,9 @@ From Coq Require Import Reals Psatz.
 From self.prelude Require Import base.
 
 (* Notation "x ≤ y" := (Rle x y) (at level 70, no associativity) : R_scope. *)
-(* Notation "x ≥ y" := (Rge x y) (at level 70, no associativity) : R_scope.u *)
+(* Notation "x ≥ y" := (Rge x y) (at level 70, no associativity) : R_scope. *)
+
+#[local] Open Scope R.
 
 #[global] Instance Rge_Transitive: Transitive Rge.
 Proof. intros ???. eapply Rge_trans. Qed.
@@ -51,3 +53,11 @@ Proof.
   apply Rmax_case_strong; intros ?%INR_le; f_equal;
     [ rewrite Nat.max_l // | rewrite Nat.max_r // ].
 Qed.
+
+Lemma Rmult_neq_0 (r1 r2 : R) :
+  r1 * r2 ≠ 0 → r1 ≠ 0 ∧ r2 ≠ 0.
+Proof. intros ?. split; intros ->; lra. Qed.
+
+Lemma Rmult_neq_0_pos (r1 r2 : R) :
+  r1 * r2 ≠ 0 → 0 <= r1 → 0 <= r2 → 0 < r1 ∧ 0 < r2.
+Proof. intros [? ?]%Rmult_neq_0 ? ?. lra. Qed.
