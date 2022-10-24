@@ -433,8 +433,9 @@ Section rearrange.
 
   (* TODO: prove this (using the [Series] version from rearrange.v)  *)
   Lemma SeriesC_rearrange_covering (σ: A → A) (f : A → R) :
-    (* [σ] is a bijection on the mass *)
+    (* no "collisions" in [f ∘ σ] *)
     (∀ a a', f (σ a) ≠ 0 → σ a = σ a' → a = a') →
+    (* [σ] is surjective on the support of [f] *)
     (∀ a, f a ≠ 0 → ∃ a', σ a' = a) →
     ex_seriesC (λ a, Rabs (f a)) →
     SeriesC f = SeriesC (f ∘ σ).

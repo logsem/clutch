@@ -13,44 +13,39 @@ Inductive action (Λ : language) :=
 Global Arguments PRIM {Λ}.
 Global Arguments STATE {Λ} _.
 
+(* TODO: come up with better naming; "scheduler" and "scheduling function" is
+   not the most well-fitting names *)
 
 Definition scheduler_fn (Λ : language) := gmap (cfg Λ) (action Λ).
 
 Class SchedulerFnWf {Λ} (f : scheduler_fn Λ) := {
   (* For now, this well-formedness condition requires that the scheduler does
-     not schedule anything when the program has reached a value; conceptually it
-     should be fine to schedule state steps, however, and this requirement could
-     be relaxed. *)
+     not schedule anything when the program has reached a value; this is
+     important for the [wp_bind] rule. Conceptually it should be fine to
+     schedule state steps, however, and this requirement could be relaxed. *)
   scheduler_fn_val e σ : is_Some (to_val e) → f !! (e, σ) = None;
 }.
 
-Global Arguments scheduler_fn_val {_} _ &.
-
-Definition scheduler (Λ : language) := list (scheduler_fn Λ).
-
-Notation SchedulerWf ξ := (TCForall SchedulerFnWf ξ).
-
-Global Instance SchedulerWfToFnWf {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) :
-  SchedulerWf (f :: ξ) → SchedulerFnWf f.
-Proof. by inversion 1. Qed.
+Global Arguments scheduler_fn_val {_} _ _.
 
 Local Open Scope R.
 
-Section distribution.
+Section exec_fn.
   Context {Λ : language}.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
+  Implicit Types ρ : cfg Λ.
   Implicit Types α : state_idx Λ.
-  Implicit Types ξ : scheduler Λ.
+  Implicit Types f : scheduler_fn Λ.
 
-  Definition exec_fn_pmf '(e, σ) (f : scheduler_fn Λ) ρ : R :=
+  Definition exec_fn_pmf '(e, σ) f ρ : R :=
     match f !! (e, σ) with
     | Some PRIM => prim_step e σ ρ
     | Some (STATE α) => strength_l e (state_step σ α) ρ
     | None => 0%R
     end.
-  Program Definition exec_fn (ρ : cfg Λ) (f : scheduler_fn Λ) : distr (cfg Λ) :=
+  Program Definition exec_fn ρ f : distr (cfg Λ) :=
     MkDistr (exec_fn_pmf ρ f) _ _ _.
   Next Obligation. intros [] f ρ. rewrite /exec_fn_pmf. destruct (f !! _) as [[]|]; [done|done|done]. Qed.
   Next Obligation.
@@ -85,9 +80,59 @@ Section distribution.
   Proof.
     apply distr_ext=>?. rewrite exec_fn_pmf_unfold. by repeat case_match.
   Qed.
+End exec_fn.
 
-  Definition exec (ξ : scheduler Λ) (ρ : cfg Λ) : distr (cfg Λ) :=
-    foldlM exec_fn ρ ξ.
+Global Arguments exec_fn {_} _ _ : simpl never.
+
+Definition scheduler (Λ : language) := list (scheduler_fn Λ).
+
+(* Non-blocking means that the scheduler will eventually schedule a [prim_step],
+   possibly with some [state_step]s beforehand *)
+Inductive non_blocking {Λ} : scheduler Λ → cfg Λ → Prop :=
+| schedule_prim f ξ ρ :
+  f !! ρ = Some PRIM →
+  non_blocking (f :: ξ) ρ
+| schedule_state f ξ ρ α e σ :
+  f !! ρ = Some (STATE α) →
+  ρ = (e, σ) →
+  (∀ σ', state_step σ α σ' > 0 → non_blocking ξ (e, σ')) →
+  non_blocking (f :: ξ) ρ.
+
+Notation SchedulerFnsWf ξ := (TCForall SchedulerFnWf ξ).
+
+Class SchedulerWf {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) := {
+  (* all the scheduling functions are individually well-formed *)
+  scheduler_fns_wf : SchedulerFnsWf ξ;
+  (* the scheduler must be "non-blocking" w.r.t. [ρ]; this is important to the
+     extraction of a non-blocking trace scheduler in the adequacy theorem of
+     the program logic. *)
+  scheduler_non_blocking : non_blocking ξ ρ;
+}.
+
+Lemma scheduler_wf_nonempty {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) :
+  SchedulerWf ξ ρ → ξ ≠ [].
+Proof. destruct 1 as [? []]; intros [=]. Qed.
+
+Global Instance SchedulerFnsWfToFnWf {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) :
+  SchedulerFnsWf (f :: ξ) → SchedulerFnWf f.
+Proof. by inversion 1. Qed.
+
+(* We add this as a lemma as an instance makes typeclass resolution cycle *)
+Lemma scheduler_fns_wf_tail {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) :
+  SchedulerFnsWf (f :: ξ) → SchedulerFnsWf ξ.
+Proof. by inversion 1. Qed.
+
+Global Instance SchedulerWfToFnWf {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) :
+  SchedulerWf ξ ρ → SchedulerFnsWf ξ.
+Proof. by inversion 1. Qed.
+
+Section exec.
+  Context {Λ : language}.
+  Implicit Types ρ : cfg Λ.
+  Implicit Types f : scheduler_fn Λ.
+  Implicit Types ξ : scheduler Λ.
+
+  Definition exec ξ ρ : distr (cfg Λ) := foldlM exec_fn ρ ξ.
 
   Lemma exec_nil ρ :
     exec [] ρ = dret ρ.
@@ -96,32 +141,31 @@ Section distribution.
   Lemma exec_cons ρ f ξ :
     exec (f :: ξ) ρ = dbind (λ ρ'', exec ξ ρ'') (exec_fn ρ f).
   Proof. done. Qed.
+End exec.
 
-End distribution.
-
-Global Arguments exec_fn {_} _ _ : simpl never.
 Global Arguments exec {_} _ _ : simpl never.
 
 (** * [LanguageCtx] lifting of schedulers  *)
 Section ctx_lifting.
   Context {Λ : language}.
-  Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
+  Implicit Types ρ : cfg Λ.
   Implicit Types α : state_idx Λ.
-  Implicit Types ξ : scheduler Λ.
   Implicit Types f : scheduler_fn Λ.
+  Implicit Types ξ : scheduler Λ.
+  Implicit Types K : expr Λ → expr Λ.
 
   Definition fill_lift K : cfg Λ → cfg Λ := (λ '(e, σ), (K e, σ)).
 
   #[global] Instance fill_lift_inj K `{!LanguageCtx K} : Inj (=) (=) (fill_lift K).
   Proof. rewrite /fill_lift. by intros [] [] [= <-%fill_inj <-]. Qed.
 
-  Definition sch_fn_ctx_lift (K : expr Λ → expr Λ) (f : scheduler_fn Λ) : scheduler_fn Λ :=
-    kmap (fill_lift K) f.
+  (* Maps the domain of the scheduling function from expressions of the shape
+     [e] to [K e] *)
+  Definition sch_fn_ctx_lift K f : scheduler_fn Λ := kmap (fill_lift K) f.
 
-  Definition sch_ctx_lift (K : expr Λ → expr Λ) (ξ : scheduler Λ) : scheduler Λ :=
-    sch_fn_ctx_lift K <$> ξ.
+  Definition sch_ctx_lift K ξ : scheduler Λ := sch_fn_ctx_lift K <$> ξ.
 
   Lemma sch_fn_ctx_lift_lookup K `{!LanguageCtx K} f e σ:
     sch_fn_ctx_lift K f !! (K e, σ) = f !! (e, σ).
@@ -143,29 +187,47 @@ Section ctx_lifting.
     by eapply fill_is_val.
   Qed.
 
-  Global Instance sch_ctx_lift_wf ξ K `{!LanguageCtx K} :
-    SchedulerWf ξ → SchedulerWf (sch_ctx_lift K ξ).
+  Lemma sch_ctx_lift_fns ξ K `{!LanguageCtx K} :
+    TCForall SchedulerFnWf ξ → TCForall SchedulerFnWf (sch_ctx_lift K ξ).
   Proof.
     induction ξ; [done|].
     inversion 1; simplify_eq.
     rewrite sch_ctx_lift_cons.
-    apply TCForall_cons; [apply _|eauto].
+    eapply TCForall_cons; [apply _|eauto].
   Qed.
 
-  Lemma exec_ctx_lift_pmf_pos K `{!LanguageCtx K} e1 σ1 e2 σ2 ξ `{Hwf : !SchedulerWf ξ} :
+  Lemma sch_ctx_lift_nonblocking ξ K `{!LanguageCtx K} e σ :
+    non_blocking ξ (e, σ) → non_blocking (sch_ctx_lift K ξ) (K e, σ).
+  Proof.
+    revert σ. induction ξ.
+    { inversion 1. }
+    intros σ. inversion 1; simplify_eq.
+    - eapply schedule_prim. rewrite sch_fn_ctx_lift_lookup //.
+    - rewrite sch_ctx_lift_cons. eapply schedule_state; [|done|eauto].
+      rewrite sch_fn_ctx_lift_lookup //.
+  Qed.
+
+  Global Instance sch_ctx_lift_wf ξ K `{!LanguageCtx K} e σ :
+    SchedulerWf ξ (e, σ) → SchedulerWf (sch_ctx_lift K ξ) (K e, σ).
+  Proof.
+    inversion 1.
+    constructor; [by apply sch_ctx_lift_fns|by apply sch_ctx_lift_nonblocking].
+  Qed.
+
+  Lemma exec_ctx_lift_pmf_pos K `{!LanguageCtx K} e1 σ1 e2 σ2 ξ `{Hwf : !SchedulerFnsWf ξ } :
     exec (sch_ctx_lift K ξ) (K e1, σ1) (e2, σ2) > 0 → ∃ e2', e2 = K e2'.
   Proof.
     revert e1 σ1 e2 σ2.
     induction ξ as [|f ξ IH].
-    - intros e1 σ1 e2 σ2. rewrite exec_nil. intros [=]%dret_pos. eauto.
-    - intros e1 σ1 e2 σ2.
+    - intros ????. rewrite exec_nil. intros [=]%dret_pos. eauto.
+    - intros ????.
       inversion Hwf; simplify_eq.
       rewrite sch_ctx_lift_cons exec_cons.
       rewrite exec_fn_unfold sch_fn_ctx_lift_lookup /=.
       destruct (f !! _) as [[]|] eqn:Heq.
       + intros [[e3 σ3] [Hexec Hs]]%dbind_pos_support.
         destruct (to_val e1) as [v|] eqn:Heq'.
-        { rewrite scheduler_fn_val in Heq; [simplify_eq|eauto].  }
+        { rewrite scheduler_fn_val in Heq; [simplify_eq|eauto]. }
         eapply fill_step_inv in Hs as [e3' [? ?]]; [|done].
         simplify_eq. by eapply IH.
       + intros [[e3 σ3] [Hexec [σ [? ?]]%dmap_pos]]%dbind_pos_support.
@@ -173,7 +235,7 @@ Section ctx_lifting.
       + rewrite dbind_dzero_pmf. lra.
   Qed.
 
-  Lemma exec_ctx_lift_pmf K `{!LanguageCtx K} ξ `{Hwf : !SchedulerWf ξ} e1 σ1 e2 σ2 :
+  Lemma exec_ctx_lift_pmf K `{!LanguageCtx K} ξ `{Hwf : !SchedulerFnsWf ξ} e1 σ1 e2 σ2 :
     exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = (exec ξ (e1, σ1)) (e2, σ2) .
   Proof.
     revert e1 σ1.
@@ -217,7 +279,7 @@ Section ctx_lifting.
     - rewrite 2!dbind_dzero //.
   Qed.
 
-  Lemma exec_ctx_lift_fill K `{!LanguageCtx K} e1 σ1 ξ `{!SchedulerWf ξ}:
+  Lemma exec_ctx_lift_fill K `{!LanguageCtx K} e1 σ1 ξ `{!SchedulerFnsWf ξ}:
     exec (sch_ctx_lift K ξ) (K e1, σ1) = dmap (fill_lift K) (exec ξ (e1, σ1)).
   Proof.
     apply dmap_rearrange; [apply _| |].
@@ -226,7 +288,7 @@ Section ctx_lifting.
     - intros []. by apply exec_ctx_lift_pmf.
   Qed.
 
-  Lemma Rcoupl_exec_ctx_lift K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' `{!SchedulerWf ξ}:
+  Lemma Rcoupl_exec_ctx_lift K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' `{!SchedulerFnsWf ξ}:
     Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
     Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
   Proof.
