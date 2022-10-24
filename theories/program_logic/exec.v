@@ -19,10 +19,17 @@ Global Arguments STATE {Λ} _.
 Definition scheduler_fn (Λ : language) := gmap (cfg Λ) (action Λ).
 
 Class SchedulerFnWf {Λ} (f : scheduler_fn Λ) := {
-  (* For now, this well-formedness condition requires that the scheduler does
-     not schedule anything when the program has reached a value; this is
-     important for the [wp_bind] rule. Conceptually it should be fine to
-     schedule state steps, however, and this requirement could be relaxed. *)
+  (* The definition of [exec_fn] doesn't explicitly consider whether the
+     expression is a value or not. If [f] schedules a [prim_step] when the
+     expression [e] is a value, the measure will be zero; when plugging [e] into
+     a context [K], the [prim_step] measure on [K e] might not be zero
+     anymore. This breaks lemmas like [exec_ctx_lift_pmf] that are cruical for
+     proving the [wp_bind] rule. *)
+
+  (* For now, the well-formedness condition requires that the scheduler does not
+     schedule anything when the program has reached a value. Conceptually it
+     should be fine to schedule state steps, however, and this requirement could
+     be relaxed slightly. *)
   scheduler_fn_val e σ : is_Some (to_val e) → f !! (e, σ) = None;
 }.
 
@@ -86,13 +93,18 @@ Global Arguments exec_fn {_} _ _ : simpl never.
 
 Definition scheduler (Λ : language) := list (scheduler_fn Λ).
 
-(* Non-blocking means that the scheduler will eventually schedule a [prim_step],
-   possibly with some [state_step]s beforehand *)
+(* A "non-blocking" scheduler will always schedule a [prim_step] at the end but
+   possibly add some [state_step]s beforehand.
+
+   In a sequential language, it should morally be fine to do multiple
+   [prim_step]s at once but we stick to exactly one [prim_step] for now as it
+   allows us to build on our usual intuition about atomicity and invariants in
+   the program logic. *)
 Inductive non_blocking {Λ} : scheduler Λ → cfg Λ → Prop :=
-| schedule_prim f ξ ρ :
+| nonblock_prim f ρ :
   f !! ρ = Some PRIM →
-  non_blocking (f :: ξ) ρ
-| schedule_state f ξ ρ α e σ :
+  non_blocking [f] ρ
+| nonblock_state f ξ ρ α e σ :
   f !! ρ = Some (STATE α) →
   ρ = (e, σ) →
   (∀ σ', state_step σ α σ' > 0 → non_blocking ξ (e, σ')) →
@@ -103,21 +115,17 @@ Notation SchedulerFnsWf ξ := (TCForall SchedulerFnWf ξ).
 Class SchedulerWf {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) := {
   (* all the scheduling functions are individually well-formed *)
   scheduler_fns_wf : SchedulerFnsWf ξ;
-  (* the scheduler must be "non-blocking" w.r.t. [ρ]; this is important to the
-     extraction of a non-blocking trace scheduler in the adequacy theorem of
-     the program logic. *)
+  (* the scheduler must be non-blocking w.r.t. [ρ]; this is important for the
+     extracted trace scheduler in the adequacy theorem of the program logic to
+     be non-blocking as well. *)
   scheduler_non_blocking : non_blocking ξ ρ;
 }.
-
-Lemma scheduler_wf_nonempty {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) :
-  SchedulerWf ξ ρ → ξ ≠ [].
-Proof. destruct 1 as [? []]; intros [=]. Qed.
 
 Global Instance SchedulerFnsWfToFnWf {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) :
   SchedulerFnsWf (f :: ξ) → SchedulerFnWf f.
 Proof. by inversion 1. Qed.
 
-(* We add this as a lemma as an instance makes typeclass resolution cycle *)
+(* We add this as a lemma as an instance makes typeclass resolution diverge *)
 Lemma scheduler_fns_wf_tail {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) :
   SchedulerFnsWf (f :: ξ) → SchedulerFnsWf ξ.
 Proof. by inversion 1. Qed.
@@ -145,7 +153,7 @@ End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
 
-(** * [LanguageCtx] lifting of schedulers  *)
+(** * [LanguageCtx] lifting of a scheduler  *)
 Section ctx_lifting.
   Context {Λ : language}.
   Implicit Types e : expr Λ.
@@ -158,7 +166,7 @@ Section ctx_lifting.
 
   Definition fill_lift K : cfg Λ → cfg Λ := (λ '(e, σ), (K e, σ)).
 
-  #[global] Instance fill_lift_inj K `{!LanguageCtx K} : Inj (=) (=) (fill_lift K).
+  Global Instance fill_lift_inj K `{!LanguageCtx K} : Inj (=) (=) (fill_lift K).
   Proof. rewrite /fill_lift. by intros [] [] [= <-%fill_inj <-]. Qed.
 
   (* Maps the domain of the scheduling function from expressions of the shape
@@ -202,8 +210,8 @@ Section ctx_lifting.
     revert σ. induction ξ.
     { inversion 1. }
     intros σ. inversion 1; simplify_eq.
-    - eapply schedule_prim. rewrite sch_fn_ctx_lift_lookup //.
-    - rewrite sch_ctx_lift_cons. eapply schedule_state; [|done|eauto].
+    - eapply nonblock_prim. rewrite sch_fn_ctx_lift_lookup //.
+    - rewrite sch_ctx_lift_cons. eapply nonblock_state; [|done|eauto].
       rewrite sch_fn_ctx_lift_lookup //.
   Qed.
 
@@ -236,7 +244,7 @@ Section ctx_lifting.
   Qed.
 
   Lemma exec_ctx_lift_pmf K `{!LanguageCtx K} ξ `{Hwf : !SchedulerFnsWf ξ} e1 σ1 e2 σ2 :
-    exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = (exec ξ (e1, σ1)) (e2, σ2) .
+    exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = exec ξ (e1, σ1) (e2, σ2) .
   Proof.
     revert e1 σ1.
     induction ξ as [|f ξ IH]; intros.
