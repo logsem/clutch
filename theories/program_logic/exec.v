@@ -46,23 +46,16 @@ Section exec_fn.
   Implicit Types α : state_idx Λ.
   Implicit Types f : scheduler_fn Λ.
 
-  Definition exec_fn_pmf '(e, σ) f ρ : R :=
+  Definition exec_fn_pmf '(e, σ) f : cfg Λ → R :=
     match f !! (e, σ) with
-    | Some PRIM => prim_step e σ ρ
-    | Some (STATE α) => strength_l e (state_step σ α) ρ
-    | None => 0%R
+    | Some PRIM => prim_step e σ
+    | Some (STATE α) => strength_l e (state_step σ α)
+    | None => dzero
     end.
+
   Program Definition exec_fn ρ f : distr (cfg Λ) :=
     MkDistr (exec_fn_pmf ρ f) _ _ _.
-  Next Obligation. intros [] f ρ. rewrite /exec_fn_pmf. destruct (f !! _) as [[]|]; [done|done|done]. Qed.
-  Next Obligation.
-    intros [e σ] f. rewrite /exec_fn_pmf.
-    destruct (f !! _) as [[]|]; [done|done|]. apply ex_seriesC_0.
-  Qed.
-  Next Obligation.
-    intros [e σ] f. rewrite /exec_fn_pmf.
-    destruct (f !! _) as [[]|]; [done|done|]. rewrite SeriesC_0 //; lra.
-  Qed.
+  Solve Obligations with rewrite /exec_fn_pmf; intros [] ?; repeat case_match; done.
 
   Lemma exec_fn_pmf_unfold f ρ ρ' :
     exec_fn ρ f ρ' =
@@ -151,8 +144,7 @@ Section exec.
   Proof. done. Qed.
 
   Lemma exec_prim_step e1 e2 σ1 σ2 ξ `{Hwf : !SchedulerWf ξ (e1, σ1)} :
-    exec ξ (e1, σ1) (e2, σ2) > 0 →
-    ∃ σ, prim_step e1 σ (e2, σ2) > 0.
+    exec ξ (e1, σ1) (e2, σ2) > 0 → ∃ σ, prim_step e1 σ (e2, σ2) > 0.
   Proof.
     revert σ1 Hwf. induction ξ as [|f ξ IH].
     { intros ? [? Hnb]. inversion Hnb. }
@@ -165,7 +157,6 @@ Section exec.
       econstructor; [|eauto].
       by eapply scheduler_fns_wf_tail.
    Qed.
-
 End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
@@ -315,7 +306,8 @@ Section ctx_lifting.
 
   Lemma Rcoupl_exec_ctx_lift K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' `{!SchedulerFnsWf ξ}:
     Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R →
-    Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ) (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
+    Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ)
+      (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
   Proof.
     intros Hcpl.
     rewrite exec_ctx_lift_fill //.
