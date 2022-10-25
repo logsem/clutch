@@ -161,6 +161,42 @@ End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
 
+(** * Some schedulers  *)
+Section schedulers.
+  Context {Λ : language}.
+  Implicit Types ρ : cfg Λ.
+  Implicit Types e : expr Λ.
+  Implicit Types σ : state Λ.
+  Implicit Types f : scheduler_fn Λ.
+  Implicit Types ξ : scheduler Λ.
+
+  Definition prim_step_sch_fn ρ : scheduler_fn Λ := {[ ρ := PRIM ]}.
+  Definition prim_step_sch ρ : scheduler Λ := [prim_step_sch_fn ρ].
+
+  Instance prim_step_sch_wf e σ :
+    to_val e = None → SchedulerWf (prim_step_sch (e, σ)) (e, σ).
+  Proof.
+    rewrite /prim_step_sch /prim_step_sch_fn.
+    constructor.
+    - do 2 constructor. intros e' σ' [v Hv].
+      rewrite lookup_singleton_None. intros [=]; simplify_eq.
+    - apply nonblock_prim. rewrite lookup_singleton_Some //.
+  Qed.
+
+  Lemma exec_prim_step_sch_pmf e1 e2 σ1 σ2 :
+    exec (prim_step_sch (e1, σ1)) (e1, σ1) (e2, σ2) = prim_step e1 σ1 (e2, σ2).
+  Proof.
+    rewrite /prim_step_sch /prim_step_sch_fn exec_cons.
+    rewrite dret_id_right_pmf exec_fn_pmf_unfold /=.
+    rewrite lookup_singleton //.
+  Qed.
+
+  Lemma exec_prim_step_sch e σ :
+    exec (prim_step_sch (e, σ)) (e, σ) = prim_step e σ.
+  Proof. eapply distr_ext. intros []. apply exec_prim_step_sch_pmf. Qed.
+
+End schedulers.
+
 (** * [LanguageCtx] lifting of a scheduler  *)
 Section ctx_lifting.
   Context {Λ : language}.

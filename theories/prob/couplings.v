@@ -18,51 +18,7 @@ Open Scope R.
 
 Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
-  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop). 
-
-  Definition lmarg (μ : distr (A * B)) : distr A :=
-    dmap (fun p =>  fst p) μ.
-
-  Definition rmarg (μ : distr (A * B)) : distr B :=
-    dmap (fun p =>  snd p) μ.
-
-  Lemma lmarg_pmf (μ : distr (A * B)) :
-    forall (a : A), (lmarg μ) a = SeriesC (λ (b : B), μ (a, b)).
-  Proof.
-    intro a.
-    rewrite /pmf /= /dbind_pmf (SeriesC_double_prod_rl (λ a0 : A * B, μ a0 * dret a0.1 a)).
-    apply SeriesC_ext; intro b.
-    rewrite /pmf /= /dret_pmf /=.
-    erewrite SeriesC_ext;
-    [ apply (SeriesC_singleton' a) | intro a0; simpl; case_bool_decide; simplify_eq; lra].
-  Qed.
-
-
-  Lemma rmarg_pmf (μ : distr (A * B)) :
-    forall (b : B), (rmarg μ) b = SeriesC (λ (a : A), μ (a, b)).
-  Proof.
-    intro b.
-    rewrite /pmf /= /dbind_pmf (SeriesC_double_prod_lr (λ a : A * B, μ a * dret a.2 b)).
-    apply SeriesC_ext; intro a.
-    rewrite /pmf /= /dret_pmf /=.
-    erewrite SeriesC_ext;
-    [ apply (SeriesC_singleton' b) | intro b0; simpl; case_bool_decide; simplify_eq; lra].
-  Qed.
-
-  Lemma ex_seriesC_lmarg (μ : distr (A * B)):
-    ∀ (a : A), ex_seriesC (λ b, μ (a, b)).
-  Proof.
-    intro a.
-    eapply ex_seriesC_double_pos_l; auto.
-  Qed.
-
-  Lemma ex_seriesC_rmarg (μ : distr (A * B)):
-    ∀ (b : B), ex_seriesC (λ a, μ (a, b)).
-  Proof.
-    intro b.
-    eapply ex_seriesC_double_pos_r; auto.
-  Qed.
-
+  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop).
 
 (* There are multiple options we could try here. We have the usual
    existential definition, but we can also define it universally via
@@ -382,6 +338,31 @@ Section couplings_theory.
   Qed.
 
 End couplings_theory.
+
+(* TODO: cleanup *)
+Section Rcoupl.
+  Context `{Countable A, Countable B}.
+  Variable (μ1 : distr A) (μ2 : distr B).
+
+  Lemma Rcoupl_trivial :
+    Rcoupl μ1 μ2 (λ _ _, True).
+  Proof.
+    exists (dprod μ1 μ2). split; [|done].
+    split; [apply lmarg_dprod|apply rmarg_dprod].
+  Qed.
+
+  Lemma Rcoupl_pos_R R :
+    Rcoupl μ1 μ2 R → Rcoupl μ1 μ2 (λ a b, R a b ∧ μ1 a > 0 ∧ μ2 b > 0).
+  Proof.
+    intros [μ [[Hμ1 Hμ2] HR]].
+    exists μ. split; [done|].
+    intros [a b] Hρ. split; [auto|].
+    rewrite -Hμ1 -Hμ2.
+    rewrite 2!dmap_pos.
+    split; eauto.
+  Qed.
+
+End Rcoupl.
 
 Section refinement_couplings.
 

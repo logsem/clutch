@@ -174,6 +174,7 @@ Qed.
   Proper (pointwise_relation A (=) ==> (=) ==> (=)) (@dbind A _ _ B _ _).
 Proof. intros ?? Hp ?? ->. f_equal. extensionality a. done. Qed.
 
+
 (* TODO: generalize to distributions with countable support so that we can use
    the [stdpp] typeclasses *)
 Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope.
@@ -316,15 +317,20 @@ Section dmap.
   Qed.
 
   Lemma dmap_pos (μ : distr A) (f : A → B) (b : B) :
-    dmap f μ b > 0 → ∃ a, b = f a ∧ μ a > 0.
-  Proof. intros [a [Hr%dret_pos ?]]%dbind_pos_support; eauto. Qed.
+    dmap f μ b > 0 ↔ ∃ a, b = f a ∧ μ a > 0.
+  Proof.
+    split.
+    - intros [a [Hr%dret_pos ?]]%dbind_pos_support; eauto.
+    - intros [a [-> Ha]]. apply dbind_pos_support.
+      exists a. rewrite dret_1 //. split; [lra|done].
+  Qed.
 
   Lemma dmap_eq (μ : distr A) (a : A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
     b = f a → dmap f μ b = μ a.
   Proof. intros ->. rewrite dbind_dret_pmf_map //. Qed.
 
   Lemma dmap_rearrange `{Countable A} (μ1 μ2 : distr A) (f : A → A) `{Inj A A (=) (=) f} :
-    (∀ a, μ1 a > 0 →  ∃ a', f a' = a) →
+    (∀ a, μ1 a > 0 → ∃ a', f a' = a) →
     (∀ a, μ1 (f a) = μ2 a) →
     μ1 = dmap f μ2.
   Proof.
@@ -395,3 +401,88 @@ Section dzero.
   Qed.
 
 End dzero.
+
+(** * Products  *)
+Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
+  MkDistr (λ '(a, b), μ1 a * μ2 b) _ _ _.
+Next Obligation. intros ???????? [a b]=>/=. by eapply Rmult_le_pos. Qed.
+Next Obligation.
+  intros A ?? B ?? μ1 μ2=>/=.
+  (* TODO: needs some rearranging lemmas like [SeriesC_double_swap] *)
+Admitted.
+Next Obligation.
+  intros A ?? B ?? μ1 μ2 => /=. 
+  rewrite SeriesC_double_prod_rl.
+  rewrite -(SeriesC_double_swap (λ '(a, b), μ1 a * μ2 b)).
+  rewrite -(SeriesC_ext (λ a, μ1 a * SeriesC μ2)); last first.
+  { intros a. rewrite SeriesC_scal_l //. }
+  transitivity (SeriesC μ1); [|done].
+  eapply SeriesC_le; [|done].
+  intros a. split.
+  - apply Rmult_le_pos; [done|].
+    apply SeriesC_ge_0; auto.
+  - rewrite -{2}(Rmult_1_r (μ1 a)).
+    by apply Rmult_le_compat_l.
+Qed.
+
+(** * Margignals  *)
+Definition lmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr A :=
+  dmap fst μ.
+
+Definition rmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr B :=
+  dmap snd μ.
+
+Section marginals.
+  Context `{Countable A, Countable B}. 
+
+  Lemma lmarg_pmf (μ : distr (A * B)) (a : A) :
+    lmarg μ a = SeriesC (λ b, μ (a, b)).
+  Proof.    
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite SeriesC_double_prod_rl.  
+    apply SeriesC_ext; intro b.
+    rewrite {2}/pmf /= /dret_pmf /=.
+    erewrite SeriesC_ext; [apply (SeriesC_singleton' a)|].
+    intro a'; simpl; case_bool_decide; simplify_eq; lra.
+  Qed.
+
+  Lemma rmarg_pmf (μ : distr (A * B)) (b : B):
+    rmarg μ b = SeriesC (λ a, μ (a, b)).
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite SeriesC_double_prod_lr.
+    apply SeriesC_ext; intro a.
+    rewrite {2}/pmf /= /dret_pmf /=.
+    erewrite SeriesC_ext; [apply (SeriesC_singleton' b)|].
+    intro b'; simpl; case_bool_decide; simplify_eq; lra.
+  Qed.
+
+  Lemma ex_seriesC_lmarg (μ : distr (A * B)) (a : A) :
+    ex_seriesC (λ b, μ (a, b)).
+  Proof. eapply ex_seriesC_double_pos_l; auto. Qed.
+
+  Lemma ex_seriesC_rmarg (μ : distr (A * B)) (b : B) :
+    ex_seriesC (λ a, μ (a, b)).
+  Proof. eapply ex_seriesC_double_pos_r; auto. Qed.
+
+  Lemma lmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (a : A) :
+    lmarg (dprod μ1 μ2) a = μ1 a.
+  Proof.
+    rewrite lmarg_pmf.
+  Admitted.
+
+  Lemma lmarg_dprod (μ1 : distr A) (μ2 : distr B) :
+    lmarg (dprod μ1 μ2) = μ1.
+  Proof. eapply distr_ext, lmarg_dprod_pmf. Qed.
+
+  Lemma rmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (b : B) :
+    rmarg (dprod μ1 μ2) b = μ2 b.
+  Proof.
+    rewrite rmarg_pmf.
+  Admitted.
+
+  Lemma rmarg_dprod (μ1 : distr A) (μ2 : distr B) :
+    rmarg (dprod μ1 μ2) = μ2.
+  Proof. eapply distr_ext, rmarg_dprod_pmf. Qed.
+
+End marginals.
