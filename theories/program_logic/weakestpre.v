@@ -31,7 +31,7 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
          ⌜SchedulerWf ξ (e1, σ1)⌝ ∗
          ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
          ∀ e2 σ2 ρ',
-           ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ -∗
+           ⌜exec ξ (e1, σ1) (e2, σ2) > 0⌝ -∗
            ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
            state_interp σ2 ∗ ghost_interp ρ' ∗ wp E e2 Φ
   end%I.
@@ -133,6 +133,7 @@ Proof.
   iExists _, _, _. iSplit; [done|]. iSplit; [done|].
   iIntros (e2 σ2 ρ') "%Hstep %HR".
   iMod ("H" with "[//] [//]") as "H". iIntros "!>!>".
+  eapply exec_prim_step in Hstep as [σ Hstep]; [|done].
   iMod "H" as "(Hσ & Hρ & H)". destruct s.
   - rewrite !wp_unfold /wp_pre. destruct (to_val e2) as [v2|] eqn:He2.
     + iDestruct "H" as ">> $". by iFrame.
@@ -175,7 +176,8 @@ Proof.
   iSplit.
   { iPureIntro. by (eapply Rcoupl_exec_ctx_lift; [|apply _|]). }
   iIntros (e2 σ2 ρ') "%Hstep (%e2' & %Hfill & %HR)".
-  simplify_eq. rewrite -fill_step_prob // in Hstep.
+  simplify_eq.
+  rewrite exec_ctx_lift_pmf in Hstep.
   iMod ("H"  with "[//] [//]") as "H". iIntros "!>!>".
   iMod "H" as "(Hσ & Hρ & H)".
   iModIntro. iFrame "Hσ Hρ". by iApply "IH".

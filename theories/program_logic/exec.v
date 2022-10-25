@@ -149,6 +149,23 @@ Section exec.
   Lemma exec_cons ρ f ξ :
     exec (f :: ξ) ρ = dbind (λ ρ'', exec ξ ρ'') (exec_fn ρ f).
   Proof. done. Qed.
+
+  Lemma exec_prim_step e1 e2 σ1 σ2 ξ `{Hwf : !SchedulerWf ξ (e1, σ1)} :
+    exec ξ (e1, σ1) (e2, σ2) > 0 →
+    ∃ σ, prim_step e1 σ (e2, σ2) > 0.
+  Proof.
+    revert σ1 Hwf. induction ξ as [|f ξ IH].
+    { intros ? [? Hnb]. inversion Hnb. }
+    intros σ1 [Hfns Hnb]. rewrite exec_cons exec_fn_unfold.
+    inversion Hnb; simplify_map_eq.
+    - intros [? [->%dret_pos ?]]%dbind_pos_support. eauto.
+    - intros [? [? (?&?&?)%dmap_pos]]%dbind_pos_support.
+      simplify_eq.
+      eapply IH; [|done].
+      econstructor; [|eauto].
+      by eapply scheduler_fns_wf_tail.
+   Qed.
+
 End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
