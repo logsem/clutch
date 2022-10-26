@@ -11,10 +11,15 @@ Import uPred.
 
 #[local] Open Scope R.
 
+(** [irisGS] specifies the interface for the resource algebras implementing the
+    [state] and [cfg] of a [language] [Λ]. For the purposes of defining the
+    weakest precondition, we only need [irisGS] to give meaning to invariants,
+    and provide predicates describing valid states via [state_interp] and valid
+    specification configurations via [spec_interp]. *)
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
-  ghost_interp : cfg Λ → iProp Σ;
+  spec_interp : cfg Λ → iProp Σ;
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
@@ -25,14 +30,14 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
   match to_val e1 with
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 ρ,
-     state_interp σ1 ∗ ghost_interp ρ ={E,∅}=∗
+     state_interp σ1 ∗ spec_interp ρ ={E,∅}=∗
        ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
        ∃ ξ ξ' R,
          ⌜SchedulerWf ξ (e1, σ1)⌝ ∗
          ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
          ∀ e2 σ2 ρ',
            ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
-           state_interp σ2 ∗ ghost_interp ρ' ∗ wp E e2 Φ
+           state_interp σ2 ∗ spec_interp ρ' ∗ wp E e2 Φ
   end%I.
 
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
