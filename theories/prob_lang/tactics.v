@@ -93,13 +93,84 @@ Ltac inv_head_step :=
     match goal with
     | _ => progress simplify_map_eq/= (* simplify memory stuff *)
     | H : to_val _ = Some _ |- _ => apply of_to_val in H
+    | H : is_Some (_ !! _) |- _ => destruct H
     | H : @pmf _ _ _ (head_step ?e _) _ > 0  |- _ =>
         try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
         rewrite /pmf /= in H;
         repeat (case_bool_decide_and_destruct in H || case_match in H);
-        (lra || done)
+        try (lra || done)
     end.
 
-Create HintDb head_step.
-Global Hint Extern 0 (head_reducible _ _) => eexists _, _, _, _; simpl : head_step.
-Global Hint Extern 1 (head_step _ _ _ _ _ _) => econstructor : head_step.
+(* Create HintDb head_step. *)
+
+(** A relational definition of the support of [head_step] to make it possible to
+    do inversion and prove reducibility easier c.f. lemma below *)
+Inductive head_step_rel : expr → state → expr → state → Prop :=
+| RecS f x e σ :
+  head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ
+| PairS v1 v2 σ :
+  head_step_rel (Pair (Val v1) (Val v2)) σ (Val $ PairV v1 v2) σ
+| InjLS v σ :
+  head_step_rel (InjL $ Val v) σ (Val $ InjLV v) σ
+| InjRS v σ :
+  head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ
+| BetaS f x e1 v2 e' σ :
+  e' = subst' x v2 (subst' f (RecV f x e1) e1) →
+  head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ
+| UnOpS op v v' σ :
+  un_op_eval op v = Some v' →
+  head_step_rel (UnOp op (Val v)) σ (Val v') σ
+| BinOpS op v1 v2 v' σ :
+  bin_op_eval op v1 v2 = Some v' →
+  head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ
+| IfTrueS e1 e2 σ :
+  head_step_rel (If (Val $ LitV $ LitBool true) e1 e2) σ e1 σ
+| IfFalseS e1 e2 σ :
+  head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ
+| FstS v1 v2 σ :
+  head_step_rel (Fst (Val $ PairV v1 v2)) σ (Val v1) σ
+| SndS v1 v2 σ :
+  head_step_rel (Snd (Val $ PairV v1 v2)) σ (Val v2) σ
+| CaseLS v e1 e2 σ :
+  head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
+| CaseRS v e1 e2 σ :
+  head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
+| AllocS v σ l :
+  l = fresh_loc σ.(heap) →
+  head_step_rel (Alloc (Val v)) σ
+    (Val $ LitV $ LitLoc l) (state_upd_heap <[l:=v]> σ)
+| LoadS l v σ :
+  σ.(heap) !! l = Some v →
+  head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
+| StoreS l v w σ :
+  σ.(heap) !! l = Some v →
+  head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+    (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
+| AllocTapeS σ l :
+  l = fresh_loc σ.(tapes) →
+  head_step_rel AllocTape σ
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l:=[]]> σ)
+| FlipS l b bs σ :
+  σ.(tapes) !! l = Some (b :: bs) →
+  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitBool b) (state_upd_tapes <[l:=bs]> σ)
+| FlipEmptyS l b σ :
+  σ.(tapes) !! l = Some [] →
+  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitBool b) σ.
+
+Global Hint Constructors head_step_rel : head_step.
+
+Lemma head_step_support_eq_rel e1 e2 σ1 σ2 :
+  head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
+Proof.
+  split.
+  - intros Hstep.
+    destruct e1; inv_head_step; eauto with head_step.
+    + (* semi-bogus case because of a too eager [case_bool_decide] in [inv_head_step] *)
+      rewrite {2}H9. by eapply FlipS.
+  - inversion 1;
+      rewrite /pmf /= /head_step_pmf //; simplify_map_eq;
+      rewrite ?bool_decide_eq_true_2 //; try lra.
+Qed.
+
+Global Hint Extern 0 (head_reducible _ _) => eexists (_, _); simpl; eapply head_step_support_eq_rel : head_step.
+Global Hint Extern 1 (head_step _ _ _ > 0) => eapply head_step_support_eq_rel; econstructor : head_step.

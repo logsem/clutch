@@ -79,17 +79,11 @@ Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
   apply AsRecV_recv : typeclass_instances.
 
 Section pure_exec.
-  Local Ltac solve_exec_safe v :=
-    intros σ; subst; eexists (v, σ);
-    rewrite /pmf /= /head_step_pmf /=;
-    (lra || rewrite bool_decide_eq_true_2 //; lra).
+  Local Ltac solve_exec_safe := intros; subst; eauto with head_step.
   Local Ltac solve_exec_puredet := simpl; intros; by inv_head_step.
   Local Ltac solve_pure_exec :=
-    match goal with
-    | |- PureExec _ _ ?e ?v =>
-        subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
-        constructor; [solve_exec_safe v | solve_exec_puredet]
-    end.
+    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
+    constructor; [solve_exec_safe | solve_exec_puredet].
 
   Global Instance pure_recc f x (erec : expr) :
     PureExec True 1 (Rec f x erec) (Val $ RecV f x erec).

@@ -581,7 +581,6 @@ Next Obligation.
     + solve_SeriesC_0.
 Qed.
 
-
 Definition valid_state_step (σ1 : state) (α : loc) (σ2 : state) : Prop :=
   (* heaps are the same *)
   σ2.(heap) = σ1.(heap) ∧

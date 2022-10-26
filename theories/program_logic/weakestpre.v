@@ -1,10 +1,10 @@
-From Coq Require Import Reals Psatz.
+From Coq Require Export Reals Psatz.
 From stdpp Require Import functions.
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre.
 From iris.prelude Require Import options.
-From self.prob Require Import couplings distribution.
+From self.prob Require Export couplings distribution.
 From self.program_logic Require Export language exec.
 
 Import uPred.
