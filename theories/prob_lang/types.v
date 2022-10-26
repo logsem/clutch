@@ -1,8 +1,6 @@
-(* ReLoC -- Relational logic for fine-grained concurrency *)
-(** (Syntactic) Typing for System F_mu_ref with existential types and concurrency *)
-From Autosubst Require Export Autosubst.
-From stdpp Require Export stringmap fin_map_dom gmap.
-From self.prob_lang Require Export lang.
+(** (Syntactic) Typing for System F_mu_ref with tapes *)
+From stdpp Require Export binders strings stringmap fin_map_dom gmap.
+From self.prob_lang Require Import lang.
 (* From self.prob_lang Require Export metatheory *)
 
 (** * Types *)
@@ -14,7 +12,7 @@ Inductive type :=
   | TSum : type → type → type
   | TArrow : type → type → type
 (*  | TRec : {bind 1 of type} → type *)
-  | TVar : var → type
+  | TVar : string → type
 (*  | TForall : {bind 1 of type} → type
   | TExists : {bind 1 of type} → type *)
   | TRef : type → type
@@ -39,12 +37,6 @@ Inductive EqType : type → Prop :=
 Lemma unboxed_type_ref_or_eqtype τ :
   UnboxedType τ → (EqType τ ∨ ∃ τ', τ = TRef τ').
 Proof. inversion 1; first [ left; by econstructor | right; naive_solver ]. Qed.
-
-(** Autosubst instances *)
-Global Instance Ids_type : Ids type. derive. Defined.
-Global Instance Rename_type : Rename type. derive. Defined.
-Global Instance Subst_type : Subst type. derive. Defined.
-Global Instance SubstLemmas_typer : SubstLemmas type. derive. Qed.
 
 Definition binop_nat_res_type (op : bin_op) : option type :=
   match op with
@@ -95,9 +87,10 @@ Notation "'ref' τ" := (TRef τ%ty) (at level 10, τ at next level, right associ
 Reserved Notation "Γ ⊢ₜ e : τ" (at level 74, e, τ at next level).
 Reserved Notation "⊢ᵥ v : τ" (at level 20, v, τ at next level).
 
-(* Shift all the indices in the context by one,
-   used when inserting a new type interpretation in Δ. *)
-Notation "⤉ Γ" := (Autosubst_Classes.subst (ren (+1)) <$> Γ) (at level 10, format "⤉ Γ").
+(* PGH: commented for now; we're using named variables. *)
+(* (* Shift all the indices in the context by one, *)
+(*    used when inserting a new type interpretation in Δ. *) *)
+(* Notation "⤉ Γ" := (Autosubst_Classes.subst (ren (+1)) <$> Γ) (at level 10, format "⤉ Γ"). *)
 
 (** We model type-level lambdas and applications as thunks *)
 (* Notation "Λ: e" := (λ: <>, e)%E (at level 200, only parsing).
