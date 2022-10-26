@@ -23,7 +23,7 @@ Lemma wp_lift_step_fupd_couple s E Φ e1 :
     ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
     ∃ ξ ξ' R,
       ⌜SchedulerWf ξ (e1, σ1)⌝ ∗
-      ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R ⌝ ∗
+      ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
       ∀ e2 σ2 ρ',
         ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
         state_interp σ2 ∗ ghost_interp ρ' ∗ WP e2 @ s; E {{ Φ }})
