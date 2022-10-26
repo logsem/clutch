@@ -64,7 +64,6 @@ Local Open Scope R.
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
   match goal with
   | H : context [ match ?x with _ => _ end ] |- _ => destruct x eqn:Hd
-  (* | |- context [ match ?x with _ => _ end ] => destruct x eqn:Hd *)
   end.
 
 Tactic Notation "case_match" "in" ident(H) :=
