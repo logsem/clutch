@@ -58,6 +58,11 @@ with val :=
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
+(* Notation for unit, bool, and nat *)
+Notation "'#uv'" := (LitV LitUnit) (at level 20).
+Notation "'#bv' b" := (LitV (LitBool b)) (at level 20).
+Notation "'#nv' n" := (LitV (LitInt n)) (at level 20).
+
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
@@ -66,10 +71,13 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
-(** The state: heaps of [option val]s, with [None] representing deallocated locations. *)
+Definition tape := list bool.
+
+(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
+    booleans. *)
 Record state : Type := {
   heap  : gmap loc val;
-  tapes : gmap loc (list bool)
+  tapes : gmap loc tape
 }.
 
 (** Equality and other typeclass stuff *)
@@ -415,7 +423,7 @@ Definition state_upd_heap (f: gmap loc val → gmap loc val) (σ: state) : state
   {| heap := f σ.(heap); tapes := σ.(tapes) |}.
 Global Arguments state_upd_heap _ !_ /.
 
-Definition state_upd_tapes (f: gmap loc (list bool) → gmap loc (list bool)) (σ: state) : state :=
+Definition state_upd_tapes (f: gmap loc tape → gmap loc tape) (σ: state) : state :=
   {| heap := σ.(heap); tapes := f σ.(tapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
 
