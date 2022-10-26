@@ -20,14 +20,14 @@ Local Hint Resolve head_stuck_stuck : core.
 
 Lemma wp_lift_head_step_fupd_couple {s E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1 ρ, state_interp σ1 ∗ ghost_interp ρ ={E,∅}=∗
+  (∀ σ1 ρ, state_interp σ1 ∗ spec_interp ρ ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
     ∃ ξ ξ' R,
       ⌜SchedulerWf ξ (e1, σ1)⌝ ∗
       ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
       ∀ e2 σ2 ρ',
         ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
-        state_interp σ2 ∗ ghost_interp ρ' ∗ WP e2 @ s; E {{ Φ }})
+        state_interp σ2 ∗ spec_interp ρ' ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_step_fupd_couple=>//. iIntros (σ1 ρ) "Hσ".
@@ -52,7 +52,7 @@ Qed.
 Lemma wp_lift_head_stuck E Φ e :
   to_val e = None →
   sub_redexes_are_values e →
-  (∀ σ ρ, state_interp σ ∗ ghost_interp ρ ={E,∅}=∗ ⌜head_stuck e σ⌝)
+  (∀ σ ρ, state_interp σ ∗ spec_interp ρ ={E,∅}=∗ ⌜head_stuck e σ⌝)
   ⊢ WP e @ E ?{{ Φ }}.
 Proof.
   iIntros (??) "H". iApply wp_lift_stuck; first done.

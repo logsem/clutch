@@ -26,7 +26,7 @@ Global Instance probGS_irisGS `{!probGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := probGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   (* TODO: fill in when Philipp pushes the spec RA *)
-  ghost_interp ρ := True%I;
+  spec_interp ρ := True%I;
 }.
 
 (** Heap *)
