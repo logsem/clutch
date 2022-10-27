@@ -3,8 +3,8 @@
 From stdpp Require Export binders strings stringmap fin_map_dom gmap.
 From iris.base_logic Require Import invariants.
 From iris.algebra Require Import list.
-From self.program_logic Require Import weakestpre spec_ra.
-From self.prob_lang Require Import lang types primitive_laws.
+From self.program_logic Require Import weakestpre.
+From self.prob_lang Require Import lang types spec_ra primitive_laws.
 From self.prob_logrel Require Import persistent_pred.
 
 Import uPred.
