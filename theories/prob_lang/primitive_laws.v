@@ -18,7 +18,7 @@ Class probGS Σ := HeapG {
   probGS_heap_name : gname;
   probGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  probGS_spec :> cfgSG Σ;
+  probGS_spec :> specGS Σ;
 }.
 
 Definition heap_auth `{probGS Σ} :=
@@ -29,7 +29,7 @@ Definition tapes_auth `{probGS Σ} :=
 Global Instance probGS_irisGS `{!probGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := probGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  spec_interp ρ := (own cfg_name (● (spec_cfg_interp ρ)))%I;
+  spec_interp ρ := spec_interp_auth ρ;
 }.
 
 (** Heap *)
@@ -116,7 +116,7 @@ Qed.
 
 (** Tapes  *)
 Lemma wp_alloc_tape s E :
-  {{{ True }}} AllocTape @ s; E {{{ l, RET LitV (LitLbl l); l ↪ [] }}}.
+  {{{ True }}} AllocTape @ s; E {{{ α, RET LitV (LitLbl α); α ↪ [] }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -128,9 +128,9 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_flip s E l b bs :
-  {{{ ▷ l ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl l) @ s; E
-  {{{ RET LitV (LitBool b); l ↪ bs }}}.
+Lemma wp_flip s E α b bs :
+  {{{ ▷ α ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl α) @ s; E
+  {{{ RET LitV (LitBool b); α ↪ bs }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -143,9 +143,9 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_flip_empty s E l :
-  {{{ ▷ l ↪ [] }}} Flip (Val $ LitV $ LitLbl l) @ s; E
-  {{{ b, RET LitV (LitBool b); l ↪ [] }}}.
+Lemma wp_flip_empty s E α :
+  {{{ ▷ α ↪ [] }}} Flip (Val $ LitV $ LitLbl α) @ s; E
+  {{{ b, RET LitV (LitBool b); α ↪ [] }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].

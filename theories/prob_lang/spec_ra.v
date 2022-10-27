@@ -1,7 +1,7 @@
 (** We define the resources required to interpret the specification
     configuration. *)
 From iris.algebra Require Import auth excl frac agree gmap.
-From iris.base_logic Require Import gen_heap invariants ghost_map.
+From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
 From self.prob_lang Require Import lang.
@@ -11,63 +11,110 @@ Definition specN := nroot .@ "spec".
 (* NB: we use option here to make specUR unital. For instance, we want to be
    able to own a resource mentioning a spec-heap mapsto without also owning the
    spec program; we'd use None for the spec program in this case. *)
-Definition specUR : cmra := option (exclR exprO).
+Definition progUR : ucmra := optionUR (exclR exprO).
 
-Definition heapUR : ucmra :=
-  gmapUR loc (prodR fracR (agreeR (leibnizO val))).
-Definition tapeUR : ucmra :=
-  gmapUR loc (prodR fracR (agreeR (leibnizO tape))).
-
-(* SG: Could we make use of [ghost_map] to avoid duplicating definitions and
-   proofs? *)
-
-Definition cfgUR : cmra := prodR specUR (prodUR heapUR tapeUR).
+(* We will through [spec_interp] tie the exact state (both heap and tapes) to a
+   fragmental view that lives in [spec_ctx]; from here we will give meaning to
+   the usual [spec] resource and points-to connectivs *)
+Definition cfgO : ofe := leibnizO cfg.
+Definition cfgUR : ucmra := optionUR (exclR cfgO).
 
 (** The CMRA for the spec [cfg]. *)
-Class cfgSG Σ := CFGSG { cfg_inG :> inG Σ (authR cfgUR); cfg_name : gname }.
+Class specGS Σ := CfgSG {
+  (* the instances we need for [spec_interp] *)
+  specGS_interp_inG :> inG Σ (authUR cfgUR);
+  specGS_interp_name : gname;
 
-Definition spec_cfg_interp '(e, σ) : cfgUR :=
-  (Some (Excl e), ( (λ v , (1%Qp, to_agree v)) <$> σ.(heap),
-                    (λ bs , (1%Qp, to_agree bs)) <$> σ.(tapes)) ).
+  (* the instances we need for [spec_ctx] *)
+  specGS_prog_inG :> inG Σ (authR progUR);
+  specGS_prog_name : gname;
 
-Section definitionsS.
-  Context `{invGS_gen HasNoLc Σ, cfgSG Σ}.
-  Definition heapS_mapsto (l : loc) (q : Qp) (v: val) : iProp Σ :=
-    own cfg_name (◯ (ε, ({[ l := (q, to_agree v) ]}, ε))).
+  specGS_heap :> ghost_mapG Σ loc val;
+  specGS_tapes :> ghost_mapG Σ loc tape;
+  specGS_heap_name : gname;
+  specGS_tapes_name : gname;
+}.
 
-  Definition spec_mapsto (e: expr) : iProp Σ :=
-    own cfg_name (◯ (Some (Excl e), (∅, ∅))).
+Section resources.
+  Context `{!specGS Σ}.
 
-  Definition to_spec (e : expr) : specUR := Some (Excl e).
+  Definition spec_interp_auth (ρ : cfg) : iProp Σ :=
+    own specGS_interp_name (● (Excl' ρ : cfgUR)).
+  Definition spec_interp_frag (ρ : cfg) : iProp Σ :=
+    own specGS_interp_name (◯ (Excl' ρ : cfgUR)).
 
-  Definition to_heap : gmap loc val → heapUR :=
-    fmap (λ v, (1%Qp, to_agree (v : leibnizO val))).
+  Lemma spec_interp_auth_frag_agree ρ ρ' :
+    spec_interp_auth ρ -∗ spec_interp_frag ρ' -∗ ⌜ρ = ρ'⌝.
+  Proof.
+    iIntros "Ha Hf".
+    iDestruct (own_valid_2 with "Ha Hf") as
+      %[Hexcl ?]%auth_both_valid_discrete.
+    rewrite Excl_included in Hexcl.
+    by apply leibniz_equiv in Hexcl.
+  Qed.
 
-  Definition to_tape : gmap loc tape → tapeUR :=
-    fmap (λ v, (1%Qp, to_agree (v : leibnizO tape))).
+  Definition spec_prog_auth (e : expr) : iProp Σ :=
+    own specGS_prog_name (● (Excl' e : progUR)).
+  Definition spec_prog_frag (e : expr) : iProp Σ :=
+    own specGS_prog_name (◯ (Excl' e : progUR)).
 
-  Definition spec_inv (ρ : cfg prob_lang) : iProp Σ :=
-    (let '(e, σ) := ρ in
-     own cfg_name (● (to_spec e, (to_heap σ.(heap), to_tape σ.(tapes)))))%I.
+  Lemma spec_prog_auth_frag_agree ρ ρ' :
+    spec_prog_auth ρ -∗ spec_prog_frag ρ' -∗ ⌜ρ = ρ'⌝.
+  Proof.
+    iIntros "Ha Hf".
+    iDestruct (own_valid_2 with "Ha Hf") as
+      %[Hexcl ?]%auth_both_valid_discrete.
+    rewrite Excl_included in Hexcl.
+    by apply leibniz_equiv in Hexcl.
+  Qed.
 
-  (* PGH: TODO: generalise so that we can pure-step ahead in the spec? *)
-  (* Definition spec_inv (ρ : cfg prob_lang) : iProp Σ := *)
-  (*   (∃ e σ, own cfg_name (● (to_spec e, to_heap σ)) *)
-  (*                ∗ ⌜rtc prim_step ρ (e,σ)⌝)%I. *)
+  Definition spec_heap_auth `{specGS Σ} :=
+    @ghost_map_auth _ _ _ _ _ specGS_heap specGS_heap_name 1.
+  Definition spec_tapes_auth `{specGS Σ} :=
+    @ghost_map_auth _ _ _ _ _ specGS_tapes specGS_tapes_name 1.
+
+End resources.
+
+(** Spec program  *)
+Notation " ⤇ e" := (spec_prog_frag e) (at level 20) : bi_scope.
+
+(** Spec heap *)
+Notation "l ↦ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specGS_heap specGS_heap_name l dq v)
+  (at level 20, format "l  ↦ₛ{ dq }  v") : bi_scope.
+Notation "l ↦ₛ□ v" := (l ↦ₛ{ DfracDiscarded } v)%I
+  (at level 20, format "l  ↦ₛ□  v") : bi_scope.
+Notation "l ↦ₛ{# q } v" := (l ↦ₛ{ DfracOwn q } v)%I
+  (at level 20, format "l  ↦ₛ{# q }  v") : bi_scope.
+Notation "l ↦ₛ v" := (l ↦ₛ{ DfracOwn 1 } v)%I
+  (at level 20, format "l  ↦ₛ  v") : bi_scope.
+
+(** Spec tapes *)
+Notation "l ↪ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specGS_tapes specGS_tapes_name l dq v)
+  (at level 20, format "l  ↪ₛ{ dq }  v") : bi_scope.
+Notation "l ↪ₛ□ v" := (l ↪ₛ{ DfracDiscarded } v)%I
+  (at level 20, format "l  ↪ₛ□  v") : bi_scope.
+Notation "l ↪ₛ{# q } v" := (l ↪ₛ{ DfracOwn q } v)%I
+  (at level 20, format "l  ↪ₛ{# q }  v") : bi_scope.
+Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
+  (at level 20, format "l  ↪ₛ  v") : bi_scope.
+
+Section spec_ctx.
+  Context `{!invGS_gen HasNoLc Σ, !specGS Σ}.
+
+  (* TODO: the configuration [(e, σ)] should be able to "run ahead" from the
+     configuration used for [spec_interp_frag] *)
+  Definition spec_inv '(e, σ) : iProp Σ :=
+    (spec_interp_frag (e, σ) ∗
+     spec_prog_auth e ∗
+     spec_heap_auth σ.(heap) ∗
+     spec_tapes_auth σ.(tapes))%I.
+
   Definition spec_ctx : iProp Σ :=
     (∃ ρ, inv specN (spec_inv ρ))%I.
 
-  Global Instance heapS_mapsto_timeless l q v : Timeless (heapS_mapsto l q v).
-  Proof. apply _. Qed.
   Global Instance spec_ctx_persistent : Persistent spec_ctx.
   Proof. apply _. Qed.
-End definitionsS.
-Global Typeclasses Opaque heapS_mapsto spec_mapsto.
-
-Notation "l ↦ₛ{ q } v" := (heapS_mapsto l q v)
-  (at level 20, q at level 50, format "l  ↦ₛ{ q }  v") : bi_scope.
-Notation "l ↦ₛ v" := (heapS_mapsto l 1 v) (at level 20) : bi_scope.
-Notation " ⤇ e" := (spec_mapsto e) (at level 20) : bi_scope.
+End spec_ctx.
 
 (* PGH: originally used with autosubst; might be undeeded. *)
 Ltac iAsimpl :=
@@ -80,65 +127,4 @@ Ltac iAsimpl :=
     let e' := fresh in evar (e':expr);
     assert (e = e') as ->; [unfold e'; reflexivity|];
     unfold e'; clear e')
-  end.
-
-Section to_heap.
-  Implicit Types σ : gmap loc val.
-
-  Lemma lookup_to_heap_None σ l : σ !! l = None → to_heap σ !! l = None.
-  Proof. by rewrite /to_heap lookup_fmap=> ->. Qed.
-  Lemma to_heap_insert l v σ :
-    to_heap (<[l:=v]> σ) = <[l:=(1%Qp, to_agree (v:leibnizO val))]> (to_heap σ).
-  Proof. by rewrite /to_heap fmap_insert. Qed.
-
-  Lemma heap_singleton_included σ l q v :
-    {[l := (q, to_agree v)]} ≼ to_heap σ → σ !! l = Some v.
-  Proof.
-    rewrite singleton_included_l=> -[[q' av] []].
-    rewrite /to_heap lookup_fmap fmap_Some_equiv => -[v' [Hl [/= -> ->]]].
-    move=> /Some_pair_included_total_2 [_] /to_agree_included /leibniz_equiv_iff -> //.
-  Qed.
-
-End to_heap.
-
-(* Section cfg. *)
-(*   Context `{heapIG Σ, cfgSG Σ}. *)
-(*   Implicit Types P Q : iProp Σ. *)
-(*   Implicit Types Φ : val → iProp Σ. *)
-(*   Implicit Types σ : state. *)
-(*   Implicit Types e : expr. *)
-(*   Implicit Types v : val. *)
-
-  (* Local Hint Resolve tpool_lookup : core. *)
-  (* Local Hint Resolve tpool_lookup_Some : core. *)
-  (* Local Hint Resolve to_tpool_insert : core. *)
-  (* Local Hint Resolve to_tpool_insert' : core. *)
-  (* Local Hint Resolve tpool_singleton_included : core. *)
-
-  (* Lemma mapstoS_agree l q1 q2 v1 v2 : l ↦ₛ{q1} v1 -∗ l ↦ₛ{q2} v2 -∗ ⌜v1 = v2⌝. *)
-  (* Proof. *)
-  (*   apply bi.wand_intro_r. *)
-  (*   rewrite /heapS_mapsto -own_op own_valid uPred.discrete_valid. f_equiv. *)
-  (*   rewrite auth_frag_op_valid -pair_op. *)
-  (*   rewrite singleton_op. *)
-  (*   rewrite -pair_op. *)
-  (*   rewrite pair_valid singleton_valid pair_valid to_agree_op_valid_L. *)
-  (*   by intros [_ [_ [=]]]. *)
-  (* Qed. *)
-  (* Lemma mapstoS_combine l q1 q2 v1 v2 : *)
-  (*   l ↦ₛ{q1} v1 -∗ l ↦ₛ{q2} v2 -∗ l ↦ₛ{q1 + q2} v1 ∗ ⌜v1 = v2⌝. *)
-  (* Proof. *)
-  (*   iIntros "Hl1 Hl2". iDestruct (mapstoS_agree with "Hl1 Hl2") as %->. *)
-  (*   rewrite /heapS_mapsto. iCombine "Hl1 Hl2" as "Hl". eauto with iFrame. *)
-  (* Qed. *)
-  (* Lemma mapstoS_valid l q v : l ↦ₛ{q} v -∗ ✓ q. *)
-  (* Proof. *)
-  (*   rewrite /heapS_mapsto own_valid !discrete_valid auth_frag_valid. *)
-  (*   by apply pure_mono=> -[_] /singleton_valid [??]. *)
-  (* Qed. *)
-  (* Lemma mapstoS_valid_2 l q1 q2 v1 v2 : *)
-  (*   l ↦ₛ{q1} v1 -∗ l ↦ₛ{q2} v2 -∗ ✓ (q1 + q2)%Qp. *)
-  (* Proof. *)
-  (*   iIntros "H1 H2". iDestruct (mapstoS_combine with "H1 H2") as "[? ->]". *)
-  (*   by iApply (mapstoS_valid l _ v2). *)
-  (* Qed. *)
+    end.

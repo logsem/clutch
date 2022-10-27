@@ -14,7 +14,7 @@ Proof. by eexists. Qed.
 Section atomic.
   Local Ltac solve_atomic :=
     apply strongly_atomic_atomic, ectx_language_atomic;
-    [intros ???; simpl; intros ?; inv_head_step
+    [intros ???; simpl; intros ?; by inv_head_step
     |apply ectxi_language_sub_redexes_are_values; intros [] **; naive_solver].
 
   Global Instance rec_atomic s f x e : Atomic s (Rec f x e).

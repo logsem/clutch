@@ -730,6 +730,8 @@ Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
 (* Prefer prob_lang names over ectx_language names. *)
 Export prob_lang.
 
+Definition cfg : Type := expr * state.
+
 (* (** The following lemma is not provable using the axioms of [ectxi_language]. *)
 (* The proof requires a case analysis over context items ([destruct i] on the *)
 (* last line), which in all cases yields a non-value. To prove this lemma for *)
