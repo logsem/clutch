@@ -1,5 +1,5 @@
 SRC_DIRS := 'theories'
-VFILES := $(shell find $(SRC_DIRS) -name "*.v")
+VFILES := $(shell find $(SRC_DIRS) -name "*.v" -a \! -name '.#*')
 COQC := coqc
 Q:=@
 
