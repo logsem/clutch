@@ -62,17 +62,19 @@ Local Open Scope R.
 
 (* TODO: upstream some of these to stdpp *)
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
-  match goal with
-  | H : context [ match ?x with _ => _ end ] |- _ => destruct x eqn:Hd
+  match type of H with
+  | context [ match ?x with _ => _ end ] => destruct x eqn:Hd
+  | _ => fail "expected hypothesis to include a 'match'"
   end.
 
 Tactic Notation "case_match" "in" ident(H) :=
   let Hf := fresh in case_match in H eqn:Hf.
 
 Tactic Notation "case_bool_decide" "in" ident(H) "as" ident(Hd) :=
-  match goal with
-  | H : context [@bool_decide ?P ?dec] |- _ =>
-    destruct_decide (@bool_decide_reflect P dec) as Hd
+  match type of H with
+  | context [@bool_decide ?P ?dec] =>
+      destruct_decide (@bool_decide_reflect P dec) as Hd
+  | _ => fail "expected hypothesis to include a 'bool_decide _'"
   end.
 Tactic Notation "case_bool_decide" "in" ident(H) :=
   let Hfr := fresh in case_bool_decide in H as Hf.
@@ -82,26 +84,6 @@ Tactic Notation "case_bool_decide_and_destruct" "in" ident(H) :=
   case_bool_decide in H as Hf;
   destruct_and? Hf;
   simplify_eq.
-
-(** The tactic [inv_head_step] performs inversion on hypotheses of the shape
-[head_step]. The tactic will discharge head-reductions starting from values, and
-simplifies hypothesis related to conversions from and to values, and finite map
-operations. This tactic is slightly ad-hoc and tuned for proving our lifting
-lemmas. *)
-Ltac inv_head_step :=
-  repeat
-    match goal with
-    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-    | H : to_val _ = Some _ |- _ => apply of_to_val in H
-    | H : is_Some (_ !! _) |- _ => destruct H
-    | H : @pmf _ _ _ (head_step ?e _) _ > 0  |- _ =>
-        try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-        rewrite /pmf /= in H;
-        repeat (case_bool_decide_and_destruct in H || case_match in H);
-        try (lra || done)
-    end.
-
-(* Create HintDb head_step. *)
 
 (** A relational definition of the support of [head_step] to make it possible to
     do inversion and prove reducibility easier c.f. lemma below *)
@@ -157,20 +139,53 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(tapes) !! l = Some [] →
   head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitBool b) σ.
 
+Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
+
+(** A computational/destructing version of [inv_head_step] - only to be used for
+    the lemma below *)
+Local Ltac inv_head_step' :=
+  repeat
+    match goal with
+    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
+    | H : to_val _ = Some _ |- _ => apply of_to_val in H
+    | H : is_Some (_ !! _) |- _ => destruct H
+    | H : @pmf _ _ _ (head_step ?e _) _ > 0  |- _ =>
+        try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
+        rewrite /pmf /= in H;
+        repeat (case_bool_decide_and_destruct in H || case_match in H);
+        try (lra || done)
+    end.
 
 Lemma head_step_support_eq_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
   - intros Hstep.
-    destruct e1; inv_head_step; eauto with head_step.
+    destruct e1; inv_head_step'; eauto with head_step.
     + (* semi-bogus case because of a too eager [case_bool_decide] in [inv_head_step] *)
       rewrite {2}H9. by eapply FlipS.
   - inversion 1;
       rewrite /pmf /= /head_step_pmf //; simplify_map_eq;
       rewrite ?bool_decide_eq_true_2 //; try lra.
 Qed.
+
+(** The tactic [inv_head_step] performs inversion on hypotheses of the shape
+    [head_step]. The tactic will discharge head-reductions starting from values,
+    and simplifies hypothesis related to conversions from and to values, and
+    finite map operations. This tactic is slightly ad-hoc and tuned for proving
+    our lifting lemmas. *)
+Ltac inv_head_step :=
+  repeat
+    match goal with
+    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
+    | H : to_val _ = Some _ |- _ => apply of_to_val in H
+    | H : is_Some (_ !! _) |- _ => destruct H
+    | H : @pmf _ _ _ (head_step _ _) _ > 0  |- _ => apply head_step_support_eq_rel in H
+    | H : head_step_rel ?e _ _ _ |- _ =>
+        try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
+        inversion H; subst; clear H
+    end.
 
 Global Hint Extern 0 (head_reducible _ _) => eexists (_, _); simpl; eapply head_step_support_eq_rel : head_step.
 Global Hint Extern 1 (head_step _ _ _ > 0) => eapply head_step_support_eq_rel; econstructor : head_step.

@@ -114,4 +114,47 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
+(** Tapes  *)
+Lemma wp_alloc_tape s E :
+  {{{ True }}} AllocTape @ s; E {{{ l, RET LitV (LitLbl l); l ↪ [] }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !# /=".
+  iSplit; [by eauto with head_step|].
+  iIntros "!>" (e2 σ2 Hs); inv_head_step.
+  iMod ((ghost_map_insert (fresh_loc σ1.(tapes))) with "Ht") as "[$ Hl]".
+  { apply not_elem_of_dom, fresh_loc_is_fresh. }
+  iFrame. iModIntro. by iApply "HΦ".
+Qed.
+
+Lemma wp_flip s E l b bs :
+  {{{ ▷ l ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl l) @ s; E
+  {{{ RET LitV (LitBool b); l ↪ bs }}}.
+Proof.
+  iIntros (Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit; [by eauto with head_step|].
+  simpl.
+  iIntros "!>" (e2 σ2 Hs); inv_head_step.
+  iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
+  iFrame. iModIntro. by iApply "HΦ".
+Qed.
+
+Lemma wp_flip_empty s E l :
+  {{{ ▷ l ↪ [] }}} Flip (Val $ LitV $ LitLbl l) @ s; E
+  {{{ b, RET LitV (LitBool b); l ↪ [] }}}.
+Proof.
+  iIntros (Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !# /=".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit; [by eauto with head_step|].
+  Unshelve. 2: { exact inhabitant. }
+  iIntros "!>" (e2 σ2 Hs); inv_head_step.
+  iFrame. iModIntro. by iApply "HΦ".
+Qed.
+
 End lifting.
