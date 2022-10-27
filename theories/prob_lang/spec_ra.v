@@ -1,21 +1,19 @@
 (** We define the resources required to interpret the specification
     configuration. *)
+From Coq Require Import Reals.
 From iris.algebra Require Import auth excl frac agree gmap.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
+From self.program_logic Require Import exec.
 From self.prob_lang Require Import lang.
 
 Definition specN := nroot .@ "spec".
 
-(* NB: we use option here to make specUR unital. For instance, we want to be
-   able to own a resource mentioning a spec-heap mapsto without also owning the
-   spec program; we'd use None for the spec program in this case. *)
-Definition progUR : ucmra := optionUR (exclR exprO).
-
 (* We will through [spec_interp] tie the exact state (both heap and tapes) to a
    fragmental view that lives in [spec_ctx]; from here we will give meaning to
    the usual [spec] resource and points-to connectivs *)
+Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := leibnizO cfg.
 Definition cfgUR : ucmra := optionUR (exclR cfgO).
 
@@ -101,13 +99,14 @@ Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
 Section spec_ctx.
   Context `{!invGS_gen HasNoLc Σ, !specGS Σ}.
 
-  (* TODO: the configuration [(e, σ)] should be able to "run ahead" from the
-     configuration used for [spec_interp_frag] *)
+  (* SG: Does this suffice? *)
   Definition spec_inv '(e, σ) : iProp Σ :=
-    (spec_interp_frag (e, σ) ∗
-     spec_prog_auth e ∗
-     spec_heap_auth σ.(heap) ∗
-     spec_tapes_auth σ.(tapes))%I.
+    (∃ ξ ρ,
+        spec_interp_frag ρ ∗
+        ⌜exec ξ ρ (e, σ) = 1%R⌝ ∗
+        spec_prog_auth e ∗
+        spec_heap_auth σ.(heap) ∗
+        spec_tapes_auth σ.(tapes))%I.
 
   Definition spec_ctx : iProp Σ :=
     (∃ ρ, inv specN (spec_inv ρ))%I.
