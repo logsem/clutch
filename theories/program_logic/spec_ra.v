@@ -1,37 +1,25 @@
-(** We define the resources required to interpret the implementation and
-    specification configuration.
-
-    In particular, we build an instance of [weakestpre.irisGS] by defining a
-    state- and spec-interpretation. *)
-
+(** We define the resources required to interpret the specification
+    configuration. *)
 From iris.algebra Require Import auth excl frac agree gmap.
 From iris.base_logic Require Import gen_heap invariants ghost_map.
 From iris.prelude Require Import options.
-From iris.program_logic Require Import ectx_lifting.
 From iris.proofmode Require Import proofmode.
-
-From self Require Import weakestpre lang.
+From self.prob_lang Require Import lang.
 
 Definition specN := nroot .@ "spec".
-
-(** The CMRA for the state of the implementation. This is linked to the
-    physical state. *)
-Class stateIG Σ := StateIG {
-  stateI_invG : invGS_gen HasNoLc Σ;
-  stateI_gen_heapG :> gen_heapGS loc val Σ;
-  stateI_gen_tapesG :> gen_heapGS loc tape Σ;
-}.
-
-(** The CMRA for the state of the specification. *)
 
 (* NB: we use option here to make specUR unital. For instance, we want to be
    able to own a resource mentioning a spec-heap mapsto without also owning the
    spec program; we'd use None for the spec program in this case. *)
 Definition specUR : cmra := option (exclR exprO).
+
 Definition heapUR : ucmra :=
   gmapUR loc (prodR fracR (agreeR (leibnizO val))).
 Definition tapeUR : ucmra :=
   gmapUR loc (prodR fracR (agreeR (leibnizO tape))).
+
+(* SG: Could we make use of [ghost_map] to avoid duplicating definitions and
+   proofs? *)
 
 Definition cfgUR : cmra := prodR specUR (prodUR heapUR tapeUR).
 
@@ -42,34 +30,8 @@ Definition spec_cfg_interp '(e, σ) : cfgUR :=
   (Some (Excl e), ( (λ v , (1%Qp, to_agree v)) <$> σ.(heap),
                     (λ bs , (1%Qp, to_agree bs)) <$> σ.(tapes)) ).
 
-(* Construct an instance of [program_logic.weakestpre.irisGS] for the WP. *)
-Global Instance stateIG_irisG `{!stateIG Σ} `{!cfgSG Σ} : irisGS prob_lang Σ := {
-  iris_invGS := stateI_invG ;
-  state_interp σ :=
-      (gen_heap_interp σ.(heap) ∗ gen_heap_interp σ.(tapes))%I ;
-  spec_interp ρ := own cfg_name (● (spec_cfg_interp ρ)) ;
-}.
-
-Notation "l ↦ᵢ{ dq } v" := (mapsto (L:=loc) (V:=val) l dq v)
-  (at level 20, format "l  ↦ᵢ{ dq }  v") : bi_scope.
-Notation "l ↦ᵢ□ v" := (mapsto (L:=loc) (V:=val) l DfracDiscarded v)
-  (at level 20, format "l  ↦ᵢ□  v") : bi_scope.
-Notation "l ↦ᵢ{# q } v" := (mapsto (L:=loc) (V:=val) l (DfracOwn q) v)
-  (at level 20, format "l  ↦ᵢ{# q }  v") : bi_scope.
-Notation "l ↦ᵢ v" := (mapsto (L:=loc) (V:=val) l (DfracOwn 1) v)
-  (at level 20, format "l  ↦ᵢ  v") : bi_scope.
-
-Notation "l ↦ᵢₜ{ dq } b" := (mapsto (L:=loc) (V:=tape) l dq b)
-  (at level 20, format "l  ↦ᵢₜ{ dq }  b") : bi_scope.
-Notation "l ↦ᵢₜ□ b" := (mapsto (L:=loc) (V:=tape) l DfracDiscarded b)
-  (at level 20, format "l  ↦ᵢₜ□  b") : bi_scope.
-Notation "l ↦ᵢₜ{# q } b" := (mapsto (L:=loc) (V:=tape) l (DfracOwn q) b)
-  (at level 20, format "l  ↦ᵢₜ{# q }  b") : bi_scope.
-Notation "l ↦ᵢₜ b" := (mapsto (L:=loc) (V:=tape) l (DfracOwn 1) b)
-  (at level 20, format "l  ↦ᵢₜ  b") : bi_scope.
-
 Section definitionsS.
-  Context `{stateIG Σ, cfgSG Σ}.
+  Context `{invGS_gen HasNoLc Σ, cfgSG Σ}.
   Definition heapS_mapsto (l : loc) (q : Qp) (v: val) : iProp Σ :=
     own cfg_name (◯ (ε, ({[ l := (q, to_agree v) ]}, ε))).
 

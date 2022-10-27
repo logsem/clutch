@@ -3,9 +3,9 @@
 From stdpp Require Export binders strings stringmap fin_map_dom gmap.
 From iris.base_logic Require Import invariants.
 From iris.algebra Require Import list.
-From self.prob_lang Require Import lang types.
-From self.program_logic Require Import weakestpre.
-From self.prob_logrel Require Import persistent_pred spec_ra.
+From self.program_logic Require Import weakestpre spec_ra.
+From self.prob_lang Require Import lang types primitive_laws.
+From self.prob_logrel Require Import persistent_pred.
 
 Import uPred.
 (* Import language. *)
@@ -14,7 +14,7 @@ Definition logN : namespace := nroot .@ "logN".
 
 (** interp : is a unary logical relation. *)
 Section logrel.
-  Context `{!stateIG Σ, cfgSG Σ}.
+  Context `{!probGS Σ}.
   Notation D := (persistent_predO (val * val) (iPropI Σ)).
   Implicit Types τi : D.
   Implicit Types Δ : listO D.
@@ -116,7 +116,7 @@ Section logrel.
   (* Qed. *)
 
   Program Definition interp_ref_inv (ll : loc * loc) : D -n> iPropO Σ := λne τi,
-    (∃ vv, ll.1 ↦ᵢ vv.1 ∗ ll.2 ↦ₛ vv.2 ∗ τi vv)%I.
+    (∃ vv, ll.1 ↦ vv.1 ∗ ll.2 ↦ₛ vv.2 ∗ τi vv)%I.
   Solve Obligations with solve_proper.
 
   Program Definition interp_ref

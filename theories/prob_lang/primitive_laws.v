@@ -3,7 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Export ghost_map.
-From self.program_logic Require Export weakestpre.
+From self.program_logic Require Export weakestpre spec_ra.
 From self.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Export class_instances.
 From self.prob_lang Require Import tactics notation.
@@ -11,10 +11,14 @@ From iris.prelude Require Import options.
 
 Class probGS Σ := HeapG {
   probGS_invG : invGS_gen HasNoLc Σ;
+  (* CMRA for the state *)
   probGS_heap : ghost_mapG Σ loc val;
   probGS_tapes : ghost_mapG Σ loc (list bool);
+  (* ghost names for the state *)
   probGS_heap_name : gname;
   probGS_tapes_name : gname;
+  (* CMRA and ghost name for the spec *)
+  probGS_spec :> cfgSG Σ;
 }.
 
 Definition heap_auth `{probGS Σ} :=
@@ -25,8 +29,7 @@ Definition tapes_auth `{probGS Σ} :=
 Global Instance probGS_irisGS `{!probGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := probGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  (* TODO: fill in when Philipp pushes the spec RA *)
-  spec_interp ρ := True%I;
+  spec_interp ρ := (own cfg_name (● (spec_cfg_interp ρ)))%I;
 }.
 
 (** Heap *)
