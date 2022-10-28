@@ -61,3 +61,11 @@ Proof. intros ?. split; intros ->; lra. Qed.
 Lemma Rmult_neq_0_pos (r1 r2 : R) :
   r1 * r2 ≠ 0 → 0 <= r1 → 0 <= r2 → 0 < r1 ∧ 0 < r2.
 Proof. intros [? ?]%Rmult_neq_0 ? ?. lra. Qed.
+
+Lemma Rle_plus_plus (r1 r2 r3 r4 : R) :
+  r1 <= r3 → r2 <= r4 → r1 + r2 <= r3 + r4.
+Proof. lra. Qed.
+
+Lemma Rle_plus_l (r1 r2 r3 : R) :
+  r1 <= r2 → 0 <= r3 → r1 <= r2 + r3.
+Proof. lra. Qed.

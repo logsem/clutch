@@ -143,6 +143,22 @@ Section exec.
     exec (f :: ξ) ρ = dbind (λ ρ'', exec ξ ρ'') (exec_fn ρ f).
   Proof. done. Qed.
 
+  Lemma exec_singleton f ρ :
+    exec [f] ρ = exec_fn ρ f.
+  Proof. rewrite /= dret_id_right //. Qed.
+  
+  Lemma exec_snoc ξ f ρ :
+    exec (ξ ++ [f]) ρ = dbind (λ ρ'', exec_fn ρ'' f) (exec ξ ρ).
+  Proof.
+    revert ρ. induction ξ; intros ρ.
+    { rewrite exec_singleton exec_nil /= dret_id_left //. }    
+    rewrite -app_comm_cons !exec_cons.
+    rewrite -dbind_assoc.
+    eapply distr_ext=>ρ''.
+    eapply dbind_pmf_ext; [|done|done].
+    intros ρ1 ρ2. rewrite IHξ //.
+  Qed.     
+
   Lemma exec_prim_step e1 e2 σ1 σ2 ξ `{Hwf : !SchedulerWf ξ (e1, σ1)} :
     exec ξ (e1, σ1) (e2, σ2) > 0 → ∃ σ, prim_step e1 σ (e2, σ2) > 0.
   Proof.
@@ -156,7 +172,8 @@ Section exec.
       eapply IH; [|done].
       econstructor; [|eauto].
       by eapply scheduler_fns_wf_tail.
-   Qed.
+  Qed.
+      
 End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
@@ -169,32 +186,33 @@ Section schedulers.
   Implicit Types σ : state Λ.
   Implicit Types f : scheduler_fn Λ.
   Implicit Types ξ : scheduler Λ.
+  Implicit Types K : expr Λ → expr Λ.
 
   Definition prim_step_sch_fn ρ : scheduler_fn Λ := {[ ρ := PRIM ]}.
   Definition prim_step_sch ρ : scheduler Λ := [prim_step_sch_fn ρ].
 
-  Instance prim_step_sch_wf e σ :
-    to_val e = None → SchedulerWf (prim_step_sch (e, σ)) (e, σ).
+  Global Instance prim_step_sch_wf e σ :
+    TCEq (to_val e) None → SchedulerWf (prim_step_sch (e, σ)) (e, σ).
   Proof.
-    rewrite /prim_step_sch /prim_step_sch_fn.
+    rewrite /prim_step_sch /prim_step_sch_fn. intros ?%TCEq_eq.
     constructor.
     - do 2 constructor. intros e' σ' [v Hv].
       rewrite lookup_singleton_None. intros [=]; simplify_eq.
     - apply nonblock_prim. rewrite lookup_singleton_Some //.
   Qed.
 
+  Lemma exec_fn_prim_step_sch_fn_pmf e σ ρ :
+    exec_fn (e, σ) (prim_step_sch_fn (e, σ)) ρ = prim_step e σ ρ.
+  Proof. rewrite /prim_step_sch_fn exec_fn_pmf_unfold lookup_singleton //. Qed.
+  
   Lemma exec_prim_step_sch_pmf e1 e2 σ1 σ2 :
     exec (prim_step_sch (e1, σ1)) (e1, σ1) (e2, σ2) = prim_step e1 σ1 (e2, σ2).
-  Proof.
-    rewrite /prim_step_sch /prim_step_sch_fn exec_cons.
-    rewrite dret_id_right_pmf exec_fn_pmf_unfold /=.
-    rewrite lookup_singleton //.
-  Qed.
+  Proof. rewrite /prim_step_sch exec_singleton exec_fn_prim_step_sch_fn_pmf //. Qed.
 
   Lemma exec_prim_step_sch e σ :
     exec (prim_step_sch (e, σ)) (e, σ) = prim_step e σ.
   Proof. eapply distr_ext. intros []. apply exec_prim_step_sch_pmf. Qed.
-
+    
 End schedulers.
 
 (** * [LanguageCtx] lifting of a scheduler  *)
@@ -355,3 +373,6 @@ Section ctx_lifting.
   Qed.
 
 End ctx_lifting.
+
+Hint Extern 0 (TCEq (to_val ?e) _) =>
+       match goal with | H : to_val e = _ |- _ => rewrite H; constructor end .

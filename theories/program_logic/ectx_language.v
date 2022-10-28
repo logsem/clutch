@@ -219,7 +219,7 @@ Section ectx_language.
     subst K''. rewrite fill_empty. done.
   Qed.
 
-  #[local] Lemma fill_prim_step K e1 σ1 e2 σ2 :
+  Local Lemma fill_prim_step K e1 σ1 e2 σ2 :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
   Proof.
@@ -234,26 +234,34 @@ Section ectx_language.
     rewrite (dret_pmf_map (fill_lift K) (fill K1 e, σ) (e2, σ2)) //.
   Qed.
 
+  Lemma head_prim_step_eq e1 σ1 ρ :
+    head_reducible e1 σ1 →
+    prim_step e1 σ1 ρ = head_step e1 σ1 ρ.
+  Proof.
+    intros Hred.
+    rewrite /= /prim_step.
+    destruct (decomp e1) as [K e1'] eqn:Heq.
+    edestruct (decomp_fill _ _ _ Heq).
+    destruct Hred as [ρ' Hs].
+    destruct (head_ctx_step_val _ _ _ _ Hs) as [| ->].
+    - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
+      assert ((head_step e1' σ1 ≫= (λ '(e2', σ0), dret (fill empty_ectx e2', σ0))) ρ
+              = (head_step e1' σ1 ≫= dret) ρ) as ->.
+      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
+      rewrite fill_empty in Hs.
+      rewrite dret_id_right_pmf //.
+      rewrite fill_empty //.
+    - assert ((head_step e1' σ1 ≫= (λ '(e2', σ0), dret (fill empty_ectx e2', σ0))) ρ
+              = (head_step e1' σ1 ≫= dret) ρ) as ->.
+      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
+      rewrite fill_empty in Hs.
+      rewrite dret_id_right_pmf //.
+      rewrite fill_empty //.
+  Qed.
+
   Lemma head_prim_step e1 σ1 ρ :
     head_step e1 σ1 ρ > 0 → prim_step e1 σ1 ρ > 0.
-  Proof.
-    rewrite /prim_step /=. intros Hs.
-    pose proof (val_head_stuck _ _ _ Hs) as Hval.
-    destruct (decomp e1) as [K1 e1'] eqn:Heq.
-    erewrite <-(decomp_fill _ _ _ Heq) in Hs.
-    edestruct (head_ctx_step_val _ _ _ _ Hs) as [[]|HK]; simplify_eq.
-    - assert (K1 = empty_ectx) as -> by eauto using decomp_val_empty.
-      assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
-              = (head_step e1' σ1 ≫= dret) ρ) as ->.
-      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
-      rewrite fill_empty in Hs.
-      rewrite dret_id_right_pmf //.
-    - assert ((head_step e1' σ1 ≫= (λ '(e2', σ2), dret (fill empty_ectx e2', σ2))) ρ
-              = (head_step e1' σ1 ≫= dret) ρ) as ->.
-      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
-      rewrite fill_empty in Hs.
-      rewrite dret_id_right_pmf //.
-  Qed.
+  Proof. intros ?. erewrite head_prim_step_eq; [done|]. eexists; eauto. Qed.
 
   Lemma prim_step_iff e1 e2 σ1 σ2 :
     prim_step e1 σ1 (e2, σ2) > 0 ↔
@@ -372,8 +380,7 @@ Section ectx_language.
 
   Record pure_head_step (e1 e2 : expr Λ) := {
     pure_head_step_safe σ1 : head_reducible e1 σ1;
-    pure_head_step_det σ1 e2' σ2 :
-      head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2
+    pure_head_step_det σ1 : head_step e1 σ1 (e2, σ1) = 1;
   }.
 
   Lemma pure_head_step_pure_step e1 e2 : pure_head_step e1 e2 → pure_step e1 e2.
@@ -381,7 +388,7 @@ Section ectx_language.
     intros [Hp1 Hp2]. split.
     - intros σ. destruct (Hp1 σ) as ([e2' σ2] & ?).
       eexists (e2', σ2). by apply head_prim_step.
-    - intros σ1 e2' σ2 ?%head_reducible_prim_step; eauto.
+    - intros σ1. rewrite head_prim_step_eq //.
   Qed.
 
   (** This is not an instance because HeapLang's [wp_pure] tactic already takes

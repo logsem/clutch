@@ -9,31 +9,31 @@ From self.prob_lang Require Export class_instances spec_ra.
 From self.prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 
-Class probGS Σ := HeapG {
-  probGS_invG : invGS_gen HasNoLc Σ;
+Class prelocGS Σ := HeapG {
+  prelocGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  probGS_heap : ghost_mapG Σ loc val;
-  probGS_tapes : ghost_mapG Σ loc (list bool);
+  prelocGS_heap : ghost_mapG Σ loc val;
+  prelocGS_tapes : ghost_mapG Σ loc (list bool);
   (* ghost names for the state *)
-  probGS_heap_name : gname;
-  probGS_tapes_name : gname;
+  prelocGS_heap_name : gname;
+  prelocGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  probGS_spec :> specGS Σ;
+  prelocGS_spec :> specGS Σ;
 }.
 
-Definition heap_auth `{probGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ probGS_heap probGS_heap_name.
-Definition tapes_auth `{probGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ probGS_tapes probGS_tapes_name.
+Definition heap_auth `{prelocGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ prelocGS_heap prelocGS_heap_name.
+Definition tapes_auth `{prelocGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ prelocGS_tapes prelocGS_tapes_name.
 
-Global Instance probGS_irisGS `{!probGS Σ} : irisGS prob_lang Σ := {
-  iris_invGS := probGS_invG;
+Global Instance prelocGS_irisGS `{!prelocGS Σ} : irisGS prob_lang Σ := {
+  iris_invGS := prelocGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   spec_interp ρ := spec_interp_auth ρ;
 }.
 
 (** Heap *)
-Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ probGS_heap probGS_heap_name l dq v)
+Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ prelocGS_heap prelocGS_heap_name l dq v)
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.
 Notation "l ↦□ v" := (l ↦{ DfracDiscarded } v)%I
   (at level 20, format "l  ↦□  v") : bi_scope.
@@ -43,7 +43,7 @@ Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Tapes *)
-Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ probGS_tapes probGS_tapes_name l dq v)
+Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ prelocGS_tapes prelocGS_tapes_name l dq v)
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
@@ -53,7 +53,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 Section lifting.
-Context `{!probGS Σ}.
+Context `{!prelocGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -123,7 +123,7 @@ Proof.
   iIntros (σ1) "[Hh Ht] !# /=".
   iSplit; [by eauto with head_step|].
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
-  iMod ((ghost_map_insert (fresh_loc σ1.(tapes))) with "Ht") as "[$ Hl]".
+  iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame. iModIntro. by iApply "HΦ".
 Qed.

@@ -14,7 +14,7 @@ Definition logN : namespace := nroot .@ "logN".
 
 (** interp : is a unary logical relation. *)
 Section logrel.
-  Context `{!probGS Σ}.
+  Context `{!prelocGS Σ}.
   Notation D := (persistent_predO (val * val) (iPropI Σ)).
   Implicit Types τi : D.
   Implicit Types Δ : listO D.

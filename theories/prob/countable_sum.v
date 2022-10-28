@@ -426,6 +426,22 @@ Section filter.
     - eapply (is_seriesC_filter_impl  _ _ _ _ Hge Hexists). intros ? []; auto.
   Qed.
 
+  Lemma SeriesC_split_singleton f (a0 : A) :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f →
+    SeriesC f = SeriesC (λ a, if (bool_decide (a = a0)) then f a else 0) +
+                SeriesC (λ a, if (bool_decide (a ≠ a0)) then f a else 0).
+  Proof.
+    intros Hle Hex.
+    erewrite SeriesC_ext.
+    { eapply SeriesC_plus; [by eapply ex_seriesC_filter_pos|].
+      eapply (ex_seriesC_le _ f); [|done].
+      intros a'. case_bool_decide; split; (done || lra). }
+    intros a. simpl. case_bool_decide as Heq.
+    - rewrite bool_decide_eq_false_2; [lra|]. eauto.
+    - rewrite bool_decide_eq_true_2 //. lra.
+  Qed.
+
 End filter.
 
 Section rearrange.

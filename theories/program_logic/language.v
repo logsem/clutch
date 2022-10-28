@@ -187,25 +187,21 @@ Section language.
 
   Record pure_step (e1 e2 : expr Λ)  := {
     pure_step_safe σ1 : reducible e1 σ1;
-    pure_step_det σ1 e2' σ2 :
-      prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2
+    pure_step_det σ : prim_step e1 σ (e2, σ) = 1;
   }.
 
   Class PureExec (φ : Prop) (n : nat) (e1 e2 : expr Λ) :=
     pure_exec : φ → relations.nsteps pure_step n e1 e2.
 
   Lemma pure_step_ctx K `{!@LanguageCtx Λ K} e1 e2 :
-    pure_step e1 e2 →
-    pure_step (K e1) (K e2).
+    pure_step e1 e2 → pure_step (K e1) (K e2).
   Proof.
     intros [Hred Hstep]. split.
     - unfold reducible in *. intros σ1.
       destruct (Hred σ1) as [[]].
       eexists. by eapply fill_step.
-    - intros σ1 e2' σ2 Hpstep.
-      destruct (fill_step_inv e1 σ1 e2' σ2) as (e2'' & -> & ?); [|exact Hpstep|].
-      + destruct (Hred σ1) as (? & ?); eauto using val_stuck.
-      + edestruct (Hstep σ1 e2'' σ2) as ( -> & ->); auto.
+    - intros σ.
+      rewrite -fill_step_prob //; eauto using (reducible_not_val _ σ).
   Qed.
 
   Lemma pure_step_nsteps_ctx K `{!@LanguageCtx Λ K} n e1 e2 :

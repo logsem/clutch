@@ -172,7 +172,8 @@ Proof.
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
   iApply wp_lift_pure_det_step.
   - intros σ. specialize (Hsafe σ). destruct s; eauto using reducible_not_val.
-  - done.
+  - intros σ1 e2' σ2 Hpstep.
+    by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
   - by iApply (step_fupd_wand with "Hwp").
 Qed.
 

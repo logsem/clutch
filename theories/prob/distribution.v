@@ -45,7 +45,7 @@ Section distributions.
     apply SeriesC_le'; auto. apply ex_seriesC_0.
   Qed.
 
-  Lemma pmf_ex_seriesC_mult_fn (μ : distr A) (f : A → R) :
+  Lemma pmf_ex_seriesC_mult_fn μ (f : A → R) :
     (∃ n, ∀ a, 0 <= f a <= n) →
     ex_seriesC (λ a, μ a * f a).
   Proof.
@@ -61,6 +61,52 @@ Section distributions.
   Proof.
     eapply pmf_ex_seriesC_mult_fn.
     exists 1. intros a; split; [apply pmf_pos|apply pmf_le_1].
+  Qed.
+
+  Lemma pmf_le_SeriesC `{Countable A} (μ : distr A) (a : A) :
+    μ a <= SeriesC μ.
+  Proof. by eapply SeriesC_ge_elem. Qed.
+
+  Lemma pmf_1_eq_SeriesC (μ : distr A) (a : A) :
+    μ a = 1 → μ a = SeriesC μ.
+  Proof.
+    intros Hμ.
+    assert (1 <= SeriesC μ).
+    { rewrite -Hμ. eapply pmf_le_SeriesC. }
+    pose proof (pmf_SeriesC μ). lra.
+  Qed.
+
+  Lemma pmf_plus_neq_SeriesC `{Countable A} (μ : distr A) (a a' : A) :
+    a ≠ a' → μ a + μ a' <= SeriesC μ.
+  Proof.
+    intros Ha.
+    rewrite (SeriesC_split_singleton _ a); [|done|done].
+    eapply Rle_plus_plus.
+    - erewrite SeriesC_ext; [by erewrite (SeriesC_singleton a (μ a))|].
+      intros; do 2 case_bool_decide; simplify_eq; done.
+    - rewrite (SeriesC_split_singleton _ a'); last first.
+      + eapply ex_seriesC_le; [|eapply (pmf_ex_seriesC μ)].
+        intros; repeat case_bool_decide; split; (lra || done).
+      + intros; by case_bool_decide.
+      + apply Rle_plus_l.
+        * erewrite SeriesC_ext; [by erewrite (SeriesC_singleton a' (μ a'))|].
+          intros; do 2 case_bool_decide; simplify_eq=>//.
+          rewrite bool_decide_eq_true_2 //.
+        * eapply SeriesC_ge_0.
+          { intros; repeat case_bool_decide; (lra || done). }
+          eapply ex_seriesC_le; [|eapply (pmf_ex_seriesC μ)].
+          intros. repeat case_bool_decide; split; (lra || done).
+  Qed.
+
+  Lemma pmf_1_supp_eq (μ : distr A) (a a' : A) :
+    μ a = 1 → μ a' > 0 → a = a'.
+  Proof.
+    intros Ha Ha'.
+    destruct (decide (a = a')) as [|Hneq]; [done|].
+    pose proof (pmf_le_SeriesC μ a').
+    pose proof (pmf_1_eq_SeriesC _ _ Ha).
+    pose proof (pmf_plus_neq_SeriesC μ a a' Hneq).
+    lra.
   Qed.
 
   (* N.B. uses [functional_extensionality] and [proof_irrelevance] axioms  *)
@@ -115,6 +161,20 @@ Section dret.
     rewrite /pmf /= /dret_pmf. case_bool_decide as Hcase.
     - apply (inj f) in Hcase as ->.  rewrite bool_decide_eq_true_2 //.
     - case_bool_decide; [|done]. simplify_eq.
+  Qed.
+
+  Lemma pmf_1_eq_dret (μ : distr A) (a : A) :
+    μ a = 1 → μ = dret a.
+  Proof.
+    intros Hμ.
+    apply distr_ext.
+    intros a'.
+    destruct (decide (a = a')) as [<- | Hneq].
+    { rewrite dret_1 //. }
+    rewrite dret_0 //.
+    destruct (decide (μ a' > 0)) as [Ha'|].
+    - rewrite (pmf_1_supp_eq _ _ _ Hμ Ha') // in Hneq.
+    - by apply pmf_eq_0_not_gt_0.
   Qed.
 
 End dret.
@@ -411,7 +471,7 @@ Next Obligation.
   (* TODO: needs some rearranging lemmas like [SeriesC_double_swap] *)
 Admitted.
 Next Obligation.
-  intros A ?? B ?? μ1 μ2 => /=. 
+  intros A ?? B ?? μ1 μ2 => /=.
   rewrite SeriesC_double_prod_rl.
   rewrite -(SeriesC_double_swap (λ '(a, b), μ1 a * μ2 b)).
   rewrite -(SeriesC_ext (λ a, μ1 a * SeriesC μ2)); last first.
@@ -433,13 +493,13 @@ Definition rmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr B :=
   dmap snd μ.
 
 Section marginals.
-  Context `{Countable A, Countable B}. 
+  Context `{Countable A, Countable B}.
 
   Lemma lmarg_pmf (μ : distr (A * B)) (a : A) :
     lmarg μ a = SeriesC (λ b, μ (a, b)).
-  Proof.    
+  Proof.
     rewrite {1}/pmf /= /dbind_pmf.
-    rewrite SeriesC_double_prod_rl.  
+    rewrite SeriesC_double_prod_rl.
     apply SeriesC_ext; intro b.
     rewrite {2}/pmf /= /dret_pmf /=.
     erewrite SeriesC_ext; [apply (SeriesC_singleton' a)|].

@@ -99,9 +99,8 @@ Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
 Section spec_ctx.
   Context `{!invGS_gen HasNoLc Σ, !specGS Σ}.
 
-  (* SG: Does this suffice? *)
-  Definition spec_inv '(e, σ) : iProp Σ :=
-    (∃ ξ ρ,
+  Definition spec_inv : iProp Σ :=
+    (∃ ξ ρ e σ,
         spec_interp_frag ρ ∗
         ⌜exec ξ ρ (e, σ) = 1%R⌝ ∗
         spec_prog_auth e ∗
@@ -109,7 +108,7 @@ Section spec_ctx.
         spec_tapes_auth σ.(tapes))%I.
 
   Definition spec_ctx : iProp Σ :=
-    (∃ ρ, inv specN (spec_inv ρ))%I.
+    inv specN spec_inv.
 
   Global Instance spec_ctx_persistent : Persistent spec_ctx.
   Proof. apply _. Qed.
