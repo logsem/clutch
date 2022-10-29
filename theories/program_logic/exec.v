@@ -178,8 +178,8 @@ End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
 
-(** * Some schedulers  *)
-Section schedulers.
+(** * [PRIM] scheduler   *)
+Section prim_scheduler.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
   Implicit Types e : expr Λ.
@@ -246,16 +246,17 @@ Section schedulers.
     ∃ ξ', exec (ξ ++ ξ') ρ (K e', σ) = exec ξ ρ (K e, σ).
   Proof.
     move=> HP /(_ HP).
-    (* We do induction in [n] as [nsteps] is defined the "wrong" way around *)
+    (* We do induction in [n] as [nsteps] is defined in the "wrong" direction *)
     revert e e'. induction n=> e e'.
     { inversion 1; subst. exists []. rewrite app_nil_r //. }
     intros (e'' & Hsteps & Hpstep)%nsteps_inv_r.
     edestruct (IHn _ _ Hsteps) as [ξ' Hexec].
     exists (ξ' ++ prim_step_sch (K e'', σ)).
-    rewrite app_assoc.
-    by rewrite exec_pure_step_ctx_snoc.
+    rewrite app_assoc exec_pure_step_ctx_snoc //.
   Qed.
 
+  (* TODO [SG]: The 3 lemmas below are currently not used (but I proved them
+     before realising it was not the thing I needed...) *)
   Lemma exec_pure_step ξ ρ e e' σ :
     pure_step e e' →
     exec (prim_step_sch (e, σ) ++ ξ) (e, σ) ρ = exec ξ (e', σ) ρ.
@@ -294,7 +295,7 @@ Section schedulers.
     by erewrite exec_pure_step_ctx.
   Qed.
 
-End schedulers.
+End prim_scheduler.
 
 (** * [LanguageCtx] lifting of a scheduler  *)
 Section ctx_lifting.
