@@ -240,7 +240,23 @@ Section schedulers.
     exec (ξ ++ prim_step_sch (K e, σ)) ρ (K e', σ) = exec ξ ρ (K e, σ).
   Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step_snoc. Qed.
 
-  Lemma exec_pure_step_cons ξ ρ e e' σ :
+  Lemma exec_PureExec_ctx_snoc K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ :
+    P →
+    PureExec P n e e' →
+    ∃ ξ', exec (ξ ++ ξ') ρ (K e', σ) = exec ξ ρ (K e, σ).
+  Proof.
+    move=> HP /(_ HP).
+    (* We do induction in [n] as [nsteps] is defined the "wrong" way around *)
+    revert e e'. induction n=> e e'.
+    { inversion 1; subst. exists []. rewrite app_nil_r //. }
+    intros (e'' & Hsteps & Hpstep)%nsteps_inv_r.
+    edestruct (IHn _ _ Hsteps) as [ξ' Hexec].
+    exists (ξ' ++ prim_step_sch (K e'', σ)).
+    rewrite app_assoc.
+    by rewrite exec_pure_step_ctx_snoc.
+  Qed.
+
+  Lemma exec_pure_step ξ ρ e e' σ :
     pure_step e e' →
     exec (prim_step_sch (e, σ) ++ ξ) (e, σ) ρ = exec ξ (e', σ) ρ.
   Proof.
@@ -260,12 +276,12 @@ Section schedulers.
     rewrite exec_fn_prim_step_sch_fn_pmf Hdet. lra.
   Qed.
 
-  Lemma exec_pure_step_ctx_cons ξ ρ e e' σ K `{!LanguageCtx K} :
+  Lemma exec_pure_step_ctx ξ ρ e e' σ K `{!LanguageCtx K} :
     pure_step e e' →
     exec (prim_step_sch (K e, σ) ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ.
-  Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step_cons. Qed.
+  Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step. Qed.
 
-  Lemma exec_PureExec (P : Prop) n ξ ρ e e' σ K `{!LanguageCtx K} :
+  Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ  :
     P →
     PureExec P n e e' →
     ∃ ξ', exec (ξ' ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ.
@@ -275,7 +291,7 @@ Section schedulers.
     destruct IHp as [ξ' Hexec].
     exists (prim_step_sch (K x, σ) ++ ξ').
     rewrite -app_assoc.
-    by erewrite exec_pure_step_ctx_cons.
+    by erewrite exec_pure_step_ctx.
   Qed.
 
 End schedulers.

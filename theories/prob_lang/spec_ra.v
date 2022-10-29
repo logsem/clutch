@@ -66,6 +66,17 @@ Section resources.
     by apply leibniz_equiv in Hexcl.
   Qed.
 
+  Lemma spec_prog_update ρ'' ρ ρ' :
+    spec_prog_auth ρ -∗ spec_prog_frag ρ' ==∗ spec_prog_auth ρ'' ∗ spec_prog_frag ρ''.
+  Proof.
+    iIntros "Ha Hf".
+    iDestruct (spec_prog_auth_frag_agree with "Ha Hf") as %->.
+    iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
+    { by eapply auth_update, option_local_update,
+      (exclusive_local_update _ (Excl ρ'')). }
+    by iFrame.
+  Qed.
+
   Definition spec_heap_auth `{specGS Σ} :=
     @ghost_map_auth _ _ _ _ _ specGS_heap specGS_heap_name 1.
   Definition spec_tapes_auth `{specGS Σ} :=
