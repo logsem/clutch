@@ -31,7 +31,7 @@ Section rules.
     iFrame. by erewrite Hexec'.
   Qed.
 
-  (* (** Alloc, load, and store *) *)
+  (** Alloc, load, and store *)
   Lemma step_alloc E K e v :
     IntoVal e v →
     nclose specN ⊆ E →
@@ -83,6 +83,46 @@ Section rules.
     iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_heap <[l:=v]> σ).
     iFrame. erewrite exec_det_step_ctx; [done|apply _|].
     solve_step.
+  Qed.
+
+  (** AllocTape and flip (non-empty tape)  *)
+  Lemma step_alloctape E K :
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K alloc ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ [].
+  Proof.
+    iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
+    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    set (l := fresh_loc σ.(tapes)).
+    iMod (spec_prog_update (fill K #(LitLbl l)) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (ghost_map_insert l [] with "Htapes") as "[Htapes Hl]".
+    { apply not_elem_of_dom, fresh_loc_is_fresh. }
+    iExists l. iFrame. iMod ("Hclose" with "[-]"); [|done].
+    iModIntro.
+    iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_tapes <[l:=[]]> σ).
+    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    solve_step.
+  Qed.
+
+  Lemma step_flip E K l b bs :
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flip #lbl:l) ∗ l ↪ₛ (b :: bs)
+    ={E}=∗ spec_ctx ∗ ⤇ fill K #b ∗ l ↪ₛ bs.
+  Proof.
+    iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
+    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iMod (spec_prog_update (fill K #b) with "Hauth Hj") as "[Hauth Hj]".
+    iDestruct (ghost_map_lookup with "Htapes Hl") as %?.
+    iMod (ghost_map_update bs with "Htapes Hl") as "[Htapes Hl]".
+    iFrame. iMod ("Hclose" with "[-]"); [|done].
+    iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_tapes <[l:=bs]> σ).
+    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    simpl.
+    (* TODO: more clever [solve_step] tactic? *)
+    rewrite head_prim_step_eq; [|eauto with head_step].
+    rewrite /pmf /=. simplify_map_eq.
+    rewrite bool_decide_eq_true_2 //.
   Qed.
 
 End rules.

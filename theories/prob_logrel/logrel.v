@@ -4,7 +4,7 @@ From stdpp Require Export binders strings stringmap fin_map_dom gmap.
 From iris.base_logic Require Import invariants.
 From iris.algebra Require Import list.
 From self.program_logic Require Import weakestpre.
-From self.prob_lang Require Import lang types spec_ra primitive_laws.
+From self.prob_lang Require Import lang notation types spec_ra primitive_laws.
 From self.prob_logrel Require Import persistent_pred.
 
 Import uPred.
@@ -43,18 +43,18 @@ Section logrel.
   (* Solve Obligations with solve_proper. *)
 
   Program Definition interp_unit : listO D -n> D :=
-    λne Δ, PersPred (λ ww, ⌜ww.1 = #uv⌝ ∧ ⌜ww.2 = #uv⌝)%I.
+    λne Δ, PersPred (λ ww, ⌜ww.1 = #()⌝ ∧ ⌜ww.2 = #()⌝)%I.
   Program Definition interp_int : listO D -n> D :=
-    λne Δ, PersPred (λ ww, ∃ n : Z, ⌜ww.1 = #nv n⌝ ∧ ⌜ww.2 = #nv n⌝)%I.
+    λne Δ, PersPred (λ ww, ∃ z : Z, ⌜ww.1 = #z⌝ ∧ ⌜ww.2 = #z⌝)%I.
 
   Program Definition interp_bool : listO D -n> D :=
-    λne Δ, PersPred (λ ww, ∃ b : bool, ⌜ww.1 = #bv b⌝ ∧ ⌜ww.2 = #bv b⌝)%I.
+    λne Δ, PersPred (λ ww, ∃ b : bool, ⌜ww.1 = #b⌝ ∧ ⌜ww.2 = #b⌝)%I.
 
   Program Definition interp_prod
       (interp1 interp2 : listO D -n> D) : listO D -n> D :=
     λne Δ,
       PersPred (λ ww, ∃ vv1 vv2,
-                 ⌜ww = (PairV (vv1.1) (vv2.1), PairV (vv1.2) (vv2.2))⌝ ∧
+                 ⌜ww = ((vv1.1, vv2.1)%V, (vv1.2, vv2.2)%V)⌝ ∧
                  interp1 Δ vv1 ∧ interp2 Δ vv2)%I.
   Solve Obligations with solve_proper.
 

@@ -1,7 +1,6 @@
 (** (Syntactic) Typing for System F_mu_ref with tapes *)
 From stdpp Require Export binders strings stringmap fin_map_dom gmap.
-From self.prob_lang Require Import lang.
-(* From self.prob_lang Require Export metatheory *)
+From self.prob_lang Require Export lang notation.
 
 (** * Types *)
 Inductive type :=
@@ -64,8 +63,7 @@ Declare Scope FType_scope.
 Delimit Scope FType_scope with ty.
 Bind Scope FType_scope with type.
 Notation "()" := TUnit : FType_scope.
-(* AA: Unsure about the level *)
-Notation "# x" := (TVar x) (at level 200) : FType_scope.
+Notation "# x" := (TVar x) : FType_scope.
 Infix "*" := TProd : FType_scope.
 Notation "(*)" := TProd (only parsing) : FType_scope.
 Infix "+" := TSum : FType_scope.

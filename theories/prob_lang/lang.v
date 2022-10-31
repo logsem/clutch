@@ -58,11 +58,6 @@ with val :=
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-(* Notation for unit, bool, and nat *)
-Notation "'#uv'" := (LitV LitUnit) (at level 20).
-Notation "'#bv' b" := (LitV (LitBool b)) (at level 20).
-Notation "'#nv' n" := (LitV (LitInt n)) (at level 20).
-
 Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
