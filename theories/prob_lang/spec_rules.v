@@ -26,93 +26,63 @@ Section rules.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K e') with "Hauth Hj") as "[Hauth Hj]".
     iFrame "Hj". iApply "Hclose". iNext.
-    edestruct (exec_PureExec_ctx_snoc (fill K) P) as [ξ' Hexec']; [done|done|].
+    edestruct (exec_PureExec_ctx (fill K) P) as [ξ' Hexec']; [done|done|].
     iExists (ξ ++ ξ'), _, _, _.
     iFrame. by erewrite Hexec'.
   Qed.
 
   (* (** Alloc, load, and store *) *)
-  (* Lemma step_alloc E j K e v : *)
-  (*   IntoVal e v → *)
-  (*   nclose specN ⊆ E → *)
-  (*   spec_ctx ∗ j ⤇ fill K (ref e) ={E}=∗ ∃ l, spec_ctx ∗ j ⤇ fill K (#l) ∗ l ↦ₛ v. *)
-  (* Proof. *)
-  (*   iIntros (<-?) "[#Hinv Hj]". iFrame "Hinv". *)
-  (*   rewrite /spec_ctx tpool_mapsto_eq /tpool_mapsto_def /=. *)
-  (*   iDestruct "Hinv" as (ρ) "Hinv". *)
-  (*   iInv specN as (tp σ) ">[Hown %]" "Hclose". *)
-  (*   destruct (exist_fresh (dom (heap σ))) as [l Hl%not_elem_of_dom]. *)
-  (*   iDestruct (own_valid_2 with "Hown Hj") *)
-  (*     as %[[?%tpool_singleton_included' _]%prod_included ?]%auth_both_valid_discrete. *)
-  (*   iMod (own_update_2 with "Hown Hj") as "[Hown Hj]". *)
-  (*   { by eapply auth_update, prod_local_update_1, *)
-  (*       singleton_local_update, (exclusive_local_update _ (Excl (fill K (#l)%E))). } *)
-  (*   iMod (own_update with "Hown") as "[Hown Hl]". *)
-  (*   { eapply auth_update_alloc, prod_local_update_2, *)
-  (*       (alloc_singleton_local_update _ l (1%Qp,to_agree (Some v : leibnizO _))); last done. *)
-  (*     by apply lookup_to_heap_None. } *)
-  (*   rewrite heapS_mapsto_eq /heapS_mapsto_def /=. *)
-  (*   iExists l. iFrame "Hj Hl". iApply "Hclose". iNext. *)
-  (*   iExists (<[j:=fill K (# l)]> tp), (state_upd_heap <[l:=Some v]> σ). *)
-  (*   rewrite to_heap_insert to_tpool_insert'; last eauto. iFrame. iPureIntro. *)
-  (*   eapply rtc_r, step_insert_no_fork; eauto. *)
-  (*   rewrite -state_init_heap_singleton. eapply AllocNS; first by lia. *)
-  (*   intros. assert (i = 0) as -> by lia. by rewrite loc_add_0. *)
-  (* Qed. *)
+  Lemma step_alloc E K e v :
+    IntoVal e v →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (ref e) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#l) ∗ l ↦ₛ v.
+  Proof.
+    iIntros (<-?) "[#Hinv Hj]". iFrame "Hinv".
+    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    set (l := fresh_loc σ.(heap)).
+    iMod (spec_prog_update (fill K #l) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (ghost_map_insert l v with "Hheap") as "[Hheap Hl]".
+    { apply not_elem_of_dom, fresh_loc_is_fresh. }
+    iExists l. iFrame. iMod ("Hclose" with "[-]"); [|done].
+    iModIntro. rewrite /spec_inv.
+    iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_heap <[l:=v]> σ).
+    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    solve_step.
+  Qed.
 
-  (* Lemma step_load E j K l q v: *)
-  (*   nclose specN ⊆ E → *)
-  (*   spec_ctx ∗ j ⤇ fill K (!#l) ∗ l ↦ₛ{q} v *)
-  (*   ={E}=∗ spec_ctx ∗ j ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v. *)
-  (* Proof. *)
-  (*   iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv". *)
-  (*   rewrite /spec_ctx tpool_mapsto_eq /tpool_mapsto_def. *)
-  (*   iDestruct "Hinv" as (ρ) "Hinv". *)
-  (*   rewrite heapS_mapsto_eq /heapS_mapsto_def /=. *)
-  (*   iInv specN as (tp σ) ">[Hown %]" "Hclose". *)
-  (*   iDestruct (own_valid_2 with "Hown Hj") *)
-  (*     as %[[?%tpool_singleton_included' _]%prod_included ?]%auth_both_valid_discrete. *)
-  (*   iDestruct (own_valid_2 with "Hown Hl") *)
-  (*     as %[[? ?%heap_singleton_included]%prod_included ?]%auth_both_valid_discrete. *)
-  (*   iMod (own_update_2 with "Hown Hj") as "[Hown Hj]". *)
-  (*   { by eapply auth_update, prod_local_update_1, singleton_local_update, *)
-  (*       (exclusive_local_update _ (Excl (fill K (of_val v)))). } *)
-  (*   iFrame "Hj Hl". iApply "Hclose". iNext. *)
-  (*   iExists (<[j:=fill K (of_val v)]> tp), σ. *)
-  (*   rewrite to_tpool_insert'; last eauto. iFrame. iPureIntro. *)
-  (*   eapply rtc_r, step_insert_no_fork; eauto. econstructor; eauto. *)
-  (* Qed. *)
+  Lemma step_load E K l q v:
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
+    ={E}=∗ spec_ctx ∗ ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v.
+  Proof.
+    iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
+    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iMod (spec_prog_update (fill K v) with "Hauth Hj") as "[Hauth Hj]".
+    iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
+    iFrame. iMod ("Hclose" with "[-]"); [|done].
+    iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, _.
+    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    solve_step.
+  Qed.
 
-  (* Lemma step_store E j K l v' e v: *)
-  (*   IntoVal e v → *)
-  (*   nclose specN ⊆ E → *)
-  (*   spec_ctx ∗ j ⤇ fill K (#l <- e) ∗ l ↦ₛ v' *)
-  (*   ={E}=∗ spec_ctx ∗ j ⤇ fill K #() ∗ l ↦ₛ v. *)
-  (* Proof. *)
-  (*   iIntros (<-?) "(#Hinv & Hj & Hl)". iFrame "Hinv". *)
-  (*   rewrite /spec_ctx tpool_mapsto_eq /tpool_mapsto_def. *)
-  (*   iDestruct "Hinv" as (ρ) "Hinv". *)
-  (*   rewrite heapS_mapsto_eq /heapS_mapsto_def /=. *)
-  (*   iInv specN as (tp σ) ">[Hown %]" "Hclose". *)
-  (*   iDestruct (own_valid_2 with "Hown Hj") *)
-  (*     as %[[?%tpool_singleton_included' _]%prod_included _]%auth_both_valid_discrete. *)
-  (*   iDestruct (own_valid_2 with "Hown Hl") *)
-  (*     as %[[_ Hl%heap_singleton_included]%prod_included _]%auth_both_valid_discrete. *)
-  (*   iMod (own_update_2 with "Hown Hj") as "[Hown Hj]". *)
-  (*   { by eapply auth_update, prod_local_update_1, singleton_local_update, *)
-  (*       (exclusive_local_update _ (Excl (fill K #()))). } *)
-  (*   iMod (own_update_2 with "Hown Hl") as "[Hown Hl]". *)
-  (*   { eapply auth_update, prod_local_update_2. *)
-  (*     apply: singleton_local_update. *)
-  (*     { by rewrite /to_heap lookup_fmap Hl. } *)
-  (*     apply: (exclusive_local_update _ *)
-  (*       (1%Qp, to_agree (Some v : leibnizO (option val)))). *)
-  (*     apply: pair_exclusive_l. done. } *)
-  (*   iFrame "Hj Hl". iApply "Hclose". iNext. *)
-  (*   iExists (<[j:=fill K #()]> tp), (state_upd_heap <[l:=Some v]> σ). *)
-  (*   rewrite to_heap_insert to_tpool_insert'; last eauto. iFrame. iPureIntro. *)
-  (*   eapply rtc_r, step_insert_no_fork; eauto. econstructor; eauto. *)
-  (* Qed. *)
-
+  Lemma step_store E K l v' e v:
+    IntoVal e v →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
+    ={E}=∗ spec_ctx ∗ ⤇ fill K #() ∗ l ↦ₛ v.
+  Proof.
+    iIntros (<-?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
+    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iMod (spec_prog_update (fill K #()) with "Hauth Hj") as "[Hauth Hj]".
+    iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
+    iMod (ghost_map_update v with "Hheap Hl") as "[Hheap Hl]".
+    iFrame. iMod ("Hclose" with "[-]"); [|done].
+    iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_heap <[l:=v]> σ).
+    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    solve_step.
+  Qed.
 
 End rules.

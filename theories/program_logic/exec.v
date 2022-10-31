@@ -217,17 +217,17 @@ Section prim_scheduler.
     exec (prim_step_sch (e, σ)) (e, σ) = prim_step e σ.
   Proof. eapply distr_ext. intros []. apply exec_prim_step_sch_pmf. Qed.
 
-  Lemma exec_pure_step_snoc ξ ρ e e' σ :
-    pure_step e e' →
-    exec (ξ ++ prim_step_sch (e, σ)) ρ (e', σ) = exec ξ ρ (e, σ).
+  Lemma exec_det_step ξ ρ e1 e2 σ1 σ2 :
+    prim_step e1 σ1 (e2, σ2) = 1 →
+    exec (ξ ++ prim_step_sch (e1, σ1)) ρ (e2, σ2) = exec ξ ρ (e1, σ1).
   Proof.
-    intros [Hsafe Hdet].
+    intros Hdet.
     rewrite exec_snoc.
     rewrite {1}/pmf /= /dbind_pmf /=.
     erewrite (SeriesC_ext _
-                (λ a, if bool_decide (a = (e, σ))
-                      then exec ξ ρ (e, σ) *
-                           exec_fn (e, σ) (prim_step_sch_fn (e, σ)) (e', σ)
+                (λ a, if bool_decide (a = (e1, σ1))
+                      then exec ξ ρ (e1, σ1) *
+                           exec_fn (e1, σ1) (prim_step_sch_fn (e1, σ1)) (e2, σ2)
                       else 0)); last first.
     { intros [e0 σ0]. case_bool_decide as Heq; [by inversion Heq|].
       rewrite exec_fn_prim_step_sch_fn_pmf_ne //. lra. }
@@ -235,12 +235,15 @@ Section prim_scheduler.
     rewrite exec_fn_prim_step_sch_fn_pmf Hdet. lra.
   Qed.
 
-  Lemma exec_pure_step_ctx_snoc ξ ρ e e' σ K `{!LanguageCtx K} :
-    pure_step e e' →
-    exec (ξ ++ prim_step_sch (K e, σ)) ρ (K e', σ) = exec ξ ρ (K e, σ).
-  Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step_snoc. Qed.
+  Lemma exec_det_step_ctx ξ ρ e1 e2 σ1 σ2 K `{!LanguageCtx K} :
+    prim_step e1 σ1 (e2, σ2) = 1 →
+    exec (ξ ++ prim_step_sch (K e1, σ1)) ρ (K e2, σ2) = exec ξ ρ (K e1, σ1).
+  Proof.
+    intros. eapply exec_det_step.
+    rewrite -fill_step_prob //. eapply (val_stuck _ σ1 (e2, σ2)). lra.
+  Qed.
 
-  Lemma exec_PureExec_ctx_snoc K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ :
+  Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ :
     P →
     PureExec P n e e' →
     ∃ ξ', exec (ξ ++ ξ') ρ (K e', σ) = exec ξ ρ (K e, σ).
@@ -252,48 +255,48 @@ Section prim_scheduler.
     intros (e'' & Hsteps & Hpstep)%nsteps_inv_r.
     edestruct (IHn _ _ Hsteps) as [ξ' Hexec].
     exists (ξ' ++ prim_step_sch (K e'', σ)).
-    rewrite app_assoc exec_pure_step_ctx_snoc //.
+    rewrite app_assoc exec_det_step_ctx //. eapply Hpstep.
   Qed.
 
   (* TODO [SG]: The 3 lemmas below are currently not used (but I proved them
      before realising it was not the thing I needed...) *)
-  Lemma exec_pure_step ξ ρ e e' σ :
-    pure_step e e' →
-    exec (prim_step_sch (e, σ) ++ ξ) (e, σ) ρ = exec ξ (e', σ) ρ.
-  Proof.
-    intros [Hsafe Hdet].
-    rewrite exec_cons.
-    rewrite {1}/pmf /= /dbind_pmf /=.
-    erewrite (SeriesC_ext _
-                (λ a, if bool_decide (a = (e', σ))
-                      then exec_fn (e, σ) (prim_step_sch_fn (e, σ)) (e', σ) * exec ξ (e', σ) ρ
-                      else 0)); last first.
-    { intros [e0 σ0]. case_bool_decide as Heq; [by inversion Heq|].
-      rewrite exec_fn_prim_step_sch_fn_pmf //.
-      destruct (decide (prim_step e σ (e0, σ0) > 0)) as [Hp | Hp].
-      - by destruct (pmf_1_supp_eq _ _ _ (Hdet σ) Hp).
-      - apply pmf_eq_0_not_gt_0 in Hp as ->. lra. }
-    rewrite SeriesC_singleton.
-    rewrite exec_fn_prim_step_sch_fn_pmf Hdet. lra.
-  Qed.
+  (* Lemma exec_pure_step ξ ρ e e' σ : *)
+  (*   pure_step e e' → *)
+  (*   exec (prim_step_sch (e, σ) ++ ξ) (e, σ) ρ = exec ξ (e', σ) ρ. *)
+  (* Proof. *)
+  (*   intros [Hsafe Hdet]. *)
+  (*   rewrite exec_cons. *)
+  (*   rewrite {1}/pmf /= /dbind_pmf /=. *)
+  (*   erewrite (SeriesC_ext _ *)
+  (*               (λ a, if bool_decide (a = (e', σ)) *)
+  (*                     then exec_fn (e, σ) (prim_step_sch_fn (e, σ)) (e', σ) * exec ξ (e', σ) ρ *)
+  (*                     else 0)); last first. *)
+  (*   { intros [e0 σ0]. case_bool_decide as Heq; [by inversion Heq|]. *)
+  (*     rewrite exec_fn_prim_step_sch_fn_pmf //. *)
+  (*     destruct (decide (prim_step e σ (e0, σ0) > 0)) as [Hp | Hp]. *)
+  (*     - by destruct (pmf_1_supp_eq _ _ _ (Hdet σ) Hp). *)
+  (*     - apply pmf_eq_0_not_gt_0 in Hp as ->. lra. } *)
+  (*   rewrite SeriesC_singleton. *)
+  (*   rewrite exec_fn_prim_step_sch_fn_pmf Hdet. lra. *)
+  (* Qed. *)
 
-  Lemma exec_pure_step_ctx ξ ρ e e' σ K `{!LanguageCtx K} :
-    pure_step e e' →
-    exec (prim_step_sch (K e, σ) ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ.
-  Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step. Qed.
+  (* Lemma exec_pure_step_ctx ξ ρ e e' σ K `{!LanguageCtx K} : *)
+  (*   pure_step e e' → *)
+  (*   exec (prim_step_sch (K e, σ) ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ. *)
+  (* Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step. Qed. *)
 
-  Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ  :
-    P →
-    PureExec P n e e' →
-    ∃ ξ', exec (ξ' ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ.
-  Proof.
-    intros HP. induction 1; [| |done].
-    { exists []. rewrite app_nil_l //. }
-    destruct IHp as [ξ' Hexec].
-    exists (prim_step_sch (K x, σ) ++ ξ').
-    rewrite -app_assoc.
-    by erewrite exec_pure_step_ctx.
-  Qed.
+  (* Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ  : *)
+  (*   P → *)
+  (*   PureExec P n e e' → *)
+  (*   ∃ ξ', exec (ξ' ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ. *)
+  (* Proof. *)
+  (*   intros HP. induction 1; [| |done]. *)
+  (*   { exists []. rewrite app_nil_l //. } *)
+  (*   destruct IHp as [ξ' Hexec]. *)
+  (*   exists (prim_step_sch (K x, σ) ++ ξ'). *)
+  (*   rewrite -app_assoc. *)
+  (*   by erewrite exec_pure_step_ctx. *)
+  (* Qed. *)
 
 End prim_scheduler.
 
@@ -456,5 +459,5 @@ Section ctx_lifting.
 
 End ctx_lifting.
 
-Hint Extern 0 (TCEq (to_val ?e) _) =>
-       match goal with | H : to_val e = _ |- _ => rewrite H; constructor end .
+Global Hint Extern 0 (TCEq (to_val ?e) _) =>
+       match goal with | H : to_val e = _ |- _ => rewrite H; constructor end : core.
