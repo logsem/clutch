@@ -361,14 +361,29 @@ Section Rcoupl.
     rewrite 2!dmap_pos.
     split; eauto.
   Qed.
-
 End Rcoupl.
+
+Section Rcoupl_strength.
+  Context `{Countable A, Countable B, Countable D, Countable E}.
+
+  Variable (μ1 : distr A) (μ2 : distr B).
+
+  Lemma Rcoupl_strength_l (R : A → B → Prop) (d : D) (e : E) :
+    Rcoupl μ1 μ2 R →
+    Rcoupl (strength_l d μ1) (strength_l e μ2)
+      (λ '(d', a) '(e', b), d' = d ∧ e' = e ∧ R a b).
+  Proof.
+    rewrite /strength_l /dmap.
+    eapply Rcoupl_bind.
+    intros. by apply Rcoupl_ret.
+  Qed.
+
+End Rcoupl_strength.
 
 Section refinement_couplings.
 
   Context `{Countable A, Countable B, Countable A', Countable B'}.
-  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop). 
-
+  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop).
 
   Definition isRefCoupl (μ : distr (A * B)) : Prop :=
     (∀ a, μ1 a <= lmarg μ a) /\ rmarg μ = μ2.

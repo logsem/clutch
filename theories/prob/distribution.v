@@ -294,6 +294,19 @@ Section monadic.
       by intros ->.
   Qed.
 
+  Lemma dbind_dret_pmf_map_ne (μ : distr A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
+    ¬ (∃ a, μ a > 0 ∧ f a = b) →
+    (μ ≫= (λ a, dret (f a))) b = 0.
+  Proof.
+    intros Hnex.
+    rewrite {1}/pmf /= /dbind_pmf {2}/pmf /= /dret_pmf.
+    apply SeriesC_0.
+    intros a'.
+    case_bool_decide; [|lra].
+    destruct (decide (μ a' > 0)) as [|Hn]; [exfalso; eauto|].
+    apply pmf_eq_0_not_gt_0 in Hn as ->; lra.
+  Qed.
+
   Lemma dbind_assoc_pmf `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) c :
     (a ← μ ; b ← f a; g b) c = (b ← (a ← μ; f a); g b) c.
   Proof.
@@ -349,7 +362,7 @@ Section dmap.
   Context `{Countable A, Countable B}.
 
   Lemma dmap_dret_pmf (f : A → B) (a : A) (b : B) :
-      dmap f (dret a) b = dret (f a) b.
+    dmap f (dret a) b = dret (f a) b.
   Proof. rewrite /dmap dret_id_left_pmf //. Qed.
 
   Lemma dmap_dret (f : A → B) a :
@@ -388,6 +401,10 @@ Section dmap.
   Lemma dmap_eq (μ : distr A) (a : A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
     b = f a → dmap f μ b = μ a.
   Proof. intros ->. rewrite dbind_dret_pmf_map //. Qed.
+
+  Lemma dmap_ne (μ : distr A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
+      ¬ (∃ a, μ a > 0 ∧ f a = b) → dmap f μ b = 0.
+  Proof. intros. rewrite /dmap dbind_dret_pmf_map_ne //. Qed.
 
   Lemma dmap_rearrange `{Countable A} (μ1 μ2 : distr A) (f : A → A) `{Inj A A (=) (=) f} :
     (∀ a, μ1 a > 0 → ∃ a', f a' = a) →
@@ -484,6 +501,21 @@ Next Obligation.
   - rewrite -{2}(Rmult_1_r (μ1 a)).
     by apply Rmult_le_compat_l.
 Qed.
+
+Section dprod.
+  Context `{Countable A, Countable B}.
+  Variable (μ1 : distr A) (μ2 : distr B).
+
+  Lemma dprod_pos (a : A) (b : B) :
+    dprod μ1 μ2 (a, b) > 0 → μ1 a > 0 ∧ μ2 b > 0.
+  Proof.
+    rewrite {1}/pmf /=.
+    destruct (decide (μ1 a > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
+    destruct (decide (μ2 b > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
+    done.
+  Qed.
+
+End dprod.
 
 (** * Margignals  *)
 Definition lmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr A :=

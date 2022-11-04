@@ -1,4 +1,4 @@
-From stdpp Require Import countable.
+From stdpp Require Import countable fin_maps.
 
 Section countable.
   Context `{Countable A}.
@@ -84,3 +84,17 @@ Section countable.
   Qed.
 
 End countable.
+
+Section fin_maps.
+  Context `{FinMap K M}.
+
+  Lemma insert_inv {A} (m : M A) i x x' :
+    <[i := x]>m = <[i := x']>m → x = x'.
+  Proof.
+    rewrite map_eq_iff.
+    intros Heq. specialize (Heq i).
+    rewrite 2!(lookup_insert _ i) in Heq.
+    by simplify_option_eq.
+  Qed.
+
+End fin_maps.
