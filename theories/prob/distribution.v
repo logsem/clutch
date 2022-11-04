@@ -415,6 +415,23 @@ End dmap.
 Definition strength_l `{Countable A, Countable B} (a : A) (μ : distr B) : distr (A * B) :=
   dmap (λ b, (a, b)) μ.
 
+
+Lemma dbind_strength `{Countable A, Countable B, Countable D} (f : A*B → distr D) (a : A) (μ : distr B) :
+  dbind f (strength_l a μ) = dbind (λ b, f (a, b)) μ.
+Proof.
+  rewrite /strength_l /dmap.
+  rewrite <- dbind_assoc.
+  setoid_rewrite dret_id_left; auto.
+Qed.
+
+
+Lemma strength_dbind `{Countable A, Countable B, Countable D} (f : B → distr D) (a : A) (μ : distr B) :
+  strength_l a (dbind f μ) = dbind (λ b, strength_l a (f b)) μ.
+Proof.
+  rewrite /strength_l /dmap.
+  rewrite <- dbind_assoc; auto.
+Qed.
+
 (** * Monaidc fold left  *)
 Definition foldlM {A B} `{Countable B} (f : B → A → distr B) (b : B) (xs : list A) : distr B :=
   foldr (λ a m b, f b a ≫= m) dret xs b.

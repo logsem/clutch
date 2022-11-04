@@ -599,11 +599,11 @@ Section positive.
       assert (eps > 0); try lra.
       pose proof (cond_pos eps); lra.
     + pose proof (Hs) as Hs'.
-      rewrite /is_series in Hs.
+      (* rewrite /is_series in Hs.
       rewrite /locally /eventually in Hs.
       rewrite /filterlim in Hs.
       rewrite /filter_le in Hs.
-      rewrite /filtermap in Hs.
+      rewrite /filtermap in Hs. *)
       specialize (Hs (ball r eps)).
       assert (∃ N : nat, ∀ n : nat, N ≤ n → ball r eps (sum_n h n)) as (N & HN).
       {apply Hs. exists eps. auto. }
@@ -629,12 +629,11 @@ Section positive.
     is_series h r.
   Proof.
     intros Hge Hsup.
-    rewrite /is_series.
-      rewrite /is_series
+    (*    rewrite /is_series
        /locally /eventually
        /filterlim
        /filter_le
-       /filtermap.
+       /filtermap.*)
     rewrite /is_sup_seq in Hsup.
     intros P (eps & Heps).
     rewrite /ball /= /AbsRing_ball in Heps.
@@ -695,18 +694,28 @@ Section positive.
       ++ apply (sup_is_upper_bound (λ x, h(x, m)) n).
   Qed.
 
-  (** Fubini for non-negative series **)
-
- (*
-  Lemma fubini_pos_series (f : nat * nat → R) v :
-    (forall n m, f (n, m) >= 0) ->
-    is_series (λ b, Series (λ a, f (a, b))) v →
-    is_series (λ a, Series (λ b, f (a, b))) v.
+(*
+  Lemma fubini_pos_ex_series_r (h : nat * nat → R) :
+    (forall n m, h (n, m) >= 0) ->
+    (∃ (r: R), ∀ n, sum_n (λ j, sum_n (λ k, Rabs (h (j, k))) n) n <= r) ->
+    ∀ b, ex_series (λ a, h (a, b)).
   Proof.
-    intros Hpos Hse.
+    intros Hpos (r & HDS) b.
+    rewrite /ex_series /is_series.
+
+  Lemma fubini_pos_series (h : nat * nat → R) v :
+    (forall n m, h (n, m) >= 0) ->
+    (∃ (r: R), ∀ n, sum_n (λ j, sum_n (λ k, Rabs (h (j, k))) n) n <= r) ->
+    is_series (λ b, Series (λ a, h (a, b))) v ->
+    is_series (λ a, Series (λ b, h (a, b))) v .
+  Proof.
+    intros Hpos (r & HDS) Hse.
     apply sup_is_lim.
     + admit.
-    + apply lim_is_sup.
+    + apply lim_is_sup; auto.
+      Search Series.
+      { rewrite /Series. admit. }
+
   Admitted.
 
 
@@ -725,7 +734,6 @@ Section positive.
     eapply (lim_is_sup (countable_sum h) r).
     + rewrite /countable_sum. destruct (encode_inv_nat _); eauto.
 
-    rewrite /is_sup_seq.
     rewrite /is_seriesC.
     assert (0 <= r) as Hr.
     {
