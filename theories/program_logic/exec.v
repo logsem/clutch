@@ -159,6 +159,20 @@ Section exec.
     intros ρ1 ρ2. rewrite IHξ //.
   Qed.
 
+  Lemma exec_app_pmf ξ1 ξ2 ρ ρ' :
+    exec (ξ1 ++ ξ2) ρ ρ' = dbind (exec ξ2) (exec ξ1 ρ) ρ'.
+  Proof.
+    revert ρ ρ'. induction ξ1; intros ρ ρ'.
+    { rewrite /= dret_id_left_pmf //. }
+    rewrite -app_comm_cons.
+    rewrite 2!exec_cons. rewrite -dbind_assoc.
+    apply dbind_pmf_ext; auto.
+  Qed.
+
+  Lemma exec_app ξ1 ξ2 ρ :
+    exec (ξ1 ++ ξ2) ρ = dbind (exec ξ2) (exec ξ1 ρ).
+  Proof. apply distr_ext, exec_app_pmf. Qed.
+
   Lemma exec_prim_step e1 e2 σ1 σ2 ξ `{Hwf : !SchedulerWf ξ (e1, σ1)} :
     exec ξ (e1, σ1) (e2, σ2) > 0 → ∃ σ, prim_step e1 σ (e2, σ2) > 0.
   Proof.
@@ -299,6 +313,67 @@ Section prim_scheduler.
   (* Qed. *)
 
 End prim_scheduler.
+
+(** * [STATE(α)] scheduler  *)
+Section state_step_sch.
+  Context {Λ : language}.
+  Implicit Types ρ : cfg Λ.
+  Implicit Types e : expr Λ.
+  Implicit Types σ : state Λ.
+  Implicit Types f : scheduler_fn Λ.
+  Implicit Types ξ : scheduler Λ.
+
+  Definition state_step_sch_fn ρ α : scheduler_fn Λ := {[ρ := STATE α]}.
+  Definition state_step_sch ρ α : scheduler Λ := [state_step_sch_fn ρ α].
+
+  Lemma exec_fn_state_step_sch_fn_pmf e σ σ' α :
+    exec_fn (e, σ) (state_step_sch_fn (e, σ) α) (e, σ') = state_step σ α σ'.
+  Proof.
+    rewrite /prim_step_sch_fn exec_fn_pmf_unfold /= lookup_singleton //.
+    rewrite /strength_l.
+    erewrite dmap_eq; [done|apply _|done].
+  Qed.
+
+  Lemma exec_fn_state_step_sch_fn_pmf_ne e e' σ σ' α :
+    e ≠ e' → exec_fn (e, σ) (state_step_sch_fn (e, σ) α) (e', σ') = 0.
+  Proof.
+    intros ?.
+    rewrite /state_step_sch_fn exec_fn_pmf_unfold lookup_singleton //=.
+    rewrite dmap_ne //. by intros [? [? [=]]].
+  Qed.
+
+  Lemma exec_state_step_sch_pmf e σ σ' α :
+    exec (state_step_sch (e, σ) α) (e, σ) (e, σ') = state_step σ α σ'.
+  Proof. rewrite /state_step_sch exec_singleton exec_fn_state_step_sch_fn_pmf //. Qed.
+
+  Lemma exec_state_step_sch_pmf_ne e e' σ σ' α :
+    e ≠ e' → exec (state_step_sch (e, σ) α) (e, σ) (e', σ') = 0.
+  Proof. intros ?. rewrite /state_step_sch exec_singleton exec_fn_state_step_sch_fn_pmf_ne //. Qed.
+
+  Lemma exec_state_step_sch e σ α :
+    exec (state_step_sch (e, σ) α) (e, σ) = strength_l e (state_step σ α).
+  Proof.
+    eapply distr_ext. intros [e0 σ0].
+    destruct (decide (e = e0)); subst.
+    - rewrite exec_state_step_sch_pmf.
+      rewrite /strength_l. erewrite dmap_eq; [done|apply _|done].
+    - rewrite exec_state_step_sch_pmf_ne //.
+      rewrite /strength_l dmap_ne //. by intros [? [? [=]]].
+  Qed.
+
+End state_step_sch.
+
+(** * [STATE(α); PRIM] scheduler  *)
+Section state_prim_sch.
+  Context {Λ : language}.
+  Implicit Types ρ : cfg Λ.
+  Implicit Types e : expr Λ.
+  Implicit Types σ : state Λ.
+  Implicit Types f : scheduler_fn Λ.
+  Implicit Types ξ : scheduler Λ.
+
+  Definition state_prim_step_sch ρ α : scheduler Λ := state_step_sch ρ α ++ prim_step_sch ρ.
+End state_prim_sch.
 
 (** * [LanguageCtx] lifting of a scheduler  *)
 Section ctx_lifting.

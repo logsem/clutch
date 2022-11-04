@@ -14,7 +14,7 @@ Definition specN := nroot .@ "spec".
    fragmental view that lives in [spec_ctx]; from here we will give meaning to
    the usual [spec] resource and points-to connectivs *)
 Definition progUR : ucmra := optionUR (exclR exprO).
-Definition cfgO : ofe := leibnizO cfg.
+Definition cfgO : ofe := prodO exprO stateO.
 Definition cfgUR : ucmra := optionUR (exclR cfgO).
 
 (** The CMRA for the spec [cfg]. *)
@@ -51,13 +51,24 @@ Section resources.
     by apply leibniz_equiv in Hexcl.
   Qed.
 
+  Lemma spec_interp_update ρ'' ρ ρ' :
+    spec_interp_auth ρ -∗ spec_interp_frag ρ' ==∗ spec_interp_auth ρ'' ∗ spec_interp_frag ρ''.
+  Proof.
+    iIntros "Ha Hf".
+    iDestruct (spec_interp_auth_frag_agree with "Ha Hf") as %->.
+    iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
+    { by eapply auth_update, option_local_update,
+      (exclusive_local_update _ (Excl ρ'')). }
+    by iFrame.
+  Qed.
+
   Definition spec_prog_auth (e : expr) : iProp Σ :=
     own specGS_prog_name (● (Excl' e : progUR)).
   Definition spec_prog_frag (e : expr) : iProp Σ :=
     own specGS_prog_name (◯ (Excl' e : progUR)).
 
-  Lemma spec_prog_auth_frag_agree ρ ρ' :
-    spec_prog_auth ρ -∗ spec_prog_frag ρ' -∗ ⌜ρ = ρ'⌝.
+  Lemma spec_prog_auth_frag_agree e e' :
+    spec_prog_auth e -∗ spec_prog_frag e' -∗ ⌜e = e'⌝.
   Proof.
     iIntros "Ha Hf".
     iDestruct (own_valid_2 with "Ha Hf") as
@@ -66,14 +77,14 @@ Section resources.
     by apply leibniz_equiv in Hexcl.
   Qed.
 
-  Lemma spec_prog_update ρ'' ρ ρ' :
-    spec_prog_auth ρ -∗ spec_prog_frag ρ' ==∗ spec_prog_auth ρ'' ∗ spec_prog_frag ρ''.
+  Lemma spec_prog_update e'' e e' :
+    spec_prog_auth e -∗ spec_prog_frag e' ==∗ spec_prog_auth e'' ∗ spec_prog_frag e''.
   Proof.
     iIntros "Ha Hf".
     iDestruct (spec_prog_auth_frag_agree with "Ha Hf") as %->.
     iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
     { by eapply auth_update, option_local_update,
-      (exclusive_local_update _ (Excl ρ'')). }
+      (exclusive_local_update _ (Excl e'')). }
     by iFrame.
   Qed.
 
