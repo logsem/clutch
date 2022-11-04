@@ -585,13 +585,11 @@ Next Obligation.
 Qed.
 
 Definition valid_state_step (σ1 : state) (α : loc) (σ2 : state) : Prop :=
-  (* heaps are the same *)
-  σ2.(heap) = σ1.(heap) ∧
-  (* but we add a bit to the [α] tape *)
-  ∃ b, σ2.(tapes) = <[α := σ1.(tapes) !!! α ++ [b]]>σ1.(tapes).
+  (* the heap is the same but we add a bit to the [α] tape *)
+  ∃ b, σ2 = state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1.
 
-#[local] Instance valid_state_step_dec σ1 α σ2 : Decision (valid_state_step σ1 α σ2).
-Proof. rewrite /valid_state_step. apply _. Qed.
+Local Instance valid_state_step_dec σ1 α σ2 : Decision (valid_state_step σ1 α σ2).
+Proof. apply _. Qed.
 
 Definition state_step_pmf (σ1 : state) (α : loc) (σ2 : state) : R :=
   if bool_decide (valid_state_step σ1 α σ2) then 0.5 else 0.
@@ -603,15 +601,14 @@ Lemma state_step_pmf_eq σ1 α σ2 :
   + (if bool_decide (σ2 = state_upd_tapes (<[α := σ1.(tapes) !!! α ++ [false]]>) σ1)
      then 0.5 else 0).
 Proof.
-  destruct σ1 as [h1 t1], σ2 as [h2 t2].
   rewrite /pmf /= /state_step_pmf /valid_state_step. case_bool_decide as Heq.
-  - destruct Heq as [? [[] ?]]; simplify_map_eq.
+  - destruct Heq as [[] ->]; simplify_map_eq.
     + rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2; [lra|].
       case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
     + rewrite bool_decide_eq_false_2.
       { rewrite bool_decide_eq_true_2 //. lra. }
       case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
-  - rewrite !bool_decide_eq_false_2; [lra| |]; case; intros; eauto.
+  - rewrite !bool_decide_eq_false_2; [lra| |]; intros; eauto.
 Qed.
 
 Program Definition state_step (σ1 : state) (α : loc) : distr state :=

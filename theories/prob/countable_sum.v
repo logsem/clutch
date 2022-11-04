@@ -251,11 +251,6 @@ Section series.
     apply: ex_series_plus; eauto.
   Qed.
 
-  (* Lemma is_seriesC_scal f c v  : *)
-  (*   is_seriesC f v -> is_seriesC (λ a, scal c (f a)) (scal c v). *)
-  (* Proof. *)
-  (*   intros. eapply  *)
-
   Lemma is_seriesC_scal_l f c v :
     is_seriesC f v →
     is_seriesC (λ x, c * f x) (c * v).
@@ -426,11 +421,25 @@ Section filter.
     - eapply (is_seriesC_filter_impl  _ _ _ _ Hge Hexists). intros ? []; auto.
   Qed.
 
-  Lemma SeriesC_split_singleton f (a0 : A) :
-    (∀ a, 0 <= f a) →
+  Lemma ex_seriesC_split_elem f (a0 : A) :
+    ex_seriesC (λ a, if bool_decide (a ≠ a0) then f a else 0) → ex_seriesC f.
+  Proof.
+    intros Ha0.
+    eapply (ex_seriesC_ext (λ a, (λ a, if bool_decide (a = a0) then f a else 0) a +
+                                   (λ a, if bool_decide (a ≠ a0) then f a else 0) a)).
+    { intros a. case_bool_decide; simplify_eq.
+      - rewrite bool_decide_eq_false_2; [lra|auto].
+      - rewrite bool_decide_eq_true_2 //. lra. }
+    eapply ex_seriesC_plus; [|done].
+    eapply ex_seriesC_ext; [|eapply (ex_seriesC_singleton a0 (f a0))].
+    intros a. simpl. by case_bool_decide; simplify_eq.
+  Qed.
+
+  Lemma SeriesC_split_elem f (a0 : A) :
+    (∀ a, 0 <= f a) →           (* TODO: this requirements should not be necessary? *)
     ex_seriesC f →
-    SeriesC f = SeriesC (λ a, if (bool_decide (a = a0)) then f a else 0) +
-                SeriesC (λ a, if (bool_decide (a ≠ a0)) then f a else 0).
+    SeriesC f = SeriesC (λ a, if bool_decide (a = a0) then f a else 0) +
+                SeriesC (λ a, if bool_decide (a ≠ a0) then f a else 0).
   Proof.
     intros Hle Hex.
     erewrite SeriesC_ext.

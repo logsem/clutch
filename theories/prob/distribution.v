@@ -80,11 +80,11 @@ Section distributions.
     a ≠ a' → μ a + μ a' <= SeriesC μ.
   Proof.
     intros Ha.
-    rewrite (SeriesC_split_singleton _ a); [|done|done].
+    rewrite (SeriesC_split_elem _ a); [|done|done].
     eapply Rle_plus_plus.
     - erewrite SeriesC_ext; [by erewrite (SeriesC_singleton a (μ a))|].
       intros; do 2 case_bool_decide; simplify_eq; done.
-    - rewrite (SeriesC_split_singleton _ a'); last first.
+    - rewrite (SeriesC_split_elem _ a'); last first.
       + eapply ex_seriesC_le; [|eapply (pmf_ex_seriesC μ)].
         intros; repeat case_bool_decide; split; (lra || done).
       + intros; by case_bool_decide.

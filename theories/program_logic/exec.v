@@ -159,13 +159,13 @@ Section exec.
     intros ρ1 ρ2. rewrite IHξ //.
   Qed.
 
-
   Lemma exec_app_pmf ξ1 ξ2 ρ ρ' :
     exec (ξ1 ++ ξ2) ρ ρ' = dbind (exec ξ2) (exec ξ1 ρ) ρ'.
   Proof.
-    revert ρ ρ'. induction ξ1; intros ρ ρ'; simpl.
-    { rewrite exec_nil dret_id_left_pmf //. }
-    rewrite 2!exec_cons /=. rewrite -dbind_assoc.
+    revert ρ ρ'. induction ξ1; intros ρ ρ'.
+    { rewrite /= dret_id_left_pmf //. }
+    rewrite -app_comm_cons.
+    rewrite 2!exec_cons. rewrite -dbind_assoc.
     apply dbind_pmf_ext; auto.
   Qed.
 

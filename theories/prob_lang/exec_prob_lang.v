@@ -6,26 +6,73 @@ From self.prob_lang Require Export lang.
 
 Local Open Scope R.
 
-Definition valid_double_state_step '(σ1, σ1') (α α' : loc) '(σ2, σ2') : Prop :=
-    (* heaps are the same *)
-    σ2.(heap) = σ1.(heap) ∧
-    σ2'.(heap) = σ1'.(heap) ∧
-   (* but we add the same bit to the [α] and [α'] tapes *)
-    ∃ b, σ2.(tapes) = <[α := σ1.(tapes) !!! α ++ [b]]>σ1.(tapes) ∧
-         σ2'.(tapes) = <[α' := σ1'.(tapes) !!! α' ++ [b]]>σ1'.(tapes).
+Local Definition add_bool_tapes '(σ, σ') α α' b : state * state :=
+  (state_upd_tapes <[α  := σ.(tapes)  !!! α  ++ [b]]> σ,
+   state_upd_tapes <[α' := σ'.(tapes) !!! α' ++ [b]]> σ').
+
+Definition valid_double_state_step σs (α α' : loc) σs2 : Prop :=
+  ∃ b, σs2 = add_bool_tapes σs α α' b.
 
 Global Instance valid_double_state_step_dec σs α α' σs' :
   Decision (valid_double_state_step σs α α' σs').
-Proof. destruct σs, σs'. apply _. Qed.
+Proof. apply _. Qed.
 
 Definition double_state_step_pmf (σs1 : state * state) (α α' : loc) (σs2 : state * state) : R :=
   if bool_decide (valid_double_state_step σs1 α α' σs2) then 0.5 else 0.
 
+Local Lemma ex_seriesC_double_state_step_pmf σ1 σ1' α α' :
+  ex_seriesC (double_state_step_pmf (σ1, σ1') α α').
+Proof.
+  rewrite /double_state_step_pmf.
+  apply (ex_seriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' true)).
+  apply (ex_seriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' false)).
+  eapply ex_seriesC_ext; [|apply ex_seriesC_0].
+  intros [σ2 σ2'].
+  do 2 (case_bool_decide; [|lra]).
+  rewrite bool_decide_eq_false_2 //.
+  intros [b [=]]; simplify_eq.
+  assert (b ≠ false) by (intros ->; eauto).
+  assert (b ≠ true) by (intros ->; eauto).
+  by destruct b.
+Qed.
+
 Program Definition double_state_step (σs1 : state * state) (α α' : loc) : distr (state * state) :=
   MkDistr (double_state_step_pmf σs1 α α') _ _ _.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+Next Obligation.
+  rewrite /double_state_step_pmf.
+  intros [] ?? []. case_bool_decide; lra.
+Qed.
+Next Obligation. intros [? ?]. apply ex_seriesC_double_state_step_pmf. Qed.
+Next Obligation.
+  rewrite /double_state_step_pmf. intros [σ1 σ1'] ??.
+  rewrite (SeriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' true)); last first.
+  { eapply ex_seriesC_double_state_step_pmf. }
+  { intros [? ?]. case_bool_decide; lra. }
+  rewrite (SeriesC_ext _
+             (λ a, if bool_decide (a = add_bool_tapes (σ1, σ1') α α' true) then 0.5 else 0)); last first.
+  { intros [? ?]. case_bool_decide as Heq; [|done]. case_bool_decide as Hnv; [done|].
+    exfalso; eapply Hnv. by exists true. }
+  rewrite SeriesC_singleton.
+  rewrite (SeriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' false)); last first.
+  { apply ex_seriesC_filter_pos; [intros; case_bool_decide; lra|].
+    apply ex_seriesC_double_state_step_pmf. }
+  { intros [? ?]. repeat case_bool_decide; lra. }
+  rewrite (SeriesC_ext _
+             (λ a, if bool_decide (a = add_bool_tapes (σ1, σ1') α α' false) then 0.5 else 0)); last first.
+  { intros [? ?]. case_bool_decide as Heq; simplify_eq; [|done].
+    rewrite bool_decide_eq_true_2; last first.
+    - intros [=]. simplify_eq. inversion Heq as [Hst].
+      apply insert_inv in Hst. simplify_map_eq.
+    - case_bool_decide as H; [done|]. exfalso; apply H. by exists false. }
+  rewrite SeriesC_singleton.
+  erewrite SeriesC_0; [lra|].
+  intros [σ2 σ2']. do 2 (case_bool_decide; [|done]).
+  rewrite bool_decide_eq_false_2 //.
+  intros (b & [=]). simplify_eq.
+  assert (b ≠ false) by (intros ->; eauto).
+  assert (b ≠ true) by (intros ->; eauto).
+  by destruct b.
+Qed.
 
 Definition double_step (ρs : cfg * cfg) (α1 α2 : loc) : distr (cfg * cfg) :=
   let '((e1, σ1), (e2, σ2)) := ρs in
@@ -42,37 +89,31 @@ Proof.
     + eapply distr_ext. intros σ.
       rewrite lmarg_pmf /pmf /= /double_state_step_pmf /state_step_pmf.
       case_bool_decide as Heq.
-      * destruct Heq as (? & b & H).
+      * destruct Heq as (b & ?).
         erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton
-                     (state_upd_tapes <[α2 := σ2.(tapes) !!! α2 ++ [b]]> σ2))|].
+          [eapply (SeriesC_singleton (state_upd_tapes <[α2 := σ2.(tapes) !!! α2 ++ [b]]> σ2))|].
         intros σ'; simpl.
         symmetry; case_bool_decide as Heq; simplify_eq.
-        { rewrite bool_decide_eq_true_2 //; eauto. }
+        { rewrite bool_decide_eq_true_2 //. by exists b. }
         rewrite bool_decide_eq_false_2 //.
-        intros (?&?&?&Htapes &?).
-        destruct σ, σ', σ1, σ2; simplify_map_eq.
-        apply insert_inv in Htapes. simplify_map_eq.
+        intros (b' & [= Htapes%insert_inv]). simplify_map_eq.
       * apply SeriesC_0. intros σ'.
         rewrite bool_decide_eq_false_2 //.
-        intros (?&?&?&?&?). apply Heq. split_and!; eauto.
+        intros (b & [=]); simplify_eq. apply Heq. by eexists.
     + eapply distr_ext. intros σ.
       rewrite rmarg_pmf /pmf /= /double_state_step_pmf /state_step_pmf.
       case_bool_decide as Heq.
-      * destruct Heq as (? & b & H).
+      * destruct Heq as (b & ?).
         erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton
-                     (state_upd_tapes <[α1 := σ1.(tapes) !!! α1 ++ [b]]> σ1))|].
+          [eapply (SeriesC_singleton (state_upd_tapes <[α1 := σ1.(tapes) !!! α1 ++ [b]]> σ1))|].
         intros σ'; simpl.
         symmetry; case_bool_decide as Heq; simplify_eq.
-        { rewrite bool_decide_eq_true_2 //; eauto. }
+        { rewrite bool_decide_eq_true_2 //. by exists b. }
         rewrite bool_decide_eq_false_2 //.
-        intros (?&?&?&?& Htapes).
-        destruct σ, σ', σ1, σ2; simplify_map_eq.
-        apply insert_inv in Htapes. simplify_map_eq.
+        intros (b' & [= ? Htapes%insert_inv]). simplify_map_eq.
       * apply SeriesC_0. intros σ'.
         rewrite bool_decide_eq_false_2 //.
-        intros (?&?&?&?&?). apply Heq. split_and!; eauto.
+        intros (b & [=]); simplify_eq. apply Heq. by eexists.
   - intros [ρ1 ρ2]. rewrite /pmf /= /double_state_step_pmf.
     case_bool_decide; eauto. lra.
 Qed.
@@ -135,33 +176,26 @@ Proof.
   rewrite exec_cons.
   eapply Rcoupl_bind; last first.
   { rewrite -exec_singleton. apply state_step_sch_coupl. }
-  intros [? σ1'] [? σ2'] (?&?&?&?& b &?&?); simplify_eq.
-  exists (dprod (exec [prim_step_sch_sample (e1, σ1) α1] (e1, σ1')) (dret (e2, σ2'))).
+  intros [? σ1'] [? σ2'] (? & ? & [b [=]]); simplify_eq.
+  eexists (dprod (exec [prim_step_sch_sample (e1, σ1) α1] (e1, _)) (dret (e2, _))).
   split.
   { split; rewrite ?lmarg_dprod ?rmarg_dprod //. }
   intros [[] []] [Hexec [=]%dret_pos]%dprod_pos; simplify_eq/=.
   move: Hexec.
   rewrite exec_singleton exec_fn_pmf_unfold.
   destruct b.
-  - assert (σ1' = state_upd_tapes <[α1:=tapes σ1 !!! α1 ++ [true]]> σ1) as <-.
-    { destruct σ1'. by simplify_map_eq. }
+  - rewrite lookup_insert /=. intros Hs.
+    eapply pmf_1_supp_eq in Hs; [|apply Hpstep].
+    simplify_eq.
+    split_and!; eauto.
+    by exists true.
+  - rewrite lookup_insert_ne /=; last first.
+    { intros [= Htapes%insert_inv]. simplify_map_eq. }
     rewrite lookup_insert /=.
     intros Hs.
     eapply pmf_1_supp_eq in Hs; [|apply Hpstep].
     simplify_eq.
-    split_and!; eauto.
-  - assert (σ1' = state_upd_tapes <[α1:=tapes σ1 !!! α1 ++ [false]]> σ1) as <-.
-    { destruct σ1'. by simplify_map_eq. }
-    rewrite lookup_insert_ne /=; last first.
-    { intros [=]. destruct σ1', σ1. simplify_map_eq.
-      eapply map_eq_iff in H0.
-      erewrite 2!(lookup_insert _ α1) in H0.
-      simplify_option_eq. }
-    rewrite lookup_insert /=.
-    intros Hs.
-    eapply pmf_1_supp_eq in Hs; [|apply Hpstep].
-    simplify_eq.
-    split_and!; eauto.
+    split_and!; eauto. by exists false.
 Qed.
 
 Lemma Rcoupl_exec_det_prefix_r ξ ξ1 ξ2 (ρ ρ1 ρ2 : cfg) (S : cfg → cfg → Prop) :

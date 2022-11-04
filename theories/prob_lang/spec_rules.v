@@ -148,14 +148,10 @@ Section rules.
     iExists _, _, _. iSplit.
     { iPureIntro. apply state_prim_step_sch_wf. rewrite Hv //. }
     iSplit.
-    { iPureIntro. eapply Rcoupl_exec_det_prefix_r; [done|]. by eapply state_prim_state_coupl. }
-    iIntros (e3 σ3 [e4 σ4] (?&?&?&?& b &?&?)); simplify_eq.
-    assert (σ3 = state_upd_tapes <[α:=tapes σ !!! α ++ [b]]> σ ) as Hσ3.
-    { destruct σ3, σ; simplify_map_eq. done. }
-    assert (σ4 = state_upd_tapes <[αₛ:=tapes σ2 !!! αₛ ++ [b]]> σ2 ) as Hσ2.
-    { destruct σ4, σₛ; simplify_map_eq. done. }
+    { iPureIntro. eapply Rcoupl_exec_det_prefix_r; [done|]. by eapply (state_prim_state_coupl α αₛ). }
+    iIntros (e3 σ3 [e4 σ4] (?&?& [b [=]])); simplify_eq.
     iIntros "!> !>". rewrite /state_interp /spec_interp /=.
-    iMod (spec_interp_update (e2, σ4) with "Hρ Hspec0") as "[Hρ Hspec0]".
+    iMod (spec_interp_update (e2, _) with "Hρ Hspec0") as "[Hρ Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
     simplify_map_eq.
@@ -165,7 +161,7 @@ Section rules.
     iMod "Hclose'". iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_"; last first.
     { iModIntro. iApply "Hwp". iExists b. iFrame. }
     iModIntro. rewrite /spec_inv.
-    iExists [], _, _, (state_upd_tapes <[αₛ:=tapes σ2 !!! αₛ ++ [b]]> σ2) . simpl.
+    iExists [], _, _, (state_upd_tapes _ _). simpl.
     iFrame. rewrite exec_nil dret_1 //.
 Qed.
 
