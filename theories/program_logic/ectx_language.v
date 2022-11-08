@@ -219,6 +219,22 @@ Section ectx_language.
     subst K''. rewrite fill_empty. done.
   Qed.
 
+  Lemma fill_prim_step_dbind K e1 σ1 :
+    to_val e1 = None →
+    prim_step (fill K e1) σ1 = dbind (λ '(e2, σ2), dret (fill K e2, σ2)) (prim_step e1 σ1).
+  Proof.
+    intros Hval. rewrite /prim_step.
+    destruct (decomp e1) as [K1 e1'] eqn:Heq.
+    destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
+    apply (decomp_fill_comp K) in Heq; [|done].
+    rewrite Heq in Heq'; simplify_eq.
+    rewrite -dbind_assoc.
+    eapply distr_ext. intros ρ.
+    eapply dbind_pmf_ext; [|done|done].
+    intros [e' σ'] [e'' σ''].
+    rewrite dret_id_left -fill_comp //.
+  Qed.
+
   Local Lemma fill_prim_step K e1 σ1 e2 σ2 :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
@@ -364,18 +380,7 @@ Section ectx_language.
     split; simpl.
     - eauto using fill_not_val.
     - apply _.
-    - intros ???? (K' & e1' & e2' & Heq1 & Heq2 & Hs)%prim_step_iff.
-      eapply prim_step_iff.
-      exists (comp_ectx K K'), e1', e2'.
-      simplify_eq. rewrite !fill_comp //.
-    - intros e1 σ1 e2 σ2 Hnval (K'' & e1'' & e2'' & Heq1 & Heq2 & Hstep)%prim_step_iff.
-      simplify_eq.
-      destruct (step_by_val K K'' e1 e1'' σ1 (e2'', σ2)) as [K' ->]; eauto.
-      rewrite -fill_comp in Heq1; apply (inj (fill _)) in Heq1.
-      exists (fill K' e2'').
-      rewrite -fill_comp. split; [done|].
-      eapply prim_step_iff. do 3 eexists; eauto.
-    - apply fill_prim_step.
+    - apply fill_prim_step_dbind.
   Qed.
 
   Record pure_head_step (e1 e2 : expr Λ) := {

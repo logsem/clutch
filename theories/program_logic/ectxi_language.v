@@ -48,7 +48,6 @@ Section ectxi_language_mixin.
     mixin_decomp_fill_item_2 e e' Ki :
       decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None;
 
-
     (** If [fill_item Ki e] takes a head step, then [e] is a value (unlike for
         [ectx_language], an empty context is impossible here).  In other words,
         if [e] is not a value then wrapping it in a context does not add new
