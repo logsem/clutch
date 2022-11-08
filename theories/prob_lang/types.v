@@ -1,6 +1,13 @@
 (** (Syntactic) Typing for System F_mu_ref with tapes *)
-From stdpp Require Export binders strings stringmap fin_map_dom gmap.
+From Autosubst Require Export Autosubst.
+From stdpp Require Export stringmap fin_map_dom gmap.
 From self.prob_lang Require Export lang notation.
+
+Canonical Structure varO := leibnizO var.
+
+Reserved Notation "⟦ τ ⟧" (at level 0, τ at level 70).
+Reserved Notation "⟦ τ ⟧ₑ" (at level 0, τ at level 70).
+Reserved Notation "⟦ Γ ⟧*" (at level 0, Γ at level 70).
 
 (** * Types *)
 Inductive type :=
@@ -10,10 +17,10 @@ Inductive type :=
   | TProd : type → type → type
   | TSum : type → type → type
   | TArrow : type → type → type
-(*  | TRec : {bind 1 of type} → type *)
-  | TVar : string → type
-(*  | TForall : {bind 1 of type} → type
-  | TExists : {bind 1 of type} → type *)
+  | TRec : {bind 1 of type} → type
+  | TForall : {bind 1 of type} → type
+  | TExists : {bind 1 of type} → type
+  | TVar : var → type
   | TRef : type → type
   | TTape : type.
 
@@ -31,11 +38,20 @@ Inductive EqType : type → Prop :=
   | EqTInt : EqType TInt
   | EqTBool : EqType TBool
   | EqTProd τ τ' : EqType τ → EqType τ' → EqType (TProd τ τ')
-  | EqSum τ τ' : EqType τ → EqType τ' → EqType (TSum τ τ').
+  | EqSum τ τ' : EqType τ → EqType τ' → EqType (TSum τ τ')
+  (* PGH: we should be able to add references here. *)
+  (* | EQRef τ : EqType (Tref τ) *)
+.
 
 Lemma unboxed_type_ref_or_eqtype τ :
   UnboxedType τ → (EqType τ ∨ ∃ τ', τ = TRef τ').
 Proof. inversion 1; first [ left; by econstructor | right; naive_solver ]. Qed.
+
+(** Autosubst instances *)
+Global Instance Ids_type : Ids type. derive. Defined.
+Global Instance Rename_type : Rename type. derive. Defined.
+Global Instance Subst_type : Subst type. derive. Defined.
+Global Instance SubstLemmas_typer : SubstLemmas type. derive. Qed.
 
 Definition binop_nat_res_type (op : bin_op) : option type :=
   match op with
@@ -70,41 +86,42 @@ Infix "+" := TSum : FType_scope.
 Notation "(+)" := TSum (only parsing) : FType_scope.
 Infix "→" := TArrow : FType_scope.
 Notation "(→)" := TArrow (only parsing) : FType_scope.
-(* Notation "μ: τ" :=
+
+Notation "μ: τ" :=
   (TRec τ%ty)
-  (at level 100, τ at level 200) : FType_scope. *)
-(* Notation "∀: τ" :=
+  (at level 100, τ at level 200) : FType_scope.
+Notation "∀: τ" :=
   (TForall τ%ty)
   (at level 100, τ at level 200) : FType_scope.
 Notation "∃: τ" :=
   (TExists τ%ty)
-  (at level 100, τ at level 200) : FType_scope. *)
+  (at level 100, τ at level 200) : FType_scope.
 Notation "'ref' τ" := (TRef τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
 
 (** * Typing judgements *)
 Reserved Notation "Γ ⊢ₜ e : τ" (at level 74, e, τ at next level).
 Reserved Notation "⊢ᵥ v : τ" (at level 20, v, τ at next level).
 
-(* PGH: commented for now; we're using named variables. *)
-(* (* Shift all the indices in the context by one, *)
-(*    used when inserting a new type interpretation in Δ. *) *)
-(* Notation "⤉ Γ" := (Autosubst_Classes.subst (ren (+1)) <$> Γ) (at level 10, format "⤉ Γ"). *)
+(* Shift all the indices in the context by one, *)
+(*    used when inserting a new type interpretation in Δ. *)
+Notation "⤉ Γ" := (Autosubst_Classes.subst (ren (+1)) <$> Γ) (at level 10, format "⤉ Γ").
+
 
 (** We model type-level lambdas and applications as thunks *)
-(* Notation "Λ: e" := (λ: <>, e)%E (at level 200, only parsing).
+Notation "Λ: e" := (λ: <>, e)%E (at level 200, only parsing).
 Notation "Λ: e" := (λ: <>, e)%V (at level 200, only parsing) : val_scope.
-Notation "'TApp' e" := (App e%E #()%E) (at level 200, only parsing). *)
+Notation "'TApp' e" := (App e%E #()%E) (at level 200, only parsing).
 
 (* To unfold a recursive type, we need to take a step. We thus define the
 unfold operator to be the identity function. *)
-(* Definition rec_unfold : val := λ: "x", "x".
+Definition rec_unfold : val := λ: "x", "x".
 Definition unpack : val := λ: "x" "y", "y" "x".
 
 Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (Lam x%binder e2%E))
   (at level 200, x at level 1, e1, e2 at level 200, only parsing) : expr_scope.
 
 Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (LamV x%binder e2%E))
-  (at level 200, x at level 1, e1, e2 at level 200, only parsing) : val_scope. *)
+  (at level 200, x at level 1, e1, e2 at level 200, only parsing) : val_scope.
 
 (** Operation lifts *)
 Global Instance insert_binder (A : Type): Insert binder A (stringmap A) :=
@@ -170,7 +187,7 @@ Inductive typed : stringmap type → expr → type → Prop :=
      Γ ⊢ₜ e1 : (τ1 → τ2) →
      Γ ⊢ₜ e2 : τ1 →
      Γ ⊢ₜ App e1 e2 : τ2
-(*  | TLam_typed Γ e τ :
+ | TLam_typed Γ e τ :
      ⤉ Γ ⊢ₜ e : τ →
      Γ ⊢ₜ (Λ: e) : ∀: τ
   | TApp_typed Γ e τ τ' :
@@ -189,7 +206,7 @@ Inductive typed : stringmap type → expr → type → Prop :=
      Γ ⊢ₜ e1 : (∃: τ) →
      <[x:=τ]>(⤉ Γ) ⊢ₜ e2 : (Autosubst_Classes.subst (ren (+1)) τ2) →
      Γ ⊢ₜ (unpack: x := e1 in e2) : τ2
-  | TFork Γ e : Γ ⊢ₜ e : () → Γ ⊢ₜ Fork e : () *)
+  (* | TFork Γ e : Γ ⊢ₜ e : () → Γ ⊢ₜ Fork e : () *)
   | TAlloc Γ e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e : ref τ
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Load e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
@@ -221,9 +238,9 @@ with val_typed : val → type → Prop :=
   | Rec_val_typed f x e τ1 τ2 :
      <[f:=TArrow τ1 τ2]>(<[x:=τ1]>∅) ⊢ₜ e : τ2 →
      ⊢ᵥ RecV f x e : (τ1 → τ2)
-(*  | TLam_val_typed e τ :
+  | TLam_val_typed e τ :
      ∅ ⊢ₜ e : τ →
-     ⊢ᵥ (Λ: e) : (∀: τ) *)
+     ⊢ᵥ (Λ: e) : (∀: τ)
 where "Γ ⊢ₜ e : τ" := (typed Γ e τ)
 and "⊢ᵥ e : τ" := (val_typed e τ).
 
