@@ -118,6 +118,16 @@ Section distributions.
     f_equal; apply proof_irrelevance.
   Qed.
 
+
+  Lemma distr_ext_pmf (d1 d2 : distr A) :
+    d1.(pmf)  = d2.(pmf) → d1 = d2.
+  Proof.
+    destruct d1 as [pmf1 ?], d2 as [pmf2 ?] =>/=.
+    rewrite /pmf. intros ->.
+    f_equal; apply proof_irrelevance.
+  Qed.
+ 
+
   Lemma pmf_eq_0_le (μ : distr A) (a : A):
     μ a <= 0 → μ a = 0.
   Proof. by intros [Hlt%(Rle_not_gt _ _ (pmf_pos μ a)) |]. Qed.
@@ -125,6 +135,44 @@ Section distributions.
   Lemma pmf_eq_0_not_gt_0 (μ : distr A) (a : A):
     ¬ (μ a > 0) → μ a = 0.
   Proof. intros ?%Rnot_gt_ge%Rge_le. by apply pmf_eq_0_le. Qed.
+
+
+  Definition fair_coin_pmf : bool → R :=
+    λ b, 0.5.
+  
+  Program Definition fair_coin : distr bool := MkDistr (fair_coin_pmf) _ _ _.
+  Next Obligation. intros b. rewrite /fair_coin_pmf. destruct b; lra. Qed.
+  Next Obligation.
+  apply (ex_seriesC_ext  (λ b, (if bool_decide (b = true) then 0.5 else 0) + if bool_decide (b = false) then 0.5 else 0)); auto.
+  { intro b; destruct b; rewrite /fair_coin_pmf /=; lra. }
+  eapply ex_seriesC_plus; eapply ex_seriesC_singleton. Qed.
+  Next Obligation.
+  rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then 0.5 else 0) + if bool_decide (b = false) then 0.5 else 0)).
+  2 : { intro b; destruct b; rewrite /fair_coin_pmf /= ; lra. }
+  erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
+  rewrite 2!SeriesC_singleton. lra. Qed.
+
+
+
+(* AA: We may need this generality later, but I think it is better to define the fair coin
+   explicitly *)
+  Definition biased_coin_pmf r : bool → R :=
+    λ b, if b then r else 1-r.
+  Program Definition biased_coin r (P : 0 <= r <= 1) : distr bool := MkDistr (biased_coin_pmf r) _ _ _.
+  Next Obligation. intros r P b. rewrite /biased_coin_pmf. destruct b; lra. Qed.
+  Next Obligation.
+  intros r P.
+  apply (ex_seriesC_ext  (λ b, (if bool_decide (b = true) then r else 0) + if bool_decide (b = false) then 1-r else 0)); auto.
+  { intro b; destruct b; rewrite /biased_coin_pmf /=; lra. }
+  eapply ex_seriesC_plus; eapply ex_seriesC_singleton. Qed.
+  Next Obligation.
+  intros r P.
+  rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then r else 0) + if bool_decide (b = false) then 1-r else 0)).
+  2 : { intro b; destruct b; rewrite /biased_coin_pmf /= ; lra. }
+  erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
+  rewrite 2!SeriesC_singleton. lra. Qed.
+
+
 
 End distributions.
 
@@ -352,7 +400,69 @@ Section monadic.
         * apply Rmult_le_compat_l; [done|]. eapply pmf_le_1.
   Qed.
 
+
 End monadic.
+
+  (* Convex combinations *)
+  (* AA: There may be a better place to define this *)
+  Definition fair_conv_comb `{Countable A} (μ1 μ2 : distr A) : distr A :=
+    dbind (λ b, if b then μ1 else μ2) fair_coin.
+
+Section conv_prop.
+
+  Context `{Countable A, Countable B}.
+
+  Lemma fair_conv_comb_pmf `{Countable D} (μ1 μ2 : distr D) (a : D) :
+    fair_conv_comb μ1 μ2 a = 0.5 * (μ1 a) + 0.5 * (μ2 a).
+  Proof.
+    rewrite /pmf /fair_coin_pmf /= /dbind_pmf.
+    rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then 0.5 * μ1 a else 0) + if bool_decide (b = false) then 0.5 * μ2 a else 0)).
+    2: { intro b; destruct b; simpl; rewrite /pmf /fair_coin_pmf /= /fair_coin_pmf; simpl; lra. }
+    erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
+    rewrite 2!SeriesC_singleton; simpl.
+    (* AA: This is strange *)
+    rewrite /pmf; lra.
+  Qed.
+
+  Definition dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
+    dbind (λ a, fair_conv_comb (f1 a) (f2 a)) μ = fair_conv_comb (dbind f1 μ) (dbind f2 μ).
+  Proof.
+    apply distr_ext.
+    intro b.
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite (fair_conv_comb_pmf (μ ≫= f1) (μ ≫= f2) b).
+    assert (forall a, μ a * fair_conv_comb (f1 a) (f2 a) b = 0.5 * (μ a * (f1 a) b + μ a * (f2 a) b)) as Heq.
+    { intro a; rewrite fair_conv_comb_pmf; lra. }
+    setoid_rewrite Heq.
+    rewrite SeriesC_scal_l.
+    rewrite <- Rmult_plus_distr_l.
+    rewrite {5 6}/pmf /= /dbind_pmf.
+    rewrite -> SeriesC_plus; auto.
+    (* TODO: Clean this up *)
+    + apply (ex_seriesC_le _ μ); [ | apply pmf_ex_seriesC].
+      intro a.
+      pose proof (pmf_pos μ a).
+      pose proof (pmf_pos (f1 a) b).
+      pose proof (pmf_le_1 μ a).
+      pose proof (pmf_le_1 (f1 a) b).
+      split.
+      ++ apply Rmult_le_pos; auto.
+      ++ rewrite <- (Rmult_1_r (μ a)).
+         apply Rmult_le_compat; lra.
+    + apply (ex_seriesC_le _ μ); [ | apply pmf_ex_seriesC].
+      intro a.
+      pose proof (pmf_pos μ a).
+      pose proof (pmf_pos (f2 a) b).
+      pose proof (pmf_le_1 μ a).
+      pose proof (pmf_le_1 (f2 a) b).
+      split.
+      ++ apply Rmult_le_pos; auto.
+      ++ rewrite <- (Rmult_1_r (μ a)).
+         apply Rmult_le_compat; lra.
+  Qed.
+
+
+End conv_prop.
 
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=

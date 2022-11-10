@@ -6,6 +6,7 @@ From self.prob Require Import distribution.
 From self.program_logic Require Export language ectx_language ectxi_language.
 From self.prob_lang Require Export locations.
 From iris.prelude Require Import options.
+From self.prelude Require Import stdpp_ext.
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
@@ -724,6 +725,7 @@ Export prob_lang.
 
 Definition cfg : Type := expr * state.
 
+  
 (* (** The following lemma is not provable using the axioms of [ectxi_language]. *)
 (* The proof requires a case analysis over context items ([destruct i] on the *)
 (* last line), which in all cases yields a non-value. To prove this lemma for *)
