@@ -97,4 +97,33 @@ Section fin_maps.
     by simplify_option_eq.
   Qed.
 
+  Lemma lookup_total_correct_2 `{!Inhabited A} (m : M A) i :
+    m !! i = None → m !!! i = inhabitant.
+  Proof. rewrite lookup_total_alt. by intros ->. Qed.
+
 End fin_maps.
+
+
+Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
+  match type of H with
+  | context [ match ?x with _ => _ end ] => destruct x eqn:Hd
+  | _ => fail "expected hypothesis to include a 'match'"
+  end.
+
+Tactic Notation "case_match" "in" ident(H) :=
+  let Hf := fresh in case_match in H eqn:Hf.
+
+Tactic Notation "case_bool_decide" "in" ident(H) "as" ident(Hd) :=
+  match type of H with
+  | context [@bool_decide ?P ?dec] =>
+      destruct_decide (@bool_decide_reflect P dec) as Hd
+  | _ => fail "expected hypothesis to include a 'bool_decide _'"
+  end.
+Tactic Notation "case_bool_decide" "in" ident(H) :=
+  let Hfr := fresh in case_bool_decide in H as Hf.
+
+Tactic Notation "case_bool_decide_and_destruct" "in" ident(H) :=
+  let Hf := fresh in
+  case_bool_decide in H as Hf;
+  destruct_and? Hf;
+  simplify_eq.

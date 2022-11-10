@@ -19,14 +19,17 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 Lemma wp_lift_step_fupd_couple s E Φ e1 :
   to_val e1 = None →
-  (∀ σ1 ρ, state_interp σ1 ∗ spec_interp ρ ={E,∅}=∗
-    ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
-    ∃ ξ ξ' R,
-      ⌜SchedulerWf ξ (e1, σ1)⌝ ∗
-      ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
-      ∀ e2 σ2 ρ',
-        ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
-        state_interp σ2 ∗ spec_interp ρ' ∗ WP e2 @ s; E {{ Φ }})
+  (∀ σ1 e1' σ1',
+     state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
+     ∃ (ζ1 : state_scheduler Λ) (ξ1 : scheduler Λ) (R : state Λ → cfg Λ → Prop),
+       ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R⌝ ∗
+       ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗
+         ⌜if s is NotStuck then reducible e1 σ2 else True⌝ ∗
+         ∃ (ζ2 : state_scheduler Λ) (ξ2 : scheduler Λ) (S : cfg Λ → cfg Λ → Prop),
+           ⌜Rcoupl (dbind (λ σ3, prim_step e1 σ3) (exec_state ζ2 σ2)) (exec ξ2 (e2', σ2')) S⌝ ∗
+           ∀ e2 σ3 e3' σ3',
+             ⌜S (e2, σ3) (e3', σ3')⌝ ={∅}=∗ ▷ |={∅,E}=>
+             state_interp σ3 ∗ spec_interp (e3', σ3') ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. by rewrite wp_unfold /wp_pre=>->. Qed.
 
@@ -41,16 +44,19 @@ Lemma wp_lift_step_fupd s E Φ e1 :
 Proof.
   iIntros (?) "H".
   iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 ρ) "[Hσ Hρ]".
+  iIntros (σ1 e1' σ1') "[Hσ Hρ]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iSplit; [done|].
-  iExists (prim_step_sch (e1, σ1)), [], _.
-  iSplit; [iPureIntro; by apply prim_step_sch_wf|].
+  iExists [], [], _.
   iSplit.
   { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial. }
-  iIntros (???). rewrite exec_prim_step_sch_pmf exec_nil.
-  iIntros "(_ & %Hstep & %Hρ')".
-  apply dret_pos in Hρ'; subst.
+  simpl. iIntros (σ2 e2' σ2' (_ & ->%dret_pos & ->%dret_pos)).
+  iModIntro.
+  iSplit; [done|].
+  iExists [], [], _.
+  iSplit.
+  { iPureIntro. rewrite exec_state_nil exec_nil dret_id_left.
+    eapply Rcoupl_pos_R, Rcoupl_trivial. }
+  simpl. iIntros (e2 σ3 e3' σ3' (_ & Hstep & [=-> ->]%dret_pos)).
   iMod ("H" with "[//]") as "H".
   iIntros "!> !>". by iFrame.
 Qed.
@@ -60,16 +66,20 @@ Lemma wp_lift_stuck E Φ e :
   (∀ σ ρ, state_interp σ ∗ spec_interp ρ ={E,∅}=∗ ⌜stuck e σ⌝)
   ⊢ WP e @ E ?{{ Φ }}.
 Proof.
-  rewrite wp_unfold /wp_pre=>->. iIntros "H" (σ1 ρ) "Hσ".
-  iMod ("H" with "Hσ") as %[? Hirr]. iModIntro. iSplit; first done.
-  iExists (prim_step_sch (e, σ1)), [], _.
-  iSplit; [iPureIntro; by apply prim_step_sch_wf|].
+  rewrite wp_unfold /wp_pre=>->. iIntros "H" (σ1 e1' σ1') "Hσ".
+  iMod ("H" with "Hσ") as %[? Hirr]. iModIntro.
+  iExists [], [], _.
   iSplit.
-  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial. }
-  simpl.
-  iIntros (e2 σ2 ρ' (_ & Hexec & ?)).
-  rewrite exec_prim_step_sch_pmf in Hexec.
-  destruct (Hirr (e2, σ2)); lra.
+  { iPureIntro. rewrite exec_state_nil exec_nil. eapply Rcoupl_pos_R, Rcoupl_trivial. }
+  simpl. iIntros (σ2 e2' σ2' (_ & ->%dret_pos & ->%dret_pos)).
+  iModIntro.
+  iSplit; [done|].
+  iExists [], [], _.
+  iSplit.
+  { iPureIntro. rewrite exec_state_nil exec_nil dret_id_left.
+    eapply Rcoupl_pos_R, Rcoupl_trivial. }
+  simpl. iIntros (e2 σ3 e3' σ3' (_ & Hstep & [=-> ->]%dret_pos)).
+  destruct (Hirr (e2, σ3)); lra.
 Qed.
 
 (** Derived lifting lemmas. *)

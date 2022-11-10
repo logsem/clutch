@@ -1,5 +1,5 @@
-(** This file proves the basic laws of the ProbLang program logic by applying
-    the lifting lemmas. *)
+(** This file proves the basic laws of the ProbLang weakest precondition by
+    applying the lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Export ghost_map.
@@ -138,7 +138,8 @@ Proof.
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   iSplit; [by eauto with head_step|].
   simpl.
-  iIntros "!>" (e2 σ2 Hs); inv_head_step.
+  iIntros "!>" (e2 σ2 Hs); inv_head_step; last first.
+  { destruct_or?; simplify_map_eq. }
   iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
 Qed.

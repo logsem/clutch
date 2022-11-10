@@ -477,7 +477,8 @@ Section strict.
   Lemma SeriesC_lt f g :
   (∀ n, 0 <= f n <= g n) →
   (∃ m, f m < g m) →
-   ex_seriesC g → SeriesC f < SeriesC g.
+  ex_seriesC g →
+  SeriesC f < SeriesC g.
   Proof.
     intros Hle Hlt Hg.
     assert (ex_seriesC f) as Hf.
@@ -523,20 +524,18 @@ Section strict.
   Qed.
 
   Lemma SeriesC_gtz_ex f :
-  (∀ n, 0 <= f n) →
-  (SeriesC f > 0) →
-  (exists n, f n > 0).
+    (∀ n, 0 <= f n) →
+    SeriesC f > 0 →
+    ∃ n, f n > 0.
   Proof.
     intro Hf.
     eapply contrapositive. intros Hna.
     assert (∀ a, f a = 0) as Hz.
     { intros a.
       pose proof (not_exists_forall_not _ _ Hna a).
-      specialize (Hf a); lra.
-    }
+      specialize (Hf a); lra. }
     apply Rge_not_gt. rewrite SeriesC_0 //.
    Qed.
-
 
 End strict.
 
@@ -568,6 +567,7 @@ Section positive.
          lra.
   Qed.
 
+  (* TODO: move to [prelude/Coquelicot_ext.v] *)
   (* Strangely, this was not in Coquelicot *)
   Lemma is_series_ge0 (h : nat → R) r:
     (∀ n, 0 <= h n) ->
@@ -582,6 +582,46 @@ Section positive.
     rewrite /ex_series.
     exists r; auto.
   Qed.
+
+(* Lemma is_series_0 a : *)
+(*   is_series a 0 → (∀ n, a n = 0). *)
+(* Proof. *)
+(*   intros Ha. apply (is_series_ext (λ x, 0)); auto. *)
+(*   rewrite /is_series. *)
+(*   apply (filterlim_ext (λ x, 0)). *)
+(*   - intros m. rewrite sum_n_const Rmult_0_r //. *)
+(*   - apply filterlim_const. *)
+(* Qed. *)
+
+
+(*   Lemma Series_0' (f : nat → R) : *)
+(*     ex_series f → Series f = 0 → ∀ a, f a = 0. *)
+(*   Proof. *)
+(*   intros [l Hs] Heq. *)
+(*   | *)
+(*     => apply is_series_unique, is_series_0. done. *)
+
+
+(*   Lemma SeriesC_gt_0 f : *)
+(*     (∀ n, 0 <= f n) → *)
+(*     ex_seriesC f → *)
+(*     (∃ n, f n > 0) → *)
+(*     0 < SeriesC f. *)
+(*   Proof. *)
+(*     intros Hf Hex. *)
+(*     eapply contrapositive. *)
+(*     intros [Hz | Hlt]%Rnot_gt_le [a Hfa]. *)
+(*     - admit.  *)
+(*     -  *)
+
+
+(*     assert (SeriesC f = 0). *)
+(*     { admit. } *)
+
+
+(*     assert (∀ a, f a = 0) as Hz. *)
+(*     { intros a'. *)
+
 
   (*
   Lemma Series_ge0 (h : nat → R):

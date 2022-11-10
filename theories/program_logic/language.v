@@ -19,6 +19,15 @@ Section language_mixin.
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
     mixin_val_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None;
+    (** [state_step] preserves reducibility *)
+    mixin_state_step_not_stuck e σ σ' α :
+      state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0);
+    (** [state_step] is always inhabited *)
+    mixin_state_step_inhabited σ α : SeriesC (state_step σ α) > 0
+    (* N.B. The "inhabited" requirement can probably be relaxed if we restrict
+       [state_scheduler]s only to pick labels for which [state_step] is
+       inhabited - in [prob_lang] this would require [state_step] to only add
+       bits to tapes that have been allocated *)
   }.
 End language_mixin.
 
@@ -38,7 +47,7 @@ Structure language := Language {
   prim_step : expr → state → distr (expr * state);
   state_step : state → state_idx → distr state;
 
-  language_mixin : LanguageMixin of_val to_val prim_step
+  language_mixin : LanguageMixin of_val to_val prim_step state_step
 }.
 
 Bind Scope expr_scope with expr.
@@ -88,6 +97,11 @@ Section language.
   Lemma of_to_val e v : to_val e = Some v → of_val v = e.
   Proof. apply language_mixin. Qed.
   Lemma val_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None.
+  Proof. apply language_mixin. Qed.
+  Lemma state_step_not_stuck e σ σ' α :
+    state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0).
+  Proof. apply language_mixin. Qed.
+  Lemma state_step_inhabited σ α : SeriesC (state_step σ α) > 0.
   Proof. apply language_mixin. Qed.
 
   Definition reducible (e : expr Λ) (σ : state Λ) :=
@@ -194,6 +208,10 @@ Section language.
     apply dbind_pos_support in Hstep as ([e1' σ2] & [=]%dret_pos & Hstep).
     eauto.
   Qed.
+  Lemma state_step_reducible e σ σ' α :
+    state_step σ α σ' > 0 → reducible e σ ↔ reducible e σ'.
+  Proof. apply state_step_not_stuck. Qed.
+
   Lemma irreducible_fill `{!@LanguageCtx Λ K} e σ :
     to_val e = None → irreducible e σ → irreducible (K e) σ.
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill_inv. Qed.

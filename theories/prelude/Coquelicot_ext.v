@@ -61,6 +61,7 @@ Proof.
   - exists O => n Hn. by apply sum_n_m_le.
 Qed.
 
+
 Lemma is_lim_seq_pos a (v: R):
   (∀ n, 0 <= a n) →
   is_lim_seq a v →

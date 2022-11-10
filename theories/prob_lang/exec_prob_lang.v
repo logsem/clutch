@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From stdpp Require Import fin_maps.
+From stdpp Require Import functions fin_maps.
 From self.prelude Require Import stdpp_ext.
 From self.program_logic Require Export exec.
 From self.prob_lang Require Export lang.
@@ -74,10 +74,6 @@ Next Obligation.
   by destruct b.
 Qed.
 
-Definition double_step (ρs : cfg * cfg) (α1 α2 : loc) : distr (cfg * cfg) :=
-  let '((e1, σ1), (e2, σ2)) := ρs in
-  dmap (λ '(σ1', σ2'),  ((e1, σ1'), (e2, σ2'))) (double_state_step (σ1, σ2) α1 α2).
-
 Lemma Rcoupl_state_step σ1 σ2 α1 α2 :
   Rcoupl
     (state_step σ1 α1)
@@ -118,85 +114,112 @@ Proof.
     case_bool_decide; eauto. lra.
 Qed.
 
-Lemma state_step_sch_coupl e1 e2 α1 α2 σ1 σ2 :
+(* Lemma Rcoupl_exec_state_step_sch α1 α2 σ1 σ1' : *)
+(*   Rcoupl *)
+(*     (exec_state (state_step_sch α1) σ1) *)
+(*     (exec_state (state_step_sch α2) σ1') *)
+(*     (λ σ2 σ2', valid_double_state_step (σ1, σ1') α1 α2 (σ2, σ2')). *)
+(* Proof. *)
+(*   intros. *)
+(*   rewrite 2!exec_state_state_step_sch. *)
+(*   apply Rcoupl_state_step. *)
+(* Qed. *)
+
+(* Lemma Rcoupl_exec_step_sch α1 α2 σ1 σ1' e1 e1' : *)
+(*   Rcoupl *)
+(*     (exec (state_step_scheduler e1 (state_step_sch α1)) (e1, σ1)) *)
+(*     (exec (state_step_scheduler e1' (state_step_sch α2)) (e1', σ1')) *)
+(*     (λ '(e2, σ2) '(e2', σ2'), *)
+(*       e2 = e1 ∧ e2' = e1' ∧ valid_double_state_step (σ1, σ1') α1 α2 (σ2, σ2')). *)
+(* Proof. *)
+(*   eapply exec_state_strength_coupl. *)
+(*   apply Rcoupl_exec_state_step_sch. *)
+(* Qed. *)
+
+Lemma Rcoupl_exec_exec_state_steps σ1 σ1' e1' α1 α2 :
   Rcoupl
-    (exec (state_step_sch (e1, σ1) α1) (e1, σ1))
-    (exec (state_step_sch (e2, σ2) α2) (e2, σ2))
-    (λ '(e1', σ1') '(e2', σ2'),
-      e1' = e1 ∧ e2' = e2 ∧ valid_double_state_step (σ1, σ2) α1 α2 (σ1', σ2')).
+    (exec_state (state_step_sch α1) σ1)
+    (exec ([λ _, Some $ STATE α2]) (e1', σ1'))
+    (λ σ2 '(e2', σ2'), e2' = e1' ∧ valid_double_state_step (σ1, σ1') α1 α2 (σ2, σ2')).
 Proof.
-  intros. rewrite 2!exec_state_step_sch.
-  apply Rcoupl_strength_l, Rcoupl_state_step.
-Qed.
+  rewrite exec_state_state_step_sch.
 
-Definition prim_step_sch_sample '(e, σ) α : scheduler_fn prob_lang :=
-  {[ (e, (state_upd_tapes <[α := σ.(tapes) !!! α ++ [true]]> σ)) := PRIM;
-     (e, (state_upd_tapes <[α := σ.(tapes) !!! α ++ [false]]> σ)) := PRIM ]}.
+Admitted.
 
-Definition state_prim_step_sch ρ α : scheduler prob_lang :=
-  state_step_sch ρ α ++ [prim_step_sch_sample ρ α].
 
-Lemma state_step_pos σ α σ' :
-  state_step σ α σ' > 0 →
-  σ' = state_upd_tapes <[α := σ.(tapes) !!! α ++ [true]]> σ ∨
-  σ' = state_upd_tapes <[α := σ.(tapes) !!! α ++ [false]]> σ.
-Proof.
-  rewrite /pmf /= state_step_pmf_eq.
-  do 2 (case_bool_decide; eauto). lra.
-Qed.
+(* Definition prim_step_sch_sample '(e, σ) α : scheduler_fn prob_lang := *)
+(*   λ '(e', σ'), *)
+(*     if bool_decide (e' = e ∧ σ' = state_upd_tapes <[α := σ.(tapes) !!! α ++ [true]]> σ) then Some PRIM else *)
+(*     if bool_decide (e' = e ∧ σ' = state_upd_tapes <[α := σ.(tapes) !!! α ++ [false]]> σ) then Some PRIM else *)
+(*       None. *)
 
-Lemma state_prim_step_sch_wf e σ α :
-  TCEq (to_val e) None →
-  SchedulerWf (state_prim_step_sch (e, σ) α) (e, σ).
-Proof.
-  intros Hv. constructor.
-  - repeat constructor.
-    + simpl. intros ?? [? Hv']. rewrite /state_step_sch_fn lookup_singleton_ne //.
-      intros [=<- <-]. by rewrite Hv in Hv'.
-    + simpl. intros ?? [? Hv'].
-      rewrite /prim_step_sch_sample ?lookup_insert_ne; [done| |];
-        intros [=<- <-]; by rewrite Hv in Hv'.
-  - eapply nonblock_state; [rewrite lookup_singleton //|done|]; simpl.
-    intros σ' [-> | ->]%state_step_pos; eapply nonblock_prim.
-    + rewrite lookup_insert //.
-    + rewrite lookup_insert_ne ?lookup_insert //.
-      intros [= Hσ%insert_inv]. simplify_map_eq.
-Qed.
+(*   {[ (e, (state_upd_tapes <[α := σ.(tapes) !!! α ++ [true]]> σ)) := PRIM; *)
+(*      (e, (state_upd_tapes <[α := σ.(tapes) !!! α ++ [false]]> σ)) := PRIM ]}. *)
 
-Lemma state_prim_state_coupl α1 α2 e1 e1' e2 σ1 σ2 :
-  pure_step e1 e1' →
-  Rcoupl
-    (exec (state_prim_step_sch (e1, σ1) α1) (e1, σ1))
-    (exec (state_step_sch (e2, σ2) α2) (e2, σ2))
-    (λ '(e', σ1') '(e2', σ2'),
-      e' = e1' ∧ e2' = e2 ∧ valid_double_state_step (σ1, σ2) α1 α2 (σ1', σ2')) .
-Proof.
-  intros Hpstep.
-  rewrite -(dret_id_right (exec (state_step_sch _ _) _)).
-  rewrite exec_cons.
-  eapply Rcoupl_bind; last first.
-  { rewrite -exec_singleton. apply state_step_sch_coupl. }
-  intros [? σ1'] [? σ2'] (? & ? & [b [=]]); simplify_eq.
-  eexists (dprod (exec [prim_step_sch_sample (e1, σ1) α1] (e1, _)) (dret (e2, _))).
-  split.
-  { split; rewrite ?lmarg_dprod ?rmarg_dprod //. }
-  intros [[] []] [Hexec [=]%dret_pos]%dprod_pos; simplify_eq/=.
-  move: Hexec.
-  rewrite exec_singleton exec_fn_pmf_unfold.
-  destruct b.
-  - rewrite lookup_insert /=. intros Hs.
-    eapply pmf_1_supp_eq in Hs; [|apply Hpstep].
-    simplify_eq.
-    split_and!; eauto.
-    by exists true.
-  - rewrite lookup_insert_ne /=; last first.
-    { intros [= Htapes%insert_inv]. simplify_map_eq. }
-    rewrite lookup_insert /=.
-    intros Hs.
-    eapply pmf_1_supp_eq in Hs; [|apply Hpstep].
-    simplify_eq.
-    split_and!; eauto. by exists false.
-Qed.
+(* Definition state_prim_step_sch ρ α : scheduler prob_lang := *)
+(*   state_step_sch ρ α ++ [prim_step_sch_sample ρ α]. *)
+
+(* Lemma state_step_pos σ α σ' : *)
+(*   state_step σ α σ' > 0 → *)
+(*   σ' = state_upd_tapes <[α := σ.(tapes) !!! α ++ [true]]> σ ∨ *)
+(*   σ' = state_upd_tapes <[α := σ.(tapes) !!! α ++ [false]]> σ. *)
+(* Proof. *)
+(*   rewrite /pmf /= state_step_pmf_eq. *)
+(*   do 2 (case_bool_decide; eauto). lra. *)
+(* Qed. *)
+
+(* Lemma state_prim_step_sch_wf e σ α : *)
+(*   TCEq (to_val e) None → *)
+(*   SchedulerWf (state_prim_step_sch (e, σ) α) (e, σ). *)
+(* Proof. *)
+(*   intros Hv. constructor. *)
+(*   - repeat constructor. *)
+(*     + simpl. intros ?? [? Hv']. rewrite /state_step_sch_fn lookup_singleton_ne //. *)
+(*       intros [=<- <-]. by rewrite Hv in Hv'. *)
+(*     + simpl. intros ?? [? Hv']. *)
+(*       rewrite /prim_step_sch_sample ?lookup_insert_ne; [done| |]; *)
+(*         intros [=<- <-]; by rewrite Hv in Hv'. *)
+(*   - eapply nonblock_state; [rewrite lookup_singleton //|done|]; simpl. *)
+(*     intros σ' [-> | ->]%state_step_pos; eapply nonblock_prim. *)
+(*     + rewrite lookup_insert //. *)
+(*     + rewrite lookup_insert_ne ?lookup_insert //. *)
+(*       intros [= Hσ%insert_inv]. simplify_map_eq. *)
+(* Qed. *)
+
+(* Lemma state_prim_state_coupl α1 α2 e1 e1' e2 σ1 σ2 : *)
+(*   pure_step e1 e1' → *)
+(*   Rcoupl *)
+(*     (exec (state_prim_step_sch (e1, σ1) α1) (e1, σ1)) *)
+(*     (exec (state_step_sch (e2, σ2) α2) (e2, σ2)) *)
+(*     (λ '(e', σ1') '(e2', σ2'), *)
+(*       e' = e1' ∧ e2' = e2 ∧ valid_double_state_step (σ1, σ2) α1 α2 (σ1', σ2')) . *)
+(* Proof. *)
+(*   intros Hpstep. *)
+(*   rewrite -(dret_id_right (exec (state_step_sch _ _) _)). *)
+(*   rewrite exec_cons. *)
+(*   eapply Rcoupl_bind; last first. *)
+(*   { rewrite -exec_singleton. apply state_step_sch_coupl. } *)
+(*   intros [? σ1'] [? σ2'] (? & ? & [b [=]]); simplify_eq. *)
+(*   eexists (dprod (exec [prim_step_sch_sample (e1, σ1) α1] (e1, _)) (dret (e2, _))). *)
+(*   split. *)
+(*   { split; rewrite ?lmarg_dprod ?rmarg_dprod //. } *)
+(*   intros [[] []] [Hexec [=]%dret_pos]%dprod_pos; simplify_eq/=. *)
+(*   move: Hexec. *)
+(*   rewrite exec_singleton exec_fn_pmf_unfold. *)
+(*   destruct b. *)
+(*   - rewrite lookup_insert /=. intros Hs. *)
+(*     eapply pmf_1_supp_eq in Hs; [|apply Hpstep]. *)
+(*     simplify_eq. *)
+(*     split_and!; eauto. *)
+(*     by exists true. *)
+(*   - rewrite lookup_insert_ne /=; last first. *)
+(*     { intros [= Htapes%insert_inv]. simplify_map_eq. } *)
+(*     rewrite lookup_insert /=. *)
+(*     intros Hs. *)
+(*     eapply pmf_1_supp_eq in Hs; [|apply Hpstep]. *)
+(*     simplify_eq. *)
+(*     split_and!; eauto. by exists false. *)
+(* Qed. *)
 
 Lemma Rcoupl_exec_det_prefix_r ξ ξ1 ξ2 (ρ ρ1 ρ2 : cfg) (S : cfg → cfg → Prop) :
   exec ξ1 ρ1 ρ2 = 1 →
@@ -204,9 +227,20 @@ Lemma Rcoupl_exec_det_prefix_r ξ ξ1 ξ2 (ρ ρ1 ρ2 : cfg) (S : cfg → cfg �
   Rcoupl (exec ξ ρ) (exec (ξ1 ++ ξ2) ρ1) S.
 Proof.
   intros Hdet%pmf_1_eq_dret Hcpl.
-  replace ξ with ([] ++ ξ); [|done].
-  rewrite 2!exec_app.
+  rewrite -(app_nil_l ξ) 2!exec_app.
   eapply (Rcoupl_bind _ _ _ _ (λ ρ' ρ'', ρ' = ρ ∧ ρ'' = ρ2)); last first.
   { rewrite exec_nil Hdet. by eapply Rcoupl_ret. }
+  intros ?? [-> ->]. done.
+Qed.
+
+Lemma Rcoupl_exec_state_det_prefix_r ζ ξ1 ξ2 ρ1 ρ2 σ  (S : state → cfg → Prop) :
+  exec ξ1 ρ1 ρ2 = 1 →
+  Rcoupl (exec_state ζ σ) (exec ξ2 ρ2) S →
+  Rcoupl (exec_state ζ σ) (exec (ξ1 ++ ξ2) ρ1) S.
+Proof.
+  intros Hdet%pmf_1_eq_dret Hcpl.
+  rewrite -(app_nil_l ζ) exec_state_app exec_app.
+  eapply (Rcoupl_bind _ _ _ _ (λ σ' ρ'', σ' = σ ∧ ρ'' = ρ2)); last first.
+  { rewrite exec_state_nil Hdet. by eapply Rcoupl_ret. }
   intros ?? [-> ->]. done.
 Qed.
