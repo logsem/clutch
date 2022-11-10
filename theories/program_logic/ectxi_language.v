@@ -145,11 +145,21 @@ Section ectxi_language.
     end.
   Solve Obligations with eauto using decomp_ord, expr_ord_wf.
 
+  Lemma decomp_unfold e :
+    decomp e =
+      match decomp_item e with
+      | Some (Ki, e') => let '(K, e'') := decomp e' in (K ++ [Ki], e'')
+      | None => ([], e)
+      end.
+  Proof.
+    rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
+    repeat case_match; try done.
+  Qed.
+
   Lemma decomp_inv_nil e e' :
     decomp e = ([], e') → decomp_item e = None ∧ e = e'.
   Proof.
-    (* TODO: can we make do without [WfExtensionality]?  *)
-    rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
+    rewrite decomp_unfold.
     destruct (decomp_item e) as [[Ki e'']|] eqn:Heq; [|by intros [=]].
     destruct (decomp e''). intros [= Hl He].
     assert (l = []) as ->.
@@ -171,7 +181,7 @@ Section ectxi_language.
   Lemma decomp_inv_cons Ki K e e'' :
     decomp e = (K ++ [Ki], e'') → ∃ e', decomp_item e = Some (Ki, e') ∧ decomp e' = (K, e'').
   Proof.
-    rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
+    rewrite decomp_unfold.
     destruct (decomp_item e) as [[Ki' e']|] eqn:Heq'.
     2 : { intros [=]. by destruct K. }
     destruct (decomp e') as [K' e'''] eqn:Heq.
@@ -208,7 +218,7 @@ Section ectxi_language.
       induction K as [|Ki K] using rev_ind.
       { intros ??? =>/=. rewrite app_nil_r //. }
       intros K' e e' Hval Hre. rewrite fill_app /=.
-      rewrite /decomp WfExtensionality.fix_sub_eq_ext /= -/decomp.
+      rewrite decomp_unfold.
       rewrite decomp_fill_item; [|auto using fill_item_not_val].
       rewrite (IHK K' _ e') //=.
       rewrite !app_assoc //.
