@@ -3,9 +3,8 @@ From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From self.program_logic Require Import ectx_lifting.
-From self.proofmode Require Import spec_tactics.
-From self.prob_lang Require Import lang spec_rules ctx_subst proofmode.
-From self.prob_logrel Require Import model rel_rules.
+From self.prob_lang Require Import lang spec_rules spec_tactics ctx_subst proofmode.
+From self.logrel Require Import model rel_rules.
 
 Section rules.
   Context `{prelocGS Σ}.

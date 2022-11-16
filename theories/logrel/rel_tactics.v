@@ -3,9 +3,8 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      sel_patterns environments
      reduction proofmode.
-From self.prob_lang Require Import spec_rules tactics.
-From self.prob_logrel Require Import model rel_rules derived.
-From self.proofmode Require Import spec_tactics.
+From self.prob_lang Require Import spec_rules spec_tactics tactics.
+From self.logrel Require Import model rel_rules derived.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!prelocGS Σ} e' K ℶ E e t A :

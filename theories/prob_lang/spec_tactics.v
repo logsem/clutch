@@ -6,7 +6,6 @@ From iris.proofmode Require Import
      sel_patterns environments
      reduction.
 From self.prob_lang Require Import spec_rules tactics.
-From self.prob_logrel Require Import model.
 Set Default Proof Using "Type".
 
 (* NB: the {pure,alloc,load,store} lemmas below have quite a bit of redundancy

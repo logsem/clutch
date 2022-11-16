@@ -57,12 +57,7 @@ Section semtypes.
   Implicit Types E : coPset.
   Implicit Types A B : lrel Σ.
 
-Set Primitive Projections.
-
-  (* spec_ctx and ⤇K[e] are connected via the `specGS` CMRA (contained in the
-     `prelocGS` we have around), so [refines_right K e] means that `⤇K[e]` is
-     reachable via reduction from the initial spec configuration. *)
-  Definition refines_right K (e : expr) := (spec_ctx ∗ ⤇ fill K e)%I.
+  Set Primitive Projections.
 
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=

@@ -1,8 +1,8 @@
 From Autosubst Require Import Autosubst.
 From iris.algebra Require Export list.
 From iris.proofmode Require Import proofmode.
-From self.prob_lang Require Import metatheory primitive_laws types.
-From self.prob_logrel Require Import model.
+From self.prob_lang Require Import metatheory primitive_laws.
+From self.logrel Require Import model types.
 From self.prelude Require Import asubst properness.
 
 (** * Interpretation of types *)

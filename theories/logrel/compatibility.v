@@ -5,8 +5,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From iris.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Import spec_rules.
-From self.prob_logrel Require Import model.
-From self.proofmode Require Import rel_tactics.
+From self.logrel Require Import model rel_tactics.
 
 Section compatibility.
   Context `{!prelocGS Σ}.
@@ -175,40 +174,6 @@ From self Require Import spec_tactics.
     iInv (logN .@ (α,α')) as (bs) "[>Hα >Hα']" "Hclose''"; simpl.
     1:admit.
 
-
-    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
-    iDestruct (ghost_map_lookup with "Htapes Hα'") as %?%lookup_total_correct.
-    simplify_map_eq.
-    iMod (ghost_map_update (tapes σ !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iFrame.
-    iMod (ghost_map_update (tapes σ2 !!! αₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
-    iMod "Hclose'". iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_"; last first.
-    { iModIntro. iApply "Hwp". iExists b. iFrame. }
-    iModIntro. rewrite /spec_inv.
-    iExists [], _, _, (state_upd_tapes _ _). simpl.
-    iFrame. rewrite exec_nil dret_1 //.
-
-    iInv (logN .@ (α,α')) as (bs) "[>Hα >Hα']" "Hclose"; simpl.
-
-
-    iInv specN as (ξₛ ρ' e2 σ2) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose'".
-    iDestruct (spec_interp_auth_frag_agree with "Hρ Hspec0") as %<-.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iPureIntro; eapply Hpstep. }
-
-    iApply wp_couple_tapes.
-
-    2: solve_ndisj.
-
-    rel_load_l_atomic.
-    iInv (logN .@ (l,l')) as (w w') "[Hw1 [>Hw2 #Hw]]" "Hclose"; simpl.
-    iModIntro. iExists _; iFrame "Hw1".
-    iNext. iIntros "Hw1".
-    rel_load_r.
-    iMod ("Hclose" with "[Hw1 Hw2]").
-    { iNext. iExists w,w'; by iFrame. }
-    value_case.
-  Qed.
+Admitted.
 
 End compatibility.

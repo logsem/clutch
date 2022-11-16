@@ -3,9 +3,8 @@ From Autosubst Require Import Autosubst.
 From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import proofmode.
-From self.prob_lang Require Export types spec_rules metatheory.
-From self.prob_logrel Require Import model interp compatibility rel_rules derived.
-From self.proofmode Require Import rel_tactics.
+From self.prob_lang Require Export spec_rules metatheory.
+From self.logrel Require Import types model interp compatibility rel_rules rel_tactics derived.
 
 Section fundamental.
   Context `{!prelocGS Σ}.
@@ -288,6 +287,7 @@ Section fundamental.
     iIntros "IH".
     intro_clause.
     rel_bind_ap e e' "IH" v v' "IH".
+(*
     iDestruct "IH" as "[% %]"; simplify_eq/=;
       rel_if_l; rel_if_r.
     rewrite /lrel_bool.
@@ -309,6 +309,7 @@ Section fundamental.
     rewrite /wp_pre.
     rewrite wp_unfold.
     rewrite wp_unseal.
+*)
   Admitted.
 
   (* Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ : *)
