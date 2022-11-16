@@ -128,11 +128,49 @@ End rewriting_lemmas.
 
 Section lang_properties.
 
+
+(*
+
+det e -> prim_step (e1,h1,t1) (e2,h2,t1) = prim_step (e1,h1,t2) (e2,h2,t2)
+det e -> lmarg(prim_step (e1,h1,t1)) = lmarg(prim_step (e1,h1,t2))
+det e -> rmarg(prim_step (e1,h1,t1)) = dret(t1)
+
+state_step (h1, t1) (h1, t2) = state_step (h2, t1) (h2, t2)
+right(state_step (h1, t1)) = right(state_step (h2, t1))
+lmarg(state_step (h1, t1)) = dret(h1)
+
+dbind (λ σ', head_step e σ') (state_step σ)
+= 
+
+*)
+
 Lemma state_after_prim (e1 : expr) (σ1 : state) (α : loc)  :
     (¬ (exists e', e1 = Flip e')) -> dbind (λ σ2, head_step e1 σ2) (state_step σ1 α) =
                                 dbind (λ ρ, dbind (λ σ3 , dret (ρ.1, σ3))  (state_step ρ.2 α)) (head_step e1 σ1).
 Proof.
  intro Hneq.
+ assert (∃ F,
+          (∀ σ, head_step e1 σ = dret (F e1 σ)) /\
+            forall σ, (F e1 σ).2.(tapes) = σ.(tapes)) as Haux. { admit. }.
+ destruct (Haux) as (F & H5 & H6).
+ rewrite H5.
+ setoid_rewrite H5.
+ rewrite dret_id_left /=.
+ assert (sta)
+
+ apply distr_ext.
+ intro ρ.
+ rewrite /pmf/=/dbind_pmf.
+ assert (forall σ1 σ2, σ1.(heap) = σ2.(heap) -> )
+
+   assert ()
+ rewrite H6.
+ destruct (F e1 σ1).
+ simpl.
+ apply distr_ext.
+ intro ρ.
+
+ rewrite Haux.
  rewrite dbind_state_step.
  apply distr_ext.
  intros (e3 & σ3).

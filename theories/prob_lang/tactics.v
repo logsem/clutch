@@ -117,6 +117,32 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 
+Inductive det_expr : expr → Prop :=
+  (* Values *)
+|  DetVal (v : val) : det_expr (Val v)
+  (* Base lambda calculus *)
+|  DetVar (x : string) : det_expr (Var x)
+|  DetRec (f x : binder) (e : expr) : det_expr (Rec f x e)
+|  DetApp (e1 e2 : expr) : det_expr (App e1 e2)
+  (* Base types and their operations *)
+|  DetUnOp det_expr UnOp (op : un_op) (e : expr)
+|  DetBinOp det_expr BinOp (op : bin_op) (e1 e2 : expr)
+|  DetIf det_expr If (e0 e1 e2 : expr)
+  (* Products *)
+|  DetPair Pair (e1 e2 : expr)
+|  DetFst Fst (e : expr)
+|  DetSnd Snd (e : expr)
+  (* Sums *)
+|  DetInjL  InjL (e : expr)
+|  DetInjR  InjR (e : expr)
+|  DetCase  Case (e0 : expr) (e1 : expr) (e2 : expr)
+  (* Heap *)
+|  DetAlloc Alloc (e : expr)
+|  DetLoad  Load (e : expr)
+|  DetStore Store (e1 : expr) (e2 : expr).
+
+(** Deterministic expressions *)
+
 (** A computational/destructing version of [inv_head_step] - only to be used for
     the lemma below *)
 Local Ltac inv_head_step' :=
