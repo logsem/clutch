@@ -4,7 +4,7 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From iris.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Import spec_rules.
+From self.prob_lang Require Import spec_rules spec_tactics.
 From self.logrel Require Import model rel_tactics.
 
 Section compatibility.
@@ -120,7 +120,6 @@ Notation "🖭" := lrel_tape : lrel_scope.
     iIntros "H".
     (* rewrite {1} refines_eq /refines_def. *)
     (* rewrite /refines_right. *)
-From self Require Import spec_tactics.
     eapply (tac_rel_bind_l e); [ tp_bind_helper |].
     eapply (tac_rel_bind_r e'); [ tp_bind_helper |].
     iApply (refines_bind with "H").
@@ -143,6 +142,7 @@ From self Require Import spec_tactics.
     rewrite /refines_right.
 
     iApply lifting.wp_lift_step_fupd_couple; [done|].
+(*
     iIntros (σ [eₛ σₛ]) "[[Hh1 Ht1] Hρ]".
     iInv specN as (ξₛ ρ' e2 σ2) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hρ Hspec0") as %<-.
@@ -173,7 +173,7 @@ From self Require Import spec_tactics.
     (* do this...earlier? *)
     iInv (logN .@ (α,α')) as (bs) "[>Hα >Hα']" "Hclose''"; simpl.
     1:admit.
-
+*)
 Admitted.
 
 End compatibility.

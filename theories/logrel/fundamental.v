@@ -4,7 +4,7 @@ From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import proofmode.
 From self.prob_lang Require Export spec_rules metatheory.
-From self.logrel Require Import types model interp compatibility rel_rules rel_tactics derived.
+From self.logrel Require Import types model interp compatibility rel_rules rel_tactics.
 
 Section fundamental.
   Context `{!prelocGS Σ}.
