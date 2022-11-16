@@ -53,7 +53,7 @@ Global Instance Rename_type : Rename type. derive. Defined.
 Global Instance Subst_type : Subst type. derive. Defined.
 Global Instance SubstLemmas_typer : SubstLemmas type. derive. Qed.
 
-Definition binop_nat_res_type (op : bin_op) : option type :=
+Definition binop_int_res_type (op : bin_op) : option type :=
   match op with
   | MultOp => Some TInt | PlusOp => Some TInt | MinusOp => Some TInt
   | EqOp => Some TBool | LeOp => Some TBool | LtOp => Some TBool
@@ -64,7 +64,7 @@ Definition binop_bool_res_type (op : bin_op) : option type :=
   | XorOp => Some TBool | EqOp => Some TBool
   | _ => None
   end.
-Definition unop_nat_res_type (op : un_op) : option type :=
+Definition unop_int_res_type (op : un_op) : option type :=
   match op with
   | MinusUnOp => Some TInt
   | _ => None
@@ -135,17 +135,17 @@ Inductive typed : stringmap type → expr → type → Prop :=
   | Val_typed Γ v τ :
      ⊢ᵥ v : τ →
      Γ ⊢ₜ Val v : τ
-  | BinOp_typed_nat Γ op e1 e2 τ :
+  | BinOp_typed_int Γ op e1 e2 τ :
      Γ ⊢ₜ e1 : TInt → Γ ⊢ₜ e2 : TInt →
-     binop_nat_res_type op = Some τ →
+     binop_int_res_type op = Some τ →
      Γ ⊢ₜ BinOp op e1 e2 : τ
   | BinOp_typed_bool Γ op e1 e2 τ :
      Γ ⊢ₜ e1 : TBool → Γ ⊢ₜ e2 : TBool →
      binop_bool_res_type op = Some τ →
      Γ ⊢ₜ BinOp op e1 e2 : τ
-  | UnOp_typed_nat Γ op e τ :
+  | UnOp_typed_int Γ op e τ :
      Γ ⊢ₜ e : TInt →
-     unop_nat_res_type op = Some τ →
+     unop_int_res_type op = Some τ →
      Γ ⊢ₜ UnOp op e : τ
   | UnOp_typed_bool Γ op e τ :
      Γ ⊢ₜ e : TBool →
@@ -244,8 +244,8 @@ with val_typed : val → type → Prop :=
 where "Γ ⊢ₜ e : τ" := (typed Γ e τ)
 and "⊢ᵥ e : τ" := (val_typed e τ).
 
-Lemma binop_nat_typed_safe (op : bin_op) (n1 n2 : Z) τ :
-  binop_nat_res_type op = Some τ → is_Some (bin_op_eval op (LitV (LitInt n1)) (LitV (LitInt n2))).
+Lemma binop_int_typed_safe (op : bin_op) (n1 n2 : Z) τ :
+  binop_int_res_type op = Some τ → is_Some (bin_op_eval op (LitV (LitInt n1)) (LitV (LitInt n2))).
 Proof. destruct op; simpl; eauto. Qed.
 
 Lemma binop_bool_typed_safe (op : bin_op) (b1 b2 : bool) τ :
@@ -253,8 +253,8 @@ Lemma binop_bool_typed_safe (op : bin_op) (b1 b2 : bool) τ :
 Proof. destruct op; naive_solver. Qed.
 
 
-Lemma unop_nat_typed_safe (op : un_op) (n : Z) τ :
-  unop_nat_res_type op = Some τ → is_Some (un_op_eval op (LitV (LitInt n))).
+Lemma unop_int_typed_safe (op : un_op) (n : Z) τ :
+  unop_int_res_type op = Some τ → is_Some (un_op_eval op (LitV (LitInt n))).
 Proof. destruct op; simpl; eauto.  Qed.
 
 Lemma unop_bool_typed_safe (op : un_op) (b : bool) τ :
