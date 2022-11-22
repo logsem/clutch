@@ -1,8 +1,9 @@
 From Coq Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.bi Require Export weakestpre.
+From iris.bi Require Export weakestpre fixpoint.
 From iris.prelude Require Import options.
+
 From self.prob Require Export couplings distribution.
 From self.program_logic Require Export language exec.
 
@@ -23,22 +24,92 @@ Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
 
-Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
+Section foo.
+  Context `{!irisGS Λ Σ}.
+
+  Definition exec_state_coupl_pre Z (Φ: (state Λ * expr Λ * state Λ) → iProp Σ) :=
+    λ x,
+      let '(σ1, e1', σ1') := x in
+      (* Either -- (left side) no coupling steps, the relation holds, or
+               (right side) do another coupling step *)
+      ((Z σ1 e1' σ1') ∨
+       (∃ ζ1 ξ1 R2, ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R2⌝ ∗
+                    (∀ σ2 e2' σ2', ⌜ R2 σ2 (e2', σ2') ⌝ ={∅}=∗ Φ (σ2, e2', σ2'))))%I.
+
+  Local Instance exec_state_coupl_pre_NonExpansive Z Φ :
+    NonExpansive (exec_state_coupl_pre Z Φ).
+  Proof.
+    rewrite /exec_state_coupl_pre.
+    intros n ((?&?)&?) ((?&?)&?) [[H1 H2] H3].
+    simpl in *.
+    inversion H1; inversion H2; inversion H3. done.
+  Qed.
+
+  Local Instance exec_state_coupl_pre_mono Z : BiMonoPred (exec_state_coupl_pre Z).
+  Proof.
+    split; [|apply _].
+    iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
+    rewrite /exec_state_coupl_pre.
+    iIntros (((σ1&e1')&σ1')) "Hexec".
+    iDestruct "Hexec" as "[Hleft|Hexec]".
+    { by iLeft. }
+    iDestruct "Hexec" as (ζ1 ξ1 R2 Hcoupl) "HR2".
+    iRight.
+    iExists _, _, _. iSplit; first eauto.
+    iIntros. iApply "Hwand". by iApply "HR2".
+  Qed.
+
+  Definition exec_state_coupl' Z := bi_least_fixpoint (exec_state_coupl_pre Z).
+  Definition exec_state_coupl s1 e1 s1' Z :=
+    exec_state_coupl' Z (s1, e1, s1').
+
+  Lemma exec_state_coupl_unfold σ1 e1' σ1' Z :
+    exec_state_coupl σ1 e1' σ1' Z ≡
+      ((Z σ1 e1' σ1') ∨ (∃ ζ1 ξ1 R2, ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R2⌝ ∗
+                                       (∀ σ2 e2' σ2', ⌜ R2 σ2 (e2', σ2') ⌝ ={∅}=∗ exec_state_coupl σ2 e2' σ2' Z)))%I.
+  Proof.
+    rewrite /exec_state_coupl/exec_state_coupl'.
+    rewrite least_fixpoint_unfold. rewrite {1}/exec_state_coupl_pre. eauto.
+  Qed.
+
+  Local Instance exec_state_coupl_NonExpansive Z :
+    NonExpansive (λ '(s, e, s'), exec_state_coupl s e s' Z).
+  Proof.
+    intros ? ((?&?)&?) ((?&?)&?) [[] ]. simpl in *. by ofe_subst.
+  Qed.
+
+  Lemma exec_state_coupl_trans s1 e1 s1' Z :
+    exec_state_coupl s1 e1 s1' (λ s2 e2 s2', exec_state_coupl s2 e2 s2' Z) -∗
+    exec_state_coupl s1 e1 s1' Z.
+  Proof.
+    rewrite {1}/exec_state_coupl/exec_state_coupl'.
+    iIntros "Hbi".
+    iPoseProof (least_fixpoint_iter (exec_state_coupl_pre (λ s2 e2 s2', exec_state_coupl s2 e2 s2' Z))
+                 (λ '(s1, e1, s1'), exec_state_coupl s1 e1 s1' Z) with "[]") as "H".
+    { iModIntro. iIntros (((s2&e2)&e2')).
+      rewrite /exec_state_coupl_pre.
+      iIntros "[Hleft|Hright]"; first done.
+      rewrite /exec_state_coupl/exec_state_coupl'.
+      iEval (rewrite least_fixpoint_unfold).
+      iEval (rewrite {1}/exec_state_coupl_pre).
+      iRight. eauto. }
+    by iApply ("H" $! (_, _, _)).
+Qed.
+
+Definition wp_pre (s : stuckness)
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 e1' σ1',
-     state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
-     ∃ (ζ1 : state_scheduler Λ) (ξ1 : scheduler Λ) (R : state Λ → cfg Λ → Prop),
-       ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R⌝ ∗
-       ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗
-         ⌜if s is NotStuck then reducible e1 σ2 else True⌝ ∗
-         ∃ (ζ2 : state_scheduler Λ) (ξ2 : scheduler Λ) (S : cfg Λ → cfg Λ → Prop),
-           ⌜Rcoupl (dbind (λ σ3, prim_step e1 σ3) (exec_state ζ2 σ2)) (exec ξ2 (e2', σ2')) S⌝ ∗
+      state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
+      exec_state_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
+        ⌜if s is NotStuck then reducible e1 σ2 else True⌝ ∗
+        ∃ (ξ2 : scheduler Λ) (S : cfg Λ → cfg Λ → Prop),
+           ⌜Rcoupl (prim_step e1 σ2) (exec ξ2 (e2', σ2')) S⌝ ∗
            ∀ e2 σ3 e3' σ3',
              ⌜S (e2, σ3) (e3', σ3')⌝ ={∅}=∗ ▷ |={∅,E}=>
-             state_interp σ3 ∗ spec_interp (e3', σ3') ∗ wp E e2 Φ
+             state_interp σ3 ∗ spec_interp (e3', σ3') ∗ wp E e2 Φ)
   end%I.
 
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
