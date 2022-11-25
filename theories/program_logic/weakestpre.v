@@ -127,7 +127,7 @@ Section exec_coupl.
         state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
         ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
         exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-          state_interp σ2 ∗ spec_interp (e2', σ2') ∗ wp E e2 Φ)
+          ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ wp E e2 Φ)
     end%I.
 
 (* Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s). *)
