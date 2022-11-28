@@ -918,6 +918,12 @@ Local Ltac inv_head_step'' :=
         repeat ((case_bool_decide_and_destruct in H || case_match); try (lra || done));
         destruct_and?;
         try (lra || done)
+    | H : bool_decide _ = _ |- _ =>
+        case_bool_decide; destruct_and?;
+        simplify_eq;
+        try lra;
+        try done;
+        eauto with head_step
     end.
 
 Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
@@ -926,21 +932,6 @@ Proof.
   split.
   - intros Hstep.
     destruct e1; inv_head_step''; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-    + case_bool_decide; destruct_and?; simplify_eq; try lra; try done; eauto with head_step.
-      destruct H1; simplify_eq. eauto with head_step.
     + (* semi-bogus case because of a too eager [case_bool_decide] in [inv_head_step'] *)
       rewrite {2}H9. by eapply FlipS.
   - inversion 1;
