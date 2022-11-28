@@ -29,6 +29,9 @@ Section distributions.
 
   Implicit Types μ d : distr A.
 
+  Global Instance distr_dec μ1 μ2 : Decision (μ1 = μ2).
+  Proof. apply make_decision. Qed.
+
   Lemma pmf_le_1 μ a : μ a <= 1.
   Proof.
     assert (SeriesC (λ a', if bool_decide (a' = a) then μ a else 0) = μ a) as <-.
@@ -225,6 +228,16 @@ Section dret.
     - by apply pmf_eq_0_not_gt_0.
   Qed.
 
+  Lemma pmf_1_not_eq (μ : distr A) (a a' : A) :
+    a ≠ a' → μ a = 1 → μ a' = 0.
+  Proof.
+    intros Hneq ->%pmf_1_eq_dret. by apply dret_0.
+  Qed.
+
+  Lemma dret_inhabited `{Countable A} (a : A) :
+    SeriesC (dret a) > 0.
+  Proof. rewrite SeriesC_singleton. lra. Qed.
+
 End dret.
 
 (** * Monadic bind  *)
@@ -400,6 +413,37 @@ Section monadic.
         * apply Rmult_le_compat_l; [done|]. eapply pmf_le_1.
   Qed.
 
+  Lemma dbind_eq (f g : A → distr B) (μ1 μ2 : distr A) :
+    (∀ a, μ1 a > 0 → f a = g a) →
+    (∀ a, μ1 a = μ2 a) →
+    dbind f μ1 = dbind g μ2.
+  Proof.
+    intros Heq Hμ.
+    eapply distr_ext. intros b.
+    rewrite /pmf /= /dbind_pmf. eapply SeriesC_ext.
+    intros a. rewrite -Hμ.
+    destruct (decide (μ1 a > 0)) as [|Hngt].
+    { rewrite Heq //. }
+    apply pmf_eq_0_not_gt_0 in Hngt as ->.
+    lra.
+  Qed.
+
+  Lemma dbind_inhabited `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
+    SeriesC μ > 0 →
+    (∀ a, SeriesC (f a) > 0) →
+    SeriesC (dbind f μ) > 0.
+  Proof.
+    intros Hμ Hf.
+    rewrite /pmf /= /dbind_pmf.
+    rewrite (SeriesC_double_swap (λ '(a, b), _)).
+    setoid_rewrite SeriesC_scal_l.
+    apply Rlt_gt. rewrite -(SeriesC_0 (λ _ : A, 0)); [|done].
+    eapply SeriesC_lt.
+    - intros ?. split; [done|]. by apply Rmult_le_pos.
+    - apply SeriesC_gtz_ex in Hμ as [a Ha]; [|done].
+      exists a. by apply Rmult_lt_0_compat, Rgt_lt.
+    - eapply pmf_ex_seriesC_mult_fn. eauto.
+  Qed.
 
 End monadic.
 
@@ -623,6 +667,15 @@ Section dzero.
     by apply SeriesC_correct'.
   Qed.
 
+  Lemma not_dzero_gt_0 (μ : distr A) :
+    μ ≠ dzero → SeriesC μ > 0.
+  Proof.
+    intros Hz.
+    destruct (Req_dec (SeriesC μ) 0).
+    - exfalso. by apply Hz, SeriesC_zero_dzero.
+    - pose proof (pmf_SeriesC_ge_0 μ). lra.
+  Qed.
+
   Context `{Countable B}.
 
   Lemma dbind_dzero_pmf (f : A → distr B) (b : B) :
@@ -672,12 +725,14 @@ Section dprod.
   Variable (μ1 : distr A) (μ2 : distr B).
 
   Lemma dprod_pos (a : A) (b : B) :
-    dprod μ1 μ2 (a, b) > 0 → μ1 a > 0 ∧ μ2 b > 0.
+    dprod μ1 μ2 (a, b) > 0 ↔ μ1 a > 0 ∧ μ2 b > 0.
   Proof.
     rewrite {1}/pmf /=.
-    destruct (decide (μ1 a > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
-    destruct (decide (μ2 b > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
-    done.
+    split.
+    - destruct (decide (μ1 a > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
+      destruct (decide (μ2 b > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
+      done.
+    - intros []. by apply Rmult_gt_0_compat.
   Qed.
 
 End dprod.
@@ -744,7 +799,67 @@ Section marginals.
 
 End marginals.
 
-Section commuting.
+
+Definition distr_le `{Countable A} (μ1 μ2 : distr A) : Prop :=
+  ∀ a, (μ1 a <= μ2 a)%R.
+
+Section order.
+
+(* There may be a way to reformulate this section using refinement couplings *)
+
+Context `{Countable A, Countable B}.
 
 
-End commuting.
+Lemma distr_le_dzero (μ : distr A) :
+  distr_le dzero μ.
+Proof.
+  rewrite /distr_le.
+  intro a; apply pmf_pos.
+Qed.
+
+Lemma distr_le_refl (μ : distr A) :
+  distr_le μ μ.
+Proof.
+  rewrite /distr_le.
+  intro a; lra.
+Qed.
+
+Lemma distr_le_trans (μ1 μ2 μ3 : distr A) :
+  distr_le μ1 μ2 -> distr_le μ2 μ3 -> distr_le μ1 μ3.
+Proof.
+  rewrite /distr_le.
+  intros H1 H2 a.
+  apply (Rle_trans (μ1 a) (μ2 a)); auto.
+Qed.
+
+Lemma distr_le_antisym (μ1 μ2 : distr A):
+  distr_le μ1 μ2 -> distr_le μ2 μ1 -> μ1 = μ2.
+Proof.
+  rewrite /distr_le.
+  intros H1 H2.
+  apply distr_ext; intro a.
+  apply Rle_antisym; auto.
+Qed.
+
+
+Lemma distr_le_dbind (μ1 μ2 : distr A) (f1 f2 : A → distr B) :
+  (distr_le μ1 μ2) -> (∀ a, distr_le (f1 a) (f2 a)) → distr_le (dbind f1 μ1) (dbind f2 μ2).
+Proof.
+  intros Hle Hf.
+  pose proof (pmf_ex_seriesC (μ2 ≫= f2)) as Hex. 
+  rewrite /distr_le /pmf /= /dbind_pmf /=.
+  intro b.
+  (* We do enough of this kind of reasoning that it should be a lemma, so that we don't have to prove the exSeriesC everytime *)
+  apply SeriesC_le; last first.
+  + eapply ex_seriesC_le; [ |apply (pmf_ex_seriesC μ2)].
+    intro a;  split.
+    ++ apply Rmult_le_pos; auto.
+    ++ rewrite <- Rmult_1_r; apply Rmult_le_compat_l; auto. 
+  + intro a; split.
+    ++ apply Rmult_le_pos; auto.
+    ++ rewrite /distr_le in Hle.
+       rewrite /distr_le in Hf.
+       eapply Rmult_le_compat; auto.
+Qed.
+
+End order.

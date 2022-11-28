@@ -477,7 +477,8 @@ Section strict.
   Lemma SeriesC_lt f g :
   (∀ n, 0 <= f n <= g n) →
   (∃ m, f m < g m) →
-   ex_seriesC g → SeriesC f < SeriesC g.
+  ex_seriesC g →
+  SeriesC f < SeriesC g.
   Proof.
     intros Hle Hlt Hg.
     assert (ex_seriesC f) as Hf.
@@ -523,20 +524,18 @@ Section strict.
   Qed.
 
   Lemma SeriesC_gtz_ex f :
-  (∀ n, 0 <= f n) →
-  (SeriesC f > 0) →
-  (exists n, f n > 0).
+    (∀ n, 0 <= f n) →
+    SeriesC f > 0 →
+    ∃ n, f n > 0.
   Proof.
     intro Hf.
     eapply contrapositive. intros Hna.
     assert (∀ a, f a = 0) as Hz.
     { intros a.
       pose proof (not_exists_forall_not _ _ Hna a).
-      specialize (Hf a); lra.
-    }
+      specialize (Hf a); lra. }
     apply Rge_not_gt. rewrite SeriesC_0 //.
    Qed.
-
 
 End strict.
 
@@ -568,6 +567,7 @@ Section positive.
          lra.
   Qed.
 
+  (* TODO: move to [prelude/Coquelicot_ext.v] *)
   (* Strangely, this was not in Coquelicot *)
   Lemma is_series_ge0 (h : nat → R) r:
     (∀ n, 0 <= h n) ->
@@ -582,6 +582,46 @@ Section positive.
     rewrite /ex_series.
     exists r; auto.
   Qed.
+
+(* Lemma is_series_0 a : *)
+(*   is_series a 0 → (∀ n, a n = 0). *)
+(* Proof. *)
+(*   intros Ha. apply (is_series_ext (λ x, 0)); auto. *)
+(*   rewrite /is_series. *)
+(*   apply (filterlim_ext (λ x, 0)). *)
+(*   - intros m. rewrite sum_n_const Rmult_0_r //. *)
+(*   - apply filterlim_const. *)
+(* Qed. *)
+
+
+(*   Lemma Series_0' (f : nat → R) : *)
+(*     ex_series f → Series f = 0 → ∀ a, f a = 0. *)
+(*   Proof. *)
+(*   intros [l Hs] Heq. *)
+(*   | *)
+(*     => apply is_series_unique, is_series_0. done. *)
+
+
+(*   Lemma SeriesC_gt_0 f : *)
+(*     (∀ n, 0 <= f n) → *)
+(*     ex_seriesC f → *)
+(*     (∃ n, f n > 0) → *)
+(*     0 < SeriesC f. *)
+(*   Proof. *)
+(*     intros Hf Hex. *)
+(*     eapply contrapositive. *)
+(*     intros [Hz | Hlt]%Rnot_gt_le [a Hfa]. *)
+(*     - admit.  *)
+(*     -  *)
+
+
+(*     assert (SeriesC f = 0). *)
+(*     { admit. } *)
+
+
+(*     assert (∀ a, f a = 0) as Hz. *)
+(*     { intros a'. *)
+
 
   (*
   Lemma Series_ge0 (h : nat → R):
@@ -726,6 +766,7 @@ Section positive.
       { rewrite /Series. admit. }
 
   Admitted.
+*)
 
 
 
@@ -735,23 +776,128 @@ Section positive.
   Lemma limC_is_sup (h: A -> R) r :
     (∀ n, 0 <= h n) ->
     is_seriesC h r →
-    is_sup_seq (sum_n (countable_sum h) ) (Finite r).
+    is_sup_seq (sum_n (countable_sum h)) (Finite r).
   Proof.
     intros Hge Hs.
     rewrite /is_seriesC in Hs.
-    rewrite /is_series in Hs.
-    eapply (lim_is_sup (countable_sum h) r).
-    + rewrite /countable_sum. destruct (encode_inv_nat _); eauto.
+    eapply (lim_is_sup (countable_sum h) r); auto.
+    (* AA: For some reason, Coq is unable to infer the parameters of encode_inv_nat *)
+    intro n. rewrite /countable_sum /from_option; edestruct (@encode_inv_nat A _ H n); auto ; lra.
+  Qed.
 
+  Lemma sup_is_limC (h: A → R) r :
+    (∀ n, 0 <= h n) ->
+    is_sup_seq (sum_n (countable_sum h)) (Finite r) ->
+    is_seriesC h r.
+  Proof.
+    intros Hge Hsup.
     rewrite /is_seriesC.
-    assert (0 <= r) as Hr.
-    {
-      rewrite <- (is_seriesC_unique _ _ Hs).
-      apply SeriesC_ge_0; auto. exists r; auto.}
-    intro eps; split.
-    + induction n; rewrite /countable_sum.
-      ++ destruct (encode_inv_nat _) =>//=; try lra; admit.
-      ++
-*)
+    eapply (sup_is_lim); auto.
+    intro n; rewrite /countable_sum /from_option; destruct (encode_inv_nat _); auto; lra.
+  Qed.
 
 End positive.
+
+
+Section mct.
+
+
+Lemma lim_seq_incr: ∀ u : nat → R, (∀ n : nat, (u n <= u (S n))) → (u 0%nat) <= (Lim_seq u).
+Proof. Admitted.
+
+(*
+  Adapted from
+  https://depot.lipn.univ-paris13.fr/mayero/coq-num-analysis/-/blob/LInt_p.1.0/Lebesgue/LInt_p.v#L489)
+*)
+
+
+(*
+
+Lemma Beppo_Levi_aux1 (f g : nat -> R):
+    (forall n, 0 <= (f n)) ->
+    (forall n, 0 <= (g n)) ->
+    (forall n, (f n) <= (f (S n))) ->
+    (forall n, (g n) <= (g (S n))) ->
+    Sup_seq (λ n, f n + g n) = Sup_seq (λ n, f n) + Sup_seq (λ n, g n).
+Proof.
+  intros Hposf Hposg Hmonf Hmong.
+  apply is_sup_seq_unique.
+  rewrite /is_sup_seq; intro eps; split.
+  + intro n.
+    (* This should be easy *)
+    admit.
+  + assert (∃ nf : nat, Rbar_lt (Sup_seq (λ n0 : nat, f n0) - eps/2) (f nf)) as [nf Hnf].
+    { admit. }
+    assert (∃ ng : nat, Rbar_lt (Sup_seq (λ n0 : nat, g n0) - eps/2) (g ng)) as [ng Hng].
+    { admit. }
+    exists (max nf ng).
+    admit.
+Admitted.
+
+
+Lemma Beppo_Levi_aux2 (f : nat → nat → R) (M : nat):
+    (forall n m, 0 <= (f n m)) ->
+    (forall n m, (f n m) <= (f (S n) m)) ->
+    Sup_seq (λ n, (sum_n (f n) M)) = sum_n (λ m, Sup_seq (λ n, f n m)) M.
+
+  assert (Sup_seq (λ n : nat, f n a1) + Sup_seq (λ n : nat, f n a2) <= Sup_seq (λ n : nat, f n a1 + f n a2) /\
+            Sup_seq (λ n : nat, f n a1 + f n a2) <= Sup_seq (λ n : nat, f n a1) + Sup_seq (λ n : nat, f n a2)) as H';
+  [ | destruct H'; apply Rle_antisym; auto ].
+  split.
+  + rewrite {3}/Sup_seq.
+  +
+
+Lemma Beppo_Levi' `{Countable A} (f : nat -> A -> R) :
+    (forall a n, 0 <= (f n a)) ->
+    (forall n, ex_seriesC (f n)) ->
+    (forall n a, (f n a) <= (f (S n) a)) ->
+    (exists l, forall n, (SeriesC (f n)) <= l) →
+    let lim_f := λ x, Sup_seq (λ n, f n x) in
+    is_seriesC lim_f (Sup_seq (λ n, SeriesC (f n))).
+Proof.
+  intros Hpos Hex Hmon Hbd lim_f.
+  apply sup_is_limC; auto.
+  + intro a.
+    pose proof (sup_is_upper_bound (λ n : nat, f n a) 0) as Haux1.
+    rewrite // in Haux1.
+    assert (Rbar_le 0 (f 0%nat a)) as Haux2; [apply Hpos | ].
+    admit.
+  + rewrite /SeriesC /Series.
+    rewrite /is_sup_seq.
+    intro eps; split.
+    ++ intro n.
+       assert (Rbar_lt (sum_n (countable_sum (λ x : A, lim_f x)) n) (Sup_seq (λ n0 : nat, Lim_seq (sum_n (countable_sum (f n0)))))).
+       {
+         Search Sup_seq.
+
+       }
+
+
+
+  split.
+  + rewrite /lim_f.
+    eapply ex_seriesC_ext; admit.
+  + rewrite /lim_f.
+
+Lemma mon_conv_thm `{Countable A} (u : A -> nat → R) :
+  (forall a n, Rle (u a n) (u a (S n))) ->
+  (forall n, ex_seriesC (λ a, u a n)) ->
+  SeriesC (λ a, Lim_seq (λ n, u a n)) = Lim_seq (λ n, (SeriesC (λ a, u a n))).
+Proof. Admitted.
+
+Lemma mon_conv_thm_ex `{Countable A} (u : A -> nat → R) b :
+  (forall a n, Rle (u a n) (u a (S n))) →
+  (forall n, ex_seriesC (λ a, u a n)) ->
+  (forall n, Rle (SeriesC (λ a, u a n)) b) ->
+  ex_seriesC (λ a, Lim_seq (λ n , u a n)).
+Proof. Admitted.
+
+Lemma mon_bounded_lim (u : nat → R) b :
+  (forall n, Rle (u n) (u (S n))) ->
+  (forall n, Rle (u n)  b) ->
+  Rle (Lim_seq u) b.
+Admitted.
+
+*)
+
+End mct.

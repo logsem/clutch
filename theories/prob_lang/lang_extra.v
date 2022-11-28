@@ -128,7 +128,6 @@ End rewriting_lemmas.
 
 Section lang_properties.
 
-
 (*
 
 det e -> prim_step (e1,h1,t1) (e2,h2,t1) = prim_step (e1,h1,t2) (e2,h2,t2)
@@ -142,154 +141,132 @@ lmarg(state_step (h1, t1)) = dret(h1)
 dbind (λ σ', head_step e σ') (state_step σ)
 = 
 
+(* Lemma state_after_prim (e1 : expr) (σ1 : state) (α : loc)  : *)
+(*     (¬ (exists e', e1 = Flip e')) -> dbind (λ σ2, head_step e1 σ2) (state_step σ1 α) = *)
+(*                                 dbind (λ ρ, dbind (λ σ3 , dret (ρ.1, σ3))  (state_step ρ.2 α)) (head_step e1 σ1). *)
+(* Proof. *)
+(*  intro Hneq. *)
+(*  rewrite dbind_state_step. *)
+(*  apply distr_ext. *)
+(*  intros (e3 & σ3). *)
+(*  rewrite fair_conv_comb_pmf. *)
+(*  assert ((λ ρ : cfg, *)
+(*             dbind (λ σ0 : state, dret (ρ.1, σ0)) (state_step ρ.2 α)) = *)
+(*          (λ ρ : cfg, fair_conv_comb (dret (ρ.1, (state_upd_tapes (<[α := ρ.2.(tapes) !!! α ++ [true]]>) ρ.2 ))) *)
+(*                           (dret (ρ.1, (state_upd_tapes (<[α := ρ.2.(tapes) !!! α ++ [false]]>) ρ.2 ))))) as Heq. *)
+(*  { admit. } *)
+(*  rewrite Heq. *)
+(*  rewrite dbind_fair_conv_comb. *)
+(*  rewrite fair_conv_comb_pmf. *)
+(*  do 2 rewrite <- Rmult_plus_distr_l. *)
+(*  apply Rmult_eq_compat_l. *)
+(*  destruct e1 ; simpl. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + do 2 rewrite dbind_head_step_pair. *)
+(*    rewrite {1 2}/pmf /= /head_step_pmf/=. *)
+(*    destruct e1_1; destruct e1_2;simpl; try (rewrite /pmf /=; lra). *)
+(*    rewrite /pmf /= /dret_pmf /=. *)
+(*    destruct e3 eqn:He3; simpl; try lra. *)
+(*    case_bool_decide; case_bool_decide. *)
+(*    ++ simplify_eq. *)
+(*       eapply insert_inv in H. *)
+(*       simplify_map_eq. *)
+(*    ++ simplify_eq. *)
+(*       rewrite {1}bool_decide_eq_true_2; auto. *)
+(*       rewrite bool_decide_eq_false_2; auto. *)
+(*       rewrite /state_upd_tapes /=. *)
+(*       intros (? & ? & [= ?%insert_inv]). *)
+(*       simplify_map_eq. *)
+(*    ++ inversion H0. *)
+(*       rewrite bool_decide_eq_false_2; [ | admit ]. *)
+(*       rewrite bool_decide_eq_true_2; auto. *)
+(*  + *)
+
+(*    destruct (decide (e3 = Val(PairV v v0))) eqn:He3. *)
+(*    ++ rewrite He3. destruct H. as (He3 & Hσ3). *)
+(*  + admit. *)
+
+
+(*  rewrite {3 4}/pmf /=/ dbind_pmf/=. *)
+(*  rewrite {3 5}/pmf /= /head_step_pmf/=. *)
+(*  destruct e1; simpl; auto. *)
+(*  + simpl. *)
+(*    destruct e; auto. *)
+
+(*  rewrite {1}/pmf.  /=. *)
+(*  setoid_rewrite (dbind_state_step). *)
+
+(*  rewrite /pmf /= /dbind_pmf /=. *)
+(*  setoid_rewrite bar. *)
+(*  rewrite SeriesC_double_prod_rl. *)
+(*  rewrite {4}/pmf /= /dbind_pmf /=. *)
+(*  assert *)
+(*    (SeriesC (λ b : state, SeriesC (λ a : expr, head_step e1 σ1 (a, b) * SeriesC (λ a0 : state, state_step b α a0 * dret (a, a0) (e3, σ3)))) *)
+(*    = SeriesC (λ b : state, SeriesC (λ a0 : state,  state_step b α a0 * SeriesC (λ a : expr, head_step e1 σ1 (a, b) * dret (a, a0) (e3, σ3))))) as Has. *)
+(*  { admit.} *)
+(*  rewrite Has. *)
+(*  setoid_rewrite bar. *)
+(*  rewrite {1 2 3}/pmf /= /dbind_pmf /=; destruct e1; simpl; *)
+(*  try setoid_rewrite Rmult_0_r; try setoid_rewrite Rmult_0_l. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  +  *)
+
+(*  rewrite /pmf /= /dret_pmf /= /state_step_pmf /= /strength_l /= /dmap /=. *)
+(*  destruct e1; simpl; try setoid_rewrite Rmult_0_r; try setoid_rewrite Rmult_0_l; *)
+(*    rewrite /head_step_pmf /=. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+(*  + admit. *)
+
+
+(*  /state_step_pmf /=. *)
+(*  rewrite {3}/pmf /=. /state_step_pmf. *)
+(*  rewrite SeriesC_double_prod_rl. *)
+(*  apply SeriesC_ext. *)
+(*  intro σ'. *)
+(*  erewrite SeriesC_ext; [ rewrite -> SeriesC_singleton; reflexivity | ]; simpl. *)
+(*  intro e2; simpl. *)
+(*  destruct (foo σ σ' e e2 ) as [Heq | Heq]; auto; rewrite Heq. *)
+(*  + destruct σ'. *)
+(*    rewrite /state_step /state_step_pmf /=. *)
+(*    ++ rewrite H. *)
+
+(*    destruct (foo σ σ' e e2); auto. *)
+(*    ++ rewrite H; simpl. *)
+(*  + *)
+
+
+(*  destruct (foo σ σ''). *)
+(*  destruct e. *)
+(*  + rewrite {2 3}/pmf /=. *)
+(*    rewrite Rmult_0_r. *)
+(*    setoid_rewrite Rmult_0_l. *)
+(*    rewrite SeriesC_0; auto. *)
+(*  + rewrite {2 3}/pmf /=. *)
+(*    rewrite Rmult_0_r. *)
+(*    setoid_rewrite Rmult_0_l. *)
+(*    rewrite SeriesC_0; auto. *)
+(*  + rewrite {2 3}/pmf /=. *)
+(*    destruct e''. *)
+(*    rewrite Rmult_0_r. *)
+(*    setoid_rewrite Rmult_0_l. *)
+(*    rewrite SeriesC_0; auto. *)
 *)
 
-Lemma state_after_prim (e1 : expr) (σ1 : state) (α : loc)  :
-    (¬ (exists e', e1 = Flip e')) -> dbind (λ σ2, head_step e1 σ2) (state_step σ1 α) =
-                                dbind (λ ρ, dbind (λ σ3 , dret (ρ.1, σ3))  (state_step ρ.2 α)) (head_step e1 σ1).
-Proof.
- intro Hneq.
- assert (∃ F,
-          (∀ σ, head_step e1 σ = dret (F e1 σ)) /\
-            forall σ, (F e1 σ).2.(tapes) = σ.(tapes)) as Haux. { admit. }.
- destruct (Haux) as (F & H5 & H6).
- rewrite H5.
- setoid_rewrite H5.
- rewrite dret_id_left /=.
- assert (sta)
-
- apply distr_ext.
- intro ρ.
- rewrite /pmf/=/dbind_pmf.
- assert (forall σ1 σ2, σ1.(heap) = σ2.(heap) -> )
-
-   assert ()
- rewrite H6.
- destruct (F e1 σ1).
- simpl.
- apply distr_ext.
- intro ρ.
-
- rewrite Haux.
- rewrite dbind_state_step.
- apply distr_ext.
- intros (e3 & σ3).
- rewrite fair_conv_comb_pmf.
- assert ((λ ρ : cfg,
-            dbind (λ σ0 : state, dret (ρ.1, σ0)) (state_step ρ.2 α)) =
-         (λ ρ : cfg, fair_conv_comb (dret (ρ.1, (state_upd_tapes (<[α := ρ.2.(tapes) !!! α ++ [true]]>) ρ.2 )))
-                          (dret (ρ.1, (state_upd_tapes (<[α := ρ.2.(tapes) !!! α ++ [false]]>) ρ.2 ))))) as Heq.
- { admit. }
- rewrite Heq.
- rewrite dbind_fair_conv_comb.
- rewrite fair_conv_comb_pmf.
- do 2 rewrite <- Rmult_plus_distr_l.
- apply Rmult_eq_compat_l.
- destruct e1 ; simpl.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + do 2 rewrite dbind_head_step_pair.
-   rewrite {1 2}/pmf /= /head_step_pmf/=.
-   destruct e1_1; destruct e1_2;simpl; try (rewrite /pmf /=; lra).
-   rewrite /pmf /= /dret_pmf /=.
-   destruct e3 eqn:He3; simpl; try lra.
-   case_bool_decide; case_bool_decide.
-   ++ simplify_eq.
-      eapply insert_inv in H.
-      simplify_map_eq.
-   ++ simplify_eq.
-      rewrite {1}bool_decide_eq_true_2; auto.
-      rewrite bool_decide_eq_false_2; auto.
-      rewrite /state_upd_tapes /=.
-      intros (? & ? & [= ?%insert_inv]).
-      simplify_map_eq.
-   ++ inversion H0.
-      rewrite bool_decide_eq_false_2; [ | admit ].
-      rewrite bool_decide_eq_true_2; auto.
- +
-
-   destruct (decide (e3 = Val(PairV v v0))) eqn:He3.
-   ++ rewrite He3. destruct H. as (He3 & Hσ3).
- + admit.
-
-
- rewrite {3 4}/pmf /=/ dbind_pmf/=.
- rewrite {3 5}/pmf /= /head_step_pmf/=.
- destruct e1; simpl; auto.
- + simpl.
-   destruct e; auto.
- 
- rewrite {1}/pmf.  /=.
- setoid_rewrite (dbind_state_step).
-
- rewrite /pmf /= /dbind_pmf /=.
- setoid_rewrite bar.
- rewrite SeriesC_double_prod_rl.
- rewrite {4}/pmf /= /dbind_pmf /=.
- assert
-   (SeriesC (λ b : state, SeriesC (λ a : expr, head_step e1 σ1 (a, b) * SeriesC (λ a0 : state, state_step b α a0 * dret (a, a0) (e3, σ3))))
-   = SeriesC (λ b : state, SeriesC (λ a0 : state,  state_step b α a0 * SeriesC (λ a : expr, head_step e1 σ1 (a, b) * dret (a, a0) (e3, σ3))))) as Has.
- { admit.}
- rewrite Has.
- setoid_rewrite bar.
- rewrite {1 2 3}/pmf /= /dbind_pmf /=; destruct e1; simpl;
- try setoid_rewrite Rmult_0_r; try setoid_rewrite Rmult_0_l.
- + admit.
- + admit.
- + 
-
- rewrite /pmf /= /dret_pmf /= /state_step_pmf /= /strength_l /= /dmap /=.
- destruct e1; simpl; try setoid_rewrite Rmult_0_r; try setoid_rewrite Rmult_0_l;
-   rewrite /head_step_pmf /=.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
- + admit.
-
-
- /state_step_pmf /=.
- rewrite {3}/pmf /=. /state_step_pmf.
- rewrite SeriesC_double_prod_rl.
- apply SeriesC_ext.
- intro σ'.
- erewrite SeriesC_ext; [ rewrite -> SeriesC_singleton; reflexivity | ]; simpl.
- intro e2; simpl.
- destruct (foo σ σ' e e2 ) as [Heq | Heq]; auto; rewrite Heq.
- + destruct σ'.
-   rewrite /state_step /state_step_pmf /=.
-   ++ rewrite H.
-
-   destruct (foo σ σ' e e2); auto.
-   ++ rewrite H; simpl.
- +
-
-
- destruct (foo σ σ'').
- destruct e.
- + rewrite {2 3}/pmf /=.
-   rewrite Rmult_0_r.
-   setoid_rewrite Rmult_0_l.
-   rewrite SeriesC_0; auto.
- + rewrite {2 3}/pmf /=.
-   rewrite Rmult_0_r.
-   setoid_rewrite Rmult_0_l.
-   rewrite SeriesC_0; auto.
- + rewrite {2 3}/pmf /=.
-   destruct e''.
-   rewrite Rmult_0_r.
-   setoid_rewrite Rmult_0_l.
-   rewrite SeriesC_0; auto.
-
 End lang_properties.
+

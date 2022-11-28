@@ -18,21 +18,49 @@ Local Definition reducible_not_val_inhabitant e := reducible_not_val e inhabitan
 Local Hint Resolve reducible_not_val_inhabitant : core.
 Local Hint Resolve head_stuck_stuck : core.
 
+(* TODO: move *)
+Lemma exec_state_head_reducible ζ e σ σ' :
+  exec_state ζ σ σ' > 0 → head_reducible e σ ↔ head_reducible e σ'.
+Proof.
+  revert σ σ'; induction ζ as [|f ζ IH]; intros σ σ'.
+  { by intros ->%dret_pos. }
+  rewrite exec_state_cons.
+  intros [σ1 [Hexec Hs]]%dbind_pos_support.
+  split; intros Hred.
+  - eapply (IH _ _ Hexec). by erewrite <-state_step_head_reducible.
+  - eapply state_step_head_reducible; [done|]. by eapply IH.
+Qed.
+
 Lemma wp_lift_head_step_fupd_couple {s E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1 ρ, state_interp σ1 ∗ spec_interp ρ ={E,∅}=∗
-    ⌜head_reducible e1 σ1⌝ ∗
-    ∃ ξ ξ' R,
-      ⌜SchedulerWf ξ (e1, σ1)⌝ ∗
-      ⌜Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R⌝ ∗
-      ∀ e2 σ2 ρ',
-        ⌜R (e2, σ2) ρ'⌝ ={∅}=∗ ▷ |={∅,E}=>
-        state_interp σ2 ∗ spec_interp ρ' ∗ WP e2 @ s; E {{ Φ }})
+  (∀ σ1 e1' σ1',
+     state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
+     ∃ (ζ1 : state_scheduler Λ) (ξ1 : scheduler Λ) (R : state Λ → cfg Λ → Prop),
+       ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R⌝ ∗
+       ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗
+         ⌜head_reducible e1 σ2⌝ ∗
+         ∃ (ζ2 : state_scheduler Λ) (ξ2 : scheduler Λ) (S : cfg Λ → cfg Λ → Prop),
+           ⌜Rcoupl (dbind (λ σ3, head_step e1 σ3) (exec_state ζ2 σ2)) (exec ξ2 (e2', σ2')) S⌝ ∗
+           ∀ e2 σ3 e3' σ3',
+             ⌜S (e2, σ3) (e3', σ3')⌝ ={∅}=∗ ▷ |={∅,E}=>
+             state_interp σ3 ∗ spec_interp (e3', σ3') ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_couple=>//. iIntros (σ1 ρ) "Hσ".
-  iMod ("H" with "Hσ") as "[% H]"; iModIntro.
-  iSplit; first by destruct s; eauto. done.
+  iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done|].
+  iIntros (σ1 e1' σ1') "Hσ".
+  iMod ("H" with "Hσ") as (ζ ζ' R Hcoupl) "H"; iModIntro.
+  iExists _, _, _. iSplit; [done|].
+  iIntros (????).
+  iMod ("H" with "[//]") as (Hs ζ1 ξ1 S HS) "H".
+  iModIntro.
+  iSplit; [destruct s; auto|].
+  iExists ζ1, ξ1, S.
+  iSplit; [|done].
+  iPureIntro.
+  erewrite (dbind_eq _ (head_step e1)); [done| |done].
+  intros σ Hexec.
+  rewrite /= head_prim_step_eq //.
+  by erewrite <-exec_state_head_reducible.
 Qed.
 
 Lemma wp_lift_head_step {s E Φ} e1 :

@@ -26,6 +26,9 @@ Section ectx_language_mixin.
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
     mixin_val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None;
+    mixin_state_step_head_not_stuck e σ σ' α :
+      state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0);
+    mixin_state_step_inhabited σ α : SeriesC (state_step σ α) > 0;
 
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
@@ -87,7 +90,7 @@ Structure ectxLanguage := EctxLanguage {
   state_step : state → state_idx → distr state;
 
   ectx_language_mixin :
-    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp head_step
+    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp head_step state_step
 }.
 
 #[global] Existing Instance expr_eqdec.
@@ -117,6 +120,9 @@ Section ectx_language.
 
   (* Only project stuff out of the mixin that is not also in language *)
   Lemma val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None.
+  Proof. apply ectx_language_mixin. Qed.
+  Lemma state_step_head_not_stuck e σ σ' α :
+    state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
   Proof. apply ectx_language_mixin. Qed.
   Lemma fill_empty e : fill empty_ectx e = e.
   Proof. apply ectx_language_mixin. Qed.
@@ -169,7 +175,7 @@ Section ectx_language.
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
-  Definition ectx_lang_mixin : LanguageMixin (@of_val Λ) to_val prim_step.
+  Definition ectx_lang_mixin : LanguageMixin (@of_val Λ) to_val prim_step state_step.
   Proof.
     split.
     - apply ectx_language_mixin.
@@ -180,6 +186,26 @@ Section ectx_language.
       rewrite -(decomp_fill _ _ _ Heq).
       apply val_head_stuck in Hs.
       by eapply fill_not_val.
+    - intros e1 σ1 σ1' α. rewrite /prim_step.
+      destruct (decomp e1) as [K e1'] eqn:Heq.
+      intros Hs. split.
+      + intros [[e2 σ2] [[e2' σ2'] [[= ? <-]%dret_pos Hh]]%dbind_pos_support].
+        assert (∃ ρ, head_step e1' σ1' ρ > 0) as [[e2'' σ2''] Hs'].
+        { erewrite <-state_step_head_not_stuck; [|done]. eauto. }
+        eexists (fill K e2'', σ2'').
+        eapply dbind_pos_support.
+        eexists (_, _).
+        split; [|done].
+        rewrite dret_1 //. lra.
+      + intros [[e2 σ2] [[e2' σ2'] [[= ? <-]%dret_pos Hh]]%dbind_pos_support].
+        assert (∃ ρ, head_step e1' σ1 ρ > 0) as [[e2'' σ2''] Hs'].
+        { erewrite state_step_head_not_stuck; [|done]. eauto. }
+        eexists (fill K e2'', σ2'').
+        eapply dbind_pos_support.
+        eexists (_, _).
+        split; [|done].
+        rewrite dret_1 //. lra.
+    - apply ectx_language_mixin.
   Qed.
 
   Canonical Structure ectx_lang : language := Language (state_step := state_step)  ectx_lang_mixin.
@@ -219,6 +245,22 @@ Section ectx_language.
     subst K''. rewrite fill_empty. done.
   Qed.
 
+  Lemma fill_prim_step_dbind K e1 σ1 :
+    to_val e1 = None →
+    prim_step (fill K e1) σ1 = dbind (λ '(e2, σ2), dret (fill K e2, σ2)) (prim_step e1 σ1).
+  Proof.
+    intros Hval. rewrite /prim_step.
+    destruct (decomp e1) as [K1 e1'] eqn:Heq.
+    destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
+    apply (decomp_fill_comp K) in Heq; [|done].
+    rewrite Heq in Heq'; simplify_eq.
+    rewrite -dbind_assoc.
+    eapply distr_ext. intros ρ.
+    eapply dbind_pmf_ext; [|done|done].
+    intros [e' σ'] [e'' σ''].
+    rewrite dret_id_left -fill_comp //.
+  Qed.
+
   Local Lemma fill_prim_step K e1 σ1 e2 σ2 :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
@@ -234,7 +276,7 @@ Section ectx_language.
     rewrite (dret_pmf_map (fill_lift K) (fill K1 e, σ) (e2, σ2)) //.
   Qed.
 
-  Lemma head_prim_step_eq e1 σ1 ρ :
+  Lemma head_prim_step_pmf_eq e1 σ1 ρ :
     head_reducible e1 σ1 →
     prim_step e1 σ1 ρ = head_step e1 σ1 ρ.
   Proof.
@@ -258,6 +300,11 @@ Section ectx_language.
       rewrite dret_id_right_pmf //.
       rewrite fill_empty //.
   Qed.
+
+  Lemma head_prim_step_eq e1 σ1 :
+    head_reducible e1 σ1 →
+    prim_step e1 σ1 = head_step e1 σ1.
+  Proof. intros ?. apply distr_ext=>?. by eapply head_prim_step_pmf_eq. Qed.
 
   Lemma head_prim_step e1 σ1 ρ :
     head_step e1 σ1 ρ > 0 → prim_step e1 σ1 ρ > 0.
@@ -298,6 +345,10 @@ Section ectx_language.
   Lemma head_prim_fill_reducible e K σ :
     head_reducible e σ → reducible (fill K e) σ.
   Proof. intro. by apply fill_reducible, head_prim_reducible. Qed.
+  Lemma state_step_head_reducible e σ σ' α :
+    state_step σ α σ' > 0 → head_reducible e σ ↔ head_reducible e σ'.
+  Proof. eapply state_step_head_not_stuck. Qed.
+
   Lemma head_prim_irreducible e σ : irreducible e σ → head_irreducible e σ.
   Proof.
     rewrite -not_reducible -not_head_reducible. eauto using head_prim_reducible.
@@ -364,18 +415,7 @@ Section ectx_language.
     split; simpl.
     - eauto using fill_not_val.
     - apply _.
-    - intros ???? (K' & e1' & e2' & Heq1 & Heq2 & Hs)%prim_step_iff.
-      eapply prim_step_iff.
-      exists (comp_ectx K K'), e1', e2'.
-      simplify_eq. rewrite !fill_comp //.
-    - intros e1 σ1 e2 σ2 Hnval (K'' & e1'' & e2'' & Heq1 & Heq2 & Hstep)%prim_step_iff.
-      simplify_eq.
-      destruct (step_by_val K K'' e1 e1'' σ1 (e2'', σ2)) as [K' ->]; eauto.
-      rewrite -fill_comp in Heq1; apply (inj (fill _)) in Heq1.
-      exists (fill K' e2'').
-      rewrite -fill_comp. split; [done|].
-      eapply prim_step_iff. do 3 eexists; eauto.
-    - apply fill_prim_step.
+    - apply fill_prim_step_dbind.
   Qed.
 
   Record pure_head_step (e1 e2 : expr Λ) := {
@@ -388,7 +428,7 @@ Section ectx_language.
     intros [Hp1 Hp2]. split.
     - intros σ. destruct (Hp1 σ) as ([e2' σ2] & ?).
       eexists (e2', σ2). by apply head_prim_step.
-    - intros σ1. rewrite head_prim_step_eq //.
+    - intros σ1. rewrite /= head_prim_step_eq //.
   Qed.
 
   (** This is not an instance because HeapLang's [wp_pure] tactic already takes

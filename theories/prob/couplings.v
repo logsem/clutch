@@ -313,6 +313,7 @@ Section couplings_theory.
   Qed.
 
 
+
   Proposition eqcoupl_elim :
     forall (μ1 μ2 : distr A),
       Rcoupl μ1 μ2 (=) → μ1 = μ2.
@@ -335,6 +336,28 @@ Section couplings_theory.
     + pose proof (pmf_pos μ (a2, a1)).
       assert (μ (a1, a2) > 0) as H'; try lra.
       specialize (HμS12 H'); destruct HμS12; auto.
+  Qed.
+
+  Lemma Rcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R :
+    Rcoupl μ1 μ2 R →
+    SeriesC μ1 > 0 →
+    ∃ a b, R a b.
+  Proof.
+    intros [μ [Hcpl HR]] Hz.
+    assert (SeriesC μ > 0) as Hsup by by erewrite isCoupl_mass_l.
+    apply SeriesC_gtz_ex in Hsup as [[a b] Hμ]; [|done].
+    eauto.
+  Qed.
+
+  Lemma Rcoupl_inhabited_r (μ1 : distr A) (μ2 : distr B) R :
+    Rcoupl μ1 μ2 R →
+    SeriesC μ2 > 0 →
+    ∃ a b, R a b.
+  Proof.
+    intros [μ [Hcpl HR]] Hz.
+    assert (SeriesC μ > 0) as Hsup by by erewrite isCoupl_mass_r.
+    apply SeriesC_gtz_ex in Hsup as [[a b] Hμ]; [|done].
+    eauto.
   Qed.
 
 End couplings_theory.
@@ -368,7 +391,18 @@ Section Rcoupl_strength.
 
   Variable (μ1 : distr A) (μ2 : distr B).
 
-  Lemma Rcoupl_strength_l (R : A → B → Prop) (d : D) (e : E) :
+  Lemma Rcoupl_strength_l (R : A → B → Prop) (d : D)  :
+    Rcoupl μ1 μ2 R →
+    Rcoupl (strength_l d μ1) μ2 (λ '(d', a) b, d' = d ∧ R a b).
+  Proof.
+    rewrite /strength_l /dmap.
+    intros Hcpl.
+    rewrite -(dret_id_right μ2).
+    eapply Rcoupl_bind; [|done].
+    intros. by apply Rcoupl_ret.
+  Qed.
+
+  Lemma Rcoupl_strength (R : A → B → Prop) (d : D) (e : E) :
     Rcoupl μ1 μ2 R →
     Rcoupl (strength_l d μ1) (strength_l e μ2)
       (λ '(d', a) '(e', b), d' = d ∧ e' = e ∧ R a b).

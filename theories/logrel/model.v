@@ -1,8 +1,7 @@
 (** A binary logical relation for System F_mu_ref with tapes *)
-
 From iris.proofmode Require Import proofmode.
 From self.prelude Require Import properness.
-From self.prob_lang Require Import notation types spec_ra primitive_laws.
+From self.prob_lang Require Import notation spec_ra primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".
 
@@ -58,12 +57,7 @@ Section semtypes.
   Implicit Types E : coPset.
   Implicit Types A B : lrel Σ.
 
-Set Primitive Projections.
-
-  (* spec_ctx and ⤇K[e] are connected via the `specGS` CMRA (contained in the
-     `prelocGS` we have around), so [refines_right K e] means that `⤇K[e]` is
-     reachable via reduction from the initial spec configuration. *)
-  Definition refines_right K (e : expr) := (spec_ctx ∗ ⤇ fill K e)%I.
+  Set Primitive Projections.
 
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
@@ -94,8 +88,8 @@ Set Primitive Projections.
       inv (logN .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ₛ v2 ∗ A v1 v2))%I.
 
   Definition lrel_tape : lrel Σ := LRel (λ w1 w2,
-    ∃ α1 α2 : loc, ⌜w1 = #α1⌝ ∧ ⌜w2 = #α2⌝ ∧
-      inv (logN .@ (α1, α2)) (∃ v, α1 ↪ v ∗ α2 ↪ₛ v))%I.
+    ∃ α1 α2 : loc, ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
+      inv (logN .@ (α1, α2)) (∃ bs, α1 ↪ bs ∗ α2 ↪ₛ bs))%I.
 
   Definition lrel_prod (A B : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ v1 v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧
@@ -200,7 +194,7 @@ Section semtypes_properties.
 
   Lemma interp_tape_funct E (l l1 l2 : loc) :
     ↑logN ⊆ E →
-    lrel_tape #l #l1 ∗ lrel_tape #l #l2
+    lrel_tape #lbl:l #lbl:l1 ∗ lrel_tape #lbl:l #lbl:l2
     ={E}=∗ ⌜l1 = l2⌝.
   Proof.
     iIntros (?) "[Hl1 Hl2] /=".
@@ -216,7 +210,7 @@ Section semtypes_properties.
 
   Lemma interp_tape_inj E (A : lrel Σ) (l l1 l2 : loc) :
     ↑logN ⊆ E →
-    lrel_tape #l1 #l ∗ lrel_tape #l2 #l
+    lrel_tape #lbl:l1 #lbl:l ∗ lrel_tape #lbl:l2 #lbl:l
     ={E}=∗ ⌜l1 = l2⌝.
   Proof.
     iIntros (?) "[Hl1 Hl2] /=".

@@ -60,6 +60,7 @@ Tactic Notation "case_bool_decide_and_destruct" "in" ident(H) :=
   destruct_and? Hf;
   simplify_eq.
 
+(*
 (** A relational definition of the support of [head_step] to make it possible to
     do inversion and prove reducibility easier c.f. lemma below *)
 Inductive head_step_rel : expr → state → expr → state → Prop :=
@@ -171,6 +172,9 @@ Proof.
       rewrite ?bool_decide_eq_true_2 //; try lra.
 Qed.
 
+=======
+>>>>>>> 8c9a6864e12768a1621c09ab37f2ea7b62a58564
+*)
 Lemma head_step_support_eq e1 e2 σ1 σ2 r :
   r > 0 → head_step e1 σ1 (e2, σ2) = r → head_step_rel e1 σ1 e2 σ2.
 Proof. intros ? <-. by eapply head_step_support_equiv_rel. Qed.
