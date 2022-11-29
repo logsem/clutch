@@ -338,6 +338,14 @@ Section couplings_theory.
       specialize (HμS12 H'); destruct HμS12; auto.
   Qed.
 
+  Proposition Rcoupl_wk (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
+      (forall a b, R a b -> S a b) -> Rcoupl μ1 μ2 R -> Rcoupl μ1 μ2 S.
+  Proof.
+    intros Hwk [μ [[HμL HμR] HμSupp]].
+    exists μ; split; [split | ]; auto.
+  Qed.
+
+
   Lemma Rcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R :
     Rcoupl μ1 μ2 R →
     SeriesC μ1 > 0 →
@@ -563,7 +571,14 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       specialize (HCh2 (a', b') H7).
       done.
   Admitted.
-  
+
+
+  Proposition refRcoupl_wk (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
+      (forall a b, R a b -> S a b) -> refRcoupl μ1 μ2 R -> refRcoupl μ1 μ2 S.
+  Proof.
+    intros Hwk [μ [[HμL HμR] HμSupp]].
+    exists μ; split; [split | ]; auto.
+  Qed.
 
 (* Old proof attempts below, can probably be deleted
 
@@ -694,11 +709,46 @@ Fixpoint iter_dbind `{Countable A} (F : A → distr A) (n : nat) (a : A) : distr
   | S m => dbind (iter_dbind F m) (F a)
   end.
 
+Lemma iter_dbind_sym `{Countable A} (F : A → distr A) (a : A) (n : nat) :
+  dbind (iter_dbind F n) (F a) = dbind F (iter_dbind F n a).
+Proof.
+  generalize a.
+  induction n.
+  + intro; simpl.
+    rewrite dret_id_right.
+    rewrite dret_id_left.
+    auto.
+  + (* This can be made cleaner, but it works for now *)
+    intro a'.
+    assert (iter_dbind F (S n) a' = dbind (iter_dbind F n) (F a')) as ->; auto.
+    assert (iter_dbind F (S n) = λ x, dbind (iter_dbind F n) (F x)) as ->; auto.
+    apply distr_ext; intros a''.
+    rewrite <- dbind_assoc.
+    rewrite /pmf/=/dbind_pmf/=.
+    apply SeriesC_ext; intros.
+    assert ((F n0 ≫= iter_dbind F n) a'' = (iter_dbind F n n0 ≫= [eta F]) a'' ) as ->; [ | try lra].
+    rewrite IHn; auto.
+Qed.
+
+
 Program Definition iter_lim `{Countable A} (F : A → distr A) (a : A) : distr A :=
   MkDistr (λ a', Lim_seq (λ n, iter_dbind F n a a')) _ _ _.
 Next Obligation. Admitted.
 Next Obligation. Admitted.
 Next Obligation. Admitted.
+
+Lemma lim_is_fixpoint `{Countable A} (F : A → distr A) (a : A) :
+  dbind F (iter_lim F a) = iter_lim F a.
+Proof. Admitted.
+
+Lemma lim_is_fixpoint2 `{Countable A} (F : A → distr A) (a : A) :
+  dbind (iter_lim F) (F a) = iter_lim F a.
+Proof. Admitted.
+
+
+Lemma lim_is_fixpoint3 `{Countable A} (F : A → distr A) (a : A) :
+  dbind (iter_lim F) (iter_lim F a) = iter_lim F a.
+Proof. Admitted.
 
 Definition step_refRcoupl `{Countable A, Countable B} (F : A → distr A) (G : B → distr B) (R : A → B → Prop) (a : A) (b : B)  :=
   forall n, refRcoupl (iter_dbind F n a) (iter_lim G b) R.
@@ -714,7 +764,17 @@ Proof.
   + (*destruct IHn as [m Hm].*)
     assert (iter_dbind F (S n) a = dbind (iter_dbind F n) (F a)) as ->; auto.
     pose proof (refRcoupl_bind F G (iter_dbind F n a) (iter_lim G b) R (step_refRcoupl F G R) Hstep IHn) as Haux.
-Admitted.
+    rewrite lim_is_fixpoint in Haux.
+    rewrite <- iter_dbind_sym in Haux.
+    rewrite /step_refRcoupl in Haux.
+    apply (refRcoupl_wk (F a ≫= iter_dbind F n) (iter_lim G b) _
+             (λ (a : A) (b : B), refRcoupl (iter_dbind F 0 a) (iter_lim G b) R)) in Haux; auto.
+    assert (refRcoupl ((F a ≫= iter_dbind F n) ≫= (iter_dbind F 0)) ((iter_lim G b) ≫= (iter_lim G)) R) as Hcoupl.
+    { apply (refRcoupl_bind _ _ _ _ (λ (a : A) (b : B), refRcoupl (iter_dbind F 0 a) (iter_lim G b) R)); auto.
+    }
+    rewrite {1}/iter_dbind/= dret_id_right lim_is_fixpoint3 in Hcoupl.
+    done.
+Qed.
 
 
 
