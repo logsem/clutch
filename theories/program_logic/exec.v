@@ -322,6 +322,16 @@ Section prim_scheduler.
   (*   by erewrite exec_pure_step_ctx. *)
   (* Qed. *)
 
+  (* This defines the step-indexed version of the intended operational semantics (i.e., only prim steps) *)
+  Fixpoint prim_exec (ρ : cfg Λ) (n : nat) {struct n} : distr (cfg Λ) :=
+    match to_val ρ.1 with
+      | Some v => dret ρ
+      | None => match n with
+               | 0 => dzero
+               | S m => dbind (λ ρ', prim_exec ρ' m) (prim_step ρ.1 ρ.2)
+               end
+    end.
+
 End prim_scheduler.
 
 
@@ -770,3 +780,10 @@ End prim_step_fill.
 
 Global Hint Extern 0 (TCEq (to_val ?e) _) =>
        match goal with | H : to_val e = _ |- _ => rewrite H; constructor end : core.
+
+
+Section exec_prim.
+
+
+
+End exec_prim.

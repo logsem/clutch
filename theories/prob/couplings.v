@@ -457,6 +457,19 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
     apply ex_seriesC_rmarg.
   Qed.
 
+  Proposition weaken_coupl (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+      Rcoupl μ1 μ2 R → refRcoupl μ1 μ2 R.
+  Proof.
+    rewrite /refRcoupl /Rcoupl.
+    intros (μ & ((HμL & HμR) & HμSupp)).
+    exists μ.
+    split; auto.
+    split; auto.
+    rewrite HμL.
+    intros; apply Rle_refl.
+  Qed.
+
+
   Proposition is_ref_coupl_ret :
     forall (a : A) (b : B), isRefCoupl (dret a) (dret b) (dret (a, b)).
   Proof.
@@ -475,8 +488,9 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
  Proposition refRcoupl_bind :
     forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop),
       (∀ a b, R a b → refRcoupl (f a) (g b) S) → refRcoupl μ1 μ2 R → refRcoupl (dbind f μ1) (dbind g μ2) S.
-  Proof. Admitted.
-(*    intros f g μ1 μ2 R S Hfg (μ & HμC & HμS).
+  Proof.
+  (* TODO: Prove existence of the seriesC in the admits *)
+    intros f g μ1 μ2 R S Hfg (μ & HμC & HμS).
     rewrite /Rcoupl /isRcoupl in Hfg.
     (* First we rewrite Hfg to be able to use Choice *)
     assert (∀ (p : A * B), ∃ μ' : distr (A' * B'), R p.1 p.2 → (isRefCoupl (f p.1) (g p.2) μ' ∧
@@ -500,24 +514,28 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       rewrite lmarg_pmf /= /dbind_pmf
        (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l]. 
-      erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
-      {intros (a & b).
+      [ | intro p; apply SeriesC_scal_l].
+      apply (Rle_trans _ (SeriesC (λ p, μ p * f p.1 a')) _); last first.
+      {
+        apply SeriesC_le; [ | admit].
+        intros (a & b); split; [apply Rmult_le_pos; auto | ].
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         + pose proof (pmf_pos μ (a, b)); lra.
         + rewrite Heqz; lra.
         + specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
-          rewrite -HChL lmarg_pmf //=.
-          }.
-      rewrite SeriesC_double_prod_lr.
-      erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
-      [ | intro a; simpl; apply SeriesC_scal_r ].
-      erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
-      intro a.
-      destruct HμC as (Hμ1 & Hμ2).
-      rewrite <- Hμ1;
-      rewrite lmarg_pmf; auto.
-(* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
+          specialize (HChL a').
+          rewrite (lmarg_pmf (Ch (a, b))) in HChL.
+          apply Rmult_le_compat_l; auto.
+      }
+      rewrite {1}/pmf /= /dbind_pmf /=.
+      rewrite SeriesC_double_prod_lr /=.
+      apply SeriesC_le; [ | admit].
+      intro a; split; [apply Rmult_le_pos; auto | ].
+      rewrite SeriesC_scal_r.
+      apply Rmult_le_compat_r; auto.
+      destruct HμC as [HμCL HμCR].
+      specialize (HμCL a).
+      rewrite (lmarg_pmf μ) in HμCL; auto.
     + apply distr_ext; intro b'.
       rewrite rmarg_pmf /= /dbind_pmf
       (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
@@ -544,7 +562,8 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
       specialize (HCh2 (a', b') H7).
       done.
-  Qed. *)
+  Admitted.
+  
 
 (* Old proof attempts below, can probably be deleted
 
@@ -664,3 +683,40 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
    Admitted.
 *)
 End ref_couplings_theory.
+
+Section iter_couplings.
+
+
+
+Fixpoint iter_dbind `{Countable A} (F : A → distr A) (n : nat) (a : A) : distr A :=
+  match n with
+  | 0 => dret a
+  | S m => dbind (iter_dbind F m) (F a)
+  end.
+
+Program Definition iter_lim `{Countable A} (F : A → distr A) (a : A) : distr A :=
+  MkDistr (λ a', Lim_seq (λ n, iter_dbind F n a a')) _ _ _.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
+Next Obligation. Admitted.
+
+Definition step_refRcoupl `{Countable A, Countable B} (F : A → distr A) (G : B → distr B) (R : A → B → Prop) (a : A) (b : B)  :=
+  forall n, refRcoupl (iter_dbind F n a) (iter_lim G b) R.
+
+Lemma step_refRcoupl_ind `{Countable A, Countable B} (F : A → distr A) (G : B → distr B) (a : A) (b : B) (R : A → B → Prop) :
+  (refRcoupl (dret a) (iter_lim G b) R) ->
+  (∀ a b, R a b -> refRcoupl (F a) (G b) (step_refRcoupl F G R)) ->
+  step_refRcoupl F G R a b.
+Proof.
+  intros Hz Hstep n.
+  induction n.
+  + rewrite {1}/iter_dbind; auto.
+  + (*destruct IHn as [m Hm].*)
+    assert (iter_dbind F (S n) a = dbind (iter_dbind F n) (F a)) as ->; auto.
+    pose proof (refRcoupl_bind F G (iter_dbind F n a) (iter_lim G b) R (step_refRcoupl F G R) Hstep IHn) as Haux.
+Admitted.
+
+
+
+
+End iter_couplings.
