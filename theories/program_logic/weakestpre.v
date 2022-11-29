@@ -25,14 +25,18 @@ Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
 
+(* TODO: upstream? *)
+Lemma least_fixpoint_ne_outer {PROP : bi} {A : ofe}
+    (F1 : (A → PROP) → (A → PROP)) (F2 : (A → PROP) → (A → PROP)) n :
+  (∀ Φ x, F1 Φ x ≡{n}≡ F2 Φ x) → ∀ x1 x2,
+  x1 ≡{n}≡ x2 → bi_least_fixpoint F1 x1 ≡{n}≡ bi_least_fixpoint F2 x2.
+Proof.
+  intros HF x1 x2 Hx. rewrite /bi_least_fixpoint /=.
+  do 3 f_equiv; last solve_proper. repeat f_equiv. apply HF.
+Qed.
+
 Section exec_coupl.
   Context `{!irisGS Λ Σ}.
-
-  (* For [prob_lang] this would just be [λ σ, elements (dom σ.(tapes))] - it'll
-     be nicer with just a set but there's no set-big_op for disjunction in Iris
-     at the moment, so lets stick to a list for now *)
-  Context `{Countable (state_idx Λ)}.
-  Variable (get_idx : state Λ → list (state_idx Λ)).
 
   (* We'd probably want more cases with [state_step] only on the
      left/right and [prim_step] related to [state_step] etc. But this seems
@@ -50,7 +54,7 @@ Section exec_coupl.
       (∃ R, ⌜Rcoupl (dret (e1, σ1)) (prim_step e1' σ1') R⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ Φ ((e1, σ1), (e2', σ2'))) ∨
       (* [state_step] on both sides - a case for all combinations of 'active' indicies on both sides *)
-      ([∨ list] αs ∈ list_prod (get_idx σ1) (get_idx σ1'),
+      ([∨ list] αs ∈ list_prod (get_active Λ σ1) (get_active Λ σ1'),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
               (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ ((e1, σ2), (e1', σ2')))))
     )%I.
@@ -59,8 +63,8 @@ Section exec_coupl.
     NonExpansive (exec_coupl_pre Z Φ).
   Proof.
     rewrite /exec_coupl_pre.
-    intros n ((?&?)&(?&?)) ((?&?)&(?&?)) [[H1 H2] [H3 H4]].
-    simpl in *. inversion H1; inversion H2; inversion H3; inversion H4. done.
+    intros n ((?&?)&(?&?)) ((?&?)&(?&?)) [[[=] [=]] [[=] [=]]].
+    by simplify_eq. 
   Qed.
 
   Local Instance exec_coupl_pre_mono Z : BiMonoPred (exec_coupl_pre Z).
@@ -76,7 +80,7 @@ Section exec_coupl.
       iExists _. iSplit; [done|].
       iIntros. iApply "Hwand". by iApply "HZ".
     - iRight; iRight; iRight.
-      iInduction (list_prod (get_idx σ1) (get_idx σ1')) as [| l] "IH" forall "Hl".
+      iInduction (list_prod (get_active _ σ1) (get_active _ σ1')) as [| l] "IH" forall "Hl".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
       iDestruct "Hl" as "[(% & % & HZ) | H]".
@@ -96,7 +100,7 @@ Section exec_coupl.
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
       (∃ R, ⌜Rcoupl (dret (e1, σ1)) (prim_step e1' σ1') R⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z) ∨
-      ([∨ list] αs ∈ list_prod (get_idx σ1) (get_idx σ1'),
+      ([∨ list] αs ∈ list_prod (get_active Λ σ1) (get_active Λ σ1'),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
               (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))))%I.
   Proof.
@@ -107,7 +111,7 @@ Section exec_coupl.
   (* This should be the lemma we need for proving [wp_couple_tapes] - we can
      have similar lemmas for all the different disjuncts *)
   Lemma exec_coupl_trans_state_steps e1 σ1 e1' σ1' Z α α' :
-    (α, α') ∈ list_prod (get_idx σ1) (get_idx σ1') →
+    (α, α') ∈ list_prod (get_active Λ σ1) (get_active Λ σ1') →
     (∃ R, ⌜Rcoupl (state_step σ1 α) (state_step σ1' α') R⌝ ∗
           (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))
     ⊢ exec_coupl e1 σ1 e1' σ1' Z.
@@ -118,72 +122,89 @@ Section exec_coupl.
     by iApply big_orL_elem_of.
   Qed.
 
-  Definition wp_pre (s : stuckness)
-      (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
-      coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
-    match to_val e1 with
-    | Some v => |={E}=> Φ v
-    | None => ∀ σ1 e1' σ1',
-        state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
-        ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
-        exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-          ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ wp E e2 Φ)
-    end%I.
-
-(* Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s). *)
-(* Proof. *)
-(*   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ. *)
-(*   do 10 (f_contractive || f_equiv).  *)
-(*   apply Hwp. *)
-(* Qed. *)
-
-(* Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness := *)
-(*   λ s : stuckness, fixpoint (wp_pre s). *)
-(* Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed. *)
-(* Definition wp' := wp_aux.(unseal). *)
-(* Global Arguments wp' {Λ Σ _}. *)
-(* Global Existing Instance wp'. *)
-(* Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = @wp_def Λ Σ _. *)
-(*   Proof. rewrite -wp_aux.(seal_eq) //. Qed. *)
-
 End exec_coupl.
 
-(* Section wp. *)
-(* Context `{!irisGS Λ Σ}. *)
-(* Implicit Types s : stuckness. *)
-(* Implicit Types P : iProp Σ. *)
-(* Implicit Types Φ : val Λ → iProp Σ. *)
-(* Implicit Types v : val Λ. *)
-(* Implicit Types e : expr Λ. *)
-(* Implicit Types σ : state Λ. *)
-(* Implicit Types ρ : cfg Λ. *)
-(* Implicit Types ξ : scheduler Λ. *)
+Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
+    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
+    coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
+  match to_val e1 with
+  | Some v => |={E}=> Φ v
+  | None => ∀ σ1 e1' σ1',
+      state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
+      ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
+      exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
+        ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ wp E e2 Φ)
+end%I.
 
-(* (* Weakest pre *) *)
-(* Lemma wp_unfold s E e Φ : *)
-(*   WP e @ s; E {{ Φ }} ⊣⊢ wp_pre s (wp (PROP:=iProp Σ) s) E e Φ. *)
-(* Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre s)). Qed. *)
+Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
+Proof.
+  rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
+  do 10 f_equiv.
+  apply least_fixpoint_ne_outer; [|done].
+  intros ? [[] []]. rewrite /exec_coupl_pre.
+  repeat f_equiv.
+  { do 2 case_match. f_contractive. do 3 f_equiv. apply Hwp. }
+  case_match. f_contractive. do 3 f_equiv. apply Hwp.
+Qed.
 
-(* Global Instance wp_ne s E e n : *)
-(*   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e). *)
-(* Proof. *)
-(*   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ. *)
-(*   rewrite !wp_unfold /wp_pre /=. *)
-(*   do 46 (f_contractive || f_equiv). *)
-(*   rewrite IH; [done|lia|]. intros v. eapply dist_S, HΦ. *)
-(* Qed. *)
-(* Global Instance wp_proper s E e : *)
-(*   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e). *)
-(* Proof. *)
-(*   by intros Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist. *)
-(* Qed. *)
-(* Global Instance wp_contractive s E e n : *)
-(*   TCEq (to_val e) None → *)
-(*   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e). *)
-(* Proof. *)
-(*   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=. *)
-(*   do 48 (f_contractive || f_equiv). *)
-(* Qed. *)
+
+Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
+  λ s : stuckness, fixpoint (wp_pre s).
+Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
+Definition wp' := wp_aux.(unseal).
+Global Arguments wp' {Λ Σ _}.
+Global Existing Instance wp'.
+Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = @wp_def Λ Σ _.
+Proof. rewrite -wp_aux.(seal_eq) //. Qed.
+
+Section wp.
+Context `{!irisGS Λ Σ}.
+Implicit Types s : stuckness.
+Implicit Types P : iProp Σ.
+Implicit Types Φ : val Λ → iProp Σ.
+Implicit Types v : val Λ.
+Implicit Types e : expr Λ.
+Implicit Types σ : state Λ.
+Implicit Types ρ : cfg Λ.
+
+(* Weakest pre *)
+Lemma wp_unfold s E e Φ :
+  WP e @ s; E {{ Φ }} ⊣⊢ wp_pre s (wp (PROP:=iProp Σ) s) E e Φ.
+Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre s)). Qed.
+
+Global Instance wp_ne s E e n :
+  Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
+Proof.
+  revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
+  rewrite !wp_unfold /wp_pre /=.
+  do 10 f_equiv.
+  apply least_fixpoint_ne_outer; [|done].
+  intros ? [[] []]. rewrite /exec_coupl_pre.
+  repeat f_equiv.
+  { do 2 case_match. f_contractive. do 3 f_equiv.
+    rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ. }
+  case_match. f_contractive. do 3 f_equiv.
+  rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ.
+Qed.
+Global Instance wp_proper s E e :
+  Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
+Proof.
+  by intros Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist.
+Qed.
+Global Instance wp_contractive s E e n :
+  TCEq (to_val e) None →
+  Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
+Proof.
+  intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
+  do 9 f_equiv.
+  apply least_fixpoint_ne_outer; [|done].
+  intros ? [[] []]. rewrite /exec_coupl_pre.
+  repeat f_equiv.
+  { do 2 case_match. f_contractive. do 6 f_equiv.  }
+  case_match. f_contractive. do 6 f_equiv.
+Qed.
+End wp.
+
 
 (* Lemma wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v. *)
 (* Proof. rewrite wp_unfold /wp_pre to_of_val. auto. Qed. *)

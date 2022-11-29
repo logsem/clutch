@@ -1074,10 +1074,12 @@ Proof.
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
 
+Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
+
 End prob_lang.
 
 (** Language *)
-Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.state_step prob_lang.prob_lang_mixin.
+Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
 Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
 Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
 

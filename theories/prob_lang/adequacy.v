@@ -17,18 +17,6 @@ Import uPred.
 
 Local Open Scope R.
 
-Class prelocGS Σ := HeapG {
-  prelocGS_invG : invGS_gen HasNoLc Σ;
-  (* CMRA for the state *)
-  prelocGS_heap : ghost_mapG Σ loc val;
-  prelocGS_tapes : ghost_mapG Σ loc (list bool);
-  (* ghost names for the state *)
-  prelocGS_heap_name : gname;
-  prelocGS_tapes_name : gname;
-  (* CMRA and ghost name for the spec *)
-  prelocGS_spec :> specGS Σ;
-}.
-
 Section helper_lemma.
 
   Context `{!irisGS prob_lang Σ}.
@@ -86,6 +74,12 @@ Section helper_lemma.
 Admitted.
 
 
-
-
 End helper_lemma.
+
+
+Theorem wp_adequacy `{!invGpreS Σ} e σ e' σ' n s :
+  (∀ `{Hinv : invG Σ},
+     (|={⊤}=>
+        state_interp σ ∗ spec_interp_auth (e', σ') ∗
+        WP e @ s; ⊤ {{ v, ⤇ v }})%I) →
+  ∃ m, refRcoupl (prim_exec (e, σ) n) (prim_exec (e', σ') m) pure_eq.
