@@ -1,4 +1,5 @@
 From Coq Require Import Reals Psatz.
+From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import relations fin_maps functions.
 From self.prelude Require Import classical.
 From self.prob Require Export distribution couplings.
@@ -331,6 +332,21 @@ Section prim_scheduler.
                | S m => dbind (λ ρ', prim_exec ρ' m) (prim_step ρ.1 ρ.2)
                end
     end.
+
+  Definition prim_step_or_val (ρ : cfg Λ) : distr (cfg Λ) :=
+    match to_val ρ.1 with
+      | Some v => dret ρ
+      | None => prim_step ρ.1 ρ.2
+    end.
+
+  Lemma prim_step_prim_exec (ρ : cfg Λ) (n: nat) :
+    dbind (λ ρ', prim_exec ρ' n) (prim_step_or_val ρ) = prim_exec ρ (S n).
+  Proof. Admitted.
+
+  Program Definition lim_prim_exec (ρ : cfg Λ) : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec ρ n ρ')) _ _ _.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
 
 End prim_scheduler.
 
