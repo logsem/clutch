@@ -17,11 +17,23 @@ Import uPred.
 
 Local Open Scope R.
 
-Section helper_lemma.
 
+Section helper_lemma.
   Context `{!irisGS prob_lang Σ}.
 
-  Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) /\ (ρ1.2.(heap) = ρ2.2.(heap)).
+  Lemma refRcoupl_bind' `{Countable A, Countable B} μ1 μ2 f g (R S : A → B → Prop) :
+    ⌜refRcoupl μ1 μ2 R⌝ -∗
+    (∀ a b, ⌜R a b⌝ ={∅}=∗ ⌜refRcoupl (f a) (g b) S⌝) -∗
+    |={∅}=> ⌜refRcoupl (dbind f μ1) (dbind g μ2) S⌝ : iProp Σ.
+  Proof.
+    iIntros (HR) "HS".
+    iApply (pure_impl_1 (∀ a b, R a b → refRcoupl (f a) (g b) S)).
+    { iPureIntro. by eapply refRcoupl_bind. }
+    iIntros (???).
+    by iMod ("HS" with "[//]").
+  Qed.
+
+  Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) ∧ (ρ1.2.(heap) = ρ2.2.(heap)).
 
   Lemma foo_helper_1 (m : nat) (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (R: cfg -> cfg -> Prop):
     Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ->
@@ -75,11 +87,3 @@ Admitted.
 
 
 End helper_lemma.
-
-
-Theorem wp_adequacy `{!invGpreS Σ} e σ e' σ' n s :
-  (∀ `{Hinv : invG Σ},
-     (|={⊤}=>
-        state_interp σ ∗ spec_interp_auth (e', σ') ∗
-        WP e @ s; ⊤ {{ v, ⤇ v }})%I) →
-  ∃ m, refRcoupl (prim_exec (e, σ) n) (prim_exec (e', σ') m) pure_eq.

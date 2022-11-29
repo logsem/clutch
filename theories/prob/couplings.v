@@ -424,8 +424,8 @@ End Rcoupl_strength.
 
 Section refinement_couplings.
 
-  Context `{Countable A, Countable B, Countable A', Countable B'}.
-  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop).
+  Context `{Countable A, Countable B}.
+  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop).
 
   Definition isRefCoupl (μ : distr (A * B)) : Prop :=
     (∀ a, μ1 a <= lmarg μ a) /\ rmarg μ = μ2.
@@ -443,9 +443,7 @@ Section refinement_couplings.
 End refinement_couplings.
 
 Section ref_couplings_theory.
-
-Context `{Countable A, Countable B, Countable A', Countable B'}.
-
+  Context `{Countable A, Countable B}.
 
   Proposition refcoupl_elim :
     forall (μ1 μ2 : distr A),
@@ -492,13 +490,15 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
     apply is_ref_coupl_ret.
   Qed.
 
+  Context `{Countable A', Countable B'}.
 
- Proposition refRcoupl_bind :
-    forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop),
-      (∀ a b, R a b → refRcoupl (f a) (g b) S) → refRcoupl μ1 μ2 R → refRcoupl (dbind f μ1) (dbind g μ2) S.
+  Lemma refRcoupl_bind f g μ1 μ2 (R : A → B → Prop) (S : A' → B' → Prop) :
+    refRcoupl μ1 μ2 R →
+    (∀ a b, R a b → refRcoupl (f a) (g b) S) →
+    refRcoupl (dbind f μ1) (dbind g μ2) S.
   Proof.
   (* TODO: Prove existence of the seriesC in the admits *)
-    intros f g μ1 μ2 R S Hfg (μ & HμC & HμS).
+    intros (μ & HμC & HμS) Hfg.
     rewrite /Rcoupl /isRcoupl in Hfg.
     (* First we rewrite Hfg to be able to use Choice *)
     assert (∀ (p : A * B), ∃ μ' : distr (A' * B'), R p.1 p.2 → (isRefCoupl (f p.1) (g p.2) μ' ∧
