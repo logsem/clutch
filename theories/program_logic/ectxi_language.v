@@ -10,7 +10,7 @@ From self.prob Require Import distribution.
 
 Section ectxi_language_mixin.
   Context {expr val ectx_item state state_idx : Type}.
-  Context `{Countable expr, Countable state}.
+  Context `{Countable expr, Countable state, Countable state_idx}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
@@ -21,6 +21,7 @@ Section ectxi_language_mixin.
 
   Context (head_step  : expr → state → distr (expr * state)).
   Context (state_step : state → state_idx → distr state).
+  Context (get_active : state → state_idx).
 
   Record EctxiLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -69,8 +70,10 @@ Structure ectxiLanguage := EctxiLanguage {
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
+  state_idx_eqdec : EqDecision state_idx;
   expr_countable : Countable expr;
   state_countable : Countable state;
+  state_idx_countable : Countable state_idx;
 
   of_val : val → expr;
   to_val : expr → option val;
@@ -81,6 +84,7 @@ Structure ectxiLanguage := EctxiLanguage {
 
   head_step : expr → state → distr (expr * state);
   state_step : state → state_idx → distr state;
+  get_active : state → list state_idx;
 
   ectxi_language_mixin :
     EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step
@@ -88,13 +92,15 @@ Structure ectxiLanguage := EctxiLanguage {
 
 #[global] Existing Instance expr_eqdec.
 #[global] Existing Instance state_eqdec.
+#[global] Existing Instance state_idx_eqdec.
 #[global] Existing Instance expr_countable.
 #[global] Existing Instance state_countable.
+#[global] Existing Instance state_idx_countable.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
+Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments fill_item {_} _ _.
@@ -102,6 +108,7 @@ Global Arguments decomp_item {_} _.
 Global Arguments expr_ord {_} _ _.
 Global Arguments head_step {_} _ _.
 Global Arguments state_step {_} _.
+Global Arguments get_active {_} _.
 
 Section ectxi_language.
   Context {Λ : ectxiLanguage}.
@@ -243,7 +250,7 @@ Section ectxi_language.
       intros ?%head_ctx_step_val; eauto using fill_val.
   Qed.
 
-  Canonical Structure ectxi_lang_ectx := EctxLanguage (state_step := state_step) ectxi_lang_ectx_mixin.
+  Canonical Structure ectxi_lang_ectx := EctxLanguage (get_active := get_active) ectxi_lang_ectx_mixin.
   Canonical Structure ectxi_lang := LanguageOfEctx ectxi_lang_ectx.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
@@ -267,8 +274,8 @@ Coercion ectxi_lang_ectx : ectxiLanguage >-> ectxLanguage.
 Coercion ectxi_lang : ectxiLanguage >-> language.
 
 Definition EctxLanguageOfEctxi (Λ : ectxiLanguage) : ectxLanguage :=
-  let '@EctxiLanguage E V C St StI _ _ _ _ of_val to_val fill decomp expr_ord head state mix := Λ in
-  @EctxLanguage E V (list C) St StI _ _ _ _ of_val to_val _ _ _ _ _ state
-    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St StI _ _ _ _ of_val to_val fill decomp expr_ord head state mix)).
+  let '@EctxiLanguage E V C St StI _ _ _ _ _ _ of_val to_val fill decomp expr_ord head state act mix := Λ in
+  @EctxLanguage E V (list C) St StI _ _ _ _ _ _ of_val to_val _ _ _ _ _ state act
+    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St StI _ _ _ _ _ _ of_val to_val fill decomp expr_ord head state act mix)).
 
 Global Arguments EctxLanguageOfEctxi : simpl never.

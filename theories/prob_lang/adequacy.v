@@ -17,18 +17,6 @@ Import uPred.
 
 Local Open Scope R.
 
-Class prelocGS Σ := HeapG {
-  prelocGS_invG : invGS_gen HasNoLc Σ;
-  (* CMRA for the state *)
-  prelocGS_heap : ghost_mapG Σ loc val;
-  prelocGS_tapes : ghost_mapG Σ loc (list bool);
-  (* ghost names for the state *)
-  prelocGS_heap_name : gname;
-  prelocGS_tapes_name : gname;
-  (* CMRA and ghost name for the spec *)
-  prelocGS_spec :> specGS Σ;
-}.
-
 Section helper_lemma.
 
   Context `{!irisGS prob_lang Σ}.
@@ -55,13 +43,13 @@ Section helper_lemma.
   Admitted.
 
   Lemma foo (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (m : nat) :
-    exec_coupl (λ σ : state, elements (dom σ.(tapes))) e1 σ1 e1' σ1'
+    exec_coupl e1 σ1 e1' σ1'
                (λ '(e2, σ2) '(e2', σ2'), ∃ n, ⌜refRcoupl (prim_exec (e2, σ2) m) (prim_exec (e2', σ2') n) pure_eq⌝)%I ⊢@{iProp Σ}
     (∃ n, ⌜refRcoupl (prim_exec (e1, σ1) (S m) ) (prim_exec (e1', σ1') n) pure_eq⌝).
   Proof.
     rewrite /exec_coupl /exec_coupl'.
     iPoseProof (least_fixpoint_iter
-                  (exec_coupl_pre (λ σ : state, elements (dom (tapes σ)))
+                  (exec_coupl_pre
                      (λ '(e2, σ2) '(e2', σ2'), ∃ n : nat, ⌜refRcoupl (prim_exec (e2, σ2) m) (prim_exec (e2', σ2') n) pure_eq⌝)%I)
                   (λ '((e1, σ1), (e1', σ1')), ∃ n : nat, ⌜refRcoupl (prim_exec (e1, σ1) (S m)) (prim_exec (e1', σ1') n) pure_eq⌝)%I) as "H".
     iIntros "Hbi".
@@ -76,6 +64,12 @@ Section helper_lemma.
 Admitted.
 
 
-
-
 End helper_lemma.
+
+
+Theorem wp_adequacy `{!invGpreS Σ} e σ e' σ' n s :
+  (∀ `{Hinv : invG Σ},
+     (|={⊤}=>
+        state_interp σ ∗ spec_interp_auth (e', σ') ∗
+        WP e @ s; ⊤ {{ v, ⤇ v }})%I) →
+  ∃ m, refRcoupl (prim_exec (e, σ) n) (prim_exec (e', σ') m) pure_eq.

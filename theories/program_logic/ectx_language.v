@@ -9,7 +9,7 @@ From self.prob Require Import distribution.
 
 Section ectx_language_mixin.
   Context {expr val ectx state state_idx : Type}.
-  Context `{Countable expr, Countable state}.
+  Context `{Countable expr, Countable state, Countable state_idx}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
@@ -21,6 +21,7 @@ Section ectx_language_mixin.
 
   Context (head_step  : expr → state → distr (expr * state)).
   Context (state_step : state → state_idx → distr state).
+  Context (get_active : state → list state_idx).
 
   Record EctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -75,8 +76,10 @@ Structure ectxLanguage := EctxLanguage {
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
+  state_idx_eqdec : EqDecision state_idx;
   expr_countable : Countable expr;
   state_countable : Countable state;
+  state_idx_countable : Countable state_idx;
 
   of_val : val → expr;
   to_val : expr → option val;
@@ -88,6 +91,7 @@ Structure ectxLanguage := EctxLanguage {
 
   head_step : expr → state → distr (expr * state);
   state_step : state → state_idx → distr state;
+  get_active : state → list state_idx;
 
   ectx_language_mixin :
     EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp head_step state_step
@@ -95,13 +99,15 @@ Structure ectxLanguage := EctxLanguage {
 
 #[global] Existing Instance expr_eqdec.
 #[global] Existing Instance state_eqdec.
+#[global] Existing Instance state_idx_eqdec.
 #[global] Existing Instance expr_countable.
 #[global] Existing Instance state_countable.
+#[global] Existing Instance state_idx_countable.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
@@ -110,6 +116,7 @@ Global Arguments decomp {_} _.
 Global Arguments fill {_} _ _.
 Global Arguments head_step {_} _ _.
 Global Arguments state_step {_} _.
+Global Arguments get_active {_} _.
 
 (* From an ectx_language, we can construct a language. *)
 Section ectx_language.
@@ -208,7 +215,7 @@ Section ectx_language.
     - apply ectx_language_mixin.
   Qed.
 
-  Canonical Structure ectx_lang : language := Language (state_step := state_step)  ectx_lang_mixin.
+  Canonical Structure ectx_lang : language := Language (get_active := get_active) ectx_lang_mixin.
 
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ',
@@ -453,8 +460,8 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 Definition LanguageOfEctx (Λ : ectxLanguage) : language :=
-  let '@EctxLanguage E V C St StI _ _ _ _ of_val to_val empty comp fill decomp head state mix := Λ in
-  @Language E V St StI _ _ _  _ of_val to_val _ state
-    (@ectx_lang_mixin (@EctxLanguage E V C St StI _ _ _ _ of_val to_val empty comp fill decomp head state mix )).
+  let '@EctxLanguage E V C St StI _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix := Λ in
+  @Language E V St StI _ _ _ _ _ _ of_val to_val _ state act
+    (@ectx_lang_mixin (@EctxLanguage E V C St StI _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix )).
 
 Global Arguments LanguageOfEctx : simpl never.
