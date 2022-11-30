@@ -58,18 +58,21 @@ Section helper_lemma.
     dbind (λ ρ', lim_prim_exec ρ') (prim_step_or_val ρ) = (lim_prim_exec ρ).
   Proof. Admitted.
 
+  Definition ref_eq_coupl (ρ1 ρ2 : cfg) :=
+    ∀ n, refRcoupl (prim_exec ρ1 n) (lim_prim_exec ρ2) pure_eq.
+
   Lemma foo (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (m : nat) :
     to_val e1 = None ->
-    exec_coupl (λ σ : state, elements (dom σ.(tapes))) e1 σ1 e1' σ1'
-               (λ '(e2, σ2) '(e2', σ2'), ⌜refRcoupl (prim_exec (e2, σ2) m) (lim_prim_exec (e2', σ2')) pure_eq⌝)%I ⊢@{iProp Σ}
-    (⌜refRcoupl (prim_exec (e1, σ1) (S m) ) (lim_prim_exec (e1', σ1')) pure_eq⌝%I).
+    exec_coupl  e1 σ1 e1' σ1'
+               (λ ρ2 ρ2', ⌜ref_eq_coupl ρ2 ρ2' ⌝)%I ⊢@{iProp Σ}
+    (⌜ref_eq_coupl (e1, σ1) (e1', σ1') ⌝%I).
   Proof.
     rewrite /exec_coupl /exec_coupl'.
     intros He1.
     iPoseProof (least_fixpoint_iter
-                  (exec_coupl_pre (λ σ : state, elements (dom (tapes σ)))
-                     (λ '(e2, σ2) '(e2', σ2'), ⌜refRcoupl (prim_exec (e2, σ2) m) (lim_prim_exec (e2', σ2')) pure_eq⌝)%I)
-                  (λ '((e1, σ1), (e1', σ1')),  ⌜refRcoupl (prim_exec (e1, σ1) (S m)) (lim_prim_exec (e1', σ1')) pure_eq⌝)%I) as "H".
+                  (exec_coupl_pre
+                     (λ ρ2 ρ2', ⌜ref_eq_coupl ρ2 ρ2' ⌝)%I)
+                  (λ '(ρ1, ρ1'),  ⌜ref_eq_coupl ρ1 ρ1' ⌝)%I) as "H".
     iIntros "Hbi".
     iSpecialize ("H" with "[]").
     + iModIntro. iIntros ((ρ2&ρ2')).
@@ -79,10 +82,6 @@ Section helper_lemma.
       iIntros "[Hpp| [Hpr| [Hrp| Hss]]]".
       ++ iDestruct "Hpp" as (R2 HR2) "Hpp".
          destruct HR2 as (μ & ((HμL & HμR) & HμSupp)).
-         rewrite <- prim_step_prim_exec.
-         rewrite <- bar.
-         iApply pure_impl.
-           refRcoupl_bind.
 Admitted.
 
 
