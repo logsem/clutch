@@ -5,15 +5,20 @@ From iris.bi Require Export weakestpre.
 From self.prelude Require Import classical.
 From self.prob Require Import distribution.
 
+
 Section language_mixin.
   Context {expr val state state_idx : Type}.
-  Context `{Countable expr, Countable state}.
+  Context `{Countable expr, Countable state, Countable state_idx}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
   Context (prim_step  : expr → state → distr (expr * state)).
   Context (state_step : state → state_idx → distr state).
+  (* For [prob_lang] this will just be [λ σ, elements (dom σ.(tapes))] - it'll
+     be nicer with just a set but there's no set-big_op for disjunction in Iris
+     at the moment, so lets stick to a list for now *)
+  Context (get_active : state → list state_idx).
 
   Record LanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -39,13 +44,16 @@ Structure language := Language {
 
   expr_eqdec : EqDecision expr;
   state_eqdec : EqDecision state;
+  state_idx_eqdec : EqDecision state_idx;
   expr_countable : Countable expr;
   state_countable : Countable state;
+  state_idx_countable : EqDecision state_idx;
 
   of_val : val → expr;
   to_val : expr → option val;
   prim_step : expr → state → distr (expr * state);
   state_step : state → state_idx → distr state;
+  get_active : state → list state_idx;
 
   language_mixin : LanguageMixin of_val to_val prim_step state_step
 }.
@@ -53,7 +61,7 @@ Structure language := Language {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments state_step {_}.
@@ -63,6 +71,7 @@ Global Arguments prim_step {_} _ _.
 #[global] Existing Instance state_eqdec.
 #[global] Existing Instance expr_countable.
 #[global] Existing Instance state_countable.
+#[global] Existing Instance state_idx_countable.
 
 Canonical Structure stateO Λ := leibnizO (state Λ).
 Canonical Structure valO Λ := leibnizO (val Λ).

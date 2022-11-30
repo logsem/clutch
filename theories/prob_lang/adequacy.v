@@ -17,23 +17,23 @@ Import uPred.
 
 Local Open Scope R.
 
-Class prelocGS Σ := HeapG {
-  prelocGS_invG : invGS_gen HasNoLc Σ;
-  (* CMRA for the state *)
-  prelocGS_heap : ghost_mapG Σ loc val;
-  prelocGS_tapes : ghost_mapG Σ loc (list bool);
-  (* ghost names for the state *)
-  prelocGS_heap_name : gname;
-  prelocGS_tapes_name : gname;
-  (* CMRA and ghost name for the spec *)
-  prelocGS_spec :> specGS Σ;
-}.
 
 Section helper_lemma.
-
   Context `{!irisGS prob_lang Σ}.
 
-  Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) /\ (ρ1.2.(heap) = ρ2.2.(heap)).
+  Lemma refRcoupl_bind' `{Countable A, Countable B} μ1 μ2 f g (R S : A → B → Prop) :
+    ⌜refRcoupl μ1 μ2 R⌝ -∗
+    (∀ a b, ⌜R a b⌝ ={∅}=∗ ⌜refRcoupl (f a) (g b) S⌝) -∗
+    |={∅}=> ⌜refRcoupl (dbind f μ1) (dbind g μ2) S⌝ : iProp Σ.
+  Proof.
+    iIntros (HR) "HS".
+    iApply (pure_impl_1 (∀ a b, R a b → refRcoupl (f a) (g b) S)).
+    { iPureIntro. by eapply refRcoupl_bind. }
+    iIntros (???).
+    by iMod ("HS" with "[//]").
+  Qed.
+
+  Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) ∧ (ρ1.2.(heap) = ρ2.2.(heap)).
 
   Lemma foo_helper_1 (m : nat) (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (R: cfg -> cfg -> Prop):
     Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ->
@@ -60,14 +60,14 @@ Section helper_lemma.
 
   Lemma foo (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (m : nat) :
     to_val e1 = None ->
-    exec_coupl (λ σ : state, elements (dom σ.(tapes))) e1 σ1 e1' σ1'
+    exec_coupl  e1 σ1 e1' σ1'
                (λ '(e2, σ2) '(e2', σ2'), ⌜refRcoupl (prim_exec (e2, σ2) m) (lim_prim_exec (e2', σ2')) pure_eq⌝)%I ⊢@{iProp Σ}
     (⌜refRcoupl (prim_exec (e1, σ1) (S m) ) (lim_prim_exec (e1', σ1')) pure_eq⌝%I).
   Proof.
     rewrite /exec_coupl /exec_coupl'.
     intros He1.
     iPoseProof (least_fixpoint_iter
-                  (exec_coupl_pre (λ σ : state, elements (dom (tapes σ)))
+                  (exec_coupl_pre 
                      (λ '(e2, σ2) '(e2', σ2'), ⌜refRcoupl (prim_exec (e2, σ2) m) (lim_prim_exec (e2', σ2')) pure_eq⌝)%I)
                   (λ '((e1, σ1), (e1', σ1')),  ⌜refRcoupl (prim_exec (e1, σ1) (S m)) (lim_prim_exec (e1', σ1')) pure_eq⌝)%I) as "H".
     iIntros "Hbi".
@@ -81,11 +81,7 @@ Section helper_lemma.
          destruct HR2 as (μ & ((HμL & HμR) & HμSupp)).
          rewrite <- prim_step_prim_exec.
          rewrite <- bar.
-         iApply pure_impl.
-           refRcoupl_bind.
 Admitted.
-
-
 
 
 End helper_lemma.
