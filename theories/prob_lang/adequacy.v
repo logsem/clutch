@@ -9,7 +9,7 @@ From iris.base_logic.lib Require Export ghost_map.
 
 From self.prob Require Export couplings distribution.
 From self.program_logic Require Export language exec weakestpre.
-From self.prob_lang Require Export lang.
+From self.prob_lang Require Export lang primitive_laws.
 From self.prob_lang Require Export class_instances spec_ra.
 From self.prob_lang Require Import tactics notation.
 
@@ -85,3 +85,14 @@ Admitted.
 
 
 End helper_lemma.
+
+
+Section adequacy.
+  Context `{!prelocGS Σ}.
+
+  Theorem wp_coupling `{!invGpreS Σ} e σ e' σ' n s :
+  (∀ `{Hinv : invG Σ},
+     (|={⊤}=>
+        state_interp σ ∗ spec_interp_auth (e', σ') ∗
+        WP e @ s; ⊤ {{ v, ⤇ v }})%I) →
+  ∃ m, refRcoupl (prim_exec (e, σ) n) (prim_exec (e', σ') m) pure_eq.
