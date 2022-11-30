@@ -6,146 +6,146 @@ From iris.prelude Require Import options.
 
 Local Open Scope R.
 
-Section wp.
-Context {Λ : ectxLanguage} `{!irisGS Λ Σ} {Hinh : Inhabited (state Λ)}.
-Implicit Types s : stuckness.
-Implicit Types P : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
-Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
-Local Definition reducible_not_val_inhabitant e := reducible_not_val e inhabitant.
-Local Hint Resolve reducible_not_val_inhabitant : core.
-Local Hint Resolve head_stuck_stuck : core.
+(* Section wp. *)
+(* Context {Λ : ectxLanguage} `{!irisGS Λ Σ} {Hinh : Inhabited (state Λ)}. *)
+(* Implicit Types s : stuckness. *)
+(* Implicit Types P : iProp Σ. *)
+(* Implicit Types Φ : val Λ → iProp Σ. *)
+(* Implicit Types v : val Λ. *)
+(* Implicit Types e : expr Λ. *)
+(* Local Hint Resolve head_prim_reducible head_reducible_prim_step : core. *)
+(* Local Definition reducible_not_val_inhabitant e := reducible_not_val e inhabitant. *)
+(* Local Hint Resolve reducible_not_val_inhabitant : core. *)
+(* Local Hint Resolve head_stuck_stuck : core. *)
 
-(* TODO: move *)
-Lemma exec_state_head_reducible ζ e σ σ' :
-  exec_state ζ σ σ' > 0 → head_reducible e σ ↔ head_reducible e σ'.
-Proof.
-  revert σ σ'; induction ζ as [|f ζ IH]; intros σ σ'.
-  { by intros ->%dret_pos. }
-  rewrite exec_state_cons.
-  intros [σ1 [Hexec Hs]]%dbind_pos_support.
-  split; intros Hred.
-  - eapply (IH _ _ Hexec). by erewrite <-state_step_head_reducible.
-  - eapply state_step_head_reducible; [done|]. by eapply IH.
-Qed.
+(* (* TODO: move *) *)
+(* Lemma exec_state_head_reducible ζ e σ σ' : *)
+(*   exec_state ζ σ σ' > 0 → head_reducible e σ ↔ head_reducible e σ'. *)
+(* Proof. *)
+(*   revert σ σ'; induction ζ as [|f ζ IH]; intros σ σ'. *)
+(*   { by intros ->%dret_pos. } *)
+(*   rewrite exec_state_cons. *)
+(*   intros [σ1 [Hexec Hs]]%dbind_pos_support. *)
+(*   split; intros Hred. *)
+(*   - eapply (IH _ _ Hexec). by erewrite <-state_step_head_reducible. *)
+(*   - eapply state_step_head_reducible; [done|]. by eapply IH. *)
+(* Qed. *)
 
-Lemma wp_lift_head_step_fupd_couple {s E Φ} e1 :
-  to_val e1 = None →
-  (∀ σ1 e1' σ1',
-     state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
-     ∃ (ζ1 : state_scheduler Λ) (ξ1 : scheduler Λ) (R : state Λ → cfg Λ → Prop),
-       ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R⌝ ∗
-       ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗
-         ⌜head_reducible e1 σ2⌝ ∗
-         ∃ (ζ2 : state_scheduler Λ) (ξ2 : scheduler Λ) (S : cfg Λ → cfg Λ → Prop),
-           ⌜Rcoupl (dbind (λ σ3, head_step e1 σ3) (exec_state ζ2 σ2)) (exec ξ2 (e2', σ2')) S⌝ ∗
-           ∀ e2 σ3 e3' σ3',
-             ⌜S (e2, σ3) (e3', σ3')⌝ ={∅}=∗ ▷ |={∅,E}=>
-             state_interp σ3 ∗ spec_interp (e3', σ3') ∗ WP e2 @ s; E {{ Φ }})
-  ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 e1' σ1') "Hσ".
-  iMod ("H" with "Hσ") as (ζ ζ' R Hcoupl) "H"; iModIntro.
-  iExists _, _, _. iSplit; [done|].
-  iIntros (????).
-  iMod ("H" with "[//]") as (Hs ζ1 ξ1 S HS) "H".
-  iModIntro.
-  iSplit; [destruct s; auto|].
-  iExists ζ1, ξ1, S.
-  iSplit; [|done].
-  iPureIntro.
-  erewrite (dbind_eq _ (head_step e1)); [done| |done].
-  intros σ Hexec.
-  rewrite /= head_prim_step_eq //.
-  by erewrite <-exec_state_head_reducible.
-Qed.
+(* Lemma wp_lift_head_step_fupd_couple {s E Φ} e1 : *)
+(*   to_val e1 = None → *)
+(*   (∀ σ1 e1' σ1', *)
+(*      state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗ *)
+(*      ∃ (ζ1 : state_scheduler Λ) (ξ1 : scheduler Λ) (R : state Λ → cfg Λ → Prop), *)
+(*        ⌜Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R⌝ ∗ *)
+(*        ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ *)
+(*          ⌜head_reducible e1 σ2⌝ ∗ *)
+(*          ∃ (ζ2 : state_scheduler Λ) (ξ2 : scheduler Λ) (S : cfg Λ → cfg Λ → Prop), *)
+(*            ⌜Rcoupl (dbind (λ σ3, head_step e1 σ3) (exec_state ζ2 σ2)) (exec ξ2 (e2', σ2')) S⌝ ∗ *)
+(*            ∀ e2 σ3 e3' σ3', *)
+(*              ⌜S (e2, σ3) (e3', σ3')⌝ ={∅}=∗ ▷ |={∅,E}=> *)
+(*              state_interp σ3 ∗ spec_interp (e3', σ3') ∗ WP e2 @ s; E {{ Φ }}) *)
+(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
+(* Proof. *)
+(*   iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done|]. *)
+(*   iIntros (σ1 e1' σ1') "Hσ". *)
+(*   iMod ("H" with "Hσ") as (ζ ζ' R Hcoupl) "H"; iModIntro. *)
+(*   iExists _, _, _. iSplit; [done|]. *)
+(*   iIntros (????). *)
+(*   iMod ("H" with "[//]") as (Hs ζ1 ξ1 S HS) "H". *)
+(*   iModIntro. *)
+(*   iSplit; [destruct s; auto|]. *)
+(*   iExists ζ1, ξ1, S. *)
+(*   iSplit; [|done]. *)
+(*   iPureIntro. *)
+(*   erewrite (dbind_eq _ (head_step e1)); [done| |done]. *)
+(*   intros σ Hexec. *)
+(*   rewrite /= head_prim_step_eq //. *)
+(*   by erewrite <-exec_state_head_reducible. *)
+(* Qed. *)
 
-Lemma wp_lift_head_step {s E Φ} e1 :
-  to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E,∅}=∗
-    ⌜head_reducible e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗
-      state_interp σ2 ∗ WP e2 @ s; E {{ Φ }})
-  ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (?) "Hσ".
-  iMod ("H" with "Hσ") as "[% H]"; iModIntro.
-  iSplit; first by destruct s; eauto.
-  iIntros (???) "!> !>". iApply "H"; auto.
-Qed.
+(* Lemma wp_lift_head_step {s E Φ} e1 : *)
+(*   to_val e1 = None → *)
+(*   (∀ σ1, state_interp σ1 ={E,∅}=∗ *)
+(*     ⌜head_reducible e1 σ1⌝ ∗ *)
+(*     ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗ *)
+(*       state_interp σ2 ∗ WP e2 @ s; E {{ Φ }}) *)
+(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
+(* Proof. *)
+(*   iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (?) "Hσ". *)
+(*   iMod ("H" with "Hσ") as "[% H]"; iModIntro. *)
+(*   iSplit; first by destruct s; eauto. *)
+(*   iIntros (???) "!> !>". iApply "H"; auto. *)
+(* Qed. *)
 
-Lemma wp_lift_head_stuck E Φ e :
-  to_val e = None →
-  sub_redexes_are_values e →
-  (∀ σ ρ, state_interp σ ∗ spec_interp ρ ={E,∅}=∗ ⌜head_stuck e σ⌝)
-  ⊢ WP e @ E ?{{ Φ }}.
-Proof.
-  iIntros (??) "H". iApply wp_lift_stuck; first done.
-  iIntros (σ ρ) "Hσ". iMod ("H" with "Hσ") as "%". by auto.
-Qed.
+(* Lemma wp_lift_head_stuck E Φ e : *)
+(*   to_val e = None → *)
+(*   sub_redexes_are_values e → *)
+(*   (∀ σ ρ, state_interp σ ∗ spec_interp ρ ={E,∅}=∗ ⌜head_stuck e σ⌝) *)
+(*   ⊢ WP e @ E ?{{ Φ }}. *)
+(* Proof. *)
+(*   iIntros (??) "H". iApply wp_lift_stuck; first done. *)
+(*   iIntros (σ ρ) "Hσ". iMod ("H" with "Hσ") as "%". by auto. *)
+(* Qed. *)
 
-Lemma wp_lift_pure_head_stuck E Φ e :
-  to_val e = None →
-  sub_redexes_are_values e →
-  (∀ σ, head_stuck e σ) →
-  ⊢ WP e @ E ?{{ Φ }}.
-Proof using Hinh.
-  iIntros (?? Hstuck). iApply wp_lift_head_stuck; [done|done|].
-  iIntros (σ ρ) "_". iApply fupd_mask_intro; by auto with set_solver.
-Qed.
+(* Lemma wp_lift_pure_head_stuck E Φ e : *)
+(*   to_val e = None → *)
+(*   sub_redexes_are_values e → *)
+(*   (∀ σ, head_stuck e σ) → *)
+(*   ⊢ WP e @ E ?{{ Φ }}. *)
+(* Proof using Hinh. *)
+(*   iIntros (?? Hstuck). iApply wp_lift_head_stuck; [done|done|]. *)
+(*   iIntros (σ ρ) "_". iApply fupd_mask_intro; by auto with set_solver. *)
+(* Qed. *)
 
-Lemma wp_lift_atomic_head_step_fupd {s E1 E2 Φ} e1 :
-  to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E1}=∗
-    ⌜head_reducible e1 σ1⌝ ∗
-    ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E1}[E2]▷=∗
-      state_interp σ2 ∗
-      from_option Φ False (to_val e2))
-  ⊢ WP e1 @ s; E1 {{ Φ }}.
-Proof.
-  iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
-  iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
-  iSplit; first by destruct s; auto. iIntros (e2 σ2 Hstep).
-  iApply "H"; eauto.
-Qed.
+(* Lemma wp_lift_atomic_head_step_fupd {s E1 E2 Φ} e1 : *)
+(*   to_val e1 = None → *)
+(*   (∀ σ1, state_interp σ1 ={E1}=∗ *)
+(*     ⌜head_reducible e1 σ1⌝ ∗ *)
+(*     ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E1}[E2]▷=∗ *)
+(*       state_interp σ2 ∗ *)
+(*       from_option Φ False (to_val e2)) *)
+(*   ⊢ WP e1 @ s; E1 {{ Φ }}. *)
+(* Proof. *)
+(*   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|]. *)
+(*   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro. *)
+(*   iSplit; first by destruct s; auto. iIntros (e2 σ2 Hstep). *)
+(*   iApply "H"; eauto. *)
+(* Qed. *)
 
-Lemma wp_lift_atomic_head_step {s E Φ} e1 :
-  to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E}=∗
-    ⌜head_reducible e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
-      state_interp σ2 ∗
-      from_option Φ False (to_val e2))
-  ⊢ WP e1 @ s; E {{ Φ }}.
-Proof.
-  iIntros (?) "H". iApply wp_lift_atomic_step; eauto.
-  iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
-  iSplit; first by destruct s; auto. iNext. iIntros (e2 σ2 Hstep).
-  iApply "H"; eauto.
-Qed.
+(* Lemma wp_lift_atomic_head_step {s E Φ} e1 : *)
+(*   to_val e1 = None → *)
+(*   (∀ σ1, state_interp σ1 ={E}=∗ *)
+(*     ⌜head_reducible e1 σ1⌝ ∗ *)
+(*     ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗ *)
+(*       state_interp σ2 ∗ *)
+(*       from_option Φ False (to_val e2)) *)
+(*   ⊢ WP e1 @ s; E {{ Φ }}. *)
+(* Proof. *)
+(*   iIntros (?) "H". iApply wp_lift_atomic_step; eauto. *)
+(*   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro. *)
+(*   iSplit; first by destruct s; auto. iNext. iIntros (e2 σ2 Hstep). *)
+(*   iApply "H"; eauto. *)
+(* Qed. *)
 
-Lemma wp_lift_pure_det_head_step {s E E' Φ} e1 e2 :
-  to_val e1 = None →
-  (∀ σ1, head_reducible e1 σ1) →
-  (∀ σ1 e2' σ2,
-    head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
-  (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
-Proof using Hinh.
-  intros. rewrite -(wp_lift_pure_det_step e1 e2); eauto.
-  destruct s; by auto.
-Qed.
+(* Lemma wp_lift_pure_det_head_step {s E E' Φ} e1 e2 : *)
+(*   to_val e1 = None → *)
+(*   (∀ σ1, head_reducible e1 σ1) → *)
+(*   (∀ σ1 e2' σ2, *)
+(*     head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) → *)
+(*   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}. *)
+(* Proof using Hinh. *)
+(*   intros. rewrite -(wp_lift_pure_det_step e1 e2); eauto. *)
+(*   destruct s; by auto. *)
+(* Qed. *)
 
-Lemma wp_lift_pure_det_head_step' {s E Φ} e1 e2 :
-  to_val e1 = None →
-  (∀ σ1, head_reducible e1 σ1) →
-  (∀ σ1 e2' σ2,
-    head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
-  ▷ WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
-Proof using Hinh.
-  intros. rewrite -[(WP e1 @ s; _ {{ _ }})%I]wp_lift_pure_det_head_step //.
-  rewrite -step_fupd_intro //.
-Qed.
-End wp.
+(* Lemma wp_lift_pure_det_head_step' {s E Φ} e1 e2 : *)
+(*   to_val e1 = None → *)
+(*   (∀ σ1, head_reducible e1 σ1) → *)
+(*   (∀ σ1 e2' σ2, *)
+(*     head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) → *)
+(*   ▷ WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}. *)
+(* Proof using Hinh. *)
+(*   intros. rewrite -[(WP e1 @ s; _ {{ _ }})%I]wp_lift_pure_det_head_step //. *)
+(*   rewrite -step_fupd_intro //. *)
+(* Qed. *)
+(* End wp. *)

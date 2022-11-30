@@ -333,6 +333,10 @@ Section prim_scheduler.
                end
     end.
 
+  Lemma prim_exec_is_val e σ n :
+    is_Some (to_val e) → prim_exec (e, σ) n = dret (e, σ).
+  Proof. destruct n; simpl; by intros [? ->]. Qed.
+
   Definition prim_step_or_val (ρ : cfg Λ) : distr (cfg Λ) :=
     match to_val ρ.1 with
       | Some v => dret ρ
@@ -341,7 +345,11 @@ Section prim_scheduler.
 
   Lemma prim_step_prim_exec (ρ : cfg Λ) (n: nat) :
     dbind (λ ρ', prim_exec ρ' n) (prim_step_or_val ρ) = prim_exec ρ (S n).
-  Proof. Admitted.
+  Proof.
+    rewrite /prim_step_or_val /=. destruct ρ as [e σ]. simpl.
+    destruct (to_val e) eqn:Hv=>/=; [|done].
+    rewrite dret_id_left prim_exec_is_val //.
+  Qed.
 
   Program Definition lim_prim_exec (ρ : cfg Λ) : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec ρ n ρ')) _ _ _.
   Next Obligation. Admitted.
