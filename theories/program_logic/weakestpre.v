@@ -225,8 +225,6 @@ Section exec_coupl.
     by simplify_eq.
   Qed.
 
-  (* This should be the lemma we need for proving [wp_couple_tapes] - we can
-     have similar lemmas for all the different disjuncts *)
   Lemma exec_coupl_trans_state_steps e1 σ1 e1' σ1' Z α α' :
     (α, α') ∈ list_prod (get_active Λ σ1) (get_active Λ σ1') →
     (∃ R, ⌜Rcoupl (state_step σ1 α) (state_step σ1' α') R⌝ ∗
