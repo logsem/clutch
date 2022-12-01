@@ -763,7 +763,7 @@ Proof.
   + rewrite {1}/iter_dbind; auto.
   + (*destruct IHn as [m Hm].*)
     assert (iter_dbind F (S n) a = dbind (iter_dbind F n) (F a)) as ->; auto.
-    pose proof (refRcoupl_bind F G (iter_dbind F n a) (iter_lim G b) R (step_refRcoupl F G R) Hstep IHn) as Haux.
+    pose proof (refRcoupl_bind F G (iter_dbind F n a) (iter_lim G b) R (step_refRcoupl F G R) IHn Hstep) as Haux.
     rewrite lim_is_fixpoint in Haux.
     rewrite <- iter_dbind_sym in Haux.
     rewrite /step_refRcoupl in Haux.
