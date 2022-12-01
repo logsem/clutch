@@ -128,6 +128,19 @@ End rewriting_lemmas.
 
 Section lang_properties.
 
+(*
+
+det e -> prim_step (e1,h1,t1) (e2,h2,t1) = prim_step (e1,h1,t2) (e2,h2,t2)
+det e -> lmarg(prim_step (e1,h1,t1)) = lmarg(prim_step (e1,h1,t2))
+det e -> rmarg(prim_step (e1,h1,t1)) = dret(t1)
+
+state_step (h1, t1) (h1, t2) = state_step (h2, t1) (h2, t2)
+right(state_step (h1, t1)) = right(state_step (h2, t1))
+lmarg(state_step (h1, t1)) = dret(h1)
+
+dbind (λ σ', head_step e σ') (state_step σ)
+= 
+
 (* Lemma state_after_prim (e1 : expr) (σ1 : state) (α : loc)  : *)
 (*     (¬ (exists e', e1 = Flip e')) -> dbind (λ σ2, head_step e1 σ2) (state_step σ1 α) = *)
 (*                                 dbind (λ ρ, dbind (λ σ3 , dret (ρ.1, σ3))  (state_step ρ.2 α)) (head_step e1 σ1). *)
@@ -253,5 +266,7 @@ Section lang_properties.
 (*    rewrite Rmult_0_r. *)
 (*    setoid_rewrite Rmult_0_l. *)
 (*    rewrite SeriesC_0; auto. *)
+*)
 
 End lang_properties.
+

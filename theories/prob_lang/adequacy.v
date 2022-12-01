@@ -7,12 +7,11 @@ From iris.prelude Require Import options.
 From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Export ghost_map.
 
-From self.prob Require Export couplings distribution.
 From self.program_logic Require Export language exec weakestpre.
 From self.prob_lang Require Export lang primitive_laws.
 From self.prob_lang Require Export class_instances spec_ra.
 From self.prob_lang Require Import tactics notation.
-From self.prob Require Export distribution.
+From self.prob Require Export couplings distribution.
 Import uPred.
 
 Local Open Scope R.
@@ -160,7 +159,7 @@ Section helper_lemma.
     split.
     {
       split.
-      { rewrite /lmarg dmap_dzero; auto.}
+      { rewrite /lmarg dmap_dzero; auto. }
       { apply distr_ext; intros.
         rewrite rmarg_pmf fair_conv_comb_pmf /pmf /=.
         rewrite SeriesC_0; auto; lra.
@@ -295,3 +294,63 @@ Admitted.
 
 
 End helper_lemma.
+
+
+Section adequacy.
+  Context `{!prelocGS Σ}.
+
+  Definition coupl_rel (φ : val → val → Prop) (ρ ρ' : cfg) : Prop :=
+    match to_val ρ.1, to_val ρ'.1 with
+    | Some v, Some v' => φ v v'
+    | _, _ => False
+    end.
+
+  Theorem wp_coupling e σ e' σ' n φ :
+    state_interp σ ∗ spec_interp (e', σ') ∗ spec_ctx ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    |={⊤,∅}=> |={∅}▷=>^n ⌜refRcoupl (prim_exec (e, σ) n) (lim_prim_exec (e', σ')) (coupl_rel φ)⌝.
+  Proof.
+    iRevert (e σ e' σ').
+    iInduction n as [|n] "IH"; iIntros (e σ e' σ') "([Hh Ht] & HspecI_auth & #Hctx & Hwp)".
+    - rewrite /prim_exec /=.
+      destruct (to_val e) eqn:Heq.
+      + apply of_to_val in Heq as <-.
+        rewrite wp_value_fupd.
+        iMod "Hwp" as (v') "[Hspec_frag %]".
+        iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
+        iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
+        iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        (* This is doable (a pure [refRcoupl] result *)
+        admit.
+      + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        (* also doable *)
+        admit.
+    - rewrite -prim_step_prim_exec /prim_step_or_val /=.
+      destruct (to_val e) eqn:Heq.
+      + apply of_to_val in Heq as <-.
+        rewrite wp_value_fupd.
+        iMod "Hwp" as (v') "[Hspec_frag %]".
+        iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
+        iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
+        iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iApply step_fupdN_intro; [done|]. do 4 iModIntro.
+        (* This is doable - LHS in the goal is equal to [dret (v, σ)] *)
+        admit.
+      + rewrite wp_unfold /wp_pre /= Heq.
+        iMod ("Hwp" with "[$]") as "[% Hcpl]".
+        iModIntro.
+        iPoseProof
+          (exec_coupl_mono _ (λ '(e2, σ2) '(e2', σ2'), |={∅}▷=> |={∅}▷=>^n
+             ⌜refRcoupl (prim_exec (e2, σ2) n) (lim_prim_exec (e2', σ2')) (coupl_rel φ)⌝)%I
+            with "[] Hcpl") as "H".
+        { iIntros ([] []) "H !> !>".
+          iMod "H" as "(Hstate & HspecI_auth & Hwp)".
+          iMod ("IH" with "[$]") as "H".
+          iModIntro. done. }
+
+        (* Now we have something of roughly the shape of the [foo] lemma *)
+
+  Admitted.
+
+End adequacy.

@@ -150,7 +150,7 @@ Section exec_coupl.
     by simplify_eq.
   Qed.
 
-  Lemma exec_coupl_mono e1 σ1 e1' σ1' (Z1 Z2 : cfg Λ → cfg Λ → iProp Σ) :
+  Lemma exec_coupl_mono (Z1 Z2 : cfg Λ → cfg Λ → iProp Σ) e1 σ1 e1' σ1' :
     (∀ ρ ρ', Z1 ρ ρ' -∗ Z2 ρ ρ') -∗ exec_coupl e1 σ1 e1' σ1' Z1 -∗ exec_coupl e1 σ1 e1' σ1' Z2.
   Proof.
     iIntros "HZ". iApply exec_coupl_strong_mono.

@@ -586,6 +586,8 @@ End dmap.
 Definition strength_l `{Countable A, Countable B} (a : A) (μ : distr B) : distr (A * B) :=
   dmap (λ b, (a, b)) μ.
 
+Definition strength_r `{Countable A, Countable B} (μ : distr A) (b : B) : distr (A * B) :=
+  dmap (λ a, (a, b)) μ.
 
 Lemma dbind_strength `{Countable A, Countable B, Countable D} (f : A*B → distr D) (a : A) (μ : distr B) :
   dbind f (strength_l a μ) = dbind (λ b, f (a, b)) μ.
@@ -596,11 +598,47 @@ Proof.
 Qed.
 
 
+Lemma dbind_strength_r `{Countable A, Countable B, Countable D} (f : A*B → distr D) (μ : distr A) (b : B) :
+  dbind f (strength_r μ b) = dbind (λ a, f (a, b)) μ.
+Proof.
+  rewrite /strength_r /dmap.
+  rewrite <- dbind_assoc.
+  setoid_rewrite dret_id_left; auto.
+Qed.
+
+
 Lemma strength_dbind `{Countable A, Countable B, Countable D} (f : B → distr D) (a : A) (μ : distr B) :
   strength_l a (dbind f μ) = dbind (λ b, strength_l a (f b)) μ.
 Proof.
   rewrite /strength_l /dmap.
   rewrite <- dbind_assoc; auto.
+Qed.
+
+
+Lemma strength_r_dbind `{Countable A, Countable B, Countable D} (f : A → distr D) (μ : distr A) (b : B) :
+  strength_r (dbind f μ) b = dbind (λ a, strength_r (f a) b) μ.
+Proof.
+  rewrite /strength_r /dmap.
+  rewrite <- dbind_assoc; auto.
+Qed.
+
+Lemma strength_comm `{Countable A, Countable B} (f : A -> distr A) (g : B -> distr B) (a : A) (b : B) :
+  dbind (λ '(a',b'), strength_r (f a') b' ) (strength_l a (g b)) = dbind (λ '(a',b'), strength_l a' (g b')) (strength_r (f a) b).
+Proof.
+  rewrite dbind_strength.
+  rewrite dbind_strength_r.
+  rewrite /strength_l /strength_r /dmap.
+  apply distr_ext.
+  intros (a' & b').
+  rewrite /pmf/=/dbind_pmf/=.
+  rewrite /pmf/=/dbind_pmf/=.
+  setoid_rewrite <- SeriesC_scal_l.
+  rewrite (SeriesC_double_swap ((λ '(a0, x), (let (pmf0, _, _, _) := g b in pmf0) a0 * (f a x * dret (x, a0) (a', b'))))).
+  apply SeriesC_ext.
+  intro a''.
+  apply SeriesC_ext.
+  intro b''.
+  rewrite /pmf /=; lra.
 Qed.
 
 (** * Monaidc fold left  *)
@@ -760,3 +798,68 @@ Section marginals.
   Proof. eapply distr_ext, rmarg_dprod_pmf. Qed.
 
 End marginals.
+
+
+Definition distr_le `{Countable A} (μ1 μ2 : distr A) : Prop :=
+  ∀ a, (μ1 a <= μ2 a)%R.
+
+Section order.
+
+(* There may be a way to reformulate this section using refinement couplings *)
+
+Context `{Countable A, Countable B}.
+
+
+Lemma distr_le_dzero (μ : distr A) :
+  distr_le dzero μ.
+Proof.
+  rewrite /distr_le.
+  intro a; apply pmf_pos.
+Qed.
+
+Lemma distr_le_refl (μ : distr A) :
+  distr_le μ μ.
+Proof.
+  rewrite /distr_le.
+  intro a; lra.
+Qed.
+
+Lemma distr_le_trans (μ1 μ2 μ3 : distr A) :
+  distr_le μ1 μ2 -> distr_le μ2 μ3 -> distr_le μ1 μ3.
+Proof.
+  rewrite /distr_le.
+  intros H1 H2 a.
+  apply (Rle_trans (μ1 a) (μ2 a)); auto.
+Qed.
+
+Lemma distr_le_antisym (μ1 μ2 : distr A):
+  distr_le μ1 μ2 -> distr_le μ2 μ1 -> μ1 = μ2.
+Proof.
+  rewrite /distr_le.
+  intros H1 H2.
+  apply distr_ext; intro a.
+  apply Rle_antisym; auto.
+Qed.
+
+
+Lemma distr_le_dbind (μ1 μ2 : distr A) (f1 f2 : A → distr B) :
+  (distr_le μ1 μ2) -> (∀ a, distr_le (f1 a) (f2 a)) → distr_le (dbind f1 μ1) (dbind f2 μ2).
+Proof.
+  intros Hle Hf.
+  pose proof (pmf_ex_seriesC (μ2 ≫= f2)) as Hex. 
+  rewrite /distr_le /pmf /= /dbind_pmf /=.
+  intro b.
+  (* We do enough of this kind of reasoning that it should be a lemma, so that we don't have to prove the exSeriesC everytime *)
+  apply SeriesC_le; last first.
+  + eapply ex_seriesC_le; [ |apply (pmf_ex_seriesC μ2)].
+    intro a;  split.
+    ++ apply Rmult_le_pos; auto.
+    ++ rewrite <- Rmult_1_r; apply Rmult_le_compat_l; auto. 
+  + intro a; split.
+    ++ apply Rmult_le_pos; auto.
+    ++ rewrite /distr_le in Hle.
+       rewrite /distr_le in Hf.
+       eapply Rmult_le_compat; auto.
+Qed.
+
+End order.
