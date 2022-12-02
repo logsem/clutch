@@ -142,6 +142,7 @@ Inductive det_expr : expr → Prop :=
 |  DetLoad  Load (e : expr)
 |  DetStore Store (e1 : expr) (e2 : expr).
 
+
 (** Deterministic expressions *)
 
 (** A computational/destructing version of [inv_head_step] - only to be used for

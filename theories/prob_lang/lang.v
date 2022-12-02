@@ -510,6 +510,107 @@ Inductive det_head_step_rel : expr → state → expr → state → Prop :=
   det_head_step_rel AllocTape σ
     (Val $ LitV $ LitLbl l) (state_upd_tapes <[l:=[]]> σ). *)
 
+
+Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
+  match e1 with
+  | Rec f x e => true
+  | Pair (Val v1) (Val v2) => true
+  | InjL (Val v) => true
+  | InjR (Val v) => true
+  | App (Val (RecV f x e1)) (Val v2) => true
+  | UnOp op (Val v)  => bool_decide(is_Some(un_op_eval op v))
+  | BinOp op (Val v1) (Val v2) => bool_decide (is_Some(bin_op_eval op v1 v2))
+  | If (Val (LitV (LitBool true))) e1 e2 => true
+  | If (Val (LitV (LitBool false))) e1 e2 => true
+  | Fst (Val (PairV v1 v2)) => true
+  | Snd (Val (PairV v1 v2)) => true
+  | Case (Val (InjLV v)) e1 e2 => true
+  | Case (Val (InjRV v)) e1 e2 => true
+  | Alloc (Val v) => true
+  | Load (Val (LitV (LitLoc l)))  =>
+      bool_decide (is_Some (σ1.(heap) !! l))
+  | Store (Val (LitV (LitLoc l))) (Val w) =>
+      bool_decide (is_Some (σ1.(heap) !! l))
+  | _ => false
+  end.
+
+Inductive det_head_step_pred : expr → state → Prop :=
+| RecDSP f x e σ :
+  det_head_step_pred (Rec f x e) σ
+| PairDSP v1 v2 σ :
+  det_head_step_pred (Pair (Val v1) (Val v2)) σ
+| InjLDSP v σ :
+  det_head_step_pred (InjL $ Val v) σ
+| InjRDSP v σ :
+  det_head_step_pred (InjR $ Val v) σ
+| BetaDSP f x e1 v2 σ :
+  det_head_step_pred (App (Val $ RecV f x e1) (Val v2)) σ
+| UnOpDSP op v σ v' :
+  un_op_eval op v = Some v' →
+  det_head_step_pred (UnOp op (Val v)) σ
+| BinOpDSP op v1 v2 σ v' :
+  bin_op_eval op v1 v2 = Some v' →
+  det_head_step_pred (BinOp op (Val v1) (Val v2)) σ
+| IfTrueDSP e1 e2 σ :
+  det_head_step_pred (If (Val $ LitV $ LitBool true) e1 e2) σ
+| IfFalseDSP e1 e2 σ :
+  det_head_step_pred (If (Val $ LitV $ LitBool false) e1 e2) σ
+| FstDSP v1 v2 σ :
+  det_head_step_pred (Fst (Val $ PairV v1 v2)) σ
+| SndDSP v1 v2 σ :
+  det_head_step_pred (Snd (Val $ PairV v1 v2)) σ
+| CaseLDSP v e1 e2 σ :
+  det_head_step_pred (Case (Val $ InjLV v) e1 e2) σ
+| CaseRDSP v e1 e2 σ :
+  det_head_step_pred (Case (Val $ InjRV v) e1 e2) σ
+| AllocDSP v σ l :
+  l = fresh_loc σ.(heap) →
+  det_head_step_pred (Alloc (Val v)) σ
+| LoadDSP l v σ :
+  σ.(heap) !! l = Some v →
+  det_head_step_pred (Load (Val $ LitV $ LitLoc l)) σ
+| StoreDSP l v w σ :
+  σ.(heap) !! l = Some v →
+  det_head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ.
+
+Inductive prob_head_step_pred : expr -> state -> Prop :=
+| AllocTapePSP σ :
+  prob_head_step_pred AllocTape σ
+| FlipPSP l σ :
+  (exists b bs, σ.(tapes) !! l = Some (b :: bs)) →
+  prob_head_step_pred (Flip (Val (LitV (LitLbl l)))) σ
+| FlipEmptyPSP l σ :
+  (σ.(tapes) !! l = Some [] \/ σ.(tapes) !! l = None) →
+  prob_head_step_pred (Flip (Val (LitV (LitLbl l)))) σ.
+
+Definition head_step_pred e1 σ1 :=
+  det_head_step_pred e1 σ1 \/ prob_head_step_pred e1 σ1.
+
+Lemma det_step_is_unique e1 σ1 e2 σ2 e3 σ3 :
+  det_head_step_rel e1 σ1 e2 σ2 ->
+  det_head_step_rel e1 σ1 e3 σ3 ->
+  e2 = e3 /\ σ2 = σ3.
+Proof.
+  intros H1 H2.
+  inversion H1; inversion H2; simplify_eq; auto.
+Qed.
+
+Lemma det_step_pred_ex_rel e1 σ1 :
+  det_head_step_pred e1 σ1 <-> exists e2 σ2, det_head_step_rel e1 σ1 e2 σ2.
+Proof.
+  split.
+  - intro H; inversion H; simplify_eq; eexists; eexists; econstructor; eauto.
+  - intros (e2 & (σ2 & H)); inversion H ; econstructor; eauto.
+Qed.
+
+Lemma det_step_eq_tapes e1 σ1 e2 σ2 :
+  det_head_step_rel e1 σ1 e2 σ2 ->
+  σ1.(tapes) = σ2.(tapes).
+Proof.
+  intro H.
+  inversion H; auto.
+Qed.
+
 Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
   if det_head_step_dec e1 σ1 (e2, σ2)
     then 1
@@ -699,11 +800,46 @@ Local Ltac inv_head_step' :=
     | _ => progress simplify_map_eq/= (* simplify memory stuff *)
     end.
 
+
+Lemma is_det_head_step_true e1 σ1 :
+  is_det_head_step e1 σ1 = true <-> det_head_step_pred e1 σ1.
+Proof.
+  split; intro H.
+  + destruct e1; simplify_eq; rewrite /is_det_head_step in H; auto.
+    ++ econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq).
+       rewrite bool_decide_eq_true in H; auto.
+       rewrite /is_Some in H; destruct H; auto.
+       econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq).
+       rewrite bool_decide_eq_true in H; auto.
+       rewrite /is_Some in H; destruct H; auto.
+       econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq); econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq).
+       rewrite bool_decide_eq_true in H; auto.
+       rewrite /is_Some in H; destruct H; auto.
+       econstructor; eauto.
+    ++ repeat (case_match in H; simplify_eq).
+       rewrite bool_decide_eq_true in H; auto.
+       rewrite /is_Some in H; destruct H; auto.
+       econstructor; eauto.
+  + inversion H; solve_step_det.
+Qed.
+
 Lemma det_head_step_true e1 σ1 e2 σ2:
         (det_head_step_dec e1 σ1 (e2, σ2) = true) <-> det_head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  +  intro H. destruct e1; simplify_eq. (*; inv_head_step'.*)
+  +  intro H. destruct e1; simplify_eq. (* ; inv_head_step'. *)
      ++ rewrite /det_head_step_dec in H.
         repeat(case_match in H; simplify_eq).
         rewrite bool_decide_eq_true in H.
@@ -781,6 +917,25 @@ Proof.
     solve_step_det.
  Qed.
 
+Lemma det_head_step_singleton e1 σ1 e2 σ2 :
+        det_head_step_rel e1 σ1 e2 σ2 ->
+        head_step e1 σ1 = dret (e2, σ2).
+Proof.
+  intro Hdet.
+  apply det_head_step_true in Hdet.
+  apply pmf_1_eq_dret.
+  rewrite /pmf/head_step/head_step_pmf Hdet; auto.
+Qed.
+
+Lemma val_not_head_step e1 σ1 :
+  is_Some (to_val e1) -> ¬ head_step_pred e1 σ1.
+Proof.
+  intros Hval Hstep.
+  rewrite /is_Some/to_val in Hval.
+  inversion Hstep as [H1 | H2].
+  + inversion H1; simplify_eq; destruct Hval; done.
+  + inversion H2; simplify_eq; destruct Hval; done.
+Qed.
 
 
 
@@ -938,6 +1093,92 @@ Proof.
       rewrite /pmf /= /head_step_pmf //; simplify_map_eq;
       rewrite ?bool_decide_eq_true_2 //; try lra.
     destruct_or?; simplify_map_eq; lra.
+Qed.
+
+
+Lemma head_step_pred_ex_rel e1 σ1 :
+ head_step_pred e1 σ1 <-> exists e2 σ2, head_step_rel e1 σ1 e2 σ2.
+Proof.
+  split.
+  - intros [H1 | H2].
+    + inversion H1; simplify_eq; eexists; eexists; econstructor; eauto.
+    + inversion H2; simplify_eq; [eexists; eexists ; apply AllocTapeS | | ]; auto.
+      ++ destruct H as (b & (bs & H)).
+         exists (Val (LitV (LitBool b))).
+         eexists.
+         econstructor; eauto.
+      ++ destruct H;
+         exists (Val (LitV (LitBool true))).
+         +++ eexists. apply FlipEmptyS; auto.
+         +++ eexists. apply FlipEmptyS; auto.
+  - intros (e2 & (σ2 & H)); inversion H;
+    (* TODO: Fix this hack *)
+    [ left | left | left | left | left | left | left | left | left | left | left | left | left | left | left | left |
+      right ; apply AllocTapePSP; eauto | right; eapply FlipPSP; eauto | right; eapply FlipEmptyPSP; eauto ];
+      try(econstructor;eauto).
+Qed.
+
+Lemma not_head_step_pred_dzero e1 σ1:
+  ¬ head_step_pred e1 σ1 <-> head_step e1 σ1 = dzero.
+Proof.
+  split.
+  + intro Hnstep.
+    apply dzero_ext.
+    intros (e2 & σ2).
+    destruct (Rlt_le_dec 0 (head_step e1 σ1 (e2, σ2))) as [H1 | H2]; last first.
+    { destruct H2 ; pose proof (pmf_pos (head_step e1 σ1) (e2, σ2)); lra. }
+    apply Rgt_lt in H1.
+    apply head_step_support_equiv_rel in H1.
+    assert (exists e2 σ2, head_step_rel e1 σ1 e2 σ2) as Hex; eauto.
+    apply head_step_pred_ex_rel in Hex.
+    done.
+   + intros Hhead Hstep.
+     apply head_step_pred_ex_rel in Hstep.
+     destruct Hstep as (e2 & Hstep).
+     destruct Hstep as (σ2 & Hstep).
+     apply head_step_support_equiv_rel in Hstep.
+     assert (head_step e1 σ1 (e2, σ2) = 0); try lra.
+     rewrite Hhead; auto.
+Qed.
+
+
+Lemma det_or_prob_or_dzero e1 σ1:
+  (det_head_step_pred e1 σ1 \/ prob_head_step_pred e1 σ1) \/ (∀ σ1', σ1.(heap) = σ1'.(heap) -> head_step e1 σ1' = dzero).
+Proof.
+  destruct (Rlt_le_dec 0 (SeriesC (head_step e1 σ1))) as [H1 | H2].
+  + apply Rlt_gt in H1.
+    pose proof (SeriesC_gtz_ex (head_step e1 σ1) (pmf_pos (head_step e1 σ1)) H1) as [ρ Hρ].
+    pose proof (head_step_support_equiv_rel e1 ρ.1 σ1 ρ.2) as [H3  H4].
+    destruct ρ as (e2 & σ2).
+    simpl in H3.
+    specialize (H3 Hρ).
+    assert (head_step_pred e1 σ1) as H5.
+    { apply head_step_pred_ex_rel; eauto. }
+    destruct H5; auto.
+  + destruct H2; right; intros σ1' Heq.
+    ++ pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1)); lra.
+    ++ pose proof (SeriesC_zero_dzero (head_step e1 σ1) H) as H2; auto.
+       apply not_head_step_pred_dzero in H2.
+       apply not_head_step_pred_dzero.
+       intro H3.
+       inversion H3 as [H4 | H5].
+       (* TODO: Cleanup *)
+       +++ destruct H2; left.
+           inversion H4;
+           try by (econstructor;eauto).
+           ++++ apply (LoadDSP l v). rewrite Heq; eauto.
+           ++++ apply (StoreDSP l v). rewrite Heq; eauto.
+       +++ destruct H2; right.
+           inversion H5.
+           ++++ apply AllocTapePSP.
+           ++++ destruct (decide(is_Some (tapes σ1 !! l))) as [ (x & HSome) | HNone].
+                +++++ destruct x ; [apply FlipEmptyPSP | apply FlipPSP]; eauto.
+                +++++ apply eq_None_not_Some in HNone.
+                      apply FlipEmptyPSP; eauto.
+           ++++ destruct (decide(is_Some (tapes σ1 !! l))) as [ (x & HSome) | HNone].
+                +++++ destruct x ; [apply FlipEmptyPSP | apply FlipPSP]; eauto.
+                +++++ apply eq_None_not_Some in HNone.
+                      apply FlipEmptyPSP; eauto.
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :

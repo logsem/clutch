@@ -117,7 +117,23 @@ Section helper_lemma.
   Qed.
 
 
+  Lemma baar e1 σ1 α b:
+      det_head_step_pred e1 σ1 ->
+      det_head_step_pred e1 (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1).
+  Proof.
+    intro Hdet.
+    inversion Hdet; econstructor; eauto.
+  Qed.
 
+
+  Lemma baaar e1 σ1 e2 σ2 α b:
+      det_head_step_rel e1 σ1 e2 σ2 ->
+      det_head_step_rel e1 (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1)
+                         e2 (state_upd_tapes <[α := σ2.(tapes) !!! α ++ [b]]> σ2).
+  Proof.
+    intro Hdet.
+    inversion Hdet; econstructor; eauto.
+  Qed.
 
   Lemma fooo : forall m e1 σ1 α,
       Rcoupl (prim_exec (e1, σ1) m)
@@ -168,13 +184,39 @@ Section helper_lemma.
     intros ? Hpos.
     rewrite /pmf/= in Hpos.
     lra.
-  - rewrite /prim_exec/=.
+  - simpl.
     destruct (to_val e1) eqn:He1.
     + specialize (IHm e1 σ1 α).
       rewrite /prim_exec/= in IHm.
       destruct m; simpl in *;
       rewrite He1 in IHm; auto.
-    + rewrite -/prim_exec. admit.
+    + rewrite /prim_step /=.
+      destruct (decomp e1) as [K ered] eqn:decomp_e1.
+      rewrite decomp_e1.
+      destruct (is_det_head_step ered σ1) eqn:Hdet.
+      ++ apply is_det_head_step_true in Hdet.
+         apply det_step_pred_ex_rel in Hdet.
+         destruct Hdet as (e2 & (σ2 & Hdet)).
+         pose proof (baaar ered σ1 e2 σ2 α true Hdet) as HdetT.
+         pose proof (baaar ered σ1 e2 σ2 α false Hdet) as HdetF.
+         erewrite 3 det_head_step_singleton; eauto.
+         do 6 rewrite dret_id_left; auto.
+         (* Woohooo! *)
+      ++ assert (¬ det_head_step_pred ered σ1) as Hndet.
+         {destruct (is_det_head_step_true ered σ1); auto. intro Hf.
+         specialize (H0 Hf); simplify_eq. rewrite H0 in Hdet; auto.}
+         destruct (det_or_prob_or_dzero ered σ1) as [[ HD | HP ] | HZ]; [destruct Hndet; auto | | ]; last first.
+         +++ assert (head_step ered σ1 = dzero) as Haux1; auto.
+             assert (head_step ered (state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1) = dzero) as Haux2; auto.
+             assert (head_step ered (state_upd_tapes <[α:=tapes σ1 !!! α ++ [false]]> σ1) = dzero) as Haux3; auto.
+             rewrite Haux1 Haux2 Haux3.
+             (* Everything should be rewritable to dzero here *)
+             admit.
+
+         +++ inversion HP.
+             ++++ admit.
+             ++++ admit.
+             ++++ admit.
   Admitted.
 
 
