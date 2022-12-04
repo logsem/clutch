@@ -116,6 +116,18 @@ Section couplings_theory.
     auto.
   Qed.
 
+  Proposition Rcoupl_eq (μ1 : distr A) :
+    Rcoupl μ1 μ1 (=).
+  Proof.
+    exists (ddiag μ1); split; [split | ].
+    + apply distr_ext.
+      rewrite /ddiag/=.
+      (* TODO *)
+      admit.
+    + admit.
+    + admit.
+  Admitted.
+
   Proposition coupl_sym (μ1 : distr A) (μ2 : distr B) :
     coupl μ1 μ2 -> coupl μ2 μ1.
   Proof.

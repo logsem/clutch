@@ -697,6 +697,23 @@ Section dzero.
 
 End dzero.
 
+(** * Diagonal *)
+Program Definition ddiag `{Countable A} (μ : distr A) : distr (A * A) :=
+  MkDistr (λ '(a, b), if bool_decide(a=b) then μ b else 0) _ _ _.
+Next Obligation. intros ???? [a b]=>/=. case_bool_decide; auto; lra. Qed.
+Next Obligation.
+  intros A?? μ =>/=.
+  (* TODO *)
+  Admitted.
+
+Next Obligation.
+  intros A?? μ =>/=.
+  rewrite SeriesC_double_prod_rl.
+  erewrite SeriesC_ext.
+  { apply (pmf_SeriesC μ). }
+  intro. apply SeriesC_singleton.
+Qed.
+
 (** * Products  *)
 Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
   MkDistr (λ '(a, b), μ1 a * μ2 b) _ _ _.
