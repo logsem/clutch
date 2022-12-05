@@ -225,7 +225,7 @@ Section exec_coupl.
     by simplify_eq.
   Qed.
 
-  Lemma exec_coupl_trans_state_steps e1 σ1 e1' σ1' Z α α' :
+  Lemma exec_coupl_state_steps e1 σ1 e1' σ1' Z α α' :
     (α, α') ∈ list_prod (get_active Λ σ1) (get_active Λ σ1') →
     (∃ R, ⌜Rcoupl (state_step σ1 α) (state_step σ1' α') R⌝ ∗
           (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))
@@ -235,6 +235,28 @@ Section exec_coupl.
     rewrite {1}exec_coupl_unfold.
     iRight; iRight; iRight.
     by iApply big_orL_elem_of.
+  Qed.
+
+  Lemma exec_coupl_prim_step_l e1 σ1 e1' σ1' Z :
+    (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
+          ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1'))
+    ⊢ exec_coupl e1 σ1 e1' σ1' Z.
+  Proof.
+    iIntros "H".
+    rewrite {1}exec_coupl_unfold.
+    iRight; iLeft.
+    done.
+  Qed.
+
+  Lemma exec_coupl_prim_step_r e1 σ1 e1' σ1' Z :
+    (∃ R, ⌜Rcoupl (dret (e1, σ1)) (prim_step e1' σ1') R⌝ ∗
+          ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z)
+    ⊢ exec_coupl e1 σ1 e1' σ1' Z.
+  Proof.
+    iIntros "H".
+    rewrite {1}exec_coupl_unfold.
+    iRight; iRight; iLeft.
+    done.
   Qed.
 
 End exec_coupl.
