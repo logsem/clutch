@@ -333,6 +333,20 @@ Section prim_scheduler.
                end
     end.
 
+  Lemma prim_exec_rw (ρ : cfg Λ) (n : nat) :
+    prim_exec ρ n =
+    match to_val ρ.1 with
+      | Some v => dret ρ
+      | None => match n with
+               | 0 => dzero
+               | S m => dbind (λ ρ', prim_exec ρ' m) (prim_step ρ.1 ρ.2)
+               end
+    end.
+  Proof.
+    rewrite /prim_exec.
+    destruct n; case_match; auto.
+  Qed.
+
   Lemma prim_exec_is_val e σ n :
     is_Some (to_val e) → prim_exec (e, σ) n = dret (e, σ).
   Proof. destruct n; simpl; by intros [? ->]. Qed.

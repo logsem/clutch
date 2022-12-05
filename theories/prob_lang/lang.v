@@ -983,6 +983,36 @@ Next Obligation.
   rewrite 2!SeriesC_singleton. lra.
 Qed.
 
+Lemma state_step_fair_conv_comb σ α :
+  state_step σ α =
+  fair_conv_comb (dret(state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ))
+    (dret(state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)).
+Proof.
+  apply distr_ext.
+  intro σ2.
+  rewrite {1}/pmf/=/state_step_pmf/valid_state_step.
+  case_bool_decide as H.
+  + destruct H as [b ->].
+    rewrite fair_conv_comb_pmf.
+    rewrite /pmf/=/dret_pmf/=.
+    case_bool_decide as H2; case_bool_decide as H3; simplify_eq; try lra.
+    ++ rewrite H2 in H3.
+       apply (f_equal (λ m, m!!!α)) in H3.
+       do 2 rewrite lookup_total_insert in H3.
+       apply app_inj_2 in H3; auto; destruct_and?; simplify_eq.
+    ++ destruct b; simplify_eq.
+  + rewrite fair_conv_comb_pmf.
+    assert (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ) σ2 = 0 /\
+              dret (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ) σ2 = 0 )
+    as [->  ->]; try lra.
+    split;
+    rewrite /pmf/=/dret_pmf;
+    case_bool_decide; auto;
+    destruct H; eauto.
+Qed.
+
+
+
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.

@@ -246,7 +246,33 @@ Section helper_lemma.
   Lemma exec_coupl_eq e σ m :
     Rcoupl (prim_exec (e, σ) m)
     (prim_exec (e, σ) m) pure_eq.
-  Proof. Admitted.
+  Proof.
+    move : e σ.
+    induction m; intros e σ.
+    + rewrite /prim_exec.
+      case_match.
+      ++ exists (dret ((e, σ),(e, σ))).
+        split ; [split; [ rewrite /lmarg dmap_dret; auto | rewrite /rmarg dmap_dret; auto ]  |  ].
+        intros (ρ2 & ρ2') H2; simpl; auto.
+        apply dret_pos in H2.
+        simplify_eq.
+        rewrite /pure_eq; auto.
+      ++ exists dzero.
+         split; [split; [ rewrite /lmarg dmap_dzero; auto | rewrite /rmarg dmap_dzero; auto ] | ].
+         intros (ρ2 & ρ2') H2; simpl; auto.
+         rewrite /pmf/dzero in H2; lra.
+    + rewrite prim_exec_rw /=.
+      case_match.
+      ++ exists (dret ((e, σ),(e, σ))).
+        split ; [split; [ rewrite /lmarg dmap_dret; auto | rewrite /rmarg dmap_dret; auto ]  |  ].
+        intros (ρ2 & ρ2') H2; simpl; auto.
+        apply dret_pos in H2.
+        simplify_eq.
+        rewrite /pure_eq; auto.
+      ++ apply (Rcoupl_bind _ _ _ _ (=)); [ | apply Rcoupl_eq].
+         intros ? (e2 & σ2) ->.
+         apply (IHm e2 σ2).
+  Qed.
 
   (* Hopefully this is not too hard to show *)
   Lemma exec_coupl_eq_irrel e σ l m :
@@ -270,16 +296,15 @@ Section helper_lemma.
   Lemma pos_prod_nn_real p q :
     (0 <= p) -> (0 <= q) ->
     (0 < p * q) ->
-    (0 < p \/ 0 < q).
+    (0 < p /\ 0 < q).
   Proof.
     intros Hp Hq Hsum.
-    destruct Hp as [ Hp | Hp ]; simplify_eq; auto.
-    destruct Hq as [ Hq | Hq ]; simplify_eq; auto.
-    lra.
+    destruct Hp as [ Hp | Hp ]; simplify_eq; split; auto; try lra.
+    destruct Hq as [ Hq | Hq ]; simplify_eq ; auto; lra.
   Qed.
 
 
-  Lemma fooo : forall m e1 σ1 α,
+  Lemma prim_coupl_upd_tapes : forall m e1 σ1 α,
       Rcoupl (prim_exec (e1, σ1) m)
              (fair_conv_comb (prim_exec (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [true]]> σ1)) m )
                              (prim_exec (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [false]]> σ1)) m ))
@@ -299,8 +324,18 @@ Section helper_lemma.
         assert ((dret (e1, σ1) (e2, σ2) > 0 /\ dret (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1) (e2', σ2') > 0)
             \/ (dret (e1, σ1) (e2, σ2) > 0 /\ dret (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [false]]> σ1) (e2', σ2') > 0))
         as [(Hpos1 & Hpos2) | (Hpos3 & Hpos4)].
-        { (* This is a fact about the reals, should be easy *)
-          admit. }
+        { (* This is a fact about the reals, maybe it can be done easier *)
+          apply Rgt_lt in Hpos.
+          rewrite -Rmult_plus_distr_l
+           -Rmult_assoc
+           -{1}Rmult_comm
+           -Rmult_assoc
+            Rmult_plus_distr_r in Hpos.
+          apply pos_prod_nn_real in Hpos; try lra.
+          destruct Hpos as [Hpos ?].
+          apply pos_sum_nn_real in Hpos; [ | apply Rmult_le_pos; apply pmf_pos | apply Rmult_le_pos; apply pmf_pos].
+          destruct Hpos; [left | right]; apply pos_prod_nn_real; auto; rewrite Rmult_comm; auto.
+       }
         ++ rewrite /pmf/=/dret_pmf/= in Hpos1.
            case_bool_decide as Heq1; try lra.
            rewrite Heq1.
@@ -496,6 +531,16 @@ Section helper_lemma.
   Admitted.
 
 
+  Lemma prim_coupl_step_prim : forall m e1 σ1 α,
+      Rcoupl (prim_exec (e1, σ1) m)
+             (dbind (λ σ2, prim_exec (e1, σ2) m) (state_step σ1 α))
+             pure_eq.
+  Proof.
+    intros; rewrite state_step_fair_conv_comb fair_conv_comb_dbind.
+    do 2 rewrite dret_id_left.
+    apply prim_coupl_upd_tapes.
+  Qed.
+
 
 
   Lemma quuuux e1 σ1 α m :
@@ -506,37 +551,13 @@ Section helper_lemma.
       ((state_step σ1 α ≫= (λ σ2 : language.state prob_lang, prim_exec (e1, σ2) m))=
          (fair_conv_comb (prim_exec (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [true]]> σ1)) m )
                              (prim_exec (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [false]]> σ1)) m ))
-      ) as ->; [ | apply fooo].
-    (* The remaining should be a lemma about the language *)
-(*
-    induction m=>/=.
-    - destruct (to_val e1).
-      + apply qux_something.
-      + assert ((dbind (λ _ : state, dzero) (state_step σ1 α)) = dzero) as ->.
-        { eapply distr_ext. intros ?.
-          rewrite /pmf /= /dbind_pmf.
-          apply SeriesC_0. intros ?. rewrite {2}/pmf /=. lra. }
-        (* TODO: state this as a separate lemma *)
-        exists dzero. split.
-        { split.
-          - rewrite /lmarg  dmap_dzero //.
-          - rewrite /rmarg  dmap_dzero //. }
-        intros ?. rewrite /pmf /=. lra.
-    - destruct (to_val e1) eqn:Heq.
-      + apply qux_something.
-      + (* rewrite dbind_assoc. *)
-
-        assert (Rcoupl (state_step σ1 α ≫= (λ σ2, prim_step e1 σ2)) (prim_step e1 σ1 ≫= (λ '(e2, σ2), strength_l e2 (state_step σ2 α))) pure_eq).
-        { admit. }
-        rewrite dbind_assoc.
-
-        assert (Rcoupl ((state_step σ1 α ≫= (λ σ2, prim_step e1 σ2)) ≫= (λ b : language.cfg prob_lang, prim_exec b m)) ((prim_step e1 σ1 ≫= (λ '(e2, σ2), strength_l e2 (state_step σ2 α))) ≫= (λ b : language.cfg prob_lang, prim_exec b m)) pure_eq).
-        { eapply Rcoupl_bind; [|done].
-*)
-          Admitted.
+      ) as ->; [ | apply prim_coupl_upd_tapes].
+    rewrite state_step_fair_conv_comb fair_conv_comb_dbind.
+    do 2 rewrite dret_id_left; auto.
+  Qed.
 
 
-  
+
   Lemma baz e1 σ1 e1' σ1' α α' R m :
     Rcoupl (state_step σ1 α) (state_step σ1' α') R →
     (∀ σ2 σ2', R σ2 σ2' → refRcoupl (prim_exec (e1, σ2) (S m)) (lim_prim_exec (e1', σ2')) pure_eq) →

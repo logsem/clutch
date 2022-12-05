@@ -380,7 +380,11 @@ Section couplings_theory.
     eauto.
   Qed.
 
+
+
 End couplings_theory.
+
+
 
 (* TODO: cleanup *)
 Section Rcoupl.
@@ -404,7 +408,22 @@ Section Rcoupl.
     rewrite 2!dmap_pos.
     split; eauto.
   Qed.
+
+
 End Rcoupl.
+
+
+  (* This is a lemma about convex combinations, but it is easier to prove with couplings
+     TODO: find a better place to put it in *)
+  Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A -> distr B) :
+    dbind f (fair_conv_comb μ1 μ2) = fair_conv_comb (dbind f μ1) (dbind f μ2).
+  Proof.
+    rewrite /fair_conv_comb -dbind_assoc.
+    apply eqcoupl_elim.
+    eapply (Rcoupl_bind _ _ _ _ (=)); [ | apply Rcoupl_eq].
+    intros b1 b2 ->.
+    destruct b2; apply Rcoupl_eq.
+  Qed.
 
 Section Rcoupl_strength.
   Context `{Countable A, Countable B, Countable D, Countable E}.

@@ -468,7 +468,7 @@ Section conv_prop.
     rewrite /pmf; lra.
   Qed.
 
-  Definition dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
+  Lemma dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
     dbind (λ a, fair_conv_comb (f1 a) (f2 a)) μ = fair_conv_comb (dbind f1 μ) (dbind f2 μ).
   Proof.
     apply distr_ext.
@@ -504,6 +504,8 @@ Section conv_prop.
       ++ rewrite <- (Rmult_1_r (μ a)).
          apply Rmult_le_compat; lra.
   Qed.
+
+
 
 
 End conv_prop.
