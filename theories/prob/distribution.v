@@ -739,19 +739,23 @@ End dzero.
 
 (** * Diagonal *)
 Program Definition ddiag `{Countable A} (μ : distr A) : distr (A * A) :=
-  MkDistr (λ '(a, b), if bool_decide(a=b) then μ b else 0) _ _ _.
+  MkDistr (λ '(a, b), if bool_decide(a=b) then μ a else 0) _ _ _.
 Next Obligation. intros ???? [a b]=>/=. case_bool_decide; auto; lra. Qed.
 Next Obligation.
   intros A?? μ =>/=.
-  (* TODO *)
-  Admitted.
+  apply ex_seriesC_prod.
+  + intro a.
+    apply ex_seriesC_singleton'.
+  + eapply ex_seriesC_ext; [ intro; rewrite SeriesC_singleton'; auto | ].
+    apply pmf_ex_seriesC.
+Qed.
 
 Next Obligation.
   intros A?? μ =>/=.
-  rewrite SeriesC_double_prod_rl.
+  rewrite SeriesC_double_prod_lr.
   erewrite SeriesC_ext.
   { apply (pmf_SeriesC μ). }
-  intro. apply SeriesC_singleton.
+  intro. apply SeriesC_singleton'.
 Qed.
 
 (** * Products  *)
@@ -760,8 +764,16 @@ Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : dist
 Next Obligation. intros ???????? [a b]=>/=. by eapply Rmult_le_pos. Qed.
 Next Obligation.
   intros A ?? B ?? μ1 μ2=>/=.
-  (* TODO: needs some rearranging lemmas like [SeriesC_double_swap] *)
-Admitted.
+  apply ex_seriesC_prod.
+  + intro a.
+    apply ex_seriesC_scal_l.
+    apply pmf_ex_seriesC.
+  + eapply ex_seriesC_ext.
+    ++ intro; rewrite SeriesC_scal_l.
+       done.
+    ++ apply ex_seriesC_scal_r.
+       apply pmf_ex_seriesC.
+Qed.
 Next Obligation.
   intros A ?? B ?? μ1 μ2 => /=.
   rewrite SeriesC_double_prod_rl.

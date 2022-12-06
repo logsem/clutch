@@ -121,12 +121,22 @@ Section couplings_theory.
   Proof.
     exists (ddiag μ1); split; [split | ].
     + apply distr_ext.
-      rewrite /ddiag/=.
-      (* TODO *)
-      admit.
-    + admit.
-    + admit.
-  Admitted.
+      intro a.
+      rewrite lmarg_pmf.
+      rewrite {1}/pmf/=/dbind_pmf/=.
+      rewrite SeriesC_singleton'; auto.
+    + apply distr_ext.
+      intro a.
+      rewrite rmarg_pmf.
+      rewrite {1}/pmf/=/dbind_pmf/=.
+      (* TODO: Need lemma to rewrite these singletons *)
+      rewrite (SeriesC_ext _ (λ a0 : A, if bool_decide (a0 = a) then μ1 a else 0));
+      [rewrite SeriesC_singleton; auto | ].
+      intro a'; case_bool_decide; simplify_eq; auto.
+    + intros (a1 & a2) Hpos; simpl.
+      rewrite /pmf/= in Hpos.
+      case_bool_decide; simplify_eq; auto; lra.
+  Qed.
 
   Proposition coupl_sym (μ1 : distr A) (μ2 : distr B) :
     coupl μ1 μ2 -> coupl μ2 μ1.
