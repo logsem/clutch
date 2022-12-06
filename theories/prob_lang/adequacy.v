@@ -248,25 +248,65 @@ Section helper_lemma.
     (tapes σ) !! α = Some bs ->
     fresh_loc (tapes σ) = (fresh_loc (<[α:= bs']> (tapes σ))).
   Proof.
-    Admitted.
+    intros Hα.
+    apply fresh_loc_eq_dom.
+    by rewrite dom_insert_lookup_L.
+  Qed.
+
+  Local Lemma elem_fresh_ne {V} (ls : gmap loc V) k v :
+    ls !! k = Some v → fresh_loc ls ≠ k.
+  Proof.
+    intros; assert (is_Some (ls !! k)) as Hk by auto.
+    pose proof (fresh_loc_is_fresh ls).
+    rewrite -elem_of_dom in Hk.
+    set_solver.
+  Qed.
 
   Lemma fresh_loc_upd_swap σ α bs bs' bs'' :
     (tapes σ) !! α = Some bs ->
     state_upd_tapes <[fresh_loc (tapes σ):=bs']> (state_upd_tapes <[α:=bs'']> σ)
     = state_upd_tapes <[α:=bs'']> (state_upd_tapes <[fresh_loc (tapes σ):=bs']> σ).
   Proof.
-    Admitted.
+    intros H.
+    apply elem_fresh_ne in H.
+    unfold state_upd_tapes.
+    by rewrite insert_commute.
+  Qed.
 
   Lemma fresh_loc_lookup σ α bs bs' :
     (tapes σ) !! α = Some bs ->
     (tapes (state_upd_tapes <[fresh_loc (tapes σ):=bs']> σ)) !! α = Some bs.
   Proof.
-    Admitted.
+    intros H.
+    pose proof (elem_fresh_ne _ _ _ H).
+    by rewrite lookup_insert_ne.
+  Qed.
 
   Lemma fresh_loc_lookup_total σ α bs bs' :
     (tapes σ) !!! α = bs ->
     (tapes (state_upd_tapes <[fresh_loc (tapes σ):=bs']> σ)) !!! α = bs.
   Proof.
+    intros H.
+    pose proof (lookup_total_alt (tapes σ) α).
+    destruct (bool_decide (α ∈ dom (tapes σ))) eqn:H'.
+
+    - (* α ∈ dom σ -> fresh_loc _ ≠ α /\ lookup_ne  *)
+      admit.
+    - (*
+         α ∉ dom σ
+         σ !!! α = bs = []
+         ———————————————————————————————————————————————————————
+         <[fresh_loc σ :=bs']> σ !!! α
+         =
+         bs' if fresh_loc σ = α
+         bs  else
+       *)
+      (* Seems false: fresh_loc σ might well be α, in which case we get bs',
+         not bs. Could prove it
+         - as stated if bs' = [], or
+         - with new rhs: if α ∈ dom σ \/ fresh_loc σ ≠ α then bs else bs' fi *)
+    (* pose (decide (α ∈ tapes σ)). *)
+    (* pose proof (elem_fresh_ne _ _ _ H). *)
     Admitted.
 
 
