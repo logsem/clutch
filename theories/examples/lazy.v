@@ -36,87 +36,56 @@ Section proofs.
 
   Definition coinN := nroot.@"coins".
 
-  (** Lazy coin (with lock) refines eager coin *)
-  Definition I l α b bs := (l ↦ NONEV ∗ α ↪ (b::bs) ∨ l ↦ SOMEV #b)%I.
-
   (* Warmup: the flips have already been resolved. *)
   Lemma lazy_eager_refinement α β b bs bs' :
     (* TODO: should instead assume that REL α << αₛ : lrel_tape *)
     α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
     -∗ REL lazy α << eager β : lrel_unit → lrel_bool.
   Proof using lockG0 prelocGS0 Σ.
-    iIntros "[Hα Hβ]".
-    rewrite /lazy /eager.
-    rel_alloc_l l as "Hl".
-    do 2 rel_pure_l.
-    rel_flip_r.
-    rel_apply_l (refines_newlock_l coinN (I l α b bs) with "[-]").
-    { unfold I. iLeft. iFrame. }
-    iIntros (lk γ) "!> #Hlk /=". rel_pures_l. rel_pures_r.
+    iIntros "[Hα Hβ]". rewrite /lazy /eager.
+    rel_alloc_l l as "Hl" ; rel_pures_l ; rel_flip_r.
+    rel_apply_l (refines_newlock_l coinN
+                   (l ↦ NONEV ∗ α ↪ (b::bs) ∨ l ↦ SOMEV #b)%I
+                  with "[-]") ; [by eauto with iFrame|].
+    iIntros (lk γ) "!> #Hlk /=". rel_pures_l ; rel_pures_r.
     rel_arrow ; iIntros (v1 v2) "_".
     rel_pure_r ; rel_pure_l.
     rel_apply_l (refines_acquire_l with "Hlk").
     iIntros "!> Hlocked HI".
     rel_pures_l.
-    iDestruct "HI" as "[[l_None α_b] | l_Some_b]" ; rel_load_l ; rel_pures_l ;
-      last first.
-    - rel_apply_l (refines_release_l with "Hlk Hlocked [-]") ;
-        [iFrame | iNext].
-      rel_pures_l. rel_values.
-    - rel_bind_l (Flip _).
-      iApply (refines_wp_l [_;_]).
-      iApply (wp_flip with "α_b").
-      iIntros "!> α_bs /=".
-      rel_pures_l. rel_store_l. rel_pures_l.
-      (* same as before *)
-      rel_apply_l (refines_release_l with "Hlk Hlocked [-]") ;
-        [iFrame | iNext].
-      rel_pures_l. rel_values.
+    iDestruct "HI" as "[[l_None α_b] | l_Some_b]" ; rel_load_l ; rel_pures_l.
+    1: rel_flip_l ; rel_pures_l ; rel_store_l ; rel_pures_l.
+    all: rel_apply_l (refines_release_l with "Hlk Hlocked [-]") ;
+      [iFrame | iNext] ;
+      rel_pures_l ; rel_values.
   Qed.
 
   Lemma eager_lazy_refinement α β b bs bs' :
     α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
     -∗ REL eager α << lazy β : lrel_unit → lrel_bool.
   Proof using lockG0 prelocGS0 Σ.
-    iIntros "[Hα Hβ]".
-    rewrite /lazy /eager.
-    rel_alloc_r l as "Hl".
-    do 2 rel_pure_r.
-    rel_flip_l.
+    iIntros "[Hα Hβ]". rewrite /lazy /eager.
+    rel_alloc_r l as "Hl" ; rel_pures_r ; rel_flip_l.
     rel_apply_r (refines_newlock_r).
     iIntros (lk) "Hlk".
     iMod (inv_alloc coinN _
            (is_locked_r lk false ∗
               (β ↪ₛ (b::bs') ∗ l ↦ₛ NONEV ∨ l ↦ₛ SOMEV #b))%I
-            with "[-]") as "#Hinv".
-    { iNext. iFrame. iLeft. iFrame. }
+            with "[-]") as "#Hinv" ;
+      [by eauto with iFrame|].
     rel_pures_l ; rel_pures_r.
-    rel_arrow ; iIntros (v1 v2) "_".
-    rel_pure_r.
+    rel_arrow ; iIntros (v1 v2) "_". rel_pure_r.
     (* We need to open Hinv in order to acquire the lock on the right. In order
        to use the invariant, we need to step on the left to produce a later. *)
     rel_bind_l (_ _).
     iApply refines_atomic_l .
-    iInv coinN as "Hlk" "Hclose".
-    iModIntro.
-    wp_pures.
-    iIntros "!> /=".
-    rel_bind_r (acquire _).
+    iInv coinN as "Hlk" "Hclose". iModIntro.
+    wp_pures. iIntros "!> /=".
     iDestruct "Hlk" as "[Hlk [(Hβ & Hl) | Hl]]" ;
       rel_apply_r (refines_acquire_r with "Hlk");
-      iIntros "Hlk" ;
-      rel_pures_r ; rel_load_r ; rel_pures_r.
-    - rel_bind_r (Flip _).
-      iApply refines_step_r.
-      iIntros (K) "[??]".
-      iMod (step_flip with "[$]") as "(? & ? & Hβ)" ; [solve_ndisj|].
-      iModIntro.
-      iExists _. iFrame. simpl.
-      rel_pures_r. rel_store_r. rel_pures_r.
-      rel_apply_r (refines_release_r with "Hlk [-]") ; iIntros "Hlk".
-      rel_pures_r. rel_values.
-      iMod ("Hclose" with "[Hlk Hl]") ; [iFrame | eauto].
-    - rel_apply_r (refines_release_r with "Hlk [-]") ; iIntros "Hlk".
-      rel_pures_r. rel_values.
-      iMod ("Hclose" with "[Hlk Hl]") ; eauto with iFrame.
+      iIntros "Hlk" ; rel_pure_r ; rel_load_r ; rel_pures_r.
+      1: rel_flip_r ; rel_pures_r ; rel_store_r ; rel_pures_r.
+    all: rel_apply_r (refines_release_r with "Hlk [-]") ; iIntros "Hlk" ;
+      rel_pures_r ; rel_values.
+    all: iMod ("Hclose" with "[Hlk Hl]") ; [iFrame | eauto].
 Qed.
