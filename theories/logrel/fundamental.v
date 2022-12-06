@@ -312,26 +312,26 @@ Section fundamental.
 *)
   Admitted.
 
-  (* Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ : *)
-  (*   UnboxedType τ → *)
-  (*   ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ) -∗ *)
-  (*   ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ) -∗ *)
-  (*   {Δ;Γ} ⊨ BinOp EqOp e1 e2 ≤log≤ BinOp EqOp e1' e2' : TBool. *)
-  (* Proof. *)
-  (*   iIntros (Hτ) "IH1 IH2". *)
-  (*   intro_clause. *)
-  (*   rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2". *)
-  (*   rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1". *)
-  (*   iAssert (⌜val_is_unboxed v1⌝)%I as "%". *)
-  (*   { rewrite !unboxed_type_sound //. *)
-  (*     iDestruct "IH1" as "[$ _]". } *)
-  (*   iAssert (⌜val_is_unboxed v2'⌝)%I as "%". *)
-  (*   { rewrite !unboxed_type_sound //. *)
-  (*     iDestruct "IH2" as "[_ $]". } *)
-  (*   iMod (unboxed_type_eq with "IH1 IH2") as "%"; first done. *)
-  (*   rel_op_l. rel_op_r. *)
-  (*   do 2 case_bool_decide; first [by rel_values | naive_solver]. *)
-  (* Qed. *)
+  Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ :
+    UnboxedType τ →
+    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ) -∗
+    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ) -∗
+    {Δ;Γ} ⊨ BinOp EqOp e1 e2 ≤log≤ BinOp EqOp e1' e2' : TBool.
+  Proof.
+    iIntros (Hτ) "IH1 IH2".
+    intro_clause.
+    rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1".
+    iAssert (⌜val_is_unboxed v1⌝)%I as "%".
+    { rewrite !unboxed_type_sound //.
+      iDestruct "IH1" as "[$ _]". }
+    iAssert (⌜val_is_unboxed v2'⌝)%I as "%".
+    { rewrite !unboxed_type_sound //.
+      iDestruct "IH2" as "[_ $]". }
+    iMod (unboxed_type_eq with "IH1 IH2") as "%"; first done.
+    rel_op_l. rel_op_r.
+    do 2 case_bool_decide; first [by rel_values | naive_solver].
+  Qed.
 
   Lemma bin_log_related_int_binop Δ Γ op e1 e2 e1' e2' τ :
     binop_int_res_type op = Some τ →
@@ -495,10 +495,8 @@ Section fundamental.
         by iApply fundamental.
       + iApply bin_log_related_bool_unop; first done.
         by iApply fundamental.
-      +
-        admit.
-        (* iApply bin_log_related_unboxed_eq; try done; *)
-        (*   by iApply fundamental. *)
+      + iApply bin_log_related_unboxed_eq; try done;
+          by iApply fundamental.
       + iApply bin_log_related_pair;
           by iApply fundamental.
       + iApply bin_log_related_fst;

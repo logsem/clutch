@@ -110,8 +110,19 @@ Section pure_exec.
   Proof. solve_pure_exec. Qed.
 
   Global Instance pure_binop op v1 v2 v' :
-    PureExec (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v').
+    PureExec (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v') | 10.
   Proof. solve_pure_exec. Qed.
+  (* Lower-cost instance for [EqOp]. *)
+  Global Instance pure_eqop v1 v2 :
+    PureExec (vals_compare_safe v1 v2) 1
+      (BinOp EqOp (Val v1) (Val v2))
+      (Val $ LitV $ LitBool $ bool_decide (v1 = v2)) | 1.
+  Proof.
+    intros Hcompare.
+    cut (bin_op_eval EqOp v1 v2 = Some $ LitV $ LitBool $ bool_decide (v1 = v2)).
+    { intros. revert Hcompare. solve_pure_exec. }
+    rewrite /bin_op_eval /= decide_True //.
+  Qed.
 
   Global Instance pure_if_true e1 e2 :
     PureExec True 1 (If (Val $ LitV $ LitBool true) e1 e2) e1.
