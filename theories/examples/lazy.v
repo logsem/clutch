@@ -1,16 +1,8 @@
 From stdpp Require Import namespaces.
-From iris Require Import invariants.
-From iris.proofmode Require Import proofmode.
-From iris.prelude Require Import options.
-From self Require Import spec_rules rel_rules rel_tactics notation types proofmode model spec_tactics.
+From iris Require Import prelude.options base_logic.lib.invariants.
+From self.prob_lang Require Import notation proofmode primitive_laws.
+From self.logrel Require Import model rel_rules rel_tactics.
 From self.examples Require Import lock.
-
-Notation "'match:' e0 'with' | 'NONE' => e1 | 'SOME' x => e2 'end'" :=
-  (Match e0 BAnon e1 x%binder e2)
-  (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
-Notation "'match:' e0 'with' | 'SOME' x => e2 | 'NONE' => e1 'end'" :=
-  (Match e0 BAnon e1 x%binder e2)
-  (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
 
 Definition lazy α : expr :=
   let:"s" := ref NONE in
@@ -89,3 +81,5 @@ Section proofs.
       rel_pures_r ; rel_values.
     all: iMod ("Hclose" with "[Hlk Hl]") ; [iFrame | eauto].
 Qed.
+
+End proofs.
