@@ -203,7 +203,7 @@ Section ectx_language.
         eapply dbind_pos_support.
         eexists (_, _).
         split; [|done].
-        rewrite dret_1 //. lra.
+        rewrite dret_1_1 //. lra.
       + intros [[e2 σ2] [[e2' σ2'] [[= ? <-]%dret_pos Hh]]%dbind_pos_support].
         assert (∃ ρ, head_step e1' σ1 ρ > 0) as [[e2'' σ2''] Hs'].
         { erewrite state_step_head_not_stuck; [|done]. eauto. }
@@ -211,7 +211,7 @@ Section ectx_language.
         eapply dbind_pos_support.
         eexists (_, _).
         split; [|done].
-        rewrite dret_1 //. lra.
+        rewrite dret_1_1 //. lra.
     - apply ectx_language_mixin.
   Qed.
 
