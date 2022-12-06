@@ -44,7 +44,7 @@ Inductive EqType : type → Prop :=
 .
 
 Lemma unboxed_type_ref_or_eqtype τ :
-  UnboxedType τ → (EqType τ ∨ ∃ τ', τ = TRef τ').
+  UnboxedType τ → (EqType τ ∨ (∃ τ', τ = TRef τ') ∨ τ = TTape).
 Proof. inversion 1; first [ left; by econstructor | right; naive_solver ]. Qed.
 
 (** Autosubst instances *)

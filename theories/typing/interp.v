@@ -46,16 +46,16 @@ Section semtypes.
     apply I. by f_equiv.
   Defined.
 
-  (* Lemma unboxed_type_sound τ Δ v v' : *)
-  (*   UnboxedType τ → *)
-  (*   interp τ Δ v v' -∗ ⌜val_is_unboxed v ∧ val_is_unboxed v'⌝. *)
-  (* Proof. *)
-  (*   induction 1; simpl; *)
-  (*   first [iDestruct 1 as (? ?) "[% [% ?]]" *)
-  (*         |iDestruct 1 as (?) "[% %]" *)
-  (*         |iIntros "[% %]"]; *)
-  (*   simplify_eq/=; eauto with iFrame. *)
-  (* Qed. *)
+  Lemma unboxed_type_sound τ Δ v v' :
+    UnboxedType τ →
+    interp τ Δ v v' -∗ ⌜val_is_unboxed v ∧ val_is_unboxed v'⌝.
+  Proof.
+    induction 1; simpl;
+    first [iDestruct 1 as (? ?) "[% [% ?]]"
+          |iDestruct 1 as (?) "[% %]"
+          |iIntros "[% %]"];
+    simplify_eq/=; eauto with iFrame.
+  Qed.
 
   Lemma eq_type_sound τ Δ v v' :
     EqType τ →
@@ -82,8 +82,8 @@ Section semtypes.
     |={⊤}=> ⌜v1 = w1 ↔ v2 = w2⌝.
   Proof.
     intros Hunboxed.
-    cut (EqType τ ∨ ∃ τ', τ = TRef τ').
-    { intros [Hτ | [τ' ->]].
+    cut (EqType τ ∨ (∃ τ', τ = TRef τ') ∨ τ = TTape).
+    { intros [Hτ | [[τ' ->] | ->]].
       - rewrite !eq_type_sound //.
         iIntros "% %". iModIntro.
         iPureIntro. naive_solver.
@@ -99,6 +99,18 @@ Section semtypes.
           { iModIntro. iPureIntro. naive_solver. }
           iInv (logN.@(r1, r2)) as (v1 v2) "(>Hr1 & >Hr2 & Hinv1)".
           iInv (logN.@(l1, r2)) as (w1 w2) "(>Hr1' & >Hr2' & Hinv2)".
+          iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr2 Hr2'") as %[].       - rewrite /lrel_car /=.
+        iDestruct 1 as (l1 l2 -> ->) "Hl".
+        iDestruct 1 as (r1 r2 -> ->) "Hr".
+        destruct (decide (l1 = r1)); subst.
+        + destruct (decide (l2 = r2)); subst; first by eauto.
+          iInv (logN.@(r1, l2)) as "> (Hr1 & Hl2)".
+          iInv (logN.@(r1, r2)) as "> (Hr1' & Hr2')".
+          iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr1 Hr1'") as %[].
+        + destruct (decide (l2 = r2)); subst; last first.
+          { iModIntro. iPureIntro. naive_solver. }
+          iInv (logN.@(r1, r2)) as "> (Hr1 & Hr2)".
+          iInv (logN.@(l1, r2)) as "> (Hl1 & Hr2')".
           iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr2 Hr2'") as %[]. }
     by apply unboxed_type_ref_or_eqtype.
   Qed.

@@ -157,8 +157,8 @@ Tactic Notation "rel_pure_l" open_constr(ef) :=
   rel_reshape_cont_l ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_rel_pure_l K e');
-      [reflexivity                  (** e = fill K e' *)
-      |iSolveTC                     (** PureClosed ϕ e' e2 *)
+      [reflexivity                  (** e = fill K e1 *)
+      |iSolveTC                     (** PureExec ϕ n e1 e2 *)
       | .. ]);
       [try prob_lang.proofmode.solve_vals_compare_safe                (** φ *)
       |first [left; split; reflexivity              (** Here we decide if the mask E is ⊤ *)
@@ -176,7 +176,7 @@ Tactic Notation "rel_pure_r" open_constr(ef) :=
       unify e' ef;
       eapply (tac_rel_pure_r K e');
       [reflexivity                  (** e = fill K e1 *)
-      |iSolveTC                     (** PureClosed ϕ e1 e2 *)
+      |iSolveTC                     (** PureExec ϕ n e1 e2 *)
       |..]);
       [try prob_lang.proofmode.solve_vals_compare_safe                (** φ *)
       |solve_ndisj        || fail 1 "rel_pure_r: cannot solve ↑specN ⊆ ?"
