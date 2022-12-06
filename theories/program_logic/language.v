@@ -176,7 +176,7 @@ Section language.
     intros Hs.
     rewrite fill_dbind; [|by eapply val_stuck].
     apply dbind_pos_support. eexists (_,_). split; [|done].
-    rewrite dret_1 //. lra.
+    rewrite dret_1_1 //. lra.
   Qed.
 
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
