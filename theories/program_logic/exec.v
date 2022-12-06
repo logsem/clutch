@@ -2,326 +2,97 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import relations fin_maps functions.
 From self.prelude Require Import classical.
-From self.prob Require Export distribution couplings.
 From self.program_logic Require Export language.
-
-Inductive action (Λ : language) :=
-  (* prim_step *)
-  | PRIM
-  (* state_step *)
-  | STATE (α : state_idx Λ).
-
-Global Arguments PRIM {Λ}.
-Global Arguments STATE {Λ} _.
-
-(* TODO: come up with better naming; "scheduler" and "scheduling function" is
-   not the most well-fitting names *)
-Definition scheduler_fn (Λ : language) := cfg Λ → option (action Λ).
-
-(* Class SchedulerFnWf {Λ} (f : scheduler_fn Λ) := { *)
-(*   (* The definition of [exec_fn] doesn't explicitly consider whether the *)
-(*     expression is a value or not. If [f] schedules a [prim_step] when the *)
-(*     expression [e] is a value, the measure will be zero; when plugging [e] into *)
-(*     a context [K], the [prim_step] measure on [K e] might not be zero anymore. *)
-(*     This breaks lemmas like [exec_ctx_lift_pmf] that are cruical for proving the *)
-(*     [wp_bind] rule. *) *)
-
-(*   (* For now, the well-formedness condition requires that the scheduler does not *)
-(*     schedule anything when the program has reached a value. Conceptually it *)
-(*     should be fine to schedule state steps, however, and this requirement could *)
-(*     be relaxed slightly. *) *)
-(*   scheduler_fn_val e σ : is_Some (to_val e) → f !! (e, σ) = None; *)
-(* }. *)
-
-(* Global Arguments scheduler_fn_val {_} _ _. *)
-
-Local Open Scope R.
-
-Section exec_fn.
-  Context {Λ : language}.
-  Implicit Types v : val Λ.
-  Implicit Types e : expr Λ.
-  Implicit Types σ : state Λ.
-  Implicit Types ρ : cfg Λ.
-  Implicit Types α : state_idx Λ.
-  Implicit Types f : scheduler_fn Λ.
-
-  Definition exec_fn_pmf '(e, σ) f : cfg Λ → R :=
-    match f (e, σ) with
-    | Some PRIM => prim_step e σ
-    | Some (STATE α) => strength_l e (state_step σ α)
-    | None => dzero
-    end.
-
-  Program Definition exec_fn ρ f : distr (cfg Λ) :=
-    MkDistr (exec_fn_pmf ρ f) _ _ _.
-  Solve Obligations with rewrite /exec_fn_pmf; intros [] ?; repeat case_match; done.
-
-  Lemma exec_fn_pmf_unfold f ρ ρ' :
-    exec_fn ρ f ρ' =
-      match f ρ with
-      | Some PRIM => prim_step ρ.1 ρ.2 ρ'
-      | Some (STATE α) => strength_l ρ.1 (state_step ρ.2 α) ρ'
-      | _ => 0%R
-      end.
-  Proof.
-    destruct ρ as [e σ].
-    rewrite /exec_fn {1}/pmf /= /exec_fn_pmf /=.
-    by destruct (f _) as [[]|].
-  Qed.
-
-  Lemma exec_fn_unfold f ρ :
-    exec_fn ρ f =
-      match f ρ with
-      | Some PRIM => prim_step ρ.1 ρ.2
-      | Some (STATE α) => strength_l ρ.1 (state_step ρ.2 α)
-      | _ => dzero
-      end.
-  Proof.
-    apply distr_ext=>?. rewrite exec_fn_pmf_unfold. by repeat case_match.
-  Qed.
-End exec_fn.
-
-Global Arguments exec_fn {_} _ _ : simpl never.
-
-Definition scheduler (Λ : language) := list (scheduler_fn Λ).
-
-(* A "non-blocking" scheduler will always schedule a [prim_step] at the end but
-   possibly add some [state_step]s beforehand.
-
-   In a sequential language, it should morally be fine to do multiple
-   [prim_step]s at once but we stick to exactly one [prim_step] for now as it
-   allows us to build on our usual intuition about atomicity and invariants in
-   the program logic. *)
-Inductive non_blocking {Λ} : scheduler Λ → cfg Λ → Prop :=
-| nonblock_prim f ρ :
-  f ρ = Some PRIM →
-  non_blocking [f] ρ
-| nonblock_state f ξ ρ α e σ :
-  f ρ = Some (STATE α) →
-  ρ = (e, σ) →
-  (∀ σ', state_step σ α σ' > 0 → non_blocking ξ (e, σ')) →
-  non_blocking (f :: ξ) ρ.
-
-(* Notation SchedulerFnsWf ξ := (TCForall SchedulerFnWf ξ). *)
-
-(* Class SchedulerWf {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) := { *)
-(*   (* all the scheduling functions are individually well-formed *) *)
-(*   scheduler_fns_wf : SchedulerFnsWf ξ; *)
-(*   (* the scheduler must be non-blocking w.r.t. [ρ]; this is important for the *) *)
-(*   (* extracted trace scheduler in the adequacy theorem of the program logic to *) *)
-(*   (* be non-blocking as well. *) *)
-(*   scheduler_non_blocking : non_blocking ξ ρ; *)
-(* }. *)
-
-(* Global Instance SchedulerFnsWfToFnWf {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) : *)
-(*   SchedulerFnsWf (f :: ξ) → SchedulerFnWf f. *)
-(* Proof. by inversion 1. Qed. *)
-
-(* (* We add this as a lemma as an instance makes typeclass resolution diverge *) *)
-(* Lemma scheduler_fns_wf_tail {Λ} (f : scheduler_fn Λ) (ξ : scheduler Λ) : *)
-(*   SchedulerFnsWf (f :: ξ) → SchedulerFnsWf ξ. *)
-(* Proof. by inversion 1. Qed. *)
-
-(* Global Instance SchedulerWfToFnWf {Λ} (ξ : scheduler Λ) (ρ : cfg Λ) : *)
-(*   SchedulerWf ξ ρ → SchedulerFnsWf ξ. *)
-(* Proof. by inversion 1. Qed. *)
+From self.prob Require Export distribution couplings.
 
 Section exec.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
-  Implicit Types f : scheduler_fn Λ.
-  Implicit Types ξ : scheduler Λ.
+  Implicit Types e : expr Λ.
+  Implicit Types σ : state Λ.
 
-  Definition exec ξ ρ : distr (cfg Λ) := foldlM exec_fn ρ ξ.
+  Definition exec (n : nat) ρ : distr (cfg Λ) := iterM n (λ '(e, σ), prim_step e σ) ρ.
 
-  Lemma exec_nil ρ :
-    exec [] ρ = dret ρ.
+  Lemma exec_O ρ : exec 0 ρ = dret ρ.
   Proof. done. Qed.
 
-  Lemma exec_cons ρ f ξ :
-    exec (f :: ξ) ρ = dbind (λ ρ'', exec ξ ρ'') (exec_fn ρ f).
+  Lemma exec_Sn e σ n : exec (S n) (e, σ) = prim_step e σ ≫= exec n.
   Proof. done. Qed.
 
-  Lemma exec_singleton f ρ :
-    exec [f] ρ = exec_fn ρ f.
-  Proof. rewrite /= dret_id_right //. Qed.
+  Lemma exec_plus e σ n m : exec (n + m) (e, σ) = exec n (e, σ) ≫= exec m.
+  Proof. rewrite /exec iterM_plus //.  Qed.
 
-  Lemma exec_app_pmf ξ1 ξ2 ρ ρ' :
-    exec (ξ1 ++ ξ2) ρ ρ' = dbind (exec ξ2) (exec ξ1 ρ) ρ'.
+  Lemma exec_1 : exec 1 = λ '(e, σ), prim_step e σ.
   Proof.
-    revert ρ ρ'. induction ξ1; intros ρ ρ'.
-    { rewrite /= dret_id_left_pmf //. }
-    rewrite -app_comm_cons.
-    rewrite 2!exec_cons. rewrite -dbind_assoc.
-    apply dbind_pmf_ext; auto.
+    extensionality ρ; destruct ρ as [e σ].
+    rewrite exec_Sn /exec /= dret_id_right //.
   Qed.
 
-  Lemma exec_app ξ1 ξ2 ρ :
-    exec (ξ1 ++ ξ2) ρ = dbind (exec ξ2) (exec ξ1 ρ).
-  Proof. apply distr_ext, exec_app_pmf. Qed.
-
-  Lemma exec_snoc ξ f ρ :
-    exec (ξ ++ [f]) ρ = dbind (λ ρ'', exec_fn ρ'' f) (exec ξ ρ).
+  Lemma exec_Sn_r e σ n : exec (S n) (e, σ) = exec n (e, σ) ≫= (λ '(e, σ), prim_step e σ).
   Proof.
-    rewrite exec_app. apply distr_ext. intros ?.
-    eapply dbind_pmf_ext; eauto.
-    intros ??. rewrite exec_singleton //.
+    assert (S n = n + 1)%nat as -> by lia.
+    rewrite exec_plus exec_1 //.
   Qed.
 
-  (* Lemma exec_prim_step e1 e2 σ1 σ2 ξ `{Hwf : !SchedulerWf ξ (e1, σ1)} : *)
-  (*   exec ξ (e1, σ1) (e2, σ2) > 0 → ∃ σ, prim_step e1 σ (e2, σ2) > 0. *)
-  (* Proof. *)
-  (*   revert σ1 Hwf. induction ξ as [|f ξ IH]. *)
-  (*   { intros ? [? Hnb]. inversion Hnb. } *)
-  (*   intros σ1 [Hfns Hnb]. rewrite exec_cons exec_fn_unfold. *)
-  (*   inversion Hnb; simplify_map_eq. *)
-  (*   - intros [? [->%dret_pos ?]]%dbind_pos_support. eauto. *)
-  (*   - intros [? [? (?&?&?)%dmap_pos]]%dbind_pos_support. *)
-  (*     simplify_eq. *)
-  (*     eapply IH; [|done]. *)
-  (*     econstructor; [|eauto]. *)
-  (*     by eapply scheduler_fns_wf_tail. *)
-  (*  Qed. *)
+  (*   Hex : PureExec P n e e' *)
+  (* H : nclose specN ⊆ E *)
+  (* ρ : cfg *)
+  (* σ0 : language.state prob_lang *)
+  (* m : nat *)
+  (* Hexec : exec m ρ (fill K e, σ0) = 1%R *)
+  (* ============================ *)
+  (* "Hspec" : spec_ctx *)
+  (* --------------------------------------□ *)
+  (* ⌜exec (n + m) ρ (fill K e', σ0) = 1%R⌝ *)
+
+  Lemma exec_det_step n ρ e1 e2 σ1 σ2 :
+    prim_step e1 σ1 (e2, σ2) = 1 →
+    exec n ρ (e1, σ1) = 1 →
+    exec (S n) ρ (e2, σ2) = 1.
+  Proof.
+    destruct ρ as [e0 σ0].
+    rewrite exec_Sn_r.
+    intros ? ->%pmf_1_eq_dret.
+    rewrite dret_id_left //.
+  Qed.
+
+  Lemma exec_det_step_ctx K `{!LanguageCtx K} n ρ e1 e2 σ1 σ2 :
+    prim_step e1 σ1 (e2, σ2) = 1 →
+    exec n ρ (K e1, σ1) = 1 →
+    exec (S n) ρ (K e2, σ2) = 1.
+  Proof.
+    intros. eapply exec_det_step; [|done].
+    rewrite -fill_step_prob //.
+    eapply (val_stuck _ σ1 (e2, σ2)). lra.
+  Qed.
+
+  Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) m n ρ e e' σ :
+    P →
+    PureExec P n e e' →
+    exec m ρ (K e, σ) = 1 →
+    exec (m + n) ρ (K e', σ) = 1.
+  Proof.
+    move=> HP /(_ HP).
+    destruct ρ as [e0 σ0].
+    revert e e' m. induction n=> e e' m.
+    { rewrite -plus_n_O. by inversion 1. }
+    intros (e'' & Hsteps & Hpstep)%nsteps_inv_r Hdet.
+    specialize (IHn _ _ m Hsteps Hdet).
+    rewrite -plus_n_Sm.
+    eapply exec_det_step_ctx; [done| |done].
+    apply Hpstep.
+  Qed.
 
 End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
 
-(** * [PRIM] scheduler   *)
 Section prim_scheduler.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
-  Implicit Types f : scheduler_fn Λ.
-  Implicit Types ξ : scheduler Λ.
   Implicit Types K : expr Λ → expr Λ.
-
-  Definition prim_step_sch_fn ρ : scheduler_fn Λ :=
-    λ ρ', if bool_decide (ρ = ρ') then Some PRIM else None.
-  Definition prim_step_sch ρ : scheduler Λ := [prim_step_sch_fn ρ].
-
-  (* Global Instance prim_step_sch_wf e σ : *)
-  (*   TCEq (to_val e) None → SchedulerWf (prim_step_sch (e, σ)) (e, σ). *)
-  (* Proof. *)
-  (*   rewrite /prim_step_sch /prim_step_sch_fn. intros ?%TCEq_eq. *)
-  (*   constructor. *)
-  (*   - do 2 constructor. intros e' σ' [v Hv]. *)
-  (*     rewrite lookup_singleton_None. intros [=]; simplify_eq. *)
-  (*   - apply nonblock_prim. rewrite lookup_singleton_Some //. *)
-  (* Qed. *)
-
-  Lemma exec_fn_prim_step_sch_fn_pmf e σ ρ :
-    exec_fn (e, σ) (prim_step_sch_fn (e, σ)) ρ = prim_step e σ ρ.
-  Proof. rewrite /prim_step_sch_fn exec_fn_pmf_unfold bool_decide_eq_true_2 //. Qed.
-
-  Lemma exec_fn_prim_step_sch_fn e σ :
-    exec_fn (e, σ) (prim_step_sch_fn (e, σ)) = prim_step e σ.
-  Proof. apply distr_ext=>?. apply exec_fn_prim_step_sch_fn_pmf. Qed.
-
-  Lemma exec_fn_prim_step_sch_fn_pmf_ne ρ ρ1 ρ2  :
-    ρ1 ≠ ρ2 → exec_fn ρ1 (prim_step_sch_fn ρ2) ρ = 0.
-  Proof. intros ?. rewrite /prim_step_sch_fn exec_fn_pmf_unfold bool_decide_eq_false_2 //. Qed.
-
-  Lemma exec_prim_step_sch_pmf e1 e2 σ1 σ2 :
-    exec (prim_step_sch (e1, σ1)) (e1, σ1) (e2, σ2) = prim_step e1 σ1 (e2, σ2).
-  Proof. rewrite /prim_step_sch exec_singleton exec_fn_prim_step_sch_fn_pmf //. Qed.
-
-  Lemma exec_prim_step_sch e σ :
-    exec (prim_step_sch (e, σ)) (e, σ) = prim_step e σ.
-  Proof. eapply distr_ext. intros []. apply exec_prim_step_sch_pmf. Qed.
-
-  Lemma exec_prim_step_sch_singleton ρ :
-    exec (prim_step_sch ρ) = λ ρ', if bool_decide (ρ' = ρ) then prim_step ρ.1 ρ.2 else dzero.
-  Proof.
-    extensionality ρ'. destruct ρ, ρ'.
-    rewrite /prim_step_sch exec_singleton.
-    case_bool_decide; simplify_eq.
-    - rewrite  exec_fn_prim_step_sch_fn //.
-    - apply distr_ext=>?. rewrite exec_fn_prim_step_sch_fn_pmf_ne //.
-  Qed.
-
-  Lemma exec_det_step ξ ρ e1 e2 σ1 σ2 :
-    prim_step e1 σ1 (e2, σ2) = 1 →
-    exec (ξ ++ prim_step_sch (e1, σ1)) ρ (e2, σ2) = exec ξ ρ (e1, σ1).
-  Proof.
-    rewrite exec_app.
-    intros Hdet.
-    rewrite exec_prim_step_sch_singleton /=.
-    rewrite {1}/pmf /= /dbind_pmf /=.
-    erewrite (SeriesC_ext _
-                (λ a, if bool_decide (a = (e1, σ1))
-                      then exec ξ ρ (e1, σ1) * prim_step e1 σ1 (e2, σ2)
-                      else 0)); last first.
-    { intros [e0 σ0]. do 2 case_bool_decide; simplify_eq; [done|].
-      rewrite {2}/pmf /=. lra. }
-    rewrite SeriesC_singleton Hdet. lra.
-  Qed.
-
-  Lemma exec_det_step_ctx ξ ρ e1 e2 σ1 σ2 K `{!LanguageCtx K} :
-    prim_step e1 σ1 (e2, σ2) = 1 →
-    exec (ξ ++ prim_step_sch (K e1, σ1)) ρ (K e2, σ2) = exec ξ ρ (K e1, σ1).
-  Proof.
-    intros. eapply exec_det_step.
-    rewrite -fill_step_prob //. eapply (val_stuck _ σ1 (e2, σ2)). lra.
-  Qed.
-
-  Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ :
-    P →
-    PureExec P n e e' →
-    ∃ ξ', exec (ξ ++ ξ') ρ (K e', σ) = exec ξ ρ (K e, σ).
-  Proof.
-    move=> HP /(_ HP).
-    (* We do induction in [n] as [nsteps] is defined in the "wrong" direction *)
-    revert e e'. induction n=> e e'.
-    { inversion 1; subst. exists []. rewrite app_nil_r //. }
-    intros (e'' & Hsteps & Hpstep)%nsteps_inv_r.
-    edestruct (IHn _ _ Hsteps) as [ξ' Hexec].
-    eexists (ξ' ++ prim_step_sch (K e'', σ)).
-    rewrite app_assoc.
-    rewrite -Hexec exec_det_step_ctx //. eapply Hpstep.
-  Qed.
-
-  (* TODO [SG]: The 3 lemmas below are currently not used (but I proved them
-     before realising it was not the thing I needed...) *)
-  (* Lemma exec_pure_step ξ ρ e e' σ : *)
-  (*   pure_step e e' → *)
-  (*   exec (prim_step_sch (e, σ) ++ ξ) (e, σ) ρ = exec ξ (e', σ) ρ. *)
-  (* Proof. *)
-  (*   intros [Hsafe Hdet]. *)
-  (*   rewrite exec_cons. *)
-  (*   rewrite {1}/pmf /= /dbind_pmf /=. *)
-  (*   erewrite (SeriesC_ext _ *)
-  (*               (λ a, if bool_decide (a = (e', σ)) *)
-  (*                     then exec_fn (e, σ) (prim_step_sch_fn (e, σ)) (e', σ) * exec ξ (e', σ) ρ *)
-  (*                     else 0)); last first. *)
-  (*   { intros [e0 σ0]. case_bool_decide as Heq; [by inversion Heq|]. *)
-  (*     rewrite exec_fn_prim_step_sch_fn_pmf //. *)
-  (*     destruct (decide (prim_step e σ (e0, σ0) > 0)) as [Hp | Hp]. *)
-  (*     - by destruct (pmf_1_supp_eq _ _ _ (Hdet σ) Hp). *)
-  (*     - apply pmf_eq_0_not_gt_0 in Hp as ->. lra. } *)
-  (*   rewrite SeriesC_singleton. *)
-  (*   rewrite exec_fn_prim_step_sch_fn_pmf Hdet. lra. *)
-  (* Qed. *)
-
-  (* Lemma exec_pure_step_ctx ξ ρ e e' σ K `{!LanguageCtx K} : *)
-  (*   pure_step e e' → *)
-  (*   exec (prim_step_sch (K e, σ) ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ. *)
-  (* Proof. intros ?%(pure_step_ctx K). by eapply exec_pure_step. Qed. *)
-
-  (* Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) n ξ ρ e e' σ  : *)
-  (*   P → *)
-  (*   PureExec P n e e' → *)
-  (*   ∃ ξ', exec (ξ' ++ ξ) (K e, σ) ρ = exec ξ (K e', σ) ρ. *)
-  (* Proof. *)
-  (*   intros HP. induction 1; [| |done]. *)
-  (*   { exists []. rewrite app_nil_l //. } *)
-  (*   destruct IHp as [ξ' Hexec]. *)
-  (*   exists (prim_step_sch (K x, σ) ++ ξ'). *)
-  (*   rewrite -app_assoc. *)
-  (*   by erewrite exec_pure_step_ctx. *)
-  (* Qed. *)
 
   (* This defines the step-indexed version of the intended operational semantics (i.e., only prim steps) *)
   Fixpoint prim_exec (ρ : cfg Λ) (n : nat) {struct n} : distr (cfg Λ) :=
@@ -346,6 +117,9 @@ Section prim_scheduler.
     rewrite /prim_exec.
     destruct n; case_match; auto.
   Qed.
+
+  (* Lemma prim_exec_Sn ρ n : *)
+  (*   prim_exec  *)
 
   Lemma prim_exec_is_val e σ n :
     is_Some (to_val e) → prim_exec (e, σ) n = dret (e, σ).
@@ -372,456 +146,3 @@ Section prim_scheduler.
 
 End prim_scheduler.
 
-
-(* (** * [STATE(α)] scheduler  *) *)
-(* Section state_step_sch. *)
-(*   Context {Λ : language}. *)
-(*   Implicit Types ρ : cfg Λ. *)
-(*   Implicit Types e : expr Λ. *)
-(*   Implicit Types σ : state Λ. *)
-(*   Implicit Types f : scheduler_fn Λ. *)
-(*   Implicit Types ξ : scheduler Λ. *)
-
-(*   Definition state_step_sch_fn α : scheduler_fn Λ := {[_ := STATE α]}. *)
-(*   Definition state_step_sch ρ α : scheduler Λ := [state_step_sch_fn ρ α]. *)
-
-(*   Lemma exec_fn_state_step_sch_fn_pmf e σ σ' α : *)
-(*     exec_fn (e, σ) (state_step_sch_fn (e, σ) α) (e, σ') = state_step σ α σ'. *)
-(*   Proof. *)
-(*     rewrite /state_step_sch_fn exec_fn_pmf_unfold. *)
-(*     rewrite sch_fn_lookup_singleton //. *)
-(*     rewrite /strength_l. *)
-(*     erewrite dmap_eq; [done|apply _|done]. *)
-(*   Qed. *)
-
-(*   Lemma exec_fn_state_step_sch_fn_pmf_ne e e' σ σ' α : *)
-(*     e ≠ e' → exec_fn (e, σ) (state_step_sch_fn (e, σ) α) (e', σ') = 0. *)
-(*   Proof. *)
-(*     intros ?. *)
-(*     rewrite /state_step_sch_fn exec_fn_pmf_unfold. *)
-(*     rewrite sch_fn_lookup_singleton //=. *)
-(*     rewrite dmap_ne //. by intros [? [? [=]]]. *)
-(*   Qed. *)
-
-(*   Lemma exec_state_step_sch_pmf e σ σ' α : *)
-(*     exec (state_step_sch (e, σ) α) (e, σ) (e, σ') = state_step σ α σ'. *)
-(*   Proof. rewrite /state_step_sch exec_singleton exec_fn_state_step_sch_fn_pmf //. Qed. *)
-
-(*   Lemma exec_state_step_sch_pmf_ne e e' σ σ' α : *)
-(*     e ≠ e' → exec (state_step_sch (e, σ) α) (e, σ) (e', σ') = 0. *)
-(*   Proof. intros ?. rewrite /state_step_sch exec_singleton exec_fn_state_step_sch_fn_pmf_ne //. Qed. *)
-
-(*   Lemma exec_state_step_sch e σ α : *)
-(*     exec (state_step_sch (e, σ) α) (e, σ) = strength_l e (state_step σ α). *)
-(*   Proof. *)
-(*     eapply distr_ext. intros [e0 σ0]. *)
-(*     destruct (decide (e = e0)); subst. *)
-(*     - rewrite exec_state_step_sch_pmf. *)
-(*       rewrite /strength_l. erewrite dmap_eq; [done|apply _|done]. *)
-(*     - rewrite exec_state_step_sch_pmf_ne //. *)
-(*       rewrite /strength_l dmap_ne //. by intros [? [? [=]]]. *)
-(*   Qed. *)
-
-(* End state_step_sch. *)
-
-(* (** * [LanguageCtx] lifting of a scheduler  *) *)
-(* Section ctx_lifting. *)
-(*   Context {Λ : language}. *)
-(*   Implicit Types e : expr Λ. *)
-(*   Implicit Types σ : state Λ. *)
-(*   Implicit Types ρ : cfg Λ. *)
-(*   Implicit Types α : state_idx Λ. *)
-(*   Implicit Types f : scheduler_fn Λ. *)
-(*   Implicit Types ξ : scheduler Λ. *)
-(*   Implicit Types K : expr Λ → expr Λ. *)
-
-(*   Definition fill_lift K : cfg Λ → cfg Λ := (λ '(e, σ), (K e, σ)). *)
-
-(*   Global Instance fill_lift_inj K `{!LanguageCtx K} : Inj (=) (=) (fill_lift K). *)
-(*   Proof. rewrite /fill_lift. by intros [] [] [= <-%fill_inj <-]. Qed. *)
-
-(*   (* Maps the domain of the scheduling function from expressions of the shape *) *)
-(*   (* [e] to [K e] *) *)
-(*   Definition sch_fn_ctx_lift K f : scheduler_fn Λ := kmap (fill_lift K) f. *)
-
-(*   Definition sch_ctx_lift K ξ : scheduler Λ := sch_fn_ctx_lift K <$> ξ. *)
-
-(*   Lemma sch_fn_ctx_lift_lookup K `{!LanguageCtx K} f e σ: *)
-(*     sch_fn_ctx_lift K f !! (K e, σ) = f !! (e, σ). *)
-(*   Proof. rewrite /sch_fn_ctx_lift -(lookup_kmap (fill_lift _) _ (e , _)) //. Qed. *)
-
-(*   Lemma sch_ctx_lift_cons K `{!LanguageCtx K} f ξ : *)
-(*     sch_ctx_lift K (f :: ξ) = sch_fn_ctx_lift K f :: sch_ctx_lift K ξ. *)
-(*   Proof. done. Qed. *)
-
-(*   Global Instance sch_fn_ctx_lift_wf f K `{!LanguageCtx K} : *)
-(*     SchedulerFnWf f → SchedulerFnWf (sch_fn_ctx_lift K f). *)
-(*   Proof. *)
-(*     intros Hwf. constructor. *)
-(*     intros e σ Hval. *)
-(*     rewrite /sch_fn_ctx_lift. *)
-(*     rewrite lookup_kmap_None. *)
-(*     intros [e' σ'] [=]; simplify_eq. *)
-(*     eapply scheduler_fn_val; [done|]. *)
-(*     by eapply fill_is_val. *)
-(*   Qed. *)
-
-(*   Lemma sch_ctx_lift_fns ξ K `{!LanguageCtx K} : *)
-(*     TCForall SchedulerFnWf ξ → TCForall SchedulerFnWf (sch_ctx_lift K ξ). *)
-(*   Proof. *)
-(*     induction ξ; [done|]. *)
-(*     inversion 1; simplify_eq. *)
-(*     rewrite sch_ctx_lift_cons. *)
-(*     eapply TCForall_cons; [apply _|eauto]. *)
-(*   Qed. *)
-
-(*   Lemma sch_ctx_lift_non_blocking ξ K `{!LanguageCtx K} e σ : *)
-(*     non_blocking ξ (e, σ) → non_blocking (sch_ctx_lift K ξ) (K e, σ). *)
-(*   Proof. *)
-(*     revert σ. induction ξ. *)
-(*     { inversion 1. } *)
-(*     intros σ. inversion 1; simplify_eq. *)
-(*     - eapply nonblock_prim. rewrite sch_fn_ctx_lift_lookup //. *)
-(*     - rewrite sch_ctx_lift_cons. eapply nonblock_state; [|done|eauto]. *)
-(*       rewrite sch_fn_ctx_lift_lookup //. *)
-(*   Qed. *)
-
-(*   Global Instance sch_ctx_lift_wf ξ K `{!LanguageCtx K} e σ : *)
-(*     SchedulerWf ξ (e, σ) → SchedulerWf (sch_ctx_lift K ξ) (K e, σ). *)
-(*   Proof. *)
-(*     inversion 1. *)
-(*     constructor; [by apply sch_ctx_lift_fns|by apply sch_ctx_lift_non_blocking]. *)
-(*   Qed. *)
-
-(*   Lemma exec_ctx_lift_pmf_pos K `{!LanguageCtx K} e1 σ1 e2 σ2 ξ `{Hwf : !SchedulerFnsWf ξ} : *)
-(*     exec (sch_ctx_lift K ξ) (K e1, σ1) (e2, σ2) > 0 → ∃ e2', e2 = K e2'. *)
-(*   Proof. *)
-(*     revert e1 σ1 e2 σ2. *)
-(*     induction ξ as [|f ξ IH]. *)
-(*     - intros ????. rewrite exec_nil. intros [=]%dret_pos. eauto. *)
-(*     - intros ????. *)
-(*       inversion Hwf; simplify_eq. *)
-(*       rewrite sch_ctx_lift_cons exec_cons. *)
-(*       rewrite exec_fn_unfold sch_fn_ctx_lift_lookup /=. *)
-(*       destruct (f !! _) as [[]|] eqn:Heq. *)
-(*       + intros [[e3 σ3] [Hexec Hs]]%dbind_pos_support. *)
-(*         destruct (to_val e1) as [v|] eqn:Heq'. *)
-(*         { rewrite scheduler_fn_val in Heq; [simplify_eq|eauto]. } *)
-(*         eapply fill_step_inv in Hs as [e3' [? ?]]; [|done|done]. *)
-(*         simplify_eq. by eapply IH. *)
-(*       + intros [[e3 σ3] [Hexec [σ [? ?]]%dmap_pos]]%dbind_pos_support. *)
-(*         simplify_eq. by eapply IH. *)
-(*       + rewrite dbind_dzero_pmf. lra. *)
-(*   Qed. *)
-
-(*   Lemma exec_ctx_lift_pmf K `{!LanguageCtx K} ξ `{Hwf : !SchedulerFnsWf ξ} e1 σ1 e2 σ2 : *)
-(*     exec (sch_ctx_lift K ξ) (K e1, σ1) (K e2, σ2) = exec ξ (e1, σ1) (e2, σ2) . *)
-(*   Proof. *)
-(*     revert e1 σ1. *)
-(*     induction ξ as [|f ξ IH]; intros. *)
-(*     { rewrite 2!exec_nil. apply (dret_pmf_map (fill_lift _) (e1, _) (e2, _)). } *)
-(*     rewrite sch_ctx_lift_cons 2!exec_cons 2!exec_fn_unfold. *)
-(*     rewrite sch_fn_ctx_lift_lookup. *)
-(*     destruct (to_val e1) as [v|] eqn:Heq. *)
-(*     { erewrite 2!(scheduler_fn_val f); try (apply _ || eauto). *)
-(*       rewrite 2!dbind_dzero //. } *)
-(*     destruct (f !! _) as [[] |]=>/=. *)
-(*     - inversion Hwf; simplify_eq. *)
-(*       rewrite /pmf /= /dbind_pmf. *)
-(*       rewrite (SeriesC_rearrange_covering (fill_lift K)) /=; last first. *)
-(*       { eapply ex_seriesC_ext. *)
-(*         - intros ρ. rewrite Rabs_right //. *)
-(*           by apply Rle_ge, Rmult_le_pos. *)
-(*         - eapply pmf_ex_seriesC_mult_fn. eauto. } *)
-(*       { intros [] [Hs ?]%Rmult_neq_0_pos; [|done|done]. *)
-(*         eapply fill_step_inv in Hs as (?&?&?); [|done|done]; subst. by eexists (_,_). } *)
-(*       { by intros ??? ?%(inj _). } *)
-(*       apply SeriesC_ext; intros [e2' σ]=>/=. *)
-(*       rewrite IH -fill_step_prob //. *)
-(*     - inversion Hwf; simplify_eq. *)
-(*       rewrite /pmf /= /dbind_pmf /strength_l. *)
-(*       rewrite (SeriesC_rearrange_covering (fill_lift K)) /=; last first. *)
-(*       { eapply ex_seriesC_ext. *)
-(*         - intros ρ. rewrite Rabs_right //. *)
-(*           by apply Rle_ge, Rmult_le_pos. *)
-(*         - eapply pmf_ex_seriesC_mult_fn. eauto. } *)
-(*       { intros [] [Hs ?]%Rmult_neq_0_pos; [|done|done]. *)
-(*         eapply dmap_pos in Hs as (σ' & ? & ?); simplify_eq. *)
-(*         by eexists (_,_). } *)
-(*       { by intros ??? ?%(inj _). } *)
-(*       apply SeriesC_ext; intros [e σ]=>/=. *)
-(*       destruct (decide (e = e1)); [subst|]. *)
-(*       + rewrite 2!dbind_dret_pmf_map IH. lra. *)
-(*       + rewrite /dmap {1 3}/pmf /= /dbind_pmf. *)
-(*         setoid_rewrite dret_0; [|intros ?; simplify_eq..]. *)
-(*         rewrite SeriesC_0; [lra|]. intros; lra. *)
-(*     - rewrite 2!dbind_dzero //. *)
-(*   Qed. *)
-
-(*   Lemma exec_ctx_lift_fill K `{!LanguageCtx K} e1 σ1 ξ `{!SchedulerFnsWf ξ}: *)
-(*     exec (sch_ctx_lift K ξ) (K e1, σ1) = dmap (fill_lift K) (exec ξ (e1, σ1)). *)
-(*   Proof. *)
-(*     apply dmap_rearrange; [apply _| |]. *)
-(*     - intros [e2 σ2] [? ?]%exec_ctx_lift_pmf_pos; [|done|done]. *)
-(*       eexists (_,_). by simplify_eq. *)
-(*     - intros []. by apply exec_ctx_lift_pmf. *)
-(*   Qed. *)
-
-(*   Lemma Rcoupl_exec_ctx_lift K `{!LanguageCtx K} e1 σ1 ρ R ξ ξ' `{!SchedulerFnsWf ξ}: *)
-(*     Rcoupl (exec ξ (e1, σ1)) (exec ξ' ρ) R → *)
-(*     Rcoupl (exec (sch_ctx_lift K ξ) (K e1, σ1)) (exec ξ' ρ) *)
-(*       (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ'). *)
-(*   Proof. *)
-(*     intros Hcpl. *)
-(*     rewrite exec_ctx_lift_fill //. *)
-(*     rewrite -(dret_id_right (exec ξ' ρ)). *)
-(*     rewrite /dmap. *)
-(*     eapply Rcoupl_bind; [|done]. *)
-(*     intros [e2' σ2] ρ' HR =>/=. *)
-(*     apply Rcoupl_ret; eauto. *)
-(*   Qed. *)
-
-(* End ctx_lifting. *)
-
-Definition state_scheduler_fn (Λ : language) := state Λ → state_idx Λ.
-Definition state_scheduler (Λ : language) := list (state_scheduler_fn Λ).
-
-(** * state_exec *)
-Section exec_state.
-  Context {Λ : language}.
-  Implicit Types e : expr Λ.
-  Implicit Types σ : state Λ.
-  Implicit Types f : state_scheduler_fn Λ.
-  Implicit Types ζ : state_scheduler Λ.
-
-  Definition exec_state ζ σ : distr (state Λ) :=
-    foldlM (λ σ f, state_step σ (f σ)) σ ζ.
-
-  Lemma exec_state_nil :
-    exec_state [] = dret.
-  Proof. done. Qed.
-
-  Lemma exec_state_cons σ f ζ :
-    exec_state (f :: ζ) σ = dbind (exec_state ζ) (state_step σ (f σ)).
-  Proof. done. Qed.
-
-  Lemma exec_state_singleton σ f:
-    exec_state [f] σ = state_step σ (f σ).
-  Proof. rewrite /= dret_id_right //. Qed.
-
-  Lemma exec_state_app_pmf ζ1 ζ2 σ σ' :
-    exec_state (ζ1 ++ ζ2) σ σ' = dbind (exec_state ζ2) (exec_state ζ1 σ) σ'.
-  Proof.
-    revert σ σ'. induction ζ1; intros σ σ'.
-    { rewrite exec_state_nil dret_id_left_pmf //. }
-    rewrite -app_comm_cons.
-    rewrite 2!exec_state_cons.
-    rewrite -dbind_assoc.
-    apply dbind_pmf_ext; auto.
-  Qed.
-
-  Lemma exec_state_app ζ1 ζ2 σ :
-    exec_state (ζ1 ++ ζ2) σ = dbind (exec_state ζ2) (exec_state ζ1 σ).
-  Proof. apply distr_ext, exec_state_app_pmf. Qed.
-
-  Lemma exec_state_inhabited ζ σ :
-    SeriesC (exec_state ζ σ) > 0.
-  Proof.
-    revert σ; induction ζ as [|f ζ IH]; intros σ.
-    { rewrite exec_state_nil. apply dret_inhabited. }
-    rewrite exec_state_cons.
-    apply dbind_inhabited; [|done].
-    apply state_step_inhabited.
-  Qed.
-
-  Lemma exec_state_reducible ζ e σ σ' :
-    exec_state ζ σ σ' > 0 → reducible e σ ↔ reducible e σ'.
-  Proof.
-    revert σ σ'; induction ζ as [|f ζ IH]; intros σ σ'.
-    { by intros ->%dret_pos. }
-    rewrite exec_state_cons.
-    intros [σ1 [Hexec Hs]]%dbind_pos_support.
-    split; intros Hred.
-    - eapply (IH _ _ Hexec). by erewrite <-state_step_reducible.
-    - eapply state_step_reducible; [done|]. by eapply IH.
-  Qed.
-
-  Definition state_step_schefulder_fn e f : scheduler_fn Λ :=
-    λ '(e0, σ0), if bool_decide (e0 = e) then Some $ STATE $ f σ0 else None.
-
-  Lemma state_step_schefulder_fn_lookup e σ f :
-    state_step_schefulder_fn e f (e, σ) = Some $ STATE $ f σ.
-  Proof. rewrite /state_step_schefulder_fn bool_decide_eq_true_2 //. Qed.
-
-  Definition state_step_scheduler e ζ : scheduler Λ :=
-    map (state_step_schefulder_fn e) ζ.
-
-  Lemma state_step_scheduler_app e ζ1 ζ2 :
-    state_step_scheduler e (ζ1 ++ ζ2) = state_step_scheduler e ζ1 ++ state_step_scheduler e ζ2.
-  Proof. rewrite /state_step_scheduler map_app //. Qed.
-
-  Lemma exec_state_exec e σ ζ :
-    exec (state_step_scheduler e ζ) (e, σ) = strength_l e (exec_state ζ σ).
-  Proof.
-    revert e σ. induction ζ as [|f ζ IH]; intros e σ.
-    { rewrite exec_nil /=. rewrite /strength_l /dmap dret_id_left //. }
-    rewrite exec_state_cons.
-    rewrite /state_step_scheduler map_cons.
-    rewrite exec_cons.
-    rewrite /strength_l /dmap.
-    rewrite exec_fn_unfold.
-    rewrite state_step_schefulder_fn_lookup.
-    rewrite /strength_l /dmap /=.
-    rewrite -!dbind_assoc.
-    eapply distr_ext. intros [e' σ'].
-    eapply dbind_pmf_ext; [|done|done].
-    intros σ'' [? ?].
-    rewrite /strength_l /dmap in IH.
-    rewrite -IH dret_id_left //.
-  Qed.
-
-  Lemma exec_state_strength_coupl e e' ζ ζ' σ σ' R :
-    Rcoupl (exec_state ζ σ) (exec_state ζ' σ') R →
-    Rcoupl (exec (state_step_scheduler e ζ) (e, σ)) (exec (state_step_scheduler e' ζ') (e', σ'))
-      (λ '(e2, σ2) '(e2', σ2'), e2 = e ∧ e2' = e' ∧ R σ2 σ2').
-  Proof. rewrite 2!exec_state_exec. eapply Rcoupl_strength. Qed.
-
-End exec_state.
-
-Section exec_state_single_state.
-  Context {Λ : language}.
-  Implicit Types e : expr Λ.
-  Implicit Types σ : state Λ.
-  Implicit Types α : state_idx Λ.
-  Implicit Types f : state_scheduler_fn Λ.
-
-  Definition state_step_sch α : state_scheduler Λ := [λ _, α].
-
-  Lemma exec_state_state_step_sch_pmf α σ σ' :
-    exec_state (state_step_sch α) σ σ' = state_step σ α σ'.
-  Proof. rewrite exec_state_singleton //. Qed.
-
-  Lemma exec_state_state_step_sch α σ :
-    exec_state (state_step_sch α) σ = state_step σ α.
-  Proof. apply distr_ext=>?. apply exec_state_state_step_sch_pmf. Qed.
-
-End exec_state_single_state.
-
-(** * Combining [exec_state] with a [prim_step] coupling  *)
-Section prim_state_step_exec.
-  Context {Λ : language}.
-  Implicit Types e : expr Λ.
-  Implicit Types σ : state Λ.
-  Implicit Types f : state_scheduler_fn Λ.
-  Implicit Types ζ : state_scheduler Λ.
-  Implicit Types ξ : scheduler Λ.
-
-  Lemma non_blocking_state_prim e σ ζ :
-    non_blocking (state_step_scheduler e ζ ++ [(λ _, Some PRIM)]) (e, σ).
-  Proof.
-    revert σ. induction ζ as [|f ζ IH]; intros σ.
-    { by econstructor. }
-    simpl.
-    econstructor; [|done|eauto].
-    rewrite /= bool_decide_eq_true_2 //.
-  Qed.
-
-  (* Lemma exec_coupl_state_prim e1 e1' σ1 σ1' ζ ζ' ξ0 R S : *)
-  (*   Rcoupl (exec_state ζ σ1) (exec_state ζ' σ1') R → *)
-  (*   (∀ σ2 σ2', R σ2 σ2' → Rcoupl (prim_step e1 σ2) (exec ξ0 (e1', σ2')) S) → *)
-  (*   ∃ ξ ξ', Rcoupl (exec ξ (e1, σ1)) (exec ξ' (e1', σ1')) S ∧ non_blocking ξ (e1, σ1). *)
-  (* Proof. *)
-  (*   intros Hstate%(exec_state_strength_coupl e1 e1') Hprim. *)
-  (*   eexists (_ ++ [(λ _, Some PRIM)]), (_ ++ ξ0). *)
-  (*   split; [|apply non_blocking_state_prim]. *)
-  (*   rewrite 2!exec_app. *)
-  (*   eapply Rcoupl_bind; [|done]. *)
-  (*   intros [] [] (-> & -> & HR). *)
-  (*   rewrite /prim_step_sch. *)
-  (*   rewrite exec_singleton. *)
-  (*   rewrite exec_fn_unfold /=. *)
-  (*   by eapply Hprim. *)
-  (* Qed. *)
-
-  Lemma exec_state_strength_l_coupl ζ ξ e1 σ1 e1' σ1' R :
-    Rcoupl (exec_state ζ σ1) (exec ξ (e1', σ1')) R →
-    Rcoupl (exec (state_step_scheduler e1 ζ) (e1, σ1)) (exec ξ (e1', σ1'))
-      (λ '(e2, σ2) ρ2', e2 = e1 ∧ R σ2 ρ2').
-  Proof. rewrite exec_state_exec. by eapply Rcoupl_strength_l. Qed.
-
-  Lemma exec_coupl_state_prim e1 e1' σ1 σ1' ζ1 ζ2 ξ1 ξ2 R S :
-    Rcoupl (exec_state ζ1 σ1) (exec ξ1 (e1', σ1')) R →
-    (∀ σ2 e2' σ2',
-       R σ2 (e2', σ2') →
-       Rcoupl
-         (dbind (λ σ3, prim_step e1 σ3) (exec_state ζ2 σ2))
-         (exec ξ2 (e2', σ2')) S) →
-    ∃ ξ ξ', Rcoupl (exec ξ (e1, σ1)) (exec ξ' (e1', σ1')) S ∧ non_blocking ξ (e1, σ1).
-  Proof.
-    intros Hstate%(exec_state_strength_l_coupl _ _ e1) Hprim.
-    eexists (state_step_scheduler e1 (ζ1 ++ ζ2) ++ [(λ _, Some PRIM)]), (_ ++ ξ2).
-    split; [|apply non_blocking_state_prim].
-    rewrite state_step_scheduler_app -app_assoc !exec_app.
-    eapply Rcoupl_bind; [|done].
-    intros [] [] (-> & HR).
-    rewrite exec_app exec_state_exec.
-    rewrite dbind_strength /=.
-    setoid_rewrite exec_singleton.
-    setoid_rewrite exec_fn_unfold.
-    by eapply Hprim.
-  Qed.
-
-End prim_state_step_exec.
-
-Section prim_step_fill.
-  Context {Λ : language}.
-  Implicit Types e : expr Λ.
-  Implicit Types σ : state Λ.
-  Implicit Types ρ : cfg Λ.
-  Implicit Types K : expr Λ → expr Λ.
-
-  Lemma Rcoupl_fill_step_l `{Countable A} e σ1 (μ2 : distr A) K `{!LanguageCtx K} R :
-    to_val e = None →
-    Rcoupl (prim_step e σ1) μ2 R →
-    Rcoupl (prim_step (K e) σ1) μ2 (λ '(e2, σ2) a, ∃ e2', e2 = K e2' ∧ R (e2', σ2) a).
-  Proof.
-    intros Hv Hcoupl.
-    rewrite fill_dbind //.
-    rewrite -(dret_id_right μ2).
-    eapply Rcoupl_bind; [|done].
-    intros [e2 σ2] a' HR.
-    apply Rcoupl_ret. eauto.
-  Qed.
-
-  (* TODO: move *)
-  Lemma fill_dbind_lift e1 K `{!LanguageCtx K} :
-    to_val e1 = None →
-    prim_step (K e1) = λ σ1, dbind (λ '(e2, σ2), dret (K e2, σ2)) (prim_step e1 σ1).
-  Proof. intros Hv. extensionality σ. rewrite fill_dbind //. Qed.
-
-  Lemma Rcoupl_state_step_fill_step_l `{Countable A} e σ1 ζ (μ2 : distr A) K `{!LanguageCtx K} R :
-    to_val e = None →
-    Rcoupl (dbind (λ σ2, prim_step e σ2) (exec_state ζ σ1)) μ2 R →
-    Rcoupl (dbind (λ σ2, prim_step (K e) σ2) (exec_state ζ σ1)) μ2
-      (λ '(e2, σ3) a, ∃ e2', e2 = K e2' ∧ R (e2', σ3) a).
-  Proof.
-    intros Hv Hcoupl.
-    rewrite fill_dbind_lift //.
-    rewrite dbind_assoc.
-    rewrite -(dret_id_right μ2).
-    eapply Rcoupl_bind; [|done].
-    intros [e2 σ2] a' HR.
-    apply Rcoupl_ret. eauto.
-  Qed.
-
-End prim_step_fill.
-
-Global Hint Extern 0 (TCEq (to_val ?e) _) =>
-       match goal with | H : to_val e = _ |- _ => rewrite H; constructor end : core.
-
-
-Section exec_prim.
-
-
-
-End exec_prim.

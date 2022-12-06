@@ -25,13 +25,14 @@ Section rules.
     spec_ctx ∗ ⤇ fill K e ={E}=∗ spec_ctx ∗ ⤇ fill K e'.
   Proof.
     iIntros (HP Hex ?) "[#Hspec Hj]". iFrame "Hspec".
-    iInv specN as (ξ ρ e0 σ0) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e0 σ0 m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K e') with "Hauth Hj") as "[Hauth Hj]".
     iFrame "Hj". iApply "Hclose". iNext.
-    edestruct (exec_PureExec_ctx (fill K) P) as [ξ' Hexec']; [done|done|].
-    iExists (ξ ++ ξ'), _, _, _.
-    iFrame. by erewrite Hexec'.
+    iExists _, _, _, (m + n).
+    iFrame.
+    iPureIntro.
+    by eapply (exec_PureExec_ctx (fill K) P).
   Qed.
 
   (** Alloc, load, and store *)
@@ -41,7 +42,7 @@ Section rules.
     spec_ctx ∗ ⤇ fill K (ref e) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#l) ∗ l ↦ₛ v.
   Proof.
     iIntros (<-?) "[#Hinv Hj]". iFrame "Hinv".
-    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     set (l := fresh_loc σ.(heap)).
     iMod (spec_prog_update (fill K #l) with "Hauth Hj") as "[Hauth Hj]".
@@ -49,8 +50,9 @@ Section rules.
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
     iExists l. iFrame. iMod ("Hclose" with "[-]"); [|done].
     iModIntro. rewrite /spec_inv.
-    iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_heap <[l:=v]> σ).
-    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    iExists _, _, (state_upd_heap <[l:=v]> σ), _.
+    iFrame. iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |done].
     solve_step.
   Qed.
 
@@ -60,13 +62,14 @@ Section rules.
     ={E}=∗ spec_ctx ∗ ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v.
   Proof.
     iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K v) with "Hauth Hj") as "[Hauth Hj]".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
     iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, _.
-    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    iModIntro. iExists _, _, _, _.
+    iFrame. iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |done].
     solve_step.
   Qed.
 
@@ -77,14 +80,15 @@ Section rules.
     ={E}=∗ spec_ctx ∗ ⤇ fill K #() ∗ l ↦ₛ v.
   Proof.
     iIntros (<-?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K #()) with "Hauth Hj") as "[Hauth Hj]".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
     iMod (ghost_map_update v with "Hheap Hl") as "[Hheap Hl]".
     iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_heap <[l:=v]> σ).
-    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    iModIntro. iExists _, _, (state_upd_heap <[l:=v]> σ), _.
+    iFrame. iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |done].
     solve_step.
   Qed.
 
@@ -94,7 +98,7 @@ Section rules.
     spec_ctx ∗ ⤇ fill K alloc ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ [].
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
-    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     set (l := fresh_loc σ.(tapes)).
     iMod (spec_prog_update (fill K #(LitLbl l)) with "Hauth Hj") as "[Hauth Hj]".
@@ -102,8 +106,9 @@ Section rules.
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
     iExists l. iFrame. iMod ("Hclose" with "[-]"); [|done].
     iModIntro.
-    iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_tapes <[l:=[]]> σ).
-    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    iExists _, _, (state_upd_tapes <[l:=[]]> σ), _.
+    iFrame. iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |done].
     solve_step.
   Qed.
 
@@ -113,14 +118,15 @@ Section rules.
     ={E}=∗ spec_ctx ∗ ⤇ fill K #b ∗ l ↪ₛ bs.
   Proof.
     iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ξ ρ e σ) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K #b) with "Hauth Hj") as "[Hauth Hj]".
     iDestruct (ghost_map_lookup with "Htapes Hl") as %?.
     iMod (ghost_map_update bs with "Htapes Hl") as "[Htapes Hl]".
     iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists (ξ ++ prim_step_sch (_, _)), _, _, (state_upd_tapes <[l:=bs]> σ).
-    iFrame. erewrite exec_det_step_ctx; [done|apply _|].
+    iModIntro. iExists _, _, (state_upd_tapes <[l:=bs]> σ), _.
+    iFrame. iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |done].
     simpl.
     (* TODO: more clever [solve_step] tactic? *)
     rewrite head_prim_step_eq; [|eauto with head_step].
@@ -140,7 +146,12 @@ Section rules.
     iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
     iInv specN as (ξₛ ρ' e0' σ0') ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+
+
+
+
 
     (* We pick schedulers and a coupling that adds a bit to both sides *)
 

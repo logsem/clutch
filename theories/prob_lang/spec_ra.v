@@ -122,9 +122,9 @@ Section spec_ctx.
   Context `{!invGS_gen HasNoLc Σ, !specGS Σ}.
 
   Definition spec_inv : iProp Σ :=
-    (∃ ξ ρ e σ,
+    (∃ ρ e σ n,
         spec_interp_frag ρ ∗
-        ⌜exec ξ ρ (e, σ) = 1%R⌝ ∗
+        ⌜exec n ρ (e, σ) = 1%R⌝ ∗
         spec_prog_auth e ∗
         spec_heap_auth σ.(heap) ∗
         spec_tapes_auth σ.(tapes))%I.

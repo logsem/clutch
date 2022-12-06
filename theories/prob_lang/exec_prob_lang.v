@@ -136,16 +136,6 @@ Qed.
 (*   apply Rcoupl_exec_state_step_sch. *)
 (* Qed. *)
 
-Lemma Rcoupl_exec_exec_state_steps σ1 σ1' e1' α1 α2 :
-  Rcoupl
-    (exec_state (state_step_sch α1) σ1)
-    (exec ([λ _, Some $ STATE α2]) (e1', σ1'))
-    (λ σ2 '(e2', σ2'), e2' = e1' ∧ valid_double_state_step (σ1, σ1') α1 α2 (σ2, σ2')).
-Proof.
-  rewrite exec_state_state_step_sch.
-
-Admitted.
-
 
 (* Definition prim_step_sch_sample '(e, σ) α : scheduler_fn prob_lang := *)
 (*   λ '(e', σ'), *)
@@ -221,26 +211,26 @@ Admitted.
 (*     split_and!; eauto. by exists false. *)
 (* Qed. *)
 
-Lemma Rcoupl_exec_det_prefix_r ξ ξ1 ξ2 (ρ ρ1 ρ2 : cfg) (S : cfg → cfg → Prop) :
-  exec ξ1 ρ1 ρ2 = 1 →
-  Rcoupl (exec ξ ρ) (exec ξ2 ρ2) S →
-  Rcoupl (exec ξ ρ) (exec (ξ1 ++ ξ2) ρ1) S.
-Proof.
-  intros Hdet%pmf_1_eq_dret Hcpl.
-  rewrite -(app_nil_l ξ) 2!exec_app.
-  eapply (Rcoupl_bind _ _ _ _ (λ ρ' ρ'', ρ' = ρ ∧ ρ'' = ρ2)); last first.
-  { rewrite exec_nil Hdet. by eapply Rcoupl_ret. }
-  intros ?? [-> ->]. done.
-Qed.
+(* Lemma Rcoupl_exec_det_prefix_r ξ ξ1 ξ2 (ρ ρ1 ρ2 : cfg) (S : cfg → cfg → Prop) : *)
+(*   exec ξ1 ρ1 ρ2 = 1 → *)
+(*   Rcoupl (exec ξ ρ) (exec ξ2 ρ2) S → *)
+(*   Rcoupl (exec ξ ρ) (exec (ξ1 ++ ξ2) ρ1) S. *)
+(* Proof. *)
+(*   intros Hdet%pmf_1_eq_dret Hcpl. *)
+(*   rewrite -(app_nil_l ξ) 2!exec_app. *)
+(*   eapply (Rcoupl_bind _ _ _ _ (λ ρ' ρ'', ρ' = ρ ∧ ρ'' = ρ2)); last first. *)
+(*   { rewrite exec_nil Hdet. by eapply Rcoupl_ret. } *)
+(*   intros ?? [-> ->]. done. *)
+(* Qed. *)
 
-Lemma Rcoupl_exec_state_det_prefix_r ζ ξ1 ξ2 ρ1 ρ2 σ  (S : state → cfg → Prop) :
-  exec ξ1 ρ1 ρ2 = 1 →
-  Rcoupl (exec_state ζ σ) (exec ξ2 ρ2) S →
-  Rcoupl (exec_state ζ σ) (exec (ξ1 ++ ξ2) ρ1) S.
-Proof.
-  intros Hdet%pmf_1_eq_dret Hcpl.
-  rewrite -(app_nil_l ζ) exec_state_app exec_app.
-  eapply (Rcoupl_bind _ _ _ _ (λ σ' ρ'', σ' = σ ∧ ρ'' = ρ2)); last first.
-  { rewrite exec_state_nil Hdet. by eapply Rcoupl_ret. }
-  intros ?? [-> ->]. done.
-Qed.
+(* Lemma Rcoupl_exec_state_det_prefix_r ζ ξ1 ξ2 ρ1 ρ2 σ  (S : state → cfg → Prop) : *)
+(*   exec ξ1 ρ1 ρ2 = 1 → *)
+(*   Rcoupl (exec_state ζ σ) (exec ξ2 ρ2) S → *)
+(*   Rcoupl (exec_state ζ σ) (exec (ξ1 ++ ξ2) ρ1) S. *)
+(* Proof. *)
+(*   intros Hdet%pmf_1_eq_dret Hcpl. *)
+(*   rewrite -(app_nil_l ζ) exec_state_app exec_app. *)
+(*   eapply (Rcoupl_bind _ _ _ _ (λ σ' ρ'', σ' = σ ∧ ρ'' = ρ2)); last first. *)
+(*   { rewrite exec_state_nil Hdet. by eapply Rcoupl_ret. } *)
+(*   intros ?? [-> ->]. done. *)
+(* Qed. *)

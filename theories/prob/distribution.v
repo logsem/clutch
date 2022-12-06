@@ -129,7 +129,7 @@ Section distributions.
     rewrite /pmf. intros ->.
     f_equal; apply proof_irrelevance.
   Qed.
- 
+
 
   Lemma pmf_eq_0_le (μ : distr A) (a : A):
     μ a <= 0 → μ a = 0.
@@ -142,7 +142,7 @@ Section distributions.
 
   Definition fair_coin_pmf : bool → R :=
     λ b, 0.5.
-  
+
   Program Definition fair_coin : distr bool := MkDistr (fair_coin_pmf) _ _ _.
   Next Obligation. intros b. rewrite /fair_coin_pmf. destruct b; lra. Qed.
   Next Obligation.
@@ -195,8 +195,20 @@ Section dret.
   Context `{Countable A}.
 
   Lemma dret_1 (a a' : A) :
+    a = a' ↔ dret a a' = 1.
+  Proof.
+    split.
+    - intros ->. rewrite /pmf /= /dret_pmf bool_decide_eq_true_2 //.
+    - rewrite /pmf /= /dret_pmf. case_bool_decide; [done|lra].
+  Qed.
+
+  Lemma dret_1_1 (a a' : A) :
     a = a' → dret a a' = 1.
-  Proof. intros ->. rewrite /pmf /= /dret_pmf bool_decide_eq_true_2 //. Qed.
+  Proof. apply dret_1. Qed.
+
+  Lemma dret_1_2 (a a' : A) :
+    dret a a' = 1 → a = a'.
+  Proof. apply dret_1. Qed.
 
   Lemma dret_0 (a a' : A) :
     a' ≠ a → dret a a' = 0.
@@ -221,7 +233,7 @@ Section dret.
     apply distr_ext.
     intros a'.
     destruct (decide (a = a')) as [<- | Hneq].
-    { rewrite dret_1 //. }
+    { rewrite dret_1_1 //. }
     rewrite dret_0 //.
     destruct (decide (μ a' > 0)) as [Ha'|].
     - rewrite (pmf_1_supp_eq _ _ _ Hμ Ha') // in Hneq.
@@ -468,7 +480,7 @@ Section conv_prop.
     rewrite /pmf; lra.
   Qed.
 
-  Lemma dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
+  Definition dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
     dbind (λ a, fair_conv_comb (f1 a) (f2 a)) μ = fair_conv_comb (dbind f1 μ) (dbind f2 μ).
   Proof.
     apply distr_ext.
@@ -504,8 +516,6 @@ Section conv_prop.
       ++ rewrite <- (Rmult_1_r (μ a)).
          apply Rmult_le_compat; lra.
   Qed.
-
-
 
 
 End conv_prop.
@@ -551,7 +561,7 @@ Section dmap.
     split.
     - intros [a [Hr%dret_pos ?]]%dbind_pos_support; eauto.
     - intros [a [-> Ha]]. apply dbind_pos_support.
-      exists a. rewrite dret_1 //. split; [lra|done].
+      exists a. rewrite dret_1_1 //. split; [lra|done].
   Qed.
 
   Lemma dmap_eq (μ : distr A) (a : A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
@@ -573,7 +583,7 @@ Section dmap.
     - rewrite (SeriesC_ext _ (λ a, if bool_decide (a = a') then μ2 a' else 0)).
       { rewrite SeriesC_singleton //. }
       intros a. case_bool_decide; subst.
-      + rewrite dret_1 //; lra.
+      + rewrite dret_1_1 //; lra.
       + rewrite dret_0 //; [lra|]. intros [=]; simplify_eq.
     - destruct (decide (μ1 a > 0)) as [Hz|Hz]; [by specialize (Hcov a Hz)|].
       rewrite SeriesC_0 //.
@@ -643,9 +653,37 @@ Proof.
   rewrite /pmf /=; lra.
 Qed.
 
-(** * Monaidc fold left  *)
+(** * Monadic fold left  *)
 Definition foldlM {A B} `{Countable B} (f : B → A → distr B) (b : B) (xs : list A) : distr B :=
   foldr (λ a m b, f b a ≫= m) dret xs b.
+
+(** * Monadic itereration  *)
+Fixpoint iterM {A} `{Countable A} (n : nat) (f : A → distr A) (a : A) : distr A :=
+  match n with O => dret a | S n => f a ≫= iterM n f end.
+
+Section iterM.
+  Context `{Countable A}.
+
+  Lemma iterM_O (f : A → distr A) (a : A) :
+    iterM 0 f a = dret a.
+  Proof. done. Qed.
+
+  Lemma iterM_Sn (f : A → distr A) (a : A) (n : nat) :
+    iterM (S n) f a = f a ≫= iterM n f.
+  Proof. done. Qed.
+
+  Lemma iterM_plus (f : A → distr A) (a : A) (n m : nat) :
+    iterM (n + m) f a = iterM n f a ≫= iterM m f.
+  Proof.
+    revert a; induction n as [|n IH]; intros a.
+    - rewrite plus_O_n iterM_O dret_id_left //.
+    - rewrite /=.
+      rewrite -dbind_assoc -/iterM.
+      f_equal. extensionality a'.
+      rewrite IH //.
+  Qed.
+
+End iterM.
 
 (** * The zero distribution  *)
 Program Definition dzero `{Countable A} : distr A := MkDistr (λ _, 0) _ _ _.
@@ -698,23 +736,6 @@ Section dzero.
   Qed.
 
 End dzero.
-
-(** * Diagonal *)
-Program Definition ddiag `{Countable A} (μ : distr A) : distr (A * A) :=
-  MkDistr (λ '(a, b), if bool_decide(a=b) then μ b else 0) _ _ _.
-Next Obligation. intros ???? [a b]=>/=. case_bool_decide; auto; lra. Qed.
-Next Obligation.
-  intros A?? μ =>/=.
-  (* TODO *)
-  Admitted.
-
-Next Obligation.
-  intros A?? μ =>/=.
-  rewrite SeriesC_double_prod_rl.
-  erewrite SeriesC_ext.
-  { apply (pmf_SeriesC μ). }
-  intro. apply SeriesC_singleton.
-Qed.
 
 (** * Products  *)
 Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
@@ -865,7 +886,7 @@ Lemma distr_le_dbind (μ1 μ2 : distr A) (f1 f2 : A → distr B) :
   (distr_le μ1 μ2) -> (∀ a, distr_le (f1 a) (f2 a)) → distr_le (dbind f1 μ1) (dbind f2 μ2).
 Proof.
   intros Hle Hf.
-  pose proof (pmf_ex_seriesC (μ2 ≫= f2)) as Hex. 
+  pose proof (pmf_ex_seriesC (μ2 ≫= f2)) as Hex.
   rewrite /distr_le /pmf /= /dbind_pmf /=.
   intro b.
   (* We do enough of this kind of reasoning that it should be a lemma, so that we don't have to prove the exSeriesC everytime *)
@@ -873,7 +894,7 @@ Proof.
   + eapply ex_seriesC_le; [ |apply (pmf_ex_seriesC μ2)].
     intro a;  split.
     ++ apply Rmult_le_pos; auto.
-    ++ rewrite <- Rmult_1_r; apply Rmult_le_compat_l; auto. 
+    ++ rewrite <- Rmult_1_r; apply Rmult_le_compat_l; auto.
   + intro a; split.
     ++ apply Rmult_le_pos; auto.
     ++ rewrite /distr_le in Hle.

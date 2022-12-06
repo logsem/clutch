@@ -259,6 +259,22 @@ Section exec_coupl.
     done.
   Qed.
 
+  Lemma exec_coupl_reducible e1 σ1 e1' σ1' Z :
+    (□ ∀ e2 σ2 ρ2', Z (e2, σ2) ρ2' -∗ ⌜reducible e2 σ2⌝) -∗
+    exec_coupl e1 σ1 e1' σ1' Z -∗ ⌜reducible e1 σ1⌝.
+  Proof.
+    iIntros "#HZ Hcpl".
+    rewrite /exec_coupl /exec_coupl'.
+    iPoseProof (least_fixpoint_iter (exec_coupl_pre Z)
+              (λ x, ⌜reducible e1 σ1⌝)%I with "[]") as "H"; last first.
+    { by iApply "H". }
+    iIntros "!>" ([[] []]).
+    rewrite /exec_coupl_pre.
+
+
+  Admitted.
+  (*   iIntros "[Hz Hcpl]".  *)
+
 End exec_coupl.
 
 Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
@@ -268,20 +284,20 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
-      ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
       exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
+        ⌜if s is NotStuck then reducible e2 σ2 else True⌝ ∗
         ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ wp E e2 Φ)
 end%I.
 
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
-  do 10 f_equiv.
+  do 9 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   repeat f_equiv.
-  { do 2 case_match. f_contractive. do 3 f_equiv. apply Hwp. }
-  case_match. f_contractive. do 3 f_equiv. apply Hwp.
+  { do 2 case_match. f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
+  case_match. f_equiv. f_contractive. do 3 f_equiv. apply Hwp.
 Qed.
 
 Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
@@ -313,13 +329,13 @@ Global Instance wp_ne s E e n :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
-  do 10 f_equiv.
+  do 9 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   repeat f_equiv.
-  { do 2 case_match. f_contractive. do 3 f_equiv.
+  { do 2 case_match. f_equiv. f_contractive. do 3 f_equiv.
     rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ. }
-  case_match. f_contractive. do 3 f_equiv.
+  case_match. f_equiv. f_contractive. do 3 f_equiv.
   rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ.
 Qed.
 Global Instance wp_proper s E e :
@@ -332,12 +348,12 @@ Global Instance wp_contractive s E e n :
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
-  do 9 f_equiv.
+  do 8 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   repeat f_equiv.
-  { do 2 case_match. f_contractive. do 6 f_equiv.  }
-  case_match. f_contractive. do 6 f_equiv.
+  { do 2 case_match. f_equiv. f_contractive. do 6 f_equiv.  }
+  case_match. f_equiv. f_contractive. do 6 f_equiv.
 Qed.
 
 Lemma wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
@@ -353,11 +369,12 @@ Proof.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
   iIntros (σ1 e1' σ1') "[Hσ Hs]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
-  iMod ("H" with "[$]") as "[% H]".
+  iMod ("H" with "[$]") as "H".
   iModIntro.
-  iSplit; [by destruct s1, s2|].
   iApply (exec_coupl_mono with "[Hclose HΦ] H").
-  iIntros ([e2 σ2] [e2' σ2']) "H !>".
+  iIntros ([e2 σ2] [e2' σ2']) "[% H]".
+  iSplit; [by destruct s1, s2|].
+  iModIntro.
   iMod "H" as "(?&?& Hwp)". iFrame.
   iMod "Hclose" as "_". iModIntro.
   iApply ("IH" with "[] Hwp"); auto.
@@ -379,19 +396,20 @@ Proof.
   destruct (to_val e) as [v|] eqn:He.
   { by iDestruct "H" as ">>> $". }
   iIntros (σ1 e1' σ1') "[Hσ Hs]". iMod "H".
-  iMod ("H" with "[$]") as "[% H]".
+  iMod ("H" with "[$]") as "H".
   iModIntro.
-  iSplit; [done|].
   iDestruct (exec_coupl_strengthen with "H") as "H".
   iApply (exec_coupl_mono with "[] H").
-  iIntros ([e2 σ2] [e2' σ2']) "[[% %Hstep] H] !>".
+  iIntros ([e2 σ2] [e2' σ2']) "[[% %Hstep] [% H]]".
+  iSplit; [done|]. iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
   destruct s.
   - rewrite !wp_unfold /wp_pre.
     destruct (to_val e2) as [v2|] eqn:He2.
     + iDestruct "H" as ">> $". by iFrame.
-    + iMod ("H" with "[$]") as "[%Hred H]".
-      destruct Hred as [ρ ?].
+    + iMod ("H" with "[$]") as "H".
+      iDestruct (exec_coupl_reducible with "[] H") as %[ρ ?].
+      { by iIntros "!>" (?? []) "[? ?]". }
       pose proof (atomic _ _ _ Hstep ρ). lra.
   - destruct (atomic _ _ _ Hstep) as [v <-%of_to_val].
     rewrite wp_value_fupd'. iMod "H" as ">H".
@@ -404,10 +422,11 @@ Lemma wp_step_fupd s E1 E2 e P Φ :
 Proof.
   rewrite !wp_unfold /wp_pre. iIntros (-> ?) "HR H".
   iIntros (σ1 e1' σ1') "[Hσ Hs]". iMod "HR".
-  iMod ("H" with "[$Hσ $Hs]") as "(% & H)".
-  iModIntro. iSplit; [done|].
+  iMod ("H" with "[$Hσ $Hs]") as "H".
+  iModIntro.
   iApply (exec_coupl_mono with "[HR] H").
-  iIntros ([e2 σ2] [e2' σ2']) "H !>".
+  iIntros ([e2 σ2] [e2' σ2']) "[% H]".
+  iSplit; [done|]. iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
   iMod "HR".
   iFrame "Hσ Hρ".
@@ -423,13 +442,14 @@ Proof.
   { apply of_to_val in He as <-. by iApply fupd_wp. }
   rewrite wp_unfold /wp_pre fill_not_val /=; [|done].
   iIntros (σ1 e1' σ1') "[Hσ Hs]".
-  iMod ("H" with "[$Hσ $Hs]") as "(% & H)".
+  iMod ("H" with "[$Hσ $Hs]") as "H".
   iModIntro.
-  iSplit.
-  { destruct s; [|done]. iPureIntro. by apply reducible_fill. }
   iApply exec_coupl_bind; [done|].
   iApply (exec_coupl_mono with "[] H").
-  iIntros ([e2 σ2] [e2' σ2']) "H !>".
+  iIntros ([e2 σ2] [e2' σ2']) "[% H]".
+  iSplit.
+  { destruct s; [|done]. iPureIntro. by apply reducible_fill. }
+  iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
   iModIntro. iFrame "Hσ Hρ". by iApply "IH".
 Qed.

@@ -940,7 +940,7 @@ Qed.
 
 
 Definition valid_state_step (σ1 : state) (α : loc) (σ2 : state) : Prop :=
-(* the heap is the same but we add a bit to the [α] tape *)
+  (* the heap is the same but we add a bit to the [α] tape *)
   ∃ b, σ2 = state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1.
 
 Local Instance valid_state_step_dec σ1 α σ2 : Decision (valid_state_step σ1 α σ2).
