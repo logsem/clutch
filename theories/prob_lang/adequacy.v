@@ -873,7 +873,7 @@ Section helper_lemma.
     apply quux in H.
     assert ((dmap (λ '(e, σ), (e, heap σ)) (prim_exec (e1, σ1) (S m))) =
             (dmap (λ '(e, σ), (e, heap σ)) (dbind (λ σ2 : language.state prob_lang, prim_exec (e1, σ2) (S m)) (state_step σ1 α)))) as H1.
-    { rewrite -prim_step_prim_exec.
+    { rewrite prim_exec_Sn.
       assert ((dbind (λ σ2, prim_exec (e1, σ2) (S m)) (state_step σ1 α)) =
               (dbind (λ σ2 , (dbind (λ ρ' : language.cfg prob_lang, prim_exec ρ' m) (prim_step_or_val (e1, σ2)))) (state_step σ1 α))) as Hfoo by admit.
       rewrite Hfoo. clear Hfoo.
@@ -909,7 +909,7 @@ Section helper_lemma.
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
     iIntros "[(% & %Hcpl & % & H) | [? | [? | H]]] %Hv".
-    - rewrite -prim_step_prim_exec.
+    - rewrite prim_exec_Sn.
       rewrite -bar.
       rewrite {1}/prim_step_or_val /= Hv.
       assert (to_val e1' = None) as Hv' by admit.
@@ -961,7 +961,7 @@ Section adequacy.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         (* also doable *)
         admit.
-    - rewrite -prim_step_prim_exec /prim_step_or_val /=.
+    - rewrite prim_exec_Sn /prim_step_or_val /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
