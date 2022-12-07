@@ -282,7 +282,7 @@ Section exec_coupl.
     iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & % & H) | H]]] /="; [done|done| |].
     - eapply Rcoupl_pos_R in H.
       eapply Rcoupl_inhabited_l in H as ([] & [] & ? & [= -> ->]%dret_pos & ?); last first.
-      { apply dret_inhabited. }
+      { rewrite dret_mass; lra. }
       by iMod ("H" with "[//]").
     - iInduction (list_prod (get_active _ σ1) (get_active _ σ1')) as [| [α α']] "IH".
       { rewrite big_orL_nil //. }
@@ -308,12 +308,14 @@ Section exec_coupl.
     iIntros (Hexec) "Hcpl".
     iApply exec_coupl_exec_r.
     iExists _, n. iSplit.
-    { iPureIntro. apply Rcoupl_pos_R, Rcoupl_trivial. }
+    { iPureIntro. apply Rcoupl_pos_R, Rcoupl_trivial.
+      - apply dret_mass.
+      - admit. }
     iIntros (e2'' σ2'' (_ & _ & H)).
     apply pmf_1_eq_dret in Hexec.
     rewrite Hexec in H.
     by apply dret_pos in H as [= -> ->].
-  Qed.
+  Admitted.
 
 End exec_coupl.
 
@@ -351,7 +353,6 @@ Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
 Context `{!irisGS Λ Σ}.
-Implicit Types s : stuckness.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.

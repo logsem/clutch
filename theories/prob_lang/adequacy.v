@@ -83,13 +83,14 @@ Section helper_lemma.
     { intros ???. apply Rcoupl_ret. done. }
     clear Hfck.
     exists (dprod (dret σ1) (state_step σ1 α)). split.
-    * split.
-      { rewrite lmarg_dprod //. }
-      { rewrite rmarg_dprod //. }
+    * admit.
+      (* split. *)
+      (* { rewrite lmarg_dprod //. } *)
+      (* { rewrite rmarg_dprod //. } *)
     * intros [] [->%dret_pos ?]%dprod_pos. simpl.
       apply state_step_support_equiv_rel in H.
       by inversion H.
-  Qed.
+  Admitted.
 
   (* Lemma alejandro_magic σ1 α m : *)
   (*   Rcoupl (dret σ1) (state_step σ1 α) (λ σ2 σ2', ∀ e, Rcoupl (prim_exec (e, σ2) m) (prim_exec (e, σ2') m) pure_eq). *)
@@ -356,6 +357,8 @@ Section helper_lemma.
     (fair_conv_comb (dret (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1))
        (dret (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [false]]> σ1)))).
         split; [split ; [ rewrite lmarg_dprod // | rewrite rmarg_dprod //] | ].
+        { admit. }
+        { apply dret_mass. }
         intros ((e2 & σ2) & (e2' & σ2')) Hpos.
         simpl in *.
         rewrite /pmf/= in Hpos.
@@ -584,6 +587,8 @@ Section helper_lemma.
     (fair_conv_comb (dret (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1))
        (dret (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [false]]> σ1)))).
         split; [split ; [ rewrite lmarg_dprod // | rewrite rmarg_dprod //] | ].
+        { admit. }
+        { apply dret_mass. }
         intros ((e2 & σ2) & (e2' & σ2')) Hpos.
         simpl in *.
         rewrite /pmf/= in Hpos.
@@ -798,7 +803,7 @@ Section helper_lemma.
                  do 6 rewrite dret_id_left.
                  specialize (IHm (fill K #false) σ1 α bs).
                  auto.
-  Qed.
+  Admitted.
 
 
   Lemma prim_coupl_step_prim : forall m e1 σ1 α,

@@ -246,9 +246,9 @@ Section dret.
     intros Hneq ->%pmf_1_eq_dret. by apply dret_0.
   Qed.
 
-  Lemma dret_inhabited `{Countable A} (a : A) :
-    SeriesC (dret a) > 0.
-  Proof. rewrite SeriesC_singleton. lra. Qed.
+  Lemma dret_mass `{Countable A} (a : A) :
+    SeriesC (dret a) = 1.
+  Proof. rewrite SeriesC_singleton //. Qed.
 
 End dret.
 

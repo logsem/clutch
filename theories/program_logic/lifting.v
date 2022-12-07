@@ -42,12 +42,14 @@ Proof.
   iExists _.
   iSplit; [done|].
   iSplit.
-  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial. }
+  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial.
+    - admit.
+    - apply dret_mass. }
   iIntros ([e2 σ2] (_ & Hstep & _)).
   iMod ("H" with "[//]")as "H".
   iIntros "!> !>".
   by iMod "H" as "[$ $]".
-Qed.
+Admitted.
 
 (* Lemma wp_lift_stuck E Φ e : *)
 (*   to_val e = None → *)
