@@ -226,8 +226,7 @@ Section helper_lemma.
   Lemma upd_diff_tape_tot σ α β bs:
     α ≠ β ->
     tapes σ !!! α = tapes (state_upd_tapes <[β:=bs]> σ) !!! α.
-  Proof.
-    Admitted.
+  Proof. symmetry ; by rewrite lookup_total_insert_ne. Qed.
 
   Lemma upd_tape_twice σ β bs bs' :
     state_upd_tapes <[β:= bs]> (state_upd_tapes <[β:= bs']> σ) =
@@ -281,33 +280,6 @@ Section helper_lemma.
     pose proof (elem_fresh_ne _ _ _ H).
     by rewrite lookup_insert_ne.
   Qed.
-
-  Lemma fresh_loc_lookup_total σ α bs bs' :
-    (tapes σ) !!! α = bs ->
-    (tapes (state_upd_tapes <[fresh_loc (tapes σ):=bs']> σ)) !!! α = bs.
-  Proof.
-    intros H.
-    pose proof (lookup_total_alt (tapes σ) α).
-    destruct (bool_decide (α ∈ dom (tapes σ))) eqn:H'.
-
-    - (* α ∈ dom σ -> fresh_loc _ ≠ α /\ lookup_ne  *)
-      admit.
-    - (*
-         α ∉ dom σ
-         σ !!! α = bs = []
-         ———————————————————————————————————————————————————————
-         <[fresh_loc σ :=bs']> σ !!! α
-         =
-         bs' if fresh_loc σ = α
-         bs  else
-       *)
-      (* Seems false: fresh_loc σ might well be α, in which case we get bs',
-         not bs. Could prove it
-         - as stated if bs' = [], or
-         - with new rhs: if α ∈ dom σ \/ fresh_loc σ ≠ α then bs else bs' fi *)
-    (* pose (decide (α ∈ tapes σ)). *)
-    (* pose proof (elem_fresh_ne _ _ _ H). *)
-    Admitted.
 
 
   Lemma exec_coupl_eq e σ m :
@@ -709,12 +681,13 @@ Section helper_lemma.
                   specialize
                     (IHm (fill K #lbl:(fresh_loc (tapes σ1)))(state_upd_tapes <[fresh_loc (tapes σ1):=[]]> σ1) α bs).
                   apply lookup_total_correct in Hα as Hαtot.
-                  rewrite (fresh_loc_lookup_total _ _ bs _) in IHm; auto.
+                  revert IHm ; intro IHm.
+                  pose proof (elem_fresh_ne _ _ _ Hα) as Hne.
+                  assert (α ≠ fresh_loc (tapes σ1)) as Hne' by auto ; clear Hne.
+                  rewrite -(upd_diff_tape_tot σ1 _ _ _ Hne') in IHm.
                   specialize (IHm (fresh_loc_lookup σ1 α bs [] Hα)).
                   erewrite <- (fresh_loc_upd_swap σ1) in IHm; eauto.
                   erewrite <- (fresh_loc_upd_swap σ1) in IHm; eauto.
-                  rewrite {2 3}/state_upd_tapes/= in IHm.
-                  rewrite Hαtot; auto.
              ++++
                destruct H as (b' & H).
                destruct H as (bs' & H).
