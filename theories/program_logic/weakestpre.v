@@ -45,10 +45,12 @@ Section exec_coupl.
     (λ (x : cfg Λ * cfg Λ),
       let '((e1, σ1), (e1', σ1')) := x in
       (* [prim_step] on both sides *)
-      (∃ R, ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
+      (∃ R, ⌜reducible e1 σ1⌝ ∗
+            ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
             ∀ ρ2 ρ2', ⌜R ρ2 ρ2'⌝ ={∅}=∗ Z ρ2 ρ2') ∨
       (* [prim_step] only on the left *)
-      (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
+      (∃ R, ⌜reducible e1 σ1⌝ ∗
+            ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
       (* [prim_step] only on the right *)
       (∃ R, ⌜Rcoupl (dret (e1, σ1)) (prim_step e1' σ1') R⌝ ∗
@@ -90,13 +92,15 @@ Section exec_coupl.
   Qed.
 
   Definition exec_coupl' Z := bi_least_fixpoint (exec_coupl_pre Z).
-  Definition exec_coupl e σ e' σ'  Z := exec_coupl' Z ((e, σ), (e', σ')).
+  Definition exec_coupl e σ e' σ' Z := exec_coupl' Z ((e, σ), (e', σ')).
 
   Lemma exec_coupl_unfold e1 σ1 e1' σ1' Z :
     exec_coupl e1 σ1 e1' σ1' Z ≡
-     ((∃ R, ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
+      ((∃ R, ⌜reducible e1 σ1⌝ ∗
+            ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
             ∀ ρ2 ρ2', ⌜R ρ2 ρ2'⌝ ={∅}=∗ Z ρ2 ρ2') ∨
-      (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
+      (∃ R, ⌜reducible e1 σ1⌝ ∗
+            ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
       (∃ R, ⌜Rcoupl (dret (e1, σ1)) (prim_step e1' σ1') R⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z) ∨
@@ -119,14 +123,18 @@ Section exec_coupl.
                        (bi_least_fixpoint (exec_coupl_pre Z2) x ))%I with "[]") as "H"; last first.
     { iIntros "HZ". by iApply ("H" with "Hcpl"). }
     iIntros "!#" ([[] []]). rewrite /exec_coupl_pre.
-    iIntros "[(% & % & H) | [(% & % & H) | [(% & % & H) | H]]] HZ".
+    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & H) | H]]] HZ".
     - rewrite least_fixpoint_unfold.
-      iLeft. iExists _. iSplit.
+      iLeft. iExists _.
+      iSplit; [done|].
+      iSplit.
       { iPureIntro. by apply Rcoupl_pos_R. }
       iIntros ([] [] (?&?&?)). iMod ("H" with "[//]").
       iModIntro. iApply "HZ". eauto.
     - rewrite least_fixpoint_unfold.
-      iRight. iLeft. iExists _. iSplit.
+      iRight. iLeft. iExists _.
+      iSplit; [done|].
+      iSplit.
       { iPureIntro. by apply Rcoupl_pos_R. }
       iIntros ([] (?&?&?)). iMod ("H" with "[//]").
       iModIntro. iApply "HZ". eauto.
@@ -179,10 +187,11 @@ Section exec_coupl.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), (_, _)) with "Hcpl [//]"). }
     iIntros "!#" ([[] []]). rewrite /exec_coupl_pre.
-    iIntros "[(% & % & H) | [(% & % & H) | [(% & % & H) | H]]] %Hv'".
+    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & H) | H]]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R2 (e2', σ2) ρ').
       rewrite fill_dbind //=.
+      iSplit; [eauto using reducible_fill|].
       iSplit.
       { iPureIntro. rewrite -(dret_id_right (prim_step o1 _)).
         eapply Rcoupl_bind; [|done].
@@ -192,6 +201,7 @@ Section exec_coupl.
     - rewrite least_fixpoint_unfold.
       iRight. iLeft. iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R2 (e2', σ2) ρ').
       rewrite fill_dbind //=.
+      iSplit; [eauto using reducible_fill|].
       iSplit.
       { iPureIntro. rewrite -(dret_id_right (dret _)).
         eapply Rcoupl_bind; [|done].
@@ -238,7 +248,8 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_prim_step_l e1 σ1 e1' σ1' Z :
-    (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
+    (∃ R, ⌜reducible e1 σ1⌝ ∗
+          ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
           ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1'))
     ⊢ exec_coupl e1 σ1 e1' σ1' Z.
   Proof.
@@ -259,25 +270,39 @@ Section exec_coupl.
     done.
   Qed.
 
-  Lemma exec_coupl_reducible e1 σ1 e1' σ1' Z :
-    (□ ∀ e2 σ2 ρ2', Z (e2, σ2) ρ2' -∗ ⌜reducible e2 σ2⌝) -∗
-    exec_coupl e1 σ1 e1' σ1' Z -∗ ⌜reducible e1 σ1⌝.
+  Lemma exec_coupl_reducible e e' σ σ' Z :
+    exec_coupl e σ e' σ' Z ={∅}=∗ ⌜reducible e σ⌝.
   Proof.
-    iIntros "#HZ Hcpl".
     rewrite /exec_coupl /exec_coupl'.
-    iPoseProof (least_fixpoint_iter (exec_coupl_pre Z)
-              (λ x, ⌜reducible e1 σ1⌝)%I with "[]") as "H"; last first.
-    { by iApply "H". }
-    iIntros "!>" ([[] []]).
-    rewrite /exec_coupl_pre.
-
-
-  Admitted.
-  (*   iIntros "[Hz Hcpl]".  *)
+    iPoseProof
+      (least_fixpoint_iter (exec_coupl_pre Z)
+         (λ x, |={∅}=> ⌜reducible x.1.1 x.1.2⌝)%I with "[]") as "H"; last first.
+    { done. }
+    iIntros "!>" (([e1 σ1] & [e1' σ1'])). rewrite /exec_coupl_pre.
+    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & H) | H]]] /="; [done|done| |].
+    - eapply Rcoupl_pos_R in H.
+      eapply Rcoupl_inhabited_l in H as ([] & [] & ? & [= -> ->]%dret_pos & ?); last first.
+      { apply dret_inhabited. }
+      by iMod ("H" with "[//]").
+    - iInduction (list_prod (get_active _ σ1) (get_active _ σ1')) as [| [α α']] "IH".
+      { rewrite big_orL_nil //. }
+      rewrite big_orL_cons.
+      iDestruct "H" as "[(% & % & H) | Ht]".
+      + eapply Rcoupl_pos_R in H.
+        eapply Rcoupl_inhabited_l in H as (σ2 &?&?& Hs &?); last first.
+        { apply state_step_inhabited. }
+        iApply (pure_impl_1 (reducible e1 σ2)).
+        { iPureIntro. by eapply state_step_reducible. }
+        by iMod ("H" with "[//]").
+      + by iApply ("IH" with "Ht").
+    Unshelve.
+    intros n ((?&?)&(?&?)) ((?&?)&(?&?)) [[[=] [=]] [[=] [=]]].
+    by simplify_eq.
+  Qed.
 
 End exec_coupl.
 
-Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
+Definition wp_pre `{!irisGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
@@ -285,23 +310,23 @@ Definition wp_pre `{!irisGS Λ Σ} (s : stuckness)
   | None => ∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
       exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-        ⌜if s is NotStuck then reducible e2 σ2 else True⌝ ∗
         ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ wp E e2 Φ)
 end%I.
 
-Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (wp_pre s).
+Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
   do 9 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   repeat f_equiv.
-  { do 2 case_match. f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
-  case_match. f_equiv. f_contractive. do 3 f_equiv. apply Hwp.
+  { do 2 case_match. f_contractive. do 3 f_equiv. apply Hwp. }
+  case_match. f_contractive. do 3 f_equiv. apply Hwp.
 Qed.
 
+(* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
 Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
-  λ s : stuckness, fixpoint (wp_pre s).
+  λ (s : stuckness), fixpoint (wp_pre).
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
@@ -321,8 +346,8 @@ Implicit Types ρ : cfg Λ.
 
 (* Weakest pre *)
 Lemma wp_unfold s E e Φ :
-  WP e @ s; E {{ Φ }} ⊣⊢ wp_pre s (wp (PROP:=iProp Σ) s) E e Φ.
-Proof. rewrite wp_unseal. apply (fixpoint_unfold (wp_pre s)). Qed.
+  WP e @ s; E {{ Φ }} ⊣⊢ wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
+Proof. rewrite wp_unseal. apply (fixpoint_unfold wp_pre). Qed.
 
 Global Instance wp_ne s E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
@@ -333,9 +358,9 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   repeat f_equiv.
-  { do 2 case_match. f_equiv. f_contractive. do 3 f_equiv.
+  { do 2 case_match. f_contractive. do 3 f_equiv.
     rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ. }
-  case_match. f_equiv. f_contractive. do 3 f_equiv.
+  case_match. f_contractive. do 3 f_equiv.
   rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ.
 Qed.
 Global Instance wp_proper s E e :
@@ -352,8 +377,8 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   repeat f_equiv.
-  { do 2 case_match. f_equiv. f_contractive. do 6 f_equiv.  }
-  case_match. f_equiv. f_contractive. do 6 f_equiv.
+  { do 2 case_match. f_contractive. do 6 f_equiv.  }
+  case_match. f_contractive. do 6 f_equiv.
 Qed.
 
 Lemma wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
@@ -372,8 +397,7 @@ Proof.
   iMod ("H" with "[$]") as "H".
   iModIntro.
   iApply (exec_coupl_mono with "[Hclose HΦ] H").
-  iIntros ([e2 σ2] [e2' σ2']) "[% H]".
-  iSplit; [by destruct s1, s2|].
+  iIntros ([e2 σ2] [e2' σ2']) "H".
   iModIntro.
   iMod "H" as "(?&?& Hwp)". iFrame.
   iMod "Hclose" as "_". iModIntro.
@@ -389,7 +413,7 @@ Qed.
 Lemma wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
 Proof. iIntros "H". iApply (wp_strong_mono s s E with "H"); auto. Qed.
 
-Lemma wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
+Lemma wp_atomic s E1 E2 e Φ `{!Atomic WeaklyAtomic e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
   iIntros "H". rewrite !wp_unfold /wp_pre.
@@ -400,20 +424,19 @@ Proof.
   iModIntro.
   iDestruct (exec_coupl_strengthen with "H") as "H".
   iApply (exec_coupl_mono with "[] H").
-  iIntros ([e2 σ2] [e2' σ2']) "[[% %Hstep] [% H]]".
-  iSplit; [done|]. iModIntro.
+  iIntros ([e2 σ2] [e2' σ2']) "[[% %Hstep] H]".
+  iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
-  destruct s.
-  - rewrite !wp_unfold /wp_pre.
-    destruct (to_val e2) as [v2|] eqn:He2.
-    + iDestruct "H" as ">> $". by iFrame.
-    + iMod ("H" with "[$]") as "H".
-      iDestruct (exec_coupl_reducible with "[] H") as %[ρ ?].
-      { by iIntros "!>" (?? []) "[? ?]". }
-      pose proof (atomic _ _ _ Hstep ρ). lra.
-  - destruct (atomic _ _ _ Hstep) as [v <-%of_to_val].
-    rewrite wp_value_fupd'. iMod "H" as ">H".
-    iModIntro. iFrame. by iApply wp_value_fupd'.
+  (* destruct s *)
+  rewrite !wp_unfold /wp_pre.
+  destruct (to_val e2) as [v2|] eqn:He2.
+  + iDestruct "H" as ">> $". by iFrame.
+  + iMod ("H" with "[$]") as "H".
+    iMod (exec_coupl_reducible with "H") as %[ρ ?].
+    pose proof (atomic _ _ _ Hstep ρ). lra.
+  (* destruct (atomic _ _ _ Hstep) as [v <-%of_to_val]. *)
+  (* rewrite wp_value_fupd'. iMod "H" as ">H". *)
+  (* iModIntro. iFrame. by iApply wp_value_fupd'. *)
 Qed.
 
 Lemma wp_step_fupd s E1 E2 e P Φ :
@@ -425,8 +448,8 @@ Proof.
   iMod ("H" with "[$Hσ $Hs]") as "H".
   iModIntro.
   iApply (exec_coupl_mono with "[HR] H").
-  iIntros ([e2 σ2] [e2' σ2']) "[% H]".
-  iSplit; [done|]. iModIntro.
+  iIntros ([e2 σ2] [e2' σ2']) "H".
+  iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
   iMod "HR".
   iFrame "Hσ Hρ".
@@ -446,9 +469,7 @@ Proof.
   iModIntro.
   iApply exec_coupl_bind; [done|].
   iApply (exec_coupl_mono with "[] H").
-  iIntros ([e2 σ2] [e2' σ2']) "[% H]".
-  iSplit.
-  { destruct s; [|done]. iPureIntro. by apply reducible_fill. }
+  iIntros ([e2 σ2] [e2' σ2']) "H".
   iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
   iModIntro. iFrame "Hσ Hρ". by iApply "IH".
@@ -576,7 +597,7 @@ Section proofmode_classes.
   Qed.
 
   Global Instance elim_modal_fupd_wp_atomic p s E1 E2 e P Φ :
-    ElimModal (Atomic (stuckness_to_atomicity s) e) p false
+    ElimModal (Atomic WeaklyAtomic e) p false
             (|={E1,E2}=> P) P
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
@@ -589,7 +610,7 @@ Section proofmode_classes.
   Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_wp. Qed.
 
   Global Instance elim_acc_wp_atomic {X} E1 E2 α β γ e s Φ :
-    ElimAcc (X:=X) (Atomic (stuckness_to_atomicity s) e)
+    ElimAcc (X:=X) (Atomic WeaklyAtomic e)
             (fupd E1 E2) (fupd E2 E1)
             α β γ (WP e @ s; E1 {{ Φ }})
             (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.

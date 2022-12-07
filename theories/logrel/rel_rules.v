@@ -197,7 +197,7 @@ Section rules.
     iIntros (<-) "Hlog".
     iApply refines_atomic_l; auto.
     iMod "Hlog". iModIntro.
-    iApply (wp_alloc _ _ v with "[//]"). iIntros "!>" (l) "?". by iApply "Hlog".
+    wp_alloc l. by iApply "Hlog".
   Qed.
 
   Lemma refines_alloctape_l K E t A :
@@ -220,7 +220,7 @@ Section rules.
     iIntros "Hlog".
     iApply refines_atomic_l; auto.
     iMod "Hlog" as (v') "[Hl Hlog]". iModIntro.
-    iApply (wp_load with "Hl"); auto.
+    wp_load. by iApply "Hlog".
   Qed.
 
   Lemma refines_store_l K E l e v' t A :
@@ -232,7 +232,7 @@ Section rules.
     iIntros (<-) "Hlog".
     iApply refines_atomic_l; auto.
     iMod "Hlog" as (v) "[Hl Hlog]". iModIntro.
-    iApply (wp_store _ _ _ _ v' with "Hl"); auto.
+    wp_store. by iApply "Hlog".
   Qed.
 
   Lemma refines_wand E e1 e2 A A' :

@@ -153,7 +153,7 @@ Section helper_lemma.
       rewrite H; auto.
   Qed.
 
-  
+
   Lemma head_step_flip_nonempty_rw σ l b bs :
     σ.(tapes) !! l = Some (b :: bs) ->
     head_step (flip #lbl:l) σ = dret (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ).
@@ -450,7 +450,7 @@ Section helper_lemma.
          (* Woohooo! *)
       ++ assert (¬ det_head_step_pred ered σ1) as Hndet.
          {destruct (is_det_head_step_true ered σ1); auto. intro Hf.
-         specialize (H0 Hf); simplify_eq. rewrite H0 in Hdet; auto.}
+         specialize (H0 Hf); simplify_eq. rewrite H0 in Hdet; auto. }
          destruct (det_or_prob_or_dzero ered σ1) as [[ HD | HP ] | HZ]; [destruct Hndet; auto | | ]; last first.
          +++ assert (head_step ered σ1 = dzero) as Haux1; auto.
              assert (head_step ered (state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1) = dzero) as Haux2; auto.
@@ -485,10 +485,10 @@ Section helper_lemma.
                rewrite (head_step_flip_nonempty_rw _ _ b bs); auto.
                rewrite (head_step_flip_nonempty_rw _ _ b (bs++[true])); last first.
                { rewrite app_comm_cons.
-                 apply upd_tape_some; auto.}
+                 apply upd_tape_some; auto. }
                rewrite (head_step_flip_nonempty_rw _ _ b (bs++[false])); last first.
                { rewrite app_comm_cons.
-                 apply upd_tape_some; auto.}
+                 apply upd_tape_some; auto. }
                do 3 rewrite dret_id_left.
                do 3 rewrite dret_id_left.
                apply lookup_total_correct in H.
@@ -501,9 +501,9 @@ Section helper_lemma.
                +++++
                rewrite (head_step_flip_nonempty_rw _ _ b bs); auto.
                rewrite (head_step_flip_nonempty_rw _ _ b bs); last first.
-               { rewrite <- H. symmetry. apply (upd_diff_tape); auto.}
+               { rewrite <- H. symmetry. apply (upd_diff_tape); auto. }
                rewrite (head_step_flip_nonempty_rw _ _ b bs); last first.
-               { rewrite <- H. symmetry. apply (upd_diff_tape); auto.}
+               { rewrite <- H. symmetry. apply (upd_diff_tape); auto. }
                do 3 rewrite dret_id_left.
                do 3 rewrite dret_id_left.
                pose proof (IHm (fill K #b) (state_upd_tapes <[l:=bs]> σ1) α ) as IHm2.
@@ -515,9 +515,9 @@ Section helper_lemma.
                ++++++
                rewrite (head_step_flip_empty_rw _ _); auto.
                rewrite (head_step_flip_nonempty_rw _ _ true []); last first.
-               { rewrite (upd_tape_some σ1 l true []); auto.}
+               { rewrite (upd_tape_some σ1 l true []); auto. }
                rewrite (head_step_flip_nonempty_rw _ _ false []); last first.
-               { rewrite (upd_tape_some σ1 l false []); auto.}
+               { rewrite (upd_tape_some σ1 l false []); auto. }
                do 3 rewrite dret_id_left.
                rewrite /fair_conv_comb.
                rewrite <- dbind_assoc.
@@ -557,9 +557,9 @@ Section helper_lemma.
                ++++++
                rewrite (head_step_flip_unalloc_rw _ _); auto.
                rewrite (head_step_flip_nonempty_rw _ _ true []); last first.
-               { apply upd_tape_none; auto.}
+               { apply upd_tape_none; auto. }
                rewrite (head_step_flip_nonempty_rw _ _ false []); last first.
-               { apply upd_tape_none; auto.}
+               { apply upd_tape_none; auto. }
                do 3 rewrite dret_id_left.
                rewrite /fair_conv_comb.
                rewrite <- dbind_assoc.
@@ -573,9 +573,9 @@ Section helper_lemma.
                ++++++
                rewrite (head_step_flip_unalloc_rw _ _); auto.
                rewrite (head_step_flip_unalloc_rw _ _); last first.
-               { rewrite <- H; symmetry; apply upd_diff_tape ; auto.}
+               { rewrite <- H; symmetry; apply upd_diff_tape ; auto. }
                rewrite (head_step_flip_unalloc_rw _ _ ); last first.
-               { rewrite <- H; symmetry; apply upd_diff_tape ; auto.}
+               { rewrite <- H; symmetry; apply upd_diff_tape ; auto. }
                rewrite {3 4}/fair_conv_comb.
                do 4 rewrite <- dbind_assoc.
                erewrite <- (dbind_fair_conv_comb _ _ fair_coin).
@@ -681,7 +681,7 @@ Section helper_lemma.
          (* Woohooo! *)
       ++ assert (¬ det_head_step_pred ered σ1) as Hndet.
          {destruct (is_det_head_step_true ered σ1); auto. intro Hf.
-         specialize (H0 Hf); simplify_eq. rewrite H0 in Hdet; auto.}
+         specialize (H0 Hf); simplify_eq. rewrite H0 in Hdet; auto. }
          destruct (det_or_prob_or_dzero ered σ1) as [[ HD | HP ] | HZ]; [destruct Hndet; auto | | ]; last first.
          +++ assert (head_step ered σ1 = dzero) as Haux1; auto.
              assert (head_step ered (state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1) = dzero) as Haux2; auto.
@@ -723,10 +723,10 @@ Section helper_lemma.
                rewrite (head_step_flip_nonempty_rw _ _ b' bs'); auto.
                rewrite (head_step_flip_nonempty_rw _ _ b' (bs'++[true])); last first.
                { rewrite app_comm_cons.
-                 apply upd_tape_some; auto.}
+                 apply upd_tape_some; auto. }
                rewrite (head_step_flip_nonempty_rw _ _ b' (bs'++[false])); last first.
                { rewrite app_comm_cons.
-                 apply upd_tape_some; auto.}
+                 apply upd_tape_some; auto. }
                do 3 rewrite dret_id_left.
                do 3 rewrite dret_id_left.
                apply lookup_total_correct in H.
@@ -741,9 +741,9 @@ Section helper_lemma.
                +++++
                rewrite (head_step_flip_nonempty_rw _ _ b' bs'); auto.
                rewrite (head_step_flip_nonempty_rw _ _ b' bs'); last first.
-               { rewrite <- H. symmetry. apply (upd_diff_tape); auto.}
+               { rewrite <- H. symmetry. apply (upd_diff_tape); auto. }
                rewrite (head_step_flip_nonempty_rw _ _ b' bs'); last first.
-               { rewrite <- H. symmetry. apply (upd_diff_tape); auto.}
+               { rewrite <- H. symmetry. apply (upd_diff_tape); auto. }
                do 3 rewrite dret_id_left.
                do 3 rewrite dret_id_left.
                assert (tapes (state_upd_tapes <[l:=bs']> σ1) !! α = Some bs) as Hα'.
@@ -757,9 +757,9 @@ Section helper_lemma.
                ++++++
                rewrite (head_step_flip_empty_rw _ _); auto.
                rewrite (head_step_flip_nonempty_rw _ _ true []); last first.
-               { rewrite (upd_tape_some σ1 l true []); auto.}
+               { rewrite (upd_tape_some σ1 l true []); auto. }
                rewrite (head_step_flip_nonempty_rw _ _ false []); last first.
-               { rewrite (upd_tape_some σ1 l false []); auto.}
+               { rewrite (upd_tape_some σ1 l false []); auto. }
                do 3 rewrite dret_id_left.
                rewrite /fair_conv_comb.
                rewrite <- dbind_assoc.
@@ -803,9 +803,9 @@ Section helper_lemma.
                ++++++
                rewrite (head_step_flip_unalloc_rw _ _); auto.
                rewrite (head_step_flip_unalloc_rw _ _); last first.
-               { rewrite <- H; symmetry; apply upd_diff_tape ; auto.}
+               { rewrite <- H; symmetry; apply upd_diff_tape ; auto. }
                rewrite (head_step_flip_unalloc_rw _ _ ); last first.
-               { rewrite <- H; symmetry; apply upd_diff_tape ; auto.}
+               { rewrite <- H; symmetry; apply upd_diff_tape ; auto. }
                rewrite {3 4}/fair_conv_comb.
                do 4 rewrite <- dbind_assoc.
                erewrite <- (dbind_fair_conv_comb _ _ fair_coin).
@@ -900,7 +900,7 @@ Section helper_lemma.
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_coupl /exec_coupl'.
     iPoseProof (least_fixpoint_iter
-                  (exec_coupl_pre 
+                  (exec_coupl_pre
                      (λ '(e2, σ2) '(e2', σ2'), ⌜refRcoupl (prim_exec (e2, σ2) m) (lim_prim_exec (e2', σ2')) pure_eq⌝)%I)
                   (λ '((e1, σ1), (e1', σ1')), ⌜to_val e1 = None⌝ ={∅}=∗
                       ⌜refRcoupl (prim_exec (e1, σ1) (S m)) (lim_prim_exec (e1', σ1')) pure_eq⌝)%I
@@ -908,7 +908,7 @@ Section helper_lemma.
     { iIntros "Hfix %". by iMod ("H" $! ((_, _), (_, _)) with "Hfix [//]"). }
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
-    iIntros "[(% & %Hcpl & H) | [? | [? | H]]] %Hv".
+    iIntros "[(% & %Hcpl & % & H) | [? | [? | H]]] %Hv".
     - rewrite -prim_step_prim_exec.
       rewrite -bar.
       rewrite {1}/prim_step_or_val /= Hv.
@@ -974,7 +974,7 @@ Section adequacy.
         (* This is doable - LHS in the goal is equal to [dret (v, σ)] *)
         admit.
       + rewrite wp_unfold /wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "[% Hcpl]".
+        iMod ("Hwp" with "[$]") as "Hcpl".
         iModIntro.
         iPoseProof
           (exec_coupl_mono _ (λ '(e2, σ2) '(e2', σ2'), |={∅}▷=> |={∅}▷=>^n
