@@ -402,10 +402,13 @@ Section Rcoupl.
   Variable (μ1 : distr A) (μ2 : distr B).
 
   Lemma Rcoupl_trivial :
+    SeriesC μ1 = 1 ->
+    SeriesC μ2 = 1 ->
     Rcoupl μ1 μ2 (λ _ _, True).
   Proof.
+    intros Hμ1 Hμ2.
     exists (dprod μ1 μ2). split; [|done].
-    split; [apply lmarg_dprod|apply rmarg_dprod].
+    split; [apply lmarg_dprod|apply rmarg_dprod]; done.
   Qed.
 
   Lemma Rcoupl_pos_R R :
@@ -485,6 +488,41 @@ End refinement_couplings.
 
 Section ref_couplings_theory.
   Context `{Countable A, Countable B}.
+
+  (* TODO
+  Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
+    SeriesC μ1 <= SeriesC μ2 ->
+    refRcoupl μ1 μ2 (λ _ _, True).
+  Proof.
+    intros Hμ.
+    Search Rle.
+    destruct (Rle_lt_dec (SeriesC μ1) 0) as [H3 | H3].
+    + destruct H3; [pose proof (pmf_SeriesC_ge_0 μ1); lra | ].
+    eexists (distr_scal (Rinv(SeriesC μ1)) (dprod μ1 μ2) _).
+    Unshelve.
+    2:{
+      split.
+      + admit.
+      + admit.
+    }
+    split; [|done].
+    split.
+    + intro a.
+      rewrite lmarg_pmf.
+      rewrite {2}/pmf/=.
+      rewrite SeriesC_scal_l.
+      rewrite -lmarg_pmf.
+      rewrite lmarg_dprod_pmf.
+      rewrite <- Rmult_comm.
+      rewrite Rmult_assoc.
+      rewrite <- Rmult_1_r at 1.
+      apply Rmult_le_compat; auto; try lra.
+      Search Rinv.
+
+
+    [apply lmarg_dprod|apply rmarg_dprod]; done.
+  Qed.
+*)
 
   Proposition refcoupl_elim :
     forall (μ1 μ2 : distr A),
@@ -566,7 +604,8 @@ Section ref_couplings_theory.
       [ | intro p; apply SeriesC_scal_l].
       apply (Rle_trans _ (SeriesC (λ p, μ p * f p.1 a')) _); last first.
       {
-        apply SeriesC_le; [ | admit].
+        apply SeriesC_le; [ | ]; last first.
+        + rewrite SeriesC_double_prod_rl.
         intros (a & b); split; [apply Rmult_le_pos; auto | ].
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         + pose proof (pmf_pos μ (a, b)); lra.

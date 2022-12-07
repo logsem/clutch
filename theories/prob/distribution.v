@@ -804,9 +804,19 @@ Section dprod.
     - intros []. by apply Rmult_gt_0_compat.
   Qed.
 
+  Lemma dprod_mass :
+    SeriesC (dprod μ1 μ2) = (SeriesC μ1) * (SeriesC μ2).
+  Proof.
+    rewrite {1}(SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); [ | intros (a' & b') ; auto ].
+    rewrite SeriesC_double_prod_lr.
+    erewrite SeriesC_ext; [ | intro; rewrite SeriesC_scal_l; done].
+    rewrite SeriesC_scal_r.
+    reflexivity.
+  Qed.
+
 End dprod.
 
-(** * Margignals  *)
+(** * Marginals  *)
 Definition lmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr A :=
   dmap fst μ.
 
@@ -847,24 +857,37 @@ Section marginals.
   Proof. eapply ex_seriesC_double_pos_r; auto. Qed.
 
   Lemma lmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (a : A) :
-    lmarg (dprod μ1 μ2) a = μ1 a.
+    lmarg (dprod μ1 μ2) a = μ1 a * SeriesC μ2.
   Proof.
     rewrite lmarg_pmf.
-  Admitted.
+    rewrite {1}/pmf/=/dprod/=.
+    rewrite SeriesC_scal_l; auto.
+  Qed.
 
   Lemma lmarg_dprod (μ1 : distr A) (μ2 : distr B) :
+    SeriesC μ2 = 1 ->
     lmarg (dprod μ1 μ2) = μ1.
-  Proof. eapply distr_ext, lmarg_dprod_pmf. Qed.
+  Proof.
+    intro Hμ2. eapply distr_ext.
+    intro; rewrite lmarg_dprod_pmf Hμ2; lra.
+  Qed.
 
   Lemma rmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (b : B) :
-    rmarg (dprod μ1 μ2) b = μ2 b.
+    rmarg (dprod μ1 μ2) b = μ2 b * SeriesC μ1.
   Proof.
     rewrite rmarg_pmf.
-  Admitted.
+    rewrite {1}/pmf/=/dprod/=.
+    rewrite SeriesC_scal_r; lra.
+  Qed.
 
   Lemma rmarg_dprod (μ1 : distr A) (μ2 : distr B) :
+    SeriesC μ1 = 1 ->
     rmarg (dprod μ1 μ2) = μ2.
-  Proof. eapply distr_ext, rmarg_dprod_pmf. Qed.
+  Proof.
+    intro Hμ1. eapply distr_ext.
+    intro; rewrite rmarg_dprod_pmf Hμ1; lra.
+  Qed.
+
 
 End marginals.
 
@@ -932,3 +955,22 @@ Proof.
 Qed.
 
 End order.
+
+Program Definition distr_scal `{Countable A} (r : R) (μ : distr A)
+  (Hr : 0<=r /\ r * SeriesC μ <= 1) := MkDistr (λ a, r * μ a) _ _ _.
+Next Obligation.
+  intros; simpl; destruct_and?.
+  pose proof (pmf_pos μ a).
+  apply Rmult_le_pos; auto.
+Qed.
+Next Obligation.
+  intros.
+  apply ex_seriesC_scal_l.
+  done.
+Qed.
+Next Obligation.
+  intros.
+  rewrite SeriesC_scal_l.
+  destruct_and?.
+  done.
+Qed.
