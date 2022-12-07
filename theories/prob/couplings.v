@@ -604,8 +604,7 @@ Section ref_couplings_theory.
       [ | intro p; apply SeriesC_scal_l].
       apply (Rle_trans _ (SeriesC (λ p, μ p * f p.1 a')) _); last first.
       {
-        apply SeriesC_le; [ | ]; last first.
-        + rewrite SeriesC_double_prod_rl.
+        apply SeriesC_le; [ | admit ]; last first.
         intros (a & b); split; [apply Rmult_le_pos; auto | ].
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         + pose proof (pmf_pos μ (a, b)); lra.
