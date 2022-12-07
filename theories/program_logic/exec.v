@@ -91,7 +91,7 @@ Section prim_exec.
       | None, S n => dbind (λ ρ', prim_exec ρ' n) (prim_step ρ.1 ρ.2)
     end.
 
-  Lemma prim_exec_rw (ρ : cfg Λ) (n : nat) :
+  Lemma prim_exec_unfold (ρ : cfg Λ) (n : nat) :
     prim_exec ρ n =
       match to_val ρ.1, n with
       | Some v, _ => dret ρ

@@ -328,7 +328,7 @@ Section helper_lemma.
          split; [split; [ rewrite /lmarg dmap_dzero; auto | rewrite /rmarg dmap_dzero; auto ] | ].
          intros (ρ2 & ρ2') H2; simpl; auto.
          rewrite /pmf/dzero in H2; lra.
-    + rewrite prim_exec_rw /=.
+    + rewrite prim_exec_unfold /=.
       case_match.
       ++ exists (dret ((e, σ),(e, σ))).
         split ; [split; [ rewrite /lmarg dmap_dret; auto | rewrite /rmarg dmap_dret; auto ]  |  ].
