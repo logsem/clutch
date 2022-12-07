@@ -350,6 +350,49 @@ Tactic Notation "tp_alloctape" constr(j) "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" constr(j) "as" ident(j') :=
   let H := iFresh in tp_alloctape j as j' H.
 
+Lemma tac_tp_flip `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) b bs Q :
+  (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
+  nclose specN ⊆ E1 →
+  envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
+  e = fill K' (Flip #lbl:l) →
+  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (b::bs))%I →
+  e2 = fill K' (of_val #b) →
+  match envs_simple_replace i2 false
+    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ bs)%I) Δ2 with
+  | Some Δ3 => envs_entails Δ3 Q
+  | None    => False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ??? -> ? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+  rewrite /refines_right.
+  rewrite right_id.
+  rewrite assoc. rewrite -(assoc _ spec_ctx).
+  rewrite -fill_app step_flip /= // fill_app.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r.
+  apply bi.wand_intro_l.
+  rewrite (comm _ _ (l ↪ₛ bs)%I).
+  rewrite assoc.
+  rewrite (comm _ _ (l ↪ₛ bs)%I).
+  rewrite -assoc.
+  rewrite HQ. by apply bi.wand_elim_r.
+Qed.
+
+Tactic Notation "tp_flip" constr(j) :=
+  iStartProof;
+  eapply (tac_tp_flip j);
+  [iSolveTC || fail "tp_flip: cannot eliminate modality in the goal"
+  |solve_ndisj || fail "tp_flip: cannot prove 'nclose specN ⊆ ?'"
+  |iAssumptionCore || fail "tp_flip: cannot find the RHS '" j "'"
+  |tp_bind_helper
+  |iAssumptionCore || fail "tp_flip: cannot find '? ↪ₛ ?'"
+  |simpl; reflexivity || fail "tp_flip: this should not happen"
+  |pm_reduce (* new goal *)].
+
 
 (* *)
 (* (**************************) *)

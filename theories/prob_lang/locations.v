@@ -55,4 +55,8 @@ Lemma fresh_loc_is_fresh {V} (σ : gmap loc V) :
   fresh_loc σ ∉ dom σ.
 Proof. apply is_fresh. Qed.
 
+Lemma fresh_loc_eq_dom {V} (ls ls' : gmap loc V) : dom ls = dom ls' -> fresh_loc ls = fresh_loc ls'.
+  intros. rewrite /fresh_loc. by rewrite H.
+Qed.
+
 Global Opaque fresh_locs fresh_loc.

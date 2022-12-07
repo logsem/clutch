@@ -5,6 +5,7 @@ From self.prelude Require Import classical.
 From self.program_logic Require Export language.
 From self.prob Require Export distribution couplings.
 
+(** Distribution for [n]-step partial evaluation *)
 Section exec.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
@@ -33,17 +34,6 @@ Section exec.
     assert (S n = n + 1)%nat as -> by lia.
     rewrite exec_plus exec_1 //.
   Qed.
-
-  (*   Hex : PureExec P n e e' *)
-  (* H : nclose specN ⊆ E *)
-  (* ρ : cfg *)
-  (* σ0 : language.state prob_lang *)
-  (* m : nat *)
-  (* Hexec : exec m ρ (fill K e, σ0) = 1%R *)
-  (* ============================ *)
-  (* "Hspec" : spec_ctx *)
-  (* --------------------------------------□ *)
-  (* ⌜exec (n + m) ρ (fill K e', σ0) = 1%R⌝ *)
 
   Lemma exec_det_step n ρ e1 e2 σ1 σ2 :
     prim_step e1 σ1 (e2, σ2) = 1 →
@@ -87,39 +77,28 @@ End exec.
 
 Global Arguments exec {_} _ _ : simpl never.
 
-Section prim_scheduler.
+(** Distribution for evaluation ending in a value in less than [n]-step *)
+Section prim_exec.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
-  Implicit Types K : expr Λ → expr Λ.
 
-  (* This defines the step-indexed version of the intended operational semantics (i.e., only prim steps) *)
   Fixpoint prim_exec (ρ : cfg Λ) (n : nat) {struct n} : distr (cfg Λ) :=
-    match to_val ρ.1 with
-      | Some v => dret ρ
-      | None => match n with
-               | 0 => dzero
-               | S m => dbind (λ ρ', prim_exec ρ' m) (prim_step ρ.1 ρ.2)
-               end
+    match to_val ρ.1, n with
+      | Some v, _ => dret ρ
+      | None, 0 => dzero
+      | None, S n => dbind (λ ρ', prim_exec ρ' n) (prim_step ρ.1 ρ.2)
     end.
 
-  Lemma prim_exec_rw (ρ : cfg Λ) (n : nat) :
+  Lemma prim_exec_unfold (ρ : cfg Λ) (n : nat) :
     prim_exec ρ n =
-    match to_val ρ.1 with
-      | Some v => dret ρ
-      | None => match n with
-               | 0 => dzero
-               | S m => dbind (λ ρ', prim_exec ρ' m) (prim_step ρ.1 ρ.2)
-               end
-    end.
-  Proof.
-    rewrite /prim_exec.
-    destruct n; case_match; auto.
-  Qed.
-
-  (* Lemma prim_exec_Sn ρ n : *)
-  (*   prim_exec  *)
+      match to_val ρ.1, n with
+      | Some v, _ => dret ρ
+      | None, 0 => dzero
+      | None, S n => dbind (λ ρ', prim_exec ρ' n) (prim_step ρ.1 ρ.2)
+      end.
+  Proof. by destruct n. Qed.
 
   Lemma prim_exec_is_val e σ n :
     is_Some (to_val e) → prim_exec (e, σ) n = dret (e, σ).
@@ -131,18 +110,27 @@ Section prim_scheduler.
       | None => prim_step ρ.1 ρ.2
     end.
 
-  Lemma prim_step_prim_exec (ρ : cfg Λ) (n: nat) :
-    dbind (λ ρ', prim_exec ρ' n) (prim_step_or_val ρ) = prim_exec ρ (S n).
+  Lemma prim_exec_Sn (ρ : cfg Λ) (n: nat) :
+    prim_exec ρ (S n) = dbind (λ ρ', prim_exec ρ' n) (prim_step_or_val ρ).
   Proof.
     rewrite /prim_step_or_val /=. destruct ρ as [e σ]. simpl.
     destruct (to_val e) eqn:Hv=>/=; [|done].
     rewrite dret_id_left prim_exec_is_val //.
   Qed.
 
+End prim_exec.
+
+(** Limit of [prim_exec]  *)
+Section prim_exec_lim.
+  Context {Λ : language}.
+  Implicit Types ρ : cfg Λ.
+  Implicit Types e : expr Λ.
+  Implicit Types σ : state Λ.
+
   Program Definition lim_prim_exec (ρ : cfg Λ) : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec ρ n ρ')) _ _ _.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
 
-End prim_scheduler.
 
+End prim_exec_lim.

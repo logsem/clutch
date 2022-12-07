@@ -116,20 +116,6 @@ Section rules.
     by iApply "He".
   Qed.
 
-  Lemma refines_store_r E K l e e' v v' A
-    (Hmasked : nclose specN ⊆ E) :
-    IntoVal e' v' →
-    l ↦ₛ v -∗
-    (l ↦ₛ v' -∗ REL e << fill K (of_val #()) @ E : A) -∗
-    REL e << fill K (#l <- e') @ E : A.
-  Proof.
-    rewrite /IntoVal. iIntros (<-) "Hl Hlog".
-    iApply refines_step_r.
-    iIntros (k) "Hk". simpl.
-    tp_store k. iModIntro. iExists _. iFrame.
-    by iApply "Hlog".
-  Qed.
-
   Lemma refines_alloc_r E K e v t A
     (Hmasked : nclose specN ⊆ E) :
     IntoVal e v →
@@ -141,19 +127,6 @@ Section rules.
     iApply refines_step_r ; simpl.
     iIntros (K') "HK'".
     tp_alloc K' as l "Hl".
-    iModIntro. iExists _. iFrame. by iApply "Hlog".
-  Qed.
-
-  Lemma refines_alloctape_r E K t A
-    (Hmasked : nclose specN ⊆ E) :
-    (∀ α : loc, α ↪ₛ [] -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
-    -∗ REL t << fill K alloc @ E : A.
-  Proof.
-    rewrite /IntoVal.
-    iIntros "Hlog".
-    iApply refines_step_r.
-    iIntros (K') "HK'".
-    tp_alloctape K' as α "Hα".
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
@@ -170,6 +143,45 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
+  Lemma refines_store_r E K l e e' v v' A
+    (Hmasked : nclose specN ⊆ E) :
+    IntoVal e' v' →
+    l ↦ₛ v -∗
+    (l ↦ₛ v' -∗ REL e << fill K (of_val #()) @ E : A) -∗
+    REL e << fill K (#l <- e') @ E : A.
+  Proof.
+    rewrite /IntoVal. iIntros (<-) "Hl Hlog".
+    iApply refines_step_r.
+    iIntros (k) "Hk". simpl.
+    tp_store k. iModIntro. iExists _. iFrame.
+    by iApply "Hlog".
+  Qed.
+
+  Lemma refines_alloctape_r E K t A
+    (Hmasked : nclose specN ⊆ E) :
+    (∀ α : loc, α ↪ₛ [] -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
+    -∗ REL t << fill K alloc @ E : A.
+  Proof.
+    rewrite /IntoVal.
+    iIntros "Hlog".
+    iApply refines_step_r.
+    iIntros (K') "HK'".
+    tp_alloctape K' as α "Hα".
+    iModIntro. iExists _. iFrame. by iApply "Hlog".
+  Qed.
+
+  Lemma refines_flip_r E K α b bs t A
+    (Hmasked : nclose specN ⊆ E) :
+    α ↪ₛ (b :: bs)
+    -∗ (α ↪ₛ bs -∗ REL t << fill K (of_val #b) @ E : A)
+    -∗ REL t << (fill K (flip #lbl:α)) @ E : A.
+  Proof.
+    iIntros "Hα Hlog".
+    iApply refines_step_r.
+    iIntros (k) "Hk".
+    tp_flip k.
+    iModIntro. iExists _. iFrame. by iApply "Hlog".
+  Qed.
 
   (** This rule is useful for proving that functions refine each other *)
   Lemma refines_arrow_val (v v' : val) A A' :
@@ -197,7 +209,31 @@ Section rules.
     iIntros (<-) "Hlog".
     iApply refines_atomic_l; auto.
     iMod "Hlog". iModIntro.
-    iApply (wp_alloc _ _ v with "[//]"). iIntros "!>" (l) "?". by iApply "Hlog".
+    wp_alloc l. by iApply "Hlog".
+  Qed.
+
+  Lemma refines_load_l K E l q t A :
+    (|={⊤,E}=> ∃ v',
+      ▷(l ↦{q} v') ∗
+      ▷(l ↦{q} v' -∗ (REL fill K (of_val v') << t @ E : A)))%I
+    -∗ REL fill K (! #l) << t : A.
+  Proof.
+    iIntros "Hlog".
+    iApply refines_atomic_l; auto.
+    iMod "Hlog" as (v') "[Hl Hlog]". iModIntro.
+    wp_load. by iApply "Hlog".
+  Qed.
+
+  Lemma refines_store_l K E l e v' t A :
+    IntoVal e v' →
+    (|={⊤,E}=> ∃ v, ▷ l ↦ v ∗
+      ▷(l ↦ v' -∗ REL fill K (of_val #()) << t @ E : A))
+    -∗ REL fill K (#l <- e) << t : A.
+  Proof.
+    iIntros (<-) "Hlog".
+    iApply refines_atomic_l; auto.
+    iMod "Hlog" as (v) "[Hl Hlog]". iModIntro.
+    wp_store. by iApply "Hlog".
   Qed.
 
   Lemma refines_alloctape_l K E t A :
@@ -211,28 +247,16 @@ Section rules.
     iApply (wp_alloc_tape _ _ with "[//]"). iIntros "!>" (l) "?". by iApply "Hlog".
   Qed.
 
-  Lemma refines_load_l K E l q t A :
-    (|={⊤,E}=> ∃ v',
-      ▷(l ↦{q} v') ∗
-      ▷(l ↦{q} v' -∗ (REL fill K (of_val v') << t @ E : A)))%I
-    -∗ REL fill K (! #l) << t : A.
+  Lemma refines_flip_l E K α b bs t A :
+    (|={⊤,E}=> ▷ α ↪ (b :: bs)
+               ∗ ▷ (α ↪ bs -∗ REL fill K (of_val #b) << t @ E : A))
+    -∗ REL fill K (flip #lbl:α) << t : A.
   Proof.
     iIntros "Hlog".
-    iApply refines_atomic_l; auto.
-    iMod "Hlog" as (v') "[Hl Hlog]". iModIntro.
-    iApply (wp_load with "Hl"); auto.
-  Qed.
-
-  Lemma refines_store_l K E l e v' t A :
-    IntoVal e v' →
-    (|={⊤,E}=> ∃ v, ▷ l ↦ v ∗
-      ▷(l ↦ v' -∗ REL fill K (of_val #()) << t @ E : A))
-    -∗ REL fill K (#l <- e) << t : A.
-  Proof.
-    iIntros (<-) "Hlog".
-    iApply refines_atomic_l; auto.
-    iMod "Hlog" as (v) "[Hl Hlog]". iModIntro.
-    iApply (wp_store _ _ _ _ v' with "Hl"); auto.
+    iApply refines_atomic_l.
+    iMod "Hlog" as "[Hα Hlog]". iModIntro.
+    iApply (wp_flip with "Hα").
+    by iApply "Hlog".
   Qed.
 
   Lemma refines_wand E e1 e2 A A' :

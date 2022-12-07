@@ -144,89 +144,42 @@ Section rules.
     iIntros (He ?) "(#Hinv & Hαs & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
-    iInv specN as (ξₛ ρ' e0' σ0') ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
-
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-
-
-
-
-
-    (* We pick schedulers and a coupling that adds a bit to both sides *)
-
-    iExists _, _, _. iSplit.
-    { iPureIntro.
-      eapply Rcoupl_exec_state_det_prefix_r; [done|].
-      eapply Rcoupl_pos_R.
-      apply (Rcoupl_exec_exec_state_steps _ _ _ α αₛ). }
-    simpl.
-    iIntros (σ2 e2' σ2' ([-> [b [= -> ->]]] & H1 & H1' )).
-
-    (* Just some extra information in case it's useful (probably isn't...) *)
-    rewrite dret_id_right in H1.
-    rewrite exec_singleton exec_fn_unfold /= in H1'.
-
-    (* We update our resources *)
-    iMod (spec_interp_update (e0', _) with "Hspec Hspec0") as "[Hspec Hspec0]".
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* Do a coupled [state_step] on both sides  *)
+    iApply (exec_coupl_state_steps α αₛ).
+    { rewrite /= /get_active.
+      apply elem_of_list_In, in_prod;
+        apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
+    iExists _.
+    iSplit.
+    { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_state_step. }
+    iIntros (σ2 σ2' ([b [= -> ->]] & ? & ?)).
+    (* Update our resources *)
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [b]]> σ0'))
+           with "Hspec Hspec0") as "[Hspec Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
     simplify_map_eq.
     iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iFrame.
     iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
-
-    (* We close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv. iExists [], _, _, (state_upd_tapes _ _). simpl.
-      iFrame. rewrite exec_nil dret_1 //. }
-
-    (* We can now specialize our assumption with the updated resources *)
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[Hα Hαs]").
     { iExists _. iFrame. }
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "[% (% & % & %Hcpl & Hwp)]"; [done|].
-
-    (* The pure Coq-level theorem doing what we want to do is
-      [exec_coupl_state_prim] in [program_logic/exec.v] (the conclusion should
-      be phrased slighlty differently to match the current formulation in the
-      WP, though, but the right intermediate arguments are in the proof) *)
-
-    (* Let's try fetching an inhabitant of [Hcpl] - We wrap it in [Rcoupl_pos_R]
-      for now just to get some extra information, in case it might be
-      useful... *)
-    pose proof (Rcoupl_pos_R _ _ _ Hcpl) as Hcpl'.
-    eapply Rcoupl_inhabited_l in Hcpl' as [σ2 [[e2' σ2'] (?&?&?)]]; [|apply exec_state_inhabited].
-
-    (* We now have something to plug in to ["Hwp"] *)
-    iMod ("Hwp" with "[//]") as "[%Hred (%ζ2 & %ξ2 & %S & %HcplS & Hcont)]".
-    iModIntro. iSplit.
-    { iPureIntro. by eapply exec_state_reducible. }
-
-    (* The"final" scheduler is the one that combines the schedulers given
-      from the two couplings [Hcpl] and [HcplS] *)
-    iExists (ζ1 ++ ζ2), (ξ1 ++ ξ2), S.
-    iSplit; [|done].
-    iPureIntro.
-    rewrite exec_state_app exec_app.
-    rewrite -dbind_assoc.
-    (* the [dbind_assoc] rewrite for some reason unfolded [exec_state] -- will
-       mark it [simpl never] *)
-    assert (∀ a, foldlM (λ σ f, state_step σ (f σ)) a ζ2 = exec_state ζ2 a) as Heq by done.
-    setoid_rewrite Heq.
-
-    (* Now we apply the [Rcoupl_bind] rule, but this requires us to prove the
-       the "continuation coupling" for all things that satisfy [R2] ...*)
-    eapply Rcoupl_bind; [|done].
-    intros σ3 ρ HR.
-
-    (* But now we're stuck, because we only proved it for the inhabitant we
-       extracted (see [HcplS]) — so this is obviously not the right approach *)
-
-
-
- Admitted.
-
+    iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
+    iModIntro. done. 
+  Qed. 
 
 End rules.

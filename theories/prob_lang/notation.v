@@ -56,6 +56,13 @@ Moreover, if the branches do not fit on a single line, it will be printed as:
     even more stuff bla bla bla bla bla bla bla bla
   end
 *)
+Notation "'match:' e0 'with' | 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
+  (Match e0 x1%binder e1 x2%binder e2)
+  (e0, x1, e1, x2, e2 at level 200,
+   format "'[hv' 'match:'  e0  'with'  '/  ' '[' | 'InjL'  x1  =>  '/  ' e1 ']'  '/' '[' |  'InjR'  x2  =>  '/  ' e2 ']'  '/' 'end' ']'") : expr_scope.
+Notation "'match:' e0 'with' | 'InjR' x1 => e1 | 'InjL' x2 => e2 'end'" :=
+  (Match e0 x2%binder e2 x1%binder e1)
+  (e0, x1, e1, x2, e2 at level 200, only parsing) : expr_scope.
 Notation "'match:' e0 'with' 'InjL' x1 => e1 | 'InjR' x2 => e2 'end'" :=
   (Match e0 x1%binder e1 x2%binder e2)
   (e0, x1, e1, x2, e2 at level 200,
@@ -146,6 +153,13 @@ Notation NONE := (InjL (LitV LitUnit)) (only parsing).
 Notation NONEV := (InjLV (LitV LitUnit)) (only parsing).
 Notation SOME x := (InjR x) (only parsing).
 Notation SOMEV x := (InjRV x) (only parsing).
+
+Notation "'match:' e0 'with' | 'NONE' => e1 | 'SOME' x => e2 'end'" :=
+  (Match e0 BAnon e1 x%binder e2)
+  (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
+Notation "'match:' e0 'with' | 'SOME' x => e2 | 'NONE' => e1 'end'" :=
+  (Match e0 BAnon e1 x%binder e2)
+  (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
 
 Notation "'match:' e0 'with' 'NONE' => e1 | 'SOME' x => e2 'end'" :=
   (Match e0 BAnon e1 x%binder e2)

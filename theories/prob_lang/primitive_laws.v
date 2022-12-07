@@ -63,10 +63,10 @@ Implicit Types l : loc.
 (** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
-Lemma wp_rec_löb s E f x e Φ Ψ :
-  □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ s; E {{ Φ }}) -∗
-     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ s; E {{ Φ }}) -∗
-  ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ s; E {{ Φ }}.
+Lemma wp_rec_löb E f x e Φ Ψ :
+  □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
+     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
+  ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}.
 Proof.
   iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
   iApply lifting.wp_pure_step_later; first done.
@@ -75,8 +75,8 @@ Proof.
 Qed.
 
 (** Heap *)
-Lemma wp_alloc s E v :
-  {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+Lemma wp_alloc E v :
+  {{{ True }}} Alloc (Val v) @ E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -88,8 +88,8 @@ Proof.
   iIntros "!>". iFrame. by iApply "HΦ".
 Qed.
 
-Lemma wp_load s E l dq v :
-  {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
+Lemma wp_load E l dq v :
+  {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -100,8 +100,8 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_store s E l v' v :
-  {{{ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
+Lemma wp_store E l v' v :
+  {{{ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ E
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
@@ -115,8 +115,8 @@ Proof.
 Qed.
 
 (** Tapes  *)
-Lemma wp_alloc_tape s E :
-  {{{ True }}} AllocTape @ s; E {{{ α, RET LitV (LitLbl α); α ↪ [] }}}.
+Lemma wp_alloc_tape E :
+  {{{ True }}} AllocTape @ E {{{ α, RET LitV (LitLbl α); α ↪ [] }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -128,8 +128,8 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_flip s E α b bs :
-  {{{ ▷ α ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl α) @ s; E
+Lemma wp_flip E α b bs :
+  {{{ ▷ α ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl α) @ E
   {{{ RET LitV (LitBool b); α ↪ bs }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
@@ -144,8 +144,8 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_flip_empty s E α :
-  {{{ ▷ α ↪ [] }}} Flip (Val $ LitV $ LitLbl α) @ s; E
+Lemma wp_flip_empty E α :
+  {{{ ▷ α ↪ [] }}} Flip (Val $ LitV $ LitLbl α) @ E
   {{{ b, RET LitV (LitBool b); α ↪ [] }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
@@ -153,6 +153,7 @@ Proof.
   iIntros (σ1) "[Hh Ht] !# /=".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   iSplit; [by eauto with head_step|].
+  Unshelve.
   Unshelve. 2: { exact inhabitant. }
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iFrame. iModIntro. by iApply "HΦ".

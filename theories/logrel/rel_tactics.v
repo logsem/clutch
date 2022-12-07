@@ -454,15 +454,84 @@ Tactic Notation "rel_alloctape_r" ident(l) "as" constr(H) :=
   [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
   |iIntros (l) H; rel_finish  (** new goal *)].
 
-Tactic Notation "rel_alloc_r" :=
+Tactic Notation "rel_alloctape_r" :=
   let l := fresh in
   let H := iFresh "H" in
-  rel_alloc_r l as H.
+  rel_alloctape_r l as H.
 
-Tactic Notation "rel_alloc_l" :=
+Tactic Notation "rel_alloctape_l" :=
   let l := fresh in
   let H := iFresh "H" in
-  rel_alloc_l l as H.
+  rel_alloctape_l l as H.
+
+Lemma tac_rel_flip_l `{!prelocGS Σ} K ℶ1 ℶ2 i1 (α : loc) e t tres A b bs :
+  t = fill K (Flip (#lbl: α)) →
+  envs_lookup i1 ℶ1 = Some (false, α ↪ (b::bs))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ bs)) ℶ1 = Some ℶ2 →
+  tres = fill K (of_val #b) →
+  envs_entails ℶ2 (refines ⊤ tres e A) →
+  envs_entails ℶ1 (refines ⊤ t e A).
+Proof.
+  rewrite envs_entails_unseal. iIntros (???? Hg).
+  subst t tres.
+  rewrite envs_simple_replace_sound //; simpl.
+  rewrite right_id.
+  rewrite Hg.
+  iIntros "(Hα & Hlog)".
+  rewrite -(refines_flip_l _ K α b bs) //.
+  iModIntro.
+  iFrame.
+Qed.
+
+Lemma tac_rel_flip_r `{!prelocGS Σ} K ℶ1 ℶ2 E i1 (l : loc) e t tres A b bs :
+  t = fill K (Flip (#lbl: l)) →
+  nclose specN ⊆ E →
+  envs_lookup i1 ℶ1 = Some (false, l ↪ₛ (b::bs))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (l ↪ₛ bs)) ℶ1 = Some ℶ2 →
+  tres = fill K (of_val #b) →
+  envs_entails ℶ2 (refines E e tres A) →
+  envs_entails ℶ1 (refines E e t A).
+Proof.
+  rewrite envs_entails_unseal. iIntros (????? Hg).
+  subst t tres.
+  rewrite envs_simple_replace_sound //; simpl.
+  rewrite right_id.
+  rewrite (refines_flip_r E K) //.
+  rewrite Hg.
+  apply bi.wand_elim_l.
+Qed.
+
+Tactic Notation "rel_flip_l" :=
+  let solve_mapsto _ :=
+    let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
+    iAssumptionCore || fail "rel_flip_l: cannot find" α "↪ ?" in
+  rel_pures_l;
+  first
+    [rel_reshape_cont_l ltac:(fun K e' =>
+       eapply (tac_rel_flip_l K); first reflexivity)
+    |fail 1 "rel_flip_l: cannot find 'Flip"];
+  (* the remaining goals are from tac_rel_flip_l (except for the first one, which has already been solved by this point) *)
+  [solve_mapsto ()
+  |pm_reflexivity || fail "rel_flip_l: this should not happen O-:"
+  |reflexivity
+  |rel_finish  (** new goal *)].
+
+
+Tactic Notation "rel_flip_r" :=
+  let solve_mapsto _ :=
+    let l := match goal with |- _ = Some (_, (?l ↪ₛ _)%I) => l end in
+    iAssumptionCore || fail "rel_flip_r: cannot find" l "↪ₛ ?" in
+  rel_pures_r;
+  first
+    [rel_reshape_cont_r ltac:(fun K e' =>
+       eapply (tac_rel_flip_r K); first reflexivity)
+    |fail 1 "rel_flip_r: cannot find 'Flip'"];
+  (* the remaining goals are from tac_rel_flip_r (except for the first one, which has already been solved by this point) *)
+  [solve_ndisj || fail "rel_flip_r: cannot prove 'nclose specN ⊆ ?'"
+  |solve_mapsto ()
+  |pm_reflexivity || fail "rel_flip_r: this should not happen O-:"
+  |reflexivity
+  |rel_finish  (** new goal *)].
 
 
 (* The handling of beta-reductions is special because it also unlocks
