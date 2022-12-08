@@ -5,12 +5,12 @@ From self.logrel Require Import model rel_rules rel_tactics.
 From self.examples Require Import lock.
 
 Definition lazy α : expr :=
-  let:"s" := ref NONE in
+  let:"s" := ref NONEV in
   let: "lk" := newlock #() in
   (λ:"_u",
     acquire "lk" ;;
     let:"r" := match: !"s" with
-               | NONE => let: "b" := flip #lbl:α in
+               | NONE => let: "b" := flip α in
                          "s" <- SOME "b" ;;
                          "b"
                | SOME "b" => "b" end
@@ -19,7 +19,7 @@ Definition lazy α : expr :=
     "r").
 
 Definition eager α : expr :=
-  let:"b" := flip #lbl:α in
+  let:"b" := flip α in
   (λ:"_u", "b").
 
 Section proofs.
@@ -29,12 +29,12 @@ Section proofs.
   Definition coinN := nroot.@"coins".
 
   (* Warmup: the flips have already been resolved. *)
-  Lemma lazy_eager_refinement α β b bs bs' :
-    (* TODO: should instead assume that REL α << αₛ : lrel_tape *)
+  Lemma lazy_eager_refinement e1 e2 α β b bs bs' :
+    e1 = #lbl:α -> e2 = #lbl:β ->
     α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
-    -∗ REL lazy α << eager β : lrel_unit → lrel_bool.
+    -∗ REL lazy e1 << eager e2 : lrel_unit → lrel_bool.
   Proof using lockG0 prelocGS0 Σ.
-    iIntros "[Hα Hβ]". rewrite /lazy /eager.
+    iIntros (-> ->) "[Hα Hβ]". rewrite /lazy /eager.
     rel_alloc_l l as "Hl" ; rel_pures_l ; rel_flip_r.
     rel_apply_l (refines_newlock_l coinN
                    (l ↦ NONEV ∗ α ↪ (b::bs) ∨ l ↦ SOMEV #b)%I
@@ -52,11 +52,36 @@ Section proofs.
       rel_pures_l ; rel_values.
   Qed.
 
-  Lemma eager_lazy_refinement α β b bs bs' :
-    α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
-    -∗ REL eager α << lazy β : lrel_unit → lrel_bool.
+  Definition lazy' : expr :=
+    let: "α" := alloc in lazy "α".
+
+  Definition eager' : expr :=
+    let: "α" := alloc in eager "α".
+
+  Lemma lazy_eager_refinement' :
+    ⊢ REL lazy' << eager' : lrel_unit → lrel_bool.
   Proof using lockG0 prelocGS0 Σ.
-    iIntros "[Hα Hβ]". rewrite /lazy /eager.
+    rewrite /lazy' /eager'.
+    rel_alloctape_l α as "Hα".
+    rel_alloctape_r β as "Hβ".
+    rel_pures_l ; rel_pures_r.
+    iApply refines_couple_tapes ; [ by unfold lazy | iFrame ].
+    iIntros "(%b & Hβ & Hα)".
+    iApply lazy_eager_refinement ; auto ; iFrame.
+  Qed.
+
+  Lemma lazy_eager_refinement'' α β :
+    (REL α << β : lrel_tape)
+      ⊢ REL lazy α << eager β : lrel_unit → lrel_bool.
+  Proof using lockG0 prelocGS0 Σ.
+  Admitted.
+
+  Lemma eager_lazy_refinement e1 e2 α β b bs bs' :
+    e1 = #lbl:α -> e2 = #lbl:β ->
+    α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
+    -∗ REL eager e1 << lazy e2 : lrel_unit → lrel_bool.
+  Proof using lockG0 prelocGS0 Σ.
+    iIntros (-> ->) "[Hα Hβ]". rewrite /lazy /eager.
     rel_alloc_r l as "Hl" ; rel_pures_r ; rel_flip_l.
     rel_apply_r (refines_newlock_r).
     iIntros (lk) "Hlk".
@@ -80,6 +105,17 @@ Section proofs.
     all: rel_apply_r (refines_release_r with "Hlk [-]") ; iIntros "Hlk" ;
       rel_pures_r ; rel_values.
     all: iMod ("Hclose" with "[Hlk Hl]") ; [iFrame | eauto].
-Qed.
+  Qed.
+
+  Lemma eager_lazy_refinement' :
+    ⊢ REL eager' << lazy' : lrel_unit → lrel_bool.
+  Proof using lockG0 prelocGS0 Σ.
+    rewrite /lazy' /eager'.
+    rel_alloctape_l α as "Hα" ; rel_alloctape_r β as "Hβ".
+    rel_pures_l ; rel_pures_r.
+    iApply refines_couple_tapes ; [ by unfold lazy | iFrame ].
+    iIntros "(%b & Hβ & Hα)".
+    iApply eager_lazy_refinement ; auto ; iFrame.
+  Qed.
 
 End proofs.
