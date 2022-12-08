@@ -103,6 +103,30 @@ Section fin_maps.
 
 End fin_maps.
 
+Section list.
+  Context {A B : Type}.
+
+  Lemma elem_of_list_prod l1 l2 (a : A) (b : B) :
+    (a, b) ∈ list_prod l1 l2 ↔ a ∈ l1 ∧ b ∈ l2.
+  Proof. rewrite !elem_of_list_In. apply in_prod_iff. Qed.
+
+  Lemma elem_of_list_prod_1 l1 l2 (a : A) (b : B) :
+    (a, b) ∈ list_prod l1 l2 → a ∈ l1 ∧ b ∈ l2.
+  Proof. apply elem_of_list_prod. Qed.
+
+  Lemma elem_of_list_prod_1_fst l1 l2 (a : A) (b : B) :
+    (a, b) ∈ list_prod l1 l2 → a ∈ l1.
+  Proof. apply elem_of_list_prod_1. Qed.
+
+  Lemma elem_of_list_prod_1_snd l1 l2 (a : A) (b : B) :
+    (a, b) ∈ list_prod l1 l2 → a ∈ l1.
+  Proof. apply elem_of_list_prod_1. Qed.
+
+  Lemma elem_of_list_prod_2 l1 l2 (a : A) (b : B) :
+    a ∈ l1 ∧ b ∈ l2 → (a, b) ∈ list_prod l1 l2.
+  Proof. apply elem_of_list_prod. Qed.
+
+End list.
 
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
   match type of H with

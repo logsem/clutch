@@ -30,3 +30,19 @@ You want to sample k elements from a set of n elements, but you do not know n a 
 To see why this algorithm is correct, one perspective is to see that this is equivalent to the following non-streaming algorithm: go through the whole set, assigning each a random number in [0, 1]. Then sort the set using the random numbers as the ordering, and then return the first k elements of the sorted array.
 
 We could prove this equivalence as a refinement. The only caveat is that instead of uniform [0,1] random samples, we could instead use a large bounded random integer (say, 128 bits). So there's a small probability of collision, in which case we might return more than k elements. But you could always imagine running it in a loop if you happen to get more than k.
+
+## High level transformation
+Can't remember if we've discussed this explicitly, but another nice simple "demo" for our framework is to show that our logical relation validates the equivalence of certain high-level transformations/rewritings that you could imagine a compiler doing: e.g. we can prove
+```
+let x = flip() in 
+let y = f() in
+...
+is equivalent to
+
+let y = f() in
+let x = flip() in 
+...
+```
+for f :  unit -> A
+
+that kind of commuting result has been done for "statistical" probabilistic programming languages in the work of Staton, or with logical relations in that paper with Wand and Culpepper and others, but it's nice that we can do it too in our language (which, while simpler in terms of probabilistic constructs, also has the complexity of state)

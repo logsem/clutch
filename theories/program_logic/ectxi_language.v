@@ -21,7 +21,7 @@ Section ectxi_language_mixin.
 
   Context (head_step  : expr → state → distr (expr * state)).
   Context (state_step : state → state_idx → distr state).
-  Context (get_active : state → state_idx).
+  Context (get_active : state → list state_idx).
 
   Record EctxiLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
@@ -29,7 +29,10 @@ Section ectxi_language_mixin.
     mixin_val_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None;
     mixin_state_step_head_not_stuck e σ σ' α :
       state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0);
-    mixin_state_step_inhabited σ α : SeriesC (state_step σ α) > 0;
+    mixin_state_step_mass σ α :
+      α ∈ get_active σ → SeriesC (state_step σ α) = 1;
+    mixin_head_step_mass e σ :
+      (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1;
 
     mixin_fill_item_val Ki e : is_Some (to_val (fill_item Ki e)) → is_Some (to_val e);
     (** [fill_item] is always injective on the expression for a fixed
@@ -87,7 +90,8 @@ Structure ectxiLanguage := EctxiLanguage {
   get_active : state → list state_idx;
 
   ectxi_language_mixin :
-    EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step
+    EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord
+      head_step state_step get_active
 }.
 
 #[global] Existing Instance expr_eqdec.
@@ -199,13 +203,14 @@ Section ectxi_language.
   Qed.
 
   Definition ectxi_lang_ectx_mixin :
-    EctxLanguageMixin of_val to_val [] (flip (++)) fill decomp head_step state_step.
+    EctxLanguageMixin of_val to_val [] (flip (++)) fill decomp head_step state_step get_active.
   Proof.
     assert (fill_val : ∀ K e, is_Some (to_val (fill K e)) → is_Some (to_val e)).
     { intros K. induction K as [|Ki K IH]=> e //=. by intros ?%IH%fill_item_val. }
     assert (fill_not_val : ∀ K e, to_val e = None → to_val (fill K e) = None).
     { intros K e. rewrite !eq_None_not_Some. eauto. }
     split.
+    - apply ectxi_language_mixin.
     - apply ectxi_language_mixin.
     - apply ectxi_language_mixin.
     - apply ectxi_language_mixin.

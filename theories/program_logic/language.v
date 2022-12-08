@@ -27,12 +27,12 @@ Section language_mixin.
     (** [state_step] preserves reducibility *)
     mixin_state_step_not_stuck e σ σ' α :
       state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0);
-    (** [state_step] is always inhabited *)
-    mixin_state_step_inhabited σ α : SeriesC (state_step σ α) > 0
-    (* N.B. The "inhabited" requirement can probably be relaxed if we restrict
-       [state_scheduler]s only to pick labels for which [state_step] is
-       inhabited - in [prob_lang] this would require [state_step] to only add
-       bits to tapes that have been allocated *)
+    (** The mass of active [state_step]s is 1 *)
+    mixin_state_step_mass σ α :
+      α ∈ get_active σ → SeriesC (state_step σ α) = 1;
+    (** The mass of reducible [prim_step]s is 1 *)
+    mixin_prim_step_mass e σ :
+      (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1;
   }.
 End language_mixin.
 
@@ -55,7 +55,7 @@ Structure language := Language {
   state_step : state → state_idx → distr state;
   get_active : state → list state_idx;
 
-  language_mixin : LanguageMixin of_val to_val prim_step state_step
+  language_mixin : LanguageMixin of_val to_val prim_step state_step get_active
 }.
 
 Bind Scope expr_scope with expr.
@@ -66,6 +66,7 @@ Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments state_step {_}.
 Global Arguments prim_step {_} _ _.
+Global Arguments get_active {_} _.
 
 #[global] Existing Instance expr_eqdec.
 #[global] Existing Instance state_eqdec.
@@ -79,21 +80,29 @@ Canonical Structure exprO Λ := leibnizO (expr Λ).
 
 Definition cfg (Λ : language) := (expr Λ * state Λ)%type.
 
+Definition fill_lift {Λ} (K : expr Λ → expr Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
+  λ '(e, σ), (K e, σ).
+
+Global Instance inj_fill_lift {Λ : language} (K : expr Λ → expr Λ) :
+  Inj (=) (=) K →
+  Inj (=) (=) (fill_lift K).
+Proof. by intros ? [] [] [=->%(inj _) ->]. Qed.
+
 Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
   fill_not_val e :
     to_val e = None → to_val (K e) = None;
   fill_inj : Inj (=) (=) K;
-  fill_dbind e1 σ1 :
+  fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step (K e1) σ1 = dbind (λ '(e2, σ2), dret (K e2, σ2)) (prim_step e1 σ1)
+    prim_step (K e1) σ1 = dmap (λ '(e2, σ2), (K e2, σ2)) (prim_step e1 σ1)
 }.
 
 #[global] Existing Instance fill_inj.
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
-Definition stuckness_to_atomicity (s : stuckness) : atomicity :=
-  if s is MaybeStuck then StronglyAtomic else WeaklyAtomic.
+(* Definition stuckness_to_atomicity (s : stuckness) : atomicity := *)
+(*   if s is MaybeStuck then StronglyAtomic else WeaklyAtomic. *)
 
 Section language.
   Context {Λ : language}.
@@ -110,7 +119,10 @@ Section language.
   Lemma state_step_not_stuck e σ σ' α :
     state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0).
   Proof. apply language_mixin. Qed.
-  Lemma state_step_inhabited σ α : SeriesC (state_step σ α) > 0.
+  Lemma state_step_mass σ α : α ∈ get_active σ → SeriesC (state_step σ α) = 1.
+  Proof. apply language_mixin. Qed.
+  Lemma prim_step_mass e σ :
+    (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1.
   Proof. apply language_mixin. Qed.
 
   Definition reducible (e : expr Λ) (σ : state Λ) :=
@@ -174,7 +186,7 @@ Section language.
     prim_step (K e1) σ1 (K e2, σ2) > 0.
   Proof.
     intros Hs.
-    rewrite fill_dbind; [|by eapply val_stuck].
+    rewrite fill_dmap; [|by eapply val_stuck].
     apply dbind_pos_support. eexists (_,_). split; [|done].
     rewrite dret_1_1 //. lra.
   Qed.
@@ -183,25 +195,17 @@ Section language.
     to_val e1' = None → prim_step (K e1') σ1 (e2, σ2) > 0 →
     ∃ e2', e2 = K e2' ∧ prim_step e1' σ1 (e2', σ2) > 0.
   Proof.
-    intros Hv. rewrite fill_dbind //.
+    intros Hv. rewrite fill_dmap //.
     intros ([e1 σ1'] & [=]%dret_pos & Hstep)%dbind_pos_support.
     subst. eauto.
   Qed.
-
-  Local Definition fill_lift K `{!LanguageCtx K} : (expr Λ * state Λ) → (expr Λ * state Λ) :=
-    λ '(e, σ), (K e, σ).
-
-  Instance inj_fill `{!LanguageCtx K} : Inj eq eq (fill_lift K).
-  Proof. intros [] [] [=<-%(inj _) ->]=>//. Qed.
 
   Lemma fill_step_prob e1 σ1 e2 σ2 `{!LanguageCtx K} :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (K e1) σ1 (K e2, σ2).
   Proof.
-    intros Hv. rewrite fill_dbind //.
-    rewrite -dbind_dret_pmf_map.
-    apply dbind_pmf_ext; eauto.
-    eauto. by intros [] [].
+    intros Hv. rewrite fill_dmap //.
+    by erewrite (dmap_elem_eq _ (e2, σ2) _ (λ '(e0, σ0), (K e0, σ0))).
   Qed.
 
   Lemma reducible_fill `{!@LanguageCtx Λ K} e σ :
@@ -213,8 +217,8 @@ Section language.
     to_val e = None → reducible (K e) σ → reducible e σ.
   Proof.
     intros ? [[e1 σ1] Hstep]; unfold reducible.
-    rewrite fill_dbind // in Hstep.
-    apply dbind_pos_support in Hstep as ([e1' σ2] & [=]%dret_pos & Hstep).
+    rewrite fill_dmap // in Hstep.
+    apply dmap_pos in Hstep as ([e1' σ2] & ? & Hstep).
     eauto.
   Qed.
   Lemma state_step_reducible e σ σ' α :

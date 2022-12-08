@@ -29,7 +29,10 @@ Section ectx_language_mixin.
     mixin_val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None;
     mixin_state_step_head_not_stuck e σ σ' α :
       state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0);
-    mixin_state_step_inhabited σ α : SeriesC (state_step σ α) > 0;
+    mixin_state_step_mass σ α :
+      α ∈ get_active σ → SeriesC (state_step σ α) = 1;
+    mixin_head_step_mass e σ :
+      (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1;
 
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
@@ -94,7 +97,8 @@ Structure ectxLanguage := EctxLanguage {
   get_active : state → list state_idx;
 
   ectx_language_mixin :
-    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp head_step state_step
+    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp
+      head_step state_step get_active
 }.
 
 #[global] Existing Instance expr_eqdec.
@@ -130,6 +134,9 @@ Section ectx_language.
   Proof. apply ectx_language_mixin. Qed.
   Lemma state_step_head_not_stuck e σ σ' α :
     state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
+  Proof. apply ectx_language_mixin. Qed.
+  Lemma head_step_mass e σ :
+    (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
   Proof. apply ectx_language_mixin. Qed.
   Lemma fill_empty e : fill empty_ectx e = e.
   Proof. apply ectx_language_mixin. Qed.
@@ -169,50 +176,65 @@ Section ectx_language.
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
-  Definition prim_step (e1 : expr Λ) (σ1 : state Λ) : distr (expr Λ * state Λ) :=
-    let '(K, e1') := decomp e1 in
-    '(e2', σ2) ← head_step e1' σ1; dret (fill K e2', σ2).
-
-  Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
+  Local Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
     λ '(e, σ), (fill K e, σ).
+
+  Local Lemma fill_lift_comp (K1 K2 : ectx Λ) :
+    fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
+  Proof.
+    extensionality ρ. destruct ρ.
+    rewrite /fill_lift -fill_comp //=.
+  Qed.
+
+  Local Lemma fill_lift_empty :
+    fill_lift empty_ectx = (λ ρ, ρ).
+  Proof.
+    extensionality ρ. destruct ρ.
+    rewrite /fill_lift fill_empty //.
+  Qed.
 
   Instance inj_fill (K : ectx Λ) : Inj eq eq (fill_lift K).
   Proof. intros [] [] [=<-%(inj _) ->]=>//. Qed.
 
+  Definition prim_step (e1 : expr Λ) (σ1 : state Λ) : distr (expr Λ * state Λ) :=
+    let '(K, e1') := decomp e1 in
+    dmap (fill_lift K) (head_step e1' σ1).
+
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
-  Definition ectx_lang_mixin : LanguageMixin (@of_val Λ) to_val prim_step state_step.
+  Definition ectx_lang_mixin : LanguageMixin (@of_val Λ) to_val prim_step state_step get_active.
   Proof.
     split.
     - apply ectx_language_mixin.
     - apply ectx_language_mixin.
     - intros e1 σ1 [e2 σ2] =>/=. rewrite /prim_step.
       destruct (decomp e1) as [K e1'] eqn:Heq.
-      intros [[e2' σ2'] [_ Hs]]%dbind_pos_support.
+      intros [[e2' σ2'] [_ Hs]]%dmap_pos.
       rewrite -(decomp_fill _ _ _ Heq).
-      apply val_head_stuck in Hs.
-      by eapply fill_not_val.
+      eapply fill_not_val.
+      by eapply val_head_stuck.
     - intros e1 σ1 σ1' α. rewrite /prim_step.
       destruct (decomp e1) as [K e1'] eqn:Heq.
       intros Hs. split.
-      + intros [[e2 σ2] [[e2' σ2'] [[= ? <-]%dret_pos Hh]]%dbind_pos_support].
+      + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
         assert (∃ ρ, head_step e1' σ1' ρ > 0) as [[e2'' σ2''] Hs'].
         { erewrite <-state_step_head_not_stuck; [|done]. eauto. }
         eexists (fill K e2'', σ2'').
-        eapply dbind_pos_support.
-        eexists (_, _).
-        split; [|done].
-        rewrite dret_1_1 //. lra.
-      + intros [[e2 σ2] [[e2' σ2'] [[= ? <-]%dret_pos Hh]]%dbind_pos_support].
+        eapply dmap_pos.
+        eexists (_, _). eauto.
+      + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
         assert (∃ ρ, head_step e1' σ1 ρ > 0) as [[e2'' σ2''] Hs'].
         { erewrite state_step_head_not_stuck; [|done]. eauto. }
         eexists (fill K e2'', σ2'').
-        eapply dbind_pos_support.
-        eexists (_, _).
-        split; [|done].
-        rewrite dret_1_1 //. lra.
+        eapply dmap_pos.
+        eexists (_, _); eauto.
     - apply ectx_language_mixin.
+    - intros e σ [[e' σ'] Hs]. revert Hs. rewrite /prim_step.
+      destruct (decomp e) as [K e1'] eqn:Heq.
+      intros [[e2' σ2'] [? Hs]]%dmap_pos.
+      assert (SeriesC (head_step e1' σ) = 1) as Hsum; [eauto using head_step_mass|].
+      rewrite -dmap_mass //.
   Qed.
 
   Canonical Structure ectx_lang : language := Language (get_active := get_active) ectx_lang_mixin.
@@ -233,7 +255,6 @@ Section ectx_language.
   Qed.
 
   (** The decomposition into head redex and context is unique.
-
       In all sensible instances, [comp_ectx K' empty_ectx] will be the same as
       [K'], so the conclusion is [K = K' ∧ e = e'], but we do not require a law
       to actually prove that so we cannot use that fact here. *)
@@ -254,18 +275,17 @@ Section ectx_language.
 
   Lemma fill_prim_step_dbind K e1 σ1 :
     to_val e1 = None →
-    prim_step (fill K e1) σ1 = dbind (λ '(e2, σ2), dret (fill K e2, σ2)) (prim_step e1 σ1).
+    prim_step (fill K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1).
   Proof.
     intros Hval. rewrite /prim_step.
     destruct (decomp e1) as [K1 e1'] eqn:Heq.
     destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
     apply (decomp_fill_comp K) in Heq; [|done].
     rewrite Heq in Heq'; simplify_eq.
-    rewrite -dbind_assoc.
-    eapply distr_ext. intros ρ.
-    eapply dbind_pmf_ext; [|done|done].
-    intros [e' σ'] [e'' σ''].
-    rewrite dret_id_left -fill_comp //.
+    rewrite dmap_comp.
+    apply dmap_eq; [|done].
+    intros [] ? =>/=.
+    f_equal. rewrite -fill_comp //.
   Qed.
 
   Local Lemma fill_prim_step K e1 σ1 e2 σ2 :
@@ -275,12 +295,12 @@ Section ectx_language.
     intros Hval. rewrite /prim_step.
     destruct (decomp e1) as [K1 e1'] eqn:Heq.
     destruct (decomp (fill _ e1)) as [K1' e1''] eqn:Heq'.
-    rewrite /= /dbind_pmf. eapply SeriesC_ext.
-    intros [e σ].
     apply (decomp_fill_comp K) in Heq; [|done].
     rewrite Heq in Heq'; simplify_eq.
-    rewrite -fill_comp.
-    rewrite (dret_pmf_map (fill_lift K) (fill K1 e, σ) (e2, σ2)) //.
+    rewrite fill_lift_comp -/fill_lift.
+    rewrite -dmap_comp.
+    replace (fill K e2, σ2) with (fill_lift K (e2, σ2)); [|done].
+    rewrite (dmap_elem_eq (dmap _ _) (e2, σ2)) //.
   Qed.
 
   Lemma head_prim_step_pmf_eq e1 σ1 ρ :
@@ -294,18 +314,8 @@ Section ectx_language.
     destruct Hred as [ρ' Hs].
     destruct (head_ctx_step_val _ _ _ _ Hs) as [| ->].
     - assert (K = empty_ectx) as -> by eauto using decomp_val_empty.
-      assert ((head_step e1' σ1 ≫= (λ '(e2', σ0), dret (fill empty_ectx e2', σ0))) ρ
-              = (head_step e1' σ1 ≫= dret) ρ) as ->.
-      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
-      rewrite fill_empty in Hs.
-      rewrite dret_id_right_pmf //.
-      rewrite fill_empty //.
-    - assert ((head_step e1' σ1 ≫= (λ '(e2', σ0), dret (fill empty_ectx e2', σ0))) ρ
-              = (head_step e1' σ1 ≫= dret) ρ) as ->.
-      { apply dbind_pmf_ext; [|done|done]. intros [] ?. rewrite fill_empty //. }
-      rewrite fill_empty in Hs.
-      rewrite dret_id_right_pmf //.
-      rewrite fill_empty //.
+      rewrite fill_lift_empty fill_empty dmap_id //=.
+    - rewrite fill_lift_empty fill_empty dmap_id //=.
   Qed.
 
   Lemma head_prim_step_eq e1 σ1 :
@@ -328,7 +338,7 @@ Section ectx_language.
     - rewrite /= /prim_step. intros Hs.
       destruct (decomp e1) as [K e1'] eqn:Heq.
       edestruct (decomp_fill _ _ _ Heq).
-      eapply dbind_pos_support in Hs as [[] [Hr%dret_pos ?]].
+      eapply dmap_pos in Hs as [[] [[=] ?]].
       simplify_eq. do 3 eexists; eauto.
     - intros (K & e1' & e2' & Hfill1 & Hfill2 & Hs). simplify_eq.
       rewrite -fill_prim_step //; [by apply head_prim_step|].
