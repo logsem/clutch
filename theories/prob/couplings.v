@@ -524,11 +524,10 @@ Section ref_couplings_theory.
   Qed.
 *)
 
-  Proposition refcoupl_elim :
-    forall (μ1 μ2 : distr A),
-      refRcoupl μ1 μ2 (=) → (∀ a, μ1 a <= μ2 a).
+  Proposition refcoupl_elim (μ1 μ2 : distr A) :
+      (refRcoupl μ1 μ2 (=) -> (∀ a, μ1 a <= μ2 a)).
   Proof.
-    intros μ1 μ2 (μ & (HμL & HμR) & HμS) a.
+    intros (μ & (HμL & HμR) & HμS) a.
     eapply (Rle_Transitive _ (lmarg μ a) _); auto.
     rewrite <- HμR.
     rewrite lmarg_pmf rmarg_pmf.
@@ -540,6 +539,25 @@ Section ref_couplings_theory.
       pose proof (HμS H3); simplify_eq; lra ].
     }
     apply ex_seriesC_rmarg.
+  Qed.
+
+  Proposition refcoupl_from_ineq (μ1 μ2 : distr A) :
+      (∀ a, μ1 a <= μ2 a) -> refRcoupl μ1 μ2 (=).
+  Proof.
+    intro Hleq.
+    exists (ddiag μ2); split;[ split | ].
+    + intro a.
+      rewrite lmarg_pmf {2}/pmf/=.
+      rewrite SeriesC_singleton'; auto.
+    + apply distr_ext; intro.
+      rewrite rmarg_pmf {1}/pmf/=.
+      erewrite SeriesC_ext.
+      ++ rewrite <- (SeriesC_singleton a).
+         done.
+      ++ intro; case_bool_decide; case_bool_decide; simplify_eq; auto.
+    + intros (a1 & a2) Hd; simpl.
+      rewrite /pmf/= in Hd.
+      case_bool_decide; auto; lra.
   Qed.
 
   Proposition weaken_coupl (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
