@@ -453,20 +453,20 @@ Section filter.
 
 End filter.
 
-Section rearrange.
-  Context `{Countable A}.
+(* Section rearrange. *)
+(*   Context `{Countable A}. *)
 
-  (* TODO: prove this (using the [Series] version from rearrange.v)  *)
-  Lemma SeriesC_rearrange_covering (σ: A → A) (f : A → R) :
-    (* no "collisions" in [f ∘ σ] *)
-    (∀ a a', f (σ a) ≠ 0 → σ a = σ a' → a = a') →
-    (* [σ] is surjective on the support of [f] *)
-    (∀ a, f a ≠ 0 → ∃ a', σ a' = a) →
-    ex_seriesC (λ a, Rabs (f a)) →
-    SeriesC f = SeriesC (f ∘ σ).
-  Proof. Admitted.
+(*   (* TODO: prove this (using the [Series] version from rearrange.v)  *) *)
+(*   Lemma SeriesC_rearrange_covering (σ: A → A) (f : A → R) : *)
+(*     (* no "collisions" in [f ∘ σ] *) *)
+(*     (∀ a a', f (σ a) ≠ 0 → σ a = σ a' → a = a') → *)
+(*     (* [σ] is surjective on the support of [f] *) *)
+(*     (∀ a, f a ≠ 0 → ∃ a', σ a' = a) → *)
+(*     ex_seriesC (λ a, Rabs (f a)) → *)
+(*     SeriesC f = SeriesC (f ∘ σ). *)
+(*   Proof. Admitted. *)
 
-End rearrange.
+(* End rearrange. *)
 
 Section strict.
   Context `{Countable A}.

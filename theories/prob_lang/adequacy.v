@@ -7,10 +7,9 @@ From iris.prelude Require Import options.
 From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Export ghost_map.
 
-From self.program_logic Require Export language exec weakestpre.
-From self.prob_lang Require Export lang primitive_laws.
-From self.prob_lang Require Export class_instances spec_ra.
-From self.prob_lang Require Import tactics notation.
+From self.program_logic Require Import language exec weakestpre.
+From self.prob_lang Require Import
+  lang metatheory class_instances spec_ra tactics notation.
 From self.prob Require Export couplings distribution.
 Import uPred.
 

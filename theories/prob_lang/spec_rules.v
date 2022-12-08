@@ -6,7 +6,7 @@ From iris.algebra Require Import auth excl frac agree gmap list.
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import proofmode.
 From self.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Export lang notation tactics primitive_laws spec_ra exec_prob_lang.
+From self.prob_lang Require Export lang notation tactics primitive_laws spec_ra metatheory.
 
 Section rules.
   Context `{!prelocGS Σ}.
@@ -158,8 +158,8 @@ Section rules.
         apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
     iExists _.
     iSplit.
-    { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_state_step. }
-    iIntros (σ2 σ2' ([b [= -> ->]] & ? & ?)).
+    { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_state_step; by apply elem_of_dom. }
+    iIntros (σ2 σ2' ((? & ? & [b [= -> ->]]) & ? & ?)).
     (* Update our resources *)
     iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [b]]> σ0'))
            with "Hspec Hspec0") as "[Hspec Hspec0]".
@@ -179,7 +179,7 @@ Section rules.
     { iExists _. iFrame. }
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
-    iModIntro. done. 
-  Qed. 
+    iModIntro. done.
+  Qed.
 
 End rules.
