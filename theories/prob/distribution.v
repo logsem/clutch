@@ -525,7 +525,13 @@ Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr
     a ← μ; dret (f a).
 
 Section dmap.
-  Context `{Countable A, Countable B}.
+  Context `{Countable A}.
+
+  Lemma dmap_id (μ : distr A) :
+    dmap (λ x, x) μ = μ.
+  Proof. rewrite /dmap dret_id_right //. Qed.
+
+  Context `{Countable B}.
 
   Lemma dmap_dret_pmf (f : A → B) (a : A) (b : B) :
     dmap f (dret a) b = dret (f a) b.
@@ -542,6 +548,25 @@ Section dmap.
   Lemma dmap_dbind (f : A → B) (g : A → distr A) (μ : distr A) :
     dmap f (dbind g μ) = dbind (λ a, dmap f (g a)) μ.
   Proof. apply distr_ext, dmap_dbind_pmf. Qed.
+
+  Lemma dmap_comp `{Countable D} (f : A → B) (g : B → D) (μ : distr A) :
+    dmap g (dmap f μ) = dmap (g ∘ f) μ.
+  Proof.
+    rewrite /dmap.
+    rewrite -dbind_assoc.
+    apply dbind_eq; [|done].
+    intros ??. rewrite dret_id_left //.
+  Qed.
+
+  Lemma dmap_eq (f g : A → B) (μ1 μ2 : distr A) :
+    (∀ a, μ1 a > 0 → f a = g a) →
+    (∀ a, μ1 a = μ2 a) →
+    dmap f μ1 = dmap g μ2.
+  Proof.
+    intros Hfg Hμ.
+    rewrite /dmap. apply dbind_eq; [|done].
+    intros. rewrite Hfg //.
+  Qed.
 
   Lemma dmap_mass (μ : distr A) (f : A → B):
     SeriesC μ = SeriesC (dmap f μ).
@@ -564,12 +589,12 @@ Section dmap.
       exists a. rewrite dret_1_1 //. split; [lra|done].
   Qed.
 
-  Lemma dmap_eq (μ : distr A) (a : A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
+  Lemma dmap_elem_eq (μ : distr A) (a : A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
     b = f a → dmap f μ b = μ a.
   Proof. intros ->. rewrite dbind_dret_pmf_map //. Qed.
 
-  Lemma dmap_ne (μ : distr A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
-      ¬ (∃ a, μ a > 0 ∧ f a = b) → dmap f μ b = 0.
+  Lemma dmap_elem_ne (μ : distr A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
+    ¬ (∃ a, μ a > 0 ∧ f a = b) → dmap f μ b = 0.
   Proof. intros. rewrite /dmap dbind_dret_pmf_map_ne //. Qed.
 
   Lemma dmap_rearrange `{Countable A} (μ1 μ2 : distr A) (f : A → A) `{Inj A A (=) (=) f} :
