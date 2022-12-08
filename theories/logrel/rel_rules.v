@@ -282,4 +282,83 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
+
+  Lemma refines_couple_tapes e1 e2 A α αₛ bs bsₛ :
+    to_val e1 = None →
+    ((αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+       ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b]))
+       -∗ REL e1 << e2 : A)))
+    ⊢ REL e1 << e2 : A.
+  Proof.
+    iIntros (e1ev) "(Hαs & Hα & Hlog)".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs He2] /=".
+    iApply wp_couple_tapes ; auto ; iFrame.
+    iSplitR ; auto.
+    iModIntro. rewrite -fupd_wp.
+    iIntros "Hb". iApply ("Hlog" with "Hb") ; now iFrame.
+  Qed.
+
+  (* Lemma refines_couple_tapes_mask E e1 e2 A α αₛ bs bsₛ *)
+  (*   (Hmasked : nclose specN ⊆ E) : *)
+  (*   to_val e1 = None → *)
+  (*   (|={⊤,E}=> *)
+  (*      (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗ *)
+  (*      ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) *)
+  (*      -∗ REL e1 << e2 @ E : A))) *)
+  (*   ⊢ REL e1 << e2 : A. *)
+  (* Proof. *)
+  (*   iIntros (e1ev) "Hlog". *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros (K2) "Hs /=". *)
+  (*   iDestruct "Hs" as "[#Hs He2]". *)
+  (*   iApply wp_couple_tapes ; auto ; iFrame. *)
+  (*   iSplitR ; auto. *)
+  (*   iModIntro. *)
+  (*   rewrite -fupd_wp. *)
+  (*   iIntros "Hb". *)
+  (*   iSpecialize ("Hlog" with "Hb"). *)
+  (*   rewrite -fupd_wp. *)
+  (*   iApply "Hlog". *)
+  (*   rewrite /refines_right ; now iFrame. *)
+  (* Qed. *)
+
+  (*   iIntros (e1ev). *)
+  (*   iIntros "HH". *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros (K2) "Hs /=". *)
+  (*   (* iIntros "!> (Hs & Hαs & Hα & Hlog)". *) *)
+
+
+  (*   iMod ("HH"). *)
+  (*   (* unshelve iApply wp_mask_mono ; [exact E|auto|]. *) *)
+
+
+  (*   replace *)
+  (*     (|={E,⊤}=> WP fill K1 e1 {{ v, ∃ v', refines_right K2 v' ∗ A v v' }})%I *)
+  (*       with *)
+  (*       (WP fill K1 e1 @ E {{ v, ∃ v', refines_right K2 v' ∗ A v v' }})%I by admit. *)
+  (*   rewrite -wp_fupd. *)
+  (*   iMod wp_couple_tapes. *)
+
+  (*   iApply refines_wp_l. *)
+  (*   iApply wp_couple_tapes ; auto ; iFrame. *)
+  (*   iIntros "Hb". *)
+  (*   iSpecialize ("Hlog" with "Hb"). *)
+
+  (*   rewrite {1} refines_eq /refines_def. *)
+
+  (*   (* iModIntro. *) *)
+  (*   iApply wp_couple_tapes ; auto. *)
+  (*   rewrite /refines_right. *)
+  (*   iDestruct "Hs" as "[#$ Hs]". *)
+  (*   iFrame. *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   rewrite /refines_right. *)
+  (*   (* iIntros "HH". *) *)
+  (*   (* iSpecialize ("Hlog" with "HH"). *) *)
+  (*   iMod "Hlog". *)
+  (*   iExists true. *)
+
+
 End rules.
