@@ -62,7 +62,34 @@ Section helper_lemma.
 
   Lemma qux (μ1 μ2 : distr cfg) :
     Rcoupl μ1 μ2 pure_eq ↔ (dmap (λ '(e, σ), (e, σ.(heap))) μ1) = (dmap (λ '(e, σ), (e, σ.(heap))) μ2).
-  Proof. Admitted.
+  Proof.
+    split.
+    - intros (μ & ((HμL & HμR) & HμSup)).
+      rewrite <- HμL.
+      rewrite <- HμR.
+      rewrite /dmap.
+      apply distr_ext.
+      intros (e' & σ').
+      rewrite /pmf/=/dbind_pmf/=.
+      erewrite SeriesC_ext; [ | intro; rewrite lmarg_pmf; done ].
+      erewrite (SeriesC_ext (λ a : expr * state, rmarg μ a * dret (let '(e, σ) := a in (e, heap σ)) (e', σ')));
+        [ | intro; rewrite rmarg_pmf; done].
+      erewrite SeriesC_ext; [  | intro; rewrite <- SeriesC_scal_r ; done].
+      rewrite (SeriesC_double_swap (λ '(n, x), μ (n, x) * dret (let '(e, σ) := n in (e, heap σ)) (e', σ'))).
+      apply SeriesC_ext.
+      intros (e'' & σ'').
+      rewrite <- SeriesC_scal_r.
+      apply SeriesC_ext.
+      intros(e3 & σ3).
+      rewrite {2 4}/pmf/=/dret_pmf/=.
+      destruct (Rle_lt_dec (μ (e3, σ3, (e'', σ''))) 0) as [Hz | Hpos].
+      + destruct Hz as [? | H]; [ pose proof (pmf_pos μ (e3, σ3, (e'', σ''))); lra | rewrite H; lra].
+      + apply Rlt_gt in Hpos.
+        specialize (HμSup (e3, σ3, (e'', σ'')) Hpos).
+        rewrite /pure_eq/= in HμSup.
+        destruct HμSup as (-> & ->); auto.
+    - intro Heq.
+      rewrite /pmf in Heq.
 
   Lemma quux (μ1 μ2 : distr cfg) :
     refRcoupl μ1 μ2 pure_eq ↔ refRcoupl (dmap (λ '(e, σ), (e, σ.(heap))) μ1) (dmap (λ '(e, σ), (e, σ.(heap))) μ2) eq.

@@ -426,6 +426,39 @@ Section Rcoupl.
 End Rcoupl.
 
 
+
+  Proposition Rcoupl_map `{Countable A, Countable B, Countable A', Countable B'}:
+    forall (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop),
+      Rcoupl μ1 μ2 (λ a a', R (f a) (g a')) -> Rcoupl (dmap f μ1) (dmap g μ2) R.
+  Proof.
+    intros f g μ1 μ2 R Hcoupl.
+    rewrite /dmap.
+    eapply (Rcoupl_bind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a'))); auto.
+    intros a b Hab.
+    apply (Rcoupl_ret (f a) (g b) R Hab).
+  Qed.
+
+
+  (* I think this should be true, maybe it can be proven through Strassens theorem, but
+  I don't see how to do it directly
+
+  Proposition Rcoupl_from_map `{Countable A, Countable B, Countable A', Countable B'}:
+    forall (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop),
+      Rcoupl (dmap f μ1) (dmap g μ2) R -> Rcoupl μ1 μ2 (λ a a', R (f a) (g a')).
+  Proof.
+    intros f g μ1 μ2 R (μ & ((HμL & HμR) & HμSup)).
+    eexists (dprod μ1 μ2).
+    split; [split | ].
+
+    eexists (MkDistr (λ '(a, b), μ (f a , g b)) _ _ _).
+
+  Qed.
+*)
+
+
+
+
+
   (* This is a lemma about convex combinations, but it is easier to prove with couplings
      TODO: find a better place to put it in *)
   Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A -> distr B) :
@@ -437,6 +470,7 @@ End Rcoupl.
     intros b1 b2 ->.
     destruct b2; apply Rcoupl_eq.
   Qed.
+
 
 Section Rcoupl_strength.
   Context `{Countable A, Countable B, Countable D, Countable E}.
@@ -795,6 +829,9 @@ Section ref_couplings_theory.
    Admitted.
 *)
 End ref_couplings_theory.
+
+
+
 
 Section iter_couplings.
 
