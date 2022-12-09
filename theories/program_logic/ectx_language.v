@@ -176,17 +176,17 @@ Section ectx_language.
   Definition sub_redexes_are_values (e : expr Λ) :=
     ∀ K e', e = fill K e' → to_val e' = None → K = empty_ectx.
 
-  Local Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
+  Definition fill_lift (K : ectx Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
     λ '(e, σ), (fill K e, σ).
 
-  Local Lemma fill_lift_comp (K1 K2 : ectx Λ) :
+  Lemma fill_lift_comp (K1 K2 : ectx Λ) :
     fill_lift (comp_ectx K1 K2) = fill_lift K1 ∘ fill_lift K2.
   Proof.
     extensionality ρ. destruct ρ.
     rewrite /fill_lift -fill_comp //=.
   Qed.
 
-  Local Lemma fill_lift_empty :
+  Lemma fill_lift_empty :
     fill_lift empty_ectx = (λ ρ, ρ).
   Proof.
     extensionality ρ. destruct ρ.
@@ -288,7 +288,7 @@ Section ectx_language.
     f_equal. rewrite -fill_comp //.
   Qed.
 
-  Local Lemma fill_prim_step K e1 σ1 e2 σ2 :
+  Lemma fill_prim_step K e1 σ1 e2 σ2 :
     to_val e1 = None →
     prim_step e1 σ1 (e2, σ2) = prim_step (fill K e1) σ1 (fill K e2, σ2).
   Proof.
