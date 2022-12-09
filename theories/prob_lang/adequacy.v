@@ -90,6 +90,7 @@ Section helper_lemma.
         destruct HμSup as (-> & ->); auto.
     - intro Heq.
       rewrite /pmf in Heq.
+  Admitted.
 
   Lemma quux (μ1 μ2 : distr cfg) :
     refRcoupl μ1 μ2 pure_eq ↔ refRcoupl (dmap (λ '(e, σ), (e, σ.(heap))) μ1) (dmap (λ '(e, σ), (e, σ.(heap))) μ2) eq.
