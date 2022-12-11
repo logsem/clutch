@@ -299,66 +299,58 @@ Section rules.
     iIntros "Hb". iApply ("Hlog" with "Hb") ; now iFrame.
   Qed.
 
-  (* Lemma refines_couple_tapes_mask E e1 e2 A α αₛ bs bsₛ *)
-  (*   (Hmasked : nclose specN ⊆ E) : *)
-  (*   to_val e1 = None → *)
-  (*   (|={⊤,E}=> *)
-  (*      (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗ *)
-  (*      ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) *)
-  (*      -∗ REL e1 << e2 @ E : A))) *)
-  (*   ⊢ REL e1 << e2 : A. *)
-  (* Proof. *)
-  (*   iIntros (e1ev) "Hlog". *)
-  (*   rewrite refines_eq /refines_def. *)
-  (*   iIntros (K2) "Hs /=". *)
-  (*   iDestruct "Hs" as "[#Hs He2]". *)
-  (*   iApply wp_couple_tapes ; auto ; iFrame. *)
-  (*   iSplitR ; auto. *)
-  (*   iModIntro. *)
-  (*   rewrite -fupd_wp. *)
-  (*   iIntros "Hb". *)
-  (*   iSpecialize ("Hlog" with "Hb"). *)
-  (*   rewrite -fupd_wp. *)
-  (*   iApply "Hlog". *)
-  (*   rewrite /refines_right ; now iFrame. *)
-  (* Qed. *)
-
-  (*   iIntros (e1ev). *)
-  (*   iIntros "HH". *)
-  (*   rewrite refines_eq /refines_def. *)
-  (*   iIntros (K2) "Hs /=". *)
-  (*   (* iIntros "!> (Hs & Hαs & Hα & Hlog)". *) *)
-
-
-  (*   iMod ("HH"). *)
-  (*   (* unshelve iApply wp_mask_mono ; [exact E|auto|]. *) *)
-
-
-  (*   replace *)
-  (*     (|={E,⊤}=> WP fill K1 e1 {{ v, ∃ v', refines_right K2 v' ∗ A v v' }})%I *)
-  (*       with *)
-  (*       (WP fill K1 e1 @ E {{ v, ∃ v', refines_right K2 v' ∗ A v v' }})%I by admit. *)
-  (*   rewrite -wp_fupd. *)
-  (*   iMod wp_couple_tapes. *)
-
-  (*   iApply refines_wp_l. *)
-  (*   iApply wp_couple_tapes ; auto ; iFrame. *)
-  (*   iIntros "Hb". *)
-  (*   iSpecialize ("Hlog" with "Hb"). *)
-
-  (*   rewrite {1} refines_eq /refines_def. *)
-
-  (*   (* iModIntro. *) *)
-  (*   iApply wp_couple_tapes ; auto. *)
-  (*   rewrite /refines_right. *)
-  (*   iDestruct "Hs" as "[#$ Hs]". *)
-  (*   iFrame. *)
-  (*   rewrite refines_eq /refines_def. *)
-  (*   rewrite /refines_right. *)
-  (*   (* iIntros "HH". *) *)
-  (*   (* iSpecialize ("Hlog" with "HH"). *) *)
-  (*   iMod "Hlog". *)
-  (*   iExists true. *)
-
+  Lemma refines_couple_tapes_masked E e1 e2 A α αₛ bs bsₛ
+    (Hmasked : nclose specN ⊆ E) :
+    to_val e1 = None →
+    (|={⊤,E}=>
+       (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+       ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b]))
+       -∗ REL e1 << e2 @ E : A)))
+    ⊢ REL e1 << e2 : A.
+  Proof.
+    iIntros (e1ev) "H".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs He2] /= !>".
+    rewrite wp_unfold /wp_pre /= e1ev.
+    iIntros (???) "([Hh1 Ht1] & Hspec)".
+    iMod "H" as "(Hαs & Hα & H)".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* Do a coupled [state_step] on both sides  *)
+    iApply (exec_coupl_state_steps α αₛ).
+    { rewrite /= /get_active.
+      apply elem_of_list_In, in_prod;
+        apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
+    iExists _.
+    iSplit.
+    { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_state_step; by apply elem_of_dom. }
+    iIntros (σ2 σ2' ((? & ? & [b [= -> ->]]) & ? & ?)).
+    (* Update our resources *)
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [b]]> σ0'))
+           with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
+    simplify_map_eq.
+    iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
+    iSpecialize ("H" with "[Hα Hαs] [$Hs $He2]").
+    { iExists _. iFrame. }
+    iMod "H".
+    rewrite !wp_unfold /wp_pre /= e1ev.
+    iMod ("H" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
+    iModIntro. done.
+  Qed.
 
 End rules.
