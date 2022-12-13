@@ -783,6 +783,14 @@ Next Obligation.
   intro. apply SeriesC_singleton'.
 Qed.
 
+Lemma ddiag_pmf `{Countable A} (μ : distr A) (p : A * A) :
+  (ddiag μ) p = if bool_decide (p.1 = p.2) then μ p.1 else 0.
+Proof.
+  destruct p as (a1 & a2).
+  destruct (bool_decide (a1 = a2)); simpl; auto.
+Qed.
+
+
 (** * Products  *)
 Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
   MkDistr (λ '(a, b), μ1 a * μ2 b) _ _ _.
@@ -881,6 +889,8 @@ Section marginals.
     ex_seriesC (λ a, μ (a, b)).
   Proof. eapply ex_seriesC_double_pos_r; auto. Qed.
 
+
+
   Lemma lmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (a : A) :
     lmarg (dprod μ1 μ2) a = μ1 a * SeriesC μ2.
   Proof.
@@ -916,6 +926,29 @@ Section marginals.
 
 End marginals.
 
+
+Lemma ddiag_lmarg `{Countable A} (μ : distr A):
+    lmarg (ddiag μ) = μ.
+  Proof.
+    apply distr_ext.
+    intros.
+    rewrite lmarg_pmf.
+    setoid_rewrite ddiag_pmf.
+    simpl.
+    rewrite SeriesC_singleton'; auto.
+  Qed.
+
+Lemma ddiag_rmarg `{Countable A} (μ : distr A):
+    rmarg (ddiag μ) = μ.
+Proof.
+  apply distr_ext.
+  intros.
+  rewrite rmarg_pmf.
+  setoid_rewrite ddiag_pmf.
+  simpl.
+  rewrite (SeriesC_ext _ (λ a0 : A, if bool_decide (a0 = a) then μ a else 0));
+  [rewrite SeriesC_singleton; auto | intros; case_bool_decide; simplify_eq; auto ].
+Qed.
 
 Definition distr_le `{Countable A} (μ1 μ2 : distr A) : Prop :=
   ∀ a, (μ1 a <= μ2 a)%R.

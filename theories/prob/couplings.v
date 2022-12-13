@@ -500,13 +500,15 @@ Section Rcoupl_strength.
 
 End Rcoupl_strength.
 
+
+
 Section refinement_couplings.
 
-  Context `{Countable A, Countable B}.
-  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop).
+  Context `{Countable A, Countable B, Countable A', Countable B'}.
+  Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop).
 
   Definition isRefCoupl (μ : distr (A * B)) : Prop :=
-    (∀ a, μ1 a <= lmarg μ a) /\ rmarg μ = μ2.
+    lmarg μ = μ1 /\ (∀ a, rmarg μ a <= μ2 a).
 
   Definition refCoupl :=
     ∃ (μ : distr (A * B)), isRefCoupl μ.
@@ -521,7 +523,9 @@ Section refinement_couplings.
 End refinement_couplings.
 
 Section ref_couplings_theory.
-  Context `{Countable A, Countable B}.
+
+Context `{Countable A, Countable B, Countable A', Countable B'}.
+
 
   (* TODO
   Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
@@ -558,12 +562,13 @@ Section ref_couplings_theory.
   Qed.
 *)
 
-  Proposition refcoupl_elim (μ1 μ2 : distr A) :
-      (refRcoupl μ1 μ2 (=) -> (∀ a, μ1 a <= μ2 a)).
+  Proposition refcoupl_elim :
+    forall (μ1 μ2 : distr A),
+      refRcoupl μ1 μ2 (=) → (∀ a, μ1 a <= μ2 a).
   Proof.
-    intros (μ & (HμL & HμR) & HμS) a.
-    eapply (Rle_Transitive _ (lmarg μ a) _); auto.
-    rewrite <- HμR.
+    intros μ1 μ2 (μ & (HμL & HμR) & HμS) a.
+    eapply (Rle_Transitive _ (rmarg μ a) _); auto.
+    rewrite <- HμL.
     rewrite lmarg_pmf rmarg_pmf.
     eapply SeriesC_le.
     { intro .  specialize (HμS (a,n)). simpl in HμS.
@@ -575,24 +580,37 @@ Section ref_couplings_theory.
     apply ex_seriesC_rmarg.
   Qed.
 
+
   Proposition refcoupl_from_ineq (μ1 μ2 : distr A) :
       (∀ a, μ1 a <= μ2 a) -> refRcoupl μ1 μ2 (=).
   Proof.
     intro Hleq.
-    exists (ddiag μ2); split;[ split | ].
-    + intro a.
+    exists (ddiag μ1). split;[ split  | ].
+    + apply distr_ext; intro a.
       rewrite lmarg_pmf {2}/pmf/=.
       rewrite SeriesC_singleton'; auto.
-    + apply distr_ext; intro.
-      rewrite rmarg_pmf {1}/pmf/=.
-      erewrite SeriesC_ext.
-      ++ rewrite <- (SeriesC_singleton a).
-         done.
-      ++ intro; case_bool_decide; case_bool_decide; simplify_eq; auto.
-    + intros (a1 & a2) Hd; simpl.
-      rewrite /pmf/= in Hd.
+    + intro a.
+      rewrite ddiag_rmarg.
+      auto.
+    + intros p Hp.
+      rewrite ddiag_pmf in Hp.
       case_bool_decide; auto; lra.
   Qed.
+
+  Proposition is_ref_coupl_ret :
+    forall (a : A) (b : B), isRefCoupl (dret a) (dret b) (dret (a, b)).
+  Proof.
+    intros a b; split; [rewrite /lmarg dmap_dret // | rewrite /rmarg dmap_dret //].
+   Qed.
+
+  Proposition ref_coupl_ret :
+    forall (a : A) (b : B), refCoupl (dret a) (dret b).
+  Proof.
+    intros a b.
+    exists (dret (a, b)).
+    apply is_ref_coupl_ret.
+  Qed.
+
 
   Proposition weaken_coupl (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
       Rcoupl μ1 μ2 R → refRcoupl μ1 μ2 R.
@@ -602,34 +620,16 @@ Section ref_couplings_theory.
     exists μ.
     split; auto.
     split; auto.
-    rewrite HμL.
-    intros; apply Rle_refl.
+    intro.
+    rewrite HμR; lra.
   Qed.
 
 
-  Proposition is_ref_coupl_ret :
-    forall (a : A) (b : B), isRefCoupl (dret a) (dret b) (dret (a, b)).
+ Proposition refRcoupl_bind :
+    forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop),
+      (∀ a b, R a b → refRcoupl (f a) (g b) S) → refRcoupl μ1 μ2 R → refRcoupl (dbind f μ1) (dbind g μ2) S.
   Proof.
-    intros a b; split; [rewrite /lmarg dmap_dret // | rewrite /rmarg dmap_dret //].
-   Qed.
-    
-  Proposition ref_coupl_ret :
-    forall (a : A) (b : B), refCoupl (dret a) (dret b).
-  Proof.
-    intros a b.
-    exists (dret (a, b)).
-    apply is_ref_coupl_ret.
-  Qed.
-
-  Context `{Countable A', Countable B'}.
-
-  Lemma refRcoupl_bind f g μ1 μ2 (R : A → B → Prop) (S : A' → B' → Prop) :
-    refRcoupl μ1 μ2 R →
-    (∀ a b, R a b → refRcoupl (f a) (g b) S) →
-    refRcoupl (dbind f μ1) (dbind g μ2) S.
-  Proof.
-  (* TODO: Prove existence of the seriesC in the admits *)
-    intros (μ & HμC & HμS) Hfg.
+    intros f g μ1 μ2 R S Hfg (μ & HμC & HμS).
     rewrite /Rcoupl /isRcoupl in Hfg.
     (* First we rewrite Hfg to be able to use Choice *)
     assert (∀ (p : A * B), ∃ μ' : distr (A' * B'), R p.1 p.2 → (isRefCoupl (f p.1) (g p.2) μ' ∧
@@ -649,59 +649,90 @@ Section ref_couplings_theory.
     exists (dbind Ch μ); split; try split.
  (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
     fact that μ and (Ch p) are couplings *)
-    + intro a'.
+    + apply distr_ext; intro a'.
       rewrite lmarg_pmf /= /dbind_pmf
        (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l].
-      apply (Rle_trans _ (SeriesC (λ p, μ p * f p.1 a')) _); last first.
-      {
-        apply SeriesC_le; [ | admit ]; last first.
-        intros (a & b); split; [apply Rmult_le_pos; auto | ].
+      [ | intro p; apply SeriesC_scal_l]. 
+      erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
+      {intros (a & b).
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         + pose proof (pmf_pos μ (a, b)); lra.
         + rewrite Heqz; lra.
         + specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
-          specialize (HChL a').
-          rewrite (lmarg_pmf (Ch (a, b))) in HChL.
+          rewrite -HChL lmarg_pmf //=.
+          }.
+      rewrite SeriesC_double_prod_lr.
+      erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
+      [ | intro a; simpl; apply SeriesC_scal_r ].
+      erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
+      intro a.
+      destruct HμC as (Hμ1 & Hμ2).
+      rewrite <- Hμ1;
+      rewrite lmarg_pmf; auto.
+    + intro b'.
+      rewrite rmarg_pmf /dbind_pmf.
+      rewrite (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
+      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
+      [ | intro p; apply SeriesC_scal_l].
+      apply (Rle_trans _ (SeriesC (λ p, μ p * g p.2 b')) _).
+      {
+        apply SeriesC_le; [ | ]; last first.
+        + apply (ex_seriesC_le _ μ); auto.
+          intros; split.
+          ++ apply Rmult_le_pos; auto.
+          ++ rewrite <- Rmult_1_r.
+             apply Rmult_le_compat_l; auto.
+        + intros (a & b); split; [ apply Rmult_le_pos; auto | ].
+        {
+          assert (SeriesC (λ a0 : A', Ch (a, b) (a0, b')) = rmarg (Ch (a, b)) b') as ->;
+          [rewrite rmarg_pmf; auto | apply pmf_pos].
+        }
+        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
+        ++ pose proof (pmf_pos μ (a, b)); lra.
+        ++ rewrite Heqz; lra.
+        ++ specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
+          specialize (HChR b').
+          rewrite (rmarg_pmf (Ch (a, b))) in HChR.
           apply Rmult_le_compat_l; auto.
       }
-      rewrite {1}/pmf /= /dbind_pmf /=.
-      rewrite SeriesC_double_prod_lr /=.
-      apply SeriesC_le; [ | admit].
-      intro a; split; [apply Rmult_le_pos; auto | ].
-      rewrite SeriesC_scal_r.
-      apply Rmult_le_compat_r; auto.
-      destruct HμC as [HμCL HμCR].
-      specialize (HμCL a).
-      rewrite (lmarg_pmf μ) in HμCL; auto.
-    + apply distr_ext; intro b'.
-      rewrite rmarg_pmf /= /dbind_pmf
-      (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
-      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
-      [ | intro p; apply SeriesC_scal_l]. 
-      erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first.
-      {intros (a & b);
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
-        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
-        specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS);
-        rewrite -HChR rmarg_pmf //=].
-       }
-      rewrite SeriesC_double_prod_rl.
-      erewrite (SeriesC_ext _ (λ b, SeriesC (λ a : A, μ (a, b) ) * g b b'));
-      [ | intro b; simpl; apply SeriesC_scal_r].
-      erewrite (SeriesC_ext _ (λ b, (μ2 b) * g b b')); auto.
-      intro b.
-      destruct HμC as (Hμ1 & Hμ2).
-      rewrite <- Hμ2;
-      rewrite rmarg_pmf; auto.
+      rewrite {3}/pmf /= /dbind_pmf /=.
+      rewrite SeriesC_double_prod_rl /=.
+      apply SeriesC_le; [ | ]; last first.
+      {
+        apply (ex_seriesC_le _ μ2); auto.
+        intros; split.
+        + apply Rmult_le_pos; auto.
+        + rewrite <- Rmult_1_r.
+          apply Rmult_le_compat_l; auto.
+      }
+      intro b; split.
+      ++ rewrite SeriesC_scal_r.
+         apply Rmult_le_pos ; auto.
+         assert (SeriesC (λ x : A, μ (x, b)) = rmarg μ b ) as -> ; [rewrite rmarg_pmf | apply pmf_pos ]; auto.
+      ++ destruct HμC as [HμCL HμCR].
+         rewrite SeriesC_scal_r.
+         apply Rmult_le_compat_r; auto.
+         specialize (HμCR b).
+         rewrite rmarg_pmf in HμCR; auto.
     + intros (a' & b') H3; simpl.
       pose proof (dbind_pos_support Ch μ (a', b')) as (H4 & H5).
       specialize (H4 H3) as ((a0, b0) & H7 & H8).
       specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
       specialize (HCh2 (a', b') H7).
       done.
-  Admitted.
+  Qed.
+
+  Lemma dzero_ref_coupling (μ : distr B) (R: A → B → Prop):
+    refRcoupl dzero μ R.
+  Proof.
+    exists dzero; split; try split.
+    + rewrite /lmarg dmap_dzero; done.
+    + intro a.
+      rewrite rmarg_pmf {1}/pmf/=.
+      rewrite SeriesC_0; auto.
+    + rewrite /pmf/=; intros; lra.
+  Qed.
 
 
   Proposition refRcoupl_wk (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
@@ -711,128 +742,13 @@ Section ref_couplings_theory.
     exists μ; split; [split | ]; auto.
   Qed.
 
-(* Old proof attempts below, can probably be deleted
-
-  Proposition Rcoupl_bind :
-    forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (μ : distr (A * B))
-      (Ch : A * B → distr (A' * B')),
-          (∀ a b, isCoupl (f a) (g b) (Ch (a , b)) ) → isCoupl μ1 μ2 μ →
-        isCoupl (dbind f μ1) (dbind g μ2) (dbind Ch μ).
-  Proof.
-    intros f g μ1 μ2 μ Ch HCh Hμ.
-    rewrite /isCoupl.
-    rewrite /isCoupl in HCh.
-    pose proof (Choice A B (λ a b, lmarg (Ch (a, b)) = f a ∧ rmarg (Ch (a, b)) = g b)).
-
-
-    intros f g μ1 μ2 μ Ch HCh Hμ; split.
-    + (* Here we want to instantiate HCh, but A, B may be empty *)
-      apply distr_ext.
-      pose proof (ExcludedMiddle (∀ b, μ2 b = 0)) as ExM; destruct ExM as [ExM1 | ExM2].
-      ++ assert (μ2 = dzero) as Hμ2Z.
-         {apply distr_ext; auto.}
-         assert (μ = dzero) as HμZ.
-         {
-           pose proof (isCoupl_mass_r _ _ _ Hμ).
-           rewrite Hμ2Z in H3.
-           rewrite /= /dzero (SeriesC_0 (λ _ : B, 0)) in H3; auto.
-           apply SeriesC_zero_dzero; auto.
-         }
-         assert (SeriesC μ1 = 0) as HμZ'.
-         {
-           rewrite (isCoupl_mass_eq μ1 μ2 μ); auto.
-         }
-
-          (∀ p, μ p = 0).
-         {
-           destruct Hμ as (Hμm1 & Hμm2).
-           rewrite /rmarg in Hμm2.
-           rewrite /dmap in Hμm2.
-           rewrite <- Hμm2 in ExM1.
-           intro p.
-           destruct p as (a & b).
-           pose proof (ExM1 b) as ExM1b.
-           apply (distr_ext (μ ≫= (λ a : A * B, dret a.2)) μ2) in Hμm2.
-           rewrite /dbind in Hμm2.
-
-
-         }
-
-
-  Proposition coupl_bind :
-    forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B),
-      (∀ a b, coupl (f a) (g b)) → coupl μ1 μ2 → coupl (dbind f μ1) (dbind g μ2).
-  Proof.
-    intros f g μ1 μ2 Hfg (μ & Hμ).
-    rewrite /coupl in Hfg.
-    assert (∀ (p : A * B), ∃ μ : distr (A' * B'), isCoupl (f p.1) (g p.2) μ) as Hfg'; auto.
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as Ch.
-
- Proposition Rcoupl_bind :
-    forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop),
-      (exists (H : A * B → distr (A' * B')),
-          (∀ a b, isCoupl (f a) (g b) (λ x y, (R a b → S x y)) (H (a , b)) )) → coupl μ1 μ2 R →
-        coupl (dbind f μ1) (dbind g μ2) S.
-  Proof.
-    intros f g μ1 μ2 R S HCh Hμ.
-    destruct HCh as [ Ch HCh ].
-    destruct Hμ as [wit1 ( wit1m1 &  wit1m2 & wit1supp ) ].
-    exists(dbind Ch wit1).
-    split; try split.
-    3: {
-     intro p.
-     destruct p as (a' & b').
-     pose proof (Rtotal_order 0 (dbind Ch wit1 (a', b')) ) as tri.
-     destruct tri.
-     + right; simpl.
-       assert (exists a b, wit1 (a, b) > 0 /\ (Ch (a, b)) (a' , b') > 0) as Hab.
-       ++ admit.
-       ++ destruct Hab as (a & b & Hab1 & Hab2).
-          specialize (HCh a b).
-          destruct HCh as (HCh1 & HCh2 & HCh3).
-          specialize (HCh3 (a' , b')).
-          destruct HCh3; try lra.
-          specialize (wit1supp (a, b)).
-          destruct wit1supp; try lra.
-          auto.
-
-     + destruct H3; auto.
-       left.
-       pose proof (pmf_pos (dbind Ch wit1) (a', b')).
-       lra.
-
-    }.
-    + intro a'.
-      rewrite /lmarg.
-      rewrite /dmap.
-      simpl.
-      rewrite /dbind_pmf.
-      simpl.
-      rewrite /dbind_pmf.
-      assert (SeriesC (λ a : A' * B', SeriesC (λ a0 : A * B, wit1 a0 * Ch a0 a) * dret_pmf a.1 a')
-             = SeriesC (λ a : A' * B', SeriesC (λ a0 : A * B, wit1 a0 * Ch a0 a * dret_pmf a.1 a'))) as Heq1.
-      { apply SeriesC_ext. intro p. symmetry.
-        apply SeriesC_scal_r.}
-     rewrite Heq1.
-      assert (SeriesC (λ a : A' * B', SeriesC (λ a0 : A * B, wit1 a0 * Ch a0 a * dret_pmf a.1 a'))
-             = SeriesC (λ a0 : A * B, SeriesC (λ a : A' * B', wit1 a0 * Ch a0 a * dret_pmf a.1 a'))) as Heq2.
-      { apply (SeriesC_double_swap (λ p, wit1 p.2 * Ch p.2 p.1 * dret_pmf p.1.1 a' )).}
-      rewrite Heq2.
-      assert (SeriesC (λ a : A, μ1 a * f a a') = SeriesC (λ p : A*B, μ1 p.1 * f p.1 a')) as Heq3.
-      { rewrite (SeriesC_double_prod (λ p : A * B, μ1 p.1 * f p.1 a')) .
-        apply SeriesC_ext.
-        intro a.
-        simpl.
-       Search Inhabited.
-       Search Empty.
-      }
-   Admitted.
-*)
 End ref_couplings_theory.
 
 
 
 
+
+(*
 Section iter_couplings.
 
 
@@ -914,3 +830,4 @@ Qed.
 
 
 End iter_couplings.
+*)
