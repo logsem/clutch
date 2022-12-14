@@ -38,7 +38,7 @@ Section helper_lemma.
   Definition lift_pure (R : (expr * (gmap loc val)) -> (expr * (gmap loc val)) -> Prop) (ρ1 ρ2 : cfg) : Prop :=
     R (ρ1.1, ρ1.2.(heap)) (ρ2.1, ρ2.2.(heap)).
 
-
+(*
   Lemma foo_helper_1 (m : nat) (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (R: cfg -> cfg -> Prop):
     Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ->
     (forall ρ2 ρ2', R ρ2 ρ2' -> ∃ n : nat, refRcoupl (prim_exec ρ2 m) (prim_exec ρ2' n) pure_eq)
@@ -57,6 +57,7 @@ Section helper_lemma.
       destruct m; destruct n;
       rewrite /prim_exec in Hn.
   Admitted.
+*)
 
   Lemma bar (ρ : cfg) :
     dbind (λ ρ', lim_prim_exec ρ') (prim_step_or_val ρ) = (lim_prim_exec ρ).
@@ -98,6 +99,8 @@ Section helper_lemma.
       admit.
   Admitted.
 
+  (*
+
   Lemma pure_coupl_to_dmap (μ1 μ2 : distr cfg) R :
     Rcoupl μ1 μ2 (lift_pure R) ↔ Rcoupl (dmap (λ '(e, σ), (e, σ.(heap))) μ1) (dmap (λ '(e, σ), (e, σ.(heap))) μ2) R.
   Proof.
@@ -126,6 +129,7 @@ Section helper_lemma.
       intros(e3 & σ3).
       rewrite {2 4}/pmf/=/dret_pmf/=.
       destruct (Rle_lt_dec (μ (e3, σ3, (e'', σ''))) 0) as [Hz | Hpos].
+*)
 
   Lemma quux (μ1 μ2 : distr cfg) :
     refRcoupl μ1 μ2 pure_eq ↔ refRcoupl (dmap (λ '(e, σ), (e, σ.(heap))) μ1) (dmap (λ '(e, σ), (e, σ.(heap))) μ2) eq.
