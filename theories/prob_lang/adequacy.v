@@ -704,23 +704,18 @@ Qed.
     Context {PROP : bi}.
     Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
 
+    Lemma step_fupd_mono Eo Ei (P Q : PROP) :
+      (P ⊢ Q) → (|={Eo}[Ei]▷=> P) ⊢ (|={Eo}[Ei]▷=> Q).
+    Proof. intros HPQ. by apply fupd_mono, later_mono, fupd_mono. Qed.
+
     Lemma step_fupd_except_0 E1 E2 (P : PROP) : (|={E1}[E2]▷=> ◇ P) ={E1}[E2]▷=∗ P.
-    Proof.
-      iIntros "H".
-      iMod "H".
-      do 2 iModIntro.
-      rewrite fupd_except_0 //.
-    Qed.
+    Proof. rewrite fupd_except_0 //. Qed.
 
     Lemma step_fupdN_except_0 E1 E2 (P : PROP) n : (|={E1}[E2]▷=>^(S n) ◇ P) ={E1}[E2]▷=∗^(S n) P.
     Proof.
-      iInduction n as [|n IH] "IH".
-      - iIntros "H /=". by iApply step_fupd_except_0.
-      - iIntros "H /=".
-        iMod "H". do 2 iModIntro.
-        iMod "H". iModIntro.
-        iMod ("IH" with "H") as "H".
-        do 2 iModIntro. done.
+      induction n as [|n IH]; [apply step_fupd_except_0|].
+      replace (S (S n)) with (1 + S n)%nat by lia.
+      rewrite 2!step_fupdN_add. by apply step_fupd_mono.
     Qed.
 
     Lemma step_fupdN_plain_forall E {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
@@ -738,7 +733,7 @@ Qed.
       apply step_fupd_intro. done.
     Qed.
 
-End  fupd_plainly_derived.
+End fupd_plainly_derived.
 
 Section class_instance_updates.
   Context {PROP : bi}.
