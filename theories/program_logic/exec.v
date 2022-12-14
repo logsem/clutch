@@ -12,24 +12,35 @@ Section exec.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
 
-  Definition exec (n : nat) ρ : distr (cfg Λ) := iterM n (λ '(e, σ), prim_step e σ) ρ.
+  Definition prim_step_or_val (ρ : cfg Λ) : distr (cfg Λ) :=
+    match to_val ρ.1 with
+    | Some v => dret ρ
+    | None => prim_step ρ.1 ρ.2
+    end.
 
-  Lemma exec_O ρ : exec 0 ρ = dret ρ.
+  Definition exec (n : nat) ρ : distr (cfg Λ) := iterM n prim_step_or_val ρ.
+
+  Lemma exec_O ρ :
+    exec 0 ρ = dret ρ.
   Proof. done. Qed.
 
-  Lemma exec_Sn e σ n : exec (S n) (e, σ) = prim_step e σ ≫= exec n.
+  Lemma exec_Sn ρ n :
+    exec (S n) ρ = prim_step_or_val ρ ≫= exec n.
   Proof. done. Qed.
 
-  Lemma exec_plus e σ n m : exec (n + m) (e, σ) = exec n (e, σ) ≫= exec m.
+  Lemma exec_plus ρ n m :
+    exec (n + m) ρ = exec n ρ ≫= exec m.
   Proof. rewrite /exec iterM_plus //.  Qed.
 
-  Lemma exec_1 : exec 1 = λ '(e, σ), prim_step e σ.
+  Lemma exec_1 :
+    exec 1 = prim_step_or_val.
   Proof.
     extensionality ρ; destruct ρ as [e σ].
     rewrite exec_Sn /exec /= dret_id_right //.
   Qed.
 
-  Lemma exec_Sn_r e σ n : exec (S n) (e, σ) = exec n (e, σ) ≫= (λ '(e, σ), prim_step e σ).
+  Lemma exec_Sn_r e σ n :
+    exec (S n) (e, σ) = exec n (e, σ) ≫= prim_step_or_val.
   Proof.
     assert (S n = n + 1)%nat as -> by lia.
     rewrite exec_plus exec_1 //.
@@ -42,8 +53,11 @@ Section exec.
   Proof.
     destruct ρ as [e0 σ0].
     rewrite exec_Sn_r.
-    intros ? ->%pmf_1_eq_dret.
-    rewrite dret_id_left //.
+    intros H ->%pmf_1_eq_dret.
+    rewrite dret_id_left /=.
+    case_match; [|done].
+    assert (to_val e1 = None); [|simplify_eq].
+    eapply val_stuck. erewrite H. lra.
   Qed.
 
   Lemma exec_det_step_ctx K `{!LanguageCtx K} n ρ e1 e2 σ1 σ2 :
@@ -84,38 +98,58 @@ Section prim_exec.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
 
-  Fixpoint prim_exec (ρ : cfg Λ) (n : nat) {struct n} : distr (cfg Λ) :=
+  Fixpoint prim_exec (n : nat) (ρ : cfg Λ) {struct n} : distr (cfg Λ) :=
     match to_val ρ.1, n with
       | Some v, _ => dret ρ
       | None, 0 => dzero
-      | None, S n => dbind (λ ρ', prim_exec ρ' n) (prim_step ρ.1 ρ.2)
+      | None, S n => prim_step ρ.1 ρ.2 ≫= prim_exec n
     end.
 
-  Lemma prim_exec_unfold (ρ : cfg Λ) (n : nat) :
-    prim_exec ρ n =
+  Lemma prim_exec_unfold (n : nat) :
+    prim_exec n = λ ρ,
       match to_val ρ.1, n with
       | Some v, _ => dret ρ
       | None, 0 => dzero
-      | None, S n => dbind (λ ρ', prim_exec ρ' n) (prim_step ρ.1 ρ.2)
+      | None, S n => prim_step ρ.1 ρ.2 ≫= prim_exec n
       end.
   Proof. by destruct n. Qed.
 
   Lemma prim_exec_is_val e σ n :
-    is_Some (to_val e) → prim_exec (e, σ) n = dret (e, σ).
+    is_Some (to_val e) → prim_exec n (e, σ) = dret (e, σ).
   Proof. destruct n; simpl; by intros [? ->]. Qed.
 
-  Definition prim_step_or_val (ρ : cfg Λ) : distr (cfg Λ) :=
-    match to_val ρ.1 with
-      | Some v => dret ρ
-      | None => prim_step ρ.1 ρ.2
-    end.
+  Lemma prim_step_or_val_no_val e σ :
+    to_val e = None → prim_step_or_val (e, σ) = prim_step e σ.
+  Proof. rewrite /prim_step_or_val /=. by intros ->. Qed.
+
+  Lemma prim_step_or_val_is_val e σ :
+    is_Some (to_val e) → prim_step_or_val (e, σ) = dret (e, σ).
+  Proof. rewrite /prim_step_or_val /=. by intros [? ->]. Qed.
 
   Lemma prim_exec_Sn (ρ : cfg Λ) (n: nat) :
-    prim_exec ρ (S n) = dbind (λ ρ', prim_exec ρ' n) (prim_step_or_val ρ).
+    prim_exec (S n) ρ = prim_step_or_val ρ ≫= prim_exec n.
   Proof.
-    rewrite /prim_step_or_val /=. destruct ρ as [e σ]. simpl.
+    destruct ρ as [e σ].
+    rewrite /prim_step_or_val /=.
     destruct (to_val e) eqn:Hv=>/=; [|done].
-    rewrite dret_id_left prim_exec_is_val //.
+    rewrite dret_id_left -/prim_exec.
+    rewrite prim_exec_is_val //.
+  Qed.
+
+  Lemma prim_exec_Sn_not_val e σ n :
+    to_val e = None →
+    prim_exec (S n) (e, σ) = prim_step e σ ≫= prim_exec n.
+  Proof. intros ?. rewrite prim_exec_Sn prim_step_or_val_no_val //. Qed.
+
+  Lemma prim_exec_plus ρ n m :
+    prim_exec (n + m) ρ = exec n ρ ≫= prim_exec m.
+  Proof.
+    revert ρ; induction n; intros ρ.
+    - rewrite exec_O dret_id_left -/prim_exec //.
+    - rewrite plus_Sn_m prim_exec_Sn exec_Sn.
+      rewrite -dbind_assoc -/prim_exec -/exec.
+      apply dbind_eq; [|done].
+      intros ??. eapply IHn.
   Qed.
 
 End prim_exec.
@@ -127,7 +161,7 @@ Section prim_exec_lim.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
 
-  Program Definition lim_prim_exec (ρ : cfg Λ) : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec ρ n ρ')) _ _ _.
+  Program Definition lim_prim_exec (ρ : cfg Λ) : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec n ρ ρ')) _ _ _.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
   Next Obligation. Admitted.

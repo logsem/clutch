@@ -88,7 +88,7 @@ Section couplings_theory.
   Proof.
     intros a b; split; [rewrite /lmarg dmap_dret // | rewrite /rmarg dmap_dret //].
    Qed.
-    
+
   Proposition coupl_ret :
     forall (a : A) (b : B), coupl (dret a) (dret b).
   Proof.
@@ -97,7 +97,7 @@ Section couplings_theory.
     apply is_coupl_ret.
   Qed.
 
-  Proposition isRcoupl_ret : 
+  Proposition isRcoupl_ret :
     forall (a : A) (b : B) (R : A → B → Prop), R a b -> isRcoupl (dret a) (dret b) R (dret (a, b)).
   Proof.
     intros a b R HR.
@@ -115,6 +115,11 @@ Section couplings_theory.
     apply isRcoupl_ret.
     auto.
   Qed.
+
+  Lemma Rcoupl_mass_eq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+    Rcoupl μ1 μ2 R → SeriesC μ1 = SeriesC μ2.
+  Proof. intros (?&?&?). by eapply isCoupl_mass_eq. Qed.
+
 
   Proposition Rcoupl_eq (μ1 : distr A) :
     Rcoupl μ1 μ1 (=).
@@ -170,7 +175,7 @@ Section couplings_theory.
         case_bool_decide; case_bool_decide; simplify_eq; try lra. }
       rewrite (SeriesC_ext _ _ Heq1).
       apply SeriesC_singleton'.
-  Qed. 
+  Qed.
 
 
 
@@ -289,7 +294,7 @@ Section couplings_theory.
       rewrite lmarg_pmf /= /dbind_pmf
        (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l]. 
+      [ | intro p; apply SeriesC_scal_l].
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
       { intros (a & b).
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
@@ -310,7 +315,7 @@ Section couplings_theory.
       rewrite rmarg_pmf /= /dbind_pmf
       (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
-      [ | intro p; apply SeriesC_scal_l]. 
+      [ | intro p; apply SeriesC_scal_l].
       erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first.
       {intros (a & b);
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
@@ -422,10 +427,23 @@ Section Rcoupl.
     split; eauto.
   Qed.
 
-
 End Rcoupl.
 
+Lemma Rcoupl_dzero_r_inv `{Countable A, Countable B} μ1 (R : A → B → Prop) :
+  Rcoupl μ1 dzero R → μ1 = dzero.
+Proof.
+  intros Hz%Rcoupl_mass_eq.
+  apply SeriesC_zero_dzero.
+  rewrite Hz SeriesC_0 //.
+Qed.
 
+Lemma Rcoupl_dzero_l_inv `{Countable A, Countable B} μ2 (R : A → B → Prop) :
+  Rcoupl dzero μ2 R → μ2 = dzero.
+Proof.
+  intros Hz%Rcoupl_mass_eq.
+  apply SeriesC_zero_dzero.
+  rewrite -Hz SeriesC_0 //.
+Qed.
 
   Proposition Rcoupl_map `{Countable A, Countable B, Countable A', Countable B'}:
     forall (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop),
@@ -526,7 +544,7 @@ End refinement_couplings.
 
 Section ref_couplings_theory.
 
-Context `{Countable A, Countable B, Countable A', Countable B'}.
+Context `{Countable A, Countable B}.
 
 (*
   Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
@@ -633,6 +651,15 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
     rewrite HμR; lra.
   Qed.
 
+  Lemma refRcoupl_ret a b (R : A → B → Prop) :
+    R a b → refRcoupl (dret a) (dret b) R.
+  Proof.
+    intros HR.
+    eexists. split; [eapply is_ref_coupl_ret|].
+    intros [] [=<- <-]%dret_pos. done.
+  Qed.
+
+  Context `{Countable A', Countable B'}.
 
  Proposition refRcoupl_bind :
     forall (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop),
@@ -664,7 +691,7 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
       [ | intro p; apply SeriesC_scal_l].
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
-      {intros (a & b).
+      { intros (a & b).
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         + pose proof (pmf_pos μ (a, b)); lra.
         + rewrite Heqz; lra.
@@ -731,7 +758,7 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       done.
   Qed.
 
-  Lemma dzero_ref_coupling (μ : distr B) (R: A → B → Prop):
+  Lemma refRcoupl_dzero (μ : distr B) (R: A → B → Prop):
     refRcoupl dzero μ R.
   Proof.
     exists dzero; split; try split.

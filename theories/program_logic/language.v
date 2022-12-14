@@ -176,6 +176,14 @@ Section language.
     rewrite /stuck /not_stuck -not_eq_None_Some -not_reducible.
     destruct (decide (to_val e = None)); naive_solver.
   Qed.
+  Lemma val_stuck_dzero e σ :
+    is_Some (to_val e) → prim_step e σ = dzero.
+  Proof.
+    intros []. apply distr_ext=>ρ.
+    destruct (decide (prim_step e σ ρ > 0)) as
+      [?%val_stuck | ->%pmf_eq_0_not_gt_0]; [|done].
+    simplify_eq.
+  Qed.
 
   Lemma strongly_atomic_atomic e a :
     Atomic StronglyAtomic e → Atomic a e.
