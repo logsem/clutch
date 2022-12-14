@@ -18,20 +18,6 @@ Set Default Proof Using "Type*".
 Local Open Scope R.
 
 Section helper_lemma.
-  Context `{!irisGS prob_lang Σ}.
-
-  Lemma refRcoupl_bind' `{Countable A, Countable B} μ1 μ2 f g (R S : A → B → Prop) :
-    ⌜refRcoupl μ1 μ2 R⌝ -∗
-    (∀ a b, ⌜R a b⌝ ={∅}=∗ ⌜refRcoupl (f a) (g b) S⌝) -∗
-    |={∅}=> ⌜refRcoupl (dbind f μ1) (dbind g μ2) S⌝ : iProp Σ.
-  Proof.
-    iIntros (HR) "HS".
-    iApply (pure_impl_1 (∀ a b, R a b → refRcoupl (f a) (g b) S)).
-    { iPureIntro. intros; by eapply refRcoupl_bind. }
-    iIntros (???).
-    by iMod ("HS" with "[//]").
-  Qed.
-
 
   Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) ∧ (ρ1.2.(heap) = ρ2.2.(heap)).
 
@@ -178,10 +164,10 @@ Section helper_lemma.
     rewrite H12; auto.
   Qed.
 
-  Lemma pure_coupl_trans_l μ1 μ2 μ3 R:
+  Lemma pure_coupl_trans_l μ1 μ2 μ3 :
     Rcoupl μ1 μ2 pure_eq
-    -> Rcoupl μ2 μ3 (lift_pure R)
-    -> Rcoupl μ1 μ3 (lift_pure R).
+    -> Rcoupl μ2 μ3 pure_eq
+    -> Rcoupl μ1 μ3 pure_eq.
   Proof.
     intros H12 H23.
     apply qux.
@@ -1001,7 +987,6 @@ Proof.
   intros Hwp.
   eapply (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
-  (* TODO: make a seaprate resource allocation lemma *)
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (ghost_map_alloc σ'.(heap)) as "[%γHs [Hh_spec _]]".
@@ -1014,6 +999,7 @@ Proof.
   set (HprelocGS := HeapG Σ _ _ _ γH γT HspecGS).
   iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
   { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //. }
-  iApply wp_coupling. iFrame. iFrame "Hctx".
+  iApply wp_coupling.
+  iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.

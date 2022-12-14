@@ -6,12 +6,11 @@ From self.prob_lang Require Import notation spec_ra primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class prelogrelGS Σ :=
-  {
-    prelogrelGS_prelocGS :> prelocGS Σ ;
-    prelogrelGS_na_invG :> na_invG Σ ;
-    prelogrelGS_nais : na_inv_pool_name ;
-  }.
+Class prelogrelGS Σ := PrelogrelGS {
+    prelogrelGS_prelocGS :> prelocGS Σ;
+    prelogrelGS_na_invG :> na_invG Σ;
+    prelogrelGS_nais : na_inv_pool_name;
+}.
 
 (** Semantic intepretation of types *)
 Record lrel Σ := LRel {

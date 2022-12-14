@@ -4,6 +4,7 @@ From self.prelude Require Import base.
 From self.prob_lang Require Import notation proofmode primitive_laws.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.examples Require Import lock.
+Set Default Proof Using "Type*".
 
 Definition lazy α : expr :=
   let:"s" := ref NONEV in
@@ -34,7 +35,7 @@ Section proofs.
     e1 = #lbl:α -> e2 = #lbl:β ->
     α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
     -∗ REL lazy e1 << eager e2 : lrel_unit → lrel_bool.
-  Proof using lockG0 prelogrelGS0 Σ.
+  Proof.
     iIntros (-> ->) "[Hα Hβ]". rewrite /lazy /eager.
     rel_alloc_l l as "Hl" ; rel_pures_l ; rel_flip_r.
     rel_apply_l (refines_newlock_l coinN
@@ -61,7 +62,7 @@ Section proofs.
 
   Lemma lazy_eager_refinement' :
     ⊢ REL lazy' << eager' : lrel_unit → lrel_bool.
-  Proof using lockG0 prelogrelGS0 Σ.
+  Proof.
     rewrite /lazy' /eager'.
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
@@ -74,14 +75,14 @@ Section proofs.
   Lemma lazy_eager_refinement'' α β :
     (REL α << β : lrel_tape)
       ⊢ REL lazy α << eager β : lrel_unit → lrel_bool.
-  Proof using lockG0 prelogrelGS0 Σ.
+  Proof.
   Admitted.
 
   Lemma eager_lazy_refinement e1 e2 α β b bs bs' :
     e1 = #lbl:α -> e2 = #lbl:β ->
     α ↪ (b::bs) ∗ β ↪ₛ (b::bs')
     -∗ REL eager e1 << lazy e2 : lrel_unit → lrel_bool.
-  Proof using lockG0 prelogrelGS0 Σ.
+  Proof.
     iIntros (-> ->) "[Hα Hβ]". rewrite /lazy /eager.
     rel_alloc_r l as "Hl" ; rel_pures_r ; rel_flip_l.
     rel_apply_r (refines_newlock_r).
@@ -110,7 +111,7 @@ Section proofs.
 
   Lemma eager_lazy_refinement' :
     ⊢ REL eager' << lazy' : lrel_unit → lrel_bool.
-  Proof using lockG0 prelogrelGS0 Σ.
+  Proof.
     rewrite /lazy' /eager'.
     rel_alloctape_l α as "Hα" ; rel_alloctape_r β as "Hβ".
     rel_pures_l ; rel_pures_r.
