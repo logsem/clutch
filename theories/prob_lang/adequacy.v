@@ -699,40 +699,58 @@ Qed.
   Proof. Admitted.
 
 
-(* TODO: upstream *)
+(* TODO: upstream? *)
   Section fupd_plainly_derived.
     Context {PROP : bi}.
     Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
 
-    Lemma step_fupdN_plain_forall Eo Ei {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
-      Ei ⊆ Eo →
-      (|={Eo}[Ei]▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={Eo}[Ei]▷=>^n Φ x).
+    Lemma step_fupd_except_0 E1 E2 (P : PROP) : (|={E1}[E2]▷=> ◇ P) ={E1}[E2]▷=∗ P.
     Proof.
-      intros. apply (anti_symm _).
-      { apply forall_intro=> x.
-        iIntros "H". iApply step_fupdN_mono; [|done]. eauto. }
-      induction n as [|n IH]; [done|].
       iIntros "H".
-      simpl.
-      iApply IH.
+      iMod "H".
+      do 2 iModIntro.
+      rewrite fupd_except_0 //.
+    Qed.
 
-      Admitted.
+    Lemma step_fupdN_except_0 E1 E2 (P : PROP) n : (|={E1}[E2]▷=>^(S n) ◇ P) ={E1}[E2]▷=∗^(S n) P.
+    Proof.
+      iInduction n as [|n IH] "IH".
+      - iIntros "H /=". by iApply step_fupd_except_0.
+      - iIntros "H /=".
+        iMod "H". do 2 iModIntro.
+        iMod "H". iModIntro.
+        iMod ("IH" with "H") as "H".
+        do 2 iModIntro. done.
+    Qed.
 
-  End  fupd_plainly_derived.
+    Lemma step_fupdN_plain_forall E {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
+      (|={E}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={E}▷=>^n Φ x).
+    Proof using BiFUpd0 BiFUpdPlainly0 BiPlainly0 PROP.
+      intros. apply (anti_symm _).
+      { apply forall_intro=> x. apply step_fupdN_mono. eauto. }
+      destruct n; [done|].
+      trans (∀ x, |={E}=> ▷^(S n) ◇ Φ x)%I.
+      { apply forall_mono=> x. by rewrite step_fupdN_plain. }
+      rewrite -fupd_plain_forall'.
+      rewrite -step_fupdN_except_0 /= -step_fupdN_intro //.
+      apply fupd_elim.
+      rewrite -later_forall -laterN_forall -except_0_forall.
+      apply step_fupd_intro. done.
+    Qed.
 
+End  fupd_plainly_derived.
 
 Section class_instance_updates.
   Context {PROP : bi}.
 
-  Global Instance from_forall_step_fupd
-    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E1 E2 {A} P (Φ : A → PROP) name n :
-    (* Some cases in which [E2 ⊆ E1] holds *)
-    TCOr (TCEq E1 E2) (TCOr (TCEq E1 ⊤) (TCEq E2 ∅)) →
+  Global Instance from_forall_step_fupdN
+    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E {A} P (Φ : A → PROP) name n :
     FromForall P Φ name → (∀ x, Plain (Φ x)) →
-    FromForall (|={E1}[E2]▷=>^n P) (λ a, |={E1}[E2]▷=>^n (Φ a))%I name.
-  Proof. Admitted.
-  (*   rewrite /FromForall=> -[→|[→|→]] <- ? ; rewrite step_fupd_plain_forall; set_solver. *)
-  (* Qed. *)
+    FromForall (|={E}▷=>^n P) (λ a, |={E}▷=>^n (Φ a))%I name.
+  Proof.
+    rewrite /FromForall=>? ?.
+    rewrite -step_fupdN_plain_forall. by apply step_fupdN_mono.
+  Qed.
 End class_instance_updates.
 
 Section adequacy.
@@ -794,7 +812,8 @@ Section adequacy.
       rewrite -(dret_id_left (lim_prim_exec)).
       iApply refRcoupl_bind'.
       { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply weaken_coupl. }
-      iIntros ([] [] (?&?& [= -> ->]%dret_pos)). by iMod ("H"  with "[//]").
+      iIntros ([] [] (?&?& [= -> ->]%dret_pos)).
+      by iMod ("H"  with "[//]").
     - rewrite -{2}(dret_id_left (prim_exec _)).
       rewrite (lim_prim_exec_exec m).
       iApply refRcoupl_bind'.
