@@ -1,5 +1,6 @@
 From stdpp Require Import namespaces.
-From iris Require Import prelude.options base_logic.lib.invariants.
+From iris.base_logic Require Import invariants na_invariants.
+From self.prelude Require Import base.
 From self.prob_lang Require Import notation proofmode primitive_laws.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.examples Require Import lock.
@@ -23,7 +24,7 @@ Definition eager α : expr :=
   (λ:"_u", "b").
 
 Section proofs.
-  Context `{!prelocGS Σ}.
+  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
   Context `{!lockG Σ}.
 
   Definition coinN := nroot.@"coins".

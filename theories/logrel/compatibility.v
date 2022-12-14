@@ -8,7 +8,7 @@ From self.prob_lang Require Import spec_rules spec_tactics.
 From self.logrel Require Import model rel_tactics.
 
 Section compatibility.
-  Context `{!prelocGS Σ}.
+  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
   Implicit Types e : expr.
 
   Local Ltac value_case :=
@@ -137,7 +137,7 @@ Notation "🖭" := lrel_tape : lrel_scope.
 
     iDestruct "Hv" as (α α' -> ->) "#Hv".
     rewrite refines_eq /refines_def.
-    iIntros (K) "[#Hss Hr] !#".
+    iIntros "Hnais" (K) "[#Hss Hr] !#".
 
     rewrite /refines_right.
 

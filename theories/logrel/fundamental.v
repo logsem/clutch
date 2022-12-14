@@ -7,7 +7,7 @@ From self.prob_lang Require Export spec_rules metatheory.
 From self.logrel Require Import types model interp compatibility rel_rules rel_tactics.
 
 Section fundamental.
-  Context `{!prelocGS Σ}.
+  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
   Implicit Types Δ : listO (lrelC Σ).
   Hint Resolve to_of_val : core.
 
