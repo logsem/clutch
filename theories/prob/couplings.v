@@ -440,13 +440,14 @@ End Rcoupl.
 
 
   (* I think this should be true, maybe it can be proven through Strassens theorem, but
-  I don't see how to do it directly
+  I don't see how to do it directly *)
 
-  Proposition Rcoupl_from_map `{Countable A, Countable B, Countable A', Countable B'}:
-    forall (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop),
-      Rcoupl (dmap f μ1) (dmap g μ2) R -> Rcoupl μ1 μ2 (λ a a', R (f a) (g a')).
+  (*
+  Proposition Rcoupl_from_mapL `{Countable A, Countable B, Countable A', Countable B'}:
+    forall (f : A → A') (μ1 : distr A) (μ2 : distr B) (R : A' → B → Prop),
+      Rcoupl (dmap f μ1) μ2 R -> Rcoupl μ1 μ2 (λ a b, R (f a) b).
   Proof.
-    intros f g μ1 μ2 R (μ & ((HμL & HμR) & HμSup)).
+    intros f μ1 μ2 R (μ & ((HμL & HμR) & HμSup)).
     eexists (dprod μ1 μ2).
     split; [split | ].
 
@@ -470,6 +471,7 @@ End Rcoupl.
     intros b1 b2 ->.
     destruct b2; apply Rcoupl_eq.
   Qed.
+
 
 
 Section Rcoupl_strength.
@@ -526,39 +528,46 @@ Section ref_couplings_theory.
 
 Context `{Countable A, Countable B, Countable A', Countable B'}.
 
-
-  (* TODO
+(*
   Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
     SeriesC μ1 <= SeriesC μ2 ->
     refRcoupl μ1 μ2 (λ _ _, True).
   Proof.
     intros Hμ.
     Search Rle.
-    destruct (Rle_lt_dec (SeriesC μ1) 0) as [H3 | H3].
-    + destruct H3; [pose proof (pmf_SeriesC_ge_0 μ1); lra | ].
-    eexists (distr_scal (Rinv(SeriesC μ1)) (dprod μ1 μ2) _).
+    eexists (distr_scal ((SeriesC μ1)/(SeriesC μ2)) (dprod μ1 μ2) _).
     Unshelve.
     2:{
-      split.
-      + admit.
-      + admit.
+      split; auto.
+      rewrite <- Rmult_1_r.
+      apply Rmult_le_compat; auto.
     }
     split; [|done].
     split.
-    + intro a.
+    ++ apply distr_ext. intro a.
       rewrite lmarg_pmf.
-      rewrite {2}/pmf/=.
       rewrite SeriesC_scal_l.
       rewrite -lmarg_pmf.
       rewrite lmarg_dprod_pmf.
       rewrite <- Rmult_comm.
       rewrite Rmult_assoc.
-      rewrite <- Rmult_1_r at 1.
-      apply Rmult_le_compat; auto; try lra.
-      Search Rinv.
-
-
-    [apply lmarg_dprod|apply rmarg_dprod]; done.
+      assert (μ2 b = μ2 b * 1) as Hrw; [rewrite Rmult_1_r; auto | ].
+      rewrite {2}Hrw.
+      apply (Rmult_le_compat_l); auto; try lra.
+      rewrite <- Rmult_1_r.
+      apply Rmult_le_compat; auto.
+    ++ intro b.
+      rewrite rmarg_pmf.
+      rewrite SeriesC_scal_l.
+      rewrite -rmarg_pmf.
+      rewrite rmarg_dprod_pmf.
+      rewrite <- Rmult_comm.
+      rewrite Rmult_assoc.
+      assert (μ2 b = μ2 b * 1) as Hrw; [rewrite Rmult_1_r; auto | ].
+      rewrite {2}Hrw.
+      apply (Rmult_le_compat_l); auto; try lra.
+      rewrite <- Rmult_1_r.
+      apply Rmult_le_compat; auto.
   Qed.
 *)
 
@@ -653,15 +662,14 @@ Context `{Countable A, Countable B, Countable A', Countable B'}.
       rewrite lmarg_pmf /= /dbind_pmf
        (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l]. 
+      [ | intro p; apply SeriesC_scal_l].
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
       {intros (a & b).
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         + pose proof (pmf_pos μ (a, b)); lra.
         + rewrite Heqz; lra.
         + specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
-          rewrite -HChL lmarg_pmf //=.
-          }.
+          rewrite -HChL lmarg_pmf //=. }
       rewrite SeriesC_double_prod_lr.
       erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
       [ | intro a; simpl; apply SeriesC_scal_r ].

@@ -26,13 +26,17 @@ Section helper_lemma.
   Proof.
     iIntros (HR) "HS".
     iApply (pure_impl_1 (∀ a b, R a b → refRcoupl (f a) (g b) S)).
-    { iPureIntro. by eapply refRcoupl_bind. }
+    { iPureIntro. intros; by eapply refRcoupl_bind. }
     iIntros (???).
     by iMod ("HS" with "[//]").
   Qed.
 
 
   Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) ∧ (ρ1.2.(heap) = ρ2.2.(heap)).
+
+  Definition lift_pure (R : (expr * (gmap loc val)) -> (expr * (gmap loc val)) -> Prop) (ρ1 ρ2 : cfg) : Prop :=
+    R (ρ1.1, ρ1.2.(heap)) (ρ2.1, ρ2.2.(heap)).
+
 
   Lemma foo_helper_1 (m : nat) (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (R: cfg -> cfg -> Prop):
     Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R ->
@@ -90,7 +94,37 @@ Section helper_lemma.
         destruct HμSup as (-> & ->); auto.
     - intro Heq.
       rewrite /pmf in Heq.
+      admit.
   Admitted.
+
+  Lemma pure_coupl_to_dmap (μ1 μ2 : distr cfg) R :
+    Rcoupl μ1 μ2 (lift_pure R) ↔ Rcoupl (dmap (λ '(e, σ), (e, σ.(heap))) μ1) (dmap (λ '(e, σ), (e, σ.(heap))) μ2) R.
+  Proof.
+    split.
+    - intro Hcoupl.
+      rewrite /dmap.
+      apply (Rcoupl_bind _ _ _ _ (lift_pure R)); auto.
+      intros (e & σ) (e' & σ') HR.
+      rewrite /lift_pure/= in HR.
+      apply Rcoupl_ret; auto.
+    - rewrite /dmap; intro Hcoupl.
+      auto.
+      simpl in *.
+      apply distr_ext.
+      intros (e' & σ').
+      rewrite /pmf/=/dbind_pmf/=.
+      erewrite SeriesC_ext; [ | intro; rewrite lmarg_pmf; done ].
+      erewrite (SeriesC_ext (λ a : expr * state, rmarg μ a * dret (let '(e, σ) := a in (e, heap σ)) (e', σ')));
+        [ | intro; rewrite rmarg_pmf; done].
+      erewrite SeriesC_ext; [  | intro; rewrite <- SeriesC_scal_r ; done].
+      rewrite (SeriesC_double_swap (λ '(n, x), μ (n, x) * dret (let '(e, σ) := n in (e, heap σ)) (e', σ'))).
+      apply SeriesC_ext.
+      intros (e'' & σ'').
+      rewrite <- SeriesC_scal_r.
+      apply SeriesC_ext.
+      intros(e3 & σ3).
+      rewrite {2 4}/pmf/=/dret_pmf/=.
+      destruct (Rle_lt_dec (μ (e3, σ3, (e'', σ''))) 0) as [Hz | Hpos].
 
   Lemma quux (μ1 μ2 : distr cfg) :
     refRcoupl μ1 μ2 pure_eq ↔ refRcoupl (dmap (λ '(e, σ), (e, σ.(heap))) μ1) (dmap (λ '(e, σ), (e, σ.(heap))) μ2) eq.
@@ -134,6 +168,18 @@ Section helper_lemma.
     Rcoupl μ1 μ2 pure_eq
     -> Rcoupl μ2 μ3 pure_eq
     -> Rcoupl μ1 μ3 pure_eq.
+  Proof.
+    intros H12 H23.
+    apply qux.
+    apply qux in H12.
+    apply qux in H23.
+    rewrite H12; auto.
+  Qed.
+
+  Lemma pure_coupl_trans_l μ1 μ2 μ3 R:
+    Rcoupl μ1 μ2 pure_eq
+    -> Rcoupl μ2 μ3 (lift_pure R)
+    -> Rcoupl μ1 μ3 (lift_pure R).
   Proof.
     intros H12 H23.
     apply qux.
