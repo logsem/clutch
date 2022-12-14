@@ -1,21 +1,21 @@
 From Coq Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.algebra Require Import big_op.
+From iris.algebra Require Import excl.
 From iris.bi Require Export weakestpre fixpoint big_op.
 From iris.prelude Require Import options.
-From iris.bi.lib Require Import fractional.
-From iris.base_logic.lib Require Export ghost_map.
+From iris.base_logic.lib Require Export ghost_map invariants.
 
 From self.prelude Require Import stdpp_ext.
-From self.program_logic Require Import exec weakestpre.
+From self.program_logic Require Export exec weakestpre.
 From self.prob_lang Require Import
   primitive_laws class_instances spec_ra tactics notation lang metatheory.
 From self.prob Require Export couplings distribution.
 Import uPred.
 
-Local Open Scope R.
+Set Default Proof Using "Type*".
 
+Local Open Scope R.
 
 Section helper_lemma.
   Context `{!irisGS prob_lang Σ}.
@@ -720,7 +720,7 @@ Qed.
 
     Lemma step_fupdN_plain_forall E {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
       (|={E}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={E}▷=>^n Φ x).
-    Proof using BiFUpd0 BiFUpdPlainly0 BiPlainly0 PROP.
+    Proof .
       intros. apply (anti_symm _).
       { apply forall_intro=> x. apply step_fupdN_mono. eauto. }
       destruct n; [done|].
@@ -888,3 +888,41 @@ Section adequacy.
   Qed.
 
 End adequacy.
+
+Class prelocGpreS Σ := PrelocGpreS {
+  prelocGpreS_iris  :> invGpreS Σ;
+  prelocGpreS_heap  :> ghost_mapG Σ loc val;
+  prelocGpreS_tapes :> ghost_mapG Σ loc (list bool);
+  prelocGpreS_cfg   :> inG Σ (authUR cfgUR);
+  prelocGpreS_prog  :> inG Σ (authR progUR);
+}.
+
+Definition prelocΣ : gFunctors :=
+  #[invΣ; ghost_mapΣ loc val; ghost_mapΣ loc (list bool);
+    GFunctor (authUR cfgUR); GFunctor (authUR progUR)].
+Global Instance subG_prelocGPreS {Σ} : subG prelocΣ Σ → prelocGpreS Σ.
+Proof. solve_inG. Qed.
+
+Theorem wp_adequacy Σ `{prelocGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
+  (∀ `{prelocGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
+  refRcoupl (prim_exec n (e, σ)) (lim_prim_exec (e', σ')) (coupl_rel φ).
+Proof.
+  intros Hwp.
+  eapply (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  (* TODO: make a seaprate resource allocation lemma *)
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (ghost_map_alloc σ'.(heap)) as "[%γHs [Hh_spec _]]".
+  iMod (ghost_map_alloc σ'.(tapes)) as "[%γTs [Ht_spec _]]".
+  iMod (own_alloc ((● (Excl' (e', σ'))) ⋅ (◯ (Excl' (e', σ'))))) as "(%γsi & Hsi_auth & Hsi_frag)".
+  { by apply auth_both_valid_discrete. }
+  iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
+  { by apply auth_both_valid_discrete. }
+  set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
+  set (HprelocGS := HeapG Σ _ _ _ γH γT HspecGS).
+  iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
+  { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //. }
+  iApply wp_coupling. iFrame. iFrame "Hctx".
+  by iApply (Hwp with "[Hctx] [Hprog_frag]").
+Qed.
