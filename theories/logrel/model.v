@@ -6,10 +6,11 @@ From self.prob_lang Require Import notation spec_ra primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class logrel_na_invs Σ :=
+Class prelogrelGS Σ :=
   {
-    logrel_na_invG :> na_invG Σ;
-    logrel_nais : na_inv_pool_name
+    prelogrelGS_prelocGS :> prelocGS Σ ;
+    prelogrelGS_na_invG :> na_invG Σ ;
+    prelogrelGS_nais : na_inv_pool_name ;
   }.
 
 (** Semantic intepretation of types *)
@@ -58,7 +59,7 @@ Arguments lrelC : clear implicits.
 (* Canonical Structure ectx_itemO := leibnizO ectx_item. *)
 
 Section semtypes.
-  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
+  Context `{!prelogrelGS Σ}.
 
   Implicit Types e : expr.
   Implicit Types E : coPset.
@@ -68,8 +69,11 @@ Section semtypes.
 
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
-    (na_own logrel_nais ⊤ -∗ ∀ K, refines_right K e' -∗
-        |={E,⊤}=> WP e {{ v, ∃ v', na_own logrel_nais ⊤ ∗ refines_right K (of_val v') ∗ A v v' }})%I.
+    (∀ K, refines_right K e' -∗
+          na_own prelogrelGS_nais ⊤ -∗
+          |={E,⊤}=> WP e {{ v, ∃ v', refines_right K (of_val v')
+                                     ∗ na_own prelogrelGS_nais ⊤
+                                     ∗ A v v' }})%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
   Definition refines := unseal refines_aux.
@@ -163,7 +167,7 @@ Notation "∀ A1 .. An , C" :=
   (lrel_forall (λ A1, .. (lrel_forall (λ An, C%lrel)) ..)) : lrel_scope.
 
 Section semtypes_properties.
-  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
+  Context `{!prelogrelGS Σ}.
 
   (* The reference type relation is functional and injective.
      Thanks to Amin. *)
@@ -267,7 +271,7 @@ Notation "'REL' e1 '<<' t ':' A" :=
 
 (** Properties of the relational interpretation *)
 Section related_facts.
-  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
+  Context `{!prelogrelGS Σ}.
   Implicit Types e : expr.
 
   (* PGH: the following three lemmas don't apply to notion of refinement as
@@ -310,8 +314,8 @@ Section related_facts.
     (|={E1, E2}=> refines E2 e t A) -∗ refines E1 e t A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "H Hnais". iIntros (j) "Hr /=".
-    iMod "H" as "H". iApply ("H" with "Hnais Hr").
+    iIntros "H". iIntros (j) "Hr /=".
+    iMod "H" as "H". iApply ("H" with "Hr").
   Qed.
 
   Global Instance elim_fupd_refines p E1 E2 e t P A :
@@ -343,7 +347,7 @@ Section related_facts.
 End related_facts.
 
 Section monadic.
-  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
+  Context `{!prelogrelGS Σ}.
   Implicit Types e : expr.
 
   Lemma refines_bind K K' E A A' e e' :
@@ -354,17 +358,15 @@ Section monadic.
   Proof.
     iIntros "Hm Hf".
     rewrite refines_eq /refines_def /refines_right.
-    iIntros "Hnais".
-    iSpecialize ("Hm" with "Hnais").
-    iIntros (j) "[#Hs Hj] /=".
+    iIntros (j) "(#Hs & Hj) Hnais /=".
     rewrite -fill_app.
-    iMod ("Hm" $! (K' ++ j) with "[$Hs $Hj]") as "Hm".
+    iMod ("Hm" $! (K' ++ j) with "[$Hs $Hj] Hnais") as "Hm".
     iModIntro. iApply wp_bind.
     iApply (wp_wand with "Hm").
-    iIntros (v). iDestruct 1 as (v') "[Hnais [Hj HA]]".
+    iIntros (v). iDestruct 1 as (v') "[Hj [Hnais HA]]".
     rewrite fill_app.
-    iSpecialize ("Hf" with "HA Hnais").
-    iMod ("Hf" $! j with "Hj") as "$".
+    iSpecialize ("Hf" with "HA").
+    iMod ("Hf" $! j with "Hj Hnais") as "$".
   Qed.
 
   Lemma refines_ret E e1 e2 v1 v2 (A : lrel Σ) :
@@ -374,8 +376,7 @@ Section monadic.
   Proof.
     rewrite /IntoVal.
     rewrite refines_eq /refines_def.
-    iIntros (<-<-) "HA Hnais".
-    iIntros (j) "Hj /=".
+    iIntros (<-<-) "HA". iIntros (j) "Hj Hnais /=".
     iMod "HA" as "HA". iModIntro.
     iApply wp_value. iExists _. by iFrame.
   Qed.

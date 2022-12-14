@@ -8,7 +8,7 @@ From self.prob_lang Require Import lang spec_rules spec_tactics ctx_subst proofm
 From self.logrel Require Import model.
 
 Section rules.
-  Context `{!prelocGS Σ, !logrel_na_invs Σ}.
+  Context `{!prelogrelGS Σ}.
   Implicit Types A : lrel Σ.
   Implicit Types e : expr.
   Implicit Types v w : val.
@@ -30,9 +30,9 @@ Section rules.
   Proof.
     intros Hpure Hϕ.
     rewrite refines_eq /refines_def.
-    iIntros "IH Hnais" (j) "Hs".
+    iIntros "IH" (j) "Hs Hnais".
     iModIntro. wp_pures.
-    iApply fupd_wp. iApply ("IH" with "Hnais Hs").
+    iApply fupd_wp. iApply ("IH" with "Hs Hnais").
   Qed.
 
   Lemma refines_masked_l E n
@@ -44,8 +44,8 @@ Section rules.
   Proof.
     intros Hpure Hϕ.
     rewrite refines_eq /refines_def.
-    iIntros "IH Hnais" (j) "Hs /=".
-    iMod ("IH" with "Hnais Hs") as "IH".
+    iIntros "IH" (j) "Hs Hnais /=".
+    iMod ("IH" with "Hs Hnais") as "IH".
     iModIntro. by wp_pures.
   Qed.
 
@@ -55,11 +55,11 @@ Section rules.
     REL fill K e1 << t : A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "He Hnais" (j) "Hs /=".
+    iIntros "He" (j) "Hs Hnais /=".
     iModIntro. iApply wp_bind.
     iApply (wp_wand with "He").
     iIntros (v) "Hv".
-    by iMod ("Hv" with "Hnais Hs").
+    by iMod ("Hv" with "Hs Hnais").
   Qed.
 
   Lemma refines_atomic_l (E : coPset) K e1 t A
@@ -69,12 +69,12 @@ Section rules.
    REL fill K e1 << t : A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "Hlog Hnais" (j) "Hs /=". iModIntro.
+    iIntros "Hlog" (j) "Hs Hnais /=". iModIntro.
     iApply wp_bind. iApply wp_atomic; auto.
     iMod "Hlog" as "He". iModIntro.
     iApply (wp_wand with "He").
     iIntros (v) "Hlog".
-    by iApply ("Hlog" with "Hnais Hs").
+    by iApply ("Hlog" with "Hs Hnais").
   Qed.
 
   (** ** Forward reductions on the RHS *)
@@ -87,9 +87,9 @@ Section rules.
     ⊢ REL t << fill K' e @ E : A.
   Proof.
     rewrite refines_eq /refines_def => Hpure Hϕ.
-    iIntros "Hlog Hnais" (j) "Hj /=".
+    iIntros "Hlog" (j) "Hj Hnais /=".
     tp_pures j ; auto.
-    iApply ("Hlog" with "Hnais Hj").
+    iApply ("Hlog" with "Hj Hnais").
   Qed.
 
   Lemma refines_right_bind K' K e :
@@ -105,11 +105,11 @@ Section rules.
     REL e1 << fill K' e2 @ E : A.
   Proof.
     rewrite refines_eq /refines_def /=.
-    iIntros "He Hnais" (K'') "Hs /=".
+    iIntros "He" (K'') "Hs Hnais /=".
     rewrite refines_right_bind /=.
     iMod ("He" with "Hs") as (v) "[Hs He]".
     rewrite -refines_right_bind'.
-    iSpecialize ("He" with "Hnais Hs").
+    iSpecialize ("He" with "Hs Hnais").
     by iApply "He".
   Qed.
 
@@ -289,12 +289,13 @@ Section rules.
   Proof.
     iIntros (e1ev) "(Hαs & Hα & Hlog)".
     rewrite refines_eq /refines_def.
-    iIntros "Hnais" (K2) "[#Hs He2] /=".
+    iIntros (K2) "[#Hs He2] Hnais /=".
     iApply wp_couple_tapes ; auto.
     iSplitR ; auto.
     iModIntro. rewrite -fupd_wp.
     iFrame "Hα Hαs".
-    iIntros "Hb". iApply ("Hlog" with "Hb Hnais") ; now iFrame.
+    iIntros "Hb".
+    iApply ("Hlog" with "Hb [Hs He2]") ; now iFrame.
   Qed.
 
   Lemma refines_couple_tapes_masked E e1 e2 A α αₛ bs bsₛ
@@ -308,7 +309,7 @@ Section rules.
   Proof.
     iIntros (e1ev) "H".
     rewrite refines_eq /refines_def.
-    iIntros "Hnais" (K2) "[#Hs He2] /= !>".
+    iIntros (K2) "[#Hs He2] Hnais /= !>".
     rewrite wp_unfold /wp_pre /= e1ev.
     iIntros (???) "([Hh1 Ht1] & Hspec)".
     iMod "H" as "(Hαs & Hα & H)".
@@ -343,7 +344,7 @@ Section rules.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
       iFrame. rewrite exec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
-    iSpecialize ("H" with "[Hα Hαs] Hnais [$Hs $He2]").
+    iSpecialize ("H" with "[Hα Hαs] [$Hs $He2] Hnais").
     { iExists _. iFrame. }
     iMod "H".
     rewrite !wp_unfold /wp_pre /= e1ev.

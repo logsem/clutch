@@ -26,7 +26,7 @@ Global Instance subG_lockΣ {Σ} : subG lockΣ Σ → lockG Σ.
 Proof. solve_inG. Qed.
 
 Section lockG_rules.
-  Context `{!lockG Σ, !prelocGS Σ, !logrel_na_invs Σ} (N: namespace).
+  Context `{!lockG Σ, !prelogrelGS Σ} (N: namespace).
 
   Definition lock_inv (γ : gname) (l : loc) (R : iProp Σ) : iProp Σ :=
     (∃ b : bool, l ↦ #b ∗ if b then True else own γ (Excl ()) ∗ R)%I.
@@ -91,7 +91,7 @@ Section lockG_rules.
 End lockG_rules.
 
 Section lock_rules_r.
-  Context `{prelocGS Σ, !logrel_na_invs Σ}.
+  Context `{!prelogrelGS Σ}.
   Variable (E : coPset).
 
   Definition is_locked_r v (b : bool) :=
