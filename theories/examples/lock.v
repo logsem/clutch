@@ -70,17 +70,17 @@ Section lockG_rules.
     R -∗
     ▷(REL fill K (#() : expr) << t : A) -∗
     REL fill K (release lk) << t: A.
-  Proof.
-    iIntros "Hlock Hlocked HR Hlog".
-    iDestruct "Hlock" as (l) "[% #?]"; simplify_eq.
-    rel_rec_l. rel_store_l_atomic.
-    iInv N as (b) "[Hl _]" "Hclose".
-    iModIntro. iExists _. iFrame.
-    iNext. iIntros "Hl".
-    iMod ("Hclose" with "[-Hlog]").
-    { iNext. iExists false. by iFrame. }
-    iApply "Hlog".
-  Qed.
+  Proof. Admitted.
+  (*   iIntros "Hlock Hlocked HR Hlog". *)
+  (*   iDestruct "Hlock" as (l) "[% #?]"; simplify_eq. *)
+  (*   rel_rec_l. rel_store_l_atomic. *)
+  (*   iInv N as (b) "[Hl _]" "Hclose". *)
+  (*   iModIntro. iExists _. iFrame. *)
+  (*   iNext. iIntros "Hl". *)
+  (*   iMod ("Hclose" with "[-Hlog]"). *)
+  (*   { iNext. iExists false. by iFrame. } *)
+  (*   iApply "Hlog". *)
+  (* Qed. *)
 
   Lemma refines_acquire_l (R : iProp Σ) (lk : val) γ K t A :
     is_lock γ lk R -∗

@@ -70,9 +70,9 @@ Section semtypes.
     : iProp Σ :=
     (∀ K, refines_right K e' -∗
           na_own prelogrelGS_nais ⊤ -∗
-          |={E,⊤}=> WP e {{ v, ∃ v', refines_right K (of_val v')
-                                     ∗ na_own prelogrelGS_nais ⊤
-                                     ∗ A v v' }})%I.
+          WP e @ E {{ v, ∃ v', refines_right K (of_val v')
+                               ∗ na_own prelogrelGS_nais ⊤
+                               ∗ A v v' }})%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
   Definition refines := unseal refines_aux.
@@ -90,8 +90,8 @@ Section semtypes.
   Definition lrel_bool : lrel Σ := LRel (λ w1 w2, ∃ b : bool, ⌜ w1 = #b ∧ w2 = #b ⌝)%I.
   Definition lrel_int : lrel Σ := LRel (λ w1 w2, ∃ n : Z, ⌜ w1 = #n ∧ w2 = #n ⌝)%I.
 
-  Definition lrel_arr (A1 A2 : lrel Σ) : lrel Σ := LRel (λ w1 w2,
-    □ ∀ v1 v2, A1 v1 v2 -∗ refines ⊤ (App w1 v1) (App w2 v2) A2)%I.
+  Definition lrel_arr (E : coPset) (A1 A2 : lrel Σ) : lrel Σ := LRel (λ w1 w2,
+    □ ∀ v1 v2, A1 v1 v2 -∗ refines E (App w1 v1) (App w2 v2) A2)%I.
 
   Definition lrel_ref (A : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ l1 l2: loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
@@ -99,7 +99,7 @@ Section semtypes.
 
   Definition lrel_tape : lrel Σ := LRel (λ w1 w2,
     ∃ α1 α2 : loc, ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
-      inv (logN .@ (α1, α2)) (∃ bs, α1 ↪ bs ∗ α2 ↪ₛ bs))%I.
+      inv (logN .@ (α1, α2)) (α1 ↪ [] ∗ α2 ↪ₛ []))%I.
 
   Definition lrel_prod (A B : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ v1 v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧
@@ -123,8 +123,8 @@ Section semtypes.
   Definition lrel_exists (C : lrel Σ → lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ A, C A w1 w2)%I.
 
-  Definition lrel_forall (C : lrel Σ → lrel Σ) : lrel Σ := LRel (λ w1 w2,
-    ∀ A : lrel Σ, (lrel_arr lrel_unit (C A))%lrel w1 w2)%I.
+  Definition lrel_forall (E : coPset) (C : lrel Σ → lrel Σ) : lrel Σ := LRel (λ w1 w2,
+    ∀ A : lrel Σ, (lrel_arr E lrel_unit (C A))%lrel w1 w2)%I.
 
   Definition lrel_true : lrel Σ := LRel (λ w1 w2, True)%I.
 
@@ -135,7 +135,7 @@ Section semtypes.
   Global Instance lrel_sum_ne n : Proper (dist n ==> dist n ==> dist n) lrel_sum.
   Proof. solve_proper. Qed.
 
-  Global Instance lrel_arr_ne n : Proper (dist n ==> dist n ==> dist n) lrel_arr.
+  Global Instance lrel_arr_ne E n : Proper (dist n ==> dist n ==> dist n) (lrel_arr E).
   Proof. solve_proper. Qed.
 
   Global Instance lrel_rec_ne n : Proper (dist n ==> dist n)
@@ -156,14 +156,15 @@ End semtypes.
 
 (** Nice notations *)
 Notation "()" := lrel_unit : lrel_scope.
-Infix "→" := lrel_arr : lrel_scope.
+Infix "→" := (lrel_arr ⊤) : lrel_scope.
+Notation "A1 →{ E } A2" := (lrel_arr E A1 A2) (at level 80) : lrel_scope.
 Infix "*" := lrel_prod : lrel_scope.
 Infix "+" := lrel_sum : lrel_scope.
 Notation "'ref' A" := (lrel_ref A) : lrel_scope.
 Notation "∃ A1 .. An , C" :=
   (lrel_exists (λ A1, .. (lrel_exists (λ An, C%lrel)) ..)) : lrel_scope.
 Notation "∀ A1 .. An , C" :=
-  (lrel_forall (λ A1, .. (lrel_forall (λ An, C%lrel)) ..)) : lrel_scope.
+  (lrel_forall ⊤ (λ A1, .. (lrel_forall ⊤ (λ An, C%lrel)) ..)) : lrel_scope.
 
 Section semtypes_properties.
   Context `{!prelogrelGS Σ}.
@@ -211,8 +212,8 @@ Section semtypes_properties.
     iDestruct "Hl1" as (l' l1') "[% [% #Hl1]]". simplify_eq.
     iDestruct "Hl2" as (l l2') "[% [% #Hl2]]". simplify_eq.
     destruct (decide (l1' = l2')) as [->|?]; eauto.
-    iInv (logN.@(l, l1')) as (?) "[>Hl ?]" "Hcl".
-    iInv (logN.@(l, l2')) as (?) "[>Hl' ?]" "Hcl'".
+    iInv (logN.@(l, l1')) as "[>Hl ?]" "Hcl".
+    iInv (logN.@(l, l2')) as "[>Hl' ?]" "Hcl'".
     simpl. iExFalso.
     iDestruct (ghost_map_elem_valid_2 with "Hl Hl'") as %[Hfoo _].
     compute in Hfoo. eauto.
@@ -227,10 +228,10 @@ Section semtypes_properties.
     iDestruct "Hl1" as (l1' l') "[% [% #Hl1]]". simplify_eq.
     iDestruct "Hl2" as (l2' l) "[% [% #Hl2]]". simplify_eq.
     destruct (decide (l1' = l2')) as [->|?]; eauto.
-    iInv (logN.@(l1', l)) as (?) "(? & >Hl)" "Hcl".
-    iInv (logN.@(l2', l)) as (?) "(? & >Hl')" "Hcl'".
+    iInv (logN.@(l1', l)) as "(? & >Hl)" "Hcl".
+    iInv (logN.@(l2', l)) as "(? & >Hl')" "Hcl'".
     simpl. iExFalso.
-    iDestruct (ghost_map_elem_valid_2 with "Hl Hl'") as %[Hfoo <-].
+    iDestruct (ghost_map_elem_valid_2 with "Hl Hl'") as "[%Hfoo _]".
     compute in Hfoo. eauto.
   Qed.
 
@@ -309,18 +310,18 @@ Section related_facts.
   (* Qed. *)
 
   (* We need this to be able to open and closed invariants in front of logrels *)
-  Lemma fupd_refines E1 E2 e t A :
-    (|={E1, E2}=> refines E2 e t A) -∗ refines E1 e t A.
+  Lemma fupd_refines E e t A :
+    (|={E}=> refines E e t A) -∗ refines E e t A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "H". iIntros (j) "Hr /=".
-    iMod "H" as "H". iApply ("H" with "Hr").
+    iIntros "H". iIntros (j) "Hr Hna /=".
+    iMod "H" as "H". iApply ("H" with "Hr Hna").
   Qed.
 
-  Global Instance elim_fupd_refines p E1 E2 e t P A :
+  Global Instance elim_fupd_refines p E e t P A :
    (* DF: look at the booleans here *)
-   ElimModal True p false (|={E1,E2}=> P) P
-     (refines E1 e t A) (refines E2 e t A).
+   ElimModal True p false (|={E}=> P) P
+     (refines E e t A) (refines E e t A).
   Proof.
     rewrite /ElimModal. intros _.
     iIntros "[HP HI]". iApply fupd_refines.
@@ -352,31 +353,30 @@ Section monadic.
   Lemma refines_bind K K' E A A' e e' :
     (REL e << e' @ E : A) -∗
     (∀ v v', A v v' -∗
-      REL fill K (of_val v) << (fill K' (of_val v')) : A') -∗
+      REL fill K (of_val v) << (fill K' (of_val v')) @ E : A') -∗
     REL fill K e << fill K' e' @ E : A'.
   Proof.
     iIntros "Hm Hf".
     rewrite refines_eq /refines_def /refines_right.
-    iIntros (j) "(#Hs & Hj) Hnais /=".
+    iIntros (K'') "(#Hs & Hj) Hnais /=".
     rewrite -fill_app.
-    iMod ("Hm" $! (K' ++ j) with "[$Hs $Hj] Hnais") as "Hm".
-    iModIntro. iApply wp_bind.
+    iSpecialize ("Hm" $! (K' ++ K'') with "[$Hs $Hj] Hnais").
+    iApply wp_bind.
     iApply (wp_wand with "Hm").
     iIntros (v). iDestruct 1 as (v') "[Hj [Hnais HA]]".
     rewrite fill_app.
-    iSpecialize ("Hf" with "HA").
-    iMod ("Hf" $! j with "Hj Hnais") as "$".
+    iApply ("Hf" with "HA Hj Hnais").
   Qed.
 
   Lemma refines_ret E e1 e2 v1 v2 (A : lrel Σ) :
     IntoVal e1 v1 →
     IntoVal e2 v2 →
-    (|={E,⊤}=> A v1 v2) -∗ REL e1 << e2 @ E : A.
+    (|={E}=> A v1 v2) -∗ REL e1 << e2 @ E : A.
   Proof.
     rewrite /IntoVal.
     rewrite refines_eq /refines_def.
-    iIntros (<-<-) "HA". iIntros (j) "Hj Hnais /=".
-    iMod "HA" as "HA". iModIntro.
+    iIntros (<-<-) "HA". iIntros (K) "H Hnais /=".
+    iMod "HA" as "HA".
     iApply wp_value. iExists _. by iFrame.
   Qed.
 

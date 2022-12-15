@@ -4,7 +4,8 @@ From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import proofmode.
 From self.prob_lang Require Export spec_rules metatheory.
-From self.logrel Require Import types model interp compatibility rel_rules rel_tactics.
+From self.logrel Require Import model compatibility rel_rules rel_tactics.
+From self.typing Require Import types interp.
 
 Section fundamental.
   Context `{!prelogrelGS Σ}.
@@ -274,10 +275,10 @@ Section fundamental.
     intro_clause.
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
-    iMod (inv_alloc (logN .@ (α,β)) _ (∃ bs,
-                α ↪ bs ∗ β ↪ₛ bs)%I with "[Hα Hβ]") as "HN"; eauto.
-    { iNext. iExists []; simpl; iFrame. }
-    rel_values. iExists α, β. eauto.
+    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ [] ∗ β ↪ₛ [])%I
+           with "[Hα Hβ]") as "HN"; eauto.
+    { iFrame. }
+    rel_values. iExists α, β. auto.
   Qed.
 
   Lemma bin_log_related_flip Δ Γ e e' :
@@ -287,51 +288,12 @@ Section fundamental.
     iIntros "IH".
     intro_clause.
     rel_bind_ap e e' "IH" v v' "IH".
-(*
-    iDestruct "IH" as "[% %]"; simplify_eq/=;
-      rel_if_l; rel_if_r.
-    rewrite /lrel_bool.
-    rewrite refines_eq.
-    rewrite /refines_def.
-    iIntros.
+    iDestruct "IH" as (α1 α2 -> ->) "#H".
+    iApply refines_flip.
+    value_case.
     iModIntro.
-    rewrite wp_unfold.
-    rewrite /wp_pre ;
-    simpl.
-    iIntros.
-    iApply fupd_mask_intro ; auto.
-    iIntros.
-    (* unfold lrel_tape. *)
-    simpl.
-    (* get ∃α, v = v' = #lbl:α from IH *)
-    unfold wp. unfold wp'.
-    unfold self.program_logic.weakestpre.wp_aux.
-    rewrite /wp_pre.
-    rewrite wp_unfold.
-    rewrite wp_unseal.
-*)
-  Admitted.
-
-  (* Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ : *)
-  (*   UnboxedType τ → *)
-  (*   ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ) -∗ *)
-  (*   ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ) -∗ *)
-  (*   {Δ;Γ} ⊨ BinOp EqOp e1 e2 ≤log≤ BinOp EqOp e1' e2' : TBool. *)
-  (* Proof. *)
-  (*   iIntros (Hτ) "IH1 IH2". *)
-  (*   intro_clause. *)
-  (*   rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2". *)
-  (*   rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1". *)
-  (*   iAssert (⌜val_is_unboxed v1⌝)%I as "%". *)
-  (*   { rewrite !unboxed_type_sound //. *)
-  (*     iDestruct "IH1" as "[$ _]". } *)
-  (*   iAssert (⌜val_is_unboxed v2'⌝)%I as "%". *)
-  (*   { rewrite !unboxed_type_sound //. *)
-  (*     iDestruct "IH2" as "[_ $]". } *)
-  (*   iMod (unboxed_type_eq with "IH1 IH2") as "%"; first done. *)
-  (*   rel_op_l. rel_op_r. *)
-  (*   do 2 case_bool_decide; first [by rel_values | naive_solver]. *)
-  (* Qed. *)
+    iExists _, _. eauto.
+  Qed.
 
   Lemma bin_log_related_int_binop Δ Γ op e1 e2 e1' e2' τ :
     binop_int_res_type op = Some τ →
@@ -495,7 +457,7 @@ Section fundamental.
         by iApply fundamental.
       + iApply bin_log_related_bool_unop; first done.
         by iApply fundamental.
-      +
+      + iApply bin_log_related_bool_binop; first done.
         admit.
         (* iApply bin_log_related_unboxed_eq; try done; *)
         (*   by iApply fundamental. *)

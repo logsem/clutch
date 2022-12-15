@@ -4,8 +4,8 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From iris.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Import spec_rules spec_tactics.
-From self.logrel Require Import model rel_tactics.
+From self.prob_lang Require Import spec_rules spec_tactics proofmode.
+From self.logrel Require Import model rel_tactics rel_rules.
 
 Section compatibility.
   Context `{!prelogrelGS Σ}.
@@ -83,13 +83,17 @@ Section compatibility.
     rel_bind_ap e2 e2' "IH2" w w' "IH2".
     rel_bind_ap e1 e1' "IH1" v v' "IH1".
     iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=.
-    rel_store_l_atomic.
+    (* TODO: maybe fix tactic? *)
+    (* rel_store_l_atomic. *)
+    iApply (refines_atomic_l _ _ []); simpl.
+    iIntros (K') "Hr".
     iInv (logN .@ (l,l')) as (v v') "[Hv1 [>Hv2 #Hv]]" "Hclose".
-    iModIntro. iExists _; iFrame "Hv1".
-    iNext. iIntros "Hw1".
-    rel_store_r.
-    iMod ("Hclose" with "[Hw1 Hv2 IH2]").
+    iModIntro.
+    wp_store.
+    tp_store K'.
+    iMod ("Hclose" with "[Hv1 Hv2 IH2]") as "_".
     { iNext; iExists _, _; simpl; iFrame. }
+    iModIntro. iExists _. iFrame.
     value_case.
   Qed.
 
@@ -100,80 +104,40 @@ Section compatibility.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
     iDestruct "H" as (l l' -> ->) "#H".
-    rel_load_l_atomic.
+    (* TODO: maybe fix tactic? *)
+    (* rel_load_l_atomic. *)
+    iApply (refines_atomic_l _ _ []); simpl.
+    iIntros (K') "Hr".
     iInv (logN .@ (l,l')) as (w w') "[Hw1 [>Hw2 #Hw]]" "Hclose"; simpl.
-    iModIntro. iExists _; iFrame "Hw1".
-    iNext. iIntros "Hw1".
-    rel_load_r.
-    iMod ("Hclose" with "[Hw1 Hw2]").
+    iModIntro.
+    wp_load.
+    tp_load K'.
+    iMod ("Hclose" with "[Hw1 Hw2]") as "_".
     { iNext. iExists w,w'; by iFrame. }
+    iModIntro. iExists _. iFrame.
     value_case.
   Qed.
 
-Notation "🖭" := lrel_tape : lrel_scope.
-(* ▥⛁🛢⛓🔗🪙🎲 *)
-
   Lemma refines_flip e e' :
-    (REL e << e' : 🖭) -∗
+    (REL e << e' : lrel_tape) -∗
     REL flip e << flip e' : lrel_bool.
   Proof.
     iIntros "H".
-    (* rewrite {1} refines_eq /refines_def. *)
-    (* rewrite /refines_right. *)
-    eapply (tac_rel_bind_l e); [ tp_bind_helper |].
-    eapply (tac_rel_bind_r e'); [ tp_bind_helper |].
-    iApply (refines_bind with "H").
-    iIntros (v v') "Hv"; simpl.
-
-    (* rel_bind_ap uconstr(e1) uconstr(e2)
-                   constr(IH) ident(v) ident(w) constr(Hv) = *)
-    (* rel_bind_l (metatheory.subst_map _ e); *)
-    (* rel_bind_r (metatheory.subst_map _ e'). *)
-    (* try iSpecialize (IH with "Hvs"); *)
-    (* iApply (refines_bind with IH); *)
-    (* iIntros (v w) Hv; simpl. *)
-
-    (* rel_bind_ap e e' "H" v v' "H". *)
-
-    iDestruct "Hv" as (α α' -> ->) "#Hv".
-    rewrite refines_eq /refines_def.
-    iIntros (K) "[#Hss Hr] Hnais !#".
-
-    rewrite /refines_right.
-
-    iApply lifting.wp_lift_step_fupd_couple; [done|].
-(*
-    iIntros (σ [eₛ σₛ]) "[[Hh1 Ht1] Hρ]".
-    iInv specN as (ξₛ ρ' e2 σ2) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hρ Hspec0") as %<-.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iPureIntro.
-      rewrite /reducible.
-      (* flip is certainly reducible. *)
-      admit.
-    }
-    iExists _, _, _. iSplit.
-    { iPureIntro. apply state_prim_step_sch_wf.
-      (* flip is not a value, okay. *)
-      admit. }
-    iSplit.
-    { iPureIntro.
-      (* need to pick a relation... *)
-      eapply Rcoupl_exec_det_prefix_r; [done|].
-      (* well, why do we have a coupling? *)
-      (* eapply (state_prim_state_coupl α α'). *)
-      admit.
-    }
-
-    iIntros (e3 σ3 [e4 σ4] R2); simplify_eq.
-    iIntros "!> !>". rewrite /state_interp /spec_interp /=.
-    iMod (spec_interp_update (e2, _) with "Hρ Hspec0") as "[Hρ Hspec0]".
-
-    (* do this...earlier? *)
-    iInv (logN .@ (α,α')) as (bs) "[>Hα >Hα']" "Hclose''"; simpl.
-    1:admit.
-*)
-Admitted.
+    rel_bind_ap e e' "H" v v' "H".
+    iDestruct "H" as (α α' -> ->) "#H".
+    iApply (refines_atomic_l _ _ []); simpl.
+    iIntros (K') "[#Hs Hr]".
+    iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
+    iModIntro.
+    (* TODO: make a tactic [wp_flip] and a [tp_flip] tactic *)
+    wp_apply (wp_couple_tapes with "[- $Hs $Hα $Hα']"); [done|solve_ndisj|].
+    iIntros "[%b [Hα' Hα]] /=".
+    wp_apply (wp_flip with "Hα").
+    iIntros "Hα".
+    iMod (step_flip with "[$Hs $Hr $Hα']") as "(_ & Hr & Hα')"; [solve_ndisj|].
+    iMod ("Hclose" with "[$Hα $Hα']") as "_".
+    iModIntro. iExists _. iFrame "Hr Hs".
+    value_case.
+  Qed.
 
 End compatibility.

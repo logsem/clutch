@@ -2,8 +2,9 @@ From Autosubst Require Import Autosubst.
 From iris.algebra Require Export list.
 From iris.proofmode Require Import proofmode.
 From self.prob_lang Require Import metatheory primitive_laws.
-From self.logrel Require Import model types.
 From self.prelude Require Import asubst properness.
+From self.logrel Require Import model.
+From self.typing Require Import types.
 
 (** * Interpretation of types *)
 Section semtypes.
@@ -30,10 +31,10 @@ Section semtypes.
     | TBool => λne _, lrel_bool
     | TProd τ1 τ2 => λne Δ, lrel_prod (interp τ1 Δ) (interp τ2 Δ)
     | TSum τ1 τ2 => λne Δ, lrel_sum (interp τ1 Δ) (interp τ2 Δ)
-    | TArrow τ1 τ2 => λne Δ, lrel_arr (interp τ1 Δ) (interp τ2 Δ)
+    | TArrow τ1 τ2 => λne Δ, lrel_arr ⊤ (interp τ1 Δ) (interp τ2 Δ)
     | TRec τ' => λne Δ, lrel_rec (λne τ, interp τ' (τ::Δ))
     | TVar x => ctx_lookup x
-    | TForall τ' => λne Δ, lrel_forall (λ τ, interp τ' (τ::Δ))
+    | TForall τ' => λne Δ, lrel_forall ⊤ (λ τ, interp τ' (τ::Δ))
     | TExists τ' => λne Δ, lrel_exists (λ τ, interp τ' (τ::Δ))
     | TRef τ => λne Δ, lrel_ref (interp τ Δ)
     | TTape => λne Δ, lrel_tape

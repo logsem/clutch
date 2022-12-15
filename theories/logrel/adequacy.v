@@ -26,8 +26,8 @@ Proof.
   set (Hprelogrel := PrelogrelGS Σ _ _ γ).
   iPoseProof (Hlog _) as "Hlog".
   rewrite refines_eq /refines_def.
-  iMod ("Hlog" $! []  with "[$Hctx $He'] Htok") as "Hwp".
-  iApply (wp_mono with "Hwp").
+  iSpecialize ("Hlog" $! []  with "[$Hctx $He'] Htok").
+  iApply (wp_mono with "Hlog").
   iIntros (?) "H /=".
   iDestruct "H" as (?) "([? ? ] & ? & ?) /=".
   iExists _. iFrame. by iApply HA.

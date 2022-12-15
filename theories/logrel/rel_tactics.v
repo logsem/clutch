@@ -120,6 +120,7 @@ Lemma tac_rel_pure_l `{!prelogrelGS Σ} K e1 ℶ ℶ' E e e2 eres ϕ n m t A :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   ϕ →
+  (* The mask check is not necessary anymore  *)
   ((m = n ∧ E = ⊤) ∨ m = 0) →
   MaybeIntoLaterNEnvs m ℶ ℶ' →
   eres = fill K e2 →
@@ -130,7 +131,7 @@ Proof.
   intros Hfill Hpure Hϕ Hm ?? Hp. subst.
   destruct Hm as [[-> ->] | ->]; rewrite into_laterN_env_sound /= Hp.
   - rewrite -refines_pure_l //.
-  - rewrite -refines_masked_l //.
+  - rewrite -refines_pure_l //. apply bi.laterN_intro.
 Qed.
 
 Lemma tac_rel_pure_r `{!prelogrelGS Σ} K e1 ℶ E (e e2 eres : expr) ϕ n t A :
@@ -191,18 +192,19 @@ Ltac rel_pures_r :=
 
 (** Load *)
 
-Lemma tac_rel_load_l_simp `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 p (l : loc) q v e t eres A :
+Lemma tac_rel_load_l_simp `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 p (l : loc) q v e t eres A E :
   e = fill K (Load (# l)) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   envs_lookup i1 ℶ2 = Some (p, l ↦{q} v)%I →
   eres = fill K (of_val v) →
-  envs_entails ℶ2 (refines ⊤ eres t A) →
-  envs_entails ℶ1 (refines ⊤ e t A).
+  envs_entails ℶ2 (refines E eres t A) →
+  envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. iIntros (-> ?? -> Hℶ2) "Henvs".
   iDestruct (into_laterN_env_sound with "Henvs") as "Henvs".
   iDestruct (envs_lookup_split with "Henvs") as "[Hl Henvs]"; first done.
-  rewrite Hℶ2. iApply (refines_load_l K ⊤ l q). iModIntro. iExists v.
+  rewrite Hℶ2. iApply (refines_load_l K E l q).
+  iExists v.
   destruct p; simpl; [|by iFrame].
   iDestruct "Hl" as "#Hl". iSplitR; [by auto|].
   iIntros "!> _". by iApply "Henvs".
@@ -239,7 +241,7 @@ Tactic Notation "rel_load_l" :=
   |reflexivity       (** eres = fill K v *)
   |rel_finish  (** new goal *)].
 
-Tactic Notation "rel_load_l_atomic" := rel_apply_l refines_load_l.
+(* Tactic Notation "rel_load_l_atomic" := rel_apply_l refines_load_l. *)
 
 (* The structure for the tacticals on the right hand side is a bit
 different. Because there is only one type of rules, we can report
@@ -262,15 +264,15 @@ Tactic Notation "rel_load_r" :=
   |rel_finish  (** new goal *)].
 
 (** Store *)
-Lemma tac_rel_store_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 ℶ3 i1 (l : loc) v e' v' e t eres A :
+Lemma tac_rel_store_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 ℶ3 i1 (l : loc) v e' v' e t eres A E :
   e = fill K (Store (# l) e') →
   IntoVal e' v' →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   envs_lookup i1 ℶ2 = Some (false, l ↦ v)%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (l ↦ v')) ℶ2 = Some ℶ3 →
   eres = fill K #() →
-  envs_entails ℶ3 (refines ⊤ eres t A) →
-  envs_entails ℶ1 (refines ⊤ e t A).
+  envs_entails ℶ3 (refines E eres t A) →
+  envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros ?????? Hg.
   subst e eres.
@@ -278,7 +280,6 @@ Proof.
   rewrite bi.later_sep.
   rewrite right_id.
   rewrite -(refines_store_l K ⊤ l).
-  rewrite -fupd_intro.
   rewrite -(bi.exist_intro v).
   by rewrite Hg.
 Qed.
@@ -321,7 +322,7 @@ Tactic Notation "rel_store_l" :=
   |reflexivity
   |rel_finish  (** new goal *)].
 
-Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
+(* Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l. *)
 
 Tactic Notation "rel_store_r" :=
   let solve_mapsto _ :=
@@ -342,20 +343,19 @@ Tactic Notation "rel_store_r" :=
 
 
 (** Alloc *)
-Tactic Notation "rel_alloc_l_atomic" := rel_apply_l refines_alloc_l.
+(* Tactic Notation "rel_alloc_l_atomic" := rel_apply_l refines_alloc_l. *)
 
-Lemma tac_rel_alloc_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e t e' v' A :
+Lemma tac_rel_alloc_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e t e' v' A E :
   e = fill K (Alloc e') →
   IntoVal e' v' →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (l : loc),
-     (l ↦ v' -∗ refines ⊤ (fill K (of_val #l)) t A))) →
-  envs_entails ℶ1 (refines ⊤ e t A).
+     (l ↦ v' -∗ refines E (fill K (of_val #l)) t A))) →
+  envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloc_l _ ⊤); eauto.
-  rewrite -fupd_intro.
   apply bi.later_mono.
 Qed.
 
@@ -406,19 +406,18 @@ Tactic Notation "rel_alloc_l" :=
 
 
 (** AllocTape *)
-Tactic Notation "rel_alloctape_l_atomic" := rel_apply_l refines_alloctape_l.
+(* Tactic Notation "rel_alloctape_l_atomic" := rel_apply_l refines_alloctape_l. *)
 
-Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e t A :
+Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e t A E :
   e = fill K AllocTape →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪ [] -∗ refines ⊤ (fill K (of_val #lbl:α)) t A))) →
-  envs_entails ℶ1 (refines ⊤ e t A).
+     (α ↪ [] -∗ refines E (fill K (of_val #lbl:α)) t A))) →
+  envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloctape_l _ ⊤); eauto.
-  rewrite -fupd_intro.
   now apply bi.later_mono.
 Qed.
 
@@ -464,13 +463,13 @@ Tactic Notation "rel_alloctape_l" :=
   let H := iFresh "H" in
   rel_alloctape_l l as H.
 
-Lemma tac_rel_flip_l `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 (α : loc) e t tres A b bs :
+Lemma tac_rel_flip_l `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 (α : loc) e t tres A b bs E :
   t = fill K (Flip (#lbl: α)) →
   envs_lookup i1 ℶ1 = Some (false, α ↪ (b::bs))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ bs)) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #b) →
-  envs_entails ℶ2 (refines ⊤ tres e A) →
-  envs_entails ℶ1 (refines ⊤ t e A).
+  envs_entails ℶ2 (refines E tres e A) →
+  envs_entails ℶ1 (refines E t e A).
 Proof.
   rewrite envs_entails_unseal. iIntros (???? Hg).
   subst t tres.
@@ -478,8 +477,7 @@ Proof.
   rewrite right_id.
   rewrite Hg.
   iIntros "(Hα & Hlog)".
-  rewrite -(refines_flip_l _ K α b bs) //.
-  iModIntro.
+  rewrite -(refines_flip_l _ K α _ _ b bs) //.
   iFrame.
 Qed.
 
@@ -516,6 +514,7 @@ Tactic Notation "rel_flip_l" :=
   |reflexivity
   |rel_finish  (** new goal *)].
 
+(* Tactic Notation "rel_flip_l_atomic" := rel_apply_l refines_flip_l. *)
 
 Tactic Notation "rel_flip_r" :=
   let solve_mapsto _ :=
