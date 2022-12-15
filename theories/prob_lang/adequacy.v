@@ -1,4 +1,3 @@
-
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.algebra Require Import excl.
@@ -869,12 +868,16 @@ Section adequacy.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_coupl /exec_coupl'.
-    iPoseProof (least_fixpoint_iter
-                  (exec_coupl_pre (λ '(e2, σ2) '(e2', σ2'),
-                       |={∅}▷=>^(S n) ⌜refRcoupl (dmap fst (prim_exec n (e2, σ2))) (dmap fst (lim_prim_exec (e2', σ2'))) (coupl_rel_expr φ)⌝)%I)
-                  (λ '((e1, σ1), (e1', σ1')), ⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                      ⌜refRcoupl (dmap fst (prim_exec (S n) (e1, σ1))) (dmap fst (lim_prim_exec (e1', σ1'))) (coupl_rel_expr φ)⌝)%I
-                 with "[]") as "H"; last first.
+    set (Φ := (λ '((e1, σ1), (e1', σ1')),
+                (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
+                 ⌜refRcoupl (dmap fst (prim_exec (S n) (e1, σ1)))
+                            (dmap fst (lim_prim_exec (e1', σ1')))
+                            (coupl_rel_expr φ)⌝)%I) : prodO cfgO cfgO → iPropI Σ).
+    set (F := (exec_coupl_pre (λ '(e2, σ2) '(e2', σ2'),
+                   |={∅}▷=>^(S n) ⌜refRcoupl (dmap fst (prim_exec n (e2, σ2)))
+                     (dmap fst (lim_prim_exec (e2', σ2')))
+                     (coupl_rel_expr φ)⌝)%I)).
+    iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %". by iMod ("H" $! ((_, _), (_, _)) with "Hfix [//]"). }
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
