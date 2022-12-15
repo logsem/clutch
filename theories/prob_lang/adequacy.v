@@ -164,7 +164,7 @@ Section helper_lemma.
     rewrite H12; auto.
   Qed.
 
-  Lemma pure_coupl_trans_l μ1 μ2 μ3 :
+  Lemma pure_coupl_trans_l μ1 μ2 μ3:
     Rcoupl μ1 μ2 pure_eq
     -> Rcoupl μ2 μ3 pure_eq
     -> Rcoupl μ1 μ3 pure_eq.
@@ -852,20 +852,27 @@ Section adequacy.
     | None,  _ => True
     end.
 
+  Definition coupl_rel_expr (φ : val → val → Prop) (e e' :expr) : Prop :=
+    match to_val e, to_val e' with
+    | Some v, Some v' => φ v v'
+    | Some _, None => False
+    | None,  _ => True
+    end.
+
   Lemma exec_coupl_erasure (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (n : nat) φ :
     to_val e1 = None →
     exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-        |={∅}▷=>^(S n) ⌜refRcoupl (prim_exec n (e2, σ2)) (lim_prim_exec (e2', σ2')) (coupl_rel φ)⌝)
-    ⊢ |={∅}▷=>^(S n) ⌜refRcoupl (prim_exec (S n) (e1, σ1)) (lim_prim_exec (e1', σ1')) (coupl_rel φ)⌝.
+        |={∅}▷=>^(S n) ⌜refRcoupl (dmap fst (prim_exec n (e2, σ2))) (dmap fst (lim_prim_exec (e2', σ2'))) (coupl_rel_expr φ)⌝)
+    ⊢ |={∅}▷=>^(S n) ⌜refRcoupl (dmap fst (prim_exec (S n) (e1, σ1))) (dmap fst (lim_prim_exec (e1', σ1'))) (coupl_rel_expr φ)⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_coupl /exec_coupl'.
     iPoseProof (least_fixpoint_iter
                   (exec_coupl_pre (λ '(e2, σ2) '(e2', σ2'),
-                       |={∅}▷=>^(S n) ⌜refRcoupl (prim_exec n (e2, σ2)) (lim_prim_exec (e2', σ2')) (coupl_rel φ)⌝)%I)
+                       |={∅}▷=>^(S n) ⌜refRcoupl (dmap fst (prim_exec n (e2, σ2))) (dmap fst (lim_prim_exec (e2', σ2'))) (coupl_rel_expr φ)⌝)%I)
                   (λ '((e1, σ1), (e1', σ1')), ⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                      ⌜refRcoupl (prim_exec (S n) (e1, σ1)) (lim_prim_exec (e1', σ1')) (coupl_rel φ)⌝)%I
+                      ⌜refRcoupl (dmap fst (prim_exec (S n) (e1, σ1))) (dmap fst (lim_prim_exec (e1', σ1'))) (coupl_rel_expr φ)⌝)%I
                  with "[]") as "H"; last first.
     { iIntros "Hfix %". by iMod ("H" $! ((_, _), (_, _)) with "Hfix [//]"). }
     clear.
@@ -877,11 +884,21 @@ Section adequacy.
       + destruct (decide (prim_step e1 σ1 = dzero)) as [Hs|].
         * rewrite /= Hs dbind_dzero.
           do 3 iModIntro. iApply step_fupdN_intro; [done|].
-          iModIntro. iPureIntro. apply refRcoupl_dzero.
+          iModIntro. iPureIntro.
+          rewrite dmap_dzero. apply refRcoupl_dzero.
         * assert (prim_step e1' σ1' = dzero) as Hz by by apply val_stuck_dzero.
           rewrite /= (val_stuck_dzero e1') in Hcpl; [|eauto].
           by apply Rcoupl_dzero_r_inv in Hcpl.
       + rewrite prim_step_or_val_no_val; [|done].
+        (* These could be separate lemmas *)
+        assert (forall e σ, (dmap fst (language.prim_step e σ ≫= prim_exec n)) =
+               language.prim_step e σ ≫= (λ ρ, dmap fst (prim_exec n ρ))) as Haux.
+        { intros; rewrite /dmap. symmetry. apply dbind_assoc. }
+        assert (forall e σ, (dmap fst (language.prim_step e σ ≫= lim_prim_exec)) =
+               language.prim_step e σ ≫= (λ ρ, dmap fst (lim_prim_exec ρ))) as Haux'.
+        { intros; rewrite /dmap. symmetry. apply dbind_assoc. }
+        rewrite Haux.
+        rewrite Haux'.
         iApply (refRcoupl_bind' _ _ _ _ R).
         { iPureIntro. by apply weaken_coupl. }
         iIntros ([] [] HR). by iMod ("H" with "[//]").
@@ -924,7 +941,7 @@ Section adequacy.
 
   Theorem wp_coupling (e e' : expr) (σ σ' : state) n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ spec_ctx ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
-    |={⊤,∅}=> |={∅}▷=>^n ⌜refRcoupl (prim_exec n (e, σ)) (lim_prim_exec (e', σ')) (coupl_rel φ)⌝.
+    |={⊤,∅}=> |={∅}▷=>^n ⌜refRcoupl ( dmap (λ ρ, ρ.1) (prim_exec n (e, σ))) ( dmap (λ ρ, ρ.1) (lim_prim_exec (e', σ'))) (coupl_rel_expr φ)⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ e' σ'); iIntros "([Hh Ht] & HspecI_auth & #Hctx & Hwp)".
     - rewrite /prim_exec /=.
@@ -937,9 +954,13 @@ Section adequacy.
         iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         erewrite lim_prim_exec_exec_val; [|done].
-        iPureIntro. by apply refRcoupl_ret.
+        iPureIntro.
+        rewrite /dmap.
+        rewrite 2!dret_id_left /=.
+        by apply refRcoupl_ret.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-        iPureIntro. apply refRcoupl_dzero.
+        iPureIntro.
+        rewrite dmap_dzero. apply refRcoupl_dzero.
     - rewrite prim_exec_Sn /prim_step_or_val /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
@@ -953,13 +974,14 @@ Section adequacy.
         iPureIntro.
         rewrite prim_exec_unfold dret_id_left /=.
         erewrite lim_prim_exec_exec_val; [|done].
+        rewrite 2!dmap_dret.
         by apply refRcoupl_ret.
       + rewrite wp_unfold /wp_pre /= Heq.
         iMod ("Hwp" with "[$]") as "Hcpl".
         iModIntro.
         iPoseProof
           (exec_coupl_mono _ (λ '(e2, σ2) '(e2', σ2'), |={∅}▷=>^(S n)
-             ⌜refRcoupl (prim_exec n (e2, σ2)) (lim_prim_exec (e2', σ2')) (coupl_rel φ)⌝)%I
+             ⌜refRcoupl (dmap fst (prim_exec n (e2, σ2))) (dmap fst (lim_prim_exec (e2', σ2'))) (coupl_rel_expr φ)⌝)%I
             with "[] Hcpl") as "H".
         { iIntros ([] []) "H !> !>".
           iMod "H" as "(Hstate & HspecI_auth & Hwp)".
@@ -987,7 +1009,7 @@ Proof. solve_inG. Qed.
 
 Theorem wp_adequacy Σ `{prelocGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
   (∀ `{prelocGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
-  refRcoupl (prim_exec n (e, σ)) (lim_prim_exec (e', σ')) (coupl_rel φ).
+  refRcoupl (dmap (λ ρ, ρ.1) (prim_exec n (e, σ))) (( dmap (λ ρ, ρ.1) (lim_prim_exec (e', σ')))) (coupl_rel_expr φ).
 Proof.
   intros Hwp.
   eapply (step_fupdN_soundness_no_lc _ n 0).
