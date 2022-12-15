@@ -1,4 +1,4 @@
-From Coq Require Export Reals Psatz.
+
 From iris.proofmode Require Import base proofmode classes.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.algebra Require Import excl.
@@ -833,7 +833,8 @@ End class_instance_updates.
 Section adequacy.
   Context `{!prelocGS Σ}.
 
-  Lemma refRcoupl_bind' `{Countable A, Countable B} μ1 μ2 f g (R T : A → B → Prop) n  :
+  Lemma refRcoupl_bind' `{Countable A, Countable A', Countable B, Countable B'}
+    (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (T : A' → B' → Prop) n :
     ⌜refRcoupl μ1 μ2 R⌝ -∗
     (∀ a b, ⌜R a b⌝ ={∅}▷=∗^(S n) ⌜refRcoupl (f a) (g b) T⌝) -∗
     |={∅}▷=>^(S n) ⌜refRcoupl (dbind f μ1) (dbind g μ2) T⌝ : iProp Σ.
@@ -891,25 +892,20 @@ Section adequacy.
           by apply Rcoupl_dzero_r_inv in Hcpl.
       + rewrite prim_step_or_val_no_val; [|done].
         (* These could be separate lemmas *)
-        assert (forall e σ, (dmap fst (language.prim_step e σ ≫= prim_exec n)) =
-               language.prim_step e σ ≫= (λ ρ, dmap fst (prim_exec n ρ))) as Haux.
-        { intros; rewrite /dmap. symmetry. apply dbind_assoc. }
-        assert (forall e σ, (dmap fst (language.prim_step e σ ≫= lim_prim_exec)) =
-               language.prim_step e σ ≫= (λ ρ, dmap fst (lim_prim_exec ρ))) as Haux'.
-        { intros; rewrite /dmap. symmetry. apply dbind_assoc. }
-        rewrite Haux.
-        rewrite Haux'.
+        rewrite 2!dmap_dbind.
         iApply (refRcoupl_bind' _ _ _ _ R).
         { iPureIntro. by apply weaken_coupl. }
         iIntros ([] [] HR). by iMod ("H" with "[//]").
     - rewrite prim_exec_Sn_not_val; [|done].
       rewrite -(dret_id_left (lim_prim_exec)).
+      rewrite 2!dmap_dbind.
       iApply refRcoupl_bind'.
       { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply weaken_coupl. }
       iIntros ([] [] (?&?& [= -> ->]%dret_pos)).
       by iMod ("H"  with "[//]").
     - rewrite -{2}(dret_id_left (prim_exec _)).
       rewrite (lim_prim_exec_exec m).
+      rewrite 2!dmap_dbind.
       iApply refRcoupl_bind'.
       { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply weaken_coupl. }
       iIntros ([] [] (?& [= -> ->]%dret_pos &?)).
@@ -917,14 +913,14 @@ Section adequacy.
     - rewrite prim_exec_Sn_not_val; [|done].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
-                       ⌜refRcoupl (prim_step e1 σ1 ≫= prim_exec n)
-                                  (lim_prim_exec (e1', σ1')) (coupl_rel φ)⌝)%I
+                       ⌜refRcoupl (dmap fst (prim_step e1 σ1 ≫= prim_exec n))
+                                  (dmap fst (lim_prim_exec (e1', σ1'))) (coupl_rel_expr φ)⌝)%I
                   with "H") as "H".
       { iIntros (i [α1 α2] [Hα1 Hα2]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %Hcpl & H)".
         rewrite -prim_exec_Sn_not_val; [|done].
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 σ2', R2 σ2 σ2' → refRcoupl (prim_exec (S n) (e1, σ2))
-                                                    (lim_prim_exec (e1', σ2')) (coupl_rel φ)⌝)%I).
+                  (⌜∀ σ2 σ2', R2 σ2 σ2' → refRcoupl (dmap fst (prim_exec (S n) (e1, σ2)))
+                                                    (dmap fst (lim_prim_exec (e1', σ2'))) (coupl_rel_expr φ)⌝)%I).
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα1, Hα2.
           apply elem_of_elements, elem_of_dom in Hα1 as [], Hα2 as [].
