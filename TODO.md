@@ -4,6 +4,11 @@
 
 - Epsilon equivalence
 
+- Is having a refCoupl equivalent to having a traditional coupling on the ⊥-lifted relation?
+
+- Could we use the exec_coupl modality instead of the pure-run-ahead in the spec resource algebra?
+
+- Flip-label erasure via tapes_logrel := λ t1 t2 . t1 = t2 = [] instead of t1 = t2.
 
 # Examples
 
