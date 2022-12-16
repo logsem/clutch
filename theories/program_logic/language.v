@@ -94,7 +94,7 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step (K e1) σ1 = dmap (λ '(e2, σ2), (K e2, σ2)) (prim_step e1 σ1)
+    prim_step (K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1)
 }.
 
 #[global] Existing Instance fill_inj.

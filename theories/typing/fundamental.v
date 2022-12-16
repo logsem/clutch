@@ -457,8 +457,7 @@ Section fundamental.
         by iApply fundamental.
       + iApply bin_log_related_bool_unop; first done.
         by iApply fundamental.
-      + iApply bin_log_related_bool_binop; first done.
-        admit.
+      + admit.
         (* iApply bin_log_related_unboxed_eq; try done; *)
         (*   by iApply fundamental. *)
       + iApply bin_log_related_pair;
