@@ -159,12 +159,26 @@ Section prim_exec_lim.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
   Implicit Types e : expr Λ.
+  Implicit Types v : val Λ.
   Implicit Types σ : state Λ.
 
-  Program Definition lim_prim_exec (ρ : cfg Λ) : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec n ρ ρ')) _ _ _.
+  Program Definition lim_prim_exec ρ : distr (cfg Λ):= MkDistr (λ ρ', Lim_seq (λ n, prim_exec n ρ ρ')) _ _ _.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
 
+  (* needed in [adequacy.v] *)
+  Lemma lim_prim_exec_exec n ρ :
+    lim_prim_exec ρ = exec n ρ ≫= lim_prim_exec.
+  Proof. Admitted.
+
+  Lemma lim_prim_exec_exec_val n ρ v σ :
+    exec n ρ (of_val v, σ) = 1 →
+    lim_prim_exec ρ = dret (of_val v, σ).
+  Proof. Admitted.
+
+  Lemma lim_prim_exec_continous ρ1 ρ2 r :
+    (∀ n, prim_exec n ρ1 ρ2 <= r) → lim_prim_exec ρ1 ρ2 <= r.
+  Proof. Admitted.
 
 End prim_exec_lim.

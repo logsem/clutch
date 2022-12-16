@@ -766,16 +766,6 @@ Qed.
     apply weaken_coupl; auto.
   Qed.
 
-  Lemma lim_prim_exec_exec n (ρ : cfg) :
-    lim_prim_exec ρ = exec n ρ ≫= lim_prim_exec.
-  Proof. Admitted.
-
-  Lemma lim_prim_exec_exec_val n ρ (v : val) σ :
-    exec n ρ (Val v, σ) = 1 →
-    lim_prim_exec ρ = dret (Val v, σ).
-  Proof. Admitted.
-
-
 (* TODO: upstream? *)
   Section fupd_plainly_derived.
     Context {PROP : bi}.

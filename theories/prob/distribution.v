@@ -991,25 +991,43 @@ Proof.
   apply Rle_antisym; auto.
 Qed.
 
+(* Lemma distr_le_dret (a : A) (b : B) : *)
+(*   dret  *)
 
 Lemma distr_le_dbind (μ1 μ2 : distr A) (f1 f2 : A → distr B) :
-  (distr_le μ1 μ2) -> (∀ a, distr_le (f1 a) (f2 a)) → distr_le (dbind f1 μ1) (dbind f2 μ2).
+  distr_le μ1 μ2 →
+  (∀ a, distr_le (f1 a) (f2 a)) →
+   distr_le (dbind f1 μ1) (dbind f2 μ2).
 Proof.
   intros Hle Hf.
   pose proof (pmf_ex_seriesC (μ2 ≫= f2)) as Hex.
   rewrite /distr_le /pmf /= /dbind_pmf /=.
   intro b.
-  (* We do enough of this kind of reasoning that it should be a lemma, so that we don't have to prove the exSeriesC everytime *)
   apply SeriesC_le; last first.
-  + eapply ex_seriesC_le; [ |apply (pmf_ex_seriesC μ2)].
-    intro a;  split.
-    ++ apply Rmult_le_pos; auto.
-    ++ rewrite <- Rmult_1_r; apply Rmult_le_compat_l; auto.
-  + intro a; split.
-    ++ apply Rmult_le_pos; auto.
-    ++ rewrite /distr_le in Hle.
-       rewrite /distr_le in Hf.
-       eapply Rmult_le_compat; auto.
+  - eapply pmf_ex_seriesC_mult_fn; eauto.
+  - intro a; split.
+    + by apply Rmult_le_pos.
+    + rewrite /distr_le in Hle, Hf.
+      eapply Rmult_le_compat; auto.
+Qed.
+
+Lemma distr_le_dmap_1 (μ1 μ2 : distr A) (f : A → B) :
+  distr_le μ1 μ2 → distr_le (dmap f μ1) (dmap f μ2).
+Proof.
+  intros Hμ.
+  apply distr_le_dbind; [done|].
+  rewrite /distr_le /=.
+  intros a b.
+  rewrite /pmf /= /dret_pmf.
+  by case_bool_decide.
+Qed.
+
+Lemma distr_le_dmap_2 (μ1 μ2 : distr A) (f : A → B) `{Inj A B (=) (=) f} :
+  distr_le (dmap f μ1) (dmap f μ2) → distr_le μ1 μ2.
+Proof.
+  intros Hm a.
+  specialize (Hm (f a)).
+  by erewrite 2!dmap_elem_eq in Hm.
 Qed.
 
 End order.
