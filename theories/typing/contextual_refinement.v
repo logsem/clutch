@@ -269,7 +269,7 @@ Global Instance ctx_refines_reflexive Γ τ :
   Reflexive (fun e1 e2 => ctx_refines Γ e1 e2 τ).
 Proof.
   intros e K σ b Hty.
-  apply distr_le_dmap.
+  apply distr_le_dmap_1.
   intros ρ.
   eapply distr_le_refl.
 Qed.
