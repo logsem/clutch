@@ -85,7 +85,7 @@ Section compatibility.
     iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=.
     (* TODO: maybe fix tactic? *)
     (* rel_store_l_atomic. *)
-    iApply (refines_atomic_l _ _ []); simpl.
+    iApply (refines_atomic_l _ _ _ []); simpl.
     iIntros (K') "Hr".
     iInv (logN .@ (l,l')) as (v v') "[Hv1 [>Hv2 #Hv]]" "Hclose".
     iModIntro.
@@ -106,7 +106,7 @@ Section compatibility.
     iDestruct "H" as (l l' -> ->) "#H".
     (* TODO: maybe fix tactic? *)
     (* rel_load_l_atomic. *)
-    iApply (refines_atomic_l _ _ []); simpl.
+    iApply (refines_atomic_l _ _ _ []); simpl.
     iIntros (K') "Hr".
     iInv (logN .@ (l,l')) as (w w') "[Hw1 [>Hw2 #Hw]]" "Hclose"; simpl.
     iModIntro.
@@ -125,7 +125,7 @@ Section compatibility.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
     iDestruct "H" as (α α' -> ->) "#H".
-    iApply (refines_atomic_l _ _ []); simpl.
+    iApply (refines_atomic_l _ _ _ []); simpl.
     iIntros (K') "[#Hs Hr]".
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
