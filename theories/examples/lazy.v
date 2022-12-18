@@ -46,6 +46,8 @@ Definition eager' : expr :=
 
 Definition lazy_no_tapes : expr := lazy #().
 
+Definition eager_no_tapes : expr := eager #().
+
 Section proofs.
   Context `{!prelogrelGS Σ}.
   Context `{!lockG Σ}.
@@ -206,7 +208,7 @@ Section proofs.
     all: iApply (refines_na_close with "[$Hclose $HP]") ; rel_values.
   Qed.
 
-  Lemma lazy_no_tapes_refinement :
+  Lemma lazy_lazy_no_tapes_refinement :
     ⊢ REL lazy' << lazy_no_tapes : lrel_unit → lrel_bool.
   Proof.
     rewrite /lazy' /lazy_no_tapes /lazy.
@@ -242,6 +244,25 @@ Section proofs.
       iApply (refines_na_close with "[- $Hclose $Hα]").
       iSplitR; [rel_values|].
       iRight. iModIntro. iExists _. iFrame.
+  Qed.
+
+  Lemma eager_no_tapes_eager_refinement :
+    ⊢ REL eager_no_tapes << eager' : lrel_unit → lrel_bool.
+  Proof.
+    rewrite /eager_no_tapes /eager' /eager.
+    rel_alloctape_r α as "Hα".
+    rel_pures_r.
+    rel_bind_l (flip _)%E.
+    rel_bind_r (flip _)%E.
+    iApply (refines_couple_flips_r with "[-$Hα]"); [done|].
+    iIntros (b) "Hα /=".
+    rel_pures_l.
+    rel_pures_r.
+    rel_arrow_val.
+    iIntros (?? _).
+    rel_pures_l.
+    rel_pures_r.
+    rel_values.
   Qed.
 
 End proofs.
