@@ -395,8 +395,6 @@ Section couplings_theory.
     eauto.
   Qed.
 
-
-
 End couplings_theory.
 
 
@@ -425,6 +423,16 @@ Section Rcoupl.
     rewrite -Hμ1 -Hμ2.
     rewrite 2!dmap_pos.
     split; eauto.
+  Qed.
+
+  Lemma Rcoupl_impl (R T : A → B → Prop) :
+    (∀ a b, T a b → R a b) →
+    Rcoupl μ1 μ2 T →
+    Rcoupl μ1 μ2 R.
+  Proof.
+    intros Himpl [μ [Hcpl HT]].
+    eexists μ. split; [done|].
+    intros ? ?%HT. eauto.
   Qed.
 
 End Rcoupl.

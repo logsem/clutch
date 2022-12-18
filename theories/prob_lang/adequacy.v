@@ -613,6 +613,20 @@ Section erasure_helpers.
       eapply Rcoupl_bind; [|apply Rcoupl_eq].
       intros ? [] ->; rewrite !dret_id_left; by eapply IH.
   Qed.
+
+  Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K :
+    Rcoupl
+      (dmap (fill_lift K) (head_step (flip #()) σ) ≫= prim_exec m)
+      (fair_conv_comb
+         (dmap (fill_lift K)
+            (head_step (flip #())
+               (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= prim_exec m)
+         (dmap (fill_lift K)
+            (head_step (flip #())
+               (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= prim_exec m))
+      pure_eq.
+  Proof using m IH. Admitted.
+
 End erasure_helpers.
 
 Section erasure.
@@ -685,7 +699,8 @@ Section erasure.
         { inversion HP; simplify_eq.
           - by eapply ind_case_alloc.
           - by eapply ind_case_flip_some.
-          - by eapply ind_case_flip_none. }
+          - by eapply ind_case_flip_none.
+          - by eapply ind_case_flip_no_tapes. }
         { by eapply ind_case_dzero. }
   Qed.
 

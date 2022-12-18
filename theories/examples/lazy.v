@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants na_invariants.
-From self.prob_lang Require Import notation proofmode primitive_laws.
+From self.prob_lang Require Import notation proofmode primitive_laws spec_rules.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.examples Require Import lock.
 From self.prelude Require Import base.
@@ -43,6 +43,8 @@ Definition lazy' : expr :=
 
 Definition eager' : expr :=
   let: "α" := alloc in eager "α".
+
+Definition lazy_no_tapes : expr := lazy #().
 
 Section proofs.
   Context `{!prelogrelGS Σ}.
@@ -202,6 +204,44 @@ Section proofs.
     1: rel_flip_l ; rel_pures_l ; rel_store_l ; rel_pures_l.
     all: iAssert (▷ P)%I with "[Hβ Hl]" as "HP" ; [subst P ; eauto with iFrame|].
     all: iApply (refines_na_close with "[$Hclose $HP]") ; rel_values.
+  Qed.
+
+  Lemma lazy_no_tapes_refinement :
+    ⊢ REL lazy' << lazy_no_tapes : lrel_unit → lrel_bool.
+  Proof.
+    rewrite /lazy' /lazy_no_tapes /lazy.
+    rel_alloctape_l α as "Hα".
+    rel_pures_l.
+    rel_alloc_l l as "Hl".
+    rel_pures_l.
+    rel_alloc_r l' as "Hl'".
+    rel_pures_r.
+    iMod (na_inv_alloc prelogrelGS_nais _ coinN
+            (α ↪ [] ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨ ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))
+           with "[-]") as "#Hinv".
+    { iFrame. iLeft. iFrame. }
+    rel_arrow_val.
+    iIntros (?? [-> ->]).
+    rel_pures_l.
+    rel_pure_r.
+    iApply (refines_na_inv with "[$Hinv]"); [done|done|].
+    iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
+    - rel_load_l. rel_pures_l.
+      rel_load_r. rel_pures_r.
+      rel_bind_l (flip _)%E.
+      rel_bind_r (flip _)%E.
+      iApply (refines_couple_flips_l with "[-$Hα]"); [done|].
+      iIntros (b) "Hα /=".
+      rel_pures_l. rel_store_l. rel_pures_l.
+      rel_pures_r. rel_store_r. rel_pures_r.
+      iApply (refines_na_close with "[- $Hclose $Hα]").
+      iSplitR; [rel_values|].
+      iRight. iModIntro. iExists _. iFrame.
+    - rel_load_l. rel_pures_l.
+      rel_load_r. rel_pures_r.
+      iApply (refines_na_close with "[- $Hclose $Hα]").
+      iSplitR; [rel_values|].
+      iRight. iModIntro. iExists _. iFrame.
   Qed.
 
 End proofs.

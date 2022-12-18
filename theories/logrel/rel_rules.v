@@ -270,14 +270,34 @@ Section rules.
     ⊢ REL e1 << e2 @ E ; F : A.
   Proof.
     iIntros (e1ev) "(Hαs & Hα & Hlog)".
-    (* TODO: a separate [refines] lemma in [model] *)
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs He2] Hnais /=".
-    iApply wp_couple_tapes; [done|done|].
+    wp_apply wp_couple_tapes; [done|done|].
     iFrame "Hα Hαs".
     iSplit; [done|].
     iIntros "[%b [Hαs Hα]]".
     iApply ("Hlog" with "[Hα Hαs] [$Hs $He2] Hnais").
+    iExists _. iFrame.
+  Qed.
+
+  Lemma refines_couple_flips_l K K' E F α (Hmasked : nclose specN ⊆ E) :
+    α ↪ [] ∗
+      (∀ (b : bool), α ↪ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E ; F : lrel_bool)
+    ⊢ REL fill K (flip #lbl:α) << fill K' (flip #()) @ E ; F : lrel_bool.
+  Proof.
+    iIntros "[Hα Hcnt]".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    wp_apply wp_bind.
+    wp_apply wp_couple_flips_l; [done|].
+    rewrite -fill_app.
+    iFrame "Hs Hα Hspec".
+    iIntros (b) "[Hα Hspec]".
+    iApply wp_value.
+    rewrite fill_app.
+    iSpecialize ("Hcnt" with "Hα [$Hspec $Hs] Hnais").
+    wp_apply (wp_mono with "Hcnt").
+    iIntros (v) "[% ([? ?] &?&?)]".
     iExists _. iFrame.
   Qed.
 

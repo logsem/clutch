@@ -236,6 +236,17 @@ Section exec_coupl.
     by simplify_eq.
   Qed.
 
+  Lemma exec_coupl_prim_steps e1 σ1 e1' σ1' Z :
+    (∃ R, ⌜reducible e1 σ1⌝ ∗
+          ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
+          ∀ ρ2 ρ2', ⌜R ρ2 ρ2'⌝ ={∅}=∗ Z ρ2 ρ2')
+    ⊢ exec_coupl e1 σ1 e1' σ1' Z.
+  Proof.
+    iIntros "H".
+    rewrite {1}exec_coupl_unfold.
+    by iLeft.
+  Qed.
+
   Lemma exec_coupl_state_steps α α' e1 σ1 e1' σ1' Z :
     (α, α') ∈ list_prod (get_active σ1) (get_active σ1') →
     (∃ R, ⌜Rcoupl (state_step σ1 α) (state_step σ1' α') R⌝ ∗

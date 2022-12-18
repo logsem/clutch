@@ -182,4 +182,46 @@ Section rules.
     iModIntro. done.
   Qed.
 
+  Lemma wp_couple_flips_l K E α Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #lbl:α @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
+    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %Hα.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    iApply exec_coupl_prim_steps.
+    iExists
+      (λ '(e2, σ2) '(e2', σ2'),
+        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #b, σ0')).
+    iSplit.
+    { iPureIntro. apply head_prim_reducible.
+      eexists (Val #true, σ1).
+      rewrite /pmf /= Hα bool_decide_eq_true_2 //. lra. }
+    iSplit.
+    { iPureIntro. simpl.
+      rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
+      eapply Rcoupl_map.
+      eapply Rcoupl_impl; [|by apply Rcoupl_flip_flip_l].
+      intros [] [] [? [=]]=>/=; simplify_eq; eauto. }
+    iIntros ([] [] (b & [=] & [=])); simplify_eq.
+    iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #b) with "Hauth Hr") as "[Hauth Hr]".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iModIntro. iFrame.
+    iApply ("Hwp" with "[$]").
+  Qed.
+
 End rules.
