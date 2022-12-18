@@ -137,35 +137,6 @@ Proof.
     repeat case_match; by naive_solver.
 Qed.
 
-(*
-Lemma heap_closed_alloc σ l n w :
-  (0 < n)%Z →
-  is_closed_val w →
-  map_Forall (λ _ v, from_option is_closed_val true v) (heap σ) →
-  (∀ i : Z, (0 ≤ i)%Z → (i < n)%Z → heap σ !! (l +ₗ i) = None) →
-  map_Forall (λ _ v, from_option is_closed_val true v)
-             (heap_array l (replicate (Z.to_nat n) w) ∪ heap σ).
-Proof.
-  intros Hn Hw Hσ Hl.
-  eapply (map_Forall_ind
-            (λ k v, ((heap_array l (replicate (Z.to_nat n) w) ∪ heap σ)
-                       !! k = Some v))).
-  - apply map_Forall_empty.
-  - intros m i x Hi Hix Hkwm Hm.
-    apply map_Forall_insert_2; auto.
-    apply lookup_union_Some in Hix; last first.
-    { eapply heap_array_map_disjoint;
-        rewrite replicate_length Z2Nat.id; auto with lia. }
-    destruct Hix as [(?&?&?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
-                     [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
-    + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
-    + apply map_Forall_to_list in Hσ.
-      by eapply Forall_lookup in Hσ; eauto; simpl in *.
-  - apply map_Forall_to_list, Forall_forall.
-    intros [? ?]; apply elem_of_map_to_list.
-Qed.
-*)
-
 Goal Lookup loc val (gmap loc val).
   apply _.
 Qed.
