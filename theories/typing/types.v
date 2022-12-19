@@ -212,6 +212,7 @@ Inductive typed : stringmap type → expr → type → Prop :=
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
   | TAllocTape Γ : Γ ⊢ₜ AllocTape : TTape
   | TFlip Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Flip e : TBool
+  | TFlipU Γ e : Γ ⊢ₜ e : TUnit -> Γ ⊢ₜ Flip e : TBool
   (*| TXchg Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Xchg e e' : τ
   | TFAA Γ e1 e2 :
      Γ ⊢ₜ e1 : ref TNat →

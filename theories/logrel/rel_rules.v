@@ -322,4 +322,24 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
+  Lemma refines_couple_flips_lr K K' E F A (Hmasked : nclose specN ⊆ E) :
+      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E ; F : A)
+    ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E ; F : A.
+  Proof.
+    iIntros "Hcnt".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    wp_apply wp_bind.
+    wp_apply wp_couple_flips_lr; [done|].
+    rewrite -fill_app.
+    iFrame "Hs Hspec".
+    iIntros (b) "Hspec".
+    iApply wp_value.
+    rewrite fill_app.
+    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
+    wp_apply (wp_mono with "Hcnt").
+    iIntros (v) "[% ([? ?] &?&?)]".
+    iExists _. iFrame.
+  Qed.
+
 End rules.

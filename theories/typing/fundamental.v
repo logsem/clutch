@@ -511,6 +511,11 @@ Section fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
       + iApply bin_log_related_alloctape.
       + iApply bin_log_related_flip; by iApply fundamental.
+      + intro_clause.
+        iPoseProof (fundamental _ _ _ _ Ht) as "-#IH".
+        rel_bind_ap e e "IH" v v' "[->->]".
+        iApply refines_flip_no_tapes.
+        value_case.
     - intros Hv. destruct Hv; simpl.
       + iSplit; eauto.
       + iExists _; iSplit; eauto.
