@@ -89,6 +89,8 @@ Section couplings_theory.
     intros a b; split; [rewrite /lmarg dmap_dret // | rewrite /rmarg dmap_dret //].
    Qed.
 
+
+
   Proposition coupl_ret :
     forall (a : A) (b : B), coupl (dret a) (dret b).
   Proof.
@@ -96,6 +98,7 @@ Section couplings_theory.
     exists (dret (a, b)).
     apply is_coupl_ret.
   Qed.
+
 
   Proposition isRcoupl_ret :
     forall (a : A) (b : B) (R : A → B → Prop), R a b -> isRcoupl (dret a) (dret b) R (dret (a, b)).
@@ -107,6 +110,7 @@ Section couplings_theory.
     case_bool_decide as H3; [rewrite H3; auto | lra ].
   Qed.
 
+
   Proposition Rcoupl_ret :
     forall (a : A) (b : B) (R : A → B → Prop) , R a b -> Rcoupl (dret a) (dret b) R.
   Proof.
@@ -116,10 +120,29 @@ Section couplings_theory.
     auto.
   Qed.
 
+
   Lemma Rcoupl_mass_eq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
     Rcoupl μ1 μ2 R → SeriesC μ1 = SeriesC μ2.
   Proof. intros (?&?&?). by eapply isCoupl_mass_eq. Qed.
 
+
+  Proposition is_coupl_ret_inv :
+    forall (a : A) (b : B) (μ : distr (A*B)),
+      isCoupl (dret a) (dret b) μ -> μ = dret ( (a,b)).
+  Proof.
+  Admitted.
+
+
+  Proposition Rcoupl_ret_inv :
+    forall (a : A) (b : B) (R : A → B → Prop) , Rcoupl (dret a) (dret b) R -> R a b.
+  Proof.
+    intros a b R (μ & (HμC & HμS)).
+    apply (is_coupl_ret_inv a b) in HμC.
+    apply (HμS (a, b)).
+    rewrite HμC.
+    rewrite /pmf/=/dret_pmf.
+    case_bool_decide; simplify_eq; auto. lra.
+  Qed.
 
   Proposition Rcoupl_eq (μ1 : distr A) :
     Rcoupl μ1 μ1 (=).

@@ -8,7 +8,7 @@ From self.prob Require Import distribution.
 
 Section language_mixin.
   Context {expr val state state_idx : Type}.
-  Context `{Countable expr, Countable state, Countable state_idx}.
+  Context `{Countable expr, Countable val, Countable state, Countable state_idx}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
@@ -43,11 +43,13 @@ Structure language := Language {
   state_idx : Type;
 
   expr_eqdec : EqDecision expr;
+  val_eqdec : EqDecision val;
   state_eqdec : EqDecision state;
   state_idx_eqdec : EqDecision state_idx;
   expr_countable : Countable expr;
+  val_countable : Countable val;
   state_countable : Countable state;
-  state_idx_countable : EqDecision state_idx;
+  state_idx_countable : Countable state_idx;
 
   of_val : val → expr;
   to_val : expr → option val;
@@ -61,7 +63,7 @@ Structure language := Language {
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
+Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments state_step {_}.
@@ -69,8 +71,10 @@ Global Arguments prim_step {_} _ _.
 Global Arguments get_active {_} _.
 
 #[global] Existing Instance expr_eqdec.
+#[global] Existing Instance val_eqdec.
 #[global] Existing Instance state_eqdec.
 #[global] Existing Instance expr_countable.
+#[global] Existing Instance val_countable.
 #[global] Existing Instance state_countable.
 #[global] Existing Instance state_idx_countable.
 

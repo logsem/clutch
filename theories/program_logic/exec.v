@@ -152,6 +152,57 @@ Section prim_exec.
       intros ??. eapply IHn.
   Qed.
 
+ (** Restating results for prim_exec_val *)
+
+  Fixpoint prim_exec_val (n : nat) (ρ : cfg Λ) {struct n} : distr (val Λ) :=
+    match to_val ρ.1, n with
+      | Some v, _ => dret v
+      | None, 0 => dzero
+      | None, S n => prim_step ρ.1 ρ.2 ≫= prim_exec_val n
+    end.
+
+  Lemma prim_exec_val_unfold (n : nat) :
+    prim_exec_val n = λ ρ,
+      match to_val ρ.1, n with
+      | Some v, _ => dret v
+      | None, 0 => dzero
+      | None, S n => prim_step ρ.1 ρ.2 ≫= prim_exec_val n
+      end.
+  Proof. by destruct n. Qed.
+
+  Lemma prim_exec_val_is_val e σ n v:
+    to_val e = Some v → prim_exec_val n (e, σ) = dret v.
+  Proof. destruct n; simpl; by intros ->. Qed.
+
+  Lemma prim_exec_val_Sn (ρ : cfg Λ) (n: nat) :
+    prim_exec_val (S n) ρ = prim_step_or_val ρ ≫= prim_exec_val n.
+  Proof.
+    destruct ρ as [e σ].
+    rewrite /prim_step_or_val /=.
+    destruct (to_val e) eqn:Hv=>/=; [|done].
+    rewrite dret_id_left -/prim_exec.
+    fold prim_exec_val.
+    erewrite prim_exec_val_is_val; eauto.
+  Qed.
+
+  Lemma prim_exec_val_Sn_not_val e σ n :
+    to_val e = None →
+    prim_exec_val (S n) (e, σ) = prim_step e σ ≫= prim_exec_val n.
+  Proof. intros ?. rewrite prim_exec_val_Sn prim_step_or_val_no_val //. Qed.
+
+ (*
+  Lemma prim_exec_val_plus ρ n m :
+    prim_exec_val (n + m) ρ = exec n ρ ≫= prim_exec_val m.
+  Proof.
+    revert ρ; induction n; intros ρ.
+    - rewrite exec_O dret_id_left -/prim_exec //.
+    - rewrite plus_Sn_m prim_exec_Sn exec_Sn.
+      rewrite -dbind_assoc -/prim_exec -/exec.
+      apply dbind_eq; [|done].
+      intros ??. eapply IHn.
+  Qed.
+*)
+
 End prim_exec.
 
 (** Limit of [prim_exec]  *)
@@ -180,5 +231,11 @@ Section prim_exec_lim.
   Lemma lim_prim_exec_continous ρ1 ρ2 r :
     (∀ n, prim_exec n ρ1 ρ2 <= r) → lim_prim_exec ρ1 ρ2 <= r.
   Proof. Admitted.
+
+  Program Definition lim_prim_exec_val (ρ : cfg Λ) : distr (val Λ):= MkDistr (λ v, Lim_seq (λ n, prim_exec_val n ρ v)) _ _ _.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+
 
 End prim_exec_lim.
