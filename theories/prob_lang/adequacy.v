@@ -897,6 +897,8 @@ Section adequacy.
                  ⌜refRcoupl (prim_exec_val (S n) (e1, σ1))
                             (lim_prim_exec_val (e1', σ1')) φ⌝)%I) :
            prodO cfgO cfgO → iPropI Σ).
+    assert (NonExpansive Φ).
+    { intros m ((?&?)&(?&?)) ((?&?)&(?&?)) [[[=] [=]] [[=] [=]]]. by simplify_eq. }
     set (F := (exec_coupl_pre (λ '(e2, σ2) '(e2', σ2'),
                    |={∅}▷=>^(S n) ⌜refRcoupl (prim_exec_val n (e2, σ2))
                      (lim_prim_exec_val (e2', σ2')) φ⌝)%I)).
@@ -956,9 +958,7 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-      Unshelve.
-      (* Need to show non-expansiveness *)
-  Admitted.
+  Qed.
 
  (*
   Lemma exec_coupl_erasure (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (n : nat) φ :
@@ -1182,7 +1182,7 @@ Proof.
   set (HprelocGS := HeapG Σ _ _ _ γH γT HspecGS).
   iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
   { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //. }
-  iApply wp_coupling. iFrame. iFrame "Hctx".
+  iApply wp_coupling_val. iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.
 
