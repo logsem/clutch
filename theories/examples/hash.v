@@ -454,18 +454,18 @@ Section tape_bit_hash.
 
   Definition alloc_tapes : val :=
     (rec: "alloc_tapes" "tm" "n" :=
-       if: "n" < #0 then
+       if: ("n" - #1) < #0 then
          #()
        else
         let: "α" := alloc in
-         set "tm" "n" "α";;
+         set "tm" ("n" - #1) "α";;
         "alloc_tapes" "tm" ("n" - #1)).
 
   Definition init_hash_state : val :=
    λ: "max_val",
       let: "val_map" := init_map #() in
       let: "tape_map" := init_map #() in
-      alloc_tapes "tape_map" "max_val";;
+      alloc_tapes "tape_map" ("max_val" + #1);;
       ("val_map", "tape_map").
 
   (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
@@ -509,14 +509,102 @@ Section tape_bit_hash.
       compute_hash (Fst "ms") (Snd "ms").
 
   Definition hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
-    ∃ (lvm ltm: loc) (tm: gmap nat val),
+    ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
        ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
        ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
-       (* TODO: for each k <= max, it's in tm, and either:
+       map_list lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
+       map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+       ([∗ map] i ↦ α ∈ tm,
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝) ∨
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝ ∗ α ↪ (b :: nil) ) ∨
+          (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ nil)).
+       (* for each k <= max, it's in tm, and either:
           (1) it's in vm and has value given by m,
           (2) the tape given by tm has a value b and m !! k = Some b
           (3) the tape given by tm is empty and m !! k = None
         *)
-       True.
+
+  Lemma wp_alloc_tapes E ltm max :
+    {{{ map_list ltm ∅ }}}
+      alloc_tapes #ltm #max @ E
+    {{{ RET #(); ∃ tm,
+            map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+            ⌜ (∀ i : nat, i < max ↔ i ∈ dom tm) ⌝ ∗
+            ([∗ map] i ↦ α ∈ tm, α ↪ nil) }}}.
+  Proof.
+    iIntros (Φ) "Htm HΦ".
+    rewrite /alloc_tapes.
+    remember max as k eqn:Heqk.
+    iEval (setoid_rewrite Heqk) in "HΦ".
+    iAssert (∃ tm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom tm) ⌝ ∗
+                   map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+                   ([∗ map] i ↦ α ∈ tm, α ↪ nil))%I with "[Htm]" as "Htm".
+    { iExists ∅. rewrite fmap_empty. iFrame. iSplit.
+      { iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
+      { rewrite big_sepM_empty. auto. } }
+    assert (Hlek: k <= max) by lia.
+    clear Heqk.
+    iInduction k as [| k] "IH" forall (Hlek).
+    - wp_pures. iApply "HΦ". iModIntro. iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+      iExists tm. iFrame. iPureIntro. split.
+      { intros. apply Hdom. lia. }
+      { intros. apply Hdom. auto. }
+    - iSpecialize ("IH" with "[] HΦ").
+      { iPureIntro; lia. }
+      wp_pures.
+      case_bool_decide; first by lia.
+      wp_pures.
+      wp_apply (wp_alloc_tape with "[//]").
+      iIntros (α) "Hα". wp_pures.
+      iDestruct "Htm" as (tm Hdom) "(Htm&Htapes)".
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      wp_apply (wp_set with "Htm"). iIntros "Htm".
+      wp_pure _. wp_pure _. wp_pure _.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      iApply "IH".
+      iExists (<[k := α]>tm). rewrite fmap_insert. iFrame.
+      iSplit.
+      { iPureIntro. intros i. split.
+        * intros Hle. set_unfold.
+          destruct (decide (i = k)); auto.
+          right. apply Hdom; lia.
+        * set_unfold. intros [?|Hdom']; try lia.
+          apply Hdom in Hdom'. lia.
+      }
+      iApply (big_sepM_insert).
+      { apply not_elem_of_dom_1. intros Hbad.
+        assert (S k <= k).
+        { apply Hdom; auto. }
+        lia.
+      }
+      iFrame.
+  Qed.
+
+  Lemma wp_init_hash max E :
+    {{{ True }}}
+      init_hash #max @ E
+    {{{ f, RET f; hashfun max f ∅ }}}.
+  Proof.
+    rewrite /init_hash.
+    iIntros (Φ) "_ HΦ".
+    wp_pures. rewrite /init_hash_state.
+    wp_pures.
+    wp_apply (wp_init_map with "[//]").
+    iIntros (lvm) "Hvm". wp_pures.
+    wp_apply (wp_init_map with "[//]").
+    iIntros (ltm) "Htm". wp_pures.
+    rewrite /compute_hash. wp_pures.
+    replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
+    wp_apply (wp_alloc_tapes with "[$]").
+    iIntros "Htm".
+    wp_pures. iModIntro.
+    iApply "HΦ". iDestruct "Htm" as (tm) "(Htm&%Hdom&Htapes)".
+    iExists lvm, ltm, ∅, tm.
+    rewrite ?fmap_empty. iFrame. iSplit.
+    { iPureIntro. intros. apply Hdom; lia. }
+    iSplit; first eauto.
+    iApply (big_sepM_mono with "Htapes").
+    { iIntros (k α Hlookup) "Htape". iRight. iRight. rewrite ?lookup_empty; iFrame; auto. }
+  Qed.
 
 End tape_bit_hash.
