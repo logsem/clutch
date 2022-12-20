@@ -511,12 +511,13 @@ Section tape_bit_hash.
   Definition hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
        ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
+       ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
        ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
        map_list lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
        map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
        ([∗ map] i ↦ α ∈ tm,
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝) ∨
-          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝ ∗ α ↪ (b :: nil) ) ∨
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ (b :: nil) ) ∨
           (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ nil)).
        (* for each k <= max, it's in tm, and either:
           (1) it's in vm and has value given by m,
@@ -603,8 +604,73 @@ Section tape_bit_hash.
     rewrite ?fmap_empty. iFrame. iSplit.
     { iPureIntro. intros. apply Hdom; lia. }
     iSplit; first eauto.
+    iSplit; first eauto.
     iApply (big_sepM_mono with "Htapes").
     { iIntros (k α Hlookup) "Htape". iRight. iRight. rewrite ?lookup_empty; iFrame; auto. }
+  Qed.
+
+  Lemma wp_hashfun_prev E f m (max n : nat) (b : bool) :
+    m !! n = Some b →
+    {{{ hashfun max f m }}}
+      f #n @ E
+    {{{ RET #b; hashfun max f m }}}.
+  Proof.
+    iIntros (Hlookup Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get with "Hvm").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap.
+    assert (is_Some (tm !! n)) as (α&Hα).
+    { apply elem_of_dom.
+      destruct Hdom2 as (Hdom_mtm&Hdom_vmtm).
+      apply Hdom_mtm. apply elem_of_dom. auto. }
+    iDestruct (big_sepM_delete with "Htapes") as "(Hn&Htapes)"; first eauto.
+    iDestruct "Hn" as "[#Hvm|Hnvm]".
+    - iDestruct "Hvm" as (b') "(%Heq1&%Heq2)".
+      assert (b = b') by congruence; subst.
+      rewrite Heq2. wp_pures.
+      iApply "HΦ".
+      iModIntro.
+      iExists _, _, vm, tm. iFrame.
+      iSplit; first done.
+      iSplit; first done.
+      iSplit; first done.
+      iApply big_sepM_delete; first eauto.
+      iFrame "Htapes".
+      iLeft. auto.
+    - iDestruct "Hnvm" as "[Hnvm|Hbad]"; last first.
+      { iDestruct "Hbad" as (??) "_". congruence. }
+      iDestruct "Hnvm" as (b') "(%Heq1&%Heq2&Htape)".
+      assert (b = b') by congruence; subst.
+      rewrite Heq2. wp_pures.
+      wp_apply (wp_get with "Htm").
+      iIntros (α') "Hα'".
+      rewrite lookup_fmap Hα.
+      iDestruct "Hα'" as "(Hα&->)".
+      wp_pures.
+      wp_apply (wp_flip with "Htape").
+      iIntros "Htape". wp_pures.
+      wp_apply (wp_set with "Hhash").
+      iIntros "Hhash". wp_pures. iApply "HΦ".
+      iModIntro. iExists _, _, (<[n:=b']>vm), tm.
+      iFrame.
+      iSplit; first done.
+      iSplit.
+      { iPureIntro; split; intuition auto. rewrite dom_insert_L. set_unfold; intros ? [?|?]; auto.
+        subst. apply elem_of_dom; eauto. }
+      iSplit; first done.
+      rewrite fmap_insert; iFrame.
+      iApply big_sepM_delete; first eauto.
+      iSplitL "Htape".
+      { iLeft. iExists _. iSplit; eauto. rewrite lookup_insert //. }
+      iApply (big_sepM_mono with "Htapes").
+      { iIntros (k ? Hlookup').
+        assert (n ≠ k).
+        { apply lookup_delete_Some in Hlookup'. intuition auto. }
+        rewrite ?lookup_insert_ne //.
+      }
   Qed.
 
 End tape_bit_hash.
