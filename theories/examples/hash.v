@@ -508,6 +508,11 @@ Section tape_bit_hash.
       let: "ms" := init_hash_state "max_val" in
       compute_hash (Fst "ms") (Snd "ms").
 
+  (* for each k <= max, it's in tm, and either:
+     (1) it's in vm and has value given by m,
+     (2) the tape given by tm has a value b and m !! k = Some b
+     (3) the tape given by tm is empty and m !! k = None
+   *)
   Definition hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
        ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
@@ -519,11 +524,18 @@ Section tape_bit_hash.
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝) ∨
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ (b :: nil) ) ∨
           (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ nil)).
-       (* for each k <= max, it's in tm, and either:
-          (1) it's in vm and has value given by m,
-          (2) the tape given by tm has a value b and m !! k = Some b
-          (3) the tape given by tm is empty and m !! k = None
-        *)
+
+  Definition shashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
+    ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
+       ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
+       ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
+       ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       map_slist lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
+       map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+       ([∗ map] i ↦ α ∈ tm,
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝) ∨
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛ (b :: nil) ) ∨
+          (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛ nil)).
 
   Lemma wp_alloc_tapes E ltm max :
     {{{ map_list ltm ∅ }}}
@@ -581,6 +593,71 @@ Section tape_bit_hash.
       iFrame.
   Qed.
 
+  Lemma spec_alloc_tapes E K ltm (max : nat) :
+    ↑specN ⊆ E →
+    map_slist ltm ∅ -∗
+    refines_right K (alloc_tapes #ltm #max) ={E}=∗
+    refines_right K (#()) ∗ ∃ tm, map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+                                    ⌜ (∀ i : nat, i < max ↔ i ∈ dom tm) ⌝ ∗
+                                    ([∗ map] i ↦ α ∈ tm, α ↪ₛ nil).
+  Proof.
+    iIntros (Φ) "Htm HK".
+    rewrite /alloc_tapes.
+    remember max as k eqn:Heqk.
+    iAssert (∃ tm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom tm) ⌝ ∗
+                   map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
+                   ([∗ map] i ↦ α ∈ tm, α ↪ₛ nil))%I with "[Htm]" as "Htm".
+    { iExists ∅. rewrite fmap_empty. iFrame. iSplit.
+      { iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
+      { rewrite big_sepM_empty. auto. } }
+    iEval (rewrite Heqk).
+    assert (Hlek: k <= max) by lia.
+    clear Heqk.
+    iInduction k as [| k] "IH" forall (Hlek).
+    - tp_pures K. iFrame. iModIntro. iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+      iExists tm. iFrame. iPureIntro. split.
+      { intros. apply Hdom. lia. }
+      { intros. apply Hdom. auto. }
+    - iSpecialize ("IH" with "[]").
+      { iPureIntro; lia. }
+      tp_pures K.
+      case_bool_decide; first by lia.
+      tp_pures K.
+      tp_bind K (alloc).
+      rewrite refines_right_bind.
+      iMod (refines_right_alloctape with "HK") as (α) "(HK&Hα)"; first done.
+      rewrite -refines_right_bind /=.
+
+      tp_pures K.
+      tp_bind K (set _ _ _).
+      rewrite refines_right_bind.
+      iDestruct "Htm" as (tm Hdom) "(Htm&Htapes)".
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      iMod (spec_set with "[$] HK") as "(HK&Htm)"; first done.
+      rewrite -refines_right_bind /=.
+      tp_pure K _.
+      tp_pure K _.
+      tp_pure K _.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      iApply ("IH" with "[$]").
+      iExists (<[k := α]>tm). rewrite fmap_insert. iFrame.
+      iSplit.
+      { iPureIntro. intros i. split.
+        * intros Hle. set_unfold.
+          destruct (decide (i = k)); auto.
+          right. apply Hdom; lia.
+        * set_unfold. intros [?|Hdom']; try lia.
+          apply Hdom in Hdom'. lia.
+      }
+      iApply (big_sepM_insert).
+      { apply not_elem_of_dom_1. intros Hbad.
+        assert (S k <= k).
+        { apply Hdom; auto. }
+        lia.
+      }
+      iFrame.
+  Qed.
+
   Lemma wp_init_hash max E :
     {{{ True }}}
       init_hash #max @ E
@@ -608,6 +685,46 @@ Section tape_bit_hash.
     iApply (big_sepM_mono with "Htapes").
     { iIntros (k α Hlookup) "Htape". iRight. iRight. rewrite ?lookup_empty; iFrame; auto. }
   Qed.
+
+  Lemma spec_init_hash (max : nat) E K :
+    ↑specN ⊆ E →
+    refines_right K (init_hash #max) ={E}=∗ ∃ f, refines_right K (of_val f) ∗ shashfun max f ∅.
+  Proof.
+    iIntros (?) "H".
+    rewrite /init_hash.
+    tp_pures K.
+    rewrite /init_hash_state.
+    tp_pures K.
+    tp_bind K (init_map #()).
+    rewrite refines_right_bind.
+    iMod (spec_init_map with "[$]") as (lvm) "(HK&Hvm)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+
+    tp_pures K.
+    tp_bind K (init_map #()).
+    rewrite refines_right_bind.
+    iMod (spec_init_map with "[$]") as (ltm) "(HK&Htm)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    tp_pures K.
+
+    tp_bind K (alloc_tapes _ _).
+    rewrite refines_right_bind.
+    replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
+    iMod (spec_alloc_tapes with "[$] [$]") as "(HK&Htm)"; first done.
+    iDestruct "Htm" as (tm) "(Htm&%Hdom&Htapes)".
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    tp_pures K.
+    rewrite /compute_hash. tp_pures K.
+    iModIntro. iExists _. iFrame "HK".
+    iExists lvm, ltm, ∅, tm.
+    rewrite ?fmap_empty. iFrame. iSplit.
+    { iPureIntro. intros. apply Hdom; lia. }
+    iSplit; first eauto.
+    iSplit; first eauto.
+    iApply (big_sepM_mono with "Htapes").
+    { iIntros (k α Hlookup) "Htape". iRight. iRight. rewrite ?lookup_empty; iFrame; auto. }
+  Qed.
+
 
   Lemma wp_hashfun_prev E f m (max n : nat) (b : bool) :
     m !! n = Some b →

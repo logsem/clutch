@@ -112,6 +112,16 @@ Section rules.
     solve_step.
   Qed.
 
+  (* TODO: should this go here or not? *)
+  Lemma refines_right_alloctape E K :
+    nclose specN ⊆ E →
+    refines_right K alloc ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ [].
+  Proof.
+    iIntros (?) "(?&?)".
+    iMod (step_alloctape with "[$]") as (l) "(?&?)"; first done.
+    iExists _; by iFrame.
+  Qed.
+
   Lemma step_flip E K l b bs :
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (flip #lbl:l) ∗ l ↪ₛ (b :: bs)
