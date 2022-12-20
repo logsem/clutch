@@ -74,7 +74,7 @@ Section map.
     rewrite /cons_list. wp_pures. wp_alloc l' as "H'". iModIntro. iApply "HΦ".
     iExists l. iFrame.
   Qed.
- 
+
   Lemma spec_cons_list E K l vs (k : nat) v :
     ↑specN ⊆ E →
     assoc_slist l vs -∗
@@ -97,7 +97,7 @@ Section map.
         else
           find_list_gallina vs k
     end.
-  
+
   Definition opt_to_val (ov: option val) :=
     match ov with
     | Some v => SOMEV v
@@ -145,7 +145,7 @@ Section map.
         iFrame. iModIntro. iExists _; iFrame.
       }
   Qed.
-                               
+
   Definition init_map : val :=
     λ: <>, ref (init_list #()).
 
@@ -241,7 +241,7 @@ Section map.
     iIntros (l') "Hassoc'". wp_store. iModIntro.
     iApply "HΦ". iExists _, _. iFrame. rewrite list_to_map_cons Heq //.
   Qed.
-  
+
   Lemma spec_set E K lm m (n : nat) (v: val) :
     ↑specN ⊆ E →
     map_slist lm m -∗
@@ -263,7 +263,7 @@ Section map.
 End map.
 
 
-Section simple_bit_hash.
+Module simple_bit_hash.
 
   Context `{!prelogrelGS Σ}.
 
@@ -305,7 +305,7 @@ Section simple_bit_hash.
 
   Definition shashfun f m : iProp Σ :=
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ map_slist hm ((λ b, LitV (LitBool b)) <$> m).
-  
+
   Lemma wp_init_hash E :
     {{{ True }}}
       init_hash #() @ E
@@ -336,7 +336,7 @@ Section simple_bit_hash.
     tp_pures K.
     iExists _. iFrame. iModIntro. iExists _. iSplit; first done. rewrite fmap_empty. iFrame.
   Qed.
-    
+
   Lemma wp_hashfun_prev E f m (n : nat) (b : bool) :
     m !! n = Some b →
     {{{ hashfun f m }}}
@@ -348,7 +348,7 @@ Section simple_bit_hash.
     rewrite /compute_hash_specialized.
     wp_pures.
     wp_apply (wp_get with "[$]").
-    iIntros (vret) "(Hhash&->)". 
+    iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ".
     iExists _. eauto.
   Qed.
@@ -370,7 +370,7 @@ Section simple_bit_hash.
     rewrite lookup_fmap Hlookup /=.
     tp_pures K. iFrame. iModIntro. iExists _. eauto.
   Qed.
-  
+
   Lemma wp_hashfun_couple_eq E K (f : val) (m : gmap nat bool) (sf: val) (sm : gmap nat bool) (n : nat) :
     ↑specN ⊆ E →
     m !! n = None →
@@ -379,14 +379,14 @@ Section simple_bit_hash.
       f #n @ E
     {{{ (b: bool), RET #b;
         refines_right K (of_val #b) ∗ hashfun f (<[ n := b ]>m) ∗ shashfun sf (<[n := b]>sm) }}}.
-  Proof. 
+  Proof.
     iIntros (Hspec Hnonem Hnonesm Φ) "(HK&Hhash&Hshash) HΦ".
     iDestruct "Hhash" as (hm ->) "Hm".
     iDestruct "Hshash" as (hsm ->) "Hsm".
     rewrite /compute_hash_specialized.
     wp_pures.
     tp_pures K.
-    
+
     (* spec get *)
     tp_bind K (get _ _).
     iEval (rewrite refines_right_bind) in "HK".
@@ -394,13 +394,13 @@ Section simple_bit_hash.
     iEval (rewrite -refines_right_bind /=) in "HK".
     rewrite lookup_fmap Hnonesm /=.
     tp_pures K.
-    
+
     (* impl get *)
     wp_apply (wp_get with "[$]").
     iIntros (res) "(Hm&->)".
     rewrite lookup_fmap Hnonem /=.
     wp_pures.
-    
+
     (* couple -- FIXME: breaking abstraction *)
     tp_bind K (flip #()) %E.
     iEval (rewrite refines_right_bind) in "HK".
@@ -412,13 +412,13 @@ Section simple_bit_hash.
     iEval (rewrite -refines_right_bind /=) in "HK".
     tp_pures K.
     do 2 wp_pures.
-    
+
     tp_bind K (set _ _ _).
     iEval (rewrite refines_right_bind) in "HK".
     iMod (spec_set with "[$] [$]") as "(HK&Hsm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
     tp_pures K.
-    
+
     wp_apply (wp_set with "[$]").
     iIntros "Hm". wp_pures. iApply "HΦ".
     iFrame. iModIntro.
@@ -427,8 +427,96 @@ Section simple_bit_hash.
     { iExists _. iSplit; first auto. rewrite fmap_insert //. }
   Qed.
 
-  
+
   (* But we cannot sample ahead, so for example one cannot prove that if f is a hashmap
     (f 1; f 2) refines (f 2; f1)  *)
 
 End simple_bit_hash.
+
+Section tape_bit_hash.
+
+  Context `{!prelogrelGS Σ}.
+
+  (* A more complicated bit hash map.
+
+     To support pre-sampling as a ghost step, we allocate tapes to store pre sampled hash values.
+
+     However, we want to support hashing in different orders between
+     the left and right sides of the refinement, so we need separate
+     tapes for each possible hash value. To support that, we assume
+     the domain is bounded.
+
+   *)
+
+  (* A hash function's internal state is a pair of maps:
+     - the first map stores hash values for previously queried keys
+     - the second map stores tapes for each potential key in the domain *)
+
+  Definition alloc_tapes : val :=
+    (rec: "alloc_tapes" "tm" "n" :=
+       if: "n" < #0 then
+         #()
+       else
+        let: "α" := alloc in
+         set "tm" "n" "α";;
+        "alloc_tapes" "tm" ("n" - #1)).
+
+  Definition init_hash_state : val :=
+   λ: "max_val",
+      let: "val_map" := init_map #() in
+      let: "tape_map" := init_map #() in
+      alloc_tapes "tape_map" "max_val";;
+      ("val_map", "tape_map").
+
+  (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
+     If it has we return the saved hash value, otherwise we look up the tape for this value
+     flip a bit with that tape, and save it in the map *)
+  Definition compute_hash_specialized vm tm : val :=
+    λ: "v",
+      match: get vm "v" with
+      | SOME "b" => "b"
+      | NONE =>
+          let: "α" :=
+            match: get tm "v" with
+            | SOME "α" => "α"
+            | NONE => #()
+            end in
+          let: "b" := flip "α" in
+          set vm "v" "b";;
+          "b"
+      end.
+
+  Definition compute_hash : val :=
+    λ: "vm" "tm" "v",
+      match: get "vm" "v" with
+      | SOME "b" => "b"
+      | NONE =>
+          let: "α" :=
+            match: get "tm" "v" with
+            | SOME "α" => "α"
+            | NONE => #()
+            end in
+          let: "b" := flip "α" in
+          set "vm" "v" "b";;
+          "b"
+      end.
+
+  (* init_hash returns a hash as a function, basically wrapping the internal state
+     in the returned function *)
+  Definition init_hash : val :=
+    λ: "max_val",
+      let: "ms" := init_hash_state "max_val" in
+      compute_hash (Fst "ms") (Snd "ms").
+
+  Definition hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
+    ∃ (lvm ltm: loc) (tm: gmap nat val),
+       ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
+       ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       (* TODO: for each k <= max, it's in tm, and either:
+          (1) it's in vm and has value given by m,
+          (2) the tape given by tm has a value b and m !! k = Some b
+          (3) the tape given by tm is empty and m !! k = None
+        *)
+       True.
+
+End tape_bit_hash.
