@@ -1,5 +1,13 @@
 From stdpp Require Import countable fin_maps.
 
+Section base.
+  Global Instance negb_inj : Inj (=) (=) negb.
+  Proof. intros [] []; auto. Qed.
+
+  Global Instance negb_surj : Surj (=) negb.
+  Proof. intros []; [exists false|exists true]; done. Qed.
+End base.
+
 Section countable.
   Context `{Countable A}.
 

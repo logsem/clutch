@@ -155,11 +155,11 @@ Section rules.
     iModIntro; iFrame.
   Qed.
 
-  Lemma wp_couple_tapes E e α αₛ bs bsₛ Φ :
+  Lemma wp_couple_tapes_gen f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} E e α αₛ bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-    ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    ((∃ b, αₛ ↪ₛ (bsₛ ++ [f b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He ?) "(#Hinv & Hαs & Hα & Hwp)".
@@ -179,16 +179,16 @@ Section rules.
         apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
     iExists _.
     iSplit.
-    { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_state_step; by apply elem_of_dom. }
-    iIntros (σ2 σ2' ((? & ? & [b [= -> ->]]) & ? & ?)).
+    { iPureIntro. eapply Rcoupl_pos_R, (Rcoupl_state_step f); by apply elem_of_dom. }
+    iIntros (σ2 σ2' ((b & -> & ->) & ? & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [b]]> σ0'))
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [f b]]> σ0'))
            with "Hspec Hspec0") as "[Hspec Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
     simplify_map_eq.
     iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
@@ -202,6 +202,22 @@ Section rules.
     iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
     iModIntro. done.
   Qed.
+
+  Lemma wp_couple_tapes E e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+    ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof. apply (wp_couple_tapes_gen (Datatypes.id)). Qed.
+
+  Lemma wp_couple_tapes_neg E e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+    ((∃ b, αₛ ↪ₛ (bsₛ ++ [negb b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof. apply (wp_couple_tapes_gen negb). Qed.
 
   Lemma wp_couple_flips_l K E α Φ :
     nclose specN ⊆ E →

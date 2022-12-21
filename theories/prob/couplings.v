@@ -5,15 +5,6 @@ From stdpp Require Export countable.
 From self.prelude Require Export base Coquelicot_ext Reals_ext.
 From self.prob Require Export countable_sum double distribution.
 
-Arguments MkDistr {_ _ _}.
-Arguments pmf {_ _ _ _}.
-Arguments pmf_pos {_ _ _}.
-Arguments pmf_ex_seriesC {_ _ _}.
-Arguments pmf_SeriesC {_ _ _}.
-
-#[global] Hint Resolve pmf_pos pmf_ex_seriesC pmf_SeriesC : core.
-Notation Decidable P := (∀ x, Decision (P x)).
-
 Open Scope R.
 
 Section couplings.
