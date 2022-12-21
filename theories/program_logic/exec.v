@@ -238,4 +238,19 @@ Section prim_exec_lim.
   Next Obligation. Admitted.
 
 
+  Lemma bind_lim_prim_exec (ρ : cfg Λ) :
+    dbind (λ ρ', lim_prim_exec_val ρ') (prim_step_or_val ρ) = (lim_prim_exec_val ρ).
+  Proof. Admitted.
+
+
+  Lemma lim_prim_exec_exec n (ρ : cfg Λ) :
+    lim_prim_exec_val ρ = exec n ρ ≫= lim_prim_exec_val.
+  Proof. Admitted.
+
+
+  Lemma lim_prim_exec_exec_val n ρ (v : val Λ) σ :
+    exec n ρ (of_val v, σ) = 1 →
+    lim_prim_exec_val ρ = dret v.
+  Proof. Admitted.
+
 End prim_exec_lim.

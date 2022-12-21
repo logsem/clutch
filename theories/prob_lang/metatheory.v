@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import functions fin_maps gmap stringmap.
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution couplings.
-From self.prob_lang Require Export lang tactics.
+From self.prob_lang Require Export lang tactics notation.
 From iris.prelude Require Import options.
 
 (* This file contains some metatheory about the [prob_lang] language *)
@@ -1131,3 +1131,154 @@ Proof.
           - apply FlipEmptyPSP; eauto. }
         { econstructor. }
 Qed.
+
+
+  Lemma det_head_step_upd_tapes e1 σ1 e2 σ2 α b:
+    det_head_step_rel e1 σ1 e2 σ2 →
+    det_head_step_rel
+      e1 (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1)
+      e2 (state_upd_tapes <[α := σ2.(tapes) !!! α ++ [b]]> σ2).
+  Proof. inversion 1; econstructor; eauto. Qed.
+
+  Lemma head_step_alloc_unfold σ:
+    head_step alloc σ = dret (let l := fresh_loc (tapes σ) in (Val #lbl:l, state_upd_tapes <[fresh_loc (tapes σ):=[]]> σ) ) .
+  Proof.
+    apply distr_ext.
+    intros (e2 & σ2).
+    rewrite /pmf/head_step/head_step_pmf/=/dret_pmf.
+    case_bool_decide as H; simplify_eq; auto.
+    + case_bool_decide; simplify_eq; auto.
+      destruct H; auto.
+    + do 3 (case_match; auto).
+      case_bool_decide; simplify_eq; auto.
+      destruct H.
+      destruct_and?.
+      f_equal; auto.
+      rewrite H; auto.
+  Qed.
+
+  Lemma head_step_flip_nonempty_unfold σ l b bs :
+    σ.(tapes) !! l = Some (b :: bs) →
+    head_step (flip #lbl:l) σ = dret (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ).
+  Proof.
+    intro Hσ.
+    apply distr_ext.
+    intro ρ.
+    rewrite /pmf/head_step/head_step_pmf/=/dret_pmf.
+    do 4 (case_match; auto); simplify_eq.
+    rewrite Hσ/=.
+    case_bool_decide as H.
+    + case_bool_decide as H2; auto.
+      destruct H2; destruct_and?; simplify_eq.
+      f_equal; auto.
+    + case_bool_decide; auto.
+      destruct H;
+      simplify_eq; auto.
+  Qed.
+
+
+  Lemma head_step_flip_empty_unfold σ l  :
+    σ.(tapes) !! l = Some ([]) →
+    head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
+  Proof.
+    intro Hσ.
+    apply distr_ext.
+    intro ρ.
+    rewrite /pmf/head_step/head_step_pmf/=/dbind_pmf/dret_pmf/=.
+  Admitted.
+
+  Lemma head_step_flip_unalloc_unfold σ l  :
+    σ.(tapes) !! l = None →
+    head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
+  Proof.
+  Admitted.
+
+  Lemma upd_tape_some σ α b bs:
+    tapes σ !! α = Some bs →
+      tapes (state_upd_tapes <[α:=tapes σ !!! α ++ [b]]> σ) !! α =  Some (bs++[b]).
+  Proof.
+    Admitted.
+
+
+  Lemma upd_tape_some_trivial σ α bs:
+    tapes σ !! α = Some bs →
+      state_upd_tapes <[α:=tapes σ !!! α]> σ = σ.
+  Proof.
+    Admitted.
+
+
+  Lemma upd_tape_none σ α b :
+    tapes σ !! α = None →
+      tapes (state_upd_tapes <[α:=tapes σ !!! α ++ [b]]> σ) !! α =  Some ([b]).
+  Proof.
+    Admitted.
+
+  Lemma upd_diff_tape σ α β b:
+    α ≠ β →
+    tapes σ !! α = tapes (state_upd_tapes <[β:=tapes σ !!! β ++ b]> σ) !! α.
+  Proof.
+    Admitted.
+
+  Lemma upd_diff_tape_comm σ α β bs bs':
+    α ≠ β →
+    state_upd_tapes <[β:= bs]> (state_upd_tapes <[α := bs']> σ) =
+    state_upd_tapes <[α:= bs']> (state_upd_tapes <[β := bs]> σ).
+  Proof.
+    Admitted.
+
+  Lemma upd_diff_tape_tot σ α β bs:
+    α ≠ β →
+    tapes σ !!! α = tapes (state_upd_tapes <[β:=bs]> σ) !!! α.
+  Proof. symmetry ; by rewrite lookup_total_insert_ne. Qed.
+
+  Lemma upd_tape_twice σ β bs bs' :
+    state_upd_tapes <[β:= bs]> (state_upd_tapes <[β:= bs']> σ) =
+      state_upd_tapes <[β:= bs]> σ.
+  Proof.
+    Admitted.
+
+  Lemma upd_tape_app σ α bs bs':
+    state_upd_tapes <[α:=bs ++ bs']> σ =
+    state_upd_tapes <[α:=tapes (state_upd_tapes <[α:=bs]> σ) !!! α ++ bs']>
+                    (state_upd_tapes <[α:=bs]> σ).
+  Proof.
+    Admitted.
+
+
+  Lemma fresh_loc_upd_some σ α bs bs' :
+    (tapes σ) !! α = Some bs →
+    fresh_loc (tapes σ) = (fresh_loc (<[α:= bs']> (tapes σ))).
+  Proof.
+    intros Hα.
+    apply fresh_loc_eq_dom.
+    by rewrite dom_insert_lookup_L.
+  Qed.
+
+  Lemma elem_fresh_ne {V} (ls : gmap loc V) k v :
+    ls !! k = Some v → fresh_loc ls ≠ k.
+  Proof.
+    intros; assert (is_Some (ls !! k)) as Hk by auto.
+    pose proof (fresh_loc_is_fresh ls).
+    rewrite -elem_of_dom in Hk.
+    set_solver.
+  Qed.
+
+  Lemma fresh_loc_upd_swap σ α bs bs' bs'' :
+    (tapes σ) !! α = Some bs →
+    state_upd_tapes <[fresh_loc (tapes σ):=bs']> (state_upd_tapes <[α:=bs'']> σ)
+    = state_upd_tapes <[α:=bs'']> (state_upd_tapes <[fresh_loc (tapes σ):=bs']> σ).
+  Proof.
+    intros H.
+    apply elem_fresh_ne in H.
+    unfold state_upd_tapes.
+    by rewrite insert_commute.
+  Qed.
+
+  Lemma fresh_loc_lookup σ α bs bs' :
+    (tapes σ) !! α = Some bs →
+    (tapes (state_upd_tapes <[fresh_loc (tapes σ):=bs']> σ)) !! α = Some bs.
+  Proof.
+    intros H.
+    pose proof (elem_fresh_ne _ _ _ H).
+    by rewrite lookup_insert_ne.
+  Qed.

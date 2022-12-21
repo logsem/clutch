@@ -388,6 +388,21 @@ Section couplings_theory.
       specialize (HμS12 H'); destruct HμS12; auto.
   Qed.
 
+  Lemma eq_coupl_sym (μ1 μ2: distr A) :
+    Rcoupl μ1 μ2 eq → Rcoupl μ2 μ1 eq.
+  Proof.
+    intros Hc.
+    apply eqcoupl_elim in Hc as ->; auto.
+    apply Rcoupl_eq.
+  Qed.
+
+  Lemma eq_coupl_trans (μ1 μ2 μ3 : distr A) :
+    Rcoupl μ1 μ2 eq → Rcoupl μ2 μ3 eq → Rcoupl μ1 μ3 eq.
+  Proof.
+    intros H12 H23.
+    apply eqcoupl_elim in H12 as ->; auto.
+  Qed.
+
   Proposition Rcoupl_wk (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
       (forall a b, R a b -> S a b) -> Rcoupl μ1 μ2 R -> Rcoupl μ1 μ2 S.
   Proof.
@@ -655,6 +670,37 @@ Context `{Countable A, Countable B}.
       case_bool_decide; auto; lra.
   Qed.
 
+
+  Lemma eq_ref_coupl_trans (μ1 μ2 μ3 : distr A):
+    refRcoupl μ1 μ2 eq → refRcoupl μ2 μ3 eq → refRcoupl μ1 μ3 eq.
+  Proof.
+    intros H12 H23.
+    pose proof (refcoupl_elim _ _ H12) as H12'.
+    pose proof (refcoupl_elim _ _ H23) as H23'.
+    apply refcoupl_from_ineq.
+    intros;
+    eapply Rle_trans; eauto.
+  Qed.
+
+
+  Lemma pure_eq_ref_coupl_unfoldl (μ1 μ2 μ3 : distr A) R :
+    Rcoupl μ1 μ2 (=) →
+    refRcoupl μ2 μ3 R →
+    refRcoupl μ1 μ3 R.
+  Proof.
+    intros H12 H23.
+    apply eqcoupl_elim in H12 as ->; auto.
+   Qed.
+
+  Lemma pure_eq_ref_coupl_unfoldr (μ1 μ2 μ3 : distr A) R :
+    refRcoupl μ1 μ2 R →
+    Rcoupl μ2 μ3 (=) →
+    refRcoupl μ1 μ3 R.
+  Proof.
+    intros H12 H23.
+    apply eqcoupl_elim in H23 as <-; auto.
+  Qed.
+
   Proposition is_ref_coupl_ret :
     forall (a : A) (b : B), isRefCoupl (dret a) (dret b) (dret (a, b)).
   Proof.
@@ -807,6 +853,10 @@ Context `{Countable A, Countable B}.
     intros Hwk [μ [[HμL HμR] HμSupp]].
     exists μ; split; [split | ]; auto.
   Qed.
+
+
+
+
 
 End ref_couplings_theory.
 

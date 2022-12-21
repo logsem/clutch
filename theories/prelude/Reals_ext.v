@@ -69,3 +69,27 @@ Proof. lra. Qed.
 Lemma Rle_plus_l (r1 r2 r3 : R) :
   r1 <= r2 → 0 <= r3 → r1 <= r2 + r3.
 Proof. lra. Qed.
+
+Lemma pos_sum_nn_real p q :
+    0 <= p →
+    0 <= q →
+    0 < p + q →
+    0 < p ∨ 0 < q.
+  Proof.
+    intros Hp Hq Hsum.
+    destruct Hp as [ Hp | Hp ]; simplify_eq; auto.
+    destruct Hq as [ Hq | Hq ]; simplify_eq; auto.
+    lra.
+  Qed.
+
+Lemma pos_prod_nn_real p q :
+    0 <= p →
+    0 <= q →
+    0 < p * q →
+    0 < p ∧ 0 < q.
+  Proof.
+    intros Hp Hq Hsum.
+    destruct Hp as [ Hp | Hp ]; simplify_eq; split; auto; try lra.
+    destruct Hq as [ Hq | Hq ]; simplify_eq ; auto; lra.
+  Qed.
+
