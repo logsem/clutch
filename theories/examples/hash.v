@@ -982,3 +982,60 @@ Section tape_bit_hash.
   Qed.
 
 End tape_bit_hash.
+
+Section eager_hash.
+
+  Context `{!prelogrelGS Σ}.
+
+  (* An eager hash map that samples every key's value *)
+
+  Definition sample_keys : val :=
+    (rec: "sample_keys" "vm" "n" :=
+       if: ("n" - #1) < #0 then
+         #()
+       else
+        let: "b" := flip #() in
+         set "vm" ("n" - #1) "b";;
+        "sample_keys" "vm" ("n" - #1)).
+
+  Definition eager_init_hash_state : val :=
+   λ: "max_val",
+      let: "val_map" := init_map #() in
+      sample_keys "val_map" ("max_val" + #1);;
+      "val_map".
+
+  Definition eager_compute_hash_specialized hm : val :=
+    λ: "v",
+      match: get hm "v" with
+      | SOME "b" => "b"
+      | NONE => #false
+      end.
+
+  Definition eager_compute_hash : val :=
+    λ: "hm" "v",
+      match: get "hm" "v" with
+      | SOME "b" => "b"
+      | NONE => #false
+      end.
+
+  (* eager_init_hash returns a hash as a function, basically wrapping the internal state
+     in the returned function *)
+  Definition eager_init_hash : val :=
+    λ: "_",
+      let: "hm" := eager_init_hash_state #() in
+      eager_compute_hash "hm".
+
+  Definition eager_hashfun f m : iProp Σ :=
+    ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗ map_list hm ((λ b, LitV (LitBool b)) <$> m).
+
+  Definition eager_shashfun f m : iProp Σ :=
+    ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗ map_slist hm ((λ b, LitV (LitBool b)) <$> m).
+
+  Lemma wp_eager_init_hash E :
+    {{{ True }}}
+      eager_init_hash #() @ E
+    {{{ f, RET f; eager_hashfun f ∅ }}}.
+  Proof.
+  Abort.
+
+End eager_hash.
