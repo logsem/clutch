@@ -196,7 +196,7 @@ Section exec_coupl.
       iSplit.
       { iPureIntro. rewrite -(dret_id_right (prim_step _ σ')).
         eapply Rcoupl_dbind; [|done].
-        intros [] ??. apply Rcoupl_dret. eauto. }
+        intros [] ?? =>/=. apply Rcoupl_dret. eauto. }
       iIntros ([] [] (? & -> & ?)).
       by iMod ("H" with "[//]").
     - rewrite least_fixpoint_unfold.
@@ -206,7 +206,7 @@ Section exec_coupl.
       iSplit.
       { iPureIntro. rewrite -(dret_id_right (dret _)).
         eapply Rcoupl_dbind; [|done].
-        intros [] ??. apply Rcoupl_dret. eauto. }
+        intros [] ?? =>/=. apply Rcoupl_dret. eauto. }
       iIntros ([] (? & -> & ?)).
       by iMod ("H" with "[//]").
     - rewrite least_fixpoint_unfold.

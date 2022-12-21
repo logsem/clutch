@@ -251,7 +251,7 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
-  (dmap fst (lim_prim_exec (fill_ctx K e, σ₀)) #b <= (dmap fst (lim_prim_exec (fill_ctx K e', σ₀)) #b))%R.
+  ((lim_prim_exec_val (fill_ctx K e, σ₀)) #b <= (lim_prim_exec_val (fill_ctx K e', σ₀)) #b)%R.
 
 Notation "Γ ⊨ e '≤ctx≤' e' : τ" :=
   (ctx_refines Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
@@ -267,12 +267,7 @@ Proof. induction 2; simpl; eauto using typed_ctx_item_typed. Qed.
 
 Global Instance ctx_refines_reflexive Γ τ :
   Reflexive (fun e1 e2 => ctx_refines Γ e1 e2 τ).
-Proof.
-  intros e K σ b Hty.
-  apply distr_le_dmap_1.
-  intros ρ.
-  eapply distr_le_refl.
-Qed.
+Proof. intros ?????. done. Qed.
 
 Global Instance ctx_refines_transitive Γ τ :
   Transitive (fun e1 e2 => ctx_refines Γ e1 e2 τ).

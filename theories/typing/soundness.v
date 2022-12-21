@@ -72,14 +72,15 @@ Proof.
   intros Hlog K σ₀ b Htyped.
   assert (ObsType TBool).
   { repeat econstructor; eauto. }
-  cut (∀ n, (dmap fst (prim_exec n (fill_ctx K e, σ₀)) #b <=
-               dmap fst (lim_prim_exec (fill_ctx K e', σ₀)) #b)%R).
-  { intros Hn. eapply distr_le_dmap_1.
-    intros ρ. eapply lim_prim_exec_continous.
-    intros n.
-    (* Seems like we need continuity of [lmarg] to make this work *)
-    admit. }
-  intros n.
+
+  (* cut (∀ n, ((prim_exec_val n (fill_ctx K e, σ₀)) #b <= *)
+  (*            (lim_prim_exec_val (fill_ctx K e', σ₀)) #b)%R). *)
+  (* { intros Hn.  *)
+  (*   eapply lim_prim_exec_val_continous. *)
+  (*   intros n. *)
+  (*   (* Seems like we need continuity of [lmarg] to make this work *) *)
+  (*   admit. } *)
+  (* intros n. *)
   (* should be [refines_coupling] when we merge with Alejandro's branch *)
   admit.
   (* cut (∃ thp' hp' v', rtc erased_step ([fill_ctx K e'], σ₀) (of_val v' :: thp', hp') ∧ (ObsType TBool  → #b = v')). *)

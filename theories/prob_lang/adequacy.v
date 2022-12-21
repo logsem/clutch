@@ -193,15 +193,15 @@ Section erasure_helpers.
 
   Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K :
     Rcoupl
-      (dmap (fill_lift K) (head_step (flip #()) σ) ≫= prim_exec m)
+      (dmap (fill_lift K) (head_step (flip #()) σ) ≫= prim_exec_val m)
       (fair_conv_comb
          (dmap (fill_lift K)
             (head_step (flip #())
-               (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= prim_exec m)
+               (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= prim_exec_val m)
          (dmap (fill_lift K)
             (head_step (flip #())
-               (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= prim_exec m))
-      pure_eq.
+               (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= prim_exec_val m))
+      eq.
   Proof using m IH. Admitted.
 
 End erasure_helpers.
@@ -400,7 +400,7 @@ Section adequacy.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
     iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | H]]] %Hv".
     - rewrite prim_exec_val_Sn_not_val; [|done].
-      rewrite -bind_lim_prim_exec.
+      rewrite bind_lim_prim_exec.
       destruct (to_val e1') eqn:Hv'.
       + destruct (decide (prim_step e1 σ1 = dzero)) as [Hs|].
         * rewrite /= Hs dbind_dzero.
@@ -454,7 +454,7 @@ Section adequacy.
     |={⊤,∅}=> |={∅}▷=>^n ⌜refRcoupl (prim_exec_val n (e, σ)) (lim_prim_exec_val (e', σ')) φ⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ e' σ'); iIntros "([Hh Ht] & HspecI_auth & #Hctx & Hwp)".
-    - rewrite /prim_exec /=.
+    - rewrite /prim_exec_val /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
