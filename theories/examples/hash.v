@@ -868,4 +868,81 @@ Section tape_bit_hash.
       }
   Qed.
 
+  Lemma wp_couple_hash E e f sf max m sm k sk Φ :
+    (* Both keys need to be in hash domain *)
+    k ≤ max →
+    sk ≤ max →
+    (* Cannot have queried the key in either hash *)
+    m !! k = None →
+    sm !! sk = None →
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ hashfun max f m ∗ shashfun max sf sm ∗
+    ((∃ b, hashfun max f (<[k:=b]>m) ∗ shashfun max sf (<[sk:=b]>sm)) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hmax Hsmax Hlookup Hslookup Hval Hspec) "(Hspec_ctx&Hhashfun&Hshashfun&Hwp)".
+    iDestruct "Hhashfun" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
+    iDestruct "Hshashfun" as (lsvm lstm svm stm Hsdom1 Hsdom2 ->) "(Hsvm&Hstm&Hstapes)".
+
+    (* Get the tape ids for k and sk *)
+    assert (is_Some (tm !! k)) as (α&Hα).
+    { apply elem_of_dom. apply Hdom1. lia. }
+
+    assert (is_Some (stm !! sk)) as (sα&Hsα).
+    { apply elem_of_dom. apply Hsdom1. lia. }
+    
+    iDestruct (big_sepM_delete with "Htapes") as "(Hk&Htapes)"; first eauto.
+    iDestruct "Hk" as "[Hbad|[Hbad|Hk]]".
+    { iExFalso. iDestruct "Hbad" as (?) "(%Hbadlook&_)". congruence. }
+    { iExFalso. iDestruct "Hbad" as (?) "(%Hbadlook&_)". congruence. }
+    iDestruct "Hk" as "(%Hnone1&%Hnone2&Hα)".
+
+    iDestruct (big_sepM_delete with "Hstapes") as "(Hsk&Hstapes)"; first eauto.
+    iDestruct "Hsk" as "[Hbad|[Hbad|Hsk]]".
+    { iExFalso. iDestruct "Hbad" as (?) "(%Hbadlook&_)". congruence. }
+    { iExFalso. iDestruct "Hbad" as (?) "(%Hbadlook&_)". congruence. }
+    iDestruct "Hsk" as "(%Hsnone1&%Hsnone2&Hsα)".
+
+    (* Couple the tapes *)
+    iApply (wp_couple_tapes with "[-]"); [ auto | auto |].
+    iFrame "Hspec_ctx Hα Hsα". iDestruct 1 as (b) "(Hsα&Hα)".
+
+    iApply "Hwp".
+    iExists b.
+    iSplitL "Hvm Htm Htapes Hα".
+    {
+      iExists _, _, _, _. iFrame.
+      iSplit; first done.
+      iSplit.
+      { iPureIntro; split; intuition auto. rewrite dom_insert_L.
+        set_solver. }
+      iSplit; first done.
+      iApply big_sepM_delete; first eauto.
+      iSplitL "Hα".
+      { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert //. }
+      iApply (big_sepM_mono with "Htapes").
+      iIntros (k' x' Hdel) "H".
+      assert (k ≠ k').
+      { apply lookup_delete_Some in Hdel. intuition auto. }
+      rewrite ?lookup_insert_ne //. 
+    }
+    {
+      iExists _, _, _, _. iFrame.
+      iSplit; first done.
+      iSplit.
+      { iPureIntro; split; intuition auto. rewrite dom_insert_L.
+        set_solver. }
+      iSplit; first done.
+      iApply big_sepM_delete; first eauto.
+      iSplitL "Hsα".
+      { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert //. }
+      iApply (big_sepM_mono with "Hstapes").
+      iIntros (k' x' Hdel) "H".
+      assert (sk ≠ k').
+      { apply lookup_delete_Some in Hdel. intuition auto. }
+      rewrite ?lookup_insert_ne //. 
+    }
+  Qed.
+
 End tape_bit_hash.
