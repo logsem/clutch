@@ -144,6 +144,17 @@ Section rules.
     rewrite bool_decide_eq_true_2 //.
   Qed.
 
+  (* TODO: should this go here or not? *)
+  Lemma refines_right_flip E K l b bs :
+    nclose specN ⊆ E →
+    l ↪ₛ (b :: bs) -∗
+    refines_right K (flip #lbl:l) ={E}=∗ refines_right K (#b) ∗ l ↪ₛ bs.
+  Proof.
+    iIntros (?) "? (?&?)".
+    iMod (step_flip with "[$]") as "(?&?&?)"; first done.
+    iModIntro; iFrame.
+  Qed.
+
   Lemma wp_couple_tapes E e α αₛ bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →

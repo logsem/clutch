@@ -790,4 +790,82 @@ Section tape_bit_hash.
       }
   Qed.
 
+  Lemma spec_hashfun_prev E K f m max (n : nat) (b: bool) :
+    m !! n = Some b →
+    ↑specN ⊆ E →
+    shashfun max f m -∗
+    refines_right K (f #n) ={E}=∗ refines_right K (of_val #b) ∗ shashfun max f m.
+  Proof.
+    iIntros (Hlookup Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
+    rewrite /compute_hash_specialized.
+    tp_pures K.
+
+    tp_bind K (get _ _).
+    rewrite refines_right_bind.
+    iMod (spec_get with "Hvm [$]") as "(HK&Hvm_all)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    rewrite lookup_fmap.
+    assert (is_Some (tm !! n)) as (α&Hα).
+    { apply elem_of_dom.
+      destruct Hdom2 as (Hdom_mtm&Hdom_vmtm).
+      apply Hdom_mtm. apply elem_of_dom. auto. }
+    iDestruct (big_sepM_delete with "Htapes") as "(Hn&Htapes)"; first eauto.
+    iDestruct "Hn" as "[#Hvm|Hnvm]".
+    - iDestruct "Hvm" as (b') "(%Heq1&%Heq2)".
+      assert (b = b') by congruence; subst.
+      rewrite Heq2. tp_pures K.
+      iModIntro.
+      iFrame.
+      iExists _, _, vm, tm. iFrame.
+      iSplit; first done.
+      iSplit; first done.
+      iSplit; first done.
+      iApply big_sepM_delete; first eauto.
+      iFrame "Htapes".
+      iLeft. auto.
+    - iDestruct "Hnvm" as "[Hnvm|Hbad]"; last first.
+      { iDestruct "Hbad" as (??) "_". congruence. }
+      iDestruct "Hnvm" as (b') "(%Heq1&%Heq2&Htape)".
+      assert (b = b') by congruence; subst.
+      rewrite Heq2. tp_pures K.
+      tp_bind K (get _ _).
+      rewrite refines_right_bind.
+      iMod (spec_get with "Htm [$]") as "(HK&Htm)"; first done.
+      rewrite -refines_right_bind/=.
+      rewrite lookup_fmap Hα.
+      tp_pures K.
+
+      tp_bind K (flip _)%E.
+      rewrite refines_right_bind.
+      iMod (refines_right_flip with "[$] [$]") as "(HK&Hα)"; first done.
+      rewrite -refines_right_bind/=.
+      tp_pures K.
+
+      tp_bind K (set _ _ _).
+      rewrite refines_right_bind.
+      iMod (spec_set with "Hvm_all HK") as "(HK&Hvm_all)"; first done.
+      rewrite -refines_right_bind/=.
+      tp_pures K.
+
+      iFrame.
+      iModIntro. iExists _, _, (<[n:=b']>vm), tm.
+      iFrame.
+      iSplit; first done.
+      iSplit.
+      { iPureIntro; split; intuition auto. rewrite dom_insert_L. set_unfold; intros ? [?|?]; auto.
+        subst. apply elem_of_dom; eauto. }
+      iSplit; first done.
+      rewrite fmap_insert; iFrame.
+      iApply big_sepM_delete; first eauto.
+      iSplitL "Hα".
+      { iLeft. iExists _. iSplit; eauto. rewrite lookup_insert //. }
+      iApply (big_sepM_mono with "Htapes").
+      { iIntros (k ? Hlookup').
+        assert (n ≠ k).
+        { apply lookup_delete_Some in Hlookup'. intuition auto. }
+        rewrite ?lookup_insert_ne //.
+      }
+  Qed.
+
 End tape_bit_hash.
