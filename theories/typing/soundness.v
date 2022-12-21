@@ -6,7 +6,7 @@ From self.typing Require Export contextual_refinement.
 
 (* Observable types are, at the moment, exactly the unboxed types
    which support direct equality tests. *)
-Definition ObsType : type → Prop := λ τ, EqType τ ∧ UnboxedType τ.
+(* Definition ObsType : type → Prop := λ τ, EqType τ ∧ UnboxedType τ. *)
 
 (* Lemma logrel_adequate Σ `{relocPreG Σ} *)
 (*    e e' τ (σ : state) : *)
@@ -59,37 +59,26 @@ Definition ObsType : type → Prop := λ τ, EqType τ ∧ UnboxedType τ.
 (*   eapply logrel_adequate; eauto. *)
 (* Qed. *)
 
-(* Theorem refines_coupling' Σ `{prelogrelGpreS Σ} *)
-(*   (A : ∀ `{prelogrelGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' n : *)
-(*   (∀ `{prelogrelGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) → *)
-(*   (∀ `{prelogrelGS Σ}, ⊢ REL e << e' : A) → *)
-(*   refRcoupl (prim_exec n (e, σ)) (lim_prim_exec (e', σ')) (coupl_rel φ). *)
-
 Lemma refines_sound_open Σ `{!prelogrelGpreS Σ} Γ e e' τ :
   (∀ `{prelogrelGS Σ} Δ, ⊢ {⊤;Δ;Γ} ⊨ e ≤log≤ e' : τ) →
   Γ ⊨ e ≤ctx≤ e' : τ.
 Proof.
   intros Hlog K σ₀ b Htyped.
-  assert (ObsType TBool).
-  { repeat econstructor; eauto. }
-
-  (* cut (∀ n, ((exec_val n (fill_ctx K e, σ₀)) #b <= *)
-  (*            (lim_exec_val (fill_ctx K e', σ₀)) #b)%R). *)
-  (* { intros Hn.  *)
-  (*   eapply lim_exec_val_continous. *)
-  (*   intros n. *)
-  (*   (* Seems like we need continuity of [lmarg] to make this work *) *)
-  (*   admit. } *)
-  (* intros n. *)
-  (* should be [refines_coupling] when we merge with Alejandro's branch *)
-  admit.
-  (* cut (∃ thp' hp' v', rtc erased_step ([fill_ctx K e'], σ₀) (of_val v' :: thp', hp') ∧ (ObsType TBool  → #b = v')). *)
-  (* { naive_solver. } *)
-  (* eapply (logrel_simul Σ); last by apply Hstep. *)
-  (* iIntros (? ?). *)
-  (* iApply (bin_log_related_under_typed_ctx with "[]"); eauto. *)
-  (* iModIntro. iIntros (?). iApply Hlog. *)
-  Admitted.
+  cut (∀ n, ((exec_val n (fill_ctx K e, σ₀)) #b <=
+             (lim_exec_val (fill_ctx K e', σ₀)) #b)%R).
+  { intros Hn. by eapply lim_exec_val_continous. }
+  intros n.
+  eapply refRcoupl_eq_elim.
+  eapply (refines_coupling Σ (λ _, lrel_bool)); last first.
+  - iIntros (?).
+    iPoseProof (bin_log_related_under_typed_ctx with "[]") as "H"; [done| |].
+    { iIntros "!>" (?). iApply Hlog. }
+    iSpecialize ("H" $! [] ∅ with "[]").
+    { rewrite fmap_empty. iApply env_ltyped2_empty. }
+    rewrite /interp 2!fmap_empty 2!subst_map_empty /=.
+    done.
+  - by iIntros (???) "[%b' [-> ->]]".
+Qed.
 
 Lemma refines_sound Σ `{Hpre : !prelogrelGpreS Σ} (e e': expr) τ :
   (∀ `{prelogrelGS Σ} Δ, ⊢ REL e << e' : (interp τ Δ)) →

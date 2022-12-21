@@ -354,12 +354,10 @@ Section bin_log_related_under_typed_ctx.
       + iApply bin_log_related_bool_binop;
           try (by iApply fundamental); eauto.
         by iApply (IHK with "Hrel").
-      + admit.
-      (* iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental). *)
-        (* by iApply (IHK with "Hrel"). *)
-      + admit.
-        (* iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental). *)
-        (* by iApply (IHK with "Hrel"). *)
+      + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental).
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental).
+        by iApply (IHK with "Hrel").
       + iApply (bin_log_related_if with "[] []");
           try by iApply fundamental.
         iApply (IHK with "[Hrel]"); auto.
@@ -422,5 +420,5 @@ Section bin_log_related_under_typed_ctx.
         * iIntros (A). iApply (IHK with "[Hrel]"); auto.
       + iApply bin_log_related_flip.
         iApply (IHK with "[Hrel]"); auto.
-  Admitted.
+  Qed.
 End bin_log_related_under_typed_ctx.
