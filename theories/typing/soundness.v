@@ -73,10 +73,10 @@ Proof.
   assert (ObsType TBool).
   { repeat econstructor; eauto. }
 
-  (* cut (∀ n, ((prim_exec_val n (fill_ctx K e, σ₀)) #b <= *)
-  (*            (lim_prim_exec_val (fill_ctx K e', σ₀)) #b)%R). *)
+  (* cut (∀ n, ((exec_val n (fill_ctx K e, σ₀)) #b <= *)
+  (*            (lim_exec_val (fill_ctx K e', σ₀)) #b)%R). *)
   (* { intros Hn.  *)
-  (*   eapply lim_prim_exec_val_continous. *)
+  (*   eapply lim_exec_val_continous. *)
   (*   intros n. *)
   (*   (* Seems like we need continuity of [lmarg] to make this work *) *)
   (*   admit. } *)
