@@ -195,8 +195,8 @@ Section exec_coupl.
       iSplit; [eauto using reducible_fill|].
       iSplit.
       { iPureIntro. rewrite -(dret_id_right (prim_step _ σ')).
-        eapply Rcoupl_bind; [|done].
-        intros [] ?? => /=. apply Rcoupl_ret. eauto. }
+        eapply Rcoupl_dbind; [|done].
+        intros [] ??. apply Rcoupl_dret. eauto. }
       iIntros ([] [] (? & -> & ?)).
       by iMod ("H" with "[//]").
     - rewrite least_fixpoint_unfold.
@@ -205,8 +205,8 @@ Section exec_coupl.
       iSplit; [eauto using reducible_fill|].
       iSplit.
       { iPureIntro. rewrite -(dret_id_right (dret _)).
-        eapply Rcoupl_bind; [|done].
-        intros [] ?? =>/=. apply Rcoupl_ret. eauto. }
+        eapply Rcoupl_dbind; [|done].
+        intros [] ??. apply Rcoupl_dret. eauto. }
       iIntros ([] (? & -> & ?)).
       by iMod ("H" with "[//]").
     - rewrite least_fixpoint_unfold.
@@ -216,8 +216,8 @@ Section exec_coupl.
       { iPureIntro.
         rewrite -(dret_id_right (exec _ _)).
         rewrite -(dret_id_left (λ ρ, dret (K ρ.1, ρ.2)) (_, σ)).
-        eapply Rcoupl_bind; [|done].
-        intros [] [] ? =>/=. apply Rcoupl_ret. eauto. }
+        eapply Rcoupl_dbind; [|done].
+        intros [] [] ?. apply Rcoupl_dret. eauto. }
       iIntros (?? (? & <-%(inj _) & ?)).
       iMod ("H" with "[//] [//]") as "H".
       iModIntro. iApply "H".

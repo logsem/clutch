@@ -13,30 +13,7 @@ From self.prob Require Export couplings distribution.
 Import uPred.
 
 Set Default Proof Using "Type*".
-
 Local Open Scope R.
-
-
-  Definition pure_eq (ρ1 ρ2 : cfg) := (ρ1.1 = ρ2.1) ∧ (ρ1.2.(heap) = ρ2.2.(heap)).
-
-  Definition lift_pure (R : (expr * (gmap loc val)) -> (expr * (gmap loc val)) -> Prop) (ρ1 ρ2 : cfg) : Prop :=
-    R (ρ1.1, ρ1.2.(heap)) (ρ2.1, ρ2.2.(heap)).
-
-
-  Definition coupl_rel (φ : val → val → Prop) (ρ ρ' : cfg) : Prop :=
-    match to_val ρ.1, to_val ρ'.1 with
-    | Some v, Some v' => φ v v'
-    | Some _, None => False
-    | None,  _ => True
-    end.
-
-  Definition coupl_rel_expr (φ : val → val → Prop) (e e' :expr) : Prop :=
-    match to_val e, to_val e' with
-    | Some v, Some v' => φ v v'
-    | Some _, None => False
-    | None,  _ => True
-    end.
-*)
 
 Section erasure_helpers.
 
@@ -183,7 +160,7 @@ Section erasure_helpers.
         rewrite !dmap_dret !dret_id_left.
         rewrite /fair_conv_comb.
         rewrite -!dbind_assoc.
-        eapply (Rcoupl_bind _ _ _ _ (=)); [ | apply Rcoupl_eq].
+        eapply (Rcoupl_dbind _ _ _ _ (=)); [ | apply Rcoupl_eq].
         intros ? b ->.
         do 2 rewrite upd_tape_twice.
         rewrite -(lookup_total_correct _ _ _ Hα').
@@ -198,7 +175,7 @@ Section erasure_helpers.
         rewrite -!dbind_assoc.
         rewrite -(dbind_fair_conv_comb _ _ fair_coin).
         rewrite /fair_conv_comb.
-        eapply Rcoupl_bind; [|apply Rcoupl_eq].
+        eapply Rcoupl_dbind; [|apply Rcoupl_eq].
         intros ? [] ->; rewrite !dret_id_left; by eapply IH.
     - destruct (decide (α = α')) as [-> | Hαneql]; [simplify_map_eq|].
       rewrite head_step_flip_unalloc_unfold //.
@@ -210,7 +187,7 @@ Section erasure_helpers.
       rewrite -!dbind_assoc.
       erewrite <- (dbind_fair_conv_comb _ _ fair_coin).
       rewrite /fair_conv_comb.
-      eapply Rcoupl_bind; [|apply Rcoupl_eq].
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
       intros ? [] ->; rewrite !dret_id_left; by eapply IH.
   Qed.
 
@@ -229,46 +206,44 @@ Section erasure_helpers.
 
 End erasure_helpers.
 
-Section erasure.
-
-  Lemma prim_coupl_upd_tapes_dom m e1 σ1 α bs :
-    σ1.(tapes) !! α = Some bs →
-    Rcoupl
-      (prim_exec_val m (e1, σ1))
-      (fair_conv_comb
-         (prim_exec_val m (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [true]]> σ1)))
-         (prim_exec_val m (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [false]]> σ1))))
-      eq.
-  Proof.
-    revert e1 σ1 α bs; induction m; intros e1 σ1 α bs Hα.
-    - rewrite /prim_exec_val/=.
-      destruct (to_val e1) eqn:He1.
-      + exists (dprod (dret v)
-                  (fair_conv_comb
-                     (dret v)
-                     (dret v))).
-        split; [split ; [rewrite lmarg_dprod //|rewrite rmarg_dprod //] |].
-        { erewrite SeriesC_ext; [ | intro; rewrite fair_conv_comb_pmf; done].
-          rewrite SeriesC_plus;
-            [rewrite SeriesC_scal_l; rewrite dret_mass; lra | | ];
-            apply ex_seriesC_scal_l; apply pmf_ex_seriesC. }
-        { apply dret_mass. }
-        intros (v2 & v2') Hpos. simpl.
-        rewrite /pmf/= in Hpos.
-        rewrite fair_conv_comb_pmf in Hpos.
-        assert (dret v v2 > 0 ∧ dret v v2' > 0) as (Hpos1 & Hpos2).
-        { (* This is a fact about the reals, maybe it can be done easier *)
-          apply Rgt_lt in Hpos.
-          assert (0.5+0.5 = 1) as Hhalf; [lra | ].
-          rewrite -Rmult_plus_distr_r Hhalf Rmult_1_l in Hpos.
-          apply pos_prod_nn_real in Hpos; try lra; auto.}
-        { apply dret_pos in Hpos1, Hpos2. by simplify_eq. }
-      + exists dzero. repeat split_and!.
-        * rewrite /lmarg dmap_dzero //.
-        * apply distr_ext=>?.
-          rewrite rmarg_pmf fair_conv_comb_pmf /pmf /=.
-          rewrite SeriesC_0 //. lra.
-        * intros ?. rewrite /pmf /=. lra.
+Lemma prim_coupl_upd_tapes_dom m e1 σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl
+    (prim_exec_val m (e1, σ1))
+    (fair_conv_comb
+       (prim_exec_val m (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [true]]> σ1)))
+       (prim_exec_val m (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [false]]> σ1))))
+    eq.
+Proof.
+  revert e1 σ1 α bs; induction m; intros e1 σ1 α bs Hα.
+  - rewrite /prim_exec_val/=.
+    destruct (to_val e1) eqn:He1.
+    + exists (dprod (dret v)
+                (fair_conv_comb
+                   (dret v)
+                   (dret v))).
+      split; [split ; [rewrite lmarg_dprod //|rewrite rmarg_dprod //] |].
+      { erewrite SeriesC_ext; [ | intro; rewrite fair_conv_comb_pmf; done].
+        rewrite SeriesC_plus;
+          [rewrite SeriesC_scal_l; rewrite dret_mass; lra | | ];
+          apply ex_seriesC_scal_l; apply pmf_ex_seriesC. }
+      { apply dret_mass. }
+      intros (v2 & v2') Hpos. simpl.
+      rewrite /pmf/= in Hpos.
+      rewrite fair_conv_comb_pmf in Hpos.
+      assert (dret v v2 > 0 ∧ dret v v2' > 0) as (Hpos1 & Hpos2).
+      { (* This is a fact about the reals, maybe it can be done easier *)
+        apply Rgt_lt in Hpos.
+        assert (0.5+0.5 = 1) as Hhalf; [lra | ].
+        rewrite -Rmult_plus_distr_r Hhalf Rmult_1_l in Hpos.
+        apply pos_prod_nn_real in Hpos; try lra; auto. }
+      { apply dret_pos in Hpos1, Hpos2. by simplify_eq. }
+    + exists dzero. repeat split_and!.
+      * rewrite /lmarg dmap_dzero //.
+      * apply distr_ext=>?.
+        rewrite rmarg_pmf fair_conv_comb_pmf /pmf /=.
+        rewrite SeriesC_0 //. lra.
+      * intros ?. rewrite /pmf /=. lra.
   - simpl. destruct (to_val e1) eqn:He1.
     + specialize (IHm e1 σ1 α bs Hα).
       destruct m; simpl in *; by rewrite He1 in IHm.
@@ -287,90 +262,87 @@ Section erasure.
           - by eapply ind_case_flip_none.
           - by eapply ind_case_flip_no_tapes. }
         { by eapply ind_case_dzero. }
-  Qed.
+Qed.
 
+Lemma prim_coupl_step_prim m e1 σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl
+    (prim_exec_val m (e1, σ1))
+    (state_step σ1 α ≫= (λ σ2, prim_exec_val m (e1, σ2)))
+    eq.
+Proof.
+  intros Hα.
+  rewrite state_step_fair_conv_comb; last first.
+  { apply elem_of_dom. eauto. }
+  rewrite fair_conv_comb_dbind.
+  do 2 rewrite dret_id_left.
+  by eapply prim_coupl_upd_tapes_dom.
+Qed.
 
-  Lemma prim_coupl_step_prim m e1 σ1 α bs :
-    σ1.(tapes) !! α = Some bs →
-    Rcoupl
-      (prim_exec_val m (e1, σ1))
-      (state_step σ1 α ≫= (λ σ2, prim_exec_val m (e1, σ2)))
-      eq.
-  Proof.
-    intros Hα.
-    rewrite state_step_fair_conv_comb; last first.
-    { apply elem_of_dom. eauto. }
-    rewrite fair_conv_comb_dbind.
-    do 2 rewrite dret_id_left.
-    by eapply prim_coupl_upd_tapes_dom.
-  Qed.
+Lemma limprim_coupl_step_limprim e1 σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl
+    (lim_prim_exec_val (e1, σ1))
+    (state_step σ1 α ≫= (λ σ2, lim_prim_exec_val (e1, σ2)))
+    eq.
+Proof.
+  (* Hopefully there is some continuity argument using the previous lemma *)
+  (* intros; rewrite state_step_fair_conv_comb fair_conv_comb_dbind. *)
+  (* do 2 rewrite dret_id_left. *)
+Admitted.
 
-
-  Lemma limprim_coupl_step_limprim : forall e1 σ1 α bs,
-    σ1.(tapes) !! α = Some bs →
-    Rcoupl
-      (lim_prim_exec_val (e1, σ1))
-      (state_step σ1 α ≫= (λ σ2, lim_prim_exec_val (e1, σ2)))
-      eq.
-  Proof.
-    (* Hopefully there is some continuity argument using the previous lemma *)
-    (* intros; rewrite state_step_fair_conv_comb fair_conv_comb_dbind. *)
-    (* do 2 rewrite dret_id_left. *)
-  Admitted.
-
-End erasure.
-
-
-  Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':
-    σ1.(tapes) !! α = Some bs →
-    σ1'.(tapes) !! α' = Some bs' →
-    Rcoupl (state_step σ1 α) (state_step σ1' α') R →
-    (∀ σ2 σ2', R σ2 σ2' →
-               refRcoupl (prim_exec_val m (e1, σ2))
-                 (lim_prim_exec_val (e1', σ2')) Φ ) →
-    refRcoupl (prim_exec_val m (e1, σ1))
-              (lim_prim_exec_val (e1', σ1')) Φ.
-  Proof.
-    intros Hα Hα' HR Hcont.
-    eapply pure_eq_ref_coupl_unfoldl ; [eapply prim_coupl_step_prim ; eauto | ].
-    eapply pure_eq_ref_coupl_unfoldr; [ | eapply eq_coupl_sym, limprim_coupl_step_limprim ; eauto ].
-    apply (refRcoupl_bind _ _ _ _ R); auto.
-    apply weaken_coupl; auto.
-  Qed.
+Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':
+  σ1.(tapes) !! α = Some bs →
+  σ1'.(tapes) !! α' = Some bs' →
+  Rcoupl (state_step σ1 α) (state_step σ1' α') R →
+  (∀ σ2 σ2', R σ2 σ2' →
+             refRcoupl (prim_exec_val m (e1, σ2))
+               (lim_prim_exec_val (e1', σ2')) Φ ) →
+  refRcoupl (prim_exec_val m (e1, σ1))
+    (lim_prim_exec_val (e1', σ1')) Φ.
+Proof.
+  intros Hα Hα' HR Hcont.
+  eapply refRcoupl_eq_refRcoupl_unfoldl ;
+    [eapply prim_coupl_step_prim; eauto |].
+  eapply refRcoupl_eq_refRcoupl_unfoldr;
+    [| eapply Rcoupl_eq_sym, limprim_coupl_step_limprim; eauto].
+  apply (refRcoupl_dbind _ _ _ _ R); auto.
+  by eapply Rcoupl_refRcoupl.
+Qed.
 
 (* TODO: upstream? *)
-  Section fupd_plainly_derived.
-    Context {PROP : bi}.
-    Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
+Section fupd_plainly_derived.
+  Context {PROP : bi}.
+  Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
 
-    Lemma step_fupd_mono Eo Ei (P Q : PROP) :
-      (P ⊢ Q) → (|={Eo}[Ei]▷=> P) ⊢ (|={Eo}[Ei]▷=> Q).
-    Proof. intros HPQ. by apply fupd_mono, later_mono, fupd_mono. Qed.
+  Lemma step_fupd_mono Eo Ei (P Q : PROP) :
+    (P ⊢ Q) → (|={Eo}[Ei]▷=> P) ⊢ (|={Eo}[Ei]▷=> Q).
+  Proof. intros HPQ. by apply fupd_mono, later_mono, fupd_mono. Qed.
 
-    Lemma step_fupd_except_0 E1 E2 (P : PROP) : (|={E1}[E2]▷=> ◇ P) ={E1}[E2]▷=∗ P.
-    Proof. rewrite fupd_except_0 //. Qed.
+  Lemma step_fupd_except_0 E1 E2 (P : PROP) : (|={E1}[E2]▷=> ◇ P) ={E1}[E2]▷=∗ P.
+  Proof. rewrite fupd_except_0 //. Qed.
 
-    Lemma step_fupdN_except_0 E1 E2 (P : PROP) n : (|={E1}[E2]▷=>^(S n) ◇ P) ={E1}[E2]▷=∗^(S n) P.
-    Proof.
-      induction n as [|n IH]; [apply step_fupd_except_0|].
-      replace (S (S n)) with (1 + S n)%nat by lia.
-      rewrite 2!step_fupdN_add. by apply step_fupd_mono.
-    Qed.
+  Lemma step_fupdN_except_0 E1 E2 (P : PROP) n : (|={E1}[E2]▷=>^(S n) ◇ P) ={E1}[E2]▷=∗^(S n) P.
+  Proof.
+    induction n as [|n IH]; [apply step_fupd_except_0|].
+    replace (S (S n)) with (1 + S n)%nat by lia.
+    rewrite 2!step_fupdN_add. by apply step_fupd_mono.
+  Qed.
 
-    Lemma step_fupdN_plain_forall E {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
-      (|={E}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={E}▷=>^n Φ x).
-    Proof .
-      intros. apply (anti_symm _).
-      { apply forall_intro=> x. apply step_fupdN_mono. eauto. }
-      destruct n; [done|].
-      trans (∀ x, |={E}=> ▷^(S n) ◇ Φ x)%I.
-      { apply forall_mono=> x. by rewrite step_fupdN_plain. }
-      rewrite -fupd_plain_forall'.
-      rewrite -step_fupdN_except_0 /= -step_fupdN_intro //.
-      apply fupd_elim.
-      rewrite -later_forall -laterN_forall -except_0_forall.
-      apply step_fupd_intro. done.
-    Qed.
+  Lemma step_fupdN_plain_forall E {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
+    (|={E}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={E}▷=>^n Φ x).
+  Proof .
+    intros. apply (anti_symm _).
+    { apply forall_intro=> x. apply step_fupdN_mono. eauto. }
+    destruct n; [done|].
+    trans (∀ x, |={E}=> ▷^(S n) ◇ Φ x)%I.
+    { apply forall_mono=> x. by rewrite step_fupdN_plain. }
+    rewrite -fupd_plain_forall'.
+    rewrite -step_fupdN_except_0 /= -step_fupdN_intro //.
+    apply fupd_elim.
+    rewrite -later_forall -laterN_forall -except_0_forall.
+    apply step_fupd_intro. done.
+  Qed.
 
 End fupd_plainly_derived.
 
@@ -390,7 +362,7 @@ End class_instance_updates.
 Section adequacy.
   Context `{!prelocGS Σ}.
 
-  Lemma refRcoupl_bind' `{Countable A, Countable A', Countable B, Countable B'}
+  Lemma refRcoupl_dbind' `{Countable A, Countable A', Countable B, Countable B'}
     (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (T : A' → B' → Prop) n :
     ⌜refRcoupl μ1 μ2 R⌝ -∗
     (∀ a b, ⌜R a b⌝ ={∅}▷=∗^(S n) ⌜refRcoupl (f a) (g b) T⌝) -∗
@@ -398,7 +370,7 @@ Section adequacy.
   Proof.
     iIntros (HR) "H".
     iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a b → refRcoupl (f a) (g b) T)⌝)).
-    { iIntros (?). iPureIntro. by eapply refRcoupl_bind. }
+    { iIntros (?). iPureIntro. by eapply refRcoupl_dbind. }
     iIntros (???) "/=".
     iMod ("H" with "[//]"); auto.
   Qed.
@@ -439,20 +411,19 @@ Section adequacy.
           rewrite /= (val_stuck_dzero e1') in Hcpl; [|eauto].
           by apply Rcoupl_dzero_r_inv in Hcpl.
       + rewrite prim_step_or_val_no_val; [|done].
-        (* These could be separate lemmas *)
-        iApply (refRcoupl_bind' _ _ _ _ R).
-        { iPureIntro. by apply weaken_coupl. }
+        iApply (refRcoupl_dbind' _ _ _ _ R).
+        { iPureIntro. by apply Rcoupl_refRcoupl. }
         iIntros ([] [] HR). by iMod ("H" with "[//]").
     - rewrite prim_exec_val_Sn_not_val; [|done].
       rewrite -(dret_id_left (lim_prim_exec_val)).
-      iApply refRcoupl_bind'.
-      { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply weaken_coupl. }
+      iApply refRcoupl_dbind'.
+      { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply Rcoupl_refRcoupl. }
       iIntros ([] [] (?&?& [= -> ->]%dret_pos)).
       by iMod ("H"  with "[//]").
     - rewrite -(dret_id_left (prim_exec_val _)).
       rewrite (lim_prim_exec_exec m).
-      iApply refRcoupl_bind'.
-      { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply weaken_coupl. }
+      iApply refRcoupl_dbind'.
+      { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply Rcoupl_refRcoupl. }
       iIntros ([] [] (?& [= -> ->]%dret_pos &?)).
       by iMod ("H"  with "[//] [//]").
     - rewrite prim_exec_val_Sn_not_val; [|done].
@@ -469,8 +440,6 @@ Section adequacy.
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα1, Hα2.
           apply elem_of_elements, elem_of_dom in Hα1 as [], Hα2 as [].
-          (* TODO: generalize erasure theorem *)
-          (* eapply baz; [done|done|done|].    *)
           eapply refRcoupl_erasure; eauto.
         - iIntros (???). by iMod ("H" with "[//] [//]"). }
       iInduction (list_prod (language.get_active σ1) (language.get_active σ1'))
@@ -479,7 +448,6 @@ Section adequacy.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
   Qed.
-
 
   Theorem wp_coupling (e e' : expr) (σ σ' : state) n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ spec_ctx ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
@@ -498,7 +466,7 @@ Section adequacy.
         erewrite lim_prim_exec_exec_val; [|done].
         iPureIntro.
         rewrite /dmap.
-        by apply refRcoupl_ret.
+        by apply refRcoupl_dret.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iPureIntro.
         apply refRcoupl_dzero.
@@ -515,7 +483,7 @@ Section adequacy.
         iPureIntro.
         rewrite prim_exec_val_unfold dret_id_left /=.
         erewrite lim_prim_exec_exec_val; [|done].
-        by apply refRcoupl_ret.
+        by apply refRcoupl_dret.
       + rewrite wp_unfold /wp_pre /= Heq.
         iMod ("Hwp" with "[$]") as "Hcpl".
         iModIntro.
@@ -530,7 +498,6 @@ Section adequacy.
         rewrite -prim_exec_val_Sn_not_val; [|done].
         by iApply (exec_coupl_erasure with "H").
   Qed.
-
 
 End adequacy.
 
