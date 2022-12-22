@@ -179,6 +179,37 @@ Section map.
       }
   Qed.
 
+  Lemma spec_find_list_Z E K l vs (z : Z):
+    ↑specN ⊆ E →
+    assoc_slist l vs -∗
+    refines_right K (find_list #l #z) ={E}=∗
+    refines_right K (if bool_decide (z < 0)%Z then
+                       opt_to_val None
+                     else opt_to_val (find_list_gallina vs (Z.to_nat z))) ∗ assoc_slist l vs.
+  Proof.
+    iIntros (?) "H Hr".
+    rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
+    - tp_pures K. rewrite /assoc_list. tp_load K. tp_pures K. iModIntro. iFrame.
+      rewrite /=. iFrame. destruct (bool_decide _) => //=.
+    - tp_pures K. iDestruct "H" as (?) "(Hl&Hassoc)".
+      tp_load K. tp_pures K; first solve_vals_compare_safe.
+      destruct (bool_decide (#k' = #z)) eqn:Hbool.
+      { apply bool_decide_eq_true_1 in Hbool.
+        tp_pures K. simpl. inversion Hbool. subst.
+        rewrite bool_decide_false //; last by lia.
+        rewrite bool_decide_true //; last by lia.
+        iModIntro. iFrame. iExists _; iFrame; eauto. }
+      { tp_pure K _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
+        apply bool_decide_eq_false_1 in Hbool.
+        iEval (simpl).
+        case_bool_decide.
+        { iFrame. iExists _. by iFrame. }
+        rewrite (bool_decide_false (k' = _)); last first.
+        { intros Heq. apply Hbool. rewrite Heq. f_equal. rewrite Z2Nat.id; auto. lia. }
+        iFrame. iModIntro. iExists _; iFrame.
+      }
+  Qed.
+
   Definition init_map : val :=
     λ: <>, ref (init_list #()).
 
@@ -276,6 +307,24 @@ Section map.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
     tp_load K.
     iMod (spec_find_list with "[$] [$]") as "(HK&Halloc)"; first done.
+    rewrite (find_list_gallina_map_lookup vs m) //. iFrame.
+    iExists _ ,_. iFrame. eauto.
+  Qed.
+
+  Lemma spec_get_Z E K lm m (z : Z) :
+    ↑specN ⊆ E →
+    map_slist lm m -∗
+    refines_right K (get #lm #z) ={E}=∗
+    refines_right K (if bool_decide (z < 0)%Z then
+                       opt_to_val None
+                     else opt_to_val (m !! Z.to_nat z)) ∗ map_slist lm m.
+  Proof.
+    iIntros (?) "Hm Hr".
+    rewrite /get.
+    tp_pures K.
+    iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
+    tp_load K.
+    iMod (spec_find_list_Z with "[$] [$]") as "(HK&Halloc)"; first done.
     rewrite (find_list_gallina_map_lookup vs m) //. iFrame.
     iExists _ ,_. iFrame. eauto.
   Qed.
@@ -843,7 +892,7 @@ Section tape_bit_hash.
       }
   Qed.
 
-  Lemma wp_hashfun_out_of_range E f m (max : nat) (z : Z) (b : bool) :
+  Lemma wp_hashfun_out_of_range E f m (max : nat) (z : Z) :
     (z < 0 ∨ max < z)%Z →
     {{{ hashfun max f m }}}
       f #z @ E
@@ -948,6 +997,43 @@ Section tape_bit_hash.
         { apply lookup_delete_Some in Hlookup'. intuition auto. }
         rewrite ?lookup_insert_ne //.
       }
+  Qed.
+
+  Lemma spec_hashfun_out_of_range E K f m (max : nat) (z : Z) :
+    (z < 0 ∨ max < z)%Z →
+    ↑specN ⊆ E →
+    shashfun max f m -∗
+    refines_right K (f #z) ={E}=∗ refines_right K (of_val #false) ∗ shashfun max f m.
+  Proof.
+    iIntros (Hrange Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(?&Hvm&Htm&Htapes)".
+    rewrite /compute_hash_specialized.
+    tp_pures K.
+    tp_bind K (get _ _).
+    rewrite refines_right_bind.
+    iMod (spec_get_Z with "Hvm [$]") as "(HK&Hvm_all)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    rewrite lookup_fmap.
+    case_bool_decide.
+    { tp_pures K.
+      tp_bind K (get _ _).
+      rewrite refines_right_bind.
+      iMod (spec_get_Z with "Htm HK") as "(HK&Htm)"; first done.
+      rewrite bool_decide_true //.
+      rewrite -refines_right_bind /=.
+      tp_pures K. iFrame. iModIntro. iExists _, _, _, _. iFrame. auto. }
+    assert (tm !! Z.to_nat z = None) as Htm_none.
+    { apply not_elem_of_dom_1. rewrite -Hdom1. lia. }
+    assert (vm !! Z.to_nat z = None) as ->.
+    { apply not_elem_of_dom_1. apply not_elem_of_dom_2 in Htm_none. set_solver. }
+    tp_pures K.
+    tp_bind K (get _ _).
+    rewrite refines_right_bind.
+    iMod (spec_get_Z with "Htm HK") as "(HK&Htm)"; first done.
+    rewrite bool_decide_false //. rewrite lookup_fmap Htm_none.
+    rewrite -refines_right_bind /=.
+    tp_pures K. iFrame.
+    iModIntro. iExists _, _, _, _. iFrame. auto.
   Qed.
 
   Definition impl_couplable (P : bool → iProp Σ) : iProp Σ :=
