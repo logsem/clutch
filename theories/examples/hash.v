@@ -1145,4 +1145,20 @@ Section eager_hash.
     intros. apply Hdom. lia.
   Qed.
 
+  Lemma wp_eager_hashfun_prev E f m (max n : nat) (b : bool) :
+    m !! n = Some b →
+    {{{ eager_hashfun max f m }}}
+      f #n @ E
+    {{{ RET #b; eager_hashfun max f m }}}.
+  Proof.
+    iIntros (Hlookup Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (lvm -> Hdom) "Hvm".
+    rewrite /eager_compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get with "Hvm").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap Hlookup /=. wp_pures.
+    iModIntro. iApply "HΦ". iExists _. iFrame. eauto.
+  Qed.
+
 End eager_hash.
