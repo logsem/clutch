@@ -304,7 +304,7 @@ Module simple_bit_hash.
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ map_list hm ((λ b, LitV (LitBool b)) <$> m).
 
   Definition shashfun f m : iProp Σ :=
-    ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ map_slist hm ((λ b, LitV (LitBool b)) <$> m).
+    ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ spec_ctx ∗ map_slist hm ((λ b, LitV (LitBool b)) <$> m).
 
   Lemma wp_init_hash E :
     {{{ True }}}
@@ -334,7 +334,8 @@ Module simple_bit_hash.
     iEval (rewrite -refines_right_bind /=) in "Hspec".
     rewrite /compute_hash.
     tp_pures K.
-    iExists _. iFrame. iModIntro. iExists _. iSplit; first done. rewrite fmap_empty. iFrame.
+    iExists _. iDestruct "Hspec" as "(#$&$)".
+    iModIntro. iExists _. iSplit; first done. rewrite fmap_empty. iFrame.
   Qed.
 
   Lemma wp_hashfun_prev E f m (n : nat) (b : bool) :
@@ -360,7 +361,7 @@ Module simple_bit_hash.
     refines_right K (f #n) ={E}=∗ refines_right K (of_val #b) ∗ shashfun f m.
   Proof.
     iIntros (Hlookup ?) "Hhash HK".
-    iDestruct "Hhash" as (hm ->) "H".
+    iDestruct "Hhash" as (hm ->) "(#?&H)".
     rewrite /compute_hash_specialized.
     tp_pures K.
     tp_bind K (get _ _).
@@ -382,7 +383,7 @@ Module simple_bit_hash.
   Proof.
     iIntros (Hspec Hnonem Hnonesm Φ) "(HK&Hhash&Hshash) HΦ".
     iDestruct "Hhash" as (hm ->) "Hm".
-    iDestruct "Hshash" as (hsm ->) "Hsm".
+    iDestruct "Hshash" as (hsm ->) "(#?&Hsm)".
     rewrite /compute_hash_specialized.
     wp_pures.
     tp_pures K.
@@ -424,7 +425,7 @@ Module simple_bit_hash.
     iFrame. iModIntro.
     iSplitL "Hm".
     { iExists _. iSplit; first auto. rewrite fmap_insert //. }
-    { iExists _. iSplit; first auto. rewrite fmap_insert //. }
+    { iExists _. iSplit; first auto. rewrite fmap_insert //. iFrame "#∗". }
   Qed.
 
 
@@ -530,6 +531,7 @@ Section tape_bit_hash.
        ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
        ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
        ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
+       spec_ctx ∗
        map_slist lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
        map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
        ([∗ map] i ↦ α ∈ tm,
@@ -715,7 +717,9 @@ Section tape_bit_hash.
     iEval (rewrite -refines_right_bind /=) in "HK".
     tp_pures K.
     rewrite /compute_hash. tp_pures K.
-    iModIntro. iExists _. iFrame "HK".
+    iModIntro. iExists _.
+    iDestruct "HK" as "(#?&?)".
+    iFrame "# ∗".
     iExists lvm, ltm, ∅, tm.
     rewrite ?fmap_empty. iFrame. iSplit.
     { iPureIntro. intros. apply Hdom; lia. }
@@ -797,7 +801,7 @@ Section tape_bit_hash.
     refines_right K (f #n) ={E}=∗ refines_right K (of_val #b) ∗ shashfun max f m.
   Proof.
     iIntros (Hlookup Φ) "Hhash HΦ".
-    iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
+    iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(#?&Hvm&Htm&Htapes)".
     rewrite /compute_hash_specialized.
     tp_pures K.
 
@@ -821,6 +825,7 @@ Section tape_bit_hash.
       iSplit; first done.
       iSplit; first done.
       iSplit; first done.
+      iFrame "#".
       iApply big_sepM_delete; first eauto.
       iFrame "Htapes".
       iLeft. auto.
@@ -855,6 +860,7 @@ Section tape_bit_hash.
       iSplit.
       { iPureIntro; split; intuition auto. rewrite dom_insert_L. set_unfold; intros ? [?|?]; auto.
         subst. apply elem_of_dom; eauto. }
+      iFrame "#".
       iSplit; first done.
       rewrite fmap_insert; iFrame.
       iApply big_sepM_delete; first eauto.
@@ -914,7 +920,7 @@ Section tape_bit_hash.
     shashfun max f m -∗ spec_couplable (λ b, shashfun max f (<[k:=b]>m)).
   Proof.
     iIntros (Hmax Hlookup) "Hhashfun".
-    iDestruct "Hhashfun" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
+    iDestruct "Hhashfun" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(#?&Hvm&Htm&Htapes)".
     (* Get the tape id for k *)
     assert (is_Some (tm !! k)) as (α&Hα).
     { apply elem_of_dom. apply Hdom1. lia. }
@@ -933,6 +939,7 @@ Section tape_bit_hash.
     { iPureIntro; split; intuition auto. rewrite dom_insert_L.
       set_solver. }
     iSplit; first done.
+    iFrame "#".
     iApply big_sepM_delete; first eauto.
     iSplitL "Hα".
     { iRight. iLeft. iExists b. iFrame. iPureIntro; split; auto. rewrite lookup_insert //. }
@@ -958,6 +965,19 @@ Section tape_bit_hash.
     iExists b. iSplitL "Hsα Hsαclo".
     { iApply "Hsαclo". iFrame. }
     { iApply "Hαclo". iFrame. }
+  Qed.
+
+  Lemma spec_couplable_elim E P Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ spec_couplable P ∗
+    (∀ b, P b -∗ Φ #b)
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "(Hspec_ctx&Hscoupl&Hwp)".
+    iDestruct "Hscoupl" as (sα sbs) "(Hsα&Hsαclo)".
+    iApply wp_couple_flip_tape; first done.
+    iFrame "Hspec_ctx Hsα". iIntros (b) "H".
+    iApply "Hwp". iApply "Hsαclo". auto.
   Qed.
 
   Lemma wp_couple_hash E e f sf max m sm k sk Φ :
@@ -1021,21 +1041,108 @@ Section eager_hash.
   (* eager_init_hash returns a hash as a function, basically wrapping the internal state
      in the returned function *)
   Definition eager_init_hash : val :=
-    λ: "_",
-      let: "hm" := eager_init_hash_state #() in
+    λ: "max_val",
+      let: "hm" := eager_init_hash_state "max_val" in
       eager_compute_hash "hm".
 
-  Definition eager_hashfun f m : iProp Σ :=
-    ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗ map_list hm ((λ b, LitV (LitBool b)) <$> m).
+  Definition eager_hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
+    ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗
+                  ⌜ (∀ i : nat, i <= max → i ∈ dom m) ⌝ ∗
+                  map_list hm ((λ b, LitV (LitBool b)) <$> m).
 
-  Definition eager_shashfun f m : iProp Σ :=
-    ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗ map_slist hm ((λ b, LitV (LitBool b)) <$> m).
+  Definition eager_shashfun (max : nat) f m : iProp Σ :=
+    ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗
+                  ⌜ (∀ i : nat, i <= max → i ∈ dom m) ⌝ ∗
+                  map_slist hm ((λ b, LitV (LitBool b)) <$> m).
 
-  Lemma wp_eager_init_hash E :
-    {{{ True }}}
-      eager_init_hash #() @ E
-    {{{ f, RET f; eager_hashfun f ∅ }}}.
+  (* Couples the eager key sampling with a spec lazy hash table *)
+  Lemma wp_sample_keys E lvm f max :
+    ↑ specN ⊆ E →
+    {{{ map_list lvm ∅ ∗ shashfun (max - 1)%nat f ∅ }}}
+      sample_keys #lvm #max @ E
+    {{{ RET #(); ∃ bm,
+            map_list lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
+            ⌜ (∀ i : nat, i < max ↔ i ∈ dom bm) ⌝ ∗
+            shashfun (max - 1)%nat f bm }}}.
   Proof.
-  Abort.
+    iIntros (? Φ) "Htm HΦ".
+    rewrite /sample_keys.
+    remember max as k eqn:Heqk.
+    iEval (setoid_rewrite Heqk) in "Htm".
+    iEval (setoid_rewrite Heqk) in "HΦ".
+    iAssert (∃ bm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom bm) ⌝ ∗
+                   map_list lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
+                   shashfun (max - 1)%nat f bm)%I with "[Htm]" as "Htm".
+    { iExists ∅. rewrite fmap_empty. iFrame.
+      iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
+    assert (Hlek: k <= max) by lia.
+    clear Heqk.
+    iInduction k as [| k] "IH" forall (Hlek).
+    - wp_pures. iApply "HΦ". iModIntro. iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+      iExists tm. iFrame. iPureIntro. split.
+      { intros. apply Hdom. lia. }
+      { intros. apply Hdom. auto. }
+    - iSpecialize ("IH" with "[] HΦ").
+      { iPureIntro; lia. }
+      wp_pures.
+      case_bool_decide; first by lia.
+      wp_pures.
+      wp_bind (flip #())%E.
+      iDestruct "Htm" as (bm Hdom) "(Hmap&Hshash)".
+      iApply (spec_couplable_elim); first by auto.
+
+      iSplit.
+      { iDestruct "Hshash" as (????) "(?&?&?&$&_)". }
+      iSplitL "Hshash".
+      { iApply (shashfun_couplable k with "[$]"); auto.
+        { lia. }
+        { apply not_elem_of_dom_1. intros Hin. apply Hdom in Hin. lia. }
+      }
+      iIntros (b) "Hshash".
+      wp_pures.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      wp_apply (wp_set with "Hmap"). iIntros "Hmap".
+      wp_pure _. wp_pure _. wp_pure _.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      iApply "IH".
+      iExists (<[k := b]>bm). rewrite fmap_insert. iFrame.
+      { iPureIntro. intros i. split.
+        * intros Hle. set_unfold.
+          destruct (decide (i = k)); auto.
+          right. apply Hdom; lia.
+        * set_unfold. intros [?|Hdom']; try lia.
+          apply Hdom in Hdom'. lia.
+      }
+  Qed.
+
+  Lemma wp_eager_init_hash_couple (max : nat) E K :
+    ↑specN ⊆ E →
+    {{{ refines_right K (init_hash #max) }}}
+      eager_init_hash #max @ E
+    {{{ f, RET f; ∃ sf m, eager_hashfun max f m ∗ shashfun max sf m }}}.
+  Proof.
+    iIntros (? Φ) "HK HΦ".
+    iMod (spec_init_hash with "[$]") as "Hf"; first done.
+    rewrite /eager_init_hash/eager_init_hash_state.
+    wp_pures.
+    wp_apply (wp_init_map with "[//]").
+    iIntros (l) "Hvm".
+    wp_pures.
+    iDestruct "Hf" as (f) "(HK&Hshash)".
+      wp_pures.
+      replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
+    wp_apply (wp_sample_keys _ _ _ (S max)  with "[$Hvm Hshash]"); first done.
+    { simpl. assert (max - 0 = max) as -> by lia. iFrame. }
+    iDestruct 1 as (bm) "(Hvm&%Hdom&Hshash)".
+    wp_pures.
+    rewrite /eager_compute_hash.
+    wp_pures.
+    iModIntro. iApply "HΦ".
+    iExists _, _.
+    replace (S max - 1) with max by lia.
+    iFrame.
+    iExists _. iFrame. iPureIntro; split; eauto.
+    intros. apply Hdom. lia.
+  Qed.
 
 End eager_hash.
