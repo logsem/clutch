@@ -130,7 +130,7 @@ Section compatibility.
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
     (* TODO: make a tactic [wp_flip] and a [tp_flip] tactic *)
-    wp_apply (wp_couple_tapes with "[- $Hs $Hα $Hα']"); [done|solve_ndisj|].
+    wp_apply (wp_couple_tapes_eq with "[- $Hs $Hα $Hα']"); [done|solve_ndisj|].
     iIntros "[%b [Hα' Hα]] /=".
     wp_apply (wp_flip with "Hα").
     iIntros "Hα".

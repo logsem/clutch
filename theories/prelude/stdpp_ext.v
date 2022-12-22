@@ -6,6 +6,40 @@ Section base.
 
   Global Instance negb_surj : Surj (=) negb.
   Proof. intros []; [exists false|exists true]; done. Qed.
+
+  Lemma bool_fn_inj_1 (f : bool → bool) `{Inj bool bool (=) (=) f} b b' :
+    f (negb b) = (negb b') → f b = b'.
+  Proof.
+    destruct b, b'; simpl.
+    - destruct (f true) eqn: Heq; [done|].
+      rewrite <-Heq at 2. intros; simplify_eq.
+    - destruct (f true) eqn: Heq; [|done].
+      rewrite <-Heq. intros; simplify_eq.
+    - destruct (f false) eqn: Heq; [done|].
+      rewrite <-Heq. intros; simplify_eq.
+    - destruct (f false) eqn: Heq; [|done].
+      rewrite <-Heq at 2. intros; simplify_eq.
+  Qed.
+
+  Lemma bool_fn_inj_2 (f : bool → bool) `{Inj bool bool (=) (=) f} b b' :
+    f b = b' → f (negb b) = (negb b').
+  Proof.
+    intros. eapply bool_fn_inj_1; [done|]. by rewrite 2!negb_involutive.
+  Qed.
+
+  Class Bij {A B} (f : A → B) := {
+    bij_inj :> Inj (=) (=) f;
+    bij_surj :> Surj (=) f;
+  }.
+
+  Global Existing Instance bij_inj.
+  Global Existing Instance bij_surj.
+
+  Global Instance bij_id {A} : Bij (@id A).
+  Proof. constructor; apply _. Qed.
+
+  Global Instance bij_negb : Bij negb.
+  Proof. constructor; apply _. Qed.
 End base.
 
 Section countable.

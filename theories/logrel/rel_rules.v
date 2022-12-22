@@ -272,7 +272,7 @@ Section rules.
     iIntros (e1ev) "(Hαs & Hα & Hlog)".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs He2] Hnais /=".
-    wp_apply wp_couple_tapes; [done|done|].
+    wp_apply wp_couple_tapes_eq; [done|done|].
     iFrame "Hα Hαs".
     iSplit; [done|].
     iIntros "[%b [Hαs Hα]]".
@@ -289,7 +289,7 @@ Section rules.
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_flips_l; [done|].
+    wp_apply wp_couple_flip_lbl_flip_eq; [done|].
     rewrite -fill_app.
     iFrame "Hs Hα Hspec".
     iIntros (b) "[Hα Hspec]".
@@ -310,7 +310,7 @@ Section rules.
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_flips_r; [done|].
+    wp_apply wp_couple_flip_flip_lbl_eq; [done|].
     rewrite -fill_app.
     iFrame "Hs Hα Hspec".
     iIntros (b) "[Hα Hspec]".
@@ -330,7 +330,7 @@ Section rules.
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_flips_lr; [done|].
+    wp_apply wp_couple_flip_flip_eq; [done|].
     rewrite -fill_app.
     iFrame "Hs Hspec".
     iIntros (b) "Hspec".

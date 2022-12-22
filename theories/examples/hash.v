@@ -505,7 +505,7 @@ Module simple_bit_hash.
     (* couple -- FIXME: breaking abstraction *)
     tp_bind K (flip #()) %E.
     iEval (rewrite refines_right_bind) in "HK".
-    wp_apply (wp_couple_flips_lr); first done.
+    wp_apply (wp_couple_flip_flip_eq); first done.
     iDestruct "HK" as "(#Hspec&HK)".
     iFrame "Hspec". iFrame "HK".
     iIntros (b) "HK".
@@ -1122,7 +1122,7 @@ Section tape_bit_hash.
     iIntros (??) "(Hspec_ctx&Hscoupl&Hicoupl&Hwp)".
     iDestruct "Hscoupl" as (sα sbs) "(Hsα&Hsαclo)".
     iDestruct "Hicoupl" as (α bs) "(Hα&Hαclo)".
-    iApply (wp_couple_tapes with "[-]"); try done; iFrame "Hsα Hα Hspec_ctx".
+    iApply (wp_couple_tapes_eq with "[-]"); try done; iFrame "Hsα Hα Hspec_ctx".
     iDestruct 1 as (b) "(Hsα&Hα)". iApply "Hwp".
     iExists b. iSplitL "Hsα Hsαclo".
     { iApply "Hsαclo". iFrame. }
@@ -1137,7 +1137,7 @@ Section tape_bit_hash.
   Proof.
     iIntros (?) "(Hspec_ctx&Hscoupl&Hwp)".
     iDestruct "Hscoupl" as (sα sbs) "(Hsα&Hsαclo)".
-    iApply wp_couple_flip_tape; first done.
+    iApply wp_couple_flip_tape_eq; first done.
     iFrame "Hspec_ctx Hsα". iIntros (b) "H".
     iApply "Hwp". iApply "Hsαclo". auto.
   Qed.
