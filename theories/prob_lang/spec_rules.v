@@ -219,6 +219,25 @@ Section rules.
     ⊢ WP e @ E {{ Φ }}.
   Proof. apply (wp_couple_tapes_gen negb). Qed.
 
+  (* TODO: requires adding a case to exec_coupl_pre *)
+  Lemma wp_couple_tape_flip K E α bs Φ e :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ bs ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ (bs ++ [b]) ∗ ⤇ fill K #b -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+  Admitted.
+
+  (* TODO: requires adding a case to exec_coupl_pre *)
+  Lemma wp_couple_flip_tape E α bs Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛ bs ∗
+    (∀ (b : bool), α ↪ₛ (bs ++ [b]) -∗ Φ #b)
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof.
+  Admitted.
+
   Lemma wp_couple_flips_l K E α Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
