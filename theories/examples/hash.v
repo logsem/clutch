@@ -126,6 +126,39 @@ Section map.
       }
   Qed.
 
+  Lemma wp_find_list_Z E l vs (z: Z) :
+    {{{ assoc_list l vs }}}
+      find_list #l #z @ E
+    {{{ v, RET v;
+        assoc_list l vs ∗ ⌜ v = if bool_decide (z < 0)%Z then
+                                  opt_to_val None
+                                else opt_to_val (find_list_gallina vs (Z.to_nat z)) ⌝
+    }}}.
+  Proof.
+    iIntros (Φ) "Hassoc HΦ".
+    rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
+    - wp_pures. rewrite /assoc_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto.
+      rewrite /=. iFrame. destruct (bool_decide _) => //=.
+    - wp_pures. iDestruct "Hassoc" as (?) "(Hl&Hassoc)".
+      wp_load. wp_pures.
+      destruct (bool_decide (#k' = #z)) eqn:Hbool.
+      { apply bool_decide_eq_true_1 in Hbool.
+        wp_pures.  iApply "HΦ". simpl. inversion Hbool.
+        rewrite bool_decide_false //; last by lia.
+        rewrite bool_decide_true //; last by lia.
+        iModIntro. iSplit; last done. iExists _; iFrame; eauto. }
+      { wp_pure. iApply ("IH" with "[$]"). iNext.
+        iIntros (v) "Hfind". iApply "HΦ".
+        apply bool_decide_eq_false_1 in Hbool.
+        iEval (simpl).
+        case_bool_decide.
+        { iDestruct "Hfind" as "(?&$)". iExists _. iFrame. }
+        rewrite (bool_decide_false (k' = _)); last first.
+        { intros Heq. apply Hbool. rewrite Heq. f_equal. rewrite Z2Nat.id; auto. lia. }
+        iDestruct "Hfind" as "(?&$)". iExists _; iFrame.
+      }
+  Qed.
+
   Lemma spec_find_list E K l vs (k : nat):
     ↑specN ⊆ E →
     assoc_slist l vs -∗
@@ -209,6 +242,24 @@ Section map.
     rewrite /get. wp_pures.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
     wp_load. wp_apply (wp_find_list with "[$]").
+    iIntros (vret) "(Hassoc&Hm)". iApply "HΦ". iSplit.
+    { iExists _, _. iFrame. eauto. }
+    rewrite (find_list_gallina_map_lookup vs m) //.
+  Qed.
+
+  Lemma wp_get_Z E lm m (z: Z) :
+    {{{ map_list lm m }}}
+      get #lm #z @ E
+    {{{ res, RET res; map_list lm m ∗
+                        ⌜ res = if (bool_decide (z < 0)%Z) then
+                                  opt_to_val None
+                                else  opt_to_val (m !! Z.to_nat z)⌝
+    }}}.
+  Proof.
+    iIntros (Φ) "Hm HΦ".
+    rewrite /get. wp_pures.
+    iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
+    wp_load. wp_apply (wp_find_list_Z with "[$]").
     iIntros (vret) "(Hassoc&Hm)". iApply "HΦ". iSplit.
     { iExists _, _. iFrame. eauto. }
     rewrite (find_list_gallina_map_lookup vs m) //.
@@ -477,14 +528,13 @@ Section tape_bit_hash.
       match: get vm "v" with
       | SOME "b" => "b"
       | NONE =>
-          let: "α" :=
-            match: get tm "v" with
-            | SOME "α" => "α"
-            | NONE => #()
-            end in
-          let: "b" := flip "α" in
-          set vm "v" "b";;
-          "b"
+          match: get tm "v" with
+            | SOME "α" =>
+                let: "b" := flip "α" in
+                set vm "v" "b";;
+                "b"
+            | NONE => #false
+            end
       end.
 
   Definition compute_hash : val :=
@@ -492,14 +542,13 @@ Section tape_bit_hash.
       match: get "vm" "v" with
       | SOME "b" => "b"
       | NONE =>
-          let: "α" :=
-            match: get "tm" "v" with
-            | SOME "α" => "α"
-            | NONE => #()
-            end in
-          let: "b" := flip "α" in
-          set "vm" "v" "b";;
-          "b"
+          match: get "tm" "v" with
+            | SOME "α" =>
+                let: "b" := flip "α" in
+                set "vm" "v" "b";;
+                "b"
+            | NONE => #false
+            end
       end.
 
   (* init_hash returns a hash as a function, basically wrapping the internal state
@@ -516,7 +565,7 @@ Section tape_bit_hash.
    *)
   Definition hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
-       ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
+       ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
        ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
        ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
        map_list lvm ((λ v, LitV (LitBool v)) <$> vm) ∗
@@ -528,7 +577,7 @@ Section tape_bit_hash.
 
   Definition shashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
-       ⌜ (∀ i : nat, i <= max → i ∈ dom tm) ⌝ ∗
+       ⌜ (∀ i : nat, i <= max ↔ i ∈ dom tm) ⌝ ∗
        ⌜ dom m ⊆ dom tm ∧ dom vm ⊆ dom tm ⌝ ∗
        ⌜ f = compute_hash_specialized #lvm #ltm ⌝ ∗
        spec_ctx ∗
@@ -681,7 +730,7 @@ Section tape_bit_hash.
     iApply "HΦ". iDestruct "Htm" as (tm) "(Htm&%Hdom&Htapes)".
     iExists lvm, ltm, ∅, tm.
     rewrite ?fmap_empty. iFrame. iSplit.
-    { iPureIntro. intros. apply Hdom; lia. }
+    { iPureIntro. intros. rewrite -Hdom. lia. }
     iSplit; first eauto.
     iSplit; first eauto.
     iApply (big_sepM_mono with "Htapes").
@@ -722,7 +771,7 @@ Section tape_bit_hash.
     iFrame "# ∗".
     iExists lvm, ltm, ∅, tm.
     rewrite ?fmap_empty. iFrame. iSplit.
-    { iPureIntro. intros. apply Hdom; lia. }
+    { iPureIntro. intros. rewrite -Hdom; lia. }
     iSplit; first eauto.
     iSplit; first eauto.
     iApply (big_sepM_mono with "Htapes").
@@ -792,6 +841,33 @@ Section tape_bit_hash.
         { apply lookup_delete_Some in Hlookup'. intuition auto. }
         rewrite ?lookup_insert_ne //.
       }
+  Qed.
+
+  Lemma wp_hashfun_out_of_range E f m (max : nat) (z : Z) (b : bool) :
+    (z < 0 ∨ max < z)%Z →
+    {{{ hashfun max f m }}}
+      f #z @ E
+    {{{ RET #false; hashfun max f m }}}.
+  Proof.
+    iIntros (Hrange Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
+    rewrite /compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get_Z with "Hvm").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap.
+    case_bool_decide.
+    { wp_pures. wp_apply (wp_get_Z with "Htm"). iIntros (?).
+      rewrite bool_decide_true //. iIntros "(Htm&->)". wp_pures.
+      iApply "HΦ". iModIntro. iExists _, _, _, _. iFrame. auto. }
+    assert (tm !! Z.to_nat z = None) as Htm_none.
+    { apply not_elem_of_dom_1. rewrite -Hdom1. lia. }
+    assert (vm !! Z.to_nat z = None) as ->.
+    { apply not_elem_of_dom_1. apply not_elem_of_dom_2 in Htm_none. set_solver. }
+    wp_pures.
+    wp_apply (wp_get_Z with "Htm"). iIntros (?).
+    rewrite bool_decide_false //. iIntros "(Htm&->)". rewrite lookup_fmap Htm_none. wp_pures.
+    iApply "HΦ". iModIntro. iExists _, _, _, _. iFrame. auto.
   Qed.
 
   Lemma spec_hashfun_prev E K f m max (n : nat) (b: bool) :
