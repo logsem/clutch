@@ -1209,12 +1209,12 @@ Section eager_hash.
 
   Definition eager_hashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗
-                  ⌜ (∀ i : nat, i <= max → i ∈ dom m) ⌝ ∗
+                  ⌜ (∀ i : nat, i <= max ↔ i ∈ dom m) ⌝ ∗
                   map_list hm ((λ b, LitV (LitBool b)) <$> m).
 
   Definition eager_shashfun (max : nat) f m : iProp Σ :=
     ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗
-                  ⌜ (∀ i : nat, i <= max → i ∈ dom m) ⌝ ∗
+                  ⌜ (∀ i : nat, i <= max ↔ i ∈ dom m) ⌝ ∗
                   map_slist hm ((λ b, LitV (LitBool b)) <$> m).
 
   (* Couples the eager key sampling with a spec lazy hash table *)
@@ -1304,7 +1304,7 @@ Section eager_hash.
     replace (S max - 1) with max by lia.
     iFrame.
     iExists _. iFrame. iPureIntro; split; eauto.
-    intros. apply Hdom. lia.
+    intros. rewrite -Hdom. lia.
   Qed.
 
   Lemma wp_eager_hashfun_prev E f m (max n : nat) (b : bool) :
@@ -1321,6 +1321,27 @@ Section eager_hash.
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures.
     iModIntro. iApply "HΦ". iExists _. iFrame. eauto.
+  Qed.
+
+  Lemma wp_eager_hashfun_out_of_range E f m (max : nat) (z : Z) :
+    (z < 0 ∨ max < z)%Z →
+    {{{ eager_hashfun max f m }}}
+      f #z @ E
+    {{{ RET #false; eager_hashfun max f m }}}.
+  Proof.
+    iIntros (Hrange Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (lvm -> Hdom) "Hvm".
+    rewrite /eager_compute_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get_Z with "Hvm").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap.
+    case_bool_decide.
+    { wp_pures. iApply "HΦ". iModIntro. iExists _. iFrame. auto. }
+    assert (m !! Z.to_nat z = None) as ->.
+    { apply not_elem_of_dom_1. rewrite -Hdom. lia. }
+    wp_pures.
+    iApply "HΦ". iModIntro. iExists _. iFrame. auto.
   Qed.
 
 End eager_hash.
