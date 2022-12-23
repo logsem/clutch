@@ -1359,6 +1359,24 @@ Section eager_hash.
     iModIntro. iApply "HΦ". iExists _. iFrame. eauto.
   Qed.
 
+  Lemma spec_eager_hashfun_prev E K f m (max n : nat) (b : bool) :
+    m !! n = Some b →
+    ↑specN ⊆ E →
+    eager_shashfun max f m -∗
+    refines_right K (f #n) ={E}=∗ refines_right K (of_val #b) ∗ eager_shashfun max f m.
+  Proof.
+    iIntros (Hlookup ?) "Hhash HK".
+    iDestruct "Hhash" as (hm ->) "(%&H)".
+    rewrite /eager_compute_hash_specialized.
+    tp_pures K.
+    tp_bind K (get _ _).
+    iEval (rewrite refines_right_bind) in "HK".
+    iMod (spec_get with "[$] [$]") as "(HK&Hm)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    rewrite lookup_fmap Hlookup /=.
+    tp_pures K. iFrame. iModIntro. iExists _. eauto.
+  Qed.
+
   Lemma wp_eager_hashfun_out_of_range E f m (max : nat) (z : Z) :
     (z < 0 ∨ max < z)%Z →
     {{{ eager_hashfun max f m }}}
@@ -1378,6 +1396,29 @@ Section eager_hash.
     { apply not_elem_of_dom_1. rewrite -Hdom. lia. }
     wp_pures.
     iApply "HΦ". iModIntro. iExists _. iFrame. auto.
+  Qed.
+
+  Lemma spec_eager_hashfun_out_of_range E K f m (max : nat) (z : Z) :
+    (z < 0 ∨ max < z)%Z →
+    ↑specN ⊆ E →
+    eager_shashfun max f m -∗
+    refines_right K (f #z) ={E}=∗ refines_right K (of_val #false) ∗ eager_shashfun max f m.
+  Proof.
+    iIntros (Hlookup ?) "Hhash HK".
+    iDestruct "Hhash" as (hm ->) "(%Hdom&H)".
+    rewrite /eager_compute_hash_specialized.
+    tp_pures K.
+    tp_bind K (get _ _).
+    iEval (rewrite refines_right_bind) in "HK".
+    iMod (spec_get_Z with "[$] [$]") as "(HK&Hm)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    rewrite lookup_fmap.
+    case_bool_decide.
+    { tp_pures K. iFrame. iModIntro. iExists _. iFrame. auto. }
+    assert (m !! Z.to_nat z = None) as ->.
+    { apply not_elem_of_dom_1. rewrite -Hdom. lia. }
+    tp_pures K. iFrame "HK".
+    iModIntro. iExists _. iFrame. auto.
   Qed.
 
   Definition hashN := nroot.@"hash".
