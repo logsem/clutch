@@ -794,14 +794,13 @@ Section tape_bit_hash.
       iFrame.
   Qed.
 
-  Lemma wp_init_hash max E :
+  Lemma wp_init_hash_state max E :
     {{{ True }}}
-      init_hash #max @ E
-    {{{ f, RET f; hashfun max f ∅ }}}.
+      init_hash_state #max @ E
+    {{{ (lvm ltm : loc), RET (#lvm, #ltm); hashfun max (compute_hash_specialized #lvm #ltm) ∅ }}}.
   Proof.
-    rewrite /init_hash.
     iIntros (Φ) "_ HΦ".
-    wp_pures. rewrite /init_hash_state.
+    rewrite /init_hash_state.
     wp_pures.
     wp_apply (wp_init_map with "[//]").
     iIntros (lvm) "Hvm". wp_pures.
@@ -820,6 +819,20 @@ Section tape_bit_hash.
     iSplit; first eauto.
     iApply (big_sepM_mono with "Htapes").
     { iIntros (k α Hlookup) "Htape". iRight. iRight. rewrite ?lookup_empty; iFrame; auto. }
+  Qed.
+
+  Lemma wp_init_hash max E :
+    {{{ True }}}
+      init_hash #max @ E
+    {{{ f, RET f; hashfun max f ∅ }}}.
+  Proof.
+    rewrite /init_hash.
+    iIntros (Φ) "_ HΦ".
+    wp_pures. wp_apply (wp_init_hash_state with "[//]").
+    iIntros (lvm ltm) "H". wp_pures.
+    rewrite /compute_hash. wp_pures.
+    iApply "HΦ".
+    eauto.
   Qed.
 
   Lemma spec_init_hash (max : nat) E K :
@@ -1163,6 +1176,7 @@ Section tape_bit_hash.
     { iApply "Hαclo". iFrame. }
   Qed.
 
+  (* TODO: move *)
   Lemma spec_couplable_elim E P Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ spec_couplable P ∗
@@ -1174,6 +1188,24 @@ Section tape_bit_hash.
     iApply wp_couple_flip_tape_eq; first done.
     iFrame "Hspec_ctx Hsα". iIntros (b) "H".
     iApply "Hwp". iApply "Hsαclo". auto.
+  Qed.
+
+  (* TODO: move. It would nice to be able to impl coupl steps as a ghost action for this *)
+  Lemma impl_couplable_elim E K P Φ e :
+    to_val e = None →
+    nclose specN ⊆ E →
+    impl_couplable P ∗
+    refines_right K (flip #()) ∗
+    (∀ b, P b -∗ refines_right K (of_val #b) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??) "(Hcoupl&HK&Hwp)".
+    iDestruct "Hcoupl" as (α bs) "(Hα&Hαclo)".
+    iDestruct "HK" as "(#Hspec_ctx&HK)".
+    iApply wp_couple_tape_flip_eq; [ done | done | ].
+    iFrame "Hspec_ctx Hα HK". iIntros (b) "(?&?)".
+    iDestruct ("Hαclo" with "[$]") as "HP".
+    iApply ("Hwp" with "[$] [$]").
   Qed.
 
   Lemma wp_couple_hash E e f sf max m sm k sk Φ :
@@ -1250,6 +1282,14 @@ Section eager_hash.
     ∃ (hm : loc), ⌜ f = eager_compute_hash_specialized #hm ⌝ ∗
                   ⌜ (∀ i : nat, i <= max ↔ i ∈ dom m) ⌝ ∗
                   map_slist hm ((λ b, LitV (LitBool b)) <$> m).
+
+  #[global] Instance timeless_eager_hashfun n f m :
+    Timeless (eager_hashfun n f m).
+  Proof. apply _. Qed.
+
+  #[global] Instance timeless_eager_shashfun n f m :
+    Timeless (eager_shashfun n f m).
+  Proof. apply _. Qed.
 
   (* Couples the eager key sampling with a spec lazy hash table *)
   Lemma wp_sample_keys E lvm f max :
@@ -1343,6 +1383,112 @@ Section eager_hash.
     intros. rewrite -Hdom. lia.
   Qed.
 
+  (* Couples the spec eager key sampling with an impl tape hash table *)
+  Lemma spec_sample_keys E K lvm f max e Φ :
+    to_val e = None →
+    ↑ specN ⊆ E →
+    (map_slist lvm ∅ ∗ hashfun (max - 1)%nat f ∅) -∗
+    refines_right K (sample_keys #lvm #max) -∗
+    ((∃ bm, map_slist lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
+            ⌜ (∀ i : nat, i < max ↔ i ∈ dom bm) ⌝ ∗
+            hashfun (max - 1)%nat f bm ∗
+            refines_right K (of_val #())) -∗ WP e @ E {{ Φ }}) -∗
+    WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??) "Htm HK HΦ".
+    rewrite /sample_keys.
+    remember max as k eqn:Heqk.
+    iEval (setoid_rewrite Heqk) in "Htm".
+    iEval (setoid_rewrite Heqk) in "HΦ".
+    iAssert (∃ bm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom bm) ⌝ ∗
+                   map_slist lvm ((λ v, LitV (LitBool v)) <$> bm) ∗
+                   hashfun (max - 1)%nat f bm)%I with "[Htm]" as "Htm".
+    { iExists ∅. rewrite fmap_empty. iFrame.
+      iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
+    assert (Hlek: k <= max) by lia.
+    clear Heqk.
+    iInduction k as [| k] "IH" forall (Hlek).
+    - tp_pures K. iApply "HΦ". iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+      iExists tm. iFrame. iPureIntro. split.
+      { intros. apply Hdom. lia. }
+      { intros. apply Hdom. auto. }
+    - iSpecialize ("IH" with "[]").
+      { iPureIntro; lia. }
+      tp_pures K.
+      case_bool_decide; first by lia.
+      tp_pures K.
+      tp_bind K (flip #())%E.
+      rewrite refines_right_bind.
+      iDestruct "Htm" as (bm Hdom) "(Hmap&Hshash)".
+      iApply (impl_couplable_elim); [ done | done | ].
+      iSplitL "Hshash".
+      { iApply (hashfun_couplable k with "[$]"); auto.
+        { lia. }
+        { apply not_elem_of_dom_1. intros Hin. apply Hdom in Hin. lia. }
+      }
+      iFrame "HK".
+      iIntros (b) "Hshash HK".
+      rewrite -refines_right_bind /=.
+      tp_pures K.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      tp_bind K (set _ _ _).
+      rewrite refines_right_bind.
+      iMod (spec_set with "[$] [$]") as "(HK&Hmap)"; first done.
+      rewrite -refines_right_bind /=.
+      tp_pure K _. tp_pure K _. tp_pure K _.
+      replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
+      iApply ("IH" with "[$] [$]").
+      iExists (<[k := b]>bm). rewrite fmap_insert. iFrame.
+      { iPureIntro. intros i. split.
+        * intros Hle. set_unfold.
+          destruct (decide (i = k)); auto.
+          right. apply Hdom; lia.
+        * set_unfold. intros [?|Hdom']; try lia.
+          apply Hdom in Hdom'. lia.
+      }
+  Qed.
+
+  (* TODO: unfortunately the to_val e restriction on our tape coupling lemmas
+     means we have to unfold init_hash here to prove this *)
+  Lemma spec_eager_init_hash_couple (max : nat) E K :
+    ↑specN ⊆ E →
+    {{{ refines_right K (eager_init_hash #max) }}}
+      init_hash #max @ E
+    {{{ f, RET f; ∃ sf m, refines_right K (of_val sf) ∗ eager_shashfun max sf m ∗ hashfun max f m }}}.
+  Proof.
+    iIntros (? Φ) "HK HΦ".
+    rewrite /init_hash.
+    wp_pures.
+    wp_apply (wp_init_hash_state with "[//]").
+    iIntros (??) "Hhash".
+    rewrite /eager_init_hash.
+    rewrite /eager_init_hash_state.
+    tp_pures K.
+    tp_bind K (init_map _).
+    rewrite refines_right_bind.
+    iMod (spec_init_map with "[$]") as (l) "(HK&Hm)"; first done.
+    rewrite -refines_right_bind /=.
+    tp_pures K.
+    replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
+    tp_bind K (sample_keys _ _).
+    rewrite refines_right_bind.
+    iApply (spec_sample_keys _ _ _ _ (S max) with "[Hm Hhash] [HK]"); [ done | done | | |].
+    { iFrame "Hm". simpl. assert (max - 0 = max) as -> by lia. iFrame. }
+    { iApply "HK". }
+    iDestruct 1 as (bm) "(Hvm&%Hdom&Hshash&HK)".
+    rewrite -refines_right_bind /=.
+    rewrite /compute_hash/eager_compute_hash.
+    tp_pures K.
+    wp_pures.
+    iModIntro. iApply "HΦ". iExists _, _.
+    iSplitL "HK".
+    { iExact "HK". }
+    iSplitL "Hvm".
+    { iExists _. iFrame. iPureIntro. split; eauto.
+      intros. rewrite -Hdom. lia. }
+    assert (max - 0 = max) as -> by lia. eauto.
+  Qed.
+
   Lemma wp_eager_hashfun_prev E f m (max n : nat) (b : bool) :
     m !! n = Some b →
     {{{ eager_hashfun max f m }}}
@@ -1432,6 +1578,15 @@ Section eager_hash.
     iPureIntro. apply elem_of_dom. apply Hdom. lia.
   Qed.
 
+  Lemma eager_shashfun_dom (max : nat) (z: Z) m f:
+    ¬ ((z < 0)%Z ∨ (max < z)%Z) →
+    eager_shashfun max f m -∗
+    ⌜ is_Some (m !! (Z.to_nat z)) ⌝.
+  Proof.
+    iIntros (?). iDestruct 1 as (?? Hdom ?) "H".
+    iPureIntro. apply elem_of_dom. apply Hdom. lia.
+  Qed.
+
   Lemma eager_lazy_refinement (max: nat) :
     ⊢ REL eager_init_hash #max << init_hash #max : lrel_int → lrel_bool.
   Proof.
@@ -1463,6 +1618,47 @@ Section eager_hash.
       iMod (spec_hashfun_prev with "[$] [$]") as "(HK&Hsf)"; try eassumption; auto.
       iApply wp_fupd.
       wp_apply (wp_eager_hashfun_prev with "[$]"); try eassumption.
+      iIntros "Hf".
+      iMod ("Hclose" with "[-HK]").
+      { iFrame. iNext. iExists _. iFrame. }
+      iExists _. iFrame. iExists _. auto.
+  Qed.
+
+  Lemma lazy_eager_refinement (max: nat) :
+    ⊢ REL init_hash #max << eager_init_hash #max : lrel_int → lrel_bool.
+  Proof.
+    rewrite refines_eq. iIntros (K) "HK Hown".
+    iApply wp_fupd.
+    wp_apply (spec_eager_init_hash_couple with "HK"); first done.
+    iIntros (f) "H". iDestruct "H" as (sf m) "(HK&Hsf)".
+    set (P := (∃ m, eager_shashfun max sf m ∗ hashfun max f m)%I).
+    iMod (na_inv_alloc prelogrelGS_nais _ hashN P with "[Hsf]") as "#Hinv".
+    { iNext. iExists m. iFrame. }
+    iModIntro. iExists _. iFrame.
+    iIntros (v1 v2) "!> Hint".
+    iDestruct "Hint" as (z) "(->&->)".
+    clear m K.
+    rewrite /P.
+    iApply (refines_na_inv with "[$Hinv]") ; auto ; iIntros "[HP Hclose]".
+    rewrite refines_eq. iIntros (K) "HK Hown".
+    iDestruct "HP" as (m) "(Hsf&Hf)".
+    iDestruct "Hsf" as ">Hsf".
+    (* TODO: why is TC inference so slow for timeless_hashfun? having to rewrite manually *)
+    rewrite timeless_hashfun.
+    iDestruct "Hf" as ">Hf".
+    destruct (decide (z < 0 ∨ max < z)%Z).
+    - iApply wp_fupd.
+      iMod (spec_eager_hashfun_out_of_range with "[$] [$]") as "(HK&Hsf)"; try done.
+      wp_apply (wp_hashfun_out_of_range with "[$]"); first done.
+      iIntros "Hf".
+      iMod ("Hclose" with "[-HK]").
+      { iFrame. iNext. iExists _. iFrame. }
+      iExists _. iFrame. iExists _. auto.
+    - assert (z = Z.to_nat z) as -> by lia.
+      iDestruct (eager_shashfun_dom with "[$]") as (b) "%Hb"; first eassumption.
+      iMod (spec_eager_hashfun_prev with "[$] [$]") as "(HK&Hsf)"; try eassumption; auto.
+      iApply wp_fupd.
+      wp_apply (wp_hashfun_prev with "[$]"); try eassumption.
       iIntros "Hf".
       iMod ("Hclose" with "[-HK]").
       { iFrame. iNext. iExists _. iFrame. }
