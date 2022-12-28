@@ -3,7 +3,8 @@ From iris Require Import invariants.
 From iris.algebra Require Import excl.
 From iris.proofmode Require Import proofmode.
 From iris.prelude Require Import options.
-From self Require Import spec_rules rel_rules rel_tactics notation types proofmode model spec_tactics.
+From self.prob_lang Require Import notation proofmode primitive_laws spec_rules.
+From self.logrel Require Import model rel_rules rel_tactics.
 Set Default Proof Using "Type".
 
 
