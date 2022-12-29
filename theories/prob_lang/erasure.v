@@ -302,3 +302,36 @@ Proof.
   apply (refRcoupl_dbind _ _ _ _ R); auto.
   by eapply Rcoupl_refRcoupl.
 Qed.
+
+Lemma refRcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ m bs':
+  to_val e1 = None →
+  σ1'.(tapes) !! α' = Some bs' →
+  Rcoupl (prim_step e1 σ1) (state_step σ1' α') R →
+  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → refRcoupl (exec_val m (e2, σ2)) (lim_exec_val (e1', σ2')) Φ ) →
+  refRcoupl (exec_val (S m) (e1, σ1)) (lim_exec_val (e1', σ1')) Φ.
+Proof.
+  intros He1 Hα' HR Hcont.
+  rewrite exec_val_Sn_not_val //.
+  eapply (refRcoupl_eq_refRcoupl_unfoldr _ (state_step σ1' α' ≫= (λ σ2', lim_exec_val (e1', σ2')))).
+  - eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
+    intros [] ??. by apply Hcont.
+  - apply Rcoupl_eq_sym. by eapply limprim_coupl_step_limprim.
+Qed.
+
+Lemma refRcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ m bs :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl (state_step σ1 α) (prim_step e1' σ1') R →
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → refRcoupl (exec_val m (e1, σ2)) (lim_exec_val (e2', σ2')) Φ ) →
+  refRcoupl (exec_val m (e1, σ1)) (lim_exec_val (e1', σ1')) Φ.
+Proof.
+  intros Hα HR Hcont.
+  assert (to_val e1' = None).
+  { apply Rcoupl_pos_R, Rcoupl_inhabited_l in HR as (?&?&?&?&?); [eauto using val_stuck|].
+    rewrite state_step_mass; [lra|]. apply elem_of_dom. eauto. }
+  eapply (refRcoupl_eq_refRcoupl_unfoldl _ (state_step σ1 α ≫= (λ σ2, exec_val m (e1, σ2)))).
+  - by eapply prim_coupl_step_prim.
+  - rewrite lim_exec_val_prim_step.
+    rewrite prim_step_or_val_no_val //.
+    eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
+    intros ? [] ?. by apply Hcont.
+Qed.

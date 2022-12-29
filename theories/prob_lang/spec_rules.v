@@ -144,11 +144,23 @@ Section rules.
     rewrite bool_decide_eq_true_2 //.
   Qed.
 
-  Lemma wp_couple_tapes E e α αₛ bs bsₛ Φ :
+  (* TODO: should this go here or not? *)
+  Lemma refines_right_flip E K l b bs :
+    nclose specN ⊆ E →
+    l ↪ₛ (b :: bs) -∗
+    refines_right K (flip #lbl:l) ={E}=∗ refines_right K (#b) ∗ l ↪ₛ bs.
+  Proof.
+    iIntros (?) "? (?&?)".
+    iMod (step_flip with "[$]") as "(?&?&?)"; first done.
+    iModIntro; iFrame.
+  Qed.
+
+  (* TODO: can we factor out a lemma to avoid duplication in all the coupling lemmas? *)
+  Lemma wp_couple_tapes f `{Bij bool bool f} E e α αₛ bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-    ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    ((∃ b, αₛ ↪ₛ (bsₛ ++ [f b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He ?) "(#Hinv & Hαs & Hα & Hwp)".
@@ -168,16 +180,16 @@ Section rules.
         apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
     iExists _.
     iSplit.
-    { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_state_step; by apply elem_of_dom. }
-    iIntros (σ2 σ2' ((? & ? & [b [= -> ->]]) & ? & ?)).
+    { iPureIntro. eapply Rcoupl_pos_R, (Rcoupl_state_step f); by apply elem_of_dom. }
+    iIntros (σ2 σ2' ((b & -> & ->) & ? & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [b]]> σ0'))
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [f b]]> σ0'))
            with "Hspec Hspec0") as "[Hspec Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
     simplify_map_eq.
     iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
@@ -192,10 +204,149 @@ Section rules.
     iModIntro. done.
   Qed.
 
-  Lemma wp_couple_flips_l K E α Φ :
+  Lemma wp_couple_tapes_eq E e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+    ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof. eapply (wp_couple_tapes (Datatypes.id)). Qed.
+
+  Lemma wp_couple_tapes_neg E e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+    ((∃ b, αₛ ↪ₛ (bsₛ ++ [negb b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof. apply (wp_couple_tapes negb). Qed.
+
+  Lemma wp_couple_tape_flip f `{Bij bool bool f} K E α bs Φ e :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ bs ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ (bs ++ [b]) ∗ ⤇ fill K #(f b) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (He ?) "(#Hinv & Hα & Hj & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    iApply (exec_coupl_state_prim α).
+    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
+    iExists
+      (λ σ2 '(e2', σ2'),
+        ∃ (b : bool), σ2 = state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1
+                      ∧ (e2', σ2') = (fill K #(f b), σ0')).
+    iSplit.
+    { iPureIntro.
+      rewrite /= -(dret_id_right (state_step _ _)) fill_dmap //.
+      eapply Rcoupl_dbind => /=; last first.
+      { eapply Rcoupl_pos_R. eapply (Rcoupl_state_flip f). by apply elem_of_dom. }
+      intros σ2 σ2' ((b & -> & ->) & ? & ?).
+      apply Rcoupl_dret=>/=. eauto. }
+    iIntros (σ2 e2' σ2' (b & -> & [= -> ->])).
+    iMod (spec_interp_update (fill K #(f b), σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hj") as "[Hauth Hj]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    simplify_map_eq.
+    iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" with "[$Hα $Hj]").
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
+    iModIntro. done.
+  Qed.
+
+  Lemma wp_couple_tape_flip_eq K E α bs Φ e :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ bs ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ (bs ++ [b]) ∗ ⤇ fill K #b -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof. apply (wp_couple_tape_flip Datatypes.id). Qed.
+
+  Lemma wp_couple_tape_flip_neg K E α bs Φ e :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ bs ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ (bs ++ [b]) ∗ ⤇ fill K #(negb b) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof. apply (wp_couple_tape_flip negb). Qed.
+
+  Lemma wp_couple_flip_tape f `{Bij bool bool f} E α bs Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛ bs ∗
+    (∀ (b : bool), α ↪ₛ (bs ++ [f b]) -∗ Φ #b)
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof.
+    iIntros (He) "(#Hinv & Hαs & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    iApply (exec_coupl_prim_state α).
+    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
+    iExists
+      (λ '(e2, σ2) σ2',
+        ∃ (b : bool),
+          σ2' = state_upd_tapes <[α := σ0'.(tapes) !!! α ++ [f b]]> σ0'
+          ∧ (e2, σ2) = (Val #b, σ1)).
+    iSplit.
+    { iPureIntro. apply head_prim_reducible.
+      eexists (Val #true, σ1).
+      rewrite /pmf /= bool_decide_eq_true_2 //. lra. }
+    iSplit.
+    { iPureIntro.
+      eapply Rcoupl_impl; [|eapply (Rcoupl_flip_state f); by apply elem_of_dom].
+      intros [e2 σ2] σ2' (b & [= -> ->] & ->). eauto. }
+    iIntros (σ2 e2' σ2' (b & -> & [= -> ->])).
+    iMod (spec_interp_update (e0', state_upd_tapes <[α:=tapes σ0' !!! α ++ [f b]]> σ0')
+           with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
+    iMod (ghost_map_update (tapes σ0' !!! α ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    simplify_map_eq.
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" with "[$Hαs]").
+    iFrame.
+    iModIntro.
+    by iApply wp_value.
+  Qed.
+
+  Lemma wp_couple_flip_tape_eq E α bs Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛ bs ∗
+    (∀ (b : bool), α ↪ₛ (bs ++ [b]) -∗ Φ #b)
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_tape Datatypes.id). Qed.
+
+  Lemma wp_couple_flip_tape_neq E α bs Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛ bs ∗
+    (∀ (b : bool), α ↪ₛ (bs ++ [negb b]) -∗ Φ #b)
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_tape negb). Qed.
+
+  Lemma wp_couple_flip_lbl_flip f `{Bij bool bool f} K E α Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
-    (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
     ⊢ WP flip #lbl:α @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
@@ -210,7 +361,7 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #b, σ0')).
+        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
       eexists (Val #true, σ1).
@@ -219,11 +370,11 @@ Section rules.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply Rcoupl_flip_flip_l].
+      eapply Rcoupl_impl; [|by apply (Rcoupl_flip_flip_l f)].
       intros [] [] [? [=]]=>/=; simplify_eq; eauto. }
     iIntros ([] [] (b & [=] & [=])); simplify_eq.
-    iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #b) with "Hauth Hr") as "[Hauth Hr]".
+    iMod (spec_interp_update (fill K #(f b), σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
@@ -234,10 +385,24 @@ Section rules.
     iApply ("Hwp" with "[$]").
   Qed.
 
-  Lemma wp_couple_flips_r K E α Φ :
+  Lemma wp_couple_flip_lbl_flip_eq K E α Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #lbl:α @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_lbl_flip Datatypes.id). Qed.
+
+  Lemma wp_couple_flip_lbl_flip_neg K E α Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #(negb b) -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #lbl:α @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_lbl_flip negb). Qed.
+
+  Lemma wp_couple_flip_flip_lbl f `{Bij bool bool f} K E α Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ₛ [] ∗ ⤇ fill K (flip #lbl:α) ∗
-    (∀ (b : bool), α ↪ₛ [] ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    (∀ (b : bool), α ↪ₛ [] ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
     ⊢ WP flip #() @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
@@ -252,7 +417,7 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #b, σ0')).
+        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
       eexists (Val #true, σ1).
@@ -261,11 +426,11 @@ Section rules.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply Rcoupl_flip_flip_r].
+      eapply Rcoupl_impl; [|by apply (Rcoupl_flip_flip_r f)].
       intros [] [] [? [=]]=>/=; simplify_eq; eauto. }
     iIntros ([] [] (b & [=] & [=])); simplify_eq.
-    iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #b) with "Hauth Hr") as "[Hauth Hr]".
+    iMod (spec_interp_update (fill K #(f b), σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
@@ -276,10 +441,24 @@ Section rules.
     iApply ("Hwp" with "[$]").
   Qed.
 
-  Lemma wp_couple_flips_lr K E Φ :
+  Lemma wp_couple_flip_flip_lbl_eq K E α Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛ [] ∗ ⤇ fill K (flip #lbl:α) ∗
+    (∀ (b : bool), α ↪ₛ [] ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_flip_lbl Datatypes.id). Qed.
+
+  Lemma wp_couple_flip_flip_lbl_neg K E α Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛ [] ∗ ⤇ fill K (flip #lbl:α) ∗
+    (∀ (b : bool), α ↪ₛ [] ∗ ⤇ fill K #(negb b) -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_flip_lbl negb). Qed.
+
+  Lemma wp_couple_flip_flip f `{Bij bool bool f} K E Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (flip #()) ∗
-    (∀ (b : bool), ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    (∀ (b : bool), ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
     ⊢ WP flip #() @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hinv & Hr & Hwp)".
@@ -293,7 +472,7 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #b, σ0')).
+        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
       eexists (Val #true, σ1).
@@ -302,11 +481,11 @@ Section rules.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply Rcoupl_flip_flip_lr].
+      eapply Rcoupl_impl; [|by apply (Rcoupl_flip_flip_lr f)].
       intros [] [] [? [=]]=>/=; simplify_eq; eauto. }
     iIntros ([] [] (b & [=] & [=])); simplify_eq.
-    iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #b) with "Hauth Hr") as "[Hauth Hr]".
+    iMod (spec_interp_update (fill K #(f b), σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
@@ -316,5 +495,19 @@ Section rules.
     iModIntro. iFrame.
     iApply ("Hwp" with "[$]").
   Qed.
+
+  Lemma wp_couple_flip_flip_eq K E Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_flip Datatypes.id). Qed.
+
+  Lemma wp_couple_flip_flip_neg K E Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flip #()) ∗
+    (∀ (b : bool), ⤇ fill K #(negb b) -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP flip #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_flip_flip negb). Qed.
 
 End rules.

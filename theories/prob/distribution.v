@@ -139,48 +139,93 @@ Section distributions.
     ¬ (μ a > 0) → μ a = 0.
   Proof. intros ?%Rnot_gt_ge%Rge_le. by apply pmf_eq_0_le. Qed.
 
+End distributions.
 
-  Definition fair_coin_pmf : bool → R :=
-    λ b, 0.5.
+#[global] Hint Resolve pmf_le_1 : core.
+#[global] Hint Resolve pmf_SeriesC_ge_0 : core.
 
-  Program Definition fair_coin : distr bool := MkDistr (fair_coin_pmf) _ _ _.
-  Next Obligation. intros b. rewrite /fair_coin_pmf. destruct b; lra. Qed.
-  Next Obligation.
+(** * Coins  *)
+Definition fair_coin_pmf : bool → R :=
+  λ b, 0.5.
+
+Program Definition fair_coin : distr bool := MkDistr (fair_coin_pmf) _ _ _.
+Next Obligation. intros b. rewrite /fair_coin_pmf. destruct b; lra. Qed.
+Next Obligation.
   apply (ex_seriesC_ext  (λ b, (if bool_decide (b = true) then 0.5 else 0) + if bool_decide (b = false) then 0.5 else 0)); auto.
   { intro b; destruct b; rewrite /fair_coin_pmf /=; lra. }
   eapply ex_seriesC_plus; eapply ex_seriesC_singleton. Qed.
-  Next Obligation.
+Next Obligation.
   rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then 0.5 else 0) + if bool_decide (b = false) then 0.5 else 0)).
   2 : { intro b; destruct b; rewrite /fair_coin_pmf /= ; lra. }
   erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
   rewrite 2!SeriesC_singleton. lra. Qed.
 
-
-
 (* AA: We may need this generality later, but I think it is better to define the fair coin
    explicitly *)
-  Definition biased_coin_pmf r : bool → R :=
-    λ b, if b then r else 1-r.
-  Program Definition biased_coin r (P : 0 <= r <= 1) : distr bool := MkDistr (biased_coin_pmf r) _ _ _.
-  Next Obligation. intros r P b. rewrite /biased_coin_pmf. destruct b; lra. Qed.
-  Next Obligation.
+Definition biased_coin_pmf r : bool → R :=
+  λ b, if b then r else 1-r.
+Program Definition biased_coin r (P : 0 <= r <= 1) : distr bool := MkDistr (biased_coin_pmf r) _ _ _.
+Next Obligation. intros r P b. rewrite /biased_coin_pmf. destruct b; lra. Qed.
+Next Obligation.
   intros r P.
   apply (ex_seriesC_ext  (λ b, (if bool_decide (b = true) then r else 0) + if bool_decide (b = false) then 1-r else 0)); auto.
   { intro b; destruct b; rewrite /biased_coin_pmf /=; lra. }
   eapply ex_seriesC_plus; eapply ex_seriesC_singleton. Qed.
-  Next Obligation.
+Next Obligation.
   intros r P.
   rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then r else 0) + if bool_decide (b = false) then 1-r else 0)).
   2 : { intro b; destruct b; rewrite /biased_coin_pmf /= ; lra. }
   erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
   rewrite 2!SeriesC_singleton. lra. Qed.
 
+Section fair_coins.
+  Variable (f : bool → bool).
+  Context `{Inj bool bool (=) (=) f, Surj bool bool (=) f}.
 
+  Definition fair_coins_pmf (bs : bool * bool) : R :=
+    if bool_decide (bs.1 = f bs.2) then 0.5 else 0.
 
-End distributions.
-
-#[global] Hint Resolve pmf_le_1 : core.
-#[global] Hint Resolve pmf_SeriesC_ge_0 : core.
+  Program Definition fair_coins : distr (bool * bool) :=
+    MkDistr fair_coins_pmf _ _ _.
+  Next Obligation.
+    rewrite /fair_coins_pmf.
+    intros [[] []]; simpl; case_bool_decide; lra.
+  Qed.
+  Next Obligation.
+    rewrite /fair_coins_pmf.
+    destruct (f true) eqn:Hf1.
+    - assert (f false = false) as Hf2.
+      { destruct (f false) eqn:Hf2; [|done]. rewrite -Hf1 in Hf2. simplify_eq. }
+      apply (ex_seriesC_ext (λ bs, (if bool_decide (bs = (true, true)) then 0.5 else 0) +
+                                   (if bool_decide (bs = (false, false)) then 0.5 else 0))).
+      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
+      eapply ex_seriesC_plus; eapply ex_seriesC_singleton.
+    - assert (f false = true) as Hf2.
+      { destruct (f false) eqn:Hf2; [done|]. rewrite -Hf2 in Hf1. simplify_eq. }
+      apply (ex_seriesC_ext (λ bs, (if bool_decide (bs = (true, false)) then 0.5 else 0) +
+                                   (if bool_decide (bs = (false, true)) then 0.5 else 0))).
+      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
+      eapply ex_seriesC_plus; eapply ex_seriesC_singleton.
+  Qed.
+  Next Obligation.
+    rewrite /fair_coins_pmf.
+    destruct (f true) eqn:Hf1.
+    - assert (f false = false) as Hf2.
+      { destruct (f false) eqn:Hf2; [|done]. rewrite -Hf1 in Hf2. simplify_eq. }
+      rewrite (SeriesC_ext _ (λ bs, (if bool_decide (bs = (true, true)) then 0.5 else 0) +
+                                     if bool_decide (bs = (false, false)) then 0.5 else 0)); last first.
+      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
+      erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
+      rewrite 2!SeriesC_singleton. lra.
+    - assert (f false = true) as Hf2.
+      { destruct (f false) eqn:Hf2; [done|]. rewrite -Hf2 in Hf1. simplify_eq. }
+      rewrite (SeriesC_ext _ (λ bs, (if bool_decide (bs = (true, false)) then 0.5 else 0) +
+                                     if bool_decide (bs = (false, true)) then 0.5 else 0)); last first.
+      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
+      erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
+      rewrite 2!SeriesC_singleton. lra.
+  Qed.
+End fair_coins.
 
 (** * Monadic return  *)
 Definition dret_pmf `{Countable A} (a : A) : A → R :=

@@ -19,7 +19,7 @@ Theorem refines_coupling Σ `{prelogrelGpreS Σ}
   refRcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ.
 Proof.
   intros HA Hlog.
-  apply (wp_adequacy Σ).
+  apply (wp_refRcoupl Σ).
   intros ?.
   iIntros "#Hctx He'".
   iMod na_alloc as "[%γ Htok]".

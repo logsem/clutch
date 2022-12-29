@@ -52,7 +52,7 @@ Section adequacy.
     { iIntros "Hfix %". by iMod ("H" $! ((_, _), (_, _)) with "Hfix [//]"). }
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
-    iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | H]]] %Hv".
+    iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | [H | [H | H]]]]] %Hv".
     - rewrite exec_val_Sn_not_val; [|done].
       rewrite lim_exec_val_prim_step.
       destruct (to_val e1') eqn:Hv'.
@@ -80,6 +80,42 @@ Section adequacy.
       { iPureIntro. apply Rcoupl_pos_R in Hcpl. by apply Rcoupl_refRcoupl. }
       iIntros ([] [] (?& [= -> ->]%dret_pos &?)).
       by iMod ("H"  with "[//] [//]").
+    - iDestruct (big_orL_mono _ (λ _ _,
+                     |={∅}▷=>^(S n)
+                       ⌜refRcoupl (exec_val (S n) (e1, σ1))
+                                  (lim_exec_val (e1', σ1')) φ⌝)%I
+                  with "H") as "H".
+      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & % & %Hcpl & H)".
+        iApply (step_fupdN_mono _ _ _
+                  (⌜∀ e2 σ2 σ2', R2 (e2, σ2) σ2' → refRcoupl (exec_val n (e2, σ2))
+                                                             (lim_exec_val (e1', σ2')) φ⌝)%I).
+        - iIntros (?). iPureIntro.
+          rewrite /= /get_active in Hα.
+          apply elem_of_elements, elem_of_dom in Hα as [].
+          eapply refRcoupl_erasure_r; eauto.
+        - iIntros (????). by iMod ("H" with "[//]"). }
+      iInduction (language.get_active σ1') as [| α'] "IH"; [done|].
+      rewrite big_orL_cons.
+      iDestruct "H" as "[H | Ht]"; [done|].
+      by iApply "IH".
+    - iDestruct (big_orL_mono _ (λ _ _,
+                     |={∅}▷=>^(S n)
+                       ⌜refRcoupl (exec_val (S n) (e1, σ1))
+                                  (lim_exec_val (e1', σ1')) φ⌝)%I
+                  with "H") as "H".
+      { iIntros (i α' Hα'%elem_of_list_lookup_2) "(% & %Hcpl & H)".
+        iApply (step_fupdN_mono _ _ _
+                  (⌜∀ σ2 e2' σ2', R2 σ2 (e2', σ2') → refRcoupl (exec_val (S n) (e1, σ2))
+                                                               (lim_exec_val (e2', σ2')) φ⌝)%I).
+        - iIntros (?). iPureIntro.
+          rewrite /= /get_active in Hα'.
+          apply elem_of_elements, elem_of_dom in Hα' as [].
+          eapply refRcoupl_erasure_l; eauto.
+        - iIntros (????). by iMod ("H" with "[//] [//]"). }
+      iInduction (language.get_active σ1) as [| α'] "IH"; [done|].
+      rewrite big_orL_cons.
+      iDestruct "H" as "[H | Ht]"; [done|].
+      by iApply "IH".
     - rewrite exec_val_Sn_not_val; [|done].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)

@@ -5,15 +5,6 @@ From stdpp Require Export countable.
 From self.prelude Require Export base Coquelicot_ext Reals_ext.
 From self.prob Require Export countable_sum double distribution.
 
-Arguments MkDistr {_ _ _}.
-Arguments pmf {_ _ _ _}.
-Arguments pmf_pos {_ _ _}.
-Arguments pmf_ex_seriesC {_ _ _}.
-Arguments pmf_SeriesC {_ _ _}.
-
-#[global] Hint Resolve pmf_pos pmf_ex_seriesC pmf_SeriesC : core.
-Notation Decidable P := (∀ x, Decision (P x)).
-
 Open Scope R.
 
 Section couplings.
@@ -478,6 +469,71 @@ Qed.
   Qed.
  *)
 
+(* TODO: move somewhere else *)
+Definition f_inv {A B} f `{Surj A B (=) f} : B → A := λ b, epsilon (surj f b).
+
+Lemma f_inv_cancel_r {A B} f `{Surj A B (=) f} b :
+  f (f_inv f b) = b.
+Proof. rewrite /f_inv /= (epsilon_correct _ (surj f b)) //. Qed.
+
+Lemma f_inv_cancel_l {A B} f `{Inj A B (=) (=) f, Surj A B (=) f} b :
+  f_inv f (f b) = b.
+Proof. apply (inj f), (epsilon_correct _ (surj f (f b))). Qed.
+
+Lemma Rcoupl_fair_coin f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} :
+  Rcoupl fair_coin fair_coin (λ b b', b = f b').
+Proof.
+  exists (fair_coins f). repeat split.
+  - eapply distr_ext=> b.
+    rewrite lmarg_pmf /pmf /= /fair_coins_pmf /fair_coin_pmf /=.
+    rewrite (SeriesC_ext _ (λ b', if bool_decide (b' = f_inv f b) then 0.5 else 0)).
+    { rewrite SeriesC_singleton //. }
+    intros b'. case_bool_decide as Heq.
+    + rewrite bool_decide_eq_true_2 //.
+      rewrite Heq f_inv_cancel_l //.
+    + rewrite bool_decide_eq_false_2 //.
+      intros [= ->]. apply Heq. rewrite f_inv_cancel_r //.
+  - eapply distr_ext=> b.
+    rewrite rmarg_pmf /pmf /= /fair_coins_pmf /fair_coin_pmf /=.
+    rewrite SeriesC_singleton //.
+  - intros []. rewrite /pmf /= /fair_coins_pmf /=.
+    case_bool_decide; [done|lra].
+Qed.
+
+Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B}
+  f `{Inj bool bool (=) (=) f, Surj bool bool (=) f}
+  (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
+  (∀ a, Rcoupl (if f a then μ1 else μ2) (if a then μ1' else μ2') S) →
+  Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S.
+Proof.
+  intros HS. rewrite /fair_conv_comb.
+  eapply Rcoupl_dbind; [|apply (Rcoupl_fair_coin f)].
+  simpl. intros a b ->.
+  done.
+Qed.
+
+Lemma Rcoupl_fair_conv_comb_id `{Countable A, Countable B} (S : A → B → Prop)
+  (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
+  Rcoupl μ1 μ1' S →
+  Rcoupl μ2 μ2' S →
+  Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S.
+Proof.
+  intros HS1 HS2.
+  eapply (Rcoupl_fair_conv_comb id).
+  intros []; (eapply Rcoupl_impl; [|done]); eauto.
+Qed.
+
+Lemma Rcoupl_fair_conv_comb_neg `{Countable A, Countable B} (S : A → B → Prop)
+  (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
+  Rcoupl μ1 μ2' S →
+  Rcoupl μ2 μ1' S →
+  Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S.
+Proof.
+  intros HS1 HS2.
+  eapply (Rcoupl_fair_conv_comb negb).
+  intros []; (eapply Rcoupl_impl; [|done]); eauto.
+Qed.
+
 (* This is a lemma about convex combinations, but it is easier to prove with couplings
      TODO: find a better place to put it in *)
 Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A -> distr B) :
@@ -784,4 +840,3 @@ Context `{Countable A, Countable B}.
   Qed.
 
 End ref_couplings_theory.
-

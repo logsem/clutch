@@ -4,7 +4,7 @@ From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution couplings.
 From self.prob_lang Require Export lang tactics notation.
 From iris.prelude Require Import options.
-
+Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [prob_lang] language *)
 
 (* Adding a binder to a set of identifiers. *)
@@ -223,632 +223,238 @@ Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed
 
 Local Open Scope R.
 
-(** * [state_step] coupling  *)
-Local Definition add_bool_tapes '(σ, σ') α α' b : state * state :=
-  (state_upd_tapes <[α  := σ.(tapes)  !!! α  ++ [b]]> σ,
-   state_upd_tapes <[α' := σ'.(tapes) !!! α' ++ [b]]> σ').
-
-Definition valid_double_state_step σs (α α' : loc) σs2 : Prop :=
-  α ∈ dom σs.1.(tapes) ∧ α' ∈ dom σs.2.(tapes) ∧
-  ∃ b, σs2 = add_bool_tapes σs α α' b.
-
-Global Instance valid_double_state_step_dec σs α α' σs' :
-  Decision (valid_double_state_step σs α α' σs').
-Proof. apply _. Qed.
-
-Definition double_state_step_pmf (σs1 : state * state) (α α' : loc) (σs2 : state * state) : R :=
-  if bool_decide (valid_double_state_step σs1 α α' σs2) then 0.5 else 0.
-
-Local Lemma ex_seriesC_double_state_step_pmf σ1 σ1' α α' :
-  ex_seriesC (double_state_step_pmf (σ1, σ1') α α').
+Lemma head_step_flip_nonempty_unfold σ l b bs :
+  σ.(tapes) !! l = Some (b :: bs) →
+  head_step (flip #lbl:l) σ = dret (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ).
 Proof.
-  rewrite /double_state_step_pmf.
-  apply (ex_seriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' true)).
-  apply (ex_seriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' false)).
-  eapply ex_seriesC_ext; [|apply ex_seriesC_0].
-  intros [σ2 σ2'].
-  do 2 (case_bool_decide; [|lra]).
-  rewrite bool_decide_eq_false_2 //.
-  intros (? & ? & [b [=]]); simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
+  intro Hσ.
+  apply distr_ext.
+  intro ρ.
+  rewrite /pmf/head_step/head_step_pmf/=/dret_pmf.
+  do 4 (case_match; auto); simplify_eq.
+  rewrite Hσ/=.
+  case_bool_decide as H.
+  + case_bool_decide as H2; auto.
+    destruct H2; destruct_and?; simplify_eq.
+    f_equal; auto.
+  + case_bool_decide; auto.
+    destruct H;
+      simplify_eq; auto.
 Qed.
 
-Program Definition double_state_step (σs1 : state * state) (α α' : loc) : distr (state * state) :=
-  MkDistr (double_state_step_pmf σs1 α α') _ _ _.
-Next Obligation.
-  rewrite /double_state_step_pmf.
-  intros [] ?? []. case_bool_decide; lra.
-Qed.
-Next Obligation. intros [? ?]. apply ex_seriesC_double_state_step_pmf. Qed.
-Next Obligation.
-  rewrite /double_state_step_pmf. intros [σ1 σ1'] ??.
-  destruct (decide (α ∈ dom σ1.(tapes))); last first.
-  { rewrite SeriesC_0; [lra|]. intros [].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?). }
-  destruct (decide (α' ∈ dom σ1'.(tapes))); last first.
-  { rewrite SeriesC_0; [lra|]. intros [].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?). }
-  rewrite (SeriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' true)); last first.
-  { eapply ex_seriesC_double_state_step_pmf. }
-  { intros [? ?]. case_bool_decide; lra. }
-  rewrite (SeriesC_ext _
-             (λ a, if bool_decide (a = add_bool_tapes (σ1, σ1') α α' true) then 0.5 else 0)); last first.
-  { intros [? ?]. case_bool_decide as Heq; [|done]. case_bool_decide as Hnv; [done|].
-    exfalso; eapply Hnv. do 2 (split; [done|]). by exists true. }
-  rewrite SeriesC_singleton.
-  rewrite (SeriesC_split_elem _ (add_bool_tapes (σ1, σ1') α α' false)); last first.
-  { apply ex_seriesC_filter_pos; [intros; case_bool_decide; lra|].
-    apply ex_seriesC_double_state_step_pmf. }
-  { intros [? ?]. repeat case_bool_decide; lra. }
-  rewrite (SeriesC_ext _ (λ a, if bool_decide (a = add_bool_tapes (σ1, σ1') α α' false)
-                               then 0.5 else 0)); last first.
-  { intros [? ?]. case_bool_decide as Heq; simplify_eq; [|done].
-    rewrite bool_decide_eq_true_2; last first.
-    - intros [=]. simplify_eq. inversion Heq as [Hst].
-      apply insert_inv in Hst. simplify_map_eq.
-    - case_bool_decide as H; [done|]. exfalso; apply H.
-      do 2 (split; [done|]). by exists false. }
-  rewrite SeriesC_singleton.
-  erewrite SeriesC_0; [lra|].
-  intros [σ2 σ2']. do 2 (case_bool_decide; [|done]).
-  rewrite bool_decide_eq_false_2 //.
-  intros (? & ? & (b & [=])). simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
+Lemma head_step_flip_no_tape_fcc σ  :
+  head_step (flip #()) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val#false, σ)).
+Proof. Admitted.
+
+Lemma head_step_flip_empty_unfold σ l  :
+  σ.(tapes) !! l = Some ([]) →
+  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
+Proof.
+  intro Hσ.
+  apply distr_ext.
+  intro ρ.
+  rewrite /pmf/head_step/head_step_pmf/=/dbind_pmf/dret_pmf/=.
+Admitted.
+
+Lemma state_step_fair_conv_comb σ α :
+  α ∈ dom σ.(tapes) →
+  state_step σ α =
+    fair_conv_comb
+      (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ))
+      (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)).
+Proof.
+  intros Hdom.
+  apply distr_ext=>σ2.
+  rewrite {1}/pmf/=/state_step_pmf/valid_state_step.
+  case_bool_decide as H.
+  - destruct H as [_ [b ->]].
+    rewrite fair_conv_comb_pmf /pmf/=/dret_pmf/=.
+    case_bool_decide as H2; case_bool_decide as H3; simplify_eq; try lra.
+    + rewrite H2 in H3.
+       apply (f_equal (λ m, m !!! α)) in H3.
+       do 2 rewrite lookup_total_insert in H3.
+       simplify_map_eq.
+    + destruct b; simplify_eq.
+  - rewrite fair_conv_comb_pmf.
+    assert (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ) σ2 = 0 ∧
+            dret (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ) σ2 = 0)
+      as [-> ->]; [|lra].
+    rewrite /pmf/=/dret_pmf.
+    split; case_bool_decide; auto; destruct H; eauto.
 Qed.
 
-Lemma Rcoupl_state_step σ1 σ2 α1 α2 :
+
+Lemma head_step_flip_unalloc_unfold σ l  :
+  σ.(tapes) !! l = None →
+  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
+Proof. Admitted.
+
+Local Lemma Rcoupl_flip_dret_bij f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} b (σ1 σ1' : state) :
+  Rcoupl
+    (if f b then dret (Val #true, σ1) else dret (Val #false, σ1))
+    (if b then dret (Val #true, σ1') else dret (Val #false, σ1'))
+    (λ ρ2 ρ2', ∃ b : bool, (ρ2, ρ2') = (Val #b, σ1, (Val #(f b), σ1'))).
+Proof.
+  destruct b.
+  - destruct (f true) eqn:Hf1; apply Rcoupl_dret.
+    + exists true. rewrite Hf1 //.
+    + exists false. by erewrite bool_fn_inj_1.
+  - destruct (f false) eqn:Hf1; apply Rcoupl_dret.
+    + exists true. by erewrite bool_fn_inj_1.
+    + exists false. rewrite Hf1 //.
+Qed.
+
+(** * flip(α) ~ flip(α') coupling *)
+Lemma Rcoupl_flip_flip_empty f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α α' :
+  σ1.(tapes) !! α = Some [] →
+  σ1'.(tapes) !! α' = Some [] →
+  Rcoupl
+    (prim_step (Flip (Val $ LitV $ LitLbl α)) σ1)
+    (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = ((Val #b, σ1), (Val #(f b), σ1'))).
+Proof.
+  intros Hα Hα'.
+  rewrite 2?head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipTapeEmptyS _ true). eauto. }
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipTapeEmptyS _ true). eauto. }
+  rewrite 2?head_step_flip_empty_unfold //.
+  eapply (Rcoupl_fair_conv_comb f).
+  intros. apply (Rcoupl_flip_dret_bij f).
+Qed.
+
+(** * flip(α) ~ flip(unit) coupling *)
+Lemma Rcoupl_flip_flip_l f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α :
+  σ1.(tapes) !! α = Some [] →
+  Rcoupl
+    (prim_step (Flip (Val $ LitV $ LitLbl α)) σ1)
+    (prim_step (Flip (Val $ LitV $ LitUnit)) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = ((Val #b, σ1), (Val #(f b), σ1'))).
+Proof.
+  intros Hα.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipTapeEmptyS _ true). eauto. }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipNoTapeS true). }
+  rewrite head_step_flip_empty_unfold //.
+  rewrite head_step_flip_no_tape_fcc //.
+  eapply (Rcoupl_fair_conv_comb f).
+  intros. apply (Rcoupl_flip_dret_bij f).
+Qed.
+
+(** * flip(unit) ~ flip(α) coupling *)
+Lemma Rcoupl_flip_flip_r f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α' :
+  σ1'.(tapes) !! α' = Some [] →
+  Rcoupl
+    (prim_step (Flip (Val $ LitV $ LitUnit)) σ1)
+    (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = ((Val #b, σ1), (Val #(f b), σ1'))).
+Proof.
+  intros Hα.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipNoTapeS true). }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipTapeEmptyS _ true). eauto. }
+  rewrite head_step_flip_empty_unfold //.
+  rewrite head_step_flip_no_tape_fcc //.
+  eapply (Rcoupl_fair_conv_comb f).
+  intros. apply (Rcoupl_flip_dret_bij f ).
+Qed.
+
+(** * flip(unit) ~ flip(unit) coupling *)
+Lemma Rcoupl_flip_flip_lr f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' :
+  Rcoupl
+    (prim_step (Flip (Val $ LitV $ LitUnit)) σ1)
+    (prim_step (Flip (Val $ LitV $ LitUnit)) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = ((Val #b, σ1), (Val #(f b), σ1'))).
+Proof.
+  rewrite 2?head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipNoTapeS true). }
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipNoTapeS true). }
+  rewrite 2!head_step_flip_no_tape_fcc //.
+  eapply (Rcoupl_fair_conv_comb f).
+  intros. apply (Rcoupl_flip_dret_bij f ).
+Qed.
+
+(** * state_step(α) ~ state_step(α') coupling *)
+Lemma Rcoupl_state_step f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ2 α1 α2 :
   α1 ∈ dom σ1.(tapes) →
   α2 ∈ dom σ2.(tapes) →
   Rcoupl
     (state_step σ1 α1)
     (state_step σ2 α2)
-    (λ σ1' σ2', valid_double_state_step (σ1, σ2) α1 α2 (σ1', σ2')).
+    (λ σ1' σ2', ∃ b,
+        σ1' = state_upd_tapes <[α1 := σ1.(tapes) !!! α1 ++ [b]]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := σ2.(tapes) !!! α2 ++ [f b]]> σ2).
 Proof.
-  intros Hd1 Hd2.
-  exists (double_state_step (σ1, σ2) α1 α2). split.
-  - split.
-    + eapply distr_ext. intros σ.
-      rewrite lmarg_pmf /pmf /= /double_state_step_pmf /state_step_pmf.
-      case_bool_decide as Heq.
-      * destruct Heq as (? & b & ?).
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (state_upd_tapes <[α2 := σ2.(tapes) !!! α2 ++ [b]]> σ2))|].
-        intros σ'; simpl.
-        symmetry; case_bool_decide as Heq; simplify_eq.
-        { rewrite bool_decide_eq_true_2 //. split_and!; eauto. }
-        rewrite bool_decide_eq_false_2 //.
-        intros (? & ? & [b' [= Htapes%insert_inv]]). simplify_map_eq.
-      * apply SeriesC_0. intros σ'.
-        rewrite bool_decide_eq_false_2 //.
-        intros (?&?&(b & [=])); simplify_eq. apply Heq.
-        split_and!; eauto.
-    + eapply distr_ext. intros σ.
-      rewrite rmarg_pmf /pmf /= /double_state_step_pmf /state_step_pmf.
-      case_bool_decide as Heq.
-      * destruct Heq as (? & (b & ?)).
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (state_upd_tapes <[α1 := σ1.(tapes) !!! α1 ++ [b]]> σ1))|].
-        intros σ'; simpl.
-        symmetry; case_bool_decide as Heq; simplify_eq.
-        { rewrite bool_decide_eq_true_2 //. split_and!; eauto. }
-        rewrite bool_decide_eq_false_2 //.
-        intros (?&?&(b' & [= ? Htapes%insert_inv])). simplify_map_eq.
-      * apply SeriesC_0. intros σ'.
-        rewrite bool_decide_eq_false_2 //.
-        intros (?&?&(b & [=])); simplify_eq. apply Heq. split_and!; eauto.
-  - intros [ρ1 ρ2]. rewrite /pmf /= /double_state_step_pmf.
-    case_bool_decide; eauto. lra.
+  intros Hα1 Hα2.
+  rewrite 2?state_step_fair_conv_comb //.
+  eapply (Rcoupl_fair_conv_comb f).
+  (* TODO: extract a lemma for this *)
+  intros [].
+  - destruct (f true) eqn:Hf; apply Rcoupl_dret.
+    + exists true. rewrite Hf //.
+    + exists false. by erewrite bool_fn_inj_1.
+  - destruct (f false) eqn:Hf; apply Rcoupl_dret.
+    + exists true. by erewrite bool_fn_inj_1.
+    + exists false. rewrite Hf //.
 Qed.
 
-(** * flip-flip coupling w/empty tape on left *)
-(* the structure of the setup and the proofs are mostly similar to the result
-   for [double_state_step] *)
-Local Definition flips_bool σ1 σ1' b : cfg * cfg :=
-  ((Val $ LitV $ LitBool b, σ1), (Val $ LitV $ LitBool b, σ1')).
-
-Definition valid_flip_flip_l (ρs1 : cfg * cfg) (α : loc) (ρs2 : cfg * cfg) : Prop :=
-  ρs1.1.1 = Flip (Val $ LitV $ LitLbl α) ∧ ρs1.2.1 = Flip (Val $ LitV LitUnit) ∧
-  ∃ (b : bool), ρs2 = flips_bool ρs1.1.2 ρs1.2.2 b.
-
-Global Instance valid_flip_flip_l_dec ρs1 α ρs2 :
-  Decision (valid_flip_flip_l ρs1 α ρs2).
-Proof. apply _. Qed.
-
-Definition flip_flip_l_pmf (ρs1 : cfg * cfg) (α : loc) (ρs2 : cfg * cfg) : R :=
-  if bool_decide (valid_flip_flip_l ρs1 α ρs2) then 0.5 else 0.
-
-Local Lemma ex_seriesC_flip_flip_l_pmf e1 e1' σ1 σ1' α :
-  ex_seriesC (flip_flip_l_pmf ((e1, σ1), (e1', σ1')) α).
-Proof.
-  apply (ex_seriesC_split_elem _ (flips_bool σ1 σ1' true)).
-  apply (ex_seriesC_split_elem _ (flips_bool σ1 σ1' false)).
-  eapply ex_seriesC_ext; [|apply ex_seriesC_0].
-  intros [[e2 σ2] [e2' σ2']].
-  do 2 (case_bool_decide; [|lra]).
-  rewrite /flip_flip_l_pmf bool_decide_eq_false_2 //.
-  rewrite /valid_flip_flip_l /=.
-  intros (? & ? & [b ?]); simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
-Qed.
-
-Program Definition flip_flip_l (ρs1 : cfg * cfg) (α : loc) : distr (cfg * cfg) :=
-  MkDistr (flip_flip_l_pmf ρs1 α) _ _ _.
-Next Obligation.
-  rewrite /flip_flip_l_pmf.
-  intros [[] []] ? [[] []].
-  case_bool_decide; lra.
-Qed.
-Next Obligation. intros [[] []] ?. apply ex_seriesC_flip_flip_l_pmf. Qed.
-Next Obligation.
-  rewrite /flip_flip_l_pmf. intros [[e1 σ1] [e1' σ1']] ?.
-  destruct (decide (e1 = Flip (Val $ LitV $ LitLbl α))) as [He1|]; last first.
-  { rewrite SeriesC_0; [lra|]. intros [[] []].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?&?). }
-  destruct (decide (e1' = Flip (Val $ LitV $ LitUnit))) as [He1'|]; last first.
-  { rewrite SeriesC_0; [lra|]. intros [[] []].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?&?). }
-  rewrite (SeriesC_split_elem _ (flips_bool σ1 σ1' true)); last first.
-  { eapply ex_seriesC_flip_flip_l_pmf. }
-  { intros [? ?]. case_bool_decide; lra. }
-  rewrite (SeriesC_ext _
-             (λ a, if bool_decide (a = flips_bool σ1 σ1' true) then 0.5 else 0)); last first.
-  { intros [[] []]. case_bool_decide as Heq; [|done]. case_bool_decide as Hnv; [done|].
-    exfalso; eapply Hnv. inversion Heq; simplify_eq.
-    do 2 (split; [done|]). by exists true. }
-  rewrite SeriesC_singleton.
-  rewrite (SeriesC_split_elem _ (flips_bool σ1 σ1' false)); last first.
-  { apply ex_seriesC_filter_pos; [intros; case_bool_decide; lra|].
-    apply ex_seriesC_flip_flip_l_pmf. }
-  { intros [? ?]. repeat case_bool_decide; lra. }
-  rewrite (SeriesC_ext _ (λ a, if bool_decide (a = flips_bool σ1 σ1' false)
-                               then 0.5 else 0)); last first.
-  { intros [? ?]. case_bool_decide as Heq; simplify_eq; [|done].
-    rewrite bool_decide_eq_true_2; last first.
-    - intros [=]. simplify_eq.
-    - case_bool_decide as H; [done|]. exfalso; apply H.
-      do 2 (split; [done|]). by exists false. }
-  rewrite SeriesC_singleton.
-  erewrite SeriesC_0; [lra|].
-  intros [σ2 σ2']. do 2 (case_bool_decide; [|done]).
-  rewrite bool_decide_eq_false_2 //.
-  intros (? & ? & (b & [=])). simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
-Qed.
-
-Lemma Rcoupl_flip_flip_l σ1 σ1' α :
-  σ1.(tapes) !! α = Some [] →
-  Rcoupl
-    (prim_step (Flip (Val $ LitV $ LitLbl α)) σ1)
-    (prim_step (Flip (Val $ LitV $ LitUnit)) σ1')
-    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = flips_bool σ1 σ1' b).
-Proof.
-  intros Htape.
-  exists (flip_flip_l ((Flip (Val $ LitV $ LitLbl α), σ1),
-              (Flip (Val $ LitV $ LitUnit), σ1')) α). split.
-  - split.
-    + eapply distr_ext. intros [e2 σ2].
-      rewrite lmarg_pmf {1}/pmf /= /flip_flip_l_pmf.
-      rewrite head_prim_step_pmf_eq /=; last first.
-      { eexists (Val $ LitV $ LitBool true, _); simpl;
-          eapply head_step_support_equiv_rel.
-        eapply FlipTapeEmptyS; eauto. }
-      rewrite /valid_flip_flip_l /flips_bool /=.
-      rewrite /pmf /= Htape.
-      destruct (decide (e2 = Val $ LitV $ LitBool true)) as [He2|].
-      * rewrite He2 /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool true, σ1'))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1 = σ2)) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-      * destruct (decide (e2 = Val $ LitV $ LitBool false)) as [He2'|]; last first.
-        { rewrite SeriesC_0.
-          - repeat case_match; try done. by destruct b.
-          - intros [e σ]. rewrite bool_decide_eq_false_2 //.
-            intros (?&?&?&?); simplify_eq. destruct x; eauto. }
-        rewrite He2' /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool false, σ1'))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1 = σ2)) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-    + (* same approach as for [lmarg] - TODO: better lemmas *)
-      eapply distr_ext. intros [e2' σ2'].
-      rewrite rmarg_pmf {1}/pmf /= /flip_flip_l_pmf.
-      rewrite head_prim_step_pmf_eq /=; last first.
-      { eexists (Val $ LitV $ LitBool true, _); simpl.
-        eapply head_step_support_equiv_rel. eapply FlipNoTapeS; eauto. }
-      rewrite /valid_flip_flip_l /flips_bool /=.
-      rewrite /pmf /=.
-      destruct (decide (e2' = Val $ LitV $ LitBool true)) as [He2|].
-      * rewrite He2 /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool true, σ1))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1' = σ2')) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-      * destruct (decide (e2' = Val $ LitV $ LitBool false)) as [He2'|]; last first.
-        { rewrite SeriesC_0.
-          - repeat case_match; try done. by destruct b.
-          - intros [e σ]. rewrite bool_decide_eq_false_2 //.
-            intros (?&?&?&?); simplify_eq. destruct x; eauto. }
-        rewrite He2' /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool false, σ1))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1' = σ2')) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-  - intros [[] []].
-    rewrite /pmf /= /flip_flip_l_pmf.
-    case_bool_decide as Heq; [|lra].
-    destruct Heq as (?&?&?&?). eauto.
-Qed.
-
-(** * flip-flip coupling w/empty tape on right *)
-(* a lot of this is more or less identical (but not exactly) to the case for the
-   LHS *)
-(* TODO: generalize? *)
-Definition valid_flip_flip_r (ρs1 : cfg * cfg) (α : loc) (ρs2 : cfg * cfg) : Prop :=
-  ρs1.1.1 = Flip (Val $ LitV LitUnit)  ∧ ρs1.2.1 = Flip (Val $ LitV $ LitLbl α) ∧
-  ∃ (b : bool), ρs2 = flips_bool ρs1.1.2 ρs1.2.2 b.
-
-Global Instance valid_flip_flip_r_dec ρs1 α ρs2 :
-  Decision (valid_flip_flip_r ρs1 α ρs2).
-Proof. apply _. Qed.
-
-Definition flip_flip_r_pmf (ρs1 : cfg * cfg) (α : loc) (ρs2 : cfg * cfg) : R :=
-  if bool_decide (valid_flip_flip_r ρs1 α ρs2) then 0.5 else 0.
-
-Local Lemma ex_seriesC_flip_flip_r_pmf e1 e1' σ1 σ1' α :
-  ex_seriesC (flip_flip_r_pmf ((e1, σ1), (e1', σ1')) α).
-Proof.
-  apply (ex_seriesC_split_elem _ (flips_bool σ1 σ1' true)).
-  apply (ex_seriesC_split_elem _ (flips_bool σ1 σ1' false)).
-  eapply ex_seriesC_ext; [|apply ex_seriesC_0].
-  intros [[e2 σ2] [e2' σ2']].
-  do 2 (case_bool_decide; [|lra]).
-  rewrite /flip_flip_r_pmf bool_decide_eq_false_2 //.
-  rewrite /valid_flip_flip_r /=.
-  intros (? & ? & [b ?]); simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
-Qed.
-
-Program Definition flip_flip_r (ρs1 : cfg * cfg) (α : loc) : distr (cfg * cfg) :=
-  MkDistr (flip_flip_r_pmf ρs1 α) _ _ _.
-Next Obligation.
-  rewrite /flip_flip_r_pmf.
-  intros [[] []] ? [[] []].
-  case_bool_decide; lra.
-Qed.
-Next Obligation. intros [[] []] ?. apply ex_seriesC_flip_flip_r_pmf. Qed.
-Next Obligation.
-  rewrite /flip_flip_r_pmf. intros [[e1 σ1] [e1' σ1']] ?.
-  destruct (decide (e1 = Flip (Val $ LitV $ LitUnit))) as [He1|]; last first.
-  { rewrite SeriesC_0; [lra|]. intros [[] []].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?&?). }
-  destruct (decide (e1' = Flip (Val $ LitV $ LitLbl α))) as [He1'|]; last first.
-  { rewrite SeriesC_0; [lra|]. intros [[] []].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?&?). }
-  rewrite (SeriesC_split_elem _ (flips_bool σ1 σ1' true)); last first.
-  { eapply ex_seriesC_flip_flip_r_pmf. }
-  { intros [? ?]. case_bool_decide; lra. }
-  rewrite (SeriesC_ext _
-             (λ a, if bool_decide (a = flips_bool σ1 σ1' true) then 0.5 else 0)); last first.
-  { intros [[] []]. case_bool_decide as Heq; [|done]. case_bool_decide as Hnv; [done|].
-    exfalso; eapply Hnv. inversion Heq; simplify_eq.
-    do 2 (split; [done|]). by exists true. }
-  rewrite SeriesC_singleton.
-  rewrite (SeriesC_split_elem _ (flips_bool σ1 σ1' false)); last first.
-  { apply ex_seriesC_filter_pos; [intros; case_bool_decide; lra|].
-    apply ex_seriesC_flip_flip_r_pmf. }
-  { intros [? ?]. repeat case_bool_decide; lra. }
-  rewrite (SeriesC_ext _ (λ a, if bool_decide (a = flips_bool σ1 σ1' false)
-                               then 0.5 else 0)); last first.
-  { intros [? ?]. case_bool_decide as Heq; simplify_eq; [|done].
-    rewrite bool_decide_eq_true_2; last first.
-    - intros [=]. simplify_eq.
-    - case_bool_decide as H; [done|]. exfalso; apply H.
-      do 2 (split; [done|]). by exists false. }
-  rewrite SeriesC_singleton.
-  erewrite SeriesC_0; [lra|].
-  intros [σ2 σ2']. do 2 (case_bool_decide; [|done]).
-  rewrite bool_decide_eq_false_2 //.
-  intros (? & ? & (b & [=])). simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
-Qed.
-
-Lemma Rcoupl_flip_flip_r σ1 σ1' α :
-  σ1'.(tapes) !! α = Some [] →
+(** * flip(unit) ~ state_step(α') coupling *)
+Lemma Rcoupl_flip_state f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α' :
+  α' ∈ dom σ1'.(tapes) →
   Rcoupl
     (prim_step (Flip (Val $ LitV $ LitUnit)) σ1)
-    (prim_step (Flip (Val $ LitV $ LitLbl α)) σ1')
-    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = flips_bool σ1 σ1' b).
+    (state_step σ1' α')
+    (λ ρ2 σ2', ∃ (b : bool),
+        ρ2 = (Val #b, σ1) ∧ σ2' = state_upd_tapes <[α' := σ1'.(tapes) !!! α' ++ [f b]]> σ1').
 Proof.
-  intros Htape.
-  exists (flip_flip_r ((Flip (Val $ LitV $ LitUnit), σ1),
-              (Flip (Val $ LitV $ LitLbl α), σ1')) α). split.
-  - split.
-    + eapply distr_ext. intros [e2 σ2].
-      rewrite lmarg_pmf {1}/pmf /= /flip_flip_r_pmf.
-      rewrite head_prim_step_pmf_eq /=; last first.
-      { eexists (Val $ LitV $ LitBool true, _); simpl;
-          eapply head_step_support_equiv_rel. eapply FlipNoTapeS. }
-      rewrite /valid_flip_flip_r /flips_bool /=.
-      rewrite /pmf /=.
-      destruct (decide (e2 = Val $ LitV $ LitBool true)) as [He2|].
-      * rewrite He2 /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool true, σ1'))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1 = σ2)) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-      * destruct (decide (e2 = Val $ LitV $ LitBool false)) as [He2'|]; last first.
-        { rewrite SeriesC_0.
-          - repeat case_match; try done. by destruct b.
-          - intros [e σ]. rewrite bool_decide_eq_false_2 //.
-            intros (?&?&?&?); simplify_eq. destruct x; eauto. }
-        rewrite He2' /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool false, σ1'))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1 = σ2)) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-    + (* same approach as for [lmarg] - TODO: better lemmas *)
-      eapply distr_ext. intros [e2' σ2'].
-      rewrite rmarg_pmf {1}/pmf /= /flip_flip_r_pmf.
-      rewrite head_prim_step_pmf_eq /=; last first.
-      { eexists (Val $ LitV $ LitBool true, _); simpl.
-        eapply head_step_support_equiv_rel. eapply FlipTapeEmptyS; eauto. }
-      rewrite /valid_flip_flip_r /flips_bool /=.
-      rewrite /pmf /= Htape.
-      destruct (decide (e2' = Val $ LitV $ LitBool true)) as [He2|].
-      * rewrite He2 /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool true, σ1))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1' = σ2')) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-      * destruct (decide (e2' = Val $ LitV $ LitBool false)) as [He2'|]; last first.
-        { rewrite SeriesC_0.
-          - repeat case_match; try done. by destruct b.
-          - intros [e σ]. rewrite bool_decide_eq_false_2 //.
-            intros (?&?&?&?); simplify_eq. destruct x; eauto. }
-        rewrite He2' /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool false, σ1))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1' = σ2')) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-  - intros [[] []].
-    rewrite /pmf /= /flip_flip_r_pmf.
-    case_bool_decide as Heq; [|lra].
-    destruct Heq as (?&?&?&?). eauto.
+  intros Hα'.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipNoTapeS true). }
+  rewrite head_step_flip_no_tape_fcc //.
+  rewrite state_step_fair_conv_comb //.
+  eapply (Rcoupl_fair_conv_comb f).
+  intros [].
+  - destruct (f true) eqn:Hf; apply Rcoupl_dret.
+    + exists true. rewrite Hf //.
+    + exists false. by erewrite bool_fn_inj_1.
+  - destruct (f false) eqn:Hf; apply Rcoupl_dret.
+    + exists true. by erewrite bool_fn_inj_1.
+    + exists false. rewrite Hf //.
 Qed.
 
-(** * flip-flip coupling w/empty tape on both sides *)
-(* the repetition is starting to get silly *)
-(* TODO: generalize? *)
-Definition valid_flip_flip_lr (ρs1 : cfg * cfg) (ρs2 : cfg * cfg) : Prop :=
-  ρs1.1.1 = Flip (Val $ LitV LitUnit) ∧ ρs1.2.1 = Flip (Val $ LitV $ LitUnit) ∧
-  ∃ (b : bool), ρs2 = flips_bool ρs1.1.2 ρs1.2.2 b.
-
-Global Instance valid_flip_flip_lr_dec ρs1 ρs2 :
-  Decision (valid_flip_flip_lr ρs1 ρs2).
-Proof. apply _. Qed.
-
-Definition flip_flip_lr_pmf (ρs1 : cfg * cfg) (ρs2 : cfg * cfg) : R :=
-  if bool_decide (valid_flip_flip_lr ρs1 ρs2) then 0.5 else 0.
-
-Local Lemma ex_seriesC_flip_flip_lr_pmf e1 e1' σ1 σ1' :
-  ex_seriesC (flip_flip_lr_pmf ((e1, σ1), (e1', σ1'))).
-Proof.
-  apply (ex_seriesC_split_elem _ (flips_bool σ1 σ1' true)).
-  apply (ex_seriesC_split_elem _ (flips_bool σ1 σ1' false)).
-  eapply ex_seriesC_ext; [|apply ex_seriesC_0].
-  intros [[e2 σ2] [e2' σ2']].
-  do 2 (case_bool_decide; [|lra]).
-  rewrite /flip_flip_lr_pmf bool_decide_eq_false_2 //.
-  rewrite /valid_flip_flip_lr /=.
-  intros (? & ? & [b ?]); simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
-Qed.
-
-Program Definition flip_flip_lr (ρs1 : cfg * cfg) : distr (cfg * cfg) :=
-  MkDistr (flip_flip_lr_pmf ρs1) _ _ _.
-Next Obligation.
-  rewrite /flip_flip_lr_pmf.
-  intros [[] []] [[] []].
-  case_bool_decide; lra.
-Qed.
-Next Obligation. intros [[] []]. apply ex_seriesC_flip_flip_lr_pmf. Qed.
-Next Obligation.
-  rewrite /flip_flip_lr_pmf. intros [[e1 σ1] [e1' σ1']].
-  destruct (decide (e1 = Flip (Val $ LitV $ LitUnit))) as [He1|]; last first.
-  { rewrite SeriesC_0; [lra|]. intros [[] []].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?&?). }
-  destruct (decide (e1' = Flip (Val $ LitV $ LitUnit))) as [He1'|]; last first.
-  { rewrite SeriesC_0; [lra|]. intros [[] []].
-    rewrite bool_decide_eq_false_2 //. by intros (?&?&?&?). }
-  rewrite (SeriesC_split_elem _ (flips_bool σ1 σ1' true)); last first.
-  { eapply ex_seriesC_flip_flip_lr_pmf. }
-  { intros [? ?]. case_bool_decide; lra. }
-  rewrite (SeriesC_ext _
-             (λ a, if bool_decide (a = flips_bool σ1 σ1' true) then 0.5 else 0)); last first.
-  { intros [[] []]. case_bool_decide as Heq; [|done]. case_bool_decide as Hnv; [done|].
-    exfalso; eapply Hnv. inversion Heq; simplify_eq.
-    do 2 (split; [done|]). by exists true. }
-  rewrite SeriesC_singleton.
-  rewrite (SeriesC_split_elem _ (flips_bool σ1 σ1' false)); last first.
-  { apply ex_seriesC_filter_pos; [intros; case_bool_decide; lra|].
-    apply ex_seriesC_flip_flip_lr_pmf. }
-  { intros [? ?]. repeat case_bool_decide; lra. }
-  rewrite (SeriesC_ext _ (λ a, if bool_decide (a = flips_bool σ1 σ1' false)
-                               then 0.5 else 0)); last first.
-  { intros [? ?]. case_bool_decide as Heq; simplify_eq; [|done].
-    rewrite bool_decide_eq_true_2; last first.
-    - intros [=]. simplify_eq.
-    - case_bool_decide as H; [done|]. exfalso; apply H.
-      do 2 (split; [done|]). by exists false. }
-  rewrite SeriesC_singleton.
-  erewrite SeriesC_0; [lra|].
-  intros [σ2 σ2']. do 2 (case_bool_decide; [|done]).
-  rewrite bool_decide_eq_false_2 //.
-  intros (? & ? & (b & [=])). simplify_eq.
-  assert (b ≠ false) by (intros ->; eauto).
-  assert (b ≠ true) by (intros ->; eauto).
-  by destruct b.
-Qed.
-
-Lemma Rcoupl_flip_flip_lr σ1 σ1' :
+(** * state_step(α) ~ flip(unit) coupling *)
+Lemma Rcoupl_state_flip f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α :
+  α ∈ dom σ1.(tapes) →
   Rcoupl
-    (prim_step (Flip (Val $ LitV $ LitUnit)) σ1)
+    (state_step σ1 α)
     (prim_step (Flip (Val $ LitV $ LitUnit)) σ1')
-    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = flips_bool σ1 σ1' b).
+    (λ σ2 ρ2', ∃ (b : bool),
+        σ2 = state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1 ∧ ρ2' = (Val #(f b), σ1')).
 Proof.
-  exists (flip_flip_lr ((Flip (Val $ LitV $ LitUnit), σ1),
-              (Flip (Val $ LitV $ LitUnit), σ1'))). split.
-  - split.
-    + eapply distr_ext. intros [e2 σ2].
-      rewrite lmarg_pmf {1}/pmf /= /flip_flip_lr_pmf.
-      rewrite head_prim_step_pmf_eq /=; last first.
-      { eexists (Val $ LitV $ LitBool true, _); simpl;
-          eapply head_step_support_equiv_rel. eapply FlipNoTapeS. }
-      rewrite /valid_flip_flip_lr /flips_bool /=.
-      rewrite /pmf /=.
-      destruct (decide (e2 = Val $ LitV $ LitBool true)) as [He2|].
-      * rewrite He2 /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool true, σ1'))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1 = σ2)) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-      * destruct (decide (e2 = Val $ LitV $ LitBool false)) as [He2'|]; last first.
-        { rewrite SeriesC_0.
-          - repeat case_match; try done. by destruct b.
-          - intros [e σ]. rewrite bool_decide_eq_false_2 //.
-            intros (?&?&?&?); simplify_eq. destruct x; eauto. }
-        rewrite He2' /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool false, σ1'))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1 = σ2)) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-    + (* same approach as for [lmarg] - TODO: better lemmas *)
-      eapply distr_ext. intros [e2' σ2'].
-      rewrite rmarg_pmf {1}/pmf /= /flip_flip_lr_pmf.
-      rewrite head_prim_step_pmf_eq /=; last first.
-      { eexists (Val $ LitV $ LitBool true, _); simpl.
-        eapply head_step_support_equiv_rel. eapply FlipNoTapeS; eauto. }
-      rewrite /valid_flip_flip_lr /flips_bool /=.
-      rewrite /pmf /=.
-      destruct (decide (e2' = Val $ LitV $ LitBool true)) as [He2|].
-      * rewrite He2 /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool true, σ1))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1' = σ2')) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-      * destruct (decide (e2' = Val $ LitV $ LitBool false)) as [He2'|]; last first.
-        { rewrite SeriesC_0.
-          - repeat case_match; try done. by destruct b.
-          - intros [e σ]. rewrite bool_decide_eq_false_2 //.
-            intros (?&?&?&?); simplify_eq. destruct x; eauto. }
-        rewrite He2' /=.
-        erewrite SeriesC_ext;
-          [eapply (SeriesC_singleton (Val $ LitV $ LitBool false, σ1))|].
-        intros [e' σ'].
-        case_bool_decide as Heq.
-        { destruct Heq as (?&?&?&?); simplify_eq.
-          rewrite ?bool_decide_eq_true_2 //. }
-        destruct (decide (σ1' = σ2')) as [->|Hneq]; last first.
-        { case_match; [|done]. rewrite bool_decide_eq_false_2 //. }
-        rewrite bool_decide_eq_false_2 //.
-        intros [=]; simplify_eq. apply Heq.
-        split_and!; eauto.
-  - intros [[] []].
-    rewrite /pmf /= /flip_flip_lr_pmf.
-    case_bool_decide as Heq; [|lra].
-    destruct Heq as (?&?&?&?). eauto.
+  intros Hα'.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
+    eapply (FlipNoTapeS true). }
+  rewrite head_step_flip_no_tape_fcc //.
+  rewrite state_step_fair_conv_comb //.
+  eapply (Rcoupl_fair_conv_comb f).
+  intros [].
+  - destruct (f true) eqn:Hf; apply Rcoupl_dret.
+    + exists true. rewrite Hf //.
+    + exists false. by erewrite bool_fn_inj_1.
+  - destruct (f false) eqn:Hf; apply Rcoupl_dret.
+    + exists true. by erewrite bool_fn_inj_1.
+    + exists false. rewrite Hf //.
 Qed.
 
 (** Some useful lemmas to reason about language properties  *)
@@ -1042,33 +648,6 @@ Proof.
   intros [] [Hs | Hs]; inversion Hs; simplify_eq.
 Qed.
 
-Lemma state_step_fair_conv_comb σ α :
-  α ∈ dom σ.(tapes) →
-  state_step σ α =
-    fair_conv_comb
-      (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ))
-      (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)).
-Proof.
-  intros Hdom.
-  apply distr_ext=>σ2.
-  rewrite {1}/pmf/=/state_step_pmf/valid_state_step.
-  case_bool_decide as H.
-  - destruct H as [_ [b ->]].
-    rewrite fair_conv_comb_pmf /pmf/=/dret_pmf/=.
-    case_bool_decide as H2; case_bool_decide as H3; simplify_eq; try lra.
-    + rewrite H2 in H3.
-       apply (f_equal (λ m, m !!! α)) in H3.
-       do 2 rewrite lookup_total_insert in H3.
-       simplify_map_eq.
-    + destruct b; simplify_eq.
-  - rewrite fair_conv_comb_pmf.
-    assert (dret (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ) σ2 = 0 ∧
-            dret (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ) σ2 = 0)
-      as [-> ->]; [|lra].
-    rewrite /pmf/=/dret_pmf.
-    split; case_bool_decide; auto; destruct H; eauto.
-Qed.
-
 Lemma head_step_pred_ex_rel e1 σ1 :
   head_step_pred e1 σ1 ↔ ∃ e2 σ2, head_step_rel e1 σ1 e2 σ2.
 Proof.
@@ -1156,43 +735,6 @@ Proof.
     f_equal; auto.
     rewrite H; auto.
 Qed.
-
-Lemma head_step_flip_nonempty_unfold σ l b bs :
-  σ.(tapes) !! l = Some (b :: bs) →
-  head_step (flip #lbl:l) σ = dret (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ).
-Proof.
-  intro Hσ.
-  apply distr_ext.
-  intro ρ.
-  rewrite /pmf/head_step/head_step_pmf/=/dret_pmf.
-  do 4 (case_match; auto); simplify_eq.
-  rewrite Hσ/=.
-  case_bool_decide as H.
-  + case_bool_decide as H2; auto.
-    destruct H2; destruct_and?; simplify_eq.
-    f_equal; auto.
-  + case_bool_decide; auto.
-    destruct H;
-      simplify_eq; auto.
-Qed.
-
-
-Lemma head_step_flip_empty_unfold σ l  :
-  σ.(tapes) !! l = Some ([]) →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
-Proof.
-  intro Hσ.
-  apply distr_ext.
-  intro ρ.
-  rewrite /pmf/head_step/head_step_pmf/=/dbind_pmf/dret_pmf/=.
-
-Admitted.
-
-Lemma head_step_flip_unalloc_unfold σ l  :
-  σ.(tapes) !! l = None →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
-Proof.
-Admitted.
 
 Lemma upd_tape_some σ α b bs:
   tapes σ !! α = Some bs →
