@@ -59,7 +59,7 @@ Section keyed_hash.
     rewrite ?Nat.shiftr_div_pow2 ?Nat.shiftl_mul_pow2.
     intros Hv.
     specialize (pow2_nonzero MAX_VALS_POW) => ?.
-    rewrite plus_comm Nat.mod_add; last lia.
+    rewrite Nat.add_comm Nat.mod_add; last lia.
     rewrite Nat.mod_small; lia.
   Qed.
 
@@ -186,7 +186,7 @@ Section keyed_hash.
     apply Hsub_le in Hlt2; auto.
     rewrite ?Hsub; try (apply pow2_nonzero).
     rewrite Nat.pow_add_r.
-    apply (le_lt_trans _ ((2 ^ MAX_KEYS_POW - 1) * 2 ^ MAX_VALS_POW + (2 ^ MAX_VALS_POW - 1))).
+    apply (Nat.le_lt_trans _ ((2 ^ MAX_KEYS_POW - 1) * 2 ^ MAX_VALS_POW + (2 ^ MAX_VALS_POW - 1))).
     { assert (Hcompat: ∀ a b c d, a <= b → c <= d → a + c <= b + d) by lia.
       apply Hcompat; try lia.
       apply Nat.mul_le_mono_r; auto.
@@ -231,8 +231,28 @@ Section keyed_hash.
 
   Definition enc_gallina_fin (k : fin_key_space) (v: fin_val_space) : fin_hash_dom_space.
     refine (@nat_to_fin (enc_gallina (fin_to_nat k) (fin_to_nat v)) _ _).
-    apply (enc_gallina_range); apply fin_to_nat_lt.
+    abstract (apply (enc_gallina_range); apply fin_to_nat_lt).
   Defined.
+
+  Definition key_of_enc_gallina_fin (x: fin_hash_dom_space) : fin_key_space.
+  refine (@nat_to_fin (key_of_enc_gallina x) _ _).
+  { abstract (cut (key_of_enc_gallina x <= MAX_KEYS); first lia;
+              apply key_of_enc_gallina_spec2; specialize (fin_to_nat_lt x); lia; auto). }
+  Defined.
+
+  Definition val_of_enc_gallina_fin (x: fin_hash_dom_space) : fin_val_space.
+  refine (@nat_to_fin (val_of_enc_gallina x) _ _).
+  { abstract (cut (val_of_enc_gallina x <= MAX_VALS); first lia;
+              apply val_of_enc_gallina_spec2; lia; auto). }
+  Defined.
+
+  Lemma enc_gallina_fin_inv x :
+    enc_gallina_fin (key_of_enc_gallina_fin x) (val_of_enc_gallina_fin x) = x.
+  Proof.
+    rewrite /enc_gallina_fin/key_of_enc_gallina_fin/val_of_enc_gallina_fin/=.
+    apply (inj fin_to_nat).
+    rewrite ?fin_to_nat_to_fin enc_gallina_inv //.
+  Qed.
 
   Definition keyed_hash_inv (γ : gname) (f : val) : iProp Σ :=
     ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
@@ -302,5 +322,16 @@ Section keyed_hash.
       rewrite dom_gset_to_gmap.
       iApply (big_sepS_impl with "H").
       iIntros "!>" (x Hin) "Hx".
+      rewrite (big_sepS_delete _ _ (key_of_enc_gallina_fin x)); last first.
+      { apply elem_of_fin_to_set. }
+      iSplitL "Hx".
+      - iLeft. iExists (val_of_enc_gallina_fin x). rewrite lookup_empty //. iFrame.
+        iPureIntro. rewrite enc_gallina_fin_inv //.
+      - iApply big_sepS_intro.
+        iIntros "!#" (k [Hk Hne]%elem_of_difference).
+        iRight.
+        iPureIntro.
+        set_unfold.
+        admit.
   Abort.
 End keyed_hash.
