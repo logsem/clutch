@@ -184,7 +184,8 @@ Section erasure_helpers.
       intros ? [] ->; rewrite !dret_id_left; by eapply IH.
   Qed.
 
-  Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K :
+  Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K bs :
+    tapes σ !! α = Some bs →
     Rcoupl
       (dmap (fill_lift K) (head_step (flip #()) σ) ≫= exec_val m)
       (fair_conv_comb
@@ -195,7 +196,14 @@ Section erasure_helpers.
             (head_step (flip #())
                (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m))
       eq.
-  Proof using m IH. Admitted.
+  Proof using m IH.
+    intros Hα.
+    rewrite !head_step_flip_no_tape_unfold.
+    rewrite -!dbind_assoc -/exec_val.
+    rewrite -(dbind_fair_conv_comb _ _ fair_coin).
+    eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+    intros ? [] ->; rewrite !dret_id_left; by eapply IH.
+  Qed.
 
 End erasure_helpers.
 

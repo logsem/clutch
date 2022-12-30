@@ -242,19 +242,64 @@ Proof.
       simplify_eq; auto.
 Qed.
 
-Lemma head_step_flip_no_tape_fcc σ  :
-  head_step (flip #()) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val#false, σ)).
-Proof. Admitted.
+Lemma head_step_flip_no_tape_unfold σ  :
+  head_step (flip #()) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val #false, σ)).
+Proof.
+  apply distr_ext. intros [e σ'].
+  rewrite fair_conv_comb_pmf.
+  rewrite /pmf /= /dret_pmf.
+  case_bool_decide; last first.
+  { rewrite ?bool_decide_eq_false_2;
+      [repeat case_match; lra| |]; intros [=]; simplify_eq. }
+  simplify_eq.
+  do 3
+    (case_match;
+    try by (rewrite ?bool_decide_eq_false_2;
+            [repeat case_match;lra | |]; intros [=]; simplify_eq)).
+  destruct b.
+  - rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2 //. lra.
+  - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
+Qed.
 
 Lemma head_step_flip_empty_unfold σ l  :
   σ.(tapes) !! l = Some ([]) →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
+  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val #false, σ)).
 Proof.
-  intro Hσ.
-  apply distr_ext.
-  intro ρ.
-  rewrite /pmf/head_step/head_step_pmf/=/dbind_pmf/dret_pmf/=.
-Admitted.
+  intro Hσ. apply distr_ext. intros [e σ'].
+  rewrite fair_conv_comb_pmf.
+  rewrite /pmf /= /dret_pmf Hσ.
+  case_bool_decide; last first.
+  { rewrite ?bool_decide_eq_false_2;
+      [repeat case_match; lra| |]; intros [=]; simplify_eq. }
+  simplify_eq.
+  do 3
+    (case_match;
+    try by (rewrite ?bool_decide_eq_false_2;
+            [repeat case_match;lra | |]; intros [=]; simplify_eq)).
+  destruct b.
+  - rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2 //. lra.
+  - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
+Qed.
+
+Lemma head_step_flip_unalloc_unfold σ l  :
+  σ.(tapes) !! l = None →
+  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val #false, σ)).
+Proof.
+  intro Hσ. apply distr_ext. intros [e σ'].
+  rewrite fair_conv_comb_pmf.
+  rewrite /pmf /= /dret_pmf Hσ.
+  case_bool_decide; last first.
+  { rewrite ?bool_decide_eq_false_2;
+      [repeat case_match; lra| |]; intros [=]; simplify_eq. }
+  simplify_eq.
+  do 3
+    (case_match;
+    try by (rewrite ?bool_decide_eq_false_2;
+            [repeat case_match;lra | |]; intros [=]; simplify_eq)).
+  destruct b.
+  - rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2 //. lra.
+  - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
+Qed.
 
 Lemma state_step_fair_conv_comb σ α :
   α ∈ dom σ.(tapes) →
@@ -282,12 +327,6 @@ Proof.
     rewrite /pmf/=/dret_pmf.
     split; case_bool_decide; auto; destruct H; eauto.
 Qed.
-
-
-Lemma head_step_flip_unalloc_unfold σ l  :
-  σ.(tapes) !! l = None →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val(#true), σ)) (dret (Val(#false), σ)).
-Proof. Admitted.
 
 Local Lemma Rcoupl_flip_dret_bij f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} b (σ1 σ1' : state) :
   Rcoupl
@@ -340,7 +379,7 @@ Proof.
   { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
     eapply (FlipNoTapeS true). }
   rewrite head_step_flip_empty_unfold //.
-  rewrite head_step_flip_no_tape_fcc //.
+  rewrite head_step_flip_no_tape_unfold //.
   eapply (Rcoupl_fair_conv_comb f).
   intros. apply (Rcoupl_flip_dret_bij f).
 Qed.
@@ -361,7 +400,7 @@ Proof.
   { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
     eapply (FlipTapeEmptyS _ true). eauto. }
   rewrite head_step_flip_empty_unfold //.
-  rewrite head_step_flip_no_tape_fcc //.
+  rewrite head_step_flip_no_tape_unfold //.
   eapply (Rcoupl_fair_conv_comb f).
   intros. apply (Rcoupl_flip_dret_bij f ).
 Qed.
@@ -378,7 +417,7 @@ Proof.
     eapply (FlipNoTapeS true). }
   { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
     eapply (FlipNoTapeS true). }
-  rewrite 2!head_step_flip_no_tape_fcc //.
+  rewrite 2!head_step_flip_no_tape_unfold //.
   eapply (Rcoupl_fair_conv_comb f).
   intros. apply (Rcoupl_flip_dret_bij f ).
 Qed.
@@ -420,7 +459,7 @@ Proof.
   rewrite head_prim_step_eq /=; last first.
   { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
     eapply (FlipNoTapeS true). }
-  rewrite head_step_flip_no_tape_fcc //.
+  rewrite head_step_flip_no_tape_unfold //.
   rewrite state_step_fair_conv_comb //.
   eapply (Rcoupl_fair_conv_comb f).
   intros [].
@@ -445,7 +484,7 @@ Proof.
   rewrite head_prim_step_eq /=; last first.
   { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
     eapply (FlipNoTapeS true). }
-  rewrite head_step_flip_no_tape_fcc //.
+  rewrite head_step_flip_no_tape_unfold //.
   rewrite state_step_fair_conv_comb //.
   eapply (Rcoupl_fair_conv_comb f).
   intros [].
