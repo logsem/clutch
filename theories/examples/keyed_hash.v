@@ -535,4 +535,14 @@ Section keyed_hash.
     iApply "Hclo". eauto.
   Qed.
 
+  (* Actually this is not true: if v is out of range it can be as if
+     you're hashing a differnt value with some other key! *)
+  Lemma wp_khashfun_out_of_range E f k m (v : Z) γ :
+    (v < 0 ∨ MAX_VALS < v)%Z →
+    {{{ keyed_hash_auth γ f ∗ khashfun_own γ k m }}}
+      f #k #v @ E
+    {{{ RET #false; keyed_hash_auth γ f ∗ khashfun_own γ k m }}}.
+  Proof.
+  Abort.
+
 End keyed_hash.
