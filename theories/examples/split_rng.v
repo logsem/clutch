@@ -91,6 +91,8 @@ Section rng.
 
   Definition is_keyed_hash γ f :=
     na_inv prelogrelGS_nais khashN (keyed_hash_auth MAX_RNGS_POW MAX_SAMPLES_POW γ f).
+  Definition is_skeyed_hash γ f :=
+    na_inv prelogrelGS_nais khashN (skeyed_hash_auth MAX_RNGS_POW MAX_SAMPLES_POW γ f).
 
   (* Putting is_keyed_hash seems like it makes the definition but then this is not timeless *)
 
@@ -101,10 +103,24 @@ Section rng.
              is_keyed_hash γ h ∗
              c ↦ #n.
 
+  Definition shash_rng (n: nat) (g: val) : iProp Σ :=
+    ∃ h k c m γ, ⌜ g = hash_rng_specialized h (fin_to_nat k) c ⌝ ∗
+             ⌜ ∀ x, n <= x → x ∉ dom m ⌝ ∗
+             khashfun_own MAX_RNGS_POW MAX_SAMPLES_POW γ k m ∗
+             is_skeyed_hash γ h ∗
+             c ↦ₛ #n.
+
   Definition hash_rng_gen (n: nat) (f: val) : iProp Σ :=
     ∃ h kcntr γ, ⌜ f = hash_rng_gen_specialized h kcntr ⌝ ∗
                   is_keyed_hash γ h ∗
                   kcntr ↦ #n ∗
+                  [∗ set] k ∈ fin_to_set (fin_key_space MAX_RNGS_POW),
+                     (⌜ n <= fin_to_nat k ⌝ → khashfun_own _ MAX_SAMPLES_POW γ k ∅).
+
+  Definition shash_rng_gen (n: nat) (f: val) : iProp Σ :=
+    ∃ h kcntr γ, ⌜ f = hash_rng_gen_specialized h kcntr ⌝ ∗
+                  is_skeyed_hash γ h ∗
+                  kcntr ↦ₛ #n ∗
                   [∗ set] k ∈ fin_to_set (fin_key_space MAX_RNGS_POW),
                      (⌜ n <= fin_to_nat k ⌝ → khashfun_own _ MAX_SAMPLES_POW γ k ∅).
 
@@ -124,6 +140,30 @@ Section rng.
     iAssert (|={E}=> is_keyed_hash γ h)%I with "[Hauth]" as ">#His_keyed".
     { iApply na_inv_alloc. iNext. eauto. }
     iModIntro. iApply "HΦ".
+    iExists _, _, _. iFrame "# ∗".
+    iSplit; first by eauto.
+    iApply (big_sepS_mono with "Hks").
+    iIntros (x Helem) "$"; auto.
+  Qed.
+
+  Lemma spec_init_rng_gen E K :
+    ↑specN ⊆ E →
+    refines_right K (init_rng_gen #()) ={E}=∗
+    ∃ f, refines_right K (of_val f) ∗ shash_rng_gen 0 f.
+  Proof.
+    iIntros (?) "HK".
+    rewrite /init_rng_gen.
+    tp_pures K.
+    tp_bind K (init_keyed_hash _ _ _).
+    rewrite refines_right_bind.
+    iMod (spec_init_keyed_hash with "[$]") as (h γ) "(HK&Hauth&Hks)"; first done.
+    rewrite -refines_right_bind /=.
+    tp_pures K.
+    tp_alloc K as key_cntr "Hkc".
+    tp_pures K.
+    iAssert (|={E}=> is_skeyed_hash γ h)%I with "[Hauth]" as ">#His_keyed".
+    { iApply na_inv_alloc. iNext. eauto. }
+    iModIntro. iExists _. iFrame "HK".
     iExists _, _, _. iFrame "# ∗".
     iSplit; first by eauto.
     iApply (big_sepS_mono with "Hks").
@@ -170,6 +210,48 @@ Section rng.
       iApply "Hk". rewrite /k' fin_to_nat_to_fin; auto.
   Qed.
 
+  Lemma spec_run_rng_gen k f K E  :
+    ↑specN ⊆ E →
+    k <= MAX_RNGS →
+    shash_rng_gen k f -∗
+    refines_right K (f #()) ={E}=∗
+    ∃ g, refines_right K (of_val (SOMEV g)) ∗ shash_rng_gen (S k) f ∗ shash_rng 0 g.
+  Proof.
+    iIntros (HE Hle) "Hgen HK".
+    iDestruct "Hgen" as (h kcntr γ) "(->&#His&Hknctr&Hks)".
+    iEval (rewrite /hash_rng_gen_specialized) in "HK".
+    tp_pures K.
+    tp_load K.
+    tp_pures K.
+    case_bool_decide; first by lia.
+    tp_pures K.
+    tp_store K.
+    tp_pures K.
+    tp_alloc K as sample_cntr "Hsc".
+    tp_pures K.
+    iModIntro.
+    iExists _. iFrame "HK".
+    assert (Hlt: k < S MAX_RNGS) by lia.
+    set (k' := (nat_to_fin Hlt : fin_key_space MAX_RNGS_POW)).
+    iDestruct (big_sepS_delete _ _ k' with "Hks") as "(Hk&Hks)".
+    { apply elem_of_fin_to_set. }
+    iSplitL "Hks Hknctr".
+    - iExists _, _, _. iSplit; first eauto. iFrame "#".
+      assert (Z.of_nat k + 1 = Z.of_nat (S k))%Z as -> by lia.
+      iFrame "Hknctr".
+      iApply (big_sepS_delete _ _ k').
+      { apply elem_of_fin_to_set. }
+      iSplitR "Hks".
+      * iIntros (Hle'). iExFalso. rewrite /k' fin_to_nat_to_fin in Hle'. lia.
+      * iApply (big_sepS_mono with "Hks"). iIntros (??) "H %Hle'".
+        iApply "H". iPureIntro; lia.
+    - iExists _, k', _, ∅, _. iFrame "Hsc #". iSplit.
+      { rewrite /hash_rng_specialized. rewrite /k' fin_to_nat_to_fin //. }
+      iSplit.
+      { iPureIntro. set_solver. }
+      iApply "Hk". rewrite /k' fin_to_nat_to_fin; auto.
+  Qed.
+
   Lemma wp_run_rng_gen_out_of_range k f E :
     MAX_RNGS < k →
     {{{ ▷ hash_rng_gen k f }}}
@@ -185,6 +267,24 @@ Section rng.
     wp_pures.
     iApply "HΦ".
     iModIntro. iExists _, _, _. iSplit; first eauto. iFrame "#∗".
+  Qed.
+
+  Lemma spec_run_rng_gen_out_of_range k f K E  :
+    ↑specN ⊆ E →
+    MAX_RNGS < k →
+    shash_rng_gen k f -∗
+    refines_right K (f #()) ={E}=∗
+    refines_right K (of_val NONEV) ∗ shash_rng_gen k f.
+  Proof.
+    iIntros (HE Hlt) "Hgen HK".
+    iDestruct "Hgen" as (h kcntr γ) "(->&#His&Hknctr&Hks)".
+
+    iEval (rewrite /hash_rng_gen_specialized) in "HK". tp_pures K.
+    tp_load K. tp_pures K.
+    case_bool_decide; last by lia.
+    tp_pures K.
+    iModIntro. iFrame "HK".
+    iExists _, _, _. iSplit; first eauto. iFrame "#∗".
   Qed.
 
   Instance fin_keys_inhabited :
