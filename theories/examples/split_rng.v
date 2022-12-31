@@ -132,12 +132,12 @@ Section rng.
 
   Lemma wp_run_rng_gen k f E :
     k <= MAX_RNGS →
-    {{{ hash_rng_gen k f }}}
+    {{{ ▷ hash_rng_gen k f }}}
       f #() @ E
     {{{ (g: val), RET (SOMEV g); hash_rng_gen (S k) f ∗ hash_rng 0 g }}}.
   Proof.
     iIntros (Hle Φ) "Hgen HΦ".
-    iDestruct "Hgen" as (h kcntr γ ->) "(#His&Hknctr&Hks)".
+    iDestruct "Hgen" as (h kcntr γ) "(>->&#His&Hknctr&Hks)".
 
     iEval (rewrite /hash_rng_gen_specialized). wp_pures.
     wp_load. wp_pures.
@@ -172,12 +172,12 @@ Section rng.
 
   Lemma wp_run_rng_gen_out_of_range k f E :
     MAX_RNGS < k →
-    {{{ hash_rng_gen k f }}}
+    {{{ ▷ hash_rng_gen k f }}}
       f #() @ E
     {{{ RET NONEV; hash_rng_gen k f }}}.
   Proof.
     iIntros (Hlt Φ) "Hgen HΦ".
-    iDestruct "Hgen" as (h kcntr γ ->) "(#His&Hknctr&Hks)".
+    iDestruct "Hgen" as (h kcntr γ) "(>->&#His&Hknctr&Hks)".
 
     iEval (rewrite /hash_rng_gen_specialized). wp_pures.
     wp_load. wp_pures.
@@ -187,18 +187,23 @@ Section rng.
     iModIntro. iExists _, _, _. iSplit; first eauto. iFrame "#∗".
   Qed.
 
+  Instance fin_keys_inhabited :
+    Inhabited (fin (S (MAX_KEYS MAX_RNGS_POW))).
+  Proof. econstructor. econstructor. Qed.
+
   (* Notice this is almost identical to the version in rng.v, except we need the token
      to open the invariant for the keyed hash *)
   Lemma wp_hash_rng_flip n g K E :
     ↑specN ⊆ E →
     ↑khashN ⊆ E →
     n ≤ MAX_SAMPLES →
-    {{{ hash_rng n g ∗ refines_right K (flip #()) ∗ na_own prelogrelGS_nais (↑khashN) }}}
+    {{{ ▷ hash_rng n g ∗ refines_right K (flip #()) ∗ na_own prelogrelGS_nais (↑khashN) }}}
       g #() @ E
     {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b ∗ na_own prelogrelGS_nais (↑khashN) }}}.
   Proof.
     iIntros (HN1 HN2 Hle Φ) "(Hhash&HK&Htok) HΦ".
-    iDestruct "Hhash" as (h k c m γ -> Hdom) "(Hhash&#Hkeyed_hash&Hc)".
+    rewrite /hash_rng.
+    iDestruct "Hhash" as (h k c m γ) "(>->&>%Hdom&Hhash&#Hkeyed_hash&Hc)".
     rewrite /hash_rng_specialized. wp_pures.
     wp_load. wp_pures.
     case_bool_decide; last by lia.
@@ -226,12 +231,12 @@ Section rng.
 
   Lemma wp_hash_rng_flip_out_of_range n g E:
     MAX_SAMPLES < n →
-    {{{ hash_rng n g }}}
+    {{{ ▷ hash_rng n g }}}
       g #() @ E
     {{{ RET #false; hash_rng (S n) g }}}.
   Proof.
     iIntros (Hlt Φ) "Hhash HΦ".
-    iDestruct "Hhash" as (h c ? m γ -> Hdom) "(Hhash&#His&Hc)".
+    iDestruct "Hhash" as (h k c m γ) "(>->&>%Hdom&Hhash&#Hkeyed_hash&Hc)".
     rewrite /hash_rng_specialized. wp_pures.
     wp_load. wp_pures.
     case_bool_decide; first lia.
@@ -345,13 +350,34 @@ Section rng.
     assert (Z.of_nat k + 1 = Z.of_nat (S k))%Z as -> by lia. auto.
   Qed.
 
+  Lemma spec_run_bounded_rng_gen_out_of_range k f E K :
+    ↑specN ⊆ E →
+    MAX_RNGS < k →
+    sbounded_rng_gen k f -∗
+    refines_right K (f #()) ={E}=∗
+         refines_right K (of_val NONEV) ∗
+         sbounded_rng_gen k f.
+  Proof.
+    iIntros (? Hle) "Hgen Hspec".
+    iDestruct "Hgen" as (c ->) "Hc".
+    rewrite /bounded_rng_gen_specialized.
+    tp_pures K.
+    tp_load K.
+    tp_pures K.
+    case_bool_decide; try lia; [].
+    tp_pures K.
+    iFrame.
+    iModIntro. iExists _. iFrame. eauto.
+  Qed.
+
   Lemma wp_hash_rng_flip_refine n g sg K E :
     ↑khashN ⊆ E →
     ↑specN ⊆ E →
-    {{{ hash_rng n g ∗ sbounded_rng MAX_SAMPLES n sg ∗ refines_right K (sg #()) ∗
+    {{{ ▷ hash_rng n g ∗ sbounded_rng MAX_SAMPLES n sg ∗ refines_right K (sg #()) ∗
           na_own prelogrelGS_nais (↑khashN) }}}
       g #() @ E
-    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ sbounded_rng MAX_SAMPLES (S n) sg ∗ refines_right K #b }}}.
+    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ sbounded_rng MAX_SAMPLES (S n) sg ∗ refines_right K #b ∗
+          na_own prelogrelGS_nais (↑khashN) }}}.
   Proof.
     iIntros (HN1 HN2 Φ) "(Hhash&Hbrng&HK&Htok) HΦ".
     iDestruct "Hbrng" as (sc ->) "Hsc".
@@ -388,5 +414,77 @@ Section rng.
       assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
       iFrame. eauto.
   Qed.
+
+  Definition rngN := nroot.@"rng".
+
+
+  Lemma hash_bounded_refinement :
+    ⊢ REL init_rng_gen << init_bounded_rng_gen :
+      lrel_unit → (lrel_unit → lrel_sum lrel_unit (lrel_unit → lrel_bool)).
+  Proof.
+    rel_arrow_val.
+    iIntros (??) "(->&->)".
+    rewrite refines_eq. iIntros (K) "HK Hown".
+    iApply wp_fupd.
+    wp_apply (wp_init_rng_gen with "[//]").
+    iIntros (g) "Hhash_gen".
+    iMod (spec_init_bounded_rng_gen with "[$]") as (f) "(HK&Hbounded_gen)"; first done.
+    set (P := (∃ n, hash_rng_gen n g ∗ sbounded_rng_gen n f)%I).
+    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
+    { iNext. iExists O. iFrame. }
+    iModIntro. iExists _. iFrame.
+    iIntros (v1 v2) "!> (->&->)".
+    clear K.
+    rewrite /P.
+    iApply (refines_na_inv with "[$Hinv]") ; auto ; iIntros "[HP Hclose]".
+    rewrite refines_eq. iIntros (K) "HK Hown".
+    iDestruct "HP" as (m) "(Hg&>Hsf)".
+    iApply wp_fupd.
+    destruct (decide (m <= MAX_RNGS)) as [Hl|]; last first.
+    { wp_apply (wp_run_rng_gen_out_of_range with "[$]"); first lia.
+      iIntros "Hg".
+      iMod (spec_run_bounded_rng_gen_out_of_range with "[$] [$]") as "(HK&Hsf)"; auto; try lia.
+      iMod ("Hclose" with "[Hg Hsf $Hown]").
+      { iNext. iExists _; iFrame. }
+      iModIntro. iExists _; iFrame.
+      iExists _, _. iLeft.
+      iSplit; first eauto.
+      iSplit; first eauto.
+      eauto. }
+
+    wp_apply (wp_run_rng_gen with "[$]"); first done.
+    iIntros (hrng) "(Hg&Hrng)".
+    iMod (spec_run_bounded_rng_gen with "Hsf HK") as (srng) "(HK&Hsf&Hsrng)"; auto.
+    iMod ("Hclose" with "[Hg Hsf Hown]") as "Hown".
+    { iFrame. iNext. iExists _; iFrame. }
+
+
+    (* finally we show a refinement between the generated rngs *)
+    set (Prng := (∃ n, hash_rng n hrng ∗ sbounded_rng MAX_SAMPLES n srng)%I).
+    iMod (na_inv_alloc prelogrelGS_nais _ rngN Prng with "[Hrng Hsrng]") as "#Hinv_rng".
+    { rewrite /Prng. iNext. iExists _. iFrame.  }
+    iClear "Hinv".
+    iModIntro. iExists _. iFrame.
+
+
+    iExists _, _. iRight.
+    iSplit; first eauto.
+    iSplit; first eauto.
+
+    iIntros (v1 v2) "!> (->&->)".
+    clear Hl m K.
+    iApply (refines_na_inv with "[$Hinv_rng]") ; auto ; iIntros "[HP Hclose]".
+    rewrite refines_eq. iIntros (K) "HK Hown".
+    iDestruct "HP" as (m) "(Hf&>Hsf)".
+    iApply wp_fupd.
+    iDestruct (na_own_acc (↑khashN) with "Hown") as "(Hown&Hclose')"; first solve_ndisj.
+    wp_apply (wp_hash_rng_flip_refine with "[$Hf $Hsf $HK $Hown]"); [done | done |].
+    iIntros (b) "(Hhash&Hbounded&HK&Hown)".
+    iDestruct ("Hclose'" with "[$]") as "Hown".
+    iMod ("Hclose" with "[-HK]").
+    { iFrame. iExists _. iFrame. }
+    iExists _. iFrame. eauto.
+  Qed.
+
 
 End rng.
