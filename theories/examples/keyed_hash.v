@@ -281,7 +281,7 @@ Section keyed_hash.
     enc_gallina_fin k1 v1 = enc_gallina_fin k2 v2 ->
     k1 = k2 /\ v1 = v2.
   Proof.
-    rewrite /enc_gallina_fin. Search nat_to_fin.
+    rewrite /enc_gallina_fin.
     intros Hfeq%(f_equal fin_to_nat).
     rewrite ?fin_to_nat_to_fin in Hfeq.
     apply enc_gallina_inj in Hfeq; auto using fin_to_nat_S_le.
@@ -290,7 +290,7 @@ Section keyed_hash.
 
   Definition khashN := nroot.@"khash".
 
-  Definition keyed_hash_inner (γ : gname) (f : val) : iProp Σ :=
+  Definition keyed_hash_auth (γ : gname) (f : val) : iProp Σ :=
     ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
       ⌜ f = (λ: "k" "v", f0 (enc "k" "v"))%V ⌝ ∗
       ⌜ ∀ x b, mphys !! (fin_to_nat x) = Some b → mghost !! x = Some (Some b) ⌝ ∗
@@ -299,12 +299,14 @@ Section keyed_hash.
       hashfun MAX_HASH_DOM f0 mphys.
 
   Existing Instance timeless_hashfun.
-  #[global] Instance timeless_keyed_hash_inner γ f :
-    Timeless (keyed_hash_inner γ f).
+  #[global] Instance timeless_keyed_hash_auth γ f :
+    Timeless (keyed_hash_auth γ f).
   Proof. apply _. Qed.
 
+  (*
   Definition is_keyed_hash γ f :=
-    inv khashN (keyed_hash_inner γ f).
+    inv khashN (keyed_hash_auth γ f).
+   *)
 
   (* This encoding is annoying to work with because we don't have good lemmas for
      "set products" and big_sepS over such products. *)
@@ -376,7 +378,7 @@ Section keyed_hash.
   Lemma wp_init_keyed_hash E :
     {{{ True }}}
       init_keyed_hash #() @ E
-    {{{ (f: val), RET f; ∃ γ, is_keyed_hash γ f ∗
+    {{{ (f: val), RET f; ∃ γ, keyed_hash_auth γ f ∗
                               [∗ set] k ∈ fin_to_set (fin_key_space), khashfun_own γ k ∅ }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
@@ -389,8 +391,7 @@ Section keyed_hash.
     iMod (ghost_map_alloc m) as (γ) "(Hauth&Hfrags)".
     iExists γ.
     iSplitL "Hf0 Hauth".
-    { iApply inv_alloc. iNext.
-      iExists _, _, _. iFrame. iPureIntro; split_and!; eauto.
+    { iExists _, _, _. iFrame. iPureIntro; split_and!; eauto.
       { intros ??; rewrite lookup_empty; inversion 1. }
       { intros ? _. rewrite /m.
         rewrite lookup_gset_to_gmap_Some; split; auto.
@@ -461,19 +462,16 @@ Section keyed_hash.
     iApply "HP". auto.
   Qed.
 
-  Lemma khashfun_own_couplable E γ k f m v:
-    ↑khashN ⊆ E →
+  Lemma khashfun_own_couplable γ k f m v:
     v <= MAX_VALS →
     m !! v = None →
-    is_keyed_hash γ f -∗
-    khashfun_own γ k m -∗ |={E, E∖↑khashN}=> impl_couplable (λ b, |={E∖↑khashN, E}=> khashfun_own γ k (<[v:=b]>m)).
+    keyed_hash_auth γ f -∗
+    khashfun_own γ k m -∗ impl_couplable (λ b, |==> keyed_hash_auth γ f ∗ khashfun_own γ k (<[v:=b]>m)).
   Proof.
-    iIntros (HE Hmax Hlookup) "Hhash Hk".
+    iIntros (Hmax Hlookup) "Hhash Hk".
     assert (Hmax': v < S MAX_VALS) by lia.
     set (v' := nat_to_fin Hmax' : fin_val_space).
-    rewrite /is_keyed_hash.
-    iInv "Hhash" as ">H" "Hclo".
-    iDestruct "H" as (??? Heq1 Hdom1 Hdom2) "(Hauth&H)".
+    iDestruct "Hhash" as (??? Heq1 Hdom1 Hdom2) "(Hauth&H)".
     set (x := enc_gallina_fin k v').
     iDestruct (khashfun_own_acc_assign_hash _ _ v' with "Hk") as "(Hpts&Hclo')".
     iDestruct (ghost_map_lookup with "[$] [$]") as %Hlook.
@@ -486,13 +484,13 @@ Section keyed_hash.
       exfalso.
       apply Hdom1 in Hlook_phys. rewrite Hlook_phys in Hlook. inversion Hlook.
     }
-    iModIntro.
     iApply (impl_couplable_wand with "H").
     iIntros (b) "Hhash".
     iMod (ghost_map_update (Some b) with "[$] [$]") as "(Hauth&Hpts)".
     iDestruct ("Hclo'" with "[$]") as "Hk".
-    iMod ("Hclo" with "[Hhash Hauth]").
-    { iNext. iExists _, _, _.
+    iModIntro.
+    iSplitL "Hhash Hauth".
+    { iExists _, _, _.
       iSplit; first eauto; iFrame.
       iPureIntro; split.
       - intros x' b'. destruct (decide (enc_gallina_fin k v' = x')).
@@ -505,26 +503,36 @@ Section keyed_hash.
     rewrite /v' fin_to_nat_to_fin //.
   Qed.
 
-  (*
   Lemma wp_khashfun_prev E f m k (v : nat) γ (b : bool) :
-    ↑khashN ⊆ E →
     m !! v = Some b →
-    {{{ is_keyed_hash γ f ∗ khashfun_own γ k m }}}
+    {{{ keyed_hash_auth γ f ∗ khashfun_own γ k m }}}
       f #k #v @ E
-    {{{ RET #b; khashfun_own γ k m }}}.
+    {{{ RET #b; keyed_hash_auth γ f ∗ khashfun_own γ k m }}}.
   Proof.
-    iIntros (HE Hlookup Φ) "(His&Hown) HΦ".
-    iInv "His" as ">H" "Hclo".
+    iIntros (Hlookup Φ) "(H&Hown) HΦ".
     iDestruct "H" as (??? Heq1 Hdom1 Hdom2) "(Hauth&H)".
-    iInv
-    iDestruct "Hhash" as (hm ->) "H".
-    rewrite /compute_hash_specialized.
-    wp_pures.
-    wp_apply (wp_get with "[$]").
-    iIntros (vret) "(Hhash&->)".
-    rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ".
-    iExists _. eauto.
+    rewrite Heq1. rewrite /enc. wp_pures.
+    iAssert (⌜ v < S MAX_VALS ⌝)%I as "%Hmax'".
+    { iDestruct "Hown" as "(%Hdom&_)". iPureIntro. apply elem_of_dom_2 in Hlookup.
+      apply Hdom in Hlookup. lia. }
+    set (v' := nat_to_fin Hmax' : fin_val_space).
+    replace (#(k ≪ MAX_VALS_POW + v)) with #(fin_to_nat (enc_gallina_fin k v')); last first.
+    { f_equal. rewrite /enc_gallina_fin ?fin_to_nat_to_fin /enc_gallina.
+      rewrite /enc_gallina Nat.shiftl_mul_pow2 Z.shiftl_mul_pow2; last by lia.
+      rewrite Nat2Z.inj_add Nat2Z.inj_mul Nat2Z.inj_pow //.
+    }
+    iDestruct (khashfun_own_acc_lookup _ _ v' with "Hown") as "(Hkv&Hclo)".
+    iDestruct (ghost_map_lookup with "[$] [$]") as %Hlook.
+    assert (mphys !! fin_to_nat (enc_gallina_fin k v') = Some b) as Hnone.
+    { destruct (mphys !! _) as [b'|] eqn:Heq.
+      { apply Hdom1 in Heq. rewrite Hlook in Heq. rewrite ?fin_to_nat_to_fin in Heq. congruence. }
+      { apply Hdom2 in Heq. rewrite Hlook in Heq. rewrite ?fin_to_nat_to_fin in Heq. congruence. }
+    }
+    wp_apply (wp_hashfun_prev with "H"); eauto.
+    iIntros "H".
+    iApply "HΦ". iSplitL "Hauth H".
+    { iExists _, _, _. iFrame. eauto. }
+    iApply "Hclo". eauto.
   Qed.
-   *)
 
 End keyed_hash.
