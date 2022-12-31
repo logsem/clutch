@@ -292,11 +292,15 @@ Section keyed_hash.
 
   Definition khashN := nroot.@"khash".
 
-  Definition keyed_hash_auth (γ : gname) (f : val) : iProp Σ :=
-    ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
+  Definition hash_ghost_phys_rel f f0 (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool))
+    : iProp Σ :=
       ⌜ f = (λ: "k" "v", f0 (enc "k" "v"))%V ⌝ ∗
       ⌜ ∀ x b, mphys !! (fin_to_nat x) = Some b → mghost !! x = Some (Some b) ⌝ ∗
-      ⌜ ∀ x, mphys !! (fin_to_nat x) = None → mghost !! x = Some (None) ⌝ ∗
+      ⌜ ∀ x, mphys !! (fin_to_nat x) = None → mghost !! x = Some (None) ⌝.
+
+  Definition keyed_hash_auth (γ : gname) (f : val) : iProp Σ :=
+    ∃ (f0 : val) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool)),
+      hash_ghost_phys_rel f f0 mphys mghost ∗
       ghost_map_auth γ 1 mghost ∗
       hashfun MAX_HASH_DOM f0 mphys.
 
@@ -473,7 +477,7 @@ Section keyed_hash.
     iIntros (Hmax Hlookup) "Hhash Hk".
     assert (Hmax': v < S MAX_VALS) by lia.
     set (v' := nat_to_fin Hmax' : fin_val_space).
-    iDestruct "Hhash" as (??? Heq1 Hdom1 Hdom2) "(Hauth&H)".
+    iDestruct "Hhash" as (??? (Heq1&Hdom1&Hdom2)) "(Hauth&H)".
     set (x := enc_gallina_fin k v').
     iDestruct (khashfun_own_acc_assign_hash _ _ v' with "Hk") as "(Hpts&Hclo')".
     iDestruct (ghost_map_lookup with "[$] [$]") as %Hlook.
@@ -493,8 +497,7 @@ Section keyed_hash.
     iModIntro.
     iSplitL "Hhash Hauth".
     { iExists _, _, _.
-      iSplit; first eauto; iFrame.
-      iPureIntro; split.
+      iFrame. iPureIntro; split_and!; eauto.
       - intros x' b'. destruct (decide (enc_gallina_fin k v' = x')).
         { subst. rewrite ?lookup_insert // => -> //. }
         rewrite ?lookup_insert_ne //; eauto. intros ?%(inj fin_to_nat); congruence.
@@ -512,7 +515,7 @@ Section keyed_hash.
     {{{ RET #b; keyed_hash_auth γ f ∗ khashfun_own γ k m }}}.
   Proof.
     iIntros (Hlookup Φ) "(H&Hown) HΦ".
-    iDestruct "H" as (??? Heq1 Hdom1 Hdom2) "(Hauth&H)".
+    iDestruct "H" as (??? (Heq1&Hdom1&Hdom2)) "(Hauth&H)".
     rewrite Heq1. rewrite /enc. wp_pures.
     iAssert (⌜ v < S MAX_VALS ⌝)%I as "%Hmax'".
     { iDestruct "Hown" as "(%Hdom&_)". iPureIntro. apply elem_of_dom_2 in Hlookup.
