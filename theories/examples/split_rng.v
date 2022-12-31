@@ -269,6 +269,9 @@ Section rng.
   Definition bounded_rng_gen (n: nat) (g: val) : iProp Σ :=
     ∃ c, ⌜ g = bounded_rng_gen_specialized c ⌝ ∗ c ↦ #n.
 
+  Definition sbounded_rng_gen (n: nat) (g: val) : iProp Σ :=
+    ∃ c, ⌜ g = bounded_rng_gen_specialized c ⌝ ∗ c ↦ₛ #n.
+
   Lemma wp_init_bounded_rng_gen E :
     {{{ True }}}
       init_bounded_rng_gen #() @ E
@@ -280,6 +283,18 @@ Section rng.
     wp_pures. iModIntro.
     iApply "HΦ".
     iExists _. iFrame. eauto.
+  Qed.
+
+  Lemma spec_init_bounded_rng_gen E K :
+    ↑specN ⊆ E →
+    refines_right K (init_bounded_rng_gen #()) ={E}=∗ ∃ f, refines_right K (of_val f) ∗ sbounded_rng_gen O f.
+  Proof.
+    iIntros (?) "Hspec".
+    rewrite /init_bounded_rng_gen.
+    tp_pures K.
+    tp_alloc K as c "Hc".
+    tp_pures K.
+    iModIntro. iExists _. iFrame. iExists c. eauto.
   Qed.
 
   Lemma wp_run_bounded_rng_gen k f E :
@@ -299,6 +314,34 @@ Section rng.
     iModIntro. iApply "HΦ".
     iFrame.
     iExists _. iSplit; first done.
+    assert (Z.of_nat k + 1 = Z.of_nat (S k))%Z as -> by lia. auto.
+  Qed.
+
+  Lemma spec_run_bounded_rng_gen k f E K :
+    ↑specN ⊆ E →
+    k <= MAX_RNGS →
+    sbounded_rng_gen k f -∗
+    refines_right K (f #()) ={E}=∗
+    ∃ g, refines_right K (of_val (SOMEV g)) ∗
+         sbounded_rng_gen (S k) f ∗
+         sbounded_rng MAX_SAMPLES O g.
+  Proof.
+    iIntros (? Hle) "Hgen Hspec".
+    iDestruct "Hgen" as (c ->) "Hc".
+    rewrite /bounded_rng_gen_specialized.
+    tp_pures K.
+    tp_load K.
+    tp_pures K.
+    case_bool_decide; try lia; [].
+    tp_pures K.
+    tp_store K.
+    tp_pures K.
+    tp_bind K (init_bounded_rng _ _).
+    rewrite refines_right_bind.
+    iMod (spec_init_bounded_rng with "[$]") as (g) "(HK&Hrng)"; auto.
+    rewrite -refines_right_bind /=.
+    tp_pures K.
+    iModIntro. iExists _. iFrame. iExists c.
     assert (Z.of_nat k + 1 = Z.of_nat (S k))%Z as -> by lia. auto.
   Qed.
 
