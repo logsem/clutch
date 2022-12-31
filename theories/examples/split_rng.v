@@ -4,7 +4,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
-From self.examples Require Import keyed_hash.
+From self.examples Require Import keyed_hash hash.
 
 Set Default Proof Using "Type*".
 
@@ -163,6 +163,75 @@ Section rng.
       iSplit.
       { iPureIntro. set_solver. }
       iApply "Hk". rewrite /k' fin_to_nat_to_fin; auto.
+  Qed.
+
+  Lemma wp_run_rng_gen_out_of_range k f E :
+    MAX_RNGS < k →
+    {{{ hash_rng_gen k f }}}
+      f #() @ E
+    {{{ RET NONEV; hash_rng_gen k f }}}.
+  Proof.
+    iIntros (Hlt Φ) "Hgen HΦ".
+    iDestruct "Hgen" as (h kcntr γ ->) "(#His&Hknctr&Hks)".
+
+    iEval (rewrite /hash_rng_gen_specialized). wp_pures.
+    wp_load. wp_pures.
+    case_bool_decide; last by lia.
+    wp_pures.
+    iApply "HΦ".
+    iModIntro. iExists _, _, _. iSplit; first eauto. iFrame "#∗".
+  Qed.
+
+  (* Notice this is almost identical to the version in rng.v, except we need the token
+     to open the invariant for the keyed hash *)
+  Lemma wp_hash_rng_flip n g K E :
+    ↑specN ⊆ E →
+    ↑khashN ⊆ E →
+    n ≤ MAX_SAMPLES →
+    {{{ hash_rng n g ∗ refines_right K (flip #()) ∗ na_own prelogrelGS_nais (↑khashN) }}}
+      g #() @ E
+    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b ∗ na_own prelogrelGS_nais (↑khashN) }}}.
+  Proof.
+    iIntros (HN1 HN2 Hle Φ) "(Hhash&HK&Htok) HΦ".
+    iDestruct "Hhash" as (h k c m γ -> Hdom) "(Hhash&#Hkeyed_hash&Hc)".
+    rewrite /hash_rng_specialized. wp_pures.
+    wp_load. wp_pures.
+    case_bool_decide; first by lia.
+    rewrite /is_keyed_hash.
+    wp_pures.
+    iMod (na_inv_acc with "[$] [$]") as "(>H&Htok&Hclo)"; auto.
+    iDestruct (khashfun_own_couplable _ _ _ _ _ m n with "[$] [$]") as "Hcoup"; auto.
+    { apply not_elem_of_dom. auto. }
+    iApply (hash.impl_couplable_elim with "[-]"); [done | done |].
+    iFrame "Hcoup HK". iIntros (b) ">(Hauth&Hhash) HK".
+    wp_apply (wp_khashfun_prev with "[$]").
+    { rewrite lookup_insert //. }
+    iIntros "(Hauth&Hhash)". wp_pures.
+    wp_store. iMod ("Hclo" with "[$]") as "Htok". iModIntro. iApply "HΦ".
+    iFrame. iExists _, _, _, _, _. iFrame.
+    iSplit; first done.
+    iSplit.
+    { iPureIntro. intros x. rewrite dom_insert_L.
+      set_unfold. intros Hle' [?|?]; first lia.
+      eapply Hdom; last by eassumption. lia.
+    }
+    assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
+    auto.
+  Qed.
+
+  Lemma wp_hash_rng_flip_out_of_range n g E:
+    MAX_SAMPLES < n →
+    {{{ hash_rng n g }}}
+      g #() @ E
+    {{{ RET #false; hash_rng n g }}}.
+  Proof.
+    iIntros (Hlt Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (h c ? m γ -> Hdom) "(Hhash&#His&Hc)".
+    rewrite /hash_rng_specialized. wp_pures.
+    wp_load. wp_pures.
+    case_bool_decide; last lia.
+    wp_pures. iApply "HΦ".
+    iModIntro. iExists _, _, _, _, _. iFrame. eauto.
   Qed.
 
 End rng.
