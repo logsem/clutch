@@ -240,12 +240,14 @@ Section keyed_hash.
   Definition fin_key_space : Type := fin (S (MAX_KEYS)).
   Definition fin_val_space : Type := fin (S (MAX_VALS)).
 
+  (*
   Instance finite_fin_val_space : Finite (fin_val_space).
   Proof. apply _. Qed.
   Instance finite_fin_key_space : Finite (fin_key_space).
   Proof. apply _. Qed.
   Instance finite_fin_hash_dom_space : Finite (fin_hash_dom_space).
   Proof. apply _. Qed.
+   *)
 
   Context {GHOST_MAP: ghost_mapG Σ fin_hash_dom_space (option bool)}.
 
