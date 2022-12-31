@@ -42,12 +42,14 @@ Section rng.
           let: "sample_cntr" := ref #0 in
           SOME (λ: "_",
                let: "v" := !"sample_cntr" in
-               if: #MAX_SAMPLES < "v" then
-                 #false
-               else
-                 let: "b" := "f" "k" "v" in
-                 "sample_cntr" <- "v" + #1;;
-                 "b").
+               let: "b" :=
+                 if: "v" ≤ #MAX_SAMPLES then
+                   "f" "k" "v"
+                 else
+                   #false
+               in
+               "sample_cntr" <- "v" + #1;;
+               "b").
 
   Definition hash_rng_gen_specialized (f: val) (key_cntr: loc) : val :=
       λ: "_",
@@ -59,23 +61,26 @@ Section rng.
           let: "sample_cntr" := ref #0 in
           SOME (λ: "_",
                let: "v" := !"sample_cntr" in
-               if: #MAX_SAMPLES < "v" then
-                 #false
-               else
-                 let: "b" := f "k" "v" in
-                 "sample_cntr" <- "v" + #1;;
-                 "b").
+               let: "b" :=
+                 if: "v" ≤ #MAX_SAMPLES then
+                   f "k" "v"
+                 else
+                   #false
+               in
+               "sample_cntr" <- "v" + #1;;
+               "b").
 
   Definition hash_rng_specialized (f : val) (k : nat) (c : loc) : val :=
     (λ: "_",
       let: "v" := !#c in
-      if: #MAX_SAMPLES < "v" then
-        #false
-      else
-        let: "b" := f #k "v" in
-        #c <- "v" + #1;;
-        "b").
-
+      let: "b" :=
+        if: "v" ≤ #MAX_SAMPLES then
+          f #k "v"
+        else
+          #false
+      in
+      #c <- "v" + #1;;
+      "b").
 
   Context `{!prelogrelGS Σ}.
 
@@ -196,7 +201,7 @@ Section rng.
     iDestruct "Hhash" as (h k c m γ -> Hdom) "(Hhash&#Hkeyed_hash&Hc)".
     rewrite /hash_rng_specialized. wp_pures.
     wp_load. wp_pures.
-    case_bool_decide; first by lia.
+    case_bool_decide; last by lia.
     rewrite /is_keyed_hash.
     wp_pures.
     iMod (na_inv_acc with "[$] [$]") as "(>H&Htok&Hclo)"; auto.
@@ -223,16 +228,20 @@ Section rng.
     MAX_SAMPLES < n →
     {{{ hash_rng n g }}}
       g #() @ E
-    {{{ RET #false; hash_rng n g }}}.
+    {{{ RET #false; hash_rng (S n) g }}}.
   Proof.
     iIntros (Hlt Φ) "Hhash HΦ".
     iDestruct "Hhash" as (h c ? m γ -> Hdom) "(Hhash&#His&Hc)".
     rewrite /hash_rng_specialized. wp_pures.
     wp_load. wp_pures.
-    case_bool_decide; last lia.
-    wp_pures. iApply "HΦ".
-    iModIntro. iExists _, _, _, _, _. iFrame. eauto.
+    case_bool_decide; first lia.
+    wp_pures. wp_store. iApply "HΦ".
+    iModIntro.
+    assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
+    iExists _, _, _, _, _. iFrame "#∗". iSplit; first eauto.
+    iPureIntro. intros. apply Hdom. lia.
   Qed.
+
   (* The "ideal" version that calls a tape-less flip directly *)
 
   Definition init_bounded_rng_gen : val :=
@@ -332,12 +341,9 @@ Section rng.
       iIntros "Hhash".
       iApply "HΦ".
       iFrame.
-  Abort.
-  (*
       iExists _.
       assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
       iFrame. eauto.
   Qed.
-   *)
 
 End rng.
