@@ -4,7 +4,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
-From self.examples Require Import keyed_hash hash.
+From self.examples Require Import keyed_hash hash rng.
 
 Set Default Proof Using "Type*".
 
@@ -233,5 +233,111 @@ Section rng.
     wp_pures. iApply "HΦ".
     iModIntro. iExists _, _, _, _, _. iFrame. eauto.
   Qed.
+  (* The "ideal" version that calls a tape-less flip directly *)
+
+  Definition init_bounded_rng_gen : val :=
+    λ: "_",
+      let: "rng_cntr" := ref #0 in
+      λ: "_",
+        let: "k" := !"rng_cntr" in
+        if: #MAX_RNGS < "k" then
+          NONE
+        else
+          "rng_cntr" <- "k" + #1;;
+          let: "f" := (init_bounded_rng MAX_SAMPLES) #() in
+          SOME "f".
+
+  Definition bounded_rng_gen_specialized (c : loc) : val :=
+      λ: "_",
+        let: "k" := !#c in
+        if: #MAX_RNGS < "k" then
+          NONE
+        else
+          #c <- "k" + #1;;
+          let: "f" := (init_bounded_rng MAX_SAMPLES) #() in
+          SOME "f".
+
+  Definition bounded_rng_gen (n: nat) (g: val) : iProp Σ :=
+    ∃ c, ⌜ g = bounded_rng_gen_specialized c ⌝ ∗ c ↦ #n.
+
+  Lemma wp_init_bounded_rng_gen E :
+    {{{ True }}}
+      init_bounded_rng_gen #() @ E
+    {{{ g, RET g; bounded_rng_gen O g }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    rewrite /init_bounded_rng_gen. wp_pures.
+    wp_alloc c as "Hc".
+    wp_pures. iModIntro.
+    iApply "HΦ".
+    iExists _. iFrame. eauto.
+  Qed.
+
+  Lemma wp_run_bounded_rng_gen k f E :
+    k <= MAX_RNGS →
+    {{{ bounded_rng_gen k f }}}
+      f #() @ E
+    {{{ (g: val), RET (SOMEV g); bounded_rng_gen (S k) f ∗ bounded_rng MAX_SAMPLES 0 g }}}.
+  Proof.
+    iIntros (Hle Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (c ->) "Hc".
+    rewrite /bounded_rng_gen_specialized.
+    wp_pures. wp_load. wp_pures.
+    case_bool_decide; try lia; [].
+    wp_pures. wp_store.
+    wp_apply (wp_init_bounded_rng with "[//]").
+    iIntros (?) "H". wp_pures.
+    iModIntro. iApply "HΦ".
+    iFrame.
+    iExists _. iSplit; first done.
+    assert (Z.of_nat k + 1 = Z.of_nat (S k))%Z as -> by lia. auto.
+  Qed.
+
+  Lemma wp_hash_rng_flip_refine n g sg K E :
+    ↑khashN ⊆ E →
+    ↑specN ⊆ E →
+    {{{ hash_rng n g ∗ sbounded_rng MAX_SAMPLES n sg ∗ refines_right K (sg #()) ∗
+          na_own prelogrelGS_nais (↑khashN) }}}
+      g #() @ E
+    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ sbounded_rng MAX_SAMPLES (S n) sg ∗ refines_right K #b }}}.
+  Proof.
+    iIntros (HN1 HN2 Φ) "(Hhash&Hbrng&HK&Htok) HΦ".
+    iDestruct "Hbrng" as (sc ->) "Hsc".
+    rewrite /bounded_rng_specialized.
+    tp_pures K.
+    tp_load K.
+    tp_pures K.
+    case_bool_decide.
+    - tp_pures K.
+      tp_bind K (flip #())%E.
+      rewrite refines_right_bind.
+      iApply wp_fupd.
+      wp_apply (wp_hash_rng_flip with "[$HK $Hhash $Htok]"); auto.
+      { lia. }
+      iIntros (b) "(Hhash&HK&Htok)".
+      rewrite -refines_right_bind /=.
+      tp_pures K.
+      tp_store K.
+      tp_pures K.
+      iApply "HΦ".
+      iFrame. iModIntro.
+      iExists _.
+      assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
+      iFrame. eauto.
+    - tp_pures K.
+      tp_store K.
+      tp_pures K.
+      wp_apply (wp_hash_rng_flip_out_of_range with "[$Hhash]"); auto.
+      { lia. }
+      iIntros "Hhash".
+      iApply "HΦ".
+      iFrame.
+  Abort.
+  (*
+      iExists _.
+      assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
+      iFrame. eauto.
+  Qed.
+   *)
 
 End rng.
