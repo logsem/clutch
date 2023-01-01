@@ -313,10 +313,18 @@ Section keyed_hash.
       ghost_map_auth γ 1 mghost ∗
       shashfun MAX_HASH_DOM f0 mphys.
 
+  Section timeless_spec.
+    Existing Instance timeless_shashfun.
+    Lemma timeless_skeyed_hash_auth γ f :
+      Timeless (skeyed_hash_auth γ f).
+    Proof. apply _. Qed.
+  End timeless_spec.
+
   Existing Instance timeless_hashfun.
   #[global] Instance timeless_keyed_hash_auth γ f :
     Timeless (keyed_hash_auth γ f).
   Proof. apply _. Qed.
+
 
   (*
   Definition is_keyed_hash γ f :=
