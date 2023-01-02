@@ -546,6 +546,25 @@ Section positive.
   Context `{Countable A}.
   Implicit Types f g : A → R.
 
+  Lemma mon_suc_to_mon (h : nat -> R) :
+    (∀ p, h p <= h (S p)) ->
+    (forall m n, (m <= n)%nat -> h m <= h n).
+  Proof.
+    intros Hmon m.
+    induction m; intro n; induction n.
+    - intros; apply Rle_refl.
+    - intro. apply (Rle_trans _ (h n)); auto with arith.
+    - intro Haux.
+      inversion Haux.
+    - intro Haux.
+      destruct (decide ((S m <= n)%nat)) as [Hle | Hgt].
+      + apply (Rle_trans _ (h n)); auto with arith.
+      + assert (S m = S n) as ->; [ | apply Rle_refl].
+        assert ((n < S m)%nat); auto with arith.
+        apply not_le; auto.
+  Qed.
+
+
   Lemma partial_sum_pos (h : nat → R) p :
     (∀ n, 0 <= h n) ->
     0 <= sum_n h p.
@@ -556,6 +575,23 @@ Section positive.
     + rewrite sum_n_n; auto.
     + rewrite sum_n_Sm; auto with arith.
       apply Rplus_le_le_0_compat; auto.
+  Qed.
+
+
+  Lemma partial_sum_elem (h : nat → R) p :
+    (∀ n, 0 <= h n) ->
+    h p <= sum_n h p.
+  Proof.
+    intros Hpos.
+    rewrite /sum_n.
+    induction p.
+    + rewrite sum_n_n; auto.
+      apply Rle_refl.
+    + rewrite sum_n_Sm; auto with arith.
+      assert (h (S p) = 0 + h (S p)) as Haux; try lra.
+      rewrite {1}Haux.
+      Search Rplus.
+      apply Rplus_le_compat; [apply partial_sum_pos | apply Rle_refl]; auto.
   Qed.
 
   Lemma partial_sum_mon (h : nat → R) p q :
@@ -1147,6 +1183,17 @@ Qed.
  Qed.
 
 
+ Lemma series_pos_elem_le (h : nat -> R) n:
+   (forall a, 0 <= h a) ->
+   ex_series h ->
+   h n <= Series h.
+ Proof.
+   intros Hpos Hex.
+   eapply Rle_trans; [apply partial_sum_elem | ]; auto.
+   apply series_pos_partial_le; auto.
+ Qed.
+
+
  Lemma fubini_fin_inf (h : nat * nat → R) n:
     (forall a b, 0 <= h (a, b)) ->
     (forall b, ex_series (λ a, h (a, b))) ->
@@ -1236,6 +1283,19 @@ Qed.
      + apply upper_bound_ge_sup; auto.
    }
    apply (Sup_seq_correct (λ x : nat, sum_n h x)).
+ Qed.
+
+
+ Lemma series_bounded_rbar (h : nat -> R) (l : Rbar) :
+   (forall a, 0 <= h a) ->
+   (forall n, Rbar_le (sum_n h n) l) ->
+   ex_series h ->
+   Rbar_le (Series h) l.
+ Proof.
+   intros Hpos Hle Hex.
+   destruct l eqn:Hl; simpl; auto.
+   - apply series_bounded; auto.
+   - apply (Hle 0%nat); auto.
  Qed.
 
  Lemma fubini_pos_series (h : nat * nat → R) :
@@ -1410,9 +1470,430 @@ End positive.
 
 Section mct.
 
+ (*
+Lemma sup_mon_seq_plus_k (h : nat -> R) (k : nat) :
+  (forall n, (h n) <= (h (S n))) ->
+  (Sup_seq h) = (Sup_seq (λ(n:nat), h((n + k)%nat))).
+Proof.
+  intros Hmon.
+  Search Rle.
+  Search "is_finite".
 
+
+Lemma mon_bounded_ex_lim_aux (h : nat -> R) b l r :
+  (forall n, (h n) <= (h (S n))) ->
+  (forall n, (h n) <= b) ->
+  (is_LimInf_seq h l) ->
+  (is_LimSup_seq h r) ->
+  l = r.
+Proof.
+  intros Hmon Hb Hinf Hsup.
+  apply is_LimSup_seq_unique in Hsup.
+  rewrite <- Hsup.
+  symmetry.
+  apply is_LimSup_seq_unique.
+  destruct l eqn:Hl; simpl in *; last first.
+  - destruct (Hinf (h 0%nat) 0%nat) as [n [Hn1 Hn2]].
+      assert (h 0%nat <= h n); try lra.
+      induction n; [ apply Rle_refl | ].
+      apply (Rle_trans _ (h n)); auto.
+      apply IHn; auto; [apply Nat.le_0_l | ].
+      apply (Rle_lt_trans _ (h (S n))); auto.
+  - destruct (Hinf b) as [n H2].
+    specialize (H2 n (le_refl n)).
+    specialize (Hb n); lra.
+  - intro eps; split.
+    + intro N.
+      specialize (Hinf eps) as [H3 [M H4]].
+      exists (N `max` M); split; [apply Nat.le_max_l | apply H4, Nat.le_max_r ].
+    +
+
+
+
+
+  Search is_sup_seq.
+
+  apply Rbar_le_antisym.
+  - rewrite <- (is_LimInf_seq_unique h l); auto.
+    rewrite <- (is_LimSup_seq_unique h r); auto.
+    apply LimSup_LimInf_seq_le.
+  - destruct l eqn:Hl; destruct r eqn:Hr; simpl in *; auto; last first.
+    + destruct (Hsup b 0%nat) as [n [Hn1 Hn2]].
+      specialize (Hb n); lra.
+    + destruct (Hinf (h 0%nat) 0%nat) as [n [Hn1 Hn2]].
+      assert (h 0%nat <= h n); try lra.
+      induction n; [ apply Rle_refl | ].
+      apply (Rle_trans _ (h n)); auto.
+      apply IHn; auto; [apply Nat.le_0_l | ].
+      apply (Rle_lt_trans _ (h (S n))); auto.
+    + destruct (Hsup b 0%nat) as [n [Hn1 Hn2]].
+      specialize (Hb n); lra.
+    + simplify_eq.
+
+
+Lemma mon_bounded_ex_lim (h : nat → R) b :
+  (forall n, (h n) <= (h (S n))) ->
+  (forall n, (h n) <= b) ->
+  ex_lim_seq h.
+Proof.
+  assert (Rbar_le (LimSup_seq h) (LimInf_seq h)) as Haux.
+  {
+    simpl.
+
+  }
+  rewrite /Lim_seq.
+  Search LimSup_seq.
+  unfold LimSup_seq.
+  Search is_sup_seq.
+Admitted.
+*)
+
+  (* AA: This is quite convoluted, I wonder if it can be simplified *)
+  Lemma Sup_seq_bounded_plus_l (f : nat -> R) (b r : R) :
+    (forall n, 0 <= f n <= b) ->
+    Sup_seq (λ a, r + (f a)) =
+    r + real (Sup_seq f).
+  Proof.
+    intro Hf.
+    apply Rbar_le_antisym.
+    - apply upper_bound_ge_sup.
+      intro n.
+      simpl.
+      apply Rplus_le_compat; [apply Rle_refl | ].
+      + apply sup_is_upper_bound'.
+        rewrite -> (Rbar_le_sandwich 0 b); auto.
+        * apply Sup_seq_correct.
+        * apply (Sup_seq_minor_le _ _ 0%nat), Hf.
+        * apply (upper_bound_ge_sup _ b), Hf.
+    - rewrite /Sup_seq.
+     destruct ex_sup_seq as (p & Hp).
+     destruct ex_sup_seq as (q & Hq).
+     assert (is_finite p) as Hfinp.
+     { apply (Rbar_le_sandwich 0 b).
+        + eapply (Rbar_le_trans _ (Finite (f 0%nat))).
+          * apply (proj1 (Hf 0%nat)).
+          * rewrite <- (is_sup_seq_unique f p); auto.
+            apply (Sup_seq_minor_le _ _ 0%nat), Rle_refl.
+        + rewrite <- (is_sup_seq_unique f p); auto.
+          apply (upper_bound_ge_sup _ b), Hf.
+     }
+     assert (is_finite q) as Hfinq.
+     { apply (Rbar_le_sandwich r (r + b)).
+        + eapply (Rbar_le_trans _ (Finite (r + f 0%nat))).
+          * assert (r = r + 0) as Haux; [lra | ].
+            rewrite {1}Haux.
+            apply (Rbar_plus_le_compat r r 0 (f 0%nat)); [apply Rbar_le_refl | ].
+            apply (proj1 (Hf 0%nat)).
+          * rewrite <- (is_sup_seq_unique (λ a : nat, r + f a) q); auto.
+            apply (Sup_seq_minor_le _ _ 0%nat), Rle_refl.
+        + rewrite <- (is_sup_seq_unique (λ a : nat, r + f a) q); auto.
+          apply (upper_bound_ge_sup _ (r + b)).
+          intro n; apply (Rbar_plus_le_compat r r (f n) b); [apply Rbar_le_refl | ].
+          apply Hf.
+     }
+     simpl proj1_sig.
+     apply is_sup_seq_lub in Hp.
+     apply is_sup_seq_lub in Hq.
+     destruct Hp as (Hp1 & Hp2).
+     destruct Hq as (Hq1 & Hq2).
+     apply is_finite_correct in Hfinp.
+     destruct Hfinp as (p' & ->).
+     apply is_finite_correct in Hfinq.
+     destruct Hfinq as (q' & ->).
+     simpl.
+     assert (p' <= q' + (opp r)) as H; last first.
+     {
+       apply (Rplus_le_compat r r) in H; [ | apply Rle_refl].
+       apply (Rle_trans (r + p') (r + (q' + opp r)) q'); auto.
+       rewrite (Rplus_comm q' (opp r)).
+       rewrite <- Rplus_assoc.
+       assert (r + opp r = 0) as ->.
+       + apply (plus_opp_r r).
+       + rewrite Rplus_0_l.
+         apply Rle_refl.
+     }
+     assert (Rbar_le p' (q' + opp r)); auto.
+     apply Hp2.
+     intros _ (n & ->).
+     apply (Rbar_le_trans _ (r + f n + opp r)).
+     { simpl.
+       rewrite (Rplus_comm r (f n)).
+       rewrite (Rplus_assoc).
+       assert (r + opp r = 0) as ->.
+       + apply (plus_opp_r r).
+       + rewrite Rplus_0_r.
+         apply Rle_refl.
+     }
+     simpl.
+     apply Rplus_le_compat; [ | apply Rle_refl ].
+     assert (Rbar_le (r + f n) q'); auto.
+     apply Hq1.
+     exists n; auto.
+  Qed.
+
+  Lemma Sup_seq_bounded_plus_r (f : nat -> R) (b r : R) :
+    (forall n, 0 <= f n <= b) ->
+    Sup_seq (λ a, (f a) + r) =
+    real (Sup_seq f) + r.
+  Proof.
+    intro Hf.
+    rewrite Rplus_comm.
+    erewrite Sup_seq_ext; last first.
+    - intro; rewrite Rplus_comm; done.
+    - eapply Sup_seq_bounded_plus_l; eauto.
+  Qed.
+
+
+  Lemma Sup_seq_bounded_plus_sup (f g : nat -> R) (b r : R) :
+    (forall n, 0 <= f n <= b) ->
+    (forall n, 0 <= g n <= b) ->
+    (forall n, f n <= f (S n)) ->
+    (forall n, g n <= g (S n)) ->
+    Sup_seq (λ a, (f a) + (g a)) =
+    real (Sup_seq f) + (Sup_seq g).
+  Proof.
+    intros Hfb Hgb Hfmon Hgmon.
+    apply Rbar_le_antisym.
+    - apply upper_bound_ge_sup.
+      intro n.
+      simpl.
+      apply Rplus_le_compat.
+      + apply sup_is_upper_bound'.
+        rewrite -> (Rbar_le_sandwich 0 b); auto.
+        * apply Sup_seq_correct.
+        * apply (Sup_seq_minor_le _ _ 0%nat), Hfb.
+        * apply (upper_bound_ge_sup _ b), Hfb.
+      + apply sup_is_upper_bound'.
+        rewrite -> (Rbar_le_sandwich 0 b); auto.
+        * apply Sup_seq_correct.
+        * apply (Sup_seq_minor_le _ _ 0%nat), Hgb.
+        * apply (upper_bound_ge_sup _ b), Hgb.
+     - rewrite <- (Sup_seq_bounded_plus_r _ b); auto.
+       apply upper_bound_ge_sup.
+       intro n.
+       rewrite <- (Sup_seq_bounded_plus_l _ b); auto.
+       apply upper_bound_ge_sup.
+       intro m.
+       eapply Rbar_le_trans; last first.
+       + apply (sup_is_upper_bound _ (n `max` m)).
+       + simpl.
+         apply Rplus_le_compat.
+         * pose proof (mon_suc_to_mon f Hfmon) as Haux.
+           apply Haux, Nat.le_max_l.
+         * pose proof (mon_suc_to_mon g Hgmon) as Haux.
+           apply Haux, Nat.le_max_r.
+  Qed.
+
+  Lemma MCT_aux1 (h : nat -> nat → R) (l : nat -> R) (r : R) (M : nat) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_series (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  Finite ((sum_n (λ a : nat, real (Sup_seq (λ n : nat, h n a))) M)) =
+  (Sup_seq (λ n, sum_n (λ a : nat, h n a) M)).
+  Proof.
+    intros Hpos Hmon Hbd Hseries Hsup.
+    assert (forall a b, Finite (a + b) = Finite a + Finite b) as Haux; auto.
+    induction M.
+    - rewrite sum_O.
+      destruct (Hbd 0%nat) as (s & Hs).
+      rewrite (Rbar_le_sandwich 0 s).
+      + apply Sup_seq_ext; intro; rewrite sum_O; auto.
+      + apply (Sup_seq_minor_le (λ n0 : nat, h n0 0%nat) 0 0%nat).
+        apply Hpos.
+      + apply upper_bound_ge_sup; auto.
+    - rewrite sum_Sn.
+      rewrite Haux.
+      rewrite IHM.
+      symmetry.
+      erewrite Sup_seq_ext; last first.
+      + intro; rewrite sum_Sn. done.
+      + rewrite Haux; simpl.
+        erewrite <- (Sup_seq_bounded_plus_sup _ _ r); auto; intros; try split.
+        * apply partial_sum_pos; auto.
+        * eapply Rle_trans.
+          -- apply series_pos_partial_le; auto.
+             exists (l n); auto.
+          -- rewrite (is_series_unique _ _ (Hseries n)).
+             apply (sup_is_upper_bound'); auto.
+        * auto.
+        * eapply Rle_trans.
+          -- apply series_pos_elem_le; auto.
+             exists (l n); auto.
+          -- rewrite (is_series_unique _ _ (Hseries n)).
+             apply (sup_is_upper_bound'); auto.
+       * apply sum_n_le.
+         intro m; auto.
+  Qed.
+
+  Lemma MCT_aux2 (h : nat -> nat → R) (l : nat -> R) (r : R) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_series (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  Rbar_le (Sup_seq (λ m, sum_n (λ a, real (Sup_seq (λ n, h n a))) m)) r.
+  Proof.
+    intros Hpos Hmon Hbd Hseries Hsup.
+    apply upper_bound_ge_sup.
+    intro M.
+    erewrite MCT_aux1; eauto.
+    apply upper_bound_ge_sup.
+    intro n.
+    apply (Rbar_le_trans _ (Series (λ a : nat, h n a))).
+    - apply series_pos_partial_le; auto.
+      exists (l n); auto.
+    - apply (Rbar_le_trans _ (l n)).
+      + rewrite <- (is_series_unique (λ a : nat, h n a) (l n)); auto.
+        apply Rbar_le_refl.
+      + erewrite <- is_sup_seq_unique; eauto.
+        apply (sup_is_upper_bound (λ x : nat, l x)).
+  Qed.
+
+
+  Lemma MCT_aux3 (h : nat -> nat → R) (l : nat -> R) (r : R) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_series (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  Rbar_le r (Sup_seq (λ m, sum_n (λ a, real (Sup_seq (λ n, h n a))) m)).
+  Proof.
+    intros Hpos Hmon Hbd Hseries Hsup.
+    rewrite <- (is_sup_seq_unique _ _ Hsup).
+    apply upper_bound_ge_sup.
+    intro n.
+    rewrite <- (is_series_unique _ _ (Hseries n)).
+    apply series_bounded_rbar; auto; [ | (exists (l n)); auto].
+    intro m.
+    apply (Sup_seq_minor_le _ _ m).
+    erewrite MCT_aux1; eauto.
+    apply (sup_is_upper_bound (λ n0 : nat, sum_n (λ a : nat, h n0 a) m)).
+  Qed.
+
+
+  Lemma rbar_le_finite (p : R) (q : Rbar) :
+    is_finite q ->
+    Rbar_le p q ->
+    p <= real q.
+  Proof.
+    intros Hq Hle.
+    rewrite /is_finite/= in Hq.
+    destruct q; auto; simplify_eq.
+  Qed.
+
+  Lemma finite_rbar_le (p : R) (q : Rbar) :
+    is_finite q ->
+    Rbar_le q p ->
+    q <= real p.
+  Proof.
+    intros Hq Hle.
+    rewrite /is_finite/= in Hq.
+    destruct q; auto; simplify_eq.
+  Qed.
+
+  Lemma rbar_le_rle (p : R) (q : R) :
+    Rbar_le (Finite p) (Finite q) <-> Rle p q.
+  Proof.
+    auto.
+  Qed.
+
+  Lemma is_finite_bounded (p q : R) (r : Rbar) :
+    Rbar_le p r ->
+    Rbar_le r q ->
+    is_finite r.
+  Proof.
+    intros H1 H2.
+    rewrite /is_finite.
+    destruct r eqn:Hr; auto.
+    - destruct H2.
+    - destruct H1.
+  Qed.
+
+  Lemma rbar_finite_real_eq (p : Rbar) :
+    is_finite p ->
+    Finite (real p) = p.
+  Proof.
+    intro Hfin.
+    destruct p; auto.
+  Qed.
+
+  Lemma MCT_aux4 (h : nat -> nat → R) (l : nat -> R) (r : R) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_series (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  is_finite
+    (Sup_seq
+       (λ n : nat,
+        Finite
+          (sum_n (λ a : nat, real (Sup_seq (λ n0 : nat, Finite (h n0 a)))) n))).
+  Proof.
+    intros Hpos Hmon Hbd Hseries Hsup.
+    apply (is_finite_bounded 0 r).
+    - apply (Sup_seq_minor_le _ _ 0%nat).
+      destruct (Hbd 0%nat) as (s & Hs).
+      rewrite sum_O.
+      rewrite (Rbar_le_sandwich 0 s).
+      + apply (Sup_seq_minor_le (λ n0 : nat, h n0 0%nat) 0 0%nat).
+        apply Hpos.
+      + apply (Sup_seq_minor_le (λ n0 : nat, h n0 0%nat) 0 0%nat).
+        apply Hpos.
+      + apply upper_bound_ge_sup; auto.
+    - rewrite <- (is_sup_seq_unique l r); auto.
+      apply upper_bound_ge_sup; intro n.
+      erewrite MCT_aux1; eauto.
+      apply Sup_seq_le; intro m.
+      rewrite <- (is_series_unique (h m) (l m)); auto.
+      apply series_pos_partial_le; auto.
+      exists (l m); auto.
+  Qed.
+
+
+  Lemma MCT_series (h : nat -> nat → R) (l : nat -> R) (r : R) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_series (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  Series (λ a, Sup_seq (λ n, h n a)) = r.
+  Proof.
+    intros Hpos Hmon Hbd Hseries Hsup.
+    rewrite lim_is_sup'; auto.
+    - apply Rle_antisym.
+      + apply finite_rbar_le; [eapply MCT_aux4 | eapply MCT_aux2 ]; eauto.
+      + apply rbar_le_finite; [eapply MCT_aux4| eapply MCT_aux3 ]; eauto.
+    - intro n.
+      apply Rbar_0_le_to_Rle.
+      apply (Sup_seq_minor_le _ _ 0%nat); auto.
+      apply Hpos.
+    - apply ex_pos_bounded_series.
+      + intro.
+        apply Rbar_0_le_to_Rle.
+        apply (Sup_seq_minor_le _ _ 0%nat); auto.
+        apply Hpos.
+      + exists r.
+        intro m.
+        apply rbar_le_rle.
+        assert
+          (Rbar_le
+        (@sum_n R_AbelianGroup (fun a : nat => real (Sup_seq (fun n : nat => Finite (h n a)))) m) r);
+          auto.
+        erewrite MCT_aux1; eauto.
+        rewrite <- (is_sup_seq_unique _ r Hsup).
+        apply Sup_seq_le.
+        intro n.
+        rewrite <- (is_series_unique (h n) (l n)); auto.
+        apply series_pos_partial_le; auto.
+        exists (l n); auto.
+Qed.
+
+(*
 Lemma lim_seq_incr: ∀ u : nat → R, (∀ n : nat, (u n <= u (S n))) → (u 0%nat) <= (Lim_seq u).
 Proof. Admitted.
+*)
 
 (*
   Adapted from
