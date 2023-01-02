@@ -672,6 +672,15 @@ Context `{Countable A, Countable B}.
       case_bool_decide; auto; lra.
   Qed.
 
+
+  Lemma refRcoupl_eq_refl (μ1 : distr A):
+    refRcoupl μ1 μ1 (=).
+  Proof.
+    apply refRcoupl_from_leq.
+    intro a.
+    apply Rle_refl.
+  Qed.
+
   Lemma refRcoupl_eq_trans (μ1 μ2 μ3 : distr A):
     refRcoupl μ1 μ2 (=) → refRcoupl μ2 μ3 (=) → refRcoupl μ1 μ3 (=).
   Proof.

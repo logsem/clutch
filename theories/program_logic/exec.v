@@ -137,6 +137,23 @@ Section exec_val.
     erewrite exec_val_is_val; eauto.
   Qed.
 
+
+  Lemma exec_val_mon n ρ :
+    forall a, (exec_val n ρ) a <= (exec_val (S n) ρ) a.
+  Proof.
+    apply refRcoupl_eq_elim.
+    move : ρ.
+    induction n.
+    - intros.
+      apply refRcoupl_from_leq; intro; auto.
+      rewrite /distr_le; simpl.
+      case_match; auto.
+      apply Rle_refl.
+    - intros; do 2 rewrite exec_val_Sn.
+      apply (refRcoupl_dbind _ _ _ _ eq); [ | apply refRcoupl_eq_refl].
+      intros ? ? ->; auto.
+  Qed.
+
   Lemma exec_val_Sn_not_val e σ n :
     to_val e = None →
     exec_val (S n) (e, σ) = prim_step e σ ≫= exec_val n.
@@ -152,10 +169,11 @@ Section prim_exec_lim.
   Implicit Types v : val Λ.
   Implicit Types σ : state Λ.
 
-  Program Definition lim_exec_val (ρ : cfg Λ) : distr (val Λ):= MkDistr (λ v, Lim_seq (λ n, exec_val n ρ v)) _ _ _.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
+  Program Definition lim_exec_val (ρ : cfg Λ) : distr (val Λ):=
+    lim_distr (λ n, exec_val n ρ) _.
+  Next Obligation.
+    intros; apply exec_val_mon.
+  Qed.
 
   Lemma lim_exec_val_prim_step (ρ : cfg Λ) :
     lim_exec_val ρ = prim_step_or_val ρ ≫= lim_exec_val.
