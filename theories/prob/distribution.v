@@ -1148,3 +1148,5 @@ Section convergence.
     - rewrite rbar_finite_real_eq; auto.
       apply Sup_seq_correct; auto.
   Qed.
+
+ End convergence.
