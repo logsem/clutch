@@ -220,6 +220,26 @@ Section rules.
     ⊢ WP e @ E {{ Φ }}.
   Proof. apply (wp_couple_tapes negb). Qed.
 
+  Lemma wp_couple_tapesN_eq E n e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+    ((∃ bs', ⌜ length bs' = n ⌝ ∗ αₛ ↪ₛ (bsₛ ++ bs') ∗ α ↪ (bs ++ bs')) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??).
+    iInduction n as [| n] "IH" forall (bs bsₛ).
+    - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
+      iApply "Hwp". iExists []; rewrite ?app_nil_r /=; by iFrame.
+    - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
+      iApply "IH". iFrame "Hα Hαₛ Hctx".
+      iDestruct 1 as (bs' Hlen) "(Hα&Hαₛ)".
+      iApply wp_couple_tapes_eq; try done. iFrame "Hα Hαₛ Hctx".
+      iDestruct 1 as (b) "(Hα&Hαₛ)".
+      iApply "Hwp". iExists (bs' ++ [b]). rewrite ?app_assoc; iFrame.
+      iPureIntro; rewrite ?app_length ?Hlen /=; lia.
+  Qed.
+
   Lemma wp_couple_tape_flip f `{Bij bool bool f} K E α bs Φ e :
     to_val e = None →
     nclose specN ⊆ E →
