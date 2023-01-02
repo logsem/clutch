@@ -581,13 +581,24 @@ Section mct.
   Context `{Countable A}.
 
   (* TODO: Lift the proof from Series_extra *)
-  Lemma MCT_series (h : nat -> A → R) (l : nat -> R) (r : R) :
+  Lemma MCT_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
   (forall n a, 0 <= (h n a)) ->
   (forall n a, (h n a) <= (h (S n) a)) ->
   (forall a, exists s, forall n, h n a <= s ) ->
   (forall n, is_seriesC (h n) (l n)) ->
   is_sup_seq l (Finite r) ->
   SeriesC (λ a, Sup_seq (λ n, h n a)) = r.
+  Admitted.
+
+
+  (* TODO: Lift the proof from Series_extra *)
+  Lemma MCT_ex_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_seriesC (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  ex_seriesC (λ a, Sup_seq (λ n, h n a)).
   Admitted.
 
 End mct.

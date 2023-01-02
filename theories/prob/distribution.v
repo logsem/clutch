@@ -1095,3 +1095,56 @@ Next Obligation.
   destruct_and?.
   done.
 Qed.
+
+Section convergence.
+
+  Context `{Countable A}.
+
+
+  Program Definition lim_distr (h : nat -> distr A)
+    (Hmon : forall n a, h n a <= h (S n) a) := MkDistr (λ a, Sup_seq (λ n, h n a)) _ _ _.
+  Next Obligation.
+    intros h Hmon a.
+    simpl.
+    apply (Rle_trans _ (h 0%nat a)); auto.
+    apply rbar_le_finite; auto.
+    - apply (Rbar_le_sandwich 0 1).
+      + apply (Sup_seq_minor_le _ _ 0%nat); auto.
+        simpl; auto.
+      + apply upper_bound_ge_sup; intro n; simpl; auto.
+    - apply (sup_is_upper_bound (λ n : nat, h n a) 0%nat).
+  Qed.
+  Next Obligation.
+    intros h Hmon.
+    assert (is_finite (Sup_seq (λ x : nat, SeriesC (h x)))) as Haux.
+    {
+       apply (Rbar_le_sandwich 0 1).
+        - apply (Sup_seq_minor_le _ _ 0%nat); auto.
+          simpl; auto.
+        - apply upper_bound_ge_sup; intro n; simpl; auto.
+    }
+    apply (MCT_ex_seriesC h (λ n, SeriesC (h n)) (Sup_seq (λ x : nat, SeriesC (h x)))); auto; try lra.
+    - intros; exists 1; auto.
+    - intros;
+      apply SeriesC_correct; auto.
+    - rewrite rbar_finite_real_eq; auto.
+      apply Sup_seq_correct; auto.
+  Qed.
+  Next Obligation.
+    intros.
+    assert (is_finite (Sup_seq (λ x : nat, SeriesC (h x)))) as Haux.
+    {
+       apply (Rbar_le_sandwich 0 1).
+        - apply (Sup_seq_minor_le _ _ 0%nat); auto.
+          simpl; auto.
+        - apply upper_bound_ge_sup; intro n; simpl; auto.
+    }
+    rewrite (MCT_seriesC h (λ n, SeriesC (h n)) (Sup_seq (λ x : nat, SeriesC (h x)))); auto; try lra.
+    - apply finite_rbar_le; auto.
+      apply (upper_bound_ge_sup (λ x : nat, SeriesC (h x)) 1). intro n; simpl; auto.
+    - intros; exists 1; auto.
+    - intros;
+      apply SeriesC_correct; auto.
+    - rewrite rbar_finite_real_eq; auto.
+      apply Sup_seq_correct; auto.
+  Qed.

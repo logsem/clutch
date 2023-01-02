@@ -1332,6 +1332,49 @@ Admitted.
         exists (l n); auto.
 Qed.
 
+
+
+Lemma MCT_ex_series (h : nat -> nat → R) (l : nat -> R) (r : R) :
+  (forall n a, 0 <= (h n a)) ->
+  (forall n a, (h n a) <= (h (S n) a)) ->
+  (forall a, exists s, forall n, h n a <= s ) ->
+  (forall n, is_series (h n) (l n)) ->
+  is_sup_seq l (Finite r) ->
+  ex_series (λ a, real (Sup_seq (λ n, h n a))).
+  Proof.
+    intros Hpos Hmon Hbd Hseries Hsup.
+    apply ex_pos_bounded_series.
+    - intro n.
+      apply rbar_le_finite.
+      + destruct (Hbd n) as (s & Hs).
+        apply (Rbar_le_sandwich 0 s).
+        * apply (Sup_seq_minor_le _ _ 0%nat); auto.
+          simpl; auto.
+        * apply upper_bound_ge_sup; intro; simpl; auto.
+     + apply (Sup_seq_minor_le (λ n0 : nat, h n0 n) _ 0%nat);
+       apply Hpos.
+    - exists r.
+      intro n.
+      assert (Rbar_le (sum_n (λ a : nat, real (Sup_seq (λ n0 : nat, h n0 a))) n) r); auto.
+      rewrite (MCT_aux1 h l r n); auto.
+      rewrite <- (is_sup_seq_unique _ r Hsup).
+      apply Sup_seq_le.
+      intro m.
+      rewrite <- (is_series_unique _ (l m) (Hseries m)).
+      rewrite lim_is_sup'; auto; last first.
+      + exists (l m); auto.
+      + apply sup_is_upper_bound'.
+        rewrite rbar_finite_real_eq.
+        * apply Sup_seq_correct.
+        * apply (Rbar_le_sandwich 0 (l m)).
+          -- apply (Sup_seq_minor_le _ _ 0%nat); auto.
+             rewrite sum_O; simpl; auto.
+          -- apply upper_bound_ge_sup; intro; simpl; auto.
+             rewrite <- (is_series_unique _ (l m) (Hseries m)).
+             apply series_pos_partial_le; auto.
+             exists (l m); auto.
+   Qed.
+
 (*
 Lemma lim_seq_incr: ∀ u : nat → R, (∀ n : nat, (u n <= u (S n))) → (u 0%nat) <= (Lim_seq u).
 Proof. Admitted.
