@@ -349,7 +349,7 @@ Section int.
 
 End int.
 
-Section base_conversion.
+Section sample_wide.
 
   Context `{!prelogrelGS Σ}.
 
@@ -584,4 +584,63 @@ Section base_conversion.
     iSplit.
   Abort.
 
-End base_conversion.
+  Context (PRED_NUM_DIGITS : nat).
+  Context (PRED_NUM_DIGIT_BITS : nat).
+
+  Definition NUM_DIGITS := S PRED_NUM_DIGITS.
+  Definition NUM_DIGIT_BITS := S PRED_NUM_DIGIT_BITS.
+
+  Definition sample_wide_aux : val :=
+    (rec: "sample_wide_aux" "α" "n" :=
+        if: "n" = #0 then
+          #0
+        else
+          let: "d" := sample_int PRED_NUM_DIGIT_BITS "α" in
+          let: "rest" := "sample_wide_aux" "α" ("n" - #1) in
+          "d" ≪ (("n" - #1) * #NUM_DIGIT_BITS) + "rest").
+
+  Definition sample_wide_int : val :=
+    λ: "α", sample_wide_aux "α" #NUM_DIGITS.
+
+  Lemma wp_sample_wide_aux E (α : loc) n zs1 zs2 :
+    (length zs1 = n) →
+    {{{ int_tape PRED_NUM_DIGIT_BITS α (zs1 ++ zs2) }}}
+      sample_wide_aux (#lbl:α) #n @ E
+    {{{ z, RET #z ; ⌜ z = digit_list_to_Z PRED_NUM_DIGIT_BITS zs1 ⌝ ∗
+                      int_tape PRED_NUM_DIGIT_BITS α zs2 }}}.
+  Proof.
+    rewrite /sample_wide_aux.
+    iInduction n as [| n'] "IH" forall (zs1);
+    iIntros (Hlength Φ) "Hα HΦ".
+    - wp_pures. iModIntro. iApply "HΦ". destruct zs1; inversion Hlength => /=. iFrame.
+      eauto.
+    - wp_pures.
+      destruct zs1 as [| z1 zs1]; first by inversion Hlength.
+      iEval (simpl) in "Hα".
+      wp_apply (wp_sample_int with "[$]").
+      iIntros "Hα".
+      wp_pure _. wp_pure _. wp_pure.
+      replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n'); last by lia.
+      inversion Hlength.
+      wp_apply ("IH" $! _ with "[//] Hα").
+      iIntros (z') "(%Heq&Hα)".
+      wp_pures.
+      iModIntro. iApply "HΦ". iFrame. iPureIntro.
+      replace (S (length zs1) - 1)%Z with (length zs1 : Z) by lia.
+      rewrite /=/NUM_DIGIT_BITS Heq //.
+  Qed.
+
+  Lemma wp_sample_wide_int E (α : loc) zs1 zs2 :
+    (length zs1 = NUM_DIGITS) →
+    {{{ int_tape PRED_NUM_DIGIT_BITS α (zs1 ++ zs2) }}}
+      sample_wide_int (#lbl:α) @ E
+    {{{ z, RET #z ; ⌜ z = digit_list_to_Z PRED_NUM_DIGIT_BITS zs1 ⌝ ∗
+                      int_tape PRED_NUM_DIGIT_BITS α zs2 }}}.
+  Proof.
+    rewrite /sample_wide_int.
+    iIntros (? Φ) "H HΦ".
+    wp_pures.
+    wp_apply (wp_sample_wide_aux with "H"); eauto.
+  Qed.
+
+End sample_wide.
