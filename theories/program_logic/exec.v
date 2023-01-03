@@ -138,7 +138,7 @@ Section exec_val.
   Qed.
 
 
-  Lemma exec_val_mon n ρ :
+  Lemma exec_val_mon ρ n :
     forall a, (exec_val n ρ) a <= (exec_val (S n) ρ) a.
   Proof.
     apply refRcoupl_eq_elim.
@@ -169,27 +169,121 @@ Section prim_exec_lim.
   Implicit Types v : val Λ.
   Implicit Types σ : state Λ.
 
-  Program Definition lim_exec_val (ρ : cfg Λ) : distr (val Λ):=
-    lim_distr (λ n, exec_val n ρ) _.
-  Next Obligation.
-    intros; apply exec_val_mon.
+  Definition lim_exec_val (ρ : cfg Λ) : distr (val Λ):=
+    lim_distr (λ n, exec_val n ρ) (exec_val_mon ρ).
+
+  Lemma lim_exec_val_rw (ρ : cfg Λ) v :
+    lim_exec_val ρ v = Sup_seq (λ n, (exec_val n ρ) v).
+  Proof.
+    rewrite lim_distr_pmf; auto.
   Qed.
 
   Lemma lim_exec_val_prim_step (ρ : cfg Λ) :
     lim_exec_val ρ = prim_step_or_val ρ ≫= lim_exec_val.
-  Proof. Admitted.
+  Proof.
+   apply distr_ext.
+   intro v.
+   rewrite lim_exec_val_rw/=.
+   rewrite {2}/pmf/=/dbind_pmf.
+   setoid_rewrite lim_exec_val_rw.
+   assert
+     (SeriesC (λ a : cfg Λ, prim_step_or_val ρ a * Sup_seq (λ n : nat, exec_val n a v)) =
+     SeriesC (λ a : cfg Λ, Sup_seq (λ n : nat, prim_step_or_val ρ a * exec_val n a v))) as ->.
+   { apply SeriesC_ext; intro v'.
+     apply eq_rbar_finite.
+     rewrite rmult_finite.
+     rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, exec_val n v' v))); auto.
+     - rewrite <- (Sup_seq_scal_l (prim_step_or_val ρ v') (λ n : nat, exec_val n v' v)); auto.
+     - apply (Rbar_le_sandwich 0 1).
+       + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+       + apply upper_bound_ge_sup; intro; simpl; auto.
+   }
+   rewrite (MCT_seriesC _ (λ n, exec_val (S n) ρ v) (lim_exec_val ρ v)); auto.
+   - intros; apply Rmult_le_pos; auto.
+   - intros.
+     apply Rmult_le_compat; auto; [apply Rle_refl | apply exec_val_mon]; auto.
+   - intro.
+     exists (prim_step_or_val ρ a); intro.
+     rewrite <- Rmult_1_r.
+     apply Rmult_le_compat_l; auto.
+   - intro n.
+     rewrite exec_val_Sn.
+     rewrite {3}/pmf/=/dbind_pmf.
+     apply SeriesC_correct; auto.
+     apply (ex_seriesC_le _ (prim_step_or_val ρ)); auto.
+     intro; split; auto.
+     + apply Rmult_le_pos; auto.
+     + rewrite <- Rmult_1_r.
+       apply Rmult_le_compat_l; auto.
+   - rewrite lim_exec_val_rw.
+     rewrite mon_sup_succ.
+     + rewrite (Rbar_le_sandwich 0 1); auto.
+       * apply (Sup_seq_correct (λ n : nat, exec_val (S n) ρ v)).
+       * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+       * apply upper_bound_ge_sup; intro; simpl; auto.
+     + intro; apply exec_val_mon.
+  Qed.
 
   Lemma lim_exec_val_exec n (ρ : cfg Λ) :
     lim_exec_val ρ = exec n ρ ≫= lim_exec_val.
-  Proof. Admitted.
+  Proof.
+    move : ρ.
+    induction n; intro ρ.
+    - rewrite exec_O.
+      rewrite dret_id_left; auto.
+    - rewrite exec_Sn -dbind_assoc/=.
+      (* This is a bit slow *)
+      setoid_rewrite <- IHn.
+      apply lim_exec_val_prim_step.
+  Qed.
 
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →
     lim_exec_val ρ = dret v.
-  Proof. Admitted.
+  Proof.
+    intro Hv.
+    apply distr_ext.
+    intro v'.
+    rewrite lim_exec_val_rw.
+    rewrite {2}/pmf/=/dret_pmf.
+    assert (is_finite (Sup_seq (λ n0 : nat, exec_val n0 ρ v'))) as Haux.
+    {
+      apply (Rbar_le_sandwich 0 1); auto.
+      + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+      + apply upper_bound_ge_sup; intro; simpl; auto.
+    }
+    case_bool_decide; simplify_eq.
+    - apply Rle_antisym.
+      + apply finite_rbar_le; auto.
+        apply upper_bound_ge_sup.
+        intro; simpl; auto.
+      + apply rbar_le_finite; auto.
+        apply (Sup_seq_minor_le _ _ n); simpl; auto.
+        destruct ρ as (e2 & σ2).
+        rewrite (exec_val_is_val _ _ _ v).
+        * rewrite dret_1_1; auto.
+          apply Rle_refl.
+        * admit.
+    - rewrite <- (sup_seq_const 0).
+      apply f_equal.
+      apply Sup_seq_ext.
+      intro m. admit.
+  Admitted.
+
 
   Lemma lim_exec_val_continous ρ1 v r :
     (∀ n, exec_val n ρ1 v <= r) → lim_exec_val ρ1 v <= r.
-  Proof. Admitted.
+    intro Hexec.
+    rewrite lim_exec_val_rw.
+    assert (is_finite (Sup_seq (λ n : nat, exec_val n ρ1 v))) as Haux.
+    {
+      apply (Rbar_le_sandwich 0 1); auto.
+      + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+      + apply upper_bound_ge_sup; intro; simpl; auto.
+    }
+    apply finite_rbar_le; auto.
+    apply upper_bound_ge_sup.
+    intro; simpl; auto.
+  Qed.
 
 End prim_exec_lim.

@@ -7,6 +7,77 @@ Import Hierarchy.
 
 Open Scope R.
 
+Section rbar_extra.
+
+  Lemma Rbar_le_sandwich p q r :
+    Rbar_le (Finite p) r ->
+    Rbar_le r (Finite q) ->
+    Finite (real r) = r.
+  Proof.
+    intros Hp Hq.
+    destruct r eqn:Hr; auto.
+    - destruct Hq.
+    - destruct Hp.
+  Qed.
+
+
+  Lemma rbar_le_finite (p : R) (q : Rbar) :
+    is_finite q ->
+    Rbar_le p q ->
+    p <= real q.
+  Proof.
+    intros Hq Hle.
+    rewrite /is_finite/= in Hq.
+    destruct q; auto; simplify_eq.
+  Qed.
+
+  Lemma finite_rbar_le (p : R) (q : Rbar) :
+    is_finite q ->
+    Rbar_le q p ->
+    q <= real p.
+  Proof.
+    intros Hq Hle.
+    rewrite /is_finite/= in Hq.
+    destruct q; auto; simplify_eq.
+  Qed.
+
+  Lemma rbar_le_rle (p : R) (q : R) :
+    Rbar_le (Finite p) (Finite q) <-> Rle p q.
+  Proof.
+    auto.
+  Qed.
+
+  Lemma is_finite_bounded (p q : R) (r : Rbar) :
+    Rbar_le p r ->
+    Rbar_le r q ->
+    is_finite r.
+  Proof.
+    intros H1 H2.
+    rewrite /is_finite.
+    destruct r eqn:Hr; auto.
+    - destruct H2.
+    - destruct H1.
+  Qed.
+
+  Lemma rbar_finite_real_eq (p : Rbar) :
+    is_finite p ->
+    Finite (real p) = p.
+  Proof.
+    intro Hfin.
+    destruct p; auto.
+  Qed.
+
+
+Lemma rbar_le_finite_real r :
+Rbar_le (Finite 0) r ->
+Rbar_le (Finite (real r)) r.
+Proof.
+  intro Hpos.
+  destruct r eqn:Heq; simpl; auto.
+  apply Rle_refl.
+Qed.
+
+End rbar_extra.
 
 Section positive.
 
@@ -148,14 +219,12 @@ Section positive.
   Admitted.
   *)
 
-Lemma bar r :
-Rbar_le (Finite 0) r ->
-Rbar_le (Finite (real r)) r.
+Lemma rmult_finite (p q : R) :
+  Finite (p * q) = Rbar_mult (Finite p) (Finite q).
 Proof.
-  intro Hpos.
-  destruct r eqn:Heq; simpl; auto.
-  apply Rle_refl.
+  auto.
 Qed.
+
 
   Lemma lim_is_sup (h: nat -> R) r :
     (∀ n, 0 <= h n) ->
@@ -310,16 +379,6 @@ Qed.
     apply (upper_bound_ge_sup (λ x : nat, h x) r); auto.
   Qed.
 
-  Lemma Rbar_le_sandwich p q r :
-    Rbar_le (Finite p) r ->
-    Rbar_le r (Finite q) ->
-    Finite (real r) = r.
-  Proof.
-    intros Hp Hq.
-    destruct r eqn:Hr; auto.
-    - destruct Hq.
-    - destruct Hp.
-  Qed.
 
   (* Maybe can be proven from partial_summation_R *)
   Lemma ex_pos_bounded_series (h : nat -> R) :
@@ -554,6 +613,7 @@ Qed.
 *)
     Admitted.
 *)
+
 
   Lemma double_sup_diag (h : nat * nat → R) :
     (forall n m n', (n <= n')%nat -> h (n, m) <= h (n' , m)) ->
@@ -990,6 +1050,38 @@ Proof.
 Admitted.
 *)
 
+
+  Lemma mon_sup_succ (h : nat -> R) :
+    (forall n, h n <= h (S n)) ->
+    Sup_seq h = Sup_seq (λ n, h (S n)).
+  Proof.
+    intro Hmon.
+    apply Rbar_le_antisym.
+    - apply upper_bound_ge_sup.
+      intro n.
+      apply (Sup_seq_minor_le _ _ n), Hmon.
+    - apply upper_bound_ge_sup.
+      intro n.
+      apply (Sup_seq_minor_le _ _ (S (S n))), Hmon.
+  Qed.
+
+
+  Lemma sup_seq_const (r : R) :
+    real (Sup_seq (λ n, r)) = r.
+  Proof.
+    assert (is_finite (Sup_seq (λ n, r))) as Haux.
+    {
+      apply (Rbar_le_sandwich r r); auto.
+      + apply (Sup_seq_minor_le _ _ 0%nat); apply Rbar_le_refl.
+      + apply upper_bound_ge_sup; intro; apply Rbar_le_refl.
+    }
+    apply Rle_antisym.
+    + apply finite_rbar_le; auto.
+      apply (upper_bound_ge_sup); intro; apply Rbar_le_refl.
+    + apply rbar_le_finite; auto.
+      apply (Sup_seq_minor_le _ _ 0%nat); apply Rbar_le_refl.
+  Qed.
+
   (* AA: This is quite convoluted, I wonder if it can be simplified *)
   Lemma Sup_seq_bounded_plus_l (f : nat -> R) (b r : R) :
     (forall n, 0 <= f n <= b) ->
@@ -1215,51 +1307,6 @@ Admitted.
   Qed.
 
 
-  Lemma rbar_le_finite (p : R) (q : Rbar) :
-    is_finite q ->
-    Rbar_le p q ->
-    p <= real q.
-  Proof.
-    intros Hq Hle.
-    rewrite /is_finite/= in Hq.
-    destruct q; auto; simplify_eq.
-  Qed.
-
-  Lemma finite_rbar_le (p : R) (q : Rbar) :
-    is_finite q ->
-    Rbar_le q p ->
-    q <= real p.
-  Proof.
-    intros Hq Hle.
-    rewrite /is_finite/= in Hq.
-    destruct q; auto; simplify_eq.
-  Qed.
-
-  Lemma rbar_le_rle (p : R) (q : R) :
-    Rbar_le (Finite p) (Finite q) <-> Rle p q.
-  Proof.
-    auto.
-  Qed.
-
-  Lemma is_finite_bounded (p q : R) (r : Rbar) :
-    Rbar_le p r ->
-    Rbar_le r q ->
-    is_finite r.
-  Proof.
-    intros H1 H2.
-    rewrite /is_finite.
-    destruct r eqn:Hr; auto.
-    - destruct H2.
-    - destruct H1.
-  Qed.
-
-  Lemma rbar_finite_real_eq (p : Rbar) :
-    is_finite p ->
-    Finite (real p) = p.
-  Proof.
-    intro Hfin.
-    destruct p; auto.
-  Qed.
 
   Lemma MCT_aux4 (h : nat -> nat → R) (l : nat -> R) (r : R) :
   (forall n a, 0 <= (h n a)) ->

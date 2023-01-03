@@ -1100,11 +1100,9 @@ Section convergence.
 
   Context `{Countable A}.
 
-  Program Definition lim_distr_pmf (h : nat -> distr A) : A -> R :=
-            (λ a, Sup_seq (λ n, h n a)).
 
   Program Definition lim_distr (h : nat -> distr A)
-    (Hmon : forall n a, h n a <= h (S n) a) := MkDistr (lim_distr_pmf h) _ _ _.
+    (Hmon : forall n a, h n a <= h (S n) a) := MkDistr (λ a, Sup_seq (λ n, h n a)) _ _ _.
   Next Obligation.
     intros h Hmon a.
     simpl.
@@ -1149,6 +1147,13 @@ Section convergence.
       apply SeriesC_correct; auto.
     - rewrite rbar_finite_real_eq; auto.
       apply Sup_seq_correct; auto.
+  Qed.
+
+
+  Lemma lim_distr_pmf (h : nat -> distr A) Hmon (a : A) :
+     (lim_distr h) Hmon a = Sup_seq (λ n, h n a).
+  Proof.
+    auto.
   Qed.
 
  End convergence.
