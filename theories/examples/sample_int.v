@@ -363,11 +363,11 @@ Section base_conversion.
     match zs with
     | [] => 0
     | z :: zs =>
-        (Z.shiftl z (length zs * n) + digit_list_to_Z n zs)%Z
+        (Z.shiftl z (length zs * (S n)) + digit_list_to_Z n zs)%Z
     end.
 
   Definition testdigit (n : nat) (z: Z) (pos: nat) :=
-    Z.land (Z.shiftr z (pos * (S n))) (Z.ones n).
+    Z.land (Z.shiftr z (pos * (S n))) (Z.ones (S n)).
 
   Fixpoint Z_to_digit_list n z pos : list Z :=
     match pos with
@@ -406,9 +406,9 @@ Section base_conversion.
     rewrite Z.shiftr_land.
     rewrite -Z.land_assoc.
     f_equal.
-    assert ((S w * n - m * S w) >= w).
+    assert ((S w * n - m * S w) >= S w).
     { rewrite -Nat.mul_comm. ring_simplify.
-      transitivity ((S m) * (1 + w) - m * (1 + w)).
+      transitivity ((S m) * (w + 1) - m * (w + 1)).
       { apply Nat.sub_le_mono_r.
         apply Nat.mul_le_mono_r. lia.
       }
@@ -440,37 +440,76 @@ Section base_conversion.
   Qed.
 
   Lemma testdigit_spec' w a n :
-    testdigit w a n = ((a `div` 2 ^ (n * S w) `mod` 2 ^ w))%Z.
+    testdigit w a n = ((a `div` 2 ^ (n * S w) `mod` 2 ^ S w))%Z.
   Proof.
     rewrite /testdigit.
     rewrite Z.land_ones; last by lia.
     rewrite ?Z.shiftr_div_pow2; try lia.
   Qed.
 
+  Lemma digit_list_to_Z_lower_bound w bs :
+    wf_digit_list w bs →
+    (0 ≤ digit_list_to_Z w bs)%Z.
+  Proof.
+    induction bs as [| b bs] => //= Hwf.
+    rewrite Z.shiftl_mul_pow2; last by lia.
+    specialize (pow2_nonzero (length bs * S w)).
+    intros Hnz.
+    inversion Hwf. subst.
+    unshelve (epose proof (IHbs _)); eauto. lia.
+  Qed.
+
+  Lemma digit_list_to_Z_upper_bound w bs :
+    wf_digit_list w bs →
+    (digit_list_to_Z w bs < 2 ^ (length bs * S w))%Z.
+  Proof.
+    induction bs as [| b bs] => //= Hwf.
+    inversion Hwf; subst.
+    rewrite Z.shiftl_mul_pow2; last by lia.
+    replace (Z.of_nat (S (length bs))) with (1 + Z.of_nat (length bs))%Z by lia.
+    rewrite Z.mul_add_distr_r.
+    rewrite Z.mul_1_l.
+    rewrite Z.pow_add_r; try lia; [].
+    eapply (Z.lt_le_trans _ (b * 2 ^ (length bs * S w) + 1 * 2 ^ (length bs * S w))).
+    { unshelve (epose proof (IHbs _)); eauto. lia. }
+    rewrite -Z.mul_add_distr_r.
+    apply Z.mul_le_mono_nonneg_r; lia.
+  Qed.
+
+  Lemma digit_list_to_Z_upper_bound' w bs :
+    wf_digit_list w bs →
+    (digit_list_to_Z w bs ≤ Z.ones (length bs * S w))%Z.
+  Proof.
+    intros Hwf.
+    specialize (digit_list_to_Z_upper_bound w bs Hwf).
+    intros. rewrite Z.ones_equiv. lia.
+  Qed.
 
   Lemma digit_list_to_Z_to_digit_list w bs :
+    wf_digit_list w bs →
     Z_to_digit_list w (digit_list_to_Z w bs) (length bs) = bs.
   Proof.
+    intros Hwf.
     induction bs as [| b bs IH] => //=.
+    inversion Hwf.
     f_equal.
     - rewrite testdigit_spec'.
       rewrite Z.shiftl_mul_pow2; last by lia.
-      specialize (pow2_nonzero (length bs * w)) => ?.
       specialize (pow2_nonzero (length bs * S w)) => ?.
-  Abort.
-  (*
       rewrite Z.div_add_l; last by lia.
       rewrite Z.div_small; last first.
-      { split; auto using bool_list_to_Z_lower_bound, bool_list_to_Z_upper_bound. }
-      destruct b => //=.
-    - rewrite -[a in _ = a]IH.
-      rewrite Z_to_bool_list_mod_pow2. f_equal.
+      { split; auto using digit_list_to_Z_lower_bound, digit_list_to_Z_upper_bound. }
+      rewrite Z.add_0_r.
+      apply Z.mod_small. lia.
+    - rewrite -[a in _ = a]IH; auto.
+      rewrite Z_to_digit_list_mod_pow2. f_equal.
       rewrite Z.shiftl_mul_pow2; last by lia.
+      rewrite (Z.mul_comm (length bs)).
       rewrite Z.add_comm Z_mod_plus; last by lia.
+      rewrite Z.mul_comm.
       apply Z.mod_small.
-      { split; auto using bool_list_to_Z_lower_bound, bool_list_to_Z_upper_bound. }
+      { split; auto using digit_list_to_Z_lower_bound, digit_list_to_Z_upper_bound.  }
   Qed.
-   *)
 
   Lemma int_tape_base_conversion (n nc k: nat) (z : Z) α :
     S n = (S nc) * k →
@@ -481,6 +520,10 @@ Section base_conversion.
     iDestruct "Htape" as (Hwf) "Hα".
     inversion Hwf; subst.
     rewrite flat_map_singleton.
+    iExists (Z_to_digit_list nc z k).
+    iSplit.
+    { iPureIntro. admit. }
+    rewrite /int_tape.
   Abort.
 
 End base_conversion.
