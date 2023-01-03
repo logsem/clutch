@@ -348,3 +348,240 @@ Section int.
   Qed.
 
 End int.
+
+Section base_conversion.
+
+  Context `{!prelogrelGS Σ}.
+
+  (* A "digit list" is a list of integers encoding a number in base
+    2^(n+1), written in big-endian form *)
+
+  Definition wf_digit_list (n : nat) (zs : list Z) :=
+    Forall (λ z, 0 ≤ z < 2 ^ (S n))%Z zs.
+
+  Fixpoint digit_list_to_Z (n: nat) (zs : list Z) : Z :=
+    match zs with
+    | [] => 0
+    | z :: zs =>
+        (Z.shiftl z (length zs * (S n)) + digit_list_to_Z n zs)%Z
+    end.
+
+  Definition testdigit (n : nat) (z: Z) (pos: nat) :=
+    Z.land (Z.shiftr z (pos * (S n))) (Z.ones (S n)).
+
+  Fixpoint Z_to_digit_list n z pos : list Z :=
+    match pos with
+    | O => []
+    | S pos' => (testdigit n z pos') :: (Z_to_digit_list n z pos')
+    end.
+
+  Lemma ones_shiftr (m k : Z) :
+    (k ≤ m)%Z →
+    (0 ≤ k)%Z →
+    Z.shiftr (Z.ones m) k = Z.ones (m - k)%Z.
+  Proof.
+    intros Hle1 Hle2.
+    rewrite ?Z.shiftr_div_pow2; try lia.
+    rewrite Z.ones_div_pow2; lia.
+  Qed.
+
+  Lemma Z_land_ones_min (z1 z2: Z) :
+    (0 ≤ z1)%Z ->
+    (0 ≤ z2)%Z ->
+    Z.land (Z.ones z1) (Z.ones z2) = Z.ones (Z.min z1 z2).
+  Proof.
+    intros Hle1 Hle2.
+    apply Z.bits_inj.
+    intros k. rewrite Z.land_spec.
+    rewrite ?Z.testbit_ones; try lia.
+  Qed.
+
+  Lemma mod_pow2_digits_low :
+    ∀ (w : nat) (a : Z) (n m : nat), (m < n)%nat → testdigit w (a `mod` 2 ^ (S w * n)) m = testdigit w a m.
+  Proof.
+    intros w a n m Hlt.
+    rewrite /testdigit.
+    assert ((a `mod` 2 ^ (S w * n) = Z.land a (Z.ones (S w * n))))%Z as ->.
+    { rewrite -Z.land_ones; last lia. auto. }
+    rewrite Z.shiftr_land.
+    rewrite -Z.land_assoc.
+    f_equal.
+    assert ((S w * n - m * S w) >= S w).
+    { rewrite -Nat.mul_comm. ring_simplify.
+      transitivity ((S m) * (w + 1) - m * (w + 1)).
+      { apply Nat.sub_le_mono_r.
+        apply Nat.mul_le_mono_r. lia.
+      }
+      lia.
+    }
+    rewrite ones_shiftr; try lia.
+    rewrite Z_land_ones_min; try lia.
+    { f_equal. lia. }
+  Qed.
+
+  Lemma Z_to_digit_list_mod_pow2 w z n :
+    Z_to_digit_list w z n =
+    Z_to_digit_list w (z `mod` 2^(S w * n)) n.
+  Proof.
+    revert z.
+    induction n => //= z.
+    f_equal; last first.
+    { rewrite IHn. rewrite [a in _ = a]IHn.
+      f_equal. symmetry.
+      replace (2 ^ (S w * S n)%Z)%Z with (2^(S w * n) * 2 ^ (S w))%Z; last first.
+      { replace (Z.of_nat (S n)) with (1 + Z.of_nat n)%Z by lia.
+        rewrite -Z.pow_add_r //; try lia. f_equal. lia. }
+      rewrite Z.rem_mul_r; try lia.
+      rewrite (Z.mul_comm (2 ^ (S w * n))).
+      rewrite Z.mod_add; last by lia.
+      rewrite Zmod_mod //.
+    }
+    symmetry. apply mod_pow2_digits_low; lia.
+  Qed.
+
+  Lemma testdigit_spec' w a n :
+    testdigit w a n = ((a `div` 2 ^ (n * S w) `mod` 2 ^ S w))%Z.
+  Proof.
+    rewrite /testdigit.
+    rewrite Z.land_ones; last by lia.
+    rewrite ?Z.shiftr_div_pow2; try lia.
+  Qed.
+
+  Lemma digit_list_to_Z_lower_bound w bs :
+    wf_digit_list w bs →
+    (0 ≤ digit_list_to_Z w bs)%Z.
+  Proof.
+    induction bs as [| b bs] => //= Hwf.
+    rewrite Z.shiftl_mul_pow2; last by lia.
+    specialize (pow2_nonzero (length bs * S w)).
+    intros Hnz.
+    inversion Hwf. subst.
+    unshelve (epose proof (IHbs _)); eauto. lia.
+  Qed.
+
+  Lemma digit_list_to_Z_upper_bound w bs :
+    wf_digit_list w bs →
+    (digit_list_to_Z w bs < 2 ^ (length bs * S w))%Z.
+  Proof.
+    induction bs as [| b bs] => //= Hwf.
+    inversion Hwf; subst.
+    rewrite Z.shiftl_mul_pow2; last by lia.
+    replace (Z.of_nat (S (length bs))) with (1 + Z.of_nat (length bs))%Z by lia.
+    rewrite Z.mul_add_distr_r.
+    rewrite Z.mul_1_l.
+    rewrite Z.pow_add_r; try lia; [].
+    eapply (Z.lt_le_trans _ (b * 2 ^ (length bs * S w) + 1 * 2 ^ (length bs * S w))).
+    { unshelve (epose proof (IHbs _)); eauto. lia. }
+    rewrite -Z.mul_add_distr_r.
+    apply Z.mul_le_mono_nonneg_r; lia.
+  Qed.
+
+  Lemma digit_list_to_Z_upper_bound' w bs :
+    wf_digit_list w bs →
+    (digit_list_to_Z w bs ≤ Z.ones (length bs * S w))%Z.
+  Proof.
+    intros Hwf.
+    specialize (digit_list_to_Z_upper_bound w bs Hwf).
+    intros. rewrite Z.ones_equiv. lia.
+  Qed.
+
+  Lemma digit_list_to_Z_to_digit_list w bs :
+    wf_digit_list w bs →
+    Z_to_digit_list w (digit_list_to_Z w bs) (length bs) = bs.
+  Proof.
+    intros Hwf.
+    induction bs as [| b bs IH] => //=.
+    inversion Hwf.
+    f_equal.
+    - rewrite testdigit_spec'.
+      rewrite Z.shiftl_mul_pow2; last by lia.
+      specialize (pow2_nonzero (length bs * S w)) => ?.
+      rewrite Z.div_add_l; last by lia.
+      rewrite Z.div_small; last first.
+      { split; auto using digit_list_to_Z_lower_bound, digit_list_to_Z_upper_bound. }
+      rewrite Z.add_0_r.
+      apply Z.mod_small. lia.
+    - rewrite -[a in _ = a]IH; auto.
+      rewrite Z_to_digit_list_mod_pow2. f_equal.
+      rewrite Z.shiftl_mul_pow2; last by lia.
+      rewrite (Z.mul_comm (length bs)).
+      rewrite Z.add_comm Z_mod_plus; last by lia.
+      rewrite Z.mul_comm.
+      apply Z.mod_small.
+      { split; auto using digit_list_to_Z_lower_bound, digit_list_to_Z_upper_bound.  }
+  Qed.
+
+  Fixpoint digit_list_cmp bs1 bs2 :=
+    match bs1, bs2 with
+    | [], [] => Eq
+    | _, [] => Gt
+    | [], _ => Lt
+    | b1 :: bs1, b2 :: bs2 =>
+        match Z.compare b1 b2 with
+        | Lt => Lt
+        | Gt => Gt
+        | Eq => digit_list_cmp bs1 bs2
+        end
+    end.
+
+  Lemma digit_list_cmp_spec w bs1 bs2 :
+    wf_digit_list w bs1 →
+    wf_digit_list w bs2 →
+    length bs1 = length bs2 →
+    digit_list_cmp bs1 bs2 = Z.compare (digit_list_to_Z w bs1) (digit_list_to_Z w bs2).
+  Proof.
+    intros Hwf1.
+    revert bs2.
+    induction bs1 as [| b1 bs1 IH] => bs2 Hwf2 Hlen.
+    - destruct bs2 as [| b2 bs2] => //=.
+    - destruct bs2 as [| b2 bs2] => //=.
+      inversion Hwf1. inversion Hwf2. subst. inversion Hlen as [Hlen']. subst.
+      destruct (Z.compare_spec b1 b2) as [Heq|Hlt|Hgt].
+      * subst. rewrite IH //.
+        rewrite Z.add_compare_mono_l //.
+      * symmetry; apply Z.compare_lt_iff.
+        rewrite ?Z.shiftl_mul_pow2; try lia.
+        inversion Hwf1.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs1 _)); eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs2 _)); eauto.
+        subst.
+        rewrite -Hlen' in Hub2.
+        remember (length bs1 * S w)%Z as k.
+        assert (0 ≤ k)%Z by lia.
+        eapply (Z.lt_le_trans _ ((b1 + 1) * 2 ^ k + 0)%Z).
+        { ring_simplify. lia. }
+        { apply Z.add_le_mono; last by lia.
+          apply Z.mul_le_mono_nonneg_r; lia. }
+      * symmetry; apply Z.compare_gt_iff.
+        rewrite ?Z.shiftl_mul_pow2; try lia.
+        inversion Hwf1.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs1 _)); eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs2 _)); eauto.
+        subst.
+        rewrite -Hlen' in Hub2.
+        remember (length bs1 * S w)%Z as k.
+        assert (0 ≤ k)%Z by lia.
+        eapply (Z.lt_le_trans _ ((b2 + 1) * 2 ^ k + 0)%Z).
+        { ring_simplify. lia. }
+        { apply Z.add_le_mono; last by lia.
+          apply Z.mul_le_mono_nonneg_r; lia. }
+  Qed.
+
+  Lemma int_tape_base_conversion (n nc k: nat) (z : Z) α :
+    S n = (S nc) * k →
+    int_tape n α [z] -∗
+    ∃ (zs: list Z), ⌜ wf_digit_list nc zs ∧ digit_list_to_Z nc zs = z ⌝ ∗ int_tape nc α zs.
+  Proof.
+    iIntros (Heq) "Htape".
+    iDestruct "Htape" as (Hwf) "Hα".
+    inversion Hwf; subst.
+    rewrite flat_map_singleton.
+    iExists (Z_to_digit_list nc z k).
+    iSplit.
+  Abort.
+
+End base_conversion.
