@@ -80,5 +80,5 @@ Section lazy_int.
       { iExists _, _. iFrame. eauto. }
       { iIntros "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
   Qed.
-
+  
 End lazy_int.

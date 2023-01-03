@@ -348,3 +348,139 @@ Section int.
   Qed.
 
 End int.
+
+Section base_conversion.
+
+  Context `{!prelogrelGS Σ}.
+
+  (* A "digit list" is a list of integers encoding a number in base
+    2^(n+1), written in big-endian form *)
+
+  Definition wf_digit_list (n : nat) (zs : list Z) :=
+    Forall (λ z, 0 ≤ z < 2 ^ (S n))%Z zs.
+
+  Fixpoint digit_list_to_Z (n: nat) (zs : list Z) : Z :=
+    match zs with
+    | [] => 0
+    | z :: zs =>
+        (Z.shiftl z (length zs * n) + digit_list_to_Z n zs)%Z
+    end.
+
+  Definition testdigit (n : nat) (z: Z) (pos: nat) :=
+    Z.land (Z.shiftr z (pos * (S n))) (Z.ones n).
+
+  Fixpoint Z_to_digit_list n z pos : list Z :=
+    match pos with
+    | O => []
+    | S pos' => (testdigit n z pos') :: (Z_to_digit_list n z pos')
+    end.
+
+  Lemma ones_shiftr (m k : Z) :
+    (k ≤ m)%Z →
+    (0 ≤ k)%Z →
+    Z.shiftr (Z.ones m) k = Z.ones (m - k)%Z.
+  Proof.
+    intros Hle1 Hle2.
+    rewrite ?Z.shiftr_div_pow2; try lia.
+    rewrite Z.ones_div_pow2; lia.
+  Qed.
+
+  Lemma Z_land_ones_min (z1 z2: Z) :
+    (0 ≤ z1)%Z ->
+    (0 ≤ z2)%Z ->
+    Z.land (Z.ones z1) (Z.ones z2) = Z.ones (Z.min z1 z2).
+  Proof.
+    intros Hle1 Hle2.
+    apply Z.bits_inj.
+    intros k. rewrite Z.land_spec.
+    rewrite ?Z.testbit_ones; try lia.
+  Qed.
+
+  Lemma mod_pow2_digits_low :
+    ∀ (w : nat) (a : Z) (n m : nat), (m < n)%nat → testdigit w (a `mod` 2 ^ (S w * n)) m = testdigit w a m.
+  Proof.
+    intros w a n m Hlt.
+    rewrite /testdigit.
+    assert ((a `mod` 2 ^ (S w * n) = Z.land a (Z.ones (S w * n))))%Z as ->.
+    { rewrite -Z.land_ones; last lia. auto. }
+    rewrite Z.shiftr_land.
+    rewrite -Z.land_assoc.
+    f_equal.
+    assert ((S w * n - m * S w) >= w).
+    { rewrite -Nat.mul_comm. ring_simplify.
+      transitivity ((S m) * (1 + w) - m * (1 + w)).
+      { apply Nat.sub_le_mono_r.
+        apply Nat.mul_le_mono_r. lia.
+      }
+      lia.
+    }
+    rewrite ones_shiftr; try lia.
+    rewrite Z_land_ones_min; try lia.
+    { f_equal. lia. }
+  Qed.
+
+  Lemma Z_to_digit_list_mod_pow2 w z n :
+    Z_to_digit_list w z n =
+    Z_to_digit_list w (z `mod` 2^(S w * n)) n.
+  Proof.
+    revert z.
+    induction n => //= z.
+    f_equal; last first.
+    { rewrite IHn. rewrite [a in _ = a]IHn.
+      f_equal. symmetry.
+      replace (2 ^ (S w * S n)%Z)%Z with (2^(S w * n) * 2 ^ (S w))%Z; last first.
+      { replace (Z.of_nat (S n)) with (1 + Z.of_nat n)%Z by lia.
+        rewrite -Z.pow_add_r //; try lia. f_equal. lia. }
+      rewrite Z.rem_mul_r; try lia.
+      rewrite (Z.mul_comm (2 ^ (S w * n))).
+      rewrite Z.mod_add; last by lia.
+      rewrite Zmod_mod //.
+    }
+    symmetry. apply mod_pow2_digits_low; lia.
+  Qed.
+
+  Lemma testdigit_spec' w a n :
+    testdigit w a n = ((a `div` 2 ^ (n * S w) `mod` 2 ^ w))%Z.
+  Proof.
+    rewrite /testdigit.
+    rewrite Z.land_ones; last by lia.
+    rewrite ?Z.shiftr_div_pow2; try lia.
+  Qed.
+
+
+  Lemma digit_list_to_Z_to_digit_list w bs :
+    Z_to_digit_list w (digit_list_to_Z w bs) (length bs) = bs.
+  Proof.
+    induction bs as [| b bs IH] => //=.
+    f_equal.
+    - rewrite testdigit_spec'.
+      rewrite Z.shiftl_mul_pow2; last by lia.
+      specialize (pow2_nonzero (length bs * w)) => ?.
+      specialize (pow2_nonzero (length bs * S w)) => ?.
+  Abort.
+  (*
+      rewrite Z.div_add_l; last by lia.
+      rewrite Z.div_small; last first.
+      { split; auto using bool_list_to_Z_lower_bound, bool_list_to_Z_upper_bound. }
+      destruct b => //=.
+    - rewrite -[a in _ = a]IH.
+      rewrite Z_to_bool_list_mod_pow2. f_equal.
+      rewrite Z.shiftl_mul_pow2; last by lia.
+      rewrite Z.add_comm Z_mod_plus; last by lia.
+      apply Z.mod_small.
+      { split; auto using bool_list_to_Z_lower_bound, bool_list_to_Z_upper_bound. }
+  Qed.
+   *)
+
+  Lemma int_tape_base_conversion (n nc k: nat) (z : Z) α :
+    S n = (S nc) * k →
+    int_tape n α [z] -∗
+    ∃ (zs: list Z), ⌜ wf_digit_list nc zs ∧ digit_list_to_Z nc zs = z ⌝ ∗ int_tape nc α zs.
+  Proof.
+    iIntros (Heq) "Htape".
+    iDestruct "Htape" as (Hwf) "Hα".
+    inversion Hwf; subst.
+    rewrite flat_map_singleton.
+  Abort.
+
+End base_conversion.
