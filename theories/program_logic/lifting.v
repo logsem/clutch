@@ -43,13 +43,13 @@ Proof.
   iSplit; [done|].
   iSplit.
   { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial.
-    - admit.
+    - apply prim_step_mass. eauto.
     - apply dret_mass. }
   iIntros ([e2 σ2] (_ & Hstep & _)).
   iMod ("H" with "[//]")as "H".
   iIntros "!> !>".
   by iMod "H" as "[$ $]".
-Admitted.
+Qed.
 
 (* Lemma wp_lift_stuck E Φ e : *)
 (*   to_val e = None → *)
