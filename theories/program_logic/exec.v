@@ -104,6 +104,7 @@ Section exec_val.
   Context {Λ : language}.
   Implicit Types ρ : cfg Λ.
   Implicit Types e : expr Λ.
+  Implicit Types v : val Λ.
   Implicit Types σ : state Λ.
 
   Fixpoint exec_val (n : nat) (ρ : cfg Λ) {struct n} : distr (val Λ) :=
@@ -122,7 +123,7 @@ Section exec_val.
       end.
   Proof. by destruct n. Qed.
 
-  Lemma exec_val_is_val e σ n v:
+  Lemma exec_val_is_val v e σ n :
     to_val e = Some v → exec_val n (e, σ) = dret v.
   Proof. destruct n; simpl; by intros ->. Qed.
 
@@ -137,21 +138,19 @@ Section exec_val.
     erewrite exec_val_is_val; eauto.
   Qed.
 
-
-  Lemma exec_val_mon ρ n :
-    forall a, (exec_val n ρ) a <= (exec_val (S n) ρ) a.
+  Lemma exec_val_mon ρ n v :
+    exec_val n ρ v <= exec_val (S n) ρ v.
   Proof.
     apply refRcoupl_eq_elim.
     move : ρ.
     induction n.
     - intros.
-      apply refRcoupl_from_leq; intro; auto.
-      rewrite /distr_le; simpl.
-      case_match; auto.
-      apply Rle_refl.
+      apply refRcoupl_from_leq.
+      intros w. rewrite /distr_le /=.
+      by case_match.
     - intros; do 2 rewrite exec_val_Sn.
-      apply (refRcoupl_dbind _ _ _ _ eq); [ | apply refRcoupl_eq_refl].
-      intros ? ? ->; auto.
+      eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
+      by intros ? ? ->.
   Qed.
 
   Lemma exec_val_Sn_not_val e σ n :
@@ -232,10 +231,57 @@ Section prim_exec_lim.
     - rewrite exec_O.
       rewrite dret_id_left; auto.
     - rewrite exec_Sn -dbind_assoc/=.
-      (* This is a bit slow *)
-      setoid_rewrite <- IHn.
-      apply lim_exec_val_prim_step.
+      rewrite lim_exec_val_prim_step.
+      apply dbind_eq; [|done].
+      intros ??. apply IHn.
   Qed.
+
+  Lemma exec_exec_val_le n ρ v σ :
+    exec n ρ (of_val v, σ) <= exec_val n ρ v.
+  Proof.
+    revert ρ. induction n; intros [e σ'].
+    - rewrite exec_O.
+      destruct (decide ((e, σ') = (of_val v, σ))) as [[= -> ->]|].
+      + rewrite (exec_val_is_val v); [|auto using to_of_val].
+        rewrite !dret_1_1 //.
+      + rewrite dret_0 //.
+    - rewrite exec_Sn exec_val_Sn.
+      destruct (to_val e) as [w|] eqn:Heq.
+      + rewrite prim_step_or_val_is_val //.
+        rewrite 2!dret_id_left -/exec_val.
+        apply IHn.
+      + rewrite prim_step_or_val_no_val //.
+        rewrite /pmf /= /dbind_pmf.
+        eapply SeriesC_le.
+        * intros ρ. split.
+          { by apply Rmult_le_pos. }
+          apply Rmult_le_compat; by auto.
+        * eapply pmf_ex_seriesC_mult_fn.
+          exists 1. by intros ρ.
+  Qed.
+
+  Lemma exec_exec_val_det n ρ v σ :
+    exec n ρ (of_val v, σ) = 1 → exec_val n ρ v = 1.
+  Proof.
+    intros ?.
+    pose proof (exec_exec_val_le n ρ v σ).
+    pose proof (pmf_le_1 (exec_val n ρ) v).
+    lra.
+  Qed.
+
+  Lemma exec_exec_val_neq_le n m ρ v v' σ :
+    v ≠ v' → exec_val m ρ v' + exec n ρ (of_val v, σ) <= 1.
+  Proof.
+    intros Hneq.
+  Admitted.
+
+  Lemma exec_exec_val_det_neg n m ρ v v' σ :
+    exec n ρ (of_val v, σ) = 1 →
+    v ≠ v' →
+    exec_val m ρ v' = 0.
+  Proof.
+    intros Hex%exec_exec_val_det Hv.
+  Admitted.
 
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →
@@ -246,9 +292,9 @@ Section prim_exec_lim.
     intro v'.
     rewrite lim_exec_val_rw.
     rewrite {2}/pmf/=/dret_pmf.
-    assert (is_finite (Sup_seq (λ n0 : nat, exec_val n0 ρ v'))) as Haux.
+    assert (is_finite (Sup_seq (λ n, exec_val n ρ v'))) as Haux.
     {
-      apply (Rbar_le_sandwich 0 1); auto.
+      apply (Rbar_le_sandwich 0 1).
       + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
       + apply upper_bound_ge_sup; intro; simpl; auto.
     }
@@ -260,16 +306,12 @@ Section prim_exec_lim.
       + apply rbar_le_finite; auto.
         apply (Sup_seq_minor_le _ _ n); simpl; auto.
         destruct ρ as (e2 & σ2).
-        rewrite (exec_val_is_val _ _ _ v).
-        * rewrite dret_1_1; auto.
-          apply Rle_refl.
-        * admit.
-    - rewrite <- (sup_seq_const 0).
-      apply f_equal.
-      apply Sup_seq_ext.
-      intro m. admit.
-  Admitted.
-
+        eapply exec_exec_val_det in Hv.
+        rewrite Hv //.
+    - rewrite -(sup_seq_const 0).
+      f_equal. apply Sup_seq_ext=> m.
+      f_equal. by eapply exec_exec_val_det_neg.
+  Qed.
 
   Lemma lim_exec_val_continous ρ1 v r :
     (∀ n, exec_val n ρ1 v <= r) → lim_exec_val ρ1 v <= r.
