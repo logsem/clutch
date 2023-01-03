@@ -511,6 +511,66 @@ Section base_conversion.
       { split; auto using digit_list_to_Z_lower_bound, digit_list_to_Z_upper_bound.  }
   Qed.
 
+  Fixpoint digit_list_cmp bs1 bs2 :=
+    match bs1, bs2 with
+    | [], [] => Eq
+    | _, [] => Gt
+    | [], _ => Lt
+    | b1 :: bs1, b2 :: bs2 =>
+        match Z.compare b1 b2 with
+        | Lt => Lt
+        | Gt => Gt
+        | Eq => digit_list_cmp bs1 bs2
+        end
+    end.
+
+  Lemma digit_list_cmp_spec w bs1 bs2 :
+    wf_digit_list w bs1 →
+    wf_digit_list w bs2 →
+    length bs1 = length bs2 →
+    digit_list_cmp bs1 bs2 = Z.compare (digit_list_to_Z w bs1) (digit_list_to_Z w bs2).
+  Proof.
+    intros Hwf1.
+    revert bs2.
+    induction bs1 as [| b1 bs1 IH] => bs2 Hwf2 Hlen.
+    - destruct bs2 as [| b2 bs2] => //=.
+    - destruct bs2 as [| b2 bs2] => //=.
+      inversion Hwf1. inversion Hwf2. subst. inversion Hlen as [Hlen']. subst.
+      destruct (Z.compare_spec b1 b2) as [Heq|Hlt|Hgt].
+      * subst. rewrite IH //.
+        rewrite Z.add_compare_mono_l //.
+      * symmetry; apply Z.compare_lt_iff.
+        rewrite ?Z.shiftl_mul_pow2; try lia.
+        inversion Hwf1.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs1 _)); eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs2 _)); eauto.
+        subst.
+        rewrite -Hlen' in Hub2.
+        remember (length bs1 * S w)%Z as k.
+        assert (0 ≤ k)%Z by lia.
+        eapply (Z.lt_le_trans _ ((b1 + 1) * 2 ^ k + 0)%Z).
+        { ring_simplify. lia. }
+        { apply Z.add_le_mono; last by lia.
+          apply Z.mul_le_mono_nonneg_r; lia. }
+      * symmetry; apply Z.compare_gt_iff.
+        rewrite ?Z.shiftl_mul_pow2; try lia.
+        inversion Hwf1.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
+        efeed pose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs1 _)); eauto.
+        unshelve (epose proof (digit_list_to_Z_lower_bound w bs2 _)); eauto.
+        subst.
+        rewrite -Hlen' in Hub2.
+        remember (length bs1 * S w)%Z as k.
+        assert (0 ≤ k)%Z by lia.
+        eapply (Z.lt_le_trans _ ((b2 + 1) * 2 ^ k + 0)%Z).
+        { ring_simplify. lia. }
+        { apply Z.add_le_mono; last by lia.
+          apply Z.mul_le_mono_nonneg_r; lia. }
+  Qed.
+
   Lemma int_tape_base_conversion (n nc k: nat) (z : Z) α :
     S n = (S nc) * k →
     int_tape n α [z] -∗
@@ -522,8 +582,6 @@ Section base_conversion.
     rewrite flat_map_singleton.
     iExists (Z_to_digit_list nc z k).
     iSplit.
-    { iPureIntro. admit. }
-    rewrite /int_tape.
   Abort.
 
 End base_conversion.
