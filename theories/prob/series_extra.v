@@ -130,7 +130,6 @@ Section positive.
     + rewrite sum_n_Sm; auto with arith.
       assert (h (S p) = 0 + h (S p)) as Haux; try lra.
       rewrite {1}Haux.
-      Search Rplus.
       apply Rplus_le_compat; [apply partial_sum_pos | apply Rle_refl]; auto.
   Qed.
 
