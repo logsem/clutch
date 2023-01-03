@@ -858,6 +858,8 @@ Qed.
 
 
 
+
+
 (*
 Lemma fubini_aux (h : nat * nat -> R) :
   (forall a b, 0 <= h (a, b)) ->

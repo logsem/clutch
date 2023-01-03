@@ -575,6 +575,34 @@ Section positive.
 
 End positive.
 
+Section fubini.
+
+  Context `{Countable A, Countable B}.
+
+ Lemma fubini_pos_seriesC_ex (h : A * B → R) :
+    (forall a b, 0 <= h (a, b)) ->
+    (forall a, ex_seriesC (λ b, h (a, b))) ->
+    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
+    (forall b, ex_seriesC (λ a, h (a, b))).
+ Admitted.
+
+ Lemma fubini_pos_seriesC_ex_double (h : A * B → R) :
+    (forall a b, 0 <= h (a, b)) ->
+    (forall a, ex_seriesC (λ b, h (a, b))) ->
+    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
+    (ex_seriesC (λ b, SeriesC (λ a, h (a, b)))).
+ Admitted.
+
+ Lemma fubini_pos_seriesC (h : A * B → R) :
+    (forall a b, 0 <= h (a, b)) ->
+    (forall a, ex_seriesC (λ b, h (a, b))) ->
+    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
+    SeriesC (λ b, SeriesC (λ a, h (a, b))) =
+    SeriesC (λ a, SeriesC (λ b, h (a, b))).
+ Admitted.
+
+ End fubini.
+
 
 Section mct.
 

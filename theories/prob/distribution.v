@@ -301,6 +301,42 @@ End dret.
 Definition dbind_pmf `{Countable A, Countable B} (f : A → distr B) (μ : distr A) : B → R :=
   λ (b : B), SeriesC (λ (a : A), μ a * f a b).
 
+Lemma distr_double_swap_ex `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
+  ex_seriesC (λ a : A, SeriesC (λ b : B, μ a * f a b)) ->
+  ex_seriesC (λ b : B, SeriesC (λ a : A, μ a * f a b)).
+Proof.
+  intro Hex.
+  apply (fubini_pos_seriesC_ex_double (λ '(a, b), μ a * f a b)); auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - intros; apply Rmult_le_pos; auto.
+  - intros; apply (ex_seriesC_le _ (f a)); auto.
+    intros; split; [apply Rmult_le_pos; auto | ].
+    rewrite <- Rmult_1_l.
+    apply Rmult_le_compat; auto.
+    apply Rle_refl.
+Qed.
+
+Lemma distr_double_swap `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
+  SeriesC (λ b : B, SeriesC (λ a : A, μ a * f a b)) =
+  SeriesC (λ a : A, SeriesC (λ b : B, μ a * f a b)).
+Proof.
+  apply (fubini_pos_seriesC (λ '(a, b), μ a * f a b)).
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - intros; apply Rmult_le_pos; auto.
+  - intros; apply (ex_seriesC_le _ (f a)); auto.
+    intros; split; [apply Rmult_le_pos; auto | ].
+    rewrite <- Rmult_1_l.
+    apply Rmult_le_compat; auto.
+    apply Rle_refl.
+  - eapply (ex_seriesC_ext (λ j, μ j * SeriesC (λ k, f j k))).
+  { intros a. rewrite SeriesC_scal_l //. }
+    apply (ex_seriesC_le _ (λ a : A, μ a * 1)); [|by apply ex_seriesC_scal_r].
+    intros a. split.
+    + apply Rmult_le_pos; [done|].
+      apply SeriesC_ge_0; auto.
+    + by apply Rmult_le_compat_l.
+Qed.
+
 Program Definition dbind `{Countable A, Countable B} (f : A → distr B) (μ : distr A) : distr B :=
   MkDistr (dbind_pmf f μ) _ _ _.
 Next Obligation.
@@ -314,7 +350,7 @@ Next Obligation.
 Qed.
 Next Obligation.
   intros ?????? f μ. rewrite /dbind_pmf.
-  eapply (ex_seriesC_double_swap_impl (λ '(a, b), _)).
+  apply (distr_double_swap_ex f μ).
   eapply (ex_seriesC_ext (λ j, μ j * SeriesC (λ k, f j k))).
   { intros a. rewrite SeriesC_scal_l //. }
   apply (ex_seriesC_le _ (λ a : A, μ a * 1)); [|by apply ex_seriesC_scal_r].
@@ -325,7 +361,7 @@ Next Obligation.
 Qed.
 Next Obligation.
   intros ?????? f μ. rewrite /dbind_pmf.
-  rewrite (SeriesC_double_swap (λ '(a, b), _)).
+  rewrite distr_double_swap.
   rewrite -(SeriesC_ext (λ k, μ k * SeriesC (λ j, f k j))); last first.
   { intros a. rewrite SeriesC_scal_l //. }
   transitivity (SeriesC μ); [|done].
@@ -492,7 +528,7 @@ Section monadic.
   Proof.
     intros Hμ Hf.
     rewrite /pmf /= /dbind_pmf.
-    rewrite (SeriesC_double_swap (λ '(a, b), _)).
+    rewrite (distr_double_swap f μ).
     setoid_rewrite SeriesC_scal_l.
     apply Rlt_gt. rewrite -(SeriesC_0 (λ _ : A, 0)); [|done].
     eapply SeriesC_lt.
@@ -617,7 +653,7 @@ Section dmap.
     SeriesC μ = SeriesC (dmap f μ).
   Proof.
     rewrite /dmap {2}/pmf /= /dbind_pmf.
-    rewrite <- (SeriesC_double_swap (λ '(a , b), (μ a * dret (f a) b) )).
+    rewrite (distr_double_swap (λ a, dret (f a)) μ).
     apply SeriesC_ext=> a.
     rewrite {3}/pmf /= /dret_pmf.
     rewrite SeriesC_scal_l.
@@ -855,7 +891,7 @@ Qed.
 Next Obligation.
   intros A ?? B ?? μ1 μ2 => /=.
   rewrite SeriesC_double_prod_rl.
-  rewrite -(SeriesC_double_swap (λ '(a, b), μ1 a * μ2 b)).
+  rewrite (distr_double_swap (λ a, μ2) μ1).
   rewrite -(SeriesC_ext (λ a, μ1 a * SeriesC μ2)); last first.
   { intros a. rewrite SeriesC_scal_l //. }
   transitivity (SeriesC μ1); [|done].
