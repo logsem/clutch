@@ -154,7 +154,7 @@ Section exec_val.
   Qed.
 
   Lemma exec_val_mon' ρ n m v :
-    (n <= m)%nat -> exec_val n ρ v <= exec_val m ρ v.
+    n ≤ m → exec_val n ρ v <= exec_val m ρ v.
   Proof.
     eapply (mon_succ_to_mon (λ x, exec_val x ρ v)); intro; apply exec_val_mon.
   Qed.
@@ -164,6 +164,63 @@ Section exec_val.
     exec_val (S n) (e, σ) = prim_step e σ ≫= exec_val n.
   Proof. intros ?. rewrite exec_val_Sn prim_step_or_val_no_val //. Qed.
 
+  Lemma exec_exec_val_le n ρ v σ :
+    exec n ρ (of_val v, σ) <= exec_val n ρ v.
+  Proof.
+    revert ρ. induction n; intros [e σ'].
+    - rewrite exec_O.
+      destruct (decide ((e, σ') = (of_val v, σ))) as [[= -> ->]|].
+      + rewrite (exec_val_is_val v); [|auto using to_of_val].
+        rewrite !dret_1_1 //.
+      + rewrite dret_0 //.
+    - rewrite exec_Sn exec_val_Sn.
+      destruct (to_val e) as [w|] eqn:Heq.
+      + rewrite prim_step_or_val_is_val //.
+        rewrite 2!dret_id_left -/exec_val.
+        apply IHn.
+      + rewrite prim_step_or_val_no_val //.
+        rewrite /pmf /= /dbind_pmf.
+        eapply SeriesC_le.
+        * intros ρ. split.
+          { by apply Rmult_le_pos. }
+          apply Rmult_le_compat; by auto.
+        * eapply pmf_ex_seriesC_mult_fn.
+          exists 1. by intros ρ.
+  Qed.
+
+  Lemma exec_exec_val_det n ρ v σ :
+    exec n ρ (of_val v, σ) = 1 → exec_val n ρ v = 1.
+  Proof.
+    intros ?.
+    pose proof (exec_exec_val_le n ρ v σ).
+    pose proof (pmf_le_1 (exec_val n ρ) v).
+    lra.
+  Qed.
+
+  Lemma exec_exec_val_neq_le n m ρ v v' σ :
+    v ≠ v' → exec_val m ρ v' + exec n ρ (of_val v, σ) <= 1.
+  Proof.
+    intros Hneq.
+    eapply Rle_trans; [apply Rplus_le_compat_l, exec_exec_val_le | ].
+    eapply Rle_trans; [apply Rplus_le_compat_l,
+        (exec_val_mon' _ n (n `max` m)), Nat.le_max_l | ].
+    eapply Rle_trans; [apply Rplus_le_compat_r,
+        (exec_val_mon' _ m (n `max` m)), Nat.le_max_r | ].
+    eapply Rle_trans; [ | apply (pmf_SeriesC (exec_val (n `max` m) ρ)) ].
+    apply pmf_plus_neq_SeriesC; auto.
+  Qed.
+
+  Lemma exec_exec_val_det_neg n m ρ v v' σ :
+    exec n ρ (of_val v, σ) = 1 →
+    v ≠ v' →
+    exec_val m ρ v' = 0.
+  Proof.
+    intros Hexec Hv.
+    pose proof (exec_exec_val_neq_le n m ρ v v' σ Hv) as H.
+    rewrite Hexec in H.
+    pose proof (pmf_pos (exec_val m ρ) v').
+    lra.
+  Qed.
 
 End exec_val.
 
@@ -243,64 +300,6 @@ Section prim_exec_lim.
       intros ??. apply IHn.
   Qed.
 
-  Lemma exec_exec_val_le n ρ v σ :
-    exec n ρ (of_val v, σ) <= exec_val n ρ v.
-  Proof.
-    revert ρ. induction n; intros [e σ'].
-    - rewrite exec_O.
-      destruct (decide ((e, σ') = (of_val v, σ))) as [[= -> ->]|].
-      + rewrite (exec_val_is_val v); [|auto using to_of_val].
-        rewrite !dret_1_1 //.
-      + rewrite dret_0 //.
-    - rewrite exec_Sn exec_val_Sn.
-      destruct (to_val e) as [w|] eqn:Heq.
-      + rewrite prim_step_or_val_is_val //.
-        rewrite 2!dret_id_left -/exec_val.
-        apply IHn.
-      + rewrite prim_step_or_val_no_val //.
-        rewrite /pmf /= /dbind_pmf.
-        eapply SeriesC_le.
-        * intros ρ. split.
-          { by apply Rmult_le_pos. }
-          apply Rmult_le_compat; by auto.
-        * eapply pmf_ex_seriesC_mult_fn.
-          exists 1. by intros ρ.
-  Qed.
-
-  Lemma exec_exec_val_det n ρ v σ :
-    exec n ρ (of_val v, σ) = 1 → exec_val n ρ v = 1.
-  Proof.
-    intros ?.
-    pose proof (exec_exec_val_le n ρ v σ).
-    pose proof (pmf_le_1 (exec_val n ρ) v).
-    lra.
-  Qed.
-
-  Lemma exec_exec_val_neq_le n m ρ v v' σ :
-    v ≠ v' → exec_val m ρ v' + exec n ρ (of_val v, σ) <= 1.
-  Proof.
-    intros Hneq.
-    eapply Rle_trans; [apply Rplus_le_compat_l, exec_exec_val_le | ].
-    eapply Rle_trans; [apply Rplus_le_compat_l,
-        (exec_val_mon' _ n (n `max` m)), Nat.le_max_l | ].
-    eapply Rle_trans; [apply Rplus_le_compat_r,
-        (exec_val_mon' _ m (n `max` m)), Nat.le_max_r | ].
-    eapply Rle_trans; [ | apply (pmf_SeriesC (exec_val (n `max` m) ρ)) ].
-    apply pmf_plus_neq_SeriesC; auto.
-  Qed.
-
-  Lemma exec_exec_val_det_neg n m ρ v v' σ :
-    exec n ρ (of_val v, σ) = 1 →
-    v ≠ v' →
-    exec_val m ρ v' = 0.
-  Proof.
-    intros Hexec Hv.
-    pose proof (exec_exec_val_neq_le n m ρ v v' σ Hv) as H.
-    rewrite Hexec in H.
-    pose proof (pmf_pos (exec_val m ρ) v').
-    lra.
-  Qed.
-
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →
     lim_exec_val ρ = dret v.
@@ -333,6 +332,7 @@ Section prim_exec_lim.
 
   Lemma lim_exec_val_continous ρ1 v r :
     (∀ n, exec_val n ρ1 v <= r) → lim_exec_val ρ1 v <= r.
+  Proof.
     intro Hexec.
     rewrite lim_exec_val_rw.
     assert (is_finite (Sup_seq (λ n : nat, exec_val n ρ1 v))) as Haux.
