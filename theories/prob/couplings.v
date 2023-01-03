@@ -579,7 +579,7 @@ Section refinement_couplings.
   Context (μ1 : distr A) (μ2 : distr B) (R : A -> B -> Prop) (S : A' → B' → Prop).
 
   Definition isRefCoupl (μ : distr (A * B)) : Prop :=
-    lmarg μ = μ1 /\ (∀ a, rmarg μ a <= μ2 a).
+    lmarg μ = μ1 /\ (∀ (b : B), rmarg μ b <= μ2 b).
 
   Definition refCoupl :=
     ∃ (μ : distr (A * B)), isRefCoupl μ.
