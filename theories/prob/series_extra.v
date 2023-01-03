@@ -86,7 +86,7 @@ Section positive.
   Context `{Countable A}.
   Implicit Types f g : A → R.
 
-  Lemma mon_suc_to_mon (h : nat -> R) :
+  Lemma mon_succ_to_mon (h : nat -> R) :
     (∀ p, h p <= h (S p)) ->
     (forall m n, (m <= n)%nat -> h m <= h n).
   Proof.
@@ -1212,9 +1212,9 @@ Admitted.
        + apply (sup_is_upper_bound _ (n `max` m)).
        + simpl.
          apply Rplus_le_compat.
-         * pose proof (mon_suc_to_mon f Hfmon) as Haux.
+         * pose proof (mon_succ_to_mon f Hfmon) as Haux.
            apply Haux, Nat.le_max_l.
-         * pose proof (mon_suc_to_mon g Hgmon) as Haux.
+         * pose proof (mon_succ_to_mon g Hgmon) as Haux.
            apply Haux, Nat.le_max_r.
   Qed.
 

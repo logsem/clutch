@@ -159,6 +159,22 @@ Section exec_val.
     exec_val (S n) (e, σ) = prim_step e σ ≫= exec_val n.
   Proof. intros ?. rewrite exec_val_Sn prim_step_or_val_no_val //. Qed.
 
+ Lemma exec_exec_val n ρ v σ :
+    exec n ρ (of_val v, σ) <=
+    exec_val n ρ v.
+ Admitted.
+
+ Lemma exec_exec_val_neq n m ρ v v' σ :
+    v ≠ v' ->
+    exec_val m ρ v' + exec n ρ (of_val v, σ) <= 1.
+  Proof.
+    intros.
+    eapply (Rle_trans _ (exec_val (m `max` n) ρ v' + exec_val (m `max` n) ρ v)).
+    - apply Rplus_le_compat_l.
+      apply exec_exec_val.
+
+    rewrite exec
+
 End exec_val.
 
 (** Limit of [prim_exec]  *)
@@ -259,16 +275,15 @@ Section prim_exec_lim.
         intro; simpl; auto.
       + apply rbar_le_finite; auto.
         apply (Sup_seq_minor_le _ _ n); simpl; auto.
-        destruct ρ as (e2 & σ2).
-        rewrite (exec_val_is_val _ _ _ v).
-        * rewrite dret_1_1; auto.
-          apply Rle_refl.
-        * admit.
+        rewrite <- Hv.
+        erewrite exec_exec_val; eauto.
     - rewrite <- (sup_seq_const 0).
       apply f_equal.
       apply Sup_seq_ext.
-      intro m. admit.
-  Admitted.
+      intro m; simpl.
+      f_equal.
+      eapply exec_exec_val_neq; eauto.
+  Qed.
 
 
   Lemma lim_exec_val_continous ρ1 v r :
