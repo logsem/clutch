@@ -1,10 +1,12 @@
 From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants na_invariants.
 From self.prob_lang Require Import notation proofmode primitive_laws spec_rules spec_tactics.
-From self.logrel Require Import model rel_rules rel_tactics.
+From self.typing Require Import types interp.
+From self.logrel Require Import model rel_rules rel_tactics compatibility.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
 From self.examples Require Import sample_int.
+
 
 Section lazy_int.
 
@@ -59,7 +61,9 @@ Section lazy_int.
       sample_wide_int PRED_NUM_CHUNKS PRED_CHUNK_BITS ("α").
 
   Definition cmp_lazy_int : val :=
-    λ: "lz1" "lz2",
+    λ: "p",
+      let: "lz1" := Fst "p" in
+      let: "lz2" := Snd "p" in
       (* We short-circuit if the two ints are physically equal to avoid forcing sampling *)
       if: (Snd "lz1") = (Snd "lz2") then
         #0
@@ -67,7 +71,10 @@ Section lazy_int.
         cmp_list #NUM_CHUNKS (Fst "lz1" )(Snd "lz1") (Fst "lz2" )(Snd "lz2").
 
   Definition cmp_eager_int : val :=
-    cmpZ.
+    λ: "p",
+      let: "z1" := Fst "p" in
+      let: "z2" := Snd "p" in
+      cmpZ "z1" "z2".
 
   Context `{!prelogrelGS Σ}.
 
@@ -301,16 +308,17 @@ Section lazy_int.
   Qed.
 
   Lemma wp_cmp_lazy_int z1 z2 v1 v2 E :
-    {{{ lazy_int z1 v1 ∗ lazy_int z2 v2 }}}
-      cmp_lazy_int v1 v2 @ E
+    {{{ ▷ lazy_int z1 v1 ∗ ▷ lazy_int z2 v2 }}}
+      cmp_lazy_int (v1, v2)%V @ E
     {{{ zret, RET #zret ;
         ⌜ zret = (comparison2z (Z.compare z1 z2)) ⌝ ∗
         lazy_int z1 v1 ∗ lazy_int z2 v2 }}}.
   Proof.
     iIntros (Φ) "(Hv1&Hv2) HΦ".
+    rewrite /cmp_lazy_int. wp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
     iDestruct "Hv2" as (α2 l2 zs2 -> Hz2 Hlen2 Hwf2) "H2".
-    rewrite /cmp_lazy_int. wp_pures.
+    wp_pures.
     case_bool_decide.
     { iDestruct (chunk_and_tape_list_sep_no_alias with "[$] [$]") as %Hneq; congruence. }
     wp_pures.
@@ -328,20 +336,112 @@ Section lazy_int.
     { iExists _, _, _. iFrame. eauto. }
   Qed.
 
+  Lemma wp_cmp_lazy_int_cmp_self z1 v1 E :
+    {{{ ▷ lazy_int z1 v1  }}}
+      cmp_lazy_int (v1, v1)%V @ E
+    {{{ zret, RET #zret ;
+        ⌜ zret = (comparison2z (Z.compare z1 z1)) ⌝ ∗
+        lazy_int z1 v1 }}}.
+  Proof.
+    iIntros (Φ) "Hv1 HΦ".
+    rewrite /cmp_lazy_int. wp_pures.
+    iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
+    wp_pures.
+    case_bool_decide; last by congruence.
+    wp_pures. iApply "HΦ". rewrite Z.compare_refl //. iModIntro; iSplit; first eauto.
+    iExists _, _, _. eauto.
+  Qed.
+
   Lemma wp_cmp_lazy_eager_refine z1 z2 v1 v2 K E :
     ↑ specN ⊆ E →
-    {{{ lazy_int z1 v1 ∗ lazy_int z2 v2 ∗ refines_right K (cmp_eager_int #z1 #z2) }}}
-      cmp_lazy_int v1 v2 @ E
+    {{{ ▷ lazy_int z1 v1 ∗ ▷ lazy_int z2 v2 ∗ refines_right K (cmp_eager_int (#z1, #z2)%V) }}}
+      cmp_lazy_int (v1, v2)%V @ E
     {{{ zret, RET #zret ;
         ⌜ zret = (comparison2z (Z.compare z1 z2)) ⌝ ∗
         lazy_int z1 v1 ∗ lazy_int z2 v2 ∗ refines_right K (of_val #zret) }}}.
   Proof.
     iIntros (HE Φ) "(Hv1&Hv2&HK) HΦ".
     rewrite /cmp_eager_int.
+    tp_pures K.
     iMod (spec_cmpZ with "[$]") as "HK"; first done.
     wp_apply (wp_cmp_lazy_int with "[$Hv1 $Hv2]").
     iIntros (zret) "(%Hret&H1&H2)".
     iApply "HΦ". iFrame; eauto. rewrite Hret. eauto.
+  Qed.
+
+  Lemma wp_cmp_lazy_eager_refine_cmp_self z1 v1 K E :
+    ↑ specN ⊆ E →
+    {{{ ▷ lazy_int z1 v1 ∗ refines_right K (cmp_eager_int (#z1, #z1)%V) }}}
+      cmp_lazy_int (v1, v1)%V @ E
+    {{{ zret, RET #zret ;
+        ⌜ zret = (comparison2z (Z.compare z1 z1)) ⌝ ∗
+        lazy_int z1 v1 ∗ refines_right K (of_val #zret) }}}.
+  Proof.
+    iIntros (HE Φ) "(Hv1&HK) HΦ".
+    rewrite /cmp_eager_int.
+    tp_pures K.
+    iMod (spec_cmpZ with "[$]") as "HK"; first done.
+    wp_apply (wp_cmp_lazy_int_cmp_self with "[$Hv1]").
+    iIntros (zret) "(%Hret&H1)".
+    iApply "HΦ". iFrame; eauto. rewrite Hret. eauto.
+  Qed.
+
+  Definition intτ : type := ∃: (TUnit → #0) * ((#0 * #0) → TInt).
+
+  Definition lazy_int_pack : val :=
+    (sample_lazy_int, cmp_lazy_int).
+
+  Definition eager_int_pack : val :=
+    (sample_eager_int, cmp_eager_int).
+
+  Definition lrootN := nroot.@"lazy_int".
+
+  Definition R : lrel Σ :=
+    LRel (λ v1 v2, ∃ (z : Z),
+          ⌜ v2 = #z ⌝ ∗ na_inv prelogrelGS_nais (lrootN.@(v1, z)) (lazy_int z v1))%I.
+
+  Lemma lazy_int_eager_int_refinement Δ : ⊢ REL lazy_int_pack << eager_int_pack : interp intτ Δ.
+  Proof.
+    iApply (refines_pack R).
+    rewrite refines_eq. iIntros (K) "HK Hown".
+    wp_pures.
+    iModIntro. iExists _; iFrame. simpl.
+    iExists _, _, _, _.
+    iSplit; eauto.
+    iSplit; eauto.
+    clear K Δ.
+    iSplit.
+    - iIntros (v1 v2 (->&->)) "!>".
+      rewrite refines_eq. iIntros (K) "HK Hown".
+      iApply wp_fupd.
+      wp_apply (wp_sample_lazy_eager_couple with "HK"); first done.
+      iIntros (?) "H".
+      iDestruct "H" as (z) "(Hlazy&HK)".
+      iMod (na_inv_alloc prelogrelGS_nais _ (lrootN.@(v, z)) (lazy_int z v) with "Hlazy") as "#Hinv".
+      iModIntro. iExists _. iFrame. iExists z; eauto.
+    - iIntros (vp svp) "!> #HR".
+      iDestruct "HR" as (v1 v1' v2 v2' -> ->) "(HR1&HR2)".
+      iDestruct "HR1" as (z1 ->) "HR1".
+      iDestruct "HR2" as (z2 ->) "HR2".
+      rewrite refines_eq. iIntros (K) "HK Hown".
+      destruct (decide ((v1, z1) = (v2, z2))) as [Heq|Hne].
+      { iMod (na_inv_acc with "HR1 Hown") as "(Hint&Hrest&Hclo)"; try set_solver.
+        inversion Heq; subst.
+        iApply wp_fupd.
+        wp_apply (wp_cmp_lazy_eager_refine_cmp_self with "[$]"); first auto.
+        iIntros (zret) "(%Heq'&Hint&HK)".
+        iMod ("Hclo" with "[$]").
+        iExists _. iFrame. eauto. }
+      { iMod (na_inv_acc with "HR1 Hown") as "(Hint1&Hrest1&Hclo1)"; try set_solver.
+        iMod (na_inv_acc with "HR2 Hrest1") as "(Hint2&Hrest2&Hclo2)"; try set_solver.
+        { solve_ndisj. }
+        iApply wp_fupd.
+        wp_apply (wp_cmp_lazy_eager_refine with "[Hint1 Hint2 HK]"); first auto.
+        { iFrame. }
+        iIntros (zret) "(%Heq'&Hint1&Hint2&HK)".
+        iMod ("Hclo2" with "[$]").
+        iMod ("Hclo1" with "[$]").
+        iExists _. iFrame. eauto. }
   Qed.
 
 End lazy_int.
