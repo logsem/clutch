@@ -454,6 +454,24 @@ Section filter.
 
 End filter.
 
+(*
+Section subset.
+
+Context `{Countable A, Countable B}.
+
+Lemma subset_ex_series (f : A -> R) (g : B -> R) (e : A -> B) (d : B -> option A) :
+  (forall a, 0 <= f a ) ->
+  (forall b, 0 <= g b ) ->
+  (forall a, d (e a) = Some a) ->
+  (forall a, f a  = g (e a)) ->
+  ex_seriesC g ->
+  ex_seriesC f.
+Proof.
+
+
+End subset.
+*)
+
 (* Section rearrange. *)
 (*   Context `{Countable A}. *)
 

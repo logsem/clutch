@@ -590,11 +590,42 @@ Section refinement_couplings.
   Definition refRcoupl :=
     ∃ (μ : distr (A * B)), isRefRcoupl μ.
 
+
+  Lemma isRefCoupl_mass_l μ : isRefCoupl μ -> SeriesC μ = SeriesC μ1.
+  Proof.
+    intro Hμ.
+    destruct Hμ as (Hμl & Hμr).
+    rewrite <- Hμl.
+    rewrite /lmarg.
+    rewrite <- dmap_mass.
+    auto.
+  Qed.
+
+  Lemma isRefCoupl_mass_r μ : isRefCoupl μ -> SeriesC μ <= SeriesC μ2.
+  Proof.
+    intro Hμ.
+    destruct Hμ as (Hμl & Hμr).
+    rewrite (dmap_mass μ snd).
+    apply SeriesC_le; auto.
+  Qed.
+
+  Lemma isRefCoupl_mass_eq μ : isRefCoupl μ -> SeriesC μ1 <= SeriesC μ2.
+  Proof.
+    intro Hμ.
+    rewrite <- (isRefCoupl_mass_l μ); auto.
+    apply (isRefCoupl_mass_r μ); auto.
+  Qed.
+
 End refinement_couplings.
 
 Section ref_couplings_theory.
 
 Context `{Countable A, Countable B}.
+
+
+  Lemma refRcoupl_mass_eq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+    refRcoupl μ1 μ2 R → SeriesC μ1 <= SeriesC μ2.
+  Proof. intros (?&?&?). by eapply isRefCoupl_mass_eq. Qed.
 
 (*
   Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
