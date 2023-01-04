@@ -1,4 +1,3 @@
-(* ReLoC -- Relational logic for fine-grained concurrency *)
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.

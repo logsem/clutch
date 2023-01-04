@@ -1,5 +1,4 @@
-(* ReLoC -- Relational logic for fine-grained concurrency *)
-(** Core ReLoC rules *)
+(** Core relational rules *)
 From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.

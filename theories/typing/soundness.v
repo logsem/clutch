@@ -1,4 +1,3 @@
-(* ReLoC -- Relational logic for fine-grained concurrency *)
 (** Logical relation is sound w.r.t. the contextual refinement. *)
 From iris.proofmode Require Import proofmode.
 From self.logrel Require Export model adequacy.
