@@ -60,7 +60,11 @@ Section lazy_int.
 
   Definition cmp_lazy_int : val :=
     λ: "lz1" "lz2",
-      cmp_list #NUM_CHUNKS (Fst "lz1" )(Snd "lz1") (Fst "lz2" )(Snd "lz2").
+      (* We short-circuit if the two ints are physically equal to avoid forcing sampling *)
+      if: (Snd "lz1") = (Snd "lz2") then
+        #0
+      else
+        cmp_list #NUM_CHUNKS (Fst "lz1" )(Snd "lz1") (Fst "lz2" )(Snd "lz2").
 
   Definition cmp_eager_int : val :=
     cmpZ.
@@ -262,6 +266,68 @@ Section lazy_int.
     eauto.
   Qed.
 
+  Lemma chunk_list_hd_acc l zs :
+    chunk_list l zs -∗
+    (∃ v, l ↦ v ∗ (l ↦ v -∗ chunk_list l zs)).
+  Proof.
+    destruct zs.
+    - simpl. iIntros. iExists _. iFrame. eauto.
+    - simpl. iDestruct 1 as (?) "(H1&H2)". iExists _. iFrame.
+      iIntros "H". iExists _. iFrame.
+  Qed.
+
+  Lemma chunk_list_sep_no_alias l1 l2 zs1 zs2 :
+    chunk_list l1 zs1 -∗
+    chunk_list l2 zs2 -∗
+    ⌜ l1 ≠ l2 ⌝.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct (chunk_list_hd_acc with "H1") as (?) "(H1&_)".
+    iDestruct (chunk_list_hd_acc with "H2") as (?) "(H2&_)".
+    destruct (decide (l1 = l2)); auto; subst.
+    iDestruct (@ghost_map_elem_valid_2 with "H1 H2") as %[Hval _].
+    iPureIntro. apply dfrac_valid_own_l in Hval. inversion Hval.
+  Qed.
+
+  Lemma chunk_and_tape_list_sep_no_alias α1 α2 l1 l2 zs1 zs2 :
+    chunk_and_tape_list α1 l1 zs1 -∗
+    chunk_and_tape_list α2 l2 zs2 -∗
+    ⌜ l1 ≠ l2 ⌝.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct "H1" as (???) "(H1&_)".
+    iDestruct "H2" as (???) "(H2&_)".
+    iApply (chunk_list_sep_no_alias with "H1 H2").
+  Qed.
+
+  Lemma wp_cmp_lazy_int z1 z2 v1 v2 E :
+    {{{ lazy_int z1 v1 ∗ lazy_int z2 v2 }}}
+      cmp_lazy_int v1 v2 @ E
+    {{{ zret, RET #zret ;
+        ⌜ zret = (comparison2z (Z.compare z1 z2)) ⌝ ∗
+        lazy_int z1 v1 ∗ lazy_int z2 v2 }}}.
+  Proof.
+    iIntros (Φ) "(Hv1&Hv2) HΦ".
+    iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
+    iDestruct "Hv2" as (α2 l2 zs2 -> Hz2 Hlen2 Hwf2) "H2".
+    rewrite /cmp_lazy_int. wp_pures.
+    case_bool_decide.
+    { iDestruct (chunk_and_tape_list_sep_no_alias with "[$] [$]") as %Hneq; congruence. }
+    wp_pures.
+    wp_apply (wp_cmp_list with "[$H1 $H2]"); try done.
+    iIntros (zret) "(%Hret&H1&H2)".
+    iApply "HΦ".
+    assert (zret = comparison2z (z1 ?= z2)%Z) as Hreteq.
+    { rewrite Hret. f_equal.
+      rewrite Hz1 Hz2.
+      eapply digit_list_cmp_spec; eauto.
+      lia. }
+    iSplit; first eauto.
+    iSplitL "H1".
+    { iExists _, _, _. iFrame. eauto. }
+    { iExists _, _, _. iFrame. eauto. }
+  Qed.
+
   Lemma wp_cmp_lazy_eager_refine z1 z2 v1 v2 K E :
     ↑ specN ⊆ E →
     {{{ lazy_int z1 v1 ∗ lazy_int z2 v2 ∗ refines_right K (cmp_eager_int #z1 #z2) }}}
@@ -271,23 +337,11 @@ Section lazy_int.
         lazy_int z1 v1 ∗ lazy_int z2 v2 ∗ refines_right K (of_val #zret) }}}.
   Proof.
     iIntros (HE Φ) "(Hv1&Hv2&HK) HΦ".
-    iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
-    iDestruct "Hv2" as (α2 l2 zs2 -> Hz2 Hlen2 Hwf2) "H2".
-    rewrite /cmp_lazy_int. wp_pures.
-    iApply wp_fupd.
-    wp_apply (wp_cmp_list with "[$H1 $H2]"); try done.
-    iIntros (zret) "(%Hret&H1&H2)".
+    rewrite /cmp_eager_int.
     iMod (spec_cmpZ with "[$]") as "HK"; first done.
-    iModIntro. iApply "HΦ".
-    assert (zret = comparison2z (z1 ?= z2)%Z) as Hreteq.
-    { rewrite Hret. f_equal.
-      rewrite Hz1 Hz2.
-      eapply digit_list_cmp_spec; eauto.
-      lia. }
-    iSplit; first eauto. rewrite Hreteq. iFrame.
-    iSplitL "H1".
-    { iExists _, _, _. iFrame. eauto. }
-    { iExists _, _, _. iFrame. eauto. }
+    wp_apply (wp_cmp_lazy_int with "[$Hv1 $Hv2]").
+    iIntros (zret) "(%Hret&H1&H2)".
+    iApply "HΦ". iFrame; eauto. rewrite Hret. eauto.
   Qed.
 
 End lazy_int.
