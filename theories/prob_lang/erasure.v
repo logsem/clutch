@@ -1,4 +1,5 @@
 From Coq Require Import Reals Psatz.
+From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import fin_maps fin_map_dom.
 From self.prelude Require Import stdpp_ext.
 From self.program_logic Require Export exec.
@@ -280,6 +281,57 @@ Proof.
   by eapply prim_coupl_upd_tapes_dom.
 Qed.
 
+
+
+Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v:
+  σ1.(tapes) !! α = Some bs →
+  (lim_exec_val (e1, σ1)) v =
+  (state_step σ1 α ≫= (λ σ2, lim_exec_val (e1, σ2))) v.
+Proof.
+  intro Hsome.
+   rewrite lim_exec_val_rw/=.
+   rewrite {2}/pmf/=/dbind_pmf.
+   setoid_rewrite lim_exec_val_rw.
+   simpl in *.
+   assert
+     (SeriesC (λ a: state, state_step σ1 α a * Sup_seq (λ n : nat, exec_val n (e1, a) v)) =
+     SeriesC (λ a: state, Sup_seq (λ n : nat, state_step σ1 α a * exec_val n (e1, a) v))) as Haux.
+   { apply SeriesC_ext; intro v'.
+     apply eq_rbar_finite.
+     rewrite rmult_finite.
+     rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, exec_val n (e1, v') v))); auto.
+     - rewrite <- (Sup_seq_scal_l (state_step σ1 α v') (λ n : nat, exec_val n (e1, v') v)); auto.
+     - apply (Rbar_le_sandwich 0 1).
+       + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+       + apply upper_bound_ge_sup; intro; simpl; auto.
+   }
+   rewrite Haux.
+   rewrite (MCT_seriesC _ (λ n, exec_val n (e1,σ1) v) (lim_exec_val (e1,σ1) v)); auto.
+   - intros; apply Rmult_le_pos; auto.
+   - intros.
+     apply Rmult_le_compat; auto; [apply Rle_refl | apply exec_val_mon]; auto.
+   - intro.
+     exists (state_step σ1 α a); intro.
+     rewrite <- Rmult_1_r.
+     apply Rmult_le_compat_l; auto.
+   - intro n.
+     rewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim n e1 σ1 α bs Hsome)); auto.
+     rewrite {3}/pmf/=/dbind_pmf.
+     apply SeriesC_correct; auto.
+     apply (ex_seriesC_le _ (state_step σ1 α)); auto.
+     intro; split; auto.
+     + apply Rmult_le_pos; auto.
+     + rewrite <- Rmult_1_r.
+       apply Rmult_le_compat_l; auto.
+   - rewrite lim_exec_val_rw.
+     rewrite rbar_finite_real_eq; [ apply Sup_seq_correct | ].
+     rewrite mon_sup_succ.
+     + apply (Rbar_le_sandwich 0 1); auto.
+       * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+       * apply upper_bound_ge_sup; intro; simpl; auto.
+     + intro; apply exec_val_mon.
+Qed.
+
 Lemma limprim_coupl_step_limprim e1 σ1 α bs :
   σ1.(tapes) !! α = Some bs →
   Rcoupl
@@ -287,10 +339,12 @@ Lemma limprim_coupl_step_limprim e1 σ1 α bs :
     (state_step σ1 α ≫= (λ σ2, lim_exec_val (e1, σ2)))
     eq.
 Proof.
-  (* Hopefully there is some continuity argument using the previous lemma *)
-  (* intros; rewrite state_step_fair_conv_comb fair_conv_comb_dbind. *)
-  (* do 2 rewrite dret_id_left. *)
-Admitted.
+  intro Hsome.
+  erewrite (distr_ext (lim_exec_val (e1, σ1))); last first.
+  - intro a.
+    apply (limprim_coupl_step_limprim_aux _ _ _ _ _ Hsome).
+  - apply Rcoupl_eq.
+Qed.
 
 Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':
   σ1.(tapes) !! α = Some bs →
