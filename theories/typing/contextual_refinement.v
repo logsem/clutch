@@ -216,7 +216,7 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
-  ((lim_exec_val (fill_ctx K e, σ₀)) #b <= (lim_exec_val (fill_ctx K e', σ₀)) #b)%R.
+  (lim_exec_val (fill_ctx K e, σ₀) #b <= lim_exec_val (fill_ctx K e', σ₀) #b)%R.
 
 Notation "Γ ⊨ e '≤ctx≤' e' : τ" :=
   (ctx_refines Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
