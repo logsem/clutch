@@ -58,13 +58,13 @@ Section logical_ref.
     iIntros (?? [-> ->]).
     rel_pures_l.
     rel_pure_r.
-    iApply (refines_na_inv with "[$Hinv]"); [done|done|].
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       rel_bind_l (flip _)%E.
       rel_bind_r (flip _)%E.
-      iApply (refines_couple_flips_r with "[-$Hα]"); [done|].
+      iApply (refines_couple_flips_r with "[-$Hα]"); [solve_ndisj|].
       iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
@@ -94,7 +94,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (??) "_".
     rel_pures_l. rel_pures_r.
-    iApply (refines_na_inv with "[$Hinv]"); [done|done|].
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "[[[Hα Hl] | [Hα Hl]] Hclose]".
     - rel_load_l. rel_pures_l.
       rel_flip_l. rel_pures_l.
@@ -127,7 +127,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (??) "_".
     rel_pures_l. rel_pures_r.
-    iApply (refines_na_inv with "[$Hinv]"); [done|done|].
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "[[>[Hα Hl] | >[Hα Hl]] Hclose]".
     - rel_load_r. rel_pures_r.
       rel_flip_r. rel_pures_r.
@@ -158,13 +158,13 @@ Section logical_ref.
     iIntros (?? [-> ->]).
     rel_pures_l.
     rel_pure_r.
-    iApply (refines_na_inv with "[$Hinv]"); [done|done|].
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       rel_bind_l (flip _)%E.
       rel_bind_r (flip _)%E.
-      iApply (refines_couple_flips_l with "[-$Hα]"); [done|].
+      iApply (refines_couple_flips_l with "[-$Hα]"); [solve_ndisj|].
       iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
