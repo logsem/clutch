@@ -1,4 +1,3 @@
-(* ReLoC -- Relational logic for fine-grained concurrency *)
 (** Tactics for updating the specification program. *)
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import

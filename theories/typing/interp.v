@@ -31,10 +31,10 @@ Section semtypes.
     | TBool => λne _, lrel_bool
     | TProd τ1 τ2 => λne Δ, lrel_prod (interp τ1 Δ) (interp τ2 Δ)
     | TSum τ1 τ2 => λne Δ, lrel_sum (interp τ1 Δ) (interp τ2 Δ)
-    | TArrow τ1 τ2 => λne Δ, lrel_arr ⊤ (interp τ1 Δ) (interp τ2 Δ)
+    | TArrow τ1 τ2 => λne Δ, lrel_arr (interp τ1 Δ) (interp τ2 Δ)
     | TRec τ' => λne Δ, lrel_rec (λne τ, interp τ' (τ::Δ))
     | TVar x => ctx_lookup x
-    | TForall τ' => λne Δ, lrel_forall ⊤ (λ τ, interp τ' (τ::Δ))
+    | TForall τ' => λne Δ, lrel_forall (λ τ, interp τ' (τ::Δ))
     | TExists τ' => λne Δ, lrel_exists (λ τ, interp τ' (τ::Δ))
     | TRef τ => λne Δ, lrel_ref (interp τ Δ)
     | TTape => λne Δ, lrel_tape

@@ -29,19 +29,11 @@ Inductive ctx_item :=
   | CTX_CaseL (e1 : expr) (e2 : expr)
   | CTX_CaseM (e0 : expr) (e2 : expr)
   | CTX_CaseR (e0 : expr) (e1 : expr)
-  (* (* Concurrency *) *)
-  (* | CTX_Fork *)
   (* Heap *)
   | CTX_Alloc
   | CTX_Load
   | CTX_StoreL (e2 : expr)
   | CTX_StoreR (e1 : expr)
-  (* (* Compare-exchange and FAA *) *)
-  (* | CTX_CmpXchgL (e1 : expr) (e2 : expr) *)
-  (* | CTX_CmpXchgM (e0 : expr) (e2 : expr) *)
-  (* | CTX_CmpXchgR (e0 : expr) (e1 : expr) *)
-  (* | CTX_FAAL (e1 : expr) *)
-  (* | CTX_FAAR (e0 : expr) *)
   (* Recursive Types *)
   | CTX_Fold
   | CTX_Unfold
@@ -80,17 +72,11 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
   | CTX_CaseM e0 e2 => Case e0 e e2
   | CTX_CaseR e0 e1 => Case e0 e1 e
   (* Concurrency *)
-  (* | CTX_Fork => Fork e *)
   (* Heap & atomic CAS/FAA *)
   | CTX_Alloc => Alloc e
   | CTX_Load => Load e
   | CTX_StoreL e2 => Store e e2
   | CTX_StoreR e1 => Store e1 e
-  (* | CTX_CmpXchgL e1 e2 => CmpXchg e e1 e2 *)
-  (* | CTX_CmpXchgM e0 e2 => CmpXchg e0 e e2 *)
-  (* | CTX_CmpXchgR e0 e1 => CmpXchg e0 e1 e *)
-  (* | CTX_FAAL e1 => FAA e e1 *)
-  (* | CTX_FAAR e0 => FAA e0 e *)
   (* Recursive & polymorphic types *)
   | CTX_Fold => e
   | CTX_Unfold => rec_unfold e
@@ -183,9 +169,6 @@ Inductive typed_ctx_item :
   | TP_CTX_CaseR Γ e0 e1 τ1 τ2 τ' :
      typed Γ e0 (TSum τ1 τ2) → typed Γ e1 (TArrow τ1 τ') →
      typed_ctx_item (CTX_CaseR e0 e1) Γ (TArrow τ2 τ') Γ τ'
-  (* Concurrency *)
-  (* | TP_CTX_Fork Γ : *)
-  (*    typed_ctx_item CTX_Fork Γ () Γ () *)
   (* Heap *)
   | TPCTX_Alloc Γ τ :
      typed_ctx_item CTX_Alloc Γ τ Γ (TRef τ)
@@ -196,24 +179,6 @@ Inductive typed_ctx_item :
   | TP_CTX_StoreR Γ e1 τ :
      typed Γ e1 (TRef τ) →
      typed_ctx_item (CTX_StoreR e1) Γ τ Γ ()
-  (* | TP_CTX_FAAL Γ e2 : *)
-  (*    Γ ⊢ₜ e2 : TInt → *)
-  (*    typed_ctx_item (CTX_FAAL e2) Γ (TRef TInt) Γ TInt *)
-  (* | TP_CTX_FAAR Γ e1 : *)
-  (*    Γ ⊢ₜ e1 : TRef TInt → *)
-  (*    typed_ctx_item (CTX_FAAR e1) Γ TInt Γ TInt *)
-  (* | TP_CTX_CasL Γ e1 e2 τ : *)
-  (*    UnboxedType τ → *)
-  (*    typed Γ e1 τ → typed Γ e2 τ → *)
-  (*    typed_ctx_item (CTX_CmpXchgL e1 e2) Γ (TRef τ) Γ (TProd τ TBool) *)
-  (* | TP_CTX_CasM Γ e0 e2 τ : *)
-  (*    UnboxedType τ → *)
-  (*    typed Γ e0 (TRef τ) → typed Γ e2 τ → *)
-  (*    typed_ctx_item (CTX_CmpXchgM e0 e2) Γ τ Γ (TProd τ TBool) *)
-  (* | TP_CTX_CasR Γ e0 e1 τ : *)
-  (*    UnboxedType τ → *)
-  (*    typed Γ e0 (TRef τ) → typed Γ e1 τ → *)
-  (*    typed_ctx_item (CTX_CmpXchgR e0 e1) Γ τ Γ (TProd τ TBool) *)
   (* Polymorphic & recursive types *)
   | TP_CTX_Fold Γ τ :
      typed_ctx_item CTX_Fold Γ τ.[(TRec τ)/] Γ (TRec τ)
@@ -251,7 +216,7 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
-  ((lim_exec_val (fill_ctx K e, σ₀)) #b <= (lim_exec_val (fill_ctx K e', σ₀)) #b)%R.
+  (lim_exec_val (fill_ctx K e, σ₀) #b <= lim_exec_val (fill_ctx K e', σ₀) #b)%R.
 
 Notation "Γ ⊨ e '≤ctx≤' e' : τ" :=
   (ctx_refines Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).

@@ -1,4 +1,3 @@
-(* ReLoC -- Relational logic for fine-grained concurrency *)
 (** Tactics and lemmas for properness and non-expansiveness. *)
 From stdpp Require Export tactics.
 From iris.algebra Require Export ofe gmap.
