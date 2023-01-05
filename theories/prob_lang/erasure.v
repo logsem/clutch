@@ -397,3 +397,96 @@ Proof.
     eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros ? [] ?. by apply Hcont.
 Qed.
+
+
+Lemma prim_step_true_no_val e σ n :
+  to_val e = None →
+  prim_step_or_val ((e;; #true)%E, σ) ≫= exec_val n =
+    (prim_step e σ) ≫= (λ '(e', σ'), exec_val n ((e';; #true)%E, σ')).
+Proof.
+  intros He.
+  rewrite 1!prim_step_or_val_no_val /=; [|done].
+  replace (e ;; #true)%E with (fill [(AppRCtx (λ: <>, #true)%E)] e); [|done]. 
+  rewrite fill_dmap //=. 
+  rewrite /dmap.
+  rewrite -dbind_assoc -/exec_val.
+  eapply dbind_eq; [|done].
+  intros [e' σ'] Hs.
+  rewrite dret_id_left //.
+Qed.
+
+Lemma prim_step_true_val e σ n v :
+  to_val e = Some v →
+  prim_step_or_val ((e;; #true)%E, σ) ≫= exec_val n =
+    exec_val n ((of_val #true)%E, σ).
+Proof.
+  intros He.
+  rewrite 1!prim_step_or_val_no_val /=; [|done].
+  replace (e ;; #true)%E with (fill [(AppRCtx (λ: <>, #true)%E)] e); [|done].
+Admitted.
+
+
+  Lemma exec_val_series e σ n :
+    SeriesC (exec_val n (e, σ)) =
+      (exec_val (S n) ((e;; #true)%E, σ)) #true.
+  Proof.
+    move: e σ; induction n; intros e σ.
+    - rewrite exec_val_Sn.
+      destruct (to_val e) eqn:Heq.
+      + setoid_rewrite prim_step_true_val; eauto; simpl.
+        rewrite Heq dret_mass
+                dret_1_1; auto.
+      + setoid_rewrite prim_step_true_no_val; eauto; simpl.
+        rewrite Heq.
+        rewrite SeriesC_0; auto.
+        rewrite /pmf/=/dbind_pmf.
+        setoid_rewrite SeriesC_0; auto.
+        intros (? & ?).
+        rewrite Rmult_0_r; auto.
+    - setoid_rewrite exec_val_Sn.
+      destruct (to_val e) eqn:Heq.
+      + rewrite (prim_step_true_val _ _ _ v); auto.
+        rewrite {1}/prim_step_or_val/= Heq.
+        assert (SeriesC (dret (e, σ) ≫= exec_val n) = SeriesC (exec_val n (e, σ))) as Haux.
+        { apply SeriesC_ext; intro.
+          rewrite dret_id_left. auto. }
+        rewrite Haux.
+        rewrite exec_val_unfold /= Heq.
+        rewrite dret_mass.
+        rewrite dret_1_1; auto.
+      + rewrite prim_step_true_no_val; auto.
+        rewrite prim_step_or_val_no_val; auto.
+      rewrite /pmf/=/dbind_pmf.
+      rewrite distr_double_swap.
+      apply SeriesC_ext; intro.
+      rewrite SeriesC_scal_l.
+      rewrite (Rmult_eq_compat_l (prim_step e σ n0)
+               (SeriesC (exec_val n n0))
+               ((let '(e', σ') := n0 in prim_step (e';; #true) σ' ≫= exec_val n) #true)); auto.
+      destruct n0. rewrite IHn.
+      rewrite exec_val_Sn; auto.
+  Qed.
+
+  Lemma lim_exec_val_series e σ :
+    SeriesC (lim_exec_val (e, σ)) =
+      (lim_exec_val ((e;; #true)%E, σ)) #true.
+  Proof.
+    rewrite lim_exec_val_rw.
+    erewrite SeriesC_ext;
+    [ | intro; apply lim_exec_val_rw].
+    simpl.
+    rewrite (MCT_seriesC _ (λ n, SeriesC (exec_val n (e,σ)))
+               (Sup_seq (λ n0 : nat, SeriesC (λ n : val, exec_val n0 (e, σ) n)))) .
+    - rewrite (mon_sup_succ (λ n : nat, exec_val n ((e;; #true)%E, σ) #true)).
+      + f_equal. apply Sup_seq_ext; intro n.
+        rewrite (exec_val_series e σ n); auto.
+      + intro; apply exec_val_mon.
+    - intros; auto.
+    - intros; apply exec_val_mon.
+    - intros; exists 1; intros; auto.
+    - intros. apply SeriesC_correct; auto.
+    - rewrite (Rbar_le_sandwich 0 1); auto.
+      + apply Sup_seq_correct.
+      + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+      + apply upper_bound_ge_sup; intro; simpl; auto.
+  Qed.
