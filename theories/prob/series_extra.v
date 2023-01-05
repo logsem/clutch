@@ -378,6 +378,21 @@ Qed.
     apply (upper_bound_ge_sup (λ x : nat, h x) r); auto.
   Qed.
 
+  Lemma sup_seq_eq_antisym (h1 h2 : nat -> R) :
+    (forall m, exists n, h1 m <= h2 n) ->
+    (forall m, exists n, h2 m <= h1 n) ->
+    Sup_seq h1 = Sup_seq h2.
+  Proof.
+    intros H1 H2.
+    apply Rbar_le_antisym.
+    + apply upper_bound_ge_sup; intro n.
+      destruct (H1 n) as (m & ?).
+      apply (Sup_seq_minor_le _ _ m); auto.
+    + apply upper_bound_ge_sup; intro n.
+      destruct (H2 n) as (m & ?).
+      apply (Sup_seq_minor_le _ _ m); auto.
+  Qed.
+
 
   (* Maybe can be proven from partial_summation_R *)
   Lemma ex_pos_bounded_series (h : nat -> R) :

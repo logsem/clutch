@@ -627,48 +627,7 @@ Context `{Countable A, Countable B}.
     refRcoupl μ1 μ2 R → SeriesC μ1 <= SeriesC μ2.
   Proof. intros (?&?&?). by eapply isRefCoupl_mass_eq. Qed.
 
-(*
-  Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
-    SeriesC μ1 <= SeriesC μ2 ->
-    refRcoupl μ1 μ2 (λ _ _, True).
-  Proof.
-    intros Hμ.
-    Search Rle.
-    eexists (distr_scal ((SeriesC μ1)/(SeriesC μ2)) (dprod μ1 μ2) _).
-    Unshelve.
-    2:{
-      split; auto.
-      rewrite <- Rmult_1_r.
-      apply Rmult_le_compat; auto.
-    }
-    split; [|done].
-    split.
-    ++ apply distr_ext. intro a.
-      rewrite lmarg_pmf.
-      rewrite SeriesC_scal_l.
-      rewrite -lmarg_pmf.
-      rewrite lmarg_dprod_pmf.
-      rewrite <- Rmult_comm.
-      rewrite Rmult_assoc.
-      assert (μ2 b = μ2 b * 1) as Hrw; [rewrite Rmult_1_r; auto | ].
-      rewrite {2}Hrw.
-      apply (Rmult_le_compat_l); auto; try lra.
-      rewrite <- Rmult_1_r.
-      apply Rmult_le_compat; auto.
-    ++ intro b.
-      rewrite rmarg_pmf.
-      rewrite SeriesC_scal_l.
-      rewrite -rmarg_pmf.
-      rewrite rmarg_dprod_pmf.
-      rewrite <- Rmult_comm.
-      rewrite Rmult_assoc.
-      assert (μ2 b = μ2 b * 1) as Hrw; [rewrite Rmult_1_r; auto | ].
-      rewrite {2}Hrw.
-      apply (Rmult_le_compat_l); auto; try lra.
-      rewrite <- Rmult_1_r.
-      apply Rmult_le_compat; auto.
-  Qed.
-*)
+
 
   Lemma refRcoupl_eq_elim (μ1 μ2 : distr A) :
     refRcoupl μ1 μ2 (=) → (∀ a, μ1 a <= μ2 a).
@@ -878,5 +837,52 @@ Context `{Countable A, Countable B}.
     intros Hwk [μ [[HμL HμR] HμSupp]].
     exists μ; split; [split | ]; auto.
   Qed.
+
+
+  Lemma refRcoupl_trivial (μ1 :distr A) (μ2 :distr B):
+    SeriesC μ1 <= SeriesC μ2 ->
+    refRcoupl μ1 μ2 (λ _ _, True).
+  Proof.
+    intros Hμ.
+    pose proof (pmf_SeriesC_ge_0 μ1) as H3.
+    destruct (Rlt_or_le 0 (SeriesC μ1)); last first.
+    + destruct H3 ; try lra.
+      rewrite (SeriesC_zero_dzero μ1); [ | apply Rle_antisym; auto].
+      apply refRcoupl_dzero.
+    + assert (0 < SeriesC μ2); [apply (Rlt_le_trans _ (SeriesC μ1)) | ]; auto.
+      eexists (distr_scal (/(SeriesC μ2)) (dprod μ1 μ2) _).
+    Unshelve.
+    2:{
+      split; auto.
+      - left; apply Rinv_0_lt_compat; auto.
+      - rewrite dprod_mass.
+        rewrite Rmult_comm Rmult_assoc.
+        rewrite Rinv_r; auto; try lra.
+        rewrite Rmult_1_r.
+        apply pmf_SeriesC.
+    }
+    split; [|done].
+    split.
+    ++ apply distr_ext. intro a.
+      rewrite lmarg_pmf
+       SeriesC_scal_l
+       -lmarg_pmf
+       lmarg_dprod_pmf
+       -Rmult_comm
+       Rmult_assoc
+       Rinv_r; lra.
+    ++ intro b.
+      rewrite rmarg_pmf
+       SeriesC_scal_l
+       -rmarg_pmf
+       rmarg_dprod_pmf
+       -Rmult_comm
+       Rmult_assoc.
+      assert (μ2 b = μ2 b * 1) as Hrw; [rewrite Rmult_1_r; auto | ].
+      rewrite {2}Hrw.
+      apply (Rmult_le_compat_l); auto; try lra.
+      apply (Rdiv_le_1 (SeriesC μ1) (SeriesC μ2)) ; try lra.
+  Qed.
+
 
 End ref_couplings_theory.
