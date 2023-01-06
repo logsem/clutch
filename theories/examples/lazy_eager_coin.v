@@ -52,7 +52,7 @@ Section logical_ref.
     rel_pures_r.
     set (P := (α ↪ₛ [] ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
                  ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
-    iApply (refines_na_alloc P coinN); [done|].
+    iApply (refines_na_alloc P coinN).
     iSplitL.
     { iFrame. iLeft. iFrame. }
     iIntros "#Hinv".
@@ -91,7 +91,7 @@ Section logical_ref.
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.
     set (P := ((α ↪ [b] ∗ l ↦ NONEV) ∨ (α ↪ [] ∗ l ↦ SOMEV #b))%I).
-    iApply (refines_na_alloc P coinN); [done|].
+    iApply (refines_na_alloc P coinN).
     iSplitL.
     { iModIntro. iLeft. iFrame. }
     iIntros "#Hinv".
@@ -124,7 +124,7 @@ Section logical_ref.
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
     set (P := ((α ↪ₛ [b] ∗ l ↦ₛ NONEV) ∨ (α ↪ₛ [] ∗ l ↦ₛ SOMEV #b))%I).
-    iApply (refines_na_alloc P coinN); [done|].
+    iApply (refines_na_alloc P coinN).
     iSplitL.
     { iModIntro. iLeft. iFrame. }
     iIntros "#Hinv".
@@ -154,7 +154,7 @@ Section logical_ref.
     rel_alloc_l l as "Hl". rel_pures_l.
     set (P := (α ↪ [] ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
                            ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
-    iApply (refines_na_alloc P coinN); [done|].
+    iApply (refines_na_alloc P coinN).
     iSplitL.
     { iFrame. iLeft. iFrame. }
     iIntros "#Hinv".

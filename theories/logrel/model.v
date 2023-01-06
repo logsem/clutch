@@ -292,11 +292,10 @@ Section related_facts.
   Qed.
 
   Lemma refines_na_alloc P N E e1 e2 A :
-    ↑N ⊆ E →
     (▷ P ∗ (na_invP N P -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
-    iIntros (?) "[HP Hcont]".
+    iIntros "[HP Hcont]".
     iMod (na_inv_alloc with "HP").
     iApply ("Hcont" with "[$]").
   Qed.
