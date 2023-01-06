@@ -263,9 +263,9 @@ Section rules.
   Lemma refines_couple_tapes E e1 e2 A α αₛ bs bsₛ
     (Hmasked : nclose specN ⊆ E) :
     to_val e1 = None →
-    ((αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-       ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b]))
-       -∗ REL e1 << e2 @ E : A)))
+    (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+       (∀ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])
+       -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
     iIntros (e1ev) "(Hαs & Hα & Hlog)".
@@ -275,8 +275,7 @@ Section rules.
     iFrame "Hα Hαs".
     iSplit; [done|].
     iIntros "[%b [Hαs Hα]]".
-    iApply ("Hlog" with "[Hα Hαs] [$Hs $He2] Hnais").
-    iExists _. iFrame.
+    iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
   Qed.
 
   Lemma refines_couple_flips_l K K' E α A (Hmasked : nclose specN ⊆ E) :
