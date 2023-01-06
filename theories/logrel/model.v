@@ -55,7 +55,11 @@ End lrel_ofe.
 
 Arguments lrelC : clear implicits.
 
-(* Canonical Structure ectx_itemO := leibnizO ectx_item. *)
+Canonical Structure ectx_itemO := leibnizO ectx_item.
+
+Definition na_ownP `{!prelogrelGS Σ} := na_own prelogrelGS_nais.
+Definition na_invP `{!prelogrelGS Σ} := na_inv prelogrelGS_nais.
+Definition na_closeP `{!prelogrelGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
 
 Section semtypes.
   Context `{!prelogrelGS Σ}.
@@ -69,9 +73,9 @@ Section semtypes.
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
     (∀ K, refines_right K e' -∗
-          na_own prelogrelGS_nais E -∗
+          na_ownP E -∗
           WP e {{ v, ∃ v', refines_right K (of_val v')
-                               ∗ na_own prelogrelGS_nais ⊤
+                               ∗ na_ownP ⊤
                                ∗ A v v' }})%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
@@ -287,11 +291,20 @@ Section related_facts.
     iApply fupd_refines. by iMod "HL".
   Qed.
 
+  Lemma refines_na_alloc P N E e1 e2 A :
+    ↑N ⊆ E →
+    (▷ P ∗ (na_invP N P -∗ REL e1 << e2 @ E : A))
+    ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (?) "[HP Hcont]".
+    iMod (na_inv_alloc with "HP").
+    iApply ("Hcont" with "[$]").
+  Qed.
+
   Lemma refines_na_inv P E N e1 e2 A :
-    ↑N ⊆ E ->
-    na_inv prelogrelGS_nais N P ∗
-    (▷ P ∗ (▷ P ∗ na_own prelogrelGS_nais (E ∖ ↑N) ={⊤}=∗ na_own prelogrelGS_nais E)
-     -∗ REL e1 << e2 @ (E ∖ ↑N) : A)%I
+    ↑N ⊆ E →
+    na_invP N P ∗
+    (▷ P ∗ na_closeP P N E -∗ REL e1 << e2 @ (E ∖ ↑N) : A)%I
     ⊢ REL e1 << e2 @ E : A.
   Proof.
     iIntros (NE) "[Hinv IH]".
@@ -303,15 +316,15 @@ Section related_facts.
   Qed.
 
   Lemma refines_na_close P E N e1 e2 A :
-    (|={⊤}=> REL e1 << e2 @ E : A)
-    ∗ (▷ P ∗ (▷ P ∗ na_own prelogrelGS_nais (E ∖ ↑N) ={⊤}=∗ na_own prelogrelGS_nais E))
+    (▷ P ∗ na_closeP P N E ∗
+    REL e1 << e2 @ E : A)
     ⊢ REL e1 << e2 @ (E ∖ ↑N) : A.
   Proof.
-    iIntros "[IH [HP Hclose]]".
+    iIntros "(HP & Hclose & IH)".
     rewrite refines_eq /refines_def.
     iIntros (K) "Hs own_FN".
     iDestruct ("Hclose" with "[$HP $own_FN]") as "own_F".
-    iMod "own_F". iMod "IH". iApply ("IH" with "Hs own_F").
+    iMod "own_F". iApply ("IH" with "Hs own_F").
   Qed.
 
 End related_facts.
@@ -320,7 +333,6 @@ Section monadic.
   Context `{!prelogrelGS Σ}.
   Implicit Types e : expr.
 
-  (* PGH: could consider a version with REL v << v' @ E ; F : A *)
   Lemma refines_bind K K' E A A' e e' :
     (REL e << e' @ E : A) -∗
     (∀ v v', A v v' -∗
@@ -342,7 +354,7 @@ Section monadic.
   Lemma refines_ret_na E e1 e2 v1 v2 (A : lrel Σ) :
     IntoVal e1 v1 →
     IntoVal e2 v2 →
-    (na_own prelogrelGS_nais E ={⊤}=∗ na_own prelogrelGS_nais ⊤ ∗ A v1 v2) -∗
+    (na_ownP E ={⊤}=∗ na_ownP ⊤ ∗ A v1 v2) -∗
     REL e1 << e2 @ E : A.
   Proof.
     rewrite /IntoVal.
@@ -357,7 +369,7 @@ Section monadic.
   Lemma refines_ret_na' E e1 e2 v1 v2 (A : lrel Σ) :
     IntoVal e1 v1 →
     IntoVal e2 v2 →
-    (|={⊤}=> na_own prelogrelGS_nais (⊤ ∖ E) ∗ A v1 v2) -∗
+    (|={⊤}=> na_ownP (⊤ ∖ E) ∗ A v1 v2) -∗
     REL e1 << e2 @ E : A.
   Proof.
     rewrite /IntoVal.

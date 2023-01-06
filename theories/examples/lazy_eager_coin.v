@@ -51,9 +51,11 @@ Section logical_ref.
     rel_alloc_r l' as "Hl'".
     rel_pures_r.
     set (P := (α ↪ₛ [] ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
-                  ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ coinN P with "[-]") as "#Hinv".
+                 ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
+    iApply (refines_na_alloc P coinN); [done|].
+    iSplitL.
     { iFrame. iLeft. iFrame. }
+    iIntros "#Hinv".
     rel_arrow_val.
     iIntros (?? [-> ->]).
     rel_pures_l.
@@ -69,12 +71,12 @@ Section logical_ref.
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
-      iSplitR; [rel_values|].
+      iSplitL; [|rel_values].
       iRight. iModIntro. iExists _. iFrame.
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
-      iSplitR; [rel_values|].
+      iSplitL; [|rel_values].
       iRight. iModIntro. iExists _. iFrame.
   Qed.
 
@@ -89,8 +91,10 @@ Section logical_ref.
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.
     set (P := ((α ↪ [b] ∗ l ↦ NONEV) ∨ (α ↪ [] ∗ l ↦ SOMEV #b))%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ coinN P with "[-]") as "#Hinv".
+    iApply (refines_na_alloc P coinN); [done|].
+    iSplitL.
     { iModIntro. iLeft. iFrame. }
+    iIntros "#Hinv".
     rel_arrow_val.
     iIntros (??) "_".
     rel_pures_l. rel_pures_r.
@@ -100,13 +104,11 @@ Section logical_ref.
       rel_flip_l. rel_pures_l.
       rel_store_l. rel_pures_l.
       iApply (refines_na_close with "[- $Hclose]").
-      iSplitR.
-      { iModIntro. rel_values. }
+      iSplitL; [|rel_values].
       iModIntro. iRight. iFrame.
     - rel_load_l. rel_pures_l.
       iApply (refines_na_close with "[- $Hclose]").
-      iSplitR.
-      { iModIntro. rel_values. }
+      iSplitL; [|rel_values].
       iModIntro. iRight. iFrame.
   Qed.
 
@@ -122,8 +124,10 @@ Section logical_ref.
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
     set (P := ((α ↪ₛ [b] ∗ l ↦ₛ NONEV) ∨ (α ↪ₛ [] ∗ l ↦ₛ SOMEV #b))%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ coinN P with "[-]") as "#Hinv".
+    iApply (refines_na_alloc P coinN); [done|].
+    iSplitL.
     { iModIntro. iLeft. iFrame. }
+    iIntros "#Hinv".
     rel_arrow_val.
     iIntros (??) "_".
     rel_pures_l. rel_pures_r.
@@ -133,13 +137,11 @@ Section logical_ref.
       rel_flip_r. rel_pures_r.
       rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose]").
-      iSplitR.
-      { iModIntro. rel_values. }
+      iSplitL; [|rel_values].
       iModIntro. iRight. iFrame.
     - rel_load_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose]").
-      iSplitR.
-      { iModIntro. rel_values. }
+      iSplitL; [|rel_values].
       iModIntro. iRight. iFrame.
   Qed.
 
@@ -151,9 +153,11 @@ Section logical_ref.
     rel_alloctape_l α as "Hα". rel_pures_l.
     rel_alloc_l l as "Hl". rel_pures_l.
     set (P := (α ↪ [] ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
-                  ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ coinN P with "[-]") as "#Hinv".
+                           ∃ (b: bool), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
+    iApply (refines_na_alloc P coinN); [done|].
+    iSplitL.
     { iFrame. iLeft. iFrame. }
+    iIntros "#Hinv".
     rel_arrow_val.
     iIntros (?? [-> ->]).
     rel_pures_l.
@@ -169,12 +173,12 @@ Section logical_ref.
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
-      iSplitR; [rel_values|].
+      iSplitL; [|rel_values].
       iRight. iModIntro. iExists _. iFrame.
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
-      iSplitR; [rel_values|].
+      iSplitL; [|rel_values].
       iRight. iModIntro. iExists _. iFrame.
   Qed.
 
