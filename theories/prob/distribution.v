@@ -3,7 +3,7 @@ From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
 From self.prelude Require Export base Coquelicot_ext Reals_ext classical.
-From self.prob Require Export countable_sum double.
+From self.prob Require Export countable_sum. (* double *)
 
 Record distr (A : Type) `{Countable A} := MkDistr {
   pmf :> A → R;
@@ -337,6 +337,40 @@ Proof.
     + by apply Rmult_le_compat_l.
 Qed.
 
+
+Lemma distr_double_lr `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
+  SeriesC (λ '(a, b), μ a * f a b) =
+  SeriesC (λ a : A, SeriesC (λ b : B, μ a * f a b)).
+Proof.
+  apply (fubini_pos_seriesC_prod_lr (λ '(a, b), μ a * f a b)).
+  - intros; apply Rmult_le_pos; auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - apply ex_seriesC_prod.
+    + intro; apply ex_seriesC_scal_l; auto.
+    + setoid_rewrite SeriesC_scal_l.
+      apply (ex_seriesC_le _ μ); auto.
+      intro a; split; [apply Rmult_le_pos; auto | ].
+      rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+      apply Rle_refl.
+Qed.
+
+Lemma distr_double_rl `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
+  SeriesC (λ '(a, b), μ a * f a b) =
+  SeriesC (λ b : B, SeriesC (λ a : A, μ a * f a b)).
+Proof.
+  apply (fubini_pos_seriesC_prod_rl (λ '(a, b), μ a * f a b)).
+  - intros; apply Rmult_le_pos; auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - apply ex_seriesC_prod.
+    + intro; apply ex_seriesC_scal_l; auto.
+    + setoid_rewrite SeriesC_scal_l.
+      apply (ex_seriesC_le _ μ); auto.
+      intro a; split; [apply Rmult_le_pos; auto | ].
+      rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+      apply Rle_refl.
+Qed.
+
+
 Program Definition dbind `{Countable A, Countable B} (f : A → distr B) (μ : distr A) : distr B :=
   MkDistr (dbind_pmf f μ) _ _ _.
 Next Obligation.
@@ -471,13 +505,37 @@ Section monadic.
       rewrite <- SeriesC_scal_l.
       apply SeriesC_ext; intros n; lra. }
     rewrite Heq1.
-    pose proof (SeriesC_double_swap (λ '(a ,a0), μ a * f a a0 * g a0 c)) as Heq2.
-    simpl in Heq2.
-    rewrite Heq2.
-    apply SeriesC_ext.
-    intro b.
-    rewrite {4}/pmf /= /dbind_pmf.
-    rewrite -SeriesC_scal_r //.
+    rewrite <- (fubini_pos_seriesC (λ '(a ,a0), μ a * f a a0 * g a0 c)).
+    + apply SeriesC_ext.
+      intro b.
+      rewrite {4}/pmf /= /dbind_pmf.
+      rewrite -SeriesC_scal_r //.
+    + intros; apply Rmult_le_pos; auto.
+      apply Rmult_le_pos; auto.
+    + intro; apply (ex_seriesC_le _ (f a)); auto.
+      intro; split.
+      * apply Rmult_le_pos; auto.
+        apply Rmult_le_pos; auto.
+      * rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; [apply Rmult_le_pos; auto | ].
+        rewrite <- Rmult_1_l; apply Rmult_le_compat; auto.
+        apply Rle_refl.
+    + setoid_rewrite Rmult_assoc.
+      setoid_rewrite SeriesC_scal_l.
+      apply (ex_seriesC_le _ μ); auto.
+      intro; split.
+      * apply Rmult_le_pos; auto.
+        apply SeriesC_ge_0'; intro.
+        apply Rmult_le_pos; auto.
+      * apply (Rle_trans _ (μ n * (SeriesC (f n)))).
+        -- apply Rmult_le_compat; auto.
+           ++ apply SeriesC_ge_0'; intro; apply Rmult_le_pos; auto.
+           ++ apply Rle_refl.
+           ++ apply SeriesC_le; auto.
+              intro; split; [apply Rmult_le_pos; auto | ].
+              rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+              apply Rle_refl.
+        -- rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+           apply Rle_refl.
   Qed.
 
   Lemma dbind_assoc `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) :
@@ -749,14 +807,41 @@ Proof.
   apply distr_ext.
   intros (a' & b').
   rewrite /pmf/=/dbind_pmf/=.
-  rewrite /pmf/=/dbind_pmf/=.
+  rewrite {2 4}/pmf/=/dbind_pmf/=.
   setoid_rewrite <- SeriesC_scal_l.
-  rewrite (SeriesC_double_swap ((λ '(a0, x), (let (pmf0, _, _, _) := g b in pmf0) a0 * (f a x * dret (x, a0) (a', b'))))).
-  apply SeriesC_ext.
-  intro a''.
-  apply SeriesC_ext.
-  intro b''.
-  rewrite /pmf /=; lra.
+  rewrite (fubini_pos_seriesC (λ '(x, a0), g b a0 * (f a x * dret (x, a0) (a', b')))).
+  - apply SeriesC_ext.
+    intro a''.
+    apply SeriesC_ext.
+    intro b''.
+    rewrite /pmf /=; lra.
+  - intros; apply Rmult_le_pos; auto.
+    apply Rmult_le_pos; auto.
+  - intros; apply (ex_seriesC_le _ (g b)); auto.
+    intros; split; [apply Rmult_le_pos; auto; apply Rmult_le_pos; auto | ].
+    rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+    + apply Rmult_le_pos; auto.
+    + apply Rle_refl.
+    + rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+  (* TODO: Write tactic to discharge these side conditions *)
+  - eapply (ex_seriesC_le _ (λ a0 : A, SeriesC (λ b0 : B, g b b0 * (f a a0)))).
+    + intro; split; auto.
+      * apply SeriesC_ge_0; [intro; apply Rmult_le_pos; auto; apply Rmult_le_pos; auto | ].
+        apply (ex_seriesC_le _ (g b)); auto.
+        intro; split; auto; [apply Rmult_le_pos; auto; apply Rmult_le_pos; auto | ].
+        rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; [apply Rmult_le_pos | apply Rle_refl | ]; auto.
+        rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+      * apply SeriesC_le.
+        -- intro; split; [apply Rmult_le_pos; auto; apply Rmult_le_pos; auto  | ].
+           apply Rmult_le_compat; auto; [apply Rmult_le_pos | apply Rle_refl | ]; auto.
+           rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+           apply Rle_refl.
+        -- apply ex_seriesC_scal_r; auto.
+    + setoid_rewrite SeriesC_scal_r.
+      apply (ex_seriesC_le _ (f a)); auto.
+      intro; split; [apply Rmult_le_pos; auto | ].
+      rewrite <- Rmult_1_l; apply Rmult_le_compat; auto.
+      apply Rle_refl.
 Qed.
 
 (** * Monadic fold left  *)
@@ -843,6 +928,73 @@ Section dzero.
 
 End dzero.
 
+Lemma distr_double_swap_rmarg_ex `{Countable A, Countable B, Countable B'} (f : A → distr (B * B')) (μ : distr A) b' :
+  ex_seriesC (λ a : A, SeriesC (λ b : B, μ a * f a (b, b'))) ->
+  ex_seriesC (λ b : B, SeriesC (λ a : A, μ a * f a (b, b'))).
+Proof.
+  intro Hex.
+  apply (fubini_pos_seriesC_ex_double (λ '(a, b), μ a * f a (b, b'))); auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - intros; apply Rmult_le_pos; auto.
+  - intros; apply ex_seriesC_scal_l.
+    apply (ex_seriesC_rmarg (f a) b'); auto.
+Qed.
+
+Lemma distr_double_swap_rmarg `{Countable A, Countable B, Countable B'} (f : A → distr (B * B')) (μ : distr A) b' :
+  SeriesC (λ a : A, SeriesC (λ b : B, μ a * f a (b, b'))) =
+  SeriesC (λ b : B, SeriesC (λ a : A, μ a * f a (b, b'))).
+Proof.
+  rewrite (fubini_pos_seriesC (λ '(a, b), μ a * f a (b, b'))); auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - intros; apply Rmult_le_pos; auto.
+  - intros; apply ex_seriesC_scal_l.
+    apply (ex_seriesC_rmarg (f a) b'); auto.
+  - setoid_rewrite SeriesC_scal_l.
+    apply (ex_seriesC_le _ μ); auto.
+    intro a; split.
+    + apply Rmult_le_pos; auto.
+      apply SeriesC_ge_0; auto.
+      apply (ex_seriesC_rmarg (f a)); auto.
+    + rewrite <- Rmult_1_r.
+      apply Rmult_le_compat_l; auto.
+      apply (Rle_trans _ (SeriesC (f a))); auto.
+      apply (seriesC_rmarg_le (f a) b'); auto.
+Qed.
+
+
+Lemma distr_double_swap_lmarg_ex `{Countable A, Countable B, Countable B'} (f : A → distr (B * B')) (μ : distr A) b :
+  ex_seriesC (λ a : A, SeriesC (λ b' : B', μ a * f a (b, b'))) ->
+  ex_seriesC (λ b' : B', SeriesC (λ a : A, μ a * f a (b, b'))).
+Proof.
+  intro Hex.
+  apply (fubini_pos_seriesC_ex_double (λ '(a, b'), μ a * f a (b, b'))); auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - intros; apply Rmult_le_pos; auto.
+  - intros; apply ex_seriesC_scal_l.
+    apply (ex_seriesC_lmarg (f a) b); auto.
+Qed.
+
+Lemma distr_double_swap_lmarg `{Countable A, Countable B, Countable B'} (f : A → distr (B * B')) (μ : distr A) b :
+  SeriesC (λ a : A, SeriesC (λ b' : B', μ a * f a (b, b'))) =
+  SeriesC (λ b' : B', SeriesC (λ a : A, μ a * f a (b, b'))).
+Proof.
+  rewrite (fubini_pos_seriesC (λ '(a, b'), μ a * f a (b, b'))); auto.
+  (* TODO: Write a tactic that tries to discharge these side conditions *)
+  - intros; apply Rmult_le_pos; auto.
+  - intros; apply ex_seriesC_scal_l.
+    apply (ex_seriesC_lmarg (f a) b); auto.
+  - setoid_rewrite SeriesC_scal_l.
+    apply (ex_seriesC_le _ μ); auto.
+    intro a; split.
+    + apply Rmult_le_pos; auto.
+      apply SeriesC_ge_0; auto.
+      apply (ex_seriesC_lmarg (f a)); auto.
+    + rewrite <- Rmult_1_r.
+      apply Rmult_le_compat_l; auto.
+      apply (Rle_trans _ (SeriesC (f a))); auto.
+      apply (seriesC_lmarg_le (f a) b); auto.
+Qed.
+
 (** * Diagonal *)
 Program Definition ddiag `{Countable A} (μ : distr A) : distr (A * A) :=
   MkDistr (λ '(a, b), if bool_decide(a=b) then μ a else 0) _ _ _.
@@ -858,10 +1010,16 @@ Qed.
 
 Next Obligation.
   intros A?? μ =>/=.
-  rewrite SeriesC_double_prod_lr.
-  erewrite SeriesC_ext.
+  rewrite fubini_pos_seriesC_prod_lr.
+  + erewrite SeriesC_ext.
   { apply (pmf_SeriesC μ). }
   intro. apply SeriesC_singleton'.
+  + intros; case_bool_decide; auto.
+    apply Rle_refl.
+  + apply ex_seriesC_prod.
+    * intro a.
+      apply ex_seriesC_singleton'.
+    * setoid_rewrite SeriesC_singleton'; auto.
 Qed.
 
 Lemma ddiag_pmf `{Countable A} (μ : distr A) (p : A * A) :
@@ -875,7 +1033,7 @@ Qed.
 (** * Products  *)
 Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
   MkDistr (λ '(a, b), μ1 a * μ2 b) _ _ _.
-Next Obligation. intros ???????? [a b]=>/=. by eapply Rmult_le_pos. Qed.
+Next Obligation. intros ???????? [a b] =>/=. by eapply Rmult_le_pos. Qed.
 Next Obligation.
   intros A ?? B ?? μ1 μ2=>/=.
   apply ex_seriesC_prod.
@@ -889,8 +1047,10 @@ Next Obligation.
        apply pmf_ex_seriesC.
 Qed.
 Next Obligation.
-  intros A ?? B ?? μ1 μ2 => /=.
-  rewrite SeriesC_double_prod_rl.
+  intros ?????? μ1 μ2 =>/=.
+  rewrite (SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); last first.
+  { intros (a & b); simpl; auto. }
+  rewrite distr_double_rl.
   rewrite (distr_double_swap (λ a, μ2) μ1).
   rewrite -(SeriesC_ext (λ a, μ1 a * SeriesC μ2)); last first.
   { intros a. rewrite SeriesC_scal_l //. }
@@ -922,7 +1082,7 @@ Section dprod.
     SeriesC (dprod μ1 μ2) = (SeriesC μ1) * (SeriesC μ2).
   Proof.
     rewrite {1}(SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); [ | intros (a' & b') ; auto ].
-    rewrite SeriesC_double_prod_lr.
+    rewrite distr_double_lr.
     erewrite SeriesC_ext; [ | intro; rewrite SeriesC_scal_l; done].
     rewrite SeriesC_scal_r.
     reflexivity.
@@ -944,31 +1104,39 @@ Section marginals.
     lmarg μ a = SeriesC (λ b, μ (a, b)).
   Proof.
     rewrite {1}/pmf /= /dbind_pmf.
-    rewrite SeriesC_double_prod_rl.
-    apply SeriesC_ext; intro b.
-    rewrite {2}/pmf /= /dret_pmf /=.
-    erewrite SeriesC_ext; [apply (SeriesC_singleton' a)|].
-    intro a'; simpl; case_bool_decide; simplify_eq; lra.
+    rewrite fubini_pos_seriesC_prod_rl.
+    - apply SeriesC_ext; intro b.
+      rewrite {2}/pmf /= /dret_pmf /=.
+      erewrite SeriesC_ext; [apply (SeriesC_singleton' a)|].
+      intro a'; simpl; case_bool_decide; simplify_eq; lra.
+    - intros; apply Rmult_le_pos; auto.
+    - apply (ex_seriesC_le _ μ); auto.
+      intros; split; [ apply Rmult_le_pos ; auto | ].
+      rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; apply Rle_refl.
   Qed.
 
   Lemma rmarg_pmf (μ : distr (A * B)) (b : B):
     rmarg μ b = SeriesC (λ a, μ (a, b)).
   Proof.
     rewrite {1}/pmf /= /dbind_pmf.
-    rewrite SeriesC_double_prod_lr.
-    apply SeriesC_ext; intro a.
-    rewrite {2}/pmf /= /dret_pmf /=.
-    erewrite SeriesC_ext; [apply (SeriesC_singleton' b)|].
-    intro b'; simpl; case_bool_decide; simplify_eq; lra.
+    rewrite fubini_pos_seriesC_prod_lr.
+    - apply SeriesC_ext; intro a.
+      rewrite {2}/pmf /= /dret_pmf /=.
+      erewrite SeriesC_ext; [apply (SeriesC_singleton' b)|].
+      intro b'; simpl; case_bool_decide; simplify_eq; lra.
+    - intros; apply Rmult_le_pos; auto.
+    - apply (ex_seriesC_le _ μ); auto.
+      intros; split; [ apply Rmult_le_pos ; auto | ].
+      rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; apply Rle_refl.
   Qed.
 
-  Lemma ex_seriesC_lmarg (μ : distr (A * B)) (a : A) :
+  Lemma ex_distr_lmarg (μ : distr (A * B)) (a : A) :
     ex_seriesC (λ b, μ (a, b)).
-  Proof. eapply ex_seriesC_double_pos_l; auto. Qed.
+  Proof. eapply ex_seriesC_lmarg; auto. Qed.
 
-  Lemma ex_seriesC_rmarg (μ : distr (A * B)) (b : B) :
+  Lemma ex_distr_rmarg (μ : distr (A * B)) (b : B) :
     ex_seriesC (λ a, μ (a, b)).
-  Proof. eapply ex_seriesC_double_pos_r; auto. Qed.
+  Proof. eapply ex_seriesC_rmarg; auto. Qed.
 
 
 

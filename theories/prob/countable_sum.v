@@ -153,6 +153,15 @@ Section series.
     + by apply countable_sum_le.
   Qed.
 
+  Lemma SeriesC_ge_0' (f : A → R) :
+    (∀ x, 0 <= f x) →
+    0 <= SeriesC f.
+  Proof.
+    intros Heq0.
+    apply series_ge_0=> ?.
+    apply countable_sum_ge_0; intros; auto.
+  Qed.
+
   Lemma SeriesC_ext f g :
     (∀ n, f n = g n) → SeriesC f = SeriesC g.
   Proof. intros Hext. apply Series_ext => // n. by apply countable_sum_ext. Qed.
@@ -597,6 +606,13 @@ Section fubini.
 
   Context `{Countable A, Countable B}.
 
+
+  (*
+     The following three lemmas have been proven for
+     Series, so the only missing part is listing them
+     to SeriesC
+  *)
+
  Lemma fubini_pos_seriesC_ex (h : A * B → R) :
     (forall a b, 0 <= h (a, b)) ->
     (forall a, ex_seriesC (λ b, h (a, b))) ->
@@ -619,12 +635,76 @@ Section fubini.
     SeriesC (λ a, SeriesC (λ b, h (a, b))).
  Admitted.
 
+ (*
+    The rest of the lemmas are admitted without a direct counterpart
+    for Series. They should only rely on showing that if a set of
+    nonnegative real numbers has a finite sum, then (1) every reordering
+    of the sum has the same result and (2) every subset has a sum bounded
+    by the sum of the whole set. Both can be derived by proving that the
+    sum of a set is the sup of the sums of the subsets.
+ *)
+
+ Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) b :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ a, SeriesC (λ b, h(a, b))).
+ Admitted.
+
+ Lemma fubini_pos_seriesC_prod_ex_rl (h : A * B -> R) b :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
+ Admitted.
+
+ Lemma fubini_pos_seriesC_prod_lr (h : A * B -> R) :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
+ Admitted.
+
+ Lemma fubini_pos_seriesC_prod_rl (h : A * B -> R) :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
+ Admitted.
+
+ Lemma ex_seriesC_lmarg (h : A * B -> R) a :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ b, h (a, b)).
+ Admitted.
+
+ Lemma seriesC_lmarg_le (h : A * B -> R) a :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC (λ b, h (a, b)) <= SeriesC h.
+ Admitted.
+
+ Lemma ex_seriesC_rmarg (h : A * B -> R) b :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ a, h (a, b)).
+ Admitted.
+
+ Lemma seriesC_rmarg_le (h : A * B -> R) b :
+    (forall a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC (λ a, h (a, b)) <= SeriesC h.
+ Admitted.
+
+ Lemma ex_seriesC_prod (h: A * B -> R) :
+    (forall a, ex_seriesC (λ b, h(a,b))) ->
+    ex_seriesC (λ a, SeriesC (λ b, h(a,b))) ->
+    ex_seriesC h.
+  Proof. Admitted.
+
  End fubini.
 
 
 Section mct.
 
   Context `{Countable A}.
+
 
   (* TODO: Lift the proof from Series_extra *)
   Lemma MCT_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :

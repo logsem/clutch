@@ -950,7 +950,7 @@ Section countable_sum.
     (∀ b, ex_seriesC (λ a, f (a, b))).
   Proof. Admitted.
 
-  Lemma ex_seriesC_prod :
+  Lemma ex_seriesC_prod' :
     (forall a, ex_seriesC (λ b, f(a,b))) ->
     ex_seriesC (λ a, SeriesC (λ b, f(a,b))) ->
     ex_seriesC f.

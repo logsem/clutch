@@ -3,7 +3,7 @@ From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
 From self.prelude Require Export base Coquelicot_ext Reals_ext.
-From self.prob Require Export countable_sum double distribution.
+From self.prob Require Export countable_sum distribution. (* double *)
 
 Open Scope R.
 
@@ -177,14 +177,16 @@ Section couplings_theory.
     exists (dbind Ch μ); split.
     + apply distr_ext; intro a'.
       rewrite lmarg_pmf.
-      simpl.
-      unfold dbind_pmf.
-      rewrite (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
+      rewrite {1 2}/pmf/=/dbind_pmf.
+      rewrite <- distr_double_swap_lmarg.
+      setoid_rewrite SeriesC_scal_l.
+      (*
       assert (∀ b, SeriesC (λ a : B', μ b * Ch b (a', a)) = μ b * SeriesC (λ a : B', Ch b (a', a))) as Heq1.
       {
         intro b; apply SeriesC_scal_l.
       }
       rewrite (SeriesC_ext _ _ Heq1).
+      *)
       assert (∀ p , μ p * SeriesC (λ b' : B', Ch p (a', b')) = μ p * f p.1 a') as Heq2.
       { intros (a & b).
         specialize (HCh (a, b)) as (HChL & HChR).
@@ -193,7 +195,13 @@ Section couplings_theory.
         auto.
       }
       rewrite (SeriesC_ext _ _ Heq2).
-      rewrite SeriesC_double_prod_lr.
+      rewrite fubini_pos_seriesC_prod_lr; auto.
+      2:{simpl; intros; apply Rmult_le_pos; auto. }
+      2:{apply (ex_seriesC_le _ μ); auto.
+         intros; split; [apply Rmult_le_pos; auto | ].
+         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+         apply Rle_refl.
+      }
       assert (∀ a : A, SeriesC (λ b : B, μ (a, b) * f (a, b).1 a')
                = SeriesC (λ b : B, μ (a, b) ) * f a a') as Heq3.
       {
@@ -213,14 +221,9 @@ Section couplings_theory.
     (* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
     + apply distr_ext; intro b'.
       rewrite rmarg_pmf.
-      simpl.
-      unfold dbind_pmf.
-      rewrite (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
-      assert (∀ p, SeriesC (λ a : A', μ p * Ch p (a, b')) = μ p * SeriesC (λ a : A', Ch p (a, b'))) as Heq1.
-      {
-        intro p; apply SeriesC_scal_l.
-      }
-      rewrite (SeriesC_ext _ _ Heq1).
+      rewrite {1 2}/pmf/=/dbind_pmf.
+      rewrite <- distr_double_swap_rmarg.
+      setoid_rewrite SeriesC_scal_l.
       assert (∀ p , μ p * SeriesC (λ a' : A', Ch p (a', b')) = μ p * g p.2 b') as Heq2.
       { intros (a & b).
         specialize (HCh (a, b)) as (HChL & HChR).
@@ -229,7 +232,13 @@ Section couplings_theory.
         auto.
       }
       rewrite (SeriesC_ext _ _ Heq2).
-      rewrite SeriesC_double_prod_rl.
+      rewrite fubini_pos_seriesC_prod_rl; auto.
+      2:{simpl; intros; apply Rmult_le_pos; auto. }
+      2:{apply (ex_seriesC_le _ μ); auto.
+         intros; split; [apply Rmult_le_pos; auto | ].
+         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+         apply Rle_refl.
+      }
       assert (∀ b : B, SeriesC (λ a : A, μ (a, b) * g (a, b).2 b')
                = SeriesC (λ a : A, μ (a, b) ) * g b b') as Heq3.
       {
@@ -275,10 +284,10 @@ Section couplings_theory.
  (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
     fact that μ and (Ch p) are couplings *)
     + apply distr_ext; intro a'.
-      rewrite lmarg_pmf /= /dbind_pmf
-       (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
-      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l].
+      rewrite lmarg_pmf.
+      rewrite {1 2}/pmf/=/dbind_pmf.
+      rewrite <- distr_double_swap_lmarg.
+      setoid_rewrite SeriesC_scal_l.
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
       { intros (a & b).
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
@@ -286,7 +295,13 @@ Section couplings_theory.
         - rewrite Heqz; lra.
         - specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
           rewrite -HChL lmarg_pmf //=. }
-      rewrite SeriesC_double_prod_lr.
+      rewrite fubini_pos_seriesC_prod_lr; auto.
+      2:{simpl; intros; apply Rmult_le_pos; auto. }
+      2:{apply (ex_seriesC_le _ μ); auto.
+         intros; split; [apply Rmult_le_pos; auto | ].
+         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+         apply Rle_refl.
+      }
       erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
       [ | intro a; simpl; apply SeriesC_scal_r ].
       erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
@@ -296,10 +311,10 @@ Section couplings_theory.
       rewrite lmarg_pmf; auto.
     (* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
     + apply distr_ext; intro b'.
-      rewrite rmarg_pmf /= /dbind_pmf
-      (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
-      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
-      [ | intro p; apply SeriesC_scal_l].
+      rewrite rmarg_pmf.
+      rewrite {1 2}/pmf/=/dbind_pmf.
+      rewrite <- distr_double_swap_rmarg.
+      setoid_rewrite SeriesC_scal_l.
       erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first.
       {intros (a & b);
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
@@ -307,7 +322,13 @@ Section couplings_theory.
         specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS);
         rewrite -HChR rmarg_pmf //=].
        }
-      rewrite SeriesC_double_prod_rl.
+      rewrite fubini_pos_seriesC_prod_rl; auto.
+      2:{simpl; intros; apply Rmult_le_pos; auto. }
+      2:{apply (ex_seriesC_le _ μ); auto.
+         intros; split; [apply Rmult_le_pos; auto | ].
+         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+         apply Rle_refl.
+      }
       erewrite (SeriesC_ext _ (λ b, SeriesC (λ a : A, μ (a, b) ) * g b b'));
       [ | intro b; simpl; apply SeriesC_scal_r].
       erewrite (SeriesC_ext _ (λ b, (μ2 b) * g b b')); auto.
@@ -643,7 +664,7 @@ Context `{Countable A, Countable B}.
        pose proof (pmf_pos μ (n, a)); lra |
       pose proof (HμS H3); simplify_eq; lra ].
     }
-    apply ex_seriesC_rmarg.
+    apply ex_distr_rmarg.
   Qed.
 
   Lemma refRcoupl_from_leq (μ1 μ2 : distr A) :
@@ -748,10 +769,10 @@ Context `{Countable A, Countable B}.
     (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
     fact that μ and (Ch p) are couplings *)
     + apply distr_ext; intro a'.
-      rewrite lmarg_pmf /= /dbind_pmf
-       (SeriesC_double_swap (λ '(b, a), μ a * Ch a (a', b))).
-      erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : B', Ch b (a', a))) );
-      [ | intro p; apply SeriesC_scal_l].
+      rewrite lmarg_pmf.
+      rewrite /pmf /= /dbind_pmf.
+      rewrite <- distr_double_swap_lmarg.
+      setoid_rewrite SeriesC_scal_l.
       erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
       { intros (a & b).
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
@@ -759,7 +780,13 @@ Context `{Countable A, Countable B}.
         + rewrite Heqz; lra.
         + specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
           rewrite -HChL lmarg_pmf //=. }
-      rewrite SeriesC_double_prod_lr.
+      rewrite fubini_pos_seriesC_prod_lr; auto.
+      2:{simpl; intros; apply Rmult_le_pos; auto. }
+      2:{apply (ex_seriesC_le _ μ); auto.
+         intros; split; [apply Rmult_le_pos; auto | ].
+         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+         apply Rle_refl.
+      }
       erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
       [ | intro a; simpl; apply SeriesC_scal_r ].
       erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
@@ -768,8 +795,9 @@ Context `{Countable A, Countable B}.
       rewrite <- Hμ1;
       rewrite lmarg_pmf; auto.
     + intro b'.
-      rewrite rmarg_pmf /dbind_pmf.
-      rewrite (SeriesC_double_swap (λ '(a, a0), μ a0 * Ch a0 (a, b'))).
+      rewrite rmarg_pmf.
+      rewrite /pmf/=/dbind_pmf.
+      rewrite <- distr_double_swap_rmarg.
       erewrite (SeriesC_ext _ (λ b, μ b * SeriesC (λ a : A', Ch b (a, b'))) );
       [ | intro p; apply SeriesC_scal_l].
       apply (Rle_trans _ (SeriesC (λ p, μ p * g p.2 b')) _).
@@ -793,8 +821,13 @@ Context `{Countable A, Countable B}.
           rewrite (rmarg_pmf (Ch (a, b))) in HChR.
           apply Rmult_le_compat_l; auto.
       }
-      rewrite {3}/pmf /= /dbind_pmf /=.
-      rewrite SeriesC_double_prod_rl /=.
+      rewrite fubini_pos_seriesC_prod_rl; auto.
+      2:{simpl; intros; apply Rmult_le_pos; auto. }
+      2:{apply (ex_seriesC_le _ μ); auto.
+         intros; split; [apply Rmult_le_pos; auto | ].
+         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
+         apply Rle_refl.
+      }
       apply SeriesC_le; [ | ]; last first.
       {
         apply (ex_seriesC_le _ μ2); auto.
@@ -803,7 +836,7 @@ Context `{Countable A, Countable B}.
         + rewrite <- Rmult_1_r.
           apply Rmult_le_compat_l; auto.
       }
-      intro b; split.
+      intro b; split; simpl.
       ++ rewrite SeriesC_scal_r.
          apply Rmult_le_pos ; auto.
          assert (SeriesC (λ x : A, μ (x, b)) = rmarg μ b ) as -> ; [rewrite rmarg_pmf | apply pmf_pos ]; auto.
