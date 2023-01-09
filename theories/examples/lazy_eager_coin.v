@@ -90,7 +90,7 @@ Section logical_ref.
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.
-    set (P := ((α ↪ [b] ∗ l ↦ NONEV) ∨ (α ↪ [] ∗ l ↦ SOMEV #b))%I).
+    set (P := ((α ↪ [b] ∗ l ↦ NONEV) ∨ (l ↦ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
     { iModIntro. iLeft. iFrame. }
@@ -99,7 +99,7 @@ Section logical_ref.
     iIntros (??) "_".
     rel_pures_l. rel_pures_r.
     iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "[[[Hα Hl] | [Hα Hl]] Hclose]".
+    iIntros "[[[Hα Hl] | Hl] Hclose]".
     - rel_load_l. rel_pures_l.
       rel_flip_l. rel_pures_l.
       rel_store_l. rel_pures_l.
@@ -123,7 +123,7 @@ Section logical_ref.
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
-    set (P := ((α ↪ₛ [b] ∗ l ↦ₛ NONEV) ∨ (α ↪ₛ [] ∗ l ↦ₛ SOMEV #b))%I).
+    set (P := ((α ↪ₛ [b] ∗ l ↦ₛ NONEV) ∨ (l ↦ₛ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
     { iModIntro. iLeft. iFrame. }
@@ -132,7 +132,7 @@ Section logical_ref.
     iIntros (??) "_".
     rel_pures_l. rel_pures_r.
     iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "[[>[Hα Hl] | >[Hα Hl]] Hclose]".
+    iIntros "[[>[Hα Hl] | >Hl] Hclose]".
     - rel_load_r. rel_pures_r.
       rel_flip_r. rel_pures_r.
       rel_store_r. rel_pures_r.
