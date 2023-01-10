@@ -236,8 +236,8 @@ Section int.
       rewrite refines_right_bind.
       iMod (spec_bool_to_int with "[$]") as "HK"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure _. tp_pure _.
-      tp_pure _.
+      tp_pure. tp_pure.
+      tp_pure.
       rewrite -/sample_int_aux.
       tp_bind (sample_int_aux _ _).
       replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n'); last by lia.
@@ -682,7 +682,7 @@ Section sample_wide.
       rewrite refines_right_bind.
       iMod (spec_sample_int with "[$] [$]") as "(HK&Hα)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure _. tp_pure _. tp_pure _.
+      tp_pure. tp_pure. tp_pure.
       replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last by lia.
       inversion Hlength. subst.
       rewrite -/sample_wide_aux.

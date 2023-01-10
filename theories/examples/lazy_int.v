@@ -316,7 +316,7 @@ Section lazy_int.
       case_bool_decide as Hcase.
       { assert (z1 ?= z2 = Eq)%Z as Hzcmp.
         { destruct (z1 ?= z2)%Z; try simpl in Hcase; try inversion Hcase. auto. }
-        tp_pure _. tp_pure _. tp_pure _. tp_pure _.
+        tp_pure. tp_pure. tp_pure. tp_pure.
         replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last by lia.
         iMod ("IH" $! zs1 zs2 with "[] [] [$] Hzs1' Hzs2'") as (z) "(HK&%Heq&Hzs1&Hzs2)"; eauto.
         iDestruct ("Hclo1" with "Hzs1") as "Hzs1".

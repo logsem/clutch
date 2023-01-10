@@ -101,7 +101,7 @@ Proof.
   by rewrite bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_pure" open_constr(ef) :=
+Tactic Notation "tp_pure_at" open_constr(ef) :=
   iStartProof;
   lazymatch goal with
   | |- context[environments.Esnoc _ ?H (refines_right ?j (fill ?K' ?e))] =>
@@ -124,29 +124,29 @@ Tactic Notation "tp_pure" open_constr(ef) :=
   |simpl; reflexivity ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)
   |pm_reduce (* new goal *)].
 
-
-Tactic Notation "tp_pures" := repeat (tp_pure _).
+Tactic Notation "tp_pure" := tp_pure_at _.
+Tactic Notation "tp_pures" := repeat tp_pure.
 Tactic Notation "tp_rec" constr(j) :=
   let H := fresh in
   assert (H := AsRecV_recv);
-  tp_pure (App _ _);
+  tp_pure_at (App _ _);
   clear H.
 Tactic Notation "tp_seq" constr(j) := tp_rec j.
 Tactic Notation "tp_let" constr(j) := tp_rec j.
 Tactic Notation "tp_lam" constr(j) := tp_rec j.
-Tactic Notation "tp_fst" constr(j) := tp_pure (Fst (PairV _ _)).
-Tactic Notation "tp_snd" constr(j) := tp_pure (Snd (PairV _ _)).
-Tactic Notation "tp_proj" constr(j) := tp_pure (_ (PairV _ _)).
-Tactic Notation "tp_case_inl" constr(j) := tp_pure (Case (InjLV _) _ _).
-Tactic Notation "tp_case_inr" constr(j) := tp_pure (Case (InjRV _) _ _).
-Tactic Notation "tp_case" constr(j) := tp_pure (Case _ _ _).
-Tactic Notation "tp_binop" constr(j) := tp_pure (BinOp _ _ _).
+Tactic Notation "tp_fst" constr(j) := tp_pure_at (Fst (PairV _ _)).
+Tactic Notation "tp_snd" constr(j) := tp_pure_at (Snd (PairV _ _)).
+Tactic Notation "tp_proj" constr(j) := tp_pure_at (_ (PairV _ _)).
+Tactic Notation "tp_case_inl" constr(j) := tp_pure_at (Case (InjLV _) _ _).
+Tactic Notation "tp_case_inr" constr(j) := tp_pure_at (Case (InjRV _) _ _).
+Tactic Notation "tp_case" constr(j) := tp_pure_at (Case _ _ _).
+Tactic Notation "tp_binop" constr(j) := tp_pure_at (BinOp _ _ _).
 Tactic Notation "tp_op" constr(j) := tp_binop j.
-Tactic Notation "tp_if_true" constr(j) := tp_pure (If #true _ _).
-Tactic Notation "tp_if_false" constr(j) := tp_pure (If #false _ _).
-Tactic Notation "tp_if" constr(j) := tp_pure (If _ _ _).
-Tactic Notation "tp_pair" constr(j) := tp_pure (Pair _ _).
-Tactic Notation "tp_closure" constr(j) := tp_pure (Rec _ _ _).
+Tactic Notation "tp_if_true" constr(j) := tp_pure_at (If #true _ _).
+Tactic Notation "tp_if_false" constr(j) := tp_pure_at (If #false _ _).
+Tactic Notation "tp_if" constr(j) := tp_pure_at (If _ _ _).
+Tactic Notation "tp_pair" constr(j) := tp_pure_at (Pair _ _).
+Tactic Notation "tp_closure" constr(j) := tp_pure_at (Rec _ _ _).
 
 Lemma tac_tp_store `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.

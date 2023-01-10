@@ -400,9 +400,9 @@ Section tape_bit_hash.
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
       iMod (spec_set with "[$] HK") as "(HK&Htm)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure _.
-      tp_pure _.
-      tp_pure _.
+      tp_pure.
+      tp_pure.
+      tp_pure.
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
       iApply ("IH" with "[$]").
       iExists (<[k := α]>tm). rewrite fmap_insert. iFrame.
@@ -1064,7 +1064,7 @@ Section eager_hash.
       rewrite refines_right_bind.
       iMod (spec_set with "[$] [$]") as "(HK&Hmap)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure _. tp_pure _. tp_pure _.
+      tp_pure. tp_pure. tp_pure.
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
       iApply ("IH" with "[$] [$]").
       iExists (<[k := b]>bm). rewrite fmap_insert. iFrame.

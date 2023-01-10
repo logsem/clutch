@@ -181,7 +181,7 @@ Section map.
       { tp_pures. simpl. rewrite bool_decide_true //; last first.
         { inversion Hcase; auto. lia. }
         iModIntro. iFrame "Hr". iExists _; iFrame; eauto. }
-      { tp_pure _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
+      { tp_pure. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
         iEval simpl. rewrite bool_decide_false //; last by congruence.
         iFrame. iModIntro. iExists _; iFrame.
       }
@@ -207,7 +207,7 @@ Section map.
         rewrite bool_decide_false //; last by lia.
         rewrite bool_decide_true //; last by lia.
         iModIntro. iFrame. iExists _; iFrame; eauto. }
-      { tp_pure _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
+      { tp_pure. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
         apply bool_decide_eq_false_1 in Hbool.
         iEval (simpl).
         case_bool_decide.
