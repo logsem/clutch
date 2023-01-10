@@ -440,7 +440,7 @@ Section sample_wide.
     f_equal.
     assert ((S w * n - m * S w) >= S w).
     { rewrite -Nat.mul_comm. ring_simplify.
-      transitivity ((S m) * (w + 1) - m * (w + 1)).
+      eapply (Nat.le_trans _ ((S m) * (w + 1) - m * (w + 1))); last first.
       { apply Nat.sub_le_mono_r.
         apply Nat.mul_le_mono_r. lia.
       }

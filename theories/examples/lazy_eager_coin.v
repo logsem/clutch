@@ -66,7 +66,7 @@ Section logical_ref.
       rel_load_r. rel_pures_r.
       rel_bind_l (flip _)%E.
       rel_bind_r (flip _)%E.
-      iApply (refines_couple_flips_r with "[-$Hα]"); [solve_ndisj|].
+      iApply (refines_couple_flips_r with "[-$Hα]").
       iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
@@ -86,7 +86,7 @@ Section logical_ref.
     rewrite /lazy_with_tape /eager.
     rel_alloctape_l α as "Hα". rel_pures_l.
     rel_bind_r (flip _)%E.
-    iApply (refines_couple_tape_flip with "[$Hα]"); [done|done|].
+    iApply (refines_couple_tape_flip with "[$Hα]"); [done|].
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.
@@ -119,7 +119,7 @@ Section logical_ref.
     rewrite /lazy_with_tape /eager.
     rel_alloctape_r α as "Hα". rel_pures_r.
     rel_bind_l (flip _)%E.
-    iApply (refines_couple_flip_tape with "[$Hα]"); [done|].
+    iApply (refines_couple_flip_tape with "[$Hα]").
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
@@ -168,7 +168,7 @@ Section logical_ref.
       rel_load_r. rel_pures_r.
       rel_bind_l (flip _)%E.
       rel_bind_r (flip _)%E.
-      iApply (refines_couple_flips_l with "[-$Hα]"); [solve_ndisj|].
+      iApply (refines_couple_flips_l with "[-$Hα]").
       iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
