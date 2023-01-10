@@ -185,6 +185,88 @@ Section proofs.
   Qed.
 
 
+  (* TODO: what should this say exactly? *)
+  (* wp_couple_tape_flip is similar. *)
+  Lemma wp_flip_empty_r E e K α Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flip #lbl:α) ∗ α ↪ₛ [] ∗
+    ((α ↪ₛ [] ∗ spec_ctx ∗ ∃ b, ⤇ fill K #b) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (He ?) "(#Hinv & Hj & Hα & Hwp)".
+    (* Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
+    (* We do not want to execute a [prim_step] on the left. We merely rely on
+    the fact that we *could* step (because to_val e = None) in order to appeal
+    to [Hwp]. *)
+    iApply lifting.wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hα") as %?.
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* Do a coupled [prim_step] on the right *)
+    iApply (exec_coupl_exec_r).
+    iExists (λ σ2 '(e2', σ2'), ∃ (b : bool), (e2', σ2') = (fill K #b, σ0')).
+    iExists 1.
+    iSplit.
+    { iPureIntro.
+      rewrite /exec. simpl.
+      rewrite dret_id_right.
+      rewrite /prim_step_or_val /=.
+      destruct (to_val (fill K (flip #lbl:α))). 1: give_up.
+      rewrite fill_prim_step_dbind //.
+      set (ρ' :=
+(@dret
+       (prod (ofe_car (self.program_logic.language.exprO prob_lang))
+          (ofe_car (self.program_logic.language.stateO prob_lang)))
+       (@prod_eq_dec (ofe_car (self.program_logic.language.exprO prob_lang))
+          expr_eq_dec
+          (ofe_car (self.program_logic.language.stateO prob_lang))
+          state_eq_dec)
+       (@prod_countable
+          (ofe_car (self.program_logic.language.exprO prob_lang)) expr_eq_dec
+          expr_countable
+          (ofe_car (self.program_logic.language.stateO prob_lang))
+          state_eq_dec state_countable)
+       (@pair (ofe_car (self.program_logic.language.exprO prob_lang))
+          (ofe_car (self.program_logic.language.stateO prob_lang)) e σ1))).
+      rewrite -(dret_id_right ρ').
+      eapply Rcoupl_dbind => /=; last first.
+      Unshelve.
+      3: {
+        simpl. exact (λ _ '(e', s'), ∃ b : bool, (fill K e', s') = (fill K #b, σ0')).
+      }
+      2:{
+        intros ? (e' & s') H.
+        apply Rcoupl_dret. rewrite /fill_lift. simpl. assumption.
+      }
+      simpl.
+      subst ρ'.
+
+      admit.
+    }
+    iIntros (σ2 e2' (b & [= -> ->])).
+    iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #b) with "Hauth Hj") as "[Hauth Hj]".
+    (* iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct. *)
+    simplify_map_eq.
+    (* iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]". *)
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" with "[Hα Hj]").
+    { iFrame. iSplitR. 1: done. iExists _. iFrame. }
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! _ with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
+    iModIntro. done.
+  Admitted.
+
   Lemma refines_flip_empty_r K E α A e :
     to_val e = None →
     α ↪ₛ [] ∗
