@@ -225,7 +225,7 @@ Proof.
   rewrite envs_entails_unseal. iIntros (-> ?? -> Hg) "Henvs".
   iDestruct (envs_lookup_split with "Henvs") as "[Hl Henvs]"; first done.
   rewrite Hg. destruct p; simpl.
-  - iDestruct "Hl" as "#Hl". iApply (refines_load_r with "Hl"); first done.
+  - iDestruct "Hl" as "#Hl". iApply (refines_load_r with "Hl").
     iIntros "_". by iApply "Henvs".
   - by iApply (refines_load_r with "Hl").
 Qed.

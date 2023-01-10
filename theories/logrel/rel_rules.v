@@ -161,7 +161,7 @@ Section rules.
     tp_flip k.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
-p
+
   (** This rule is useful for proving that functions refine each other *)
   Lemma refines_arrow_val (v v' : val) A A' :
     □(∀ v1 v2, A v1 v2 -∗
