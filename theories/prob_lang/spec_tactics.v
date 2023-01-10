@@ -48,9 +48,9 @@ Ltac tp_bind_helper :=
        replace e with (fill K' e') by (by rewrite ?fill_app))
   end; reflexivity.
 
-Tactic Notation "tp_normalise" constr(j) :=
+Tactic Notation "tp_normalise" :=
   iStartProof;
-  eapply (tac_tp_bind_gen j);
+  eapply tac_tp_bind_gen;
     [iAssumptionCore (* prove the lookup *)
     | lazymatch goal with
       | |- fill ?K ?e = _ =>
@@ -60,9 +60,9 @@ Tactic Notation "tp_normalise" constr(j) :=
     |reflexivity
     |(* new goal *)].
 
-Tactic Notation "tp_bind" constr(j) open_constr(efoc) :=
+Tactic Notation "tp_bind" open_constr(efoc) :=
   iStartProof;
-  eapply (tac_tp_bind j efoc);
+  eapply (tac_tp_bind _ efoc);
     [iAssumptionCore (* prove the lookup *)
     |tp_bind_helper (* do actual work *)
     |reflexivity
@@ -101,15 +101,15 @@ Proof.
   by rewrite bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_pure" constr(j) open_constr(ef) :=
+Tactic Notation "tp_pure" open_constr(ef) :=
   iStartProof;
   lazymatch goal with
-  | |- context[environments.Esnoc _ ?H (refines_right j (fill ?K' ?e))] =>
+  | |- context[environments.Esnoc _ ?H (refines_right ?j (fill ?K' ?e))] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure (fill K' e) (K++K') e' j);
       [by rewrite ?fill_app | iSolveTC | ..])
-  | |- context[environments.Esnoc _ ?H (refines_right j ?e)] =>
+  | |- context[environments.Esnoc _ ?H (refines_right ?j ?e)] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure e K e' j);
@@ -125,28 +125,28 @@ Tactic Notation "tp_pure" constr(j) open_constr(ef) :=
   |pm_reduce (* new goal *)].
 
 
-Tactic Notation "tp_pures" constr (j) := repeat (tp_pure j _).
+Tactic Notation "tp_pures" := repeat (tp_pure _).
 Tactic Notation "tp_rec" constr(j) :=
   let H := fresh in
   assert (H := AsRecV_recv);
-  tp_pure j (App _ _);
+  tp_pure (App _ _);
   clear H.
 Tactic Notation "tp_seq" constr(j) := tp_rec j.
 Tactic Notation "tp_let" constr(j) := tp_rec j.
 Tactic Notation "tp_lam" constr(j) := tp_rec j.
-Tactic Notation "tp_fst" constr(j) := tp_pure j (Fst (PairV _ _)).
-Tactic Notation "tp_snd" constr(j) := tp_pure j (Snd (PairV _ _)).
-Tactic Notation "tp_proj" constr(j) := tp_pure j (_ (PairV _ _)).
-Tactic Notation "tp_case_inl" constr(j) := tp_pure j (Case (InjLV _) _ _).
-Tactic Notation "tp_case_inr" constr(j) := tp_pure j (Case (InjRV _) _ _).
-Tactic Notation "tp_case" constr(j) := tp_pure j (Case _ _ _).
-Tactic Notation "tp_binop" constr(j) := tp_pure j (BinOp _ _ _).
+Tactic Notation "tp_fst" constr(j) := tp_pure (Fst (PairV _ _)).
+Tactic Notation "tp_snd" constr(j) := tp_pure (Snd (PairV _ _)).
+Tactic Notation "tp_proj" constr(j) := tp_pure (_ (PairV _ _)).
+Tactic Notation "tp_case_inl" constr(j) := tp_pure (Case (InjLV _) _ _).
+Tactic Notation "tp_case_inr" constr(j) := tp_pure (Case (InjRV _) _ _).
+Tactic Notation "tp_case" constr(j) := tp_pure (Case _ _ _).
+Tactic Notation "tp_binop" constr(j) := tp_pure (BinOp _ _ _).
 Tactic Notation "tp_op" constr(j) := tp_binop j.
-Tactic Notation "tp_if_true" constr(j) := tp_pure j (If #true _ _).
-Tactic Notation "tp_if_false" constr(j) := tp_pure j (If #false _ _).
-Tactic Notation "tp_if" constr(j) := tp_pure j (If _ _ _).
-Tactic Notation "tp_pair" constr(j) := tp_pure j (Pair _ _).
-Tactic Notation "tp_closure" constr(j) := tp_pure j (Rec _ _ _).
+Tactic Notation "tp_if_true" constr(j) := tp_pure (If #true _ _).
+Tactic Notation "tp_if_false" constr(j) := tp_pure (If #false _ _).
+Tactic Notation "tp_if" constr(j) := tp_pure (If _ _ _).
+Tactic Notation "tp_pair" constr(j) := tp_pure (Pair _ _).
+Tactic Notation "tp_closure" constr(j) := tp_pure (Rec _ _ _).
 
 Lemma tac_tp_store `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
@@ -182,12 +182,12 @@ Proof.
   by rewrite bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_store" constr(j) :=
+Tactic Notation "tp_store" :=
   iStartProof;
-  eapply (tac_tp_store j);
+  eapply tac_tp_store;
   [iSolveTC || fail "tp_store: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_store: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_store: cannot find '" j " ' RHS"
+  |iAssumptionCore || fail "tp_store: cannot find the RHS"
   |tp_bind_helper
   |iSolveTC || fail "tp_store: cannot convert the argument to a value"
   |simpl; reflexivity || fail "tp_store: this should not happen"
@@ -234,12 +234,12 @@ Proof.
   rewrite HQ. by apply bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_load" constr(j) :=
+Tactic Notation "tp_load" :=
   iStartProof;
-  eapply (tac_tp_load j);
+  eapply tac_tp_load;
   [iSolveTC || fail "tp_load: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_load: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_load: cannot find the RHS '" j "'"
+  |iAssumptionCore || fail "tp_load: cannot find the RHS"
   |tp_bind_helper
   |iAssumptionCore || fail "tp_load: cannot find '? ↦ₛ ?'"
   |simpl; reflexivity || fail "tp_load: this should not happen"
@@ -279,24 +279,24 @@ Proof.
   by rewrite bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_alloc" constr(j) "as" ident(l) constr(H) :=
+Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
   let finish _ :=
       first [ intros l | fail 1 "tp_alloc:" l "not fresh"];
         eexists; split;
         [ reduction.pm_reflexivity
-        | (iIntros H; tp_normalise j) || fail 1 "tp_alloc:" H "not correct intro pattern" ] in
+        | (iIntros H; tp_normalise) || fail 1 "tp_alloc:" H "not correct intro pattern" ] in
   iStartProof;
-  eapply (tac_tp_alloc j);
+  eapply tac_tp_alloc;
   [iSolveTC || fail "tp_alloc: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_alloc: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_alloc: cannot find the RHS '" j "'"
+  |iAssumptionCore || fail "tp_alloc: cannot find the RHS"
   |tp_bind_helper
   |iSolveTC || fail "tp_alloc: expressions is not a value"
   |finish ()
 (* new goal *)].
 
-Tactic Notation "tp_alloc" constr(j) "as" ident(j') :=
-  let H := iFresh in tp_alloc j as j' H.
+Tactic Notation "tp_alloc" "as" ident(j') :=
+  let H := iFresh in tp_alloc as j' H.
 
 Lemma tac_tp_alloctape `{prelocGS Σ} k Δ1 E1 i1 K' e Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
@@ -331,23 +331,23 @@ Proof.
   by rewrite bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_alloctape" constr(j) "as" ident(l) constr(H) :=
+Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
   let finish _ :=
       first [ intros l | fail 1 "tp_alloctape:" l "not fresh"];
         eexists; split;
         [ reduction.pm_reflexivity
-        | (iIntros H; tp_normalise j) || fail 1 "tp_alloctape:" H "not correct intro pattern" ] in
+        | (iIntros H; tp_normalise) || fail 1 "tp_alloctape:" H "not correct intro pattern" ] in
   iStartProof;
-  eapply (tac_tp_alloctape j);
+  eapply (tac_tp_alloctape);
   [iSolveTC || fail "tp_alloctape: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_alloctape: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_alloctape: cannot find the RHS '" j "'"
+  |iAssumptionCore || fail "tp_alloctape: cannot find the RHS"
   |tp_bind_helper
   |finish ()
 (* new goal *)].
 
-Tactic Notation "tp_alloctape" constr(j) "as" ident(j') :=
-  let H := iFresh in tp_alloctape j as j' H.
+Tactic Notation "tp_alloctape" "as" ident(j') :=
+  let H := iFresh in tp_alloctape as j' H.
 
 Lemma tac_tp_flip `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) b bs Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
@@ -381,12 +381,12 @@ Proof.
   rewrite HQ. by apply bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_flip" constr(j) :=
+Tactic Notation "tp_flip" :=
   iStartProof;
-  eapply (tac_tp_flip j);
+  eapply tac_tp_flip;
   [iSolveTC || fail "tp_flip: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_flip: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_flip: cannot find the RHS '" j "'"
+  |iAssumptionCore || fail "tp_flip: cannot find the RHS"
   |tp_bind_helper
   |iAssumptionCore || fail "tp_flip: cannot find '? ↪ₛ ?'"
   |simpl; reflexivity || fail "tp_flip: this should not happen"

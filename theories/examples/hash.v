@@ -80,13 +80,13 @@ Module simple_bit_hash.
     rewrite /init_hash.
     iIntros (?) "Hspec".
     rewrite /init_hash_state.
-    tp_pures K.
-    tp_bind K (init_map _).
+    tp_pures.
+    tp_bind (init_map _).
     iEval (rewrite refines_right_bind) in "Hspec".
     iMod (spec_init_map with "[$]") as (l) "(Hspec&Hm)"; auto.
     iEval (rewrite -refines_right_bind /=) in "Hspec".
     rewrite /compute_hash.
-    tp_pures K.
+    tp_pures.
     iExists _. iDestruct "Hspec" as "(#$&$)".
     iModIntro. iExists _. iSplit; first done. rewrite fmap_empty. iFrame.
   Qed.
@@ -116,13 +116,13 @@ Module simple_bit_hash.
     iIntros (Hlookup ?) "Hhash HK".
     iDestruct "Hhash" as (hm ->) "H".
     rewrite /compute_hash_specialized.
-    tp_pures K.
-    tp_bind K (get _ _).
+    tp_pures.
+    tp_bind (get _ _).
     iEval (rewrite refines_right_bind) in "HK".
     iMod (spec_get with "[$] [$]") as "(HK&Hm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
     rewrite lookup_fmap Hlookup /=.
-    tp_pures K. iFrame. iModIntro. iExists _. eauto.
+    tp_pures. iFrame. iModIntro. iExists _. eauto.
   Qed.
 
   Lemma wp_hashfun_couple_eq E K (f : val) (m : gmap nat bool) (sf: val) (sm : gmap nat bool) (n : nat) :
@@ -139,15 +139,15 @@ Module simple_bit_hash.
     iDestruct "Hshash" as (hsm ->) "Hsm".
     rewrite /compute_hash_specialized.
     wp_pures.
-    tp_pures K.
+    tp_pures.
 
     (* spec get *)
-    tp_bind K (get _ _).
+    tp_bind (get _ _).
     iEval (rewrite refines_right_bind) in "HK".
     iMod (spec_get with "[$] [$]") as "(HK&Hsm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
     rewrite lookup_fmap Hnonesm /=.
-    tp_pures K.
+    tp_pures.
 
     (* impl get *)
     wp_apply (wp_get with "[$]").
@@ -156,7 +156,7 @@ Module simple_bit_hash.
     wp_pures.
 
     (* couple -- FIXME: breaking abstraction *)
-    tp_bind K (flip #()) %E.
+    tp_bind (flip #()) %E.
     iEval (rewrite refines_right_bind) in "HK".
     wp_apply (wp_couple_flip_flip_eq); first done.
     iDestruct "HK" as "(#Hspec&HK)".
@@ -164,14 +164,14 @@ Module simple_bit_hash.
     iIntros (b) "HK".
     iAssert (refines_right _ _) with "[$Hspec $HK]" as "HK".
     iEval (rewrite -refines_right_bind /=) in "HK".
-    tp_pures K.
+    tp_pures.
     do 2 wp_pures.
 
-    tp_bind K (set _ _ _).
+    tp_bind (set _ _ _).
     iEval (rewrite refines_right_bind) in "HK".
     iMod (spec_set with "[$] [$]") as "(HK&Hsm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
-    tp_pures K.
+    tp_pures.
 
     wp_apply (wp_set with "[$]").
     iIntros "Hm". wp_pures. iApply "HΦ".
@@ -379,30 +379,30 @@ Section tape_bit_hash.
     assert (Hlek: k <= max) by lia.
     clear Heqk.
     iInduction k as [| k] "IH" forall (Hlek).
-    - tp_pures K. iFrame. iModIntro. iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+    - tp_pures. iFrame. iModIntro. iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
       iExists tm. iFrame. iPureIntro. split.
       { intros. apply Hdom. lia. }
       { intros. apply Hdom. auto. }
     - iSpecialize ("IH" with "[]").
       { iPureIntro; lia. }
-      tp_pures K.
+      tp_pures.
       case_bool_decide; first by lia.
-      tp_pures K.
-      tp_bind K (alloc).
+      tp_pures.
+      tp_bind (alloc).
       rewrite refines_right_bind.
       iMod (refines_right_alloctape with "HK") as (α) "(HK&Hα)"; first done.
       rewrite -refines_right_bind /=.
 
-      tp_pures K.
-      tp_bind K (set _ _ _).
+      tp_pures.
+      tp_bind (set _ _ _).
       rewrite refines_right_bind.
       iDestruct "Htm" as (tm Hdom) "(Htm&Htapes)".
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
       iMod (spec_set with "[$] HK") as "(HK&Htm)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure K _.
-      tp_pure K _.
-      tp_pure K _.
+      tp_pure _.
+      tp_pure _.
+      tp_pure _.
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
       iApply ("IH" with "[$]").
       iExists (<[k := α]>tm). rewrite fmap_insert. iFrame.
@@ -470,29 +470,29 @@ Section tape_bit_hash.
   Proof.
     iIntros (?) "H".
     rewrite /init_hash.
-    tp_pures K.
+    tp_pures.
     rewrite /init_hash_state.
-    tp_pures K.
-    tp_bind K (init_map #()).
+    tp_pures.
+    tp_bind (init_map #()).
     rewrite refines_right_bind.
     iMod (spec_init_map with "[$]") as (lvm) "(HK&Hvm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
 
-    tp_pures K.
-    tp_bind K (init_map #()).
+    tp_pures.
+    tp_bind (init_map #()).
     rewrite refines_right_bind.
     iMod (spec_init_map with "[$]") as (ltm) "(HK&Htm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
-    tp_pures K.
+    tp_pures.
 
-    tp_bind K (alloc_tapes _ _).
+    tp_bind (alloc_tapes _ _).
     rewrite refines_right_bind.
     replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
     iMod (spec_alloc_tapes with "[$] [$]") as "(HK&Htm)"; first done.
     iDestruct "Htm" as (tm) "(Htm&%Hdom&Htapes)".
     iEval (rewrite -refines_right_bind /=) in "HK".
-    tp_pures K.
-    rewrite /compute_hash. tp_pures K.
+    tp_pures.
+    rewrite /compute_hash. tp_pures.
     iModIntro. iExists _.
     iDestruct "HK" as "(#?&?)".
     iFrame "# ∗".
@@ -606,9 +606,9 @@ Section tape_bit_hash.
     iIntros (Hlookup Φ) "Hhash HΦ".
     iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
     rewrite /compute_hash_specialized.
-    tp_pures K.
+    tp_pures.
 
-    tp_bind K (get _ _).
+    tp_bind (get _ _).
     rewrite refines_right_bind.
     iMod (spec_get with "Hvm [$]") as "(HK&Hvm_all)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
@@ -621,7 +621,7 @@ Section tape_bit_hash.
     iDestruct "Hn" as "[#Hvm|Hnvm]".
     - iDestruct "Hvm" as (b') "(%Heq1&%Heq2)".
       assert (b = b') by congruence; subst.
-      rewrite Heq2. tp_pures K.
+      rewrite Heq2. tp_pures.
       iModIntro.
       iFrame.
       iExists _, _, vm, tm. iFrame.
@@ -635,25 +635,25 @@ Section tape_bit_hash.
       { iDestruct "Hbad" as (??) "_". congruence. }
       iDestruct "Hnvm" as (b') "(%Heq1&%Heq2&Htape)".
       assert (b = b') by congruence; subst.
-      rewrite Heq2. tp_pures K.
-      tp_bind K (get _ _).
+      rewrite Heq2. tp_pures.
+      tp_bind (get _ _).
       rewrite refines_right_bind.
       iMod (spec_get with "Htm [$]") as "(HK&Htm)"; first done.
       rewrite -refines_right_bind/=.
       rewrite lookup_fmap Hα.
-      tp_pures K.
+      tp_pures.
 
-      tp_bind K (flip _)%E.
+      tp_bind (flip _)%E.
       rewrite refines_right_bind.
       iMod (refines_right_flip with "[$] [$]") as "(HK&Hα)"; first done.
       rewrite -refines_right_bind/=.
-      tp_pures K.
+      tp_pures.
 
-      tp_bind K (set _ _ _).
+      tp_bind (set _ _ _).
       rewrite refines_right_bind.
       iMod (spec_set with "Hvm_all HK") as "(HK&Hvm_all)"; first done.
       rewrite -refines_right_bind/=.
-      tp_pures K.
+      tp_pures.
 
       iFrame.
       iModIntro. iExists _, _, (<[n:=b']>vm), tm.
@@ -684,31 +684,31 @@ Section tape_bit_hash.
     iIntros (Hrange Φ) "Hhash HΦ".
     iDestruct "Hhash" as (lvm ltm vm tm Hdom1 Hdom2 ->) "(Hvm&Htm&Htapes)".
     rewrite /compute_hash_specialized.
-    tp_pures K.
-    tp_bind K (get _ _).
+    tp_pures.
+    tp_bind (get _ _).
     rewrite refines_right_bind.
     iMod (spec_get_Z with "Hvm [$]") as "(HK&Hvm_all)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
     rewrite lookup_fmap.
     case_bool_decide.
-    { tp_pures K.
-      tp_bind K (get _ _).
+    { tp_pures.
+      tp_bind (get _ _).
       rewrite refines_right_bind.
       iMod (spec_get_Z with "Htm HK") as "(HK&Htm)"; first done.
       rewrite bool_decide_true //.
       rewrite -refines_right_bind /=.
-      tp_pures K. iFrame. iModIntro. iExists _, _, _, _. iFrame. auto. }
+      tp_pures. iFrame. iModIntro. iExists _, _, _, _. iFrame. auto. }
     assert (tm !! Z.to_nat z = None) as Htm_none.
     { apply not_elem_of_dom_1. rewrite -Hdom1. lia. }
     assert (vm !! Z.to_nat z = None) as ->.
     { apply not_elem_of_dom_1. apply not_elem_of_dom_2 in Htm_none. set_solver. }
-    tp_pures K.
-    tp_bind K (get _ _).
+    tp_pures.
+    tp_bind (get _ _).
     rewrite refines_right_bind.
     iMod (spec_get_Z with "Htm HK") as "(HK&Htm)"; first done.
     rewrite bool_decide_false //. rewrite lookup_fmap Htm_none.
     rewrite -refines_right_bind /=.
-    tp_pures K. iFrame.
+    tp_pures. iFrame.
     iModIntro. iExists _, _, _, _. iFrame. auto.
   Qed.
 
@@ -1037,16 +1037,16 @@ Section eager_hash.
     assert (Hlek: k <= max) by lia.
     clear Heqk.
     iInduction k as [| k] "IH" forall (Hlek).
-    - tp_pures K. iApply "HΦ". iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
+    - tp_pures. iApply "HΦ". iDestruct "Htm" as (tm Hdom) "(Hm&Htapes)".
       iExists tm. iFrame. iPureIntro. split.
       { intros. apply Hdom. lia. }
       { intros. apply Hdom. auto. }
     - iSpecialize ("IH" with "[]").
       { iPureIntro; lia. }
-      tp_pures K.
+      tp_pures.
       case_bool_decide; first by lia.
-      tp_pures K.
-      tp_bind K (flip #())%E.
+      tp_pures.
+      tp_bind (flip #())%E.
       rewrite refines_right_bind.
       iDestruct "Htm" as (bm Hdom) "(Hmap&Hshash)".
       iApply (impl_couplable_elim); [ done | done | ].
@@ -1058,13 +1058,13 @@ Section eager_hash.
       iFrame "HK".
       iIntros (b) "Hshash HK".
       rewrite -refines_right_bind /=.
-      tp_pures K.
+      tp_pures.
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
-      tp_bind K (set _ _ _).
+      tp_bind (set _ _ _).
       rewrite refines_right_bind.
       iMod (spec_set with "[$] [$]") as "(HK&Hmap)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure K _. tp_pure K _. tp_pure K _.
+      tp_pure _. tp_pure _. tp_pure _.
       replace (Z.of_nat (S k) - 1)%Z with (Z.of_nat k)%Z by lia.
       iApply ("IH" with "[$] [$]").
       iExists (<[k := b]>bm). rewrite fmap_insert. iFrame.
@@ -1092,14 +1092,14 @@ Section eager_hash.
     iIntros (??) "Hhash".
     rewrite /eager_init_hash.
     rewrite /eager_init_hash_state.
-    tp_pures K.
-    tp_bind K (init_map _).
+    tp_pures.
+    tp_bind (init_map _).
     rewrite refines_right_bind.
     iMod (spec_init_map with "[$]") as (l) "(HK&Hm)"; first done.
     rewrite -refines_right_bind /=.
-    tp_pures K.
+    tp_pures.
     replace (Z.of_nat max + 1)%Z with (Z.of_nat (S max))%Z by lia.
-    tp_bind K (sample_keys _ _).
+    tp_bind (sample_keys _ _).
     rewrite refines_right_bind.
     iApply (spec_sample_keys _ _ _ _ (S max) with "[Hm Hhash] [HK]"); [ done | done | | |].
     { iFrame "Hm". simpl. assert (max - 0 = max) as -> by lia. iFrame. }
@@ -1107,7 +1107,7 @@ Section eager_hash.
     iDestruct 1 as (bm) "(Hvm&%Hdom&Hshash&HK)".
     rewrite -refines_right_bind /=.
     rewrite /compute_hash/eager_compute_hash.
-    tp_pures K.
+    tp_pures.
     wp_pures.
     iModIntro. iApply "HΦ". iExists _, _.
     iSplitL "HK".
@@ -1143,13 +1143,13 @@ Section eager_hash.
     iIntros (Hlookup ?) "Hhash HK".
     iDestruct "Hhash" as (hm ->) "(%&H)".
     rewrite /eager_compute_hash_specialized.
-    tp_pures K.
-    tp_bind K (get _ _).
+    tp_pures.
+    tp_bind (get _ _).
     iEval (rewrite refines_right_bind) in "HK".
     iMod (spec_get with "[$] [$]") as "(HK&Hm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
     rewrite lookup_fmap Hlookup /=.
-    tp_pures K. iFrame. iModIntro. iExists _. eauto.
+    tp_pures. iFrame. iModIntro. iExists _. eauto.
   Qed.
 
   Lemma wp_eager_hashfun_out_of_range E f m (max : nat) (z : Z) :
@@ -1182,17 +1182,17 @@ Section eager_hash.
     iIntros (Hlookup ?) "Hhash HK".
     iDestruct "Hhash" as (hm ->) "(%Hdom&H)".
     rewrite /eager_compute_hash_specialized.
-    tp_pures K.
-    tp_bind K (get _ _).
+    tp_pures.
+    tp_bind (get _ _).
     iEval (rewrite refines_right_bind) in "HK".
     iMod (spec_get_Z with "[$] [$]") as "(HK&Hm)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
     rewrite lookup_fmap.
     case_bool_decide.
-    { tp_pures K. iFrame. iModIntro. iExists _. iFrame. auto. }
+    { tp_pures. iFrame. iModIntro. iExists _. iFrame. auto. }
     assert (m !! Z.to_nat z = None) as ->.
     { apply not_elem_of_dom_1. rewrite -Hdom. lia. }
-    tp_pures K. iFrame "HK".
+    tp_pures. iFrame "HK".
     iModIntro. iExists _. iFrame. auto.
   Qed.
 

@@ -75,7 +75,7 @@ Section rules.
   Proof.
     rewrite refines_eq /refines_def => Hpure Hϕ.
     iIntros "Hlog" (j) "Hj Hnais /=".
-    tp_pures j ; auto.
+    tp_pures ; auto.
     iApply ("Hlog" with "Hj Hnais").
   Qed.
 
@@ -109,7 +109,7 @@ Section rules.
     iIntros "Hlog". simpl.
     iApply refines_step_r ; simpl.
     iIntros (K') "HK'".
-    tp_alloc K' as l "Hl".
+    tp_alloc as l "Hl".
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
@@ -121,7 +121,7 @@ Section rules.
     iIntros "Hl Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk".
-    tp_load k.
+    tp_load.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
@@ -134,7 +134,7 @@ Section rules.
     rewrite /IntoVal. iIntros (<-) "Hl Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk". simpl.
-    tp_store k. iModIntro. iExists _. iFrame.
+    tp_store. iModIntro. iExists _. iFrame.
     by iApply "Hlog".
   Qed.
 
@@ -146,7 +146,7 @@ Section rules.
     iIntros "Hlog".
     iApply refines_step_r.
     iIntros (K') "HK'".
-    tp_alloctape K' as α "Hα".
+    tp_alloctape as α "Hα".
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
@@ -158,7 +158,7 @@ Section rules.
     iIntros "Hα Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk".
-    tp_flip k.
+    tp_flip.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 

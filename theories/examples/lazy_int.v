@@ -167,21 +167,21 @@ Section lazy_int.
     iDestruct "Htape" as (zs1 zs2 Heq) "(Hchunks&Htape)".
     destruct zs1 as [| z' zs1'].
     - (* Everything on the tape; sample z and update head *)
-      tp_pures K. iEval (rewrite /=) in "Hchunks".
-      tp_load K. tp_pures K.
+      tp_pures. iEval (rewrite /=) in "Hchunks".
+      tp_load. tp_pures.
       rewrite /= in Heq. rewrite -?Heq.
-      tp_bind K (sample_int _ _)%E.
+      tp_bind (sample_int _ _)%E.
       rewrite refines_right_bind.
       iMod (spec_sample_int with "[$] [$]") as "(HK&Htape)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pures K.
-      tp_alloc K as l' "Hl'". tp_pures K.
-      tp_store K. tp_pures K. iModIntro. iExists _. iFrame "HK". iSplitL "Htape Hl'".
+      tp_pures.
+      tp_alloc as l' "Hl'". tp_pures.
+      tp_store. tp_pures. iModIntro. iExists _. iFrame "HK". iSplitL "Htape Hl'".
       { iExists nil, zs. rewrite /=. iSplit; first done. iFrame. }
       { iIntros "Htail". iApply (spec_chunk_and_tape_list_cons_chunk with "[$] [$]"). }
     - (* Already sampled, just return what we read *)
-      tp_pures K. iEval (rewrite /=) in "Hchunks". iDestruct "Hchunks" as (l') "(Hl&Hrec)".
-      tp_load K. tp_pures K. inversion Heq; subst. iExists _; iFrame "HK".
+      tp_pures. iEval (rewrite /=) in "Hchunks". iDestruct "Hchunks" as (l') "(Hl&Hrec)".
+      tp_load. tp_pures. inversion Heq; subst. iExists _; iFrame "HK".
       iModIntro. iSplitL "Hrec Htape".
       { iExists _, _. iFrame. eauto. }
       { iIntros "Htail". iApply (spec_chunk_and_tape_list_cons_chunk with "[$] [$]"). }
@@ -220,14 +220,14 @@ Section lazy_int.
     iIntros (?) "HK".
     rewrite /cmpZ.
     destruct (Z.compare_spec z1 z2).
-    - tp_pures K; case_bool_decide; try lia.
-      tp_pures K; case_bool_decide; try lia.
-      tp_pures K. by iFrame.
-    - tp_pures K; case_bool_decide; try lia.
-      tp_pures K. by iFrame.
-    - tp_pures K; case_bool_decide; try lia.
-      tp_pures K; case_bool_decide; try lia.
-      tp_pures K. by iFrame.
+    - tp_pures; case_bool_decide; try lia.
+      tp_pures; case_bool_decide; try lia.
+      tp_pures. by iFrame.
+    - tp_pures; case_bool_decide; try lia.
+      tp_pures. by iFrame.
+    - tp_pures; case_bool_decide; try lia.
+      tp_pures; case_bool_decide; try lia.
+      tp_pures. by iFrame.
   Qed.
 
   Lemma wp_cmp_list n α1 α2 l1 l2 zs1 zs2 E :
@@ -293,37 +293,37 @@ Section lazy_int.
     iInduction n as [| n] "IH" forall (zs1 zs2 Hlen1 Hlen2 l1 l2).
     - destruct zs1; last by (simpl in Hlen1; inversion Hlen1).
       destruct zs2; last by (simpl in Hlen2; inversion Hlen2).
-      tp_pures K; first solve_vals_compare_safe.
+      tp_pures; first solve_vals_compare_safe.
       iModIntro. iExists _. iFrame. simpl; eauto.
     - destruct zs1 as [| z1 zs1]; first by (simpl in Hlen1; inversion Hlen1).
       destruct zs2 as [| z2 zs2]; first by (simpl in Hlen2; inversion Hlen2).
-      tp_pures K; first solve_vals_compare_safe.
-      tp_bind K (get_chunk _ _)%E.
+      tp_pures; first solve_vals_compare_safe.
+      tp_bind (get_chunk _ _)%E.
       rewrite refines_right_bind.
       iMod (spec_get_chunk with "Hzs1 [$]") as (l1') "(HK&Hzs1'&Hclo1)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pures K.
-      tp_bind K (get_chunk _ _)%E.
+      tp_pures.
+      tp_bind (get_chunk _ _)%E.
       rewrite refines_right_bind.
       iMod (spec_get_chunk with "Hzs2 [$]") as (l2') "(HK&Hzs2'&Hclo2)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pures K.
-      tp_bind K (cmpZ _ _).
+      tp_pures.
+      tp_bind (cmpZ _ _).
       rewrite refines_right_bind.
       iMod (spec_cmpZ with "[$]") as "HK"; first done.
       rewrite -refines_right_bind /=.
-      tp_pures K; first solve_vals_compare_safe.
+      tp_pures; first solve_vals_compare_safe.
       case_bool_decide as Hcase.
       { assert (z1 ?= z2 = Eq)%Z as Hzcmp.
         { destruct (z1 ?= z2)%Z; try simpl in Hcase; try inversion Hcase. auto. }
-        tp_pure K _. tp_pure K _. tp_pure K _. tp_pure K _.
+        tp_pure _. tp_pure _. tp_pure _. tp_pure _.
         replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last by lia.
         iMod ("IH" $! zs1 zs2 with "[] [] [$] Hzs1' Hzs2'") as (z) "(HK&%Heq&Hzs1&Hzs2)"; eauto.
         iDestruct ("Hclo1" with "Hzs1") as "Hzs1".
         iDestruct ("Hclo2" with "Hzs2") as "Hzs2".
         iExists _. iFrame.
         iPureIntro. simpl. rewrite Hzcmp. eauto. }
-      { tp_pures K.
+      { tp_pures.
         iDestruct ("Hclo1" with "Hzs1'") as "Hzs1".
         iDestruct ("Hclo2" with "Hzs2'") as "Hzs2".
         iModIntro. iExists _. iFrame.
@@ -361,9 +361,9 @@ Section lazy_int.
     iIntros (α) "Hα".
 
     rewrite /sample_eager_int.
-    tp_pures K.
-    tp_alloctape K as αₛ "Hαₛ".
-    tp_pures K.
+    tp_pures.
+    tp_alloctape as αₛ "Hαₛ".
+    tp_pures.
     iApply (wp_couple_int_tapesN_eq PRED_CHUNK_BITS _ _ NUM_CHUNKS).
     { eauto. }
     { eauto. }
@@ -401,10 +401,10 @@ Section lazy_int.
     rewrite /sample_lazy_int.
     rewrite /sample_eager_int.
 
-    tp_pures K.
-    tp_alloc K as l "Hl".
-    tp_pures K.
-    tp_alloctape K as αₛ "Hαₛ".
+    tp_pures.
+    tp_alloc as l "Hl".
+    tp_pures.
+    tp_alloctape as αₛ "Hαₛ".
 
     wp_pures.
     wp_apply (wp_alloc_tape with "[//]"). iIntros (α) "Hα".
@@ -419,7 +419,7 @@ Section lazy_int.
     iSplitL "Hα".
     { iApply int_tape_intro. iFrame. }
     iDestruct 1 as (zs Hrange Hlegnth) "(Hspec_tape&Htape)".
-    tp_pures K.
+    tp_pures.
     wp_apply (wp_sample_wide_int _ _ _ _ _ [] with "[Htape]"); eauto.
     { rewrite app_nil_l app_nil_r. iFrame. }
     iIntros (z) "(%Hz&_)"; auto.
@@ -544,13 +544,13 @@ Section lazy_int.
         spec_lazy_int z1 v1 ∗ spec_lazy_int z2 v2.
   Proof.
     iIntros (?) "HK Hv1 Hv2".
-    rewrite /cmp_lazy_int. tp_pures K.
+    rewrite /cmp_lazy_int. tp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
     iDestruct "Hv2" as (α2 l2 zs2 -> Hz2 Hlen2 Hwf2) "H2".
-    tp_pures K; first solve_vals_compare_safe.
+    tp_pures; first solve_vals_compare_safe.
     case_bool_decide.
     { iDestruct (spec_chunk_and_tape_list_sep_no_alias with "[$] [$]") as %Hneq; congruence. }
-    tp_pures K.
+    tp_pures.
     iMod (spec_cmp_list with "HK H1 H2") as (zret) "(HK&%Hret&H1&H2)"; try done.
     assert (zret = comparison2z (z1 ?= z2)%Z) as Hreteq.
     { rewrite Hret. f_equal.
@@ -589,11 +589,11 @@ Section lazy_int.
         spec_lazy_int z1 v1.
   Proof.
     iIntros (?) "HK Hv1".
-    rewrite /cmp_lazy_int. tp_pures K.
+    rewrite /cmp_lazy_int. tp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
-    tp_pures K; first solve_vals_compare_safe.
+    tp_pures; first solve_vals_compare_safe.
     case_bool_decide; last by congruence.
-    tp_pures K. rewrite Z.compare_refl //. iModIntro; iExists _; iFrame "HK". iSplit; first eauto.
+    tp_pures. rewrite Z.compare_refl //. iModIntro; iExists _; iFrame "HK". iSplit; first eauto.
     iExists _, _, _. eauto.
   Qed.
 
@@ -607,7 +607,7 @@ Section lazy_int.
   Proof.
     iIntros (HE Φ) "(Hv1&Hv2&HK) HΦ".
     rewrite /cmp_eager_int.
-    tp_pures K.
+    tp_pures.
     iMod (spec_cmpZ with "[$]") as "HK"; first done.
     wp_apply (wp_cmp_lazy_int with "[$Hv1 $Hv2]").
     iIntros (zret) "(%Hret&H1&H2)".
@@ -640,7 +640,7 @@ Section lazy_int.
   Proof.
     iIntros (HE Φ) "(Hv1&HK) HΦ".
     rewrite /cmp_eager_int.
-    tp_pures K.
+    tp_pures.
     iMod (spec_cmpZ with "[$]") as "HK"; first done.
     wp_apply (wp_cmp_lazy_int_cmp_self with "[$Hv1]").
     iIntros (zret) "(%Hret&H1)".

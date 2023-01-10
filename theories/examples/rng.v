@@ -117,14 +117,14 @@ Section rng.
   Proof.
     iIntros (?) "HK".
     rewrite /init_hash_rng.
-    tp_pures K.
-    tp_bind K (init_hash _)%E.
+    tp_pures.
+    tp_bind (init_hash _)%E.
     rewrite refines_right_bind.
     iMod (spec_init_hash with "[$HK]") as (f) "(HK&Hhash)"; first done.
     rewrite -refines_right_bind/=.
-    tp_pures K.
-    tp_alloc K as c "Hc".
-    tp_pures K.
+    tp_pures.
+    tp_alloc as c "Hc".
+    tp_pures.
     iModIntro.
     iExists _; iFrame "HK".
     iExists _, _, _. iFrame. iSplit; iPureIntro; auto.
@@ -184,21 +184,21 @@ Section rng.
     iIntros (? Hle) "Hshash HK".
     iDestruct "Hshash" as (h c m -> Hdom) "(Hhash&Hc)".
     rewrite /hash_rng_specialized.
-    tp_pures K. tp_load K. tp_pures K.
+    tp_pures. tp_load. tp_pures.
     iModIntro.
     iDestruct (shashfun_couplable n with "Hhash") as "Hhash"; auto.
     { apply not_elem_of_dom, Hdom. auto. }
     iApply (spec_couplable_wand with "Hhash").
     iIntros (b) "Hhash".
-    tp_bind K (h _)%E.
+    tp_bind (h _)%E.
     rewrite refines_right_bind.
     iMod (spec_hashfun_prev with "Hhash HK") as "(HK&Hhash)".
     { rewrite lookup_insert //. }
     { done. }
     rewrite -refines_right_bind /=.
-    tp_pures K.
-    tp_store K.
-    tp_pures K.
+    tp_pures.
+    tp_store.
+    tp_pures.
     iFrame "HK". iModIntro.
     iExists _, _, _.
     iFrame.
@@ -244,15 +244,15 @@ Section rng.
     iIntros (? Hlt) "Hshash HK".
     iDestruct "Hshash" as (h c m -> Hdom) "(Hhash&Hc)".
     rewrite /hash_rng_specialized.
-    tp_pures K. tp_load K. tp_pures K.
-    tp_bind K (h _)%E.
+    tp_pures. tp_load. tp_pures.
+    tp_bind (h _)%E.
     rewrite refines_right_bind.
     iMod (spec_hashfun_out_of_range with "Hhash HK") as "(HK&Hhash)"; auto.
     { lia. }
     rewrite -refines_right_bind /=.
-    tp_pures K.
-    tp_store K.
-    tp_pures K.
+    tp_pures.
+    tp_store.
+    tp_pures.
     iFrame "HK". iModIntro.
     iExists _, _, _.
     iFrame.
@@ -311,9 +311,9 @@ Section rng.
   Proof.
     iIntros (?) "Hspec".
     rewrite /init_bounded_rng.
-    tp_pures K.
-    tp_alloc K as c "Hc".
-    tp_pures K.
+    tp_pures.
+    tp_alloc as c "Hc".
+    tp_pures.
     iModIntro. iExists _. iFrame. iExists c. eauto.
   Qed.
 
@@ -326,29 +326,29 @@ Section rng.
     iIntros (HN Φ) "(Hhash&Hbrng&HK) HΦ".
     iDestruct "Hbrng" as (sc ->) "Hsc".
     rewrite /bounded_rng_specialized.
-    tp_pures K.
-    tp_load K.
-    tp_pures K.
+    tp_pures.
+    tp_load.
+    tp_pures.
     case_bool_decide.
-    - tp_pures K.
-      tp_bind K (flip #())%E.
+    - tp_pures.
+      tp_bind (flip #())%E.
       rewrite refines_right_bind.
       iApply wp_fupd.
       wp_apply (wp_hash_rng_flip with "[$HK $Hhash]"); auto.
       { lia. }
       iIntros (b) "(Hhash&HK)".
       rewrite -refines_right_bind /=.
-      tp_pures K.
-      tp_store K.
-      tp_pures K.
+      tp_pures.
+      tp_store.
+      tp_pures.
       iApply "HΦ".
       iFrame. iModIntro.
       iExists _.
       assert (Z.of_nat n + 1 = Z.of_nat (S n))%Z as -> by lia.
       iFrame. eauto.
-    - tp_pures K.
-      tp_store K.
-      tp_pures K.
+    - tp_pures.
+      tp_store.
+      tp_pures.
       wp_apply (wp_hash_rng_flip_out_of_range with "[$Hhash]"); auto.
       { lia. }
       iIntros "Hhash".

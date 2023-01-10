@@ -5,7 +5,6 @@ From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
 
-
 (* This is a library for sampling integers in the set {0, ..., 2^n-1}
    for some natural number n > 0.
 
@@ -119,8 +118,8 @@ Section int.
   Proof.
     rewrite /bool_to_int.
     iIntros (?) "HK".
-    tp_pures K; first solve_vals_compare_safe.
-    destruct b; case_bool_decide as Heq; try congruence; tp_pures K; eauto.
+    tp_pures; first solve_vals_compare_safe.
+    destruct b; case_bool_decide as Heq; try congruence; tp_pures; eauto.
   Qed.
 
   Lemma Z_to_bool_list_helper (z : Z) (n' : nat):
@@ -229,23 +228,23 @@ Section int.
   Proof.
     intros HE Hle.
     iInduction n as [| n'] "IH" forall (K); rewrite /sample_int_aux; iIntros "Hα HK".
-    - tp_pures K; first solve_vals_compare_safe. rewrite Z.land_ones //= Z.mod_1_r //.
+    - tp_pures; first solve_vals_compare_safe. rewrite Z.land_ones //= Z.mod_1_r //.
       iExists _; eauto with iFrame.
-    - tp_pures K; first solve_vals_compare_safe. simpl.
-      tp_flip K.
-      tp_bind K (bool_to_int _).
+    - tp_pures; first solve_vals_compare_safe. simpl.
+      tp_flip.
+      tp_bind (bool_to_int _).
       rewrite refines_right_bind.
       iMod (spec_bool_to_int with "[$]") as "HK"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure K _. tp_pure K _.
-      tp_pure K _.
+      tp_pure _. tp_pure _.
+      tp_pure _.
       rewrite -/sample_int_aux.
-      tp_bind K (sample_int_aux _ _).
+      tp_bind (sample_int_aux _ _).
       replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n'); last by lia.
       rewrite refines_right_bind.
       iMod ("IH" with "[$] [$]") as (z' Heqz') "(HK&Hα)".
       rewrite -refines_right_bind /=.
-      tp_pures K.
+      tp_pures.
       iModIntro. iFrame.
       iExists _. iFrame.
       replace (S n' - 1)%Z with (n' : Z) by lia.
@@ -295,7 +294,7 @@ Section int.
   Proof.
     iIntros (HE) "Htape HK".
     rewrite /sample_int.
-    tp_pures K.
+    tp_pures.
     iDestruct "Htape" as "(%Hforall&Htape)".
     rewrite flat_map_cons.
     inversion Hforall.
@@ -673,25 +672,25 @@ Section sample_wide.
     iIntros (HE).
     rewrite /sample_wide_aux.
     iInduction n as [| n] "IH" forall (K zs1); iIntros (Hlength) "Hα HK".
-    - tp_pures K; first solve_vals_compare_safe.
+    - tp_pures; first solve_vals_compare_safe.
       iModIntro. iExists _. iFrame. destruct zs1; last by inversion Hlength.
       iFrame. eauto.
-    - tp_pures K; first solve_vals_compare_safe.
+    - tp_pures; first solve_vals_compare_safe.
       destruct zs1 as [| z1 zs1]; first by inversion Hlength.
       iEval (simpl) in "Hα".
-      tp_bind K (sample_int _ _)%E.
+      tp_bind (sample_int _ _)%E.
       rewrite refines_right_bind.
       iMod (spec_sample_int with "[$] [$]") as "(HK&Hα)"; first done.
       rewrite -refines_right_bind /=.
-      tp_pure K _. tp_pure K _. tp_pure K _.
+      tp_pure _. tp_pure _. tp_pure _.
       replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last by lia.
       inversion Hlength. subst.
       rewrite -/sample_wide_aux.
-      tp_bind K (sample_wide_aux _ _).
+      tp_bind (sample_wide_aux _ _).
       rewrite refines_right_bind.
       iMod ("IH" with "[//] Hα HK") as (z') "(HK&%Heq&Hα)".
       rewrite -refines_right_bind/=.
-      tp_pures K.
+      tp_pures.
       replace (S (length zs1) - 1)%Z with (length zs1 : Z) by lia.
       iModIntro. iExists _. iFrame. rewrite /=/NUM_DIGIT_BITS Heq //.
   Qed.
@@ -719,7 +718,7 @@ Section sample_wide.
   Proof.
     rewrite /sample_wide_int.
     iIntros (? Hlen) "Hα HK".
-    tp_pures K.
+    tp_pures.
     iMod (spec_sample_wide_aux with "Hα HK"); auto.
   Qed.
 

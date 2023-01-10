@@ -68,8 +68,8 @@ Section map.
   Proof.
     iIntros (?) "H".
     rewrite /init_list.
-    tp_pures K.
-    tp_alloc K as l "Hl".
+    tp_pures.
+    tp_alloc as l "Hl".
     iExists _. iFrame. auto.
   Qed.
 
@@ -91,8 +91,8 @@ Section map.
   Proof.
     iIntros (?) "H Hr".
     rewrite /cons_list.
-    tp_pures K.
-    tp_alloc K as l' "Hl".
+    tp_pures.
+    tp_alloc as l' "Hl".
     iExists _. iFrame. iExists _; iFrame. auto.
   Qed.
 
@@ -175,13 +175,13 @@ Section map.
   Proof.
     iIntros (?) "H Hr".
     rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
-    - tp_pures K. rewrite /assoc_list. tp_load K. tp_pures K. iModIntro. iFrame.
-    - tp_pures K. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load K. tp_pures K; first solve_vals_compare_safe. case_bool_decide as Hcase.
-      { tp_pures K. simpl. rewrite bool_decide_true //; last first.
+    - tp_pures. rewrite /assoc_list. tp_load. tp_pures. iModIntro. iFrame.
+    - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
+      tp_load. tp_pures; first solve_vals_compare_safe. case_bool_decide as Hcase.
+      { tp_pures. simpl. rewrite bool_decide_true //; last first.
         { inversion Hcase; auto. lia. }
         iModIntro. iFrame "Hr". iExists _; iFrame; eauto. }
-      { tp_pure K _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
+      { tp_pure _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
         iEval simpl. rewrite bool_decide_false //; last by congruence.
         iFrame. iModIntro. iExists _; iFrame.
       }
@@ -197,17 +197,17 @@ Section map.
   Proof.
     iIntros (?) "H Hr".
     rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
-    - tp_pures K. rewrite /assoc_list. tp_load K. tp_pures K. iModIntro. iFrame.
+    - tp_pures. rewrite /assoc_list. tp_load. tp_pures. iModIntro. iFrame.
       rewrite /=. iFrame. destruct (bool_decide _) => //=.
-    - tp_pures K. iDestruct "H" as (?) "(Hl&Hassoc)".
-      tp_load K. tp_pures K; first solve_vals_compare_safe.
+    - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
+      tp_load. tp_pures; first solve_vals_compare_safe.
       destruct (bool_decide (#k' = #z)) eqn:Hbool.
       { apply bool_decide_eq_true_1 in Hbool.
-        tp_pures K. simpl. inversion Hbool. subst.
+        tp_pures. simpl. inversion Hbool. subst.
         rewrite bool_decide_false //; last by lia.
         rewrite bool_decide_true //; last by lia.
         iModIntro. iFrame. iExists _; iFrame; eauto. }
-      { tp_pure K _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
+      { tp_pure _. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
         apply bool_decide_eq_false_1 in Hbool.
         iEval (simpl).
         case_bool_decide.
@@ -258,12 +258,12 @@ Section map.
   Proof.
     iIntros (?) "H".
     rewrite /init_map.
-    tp_pures K.
-    tp_bind K (init_list #()).
+    tp_pures.
+    tp_bind (init_list #()).
     rewrite refines_right_bind.
     iMod (spec_init_list with "[$]") as (l) "(HK&Halloc)"; first done.
     iEval (rewrite -refines_right_bind /=) in "HK".
-    tp_alloc K as lm "Hl".
+    tp_alloc as lm "Hl".
     iExists _. iFrame. iExists _, _; iFrame; auto.
   Qed.
 
@@ -319,9 +319,9 @@ Section map.
   Proof.
     iIntros (?) "Hm Hr".
     rewrite /get.
-    tp_pures K.
+    tp_pures.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
-    tp_load K.
+    tp_load.
     iMod (spec_find_list with "[$] [$]") as "(HK&Halloc)"; first done.
     rewrite (find_list_gallina_map_lookup vs m) //. iFrame.
     iExists _ ,_. iFrame. eauto.
@@ -337,9 +337,9 @@ Section map.
   Proof.
     iIntros (?) "Hm Hr".
     rewrite /get.
-    tp_pures K.
+    tp_pures.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
-    tp_load K.
+    tp_load.
     iMod (spec_find_list_Z with "[$] [$]") as "(HK&Halloc)"; first done.
     rewrite (find_list_gallina_map_lookup vs m) //. iFrame.
     iExists _ ,_. iFrame. eauto.
@@ -365,14 +365,14 @@ Section map.
   Proof.
     iIntros (?) "Hm Hr".
     rewrite /set.
-    tp_pures K.
+    tp_pures.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
-    tp_load K. tp_pures K.
-    tp_bind K (cons_list _ _).
+    tp_load. tp_pures.
+    tp_bind (cons_list _ _).
     iEval (rewrite refines_right_bind) in "Hr".
     iMod (spec_cons_list with "[$] [$]") as (?)"(Hr&Halloc)"; first done.
     iEval (rewrite -refines_right_bind /=) in "Hr".
-    tp_store K.
+    tp_store.
     iFrame. iExists _, _. iFrame. rewrite list_to_map_cons Heq //.
   Qed.
 

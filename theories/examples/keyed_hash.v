@@ -436,12 +436,12 @@ Section keyed_hash.
   Proof.
     iIntros (?) "HK".
     rewrite /init_keyed_hash.
-    tp_pures K.
-    tp_bind K (init_hash _).
+    tp_pures.
+    tp_bind (init_hash _).
     rewrite refines_right_bind.
     iMod (spec_init_hash with "[$]") as (f0) "(HK&Hf0)"; first done.
     rewrite -refines_right_bind /=.
-    tp_pures K.
+    tp_pures.
     set (m := gset_to_gmap None (fin_to_set (fin_hash_dom_space)) : gmap _ (option bool)).
     iMod (ghost_map_alloc m) as (γ) "(Hauth&Hfrags)".
     iExists _, γ. iFrame "HK".
@@ -656,7 +656,7 @@ Section keyed_hash.
   Proof.
     iIntros (Hlookup ?) "Hauth Hown HK".
     iDestruct "Hauth" as (??? (Heq1&Hdom1&Hdom2)) "(Hauth&H)".
-    rewrite Heq1. rewrite /enc. tp_pures K.
+    rewrite Heq1. rewrite /enc. tp_pures.
     iAssert (⌜ v < S MAX_VALS ⌝)%I as "%Hmax'".
     { iDestruct "Hown" as "(%Hdom&_)". iPureIntro. apply elem_of_dom_2 in Hlookup.
       apply Hdom in Hlookup. lia. }

@@ -90,7 +90,7 @@ Section compatibility.
     iInv (logN .@ (l,l')) as (v v') "[Hv1 [>Hv2 #Hv]]" "Hclose".
     iModIntro.
     wp_store.
-    tp_store K'.
+    tp_store.
     iMod ("Hclose" with "[Hv1 Hv2 IH2]") as "_".
     { iNext; iExists _, _; simpl; iFrame. }
     iModIntro. iExists _. iFrame.
@@ -111,7 +111,7 @@ Section compatibility.
     iInv (logN .@ (l,l')) as (w w') "[Hw1 [>Hw2 #Hw]]" "Hclose"; simpl.
     iModIntro.
     wp_load.
-    tp_load K'.
+    tp_load.
     iMod ("Hclose" with "[Hw1 Hw2]") as "_".
     { iNext. iExists w,w'; by iFrame. }
     iModIntro. iExists _. iFrame.
