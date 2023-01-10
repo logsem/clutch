@@ -511,7 +511,7 @@ Tactic Notation "rel_flip_l" :=
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
        eapply (tac_rel_flip_l K); first reflexivity)
-    |fail 1 "rel_flip_l: cannot find 'Flip"];
+    |fail 1 "rel_flip_l: cannot find 'Flip'"];
   (* the remaining goals are from tac_rel_flip_l (except for the first one, which has already been solved by this point) *)
   [solve_mapsto ()
   |pm_reflexivity || fail "rel_flip_l: this should not happen O-:"

@@ -373,4 +373,32 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
+  Lemma refines_flip_empty_l K E α A e :
+    α ↪ [] ∗
+      (∀ (b : bool), α ↪ [] -∗ REL fill K (Val #b) << e @ E : A)
+    ⊢ REL fill K (flip #lbl:α) << e @ E : A.
+  Proof.
+    iIntros "[Hα H]".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    wp_apply wp_bind.
+    wp_apply (wp_flip_empty with "Hα").
+    iIntros (b) "Hα".
+    simpl.
+    rewrite /refines_right.
+    iSpecialize ("H" with "Hα [$Hs $Hspec] Hnais").
+    iExact "H".
+  Qed.
+
+  Lemma refines_flip_empty_r K E α A e :
+    to_val e = None →
+    α ↪ [] ∗
+      (∀ (b : bool), α ↪ [] -∗ REL e << fill K (Val #b) @ E : A)
+    ⊢ REL e << fill K (flip #lbl:α) @ E : A.
+  Proof.
+    iIntros (ev) "[Hα H]".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs Hspec] Hnais /=".
+  Abort.
+
 End rules.
