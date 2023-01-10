@@ -100,8 +100,7 @@ Section rules.
     by iApply "He".
   Qed.
 
-  Lemma refines_alloc_r E K e v t A
-    (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_alloc_r E K e v t A :
     IntoVal e v →
     (∀ l : loc, l ↦ₛ v -∗ REL t << fill K (of_val #l) @ E : A)%I
     -∗ REL t << fill K (ref e) @ E : A.
@@ -114,8 +113,7 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_load_r E K l q v t A
-    (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_load_r E K l q v t A :
     l ↦ₛ{q} v -∗
     (l ↦ₛ{q} v -∗ REL t << fill K (of_val v) @ E : A)
     -∗ REL t << (fill K !#l) @ E : A.
@@ -127,8 +125,7 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_store_r E K l e e' v v' A
-    (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_store_r E K l e e' v v' A :
     IntoVal e' v' →
     l ↦ₛ v -∗
     (l ↦ₛ v' -∗ REL e << fill K (of_val #()) @ E : A) -∗
@@ -141,8 +138,7 @@ Section rules.
     by iApply "Hlog".
   Qed.
 
-  Lemma refines_alloctape_r E K t A
-    (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_alloctape_r E K t A :
     (∀ α : loc, α ↪ₛ [] -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
     -∗ REL t << fill K alloc @ E : A.
   Proof.
@@ -154,8 +150,7 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_flip_r E K α b bs t A
-    (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_flip_r E K α b bs t A :
     α ↪ₛ (b :: bs)
     -∗ (α ↪ₛ bs -∗ REL t << fill K (of_val #b) @ E : A)
     -∗ REL t << (fill K (flip #lbl:α)) @ E : A.
@@ -166,7 +161,7 @@ Section rules.
     tp_flip k.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
-
+p
   (** This rule is useful for proving that functions refine each other *)
   Lemma refines_arrow_val (v v' : val) A A' :
     □(∀ v1 v2, A v1 v2 -∗
@@ -260,8 +255,7 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
-  Lemma refines_couple_tapes E e1 e2 A α αₛ bs bsₛ
-    (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_couple_tapes E e1 e2 A α αₛ bs bsₛ :
     to_val e1 = None →
     (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
        (∀ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])
@@ -278,7 +272,7 @@ Section rules.
     iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
   Qed.
 
-  Lemma refines_couple_flips_l K K' E α A (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_couple_flips_l K K' E α A :
     α ↪ [] ∗
       (∀ (b : bool), α ↪ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
     ⊢ REL fill K (flip #lbl:α) << fill K' (flip #()) @ E : A.
@@ -299,7 +293,7 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
-  Lemma refines_couple_flips_r K K' E α A (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_couple_flips_r K K' E α A :
     α ↪ₛ [] ∗
       (∀ (b : bool), α ↪ₛ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
     ⊢ REL fill K (flip #()) << fill K' (flip #lbl:α) @ E : A.
@@ -320,7 +314,7 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
-  Lemma refines_couple_flips_lr K K' E A (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_couple_flips_lr K K' E A :
       (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E : A)
     ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
   Proof.
@@ -340,7 +334,7 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
-  Lemma refines_couple_tape_flip K' E α A bs e (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_couple_tape_flip K' E α A bs e :
     to_val e = None →
     α ↪ bs ∗
       (∀ (b : bool), α ↪ (bs ++ [b]) -∗ REL e << fill K' (Val #b) @ E : A)
@@ -360,7 +354,7 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
-  Lemma refines_couple_flip_tape K E α A bs e (Hmasked : nclose specN ⊆ E) :
+  Lemma refines_couple_flip_tape K E α A bs e :
     α ↪ₛ bs ∗
       (∀ (b : bool), α ↪ₛ (bs ++ [b]) -∗ REL fill K (Val #b) << e @ E : A)
     ⊢ REL fill K (flip #()) << e @ E : A.

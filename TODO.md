@@ -1,12 +1,16 @@
 # TODOs and ideas for extensions
 
+- Better rules for working with invariants
+
+- Cleanup couplings rules in Coq development---e.g. specific rules for flip() ~ flip(alpha) are unnecessary
+
 - Tapes with more general sample spaces than just coins
 
 - Epsilon equivalence
 
 - Is having a refCoupl equivalent to having a traditional coupling on the ⊥-lifted relation?
 
-- Could we use the exec_coupl modality instead of the pure-run-ahead in the spec resource algebra?
+- Could we use the exec_coupl modality instead of the pure-run-ahead in the spec resource algebra to support probabilistic steps on the RHS in isolation?
 
 - Flip-label erasure via tapes_logrel := λ t1 t2 . t1 = t2 = [] instead of t1 = t2.
 
