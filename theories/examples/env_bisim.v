@@ -191,7 +191,7 @@ Section proofs.
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (flip #lbl:α) ∗ α ↪ₛ [] ∗
-    ((α ↪ₛ [] ∗ spec_ctx ∗ ∃ b, ⤇ fill K #b) -∗ WP e @ E {{ Φ }})
+    ((α ↪ₛ [] ∗ spec_ctx ∗ ∃ b : bool, ⤇ fill K #b) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He ?) "(#Hinv & Hj & Hα & Hwp)".
@@ -217,7 +217,8 @@ Section proofs.
       rewrite /exec. simpl.
       rewrite dret_id_right.
       rewrite /prim_step_or_val /=.
-      destruct (to_val (fill K (flip #lbl:α))). 1: give_up.
+      (* TODO should be provably equal to None instead of admit. *)
+      destruct (to_val (fill K (flip #lbl:α))) eqn:Hval. 1: admit.
       rewrite fill_prim_step_dbind //.
       set (ρ' :=
 (@dret
@@ -238,7 +239,8 @@ Section proofs.
       eapply Rcoupl_dbind => /=; last first.
       Unshelve.
       3: {
-        simpl. exact (λ _ '(e', s'), ∃ b : bool, (fill K e', s') = (fill K #b, σ0')).
+        simpl.
+        exact (λ _ '(e', s'), ∃ b : bool, (fill K e', s') = (fill K #b, σ0')).
       }
       2:{
         intros ? (e' & s') H.
@@ -246,8 +248,55 @@ Section proofs.
       }
       simpl.
       subst ρ'.
-
-      admit.
+      unfold prim_step. simpl. rewrite decomp_unfold. simpl.
+      unfold fill_lift. simpl. unfold dmap.
+      replace (λ a : expr * state, dret (let '(e0, σ) := a in (e0, σ)))
+        with
+        (λ a : expr * state, dret a).
+      2: { extensionality a. destruct a. done. }
+      rewrite dret_id_right.
+      unfold head_step. unfold head_step_pmf. simpl.
+      Fail rewrite H1.
+      set (F := (λ '(lhs, rhs), match rhs with
+                              | (Val #(LitBool b), σ2) =>
+                                  if bool_decide (σ0' = σ2) &&
+                                       bool_decide (lhs = (e, σ1))
+                                  then 0.5%R else 0%R
+                              | _ => 0%R end)).
+      unshelve econstructor.
+      {
+        unshelve econstructor.
+        - exact F.
+        - admit.
+          (* subst F. intros. simpl. destruct a. destruct p0. destruct e0; try lra. *)
+          (* destruct v; try lra. destruct l; try lra. *)
+          (* destruct (bool_decide (σ0' = s) && bool_decide (p = (e, σ1))) eqn:H. *)
+          (* all: rewrite H; lra. *)
+        - admit.
+        - admit.
+      }
+      simpl.
+      constructor ; last first.
+      - intros (? & e' & s') H. simpl.
+        simpl in H.
+        (* not sure why H doesn't simplify. maybe the evars created by the
+        admit's from above? anyhow, it should amount to this: *)
+        assert (F (p, (e', s')) > 0)%R by admit.
+        unfold F in H2.
+        destruct e' ; try (apply Rgt_irrefl in H2 ; done).
+        destruct v ; try (apply Rgt_irrefl in H2 ; done).
+        destruct l ; try (apply Rgt_irrefl in H2 ; done).
+        exists b.
+        destruct (bool_decide (σ0' = s')) eqn:HH.
+        ++ destruct (bool_decide (p = (e, σ1))) eqn:HH'.
+           ** apply bool_decide_eq_true_1 in HH.
+              rewrite HH.
+              reflexivity.
+           ** rewrite HH' in H2. simpl in H2.
+              apply Rgt_irrefl in H2. done.
+        ++ simpl in H2. apply Rgt_irrefl in H2. done.
+      - econstructor.
+        all: admit.
     }
     iIntros (σ2 e2' (b & [= -> ->])).
     iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
@@ -276,7 +325,14 @@ Section proofs.
     iIntros (ev) "[Hα H]".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
-  Admitted.
+    wp_apply wp_flip_empty_r ; auto.
+    iFrame. iSplitR. 1: iAssumption.
+    unfold refines_right.
+    rewrite -fill_app. iFrame.
+    iIntros "(α & _ & %b & Hb)".
+    rewrite fill_app.
+    by iApply ("H" $! _ with "[$α] [$Hs $Hb]").
+  Qed.
 
   Lemma K_H_with_tape_rel :
     ⊢ REL K << H_with_tape : lrel_unit → lrel_bool.
