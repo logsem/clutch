@@ -392,13 +392,20 @@ Section rules.
 
   Lemma refines_flip_empty_r K E α A e :
     to_val e = None →
-    α ↪ [] ∗
-      (∀ (b : bool), α ↪ [] -∗ REL e << fill K (Val #b) @ E : A)
+    α ↪ₛ [] ∗
+      (∀ (b : bool), α ↪ₛ [] -∗ REL e << fill K (Val #b) @ E : A)
     ⊢ REL e << fill K (flip #lbl:α) @ E : A.
   Proof.
     iIntros (ev) "[Hα H]".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
-  Abort.
+    wp_apply wp_flip_empty_r ; auto.
+    iFrame. iSplitR. 1: iAssumption.
+    unfold refines_right.
+    rewrite -fill_app. iFrame.
+    iIntros "(α & _ & %b & Hb)".
+    rewrite fill_app.
+    by iApply ("H" $! _ with "[$α] [$Hs $Hb]").
+  Qed.
 
 End rules.
