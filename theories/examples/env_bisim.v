@@ -303,3 +303,11 @@ Proof.
   - eapply (refines_sound prelogrelΣ).
     intros. apply: H_with_tape_H_rel.
 Qed.
+
+Theorem eager_lazy_equiv :
+  ∅ ⊨ H =ctx= K : () → TBool.
+Proof.
+  split.
+  - apply H_K_refinement.
+  - apply K_H_refinement.
+Qed.
