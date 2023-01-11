@@ -184,9 +184,6 @@ Section proofs.
         now iApply ("HH" with "[$]").
   Qed.
 
-
-  (* TODO: what should this say exactly? *)
-  (* wp_couple_tape_flip is similar. *)
   Lemma wp_flip_empty_r E e K α Φ :
     to_val e = None →
     nclose specN ⊆ E →
@@ -203,10 +200,9 @@ Section proofs.
     iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
     iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %?.
+    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     (* Do a coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
@@ -217,86 +213,51 @@ Section proofs.
       rewrite /exec. simpl.
       rewrite dret_id_right.
       rewrite /prim_step_or_val /=.
-      (* TODO should be provably equal to None instead of admit. *)
-      destruct (to_val (fill K (flip #lbl:α))) eqn:Hval. 1: admit.
+      assert (to_val (fill K (flip #lbl:α)) = None)
+        as -> by now apply fill_not_val.
       rewrite fill_prim_step_dbind //.
-      set (ρ' :=
-(@dret
-       (prod (ofe_car (self.program_logic.language.exprO prob_lang))
-          (ofe_car (self.program_logic.language.stateO prob_lang)))
-       (@prod_eq_dec (ofe_car (self.program_logic.language.exprO prob_lang))
-          expr_eq_dec
-          (ofe_car (self.program_logic.language.stateO prob_lang))
-          state_eq_dec)
-       (@prod_countable
-          (ofe_car (self.program_logic.language.exprO prob_lang)) expr_eq_dec
-          expr_countable
-          (ofe_car (self.program_logic.language.stateO prob_lang))
-          state_eq_dec state_countable)
-       (@pair (ofe_car (self.program_logic.language.exprO prob_lang))
-          (ofe_car (self.program_logic.language.stateO prob_lang)) e σ1))).
-      rewrite -(dret_id_right ρ').
-      eapply Rcoupl_dbind => /=; last first.
-      Unshelve.
-      3: {
-        simpl.
-        exact (λ _ '(e', s'), ∃ b : bool, (fill K e', s') = (fill K #b, σ0')).
-      }
-      2:{
-        intros ? (e' & s') H.
-        apply Rcoupl_dret. rewrite /fill_lift. simpl. assumption.
-      }
-      simpl.
-      subst ρ'.
-      unfold prim_step. simpl. rewrite decomp_unfold. simpl.
-      unfold fill_lift. simpl. unfold dmap.
-      replace (λ a : expr * state, dret (let '(e0, σ) := a in (e0, σ)))
-        with
-        (λ a : expr * state, dret a).
-      2: { extensionality a. destruct a. done. }
+      replace (dret _) with (dbind dret (dret (e, σ1)))
+                            by now rewrite dret_id_right.
+      unshelve eapply Rcoupl_dbind ; simpl.
+      1: exact (λ _ '(e, s), ∃ b : bool, (fill K e, s) = (fill K #b, σ0')).
+      { intros ? (e' & s') H.
+        apply Rcoupl_dret. rewrite /fill_lift /=. assumption. }
+      rewrite /prim_step /=. rewrite decomp_unfold /fill_lift /=.
+      unfold dmap.
+      replace (λ a, dret (let '(e0, σ) := a in _))
+        with (λ a : expr * state, dret a)
+             by (extensionality a ; now destruct a).
       rewrite dret_id_right.
-      unfold head_step. unfold head_step_pmf. simpl.
-      Fail rewrite H1.
-      set (F := (λ '(lhs, rhs), match rhs with
-                              | (Val #(LitBool b), σ2) =>
-                                  if bool_decide (σ0' = σ2) &&
-                                       bool_decide (lhs = (e, σ1))
-                                  then 0.5%R else 0%R
-                              | _ => 0%R end)).
       unshelve econstructor.
-      {
-        unshelve econstructor.
-        - exact F.
-        - admit.
-          (* subst F. intros. simpl. destruct a. destruct p0. destruct e0; try lra. *)
-          (* destruct v; try lra. destruct l; try lra. *)
-          (* destruct (bool_decide (σ0' = s) && bool_decide (p = (e, σ1))) eqn:H. *)
-          (* all: rewrite H; lra. *)
-        - admit.
-        - admit.
-      }
-      simpl.
-      constructor ; last first.
-      - intros (? & e' & s') H. simpl.
-        simpl in H.
-        (* not sure why H doesn't simplify. maybe the evars created by the
-        admit's from above? anyhow, it should amount to this: *)
-        assert (F (p, (e', s')) > 0)%R by admit.
-        unfold F in H2.
-        destruct e' ; try (apply Rgt_irrefl in H2 ; done).
-        destruct v ; try (apply Rgt_irrefl in H2 ; done).
-        destruct l ; try (apply Rgt_irrefl in H2 ; done).
+      1: exact (dprod (dret (e, σ1)) (head_step (flip #lbl:α) σ0')).
+      constructor.
+      - constructor.
+        2: apply rmarg_dprod, dret_mass.
+        apply lmarg_dprod, head_step_mass.
+        exists (Val #(LitBool inhabitant), σ0').
+        rewrite /head_step /head_step_pmf /=.
+        (* wtf? why is this needed? *)
+        unfold pmf.
+        rewrite Hαsome. assert (bool_decide (σ0' = σ0') = true)
+          as h by now apply bool_decide_eq_true_2.
+        rewrite h. lra.
+      - intros (? & e' & s'). simpl.
+        rewrite /dret /pmf /dret_pmf /=.
+        rewrite /head_step /head_step_pmf /pmf /=.
+        rewrite Hαsome.
+        destruct (bool_decide (p = (e, σ1))) eqn:HH'.
+        all: rewrite HH'.
+        2: { rewrite Rmult_0_l. move /Rgt_irrefl ; done. }
+        rewrite Rmult_1_l.
+        destruct e' ; try (move /Rgt_irrefl ; done).
+        destruct v ; try (move /Rgt_irrefl ; done).
+        destruct l ; try (move /Rgt_irrefl ; done).
+        intros H.
         exists b.
         destruct (bool_decide (σ0' = s')) eqn:HH.
-        ++ destruct (bool_decide (p = (e, σ1))) eqn:HH'.
-           ** apply bool_decide_eq_true_1 in HH.
-              rewrite HH.
-              reflexivity.
-           ** rewrite HH' in H2. simpl in H2.
-              apply Rgt_irrefl in H2. done.
-        ++ simpl in H2. apply Rgt_irrefl in H2. done.
-      - econstructor.
-        all: admit.
+        + move: HH => /bool_decide_eq_true_1 ->.
+           reflexivity.
+        + rewrite HH in H. by apply Rgt_irrefl in H.
     }
     iIntros (σ2 e2' (b & [= -> ->])).
     iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
@@ -314,7 +275,7 @@ Section proofs.
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
     iModIntro. done.
-  Admitted.
+  Qed.
 
   Lemma refines_flip_empty_r K E α A e :
     to_val e = None →
