@@ -430,6 +430,19 @@ Section ectx_language.
     by simplify_eq; rewrite fill_empty.
   Qed.
 
+  Lemma not_head_reducible_dzero e σ :
+    head_irreducible e σ → head_step e σ = dzero.
+  Proof.
+    rewrite /reducible.
+    intros Hred%not_head_reducible. apply dzero_ext=> ρ.
+    destruct (Req_dec (head_step e σ ρ) 0); [done|].
+    exfalso. apply Hred.
+    exists ρ.
+    pose proof (pmf_le_1 (head_step e σ) ρ).
+    pose proof (pmf_pos (head_step e σ) ρ).
+    lra.
+  Qed.
+
   (* Every evaluation context is a context. *)
   Global Instance ectx_lang_ctx K : LanguageCtx (fill K).
   Proof.
