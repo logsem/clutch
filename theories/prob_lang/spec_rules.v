@@ -538,7 +538,7 @@ Section rules.
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He HE) "(#Hinv & Hj & Hα & Hwp)".
-    (* Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
+    (* Idea: Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
     (* We do not want to execute a [prim_step] on the left. We merely rely on
     the fact that we *could* step (because to_val e = None) in order to appeal
     to [Hwp]. *)
@@ -556,54 +556,17 @@ Section rules.
     iExists 1.
     iSplit.
     { iPureIntro.
-      rewrite /exec. simpl.
+      rewrite /exec /=.
       rewrite dret_id_right.
       rewrite /prim_step_or_val /=.
-      assert (to_val (fill K (flip #lbl:α)) = None)
-        as -> by now apply fill_not_val.
+      rewrite fill_not_val //.
       rewrite fill_prim_step_dbind //.
-      replace (dret _) with (dbind dret (dret (e, σ1)))
-                            by now rewrite dret_id_right.
+      replace (dret _) with (dbind dret (dret (e, σ1))) by now rewrite dret_id_right.
       unshelve eapply Rcoupl_dbind ; simpl.
-      1: exact (λ _ '(e, s), ∃ b : bool, (fill K e, s) = (fill K #b, σ0')).
-      { intros ? (e' & s') H.
-        apply Rcoupl_dret. rewrite /fill_lift /=. assumption. }
-      rewrite /prim_step /=. rewrite decomp_unfold /fill_lift /=.
-      unfold dmap.
-      replace (λ a, dret (let '(e0, σ) := a in _))
-        with (λ a : expr * state, dret a)
-             by (extensionality a ; now destruct a).
-      rewrite dret_id_right.
-      unshelve econstructor.
-      1: exact (dprod (dret (e, σ1)) (head_step (flip #lbl:α) σ0')).
-      constructor.
-      - constructor.
-        2: apply rmarg_dprod, dret_mass.
-        apply lmarg_dprod, head_step_mass.
-        exists (Val #(LitBool inhabitant), σ0').
-        rewrite /head_step /head_step_pmf /=.
-        (* wtf? why is this needed? *)
-        unfold pmf.
-        rewrite Hαsome. assert (bool_decide (σ0' = σ0') = true)
-          as h by now apply bool_decide_eq_true_2.
-        rewrite h. lra.
-      - intros (? & e' & s'). simpl.
-        rewrite /dret /pmf /dret_pmf /=.
-        rewrite /head_step /head_step_pmf /pmf /=.
-        rewrite Hαsome.
-        destruct (bool_decide (p = (e, σ1))) eqn:HH'.
-        all: rewrite HH'.
-        2: { rewrite Rmult_0_l. move /Rgt_irrefl ; done. }
-        rewrite Rmult_1_l.
-        destruct e' ; try (move /Rgt_irrefl ; done).
-        destruct v ; try (move /Rgt_irrefl ; done).
-        destruct l ; try (move /Rgt_irrefl ; done).
-        intros H.
-        exists b.
-        destruct (bool_decide (σ0' = s')) eqn:HH.
-        + move: HH => /bool_decide_eq_true_1 ->.
-           reflexivity.
-        + rewrite HH in H. by apply Rgt_irrefl in H.
+      1: exact (λ ρ2 ρ2', ∃ b : bool, ρ2 = (e, σ1) /\ ρ2' = (Val #b, σ0')).
+      { intros ? (e' & s') (b & ? & HH).
+        apply Rcoupl_dret. rewrite /fill_lift /=. exists b. by inversion HH. }
+      apply Rcoupl_flip_empty_r => // ; apply _.
     }
     iIntros (σ2 e2' (b & [= -> ->])).
     iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".

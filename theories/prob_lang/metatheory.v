@@ -496,6 +496,44 @@ Proof.
     + exists false. rewrite Hf //.
 Qed.
 
+(** * e1 ~ flip(α') coupling for α' ↪ₛ [] *)
+Lemma Rcoupl_flip_empty_r f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} (e1 : expr) (σ1 : state) σ1' α' :
+  σ1'.(tapes) !! α' = Some [] →
+  Rcoupl
+    (dret (e1, σ1))
+    (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), ρ2 = (e1, σ1) ∧ ρ2' = (Val #(f b), σ1')).
+Proof.
+  intros α_empty.
+  rewrite /prim_step /=. rewrite decomp_unfold /fill_lift /=.
+  unfold dmap.
+  replace (λ _, dret (let '(_, _) := _ in _))
+    with (λ a : expr * state, dret a)
+         by (extensionality a ; now destruct a).
+  rewrite dret_id_right.
+  unshelve econstructor.
+  1: exact (dprod (dret (e1, σ1)) (head_step (flip #lbl:α') σ1')).
+  constructor.
+  - constructor.
+    2: apply rmarg_dprod, dret_mass.
+    apply lmarg_dprod, head_step_mass.
+    exists (Val #(LitBool inhabitant), σ1').
+    rewrite /head_step /head_step_pmf /pmf α_empty /=.
+    case_bool_decide. 1: lra. contradiction.
+  - intros (? & eb & σ2') => /=.
+    rewrite /dret /pmf /dret_pmf /= /pmf /= α_empty.
+    case_bool_decide ; let h := fresh in intros h ; ring_simplify in h ; revert h.
+    2: lra.
+    destruct eb eqn:? ; try lra.
+    match goal with | _ : (eb = Val ?vv) |- _ => destruct vv ; try lra end.
+    match goal with | _ : (eb = Val #?ll) |- _ => destruct ll ; try lra end.
+    match goal with | _ : (eb = Val #(LitBool ?bb)) |- _ => exists (f_inv f bb) end.
+    case_bool_decide.
+    + subst. split ; [reflexivity|]. f_equal.
+      rewrite f_inv_cancel_r. reflexivity.
+    + lra.
+Qed.
+
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
 | RecDS f x e σ :
