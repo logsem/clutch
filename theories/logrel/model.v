@@ -245,7 +245,7 @@ Notation "'REL' e1 '<<' e2 '@' E ':' A" :=
   (refines E e1%E e2%E (A)%lrel)
   (at level 100, E at next level, e1, e2 at next level,
    A at level 200,
-   format "'[hv' 'REL'  e1  '/' '<<'  '/  ' e2  '@'  E :  A ']'").
+   format "'[hv' 'REL'  e1  '/' '<<'  '/  ' e2  '@'  E  :  A ']'").
 Notation "'REL' e1 '<<' t ':' A" :=
   (refines ⊤ e1%E t%E (A)%lrel)
   (at level 100, e1, t at next level,
