@@ -272,68 +272,6 @@ Section rules.
     iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
   Qed.
 
-  Lemma refines_couple_flips_l K K' E α A :
-    α ↪ [] ∗
-      (∀ (b : bool), α ↪ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (flip #lbl:α) << fill K' (flip #()) @ E : A.
-  Proof.
-    iIntros "[Hα Hcnt]".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply wp_couple_flip_lbl_flip_eq; [done|].
-    rewrite -fill_app.
-    iFrame "Hs Hα Hspec".
-    iIntros (b) "[Hα Hspec]".
-    iApply wp_value.
-    rewrite fill_app.
-    iSpecialize ("Hcnt" with "Hα [$Hspec $Hs] Hnais").
-    wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
-    iExists _. iFrame.
-  Qed.
-
-  Lemma refines_couple_flips_r K K' E α A :
-    α ↪ₛ [] ∗
-      (∀ (b : bool), α ↪ₛ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (flip #()) << fill K' (flip #lbl:α) @ E : A.
-  Proof.
-    iIntros "[Hα Hcnt]".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply wp_couple_flip_flip_lbl_eq; [done|].
-    rewrite -fill_app.
-    iFrame "Hs Hα Hspec".
-    iIntros (b) "[Hα Hspec]".
-    iApply wp_value.
-    rewrite fill_app.
-    iSpecialize ("Hcnt" with "Hα [$Hspec $Hs] Hnais").
-    wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
-    iExists _. iFrame.
-  Qed.
-
-  Lemma refines_couple_flips_lr K K' E A :
-      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
-  Proof.
-    iIntros "Hcnt".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply wp_couple_flip_flip_eq; [done|].
-    rewrite -fill_app.
-    iFrame "Hs Hspec".
-    iIntros (b) "Hspec".
-    iApply wp_value.
-    rewrite fill_app.
-    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
-    wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
-    iExists _. iFrame.
-  Qed.
-
   Lemma refines_couple_tape_flip K' E α A bs e :
     to_val e = None →
     α ↪ bs ∗
@@ -368,6 +306,52 @@ Section rules.
     iIntros (b) "Hα".
     iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
     (* We should be able to just [iApply] "Hcnt" here??? *)
+    wp_apply (wp_mono with "Hcnt").
+    iIntros (v) "[% ([? ?] &?&?)]".
+    iExists _. iFrame.
+  Qed.
+
+  Corollary refines_couple_flips_l K K' E α A :
+    α ↪ [] ∗
+      (∀ (b : bool), α ↪ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
+    ⊢ REL fill K (flip #lbl:α) << fill K' (flip #()) @ E : A.
+  Proof.
+    iIntros "(α & H)".
+    iApply refines_couple_tape_flip.
+    1: rewrite fill_not_val //.
+    iFrame => /=. iIntros (b) "α".
+    iApply refines_flip_l.
+    iSplitL "α". 1: iFrame.
+    iApply "H".
+  Qed.
+
+  Corollary refines_couple_flips_r K K' E α A :
+    α ↪ₛ [] ∗
+      (∀ (b : bool), α ↪ₛ [] -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
+    ⊢ REL fill K (flip #()) << fill K' (flip #lbl:α) @ E : A.
+  Proof.
+    iIntros "(α & H)".
+    iApply refines_couple_flip_tape.
+    iFrame => /=. iIntros (b) "α".
+    iApply (refines_flip_r with "α").
+    iApply "H".
+  Qed.
+
+  Lemma refines_couple_flips_lr K K' E A :
+      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E : A)
+    ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
+  Proof.
+    iIntros "Hcnt".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    wp_apply wp_bind.
+    wp_apply wp_couple_flip_flip_eq; [done|].
+    rewrite -fill_app.
+    iFrame "Hs Hspec".
+    iIntros (b) "Hspec".
+    iApply wp_value.
+    rewrite fill_app.
+    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
     wp_apply (wp_mono with "Hcnt").
     iIntros (v) "[% ([? ?] &?&?)]".
     iExists _. iFrame.
