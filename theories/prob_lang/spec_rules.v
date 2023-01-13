@@ -566,7 +566,7 @@ Section rules.
       1: exact (λ ρ2 ρ2', ∃ b : bool, ρ2 = (e, σ1) /\ ρ2' = (Val #b, σ0')).
       { intros ? (e' & s') (b & ? & HH).
         apply Rcoupl_dret. rewrite /fill_lift /=. exists b. by inversion HH. }
-      apply Rcoupl_flip_empty_r => // ; apply _.
+      apply Rcoupl_flip_empty_r => //.
     }
     iIntros (σ2 e2' (b & [= -> ->])).
     iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".

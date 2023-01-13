@@ -380,12 +380,12 @@ Section couplings_theory.
   Proof. by intros ->%Rcoupl_eq_elim ?. Qed.
 
   Lemma Rcoupl_weaken (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
-    (∀ a b, R a b -> S a b) → Rcoupl μ1 μ2 R → Rcoupl μ1 μ2 S.
+    Rcoupl μ1 μ2 R → (∀ a b, R a b -> S a b) → Rcoupl μ1 μ2 S.
   Proof.
-    intros Hwk [μ [[HμL HμR] HμSupp]].
+    intros [μ [[HμL HμR] HμSupp]] Hwk.
     exists μ; split; [split | ]; auto.
   Qed.
-  Definition Rcoupl_impl := Rcoupl_weaken.
+  Definition Rcoupl_impl μ1 μ2 R S H RC := Rcoupl_weaken μ1 μ2 R S RC H.
 
   Lemma Rcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R :
     Rcoupl μ1 μ2 R →

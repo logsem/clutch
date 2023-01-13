@@ -497,41 +497,25 @@ Proof.
 Qed.
 
 (** * e1 ~ flip(α') coupling for α' ↪ₛ [] *)
-Lemma Rcoupl_flip_empty_r f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} (e1 : expr) (σ1 : state) σ1' α' :
-  σ1'.(tapes) !! α' = Some [] →
+Lemma Rcoupl_flip_empty_r (ρ1 : cfg) σ1' α' (_ : tapes σ1' !! α' = Some []) :
   Rcoupl
-    (dret (e1, σ1))
+    (dret ρ1)
     (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
-    (λ ρ2 ρ2', ∃ (b : bool), ρ2 = (e1, σ1) ∧ ρ2' = (Val #(f b), σ1')).
+    (λ ρ2 ρ2', ∃ (b : bool), ρ2 = ρ1 ∧ ρ2' = (Val #b, σ1')).
 Proof.
-  intros α_empty.
-  rewrite /prim_step /=. rewrite decomp_unfold /fill_lift /=.
-  unfold dmap.
-  replace (λ _, dret (let '(_, _) := _ in _))
-    with (λ a : expr * state, dret a)
-         by (extensionality a ; now destruct a).
-  rewrite dret_id_right.
-  unshelve econstructor.
-  1: exact (dprod (dret (e1, σ1)) (head_step (flip #lbl:α') σ1')).
-  constructor.
-  - constructor.
-    2: apply rmarg_dprod, dret_mass.
-    apply lmarg_dprod, head_step_mass.
-    exists (Val #(LitBool inhabitant), σ1').
-    rewrite /head_step /head_step_pmf /pmf α_empty /=.
-    case_bool_decide. 1: lra. contradiction.
-  - intros (? & eb & σ2') => /=.
-    rewrite /dret /pmf /dret_pmf /= /pmf /= α_empty.
-    case_bool_decide ; let h := fresh in intros h ; ring_simplify in h ; revert h.
-    2: lra.
-    destruct eb eqn:? ; try lra.
-    match goal with | _ : (eb = Val ?vv) |- _ => destruct vv ; try lra end.
-    match goal with | _ : (eb = Val #?ll) |- _ => destruct ll ; try lra end.
-    match goal with | _ : (eb = Val #(LitBool ?bb)) |- _ => exists (f_inv f bb) end.
-    case_bool_decide.
-    + subst. split ; [reflexivity|]. f_equal.
-      rewrite f_inv_cancel_r. reflexivity.
-    + lra.
+  assert (head_reducible (flip #lbl:α') σ1') as hr.
+  { econstructor.
+    apply head_step_support_equiv_rel.
+    apply (FlipTapeEmptyS _ inhabitant). auto. }
+  rewrite head_prim_step_eq //.
+  eapply Rcoupl_weaken.
+  - apply Rcoupl_pos_R. apply Rcoupl_trivial.
+    all: auto using dret_mass, head_step_mass.
+  - intros ? [] (_ & hh%dret_pos & ?).
+    inv_head_step.
+    destruct_or?.
+    + inv_head_step. eauto.
+    + simplify_map_eq.
 Qed.
 
 (** Some useful lemmas to reason about language properties  *)
