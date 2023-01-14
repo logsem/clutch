@@ -39,7 +39,6 @@ Inductive EqType : type → Prop :=
   | EqTBool : EqType TBool
   | EqTProd τ τ' : EqType τ → EqType τ' → EqType (TProd τ τ')
   | EqSum τ τ' : EqType τ → EqType τ' → EqType (TSum τ τ')
-  (* PGH: we should be able to add references here. *)
   (* | EQRef τ : EqType (Tref τ) *)
 .
 

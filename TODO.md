@@ -1,8 +1,10 @@
 # TODOs and ideas for extensions
 
-- Better rules for working with invariants
+- Use the choice axiom from stdlib in [prelude/classical.v]
 
-- Cleanup couplings rules in Coq development---e.g. specific rules for flip() ~ flip(alpha) are unnecessary
+- Show [ctx_refines_alt] implies [ctx_refines]
+
+- Better rules for working with invariants
 
 - Tapes with more general sample spaces than just coins
 

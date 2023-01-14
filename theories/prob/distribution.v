@@ -2,8 +2,8 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
-From self.prelude Require Export base Coquelicot_ext Reals_ext classical.
-From self.prob Require Export countable_sum. (* double *)
+From self.prelude Require Export base Reals_ext Coquelicot_ext Series_ext classical.
+From self.prob Require Export countable_sum.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
   pmf :> A → R;
@@ -160,8 +160,7 @@ Next Obligation.
   erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
   rewrite 2!SeriesC_singleton. lra. Qed.
 
-(* AA: We may need this generality later, but I think it is better to define the fair coin
-   explicitly *)
+(* We may need this generality later, but I think it is better to define the fair coin explicitly *)
 Definition biased_coin_pmf r : bool → R :=
   λ b, if b then r else 1-r.
 Program Definition biased_coin r (P : 0 <= r <= 1) : distr bool := MkDistr (biased_coin_pmf r) _ _ _.
@@ -598,10 +597,9 @@ Section monadic.
 
 End monadic.
 
-  (* Convex combinations *)
-  (* AA: There may be a better place to define this *)
-  Definition fair_conv_comb `{Countable A} (μ1 μ2 : distr A) : distr A :=
-    dbind (λ b, if b then μ1 else μ2) fair_coin.
+(* Convex combinations *)
+Definition fair_conv_comb `{Countable A} (μ1 μ2 : distr A) : distr A :=
+  dbind (λ b, if b then μ1 else μ2) fair_coin.
 
 Section conv_prop.
 
@@ -615,7 +613,6 @@ Section conv_prop.
     2: { intro b; destruct b; simpl; rewrite /pmf /fair_coin_pmf /= /fair_coin_pmf; simpl; lra. }
     erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
     rewrite 2!SeriesC_singleton; simpl.
-    (* AA: This is strange *)
     rewrite /pmf; lra.
   Qed.
 

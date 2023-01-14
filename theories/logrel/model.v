@@ -266,7 +266,6 @@ Section related_facts.
   Qed.
 
   Global Instance elim_fupd_refines p E e t P A :
-   (* DF: look at the booleans here *)
    ElimModal True p false (|={⊤}=> P) P
      (refines E e t A) (refines E e t A).
   Proof.
@@ -363,8 +362,6 @@ Section monadic.
     iApply wp_value. iExists _. iFrame.
   Qed.
 
-  (* PGH: The first version of the lemma I had thought of; not sure if this is
-     actually useful. *)
   Lemma refines_ret_na' E e1 e2 v1 v2 (A : lrel Σ) :
     IntoVal e1 v1 →
     IntoVal e2 v2 →

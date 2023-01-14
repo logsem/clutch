@@ -94,21 +94,6 @@ Section couplings_theory.
     Rcoupl μ1 μ2 R → SeriesC μ1 = SeriesC μ2.
   Proof. intros (?&?&?). by eapply isCoupl_mass_eq. Qed.
 
-  (* Lemma isCoupl_dret_inv (a : A) (b : B) (μ : distr (A*B)) : *)
-  (*   isCoupl (dret a) (dret b) μ -> μ = dret ( (a,b)). *)
-  (* Proof. *)
-
-  (* Lemma Rcoupl_dret_inv (a : A) (b : B) (R : A → B → Prop) : *)
-  (*   Rcoupl (dret a) (dret b) R -> R a b. *)
-  (* Proof. *)
-  (*   intros (μ & (HμC & HμS)). *)
-  (*   apply (isCoupl_dret_inv a b) in HμC. *)
-  (*   apply (HμS (a, b)). *)
-  (*   rewrite HμC. *)
-  (*   rewrite /pmf/=/dret_pmf. *)
-  (*   case_bool_decide; simplify_eq; auto. lra. *)
-  (* Qed. *)
-
   Lemma Rcoupl_eq (μ1 : distr A) :
     Rcoupl μ1 μ1 (=).
   Proof.
@@ -180,13 +165,6 @@ Section couplings_theory.
       rewrite {1 2}/pmf/=/dbind_pmf.
       rewrite <- distr_double_swap_lmarg.
       setoid_rewrite SeriesC_scal_l.
-      (*
-      assert (∀ b, SeriesC (λ a : B', μ b * Ch b (a', a)) = μ b * SeriesC (λ a : B', Ch b (a', a))) as Heq1.
-      {
-        intro b; apply SeriesC_scal_l.
-      }
-      rewrite (SeriesC_ext _ _ Heq1).
-      *)
       assert (∀ p , μ p * SeriesC (λ b' : B', Ch p (a', b')) = μ p * f p.1 a') as Heq2.
       { intros (a & b).
         specialize (HCh (a, b)) as (HChL & HChR).
@@ -631,15 +609,11 @@ Section refinement_couplings.
 End refinement_couplings.
 
 Section ref_couplings_theory.
-
-Context `{Countable A, Countable B}.
-
+  Context `{Countable A, Countable B}.
 
   Lemma refRcoupl_mass_eq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
     refRcoupl μ1 μ2 R → SeriesC μ1 <= SeriesC μ2.
   Proof. intros (?&?&?). by eapply isRefCoupl_mass_eq. Qed.
-
-
 
   Lemma refRcoupl_eq_elim (μ1 μ2 : distr A) :
     refRcoupl μ1 μ2 (=) → (∀ a, μ1 a <= μ2 a).
@@ -673,7 +647,6 @@ Context `{Countable A, Countable B}.
       rewrite ddiag_pmf in Hp.
       case_bool_decide; auto; lra.
   Qed.
-
 
   Lemma refRcoupl_eq_refl (μ1 : distr A):
     refRcoupl μ1 μ1 (=).
@@ -907,6 +880,5 @@ Context `{Countable A, Countable B}.
       apply (Rmult_le_compat_l); auto; try lra.
       apply (Rdiv_le_1 (SeriesC μ1) (SeriesC μ2)) ; try lra.
   Qed.
-
 
 End ref_couplings_theory.

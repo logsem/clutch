@@ -194,14 +194,6 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-(* *)
-(* DF: *)
-(* If [envs_lookup i1 Δ1 = Some (p, spec_ctx ρ)] and *)
-(*    [envs_lookup i2 Δ1 = Some (false, j ⤇ fill K e)], *)
-(* how can we prove that [i1 <> i2]? If we can do that then we can utilize *)
-(* the lemma [envs_lookup_envs_delete_ne]. *)
-(* *)
-
 Lemma tac_tp_load `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
