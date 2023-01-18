@@ -310,7 +310,7 @@ Qed.
 Tactic Notation "rel_store_l" :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦ _)%I) => l end in
-    iAssumptionCore || fail "rel_store_l: cannot find" l "↦ₛ ?" in
+    iAssumptionCore || fail "rel_store_l: cannot find" l "↦ ?" in
   rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
@@ -432,7 +432,7 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
        eapply (tac_rel_alloctape_l_simpl K);
        [reflexivity (** e = fill K (Alloc e') *)
        |idtac..])
-    |fail 1 "rel_alloctape_l: cannot find 'Alloc'"];
+    |fail 1 "rel_alloctape_l: cannot find 'AllocTape'"];
   [iSolveTC        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
 
@@ -453,7 +453,7 @@ Tactic Notation "rel_alloctape_r" ident(l) "as" constr(H) :=
        eapply (tac_rel_alloctape_r K);
        [reflexivity  (** t = K'[alloc t'] *)
        |idtac..])
-    |fail 1 "rel_alloctape_r: cannot find 'Alloc'"];
+    |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
   [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
   |iIntros (l) H; rel_finish  (** new goal *)].
 
