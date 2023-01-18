@@ -1,5 +1,9 @@
 # TODOs and ideas for extensions
 
+- Show safety adequacy
+
+- See if `exec_coupl` can be simplified a bit?
+
 - Use the choice axiom from stdlib in [prelude/classical.v]
 
 - Show [ctx_refines_alt] implies [ctx_refines]
