@@ -13,34 +13,28 @@ From self.prelude Require Import base.
 Set Default Proof Using "Type*".
 
 (* A diverging term. *)
-Definition Ω : expr := rec: "Ω" "v" := "Ω" "v".
+Definition Ω : expr := (rec: "f" "x" := "f" "x") #().
 
-(* We'll have to think about where exactly the tape allocation should happen
-   once we get to the proof. *)
-Definition pchoice e1 e2 : expr :=
-  if: flip "α" then e1 else e2.
-
-Infix "⊕" := pchoice (at level 80) : expr_scope.
+Notation " e1 '⊕' e2 " := (if: flip #() then e1 else e2)%E (at level 80) : expr_scope.
+Notation " e1 '⊕α' e2 " := (if: flip "α" then e1 else e2)%E (at level 80) : expr_scope.
 
 Definition M : expr :=
-  if: !"x" = #0 then "x" <- #1 ;; #true else Ω #().
+  if: !"x" = #0 then "x" <- #1 ;; #true else Ω.
 
 Definition N : expr :=
-  if: !"x" = #0 then "x" <- #1 ;; #false else Ω #().
+  if: !"x" = #0 then "x" <- #1 ;; #false else Ω.
 
 Definition H : expr :=
   let: "x" := ref #0 in
-  let: "α" := #() in
   (λ:<>, M ⊕ N).
 
 Definition H_with_tape : expr :=
   let: "x" := ref #0 in
   let: "α" := alloc in
-  (λ:<>, M ⊕ N).
+  (λ:<>, M ⊕α N).
 
 Definition K : expr :=
   let: "x" := ref #0 in
-  let: "α" := #() in
   (λ:<>, M) ⊕ (λ:<>, N).
 
 Section proofs.
