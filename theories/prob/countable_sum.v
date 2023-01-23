@@ -544,7 +544,7 @@ Section positive.
   Lemma limC_is_sup (h: A -> R) r :
     (∀ n, 0 <= h n) ->
     is_seriesC h r →
-    is_sup_seq (sum_n (countable_sum h)) (Finite r).
+    is_sup_seq (sumC_n h) (Finite r).
   Proof.
     intros Hge Hs.
     rewrite /is_seriesC in Hs.
@@ -554,7 +554,7 @@ Section positive.
 
   Lemma sup_is_limC (h: A → R) r :
     (∀ n, 0 <= h n) ->
-    is_sup_seq (sum_n (countable_sum h)) (Finite r) ->
+    is_sup_seq (sumC_n h) (Finite r) ->
     is_seriesC h r.
   Proof.
     intros Hge Hsup.

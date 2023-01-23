@@ -643,8 +643,8 @@ Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
 
 Lemma det_step_is_unique e1 σ1 e2 σ2 e3 σ3 :
-  det_head_step_rel e1 σ1 e2 σ2 ->
-  det_head_step_rel e1 σ1 e3 σ3 ->
+  det_head_step_rel e1 σ1 e2 σ2 →
+  det_head_step_rel e1 σ1 e3 σ3 →
   e2 = e3 ∧ σ2 = σ3.
 Proof.
   intros H1 H2.

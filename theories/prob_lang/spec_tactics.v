@@ -7,12 +7,6 @@ From iris.proofmode Require Import
 From self.prob_lang Require Import spec_rules tactics.
 Set Default Proof Using "Type".
 
-(* NB: the {pure,alloc,load,store} lemmas below have quite a bit of redundancy
-   with spec_rules.v, but they're in the shape that the proofmode tactics
-   expect, so we'll keep them around. *)
-
-(* TODO: add tp_flip *)
-
 (** ** bind *)
 Lemma tac_tp_bind_gen `{prelocGS Σ} k Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, refines_right k e)%I →

@@ -1,4 +1,3 @@
-(* atomic.v *)
 From stdpp Require Import coPset namespaces.
 From iris.bi Require Export bi updates.
 From iris.bi.lib Require Import fixpoint.
@@ -14,9 +13,9 @@ Import uPred.
 
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
-From self.program_logic Require Import ectx_lifting (* atomic *).
+From self.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Import primitive_laws notation.
-From self.prob_lang Require Export tactics (* derived_laws *).
+From self.prob_lang Require Export tactics.
 From iris.prelude Require Import options.
 Import uPred.
 
