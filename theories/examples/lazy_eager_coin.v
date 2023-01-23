@@ -59,7 +59,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (?? [-> ->]).
     rel_pures_l.
-    rel_pure_r.n
+    rel_pure_r.
     iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
