@@ -1,12 +1,12 @@
 opam-version: "2.0"
 name: "coq-iris-probability"
-synopsis: "Some probabilistic stuff in Iris"
-maintainer: "Simon Oddershede Gregersen"
-authors: "Simon Oddershede Gregersen"
+synopsis: "A higher-order probabilistic relational separation logic"
+maintainer: "Anonymous"
+authors: "Anonymous"
 license: "MIT"
-homepage: "https://github.com/logsem/iris-probability"
-dev-repo: "git+https://github.com/logsem/iris-probability.git"
-bug-reports: "https://github.com/logsem/iris-probability/issues"
+homepage: "anonymous"
+dev-repo: "git+https://anonymous.now"
+bug-reports: "anonymous"
 build: [make "-j%{jobs}%"]
 install: []
 depends: [

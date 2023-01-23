@@ -3,7 +3,7 @@ From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
 From self.prelude Require Export base Coquelicot_ext Reals_ext.
-From self.prob Require Export countable_sum distribution. (* double *)
+From self.prob Require Export countable_sum distribution.
 
 Open Scope R.
 
