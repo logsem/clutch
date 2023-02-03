@@ -2,8 +2,8 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
-From self.prelude Require Export base Coquelicot_ext Reals_ext classical.
-From self.prob Require Export countable_sum. (* double *)
+From self.prelude Require Export base Reals_ext Coquelicot_ext Series_ext classical.
+From self.prob Require Export countable_sum.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
   pmf :> A → R;
@@ -160,8 +160,7 @@ Next Obligation.
   erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
   rewrite 2!SeriesC_singleton. lra. Qed.
 
-(* AA: We may need this generality later, but I think it is better to define the fair coin
-   explicitly *)
+(* We may need this generality later, but I think it is better to define the fair coin explicitly *)
 Definition biased_coin_pmf r : bool → R :=
   λ b, if b then r else 1-r.
 Program Definition biased_coin r (P : 0 <= r <= 1) : distr bool := MkDistr (biased_coin_pmf r) _ _ _.
@@ -598,10 +597,9 @@ Section monadic.
 
 End monadic.
 
-  (* Convex combinations *)
-  (* AA: There may be a better place to define this *)
-  Definition fair_conv_comb `{Countable A} (μ1 μ2 : distr A) : distr A :=
-    dbind (λ b, if b then μ1 else μ2) fair_coin.
+(* Convex combinations *)
+Definition fair_conv_comb `{Countable A} (μ1 μ2 : distr A) : distr A :=
+  dbind (λ b, if b then μ1 else μ2) fair_coin.
 
 Section conv_prop.
 
@@ -615,7 +613,6 @@ Section conv_prop.
     2: { intro b; destruct b; simpl; rewrite /pmf /fair_coin_pmf /= /fair_coin_pmf; simpl; lra. }
     erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
     rewrite 2!SeriesC_singleton; simpl.
-    (* AA: This is strange *)
     rewrite /pmf; lra.
   Qed.
 
@@ -1029,7 +1026,6 @@ Proof.
   destruct (bool_decide (a1 = a2)); simpl; auto.
 Qed.
 
-
 (** * Products  *)
 Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
   MkDistr (λ '(a, b), μ1 a * μ2 b) _ _ _.
@@ -1138,8 +1134,6 @@ Section marginals.
     ex_seriesC (λ a, μ (a, b)).
   Proof. eapply ex_seriesC_rmarg; auto. Qed.
 
-
-
   Lemma lmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (a : A) :
     lmarg (dprod μ1 μ2) a = μ1 a * SeriesC μ2.
   Proof.
@@ -1172,23 +1166,21 @@ Section marginals.
     intro; rewrite rmarg_dprod_pmf Hμ1; lra.
   Qed.
 
-
 End marginals.
 
-
 Lemma ddiag_lmarg `{Countable A} (μ : distr A):
-    lmarg (ddiag μ) = μ.
-  Proof.
-    apply distr_ext.
-    intros.
-    rewrite lmarg_pmf.
-    setoid_rewrite ddiag_pmf.
-    simpl.
-    rewrite SeriesC_singleton'; auto.
-  Qed.
+  lmarg (ddiag μ) = μ.
+Proof.
+  apply distr_ext.
+  intros.
+  rewrite lmarg_pmf.
+  setoid_rewrite ddiag_pmf.
+  simpl.
+  rewrite SeriesC_singleton'; auto.
+Qed.
 
 Lemma ddiag_rmarg `{Countable A} (μ : distr A):
-    rmarg (ddiag μ) = μ.
+  rmarg (ddiag μ) = μ.
 Proof.
   apply distr_ext.
   intros.
@@ -1196,7 +1188,7 @@ Proof.
   setoid_rewrite ddiag_pmf.
   simpl.
   rewrite (SeriesC_ext _ (λ a0 : A, if bool_decide (a0 = a) then μ a else 0));
-  [rewrite SeriesC_singleton; auto | intros; case_bool_decide; simplify_eq; auto ].
+    [rewrite SeriesC_singleton; auto | intros; case_bool_decide; simplify_eq; auto ].
 Qed.
 
 Definition distr_le `{Countable A} (μ1 μ2 : distr A) : Prop :=
@@ -1205,9 +1197,7 @@ Definition distr_le `{Countable A} (μ1 μ2 : distr A) : Prop :=
 Section order.
 
 (* There may be a way to reformulate this section using refinement couplings *)
-
 Context `{Countable A, Countable B}.
-
 
 Lemma distr_le_dzero (μ : distr A) :
   distr_le dzero μ.
@@ -1239,9 +1229,6 @@ Proof.
   apply distr_ext; intro a.
   apply Rle_antisym; auto.
 Qed.
-
-(* Lemma distr_le_dret (a : A) (b : B) : *)
-(*   dret  *)
 
 Lemma distr_le_dbind (μ1 μ2 : distr A) (f1 f2 : A → distr B) :
   distr_le μ1 μ2 →
@@ -1301,12 +1288,10 @@ Next Obligation.
 Qed.
 
 Section convergence.
-
   Context `{Countable A}.
 
-
-  Program Definition lim_distr (h : nat -> distr A)
-    (Hmon : forall n a, h n a <= h (S n) a) := MkDistr (λ a, Sup_seq (λ n, h n a)) _ _ _.
+  Program Definition lim_distr (h : nat -> distr A) (_ : ∀ n a, h n a <= h (S n) a) :=
+    MkDistr (λ a, Sup_seq (λ n, h n a)) _ _ _.
   Next Obligation.
     intros h Hmon a.
     simpl.
@@ -1353,11 +1338,8 @@ Section convergence.
       apply Sup_seq_correct; auto.
   Qed.
 
-
   Lemma lim_distr_pmf (h : nat -> distr A) Hmon (a : A) :
      (lim_distr h) Hmon a = Sup_seq (λ n, h n a).
-  Proof.
-    auto.
-  Qed.
+  Proof. done. Qed.
 
  End convergence.

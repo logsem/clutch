@@ -135,9 +135,6 @@ Section spec_ctx.
   Global Instance spec_ctx_persistent : Persistent spec_ctx.
   Proof. apply _. Qed.
 
-  (* `spec_ctx` and `⤇K[e]` are connected via the `specGS` CMRA. In particular,
-     `refines_right K e` means that `⤇K[e]` is reachable via reduction from the
-     initial spec configuration. *)
   Definition refines_right K (e : expr) := (spec_ctx ∗ ⤇ fill K e)%I.
 
 End spec_ctx.

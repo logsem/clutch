@@ -188,6 +188,17 @@ Section language.
       [?%val_stuck | ->%pmf_eq_0_not_gt_0]; [|done].
     simplify_eq.
   Qed.
+  Lemma irreducible_dzero e σ :
+    irreducible e σ → prim_step e σ = dzero.
+  Proof.
+    intros Hirr%not_reducible. apply dzero_ext=> ρ.
+    destruct (Req_dec (prim_step e σ ρ)0); [done|].
+    exfalso. eapply Hirr.
+    exists ρ.
+    pose proof (pmf_le_1 (prim_step e σ) ρ).
+    pose proof (pmf_pos (prim_step e σ) ρ).
+    lra.
+  Qed.
 
   Lemma strongly_atomic_atomic e a :
     Atomic StronglyAtomic e → Atomic a e.

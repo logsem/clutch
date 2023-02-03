@@ -1,0 +1,22 @@
+opam-version: "2.0"
+name: "coq-clutch"
+synopsis: "A higher-order probabilistic relational separation logic"
+maintainer: "Simon Oddershede Gregersen <gregersen@cs.au.dk>"
+authors: "Simon Oddershede Gregersen,
+          Alejandro Aguirre,
+          Philipp G. Haselwarter,
+          Joseph Tassarotti,
+          Lars Birkedal"
+license: "MIT"
+homepage: "https://github.com/logsem/clutch"
+dev-repo: "git+https://github.com:logsem/clutch.git"
+bug-reports: "https://github.com/logsem/clutch/issues"
+build: [make "-j%{jobs}%"]
+install: []
+depends: [
+  "coq" { (>= "8.15" & < "8.17~") | (= "dev") }
+  "coq-coquelicot" { (= "3.2.0") }
+  "coq-iris" { (= "4.0.0") | (= "dev") }
+  "coq-stdpp" { (= "1.8.0") | (= "dev") }
+  "coq-autosubst" { (= "dev") }
+]

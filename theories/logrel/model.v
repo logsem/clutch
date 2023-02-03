@@ -245,7 +245,7 @@ Notation "'REL' e1 '<<' e2 '@' E ':' A" :=
   (refines E e1%E e2%E (A)%lrel)
   (at level 100, E at next level, e1, e2 at next level,
    A at level 200,
-   format "'[hv' 'REL'  e1  '/' '<<'  '/  ' e2  '@'  E :  A ']'").
+   format "'[hv' 'REL'  e1  '/' '<<'  '/  ' e2  '@'  E  :  A ']'").
 Notation "'REL' e1 '<<' t ':' A" :=
   (refines ⊤ e1%E t%E (A)%lrel)
   (at level 100, e1, t at next level,
@@ -266,7 +266,6 @@ Section related_facts.
   Qed.
 
   Global Instance elim_fupd_refines p E e t P A :
-   (* DF: look at the booleans here *)
    ElimModal True p false (|={⊤}=> P) P
      (refines E e t A) (refines E e t A).
   Proof.
@@ -363,8 +362,6 @@ Section monadic.
     iApply wp_value. iExists _. iFrame.
   Qed.
 
-  (* PGH: The first version of the lemma I had thought of; not sure if this is
-     actually useful. *)
   Lemma refines_ret_na' E e1 e2 v1 v2 (A : lrel Σ) :
     IntoVal e1 v1 →
     IntoVal e2 v2 →

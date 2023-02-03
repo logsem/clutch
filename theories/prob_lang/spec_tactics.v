@@ -7,12 +7,6 @@ From iris.proofmode Require Import
 From self.prob_lang Require Import spec_rules tactics.
 Set Default Proof Using "Type".
 
-(* NB: the {pure,alloc,load,store} lemmas below have quite a bit of redundancy
-   with spec_rules.v, but they're in the shape that the proofmode tactics
-   expect, so we'll keep them around. *)
-
-(* TODO: add tp_flip *)
-
 (** ** bind *)
 Lemma tac_tp_bind_gen `{prelocGS Σ} k Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, refines_right k e)%I →
@@ -193,14 +187,6 @@ Tactic Notation "tp_store" :=
   |simpl; reflexivity || fail "tp_store: this should not happen"
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
-
-(* *)
-(* DF: *)
-(* If [envs_lookup i1 Δ1 = Some (p, spec_ctx ρ)] and *)
-(*    [envs_lookup i2 Δ1 = Some (false, j ⤇ fill K e)], *)
-(* how can we prove that [i1 <> i2]? If we can do that then we can utilize *)
-(* the lemma [envs_lookup_envs_delete_ne]. *)
-(* *)
 
 Lemma tac_tp_load `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →

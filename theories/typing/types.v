@@ -39,7 +39,6 @@ Inductive EqType : type → Prop :=
   | EqTBool : EqType TBool
   | EqTProd τ τ' : EqType τ → EqType τ' → EqType (TProd τ τ')
   | EqSum τ τ' : EqType τ → EqType τ' → EqType (TSum τ τ')
-  (* PGH: we should be able to add references here. *)
   (* | EQRef τ : EqType (Tref τ) *)
 .
 
@@ -206,22 +205,12 @@ Inductive typed : stringmap type → expr → type → Prop :=
      Γ ⊢ₜ e1 : (∃: τ) →
      <[x:=τ]>(⤉ Γ) ⊢ₜ e2 : (Autosubst_Classes.subst (ren (+1)) τ2) →
      Γ ⊢ₜ (unpack: x := e1 in e2) : τ2
-  (* | TFork Γ e : Γ ⊢ₜ e : () → Γ ⊢ₜ Fork e : () *)
   | TAlloc Γ e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e : ref τ
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Load e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
   | TAllocTape Γ : Γ ⊢ₜ AllocTape : TTape
   | TFlip Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Flip e : TBool
   | TFlipU Γ e : Γ ⊢ₜ e : TUnit -> Γ ⊢ₜ Flip e : TBool
-  (*| TXchg Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Xchg e e' : τ
-  | TFAA Γ e1 e2 :
-     Γ ⊢ₜ e1 : ref TNat →
-     Γ ⊢ₜ e2 : TNat →
-     Γ ⊢ₜ FAA e1 e2 : TNat
-  | TCmpXchg Γ e1 e2 e3 τ :
-     UnboxedType τ →
-     Γ ⊢ₜ e1 : ref τ → Γ ⊢ₜ e2 : τ → Γ ⊢ₜ e3 : τ →
-     Γ ⊢ₜ CmpXchg e1 e2 e3 : τ * TBool *)
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt

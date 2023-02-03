@@ -363,46 +363,21 @@ Section rules.
     ⊢ WP flip #() @ E {{ Φ }}.
   Proof. apply (wp_couple_flip_tape negb). Qed.
 
-  Lemma wp_couple_flip_lbl_flip f `{Bij bool bool f} K E α Φ :
+  Corollary wp_couple_flip_lbl_flip f `{Bij bool bool f} K E α Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
     (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
     ⊢ WP flip #lbl:α @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
-    iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
-    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
-    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
-    iDestruct (ghost_map_lookup with "Ht1 Hα") as %Hα.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iApply exec_coupl_det_r; [done|].
-    iApply exec_coupl_prim_steps.
-    iExists
-      (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #true, σ1).
-      rewrite /pmf /= Hα bool_decide_eq_true_2 //. lra. }
-    iSplit.
-    { iPureIntro. simpl.
-      rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
-      eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply (Rcoupl_flip_flip_l f)].
-      intros [] [] [? [=]]=>/=; simplify_eq; eauto. }
-    iIntros ([] [] (b & [=] & [=])); simplify_eq.
-    iMod (spec_interp_update (fill K #(f b), σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
-    do 2 iModIntro.
-    iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
-    iModIntro. iFrame.
-    iApply ("Hwp" with "[$]").
+    iApply wp_couple_tape_flip => //.
+    iFrame "Hinv". iFrame => /=.
+    iIntros (b) "(Hα & Hr)".
+    iApply wp_fupd.
+    iApply (wp_flip with "Hα").
+    iIntros "!> Hα".
+    iSpecialize ("Hwp" $! b with "[$]").
+    by iApply (wp_value_fupd).
   Qed.
 
   Lemma wp_couple_flip_lbl_flip_eq K E α Φ :
@@ -426,39 +401,16 @@ Section rules.
     ⊢ WP flip #() @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
-    iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
-    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
-    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hα.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iApply exec_coupl_det_r; [done|].
-    iApply exec_coupl_prim_steps.
-    iExists
-      (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : bool), (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #true, σ1).
-      rewrite /pmf /= bool_decide_eq_true_2 //. lra. }
-    iSplit.
-    { iPureIntro. simpl.
-      rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
-      eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply (Rcoupl_flip_flip_r f)].
-      intros [] [] [? [=]]=>/=; simplify_eq; eauto. }
-    iIntros ([] [] (b & [=] & [=])); simplify_eq.
-    iMod (spec_interp_update (fill K #(f b), σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
-    do 2 iModIntro.
-    iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
-    iModIntro. iFrame.
-    iApply ("Hwp" with "[$]").
+    iApply wp_fupd.
+    iApply wp_couple_flip_tape => //.
+    iFrame "Hinv". iFrame => /=.
+    iIntros (b) "Hα".
+    iPoseProof step_flip as "HH" => //.
+    iSpecialize ("HH" with "[-Hwp]").
+    { iFrame "Hinv". iFrame. }
+    iMod "HH" as "(_ & Hr & Hα)".
+    iSpecialize ("Hwp" $! b with "[$]").
+    by iApply (wp_value_fupd).
   Qed.
 
   Lemma wp_couple_flip_flip_lbl_eq K E α Φ :
@@ -538,7 +490,7 @@ Section rules.
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He HE) "(#Hinv & Hj & Hα & Hwp)".
-    (* Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
+    (* Idea: Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
     (* We do not want to execute a [prim_step] on the left. We merely rely on
     the fact that we *could* step (because to_val e = None) in order to appeal
     to [Hwp]. *)
@@ -556,54 +508,17 @@ Section rules.
     iExists 1.
     iSplit.
     { iPureIntro.
-      rewrite /exec. simpl.
+      rewrite /exec /=.
       rewrite dret_id_right.
       rewrite /prim_step_or_val /=.
-      assert (to_val (fill K (flip #lbl:α)) = None)
-        as -> by now apply fill_not_val.
+      rewrite fill_not_val //.
       rewrite fill_prim_step_dbind //.
-      replace (dret _) with (dbind dret (dret (e, σ1)))
-                            by now rewrite dret_id_right.
+      replace (dret _) with (dbind dret (dret (e, σ1))) by now rewrite dret_id_right.
       unshelve eapply Rcoupl_dbind ; simpl.
-      1: exact (λ _ '(e, s), ∃ b : bool, (fill K e, s) = (fill K #b, σ0')).
-      { intros ? (e' & s') H.
-        apply Rcoupl_dret. rewrite /fill_lift /=. assumption. }
-      rewrite /prim_step /=. rewrite decomp_unfold /fill_lift /=.
-      unfold dmap.
-      replace (λ a, dret (let '(e0, σ) := a in _))
-        with (λ a : expr * state, dret a)
-             by (extensionality a ; now destruct a).
-      rewrite dret_id_right.
-      unshelve econstructor.
-      1: exact (dprod (dret (e, σ1)) (head_step (flip #lbl:α) σ0')).
-      constructor.
-      - constructor.
-        2: apply rmarg_dprod, dret_mass.
-        apply lmarg_dprod, head_step_mass.
-        exists (Val #(LitBool inhabitant), σ0').
-        rewrite /head_step /head_step_pmf /=.
-        (* wtf? why is this needed? *)
-        unfold pmf.
-        rewrite Hαsome. assert (bool_decide (σ0' = σ0') = true)
-          as h by now apply bool_decide_eq_true_2.
-        rewrite h. lra.
-      - intros (? & e' & s'). simpl.
-        rewrite /dret /pmf /dret_pmf /=.
-        rewrite /head_step /head_step_pmf /pmf /=.
-        rewrite Hαsome.
-        destruct (bool_decide (p = (e, σ1))) eqn:HH'.
-        all: rewrite HH'.
-        2: { rewrite Rmult_0_l. move /Rgt_irrefl ; done. }
-        rewrite Rmult_1_l.
-        destruct e' ; try (move /Rgt_irrefl ; done).
-        destruct v ; try (move /Rgt_irrefl ; done).
-        destruct l ; try (move /Rgt_irrefl ; done).
-        intros H.
-        exists b.
-        destruct (bool_decide (σ0' = s')) eqn:HH.
-        + move: HH => /bool_decide_eq_true_1 ->.
-           reflexivity.
-        + rewrite HH in H. by apply Rgt_irrefl in H.
+      1: exact (λ ρ2 ρ2', ∃ b : bool, ρ2 = (e, σ1) /\ ρ2' = (Val #b, σ0')).
+      { intros ? (e' & s') (b & ? & HH).
+        apply Rcoupl_dret. rewrite /fill_lift /=. exists b. by inversion HH. }
+      apply Rcoupl_flip_empty_r => //.
     }
     iIntros (σ2 e2' (b & [= -> ->])).
     iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".

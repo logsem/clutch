@@ -2,8 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar.
 From stdpp Require Import option.
 From stdpp Require Export countable.
-From self.prelude Require Import base Coquelicot_ext stdpp_ext classical.
-From self.prob Require Export series_extra.
+From self.prelude Require Import base Coquelicot_ext Series_ext stdpp_ext classical.
 Import Hierarchy.
 
 Open Scope R.
@@ -356,7 +355,7 @@ Section filter.
     ex_seriesC (λ (n : A), if bool_decide (a = n) then v else 0).
   Proof.
     apply (ex_seriesC_ext (λ n : A, if bool_decide (n = a) then v else 0)
-                          (λ n : A, if bool_decide (a = n) then v else 0)).
+             (λ n : A, if bool_decide (a = n) then v else 0)).
     + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
     + apply ex_seriesC_singleton.
   Qed.
@@ -365,7 +364,7 @@ Section filter.
     SeriesC (λ n, if bool_decide (a = n) then v else 0) = v.
   Proof.
     rewrite (SeriesC_ext (λ n : A, if bool_decide (a = n) then v else 0)
-             (λ n : A, if bool_decide (n = a) then v else 0)).
+               (λ n : A, if bool_decide (n = a) then v else 0)).
     + apply SeriesC_singleton.
     + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
   Qed.
@@ -413,8 +412,8 @@ Section filter.
     (∀ n, 0 <= f n) →
     is_seriesC (λ n, if bool_decide (P n ∨ Q n) then f n else 0) v →
     SeriesC (λ n, if bool_decide (P n) then f n else 0) +
-    SeriesC (λ n, if bool_decide (Q n) then f n else 0) -
-    SeriesC (λ n, if bool_decide (P n ∧ Q n) then f n else 0) = v.
+      SeriesC (λ n, if bool_decide (Q n) then f n else 0) -
+      SeriesC (λ n, if bool_decide (P n ∧ Q n) then f n else 0) = v.
   Proof.
     intros Hge Hexists.
     rewrite -SeriesC_plus; last first.
@@ -449,7 +448,7 @@ Section filter.
     (∀ a, 0 <= f a) →           (* TODO: this requirements should not be necessary? *)
     ex_seriesC f →
     SeriesC f = SeriesC (λ a, if bool_decide (a = a0) then f a else 0) +
-                SeriesC (λ a, if bool_decide (a ≠ a0) then f a else 0).
+                  SeriesC (λ a, if bool_decide (a ≠ a0) then f a else 0).
   Proof.
     intros Hle Hex.
     erewrite SeriesC_ext.
@@ -463,39 +462,6 @@ Section filter.
 
 End filter.
 
-(*
-Section subset.
-
-Context `{Countable A, Countable B}.
-
-Lemma subset_ex_series (f : A -> R) (g : B -> R) (e : A -> B) (d : B -> option A) :
-  (forall a, 0 <= f a ) ->
-  (forall b, 0 <= g b ) ->
-  (forall a, d (e a) = Some a) ->
-  (forall a, f a  = g (e a)) ->
-  ex_seriesC g ->
-  ex_seriesC f.
-Proof.
-
-
-End subset.
-*)
-
-(* Section rearrange. *)
-(*   Context `{Countable A}. *)
-
-(*   (* TODO: prove this (using the [Series] version from rearrange.v)  *) *)
-(*   Lemma SeriesC_rearrange_covering (σ: A → A) (f : A → R) : *)
-(*     (* no "collisions" in [f ∘ σ] *) *)
-(*     (∀ a a', f (σ a) ≠ 0 → σ a = σ a' → a = a') → *)
-(*     (* [σ] is surjective on the support of [f] *) *)
-(*     (∀ a, f a ≠ 0 → ∃ a', σ a' = a) → *)
-(*     ex_seriesC (λ a, Rabs (f a)) → *)
-(*     SeriesC f = SeriesC (f ∘ σ). *)
-(*   Proof. Admitted. *)
-
-(* End rearrange. *)
-
 Section strict.
   Context `{Countable A}.
 
@@ -503,10 +469,10 @@ Section strict.
 
   (** Some extra theorems about strict inequalities, etc. **)
   Lemma SeriesC_lt f g :
-  (∀ n, 0 <= f n <= g n) →
-  (∃ m, f m < g m) →
-  ex_seriesC g →
-  SeriesC f < SeriesC g.
+    (∀ n, 0 <= f n <= g n) →
+    (∃ m, f m < g m) →
+    ex_seriesC g →
+    SeriesC f < SeriesC g.
   Proof.
     intros Hle Hlt Hg.
     assert (ex_seriesC f) as Hf.
@@ -529,26 +495,24 @@ Section strict.
     rewrite Hnm; lra.
   Qed.
 
- (* Classical proof. This may be provable constructively, but
-  for now this works *)
   Lemma SeriesC_const0 f :
-  (∀ n, 0 <= f n) →
-  is_seriesC f 0 →
-  (∀ n, f n = 0).
+    (∀ n, 0 <= f n) →
+    is_seriesC f 0 →
+    (∀ n, f n = 0).
   Proof.
-   intros Hf Hz n.
-   pose proof (is_seriesC_unique _ _ Hz) as Hz'.
-   pose proof (Rtotal_order (f n) 0) as Htri.
-   destruct Htri as [H1 | [H2 | H3]] ; try lra.
-   + specialize (Hf n); lra.
-   + assert (0 < SeriesC f); try lra.
-     assert (SeriesC (λ _ : A, 0) = 0) as H4.
-     { apply SeriesC_0; auto. }
-     destruct H4.
-     eapply (SeriesC_lt (λ n, 0) f).
-     ++ intro n0; specialize (Hf n0); lra.
-     ++ exists n; lra.
-     ++ exists 0; done.
+    intros Hf Hz n.
+    pose proof (is_seriesC_unique _ _ Hz) as Hz'.
+    pose proof (Rtotal_order (f n) 0) as Htri.
+    destruct Htri as [H1 | [H2 | H3]] ; try lra.
+    + specialize (Hf n); lra.
+    + assert (0 < SeriesC f); try lra.
+      assert (SeriesC (λ _ : A, 0) = 0) as H4.
+      { apply SeriesC_0; auto. }
+      destruct H4.
+      eapply (SeriesC_lt (λ n, 0) f).
+      ++ intro n0; specialize (Hf n0); lra.
+      ++ exists n; lra.
+      ++ exists 0; done.
   Qed.
 
   Lemma SeriesC_gtz_ex f :
@@ -563,13 +527,13 @@ Section strict.
       pose proof (not_exists_forall_not _ _ Hna a).
       specialize (Hf a); lra. }
     apply Rge_not_gt. rewrite SeriesC_0 //.
-   Qed.
+  Qed.
 
 End strict.
 
 Section positive.
 
- (* Results about positive (non-negative) series *)
+  (* Results about positive (non-negative) series *)
 
   (** Lifting of the Coquliecot predicates for limits *)
   Context `{Countable A}.
@@ -580,18 +544,17 @@ Section positive.
   Lemma limC_is_sup (h: A -> R) r :
     (∀ n, 0 <= h n) ->
     is_seriesC h r →
-    is_sup_seq (sum_n (countable_sum h)) (Finite r).
+    is_sup_seq (sumC_n h) (Finite r).
   Proof.
     intros Hge Hs.
     rewrite /is_seriesC in Hs.
     eapply (lim_is_sup (countable_sum h) r); auto.
-    (* AA: For some reason, Coq is unable to infer the parameters of encode_inv_nat *)
     intro n. rewrite /countable_sum /from_option; edestruct (@encode_inv_nat A _ H n); auto ; lra.
   Qed.
 
   Lemma sup_is_limC (h: A → R) r :
     (∀ n, 0 <= h n) ->
-    is_sup_seq (sum_n (countable_sum h)) (Finite r) ->
+    is_sup_seq (sumC_n h) (Finite r) ->
     is_seriesC h r.
   Proof.
     intros Hge Hsup.
@@ -603,39 +566,37 @@ Section positive.
 End positive.
 
 Section fubini.
-
   Context `{Countable A, Countable B}.
-
 
   (*
      The following three lemmas have been proven for
      Series, so the only missing part is lifting them
      to SeriesC
-  *)
+   *)
 
- Lemma fubini_pos_seriesC_ex (h : A * B → R) :
-    (forall a b, 0 <= h (a, b)) ->
-    (forall a, ex_seriesC (λ b, h (a, b))) ->
+  Lemma fubini_pos_seriesC_ex (h : A * B → R) :
+    (∀ a b, 0 <= h (a, b)) ->
+    (∀ a, ex_seriesC (λ b, h (a, b))) ->
     (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
-    (forall b, ex_seriesC (λ a, h (a, b))).
- Admitted.
+    (∀ b, ex_seriesC (λ a, h (a, b))).
+  Admitted.
 
- Lemma fubini_pos_seriesC_ex_double (h : A * B → R) :
-    (forall a b, 0 <= h (a, b)) ->
-    (forall a, ex_seriesC (λ b, h (a, b))) ->
+  Lemma fubini_pos_seriesC_ex_double (h : A * B → R) :
+    (∀ a b, 0 <= h (a, b)) ->
+    (∀ a, ex_seriesC (λ b, h (a, b))) ->
     (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
     (ex_seriesC (λ b, SeriesC (λ a, h (a, b)))).
- Admitted.
+  Admitted.
 
- Lemma fubini_pos_seriesC (h : A * B → R) :
-    (forall a b, 0 <= h (a, b)) ->
-    (forall a, ex_seriesC (λ b, h (a, b))) ->
+  Lemma fubini_pos_seriesC (h : A * B → R) :
+    (∀ a b, 0 <= h (a, b)) ->
+    (∀ a, ex_seriesC (λ b, h (a, b))) ->
     (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
     SeriesC (λ b, SeriesC (λ a, h (a, b))) =
-    SeriesC (λ a, SeriesC (λ b, h (a, b))).
- Admitted.
+      SeriesC (λ a, SeriesC (λ b, h (a, b))).
+  Admitted.
 
- (*
+  (*
     The rest of the lemmas are admitted without a direct counterpart
     for Series. They should only rely on showing that if a set of
     nonnegative real numbers has a finite sum, then (1) every reordering
@@ -660,90 +621,83 @@ Section fubini.
  Admitted.
  *)
 
- Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) b :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) b :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     ex_seriesC (λ a, SeriesC (λ b, h(a, b))).
- Admitted.
+  Admitted.
 
- Lemma fubini_pos_seriesC_prod_ex_rl (h : A * B -> R) b :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma fubini_pos_seriesC_prod_ex_rl (h : A * B -> R) b :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
- Admitted.
+  Admitted.
 
- Lemma fubini_pos_seriesC_prod_lr (h : A * B -> R) :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma fubini_pos_seriesC_prod_lr (h : A * B -> R) :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
- Admitted.
+  Admitted.
 
- Lemma fubini_pos_seriesC_prod_rl (h : A * B -> R) :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma fubini_pos_seriesC_prod_rl (h : A * B -> R) :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
- Admitted.
+  Admitted.
 
- Lemma ex_seriesC_lmarg (h : A * B -> R) a :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma ex_seriesC_lmarg (h : A * B -> R) a :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     ex_seriesC (λ b, h (a, b)).
- Admitted.
+  Admitted.
 
- Lemma seriesC_lmarg_le (h : A * B -> R) a :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma seriesC_lmarg_le (h : A * B -> R) a :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     SeriesC (λ b, h (a, b)) <= SeriesC h.
- Admitted.
+  Admitted.
 
- Lemma ex_seriesC_rmarg (h : A * B -> R) b :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma ex_seriesC_rmarg (h : A * B -> R) b :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     ex_seriesC (λ a, h (a, b)).
- Admitted.
+  Admitted.
 
- Lemma seriesC_rmarg_le (h : A * B -> R) b :
-    (forall a b, 0 <= h (a, b)) ->
+  Lemma seriesC_rmarg_le (h : A * B -> R) b :
+    (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     SeriesC (λ a, h (a, b)) <= SeriesC h.
- Admitted.
+  Admitted.
 
- Lemma ex_seriesC_prod (h: A * B -> R) :
-    (forall a, ex_seriesC (λ b, h(a,b))) ->
+  Lemma ex_seriesC_prod (h: A * B -> R) :
+    (∀ a, ex_seriesC (λ b, h(a,b))) ->
     ex_seriesC (λ a, SeriesC (λ b, h(a,b))) ->
     ex_seriesC h.
   Proof. Admitted.
 
- End fubini.
-
+End fubini.
 
 Section mct.
-
   Context `{Countable A}.
-
 
   (* TODO: Lift the proof from Series_extra *)
   Lemma MCT_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
-  (forall n a, 0 <= (h n a)) ->
-  (forall n a, (h n a) <= (h (S n) a)) ->
-  (forall a, exists s, forall n, h n a <= s ) ->
-  (forall n, is_seriesC (h n) (l n)) ->
-  is_sup_seq l (Finite r) ->
-  SeriesC (λ a, Sup_seq (λ n, h n a)) = r.
+    (∀ n a, 0 <= (h n a)) ->
+    (∀ n a, (h n a) <= (h (S n) a)) ->
+    (∀ a, exists s, ∀ n, h n a <= s ) ->
+    (∀ n, is_seriesC (h n) (l n)) ->
+    is_sup_seq l (Finite r) ->
+    SeriesC (λ a, Sup_seq (λ n, h n a)) = r.
   Admitted.
-
 
   (* TODO: Lift the proof from Series_extra *)
   Lemma MCT_ex_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
-  (forall n a, 0 <= (h n a)) ->
-  (forall n a, (h n a) <= (h (S n) a)) ->
-  (forall a, exists s, forall n, h n a <= s ) ->
-  (forall n, is_seriesC (h n) (l n)) ->
-  is_sup_seq l (Finite r) ->
-  ex_seriesC (λ a, Sup_seq (λ n, h n a)).
+    (∀ n a, 0 <= (h n a)) ->
+    (∀ n a, (h n a) <= (h (S n) a)) ->
+    (∀ a, exists s, ∀ n, h n a <= s ) ->
+    (∀ n, is_seriesC (h n) (l n)) ->
+    is_sup_seq l (Finite r) ->
+    ex_seriesC (λ a, Sup_seq (λ n, h n a)).
   Admitted.
 
 End mct.
-
-
-

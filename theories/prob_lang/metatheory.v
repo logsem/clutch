@@ -496,6 +496,28 @@ Proof.
     + exists false. rewrite Hf //.
 Qed.
 
+(** * e1 ~ flip(α') coupling for α' ↪ₛ [] *)
+Lemma Rcoupl_flip_empty_r (ρ1 : cfg) σ1' α' (_ : tapes σ1' !! α' = Some []) :
+  Rcoupl
+    (dret ρ1)
+    (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), ρ2 = ρ1 ∧ ρ2' = (Val #b, σ1')).
+Proof.
+  assert (head_reducible (flip #lbl:α') σ1') as hr.
+  { econstructor.
+    apply head_step_support_equiv_rel.
+    apply (FlipTapeEmptyS _ inhabitant). auto. }
+  rewrite head_prim_step_eq //.
+  eapply Rcoupl_weaken.
+  - apply Rcoupl_pos_R. apply Rcoupl_trivial.
+    all: auto using dret_mass, head_step_mass.
+  - intros ? [] (_ & hh%dret_pos & ?).
+    inv_head_step.
+    destruct_or?.
+    + inv_head_step. eauto.
+    + simplify_map_eq.
+Qed.
+
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
 | RecDS f x e σ :
@@ -621,8 +643,8 @@ Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
 
 Lemma det_step_is_unique e1 σ1 e2 σ2 e3 σ3 :
-  det_head_step_rel e1 σ1 e2 σ2 ->
-  det_head_step_rel e1 σ1 e3 σ3 ->
+  det_head_step_rel e1 σ1 e2 σ2 →
+  det_head_step_rel e1 σ1 e3 σ3 →
   e2 = e3 ∧ σ2 = σ3.
 Proof.
   intros H1 H2.

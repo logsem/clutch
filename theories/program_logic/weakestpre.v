@@ -36,6 +36,7 @@ Proof.
   do 3 f_equiv; last solve_proper. repeat f_equiv. apply HF.
 Qed.
 
+(** * The coupling modality [exec_coupl]  *)
 Section exec_coupl.
   Context `{!irisGS Λ Σ}.
 
@@ -449,6 +450,7 @@ Section exec_coupl.
 
 End exec_coupl.
 
+(** * The weakest precondition  *)
 Definition wp_pre `{!irisGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,

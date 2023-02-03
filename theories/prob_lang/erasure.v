@@ -234,8 +234,7 @@ Proof.
       rewrite /pmf/= in Hpos.
       rewrite fair_conv_comb_pmf in Hpos.
       assert (dret v v2 > 0 ∧ dret v v2' > 0) as (Hpos1 & Hpos2).
-      { (* This is a fact about the reals, maybe it can be done easier *)
-        apply Rgt_lt in Hpos.
+      { apply Rgt_lt in Hpos.
         assert (0.5+0.5 = 1) as Hhalf; [lra | ].
         rewrite -Rmult_plus_distr_r Hhalf Rmult_1_l in Hpos.
         apply pos_prod_nn_real in Hpos; try lra; auto. }

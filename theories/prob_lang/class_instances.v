@@ -52,6 +52,8 @@ Section atomic.
 
   Global Instance flip_atomic s l : Atomic s (Flip (Val (LitV (LitLbl l)))).
   Proof. solve_atomic. Qed.
+  Global Instance flip_atomic_unit s : Atomic s (Flip (Val (LitV LitUnit))).
+  Proof. solve_atomic. Qed.
   Global Instance alloc_tape_atomic s : Atomic s AllocTape.
   Proof. solve_atomic. Qed.
 End atomic.
