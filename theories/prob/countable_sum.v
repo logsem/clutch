@@ -609,7 +609,7 @@ Section fubini.
 
   (*
      The following three lemmas have been proven for
-     Series, so the only missing part is listing them
+     Series, so the only missing part is lifting them
      to SeriesC
   *)
 
@@ -641,7 +641,23 @@ Section fubini.
     nonnegative real numbers has a finite sum, then (1) every reordering
     of the sum has the same result and (2) every subset has a sum bounded
     by the sum of the whole set. Both can be derived by proving that the
-    sum of a set is the sup of the sums of the subsets.
+    sum of a set is the sup of the sums of the finite subsets.
+ *)
+
+ (*
+ Lemma ex_seriesC_nat (h : nat -> R) :
+   ex_seriesC h <-> ex_series h.
+ Admitted.
+
+ Lemma SeriesC_nat (h : nat -> R) :
+   SeriesC h = Series h.
+ Admitted.
+
+ Lemma fubini_pos_seriesC_prod_nat (h : nat * nat -> R) :
+    (forall a b, 0 <= h (a, b)) ->
+    Sup_seq (sum_n (countable_sum h)) =
+    Sup_seq (λ n, Sup_seq (λ m, h (n, m))).
+ Admitted.
  *)
 
  Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) b :
