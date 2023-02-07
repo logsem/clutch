@@ -7,7 +7,7 @@ From self.program_logic Require Import weakestpre.
 From self.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Import locations class_instances.
 From self.prob_lang Require Import spec_ra.
-From self.prob_lang Require Import tactics notation.
+From self.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
 Class prelocGS Σ := HeapG {

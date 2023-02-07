@@ -4,7 +4,7 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      sel_patterns environments
      reduction.
-From self.program_logic Require Import language ectxi_language.
+From self.program_logic Require Import language ectx_language ectxi_language.
 From self.prob_lang Require Import locations class_instances lang notation
   primitive_laws spec_ra spec_rules tactics.
 Set Default Proof Using "Type".

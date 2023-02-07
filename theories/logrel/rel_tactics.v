@@ -3,7 +3,7 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      sel_patterns environments
      reduction proofmode.
-From self.program_logic Require Import language.
+From self.program_logic Require Import language ectxi_language.
 From self.prob_lang Require Import locations class_instances notation primitive_laws spec_ra spec_rules spec_tactics tactics lang.
 From self.logrel Require Import model rel_rules.
 

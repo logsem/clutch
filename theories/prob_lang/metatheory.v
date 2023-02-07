@@ -2,6 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import functions fin_maps gmap stringmap.
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution couplings.
+From self.program_logic Require Import ectx_language.
 From self.prob_lang Require Import locations lang tactics notation.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".

@@ -13,8 +13,8 @@ Import uPred.
 
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Import tactics.
-From self.program_logic Require Import language weakestpre ectx_lifting.
-From self.prob_lang Require Import class_instances primitive_laws notation.
+From self.program_logic Require Import language ectx_language ectx_lifting weakestpre.
+From self.prob_lang Require Import lang notation class_instances primitive_laws.
 From self.prob_lang Require Import tactics.
 From iris.prelude Require Import options.
 Import uPred.
