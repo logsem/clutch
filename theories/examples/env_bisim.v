@@ -38,6 +38,28 @@ Definition K : expr :=
   let: "x" := ref #0 in
   (λ:<>, M) ⊕ (λ:<>, N).
 
+Definition L : expr := (λ:<>, #true) ⊕ (λ:<>, #false).
+Definition I : expr := (λ:<>, #true ⊕ #false).
+Definition C := [CTX_AppR (λ: "f", "f" #() = "f" #())].
+Definition c' : typed_ctx C ∅ (() → TBool) ∅ TBool.
+  unshelve eapply (TPCTX_cons _ _ _ _ _ _ _ _ _ (TPCTX_nil _ _)).
+  by repeat (eauto ; econstructor ; try simplify_map_eq).
+Defined.
+
+Theorem eager_lazy_equiv :
+  (∅ ⊨ L =ctx= I : () → TBool) -> False.
+Proof.
+  intros [h1 _].
+  set (σ := {| heap := ∅; tapes := ∅ |}).
+  specialize (h1 C σ true c').
+  revert h1.
+  unfold I, L.
+  simpl.
+  rewrite lim_exec_val_prim_step.
+  rewrite prim_step_or_val_no_val // /=.
+Abort.
+
+
 Section proofs.
   Context `{!prelogrelGS Σ}.
 
@@ -208,8 +230,8 @@ Section proofs.
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_l.
-        rel_apply_r refines_flip_empty_r. 1: auto.
-        iFrame. iIntros (b) "α". rel_pures_l.
+        rel_apply_r refines_flip_empty_r => // ;
+        iFrame ; iIntros (b) "α". rel_pures_l.
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
         all: rel_pures_r ; rel_load_r ; rel_pures_r ;
