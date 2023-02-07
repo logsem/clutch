@@ -285,7 +285,7 @@ Section rules.
     rewrite -fill_app.
     iFrame "Hs Hα Hspec".
     iIntros (b) "[Hα Hspec]".
-    rewrite fill_app.
+    rewrite /= fill_app.
     iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
     wp_apply (wp_mono with "Hcnt").
     iIntros (v) "[% ([? ?] &?&?)]".
@@ -350,7 +350,7 @@ Section rules.
     iFrame "Hs Hspec".
     iIntros (b) "Hspec".
     iApply wp_value.
-    rewrite fill_app.
+    rewrite /= fill_app.
     iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
     wp_apply (wp_mono with "Hcnt").
     iIntros (v) "[% ([? ?] &?&?)]".
@@ -388,7 +388,7 @@ Section rules.
     unfold refines_right.
     rewrite -fill_app. iFrame.
     iIntros "(α & _ & %b & Hb)".
-    rewrite fill_app.
+    rewrite /= fill_app.
     by iApply ("H" $! _ with "[$α] [$Hs $Hb]").
   Qed.
 

@@ -169,7 +169,7 @@ Proof.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
   rewrite !assoc -(assoc _ spec_ctx).
-  rewrite -fill_app step_store // fill_app.
+  rewrite -fill_app step_store // /= fill_app.
   rewrite -[Q]elim_modal //.
   apply bi.sep_mono_r.
   apply bi.wand_intro_l.
