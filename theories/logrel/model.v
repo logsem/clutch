@@ -1,8 +1,9 @@
 (** A binary logical relation for System F_mu_ref with tapes *)
 From iris.base_logic Require Import na_invariants.
 From iris.proofmode Require Import proofmode.
+From self.program_logic Require Import language ectxi_language weakestpre.
 From self.prelude Require Import properness.
-From self.prob_lang Require Import notation spec_ra primitive_laws.
+From self.prob_lang Require Import locations notation spec_ra primitive_laws lang.
 
 Definition logN : namespace := nroot .@ "logN".
 

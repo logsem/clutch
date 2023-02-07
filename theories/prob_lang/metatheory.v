@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import functions fin_maps gmap stringmap.
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution couplings.
-From self.prob_lang Require Export lang tactics notation.
+From self.prob_lang Require Import locations lang tactics notation.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [prob_lang] language *)
@@ -137,9 +137,6 @@ Proof.
     repeat case_match; by naive_solver.
 Qed.
 
-Goal Lookup loc val (gmap loc val).
-  apply _.
-Qed.
 (* The stepping relation preserves closedness *)
 Lemma head_step_is_closed e1 σ1 e2 σ2 :
   is_closed_expr ∅ e1 →

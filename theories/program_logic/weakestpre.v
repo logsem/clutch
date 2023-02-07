@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Export couplings distribution.
-From self.program_logic Require Export language exec.
+From self.program_logic Require Import exec language.
 
 Import uPred.
 

@@ -3,7 +3,7 @@ semantics to the program logic. *)
 From Coq Require Import Reals Psatz.
 From iris.proofmode Require Import tactics.
 From self.prob Require Import couplings.
-From self.program_logic Require Export weakestpre exec.
+From self.program_logic Require Import language weakestpre exec.
 From iris.prelude Require Import options.
 
 Section lifting.

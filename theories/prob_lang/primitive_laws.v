@@ -3,9 +3,10 @@
 From iris.proofmode Require Import proofmode.
 From iris.bi.lib Require Import fractional.
 From iris.base_logic.lib Require Export ghost_map.
-From self.program_logic Require Export weakestpre.
+From self.program_logic Require Import weakestpre.
 From self.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Export class_instances spec_ra.
+From self.prob_lang Require Import locations class_instances.
+From self.prob_lang Require Import spec_ra.
 From self.prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 

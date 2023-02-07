@@ -5,8 +5,8 @@ From self.prelude Require Import stdpp_ext.
 From iris.algebra Require Import auth excl frac agree gmap list.
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import proofmode.
-From self.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Export lang notation tactics primitive_laws spec_ra metatheory.
+From self.program_logic Require Import language exec weakestpre lifting ectx_lifting.
+From self.prob_lang Require Import locations notation tactics primitive_laws spec_ra metatheory lang.
 
 Section rules.
   Context `{!prelocGS Σ}.

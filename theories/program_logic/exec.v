@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Import relations fin_maps functions.
 From self.prelude Require Import classical.
-From self.program_logic Require Export language.
+From self.program_logic Require Import language.
 From self.prob Require Export distribution couplings.
 
 (** Distribution for [n]-step partial evaluation *)

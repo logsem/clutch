@@ -1,8 +1,7 @@
 From Coq Require Import Reals Psatz.
 From self.prob Require Import distribution.
-From self.program_logic Require Export language.
-From self.prob_lang Require Export lang.
-From self.prob_lang Require Import tactics notation.
+From self.program_logic Require Import language ectxi_language.
+From self.prob_lang Require Import lang tactics notation.
 From iris.prelude Require Import options.
 
 Global Instance into_val_val v : IntoVal (Val v) v.

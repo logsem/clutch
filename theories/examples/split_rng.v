@@ -1,6 +1,7 @@
 From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants na_invariants.
-From self.prob_lang Require Import notation proofmode primitive_laws spec_rules spec_tactics.
+From self.program_logic Require Import weakestpre.
+From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics locations lang.
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
@@ -51,7 +52,7 @@ Section rng.
                "sample_cntr" <- "v" + #1;;
                "b").
 
-  Definition hash_rng_gen_specialized (f: val) (key_cntr: loc) : val :=
+  Definition hash_rng_gen_specialized (f : val) (key_cntr : loc) : val :=
       λ: "_",
         let: "k" := ! #key_cntr in
         if: #MAX_RNGS < "k" then

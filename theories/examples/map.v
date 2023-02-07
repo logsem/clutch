@@ -1,6 +1,7 @@
 From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants na_invariants.
-From self.prob_lang Require Import notation proofmode primitive_laws spec_rules spec_tactics.
+From self.program_logic Require Import language.
+From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics locations lang.
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
@@ -32,14 +33,14 @@ Section map.
   Context `{!prelogrelGS Σ}.
 
   (* Impl *)
-  Fixpoint assoc_list (l: loc) (vs: list (nat * val)) : iProp Σ :=
+  Fixpoint assoc_list (l : loc) (vs : list (nat * val)) : iProp Σ :=
     match vs with
     | nil => l ↦ NONEV
     | (k, v) :: vs => ∃ (l' : loc), l ↦ SOMEV ((#k, v), #l') ∗ assoc_list l' vs
   end.
 
   (* Spec/ghost *)
-  Fixpoint assoc_slist (l: loc) (vs: list (nat * val)) : iProp Σ :=
+  Fixpoint assoc_slist (l : loc) (vs : list (nat * val)) : iProp Σ :=
     match vs with
     | nil => l ↦ₛ NONEV
     | (k, v) :: vs => ∃ (l' : loc), l ↦ₛ SOMEV ((#k, v), #l') ∗ assoc_slist l' vs

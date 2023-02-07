@@ -1,7 +1,7 @@
 (** (Syntactic) Typing for System F_mu_ref with tapes *)
 From Autosubst Require Export Autosubst.
 From stdpp Require Export stringmap fin_map_dom gmap.
-From self.prob_lang Require Export lang notation.
+From self.prob_lang Require Import lang notation.
 
 Canonical Structure varO := leibnizO var.
 

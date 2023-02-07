@@ -2,8 +2,8 @@
 From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
-From self.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Import lang spec_rules spec_tactics proofmode.
+From self.program_logic Require Import language weakestpre.
+From self.prob_lang Require Import locations spec_ra notation primitive_laws spec_rules spec_tactics proofmode lang.
 From self.logrel Require Import model.
 
 Section rules.
