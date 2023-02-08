@@ -1,5 +1,5 @@
 From iris.bi Require Export bi.
-From iris.proofmode Require Import base proofmode classes.
+From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
 Import uPred.
 

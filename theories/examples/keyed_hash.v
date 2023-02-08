@@ -1,11 +1,9 @@
 From Coq Require Export Reals.
-From stdpp Require Import namespaces finite.
-From iris.base_logic Require Import invariants na_invariants.
+From stdpp Require Import namespaces.
 From self.program_logic Require Import language.
-From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics lang.
-From self.logrel Require Import model rel_rules rel_tactics.
-From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
+From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics lang.
+From self.logrel Require Import model rel_rules.
 From self.examples Require Import hash.
 
 Set Default Proof Using "Type*".

@@ -14,10 +14,8 @@ equivalence by adding a guard that returns `NONE` after the first invocation.
 *)
 
 From stdpp Require Import namespaces.
-From iris.base_logic Require Import invariants na_invariants.
-From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws spec_rules.
+From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
 From self.logrel Require Import model rel_rules rel_tactics compatibility.
-From self.typing Require Import types soundness.
 From self.prelude Require Import base.
 Set Default Proof Using "Type*".
 

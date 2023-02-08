@@ -1,9 +1,6 @@
-From stdpp Require Import namespaces.
-From iris.base_logic Require Import invariants na_invariants.
 From self.program_logic Require Import weakestpre ectxi_language.
-From self.prob_lang Require Import proofmode primitive_laws spec_rules lang notation lang.
-From self.logrel Require Import model rel_rules rel_tactics adequacy.
-From self.typing Require Import types contextual_refinement soundness.
+From self.prob_lang Require Import proofmode spec_rules lang notation.
+From self.logrel Require Import model rel_tactics.
 From self.prelude Require Import base stdpp_ext.
 Set Default Proof Using "Type*".
 

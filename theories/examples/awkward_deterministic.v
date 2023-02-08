@@ -1,11 +1,9 @@
 (* Pitts & Stark's awkward example, following the ReLoC formalisation. *)
 
-From stdpp Require Import namespaces.
-From iris.base_logic Require Import invariants na_invariants.
-From iris.algebra Require Import csum agree excl.
-From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws spec_rules.
+From iris.base_logic Require Import invariants.
+From iris.algebra Require Import csum excl.
+From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
 From self.logrel Require Import model rel_rules rel_tactics compatibility.
-From self.typing Require Import soundness.
 From self.prelude Require Import base.
 Set Default Proof Using "Type*".
 

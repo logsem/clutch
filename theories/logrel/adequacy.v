@@ -2,7 +2,7 @@ From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import na_invariants.
 From self.program_logic Require Import exec weakestpre.
 From self.logrel Require Import model.
-From self.prob_lang Require Import adequacy primitive_laws lang.
+From self.prob_lang Require Import adequacy lang.
 
 Class prelogrelGpreS Σ := PrelogrelGPreS {
   prelogrelGpreS_preloc :> prelocGpreS Σ;

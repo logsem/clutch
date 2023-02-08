@@ -1,4 +1,3 @@
-From self.program_logic Require Import language.
 From self.prob_lang Require Import locations.
 From self.prob_lang Require Import lang.
 From iris.prelude Require Import options.

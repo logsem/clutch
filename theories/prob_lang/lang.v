@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
-From stdpp Require Import gmap fin_maps.
+From stdpp Require Import gmap.
 From iris.algebra Require Export ofe.
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution.
@@ -8,7 +8,6 @@ From self.program_logic Require Import language ectx_language.
 From self.program_logic Require Import ectxi_language.
 From self.prob_lang Require Import locations.
 From iris.prelude Require Import options.
-From self.prelude Require Import stdpp_ext.
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.

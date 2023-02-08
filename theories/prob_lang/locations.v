@@ -1,4 +1,4 @@
-From stdpp Require Import countable numbers gmap.
+From stdpp Require Import countable gmap.
 From iris.prelude Require Export prelude.
 From iris.prelude Require Import options.
 

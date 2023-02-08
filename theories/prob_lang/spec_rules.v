@@ -1,11 +1,8 @@
 (** Rules for updating the specification program. *)
-From Coq Require Import Reals.
 From stdpp Require Import namespaces.
 From self.prelude Require Import stdpp_ext.
-From iris.algebra Require Import auth excl frac agree gmap list.
-From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import proofmode.
-From self.program_logic Require Import language ectx_language exec weakestpre lifting ectx_lifting.
+From self.program_logic Require Import language ectx_language exec weakestpre lifting.
 From self.prob_lang Require Import locations notation tactics primitive_laws spec_ra metatheory lang.
 
 Section rules.

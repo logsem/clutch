@@ -1,11 +1,9 @@
-From stdpp Require Import namespaces.
 From iris.base_logic Require Import invariants na_invariants.
 From self.program_logic Require Import weakestpre.
-From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics locations lang.
+From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
 From self.typing Require Import types interp.
-From self.logrel Require Import model rel_rules rel_tactics compatibility.
-From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
+From self.logrel Require Import model rel_rules compatibility.
 From self.examples Require Import sample_int.
 
 

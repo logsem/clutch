@@ -1,10 +1,8 @@
 (** An axiomatization of languages based on evaluation context items, including
     a proof that these are instances of general ectx-based languages. *)
-From Coq Require Import Reals Psatz.
+From Coq Require Import Reals.
 From Coq.Program Require Import Wf.
-From stdpp Require Import decidable countable.
 From iris.prelude Require Export prelude.
-From self.prelude Require Import classical.
 From self.program_logic Require Import language ectx_language.
 From self.prob Require Import distribution.
 

@@ -1,8 +1,5 @@
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
-From iris.proofmode Require Import proofmode.
-From iris.algebra Require Import list.
-From iris.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Import notation primitive_laws spec_rules spec_tactics proofmode lang.
 From self.logrel Require Import model rel_tactics rel_rules.
 

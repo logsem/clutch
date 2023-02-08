@@ -1,9 +1,8 @@
-From Autosubst Require Import Autosubst.
 From Coq Require Import Reals.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
+From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From self.program_logic Require Import language ectx_language exec.
-From self.prob_lang Require Import lang notation metatheory tactics.
-From self.typing Require Import types interp contextual_refinement.
+From self.prob_lang Require Import lang notation metatheory.
+From self.typing Require Import types contextual_refinement.
 From self.prob Require Import distribution.
 
 (** Alternative formulation of contextual refinement without restricting to

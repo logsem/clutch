@@ -1,10 +1,9 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
+From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
-From self.prelude Require Import stdpp_ext.
 From self.program_logic Require Import language ectx_language exec.
 From self.prob_lang Require Import locations notation lang metatheory.
-From self.prob Require Import couplings distribution.
+From self.prob Require Import couplings.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.

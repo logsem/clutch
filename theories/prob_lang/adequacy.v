@@ -1,4 +1,4 @@
-From iris.proofmode Require Import base proofmode classes.
+From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.algebra Require Import excl.
 From iris.bi Require Export weakestpre fixpoint big_op.
@@ -7,10 +7,8 @@ From iris.base_logic.lib Require Export ghost_map invariants.
 
 From self.prelude Require Import stdpp_ext iris_ext.
 From self.program_logic Require Import language exec weakestpre.
-From self.prob_lang Require Import
-  primitive_laws class_instances spec_ra tactics notation erasure
-  metatheory locations lang.
-From self.prob Require Import couplings distribution.
+From self.prob_lang Require Import primitive_laws spec_ra erasure locations lang.
+From self.prob Require Import couplings.
 Import uPred.
 
 Section adequacy.

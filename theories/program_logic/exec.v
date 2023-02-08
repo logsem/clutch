@@ -1,7 +1,6 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
-From stdpp Require Import relations fin_maps functions.
-From self.prelude Require Import classical.
+From Coquelicot Require Import Rcomplements Rbar Lim_seq.
+From stdpp Require Import relations.
 From self.program_logic Require Import language.
 From self.prob Require Export distribution couplings.
 

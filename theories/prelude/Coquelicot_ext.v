@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
+From Coquelicot Require Import Rcomplements Rbar Series Lim_seq.
 From stdpp Require Import numbers.
 From self.prelude Require Import base Reals_ext.
 Import Hierarchy.

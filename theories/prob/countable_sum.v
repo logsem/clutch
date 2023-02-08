@@ -1,6 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Series Hierarchy Lim_seq Rbar.
-From stdpp Require Import option.
+From Coquelicot Require Import Series Lim_seq Rbar.
 From stdpp Require Export countable.
 From self.prelude Require Import base Coquelicot_ext Series_ext stdpp_ext classical.
 Import Hierarchy.

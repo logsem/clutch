@@ -1,4 +1,3 @@
-From Autosubst Require Import Autosubst.
 From iris.algebra Require Export list.
 From iris.proofmode Require Import proofmode.
 From self.prob_lang Require Import metatheory primitive_laws lang.

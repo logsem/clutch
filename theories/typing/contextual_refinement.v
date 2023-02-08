@@ -1,8 +1,7 @@
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
-From Autosubst Require Import Autosubst.
 From Coq Require Import Reals.
 From self.program_logic Require Import exec.
-From self.prob_lang Require Import notation primitive_laws tactics lang.
+From self.prob_lang Require Import notation primitive_laws lang.
 From iris.proofmode Require Import proofmode.
 From self.logrel Require Import model.
 From self.typing Require Import types interp fundamental.

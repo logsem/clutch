@@ -1,9 +1,7 @@
  (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
 From Coq Require Import Reals Psatz.
-From stdpp Require Import decidable countable.
 From iris.prelude Require Export prelude.
-From self.prelude Require Import classical.
 From self.program_logic Require Import language.
 From self.prob Require Import distribution.
 

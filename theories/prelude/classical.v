@@ -1,4 +1,3 @@
-From Coq.Unicode Require Import Utf8.
 From Coq.Logic Require Export FunctionalExtensionality PropExtensionality.
 From stdpp Require Import prelude.
 

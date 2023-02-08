@@ -5,9 +5,8 @@ NB: This example was mentioned as open problem in Aleš's thesis.
  *)
 
 From stdpp Require Import namespaces.
-From iris.base_logic Require Import invariants na_invariants.
 From self.program_logic Require Import exec.
-From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules lang.
+From self.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
 From self.logrel Require Import model rel_rules rel_tactics adequacy.
 From self.typing Require Import types contextual_refinement soundness.
 From self.prelude Require Import base.

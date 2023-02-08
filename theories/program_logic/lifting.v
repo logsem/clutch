@@ -1,10 +1,8 @@
 (** The "lifting lemmas" in this file serve to lift the rules of the operational
 semantics to the program logic. *)
-From Coq Require Import Reals Psatz.
 From iris.proofmode Require Import tactics.
-From self.prob Require Import couplings.
-From self.program_logic Require Import language weakestpre exec.
 From iris.prelude Require Import options.
+From self.program_logic Require Import language weakestpre.
 
 Section lifting.
 Context `{!irisGS Λ Σ}.

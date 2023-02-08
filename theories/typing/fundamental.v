@@ -1,9 +1,8 @@
 (** Compatibility lemmas for the logical relation *)
-From Autosubst Require Import Autosubst.
-From stdpp Require Import namespaces.
+
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import proofmode.
-From self.prob_lang Require Import spec_ra metatheory notation primitive_laws spec_rules lang.
+From self.prob_lang Require Import spec_ra metatheory notation primitive_laws lang.
 From self.logrel Require Import model compatibility rel_rules rel_tactics.
 From self.typing Require Import types interp.
 
