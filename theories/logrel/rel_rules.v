@@ -230,6 +230,22 @@ Section rules.
     by wp_apply (wp_flip with "Hα").
   Qed.
 
+  Lemma refines_flipU_l K E A e :
+    (∀ (b : bool), REL fill K (Val #b) << e @ E : A)
+      ⊢ REL fill K (flip #()) << e @ E : A.
+  Proof.
+    iIntros "H".
+    rewrite refines_eq /refines_def.
+    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    wp_apply wp_bind.
+    wp_apply wp_flipU => //.
+    iIntros (b) "_".
+    simpl.
+    rewrite /refines_right.
+    iSpecialize ("H" with "[$Hs $Hspec] Hnais").
+    iExact "H".
+  Qed.
+
   Lemma refines_wand E e1 e2 A A' :
     (REL e1 << e2 @ E : A) -∗
     (∀ v1 v2, A v1 v2 ={⊤}=∗ A' v1 v2) -∗

@@ -144,6 +144,20 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
+Lemma wp_flipU E :
+  {{{ True }}} Flip (Val $ LitV $ LitUnit) @ E
+  {{{ b, RET LitV (LitBool b); True }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iSplit; [unshelve by eauto with head_step|].
+  1: exact inhabitant.
+  simpl.
+  iIntros "!>" (e2 σ2 Hs); inv_head_step; last first.
+  iFrame. iModIntro. by iApply "HΦ".
+Qed.
+
 Lemma wp_flip_empty E α :
   {{{ ▷ α ↪ [] }}} Flip (Val $ LitV $ LitLbl α) @ E
   {{{ b, RET LitV (LitBool b); α ↪ [] }}}.
