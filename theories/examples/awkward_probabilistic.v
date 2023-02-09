@@ -94,7 +94,7 @@ Section proofs.
   Lemma refinement_prob_resample :
     ⊢ REL
       (λ: "f", let: "α" := alloc in
-               "f" #() ;; flip "α")
+               "f" #() ;; SOME (flip "α"))
     <<
       (let: "x" := ref NONE in
        (λ: "f", let: "β" := alloc in
@@ -102,7 +102,7 @@ Section proofs.
                 "x" <- SOME "b" ;;
                 "f" #() ;;
                 !"x" ))
-    : (() → ()) → lrel_int.
+    : (() → ()) → (lrel_sum lrel_unit lrel_bool).
   Proof.
     rel_pures_r. rel_alloc_r x as "Hx". rel_pures_r.
     rel_pures_l.
@@ -127,5 +127,87 @@ Section proofs.
       iApply (refines_seq with "[Hf]"); auto. 1: iApply "Hf" => //.
       rel_flip_l.
 Abort.
+
+  (* Perform the lhs flip before calling `f`. Doesn't help, same problem. *)
+  Lemma refinement_prob_resample_let :
+    ⊢ REL
+      (λ: "f", let: "α" := alloc in
+               let: "v" := flip #() in
+               "f" #() ;;
+               SOME "v"
+      )
+    <<
+      (let: "x" := ref NONE in
+       (λ: "f", let: "β" := alloc in
+                let: "b" := flip #() in
+                "x" <- SOME "b" ;;
+                "f" #() ;;
+                !"x" ))
+    : (() → ()) → (lrel_sum lrel_unit lrel_bool).
+  Proof.
+    rel_pures_r. rel_alloc_r x as "Hx". rel_pures_r.
+    rel_pures_l.
+    set (P := (x ↦ₛ NONEV ∨ ∃ (b : bool), (x ↦ₛ SOMEV #b (* ∗ β ↪ₛ [] ∗ α ↪ [] *)) (* ∨ (x ↦ₛ #b ∗ β ↪ₛ [] ∗ α ↪ [b]) *))%I).
+    iApply (refines_na_alloc P shootN).
+    iSplitL ; [ try iExists _ ; try iLeft ; iFrame |].
+    iIntros "#Hinv".
+    iApply refines_arrow_val.
+    iIntros "!#" (f1 f2) "#Hf".
+    rel_alloctape_r β as "β". rel_pures_r.
+    rel_alloctape_l α as "α".
+    rel_pures_l. rel_pures_r.
+    rel_bind_r (flip _)%E.
+    rel_bind_l (flip _)%E.
+    rel_apply_l refines_couple_flips_lr.
+    iIntros (b').
+    rel_pures_l. rel_pures_r.
+    iApply (refines_na_inv with "[-$Hinv]"); [done|].
+    unfold P.
+    iIntros "(> [b | (%b & b )] & Hclose)".
+    - rel_store_r ; rel_pures_r.
+      (* `x` points to `b`, but calling `f2` may not preserve this. *)
+      iApply (refines_na_close with "[-$Hclose]") ; iSplitL "b".
+      { iModIntro. iRight. iExists _. iFrame. }
+      iApply (refines_seq with "[Hf]"); auto. 1: iApply "Hf" => //.
+      iApply (refines_na_inv with "[-$Hinv]"); [done|].
+      iIntros "(> [b | (%b & b )] & Hclose)".
+      + rel_load_r. give_up.    (* x ↦ₛ NONE should be impossible *)
+      + rel_load_r. give_up.    (* We know nothing about the relation between b, b'. *)
+    - rel_store_r ; rel_pures_r.
+      give_up.
+Abort.
+
+
+  (* If the reference to `x` is local to the rhs closure, we never need to
+     transfer its ownership into an invariant, and `f` cannot interfere with
+     it `x`. *)
+  Lemma refinement_prob_resample_local_ref :
+    ⊢ REL
+      (λ: "f", let: "α" := alloc in
+               "f" #() ;;
+               flip "α")
+    <<
+      (λ: "f", let: "β" := alloc in
+               let: "b" := flip "β" in
+               let: "x" := ref "b" in
+               "f" #() ;;
+               !"x" )
+    : (() → ()) → lrel_bool.
+  Proof.
+    rel_pures_r ; rel_pures_l.
+    iApply refines_arrow_val.
+    iIntros "!#" (f1 f2) "#Hf".
+    rel_pures_l ; rel_pures_r.
+    rel_alloctape_l α as "α" ; rel_pures_l.
+    rel_alloctape_r β as "β" ; rel_pures_r.
+    iApply refines_couple_tapes ; auto ; iFrame ;
+      iIntros (b) "(β & α)" => /=.
+    rel_flip_r ; rel_pures_r.
+    rel_alloc_r x as "Hx" ; rel_pures_r.
+    iApply (refines_seq with "[Hf]") => //. 1: iApply "Hf" => //.
+    rel_flip_l.
+    rel_load_r.
+    rel_values.
+  Qed.
 
 End proofs.
