@@ -77,7 +77,6 @@ Ltac rel_reshape_cont_r tac :=
     reshape_expr e ltac:(fun K' e' => tac K' e')
   end.
 
-
 (** 1. prettify ▷s caused by [MaybeIntoLaterNEnvs]
     2. simplify the goal *)
 Ltac rel_finish := pm_prettify; iSimpl.
@@ -111,6 +110,21 @@ Tactic Notation "rel_apply_r" open_constr(lem) :=
       iApplyHyp H)
     || lazymatch iTypeOf H with
       | Some (_,?P) => fail "rel_apply_r: Cannot apply" P
+      end));
+  try lazymatch goal with
+  | |- _ ⊆ _ => try solve_ndisj
+  end;
+  try rel_finish.
+
+Tactic Notation "rel_apply" open_constr(lem) :=
+  (iPoseProofCore lem as false (fun H =>
+    rel_reshape_cont_l ltac:(fun K_l e_l =>
+      rel_bind_ctx_l K_l;
+      rel_reshape_cont_r ltac:(fun K_r e_r =>
+        rel_bind_ctx_r K_r;
+        iApplyHyp H))
+    || lazymatch iTypeOf H with
+      | Some (_,?P) => fail "rel_apply: Cannot apply" P
       end));
   try lazymatch goal with
   | |- _ ⊆ _ => try solve_ndisj

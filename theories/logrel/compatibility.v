@@ -144,9 +144,7 @@ Section compatibility.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
     iDestruct "H" as "[->->]".
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    iApply refines_couple_flips_lr ; auto.
+    rel_apply refines_couple_flips_lr ; auto.
     iIntros (b).
     value_case.
   Qed.
