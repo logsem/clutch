@@ -18,16 +18,16 @@ Definition real : expr := λ:"msg", let: "k" := flip #() in xor "msg" "k".
 Section logical_ref.
   Context `{!prelogrelGS Σ}.
 
-  Global Instance xor_invol_1 : forall b, Involutive eq (xor_sem b).
+  Global Instance xor_invol_1 : forall b, Involutive eq (xor_sem b) | 2.
   Proof. intros [] [] => //. Qed.
 
-  Global Instance xor_inj_1 : forall b, Inj (=) (=) (xor_sem b).
+  Global Instance xor_inj_1 : forall b, Inj (=) (=) (xor_sem b) | 2.
   Proof. intros. apply cancel_inj. Qed.
 
-  Global Instance xor_surj_1 : forall b, Surj (=) (xor_sem b).
+  Global Instance xor_surj_1 : forall b, Surj (=) (xor_sem b) | 2.
   Proof. intros. apply cancel_surj. Qed.
 
-  Global Instance bij_xor : forall b, Bij (xor_sem b).
+  Global Instance bij_xor : forall b, Bij (xor_sem b) | 2.
   Proof. constructor ; apply _. Qed.
 
   Lemma xor_tp E (b1 b2 : bool) :
