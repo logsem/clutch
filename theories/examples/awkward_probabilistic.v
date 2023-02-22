@@ -16,7 +16,8 @@ equivalence by adding a guard that returns `NONE` after the first invocation.
 From stdpp Require Import namespaces.
 From self.program_logic Require Import weakestpre.
 From self.prob_lang Require Import lang notation spec_ra spec_tactics proofmode primitive_laws.
-From self.logrel Require Import model rel_rules rel_tactics compatibility.
+From self.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
+From self.typing Require Import types contextual_refinement soundness.
 From self.examples Require Import one_time_pad.
 From self.prelude Require Import base.
 Set Default Proof Using "Type*".
@@ -68,6 +69,38 @@ Section proofs.
       iModIntro. do 2 iExists _. iLeft. eauto.
   Qed.
 
+  (* Simplified warm-up for the next series of examples. *)
+  (* If the reference to `x` is local to the rhs closure, we never need to
+     transfer its ownership into an invariant, and `f` cannot interfere with
+     it, so we can couple with `x`. *)
+  Lemma refinement_prob_resample_local_ref :
+    ⊢ REL
+      (λ: "f", let: "α" := alloc in
+               "f" #() ;;
+               flip "α")
+    <<
+      (λ: "f", let: "β" := alloc in
+               let: "b" := flip "β" in
+               let: "x" := ref "b" in
+               "f" #() ;;
+               !"x" )
+    : (() → ()) → lrel_bool.
+  Proof with try rel_pures_l ; try rel_pures_r.
+    simpl...
+    iApply refines_arrow_val.
+    iIntros "!#" (f1 f2) "#Hf"...
+    rel_alloctape_l α as "α"...
+    rel_alloctape_r β as "β"...
+    iApply refines_couple_tapes_eq ; auto ; iFrame ;
+      iIntros (b) "(β & α)" => /=.
+    rel_flip_r...
+    rel_alloc_r x as "Hx"...
+    iApply (refines_seq with "[Hf]") => // ; [iApply "Hf" => //|].
+    rel_flip_l.
+    rel_load_r.
+    rel_values.
+  Qed.
+
   (* The following is an example of a contextual equivalence we expect to hold
      but cannot currently prove conveniently using our relational logic. The
      issue is that we cannot determine, ahead of time, which flip to couple
@@ -83,22 +116,46 @@ Section proofs.
      bit to `γ` and modify `x`. Of course this shouldn't matter since for any
      value of `x`, there exists a coupling (via `xor !x`), but we cannot
      exploit this observation in the formal argument. *)
+
+  Definition call_flip :=
+    (λ: "f", let: "α" := alloc in
+             "f" #() ;; flip "α")%E.
+
+  Definition store_xor :=
+    (let: "x" := ref #false in
+     (λ: "f", let: "β" := alloc in
+              let: "b" := flip "β" in
+              let: "γ" := alloc in
+              let: "b'" := flip "γ" in
+              "x" <- "b" ;;
+              "f" #() ;;
+              xor (! "x") "b'" ))%E.
+
+  Definition store_xor_late :=
+    (let: "x" := ref #false in
+     (λ: "f", let: "β" := alloc in
+              let: "b" := flip "β" in
+              let: "γ" := alloc in
+              "x" <- "b" ;;
+              "f" #() ;;
+              let: "b'" := flip "γ" in
+              xor (! "x") "b'" ))%E.
+
+  Definition store_ignore :=
+    (let: "x" := ref #false in
+     (λ: "f", let: "β" := alloc in
+              let: "b" := flip "β" in
+              let: "γ" := alloc in
+              "x" <- "b" ;;
+              "f" #() ;;
+              let: "b'" := flip "γ" in
+              "b'" ))%E.
+
+  (* If we try to do the proof directly with our bare hands we get stuck. *)
   Lemma refinement_prob_resample :
-    ⊢ REL
-      (λ: "f", let: "α" := alloc in
-               "f" #() ;; flip "α")
-    <<
-      (let: "x" := ref #false in
-       (λ: "f", let: "β" := alloc in
-                let: "b" := flip "β" in
-                let: "γ" := alloc in
-                let: "b'" := flip "γ" in
-                "x" <- "b" ;;
-                "f" #() ;;
-                xor (! "x") "b'" ))
-    : (() → ()) → (lrel_bool).
+    ⊢ REL call_flip << store_xor : (() → ()) → (lrel_bool).
   Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
-    rel_pures_r. rel_alloc_r x as "Hx"...
+    rewrite /call_flip /store_xor... rel_alloc_r x as "Hx"...
     iApply (refines_na_alloc (∃ b : bool, x ↦ₛ #b) awkwardN).
     iSplitL ; [ iExists _ ; iFrame |].
     iIntros "#Hinv".
@@ -132,200 +189,234 @@ Section proofs.
     rel_values.
   Abort.
 
-  (* We can isolate the problem by trying to go via this intermediate lhs
-  program where the xor is removed, and we'll get stuck in the same way. *)
-  Lemma refinement_prob_resample :
-    ⊢ REL
-      (let: "x" := ref #false in
-       (λ: "f", let: "β" := alloc in
-                let: "b" := flip "β" in
-                let: "γ" := alloc in
-                "x" <- "b" ;;
-                "f" #() ;;
-                let: "b'" := flip "γ" in
-                "b'" ))
-    <<
-      (let: "x" := ref #false in
-       (λ: "f", let: "β" := alloc in
-                let: "b" := flip "β" in
-                let: "γ" := alloc in
-                let: "b'" := flip "γ" in
-                "x" <- "b" ;;
-                "f" #() ;;
-                xor (! "x") "b'" ))
-    : (() → ()) → (lrel_bool).
+  (* Instead of directly trying to link the flip in call_flip with the one in
+  store_xor via `(xor !x)`, we prove that the flip on `γ` can be delayed after
+  the call to `f`. This will allow us to pick a coupling depending on the value
+  of `x` *after* the call to `f` in the next refinement. *)
+  Lemma store_xor_late_store_xor :
+    ⊢ REL store_xor_late << store_xor : (() → ()) → (lrel_bool).
   Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
-    rel_pures_r. rel_alloc_r x as "Hx"...
-    rel_alloc_l x' as "Hx'"...
-    iApply (refines_na_alloc (∃ b' b : bool, x' ↦ #b' ∗ x ↦ₛ #b)%I awkwardN) ;
-      iSplitL ; [ do 2 iExists _ ; iFrame |].
+    rewrite /store_xor /store_xor_late...
+    rel_alloc_l x as "x"... rel_alloc_r x' as "x'"...
+    iApply (refines_na_alloc (∃ b b' : bool, x ↦ #b ∗ x' ↦ₛ #b' ∗ ⌜b = b'⌝) awkwardN).
+    iSplitL ; [ iExists _,_ ; iFrame ; done |].
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_r β as "β". rel_alloctape_l β' as "β'"...
-    iApply (refines_na_inv with "[-$Hinv]"); [done|].
-    iIntros "(>(%_b' & %_b & xb' & xb) & Hclose)".
-    rel_apply_r refines_flip_empty_r => // ; iFrame. iIntros "%b β"...
-    rel_apply_l refines_flip_empty_l => // ; iFrame. iIntros "%b' β'"...
-    rel_alloctape_r γ as "γ".
-    rel_alloctape_l γ' as "γ'"... rel_store_l...
-    (* We're about to get stuck in the same way as before; we just don't know
-    what `x` is going to be after we call f2. We can couple γ' with `xor b` but
-    that won't be good enough later. *)
-    rel_apply_r (refines_couple_tapes (xor_sem b)) => //. iFrame.
-    iIntros (xor_of_b_and_of_b') "(γ & α)".
-    rel_flip_r... rel_store_r...
-    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ do 2 iExists _ ; iFrame|].
-    iApply (refines_seq with "[Hf]"); auto ; [iApply "Hf" => //|].
-    iApply (refines_na_inv with "[-$Hinv]"); [done|] ;
-      iIntros "(>(%b'' & %not_necessarily_b & xb'' & xb ) & Hclose)".
-    rel_flip_l...
-    unfold xor ; rel_load_r...
-    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb''" ; [do 2 iExists _ ; iFrame|].
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
-    (* We do not know this, in fact it may well be false (i.e. read this as `assert False`). *)
-    assert (b = not_necessarily_b) as <- by admit.
-    rewrite /b'. rewrite cancel.
-    rel_values.
-Abort.
-
-  (* Perform the lhs flip before calling `f`. Doesn't help, same problem. *)
-  Lemma refinement_prob_resample :
-    ⊢ REL
-      (let: "x" := ref #false in
-       (λ: "f", let: "β" := alloc in
-                let: "b" := flip "β" in
-                let: "γ" := alloc in
-                "x" <- "b" ;;
-                let: "b'" := flip "γ" in
-                "f" #() ;;
-                "b'" ))
-    <<
-      (let: "x" := ref #false in
-       (λ: "f", let: "β" := alloc in
-                let: "b" := flip "β" in
-                let: "γ" := alloc in
-                let: "b'" := flip "γ" in
-                "x" <- "b" ;;
-                "f" #() ;;
-                let: "vx" := ! "x" in
-                xor "vx" "b'" ))
-    : (() → ()) → (lrel_bool).
-  Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
-    #[local] Ltac rel_pures_r := rel_tactics.rel_pures_r ; try foldxor.
-    rel_alloc_r x as "Hx"...
-    rel_alloc_l x' as "Hx'"...
-    iApply (refines_na_alloc (∃ b' b : bool, x' ↦ #b' ∗ x ↦ₛ #b)%I awkwardN).
-    iSplitL ; [ do 2 iExists _ ; iFrame |].
-    iIntros "#Hinv".
-    iApply refines_arrow_val.
-    iIntros "!#" (f1 f2) "#Hf".
+    rel_alloctape_l α as "α"...
     rel_alloctape_r β as "β"...
-    rel_alloctape_l β' as "β'"...
-    iApply (refines_na_inv with "[-$Hinv]"); [done|].
-    iIntros "(>(%_b' & %_b & xb' & xb) & Hclose)".
-    rel_apply_r refines_flip_empty_r => // ; iFrame. iIntros "%b β"...
-    rel_apply_l refines_flip_empty_l => // ; iFrame. iIntros "%b' β'"...
-    rel_alloctape_r γ as "γ"... rel_alloctape_l γ' as "γ'"...
+    iApply (refines_na_inv with "[-$Hinv]") ; [done|].
+    iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
+    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flip_l ; rel_flip_r...
+    rel_alloctape_l γ as "γ"...
+    rel_alloctape_r γ' as "γ'"...
     rel_store_l...
-    (* We're about to get stuck in the same way as before; we just don't know
-    what `x` is going to be after we call f2. We can couple γ' with `xor b` but
-    that won't be good enough later. *)
-    rel_apply_r (refines_couple_tapes (xor_sem b) _ _ _ _ γ' γ) => // ; iFrame.
-    iIntros (xor_of_not_necessarily_b_and_of_b') "(γ & α)".
-    rel_flip_l... rel_flip_r...
+    rel_apply (refines_couple_tapes _ _ _ _ _ γ γ' ) => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
+    rel_flip_r...
     rel_store_r...
-    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'".
-    1: iModIntro ; do 2 iExists _ ; iFrame.
-    iApply (refines_seq with "[Hf]") ; first by iApply "Hf".
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
+    rel_flip_l...
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
-    iIntros "(>(%b'' & %not_necessarily_b & xb'' & xb ) & Hclose)".
-    rel_load_r...
-    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb''".
-    1: iModIntro ; do 2 iExists _ ; iFrame.
+    iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
+    unfold xor ; rel_load_r ; rel_load_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
-    (* We do not know this, in fact it may well be false (i.e. read this as `assert False`). *)
-    assert (b = not_necessarily_b) as <- by admit.
-    rewrite /b'. rewrite cancel.
+    rel_apply_l (refines_wp_l).
+    wp_apply wp_mono.
+    2: wp_apply xor_wp.
+    iIntros (v) "->".
     rel_values.
-  Abort.
+  Qed.
 
-  (* This refinement does not actually hold since calling the rhs with an f
-  that invokes the rhs itselve allows to observe the identical return value of
-  two consecutive calls while the lhs always samples. *)
-  Lemma refinement_prob_resample_let :
-    ⊢ REL
-      (λ: "f", let: "α" := alloc in
-               let: "v" := flip #() in
-               "f" #() ;;
-               SOME "v"
-      )
-    <<
-      (let: "x" := ref NONE in
-       (λ: "f", let: "β" := alloc in
-                let: "b" := flip #() in
-                "x" <- SOME "b" ;;
-                "f" #() ;;
-                !"x" ))
-    : (() → ()) → (lrel_sum lrel_unit lrel_bool).
-  Proof with try rel_pures_l ; try rel_pures_r.
-    rel_pures_r. rel_alloc_r x as "Hx"...
-    set (P := (x ↦ₛ NONEV ∨ ∃ (b : bool), (x ↦ₛ SOMEV #b))%I).
-    iApply (refines_na_alloc P awkwardN).
-    iSplitL ; [ try iExists _ ; try iLeft ; iFrame |].
+  Lemma store_ignore_store_xor_late :
+    ⊢ REL store_ignore << store_xor_late : (() → ()) → (lrel_bool).
+  Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
+    rewrite /store_xor_late /store_ignore...
+    rel_alloc_l x as "x"... rel_alloc_r x' as "x'"...
+    iApply (refines_na_alloc (∃ b b' : bool, x ↦ #b ∗ x' ↦ₛ #b' ∗ ⌜b = b'⌝) awkwardN).
+    iSplitL ; [ iExists _,_ ; iFrame ; done |].
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_r β as "β"...
     rel_alloctape_l α as "α"...
-    rel_apply refines_couple_flips_lr.
-    iIntros (b')...
+    rel_alloctape_r β as "β"...
+    iApply (refines_na_inv with "[-$Hinv]") ; [done|].
+    iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
+    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flip_l ; rel_flip_r...
+    rel_alloctape_l γ as "γ"...
+    rel_alloctape_r γ' as "γ'"...
+    rel_store_r...
+    rel_store_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
-    unfold P.
-    iIntros "(> [b | (%b & b )] & Hclose)".
-    - rel_store_r...
-      (* `x` points to `b`, but calling `f2` may not preserve this. *)
-      iApply (refines_na_close with "[-$Hclose]") ; iSplitL "b".
-      { iModIntro. iRight. iExists _. iFrame. }
-      iApply (refines_seq with "[Hf]"); auto. 1: iApply "Hf" => //.
-      iApply (refines_na_inv with "[-$Hinv]"); [done|].
-      iIntros "(> [b | (%b & b )] & Hclose)".
-      + rel_load_r. give_up.    (* x ↦ₛ NONE should be impossible *)
-      + rel_load_r. give_up.    (* We know nothing about the relation between b, b'. *)
-    - rel_store_r...
-      give_up.
-Abort.
+    iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
+    rel_apply (refines_couple_tapes (xor_sem not_necessarily_b) _ _ _ _ γ γ' )
+              => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
+    rel_flip_l ; rel_flip_r...
+    unfold xor ; rel_load_r...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
+    rewrite cancel.
+    rel_values.
+  Qed.
 
-
-  (* If the reference to `x` is local to the rhs closure, we never need to
-     transfer its ownership into an invariant, and `f` cannot interfere with
-     it, so we can couple with `x`. *)
-  Lemma refinement_prob_resample_local_ref :
-    ⊢ REL
-      (λ: "f", let: "α" := alloc in
-               "f" #() ;;
-               flip "α")
-    <<
-      (λ: "f", let: "β" := alloc in
-               let: "b" := flip "β" in
-               let: "x" := ref "b" in
-               "f" #() ;;
-               !"x" )
-    : (() → ()) → lrel_bool.
-  Proof with try rel_pures_l ; try rel_pures_r.
-    rel_pures_r...
+  Lemma call_flip_store_ignore :
+    ⊢ REL call_flip << store_ignore : (() → ()) → (lrel_bool).
+  Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
+    rewrite /store_ignore /call_flip...
+    rel_alloc_r x as "x"...
+    iApply (refines_na_alloc (∃ b : bool, x ↦ₛ #b) awkwardN).
+    iSplitL ; [ iExists _ ; iFrame ; done |].
+    iIntros "#Hinv".
     iApply refines_arrow_val.
-    iIntros "!#" (f1 f2) "#Hf"...
+    iIntros "!#" (f1 f2) "#Hf".
+    rel_alloctape_r α as "α"...
+    rel_alloctape_l β as "β"...
+    iApply (refines_na_inv with "[-$Hinv]") ; [done|].
+    iIntros "(>(%old_b & xb) & Hclose)".
+    rel_apply_r refines_flip_empty_r => // ; iFrame ; iIntros "%b α"...
+    rel_alloctape_r γ as "γ"...
+    rel_store_r...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
+    iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
+    iApply (refines_na_inv with "[-$Hinv]"); [done|].
+    iIntros "(>(%not_necessarily_b & xb) & Hclose)".
+    rel_apply refines_couple_tapes => // ; iFrame ; iIntros (b') "(β & γ)" => /=.
+    rel_flip_r ; rel_flip_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
+    rel_values.
+  Qed.
+
+  (* The opposite direction of the last three refinements. The proofs are
+  essentially the same. *)
+  Lemma store_xor_store_xor_late :
+    ⊢ REL store_xor << store_xor_late : (() → ()) → (lrel_bool).
+  Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
+    rewrite /store_xor /store_xor_late...
+    rel_alloc_l x as "x"... rel_alloc_r x' as "x'"...
+    iApply (refines_na_alloc (∃ b b' : bool, x ↦ #b ∗ x' ↦ₛ #b' ∗ ⌜b = b'⌝) awkwardN).
+    iSplitL ; [ iExists _,_ ; iFrame ; done |].
+    iIntros "#Hinv".
+    iApply refines_arrow_val.
+    iIntros "!#" (f1 f2) "#Hf".
     rel_alloctape_l α as "α"...
     rel_alloctape_r β as "β"...
-    iApply refines_couple_tapes_eq ; auto ; iFrame ;
-      iIntros (b) "(β & α)" => /=.
+    iApply (refines_na_inv with "[-$Hinv]") ; [done|].
+    iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
+    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flip_l ; rel_flip_r...
+    rel_alloctape_l γ as "γ"...
+    rel_alloctape_r γ' as "γ'"...
+    rel_store_r...
+    rel_apply (refines_couple_tapes _ _ _ _ _ γ γ' ) => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
+    rel_flip_l...
+    rel_store_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
     rel_flip_r...
-    rel_alloc_r x as "Hx"...
-    iApply (refines_seq with "[Hf]") => //. 1: iApply "Hf" => //.
-    rel_flip_l.
-    rel_load_r.
+    iApply (refines_na_inv with "[-$Hinv]"); [done|].
+    iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
+    unfold xor ; rel_load_r ; rel_load_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
+    rel_apply_l (refines_wp_l).
+    wp_apply wp_mono.
+    2: wp_apply xor_wp.
+    iIntros (v) "->".
+    rel_values.
+  Qed.
+
+  Lemma store_xor_late_store_ignore :
+    ⊢ REL store_xor_late << store_ignore : (() → ()) → (lrel_bool).
+  Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
+    rewrite /store_xor_late /store_ignore...
+    rel_alloc_l x as "x"... rel_alloc_r x' as "x'"...
+    iApply (refines_na_alloc (∃ b b' : bool, x ↦ #b ∗ x' ↦ₛ #b' ∗ ⌜b = b'⌝) awkwardN).
+    iSplitL ; [ iExists _,_ ; iFrame ; done |].
+    iIntros "#Hinv".
+    iApply refines_arrow_val.
+    iIntros "!#" (f1 f2) "#Hf".
+    rel_alloctape_l α as "α"...
+    rel_alloctape_r β as "β"...
+    iApply (refines_na_inv with "[-$Hinv]") ; [done|].
+    iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
+    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flip_l ; rel_flip_r...
+    rel_alloctape_l γ as "γ"...
+    rel_alloctape_r γ' as "γ'"...
+    rel_store_r...
+    rel_store_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
+    iApply (refines_na_inv with "[-$Hinv]"); [done|].
+    iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
+    rel_apply (refines_couple_tapes (xor_sem not_necessarily_b) _ _ _ _ γ γ' )
+              => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
+    rel_flip_l ; rel_flip_r...
+    unfold xor ; rel_load_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
+    rel_apply_l (refines_wp_l).
+    wp_apply wp_mono.
+    2: wp_apply xor_wp.
+    iIntros (v) "->".
+    rel_values.
+  Qed.
+
+  Lemma store_ignore_call_flip :
+    ⊢ REL store_ignore << call_flip : (() → ()) → (lrel_bool).
+  Proof with try rel_pures_l ; try rel_pures_r ; try foldxor.
+    rewrite /store_ignore /call_flip...
+    rel_alloc_l x as "x"...
+    iApply (refines_na_alloc (∃ b : bool, x ↦ #b) awkwardN).
+    iSplitL ; [ iExists _ ; iFrame ; done |].
+    iIntros "#Hinv".
+    iApply refines_arrow_val.
+    iIntros "!#" (f1 f2) "#Hf".
+    rel_alloctape_l α as "α"...
+    rel_alloctape_r β as "β"...
+    iApply (refines_na_inv with "[-$Hinv]") ; [done|].
+    iIntros "(>(%old_b & xb) & Hclose)".
+    rel_apply_l refines_flip_empty_l => // ; iFrame ; iIntros "%b α"...
+    rel_alloctape_l γ as "γ"...
+    rel_store_l...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
+    iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
+    iApply (refines_na_inv with "[-$Hinv]"); [done|].
+    iIntros "(>(%not_necessarily_b & xb) & Hclose)".
+    rel_apply refines_couple_tapes => // ; iFrame ; iIntros (b') "(β & γ)" => /=.
+    rel_flip_l ; rel_flip_r...
+    iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
     rel_values.
   Qed.
 
 End proofs.
+
+Theorem store_xor_call_flip_refinement :
+  ∅ ⊨ store_xor ≤ctx≤ call_flip : (() → ()) → TBool.
+Proof.
+  eapply ctx_refines_transitive.
+  - eapply (refines_sound prelogrelΣ).
+    intros. apply: store_xor_store_xor_late.
+  - eapply ctx_refines_transitive.
+    + eapply (refines_sound prelogrelΣ).
+      intros. apply: store_xor_late_store_ignore.
+    + eapply (refines_sound prelogrelΣ).
+      intros. apply: store_ignore_call_flip.
+Qed.
+
+Theorem call_flip_store_xor_refinement :
+  ∅ ⊨ call_flip ≤ctx≤ store_xor : (() → ()) → TBool.
+Proof.
+  eapply ctx_refines_transitive.
+  - eapply (refines_sound prelogrelΣ).
+    intros. apply: call_flip_store_ignore.
+  - eapply ctx_refines_transitive.
+    + eapply (refines_sound prelogrelΣ).
+      intros. apply: store_ignore_store_xor_late.
+    + eapply (refines_sound prelogrelΣ).
+      intros. apply: store_xor_late_store_xor.
+Qed.
