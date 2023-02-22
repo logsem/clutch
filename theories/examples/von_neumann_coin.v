@@ -68,13 +68,10 @@ Section proofs.
     set (vnc2 := vnc t2) ; unfold vnc in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
 
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    rel_apply_l refines_couple_flips_lr.
+    rel_apply refines_couple_flips_lr.
     iIntros (b).
     rel_pures_l.
-    rel_bind_l (flip _)%E.
-    rel_apply_l refines_flipU_l.
+    rel_apply refines_flipU_l.
     iIntros (b').
     rel_pures_l.
     case_bool_decide ; rel_pures_l.
@@ -93,13 +90,10 @@ Section proofs.
     rel_pures_r. rel_pures_l.
     set (vnc2 := vnc_div t2) ; unfold vnc_div in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    rel_apply_l refines_couple_flips_lr.
+    rel_apply refines_couple_flips_lr_eq.
     iIntros (b).
     rel_pures_l.
-    rel_bind_l (flip _)%E.
-    rel_apply_l refines_flipU_l.
+    rel_apply refines_flipU_l.
     iIntros (b').
     rel_pures_l.
     case_bool_decide ; rel_pures_l.
@@ -113,67 +107,44 @@ Section proofs.
   biased coin, since we would have to decide on coupling the rhs flip with a
   single flip on the left, but there's no single good choice. *)
   Goal ⊢ REL (vnc_div t4) << (λ:<>, flip #()) : lrel_unit → lrel_bool.
-  Proof.
-    rewrite /vnc_div.
-    rel_pures_r. rel_pures_l.
-
+  Proof with try rel_pures_r ; try rel_pures_l.
+    rewrite /vnc_div...
     iApply refines_arrow_val.
     iIntros "!#" (??) "#[-> ->]".
     rel_rec_l.
-    rel_pures_r. rel_pures_l.
     set (vnc4 := vnc_div t4) ; unfold vnc_div in vnc4 ; fold vnc4.
-    unfold t4. rel_pures_l.
-
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    rel_apply_l refines_couple_flips_lr.
-    iIntros (b).
-    rel_pures_l.
-    rel_bind_l (flip _)%E.
+    unfold t4...
+    rel_apply refines_couple_flips_lr.
+    iIntros (b)...
     rel_apply_l refines_flipU_l.
-    iIntros (b').
-    rel_pures_l.
-    destruct b'.
-    - rel_pures_l.
-      rel_bind_l (flip _)%E.
+    iIntros (b')...
+    destruct b'...
+    - rel_apply_l refines_flipU_l.
+      iIntros (b')...
       rel_apply_l refines_flipU_l.
-      iIntros (b').
-      rel_pures_l.
-      rel_bind_l (flip _)%E.
-      rel_apply_l refines_flipU_l.
-      iIntros (b'').
-      rel_pures_l.
-      destruct b''.
-      + rel_pures_l.
-        case_bool_decide ; rel_pures_l.
+      iIntros (b'')...
+      destruct b''...
+      + case_bool_decide...
         * iLöb as "H".
           rel_rec_l.
           iExact "H".
         * rel_values.
-      + rel_pures_l.
-        case_bool_decide ; rel_pures_l.
+      + case_bool_decide...
         * iLöb as "H".
           rel_rec_l.
           iExact "H".
         * rel_values.
-    - rel_pures_l.
-      rel_bind_l (flip _)%E.
+    - rel_apply_l refines_flipU_l.
+      iIntros (b')...
       rel_apply_l refines_flipU_l.
-      iIntros (b').
-      rel_pures_l.
-      rel_bind_l (flip _)%E.
-      rel_apply_l refines_flipU_l.
-      iIntros (b'').
-      rel_pures_l.
-      destruct b''.
-      + rel_pures_l.
-        case_bool_decide ; rel_pures_l.
+      iIntros (b'')...
+      destruct b''...
+      + case_bool_decide...
         * iLöb as "H".
           rel_rec_l.
           iExact "H".
         * give_up.
-      + rel_pures_l.
-        iLöb as "H".
+      + iLöb as "H".
         rel_rec_l.
         iExact "H".
   Abort.
@@ -181,11 +152,8 @@ Section proofs.
   (* A similar problem: no single flip on the left behaves like the rhs. *)
   Goal ⊢ REL (flip #()) = (flip #()) << flip #() : lrel_bool.
   Proof.
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    rel_apply_l refines_couple_flips_lr.
+    rel_apply refines_couple_flips_lr.
     iIntros (b).
-    rel_bind_l (flip _)%E.
     rel_apply_l refines_flipU_l.
     iIntros (b').
     rel_pures_l.
@@ -195,12 +163,9 @@ Section proofs.
   depends on the outcome of one flip. *)
   Goal ⊢ REL (let: "b" := flip #() in if: "b" = (flip #()) then "b" else "b") << flip #() : lrel_bool.
   Proof.
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    rel_apply_l refines_couple_flips_lr.
+    rel_apply refines_couple_flips_lr.
     iIntros (b).
     rel_pures_l.
-    rel_bind_l (flip _)%E.
     rel_apply_l refines_flipU_l.
     iIntros (b').
     rel_pures_l.
@@ -210,7 +175,7 @@ Section proofs.
 
   (* We can even flip separately in each branch. *)
   Goal ⊢ REL if: flip #() then flip #() else flip #() << flip #() : lrel_bool.
-    rel_bind_l (flip _)%E.
+  Proof.
     rel_apply_l refines_flipU_l ; iIntros (b').
     destruct b' ; rel_pures_l.
     all: replace lrel_bool with (interp.interp types.TBool []) by easy ;
