@@ -35,11 +35,13 @@ Section base.
   Global Existing Instance bij_inj.
   Global Existing Instance bij_surj.
 
-  Global Instance bij_id {A} : Bij (@id A).
+  (* Other instances should be declared with a priority penalty higher than 0. *)
+  Global Instance bij_id {A} : Bij (@id A) | 0.
   Proof. constructor; apply _. Qed.
 
-  Global Instance bij_negb : Bij negb.
+  Global Instance bij_negb : Bij negb | 1.
   Proof. constructor; apply _. Qed.
+
 End base.
 
 Section countable.
