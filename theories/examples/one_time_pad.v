@@ -1,6 +1,6 @@
 From self.program_logic Require Import weakestpre ectxi_language.
-From self.prob_lang Require Import proofmode spec_rules lang notation.
-From self.logrel Require Import model rel_tactics.
+From self.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
+From self.logrel Require Import model rel_rules rel_tactics.
 From self.prelude Require Import base stdpp_ext.
 Set Default Proof Using "Type*".
 
@@ -10,40 +10,43 @@ Definition xor b1 b2 : expr :=
 Definition xor_sem b1 b2 :=
   if b1 then negb b2 else b2.
 
+Ltac foldxor := assert (forall b2, (if: _ then (if: b2 then #false else #true) else b2)%E = (xor _ _)) as -> by easy.
+
 Definition ideal : expr := λ:"msg", flip #().
-Definition real : expr := λ:"msg", let: "k" := flip #() in xor "k" "msg".
+Definition real : expr := λ:"msg", let: "k" := flip #() in xor "msg" "k".
 
 Section logical_ref.
   Context `{!prelogrelGS Σ}.
 
-  Lemma refines_couple_flips_lr f `{Bij bool bool f} K K' E A :
-      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #(f b)) @ E : A)
-    ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
-  Proof.
-    iIntros "Hcnt".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply wp_couple_flip_flip; [done|].
-    rewrite -fill_app.
-    iFrame "Hs Hspec".
-    iIntros (b) "Hspec".
-    iApply wp_value.
-    rewrite /= fill_app.
-    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
-    wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
-    iExists _. iFrame.
-  Qed.
+  Global Instance xor_invol_1 : forall b, Involutive eq (xor_sem b).
+  Proof. intros [] [] => //. Qed.
 
   Global Instance xor_inj_1 : forall b, Inj (=) (=) (xor_sem b).
-  Proof. intros [] [] [] ; auto. Qed.
+  Proof. intros. apply cancel_inj. Qed.
 
   Global Instance xor_surj_1 : forall b, Surj (=) (xor_sem b).
-  Proof. intros [] [] ; (by exists true) || by exists false. Qed.
+  Proof. intros. apply cancel_surj. Qed.
 
   Global Instance bij_xor : forall b, Bij (xor_sem b).
   Proof. constructor ; apply _. Qed.
+
+  Lemma xor_tp E (b1 b2 : bool) :
+    ↑specN ⊆ E → ⊢ ∀ K, refines_right K (xor #b1 #b2) ={E}=∗ refines_right K (#(xor_sem b1 b2)).
+  Proof.
+    destruct b1, b2 ; iIntros ; tp_pures ; iModIntro ; done.
+  Qed.
+
+  Lemma xor_wp (b1 b2 : bool) :
+    ⊢ (WP xor #b1 #b2 {{v, ⌜v = #(xor_sem b1 b2)⌝}})%I.
+  Proof.
+    rewrite /xor /xor_sem /negb. destruct b1, b2 ; wp_pures ; done.
+  Qed.
+
+  Lemma xor_xor_sem (b1 b2 : bool) :
+    ⊢ REL xor #b1 #b2 << #(xor_sem b1 b2) : lrel_bool.
+  Proof.
+    rewrite /xor /xor_sem /negb. destruct b1, b2 ; rel_pures_l ; rel_values ; done.
+  Qed.
 
   Lemma real_ideal_rel :
     ⊢ REL real << ideal : lrel_bool → lrel_bool.
@@ -52,16 +55,14 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (msg1 msg2) "Hmsg".
     rel_pures_l. rel_pures_r.
+    foldxor.
     iDestruct "Hmsg" as "[%b [-> ->]]".
-    rel_bind_r (flip _)%E.
-    rel_bind_l (flip _)%E.
-    unshelve iApply (refines_couple_flips_lr (xor_sem b)).
+    rel_apply (refines_couple_flips_lr (xor_sem b)).
     simpl.
     iIntros (k).
     rel_pures_l.
-    rewrite /xor_sem.
-    destruct k ; rel_pures_l.
-    all: destruct b; rel_pures_l. all: rel_values.
+    foldxor.
+    iApply xor_xor_sem.
   Qed.
 
   Lemma ideal_real_rel :
@@ -71,15 +72,14 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (msg1 msg2) "Hmsg".
     rel_pures_l. rel_pures_r.
-    iDestruct "Hmsg" as "[%b [-> ->]]".
-    rel_bind_r (flip _)%E.
-    rel_bind_l (flip _)%E.
-    unshelve iApply (refines_couple_flips_lr (xor_sem b)).
-    simpl.
+    iDestruct "Hmsg" as "[%msg [-> ->]]".
+    rel_apply (refines_couple_flips_lr (xor_sem msg)) => /=.
     iIntros (k).
     rel_pures_r.
-    rewrite /xor_sem.
-    destruct k ; rel_pures_r.
-    all: destruct b; rel_pures_r. all: rel_values.
+    foldxor.
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|].
+    rewrite cancel.
+    rel_values.
   Qed.
+
 End logical_ref.
