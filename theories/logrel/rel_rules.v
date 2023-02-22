@@ -1,5 +1,6 @@
 (** Core relational rules *)
 From stdpp Require Import coPset namespaces.
+From self.prelude Require Import stdpp_ext.
 From self.program_logic Require Import language ectx_language ectxi_language weakestpre.
 From self.prob_lang Require Import locations spec_ra notation primitive_laws spec_rules spec_tactics proofmode lang.
 From self.logrel Require Import model.
@@ -269,21 +270,31 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
-  Lemma refines_couple_tapes E e1 e2 A α αₛ bs bsₛ :
+  Lemma refines_couple_tapes f `{Bij bool bool f} E e1 e2 A α αₛ bs bsₛ :
     to_val e1 = None →
     (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-       (∀ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])
+       (∀ b, αₛ ↪ₛ (bsₛ ++ [f b]) ∗ α ↪ (bs ++ [b])
        -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
     iIntros (e1ev) "(Hαs & Hα & Hlog)".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs He2] Hnais /=".
-    wp_apply wp_couple_tapes_eq; [done|done|].
+    wp_apply wp_couple_tapes; [done|done|].
     iFrame "Hα Hαs".
     iSplit; [done|].
     iIntros "[%b [Hαs Hα]]".
     iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
+  Qed.
+
+  Corollary refines_couple_tapes_eq E e1 e2 A α αₛ bs bsₛ :
+    to_val e1 = None →
+    (αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
+       (∀ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])
+       -∗ REL e1 << e2 @ E : A))
+    ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    by apply (refines_couple_tapes (Datatypes.id)).
   Qed.
 
   Lemma refines_couple_tape_flip K' E α A bs e :
@@ -351,15 +362,15 @@ Section rules.
     iApply "H".
   Qed.
 
-  Lemma refines_couple_flips_lr K K' E A :
-      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E : A)
+  Lemma refines_couple_flips_lr f `{Bij bool bool f} K K' E A :
+      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #(f b)) @ E : A)
     ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
   Proof.
     iIntros "Hcnt".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_flip_flip_eq; [done|].
+    wp_apply wp_couple_flip_flip; [done|].
     rewrite -fill_app.
     iFrame "Hs Hspec".
     iIntros (b) "Hspec".
@@ -369,6 +380,13 @@ Section rules.
     wp_apply (wp_mono with "Hcnt").
     iIntros (v) "[% ([? ?] &?&?)]".
     iExists _. iFrame.
+  Qed.
+
+  Corollary refines_couple_flips_lr_eq K K' E A :
+      (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E : A)
+    ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
+  Proof.
+    by iApply refines_couple_flips_lr.
   Qed.
 
   Lemma refines_flip_empty_l K E α A e :
