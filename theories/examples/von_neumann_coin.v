@@ -149,15 +149,19 @@ Section proofs.
         iExact "H".
   Abort.
 
-  (* A similar problem: no single flip on the left behaves like the rhs. *)
+  (* A similar problem: no single flip on the left behaves like the rhs. But we
+  can pick our coupling after evaluating the first flip! *)
   Goal ⊢ REL (flip #()) = (flip #()) << flip #() : lrel_bool.
   Proof.
-    rel_apply refines_couple_flips_lr.
+    rel_apply refines_flipU_l.
     iIntros (b).
-    rel_apply_l refines_flipU_l.
+    rel_apply (refines_couple_flips_lr (if b then id else negb)).
     iIntros (b').
-    rel_pures_l.
-  Abort.
+    destruct b, b' => /=.
+    all: rel_pures_l.
+    all: rel_values.
+    Unshelve. destruct b ; apply _.
+  Qed.
 
   (* We can however show this refinement where the result on the left only
   depends on the outcome of one flip. *)
