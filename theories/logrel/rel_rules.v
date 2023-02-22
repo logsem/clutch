@@ -99,6 +99,24 @@ Section rules.
     by iApply "He".
   Qed.
 
+  (* Variant of refines_step_r that doesn't require full evaluation. *)
+  (* NB: refines_step_r doesn't require e2 as input but existentially
+     quantifies v, which is important e.g. in refines_alloc_r, where v is
+     freshly generated. If e2 is known, this variant can be used instead *)
+  Lemma refines_steps_r E e t t' A K' :
+    (∀ K, (refines_right K t ={⊤}=∗ refines_right K t'))
+    -∗ (|={⊤}=> REL e << ectxi_language.fill K' t' @ E : A)
+    -∗ REL e << ectxi_language.fill K' t @ E : A.
+  Proof.
+    iIntros "upd >Hlog".
+    rewrite refines_eq /refines_def.
+    iIntros (?) "??".
+    rewrite refines_right_bind.
+    iDestruct ("upd" with "[$]") as ">?".
+    rewrite -refines_right_bind.
+    iApply ("Hlog" with "[$][$]").
+  Qed.
+
   Lemma refines_alloc_r E K e v t A :
     IntoVal e v →
     (∀ l : loc, l ↦ₛ v -∗ REL t << fill K (of_val #l) @ E : A)%I
