@@ -1384,7 +1384,7 @@ Lemma foo {A} (l : list A) :
 Proof.
   intros (z & zs & Hz).
   assert (l ≠ []) as H; auto.
-  { rewrite Hz; intro H; inversion H.}
+  { rewrite Hz; intro H; inversion H. }
   pose proof (exists_last H) as (y & ys & Hy);
   eauto.
 Qed.
