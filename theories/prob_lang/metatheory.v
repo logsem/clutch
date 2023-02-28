@@ -27,7 +27,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
      is_closed_expr X e1 && is_closed_expr X e2
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
-  | AllocTape => true
+  | AllocTape _ => true
   end
 with is_closed_val (v : val) : bool :=
   match v with
@@ -56,7 +56,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Alloc e => Alloc (subst_map vs e)
   | Load e => Load (subst_map vs e)
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
-  | AllocTape => AllocTape
+  | AllocTape n => AllocTape n
   | Flip e => Flip (subst_map vs e)
   end.
 
@@ -223,15 +223,15 @@ Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed
 
 Local Open Scope R.
 
-Lemma head_step_flip_nonempty_unfold σ l b bs :
-  σ.(tapes) !! l = Some (b :: bs) →
-  head_step (flip #lbl:l) σ = dret (Val (LitV (LitBool b)), state_upd_tapes <[l:=bs]> σ).
+Lemma head_step_flip_nonempty_unfold σ l n z zs :
+  σ.(tapes) !! l = Some (n, z :: zs) →
+  head_step (flip #lbl:l) σ = dret (Val (LitV (LitInt z)), state_upd_tapes <[l:=(n,zs)]> σ).
 Proof.
   intro Hσ.
   apply distr_ext.
-  intro ρ.
-  rewrite /pmf/head_step/head_step_pmf/=/dret_pmf.
-  do 4 (case_match; auto); simplify_eq.
+  intros [].
+  rewrite head_step_pmf_eq /pmf/=/dret_pmf.
+  do 3 (case_match; auto); simplify_eq.
   rewrite Hσ/=.
   case_bool_decide as H.
   + case_bool_decide as H2; auto.
@@ -247,6 +247,7 @@ Lemma head_step_flip_no_tape_unfold σ  :
 Proof.
   apply distr_ext. intros [e σ'].
   rewrite fair_conv_comb_pmf.
+  rewrite head_step_pmf_eq.
   rewrite /pmf /= /dret_pmf.
   case_bool_decide; last first.
   { rewrite ?bool_decide_eq_false_2;
@@ -261,45 +262,54 @@ Proof.
   - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
 Qed.
 
-Lemma head_step_flip_empty_unfold σ l  :
-  σ.(tapes) !! l = Some ([]) →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val #false, σ)).
+Lemma head_step_flip_empty_unfold σ l n :
+  σ.(tapes) !! l = Some (n, []) →
+  head_step (flip #lbl:l) σ = dmap (λ m, (Val (LitV (LitInt (Z.of_nat m))), σ)) (unif_distr n).
 Proof.
   intro Hσ. apply distr_ext. intros [e σ'].
-  rewrite fair_conv_comb_pmf.
-  rewrite /pmf /= /dret_pmf Hσ.
-  case_bool_decide; last first.
-  { rewrite ?bool_decide_eq_false_2;
-      [repeat case_match; lra| |]; intros [=]; simplify_eq. }
-  simplify_eq.
-  do 3
-    (case_match;
-    try by (rewrite ?bool_decide_eq_false_2;
-            [repeat case_match;lra | |]; intros [=]; simplify_eq)).
-  destruct b.
-  - rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2 //. lra.
-  - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
+  symmetry.
+  rewrite head_step_pmf_eq.
+  rewrite /dmap.
+  rewrite /head_step_pmf /=.
+  do 3 (case_match;
+    (* Get of trivial cases *)
+    try (apply dbind_dret_unif_zero; intros; auto)).
+  rewrite Hσ.
+  case_bool_decide as H2.
+  - destruct_and?.
+    apply dbind_dret_unif_nonzero; [intros ? ? H4; inversion H4; lia | ].
+    exists (Z.to_nat n0); split; try lia.
+    f_equal; auto; try lia.
+    do 3 f_equal.
+    apply Z2Nat.id; auto.
+  - apply dbind_dret_unif_zero.
+    intros.
+    intro H4; inversion H4; simplify_eq.
+    eapply H2; split; auto.
+    lia.
 Qed.
 
 Lemma head_step_flip_unalloc_unfold σ l  :
   σ.(tapes) !! l = None →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val #false, σ)).
+  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val #1, σ)) (dret (Val #0, σ)).
 Proof.
   intro Hσ. apply distr_ext. intros [e σ'].
+  rewrite head_step_pmf_eq.
   rewrite fair_conv_comb_pmf.
   rewrite /pmf /= /dret_pmf Hσ.
-  case_bool_decide; last first.
-  { rewrite ?bool_decide_eq_false_2;
-      [repeat case_match; lra| |]; intros [=]; simplify_eq. }
-  simplify_eq.
-  do 3
-    (case_match;
-    try by (rewrite ?bool_decide_eq_false_2;
-            [repeat case_match;lra | |]; intros [=]; simplify_eq)).
-  destruct b.
-  - rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2 //. lra.
-  - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
+  case_bool_decide; case_bool_decide; simplify_eq.
+  - rewrite bool_decide_eq_true_2; repeat (try split); auto; try lra; try lia.
+  - rewrite bool_decide_eq_true_2; repeat (try split); auto; try lra; try lia.
+  - do 3 (case_match; try lra).
+    case_bool_decide; try lra.
+    destruct_and?; simplify_eq.
+    assert (n = 0%Z \/ n = 1%Z) as [Hn0 | Hn1] ; try lia; simplify_eq.
 Qed.
+
+
+(*
+Updating this to uniform state steps may not be needed,
+since the definition is already binding the uniform distribution
 
 Lemma state_step_fair_conv_comb σ α :
   α ∈ dom σ.(tapes) →
@@ -327,6 +337,8 @@ Proof.
     rewrite /pmf/=/dret_pmf.
     split; case_bool_decide; auto; destruct H; eauto.
 Qed.
+
+*)
 
 Local Lemma Rcoupl_flip_dret_bij f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} b (σ1 σ1' : state) :
   Rcoupl
