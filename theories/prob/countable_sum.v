@@ -313,7 +313,7 @@ Section series.
 End series.
 
 Section filter.
-  Context `{Countable A}.
+  Context `{Countable A, Countable B}.
 
   Implicit Types P Q : A → Prop.
 
@@ -337,6 +337,38 @@ Section filter.
   Lemma SeriesC_singleton (a : A) v :
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
   Proof. apply is_series_unique, is_seriesC_singleton. Qed.
+
+  Lemma is_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+    (exists a, f a = b) ->
+    is_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0) v.
+  Proof.
+    intros (a & Ha).
+    rewrite /is_seriesC.
+    eapply is_series_ext; [|apply (is_series_singleton (encode_nat a))].
+    intros n =>/=. rewrite /countable_sum.
+    case_bool_decide as Hneq=>/=; subst.
+    - rewrite (encode_inv_encode_nat a) //= bool_decide_eq_true_2 //.
+    - destruct (encode_inv_nat _) eqn:Heq=>//=.
+      case_bool_decide; [|done]; subst.
+      exfalso.
+      specialize (H1 a0 a H2); simplify_eq.
+      apply Hneq. symmetry. by apply encode_inv_Some_nat.
+  Qed.
+
+  Lemma ex_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+    (exists a, f a = b) ->
+    ex_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0).
+  Proof.
+    eexists. apply is_seriesC_singleton_inj; auto.
+  Qed.
+
+
+  Lemma SeriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+    (exists a, f a = b) ->
+    SeriesC (λ (a : A), if bool_decide (f a = b) then v else 0) = v.
+  Proof.
+    intros. apply is_seriesC_unique, is_seriesC_singleton_inj; auto.
+  Qed.
 
   Lemma SeriesC_ge_elem  (f : A → R) (a : A) :
     (∀ x, 0 <= f x) →

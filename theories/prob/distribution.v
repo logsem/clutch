@@ -224,6 +224,18 @@ Section fair_coins.
       erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
       rewrite 2!SeriesC_singleton. lra.
   Qed.
+
+  Lemma SeriesC_fair_coin:
+    SeriesC fair_coin = 1.
+  Proof.
+    rewrite /pmf/=/fair_coin/=/fair_coin_pmf.
+    (* There has to be an easier way to do this *)
+    rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then 0.5 else 0) + if bool_decide (b = false) then 0.5 else 0)).
+    2 : { intro b; destruct b; rewrite /fair_coin_pmf /= ; lra. }
+    erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
+    rewrite 2!SeriesC_singleton. lra.
+  Qed.
+
 End fair_coins.
 
 (** * Monadic return  *)
@@ -653,8 +665,36 @@ Section conv_prop.
          apply Rmult_le_compat; lra.
   Qed.
 
+(* Helpful lemma to eliminate trivial equalities *)
+Lemma dbind_dret_coin_zero (f : bool-> A) (a : A) :
+  (forall b, f b ≠ a) ->
+  (dbind (λ b, dret (f b)) fair_coin) a = 0.
+Proof.
+  intro.
+  rewrite /pmf/=/dbind_pmf.
+  apply SeriesC_0; intro.
+  rewrite /pmf/=/dret_pmf.
+  rewrite bool_decide_eq_false_2; auto; lra.
+Qed.
+
+
+Lemma dbind_dret_coin_nonzero (f : bool -> A) (a : A) `{Inj bool A (=) (=) f} :
+  (exists b, f b = a) ->
+  (dbind (λ b, dret (f b)) fair_coin) a = 0.5 .
+Proof.
+  intros Hex.
+  rewrite /pmf/=/dbind_pmf.
+  rewrite (SeriesC_ext _ (λ b, if bool_decide (f b = a) then 0.5 else 0)); last first.
+  - intro. rewrite /pmf/=/fair_coin_pmf/dret_pmf; case_bool_decide.
+    + rewrite bool_decide_eq_true_2; auto; lra.
+    + rewrite bool_decide_eq_false_2; auto; lra.
+  - apply SeriesC_singleton_inj; auto.
+Qed.
+
 
 End conv_prop.
+
+
 
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=
@@ -1343,3 +1383,156 @@ Section convergence.
   Proof. done. Qed.
 
  End convergence.
+
+Section uniform.
+
+
+  Lemma ex_seriesC_unif n v :
+    ex_seriesC (λ x : nat, if bool_decide (Nat.le x n) then v else 0).
+  Proof.
+    induction n.
+    - eapply ex_seriesC_ext; last first.
+      + apply (ex_seriesC_singleton 0%nat v).
+      + intro n; simpl.
+        case_bool_decide as Hn1; case_bool_decide as Hn2; try lra; auto.
+        * destruct Hn2. rewrite Hn1; auto.
+        * destruct Hn1; inversion Hn2; auto.
+    - eapply ex_seriesC_ext; last first.
+     + eapply (ex_seriesC_plus _ _
+                 IHn (ex_seriesC_singleton (S n)%nat v)).
+     + intro m; simpl.
+       case_bool_decide as Hn1; case_bool_decide as Hn2; case_bool_decide as Hn3; try lra; auto.
+       * simplify_eq.
+         exfalso.
+         apply (Nat.nle_succ_diag_l n); auto.
+       * destruct Hn3.
+         apply (Nat.le_trans _ n); auto.
+       * destruct Hn3.
+         apply (Nat.le_trans _ n); auto.
+       * simplify_eq.
+         destruct Hn3; auto.
+       * destruct Hn2.
+         apply PeanoNat.Nat.le_antisymm; auto.
+         apply Nat.lt_nge in Hn1; auto.
+  Qed.
+
+  Lemma SeriesC_unif n v :
+    SeriesC (λ x : nat, if bool_decide (Nat.le x n) then v else 0) = (INR n + 1) * v.
+  Proof.
+    induction n.
+    - rewrite (SeriesC_ext _ (λ x : nat, if bool_decide (x = 0%nat) then v else 0)); last first.
+      + intro n.
+        case_bool_decide as Hn1; case_bool_decide as Hn2; simplify_eq; auto.
+        * destruct Hn2; inversion Hn1; auto.
+        * destruct Hn1; auto.
+      + rewrite SeriesC_singleton; simpl; lra.
+    - rewrite Rmult_plus_distr_r.
+      rewrite Rmult_1_l.
+      assert (INR (S n) = (INR n + 1)) as ->; [apply S_INR | ].
+      rewrite <- IHn.
+      rewrite <- (SeriesC_singleton (S n)%nat v).
+      erewrite <- SeriesC_plus; [ | apply ex_seriesC_unif | apply ex_seriesC_singleton ].
+      apply SeriesC_ext; intro m.
+      case_bool_decide as Hm1;
+      case_bool_decide as Hm2;
+      case_bool_decide as Hm3; simplify_eq; try lra; auto.
+      * exfalso.
+        apply (Nat.nle_succ_diag_l n); auto.
+      * rewrite Rplus_0_l.
+        apply SeriesC_singleton.
+      * destruct Hm3.
+        apply PeanoNat.Nat.le_antisymm; auto.
+        apply Nat.lt_nge in Hm2; auto.
+      * destruct Hm1; auto.
+      * destruct Hm1.
+        apply (Nat.le_trans _ n); auto.
+      * destruct Hm1; auto.
+  Qed.
+
+  Program Definition unif_distr (n : nat) : distr nat :=
+    MkDistr (λ x, if bool_decide (Nat.le x n) then (/(INR n + 1)) else 0) _ _ _.
+  Next Obligation.
+    intros n x; simpl.
+    case_bool_decide; try lra.
+    left; apply RinvN_pos.
+  Qed.
+  Next Obligation.
+    intro n.
+    apply ex_seriesC_unif.
+  Qed.
+  Next Obligation.
+    intro n.
+    rewrite SeriesC_unif.
+    right.
+    apply Rinv_r.
+    assert (0 < INR n + 1); try lra.
+    apply (Rle_lt_trans 0 (INR n)); try lra.
+    apply pos_INR.
+  Qed.
+
+  Lemma unif_distr_pmf n m :
+    unif_distr n m = if bool_decide (Nat.le m n) then (/(INR n + 1)) else 0.
+  Proof.
+    auto.
+  Qed.
+
+  Lemma SeriesC_unif_distr n:
+    SeriesC (unif_distr n) = 1.
+  Proof.
+    rewrite /pmf/=/unif_distr/=.
+    rewrite SeriesC_unif.
+    (* There has to be an easier way to do this *)
+    rewrite Rinv_r; auto.
+    rewrite <- S_INR.
+    assert (0 = (INR 0%nat)) as ->; auto.
+    apply not_INR.
+    auto with arith.
+  Qed.
+
+(* Helpful lemma to eliminate trivial equalities *)
+Lemma dbind_dret_unif_zero `{Countable A} (f : nat -> A) (n : nat) (a : A) :
+  (forall m, (0 <= m <= n)%nat -> f m ≠ a) ->
+  (dbind (λ b, dret (f b)) (unif_distr n)) a = 0.
+Proof.
+  intro H0.
+  rewrite /pmf/=/dbind_pmf.
+  apply SeriesC_0; intro x.
+  rewrite /pmf/=/dret_pmf.
+  case_bool_decide; try lra.
+  rewrite bool_decide_eq_false_2; try lra.
+  intro; simplify_eq.
+  specialize (H0 x).
+  apply H0; auto.
+  split; auto with arith.
+Qed.
+
+
+Lemma dbind_dret_unif_nonzero `{Countable A} (f : nat -> A) (n : nat) (a : A) `{Inj nat A (=) (=) f} :
+  (exists m, (0 <= m <= n)%nat /\ f m = a) ->
+  (dbind (λ b, dret (f b)) (unif_distr n)) a = (/(INR n + 1)).
+Proof.
+  (* TODO: Clean up *)
+  intros Hex.
+  rewrite /pmf/=/dbind_pmf.
+  rewrite
+    (SeriesC_ext _ (λ m, if bool_decide (f m = a) then (if bool_decide (0 <= m <= n)%nat then (/(INR n + 1)) else 0) else 0)); last first.
+  - intro. rewrite /pmf/=/unif_distr_pmf/dret_pmf; case_bool_decide; case_bool_decide.
+    + rewrite bool_decide_eq_true_2; auto.
+      case_bool_decide; try lra.
+      destruct H3; split; auto with arith.
+    + rewrite bool_decide_eq_false_2; auto; lra.
+    + rewrite bool_decide_eq_true_2; auto.
+      case_bool_decide; try lra.
+      destruct H1; lia.
+    + rewrite bool_decide_eq_false_2; auto; lra.
+  - destruct Hex as (m & Hm1 & Hm2).
+    rewrite <- Hm2.
+    rewrite (SeriesC_ext _ (λ m0 : nat, if bool_decide (f m0 = f m) then if bool_decide (0 <= m <= n)%nat then / (INR n + 1) else 0 else 0));
+      last first.
+    + intro; case_bool_decide; auto.
+      assert (n0 = m) as ->; auto.
+    + rewrite (SeriesC_singleton_inj _ _ (if bool_decide (0 <= m <= n)%nat then / (INR n + 1) else 0)); eauto.
+      rewrite bool_decide_eq_true_2; auto.
+Qed.
+
+End uniform.
