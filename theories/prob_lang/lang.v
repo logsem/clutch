@@ -1535,53 +1535,7 @@ Proof.
     2:{ intro; auto. }
     rewrite <- dmap_mass.
     apply SeriesC_fair_coin.
-  -
-      /head_step_pmf/=.
-    erewrite (SeriesC_ext).
-    rewrite (SeriesC_split_elem _ (Val (LitV (LitBool true)), s)); [|done|done].
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool true)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct H; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton.
-    rewrite (SeriesC_split_elem _ (Val (LitV (LitBool false)), s)); [| | ]; last first.
-    { by eapply ex_seriesC_filter_pos. }
-    { intros []. case_bool_decide; [done|lra]. }
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool false)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct H; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton SeriesC_0; [lra|].
-    intros []. do 2 (case_bool_decide; [|done]).
-    rewrite /pmf /= /head_step_pmf.
-    repeat case_match; try done; simplify_eq.
-    + case_bool_decide; simplify_eq. by destruct b0.
-    + destruct H; [done|]. simplify_map_eq.
-    + destruct H; [done|]. case_bool_decide; simplify_eq.
-      by destruct b0.
-  - rewrite (SeriesC_split_elem _ (Val (LitV (LitBool true)), s)); [|done|done].
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool true)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct Hs; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton.
-    rewrite (SeriesC_split_elem _ (Val (LitV (LitBool false)), s)); [| | ]; last first.
-    { by eapply ex_seriesC_filter_pos. }
-    { intros []. case_bool_decide; [done|lra]. }
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool false)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct Hs; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton SeriesC_0; [lra|].
-    intros []. do 2 (case_bool_decide; [|done]).
-    rewrite /pmf /= /head_step_pmf.
-    repeat case_match; try done; simplify_eq.
-    case_bool_decide; simplify_eq. by destruct b0.
-Qed.
+ Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →
@@ -1606,7 +1560,7 @@ Fixpoint height (e : expr) : nat :=
   | Alloc e => 1 + height e
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
-  | AllocTape => 1
+  | AllocTape n => 1
   | Flip e => 1 + height e
   end.
 
