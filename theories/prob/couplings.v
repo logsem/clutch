@@ -490,6 +490,98 @@ Proof.
     case_bool_decide; [done|lra].
 Qed.
 
+(* NB: Classical proof, but should be possible to make constructive
+       TODO: finish
+*)
+
+Local Lemma pigeonhole_aux1 n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
+  (forall m, (m <= n)%nat -> (f m <= n)%nat) ->
+  (forall m, (m <= n)%nat -> exists p, (p <= n)%nat /\ f p = m).
+Proof.
+  induction n.
+  - intros Hdom m Hm.
+    inversion Hm; simplify_eq.
+    exists 0%nat; split; auto.
+    specialize (Hdom 0%nat (le_refl 0%nat)); auto with arith.
+  - intros Hdom m Hm.
+    pose proof (ExcludedMiddle (∀ m : nat, m ≤ n → f m ≤ n)) as [Hem | Hem].
+    + specialize (IHn Hem).
+      inversion Hm.
+      * admit.
+      * destruct (IHn m) as [p [Hp1  Hp2]]; auto.
+        exists p; split; auto with arith.
+    + apply not_forall_exists_not in Hem as [x Hx].
+Admitted.
+
+Local Lemma pigeonhole_aux2 n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
+  (forall m, (m <= n)%nat -> (f m <= n)%nat) ->
+  (forall m, (f m <= n)%nat -> (m <= n)%nat).
+Proof.
+  intros Hdom m Hfm.
+  pose proof (H0 m) as [x Hx].
+  pose proof (pigeonhole_aux1 n f Hdom (f m) Hfm) as [y [Hy1 Hy2]].
+  specialize (H y m Hy2); simplify_eq; auto.
+Qed.
+
+Lemma Rcoupl_unif_distr n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
+  (forall m, (m <= n)%nat -> (f m <= n)%nat) ->
+  Rcoupl (unif_distr n) (unif_distr n) (λ m m', m' = f m).
+Proof.
+  intro Hdom.
+  exists (dbind (λ x, dret (x, f x)) (unif_distr n)); repeat split.
+  - eapply distr_ext=> y1.
+    rewrite lmarg_pmf.
+    erewrite (SeriesC_ext _ (λ y2, if bool_decide ( (0 <= y1 <= n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.
+    { intro. case_bool_decide as H1; destruct_and?; simplify_eq.
+      - apply dbind_dret_unif_nonzero.
+        + intros ? ? ?; simplify_eq; auto.
+        + exists y1; auto.
+      - apply dbind_dret_unif_zero.
+        intros ? ? ?; simplify_eq; apply H1; auto.
+    }
+    rewrite /pmf/=.
+    case_bool_decide as H1.
+    + erewrite (SeriesC_ext); [apply (SeriesC_singleton (f y1)) | ].
+      intro; simpl.
+      case_bool_decide as H2; case_bool_decide; destruct_and?; simplify_eq; auto.
+      destruct H2; auto with arith.
+    + erewrite (SeriesC_ext _ (λ x, 0)); [apply (SeriesC_0); auto | ].
+      intro.
+      case_bool_decide; destruct_and?; simplify_eq; auto.
+      destruct H1; auto.
+  - eapply distr_ext=> y2.
+    rewrite rmarg_pmf.
+    erewrite (SeriesC_ext _ (λ y1, if bool_decide ( (0 <= y1 <= n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.
+    { intro n0. case_bool_decide as H1; destruct_and?; simplify_eq.
+      - apply dbind_dret_unif_nonzero.
+        + intros ? ? ?; simplify_eq; auto.
+        + exists n0; auto.
+      - apply dbind_dret_unif_zero.
+        intros ? ? ?; simplify_eq; apply H1; auto.
+    }
+    rewrite /pmf/=.
+    case_bool_decide as H1.
+    + erewrite (SeriesC_ext).
+      * apply (SeriesC_singleton_inj y2 f); auto.
+      * intro y1; case_bool_decide as H2; case_bool_decide; destruct_and?; simplify_eq; auto.
+        destruct H2; split; auto; split; auto with arith.
+        apply (pigeonhole_aux2 n f); auto.
+    + erewrite (SeriesC_ext); [apply SeriesC_0; done | ].
+      intro m; simpl.
+      case_bool_decide; destruct_and?; simplify_eq; auto.
+      destruct H1.
+      apply Hdom; done.
+   - intros (m1 & m2) Haux; simpl.
+     rewrite /pmf/=/dbind_pmf in Haux.
+     apply SeriesC_gtz_ex in Haux as [l Hl]; auto.
+     + rewrite /pmf/=/dret_pmf/= in Hl.
+       case_bool_decide; case_bool_decide; destruct_and?; simplify_eq; auto; lra.
+     + intro; rewrite /pmf/=/dret_pmf.
+       case_bool_decide; case_bool_decide; try lra.
+       rewrite Rmult_1_r.
+       left; apply RinvN_pos.
+Qed.
+
 Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B}
   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f}
   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
@@ -535,6 +627,8 @@ Proof.
   intros b1 b2 ->.
   destruct b2; apply Rcoupl_eq.
 Qed.
+
+
 
 Section Rcoupl_strength.
   Context `{Countable A, Countable B, Countable D, Countable E}.

@@ -356,24 +356,37 @@ Proof.
 Qed.
 
 (** * flip(α) ~ flip(α') coupling *)
-Lemma Rcoupl_flip_flip_empty f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α α' :
-  σ1.(tapes) !! α = Some [] →
-  σ1'.(tapes) !! α' = Some [] →
+Lemma Rcoupl_flip_flip_empty f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' α α' n :
+  (∀ m : nat, m ≤ n → f m ≤ n) ->
+  σ1.(tapes) !! α = Some (n, []) →
+  σ1'.(tapes) !! α' = Some (n, []) →
   Rcoupl
     (prim_step (Flip (Val $ LitV $ LitLbl α)) σ1)
     (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
-    (λ ρ2 ρ2', ∃ (b : bool), (ρ2, ρ2') = ((Val #b, σ1), (Val #(f b), σ1'))).
+    (λ ρ2 ρ2', ∃ (m : nat), (ρ2, ρ2') = ((Val #m, σ1), (Val #(f m), σ1'))).
 Proof.
-  intros Hα Hα'.
+  intros Hdom Hα Hα'.
   rewrite 2?head_prim_step_eq /=; last first.
-  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
-    eapply (FlipTapeEmptyS _ true). eauto. }
-  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
-    eapply (FlipTapeEmptyS _ true). eauto. }
+  { eexists (_, _); simpl.
+    rewrite Hα.
+    erewrite (dbind_dret_unif_nonzero _ n).
+    - apply RinvN_pos.
+    - intros ? ? ?; simplify_eq; auto.
+    - exists 0%nat; split; auto with arith. }
+  { eexists (_, _); simpl.
+    rewrite Hα'.
+    erewrite (dbind_dret_unif_nonzero _ n).
+    - apply RinvN_pos.
+    - intros ? ? ?; simplify_eq; auto.
+    - exists 0%nat; split; auto with arith. }
   rewrite 2?head_step_flip_empty_unfold //.
-  eapply (Rcoupl_fair_conv_comb f).
-  intros. apply (Rcoupl_flip_dret_bij f).
+  rewrite Hα Hα'.
+  eapply Rcoupl_dbind; last first.
+  - apply (Rcoupl_unif_distr n f); auto.
+  - intros; simpl in *; simplify_eq.
+    apply Rcoupl_dret; eauto.
 Qed.
+
 
 (** * flip(α) ~ flip(unit) coupling *)
 Lemma Rcoupl_flip_flip_l f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α :
