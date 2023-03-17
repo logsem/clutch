@@ -68,8 +68,8 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | $\iota \hookrightarrow{} \vec{b}$                                                    | [prob_lang/primitive_laws]     | `ghost_map_elem prelocGS_tapes`           |      |
 |     | Definition | $\ell \mapsto_{\mathsf{s}} v$                                                        | [prob_lang/spec_ra]            | `ghost_map_elem specGS_heap`              |      |
 |     | Definition | $\iota \hookrightarrow_{\mathsf{s}} \vec{b}$                                         | [prob_lang/spec_ra]            | `ghost_map_elem specGS_tapes`             |      |
-|     | Definition | Value interperation $⟦ τ ⟧_Δ(-,-)$                                 | [typing/interp]                | `interp`                                  |      |
-|     | Definition | Value interperation $⟦ τ ⟧_Δ(-,-)$                                 | [logrel/model]                 | `lrel_bool`, `lrel_ref`, `lrel_tape`, etc |      |
+|     | Definition | Value interperation $⟦ τ ⟧_Δ(-,-)$                                                   | [typing/interp]                | `interp`                                  |      |
+|     | Definition | Value interperation $⟦ τ ⟧_Δ(-,-)$                                                   | [logrel/model]                 | `lrel_bool`, `lrel_ref`, `lrel_tape`, etc |      |
 |     | Definition | $e₁ \overset{\mathrm{pure}}{\rightsquigarrow} e₂$                                    | [program_logic/language]       | `PureExec`                                |      |
 |     | Rule       | rel-pure-l                                                                           | [logrel/rel_rules]             | `refines_pure_l`                          |      |
 |     | Rule       | rel-pure-r                                                                           | [logrel/rel_rules]             | `refines_pure_r`                          |      |
@@ -90,15 +90,16 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Rule       | rel-flip-tape-empty-l                                                                | [logrel/rel_rules]             | `refines_flip_empty_l`                    |      |
 |     | Rule       | rel-flip-tape-empty-r                                                                | [logrel/rel_rules]             | `refines_flip_empty_r`                    |      |
 |     | Rule       | rel-couple-flips                                                                     | [logrel/rel_rules]             | `refines_couple_flips`                    |      |
-|   | Rule | rel-couple-tape-l | [logrel/rel_rules] |                        |   |
-|   | Rule | rel-couple-tape-r | [logrel/rel_rules] |                        |   |
-|   | Rule | rel-couple-tapes  | [logrel/rel_rules] | `refines_couple_tapes` |   |
-|   | Rule       | rel-na-inv-alloc              | [logrel/model]      | `refines_na_alloc`       |   |
-|   | Rule       | rel-na-inv-open                                                                | [logrel/model]      | `refines_na_inv`         |   |
-|   | Rule       | rel-na-inv-close                                                               | [logrel/model]      | `refines_na_close`       |   |
-|   | Definition | $Δ \vDash e₁ \precsim e₂ : τ$                                                  | [logrel/model]      | `refines_def`            |   |
-|   | Definition | $\text{spec}(e)$                                                               | [prob_lang/spec_ra] | `⤇ e` (`spec_prog_frag`) |   |
-|   | Lemma      | $ι : \text{tape} ⊢ \text{flip} () ≅_{\text{ctx}} \text{flip}(ι) : \text{bool}$ | [examples/erasure]  | `flip_erasure_ctx`       |   |
+|     | Rule       | rel-couple-tape-l                                                                    | [logrel/rel_rules]             |                                           |      |
+|     | Rule       | rel-couple-tape-r                                                                    | [logrel/rel_rules]             |                                           |      |
+|     | Rule       | rel-couple-tapes                                                                     | [logrel/rel_rules]             | `refines_couple_tapes`                    |      |
+|     | Rule       | rel-na-inv-alloc                                                                     | [logrel/model]                 | `refines_na_alloc`                        |      |
+|     | Rule       | rel-na-inv-open                                                                      | [logrel/model]                 | `refines_na_inv`                          |      |
+|     | Rule       | rel-na-inv-close                                                                     | [logrel/model]                 | `refines_na_close`                        |      |
+|     | Definition | $Δ \vDash e₁ \precsim e₂ : τ$                                                        | [logrel/model]                 | `refines_def`                             |      |
+|     | Lemma      | bind rule for wp                                                                     | [program_logic/weakestpre]     | `wp_bind`                                 |      |
+|     | Definition | $\text{spec}(e)$                                                                     | [prob_lang/spec_ra]            | `⤇ e` (`spec_prog_frag`)                  |      |
+|     | Lemma      | $ι : \text{tape} ⊢ \text{flip} () ≅_{\text{ctx}} \text{flip}(ι) : \text{bool}$       | [examples/erasure]             | `flip_erasure_ctx`                        |      |
 
 (2) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
@@ -112,6 +113,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 [program_logic/ectx_language]: theories/program_logic/ectx_language.v
 [program_logic/ectxi_language]: theories/program_logic/ectxi_language.v
 [program_logic/exec]: theories/program_logic/exec.v
+[program_logic/weakestpre]: theories/program_logic/weakestpre.v
 [program_logic/language]: theories/program_logic/language.v
 [typing/contextual_refinement]: theories/typing/contextual_refinement.v
 [typing/soundness]: theories/typing/soundness.v
