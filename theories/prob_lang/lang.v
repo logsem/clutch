@@ -1033,8 +1033,11 @@ Next Obligation.
 Qed.
 *)
 
-Definition valid_add_int_to_tape (t1 : tape) (t2 : tape) (z : Z) : Prop :=
-  fst t1 = fst t2 /\ ( 0 <= z <= fst t1)%Z /\ snd t2 = (snd t1) ++ [z].
+Definition valid_add_int_to_tape (t : tape) (z : Z) : Prop :=
+  ( 0 <= z <= fst t)%Z.
+
+Definition add_int_to_tape (t : tape) (z : Z) : tape :=
+  let: (n', zs) := t in (n', zs ++ [z]).
 
 Fixpoint tape_step_pmf (n m : nat) (t1 : list Z) (t2 : list Z)  : R  :=
   if bool_decide (n = m) then

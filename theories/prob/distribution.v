@@ -481,6 +481,16 @@ Section monadic.
     (a' ← dret a; f a') = f a.
   Proof. apply distr_ext, dret_id_left_pmf. Qed.
 
+  Lemma dret_const (μ : distr A) (b : B) :
+    SeriesC μ = 1 ->
+    (a ← μ; dret b) = dret b.
+  Proof.
+    intro HSeries.
+    apply distr_ext; intro a.
+    rewrite {1}/pmf/=/dbind_pmf.
+    rewrite SeriesC_scal_r HSeries; lra.
+  Qed.
+
   Lemma dbind_dret_pmf_map (μ : distr A) (a : A) (f : A → B) `{Inj A B (=) (=) f} :
     (μ ≫= (λ a', dret (f a'))) (f a) = μ a.
   Proof.
