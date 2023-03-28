@@ -361,10 +361,16 @@ Lemma prim_coupl_step_prim m e1 σ1 α bs :
     eq.
 Proof.
   intros Hα.
-  rewrite state_step_fair_conv_comb; last first.
-  { apply elem_of_dom. eauto. }
-  rewrite fair_conv_comb_dbind.
-  do 2 rewrite dret_id_left.
+  rewrite /state_step.
+  rewrite bool_decide_eq_true_2; last first.
+  { apply elem_of_dom; auto. }
+  simpl.
+  rewrite (lookup_total_correct (tapes σ1) α bs); auto.
+  destruct bs; simpl.
+  rewrite /dmap.
+  rewrite -dbind_assoc.
+  erewrite dbind_ext_right; last first.
+  { intro. rewrite dret_id_left; auto. }
   by eapply prim_coupl_upd_tapes_dom.
 Qed.
 
