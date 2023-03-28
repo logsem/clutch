@@ -834,12 +834,13 @@ Qed.
 
 (* It is not clear if we want this with the valid int premise *)
 
-Lemma det_head_step_upd_tapes e1 σ1 e2 σ2 α z:
+Lemma det_head_step_upd_tapes e1 σ1 e2 σ2 α z n zs:
   det_head_step_rel e1 σ1 e2 σ2 →
+  tapes σ1 !! α = Some (n,zs) →
   (* valid_add_int_to_tape (σ1.(tapes) !!! α) z -> *)
   det_head_step_rel
-    e1 (state_upd_tapes <[α := add_int_to_tape (σ1.(tapes) !!! α) z]> σ1)
-    e2 (state_upd_tapes <[α := add_int_to_tape (σ2.(tapes) !!! α) z]> σ2).
+    e1 (state_upd_tapes <[α := (n, zs ++ [z])]> σ1)
+    e2 (state_upd_tapes <[α := (n, zs ++ [z])]> σ2).
 Proof. inversion 1; econstructor; eauto. Qed.
 
 Lemma head_step_alloc_unfold σ n:

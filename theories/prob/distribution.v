@@ -429,6 +429,19 @@ Proof.
   setoid_rewrite Hfg. done.
 Qed.
 
+
+Lemma dbind_ext_right `{Countable A, Countable B} (μ : distr A) (f g : A → distr B) :
+  (∀ a, f a = g a) →
+  dbind f μ = dbind g μ.
+Proof.
+  intro Heq.
+  apply distr_ext; intro a.
+  apply dbind_pmf_ext; auto.
+  intros; auto.
+  rewrite Heq; auto.
+Qed.
+
+
 #[global] Instance Proper_dbind `{Countable A, Countable B} :
   Proper (pointwise_relation A (=) ==> (=) ==> (=)) (@dbind A _ _ B _ _).
 Proof. intros ?? Hp ?? ->. f_equal. extensionality a. done. Qed.
@@ -562,6 +575,64 @@ Section monadic.
   Lemma dbind_assoc `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) :
     (a ← μ ; b ← f a; g b) = (b ← (a ← μ; f a); g b).
   Proof. apply distr_ext, dbind_assoc_pmf. Qed.
+
+  Lemma dbind_comm `{Countable B'} (f : A → B → distr B') (μ1 : distr A) (μ2 : distr B):
+    (a ← μ1 ; b ← μ2; f a b) = (b ← μ2; a ← μ1; f a b).
+  Proof.
+    apply distr_ext; intro b'.
+    rewrite /pmf/=/dbind_pmf.
+    erewrite SeriesC_ext; last first.
+    { intro; rewrite {2}/pmf/=/dbind_pmf/=.
+      rewrite -SeriesC_scal_l;
+      auto.
+    }
+    symmetry.
+    erewrite SeriesC_ext; last first.
+    { intro; rewrite {2}/pmf/=/dbind_pmf/=.
+      rewrite -SeriesC_scal_l.
+      erewrite SeriesC_ext; last first.
+      {
+        intro m.
+        rewrite -Rmult_assoc.
+        rewrite (Rmult_comm (μ2 n) (μ1 m)).
+        rewrite Rmult_assoc.
+        auto.
+      }
+      auto.
+    }
+    apply (fubini_pos_seriesC (λ '(a, b), μ1 a * (μ2 b * f a b b'))).
+    - intros.
+      apply Rmult_le_pos; auto.
+      apply Rmult_le_pos; auto.
+    - intro.
+      apply (ex_seriesC_le _ μ2); auto.
+      intro; split.
+      + apply Rmult_le_pos; auto.
+        apply Rmult_le_pos; auto.
+      + apply (Rle_trans _ (μ2 n * f a n b')).
+        * rewrite <- Rmult_1_l.
+          apply Rmult_le_compat; try lra; auto.
+          apply Rmult_le_pos; auto.
+        * rewrite <- Rmult_1_r.
+          apply Rmult_le_compat; try lra; auto.
+    - apply (ex_seriesC_le _ μ1); auto.
+      intro a; split; auto.
+      + apply SeriesC_ge_0'; intro.
+        apply Rmult_le_pos; auto.
+        apply Rmult_le_pos; auto.
+      + rewrite SeriesC_scal_l.
+        rewrite <- Rmult_1_r.
+        apply Rmult_le_compat; try lra; auto.
+        * apply SeriesC_ge_0'; intro.
+          apply Rmult_le_pos; auto.
+        * apply (Rle_trans _ (SeriesC μ2)); auto.
+          apply SeriesC_le; auto.
+          intro; split.
+          ++ apply Rmult_le_pos; auto.
+          ++ rewrite <- Rmult_1_r.
+             apply Rmult_le_compat; auto; lra.
+   Qed.
+
 
   Lemma dbind_pos_support (f : A → distr B) (μ : distr A) (b : B) :
     dbind f μ b > 0 ↔ ∃ a, f a b > 0 ∧ μ a > 0.
