@@ -179,6 +179,17 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
+  Lemma refines_flipU_r K E t A :
+    (∀ (b : bool), REL t << fill K (Val #b) @ E : A)
+    -∗ REL t << (fill K (flip #())) @ E : A.
+  Proof.
+    iIntros "Hlog".
+    iApply refines_step_r.
+    iIntros (k) "Hk".
+    tp_flip.
+    iModIntro. iExists _. iFrame. by iApply "Hlog".
+  Qed.
+
   (** This rule is useful for proving that functions refine each other *)
   Lemma refines_arrow_val (v v' : val) A A' :
     □(∀ v1 v2, A v1 v2 -∗
@@ -315,16 +326,16 @@ Section rules.
     by apply (refines_couple_tapes (Datatypes.id)).
   Qed.
 
-  Lemma refines_couple_tape_flip K' E α A bs e :
+  Lemma refines_couple_tape_flip f `{Bij bool bool f} K' E α A bs e :
     to_val e = None →
     α ↪ bs ∗
-      (∀ (b : bool), α ↪ (bs ++ [b]) -∗ REL e << fill K' (Val #b) @ E : A)
+      (∀ (b : bool), α ↪ (bs ++ [b]) -∗ REL e << fill K' (Val #(f b)) @ E : A)
     ⊢ REL e << fill K' (flip #()) @ E : A.
   Proof.
     iIntros (?) "[Hα Hcnt]".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_couple_tape_flip_eq; [done|done|].
+    wp_apply wp_couple_tape_flip; [done|done|].
     rewrite -fill_app.
     iFrame "Hs Hα Hspec".
     iIntros (b) "[Hα Hspec]".
@@ -380,7 +391,7 @@ Section rules.
     iApply "H".
   Qed.
 
-  Lemma refines_couple_flips_lr f `{Bij bool bool f} K K' E A :
+  Lemma refines_couple_flips f `{Bij bool bool f} K K' E A :
       (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #(f b)) @ E : A)
     ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
   Proof.
@@ -400,11 +411,11 @@ Section rules.
     iExists _. iFrame.
   Qed.
 
-  Corollary refines_couple_flips_lr_eq K K' E A :
+  Corollary refines_couple_flips_eq K K' E A :
       (∀ (b : bool), REL fill K (Val #b) << fill K' (Val #b) @ E : A)
     ⊢ REL fill K (flip #()) << fill K' (flip #()) @ E : A.
   Proof.
-    by iApply refines_couple_flips_lr.
+    by iApply refines_couple_flips.
   Qed.
 
   Lemma refines_flip_empty_l K E α A e :

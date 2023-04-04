@@ -68,7 +68,7 @@ Section proofs.
     set (vnc2 := vnc t2) ; unfold vnc in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
 
-    rel_apply refines_couple_flips_lr.
+    rel_apply refines_couple_flips.
     iIntros (b).
     rel_pures_l.
     rel_apply refines_flipU_l.
@@ -90,7 +90,7 @@ Section proofs.
     rel_pures_r. rel_pures_l.
     set (vnc2 := vnc_div t2) ; unfold vnc_div in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
-    rel_apply refines_couple_flips_lr_eq.
+    rel_apply refines_couple_flips_eq.
     iIntros (b).
     rel_pures_l.
     rel_apply refines_flipU_l.
@@ -155,7 +155,7 @@ Section proofs.
   Proof.
     rel_apply refines_flipU_l.
     iIntros (b).
-    rel_apply (refines_couple_flips_lr (if b then id else negb)).
+    rel_apply (refines_couple_flips (if b then id else negb)).
     iIntros (b').
     destruct b, b' => /=.
     all: rel_pures_l.
@@ -167,7 +167,7 @@ Section proofs.
   depends on the outcome of one flip. *)
   Goal ⊢ REL (let: "b" := flip #() in if: "b" = (flip #()) then "b" else "b") << flip #() : lrel_bool.
   Proof.
-    rel_apply refines_couple_flips_lr.
+    rel_apply refines_couple_flips.
     iIntros (b).
     rel_pures_l.
     rel_apply_l refines_flipU_l.

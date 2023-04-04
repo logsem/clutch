@@ -63,14 +63,12 @@ Section logical_ref.
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
-      rel_bind_l (flip _)%E.
-      rel_bind_r (flip _)%E.
-      iApply (refines_couple_flips_r with "[-$Hα]").
+      rel_apply (refines_couple_flips_r with "[-$Hα]").
       iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
-      iApply (refines_na_close with "[- $Hclose $Hα]").
-      iSplitL; [|rel_values].
+      iApply (refines_na_close with "[- $Hclose $Hα]");
+      iSplitL. 2: rel_values.
       iRight. iModIntro. iExists _. iFrame.
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
@@ -84,8 +82,7 @@ Section logical_ref.
   Proof.
     rewrite /lazy_with_tape /eager.
     rel_alloctape_l α as "Hα". rel_pures_l.
-    rel_bind_r (flip _)%E.
-    iApply (refines_couple_tape_flip with "[$Hα]"); [done|].
+    rel_apply_r (refines_couple_tape_flip with "[$Hα]"); [done|].
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.

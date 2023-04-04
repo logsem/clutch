@@ -57,7 +57,7 @@ Section logical_ref.
     rel_pures_l. rel_pures_r.
     foldxor.
     iDestruct "Hmsg" as "[%b [-> ->]]".
-    rel_apply (refines_couple_flips_lr (xor_sem b)).
+    rel_apply (refines_couple_flips (xor_sem b)).
     simpl.
     iIntros (k).
     rel_pures_l.
@@ -73,7 +73,7 @@ Section logical_ref.
     iIntros (msg1 msg2) "Hmsg".
     rel_pures_l. rel_pures_r.
     iDestruct "Hmsg" as "[%msg [-> ->]]".
-    rel_apply (refines_couple_flips_lr (xor_sem msg)) => /=.
+    rel_apply (refines_couple_flips (xor_sem msg)) => /=.
     iIntros (k).
     rel_pures_r.
     foldxor.
