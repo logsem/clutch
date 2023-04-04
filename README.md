@@ -1,6 +1,11 @@
 # Clutch
 A higher-order probabilistic relational separation logic with support for asynchronous probabilistic couplings. 
 
+## Preprint
+
+[Asynchronous Probabilistic Couplings in Higher-Order Separation Logic](https://arxiv.org/abs/2301.10061).
+
+
 ## Building the development
 
 The project is known to compile with
