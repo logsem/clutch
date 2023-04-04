@@ -103,51 +103,69 @@ Section proofs.
     - rel_values.
   Qed.
 
-  (* But unfortunately we can't even apply the divergence trick to the t4
-  biased coin, since we would have to decide on coupling the rhs flip with a
-  single flip on the left, but there's no single good choice. *)
+  (* We can construct a refinement coupling of vnc_div t4 and flip by
+     discarding weight of the recursive calls.
+
+     The biased coin t4 is represented by the following tree, where left
+     sub-branches correspond to the label evaluating to true (1) and right
+     branches correspond to false (0). *)
+(*   b0
+    / \
+   b1  b1
+  / \ / \
+ 1  0 0 0  *)
+  (* The vnc_div t4 program executes this tree twice and returns 1 if the two
+     results differ, and diverges otherwise. *)
+
+(*
+                             /--------- b0 ---------\
+                            b1                      b1
+                        ___/  \___              ___/  \___
+                       /         \             /         \
+1st run of t4:        1           0           0           0
+                      |           |           |           |
+                     b2          b2          b2          b2
+                     / \         / \         / \         / \
+                   b3   b3     b3   b3     b3   b3     b3   b3
+                  / \   / \   / \   / \   / \   / \   / \   / \
+2nd run of t4:   0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1
+                 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0
+
+   *)
   Goal ⊢ REL (vnc_div t4) << (λ:<>, flip #()) : lrel_unit → lrel_bool.
   Proof with try rel_pures_r ; try rel_pures_l.
     rewrite /vnc_div...
     iApply refines_arrow_val.
     iIntros "!#" (??) "#[-> ->]".
     rel_rec_l.
-    set (vnc4 := vnc_div t4) ; unfold vnc_div in vnc4 ; fold vnc4.
+    set (Ω := ((rec: "f" <> := "f" #()) #())%E).
     unfold t4...
-    rel_apply refines_couple_flips_lr.
-    iIntros (b)...
-    rel_apply_l refines_flipU_l.
-    iIntros (b')...
-    destruct b'...
-    - rel_apply_l refines_flipU_l.
-      iIntros (b')...
-      rel_apply_l refines_flipU_l.
-      iIntros (b'')...
-      destruct b''...
-      + case_bool_decide...
-        * iLöb as "H".
-          rel_rec_l.
-          iExact "H".
-        * rel_values.
-      + case_bool_decide...
-        * iLöb as "H".
-          rel_rec_l.
-          iExact "H".
-        * rel_values.
-    - rel_apply_l refines_flipU_l.
-      iIntros (b')...
-      rel_apply_l refines_flipU_l.
-      iIntros (b'')...
-      destruct b''...
-      + case_bool_decide...
-        * iLöb as "H".
-          rel_rec_l.
-          iExact "H".
-        * give_up.
-      + iLöb as "H".
-        rel_rec_l.
-        iExact "H".
-  Abort.
+    (* Case on the first lhs flip, don't couple anything. *)
+    rel_apply_l refines_flipU_l ; iIntros (b0) ; destruct b0 eqn:hb0...
+    - rel_apply (refines_couple_flips) ; iIntros (b1) ; destruct b1 eqn:hb1...
+      + rel_apply_l refines_flipU_l ; iIntros (b2) ; destruct b2 eqn:hb2...
+        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+          -- iLöb as "H".
+             rel_rec_l.
+             iExact "H".
+          -- rel_values.
+        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+          all: rel_values.
+      + rel_apply_l refines_flipU_l ; iIntros (b2) ; destruct b2 eqn:hb2...
+        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+          -- rel_values.
+          -- iLöb as "H".
+             rel_rec_l.
+             iExact "H".
+        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+          all: iLöb as "H" ; rel_rec_l ; iExact "H".
+    - rel_apply_l refines_flipU_l ; iIntros (b1) ; destruct b1 eqn:hb1...
+      all: rel_apply_l refines_flipU_l ; iIntros (b2) ; destruct b2 eqn:hb2...
+      all: rel_apply (refines_couple_flips negb) ; iIntros (b3) ; destruct b3 eqn:hb3...
+      1,5: rel_values.
+      all: iLöb as "H" ; rel_rec_l ; iExact "H".
+  Qed.
 
   (* A similar problem: no single flip on the left behaves like the rhs. But we
   can pick our coupling after evaluating the first flip! *)
