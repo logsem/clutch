@@ -99,7 +99,35 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | $Δ \vDash e₁ \precsim e₂ : τ$                                                        | [logrel/model]                 | `refines_def`                             |      |
 |     | Lemma      | bind rule for wp                                                                     | [program_logic/weakestpre]     | `wp_bind`                                 |      |
 |     | Definition | $\text{spec}(e)$                                                                     | [prob_lang/spec_ra]            | `⤇ e` (`spec_prog_frag`)                  |      |
+|     | Definition | $\text{specCtx}$                                                                     | [prob_lang/spec_ra]            | `spec_ctx`                                |      |
 |     | Lemma      | $ι : \text{tape} ⊢ \text{flip} () ≅_{\text{ctx}} \text{flip}(ι) : \text{bool}$       | [examples/erasure]             | `flip_erasure_ctx`                        |      |
+|     | Definition | ($R$-) coupling                                                                      | [prob/couplings]               | `isCoupl`, `isRcoupl`                     |      |
+|     | Lemma      | 6 (Composition of couplings)                                                         | [prob/couplings]               | `Rcoupl_dret`, `Rcoupl_dbind`             |      |
+|     | Lemma      | 7 (lifting of equality)                                                              | [prob/couplings]               | `Rcoupl_eq`                               |      |
+|     | Definition | weakest precondition                                                                 | [program_logic/weakestpre]     | `wp`, `wp_pre`                            |      |
+|     | Definition | execCoupl                                                                            | [program_logic/weakestpre]     | `exec_coupl`, `exec_couple_pre`           |      |
+|     | Rule       | execCoupl rule for $\text{step}(ρ_1) \sim \text{step}(ρ_1') : R$                     | [program_logic/weakestpre]     | `exec_coupl_prim_steps`                   |      |
+|     | Rule       | execCoupl rule for $\text{ret}(ρ_1) \sim \text{step}(ρ_1') : R$                      | [program_logic/weakestpre]     | `exec_coupl_prim_step_l`                  |      |
+|     | Definition | *state step* relation                                                                | [prob_lang/lang]               | `state_step`, `state_step_pmf`            |      |
+|     | Rule       | execCoupl rule for $\text{step}_ι(σ_1) \sim \text{step}(ρ_1') : R$                   | [program_logic/weakestpre]     | `exec_coupl_state_prim`                   |      |
+|     | Rule       | spec-pure                                                                            | [prob_lang/spec_rules]         | `step_pure`                               |      |
+|     | Definition | $\text{spec}_\circ(ρ)$                                                               | [prob_lang/spec_ra]            | `spec_prog_frag`                          |      |
+|     | Definition | $\text{specInterp}_\bullet(ρ)$                                                       | [prob_lang/spec_ra]            | `spec_interp_auth`                        |      |
+|     | Definition | specInv                                                                              | [prob_lang/spec_ra]            | `spec_inv`                                |      |
+|     | Definition | specCtx                                                                              | [prob_lang/spec_ra]            | `spec_ctx`                                |      |
+|     | Definition | $G(ρ)$ and $S(ρ)$ as used in \text${wp}$                                             | [prob_lang/primitive_laws]     | `prelocGS_irisGS`                         |      |
+|     | Definition | 8 (Refinement Coupling)                                                              | [prob/couplings]               | `isRefCoupl`                              |      |
+|     | Definition | R-refinement-coupling                                                                | [prob/couplings]               | `isRefRcoupl`                             |      |
+|     | Lemma      | 9                                                                                    | [prob/couplings]               | `Rcoupl_refRcoupl`                        |      |
+|     | Lemma      | 10                                                                                   | [prob/couplings]               | `refRcoupl_eq_elim`                       |      |
+|     | Theorem    | 11 (Adequacy)                                                                        | [prob_lang/adequacy]           | `wp_refRcoupl`                            |      |
+|     | Lemma      | 12 (Erasure)                                                                         | [prob_lang/erasure]            | `prim_coupl_step_prim`                    |      |
+|     | Definition | Contextual closure of refinement                                                     | [typing/interp]                | `bin_log_related`                         |      |
+|     | Rule       | flip-compat                                                                          | [logrel/compatibility]         | `refines_flip`                            |      |
+|     | Theorem    | 13 (Fundamental theorem)                                                             | [typing/fundamental]           | `fundamental`                             |      |
+|     | Theorem    | 14 (Soundness)                                                                       | [typing/soundness]             | `refines_sound`                           |      |
+| VI  | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
+|     | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
 
 (2) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
