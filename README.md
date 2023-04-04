@@ -134,20 +134,30 @@ You should now be able build the development by using `make -j N` where `N` is t
 (1) `pack` for existential types has no operational meaning, and thus `pack e` simply stands for `e`. The requirement for `R` to be persistent in the `rel-pack` rule is reflected in the code by the fact that logical relations are defined as persistent predicates (see [logrel/model]).
 
 
+[examples/erasure]: theories/examples/erasure.v
+[examples/hash]: theories/examples/hash.v
 [examples/lazy_eager_coin]: theories/examples/lazy_eager_coin.v
+[examples/lazy_int]: theories/examples/lazy_int.v
+[logrel/compatibility]: theories/logrel/compatibility.v
+[logrel/model]: theories/logrel/model.v
 [logrel/rel_rules]: theories/logrel/rel_rules.v
+[prob/couplings]: theories/prob/couplings.v
 [prob/distribution]: theories/prob/distribution.v
+[prob_lang/adequacy]: theories/prob_lang/adequacy.v
+[prob_lang/erasure]: theories/prob_lang/erasure.v
 [prob_lang/lang]: theories/prob_lang/lang.v
+[prob_lang/primitive_laws]: theories/prob_lang/primitive_laws.v
+[prob_lang/spec_ra]: theories/prob_lang/spec_ra.v
+[prob_lang/spec_rules]: theories/prob_lang/spec_rules.v
 [program_logic/ectx_language]: theories/program_logic/ectx_language.v
 [program_logic/ectxi_language]: theories/program_logic/ectxi_language.v
 [program_logic/exec]: theories/program_logic/exec.v
-[program_logic/weakestpre]: theories/program_logic/weakestpre.v
 [program_logic/language]: theories/program_logic/language.v
+[program_logic/weakestpre]: theories/program_logic/weakestpre.v
 [typing/contextual_refinement]: theories/typing/contextual_refinement.v
+[typing/fundamental]: theories/typing/fundamental.v
+[typing/interp]: theories/typing/interp.v
 [typing/soundness]: theories/typing/soundness.v
 [typing/types]: theories/typing/types.v
-[prob_lang/primitive_laws]: theories/prob_lang/primitive_laws.v
-[prob_lang/spec_ra]: theories/prob_lang/spec_ra.v
-[logrel/model]: theories/logrel/model.v
 
 [iris upstream]: https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v
