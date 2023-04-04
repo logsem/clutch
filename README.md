@@ -50,15 +50,13 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | $\mathbf{F}_{\mu{},\text{ref}}^\text{flip}$                                          | [prob_lang/lang]               | `expr`, `val`, `state`, `cfg`             |      |
 |     | Definition | types *τ*                                                                            | [typing/types]                 | `type`                                    |      |
 |     | Definition | CBV step relation ⟶                                                                  | [program_logic/ectx_language]  | `prim_step` (by lifting `head_step`)      |      |
-|     | Definition | CBV step relation ⟶                                                                  | [program_logic/ectx_language]  | `prim_step` (by lifting `head_step`)      |      |
-|     | Aux. def.  | CBV step relation ⟶                                                                  | [program_logic/ectx_language]  | `state_step`                              |      |
-|     |            |                                                                                      | [prob_lang/lang]               | `head_step`                               |      |
+|     | Aux. def.  | stepping relation for top redices                                                    | [prob_lang/lang]               | `head_step`                               |      |
 |     | Aux. def.  | evaluation context                                                                   | [program_logic/ectxi_language] | `ectx = list ectx_item`                   |      |
 |     | Aux. def.  | evaluation ctx. item                                                                 | [prob_lang/lang]               | `ectx_item`                               |      |
 |     | Definition | $\text{exec}_n(e,σ)$                                                                 | [program_logic/exec]           | `exec`                                    |      |
 |     | Definition | $\text{exec}_\Downarrow{}(ρ)$                                                        | [program_logic/exec]           | `lim_exec_val`                            |      |
-|     | Rule       | t-tape                                                                               | [typing/types]                 | `TAllocTape` (part of `typed`)            |      |
-|     | Rule       | t-flip                                                                               | [typing/types]                 | `TFlip`, `TFlipU` (part of `typed`)       |      |
+|     | Rule       | $\text{\scriptsize T-TAPE}$                                                          | [typing/types]                 | `TAllocTape` (part of `typed`)            |      |
+|     | Rule       | $\text{\scriptsize T-FLIP}$                                                          | [typing/types]                 | `TFlip`, `TFlipU` (part of `typed`)       |      |
 |     | Definition | program context                                                                      | [typing/contextual_refinement] | `ctx_item`                                |      |
 |     | Definition | typed prog. context                                                                  | [typing/contextual_refinement] | `typed_ctx_item`                          |      |
 |     | Definition | contextual refinement                                                                | [typing/contextual_refinement] | `ctx_refines`                             |      |
@@ -71,35 +69,33 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | Value interperation $⟦ τ ⟧_Δ(-,-)$                                                   | [typing/interp]                | `interp`                                  |      |
 |     | Definition | Value interperation $⟦ τ ⟧_Δ(-,-)$                                                   | [logrel/model]                 | `lrel_bool`, `lrel_ref`, `lrel_tape`, etc |      |
 |     | Definition | $e₁ \overset{\mathrm{pure}}{\rightsquigarrow} e₂$                                    | [program_logic/language]       | `PureExec`                                |      |
-|     | Rule       | rel-pure-l                                                                           | [logrel/rel_rules]             | `refines_pure_l`                          |      |
-|     | Rule       | rel-pure-r                                                                           | [logrel/rel_rules]             | `refines_pure_r`                          |      |
-|     | Rule       | rel-alloc-l                                                                          | [logrel/rel_rules]             | `refines_alloc_l`                         |      |
-|     | Rule       | rel-alloc-r                                                                          | [logrel/rel_rules]             | `refines_alloc_r`                         |      |
-|     | Rule       | rel-load-l                                                                           | [logrel/rel_rules]             | `refines_load_l`                          |      |
-|     | Rule       | rel-load-r                                                                           | [logrel/rel_rules]             | `refines_load_r`                          |      |
-|     | Rule       | rel-store-l                                                                          | [logrel/rel_rules]             | `refines_store_l`                         |      |
-|     | Rule       | rel-store-r                                                                          | [logrel/rel_rules]             | `refines_store_r`                         |      |
-|     | Rule       | rel-pack                                                                             | [logrel/compatibility]         | `refines_pack`                            | (1)  |
-|     | Rule       | rel-return                                                                           | [logrel/model]                 | `refines_ret`                             |      |
-|     | Rule       | rel-bind                                                                             | [logrel/model]                 | `refines_bind`                            |      |
-|     | Rule       | rel-flip-l                                                                           | [logrel/rel_rules]             | `refines_flipU_l`                         |      |
-|     | Rule       | rel-alloc-tape-l                                                                     | [logrel/rel_rules]             | `refines_alloctape_l`                     |      |
-|     | Rule       | rel-alloc-tape-r                                                                     | [logrel/rel_rules]             | `refines_alloctape_r`                     |      |
-|     | Rule       | rel-flip-tape-l                                                                      | [logrel/rel_rules]             | `refines_flip_l`                          |      |
-|     | Rule       | rel-flip-tape-r                                                                      | [logrel/rel_rules]             | `refines_flip_r`                          |      |
-|     | Rule       | rel-flip-tape-empty-l                                                                | [logrel/rel_rules]             | `refines_flip_empty_l`                    |      |
-|     | Rule       | rel-flip-tape-empty-r                                                                | [logrel/rel_rules]             | `refines_flip_empty_r`                    |      |
-|     | Rule       | rel-couple-flips                                                                     | [logrel/rel_rules]             | `refines_couple_flips`                    |      |
-|     | Rule       | rel-couple-tape-l                                                                    | [logrel/rel_rules]             |                                           |      |
-|     | Rule       | rel-couple-tape-r                                                                    | [logrel/rel_rules]             |                                           |      |
-|     | Rule       | rel-couple-tapes                                                                     | [logrel/rel_rules]             | `refines_couple_tapes`                    |      |
-|     | Rule       | rel-na-inv-alloc                                                                     | [logrel/model]                 | `refines_na_alloc`                        |      |
-|     | Rule       | rel-na-inv-open                                                                      | [logrel/model]                 | `refines_na_inv`                          |      |
-|     | Rule       | rel-na-inv-close                                                                     | [logrel/model]                 | `refines_na_close`                        |      |
+|     | Rule       | $\text{\scriptsize REL-PURE-L}$                                                      | [logrel/rel_rules]             | `refines_pure_l`                          |      |
+|     | Rule       | $\text{\scriptsize REL-PURE-R}$                                                      | [logrel/rel_rules]             | `refines_pure_r`                          |      |
+|     | Rule       | $\text{\scriptsize REL-ALLOC-L}$                                                     | [logrel/rel_rules]             | `refines_alloc_l`                         |      |
+|     | Rule       | $\text{\scriptsize REL-ALLOC-R}$                                                     | [logrel/rel_rules]             | `refines_alloc_r`                         |      |
+|     | Rule       | $\text{\scriptsize REL-LOAD-L}$                                                      | [logrel/rel_rules]             | `refines_load_l`                          |      |
+|     | Rule       | $\text{\scriptsize REL-LOAD-R}$                                                      | [logrel/rel_rules]             | `refines_load_r`                          |      |
+|     | Rule       | $\text{\scriptsize REL-STORE-L}$                                                     | [logrel/rel_rules]             | `refines_store_l`                         |      |
+|     | Rule       | $\text{\scriptsize REL-STORE-R}$                                                     | [logrel/rel_rules]             | `refines_store_r`                         |      |
+|     | Rule       | $\text{\scriptsize REL-PACK}$                                                        | [logrel/compatibility]         | `refines_pack`                            | (1)  |
+|     | Rule       | $\text{\scriptsize REL-RETURN}$                                                      | [logrel/model]                 | `refines_ret`                             |      |
+|     | Rule       | $\text{\scriptsize REL-BIND}$                                                        | [logrel/model]                 | `refines_bind`                            |      |
+|     | Rule       | $\text{\scriptsize REL-FLIP-L}$                                                      | [logrel/rel_rules]             | `refines_flipU_l`                         |      |
+|     | Rule       | $\text{\scriptsize REL-ALLOC-TAPE-L}$                                                | [logrel/rel_rules]             | `refines_alloctape_l`                     |      |
+|     | Rule       | $\text{\scriptsize REL-ALLOC-TAPE-R}$                                                | [logrel/rel_rules]             | `refines_alloctape_r`                     |      |
+|     | Rule       | $\text{\scriptsize REL-FLIP-TAPE-L}$                                                 | [logrel/rel_rules]             | `refines_flip_l`                          |      |
+|     | Rule       | $\text{\scriptsize REL-FLIP-TAPE-R}$                                                 | [logrel/rel_rules]             | `refines_flip_r`                          |      |
+|     | Rule       | $\text{\scriptsize REL-FLIP-TAPE-EMPTY-L}$                                           | [logrel/rel_rules]             | `refines_flip_empty_l`                    |      |
+|     | Rule       | $\text{\scriptsize REL-FLIP-TAPE-EMPTY-R}$                                           | [logrel/rel_rules]             | `refines_flip_empty_r`                    |      |
+|     | Rule       | $\text{\scriptsize REL-COUPLE-FLIPS}$                                                | [logrel/rel_rules]             | `refines_couple_flips`                    |      |
+|     | Rule       | $\text{\scriptsize REL-COUPLE-TAPE-L}$                                               | [logrel/rel_rules]             |                                           |      |
+|     | Rule       | $\text{\scriptsize REL-COUPLE-TAPE-R}$                                               | [logrel/rel_rules]             |                                           |      |
+|     | Rule       | $\text{\scriptsize REL-COUPLE-TAPES}$                                                | [logrel/rel_rules]             | `refines_couple_tapes`                    |      |
+|     | Rule       | $\text{\scriptsize REL-NA-INV-ALLOC}$                                                | [logrel/model]                 | `refines_na_alloc`                        |      |
+|     | Rule       | $\text{\scriptsize REL-NA-INV-OPEN}$                                                 | [logrel/model]                 | `refines_na_inv`                          |      |
+|     | Rule       | $\text{\scriptsize REL-NA-INV-CLOSE}$                                                | [logrel/model]                 | `refines_na_close`                        |      |
 |     | Definition | $Δ \vDash e₁ \precsim e₂ : τ$                                                        | [logrel/model]                 | `refines_def`                             |      |
 |     | Lemma      | bind rule for wp                                                                     | [program_logic/weakestpre]     | `wp_bind`                                 |      |
-|     | Definition | $\text{spec}(e)$                                                                     | [prob_lang/spec_ra]            | `⤇ e` (`spec_prog_frag`)                  |      |
-|     | Definition | $\text{specCtx}$                                                                     | [prob_lang/spec_ra]            | `spec_ctx`                                |      |
 |     | Lemma      | $ι : \text{tape} ⊢ \text{flip} () ≅_{\text{ctx}} \text{flip}(ι) : \text{bool}$       | [examples/erasure]             | `flip_erasure_ctx`                        |      |
 |     | Definition | ($R$-) coupling                                                                      | [prob/couplings]               | `isCoupl`, `isRcoupl`                     |      |
 |     | Lemma      | 6 (Composition of couplings)                                                         | [prob/couplings]               | `Rcoupl_dret`, `Rcoupl_dbind`             |      |
@@ -111,11 +107,11 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | *state step* relation                                                                | [prob_lang/lang]               | `state_step`, `state_step_pmf`            |      |
 |     | Rule       | execCoupl rule for $\text{step}_ι(σ_1) \sim \text{step}(ρ_1') : R$                   | [program_logic/weakestpre]     | `exec_coupl_state_prim`                   |      |
 |     | Rule       | spec-pure                                                                            | [prob_lang/spec_rules]         | `step_pure`                               |      |
-|     | Definition | $\text{spec}_\circ(ρ)$                                                               | [prob_lang/spec_ra]            | `spec_prog_frag`                          |      |
+|     | Definition | $\text{spec}_\circ(ρ)$                                                               | [prob_lang/spec_ra]            | `⤇ e` (`spec_prog_frag`)                  |      |
 |     | Definition | $\text{specInterp}_\bullet(ρ)$                                                       | [prob_lang/spec_ra]            | `spec_interp_auth`                        |      |
 |     | Definition | specInv                                                                              | [prob_lang/spec_ra]            | `spec_inv`                                |      |
 |     | Definition | specCtx                                                                              | [prob_lang/spec_ra]            | `spec_ctx`                                |      |
-|     | Definition | $G(ρ)$ and $S(ρ)$ as used in \text${wp}$                                             | [prob_lang/primitive_laws]     | `prelocGS_irisGS`                         |      |
+|     | Definition | $G(ρ)$ and $S(ρ)$ as used in $\text{wp}$                                             | [prob_lang/primitive_laws]     | `prelocGS_irisGS`                         |      |
 |     | Definition | 8 (Refinement Coupling)                                                              | [prob/couplings]               | `isRefCoupl`                              |      |
 |     | Definition | R-refinement-coupling                                                                | [prob/couplings]               | `isRefRcoupl`                             |      |
 |     | Lemma      | 9                                                                                    | [prob/couplings]               | `Rcoupl_refRcoupl`                        |      |
@@ -123,15 +119,16 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Theorem    | 11 (Adequacy)                                                                        | [prob_lang/adequacy]           | `wp_refRcoupl`                            |      |
 |     | Lemma      | 12 (Erasure)                                                                         | [prob_lang/erasure]            | `prim_coupl_step_prim`                    |      |
 |     | Definition | Contextual closure of refinement                                                     | [typing/interp]                | `bin_log_related`                         |      |
-|     | Rule       | flip-compat                                                                          | [logrel/compatibility]         | `refines_flip`                            |      |
+|     | Rule       | $\text{\scriptsize FLIP-COMPAT}$                                                     | [logrel/compatibility]         | `refines_flip`                            |      |
 |     | Theorem    | 13 (Fundamental theorem)                                                             | [typing/fundamental]           | `fundamental`                             |      |
 |     | Theorem    | 14 (Soundness)                                                                       | [typing/soundness]             | `refines_sound`                           |      |
 | VI  | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
 |     | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
 
-(2) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
 (1) `pack` for existential types has no operational meaning, and thus `pack e` simply stands for `e`. The requirement for `R` to be persistent in the `rel-pack` rule is reflected in the code by the fact that logical relations are defined as persistent predicates (see [logrel/model]).
+
+(2) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
 
 [examples/erasure]: theories/examples/erasure.v
