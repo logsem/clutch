@@ -379,6 +379,66 @@ Tactic Notation "tp_flip" :=
   |simpl; reflexivity || fail "tp_flip: this should not happen"
   |pm_reduce (* new goal *)].
 
+(* helper lemma to apply wp_flipU_r, similar to tac_tp_flip  *)
+Lemma tac_tp_flipU `{prelocGS Σ} k Δ1 E i1 K' e t Φ :
+  (* shouldn't be required because it holds for Q = WP ... *)
+  (* (∀ P, ElimModal True false false (|={E}=> P) P Q Q) → *)
+  to_val t = None →
+  nclose specN ⊆ E →
+  envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
+  e = fill K' (Flip #()) →
+  (forall (b : bool), exists e2,
+      e2 = fill K' (of_val #b) /\
+      match envs_simple_replace i1 false
+              (Esnoc Enil i1 (refines_right k e2))%I Δ1 with
+      | Some Δ3 => envs_entails Δ3 (WP t @ E {{ Φ }})
+      | None    => False
+      end) →
+  envs_entails Δ1 (WP t @ E {{ Φ }}).
+Proof.
+  rewrite envs_entails_unseal. intros ??? -> HQ.
+  rewrite envs_lookup_sound //; simpl.
+  epose proof (λ x y, eq_refl (refines_right x y)) as rr_def.
+  rewrite {1}/refines_right in rr_def.
+  rewrite /refines_right -fill_app.
+  rewrite rr_def.
+  eapply (bi.wand_apply emp) ;
+    [ iIntros "??" ; iApply (wp_flipU_r' _ _ (K' ++ k)) => // | ].
+  rewrite (assoc _ spec_ctx).
+  rewrite rr_def.
+  rewrite assoc.
+  rewrite (comm _ bi_emp). rewrite -assoc.
+  set (Δ2 := of_envs _).
+  rewrite left_id.
+  set (rr := refines_right _ _).
+  set (P := (∀ _ , _)%I).
+  apply bi.sep_mono_r.
+  iIntros "Δ2" (b) "rr".
+  rewrite rr_def.
+  specialize (HQ b).
+  destruct HQ as [e2 [He2 HQ]].
+  rewrite He2 in HQ.
+  destruct envs_simple_replace as [Δ3|] eqn:H13 ; [|contradiction].
+  iApply HQ.
+  apply envs_simple_replace_singleton_sound' in H13.
+  subst. subst Δ2.
+  iApply (H13 with "Δ2").
+  rewrite /refines_right -fill_app. iFrame.
+Qed.
+
+
+Tactic Notation "tp_flipU" ident(b) :=
+  iStartProof;
+  eapply tac_tp_flipU;
+  [done || fail "tp_flipU: cannot prove 'to_val ? = None'"
+  |solve_ndisj || fail "tp_flipU: cannot prove 'nclose specN ⊆ ?'"
+  |iAssumptionCore || fail "tp_flipU: cannot find the RHS"
+  |tp_bind_helper
+  |(intros b
+    ; eexists
+    ; split
+    ; [reflexivity
+      | pm_reduce]) (* new goal *)].
 
 (* *)
 (* (**************************) *)

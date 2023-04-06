@@ -86,6 +86,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Rule       | $\text{\scriptsize REL-RETURN}$                                                      | [logrel/model]                 | `refines_ret`                             |      |
 |     | Rule       | $\text{\scriptsize REL-BIND}$                                                        | [logrel/model]                 | `refines_bind`                            |      |
 |     | Rule       | $\text{\scriptsize REL-FLIP-L}$                                                      | [logrel/rel_rules]             | `refines_flipU_l`                         |      |
+|     | Rule       | $\text{\scriptsize REL-FLIP-R}$                                                      | [logrel/rel_rules]             | `refines_flipU_r`                         |      |
 |     | Rule       | $\text{\scriptsize REL-ALLOC-TAPE-L}$                                                | [logrel/rel_rules]             | `refines_alloctape_l`                     |      |
 |     | Rule       | $\text{\scriptsize REL-ALLOC-TAPE-R}$                                                | [logrel/rel_rules]             | `refines_alloctape_r`                     |      |
 |     | Rule       | $\text{\scriptsize REL-FLIP-TAPE-L}$                                                 | [logrel/rel_rules]             | `refines_flip_l`                          |      |

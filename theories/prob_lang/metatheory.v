@@ -516,6 +516,28 @@ Proof.
     + simplify_map_eq.
 Qed.
 
+(** * e1 ~ flip() coupling *)
+(* essentially the same proof as Rcoupl_flip_empty_r *)
+Lemma Rcoupl_flipU_r (ρ1 : cfg) σ1' :
+  Rcoupl
+    (dret ρ1)
+    (prim_step (Flip (Val $ #())) σ1')
+    (λ ρ2 ρ2', ∃ (b : bool), ρ2 = ρ1 ∧ ρ2' = (Val #b, σ1')).
+Proof.
+  assert (head_reducible (flip #()) σ1') as hr.
+  { econstructor.
+    apply head_step_support_equiv_rel.
+    apply (FlipNoTapeS inhabitant). }
+  rewrite head_prim_step_eq //.
+  eapply Rcoupl_weaken.
+  - apply Rcoupl_pos_R. apply Rcoupl_trivial.
+    all: auto using dret_mass, head_step_mass.
+  - intros ? [] (_ & hh%dret_pos & ?).
+    inv_head_step.
+    destruct_or?.
+    + inv_head_step. eauto.
+Qed.
+
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
 | RecDS f x e σ :

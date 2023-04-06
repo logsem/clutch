@@ -100,13 +100,13 @@ Section rules.
   Qed.
 
   (* Variant of refines_step_r that doesn't require full evaluation. *)
-  (* NB: refines_step_r doesn't require e2 as input but existentially
+  (* NB: refines_step_r only requires e2 as input but existentially
      quantifies v, which is important e.g. in refines_alloc_r, where v is
-     freshly generated. If e2 is known, this variant can be used instead *)
-  Lemma refines_steps_r E e t t' A K' :
-    (∀ K, (refines_right K t ={⊤}=∗ refines_right K t'))
-    -∗ (|={⊤}=> REL e << ectxi_language.fill K' t' @ E : A)
-    -∗ REL e << ectxi_language.fill K' t @ E : A.
+     freshly generated. If e2' is known, this variant can be used instead *)
+  Lemma refines_steps_r E e1 e2 e2' A K' :
+    (∀ K, (refines_right K e2 ={⊤}=∗ refines_right K e2'))
+    -∗ (|={⊤}=> REL e1 << ectxi_language.fill K' e2' @ E : A)
+    -∗ REL e1 << ectxi_language.fill K' e2 @ E : A.
   Proof.
     iIntros "upd >Hlog".
     rewrite refines_eq /refines_def.
@@ -179,15 +179,15 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_flipU_r K E t A :
+  Lemma refines_flipU_r K E t A (_ : to_val t = None) :
     (∀ (b : bool), REL t << fill K (Val #b) @ E : A)
     -∗ REL t << (fill K (flip #())) @ E : A.
   Proof.
     iIntros "Hlog".
-    iApply refines_step_r.
-    iIntros (k) "Hk".
-    tp_flip.
-    iModIntro. iExists _. iFrame. by iApply "Hlog".
+    rewrite refines_eq /refines_def.
+    iIntros (?) "??" ; simpl.
+    tp_flipU b.
+    iApply ("Hlog" with "[$] [$]").
   Qed.
 
   (** This rule is useful for proving that functions refine each other *)

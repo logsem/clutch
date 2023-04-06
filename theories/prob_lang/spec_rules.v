@@ -533,4 +533,71 @@ Section rules.
     iModIntro. done.
   Qed.
 
+  (* This is extremely similar to wp_flip_empty_r. *)
+  Lemma wp_flipU_r E e K Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flip #()) ∗
+    ((spec_ctx ∗ ∃ b : bool, ⤇ fill K #b) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (He HE) "(#Hinv & Hj & Hwp)".
+    (* Idea: Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
+    (* We do not want to execute a [prim_step] on the left. We merely rely on
+    the fact that we *could* step (because to_val e = None) in order to appeal
+    to [Hwp]. *)
+    iApply lifting.wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
+    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    (* Do a coupled [prim_step] on the right *)
+    iApply (exec_coupl_exec_r).
+    iExists (λ _ '(e2', σ2'), ∃ (b : bool), (e2', σ2') = (fill K #b, σ0')).
+    iExists 1.
+    iSplit.
+    { iPureIntro.
+      rewrite /exec /=.
+      rewrite dret_id_right.
+      rewrite /prim_step_or_val /=.
+      rewrite fill_not_val //.
+      rewrite fill_prim_step_dbind //.
+      replace (dret _) with (dbind dret (dret (e, σ1))) by now rewrite dret_id_right.
+      unshelve eapply Rcoupl_dbind ; simpl.
+      1: exact (λ ρ2 ρ2', ∃ b : bool, ρ2 = (e, σ1) /\ ρ2' = (Val #b, σ0')).
+      { intros ? (e' & s') (b & ? & HH).
+        apply Rcoupl_dret. rewrite /fill_lift /=. exists b. by inversion HH. }
+      apply Rcoupl_flipU_r => //.
+    }
+    iIntros (σ2 e2' (b & [= -> ->])).
+    iMod (spec_interp_update (fill K #b, σ0') with "Hspec Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #b) with "Hauth Hj") as "[Hauth Hj]".
+    simplify_map_eq.
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" with "[Hj]").
+    { iSplitR. 1: done. iExists _. iFrame. }
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! _ with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
+    iModIntro. done.
+  Qed.
+
+  Corollary wp_flipU_r' E e K Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flip #()) ∗
+    (∀ b : bool, ((spec_ctx ∗ ⤇ fill K #b) -∗ WP e @ E {{ Φ }}))
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??) "(#Hs & Hp & Hwp)".
+    iApply (wp_flipU_r _ _ K) => //.
+    iFrame. iFrame "Hs". iIntros "[_ H]". iDestruct "H" as "[%b Hb]".
+    iApply "Hwp". iFrame. iAssumption.
+  Qed.
+
 End rules.
