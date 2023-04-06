@@ -506,6 +506,8 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   do 10 f_equiv.
+  (* If this proof breaks with iris > 4.0.0, check the changelog for
+  dist_later. Using f_contractive_fin instead of f_contractive might work. *)
   { f_equiv. do 2 case_match. f_contractive. do 3 f_equiv.
     rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ. }
   { case_match. f_contractive. do 3 f_equiv.
