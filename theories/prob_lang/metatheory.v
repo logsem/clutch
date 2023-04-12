@@ -21,13 +21,13 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | Val v => is_closed_val v
   | Var x => bool_decide (x ∈ X)
   | Rec f x e => is_closed_expr (set_binder_insert f (set_binder_insert x X)) e
-  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Alloc e | Load e | Flip e =>
+  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Alloc e | Load e | Sample e =>
      is_closed_expr X e
   | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | Store e1 e2 =>
      is_closed_expr X e1 && is_closed_expr X e2
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
-  | AllocTape _ => true
+  | AllocTape e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
   match v with
@@ -56,8 +56,8 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Alloc e => Alloc (subst_map vs e)
   | Load e => Load (subst_map vs e)
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
-  | AllocTape n => AllocTape n
-  | Flip e => Flip (subst_map vs e)
+  | AllocTape e => AllocTape (subst_map vs e)
+  | Sample e => Sample (subst_map vs e)
   end.
 
 
@@ -225,7 +225,7 @@ Local Open Scope R.
 
 Lemma head_step_flip_nonempty_unfold σ l n z zs :
   σ.(tapes) !! l = Some (n, z :: zs) →
-  head_step (flip #lbl:l) σ = dret (Val (LitV (LitInt z)), state_upd_tapes <[l:=(n,zs)]> σ).
+  head_step (sample #lbl:l) σ = dret (Val (LitV (LitInt z)), state_upd_tapes <[l:=(n,zs)]> σ).
 Proof.
   intro Hσ.
   apply distr_ext.
@@ -243,28 +243,31 @@ Proof.
 Qed.
 
 Lemma head_step_flip_no_tape_unfold σ  :
-  head_step (flip #()) σ = fair_conv_comb (dret (Val #true, σ)) (dret (Val #false, σ)).
+  head_step (sample #()) σ = fair_conv_comb (dret (Val #0, σ)) (dret (Val #1, σ)).
 Proof.
   apply distr_ext. intros [e σ'].
   rewrite fair_conv_comb_pmf.
   rewrite head_step_pmf_eq.
   rewrite /pmf /= /dret_pmf.
   case_bool_decide; last first.
-  { rewrite ?bool_decide_eq_false_2;
-      [repeat case_match; lra| |]; intros [=]; simplify_eq. }
+  { case_bool_decide.
+    + simplify_eq.
+      rewrite bool_decide_eq_true_2; try lra.
+      split; auto; lia.
+    + repeat case_match; try lra.
+      apply bool_decide_eq_true_1 in H4 as (H4 & H5).
+      destruct H5.
+    - repeat case_match; try lra.
+      assert (n=0%Z \/ n=1%Z) as [? | ?]; [lia | | ]; simplify_eq.
+  }
   simplify_eq.
-  do 3
-    (case_match;
-    try by (rewrite ?bool_decide_eq_false_2;
-            [repeat case_match;lra | |]; intros [=]; simplify_eq)).
-  destruct b.
-  - rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2 //. lra.
-  - rewrite bool_decide_eq_false_2 // bool_decide_eq_true_2 //. lra.
+  rewrite bool_decide_eq_true_2; [ | split; auto; try lia].
+  rewrite bool_decide_eq_false_2; [lra | auto ].
 Qed.
 
 Lemma head_step_flip_empty_unfold σ l n :
   σ.(tapes) !! l = Some (n, []) →
-  head_step (flip #lbl:l) σ = dmap (λ m, (Val (LitV (LitInt (Z.of_nat m))), σ)) (unif_distr n).
+  head_step (sample #lbl:l) σ = dmap (λ m, (Val (LitV (LitInt (Z.of_nat m))), σ)) (unif_distr n).
 Proof.
   intro Hσ. apply distr_ext. intros [e σ'].
   symmetry.
@@ -289,9 +292,18 @@ Proof.
     lia.
 Qed.
 
+
+Lemma head_step_flip_int_unfold σ z :
+  head_step (Sample (Val (LitV (LitInt z)))) σ = dmap (λ m, (Val (LitV (LitInt (Z.of_nat m))), σ)) (unif_distr (Z.to_nat z)).
+Proof.
+  apply distr_ext. intros [e σ'].
+  rewrite head_step_pmf_eq.
+  auto.
+Qed.
+
 Lemma head_step_flip_unalloc_unfold σ l  :
   σ.(tapes) !! l = None →
-  head_step (flip #lbl:l) σ = fair_conv_comb (dret (Val #1, σ)) (dret (Val #0, σ)).
+  head_step (sample #lbl:l) σ = fair_conv_comb (dret (Val #1, σ)) (dret (Val #0, σ)).
 Proof.
   intro Hσ. apply distr_ext. intros [e σ'].
   rewrite head_step_pmf_eq.
@@ -355,14 +367,15 @@ Proof.
     + exists false. rewrite Hf1 //.
 Qed.
 
-(** * flip(α) ~ flip(α') coupling *)
+(* Maybe need to change lemma names *)
+(** * sample(α) ~ sample(α') coupling *)
 Lemma Rcoupl_flip_flip_empty f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' α α' n :
   (∀ m : nat, m ≤ n → f m ≤ n) ->
   σ1.(tapes) !! α = Some (n, []) →
   σ1'.(tapes) !! α' = Some (n, []) →
   Rcoupl
-    (prim_step (Flip (Val $ LitV $ LitLbl α)) σ1)
-    (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
+    (prim_step (Sample (Val $ LitV $ LitLbl α)) σ1)
+    (prim_step (Sample (Val $ LitV $ LitLbl α')) σ1')
     (λ ρ2 ρ2', ∃ (m : nat), (ρ2, ρ2') = ((Val #m, σ1), (Val #(f m), σ1'))).
 Proof.
   intros Hdom Hα Hα'.
@@ -539,10 +552,10 @@ Qed.
 Lemma Rcoupl_flip_empty_r (ρ1 : cfg) σ1' α' n (_ : tapes σ1' !! α' = Some (n,[])) :
   Rcoupl
     (dret ρ1)
-    (prim_step (Flip (Val $ LitV $ LitLbl α')) σ1')
+    (prim_step (Sample (Val $ LitV $ LitLbl α')) σ1')
     (λ ρ2 ρ2', ∃ (m : nat), (m <= n)%nat /\ ρ2 = ρ1 ∧ ρ2' = (Val #m, σ1')).
 Proof.
-  assert (head_reducible (flip #lbl:α') σ1') as hr.
+  assert (head_reducible (sample #lbl:α') σ1') as hr.
   { econstructor.
     apply head_step_support_equiv_rel.
     apply (FlipTapeEmptyS _ n 0); auto; lia. }
@@ -679,16 +692,18 @@ Lemma det_step_eq_tapes e1 σ1 e2 σ2 :
 Proof. inversion 1; auto. Qed.
 
 Inductive prob_head_step_pred : expr -> state -> Prop :=
-| AllocTapePSP σ n :
-  prob_head_step_pred (AllocTape n) σ
+| AllocTapePSP σ z :
+  prob_head_step_pred (AllocTape (Val (LitV (LitInt z)))) σ
 | FlipPSP l σ n z zs :
   σ.(tapes) !! l = Some (n, (z :: zs)) →
-  prob_head_step_pred (Flip (Val (LitV (LitLbl l)))) σ
+  prob_head_step_pred (Sample (Val (LitV (LitLbl l)))) σ
 | FlipEmptyPSP l σ n :
   (σ.(tapes) !! l = Some (n, []) ∨ σ.(tapes) !! l = None) →
-  prob_head_step_pred (Flip (Val (LitV (LitLbl l)))) σ
+  prob_head_step_pred (Sample (Val (LitV (LitLbl l)))) σ
 | FlipNoTapePSP σ :
-  prob_head_step_pred (Flip (Val (LitV LitUnit))) σ.
+  prob_head_step_pred (Sample (Val (LitV LitUnit))) σ
+| SampleIntPSP σ z :
+  prob_head_step_pred (Sample (Val (LitV (LitInt z)))) σ.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -767,17 +782,18 @@ Proof.
   split.
   - intros [Hdet | Hdet];
     inversion Hdet; simplify_eq; do 2 eexists; try by econstructor.
-    destruct_or?.
-    + eapply (FlipTapeEmptyS _ _ 0); eauto; lia.
-    + eapply (FlipTapeUnallocS); eauto; lia.
+    + destruct_or?.
+      * eapply (FlipTapeEmptyS _ _ 0); eauto; lia.
+      * eapply (FlipTapeUnallocS); eauto; lia.
+    + eapply (SampleIntS 0); lia.
   - intros (?&?& H). inversion H; simplify_eq; try by (left; econstructor).
     + right. econstructor.
     + right. by econstructor.
     + right. eapply FlipEmptyPSP; eauto.
     + right. eapply FlipEmptyPSP; eauto.
+    + right. eapply SampleIntPSP; eauto.
     + right. eapply FlipNoTapePSP; eauto.
   Unshelve.
-  1: apply true.
   apply 0%nat.
 Qed.
 
@@ -828,6 +844,7 @@ Proof.
           - destruct x as [?[|?]]; [eapply FlipEmptyPSP | eapply FlipPSP]; eauto.
           - eapply FlipEmptyPSP; eauto. }
         { econstructor. }
+    apply SampleIntPSP.
     Unshelve. all: apply 0%nat.
 Qed.
 
@@ -843,8 +860,8 @@ Lemma det_head_step_upd_tapes e1 σ1 e2 σ2 α z n zs:
     e2 (state_upd_tapes <[α := (n, zs ++ [z])]> σ2).
 Proof. inversion 1; econstructor; eauto. Qed.
 
-Lemma head_step_alloc_unfold σ n:
-  head_step (alloc n) σ = dret (let l := fresh_loc (tapes σ) in (Val #lbl:l, state_upd_tapes <[fresh_loc (tapes σ):=(n,[])]> σ) ) .
+Lemma head_step_alloc_unfold σ z:
+  head_step (alloc (Val (LitV (LitInt z)))) σ = dret (let l := fresh_loc (tapes σ) in (Val #lbl:l, state_upd_tapes <[fresh_loc (tapes σ):=(Z.to_nat z,[])]> σ) ) .
 Proof.
   apply distr_ext.
   intros (e2 & σ2).

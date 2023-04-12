@@ -29,7 +29,7 @@ Ltac reshape_expr e tac :=
   | Load ?e => go (LoadCtx :: K) e
   | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
   | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
-  | Flip ?e => go (FlipCtx :: K) e
+  | Sample ?e => go (SampleCtx :: K) e
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.

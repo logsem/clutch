@@ -86,6 +86,7 @@ Section erasure_helpers.
       eq.
   Proof using m IH.
     intros Hα HP Hndet Hdet.
+    inversion HP; simplify_eq.
     rewrite head_step_alloc_unfold.
     rewrite dmap_dret dret_id_left.
     rewrite -/exec_val.
@@ -93,21 +94,24 @@ Section erasure_helpers.
     setoid_rewrite (dret_id_left (exec_val m)).
     (* TODO: fix slightly ugly hack :P *)
     revert IH; intro IHm.
-    specialize (IHm (fill K (#lbl:(fresh_loc (tapes σ)))) (state_upd_tapes <[fresh_loc (tapes σ):=(n0, [])]> σ) α n zs).
+    simpl fill_lift at 1.
     apply lookup_total_correct in Hα as Hαtot.
     pose proof (elem_fresh_ne _ _ _ Hα) as Hne.
     assert (α ≠ fresh_loc (tapes σ)) as Hne' by auto ; clear Hne.
     (* rewrite -(upd_diff_tape_tot σ _ _ _ Hne') in IHm. *)
-    specialize (IHm (fresh_loc_lookup σ α (n,zs) (n0,[]) Hα)).
     (*rewrite Hαtot in IHm.*)
-    rewrite /add_int_to_tape in IHm.
     (* setoid_rewrite Hαtot. *)
     (* This is a bit slow *)
     setoid_rewrite <- fresh_loc_upd_some; eauto.
-    assert (∀ z e, exec_val m (e, state_upd_tapes <[fresh_loc (tapes σ):=(n0, [])]> (state_upd_tapes <[α:=(n, zs ++ [z])]> σ)) =
-                     exec_val m (e, state_upd_tapes <[α:=(n, zs ++ [z])]> (state_upd_tapes <[fresh_loc (tapes σ):=(n0, [])]> σ))) as H.
-    { intros x. by erewrite (fresh_loc_upd_swap σ α _ (n0,[]) (n, _)). }
-    setoid_rewrite H.
+    rewrite /fill_lift.
+    simpl ectx_language.fill.
+    erewrite dbind_ext_right; last first.
+    { intro. rewrite (fresh_loc_upd_swap σ α (n, zs) (Z.to_nat z, [])); [ | auto].
+      done.
+    }
+    specialize (IHm (fill K (#lbl:(fresh_loc (tapes σ)))) (state_upd_tapes <[fresh_loc (tapes σ):=(Z.to_nat z, [])]> σ) α n zs).
+    specialize (IHm (fresh_loc_lookup σ α (n, zs) (Z.to_nat z,[]) Hα)).
+    rewrite /add_int_to_tape in IHm.
     apply IHm.
   Qed.
 
@@ -115,9 +119,9 @@ Section erasure_helpers.
     tapes σ !! α = Some (n, zs) →
     tapes σ !! α' = Some (n', z :: zs') →
     Rcoupl
-      (dmap (fill_lift K) (head_step (flip #lbl:α') σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (sample #lbl:α') σ) ≫= exec_val m)
       (unif_distr n ≫=
-         (λ z : nat, dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α:= (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
+         (λ z : nat, dmap (fill_lift K) (head_step (sample #lbl:α') (state_upd_tapes <[α:= (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
       eq.
   Proof using m IH.
     intros Hα Hα'.
@@ -173,9 +177,9 @@ Section erasure_helpers.
     tapes σ !! α = Some (n, zs) →
     (tapes σ !! α' = Some (n', [])) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (flip #lbl:α') σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (sample #lbl:α') σ) ≫= exec_val m)
       (unif_distr n ≫=
-         (λ z : nat, dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α := (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
+         (λ z : nat, dmap (fill_lift K) (head_step (sample #lbl:α') (state_upd_tapes <[α := (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
       eq.
   Proof using m IH.
     intros Hα Hα'.
@@ -224,9 +228,9 @@ Section erasure_helpers.
     tapes σ !! α = Some (n, zs) →
     tapes σ !! α' = None →
     Rcoupl
-      (dmap (fill_lift K) (head_step (flip #lbl:α') σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (sample #lbl:α') σ) ≫= exec_val m)
       (unif_distr n ≫=
-         (λ z : nat, dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α := (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
+         (λ z : nat, dmap (fill_lift K) (head_step (sample #lbl:α') (state_upd_tapes <[α := (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
       eq.
   Proof using m IH.
     intros Hα Hα'.
@@ -265,14 +269,42 @@ Section erasure_helpers.
   Qed.
 
 
+  Local Lemma ind_case_flip_int σ α (z:Z) K n zs :
+    tapes σ !! α = Some (n, zs) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (sample #z) σ) ≫= exec_val m)
+      (unif_distr n ≫=
+         (λ x : nat, dmap (fill_lift K) (head_step (sample #z) (state_upd_tapes <[α := (n, zs ++ [Z.of_nat x])]> σ)) ≫= exec_val m))
+      eq.
+  Proof using m IH.
+    intros Hα.
+    rewrite head_step_flip_int_unfold.
+    setoid_rewrite head_step_flip_int_unfold; last first.
+    rewrite {1 2}/dmap.
+    erewrite (dbind_ext_right (unif_distr n)); last first.
+      { intro.
+        rewrite {1 2}/dmap.
+        do 2 rewrite -dbind_assoc.
+        auto.
+      }
+      rewrite -!dbind_assoc.
+      rewrite -/exec_val.
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      do 2 rewrite dret_id_left.
+      erewrite dbind_ext_right; last first.
+      { intro; do 2 rewrite dret_id_left; auto. }
+      apply IH; auto.
+  Qed.
 
   Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K n zs :
     tapes σ !! α = Some (n, zs) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (flip #()) σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (sample #()) σ) ≫= exec_val m)
       (unif_distr n ≫=
          (λ z : nat, dmap (fill_lift K)
-            (head_step (flip #())
+            (head_step (sample #())
                (state_upd_tapes <[α:= (n, zs ++ [Z.of_nat z])]> σ)) ≫= exec_val m))
       eq.
   Proof using m IH.
@@ -349,7 +381,8 @@ Proof.
           - by eapply ind_case_alloc.
           - by eapply ind_case_flip_some.
           - destruct H; [by eapply ind_case_flip_empty | by eapply ind_case_flip_none].
-          - by eapply ind_case_flip_no_tapes. }
+          - by eapply ind_case_flip_no_tapes.
+          - by eapply ind_case_flip_int. }
         { by eapply ind_case_dzero. }
 Qed.
 

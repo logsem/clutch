@@ -1270,7 +1270,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(tapes) !! l = None →
   (0 <= z <= 1)%Z ->
   head_step_rel (Sample (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) σ
-| SampleInt z z' σ:
+| SampleIntS z z' σ:
   (0 <= z <= Z.to_nat z')%Z ->
   head_step_rel (Sample (Val (LitV (LitInt z')))) σ (Val $ LitV $ LitInt z) σ
 | FlipNoTapeS z σ :
