@@ -48,8 +48,8 @@ Inductive expr :=
   | Load (e : expr)
   | Store (e1 : expr) (e2 : expr)
   (* Probabilistic choice *)
-  | AllocTape (n : nat)
-  | Flip (e : expr)
+  | AllocTape (e : expr)
+  | Sample (e : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -180,8 +180,8 @@ Proof.
      | Load e, Load e' => cast_if (decide (e = e'))
      | Store e1 e2, Store e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | AllocTape n, AllocTape n' => cast_if (decide (n = n'))
-     | Flip e, Flip e' => cast_if (decide (e = e'))
+     | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
+     | Sample e, Sample e' => cast_if (decide (e = e'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -256,12 +256,12 @@ Proof.
      | Alloc e => GenNode 12 [go e]
      | Load e => GenNode 13 [go e]
      | Store e1 e2 => GenNode 14 [go e1; go e2]
-     | AllocTape n => GenNode 15 [GenLeaf (inr (inl (inr n)))]
-     | Flip e => GenNode 16 [go e]
+     | AllocTape e => GenNode 15 [go e]
+     | Sample e => GenNode 16 [go e]
      end
    with gov v :=
      match v with
-     | LitV l => GenLeaf (inr (inl (inl l)))
+     | LitV l => GenLeaf (inr (inl l))
      | RecV f x e =>
         GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
      | PairV v1 v2 => GenNode 1 [gov v1; gov v2]
@@ -288,13 +288,13 @@ Proof.
      | GenNode 12 [e] => Alloc (go e)
      | GenNode 13 [e] => Load (go e)
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
-     | GenNode 15 [GenLeaf (inr (inl (inr n)))] => AllocTape n
-     | GenNode 16 [e] => Flip (go e)
+     | GenNode 15 [e] => AllocTape (go e)
+     | GenNode 16 [e] => Sample (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
      match v with
-     | GenLeaf (inr (inl (inl l))) => LitV l
+     | GenLeaf (inr (inl l)) => LitV l
      | GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => RecV f x (go e)
      | GenNode 1 [v1; v2] => PairV (gov v1) (gov v2)
      | GenNode 2 [v] => InjLV (gov v)
@@ -347,7 +347,8 @@ Inductive ectx_item :=
   | LoadCtx
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
-  | FlipCtx.
+  | AllocTapeCtx
+  | SampleCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -368,7 +369,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | LoadCtx => Load e
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
-  | FlipCtx => Flip e
+  | AllocTapeCtx => AllocTape e
+  | SampleCtx => Sample e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -403,8 +405,10 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | Store (Val _) (Val _)    => None
   | Store e (Val v)          => Some (StoreLCtx v, e)
   | Store e1 e2              => Some (StoreRCtx e1, e2)
-  | Flip (Val _)             => None
-  | Flip e                   => Some (FlipCtx, e)
+  | AllocTape (Val _)        => None
+  | AllocTape e              => Some (AllocTapeCtx, e)
+  | Sample (Val _)           => None
+  | Sample e                 => Some (SampleCtx, e)
   | _                        => None
   end.
 
@@ -428,8 +432,8 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Alloc e => Alloc (subst x v e)
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
-  | AllocTape n => AllocTape n
-  | Flip e => Flip (subst x v e)
+  | AllocTape e => AllocTape (subst x v e)
+  | Sample e => Sample (subst x v e)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -599,13 +603,15 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | Some v => dret (Val (LitV LitUnit), state_upd_heap <[l:=w]> σ1)
         | None => dzero
       end
-  | AllocTape n =>
+  (* We use Z.to_nat, which maps positive integers to the corresponding nat, and the rest to 0 *)
+  | AllocTape (Val (LitV (LitInt z))) =>
         let ℓ := fresh_loc σ1.(tapes) in
-        dret (Val (LitV (LitLbl ℓ)), state_upd_tapes <[ℓ:=(n,[])]> σ1)
-  (* TODO: add unlabelled flip taking nat *)
-  | Flip (Val (LitV LitUnit)) =>
-        dbind (λ b, dret (Val (LitV (LitBool b)), σ1)) fair_coin
-  | Flip (Val (LitV (LitLbl l))) =>
+        dret (Val (LitV (LitLbl ℓ)), state_upd_tapes <[ℓ:=(Z.to_nat z,[])]> σ1)
+  (* unlabelled flip taking nat *)
+  | Sample (Val (LitV (LitInt z))) =>
+        dbind (λ x, dret (Val (LitV (LitInt (Z.of_nat x))), σ1)) (unif_distr (Z.to_nat z))
+  (* labelled flip *)
+  | Sample (Val (LitV (LitLbl l))) =>
         match σ1.(tapes) !! l with
         | Some (n, (z :: zs)) => (* the tape is non-empty so we consume the first integer *)
             dret (Val (LitV (LitInt z)), state_upd_tapes <[l:=(n,zs)]> σ1)
@@ -614,6 +620,9 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | None => (* if the tape is not allocated, we do a fair probabilistic choice between 0 and 1 *)
             dbind (λ m, dret (Val (LitV (LitInt (Z.of_nat m))), σ1)) (unif_distr 1)
         end
+  (* flip taking unit *)
+  | Sample (Val (LitV LitUnit)) =>
+        dbind (λ x, dret (Val (LitV (LitInt (Z.of_nat x))), σ1)) (unif_distr 1)
   | _ => dzero
   end.
 
@@ -624,13 +633,15 @@ Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
   then 1
   else
     match e1, e2 with
-    | AllocTape n, Val (LitV (LitLbl l)) =>
+    | AllocTape (Val (LitV (LitInt z))), Val (LitV (LitLbl l)) =>
         let ℓ := fresh_loc σ1.(tapes) in
-        if bool_decide (l = ℓ ∧ σ2 = state_upd_tapes <[ℓ:=(n,[])]> σ1) then 1 else 0
-(* TODO: add unlabelled flip taking nat *)
-    | Flip (Val (LitV LitUnit)), Val (LitV (LitBool b)) =>
-        if bool_decide (σ1 = σ2) then 0.5 else 0
-    | Flip (Val (LitV (LitLbl l))), Val (LitV (LitInt z)) =>
+        if bool_decide (l = ℓ ∧ σ2 = state_upd_tapes <[ℓ:=(Z.to_nat z,[])]> σ1) then 1 else 0
+    (* unlabelled flip taking nat *)
+    | Sample (Val (LitV (LitInt z))), Val (LitV (LitInt z')) =>
+        if bool_decide (σ1 = σ2 /\ (0 <= z' <= Z.to_nat z)%Z) then unif_distr (Z.to_nat z) (Z.to_nat z')
+                                 else 0
+    (* labelled flip *)
+    | Sample (Val (LitV (LitLbl l))), Val (LitV (LitInt z)) =>
         match σ1.(tapes) !! l with
         | Some (n, (z' :: zs)) => (* the tape is non-empty so we consume the first integer *)
             if bool_decide (z = z' ∧ σ2 = state_upd_tapes <[l:=(n,zs)]> σ1) then 1 else 0
@@ -639,6 +650,9 @@ Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
         | None => (* if the tape is not allocated, we do a fair probabilistic choice between 0 and 1 *)
             if bool_decide (σ1 = σ2 /\ (0 <= z <= 1)%Z) then 0.5 else 0
         end
+    (* flip taking unit *)
+    | Sample (Val (LitV LitUnit)), Val (LitV (LitInt z)) =>
+            if bool_decide (σ1 = σ2 /\ (0 <= z <= 1)%Z) then 0.5 else 0
     | _, _ => 0
     end.
 
@@ -650,12 +664,14 @@ Local Ltac solve_dret :=
   end.
 
 
+
 Lemma head_step_pmf_eq e1 σ1 e2 σ2 :
   head_step e1 σ1 (e2, σ2) = head_step_pmf e1 σ1 (e2, σ2).
 Proof.
   (* TODO: Write a tactic to simplify this proof *)
   destruct e1; simpl; auto; do 5 try (case_match; simplify_eq; auto); try (case_bool_decide; destruct_and ?; simplify_eq);
-  try (apply dret_1_1 ; auto); try (apply dret_0; intro; simplify_eq; auto).
+  try (apply dret_1_1 ; auto); try (apply dret_0; intro; simplify_eq; auto);
+  try (apply dbind_dret_unif_zero; auto).
   + case_match; simplify_eq; auto.
     case_bool_decide; destruct_and ?; simplify_eq; auto.
   + case_bool_decide; auto.
@@ -667,36 +683,37 @@ Proof.
   + do 4 try (case_match; simplify_eq; auto).
     destruct H1; inversion H0.
   + do 4 try (case_match; simplify_eq; auto).
-  + try (case_match; simplify_eq; auto);
-    try (apply dbind_dret_coin_zero; auto).
-    apply dbind_dret_coin_nonzero; eauto.
-    intros ? ? H.
-    inversion H; auto.
-  + try (case_match; simplify_eq; auto);
-    try (apply dbind_dret_coin_zero; auto).
-    intros ? H2.
-    inversion H2; auto.
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
-  + try (apply dbind_dret_coin_zero; auto).
+  + try (case_match; simplify_eq; auto).
+    case_bool_decide; destruct_and?; simplify_eq.
+    * apply dret_1_1; auto.
+    * apply dret_0; intro; simplify_eq; auto.
+  + try (case_match; simplify_eq; auto); try (apply dbind_dret_unif_zero; auto).
+    rewrite unif_distr_pmf. case_bool_decide.
+    * case_bool_decide.
+       -- apply dbind_dret_unif_nonzero; auto.
+          ++ intros ? ? H2; simplify_eq; auto.
+          ++ destruct_and? ; simplify_eq.
+             exists (Z.to_nat n0); split; try lia.
+             do 4 f_equal; lia.
+       -- apply dbind_dret_unif_zero.
+          intros ? ? Haux; inversion Haux; lia.
+    * apply dbind_dret_unif_zero.
+      intros ? ? Haux.
+      simplify_eq.
+      apply H; split; auto; lia.
+  + do 4 try (case_match; simplify_eq; auto);
+    try (apply dbind_dret_unif_zero; auto);
+    try (case_bool_decide; destruct_and ?; simplify_eq; auto).
+    * assert (0.5 = /(INR 1 + 1)) as ->; [ simpl; lra | ].
+      apply (dbind_dret_unif_nonzero).
+      ++ intros ? ? H2.
+         inversion H2.
+         apply Nat2Z.inj'; auto.
+      ++ exists (Z.to_nat n); split; try lia.
+         do 4 f_equal; lia.
+    * intros m Hm H2.
+      inversion H2; simplify_eq; destruct H0; split; auto.
+      lia.
   + do 4 try (case_match; simplify_eq; auto);
     try (apply dbind_dret_unif_zero; auto);
     try (case_bool_decide; destruct_and ?; simplify_eq; auto).
@@ -728,23 +745,6 @@ Proof.
       intros m Hm H2.
       inversion H2; simplify_eq; destruct H0; split; auto.
       lia.
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
-  + try (apply dbind_dret_unif_zero; auto).
 Qed.
 
 (* helper tactics to make the [head_step] proofs more tractable *)
@@ -1255,23 +1255,27 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| AllocTapeS n σ l :
+| AllocTapeS z σ l :
   l = fresh_loc σ.(tapes) →
-  head_step_rel (AllocTape n) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l:=(n,[])]> σ)
+  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l:=(Z.to_nat z,[])]> σ)
 | FlipTapeS l n z zs σ :
   σ.(tapes) !! l = Some (n, (z :: zs)) →
-  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) (state_upd_tapes <[l:=(n,zs)]> σ)
+  head_step_rel (Sample (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) (state_upd_tapes <[l:=(n,zs)]> σ)
 | FlipTapeEmptyS l n z σ :
   σ.(tapes) !! l = Some (n,[]) ->
   (0 <= z <= Z.of_nat n)%Z ->
-  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) σ
+  head_step_rel (Sample (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) σ
 | FlipTapeUnallocS l z σ :
   σ.(tapes) !! l = None →
   (0 <= z <= 1)%Z ->
-  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) σ
-| FlipNoTapeS b σ :
-  head_step_rel (Flip (Val (LitV LitUnit))) σ (Val $ LitV $ LitBool b) σ.
+  head_step_rel (Sample (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt z) σ
+| SampleInt z z' σ:
+  (0 <= z <= Z.to_nat z')%Z ->
+  head_step_rel (Sample (Val (LitV (LitInt z')))) σ (Val $ LitV $ LitInt z) σ
+| FlipNoTapeS z σ :
+  (0 <= z <= 1)%Z ->
+  head_step_rel (Sample (Val (LitV LitUnit))) σ (Val $ LitV $ LitInt z) σ.
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
@@ -1314,13 +1318,16 @@ Proof.
     (* TODO: Maybe write tactic to optimize this proof *)
     (repeat case_match; try lra; try done;
       case_bool_decide; destruct_and?; simplify_eq; eauto with head_step).
-      destruct H8.
-      eapply StoreS; eauto.
+    destruct H8.
+    eapply StoreS; eauto.
   - rewrite head_step_pmf_eq.
     inversion 1;
       rewrite /pmf /= /head_step_pmf //; simplify_map_eq;
       rewrite ?bool_decide_eq_true_2 //; try lra.
-    apply RinvN_pos.
+     + apply RinvN_pos.
+     + rewrite /pmf/=/unif_distr_pmf.
+       case_bool_decide; [apply RinvN_pos | ].
+       lia.
 Qed.
 
 (* NB: Classical proof *)
@@ -1381,6 +1388,7 @@ Proof.
 Qed.
 
 
+(*
 Lemma foo {A} (l : list A) :
  (exists z zs, l = z :: zs) ->
        (exists y ys, l = ys ++ [y]).
@@ -1391,8 +1399,9 @@ Proof.
   pose proof (exists_last H) as (y & ys & Hy);
   eauto.
 Qed.
+*)
 
-Lemma bar {A} (l : list A) :
+Lemma list_app_to_cons {A} (l : list A) :
   (exists y ys, l = ys ++ [y]) ->
   (exists z zs, l = z :: zs).
 Proof.
@@ -1415,7 +1424,7 @@ Proof.
     inversion_clear Hs;
       try by eexists (_,_); eapply head_step_support_equiv_rel;
       econstructor; eauto; simpl.
-    + pose proof (bar (zs ++ [z])).
+    + pose proof (list_app_to_cons (zs ++ [z])).
         assert (∃ (y : Z) (ys : list Z), zs ++ [z] = ys ++ [y]) as Haux; eauto.
         specialize (H4 Haux) as (? & ? & ?); eauto.
         rewrite H4.
@@ -1424,7 +1433,7 @@ Proof.
       * rewrite lookup_insert //.
       * rewrite lookup_insert_ne //.
     + destruct (decide (l = α)); subst.
-      * pose proof (bar (zs ++ [z])).
+      * pose proof (list_app_to_cons (zs ++ [z])).
         assert (∃ (y : Z) (ys : list Z), zs ++ [z] = ys ++ [y]) as Haux; eauto.
         specialize (H5 Haux) as (x & xs & Hx); eauto.
         rewrite Hx.
@@ -1439,7 +1448,7 @@ Proof.
         eapply (FlipTapeEmptyS l n0); eauto; try lia.
         rewrite lookup_insert_ne; auto.
     + destruct (decide (l = α)); subst.
-      * pose proof (bar (zs ++ [z])).
+      * pose proof (list_app_to_cons (zs ++ [z])).
         assert (∃ (y : Z) (ys : list Z), zs ++ [z] = ys ++ [y]) as Haux; eauto.
         specialize (H5 Haux) as (x & xs & Hx); eauto.
         rewrite Hx.
@@ -1534,10 +1543,15 @@ Proof.
     rewrite <- dmap_mass.
     apply SeriesC_unif_distr.
   - rewrite /head_step/=.
-    rewrite (SeriesC_ext _ (dmap (λ b0 : bool, (Val (LitV (LitBool b0)), s)) (fair_coin))).
+    rewrite (SeriesC_ext _ (dmap (λ x : nat, (Val (LitV (LitInt x)), s)) (unif_distr (Z.to_nat z')))).
     2:{ intro; auto. }
     rewrite <- dmap_mass.
-    apply SeriesC_fair_coin.
+    apply SeriesC_unif_distr.
+  - rewrite /head_step/=.
+    rewrite (SeriesC_ext _ (dmap (λ m : nat, (Val (LitV (LitInt m)), s)) (unif_distr 1))).
+    2:{ intro; auto. }
+    rewrite <- dmap_mass.
+    apply SeriesC_unif_distr.
  Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -1563,8 +1577,8 @@ Fixpoint height (e : expr) : nat :=
   | Alloc e => 1 + height e
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
-  | AllocTape n => 1
-  | Flip e => 1 + height e
+  | AllocTape e => 1 + height e
+  | Sample e => 1 + height e
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.

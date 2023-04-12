@@ -688,6 +688,44 @@ Section monadic.
     - eapply pmf_ex_seriesC_mult_fn. eauto.
   Qed.
 
+  Lemma dbind_dret_pair_left `{Countable A, Countable A', Countable B}
+    (μ : distr A) (a' : A') (b : A) :
+    dbind (λ a, dret (a, a')) μ (b, a') = μ b.
+  Proof.
+    rewrite {1}/pmf/=/dbind_pmf.
+    erewrite SeriesC_ext; last first.
+    { intro. rewrite {2}/pmf/=/dret_pmf.
+      assert
+        (μ n * (if bool_decide ((b, a') = (n, a')) then 1 else 0)=
+           if bool_decide (b = n) then μ b else 0) as ->;
+        [case_bool_decide as H4; simplify_eq | auto].
+      + case_bool_decide; simplify_eq; lra.
+      + case_bool_decide; try lra.
+        destruct H4; simplify_eq; auto.
+    }
+    apply SeriesC_singleton'.
+  Qed.
+
+
+  Lemma dbind_dret_pair_right `{Countable A, Countable A', Countable B}
+    (μ : distr A') (a : A) (b : A') :
+    dbind (λ a', dret (a, a')) μ (a, b) = μ b.
+  Proof.
+    rewrite {1}/pmf/=/dbind_pmf.
+    erewrite SeriesC_ext; last first.
+    { intro. rewrite {2}/pmf/=/dret_pmf.
+      assert
+        (μ n * (if bool_decide ((a, b) = (a, n)) then 1 else 0)=
+           if bool_decide (b = n) then μ b else 0) as ->;
+        [case_bool_decide as H4; simplify_eq | auto].
+      + case_bool_decide; simplify_eq; lra.
+      + case_bool_decide; try lra.
+        destruct H4; simplify_eq; auto.
+    }
+    apply SeriesC_singleton'.
+  Qed.
+
+
 End monadic.
 
 (* Convex combinations *)

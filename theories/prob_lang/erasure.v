@@ -265,7 +265,7 @@ Section erasure_helpers.
   Qed.
 
 
- 
+
   Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K n zs :
     tapes σ !! α = Some (n, zs) →
     Rcoupl
