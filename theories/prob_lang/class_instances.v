@@ -4,22 +4,23 @@ From self.program_logic Require Export language.
 From self.prob_lang Require Export lang.
 From self.prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
+From stdpp Require Import fin_maps.
 
 Global Instance into_val_val v : IntoVal (Val v) v.
 Proof. done. Qed.
 Global Instance as_val_val v : AsVal (Val v).
 Proof. by eexists. Qed.
 
+
+
 (** * Instances of the [Atomic] class *)
 Section atomic.
   Local Ltac solve_atomic :=
     apply strongly_atomic_atomic, ectx_language_atomic;
-    [intros ???; simpl; intros ?; by inv_head_step
+    [intros ????; simpl; by inv_head_step
     |apply ectxi_language_sub_redexes_are_values; intros [] **; naive_solver].
 
   Global Instance rec_atomic s f x e : Atomic s (Rec f x e).
-  Proof. solve_atomic. Qed.
-  Global Instance pair_atomic s v1 v2 : Atomic s (Pair (Val v1) (Val v2)).
   Proof. solve_atomic. Qed.
   Global Instance injl_atomic s v : Atomic s (InjL (Val v)).
   Proof. solve_atomic. Qed.
@@ -50,11 +51,13 @@ Section atomic.
   Global Instance store_atomic s v1 v2 : Atomic s (Store (Val v1) (Val v2)).
   Proof. solve_atomic. Qed.
 
-  Global Instance flip_atomic s l : Atomic s (Flip (Val (LitV (LitLbl l)))).
+  Global Instance flip_atomic s l : Atomic s (Sample (Val (LitV (LitLbl l)))).
   Proof. solve_atomic. Qed.
-  Global Instance flip_atomic_unit s : Atomic s (Flip (Val (LitV LitUnit))).
+  Global Instance flip_atomic_unit s : Atomic s (Sample (Val (LitV LitUnit))).
   Proof. solve_atomic. Qed.
-  Global Instance alloc_tape_atomic s : Atomic s AllocTape.
+  Global Instance flip_atomic_int s z : Atomic s (Sample (Val (LitV (LitInt z)))).
+  Proof. solve_atomic. Qed.
+  Global Instance alloc_tape_atomic s z : Atomic s (AllocTape (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.
 End atomic.
 
@@ -81,18 +84,22 @@ Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
   apply AsRecV_recv : typeclass_instances.
 
 Section pure_exec.
-  Local Ltac solve_exec_safe := intros; subst; eauto with head_step.
+  Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
   Local Ltac solve_exec_puredet :=
     intros; rewrite /pmf /=;
       repeat (rewrite bool_decide_eq_true_2 // || case_match);
-      try (lra || done).
+      try (lra || done);
+      try (apply dret_1_1; auto).
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
     constructor; [solve_exec_safe | solve_exec_puredet].
 
   Global Instance pure_recc f x (erec : expr) :
     PureExec True 1 (Rec f x erec) (Val $ RecV f x erec).
-  Proof. solve_pure_exec. Qed.
+  Proof.
+    solve_pure_exec.
+  Qed.
+
   Global Instance pure_pairc (v1 v2 : val) :
     PureExec True 1 (Pair (Val v1) (Val v2)) (Val $ PairV v1 v2).
   Proof. solve_pure_exec. Qed.
@@ -109,11 +116,26 @@ Section pure_exec.
 
   Global Instance pure_unop op v v' :
     PureExec (un_op_eval op v = Some v') 1 (UnOp op (Val v)) (Val v').
-  Proof. solve_pure_exec. Qed.
+  Proof.
+    (* Clunky case *)
+    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
+    constructor; [solve_exec_safe | ].
+    intro.
+    simpl; case_match; simplify_eq; auto.
+    apply dret_1_1; auto.
+  Qed.
 
   Global Instance pure_binop op v1 v2 v' :
     PureExec (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v') | 10.
-  Proof. solve_pure_exec. Qed.
+  Proof.
+    (* Clunky case *)
+    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
+    constructor; [solve_exec_safe | ].
+    intro.
+    simpl; case_match; simplify_eq; auto.
+    apply dret_1_1; auto.
+  Qed.
+
   (* Lower-cost instance for [EqOp]. *)
   Global Instance pure_eqop v1 v2 :
     PureExec (vals_compare_safe v1 v2) 1
@@ -122,7 +144,13 @@ Section pure_exec.
   Proof.
     intros Hcompare.
     cut (bin_op_eval EqOp v1 v2 = Some $ LitV $ LitBool $ bool_decide (v1 = v2)).
-    { intros. revert Hcompare. solve_pure_exec. }
+    { intros. revert Hcompare.
+    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
+    constructor; [solve_exec_safe | ].
+    intro.
+    simpl; case_match; simplify_eq; auto.
+    apply dret_1_1; auto.
+    }
     rewrite /bin_op_eval /= decide_True //.
   Qed.
 

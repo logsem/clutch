@@ -143,7 +143,7 @@ Section erasure_helpers.
       rewrite -/app.
       erewrite dbind_ext_right; last first.
       { intro; rewrite upd_tape_twice dmap_dret dret_id_left.
-        done.}
+        done. }
       simpl.
       (* There must be a better way *)
       assert
