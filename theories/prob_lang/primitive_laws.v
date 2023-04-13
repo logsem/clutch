@@ -13,7 +13,7 @@ Class prelocGS Σ := HeapG {
   prelocGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
   prelocGS_heap : ghost_mapG Σ loc val;
-  prelocGS_tapes : ghost_mapG Σ loc (list bool);
+  prelocGS_tapes : ghost_mapG Σ loc (nat * list Z);
   (* ghost names for the state *)
   prelocGS_heap_name : gname;
   prelocGS_tapes_name : gname;
