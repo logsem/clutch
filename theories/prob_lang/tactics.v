@@ -70,6 +70,7 @@ Global Hint Extern 1 (head_step _ _ _ > 0) =>
 
 Local Ltac solve_step_det :=
   rewrite /pmf /=;
+  try rewrite /dret_pmf;
     repeat (rewrite bool_decide_eq_true_2 // || case_match);
   try (lra || done).
 
