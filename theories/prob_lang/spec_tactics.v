@@ -8,7 +8,7 @@ From self.prob_lang Require Import spec_rules tactics.
 Set Default Proof Using "Type".
 
 (** ** bind *)
-Lemma tac_tp_bind_gen `{prelocGS Σ} k Δ Δ' i p e e' Q :
+Lemma tac_tp_bind_gen `{clutchGS Σ} k Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, refines_right k e)%I →
   e = e' →
   envs_simple_replace i p (Esnoc Enil i (refines_right k e')) Δ = Some Δ' →
@@ -20,7 +20,7 @@ Proof.
   destruct p; rewrite /= ?right_id; by rewrite bi.wand_elim_r.
 Qed.
 
-Lemma tac_tp_bind `{prelocGS Σ} k e' Δ Δ' i p K' e Q :
+Lemma tac_tp_bind `{clutchGS Σ} k e' Δ Δ' i p K' e Q :
   envs_lookup i Δ = Some (p, refines_right k e)%I →
   e = fill K' e' →
   envs_simple_replace i p (Esnoc Enil i (refines_right k (fill K' e'))) Δ = Some Δ' →
@@ -62,7 +62,7 @@ Tactic Notation "tp_bind" open_constr(efoc) :=
     |reflexivity
     |(* new goal *)].
 
-Lemma tac_tp_pure `{prelocGS Σ} e K' e1 k e2 Δ1 E1 i1 e' ϕ ψ Q n :
+Lemma tac_tp_pure `{clutchGS Σ} e K' e1 k e2 Δ1 E1 i1 e' ϕ ψ Q n :
   (* we have those premises first, because we will be trying to solve them
      with backtracking using reashape_expr; see the accompanying Ltac.
      the first premise decomposes the expression, the second one checks
@@ -142,7 +142,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
@@ -188,7 +188,7 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_load `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
+Lemma tac_tp_load `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
@@ -231,7 +231,7 @@ Tactic Notation "tp_load" :=
   |simpl; reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_alloc `{prelocGS Σ} k Δ1 E1 i1 K' e e' v Q :
+Lemma tac_tp_alloc `{clutchGS Σ} k Δ1 E1 i1 K' e e' v Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
@@ -284,7 +284,7 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{prelocGS Σ} k Δ1 E1 i1 K' e Q :
+Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
@@ -335,7 +335,7 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_flip `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) b bs Q :
+Lemma tac_tp_flip `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) b bs Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →

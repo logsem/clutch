@@ -42,6 +42,33 @@ Section base.
   Proof. constructor; apply _. Qed.
 End base.
 
+(** ** [nat_to_bool] *)
+(* We take [0] to mean [false] and any other value to be [true] *)
+Definition nat_to_bool (n : nat) : bool :=
+  if bool_decide (n = 0) then false else true.
+
+Lemma nat_to_bool_false n : nat_to_bool n = false → n = 0.
+Proof. destruct n; naive_solver. Qed.
+Lemma nat_to_bool_eq_0 : nat_to_bool 0 = false.
+Proof. done. Qed.
+Lemma nat_to_bool_neq_0 n : n ≠ 0 → nat_to_bool n = true.
+Proof. destruct n; naive_solver. Qed.
+
+(** ** [Z_to_bool] *)
+(* We take [0] to mean [false] and any other value to be [true] *)
+Definition Z_to_bool (z : Z) : bool :=
+  if bool_decide (z = 0%Z) then false else true.
+
+Lemma Z_to_bool_false z : Z_to_bool z = false → z = 0%Z.
+Proof. destruct z; naive_solver. Qed.
+Lemma Z_to_bool_eq_0 : Z_to_bool 0%Z = false.
+Proof. done. Qed.
+Lemma Z_to_bool_neq_0 z : z ≠ 0%Z → Z_to_bool z = true.
+Proof. destruct z; naive_solver. Qed.
+
+Lemma Z_to_bool_of_nat n : Z_to_bool (Z.of_nat n) = nat_to_bool n.
+Proof. destruct n; naive_solver. Qed. 
+
 Section countable.
   Context `{Countable A}.
 

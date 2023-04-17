@@ -17,7 +17,7 @@ Module prob_lang.
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit | LitLoc (l : loc) | LitLbl (l : loc).
 Inductive un_op : Set :=
-  | NegOp | MinusUnOp.
+  | NegOp | MinusUnOp | ZtoBOp.
 Inductive bin_op : Set :=
   | PlusOp | MinusOp | MultOp | QuotOp | RemOp (* Arithmetic *)
   | AndOp | OrOp | XorOp (* Bitwise *)
@@ -220,8 +220,8 @@ Proof.
 Qed.
 Global Instance un_op_finite : Countable un_op.
 Proof.
- refine (inj_countable' (λ op, match op with NegOp => 0 | MinusUnOp => 1 end)
-  (λ n, match n with 0 => NegOp | _ => MinusUnOp end) _); by intros [].
+ refine (inj_countable' (λ op, match op with NegOp => 0 | MinusUnOp => 1 | ZtoBOp => 2 end)
+  (λ n, match n with 0 => NegOp | 1 => MinusUnOp | _ => ZtoBOp end) _); by intros [].
 Qed.
 Global Instance bin_op_countable : Countable bin_op.
 Proof.
@@ -443,8 +443,9 @@ Definition subst' (mx : binder) (v : val) : expr → expr :=
 Definition un_op_eval (op : un_op) (v : val) : option val :=
   match op, v with
   | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
-  | NegOp, LitV (LitInt n) => Some $ LitV $ LitInt (Z.lnot n)
-  | MinusUnOp, LitV (LitInt n) => Some $ LitV $ LitInt (- n)
+  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
+  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)
+  | ZtoBOp, LitV (LitInt z) => Some $ LitV $ LitBool (Z_to_bool z)
   | _, _ => None
   end.
 

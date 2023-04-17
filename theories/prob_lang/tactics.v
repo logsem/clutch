@@ -64,7 +64,7 @@ Ltac inv_head_step :=
 
 
 Global Hint Extern 0 (head_reducible _ _) =>
-         eexists (_, _); simpl; eapply head_step_support_equiv_rel : head_step.
+         eexists (_, _); eapply head_step_support_equiv_rel : head_step.
 Global Hint Extern 1 (head_step _ _ _ > 0) =>
          eapply head_step_support_equiv_rel; econstructor : head_step.
 

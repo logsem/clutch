@@ -9,31 +9,31 @@ From self.prob_lang Require Export class_instances spec_ra.
 From self.prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
 
-Class prelocGS Σ := HeapG {
-  prelocGS_invG : invGS_gen HasNoLc Σ;
+Class clutchGS Σ := HeapG {
+  clutchGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  prelocGS_heap : ghost_mapG Σ loc val;
-  prelocGS_tapes : ghost_mapG Σ loc (nat * list Z);
+  clutchGS_heap : ghost_mapG Σ loc val;
+  clutchGS_tapes : ghost_mapG Σ loc (nat * list nat);
   (* ghost names for the state *)
-  prelocGS_heap_name : gname;
-  prelocGS_tapes_name : gname;
+  clutchGS_heap_name : gname;
+  clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  prelocGS_spec :> specGS Σ;
+  clutchGS_spec :> specGS Σ;
 }.
 
-Definition heap_auth `{prelocGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ prelocGS_heap prelocGS_heap_name.
-Definition tapes_auth `{prelocGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ prelocGS_tapes prelocGS_tapes_name.
+Definition heap_auth `{clutchGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
+Definition tapes_auth `{clutchGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
-Global Instance prelocGS_irisGS `{!prelocGS Σ} : irisGS prob_lang Σ := {
-  iris_invGS := prelocGS_invG;
+Global Instance clutchGS_irisGS `{!clutchGS Σ} : irisGS prob_lang Σ := {
+  iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   spec_interp ρ := spec_interp_auth ρ;
 }.
 
 (** Heap *)
-Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ prelocGS_heap prelocGS_heap_name l dq v)
+Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_heap clutchGS_heap_name l dq v)
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.
 Notation "l ↦□ v" := (l ↦{ DfracDiscarded } v)%I
   (at level 20, format "l  ↦□  v") : bi_scope.
@@ -43,7 +43,7 @@ Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Tapes *)
-Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ prelocGS_tapes prelocGS_tapes_name l dq v)
+Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name l dq v)
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
@@ -53,7 +53,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 Section lifting.
-Context `{!prelocGS Σ}.
+Context `{!clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -115,8 +115,8 @@ Proof.
 Qed.
 
 (** Tapes  *)
-Lemma wp_alloc_tape E :
-  {{{ True }}} AllocTape @ E {{{ α, RET LitV (LitLbl α); α ↪ [] }}}.
+Lemma wp_alloc_tape E (n : nat) :
+  {{{ True }}} AllocTape #n @ E {{{ α, RET LitV (LitLbl α); α ↪ (n, []) }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -125,12 +125,28 @@ Proof.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
+  rewrite Nat2Z.id.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_flip E α b bs :
-  {{{ ▷ α ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl α) @ E
-  {{{ RET LitV (LitBool b); α ↪ bs }}}.
+Lemma wp_rand E (n : nat) :
+  {{{ True }}} Rand (Val $ LitV $ LitInt n) @ E
+  {{{ m, RET LitV (LitInt m); ⌜m ≤ n⌝ }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "Hσ !#".
+  iSplit; [by eauto with head_step|].
+  simpl.
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame. iApply "HΦ".
+  auto with lia.
+Qed.
+
+Lemma wp_rand_tape E α (b n : nat) ns  :
+  {{{ ▷ α ↪ (b, n :: ns) }}} Rand (Val $ LitV $ LitLbl α) @ E
+  {{{ RET LitV (LitInt n); α ↪ (b, ns) }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -138,25 +154,70 @@ Proof.
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   iSplit; [by eauto with head_step|].
   simpl.
-  iIntros "!>" (e2 σ2 Hs); inv_head_step; last first.
-  { destruct_or?; simplify_map_eq. }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
   iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_flip_empty E α :
-  {{{ ▷ α ↪ [] }}} Flip (Val $ LitV $ LitLbl α) @ E
-  {{{ b, RET LitV (LitBool b); α ↪ [] }}}.
+Lemma wp_rand_tape_empty E α (b : nat) :
+  {{{ ▷ α ↪ (b, []) }}} Rand (Val $ LitV $ LitLbl α) @ E
+  {{{ n, RET LitV (LitInt n); ⌜n ≤ b⌝ ∗ α ↪ (b, []) }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !# /=".
+  iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   iSplit; [by eauto with head_step|].
-  Unshelve.
-  Unshelve. 2: { exact inhabitant. }
-  iIntros "!>" (e2 σ2 Hs); inv_head_step.
-  iFrame. iModIntro. by iApply "HΦ".
+  simpl.
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  iModIntro. iApply ("HΦ" with "[$Hl //]").
 Qed.
 
+(** * Simple derived laws *)
+Lemma wp_flip E :
+  {{{ True }}} flip @ E {{{ b, RET LitV (LitBool b); True }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  replace (UnOp ZtoBOp (rand #1%nat))
+    with (fill ([UnOpCtx ZtoBOp]) (rand #1%nat)); [|done].
+  iApply wp_bind.
+  iApply (wp_rand with "[//]").
+  iIntros "!>" (??) "/=".
+  iApply wp_pure_step_later; [done|].
+  iApply wp_value. by iApply "HΦ".
+Qed.
+
+Lemma wp_flip_tape E α b bs  :
+  {{{ ▷ α ↪ (1, b :: bs) }}} flipL (Val $ LitV $ LitLbl α) @ E
+  {{{ RET LitV (LitBool (nat_to_bool b)); α ↪ (1, bs) }}}.
+Proof.
+  iIntros (Φ) ">Hl HΦ".
+  replace (UnOp ZtoBOp (rand #lbl:α))
+    with (fill ([UnOpCtx ZtoBOp]) (rand #lbl:α)); [|done].
+  iApply wp_bind.
+  iApply (wp_rand_tape with "Hl").
+  iIntros "!> Hl /=".
+  iApply wp_pure_step_later; [done|].
+  iApply wp_value.
+  rewrite Z_to_bool_of_nat.
+  by iApply "HΦ".
+Qed.
+
+Lemma wp_flip_tape_empty E α :
+  {{{ ▷ α ↪ (1, []) }}} flipL (Val $ LitV $ LitLbl α) @ E
+  {{{ b, RET LitV (LitBool b); α ↪ (1, []) }}}.
+Proof.
+  iIntros (Φ) ">Hl HΦ".
+  replace (UnOp ZtoBOp (rand #lbl:α))
+    with (fill ([UnOpCtx ZtoBOp]) (rand #lbl:α)); [|done].
+  iApply wp_bind.
+  iApply (wp_rand_tape_empty with "Hl").
+  iIntros "!>" (n) "[% Hl] /=".
+  iApply wp_pure_step_later; [done|].
+  iApply wp_value.
+  by iApply "HΦ".
+Qed.
 End lifting.

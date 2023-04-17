@@ -9,7 +9,7 @@ From self.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Export lang notation tactics primitive_laws spec_ra metatheory.
 
 Section rules.
-  Context `{!prelocGS Σ}.
+  Context `{!clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types σ : state.

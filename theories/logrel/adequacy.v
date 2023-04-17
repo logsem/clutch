@@ -4,11 +4,11 @@ From self.logrel Require Import model.
 From self.prob_lang Require Import adequacy primitive_laws lang.
 
 Class prelogrelGpreS Σ := PrelogrelGPreS {
-  prelogrelGpreS_preloc :> prelocGpreS Σ;
+  prelogrelGpreS_clutch :> clutchGpreS Σ;
   prelorelGpreS_na_inv  :> na_invG Σ;
 }.
 
-Definition prelogrelΣ : gFunctors := #[prelocΣ; na_invΣ].
+Definition prelogrelΣ : gFunctors := #[clutchΣ; na_invΣ].
 Global Instance subG_prelogrelGPreS {Σ} : subG prelogrelΣ Σ → prelogrelGpreS Σ.
 Proof. solve_inG. Qed.
 
