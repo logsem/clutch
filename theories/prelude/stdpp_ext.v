@@ -54,6 +54,13 @@ Proof. done. Qed.
 Lemma nat_to_bool_neq_0 n : n ≠ 0 → nat_to_bool n = true.
 Proof. destruct n; naive_solver. Qed.
 
+Coercion bool_to_nat (b : bool) := if b then 1 else 0.
+
+Lemma bool_to_nat_to_bool b : nat_to_bool (bool_to_nat b) = b.
+Proof. destruct b; naive_solver. Qed.
+Lemma nat_to_bool_to_nat n : n ≤ 1 → bool_to_nat (nat_to_bool n) = n.
+Proof. do 2 (destruct n; [naive_solver|]). lia. Qed.
+
 (** ** [Z_to_bool] *)
 (* We take [0] to mean [false] and any other value to be [true] *)
 Definition Z_to_bool (z : Z) : bool :=
@@ -65,9 +72,8 @@ Lemma Z_to_bool_eq_0 : Z_to_bool 0%Z = false.
 Proof. done. Qed.
 Lemma Z_to_bool_neq_0 z : z ≠ 0%Z → Z_to_bool z = true.
 Proof. destruct z; naive_solver. Qed.
-
 Lemma Z_to_bool_of_nat n : Z_to_bool (Z.of_nat n) = nat_to_bool n.
-Proof. destruct n; naive_solver. Qed. 
+Proof. destruct n; naive_solver. Qed.
 
 Section countable.
   Context `{Countable A}.
