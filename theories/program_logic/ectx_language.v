@@ -238,7 +238,7 @@ Section ectx_language.
       destruct (decomp e) as [K e1'] eqn:Heq.
       intros [[e2' σ2'] [? Hs]]%dmap_pos.
       assert (SeriesC (head_step e1' σ) = 1) as Hsum; [eauto using head_step_mass|].
-      rewrite -dmap_mass //.
+      rewrite dmap_mass //.
   Qed.
 
   Canonical Structure ectx_lang : language := Language (get_active := get_active) ectx_lang_mixin.

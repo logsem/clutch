@@ -339,7 +339,7 @@ Section filter.
   Proof. apply is_series_unique, is_seriesC_singleton. Qed.
 
   Lemma is_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
-    (exists a, f a = b) ->
+    (∃ a, f a = b) →
     is_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0) v.
   Proof.
     intros (a & Ha).
@@ -356,15 +356,14 @@ Section filter.
   Qed.
 
   Lemma ex_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
-    (exists a, f a = b) ->
+    (∃ a, f a = b) →
     ex_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0).
   Proof.
     eexists. apply is_seriesC_singleton_inj; auto.
   Qed.
 
-
   Lemma SeriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
-    (exists a, f a = b) ->
+    (∃ a, f a = b) ->
     SeriesC (λ (a : A), if bool_decide (f a = b) then v else 0) = v.
   Proof.
     intros. apply is_seriesC_unique, is_seriesC_singleton_inj; auto.
@@ -382,7 +381,6 @@ Section filter.
     case_bool_decide; simplify_eq; lra.
   Qed.
 
-  (* These are sometimes convenient *)
   Lemma ex_seriesC_singleton' (a : A) v :
     ex_seriesC (λ (n : A), if bool_decide (a = n) then v else 0).
   Proof.
@@ -562,6 +560,60 @@ Section strict.
   Qed.
 
 End strict.
+
+Section unif.
+
+  Lemma ex_seriesC_unif m v :
+    ex_seriesC (λ n, if bool_decide (n ≤ m) then v else 0).
+  Proof.
+    induction m as [|m IHm].
+    - eapply ex_seriesC_ext; last first.
+      + apply (ex_seriesC_singleton 0%nat v).
+      + intro n; simpl.
+        case_bool_decide as Hn1; case_bool_decide as Hn2; try lra; auto.
+        * destruct Hn2. rewrite Hn1; auto.
+        * destruct Hn1; inversion Hn2; auto.
+    - eapply ex_seriesC_ext; last first.
+     + eapply (ex_seriesC_plus _ _ IHm (ex_seriesC_singleton (S m)%nat v)).
+     + intro n; simpl.
+       case_bool_decide as Hn1; case_bool_decide as Hn2; case_bool_decide as Hn3; try lra; auto.
+       * simplify_eq.
+         exfalso.
+         apply (Nat.nle_succ_diag_l m); auto.
+       * destruct Hn3.
+         apply (Nat.le_trans _ n); auto.
+       * destruct Hn3.
+         apply (Nat.le_trans _ n); auto.
+       * simplify_eq.
+         destruct Hn3; auto.
+       * destruct Hn2.
+         apply PeanoNat.Nat.le_antisymm; auto.
+         apply Nat.lt_nge in Hn1; auto.
+  Qed.
+
+  Lemma SeriesC_unif m v :
+    SeriesC (λ n, if bool_decide (n ≤ m) then v else 0) = (INR m + 1) * v.
+  Proof.
+    induction m as [|m IHm].
+    - rewrite (SeriesC_ext _ (λ x : nat, if bool_decide (x = 0%nat) then v else 0)); last first.
+      + intro n.
+        case_bool_decide as Hn1; case_bool_decide as Hn2; simplify_eq; auto.
+        * destruct Hn2; inversion Hn1; auto.
+        * destruct Hn1; auto.
+      + rewrite SeriesC_singleton; simpl; lra.
+    - rewrite Rmult_plus_distr_r.
+      rewrite Rmult_1_l.
+      assert (INR (S m) = (INR m + 1)) as ->; [apply S_INR | ].
+      rewrite <- IHm.
+      rewrite <- (SeriesC_singleton (S m)%nat v).
+      erewrite <- SeriesC_plus; [ | apply ex_seriesC_unif | apply ex_seriesC_singleton ].
+      apply SeriesC_ext; intro n.
+      repeat case_bool_decide; simplify_eq; (lra || lia || auto). 
+      rewrite Rplus_0_l.
+      apply SeriesC_singleton.
+  Qed.  
+  
+End unif.  
 
 Section positive.
 

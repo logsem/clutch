@@ -30,7 +30,7 @@ Ltac reshape_expr e tac :=
   | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
   | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
   | AllocTape ?e => go (AllocTapeCtx :: K) e
-  | Sample ?e => go (SampleCtx :: K) e
+  | Rand ?e => go (RandCtx :: K) e
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.

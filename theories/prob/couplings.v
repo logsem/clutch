@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable.
-From self.prelude Require Export base Coquelicot_ext Reals_ext.
+From self.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
 From self.prob Require Export countable_sum distribution.
 
 Open Scope R.
@@ -34,7 +34,7 @@ Section couplings.
     destruct Hμ as (Hμl & Hμr).
     rewrite <- Hμl.
     rewrite /lmarg.
-    rewrite <- dmap_mass.
+    rewrite dmap_mass.
     auto.
   Qed.
 
@@ -44,7 +44,7 @@ Section couplings.
     destruct Hμ as (Hμl & Hμr).
     rewrite <- Hμr.
     rewrite /rmarg.
-    rewrite <- dmap_mass.
+    rewrite dmap_mass.
     auto.
   Qed.
 
@@ -315,7 +315,7 @@ Section couplings_theory.
       rewrite <- Hμ2;
       rewrite rmarg_pmf; auto.
     + intros (a' & b') H3; simpl.
-      pose proof (dbind_pos_support Ch μ (a', b')) as (H4 & H5).
+      pose proof (dbind_pos Ch μ (a', b')) as (H4 & H5).
       specialize (H4 H3) as ((a0, b0) & H7 & H8).
       specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
       specialize (HCh2 (a', b') H7).
@@ -416,6 +416,13 @@ Section Rcoupl.
   Qed.
 
 End Rcoupl.
+
+Lemma Rcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
+  Rcoupl dzero dzero R.
+Proof.
+  exists dzero. split; [|intros; inv_distr].
+  split; [apply lmarg_dzero|apply rmarg_dzero]. 
+Qed.
 
 Lemma Rcoupl_dzero_r_inv `{Countable A, Countable B} μ1 (R : A → B → Prop) :
   Rcoupl μ1 dzero R → μ1 = dzero.
@@ -523,22 +530,20 @@ Proof.
   specialize (H y m Hy2); simplify_eq; auto.
 Qed.
 
-Lemma Rcoupl_unif_distr n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
-  (forall m, (m <= n)%nat -> (f m <= n)%nat) ->
-  Rcoupl (unif_distr n) (unif_distr n) (λ m m', m' = f m).
+Lemma Rcoupl_dunif n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
+  (∀ m, m ≤ n → f m ≤ n) →
+  Rcoupl (dunif n) (dunif n) (λ m m', m' = f m).
 Proof.
   intro Hdom.
-  exists (dbind (λ x, dret (x, f x)) (unif_distr n)); repeat split.
+  exists (dmap (λ x, (x, f x)) (dunif n)); repeat split.
   - eapply distr_ext=> y1.
     rewrite lmarg_pmf.
-    erewrite (SeriesC_ext _ (λ y2, if bool_decide ( (0 <= y1 <= n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.
+    erewrite (SeriesC_ext _ (λ y2, if bool_decide ((y1 ≤ n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.
     { intro. case_bool_decide as H1; destruct_and?; simplify_eq.
-      - apply dbind_dret_unif_nonzero.
-        + intros ? ? ?; simplify_eq; auto.
-        + exists y1; auto.
-      - apply dbind_dret_unif_zero.
-        intros ? ? ?; simplify_eq; apply H1; auto.
-    }
+      - eapply dmap_unif_nonzero; [|done|done].
+        intros ? ? ?; simplify_eq; auto.
+      - apply dmap_unif_zero.
+        intros ? ? ?; simplify_eq; apply H1; auto. }
     rewrite /pmf/=.
     case_bool_decide as H1.
     + erewrite (SeriesC_ext); [apply (SeriesC_singleton (f y1)) | ].
@@ -551,20 +556,18 @@ Proof.
       destruct H1; auto.
   - eapply distr_ext=> y2.
     rewrite rmarg_pmf.
-    erewrite (SeriesC_ext _ (λ y1, if bool_decide ( (0 <= y1 <= n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.
+    erewrite (SeriesC_ext _ (λ y1, if bool_decide (y1 ≤ n ∧ y2 = f y1) then / (INR n + 1) else 0)); last first.
     { intro n0. case_bool_decide as H1; destruct_and?; simplify_eq.
-      - apply dbind_dret_unif_nonzero.
-        + intros ? ? ?; simplify_eq; auto.
-        + exists n0; auto.
-      - apply dbind_dret_unif_zero.
-        intros ? ? ?; simplify_eq; apply H1; auto.
-    }
+      - eapply dmap_unif_nonzero; [|done|done]. 
+        intros ? ? ?; simplify_eq; auto.
+      - apply dmap_unif_zero.
+        intros ? ? ?; simplify_eq; apply H1; auto. }
     rewrite /pmf/=.
     case_bool_decide as H1.
     + erewrite (SeriesC_ext).
       * apply (SeriesC_singleton_inj y2 f); auto.
       * intro y1; case_bool_decide as H2; case_bool_decide; destruct_and?; simplify_eq; auto.
-        destruct H2; split; auto; split; auto with arith.
+        destruct H2; split; auto.
         apply (pigeonhole_aux2 n f); auto.
     + erewrite (SeriesC_ext); [apply SeriesC_0; done | ].
       intro m; simpl.
@@ -681,7 +684,7 @@ Section refinement_couplings.
     destruct Hμ as (Hμl & Hμr).
     rewrite <- Hμl.
     rewrite /lmarg.
-    rewrite <- dmap_mass.
+    rewrite dmap_mass.
     auto.
   Qed.
 
@@ -689,7 +692,7 @@ Section refinement_couplings.
   Proof.
     intro Hμ.
     destruct Hμ as (Hμl & Hμr).
-    rewrite (dmap_mass μ snd).
+    rewrite -(dmap_mass μ snd).
     apply SeriesC_le; auto.
   Qed.
 
@@ -904,7 +907,7 @@ Section ref_couplings_theory.
          specialize (HμCR b).
          rewrite rmarg_pmf in HμCR; auto.
     + intros (a' & b') H3; simpl.
-      pose proof (dbind_pos_support Ch μ (a', b')) as (H4 & H5).
+      pose proof (dbind_pos Ch μ (a', b')) as (H4 & H5).
       specialize (H4 H3) as ((a0, b0) & H7 & H8).
       specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
       specialize (HCh2 (a', b') H7).

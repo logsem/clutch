@@ -11,8 +11,6 @@ Proof. done. Qed.
 Global Instance as_val_val v : AsVal (Val v).
 Proof. by eexists. Qed.
 
-
-
 (** * Instances of the [Atomic] class *)
 Section atomic.
   Local Ltac solve_atomic :=
@@ -29,6 +27,7 @@ Section atomic.
   (** The instance below is a more general version of [Skip] *)
   Global Instance beta_atomic s f x v1 v2 : Atomic s (App (RecV f x (Val v1)) (Val v2)).
   Proof. destruct f,x; solve_atomic. Qed.
+
   Global Instance unop_atomic s op v : Atomic s (UnOp op (Val v)).
   Proof. solve_atomic. Qed.
   Global Instance binop_atomic s op v1 v2 : Atomic s (BinOp op (Val v1) (Val v2)).
@@ -39,6 +38,7 @@ Section atomic.
   Global Instance if_false_atomic s e1 v2 :
     Atomic s (If (Val $ LitV $ LitBool false) e1 (Val v2)).
   Proof. solve_atomic. Qed.
+
   Global Instance fst_atomic s v : Atomic s (Fst (Val v)).
   Proof. solve_atomic. Qed.
   Global Instance snd_atomic s v : Atomic s (Snd (Val v)).
@@ -51,11 +51,9 @@ Section atomic.
   Global Instance store_atomic s v1 v2 : Atomic s (Store (Val v1) (Val v2)).
   Proof. solve_atomic. Qed.
 
-  Global Instance flip_atomic s l : Atomic s (Sample (Val (LitV (LitLbl l)))).
+  Global Instance flip_atomic s l : Atomic s (Rand (Val (LitV (LitLbl l)))).
   Proof. solve_atomic. Qed.
-  Global Instance flip_atomic_unit s : Atomic s (Sample (Val (LitV LitUnit))).
-  Proof. solve_atomic. Qed.
-  Global Instance flip_atomic_int s z : Atomic s (Sample (Val (LitV (LitInt z)))).
+  Global Instance flip_atomic_int s z : Atomic s (Rand (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.
   Global Instance alloc_tape_atomic s z : Atomic s (AllocTape (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.
@@ -86,10 +84,9 @@ Global Hint Extern 0 (AsRecV (RecV _ _ _) _ _ _) =>
 Section pure_exec.
   Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
   Local Ltac solve_exec_puredet :=
-    intros; rewrite /pmf /=;
-      repeat (rewrite bool_decide_eq_true_2 // || case_match);
-      try (lra || done);
-      try (apply dret_1_1; auto).
+    intros; simpl;
+    (repeat case_match); simplify_eq;
+    rewrite dret_1_1 //.
   Local Ltac solve_pure_exec :=
     subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
     constructor; [solve_exec_safe | solve_exec_puredet].
@@ -116,25 +113,11 @@ Section pure_exec.
 
   Global Instance pure_unop op v v' :
     PureExec (un_op_eval op v = Some v') 1 (UnOp op (Val v)) (Val v').
-  Proof.
-    (* Clunky case *)
-    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
-    constructor; [solve_exec_safe | ].
-    intro.
-    simpl; case_match; simplify_eq; auto.
-    apply dret_1_1; auto.
-  Qed.
+  Proof. solve_pure_exec. Qed.
 
   Global Instance pure_binop op v1 v2 v' :
     PureExec (bin_op_eval op v1 v2 = Some v') 1 (BinOp op (Val v1) (Val v2)) (Val v') | 10.
-  Proof.
-    (* Clunky case *)
-    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
-    constructor; [solve_exec_safe | ].
-    intro.
-    simpl; case_match; simplify_eq; auto.
-    apply dret_1_1; auto.
-  Qed.
+  Proof. solve_pure_exec. Qed.
 
   (* Lower-cost instance for [EqOp]. *)
   Global Instance pure_eqop v1 v2 :
@@ -144,13 +127,7 @@ Section pure_exec.
   Proof.
     intros Hcompare.
     cut (bin_op_eval EqOp v1 v2 = Some $ LitV $ LitBool $ bool_decide (v1 = v2)).
-    { intros. revert Hcompare.
-    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
-    constructor; [solve_exec_safe | ].
-    intro.
-    simpl; case_match; simplify_eq; auto.
-    apply dret_1_1; auto.
-    }
+    { intros. revert Hcompare. solve_pure_exec. }
     rewrite /bin_op_eval /= decide_True //.
   Qed.
 
