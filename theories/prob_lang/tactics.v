@@ -68,17 +68,12 @@ Global Hint Extern 0 (head_reducible _ _) =>
 Global Hint Extern 1 (head_step _ _ _ > 0) =>
          eapply head_step_support_equiv_rel; econstructor : head_step.
 
-Local Ltac solve_step_det :=
-  rewrite /pmf /=;
-  try rewrite /dret_pmf;
-    repeat (rewrite bool_decide_eq_true_2 // || case_match);
-  try (lra || done).
-
 Ltac solve_step :=
   simpl;
   match goal with
-  | |- @pmf _ _ _ (prim_step _ _) _ = 1  =>
-      rewrite head_prim_step_eq; [solve_step_det|eauto with head_step]
-  | |- @pmf _ _ _ (head_step _ _) _ = 1  => solve_step_det
-  | |- @pmf _ _ _ (head_step _ _) _ > 0  => eauto with head_step
+  | |- (prim_step _ _).(pmf) _ = 1%R  =>
+      rewrite head_prim_step_eq /=;
+        [simplify_map_eq; solve_distr|eauto with head_step]
+  | |- (head_step _ _).(pmf) _ = 1%R  => simplify_map_eq; solve_distr
+  | |- (head_step _ _).(pmf) _ > 0%R  => eauto with head_step
   end.

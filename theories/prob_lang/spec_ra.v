@@ -118,6 +118,9 @@ Notation "l ↪ₛ{# q } v" := (l ↪ₛ{ DfracOwn q } v)%I
 Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ₛ  v") : bi_scope.
 
+Notation "l ↪ₛb bs" := (l ↪ₛ (1, bool_to_nat <$> bs))%I
+  (at level 20, format "l  ↪ₛb  bs") : bi_scope.
+
 Section spec_ctx.
   Context `{!invGS_gen HasNoLc Σ, !specGS Σ}.
 
@@ -128,7 +131,7 @@ Section spec_ctx.
         spec_prog_auth e ∗
         spec_heap_auth σ.(heap) ∗
         spec_tapes_auth σ.(tapes) ∗
-        ⌜valid_tapes σ.(tapes)⌝ )%I.
+        ⌜valid_tapes σ.(tapes)⌝)%I.
 
   Definition spec_ctx : iProp Σ :=
     inv specN spec_inv.

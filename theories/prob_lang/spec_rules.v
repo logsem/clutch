@@ -53,6 +53,7 @@ Section rules.
     iExists _, _, (state_upd_heap <[l:=v]> σ), _.
     iFrame. iPureIntro.
     eapply exec_det_step_ctx; [apply _| |done].
+    subst l.
     solve_step.
   Qed.
 
@@ -93,57 +94,72 @@ Section rules.
   Qed.
 
   (** AllocTape and flip (non-empty tape)  *)
-  Lemma step_alloctape E K :
+  Lemma step_alloctape E K (b : nat) :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K alloc ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ [].
+    spec_ctx ∗ ⤇ fill K (alloc #b) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (b, []).
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    set (l := fresh_loc σ.(tapes)).
-    iMod (spec_prog_update (fill K #(LitLbl l)) with "Hauth Hj") as "[Hauth Hj]".
-    iMod (ghost_map_insert l [] with "Htapes") as "[Htapes Hl]".
+    iMod (spec_prog_update (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (ghost_map_insert (fresh_loc σ.(tapes)) (b, []) with "Htapes") as "[Htapes Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
-    iExists l. iFrame. iMod ("Hclose" with "[-]"); [|done].
+    iExists (fresh_loc σ.(tapes)).
+    iFrame. iMod ("Hclose" with "[-]"); [|done].
     iModIntro.
-    iExists _, _, (state_upd_tapes <[l:=[]]> σ), _.
+    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=(b, [])]> σ), _.
     iFrame. iPureIntro.
+    split; [|by apply valid_tapes_insert_fresh].
     eapply exec_det_step_ctx; [apply _| |done].
     solve_step.
+    rewrite Nat2Z.id.
+    solve_distr.
   Qed.
 
   (* TODO: should this go here or not? *)
-  Lemma refines_right_alloctape E K :
+  Lemma refines_right_alloctape E K (b : nat) :
     nclose specN ⊆ E →
-    refines_right K alloc ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ [].
+    refines_right K (alloc #b) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (b, []).
   Proof.
     iIntros (?) "(?&?)".
     iMod (step_alloctape with "[$]") as (l) "(?&?)"; first done.
     iExists _; by iFrame.
   Qed.
 
-  Lemma step_flip E K l b bs :
+  Lemma step_rand E K l b n ns :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (flip #lbl:l) ∗ l ↪ₛ (b :: bs)
-    ={E}=∗ spec_ctx ∗ ⤇ fill K #b ∗ l ↪ₛ bs.
+    spec_ctx ∗ ⤇ fill K (rand #lbl:l) ∗ l ↪ₛ (b, n :: ns)
+    ={E}=∗ spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (b, ns).
   Proof.
     iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iMod (spec_prog_update (fill K #b) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
     iDestruct (ghost_map_lookup with "Htapes Hl") as %?.
-    iMod (ghost_map_update bs with "Htapes Hl") as "[Htapes Hl]".
+    iMod (ghost_map_update (b, ns) with "Htapes Hl") as "[Htapes Hl]".
     iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists _, _, (state_upd_tapes <[l:=bs]> σ), _.
+    iModIntro. iExists _, _, (state_upd_tapes <[l:=(b, ns)]> σ), _.
     iFrame. iPureIntro.
+    split; [|by eapply valid_tapes_consume].
     eapply exec_det_step_ctx; [apply _| |done].
-    simpl.
-    (* TODO: more clever [solve_step] tactic? *)
-    rewrite head_prim_step_eq; [|eauto with head_step].
-    rewrite /pmf /=. simplify_map_eq.
-    rewrite bool_decide_eq_true_2 //.
+    solve_step.
   Qed.
 
+  Lemma step_flip E K l (b : bool) bs :
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (flipL #lbl:l) ∗ l ↪ₛb (b :: bs)
+    ={E}=∗ spec_ctx ∗ ⤇ fill K #(LitBool b) ∗ l ↪ₛb bs.
+  Proof.
+    iIntros (?) "(#Hinv & Hj & Hl)".
+    replace (fill K (flipL #lbl:l)) with
+      (fill ([UnOpCtx ZtoBOp] ++ K) (rand #lbl:l)); [|done].
+    iMod (step_rand with "[$Hinv $Hj $Hl]") as "(_ & Hj & Hl) /="; [done|].
+    iMod (step_pure with "[$Hinv $Hj]") as "[_ Hj]"; [done|done|].
+    rewrite Z_to_bool_of_nat bool_to_nat_to_bool.
+    by iFrame "Hinv Hl".
+  Qed.
+
+  (*** TODO below  *)
   (* TODO: should this go here or not? *)
   Lemma refines_right_flip E K l b bs :
     nclose specN ⊆ E →

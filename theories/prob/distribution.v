@@ -1645,6 +1645,7 @@ Ltac solve_distr :=
     | |- (dbind _ _).(pmf) _ > 0 => apply dbind_pos; eexists; split
     | |- (dmap _ _).(pmf) _ > 0 => apply dmap_pos; eexists; (split; [done|])
     | |- (dunif _).(pmf) _ > 0 => apply dunif_pos; (done || lia)
+    | |- (dret ?x).(pmf) ?x = 1 => by apply dret_1_1
     end.
 
 Ltac solve_distr_mass :=
