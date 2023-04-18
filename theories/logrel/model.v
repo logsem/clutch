@@ -101,9 +101,10 @@ Section semtypes.
     ∃ l1 l2: loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (logN .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ₛ v2 ∗ A v1 v2))%I.
 
+  (* Both tapes are empty and are sampled from the same distribution *)
   Definition lrel_tape : lrel Σ := LRel (λ w1 w2,
-    ∃ α1 α2 : loc, ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
-      inv (logN .@ (α1, α2)) (α1 ↪ [] ∗ α2 ↪ₛ []))%I.
+    ∃ (α1 α2 : loc) (n: nat), ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
+      inv (logN .@ (α1, α2)) (α1 ↪ (n,[]) ∗ α2 ↪ₛ (n,[])))%I.
 
   Definition lrel_prod (A B : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ v1 v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧
@@ -213,8 +214,8 @@ Section semtypes_properties.
     ={E}=∗ ⌜l1 = l2⌝.
   Proof.
     iIntros (?) "[Hl1 Hl2] /=".
-    iDestruct "Hl1" as (l' l1') "[% [% #Hl1]]". simplify_eq.
-    iDestruct "Hl2" as (l l2') "[% [% #Hl2]]". simplify_eq.
+    iDestruct "Hl1" as (l' l1' n1) "[% [% #Hl1]]". simplify_eq.
+    iDestruct "Hl2" as (l l2' n2) "[% [% #Hl2]]". simplify_eq.
     destruct (decide (l1' = l2')) as [->|?]; eauto.
     iInv (logN.@(l, l1')) as "[>Hl ?]" "Hcl".
     iInv (logN.@(l, l2')) as "[>Hl' ?]" "Hcl'".
@@ -229,8 +230,8 @@ Section semtypes_properties.
     ={E}=∗ ⌜l1 = l2⌝.
   Proof.
     iIntros (?) "[Hl1 Hl2] /=".
-    iDestruct "Hl1" as (l1' l') "[% [% #Hl1]]". simplify_eq.
-    iDestruct "Hl2" as (l2' l) "[% [% #Hl2]]". simplify_eq.
+    iDestruct "Hl1" as (l1' l' n1) "[% [% #Hl1]]". simplify_eq.
+    iDestruct "Hl2" as (l2' l n2) "[% [% #Hl2]]". simplify_eq.
     destruct (decide (l1' = l2')) as [->|?]; eauto.
     iInv (logN.@(l1', l)) as "(? & >Hl)" "Hcl".
     iInv (logN.@(l2', l)) as "(? & >Hl')" "Hcl'".

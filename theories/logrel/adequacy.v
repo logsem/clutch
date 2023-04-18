@@ -14,12 +14,14 @@ Proof. solve_inG. Qed.
 
 Theorem refines_coupling Σ `{prelogrelGpreS Σ}
   (A : ∀ `{prelogrelGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' n :
+  valid_tapes σ.(tapes) ->
+  valid_tapes σ'.(tapes) ->
   (∀ `{prelogrelGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
   (∀ `{prelogrelGS Σ}, ⊢ REL e << e' : A) →
   refRcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ.
 Proof.
-  intros HA Hlog.
-  apply (wp_refRcoupl Σ).
+  intros ? ? HA Hlog.
+  apply (wp_refRcoupl Σ); auto.
   intros ?.
   iIntros "#Hctx He'".
   iMod na_alloc as "[%γ Htok]".

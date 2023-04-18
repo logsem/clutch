@@ -127,7 +127,8 @@ Section spec_ctx.
         ⌜exec n ρ (e, σ) = 1%R⌝ ∗
         spec_prog_auth e ∗
         spec_heap_auth σ.(heap) ∗
-        spec_tapes_auth σ.(tapes))%I.
+        spec_tapes_auth σ.(tapes) ∗
+        ⌜valid_tapes σ.(tapes)⌝ )%I.
 
   Definition spec_ctx : iProp Σ :=
     inv specN spec_inv.

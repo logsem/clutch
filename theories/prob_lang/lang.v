@@ -124,6 +124,44 @@ Global Arguments vals_compare_safe !_ !_ /.
 (* A tape is a product of a natural number n and a list of integers in {0,...,n} *)
 Definition tape := prod nat (list nat).
 
+
+Definition valid_tapes (t : gmap loc tape) : Prop :=
+  map_Forall (λ _ '(b, ns), Forall (λ n, n ≤ b) ns) t.
+
+
+Lemma valid_tapes_insert_fresh t n :
+  valid_tapes t →
+  valid_tapes (<[fresh_loc t:=(n, [])]> t).
+Proof.
+  rewrite /valid_tapes. intros Ht.
+  rewrite map_Forall_insert; [auto|].
+  apply not_elem_of_dom, fresh_loc_is_fresh.
+Qed.
+
+Lemma valid_tapes_consume t b n ns α :
+  valid_tapes t →
+  t !! α = Some (b, n :: ns) →
+  valid_tapes (<[α:=(b, ns)]> t).
+Proof.
+  rewrite /valid_tapes.
+  intros Ht Hα.
+  apply map_Forall_insert_2; [|done].
+  suff: (Forall (λ m, m ≤ b) (n :: ns)).
+  { rewrite Forall_cons. by intros []. }
+  eapply (map_Forall_lookup_1 _ _ _ _ Ht Hα).
+Qed.
+
+Lemma valid_tapes_leq t α b n ns :
+  valid_tapes t →
+  t !! α = Some (b, n :: ns) →
+  n ≤ b.
+Proof.
+  rewrite /valid_tapes.
+  intros Ht Hα.
+  eapply (Forall_cons (λ n, n ≤ b) _ ns).
+  apply (map_Forall_lookup_1 _ _ _ _ Ht Hα).
+Qed.
+
 (* Typeclass stuff for tapes *)
 Global Instance tape_inhabited : Inhabited tape.
 Proof. apply prod_inhabited; [apply Nat.inhabited | apply list_inhabited ]. Defined.

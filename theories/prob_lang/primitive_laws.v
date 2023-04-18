@@ -26,46 +26,11 @@ Definition heap_auth `{clutchGS Σ} :=
 Definition tapes_auth `{clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
-Definition valid_tapes (t : gmap loc tape) : Prop :=
-  map_Forall (λ _ '(b, ns), Forall (λ n, n ≤ b) ns) t.
-
-Lemma valid_tapes_insert_fresh t n :
-  valid_tapes t →
-  valid_tapes (<[fresh_loc t:=(n, [])]> t).
-Proof.
-  rewrite /valid_tapes. intros Ht.
-  rewrite map_Forall_insert; [auto|].
-  apply not_elem_of_dom, fresh_loc_is_fresh.
-Qed.
-
-Lemma valid_tapes_consume t b n ns α :
-  valid_tapes t →
-  t !! α = Some (b, n :: ns) →
-  valid_tapes (<[α:=(b, ns)]> t).
-Proof.
-  rewrite /valid_tapes.
-  intros Ht Hα.
-  apply map_Forall_insert_2; [|done].
-  suff: (Forall (λ m, m ≤ b) (n :: ns)).
-  { rewrite Forall_cons. by intros []. }
-  eapply (map_Forall_lookup_1 _ _ _ _ Ht Hα).
-Qed.
-
-Lemma valid_tapes_leq t α b n ns :
-  valid_tapes t →
-  t !! α = Some (b, n :: ns) →
-  n ≤ b.
-Proof.
-  rewrite /valid_tapes.
-  intros Ht Hα.
-  eapply (Forall_cons (λ n, n ≤ b) _ ns).
-  apply (map_Forall_lookup_1 _ _ _ _ Ht Hα).
-Qed.
 
 Global Instance clutchGS_irisGS `{!clutchGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes) ∗ ⌜valid_tapes σ.(tapes)⌝)%I;
-  spec_interp ρ := spec_interp_auth ρ;
+  spec_interp ρ := (spec_interp_auth ρ ∗ ⌜valid_tapes ρ.2.(tapes)⌝)%I ;
 }.
 
 (** Heap *)
