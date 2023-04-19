@@ -182,7 +182,6 @@ Section rules.
 
 
 
-  (*** TODO below  *)
 
   (* TODO: can we factor out a lemma to avoid duplication in all the coupling lemmas? *)
   Lemma wp_couple_tapes f `{Bij nat nat f} E e α αₛ n zs zsₛ Φ :
@@ -195,7 +194,7 @@ Section rules.
   Proof.
     iIntros (Hdom He ?) "(#Hinv & Hαs & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 Hv1]] [Hauth2  Hv2]]".
+    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
     iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
@@ -213,7 +212,7 @@ Section rules.
     { iPureIntro.
       eapply Rcoupl_pos_R, (Rcoupl_state_step f); eauto.
     }
-    iIntros (σ2 σ2' ((b & -> & ->) & ? & ?)).
+    iIntros (σ2 σ2' ((b & Hleq & -> & ->) & ? & ?)).
     (* Update our resources *)
     iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(n, zsₛ ++ [f b])]> σ0'))
            with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
@@ -230,46 +229,28 @@ Section rules.
       iFrame. rewrite exec_O dret_1_1 //; iSplit; auto.
       iPureIntro.
       apply valid_tapes_append; auto.
-      apply Hdom; auto.
     }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[Hα Hαs]").
-    { iExists _. iFrame. }
+    { iExists _. iFrame; auto.}
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
-    iModIntro. done.
-
-
-
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [f b]]> σ0'))
-           with "Hspec Hspec0") as "[Hspec Hspec0]".
-    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
-    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
-    simplify_map_eq.
-    iMod (ghost_map_update (tapes σ1 !!! α ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update (tapes σ0' !!! αₛ ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
-    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
-    iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
-    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
-    iSpecialize ("Hwp" with "[Hα Hαs]").
-    { iExists _. iFrame. }
-    rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
-    iModIntro. done.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(n, zs ++ [b])]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp".
+    + iFrame. iSplit.
+      * iPureIntro. apply valid_tapes_append; auto.
+      * iPureIntro. apply valid_tapes_append; auto.
+    + iModIntro. done.
   Qed.
 
-  Lemma wp_couple_tapes_eq E e α αₛ bs bsₛ Φ :
+
+  Lemma wp_couple_tapes_eq E e α αₛ n bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-    ((∃ b, αₛ ↪ₛ (bsₛ ++ [b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ αₛ ↪ₛ (n, bsₛ) ∗ α ↪ (n, bs) ∗
+    ((∃ z, ⌜z <= n⌝ ∗ αₛ ↪ₛ (n, bsₛ ++ [z]) ∗ α ↪ (n, bs ++ [z])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
-  Proof. eapply (wp_couple_tapes (Datatypes.id)). Qed.
+  Proof. eapply (wp_couple_tapes (Datatypes.id)); done. Qed.
 
+  (* Do we need this anymore?
   Lemma wp_couple_tapes_neg E e α αₛ bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
@@ -277,26 +258,31 @@ Section rules.
     ((∃ b, αₛ ↪ₛ (bsₛ ++ [negb b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof. apply (wp_couple_tapes negb). Qed.
+  *)
 
-  Lemma wp_couple_tapesN_eq E n e α αₛ bs bsₛ Φ :
+  Lemma wp_couple_tapesN_eq E m e α αₛ n bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-    ((∃ bs', ⌜ length bs' = n ⌝ ∗ αₛ ↪ₛ (bsₛ ++ bs') ∗ α ↪ (bs ++ bs')) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ αₛ ↪ₛ (n,bsₛ) ∗ α ↪ (n,bs) ∗
+    ((∃ bs', ⌜ Forall (λ z, z <= n) bs'⌝ ∗ ⌜ length bs' = m ⌝ ∗ αₛ ↪ₛ (n, bsₛ ++ bs') ∗ α ↪ (n, bs ++ bs')) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??).
-    iInduction n as [| n] "IH" forall (bs bsₛ).
+    iInduction m as [| m] "IH" forall (bs bsₛ).
     - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
-      iApply "Hwp". iExists []; rewrite ?app_nil_r /=; by iFrame.
+      iApply "Hwp"; iExists []; iSplit; [ done | rewrite ?app_nil_r /=; by iFrame].
     - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
       iApply "IH". iFrame "Hα Hαₛ Hctx".
-      iDestruct 1 as (bs' Hlen) "(Hα&Hαₛ)".
+      iDestruct 1 as (bs' Hforall Hlen) "(Hα&Hαₛ)".
       iApply wp_couple_tapes_eq; try done. iFrame "Hα Hαₛ Hctx".
-      iDestruct 1 as (b) "(Hα&Hαₛ)".
+      iDestruct 1 as (b Hleq) "(Hα&Hαₛ)".
       iApply "Hwp". iExists (bs' ++ [b]). rewrite ?app_assoc; iFrame.
-      iPureIntro; rewrite ?app_length ?Hlen /=; lia.
+      iSplit; iPureIntro; [ | rewrite ?app_length ?Hlen /=; lia].
+      apply Forall_app_2; auto.
   Qed.
+
+
+  (*** TODO below  *)
 
   Lemma wp_couple_tape_flip f `{Bij bool bool f} K E α bs Φ e :
     to_val e = None →

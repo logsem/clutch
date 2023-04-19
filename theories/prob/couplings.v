@@ -532,10 +532,10 @@ Qed.
 
 Lemma Rcoupl_dunif n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
   (∀ m, m ≤ n → f m ≤ n) →
-  Rcoupl (dunif n) (dunif n) (λ m m', m' = f m).
+  Rcoupl (dunif n) (dunif n) (λ m m', (m <= n)%nat /\ (m' <= n)%nat /\ m' = f m).
 Proof.
   intro Hdom.
-  exists (dmap (λ x, (x, f x)) (dunif n)); repeat split.
+  exists (dmap (λ x, (x, f x)) (dunif n)). split ; [split | ].
   - eapply distr_ext=> y1.
     rewrite lmarg_pmf.
     erewrite (SeriesC_ext _ (λ y2, if bool_decide ((y1 ≤ n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.

@@ -402,6 +402,7 @@ Lemma Rcoupl_state_step f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ2 �
     (state_step σ1 α1)
     (state_step σ2 α2)
     (λ σ1' σ2', ∃ n,
+        (n <= m)%nat /\
         σ1' = state_upd_tapes <[α1 := (m, xs ++ [n])]> σ1 ∧
         σ2' = state_upd_tapes <[α2 := (m, ys ++ [f n])]> σ2).
 Proof.
@@ -415,10 +416,9 @@ Proof.
   rewrite (lookup_total_correct _ _ _ Hα2).
   rewrite /dmap.
   eapply Rcoupl_dbind; [ | apply (Rcoupl_dunif m f); auto]; simpl.
-  intros a b Hab.
+  intros a b (?&?&->).
   apply Rcoupl_dret.
-  exists a. split; [done|].
-  rewrite Hab //.
+  exists a. split; try split; auto.
 Qed.
 
 (*
