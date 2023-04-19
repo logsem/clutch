@@ -129,6 +129,19 @@ Definition valid_tapes (t : gmap loc tape) : Prop :=
   map_Forall (λ _ '(b, ns), Forall (λ n, n ≤ b) ns) t.
 
 
+Lemma valid_tapes_append t b n ns α :
+  valid_tapes t →
+  t !! α = Some (b, ns) →
+  n <= b ->
+  valid_tapes (<[α:=(b, ns ++ [n])]> t).
+Proof.
+  rewrite /valid_tapes.
+  intros Ht Hα Hleq.
+  apply map_Forall_insert_2; [|done].
+  apply Forall_app_2; auto.
+  eapply (map_Forall_lookup_1 _ _ α _ Ht Hα); auto.
+Qed.
+
 Lemma valid_tapes_insert_fresh t n :
   valid_tapes t →
   valid_tapes (<[fresh_loc t:=(n, [])]> t).

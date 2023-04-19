@@ -159,31 +159,45 @@ Section rules.
     by iFrame "Hinv Hl".
   Qed.
 
-  (*** TODO below  *)
+  Lemma refines_right_rand E K l n z zs :
+    nclose specN ⊆ E →
+    l ↪ₛ (n, z :: zs) -∗
+    refines_right K (rand #lbl:l) ={E}=∗ refines_right K (#z) ∗ l ↪ₛ (n,zs).
+  Proof.
+    iIntros (?) "? (?&?)".
+    iMod (step_rand with "[$]") as "(?&?&?)"; first done.
+    iModIntro; iFrame.
+  Qed.
+
   (* TODO: should this go here or not? *)
   Lemma refines_right_flip E K l b bs :
     nclose specN ⊆ E →
-    l ↪ₛ (b :: bs) -∗
-    refines_right K (flip #lbl:l) ={E}=∗ refines_right K (#b) ∗ l ↪ₛ bs.
+    l ↪ₛb (b :: bs) -∗
+    refines_right K (flipL #lbl:l) ={E}=∗ refines_right K #(LitBool b) ∗ l ↪ₛb bs.
   Proof.
     iIntros (?) "? (?&?)".
     iMod (step_flip with "[$]") as "(?&?&?)"; first done.
     iModIntro; iFrame.
   Qed.
 
+
+
+  (*** TODO below  *)
+
   (* TODO: can we factor out a lemma to avoid duplication in all the coupling lemmas? *)
-  Lemma wp_couple_tapes f `{Bij bool bool f} E e α αₛ bs bsₛ Φ :
+  Lemma wp_couple_tapes f `{Bij nat nat f} E e α αₛ n zs zsₛ Φ :
+    (∀ m, m ≤ n → f m ≤ n) →
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-    ((∃ b, αₛ ↪ₛ (bsₛ ++ [f b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ αₛ ↪ₛ (n, zsₛ) ∗ α ↪ (n, zs) ∗
+    ((∃ z, ⌜z <= n⌝ ∗ αₛ ↪ₛ (n, zsₛ ++ [f z]) ∗ α ↪ (n, zs ++ [z])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (He ?) "(#Hinv & Hαs & Hα & Hwp)".
+    iIntros (Hdom He ?) "(#Hinv & Hαs & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hspec]".
-    iInv specN as (ρ' e0' σ0' n) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hspec Hspec0") as %<-.
+    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 Hv1]] [Hauth2  Hv2]]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -196,9 +210,37 @@ Section rules.
         apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
     iExists _.
     iSplit.
-    { iPureIntro. eapply Rcoupl_pos_R, (Rcoupl_state_step f); by apply elem_of_dom. }
+    { iPureIntro.
+      eapply Rcoupl_pos_R, (Rcoupl_state_step f); eauto.
+    }
     iIntros (σ2 σ2' ((b & -> & ->) & ? & ?)).
     (* Update our resources *)
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(n, zsₛ ++ [f b])]> σ0'))
+           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
+    simplify_map_eq.
+    iMod (ghost_map_update (n, zs ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update (n, zsₛ ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //; iSplit; auto.
+      iPureIntro.
+      apply valid_tapes_append; auto.
+      apply Hdom; auto.
+    }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
+    iSpecialize ("Hwp" with "[Hα Hαs]").
+    { iExists _. iFrame. }
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! (state_upd_tapes _ _) with "[$Hh1 $Hspec Ht1]") as "Hwp"; [done|].
+    iModIntro. done.
+
+
+
     iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=tapes σ0' !!! αₛ ++ [f b]]> σ0'))
            with "Hspec Hspec0") as "[Hspec Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
