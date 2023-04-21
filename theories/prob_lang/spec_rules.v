@@ -232,7 +232,7 @@ Section rules.
     }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[Hα Hαs]").
-    { iExists _. iFrame; auto.}
+    { iExists _. iFrame; auto. }
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(n, zs ++ [b])]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp".
     + iFrame. iSplit.
@@ -282,7 +282,6 @@ Section rules.
   Qed.
 
 
-  (*** TODO below  *)
 
   Lemma wp_couple_tape_rand f `{Bij nat nat f} K E α n bs Φ e :
     (∀ m, m ≤ n → f m ≤ n) →
@@ -441,7 +440,7 @@ Section rules.
     by iApply (wp_value_fupd).
   Qed.
 
-  Lemma wp_couple_rand_lbl_flip_eq K E α n Φ :
+  Lemma wp_couple_rand_lbl_rand_eq K E α n Φ :
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (n,[]) ∗ ⤇ fill K (rand #n) ∗
     (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ (n,[]) ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})

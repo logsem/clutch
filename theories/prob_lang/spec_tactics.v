@@ -4,7 +4,7 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      sel_patterns environments
      reduction.
-From self.prob_lang Require Import spec_rules tactics.
+From self.prob_lang Require Import spec_rules notation tactics.
 Set Default Proof Using "Type".
 
 (** ** bind *)
@@ -284,16 +284,17 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e Q :
+(* Will this ever be used when the argument of alloc is not a value? *)
+Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e (n:nat) Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
-  e = fill K' alloc →
+  e = fill K' (alloc (Val #n)) →
   (* TODO use match here as well *)
   (∀ α : loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (refines_right k (fill K' #lbl:α))) Δ1 = Some Δ2 ∧
-    (envs_entails Δ2 ((α ↪ₛ []) -∗ Q)%I)) →
+    (envs_entails Δ2 ((α ↪ₛ (n, [])) -∗ Q)%I)) →
   envs_entails Δ1 Q.
 Proof.
   rewrite envs_entails_unseal. intros ??? Hfill HQ.
@@ -335,15 +336,15 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_flip `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) b bs Q :
+Lemma tac_tp_rand `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) n b bs Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
-  e = fill K' (Flip #lbl:l) →
-  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (b::bs))%I →
+  e = fill K' (Rand #lbl:l) →
+  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (n,b::bs))%I →
   e2 = fill K' (of_val #b) →
   match envs_simple_replace i2 false
-    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ bs)%I) Δ2 with
+    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ (n,bs))%I) Δ2 with
   | Some Δ3 => envs_entails Δ3 Q
   | None    => False
   end →
@@ -356,20 +357,20 @@ Proof.
   rewrite /refines_right.
   rewrite right_id.
   rewrite assoc. rewrite -(assoc _ spec_ctx).
-  rewrite -fill_app step_flip /= // fill_app.
+  rewrite -fill_app step_rand /= // fill_app.
   rewrite -[Q]elim_modal //.
   apply bi.sep_mono_r.
   apply bi.wand_intro_l.
-  rewrite (comm _ _ (l ↪ₛ bs)%I).
+  rewrite (comm _ _ (l ↪ₛ (n,bs))%I).
   rewrite assoc.
-  rewrite (comm _ _ (l ↪ₛ bs)%I).
+  rewrite (comm _ _ (l ↪ₛ (n,bs))%I).
   rewrite -assoc.
   rewrite HQ. by apply bi.wand_elim_r.
 Qed.
 
 Tactic Notation "tp_flip" :=
   iStartProof;
-  eapply tac_tp_flip;
+  eapply tac_tp_rand;
   [iSolveTC || fail "tp_flip: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_flip: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_flip: cannot find the RHS"
