@@ -393,6 +393,32 @@ Qed.
 
 *)
 
+
+(** * rand(m) ~ rand(m) coupling *)
+Lemma Rcoupl_rand_rand f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' m :
+  (∀ n : nat, n ≤ m → f n ≤ m) →
+  Rcoupl
+    (prim_step (Rand (Val #m)) σ1)
+    (prim_step (Rand (Val #m)) σ1')
+    (λ ρ2 ρ2' , ∃ (b : nat),
+        (b <= m)%nat /\
+        ρ2 = (Val #b, σ1) /\
+        ρ2' = (Val #(f b), σ1')).
+Proof.
+  intros Hbij.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0, σ1). eapply head_step_support_equiv_rel.
+    eapply (RandNoTapeS 0); lia. }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0, σ1'). eapply head_step_support_equiv_rel.
+    eapply (RandNoTapeS 0); lia. }
+  rewrite /dmap Nat2Z.id.
+  eapply Rcoupl_dbind; [ | eapply (Rcoupl_dunif _ _ Hbij); eauto].
+  intros a b (?&?&->).
+  apply Rcoupl_dret.
+  exists a; done.
+Qed.
+
 (** * state_step(α) ~ state_step(α') coupling *)
 Lemma Rcoupl_state_step f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ2 α1 α2 m xs ys :
   (∀ n : nat, n ≤ m → f n ≤ m) →
@@ -421,35 +447,60 @@ Proof.
   exists a. split; try split; auto.
 Qed.
 
-(*
-  TODO: add rand n
 
 (** * rand(unit) ~ state_step(α') coupling *)
-Lemma Rcoupl_rand_state f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α' :
-  α' ∈ dom σ1'.(tapes) →
+Lemma Rcoupl_rand_state f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' α' m xs:
+  (∀ n : nat, n ≤ m → f n ≤ m) →
+  σ1'.(tapes) !! α' = Some (m, xs) →
   Rcoupl
-    (prim_step (Rand (Val $ LitV $ LitUnit)) σ1)
+    (prim_step (Rand (Val #m)) σ1)
     (state_step σ1' α')
-    (λ ρ2 σ2', ∃ (b : bool),
-        ρ2 = (Val #b, σ1) ∧ σ2' = state_upd_tapes <[α' := σ1'.(tapes) !!! α' ++ [f b]]> σ1').
+    (λ ρ2 σ2', ∃ (b : nat),
+        (b <= m)%nat /\
+        ρ2 = (Val #b, σ1) ∧ σ2' = state_upd_tapes <[α' := (m, xs ++ [f b])]> σ1').
 Proof.
-  intros Hα'.
+  intros Hbij Hα'.
   rewrite head_prim_step_eq /=; last first.
-  { eexists (_, _); simpl. eapply head_step_support_equiv_rel.
-    eapply (RandNoTapeS true). }
-  rewrite head_step_rand_no_tape_unfold //.
-  rewrite state_step_fair_conv_comb //.
-  eapply (Rcoupl_fair_conv_comb f).
-  intros [].
-  - destruct (f true) eqn:Hf; apply Rcoupl_dret.
-    + exists true. rewrite Hf //.
-    + exists false. by erewrite bool_fn_inj_1.
-  - destruct (f false) eqn:Hf; apply Rcoupl_dret.
-    + exists true. by erewrite bool_fn_inj_1.
-    + exists false. rewrite Hf //.
+  { eexists (Val #0, σ1). eapply head_step_support_equiv_rel.
+    eapply (RandNoTapeS 0); lia. }
+  rewrite /state_step.
+  rewrite bool_decide_eq_true_2; [ | eapply elem_of_dom_2; eauto] .
+  rewrite Nat2Z.id.
+  rewrite (lookup_total_correct _ _ _ Hα').
+  rewrite /dmap.
+  eapply Rcoupl_dbind; [ | eapply (Rcoupl_dunif _ _ Hbij); eauto].
+  intros a b (?&?&->).
+  apply Rcoupl_dret.
+  exists a; auto.
 Qed.
 
 (** * state_step(α) ~ rand(unit) coupling *)
+Lemma Rcoupl_state_rand f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' α m xs:
+  (∀ n : nat, n ≤ m → f n ≤ m) →
+  σ1.(tapes) !! α = Some (m, xs) →
+  Rcoupl
+    (state_step σ1 α)
+    (prim_step (Rand (Val #m)) σ1')
+    (λ σ2 ρ2' , ∃ (b : nat),
+        (b <= m)%nat /\
+        σ2 = state_upd_tapes <[α := (m, xs ++ [b])]> σ1 /\ ρ2' = (Val #(f b), σ1') ).
+Proof.
+  intros Hbij Hα.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0, σ1'). eapply head_step_support_equiv_rel.
+    eapply (RandNoTapeS 0); lia. }
+  rewrite /state_step.
+  rewrite bool_decide_eq_true_2; [ | eapply elem_of_dom_2; eauto] .
+  rewrite Nat2Z.id.
+  rewrite (lookup_total_correct _ _ _ Hα).
+  rewrite /dmap.
+  eapply Rcoupl_dbind; [ | eapply (Rcoupl_dunif _ _ Hbij); eauto].
+  intros a b (?&?&->).
+  apply Rcoupl_dret.
+  exists a; auto.
+Qed.
+
+(*
 Lemma Rcoupl_state_rand f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} σ1 σ1' α :
   α ∈ dom σ1.(tapes) →
   Rcoupl
@@ -475,7 +526,7 @@ Proof.
 Qed.
 *)
 
-(** * e1 ~ rand(α') coupling for α' ↪ₛ [] *)
+(** * e1 ~ rand(α') coupling for α' ↪ₛ (m, []) *)
 Lemma Rcoupl_rand_empty_r (ρ1 : cfg) σ1' α' m :
   tapes σ1' !! α' = Some (m, []) →
   Rcoupl
@@ -495,6 +546,7 @@ Proof.
     + rewrite head_step_mass //.
   - intros ? [] (_ & ? & ?). inv_head_step.
 Qed.
+
 
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=

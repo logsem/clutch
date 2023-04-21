@@ -710,7 +710,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(tapes) !! l = None →
   n ≤ 1 →
   head_step_rel (Rand $ Val $ LitV $ LitLbl l) σ (Val $ LitV $ LitInt n) σ
-| RandNoTape n m  σ:
+| RandNoTapeS n m  σ:
   n ≤ Z.to_nat m →
   head_step_rel (Rand $ Val $ LitV $ LitInt m) σ (Val $ LitV $ LitInt n) σ.
 
