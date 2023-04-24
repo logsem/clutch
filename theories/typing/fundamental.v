@@ -286,7 +286,7 @@ Section fundamental.
     rel_values. iExists α, β. auto.
   Qed.
 
-  Lemma bin_log_related_flip_tape Δ Γ e e' :
+  Lemma bin_log_related_rand_tape Δ Γ e e' :
     ({Δ; Γ} ⊨ e ≤log≤ e' : TTape) -∗
     {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TInt.
   Proof.
@@ -300,7 +300,7 @@ Section fundamental.
     iExists _, _. eauto.
   Qed.
 
-  Lemma bin_log_related_flip_int Δ Γ e e' :
+  Lemma bin_log_related_rand_int Δ Γ e e' :
     ({Δ; Γ} ⊨ e ≤log≤ e' : TInt) -∗
     {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TInt.
   Proof.
@@ -528,8 +528,8 @@ Section fundamental.
       + iApply bin_log_related_load; by iApply fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
       + iApply bin_log_related_alloctape; by iApply fundamental.
-      + iApply bin_log_related_flip_tape; by iApply fundamental.
-      + iApply bin_log_related_flip_int; by iApply fundamental.
+      + iApply bin_log_related_rand_tape; by iApply fundamental.
+      + iApply bin_log_related_rand_int; by iApply fundamental.
       (*
       + intro_clause.
         iPoseProof (fundamental _ _ _ _ Ht) as "-#IH".

@@ -44,7 +44,9 @@ Inductive ctx_item :=
     (* Nb: we do not have an explicit PACK operation *)
   | CTX_UnpackL (x : binder) (e2 : expr)
   | CTX_UnpackR (x : binder) (e1 : expr)
-  | CTX_Flip
+  | CTX_AllocTape
+  | CTX_RandInt
+  | CTX_RandTape
 .
 
 Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
@@ -84,7 +86,9 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
   | CTX_TApp => TApp e
   | CTX_UnpackL x e1 => unpack: x:=e in e1
   | CTX_UnpackR x e0 => unpack: x:=e0 in e
-  | CTX_Flip => Flip e
+  | CTX_AllocTape => AllocTape e
+  | CTX_RandInt => Rand e
+  | CTX_RandTape => Rand e
   end.
 
 Definition ctx := list ctx_item.
@@ -198,8 +202,12 @@ Inductive typed_ctx_item :
      typed_ctx_item (CTX_UnpackR x e1)
                     (<[x:=τ]>(⤉ Γ)) (Autosubst_Classes.subst (ren (+1)) τ2)
                     Γ τ2
-  | TP_CTX_Flip Γ :
-     typed_ctx_item CTX_Flip Γ TTape Γ (TBool)
+  | TP_CTX_AllocTape Γ :
+     typed_ctx_item CTX_AllocTape Γ TInt Γ (TTape)
+  | TP_CTX_RandInt Γ :
+     typed_ctx_item CTX_RandInt Γ TInt Γ (TInt)
+  | TP_CTX_RandTape Γ :
+     typed_ctx_item CTX_RandTape Γ TTape Γ (TInt)
 .
 
 Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type → Prop :=
@@ -213,8 +221,10 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
     termination can be found in [contextual_refinement_alt.v] *)
+(* Can we avoid exposing validity of the initial tapes in this definition? *)
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
+  valid_tapes σ₀.(tapes) ->
   typed_ctx K Γ τ ∅ TBool →
   (lim_exec_val (fill_ctx K e, σ₀) #b <= lim_exec_val (fill_ctx K e', σ₀) #b)%R.
 
@@ -237,9 +247,9 @@ Proof. intros ?????. done. Qed.
 Global Instance ctx_refines_transitive Γ τ :
   Transitive (fun e1 e2 => ctx_refines Γ e1 e2 τ).
 Proof.
-  intros e1 e2 e3 Hctx1 Hctx2 K σ₀ b Hty.
-  pose proof (Hctx1 K σ₀ b Hty) as H1.
-  pose proof (Hctx2 K σ₀ b Hty) as H2.
+  intros e1 e2 e3 Hctx1 Hctx2 K σ₀ b Hv Hty.
+  pose proof (Hctx1 K σ₀ b Hv Hty) as H1.
+  pose proof (Hctx2 K σ₀ b Hv Hty) as H2.
   by etrans.
 Qed.
 
@@ -266,7 +276,7 @@ Lemma ctx_refines_congruence Γ e1 e2 τ Γ' τ' K :
   (Γ ⊨ e1 ≤ctx≤ e2 : τ) →
   Γ' ⊨ fill_ctx K e1 ≤ctx≤ fill_ctx K e2 : τ'.
 Proof.
-  intros HK Hctx K' σ₀ b Hty.
+  intros HK Hctx K' σ₀ b Hv Hty.
   rewrite !fill_ctx_app.
   apply (Hctx (K' ++ K) σ₀); auto.
   eapply typed_ctx_compose; eauto.
@@ -383,7 +393,11 @@ Section bin_log_related_under_typed_ctx.
       + iApply bin_log_related_unpack.
         * by iApply fundamental.
         * iIntros (A). iApply (IHK with "[Hrel]"); auto.
-      + iApply bin_log_related_flip.
+      + iApply bin_log_related_alloctape.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_int.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_tape.
         iApply (IHK with "[Hrel]"); auto.
   Qed.
 End bin_log_related_under_typed_ctx.
