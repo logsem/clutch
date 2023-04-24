@@ -118,39 +118,40 @@ Section compatibility.
     value_case.
   Qed.
 
-  Lemma refines_flip e e' :
+  Lemma refines_rand_tape e e' :
     (REL e << e' : lrel_tape) -∗
-    REL flip e << flip e' : lrel_bool.
+    REL rand e << rand e' : lrel_int.
   Proof.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
-    iDestruct "H" as (α α' -> ->) "#H".
+    iDestruct "H" as (α α' n -> ->) "#H".
     iApply (refines_atomic_l _ _ []); simpl.
     iIntros (K') "[#Hs Hr]".
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
     (* TODO: make a tactic [wp_flip] and a [tp_flip] tactic *)
     wp_apply (wp_couple_tapes_eq with "[- $Hs $Hα $Hα']"); [done|solve_ndisj|].
-    iIntros "[%b [Hα' Hα]] /=".
-    wp_apply (wp_flip with "Hα").
-    iIntros "Hα".
-    iMod (step_flip with "[$Hs $Hr $Hα']") as "(_ & Hr & Hα')"; [solve_ndisj|].
+    iIntros "[%b [Hleq [Hα' Hα]]] /=".
+    wp_apply (wp_rand_tape with "Hα").
+    iIntros "[Hleq' Hα]".
+    iMod (step_rand with "[$Hs $Hr $Hα']") as "(_ & Hr & Hα')"; [solve_ndisj|].
     iMod ("Hclose" with "[$Hα $Hα']") as "_".
     iModIntro. iExists _. iFrame "Hr Hs".
     value_case.
   Qed.
 
-  Lemma refines_flip_no_tapes e e' :
-    (REL e << e' : lrel_unit) -∗
-    REL flip e << flip e' : lrel_bool.
+  Lemma refines_rand_int e e' :
+    (REL e << e' : lrel_int) -∗
+    REL rand e << rand e' : lrel_int.
   Proof.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
-    iDestruct "H" as "[->->]".
-    rel_bind_l (flip _)%E.
-    rel_bind_r (flip _)%E.
-    iApply refines_couple_flips_lr ; auto.
-    iIntros (b).
+    iDestruct "H" as (z) "%H2".
+    destruct H2 as [-> ->].
+    rel_bind_l (rand _)%E.
+    rel_bind_r (rand _)%E.
+    iApply (refines_couple_rands_lr); auto.
+    iIntros (b Hleq).
     value_case.
   Qed.
 

@@ -208,9 +208,9 @@ Inductive typed : stringmap type → expr → type → Prop :=
   | TAlloc Γ e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e : ref τ
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Load e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
-  | TAllocTape n Γ : Γ ⊢ₜ AllocTape n : TTape
-  | TRand Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Rand e : TBool
-  | TFlipU Γ e : Γ ⊢ₜ e : TInt -> Γ ⊢ₜ Rand e : TBool
+  | TAllocTape e Γ : Γ ⊢ₜ e : TInt →  Γ ⊢ₜ AllocTape e : TTape
+  | TRand Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Rand e : TInt
+  | TFlipU Γ e : Γ ⊢ₜ e : TInt -> Γ ⊢ₜ Rand e : TInt
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt

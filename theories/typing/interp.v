@@ -99,9 +99,10 @@ Section semtypes.
           { iModIntro. iPureIntro. naive_solver. }
           iInv (logN.@(r1, r2)) as (v1 v2) "(>Hr1 & >Hr2 & Hinv1)".
           iInv (logN.@(l1, r2)) as (w1 w2) "(>Hr1' & >Hr2' & Hinv2)".
-          iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr2 Hr2'") as %[].       - rewrite /lrel_car /=.
-        iDestruct 1 as (l1 l2 -> ->) "Hl".
-        iDestruct 1 as (r1 r2 -> ->) "Hr".
+          iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr2 Hr2'") as %[].
+      - rewrite /lrel_car /=.
+        iDestruct 1 as (l1 l2 n -> ->) "Hl".
+        iDestruct 1 as (r1 r2 m -> ->) "Hr".
         destruct (decide (l1 = r1)); subst.
         + destruct (decide (l2 = r2)); subst; first by eauto.
           iInv (logN.@(r1, l2)) as "> (Hr1 & Hl2)".

@@ -269,30 +269,48 @@ Section fundamental.
     rel_values. iExists l, k. eauto.
   Qed.
 
-  Lemma bin_log_related_alloctape Δ Γ :
-    ⊢ {Δ;Γ} ⊨ alloc ≤log≤ alloc : TTape.
+  Lemma bin_log_related_alloctape Δ Γ e e' :
+    ({Δ;Γ} ⊨ e ≤log≤ e' : TInt) -∗
+    {Δ;Γ} ⊨ alloc e ≤log≤ alloc e' : TTape.
   Proof.
+    iIntros "IH".
     intro_clause.
+    rel_bind_ap e e' "IH" v v' "IH".
+    iDestruct "IH" as (z) "%H2".
+    destruct H2 as [-> ->].
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
-    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ [] ∗ β ↪ₛ [])%I
+    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (Z.to_nat z, []) ∗ β ↪ₛ (Z.to_nat z, []))%I
            with "[Hα Hβ]") as "HN"; eauto.
     { iFrame. }
     rel_values. iExists α, β. auto.
   Qed.
 
-  Lemma bin_log_related_flip Δ Γ e e' :
+  Lemma bin_log_related_flip_tape Δ Γ e e' :
     ({Δ; Γ} ⊨ e ≤log≤ e' : TTape) -∗
-    {Δ; Γ} ⊨ flip e ≤log≤ flip e' : TBool.
+    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TInt.
   Proof.
     iIntros "IH".
     intro_clause.
     rel_bind_ap e e' "IH" v v' "IH".
-    iDestruct "IH" as (α1 α2 -> ->) "#H".
-    iApply refines_flip.
+    iDestruct "IH" as (α1 α2 n -> ->) "#H".
+    iApply refines_rand_tape.
     value_case.
     iModIntro.
     iExists _, _. eauto.
+  Qed.
+
+  Lemma bin_log_related_flip_int Δ Γ e e' :
+    ({Δ; Γ} ⊨ e ≤log≤ e' : TInt) -∗
+    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TInt.
+  Proof.
+    iIntros "IH".
+    intro_clause.
+    rel_bind_ap e e' "IH" v v' "IH".
+    iDestruct "IH" as (z) "%H2".
+    destruct H2 as [-> ->].
+    iApply refines_rand_int.
+    value_case.
   Qed.
 
   Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ :
@@ -509,13 +527,15 @@ Section fundamental.
       + iApply bin_log_related_alloc; by iApply fundamental.
       + iApply bin_log_related_load; by iApply fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
-      + iApply bin_log_related_alloctape.
-      + iApply bin_log_related_flip; by iApply fundamental.
+      + iApply bin_log_related_alloctape; by iApply fundamental.
+      + iApply bin_log_related_flip_tape; by iApply fundamental.
+      + iApply bin_log_related_flip_int; by iApply fundamental.
+      (*
       + intro_clause.
         iPoseProof (fundamental _ _ _ _ Ht) as "-#IH".
         rel_bind_ap e e "IH" v v' "[->->]".
         iApply refines_flip_no_tapes.
-        value_case.
+        value_case.*)
     - intros Hv. destruct Hv; simpl.
       + iSplit; eauto.
       + iExists _; iSplit; eauto.

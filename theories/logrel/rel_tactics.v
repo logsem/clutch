@@ -412,11 +412,11 @@ Tactic Notation "rel_alloc_l" :=
 (** AllocTape *)
 (* Tactic Notation "rel_alloctape_l_atomic" := rel_apply_l refines_alloctape_l. *)
 
-Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e t A E :
-  e = fill K AllocTape →
+Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e (z:Z) t A E :
+  e = fill K (AllocTape (Val #z)) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪ [] -∗ refines E (fill K (of_val #lbl:α)) t A))) →
+     (α ↪ (Z.to_nat z,[]) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros ???; subst.
@@ -436,10 +436,10 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
   [iSolveTC        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
 
-Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e t A :
-  t = fill K' AllocTape →
+Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e (z:Z) t A :
+  t = fill K' (AllocTape (Val #z)) →
   nclose specN ⊆ E →
-  envs_entails ℶ (∀ α, α ↪ₛ [] -∗ refines E e (fill K' #lbl:α) A) →
+  envs_entails ℶ (∀ α, α ↪ₛ (Z.to_nat z,[]) -∗ refines E e (fill K' #lbl:α) A) →
   envs_entails ℶ (refines E e t A).
 Proof.
   intros ???. subst t.
@@ -467,10 +467,10 @@ Tactic Notation "rel_alloctape_l" :=
   let H := iFresh "H" in
   rel_alloctape_l l as H.
 
-Lemma tac_rel_flip_l `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 (α : loc) b bs e t tres A E :
-  t = fill K (Flip (#lbl: α)) →
-  envs_lookup i1 ℶ1 = Some (false, α ↪ (b::bs))%I →
-  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ bs)) ℶ1 = Some ℶ2 →
+Lemma tac_rel_rand_l `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 (α : loc) n b bs e t tres A E :
+  t = fill K (Rand (#lbl: α)) →
+  envs_lookup i1 ℶ1 = Some (false, α ↪ (n, b::bs))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (n,bs))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #b) →
   envs_entails ℶ2 (refines E tres e A) →
   envs_entails ℶ1 (refines E t e A).
@@ -481,15 +481,18 @@ Proof.
   rewrite right_id.
   rewrite Hg.
   iIntros "(Hα & Hlog)".
-  rewrite -(refines_flip_l _ K α b bs) //.
+  rewrite -(refines_rand_l _ K α n b bs) //.
   iFrame.
+  iModIntro.
+  iIntros "(?&?)".
+  iApply "Hlog"; done.
 Qed.
 
-Lemma tac_rel_flip_r `{!prelogrelGS Σ} K ℶ1 ℶ2 E i1 (α : loc) b bs e t tres A :
-  t = fill K (Flip (#lbl: α)) →
+Lemma tac_rel_rand_r `{!prelogrelGS Σ} K ℶ1 ℶ2 E i1 (α : loc) n b bs e t tres A :
+  t = fill K (Rand (#lbl: α)) →
   nclose specN ⊆ E →
-  envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (b::bs))%I →
-  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ bs)) ℶ1 = Some ℶ2 →
+  envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (n, b::bs))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (n,bs))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #b) →
   envs_entails ℶ2 (refines E e tres A) →
   envs_entails ℶ1 (refines E e t A).
@@ -498,41 +501,41 @@ Proof.
   subst t tres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
-  rewrite (refines_flip_r _ K) //.
+  rewrite (refines_rand_r _ K) //.
   rewrite Hg.
   apply bi.wand_elim_l.
 Qed.
 
-Tactic Notation "rel_flip_l" :=
+Tactic Notation "rel_rand_l" :=
   let solve_mapsto _ :=
     let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
-    iAssumptionCore || fail "rel_flip_l: cannot find" α "↪ ?" in
+    iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
   rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
-       eapply (tac_rel_flip_l K); first reflexivity)
-    |fail 1 "rel_flip_l: cannot find 'Flip'"];
-  (* the remaining goals are from tac_rel_flip_l (except for the first one, which has already been solved by this point) *)
+       eapply (tac_rel_rand_l K); first reflexivity)
+    |fail 1 "rel_rand_l: cannot find 'Rand'"];
+  (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
   [solve_mapsto ()
-  |pm_reflexivity || fail "rel_flip_l: this should not happen O-:"
+  |pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
 
-(* Tactic Notation "rel_flip_l_atomic" := rel_apply_l refines_flip_l. *)
+(* Tactic Notation "rel_rand_l_atomic" := rel_apply_l refines_rand_l. *)
 
-Tactic Notation "rel_flip_r" :=
+Tactic Notation "rel_rand_r" :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↪ₛ _)%I) => l end in
-    iAssumptionCore || fail "rel_flip_r: cannot find" l "↪ₛ ?" in
+    iAssumptionCore || fail "rel_rand_r: cannot find" l "↪ₛ ?" in
   rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
-       eapply (tac_rel_flip_r K); first reflexivity)
-    |fail 1 "rel_flip_r: cannot find 'Flip'"];
-  (* the remaining goals are from tac_rel_flip_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_flip_r: cannot prove 'nclose specN ⊆ ?'"
+       eapply (tac_rel_rand_r K); first reflexivity)
+    |fail 1 "rel_rand_r: cannot find 'Rand'"];
+  (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
+  [solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
-  |pm_reflexivity || fail "rel_flip_r: this should not happen O-:"
+  |pm_reflexivity || fail "rel_rand_r: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
 

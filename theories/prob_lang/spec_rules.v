@@ -94,32 +94,30 @@ Section rules.
   Qed.
 
   (** AllocTape and flip (non-empty tape)  *)
-  Lemma step_alloctape E K (b : nat) :
+  Lemma step_alloctape E K (z : Z) :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (alloc #b) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (b, []).
+    spec_ctx ∗ ⤇ fill K (alloc #z) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (Z.to_nat z, []).
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "Hauth Hj") as "[Hauth Hj]".
-    iMod (ghost_map_insert (fresh_loc σ.(tapes)) (b, []) with "Htapes") as "[Htapes Hl]".
+    iMod (ghost_map_insert (fresh_loc σ.(tapes)) (Z.to_nat z, []) with "Htapes") as "[Htapes Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
     iExists (fresh_loc σ.(tapes)).
     iFrame. iMod ("Hclose" with "[-]"); [|done].
     iModIntro.
-    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=(b, [])]> σ), _.
+    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=(Z.to_nat z, [])]> σ), _.
     iFrame. iPureIntro.
     split; [|by apply valid_tapes_insert_fresh].
     eapply exec_det_step_ctx; [apply _| |done].
     solve_step.
-    rewrite Nat2Z.id.
-    solve_distr.
   Qed.
 
   (* TODO: should this go here or not? *)
-  Lemma refines_right_alloctape E K (b : nat) :
+  Lemma refines_right_alloctape E K (z : Z) :
     nclose specN ⊆ E →
-    refines_right K (alloc #b) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (b, []).
+    refines_right K (alloc #z) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (Z.to_nat z, []).
   Proof.
     iIntros (?) "(?&?)".
     iMod (step_alloctape with "[$]") as (l) "(?&?)"; first done.
@@ -493,12 +491,12 @@ Section rules.
   Proof. apply (wp_couple_flip_flip_lbl negb). Qed.
   *)
 
-  Lemma wp_couple_rand_rand f `{Bij nat nat f} K E n Φ :
-    (∀ m, m ≤ n → f m ≤ n) →
+  Lemma wp_couple_rand_rand f `{Bij nat nat f} K E z Φ :
+    (∀ m, m ≤ Z.to_nat z → f m ≤ Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #n @ E {{ Φ }}.
+    spec_ctx ∗ ⤇ fill K (rand #z) ∗
+    (∀ (b : nat), ⌜b <= Z.to_nat z⌝ ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     intro Hdom.
     iIntros (?) "(#Hinv & Hr & Hwp)".
@@ -512,7 +510,7 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : nat), b <= n /\ (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
+        ∃ (b : nat), b <= Z.to_nat z /\ (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
       eexists (Val #0, σ1).
@@ -522,7 +520,8 @@ Section rules.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply (Rcoupl_rand_rand f)].
+      eapply Rcoupl_impl; last first.
+      { by apply (Rcoupl_rand_rand f). }
       intros [] [] (b & ? & [=] & [=])=>/=; simplify_eq; eauto. }
     iIntros ([] [] (b & Hleq & [=] & [=])) ; simplify_eq.
     iMod (spec_interp_update (fill K #(f b), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
@@ -537,15 +536,15 @@ Section rules.
     iSplit; [ |iSplit ].
     - iPureIntro; auto.
     - iPureIntro; auto.
-    - iAssert (⌜b<=n⌝%I) as "Hleq"; [done | ].
+    - iAssert (⌜b<=Z.to_nat z⌝%I) as "Hleq"; [done | ].
       iApply ("Hwp" with "[$]").
   Qed.
 
-  Lemma wp_couple_rand_rand_eq K E (n : nat) Φ :
+  Lemma wp_couple_rand_rand_eq K E (z : Z) Φ :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #n @ E {{ Φ }}.
+    spec_ctx ∗ ⤇ fill K (rand #z) ∗
+    (∀ (b : nat), ⌜b <= Z.to_nat z⌝ ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand Datatypes.id); done. Qed.
 
   (*
@@ -557,7 +556,7 @@ Section rules.
   Proof. apply (wp_couple_flip_flip negb). Qed.
   *)
 
-  Lemma wp_flip_empty_r E e K α n Φ :
+  Lemma wp_rand_empty_r E e K α n Φ :
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand #lbl:α) ∗ α ↪ₛ (n,[]) ∗
