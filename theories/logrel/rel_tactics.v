@@ -412,11 +412,11 @@ Tactic Notation "rel_alloc_l" :=
 (** AllocTape *)
 (* Tactic Notation "rel_alloctape_l_atomic" := rel_apply_l refines_alloctape_l. *)
 
-Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e (z:Z) t A E :
-  e = fill K (AllocTape (Val #z)) →
+Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e (n:nat) t A E :
+  e = fill K (AllocTape (Val #n)) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪ (Z.to_nat z,[]) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
+     (α ↪ (n,[]) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros ???; subst.
@@ -437,10 +437,10 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
   |iIntros (l) H; rel_finish  (** new goal *)].
 
 (* TODO: Do we want to have the Z->N conversion here? *)
-Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e (z:Z) t A :
-  t = fill K' (AllocTape (Val #z)) →
+Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e (n:nat) t A :
+  t = fill K' (AllocTape (Val #n)) →
   nclose specN ⊆ E →
-  envs_entails ℶ (∀ α, α ↪ₛ (Z.to_nat z,[]) -∗ refines E e (fill K' #lbl:α) A) →
+  envs_entails ℶ (∀ α, α ↪ₛ (n,[]) -∗ refines E e (fill K' #lbl:α) A) →
   envs_entails ℶ (refines E e t A).
 Proof.
   intros ???. subst t.

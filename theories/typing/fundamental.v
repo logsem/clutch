@@ -280,7 +280,6 @@ Section fundamental.
     destruct H2 as [-> ->].
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
-    rewrite Nat2Z.id.
     iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (z, []) ∗ β ↪ₛ (z, []))%I
            with "[Hα Hβ]") as "HN"; eauto.
     { iFrame. }

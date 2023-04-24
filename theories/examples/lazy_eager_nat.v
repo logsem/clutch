@@ -57,7 +57,6 @@ Section logical_ref.
     rel_pures_r.
     rel_alloc_r l' as "Hl'".
     rel_pures_r.
-    rewrite Nat2Z.id.
     set (P := (α ↪ₛ (z, []) ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
                  ∃ (b: Z), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
@@ -96,7 +95,6 @@ Section logical_ref.
     iIntros (? ? (z & -> & ->)).
     rel_pures_l. rel_pures_r.
     rel_alloctape_l α as "Hα". rel_pures_l.
-    rewrite Nat2Z.id.
     rel_bind_r (rand _)%E.
     iApply (refines_couple_tape_rand with "[$Hα]"); [done|].
     iIntros (b) "[%Hleq Hα] /=".
@@ -133,7 +131,6 @@ Section logical_ref.
     iIntros (? ? (z & -> & ->)).
     rel_pures_l. rel_pures_r.
     rel_alloctape_r α as "Hα". rel_pures_r.
-    rewrite Nat2Z.id.
     rel_bind_l (rand _)%E.
     iApply (refines_couple_rand_tape with "[$Hα]").
     iIntros (b) "[Hleq Hα] /=".
@@ -169,7 +166,6 @@ Section logical_ref.
     iIntros (? ? (z & -> & ->)).
     rel_alloc_r l' as "Hl'". rel_pures_l.
     rel_alloctape_l α as "Hα". rel_pures_l.
-    rewrite Nat2Z.id.
     rel_alloc_l l as "Hl". rel_pures_l.
     set (P := (α ↪ (z,[]) ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
                            ∃ (b: Z), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).

@@ -285,16 +285,16 @@ Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
 (* Will this ever be used when the argument of alloc is not a value? *)
-Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e (z:Z) Q :
+Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e (n:nat) Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
-  e = fill K' (alloc (Val #z)) →
+  e = fill K' (alloc (Val #n)) →
   (* TODO use match here as well *)
   (∀ α : loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (refines_right k (fill K' #lbl:α))) Δ1 = Some Δ2 ∧
-    (envs_entails Δ2 ((α ↪ₛ (Z.to_nat z, [])) -∗ Q)%I)) →
+    (envs_entails Δ2 ((α ↪ₛ (n, [])) -∗ Q)%I)) →
   envs_entails Δ1 Q.
 Proof.
   rewrite envs_entails_unseal. intros ??? Hfill HQ.

@@ -94,30 +94,33 @@ Section rules.
   Qed.
 
   (** AllocTape and flip (non-empty tape)  *)
-  Lemma step_alloctape E K (z : Z) :
+  Lemma step_alloctape E K (n : nat) :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (alloc #z) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (Z.to_nat z, []).
+    spec_ctx ∗ ⤇ fill K (alloc #n) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (n, []).
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "Hauth Hj") as "[Hauth Hj]".
-    iMod (ghost_map_insert (fresh_loc σ.(tapes)) (Z.to_nat z, []) with "Htapes") as "[Htapes Hl]".
+    iMod (ghost_map_insert (fresh_loc σ.(tapes)) (n, []) with "Htapes") as "[Htapes Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
     iExists (fresh_loc σ.(tapes)).
     iFrame. iMod ("Hclose" with "[-]"); [|done].
     iModIntro.
-    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=(Z.to_nat z, [])]> σ), _.
+    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=(n, [])]> σ), _.
     iFrame. iPureIntro.
     split; [|by apply valid_tapes_insert_fresh].
     eapply exec_det_step_ctx; [apply _| |done].
+    (* TODO: fix tactic *)
     solve_step.
+    rewrite Nat2Z.id.
+    solve_distr.
   Qed.
 
   (* TODO: should this go here or not? *)
-  Lemma refines_right_alloctape E K (z : Z) :
+  Lemma refines_right_alloctape E K (n : nat) :
     nclose specN ⊆ E →
-    refines_right K (alloc #z) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (Z.to_nat z, []).
+    refines_right K (alloc #n) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (n, []).
   Proof.
     iIntros (?) "(?&?)".
     iMod (step_alloctape with "[$]") as (l) "(?&?)"; first done.

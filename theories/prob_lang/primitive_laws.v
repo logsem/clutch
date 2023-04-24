@@ -119,8 +119,8 @@ Proof.
 Qed.
 
 (** Tapes  *)
-Lemma wp_alloc_tape E (z : Z) :
-  {{{ True }}} AllocTape #z @ E {{{ α, RET LitV (LitLbl α); α ↪ (Z.to_nat z, []) }}}.
+Lemma wp_alloc_tape E (n : nat) :
+  {{{ True }}} AllocTape #n @ E {{{ α, RET LitV (LitLbl α); α ↪ (n, []) }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -129,6 +129,7 @@ Proof.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
+  rewrite Nat2Z.id.
   iFrame. iModIntro.
   iSplitR; [|by iApply "HΦ"].
   iPureIntro.

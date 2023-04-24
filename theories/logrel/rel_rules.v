@@ -138,9 +138,9 @@ Section rules.
     by iApply "Hlog".
   Qed.
 
-  Lemma refines_alloctape_r E K (z:Z) t A :
-    (∀ α : loc, α ↪ₛ (Z.to_nat z,[]) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
-    -∗ REL t << fill K (alloc (Val #z)) @ E : A.
+  Lemma refines_alloctape_r E K (n:nat) t A :
+    (∀ α : loc, α ↪ₛ (n,[]) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
+    -∗ REL t << fill K (alloc (Val #n)) @ E : A.
   Proof.
     rewrite /IntoVal.
     iIntros "Hlog".
@@ -212,10 +212,10 @@ Section rules.
     wp_store. by iApply "Hlog".
   Qed.
 
-  Lemma refines_alloctape_l K E (z:Z) t A :
-    (▷ (∀ α : loc, α ↪ (Z.to_nat z, []) -∗
+  Lemma refines_alloctape_l K E (n:nat) t A :
+    (▷ (∀ α : loc, α ↪ (n, []) -∗
            REL fill K (of_val #lbl:α) << t @ E : A))%I
-    -∗ REL fill K (alloc (Val #z)) << t @ E : A.
+    -∗ REL fill K (alloc (Val #n)) << t @ E : A.
   Proof.
     iIntros "Hlog".
     iApply refines_wp_l.
