@@ -203,11 +203,11 @@ Inductive typed_ctx_item :
                     (<[x:=τ]>(⤉ Γ)) (Autosubst_Classes.subst (ren (+1)) τ2)
                     Γ τ2
   | TP_CTX_AllocTape Γ :
-     typed_ctx_item CTX_AllocTape Γ TInt Γ (TTape)
+     typed_ctx_item CTX_AllocTape Γ TNat Γ (TTape)
   | TP_CTX_RandInt Γ :
-     typed_ctx_item CTX_RandInt Γ TInt Γ (TInt)
+     typed_ctx_item CTX_RandInt Γ TNat Γ (TNat)
   | TP_CTX_RandTape Γ :
-     typed_ctx_item CTX_RandTape Γ TTape Γ (TInt)
+     typed_ctx_item CTX_RandTape Γ TTape Γ (TNat)
 .
 
 Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type → Prop :=

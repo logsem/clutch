@@ -342,9 +342,9 @@ Section rules.
     iApply "H"; auto.
   Qed.
 
-  Lemma refines_couple_rands_lr K K' E A z:
-      (∀ (b : nat), ⌜b <= Z.to_nat z⌝ -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (rand #z) << fill K' (rand #z) @ E : A.
+  Lemma refines_couple_rands_lr K K' E A n:
+      (∀ (b : nat), ⌜b <= n⌝ -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
+    ⊢ REL fill K (rand #n) << fill K' (rand #n) @ E : A.
   Proof.
     iIntros "Hcnt".
     rewrite refines_eq /refines_def.

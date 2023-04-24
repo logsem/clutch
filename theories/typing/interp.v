@@ -27,6 +27,7 @@ Section semtypes.
   Program Fixpoint interp (τ : type) : listO (lrelC Σ) -n> lrelC Σ :=
     match τ as _ return listO (lrelC Σ) -n> lrelC Σ with
     | TUnit => λne _, lrel_unit
+    | TNat => λne _, lrel_nat
     | TInt => λne _, lrel_int
     | TBool => λne _, lrel_bool
     | TProd τ1 τ2 => λne Δ, lrel_prod (interp τ1 Δ) (interp τ2 Δ)
@@ -63,6 +64,7 @@ Section semtypes.
   Proof.
     intros Hτ; revert v v'; induction Hτ; iIntros (v v') "#H1 /=".
     - by iDestruct "H1" as %[-> ->].
+    - by iDestruct "H1" as (n) "[% %]"; subst.
     - by iDestruct "H1" as (n) "[% %]"; subst.
     - by iDestruct "H1" as (b) "[% %]"; subst.
     - iDestruct "H1" as (?? ??) "[% [% [H1 H2]]]"; simplify_eq/=.

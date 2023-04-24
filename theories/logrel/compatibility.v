@@ -120,7 +120,7 @@ Section compatibility.
 
   Lemma refines_rand_tape e e' :
     (REL e << e' : lrel_tape) -∗
-    REL rand e << rand e' : lrel_int.
+    REL rand e << rand e' : lrel_nat.
   Proof.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
@@ -141,8 +141,8 @@ Section compatibility.
   Qed.
 
   Lemma refines_rand_int e e' :
-    (REL e << e' : lrel_int) -∗
-    REL rand e << rand e' : lrel_int.
+    (REL e << e' : lrel_nat) -∗
+    REL rand e << rand e' : lrel_nat.
   Proof.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".

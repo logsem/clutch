@@ -12,6 +12,7 @@ Reserved Notation "⟦ Γ ⟧*" (at level 0, Γ at level 70).
 (** * Types *)
 Inductive type :=
   | TUnit : type
+  | TNat : type
   | TInt : type
   | TBool : type
   | TProd : type → type → type
@@ -27,6 +28,7 @@ Inductive type :=
 (** Which types are unboxed -- we can only do CAS on locations which hold unboxed types *)
 Inductive UnboxedType : type → Prop :=
   | UnboxedTUnit : UnboxedType TUnit
+  | UnboxedTNat : UnboxedType TNat
   | UnboxedTInt : UnboxedType TInt
   | UnboxedTBool : UnboxedType TBool
   | UnboxedTRef τ : UnboxedType (TRef τ).
@@ -35,6 +37,7 @@ Inductive UnboxedType : type → Prop :=
     This is an auxiliary notion. *)
 Inductive EqType : type → Prop :=
   | EqTUnit : EqType TUnit
+  | EqTNat : EqType TNat
   | EqTInt : EqType TInt
   | EqTBool : EqType TBool
   | EqTProd τ τ' : EqType τ → EqType τ' → EqType (TProd τ τ')
@@ -208,9 +211,9 @@ Inductive typed : stringmap type → expr → type → Prop :=
   | TAlloc Γ e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e : ref τ
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Load e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
-  | TAllocTape e Γ : Γ ⊢ₜ e : TInt →  Γ ⊢ₜ AllocTape e : TTape
-  | TRand Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Rand e : TInt
-  | TFlipU Γ e : Γ ⊢ₜ e : TInt -> Γ ⊢ₜ Rand e : TInt
+  | TAllocTape e Γ : Γ ⊢ₜ e : TNat →  Γ ⊢ₜ AllocTape e : TTape
+  | TRand Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Rand e : TNat
+  | TFlipU Γ e : Γ ⊢ₜ e : TNat -> Γ ⊢ₜ Rand e : TNat
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt

@@ -395,13 +395,13 @@ Qed.
 
 
 (** * rand(m) ~ rand(m) coupling *)
-Lemma Rcoupl_rand_rand f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' z  :
-  (∀ n : nat, n ≤ Z.to_nat z → f n ≤ Z.to_nat z) →
+Lemma Rcoupl_rand_rand f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' m :
+  (∀ n : nat, n ≤ m → f n ≤ m) →
   Rcoupl
-    (prim_step (Rand (Val #z)) σ1)
-    (prim_step (Rand (Val #z)) σ1')
+    (prim_step (Rand (Val #m)) σ1)
+    (prim_step (Rand (Val #m)) σ1')
     (λ ρ2 ρ2' , ∃ (b : nat),
-        (b <= Z.to_nat z)%nat /\
+        (b <= m)%nat /\
         ρ2 = (Val #b, σ1) /\
         ρ2' = (Val #(f b), σ1')).
 Proof.
@@ -413,6 +413,7 @@ Proof.
   { eexists (Val #0, σ1'). eapply head_step_support_equiv_rel.
     eapply (RandNoTapeS 0); lia. }
   rewrite /dmap.
+  rewrite Nat2Z.id.
   eapply Rcoupl_dbind; [ | eapply (Rcoupl_dunif _ _ Hbij); eauto].
   intros a b (?&?&->).
   apply Rcoupl_dret.

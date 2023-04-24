@@ -270,7 +270,7 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_alloctape Δ Γ e e' :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : TInt) -∗
+    ({Δ;Γ} ⊨ e ≤log≤ e' : TNat) -∗
     {Δ;Γ} ⊨ alloc e ≤log≤ alloc e' : TTape.
   Proof.
     iIntros "IH".
@@ -280,7 +280,8 @@ Section fundamental.
     destruct H2 as [-> ->].
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
-    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (Z.to_nat z, []) ∗ β ↪ₛ (Z.to_nat z, []))%I
+    rewrite Nat2Z.id.
+    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (z, []) ∗ β ↪ₛ (z, []))%I
            with "[Hα Hβ]") as "HN"; eauto.
     { iFrame. }
     rel_values. iExists α, β. auto.
@@ -288,7 +289,7 @@ Section fundamental.
 
   Lemma bin_log_related_rand_tape Δ Γ e e' :
     ({Δ; Γ} ⊨ e ≤log≤ e' : TTape) -∗
-    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TInt.
+    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TNat.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -301,8 +302,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_rand_int Δ Γ e e' :
-    ({Δ; Γ} ⊨ e ≤log≤ e' : TInt) -∗
-    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TInt.
+    ({Δ; Γ} ⊨ e ≤log≤ e' : TNat) -∗
+    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TNat.
   Proof.
     iIntros "IH".
     intro_clause.

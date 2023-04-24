@@ -491,12 +491,12 @@ Section rules.
   Proof. apply (wp_couple_flip_flip_lbl negb). Qed.
   *)
 
-  Lemma wp_couple_rand_rand f `{Bij nat nat f} K E z Φ :
-    (∀ m, m ≤ Z.to_nat z → f m ≤ Z.to_nat z) →
+  Lemma wp_couple_rand_rand f `{Bij nat nat f} K E n Φ :
+    (∀ m, m ≤ n → f m ≤ n) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z) ∗
-    (∀ (b : nat), ⌜b <= Z.to_nat z⌝ ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #z @ E {{ Φ }}.
+    spec_ctx ∗ ⤇ fill K (rand #n) ∗
+    (∀ (b : nat), ⌜b <= n⌝ ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP rand #n @ E {{ Φ }}.
   Proof.
     intro Hdom.
     iIntros (?) "(#Hinv & Hr & Hwp)".
@@ -510,7 +510,7 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : nat), b <= Z.to_nat z /\ (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
+        ∃ (b : nat), b <= n /\ (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
       eexists (Val #0, σ1).
@@ -536,15 +536,15 @@ Section rules.
     iSplit; [ |iSplit ].
     - iPureIntro; auto.
     - iPureIntro; auto.
-    - iAssert (⌜b<=Z.to_nat z⌝%I) as "Hleq"; [done | ].
+    - iAssert (⌜b<=n⌝%I) as "Hleq"; [done | ].
       iApply ("Hwp" with "[$]").
   Qed.
 
-  Lemma wp_couple_rand_rand_eq K E (z : Z) Φ :
+  Lemma wp_couple_rand_rand_eq K E (n : nat) Φ :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z) ∗
-    (∀ (b : nat), ⌜b <= Z.to_nat z⌝ ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #z @ E {{ Φ }}.
+    spec_ctx ∗ ⤇ fill K (rand #n) ∗
+    (∀ (b : nat), ⌜b <= n⌝ ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
+    ⊢ WP rand #n @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand Datatypes.id); done. Qed.
 
   (*

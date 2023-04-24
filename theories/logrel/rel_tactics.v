@@ -436,6 +436,7 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
   [iSolveTC        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
 
+(* TODO: Do we want to have the Z->N conversion here? *)
 Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e (z:Z) t A :
   t = fill K' (AllocTape (Val #z)) →
   nclose specN ⊆ E →
