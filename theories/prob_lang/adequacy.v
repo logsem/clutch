@@ -150,7 +150,6 @@ Section adequacy.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
         iInv specN as (ρ e0 σ0 n) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
-        iDestruct "HspecI_auth" as "(HspecI_auth & HspecI_vtapes)".
         iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
         iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
@@ -167,7 +166,6 @@ Section adequacy.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
         iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
-        iDestruct "HspecI_auth" as "(HspecI_auth & HspecI_vtapes)".
         iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
         iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
@@ -196,24 +194,24 @@ End adequacy.
 Class clutchGpreS Σ := ClutchGpreS {
   clutchGpreS_iris  :> invGpreS Σ;
   clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  clutchGpreS_tapes :> ghost_mapG Σ loc (prod nat (list nat));
+  clutchGpreS_tapes :> ghost_mapG Σ loc tape;
   clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
   clutchGpreS_prog  :> inG Σ (authR progUR);
 }.
 
 Definition clutchΣ : gFunctors :=
-  #[invΣ; ghost_mapΣ loc val; ghost_mapΣ loc (prod nat (list nat));
-    GFunctor (authUR cfgUR); GFunctor (authUR progUR)].
+  #[invΣ; ghost_mapΣ loc val;
+    ghost_mapΣ loc tape;
+    GFunctor (authUR cfgUR);
+    GFunctor (authUR progUR)].
 Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
 Theorem wp_refRcoupl Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
-  valid_tapes σ.(tapes) ->
-  valid_tapes σ'.(tapes) ->
   (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
   refRcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ.
 Proof.
-  intros Htapes Htapes' Hwp.
+  intros Hwp.
   eapply (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
@@ -231,6 +229,5 @@ Proof.
   }
   iApply wp_refRcoupl_step_fupdN.
   iFrame. iFrame "Hctx".
-  iSplit; auto; iSplit; auto.
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.

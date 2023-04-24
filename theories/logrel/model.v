@@ -104,8 +104,8 @@ Section semtypes.
 
   (* Both tapes are empty and are sampled from the same distribution *)
   Definition lrel_tape : lrel Σ := LRel (λ w1 w2,
-    ∃ (α1 α2 : loc) (n: nat), ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
-      inv (logN .@ (α1, α2)) (α1 ↪ (n,[]) ∗ α2 ↪ₛ (n,[])))%I.
+    ∃ (α1 α2 : loc) (N: nat), ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
+      inv (logN .@ (α1, α2)) (α1 ↪ (N; []) ∗ α2 ↪ₛ (N; [])))%I.
 
   Definition lrel_prod (A B : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ v1 v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧

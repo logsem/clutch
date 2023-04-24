@@ -421,7 +421,7 @@ Lemma Rcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
   Rcoupl dzero dzero R.
 Proof.
   exists dzero. split; [|intros; inv_distr].
-  split; [apply lmarg_dzero|apply rmarg_dzero]. 
+  split; [apply lmarg_dzero|apply rmarg_dzero].
 Qed.
 
 Lemma Rcoupl_dzero_r_inv `{Countable A, Countable B} μ1 (R : A → B → Prop) :
@@ -477,160 +477,76 @@ Lemma f_inv_cancel_l {A B} f `{Inj A B (=) (=) f, Surj A B (=) f} b :
   f_inv f (f b) = b.
 Proof. apply (inj f), (epsilon_correct _ (surj f (f b))). Qed.
 
-Lemma Rcoupl_fair_coin f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} :
-  Rcoupl fair_coin fair_coin (λ b b', b = f b').
+Lemma Rcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
+  Rcoupl (dunif N) (dunif N) (λ n m, m = f n).
 Proof.
-  exists (fair_coins f). repeat split.
-  - eapply distr_ext=> b.
-    rewrite lmarg_pmf /pmf /= /fair_coins_pmf /fair_coin_pmf /=.
-    rewrite (SeriesC_ext _ (λ b', if bool_decide (b' = f_inv f b) then 0.5 else 0)).
-    { rewrite SeriesC_singleton //. }
-    intros b'. case_bool_decide as Heq.
-    + rewrite bool_decide_eq_true_2 //.
-      rewrite Heq f_inv_cancel_l //.
-    + rewrite bool_decide_eq_false_2 //.
-      intros [= ->]. apply Heq. rewrite f_inv_cancel_r //.
-  - eapply distr_ext=> b.
-    rewrite rmarg_pmf /pmf /= /fair_coins_pmf /fair_coin_pmf /=.
-    rewrite SeriesC_singleton //.
-  - intros []. rewrite /pmf /= /fair_coins_pmf /=.
-    case_bool_decide; [done|lra].
-Qed.
-
-(* NB: Classical proof, but should be possible to make constructive
-       TODO: finish
-*)
-
-Local Lemma pigeonhole_aux1 n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
-  (forall m, (m <= n)%nat -> (f m <= n)%nat) ->
-  (forall m, (m <= n)%nat -> exists p, (p <= n)%nat /\ f p = m).
-Proof.
-  induction n.
-  - intros Hdom m Hm.
-    inversion Hm; simplify_eq.
-    exists 0%nat; split; auto.
-    specialize (Hdom 0%nat (le_refl 0%nat)); auto with arith.
-  - intros Hdom m Hm.
-    pose proof (ExcludedMiddle (∀ m : nat, m ≤ n → f m ≤ n)) as [Hem | Hem].
-    + specialize (IHn Hem).
-      inversion Hm.
-      * admit.
-      * destruct (IHn m) as [p [Hp1  Hp2]]; auto.
-        exists p; split; auto with arith.
-    + apply not_forall_exists_not in Hem as [x Hx].
-Admitted.
-
-Local Lemma pigeonhole_aux2 n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
-  (forall m, (m <= n)%nat -> (f m <= n)%nat) ->
-  (forall m, (f m <= n)%nat -> (m <= n)%nat).
-Proof.
-  intros Hdom m Hfm.
-  pose proof (H0 m) as [x Hx].
-  pose proof (pigeonhole_aux1 n f Hdom (f m) Hfm) as [y [Hy1 Hy2]].
-  specialize (H y m Hy2); simplify_eq; auto.
-Qed.
-
-Lemma Rcoupl_dunif n f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} :
-  (∀ m, m ≤ n → f m ≤ n) →
-  Rcoupl (dunif n) (dunif n) (λ m m', (m <= n)%nat /\ (m' <= n)%nat /\ m' = f m).
-Proof.
-  intro Hdom.
-  exists (dmap (λ x, (x, f x)) (dunif n)). split ; [split | ].
+  exists (dmap (λ x, (x, f x)) (dunif N)).
+  split; [split|].
   - eapply distr_ext=> y1.
     rewrite lmarg_pmf.
-    erewrite (SeriesC_ext _ (λ y2, if bool_decide ((y1 ≤ n)%nat  /\ y2 = f y1) then / (INR n + 1) else 0)); last first.
-    { intro. case_bool_decide as H1; destruct_and?; simplify_eq.
-      - eapply dmap_unif_nonzero; [|done|done].
-        intros ? ? ?; simplify_eq; auto.
-      - apply dmap_unif_zero.
-        intros ? ? ?; simplify_eq; apply H1; auto. }
-    rewrite /pmf/=.
-    case_bool_decide as H1.
-    + erewrite (SeriesC_ext); [apply (SeriesC_singleton (f y1)) | ].
-      intro; simpl.
-      case_bool_decide as H2; case_bool_decide; destruct_and?; simplify_eq; auto.
-      destruct H2; auto with arith.
-    + erewrite (SeriesC_ext _ (λ x, 0)); [apply (SeriesC_0); auto | ].
-      intro.
-      case_bool_decide; destruct_and?; simplify_eq; auto.
-      destruct H1; auto.
+    erewrite (SeriesC_ext _ (λ y2, if bool_decide (y2 = f y1) then /N else 0)); last first.
+    { intro. case_bool_decide; simplify_eq.
+      - eapply dmap_unif_nonzero; [|done]. intros ???; by simplify_eq.
+      - apply dmap_unif_zero. intros ? [=]; simplify_eq. }
+    rewrite dunif_pmf.
+    apply SeriesC_singleton.
   - eapply distr_ext=> y2.
     rewrite rmarg_pmf.
-    erewrite (SeriesC_ext _ (λ y1, if bool_decide (y1 ≤ n ∧ y2 = f y1) then / (INR n + 1) else 0)); last first.
-    { intro n0. case_bool_decide as H1; destruct_and?; simplify_eq.
-      - eapply dmap_unif_nonzero; [|done|done]. 
-        intros ? ? ?; simplify_eq; auto.
-      - apply dmap_unif_zero.
-        intros ? ? ?; simplify_eq; apply H1; auto. }
-    rewrite /pmf/=.
-    case_bool_decide as H1.
-    + erewrite (SeriesC_ext).
-      * apply (SeriesC_singleton_inj y2 f); auto.
-      * intro y1; case_bool_decide as H2; case_bool_decide; destruct_and?; simplify_eq; auto.
-        destruct H2; split; auto.
-        apply (pigeonhole_aux2 n f); auto.
-    + erewrite (SeriesC_ext); [apply SeriesC_0; done | ].
-      intro m; simpl.
-      case_bool_decide; destruct_and?; simplify_eq; auto.
-      destruct H1.
-      apply Hdom; done.
-   - intros (m1 & m2) Haux; simpl.
-     rewrite /pmf/=/dbind_pmf in Haux.
-     apply SeriesC_gtz_ex in Haux as [l Hl]; auto.
-     + rewrite /pmf/=/dret_pmf/= in Hl.
-       case_bool_decide; case_bool_decide; destruct_and?; simplify_eq; auto; lra.
-     + intro; rewrite /pmf/=/dret_pmf.
-       case_bool_decide; case_bool_decide; try lra.
-       rewrite Rmult_1_r.
-       left; apply RinvN_pos.
+    erewrite (SeriesC_ext _ (λ y1, if bool_decide (f y1 = y2) then /N else 0)); last first.
+    { intro. case_bool_decide; simplify_eq.
+      - eapply dmap_unif_nonzero; [|done]. intros ???; by simplify_eq.
+      - apply dmap_unif_zero. intros ? [=]; simplify_eq. }
+    rewrite dunif_pmf.
+    apply (SeriesC_singleton_inj y2 f); [apply _|].
+    apply (surj f).
+  - intros (m1 & m2) (n & [=] & Hn)%dmap_pos =>/=. by simplify_eq.
 Qed.
 
-Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B}
-  f `{Inj bool bool (=) (=) f, Surj bool bool (=) f}
-  (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
-  (∀ a, Rcoupl (if f a then μ1 else μ2) (if a then μ1' else μ2') S) →
-  Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S.
-Proof.
-  intros HS. rewrite /fair_conv_comb.
-  eapply Rcoupl_dbind; [|apply (Rcoupl_fair_coin f)].
-  simpl. intros a b ->.
-  done.
-Qed.
+(* Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B} *)
+(*   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} *)
+(*   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
+(*   (∀ a, Rcoupl (if f a then μ1 else μ2) (if a then μ1' else μ2') S) → *)
+(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
+(* Proof. *)
+(*   intros HS. rewrite /fair_conv_comb. *)
+(*   eapply Rcoupl_dbind; [|apply (Rcoupl_fair_coin f)]. *)
+(*   simpl. intros a b ->. *)
+(*   done. *)
+(* Qed. *)
 
-Lemma Rcoupl_fair_conv_comb_id `{Countable A, Countable B} (S : A → B → Prop)
-  (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
-  Rcoupl μ1 μ1' S →
-  Rcoupl μ2 μ2' S →
-  Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S.
-Proof.
-  intros HS1 HS2.
-  eapply (Rcoupl_fair_conv_comb id).
-  intros []; (eapply Rcoupl_impl; [|done]); eauto.
-Qed.
+(* Lemma Rcoupl_fair_conv_comb_id `{Countable A, Countable B} (S : A → B → Prop) *)
+(*   (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
+(*   Rcoupl μ1 μ1' S → *)
+(*   Rcoupl μ2 μ2' S → *)
+(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
+(* Proof. *)
+(*   intros HS1 HS2. *)
+(*   eapply (Rcoupl_fair_conv_comb id). *)
+(*   intros []; (eapply Rcoupl_impl; [|done]); eauto. *)
+(* Qed. *)
 
-Lemma Rcoupl_fair_conv_comb_neg `{Countable A, Countable B} (S : A → B → Prop)
-  (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
-  Rcoupl μ1 μ2' S →
-  Rcoupl μ2 μ1' S →
-  Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S.
-Proof.
-  intros HS1 HS2.
-  eapply (Rcoupl_fair_conv_comb negb).
-  intros []; (eapply Rcoupl_impl; [|done]); eauto.
-Qed.
+(* Lemma Rcoupl_fair_conv_comb_neg `{Countable A, Countable B} (S : A → B → Prop) *)
+(*   (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
+(*   Rcoupl μ1 μ2' S → *)
+(*   Rcoupl μ2 μ1' S → *)
+(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
+(* Proof. *)
+(*   intros HS1 HS2. *)
+(*   eapply (Rcoupl_fair_conv_comb negb). *)
+(*   intros []; (eapply Rcoupl_impl; [|done]); eauto. *)
+(* Qed. *)
 
 (* This is a lemma about convex combinations, but it is easier to prove with couplings
      TODO: find a better place to put it in *)
-Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A -> distr B) :
-  dbind f (fair_conv_comb μ1 μ2) = fair_conv_comb (dbind f μ1) (dbind f μ2).
-Proof.
-  rewrite /fair_conv_comb -dbind_assoc.
-  apply Rcoupl_eq_elim.
-  eapply (Rcoupl_dbind _ _ _ _ (=)); [ | apply Rcoupl_eq].
-  intros b1 b2 ->.
-  destruct b2; apply Rcoupl_eq.
-Qed.
-
+(* Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A -> distr B) : *)
+(*   dbind f (fair_conv_comb μ1 μ2) = fair_conv_comb (dbind f μ1) (dbind f μ2). *)
+(* Proof. *)
+(*   rewrite /fair_conv_comb -dbind_assoc. *)
+(*   apply Rcoupl_eq_elim. *)
+(*   eapply (Rcoupl_dbind _ _ _ _ (=)); [ | apply Rcoupl_eq]. *)
+(*   intros b1 b2 ->. *)
+(*   destruct b2; apply Rcoupl_eq. *)
+(* Qed. *)
 
 
 Section Rcoupl_strength.

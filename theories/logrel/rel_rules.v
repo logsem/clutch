@@ -138,27 +138,28 @@ Section rules.
     by iApply "Hlog".
   Qed.
 
-  Lemma refines_alloctape_r E K (n:nat) t A :
-    (∀ α : loc, α ↪ₛ (n,[]) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
-    -∗ REL t << fill K (alloc (Val #n)) @ E : A.
+  Lemma refines_alloctape_r E K N z t A :
+    TCEq N (Z.to_nat z) →
+    (∀ α : loc, α ↪ₛ (N; []) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
+    -∗ REL t << fill K (alloc #z) @ E : A.
   Proof.
-    rewrite /IntoVal.
-    iIntros "Hlog".
+    iIntros (->) "Hlog".
     iApply refines_step_r.
     iIntros (K') "HK'".
     tp_alloctape as α "Hα".
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_rand_r E K α n b bs t A :
-    α ↪ₛ (n, b :: bs)
-    -∗ (α ↪ₛ (n, bs) -∗ REL t << fill K (of_val #b) @ E : A)
-    -∗ REL t << (fill K (rand #lbl:α)) @ E : A.
+  Lemma refines_rand_r E K α N z n ns t A :
+    TCEq N (Z.to_nat z) →
+    α ↪ₛ (N; n :: ns)
+    -∗ (α ↪ₛ (N; ns) -∗ REL t << fill K (of_val #n) @ E : A)
+    -∗ REL t << (fill K (rand #z from #lbl:α)) @ E : A.
   Proof.
-    iIntros "Hα Hlog".
+    iIntros (->) "Hα Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk".
-    tp_flip.
+    tp_rand.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
@@ -212,22 +213,23 @@ Section rules.
     wp_store. by iApply "Hlog".
   Qed.
 
-  Lemma refines_alloctape_l K E (n:nat) t A :
-    (▷ (∀ α : loc, α ↪ (n, []) -∗
-           REL fill K (of_val #lbl:α) << t @ E : A))%I
-    -∗ REL fill K (alloc (Val #n)) << t @ E : A.
+  Lemma refines_alloctape_l K E N z t A :
+    TCEq N (Z.to_nat z) →
+    (▷ (∀ α : loc, α ↪ (N; []) -∗ REL fill K (of_val #lbl:α) << t @ E : A))%I
+    -∗ REL fill K (alloc #z) << t @ E : A.
   Proof.
-    iIntros "Hlog".
+    iIntros (->) "Hlog".
     iApply refines_wp_l.
     by wp_apply (wp_alloc_tape with "[//]").
   Qed.
 
-  Lemma refines_rand_l E K α n b bs t A :
-    (▷ α ↪ (n, b :: bs) ∗
-     ▷ ( ⌜ b <= n ⌝ ∗ α ↪ (n, bs) -∗ REL fill K (of_val #b) << t @ E : A))
-    -∗ REL fill K (rand #lbl:α) << t @ E : A.
+  Lemma refines_rand_l E K α N z n ns t A :
+    TCEq N (Z.to_nat z) →
+    (▷ α ↪ (N; n :: ns) ∗
+     ▷ (α ↪ (N; ns) -∗ REL fill K (of_val #n) << t @ E : A))
+    -∗ REL fill K (rand #z from #lbl:α) << t @ E : A.
   Proof.
-    iIntros "[Hα Hlog]".
+    iIntros (->) "[Hα Hlog]".
     iApply refines_wp_l.
     by wp_apply (wp_rand_tape with "Hα").
   Qed.
@@ -255,10 +257,10 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
-  Lemma refines_couple_tapes E e1 e2 A α αₛ n bs bsₛ :
+  Lemma refines_couple_tapes E e1 e2 A α αₛ N ns nsₛ :
     to_val e1 = None →
-    (αₛ ↪ₛ (n, bsₛ) ∗ α ↪ (n,bs) ∗
-       (∀ b, αₛ ↪ₛ (n, bsₛ ++ [b]) ∗ α ↪ (n, bs ++ [b])
+    (αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
+       (∀ n, αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])
        -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
@@ -272,36 +274,35 @@ Section rules.
     iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
   Qed.
 
-  Lemma refines_couple_tape_rand K' E α A n bs e :
+  Lemma refines_couple_tape_rand K' E α A N z ns e :
+    TCEq N (Z.to_nat z) →
     to_val e = None →
-    α ↪ (n,bs) ∗
-      (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ (n, bs ++ [b]) -∗ REL e << fill K' (Val #b) @ E : A)
-    ⊢ REL e << fill K' (rand #n) @ E : A.
+    α ↪ (N; ns) ∗
+      (∀ n,α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #n) @ E : A)
+    ⊢ REL e << fill K' (rand #z from #()) @ E : A.
   Proof.
-    iIntros (?) "[Hα Hcnt]".
-    rewrite {2}refines_eq.
-    rewrite {1}/refines_def.
+    iIntros (-> ?) "[Hα Hcnt]".
+    rewrite {2}refines_eq {1}/refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_couple_tape_rand_eq; [done|done|].
     rewrite -fill_app.
+    (* [iFrame] is too aggressive.... *)
     iFrame "Hs Hα Hspec".
-    iIntros (b) "[Hleq [Hα Hspec]]".
+    iIntros (n) "[Hα Hspec]".
     rewrite fill_app.
     rewrite refines_eq /refines_def /refines_right.
-    (* TODO: Write using proper syntax *)
-    iSpecialize ("Hcnt" with "[$Hleq $Hα] [Hs Hspec] Hnais"); auto.
-    wp_apply (wp_mono); last first.
-    - iApply "Hcnt".
-    - iIntros (v) "[% ([? ?] &?&?)]".
-      iExists _. iFrame.
+    iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
+    wp_apply (wp_mono with "Hcnt").
+    iIntros (v) "[% ([? ?] &?&?)]". iExists _. iFrame.
   Qed.
 
-  Lemma refines_couple_rand_tape K E α A n bs e :
-    α ↪ₛ (n,bs) ∗
-      (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ₛ (n, bs ++ [b]) -∗ REL fill K (Val #b) << e @ E : A)
-    ⊢ REL fill K (rand #n) << e @ E : A.
+  Lemma refines_couple_rand_tape K E α A N z ns e :
+    TCEq N (Z.to_nat z) →
+    α ↪ₛ (N; ns) ∗
+      (∀ n, α ↪ₛ (N; ns ++ [n]) -∗ REL fill K (Val #n) << e @ E : A)
+    ⊢ REL fill K (rand #z from #()) << e @ E : A.
   Proof.
-    iIntros "[Hα Hcnt]".
+    iIntros (->) "[Hα Hcnt]".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
@@ -309,92 +310,94 @@ Section rules.
     iFrame "Hs Hα".
     iIntros (b) "Hα".
     iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
-    (* We should be able to just [iApply] "Hcnt" here??? *)
     wp_apply (wp_mono with "Hcnt").
     iIntros (v) "[% ([? ?] &?&?)]".
     iExists _. iFrame.
   Qed.
 
-  Corollary refines_couple_rands_l K K' E α A n :
-    α ↪ (n,[]) ∗
-      (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ (n,[]) -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (rand #lbl:α) << fill K' (rand #n) @ E : A.
+  Corollary refines_couple_rands_l K K' E α A N z :
+    TCEq N (Z.to_nat z) →
+    α ↪ (N; []) ∗
+      (∀ n, α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ⊢ REL fill K (rand #z from #lbl:α) << fill K' (rand #z from #()) @ E : A.
   Proof.
-    iIntros "(α & H)".
+    iIntros (->) "(α & H)".
     iApply refines_couple_tape_rand.
-    1: rewrite fill_not_val //.
-    iFrame => /=. iIntros (b) "[Hleq α]".
+    { rewrite fill_not_val //. }
+    iFrame => /=. iIntros (n) "Hα".
     iApply refines_rand_l.
-    iSplitL "α". 1: iFrame.
-    iApply "H".
+    iFrame. iApply "H".
   Qed.
 
-  Corollary refines_couple_rands_r K K' E α A n :
-    α ↪ₛ (n,[]) ∗
-      (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ₛ (n,[]) -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (rand #n) << fill K' (rand #lbl:α) @ E : A.
+  Corollary refines_couple_rands_r K K' E α A N z :
+    TCEq N (Z.to_nat z) →
+    α ↪ₛ (N; []) ∗
+      (∀ n, α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ⊢ REL fill K (rand #z from #()) << fill K' (rand #z from #lbl:α) @ E : A.
   Proof.
-    iIntros "(α & H)".
+    iIntros (->) "(Hα & H)".
     iApply refines_couple_rand_tape.
-    iFrame => /=. iIntros (b) "[Hleq α]".
-    iApply (refines_rand_r with "α").
+    iFrame.
+    iIntros (n) "Hα".
+    iApply (refines_rand_r with "Hα").
     iIntros "α".
-    iApply "H"; auto.
+    by iApply "H".
   Qed.
 
-  Lemma refines_couple_rands_lr K K' E A n:
-      (∀ (b : nat), ⌜b <= n⌝ -∗ REL fill K (Val #b) << fill K' (Val #b) @ E : A)
-    ⊢ REL fill K (rand #n) << fill K' (rand #n) @ E : A.
+  Lemma refines_couple_rands_lr K K' E A N z :
+    TCEq N (Z.to_nat z) →
+    (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ⊢ REL fill K (rand #z from #()) << fill K' (rand #z from #()) @ E : A.
   Proof.
-    iIntros "Hcnt".
+    iIntros (->) "Hcnt".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
     wp_apply wp_couple_rand_rand_eq; [done|].
     rewrite -fill_app.
     iFrame "Hs Hspec".
-    iIntros (b) "[Hleq Hspec]".
-    iApply wp_value.
+    iIntros (n) "Hspec".
     rewrite fill_app.
-    iSpecialize ("Hcnt" with "Hleq [$Hspec $Hs] Hnais").
+    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
     wp_apply (wp_mono with "Hcnt").
     iIntros (v) "[% ([? ?] &?&?)]".
     iExists _. iFrame.
   Qed.
 
-  Lemma refines_rand_empty_l K E α A n e :
-    α ↪ (n, []) ∗
-      (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ (n, []) -∗ REL fill K (Val #b) << e @ E : A)
-    ⊢ REL fill K (rand #lbl:α) << e @ E : A.
+  Lemma refines_rand_empty_l K E α A N z e :
+    TCEq N (Z.to_nat z) →
+    α ↪ (N; []) ∗
+      (∀ n, α ↪ (N; []) -∗ REL fill K (Val #n) << e @ E : A)
+    ⊢ REL fill K (rand #z from #lbl:α) << e @ E : A.
   Proof.
-    iIntros "[Hα H]".
+    iIntros (->) "[Hα H]".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
     wp_apply (wp_rand_tape_empty with "Hα").
-    iIntros (b) "Hα".
-    simpl.
-    rewrite /refines_right.
-    iSpecialize ("H" with "Hα [$Hs $Hspec] Hnais").
-    iExact "H".
+    iIntros (n) "Hα /=".
+    iApply ("H" with "Hα [$Hs $Hspec] Hnais").
   Qed.
 
-  Lemma refines_flip_empty_r K E α A n e :
+  Lemma refines_flip_empty_r K E α A N z e :
+    TCEq N (Z.to_nat z) →
     to_val e = None →
-    α ↪ₛ (n,[]) ∗
-      (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ₛ (n,[]) -∗ REL e << fill K (Val #b) @ E : A)
-    ⊢ REL e << fill K (rand #lbl:α) @ E : A.
+    α ↪ₛ (N; []) ∗
+      (∀ n, α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
+    ⊢ REL e << fill K (rand #z from #lbl:α) @ E : A.
   Proof.
-    iIntros (ev) "[Hα H]".
+    iIntros (-> ev) "[Hα H]".
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_rand_empty_r ; auto.
-    iFrame. iSplitR. 1: iAssumption.
-    unfold refines_right.
-    rewrite -fill_app. iFrame.
-    iIntros "(α & _ & %b & Hleq & Hb)".
+    wp_apply wp_rand_empty_r; [done|done|].
+    rewrite -fill_app.
+    iFrame "Hα Hspec Hs".
+    iIntros "(Hα & _ & %n & Hb)".
     rewrite fill_app.
-    by iApply ("H" $! _ with "[Hleq $α] [$Hs $Hb]").
+    iSpecialize ("H" with "Hα [$Hs $Hb] Hnais").
+    wp_apply (wp_mono with "H").
+    iIntros (?) "[% ([? ?] & ? & ?)]".
+    iExists _. iFrame.
   Qed.
 
 End rules.

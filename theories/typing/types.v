@@ -211,12 +211,13 @@ Inductive typed : stringmap type → expr → type → Prop :=
   | TAlloc Γ e τ : Γ ⊢ₜ e : τ → Γ ⊢ₜ Alloc e : ref τ
   | TLoad Γ e τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ Load e : τ
   | TStore Γ e e' τ : Γ ⊢ₜ e : ref τ → Γ ⊢ₜ e' : τ → Γ ⊢ₜ Store e e' : ()
-  | TAllocTape e Γ : Γ ⊢ₜ e : TNat →  Γ ⊢ₜ AllocTape e : TTape
-  | TRand Γ e : Γ ⊢ₜ e : TTape -> Γ ⊢ₜ Rand e : TNat
-  | TFlipU Γ e : Γ ⊢ₜ e : TNat -> Γ ⊢ₜ Rand e : TNat
+  | TAllocTape e Γ : Γ ⊢ₜ e : TInt →  Γ ⊢ₜ AllocTape e : TTape
+  | TRand  Γ e1 e2 : Γ ⊢ₜ e1 : TInt → Γ ⊢ₜ e2 : TTape → Γ ⊢ₜ Rand e1 e2 : TInt
+  | TRandU Γ e1 e2 : Γ ⊢ₜ e1 : TInt → Γ ⊢ₜ e2 : TUnit → Γ ⊢ₜ Rand e1 e2 : TInt
 with val_typed : val → type → Prop :=
-  | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit
+  | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit                                       
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt
+  | Nat_val_typed (n : nat) : ⊢ᵥ LitV (LitInt n) : TNat                                               
   | Bool_val_typed (b : bool) : ⊢ᵥ LitV (LitBool b) : TBool
   | Pair_val_typed v1 v2 τ1 τ2 :
      ⊢ᵥ v1 : τ1 →
