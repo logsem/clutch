@@ -449,6 +449,40 @@ Proof.
 Qed.
 
 
+(** * Generalized state_step(α) ~ state_step(α') coupling *)
+Lemma Rcoupl_state_step_gen R σ1 σ2 α1 α2 m1 m2 xs ys :
+  σ1.(tapes) !! α1 = Some (m1, xs) →
+  σ2.(tapes) !! α2 = Some (m2, ys) →
+  Rcoupl (dunif m1) (dunif m2) R ->
+  Rcoupl
+    (state_step σ1 α1)
+    (state_step σ2 α2)
+    (λ σ1' σ2', ∃ n1 n2,
+        (n1 <= m1)%nat /\ (n2 <= m2)%nat /\ R n1 n2 /\
+        σ1' = state_upd_tapes <[α1 := (m1, xs ++ [n1])]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := (m2, ys ++ [n2])]> σ2).
+Proof.
+  intros Hα1 Hα2 Hcoupl.
+  apply Rcoupl_pos_R in Hcoupl.
+  rewrite /state_step.
+  pose proof (elem_of_dom_2 _ _ _ Hα1) as Hdom1.
+  pose proof (elem_of_dom_2 _ _ _ Hα2) as Hdom2.
+  rewrite bool_decide_eq_true_2; auto.
+  rewrite bool_decide_eq_true_2; auto.
+  rewrite (lookup_total_correct _ _ _ Hα1).
+  rewrite (lookup_total_correct _ _ _ Hα2).
+  rewrite /dmap.
+  eapply Rcoupl_dbind; [ | apply Hcoupl ]; simpl.
+  intros a b (Hab & HposA & HposB).
+  rewrite /pmf/dunif/= in HposA.
+  rewrite /pmf/dunif/= in HposB.
+  case_bool_decide; try lra.
+  case_bool_decide; try lra.
+  apply Rcoupl_dret.
+  exists a. exists b. split; try split; auto.
+Qed.
+
+
 (** * rand(unit) ~ state_step(α') coupling *)
 Lemma Rcoupl_rand_state f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' α' m xs:
   (∀ n : nat, n ≤ m → f n ≤ m) →
@@ -474,6 +508,7 @@ Proof.
   apply Rcoupl_dret.
   exists a; auto.
 Qed.
+
 
 (** * state_step(α) ~ rand(unit) coupling *)
 Lemma Rcoupl_state_rand f `{Inj nat nat (=) (=) f, Surj nat nat (=) f} σ1 σ1' α m xs:

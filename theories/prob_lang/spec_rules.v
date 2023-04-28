@@ -243,6 +243,64 @@ Section rules.
   Qed.
 
 
+  Lemma wp_couple_tapes_gen R E e α αₛ n1 n2 zs zsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    Rcoupl (dunif n1) (dunif n2) R ->
+    spec_ctx ∗ αₛ ↪ₛ (n2, zsₛ) ∗ α ↪ (n1, zs) ∗
+    ((∃ z1 z2, ⌜z1 <= n1⌝ ∗ ⌜z2 <= n2⌝ ∗ ⌜R z1 z2 ⌝ ∗ αₛ ↪ₛ (n2, zsₛ ++ [z2]) ∗ α ↪ (n1, zs ++ [z1])) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (He ? Hcoupl) "(#Hinv & Hαs & Hα & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* Do a coupled [state_step] on both sides  *)
+    iApply (exec_coupl_state_steps α αₛ).
+    { rewrite /= /get_active.
+      apply elem_of_list_In, in_prod;
+        apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
+    iExists _.
+    iSplit.
+    { iPureIntro.
+      eapply Rcoupl_pos_R, (Rcoupl_state_step_gen R); eauto.
+    }
+    iIntros (σ2 σ2' ((a & b & Hleq1 & Hleq2 & Hab & -> & ->) & ? & ?)).
+    (* Update our resources *)
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(n2, zsₛ ++ [b])]> σ0'))
+           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
+    simplify_map_eq.
+    iMod (ghost_map_update (n1, zs ++ [a]) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update (n2, zsₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //; iSplit; auto.
+      iPureIntro.
+      apply valid_tapes_append; auto.
+    }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
+    iSpecialize ("Hwp" with "[Hα Hαs]").
+    { iExists _. iFrame; auto. }
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(n1, zs ++ [a])]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp".
+    + iFrame. iSplit.
+      * iPureIntro. apply valid_tapes_append; auto.
+      * iPureIntro. apply valid_tapes_append; auto.
+    + iModIntro. done.
+  Qed.
+
+
   Lemma wp_couple_tapes_eq E e α αₛ n bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →

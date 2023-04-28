@@ -585,6 +585,7 @@ Proof.
        left; apply RinvN_pos.
 Qed.
 
+
 Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B}
   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f}
   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) :
