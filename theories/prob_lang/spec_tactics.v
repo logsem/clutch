@@ -285,19 +285,20 @@ Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
 (* Will this ever be used when the argument of alloc is not a value? *)
-Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e (n:nat) Q :
+Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e N z Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
+  TCEq N (Z.to_nat z) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
-  e = fill K' (alloc (Val #n)) →
+  e = fill K' (alloc #z) →
   (* TODO use match here as well *)
   (∀ α : loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (refines_right k (fill K' #lbl:α))) Δ1 = Some Δ2 ∧
-    (envs_entails Δ2 ((α ↪ₛ (n, [])) -∗ Q)%I)) →
+    (envs_entails Δ2 ((α ↪ₛ (N; [])) -∗ Q)%I)) →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros ??? Hfill HQ.
+  rewrite envs_entails_unseal. intros ???? Hfill HQ.
   rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption.
   rewrite /refines_right.
   rewrite Hfill -fill_app /=.
@@ -327,6 +328,7 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
   iStartProof;
   eapply (tac_tp_alloctape);
   [iSolveTC || fail "tp_alloctape: cannot eliminate modality in the goal"
+  |iSolveTC || fail "tp_alloctape: cannnot convert bound to a natural number" 
   |solve_ndisj || fail "tp_alloctape: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_alloctape: cannot find the RHS"
   |tp_bind_helper
@@ -336,21 +338,22 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_rand `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) n b bs Q :
+Lemma tac_tp_rand `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
+  TCEq N (Z.to_nat z) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
-  e = fill K' (Rand #lbl:l) →
-  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (n,b::bs))%I →
-  e2 = fill K' (of_val #b) →
+  e = fill K' (rand #z from #lbl:l) →
+  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (N; n::ns))%I →
+  e2 = fill K' (of_val #n) →
   match envs_simple_replace i2 false
-    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ (n,bs))%I) Δ2 with
+    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ (N; ns))%I) Δ2 with
   | Some Δ3 => envs_entails Δ3 Q
   | None    => False
   end →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros ??? -> ? -> HQ.
+  rewrite envs_entails_unseal. intros ???? -> ? -> HQ.
   rewrite envs_lookup_delete_sound //; simpl.
   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
   rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
@@ -361,22 +364,23 @@ Proof.
   rewrite -[Q]elim_modal //.
   apply bi.sep_mono_r.
   apply bi.wand_intro_l.
-  rewrite (comm _ _ (l ↪ₛ (n,bs))%I).
+  rewrite (comm _ _ (l ↪ₛ (N; ns))%I).
   rewrite assoc.
-  rewrite (comm _ _ (l ↪ₛ (n,bs))%I).
+  rewrite (comm _ _ (l ↪ₛ (N; ns))%I).
   rewrite -assoc.
   rewrite HQ. by apply bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_flip" :=
+Tactic Notation "tp_rand" :=
   iStartProof;
   eapply tac_tp_rand;
-  [iSolveTC || fail "tp_flip: cannot eliminate modality in the goal"
-  |solve_ndisj || fail "tp_flip: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_flip: cannot find the RHS"
+  [iSolveTC || fail "tp_rand: cannot eliminate modality in the goal"
+  |iSolveTC || fail "tp_rand: cannot convert bound to a natural number"
+  |solve_ndisj || fail "tp_rand: cannot prove 'nclose specN ⊆ ?'"
+  |iAssumptionCore || fail "tp_rand: cannot find the RHS"
   |tp_bind_helper
-  |iAssumptionCore || fail "tp_flip: cannot find '? ↪ₛ ?'"
-  |simpl; reflexivity || fail "tp_flip: this should not happen"
+  |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
+  |simpl; reflexivity || fail "tp_rand: this should not happen"
   |pm_reduce (* new goal *)].
 
 

@@ -51,9 +51,9 @@ Section atomic.
   Global Instance store_atomic s v1 v2 : Atomic s (Store (Val v1) (Val v2)).
   Proof. solve_atomic. Qed.
 
-  Global Instance flip_atomic s l : Atomic s (Rand (Val (LitV (LitLbl l)))).
+  Global Instance flip_atomic s z l : Atomic s (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))).
   Proof. solve_atomic. Qed.
-  Global Instance flip_atomic_int s z : Atomic s (Rand (Val (LitV (LitInt z)))).
+  Global Instance flip_atomic_int s z : Atomic s (Rand (Val (LitV (LitInt z))) (Val (LitV LitUnit))).
   Proof. solve_atomic. Qed.
   Global Instance alloc_tape_atomic s z : Atomic s (AllocTape (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.

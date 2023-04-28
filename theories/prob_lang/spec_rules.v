@@ -93,110 +93,204 @@ Section rules.
     solve_step.
   Qed.
 
-  (** AllocTape and flip (non-empty tape)  *)
-  Lemma step_alloctape E K (n : nat) :
+  (** AllocTape and Rand (non-empty tape)  *)
+  Lemma step_alloctape E K N z :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (alloc #n) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (n, []).
+    spec_ctx ∗ ⤇ fill K (alloc #z) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (N; []).
   Proof.
-    iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
+    iIntros (-> ?) "[#Hinv Hj]". iFrame "Hinv".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "Hauth Hj") as "[Hauth Hj]".
-    iMod (ghost_map_insert (fresh_loc σ.(tapes)) (n, []) with "Htapes") as "[Htapes Hl]".
+    iMod (ghost_map_insert (fresh_loc σ.(tapes)) ((_; []) : tape) with "Htapes") as "[Htapes Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
     iExists (fresh_loc σ.(tapes)).
     iFrame. iMod ("Hclose" with "[-]"); [|done].
     iModIntro.
-    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=(n, [])]> σ), _.
+    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=_]> σ), _.
     iFrame. iPureIntro.
-    split; [|by apply valid_tapes_insert_fresh].
     eapply exec_det_step_ctx; [apply _| |done].
     (* TODO: fix tactic *)
     solve_step.
-    rewrite Nat2Z.id.
-    solve_distr.
+    by apply dret_1_1.
   Qed.
 
-  (* TODO: should this go here or not? *)
-  Lemma refines_right_alloctape E K (n : nat) :
+  Lemma step_rand E K l N z n ns :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    refines_right K (alloc #n) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (n, []).
+    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:l) ∗ l ↪ₛ (N; n :: ns)
+    ={E}=∗ spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (N; ns).
   Proof.
-    iIntros (?) "(?&?)".
-    iMod (step_alloctape with "[$]") as (l) "(?&?)"; first done.
-    iExists _; by iFrame.
-  Qed.
-
-  Lemma step_rand E K l b n ns :
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #lbl:l) ∗ l ↪ₛ (b, n :: ns)
-    ={E}=∗ spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (b, ns).
-  Proof.
-    iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
+    iIntros (-> ?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
+    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
     iDestruct (ghost_map_lookup with "Htapes Hl") as %?.
-    iMod (ghost_map_update (b, ns) with "Htapes Hl") as "[Htapes Hl]".
+    iMod (ghost_map_update ((_; ns) : tape) with "Htapes Hl") as "[Htapes Hl]".
     iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists _, _, (state_upd_tapes <[l:=(b, ns)]> σ), _.
+    iModIntro. iExists _, _, (state_upd_tapes <[l:=_]> σ), _.
     iFrame. iPureIntro.
-    split; [|by eapply valid_tapes_consume].
     eapply exec_det_step_ctx; [apply _| |done].
+    (* TODO: fix tactic *)
     solve_step.
+    rewrite bool_decide_eq_true_2 //.
+    by apply dret_1_1.
   Qed.
+
+  Lemma step_allocBooltape E K :
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K allocBool ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛb [].
+  Proof. by apply step_alloctape. Qed.
 
   Lemma step_flip E K l (b : bool) bs :
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (flipL #lbl:l) ∗ l ↪ₛb (b :: bs)
+    spec_ctx ∗ ⤇ fill K (flip #lbl:l) ∗ l ↪ₛb (b :: bs)
     ={E}=∗ spec_ctx ∗ ⤇ fill K #(LitBool b) ∗ l ↪ₛb bs.
   Proof.
     iIntros (?) "(#Hinv & Hj & Hl)".
-    replace (fill K (flipL #lbl:l)) with
-      (fill ([UnOpCtx ZtoBOp] ++ K) (rand #lbl:l)); [|done].
+    replace (fill K (flip #lbl:l)) with
+      (fill ([UnOpCtx ZtoBOp] ++ K) (rand #1%nat from #lbl:l)); [|done].
     iMod (step_rand with "[$Hinv $Hj $Hl]") as "(_ & Hj & Hl) /="; [done|].
     iMod (step_pure with "[$Hinv $Hj]") as "[_ Hj]"; [done|done|].
-    rewrite Z_to_bool_of_nat bool_to_nat_to_bool.
+    rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv.
     by iFrame "Hinv Hl".
   Qed.
 
-  Lemma refines_right_rand E K l n z zs :
+  (** * RHS [rand(α)] with empty tape  *)
+  Lemma wp_rand_empty_r N z E e K α Φ :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
     nclose specN ⊆ E →
-    l ↪ₛ (n, z :: zs) -∗
-    refines_right K (rand #lbl:l) ={E}=∗ refines_right K (#z) ∗ l ↪ₛ (n,zs).
+    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (N; []) ∗
+    ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n, ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (?) "? (?&?)".
-    iMod (step_rand with "[$]") as "(?&?&?)"; first done.
+    iIntros (-> He HE) "(#Hinv & Hj & Hα & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    (* Do a (trivially) coupled [prim_step] on the right *)
+    iApply (exec_coupl_exec_r).
+    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
+    iSplit.
+    { iPureIntro.
+      rewrite exec_1.
+      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite -(dret_id_right (dret _)) fill_dmap //.
+      eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_empty_r].
+      intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
+      apply Rcoupl_dret=>/=. eauto. }
+    iIntros (σ2 e2' (n & [= -> ->])).
+    iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
+    simplify_map_eq.
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
+    rewrite !wp_unfold /wp_pre /= He.
+    by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".
+  Qed.
+
+    (** * RHS [rand(α)] with wrong tape  *)
+  Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
+    TCEq N (Z.to_nat z) →
+    N ≠ M →
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (M; ns) ∗
+    ((α ↪ₛ (M; ns) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (-> ? He HE) "(#Hinv & Hj & Hα & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    (* Do a (trivially) coupled [prim_step] on the right *)
+    iApply (exec_coupl_exec_r).
+    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
+    iSplit.
+    { iPureIntro.
+      rewrite exec_1.
+      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite -(dret_id_right (dret _)) fill_dmap //.
+      eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_wrong_r].
+      intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
+      apply Rcoupl_dret=>/=. eauto. }
+    iIntros (σ2 e2' (n & [= -> ->])).
+    iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
+    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
+    simplify_map_eq.
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
+    rewrite !wp_unfold /wp_pre /= He.
+    by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".
+  Qed.
+
+  (** * Corollaries about [refines_right]  *)
+  Lemma refines_right_alloctape E K N z :
+    TCEq N (Z.to_nat z) →
+    nclose specN ⊆ E →
+    refines_right K (alloc #z) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (N; []).
+  Proof.
+    iIntros (??) "(?&?)".
+    iMod (step_alloctape with "[$]") as (l) "(?&?)"; [done|].
+    iExists _; by iFrame.
+  Qed.
+
+  Lemma refines_right_rand E K l N z n ns :
+    TCEq N (Z.to_nat z) →
+    nclose specN ⊆ E →
+    l ↪ₛ (N; n :: ns) -∗
+    refines_right K (rand #z from #lbl:l) ={E}=∗ refines_right K #n ∗ l ↪ₛ (N; ns).
+  Proof.
+    iIntros (??) "? (?&?)".
+    iMod (step_rand with "[$]") as "(?&?&?)"; [done|].
     iModIntro; iFrame.
   Qed.
 
-  (* TODO: should this go here or not? *)
   Lemma refines_right_flip E K l b bs :
     nclose specN ⊆ E →
     l ↪ₛb (b :: bs) -∗
-    refines_right K (flipL #lbl:l) ={E}=∗ refines_right K #(LitBool b) ∗ l ↪ₛb bs.
+    refines_right K (flip #lbl:l) ={E}=∗ refines_right K #(LitBool b) ∗ l ↪ₛb bs.
   Proof.
     iIntros (?) "? (?&?)".
     iMod (step_flip with "[$]") as "(?&?&?)"; first done.
     iModIntro; iFrame.
   Qed.
 
-
-
-
+  (** * Coupling rules  *)
   (* TODO: can we factor out a lemma to avoid duplication in all the coupling lemmas? *)
-  Lemma wp_couple_tapes f `{Bij nat nat f} E e α αₛ n zs zsₛ Φ :
-    (∀ m, m ≤ n → f m ≤ n) →
+
+  (** * state_step(α, N) ~ state_step(α', N) coupling *)
+  Lemma wp_couple_tapes N f `{Bij (fin (S N)) (fin (S N)) f} E e α αₛ ns nsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ (n, zsₛ) ∗ α ↪ (n, zs) ∗
-    ((∃ z, ⌜z <= n⌝ ∗ αₛ ↪ₛ (n, zsₛ ++ [f z]) ∗ α ↪ (n, zs ++ [z])) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
+    ((∃ n, αₛ ↪ₛ (N; nsₛ ++ [f n]) ∗ α ↪ (N; ns ++ [n])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hdom He ?) "(#Hinv & Hαs & Hα & Hwp)".
+    iIntros (He ?) "(#Hinv & Hαs & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
@@ -207,54 +301,47 @@ Section rules.
     iApply (exec_coupl_state_steps α αₛ).
     { rewrite /= /get_active.
       apply elem_of_list_In, in_prod;
-        apply elem_of_list_In, elem_of_elements, elem_of_dom; eauto. }
+        apply elem_of_list_In, elem_of_elements, elem_of_dom; auto. }
     iExists _.
     iSplit.
-    { iPureIntro.
-      eapply Rcoupl_pos_R, (Rcoupl_state_step f); eauto.
-    }
-    iIntros (σ2 σ2' ((b & Hleq & -> & ->) & ? & ?)).
+    { iPureIntro. by eapply Rcoupl_pos_R, (Rcoupl_state_state _ f). }
+    iIntros (σ2 σ2' ((b & -> & ->) & ? & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(n, zsₛ ++ [f b])]> σ0'))
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(N; nsₛ ++ [f b]) : tape]> σ0'))
            with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
     simplify_map_eq.
-    iMod (ghost_map_update (n, zs ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update (n, zsₛ ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
-    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
+    iMod (ghost_map_update ((N; ns ++ [b]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update ((N; nsₛ ++ [f b]) : tape) with "Htapes Hαs") as "[Htapes Hαs]".
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants *)
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //; iSplit; auto.
-      iPureIntro.
-      apply valid_tapes_append; auto.
-    }
+      iFrame. rewrite exec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[Hα Hαs]").
     { iExists _. iFrame; auto. }
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes <[α:=(n, zs ++ [b])]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp".
-    + iFrame. iSplit.
-      * iPureIntro. apply valid_tapes_append; auto.
-      * iPureIntro. apply valid_tapes_append; auto.
-    + iModIntro. done.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [b]) : tape]> _)
+           with "[$Hh1 $Hauth2 $Ht1]") as "Hwp".
+    iModIntro. done.
   Qed.
 
 
-  Lemma wp_couple_tapes_gen R E e α αₛ n1 n2 zs zsₛ Φ :
+  Lemma wp_couple_tapes_gen n1 n2 (R : fin (S n1) -> fin (S n2) -> Prop) E e α αₛ zs zsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    Rcoupl (dunif n1) (dunif n2) R ->
-    spec_ctx ∗ αₛ ↪ₛ (n2, zsₛ) ∗ α ↪ (n1, zs) ∗
-    ((∃ z1 z2, ⌜z1 <= n1⌝ ∗ ⌜z2 <= n2⌝ ∗ ⌜R z1 z2 ⌝ ∗ αₛ ↪ₛ (n2, zsₛ ++ [z2]) ∗ α ↪ (n1, zs ++ [z1])) -∗ WP e @ E {{ Φ }})
+    Rcoupl (dunif (S n1)) (dunif (S n2)) R ->
+    spec_ctx ∗ αₛ ↪ₛ (n2; zsₛ) ∗ α ↪ (n1; zs) ∗
+    ((∃ z1 z2, ⌜R z1 z2 ⌝ ∗ αₛ ↪ₛ (n2; zsₛ ++ [z2]) ∗ α ↪ (n1; zs ++ [z1])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He ? Hcoupl) "(#Hinv & Hαs & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvalid)" "Hclose".
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
@@ -269,91 +356,81 @@ Section rules.
     iExists _.
     iSplit.
     { iPureIntro.
-      eapply Rcoupl_pos_R, (Rcoupl_state_step_gen R); eauto.
+      eapply Rcoupl_pos_R, (Rcoupl_state_step_gen _ _ R); eauto.
     }
-    iIntros (σ2 σ2' ((a & b & Hleq1 & Hleq2 & Hab & -> & ->) & ? & ?)).
+    iIntros (σ2 σ2' ((a & b & Hab & -> & ->) & ? & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(n2, zsₛ ++ [b])]> σ0'))
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(n2; zsₛ ++ [b]) : tape]> σ0'))
            with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
     simplify_map_eq.
-    iMod (ghost_map_update (n1, zs ++ [a]) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update (n2, zsₛ ++ [b]) with "Htapes Hαs") as "[Htapes Hαs]".
+    iMod (ghost_map_update ((n1; zs ++ [a]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update ((n2; zsₛ ++ [b]) : tape) with "Htapes Hαs") as "[Htapes Hαs]".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
       iFrame. rewrite exec_O dret_1_1 //; iSplit; auto.
-      iPureIntro.
-      apply valid_tapes_append; auto.
     }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[Hα Hαs]").
     { iExists _. iFrame; auto. }
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes <[α:=(n1, zs ++ [a])]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp".
-    + iFrame. iSplit.
-      * iPureIntro. apply valid_tapes_append; auto.
-      * iPureIntro. apply valid_tapes_append; auto.
-    + iModIntro. done.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(n1; zs ++ [a]) : tape]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp"; auto.
   Qed.
 
-
-  Lemma wp_couple_tapes_eq E e α αₛ n bs bsₛ Φ :
+  Corollary wp_couple_tapes_eq N E e α αₛ ns nsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ (n, bsₛ) ∗ α ↪ (n, bs) ∗
-    ((∃ z, ⌜z <= n⌝ ∗ αₛ ↪ₛ (n, bsₛ ++ [z]) ∗ α ↪ (n, bs ++ [z])) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
+    ((∃ n, αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
-  Proof. eapply (wp_couple_tapes (Datatypes.id)); done. Qed.
+  Proof. by eapply (wp_couple_tapes _ (Datatypes.id)). Qed.
 
-  (* Do we need this anymore?
-  Lemma wp_couple_tapes_neg E e α αₛ bs bsₛ Φ :
+  Lemma wp_couple_tapesN_eq m E N e α αₛ ns nsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ bsₛ ∗ α ↪ bs ∗
-    ((∃ b, αₛ ↪ₛ (bsₛ ++ [negb b]) ∗ α ↪ (bs ++ [b])) -∗ WP e @ E {{ Φ }})
-    ⊢ WP e @ E {{ Φ }}.
-  Proof. apply (wp_couple_tapes negb). Qed.
-  *)
-
-  Lemma wp_couple_tapesN_eq E m e α αₛ n bs bsₛ Φ :
-    to_val e = None →
-    nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛ (n,bsₛ) ∗ α ↪ (n,bs) ∗
-    ((∃ bs', ⌜ Forall (λ z, z <= n) bs'⌝ ∗ ⌜ length bs' = m ⌝ ∗ αₛ ↪ₛ (n, bsₛ ++ bs') ∗ α ↪ (n, bs ++ bs')) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
+    ((∃ ns', ⌜length ns' = m ⌝ ∗ αₛ ↪ₛ (N; nsₛ ++ ns') ∗ α ↪ (N; ns ++ ns')) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??).
-    iInduction m as [| m] "IH" forall (bs bsₛ).
+    iInduction m as [| m] "IH" forall (ns nsₛ).
     - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
-      iApply "Hwp"; iExists []; iSplit; [ done | rewrite ?app_nil_r /=; by iFrame].
+      iApply "Hwp".
+      iExists [].
+      iSplit; [done|].
+      rewrite 2!app_nil_r.
+      iFrame.
     - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
       iApply "IH". iFrame "Hα Hαₛ Hctx".
-      iDestruct 1 as (bs' Hforall Hlen) "(Hα&Hαₛ)".
-      iApply wp_couple_tapes_eq; try done. iFrame "Hα Hαₛ Hctx".
-      iDestruct 1 as (b Hleq) "(Hα&Hαₛ)".
-      iApply "Hwp". iExists (bs' ++ [b]). rewrite ?app_assoc; iFrame.
-      iSplit; iPureIntro; [ | rewrite ?app_length ?Hlen /=; lia].
-      apply Forall_app_2; auto.
+      iDestruct 1 as (ns' Hlen) "(Hα&Hαₛ)".
+      iApply wp_couple_tapes_eq; [done|done|].
+      iFrame "Hα Hαₛ Hctx".
+      iDestruct 1 as (n) "(Hα&Hαₛ)".
+      iApply "Hwp".
+      iExists (ns' ++ [n]).
+      rewrite 2!app_assoc. iFrame.
+      iPureIntro.
+      rewrite app_length Hlen /=.
+      lia.
   Qed.
 
-
-
-  Lemma wp_couple_tape_rand f `{Bij nat nat f} K E α n bs Φ e :
-    (∀ m, m ≤ n → f m ≤ n) →
+  (** * state_step(α, N) ~ rand(unit, N) coupling *)
+  Lemma wp_couple_tape_rand N f `{Bij (fin (S N)) (fin (S N)) f} K E α z ns Φ e :
+    TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ (n,bs) ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜ b <= n ⌝ ∗ α ↪ (n, bs ++ [b]) ∗ ⤇ fill K #(f b) -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ α ↪ (N; ns) ∗ ⤇ fill K (rand #z from #()) ∗
+    (∀ n, α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #(f n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hdom He ?) "(#Hinv & Hα & Hj & Hwp)".
+    iIntros (-> He ?) "(#Hinv & Hα & Hj & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvtapes)" "Hclose".
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
@@ -363,207 +440,155 @@ Section rules.
     { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
     iExists
       (λ σ2 '(e2', σ2'),
-        ∃ (b : nat), b <= n /\ σ2 = state_upd_tapes <[α := (n, bs ++ [b])]> σ1
-                      ∧ (e2', σ2') = (fill K #(f b), σ0')).
+        ∃ n, σ2 = state_upd_tapes <[α := (_; ns ++ [n]) : tape]> σ1
+             ∧ (e2', σ2') = (fill K #(f n), σ0')).
     iSplit.
     { iPureIntro.
       rewrite /= -(dret_id_right (state_step _ _)) fill_dmap //.
       eapply Rcoupl_dbind => /=; last first.
-      { eapply Rcoupl_pos_R. eapply (Rcoupl_state_rand f); eauto. }
-      intros σ2 (e2' & σ2') ((b & ? & -> & ->) & ? & ?).
+      { eapply Rcoupl_pos_R. by eapply Rcoupl_state_rand. }
+      intros σ2 (e2' & σ2') ((b & -> & ->) & ? & ?).
       apply Rcoupl_dret=>/=. eauto. }
-    iIntros (σ2 e2' σ2' (b & ? & -> & [= -> ->])).
+    iIntros (σ2 e2' σ2' (b & -> & [= -> ->])).
     iMod (spec_interp_update (fill K #(f b), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
     iMod (spec_prog_update (fill K #(f b)) with "Hauth Hj") as "[Hauth Hj]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
-    simplify_map_eq.
-    iMod (ghost_map_update (n, bs ++ [b]) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update ((_; ns ++ [b]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
       iFrame. rewrite exec_O dret_1_1 //. }
-    iSpecialize ("Hwp" with "[$Hα $Hj]"); [iPureIntro; auto | ].
+    iSpecialize ("Hwp" with "[$Hα $Hj]").
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes <[α:=(n, bs ++ [b])]> σ1) with "[$Hh1 $Hauth2 Ht1]") as "Hwp".
-    - iFrame; iSplit; iPureIntro; auto.
-      apply valid_tapes_append; auto.
-    - iModIntro. done.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(_; ns ++ [b]) : tape]> σ1)
+           with "[$Hh1 $Hauth2 $Ht1]") as "Hwp".
+    done.
   Qed.
 
-  Lemma wp_couple_tape_rand_eq K E α n bs Φ e :
+  Corollary wp_couple_tape_rand_eq N K E α z ns Φ e :
+    TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ (n, bs) ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜ b <= n ⌝ ∗ α ↪ (n, bs ++ [b]) ∗ ⤇ fill K #b -∗ WP e @ E {{ Φ }})
+    spec_ctx ∗ α ↪ (N; ns) ∗ ⤇ fill K (rand #z from #()) ∗
+    (∀ n, α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
-  Proof. apply (wp_couple_tape_rand Datatypes.id); done. Qed.
+  Proof. apply (wp_couple_tape_rand _ Datatypes.id). Qed.
 
-  (*
-  Lemma wp_couple_tape_flip_neg K E α bs Φ e :
-    to_val e = None →
+  (** * rand(unit, N) ~ state_step(α', N) coupling *)
+  Lemma wp_couple_rand_tape N f `{Bij (fin (S N)) (fin (S N)) f} z E α ns Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ bs ∗ ⤇ fill K (flip #()) ∗
-    (∀ (b : bool), α ↪ (bs ++ [b]) ∗ ⤇ fill K #(negb b) -∗ WP e @ E {{ Φ }})
-    ⊢ WP e @ E {{ Φ }}.
-  Proof. apply (wp_couple_tape_flip negb). Qed.
-  *)
-
-  Lemma wp_couple_rand_tape f `{Bij nat nat f} E α n bs Φ :
-    (∀ m, m ≤ n → f m ≤ n) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛ (n,bs) ∗
-    (∀ (b : nat), ⌜ b <= n ⌝ ∗ α ↪ₛ (n, bs ++ [f b]) -∗ Φ #b)
-    ⊢ WP (rand #n) @ E {{ Φ }}.
+    spec_ctx ∗ α ↪ₛ (N; ns) ∗
+    (∀ n, α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
+    ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
-    iIntros (Hdom He) "(#Hinv & Hαs & Hwp)".
+    iIntros (-> He) "(#Hinv & Hαs & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvtapes)" "Hclose".
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iApply exec_coupl_det_r; [done|].
     iApply (exec_coupl_prim_state α).
     { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
-    iExists
-      (λ ρ2 σ2',
-        ∃ (b : nat), b <= n /\ ρ2 = (Val #b, σ1) /\ σ2' = state_upd_tapes <[α := (n, bs ++ [f b])]> σ0').
+    iExists _.
     iSplit.
-    { iPureIntro.
-      apply head_prim_reducible.
-      eexists (Val #0, σ1).
+    { iPureIntro. apply head_prim_reducible.
+      eexists (Val #0%fin, σ1).
       apply head_step_support_equiv_rel.
-      eapply (RandNoTapeS 0); lia.
-    }
+      by eapply (RandNoTapeS _ _ 0%fin). }
     iSplit.
-    { iPureIntro.
-      eapply (Rcoupl_rand_state f); auto.
-    }
-    iIntros (e2 σ2 σ2' (b & Hleq & ? & ->)); simplify_eq.
-    iMod (spec_interp_update (e0', state_upd_tapes <[α:=(n, bs ++ [f b])]> σ0')
+    { iPureIntro. by eapply (Rcoupl_rand_state _ f). }
+    iIntros (e2 σ2 σ2' (b & [=-> ->] & ->)).
+    iMod (spec_interp_update (e0', state_upd_tapes <[α:=(_; ns ++ [f b]) : tape]> σ0')
            with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
     iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
-    iMod (ghost_map_update (n, bs ++ [f b]) with "Htapes Hαs") as "[Htapes Hαs]".
-    simplify_map_eq.
+    iMod (ghost_map_update ((_; ns ++ [f b]) : tape) with "Htapes Hαs") as "[Htapes Hαs]".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
-      iExists _, _, (state_upd_tapes <[α:=(n, bs ++ [f b])]> σ0'), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //; auto.
-      iSplit; iPureIntro; auto.
-      apply valid_tapes_append; auto.
-    }
-    iSpecialize ("Hwp" $! b with "[$Hαs]"); [iPureIntro; auto| ].
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iSpecialize ("Hwp" $! b with "[$Hαs]").
     iFrame.
-    iModIntro; iSplit.
-    - iPureIntro; auto.
-    - iSplit.
-      + iPureIntro; apply valid_tapes_append; auto.
-      + by iApply wp_value.
+    iModIntro.
+    by iApply wp_value.
   Qed.
 
-  Lemma wp_couple_rand_tape_eq E α n bs Φ :
+  Corollary wp_couple_rand_tape_eq E α N z ns Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛ (n, bs) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ₛ (n, bs ++ [b]) -∗ Φ #b)
-    ⊢ WP (rand #n) @ E {{ Φ }}.
-  Proof. apply (wp_couple_rand_tape Datatypes.id); done. Qed.
+    spec_ctx ∗ α ↪ₛ (N; ns) ∗
+    (∀ n, α ↪ₛ (N; ns ++ [n]) -∗ Φ #n)
+    ⊢ WP rand #z from #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_rand_tape _ Datatypes.id). Qed.
 
-  (*
-  Lemma wp_couple_flip_tape_neq E α bs Φ :
+  (** * rand(α, N) ~ rand(unit, N) coupling *)
+  Lemma wp_couple_rand_lbl_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛ bs ∗
-    (∀ (b : bool), α ↪ₛ (bs ++ [negb b]) -∗ Φ #b)
-    ⊢ WP flip #() @ E {{ Φ }}.
-  Proof. apply (wp_couple_flip_tape negb). Qed.
-  *)
-
-  Corollary wp_couple_rand_lbl_rand f `{Bij nat nat f} K E α n Φ :
-    (∀ m, m ≤ n → f m ≤ n) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ (n,[]) ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ (n,[]) ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #lbl:α @ E {{ Φ }}.
+    spec_ctx ∗ α ↪ (N; []) ∗ ⤇ fill K (rand #z from #()) ∗
+    (∀ n, α ↪ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
   Proof.
-    intro Hdom.
-    iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
+    iIntros (??) "(#Hinv & Hα & Hr & HΦ)".
     iApply wp_couple_tape_rand => //.
     iFrame "Hinv". iFrame => /=.
-    iIntros (b) "(Hleq & Hα & Hr)".
-    iApply wp_fupd.
+    iIntros (n) "(Hα & Hr)".
     iApply (wp_rand_tape with "Hα").
-    iIntros "!> [? Hα]".
-    iSpecialize ("Hwp" $! b with "[$]").
-    by iApply (wp_value_fupd).
+    iIntros "!> Hα".
+    iApply ("HΦ" with "[$]").
   Qed.
 
-  Lemma wp_couple_rand_lbl_rand_eq K E α n Φ :
+  Corollary wp_couple_rand_lbl_rand_eq N z K E α Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ (n,[]) ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ (n,[]) ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #lbl:α @ E {{ Φ }}.
-  Proof. apply (wp_couple_rand_lbl_rand Datatypes.id); done. Qed.
+    spec_ctx ∗ α ↪ (N; []) ∗ ⤇ fill K (rand #z from #()) ∗
+    (∀ (n : fin (S N)), α ↪ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
+    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+  Proof. apply (wp_couple_rand_lbl_rand _ Datatypes.id). Qed.
 
-  (*
-  Lemma wp_couple_flip_lbl_flip_neg K E α Φ :
+  (** * rand(unit, N) ~ rand(α, N) coupling *)
+  Lemma wp_couple_rand_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ [] ∗ ⤇ fill K (flip #()) ∗
-    (∀ (b : bool), α ↪ [] ∗ ⤇ fill K #(negb b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP flip #lbl:α @ E {{ Φ }}.
-  Proof. apply (wp_couple_flip_lbl_flip negb). Qed.
-  *)
-
-  Lemma wp_couple_rand_rand_lbl f `{Bij nat nat f} K E α n Φ :
-    (∀ m, m ≤ n → f m ≤ n) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛ (n, []) ∗ ⤇ fill K (rand #lbl:α) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ α ↪ₛ (n,[]) ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #n @ E {{ Φ }}.
+    spec_ctx ∗ α ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α) ∗
+    (∀ n, α ↪ₛ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
-    intro Hdom.
-    iIntros (?) "(#Hinv & Hα & Hr & Hwp)".
+    iIntros (??) "(#Hinv & Hα & Hr & Hwp)".
     iApply wp_fupd.
     iApply wp_couple_rand_tape => //.
     iFrame "Hinv". iFrame => /=.
-    iIntros (b) "[Hleq Hα]".
-    iPoseProof step_rand as "HH" => //.
-    iSpecialize ("HH" with "[Hα Hr]").
-    { iFrame "Hinv". iFrame. }
-    iMod "HH" as "(_ & Hr & Hα)".
-    iSpecialize ("Hwp" $! b with "[$]").
-    by iApply (wp_value_fupd).
+    iIntros (n) "Hα".
+    iMod (step_rand with "[$]") as "(_ & Hr & Hα)"; [done|].
+    iModIntro.
+    iApply ("Hwp" with "[$]").
   Qed.
 
-  Lemma wp_couple_rand_rand_lbl_eq K E α n Φ :
+  Lemma wp_couple_rand_rand_lbl_eq N z K E α Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛ (n, []) ∗ ⤇ fill K (rand #lbl:α) ∗
-    (∀ (b : nat), ⌜ b <= n ⌝ ∗ α ↪ₛ (n, []) ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #n @ E {{ Φ }}.
-  Proof. apply (wp_couple_rand_rand_lbl Datatypes.id); done. Qed.
+    spec_ctx ∗ α ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α) ∗
+    (∀ (n : fin (S N)), α ↪ₛ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
+    ⊢ WP rand #z from #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_rand_rand_lbl _ Datatypes.id). Qed.
 
-  (*
-  Lemma wp_couple_flip_flip_lbl_neg K E α Φ :
+  (** * rand(unit, N) ~ rand(unit, N) coupling *)
+  Lemma wp_couple_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛ [] ∗ ⤇ fill K (flip #lbl:α) ∗
-    (∀ (b : bool), α ↪ₛ [] ∗ ⤇ fill K #(negb b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP flip #() @ E {{ Φ }}.
-  Proof. apply (wp_couple_flip_flip_lbl negb). Qed.
-  *)
-
-  Lemma wp_couple_rand_rand f `{Bij nat nat f} K E n Φ :
-    (∀ m, m ≤ n → f m ≤ n) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ ⤇ fill K #(f b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #n @ E {{ Φ }}.
+    spec_ctx ∗ ⤇ fill K (rand #z from #()) ∗
+    (∀ n, ⤇ fill K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
-    intro Hdom.
-    iIntros (?) "(#Hinv & Hr & Hwp)".
+    iIntros (-> ?) "(#Hinv & Hr & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2  %Hv2]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvtapes)" "Hclose".
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -571,20 +596,20 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (b : nat), b <= n /\ (e2, σ2) = (Val #b, σ1) ∧ (e2', σ2') = (fill K #(f b), σ0')).
+        ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0, σ1).
+      eexists (Val #0%fin, σ1).
       apply head_step_support_equiv_rel.
-      eapply (RandNoTapeS 0); lia. }
+      by eapply (RandNoTapeS _ _ 0%fin). }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_map.
-      eapply Rcoupl_impl; last first.
-      { by apply (Rcoupl_rand_rand f). }
-      intros [] [] (b & ? & [=] & [=])=>/=; simplify_eq; eauto. }
-    iIntros ([] [] (b & Hleq & [=] & [=])) ; simplify_eq.
+      eapply Rcoupl_impl; [|by apply (Rcoupl_rand_rand _ f)].
+      intros [] [] (b & [=] & [=])=>/=.
+      simplify_eq. eauto. }
+    iIntros ([] [] (b & [= -> ->] & [= -> ->])).
     iMod (spec_interp_update (fill K #(f b), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
     iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
     do 2 iModIntro.
@@ -594,81 +619,16 @@ Section rules.
       iExists _, _, _, 0. simpl.
       iFrame. rewrite exec_O dret_1_1 //. }
     iModIntro. iFrame.
-    iSplit; [ |iSplit ].
-    - iPureIntro; auto.
-    - iPureIntro; auto.
-    - iAssert (⌜b<=n⌝%I) as "Hleq"; [done | ].
-      iApply ("Hwp" with "[$]").
+    iApply wp_value.
+    iApply ("Hwp" with "[$]").
   Qed.
 
-  Lemma wp_couple_rand_rand_eq K E (n : nat) Φ :
+  Lemma wp_couple_rand_rand_eq N z K E Φ :
+    TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #n) ∗
-    (∀ (b : nat), ⌜b <= n⌝ ∗ ⤇ fill K #b -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP rand #n @ E {{ Φ }}.
-  Proof. apply (wp_couple_rand_rand Datatypes.id); done. Qed.
-
-  (*
-  Lemma wp_couple_flip_flip_neg K E Φ :
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (flip #()) ∗
-    (∀ (b : bool), ⤇ fill K #(negb b) -∗ WP (Val #b) @ E {{ Φ }})
-    ⊢ WP flip #() @ E {{ Φ }}.
-  Proof. apply (wp_couple_flip_flip negb). Qed.
-  *)
-
-  Lemma wp_rand_empty_r E e K α n Φ :
-    to_val e = None →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #lbl:α) ∗ α ↪ₛ (n,[]) ∗
-    ((α ↪ₛ (n,[]) ∗ spec_ctx ∗ ∃ b : nat, ⌜b <= n⌝ ∗ ⤇ fill K #b) -∗ WP e @ E {{ Φ }})
-    ⊢ WP e @ E {{ Φ }}.
-  Proof.
-    iIntros (He HE) "(#Hinv & Hj & Hα & Hwp)".
-    (* Idea: Perform a [prim_step] on the right, via FlipTapeEmptyS. *)
-    (* We do not want to execute a [prim_step] on the left. We merely rely on
-    the fact that we *could* step (because to_val e = None) in order to appeal
-    to [Hwp]. *)
-    iApply lifting.wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 [Ht1 %Hv1]] [Hauth2 %Hv2]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes & %Hvtapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iApply exec_coupl_det_r; [done|].
-    (* Do a coupled [prim_step] on the right *)
-    iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ (b : nat), b <= n /\ (e2', σ2') = (fill K #b, σ0')).
-    iExists 1.
-    iSplit.
-    { iPureIntro.
-      rewrite /exec /=.
-      rewrite dret_id_right.
-      rewrite /prim_step_or_val /=.
-      rewrite fill_not_val //.
-      rewrite fill_prim_step_dbind //.
-      replace (dret _) with (dbind dret (dret (e, σ1))) by now rewrite dret_id_right.
-      unshelve eapply Rcoupl_dbind ; simpl.
-      1: exact (λ ρ2 ρ2', ∃ b : nat, b <= n /\ ρ2 = (e, σ1) /\ ρ2' = (Val #b, σ0')).
-      { intros ? (e' & s') (b & ? & ? & HH).
-        apply Rcoupl_dret. rewrite /fill_lift /=. exists b. split; auto. by inversion HH. }
-      apply Rcoupl_rand_empty_r => //.
-    }
-    iIntros (σ2 e2' (b & Hleq & [= -> ->])).
-    iMod (spec_interp_update (fill K #b, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #b) with "Hauth Hj") as "[Hauth Hj]".
-    simplify_map_eq.
-    iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //.
-    }
-    iSpecialize ("Hwp" with "[Hα Hj]").
-    { iFrame. iSplitR. 1: done. iExists _. iFrame; auto. }
-    rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! _ with "[$Hh1 $Hspec Ht1]") as "Hwp"; auto.
-  Qed.
+    spec_ctx ∗ ⤇ fill K (rand #z from #()) ∗
+    (∀ n : fin (S N), ⤇ fill K #n -∗ Φ #n)
+    ⊢ WP rand #z from #() @ E {{ Φ }}.
+  Proof. apply (wp_couple_rand_rand _ Datatypes.id). Qed.
 
 End rules.

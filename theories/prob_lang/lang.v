@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
-From stdpp Require Import gmap fin_maps.
+From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution.
@@ -49,7 +49,7 @@ Inductive expr :=
   | Store (e1 : expr) (e2 : expr)
   (* Probabilistic choice *)
   | AllocTape (e : expr)
-  | Rand (e : expr)
+  | Rand (e1 e2 : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -121,65 +121,16 @@ Definition vals_compare_safe (vl v1 : val) : Prop :=
   val_is_unboxed vl ∨ val_is_unboxed v1.
 Global Arguments vals_compare_safe !_ !_ /.
 
-(* A tape is a product of a natural number n and a list of integers in {0,...,n} *)
-Definition tape := prod nat (list nat).
+Definition tape := { n : nat & list (fin (S n)) }.
 
+Global Instance tape_inhabited : Inhabited tape := populate (existT 0%nat []).
+Global Instance tape_eq_dec : EqDecision tape. Proof. apply _. Defined.
+Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed.
 
-Definition valid_tapes (t : gmap loc tape) : Prop :=
-  map_Forall (λ _ '(b, ns), Forall (λ n, n ≤ b) ns) t.
-
-
-Lemma valid_tapes_append t b n ns α :
-  valid_tapes t →
-  t !! α = Some (b, ns) →
-  n <= b ->
-  valid_tapes (<[α:=(b, ns ++ [n])]> t).
-Proof.
-  rewrite /valid_tapes.
-  intros Ht Hα Hleq.
-  apply map_Forall_insert_2; [|done].
-  apply Forall_app_2; auto.
-  eapply (map_Forall_lookup_1 _ _ α _ Ht Hα); auto.
-Qed.
-
-Lemma valid_tapes_insert_fresh t n :
-  valid_tapes t →
-  valid_tapes (<[fresh_loc t:=(n, [])]> t).
-Proof.
-  rewrite /valid_tapes. intros Ht.
-  rewrite map_Forall_insert; [auto|].
-  apply not_elem_of_dom, fresh_loc_is_fresh.
-Qed.
-
-Lemma valid_tapes_consume t b n ns α :
-  valid_tapes t →
-  t !! α = Some (b, n :: ns) →
-  valid_tapes (<[α:=(b, ns)]> t).
-Proof.
-  rewrite /valid_tapes.
-  intros Ht Hα.
-  apply map_Forall_insert_2; [|done].
-  suff: (Forall (λ m, m ≤ b) (n :: ns)).
-  { rewrite Forall_cons. by intros []. }
-  eapply (map_Forall_lookup_1 _ _ _ _ Ht Hα).
-Qed.
-
-Lemma valid_tapes_leq t α b n ns :
-  valid_tapes t →
-  t !! α = Some (b, n :: ns) →
-  n ≤ b.
-Proof.
-  rewrite /valid_tapes.
-  intros Ht Hα.
-  eapply (Forall_cons (λ n, n ≤ b) _ ns).
-  apply (map_Forall_lookup_1 _ _ _ _ Ht Hα).
-Qed.
-
-(* Typeclass stuff for tapes *)
-Global Instance tape_inhabited : Inhabited tape.
-Proof. apply prod_inhabited; [apply Nat.inhabited | apply list_inhabited ]. Defined.
-Global Instance tape_eq_dec : EqDecision tape.
-Proof. solve_decision. Defined.
+Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
+Proof. apply map_lookup_total. Defined.
+Global Instance tapes_insert : Insert loc tape (gmap loc tape).
+Proof. apply map_insert. Defined.
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
     booleans. *)
@@ -232,7 +183,7 @@ Proof.
      | Store e1 e2, Store e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
-     | Rand e, Rand e' => cast_if (decide (e = e'))
+     | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -308,7 +259,7 @@ Proof.
      | Load e => GenNode 13 [go e]
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | AllocTape e => GenNode 15 [go e]
-     | Rand e => GenNode 16 [go e]
+     | Rand e1 e2 => GenNode 16 [go e1; go e2]
      end
    with gov v :=
      match v with
@@ -340,7 +291,7 @@ Proof.
      | GenNode 13 [e] => Load (go e)
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => AllocTape (go e)
-     | GenNode 16 [e] => Rand (go e)
+     | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -371,9 +322,6 @@ Global Instance state_inhabited : Inhabited state :=
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
-Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
-Proof. apply map_lookup_total. Defined.
-
 Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
@@ -399,7 +347,8 @@ Inductive ectx_item :=
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
   | AllocTapeCtx
-  | RandCtx.
+  | RandLCtx (v2 : val)
+  | RandRCtx (e1 : expr).
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -421,7 +370,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
   | AllocTapeCtx => AllocTape e
-  | RandCtx => Rand e
+  | RandLCtx v2 => Rand e (Val v2)
+  | RandRCtx e1 => Rand e1 e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -458,8 +408,9 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | Store e1 e2              => Some (StoreRCtx e1, e2)
   | AllocTape (Val _)        => None
   | AllocTape e              => Some (AllocTapeCtx, e)
-  | Rand (Val _)           => None
-  | Rand e                 => Some (RandCtx, e)
+  | Rand (Val _) (Val _)     => None
+  | Rand e1 (Val v2)         => Some (RandLCtx v2, e1)
+  | Rand e1 e2               => Some (RandRCtx e1, e2)
   | _                        => None
   end.
 
@@ -484,7 +435,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | AllocTape e => AllocTape (subst x v e)
-  | Rand e => Rand (subst x v e)
+  | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -549,14 +500,9 @@ Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : 
   {| heap := σ.(heap); tapes := f σ.(tapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
 
-Lemma state_upd_tapes_twice σ l n xs ys:
-  state_upd_tapes <[l:=(n,ys)]> (state_upd_tapes <[l:=(n,xs)]> σ) = state_upd_tapes <[l:=(n,ys)]> σ.
-Proof.
-  rewrite /state_upd_tapes.
-  simpl.
-  f_equal.
-  apply insert_insert.
-Qed.
+Lemma state_upd_tapes_twice σ l n xs ys :
+  state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
+Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
 
 #[local] Open Scope R.
 
@@ -607,30 +553,40 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
         | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
         | None => dzero
       end
-  (* We use Z.to_nat, which maps positive integers to the corresponding nat, and the rest to 0 *)
+  (* Since our language only has integers, we use Z.to_nat, which maps positive
+     integers to the corresponding nat, and the rest to 0. We sample from
+     [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *)
+  (* Uniform sampling from [0, 1 , ..., N] *)
+  | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
+      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
   | AllocTape (Val (LitV (LitInt z))) =>
-      let ℓ := fresh_loc σ1.(tapes) in
-      dret (Val $ LitV $ LitLbl ℓ, state_upd_tapes <[ℓ:=(Z.to_nat z, [])]> σ1)
-  (* Uniform sampling from {0 ... m}  *)
-  | Rand (Val (LitV (LitInt z))) =>
-      dmap (λ (n : nat), (Val $ LitV $ LitInt n, σ1)) (dunif (Z.to_nat z)) 
+      let ι := fresh_loc σ1.(tapes) in
+      dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1)
   (* Labelled sampling, conditional on tape contents *)
-  | Rand (Val (LitV (LitLbl l))) =>
+  | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
       match σ1.(tapes) !! l with
-      | Some (m, (n :: ns)) => (* the tape is non-empty so we consume the first number *)
-          dret (Val $ LitV $ LitInt (n : nat), state_upd_tapes <[l:=(m, ns)]> σ1)
-      | Some (m, []) => (* the tape is allocated but empty, so we sample from {0 ... n} uniformly *)
-          dmap (λ (n : nat), (Val $ LitV $ LitInt n, σ1)) (dunif m)
-      | None => (* if the tape is not allocated, we do a fair probabilistic choice between 0 and 1 *)
-          dmap (λ (n : nat), (Val $ LitV $ LitInt n, σ1)) (dunif 1)
+      | Some (M; ns) =>
+          if bool_decide (M = Z.to_nat N) then
+            match ns  with
+            | n :: ns =>
+                (* the tape is non-empty so we consume the first number *)
+                dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1)
+            | [] =>
+                (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
+                dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M)
+            end
+          else
+            (* bound did not match the bound of the tape *)
+            dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+      | None => dzero
       end
   | _ => dzero
   end.
 
 Definition state_step (σ1 : state) (α : loc) : distr state :=
   if bool_decide (α ∈ dom σ1.(tapes)) then
-    let: (m , ns) := (σ1.(tapes) !!! α) in
-    dmap (λ n, state_upd_tapes (<[α := (m , ns ++ [n])]>) σ1) (dunif m)
+    let: (N; ns) := (σ1.(tapes) !!! α) in
+    dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
   else dzero.
 
 (** Basic properties about the language *)
@@ -652,7 +608,7 @@ Proof.
       repeat case_match; try (done || lra); try (inversion H; lra).
 Qed.
 
-(** A relational characterization of the support of [head_step] to make it easier to 
+(** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
 Inductive head_step_rel : expr → state → expr → state → Prop :=
 | RecS f x e σ :
@@ -695,39 +651,46 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| AllocTapeS z σ l :
+| RandNoTapeS z N (n : fin (S N)) σ:
+  N = Z.to_nat z →
+  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
+| AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
+  N = Z.to_nat z →
   head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l:=(Z.to_nat z, [])]> σ)
-| RandTapeS l m (n : nat) ns σ :
-  σ.(tapes) !! l = Some (m, (n :: ns)) →
-  head_step_rel (Rand (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l:=(m, ns)]> σ)
-| RandTapeEmptyS l n m σ :
-  σ.(tapes) !! l = Some (m, []) →
-  n ≤ m →
-  head_step_rel (Rand $ Val $ LitV $ LitLbl l) σ (Val $ LitV $ LitInt n) σ
-| RandTapeUnallocS l n σ :
-  σ.(tapes) !! l = None →
-  n ≤ 1 →
-  head_step_rel (Rand $ Val $ LitV $ LitLbl l) σ (Val $ LitV $ LitInt n) σ
-| RandNoTapeS n m  σ:
-  n ≤ Z.to_nat m →
-  head_step_rel (Rand $ Val $ LitV $ LitInt m) σ (Val $ LitV $ LitInt n) σ.
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
+| RandTapeS l z N n ns σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
+    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
+| RandTapeEmptyS l z N (n : fin (S N)) σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((N; []) : tape) →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+| RandTapeOtherS l z M N ms (n : fin (S N)) σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M; ms) : tape) →
+  N ≠ M →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ.
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 
 Inductive state_step_rel : state → loc → state → Prop :=
-| AddTapeS α m n ns σ :
+| AddTapeS α N (n : fin (S N)) ns σ :
   α ∈ dom σ.(tapes) →
-  σ.(tapes) !!! α = (m, ns) →
-  n ≤ m →
-  state_step_rel σ α (state_upd_tapes <[α := (m, ns ++ [n])]> σ).
-    
+  σ.(tapes) !!! α = ((N; ns) : tape) →
+  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
+
 Ltac inv_head_step :=
   repeat
     match goal with
-    | _ => progress simplify_map_eq/=; repeat case_match; inv_distr; eauto with head_step
+    | H : context [@bool_decide ?P ?dec] |- _ =>
+        try (rewrite bool_decide_eq_true_2 in H; [|done]);
+        try (rewrite bool_decide_eq_false_2 in H; [|done]);
+        destruct_decide (@bool_decide_reflect P dec); simplify_eq
+    | _ => progress simplify_map_eq; simpl in *; inv_distr; repeat case_match; inv_distr
     | H : to_val _ = Some _ |- _ => apply of_to_val in H
     | H : is_Some (_ !! _) |- _ => destruct H
     end.
@@ -736,8 +699,8 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intros ?. destruct e1; inv_head_step.
-  - inversion 1; simplify_map_eq/=; solve_distr.
+  - intros ?. destruct e1; inv_head_step; eauto with head_step.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr.
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
@@ -747,32 +710,39 @@ Proof.
   - case_bool_decide; [|intros; inv_distr].
     case_match. intros ?. inv_distr.
     econstructor; eauto with lia.
-  - inversion_clear 1.  
-    rewrite bool_decide_eq_true_2 //.
-    rewrite H1. solve_distr.
-Qed. 
-
-Lemma list_app_to_cons {A} (l : list A) :
-  (∃ y ys, l = ys ++ [y]) ->
-  (∃ z zs, l = z :: zs).
-Proof.
-  destruct l.
-  - intros (y & ys & Hy).
-    pose proof (app_cons_not_nil _ _ _ Hy); done.
-  - intros (y & ys & Hy).
-    destruct ys as [ | x xs].
-    + exists y. exists []. auto.
-    + exists x. exists (xs ++ [y]). auto.
+  - inversion_clear 1.
+    rewrite bool_decide_eq_true_2 // H1. solve_distr.
 Qed.
 
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
   rewrite state_step_support_equiv_rel.
-  inversion 1; simplify_eq.
-  split; intros [[e' σ'] Hs].
-  - destruct e; inv_head_step; eexists; solve_distr.
-  - destruct e; inv_head_step; eexists; solve_distr. 
+  inversion_clear 1.
+  split; intros [[e2 σ2] Hs].
+  (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
+  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert in H11. done.
+      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert in H11. done.
+      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert in H10. done.
+      * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
+  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+    + destruct (decide (α = l1)); simplify_eq.
+      * apply not_elem_of_dom_2 in H11. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert // in H7.
+        apply not_elem_of_dom_2 in H11. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert // in H7.
+        apply not_elem_of_dom_2 in H10. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
 Qed.
 
 Lemma state_step_mass σ α :
@@ -781,7 +751,7 @@ Proof.
   intros Hdom.
   rewrite /state_step bool_decide_eq_true_2 //=.
   case_match.
-  rewrite dmap_mass dunif_mass //.
+  rewrite dmap_mass dunif_mass //. 
 Qed.
 
 Lemma head_step_mass e σ :
@@ -789,7 +759,7 @@ Lemma head_step_mass e σ :
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
-    repeat (simplify_eq/=; solve_distr_mass || case_match).
+    repeat (simplify_map_eq/=; solve_distr_mass || case_match).
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -816,7 +786,7 @@ Fixpoint height (e : expr) : nat :=
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e
-  | Rand e => 1 + height e
+  | Rand e1 e2 => 1 + height e1 + height e2
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.

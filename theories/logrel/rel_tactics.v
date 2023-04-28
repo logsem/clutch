@@ -412,14 +412,15 @@ Tactic Notation "rel_alloc_l" :=
 (** AllocTape *)
 (* Tactic Notation "rel_alloctape_l_atomic" := rel_apply_l refines_alloctape_l. *)
 
-Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e (n:nat) t A E :
-  e = fill K (AllocTape (Val #n)) →
+Lemma tac_rel_alloctape_l_simpl `{!prelogrelGS Σ} K ℶ1 ℶ2 e N z t A E :
+  TCEq N (Z.to_nat z) →
+  e = fill K (AllocTape #z) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪ (n,[]) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
+     (α ↪ (N; []) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
-  rewrite envs_entails_unseal. intros ???; subst.
+  rewrite envs_entails_unseal. intros -> ???; subst.
   rewrite into_laterN_env_sound /=.
   rewrite -(refines_alloctape_l _ ⊤); eauto.
   now apply bi.later_mono.
@@ -430,29 +431,28 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
        eapply (tac_rel_alloctape_l_simpl K);
-       [reflexivity (** e = fill K (Alloc e') *)
+       [iSolveTC (** TCEq N (Z.to_nat z) → *)
+       |reflexivity (** e = fill K (Alloc e') *)
        |idtac..])
     |fail 1 "rel_alloctape_l: cannot find 'AllocTape'"];
   [iSolveTC        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
 
-(* TODO: Do we want to have the Z->N conversion here? *)
-Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e (n:nat) t A :
-  t = fill K' (AllocTape (Val #n)) →
+Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e N z t A :
+  TCEq N (Z.to_nat z) →
+  t = fill K' (AllocTape #z) →
   nclose specN ⊆ E →
-  envs_entails ℶ (∀ α, α ↪ₛ (n,[]) -∗ refines E e (fill K' #lbl:α) A) →
+  envs_entails ℶ (∀ α, α ↪ₛ (N; []) -∗ refines E e (fill K' #lbl:α) A) →
   envs_entails ℶ (refines E e t A).
-Proof.
-  intros ???. subst t.
-  rewrite -refines_alloctape_r //.
-Qed.
+Proof. intros -> ???. subst t. rewrite -refines_alloctape_r //. Qed.
 
 Tactic Notation "rel_alloctape_r" ident(l) "as" constr(H) :=
   rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
        eapply (tac_rel_alloctape_r K);
-       [reflexivity  (** t = K'[alloc t'] *)
+       [iSolveTC
+       |reflexivity  (** t = K'[alloc t'] *)
        |idtac..])
     |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
   [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
@@ -468,37 +468,38 @@ Tactic Notation "rel_alloctape_l" :=
   let H := iFresh "H" in
   rel_alloctape_l l as H.
 
-Lemma tac_rel_rand_l `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 (α : loc) n b bs e t tres A E :
-  t = fill K (Rand (#lbl: α)) →
-  envs_lookup i1 ℶ1 = Some (false, α ↪ (n, b::bs))%I →
-  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (n,bs))) ℶ1 = Some ℶ2 →
-  tres = fill K (of_val #b) →
+Lemma tac_rel_rand_l `{!prelogrelGS Σ} K ℶ1 ℶ2 i1 (α : loc) N z n ns e t tres A E :
+  TCEq N (Z.to_nat z) →
+  t = fill K (rand #z from #lbl:α) →
+  envs_lookup i1 ℶ1 = Some (false, α ↪ (N; n::ns))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (N; ns))) ℶ1 = Some ℶ2 →
+  tres = fill K (of_val #n) →
   envs_entails ℶ2 (refines E tres e A) →
   envs_entails ℶ1 (refines E t e A).
 Proof.
-  rewrite envs_entails_unseal. iIntros (???? Hg).
+  rewrite envs_entails_unseal.
+  intros -> ???? Hg.
   subst t tres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
   rewrite Hg.
-  iIntros "(Hα & Hlog)".
-  rewrite -(refines_rand_l _ K α n b bs) //.
-  iFrame.
-  iModIntro.
-  iIntros "(?&?)".
-  iApply "Hlog"; done.
+  rewrite -(refines_rand_l _ K).
+  rewrite -bi.later_sep.
+  apply bi.later_intro.
 Qed.
 
-Lemma tac_rel_rand_r `{!prelogrelGS Σ} K ℶ1 ℶ2 E i1 (α : loc) n b bs e t tres A :
-  t = fill K (Rand (#lbl: α)) →
+Lemma tac_rel_rand_r `{!prelogrelGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tres A :
+  TCEq N (Z.to_nat z) →
+  t = fill K (rand #z from (#lbl:α)) →
   nclose specN ⊆ E →
-  envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (n, b::bs))%I →
-  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (n,bs))) ℶ1 = Some ℶ2 →
-  tres = fill K (of_val #b) →
+  envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (N; n::ns))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (N; ns))) ℶ1 = Some ℶ2 →
+  tres = fill K (of_val #n) →
   envs_entails ℶ2 (refines E e tres A) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
-  rewrite envs_entails_unseal. iIntros (????? Hg).
+  rewrite envs_entails_unseal.
+  intros -> ????? Hg.
   subst t tres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
@@ -514,10 +515,11 @@ Tactic Notation "rel_rand_l" :=
   rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
-       eapply (tac_rel_rand_l K); first reflexivity)
+       eapply (tac_rel_rand_l K); [|reflexivity|..])
     |fail 1 "rel_rand_l: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
-  [solve_mapsto ()
+  [iSolveTC
+  |solve_mapsto ()
   |pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
@@ -534,7 +536,8 @@ Tactic Notation "rel_rand_r" :=
        eapply (tac_rel_rand_r K); first reflexivity)
     |fail 1 "rel_rand_r: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
+  [iSolveTC
+  |solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
   |pm_reflexivity || fail "rel_rand_r: this should not happen O-:"
   |reflexivity

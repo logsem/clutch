@@ -22,7 +22,9 @@ Definition subst_map_ctx_item (es : stringmap val) (K : ectx_item) :=
   | LoadCtx => LoadCtx
   | StoreLCtx v2 => StoreLCtx v2
   | StoreRCtx e1 => StoreRCtx (subst_map es e1)
-  | FlipCtx => FlipCtx
+  | AllocTapeCtx => AllocTapeCtx
+  | RandLCtx v2 => RandLCtx v2
+  | RandRCtx e1 => RandRCtx (subst_map es e1)
   end.
 
 Definition subst_map_ctx (es : stringmap val) (K : list ectx_item) :=

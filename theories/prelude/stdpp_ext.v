@@ -1,4 +1,4 @@
-From stdpp Require Import countable fin_maps.
+From stdpp Require Import countable fin_maps finite.
 
 Section base.
   Global Instance negb_inj : Inj (=) (=) negb.
@@ -61,6 +61,29 @@ Proof. destruct b; naive_solver. Qed.
 Lemma nat_to_bool_to_nat n : n ≤ 1 → bool_to_nat (nat_to_bool n) = n.
 Proof. do 2 (destruct n; [naive_solver|]). lia. Qed.
 
+Definition fin_to_bool (n : fin 2) : bool :=
+  match n with
+  | 0%fin => false
+  | _ => true
+  end. 
+
+Coercion bool_to_fin (b : bool) := ((if b then 1%fin else 0%fin) : fin 2).
+
+Lemma bool_to_fin_to_bool b : fin_to_bool (bool_to_fin b) = b.
+Proof. destruct b; naive_solver. Qed.
+Lemma fin_to_bool_to_fin n : bool_to_fin (fin_to_bool n) = n.
+Proof.
+  inv_fin n; [naive_solver|].
+  intros n.
+  inv_fin n; [naive_solver|].
+  intros n. 
+  inv_fin n. 
+Qed.
+
+Lemma bool_to_fin_to_nat_inv b :
+  nat_to_bool (fin_to_nat (bool_to_fin b)) = b.
+Proof. by destruct b. Qed. 
+  
 (** ** [Z_to_bool] *)
 (* We take [0] to mean [false] and any other value to be [true] *)
 Definition Z_to_bool (z : Z) : bool :=
@@ -74,6 +97,31 @@ Lemma Z_to_bool_neq_0 z : z ≠ 0%Z → Z_to_bool z = true.
 Proof. destruct z; naive_solver. Qed.
 Lemma Z_to_bool_of_nat n : Z_to_bool (Z.of_nat n) = nat_to_bool n.
 Proof. destruct n; naive_solver. Qed.
+
+(* TODO: upstream *)
+Global Instance sigT_eq_dec `{EqDecision A} (P : A → Type) `{!∀ x, EqDecision (P x)} :
+  EqDecision { x : A & P x }.
+Proof.
+  intros [x Px] [y Py].
+  destruct (decide (x = y)) as [->|]; [|right; naive_solver].
+  destruct (decide (Px = Py)); [left|right]; naive_solver.
+Defined.
+
+Global Program Instance countable_sigT `{HA : EqDecision A, HCA : !Countable A} (P : A → Type)
+        `{HDP : ∀ x, EqDecision (P x)} `{HCP : !∀ x, Countable (P x) } :
+  Countable { x : A & P x } :=
+  {| encode '(existT x y) := prod_encode (encode x) (encode y);
+     decode p :=
+       x ← prod_decode_fst p ≫= decode;
+       y ← prod_decode_snd p ≫= decode;
+       Some (existT x y) |}.
+Next Obligation.
+  intros ?????? [x y]; simpl.
+  rewrite prod_decode_encode_fst, prod_decode_encode_snd; simpl.
+  by do 2 (rewrite decode_encode; simpl).
+Qed.
+
+Notation "( x ; y )" := (existT x y) (at level 0, format "( x ;  '/  ' y )").
 
 Section countable.
   Context `{Countable A}.
@@ -159,6 +207,28 @@ Section countable.
   Qed.
 
 End countable.
+
+Section finite. 
+  Context `{Finite A}.
+  
+  Lemma encode_inv_decode  (i : nat) :
+    i < card A → ∃ a : A, encode_inv_nat i = Some a ∧ encode_nat a = i.
+  Proof.
+    intros (a & Hd & <-)%encode_decode.
+    exists a.
+    by rewrite encode_inv_encode_nat.
+  Qed.
+
+  Lemma encode_inv_decode_ge (i : nat) :
+    (i ≥ card A)%nat → @encode_inv_nat A _ _ i = None.
+  Proof.
+    intros Hge. unfold encode_inv_nat.
+    destruct (decode_nat i) eqn:Hd; [|done]; simpl.
+    case_option_guard; [|done].
+    pose proof (encode_lt_card a). lia.
+  Qed.
+  
+End finite.
 
 Section fin_maps.
   Context `{FinMap K M}.

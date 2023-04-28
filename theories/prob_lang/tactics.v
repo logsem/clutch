@@ -30,7 +30,8 @@ Ltac reshape_expr e tac :=
   | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
   | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
   | AllocTape ?e => go (AllocTapeCtx :: K) e
-  | Rand ?e => go (RandCtx :: K) e
+  | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
+  | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.
@@ -48,20 +49,6 @@ Proof. eapply head_step_support_eq; lra. Qed.
     and simplifies hypothesis related to conversions from and to values, and
     finite map operations. This tactic is slightly ad-hoc and tuned for proving
     our lifting lemmas. *)
-
-Ltac inv_head_step :=
-  repeat
-    match goal with
-    | H : to_val _ = Some _ |- _ => apply of_to_val in H
-    | H : is_Some (_ !! _) |- _ => destruct H
-    | H : (@pmf _ _ _ (ectx_language.head_step _ _) _ > 0)%R |- _ => apply head_step_support_equiv_rel in H
-    | H : (@pmf _ _ _ (ectx_language.head_step _ _) _ = 1)%R  |- _ => apply head_step_support_eq_1 in H
-    | H : head_step_rel ?e _ _ _ |- _ =>
-        try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-        inversion H; subst; clear H; simpl; auto
-    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-    end.
-
 
 Global Hint Extern 0 (head_reducible _ _) =>
          eexists (_, _); eapply head_step_support_equiv_rel : head_step.

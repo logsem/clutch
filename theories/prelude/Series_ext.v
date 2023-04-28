@@ -79,6 +79,21 @@ Section rbar_extra.
 
 End rbar_extra.
 
+Lemma ex_series_eventually0 (a: nat → R):
+  (∃ N, ∀ n, n ≥ N → a n = 0) → ex_series a.
+Proof.
+  intros (N & Hev0). apply: ex_series_Cauchy.
+  rewrite /Cauchy_series => eps. exists N => n m Hlen Hlem.
+  assert (Heq: sum_n_m a n m = 0).
+  {
+    rewrite /sum_n_m.
+    rewrite (Iter.iter_nat_ext_loc _ _ _ (λ x, 0)).
+    - rewrite /plus/zero//=/Iter.iter_nat Iter.iter_const; nra.
+    - intros k (?&?). apply Hev0. lia.
+  }
+  rewrite /norm //= /abs //=. destruct eps =>//=. rewrite Heq Rabs_right; nra.
+Qed.
+
 Section positive.
 
   (* Results about positive (non-negative) series *)

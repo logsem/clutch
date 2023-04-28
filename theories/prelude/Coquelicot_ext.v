@@ -61,7 +61,6 @@ Proof.
   - exists O => n Hn. by apply sum_n_m_le.
 Qed.
 
-
 Lemma is_lim_seq_pos a (v: R):
   (∀ n, 0 <= a n) →
   is_lim_seq a v →
@@ -136,6 +135,41 @@ Lemma Series_bump m v :
   Series (λ n, if bool_decide (n = m) then v else 0) = v.
 Proof.
   apply is_series_unique, is_series_singleton.
+Qed.
+
+Lemma ex_series_singleton (m : nat) v :
+  ex_series (λ (n : nat), if bool_decide (n = m) then v else 0).
+Proof. eexists. eapply is_series_singleton. Qed.
+
+Lemma Series_singleton (m : nat) (v : R) :
+  Series (λ n, if bool_decide (n = m) then v else 0) = v.
+Proof. apply is_series_unique, is_series_singleton. Qed.
+
+Lemma ex_series_leq N v :
+  ex_series (λ n, if bool_decide (n < N)%nat then v else 0).
+Proof.
+  induction N as [|N IHN].
+  - eexists; by apply is_series_0.
+  - eapply ex_series_ext; last first.
+    + eapply (ex_series_plus _ _ IHN (ex_series_singleton N v)).
+    + intro n. simpl. rewrite /plus /=.
+      repeat case_bool_decide; lra || lia.
+Qed.
+
+Lemma SeriesC_leq (N : nat) (v : R) :
+  Series (λ (n : nat), if bool_decide (n < N)%nat then v else 0) = INR N * v.
+Proof.
+  induction N as [|N IHN].
+  - rewrite Series_0 //=; lra.
+  - assert (INR (S N) = (INR N + 1)) as ->; [apply S_INR | ].
+    rewrite Rmult_plus_distr_r Rmult_1_l.
+    rewrite -IHN.
+    rewrite -(Series_singleton (N)%nat v).
+    erewrite <- Series_plus; [ | apply ex_series_leq | apply ex_series_singleton].
+    apply Series_ext; intro n.
+    repeat case_bool_decide; simplify_eq; try (lra || lia).
+    rewrite Rplus_0_l.
+    apply Series_singleton.
 Qed.
 
 Lemma sum_n_partial_pos a :
