@@ -6,32 +6,29 @@ From self.typing Require Import soundness.
 From self.prelude Require Import base.
 Set Default Proof Using "Type*".
 
-
-Variable (n: nat).
-
 (** The lazy/eager coins, without tapes *)
 Definition lazy : expr :=
   let: "s" := ref NONEV in
   λ: <>,
     match: !"s" with
-    | NONE => let: "b" := rand #n in
+    | NONE => let: "b" := flip #() in
               "s" <- SOME "b" ;;
               "b"
     | SOME "b" => "b"
     end.
 
 Definition eager : expr :=
-  let: "b" := rand #n in
+  let: "b" := flip #() in
   λ: <>, "b".
 
 (** An intetermedaite version of [lazy] that uses a tape to allow presampling
     bits during the proof *)
 Definition lazy_with_tape : expr :=
-  let: "α" := alloc #n in
+  let: "α" := alloc #1%nat in
   let: "s" := ref NONEV in
   λ: <>,
     match: !"s" with
-    | NONE => let: "b" := rand "α" in
+    | NONE => let: "b" := flip "α" in
               "s" <- SOME "b" ;;
               "b"
     | SOME "b" => "b"
@@ -44,7 +41,7 @@ Section logical_ref.
 
   (** lazy << lazy_with_tape << eager *)
   Lemma lazy_lazy_with_tape_rel :
-    ⊢ REL lazy << lazy_with_tape : () → lrel_int.
+    ⊢ REL lazy << lazy_with_tape : () → lrel_nat.
   Proof.
     rewrite /lazy /lazy_with_tape.
     rel_alloc_l l as "Hl".
@@ -53,8 +50,8 @@ Section logical_ref.
     rel_pures_r.
     rel_alloc_r l' as "Hl'".
     rel_pures_r.
-    set (P := (α ↪ₛ (n,[]) ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
-                 ∃ (b: Z), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
+    set (P := (α ↪ₛ (1%nat; []) ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
+               ∃ (b : fin 2), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
     { iFrame. iLeft. iFrame. }
@@ -67,10 +64,10 @@ Section logical_ref.
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
-      rel_bind_l (rand _)%E.
-      rel_bind_r (rand _)%E.
+      rel_bind_l (rand _ from _)%E.
+      rel_bind_r (rand _ from _)%E.
       iApply (refines_couple_rands_r with "[-$Hα]").
-      iIntros (b) "[%Hleq Hα] /=".
+      iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
@@ -84,16 +81,16 @@ Section logical_ref.
   Qed.
 
   Lemma lazy_with_tape_eager_rel :
-    ⊢ REL lazy_with_tape << eager : () → lrel_int.
+    ⊢ REL lazy_with_tape << eager : () → lrel_nat.
   Proof.
     rewrite /lazy_with_tape /eager.
     rel_alloctape_l α as "Hα". rel_pures_l.
-    rel_bind_r (rand _)%E.
+    rel_bind_r (rand _ from _)%E.
     iApply (refines_couple_tape_rand with "[$Hα]"); [done|].
-    iIntros (b) "[%Hleq Hα] /=".
+    iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.
-    set (P := ((α ↪ (n,[b]) ∗ l ↦ NONEV) ∨ (l ↦ SOMEV #b))%I).
+    set (P := ((α ↪ (1; [b]) ∗ l ↦ NONEV) ∨ (l ↦ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
     { iModIntro. iLeft. iFrame. }
@@ -117,16 +114,16 @@ Section logical_ref.
 
   (** eager << lazy_with_tape << lazy *)
   Lemma eager_lazy_with_tape_rel :
-    ⊢ REL eager << lazy_with_tape : () → lrel_int.
+    ⊢ REL eager << lazy_with_tape : () → lrel_nat.
   Proof.
     rewrite /lazy_with_tape /eager.
     rel_alloctape_r α as "Hα". rel_pures_r.
-    rel_bind_l (rand _)%E.
+    rel_bind_l (rand _ from _ )%E.
     iApply (refines_couple_rand_tape with "[$Hα]").
-    iIntros (b) "[Hleq Hα] /=".
+    iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
-    set (P := ((α ↪ₛ (n,[b]) ∗ l ↦ₛ NONEV) ∨ (l ↦ₛ SOMEV #b))%I).
+    set (P := ((α ↪ₛ (1; [b]) ∗ l ↦ₛ NONEV) ∨ (l ↦ₛ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
     { iModIntro. iLeft. iFrame. }
@@ -149,14 +146,14 @@ Section logical_ref.
   Qed.
 
   Lemma lazy_with_tape_lazy_rel :
-    ⊢ REL lazy_with_tape << lazy : () → lrel_int.
+    ⊢ REL lazy_with_tape << lazy : () → lrel_nat.
   Proof.
     rewrite /lazy /lazy_with_tape.
     rel_alloc_r l' as "Hl'". rel_pures_l.
     rel_alloctape_l α as "Hα". rel_pures_l.
     rel_alloc_l l as "Hl". rel_pures_l.
-    set (P := (α ↪ (n,[]) ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
-                           ∃ (b: Z), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
+    set (P := (α ↪ (1; []) ∗ (l ↦ NONEV ∗ l' ↦ₛ NONEV ∨
+               ∃ (b: fin 2), l ↦ SOMEV #b ∗ l' ↦ₛ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
     { iFrame. iLeft. iFrame. }
@@ -169,10 +166,10 @@ Section logical_ref.
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
-      rel_bind_l (rand _)%E.
-      rel_bind_r (rand _)%E.
+      rel_bind_l (rand _ from _)%E.
+      rel_bind_r (rand _ from _)%E.
       iApply (refines_couple_rands_l with "[-$Hα]").
-      iIntros (b) "[Hleq Hα] /=".
+      iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
@@ -188,7 +185,7 @@ Section logical_ref.
 End logical_ref.
 
 Theorem lazy_eager_refinement :
-  ∅ ⊨ lazy ≤ctx≤ eager : () → TInt.
+  ∅ ⊨ lazy ≤ctx≤ eager : () → TNat.
 Proof.
   eapply ctx_refines_transitive.
   - eapply (refines_sound prelogrelΣ).
@@ -198,7 +195,7 @@ Proof.
 Qed.
 
 Theorem eager_lazy_refinement :
-  ∅ ⊨ eager ≤ctx≤ lazy : () → TInt.
+  ∅ ⊨ eager ≤ctx≤ lazy : () → TNat.
 Proof.
   eapply ctx_refines_transitive.
   - eapply (refines_sound prelogrelΣ).
@@ -208,7 +205,7 @@ Proof.
 Qed.
 
 Theorem eager_lazy_equiv :
-  ∅ ⊨ lazy =ctx= eager : () → TInt.
+  ∅ ⊨ lazy =ctx= eager : () → TNat.
 Proof.
   split.
   - apply lazy_eager_refinement.

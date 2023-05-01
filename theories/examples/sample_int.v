@@ -187,7 +187,7 @@ Section int.
 
   Definition int_tape α (zs: list Z) : iProp Σ :=
     ⌜ Forall (λ z, 0 ≤ z < 2 ^ NUM_BITS)%Z zs ⌝ ∗
-    α ↪ (flat_map (λ z, Z_to_bool_list z NUM_BITS) zs).
+    α ↪b ((1; flat_map (λ z, Z_to_bool_list z NUM_BITS) zs) : tape).
 
   Definition spec_int_tape α (zs: list Z) : iProp Σ :=
     ⌜ Forall (λ z, 0 ≤ z < 2 ^ NUM_BITS)%Z zs ⌝ ∗

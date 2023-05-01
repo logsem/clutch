@@ -436,7 +436,7 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
        |idtac..])
     |fail 1 "rel_alloctape_l: cannot find 'AllocTape'"];
   [iSolveTC        (** IntoLaters *)
-  |iIntros (l) H; rel_finish  (** new goal *)].
+  |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
 
 Lemma tac_rel_alloctape_r `{!prelogrelGS Σ} K' ℶ E e N z t A :
   TCEq N (Z.to_nat z) →
@@ -456,7 +456,7 @@ Tactic Notation "rel_alloctape_r" ident(l) "as" constr(H) :=
        |idtac..])
     |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
   [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
-  |iIntros (l) H; rel_finish  (** new goal *)].
+  |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
 
 Tactic Notation "rel_alloctape_r" :=
   let l := fresh in
@@ -533,7 +533,7 @@ Tactic Notation "rel_rand_r" :=
   rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
-       eapply (tac_rel_rand_r K); first reflexivity)
+       eapply (tac_rel_rand_r K); [|reflexivity|..])
     |fail 1 "rel_rand_r: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
   [iSolveTC

@@ -260,7 +260,7 @@ Section rules.
   Lemma refines_couple_tapes E e1 e2 A α αₛ N ns nsₛ :
     to_val e1 = None →
     (αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
-       (∀ n, αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])
+       (∀ (n : fin (S N)), αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])
        -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
@@ -278,7 +278,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     α ↪ (N; ns) ∗
-      (∀ n,α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #n) @ E : A)
+      (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #n) @ E : A)
     ⊢ REL e << fill K' (rand #z from #()) @ E : A.
   Proof.
     iIntros (-> ?) "[Hα Hcnt]".
@@ -299,7 +299,7 @@ Section rules.
   Lemma refines_couple_rand_tape K E α A N z ns e :
     TCEq N (Z.to_nat z) →
     α ↪ₛ (N; ns) ∗
-      (∀ n, α ↪ₛ (N; ns ++ [n]) -∗ REL fill K (Val #n) << e @ E : A)
+      (∀ (n : fin (S N)), α ↪ₛ (N; ns ++ [n]) -∗ REL fill K (Val #n) << e @ E : A)
     ⊢ REL fill K (rand #z from #()) << e @ E : A.
   Proof.
     iIntros (->) "[Hα Hcnt]".
@@ -318,7 +318,7 @@ Section rules.
   Corollary refines_couple_rands_l K K' E α A N z :
     TCEq N (Z.to_nat z) →
     α ↪ (N; []) ∗
-      (∀ n, α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+      (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand #z from #lbl:α) << fill K' (rand #z from #()) @ E : A.
   Proof.
     iIntros (->) "(α & H)".
@@ -332,7 +332,7 @@ Section rules.
   Corollary refines_couple_rands_r K K' E α A N z :
     TCEq N (Z.to_nat z) →
     α ↪ₛ (N; []) ∗
-      (∀ n, α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+      (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand #z from #()) << fill K' (rand #z from #lbl:α) @ E : A.
   Proof.
     iIntros (->) "(Hα & H)".
@@ -367,7 +367,7 @@ Section rules.
   Lemma refines_rand_empty_l K E α A N z e :
     TCEq N (Z.to_nat z) →
     α ↪ (N; []) ∗
-      (∀ n, α ↪ (N; []) -∗ REL fill K (Val #n) << e @ E : A)
+      (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << e @ E : A)
     ⊢ REL fill K (rand #z from #lbl:α) << e @ E : A.
   Proof.
     iIntros (->) "[Hα H]".
@@ -379,11 +379,11 @@ Section rules.
     iApply ("H" with "Hα [$Hs $Hspec] Hnais").
   Qed.
 
-  Lemma refines_flip_empty_r K E α A N z e :
+  Lemma refines_rand_empty_r K E α A N z e :
     TCEq N (Z.to_nat z) →
     to_val e = None →
     α ↪ₛ (N; []) ∗
-      (∀ n, α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
+      (∀ n : fin (S N), α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
     ⊢ REL e << fill K (rand #z from #lbl:α) @ E : A.
   Proof.
     iIntros (-> ev) "[Hα H]".

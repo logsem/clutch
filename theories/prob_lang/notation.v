@@ -80,8 +80,7 @@ Notation alloc := AllocTape.
 Notation "'rand' e1 'from' e2" := (Rand e1%E e2%E) (at level 75, left associativity) : expr_scope.
 Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
 
-Notation allocBool := (AllocTape #1%nat).
-Notation "'flip' e" := (UnOp ZtoBOp (Rand #1%nat e)) (at level 75, right associativity) : expr_scope.
+Notation "'flip' e" := (Rand #1%nat e) (at level 75, right associativity) : expr_scope.
 
 Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
 Notation "e1 - e2" := (BinOp MinusOp e1%E e2%E) : expr_scope.

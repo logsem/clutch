@@ -80,7 +80,7 @@ Section erasure_helpers.
     by apply fresh_loc_lookup.
   Qed.
 
-  Local Lemma ind_case_flip_some σ α α' K N M (z : Z) n ns ns' :
+  Local Lemma ind_case_rand_some σ α α' K N M (z : Z) n ns ns' :
     N = Z.to_nat z →
     tapes σ !! α = Some (M; ns') →
     tapes σ !! α' = Some (N; n :: ns) →
@@ -124,7 +124,7 @@ Section erasure_helpers.
       rewrite lookup_insert_ne //.
   Qed.
 
-  Local Lemma ind_case_flip_empty σ α α' K (N M : nat) z ns :
+  Local Lemma ind_case_rand_empty σ α α' K (N M : nat) z ns :
     M = Z.to_nat z →
     tapes σ !! α = Some (N; ns) →
     tapes σ !! α' = Some (M; []) →
@@ -172,7 +172,7 @@ Section erasure_helpers.
       by apply IH.
   Qed.
 
-  Local Lemma ind_case_flip_some_neq σ α α' K N M ns ns' z :
+  Local Lemma ind_case_rand_some_neq σ α α' K N M ns ns' z :
     N ≠ Z.to_nat z →
     tapes σ !! α = Some (M; ns') →
     tapes σ !! α' = Some (N; ns) →
@@ -217,7 +217,7 @@ Section erasure_helpers.
       by apply IH.
   Qed.
 
-  Local Lemma ind_case_flip σ α K (M N : nat) z ns :
+  Local Lemma ind_case_rand σ α K (M N : nat) z ns :
     N = Z.to_nat z →
     tapes σ !! α = Some (M; ns) →
     Rcoupl
@@ -278,10 +278,10 @@ Proof.
       * eapply ind_case_det; [done|done|]. by apply is_det_head_step_true.
       * inversion HP; simplify_eq.
         -- by eapply ind_case_alloc.
-        -- by eapply ind_case_flip_some.
-        -- by eapply ind_case_flip_empty.
-        -- by eapply ind_case_flip_some_neq.
-        -- by eapply ind_case_flip.
+        -- by eapply ind_case_rand_some.
+        -- by eapply ind_case_rand_empty.
+        -- by eapply ind_case_rand_some_neq.
+        -- by eapply ind_case_rand.
       * by eapply ind_case_dzero.
 Qed.
 

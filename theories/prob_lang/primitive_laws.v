@@ -53,9 +53,6 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
-Notation "l ↪b bs" := (l ↪ (1; bool_to_fin <$> bs))%I
-  (at level 20, format "l  ↪b  bs") : bi_scope.
-
 Section lifting.
 Context `{!clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
@@ -198,49 +195,6 @@ Proof.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
 Qed.  
-
-(** * Derived laws for [flip] *)
-Lemma wp_alloc_tape_bool E :
-  {{{ True }}} allocBool @ E {{{ α, RET #lbl:α; α ↪b [] }}}.
-Proof. iIntros (Φ) "_ HΦ". by iApply wp_alloc_tape. Qed.
-
-Lemma wp_flip E :
-  {{{ True }}} flip #() @ E {{{ (b : bool), RET #(LitBool b); True }}}.
-Proof.
-  iIntros (Φ) "_ HΦ".
-  iApply (wp_bind (fill [UnOpCtx ZtoBOp])).
-  iApply (wp_rand 1 with "[//]").
-  iIntros "!>" (??) "/=".
-  iApply wp_pure_step_later; [done|].
-  iApply wp_value.
-  by iApply "HΦ".
-Qed.
-
-Lemma wp_flip_tape E α b bs :
-  {{{ ▷ α ↪b (b :: bs) }}} flip #lbl:α @ E {{{ RET #(LitBool b); α ↪b bs }}}.
-Proof.
-  iIntros (Φ) ">Hl HΦ".
-  iApply (wp_bind (fill ([UnOpCtx ZtoBOp]))).
-  iApply (wp_rand_tape 1 with "Hl").
-  iIntros "!> Hl /=".
-  iApply wp_pure_step_later; [done|].
-  iApply wp_value.
-  iSpecialize ("HΦ" with "Hl").
-  rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv.
-  by iApply "HΦ".
-Qed.
-
-Lemma wp_flip_tape_empty E α :
-  {{{ ▷ α ↪b [] }}} flip #lbl:α @ E {{{ b, RET #(LitBool b); α ↪b [] }}}.
-Proof.
-  iIntros (Φ) ">Hl HΦ".
-  iApply (wp_bind (fill ([UnOpCtx ZtoBOp]))).
-  iApply (wp_rand_tape_empty with "Hl").
-  iIntros "!>" (n) "Hl /=".
-  iApply wp_pure_step_later; [done|].
-  iApply wp_value.
-  by iApply "HΦ".
-Qed.
 
 End lifting.
 

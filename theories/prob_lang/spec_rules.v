@@ -138,24 +138,6 @@ Section rules.
     by apply dret_1_1.
   Qed.
 
-  Lemma step_allocBooltape E K :
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K allocBool ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛb [].
-  Proof. by apply step_alloctape. Qed.
-
-  Lemma step_flip E K l (b : bool) bs :
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (flip #lbl:l) ∗ l ↪ₛb (b :: bs)
-    ={E}=∗ spec_ctx ∗ ⤇ fill K #(LitBool b) ∗ l ↪ₛb bs.
-  Proof.
-    iIntros (?) "(#Hinv & Hj & Hl)".
-    replace (fill K (flip #lbl:l)) with
-      (fill ([UnOpCtx ZtoBOp] ++ K) (rand #1%nat from #lbl:l)); [|done].
-    iMod (step_rand with "[$Hinv $Hj $Hl]") as "(_ & Hj & Hl) /="; [done|].
-    iMod (step_pure with "[$Hinv $Hj]") as "[_ Hj]"; [done|done|].
-    rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv.
-    by iFrame "Hinv Hl".
-  Qed.
 
   (** * RHS [rand(α)] with empty tape  *)
   Lemma wp_rand_empty_r N z E e K α Φ :
@@ -163,7 +145,7 @@ Section rules.
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (N; []) ∗
-    ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n, ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+    ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (-> He HE) "(#Hinv & Hj & Hα & Hwp)".
@@ -266,16 +248,6 @@ Section rules.
     iModIntro; iFrame.
   Qed.
 
-  Lemma refines_right_flip E K l b bs :
-    nclose specN ⊆ E →
-    l ↪ₛb (b :: bs) -∗
-    refines_right K (flip #lbl:l) ={E}=∗ refines_right K #(LitBool b) ∗ l ↪ₛb bs.
-  Proof.
-    iIntros (?) "? (?&?)".
-    iMod (step_flip with "[$]") as "(?&?&?)"; first done.
-    iModIntro; iFrame.
-  Qed.
-
   (** * Coupling rules  *)
   (* TODO: can we factor out a lemma to avoid duplication in all the coupling lemmas? *)
 
@@ -284,7 +256,7 @@ Section rules.
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
-    ((∃ n, αₛ ↪ₛ (N; nsₛ ++ [f n]) ∗ α ↪ (N; ns ++ [n])) -∗ WP e @ E {{ Φ }})
+    ((∃ n : fin (S N), αₛ ↪ₛ (N; nsₛ ++ [f n]) ∗ α ↪ (N; ns ++ [n])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He ?) "(#Hinv & Hαs & Hα & Hwp)".
@@ -384,7 +356,7 @@ Section rules.
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
-    ((∃ n, αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])) -∗ WP e @ E {{ Φ }})
+    ((∃ n : fin (S N), αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof. by eapply (wp_couple_tapes _ (Datatypes.id)). Qed.
 
@@ -423,7 +395,7 @@ Section rules.
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (N; ns) ∗ ⤇ fill K (rand #z from #()) ∗
-    (∀ n, α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #(f n) -∗ WP e @ E {{ Φ }})
+    (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #(f n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (-> He ?) "(#Hinv & Hα & Hj & Hwp)".
@@ -470,7 +442,7 @@ Section rules.
     to_val e = None →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (N; ns) ∗ ⤇ fill K (rand #z from #()) ∗
-    (∀ n, α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #n -∗ WP e @ E {{ Φ }})
+    (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof. apply (wp_couple_tape_rand _ Datatypes.id). Qed.
 
@@ -479,7 +451,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ₛ (N; ns) ∗
-    (∀ n, α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
     ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
     iIntros (-> He) "(#Hinv & Hαs & Hwp)".
@@ -521,7 +493,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ₛ (N; ns) ∗
-    (∀ n, α ↪ₛ (N; ns ++ [n]) -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ₛ (N; ns ++ [n]) -∗ Φ #n)
     ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_tape _ Datatypes.id). Qed.
 
@@ -530,7 +502,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (N; []) ∗ ⤇ fill K (rand #z from #()) ∗
-    (∀ n, α ↪ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
     ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
   Proof.
     iIntros (??) "(#Hinv & Hα & Hr & HΦ)".
@@ -546,7 +518,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (N; []) ∗ ⤇ fill K (rand #z from #()) ∗
-    (∀ (n : fin (S N)), α ↪ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
     ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_lbl_rand _ Datatypes.id). Qed.
 
@@ -555,7 +527,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α) ∗
-    (∀ n, α ↪ₛ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ₛ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
     ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
     iIntros (??) "(#Hinv & Hα & Hr & Hwp)".
@@ -581,7 +553,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand #z from #()) ∗
-    (∀ n, ⤇ fill K #(f n) -∗ Φ #n)
+    (∀ n : fin (S N), ⤇ fill K #(f n) -∗ Φ #n)
     ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
     iIntros (-> ?) "(#Hinv & Hr & Hwp)".
@@ -635,7 +607,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α') ∗
-    (∀ n, α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
     ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
   Proof.
     iIntros (??) "(#Hinv & Hα & Hαs & Hr & Hwp)".
@@ -652,7 +624,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α') ∗
-    (∀ (n : fin (S N)), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
     ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_lbl_rand_lbl _ Datatypes.id). Qed.
 
@@ -662,7 +634,7 @@ Section rules.
     N ≠ M →
     nclose specN ⊆ E →
     spec_ctx ∗ α ↪ (M; []) ∗ α' ↪ₛ (M; []) ∗ ⤇ fill K (rand #z from #lbl:α') ∗
-    (∀ n, α ↪ (M; []) ∗ α' ↪ₛ (M; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    (∀ n : fin (S N), α ↪ (M; []) ∗ α' ↪ₛ (M; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
     ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(#Hinv & Hα & Hαs & Hr & Hwp)".

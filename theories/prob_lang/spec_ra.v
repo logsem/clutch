@@ -118,9 +118,6 @@ Notation "l ↪ₛ{# q } v" := (l ↪ₛ{ DfracOwn q } v)%I
 Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ₛ  v") : bi_scope.
 
-Notation "l ↪ₛb bs" := (l ↪ₛ (1; bool_to_fin <$> bs))%I
-  (at level 20, format "l  ↪ₛb  bs") : bi_scope.
-
 Section spec_ctx.
   Context `{!invGS_gen HasNoLc Σ, !specGS Σ}.
 
