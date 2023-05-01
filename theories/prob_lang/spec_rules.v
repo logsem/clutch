@@ -329,13 +329,12 @@ Section rules.
     iModIntro. done.
   Qed.
 
-
   Lemma wp_couple_tapes_gen n1 n2 (R : fin (S n1) -> fin (S n2) -> Prop) E e α αₛ zs zsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    Rcoupl (dunif (S n1)) (dunif (S n2)) R ->
+    Rcoupl (dunif (S n1)) (dunif (S n2)) R →
     spec_ctx ∗ αₛ ↪ₛ (n2; zsₛ) ∗ α ↪ (n1; zs) ∗
-    ((∃ z1 z2, ⌜R z1 z2 ⌝ ∗ αₛ ↪ₛ (n2; zsₛ ++ [z2]) ∗ α ↪ (n1; zs ++ [z1])) -∗ WP e @ E {{ Φ }})
+    ((∃ z1 z2, ⌜R z1 z2⌝ ∗ αₛ ↪ₛ (n2; zsₛ ++ [z2]) ∗ α ↪ (n1; zs ++ [z1])) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He ? Hcoupl) "(#Hinv & Hαs & Hα & Hwp)".
@@ -630,5 +629,80 @@ Section rules.
     (∀ n : fin (S N), ⤇ fill K #n -∗ Φ #n)
     ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand _ Datatypes.id). Qed.
+
+    (** * rand(α, N) ~ rand(α, N) coupling *)
+  Corollary wp_couple_rand_lbl_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α α' Φ :
+    TCEq N (Z.to_nat z) →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α') ∗
+    (∀ n, α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+  Proof.
+    iIntros (??) "(#Hinv & Hα & Hαs & Hr & Hwp)".
+    iApply wp_couple_tapes; [done|done|].
+    iFrame "Hinv Hα Hαs".
+    iIntros "[%n (Hαs & Hα)] /=".
+    iMod (step_rand with "[$Hr $Hinv $Hαs]") as "(_ & Hr & Hαs)"; [done|].
+    iApply (wp_rand_tape with "Hα").
+    iIntros "!> Hα".
+    iApply ("Hwp" with "[$]").
+  Qed.
+
+  Corollary wp_couple_rand_lbl_rand_lbl_eq N z K E α α' Φ :
+    TCEq N (Z.to_nat z) →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K (rand #z from #lbl:α') ∗
+    (∀ (n : fin (S N)), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #n -∗ Φ #n)
+    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+  Proof. apply (wp_couple_rand_lbl_rand_lbl _ Datatypes.id). Qed.
+
+  (** * rand(α, N) ~ rand(α, N) wrong bound coupling *)
+  Lemma wp_couple_rand_lbl_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} z K E α α' Φ :
+    TCEq N (Z.to_nat z) →
+    N ≠ M →
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ (M; []) ∗ α' ↪ₛ (M; []) ∗ ⤇ fill K (rand #z from #lbl:α') ∗
+    (∀ n, α ↪ (M; []) ∗ α' ↪ₛ (M; []) ∗ ⤇ fill K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+  Proof.
+    iIntros (-> ??) "(#Hinv & Hα & Hαs & Hr & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply exec_coupl_det_r; [done|].
+    iApply exec_coupl_prim_steps.
+    iExists
+      (λ '(e2, σ2) '(e2', σ2'),
+        ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
+    iSplit.
+    { iPureIntro. apply head_prim_reducible.
+      eexists (Val #0%fin, σ1).
+      apply head_step_support_equiv_rel.
+      by eapply RandTapeOtherS. }
+    iSplit.
+    { iPureIntro. simpl.
+      rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
+      eapply Rcoupl_map.
+      eapply Rcoupl_impl; [|by eapply (Rcoupl_rand_rand_empty_wrong _ _ f)].
+      intros [] [] (b & [=] & [=])=>/=.
+      simplify_eq. eauto. }
+    iIntros ([] [] (b & [= -> ->] & [= -> ->])).
+    iMod (spec_interp_update (fill K #(f b), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    iMod (spec_prog_update (fill K #(f b)) with "Hauth Hr") as "[Hauth Hr]".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    iModIntro. iFrame.
+    iApply wp_value.
+    iApply ("Hwp" with "[$]").
+  Qed.
 
 End rules.

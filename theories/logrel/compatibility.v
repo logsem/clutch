@@ -132,41 +132,34 @@ Section compatibility.
     iIntros (K') "[#Hs Hr]".
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
-    wp_apply (wp_couple_tapes_eq with "[- $Hs $Hα $Hα']"); [done|solve_ndisj|].
-    iIntros "[%n [Hα' Hα]] /=".
-    (* TODO: need coupling lemmas for "wrong" bounds *)
-    Admitted.
+    destruct (decide (N = M)); simplify_eq.
+    - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hs $Hα $Hα' $Hr Hclose]"); [solve_ndisj|].
+      iIntros (N) "(Hα & Hαs & Hr)".
+      iMod ("Hclose" with "[$Hα $Hαs]") as "_".
+      iModIntro.
+      iExists _. iFrame "Hr Hs".
+      rel_values.
+    - iApply (wp_couple_rand_lbl_rand_lbl_wrong with "[$Hs $Hα $Hα' $Hr Hclose]"); [done|solve_ndisj|].
+      iIntros (m) "(Hα & Hα' & Hr)".
+      iMod ("Hclose" with "[$Hα $Hα']") as "_".
+      iModIntro.
+      iExists _. iFrame "Hr Hs".
+      rel_values.
+  Qed.
 
-    (* destruct (decide (N = M)); simplify_eq. *)
-    (* - wp_apply (wp_rand_tape with "Hα"). *)
-    (*   iIntros "Hα". *)
-    (*   iMod (step_rand with "[$Hs $Hr $Hα']") as "(_ & Hr & Hα')"; [solve_ndisj|]. *)
-    (*   iMod ("Hclose" with "[$Hα $Hα']") as "_". *)
-    (*   iModIntro. iExists _. iFrame "Hr Hs". *)
-    (*   value_case. *)
-    (* - wp_apply (wp_rand_wrong_tape_r M N (Z.of_nat M) with "[-]"); [done|done|solve_ndisj|]. *)
-    (*   iFrame "Hr Hα' Hs". *)
-    (*   iIntros "(Hα' & _ & [%m Hr])". *)
-    (*   wp_apply (wp_rand_tape_wrong_bound with "Hα"); [done|]. *)
-    (*   iIntros (m') "Hα". *)
-    (*   iMod ("Hclose" with "[$Hα $Hα']") as "_". *)
-
-
-
-
-  (* Lemma refines_rand_int e e' : *)
-  (*   (REL e << e' : lrel_nat) -∗ *)
-  (*   REL rand e << rand e' : lrel_nat. *)
-  (* Proof. *)
-  (*   iIntros "H". *)
-  (*   rel_bind_ap e e' "H" v v' "H". *)
-  (*   iDestruct "H" as (z) "%H2". *)
-  (*   destruct H2 as [-> ->]. *)
-  (*   rel_bind_l (rand _)%E. *)
-  (*   rel_bind_r (rand _)%E. *)
-  (*   iApply (refines_couple_rands_lr); auto. *)
-  (*   iIntros (b Hleq). *)
-  (*   value_case. *)
-  (* Qed. *)
+  Lemma refines_rand_unit e e' :
+    (REL e << e' : lrel_nat) -∗
+    REL rand e from #() << rand e' from #() : lrel_nat.
+  Proof.
+    iIntros "H".
+    rel_bind_ap e e' "H" v v' "H".
+    iDestruct "H" as (n) "%H".
+    destruct H as [-> ->].
+    rel_bind_l (rand _ from _)%E.
+    rel_bind_r (rand _ from _)%E.
+    iApply (refines_couple_rands_lr).
+    iIntros (b).
+    value_case.
+  Qed.
 
 End compatibility.

@@ -276,40 +276,43 @@ Section fundamental.
     iIntros "IH".
     intro_clause.
     rel_bind_ap e e' "IH" v v' "IH".
-    iDestruct "IH" as (z) "%H2".
+    iDestruct "IH" as (N) "%H2".
     destruct H2 as [-> ->].
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
-    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (z, []) ∗ β ↪ₛ (z, []))%I
-           with "[Hα Hβ]") as "HN"; eauto.
-    { iFrame. }
-    rel_values. iExists α, β. auto.
+    iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (_; []) ∗ β ↪ₛ (_; []))%I
+           with "[$Hα $Hβ]") as "HN".
+    rel_values. iExists _, _. auto.
   Qed.
 
-  Lemma bin_log_related_rand_tape Δ Γ e e' :
-    ({Δ; Γ} ⊨ e ≤log≤ e' : TTape) -∗
-    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TNat.
+  Lemma bin_log_related_rand_tape Δ Γ e1 e1' e2 e2' :
+    ({Δ; Γ} ⊨ e1 ≤log≤ e1' : TNat) -∗
+    ({Δ; Γ} ⊨ e2 ≤log≤ e2' : TTape) -∗
+    {Δ; Γ} ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
   Proof.
-    iIntros "IH".
+    iIntros "IH1 IH2".
     intro_clause.
-    rel_bind_ap e e' "IH" v v' "IH".
-    iDestruct "IH" as (α1 α2 n -> ->) "#H".
-    iApply refines_rand_tape.
-    value_case.
-    iModIntro.
-    iExists _, _. eauto.
+    rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1".
+    iDestruct "IH1" as (N) "%H".
+    destruct H as [-> ->].
+    iApply refines_rand_tape; value_case.
   Qed.
 
-  Lemma bin_log_related_rand_int Δ Γ e e' :
-    ({Δ; Γ} ⊨ e ≤log≤ e' : TNat) -∗
-    {Δ; Γ} ⊨ rand e ≤log≤ rand e' : TNat.
+  Lemma bin_log_related_rand_unit Δ Γ e1 e1' e2 e2' :
+    ({Δ; Γ} ⊨ e1 ≤log≤ e1' : TNat) -∗
+    ({Δ; Γ} ⊨ e2 ≤log≤ e2' : TUnit) -∗
+    {Δ; Γ} ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
   Proof.
-    iIntros "IH".
+    iIntros "IH1 IH2".
     intro_clause.
-    rel_bind_ap e e' "IH" v v' "IH".
-    iDestruct "IH" as (z) "%H2".
-    destruct H2 as [-> ->].
-    iApply refines_rand_int.
+    rel_bind_ap e2 e2' "IH2" v2 v2' "#IH2".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "#IH1".
+    iDestruct "IH1" as (N) "%H".
+    destruct H as [-> ->].
+    iDestruct "IH2" as "%H".
+    destruct H as [-> ->].
+    iApply refines_rand_unit.
     value_case.
   Qed.
 
@@ -527,17 +530,12 @@ Section fundamental.
       + iApply bin_log_related_alloc; by iApply fundamental.
       + iApply bin_log_related_load; by iApply fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
-      + iApply bin_log_related_alloctape; by iApply fundamental.
+      + iApply bin_log_related_alloctape. by iApply fundamental.
       + iApply bin_log_related_rand_tape; by iApply fundamental.
-      + iApply bin_log_related_rand_int; by iApply fundamental.
-      (*
-      + intro_clause.
-        iPoseProof (fundamental _ _ _ _ Ht) as "-#IH".
-        rel_bind_ap e e "IH" v v' "[->->]".
-        iApply refines_flip_no_tapes.
-        value_case.*)
+      + iApply bin_log_related_rand_unit; by iApply fundamental.
     - intros Hv. destruct Hv; simpl.
       + iSplit; eauto.
+      + iExists _; iSplit; eauto.
       + iExists _; iSplit; eauto.
       + iExists _; iSplit; eauto.
       + iExists _,_,_,_.

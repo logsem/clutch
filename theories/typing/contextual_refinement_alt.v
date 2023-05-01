@@ -39,8 +39,8 @@ Proof.
   intros He.
   rewrite 1!prim_step_or_val_no_val /=; [|done].
   apply of_to_val in He. rewrite -He.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (_, _); simpl.
+  rewrite head_prim_step_eq; last first.
+  { eexists (_, _).
     eapply head_step_support_equiv_rel.
     by econstructor. }
   erewrite det_head_step_singleton; [|by econstructor]; simpl.
@@ -54,8 +54,7 @@ Proof.
   - rewrite exec_val_Sn.
     destruct (to_val e) eqn:Heq.
     + setoid_rewrite prim_step_true_val; eauto; simpl.
-      rewrite Heq dret_mass
-        dret_1_1; auto.
+      rewrite Heq dret_mass dret_1_1; auto.
     + setoid_rewrite prim_step_true_no_val; eauto; simpl.
       rewrite Heq.
       rewrite SeriesC_0; auto.

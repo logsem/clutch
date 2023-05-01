@@ -54,7 +54,7 @@ Proof. done. Qed.
 Lemma nat_to_bool_neq_0 n : n ≠ 0 → nat_to_bool n = true.
 Proof. destruct n; naive_solver. Qed.
 
-Coercion bool_to_nat (b : bool) := if b then 1 else 0.
+Definition bool_to_nat (b : bool) := if b then 1 else 0.
 
 Lemma bool_to_nat_to_bool b : nat_to_bool (bool_to_nat b) = b.
 Proof. destruct b; naive_solver. Qed.
@@ -67,7 +67,7 @@ Definition fin_to_bool (n : fin 2) : bool :=
   | _ => true
   end. 
 
-Coercion bool_to_fin (b : bool) := ((if b then 1%fin else 0%fin) : fin 2).
+Definition bool_to_fin (b : bool) := ((if b then 1%fin else 0%fin) : fin 2).
 
 Lemma bool_to_fin_to_bool b : fin_to_bool (bool_to_fin b) = b.
 Proof. destruct b; naive_solver. Qed.

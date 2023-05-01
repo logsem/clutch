@@ -230,7 +230,7 @@ Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
 Proof.
-  intros Hz. 
+  intros Hz.
   rewrite head_prim_step_eq /=; last first.
   { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
     by eapply (RandNoTapeS _ _ 0%fin). }
@@ -238,6 +238,33 @@ Proof.
   { eexists (Val #0, σ1'). eapply head_step_support_equiv_rel.
     by eapply (RandNoTapeS _ _ 0%fin). }
   rewrite /dmap -Hz.
+  eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+  intros n ? ->.
+  apply Rcoupl_dret.
+  eauto.
+Qed.
+
+(** * rand(N) ~ rand(N) coupling, "wrong" N *)
+Lemma Rcoupl_rand_rand_empty_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 α2 z σ1 σ2 xs ys :
+  σ1.(tapes) !! α1 = Some (M; xs) →
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  N ≠ M →
+  N = Z.to_nat z →
+  Rcoupl
+    (prim_step (rand #z from #lbl:α1) σ1)
+    (prim_step (rand #z from #lbl:α2) σ2)
+    (λ ρ2 ρ2', ∃ (n : fin (S N)),
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
+Proof.
+  intros Hσ1 Hσ2 Hneq Hz.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+    by eapply RandTapeOtherS. }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
+    by eapply RandTapeOtherS. }
+  rewrite /dmap -Hz Hσ1 Hσ2.
+  rewrite bool_decide_eq_false_2 //.
   eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
   intros n ? ->.
   apply Rcoupl_dret.
@@ -270,12 +297,12 @@ Qed.
 Lemma Rcoupl_state_step_gen (m1 m2 : nat) (R : fin (S m1) -> fin (S m2) -> Prop) σ1 σ2 α1 α2 xs ys :
   σ1.(tapes) !! α1 = Some (m1; xs) →
   σ2.(tapes) !! α2 = Some (m2; ys) →
-  Rcoupl (dunif (S m1)) (dunif (S m2)) R ->
+  Rcoupl (dunif (S m1)) (dunif (S m2)) R →
   Rcoupl
     (state_step σ1 α1)
     (state_step σ2 α2)
     (λ σ1' σ2', ∃ (n1 : fin (S m1)) (n2 : fin (S m2)),
-        R n1 n2 /\
+        R n1 n2 ∧
         σ1' = state_upd_tapes <[α1 := (m1; xs ++ [n1])]> σ1 ∧
         σ2' = state_upd_tapes <[α2 := (m2; ys ++ [n2])]> σ2).
 Proof.
@@ -300,7 +327,7 @@ Qed.
 
 (** * rand(unit, N) ~ state_step(α', N) coupling *)
 Lemma Rcoupl_rand_state N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α' xs:
-  N = Z.to_nat z →  
+  N = Z.to_nat z →
   σ1'.(tapes) !! α' = Some (N; xs) →
   Rcoupl
     (prim_step (rand #z from #()) σ1)
@@ -357,13 +384,13 @@ Proof.
   assert (head_reducible (rand #z from #lbl:α') σ1') as hr.
   { eexists (_, _).
     apply head_step_support_equiv_rel.
-    by apply (RandTapeEmptyS _ _ N 0%fin). }  
-  rewrite head_prim_step_eq //. 
+    by apply (RandTapeEmptyS _ _ N 0%fin). }
+  rewrite head_prim_step_eq //.
   eapply Rcoupl_weaken.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).
-    inv_head_step; eauto. 
+    inv_head_step; eauto.
 Qed.
 
 Lemma Rcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
@@ -379,35 +406,15 @@ Proof.
   assert (head_reducible (rand #z from #lbl:α') σ1') as hr.
   { eexists (_, _).
     apply head_step_support_equiv_rel.
-    by apply (RandTapeOtherS _ _ M N ns 0%fin). }  
-  rewrite head_prim_step_eq //. 
+    by apply (RandTapeOtherS _ _ M N ns 0%fin). }
+  rewrite head_prim_step_eq //.
   eapply Rcoupl_weaken.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).
-    inv_head_step; eauto. 
+    inv_head_step; eauto.
 Qed.
 
-(* (** * e1 ~ flip() coupling *) *)
-(* Lemma Rcoupl_flipU_r (ρ1 : cfg) σ1' : *)
-(*   Rcoupl *)
-(*     (dret ρ1) *)
-(*     (prim_step (Flip (Val $ #())) σ1') *)
-(*     (λ ρ2 ρ2', ∃ (b : bool), ρ2 = ρ1 ∧ ρ2' = (Val #b, σ1')). *)
-(* Proof. *)
-(*   assert (head_reducible (flip #()) σ1') as hr. *)
-(*   { econstructor. *)
-(*     apply head_step_support_equiv_rel. *)
-(*     apply (FlipNoTapeS inhabitant). } *)
-(*   rewrite head_prim_step_eq //. *)
-(*   eapply Rcoupl_weaken. *)
-(*   - apply Rcoupl_pos_R. apply Rcoupl_trivial. *)
-(*     all: auto using dret_mass, head_step_mass. *)
-(*   - intros ? [] (_ & hh%dret_pos & ?). *)
-(*     inv_head_step. *)
-(*     destruct_or?. *)
-(*     + inv_head_step. eauto. *)
-(* Qed. *)
 
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
@@ -642,34 +649,34 @@ Proof.
     assert (head_step_pred e1 σ1) as []; [|auto|auto].
     apply head_step_pred_ex_rel; eauto.
   - pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1)); lra.
-  - apply SeriesC_zero_dzero in HZ. eauto. 
-Qed. 
+  - apply SeriesC_zero_dzero in HZ. eauto.
+Qed.
 
 Lemma head_step_dzero_upd_tapes α e σ N zs z  :
   α ∈ dom σ.(tapes) →
   head_step e σ = dzero →
   head_step e (state_upd_tapes <[α:=(N; zs ++ [z]) : tape]> σ) = dzero.
 Proof.
-  intros Hdom Hz.    
+  intros Hdom Hz.
   destruct e; simpl in *;
     repeat case_match; done || inv_dzero; simplify_map_eq.
   (* TODO: [simplify_map_eq] should solve this? *)
   - destruct (decide (α = l1)).
-    + simplify_eq. 
-      by apply not_elem_of_dom_2 in H5. 
+    + simplify_eq.
+      by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
-      rewrite H5 in H6. done. 
+      rewrite H5 in H6. done.
   - destruct (decide (α = l1)).
-    + simplify_eq. 
-      by apply not_elem_of_dom_2 in H5. 
+    + simplify_eq.
+      by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
-      rewrite H5 in H6. done. 
+      rewrite H5 in H6. done.
   - destruct (decide (α = l1)).
-    + simplify_eq. 
-      by apply not_elem_of_dom_2 in H5. 
+    + simplify_eq.
+      by apply not_elem_of_dom_2 in H5.
     + rewrite lookup_insert_ne // in H6.
-      rewrite H5 in H6. done. 
-Qed.     
+      rewrite H5 in H6. done.
+Qed.
 
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :
   det_head_step_rel e1 σ1 e2 σ2 →
