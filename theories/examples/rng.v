@@ -63,7 +63,7 @@ Section rng.
         "b").
 
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition hash_rng (n: nat) (g: val) : iProp Σ :=
     ∃ h c m, ⌜ g = hash_rng_specialized h c ⌝ ∗
@@ -405,7 +405,7 @@ Section rng.
     iIntros (g) "Hhash".
     iMod (spec_init_bounded_rng with "[$]") as (f) "(HK&Hbounded)"; first done.
     set (P := (∃ n, hash_rng n g ∗ sbounded_rng n f)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
     { iNext. iExists O. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> (->&->)".
@@ -435,7 +435,7 @@ Section rng.
     iIntros (g) "Hbounded".
     iMod (spec_init_hash_rng with "[$]") as (f) "(HK&Hhash)"; first done.
     set (P := (∃ n, bounded_rng n g ∗ shash_rng n f)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
     { iNext. iExists O. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> (->&->)".

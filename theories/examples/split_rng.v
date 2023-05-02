@@ -82,7 +82,7 @@ Section rng.
       #c <- "v" + #1;;
       "b").
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* TODO: it would be better to wrap this ghost_mapG with keyed_mapG *)
   Context {GHOST_MAP: ghost_mapG Σ (fin_hash_dom_space MAX_RNGS_POW MAX_SAMPLES_POW) (option bool)}.
@@ -90,9 +90,9 @@ Section rng.
   Definition khashN := nroot.@"khash".
 
   Definition is_keyed_hash γ f :=
-    na_inv prelogrelGS_nais khashN (keyed_hash_auth MAX_RNGS_POW MAX_SAMPLES_POW γ f).
+    na_inv clutchRGS_nais khashN (keyed_hash_auth MAX_RNGS_POW MAX_SAMPLES_POW γ f).
   Definition is_skeyed_hash γ f :=
-    na_inv prelogrelGS_nais khashN (skeyed_hash_auth MAX_RNGS_POW MAX_SAMPLES_POW γ f).
+    na_inv clutchRGS_nais khashN (skeyed_hash_auth MAX_RNGS_POW MAX_SAMPLES_POW γ f).
 
   (* Putting is_keyed_hash seems like it makes the definition but then this is not timeless *)
 
@@ -297,9 +297,9 @@ Section rng.
     ↑specN ⊆ E →
     ↑khashN ⊆ E →
     n ≤ MAX_SAMPLES →
-    {{{ ▷ hash_rng n g ∗ refines_right K (flip #()) ∗ na_own prelogrelGS_nais (↑khashN) }}}
+    {{{ ▷ hash_rng n g ∗ refines_right K (flip #()) ∗ na_own clutchRGS_nais (↑khashN) }}}
       g #() @ E
-    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b ∗ na_own prelogrelGS_nais (↑khashN) }}}.
+    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b ∗ na_own clutchRGS_nais (↑khashN) }}}.
   Proof.
     iIntros (HN1 HN2 Hle Φ) "(Hhash&HK&Htok) HΦ".
     rewrite /hash_rng.
@@ -336,9 +336,9 @@ Section rng.
     ↑khashN ⊆ E →
     n ≤ MAX_SAMPLES →
     shash_rng n g -∗
-    na_own prelogrelGS_nais (↑khashN) -∗
+    na_own clutchRGS_nais (↑khashN) -∗
     refines_right K (g #()) ={E}=∗
-    spec_couplable (λ b, |={E}=> refines_right K #b ∗ shash_rng (S n) g ∗ na_own prelogrelGS_nais (↑khashN)).
+    spec_couplable (λ b, |={E}=> refines_right K #b ∗ shash_rng (S n) g ∗ na_own clutchRGS_nais (↑khashN)).
   Proof.
     iIntros (HN1 HN2 Hle) "Hhash Htok HK".
     iDestruct "Hhash" as (h k c m γ) "(->&%Hdom&Hhash&#Hkeyed_hash&Hc)".
@@ -554,10 +554,10 @@ Section rng.
     ↑khashN ⊆ E →
     ↑specN ⊆ E →
     {{{ ▷ hash_rng n g ∗ sbounded_rng MAX_SAMPLES n sg ∗ refines_right K (sg #()) ∗
-          na_own prelogrelGS_nais (↑khashN) }}}
+          na_own clutchRGS_nais (↑khashN) }}}
       g #() @ E
     {{{ (b : bool), RET #b; hash_rng (S n) g ∗ sbounded_rng MAX_SAMPLES (S n) sg ∗ refines_right K #b ∗
-          na_own prelogrelGS_nais (↑khashN) }}}.
+          na_own clutchRGS_nais (↑khashN) }}}.
   Proof.
     iIntros (HN1 HN2 Φ) "(Hhash&Hbrng&HK&Htok) HΦ".
     iDestruct "Hbrng" as (sc ->) "Hsc".
@@ -599,10 +599,10 @@ Section rng.
     ↑specN ⊆ E →
     ↑khashN ⊆ E →
     {{{ bounded_rng MAX_SAMPLES n g ∗ ▷ shash_rng n sg ∗ refines_right K (sg #()) ∗
-          na_own prelogrelGS_nais (↑khashN)}}}
+          na_own clutchRGS_nais (↑khashN)}}}
       g #() @ E
     {{{ (b : bool), RET #b; bounded_rng MAX_SAMPLES (S n) g ∗ shash_rng (S n) sg ∗ refines_right K #b ∗
-          na_own prelogrelGS_nais (↑khashN)}}}.
+          na_own clutchRGS_nais (↑khashN)}}}.
   Proof.
     iIntros (HN1 HN2 Φ) "(Hbrng&Hhash&HK&Htok) HΦ".
     iDestruct "Hbrng" as (sc ->) "Hsc".
@@ -645,7 +645,7 @@ Section rng.
     iIntros (g) "Hhash_gen".
     iMod (spec_init_bounded_rng_gen with "[$]") as (f) "(HK&Hbounded_gen)"; first done.
     set (P := (∃ n, hash_rng_gen n g ∗ sbounded_rng_gen n f)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
     { iNext. iExists O. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> (->&->)".
@@ -676,7 +676,7 @@ Section rng.
 
     (* finally we show a refinement between the generated rngs *)
     set (Prng := (∃ n, hash_rng n hrng ∗ sbounded_rng MAX_SAMPLES n srng)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN Prng with "[Hrng Hsrng]") as "#Hinv_rng".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN Prng with "[Hrng Hsrng]") as "#Hinv_rng".
     { rewrite /Prng. iNext. iExists _. iFrame.  }
     iClear "Hinv".
     iModIntro. iExists _. iFrame.
@@ -713,7 +713,7 @@ Section rng.
     iIntros (g) "Hbounded_gen".
     iMod (spec_init_rng_gen with "[$]") as (f) "(HK&Hhash_gen)"; first done.
     set (P := (∃ n, shash_rng_gen n f ∗ bounded_rng_gen n g)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
     { iNext. iExists O. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> (->&->)".
@@ -744,7 +744,7 @@ Section rng.
 
     (* finally we show a refinement between the generated rngs *)
     set (Prng := (∃ n, shash_rng n srng ∗ bounded_rng MAX_SAMPLES n rng)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN Prng with "[Hrng Hsrng]") as "#Hinv_rng".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN Prng with "[Hrng Hsrng]") as "#Hinv_rng".
     { rewrite /Prng. iNext. iExists _. iFrame.  }
     iClear "Hinv".
     iModIntro. iExists _. iFrame.

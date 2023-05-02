@@ -292,7 +292,7 @@ Notation "Γ ⊨ e '=ctx=' e' : τ" :=
   (ctx_equiv Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
 
 Section bin_log_related_under_typed_ctx.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* Precongruence *)
   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :

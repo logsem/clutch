@@ -10,6 +10,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.typing Require Import soundness.
 From self.prelude Require Import base.
+From self.examples Require Import bool_to_int.
 Set Default Proof Using "Type*".
 
 (* A diverging term. *)
@@ -30,7 +31,7 @@ Definition H : expr :=
 
 Definition H_with_tape : expr :=
   let: "x" := ref #0 in
-  let: "α" := alloc in
+  let: "α" := alloc #1%nat in
   (λ:<>, M ⊕α N).
 
 Definition K : expr :=
@@ -38,7 +39,7 @@ Definition K : expr :=
   (λ:<>, M) ⊕ (λ:<>, N).
 
 Section proofs.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition bisimN := nroot.@"bisim".
 
@@ -50,14 +51,14 @@ Section proofs.
     rel_pures_l. rel_pures_r.
     rel_alloctape_l α as "α".
     rel_bind_r (flip _)%E.
-    iApply (refines_couple_tape_flip with "[$α x y]"); [done|].
+    iApply (refines_couple_tape_rand with "[$α x y]"); [done|].
     iIntros (b) "α /=".
     rel_pures_l. rel_pures_r.
-    set (P := ((α ↪ [b] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
+    set (P := ((α ↪ (1; [b]) ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ (1; []) ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
     iApply (refines_na_alloc P bisimN).
     iSplitL. 1: iModIntro ; iLeft ; iFrame.
     iIntros "#Hinv".
-    destruct b.
+    repeat inv_fin b.
     (* Both cases are proven in *exactly* the same way. *)
     - rel_pures_r.
       rel_arrow_val.

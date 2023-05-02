@@ -7,7 +7,7 @@ From self.prob_lang Require Import spec_rules spec_tactics proofmode.
 From self.logrel Require Import model rel_tactics rel_rules.
 
 Section compatibility.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types e : expr.
 
   Local Ltac value_case :=

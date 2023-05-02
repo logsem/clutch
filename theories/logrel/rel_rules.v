@@ -7,7 +7,7 @@ From self.prob_lang Require Import lang spec_rules spec_tactics proofmode.
 From self.logrel Require Import model.
 
 Section rules.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types A : lrel Σ.
   Implicit Types e : expr.
   Implicit Types v w : val.

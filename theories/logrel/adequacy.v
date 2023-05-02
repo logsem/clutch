@@ -13,9 +13,9 @@ Global Instance subG_prelogrelGPreS {Σ} : subG prelogrelΣ Σ → prelogrelGpre
 Proof. solve_inG. Qed.
 
 Theorem refines_coupling Σ `{prelogrelGpreS Σ}
-  (A : ∀ `{prelogrelGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' n :
-  (∀ `{prelogrelGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
-  (∀ `{prelogrelGS Σ}, ⊢ REL e << e' : A) →
+  (A : ∀ `{clutchRGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' n :
+  (∀ `{clutchRGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
+  (∀ `{clutchRGS Σ}, ⊢ REL e << e' : A) →
   refRcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ.
 Proof.
   intros HA Hlog.

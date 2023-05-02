@@ -4,7 +4,7 @@ From self.logrel Require Export model adequacy.
 From self.typing Require Export contextual_refinement.
 
 Lemma refines_sound_open Σ `{!prelogrelGpreS Σ} Γ e e' τ :
-  (∀ `{prelogrelGS Σ} Δ, ⊢ {⊤;Δ;Γ} ⊨ e ≤log≤ e' : τ) →
+  (∀ `{clutchRGS Σ} Δ, ⊢ {⊤;Δ;Γ} ⊨ e ≤log≤ e' : τ) →
   Γ ⊨ e ≤ctx≤ e' : τ.
 Proof.
   intros Hlog K σ₀ b Htyped.
@@ -27,7 +27,7 @@ Proof.
 Qed.
 
 Lemma refines_sound Σ `{Hpre : !prelogrelGpreS Σ} (e e': expr) τ :
-  (∀ `{prelogrelGS Σ} Δ, ⊢ REL e << e' : (interp τ Δ)) →
+  (∀ `{clutchRGS Σ} Δ, ⊢ REL e << e' : (interp τ Δ)) →
   ∅ ⊨ e ≤ctx≤ e' : τ.
 Proof.
   intros Hlog. eapply (refines_sound_open Σ).

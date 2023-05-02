@@ -35,7 +35,7 @@ Definition lazy_with_tape : expr :=
     end.
 
 Section logical_ref.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition coinN := nroot.@"coins".
 

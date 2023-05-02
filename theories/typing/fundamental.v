@@ -8,7 +8,7 @@ From self.logrel Require Import model compatibility rel_rules rel_tactics.
 From self.typing Require Import types interp.
 
 Section fundamental.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types Δ : listO (lrelC Σ).
   Hint Resolve to_of_val : core.
 

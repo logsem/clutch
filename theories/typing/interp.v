@@ -8,7 +8,7 @@ From self.typing Require Import types.
 
 (** * Interpretation of types *)
 Section semtypes.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Program Definition ctx_lookup (x : var) : listO (lrelC Σ) -n> (lrelC Σ)
     := λne Δ, (from_option id lrel_true (Δ !! x))%I.
@@ -122,7 +122,7 @@ End semtypes.
 
 (** ** Properties of the type inrpretation w.r.t. the substitutions *)
 Section interp_ren.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types Δ : list (lrel Σ).
 
   (* TODO: why do I need to unfold lrel_car here? *)
@@ -215,7 +215,7 @@ End interp_ren.
 
 (** * Interpretation of the environments *)
 Section env_typed.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types A B : lrel Σ.
   Implicit Types Γ : gmap string (lrel Σ).
 
@@ -270,7 +270,7 @@ Notation "⟦ Γ ⟧*" := (env_ltyped2 Γ).
 
 (** * The semantic typing judgement *)
 Section bin_log_related.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition bin_log_related (E : coPset)
              (Δ : list (lrel Σ)) (Γ : stringmap type)

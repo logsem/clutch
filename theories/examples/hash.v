@@ -10,7 +10,7 @@ Set Default Proof Using "Type*".
 
 Module simple_bit_hash.
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* A simple bit hash map. *)
 
@@ -189,7 +189,7 @@ End simple_bit_hash.
 
 Section tape_bit_hash.
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* A more complicated bit hash map.
 
@@ -862,7 +862,7 @@ End tape_bit_hash.
 
 Section eager_hash.
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* An eager hash map that samples every key's value *)
 
@@ -1224,7 +1224,7 @@ Section eager_hash.
     wp_apply (wp_eager_init_hash_couple with "HK"); first done.
     iIntros (f) "H". iDestruct "H" as (sf m) "(HK&Hsf)".
     set (P := (∃ m, eager_hashfun max f m ∗ shashfun max sf m)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ hashN P with "[Hsf]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ hashN P with "[Hsf]") as "#Hinv".
     { iNext. iExists m. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> Hint".
@@ -1261,7 +1261,7 @@ Section eager_hash.
     wp_apply (spec_eager_init_hash_couple with "HK"); first done.
     iIntros (f) "H". iDestruct "H" as (sf m) "(HK&Hsf)".
     set (P := (∃ m, eager_shashfun max sf m ∗ hashfun max f m)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ hashN P with "[Hsf]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ hashN P with "[Hsf]") as "#Hinv".
     { iNext. iExists m. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> Hint".

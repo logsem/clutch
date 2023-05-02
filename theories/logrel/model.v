@@ -6,10 +6,10 @@ From self.prob_lang Require Import notation spec_ra primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class prelogrelGS Σ := PrelogrelGS {
-    prelogrelGS_clutchGS :> clutchGS Σ;
-    prelogrelGS_na_invG :> na_invG Σ;
-    prelogrelGS_nais : na_inv_pool_name;
+Class clutchRGS Σ := PrelogrelGS {
+    clutchRGS_clutchGS :> clutchGS Σ;
+    clutchRGS_na_invG :> na_invG Σ;
+    clutchRGS_nais : na_inv_pool_name;
 }.
 
 (** Semantic intepretation of types *)
@@ -57,12 +57,12 @@ Arguments lrelC : clear implicits.
 
 Canonical Structure ectx_itemO := leibnizO ectx_item.
 
-Definition na_ownP `{!prelogrelGS Σ} := na_own prelogrelGS_nais.
-Definition na_invP `{!prelogrelGS Σ} := na_inv prelogrelGS_nais.
-Definition na_closeP `{!prelogrelGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
+Definition na_ownP `{!clutchRGS Σ} := na_own clutchRGS_nais.
+Definition na_invP `{!clutchRGS Σ} := na_inv clutchRGS_nais.
+Definition na_closeP `{!clutchRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
 
 Section semtypes.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Implicit Types e : expr.
   Implicit Types E : coPset.
@@ -173,7 +173,7 @@ Notation "∀ A1 .. An , C" :=
   (lrel_forall (λ A1, .. (lrel_forall (λ An, C%lrel)) ..)) : lrel_scope.
 
 Section semtypes_properties.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* The reference type relation is functional and injective.
      Thanks to Amin. *)
@@ -256,7 +256,7 @@ Notation "'REL' e1 '<<' t ':' A" :=
 
 (** Properties of the relational interpretation *)
 Section related_facts.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types e : expr.
 
   Lemma fupd_refines E e t A :
@@ -330,7 +330,7 @@ Section related_facts.
 End related_facts.
 
 Section monadic.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types e : expr.
 
   Lemma refines_bind K K' E A A' e e' :

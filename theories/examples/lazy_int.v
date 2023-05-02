@@ -76,7 +76,7 @@ Section lazy_int.
       let: "z2" := Snd "p" in
       cmpZ "z1" "z2".
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Fixpoint chunk_list l (zs : list Z) : iProp Σ :=
     match zs with
@@ -676,7 +676,7 @@ Section lazy_int.
 
   Definition R : lrel Σ :=
     LRel (λ v1 v2, ∃ (z : Z),
-          ⌜ v2 = #z ⌝ ∗ na_inv prelogrelGS_nais (lrootN.@(v1, z)) (lazy_int z v1))%I.
+          ⌜ v2 = #z ⌝ ∗ na_inv clutchRGS_nais (lrootN.@(v1, z)) (lazy_int z v1))%I.
 
   Lemma lazy_int_eager_int_refinement Δ : ⊢ REL lazy_int_pack << eager_int_pack : interp intτ Δ.
   Proof.
@@ -695,7 +695,7 @@ Section lazy_int.
       wp_apply (wp_sample_lazy_eager_couple with "HK"); first done.
       iIntros (?) "H".
       iDestruct "H" as (z) "(Hlazy&HK)".
-      iMod (na_inv_alloc prelogrelGS_nais _ (lrootN.@(v, z)) (lazy_int z v) with "Hlazy") as "#Hinv".
+      iMod (na_inv_alloc clutchRGS_nais _ (lrootN.@(v, z)) (lazy_int z v) with "Hlazy") as "#Hinv".
       iModIntro. iExists _. iFrame. iExists z; eauto.
     - iIntros (vp svp) "!> #HR".
       iDestruct "HR" as (v1 v1' v2 v2' -> ->) "(HR1&HR2)".
@@ -724,7 +724,7 @@ Section lazy_int.
 
   Definition R' : lrel Σ :=
     LRel (λ v1 v2, ∃ (z : Z),
-          ⌜ v1 = #z ⌝ ∗ na_inv prelogrelGS_nais (lrootN.@(v2, z)) (spec_lazy_int z v2))%I.
+          ⌜ v1 = #z ⌝ ∗ na_inv clutchRGS_nais (lrootN.@(v2, z)) (spec_lazy_int z v2))%I.
 
   Lemma eager_int_lazy_int_refinement Δ : ⊢ REL eager_int_pack << lazy_int_pack : interp intτ Δ.
   Proof.
@@ -743,7 +743,7 @@ Section lazy_int.
       wp_apply (wp_sample_eager_lazy_couple with "HK"); first done.
       iIntros (?) "H".
       iDestruct "H" as (v) "(Hlazy&HK)".
-      iMod (na_inv_alloc prelogrelGS_nais _ (lrootN.@(v, z)) (spec_lazy_int z v) with "Hlazy") as "#Hinv".
+      iMod (na_inv_alloc clutchRGS_nais _ (lrootN.@(v, z)) (spec_lazy_int z v) with "Hlazy") as "#Hinv".
       iModIntro. iExists _. iFrame. iExists z; eauto.
     - iIntros (vp svp) "!> #HR".
       iDestruct "HR" as (v1 v1' v2 v2' -> ->) "(HR1&HR2)".

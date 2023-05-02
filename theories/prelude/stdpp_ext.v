@@ -83,7 +83,16 @@ Qed.
 Lemma bool_to_fin_to_nat_inv b :
   nat_to_bool (fin_to_nat (bool_to_fin b)) = b.
 Proof. by destruct b. Qed. 
-  
+
+Lemma bool_to_fin_surj (n : fin 2) : ∃ b, bool_to_fin b = n.
+Proof.
+  inv_fin n; [by eexists false|].
+  intros n.
+  inv_fin n; [by eexists true|].
+  intros n.
+  inv_fin n.
+Qed. 
+
 (** ** [Z_to_bool] *)
 (* We take [0] to mean [false] and any other value to be [true] *)
 Definition Z_to_bool (z : Z) : bool :=

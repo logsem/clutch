@@ -4,6 +4,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
+From self.examples.lib Require Import conversion.
 
 (* This is a library for sampling integers in the set {0, ..., 2^n-1}
    for some natural number n > 0.
@@ -28,12 +29,6 @@ Section int.
   Definition NUM_BITS := S PRED_NUM_BITS.
 
   Definition MAX_INT := Z.ones (NUM_BITS).
-
-  Definition bool_to_int : val :=
-    λ: "b",
-      if: "b" = #false then
-        #0
-      else #1.
 
   Definition sample_int_aux : val :=
     (rec: "sample_int_aux" "α" "n" :=
@@ -99,28 +94,7 @@ Section int.
   Compute (Z_to_bool_list 5 5).
   *)
 
-  Context `{!prelogrelGS Σ}.
-
-  Lemma wp_bool_to_int (b: bool) E :
-    {{{ True }}}
-      bool_to_int #b @ E
-    {{{ RET #(Z.b2z b); True%I}}}.
-  Proof.
-    iIntros (Φ) "_ HΦ".
-    rewrite /bool_to_int.
-    wp_pures. destruct b; case_bool_decide as Heq; try congruence; wp_pures; by iApply "HΦ".
-  Qed.
-
-  Lemma spec_bool_to_int E K (b : bool) :
-    ↑specN ⊆ E →
-    refines_right K (bool_to_int #b) ={E}=∗
-    refines_right K (of_val #(Z.b2z b)).
-  Proof.
-    rewrite /bool_to_int.
-    iIntros (?) "HK".
-    tp_pures; first solve_vals_compare_safe.
-    destruct b; case_bool_decide as Heq; try congruence; tp_pures; eauto.
-  Qed.
+  Context `{!clutchRGS Σ}.
 
   Lemma Z_to_bool_list_helper (z : Z) (n' : nat):
     (Z.b2z (Z.testbit z (Z.of_nat n')) ≪ Z.of_nat n' + Z.land z (Z.ones (Z.of_nat n')))%Z =
@@ -382,7 +356,7 @@ End int.
 
 Section sample_wide.
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* A "digit list" is a list of integers encoding a number in base
     2^(n+1), written in big-endian form *)

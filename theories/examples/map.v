@@ -29,7 +29,7 @@ Section map.
   Definition init_list : val :=
     λ:<>, ref NONE.
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* Impl *)
   Fixpoint assoc_list (l: loc) (vs: list (nat * val)) : iProp Σ :=
