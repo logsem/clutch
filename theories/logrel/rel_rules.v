@@ -4,6 +4,7 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From self.program_logic Require Import ectx_lifting.
 From self.prob_lang Require Import lang spec_rules spec_tactics proofmode.
+From self.prob_lang Require Export coupling_rules.
 From self.logrel Require Import model.
 
 Section rules.
@@ -270,7 +271,7 @@ Section rules.
     wp_apply wp_couple_tapes_eq; [done|done|].
     iFrame "Hα Hαs".
     iSplit; [done|].
-    iIntros "[%b [Hαs Hα]]".
+    iIntros (b) "[Hαs Hα]".
     iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
   Qed.
 
@@ -288,7 +289,7 @@ Section rules.
     rewrite -fill_app.
     (* [iFrame] is too aggressive.... *)
     iFrame "Hs Hα Hspec".
-    iIntros (n) "[Hα Hspec]".
+    iIntros (n) "[Hα [_ Hspec]]".
     rewrite fill_app.
     rewrite refines_eq /refines_def /refines_right.
     iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
@@ -356,7 +357,7 @@ Section rules.
     wp_apply wp_couple_rand_rand_eq; [done|].
     rewrite -fill_app.
     iFrame "Hs Hspec".
-    iIntros (n) "Hspec".
+    iIntros (n) "[_ Hspec]".
     rewrite fill_app.
     iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
     wp_apply (wp_mono with "Hcnt").

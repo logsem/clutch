@@ -4,8 +4,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
-From self.examples Require Import map.
-
+From self.examples.lib Require Import map flip.
 Set Default Proof Using "Type*".
 
 Module simple_bit_hash.
@@ -24,7 +23,7 @@ Module simple_bit_hash.
       match: get hm "v" with
       | SOME "b" => "b"
       | NONE =>
-          let: "b" := flip #() in
+          let: "b" := flip in
           set hm "v" "b";;
           "b"
       end.
@@ -33,7 +32,7 @@ Module simple_bit_hash.
       match: get "hm" "v" with
       | SOME "b" => "b"
       | NONE =>
-          let: "b" := flip #() in
+          let: "b" := flip in
           set "hm" "v" "b";;
           "b"
       end.
@@ -156,13 +155,12 @@ Module simple_bit_hash.
     wp_pures.
 
     (* couple -- FIXME: breaking abstraction *)
-    tp_bind (flip #()) %E.
+    tp_bind flip.
     iEval (rewrite refines_right_bind) in "HK".
-    wp_apply (wp_couple_flip_flip_eq); first done.
+    wp_apply (wp_couple_flip_flip Datatypes.id); [done|]. 
     iDestruct "HK" as "(#Hspec&HK)".
     iFrame "Hspec". iFrame "HK".
     iIntros (b) "HK".
-    iAssert (refines_right _ _) with "[$Hspec $HK]" as "HK".
     iEval (rewrite -refines_right_bind /=) in "HK".
     tp_pures.
     do 2 wp_pures.
@@ -211,7 +209,7 @@ Section tape_bit_hash.
        if: ("n" - #1) < #0 then
          #()
        else
-        let: "α" := alloc in
+        let: "α" := allocB in
          set "tm" ("n" - #1) "α";;
         "alloc_tapes" "tm" ("n" - #1)).
 
@@ -232,7 +230,7 @@ Section tape_bit_hash.
       | NONE =>
           match: get tm "v" with
             | SOME "α" =>
-                let: "b" := flip "α" in
+                let: "b" := flipL "α" in
                 set vm "v" "b";;
                 "b"
             | NONE => #false
@@ -246,7 +244,7 @@ Section tape_bit_hash.
       | NONE =>
           match: get "tm" "v" with
             | SOME "α" =>
-                let: "b" := flip "α" in
+                let: "b" := flipL "α" in
                 set "vm" "v" "b";;
                 "b"
             | NONE => #false
@@ -274,8 +272,8 @@ Section tape_bit_hash.
        map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
        ([∗ map] i ↦ α ∈ tm,
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝) ∨
-          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ (b :: nil) ) ∨
-          (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ nil)).
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪B (b :: nil) ) ∨
+          (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪B nil)).
 
   Definition shashfun (max : nat) f (m : gmap nat bool) : iProp Σ :=
     ∃ (lvm ltm: loc) (vm: gmap nat bool) (tm: gmap nat loc),
@@ -286,8 +284,8 @@ Section tape_bit_hash.
        map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
        ([∗ map] i ↦ α ∈ tm,
           (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = Some b ⌝) ∨
-          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛ (b :: nil) ) ∨
-          (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛ nil)).
+          (∃ b : bool, ⌜ m !! i = Some b ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛB (b :: nil) ) ∨
+          (⌜ m !! i = None ⌝ ∗ ⌜ vm !! i = None ⌝ ∗ α ↪ₛB nil)).
 
   #[global] Instance timeless_hashfun n f m :
     Timeless (hashfun n f m).
@@ -308,7 +306,7 @@ Section tape_bit_hash.
     {{{ RET #(); ∃ tm,
             map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
             ⌜ (∀ i : nat, i < max ↔ i ∈ dom tm) ⌝ ∗
-            ([∗ map] i ↦ α ∈ tm, α ↪ nil) }}}.
+            ([∗ map] i ↦ α ∈ tm, α ↪B nil) }}}.
   Proof.
     iIntros (Φ) "Htm HΦ".
     rewrite /alloc_tapes.
@@ -316,7 +314,7 @@ Section tape_bit_hash.
     iEval (setoid_rewrite Heqk) in "HΦ".
     iAssert (∃ tm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom tm) ⌝ ∗
                    map_list ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
-                   ([∗ map] i ↦ α ∈ tm, α ↪ nil))%I with "[Htm]" as "Htm".
+                   ([∗ map] i ↦ α ∈ tm, α ↪B nil))%I with "[Htm]" as "Htm".
     { iExists ∅. rewrite fmap_empty. iFrame. iSplit.
       { iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
       { rewrite big_sepM_empty. auto. } }
@@ -364,14 +362,14 @@ Section tape_bit_hash.
     refines_right K (alloc_tapes #ltm #max) ={E}=∗
     refines_right K (#()) ∗ ∃ tm, map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
                                     ⌜ (∀ i : nat, i < max ↔ i ∈ dom tm) ⌝ ∗
-                                    ([∗ map] i ↦ α ∈ tm, α ↪ₛ nil).
+                                    ([∗ map] i ↦ α ∈ tm, α ↪ₛB nil).
   Proof.
     iIntros (Φ) "Htm HK".
     rewrite /alloc_tapes.
     remember max as k eqn:Heqk.
     iAssert (∃ tm, ⌜ (∀ i : nat, (k <= i < max)%nat ↔ i ∈ dom tm) ⌝ ∗
                    map_slist ltm ((λ v, LitV (LitLbl v)) <$> tm) ∗
-                   ([∗ map] i ↦ α ∈ tm, α ↪ₛ nil))%I with "[Htm]" as "Htm".
+                   ([∗ map] i ↦ α ∈ tm, α ↪ₛB nil))%I with "[Htm]" as "Htm".
     { iExists ∅. rewrite fmap_empty. iFrame. iSplit.
       { iPureIntro. subst. intros; split; try lia. rewrite dom_empty_L. inversion 1. }
       { rewrite big_sepM_empty. auto. } }
@@ -388,9 +386,9 @@ Section tape_bit_hash.
       tp_pures.
       case_bool_decide; first by lia.
       tp_pures.
-      tp_bind (alloc).
+      tp_bind (allocB).
       rewrite refines_right_bind.
-      iMod (refines_right_alloctape with "HK") as (α) "(HK&Hα)"; first done.
+      iMod (refines_right_allocB_tape with "HK") as (α) "(HK&Hα)"; first done.
       rewrite -refines_right_bind /=.
 
       tp_pures.
@@ -547,7 +545,7 @@ Section tape_bit_hash.
       rewrite lookup_fmap Hα.
       iDestruct "Hα'" as "(Hα&->)".
       wp_pures.
-      wp_apply (wp_flip with "Htape").
+      wp_apply (wp_flipL with "Htape").
       iIntros "Htape". wp_pures.
       wp_apply (wp_set with "Hhash").
       iIntros "Hhash". wp_pures. iApply "HΦ".
@@ -643,9 +641,9 @@ Section tape_bit_hash.
       rewrite lookup_fmap Hα.
       tp_pures.
 
-      tp_bind (flip _)%E.
+      tp_bind (flipL _)%E.
       rewrite refines_right_bind.
-      iMod (refines_right_flip with "[$] [$]") as "(HK&Hα)"; first done.
+      iMod (refines_right_flipL with "[$] [$]") as "(HK&Hα)"; first done.
       rewrite -refines_right_bind/=.
       tp_pures.
 
@@ -713,9 +711,9 @@ Section tape_bit_hash.
   Qed.
 
   Definition impl_couplable (P : bool → iProp Σ) : iProp Σ :=
-    (∃ α bs, α ↪ bs ∗ (∀ b, α ↪ (bs ++ [b]) -∗ P b)).
+    (∃ α bs, α ↪B bs ∗ (∀ b, α ↪B (bs ++ [b]) -∗ P b)).
   Definition spec_couplable (P : bool → iProp Σ) : iProp Σ :=
-    (∃ α bs, α ↪ₛ bs ∗ (∀ b, α ↪ₛ (bs ++ [b]) -∗ P b)).
+    (∃ α bs, α ↪ₛB bs ∗ (∀ b, α ↪ₛB (bs ++ [b]) -∗ P b)).
 
   Lemma hashfun_couplable k max f m :
     k ≤ max →
@@ -798,8 +796,8 @@ Section tape_bit_hash.
     iIntros (??) "(Hspec_ctx&Hscoupl&Hicoupl&Hwp)".
     iDestruct "Hscoupl" as (sα sbs) "(Hsα&Hsαclo)".
     iDestruct "Hicoupl" as (α bs) "(Hα&Hαclo)".
-    iApply (wp_couple_tapes_eq with "[-]"); try done; iFrame "Hsα Hα Hspec_ctx".
-    iDestruct 1 as (b) "(Hsα&Hα)". iApply "Hwp".
+    iApply (wp_couple_bool_tape_tape Datatypes.id with "[-]"); try done; iFrame "Hsα Hα Hspec_ctx".
+    iIntros (b) "(Hsα&Hα)". iApply "Hwp".
     iExists b. iSplitL "Hsα Hsαclo".
     { iApply "Hsαclo". iFrame. }
     { iApply "Hαclo". iFrame. }
@@ -810,11 +808,11 @@ Section tape_bit_hash.
     nclose specN ⊆ E →
     spec_ctx ∗ spec_couplable P ∗
     (∀ b, P b -∗ Φ #b)
-    ⊢ WP flip #() @ E {{ Φ }}.
+    ⊢ WP flip @ E {{ Φ }}.
   Proof.
     iIntros (?) "(Hspec_ctx&Hscoupl&Hwp)".
     iDestruct "Hscoupl" as (sα sbs) "(Hsα&Hsαclo)".
-    iApply wp_couple_flip_tape_eq; first done.
+    iApply (wp_couple_flip_tape Datatypes.id); first done.
     iFrame "Hspec_ctx Hsα". iIntros (b) "H".
     iApply "Hwp". iApply "Hsαclo". auto.
   Qed.
@@ -824,15 +822,14 @@ Section tape_bit_hash.
     to_val e = None →
     nclose specN ⊆ E →
     impl_couplable P ∗
-    refines_right K (flip #()) ∗
+    refines_right K flip ∗
     (∀ b, P b -∗ refines_right K (of_val #b) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??) "(Hcoupl&HK&Hwp)".
     iDestruct "Hcoupl" as (α bs) "(Hα&Hαclo)".
-    iDestruct "HK" as "(#Hspec_ctx&HK)".
-    iApply wp_couple_tape_flip_eq; [ done | done | ].
-    iFrame "Hspec_ctx Hα HK". iIntros (b) "(?&?)".
+    iApply (wp_couple_tape_flip Datatypes.id); [ done | done | ].
+    iFrame "Hα HK". iIntros (b) "(?&?)".
     iDestruct ("Hαclo" with "[$]") as "HP".
     iApply ("Hwp" with "[$] [$]").
   Qed.
@@ -871,7 +868,7 @@ Section eager_hash.
        if: ("n" - #1) < #0 then
          #()
        else
-        let: "b" := flip #() in
+        let: "b" := flip in
          set "vm" ("n" - #1) "b";;
         "sample_keys" "vm" ("n" - #1)).
 
@@ -952,7 +949,7 @@ Section eager_hash.
       wp_pures.
       case_bool_decide; first by lia.
       wp_pures.
-      wp_bind (flip #())%E.
+      wp_bind flip.
       iDestruct "Htm" as (bm Hdom) "(Hmap&Hshash)".
       iApply (spec_couplable_elim); first by auto.
 
@@ -1046,7 +1043,7 @@ Section eager_hash.
       tp_pures.
       case_bool_decide; first by lia.
       tp_pures.
-      tp_bind (flip #())%E.
+      tp_bind flip.
       rewrite refines_right_bind.
       iDestruct "Htm" as (bm Hdom) "(Hmap&Hshash)".
       iApply (impl_couplable_elim); [ done | done | ].

@@ -6,6 +6,7 @@ From self.logrel Require Import model rel_rules rel_tactics compatibility.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
 From self.examples Require Import sample_int.
+From self.examples.lib Require Import flip.
 
 
 Section lazy_int.
@@ -52,12 +53,12 @@ Section lazy_int.
   Definition sample_lazy_int : val :=
     λ: "_",
       let: "hd" := ref NONEV in
-      let: "α" := alloc in
+      let: "α" := allocB in
       ("α", "hd").
 
   Definition sample_eager_int : val :=
     λ: "_",
-      let: "α" := alloc in
+      let: "α" := allocB in
       sample_wide_int PRED_NUM_CHUNKS PRED_CHUNK_BITS ("α").
 
   Definition cmp_lazy_int : val :=

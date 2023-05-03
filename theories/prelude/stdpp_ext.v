@@ -84,14 +84,37 @@ Lemma bool_to_fin_to_nat_inv b :
   nat_to_bool (fin_to_nat (bool_to_fin b)) = b.
 Proof. by destruct b. Qed. 
 
-Lemma bool_to_fin_surj (n : fin 2) : ∃ b, bool_to_fin b = n.
+Lemma fin_to_nat_to_bool_inv n : 
+  nat_to_bool (fin_to_nat n) = fin_to_bool n.
 Proof.
-  inv_fin n; [by eexists false|].
+  inv_fin n; [naive_solver|].
   intros n.
-  inv_fin n; [by eexists true|].
-  intros n.
-  inv_fin n.
+  inv_fin n; [naive_solver|].
+  intros n. 
+  inv_fin n.   
 Qed. 
+
+Instance bool_to_fin_inj : Inj (=) (=) bool_to_fin.
+Proof. by intros [] [] ?. Qed.
+Instance bool_to_fin_surj : Surj (=) bool_to_fin.
+Proof.
+  intros n.
+  inv_fin n; [by exists false|]. 
+  intros n; inv_fin n; [by exists true|].
+  intros n. inv_fin n.
+Qed. 
+
+Instance fin_to_bool_inj : Inj (=) (=) fin_to_bool.
+Proof.
+  intros n m ?.
+  inv_fin n; inv_fin m; try done.
+  intros n m _.
+  inv_fin n.
+  - inv_fin m; [done|]. intros m. inv_fin m.
+  - intros p. inv_fin p.
+Qed.
+Instance fin_to_bool_surj : Surj (=) fin_to_bool.
+Proof. intros []; [by exists 1%fin|by exists 0%fin]. Qed. 
 
 (** ** [Z_to_bool] *)
 (* We take [0] to mean [false] and any other value to be [true] *)

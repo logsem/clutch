@@ -6,15 +6,17 @@ From self.logrel Require Import model rel_rules rel_tactics.
 From self.prelude Require Import base.
 From self.examples.lib Require Import conversion.
 
-Definition flipL : val := λ: "e", (int_to_bool (rand #1%nat from "e")).
+Definition flipL : val := λ: "e", int_to_bool (rand #1%nat from "e").
 Definition flip : expr := flipL #().
 Definition allocB := alloc #1%nat.
 
 Definition tapeB (bs : list bool) : tape := (1; bool_to_fin <$> bs).
+Definition bool_tape `{clutchRGS Σ} l bs : iProp Σ := l ↪ tapeB bs.
+Definition bool_tape_spec `{clutchRGS Σ} l bs : iProp Σ := l ↪ₛ tapeB bs.
 
-Notation "l ↪B bs" := (l ↪ tapeB bs)%I
+Notation "l ↪B bs" := (bool_tape l bs)
   (at level 20, format "l  ↪B  bs") : bi_scope.
-Notation "l ↪ₛB bs" := (l ↪ₛ tapeB bs)%I
+Notation "l ↪ₛB bs" := (bool_tape_spec l bs)
   (at level 20, format "l  ↪ₛB  bs") : bi_scope.
 
 Section specs.
@@ -37,7 +39,7 @@ Section specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma wp_flip_tape E α b bs :
+  Lemma wp_flipL E α b bs :
     {{{ ▷ α ↪B (b :: bs) }}} flipL #lbl:α @ E {{{ RET #(LitBool b); α ↪B bs }}}.
   Proof.
     iIntros (Φ) ">Hl HΦ". rewrite /flip /flipL.
@@ -51,7 +53,7 @@ Section specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma wp_flip_tape_empty E α :
+  Lemma wp_flipL_empty E α :
     {{{ ▷ α ↪B [] }}} flipL #lbl:α @ E {{{ b, RET #(LitBool b); α ↪B [] }}}.
   Proof.
     iIntros (Φ) ">Hl HΦ". rewrite /flip /flipL.
@@ -69,11 +71,11 @@ Section specs.
     refines_right K allocB ={E}=∗ ∃ α, refines_right K (#lbl: α) ∗ α ↪ₛB [].
   Proof.
     iIntros (?) "(?&?)".
-    iMod (step_alloctape with "[$]") as (α) "[? ?]"; [done|].
-    iModIntro; iExists _; iFrame. done.
+    iMod (step_alloctape with "[$]") as (α) "(?&?&?)"; [done|].
+    iModIntro; iExists α; iFrame.
   Qed.
 
-  Lemma refines_right_flip_tape E K α (b : bool) bs :
+  Lemma refines_right_flipL E K α (b : bool) bs :
     nclose specN ⊆ E →
     α ↪ₛB (b :: bs) -∗
     refines_right K (flipL #lbl:α) ={E}=∗ refines_right K #(LitBool b) ∗ α ↪ₛB bs.
@@ -114,21 +116,43 @@ Section specs.
   (* TODO: [refines_flip_r] *)
 
   (** * Labelled flip  *)
+  Lemma refines_flipL_l E K α b bs t A :
+    (▷ α ↪B (b :: bs) ∗
+     ▷ (α ↪B bs -∗ REL fill K (of_val #b) << t @ E : A))
+    -∗ REL fill K (flipL #lbl:α) << t @ E : A.
+  Proof.
+    iIntros "[Hα Hlog]".
+    iApply refines_wp_l.
+    by wp_apply (wp_flipL with "Hα").
+  Qed.
+
+  Lemma refines_flipL_r E K α b bs t A :
+    α ↪ₛB (b :: bs)
+    -∗ (α ↪ₛB bs -∗ REL t << fill K (of_val #b) @ E : A)
+    -∗ REL t << (fill K (flipL #lbl:α)) @ E : A.
+  Proof.
+    iIntros "Hα Hlog".
+    iApply refines_step_r.
+    iIntros (k) "Hk".
+    iMod (refines_right_flipL with "[$] [$]") as "[? ?]"; [done|].
+    iModIntro; iExists _; iFrame. iApply ("Hlog" with "[$]").
+  Qed.
+
   Lemma refines_flipL_empty_l K E α A e :
     α ↪B [] ∗
-      (∀ (b : bool), α ↪B [] -∗ REL fill K (Val #b) << e @ E : A)
+      (∀ (b : bool), α ↪B [] -∗ REL fill K (of_val #b) << e @ E : A)
     ⊢ REL fill K (flipL #lbl:α) << e @ E : A.
   Proof.
     iIntros "[Hα H]".
     iApply refines_wp_l.
-    by wp_apply (wp_flip_tape_empty with "Hα").
+    by wp_apply (wp_flipL_empty with "Hα").
   Qed.
 
   Lemma refines_flipL_empty_r K E α A e :
     nclose specN ⊆ E →
     to_val e = None →
     α ↪ₛB [] ∗
-      (∀ b : bool, α ↪ₛB [] -∗ REL e << fill K (Val #b) @ E : A)
+      (∀ b : bool, α ↪ₛB [] -∗ REL e << fill K (of_val #b) @ E : A)
     ⊢ REL e << fill K (flipL #lbl:α) @ E : A.
   Proof.
     iIntros (? ev) "[Hα H]". rewrite /flipL.
@@ -141,32 +165,75 @@ Section specs.
     iMod (refines_right_int_to_bool with "[$]"); [done|].
     iModIntro; iExists _; iFrame.
     by iApply "H".
-  Qed.
+  Qed.  
 
-  Lemma refines_flipL_l E K α b bs t A :
-    (▷ α ↪B (b :: bs) ∗
-     ▷ (α ↪B bs -∗ REL fill K (of_val #b) << t @ E : A))
-    -∗ REL fill K (flipL #lbl:α) << t @ E : A.
+  (** * Coupling rules *)  
+  Local Instance bool_bool_fin_fin f `{Bij bool bool f} :
+    Bij (λ n : fin 2, bool_to_fin (f (fin_to_bool n))).
+  Proof. split; apply _. Qed.
+
+  Local Definition fn_bool_to_fin (f: bool → bool) :=
+    (λ n : fin 2, bool_to_fin (f (fin_to_bool n))).
+
+  (** flip ~ flip  *)
+  Lemma wp_couple_flip_flip f `{Bij bool bool f} K E Φ :
+    nclose specN ⊆ E →
+    refines_right K flip ∗
+    (∀ b : bool, refines_right K #(f b) -∗ Φ #b)
+    ⊢ WP flip @ E {{ Φ }}.
   Proof.
-    iIntros "[Hα Hlog]".
-    iApply refines_wp_l.
-    by wp_apply (wp_flip_tape with "Hα").
+    iIntros (?) "(Hr & HΦ)". rewrite /flip/flipL.
+    wp_pures. tp_pures.
+    wp_bind (rand _ from _)%E.
+    tp_bind (rand _ from _)%E.
+    rewrite refines_right_bind.
+    iApply (wp_couple_rand_rand 1 (fn_bool_to_fin f)); [done|].
+    iFrame. 
+    iIntros (n) "Hr".
+    iMod (refines_right_int_to_bool with "[$]"); [done|].
+    wp_apply wp_int_to_bool; [done|]. 
+    iIntros "_ /=".
+    iApply "HΦ".
+    rewrite !Z_to_bool_of_nat !bool_to_fin_to_nat_inv.
+    rewrite fin_to_nat_to_bool_inv //. 
   Qed.
-
-  Lemma refines_flipL_r E K α b bs t A :
-    α ↪ₛB (b :: bs)
-    -∗ (α ↪ₛB bs -∗ REL t << fill K (of_val #b) @ E : A)
-    -∗ REL t << (fill K (flipL #lbl:α)) @ E : A.
+  
+  Lemma refines_couple_flip_flip f `{Bij bool bool f} K K' E A :
+    nclose specN ⊆ E →
+    (∀ b : bool, REL fill K (of_val #b) << fill K' (of_val #(f b)) @ E : A)
+    ⊢ REL fill K flip << fill K' flip @ E : A.
   Proof.
-    iIntros "Hα Hlog".
-    iApply refines_step_r.
-    iIntros (k) "Hk".
-    iMod (refines_right_flip_tape with "[$] [$]") as "[? ?]"; [done|].
-    iModIntro; iExists _; iFrame. iApply ("Hlog" with "[$]").
-  Qed.
+    rewrite refines_eq /refines_def.
+    iIntros (?) "Hcnt %? ? /=".
+    wp_apply wp_bind.
+    rewrite refines_right_bind. 
+    wp_apply (wp_couple_flip_flip f); [solve_ndisj|]. 
+    iFrame. 
+    iIntros (b) "Hr".
+    rewrite -refines_right_bind.
+    wp_apply ("Hcnt" with "[$] [$]"). 
+  Qed.  
 
-  (** * Coupling rules (equality) *)
-  Lemma refines_couple_flip_tapes E e1 e2 A α αₛ bs bsₛ :
+  (** tape ~ tape *)
+  Lemma wp_couple_bool_tape_tape f `{Bij bool bool f} E e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
+    (∀ b : bool, αₛ ↪ₛB (bsₛ ++ [f b]) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??) "(Hctx & αs & Hα & Hlog)".
+    iApply (wp_couple_tapes _ (fn_bool_to_fin f)); [done|done|iFrame].    
+    iIntros (n) "[Hαs Hα]".
+    destruct (surj bool_to_fin n) as [b <-].
+    iApply ("Hlog" $! b). iFrame.
+    rewrite /fn_bool_to_fin.
+    rewrite bool_to_fin_to_bool.
+    rewrite -!list_fmap_singleton -!fmap_app.
+    iFrame.
+  Qed. 
+
+  Lemma refines_couple_bool_tape_tape E e1 e2 A α αₛ bs bsₛ :
     to_val e1 = None →
     (αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
        (∀ b, αₛ ↪ₛB (bsₛ ++ [b]) ∗ α ↪B (bs ++ [b]) -∗ REL e1 << e2 @ E : A))
@@ -175,10 +242,60 @@ Section specs.
     iIntros (?) "(Hαs & Hα & Hlog)".
     iApply refines_couple_tapes; [done|iFrame].
     iIntros (n) "[? ?]".
-    destruct (bool_to_fin_surj n) as [b <-].
+    destruct (surj bool_to_fin n) as [b <-].
     rewrite -list_fmap_singleton -!fmap_app.
     iApply ("Hlog" $! b). iFrame.
   Qed.
+
+  (** tape(n) ~ tape(n) *)
+  Lemma wp_couple_bool_tapeN_tapeN_eq m E e α αₛ bs bsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
+    (∀ bs', ⌜length bs' = m ⌝ ∗ αₛ ↪ₛB (bsₛ ++ bs') ∗ α ↪B (bs ++ bs') -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??).
+    iInduction m as [| m] "IH" forall (bs bsₛ).
+    - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
+      iApply ("Hwp" $! []).
+      rewrite 2!app_nil_r.
+      by iFrame. 
+    - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
+      iApply "IH". iFrame "Hα Hαₛ Hctx".
+      iIntros (?) "(%Hlen & Hα & Hαₛ)".
+      iApply (wp_couple_bool_tape_tape Datatypes.id); [done|done|].
+      iFrame "Hα Hαₛ Hctx".
+      iIntros (n) "(Hα&Hαₛ)".
+      iApply ("Hwp" $! (_ ++ [_])).
+      rewrite 2!app_assoc. iFrame.
+      iPureIntro.
+      rewrite app_length Hlen /=.
+      lia.
+  Qed.
+
+  (** tape ~ flip  *)
+  Lemma wp_couple_tape_flip f `{Bij bool bool f} K E α bs Φ e :
+    to_val e = None →
+    nclose specN ⊆ E →
+    α ↪B bs ∗ refines_right K flip ∗
+    (∀ b : bool, α ↪B (bs ++ [b]) ∗ refines_right K #(f b) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (??) "(Hα & Hr & Hcnt)". rewrite /flip/flipL. 
+    tp_pures. tp_bind (rand _ from _)%E.
+    rewrite refines_right_bind.
+    iApply (wp_couple_tape_rand 1 (fn_bool_to_fin f) _ _ _ 1); [done|solve_ndisj|iFrame].
+    iIntros (n) "[Hα Hr]".
+    rewrite -refines_right_bind /=.
+    iMod (refines_right_int_to_bool with "[$]") as "Hr"; [done|].
+    wp_apply ("Hcnt" with "[-]").
+    rewrite Z_to_bool_of_nat !bool_to_fin_to_nat_inv.
+    iFrame.
+    destruct (surj bool_to_fin n) as [b <-].
+    rewrite bool_to_fin_to_bool.
+    rewrite -list_fmap_singleton -fmap_app //.
+  Qed. 
 
   Lemma refines_couple_tape_flip K' E α A bs e :
     nclose specN ⊆ E →
@@ -191,7 +308,7 @@ Section specs.
     rel_pures_r.
     rel_apply_r refines_couple_tape_rand; [done|iFrame].
     iIntros (n) "Hα".
-    destruct (bool_to_fin_surj n) as [b <-].
+    destruct (surj bool_to_fin n) as [b <-].
     rewrite -list_fmap_singleton -!fmap_app.
     iSpecialize ("Hcnt" with "Hα").
     rel_apply_r refines_step_r.
@@ -201,6 +318,27 @@ Section specs.
     rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv //.
   Qed.
 
+  (** flip ~ tape *)
+  Lemma wp_couple_flip_tape f `{Bij bool bool f} E α bs Φ :
+    nclose specN ⊆ E →
+    spec_ctx ∗ α ↪ₛB bs ∗ 
+    (∀ b : bool, α ↪ₛB (bs ++ [f b]) -∗ Φ #b)
+    ⊢ WP flip @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "(#Hctx & Hα & Hcnt)". rewrite /flip/flipL.    
+    wp_pures. wp_bind (rand _ from _)%E.
+    iApply (wp_couple_rand_tape 1 (fn_bool_to_fin f)); [solve_ndisj|iFrame "Hctx Hα"].
+    iIntros (n) "Hα".
+    wp_apply (wp_int_to_bool with "[//]").
+    iIntros "_".
+    iApply ("Hcnt" with "[-]").
+    destruct (surj bool_to_fin n) as [b <-].
+    rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv //.
+    rewrite /fn_bool_to_fin.
+    rewrite bool_to_fin_to_bool.
+    rewrite -list_fmap_singleton -fmap_app //.
+  Qed. 
+  
   Lemma refines_couple_flip_tape K E α A bs e :
     α ↪ₛB bs ∗
       (∀ b, α ↪ₛB (bs ++ [b]) -∗ REL fill K (of_val #b) << e @ E : A)
@@ -210,7 +348,7 @@ Section specs.
     rel_pures_l.
     rel_apply_l refines_couple_rand_tape; iFrame.
     iIntros (n) "Hα".
-    destruct (bool_to_fin_surj n) as [b <-].
+    destruct (surj bool_to_fin n) as [b <-].
     rewrite -list_fmap_singleton -!fmap_app.
     iSpecialize ("Hcnt" with "Hα").
     iApply refines_wp_l.
@@ -219,6 +357,9 @@ Section specs.
     rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv //.
   Qed.
 
+  (** flipL ~ flip  *)
+  (* TODO: wp_couple_flipL_flip *)
+  
   Lemma refines_couple_flipL_flip K K' E α A :
     nclose specN ⊆ E →
     α ↪B [] ∗
@@ -234,6 +375,9 @@ Section specs.
     iFrame. iApply "H".
   Qed.
 
+  (** flip ~ flipL  *)
+  (* TODO: wp_couple_flip_flipL *)
+  
   Lemma refines_couple_flip_flipL K K' E α A :
     α ↪ₛB [] ∗
       (∀ b : bool, α ↪ₛB [] -∗ REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
@@ -246,29 +390,6 @@ Section specs.
     iApply (refines_flipL_r with "Hα").
     iIntros "α". by iApply "H".
   Qed.
-
-  Lemma refines_couple_flip_flip K K' E A :
-    nclose specN ⊆ E →
-    (∀ b : bool, REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
-    ⊢ REL fill K flip << fill K' flip @ E : A.
-  Proof.
-    iIntros (?) "Hcnt". rewrite /flip/flipL.
-    rel_pures_l. rel_pures_r.
-    rel_bind_l (rand _ from _)%E.
-    rel_bind_r (rand _ from _)%E.
-    rel_apply_l refines_couple_rands_lr.
-    iIntros (n).
-    iApply refines_wp_l.
-    wp_apply (wp_int_to_bool with "[//]").
-    iIntros "_".
-    rel_apply_r refines_step_r.
-    iIntros (K'') "Hr".
-    iMod (refines_right_int_to_bool with "[$]"); [done|].
-    iModIntro; iExists _; iFrame.
-    done.
-  Qed.
-
-  (* TODO: non-equality couplings *)
 
 End specs.
 
@@ -319,7 +440,7 @@ Tactic Notation "rel_allocBtape_l" :=
   let H := iFresh "H" in
   rel_alloctape_l l as H.
 
-Lemma tac_rel_flip_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) n ns e t tres A E :
+Lemma tac_rel_flipL_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) n ns e t tres A E :
   t = fill K (flipL #lbl:α) →
   envs_lookup i1 ℶ1 = Some (false, α ↪B (n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪B ns)) ℶ1 = Some ℶ2 →
@@ -338,7 +459,7 @@ Proof.
   apply bi.later_intro.
 Qed.
 
-Lemma tac_rel_flip_r `{!clutchRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) n ns e t tres A :
+Lemma tac_rel_flipL_r `{!clutchRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) n ns e t tres A :
   t = fill K (flipL (#lbl:α)) →
   nclose specN ⊆ E →
   envs_lookup i1 ℶ1 = Some (false, α ↪ₛB (n::ns))%I →
@@ -360,31 +481,31 @@ Qed.
 Tactic Notation "rel_flipL_l" :=
   let solve_mapsto _ :=
     let α := match goal with |- _ = Some (_, (?α ↪B _)%I) => α end in
-    iAssumptionCore || fail "rel_flip_l: cannot find" α "↪B ?" in
+    iAssumptionCore || fail "rel_flipL_l: cannot find" α "↪B ?" in
   rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
-       eapply (tac_rel_flip_l K); [reflexivity|..])
-    |fail 1 "rel_flip_l: cannot find 'flip'"];
-  (* the remaining goals are from tac_rel_flip_l (except for the first one, which has already been solved by this point) *)
+       eapply (tac_rel_flipL_l K); [reflexivity|..])
+    |fail 1 "rel_flipL_l: cannot find 'flip'"];
+  (* the remaining goals are from tac_rel_flipL_l (except for the first one, which has already been solved by this point) *)
   [solve_mapsto ()
-  |pm_reflexivity || fail "rel_flip_l: this should not happen O-:"
+  |pm_reflexivity || fail "rel_flipL_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
 
 Tactic Notation "rel_flipL_r" :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↪ₛB _)%I) => l end in
-    iAssumptionCore || fail "rel_flip_r: cannot find" l "↪ₛB ?" in
+    iAssumptionCore || fail "rel_flipL_r: cannot find" l "↪ₛB ?" in
   rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
-       eapply (tac_rel_flip_r K); [reflexivity|..])
-    |fail 1 "rel_flip_r: cannot find 'flip'"];
-  (* the remaining goals are from tac_rel_flip_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_flip_r: cannot prove 'nclose specN ⊆ ?'"
+       eapply (tac_rel_flipL_r K); [reflexivity|..])
+    |fail 1 "rel_flipL_r: cannot find 'flip'"];
+  (* the remaining goals are from tac_rel_flipL_r (except for the first one, which has already been solved by this point) *)
+  [solve_ndisj || fail "rel_flipL_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
-  |pm_reflexivity || fail "rel_flip_r: this should not happen O-:"
+  |pm_reflexivity || fail "rel_flipL_r: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
 

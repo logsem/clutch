@@ -1,7 +1,7 @@
 (* Example taken from Sangiorgi and Vignudelli's "Environmental Bisimulations
    for Probabilistic Higher-order Languages".
 
-NB: This example was mentioned as open problem in Aleš's thesis.
+   NB: This example was mentioned as open problem in Aleš Bizjak's thesis.
  *)
 
 From stdpp Require Import namespaces.
@@ -10,14 +10,14 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.typing Require Import soundness.
 From self.prelude Require Import base.
-From self.examples Require Import bool_to_int.
+From self.examples Require Import flip.
 Set Default Proof Using "Type*".
 
 (* A diverging term. *)
 Definition Ω : expr := (rec: "f" "x" := "f" "x") #().
 
-Notation " e1 '⊕' e2 " := (if: flip #() then e1 else e2)%E (at level 80) : expr_scope.
-Notation " e1 '⊕α' e2 " := (if: flip "α" then e1 else e2)%E (at level 80) : expr_scope.
+Notation " e1 '⊕' e2 " := (if: flip then e1 else e2)%E (at level 80) : expr_scope.
+Notation " e1 '⊕α' e2 " := (if: flipL "α" then e1 else e2)%E (at level 80) : expr_scope.
 
 Definition M : expr :=
   if: !"x" = #0 then "x" <- #1 ;; #true else Ω.
@@ -49,16 +49,15 @@ Section proofs.
     rewrite /H_with_tape /K.
     rel_alloc_l x as "x". rel_alloc_r y as "y".
     rel_pures_l. rel_pures_r.
-    rel_alloctape_l α as "α".
-    rel_bind_r (flip _)%E.
-    iApply (refines_couple_tape_rand with "[$α x y]"); [done|].
+    rel_allocBtape_l α as "α".
+    rel_apply_r (refines_couple_tape_flip with "[$α x y]"); [done|].
     iIntros (b) "α /=".
     rel_pures_l. rel_pures_r.
-    set (P := ((α ↪ (1; [b]) ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ (1; []) ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
+    set (P := ((α ↪B [b] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪B [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
     iApply (refines_na_alloc P bisimN).
     iSplitL. 1: iModIntro ; iLeft ; iFrame.
     iIntros "#Hinv".
-    repeat inv_fin b.
+    destruct b.
     (* Both cases are proven in *exactly* the same way. *)
     - rel_pures_r.
       rel_arrow_val.
@@ -66,13 +65,13 @@ Section proofs.
       iApply (refines_na_inv with "[$Hinv]") ; [done|].
       iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
       all: rel_pures_l ; rel_pures_r.
-      + rel_flip_l. rel_pures_l. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
+      + rel_flipL_l. rel_pures_l. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
         rel_store_l. rel_store_r. rel_pures_l. rel_pures_r.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_r. rel_pures_r.
-        rel_apply_l refines_flip_empty_l.
+        rel_apply_l refines_flipL_empty_l.
         iFrame. iIntros (b) "α".
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
@@ -98,13 +97,13 @@ Section proofs.
       iApply (refines_na_inv with "[$Hinv]") ; [done|].
       iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
       all: rel_pures_l ; rel_pures_r.
-      + rel_flip_l. rel_pures_l. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
+      + rel_flipL_l. rel_pures_l. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
         rel_store_l. rel_store_r. rel_pures_l. rel_pures_r.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_r. rel_pures_r.
-        rel_apply_l refines_flip_empty_l.
+        rel_apply_l refines_flipL_empty_l.
         iFrame. iIntros (b) "α".
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
@@ -132,9 +131,9 @@ Section proofs.
     rewrite /H_with_tape /H.
     rel_alloc_l x as "x". rel_alloc_r y as "y".
     rel_pures_l. rel_pures_r.
-    rel_alloctape_r α as "α".
+    rel_allocBtape_r α as "α".
     rel_pures_r.
-    set (P := ((α ↪ₛ [] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ₛ [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
+    set (P := ((α ↪ₛB [] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ₛB [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
     iApply (refines_na_alloc P bisimN).
     iSplitL. 1: iModIntro ; iLeft ; iFrame.
     iIntros "#Hinv".
@@ -143,8 +142,8 @@ Section proofs.
     iApply (refines_na_inv with "[$Hinv]") ; [done|].
     iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
     all: rel_pures_l ; rel_pures_r.
-    + rel_bind_l (Flip _). rel_bind_r (Flip _).
-      rel_apply_l refines_couple_flips_r.
+    + rel_bind_l flip. rel_bind_r (flipL _).
+      rel_apply_l refines_couple_flip_flipL.
       iFrame ; iIntros (b) "α".
       destruct b.
       * rel_pures_l. rel_pures_r. rel_load_l. rel_load_r. rel_pures_l. rel_pures_r.
@@ -157,8 +156,8 @@ Section proofs.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight ; iModIntro ; iFrame.
-    + rel_bind_l (Flip _). rel_bind_r (Flip _).
-      rel_apply_l refines_couple_flips_r.
+    + rel_bind_l flip. rel_bind_r (flipL _).
+      rel_apply_l refines_couple_flip_flipL.
       iFrame ; iIntros (b) "α".
       destruct b.
       * rel_pures_l. rel_pures_r. rel_load_l. rel_load_r. rel_pures_l. rel_pures_r.
@@ -185,12 +184,11 @@ Section proofs.
     rewrite /H_with_tape /K.
     rel_alloc_l x as "x". rel_alloc_r y as "y".
     rel_pures_l. rel_pures_r.
-    rel_alloctape_r α as "α".
-    rel_bind_l (flip _)%E.
-    iApply (refines_couple_flip_tape with "[$α x y]").
+    rel_allocBtape_r α as "α".
+    rel_apply_l (refines_couple_flip_tape with "[$α x y]").
     iIntros (b) "α /=".
     rel_pures_l. rel_pures_r.
-    set (P := ((α ↪ₛ [b] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ₛ [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
+    set (P := ((α ↪ₛB [b] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ₛB [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
     iApply (refines_na_alloc P bisimN).
     iSplitL. 1: iModIntro ; iLeft ; iFrame.
     iIntros "#Hinv".
@@ -202,13 +200,13 @@ Section proofs.
       iApply (refines_na_inv with "[$Hinv]") ; [done|].
       iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
       all: rel_pures_l ; rel_pures_r.
-      + rel_flip_r. rel_pures_r. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
+      + rel_flipL_r. rel_pures_r. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
         rel_store_l. rel_store_r. rel_pures_l. rel_pures_r.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_l.
-        rel_apply_r refines_flip_empty_r. 1: auto.
+        rel_apply_r refines_flipL_empty_r; [done|]. 
         iFrame. iIntros (b) "α". rel_pures_l.
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
@@ -223,13 +221,13 @@ Section proofs.
       iApply (refines_na_inv with "[$Hinv]") ; [done|].
       iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
       all: rel_pures_l ; rel_pures_r.
-      + rel_flip_r. rel_pures_r. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
+      + rel_flipL_r. rel_pures_r. rel_load_r. rel_load_l. rel_pures_l. rel_pures_r.
         rel_store_l. rel_store_r. rel_pures_l. rel_pures_r.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_l.
-        rel_apply_r refines_flip_empty_r. 1: auto.
+        rel_apply_r refines_flipL_empty_r; [done|].
         iFrame. iIntros (b) "α". rel_pures_l.
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
@@ -246,9 +244,9 @@ Section proofs.
     rewrite /H_with_tape /H.
     rel_alloc_l x as "x". rel_alloc_r y as "y".
     rel_pures_l. rel_pures_r.
-    rel_alloctape_l α as "α".
+    rel_allocBtape_l α as "α".
     rel_pures_r.
-    set (P := ((α ↪ [] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
+    set (P := ((α ↪B [] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪B [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
     iApply (refines_na_alloc P bisimN).
     iSplitL. 1: iModIntro ; iLeft ; iFrame.
     iIntros "#Hinv".
@@ -257,8 +255,8 @@ Section proofs.
     iApply (refines_na_inv with "[$Hinv]") ; [done|].
     iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
     all: rel_pures_l ; rel_pures_r.
-    + rel_bind_l (Flip _). rel_bind_r (Flip _).
-      rel_apply_l refines_couple_flips_l.
+    + rel_bind_l (flipL _). rel_bind_r flip.
+      rel_apply_l refines_couple_flipL_flip; [solve_ndisj|].
       iFrame ; iIntros (b) "α".
       destruct b ;
         rel_pures_l ; rel_pures_r ; rel_load_l ; rel_load_r ; rel_pures_l ; rel_pures_r ;
@@ -266,8 +264,8 @@ Section proofs.
         iApply (refines_na_close with "[- $Hclose]").
       all: iSplitL; [|rel_values] ;
         iRight ; iModIntro ; iFrame.
-    + rel_bind_l (Flip _). rel_bind_r (Flip _).
-      rel_apply_l refines_couple_flips_l.
+    + rel_bind_l (flipL _). rel_bind_r flip.
+      rel_apply_l refines_couple_flipL_flip; [solve_ndisj|].
       iFrame ; iIntros (b) "α".
       destruct b ;
         rel_pures_l ; rel_pures_r ; rel_load_l ; rel_load_r ; rel_pures_l ; rel_pures_r ;

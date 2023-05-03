@@ -4,6 +4,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
+From self.examples.lib Require Import flip. 
 From self.examples Require Import keyed_hash hash rng.
 
 Set Default Proof Using "Type*".
@@ -297,7 +298,7 @@ Section rng.
     ↑specN ⊆ E →
     ↑khashN ⊆ E →
     n ≤ MAX_SAMPLES →
-    {{{ ▷ hash_rng n g ∗ refines_right K (flip #()) ∗ na_own clutchRGS_nais (↑khashN) }}}
+    {{{ ▷ hash_rng n g ∗ refines_right K flip%E ∗ na_own clutchRGS_nais (↑khashN) }}}
       g #() @ E
     {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b ∗ na_own clutchRGS_nais (↑khashN) }}}.
   Proof.
@@ -567,7 +568,7 @@ Section rng.
     tp_pures.
     case_bool_decide.
     - tp_pures.
-      tp_bind (flip #())%E.
+      tp_bind flip%E.
       rewrite refines_right_bind.
       iApply wp_fupd.
       wp_apply (wp_hash_rng_flip with "[$HK $Hhash $Htok]"); auto.

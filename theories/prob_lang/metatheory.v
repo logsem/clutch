@@ -244,8 +244,8 @@ Proof.
   eauto.
 Qed.
 
-(** * rand(N) ~ rand(N) coupling, "wrong" N *)
-Lemma Rcoupl_rand_rand_empty_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 α2 z σ1 σ2 xs ys :
+(** * rand(N, α1) ~ rand(N, α2) coupling, "wrong" N *)
+Lemma Rcoupl_rand_lbl_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 α2 z σ1 σ2 xs ys :
   σ1.(tapes) !! α1 = Some (M; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
   N ≠ M →
@@ -264,6 +264,58 @@ Proof.
   { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
     by eapply RandTapeOtherS. }
   rewrite /dmap -Hz Hσ1 Hσ2.
+  rewrite bool_decide_eq_false_2 //.
+  eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+  intros n ? ->.
+  apply Rcoupl_dret.
+  eauto.
+Qed.
+
+(** * rand(N,α) ~ rand(N) coupling, "wrong" N *)
+Lemma Rcoupl_rand_lbl_rand_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 z σ1 σ2 xs :
+  σ1.(tapes) !! α1 = Some (M; xs) →
+  N ≠ M →
+  N = Z.to_nat z →
+  Rcoupl
+    (prim_step (rand #z from #lbl:α1) σ1)
+    (prim_step (rand #z from #()) σ2)
+    (λ ρ2 ρ2', ∃ (n : fin (S N)),
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
+Proof.
+  intros Hσ1 Hneq Hz.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+    by eapply RandTapeOtherS. }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
+    by eapply RandNoTapeS. }
+  rewrite /dmap -Hz Hσ1.
+  rewrite bool_decide_eq_false_2 //.
+  eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
+  intros n ? ->.
+  apply Rcoupl_dret.
+  eauto.
+Qed.
+
+(** * rand(N) ~ rand(N, α) coupling, "wrong" N *)
+Lemma Rcoupl_rand_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α2 z σ1 σ2 ys :
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  N ≠ M →
+  N = Z.to_nat z →
+  Rcoupl
+    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z from #lbl:α2) σ2)
+    (λ ρ2 ρ2', ∃ (n : fin (S N)),
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
+Proof.
+  intros Hσ2 Hneq Hz.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+    by eapply RandNoTapeS. }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
+    by eapply RandTapeOtherS. }
+  rewrite /dmap -Hz Hσ2.
   rewrite bool_decide_eq_false_2 //.
   eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
   intros n ? ->.
@@ -291,7 +343,6 @@ Proof.
   intros n ? ->.
   apply Rcoupl_dret. eauto.
 Qed.
-
 
 (** * Generalized state_step(α) ~ state_step(α') coupling *)
 Lemma Rcoupl_state_step_gen (m1 m2 : nat) (R : fin (S m1) -> fin (S m2) -> Prop) σ1 σ2 α1 α2 xs ys :
@@ -323,7 +374,6 @@ Proof.
   apply Rcoupl_dret.
   exists a. exists b. split; try split; auto.
 Qed.
-
 
 (** * rand(unit, N) ~ state_step(α', N) coupling *)
 Lemma Rcoupl_rand_state N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α' xs:

@@ -1,9 +1,8 @@
 From stdpp Require Import namespaces.
-From iris.base_logic Require Import invariants na_invariants.
-From self.prob_lang Require Import notation proofmode primitive_laws spec_rules.
+From self.prob_lang Require Import notation proofmode.
+From self.prelude Require Import base.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.typing Require Import soundness.
-From self.prelude Require Import base.
 From self.examples.lib Require Import flip.
 Set Default Proof Using "Type*".
 
@@ -121,7 +120,7 @@ Section logical_ref.
     rewrite /lazy_with_tape /eager.
     rel_allocBtape_r α as "Hα". rel_pures_r.
     rel_bind_l flip.
-    iApply (refines_couple_flip_tape with "[$Hα]").
+    rel_apply_l (refines_couple_flip_tape with "[$Hα]").
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.

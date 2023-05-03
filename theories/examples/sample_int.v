@@ -4,7 +4,7 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
-From self.examples.lib Require Import conversion.
+From self.examples.lib Require Import flip conversion.
 
 (* This is a library for sampling integers in the set {0, ..., 2^n-1}
    for some natural number n > 0.
@@ -20,6 +20,7 @@ From self.examples.lib Require Import conversion.
 
  *)
 
+(* TODO: should this be adopted to make use of the new [rand n] primitive?  *)
 Section int.
 
   (* To use the library, one specifies the bit width n by setting PRED_NUM_BITS to be n - 1.
@@ -35,7 +36,7 @@ Section int.
         if: "n" = #0 then
           #0
         else
-          let: "b" := bool_to_int (flip "α") in
+          let: "b" := bool_to_int (flipL "α") in
           let: "rest" := "sample_int_aux" "α" ("n" - #1) in
           "b" ≪ ("n" - #1) + "rest").
 
@@ -161,17 +162,17 @@ Section int.
 
   Definition int_tape α (zs: list Z) : iProp Σ :=
     ⌜ Forall (λ z, 0 ≤ z < 2 ^ NUM_BITS)%Z zs ⌝ ∗
-    α ↪b ((1; flat_map (λ z, Z_to_bool_list z NUM_BITS) zs) : tape).
+    α ↪B (flat_map (λ z, Z_to_bool_list z NUM_BITS) zs).
 
   Definition spec_int_tape α (zs: list Z) : iProp Σ :=
     ⌜ Forall (λ z, 0 ≤ z < 2 ^ NUM_BITS)%Z zs ⌝ ∗
-    α ↪ₛ (flat_map (λ z, Z_to_bool_list z NUM_BITS) zs).
+    α ↪ₛB (flat_map (λ z, Z_to_bool_list z NUM_BITS) zs).
 
   Lemma wp_sample_int_aux E α z n bs :
     (0 ≤ z)%Z →
-    {{{ α ↪ (Z_to_bool_list z n ++ bs) }}}
+    {{{ α ↪B (Z_to_bool_list z n ++ bs) }}}
       sample_int_aux (#lbl:α) #n @ E
-    {{{ z', RET #z' ; ⌜ z' = Z.land z (Z.ones n) ⌝ ∗ α ↪ bs }}}.
+    {{{ z', RET #z' ; ⌜ z' = Z.land z (Z.ones n) ⌝ ∗ α ↪B bs }}}.
   Proof.
     rewrite /sample_int_aux.
     iInduction n as [| n'] "IH";
@@ -180,7 +181,7 @@ Section int.
       iPureIntro.
       rewrite Z.land_ones //=. rewrite Z.mod_1_r //.
     - wp_pures. simpl.
-      wp_apply (wp_flip with "Hα"); iIntros "Hα".
+      wp_apply (wp_flipL with "Hα"); iIntros "Hα".
       wp_apply (wp_bool_to_int with "[//]"); iIntros "_".
       wp_pure _. wp_pure _.
       wp_pure _. replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n'); last by lia.
@@ -196,19 +197,22 @@ Section int.
   Lemma spec_sample_int_aux E K α z n bs :
     ↑specN ⊆ E →
     (0 ≤ z)%Z →
-    α ↪ₛ (Z_to_bool_list z n ++ bs) -∗
+    α ↪ₛB (Z_to_bool_list z n ++ bs) -∗
     refines_right K (sample_int_aux (#lbl:α) #n) ={E}=∗ ∃ z', ⌜ z' = Z.land z (Z.ones n) ⌝ ∗
-    refines_right K (of_val #z') ∗ α ↪ₛ bs.
+    refines_right K (of_val #z') ∗ α ↪ₛB bs.
   Proof.
     intros HE Hle.
     iInduction n as [| n'] "IH" forall (K); rewrite /sample_int_aux; iIntros "Hα HK".
     - tp_pures; first solve_vals_compare_safe. rewrite Z.land_ones //= Z.mod_1_r //.
       iExists _; eauto with iFrame.
     - tp_pures; first solve_vals_compare_safe. simpl.
-      tp_flip.
+      tp_bind (flipL _ )%E.
+      rewrite refines_right_bind.
+      iMod (refines_right_flipL with "Hα HK") as "[HK Hα]"; [solve_ndisj|].
+      rewrite -refines_right_bind /=.
       tp_bind (bool_to_int _).
       rewrite refines_right_bind.
-      iMod (spec_bool_to_int with "[$]") as "HK"; first done.
+      iMod (refines_right_bool_to_int with "[$]") as "HK"; first done.
       rewrite -refines_right_bind /=.
       tp_pure. tp_pure.
       tp_pure.
@@ -290,9 +294,9 @@ Section int.
     iIntros (Hnv HN) "(#Hctx&Hαₛ&Hα&Hwp)".
     iDestruct "Hα" as (?) "Hα".
     iDestruct "Hαₛ" as (?) "Hαₛ".
-    iApply (wp_couple_tapesN_eq _ (NUM_BITS)); try done.
+    iApply (wp_couple_bool_tapeN_tapeN_eq (NUM_BITS)); try done.
     iFrame "Hα Hαₛ Hctx".
-    iDestruct 1 as (bs Hlen) "(Hαₛ&Hα)".
+    iIntros (bs) "(%Hlen&Hαₛ&Hα)".
     iApply "Hwp".
 
     assert (Hrange: (0 ≤ bool_list_to_Z bs ≤ MAX_INT)%Z).
@@ -345,11 +349,11 @@ Section int.
   Qed.
 
   Lemma spec_int_tape_intro α :
-    α ↪ₛ [] -∗ spec_int_tape α [].
+    α ↪ₛB [] -∗ spec_int_tape α [].
   Proof. iIntros "H". rewrite /spec_int_tape/=. iFrame. eauto. Qed.
 
   Lemma int_tape_intro α :
-    α ↪ [] -∗ int_tape α [].
+    α ↪B [] -∗ int_tape α [].
   Proof. iIntros "H". rewrite /int_tape/=. iFrame. eauto. Qed.
 
 End int.

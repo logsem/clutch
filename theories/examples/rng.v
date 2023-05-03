@@ -4,7 +4,9 @@ From self.prob_lang Require Import notation proofmode primitive_laws spec_rules 
 From self.logrel Require Import model rel_rules rel_tactics.
 From iris.algebra Require Import auth gmap excl frac agree.
 From self.prelude Require Import base.
+From self.examples.lib Require Import flip.
 From self.examples Require Import hash.
+
 
 Set Default Proof Using "Type*".
 
@@ -134,7 +136,7 @@ Section rng.
   Lemma wp_hash_rng_flip n g K E :
     ↑specN ⊆ E →
     n ≤ MAX →
-    {{{ hash_rng n g ∗ refines_right K (flip #())}}}
+    {{{ hash_rng n g ∗ refines_right K flip}}}
       g #() @ E
     {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b }}}.
   Proof.
@@ -271,7 +273,7 @@ Section rng.
         let: "n" := !"c" in
         let: "b" :=
           if: "n" ≤ #MAX then
-            flip #()
+            flip
           else #false in
         "c" <- "n" + #1;;
         "b").
@@ -281,7 +283,7 @@ Section rng.
         let: "n" := !#c in
         let: "b" :=
           if: "n" ≤ #MAX then
-            flip #()
+            flip
           else #false in
         #c <- "n" + #1;;
         "b").
@@ -331,11 +333,10 @@ Section rng.
     tp_pures.
     case_bool_decide.
     - tp_pures.
-      tp_bind (flip #())%E.
+      tp_bind flip.
       rewrite refines_right_bind.
       iApply wp_fupd.
-      wp_apply (wp_hash_rng_flip with "[$HK $Hhash]"); auto.
-      { lia. }
+      wp_apply (wp_hash_rng_flip with "[$HK $Hhash]"); [done|lia|].
       iIntros (b) "(Hhash&HK)".
       rewrite -refines_right_bind /=.
       tp_pures.
