@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
-From self.prob Require Import distribution.
-From self.program_logic Require Import ectx_language.
-From self.prob_lang Require Import lang.
+From clutch.prob Require Import distribution.
+From clutch.program_logic Require Import ectx_language.
+From clutch.prob_lang Require Import lang.
 From iris.prelude Require Import options.
 Import prob_lang.
 

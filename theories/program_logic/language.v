@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From iris.bi Require Export weakestpre.
-From self.prob Require Import distribution.
+From clutch.prob Require Import distribution.
 
 
 Section language_mixin.

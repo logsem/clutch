@@ -1,9 +1,9 @@
 From iris.base_logic Require Import invariants na_invariants.
-From self.program_logic Require Import weakestpre.
-From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics locations lang.
-From self.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
-From self.prelude Require Import base.
-From self.examples.lib Require Import map flip.
+From clutch.program_logic Require Import weakestpre.
+From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics locations lang.
+From clutch.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
+From clutch.prelude Require Import base.
+From clutch.examples.lib Require Import map flip.
 Set Default Proof Using "Type*".
 
 Module simple_bit_hash.

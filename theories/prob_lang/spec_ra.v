@@ -5,8 +5,8 @@ From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
-From self.program_logic Require Import language ectxi_language exec.
-From self.prob_lang Require Import locations lang.
+From clutch.program_logic Require Import language ectxi_language exec.
+From clutch.prob_lang Require Import locations lang.
 
 Definition specN := nroot .@ "spec".
 

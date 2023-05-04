@@ -1,5 +1,5 @@
-From self.prob_lang Require Import locations.
-From self.prob_lang Require Import lang.
+From clutch.prob_lang Require Import locations.
+From clutch.prob_lang Require Import lang.
 From iris.prelude Require Import options.
 
 (** Coercions to make programs easier to type. *)

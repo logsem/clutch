@@ -1,10 +1,10 @@
 From stdpp Require Import namespaces.
-From self.program_logic Require Import ectxi_language.
-From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
-From self.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
-From self.typing Require Import types fundamental contextual_refinement soundness.
-From self.prelude Require Import base.
-From self.examples.lib Require Import flip. 
+From clutch.program_logic Require Import ectxi_language.
+From clutch.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
+From clutch.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
+From clutch.typing Require Import types fundamental contextual_refinement soundness.
+From clutch.prelude Require Import base.
+From clutch.examples.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 (** The lazy/eager coins, without tapes *)

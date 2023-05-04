@@ -1,7 +1,7 @@
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
-From self.prob_lang Require Import notation primitive_laws spec_rules spec_tactics proofmode lang.
-From self.logrel Require Import model rel_tactics rel_rules.
+From clutch.prob_lang Require Import notation primitive_laws spec_rules spec_tactics proofmode lang.
+From clutch.logrel Require Import model rel_tactics rel_rules.
 
 Section compatibility.
   Context `{!clutchRGS Σ}.

@@ -1,12 +1,12 @@
 (** * Coupling rules  *)
 From Coq Require Import Reals.
 From stdpp Require Import namespaces.
-From self.prelude Require Import stdpp_ext.
+From clutch.prelude Require Import stdpp_ext.
 From iris.proofmode Require Import proofmode.
-From self.program_logic Require Import language ectx_language lifting ectx_lifting weakestpre exec.
-From self.prob_lang Require Import locations notation tactics primitive_laws lang
+From clutch.program_logic Require Import language ectx_language lifting ectx_lifting weakestpre exec.
+From clutch.prob_lang Require Import locations notation tactics primitive_laws lang
   metatheory spec_ra.
-From self.prob_lang Require Export spec_rules.
+From clutch.prob_lang Require Export spec_rules.
 
 (* TODO: can we factor out a clever lemma to avoid duplication in all the
    coupling lemmas? *)

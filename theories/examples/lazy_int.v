@@ -1,11 +1,11 @@
 From iris.base_logic Require Import invariants na_invariants.
-From self.program_logic Require Import weakestpre.
-From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
-From self.typing Require Import types interp.
-From self.prelude Require Import base.
-From self.logrel Require Import model rel_rules compatibility.
-From self.examples Require Import sample_int.
-From self.examples.lib Require Import flip.
+From clutch.program_logic Require Import weakestpre.
+From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
+From clutch.typing Require Import types interp.
+From clutch.prelude Require Import base.
+From clutch.logrel Require Import model rel_rules compatibility.
+From clutch.examples Require Import sample_int.
+From clutch.examples.lib Require Import flip.
 
 
 Section lazy_int.
@@ -564,7 +564,7 @@ Section lazy_int.
     { iExists _, _, _. iFrame. eauto. }
   Qed.
 
-  Lemma wp_cmp_lazy_int_cmp_self z1 v1 E :
+  Lemma wp_cmp_lazy_int_cmp_clutch z1 v1 E :
     {{{ ▷ lazy_int z1 v1  }}}
       cmp_lazy_int (v1, v1)%V @ E
     {{{ zret, RET #zret ;
@@ -580,7 +580,7 @@ Section lazy_int.
     iExists _, _, _. eauto.
   Qed.
 
-  Lemma spec_cmp_lazy_int_cmp_self z1 v1 E K :
+  Lemma spec_cmp_lazy_int_cmp_clutch z1 v1 E K :
     ↑specN ⊆ E →
     refines_right K (cmp_lazy_int (v1, v1)%V) -∗
     spec_lazy_int z1 v1 ={E}=∗
@@ -630,7 +630,7 @@ Section lazy_int.
     iApply "HΦ". iFrame; eauto. rewrite Heq. eauto.
   Qed.
 
-  Lemma wp_cmp_lazy_eager_refine_cmp_self z1 v1 K E :
+  Lemma wp_cmp_lazy_eager_refine_cmp_clutch z1 v1 K E :
     ↑ specN ⊆ E →
     {{{ ▷ lazy_int z1 v1 ∗ refines_right K (cmp_eager_int (#z1, #z1)%V) }}}
       cmp_lazy_int (v1, v1)%V @ E
@@ -642,12 +642,12 @@ Section lazy_int.
     rewrite /cmp_eager_int.
     tp_pures.
     iMod (spec_cmpZ with "[$]") as "HK"; first done.
-    wp_apply (wp_cmp_lazy_int_cmp_self with "[$Hv1]").
+    wp_apply (wp_cmp_lazy_int_cmp_clutch with "[$Hv1]").
     iIntros (zret) "(%Hret&H1)".
     iApply "HΦ". iFrame; eauto. rewrite Hret. eauto.
   Qed.
 
-  Lemma wp_cmp_eager_lazy_refine_cmp_self z1 v1 K E :
+  Lemma wp_cmp_eager_lazy_refine_cmp_clutch z1 v1 K E :
     ↑ specN ⊆ E →
     {{{ ▷ spec_lazy_int z1 v1 ∗ refines_right K (cmp_lazy_int (v1, v1)%V) }}}
       cmp_eager_int (#z1, #z1)%V @ E
@@ -658,7 +658,7 @@ Section lazy_int.
     iIntros (HE Φ) "(Hv1&HK) HΦ".
     rewrite /cmp_eager_int.
     wp_pures.
-    iMod (spec_cmp_lazy_int_cmp_self with "[$] [$]") as (?) "(HK&%Hret&Hv1)"; first done.
+    iMod (spec_cmp_lazy_int_cmp_clutch with "[$] [$]") as (?) "(HK&%Hret&Hv1)"; first done.
     wp_apply (wp_cmpZ with "[//]").
     iIntros "_".
     iApply "HΦ". iFrame; eauto. rewrite Hret. iFrame "HK". eauto.
@@ -706,7 +706,7 @@ Section lazy_int.
       { iMod (na_inv_acc with "HR1 Hown") as "(Hint&Hrest&Hclo)"; try set_solver.
         inversion Heq; subst.
         iApply wp_fupd.
-        wp_apply (wp_cmp_lazy_eager_refine_cmp_self with "[$]"); first auto.
+        wp_apply (wp_cmp_lazy_eager_refine_cmp_clutch with "[$]"); first auto.
         iIntros (zret) "(%Heq'&Hint&HK)".
         iMod ("Hclo" with "[$]").
         iExists _. iFrame. eauto. }
@@ -754,7 +754,7 @@ Section lazy_int.
       { iMod (na_inv_acc with "HR1 Hown") as "(Hint&Hrest&Hclo)"; try set_solver.
         inversion Heq; subst.
         iApply wp_fupd.
-        wp_apply (wp_cmp_eager_lazy_refine_cmp_self with "[$]"); first auto.
+        wp_apply (wp_cmp_eager_lazy_refine_cmp_clutch with "[$]"); first auto.
         iIntros (zret) "(%Heq'&Hint&HK)".
         iMod ("Hclo" with "[$]").
         iExists _. iFrame. eauto. }

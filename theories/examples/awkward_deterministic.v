@@ -2,9 +2,9 @@
 
 From iris.base_logic Require Import invariants.
 From iris.algebra Require Import csum excl.
-From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
-From self.logrel Require Import model rel_rules rel_tactics compatibility.
-From self.prelude Require Import base.
+From clutch.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
+From clutch.logrel Require Import model rel_rules rel_tactics compatibility.
+From clutch.prelude Require Import base.
 Set Default Proof Using "Type*".
 
 Definition oneshotR := csumR (exclR unitR) (agreeR unitR).

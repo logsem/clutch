@@ -1,11 +1,11 @@
 (* A zoo of variants of Von Neumann's construction of a fair coin from a biased coin. *)
 
 From stdpp Require Import namespaces.
-From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
-From self.logrel Require Import model rel_rules rel_tactics compatibility.
-From self.typing Require Import fundamental.
-From self.prelude Require Import base.
-From self.examples.lib Require Import flip. 
+From clutch.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
+From clutch.logrel Require Import model rel_rules rel_tactics compatibility.
+From clutch.typing Require Import fundamental.
+From clutch.prelude Require Import base.
+From clutch.examples.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 Section proofs.

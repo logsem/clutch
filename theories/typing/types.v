@@ -1,7 +1,7 @@
 (** (Syntactic) Typing for System F_mu_ref with tapes *)
 From Autosubst Require Export Autosubst.
 From stdpp Require Export stringmap fin_map_dom gmap.
-From self.prob_lang Require Import lang notation.
+From clutch.prob_lang Require Import lang notation.
 
 Canonical Structure varO := leibnizO var.
 
@@ -129,7 +129,7 @@ Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (LamV x%binder e2%E))
 Global Instance insert_binder (A : Type): Insert binder A (stringmap A) :=
   binder_insert.
 
-(** Typing itself *)
+(** Typing itclutch *)
 Inductive typed : stringmap type → expr → type → Prop :=
   | Var_typed Γ x τ :
      Γ !! x = Some τ →

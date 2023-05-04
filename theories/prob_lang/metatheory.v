@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap.
-From self.prelude Require Import stdpp_ext.
-From self.prob Require Import distribution couplings.
-From self.program_logic Require Import ectx_language.
-From self.prob_lang Require Import locations lang tactics notation.
+From clutch.prelude Require Import stdpp_ext.
+From clutch.prob Require Import distribution couplings.
+From clutch.program_logic Require Import ectx_language.
+From clutch.prob_lang Require Import locations lang tactics notation.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [prob_lang] language *)

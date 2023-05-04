@@ -2,11 +2,11 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
-From self.prelude Require Import stdpp_ext.
-From self.prob Require Import distribution.
-From self.program_logic Require Import language ectx_language.
-From self.program_logic Require Import ectxi_language.
-From self.prob_lang Require Import locations.
+From clutch.prelude Require Import stdpp_ext.
+From clutch.prob Require Import distribution.
+From clutch.program_logic Require Import language ectx_language.
+From clutch.program_logic Require Import ectxi_language.
+From clutch.prob_lang Require Import locations.
 From iris.prelude Require Import options.
 
 Delimit Scope expr_scope with E.

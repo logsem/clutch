@@ -5,10 +5,10 @@ From iris.bi Require Export weakestpre fixpoint big_op.
 From iris.prelude Require Import options.
 From iris.base_logic.lib Require Export ghost_map invariants.
 
-From self.prelude Require Import stdpp_ext iris_ext.
-From self.program_logic Require Import language exec weakestpre.
-From self.prob_lang Require Import primitive_laws spec_ra erasure locations lang.
-From self.prob Require Import couplings.
+From clutch.prelude Require Import stdpp_ext iris_ext.
+From clutch.program_logic Require Import language exec weakestpre.
+From clutch.prob_lang Require Import primitive_laws spec_ra erasure locations lang.
+From clutch.prob Require Import couplings.
 Import uPred.
 
 Section adequacy.

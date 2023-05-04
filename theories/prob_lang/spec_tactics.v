@@ -3,10 +3,10 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
-From self.program_logic Require Import language ectx_language ectxi_language exec weakestpre lifting.
-From self.prob_lang Require Import locations notation tactics primitive_laws metatheory lang
+From clutch.program_logic Require Import language ectx_language ectxi_language exec weakestpre lifting.
+From clutch.prob_lang Require Import locations notation tactics primitive_laws metatheory lang
   class_instances.
-From self.prob_lang Require Import spec_ra spec_rules.
+From clutch.prob_lang Require Import spec_ra spec_rules.
 Set Default Proof Using "Type".
 
 (** ** bind *)

@@ -2,10 +2,10 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
-From self.prelude Require Import stdpp_ext.
-From self.program_logic Require Import language ectxi_language.
-From self.prob_lang Require Import locations class_instances notation primitive_laws spec_ra spec_tactics tactics lang.
-From self.logrel Require Import model rel_rules.
+From clutch.prelude Require Import stdpp_ext.
+From clutch.program_logic Require Import language ectxi_language.
+From clutch.prob_lang Require Import locations class_instances notation primitive_laws spec_ra spec_tactics tactics lang.
+From clutch.logrel Require Import model rel_rules.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!clutchRGS Σ} e' K ℶ E e t A :

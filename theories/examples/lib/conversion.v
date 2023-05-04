@@ -1,7 +1,7 @@
-From self.program_logic Require Import weakestpre ectxi_language.
-From self.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
-From self.logrel Require Import model rel_rules rel_tactics.
-From self.prelude Require Import base stdpp_ext.
+From clutch.program_logic Require Import weakestpre ectxi_language.
+From clutch.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
+From clutch.logrel Require Import model rel_rules rel_tactics.
+From clutch.prelude Require Import base stdpp_ext.
 
 Definition bool_to_int : val :=
   λ: "b",

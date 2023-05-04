@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
-From self.prob Require Import distribution.
-From self.program_logic Require Import language ectx_language ectxi_language.
-From self.prob_lang Require Import lang tactics notation.
+From clutch.prob Require Import distribution.
+From clutch.program_logic Require Import language ectx_language ectxi_language.
+From clutch.prob_lang Require Import lang tactics notation.
 From iris.prelude Require Import options.
 From stdpp Require Import fin_maps.
 

@@ -3,8 +3,8 @@
 From Coq Require Import Reals.
 From Coq.Program Require Import Wf.
 From iris.prelude Require Export prelude.
-From self.program_logic Require Import language ectx_language.
-From self.prob Require Import distribution.
+From clutch.program_logic Require Import language ectx_language.
+From clutch.prob Require Import distribution.
 
 Section ectxi_language_mixin.
   Context {expr val ectx_item state state_idx : Type}.

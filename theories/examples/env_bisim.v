@@ -5,12 +5,12 @@
  *)
 
 From stdpp Require Import namespaces.
-From self.program_logic Require Import exec.
-From self.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
-From self.logrel Require Import model rel_rules rel_tactics adequacy.
-From self.typing Require Import types contextual_refinement soundness.
-From self.prelude Require Import base.
-From self.examples Require Import flip.
+From clutch.program_logic Require Import exec.
+From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
+From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch.typing Require Import types contextual_refinement soundness.
+From clutch.prelude Require Import base.
+From clutch.examples Require Import flip.
 Set Default Proof Using "Type*".
 
 (* A diverging term. *)

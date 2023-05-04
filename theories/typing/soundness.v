@@ -1,10 +1,10 @@
 (** Logical relation is sound w.r.t. the contextual refinement. *)
 From Coq Require Export Reals.
-From self.program_logic Require Import exec.
+From clutch.program_logic Require Import exec.
 From iris.proofmode Require Import proofmode.
-From self.prob_lang Require Import notation metatheory primitive_laws lang.
-From self.logrel Require Import model adequacy.
-From self.typing Require Import interp contextual_refinement.
+From clutch.prob_lang Require Import notation metatheory primitive_laws lang.
+From clutch.logrel Require Import model adequacy.
+From clutch.typing Require Import interp contextual_refinement.
 
 Lemma refines_sound_open Σ `{!clutchRGpreS Σ} Γ e e' τ :
   (∀ `{clutchRGS Σ} Δ, ⊢ {⊤;Δ;Γ} ⊨ e ≤log≤ e' : τ) →

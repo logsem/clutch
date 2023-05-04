@@ -2,10 +2,10 @@
 
 From iris.base_logic Require Import invariants.
 From iris.proofmode Require Import proofmode.
-From self.prelude Require Import stdpp_ext. 
-From self.prob_lang Require Import spec_ra metatheory notation primitive_laws lang.
-From self.logrel Require Import model compatibility rel_rules rel_tactics.
-From self.typing Require Import types interp.
+From clutch.prelude Require Import stdpp_ext. 
+From clutch.prob_lang Require Import spec_ra metatheory notation primitive_laws lang.
+From clutch.logrel Require Import model compatibility rel_rules rel_tactics.
+From clutch.typing Require Import types interp.
 
 Section fundamental.
   Context `{!clutchRGS Σ}.

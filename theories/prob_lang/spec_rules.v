@@ -1,9 +1,9 @@
 (** Rules for updating the specification program. *)
 From stdpp Require Import namespaces.
-From self.prelude Require Import stdpp_ext.
+From clutch.prelude Require Import stdpp_ext.
 From iris.proofmode Require Import proofmode.
-From self.program_logic Require Import language ectx_language exec weakestpre lifting.
-From self.prob_lang Require Import locations notation tactics primitive_laws spec_ra metatheory lang.
+From clutch.program_logic Require Import language ectx_language exec weakestpre lifting.
+From clutch.prob_lang Require Import locations notation tactics primitive_laws spec_ra metatheory lang.
 
 Section rules.
   Context `{!clutchGS Σ}.

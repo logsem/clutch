@@ -2,8 +2,8 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
-From self.prelude Require Export base Reals_ext Coquelicot_ext Series_ext classical.
-From self.prob Require Export countable_sum.
+From clutch.prelude Require Export base Reals_ext Coquelicot_ext Series_ext classical.
+From clutch.prob Require Export countable_sum.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
   pmf :> A → R;
