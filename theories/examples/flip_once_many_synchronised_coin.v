@@ -18,12 +18,7 @@
    "lazy_alt") and "β" (from eager) synchronised.
  *)
 
-From stdpp Require Import namespaces.
-From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import lang notation spec_ra spec_tactics proofmode primitive_laws.
-From clutch.logrel Require Import model rel_rules rel_tactics compatibility.
-From clutch.prelude Require Import base.
-From clutch.lib Require Import flip.
+From clutch Require Export clutch lib.flip.
 Set Default Proof Using "Type*".
 
 Section proofs.

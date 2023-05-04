@@ -3,7 +3,7 @@ From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import metatheory primitive_laws lang.
 From clutch.prelude Require Import asubst properness.
 From clutch.logrel Require Import model.
-From clutch.typing Require Import types.
+From clutch.typing Require Export types.
 
 (** * Interpretation of types *)
 Section semtypes.

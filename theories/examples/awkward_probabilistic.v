@@ -13,14 +13,9 @@ NB: e1 and e2 are equivalent only if executed only once. We prove the
 equivalence by adding a guard that returns `NONE` after the first invocation.
 *)
 
-From stdpp Require Import namespaces.
-From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import lang notation spec_ra spec_tactics proofmode primitive_laws.
-From clutch.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
-From clutch.typing Require Import types contextual_refinement soundness.
-From clutch.examples Require Import one_time_pad.
-From clutch.prelude Require Import base.
-From clutch.lib Require Import flip. 
+From clutch Require Export clutch lib.flip. 
+From clutch.examples Require Export one_time_pad.
+
 Set Default Proof Using "Type*".
 
 Section proofs.

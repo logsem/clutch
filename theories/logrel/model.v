@@ -1,5 +1,5 @@
 (** A binary logical relation for System F_mu_ref with tapes *)
-From iris.base_logic Require Import na_invariants.
+From iris.base_logic Require Export na_invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.program_logic Require Import language ectxi_language weakestpre.
 From clutch.prelude Require Import properness.

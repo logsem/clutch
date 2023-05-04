@@ -2,7 +2,7 @@
 semantics to the program logic. *)
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
-From clutch.program_logic Require Import language weakestpre.
+From clutch.program_logic Require Import weakestpre.
 
 Section lifting.
 Context `{!irisGS Λ Σ}.

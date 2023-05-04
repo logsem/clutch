@@ -1,12 +1,5 @@
-From iris.base_logic Require Import invariants na_invariants.
-From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
-From clutch.typing Require Import types interp.
-From clutch.prelude Require Import base.
-From clutch.logrel Require Import model rel_rules compatibility.
-From clutch.examples Require Import sample_int.
-From clutch.lib Require Import flip.
-
+From clutch Require Export clutch lib.flip.
+From clutch.examples Require Export sample_int.
 
 Section lazy_int.
 

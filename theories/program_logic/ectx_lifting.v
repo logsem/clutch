@@ -1,6 +1,6 @@
 (** Some derived lemmas for ectx-based languages *)
-From iris.proofmode Require Import tactics.
-From clutch.program_logic Require Import language ectx_language weakestpre lifting.
+From iris.proofmode Require Import proofmode.
+From clutch.program_logic Require Import ectx_language weakestpre lifting.
 From iris.prelude Require Import options.
 
 Local Open Scope R.

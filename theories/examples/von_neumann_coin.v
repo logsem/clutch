@@ -1,11 +1,5 @@
 (* A zoo of variants of Von Neumann's construction of a fair coin from a biased coin. *)
-
-From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
-From clutch.logrel Require Import model rel_rules rel_tactics compatibility.
-From clutch.typing Require Import fundamental.
-From clutch.prelude Require Import base.
-From clutch.lib Require Import flip. 
+From clutch Require Export clutch lib.flip. 
 Set Default Proof Using "Type*".
 
 Section proofs.
@@ -174,7 +168,7 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
   Proof.
     rel_apply refines_flip_l.
     iIntros "!>" (b).
-    rel_apply (refines_couple_flip_flip (if b then id else negb)).
+    rel_apply (refines_couple_flip_flip (if b then Datatypes.id else negb)).
     iIntros (b').
     destruct b, b' => /=.
     all: rel_pures_l.

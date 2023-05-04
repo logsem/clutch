@@ -1,11 +1,8 @@
 (** * Derived laws for a fair coin flip *)
-From iris.base_logic Require Import invariants na_invariants.
-From iris.proofmode Require Import coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
-From clutch.program_logic Require Import language ectx_language ectxi_language ectx_lifting weakestpre.
-From clutch.prob_lang Require Import notation proofmode primitive_laws spec_rules spec_ra spec_tactics lang locations.
-From clutch.logrel Require Import model rel_rules rel_tactics.
-From clutch.prelude Require Import base stdpp_ext.
-From clutch.examples.lib Require Import conversion.
+From stdpp Require Import namespaces.
+From iris.proofmode Require Import
+  coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
+From clutch Require Import clutch lib.conversion.
 
 Definition flipL : val := λ: "e", int_to_bool (rand #1%nat from "e").
 Definition flip : expr := (flipL #()).

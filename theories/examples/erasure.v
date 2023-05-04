@@ -1,9 +1,4 @@
-From stdpp Require Import namespaces.
-From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import notation proofmode spec_rules.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
-From clutch.typing Require Import types interp contextual_refinement soundness.
-From clutch.prelude Require Import base.
+From clutch Require Export clutch.
 Set Default Proof Using "Type*".
 
 Lemma flip_erasure_l (x : string) (N : nat) :

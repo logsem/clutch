@@ -1,10 +1,11 @@
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
 From Coq Require Import Reals.
 From clutch.program_logic Require Import exec.
-From clutch.prob_lang Require Import notation primitive_laws lang.
+From clutch.prob_lang Require Export lang.
+From clutch.prob_lang Require Import notation primitive_laws.
 From iris.proofmode Require Import proofmode.
 From clutch.logrel Require Import model.
-From clutch.typing Require Import types interp fundamental.
+From clutch.typing Require Export types interp fundamental.
 
 Inductive ctx_item :=
   (* Base lambda calculus *)

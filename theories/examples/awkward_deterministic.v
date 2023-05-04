@@ -1,10 +1,7 @@
 (* Pitts & Stark's awkward example, following the ReLoC formalisation. *)
 
-From iris.base_logic Require Import invariants.
 From iris.algebra Require Import csum excl.
-From clutch.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
-From clutch.logrel Require Import model rel_rules rel_tactics compatibility.
-From clutch.prelude Require Import base.
+From clutch Require Export clutch.
 Set Default Proof Using "Type*".
 
 Definition oneshotR := csumR (exclR unitR) (agreeR unitR).

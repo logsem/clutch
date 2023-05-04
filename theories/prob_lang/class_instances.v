@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob Require Import distribution.
-From clutch.program_logic Require Import language ectx_language ectxi_language.
-From clutch.prob_lang Require Import lang tactics notation.
+From clutch.prob Require Export distribution.
+From clutch.program_logic Require Export language. 
+From clutch.prob_lang Require Export lang.
+From clutch.prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
-From stdpp Require Import fin_maps.
 
 Global Instance into_val_val v : IntoVal (Val v) v.
 Proof. done. Qed.

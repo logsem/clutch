@@ -1,7 +1,4 @@
-From clutch.program_logic Require Import weakestpre ectxi_language.
-From clutch.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
-From clutch.logrel Require Import model rel_rules rel_tactics.
-From clutch.prelude Require Import base stdpp_ext.
+From clutch Require Import clutch.
 
 Definition bool_to_int : val :=
   λ: "b",
@@ -66,10 +63,3 @@ Section specs.
   Qed.
   
 End specs.       
-
-
-
-
-
-
-

@@ -1,10 +1,5 @@
-From Coq Require Export Reals.
-From stdpp Require Import namespaces.
-From clutch.program_logic Require Import language.
-From clutch.prelude Require Import base.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics lang.
-From clutch.logrel Require Import model rel_rules.
-From clutch.examples Require Import hash.
+From clutch Require Export clutch. 
+From clutch.examples Require Export hash.
 
 Set Default Proof Using "Type*".
 

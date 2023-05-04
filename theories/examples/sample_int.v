@@ -1,11 +1,4 @@
-From stdpp Require Import namespaces.
-From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import lang notation spec_ra spec_tactics proofmode primitive_laws locations.
-From clutch.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
-From clutch.typing Require Import types contextual_refinement soundness.
-From clutch.examples Require Import one_time_pad.
-From clutch.prelude Require Import base.
-From clutch.lib Require Import flip conversion.
+From clutch Require Export clutch lib.flip lib.conversion.
 
 (* This is a library for sampling integers in the set {0, ..., 2^n-1}
    for some natural number n > 0.

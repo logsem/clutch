@@ -1,14 +1,10 @@
-From clutch.program_logic Require Import weakestpre ectxi_language.
-From clutch.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
-From clutch.logrel Require Import model rel_rules rel_tactics.
-From clutch.prelude Require Import base stdpp_ext.
-From clutch.lib Require Import flip. 
+From clutch Require Export clutch lib.flip. 
 Set Default Proof Using "Type*".
 
 Definition xor b1 b2 : expr :=
   let not b := (if: b then #false else #true)%E in
   if: b1 then not b2 else b2.
-Definition xor_sem b1 b2 :=
+Definition xor_sem (b1 b2 : bool) :=
   if b1 then negb b2 else b2.
 
 Ltac foldxor := assert (forall b2, (if: _ then (if: b2 then #false else #true) else b2)%E = (xor _ _)) as -> by easy.

@@ -4,13 +4,7 @@
    NB: This example was mentioned as open problem in Aleš Bizjak's thesis.
  *)
 
-From stdpp Require Import namespaces.
-From clutch.program_logic Require Import exec.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
-From clutch.typing Require Import types contextual_refinement soundness.
-From clutch.prelude Require Import base.
-From clutch.examples Require Import flip.
+From clutch Require Export clutch lib.flip.
 Set Default Proof Using "Type*".
 
 (* A diverging term. *)

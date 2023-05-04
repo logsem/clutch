@@ -6,12 +6,7 @@
     the only difference being the use of sequential composition with `f()` in the
     body of the closures. *)
 
-From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
-From clutch.logrel Require Import model compatibility rel_rules rel_tactics adequacy.
-From clutch.typing Require Import types contextual_refinement soundness.
-From clutch.prelude Require Import base.
-From clutch.lib Require Import flip. 
+From clutch Require Export clutch lib.flip. 
 Set Default Proof Using "Type*".
 
 (** The lazy/eager coins, without tapes *)
@@ -171,11 +166,6 @@ Section logical_ref.
     iSplitL.
     { iFrame. iLeft. iFrame. }
     iIntros "#Hinv".
-    (* Set Printing All.  *)
-    (* flip *)
-    
-    (* Set Printing All. *)
-    
     rel_arrow.
     rewrite -/flip. 
     iIntros (??) "#Hff".
@@ -185,9 +175,7 @@ Section logical_ref.
     { iApply refines_app; eauto. rel_values; eauto. }
     iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
-    -
-      
-      rel_load_l. rel_pures_l.
+    - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       rel_apply (refines_couple_flipL_flip with "[-$Hα]").
       iIntros (b) "Hα /=".

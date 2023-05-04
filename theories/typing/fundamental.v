@@ -1,6 +1,6 @@
 (** Compatibility lemmas for the logical relation *)
 
-From iris.base_logic Require Import invariants.
+From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.prob_lang Require Import spec_ra metatheory notation primitive_laws lang.
