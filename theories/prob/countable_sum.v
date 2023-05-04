@@ -1,7 +1,8 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Series Lim_seq Rbar.
-From stdpp Require Export countable.
-From self.prelude Require Import base Coquelicot_ext Series_ext stdpp_ext classical.
+From Coquelicot Require Import Series Hierarchy Lim_seq Rbar.
+From stdpp Require Import option.
+From stdpp Require Export countable finite.
+From self.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 Import Hierarchy.
 
 Open Scope R.
@@ -312,7 +313,7 @@ Section series.
 End series.
 
 Section filter.
-  Context `{Countable A}.
+  Context `{Countable A, Countable B}.
 
   Implicit Types P Q : A → Prop.
 
@@ -337,6 +338,37 @@ Section filter.
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
   Proof. apply is_series_unique, is_seriesC_singleton. Qed.
 
+  Lemma is_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+    (∃ a, f a = b) →
+    is_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0) v.
+  Proof.
+    intros (a & Ha).
+    rewrite /is_seriesC.
+    eapply is_series_ext; [|apply (is_series_singleton (encode_nat a))].
+    intros n =>/=. rewrite /countable_sum.
+    case_bool_decide as Hneq=>/=; subst.
+    - rewrite (encode_inv_encode_nat a) //= bool_decide_eq_true_2 //.
+    - destruct (encode_inv_nat _) eqn:Heq=>//=.
+      case_bool_decide; [|done]; subst.
+      exfalso.
+      specialize (H1 a0 a H2); simplify_eq.
+      apply Hneq. symmetry. by apply encode_inv_Some_nat.
+  Qed.
+
+  Lemma ex_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+    (∃ a, f a = b) →
+    ex_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0).
+  Proof.
+    eexists. apply is_seriesC_singleton_inj; auto.
+  Qed.
+
+  Lemma SeriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+    (∃ a, f a = b) ->
+    SeriesC (λ (a : A), if bool_decide (f a = b) then v else 0) = v.
+  Proof.
+    intros. apply is_seriesC_unique, is_seriesC_singleton_inj; auto.
+  Qed.
+
   Lemma SeriesC_ge_elem  (f : A → R) (a : A) :
     (∀ x, 0 <= f x) →
     ex_seriesC f →
@@ -349,7 +381,6 @@ Section filter.
     case_bool_decide; simplify_eq; lra.
   Qed.
 
-  (* These are sometimes convenient *)
   Lemma ex_seriesC_singleton' (a : A) v :
     ex_seriesC (λ (n : A), if bool_decide (a = n) then v else 0).
   Proof.
@@ -529,6 +560,50 @@ Section strict.
   Qed.
 
 End strict.
+  
+Section finite.
+  Context `{Finite A}.
+
+  Lemma ex_seriesC_finite (f : A → R) : 
+    ex_seriesC f.
+  Proof.
+    apply ex_series_eventually0.
+    exists (card A).
+    intros n Hn.
+    rewrite /countable_sum /=.
+    destruct (encode_inv_nat _) as [a|] eqn:Heq=>//=.
+    pose proof (encode_lt_card a).
+    rewrite /encode_inv_nat in Heq.
+    destruct (decode_nat n); simplify_option_eq.
+    lia. 
+  Qed.
+  
+  Lemma SeriesC_finite_mass v :
+    SeriesC (λ _ : A, v) = card A * v.
+  Proof.
+    rewrite /SeriesC.
+    rewrite -(Series_ext (λ n, if bool_decide (n < card A)%nat then v else 0)); last first.
+    { intros n. rewrite /countable_sum /=.      
+      case_bool_decide as Hn; simpl. 
+      - destruct (encode_inv_nat) eqn:Heq; [done|]; simpl. 
+        destruct (encode_inv_decode _ Hn) as (a & Hinv & He).
+        simplify_option_eq.
+      - destruct (encode_inv_nat) eqn:Heq; [|done]; simpl. 
+        rewrite encode_inv_decode_ge in Heq; [done|lia]. }
+    apply (SeriesC_leq (card A) v).
+  Qed. 
+  
+  Lemma SeriesC_finite_bound (f : A → R) v :
+    (∀ a, 0 <= f a <= v) →    
+    SeriesC f <= card A * v.
+  Proof.
+    intros Hf.
+    rewrite -SeriesC_finite_mass.
+    apply SeriesC_le; [done|]. 
+    apply ex_seriesC_finite. 
+  Qed. 
+
+End finite.   
 
 Section positive.
 
@@ -543,7 +618,7 @@ Section positive.
   Lemma limC_is_sup (h: A -> R) r :
     (∀ n, 0 <= h n) ->
     is_seriesC h r →
-    is_sup_seq (sumC_n h) (Finite r).
+    is_sup_seq (sumC_n h) (Rbar.Finite r).
   Proof.
     intros Hge Hs.
     rewrite /is_seriesC in Hs.
@@ -553,7 +628,7 @@ Section positive.
 
   Lemma sup_is_limC (h: A → R) r :
     (∀ n, 0 <= h n) ->
-    is_sup_seq (sumC_n h) (Finite r) ->
+    is_sup_seq (sumC_n h) (Rbar.Finite r) ->
     is_seriesC h r.
   Proof.
     intros Hge Hsup.
@@ -685,7 +760,7 @@ Section mct.
     (∀ n a, (h n a) <= (h (S n) a)) ->
     (∀ a, exists s, ∀ n, h n a <= s ) ->
     (∀ n, is_seriesC (h n) (l n)) ->
-    is_sup_seq l (Finite r) ->
+    is_sup_seq l (Rbar.Finite r) ->
     SeriesC (λ a, Sup_seq (λ n, h n a)) = r.
   Admitted.
 
@@ -695,7 +770,7 @@ Section mct.
     (∀ n a, (h n a) <= (h (S n) a)) ->
     (∀ a, exists s, ∀ n, h n a <= s ) ->
     (∀ n, is_seriesC (h n) (l n)) ->
-    is_sup_seq l (Finite r) ->
+    is_sup_seq l (Rbar.Finite r) ->
     ex_seriesC (λ a, Sup_seq (λ n, h n a)).
   Admitted.
 

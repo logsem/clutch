@@ -12,7 +12,7 @@ From self.prob Require Import couplings.
 Import uPred.
 
 Section adequacy.
-  Context `{!prelocGS Σ}.
+  Context `{!clutchGS Σ}.
 
   Lemma refRcoupl_dbind' `{Countable A, Countable A', Countable B, Countable B'}
     (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (T : A' → B' → Prop) n :
@@ -189,22 +189,24 @@ Section adequacy.
 
 End adequacy.
 
-Class prelocGpreS Σ := PrelocGpreS {
-  prelocGpreS_iris  :> invGpreS Σ;
-  prelocGpreS_heap  :> ghost_mapG Σ loc val;
-  prelocGpreS_tapes :> ghost_mapG Σ loc (list bool);
-  prelocGpreS_cfg   :> inG Σ (authUR cfgUR);
-  prelocGpreS_prog  :> inG Σ (authR progUR);
+Class clutchGpreS Σ := ClutchGpreS {
+  clutchGpreS_iris  :> invGpreS Σ;
+  clutchGpreS_heap  :> ghost_mapG Σ loc val;
+  clutchGpreS_tapes :> ghost_mapG Σ loc tape;
+  clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
+  clutchGpreS_prog  :> inG Σ (authR progUR);
 }.
 
-Definition prelocΣ : gFunctors :=
-  #[invΣ; ghost_mapΣ loc val; ghost_mapΣ loc (list bool);
-    GFunctor (authUR cfgUR); GFunctor (authUR progUR)].
-Global Instance subG_prelocGPreS {Σ} : subG prelocΣ Σ → prelocGpreS Σ.
+Definition clutchΣ : gFunctors :=
+  #[invΣ; ghost_mapΣ loc val;
+    ghost_mapΣ loc tape;
+    GFunctor (authUR cfgUR);
+    GFunctor (authUR progUR)].
+Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_refRcoupl Σ `{prelocGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
-  (∀ `{prelocGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
+Theorem wp_refRcoupl Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
+  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
   refRcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ.
 Proof.
   intros Hwp.
@@ -219,9 +221,10 @@ Proof.
   iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
   set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
-  set (HprelocGS := HeapG Σ _ _ _ γH γT HspecGS).
+  set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS).
   iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
-  { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //. }
+  { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //.
+  }
   iApply wp_refRcoupl_step_fupdN.
   iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").

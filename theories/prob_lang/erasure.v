@@ -12,256 +12,276 @@ Section erasure_helpers.
 
   Variable (m : nat).
   Hypothesis IH :
-    ∀ (e1 : expr) (σ1 : state) α bs,
-    tapes σ1 !! α = Some bs →
-    Rcoupl (exec_val m (e1, σ1))
-      (fair_conv_comb
-         (exec_val m (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [true]]> σ1))
-         (exec_val m (e1, state_upd_tapes <[α:=tapes σ1 !!! α ++ [false]]> σ1))) eq.
+    ∀ (e1 : expr) (σ1 : state) α N zs,
+    tapes σ1 !! α = Some (N; zs) →
+    Rcoupl
+      (exec_val m (e1, σ1))
+      (dunifP N ≫= (λ z, exec_val m (e1, state_upd_tapes <[α:= (N; zs ++ [z])]> σ1))) eq.
 
-  Local Lemma ind_case_det e σ α bs K :
-    tapes σ !! α = Some bs →
+  Local Lemma ind_case_det e σ α N zs K :
+    tapes σ !! α = Some (N; zs) →
     is_det_head_step e σ = true →
     Rcoupl
       (dmap (fill_lift K) (head_step e σ) ≫= exec_val m)
-      (fair_conv_comb
-         (dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= exec_val m)
-         (dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m))
-      eq.
+      (dunifP N ≫= (λ z, dmap
+                           (fill_lift K)
+                           (head_step e (state_upd_tapes <[α:= (N; zs ++ [z]) ]> σ)) ≫= exec_val m))
+       (=).
   Proof using m IH.
     intros Hα (e2 & (σ2 & Hdet))%is_det_head_step_true%det_step_pred_ex_rel.
-    pose proof (det_head_step_upd_tapes e σ e2 σ2 α true Hdet) as HdetT.
-    pose proof (det_head_step_upd_tapes e σ e2 σ2 α false Hdet) as HdetF.
-    erewrite det_step_eq_tapes in Hα; [|done].
-    erewrite 3!det_head_step_singleton; [|done..].
-    rewrite !dmap_dret.
-    rewrite !dret_id_left.
-    by eapply IH.
+    erewrite 1!det_head_step_singleton; [|done..].
+    setoid_rewrite (det_head_step_singleton ); eauto; last first.
+    - eapply det_head_step_upd_tapes; eauto.
+    - erewrite det_step_eq_tapes in Hα; [|done].
+      rewrite !dmap_dret.
+      setoid_rewrite (dmap_dret (fill_lift K)).
+      rewrite !dret_id_left.
+      setoid_rewrite (dret_id_left (exec_val m)).
+      eapply IH; eauto.
   Qed.
 
-  Local Lemma ind_case_dzero e σ α bs K :
-    tapes σ !! α = Some bs →
-    is_det_head_step e σ = false →
-    ¬ det_head_step_pred e σ →
-    (∀ σ', σ.(heap) = σ'.(heap) → head_step e σ' = dzero) →
+  Local Lemma ind_case_dzero e σ α N zs K :
+    tapes σ !! α = Some (N; zs) →
+    head_step e σ = dzero →
     Rcoupl
       (dmap (fill_lift K) (head_step e σ) ≫= exec_val m)
-      (fair_conv_comb
-         (dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= exec_val m)
-         (dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m)) eq.
+      (dunifP N ≫= (λ z,
+         dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=(N; zs ++ [z])]> σ)) ≫= exec_val m)) eq.
   Proof using m IH.
-    intros Hα Hdet Hndet HZ.
-    rewrite !HZ //.
-    rewrite dmap_dzero dbind_dzero.
-    exists dzero; split.
-    - split.
-      + rewrite /lmarg dmap_dzero; auto.
-      + rewrite /rmarg dmap_dzero.
-        apply distr_ext=> ?.
-        rewrite fair_conv_comb_pmf.
-        rewrite /pmf /dzero; lra.
-    - intros []. rewrite /pmf /=. lra.
+    intros Hα Hz.
+    rewrite Hz.
+    setoid_rewrite head_step_dzero_upd_tapes; [|by eapply elem_of_dom_2|done].
+    rewrite dmap_dzero dbind_dzero dzero_dbind.
+    apply Rcoupl_dzero_dzero.
   Qed.
 
-  Local Lemma ind_case_alloc σ α bs K :
-    tapes σ !! α = Some bs →
-    prob_head_step_pred alloc σ →
-    ¬ det_head_step_pred alloc σ →
-    is_det_head_step alloc σ = false →
+  Local Lemma ind_case_alloc σ α N ns (z : Z) K :
+    tapes σ !! α = Some (N; ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step AllocTape σ) ≫= exec_val m)
-      (fair_conv_comb
-         (dmap (fill_lift K) (head_step AllocTape (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= exec_val m)
-         (dmap (fill_lift K) (head_step AllocTape (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m))
-      eq.
-  Proof using m IH.
-    intros Hα HP Hndet Hdet.
-    do 3 rewrite head_step_alloc_unfold; simpl.
-    rewrite !dmap_dret !dret_id_left.
-    assert (fresh_loc (tapes σ) = (fresh_loc (<[α:=tapes σ !!! α ++ [true]]> (tapes σ)))) as <-.
-    { eapply fresh_loc_upd_some; eauto. }
-    assert (fresh_loc (tapes σ) = (fresh_loc (<[α:=tapes σ !!! α ++ [false]]> (tapes σ)))) as <-.
-    { eapply fresh_loc_upd_some; eauto. }
-    specialize
-      (IH (fill K #lbl:(fresh_loc (tapes σ)))(state_upd_tapes <[fresh_loc (tapes σ):=[]]> σ) α bs).
-    apply lookup_total_correct in Hα as Hαtot.
-    simpl.
-    (* TODO: fix slightly ugly hack :P *)
-    revert IH; intro IHm.
-    pose proof (elem_fresh_ne _ _ _ Hα) as Hne.
-    assert (α ≠ fresh_loc (tapes σ)) as Hne' by auto ; clear Hne.
-    rewrite -(upd_diff_tape_tot σ _ _ _ Hne') in IHm.
-    specialize (IHm (fresh_loc_lookup σ α bs [] Hα)).
-    do 2 (erewrite <-(fresh_loc_upd_swap σ) in IHm; [|done]).
-    done.
-  Qed.
-
-  Local Lemma ind_case_flip_some σ α α' K b bs bs' :
-    tapes σ !! α = Some bs →
-    tapes σ !! α' = Some (b :: bs') →
-    Rcoupl
-      (dmap (fill_lift K) (head_step (flip #lbl:α') σ) ≫= exec_val m)
-      (fair_conv_comb
-         (dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= exec_val m)
-         (dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m))
-      eq.
-  Proof using m IH.
-    intros Hα Hα'.
-    destruct (decide (α = α')) as [-> | Hαneql].
-    - rewrite (head_step_flip_nonempty_unfold _ _ b bs') //.
-      rewrite (head_step_flip_nonempty_unfold _ _ b (bs' ++ [true])); last first.
-      { rewrite app_comm_cons. by apply upd_tape_some. }
-      rewrite (head_step_flip_nonempty_unfold _ _ b (bs' ++ [false])); last first.
-      { rewrite app_comm_cons. by apply upd_tape_some. }
-      rewrite !dmap_dret !dret_id_left.
-      erewrite lookup_total_correct; [|done].
-      do 2 rewrite upd_tape_twice.
-      rewrite (upd_tape_app _ α' bs' [true]).
-      rewrite (upd_tape_app _ α' bs' [false]).
-      eapply IH. rewrite lookup_insert //.
-    - rewrite (head_step_flip_nonempty_unfold _ _ b bs') //.
-      rewrite (head_step_flip_nonempty_unfold _ _ b bs'); last first.
-      { rewrite -Hα' -upd_diff_tape //. }
-      rewrite (head_step_flip_nonempty_unfold _ _ b bs'); last first.
-      { rewrite -Hα' -upd_diff_tape //. }
-      rewrite !dmap_dret !dret_id_left.
-      assert (tapes (state_upd_tapes <[α':=bs']> σ) !! α = Some bs) as Hα''.
-      { rewrite lookup_insert_ne //. }
-      pose proof (IH (fill K #b) (state_upd_tapes <[α':=bs']> σ) α bs Hα'') as IHm2.
-      rewrite upd_diff_tape_comm //.
-      rewrite (upd_diff_tape_comm _ α α' bs' (tapes σ !!! α ++ [false])) //.
-      rewrite -(upd_diff_tape_tot _ α α' ) // in IHm2.
-  Qed.
-
-  Local Lemma ind_case_flip_none σ α α' K bs :
-    tapes σ !! α = Some bs →
-    (tapes σ !! α' = Some [] ∨ tapes σ !! α' = None) →
-    Rcoupl
-      (dmap (fill_lift K) (head_step (flip #lbl:α') σ) ≫= exec_val m)
-      (fair_conv_comb
-         (dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= exec_val m)
-         (dmap (fill_lift K) (head_step (flip #lbl:α') (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m))
-      eq.
-  Proof using m IH.
-    intros Hα [Hα' | Hα'].
-    - destruct (decide (α = α')) as [-> | Hαneql].
-      + rewrite head_step_flip_empty_unfold //.
-        rewrite (head_step_flip_nonempty_unfold _ _ true []); last first.
-        { rewrite (upd_tape_some σ α' true []) //. }
-        rewrite (head_step_flip_nonempty_unfold _ _ false []); last first.
-        { rewrite (upd_tape_some σ α' false []) //. }
-        rewrite !dmap_dret !dret_id_left.
-        rewrite /fair_conv_comb.
-        rewrite -!dbind_assoc.
-        eapply (Rcoupl_dbind _ _ _ _ (=)); [ | apply Rcoupl_eq].
-        intros ? b ->.
-        do 2 rewrite upd_tape_twice.
-        rewrite -(lookup_total_correct _ _ _ Hα').
-        rewrite (upd_tape_some_trivial _ _ []) //.
-        destruct b; simpl; do 2 rewrite dret_id_left; apply Rcoupl_eq.
-      + rewrite head_step_flip_empty_unfold //.
-        rewrite head_step_flip_empty_unfold //; last first.
-        { rewrite -upd_diff_tape //. }
-        rewrite head_step_flip_empty_unfold; last first.
-        { rewrite -upd_diff_tape //. }
-        rewrite {3 4}/fair_conv_comb.
-        rewrite -!dbind_assoc.
-        rewrite -(dbind_fair_conv_comb _ _ fair_coin).
-        rewrite /fair_conv_comb.
-        eapply Rcoupl_dbind; [|apply Rcoupl_eq].
-        intros ? [] ->; rewrite !dret_id_left; by eapply IH.
-    - destruct (decide (α = α')) as [-> | Hαneql]; [simplify_map_eq|].
-      rewrite head_step_flip_unalloc_unfold //.
-      rewrite head_step_flip_unalloc_unfold //; last first.
-      { rewrite -Hα' -upd_diff_tape //. }
-      rewrite head_step_flip_unalloc_unfold; last first.
-      { rewrite -Hα' -upd_diff_tape //. }
-      rewrite {3 4}/fair_conv_comb.
-      rewrite -!dbind_assoc.
-      erewrite <- (dbind_fair_conv_comb _ _ fair_coin).
-      rewrite /fair_conv_comb.
-      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
-      intros ? [] ->; rewrite !dret_id_left; by eapply IH.
-  Qed.
-
-  Local Lemma ind_case_flip_no_tapes (σ : state) (α : loc) K bs :
-    tapes σ !! α = Some bs →
-    Rcoupl
-      (dmap (fill_lift K) (head_step (flip #()) σ) ≫= exec_val m)
-      (fair_conv_comb
-         (dmap (fill_lift K)
-            (head_step (flip #())
-               (state_upd_tapes <[α:=tapes σ !!! α ++ [true]]> σ)) ≫= exec_val m)
-         (dmap (fill_lift K)
-            (head_step (flip #())
-               (state_upd_tapes <[α:=tapes σ !!! α ++ [false]]> σ)) ≫= exec_val m))
+      (dmap (fill_lift K) (head_step (alloc #z) σ) ≫= exec_val m)
+      (dunifP N ≫=
+         (λ n, dmap (fill_lift K) (head_step (alloc #z) (state_upd_tapes <[α:= (N; ns ++ [n])]> σ)) ≫= exec_val m))
       eq.
   Proof using m IH.
     intros Hα.
-    rewrite !head_step_flip_no_tape_unfold.
+    rewrite dmap_dret dret_id_left -/exec_val.
+    setoid_rewrite (dmap_dret (fill_lift K)).
+    setoid_rewrite (dret_id_left (exec_val m)).
+    (* TODO: fix slightly ugly hack ... *)
+    revert IH; intro IHm.
+    apply lookup_total_correct in Hα as Hαtot.
+    pose proof (elem_fresh_ne _ _ _ Hα) as Hne.
+    erewrite dbind_ext_right; last first.
+    { intros n.
+      rewrite -(fresh_loc_upd_some _ _ (N; ns)); [|done].
+      rewrite (fresh_loc_upd_swap σ α (N; ns) (_; [])) //. }
+    apply IHm.
+    by apply fresh_loc_lookup.
+  Qed.
+
+  Local Lemma ind_case_rand_some σ α α' K N M (z : Z) n ns ns' :
+    N = Z.to_nat z →
+    tapes σ !! α = Some (M; ns') →
+    tapes σ !! α' = Some (N; n :: ns) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec_val m)
+      (dunifP M ≫=
+         (λ n, dmap (fill_lift K)
+                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α:= (M; ns' ++ [n])]> σ))
+                 ≫= exec_val m))
+      (=).
+  Proof using m IH.
+    intros Hz Hα Hα'.
+    apply lookup_total_correct in Hα as Hαtot.
+    apply lookup_total_correct in Hα' as Hα'tot.
+    destruct (decide (α = α')) as [-> | Hαneql].
+    - simplify_eq. rewrite /head_step Hα.
+      setoid_rewrite lookup_insert.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite dmap_dret dret_id_left -/exec_val.
+      erewrite dbind_ext_right; last first.
+      { intros.
+        rewrite -app_comm_cons.
+        rewrite upd_tape_twice dmap_dret dret_id_left -/exec_val //. }
+      assert (Haux : ∀ n,
+                 state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> σ =
+                 state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> (state_upd_tapes <[α':=(Z.to_nat z; ns)]> σ)).
+      { intros. rewrite /state_upd_tapes. f_equal. rewrite insert_insert //. }
+      erewrite dbind_ext_right; [| intros; rewrite Haux; done].
+      apply IH.
+      apply lookup_insert.
+    - rewrite /head_step Hα'.
+      rewrite bool_decide_eq_true_2 //.
+      setoid_rewrite lookup_insert_ne; [|done].
+      rewrite Hα' bool_decide_eq_true_2 //.
+      rewrite !dmap_dret !dret_id_left -/exec_val.
+      erewrite dbind_ext_right; last first.
+      { intros.
+        rewrite upd_diff_tape_comm; [|done].
+        rewrite dmap_dret dret_id_left -/exec_val //. }
+      eapply IH.
+      rewrite lookup_insert_ne //.
+  Qed.
+
+  Local Lemma ind_case_rand_empty σ α α' K (N M : nat) z ns :
+    M = Z.to_nat z →
+    tapes σ !! α = Some (N; ns) →
+    tapes σ !! α' = Some (M; []) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec_val m)
+      (dunifP N ≫=
+         (λ n, dmap (fill_lift K)
+                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α := (N; ns ++ [n])]> σ))
+                 ≫= exec_val m))
+      eq.
+  Proof using m IH.
+    intros Hz Hα Hα'.
+    destruct (decide (α = α')) as [-> | Hαneql].
+    + simplify_eq.  rewrite /head_step Hα.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite {1 2}/dmap.
+      rewrite -!dbind_assoc -/exec_val.
+      eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
+      intros ? b ->.
+      do 2 rewrite dret_id_left.
+      rewrite lookup_insert.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite dmap_dret dret_id_left -/exec_val.
+      rewrite upd_tape_twice.
+      rewrite /state_upd_tapes insert_id //.
+      destruct σ; simpl.
+      apply Rcoupl_eq.
+    + rewrite /head_step /=.
+      setoid_rewrite lookup_insert_ne; [|done].
+      rewrite Hα'.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite {1 2}/dmap.
+      erewrite (dbind_ext_right (dunifP N)); last first.
+      { intro.
+        rewrite {1 2}/dmap.
+        do 2 rewrite -dbind_assoc -/exec_val.
+        done. }
+      rewrite -!dbind_assoc -/exec_val.
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      do 2 rewrite dret_id_left /=.
+      erewrite dbind_ext_right; last first.
+      { intro; do 2 rewrite dret_id_left. done. }
+      by apply IH.
+  Qed.
+
+  Local Lemma ind_case_rand_some_neq σ α α' K N M ns ns' z :
+    N ≠ Z.to_nat z →
+    tapes σ !! α = Some (M; ns') →
+    tapes σ !! α' = Some (N; ns) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec_val m)
+      (dunifP M ≫=
+         (λ n, dmap (fill_lift K)
+                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α:= (M; ns' ++ [n]) : tape]> σ))
+                 ≫= exec_val m))
+      (=).
+  Proof using m IH.
+    intros Hz Hα Hα'.
+    rewrite /head_step Hα'.
+    rewrite bool_decide_eq_false_2 //.
+    destruct (decide (α = α')) as [-> | Heq].
+    - simplify_eq.
+      setoid_rewrite lookup_insert.
+      rewrite bool_decide_eq_false_2 //.
+      rewrite /dmap /=.
+      rewrite -!dbind_assoc -/exec_val.
+      erewrite (dbind_ext_right (dunifP M)); last first.
+      { intros. rewrite -!dbind_assoc -/exec_val //. }
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      rewrite 2!dret_id_left.
+      erewrite dbind_ext_right; last first.
+      { intros. rewrite 2!dret_id_left //. }
+      by apply IH.
+    - setoid_rewrite lookup_insert_ne; [|done].
+      rewrite Hα' bool_decide_eq_false_2 //.
+      rewrite /dmap.
+      rewrite -!dbind_assoc -/exec_val.
+      erewrite (dbind_ext_right (dunifP M)); last first.
+      { intros. rewrite -!dbind_assoc -/exec_val //. }
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      rewrite 2!dret_id_left.
+      erewrite dbind_ext_right; last first.
+      { intros. rewrite 2!dret_id_left //. }
+      by apply IH.
+  Qed.
+
+  Local Lemma ind_case_rand σ α K (M N : nat) z ns :
+    N = Z.to_nat z →
+    tapes σ !! α = Some (M; ns) →
+    Rcoupl
+      (dmap (fill_lift K) (head_step (rand #z from #()) σ) ≫= exec_val m)
+      (dunifP M ≫=
+         (λ n,
+           dmap (fill_lift K)
+             (head_step (rand #z from #()) (state_upd_tapes <[α := (M; ns ++ [n]) : tape]> σ))
+             ≫= exec_val m))
+      eq.
+  Proof using m IH.
+    intros Hz Hα.
+    rewrite /head_step.
+    rewrite {1 2}/dmap.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intro.
+      rewrite {1 2}/dmap.
+      do 2 rewrite -dbind_assoc //. }
+    rewrite -/exec_val /=.
     rewrite -!dbind_assoc -/exec_val.
-    rewrite -(dbind_fair_conv_comb _ _ fair_coin).
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intros n. rewrite -!dbind_assoc. done. }
+    rewrite dbind_comm.
     eapply Rcoupl_dbind; [|apply Rcoupl_eq].
-    intros ? [] ->; rewrite !dret_id_left; by eapply IH.
+    intros; simplify_eq.
+    do 2 rewrite dret_id_left.
+    erewrite dbind_ext_right; last first.
+    { intro; do 2 rewrite dret_id_left; auto. }
+    apply IH; auto.
   Qed.
 
 End erasure_helpers.
 
-Lemma prim_coupl_upd_tapes_dom m e1 σ1 α bs :
-  σ1.(tapes) !! α = Some bs →
+
+Lemma prim_coupl_upd_tapes_dom m e1 σ1 α N ns :
+  σ1.(tapes) !! α = Some (N; ns) →
   Rcoupl
     (exec_val m (e1, σ1))
-    (fair_conv_comb
-       (exec_val m (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [true]]> σ1)))
-       (exec_val m (e1, (state_upd_tapes <[α := σ1.(tapes) !!! α ++ [false]]> σ1))))
-    eq.
+    (dunifP N ≫=
+       (λ n, exec_val m (e1, state_upd_tapes <[α := (N; ns ++ [n])]> σ1)))
+    (=).
 Proof.
-  revert e1 σ1 α bs; induction m; intros e1 σ1 α bs Hα.
-  - rewrite /exec_val/=.
+  revert e1 σ1 α N ns; induction m; intros e1 σ1 α N ns Hα.
+  - rewrite /exec_val /=.
+    destruct (to_val e1) as [v|] eqn:He1.
+    + rewrite (dret_const (dunifP N) v); [apply Rcoupl_eq | apply dunif_mass; lia].
+    + rewrite dzero_dbind. apply Rcoupl_dzero_dzero.
+  - rewrite exec_val_Sn /prim_step_or_val /=.
     destruct (to_val e1) eqn:He1.
-    + exists (dprod (dret v)
-                (fair_conv_comb
-                   (dret v)
-                   (dret v))).
-      split; [split ; [rewrite lmarg_dprod //|rewrite rmarg_dprod //] |].
-      { erewrite SeriesC_ext; [ | intro; rewrite fair_conv_comb_pmf; done].
-        rewrite SeriesC_plus;
-          [rewrite SeriesC_scal_l; rewrite dret_mass; lra | | ];
-          apply ex_seriesC_scal_l; apply pmf_ex_seriesC. }
-      { apply dret_mass. }
-      intros (v2 & v2') Hpos. simpl.
-      rewrite /pmf/= in Hpos.
-      rewrite fair_conv_comb_pmf in Hpos.
-      assert (dret v v2 > 0 ∧ dret v v2' > 0) as (Hpos1 & Hpos2).
-      { apply Rgt_lt in Hpos.
-        assert (0.5+0.5 = 1) as Hhalf; [lra | ].
-        rewrite -Rmult_plus_distr_r Hhalf Rmult_1_l in Hpos.
-        apply pos_prod_nn_real in Hpos; try lra; auto. }
-      { apply dret_pos in Hpos1, Hpos2. by simplify_eq. }
-    + exists dzero. repeat split_and!.
-      * rewrite /lmarg dmap_dzero //.
-      * apply distr_ext=>?.
-        rewrite rmarg_pmf fair_conv_comb_pmf /pmf /=.
-        rewrite SeriesC_0 //. lra.
-      * intros ?. rewrite /pmf /=. lra.
-  - simpl. destruct (to_val e1) eqn:He1.
-    + specialize (IHm e1 σ1 α bs Hα).
-      destruct m; simpl in *; by rewrite He1 in IHm.
+    + rewrite dret_id_left -/exec_val.
+      rewrite (exec_val_is_val v) //.
+      rewrite dret_const; [|solve_distr_mass].
+      by apply Rcoupl_dret.
     + rewrite /prim_step /=.
-      destruct (decomp e1) as [K ered] eqn:decomp_e1.
-      rewrite decomp_e1.
-      destruct (is_det_head_step ered σ1) eqn:Hdet.
-      * by eapply ind_case_det.
-      * assert (¬ det_head_step_pred ered σ1) as Hndet.
-        { intros ?%is_det_head_step_true. rewrite H // in Hdet. }
-        destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]].
-        { by destruct Hndet. }
-        { inversion HP; simplify_eq.
-          - by eapply ind_case_alloc.
-          - by eapply ind_case_flip_some.
-          - by eapply ind_case_flip_none.
-          - by eapply ind_case_flip_no_tapes. }
-        { by eapply ind_case_dzero. }
+      destruct (decomp e1) as [K ered] eqn:Hdecomp_e1.
+      rewrite Hdecomp_e1.
+      destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]].
+      * eapply ind_case_det; [done|done|]. by apply is_det_head_step_true.
+      * inversion HP; simplify_eq.
+        -- by eapply ind_case_alloc.
+        -- by eapply ind_case_rand_some.
+        -- by eapply ind_case_rand_empty.
+        -- by eapply ind_case_rand_some_neq.
+        -- by eapply ind_case_rand.
+      * by eapply ind_case_dzero.
 Qed.
 
 Lemma prim_coupl_step_prim m e1 σ1 α bs :
@@ -272,14 +292,18 @@ Lemma prim_coupl_step_prim m e1 σ1 α bs :
     eq.
 Proof.
   intros Hα.
-  rewrite state_step_fair_conv_comb; last first.
-  { apply elem_of_dom. eauto. }
-  rewrite fair_conv_comb_dbind.
-  do 2 rewrite dret_id_left.
+  rewrite /state_step.
+  rewrite bool_decide_eq_true_2; last first.
+  { apply elem_of_dom; auto. }
+  simpl.
+  rewrite (lookup_total_correct (tapes σ1) α bs); auto.
+  destruct bs; simpl.
+  rewrite /dmap.
+  rewrite -dbind_assoc.
+  erewrite dbind_ext_right; last first.
+  { intro. rewrite dret_id_left; auto. }
   by eapply prim_coupl_upd_tapes_dom.
 Qed.
-
-
 
 Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v:
   σ1.(tapes) !! α = Some bs →

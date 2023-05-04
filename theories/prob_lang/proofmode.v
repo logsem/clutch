@@ -27,7 +27,7 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
   end.
 Ltac wp_expr_simpl := wp_expr_eval simpl.
 
-Lemma tac_wp_pure `{!prelocGS Σ} Δ Δ' E K e1 e2 φ n Φ :
+Lemma tac_wp_pure `{!clutchGS Σ} Δ Δ' E K e1 e2 φ n Φ :
   PureExec φ n e1 e2 →
   φ →
   MaybeIntoLaterNEnvs n Δ Δ' →
@@ -41,11 +41,11 @@ Proof.
   (* iIntros "Hwp !> _" => //. *)
 Qed.
 
-Lemma tac_wp_value_nofupd `{!prelocGS Σ} Δ E Φ v :
+Lemma tac_wp_value_nofupd `{!clutchGS Σ} Δ E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by apply wp_value. Qed.
 
-Lemma tac_wp_value `{!prelocGS Σ} Δ E (Φ : val → iPropI Σ) v :
+Lemma tac_wp_value `{!clutchGS Σ} Δ E (Φ : val → iPropI Σ) v :
   envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (Val v) @ E {{ Φ }}).
 Proof. rewrite envs_entails_unseal=> ->. by rewrite wp_value_fupd. Qed.
 
@@ -177,7 +177,7 @@ Tactic Notation "wp_inj" := wp_pure (InjL _) || wp_pure (InjR _).
 Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 
-Lemma tac_wp_bind `{!prelocGS Σ} K Δ E Φ e f :
+Lemma tac_wp_bind `{!clutchGS Σ} K Δ E Φ e f :
   f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
   envs_entails Δ (WP e @ E {{ v, WP f (Val v) @ E {{ Φ }} }})%I →
   envs_entails Δ (WP fill K e @ E {{ Φ }}).
@@ -200,7 +200,7 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
 
 (** Heap tactics *)
 Section heap.
-Context `{!prelocGS Σ}.
+Context `{!clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types Δ : envs (uPredI (iResUR Σ)).

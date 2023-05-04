@@ -54,6 +54,8 @@ Proof.
     [ rewrite Nat.max_l // | rewrite Nat.max_r // ].
 Qed.
 
+Global Coercion INR : nat >-> R.
+
 Lemma Rmult_neq_0 (r1 r2 : R) :
   r1 * r2 ≠ 0 → r1 ≠ 0 ∧ r2 ≠ 0.
 Proof. intros ?. split; intros ->; lra. Qed.
@@ -87,9 +89,17 @@ Lemma pos_prod_nn_real p q :
     0 <= q →
     0 < p * q →
     0 < p ∧ 0 < q.
-  Proof.
-    intros Hp Hq Hsum.
-    destruct Hp as [ Hp | Hp ]; simplify_eq; split; auto; try lra.
-    destruct Hq as [ Hq | Hq ]; simplify_eq ; auto; lra.
-  Qed.
+Proof.
+  intros Hp Hq Hsum.
+  destruct Hp as [ Hp | Hp ]; simplify_eq; split; auto; try lra.
+  destruct Hq as [ Hq | Hq ]; simplify_eq ; auto; lra.
+Qed.
 
+Lemma RinvN_pos' : forall n:nat, 0 < / (INR (S n)).
+Proof.
+  intros n.
+  assert (INR (S n) = (INR n + 1)) as ->.
+  { replace 1 with (INR 1); [|done].
+    rewrite -plus_INR. f_equal. lia. }
+  apply RinvN_pos. 
+Qed.

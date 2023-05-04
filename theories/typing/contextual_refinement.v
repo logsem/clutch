@@ -44,7 +44,9 @@ Inductive ctx_item :=
     (* Nb: we do not have an explicit PACK operation *)
   | CTX_UnpackL (x : binder) (e2 : expr)
   | CTX_UnpackR (x : binder) (e1 : expr)
-  | CTX_Flip
+  | CTX_AllocTape
+  | CTX_RandL (e2 : expr)
+  | CTX_RandR (e1 : expr)
 .
 
 Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
@@ -84,7 +86,9 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
   | CTX_TApp => TApp e
   | CTX_UnpackL x e1 => unpack: x:=e in e1
   | CTX_UnpackR x e0 => unpack: x:=e0 in e
-  | CTX_Flip => Flip e
+  | CTX_AllocTape => AllocTape e
+  | CTX_RandL e2 => Rand e e2
+  | CTX_RandR e1 => Rand e1 e
   end.
 
 Definition ctx := list ctx_item.
@@ -198,8 +202,16 @@ Inductive typed_ctx_item :
      typed_ctx_item (CTX_UnpackR x e1)
                     (<[x:=τ]>(⤉ Γ)) (Autosubst_Classes.subst (ren (+1)) τ2)
                     Γ τ2
-  | TP_CTX_Flip Γ :
-     typed_ctx_item CTX_Flip Γ TTape Γ (TBool)
+  | TP_CTX_AllocTape Γ :
+     typed_ctx_item CTX_AllocTape Γ TNat Γ (TTape)
+  | TP_CTX_RandUnitL Γ e2 :
+    typed Γ e2 TUnit → typed_ctx_item (CTX_RandL e2) Γ TNat Γ TNat
+  | TP_CTX_RandTapeL Γ e2 :
+     typed Γ e2 TTape → typed_ctx_item (CTX_RandL e2) Γ TNat Γ TNat
+  | TP_CTX_RandUnitR Γ e1 :
+    typed Γ e1 TNat → typed_ctx_item (CTX_RandR e1) Γ TUnit Γ TNat
+  | TP_CTX_RandTapeR Γ e1 :
+     typed Γ e1 TNat → typed_ctx_item (CTX_RandR e1) Γ TTape Γ TNat
 .
 
 Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type → Prop :=
@@ -213,6 +225,7 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
     termination can be found in [contextual_refinement_alt.v] *)
+(* Can we avoid exposing validity of the initial tapes in this definition? *)
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
@@ -279,7 +292,7 @@ Notation "Γ ⊨ e '=ctx=' e' : τ" :=
   (ctx_equiv Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
 
 Section bin_log_related_under_typed_ctx.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* Precongruence *)
   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :
@@ -383,7 +396,19 @@ Section bin_log_related_under_typed_ctx.
       + iApply bin_log_related_unpack.
         * by iApply fundamental.
         * iIntros (A). iApply (IHK with "[Hrel]"); auto.
-      + iApply bin_log_related_flip.
+      + iApply bin_log_related_alloctape.
         iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_unit.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_rand_tape.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_rand_unit.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_tape.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
   Qed.
 End bin_log_related_under_typed_ctx.

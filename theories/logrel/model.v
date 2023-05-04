@@ -7,10 +7,10 @@ From self.prob_lang Require Import locations notation spec_ra primitive_laws lan
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class prelogrelGS Σ := PrelogrelGS {
-    prelogrelGS_prelocGS :> prelocGS Σ;
-    prelogrelGS_na_invG :> na_invG Σ;
-    prelogrelGS_nais : na_inv_pool_name;
+Class clutchRGS Σ := PrelogrelGS {
+    clutchRGS_clutchGS :> clutchGS Σ;
+    clutchRGS_na_invG :> na_invG Σ;
+    clutchRGS_nais : na_inv_pool_name;
 }.
 
 (** Semantic intepretation of types *)
@@ -58,12 +58,12 @@ Arguments lrelC : clear implicits.
 
 Canonical Structure ectx_itemO := leibnizO ectx_item.
 
-Definition na_ownP `{!prelogrelGS Σ} := na_own prelogrelGS_nais.
-Definition na_invP `{!prelogrelGS Σ} := na_inv prelogrelGS_nais.
-Definition na_closeP `{!prelogrelGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
+Definition na_ownP `{!clutchRGS Σ} := na_own clutchRGS_nais.
+Definition na_invP `{!clutchRGS Σ} := na_inv clutchRGS_nais.
+Definition na_closeP `{!clutchRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
 
 Section semtypes.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Implicit Types e : expr.
   Implicit Types E : coPset.
@@ -93,6 +93,7 @@ Section semtypes.
 
   Definition lrel_unit : lrel Σ := LRel (λ w1 w2, ⌜ w1 = #() ∧ w2 = #() ⌝%I).
   Definition lrel_bool : lrel Σ := LRel (λ w1 w2, ∃ b : bool, ⌜ w1 = #b ∧ w2 = #b ⌝)%I.
+  Definition lrel_nat : lrel Σ := LRel (λ w1 w2, ∃ n : nat, ⌜ w1 = #n ∧ w2 = #n ⌝)%I.
   Definition lrel_int : lrel Σ := LRel (λ w1 w2, ∃ n : Z, ⌜ w1 = #n ∧ w2 = #n ⌝)%I.
 
   Definition lrel_arr (A1 A2 : lrel Σ) : lrel Σ := LRel (λ w1 w2,
@@ -102,9 +103,10 @@ Section semtypes.
     ∃ l1 l2: loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (logN .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ₛ v2 ∗ A v1 v2))%I.
 
+  (* Both tapes are empty and are sampled from the same distribution *)
   Definition lrel_tape : lrel Σ := LRel (λ w1 w2,
-    ∃ α1 α2 : loc, ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
-      inv (logN .@ (α1, α2)) (α1 ↪ [] ∗ α2 ↪ₛ []))%I.
+    ∃ (α1 α2 : loc) (N: nat), ⌜w1 = #lbl:α1⌝ ∧ ⌜w2 = #lbl:α2⌝ ∧
+      inv (logN .@ (α1, α2)) (α1 ↪ (N; []) ∗ α2 ↪ₛ (N; [])))%I.
 
   Definition lrel_prod (A B : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ v1 v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧
@@ -172,7 +174,7 @@ Notation "∀ A1 .. An , C" :=
   (lrel_forall (λ A1, .. (lrel_forall (λ An, C%lrel)) ..)) : lrel_scope.
 
 Section semtypes_properties.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   (* The reference type relation is functional and injective.
      Thanks to Amin. *)
@@ -214,8 +216,8 @@ Section semtypes_properties.
     ={E}=∗ ⌜l1 = l2⌝.
   Proof.
     iIntros (?) "[Hl1 Hl2] /=".
-    iDestruct "Hl1" as (l' l1') "[% [% #Hl1]]". simplify_eq.
-    iDestruct "Hl2" as (l l2') "[% [% #Hl2]]". simplify_eq.
+    iDestruct "Hl1" as (l' l1' n1) "[% [% #Hl1]]". simplify_eq.
+    iDestruct "Hl2" as (l l2' n2) "[% [% #Hl2]]". simplify_eq.
     destruct (decide (l1' = l2')) as [->|?]; eauto.
     iInv (logN.@(l, l1')) as "[>Hl ?]" "Hcl".
     iInv (logN.@(l, l2')) as "[>Hl' ?]" "Hcl'".
@@ -230,8 +232,8 @@ Section semtypes_properties.
     ={E}=∗ ⌜l1 = l2⌝.
   Proof.
     iIntros (?) "[Hl1 Hl2] /=".
-    iDestruct "Hl1" as (l1' l') "[% [% #Hl1]]". simplify_eq.
-    iDestruct "Hl2" as (l2' l) "[% [% #Hl2]]". simplify_eq.
+    iDestruct "Hl1" as (l1' l' n1) "[% [% #Hl1]]". simplify_eq.
+    iDestruct "Hl2" as (l2' l n2) "[% [% #Hl2]]". simplify_eq.
     destruct (decide (l1' = l2')) as [->|?]; eauto.
     iInv (logN.@(l1', l)) as "(? & >Hl)" "Hcl".
     iInv (logN.@(l2', l)) as "(? & >Hl')" "Hcl'".
@@ -255,7 +257,7 @@ Notation "'REL' e1 '<<' t ':' A" :=
 
 (** Properties of the relational interpretation *)
 Section related_facts.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types e : expr.
 
   Lemma fupd_refines E e t A :
@@ -329,7 +331,7 @@ Section related_facts.
 End related_facts.
 
 Section monadic.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types e : expr.
 
   Lemma refines_bind K K' E A A' e e' :

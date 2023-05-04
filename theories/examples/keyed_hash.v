@@ -220,7 +220,7 @@ Section keyed_hash.
       let: "f" := init_hash #MAX_HASH_DOM in
       (λ: "k" "v", "f" (enc "k" "v")).
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Lemma wp_enc_spec (k v : nat) E :
     {{{ ⌜ k <= MAX_KEYS ∧ v ≤ MAX_VALS ⌝ }}}
@@ -690,3 +690,5 @@ Section keyed_hash.
   Abort.
 
 End keyed_hash.
+
+

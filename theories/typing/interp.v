@@ -7,7 +7,7 @@ From self.typing Require Import types.
 
 (** * Interpretation of types *)
 Section semtypes.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Program Definition ctx_lookup (x : var) : listO (lrelC Σ) -n> (lrelC Σ)
     := λne Δ, (from_option id lrel_true (Δ !! x))%I.
@@ -26,6 +26,7 @@ Section semtypes.
   Program Fixpoint interp (τ : type) : listO (lrelC Σ) -n> lrelC Σ :=
     match τ as _ return listO (lrelC Σ) -n> lrelC Σ with
     | TUnit => λne _, lrel_unit
+    | TNat => λne _, lrel_nat
     | TInt => λne _, lrel_int
     | TBool => λne _, lrel_bool
     | TProd τ1 τ2 => λne Δ, lrel_prod (interp τ1 Δ) (interp τ2 Δ)
@@ -63,6 +64,7 @@ Section semtypes.
     intros Hτ; revert v v'; induction Hτ; iIntros (v v') "#H1 /=".
     - by iDestruct "H1" as %[-> ->].
     - by iDestruct "H1" as (n) "[% %]"; subst.
+    - by iDestruct "H1" as (n) "[% %]"; subst.
     - by iDestruct "H1" as (b) "[% %]"; subst.
     - iDestruct "H1" as (?? ??) "[% [% [H1 H2]]]"; simplify_eq/=.
       rewrite IHHτ1 IHHτ2.
@@ -98,9 +100,10 @@ Section semtypes.
           { iModIntro. iPureIntro. naive_solver. }
           iInv (logN.@(r1, r2)) as (v1 v2) "(>Hr1 & >Hr2 & Hinv1)".
           iInv (logN.@(l1, r2)) as (w1 w2) "(>Hr1' & >Hr2' & Hinv2)".
-          iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr2 Hr2'") as %[].       - rewrite /lrel_car /=.
-        iDestruct 1 as (l1 l2 -> ->) "Hl".
-        iDestruct 1 as (r1 r2 -> ->) "Hr".
+          iExFalso. by iDestruct (ghost_map_elem_valid_2 with "Hr2 Hr2'") as %[].
+      - rewrite /lrel_car /=.
+        iDestruct 1 as (l1 l2 n -> ->) "Hl".
+        iDestruct 1 as (r1 r2 m -> ->) "Hr".
         destruct (decide (l1 = r1)); subst.
         + destruct (decide (l2 = r2)); subst; first by eauto.
           iInv (logN.@(r1, l2)) as "> (Hr1 & Hl2)".
@@ -118,7 +121,7 @@ End semtypes.
 
 (** ** Properties of the type inrpretation w.r.t. the substitutions *)
 Section interp_ren.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types Δ : list (lrel Σ).
 
   (* TODO: why do I need to unfold lrel_car here? *)
@@ -211,7 +214,7 @@ End interp_ren.
 
 (** * Interpretation of the environments *)
 Section env_typed.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types A B : lrel Σ.
   Implicit Types Γ : gmap string (lrel Σ).
 
@@ -266,7 +269,7 @@ Notation "⟦ Γ ⟧*" := (env_ltyped2 Γ).
 
 (** * The semantic typing judgement *)
 Section bin_log_related.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition bin_log_related (E : coPset)
              (Δ : list (lrel Σ)) (Γ : stringmap type)

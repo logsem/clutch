@@ -3,7 +3,9 @@ From self.program_logic Require Import weakestpre.
 From self.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.prelude Require Import base.
+From self.examples.lib Require Import flip.
 From self.examples Require Import hash.
+
 
 Set Default Proof Using "Type*".
 
@@ -62,7 +64,7 @@ Section rng.
         "b").
 
 
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition hash_rng (n: nat) (g: val) : iProp Σ :=
     ∃ h c m, ⌜ g = hash_rng_specialized h c ⌝ ∗
@@ -133,7 +135,7 @@ Section rng.
   Lemma wp_hash_rng_flip n g K E :
     ↑specN ⊆ E →
     n ≤ MAX →
-    {{{ hash_rng n g ∗ refines_right K (flip #())}}}
+    {{{ hash_rng n g ∗ refines_right K flip}}}
       g #() @ E
     {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b }}}.
   Proof.
@@ -270,7 +272,7 @@ Section rng.
         let: "n" := !"c" in
         let: "b" :=
           if: "n" ≤ #MAX then
-            flip #()
+            flip
           else #false in
         "c" <- "n" + #1;;
         "b").
@@ -280,7 +282,7 @@ Section rng.
         let: "n" := !#c in
         let: "b" :=
           if: "n" ≤ #MAX then
-            flip #()
+            flip
           else #false in
         #c <- "n" + #1;;
         "b").
@@ -330,11 +332,10 @@ Section rng.
     tp_pures.
     case_bool_decide.
     - tp_pures.
-      tp_bind (flip #())%E.
+      tp_bind flip.
       rewrite refines_right_bind.
       iApply wp_fupd.
-      wp_apply (wp_hash_rng_flip with "[$HK $Hhash]"); auto.
-      { lia. }
+      wp_apply (wp_hash_rng_flip with "[$HK $Hhash]"); [done|lia|].
       iIntros (b) "(Hhash&HK)".
       rewrite -refines_right_bind /=.
       tp_pures.
@@ -404,7 +405,7 @@ Section rng.
     iIntros (g) "Hhash".
     iMod (spec_init_bounded_rng with "[$]") as (f) "(HK&Hbounded)"; first done.
     set (P := (∃ n, hash_rng n g ∗ sbounded_rng n f)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
     { iNext. iExists O. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> (->&->)".
@@ -434,7 +435,7 @@ Section rng.
     iIntros (g) "Hbounded".
     iMod (spec_init_hash_rng with "[$]") as (f) "(HK&Hhash)"; first done.
     set (P := (∃ n, bounded_rng n g ∗ shash_rng n f)%I).
-    iMod (na_inv_alloc prelogrelGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
+    iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash Hbounded]") as "#Hinv".
     { iNext. iExists O. iFrame. }
     iModIntro. iExists _. iFrame.
     iIntros (v1 v2) "!> (->&->)".

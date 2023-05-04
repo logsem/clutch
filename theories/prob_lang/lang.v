@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
-From stdpp Require Import gmap.
+From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From self.prelude Require Import stdpp_ext.
 From self.prob Require Import distribution.
@@ -48,8 +48,8 @@ Inductive expr :=
   | Load (e : expr)
   | Store (e1 : expr) (e2 : expr)
   (* Probabilistic choice *)
-  | AllocTape
-  | Flip (e : expr)
+  | AllocTape (e : expr)
+  | Rand (e1 e2 : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -121,7 +121,16 @@ Definition vals_compare_safe (vl v1 : val) : Prop :=
   val_is_unboxed vl ∨ val_is_unboxed v1.
 Global Arguments vals_compare_safe !_ !_ /.
 
-Definition tape := list bool.
+Definition tape := { n : nat & list (fin (S n)) }.
+
+Global Instance tape_inhabited : Inhabited tape := populate (existT 0%nat []).
+Global Instance tape_eq_dec : EqDecision tape. Proof. apply _. Defined.
+Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed.
+
+Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
+Proof. apply map_lookup_total. Defined.
+Global Instance tapes_insert : Insert loc tape (gmap loc tape).
+Proof. apply map_insert. Defined.
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
     booleans. *)
@@ -173,8 +182,8 @@ Proof.
      | Load e, Load e' => cast_if (decide (e = e'))
      | Store e1 e2, Store e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | AllocTape, AllocTape => left _
-     | Flip e, Flip e' => cast_if (decide (e = e'))
+     | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
+     | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -249,8 +258,8 @@ Proof.
      | Alloc e => GenNode 12 [go e]
      | Load e => GenNode 13 [go e]
      | Store e1 e2 => GenNode 14 [go e1; go e2]
-     | AllocTape => GenNode 15 []
-     | Flip e => GenNode 16 [go e]
+     | AllocTape e => GenNode 15 [go e]
+     | Rand e1 e2 => GenNode 16 [go e1; go e2]
      end
    with gov v :=
      match v with
@@ -281,8 +290,8 @@ Proof.
      | GenNode 12 [e] => Alloc (go e)
      | GenNode 13 [e] => Load (go e)
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
-     | GenNode 15 [] => AllocTape
-     | GenNode 16 [e] => Flip (go e)
+     | GenNode 15 [e] => AllocTape (go e)
+     | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -337,7 +346,9 @@ Inductive ectx_item :=
   | LoadCtx
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
-  | FlipCtx.
+  | AllocTapeCtx
+  | RandLCtx (v2 : val)
+  | RandRCtx (e1 : expr).
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -358,7 +369,9 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | LoadCtx => Load e
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
-  | FlipCtx => Flip e
+  | AllocTapeCtx => AllocTape e
+  | RandLCtx v2 => Rand e (Val v2)
+  | RandRCtx e1 => Rand e1 e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -393,8 +406,11 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | Store (Val _) (Val _)    => None
   | Store e (Val v)          => Some (StoreLCtx v, e)
   | Store e1 e2              => Some (StoreRCtx e1, e2)
-  | Flip (Val _)             => None
-  | Flip e                   => Some (FlipCtx, e)
+  | AllocTape (Val _)        => None
+  | AllocTape e              => Some (AllocTapeCtx, e)
+  | Rand (Val _) (Val _)     => None
+  | Rand e1 (Val v2)         => Some (RandLCtx v2, e1)
+  | Rand e1 e2               => Some (RandRCtx e1, e2)
   | _                        => None
   end.
 
@@ -418,8 +434,8 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Alloc e => Alloc (subst x v e)
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
-  | AllocTape => AllocTape
-  | Flip e => Flip (subst x v e)
+  | AllocTape e => AllocTape (subst x v e)
+  | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -429,8 +445,8 @@ Definition subst' (mx : binder) (v : val) : expr → expr :=
 Definition un_op_eval (op : un_op) (v : val) : option val :=
   match op, v with
   | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
-  | NegOp, LitV (LitInt n) => Some $ LitV $ LitInt (Z.lnot n)
-  | MinusUnOp, LitV (LitInt n) => Some $ LitV $ LitInt (- n)
+  | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
+  | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)
   | _, _ => None
   end.
 
@@ -464,7 +480,6 @@ Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then
-    (* Crucially, this compares the same way as [CmpXchg]! *)
     if decide (vals_compare_safe v1 v2) then
       Some $ LitV $ LitBool $ bool_decide (v1 = v2)
     else
@@ -476,268 +491,102 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     | _, _ => None
     end.
 
-Definition state_upd_heap (f: gmap loc val → gmap loc val) (σ: state) : state :=
+Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
   {| heap := f σ.(heap); tapes := σ.(tapes) |}.
 Global Arguments state_upd_heap _ !_ /.
 
-Definition state_upd_tapes (f: gmap loc tape → gmap loc tape) (σ: state) : state :=
+Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : state :=
   {| heap := σ.(heap); tapes := f σ.(tapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
 
+Lemma state_upd_tapes_twice σ l n xs ys :
+  state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
+Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
+
 #[local] Open Scope R.
 
-Definition det_head_step_dec (e1 : expr) (σ1 : state) '(e2, σ2) : bool :=
-  match e1, e2 with
-  | Rec f x e, Val (RecV f' x' e') =>
-      bool_decide (f = f' ∧ x = x' ∧ e = e' ∧ σ1 = σ2)
-  | Pair (Val v1) (Val v2), Val (PairV v1' v2') =>
-      bool_decide (v1 = v1' ∧ v2 = v2' ∧ σ1 = σ2)
-  | InjL (Val v), (Val (InjLV v')) =>
-      bool_decide (v = v' ∧ σ1 = σ2)
-  | InjR (Val v), (Val (InjRV v')) =>
-      bool_decide (v = v' ∧ σ1 = σ2)
-  | App (Val (RecV f x e1)) (Val v2), e' =>
-      bool_decide (e' = subst' x v2 (subst' f (RecV f x e1) e1) ∧ σ1 = σ2)
-  | UnOp op (Val v), Val v' =>
-      bool_decide (un_op_eval op v = Some v' ∧ σ1 = σ2)
-  | BinOp op (Val v1) (Val v2), Val v' =>
-      bool_decide (bin_op_eval op v1 v2 = Some v' ∧ σ1 = σ2)
-  | If (Val (LitV (LitBool true))) e1 e2, e1' =>
-      bool_decide (e1 = e1' ∧ σ1 = σ2)
-  | If (Val (LitV (LitBool false))) e1 e2, e2' =>
-      bool_decide (e2 = e2' ∧ σ1 = σ2)
-  | Fst (Val (PairV v1 v2)), Val v1' =>
-      bool_decide (v1 = v1' ∧ σ1 = σ2)
-  | Snd (Val (PairV v1 v2)), Val v2' =>
-      bool_decide (v2 = v2' ∧ σ1 = σ2)
-  | Case (Val (InjLV v)) e1 e2, App e1' (Val v') =>
-      bool_decide (v = v' ∧ e1 = e1' ∧ σ1 = σ2)
-  | Case (Val (InjRV v)) e1 e2, App e2' (Val v') =>
-      bool_decide (v = v' ∧ e2 = e2' ∧ σ1 = σ2)
-  | Alloc (Val v), Val (LitV (LitLoc l)) =>
+Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
+  match e1 with
+  | Rec f x e =>
+      dret (Val $ RecV f x e, σ1)
+  | Pair (Val v1) (Val v2) =>
+      dret (Val $ PairV v1 v2, σ1)
+  | InjL (Val v) =>
+      dret (Val $ InjLV v, σ1)
+  | InjR (Val v) =>
+      dret (Val $ InjRV v, σ1)
+  | App (Val (RecV f x e1)) (Val v2) =>
+      dret (subst' x v2 (subst' f (RecV f x e1) e1) , σ1)
+  | UnOp op (Val v) =>
+      match un_op_eval op v with
+        | Some w => dret (Val w, σ1)
+        | _ => dzero
+      end
+  | BinOp op (Val v1) (Val v2) =>
+      match bin_op_eval op v1 v2 with
+        | Some w => dret (Val w, σ1)
+        | _ => dzero
+      end
+  | If (Val (LitV (LitBool true))) e1 e2  =>
+      dret (e1 , σ1)
+  | If (Val (LitV (LitBool false))) e1 e2 =>
+      dret (e2 , σ1)
+  | Fst (Val (PairV v1 v2)) =>
+      dret (Val v1, σ1)
+  | Snd (Val (PairV v1 v2)) =>
+      dret (Val v2, σ1)
+  | Case (Val (InjLV v)) e1 e2 =>
+      dret (App e1 (Val v), σ1)
+  | Case (Val (InjRV v)) e1 e2 =>
+      dret (App e2 (Val v), σ1)
+  | Alloc (Val v) =>
       let ℓ := fresh_loc σ1.(heap) in
-      bool_decide (l = ℓ ∧ σ2 = state_upd_heap <[ℓ:=v]> σ1)
-  | Load (Val (LitV (LitLoc l))), Val v =>
-      bool_decide (σ1.(heap) !! l = Some v ∧ σ1 = σ2)
-  | Store (Val (LitV (LitLoc l))) (Val w), Val (LitV LitUnit) =>
-      bool_decide (is_Some (σ1.(heap) !! l) ∧ σ2 = state_upd_heap <[l:=w]> σ1)
-  | _, _ => false
+      dret (Val $ LitV $ LitLoc ℓ, state_upd_heap <[ℓ:=v]> σ1)
+  | Load (Val (LitV (LitLoc l))) =>
+      match σ1.(heap) !! l with
+        | Some v => dret (Val v, σ1)
+        | None => dzero
+      end
+  | Store (Val (LitV (LitLoc l))) (Val w) =>
+      match σ1.(heap) !! l with
+        | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
+        | None => dzero
+      end
+  (* Since our language only has integers, we use Z.to_nat, which maps positive
+     integers to the corresponding nat, and the rest to 0. We sample from
+     [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *)
+  (* Uniform sampling from [0, 1 , ..., N] *)
+  | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
+      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+  | AllocTape (Val (LitV (LitInt z))) =>
+      let ι := fresh_loc σ1.(tapes) in
+      dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1)
+  (* Labelled sampling, conditional on tape contents *)
+  | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
+      match σ1.(tapes) !! l with
+      | Some (M; ns) =>
+          if bool_decide (M = Z.to_nat N) then
+            match ns  with
+            | n :: ns =>
+                (* the tape is non-empty so we consume the first number *)
+                dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1)
+            | [] =>
+                (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
+                dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M)
+            end
+          else
+            (* bound did not match the bound of the tape *)
+            dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+      | None => dzero
+      end
+  | _ => dzero
   end.
 
-Definition head_step_pmf (e1 : expr) (σ1 : state) '(e2, σ2) : R :=
-  if det_head_step_dec e1 σ1 (e2, σ2)
-  then 1
-  else
-    match e1, e2 with
-    | AllocTape, Val (LitV (LitLbl l)) =>
-        let ℓ := fresh_loc σ1.(tapes) in
-        if bool_decide (l = ℓ ∧ σ2 = state_upd_tapes <[ℓ:=[]]> σ1) then 1 else 0
-    | Flip (Val (LitV LitUnit)), Val (LitV (LitBool b)) =>
-        if bool_decide (σ1 = σ2) then 0.5 else 0
-    | Flip (Val (LitV (LitLbl l))), Val (LitV (LitBool b)) =>
-        match σ1.(tapes) !! l with
-        | Some (b' :: bs) => (* the tape is non-empty so we consume the first bit *)
-            if bool_decide (b = b' ∧ σ2 = state_upd_tapes <[l:=bs]> σ1) then 1 else 0
-        | Some [] | None => (* if nothing is on the tape, we do an actual probabilistic choice *)
-            if bool_decide (σ1 = σ2) then 0.5 else 0
-        end
-    | _, _ => 0
-    end.
-
-(* helper tactics to make the [head_step] proofs more tractable *)
-#[local] Tactic Notation "solve_ex_seriesC_0" :=
-  by (eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]).
-
-#[local] Tactic Notation "solve_ex_single" :=
-  (* decompose the expression as much as possible *)
-  repeat case_match; try solve_ex_seriesC_0; subst;
-  (* use that its equivalent to a singleton *)
-  eapply ex_seriesC_ext; [|eapply (ex_seriesC_singleton (_, _) 1)];
-  (* we can now decompose more to infer which singleton it is *)
-  intros []=>/=; case_bool_decide; subst;
-  [| repeat (case_bool_decide || case_match); try done; destruct_and!; simplify_eq];
-  (* the only case we're really intered in *)
-  simplify_eq; rewrite bool_decide_eq_true_2 //.
-
-#[local] Tactic Notation "solve_SeriesC_0" :=
-  by (rewrite SeriesC_0; [lra|]; intros [[]]; repeat case_match).
-
-#[local] Tactic Notation "solve_SeriesC_single"  :=
-  repeat case_match; try solve_SeriesC_0; subst;
-  erewrite SeriesC_ext; [erewrite (SeriesC_singleton (_,_) 1); lra|];
-  intros []=>/=; case_bool_decide;
-  subst; destruct_and?;
-  [|repeat (case_bool_decide || case_match); try done; destruct_and?; simplify_eq; exfalso; auto];
-  simplify_eq; rewrite bool_decide_eq_true_2 //.
-
-Program Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
-  MkDistr (head_step_pmf e1 σ1) _ _ _.
-Next Obligation. intros ???. rewrite /head_step_pmf. repeat case_match; lra. Qed.
-Next Obligation.
-  intros [] ?; rewrite /head_step_pmf /det_head_step_dec.
-  - solve_ex_seriesC_0.
-  - solve_ex_seriesC_0.
-  - solve_ex_single.
-  - solve_ex_single.
-  - case_match; try solve_ex_seriesC_0; subst.
-    destruct (un_op_eval op v); [solve_ex_single|solve_ex_seriesC_0].
-  - do 2 (case_match; try solve_ex_seriesC_0); subst.
-    destruct (bin_op_eval op v v0); [solve_ex_single|solve_ex_seriesC_0].
-  - do 3 (case_match; try solve_ex_seriesC_0). destruct b; solve_ex_single.
-  - solve_ex_single.
-  - solve_ex_single.
-  - solve_ex_single.
-  - solve_ex_single.
-  - solve_ex_single.
-  - do 2 (case_match; try solve_ex_seriesC_0); solve_ex_single.
-  - solve_ex_single.
-  - do 3 (case_match; try solve_ex_seriesC_0).
-    destruct (heap σ1 !! l0); [solve_ex_single|solve_ex_seriesC_0].
-  - do 4 (case_match; try solve_ex_seriesC_0).
-    destruct (heap σ1 !! l0); [solve_ex_single|].
-    eapply ex_seriesC_ext; [|apply ex_seriesC_0]; intros [[]]=>//=.
-    repeat case_match; done.
-  - solve_ex_single.
-  - do 3 (case_match; try solve_ex_seriesC_0).
-    + eapply ex_seriesC_ext;
-        [|eapply ex_seriesC_plus;
-          [eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)|
-           eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)]].
-      intros [? σ2]. simplify_eq. symmetry.
-      do 3 (case_match; simpl; try lra).
-      destruct b; repeat case_bool_decide; simplify_eq; try lra.
-    + destruct (σ1.(tapes) !! l0) as [[|b bs]|] eqn:Heq.
-      * eapply ex_seriesC_ext;
-          [|eapply ex_seriesC_plus;
-            [eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)|
-              eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)]].
-        intros [? σ2]. simplify_eq. symmetry.
-        do 3 (case_match; simpl; try lra).
-        destruct b; repeat case_bool_decide; simplify_eq; try lra.
-      * solve_ex_single.
-      * eapply ex_seriesC_ext;
-          [|eapply ex_seriesC_plus;
-            [eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)|
-              eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)]].
-        intros [? σ2]. simplify_eq. symmetry.
-        do 3 (case_match; simpl; try lra).
-        destruct b; repeat case_bool_decide; simplify_eq; try lra.
-Qed.
-Next Obligation.
-  intros [] ?; rewrite /head_step_pmf /det_head_step_dec.
-  - solve_SeriesC_0.
-  - solve_SeriesC_0.
-  - solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - case_match; try solve_SeriesC_0; subst.
-    destruct (un_op_eval op v); [solve_SeriesC_single|solve_SeriesC_0].
-  - do 2 (case_match; try solve_SeriesC_0); subst.
-    destruct (bin_op_eval op v v0); [solve_SeriesC_single|solve_SeriesC_0].
-  - do 3 (case_match; try solve_SeriesC_0). destruct b; solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - do 2 (case_match; try solve_SeriesC_0); solve_SeriesC_single.
-  - solve_SeriesC_single.
-  - do 3 (case_match; try solve_SeriesC_0).
-    destruct (heap σ1 !! l0); [solve_SeriesC_single|solve_SeriesC_0].
-  - do 4 (case_match; try solve_SeriesC_0).
-    destruct (heap σ1 !! l0); [|solve_SeriesC_0].
-    repeat case_match; try solve_SeriesC_0; subst.
-    erewrite SeriesC_ext; [erewrite (SeriesC_singleton (Val (LitV LitUnit), _) 1); lra|].
-    intros []. symmetry.
-    case_bool_decide; simplify_eq.
-    + rewrite bool_decide_eq_true_2 //.
-    + do 4 (case_match; try done).
-      case_bool_decide; simplify_eq; destruct_and!; simplify_eq.
-  - solve_SeriesC_single.
-  - do 3 (case_match; try solve_SeriesC_0).
-    + erewrite SeriesC_ext.
-      { erewrite SeriesC_plus;
-          [|eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)
-           |eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)].
-        rewrite 2!SeriesC_singleton. lra. }
-      intros [? σ2]. simplify_eq.
-      do 3 (case_match; simpl; try lra).
-      destruct b; repeat case_bool_decide; simplify_eq; try lra.
-    + destruct (σ1.(tapes) !! l0) as [[|b bs]|] eqn:Heq.
-      * erewrite SeriesC_ext.
-        { erewrite SeriesC_plus;
-            [|eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)
-            |eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)].
-          rewrite 2!SeriesC_singleton. lra. }
-        intros [? σ2]. simplify_eq.
-        do 3 (case_match; simpl; try lra).
-        destruct b; repeat case_bool_decide; simplify_eq; try lra.
-      * solve_SeriesC_single.
-      * erewrite SeriesC_ext.
-        { erewrite SeriesC_plus;
-            [|eapply (ex_seriesC_singleton (Val (LitV (LitBool true)), σ1) 0.5)
-            |eapply (ex_seriesC_singleton (Val (LitV (LitBool false)), σ1) 0.5)].
-          rewrite 2!SeriesC_singleton. lra. }
-        intros [? σ2]. simplify_eq.
-        do 3 (case_match; simpl; try lra).
-        destruct b; repeat case_bool_decide; simplify_eq; try lra.
-Qed.
-
-Definition valid_state_step (σ1 : state) (α : loc) (σ2 : state) : Prop :=
-  (* [α] has to be the label of an allocated label *)
-  α ∈ dom σ1.(tapes) ∧
-  (* the heap is the same but we add a bit to the [α] tape *)
-  ∃ b, σ2 = state_upd_tapes <[α := σ1.(tapes) !!! α ++ [b]]> σ1.
-
-Local Instance valid_state_step_dec σ1 α σ2 : Decision (valid_state_step σ1 α σ2).
-Proof. apply _. Qed.
-
-Definition state_step_pmf (σ1 : state) (α : loc) (σ2 : state) : R :=
-  if bool_decide (valid_state_step σ1 α σ2) then 0.5 else 0.
-
-Lemma state_step_pmf_eq σ1 α σ2 :
-  α ∈ dom σ1.(tapes) →
-  state_step_pmf σ1 α σ2 =
-    (if bool_decide (σ2 = state_upd_tapes (<[α := σ1.(tapes) !!! α ++ [true]]>) σ1)
-     then 0.5 else 0)
-  + (if bool_decide (σ2 = state_upd_tapes (<[α := σ1.(tapes) !!! α ++ [false]]>) σ1)
-     then 0.5 else 0).
-Proof.
-  intros Hα.
-  rewrite /pmf /= /state_step_pmf /valid_state_step.
-  case_bool_decide as Heq.
-  - destruct Heq as [Hdom [[] ->]]; simplify_map_eq.
-    + rewrite bool_decide_eq_true_2 // bool_decide_eq_false_2; [lra|].
-      case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
-    + rewrite bool_decide_eq_false_2.
-      { rewrite bool_decide_eq_true_2 //. lra. }
-      case. rewrite map_eq_iff => /(_ α) ?. simplify_map_eq.
-  - apply not_and_l in Heq as [|Heq]; [done|].
-    rewrite !bool_decide_eq_false_2; [lra| |]; intros; eauto.
-Qed.
-
-Program Definition state_step (σ1 : state) (α : loc) : distr state :=
-  MkDistr (state_step_pmf σ1 α) _ _ _.
-Next Obligation. rewrite /state_step_pmf. intros. case_bool_decide; lra. Qed.
-Next Obligation.
-  intros σ1 α.
-  destruct (decide (α ∈ dom σ1.(tapes))).
-  - eapply ex_seriesC_ext.
-    { intros σ2. rewrite state_step_pmf_eq //. }
-    eapply ex_seriesC_plus; eapply ex_seriesC_singleton.
-  - eapply (ex_seriesC_ext (λ _, 0)); [|eapply ex_seriesC_0].
-    intros ?. rewrite /state_step_pmf bool_decide_eq_false_2 //.
-    by intros [].
-Qed.
-Next Obligation.
-  intros σ1 α.
-  destruct (decide (α ∈ dom σ1.(tapes))).
-  - erewrite SeriesC_ext.
-    2 : { intros σ2. rewrite state_step_pmf_eq //. }
-    erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
-    rewrite 2!SeriesC_singleton. lra.
-  - rewrite SeriesC_0; [lra|]. intros ?.
-    rewrite /state_step_pmf bool_decide_eq_false_2 //. by intros [].
-Qed.
+Definition state_step (σ1 : state) (α : loc) : distr state :=
+  if bool_decide (α ∈ dom σ1.(tapes)) then
+    let: (N; ns) := (σ1.(tapes) !!! α) in
+    dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
+  else dzero.
 
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
@@ -752,9 +601,13 @@ Lemma val_head_stuck e σ ρ :
 Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
 Lemma head_ctx_step_val Ki e σ ρ :
   head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
-Proof. destruct ρ, Ki; rewrite /pmf/=; repeat case_match; try (done || lra). Qed.
+Proof.
+  destruct ρ, Ki;
+    rewrite /pmf/=;
+      repeat case_match; try (done || lra); try (inversion H; lra).
+Qed.
 
-(** A relational definition of the support of [head_step] to make it possible to
+(** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
 Inductive head_step_rel : expr → state → expr → state → Prop :=
 | RecS f x e σ :
@@ -797,187 +650,115 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| AllocTapeS σ l :
+| RandNoTapeS z N (n : fin (S N)) σ:
+  N = Z.to_nat z →
+  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
+| AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
-  head_step_rel AllocTape σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l:=[]]> σ)
-| FlipTapeS l b bs σ :
-  σ.(tapes) !! l = Some (b :: bs) →
-  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitBool b) (state_upd_tapes <[l:=bs]> σ)
-| FlipTapeEmptyS l b σ :
-  σ.(tapes) !! l = Some [] ∨ σ.(tapes) !! l = None →
-  head_step_rel (Flip (Val (LitV (LitLbl l)))) σ (Val $ LitV $ LitBool b) σ
-| FlipNoTapeS b σ :
-  head_step_rel (Flip (Val (LitV LitUnit))) σ (Val $ LitV $ LitBool b) σ.
+  N = Z.to_nat z →
+  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
+| RandTapeS l z N n ns σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
+    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
+| RandTapeEmptyS l z N (n : fin (S N)) σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((N; []) : tape) →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+| RandTapeOtherS l z M N ms (n : fin (S N)) σ :
+  N = Z.to_nat z →
+  σ.(tapes) !! l = Some ((M; ms) : tape) →
+  N ≠ M →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ.
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 
 Inductive state_step_rel : state → loc → state → Prop :=
-| AddTapeS b α σ :
+| AddTapeS α N (n : fin (S N)) ns σ :
   α ∈ dom σ.(tapes) →
-  state_step_rel σ α (state_upd_tapes <[α := σ.(tapes) !!! α ++ [b]]> σ).
+  σ.(tapes) !!! α = ((N; ns) : tape) →
+  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
 
-(** A computational/destructing version of [inv_head_step] - only to be used for
-    the lemma below *)
-Local Ltac inv_head_step'' :=
+Ltac inv_head_step :=
   repeat
     match goal with
-    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
+    | H : context [@bool_decide ?P ?dec] |- _ =>
+        try (rewrite bool_decide_eq_true_2 in H; [|done]);
+        try (rewrite bool_decide_eq_false_2 in H; [|done]);
+        destruct_decide (@bool_decide_reflect P dec); simplify_eq
+    | _ => progress simplify_map_eq; simpl in *; inv_distr; repeat case_match; inv_distr
     | H : to_val _ = Some _ |- _ => apply of_to_val in H
     | H : is_Some (_ !! _) |- _ => destruct H
-    | H : @pmf _ _ _ (head_step ?e _) _ > 0  |- _ =>
-        rewrite /pmf /= in H;
-        repeat ((case_bool_decide_and_destruct in H || case_match); try (lra || done));
-        destruct_and?;
-        try (lra || done)
-    | H : bool_decide _ = _ |- _ =>
-        case_bool_decide; destruct_and?;
-        simplify_eq;
-        try lra;
-        try done;
-        eauto with head_step
     end.
 
 Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
   split.
-  - intros Hstep.
-    destruct e1; inv_head_step''; eauto with head_step.
-    + (* semi-bogus case because of a too eager [case_bool_decide] in [inv_head_step'] *)
-      rewrite {2}H9. by eapply FlipTapeS.
-  - inversion 1;
-      rewrite /pmf /= /head_step_pmf //; simplify_map_eq;
-      rewrite ?bool_decide_eq_true_2 //; try lra.
-    destruct_or?; simplify_map_eq; lra.
+  - intros ?. destruct e1; inv_head_step; eauto with head_step.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr.
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
   state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
 Proof.
-  rewrite /pmf /= /state_step_pmf. case_bool_decide as Heq.
-  - split; [|lra]. intros ?. destruct Heq as [? [b ->]]. econstructor; eauto.
-  - split; [lra|]. inversion 1. simplify_eq.
-    exfalso. apply Heq. split; [done|]. eauto.
+  rewrite /state_step. split.
+  - case_bool_decide; [|intros; inv_distr].
+    case_match. intros ?. inv_distr.
+    econstructor; eauto with lia.
+  - inversion_clear 1.
+    rewrite bool_decide_eq_true_2 // H1. solve_distr.
 Qed.
 
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
   rewrite state_step_support_equiv_rel.
-  inversion 1; simplify_eq.
-  split; intros [[e' σ'] Hs].
-  - rewrite head_step_support_equiv_rel in Hs.
-    inversion_clear Hs;
-      try by eexists (_,_); eapply head_step_support_equiv_rel;
-      econstructor; eauto; simpl.
-    + destruct (decide (l = α)); subst;
-        eexists (_,_); eapply head_step_support_equiv_rel; econstructor.
-      * erewrite lookup_total_correct; [|done].
-        rewrite lookup_insert //.
-      * rewrite lookup_insert_ne //.
-    + destruct (decide (l = α)); subst.
-      * eexists (_,_); eapply head_step_support_equiv_rel; destruct_or?.
-        -- econstructor. erewrite lookup_total_correct; [|done]; rewrite lookup_insert //.
-        -- econstructor. erewrite lookup_total_correct_2 ; [|done]. rewrite lookup_insert //.
-      * eexists (Val (LitV (LitBool true)),_); eapply head_step_support_equiv_rel; destruct_or?.
-        -- eapply FlipTapeEmptyS. rewrite lookup_insert_ne //; eauto.
-        -- eapply FlipTapeEmptyS. rewrite lookup_insert_ne //; eauto.
-   - rewrite head_step_support_equiv_rel in Hs.
-     inversion_clear Hs;
-       try by eexists (_,_); eapply head_step_support_equiv_rel;
-           econstructor; eauto; simpl.
-     + destruct (decide (l = α)); subst.
-       * destruct (tapes σ !! α) eqn:Heq.
-         -- destruct t.
-            { eexists (Val (LitV (LitBool true)),_); eapply head_step_support_equiv_rel.
-              eapply FlipTapeEmptyS; eauto. }
-            eexists (_,_); eapply head_step_support_equiv_rel.
-            by eapply FlipTapeS.
-         -- eexists (Val (LitV (LitBool true)),_); eapply head_step_support_equiv_rel.
-            eapply FlipTapeEmptyS; eauto.
-       * rewrite lookup_insert_ne // in H1.
-         eexists (_,_); eapply head_step_support_equiv_rel.
-         by econstructor.
-     + destruct (decide (l = α)); subst.
-       * destruct_or?; simplify_map_eq.
-         destruct (σ.(tapes) !!! α); simplify_list_eq.
-       * simplify_map_eq. eexists (Val (LitV (LitBool true)),_); eapply head_step_support_equiv_rel.
-         by eapply FlipTapeEmptyS.
-  Unshelve. all: apply true.  (* FlipNoTapeS case *)
+  inversion_clear 1.
+  split; intros [[e2 σ2] Hs].
+  (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
+  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert in H11. done.
+      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert in H11. done.
+      * rewrite lookup_insert_ne // in H11. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert in H10. done.
+      * rewrite lookup_insert_ne // in H10. rewrite H10 in H7. done.
+  - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
+    + destruct (decide (α = l1)); simplify_eq.
+      * apply not_elem_of_dom_2 in H11. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7.  done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert // in H7.
+        apply not_elem_of_dom_2 in H11. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H11 in H7. done.
+    + destruct (decide (α = l1)); simplify_eq.
+      * rewrite lookup_insert // in H7.
+        apply not_elem_of_dom_2 in H10. done.
+      * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
 Qed.
 
 Lemma state_step_mass σ α :
   α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
 Proof.
-  intros Hdom. rewrite /pmf /=.
-  erewrite SeriesC_ext; last first.
-  { intros σ2. rewrite state_step_pmf_eq //. }
-  rewrite SeriesC_plus ?SeriesC_singleton; [lra| |];
-    apply ex_seriesC_singleton.
+  intros Hdom.
+  rewrite /state_step bool_decide_eq_true_2 //=.
+  case_match.
+  rewrite dmap_mass dunif_mass //. 
 Qed.
 
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
-  inversion Hs; simplify_eq;
-   (* horrible automation to discharge all the the determinsitic cases *)
-   try by match goal with
-    | H : head_step_rel _ _ ?e ?σ |- _ =>
-        erewrite SeriesC_ext; [eapply (SeriesC_singleton (e, σ))|];
-        intros [];
-        case_bool_decide; simplify_eq;
-        rewrite /pmf /= /head_step_pmf;
-        simplify_map_eq;
-        [rewrite bool_decide_eq_true_2 //
-        |repeat case_match; try done; simplify_eq; inv_head_step'']
-     end.
-  (* TODO: some nicer lemma for proving the following? Lots of duplication *)
-  - rewrite (SeriesC_split_elem _ (Val (LitV (LitBool true)), s)); [|done|done].
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool true)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct H; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton.
-    rewrite (SeriesC_split_elem _ (Val (LitV (LitBool false)), s)); [| | ]; last first.
-    { by eapply ex_seriesC_filter_pos. }
-    { intros []. case_bool_decide; [done|lra]. }
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool false)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct H; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton SeriesC_0; [lra|].
-    intros []. do 2 (case_bool_decide; [|done]).
-    rewrite /pmf /= /head_step_pmf.
-    repeat case_match; try done; simplify_eq.
-    + case_bool_decide; simplify_eq. by destruct b0.
-    + destruct H; [done|]. simplify_map_eq.
-    + destruct H; [done|]. case_bool_decide; simplify_eq.
-      by destruct b0.
-  - rewrite (SeriesC_split_elem _ (Val (LitV (LitBool true)), s)); [|done|done].
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool true)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct Hs; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton.
-    rewrite (SeriesC_split_elem _ (Val (LitV (LitBool false)), s)); [| | ]; last first.
-    { by eapply ex_seriesC_filter_pos. }
-    { intros []. case_bool_decide; [done|lra]. }
-    erewrite (SeriesC_ext _ ((λ a, if bool_decide (a = (Val (LitV (LitBool false)), s))
-                                   then 0.5 else 0))); last first.
-    { intros []. case_bool_decide; [|done]; simplify_eq.
-      rewrite /pmf /= /head_step_pmf.
-      destruct Hs; simplify_map_eq; rewrite bool_decide_eq_true_2 //. }
-    rewrite SeriesC_singleton SeriesC_0; [lra|].
-    intros []. do 2 (case_bool_decide; [|done]).
-    rewrite /pmf /= /head_step_pmf.
-    repeat case_match; try done; simplify_eq.
-    case_bool_decide; simplify_eq. by destruct b0.
+  inversion Hs;
+    repeat (simplify_map_eq/=; solve_distr_mass || case_match).
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -1003,8 +784,8 @@ Fixpoint height (e : expr) : nat :=
   | Alloc e => 1 + height e
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
-  | AllocTape => 1
-  | Flip e => 1 + height e
+  | AllocTape e => 1 + height e
+  | Rand e1 e2 => 1 + height e1 + height e2
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.

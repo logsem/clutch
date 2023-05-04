@@ -3,13 +3,11 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
-From self.program_logic Require Import language ectxi_language.
-From self.prob_lang Require Import locations class_instances lang notation
-  primitive_laws spec_ra spec_rules tactics.
+From self.prob_lang Require Import spec_rules notation tactics.
 Set Default Proof Using "Type".
 
 (** ** bind *)
-Lemma tac_tp_bind_gen `{prelocGS Σ} k Δ Δ' i p e e' Q :
+Lemma tac_tp_bind_gen `{clutchGS Σ} k Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, refines_right k e)%I →
   e = e' →
   envs_simple_replace i p (Esnoc Enil i (refines_right k e')) Δ = Some Δ' →
@@ -21,7 +19,7 @@ Proof.
   destruct p; rewrite /= ?right_id; by rewrite bi.wand_elim_r.
 Qed.
 
-Lemma tac_tp_bind `{prelocGS Σ} k e' Δ Δ' i p K' e Q :
+Lemma tac_tp_bind `{clutchGS Σ} k e' Δ Δ' i p K' e Q :
   envs_lookup i Δ = Some (p, refines_right k e)%I →
   e = fill K' e' →
   envs_simple_replace i p (Esnoc Enil i (refines_right k (fill K' e'))) Δ = Some Δ' →
@@ -63,7 +61,7 @@ Tactic Notation "tp_bind" open_constr(efoc) :=
     |reflexivity
     |(* new goal *)].
 
-Lemma tac_tp_pure `{prelocGS Σ} e K' e1 k e2 Δ1 E1 i1 e' ϕ ψ Q n :
+Lemma tac_tp_pure `{clutchGS Σ} e K' e1 k e2 Δ1 E1 i1 e' ϕ ψ Q n :
   (* we have those premises first, because we will be trying to solve them
      with backtracking using reashape_expr; see the accompanying Ltac.
      the first premise decomposes the expression, the second one checks
@@ -143,7 +141,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
@@ -189,7 +187,7 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_load `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
+Lemma tac_tp_load `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
@@ -232,7 +230,7 @@ Tactic Notation "tp_load" :=
   |simpl; reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_alloc `{prelocGS Σ} k Δ1 E1 i1 K' e e' v Q :
+Lemma tac_tp_alloc `{clutchGS Σ} k Δ1 E1 i1 K' e e' v Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
@@ -285,19 +283,21 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{prelocGS Σ} k Δ1 E1 i1 K' e Q :
+(* Will this ever be used when the argument of alloc is not a value? *)
+Lemma tac_tp_alloctape `{clutchGS Σ} k Δ1 E1 i1 K' e N z Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
+  TCEq N (Z.to_nat z) →
   nclose specN ⊆ E1 →
   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
-  e = fill K' alloc →
+  e = fill K' (alloc #z) →
   (* TODO use match here as well *)
   (∀ α : loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (refines_right k (fill K' #lbl:α))) Δ1 = Some Δ2 ∧
-    (envs_entails Δ2 ((α ↪ₛ []) -∗ Q)%I)) →
+    (envs_entails Δ2 ((α ↪ₛ (N; [])) -∗ Q)%I)) →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros ??? Hfill HQ.
+  rewrite envs_entails_unseal. intros ???? Hfill HQ.
   rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption.
   rewrite /refines_right.
   rewrite Hfill -fill_app /=.
@@ -327,6 +327,7 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
   iStartProof;
   eapply (tac_tp_alloctape);
   [iSolveTC || fail "tp_alloctape: cannot eliminate modality in the goal"
+  |iSolveTC || fail "tp_alloctape: cannnot convert bound to a natural number" 
   |solve_ndisj || fail "tp_alloctape: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_alloctape: cannot find the RHS"
   |tp_bind_helper
@@ -336,47 +337,49 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_flip `{prelocGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) b bs Q :
+Lemma tac_tp_rand `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
+  TCEq N (Z.to_nat z) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
-  e = fill K' (Flip #lbl:l) →
-  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (b::bs))%I →
-  e2 = fill K' (of_val #b) →
+  e = fill K' (rand #z from #lbl:l) →
+  envs_lookup i2 Δ2 = Some (false, l ↪ₛ (N; n::ns))%I →
+  e2 = fill K' (of_val #n) →
   match envs_simple_replace i2 false
-    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ bs)%I) Δ2 with
+    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↪ₛ (N; ns))%I) Δ2 with
   | Some Δ3 => envs_entails Δ3 Q
   | None    => False
   end →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros ??? -> ? -> HQ.
+  rewrite envs_entails_unseal. intros ???? -> ? -> HQ.
   rewrite envs_lookup_delete_sound //; simpl.
   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
   rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
   rewrite /refines_right.
   rewrite right_id.
   rewrite assoc. rewrite -(assoc _ spec_ctx).
-  rewrite -fill_app step_flip /= // fill_app.
+  rewrite -fill_app step_rand /= // fill_app.
   rewrite -[Q]elim_modal //.
   apply bi.sep_mono_r.
   apply bi.wand_intro_l.
-  rewrite (comm _ _ (l ↪ₛ bs)%I).
+  rewrite (comm _ _ (l ↪ₛ (N; ns))%I).
   rewrite assoc.
-  rewrite (comm _ _ (l ↪ₛ bs)%I).
+  rewrite (comm _ _ (l ↪ₛ (N; ns))%I).
   rewrite -assoc.
   rewrite HQ. by apply bi.wand_elim_r.
 Qed.
 
-Tactic Notation "tp_flip" :=
+Tactic Notation "tp_rand" :=
   iStartProof;
-  eapply tac_tp_flip;
-  [iSolveTC || fail "tp_flip: cannot eliminate modality in the goal"
-  |solve_ndisj || fail "tp_flip: cannot prove 'nclose specN ⊆ ?'"
-  |iAssumptionCore || fail "tp_flip: cannot find the RHS"
+  eapply tac_tp_rand;
+  [iSolveTC || fail "tp_rand: cannot eliminate modality in the goal"
+  |iSolveTC || fail "tp_rand: cannot convert bound to a natural number"
+  |solve_ndisj || fail "tp_rand: cannot prove 'nclose specN ⊆ ?'"
+  |iAssumptionCore || fail "tp_rand: cannot find the RHS"
   |tp_bind_helper
-  |iAssumptionCore || fail "tp_flip: cannot find '? ↪ₛ ?'"
-  |simpl; reflexivity || fail "tp_flip: this should not happen"
+  |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
+  |simpl; reflexivity || fail "tp_rand: this should not happen"
   |pm_reduce (* new goal *)].
 
 (* helper lemma to apply wp_flipU_r, similar to tac_tp_flip  *)

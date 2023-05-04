@@ -9,31 +9,32 @@ From self.prob_lang Require Import spec_ra.
 From self.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
-Class prelocGS Σ := HeapG {
-  prelocGS_invG : invGS_gen HasNoLc Σ;
+Class clutchGS Σ := HeapG {
+  clutchGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  prelocGS_heap : ghost_mapG Σ loc val;
-  prelocGS_tapes : ghost_mapG Σ loc (list bool);
+  clutchGS_heap : ghost_mapG Σ loc val;
+  clutchGS_tapes : ghost_mapG Σ loc tape;
   (* ghost names for the state *)
-  prelocGS_heap_name : gname;
-  prelocGS_tapes_name : gname;
+  clutchGS_heap_name : gname;
+  clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  prelocGS_spec :> specGS Σ;
+  clutchGS_spec :> specGS Σ;
 }.
 
-Definition heap_auth `{prelocGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ prelocGS_heap prelocGS_heap_name.
-Definition tapes_auth `{prelocGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ prelocGS_tapes prelocGS_tapes_name.
+Definition heap_auth `{clutchGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
+Definition tapes_auth `{clutchGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
-Global Instance prelocGS_irisGS `{!prelocGS Σ} : irisGS prob_lang Σ := {
-  iris_invGS := prelocGS_invG;
+
+Global Instance clutchGS_irisGS `{!clutchGS Σ} : irisGS prob_lang Σ := {
+  iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  spec_interp ρ := spec_interp_auth ρ;
+  spec_interp ρ := (spec_interp_auth ρ)%I ;
 }.
 
 (** Heap *)
-Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ prelocGS_heap prelocGS_heap_name l dq v)
+Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_heap clutchGS_heap_name l dq v)
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.
 Notation "l ↦□ v" := (l ↦{ DfracDiscarded } v)%I
   (at level 20, format "l  ↦□  v") : bi_scope.
@@ -43,7 +44,7 @@ Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Tapes *)
-Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ prelocGS_tapes prelocGS_tapes_name l dq v)
+Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name l dq (v : tape))
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
@@ -53,7 +54,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 Section lifting.
-Context `{!prelocGS Σ}.
+Context `{!clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -114,63 +115,87 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-(** Tapes  *)
-Lemma wp_alloc_tape E :
-  {{{ True }}} AllocTape @ E {{{ α, RET LitV (LitLbl α); α ↪ [] }}}.
+Lemma wp_rand (N : nat) (z : Z) E :
+  TCEq N (Z.to_nat z) →
+  {{{ True }}} rand #z from #() @ E {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
-  iIntros (Φ) "_ HΦ".
+  iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !# /=".
+  iIntros (σ1) "Hσ !#".
+  iSplit; [eauto with head_step|].
+  Unshelve. 2 : { apply 0%fin . }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  by iApply ("HΦ" $! x) .
+Qed.
+
+(** Tapes  *)
+Lemma wp_alloc_tape N z E :
+  TCEq N (Z.to_nat z) →
+  {{{ True }}} alloc #z @ E {{{ α, RET #lbl:α; α ↪ (N; []) }}}.
+Proof.
+  iIntros (-> Φ) "_ HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & Ht) !# /=".
   iSplit; [by eauto with head_step|].
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
-  iFrame. iModIntro. by iApply "HΦ".
+  iFrame. iModIntro.
+  by iApply "HΦ".
 Qed.
 
-Lemma wp_flip E α b bs :
-  {{{ ▷ α ↪ (b :: bs) }}} Flip (Val $ LitV $ LitLbl α) @ E
-  {{{ RET LitV (LitBool b); α ↪ bs }}}.
+Lemma wp_rand_tape N α n ns z E :
+  TCEq N (Z.to_nat z) →
+  {{{ ▷ α ↪ (N; n :: ns) }}} rand #z from #lbl:α @ E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
 Proof.
-  iIntros (Φ) ">Hl HΦ".
+  iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-  iSplit; [by eauto with head_step|].
-  simpl.
-  iIntros "!>" (e2 σ2 Hs); inv_head_step; last first.
-  { destruct_or?; simplify_map_eq. }
+  iSplit; [eauto with head_step|].
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
   iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
-  iFrame. iModIntro. by iApply "HΦ".
+  iFrame. iModIntro.
+  by iApply "HΦ".
 Qed.
 
-Lemma wp_flipU E :
-  {{{ True }}} Flip (Val $ LitV $ LitUnit) @ E
-  {{{ b, RET LitV (LitBool b); True }}}.
+Lemma wp_rand_tape_empty N z α E :
+  TCEq N (Z.to_nat z) →
+  {{{ ▷ α ↪ (N; []) }}} rand #z from #lbl:α @ E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
 Proof.
-  iIntros (Φ) "_ HΦ".
+  iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
-  iSplit; [unshelve by eauto with head_step|].
-  1: exact inhabitant.
-  simpl.
-  iIntros "!>" (e2 σ2 Hs); inv_head_step; last first.
-  iFrame. iModIntro. by iApply "HΦ".
-Qed.
-
-Lemma wp_flip_empty E α :
-  {{{ ▷ α ↪ [] }}} Flip (Val $ LitV $ LitLbl α) @ E
-  {{{ b, RET LitV (LitBool b); α ↪ [] }}}.
-Proof.
-  iIntros (Φ) ">Hl HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !# /=".
+  iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   iSplit; [by eauto with head_step|].
-  Unshelve.
-  Unshelve. 2: { exact inhabitant. }
-  iIntros "!>" (e2 σ2 Hs); inv_head_step.
-  iFrame. iModIntro. by iApply "HΦ".
+  Unshelve. 2 : { apply 0%fin. }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  iModIntro. iApply ("HΦ" with "[$Hl //]").
 Qed.
+
+Lemma wp_rand_tape_wrong_bound N M z α E ns :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  {{{ ▷ α ↪ (M; ns) }}} rand #z from #lbl:α @ E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
+Proof.
+  iIntros (-> ? Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct (ghost_map_lookup with "Ht Hl") as %?.
+  iSplit; [by eauto with head_step|].
+  Unshelve. 2 : { apply 0%fin. }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  iModIntro.
+  iApply ("HΦ" with "[$Hl //]").
+Qed.  
 
 End lifting.
+
+Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances. 

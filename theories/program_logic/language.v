@@ -209,7 +209,7 @@ Section language.
   Proof.
     intros Hs.
     rewrite fill_dmap; [|by eapply val_stuck].
-    apply dbind_pos_support. eexists (_,_). split; [|done].
+    apply dbind_pos. eexists (_,_). split; [|done].
     rewrite dret_1_1 //. lra.
   Qed.
 
@@ -218,7 +218,7 @@ Section language.
     ∃ e2', e2 = K e2' ∧ prim_step e1' σ1 (e2', σ2) > 0.
   Proof.
     intros Hv. rewrite fill_dmap //.
-    intros ([e1 σ1'] & [=]%dret_pos & Hstep)%dbind_pos_support.
+    intros ([e1 σ1'] & [=]%dret_pos & Hstep)%dbind_pos.
     subst. eauto.
   Qed.
 

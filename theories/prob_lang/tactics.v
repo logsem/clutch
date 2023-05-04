@@ -30,7 +30,9 @@ Ltac reshape_expr e tac :=
   | Load ?e => go (LoadCtx :: K) e
   | Store ?e (Val ?v) => go (StoreLCtx v :: K) e
   | Store ?e1 ?e2 => go (StoreRCtx e1 :: K) e2
-  | Flip ?e => go (FlipCtx :: K) e
+  | AllocTape ?e => go (AllocTapeCtx :: K) e
+  | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
+  | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.
@@ -48,34 +50,18 @@ Proof. eapply head_step_support_eq; lra. Qed.
     and simplifies hypothesis related to conversions from and to values, and
     finite map operations. This tactic is slightly ad-hoc and tuned for proving
     our lifting lemmas. *)
-Ltac inv_head_step :=
-  repeat
-    match goal with
-    | _ => progress simplify_map_eq/= (* simplify memory stuff *)
-    | H : to_val _ = Some _ |- _ => apply of_to_val in H
-    | H : is_Some (_ !! _) |- _ => destruct H
-    | H : @pmf _ _ _ (head_step _ _) _ > 0  |- _ => apply head_step_support_equiv_rel in H
-    | H : @pmf _ _ _ (head_step _ _) _ = 1  |- _ => apply head_step_support_eq_1 in H
-    | H : head_step_rel ?e _ _ _ |- _ =>
-        try (is_var e; fail 1); (* inversion yields many goals if [e] is a variable *)
-        inversion H; subst; clear H
-    end.
 
 Global Hint Extern 0 (head_reducible _ _) =>
-         eexists (_, _); simpl; eapply head_step_support_equiv_rel : head_step.
+         eexists (_, _); eapply head_step_support_equiv_rel : head_step.
 Global Hint Extern 1 (head_step _ _ _ > 0) =>
          eapply head_step_support_equiv_rel; econstructor : head_step.
-
-Local Ltac solve_step_det :=
-  rewrite /pmf /=;
-    repeat (rewrite bool_decide_eq_true_2 // || case_match);
-  try (lra || done).
 
 Ltac solve_step :=
   simpl;
   match goal with
-  | |- @pmf _ _ _ (prim_step _ _) _ = 1  =>
-      rewrite head_prim_step_eq; [solve_step_det|eauto with head_step]
-  | |- @pmf _ _ _ (head_step _ _) _ = 1  => solve_step_det
-  | |- @pmf _ _ _ (head_step _ _) _ > 0  => eauto with head_step
+  | |- (prim_step _ _).(pmf) _ = 1%R  =>
+      rewrite head_prim_step_eq /=;
+        [simplify_map_eq; solve_distr|eauto with head_step]
+  | |- (head_step _ _).(pmf) _ = 1%R  => simplify_map_eq; solve_distr
+  | |- (head_step _ _).(pmf) _ > 0%R  => eauto with head_step
   end.

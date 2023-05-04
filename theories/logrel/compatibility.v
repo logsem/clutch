@@ -4,7 +4,7 @@ From self.prob_lang Require Import notation primitive_laws spec_rules spec_tacti
 From self.logrel Require Import model rel_tactics rel_rules.
 
 Section compatibility.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
   Implicit Types e : expr.
 
   Local Ltac value_case :=
@@ -115,36 +115,47 @@ Section compatibility.
     value_case.
   Qed.
 
-  Lemma refines_flip e e' :
-    (REL e << e' : lrel_tape) -∗
-    REL flip e << flip e' : lrel_bool.
+  Lemma refines_rand_tape e1 e1' e2 e2' :
+    (REL e1 << e1' : lrel_nat) -∗
+    (REL e2 << e2' : lrel_tape) -∗
+    REL rand e1 from e2 << rand e1' from e2' : lrel_nat.
   Proof.
-    iIntros "H".
-    rel_bind_ap e e' "H" v v' "H".
-    iDestruct "H" as (α α' -> ->) "#H".
+    iIntros "IH1 IH2".
+    rel_bind_ap e2 e2' "IH2" w w' "IH2".
+    rel_bind_ap e1 e1' "IH1" v v' "IH1".
+    iDestruct "IH1" as (M) "[-> ->]".
+    iDestruct "IH2" as (α α' N -> ->) "#H".
     iApply (refines_atomic_l _ _ []); simpl.
-    iIntros (K') "[#Hs Hr]".
+    iIntros (K') "Hr".
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
-    (* TODO: make a tactic [wp_flip] and a [tp_flip] tactic *)
-    wp_apply (wp_couple_tapes_eq with "[- $Hs $Hα $Hα']"); [done|solve_ndisj|].
-    iIntros "[%b [Hα' Hα]] /=".
-    wp_apply (wp_flip with "Hα").
-    iIntros "Hα".
-    iMod (step_flip with "[$Hs $Hr $Hα']") as "(_ & Hr & Hα')"; [solve_ndisj|].
-    iMod ("Hclose" with "[$Hα $Hα']") as "_".
-    iModIntro. iExists _. iFrame "Hr Hs".
-    value_case.
+    destruct (decide (N = M)); simplify_eq.
+    - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr Hclose]"); [solve_ndisj|].
+      iIntros (N) "(Hα & Hαs & Hr)".
+      iMod ("Hclose" with "[$Hα $Hαs]") as "_".
+      iModIntro.
+      iExists _. iFrame "Hr".
+      rel_values.
+    - iApply (wp_couple_rand_lbl_rand_lbl_wrong
+               with "[$Hα $Hα' $Hr Hclose]"); [done|solve_ndisj|].
+      iIntros (m) "(Hα & Hα' & Hr)".
+      iMod ("Hclose" with "[$Hα $Hα']") as "_".
+      iModIntro.
+      iExists _. iFrame "Hr".
+      rel_values.
   Qed.
 
-  Lemma refines_flip_no_tapes e e' :
-    (REL e << e' : lrel_unit) -∗
-    REL flip e << flip e' : lrel_bool.
+  Lemma refines_rand_unit e e' :
+    (REL e << e' : lrel_nat) -∗
+    REL rand e from #() << rand e' from #() : lrel_nat.
   Proof.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
-    iDestruct "H" as "[->->]".
-    rel_apply refines_couple_flips ; auto.
+    iDestruct "H" as (n) "%H".
+    destruct H as [-> ->].
+    rel_bind_l (rand _ from _)%E.
+    rel_bind_r (rand _ from _)%E.
+    iApply (refines_couple_rands_lr).
     iIntros (b).
     value_case.
   Qed.
