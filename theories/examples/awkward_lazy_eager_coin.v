@@ -11,7 +11,7 @@ From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws l
 From clutch.logrel Require Import model compatibility rel_rules rel_tactics adequacy.
 From clutch.typing Require Import types contextual_refinement soundness.
 From clutch.prelude Require Import base.
-From clutch.examples.lib Require Import flip. 
+From clutch.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 (** The lazy/eager coins, without tapes *)

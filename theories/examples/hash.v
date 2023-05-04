@@ -3,7 +3,7 @@ From clutch.program_logic Require Import weakestpre.
 From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_rules spec_tactics locations lang.
 From clutch.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
 From clutch.prelude Require Import base.
-From clutch.examples.lib Require Import map flip.
+From clutch.lib Require Import map flip.
 Set Default Proof Using "Type*".
 
 Module simple_bit_hash.

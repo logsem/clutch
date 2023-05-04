@@ -5,7 +5,7 @@ From clutch.prob_lang Require Import lang notation spec_ra proofmode primitive_l
 From clutch.logrel Require Import model rel_rules rel_tactics compatibility.
 From clutch.typing Require Import fundamental.
 From clutch.prelude Require Import base.
-From clutch.examples.lib Require Import flip. 
+From clutch.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 Section proofs.

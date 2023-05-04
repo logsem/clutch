@@ -2,7 +2,7 @@ From clutch.program_logic Require Import weakestpre ectxi_language.
 From clutch.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
 From clutch.logrel Require Import model rel_rules rel_tactics.
 From clutch.prelude Require Import base stdpp_ext.
-From clutch.examples.lib Require Import flip. 
+From clutch.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 Definition xor b1 b2 : expr :=

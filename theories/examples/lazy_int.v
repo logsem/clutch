@@ -5,7 +5,7 @@ From clutch.typing Require Import types interp.
 From clutch.prelude Require Import base.
 From clutch.logrel Require Import model rel_rules compatibility.
 From clutch.examples Require Import sample_int.
-From clutch.examples.lib Require Import flip.
+From clutch.lib Require Import flip.
 
 
 Section lazy_int.

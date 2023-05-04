@@ -5,7 +5,7 @@ From clutch.logrel Require Import model rel_rules rel_tactics compatibility adeq
 From clutch.typing Require Import types contextual_refinement soundness.
 From clutch.examples Require Import one_time_pad.
 From clutch.prelude Require Import base.
-From clutch.examples.lib Require Import flip conversion.
+From clutch.lib Require Import flip conversion.
 
 (* This is a library for sampling integers in the set {0, ..., 2^n-1}
    for some natural number n > 0.
