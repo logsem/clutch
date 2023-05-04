@@ -1,9 +1,9 @@
 From stdpp Require Import namespaces.
-From iris.base_logic Require Import invariants na_invariants.
-From self.prob_lang Require Import notation proofmode primitive_laws spec_rules.
-From self.logrel Require Import model rel_rules rel_tactics.
-From self.typing Require Import soundness.
-From self.prelude Require Import base.
+From self.program_logic Require Import ectxi_language.
+From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
+From self.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
+From self.typing Require Import types fundamental contextual_refinement soundness.
+From self.prelude Require Import base stdpp_ext.
 Set Default Proof Using "Type*".
 
 (** The lazy/eager coins, without tapes *)
@@ -201,9 +201,9 @@ Theorem lazy_eager_refinement :
   ∅ ⊨ lazy ≤ctx≤ eager : TNat → TUnit → TNat.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: lazy_lazy_with_tape_rel.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: lazy_with_tape_eager_rel.
 Qed.
 
@@ -211,9 +211,9 @@ Theorem eager_lazy_refinement :
   ∅ ⊨ eager ≤ctx≤ lazy : TNat → TUnit → TNat.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: eager_lazy_with_tape_rel.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: lazy_with_tape_lazy_rel.
 Qed.
 

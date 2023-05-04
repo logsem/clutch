@@ -1,13 +1,14 @@
 (** * Derived laws for a fair coin flip *)
 From iris.base_logic Require Import invariants na_invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
-From self.prob_lang Require Import notation proofmode primitive_laws spec_rules spec_tactics.
+From self.program_logic Require Import language ectx_language ectxi_language ectx_lifting weakestpre.
+From self.prob_lang Require Import notation proofmode primitive_laws spec_rules spec_ra spec_tactics lang locations.
 From self.logrel Require Import model rel_rules rel_tactics.
-From self.prelude Require Import base.
+From self.prelude Require Import base stdpp_ext.
 From self.examples.lib Require Import conversion.
 
 Definition flipL : val := λ: "e", int_to_bool (rand #1%nat from "e").
-Definition flip : expr := flipL #().
+Definition flip : expr := (flipL #()).
 Definition allocB := alloc #1%nat.
 
 Definition tapeB (bs : list bool) : tape := (1; bool_to_fin <$> bs).
@@ -29,7 +30,7 @@ Section specs.
   Lemma wp_flip E :
     {{{ True }}} flip @ E {{{ (b : bool), RET #(LitBool b); True }}}.
   Proof.
-    iIntros (Φ) "_ HΦ". rewrite /flip /flipL.
+    iIntros (Φ) "_ HΦ". rewrite /flip/flipL.
     wp_pures.
     wp_bind (rand _ from _)%E.
     wp_apply (wp_rand 1 with "[//]").
@@ -42,7 +43,7 @@ Section specs.
   Lemma wp_flipL E α b bs :
     {{{ ▷ α ↪B (b :: bs) }}} flipL #lbl:α @ E {{{ RET #(LitBool b); α ↪B bs }}}.
   Proof.
-    iIntros (Φ) ">Hl HΦ". rewrite /flip /flipL.
+    iIntros (Φ) ">Hl HΦ". rewrite /flip/flipL.
     wp_pures.
     wp_bind (rand _ from _)%E.
     wp_apply (wp_rand_tape 1 with "Hl").
@@ -56,7 +57,7 @@ Section specs.
   Lemma wp_flipL_empty E α :
     {{{ ▷ α ↪B [] }}} flipL #lbl:α @ E {{{ b, RET #(LitBool b); α ↪B [] }}}.
   Proof.
-    iIntros (Φ) ">Hl HΦ". rewrite /flip /flipL.
+    iIntros (Φ) ">Hl HΦ". rewrite /flip/flipL.
     wp_pures.
     wp_bind (rand _ from _)%E.
     wp_apply (wp_rand_tape_empty with "Hl").
@@ -80,7 +81,7 @@ Section specs.
     α ↪ₛB (b :: bs) -∗
     refines_right K (flipL #lbl:α) ={E}=∗ refines_right K #(LitBool b) ∗ α ↪ₛB bs.
   Proof.
-    iIntros (?) "Hα Hr". rewrite /flipL.
+    iIntros (?) "Hα Hr". rewrite /flip/flipL.
     tp_pures.
     tp_bind (rand _ from _ )%E.
     rewrite refines_right_bind.
@@ -155,7 +156,7 @@ Section specs.
       (∀ b : bool, α ↪ₛB [] -∗ REL e << fill K (of_val #b) @ E : A)
     ⊢ REL e << fill K (flipL #lbl:α) @ E : A.
   Proof.
-    iIntros (? ev) "[Hα H]". rewrite /flipL.
+    iIntros (? ev) "[Hα H]". rewrite /flip/flipL.
     rel_pures_r.
     rel_apply_r refines_rand_empty_r; [done|].
     iFrame.
@@ -165,9 +166,9 @@ Section specs.
     iMod (refines_right_int_to_bool with "[$]"); [done|].
     iModIntro; iExists _; iFrame.
     by iApply "H".
-  Qed.  
+  Qed.
 
-  (** * Coupling rules *)  
+  (** * Coupling rules *)
   Local Instance bool_bool_fin_fin f `{Bij bool bool f} :
     Bij (λ n : fin 2, bool_to_fin (f (fin_to_bool n))).
   Proof. split; apply _. Qed.
@@ -188,16 +189,16 @@ Section specs.
     tp_bind (rand _ from _)%E.
     rewrite refines_right_bind.
     iApply (wp_couple_rand_rand 1 (fn_bool_to_fin f)); [done|].
-    iFrame. 
+    iFrame.
     iIntros (n) "Hr".
     iMod (refines_right_int_to_bool with "[$]"); [done|].
-    wp_apply wp_int_to_bool; [done|]. 
+    wp_apply wp_int_to_bool; [done|].
     iIntros "_ /=".
     iApply "HΦ".
     rewrite !Z_to_bool_of_nat !bool_to_fin_to_nat_inv.
-    rewrite fin_to_nat_to_bool_inv //. 
+    rewrite fin_to_nat_to_bool_inv //.
   Qed.
-  
+
   Lemma refines_couple_flip_flip f `{Bij bool bool f} K K' E A :
     nclose specN ⊆ E →
     (∀ b : bool, REL fill K (of_val #b) << fill K' (of_val #(f b)) @ E : A)
@@ -206,13 +207,13 @@ Section specs.
     rewrite refines_eq /refines_def.
     iIntros (?) "Hcnt %? ? /=".
     wp_apply wp_bind.
-    rewrite refines_right_bind. 
-    wp_apply (wp_couple_flip_flip f); [solve_ndisj|]. 
-    iFrame. 
+    rewrite refines_right_bind.
+    wp_apply (wp_couple_flip_flip f); [solve_ndisj|].
+    iFrame.
     iIntros (b) "Hr".
     rewrite -refines_right_bind.
-    wp_apply ("Hcnt" with "[$] [$]"). 
-  Qed.  
+    wp_apply ("Hcnt" with "[$] [$]").
+  Qed.
 
   (** tape ~ tape *)
   Lemma wp_couple_bool_tape_tape f `{Bij bool bool f} E e α αₛ bs bsₛ Φ :
@@ -223,7 +224,7 @@ Section specs.
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??) "(Hctx & αs & Hα & Hlog)".
-    iApply (wp_couple_tapes _ (fn_bool_to_fin f)); [done|done|iFrame].    
+    iApply (wp_couple_tapes _ (fn_bool_to_fin f)); [done|done|iFrame].
     iIntros (n) "[Hαs Hα]".
     destruct (surj bool_to_fin n) as [b <-].
     iApply ("Hlog" $! b). iFrame.
@@ -231,20 +232,23 @@ Section specs.
     rewrite bool_to_fin_to_bool.
     rewrite -!list_fmap_singleton -!fmap_app.
     iFrame.
-  Qed. 
+  Qed.
 
-  Lemma refines_couple_bool_tape_tape E e1 e2 A α αₛ bs bsₛ :
+  Lemma refines_couple_bool_tape_tape f `{Bij bool bool f} E e1 e2 A α αₛ bs bsₛ :
     to_val e1 = None →
     (αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
-       (∀ b, αₛ ↪ₛB (bsₛ ++ [b]) ∗ α ↪B (bs ++ [b]) -∗ REL e1 << e2 @ E : A))
+       (∀ b, αₛ ↪ₛB (bsₛ ++ [f b]) ∗ α ↪B (bs ++ [b]) -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
     iIntros (?) "(Hαs & Hα & Hlog)".
-    iApply refines_couple_tapes; [done|iFrame].
-    iIntros (n) "[? ?]".
+    iApply (refines_couple_tapes _ (fn_bool_to_fin f)); [done|iFrame].
+    iIntros (n) "[Hαs Hα]".
     destruct (surj bool_to_fin n) as [b <-].
-    rewrite -list_fmap_singleton -!fmap_app.
-    iApply ("Hlog" $! b). iFrame.
+    iApply ("Hlog" $! b).
+    rewrite /fn_bool_to_fin.
+    rewrite bool_to_fin_to_bool.
+    rewrite -!list_fmap_singleton -!fmap_app.
+    iFrame. 
   Qed.
 
   (** tape(n) ~ tape(n) *)
@@ -260,7 +264,7 @@ Section specs.
     - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
       iApply ("Hwp" $! []).
       rewrite 2!app_nil_r.
-      by iFrame. 
+      by iFrame.
     - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
       iApply "IH". iFrame "Hα Hαₛ Hctx".
       iIntros (?) "(%Hlen & Hα & Hαₛ)".
@@ -282,7 +286,7 @@ Section specs.
     (∀ b : bool, α ↪B (bs ++ [b]) ∗ refines_right K #(f b) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (??) "(Hα & Hr & Hcnt)". rewrite /flip/flipL. 
+    iIntros (??) "(Hα & Hr & Hcnt)". rewrite /flip/flipL.
     tp_pures. tp_bind (rand _ from _)%E.
     rewrite refines_right_bind.
     iApply (wp_couple_tape_rand 1 (fn_bool_to_fin f) _ _ _ 1); [done|solve_ndisj|iFrame].
@@ -295,7 +299,7 @@ Section specs.
     destruct (surj bool_to_fin n) as [b <-].
     rewrite bool_to_fin_to_bool.
     rewrite -list_fmap_singleton -fmap_app //.
-  Qed. 
+  Qed.
 
   Lemma refines_couple_tape_flip K' E α A bs e :
     nclose specN ⊆ E →
@@ -321,11 +325,11 @@ Section specs.
   (** flip ~ tape *)
   Lemma wp_couple_flip_tape f `{Bij bool bool f} E α bs Φ :
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛB bs ∗ 
+    spec_ctx ∗ α ↪ₛB bs ∗
     (∀ b : bool, α ↪ₛB (bs ++ [f b]) -∗ Φ #b)
     ⊢ WP flip @ E {{ Φ }}.
   Proof.
-    iIntros (?) "(#Hctx & Hα & Hcnt)". rewrite /flip/flipL.    
+    iIntros (?) "(#Hctx & Hα & Hcnt)". rewrite /flip/flipL.
     wp_pures. wp_bind (rand _ from _)%E.
     iApply (wp_couple_rand_tape 1 (fn_bool_to_fin f)); [solve_ndisj|iFrame "Hctx Hα"].
     iIntros (n) "Hα".
@@ -337,8 +341,8 @@ Section specs.
     rewrite /fn_bool_to_fin.
     rewrite bool_to_fin_to_bool.
     rewrite -list_fmap_singleton -fmap_app //.
-  Qed. 
-  
+  Qed.
+
   Lemma refines_couple_flip_tape K E α A bs e :
     α ↪ₛB bs ∗
       (∀ b, α ↪ₛB (bs ++ [b]) -∗ REL fill K (of_val #b) << e @ E : A)
@@ -359,7 +363,7 @@ Section specs.
 
   (** flipL ~ flip  *)
   (* TODO: wp_couple_flipL_flip *)
-  
+
   Lemma refines_couple_flipL_flip K K' E α A :
     nclose specN ⊆ E →
     α ↪B [] ∗
@@ -377,7 +381,7 @@ Section specs.
 
   (** flip ~ flipL  *)
   (* TODO: wp_couple_flip_flipL *)
-  
+
   Lemma refines_couple_flip_flipL K K' E α A :
     α ↪ₛB [] ∗
       (∀ b : bool, α ↪ₛB [] -∗ REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
@@ -509,5 +513,4 @@ Tactic Notation "rel_flipL_r" :=
   |reflexivity
   |rel_finish  (** new goal *)].
 
-Global Opaque flip flipL allocB tapeB.
-
+Global Opaque tapeB.

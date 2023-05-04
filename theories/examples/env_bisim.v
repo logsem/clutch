@@ -303,9 +303,9 @@ Theorem H_K_refinement :
   ∅ ⊨ H ≤ctx≤ K : () → TBool.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. simpl. apply: H_H_with_tape_rel.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: H_with_tape_K_rel.
 Qed.
 
@@ -313,9 +313,9 @@ Theorem K_H_refinement :
   ∅ ⊨ K ≤ctx≤ H : () → TBool.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. simpl. apply: K_H_with_tape_rel.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: H_with_tape_H_rel.
 Qed.
 

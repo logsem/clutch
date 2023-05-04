@@ -1,9 +1,10 @@
 From stdpp Require Import namespaces.
-From self.prob_lang Require Import notation proofmode.
+From self.program_logic Require Import ectxi_language.
+From self.prob_lang Require Import lang notation spec_ra proofmode primitive_laws.
+From self.logrel Require Import model rel_rules rel_tactics compatibility adequacy.
+From self.typing Require Import types fundamental contextual_refinement soundness.
 From self.prelude Require Import base.
-From self.logrel Require Import model rel_rules rel_tactics.
-From self.typing Require Import soundness.
-From self.examples.lib Require Import flip.
+From self.examples.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 (** The lazy/eager coins, without tapes *)
@@ -45,6 +46,10 @@ Section logical_ref.
   Proof.
     rewrite /lazy /lazy_with_tape.
     rel_alloc_l l as "Hl".
+
+    rel_pure_l.
+    rel_pure_l.
+    
     rel_pures_l.
     rel_allocBtape_r α as "Hα".
     rel_pures_r.
@@ -64,9 +69,7 @@ Section logical_ref.
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
-      rel_bind_l flip.
-      rel_bind_r (flipL _)%E.
-      iApply (refines_couple_flip_flipL with "[-$Hα]").
+      rel_apply (refines_couple_flip_flipL with "[-$Hα]").
       iIntros (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
@@ -189,9 +192,9 @@ Theorem lazy_eager_refinement :
   ∅ ⊨ lazy ≤ctx≤ eager : () → TBool.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: lazy_lazy_with_tape_rel.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: lazy_with_tape_eager_rel.
 Qed.
 
@@ -199,9 +202,9 @@ Theorem eager_lazy_refinement :
   ∅ ⊨ eager ≤ctx≤ lazy : () → TBool.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: eager_lazy_with_tape_rel.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: lazy_with_tape_lazy_rel.
 Qed.
 

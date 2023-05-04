@@ -14,7 +14,7 @@ Global Instance subG_oneshotΣ {Σ} : subG oneshotΣ Σ → oneshotG Σ.
 Proof. solve_inG. Qed.
 
 Section proofs.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition awkwardN := nroot.@"awkward".
 

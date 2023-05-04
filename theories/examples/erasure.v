@@ -9,7 +9,7 @@ Set Default Proof Using "Type*".
 Lemma flip_erasure_l (x : string) (N : nat) :
   {[x := TTape]} ⊨ rand #N from x ≤ctx≤ rand #N from #() : TNat.
 Proof.
-  eapply (refines_sound_open prelogrelΣ).
+  eapply (refines_sound_open clutchRΣ).
   iIntros (??).
   rewrite /bin_log_related.
   iIntros (vs) "H /=".
@@ -33,7 +33,7 @@ Proof.
   - iApply (refines_atomic_l _ _ []).
     iIntros (?) "Hr !>".
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
-    iApply (wp_couple_rand_lbl_rand_wrong _ _ Datatypes.id); [done|solve_ndisj|].
+    iApply wp_couple_rand_lbl_rand_wrong; [done|solve_ndisj|].
     iFrame "Hr Hα1 Hα2".
     iIntros (m) "[Hα1 Hr] !>".
     iFrame. iExists _. iFrame "Hr".
@@ -43,7 +43,7 @@ Qed.
 Lemma flip_erasure_r (x : string) (N : nat) :
   {[x := TTape]} ⊨ rand #N from #() ≤ctx≤ rand #N from x : TNat.
 Proof.
-  eapply (refines_sound_open prelogrelΣ).
+  eapply (refines_sound_open clutchRΣ).
   iIntros (??).
   rewrite /bin_log_related.
   iIntros (vs) "H /=".
@@ -64,7 +64,7 @@ Proof.
   - iApply (refines_atomic_l _ _ []).
     iIntros (?) "Hr !>".
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
-    iApply (wp_couple_rand_rand_lbl_wrong _ _ Datatypes.id); [done|solve_ndisj|].
+    iApply wp_couple_rand_rand_lbl_wrong; [done|solve_ndisj|].
     iFrame "Hr Hα1 Hα2".
     iIntros (m) "[Hα1 Hr] !>".
     iFrame. iExists _. iFrame "Hr".

@@ -96,9 +96,9 @@ Proof.
   inv_fin n.   
 Qed. 
 
-Instance bool_to_fin_inj : Inj (=) (=) bool_to_fin.
+Global Instance bool_to_fin_inj : Inj (=) (=) bool_to_fin.
 Proof. by intros [] [] ?. Qed.
-Instance bool_to_fin_surj : Surj (=) bool_to_fin.
+Global Instance bool_to_fin_surj : Surj (=) bool_to_fin.
 Proof.
   intros n.
   inv_fin n; [by exists false|]. 
@@ -106,7 +106,7 @@ Proof.
   intros n. inv_fin n.
 Qed. 
 
-Instance fin_to_bool_inj : Inj (=) (=) fin_to_bool.
+Global Instance fin_to_bool_inj : Inj (=) (=) fin_to_bool.
 Proof.
   intros n m ?.
   inv_fin n; inv_fin m; try done.
@@ -115,7 +115,7 @@ Proof.
   - inv_fin m; [done|]. intros m. inv_fin m.
   - intros p. inv_fin p.
 Qed.
-Instance fin_to_bool_surj : Surj (=) fin_to_bool.
+Global Instance fin_to_bool_surj : Surj (=) fin_to_bool.
 Proof. intros []; [by exists 1%fin|by exists 0%fin]. Qed. 
 
 (** ** [Z_to_bool] *)

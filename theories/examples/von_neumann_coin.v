@@ -5,18 +5,19 @@ From self.prob_lang Require Import lang notation spec_ra proofmode primitive_law
 From self.logrel Require Import model rel_rules rel_tactics compatibility.
 From self.typing Require Import fundamental.
 From self.prelude Require Import base.
+From self.examples.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 Section proofs.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition coinN := nroot.@"coin".
 
   (* Biased coin toss: t4 = { true ⟼ 1/4, false ⟼ 3/4 } *)
   Definition t4 :=
     (λ:<>,
-      let: "b0" := flip #() in
-      let: "b1" := flip #() in
+      let: "b0" := flip in
+      let: "b1" := flip in
       if: "b1" then "b0" else #false)%V.
 
   (* Von Neumann coin. *)
@@ -38,7 +39,7 @@ Section proofs.
   (* We can't show this refinement since the lhs needs to couple a combination
   of flips with a single flip on the rhs and since we may need to recurse an
   unbounded number of times. *)
-  Goal ⊢ REL (vnc t4) << (λ:<>, flip #()) : lrel_unit → lrel_bool.
+  Goal ⊢ REL (vnc t4) << (λ:<>, flip) : lrel_unit → lrel_bool.
   Proof.
     rewrite /vnc.
     rel_pures_r. rel_pures_l.
@@ -52,10 +53,10 @@ Section proofs.
   Abort.
 
   (* A simpler coin toss: t2 = { true ⟼ 1/2, false ⟼ 1/2 } *)
-  Definition t2 := (λ:<>, flip #())%V.
+  Definition t2 := (λ:<>, flip)%V.
 
   (* Still can't prove the refinement since we don't know how to recurse. *)
-  Goal ⊢ REL (vnc t2) << (λ:<>, flip #()) : lrel_unit → lrel_bool.
+  Goal ⊢ REL (vnc t2) << (λ:<>, flip) : lrel_unit → lrel_bool.
   Proof.
     iLöb as "HH".
     rewrite /vnc.
@@ -68,11 +69,11 @@ Section proofs.
     set (vnc2 := vnc t2) ; unfold vnc in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
 
-    rel_apply refines_couple_flips.
+    rel_apply refines_couple_flip_flip.
     iIntros (b).
     rel_pures_l.
-    rel_apply refines_flipU_l.
-    iIntros (b').
+    rel_apply refines_flip_l.
+    iIntros "!>" (b').
     rel_pures_l.
     case_bool_decide ; rel_pures_l.
     - admit.
@@ -80,7 +81,7 @@ Section proofs.
   Abort.
 
   (* We can prove the refinement in case we diverge instead. *)
-  Goal ⊢ REL (vnc_div t2) << (λ:<>, flip #()) : lrel_unit → lrel_bool.
+  Goal ⊢ REL (vnc_div t2) << (λ:<>, flip) : lrel_unit → lrel_bool.
   Proof.
     rewrite /vnc_div.
     rel_pures_r. rel_pures_l.
@@ -90,11 +91,11 @@ Section proofs.
     rel_pures_r. rel_pures_l.
     set (vnc2 := vnc_div t2) ; unfold vnc_div in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
-    rel_apply refines_couple_flips_eq.
+    rel_apply refines_couple_flip_flip.
     iIntros (b).
     rel_pures_l.
-    rel_apply refines_flipU_l.
-    iIntros (b').
+    rel_apply refines_flip_l.
+    iIntros "!>" (b').
     rel_pures_l.
     case_bool_decide ; rel_pures_l.
     - iLöb as "H".
@@ -133,7 +134,7 @@ Section proofs.
 vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0
 
    *)
-  Goal ⊢ REL (vnc_div t4) << (λ:<>, flip #()) : lrel_unit → lrel_bool.
+  Goal ⊢ REL (vnc_div t4) << (λ:<>, flip) : lrel_unit → lrel_bool.
   Proof with try rel_pures_r ; try rel_pures_l.
     rewrite /vnc_div...
     iApply refines_arrow_val.
@@ -142,38 +143,38 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
     set (Ω := ((rec: "f" <> := "f" #()) #())%E).
     unfold t4...
     (* Case on the first lhs flip, don't couple anything. *)
-    rel_apply_l refines_flipU_l ; iIntros (b0) ; destruct b0 eqn:hb0...
-    - rel_apply (refines_couple_flips) ; iIntros (b1) ; destruct b1 eqn:hb1...
-      + rel_apply_l refines_flipU_l ; iIntros (b2) ; destruct b2 eqn:hb2...
-        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+    rel_apply_l refines_flip_l ; iIntros "!>" (b0) ; destruct b0 eqn:hb0...
+    - rel_apply (refines_couple_flip_flip) ; iIntros (b1) ; destruct b1 eqn:hb1...
+      + rel_apply_l refines_flip_l ; iIntros "!>" (b2) ; destruct b2 eqn:hb2...
+        * rel_apply_l refines_flip_l ; iIntros "!>" (b3) ; destruct b3 eqn:hb3...
           -- iLöb as "H".
              rel_rec_l.
              iExact "H".
           -- rel_values.
-        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+        * rel_apply_l refines_flip_l ; iIntros "!>" (b3) ; destruct b3 eqn:hb3...
           all: rel_values.
-      + rel_apply_l refines_flipU_l ; iIntros (b2) ; destruct b2 eqn:hb2...
-        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+      + rel_apply_l refines_flip_l ; iIntros "!>" (b2) ; destruct b2 eqn:hb2...
+        * rel_apply_l refines_flip_l ; iIntros "!>" (b3) ; destruct b3 eqn:hb3...
           -- rel_values.
           -- iLöb as "H".
              rel_rec_l.
              iExact "H".
-        * rel_apply_l refines_flipU_l ; iIntros (b3) ; destruct b3 eqn:hb3...
+        * rel_apply_l refines_flip_l ; iIntros "!>" (b3) ; destruct b3 eqn:hb3...
           all: iLöb as "H" ; rel_rec_l ; iExact "H".
-    - rel_apply_l refines_flipU_l ; iIntros (b1) ; destruct b1 eqn:hb1...
-      all: rel_apply_l refines_flipU_l ; iIntros (b2) ; destruct b2 eqn:hb2...
-      all: rel_apply (refines_couple_flips negb) ; iIntros (b3) ; destruct b3 eqn:hb3...
+    - rel_apply_l refines_flip_l ; iIntros "!>" (b1) ; destruct b1 eqn:hb1...
+      all: rel_apply_l refines_flip_l ; iIntros "!>" (b2) ; destruct b2 eqn:hb2...
+      all: rel_apply (refines_couple_flip_flip negb) ; iIntros (b3) ; destruct b3 eqn:hb3...
       1,5: rel_values.
       all: iLöb as "H" ; rel_rec_l ; iExact "H".
   Qed.
 
   (* A similar problem: no single flip on the left behaves like the rhs. But we
   can pick our coupling after evaluating the first flip! *)
-  Goal ⊢ REL (flip #()) = (flip #()) << flip #() : lrel_bool.
+  Goal ⊢ REL flip = flip << flip : lrel_bool.
   Proof.
-    rel_apply refines_flipU_l.
-    iIntros (b).
-    rel_apply (refines_couple_flips (if b then id else negb)).
+    rel_apply refines_flip_l.
+    iIntros "!>" (b).
+    rel_apply (refines_couple_flip_flip (if b then id else negb)).
     iIntros (b').
     destruct b, b' => /=.
     all: rel_pures_l.
@@ -183,26 +184,24 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
 
   (* We can however show this refinement where the result on the left only
   depends on the outcome of one flip. *)
-  Goal ⊢ REL (let: "b" := flip #() in if: "b" = (flip #()) then "b" else "b") << flip #() : lrel_bool.
+  Goal ⊢ REL (let: "b" := flip in if: "b" = flip then "b" else "b") << flip : lrel_bool.
   Proof.
-    rel_apply refines_couple_flips.
+    rel_apply refines_couple_flip_flip.
     iIntros (b).
     rel_pures_l.
-    rel_apply_l refines_flipU_l.
-    iIntros (b').
+    rel_apply_l refines_flip_l.
+    iIntros "!>" (b').
     rel_pures_l.
     case_bool_decide ; rel_pures_l.
     all: rel_values.
   Qed.
 
   (* We can even flip separately in each branch. *)
-  Goal ⊢ REL if: flip #() then flip #() else flip #() << flip #() : lrel_bool.
+  Goal ⊢ REL if: flip then flip else flip << flip : lrel_bool.
   Proof.
-    rel_apply_l refines_flipU_l ; iIntros (b').
-    destruct b' ; rel_pures_l.
-    all: replace lrel_bool with (interp.interp types.TBool []) by easy ;
-      rel_apply_l refines_typed ;
-      apply types.TFlipU ; repeat constructor.
+    rel_apply_l refines_flip_l ; iIntros "!>" (b).
+    destruct b ; rel_pures_l; rel_apply refines_couple_flip_flip;
+      iIntros (?); rel_values. 
   Qed.
 
 End proofs.

@@ -2,6 +2,7 @@ From self.program_logic Require Import weakestpre ectxi_language.
 From self.prob_lang Require Import proofmode spec_ra spec_rules spec_tactics lang notation.
 From self.logrel Require Import model rel_rules rel_tactics.
 From self.prelude Require Import base stdpp_ext.
+From self.examples.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 Definition xor b1 b2 : expr :=
@@ -12,11 +13,11 @@ Definition xor_sem b1 b2 :=
 
 Ltac foldxor := assert (forall b2, (if: _ then (if: b2 then #false else #true) else b2)%E = (xor _ _)) as -> by easy.
 
-Definition ideal : expr := λ:"msg", flip #().
-Definition real : expr := λ:"msg", let: "k" := flip #() in xor "msg" "k".
+Definition ideal : expr := λ:"msg", flip.
+Definition real : expr := λ:"msg", let: "k" := flip in xor "msg" "k".
 
 Section logical_ref.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Global Instance xor_invol_1 : forall b, Involutive eq (xor_sem b) | 2.
   Proof. intros [] [] => //. Qed.
@@ -57,7 +58,7 @@ Section logical_ref.
     rel_pures_l. rel_pures_r.
     foldxor.
     iDestruct "Hmsg" as "[%b [-> ->]]".
-    rel_apply (refines_couple_flips (xor_sem b)).
+    rel_apply (refines_couple_flip_flip (xor_sem b)).
     simpl.
     iIntros (k).
     rel_pures_l.
@@ -73,7 +74,7 @@ Section logical_ref.
     iIntros (msg1 msg2) "Hmsg".
     rel_pures_l. rel_pures_r.
     iDestruct "Hmsg" as "[%msg [-> ->]]".
-    rel_apply (refines_couple_flips (xor_sem msg)) => /=.
+    rel_apply (refines_couple_flip_flip (xor_sem msg)) => /=.
     iIntros (k).
     rel_pures_r.
     foldxor.

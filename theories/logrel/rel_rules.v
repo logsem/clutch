@@ -2,10 +2,10 @@
 From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
-From self.program_logic Require Import ectx_lifting.
-From self.prob_lang Require Import lang spec_rules spec_tactics proofmode.
-From self.prob_lang Require Export coupling_rules.
+From self.program_logic Require Import language ectx_language ectxi_language ectx_lifting weakestpre.
+From self.prob_lang Require Import locations spec_ra notation primitive_laws spec_rules spec_tactics proofmode lang.
 From self.logrel Require Import model.
+From self.prob_lang Require Export coupling_rules.
 
 Section rules.
   Context `{!clutchRGS Σ}.
@@ -182,16 +182,18 @@ Section rules.
     iModIntro. iExists _. iFrame. by iApply "Hlog".
   Qed.
 
-  Lemma refines_flipU_r K E t A (_ : to_val t = None) :
-    (∀ (b : bool), REL t << fill K (Val #b) @ E : A)
-    -∗ REL t << (fill K (flip #())) @ E : A.
-  Proof.
-    iIntros "Hlog".
-    rewrite refines_eq /refines_def.
-    iIntros (?) "??" ; simpl.
-    tp_flipU b.
-    iApply ("Hlog" with "[$] [$]").
-  Qed.
+  (* Lemma refines_rand_r K E t A N z : *)
+  (*   TCEq N (Z.to_nat z) → *)
+  (*   TCEq (to_val t) None → *)
+  (*   (∀ (b : bool), REL t << fill K (Val #b) @ E : A) *)
+  (*   -∗ REL t << (fill K (rand #z from #())) @ E : A. *)
+  (* Proof. *)
+  (*   iIntros (-> ?) "Hlog". *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros (?) "??" ; simpl. *)
+  (*   tp_flipU b. *)
+  (*   iApply ("Hlog" with "[$] [$]"). *)
+  (* Qed. *)
 
   (** This rule is useful for proving that functions refine each other *)
   Lemma refines_arrow_val (v v' : val) A A' :
@@ -264,21 +266,21 @@ Section rules.
     by wp_apply (wp_rand_tape with "Hα").
   Qed.
 
-  Lemma refines_flipU_l K E A e :
-    (∀ (b : bool), REL fill K (Val #b) << e @ E : A)
-      ⊢ REL fill K (flip #()) << e @ E : A.
-  Proof.
-    iIntros "H".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply wp_flipU => //.
-    iIntros (b) "_".
-    simpl.
-    rewrite /refines_right.
-    iSpecialize ("H" with "[$Hs $Hspec] Hnais").
-    iExact "H".
-  Qed.
+  (* Lemma refines_flipU_l K E A e : *)
+  (*   (∀ (b : bool), REL fill K (Val #b) << e @ E : A) *)
+  (*     ⊢ REL fill K (flip #()) << e @ E : A. *)
+  (* Proof. *)
+  (*   iIntros "H". *)
+  (*   rewrite refines_eq /refines_def. *)
+  (*   iIntros (K2) "[#Hs Hspec] Hnais /=". *)
+  (*   wp_apply wp_bind. *)
+  (*   wp_apply wp_flipU => //. *)
+  (*   iIntros (b) "_". *)
+  (*   simpl. *)
+  (*   rewrite /refines_right. *)
+  (*   iSpecialize ("H" with "[$Hs $Hspec] Hnais"). *)
+  (*   iExact "H". *)
+  (* Qed. *)
 
   Lemma refines_wand E e1 e2 A A' :
     (REL e1 << e2 @ E : A) -∗
@@ -303,10 +305,10 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
-  Lemma refines_couple_tapes E e1 e2 A α αₛ N ns nsₛ :
+  Lemma refines_couple_tapes N f `{Bij (fin (S N)) (fin (S N)) f} E e1 e2 A α αₛ ns nsₛ :
     to_val e1 = None →
     (αₛ ↪ₛ (N; nsₛ) ∗ α ↪ (N; ns) ∗
-       (∀ (n : fin (S N)), αₛ ↪ₛ (N; nsₛ ++ [n]) ∗ α ↪ (N; ns ++ [n])
+       (∀ (n : fin (S N)), αₛ ↪ₛ (N; nsₛ ++ [f n]) ∗ α ↪ (N; ns ++ [n])
        -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
@@ -439,7 +441,7 @@ Section rules.
     rewrite -fill_app.
     iFrame "Hα Hspec Hs".
     iIntros "(Hα & _ & %n & Hb)".
-    rewrite fill_app.
+    rewrite /= fill_app.
     iSpecialize ("H" with "Hα [$Hs $Hb] Hnais").
     wp_apply (wp_mono with "H").
     iIntros (?) "[% ([? ?] & ? & ?)]".

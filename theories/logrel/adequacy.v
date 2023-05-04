@@ -4,16 +4,16 @@ From self.program_logic Require Import exec weakestpre.
 From self.logrel Require Import model.
 From self.prob_lang Require Import adequacy lang.
 
-Class prelogrelGpreS Σ := PrelogrelGPreS {
-  prelogrelGpreS_clutch :> clutchGpreS Σ;
+Class clutchRGpreS Σ := ClutchRGPreS {
+  clutchRGpreS_clutch :> clutchGpreS Σ;
   prelorelGpreS_na_inv  :> na_invG Σ;
 }.
 
-Definition prelogrelΣ : gFunctors := #[clutchΣ; na_invΣ].
-Global Instance subG_prelogrelGPreS {Σ} : subG prelogrelΣ Σ → prelogrelGpreS Σ.
+Definition clutchRΣ : gFunctors := #[clutchΣ; na_invΣ].
+Global Instance subG_clutchRGPreS {Σ} : subG clutchRΣ Σ → clutchRGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem refines_coupling Σ `{prelogrelGpreS Σ}
+Theorem refines_coupling Σ `{clutchRGpreS Σ}
   (A : ∀ `{clutchRGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' n :
   (∀ `{clutchRGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
   (∀ `{clutchRGS Σ}, ⊢ REL e << e' : A) →
@@ -24,7 +24,7 @@ Proof.
   intros ?.
   iIntros "#Hctx He'".
   iMod na_alloc as "[%γ Htok]".
-  set (Hprelogrel := PrelogrelGS Σ _ _ γ).
+  set (HclutchR := ClutchRGS Σ _ _ γ).
   iPoseProof (Hlog _) as "Hlog".
   rewrite refines_eq /refines_def.
   iSpecialize ("Hlog" $! []  with "[$Hctx $He'] Htok").

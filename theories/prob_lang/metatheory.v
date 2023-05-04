@@ -419,6 +419,26 @@ Proof.
   apply Rcoupl_dret. eauto.
 Qed.
 
+Lemma Rcoupl_rand_r N z (ρ1 : cfg) σ1' :
+  N = Z.to_nat z →
+  Rcoupl
+    (dret ρ1)
+    (prim_step (rand #z from #()) σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
+Proof.
+  intros ?.
+  assert (head_reducible (rand #z from #()) σ1') as hr.
+  { eexists (_, _).
+    apply head_step_support_equiv_rel.
+    by apply (RandNoTapeS _ N 0%fin). }
+  rewrite head_prim_step_eq //.
+  eapply Rcoupl_weaken.
+  - apply Rcoupl_pos_R, Rcoupl_trivial.
+    all : auto using dret_mass, head_step_mass.
+  - intros ? [] (_ & hh%dret_pos & ?).
+    inv_head_step; eauto.
+Qed.
+
 (** * e1 ~ rand(α', N) coupling for α' ↪ₛ (N, []) *)
 Lemma Rcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
   N = Z.to_nat z →

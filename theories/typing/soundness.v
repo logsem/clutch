@@ -6,7 +6,7 @@ From self.prob_lang Require Import notation metatheory primitive_laws lang.
 From self.logrel Require Import model adequacy.
 From self.typing Require Import interp contextual_refinement.
 
-Lemma refines_sound_open Σ `{!prelogrelGpreS Σ} Γ e e' τ :
+Lemma refines_sound_open Σ `{!clutchRGpreS Σ} Γ e e' τ :
   (∀ `{clutchRGS Σ} Δ, ⊢ {⊤;Δ;Γ} ⊨ e ≤log≤ e' : τ) →
   Γ ⊨ e ≤ctx≤ e' : τ.
 Proof.
@@ -29,7 +29,7 @@ Proof.
   - by iIntros (???) "[%b' [-> ->]]".
 Qed.
 
-Lemma refines_sound Σ `{Hpre : !prelogrelGpreS Σ} (e e': expr) τ :
+Lemma refines_sound Σ `{Hpre : !clutchRGpreS Σ} (e e': expr) τ :
   (∀ `{clutchRGS Σ} Δ, ⊢ REL e << e' : (interp τ Δ)) →
   ∅ ⊨ e ≤ctx≤ e' : τ.
 Proof.

@@ -7,7 +7,7 @@ From self.prob_lang Require Import locations notation spec_ra primitive_laws lan
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class clutchRGS Σ := PrelogrelGS {
+Class clutchRGS Σ := ClutchRGS {
     clutchRGS_clutchGS :> clutchGS Σ;
     clutchRGS_na_invG :> na_invG Σ;
     clutchRGS_nais : na_inv_pool_name;

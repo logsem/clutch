@@ -20,31 +20,32 @@ From self.logrel Require Import model rel_rules rel_tactics compatibility adequa
 From self.typing Require Import types contextual_refinement soundness.
 From self.examples Require Import one_time_pad.
 From self.prelude Require Import base.
+From self.examples.lib Require Import flip. 
 Set Default Proof Using "Type*".
 
 Section proofs.
-  Context `{!prelogrelGS Σ}.
+  Context `{!clutchRGS Σ}.
 
   Definition awkwardN := nroot.@"awkward".
 
   Lemma refinement_prob :
     ⊢ REL
-      (let: "α" := AllocTape in
+      (let: "α" := allocB in
        let: "callable" := ref #true in
-       (λ: "f", if: ! "callable" then "callable" <- #false ;; "f" #() ;; SOME (flip "α") else NONE))
+       (λ: "f", if: ! "callable" then "callable" <- #false ;; "f" #() ;; SOME (flipL "α") else NONE))
     <<
-      (let: "x" := ref (flip #()) in
+      (let: "x" := ref flip in
        let: "callable" := ref #true in
        (λ: "f", if: ! "callable" then "callable" <- #false ;; "f" #() ;; SOME (!"x") else NONE))
     : (() → ()) → lrel_sum lrel_unit lrel_bool.
   Proof with try rel_pures_l ; try rel_pures_r.
-    rel_alloctape_l α as "α".
+    rel_allocBtape_l α as "α".
     rel_apply_r (refines_couple_tape_flip with "[$α]"); [done|].
     iIntros (b) "Hα /="...
     rel_alloc_r x as "Hx"...
     rel_alloc_l cl as "Hcl"...
     rel_alloc_r cr as "Hcr"...
-    set (P := ((x ↦ₛ #b ∗ α ↪ [b] ∗ cl ↦ #true ∗ cr ↦ₛ #true ∨ cl ↦ #false ∗ cr ↦ₛ #false))%I).
+    set (P := ((x ↦ₛ #b ∗ α ↪B [b] ∗ cl ↦ #true ∗ cr ↦ₛ #true ∨ cl ↦ #false ∗ cr ↦ₛ #false))%I).
     iApply (refines_na_alloc P awkwardN).
     iSplitL ; [ iFrame ; iLeft ; iFrame |].
     iIntros "#Hinv".
@@ -57,7 +58,7 @@ Section proofs.
       iApply (refines_na_close with "[-$Hclose]"). iSplitR "Hα Hx".
       { iModIntro. iFrame. iRight. iFrame. }
       iApply (refines_seq with "[Hf]") => // ; [by iApply "Hf"|].
-      rel_load_r. rel_flip_l...
+      rel_load_r. rel_flipL_l...
       rel_values. iModIntro.
       unfold lrel_sum, lrel_car.
       do 2 iExists (#b). simpl. iRight. auto.
@@ -75,12 +76,12 @@ Section proofs.
      it, so we can couple with `x`. *)
   Lemma refinement_prob_resample_local_ref :
     ⊢ REL
-      (λ: "f", let: "α" := alloc in
+      (λ: "f", let: "α" := allocB in
                "f" #() ;;
-               flip "α")
+               flipL "α")
     <<
-      (λ: "f", let: "β" := alloc in
-               let: "b" := flip "β" in
+      (λ: "f", let: "β" := allocB in
+               let: "b" := flipL "β" in
                let: "x" := ref "b" in
                "f" #() ;;
                !"x" )
@@ -89,14 +90,14 @@ Section proofs.
     simpl...
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf"...
-    rel_alloctape_l α as "α"...
-    rel_alloctape_r β as "β"...
-    iApply refines_couple_tapes_eq ; auto ; iFrame ;
+    rel_allocBtape_l α as "α"...
+    rel_allocBtape_r β as "β"...
+    iApply refines_couple_bool_tape_tape ; auto ; iFrame ;
       iIntros (b) "(β & α)" => /=.
-    rel_flip_r...
+    rel_flipL_r...
     rel_alloc_r x as "Hx"...
     iApply (refines_seq with "[Hf]") => // ; [iApply "Hf" => //|].
-    rel_flip_l.
+    rel_flipL_l.
     rel_load_r.
     rel_values.
   Qed.
@@ -118,37 +119,37 @@ Section proofs.
      exploit this observation in the formal argument. *)
 
   Definition call_flip :=
-    (λ: "f", let: "α" := alloc in
-             "f" #() ;; flip "α")%E.
+    (λ: "f", let: "α" := allocB in
+             "f" #() ;; flipL "α")%E.
 
   Definition store_xor :=
     (let: "x" := ref #false in
-     (λ: "f", let: "β" := alloc in
-              let: "b" := flip "β" in
-              let: "γ" := alloc in
-              let: "b'" := flip "γ" in
+     (λ: "f", let: "β" := allocB in
+              let: "b" := flipL "β" in
+              let: "γ" := allocB in
+              let: "b'" := flipL "γ" in
               "x" <- "b" ;;
               "f" #() ;;
               xor (! "x") "b'" ))%E.
 
   Definition store_xor_late :=
     (let: "x" := ref #false in
-     (λ: "f", let: "β" := alloc in
-              let: "b" := flip "β" in
-              let: "γ" := alloc in
+     (λ: "f", let: "β" := allocB in
+              let: "b" := flipL "β" in
+              let: "γ" := allocB in
               "x" <- "b" ;;
               "f" #() ;;
-              let: "b'" := flip "γ" in
+              let: "b'" := flipL "γ" in
               xor (! "x") "b'" ))%E.
 
   Definition store_ignore :=
     (let: "x" := ref #false in
-     (λ: "f", let: "β" := alloc in
-              let: "b" := flip "β" in
-              let: "γ" := alloc in
+     (λ: "f", let: "β" := allocB in
+              let: "b" := flipL "β" in
+              let: "γ" := allocB in
               "x" <- "b" ;;
               "f" #() ;;
-              let: "b'" := flip "γ" in
+              let: "b'" := flipL "γ" in
               "b'" ))%E.
 
   (* If we try to do the proof directly with our bare hands we get stuck. *)
@@ -161,23 +162,23 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_r β as "β"...
-    rel_alloctape_l α as "α"...
+    rel_allocBtape_r β as "β"...
+    rel_allocBtape_l α as "α"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & xb ) & Hclose)".
-    rel_apply_r refines_flip_empty_r => // ; iFrame. iIntros "%b β"...
-    rel_alloctape_r γ as "γ"...
+    rel_apply_r refines_flipL_empty_r => // ; iFrame. iIntros "%b β"...
+    rel_allocBtape_r γ as "γ"...
     (* Now we lose. If we had prophecies, we could couple α and γ with the
     bijection (xor !x) at the time when the read from x occurs. Instead, we can
     try to couple with the current contents of x, i.e. b. But we can't hope
     that this will be preserved, so we'll get stuck later on. *)
-    rel_apply_r (refines_couple_tapes (xor_sem b) _ _ _ _ α γ ) => // ; iFrame.
+    rel_apply_r (refines_couple_bool_tape_tape (xor_sem b) _ _ _ _ α γ ) => // ; iFrame.
     iIntros (b'') "(γ & α)" => /=.
     rewrite -{2}(cancel (xor_sem b) (xor_sem b) b''). set (b' := (xor_sem b b'')).
-    rel_flip_r... rel_store_r...
+    rel_flipL_r... rel_store_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ by iExists _ |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
-    rel_flip_l.
+    rel_flipL_l.
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & xb ) & Hclose)".
     unfold xor ; rel_load_r...
@@ -203,21 +204,21 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_l α as "α"...
-    rel_alloctape_r β as "β"...
+    rel_allocBtape_l α as "α"...
+    rel_allocBtape_r β as "β"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
-    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
-    rel_flip_l ; rel_flip_r...
-    rel_alloctape_l γ as "γ"...
-    rel_alloctape_r γ' as "γ'"...
+    iApply refines_couple_bool_tape_tape => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flipL_l ; rel_flipL_r...
+    rel_allocBtape_l γ as "γ"...
+    rel_allocBtape_r γ' as "γ'"...
     rel_store_l...
-    rel_apply (refines_couple_tapes _ _ _ _ _ γ γ' ) => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
-    rel_flip_r...
+    rel_apply (refines_couple_bool_tape_tape _ _ _ _ _ γ γ' ) => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
+    rel_flipL_r...
     rel_store_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
-    rel_flip_l...
+    rel_flipL_l...
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
     unfold xor ; rel_load_r ; rel_load_l...
@@ -240,23 +241,23 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_l α as "α"...
-    rel_alloctape_r β as "β"...
+    rel_allocBtape_l α as "α"...
+    rel_allocBtape_r β as "β"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
-    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
-    rel_flip_l ; rel_flip_r...
-    rel_alloctape_l γ as "γ"...
-    rel_alloctape_r γ' as "γ'"...
+    iApply refines_couple_bool_tape_tape => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flipL_l ; rel_flipL_r...
+    rel_allocBtape_l γ as "γ"...
+    rel_allocBtape_r γ' as "γ'"...
     rel_store_r...
     rel_store_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
-    rel_apply (refines_couple_tapes (xor_sem not_necessarily_b) _ _ _ _ γ γ' )
+    rel_apply (refines_couple_bool_tape_tape (xor_sem not_necessarily_b) _ _ _ _ γ γ' )
               => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
-    rel_flip_l ; rel_flip_r...
+    rel_flipL_l ; rel_flipL_r...
     unfold xor ; rel_load_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
@@ -274,19 +275,19 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_r α as "α"...
-    rel_alloctape_l β as "β"...
+    rel_allocBtape_r α as "α"...
+    rel_allocBtape_l β as "β"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & xb) & Hclose)".
-    rel_apply_r refines_flip_empty_r => // ; iFrame ; iIntros "%b α"...
-    rel_alloctape_r γ as "γ"...
+    rel_apply_r refines_flipL_empty_r => // ; iFrame ; iIntros "%b α"...
+    rel_allocBtape_r γ as "γ"...
     rel_store_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & xb) & Hclose)".
-    rel_apply refines_couple_tapes => // ; iFrame ; iIntros (b') "(β & γ)" => /=.
-    rel_flip_r ; rel_flip_l...
+    rel_apply refines_couple_bool_tape_tape => // ; iFrame ; iIntros (b') "(β & γ)" => /=.
+    rel_flipL_r ; rel_flipL_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
     rel_values.
   Qed.
@@ -303,21 +304,21 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_l α as "α"...
-    rel_alloctape_r β as "β"...
+    rel_allocBtape_l α as "α"...
+    rel_allocBtape_r β as "β"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
-    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
-    rel_flip_l ; rel_flip_r...
-    rel_alloctape_l γ as "γ"...
-    rel_alloctape_r γ' as "γ'"...
+    iApply refines_couple_bool_tape_tape => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flipL_l ; rel_flipL_r...
+    rel_allocBtape_l γ as "γ"...
+    rel_allocBtape_r γ' as "γ'"...
     rel_store_r...
-    rel_apply (refines_couple_tapes _ _ _ _ _ γ γ' ) => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
-    rel_flip_l...
+    rel_apply (refines_couple_bool_tape_tape _ _ _ _ _ γ γ' ) => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
+    rel_flipL_l...
     rel_store_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
-    rel_flip_r...
+    rel_flipL_r...
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
     unfold xor ; rel_load_r ; rel_load_l...
@@ -340,23 +341,23 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_l α as "α"...
-    rel_alloctape_r β as "β"...
+    rel_allocBtape_l α as "α"...
+    rel_allocBtape_r β as "β"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & %old_b' & xb & xb' & <-) & Hclose)".
-    iApply refines_couple_tapes => // ; iFrame ; iIntros (b) "(β & α)" => /=.
-    rel_flip_l ; rel_flip_r...
-    rel_alloctape_l γ as "γ"...
-    rel_alloctape_r γ' as "γ'"...
+    iApply refines_couple_bool_tape_tape => // ; iFrame ; iIntros (b) "(β & α)" => /=.
+    rel_flipL_l ; rel_flipL_r...
+    rel_allocBtape_l γ as "γ"...
+    rel_allocBtape_r γ' as "γ'"...
     rel_store_r...
     rel_store_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
-    rel_apply (refines_couple_tapes (xor_sem not_necessarily_b) _ _ _ _ γ γ' )
+    rel_apply (refines_couple_bool_tape_tape (xor_sem not_necessarily_b) _ _ _ _ γ γ' )
               => // ; iFrame ; iIntros (b') "(γ' & γ)" => /=.
-    rel_flip_l ; rel_flip_r...
+    rel_flipL_l ; rel_flipL_r...
     unfold xor ; rel_load_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
     rel_apply_l (refines_wp_l).
@@ -376,19 +377,19 @@ Section proofs.
     iIntros "#Hinv".
     iApply refines_arrow_val.
     iIntros "!#" (f1 f2) "#Hf".
-    rel_alloctape_l α as "α"...
-    rel_alloctape_r β as "β"...
+    rel_allocBtape_l α as "α"...
+    rel_allocBtape_r β as "β"...
     iApply (refines_na_inv with "[-$Hinv]") ; [done|].
     iIntros "(>(%old_b & xb) & Hclose)".
-    rel_apply_l refines_flip_empty_l => // ; iFrame ; iIntros "%b α"...
-    rel_alloctape_l γ as "γ"...
+    rel_apply_l refines_flipL_empty_l => // ; iFrame ; iIntros "%b α"...
+    rel_allocBtape_l γ as "γ"...
     rel_store_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
     iApply (refines_seq with "[Hf]") ; [by iApply "Hf"|].
     iApply (refines_na_inv with "[-$Hinv]"); [done|].
     iIntros "(>(%not_necessarily_b & xb) & Hclose)".
-    rel_apply refines_couple_tapes => // ; iFrame ; iIntros (b') "(β & γ)" => /=.
-    rel_flip_l ; rel_flip_r...
+    rel_apply refines_couple_bool_tape_tape => // ; iFrame ; iIntros (b') "(β & γ)" => /=.
+    rel_flipL_l ; rel_flipL_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ iExists _ ; iFrame ; done |].
     rel_values.
   Qed.
@@ -399,12 +400,12 @@ Theorem store_xor_call_flip_refinement :
   ∅ ⊨ store_xor ≤ctx≤ call_flip : (() → ()) → TBool.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: store_xor_store_xor_late.
   - eapply ctx_refines_transitive.
-    + eapply (refines_sound prelogrelΣ).
+    + eapply (refines_sound clutchRΣ).
       intros. apply: store_xor_late_store_ignore.
-    + eapply (refines_sound prelogrelΣ).
+    + eapply (refines_sound clutchRΣ).
       intros. apply: store_ignore_call_flip.
 Qed.
 
@@ -412,11 +413,11 @@ Theorem call_flip_store_xor_refinement :
   ∅ ⊨ call_flip ≤ctx≤ store_xor : (() → ()) → TBool.
 Proof.
   eapply ctx_refines_transitive.
-  - eapply (refines_sound prelogrelΣ).
+  - eapply (refines_sound clutchRΣ).
     intros. apply: call_flip_store_ignore.
   - eapply ctx_refines_transitive.
-    + eapply (refines_sound prelogrelΣ).
+    + eapply (refines_sound clutchRΣ).
       intros. apply: store_ignore_store_xor_late.
-    + eapply (refines_sound prelogrelΣ).
+    + eapply (refines_sound clutchRΣ).
       intros. apply: store_xor_late_store_xor.
 Qed.

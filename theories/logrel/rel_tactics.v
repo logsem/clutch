@@ -2,6 +2,7 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
+From self.prelude Require Import stdpp_ext.
 From self.program_logic Require Import language ectxi_language.
 From self.prob_lang Require Import locations class_instances notation primitive_laws spec_ra spec_tactics tactics lang.
 From self.logrel Require Import model rel_rules.
@@ -431,7 +432,7 @@ Lemma tac_rel_alloctape_l_simpl `{!clutchRGS Σ} K ℶ1 ℶ2 e N z t A E :
   e = fill K (AllocTape #z) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪ (N; []) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
+     (α ↪ ((N; []) : tape) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros -> ???; subst.
