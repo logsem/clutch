@@ -122,7 +122,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (msg1 msg2) "[%msg [-> ->]]" ;
       rel_pures_l ; rel_pures_r.
-    rel_apply (refines_couple_flips (xor_sem msg)) => /=.
+    rel_apply (refines_couple_flip_flip (xor_sem msg)) => /=.
     iIntros (k).
     rel_pures_l.
     foldxor.
@@ -142,7 +142,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (msg1 msg2) "[%msg [-> ->]]" ;
       rel_pures_l ; rel_pures_r.
-    rel_apply (refines_couple_flips (xor_sem msg)) => /=.
+    rel_apply (refines_couple_flip_flip (xor_sem msg)) => /=.
     iIntros (k).
     do 6 rel_pure_l.
     rel_pures_r.
