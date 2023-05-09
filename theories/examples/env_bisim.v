@@ -34,11 +34,14 @@ Definition K : expr :=
 
 Definition L : expr := (λ:<>, #true) ⊕ (λ:<>, #false).
 Definition I : expr := (λ:<>, #true ⊕ #false).
+
+(* L and I are not, in general, contextually equivalent.
+   The following (well-typed) context distinguishes them. *)
 Definition C := [CTX_AppR (λ: "f", "f" #() = "f" #())].
-Definition c' : typed_ctx C ∅ (() → TBool) ∅ TBool.
+Fact c' : typed_ctx C ∅ (() → TBool) ∅ TBool.
   unshelve eapply (TPCTX_cons _ _ _ _ _ _ _ _ _ (TPCTX_nil _ _)).
   by repeat (eauto ; econstructor ; try simplify_map_eq).
-Defined.
+Qed.
 
 Theorem eager_lazy_equiv :
   (∅ ⊨ L =ctx= I : () → TBool) -> False.
@@ -158,8 +161,7 @@ Section proofs.
     iApply (refines_na_inv with "[$Hinv]") ; [done|].
     iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
     all: rel_pures_l ; rel_pures_r.
-    + rel_bind_l flip. rel_bind_r (flipL _).
-      rel_apply_l refines_couple_flip_flipL.
+    + rel_apply refines_couple_flip_flipL.
       iFrame ; iIntros (b) "α".
       destruct b.
       * rel_pures_l. rel_pures_r. rel_load_l. rel_load_r. rel_pures_l. rel_pures_r.
@@ -172,8 +174,7 @@ Section proofs.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight ; iModIntro ; iFrame.
-    + rel_bind_l flip. rel_bind_r (flipL _).
-      rel_apply_l refines_couple_flip_flipL.
+    + rel_apply refines_couple_flip_flipL.
       iFrame ; iIntros (b) "α".
       destruct b.
       * rel_pures_l. rel_pures_r. rel_load_l. rel_load_r. rel_pures_l. rel_pures_r.
@@ -313,7 +314,7 @@ Proof.
     intros. apply: H_with_tape_H_rel.
 Qed.
 
-Theorem eager_lazy_equiv :
+Theorem H_K_equiv :
   ∅ ⊨ H =ctx= K : () → TBool.
 Proof.
   split.
