@@ -16,7 +16,7 @@ Definition eager : expr :=
   let: "b" := flip in
   λ: <>, "b".
 
-(** An intetermedaite version of [lazy] that uses a tape to allow presampling
+(** An intetermediate version of [lazy] that uses a tape to allow presampling
     bits during the proof *)
 Definition lazy_with_tape : expr :=
   let: "α" := allocB in
