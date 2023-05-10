@@ -345,5 +345,50 @@ Section prim_exec_lim.
     intro; simpl; auto.
   Qed.
 
+Lemma lim_exec_positive_ast n ρ :
+  SeriesC (exec_val n ρ) = 1 →
+  lim_exec_val ρ = exec_val n ρ.
+Proof.
+    intro Hv.
+    apply distr_ext.
+    intro v.
+    rewrite lim_exec_val_rw.
+    assert (is_finite (Sup_seq (λ n, exec_val n ρ v))) as Haux.
+    {
+      apply (Rbar_le_sandwich 0 1).
+      + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+      + apply upper_bound_ge_sup; intro; simpl; auto.
+    }
+    assert (forall m, (n <= m)%nat -> exec_val m ρ v = exec_val n ρ v ) as Haux2.
+    {
+      intros m Hleq.
+      apply Rle_antisym; [ | apply exec_val_mon'; auto ].
+      destruct (decide (exec_val m ρ v <= exec_val n ρ v)) as [Hdec | Hdec]; auto.
+      apply Rnot_le_lt in Hdec.
+      exfalso.
+      assert (1 < SeriesC (exec_val m ρ)); last first.
+      - assert (SeriesC (exec_val m ρ) <= 1); auto; lra.
+      - rewrite <- Hv.
+        apply SeriesC_lt; eauto.
+        intro v'; split; [ | apply exec_val_mon']; auto.
+    }
+    apply Rle_antisym.
+    - apply finite_rbar_le; auto.
+      (* Why does pmf unfold here? *)
+      rewrite -/pmf.
+      apply upper_bound_ge_sup; intro n'.
+      destruct (decide (n <= n')) as [Hdec | Hdec].
+      + right. apply Haux2.
+        apply INR_le; auto.
+      + apply exec_val_mon'.
+        apply Rnot_le_lt in Hdec.
+        apply INR_le.
+        auto with arith.
+        left; auto.
+    - apply rbar_le_finite; auto.
+      (* It seems Coq cannot infer the first argument because of the order in which the n0 is used *)
+      apply (sup_is_upper_bound (λ n0 : nat, exec_val n0 ρ v) n).
+Qed.
+
 
 End prim_exec_lim.
