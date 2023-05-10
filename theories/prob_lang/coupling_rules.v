@@ -115,6 +115,25 @@ Section rules.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(n1; zs ++ [a]) : tape]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp"; auto.
   Qed.
 
+
+(*
+
+  Idea of a rule to prove examples involving recursion. The justification is
+  that we should be able to repeat coupled state steps until some event
+  (in this case sampling 1) happens. If this event has nonzero probability,
+  we know that it will happen in finite time with probability 1. This might
+  involve changing the definition of the abstract language to have some
+  notion of big state step that implements this behavior.
+
+  Lemma wp_couple_tapes_geo E e α αₛ zs zsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ αₛ ↪ₛ (1; zsₛ) ∗ α ↪ (1; zs) ∗
+    ((∃ k, αₛ ↪ₛ (1; zsₛ ++ (repeat (0%fin) k) ++ [1%fin]) ∗ α ↪ (1; zs ++ (repeat (0%fin) k) ++ [1%fin])) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+*)
+
+
   Lemma wp_couple_tapes_eq N E e α αₛ ns nsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
