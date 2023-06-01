@@ -17,14 +17,12 @@ From mathcomp Require all_ssreflect all_algebra
   solvable.cyclic
   prime ssrnat
   ssreflect ssrfun ssrbool ssrnum
-  eqtype choice
   seq.
 
-From mathcomp Require Import zmodp.
+From mathcomp Require Import zmodp finset ssrbool.
 Import fingroup.
 Import solvable.cyclic.
 Set Warnings "notation-overridden,ambiguous-paths".
-From mathcomp Require Import finset ssrbool.
 
 From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
 
@@ -54,14 +52,13 @@ Hint Extern 4 (PVAL ?n) =>
 (* Hint Extern 3 (P vg ?n) => *)
 (*        (by auto) *)
 (*        : typeclass_instances. *)
-Local Notation "'P'" := PVAL.
 
 (* We'll assume that the values in G are typed by τ. *)
 Variable τ : type.
 Definition T := interp.interp τ [].
 Context (all_typed : (∀ (x : G), ⊢ᵥ x : τ)%ty).
 (* Logically related values should at least satisfy P. *)
-Hypothesis TP : forall v1 v2, (⊢ (T v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I.
+Hypothesis TP : forall v1 v2, (⊢ (T v1 v2) -∗ ⌜ PVAL v1 /\ PVAL v2 ⌝)%I.
 
 (* Implementations of the group operations of vg. *)
 Variable vmult : val.
@@ -88,7 +85,9 @@ Hypothesis g_gen : generator [set: G] g.
 (* The implementations of exp and mult are well-typed. We could weaken this
 assumption to semantic typing, but the syntactic typing assumption allows us to
 conclude some proofs more easily via the fundamental lemma. *)
-Context (mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τ → τ → τ)%ty).
+Context (mult_vtyped : val_typed vmult (τ → τ → τ)%ty).
+Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τ → τ → τ)%ty.
+  intros. constructor. done. Qed.
 Context (eexp_typed : ⊢ refines top eexp eexp (T → lrel_int → T)).
 
 #[local] Infix "^^" := eexp (at level 35) : expr_scope.
@@ -138,9 +137,7 @@ Definition dec : expr :=
     "X" ** ("B" ^^ (-- "sk")).
 
 (* The Decisional Diffie Hellman assumption says the following two programs are
-   PPT indistinguishable. *)
-(* NB: Of course PPT (and thus PPT indistinguishability) only makes sense if we
-   have a security parameter, see above. *)
+   PPT(n) indistinguishable. *)
 Definition DH_real : expr :=
   λ:<>,
     let: "a" := rnd #() in
@@ -155,8 +152,6 @@ Definition DH_rnd : expr :=
     (g^^"a", (g^^"b", g^^"c")).
 
 (* false assumption: only holds for PPT contexts *)
-(* Parameter DDH : ⊢ REL DH_real << DH_rnd : lrel_bool → lrel_bool. *)
-(* Parameter DDH' : ⊢ REL DH_rnd << DH_real : lrel_bool → lrel_bool. *)
 Parameter DDH : ⊢ refines top DH_real DH_rnd (lrel_bool → lrel_bool).
 Parameter DDH' : ⊢ refines top DH_rnd DH_real (lrel_bool → lrel_bool).
 
@@ -178,51 +173,13 @@ Definition DH_rnd_lbl : expr :=
     let: "c" := rnd "γ" in
     (g^^"a", (g^^"b", g^^"c")).
 
-Definition evt x := of_val (vvt x).
-
-Lemma refines_mult_l E K A (a b : G) t (h_mult : is_mul vg vmult) :
-  (refines E (ectxi_language.fill K (evt (a * b)%g)) t A)
-    ⊢ refines E (ectxi_language.fill K (a ** b)) t A.
-Proof.
-  clear -h_mult.
-  unfold is_mul in h_mult.
-  iIntros "H".
-  rel_apply_l refines_wp_l.
-  iApply (h_mult a b) => //.
-  iModIntro ; iIntros (v) "->" => //.
-Qed.
-
-Lemma refines_exp_l E K A (b : G) (p : nat) t (h_exp : is_exp vg eexp) :
-  (refines E (ectxi_language.fill K (evt (b ^+ p)%g)) t A)
-    ⊢ refines E (ectxi_language.fill K (b ^^ #p)) t A.
-Proof.
-  clear -h_exp.
-  unfold is_exp in h_exp.
-  iIntros "H".
-  rel_apply_l refines_wp_l.
-  iApply (h_exp b p) => //.
-  iModIntro ; iIntros (v) "->" => //.
-Qed.
-
-Lemma refines_exp_r E K A (b : G) (p : nat) t (h_exp : is_exp vg eexp) :
-  (refines E t (ectxi_language.fill K (evt (b ^+ p)%g)) A)
-    ⊢ refines E t (ectxi_language.fill K (b ^^ #p)) A.
-Proof.
-  iIntros "H".
-  rel_apply_r refines_steps_r => //.
-  iIntros (?). iApply (is_spec_exp_eexp _ _ _).
-Qed.
-
-(* Lemma DDH'_lbl : ⊢ REL DH_rnd << DH_real : lrel_unit → (T * (T * T)). *)
-
-Lemma DDH_lbl : ⊢ refines top DH_real_lbl DH_rnd_lbl (lrel_unit → (T * (T * T))).
-Admitted.
-
+(* TODO: maybe abort should get stuck instead for C to be PPT. *)
 Definition abort : expr := (rec: "f" "x" := "f" "x") #().
 Definition assert b : expr := if: b then #() else abort.
 
-(* public key OTS-CPA$ security, for ElGamal
-   (one-time secrecy chosen plaintext attack - real/random) *)
+(* public key OTS-CPA$ security (one-time secrecy chosen plaintext attack -
+   real/random) is defined as the indistinguishability of pk_ots_rnd_real and
+   pk_ots_rnd_rnd. *)
 Definition pk_ots_rnd_real : expr :=
   let: "pk_sk" := keygen #() in
   let: "pk" := Fst "pk_sk" in
@@ -241,9 +198,7 @@ Definition pk_ots_rnd_rnd : expr :=
   let: "pk" := Fst "pk_sk" in
   let: "sk" := Snd "pk_sk" in
   let: "count" := ref #0 in
-
   let: "getpk" := λ:<>, "pk" in
-
   let: "query" := λ:"m",
       assert (!"count" = #0) ;;
       "count" <- #1 ;;
@@ -275,7 +230,7 @@ Definition pk_ots_rnd_real_lbl : expr :=
   ("getpk", "query").
 
 (* Unfold the definitions and move sampling of "b" to the initialisation. Only
-   equivalent because it "query" gets called only once. *)
+   equivalent because "query" gets called only once. *)
 Definition pk_ots_rnd_0 : expr :=
   let: "α" := alloc #n in
   let: "β" := alloc #n in
@@ -407,7 +362,7 @@ Definition pk_ots_rnd_5 : expr :=
 Definition pkN := nroot.@"pks".
 
 Local Tactic Notation "inv_prove" :=
-  iSplitL ; [ (by iFrame) || (iLeft ; by iFrame) || (iRight ; by iFrame) |].
+  iSplitL ; [ by (repeat (iExists _) ; (by iFrame) || (iLeft ; by iFrame) || (iRight ; by iFrame)) |].
 
 Local Tactic Notation "inv_mk" constr(Pinv) constr(h) :=
   iApply (refines_na_alloc Pinv pkN) ; inv_prove ; iIntros h.
@@ -430,11 +385,10 @@ Proof with rel_pures_l ; rel_pures_r.
   rel_apply (refines_couple_rand_tape with "[-$β]").
   iIntros (b) "β". rel_rand_r...
   inv_cl "[- $Hclose]".
-  rel_apply compatibility.refines_pair ; [| rel_apply compatibility.refines_pair].
-  all: rel_apply compatibility.refines_app ;
-    [rel_apply compatibility.refines_app
-     ; [iApply eexp_typed|]|rel_values]
-  ; iApply fundamental.refines_typed ; constructor ; apply all_typed.
+  rel_apply refines_pair ; [| rel_apply refines_pair].
+  all: rel_apply refines_app ;
+    [ rel_apply refines_app ; [ iApply eexp_typed |] | rel_values ]
+  ; iApply refines_typed ; constructor ; apply all_typed.
 Qed.
 
 Lemma refines_get_pk (sk : fin (S n)) :
@@ -442,95 +396,130 @@ Lemma refines_get_pk (sk : fin (S n)) :
     (λ: <>, vvt (g ^+ fin_to_nat sk)%g)%V
     (λ: <>, vvt (g ^+ fin_to_nat sk)%g)%V
     (() → T).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with unfold vvt ; rel_pures_l ; rel_pures_r.
   rel_arrow_val. iIntros (?? (-> & ->))...
-  iApply fundamental.refines_typed ; constructor ; apply all_typed.
+  iApply refines_typed ; constructor ; apply all_typed.
 Qed.
+
+Definition evt x := of_val (vvt x).
+
+Lemma refines_mult_l E K A (a b : G) t (h_mult : is_mul vg vmult) :
+  (refines E (ectxi_language.fill K (evt (a * b)%g)) t A)
+    ⊢ refines E (ectxi_language.fill K (a ** b)) t A.
+Proof.
+  clear -h_mult.
+  unfold is_mul in h_mult.
+  iIntros "H".
+  rel_apply_l refines_wp_l.
+  iApply (h_mult a b) => //.
+  iModIntro ; iIntros (v) "->" => //.
+Qed.
+
+Lemma refines_exp_l E K A (b : G) (p : nat) t (h_exp : is_exp vg eexp) :
+  (refines E (ectxi_language.fill K (evt (b ^+ p)%g)) t A)
+    ⊢ refines E (ectxi_language.fill K (b ^^ #p)) t A.
+Proof.
+  clear -h_exp.
+  unfold is_exp in h_exp.
+  iIntros "H".
+  rel_apply_l refines_wp_l.
+  iApply (h_exp b p) => //.
+  iModIntro ; iIntros (v) "->" => //.
+Qed.
+
+Lemma refines_exp_r E K A (b : G) (p : nat) t (h_exp : is_exp vg eexp) :
+  (refines E t (ectxi_language.fill K (evt (b ^+ p)%g)) A)
+    ⊢ refines E t (ectxi_language.fill K (b ^^ #p)) A.
+Proof.
+  iIntros "H".
+  rel_apply_r refines_steps_r => //.
+  iIntros (?). iApply (is_spec_exp_eexp _ _ _).
+Qed.
+
+Local Ltac rel_exp_l :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ ?e _ _) =>
+      match e with
+      | context[App (App (Val eexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+          rel_apply_l (refines_exp_l _ _ _ b p _ is_exp_eexp) => //
+      | _ => fail "rel_exp_l: no eexp / base / exponent found"
+      end
+  | _ => fail "rel_exp_l: not proving a refinement"
+  end.
+
+Local Ltac rel_exp_r :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ _ ?e _) =>
+      match e with
+      | context[App (App (Val eexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+          rel_apply_r (refines_exp_r _ _ _ b p _ is_exp_eexp) => //
+      | _ => fail "rel_exp_r: no eexp / base / exponent found"
+      end
+  | _ => fail "rel_exp_r: not proving a refinement"
+  end.
+
+Local Ltac rel_pures :=
+  repeat (unfold evt, vvt ; rel_pures_l ; try rel_exp_l) ;
+  repeat (unfold evt, vvt ; rel_pures_r ; try rel_exp_r).
 
 Lemma pk_ots_rnd_real_real_lbl :
   ⊢ refines top pk_ots_rnd_real pk_ots_rnd_real_lbl ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_real /pk_ots_rnd_real_lbl.
   rewrite /keygen /enc /rnd...
   rel_alloctape_r α as "α"...
   rel_alloctape_r β as "β"...
   rel_apply (refines_couple_rand_tape with "[- $α]").
-  iIntros (sk) "α"...
+  iIntros (sk) "α".
   rel_rand_r...
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //...
   rel_alloc_l c as "c" ; rel_alloc_r c' as "c'".
   do 8 (rel_pure_l ; rel_pure_r).
-  rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
-  set (Pinv := (α ↪ₛ (n;[]) ∗ β ↪ₛ (n;[]) ∗ (c ↦ #0 ∗ c' ↦ₛ #0)
+  rel_apply refines_pair ; [iApply refines_get_pk|].
+  set (Pinv := (β ↪ₛ (n;[]) ∗ (c ↦ #0 ∗ c' ↦ₛ #0)
                 ∨ (c ↦ #1 ∗ c' ↦ₛ #1) )%I).
-  iApply (refines_na_alloc Pinv pkN).
-  iSplitL.
-  { iFrame. iLeft. iFrame. }
-  iIntros "#Hinv".
+  inv_mk Pinv "#Hinv".
   rel_arrow_val.
-  iIntros (??)...
-  iIntros "#Hv1v2"...
+  iIntros (??) "#Hv1v2"...
   iApply (refines_na_inv with "[-$Hinv]"); [done|].
-  iIntros "[>[(α&β&c&c')|(c&c')] Hclose]".
+  iIntros "[>[(β&c&c')|(c&c')] Hclose]".
   - rel_load_r ; rel_load_l...
     rel_store_l ; rel_store_r...
     rel_apply (refines_couple_rand_tape with "[-$β]").
     iIntros (b) "β"...
     rel_rand_r...
-    rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-    rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-    unfold evt, vvt. simpl...
     inv_cl "[- $Hclose]".
-    rel_apply compatibility.refines_pair.
-    + iApply fundamental.refines_typed.
-      constructor ; apply all_typed.
-    + unshelve rel_apply compatibility.refines_app. 1: exact T.
-      1: { unshelve rel_apply compatibility.refines_app ; [exact T|..].
-           - replace (T → T → T)%lrel with (interp.interp (τ → τ → τ) []) => //.
-             iApply fundamental.refines_typed. apply mult_typed.
-           - rel_values.
-      }
-      rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-      rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-      unfold evt, vvt. simpl...
-      iApply fundamental.refines_typed.
-      constructor ; apply all_typed.
-  - rel_load_l ; rel_load_r...
-    inv_cl "[- $Hclose]".
+    rel_apply refines_pair.
+    1: iApply refines_typed ; constructor ; apply all_typed.
+    unshelve rel_apply refines_app. 1: exact T.
+    1: { unshelve rel_apply refines_app ; [exact T|..|rel_values].
+         replace (T → T → T)%lrel with (interp (τ → τ → τ) []) => //.
+         iApply refines_typed ; apply mult_typed.
+    }
+    iApply refines_typed ; constructor ; apply all_typed.
+  - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]".
     iLöb as "H". rel_rec_l. iExact "H".
 Qed.
 
 Lemma pk_ots_rnd_real_lbl_0 :
   ⊢ refines top pk_ots_rnd_real_lbl pk_ots_rnd_0 ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_0 /pk_ots_rnd_real_lbl...
-  rel_alloctape_l α as "α"...
-  rel_alloctape_l β as "β"...
-  rel_alloctape_r α' as "α'"...
-  rel_alloctape_r β' as "β'"...
+  rel_alloctape_l α as "α".
+  rel_alloctape_l β as "β".
+  rel_alloctape_r α' as "α'".
+  rel_alloctape_r β' as "β'".
   rel_apply (refines_couple_tapes with "[- $α $α']") => //.
   iIntros (sk) "[α' α]"...
   rel_rand_l ; rel_rand_r...
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  unfold evt, vvt. simpl...
   rel_apply (refines_couple_tapes with "[- $β $β']") => //.
-  iIntros (b) "[β' β]"...
+  iIntros (b) "[β' β]".
   rel_rand_r...
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-  unfold evt, vvt. simpl...
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-  unfold evt, vvt. simpl...
   rel_alloc_l c as "c". rel_alloc_r c' as "c'".
   do 8 (rel_pure_l ; rel_pure_r).
   rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
   set (Pinv := (( (β ↪ (n;[b]) ∗ β' ↪ₛ (n;[]) ∗ c ↦ #0 ∗ c' ↦ₛ #0))
                 ∨ (c ↦ #1 ∗ c' ↦ₛ #1))%I).
-  iApply (refines_na_alloc Pinv pkN).
-  iSplitL.
-  { iFrame. iLeft. iFrame. }
-  iIntros "#Hinv".
+  inv_mk Pinv "#Hinv".
   rel_arrow_val.
   iIntros (??) "#Hv1v2"...
   iApply (refines_na_inv with "[$Hinv]"); [done|].
@@ -538,32 +527,22 @@ Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
   - rel_load_r ; rel_load_l...
     rel_store_l ; rel_store_r...
     rel_rand_l...
-    rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-    unfold evt, vvt. simpl...
     inv_cl "[- $Hclose]".
-    rel_apply compatibility.refines_pair.
-    + iApply fundamental.refines_typed.
-      constructor ; apply all_typed.
-    + unshelve rel_apply compatibility.refines_app. 1: exact T.
-      1: { unshelve rel_apply compatibility.refines_app ; [exact T|..].
-           - replace (T → T → T)%lrel with (interp.interp (τ → τ → τ) []) => //.
-             iApply fundamental.refines_typed. apply mult_typed.
-           - rel_values.
-      }
-      rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-      unfold evt, vvt. simpl...
-      iApply fundamental.refines_typed.
-      constructor ; apply all_typed.
-  - rel_load_l ; rel_load_r...
-    inv_cl "[- $Hclose]".
-    iLöb as "H".
-    rel_rec_l.
-    iExact "H".
+    rel_apply refines_pair.
+    1: iApply refines_typed ; constructor ; apply all_typed.
+    unshelve rel_apply refines_app. 1: exact T.
+    1: { unshelve rel_apply refines_app ; [exact T|..|rel_values].
+         replace (T → T → T)%lrel with (interp (τ → τ → τ) []) => //.
+         iApply refines_typed ; apply mult_typed.
+    }
+    iApply refines_typed ; constructor ; apply all_typed.
+  - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]".
+    iLöb as "H". rel_rec_l. iExact "H".
 Qed.
 
 Lemma pk_ots_rnd_0_1 :
   ⊢ refines top pk_ots_rnd_0 pk_ots_rnd_1 ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_0 /pk_ots_rnd_1...
   rel_alloctape_l α as "α"...
   rel_alloctape_l β as "β"...
@@ -572,62 +551,71 @@ Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
   rel_apply (refines_couple_tapes with "[- $α $α']") => //.
   iIntros (sk) "[α' α]"...
   rel_rand_l ; rel_rand_r...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //...
   rel_apply (refines_couple_tapes with "[- $β $β']") => //...
   iIntros (b) "[β' β]"...
   rel_rand_l ; rel_rand_r...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //...
-  rewrite -Nat2Z.inj_mul.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
+  rewrite -Nat2Z.inj_mul...
   rel_alloc_l c as "c". rel_alloc_r c' as "c'".
   do 8 (rel_pure_l ; rel_pure_r).
-  rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
-  iApply (refines_na_alloc (∃ v, c ↦ #v ∗ c' ↦ₛ #v) pkN).
-  iSplitL ; [ iExists _ ; iFrame|iIntros "#Hinv"].
+  rel_apply refines_pair ; [iApply refines_get_pk|].
+  inv_mk (∃ v, c ↦ #v ∗ c' ↦ₛ #v)%I "#Hinv".
   rel_arrow_val ; iIntros (??) "#Hv1v2"...
   iApply (refines_na_inv with "[$Hinv]"); [done|].
   iIntros "[>(%v&c&c') Hclose]".
   rel_load_l ; rel_load_r...
   destruct (bool_decide (#v = #0)%V)...
-  - rel_store_l ; rel_store_r...
-    iApply (refines_na_close with "[- $Hclose]").
-    iSplitL ; [ iExists _ ; iFrame|].
-    rewrite expgM.
-    rel_apply compatibility.refines_pair.
-    + iApply (fundamental.refines_typed _ _ _) ; constructor ; apply all_typed.
-    + (* A more concise proof could be given if we knew that "T v1 v2 -> v1 =
-    v2", which holds if τ is a (product of) ground type. *)
-      unshelve rel_apply compatibility.refines_app. 1: exact T.
-        1: { unshelve rel_apply compatibility.refines_app ; [exact T|..].
-             - replace (T → T → T)%lrel with (interp.interp (τ → τ → τ) []) => //.
-               iApply fundamental.refines_typed. apply mult_typed.
-             - rel_values.
-        }
-       iApply fundamental.refines_typed.
-       constructor ; apply all_typed.
-  - iApply (refines_na_close with "[- $Hclose]").
-    iSplitL ; [ iExists _ ; iFrame|].
-    iLöb as "H".
-    rel_rec_l.
-    iExact "H".
+  - rel_store_l ; rel_store_r ; inv_cl "[- $Hclose]"...
+    rewrite -expgM. rel_apply refines_pair.
+    1: iApply refines_typed ; constructor ; apply all_typed.
+    (* A more concise proof could be given if we had a hypothesis saying that
+    "T v1 v2 -> v1 = v2", which holds if τ is a (product of) ground type. *)
+    unshelve rel_apply refines_app. 1: exact T.
+    1: { unshelve rel_apply refines_app ; [exact T|..|rel_values].
+         replace (T → T → T)%lrel with (interp.interp (τ → τ → τ) []) => //.
+         iApply refines_typed ; apply mult_typed.
+    }
+    iApply refines_typed ; constructor ; apply all_typed.
+  - inv_cl "[- $Hclose]". iLöb as "H". rel_rec_l. iExact "H".
 Qed.
 
-Lemma pk_ots_rnd_1_2 :
+(* In the ElGamal security game reduction, the labelled variants of DDH occur.
+  We can prove the equivalence of the labelled and unlabelled assumption, but
+  we cannot chain the refinements together using the unlabelled assumption in
+  the middle, since the log. rel. is not transitive. I.e. we may prove each of
+  the following steps: DH_real_lbl < DH_real < DH_rnd < DH_rnd_lbl, but not
+  DH_real_lbl < DH_rnd_lbl. *)
+Definition DDH_ref_lbl := ⊢ refines top DH_real_lbl DH_rnd_lbl (() → (T * (T * T))).
+
+Definition C :=
+  [AppRCtx
+     (λ: "dhquery",
+       let: "ABC" := "dhquery" #() in
+       let: "A" := Fst "ABC" in
+       let: "B" := Fst (Snd "ABC") in
+       let: "C" := Snd (Snd "ABC") in
+       let: "count" := ref #0 in
+       let: "getpk" := λ: <>, "A" in
+       let: "query" := λ: "m",
+           assert (! "count" = #0);;
+           "count" <- #1;; ("B", "m" ** "C") in
+       ("getpk", "query"))].
+
+Definition C' :=
+  Eval hnf in match C with | [AppRCtx e] => [CTX_AppR e] | _ => [] end.
+
+Lemma pk_ots_rnd_1_2 (DDH_lbl : DDH_ref_lbl) :
   ⊢ refines top pk_ots_rnd_1 pk_ots_rnd_2 ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_1 /pk_ots_rnd_2...
-  fold DH_real_lbl.
-  fold DH_rnd_lbl.
-  rel_apply compatibility.refines_app.
-  2: { iApply DDH_lbl. }
+  fold DH_real_lbl DH_rnd_lbl.
+  rel_bind_l (DH_real_lbl).
+  rel_bind_r (DH_rnd_lbl).
+  fold C.
+  rel_apply refines_app.
+  2:  iApply DDH_lbl.
   replace ((() → T * (T * T)) → (() → T) * (T → T * T))%lrel
-    with (interp.interp
-            ((() → (τ * (τ * τ))) → (() → τ) * (τ → τ * τ))%ty []) by auto.
- iApply fundamental.refines_typed.
- repeat constructor.
+    with (interp ((() → (τ * (τ * τ))) → (() → τ) * (τ → τ * τ))%ty []) by auto.
+ iApply refines_typed ; repeat constructor.
  apply (App_typed _ _ _ (τ * (τ * τ))).
  - repeat constructor.
    eapply App_typed.
@@ -669,15 +657,107 @@ Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
  - eapply App_typed ; repeat constructor.
 Qed.
 
+Fact pk_ots_rnd_1_dh_real_lbl : pk_ots_rnd_1 = fill C DH_real_lbl.
+Proof. reflexivity. Qed.
+Fact pk_ots_rnd_2_dh_rnd_lbl : pk_ots_rnd_2 = fill C DH_rnd_lbl.
+Proof. reflexivity. Qed.
+
+(* by transitivity and soundness *)
+Lemma pk_ots_rnd_real_real_ddh (* vmult vexp vunit *) :
+  (* implements vg vmult vexp vunit → *)
+  ∅ ⊨ pk_ots_rnd_real ≤ctx≤ fill C DH_real_lbl : ((() → τ) * (τ → τ * τ)).
+Proof.
+  rewrite -pk_ots_rnd_1_dh_real_lbl.
+  eapply (ctx_refines_transitive _ _ _ pk_ots_rnd_real_lbl).
+  - eapply (@refines_sound Σ _).
+    Set Printing Implicit.
+    intros.
+    pose pk_ots_rnd_real_real_lbl as h.
+    unfold T in h.
+    simpl.
+    Fail apply: h. admit.
+  - eapply (ctx_refines_transitive _ _ _ pk_ots_rnd_0).
+    + pose pk_ots_rnd_real_lbl_0 as h. admit.
+    + pose pk_ots_rnd_0_1 as h. admit.
+Admitted.
+
+Fact h : ⊢ refines top DH_real_lbl DH_real ((() → T) * (T → T * T)).
+Admitted.
+
+Fact h1 :
+  ∅ ⊨ DH_real_lbl ≤ctx≤ DH_real : ((() → τ) * (τ → τ * τ)).
+Proof.
+  pose proof h.
+  (* Set Printing Implicit. *)
+  eapply (@refines_sound Σ _).
+  unfold T in H.
+  simpl.
+  assert (τ_closed : forall Σ H Δ, @interp Σ H τ Δ = @interp Σ H τ []) by admit.
+  intros. simpl.
+  erewrite τ_closed.
+  unfold T in H.
+  (* Set Printing Implicit. *)
+  (* Set Printing All. *)
+  (* Set Printing All. *)
+  assert (H0 = clutchRGS0) as -> by admit.
+  apply: H.
+  Unshelve.
+  destruct clutchRGS0.
+  constructor.
+  2: done.
+  constructor.
+  all: admit.
+Admitted.
+
+Fact h2 :
+  ∅ ⊨ fill_ctx C' DH_real_lbl ≤ctx≤ fill_ctx C' DH_real : ((() → τ) * (τ → τ * τ)).
+Proof.
+  eapply ctx_refines_congruence.
+  2: eapply h1.
+  admit.
+Admitted.
+
+Fact h22 :
+  ∅ ⊨ fill C DH_real_lbl ≤ctx≤ fill C DH_real : ((() → τ) * (τ → τ * τ)).
+Proof.
+  unfold fill, C. simpl.
+  pose proof h2. unfold fill_ctx, C' in H. simpl in H. done.
+Qed.
+
+Fact h1' :
+  ⊢ refines top DH_real_lbl DH_real (interp (() → τ * (τ * τ))%ty []).
+Admitted.
+
+Fact h2' :
+  ⊢ refines top (fill_ctx C' DH_real_lbl) (fill_ctx C' DH_real) ((() → T) * (T → T * T)).
+Proof.
+  epose proof (@bin_log_related_under_typed_ctx _ _ ∅ DH_real_lbl DH_real
+                 (() → τ * (τ * τ))%ty ∅
+                 ((() → τ) * (τ → τ * τ))%ty C' _).
+  iPoseProof (H with "[]") as "#H".
+    { iIntros "!>" (?).
+      assert (Δ = []) as -> by admit.
+      epose proof h1' as h1''.
+      unfold bin_log_related.
+      iIntros.
+Abort.
+
+(* ∅ ⊨ fill C DH_rnd ≤ctx≤ fill C DH_rnd_lbl : ((() → τ) * (τ → τ * τ)). *)
+
+(* by transitivity and adequacy *)
+Lemma pk_ots_rnd_rnd_rnd_ddh :
+  ∅ ⊨ fill C DH_rnd_lbl ≤ctx≤ pk_ots_rnd_rnd : ((() → τ) * (τ → τ * τ)).
+Abort.
+
 Lemma pk_ots_rnd_2_3 :
   ⊢ refines top pk_ots_rnd_2 pk_ots_rnd_3 ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_2 /pk_ots_rnd_3...
-  rel_alloctape_l α as "α"...
-  rel_alloctape_l β as "β"...
-  rel_alloctape_l γ as "γ"...
-  rel_alloctape_r α' as "α'"...
-  rel_alloctape_r β' as "β'"...
+  rel_alloctape_l α as "α".
+  rel_alloctape_l β as "β".
+  rel_alloctape_l γ as "γ".
+  rel_alloctape_r α' as "α'".
+  rel_alloctape_r β' as "β'".
   rel_alloctape_r γ' as "γ'"...
   rel_apply (refines_couple_tapes with "[- $α $α']") => //.
   iIntros (sk) "[α' α]"...
@@ -688,52 +768,39 @@ Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
   rel_apply (refines_couple_tapes with "[- $γ $γ']") => //.
   iIntros (c) "[γ' γ]"...
   rel_rand_l ; rel_rand_r...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
   rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'".
   do 8 (rel_pure_l ; rel_pure_r).
-  rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
+  rel_apply refines_pair ; [iApply refines_get_pk|].
   (* copy-pasted proof *)
-  iApply (refines_na_alloc (∃ v, cnt ↦ #v ∗ cnt' ↦ₛ #v) pkN).
-  iSplitL ; [ iExists _ ; iFrame|iIntros "#Hinv"].
+  inv_mk (∃ v, cnt ↦ #v ∗ cnt' ↦ₛ #v)%I "#Hinv".
   rel_arrow_val ; iIntros (??) "#Hv1v2"...
   iApply (refines_na_inv with "[$Hinv]"); [done|].
   iIntros "[>(%v&c&c') Hclose]".
   rel_load_l ; rel_load_r...
   destruct (bool_decide (#v = #0)%V)...
   - rel_store_l ; rel_store_r...
-    iApply (refines_na_close with "[- $Hclose]").
-    iSplitL ; [ iExists _ ; iFrame|].
-    rel_apply compatibility.refines_pair.
-    + iApply (fundamental.refines_typed _ _ _) ; constructor ; apply all_typed.
-    + unshelve rel_apply compatibility.refines_app. 1: exact T.
-        1: { unshelve rel_apply compatibility.refines_app ; [exact T|..].
-             - replace (T → T → T)%lrel with (interp.interp (τ → τ → τ) []) => //.
-               iApply fundamental.refines_typed. apply mult_typed.
-             - rel_values.
-        }
-        iApply fundamental.refines_typed.
-        constructor ; apply all_typed.
-  - iApply (refines_na_close with "[- $Hclose]").
-    iSplitL ; [ iExists _ ; iFrame|].
-    iLöb as "H".
-    rel_rec_l.
-    iExact "H".
+    inv_cl "[-$Hclose]".
+    rel_apply refines_pair.
+    1: iApply (refines_typed _ _ _) ; constructor ; apply all_typed.
+    unshelve rel_apply refines_app. 1: exact T.
+    1: { unshelve rel_apply refines_app ; [exact T|..|rel_values].
+         replace (T → T → T)%lrel with (interp (τ → τ → τ) []) => //.
+         iApply refines_typed ; apply mult_typed.
+    }
+    iApply refines_typed ; constructor ; apply all_typed.
+  - inv_cl "[- $Hclose]".
+    iLöb as "H". rel_rec_l. iExact "H".
 Qed.
 
 Lemma pk_ots_rnd_3_4 :
   ⊢ refines top pk_ots_rnd_3 pk_ots_rnd_4 ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_3 /pk_ots_rnd_4...
-  rel_alloctape_l α as "α"...
-  rel_alloctape_l β as "β"...
-  rel_alloctape_l γ as "γ"...
-  rel_alloctape_r α' as "α'"...
-  rel_alloctape_r β' as "β'"...
+  rel_alloctape_l α as "α".
+  rel_alloctape_l β as "β".
+  rel_alloctape_l γ as "γ".
+  rel_alloctape_r α' as "α'".
+  rel_alloctape_r β' as "β'".
   rel_alloctape_r γ' as "γ'"...
   rel_apply (refines_couple_tapes with "[- $α $α']") => //.
   iIntros (sk) "[α' α]"...
@@ -744,133 +811,105 @@ Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
   rel_apply (refines_couple_tapes with "[- $γ $γ']") => //.
   iIntros (c) "[γ' γ]"...
   rel_rand_l...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //...
   rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'".
   do 8 (rel_pure_l ; rel_pure_r).
-  rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
+  rel_apply refines_pair ; [iApply refines_get_pk|].
   set (Pinv := (( (β ↪ (n;[]) ∗ β' ↪ₛ (n;[b]) ∗ γ ↪ (n;[]) ∗ γ' ↪ₛ (n;[c]) ∗ cnt ↦ #0 ∗ cnt' ↦ₛ #0))
-             ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1))%I).
-    iApply (refines_na_alloc Pinv pkN).
-    iSplitL.
-    { iLeft. iModIntro. iFrame. }
-    iIntros "#Hinv".
-    rel_arrow_val ; iIntros (??) "#Hv1v2"...
-    iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "[>[(β&β'&γ&γ'&cnt&cnt')|(cnt&cnt')] Hclose]".
-    - rel_load_r ; rel_load_l...
-      rel_store_l ; rel_store_r...
-      rel_rand_r...
-      rel_rand_r...
-      rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-      rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-      inv_cl "[- $Hclose]".
-      rel_apply compatibility.refines_pair.
-      + iApply fundamental.refines_typed.
-        constructor ; apply all_typed.
-      + unshelve rel_apply compatibility.refines_app. 1: exact T.
-        1: { unshelve rel_apply compatibility.refines_app ; [exact T|..].
-             - replace (T → T → T)%lrel with (interp.interp (τ → τ → τ) []) => //.
-               iApply fundamental.refines_typed. apply mult_typed.
-             - rel_values.
-        }
-        iApply fundamental.refines_typed.
-        constructor ; apply all_typed.
-    - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]".
-      iLöb as "H". rel_rec_l. iExact "H".
+                ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1))%I).
+  inv_mk Pinv "#Hinv".
+  rel_arrow_val ; iIntros (??) "#Hv1v2"...
+  iApply (refines_na_inv with "[$Hinv]"); [done|].
+  iIntros "[>[(β&β'&γ&γ'&cnt&cnt')|(cnt&cnt')] Hclose]".
+  - rel_load_r ; rel_load_l...
+    rel_store_l ; rel_store_r...
+    rel_rand_r...
+    rel_rand_r...
+    inv_cl "[- $Hclose]".
+    rel_apply refines_pair.
+    1: iApply refines_typed ; constructor ; apply all_typed.
+    unshelve rel_apply refines_app. 1: exact T.
+    1: { unshelve rel_apply refines_app ; [exact T|..|rel_values].
+         replace (T → T → T)%lrel with (interp (τ → τ → τ) []) => //.
+         iApply refines_typed ; apply mult_typed.
+    }
+    iApply refines_typed ; constructor ; apply all_typed.
+  - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]".
+    iLöb as "H". rel_rec_l. iExact "H".
 Qed.
 
 Lemma pk_ots_rnd_4_5 :
   ⊢ refines top pk_ots_rnd_4 pk_ots_rnd_5 ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_4 /pk_ots_rnd_5...
   rel_alloctape_l α as "α".
-  rel_alloctape_r α' as "α'"...
+  rel_alloctape_r α' as "α'".
   rel_alloctape_l β as "β".
-  rel_alloctape_r β' as "β'"...
+  rel_alloctape_r β' as "β'".
   rel_alloctape_l γ as "γ".
   rel_alloctape_r γ' as "γ'"...
   rel_apply (refines_couple_tapes with "[- $α $α']") => //.
   iIntros (sk) "[α' α]"...
   rel_rand_l ; rel_rand_r...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
   rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'".
   do 8 (rel_pure_l ; rel_pure_r).
-  rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
+  rel_apply refines_pair ; [iApply refines_get_pk|].
   set (Pinv := ((β ↪ (n;[]) ∗ β' ↪ₛ (n;[]) ∗ γ ↪ (n;[]) ∗ γ' ↪ₛ (n;[])
                    ∗ cnt ↦ #0 ∗ cnt' ↦ₛ #0)
                 ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1))%I).
-    iApply (refines_na_alloc Pinv pkN).
-    iSplitL ; [iLeft ; iModIntro ; iFrame|].
-    iIntros "#Hinv".
-    rel_arrow_val.
-    iIntros (??) "#Hv1v2"...
-    iApply (refines_na_inv with "[-$Hinv]") => //.
-    iIntros "[>[(β&β'&γ&γ'&cnt&cnt')|(cnt&cnt')] Hclose]".
-    - rel_load_r ; rel_load_l...
-      rel_store_l ; rel_store_r...
-      rel_apply (refines_couple_tapes with "[- $β $β']") => //.
-      iIntros (b) "[β' β]"...
-      rel_rand_l ; rel_rand_r...
-      iDestruct (TP with "Hv1v2") as "[%Pv1 _]".
-      destruct (log_g (mkG v1)) as [k H].
-      assert (v1 = mkG v1) as -> by auto.
-      rewrite -H.
-      pose (f := elgamal_bij.f n'' k).
-      unshelve rel_apply (refines_couple_tapes n f with "[- $γ $γ']") => //.
-      1: constructor ; [apply elgamal_bij.f_inj|apply elgamal_bij.f_surj].
-      iIntros (c) "[γ' γ]"...
-      rel_rand_l ; rel_rand_r...
-      inv_cl "[- $Hclose]".
-      rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-      rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-      rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-      rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-      unfold evt,vvt. rel_pures_l.
-      do 2 rel_pure_r.
-      rel_apply compatibility.refines_pair.
-      1: iApply fundamental.refines_typed ; constructor ; apply all_typed.
-      rel_apply_l (refines_mult_l _ _ _ _ _ _ is_mul_vmult) => //.
-      rewrite -expgD -ssrnat.plusE.
-      assert ((g ^+ (k + c)) = (g ^+ f c))%g as heq.
-      2: rewrite -heq ; iApply fundamental.refines_typed
-      ; constructor ; apply all_typed.
-      rewrite fin_to_nat_to_fin => /=.
-      rewrite -ssrnat.plusE /Zp_trunc /n => /=.
-      pose proof (e := (expg_mod_order g (k+c))).
-      rewrite -/n' g_nontriv /n in e.
-      symmetry in e. exact e.
-    - rel_load_l ; rel_load_r...
-      iApply (refines_na_close with "[- $Hclose]").
-      iSplitL ; [iRight ; iFrame|].
-      iLöb as "H". rel_rec_l. iExact "H".
+  inv_mk Pinv "#Hinv".
+  rel_arrow_val.
+  iIntros (??) "#Hv1v2"...
+  iApply (refines_na_inv with "[-$Hinv]") => //.
+  iIntros "[>[(β&β'&γ&γ'&cnt&cnt')|(cnt&cnt')] Hclose]".
+  - rel_load_r ; rel_load_l...
+    rel_store_l ; rel_store_r...
+    rel_apply (refines_couple_tapes with "[- $β $β']") => //.
+    iIntros (b) "[β' β]"...
+    rel_rand_l ; rel_rand_r...
+    iDestruct (TP with "Hv1v2") as "[%Pv1 _]".
+    destruct (log_g (mkG v1)) as [k H].
+    assert (v1 = mkG v1) as -> by auto.
+    rewrite -H.
+    pose (f := elgamal_bij.f n'' k).
+    unshelve rel_apply (refines_couple_tapes n f with "[- $γ $γ']") => //.
+    1: constructor ; [apply elgamal_bij.f_inj|apply elgamal_bij.f_surj].
+    iIntros (c) "[γ' γ]"...
+    rel_rand_l ; rel_rand_r.
+    inv_cl "[- $Hclose]". rel_pures_l ; rel_pures_r.
+    (* Don't compute too much, the compatibility lemma doesn't apply to values... *)
+    do 2 (rel_exp_l ; rel_exp_r ; unfold evt ; rel_pures_l ; do 2 rel_pure_r).
+    rel_apply refines_pair.
+    1: iApply refines_typed ; constructor ; apply all_typed.
+    rel_apply_l (refines_mult_l _ _ _ _ _ _ is_mul_vmult) => //.
+    rewrite -expgD -ssrnat.plusE.
+    assert ((g ^+ (k + c)) = (g ^+ f c))%g as heq.
+    2: rewrite -heq ; iApply refines_typed ; constructor ; apply all_typed.
+    clear -g_nontriv. rewrite fin_to_nat_to_fin => /=.
+    rewrite -ssrnat.plusE /Zp_trunc /n => /=.
+    pose proof (e := (expg_mod_order g (k+c))).
+    rewrite -/n' g_nontriv /n in e.
+    symmetry in e. exact e.
+  - rel_load_l ; rel_load_r... inv_cl "[-$Hclose]".
+    iLöb as "H". rel_rec_l. iExact "H".
 Qed.
 
 Lemma pk_ots_rnd_5_rnd :
   ⊢ refines top pk_ots_rnd_5 pk_ots_rnd_rnd ((() → T) * (T → T * T)).
-Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
+Proof with rel_pures.
   rewrite /pk_ots_rnd_5 /pk_ots_rnd_rnd.
   rewrite /keygen /enc /rnd...
-  rel_alloctape_l α as "α"...
-  rel_alloctape_l β as "β"...
+  rel_alloctape_l α as "α".
+  rel_alloctape_l β as "β".
   rel_alloctape_l γ as "γ"...
   rel_apply (refines_couple_tape_rand with "[- $α]") => //.
   iIntros (sk) "α"...
   rel_rand_l...
-  rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-  rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
   rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'".
   do 8 (rel_pure_l ; rel_pure_r).
-  rel_apply compatibility.refines_pair ; [iApply refines_get_pk|].
+  rel_apply refines_pair ; [iApply refines_get_pk|].
   set (Pinv := (α ↪ (n;[]) ∗ β ↪ (n;[]) ∗ γ ↪ (n;[]) ∗ (cnt ↦ #0 ∗ cnt' ↦ₛ #0)
                 ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1) )%I).
-  iApply (refines_na_alloc Pinv pkN).
-  iSplitL.
-  { iFrame. iLeft. iFrame. }
-  iIntros "#Hinv".
+  inv_mk Pinv "#Hinv".
   rel_arrow_val.
   iIntros (??) "Hv1v2"...
   iApply (refines_na_inv with "[$Hinv]"); [done|].
@@ -881,18 +920,12 @@ Proof with unfold evt, vvt ; rel_pures_l ; rel_pures_r.
     iIntros (b) "β"...
     rel_rand_l...
     rel_apply (refines_couple_tape_rand with "[-$γ]") => //.
-    iIntros (c) "γ"...
-    rel_rand_l...
+    iIntros (c) "γ".
+    rel_rand_l.
     inv_cl "[- $Hclose]".
-    rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-    rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //...
-    rel_apply_l (refines_exp_l _ _ _ _ _ _ is_exp_eexp) => //.
-    rel_apply_r (refines_exp_r _ _ _ _ _ _ is_exp_eexp) => //.
-    unfold evt, vvt.
-    do 2 (rel_pure_l ; rel_pure_r).
-    rel_apply compatibility.refines_pair.
-    + iApply fundamental.refines_typed ; constructor ; apply all_typed.
-    + iApply fundamental.refines_typed ; constructor ; apply all_typed.
+    rel_pures_l ; rel_pures_r.
+    do 2 (rel_exp_l ; rel_exp_r ; unfold evt ; do 2 rel_pure_l ; do 2 rel_pure_r).
+    rel_apply refines_pair ; iApply refines_typed ; constructor ; apply all_typed.
   - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]".
     iLöb as "H". rel_rec_l. iExact "H".
 Qed.
