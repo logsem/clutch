@@ -104,8 +104,8 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
-(* Definition stuckness_to_atomicity (s : stuckness) : atomicity := *)
-(*   if s is MaybeStuck then StronglyAtomic else WeaklyAtomic. *)
+ Definition stuckness_to_atomicity (s : stuckness) : atomicity := 
+   if s is MaybeStuck then StronglyAtomic else WeaklyAtomic. 
 
 Section language.
   Context {Λ : language}.

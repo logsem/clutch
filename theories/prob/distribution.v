@@ -141,6 +141,7 @@ Section distributions.
 
 End distributions.
 
+
 #[global] Hint Resolve pmf_le_1 : core.
 #[global] Hint Resolve pmf_SeriesC_ge_0 : core.
 
@@ -632,6 +633,137 @@ Section monadic.
 
 
 End monadic.
+
+
+Section probabilities.
+
+  Context `{Countable A, Countable B}.
+  Implicit Types μ d : distr A.
+
+  Definition prob (μ : distr A) (P : A → bool) : R :=
+    SeriesC (λ a : A, if (P a) then μ a else 0).
+
+  Lemma prob_le_1 (μ : distr A) (P : A → bool) :
+    prob μ P <= 1.
+  Proof.
+    apply (Rle_trans _ (SeriesC μ)); auto.
+    apply SeriesC_le; auto.
+    intro n; destruct (P n); split; auto; lra.
+  Qed.
+
+  Lemma prob_ge_0 (μ : distr A) (P : A -> bool) :
+    0 <= prob μ P.
+  Proof.
+    apply SeriesC_ge_0'.
+    intro n; destruct (P n); auto; lra.
+  Qed.
+
+
+End probabilities.
+
+Section probability_prop.
+
+  Context `{Countable A, Countable B}.
+
+  Lemma prob_dret_true (a : A) (P : A -> bool) :
+    P a = true -> prob (dret a) P = 1.
+  Proof.
+    intro HP.
+    rewrite /prob/pmf/=/dret_pmf/=.
+    assert
+      (forall a0, (if P a0 then if bool_decide (a0 = a) then 1 else 0 else 0)
+      = (if bool_decide (a0 = a) then 1 else 0)) as Haux.
+    {
+      intro a0.
+      case_bool_decide; simplify_eq; [rewrite HP; auto | destruct (P a0); auto].
+    }
+    setoid_rewrite Haux.
+    apply SeriesC_singleton.
+  Qed.
+
+
+  Lemma prob_dret_false (a : A) (P : A -> bool) :
+    P a = false -> prob (dret a) P = 0.
+  Proof.
+    intro HP.
+    rewrite /prob/pmf/=/dret_pmf/=.
+    assert
+      (forall a0, (if P a0 then if bool_decide (a0 = a) then 1 else 0 else 0)
+      = 0) as Haux.
+    {
+      intro a0.
+      case_bool_decide; simplify_eq; [rewrite HP; auto | destruct (P a0); auto].
+    }
+    setoid_rewrite Haux.
+    apply SeriesC_0; auto.
+  Qed.
+
+
+  Lemma prob_dbind (μ : distr A) (f : A -> distr B) (P : B → bool) :
+    prob (dbind f μ) P = SeriesC (λ a, μ a * prob (f a) P).
+  Proof.
+    rewrite /prob{1}/pmf/=/dbind_pmf/=.
+    assert (forall a,
+               (if P a then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
+               SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
+    {
+      intro a.
+      destruct (P a); auto.
+      rewrite SeriesC_0; auto.
+    }
+    setoid_rewrite Haux.
+    rewrite <- (fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext; intro a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; intro b.
+      destruct (P b); lra.
+    - intros b a; destruct (P b); [ | lra].
+      apply Rmult_le_pos; auto.
+    - intro b.
+      apply (ex_seriesC_le _ μ); auto.
+      intro a; split.
+      + destruct (P b); [ | lra].
+        apply Rmult_le_pos; auto.
+      + destruct (P b); auto.
+        rewrite <- Rmult_1_r.
+        apply Rmult_le_compat_l; auto.
+    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
+      * intro b; split.
+        -- apply SeriesC_ge_0'.
+           intro; destruct (P b); [ | lra].
+           apply Rmult_le_pos; auto.
+        -- apply SeriesC_le.
+           ++ intro a; split; destruct (P b);
+                [apply Rmult_le_pos; auto | lra | lra | apply Rmult_le_pos; auto ].
+           ++ apply pmf_ex_seriesC_mult_fn.
+              exists 1; intro; split; auto.
+      * apply (pmf_ex_seriesC (dbind f μ)).
+  Qed.
+
+
+
+
+
+
+  Lemma union_bound (μ : distr A) (P Q : A -> bool) :
+    prob μ (λ a, andb (P a) (P a)) <= prob μ P + prob μ Q.
+  Proof.
+    rewrite /prob.
+    rewrite <- SeriesC_plus.
+    - apply SeriesC_le.
+      + intro n.
+        pose proof (pmf_pos μ n).
+        destruct (P n); destruct (Q n); simpl; split; auto; try lra.
+      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
+        * intro n.
+          pose proof (pmf_pos μ n).
+          destruct (P n); destruct (Q n); simpl; split; auto; try lra.
+        * apply ex_seriesC_scal_l; auto.
+    - apply ex_seriesC_filter_bool_pos; auto.
+    - apply ex_seriesC_filter_bool_pos; auto.
+  Qed.
+
+End probability_prop.
 
 (* TODO: go somewhere else? *)
 (* The lemmas about [Finite A] make use of the [Countable A] instance

@@ -48,14 +48,12 @@ Section logical_ref.
   Lemma real_ideal_rel :
     ⊢ REL real << ideal : lrel_bool → lrel_bool.
   Proof.
-    rewrite /real /ideal.
     rel_arrow_val.
     iIntros (msg1 msg2) "Hmsg".
     rel_pures_l. rel_pures_r.
     foldxor.
     iDestruct "Hmsg" as "[%b [-> ->]]".
     rel_apply (refines_couple_flip_flip (xor_sem b)).
-    simpl.
     iIntros (k).
     rel_pures_l.
     foldxor.

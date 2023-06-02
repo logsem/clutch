@@ -490,6 +490,17 @@ Section filter.
     - rewrite bool_decide_eq_true_2 //. lra.
   Qed.
 
+  Lemma ex_seriesC_filter_bool_pos f (P : A → bool) :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f ->
+    ex_seriesC (λ a, if P a then f a else 0).
+  Proof.
+    intros Hpos Hex.
+    apply (ex_seriesC_le _ f); auto.
+    intro n; specialize (Hpos n); destruct (P n); lra.
+  Qed.
+
+
 End filter.
 
 Section strict.
