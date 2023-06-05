@@ -1,39 +1,23 @@
+(* We prove that the translation `(λ x, (x + k) % n) : fin n → fin n` is a
+bijection on `fin n`. This fact is used in the ElGamal security proof. *)
+
 Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require Import all_ssreflect ssrnat zmodp fingroup.
 Set Warnings "notation-overridden,ambiguous-paths".
 
-Require stdpp.fin.
+From stdpp Require fin.
+From clutch Require Import prelude.zmodp_fin.
 
 Set Default Proof Using "Type*".
 
 Section bij.
 
-  (* Let fin := fin.fin. *)
-  (* Variable p : nat. *)
-  Variable p' : nat.
-  (* Hypothesis hp : p = S (S p'). *)
-  Local Notation "'p'" := (S (S p')).
-  (* Hypothesis hp : p > 1. *)
+  Variable n : nat.
+  Local Notation "'p'" := (S (S n)).
   Variable k : Fin.t p.
 
-  Definition ord_of_fin (c : Fin.t p) : 'Z_p :=
-    (Ordinal (n:=(Zp_trunc p).+2)
-       (m:=fin.fin_to_nat c)
-       ((introT leP (fin.fin_to_nat_lt c)))).
-
-  Definition fin_of_ord (c : 'Z_p) : Fin.t p :=
-    @Fin.of_nat_lt (nat_of_ord c) p (elimTF leP (ltn_ord c)).
-
-  Fact fin_of_ord_of_fin x : fin_of_ord (ord_of_fin x) = x.
-  Proof. unfold fin_of_ord, ord_of_fin. apply fin.fin_to_nat_inj.
-         by rewrite fin.nat_to_fin_to_nat. Qed.
-
-  Fact ord_of_fin_of_ord (x : 'Z_p) : ord_of_fin (fin_of_ord x) = x.
-  Proof. unfold fin_of_ord, ord_of_fin. apply ord_inj.
-         by rewrite /nat_of_ord fin.fin_to_nat_to_fin. Qed.
-
-  Definition f' (x : 'Z_p) : 'Z_p := (Zp_add (ord_of_fin k) x)%g.
-  Definition g' (x : 'Z_p) : 'Z_p := Zp_add (Zp_opp (ord_of_fin k)) x.
+  Let f' (x : 'Z_p) : 'Z_p := (Zp_add (ord_of_fin k) x)%g.
+  Let g' (x : 'Z_p) : 'Z_p := Zp_add (Zp_opp (ord_of_fin k)) x.
 
   Fact f_g' x : f' (g' x) = x.
   Proof. by rewrite /f'/g' Zp_addA (Zp_addC(_ k)) Zp_addNz Zp_add0z. Qed.
@@ -42,7 +26,6 @@ Section bij.
   Proof. by rewrite /f'/g' Zp_addA Zp_addNz Zp_add0z. Qed.
 
   Definition f (c : Fin.t p) : Fin.t p := fin_of_ord (f' (ord_of_fin c)).
-
   Definition g (c : Fin.t p) : Fin.t p := fin_of_ord (g' (ord_of_fin c)).
 
   Fact f_g x : f (g x) = x.

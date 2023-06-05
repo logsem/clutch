@@ -1,6 +1,8 @@
 From stdpp Require Import namespaces.
 From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
 From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch.typing Require Import types.
+From clutch.typing Require interp.
 
 (* From clutch.typing Require Import types contextual_refinement soundness. *)
 From clutch.prelude Require Import base.
@@ -116,62 +118,106 @@ Section mk_vg.
     Val_group { P : {pred prob_lang.val}
               ; val_group_enum : seq (vt P)
               ; val_group_finite_axiom : Finite.axiom val_group_enum
-              ; vone : vt P
-              ; vmul : vt P -> vt P -> vt P
-              ; vinv : vt P -> vt P
-              ; val_group_associative : ssrfun.associative vmul
-              ; val_group_left_id : ssrfun.left_id vone vmul
-              ; val_group_left_inverse : ssrfun.left_inverse vone vinv vmul
+              ; vgone : vt P
+              ; vgmul : vt P -> vt P -> vt P
+              ; vginv : vt P -> vt P
+              ; val_group_associative : ssrfun.associative vgmul
+              ; val_group_left_id : ssrfun.left_id vgone vgmul
+              ; val_group_left_inverse : ssrfun.left_inverse vgone vginv vgmul
       }.
 
-  Definition mk_vg (x : val_group) : finGroupType :=
-    vg_finGroup _ _ (val_group_finite_axiom x) _ _ _
-      (val_group_associative x) (val_group_left_id x) (val_group_left_inverse x).
+  Coercion mk_vg (vg : val_group) : finGroupType :=
+    vg_finGroup _ _ (val_group_finite_axiom vg) _ _ _
+      (val_group_associative vg) (val_group_left_id vg) (val_group_left_inverse vg).
 
 End mk_vg.
 
 Section EGroup.
   Local Open Scope group_scope.
-  (* Import fingroup.GroupScope *)
 
   Context `{!clutchRGS Σ}.
 
-  Variable x : val_group.
-  Let g := mk_vg x.
-  Let vt := vt (P x).
+  Variable G : val_group.
+  (* Local Notation "'G'" := (mk_vg vg). *)
+  (* Let vt := vt (P x). *)
 
-  Definition is_id (e : g) := e = 1.
-
-  Definition ζ : {set g} := [set : g].
-
-  Coercion gval := (λ x, `x) : g → prob_lang.val.
+  Coercion gval := (λ x, `x) : (mk_vg G) → prob_lang.val.
   (* Coercion vvt := (λ x, `x) : vt → prob_lang.val. *)
 
-  Definition is_inv (i : prob_lang.val) := ∀ (x : g),
-    {{{ True }}}
-      i x
-    {{{ v, RET v;
-        ⌜v = gval (x ^-1)⌝ }}}.
+  Definition _is_unit (e : prob_lang.val) := e = gval 1.
 
-  Definition is_mul (m : prob_lang.val) := ∀ (x y : g),
-    {{{ True }}}
-      m x y
-    {{{ v, RET v; ⌜v = gval (x * y)⌝ }}}.
+  Definition _is_inv (vinv : prob_lang.val) := ∀ (x : G),
+    {{{ True }}} vinv x {{{ v, RET v; ⌜v = gval (x ^-1)⌝ }}}.
 
-  Definition is_exp (eexp : prob_lang.val) := ∀ (b : g) (x : nat),
-      {{{ True }}}
-        eexp b (#x)
-        {{{ v, RET v; ⌜v = gval (b ^+ x)%g⌝ }}}.
+  Definition _is_spec_inv (vinv : prob_lang.val) := ∀ (x : G),
+    ∀ K, refines_right K (vinv x)
+         ={⊤}=∗ refines_right K (gval (x ^-1)%g).
 
-  Definition is_spec_exp (eexp : prob_lang.val) := ∀ (b : g) (x : nat),
-    ∀ K, refines_right K (eexp b (#x))
-         ={⊤}=∗
-                refines_right K (gval (b ^+ x)%g).
+  Definition _is_mult (vmult : prob_lang.val) := ∀ (x y : G),
+    {{{ True }}} vmult x y {{{ v, RET v; ⌜v = gval (x * y)⌝ }}}.
+
+  Definition _is_spec_mult (vmult : prob_lang.val) := ∀ (x y : G),
+    ∀ K, refines_right K (vmult x y)
+         ={⊤}=∗ refines_right K (gval (x * y)%g).
+
+  Definition _is_exp (vexp : prob_lang.val) := ∀ (b : G) (x : nat),
+      {{{ True }}} vexp b #x {{{ v, RET v; ⌜v = gval (b ^+ x)%g⌝ }}}.
+
+  Definition _is_spec_exp (vexp : prob_lang.val) := ∀ (b : G) (x : nat),
+    ∀ K, refines_right K (vexp b #x)
+         ={⊤}=∗ refines_right K (gval (b ^+ x)%g).
+
 End EGroup.
 
+Class clutch_group_struct :=
+  Clutch_group_struct
+    { vunit : prob_lang.val
+    ; vinv : prob_lang.val
+    ; vmult : prob_lang.val
+    ; vexp : prob_lang.val
+    ; τG : type
+    }.
+
+(* Could push `{clutchRGS Σ} down to the Iris propositions, or move the
+   syntactic typing info into the clutch_group_struct. *)
+Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
+  Clutch_group
+    { τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
+    ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
+    ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty
+    ; vall_typed : (∀ (x : vg), ⊢ᵥ x : τG)%ty
+    ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P vg v1 /\ P vg v2 ⌝)%I
+    ; is_unit : vunit = (gval vg 1)%g
+    ; is_inv : ∀ (x : vg),
+        {{{ True }}} vinv x {{{ v, RET v; ⌜v = gval vg (x ^-1)%g⌝ }}}
+    ; is_spec_inv : ∀ (x : vg),
+      ∀ K, refines_right K (vinv x)
+           ={⊤}=∗ refines_right K (gval vg (x ^-1)%g)
+    ; is_mult : ∀ (x y : vg),
+        {{{ True }}} vmult x y {{{ v, RET v; ⌜v = gval vg (x * y)%g⌝ }}}
+    ; is_spec_mult : ∀ (x y : vg),
+      ∀ K, refines_right K (vmult x y)
+           ={⊤}=∗ refines_right K (gval vg (x * y)%g)
+    ; is_exp : ∀ (b : vg) (x : nat),
+        {{{ True }}} vexp b #x {{{ v, RET v; ⌜v = gval vg (b ^+ x)%g⌝ }}}
+    ; is_spec_exp : ∀ (b : vg) (x : nat),
+      ∀ K, refines_right K (vexp b #x)
+           ={⊤}=∗ refines_right K (gval vg (b ^+ x)%g)
+    }.
+
+#[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core.
+
+(* vg is generated by g. *)
+Class clutch_group_generator {vg : val_group} :=
+  Clutch_group_generator
+    { g : vg
+    ; n'' : nat
+    ; g_nontriv : #[g]%g = S (S n'')
+    ; g_generator : generator [set: vg] g
+    }.
+
 Section Z5.
-
-
+  (* Construction of an example val_group. TODO: This needs to be cleaned up. *)
   (* Eval cbn in ((8 * 2) : 'Z_5) == 1. *)
 
   Context `{!clutchRGS Σ}.
@@ -224,7 +270,7 @@ Section Z5.
   Hypothesis zp_vt_C : forall x, zp_of_vt (vt_of_zp x) = x.
   Hypothesis vt_zp_C : forall x, vt_of_zp (zp_of_vt x) = x.
 
-  Definition g : val_group.
+  Definition g5 : val_group.
     unshelve econstructor.
     - exact p.
     - exact [:: mkP #0 ; mkP #1 ; mkP #2 ; mkP #3 ; mkP #4 ].
@@ -247,7 +293,7 @@ Section Z5.
       by rewrite mulVg.
   Defined.
 
-  Definition gg := mk_vg g.
+  Definition gg := mk_vg g5.
   Eval compute in ((vt_of_zp 8 * (vt_of_zp 2))%g : gg)%g == vt_of_zp 1.
   Eval cbn in ((8 * 2) : 'Z_5) == 1.
 
