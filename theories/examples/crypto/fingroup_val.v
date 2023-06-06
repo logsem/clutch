@@ -70,7 +70,7 @@ Set Bullet Behavior "Strict Subproofs".
 Set Default Goal Selector "!".
 Set Primitive Projections.
 
-From clutch Require Import val_instances.
+From clutch Require Import val_mc_instances.
 
 Section val_group.
   (* A decidable predicate on values. *)

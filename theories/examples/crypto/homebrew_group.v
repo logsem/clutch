@@ -1,7 +1,11 @@
+(* A small self-contained definition of groups and Clutch implementations of
+   groups. *)
+
+
 From clutch.program_logic Require Import weakestpre.
 From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
 From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
-From clutch.typing Require Import types (* contextual_refinement *) (* soundness *).
+From clutch.typing Require Import types.
 From clutch.prelude Require Import base.
 Set Default Proof Using "Type*".
 
@@ -135,10 +139,7 @@ Section EGroupDef.
   Definition is_egroup e i m := is_id e /\ is_inv i /\ is_mult m.
 End EGroupDef.
 
-Section foo.
-  Context `{!clutchRGS Σ}.
-
-Class EGroup :=
+Class EGroup `{!clutchRGS Σ} :=
   { P : val -> Prop
   ; G : group_struct (@vt P)
   ; vid : vt
@@ -146,6 +147,9 @@ Class EGroup :=
   ; vmult : val
   ; laws : @egroup_laws _ _ P G vid vinv vmult
   }.
+
+Section EZ2.
+  Context `{!clutchRGS Σ}.
 
 Definition Z2 := {z : nat | (z < 2)}.
 Instance Z2_group_struct : group_struct Z2.
@@ -353,4 +357,5 @@ Definition G_EZ2 : EGroup.
   destruct EZ2_group as [hid [hinv hmult]].
   constructor ; eassumption.
 Defined.
-End foo.
+
+End EZ2.

@@ -8,7 +8,9 @@ From clutch.typing Require Import types contextual_refinement soundness.
 From clutch.prelude Require Import base.
 From clutch.program_logic Require Import weakestpre.
 From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
-From clutch.examples Require Import homegroup.
+From clutch.examples.crypto Require Import homebrew_group.
+From clutch Require Import clutch lib.flip.
+From clutch.examples Require Import crypto.homebrew_group.
 Set Default Proof Using "Type*".
 
 Section ElGamal.
@@ -16,6 +18,7 @@ Section ElGamal.
 Context `{!clutchRGS Σ}.
 
 Context `{EG : !EGroup}.
+Let G : group_struct _ := @G _ _ EG.
 (* For sanity's sake, this assumption should probably be part of the EGroup
 class, even though the definition doesn't require it. *)
 Context `{G_group : !@is_group _ G}.
@@ -70,9 +73,6 @@ Let eexpb : expr := λ:"b" "x", eexp "b" (if: "x" then #1 else #0).
 #[local] Infix "**" := vmult (at level 40) : expr_scope.
 #[local] Notation "--" := vinv : expr_scope.
 #[local] Infix "%%" := modulo (at level 65) : expr_scope.
-
-From clutch Require Export clutch lib.flip.
-From clutch.examples Require Import homegroup.
 
 Definition rnd t : expr := let: "b" := flipL t in if: "b" then #1 else #0.
 
@@ -159,6 +159,7 @@ Lemma bar (b : bool) x y :
   ∀ K, (refines_right K (if: #b then #x else #y)
         ={⊤}=∗
                refines_right K #(if b then x else y)).
+Proof.
   iIntros (k) "hlog".
   destruct b ; by tp_pure.
 Qed.
@@ -200,8 +201,8 @@ Proof.
   all: done.
 Qed.
 
-Lemma refines_exp E K A (b : vt) (p : Z) t (h_exp : is_exp (G:=(G (EGroup:=EG))) eexp) :
-  (REL ectxi_language.fill K (evt (@exp vt (@G _ _ EG) b p)) << t @ E : A)
+Lemma refines_exp E K A (b : vt) (p : Z) t (h_exp : is_exp (G:=G) eexp) :
+  (REL ectxi_language.fill K (evt (@exp vt G b p)) << t @ E : A)
     ⊢ REL ectxi_language.fill K (b ^^ #p) << t @ E : A.
 Proof.
   clear -h_exp.
@@ -212,7 +213,7 @@ Proof.
   iModIntro ; iIntros (v) "->" => //.
 Qed.
 
-Lemma refines_exp' E K A (b : vt) (p : Z) t (h_exp : is_exp eexp) :
+Lemma refines_exp' E K A (b : vt) (p : Z) t (h_exp : is_exp (G:=G) eexp) :
   (REL t << ectxi_language.fill K (evt (@exp vt G b p)) @ E : A)
     ⊢ REL t << ectxi_language.fill K (b ^^ #p) @ E : A.
 Proof.

@@ -2,7 +2,6 @@ From stdpp Require Import namespaces.
 From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
 From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
 
-(* From clutch.typing Require Import types contextual_refinement soundness. *)
 From clutch.prelude Require Import base.
 From clutch.program_logic Require Import weakestpre.
 Set Default Proof Using "Type*".

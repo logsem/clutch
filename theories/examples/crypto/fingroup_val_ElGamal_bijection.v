@@ -1,5 +1,5 @@
-(* We prove that the translation `(λ x, (x + k) % n) : fin n → fin n` is a
-bijection on `fin n`. This fact is used in the ElGamal security proof. *)
+(* We prove that the translation `(λ x, (x + k) mod n) : fin n → fin n` is a
+   bijection on `fin n`. This fact is used in the ElGamal security proof. *)
 
 Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require Import all_ssreflect ssrnat zmodp fingroup.

@@ -7,6 +7,7 @@ From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
 
 From clutch.typing Require Import types contextual_refinement soundness.
 From clutch.prelude Require Import base.
+From clutch.lib Require Import flip.
 Set Default Proof Using "Type*".
 
 Section dhke.
@@ -36,7 +37,7 @@ Definition F_AUTH : expr := λ:<>,
 
 Definition alice_r (sendA recvB : expr) : expr :=
   λ:<>,
-  let: "a" := flip #() in
+  let: "a" := flip in
   let: "A" := modulo (exp g "a") p in
   sendA "A" ;;
   λ:<>,
@@ -54,7 +55,7 @@ Definition bob_r (recvA sendB : expr) : expr :=
     match: "A" with
     | NONE => #()
     | SOME "A" =>
-        let: "b" := flip #() in
+        let: "b" := flip in
         let: "B" := (exp "g" "b") p in
         sendB "B";;
         let: "s_b" := modulo (exp "A" "b") p in
@@ -81,13 +82,13 @@ Definition bob_i (s sendB recvA : expr) : expr :=
 
 
 Definition keygen : expr :=
-  λ:<>, let: "sk" := flip #() in
+  λ:<>, let: "sk" := flip in
     let: "pk" := g ^^ "sk" in
     ("pk", "sk").
 
 Definition enc : expr :=
   λ: "pk", λ: "m",
-    let: "y" := flip #() in
+    let: "y" := flip in
     (g ^^ "y", "pk" ^^ "y" * "m").
 
 Definition dec : expr :=
@@ -98,17 +99,17 @@ Definition dec : expr :=
 
 Definition DH_real pk_loc sk_loc : expr :=
   λ:<>,
-    let: "a" := flip #() in
-    let: "b" := flip #() in
+    let: "a" := flip in
+    let: "b" := flip in
     pk_loc <- (g ^^ "a") ;;
     sk_loc <- "a" ;;
     (g^^"a", (g^^"b", g^^("a" ** "b"))).
 
 Definition DH_rnd pk_loc sk_loc : expr :=
   λ:<>,
-    let: "a" := flip #() in
-    let: "b" := flip #() in
-    let: "c" := flip #() in
+    let: "a" := flip in
+    let: "b" := flip in
+    let: "c" := flip in
     pk_loc <- (g ^^ "a") ;;
     sk_loc <- "a" ;;
     (g^^"a", (g^^"b", g^^("c"))).
