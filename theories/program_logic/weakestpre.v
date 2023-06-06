@@ -4,7 +4,7 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre fixpoint big_op.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext.
+From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob Require Export couplings distribution.
 From clutch.program_logic Require Export exec language.
 
@@ -24,16 +24,6 @@ Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
-
-(* TODO: upstream? *)
-Lemma least_fixpoint_ne_outer {PROP : bi} {A : ofe}
-    (F1 : (A → PROP) → (A → PROP)) (F2 : (A → PROP) → (A → PROP)) n :
-  (∀ Φ x, F1 Φ x ≡{n}≡ F2 Φ x) → ∀ x1 x2,
-  x1 ≡{n}≡ x2 → bi_least_fixpoint F1 x1 ≡{n}≡ bi_least_fixpoint F2 x2.
-Proof.
-  intros HF x1 x2 Hx. rewrite /bi_least_fixpoint /=.
-  do 3 f_equiv; last solve_proper. repeat f_equiv. apply HF.
-Qed.
 
 (** * The coupling modality [exec_coupl]  *)
 Section exec_coupl.

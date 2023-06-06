@@ -108,7 +108,6 @@ Section exec_ub.
   Proof.
     iIntros "Hleq H_ub". iRevert "Hleq".
     rewrite /exec_ub /exec_ub'.
-    Search bi_least_fixpoint.
     set (Φ := (λ x, ∀ ε'', ((⌜(x.1 <= ε'' )⌝ -∗ (bi_least_fixpoint (exec_ub_pre Z) (ε'', x.2)))))%I : prodO RO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [ [=] [[=] [=]]]. by simplify_eq. }
