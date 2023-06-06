@@ -3,10 +3,11 @@
 
 
 From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch.prob_lang Require Import notation locations lang.
+From clutch.rel_logic Require Import model rel_rules rel_tactics adequacy.
 From clutch.typing Require Import types.
 From clutch.prelude Require Import base.
+Import clutch.prob_lang.lang.
 Set Default Proof Using "Type*".
 
 
@@ -59,7 +60,7 @@ Section EGroupDef.
   Coercion vvt := (λ x, `x) : vt → val.
   (* Are all of these needed? *)
   Coercion evt := λ (x : vt), of_val (vvt x).
-  Coercion inG := (fun (G : group_struct vt) => vt).
+  Coercion inG := (fun vt (G : group_struct vt) => vt).
 
   Definition is_id (v : vt) := v = e.
 
@@ -168,6 +169,7 @@ Proof.
 Defined.
 
 Lemma Z2_set (x y : Z2) : `x = `y → x = y.
+Proof using.
   apply eq_sig_hprop.
   intros.
   apply Nat.lt_pi.

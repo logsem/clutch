@@ -1,6 +1,6 @@
 From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch.prob_lang Require Import notation lang.
+From clutch.rel_logic Require Import model rel_rules rel_tactics adequacy.
 From clutch.typing Require Import types.
 From clutch.typing Require interp.
 
@@ -8,7 +8,9 @@ From clutch.typing Require interp.
 From clutch.prelude Require Import base.
 From clutch.program_logic Require Import weakestpre.
 Set Default Proof Using "Type*".
+(* From clutch Require Import clutch. *)
 
+Set Default Proof Using "Type*".
 
 Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require all_ssreflect all_algebra
@@ -70,7 +72,7 @@ Set Bullet Behavior "Strict Subproofs".
 Set Default Goal Selector "!".
 Set Primitive Projections.
 
-From clutch Require Import val_mc_instances.
+From clutch.examples.crypto Require Import mc_val_instances.
 
 Section val_group.
   (* A decidable predicate on values. *)
@@ -114,7 +116,7 @@ Hypothesis mulV : ssrfun.left_inverse one inv mul.
 End val_group.
 
 Section mk_vg.
-  Record val_group :=
+  Class val_group :=
     Val_group { P : {pred prob_lang.val}
               ; val_group_enum : seq (vt P)
               ; val_group_finite_axiom : Finite.axiom val_group_enum
@@ -127,8 +129,8 @@ Section mk_vg.
       }.
 
   Coercion mk_vg (vg : val_group) : finGroupType :=
-    vg_finGroup _ _ (val_group_finite_axiom vg) _ _ _
-      (val_group_associative vg) (val_group_left_id vg) (val_group_left_inverse vg).
+    vg_finGroup _ _ (@val_group_finite_axiom vg) _ _ _
+      (@val_group_associative vg) (@val_group_left_id vg) (@val_group_left_inverse vg).
 
 End mk_vg.
 
@@ -137,13 +139,13 @@ Section EGroup.
 
   Context `{!clutchRGS Σ}.
 
-  Variable G : val_group.
+  Context {G : val_group}.
   (* Local Notation "'G'" := (mk_vg vg). *)
   (* Let vt := vt (P x). *)
 
-  Coercion gval := (λ x, `x) : (mk_vg G) → prob_lang.val.
   (* Coercion vvt := (λ x, `x) : vt → prob_lang.val. *)
 
+(*
   Definition _is_unit (e : prob_lang.val) := e = gval 1.
 
   Definition _is_inv (vinv : prob_lang.val) := ∀ (x : G),
@@ -166,8 +168,21 @@ Section EGroup.
   Definition _is_spec_exp (vexp : prob_lang.val) := ∀ (b : G) (x : nat),
     ∀ K, refines_right K (vexp b #x)
          ={⊤}=∗ refines_right K (gval (b ^+ x)%g).
-
+*)
 End EGroup.
+
+  Coercion gval {G} := (λ x, `x) : (mk_vg G) → prob_lang.val.
+(*
+gval =
+(fun x : FinGroup.arg_sort (FinGroup.base (mk_vg G)) =>
+ @proj1_sig prob_lang.val (fun x0 : prob_lang.val => is_true (P G x0)) x)
+fun G : val_group =>
+(fun x : FinGroup.arg_sort (FinGroup.base (mk_vg G)) =>
+ @proj1_sig prob_lang.val (fun x0 : prob_lang.val => is_true (P G x0)) x)
+*)
+
+  (* Definition gval {vg : val_group} := (λ x, `x) : vg → prob_lang.val. *)
+  (* Coercion gval : val_group >-> Funclass. *)
 
 Class clutch_group_struct :=
   Clutch_group_struct
@@ -185,24 +200,26 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
     { τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
     ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
     ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty
-    ; vall_typed : (∀ (x : vg), ⊢ᵥ x : τG)%ty
-    ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P vg v1 /\ P vg v2 ⌝)%I
-    ; is_unit : vunit = (gval vg 1)%g
+    ; vall_typed : (∀ (x : vg), ⊢ᵥ gval x : τG)%ty
+    ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I
+    ; is_unit : vunit = (gval 1)%g
+    (* ; is_inv : ∀ (x : vg), *)
+    (*     {{{ True }}} vinv x {{{ v, RET v; ⌜v = (x ^-1)%g⌝ }}} *)
     ; is_inv : ∀ (x : vg),
-        {{{ True }}} vinv x {{{ v, RET v; ⌜v = gval vg (x ^-1)%g⌝ }}}
+        {{{ True }}} vinv (gval x) {{{ v, RET v; ⌜v = gval (x ^-1)%g⌝ }}}
     ; is_spec_inv : ∀ (x : vg),
-      ∀ K, refines_right K (vinv x)
-           ={⊤}=∗ refines_right K (gval vg (x ^-1)%g)
+      ∀ K, refines_right K (vinv (gval x))
+           ={⊤}=∗ refines_right K (gval (x ^-1)%g)
     ; is_mult : ∀ (x y : vg),
-        {{{ True }}} vmult x y {{{ v, RET v; ⌜v = gval vg (x * y)%g⌝ }}}
+        {{{ True }}} vmult (gval x) (gval y) {{{ v, RET v; ⌜v = gval (x * y)%g⌝ }}}
     ; is_spec_mult : ∀ (x y : vg),
-      ∀ K, refines_right K (vmult x y)
-           ={⊤}=∗ refines_right K (gval vg (x * y)%g)
+      ∀ K, refines_right K (vmult (gval x) (gval y))
+           ={⊤}=∗ refines_right K (gval (x * y)%g)
     ; is_exp : ∀ (b : vg) (x : nat),
-        {{{ True }}} vexp b #x {{{ v, RET v; ⌜v = gval vg (b ^+ x)%g⌝ }}}
+        {{{ True }}} vexp (gval b) #x {{{ v, RET v; ⌜v = gval (b ^+ x)%g⌝ }}}
     ; is_spec_exp : ∀ (b : vg) (x : nat),
-      ∀ K, refines_right K (vexp b #x)
-           ={⊤}=∗ refines_right K (gval vg (b ^+ x)%g)
+      ∀ K, refines_right K (vexp (gval b) #x)
+           ={⊤}=∗ refines_right K (gval (b ^+ x)%g)
     }.
 
 #[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core.

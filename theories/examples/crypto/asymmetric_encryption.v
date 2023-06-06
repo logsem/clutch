@@ -15,22 +15,10 @@
 Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require all_algebra choice.
 
-From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
-From clutch.typing Require Import types contextual_refinement soundness.
-From clutch.prelude Require Import base.
+From clutch Require Import clutch.
 
 From mathcomp Require Import fingroup.
 
-From clutch.program_logic Require Import weakestpre.
-From iris.base_logic Require Import invariants na_invariants.
-
-From iris.base_logic Require Import invariants na_invariants.
-From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
-From clutch.logrel Require Import model rel_rules rel_tactics.
-From clutch.prelude Require Import base.
 Set Warnings "notation-overridden,ambiguous-paths".
 Set Default Proof Using "Type*".
 
@@ -68,7 +56,7 @@ Section EGroup.
   Coercion evt := λ (x : vt), of_val (vvt x).
 
   Coercion vG := λ (x : vt), projT1 x.
-  Coercion inG := (fun (G : group_struct vt) => vt).
+  Coercion inG := (fun {vt} (G : group_struct vt) => vt).
 
   Definition is_id (v : G) := v = e.
   Definition is_mult (m : val) := ∀ (x y : vt),
@@ -84,7 +72,7 @@ End EGroup.
 
 
 Definition Z2 := sig (fun (z : nat) => (z < 2)).
-Instance Z2_group_struct : group_struct Z2.
+#[local] Instance Z2_group_struct : group_struct Z2.
 Proof.
   constructor.
   - unshelve econstructor.
@@ -105,7 +93,7 @@ Lemma Z2_set (x y : Z2) : `x = `y → x = y.
   apply Nat.lt_pi.
 Qed.
 
-Instance Z2_group : @is_group Z2 Z2_group_struct.
+#[local] Instance Z2_group : @is_group Z2 Z2_group_struct.
 Proof.
   constructor.
   - intros [x hx] [y hy] [z hz].
@@ -144,7 +132,7 @@ Qed.
 
 Definition PZ2 v := sig (λ n : nat, v = #n /\ n < 2).
 Definition EZ2 := sigT (λ v : val, PZ2 v).
-Instance EZ2_group_struct : group_struct EZ2.
+#[local] Instance EZ2_group_struct : group_struct EZ2.
 Proof.
   constructor.
   - unshelve econstructor.

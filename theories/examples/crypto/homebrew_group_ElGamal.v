@@ -2,15 +2,14 @@
    Joy of Crypto". *)
 
 From stdpp Require Import namespaces.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch.rel_logic Require Import model rel_rules rel_tactics adequacy.
 
 From clutch.typing Require Import types contextual_refinement soundness.
 From clutch.prelude Require Import base.
 From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
-From clutch.examples.crypto Require Import homebrew_group.
+From clutch.prob_lang Require Import notation lang.
 From clutch Require Import clutch lib.flip.
-From clutch.examples Require Import crypto.homebrew_group.
+From clutch.examples.crypto Require Import homebrew_group.
 Set Default Proof Using "Type*".
 
 Section ElGamal.

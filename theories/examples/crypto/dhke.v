@@ -1,13 +1,7 @@
 (* A UC inspired security proof of Diffie-Hellman key exchange involving
    reasoning about lazy/eager sampling. *)
 
-From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
-
-From clutch.typing Require Import types contextual_refinement soundness.
-From clutch.prelude Require Import base.
-From clutch.lib Require Import flip.
+From clutch Require Import clutch lib.flip.
 Set Default Proof Using "Type*".
 
 Section dhke.

@@ -2,12 +2,12 @@
    Joy of Crypto". *)
 
 From stdpp Require Import namespaces.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch.rel_logic Require Import model rel_rules rel_tactics adequacy.
 
 From clutch.typing Require Import types contextual_refinement soundness.
 From clutch.prelude Require Import base.
 From clutch.program_logic Require Import weakestpre.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
+From clutch.prob_lang Require Import notation lang.
 From clutch.examples.crypto Require Import mc_val_instances fingroup_val.
 
 
@@ -23,7 +23,7 @@ From mathcomp Require Import zmodp finset ssrbool.
 Import fingroup.
 Import solvable.cyclic.
 
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
+From clutch.prob_lang Require Import notation lang.
 From clutch Require Import clutch.
 Set Warnings "notation-overridden,ambiguous-paths".
 From clutch.examples.crypto Require fingroup_val_ElGamal_bijection.
@@ -52,8 +52,8 @@ Coercion vvt : val_group >-> Funclass.
 (* Coercion vvt := (λ x, `x) : G → prob_lang.val. *)
 
 (* A shorthand for constructiing group elements from values. *)
-Class PVAL (v : val) := in_P : (P G v).
-Fact P_PVAL (v : val) : PVAL v -> P G v.
+Class PVAL (v : val) := in_P : (P v).
+Fact P_PVAL (v : val) : PVAL v -> P v.
 Proof. by rewrite /PVAL. Qed.
 Definition mkG (v : val) {h : PVAL v} : G.
   unshelve econstructor ; [exact v |].
@@ -64,24 +64,24 @@ Hint Extern 4 (PVAL ?n) =>
        (unfold P ; cbn ; exact I)
        : typeclass_instances.
 
-Fact GP_proj (x : G) : P G (` x).
+Fact GP_proj (x : G) : P (` x).
 Proof. destruct x => /=. auto. Qed.
 Local Hint Resolve GP_proj : core.
 
-Fact GP (x : G) : P G x.
+Fact GP (x : G) : P x.
 Proof. destruct x => /=. auto. Qed.
 Local Hint Resolve GP : core.
 
 Local Notation "'τ'" := τG.
 Definition T := interp.interp τ [].
 
-Fact Pg : P vg g.
+Fact Pg : @P vg g.
 Proof. auto. Qed.
 Local Hint Resolve Pg : core.
 Local Instance PVALg : PVAL g := Pg.
 
 Let vid' : G := 1%g.
-Fact Gunit : P vg vunit.
+Fact Gunit : @P vg vunit.
 Proof. clear -G. rewrite (@is_unit _ _ vg cg G).
        destruct oneg as [? Px] => /=.
        move /Is_true_reflect : Px => //.
@@ -403,7 +403,7 @@ Definition evt (x : G) : expr := x.
 
 (* BEGIN PAUSED *)
 
-Fact all_typed' : ∀ x : val, P vg x → ⊢ᵥ x : τ.
+Fact all_typed' : ∀ x : val, @P vg x → ⊢ᵥ x : τ.
 Proof. intros x Px. assert (x = @mkG x Px) as -> => //. Qed.
 
 Lemma DDH_real_real_lbl
@@ -981,6 +981,23 @@ Proof.
   apply (refines_sound clutchRΣ). intros => /=. erewrite τG_closed.
   apply pk_ots_rnd_5_rnd => //.
 Qed.
+
+(*
+Definition DDH :=
+            ∅ ⊨_{#|g|} DH_rnd =ctx= DH_real : τEG.
+
+            ∅ ⊨_ε({#|g|}) DH_rnd =ctx= DH_real : τEG.
+
+
+            ∅ ⊨_{#|g|} C [DH_rnd] =ctx= C [DH_real] : τEG.
+
+
+Fact PPT_C : @PPT #|g| C.
+
+Theorem Ctx_PPT_congr : PPT n C →
+            ∅ ⊨_n e1 =ctx= e2 : τEG →
+            ∅ ⊨_n C [e1] =ctx= C [e2] : τEG.
+*)
 
 Lemma pk_ots_rnd_rnd_ddh_rnd :
   ∅ ⊨ fill C DH_rnd_lbl ≤ctx≤ pk_ots_rnd_rnd : τEG.

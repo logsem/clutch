@@ -1,70 +1,7 @@
-From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws lang spec_tactics.
-From clutch.logrel Require Import model rel_rules rel_tactics adequacy.
+From clutch Require Import clutch.
+From mathcomp Require Import eqtype choice fintype.
+From deriving Require Import deriving instances.
 
-From clutch.prelude Require Import base.
-From clutch.program_logic Require Import weakestpre.
-Set Default Proof Using "Type*".
-
-
-Set Warnings "-notation-overridden,-ambiguous-paths".
-From mathcomp Require all_ssreflect all_algebra
-  fingroup.fingroup
-  solvable.cyclic
-  prime ssrnat
-  ssreflect ssrfun ssrbool ssrnum
-  eqtype choice
-  seq.
-
-  (* Most of all_ssreflect and all_algebra except where the notations
-     clash with stdpp. *)
-From mathcomp Require Import bigop.
-From mathcomp Require Import binomial.
-From mathcomp Require Import choice.
-From mathcomp Require Import countalg.
-From mathcomp Require Import div.
-From mathcomp Require Import eqtype.
-From mathcomp Require Import finalg.
-From mathcomp Require Import finfun.
-From mathcomp Require Import fingraph.
-From mathcomp Require Import finset.
-From mathcomp Require Import fintype.
-From mathcomp Require Import fraction.
-From mathcomp Require Import generic_quotient.
-From mathcomp Require Import intdiv.
-From mathcomp Require Import interval.
-From mathcomp Require Import matrix.
-From mathcomp Require Import mxalgebra.
-From mathcomp Require Import mxpoly.
-From mathcomp Require Import order.
-From mathcomp Require Import path.
-From mathcomp Require Import polyXY.
-From mathcomp Require Import polydiv.
-From mathcomp Require Import prime.
-From mathcomp Require Import rat.
-From mathcomp Require Import ring_quotient.
-From mathcomp Require Import seq.
-From mathcomp Require Import ssrAC.
-From mathcomp Require Import ssralg.
-From mathcomp Require Import ssrbool.
-From mathcomp Require Import ssreflect.
-(* From mathcomp Require Import poly. *)
-(* From mathcomp Require Import ssrfun. *)
-From mathcomp Require Import ssrint.
-(* From mathcomp Require Import ssrnat. *)
-From mathcomp Require Import ssrnum.
-From mathcomp Require Import tuple.
-From mathcomp Require Import vector.
-From mathcomp Require Import zmodp.
-Import fingroup.
-Import solvable.cyclic.
-Set Warnings "notation-overridden,ambiguous-paths".
-
-From deriving Require Import deriving.
-From deriving Require Import instances.
-
-Set Bullet Behavior "Strict Subproofs".
-Set Default Goal Selector "!".
 Set Primitive Projections.
 
 Scheme loc_rect := Induction for loc Sort Type.
