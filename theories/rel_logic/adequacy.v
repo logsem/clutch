@@ -5,8 +5,9 @@ From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
+From clutch.prob_lang Require Import erasure.
 From clutch.program_logic Require Export language weakestpre.
-From clutch.prob_lang Require Import primitive_laws spec_ra erasure.
+From clutch.rel_logic Require Import primitive_laws spec_ra.
 From clutch.prob Require Import distribution. 
 Import uPred.
 

@@ -3,9 +3,9 @@ From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From clutch.program_logic Require Import language ectx_language ectxi_language ectx_lifting weakestpre.
-From clutch.prob_lang Require Import locations spec_ra notation primitive_laws spec_rules spec_tactics proofmode lang.
-From clutch.logrel Require Import model.
-From clutch.prob_lang Require Export coupling_rules.
+From clutch.prob_lang Require Import locations notation lang.
+From clutch.rel_logic Require Import spec_ra model.
+From clutch.rel_logic Require Export proofmode primitive_laws spec_rules spec_tactics coupling_rules.
 
 Section rules.
   Context `{!clutchRGS Σ}.

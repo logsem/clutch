@@ -4,9 +4,9 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
 From clutch.program_logic Require Import language ectx_language ectxi_language exec weakestpre lifting.
-From clutch.prob_lang Require Import locations notation tactics primitive_laws metatheory lang
+From clutch.prob_lang Require Import locations notation tactics metatheory lang
   class_instances.
-From clutch.prob_lang Require Import spec_ra spec_rules.
+From clutch.rel_logic Require Import spec_ra spec_rules.
 Set Default Proof Using "Type".
 
 (** ** bind *)

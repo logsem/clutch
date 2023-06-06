@@ -3,8 +3,8 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.program_logic Require Import lifting ectx_lifting. 
-From clutch.prob_lang Require Import lang notation tactics primitive_laws metatheory.
-From clutch.prob_lang Require Export spec_ra spec_rules. 
+From clutch.prob_lang Require Import lang notation tactics metatheory.
+From clutch.rel_logic Require Export primitive_laws spec_ra spec_rules. 
 
 (* TODO: can we factor out a clever lemma to avoid duplication in all the
    coupling lemmas? *)

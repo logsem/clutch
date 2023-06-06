@@ -1,7 +1,4 @@
-From clutch.program_logic Require Import language.
-From clutch.prelude Require Import base.
-From clutch.prob_lang Require Import spec_ra notation proofmode primitive_laws spec_tactics locations lang.
-From clutch.logrel Require Import model rel_rules.
+From clutch Require Export clutch.
 
 Set Default Proof Using "Type*".
 

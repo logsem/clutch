@@ -2,8 +2,8 @@
 From Coq Require Export Reals.
 From clutch.program_logic Require Import exec.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import notation metatheory primitive_laws lang.
-From clutch.logrel Require Export model adequacy.
+From clutch.prob_lang Require Import notation metatheory lang.
+From clutch.rel_logic Require Export primitive_laws model adequacy_rel.
 From clutch.typing Require Export interp contextual_refinement.
 
 Lemma refines_sound_open Σ `{!clutchRGpreS Σ} Γ e e' τ :

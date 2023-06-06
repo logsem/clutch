@@ -1,10 +1,9 @@
 (** Compatibility lemmas for the logical relation *)
-
 From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
-From clutch.prob_lang Require Import spec_ra metatheory notation primitive_laws lang.
-From clutch.logrel Require Import model compatibility rel_rules rel_tactics.
+From clutch.prob_lang Require Import metatheory notation lang.
+From clutch.rel_logic Require Import primitive_laws model compatibility rel_rules rel_tactics.
 From clutch.typing Require Import types interp.
 
 Section fundamental.

@@ -3,8 +3,8 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.program_logic Require Import lifting ectx_lifting. 
-From clutch.prob_lang Require Import lang notation tactics primitive_laws metatheory.
-From clutch.prob_lang Require Export spec_ra. 
+From clutch.prob_lang Require Import lang notation tactics metatheory.
+From clutch.rel_logic Require Export primitive_laws spec_ra. 
 
 Section rules.
   Context `{!clutchGS Σ}.

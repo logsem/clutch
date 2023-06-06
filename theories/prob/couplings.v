@@ -432,52 +432,6 @@ Proof.
   - intros (m1 & m2) (n & [=] & Hn)%dmap_pos =>/=. by simplify_eq.
 Qed.
 
-(* Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B} *)
-(*   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} *)
-(*   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
-(*   (∀ a, Rcoupl (if f a then μ1 else μ2) (if a then μ1' else μ2') S) → *)
-(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
-(* Proof. *)
-(*   intros HS. rewrite /fair_conv_comb. *)
-(*   eapply Rcoupl_dbind; [|apply (Rcoupl_fair_coin f)]. *)
-(*   simpl. intros a b ->. *)
-(*   done. *)
-(* Qed. *)
-
-(* lemma Rcoupl_fair_conv_comb_id `{Countable A, Countable B} (S : A → B → Prop) *)
-(*   (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
-(*   Rcoupl μ1 μ1' S → *)
-(*   Rcoupl μ2 μ2' S → *)
-(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
-(* Proof. *)
-(*   intros HS1 HS2. *)
-(*   eapply (Rcoupl_fair_conv_comb id). *)
-(*   intros []; (eapply Rcoupl_impl; [|done]); eauto. *)
-(* Qed. *)
-
-(* Lemma Rcoupl_fair_conv_comb_neg `{Countable A, Countable B} (S : A → B → Prop) *)
-(*   (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
-(*   Rcoupl μ1 μ2' S → *)
-(*   Rcoupl μ2 μ1' S → *)
-(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
-(* Proof. *)
-(*   intros HS1 HS2. *)
-(*   eapply (Rcoupl_fair_conv_comb negb). *)
-(*   intros []; (eapply Rcoupl_impl; [|done]); eauto. *)
-(* Qed. *)
-
-(* This is a lemma about convex combinations, but it is easier to prove with couplings
-     TODO: find a better place to put it in *)
-(* Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A → distr B) : *)
-(*   dbind f (fair_conv_comb μ1 μ2) = fair_conv_comb (dbind f μ1) (dbind f μ2). *)
-(* Proof. *)
-(*   rewrite /fair_conv_comb -dbind_assoc. *)
-(*   apply Rcoupl_eq_elim. *)
-(*   eapply (Rcoupl_dbind _ _ _ _ (=)); [ | apply Rcoupl_eq]. *)
-(*   intros b1 b2 ->. *)
-(*   destruct b2; apply Rcoupl_eq. *)
-(* Qed. *)
-
 Section Rcoupl_strength.
   Context `{Countable A, Countable B, Countable D, Countable E}.
   Context (μ1 : distr A) (μ2 : distr B).
@@ -794,3 +748,14 @@ Section refRcoupl.
   Qed.
 
 End refRcoupl.
+
+Notation "μ1 '≾' μ2 ':' R" :=
+  (refRcoupl μ1 μ2 R)
+  (at level 100, μ2 at next level,
+   R at level 200,
+    format "'[hv' μ1  '/' '≾'  '/  ' μ2  :  R ']'").
+
+Notation "μ1 '≿' μ2 ':' R" :=
+  (refRcoupl μ2 μ1 R)
+  (at level 100, μ2 at next level,
+   R at level 200, only parsing).
