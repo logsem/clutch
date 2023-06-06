@@ -390,5 +390,4 @@ Proof.
       apply (sup_is_upper_bound (λ n0 : nat, exec_val n0 ρ v) n).
 Qed.
 
-
 End prim_exec_lim.

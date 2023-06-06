@@ -433,7 +433,7 @@ Proof.
     apply head_step_support_equiv_rel.
     by apply (RandNoTapeS _ N 0%fin). }
   rewrite head_prim_step_eq //.
-  eapply Rcoupl_weaken.
+  eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).
@@ -455,7 +455,7 @@ Proof.
     apply head_step_support_equiv_rel.
     by apply (RandTapeEmptyS _ _ N 0%fin). }
   rewrite head_prim_step_eq //.
-  eapply Rcoupl_weaken.
+  eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).
@@ -477,7 +477,7 @@ Proof.
     apply head_step_support_equiv_rel.
     by apply (RandTapeOtherS _ _ M N ns 0%fin). }
   rewrite head_prim_step_eq //.
-  eapply Rcoupl_weaken.
+  eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).

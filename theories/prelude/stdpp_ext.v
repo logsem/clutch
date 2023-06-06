@@ -1,4 +1,5 @@
 From stdpp Require Import countable fin_maps finite.
+From clutch.prelude Require Import classical.
 
 Section base.
   Global Instance negb_inj : Inj (=) (=) negb.

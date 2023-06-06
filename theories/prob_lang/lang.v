@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
-From clutch.prelude Require Import stdpp_ext.
+From clutch.prelude Require Export stdpp_ext.
 From clutch.prob Require Export distribution.
 From clutch.program_logic Require Export language ectx_language ectxi_language.
 From clutch.prob_lang Require Export locations.

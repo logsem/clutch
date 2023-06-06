@@ -355,8 +355,8 @@ Section rules.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
-      eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by apply (Rcoupl_rand_rand _ f)].
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono; [by apply (Rcoupl_rand_rand _ f)|].
       intros [] [] (b & [=] & [=])=>/=.
       simplify_eq. eauto. }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
@@ -439,8 +439,8 @@ Section rules.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
-      eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by eapply (Rcoupl_rand_lbl_rand_lbl_wrong _ _ f)].
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono; [by eapply (Rcoupl_rand_lbl_rand_lbl_wrong _ _ f)|].
       intros [] [] (b & [=] & [=])=>/=.
       simplify_eq. eauto. }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
@@ -487,8 +487,8 @@ Section rules.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
-      eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by eapply (Rcoupl_rand_lbl_rand_wrong _ _ f)].
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono; [by eapply (Rcoupl_rand_lbl_rand_wrong _ _ f)|].
       intros [] [] (b & [=] & [=])=>/=.
       simplify_eq. eauto. }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
@@ -535,8 +535,8 @@ Section rules.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
-      eapply Rcoupl_map.
-      eapply Rcoupl_impl; [|by eapply (Rcoupl_rand_rand_lbl_wrong _ _ f)].
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono; [by eapply (Rcoupl_rand_rand_lbl_wrong _ _ f)|].
       intros [] [] (b & [=] & [=])=>/=.
       simplify_eq. eauto. }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
