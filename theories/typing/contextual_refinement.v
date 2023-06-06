@@ -297,8 +297,8 @@ Section bin_log_related_under_typed_ctx.
   (* Precongruence *)
   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :
     (typed_ctx K Γ τ Γ' τ') →
-    (□ ∀ Δ, ({Δ;Γ} ⊨ e ≤log≤ e' : τ)) -∗
-      (∀ Δ, {Δ;Γ'} ⊨ fill_ctx K e ≤log≤ fill_ctx K e' : τ')%I.
+    (□ ∀ Δ, (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ)) -∗
+      (∀ Δ, 〈Δ;Γ'〉 ⊨ fill_ctx K e ≤log≤ fill_ctx K e' : τ')%I.
   Proof.
     revert Γ τ Γ' τ' e e'.
     induction K as [|k K]=> Γ τ Γ' τ' e e'; simpl.

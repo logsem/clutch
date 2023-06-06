@@ -7,7 +7,7 @@ From clutch.rel_logic Require Export primitive_laws model adequacy_rel.
 From clutch.typing Require Export interp contextual_refinement.
 
 Lemma refines_sound_open Σ `{!clutchRGpreS Σ} Γ e e' τ :
-  (∀ `{clutchRGS Σ} Δ, ⊢ {⊤;Δ;Γ} ⊨ e ≤log≤ e' : τ) →
+  (∀ `{clutchRGS Σ} Δ, ⊢ 〈⊤;Δ;Γ〉 ⊨ e ≤log≤ e' : τ) →
   Γ ⊨ e ≤ctx≤ e' : τ.
 Proof.
   intros Hlog K σ₀ b Htyped.

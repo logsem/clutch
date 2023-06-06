@@ -25,7 +25,7 @@ Section fundamental.
 
   Lemma bin_log_related_var Δ Γ x τ :
     Γ !! x = Some τ →
-    ⊢ {Δ;Γ} ⊨ Var x ≤log≤ Var x : τ.
+    ⊢ 〈Δ;Γ〉 ⊨ Var x ≤log≤ Var x : τ.
   Proof.
     iIntros (Hx). iIntros (vs) "#Hvs". simpl.
     rewrite (env_ltyped2_lookup _ vs x); last first.
@@ -36,9 +36,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_pair Δ Γ e1 e2 e1' e2' (τ1 τ2 : type) :
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ1) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ2) -∗
-    {Δ;Γ} ⊨ Pair e1 e2 ≤log≤ Pair e1' e2' : TProd τ1 τ2.
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ1) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ2) -∗
+    〈Δ;Γ〉 ⊨ Pair e1 e2 ≤log≤ Pair e1' e2' : TProd τ1 τ2.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -48,8 +48,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_fst Δ Γ e e' τ1 τ2 :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ1 * τ2) -∗
-    {Δ;Γ} ⊨ Fst e ≤log≤ Fst e' : τ1.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ1 * τ2) -∗
+    〈Δ;Γ〉 ⊨ Fst e ≤log≤ Fst e' : τ1.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -59,8 +59,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_snd Δ Γ e e' τ1 τ2 :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ1 * τ2) -∗
-    {Δ;Γ} ⊨ Snd e ≤log≤ Snd e' : τ2.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ1 * τ2) -∗
+    〈Δ;Γ〉 ⊨ Snd e ≤log≤ Snd e' : τ2.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -70,9 +70,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_app Δ Γ e1 e2 e1' e2' τ1 τ2 :
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ1 → τ2) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ1) -∗
-    {Δ;Γ} ⊨ App e1 e2 ≤log≤ App e1' e2' :  τ2.
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ1 → τ2) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ1) -∗
+    〈Δ;Γ〉 ⊨ App e1 e2 ≤log≤ App e1' e2' :  τ2.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -82,8 +82,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_rec Δ (Γ : stringmap type) (f x : binder) (e e' : expr) τ1 τ2 :
-    □ ({Δ;<[f:=TArrow τ1 τ2]>(<[x:=τ1]>Γ)} ⊨ e ≤log≤ e' : τ2) -∗
-    {Δ;Γ} ⊨ Rec f x e ≤log≤ Rec f x e' : τ1 → τ2.
+    □ (〈Δ;<[f:=TArrow τ1 τ2]>(<[x:=τ1]>Γ)〉 ⊨ e ≤log≤ e' : τ2) -∗
+    〈Δ;Γ〉 ⊨ Rec f x e ≤log≤ Rec f x e' : τ1 → τ2.
   Proof.
     iIntros "#Ht".
     intro_clause.
@@ -115,8 +115,8 @@ Section fundamental.
 
   Lemma bin_log_related_tlam Δ Γ (e e' : expr) τ :
     (∀ (A : lrel Σ),
-      □ ({(A::Δ);⤉Γ} ⊨ e ≤log≤ e' : τ)) -∗
-    {Δ;Γ} ⊨ (Λ: e) ≤log≤ (Λ: e') : ∀: τ.
+      □ (〈(A::Δ);⤉Γ〉 ⊨ e ≤log≤ e' : τ)) -∗
+    〈Δ;Γ〉 ⊨ (Λ: e) ≤log≤ (Λ: e') : ∀: τ.
   Proof.
     iIntros "#H".
     intro_clause. rel_pure_l. rel_pure_r.
@@ -128,8 +128,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_tapp' Δ Γ e e' τ τ' :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : ∀: τ) -∗
-    {Δ;Γ} ⊨ (TApp e) ≤log≤ (TApp e') : τ.[τ'/].
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : ∀: τ) -∗
+    〈Δ;Γ〉 ⊨ (TApp e) ≤log≤ (TApp e') : τ.[τ'/].
   Proof.
     iIntros "IH".
     intro_clause.
@@ -141,8 +141,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_tapp (τi : lrel Σ) Δ Γ e e' τ :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : ∀: τ) -∗
-    {τi::Δ;⤉Γ} ⊨ (TApp e) ≤log≤ (TApp e') : τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : ∀: τ) -∗
+    〈τi::Δ;⤉Γ〉 ⊨ (TApp e) ≤log≤ (TApp e') : τ.
   Proof.
     iIntros "IH". intro_clause.
     iApply (bin_log_related_app _ _ e #() e' #() () τ with "[IH] [] Hvs").
@@ -155,9 +155,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_seq R Δ Γ e1 e2 e1' e2' τ1 τ2 :
-    ({(R::Δ);⤉Γ} ⊨ e1 ≤log≤ e1' : τ1) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ2) -∗
-    {Δ;Γ} ⊨ (e1;; e2) ≤log≤ (e1';; e2') : τ2.
+    (〈(R::Δ);⤉Γ〉 ⊨ e1 ≤log≤ e1' : τ1) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ2) -∗
+    〈Δ;Γ〉 ⊨ (e1;; e2) ≤log≤ (e1';; e2') : τ2.
   Proof.
     iIntros "He1 He2".
     intro_clause.
@@ -168,9 +168,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_seq' Δ Γ e1 e2 e1' e2' τ1 τ2 :
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ1) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ2) -∗
-    {Δ;Γ} ⊨ (e1;; e2) ≤log≤ (e1';; e2') : τ2.
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ1) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ2) -∗
+    〈Δ;Γ〉 ⊨ (e1;; e2) ≤log≤ (e1';; e2') : τ2.
   Proof.
     iIntros "He1 He2".
     iApply (bin_log_related_seq lrel_true _ _ _ _ _ _ τ1.[ren (+1)] with "[He1] He2").
@@ -180,8 +180,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_injl Δ Γ e e' τ1 τ2 :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ1) -∗
-    {Δ;Γ} ⊨ InjL e ≤log≤ InjL e' : τ1 + τ2.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ1) -∗
+    〈Δ;Γ〉 ⊨ InjL e ≤log≤ InjL e' : τ1 + τ2.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -190,8 +190,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_injr Δ Γ e e' τ1 τ2 :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ2) -∗
-    {Δ;Γ} ⊨ InjR e ≤log≤ InjR e' : τ1 + τ2.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ2) -∗
+    〈Δ;Γ〉 ⊨ InjR e ≤log≤ InjR e' : τ1 + τ2.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -200,10 +200,10 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_case Δ Γ e0 e1 e2 e0' e1' e2' τ1 τ2 τ3 :
-    ({Δ;Γ} ⊨ e0 ≤log≤ e0' : τ1 + τ2) -∗
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ1 → τ3) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ2 → τ3) -∗
-    {Δ;Γ} ⊨ Case e0 e1 e2 ≤log≤ Case e0' e1' e2' : τ3.
+    (〈Δ;Γ〉 ⊨ e0 ≤log≤ e0' : τ1 + τ2) -∗
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ1 → τ3) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ2 → τ3) -∗
+    〈Δ;Γ〉 ⊨ Case e0 e1 e2 ≤log≤ Case e0' e1' e2' : τ3.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause.
@@ -217,10 +217,10 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_if Δ Γ e0 e1 e2 e0' e1' e2' τ :
-    ({Δ;Γ} ⊨ e0 ≤log≤ e0' : TBool) -∗
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ) -∗
-    {Δ;Γ} ⊨ If e0 e1 e2 ≤log≤ If e0' e1' e2' : τ.
+    (〈Δ;Γ〉 ⊨ e0 ≤log≤ e0' : TBool) -∗
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗
+    〈Δ;Γ〉 ⊨ If e0 e1 e2 ≤log≤ If e0' e1' e2' : τ.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause.
@@ -232,8 +232,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_load Δ Γ e e' τ :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : (TRef τ)) -∗
-    {Δ;Γ} ⊨ Load e ≤log≤ Load e' : τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : (TRef τ)) -∗
+    〈Δ;Γ〉 ⊨ Load e ≤log≤ Load e' : τ.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -242,9 +242,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_store Δ Γ e1 e2 e1' e2' τ :
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : TRef τ) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ) -∗
-    {Δ;Γ} ⊨ Store e1 e2 ≤log≤ Store e1' e2' : ().
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TRef τ) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗
+    〈Δ;Γ〉 ⊨ Store e1 e2 ≤log≤ Store e1' e2' : ().
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -254,8 +254,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_alloc Δ Γ e e' τ :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ) -∗
-    {Δ;Γ} ⊨ Alloc e ≤log≤ Alloc e' : TRef τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ) -∗
+    〈Δ;Γ〉 ⊨ Alloc e ≤log≤ Alloc e' : TRef τ.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -269,8 +269,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_alloctape Δ Γ e e' :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : TNat) -∗
-    {Δ;Γ} ⊨ alloc e ≤log≤ alloc e' : TTape.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : TNat) -∗
+    〈Δ;Γ〉 ⊨ alloc e ≤log≤ alloc e' : TTape.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -285,9 +285,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_rand_tape Δ Γ e1 e1' e2 e2' :
-    ({Δ; Γ} ⊨ e1 ≤log≤ e1' : TNat) -∗
-    ({Δ; Γ} ⊨ e2 ≤log≤ e2' : TTape) -∗
-    {Δ; Γ} ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
+    (〈Δ; Γ〉 ⊨ e1 ≤log≤ e1' : TNat) -∗
+    (〈Δ; Γ〉 ⊨ e2 ≤log≤ e2' : TTape) -∗
+    〈Δ; Γ〉 ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -299,9 +299,9 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_rand_unit Δ Γ e1 e1' e2 e2' :
-    ({Δ; Γ} ⊨ e1 ≤log≤ e1' : TNat) -∗
-    ({Δ; Γ} ⊨ e2 ≤log≤ e2' : TUnit) -∗
-    {Δ; Γ} ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
+    (〈Δ; Γ〉 ⊨ e1 ≤log≤ e1' : TNat) -∗
+    (〈Δ; Γ〉 ⊨ e2 ≤log≤ e2' : TUnit) -∗
+    〈Δ; Γ〉 ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -317,9 +317,9 @@ Section fundamental.
 
   Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ :
     UnboxedType τ →
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : τ) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : τ) -∗
-    {Δ;Γ} ⊨ BinOp EqOp e1 e2 ≤log≤ BinOp EqOp e1' e2' : TBool.
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : τ) -∗
+    〈Δ;Γ〉 ⊨ BinOp EqOp e1 e2 ≤log≤ BinOp EqOp e1' e2' : TBool.
   Proof.
     iIntros (Hτ) "IH1 IH2".
     intro_clause.
@@ -338,9 +338,9 @@ Section fundamental.
 
   Lemma bin_log_related_int_binop Δ Γ op e1 e2 e1' e2' τ :
     binop_int_res_type op = Some τ →
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : TInt) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : TInt) -∗
-    {Δ;Γ} ⊨ BinOp op e1 e2 ≤log≤ BinOp op e1' e2' : τ.
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TInt) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : TInt) -∗
+    〈Δ;Γ〉 ⊨ BinOp op e1 e2 ≤log≤ BinOp op e1' e2' : τ.
   Proof.
     iIntros (Hopτ) "IH1 IH2".
     intro_clause.
@@ -357,9 +357,9 @@ Section fundamental.
 
   Lemma bin_log_related_bool_binop Δ Γ op e1 e2 e1' e2' τ :
     binop_bool_res_type op = Some τ →
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : TBool) -∗
-    ({Δ;Γ} ⊨ e2 ≤log≤ e2' : TBool) -∗
-    {Δ;Γ} ⊨ BinOp op e1 e2 ≤log≤ BinOp op e1' e2' : τ.
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : TBool) -∗
+    (〈Δ;Γ〉 ⊨ e2 ≤log≤ e2' : TBool) -∗
+    〈Δ;Γ〉 ⊨ BinOp op e1 e2 ≤log≤ BinOp op e1' e2' : τ.
   Proof.
     iIntros (Hopτ) "IH1 IH2".
     intro_clause.
@@ -376,8 +376,8 @@ Section fundamental.
 
   Lemma bin_log_related_int_unop Δ Γ op e e' τ :
     unop_int_res_type op = Some τ →
-    ({Δ;Γ} ⊨ e ≤log≤ e' : TInt) -∗
-    {Δ;Γ} ⊨ UnOp op e ≤log≤ UnOp op e' : τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : TInt) -∗
+    〈Δ;Γ〉 ⊨ UnOp op e ≤log≤ UnOp op e' : τ.
   Proof.
     iIntros (Hopτ) "IH".
     intro_clause.
@@ -391,8 +391,8 @@ Section fundamental.
 
   Lemma bin_log_related_bool_unop Δ Γ op e e' τ :
     unop_bool_res_type op = Some τ →
-    ({Δ;Γ} ⊨ e ≤log≤ e' : TBool) -∗
-    {Δ;Γ} ⊨ UnOp op e ≤log≤ UnOp op e' : τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : TBool) -∗
+    〈Δ;Γ〉 ⊨ UnOp op e ≤log≤ UnOp op e' : τ.
   Proof.
     iIntros (Hopτ) "IH".
     intro_clause.
@@ -405,8 +405,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_unfold Δ Γ e e' τ :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : μ: τ) -∗
-    {Δ;Γ} ⊨ rec_unfold e ≤log≤ rec_unfold e' : τ.[(TRec τ)/].
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : μ: τ) -∗
+    〈Δ;Γ〉 ⊨ rec_unfold e ≤log≤ rec_unfold e' : τ.[(TRec τ)/].
   Proof.
     iIntros "IH".
     intro_clause.
@@ -418,8 +418,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_fold Δ Γ e e' τ :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ.[(TRec τ)/]) -∗
-    {Δ;Γ} ⊨ e ≤log≤ e' : μ: τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ.[(TRec τ)/]) -∗
+    〈Δ;Γ〉 ⊨ e ≤log≤ e' : μ: τ.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -432,8 +432,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_pack' Δ Γ e e' (τ τ' : type) :
-    ({Δ;Γ} ⊨ e ≤log≤ e' : τ.[τ'/]) -∗
-    {Δ;Γ} ⊨ e ≤log≤ e' : ∃: τ.
+    (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ.[τ'/]) -∗
+    〈Δ;Γ〉 ⊨ e ≤log≤ e' : ∃: τ.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -444,8 +444,8 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_pack (τi : lrel Σ) Δ Γ e e' τ :
-    ({τi::Δ;⤉Γ} ⊨ e ≤log≤ e' : τ) -∗
-    {Δ;Γ} ⊨ e ≤log≤ e' : ∃: τ.
+    (〈τi::Δ;⤉Γ〉 ⊨ e ≤log≤ e' : τ) -∗
+    〈Δ;Γ〉 ⊨ e ≤log≤ e' : ∃: τ.
   Proof.
     iIntros "IH".
     intro_clause.
@@ -457,11 +457,11 @@ Section fundamental.
   Qed.
 
   Lemma bin_log_related_unpack Δ Γ x e1 e1' e2 e2' τ τ2 :
-    ({Δ;Γ} ⊨ e1 ≤log≤ e1' : ∃: τ) -∗
+    (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : ∃: τ) -∗
     (∀ τi : lrel Σ,
-      {τi::Δ;<[x:=τ]>(⤉Γ)} ⊨
+      〈τi::Δ;<[x:=τ]>(⤉Γ)〉 ⊨
         e2 ≤log≤ e2' : (Autosubst_Classes.subst (ren (+1)) τ2)) -∗
-    {Δ;Γ} ⊨ (unpack: x := e1 in e2) ≤log≤ (unpack: x := e1' in e2') : τ2.
+    〈Δ;Γ〉 ⊨ (unpack: x := e1 in e2) ≤log≤ (unpack: x := e1' in e2') : τ2.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -482,7 +482,7 @@ Section fundamental.
   Qed.
 
   Theorem fundamental Δ Γ e τ :
-    Γ ⊢ₜ e : τ → ⊢ {Δ;Γ} ⊨ e ≤log≤ e : τ
+    Γ ⊢ₜ e : τ → ⊢ 〈Δ;Γ〉 ⊨ e ≤log≤ e : τ
   with fundamental_val Δ v τ :
     ⊢ᵥ v : τ → ⊢ interp τ Δ v v.
   Proof.
