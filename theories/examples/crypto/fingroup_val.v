@@ -4,18 +4,12 @@ From clutch.prob_lang Require Import notation lang.
 From clutch.rel_logic Require Import model spec_ra.
 From clutch.typing Require Import types.
 From clutch.examples.crypto Require Import mc_val_instances.
+From clutch Require Import clutch.
 
 Set Warnings "-notation-overridden,-ambiguous-paths".
-From mathcomp Require Import solvable.cyclic.
-From mathcomp Require Import choice.
-From mathcomp Require Import eqtype.
-From mathcomp Require Import finset.
-From mathcomp Require Import fintype.
-From mathcomp Require Import seq.
+From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
+  ssrbool ssreflect zmodp.
 From mathcomp Require ssralg.
-From mathcomp Require Import ssrbool.
-From mathcomp Require Import ssreflect.
-From mathcomp Require Import zmodp.
 Import fingroup.
 Set Warnings "notation-overridden,ambiguous-paths".
 Set Bullet Behavior "Strict Subproofs".
@@ -143,90 +137,93 @@ Class clutch_group_generator {vg : val_group} :=
     ; g_generator : generator [set: vg] g
     }.
 
-Section Z5.
-  (* Construction of an example val_group. TODO: This needs to be cleaned up. *)
-  (* Eval cbn in ((8 * 2) : 'Z_5) == 1. *)
+Set Default Proof Using "Type*".
 
-  Context `{!clutchRGS Σ}.
+Section facts.
 
-  Definition z5 : finGroupType := [finGroupType of 'Z_5].
+Context `{!clutchRGS Σ}.
 
-  Definition p : {pred val} :=
-    (λ x, match x with #(LitInt n) => (Z.leb 0 n) && (Z.ltb n 5) | _ => false end).
-  Definition p' : {pred val} :=
-    (λ x, match x with #(LitInt n) => true | _ => false end).
+Context {vg : val_group}.
+Context {cg : clutch_group_struct}.
+Context {G : clutch_group (vg:=vg) (cg:=cg)}.
+Context {cgg : @clutch_group_generator vg}.
 
-  Class PVAL (v : val) := in_P : (p v).
-  Fact P_PVAL (v : val) : PVAL v -> p v.
-  Proof. rewrite /PVAL. move => h. exact h. Qed.
-  Definition mkP (v : val) {h : PVAL v} : vt p.
-    unfold PVAL in h.
-    unshelve econstructor ; [exact v |].
-    by apply Is_true_eq_true in h.
-  Defined.
+#[local] Notation T := (interp.interp τG []).
 
-  Hint Extern 4 (PVAL ?n) =>
-         (unfold P ; cbn ; exact I)
-         : typeclass_instances.
+Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty.
+Proof. intros. constructor. apply vmult_typed. Qed.
 
-  Definition vtp := (vt p).
-  Definition zp_of_vt : vtp -> z5.
-  Proof.
-    intros. destruct X. unfold p in i.
-    destruct x ; try by inversion i.
-    destruct l ; try (exfalso ; by inversion i).
-    unfold z5. simpl.
-    Local Open Scope ring_scope.
-    exact (inZp (Z.abs_nat n)).
-  Defined.
-  Coercion zp_of_vt_coe := zp_of_vt : vtp -> z5.
-  Coercion zp_of_vt' := zp_of_vt_coe : vtp -> Z.
-  Definition vt_of_zp (n : z5) : vt p.
-  Proof.
-    unfold z5 in n. destruct n.
-    exists (#(Z.of_nat m)). unfold p. apply /andP.
-    split.
-    - apply /Z.leb_spec0.
-      apply Nat2Z.is_nonneg.
-    - apply /Z.ltb_spec0.
-      move /ssrnat.leP in i.
-      unfold Zp_trunc in i. simpl in i. lia.
-  Defined.
-  Coercion vt_of_zp_coe := vt_of_zp : z5 -> vtp.
+Lemma refines_mult_l E K A (a b : G) t :
+  (refines E (ectxi_language.fill K (Val (a * b)%g)) t A)
+    ⊢ refines E (ectxi_language.fill K (vmult a b)) t A.
+Proof.
+  iIntros "H".
+  rel_apply_l refines_wp_l.
+  iApply (is_mult a b) => //.
+  iModIntro ; iIntros (v) "->" => //.
+Qed.
 
-  Hypothesis zp_vt_C : forall x, zp_of_vt (vt_of_zp x) = x.
-  Hypothesis vt_zp_C : forall x, vt_of_zp (zp_of_vt x) = x.
+Lemma refines_exp_l E K A (b : G) (p : nat) t :
+  (refines E (ectxi_language.fill K (Val (b ^+ p)%g)) t A)
+    ⊢ refines E (ectxi_language.fill K (vexp b #p)) t A.
+Proof.
+  iIntros "H".
+  rel_apply_l refines_wp_l.
+  iApply (is_exp b p) => //.
+  iModIntro ; iIntros (v) "->" => //.
+Qed.
 
-  Definition g5 : val_group.
-    unshelve econstructor.
-    - exact p.
-    - exact [:: mkP #0 ; mkP #1 ; mkP #2 ; mkP #3 ; mkP #4 ].
-    - exact (vt_of_zp 1%g).
-    - exact (λ (x y : vt p), vt_of_zp ((zp_of_vt x) * (zp_of_vt y)))%g.
-    - exact (λ (x : vt p), vt_of_zp ((zp_of_vt x) ^-1))%g.
-    - unfold Finite.axiom.
-      intros x.
-      destruct x.
-      unfold p in i ; destruct x ; try by inversion i.
-      destruct l ; try by inversion i.
-      destruct n ; try by inversion i.
-      repeat (destruct p0 ; try by simpl).
-    - intros x y z.
-      f_equal.
-      rewrite ?zp_vt_C.
-      by rewrite mulgA.
-    - intros x. rewrite ?zp_vt_C. rewrite mul1g. by rewrite vt_zp_C.
-    - intros x. rewrite zp_vt_C. f_equal.
-      by rewrite mulVg.
-  Defined.
-  Definition gg := mk_vg g5.
+Lemma refines_exp_r E K A (b : G) (p : nat) t :
+  (refines E t (ectxi_language.fill K (Val (b ^+ p)%g)) A)
+    ⊢ refines E t (ectxi_language.fill K (vexp b #p)) A.
+Proof.
+  iIntros "H".
+  rel_apply_r refines_steps_r => //.
+  iIntros (?).
+  iApply (is_spec_exp b).
+Qed.
 
-  Section test.
-    Set Warnings "-notation-overridden,-ambiguous-paths".
-    Import ssralg.
-    Set Warnings "notation-overridden,ambiguous-paths".
-    Eval compute in ((vt_of_zp 8 * (vt_of_zp 2))%g : gg)%g == vt_of_zp 1.
-    Eval cbn in ((8 * 2) : 'Z_5) == 1.
-  End test.
+Lemma log_g
+  : ∀ v : vg, ∃ k : fin (S (S n'')), (v = g^+k)%g.
+Proof using.
+  pose proof g_nontriv.
+  pose proof g_generator.
+  unfold generator in *.
+  intros v ; destruct (@cyclePmin vg g v).
+  2: {
+    assert (hx : x < #[g]%g) by by apply /ssrnat.leP.
+    rewrite g_nontriv in hx.
+    exists (nat_to_fin hx).
+    symmetry. rewrite e. f_equal.
+    rewrite fin_to_nat_to_fin.
+    reflexivity.
+  }
+  assert ([set: vg] = cycle g)%g as <-.
+  2: apply in_setT.
+  by destruct (@eqtype.eqP _ [set: vg] (cycle g)).
+Qed.
 
-End Z5.
+End facts.
+
+(* fast tactics to simplify exponentials *)
+Tactic Notation "rel_exp_l" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ ?e _ _) =>
+      match e with
+      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+          rel_apply_l (refines_exp_l _ _ _ b p _) => //
+      | _ => fail "rel_exp_l: no vexp / base / exponent found"
+      end
+  | _ => fail "rel_exp_l: not proving a refinement"
+  end.
+
+Tactic Notation "rel_exp_r" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ _ ?e _) =>
+      match e with
+      | context[App (App (Val vexp) (Val ?b)) (Val #(LitInt (Z.of_nat ?p)))] =>
+          rel_apply_r (refines_exp_r _ _ _ b p _) => //
+      | _ => fail "rel_exp_r: no vexp / base / exponent found"
+      end
+  | _ => fail "rel_exp_r: not proving a refinement"
+  end.
