@@ -1,10 +1,11 @@
 From iris.proofmode Require Import base proofmode.
-From iris.bi Require Export weakestpre fixpoint big_op.
+From iris.bi Require Export fixpoint big_op.
 From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
+From clutch.bi Require Import weakestpre.
 From clutch.prob_lang Require Import erasure.
 From clutch.program_logic Require Export language weakestpre.
 From clutch.rel_logic Require Import primitive_laws spec_ra.

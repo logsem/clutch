@@ -86,11 +86,7 @@ Proof.
     + f_equiv. by apply pair_ne.
 Qed.
 
-Class Rwp (Λ : language) (PROP A : Type) :=
-  rwp : A → coPset → expr Λ → (val Λ → PROP) → PROP.
-Arguments rwp {_ _ _ _} _ _ _%E _%I.
-#[global]
-Instance: Params (@rwp) 7 := {}.
+
 
 (* take the least fixpoint of the above definition *)
 Definition rwp_def {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} (s : stuckness) (E : coPset)
@@ -101,40 +97,6 @@ Definition rwp_aux {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} : seal (@rwp_def Σ A
 Instance rwp' {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} : Rwp Λ (iProp Σ) stuckness := rwp_aux.(unseal).
 
 Definition rwp_eq {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} : rwp = @rwp_def Σ A Λ _ _ _ _ := (rwp_aux.(seal_eq)).
-
-(** Notations for refinement weakest preconditions *)
-(** Notations without binder -- only parsing because they overlap with the
-notations with binder. *)
-Notation "'RWP' e @ s ; E ⟨⟨ Φ ⟩ ⟩" := (rwp s E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'RWP' e @ E ⟨⟨ Φ ⟩ ⟩" := (rwp NotStuck E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'RWP' e @ E ? ⟨⟨ Φ ⟩ ⟩" := (rwp MaybeStuck E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'RWP' e ⟨⟨ Φ ⟩ ⟩" := (rwp NotStuck ⊤ e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'RWP' e ? ⟨⟨ Φ ⟩ ⟩" := (rwp MaybeStuck ⊤ e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-
-
-(** Notations with binder.  The indentation for the inner format block is chosen
-such that *if* one has a single-character mask (e.g. [E]), the second line
-should align with the binder(s) on the first line. *)
-Notation "'RWP' e @ s ; E ⟨⟨ v , Q ⟩ ⟩" := (rwp s E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[' 'RWP'  e  '/' '[          ' @  s ;  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
-Notation "'RWP' e @ E ⟨⟨ v , Q ⟩ ⟩" := (rwp NotStuck E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[' 'RWP'  e  '/' '[       ' @  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
-Notation "'RWP' e @ E ? ⟨⟨ v , Q ⟩ ⟩" := (rwp MaybeStuck E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[' 'RWP'  e  '/' '[        ' @  E  ? ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
-Notation "'RWP' e ⟨⟨ v , Q ⟩ ⟩" := (rwp NotStuck ⊤ e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[' 'RWP'  e  '/' '[   ' ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
-Notation "'RWP' e ? ⟨⟨ v , Q ⟩ ⟩" := (rwp MaybeStuck ⊤ e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[' 'RWP'  e  '/' '[    ' ? ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
 
 Section rwp.
 Context {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ}.

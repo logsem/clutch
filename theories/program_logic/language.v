@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
-From iris.bi Require Export weakestpre.
+From clutch.bi Require Export weakestpre.
 From clutch.prob Require Import distribution.
 
 
@@ -104,9 +104,6 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
- Definition stuckness_to_atomicity (s : stuckness) : atomicity := 
-   if s is MaybeStuck then StronglyAtomic else WeaklyAtomic. 
-
 Section language.
   Context {Λ : language}.
   Implicit Types v : val Λ.
@@ -141,18 +138,6 @@ Section language.
     atomic σ e' σ' :
       prim_step e σ (e', σ') > 0 →
       if a is WeaklyAtomic then irreducible e' σ' else is_Some (to_val e').
-
-  Inductive step (ρ1 : cfg Λ) (ρ2 : cfg Λ) : Prop :=
-  | step_atomic e1 σ1 :
-    ρ1 = (e1, σ1) →
-    prim_step e1 σ1 ρ2 > 0 →
-    step ρ1 ρ2
-  | step_state e α σ1 σ2 :
-    ρ1 = (e, σ1) →
-    ρ2 = (e, σ2) →
-    state_step σ1 α σ2 > 0 →
-    step ρ1 ρ2.
-  Local Hint Constructors step : core.
 
   Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.
@@ -337,6 +322,3 @@ Section language.
 End language.
 
 Global Hint Mode PureExec + - - ! - : typeclass_instances.
-
-Global Arguments step_atomic {Λ ρ1 ρ2}.
-Global Arguments step_state {Λ ρ1 ρ2}.
