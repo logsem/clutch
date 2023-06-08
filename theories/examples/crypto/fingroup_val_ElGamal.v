@@ -332,46 +332,10 @@ Proof with rel_pures.
   replace (τDH → τEG)%lrel
     with (interp ((() → (τ * (τ * τ))) → (() → τ) * (τ → τ * τ))%ty [])
     by (by unfold τDH, τEG).
- iApply refines_typed ; repeat constructor.
- apply (App_typed _ _ _ (τ * (τ * τ))).
- - repeat constructor.
-   eapply App_typed.
-   2: { eapply Fst_typed. constructor. done. }
-   constructor.
-   eapply App_typed.
-   2: { eapply Fst_typed, Snd_typed. constructor. done. }
-   constructor.
-   eapply App_typed.
-   2: { eapply Snd_typed, Snd_typed. constructor. done. }
-   constructor.
-   eapply App_typed.
-   2: { apply TAlloc. constructor. constructor. }
-   constructor.
-   eapply App_typed.
-   2: { constructor. constructor. reflexivity. }
-   constructor.
-   eapply App_typed.
-   2: { constructor.
-        eapply App_typed.
-        2: {
-          unfold assert, abort.
-          repeat constructor.
-          econstructor.
-          2: repeat constructor.
-          constructor.
-          eapply App_typed ; repeat constructor.
-        }
-        constructor.
-        eapply (App_typed _ _ _ () (τ * τ)).
-        - repeat constructor.
-          do 2 econstructor.
-          1: apply mult_typed.
-          + constructor. done.
-          + done.
-        - eapply TStore; by repeat constructor.
-   }
-   repeat constructor.
- - eapply App_typed ; repeat constructor.
+ iApply refines_typed.
+ unfold assert, abort.
+ tychk.
+ apply vmult_typed.
 Qed.
 
 Lemma pk_ots_rnd_2_4 : ⊢ refines top pk_ots_rnd_2 pk_ots_rnd_4 τEG.
@@ -465,7 +429,7 @@ Context (G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)).
 Context (cgg : @clutch_group_generator vg).
 
 Let τEG := ((() → τG) * (τG → τG * τG))%ty.
-Let τDH := (() → (τG * τG * τG))%ty.
+Let τDH := (() → (τG * (τG * τG)))%ty.
 
 Lemma ctx_pk_ots_rnd_real_real_lbl :
   ∅ ⊨ pk_ots_rnd_real ≤ctx≤ pk_ots_rnd_real_lbl : τEG.
@@ -515,8 +479,7 @@ Proof.
   - apply: ctx_pk_ots_rnd_4_rnd.
 Qed.
 
-(* TODO: prove well-typedness of C'. *)
-Lemma pk_ots_rnd_ddh_C (HC : typed_ctx C' ∅ τDH ∅ τEG) :
+Lemma pk_ots_rnd_ddh_C :
   (∅ ⊨ DH_real ≤ctx≤ DH_rnd : τDH) →
   (∅ ⊨ fill C DH_real ≤ctx≤ fill C DH_rnd : τEG).
 Proof.
@@ -525,10 +488,11 @@ Proof.
   intros DDH.
   eapply ctx_refines_congruence.
   2: apply DDH.
-  assumption.
+  unfold C', τDH, τEG, assert, abort.
+  tychk. apply vmult_typed.
 Qed.
 
-Lemma pk_ots_rnd_ddh (HC : typed_ctx C' ∅ τDH ∅ τEG) :
+Lemma pk_ots_rnd_ddh :
   (∅ ⊨ DH_real ≤ctx≤ DH_rnd : τDH) →
   (∅ ⊨ pk_ots_rnd_real ≤ctx≤ pk_ots_rnd_rnd : τEG).
 Proof.

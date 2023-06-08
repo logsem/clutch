@@ -129,11 +129,9 @@ Section proofs.
         * rel_pures_l. rel_load_l. rel_pures_l.
           iApply (refines_na_close with "[- $Hclose]"). iSplitL.
           1: { iModIntro. iRight. iFrame. }
-          rewrite refines_eq /refines_def.
-          iIntros (?) "??".
-          iLöb as "HH".
-          wp_rec.
-          now iApply ("HH" with "[$]").
+          assert (lrel_bool = (interp TBool [])%lrel) as -> by auto.
+          iApply refines_typed.
+          tychk.
         * rel_pures_l. rel_load_l. rel_pures_l.
           iApply (refines_na_close with "[- $Hclose]"). iSplitL.
           1: iModIntro ; iRight ; iFrame.

@@ -98,6 +98,8 @@ Class clutch_group_struct :=
     ; vmult : val
     ; vexp : val
     ; τG : type
+    ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
+    ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty
     }.
 
 (* Could push `{clutchRGS Σ} down to the Iris propositions, or move the
@@ -105,8 +107,6 @@ Class clutch_group_struct :=
 Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
     { τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
-    ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
-    ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty
     ; vall_typed : (∀ (x : vg), ⊢ᵥ x : τG)%ty
     ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I
     ; is_unit : vunit = 1
