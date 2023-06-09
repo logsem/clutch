@@ -77,7 +77,7 @@ Section logical_ref.
     rel_pures_l. rel_pures_r.
     iDestruct "Hmsg" as "[%msg [-> ->]]".
     rel_apply (refines_couple_flip_flip (xor_sem msg)) => /=.
-    iIntros (k).
+    iIntros "!>" (k).
     rel_pures_r.
     foldxor.
     unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|].

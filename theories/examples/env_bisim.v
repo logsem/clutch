@@ -159,8 +159,9 @@ Section proofs.
     iApply (refines_na_inv with "[$Hinv]") ; [done|].
     iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
     all: rel_pures_l ; rel_pures_r.
-    + rel_apply refines_couple_flip_flipL.
-      iFrame ; iIntros (b) "α".
+    + rel_bind_l flip. rel_bind_r (flipL _).
+      rel_apply_l refines_couple_flip_flipL.
+      iFrame ; iIntros "!>" (b) "α".
       destruct b.
       * rel_pures_l. rel_pures_r. rel_load_l. rel_load_r. rel_pures_l. rel_pures_r.
         rel_store_l. rel_store_r. rel_pures_l. rel_pures_r.
@@ -172,8 +173,9 @@ Section proofs.
         iApply (refines_na_close with "[- $Hclose]").
         iSplitL; [|rel_values].
         iRight ; iModIntro ; iFrame.
-    + rel_apply refines_couple_flip_flipL.
-      iFrame ; iIntros (b) "α".
+    + rel_bind_l flip. rel_bind_r (flipL _).
+      rel_apply_l refines_couple_flip_flipL.
+      iFrame ; iIntros "!>" (b) "α".
       destruct b.
       * rel_pures_l. rel_pures_r. rel_load_l. rel_load_r. rel_pures_l. rel_pures_r.
         iApply (refines_na_close with "[- $Hclose]"). iSplitL.
@@ -201,7 +203,7 @@ Section proofs.
     rel_pures_l. rel_pures_r.
     rel_allocBtape_r α as "α".
     rel_apply_l (refines_couple_flip_tape with "[$α x y]").
-    iIntros (b) "α /=".
+    iIntros "!>" (b) "α /=".
     rel_pures_l. rel_pures_r.
     set (P := ((α ↪ₛB [b] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪ₛB [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
     iApply (refines_na_alloc P bisimN).
@@ -272,7 +274,7 @@ Section proofs.
     all: rel_pures_l ; rel_pures_r.
     + rel_bind_l (flipL _). rel_bind_r flip.
       rel_apply_l refines_couple_flipL_flip; [solve_ndisj|].
-      iFrame ; iIntros (b) "α".
+      iFrame ; iIntros "!>" (b) "α".
       destruct b ;
         rel_pures_l ; rel_pures_r ; rel_load_l ; rel_load_r ; rel_pures_l ; rel_pures_r ;
         rel_store_l ; rel_store_r ; rel_pures_l ; rel_pures_r ;
@@ -281,7 +283,7 @@ Section proofs.
         iRight ; iModIntro ; iFrame.
     + rel_bind_l (flipL _). rel_bind_r flip.
       rel_apply_l refines_couple_flipL_flip; [solve_ndisj|].
-      iFrame ; iIntros (b) "α".
+      iFrame ; iIntros "!>" (b) "α".
       destruct b ;
         rel_pures_l ; rel_pures_r ; rel_load_l ; rel_load_r ; rel_pures_l ; rel_pures_r ;
         iApply (refines_na_close with "[- $Hclose]").

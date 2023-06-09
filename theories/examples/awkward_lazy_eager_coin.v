@@ -72,7 +72,7 @@ Section logical_ref.
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       rel_apply (refines_couple_flip_flipL with "[-$Hα]").
-      iIntros (b) "Hα /=".
+      iIntros "!>" (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
@@ -126,7 +126,7 @@ Section logical_ref.
     rewrite /lazy_with_tape /eager.
     rel_allocBtape_r α as "Hα". rel_pures_r.
     rel_apply (refines_couple_flip_tape with "[$Hα]").
-    iIntros (b) "Hα /=".
+    iIntros "!>" (b) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
     set (P := ((α ↪ₛB [b] ∗ l ↦ₛ NONEV) ∨ (l ↦ₛ SOMEV #b))%I).
@@ -178,7 +178,7 @@ Section logical_ref.
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       rel_apply (refines_couple_flipL_flip with "[-$Hα]").
-      iIntros (b) "Hα /=".
+      iIntros "!>" (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").

@@ -132,14 +132,14 @@ Section compatibility.
     iModIntro.
     destruct (decide (N = M)); simplify_eq.
     - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr Hclose]"); [solve_ndisj|].
-      iIntros (N) "(Hα & Hαs & Hr)".
+      iIntros "!>" (N) "(Hα & Hαs & Hr)".
       iMod ("Hclose" with "[$Hα $Hαs]") as "_".
       iModIntro.
       iExists _. iFrame "Hr".
       rel_values.
     - iApply (wp_couple_rand_lbl_rand_lbl_wrong
                with "[$Hα $Hα' $Hr Hclose]"); [done|solve_ndisj|].
-      iIntros (m) "(Hα & Hα' & Hr)".
+      iIntros "!>" (m) "(Hα & Hα' & Hr)".
       iMod ("Hclose" with "[$Hα $Hα']") as "_".
       iModIntro.
       iExists _. iFrame "Hr".

@@ -154,7 +154,7 @@ Module simple_bit_hash.
     wp_apply (wp_couple_flip_flip Datatypes.id); [done|]. 
     iDestruct "HK" as "(#Hspec&HK)".
     iFrame "Hspec". iFrame "HK".
-    iIntros (b) "HK".
+    iIntros "!>" (b) "HK".
     iEval (rewrite -refines_right_bind /=) in "HK".
     tp_pures.
     do 2 wp_pures.
@@ -807,7 +807,7 @@ Section tape_bit_hash.
     iIntros (?) "(Hspec_ctx&Hscoupl&Hwp)".
     iDestruct "Hscoupl" as (sα sbs) "(Hsα&Hsαclo)".
     iApply (wp_couple_flip_tape Datatypes.id); first done.
-    iFrame "Hspec_ctx Hsα". iIntros (b) "H".
+    iFrame "Hspec_ctx Hsα". iIntros "!>" (b) "H".
     iApply "Hwp". iApply "Hsαclo". auto.
   Qed.
 
