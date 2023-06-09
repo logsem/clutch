@@ -752,9 +752,9 @@ Notation "μ1 '≾' μ2 ':' R" :=
   (refRcoupl μ1 μ2 R)
   (at level 100, μ2 at next level,
    R at level 200,
-    format "'[hv' μ1  '/' '≾'  '/  ' μ2  :  R ']'").
+    format "'[hv' μ1  '/' '≾'  '/' μ2  :  R ']'").
 
 Notation "μ1 '≿' μ2 ':' R" :=
-  (refRcoupl μ2 μ1 R)
+  (refRcoupl μ2 μ1 (flip R))
   (at level 100, μ2 at next level,
    R at level 200, only parsing).

@@ -23,7 +23,12 @@ Global Arguments IrisG {Λ Σ}.
 Class spec (A : Type) `{Countable A} (Σ : gFunctors) := Spec {
   spec_step   : A → distr A;
   spec_interp : A → iProp Σ;
+
+  spec_final : A → Prop;
+  spec_final_decision a : Decision (spec_final a);
 }.
+
+#[global] Existing Instance spec_final_decision.
 
 (** * The weakest precondition  *)
 Definition rwp_step {Σ Λ A} `{spec A Σ} `{!irisGS Λ Σ} E (e1 : expr Λ) (Z : cfg Λ → A → iProp Σ) : iProp Σ :=
