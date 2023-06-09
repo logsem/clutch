@@ -18,7 +18,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (??) "[%n [-> ->]]"...
     rel_apply (refines_couple_flip_flip negb) => /=.
-    iIntros ([]).
+    iIntros "!>" ([]).
     - auto... rel_values.
     - rel_pure_r. rel_pure_l.
       fold geo_true. fold geo_false.
@@ -36,7 +36,7 @@ Section logical_ref.
     rel_arrow_val.
     iIntros (??) "[%n [-> ->]]"...
     rel_apply (refines_couple_flip_flip negb) => /=.
-    iIntros ([]).
+    iIntros "!>" ([]).
     - rel_pure_r. rel_pure_l.
       fold geo_true. fold geo_false.
       rel_apply refines_app.

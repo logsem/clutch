@@ -20,4 +20,5 @@ depends: [
   "coq-stdpp" { (= "1.8.0") | (= "dev") }
   "coq-autosubst" { (= "dev") }
   "coq-mathcomp-solvable" { (= "1.17.0") }
+  "coq-deriving" { (= "0.1.1") }
 ]
