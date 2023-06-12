@@ -595,10 +595,10 @@ End ElGamalExt.
 
 Section Ctx.
 
-Context (vg : val_group).
-Context (cg : clutch_group_struct).
-Context (G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)).
-Context (cgg : @clutch_group_generator vg).
+Context {vg : val_group}.
+Context {cg : clutch_group_struct}.
+Context {G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
+Context {cgg : @clutch_group_generator vg}.
 
 Let τEG := ((() → TInt) * (TInt → () + (TInt * TInt)))%ty.
 Let τDH := (() → (τG * (τG * τG)))%ty.
@@ -704,3 +704,56 @@ Theorem Ctx_PPT_congr : PPT n C →
 *)
 
 End Ctx.
+
+Section exp.
+
+Context {vg : val_group}.
+Context {cg : clutch_group_struct}.
+Definition vexp := (λ:"a", rec: "vexp" "n" := if: "n" ≤ #0 then 1%g else let: "x" := "vexp" ("n" - #1) in vmult "a" "x")%V.
+
+Context {G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
+Context {cgg : @clutch_group_generator vg}.
+
+Context `{!clutchRGS Σ}.
+
+Fact Is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = (b ^+ x)%g⌝ }}}.
+Proof.
+  unfold vexp.
+  iIntros (? _) "hlog".
+  wp_pure. wp_pure.
+  iInduction x as [|x] "IH" forall (Φ).
+  - wp_pures.
+    iApply ("hlog").
+    by rewrite expg0.
+  - do 4 wp_pure.
+    wp_bind ((rec: _ _ := _)%V _).
+    replace (S x - 1)%Z with (Z.of_nat x) by lia.
+    iApply "IH".
+    iIntros.
+    wp_pures.
+    iApply is_mult => //.
+    iModIntro. iIntros. subst.
+    iApply "hlog".
+    by rewrite expgS.
+Qed.
+
+Fact Is_spec_exp (b : vg) (x : nat) K :
+      refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)%g.
+Proof.
+  unfold vexp.
+  iIntros "hlog".
+  tp_pure. tp_pure.
+  iInduction x as [|x] "IH" forall (K).
+  - tp_pures.
+    iApply ("hlog").
+  - do 4 tp_pure.
+    tp_bind ((rec: _ _ := _)%V _).
+    replace (S x - 1)%Z with (Z.of_nat x) by lia.
+    rewrite refines_right_bind.
+    iSpecialize ("IH" with "hlog").
+    iMod "IH" as "IH".
+    rewrite -refines_right_bind => /=.
+    tp_pures.
+    rewrite is_spec_mult.
+    rewrite expgS. done.
+Qed.

@@ -161,7 +161,6 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
     ; is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = b ^+ x⌝ }}}
     ; is_spec_exp (b : vg) (x : nat) K :
-
       refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)
     }.
 
