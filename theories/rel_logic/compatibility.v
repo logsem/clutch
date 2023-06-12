@@ -1,7 +1,8 @@
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
-From clutch.prob_lang Require Import notation primitive_laws spec_rules spec_tactics proofmode lang.
-From clutch.logrel Require Import model rel_tactics rel_rules.
+From clutch.prob_lang Require Import notation lang.
+From clutch.rel_logic Require Import
+  primitive_laws  proofmode spec_rules spec_tactics model rel_tactics rel_rules.
 
 Section compatibility.
   Context `{!clutchRGS Σ}.
@@ -131,14 +132,14 @@ Section compatibility.
     iModIntro.
     destruct (decide (N = M)); simplify_eq.
     - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr Hclose]"); [solve_ndisj|].
-      iIntros (N) "(Hα & Hαs & Hr)".
+      iIntros "!>" (N) "(Hα & Hαs & Hr)".
       iMod ("Hclose" with "[$Hα $Hαs]") as "_".
       iModIntro.
       iExists _. iFrame "Hr".
       rel_values.
     - iApply (wp_couple_rand_lbl_rand_lbl_wrong
                with "[$Hα $Hα' $Hr Hclose]"); [done|solve_ndisj|].
-      iIntros (m) "(Hα & Hα' & Hr)".
+      iIntros "!>" (m) "(Hα & Hα' & Hr)".
       iMod ("Hclose" with "[$Hα $Hα']") as "_".
       iModIntro.
       iExists _. iFrame "Hr".

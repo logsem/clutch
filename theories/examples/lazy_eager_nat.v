@@ -69,7 +69,7 @@ Section logical_ref.
       rel_bind_l (rand _ from _)%E.
       rel_bind_r (rand _ from _)%E.
       rel_apply_l (refines_couple_rands_r with "[-$Hα]").
-      iIntros (n) "Hα /=".
+      iIntros "!>" (n) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").
@@ -126,7 +126,7 @@ Section logical_ref.
     rel_pures_l. rel_pures_r.
     rel_alloctape_r α as "Hα". rel_pures_r.
     rel_apply_l (refines_couple_rand_tape with "[$Hα]").
-    iIntros (n) "Hα /=".
+    iIntros "!>" (n) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
     set (P := ((α ↪ₛ (N; [n]) ∗ l ↦ₛ NONEV) ∨ (l ↦ₛ SOMEV #n))%I).
@@ -177,7 +177,7 @@ Section logical_ref.
       rel_bind_l (rand _ from _)%E.
       rel_bind_r (rand _ from _)%E.
       iApply (refines_couple_rands_l with "[-$Hα]").
-      iIntros (n) "Hα /=".
+      iIntros "!>" (n) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").

@@ -1,4 +1,4 @@
-From iris.bi Require Export bi.
+From iris.bi Require Export bi fixpoint.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
 Import uPred.
@@ -51,3 +51,17 @@ Section class_instance_updates.
     rewrite -step_fupdN_plain_forall. by apply step_fupdN_mono.
   Qed.
 End class_instance_updates.
+
+
+Section bi_least_fixpoint.
+
+  Lemma least_fixpoint_ne_outer {PROP : bi} {A : ofe}
+    (F1 : (A → PROP) → (A → PROP)) (F2 : (A → PROP) → (A → PROP)) n :
+    (∀ Φ x, F1 Φ x ≡{n}≡ F2 Φ x) → ∀ x1 x2,
+        x1 ≡{n}≡ x2 → bi_least_fixpoint F1 x1 ≡{n}≡ bi_least_fixpoint F2 x2.
+  Proof.
+    intros HF x1 x2 Hx. rewrite /bi_least_fixpoint /=.
+    do 3 f_equiv; last solve_proper. repeat f_equiv. apply HF.
+  Qed.
+
+End bi_least_fixpoint.

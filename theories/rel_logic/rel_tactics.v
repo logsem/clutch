@@ -4,8 +4,9 @@ From iris.proofmode Require Import
      reduction.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.program_logic Require Import language ectxi_language.
-From clutch.prob_lang Require Import locations class_instances notation primitive_laws spec_ra spec_tactics tactics lang.
-From clutch.logrel Require Import model rel_rules.
+From clutch.prob_lang Require Import locations class_instances notation tactics lang.
+From clutch.rel_logic Require Import primitive_laws model rel_rules proofmode.
+From clutch.rel_logic Require Export spec_tactics.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!clutchRGS Σ} e' K ℶ E e t A :
@@ -174,7 +175,7 @@ Tactic Notation "rel_pure_l" open_constr(ef) :=
       [reflexivity                  (** e = fill K e1 *)
       |iSolveTC                     (** PureExec ϕ n e1 e2 *)
       | .. ]);
-      [try prob_lang.proofmode.solve_vals_compare_safe                (** φ *)
+      [try solve_vals_compare_safe                (** φ *)
       |first [left; reflexivity
              | right; reflexivity]                  (** (m = n) ∨ (m = 0) *)
       |iSolveTC                                     (** IntoLaters *)
@@ -192,7 +193,7 @@ Tactic Notation "rel_pure_r" open_constr(ef) :=
       [reflexivity                  (** e = fill K e1 *)
       |iSolveTC                     (** PureExec ϕ n e1 e2 *)
       |..]);
-      [try prob_lang.proofmode.solve_vals_compare_safe                (** φ *)
+      [try solve_vals_compare_safe                (** φ *)
       |solve_ndisj        || fail 1 "rel_pure_r: cannot solve ↑specN ⊆ ?"
       |simpl; reflexivity           (** eres = fill K e2 *)
       |rel_finish                   (** new goal *)]
@@ -523,8 +524,9 @@ Proof.
   apply bi.wand_elim_l.
 Qed.
 
+Local Set Warnings "-cast-in-pattern".
 Tactic Notation "rel_rand_l" :=
-  let solve_mapsto _ :=
+  let solve_mapsto _ := 
     let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
     iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
   rel_pures_l;
@@ -540,7 +542,6 @@ Tactic Notation "rel_rand_l" :=
   |rel_finish  (** new goal *)].
 
 (* Tactic Notation "rel_rand_l_atomic" := rel_apply_l refines_rand_l. *)
-
 Tactic Notation "rel_rand_r" :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↪ₛ _)%I) => l end in

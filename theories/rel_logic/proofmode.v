@@ -1,14 +1,11 @@
 From iris.bi Require Export bi updates.
-From iris.proofmode Require Import coq_tactics reduction.
-
-(* proofmode.v *)
-From iris.proofmode Require Import coq_tactics spec_patterns.
+From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.program_logic Require Import atomic.
-Import uPred.
+
 From clutch.program_logic Require Import language ectx_language weakestpre.
-From clutch.prob_lang Require Import lang notation class_instances primitive_laws.
-From clutch.prob_lang Require Import tactics.
+From clutch.prob_lang Require Import lang notation class_instances tactics.
+From clutch.rel_logic Require Import primitive_laws.
 From iris.prelude Require Import options.
 Import uPred.
 

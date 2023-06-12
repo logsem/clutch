@@ -16,7 +16,7 @@ Definition eager : expr :=
   let: "b" := flip in
   λ: <>, "b".
 
-(** An intetermedaite version of [lazy] that uses a tape to allow presampling
+(** An intetermediate version of [lazy] that uses a tape to allow presampling
     bits during the proof *)
 Definition lazy_with_tape : expr :=
   let: "α" := allocB in
@@ -64,7 +64,7 @@ Section logical_ref.
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
       rel_apply (refines_couple_flip_flipL with "[-$Hα]").
-      iIntros (b) "Hα /=".
+      iIntros "!>" (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]");
@@ -118,7 +118,7 @@ Section logical_ref.
     rel_allocBtape_r α as "Hα". rel_pures_r.
     rel_bind_l flip.
     rel_apply_l (refines_couple_flip_tape with "[$Hα]").
-    iIntros (b) "Hα /=".
+    iIntros "!>" (b) "Hα /=".
     rel_pures_r.
     rel_alloc_r l as "Hl". rel_pures_r.
     set (P := ((α ↪ₛB [b] ∗ l ↦ₛ NONEV) ∨ (l ↦ₛ SOMEV #b))%I).
@@ -167,7 +167,7 @@ Section logical_ref.
       rel_bind_l (flipL _)%E.
       rel_bind_r flip.
       iApply (refines_couple_flipL_flip with "[-$Hα]"); [solve_ndisj|].
-      iIntros (b) "Hα /=".
+      iIntros "!>" (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.
       iApply (refines_na_close with "[- $Hclose $Hα]").

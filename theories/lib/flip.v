@@ -177,7 +177,7 @@ Section specs.
   Lemma wp_couple_flip_flip f `{Bij bool bool f} K E Φ :
     nclose specN ⊆ E →
     refines_right K flip ∗
-    (∀ b : bool, refines_right K #(f b) -∗ Φ #b)
+    ▷ (∀ b : bool, refines_right K #(f b) -∗ Φ #b)
     ⊢ WP flip @ E {{ Φ }}.
   Proof.
     iIntros (?) "(Hr & HΦ)". rewrite /flip/flipL.
@@ -187,7 +187,7 @@ Section specs.
     rewrite refines_right_bind.
     iApply (wp_couple_rand_rand 1 (fn_bool_to_fin f)); [done|].
     iFrame.
-    iIntros (n) "Hr".
+    iIntros "!>" (n) "Hr".
     iMod (refines_right_int_to_bool with "[$]"); [done|].
     wp_apply wp_int_to_bool; [done|].
     iIntros "_ /=".
@@ -198,7 +198,7 @@ Section specs.
 
   Lemma refines_couple_flip_flip f `{Bij bool bool f} K K' E A :
     nclose specN ⊆ E →
-    (∀ b : bool, REL fill K (of_val #b) << fill K' (of_val #(f b)) @ E : A)
+    ▷ (∀ b : bool, REL fill K (of_val #b) << fill K' (of_val #(f b)) @ E : A)
     ⊢ REL fill K flip << fill K' flip @ E : A.
   Proof.
     rewrite refines_eq /refines_def.
@@ -207,7 +207,7 @@ Section specs.
     rewrite refines_right_bind.
     wp_apply (wp_couple_flip_flip f); [solve_ndisj|].
     iFrame.
-    iIntros (b) "Hr".
+    iIntros "!>" (b) "Hr".
     rewrite -refines_right_bind.
     wp_apply ("Hcnt" with "[$] [$]").
   Qed.
@@ -216,11 +216,11 @@ Section specs.
   Lemma wp_couple_bool_tape_tape f `{Bij bool bool f} E e α αₛ bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
+    spec_ctx ∗ ▷ αₛ ↪ₛB bsₛ ∗ ▷ α ↪B bs ∗
     (∀ b : bool, αₛ ↪ₛB (bsₛ ++ [f b]) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (??) "(Hctx & αs & Hα & Hlog)".
+    iIntros (??) "(Hctx & >αs & >Hα & Hlog)".
     iApply (wp_couple_tapes _ (fn_bool_to_fin f)); [done|done|iFrame].
     iIntros (n) "[Hαs Hα]".
     destruct (surj bool_to_fin n) as [b <-].
@@ -233,7 +233,7 @@ Section specs.
 
   Lemma refines_couple_bool_tape_tape f `{Bij bool bool f} E e1 e2 A α αₛ bs bsₛ :
     to_val e1 = None →
-    (αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
+    (▷ αₛ ↪ₛB bsₛ ∗ ▷ α ↪B bs ∗
        (∀ b, αₛ ↪ₛB (bsₛ ++ [f b]) ∗ α ↪B (bs ++ [b]) -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
@@ -252,13 +252,13 @@ Section specs.
   Lemma wp_couple_bool_tapeN_tapeN_eq m E e α αₛ bs bsₛ Φ :
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ αₛ ↪ₛB bsₛ ∗ α ↪B bs ∗
+    spec_ctx ∗ ▷ αₛ ↪ₛB bsₛ ∗ ▷ α ↪B bs ∗
     (∀ bs', ⌜length bs' = m ⌝ ∗ αₛ ↪ₛB (bsₛ ++ bs') ∗ α ↪B (bs ++ bs') -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??).
     iInduction m as [| m] "IH" forall (bs bsₛ).
-    - iIntros "(#Hctx&Hα&Hαₛ&Hwp)".
+    - iIntros "(#Hctx& >Hα & >Hαₛ&Hwp)".
       iApply ("Hwp" $! []).
       rewrite 2!app_nil_r.
       by iFrame.
@@ -279,7 +279,7 @@ Section specs.
   Lemma wp_couple_tape_flip f `{Bij bool bool f} K E α bs Φ e :
     to_val e = None →
     nclose specN ⊆ E →
-    α ↪B bs ∗ refines_right K flip ∗
+    ▷ α ↪B bs ∗ refines_right K flip ∗
     (∀ b : bool, α ↪B (bs ++ [b]) ∗ refines_right K #(f b) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -301,7 +301,7 @@ Section specs.
   Lemma refines_couple_tape_flip K' E α A bs e :
     nclose specN ⊆ E →
     to_val e = None →
-    α ↪B bs ∗
+    ▷ α ↪B bs ∗
       (∀ b, α ↪B (bs ++ [b]) -∗ REL e << fill K' (of_val #b) @ E : A)
     ⊢ REL e << fill K' flip @ E : A.
   Proof.
@@ -322,14 +322,14 @@ Section specs.
   (** flip ~ tape *)
   Lemma wp_couple_flip_tape f `{Bij bool bool f} E α bs Φ :
     nclose specN ⊆ E →
-    spec_ctx ∗ α ↪ₛB bs ∗
-    (∀ b : bool, α ↪ₛB (bs ++ [f b]) -∗ Φ #b)
+    spec_ctx ∗ ▷ α ↪ₛB bs ∗
+    ▷ (∀ b : bool, α ↪ₛB (bs ++ [f b]) -∗ Φ #b)
     ⊢ WP flip @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hctx & Hα & Hcnt)". rewrite /flip/flipL.
     wp_pures. wp_bind (rand _ from _)%E.
     iApply (wp_couple_rand_tape 1 (fn_bool_to_fin f)); [solve_ndisj|iFrame "Hctx Hα"].
-    iIntros (n) "Hα".
+    iIntros "!>" (n) "Hα".
     wp_apply (wp_int_to_bool with "[//]").
     iIntros "_".
     iApply ("Hcnt" with "[-]").
@@ -341,14 +341,14 @@ Section specs.
   Qed.
 
   Lemma refines_couple_flip_tape K E α A bs e :
-    α ↪ₛB bs ∗
-      (∀ b, α ↪ₛB (bs ++ [b]) -∗ REL fill K (of_val #b) << e @ E : A)
+    ▷ α ↪ₛB bs ∗
+      ▷ (∀ b, α ↪ₛB (bs ++ [b]) -∗ REL fill K (of_val #b) << e @ E : A)
     ⊢ REL fill K flip << e @ E : A.
   Proof.
     iIntros "[Hαs Hcnt]". rewrite /flip/flipL.
     rel_pures_l.
     rel_apply_l refines_couple_rand_tape; iFrame.
-    iIntros (n) "Hα".
+    iIntros "!>" (n) "Hα".
     destruct (surj bool_to_fin n) as [b <-].
     rewrite -list_fmap_singleton -!fmap_app.
     iSpecialize ("Hcnt" with "Hα").
@@ -363,8 +363,8 @@ Section specs.
 
   Lemma refines_couple_flipL_flip K K' E α A :
     nclose specN ⊆ E →
-    α ↪B [] ∗
-      (∀ b : bool, α ↪B [] -∗ REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
+    ▷ α ↪B [] ∗
+      ▷ (∀ b : bool, α ↪B [] -∗ REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
     ⊢ REL fill K (flipL #lbl:α) << fill K' flip @ E : A.
   Proof.
     iIntros (?) "(Hα & H)".
@@ -373,21 +373,21 @@ Section specs.
     { rewrite fill_not_val //. }
     iFrame => /=. iIntros (b) "Hα".
     iApply (refines_flipL_l _ _ _ b []).
-    iFrame. iApply "H".
+    iFrame. iIntros "!>". iApply "H".
   Qed.
 
   (** flip ~ flipL  *)
   (* TODO: wp_couple_flip_flipL *)
 
   Lemma refines_couple_flip_flipL K K' E α A :
-    α ↪ₛB [] ∗
-      (∀ b : bool, α ↪ₛB [] -∗ REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
+    ▷ α ↪ₛB [] ∗
+      ▷ (∀ b : bool, α ↪ₛB [] -∗ REL fill K (of_val #b) << fill K' (of_val #b) @ E : A)
     ⊢ REL fill K flip << fill K' (flipL #lbl:α) @ E : A.
   Proof.
     iIntros "(Hα & H)".
     iApply refines_couple_flip_tape.
     iFrame.
-    iIntros (n) "Hα".
+    iIntros "!>" (n) "Hα".
     iApply (refines_flipL_r with "Hα").
     iIntros "α". by iApply "H".
   Qed.

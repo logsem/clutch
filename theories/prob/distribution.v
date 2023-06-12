@@ -1355,8 +1355,8 @@ Section dzero.
     apply SeriesC_0=>?. lra.
   Qed.
 
-  Lemma dzero_dbind (μ : distr A) :
-    (a ← μ; dzero) = dzero (A := A).
+  Lemma dzero_dbind `{Countable A'} (μ : distr A) :
+    (a ← μ; dzero) = dzero (A := A').
   Proof. apply distr_ext, dzero_dbind_pmf. Qed.
 
   Lemma dbind_dzero `{Countable B} (f : A → distr B) :

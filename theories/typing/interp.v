@@ -1,8 +1,8 @@
 From iris.algebra Require Export list.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import metatheory primitive_laws lang.
+From clutch.prob_lang Require Import metatheory lang.
 From clutch.prelude Require Import asubst properness.
-From clutch.logrel Require Import model.
+From clutch.rel_logic Require Import primitive_laws model.
 From clutch.typing Require Export types.
 
 (** * Interpretation of types *)
@@ -280,13 +280,13 @@ Section bin_log_related.
 
 End bin_log_related.
 
-Notation "'{' E ';' Δ ';' Γ '}' ⊨ e '≤log≤' e' : τ" :=
+Notation "〈 E ';' Δ ';' Γ 〉 ⊨ e '≤log≤' e' : τ" :=
   (bin_log_related E Δ Γ e%E e'%E (τ)%ty)
   (at level 100, E at next level, Δ at next level, Γ at next level, e, e' at next level,
    τ at level 200,
-   format "'[hv' '{' E ';'  Δ ';'  Γ '}'  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").
-Notation "'{' Δ ';' Γ '}' ⊨ e '≤log≤' e' : τ" :=
+   format "'[hv' 〈 E ';'  Δ ';'  Γ 〉  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").
+Notation "〈 Δ ';' Γ 〉 ⊨ e '≤log≤' e' : τ" :=
   (bin_log_related ⊤ Δ Γ e%E e'%E (τ)%ty)
   (at level 100, Δ at next level, Γ at next level, e, e' at next level,
    τ at level 200,
-   format "'[hv' '{' Δ ';'  Γ '}'  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").
+   format "'[hv' 〈 Δ ';'  Γ 〉  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").

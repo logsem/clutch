@@ -1,8 +1,8 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch.program_logic Require Import exec weakestpre.
-From clutch.logrel Require Import model.
-From clutch.prob_lang Require Import adequacy lang.
+From clutch.rel_logic Require Import model adequacy.
+From clutch.prob_lang Require Import lang.
 
 Class clutchRGpreS Σ := ClutchRGPreS {
   clutchRGpreS_clutch :> clutchGpreS Σ;

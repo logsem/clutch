@@ -22,7 +22,7 @@ Proof.
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply wp_couple_rand_lbl_rand_eq; [solve_ndisj|].
     iFrame.
-    iIntros (n) "[Hα Hr]".
+    iIntros "!>" (n) "[Hα Hr]".
     iModIntro. iFrame. iExists _. iFrame "Hr".
     rel_values.
   - iApply (refines_atomic_l _ _ []).
@@ -30,7 +30,7 @@ Proof.
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply wp_couple_rand_lbl_rand_wrong; [done|solve_ndisj|].
     iFrame "Hr Hα1 Hα2".
-    iIntros (m) "[Hα1 Hr] !>".
+    iIntros "!>" (m) "[Hα1 Hr] !>".
     iFrame. iExists _. iFrame "Hr".
     rel_values.
 Qed.
@@ -53,7 +53,7 @@ Proof.
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply wp_couple_rand_rand_lbl_eq; [solve_ndisj|].
     iFrame "Hr Hα1 Hα2".
-    iIntros (b) "[Hα2 Hr]".
+    iIntros "!>" (b) "[Hα2 Hr]".
     iModIntro. iFrame. iExists _. iFrame.
     rel_values.
   - iApply (refines_atomic_l _ _ []).
@@ -61,7 +61,7 @@ Proof.
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply wp_couple_rand_rand_lbl_wrong; [done|solve_ndisj|].
     iFrame "Hr Hα1 Hα2".
-    iIntros (m) "[Hα1 Hr] !>".
+    iIntros "!>" (m) "[Hα1 Hr] !>".
     iFrame. iExists _. iFrame "Hr".
     rel_values.
 Qed.

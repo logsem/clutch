@@ -1,5 +1,5 @@
 (* A zoo of variants of Von Neumann's construction of a fair coin from a biased coin. *)
-From clutch Require Export clutch lib.flip. 
+From clutch Require Export clutch lib.flip.
 Set Default Proof Using "Type*".
 
 Section proofs.
@@ -64,7 +64,7 @@ Section proofs.
     unfold t2. rel_pures_l.
 
     rel_apply refines_couple_flip_flip.
-    iIntros (b).
+    iIntros (b) "!>".
     rel_pures_l.
     rel_apply refines_flip_l.
     iIntros "!>" (b').
@@ -86,7 +86,7 @@ Section proofs.
     set (vnc2 := vnc_div t2) ; unfold vnc_div in vnc2 ; fold vnc2.
     unfold t2. rel_pures_l.
     rel_apply refines_couple_flip_flip.
-    iIntros (b).
+    iIntros (b) "!>".
     rel_pures_l.
     rel_apply refines_flip_l.
     iIntros "!>" (b').
@@ -113,19 +113,21 @@ Section proofs.
      results differ, and diverges otherwise. *)
 
 (*
-                             /--------- b0 ---------\
-                            b1                      b1
-                        ___/  \___              ___/  \___
-                       /         \             /         \
-1st run of t4:        1           0           0           0
-                      |           |           |           |
-                     b2          b2          b2          b2
-                     / \         / \         / \         / \
-                   b3   b3     b3   b3     b3   b3     b3   b3
-                  / \   / \   / \   / \   / \   / \   / \   / \
-2nd run of t4:   0  0  0  1  0  0  0  1  0  0  0  1  0  0  0  1
-                 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0
+                                /---------- b0 ----------\
+                               b1                        b1
+                           ___/  \___                ___/  \___
+                          /          \              /          \
+x = 1st run of t4:       1            0            0            0
+                         |            |            |            |
+                        b2           b2           b2           b2
+                        / \          / \          / \          / \
+                      b3   b3      b3   b3      b3   b3      b3   b3
+                     / \   / \    / \   / \    / \   / \    / \   / \
+y = 2nd run of t4:  1  0  0  0   1  0  0  0   1  0  0  0   1  0  0  0
+                    |  |  |  |   |  |  |  |   |  |  |  |   |  |  |  |
+x = y ?             y  n  n  n   n  y  y  y   n  y  y  y   n  y  y  y
+                    |  |  |  |   |  |  |  |   |  |  |  |   |  |  |  |
+vnc_div t4:         ⊥  1  1  1   0  ⊥  ⊥  ⊥   0  ⊥  ⊥  ⊥   0  ⊥  ⊥  ⊥
 
    *)
   Goal ⊢ REL (vnc_div t4) << (λ:<>, flip) : lrel_unit → lrel_bool.
@@ -133,12 +135,12 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
     rewrite /vnc_div...
     iApply refines_arrow_val.
     iIntros "!#" (??) "#[-> ->]".
-    rel_rec_l.
+    rel_pure_l.
     set (Ω := ((rec: "f" <> := "f" #()) #())%E).
     unfold t4...
     (* Case on the first lhs flip, don't couple anything. *)
     rel_apply_l refines_flip_l ; iIntros "!>" (b0) ; destruct b0 eqn:hb0...
-    - rel_apply (refines_couple_flip_flip) ; iIntros (b1) ; destruct b1 eqn:hb1...
+    - rel_apply (refines_couple_flip_flip) ; iIntros "!>" (b1) ; destruct b1 eqn:hb1...
       + rel_apply_l refines_flip_l ; iIntros "!>" (b2) ; destruct b2 eqn:hb2...
         * rel_apply_l refines_flip_l ; iIntros "!>" (b3) ; destruct b3 eqn:hb3...
           -- iLöb as "H".
@@ -157,7 +159,7 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
           all: iLöb as "H" ; rel_rec_l ; iExact "H".
     - rel_apply_l refines_flip_l ; iIntros "!>" (b1) ; destruct b1 eqn:hb1...
       all: rel_apply_l refines_flip_l ; iIntros "!>" (b2) ; destruct b2 eqn:hb2...
-      all: rel_apply (refines_couple_flip_flip negb) ; iIntros (b3) ; destruct b3 eqn:hb3...
+      all: rel_apply (refines_couple_flip_flip negb) ; iIntros "!>" (b3) ; destruct b3 eqn:hb3...
       1,5: rel_values.
       all: iLöb as "H" ; rel_rec_l ; iExact "H".
   Qed.
@@ -169,19 +171,19 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
     rel_apply refines_flip_l.
     iIntros "!>" (b).
     rel_apply (refines_couple_flip_flip (if b then Datatypes.id else negb)).
-    iIntros (b').
+    iIntros "!>" (b').
     destruct b, b' => /=.
     all: rel_pures_l.
     all: rel_values.
     Unshelve. destruct b ; apply _.
   Qed.
 
-  (* We can however show this refinement where the result on the left only
+  (* We can also show this refinement where the result on the left only
   depends on the outcome of one flip. *)
   Goal ⊢ REL (let: "b" := flip in if: "b" = flip then "b" else "b") << flip : lrel_bool.
   Proof.
     rel_apply refines_couple_flip_flip.
-    iIntros (b).
+    iIntros "!>" (b).
     rel_pures_l.
     rel_apply_l refines_flip_l.
     iIntros "!>" (b').
@@ -196,6 +198,18 @@ vnc_div t4:      1  1  1  ⊥  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥  0  ⊥  ⊥  ⊥
     rel_apply_l refines_flip_l ; iIntros "!>" (b).
     destruct b ; rel_pures_l; rel_apply refines_couple_flip_flip;
       iIntros (?); rel_values. 
+  Qed.
+
+  (* A form of extensionality. *)
+  Goal forall e τ Γ,
+      ∅ ⊢ₜ e : τ →
+      ⊢ REL if: flip then e else e << e : interp τ Γ.
+  Proof.
+    intros.
+    rel_apply_l refines_flip_l ; iIntros (b').
+    destruct b' ; iModIntro ; rel_pures_l.
+    all: rel_apply_l refines_typed.
+    all: assumption.
   Qed.
 
 End proofs.
