@@ -96,15 +96,19 @@ Class clutch_group_struct :=
     { vunit : val
     ; vinv : val
     ; vmult : val
-    ; vexp : val
+    (* ; vexp : val *)
     ; int_of_vg : val
     ; vg_of_int : val
     ; τG : type
+    ; vunit_typed : val_typed vunit τG
     ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
-    ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty
+    (* ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty *)
     ; int_of_vg_typed : val_typed int_of_vg (τG → TInt)%ty
     ; vg_of_int_typed : val_typed vg_of_int (TInt → () + τG)%ty
     }.
+
+Definition vexp `{!clutch_group_struct} : val := λ:"a", rec: "vexp" "n" :=
+    if: "n" ≤ #0 then vunit else let: "x" := "vexp" ("n" - #1) in vmult "a" "x".
 
 Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
   := LRel (λ w1 w2, ∃ a : vg, ⌜ w1 = a ∧ w2 = a ⌝)%I.
@@ -131,23 +135,23 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
          → ⊢ REL vmult << vmult : B → B → B
 
        *)
-      TT : lrel Σ
-    ; TT_interp v1 v2 : ⊢ TT v1 v2 -∗ interp.interp τG [] v1 v2
-    ; TT_refl (x : vg) : ⊢ TT x x
+    (*   TT : lrel Σ *)
+    (* ; TT_interp v1 v2 : ⊢ TT v1 v2 -∗ interp.interp τG [] v1 v2 *)
+    (* ; TT_refl (x : vg) : ⊢ TT x x *)
 
     (* These two might not be needed if we only deal with fully applied
     expressions, since we can use is_mult / is_exp in those cases instead. *)
-    ; vmult_lrel_G : ⊢ (lrel_G → lrel_G → lrel_G)%lrel vmult vmult
-    ; vexp_lrel_G : ⊢ (lrel_G → interp.interp TInt [] → lrel_G)%lrel vexp vexp
+    (* ; vmult_lrel_G : ⊢ (lrel_G → lrel_G → lrel_G)%lrel vmult vmult *)
+    (* ; vexp_lrel_G : ⊢ (lrel_G → interp.interp TInt [] → lrel_G)%lrel vexp vexp *)
 
-    ; int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
+      int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
     ; vg_of_int_lrel_G : ⊢ (interp.interp TInt [] → (() + lrel_G))%lrel vg_of_int vg_of_int
 
     (* could add an assumption like
        lrel_G v1 v2 <-> (P v1 /\ P v2 /\ interp τG [] v1 v2)
      *)
 
-    ; vg_log_rel' v1 v2 : (⊢ (TT v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I
+    (* ; vg_log_rel' v1 v2 : (⊢ (TT v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I *)
     ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
     ; vall_typed : (∀ (x : vg), ⊢ᵥ x : τG)%ty
     (* this won't hold, the syntactic type says nothing about P. *)
@@ -159,13 +163,16 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
     ; is_mult (x y : vg) : {{{ True }}} vmult x y {{{ v, RET (v : val); ⌜v = (x * y)%g⌝ }}}
     ; is_spec_mult (x y : vg) K :
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
-    ; is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = b ^+ x⌝ }}}
-    ; is_spec_exp (b : vg) (x : nat) K :
-      refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)
+    (* ; is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = b ^+ x⌝ }}} *)
+    (* ; is_spec_exp (b : vg) (x : nat) K : *)
+    (*   refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x) *)
     }.
 
+#[export] Hint Extern 0 (val_typed vunit τG) => apply vunit_typed : core.
 #[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core.
 #[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
+Definition vexp_typed `{!clutch_group_struct} : val_typed vexp (τG → TInt → τG)%ty.
+Proof. unfold vexp ; tychk => //. Qed.
 #[export] Hint Extern 0 (val_typed vexp _) => apply vexp_typed : core.
 #[export] Hint Extern 0 (val_typed int_of_vg _) => apply int_of_vg_typed : core.
 #[export] Hint Extern 0 (val_typed vg_of_int _) => apply vg_of_int_typed : core.
@@ -196,8 +203,8 @@ Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
 
 
-Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty.
-Proof. intros. constructor. apply vmult_typed. Qed.
+(* Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty. *)
+(* Proof. intros. constructor. apply vmult_typed. Qed. *)
 
 Lemma refines_mult_l E K A (a b : G) t :
   (refines E (ectxi_language.fill K (Val (a * b)%g)) t A)
@@ -217,6 +224,47 @@ Proof.
   rel_apply_r refines_steps_r => //.
   iIntros (?).
   iApply is_spec_mult.
+Qed.
+
+Fact is_exp (b : vg) (x : nat) :
+  {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = (b ^+ x)%g⌝ }}}.
+Proof.
+  unfold vexp. iIntros (? _) "hlog".
+  wp_pure. wp_pure.
+  iInduction x as [|x] "IH" forall (Φ).
+  - wp_pures.
+    rewrite is_unit.
+    iApply ("hlog").
+    by rewrite expg0.
+  - do 4 wp_pure.
+    wp_bind ((rec: _ _ := _)%V _).
+    replace (S x - 1)%Z with (Z.of_nat x) by lia.
+    iApply "IH".
+    iIntros. wp_pures.
+    iApply is_mult => //.
+    iModIntro. iIntros. subst.
+    iApply "hlog".
+    by rewrite expgS.
+Qed.
+
+Fact is_spec_exp (b : vg) (x : nat) K :
+  refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)%g.
+Proof.
+  unfold vexp. iIntros "hlog".
+  tp_pure. tp_pure.
+  iInduction x as [|x] "IH" forall (K).
+  - tp_pures. rewrite is_unit.
+    iApply ("hlog").
+  - do 4 tp_pure.
+    tp_bind ((rec: _ _ := _)%V _).
+    replace (S x - 1)%Z with (Z.of_nat x) by lia.
+    rewrite refines_right_bind.
+    iSpecialize ("IH" with "hlog").
+    iMod "IH" as "IH".
+    rewrite -refines_right_bind => /=.
+    tp_pures.
+    rewrite is_spec_mult.
+    by rewrite expgS.
 Qed.
 
 Lemma refines_exp_l E K A (b : G) (p : nat) t :
@@ -258,6 +306,7 @@ Proof using.
   2: apply in_setT.
   by destruct (@eqtype.eqP _ [set: vg] (cycle g)).
 Qed.
+
 
 End facts.
 
