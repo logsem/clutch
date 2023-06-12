@@ -62,6 +62,18 @@ Proof.
   apply epsilon in Hdecex; done.
 Qed.
 
+Lemma make_decision_fun {A : Type} (P : A -> Prop) : (∀ a, Decision (P a)).
+Proof.
+  intros.
+  apply make_decision.
+Qed.
+
+Lemma make_decision_rel {A B : Type} (R : A -> B -> Prop) : (∀ a b, Decision (R a b)).
+Proof.
+  intros.
+  apply make_decision.
+Qed.
+
 Lemma NNP_P : ∀ P : Prop, ¬ ¬ P → P.
 Proof.
   intros P NNP.

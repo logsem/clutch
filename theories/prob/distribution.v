@@ -709,7 +709,7 @@ Section probabilities.
 
 End probabilities.
 
-Section probability_prop.
+Section prob_lemmas.
 
   Context `{Countable A, Countable B}.
 
@@ -806,8 +806,153 @@ Section probability_prop.
     - apply ex_seriesC_filter_bool_pos; auto.
   Qed.
 
-End probability_prop.
+End prob_lemmas.
 
+
+Section prop_probabilities.
+
+  Context `{Countable A, Countable B}.
+  Implicit Types μ d : distr A.
+
+
+  Program Definition probp (μ : distr A) (P : A → Prop) : R :=
+    SeriesC (λ a : A, if @bool_decide (P a) (make_decision (P a)) then μ a else 0).
+
+  Lemma probp_le_1 (μ : distr A) (P : A → Prop) :
+    probp μ P <= 1.
+  Proof.
+    apply (Rle_trans _ (SeriesC μ)); auto.
+    apply SeriesC_le; auto.
+    intro n.
+    case_bool_decide; split; auto; lra.
+  Qed.
+
+  Lemma probp_ge_0 (μ : distr A) (P : A -> Prop) :
+    0 <= probp μ P.
+  Proof.
+    apply SeriesC_ge_0'.
+    intro n.
+    case_bool_decide; auto; lra.
+  Qed.
+
+End prop_probabilities.
+
+
+Section probp_lemmas.
+
+  Context `{Countable A, Countable B}.
+
+  Lemma probp_dret_true (a : A) (P : A -> Prop) :
+    P a -> probp (dret a) P = 1.
+  Proof.
+    intro HP.
+    rewrite /probp/pmf/=/dret_pmf/=.
+    assert
+      (forall a0, (if @bool_decide (P a0) (make_decision (P a0)) then if bool_decide (a0 = a) then 1 else 0 else 0)
+      = (if bool_decide (a0 = a) then 1 else 0)) as Haux.
+    {
+      intro a0.
+      case_bool_decide as H1; case_bool_decide as H2; simplify_eq; auto.
+      destruct H1; auto.
+    }
+    setoid_rewrite Haux.
+    apply SeriesC_singleton.
+  Qed.
+
+
+  Lemma probp_dret_false (a : A) (P : A -> Prop) :
+    ¬ P a -> probp (dret a) P = 0.
+  Proof.
+    intro HP.
+    rewrite /probp/pmf/=/dret_pmf/=.
+    assert
+      (forall a0, (if @bool_decide (P a0) (make_decision (P a0)) then if bool_decide (a0 = a) then 1 else 0 else 0)
+      = 0) as Haux.
+    {
+      intro a0.
+      case_bool_decide as H1; auto.
+      case_bool_decide as H2; simplify_eq; auto.
+      done.
+    }
+    setoid_rewrite Haux.
+    apply SeriesC_0; auto.
+  Qed.
+
+
+  Lemma probp_dbind (μ : distr A) (f : A -> distr B) (P : B → Prop) :
+    probp (dbind f μ) P = SeriesC (λ a, μ a * probp (f a) P).
+  Proof.
+    rewrite /probp{1}/pmf/=/dbind_pmf/=.
+    assert (forall a,
+               (if @bool_decide (P a) (make_decision (P a)) then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
+               SeriesC (λ a0 : A, if @bool_decide (P a) (make_decision (P a)) then μ a0 * f a0 a else 0)) as Haux.
+    {
+      intro a.
+      case_bool_decide as H1; auto.
+      rewrite SeriesC_0; auto.
+    }
+    setoid_rewrite Haux.
+    rewrite <- (fubini_pos_seriesC (λ '(a, a0), if @bool_decide (P a) (make_decision (P a)) then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext; intro a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; intro b.
+      case_bool_decide; lra.
+    - intros b a.
+      case_bool_decide;  [ | lra].
+      apply Rmult_le_pos; auto.
+    - intro b.
+      apply (ex_seriesC_le _ μ); auto.
+      intro a; split.
+      + case_bool_decide; [ | lra].
+        apply Rmult_le_pos; auto.
+      + case_bool_decide; auto.
+        rewrite <- Rmult_1_r.
+        apply Rmult_le_compat_l; auto.
+    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
+      * intro b; split.
+        -- apply SeriesC_ge_0'.
+           intro; case_bool_decide; [ | lra].
+           apply Rmult_le_pos; auto.
+        -- apply SeriesC_le.
+           ++ intro a; split; case_bool_decide;
+                [apply Rmult_le_pos; auto | lra | lra | apply Rmult_le_pos; auto ].
+           ++ apply pmf_ex_seriesC_mult_fn.
+              exists 1; intro; split; auto.
+      * apply (pmf_ex_seriesC (dbind f μ)).
+  Qed.
+
+  Lemma union_bound_p (μ : distr A) (P Q : A -> Prop) :
+    probp μ (λ a, (P a) /\ (Q a)) <= probp μ P + probp μ Q.
+  Proof.
+    rewrite /probp.
+    rewrite <- SeriesC_plus.
+    - apply SeriesC_le.
+      + intro n.
+        pose proof (pmf_pos μ n).
+        do 3 case_bool_decide;
+        try lra; tauto.
+      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
+        * intro n.
+          pose proof (pmf_pos μ n).
+          do 2 case_bool_decide; try lra.
+        * apply ex_seriesC_scal_l; auto.
+    - apply ex_seriesC_filter_bool_pos; auto.
+    - apply ex_seriesC_filter_bool_pos; auto.
+  Qed.
+
+  Lemma probp_singleton (μ : distr A) (a : A) :
+    probp μ (λ a', (a' = a)) = μ a.
+  Proof.
+    rewrite /probp.
+    rewrite (SeriesC_ext _ (λ a0 : A, if bool_decide (a0 = a) then μ a else 0)); last first.
+    - intro a'.
+      case_bool_decide; simplify_eq.
+      + rewrite bool_decide_eq_true_2; auto.
+      + rewrite bool_decide_eq_false_2; auto.
+    - apply SeriesC_singleton.
+  Qed.
+
+End probp_lemmas.
 
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=

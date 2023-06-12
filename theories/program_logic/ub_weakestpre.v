@@ -15,8 +15,10 @@ Local Open Scope R.
 (** [irisGS] specifies the interface for the resource algebras implementing the
     [state] and [cfg] of a [language] [Λ]. For the purposes of defining the
     weakest precondition, we only need [irisGS] to give meaning to invariants,
-    and provide predicates describing valid states via [state_interp] and valid
-    specification configurations via [spec_interp]. *)
+    and provide predicates describing valid states via [state_interp].
+    Here [err_interp] is a resource tracking an upper bound on the probability of
+    error (i.e. terminating in a state that does not satisfy the postcondition)
+ *)
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
