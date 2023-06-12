@@ -97,31 +97,79 @@ Class clutch_group_struct :=
     ; vinv : val
     ; vmult : val
     ; vexp : val
+    ; int_of_vg : val
+    ; vg_of_int : val
     ; τG : type
     ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
     ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty
+    ; int_of_vg_typed : val_typed int_of_vg (τG → TInt)%ty
+    ; vg_of_int_typed : val_typed vg_of_int (TInt → () + τG)%ty
     }.
+
+Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
+  := LRel (λ w1 w2, ∃ a : vg, ⌜ w1 = a ∧ w2 = a ⌝)%I.
 
 (* Could push `{clutchRGS Σ} down to the Iris propositions, or move the
    syntactic typing info into the clutch_group_struct. *)
 Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    { τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
+    {
+      (* We want to prove statements such as
+         ∀ (x : vg), ⊢ REL x << x : T
+
+         ∀ (x : vg), ⊢ₜ x : τG
+
+         ∀ (v1 v2 : val), T v1 v2 → P v1 ∧ P v2
+
+         ⊢ᵥ vmult : τG → τG → τG
+
+         ⊢ REL vmult << vmult : T → T → T
+
+         Can we prove that
+         ⊢ A -∗ B
+         → ⊢ REL vmult << vmult : A → A → A
+         → ⊢ REL vmult << vmult : B → B → B
+
+       *)
+      TT : lrel Σ
+    ; TT_interp v1 v2 : ⊢ TT v1 v2 -∗ interp.interp τG [] v1 v2
+    ; TT_refl (x : vg) : ⊢ TT x x
+
+    (* These two might not be needed if we only deal with fully applied
+    expressions, since we can use is_mult / is_exp in those cases instead. *)
+    ; vmult_lrel_G : ⊢ (lrel_G → lrel_G → lrel_G)%lrel vmult vmult
+    ; vexp_lrel_G : ⊢ (lrel_G → interp.interp TInt [] → lrel_G)%lrel vexp vexp
+
+    ; int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
+    ; vg_of_int_lrel_G : ⊢ (interp.interp TInt [] → (() + lrel_G))%lrel vg_of_int vg_of_int
+
+    (* could add an assumption like
+       lrel_G v1 v2 <-> (P v1 /\ P v2 /\ interp τG [] v1 v2)
+     *)
+
+    ; vg_log_rel' v1 v2 : (⊢ (TT v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I
+    ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
     ; vall_typed : (∀ (x : vg), ⊢ᵥ x : τG)%ty
-    ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I
+    (* this won't hold, the syntactic type says nothing about P. *)
+    (* ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I *)
     ; is_unit : vunit = 1
     ; is_inv (x : vg) : {{{ True }}} vinv x {{{ v, RET (v : val); ⌜v = x^-1⌝ }}}
     ; is_spec_inv (x : vg) K :
       refines_right K (vinv x) ={⊤}=∗ refines_right K (x^-1)
     ; is_mult (x y : vg) : {{{ True }}} vmult x y {{{ v, RET (v : val); ⌜v = (x * y)%g⌝ }}}
     ; is_spec_mult (x y : vg) K :
-      refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)
+      refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
     ; is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = b ^+ x⌝ }}}
     ; is_spec_exp (b : vg) (x : nat) K :
+
       refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)
     }.
 
 #[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core.
+#[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
+#[export] Hint Extern 0 (val_typed vexp _) => apply vexp_typed : core.
+#[export] Hint Extern 0 (val_typed int_of_vg _) => apply int_of_vg_typed : core.
+#[export] Hint Extern 0 (val_typed vg_of_int _) => apply vg_of_int_typed : core.
 
 Definition vg_of_cg := λ {Σ HΣ} vg cg (G : @clutch_group Σ HΣ vg cg), vg.
 Coercion vg_of_cg : clutch_group >-> val_group.
@@ -148,7 +196,6 @@ Context {cg : clutch_group_struct}.
 Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
 
-#[local] Notation T := (interp.interp τG []).
 
 Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty.
 Proof. intros. constructor. apply vmult_typed. Qed.
@@ -161,6 +208,16 @@ Proof.
   rel_apply_l refines_wp_l.
   iApply (is_mult a b) => //.
   iModIntro ; iIntros (v) "->" => //.
+Qed.
+
+Lemma refines_mult_r E K A (a b : G) t :
+  (refines E t (ectxi_language.fill K (Val (a * b)%g)) A)
+    ⊢ refines E t (ectxi_language.fill K (vmult a b)) A.
+Proof.
+  iIntros "H".
+  rel_apply_r refines_steps_r => //.
+  iIntros (?).
+  iApply is_spec_mult.
 Qed.
 
 Lemma refines_exp_l E K A (b : G) (p : nat) t :
@@ -204,6 +261,29 @@ Proof using.
 Qed.
 
 End facts.
+
+(* fast tactics to simplify multiplications *)
+Tactic Notation "rel_mult_l" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ ?e _ _) =>
+      match e with
+      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+          rel_apply_l (refines_mult_l _ _ _ a b _) => //
+      | _ => fail "rel_mult_l: no vmult / v1 / v2 found"
+      end
+  | _ => fail "rel_mult_l: not proving a refinement"
+  end.
+
+Tactic Notation "rel_mult_r" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ _ ?e _) =>
+      match e with
+      | context[App (App (Val vmult) (Val ?a)) (Val ?b)] =>
+          rel_apply_r (refines_mult_r _ _ _ a b _) => //
+      | _ => fail "rel_mult_r: no vmult / v1 / v2 found"
+      end
+  | _ => fail "rel_mult_r: not proving a refinement"
+  end.
 
 (* fast tactics to simplify exponentials *)
 Tactic Notation "rel_exp_l" :=
