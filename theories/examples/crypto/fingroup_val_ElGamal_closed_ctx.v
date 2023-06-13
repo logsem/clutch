@@ -5,6 +5,7 @@ From clutch.examples.crypto Require Import
   mc_val_instances
   (* fingroup_val fingroup_val_example *)
   fingroup_val_inj fingroup_val_inj_example
+  fingroup_val_inj_example_Zp
   fingroup_val_ElGamal.
 
 
@@ -20,4 +21,9 @@ Set Default Proof Using "Type*".
 Definition EG5 :=
   (pk_ots_rnd_ddh (vg:=vg5) (cg:=cgs5) (G := λ Σ H, @cg5 Σ H) (cgg:=cgg5)).
 
-(* Print Assumptions EG5. *)
+#[local] Definition p := 2^82589933 - 1.
+
+Definition EG_p :=
+  (pk_ots_rnd_ddh (G := λ Σ H, @cg_p Σ H p) (cgg:=cgg_p p)).
+
+(* Print Assumptions EG_p. *)
