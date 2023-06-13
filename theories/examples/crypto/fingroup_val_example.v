@@ -93,7 +93,7 @@ Section Z5.
     lia.
   Qed.
 
-  Definition g5 : val_group.
+  Definition vg5 : val_group.
     unshelve econstructor.
     - exact p.
     - exact [:: mkP #0 ; mkP #1 ; mkP #2 ; mkP #3 ; mkP #4].
@@ -115,7 +115,7 @@ Section Z5.
     - intros x. rewrite zp_vt_C. f_equal.
       by rewrite mulVg.
   Defined.
-  Definition gg := mk_vg g5.
+  Definition gg := mk_vg vg5.
 
   Section test.
     Set Warnings "-notation-overridden,-ambiguous-paths".
@@ -146,7 +146,7 @@ Section Z5.
     Eval compute in val ((mulg (3 : z5) 3)%g : z5).
   End test.
 
-  Definition vunit5 := (val (1%g : g5)).
+  Definition vunit5 := (val (1%g : vg5)).
   Definition vmult5 := (λ:"a" "b",
               if: "a" = #0 then "b" else
                 if: "a" = #1 then
@@ -202,7 +202,7 @@ Section Z5.
     all: cbv ; tychk.
   Defined.
 
-  Fact Int_of_vg_lrel_G : ⊢ (lrel_G (vg:=g5) → interp TInt [::])%lrel
+  Fact Int_of_vg_lrel_G : ⊢ (lrel_G (vg:=vg5) → interp TInt [::])%lrel
                             int_of_vg
                             int_of_vg.
   Proof.
@@ -215,7 +215,7 @@ Section Z5.
     rel_values.
   Qed.
 
-  Fact Vg_of_int_lrel_G : ⊢ (interp TInt [::] → () + lrel_G (vg:=g5))%lrel vg_of_int
+  Fact Vg_of_int_lrel_G : ⊢ (interp TInt [::] → () + lrel_G (vg:=vg5))%lrel vg_of_int
                             vg_of_int.
   Proof.
     iModIntro.
@@ -244,7 +244,7 @@ Section Z5.
   Fact τG_closed' : ∀ Δ, interp τG Δ = interp τG [::].
   Proof. simpl. done. Qed.
 
-  Fact Vall_typed : ∀ x : g5, ⊢ᵥ x : τG.
+  Fact Vall_typed : ∀ x : vg5, ⊢ᵥ x : τG.
   Proof.
     intros. destruct x as [x i]. simpl.
     unfold P in i. simpl in i. unfold p in i.
@@ -252,7 +252,7 @@ Section Z5.
     destruct l ; inversion i. tychk.
   Qed.
 
-  Fact Is_unit : vunit = (1 : g5).
+  Fact Is_unit : vunit = (1 : vg5).
   Proof. by unfold vunit5. Qed.
 
   Fact X' : (forall v, (0 <= v)%Z /\ (v < 5)%Z → {v = 0} + {v = 1%Z} + {v = 2} + {v = 3} + {v = 4}).
@@ -269,7 +269,7 @@ Section Z5.
     - do 2 left; by right.
   Qed.
 
-  Fact X : (forall (v : g5), {vgval_as v = #0} + {vgval_as v = #1} + {vgval_as v = #2} + {vgval_as v = #3} + {vgval_as v = #4}).
+  Fact X : (forall (v : vg5), {vgval_as v = #0} + {vgval_as v = #1} + {vgval_as v = #2} + {vgval_as v = #3} + {vgval_as v = #4}).
   Proof.
     { intros []. unfold P in i; simpl in i ; unfold p in i.
       destruct x ; try (by inversion i).
@@ -286,8 +286,8 @@ Section Z5.
     }
   Qed.
 
-  Fact Is_inv : ∀ (x : g5) Φ,
-      True -∗ ▷ (∀ v : g5, ⌜v = x^-1⌝ -∗ Φ (v : prob_lang.val)) -∗ WP vinv x {{ v, Φ v }}.
+  Fact Is_inv : ∀ (x : vg5) Φ,
+      True -∗ ▷ (∀ v : vg5, ⌜v = x^-1⌝ -∗ Φ (v : prob_lang.val)) -∗ WP vinv x {{ v, Φ v }}.
   Proof.
       simpl. unfold vinv5.
       intros.
@@ -303,7 +303,7 @@ Section Z5.
           apply val_inj; by compute.
   Qed.
 
-  Fact Is_spec_inv : ∀ (x : g5) K, refines_right K (vinv x) ={⊤}=∗ refines_right K x^-1.
+  Fact Is_spec_inv : ∀ (x : vg5) K, refines_right K (vinv x) ={⊤}=∗ refines_right K x^-1.
   Proof.
     intros.
     simpl. unfold vinv5.
@@ -317,8 +317,8 @@ Section Z5.
       destruct x ; simpl in h ; by subst.
     Qed.
 
-  Fact Is_mult : ∀ (x y : g5) Φ, True
-      -∗ ▷ (∀ v : g5, ⌜v = (x * y)%g⌝ -∗ Φ (v : prob_lang.val))
+  Fact Is_mult : ∀ (x y : vg5) Φ, True
+      -∗ ▷ (∀ v : vg5, ⌜v = (x * y)%g⌝ -∗ Φ (v : prob_lang.val))
       -∗ WP vmult x y {{ v, Φ v }}.
   Proof.
       intros.
@@ -341,7 +341,7 @@ Section Z5.
         apply val_inj; by compute.
   Qed.
 
-  Fact Is_spec_mult : ∀ (x y : g5) K,
+  Fact Is_spec_mult : ∀ (x y : vg5) K,
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g.
   Proof.
     intros. iIntros "hlog".
@@ -364,12 +364,12 @@ Section Z5.
       assert (y = mkP vy) as -> by
         (apply val_inj; destruct y; by simpl);
       assert ((Val xy) = (Val
-                            (@vgval_s g5
-                               (@mulg (FinGroup.base (mk_vg g5)) (@mkP vx I) (@mkP vy I)))))
+                            (@vgval_s vg5
+                               (@mulg (FinGroup.base (mk_vg vg5)) (@mkP vx I) (@mkP vy I)))))
       as -> => //.
   Qed.
 
-  Definition cg5 : clutch_group (vg := g5) (cg := cgs5).
+  Definition cg5 : clutch_group (vg := vg5) (cg := cgs5).
     unshelve eapply (
         {| int_of_vg_lrel_G := Int_of_vg_lrel_G
         ; vg_of_int_lrel_G := Vg_of_int_lrel_G
@@ -383,15 +383,17 @@ Section Z5.
         |}).
   Defined.
 
-Definition cgg5 : clutch_group_generator (vg:=g5).
+Definition cgg5 : clutch_group_generator (vg:=vg5).
 Proof.
   unshelve econstructor.
   - exists #(fintype.nat_of_ord (Zp1 : z5)).
     simpl. compute. done.
-  - exact (Zp_trunc 5).
+  - exact (Zp_trunc (order (Zp1 : z5))).
   - simpl.
     pose proof (order_Zp1 4).
     unfold Zp_trunc. simpl.
+    rewrite ?H.
+    simpl.
     rewrite -{2}H.
     admit.
   - simpl.

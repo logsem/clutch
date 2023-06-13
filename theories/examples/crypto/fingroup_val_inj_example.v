@@ -12,7 +12,7 @@ From clutch.examples.crypto Require Import fingroup_val_inj.
 Local Open Scope group_scope.
 Import fingroup.fingroup.
 
-Let cval := prob_lang.val.
+#[local] Definition cval := prob_lang.val.
 
 Set Default Proof Using "Type*".
 Set Bullet Behavior "Strict Subproofs".
@@ -174,6 +174,7 @@ Section Z5.
   Qed.
 
   Fact Y : (forall (v : vgG), {v = inZp 0} + {v = inZp 1%nat} + {v = inZp 2} + {v = inZp 3} + {v = inZp 4}).
+  Proof.
     { intros []. unfold vgval_as. unfold vgval. simpl. unfold vgval5. simpl.
       assert (H : (0 <= m)%Z /\ (m < 5)%Z).
       { split. 1: lia.
@@ -184,28 +185,14 @@ Section Z5.
       repeat destruct s as [s|s].
       all: apply Nat2Z.inj in s.
       all: subst.
-    1: repeat left ; by apply val_inj.
-    all: unfold Zp_trunc ; simpl.
-    - do 3 left. right. by apply val_inj.
-    - do 2 left; right. by apply val_inj.
-    - left ; right. by apply val_inj.
-    - right. by apply val_inj.
+      1: repeat left ; by apply val_inj.
+      all: unfold Zp_trunc ; simpl.
+      - do 3 left. right. by apply val_inj.
+      - do 2 left; right. by apply val_inj.
+      - left ; right. by apply val_inj.
+      - right. by apply val_inj.
     }
-Qed.
-
-
-  (* Class PVAL (v : cval) := in_P : . *)
-  (* Fact P_PVAL (v : cval) : PVAL v -> p v. *)
-  (* Proof. rewrite /PVAL. move => h. exact h. Qed. *)
-  (* Definition mkP (v : cval) {h : PVAL v} : vt p. *)
-  (*   unfold PVAL in h. *)
-  (*   unshelve econstructor ; [exact v |]. *)
-  (*   by apply Is_true_eq_true in h. *)
-  (* Defined. *)
-
-  (* Hint Extern 4 (PVAL ?n) => *)
-  (*        (unfold P ; cbn ; exact I) *)
-  (*        : typeclass_instances. *)
+  Qed.
 
   Fact Is_inv : ∀ (x : vgG) Φ,
       True -∗ ▷ (∀ v : vgG, ⌜v = x^-1⌝ -∗ Φ (v : prob_lang.val)) -∗ WP vinv x {{ v, Φ v }}.

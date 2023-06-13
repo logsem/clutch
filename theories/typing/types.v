@@ -58,6 +58,7 @@ Global Instance SubstLemmas_typer : SubstLemmas type. derive. Qed.
 Definition binop_int_res_type (op : bin_op) : option type :=
   match op with
   | MultOp => Some TInt | PlusOp => Some TInt | MinusOp => Some TInt
+  | RemOp => Some TInt | QuotOp => Some TInt
   | EqOp => Some TBool | LeOp => Some TBool | LtOp => Some TBool
   | _ => None
   end.
