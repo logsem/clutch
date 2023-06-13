@@ -185,8 +185,8 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause.
-    rel_bind_ap e e' "IH" v v' "Hvv".
-    value_case. iExists _,_. eauto.
+    iApply refines_injl.
+    by iApply "IH".
   Qed.
 
   Lemma bin_log_related_injr Δ Γ e e' τ1 τ2 :
@@ -195,8 +195,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause.
-    rel_bind_ap e e' "IH" v v' "Hvv".
-    value_case. iExists _,_. eauto.
+    iApply refines_injr. by iApply "IH".
   Qed.
 
   Lemma bin_log_related_case Δ Γ e0 e1 e2 e0' e1' e2' τ1 τ2 τ3 :
