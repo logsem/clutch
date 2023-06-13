@@ -2,6 +2,7 @@
    Joy of Crypto". *)
 From clutch Require Import clutch.
 From clutch.examples.crypto Require Import mc_val_instances fingroup_val.
+(* From clutch.examples.crypto Require Import mc_val_instances fingroup_val_inj. *)
 From clutch.examples.crypto Require fingroup_val_ElGamal_bijection.
 
 From mathcomp Require ssrnat.
@@ -70,9 +71,8 @@ Definition DH_rnd : expr :=
     (g^^"a", (g^^"b", g^^"c")).
 
 
-(* TODO: return an option instead of looping since we want C to be PPT. *)
-Definition abort : expr := (rec: "f" "x" := "f" "x") #().
-Definition assert b : expr := if: b then #() else abort.
+Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
+  (at level 200, e1, e2 at level 200) : expr_scope.
 
 (* Public key OTS-CPA$ security (one-time secrecy chosen plaintext attack -
    real/random) is defined as the indistinguishability of pk_ots_rnd_real and
@@ -84,7 +84,7 @@ Definition pk_ots_rnd_real : expr :=
   let: "count" := ref #0 in
   let: "getpk" := λ:<>, "pk" in
   let: "query" := λ:"msg",
-      assert (!"count" = #0) ;;
+      assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       enc "pk" "msg"
   in
@@ -98,7 +98,7 @@ Definition pk_ots_rnd_rnd : expr :=
   let: "count" := ref #0 in
   let: "getpk" := λ:<>, "pk" in
   let: "query" := λ:"msg",
-      assert (!"count" = #0) ;;
+      assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       let: "b" := rnd #() in
       let: "x" := rnd #() in
@@ -122,7 +122,7 @@ Definition pk_ots_rnd_real_lbl : expr :=
   let: "count" := ref #0 in
   let: "getpk" := λ:<>, "pk" in
   let: "query" := λ:"msg",
-      assert (!"count" = #0) ;;
+      assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       let: "b" := rnd "β" in
       let: "B" := g^^"b" in
@@ -141,7 +141,7 @@ Definition pk_ots_rnd_1 : expr :=
   let: "count" := ref #0 in
   let: "getpk" := λ:<>, "A" in
   let: "query" := λ:"msg",
-      assert (!"count" = #0) ;;
+      assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       ("B", "msg" ** "C") in
   ("getpk", "query").
@@ -156,7 +156,7 @@ Definition pk_ots_rnd_2 : expr :=
   let: "count" := ref #0 in
   let: "getpk" := λ:<>, "A" in
   let: "query" := λ:"msg",
-      assert (!"count" = #0) ;;
+      assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       ("B", "msg" ** "C") in
   ("getpk", "query").
@@ -171,7 +171,7 @@ Definition C : list ectx_item :=
        let: "count" := ref #0 in
        let: "getpk" := λ: <>, "A" in
        let: "query" := λ: "msg",
-           assert (! "count" = #0);;
+           assert (!"count" = #0) ;;;
            "count" <- #1;; ("B", "msg" ** "C") in
        ("getpk", "query"))].
 
@@ -193,7 +193,7 @@ Definition pk_ots_rnd_4 : expr :=
   let: "count" := ref #0 in
   let: "getpk" := λ:<>, "A" in
   let: "query" := λ:"msg",
-      assert (!"count" = #0) ;;
+      assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       let: "b" := rnd "β" in
       let: "c" := rnd "γ" in
@@ -213,18 +213,6 @@ Definition pk_ots_rnd_4 : expr :=
 (* Since we need to know the value of msg, we cannot combine this game-hop with
    the previous one: in pk_ots_rnd_2, c is sampled before msg is known. *)
 
-
-(* A shorthand for constructing group elements from values. *)
-Class PVAL (v : val) := in_P : (P v).
-Definition mkG (v : val) {h : PVAL v} : G.
-Proof. exists v. by apply Is_true_eq_true in h. Defined.
-(* For concrete values of n, we can simply compute. *)
-Hint Extern 4 (PVAL ?n) => (unfold P ; cbn ; exact I) : typeclass_instances.
-
-Fact GP (x : G) : P x.
-Proof. destruct x => /=. auto. Qed.
-Local Hint Resolve GP : core.
-
 Definition pkN := nroot.@"pks".
 
 Local Tactic Notation "inv_prove" :=
@@ -236,8 +224,8 @@ Local Tactic Notation "inv_mk" constr(Pinv) constr(h) :=
 Local Tactic Notation "inv_cl" constr(h) :=
   iApply (refines_na_close with h) ; inv_prove.
 
-Fact all_typed' : ∀ x : val, @P vg x → ⊢ᵥ x : τ.
-Proof. intros x Px. assert (x = @mkG x Px) as -> => //. Qed.
+(* Fact all_typed' : ∀ x : val, @P vg x → ⊢ᵥ x : τ. *)
+(* Proof. intros x Px. assert (x = @mkG x Px) as -> => //. Qed. *)
 
 Lemma refines_get_pk (sk : fin (S n)) :
   ⊢ refines top
@@ -255,7 +243,7 @@ Proof with rel_pures_l ; rel_pures_r.
   (* iApply refines_typed ; constructor ; apply vall_typed. *)
 Qed.
 
-Let τEG := ((() → T) * (T → T * T))%lrel.
+Let τEG := ((() → T) * (T → () + T * T))%lrel.
 Let τDH := (() → (T * (T * T)))%lrel.
 
 Lemma pk_ots_rnd_real_real_lbl : ⊢ refines top pk_ots_rnd_real pk_ots_rnd_real_lbl τEG.
@@ -280,10 +268,10 @@ Proof with rel_pures.
     iIntros "!>" (b) "β"...
     rel_rand_r...
     inv_cl "[- $Hclose]".
+    iApply refines_injr.
     rel_apply refines_pair.
-    1: rel_values ; iApply TT_refl.
+    1: rel_values.
     iDestruct "Hv1v2" as "[%v [-> ->]]".
-    rel_bind_l (_ ** _)%E.
     (* iDestruct (vg_log_rel' with "Hv1v2") as "[%Pv1 %Pv2]". *)
     (* assert (v1 = @mkG v1 Pv1) as -> by auto. *)
     rel_apply refines_mult_l.
@@ -312,8 +300,7 @@ Proof with rel_pures.
     (*      iApply refines_typed ; apply mult_typed. *)
     (* } *)
     (* iApply refines_typed ; constructor ; apply vall_typed. *)
-  - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]".
-    iLöb as "H". rel_rec_l. iExact "H".
+  - rel_load_l ; rel_load_r... inv_cl "[- $Hclose]". rel_values. iExists _,_. auto.
 Qed.
 
 Lemma pk_ots_rnd_real_lbl_1 : ⊢ refines top pk_ots_rnd_real_lbl pk_ots_rnd_1 τEG.
@@ -338,6 +325,7 @@ Proof with rel_pures.
     inv_cl "[- $Hclose]".
     rel_pures_l. rel_exp_l. rel_pures_l.
     rel_pures_r.
+    iApply refines_injr.
     rel_apply refines_pair...
     1: rel_values.
     rewrite -expgM -ssrnat.multE.
@@ -353,7 +341,7 @@ Proof with rel_pures.
     (* iApply vmult_lrel_G. *)
     (* replace (T → T → T)%lrel with (interp (τ → τ → τ) []) => //. *)
     (* iApply refines_typed ; constructor ; apply vmult_typed. *)
-  - inv_cl "[- $Hclose]". iLöb as "H". rel_rec_l. iExact "H".
+  - inv_cl "[- $Hclose]".  rel_values. iExists _,_. auto.
 Qed.
 
 (* This assumption is too strong in this generality, since it does not mention
@@ -400,7 +388,9 @@ Proof with rel_pures.
   all: rel_load_l ; rel_load_r...
   - rel_store_l ; rel_store_r.
     inv_cl "[-$Hclose]".
-    rel_pures_l. rel_pures_r. rel_apply refines_pair...
+    rel_pures_l. rel_pures_r.
+    iApply refines_injr.
+    rel_apply refines_pair...
     all: rel_values.
 
     (* rel_apply (refines_app _ _ _ _ T) ; [|rel_values]. *)
@@ -412,7 +402,7 @@ Proof with rel_pures.
     (* rel_apply refines_mult_r... *)
     (* rel_values. *)
 
-  - inv_cl "[- $Hclose]". iLöb as "H". rel_rec_l. iExact "H".
+  - inv_cl "[- $Hclose]". rel_values. iExists _,_. auto.
 Qed.
 
 
@@ -434,9 +424,10 @@ Proof with rel_pures.
   iApply (refines_na_inv with "[$Hinv]"); [done|].
   iIntros "[>[(β'&γ'&cnt&cnt')|(cnt&cnt')] Hclose]".
   all: rel_load_l ; rel_load_r...
-  - rel_store_l ; rel_store_r...
-    do 2 rel_rand_r...
+  - rel_store_l ; rel_store_r.
+    do 2 rel_rand_r.
     inv_cl "[-$Hclose]".
+    iApply refines_injr...
     rel_values.
     iModIntro.
     iExists _,_,_,_.
@@ -454,7 +445,7 @@ Proof with rel_pures.
     (*      iApply refines_typed ; apply mult_typed. *)
     (* } *)
     (* iApply refines_typed ; constructor ; apply vall_typed. *)
-  - inv_cl "[- $Hclose]". iLöb as "H". rel_rec_l. iExact "H".
+  - inv_cl "[- $Hclose]". rel_values. iExists _,_. auto.
 Qed.
 
 Lemma pk_ots_rnd_4_rnd : ⊢ refines top pk_ots_rnd_4 pk_ots_rnd_rnd τEG.
@@ -492,6 +483,7 @@ Proof with rel_pures.
     inv_cl "[- $Hclose]". rel_pures_l ; rel_pures_r.
     (* Don't compute too much, the compatibility lemma doesn't apply to values... *)
     do 2 (rel_exp_l ; rel_exp_r ; rel_pures_l ; do 2 rel_pure_r).
+    iApply refines_injr.
     rel_apply refines_pair.
     (* 1: iApply refines_typed ; constructor ; apply vall_typed. *)
     1: rel_values.
@@ -504,7 +496,7 @@ Proof with rel_pures.
     pose proof (e := (expg_mod_order g (k_msg+c))).
     rewrite g_nontriv in e.
     symmetry in e. exact e.
-  - inv_cl "[-$Hclose]". iLöb as "H". rel_rec_l. iExact "H".
+  - inv_cl "[-$Hclose]". rel_values. iExists _,_. auto.
 Qed.
 
 End ElGamal.
@@ -517,7 +509,7 @@ Context {cg : clutch_group_struct}.
 Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
 
-Let τEG := ((() → lrel_G) * (lrel_G → lrel_G * lrel_G))%lrel.
+Let τEG := ((() → lrel_G) * (lrel_G → () + lrel_G * lrel_G))%lrel.
 Let τEG_ex := ((() → TInt) * (TInt → () + (TInt * TInt)))%ty.
 (* Let τDH := (() → (τG * (τG * τG)))%ty. *)
 
@@ -530,10 +522,13 @@ Definition D : expr :=
       match: "vmsg" with
       | NONE => NONE
       | SOME "msg'" =>
-          let: "BC" := Snd "getpk_query" "msg'" in
-          let: "B" := int_of_vg (Fst "BC") in
-          let: "C" := int_of_vg (Snd "BC") in
-          SOME ("B", "C")
+          let: "BCopt" := Snd "getpk_query" "msg'" in
+          match: "BCopt" with
+          | NONE => NONE
+          | SOME "BC" => let: "B" := int_of_vg (Fst "BC") in
+                         let: "C" := int_of_vg (Snd "BC") in
+                         SOME ("B", "C")
+          end
       end
   in ("getpk", "query").
 
@@ -565,7 +560,8 @@ Proof with rel_pures.
     rel_apply refines_app.
     2: iApply "hq" ; iExists _ ; eauto.
     rel_arrow_val.
-    iIntros (??) "#(%B1&%B2&%C1&%C2&->&->&HB&HC)"...
+    iIntros (??) "#(%CB1&%CB2&[(->&->&->&->)|(->&->&%B1&%B2&%C1&%C2&->&->&HB&HC)])" ;
+      [ rel_pures ; rel_values ; iExists _,_ ; eauto|]...
     rel_apply refines_app.
     2: by iApply int_of_vg_lrel_G.
     rel_arrow_val.
@@ -582,7 +578,7 @@ Proof with rel_pures.
 Qed.
 
 Lemma refines_D G1 G2 :
-  (⊢ refines top G1 G2 ((() → lrel_G) * (lrel_G → lrel_G * lrel_G))) →
+  (⊢ refines top G1 G2 τEG) →
   ⊢ refines top (D G1) (D G2) (interp τEG_ex []).
 Proof with rel_pures.
   intros H.
@@ -600,15 +596,15 @@ Context {cg : clutch_group_struct}.
 Context {G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
 
-Let τEG := ((() → TInt) * (TInt → () + (TInt * TInt)))%ty.
+Let τEG_ex := ((() → TInt) * (TInt → () + (TInt * TInt)))%ty.
 Let τDH := (() → (τG * (τG * τG)))%ty.
 
 Fact τEG_closed `{!clutchRGS Σ} :
-  ((() → lrel_int) * (lrel_int → () + lrel_int * lrel_int))%lrel = (interp τEG []).
+  ((() → lrel_int) * (lrel_int → () + lrel_int * lrel_int))%lrel = (interp τEG_ex []).
 Proof using. auto. Qed.
 
 Lemma ctx_pk_ots_rnd_real_real_lbl :
-  ∅ ⊨ D pk_ots_rnd_real ≤ctx≤ D pk_ots_rnd_real_lbl : τEG.
+  ∅ ⊨ D pk_ots_rnd_real ≤ctx≤ D pk_ots_rnd_real_lbl : τEG_ex.
 Proof.
   apply (refines_sound clutchRΣ). intros => /=.
   rewrite τEG_closed.
@@ -616,7 +612,7 @@ Proof.
 Qed.
 
 Lemma ctx_pk_ots_rnd_real_lbl_1 :
-  ∅ ⊨ D pk_ots_rnd_real_lbl ≤ctx≤ D (fill C DH_real) : τEG.
+  ∅ ⊨ D pk_ots_rnd_real_lbl ≤ctx≤ D (fill C DH_real) : τEG_ex.
 Proof.
   apply (refines_sound clutchRΣ). intros.
   rewrite -pk_ots_rnd_1_dh_real => /=.
@@ -625,7 +621,7 @@ Proof.
 Qed.
 
 Lemma pk_ots_rnd_real_ddh_real :
-  ∅ ⊨ D pk_ots_rnd_real ≤ctx≤ D (fill C DH_real) : τEG.
+  ∅ ⊨ D pk_ots_rnd_real ≤ctx≤ D (fill C DH_real) : τEG_ex.
 Proof.
   eapply ctx_refines_transitive.
   - apply: ctx_pk_ots_rnd_real_real_lbl.
@@ -633,7 +629,7 @@ Proof.
 Qed.
 
 Lemma ctx_pk_ots_rnd_2_4 :
-  ∅ ⊨ D (fill C DH_rnd) ≤ctx≤ D pk_ots_rnd_4 : τEG.
+  ∅ ⊨ D (fill C DH_rnd) ≤ctx≤ D pk_ots_rnd_4 : τEG_ex.
 Proof.
   apply (refines_sound clutchRΣ). intros.
   rewrite -pk_ots_rnd_2_dh_rnd => /=.
@@ -642,7 +638,7 @@ Proof.
 Qed.
 
 Lemma ctx_pk_ots_rnd_4_rnd :
-  ∅ ⊨ D pk_ots_rnd_4 ≤ctx≤ D pk_ots_rnd_rnd : τEG.
+  ∅ ⊨ D pk_ots_rnd_4 ≤ctx≤ D pk_ots_rnd_rnd : τEG_ex.
 Proof.
   apply (refines_sound clutchRΣ). intros => /=.
   rewrite τEG_closed.
@@ -650,7 +646,7 @@ Proof.
 Qed.
 
 Lemma pk_ots_rnd_rnd_ddh_rnd :
-  ∅ ⊨ D (fill C DH_rnd) ≤ctx≤ D pk_ots_rnd_rnd : τEG.
+  ∅ ⊨ D (fill C DH_rnd) ≤ctx≤ D pk_ots_rnd_rnd : τEG_ex.
 Proof.
   eapply ctx_refines_transitive.
   - apply: ctx_pk_ots_rnd_2_4.
@@ -659,7 +655,7 @@ Qed.
 Let D' := [CTX_AppR D].
 Lemma pk_ots_rnd_ddh_C :
   (∅ ⊨ DH_real ≤ctx≤ DH_rnd : τDH) →
-  (∅ ⊨ D (fill C DH_real) ≤ctx≤ D (fill C DH_rnd) : τEG).
+  (∅ ⊨ D (fill C DH_real) ≤ctx≤ D (fill C DH_rnd) : τEG_ex).
 Proof.
   replace (fill C DH_real) with (fill_ctx C' DH_real) ; auto ;
     replace (fill C DH_rnd) with (fill_ctx C' DH_rnd) => //.
@@ -668,7 +664,7 @@ Proof.
   intros DDH.
   eapply ctx_refines_congruence.
   2: apply DDH.
-  unfold D', D, C', τDH, τEG, assert, abort.
+  unfold D', D, C', τDH, τEG_ex.
   simpl.
   tychk.
   all: auto.
@@ -676,7 +672,7 @@ Qed.
 
 Lemma pk_ots_rnd_ddh :
   (∅ ⊨ DH_real ≤ctx≤ DH_rnd : τDH) →
-  (∅ ⊨ D pk_ots_rnd_real ≤ctx≤ D pk_ots_rnd_rnd : τEG).
+  (∅ ⊨ D pk_ots_rnd_real ≤ctx≤ D pk_ots_rnd_rnd : τEG_ex).
 Proof.
   intros DDH.
   eapply ctx_refines_transitive.
@@ -688,19 +684,19 @@ Qed.
 
 (*
 Definition DDH :=
-            ∅ ⊨_{#|g|} DH_rnd =ctx= DH_real : τEG.
+            ∅ ⊨_{#|g|} DH_rnd =ctx= DH_real : τEG_ex.
 
-            ∅ ⊨_ε({#|g|}) DH_rnd =ctx= DH_real : τEG.
+            ∅ ⊨_ε({#|g|}) DH_rnd =ctx= DH_real : τEG_ex.
 
 
-            ∅ ⊨_{#|g|} C [DH_rnd] =ctx= C [DH_real] : τEG.
+            ∅ ⊨_{#|g|} C [DH_rnd] =ctx= C [DH_real] : τEG_ex.
 
 
 Fact PPT_C : @PPT #|g| C.
 
 Theorem Ctx_PPT_congr : PPT n C →
             ∅ ⊨_n e1 =ctx= e2 : τEG →
-            ∅ ⊨_n C [e1] =ctx= C [e2] : τEG.
+            ∅ ⊨_n C [e1] =ctx= C [e2] : τEG_ex.
 *)
 
 End Ctx.
