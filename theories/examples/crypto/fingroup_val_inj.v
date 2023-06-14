@@ -19,86 +19,28 @@ From deriving Require Import instances.
 
 Local Open Scope group_scope.
 Import fingroup.fingroup.
-Import prob_lang.
-
-Section val_group.
-  (* A decidable predicate on values. *)
-  Variable P : {pred val}.
-  (* The subtype of values satisfying P. *)
-  Definition vt := sig_subType P.
-  (* An enumeration of [vt]... *)
-  Variable e : seq vt.
-  (* ...in which every element of [vt] appears exactly once. *)
-  Variable h_enum : Finite.axiom e.
-
-  Definition vt_finMixin := FinMixin h_enum.
-  Canonical vt_finType := Eval hnf in FinType vt vt_finMixin.
-  (* Not sure why it doesn't find the finType instance vt_finType. *)
-  (* Fail Check [finType of vt]. *)
-
-  Canonical vt_subFinType : subFinType P :=
-    Eval hnf in SubFinType (T:=val_choiceType) (subFin_sort:=vt) vt_finMixin.
-
-  (* Now it works. Oh well. *)
-  (* Check [finType of vt]. *)
-
-  (* Check {set vt}. *)
-  (* Check (@FinGroup.PackBase vt). *)
-  (* Check (@FinGroup.mixin_of vt). *)
-  (* Check phant (@sub_sort val (fun x : val => P x) vt). *)
-  (* Check phant (FinGroup.arg_sort (FinGroup.base _)). *)
-  (* Let's spell out the details of assuming we have a group structure. *)
-  (* Variable vt_finGroupMixin : FinGroup.mixin_of vt. *)
-
-  Variables (one : vt) (mul : vt -> vt -> vt) (inv : vt -> vt).
-
-  Hypothesis mulA : ssrfun.associative mul.
-  Hypothesis mul1 : ssrfun.left_id one mul.
-  Hypothesis mulV : ssrfun.left_inverse one inv mul.
-
-  Canonical vg_BaseFinGroupType := BaseFinGroupType _ (FinGroup.Mixin mulA mul1 mulV).
-  Canonical vg_finGroup : finGroupType := FinGroupType mulV.
-
-  (* Canonical vg := Eval hnf in BaseFinGroupType _ vt_finGroupMixin. *)
-End val_group.
+Local Notation "'cval'" := (prob_lang.val).
 
 Class val_group :=
-  Val_group { P : {pred val}
-            ; val_group_enum : seq (vt P)
-            ; val_group_finite_axiom : Finite.axiom val_group_enum
-            ; vgone : vt P
-            ; vgmul : vt P -> vt P -> vt P
-            ; vginv : vt P -> vt P
-            ; val_group_associative : ssrfun.associative vgmul
-            ; val_group_left_id : ssrfun.left_id vgone vgmul
-            ; val_group_left_inverse : ssrfun.left_inverse vgone vginv vgmul
-    }.
-
-Coercion mk_vg (vg : val_group) : finGroupType :=
-  vg_finGroup _ _ (@val_group_finite_axiom vg) _ _ _
-    (@val_group_associative vg) (@val_group_left_id vg) (@val_group_left_inverse vg).
-
-(* While this commented-out declaration does not trigger a "nonuniform
-   inheritance" warning, it unfortunately seems useless, i.e. it does not
-   coerce from val_group to val. *)
-(* Definition vgval := λ {vg : val_group} (x : vg), `x : val.
-   Coercion vgval : val_group >-> Funclass. *)
+  Val_group { vgG :> finGroupType
+            ; vgval :> vgG → cval
+            ; vgval_inj : Inj eq eq vgval }.
 
 (* Both of the below seem necessary since there is a subtle difference in the
    domain type DOM, despite DOM being to {x : val | P x} in both cases. *)
 #[nonuniform] Coercion vgval_as {vg : val_group}
-  (x : FinGroup.arg_sort (FinGroup.base (mk_vg vg))) : val := `x.
+  (x : FinGroup.arg_sort (FinGroup.base vgG)) : cval := vgval x.
 #[nonuniform] Coercion vgval_s {vg : val_group}
-  (x : FinGroup.sort (FinGroup.base (mk_vg vg))) : val := `x.
+  (x : FinGroup.sort (FinGroup.base vgG)) : cval := vgval x.
 
 Class clutch_group_struct :=
   Clutch_group_struct
-    { vunit : val
-    ; vinv : val
-    ; vmult : val
+    { vunit : cval
+    ; vinv : cval
+    ; vmult : cval
     (* ; vexp : val *)
-    ; int_of_vg : val
-    ; vg_of_int : val
+    ; int_of_vg : cval
+    ; vg_of_int : cval
     ; τG : type
     ; vunit_typed : val_typed vunit τG
     ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
@@ -107,11 +49,11 @@ Class clutch_group_struct :=
     ; vg_of_int_typed : val_typed vg_of_int (TInt → () + τG)%ty
     }.
 
-Definition vexp `{!clutch_group_struct} : val := λ:"a", rec: "vexp" "n" :=
+Definition vexp `{!clutch_group_struct} : cval := λ:"a", rec: "vexp" "n" :=
     if: "n" ≤ #0 then vunit else let: "x" := "vexp" ("n" - #1) in vmult "a" "x".
 
 Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
-  := LRel (λ w1 w2, ∃ a : vg, ⌜ w1 = a ∧ w2 = a ⌝)%I.
+  := LRel (λ w1 w2, ∃ a : vgG, ⌜ w1 = a ∧ w2 = a ⌝)%I.
 
 (* Could push `{clutchRGS Σ} down to the Iris propositions, or move the
    syntactic typing info into the clutch_group_struct. *)
@@ -153,15 +95,15 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
 
     (* ; vg_log_rel' v1 v2 : (⊢ (TT v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I *)
     ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
-    ; vall_typed : (∀ (x : vg), ⊢ᵥ x : τG)%ty
+    ; vall_typed : (∀ (x : vgG), ⊢ᵥ x : τG)%ty
     (* this won't hold, the syntactic type says nothing about P. *)
     (* ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I *)
     ; is_unit : vunit = 1
-    ; is_inv (x : vg) : {{{ True }}} vinv x {{{ v, RET (v : val); ⌜v = x^-1⌝ }}}
-    ; is_spec_inv (x : vg) K :
+    ; is_inv (x : vgG) : {{{ True }}} vinv x {{{ v, RET (v : cval); ⌜v = x^-1⌝ }}}
+    ; is_spec_inv (x : vgG) K :
       refines_right K (vinv x) ={⊤}=∗ refines_right K (x^-1)
-    ; is_mult (x y : vg) : {{{ True }}} vmult x y {{{ v, RET (v : val); ⌜v = (x * y)%g⌝ }}}
-    ; is_spec_mult (x y : vg) K :
+    ; is_mult (x y : vgG) : {{{ True }}} vmult x y {{{ v, RET (v : cval); ⌜v = (x * y)%g⌝ }}}
+    ; is_spec_mult (x y : vgG) K :
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
     (* ; is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = b ^+ x⌝ }}} *)
     (* ; is_spec_exp (b : vg) (x : nat) K : *)
@@ -185,10 +127,10 @@ Coercion vg_of_cg : clutch_group >-> val_group.
    mathcomp's 'Z_p type of integers modulo p (taking p := #[g]). *)
 Class clutch_group_generator {vg : val_group} :=
   Clutch_group_generator
-    { g : vg
+    { g : vgG
     ; n'' : nat
     ; g_nontriv : #[g] = S (S n'')
-    ; g_generator : generator [set: vg] g
+    ; g_generator : generator [set: vgG] g
     }.
 
 Set Default Proof Using "Type*".
@@ -206,7 +148,7 @@ Context {cgg : @clutch_group_generator vg}.
 (* Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty. *)
 (* Proof. intros. constructor. apply vmult_typed. Qed. *)
 
-Lemma refines_mult_l E K A (a b : G) t :
+Lemma refines_mult_l E K A (a b : vgG) t :
   (refines E (ectxi_language.fill K (Val (a * b)%g)) t A)
     ⊢ refines E (ectxi_language.fill K (vmult a b)) t A.
 Proof.
@@ -216,7 +158,7 @@ Proof.
   iModIntro ; iIntros (v) "->" => //.
 Qed.
 
-Lemma refines_mult_r E K A (a b : G) t :
+Lemma refines_mult_r E K A (a b : vgG) t :
   (refines E t (ectxi_language.fill K (Val (a * b)%g)) A)
     ⊢ refines E t (ectxi_language.fill K (vmult a b)) A.
 Proof.
@@ -226,8 +168,8 @@ Proof.
   iApply is_spec_mult.
 Qed.
 
-Fact is_exp (b : vg) (x : nat) :
-  {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = (b ^+ x)%g⌝ }}}.
+Fact is_exp (b : vgG) (x : nat) :
+  {{{ True }}} vexp b #x {{{ v, RET (v : cval); ⌜v = (b ^+ x)%g⌝ }}}.
 Proof.
   unfold vexp. iIntros (? _) "hlog".
   wp_pure. wp_pure.
@@ -247,7 +189,7 @@ Proof.
     by rewrite expgS.
 Qed.
 
-Fact is_spec_exp (b : vg) (x : nat) K :
+Fact is_spec_exp (b : vgG) (x : nat) K :
   refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)%g.
 Proof.
   unfold vexp. iIntros "hlog".
@@ -267,7 +209,7 @@ Proof.
     by rewrite expgS.
 Qed.
 
-Lemma refines_exp_l E K A (b : G) (p : nat) t :
+Lemma refines_exp_l E K A (b : vgG) (p : nat) t :
   (refines E (ectxi_language.fill K (Val (b ^+ p)%g)) t A)
     ⊢ refines E (ectxi_language.fill K (vexp b #p)) t A.
 Proof.
@@ -277,7 +219,7 @@ Proof.
   iModIntro ; iIntros (v) "->" => //.
 Qed.
 
-Lemma refines_exp_r E K A (b : G) (p : nat) t :
+Lemma refines_exp_r E K A (b : vgG) (p : nat) t :
   (refines E t (ectxi_language.fill K (Val (b ^+ p)%g)) A)
     ⊢ refines E t (ectxi_language.fill K (vexp b #p)) A.
 Proof.
@@ -288,12 +230,12 @@ Proof.
 Qed.
 
 Lemma log_g
-  : ∀ v : vg, ∃ k : fin (S (S n'')), (v = g^+k)%g.
+  : ∀ v : vgG, ∃ k : fin (S (S n'')), (v = g^+k)%g.
 Proof using.
   pose proof g_nontriv.
   pose proof g_generator.
   unfold generator in *.
-  intros v ; destruct (@cyclePmin vg g v).
+  intros v ; destruct (@cyclePmin vgG g v).
   2: {
     assert (hx : x < #[g]%g) by by apply /ssrnat.leP.
     rewrite g_nontriv in hx.
@@ -302,9 +244,9 @@ Proof using.
     rewrite fin_to_nat_to_fin.
     reflexivity.
   }
-  assert ([set: vg] = cycle g)%g as <-.
+  assert ([set: vgG] = cycle g)%g as <-.
   2: apply in_setT.
-  by destruct (@eqtype.eqP _ [set: vg] (cycle g)).
+  by destruct (@eqtype.eqP _ [set: vgG] (cycle g)).
 Qed.
 
 

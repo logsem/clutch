@@ -30,6 +30,26 @@ Section compatibility.
     iExists _, _, _, _; eauto.
   Qed.
 
+  Lemma refines_injl e e' τ1 τ2 :
+    (REL e << e' : τ1) -∗
+    REL InjL e << InjL e' : τ1 + τ2.
+  Proof.
+    iIntros "IH".
+    rel_bind_ap e e' "IH" v v' "Hvv".
+    value_case.
+    iExists _,_ ; eauto.
+  Qed.
+
+  Lemma refines_injr e e' τ1 τ2 :
+    (REL e << e' : τ2) -∗
+    REL InjR e << InjR e' : τ1 + τ2.
+  Proof.
+    iIntros "IH".
+    rel_bind_ap e e' "IH" v v' "Hvv".
+    value_case.
+    iExists _,_ ; eauto.
+  Qed.
+
   Lemma refines_app e1 e2 e1' e2' A B :
     (REL e1 << e1' : A → B) -∗
     (REL e2 << e2' : A) -∗
