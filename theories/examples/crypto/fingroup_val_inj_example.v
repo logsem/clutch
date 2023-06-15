@@ -136,12 +136,6 @@ Section Z5.
   Fact τG_closed' : ∀ Δ, interp τG Δ = interp τG [::].
   Proof. simpl. done. Qed.
 
-  Fact Vall_typed : ∀ x : vgG, ⊢ᵥ x : τG.
-  Proof.
-    intros []. unfold vgval_as, vgval. simpl. unfold vgval5. simpl.
-    tychk.
-  Qed.
-
   Fact Is_unit : vunit = (1 : vgG).
   Proof. by unfold vunit5. Qed.
 
@@ -277,7 +271,6 @@ Section Z5.
         {| int_of_vg_lrel_G := Int_of_vg_lrel_G
         ; vg_of_int_lrel_G := Vg_of_int_lrel_G
         ; τG_closed := τG_closed'
-        ; vall_typed := Vall_typed
         ; is_unit := Is_unit
         ; is_inv := Is_inv
         ; is_mult := Is_mult

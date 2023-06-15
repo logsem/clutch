@@ -102,12 +102,6 @@ Section Z_p.
   Fact τG_closed_p : ∀ Δ, interp τG Δ = interp τG [::].
   Proof. simpl. done. Qed.
 
-  Fact vall_typed_p : ∀ x : vgG, ⊢ᵥ x : τG.
-  Proof.
-    intros []. unfold vgval_as, vgval. simpl. unfold vgval_p. simpl.
-    tychk.
-  Qed.
-
   Fact is_unit_p : vunit = (1 : vgG).
   Proof. by unfold vunit_p. Qed.
 
@@ -293,7 +287,6 @@ Section Z_p.
         {| int_of_vg_lrel_G := int_of_vg_lrel_G_p
         ; vg_of_int_lrel_G := vg_of_int_lrel_G_p
         ; τG_closed := τG_closed_p
-        ; vall_typed := vall_typed_p
         ; is_unit := is_unit_p
         ; is_inv := is_inv_p
         ; is_mult := is_mult_p

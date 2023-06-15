@@ -38,13 +38,11 @@ Class clutch_group_struct :=
     { vunit : cval
     ; vinv : cval
     ; vmult : cval
-    (* ; vexp : val *)
     ; int_of_vg : cval
     ; vg_of_int : cval
     ; τG : type
     ; vunit_typed : val_typed vunit τG
     ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
-    (* ; vexp_typed : val_typed vexp (τG → TInt → τG)%ty *)
     ; int_of_vg_typed : val_typed int_of_vg (τG → TInt)%ty
     ; vg_of_int_typed : val_typed vg_of_int (TInt → () + τG)%ty
     }.
@@ -59,45 +57,10 @@ Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
    syntactic typing info into the clutch_group_struct. *)
 Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    {
-      (* We want to prove statements such as
-         ∀ (x : vg), ⊢ REL x << x : T
-
-         ∀ (x : vg), ⊢ₜ x : τG
-
-         ∀ (v1 v2 : val), T v1 v2 → P v1 ∧ P v2
-
-         ⊢ᵥ vmult : τG → τG → τG
-
-         ⊢ REL vmult << vmult : T → T → T
-
-         Can we prove that
-         ⊢ A -∗ B
-         → ⊢ REL vmult << vmult : A → A → A
-         → ⊢ REL vmult << vmult : B → B → B
-
-       *)
-    (*   TT : lrel Σ *)
-    (* ; TT_interp v1 v2 : ⊢ TT v1 v2 -∗ interp.interp τG [] v1 v2 *)
-    (* ; TT_refl (x : vg) : ⊢ TT x x *)
-
-    (* These two might not be needed if we only deal with fully applied
-    expressions, since we can use is_mult / is_exp in those cases instead. *)
-    (* ; vmult_lrel_G : ⊢ (lrel_G → lrel_G → lrel_G)%lrel vmult vmult *)
-    (* ; vexp_lrel_G : ⊢ (lrel_G → interp.interp TInt [] → lrel_G)%lrel vexp vexp *)
-
-      int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
+    { int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
     ; vg_of_int_lrel_G : ⊢ (interp.interp TInt [] → (() + lrel_G))%lrel vg_of_int vg_of_int
-
-    (* could add an assumption like
-       lrel_G v1 v2 <-> (P v1 /\ P v2 /\ interp τG [] v1 v2)
-     *)
-
-    (* ; vg_log_rel' v1 v2 : (⊢ (TT v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I *)
     ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
-    ; vall_typed : (∀ (x : vgG), ⊢ᵥ x : τG)%ty
-    (* this won't hold, the syntactic type says nothing about P. *)
-    (* ; vg_log_rel v1 v2 : (⊢ (interp.interp τG [] v1 v2) -∗ ⌜ P v1 /\ P v2 ⌝)%I *)
+    (* ; vall_typed : (∀ (x : vgG), ⊢ᵥ x : τG)%ty *)
     ; is_unit : vunit = 1
     ; is_inv (x : vgG) : {{{ True }}} vinv x {{{ v, RET (v : cval); ⌜v = x^-1⌝ }}}
     ; is_spec_inv (x : vgG) K :
@@ -105,13 +68,10 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
     ; is_mult (x y : vgG) : {{{ True }}} vmult x y {{{ v, RET (v : cval); ⌜v = (x * y)%g⌝ }}}
     ; is_spec_mult (x y : vgG) K :
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
-    (* ; is_exp (b : vg) (x : nat) : {{{ True }}} vexp b #x {{{ v, RET (v : val); ⌜v = b ^+ x⌝ }}} *)
-    (* ; is_spec_exp (b : vg) (x : nat) K : *)
-    (*   refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x) *)
     }.
 
 #[export] Hint Extern 0 (val_typed vunit τG) => apply vunit_typed : core.
-#[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core.
+(* #[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core. *)
 #[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
 Definition vexp_typed `{!clutch_group_struct} : val_typed vexp (τG → TInt → τG)%ty.
 Proof. unfold vexp ; tychk => //. Qed.
