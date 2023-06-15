@@ -89,7 +89,7 @@ Section adequacy.
     (|={∅}▷=>^(S n) P) ⊣⊢ |={∅}▷=> |={∅}▷=>^n P.
   Proof. done. Qed.
 
-  Local Lemma rwp_mc_final φ :
+  #[local] Lemma rwp_mc_final φ :
     ∀ e E Φ,
       RWP e @ E ⟨⟨ Φ ⟩⟩ -∗
       ∀ σ a,
@@ -125,7 +125,7 @@ Section adequacy.
         rewrite mc_final_is_final // in Hs. lra.
   Qed.
 
-  Local Lemma rwp_mc_not_final (φ : val → A → Prop) n :
+  #[local] Lemma rwp_mc_not_final (φ : val → A → Prop) n :
     ∀ e E Φ,
       RWP e @ E ⟨⟨ Φ ⟩⟩ -∗
       ∀ σ a,
@@ -133,9 +133,9 @@ Section adequacy.
         (∀ v, Φ v -∗ ∃ a', spec_frag a' ∗ ⌜mc_final a'⌝ ∗ ⌜φ v a'⌝) ∗
         (□ (∀ (e' : expr) (σ' : state) (a' : A),
                state_interp σ' ∗ spec_auth a' ∗ RWP e' @ E ⟨⟨ Φ ⟩⟩ ={E,∅}=∗
-               |={∅}▷=>^n ⌜mc_exec n a' ≾ lim_exec_val (e', σ') : flip φ⌝)) ∗
+               |={∅}▷=>^n ⌜lim_exec_val (e', σ') ≿ mc_exec n a' : φ⌝)) ∗
         state_interp σ ∗ spec_auth a -∗
-      |={E,∅}=> |={∅}▷=>^(S n) ⌜mc_exec (S n) a ≾ lim_exec_val (e, σ) : flip φ⌝.
+      |={E,∅}=> |={∅}▷=>^(S n) ⌜lim_exec_val (e, σ) ≿ mc_exec (S n) a : φ⌝.
   Proof.
     iApply rwp_strong_ind; [solve_proper|].
     iIntros "!#" (e E Φ) "Hrwp".
@@ -178,7 +178,7 @@ Section adequacy.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : A) (n : nat) (φ : val → A → Prop)  :
-    state_interp σ ∗ spec_auth a ∗ RWP e ⟨⟨ v, ∃ (a : A), spec_frag a ∗ ⌜mc_final a⌝ ∗ ⌜φ v a⌝ ⟩⟩ ⊢
+    state_interp σ ∗ spec_auth a ∗ RWP e ⟨⟨ v, ∃ a', spec_frag a' ∗ ⌜mc_final a'⌝ ∗ ⌜φ v a'⌝ ⟩⟩ ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec_val (e, σ) ≿ mc_exec n a : φ⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ a).
