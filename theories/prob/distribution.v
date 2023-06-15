@@ -1518,6 +1518,24 @@ Section marginals.
     { extensionality b. by destruct b. }
     done.
   Qed.
+  
+  Lemma lmarg_dcomm (μ : distr (A * B)) :
+    lmarg (dcomm μ) = rmarg μ.
+  Proof.
+    rewrite /lmarg /dcomm dmap_comp.
+    assert ((fst ∘ (λ '(a, b), (b : B, a : A))) = snd) as ->.
+    { apply functional_extensionality. by intros []. }
+    done.
+  Qed.
+
+  Lemma rmarg_dcomm (μ : distr (A * B)) :
+    rmarg (dcomm μ) = lmarg μ.
+  Proof.
+    rewrite /rmarg /dcomm dmap_comp.
+    assert ((snd ∘ (λ '(a, b), (b : B, a : A))) = fst) as ->.
+    { apply functional_extensionality. by intros []. }
+    done.
+  Qed.   
 
   Lemma rmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (b : B) :
     rmarg (dprod μ1 μ2) b = μ2 b * SeriesC μ1.

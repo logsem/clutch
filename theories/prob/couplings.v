@@ -585,6 +585,22 @@ Section refRcoupl.
     intro. rewrite HμR; lra.
   Qed.
 
+  Lemma Rcoupl_refRcoupl' (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+    Rcoupl μ1 μ2 R → refRcoupl μ2 μ1 (flip R).
+  Proof.
+    rewrite /refRcoupl /Rcoupl.
+    intros (μ & ((HμL & HμR) & HμSupp)).
+    exists (dcomm μ).
+    split; last first.
+    { intros [b a] [[? ?] [[= <- <-] ?]]%dmap_pos=>/=.      
+      by eapply (HμSupp (_, _)). }
+    split.
+    { rewrite lmarg_dcomm //. }
+    intros a.
+    rewrite rmarg_dcomm.
+    rewrite HμL //. 
+  Qed.
+
   Lemma refRcoupl_dret a b (R : A → B → Prop) :
     R a b → refRcoupl (dret a) (dret b) R.
   Proof.

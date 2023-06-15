@@ -708,6 +708,14 @@ Qed.
       f_equal. by eapply exec_exec_val_det_neg.
   Qed.
 
+  Lemma lim_exec_val_val e σ v :
+    to_val e = Some v →
+    lim_exec_val (e, σ) = dret v.
+  Proof. 
+    intros. erewrite (lim_exec_val_exec_det 0%nat); [done|]. 
+    rewrite exec_O. erewrite of_to_val; [|done]. by apply dret_1_1.
+  Qed. 
+    
   Lemma lim_exec_val_continous ρ1 v r :
     (∀ n, exec_val n ρ1 v <= r) → lim_exec_val ρ1 v <= r.
   Proof.
