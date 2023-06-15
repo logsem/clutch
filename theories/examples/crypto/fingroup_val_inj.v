@@ -108,6 +108,26 @@ Context {cgg : @clutch_group_generator vg}.
 (* Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty. *)
 (* Proof. intros. constructor. apply vmult_typed. Qed. *)
 
+Lemma refines_inv_l E K A (a : vgG) t :
+  (refines E (ectxi_language.fill K (Val (a^-1)%g)) t A)
+    ⊢ refines E (ectxi_language.fill K (vinv a)) t A.
+Proof.
+  iIntros "H".
+  rel_apply_l refines_wp_l.
+  iApply (is_inv a) => //.
+  iModIntro ; iIntros (v) "->" => //.
+Qed.
+
+Lemma refines_inv_r E K A (a : vgG) t :
+  (refines E t (ectxi_language.fill K (Val (a^-1)%g)) A)
+    ⊢ refines E t (ectxi_language.fill K (vinv a)) A.
+Proof.
+  iIntros "H".
+  rel_apply_r refines_steps_r => //.
+  iIntros (?).
+  iApply is_spec_inv.
+Qed.
+
 Lemma refines_mult_l E K A (a b : vgG) t :
   (refines E (ectxi_language.fill K (Val (a * b)%g)) t A)
     ⊢ refines E (ectxi_language.fill K (vmult a b)) t A.
@@ -209,8 +229,30 @@ Proof using.
   by destruct (@eqtype.eqP _ [set: vgG] (cycle g)).
 Qed.
 
-
 End facts.
+
+(* fast tactics to simplify inversion *)
+Tactic Notation "rel_inv_l" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ ?e _ _) =>
+      match e with
+      | context[App (Val vinv) (Val ?a)] =>
+          rel_apply_l (refines_inv_l _ _ _ a _) => //
+      | _ => fail "rel_inv_l: no vinv / group element found"
+      end
+  | _ => fail "rel_inv_l: not proving a refinement"
+  end.
+
+Tactic Notation "rel_inv_r" :=
+  lazymatch goal with
+  | |- environments.envs_entails _ (refines _ _ ?e _) =>
+      match e with
+      | context[App (Val vinv) (Val ?a)] =>
+          rel_apply_r (refines_inv_r _ _ _ a _) => //
+      | _ => fail "rel_inv_r: no vinv / group element found"
+      end
+  | _ => fail "rel_inv_r: not proving a refinement"
+  end.
 
 (* fast tactics to simplify multiplications *)
 Tactic Notation "rel_mult_l" :=
