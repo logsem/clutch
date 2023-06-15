@@ -85,25 +85,30 @@ Section adequacy.
   Context `{Countable A, !mc A}.
   Context `{!irisGS prob_lang Σ, !specG A Σ}.
 
-  Lemma rwp_mc_final (e : expr) (σ : state) (a : A) (φ : val → A → Prop) Φ E :
-    mc_final a →
-    (∀ v, Φ v -∗ ∃ (a' : A), spec_frag a' ∗ ⌜φ v a'⌝) ∗
-    state_interp σ ∗ spec_auth a ∗ RWP e @ E ⟨⟨ Φ ⟩⟩ ⊢
+  Lemma step_fupdN_Sn (P : iProp Σ) n :
+    (|={∅}▷=>^(S n) P) ⊣⊢ |={∅}▷=> |={∅}▷=>^n P.
+  Proof. done. Qed.
+
+  Local Lemma rwp_mc_final φ :
+    ∀ e E Φ,
+      RWP e @ E ⟨⟨ Φ ⟩⟩ -∗
+      ∀ σ a,
+        ⌜mc_final a⌝ ∗
+        (∀ v, Φ v -∗ ∃ (a' : A), spec_frag a' ∗ ⌜φ v a'⌝) ∗
+         state_interp σ ∗ spec_auth a -∗
     |={E,∅}=> ⌜Rcoupl (lim_exec_val (e, σ)) (dret a) φ ⌝.
   Proof.
-    iIntros (Hf) "(HΦ & Hσ & Ha & HRWP)".
-    iRevert (σ a Hf) "Hσ Ha HΦ"; iRevert "HRWP"; iRevert (e E Φ).
     iApply rwp_ind; [solve_proper|].
     iIntros "!#" (e E Φ). rewrite /rwp_pre.
     case_match.
-    - iIntros "Hvs" (σ a Hf) "Hσ Ha Hφ".
+    - iIntros "Hvs" (σ a) "(%Hf & Hφ & Hσ & Ha)".
       iMod ("Hvs" with "[$]") as "(?& Hauth &HΦ)".
       iDestruct ("Hφ" with "HΦ") as "[% [Hfrag %]]".
       iDestruct (spec_auth_frag_agree with "Hauth Hfrag") as %<-.
       iApply fupd_mask_intro; [set_solver|]; iIntros "_".
       iPureIntro.
       erewrite lim_exec_val_val; [|done]. by apply Rcoupl_dret.
-    - iIntros "Hstep" (σ a Hf) "Hσ Ha Hφ". rewrite /rwp_step /=.
+    - iIntros "Hstep" (σ a) "(%Hf & Hφ & Hσ & Ha)". rewrite /rwp_step /=.
       iMod ("Hstep" with "[$]") as "(% & [(%R & %Hcpl & HR) | (% & %Hcpl & _)])".
       + rewrite lim_exec_val_prim_step prim_step_or_val_no_val //=.
         rewrite -(dret_id_right (dret a)).
@@ -112,12 +117,64 @@ Section adequacy.
           intros ρ' a' (HR & ? & ->%dret_pos). eauto. }
         iIntros ([e' σ'] HR).
         iMod ("HR"  with "[//]") as "HR".
-        iMod "HR" as "(?&?&HR)".
-        iMod ("HR" with "[//] [$] [$] [$]"). done.
+        iMod "HR" as "(Hσ & Ha & HR)".
+        iApply ("HR" with "[$Hσ $Ha $Hφ //]").
       + eapply Rcoupl_pos_R in Hcpl.
         eapply Rcoupl_inhabited_l in Hcpl as (?&?&?&?& Hs); last first.
         { rewrite prim_step_mass //. lra. }
         rewrite mc_final_is_final // in Hs. lra.
+  Qed.
+
+  Local Lemma rwp_mc_not_final (φ : val → A → Prop) n :
+    ∀ e E Φ,
+      RWP e @ E ⟨⟨ Φ ⟩⟩ -∗
+      ∀ σ a,
+        ⌜¬ mc_final a⌝ ∗
+        (∀ v, Φ v -∗ ∃ a', spec_frag a' ∗ ⌜mc_final a'⌝ ∗ ⌜φ v a'⌝) ∗
+        (□ (∀ (e' : expr) (σ' : state) (a' : A),
+               state_interp σ' ∗ spec_auth a' ∗ RWP e' @ E ⟨⟨ Φ ⟩⟩ ={E,∅}=∗
+               |={∅}▷=>^n ⌜mc_exec n a' ≾ lim_exec_val (e', σ') : flip φ⌝)) ∗
+        state_interp σ ∗ spec_auth a -∗
+      |={E,∅}=> |={∅}▷=>^(S n) ⌜mc_exec (S n) a ≾ lim_exec_val (e, σ) : flip φ⌝.
+  Proof.
+    iApply rwp_strong_ind; [solve_proper|].
+    iIntros "!#" (e E Φ) "Hrwp".
+    iIntros (σ a) "[% (Hφ & #IH & Hσ & Ha)] /=".
+    rewrite bool_decide_eq_false_2 //.
+    rewrite /rwp_pre.
+    case_match.
+    - iMod ("Hrwp" with "[$]") as "(? & Hauth & HΦ)".
+      iDestruct ("Hφ" with "HΦ") as "[% [Hfrag [% %]]]".
+      by iDestruct (spec_auth_frag_agree with "Hauth Hfrag") as %<-.
+    - rewrite /rwp_step.
+      iMod ("Hrwp" with "[$]") as "(% & [(%R & %Hcpl & HR) | (%R & %Hcpl & HR)])".
+      + rewrite -(dret_id_left (λ a, mc_step a ≫= mc_exec n)).
+        rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
+        iModIntro.
+        iApply (step_fupdN_mono _ _ _
+                  (⌜∀ ρ', R ρ' a → mc_step a ≫= mc_exec n ≾ lim_exec_val ρ' : flip φ⌝)%I).
+        { iIntros (?). iPureIntro.
+          eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
+          intros a' [e' σ'] (HR & Hs & <-%dret_pos). eauto. }
+        rewrite -step_fupdN_Sn.
+        iIntros ([e' σ'] HR).
+        iMod ("HR" with "[//]") as "HR".
+        iMod "HR" as "(Hσ' & Ha & HR)".
+        iMod ("HR"  with "[$Hφ $IH $Hσ' $Ha //]") as "HR".
+        rewrite bool_decide_eq_false_2 //.
+      + rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
+        iModIntro.
+        iApply (step_fupdN_mono _ _ _ (⌜∀ ρ' a', R ρ' a' → mc_exec n a' ≾ lim_exec_val ρ' : flip φ⌝)%I).
+        { iIntros (HR). iPureIntro.
+          eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl'].
+          intros ???. by apply HR. }
+        rewrite -step_fupdN_Sn.
+        iIntros ([e' σ'] a' HR) "/=".
+        iMod ("HR" with "[//]") as "HR".
+        do 2 iModIntro.
+        iMod "HR" as "(Hσ' & Ha' & HR)".
+        iApply "IH". iFrame.
+        rewrite bi.and_elim_r //.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : A) (n : nat) (φ : val → A → Prop)  :
@@ -127,30 +184,24 @@ Section adequacy.
     iInduction n as [|n] "IH" forall (e σ a).
     - iIntros "(Hσ & Ha & Hrwp) /=".
       case_bool_decide.
-      + iMod (rwp_mc_final with "[$Hσ $Ha $Hrwp]") as %Hcpl; [done| |].
-        { iIntros (v) "(% & ? & % & %)". iExists _. eauto. }
+      + iMod (rwp_mc_final with "Hrwp [$Hσ $Ha]") as %Hcpl.
+        { iSplit; [done|]. iIntros (v) "(% & ? & % & %)". iExists _. eauto. }
         iModIntro. iPureIntro.
         by apply Rcoupl_refRcoupl'.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iPureIntro. apply refRcoupl_dzero.
     - iIntros "(Hσ & Ha & Hrwp) /=".
-      case_bool_decide.
-      + iMod (rwp_mc_final with "[$Hσ $Ha $Hrwp]") as %Hcpl; [done| |].
-        { iIntros (v) "(% & ? & % & %)". iExists _. eauto. }
+      case_bool_decide as Hf.
+      + iMod (rwp_mc_final with "Hrwp [$Hσ $Ha]") as %Hcpl.
+        { iSplit; [done|]. iIntros (v) "(% & ? & % & %)". iExists _. eauto. }
         do 4 iModIntro.
         iApply step_fupdN_intro; [done|]. iModIntro.
         iPureIntro. by apply Rcoupl_refRcoupl'.
-      + rewrite rwp_unfold /rwp_pre.
-        case_match.
-        { iMod ("Hrwp" with "[$]") as "(? & Hauth & (% & Hfrag & % & %))".
-          by iDestruct (spec_auth_frag_agree with "Hauth Hfrag") as %<-. }
-        rewrite /rwp_step.
-        iMod ("Hrwp" with "[$]") as "(% & [(%R & %Hcpl & HR) | (% & %Hcpl & _)])".
-        * (* Hmmm... Our induction step now wants us to reason about a step of
-             the model, [mc_step], but the case of the [RWP] we're considering is
-             only taking a step of the program ([Hcpl])... *)
-
-
-    Admitted.
+      + rewrite -step_fupdN_Sn.
+        replace (mc_step a ≫= mc_exec n) with (mc_exec (S n) a); last first.
+        { rewrite /= bool_decide_eq_false_2 //. }
+        iApply (rwp_mc_not_final with "Hrwp [$Hσ $Ha]").
+        iFrame "% #". eauto.
+   Qed.
 
 End adequacy.
