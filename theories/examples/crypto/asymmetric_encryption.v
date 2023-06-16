@@ -357,12 +357,12 @@ Module AsymmetricScheme (ASA : AsymmetricSchemeAlgorithms).
   (** ONE-TIME SECRECY **)
 
   Definition Ω : expr := (rec: "f" "x" := "f" "x") #().
-  Definition assert b : expr := if: b then #() else Ω.
+  Definition assert' b : expr := if: b then #() else Ω.
 
   Definition L_pk_ots_L counter_loc pk_loc sk_loc :=
     (λ:<>, !pk_loc,
      λ:"mL" "mR",
-      assert !counter_loc = #0 ;;
+      assert' !counter_loc = #0 ;;
       counter_loc <- #1 ;;
       let: "pk_sk" := KeyGen #() in
       let: "pk" := Fst "pk_sk" in
@@ -375,7 +375,7 @@ Module AsymmetricScheme (ASA : AsymmetricSchemeAlgorithms).
   Definition L_pk_ots_R counter_loc pk_loc sk_loc :=
     (λ:<>, !pk_loc,
      λ:"mL" "mR",
-      assert !counter_loc = #0 ;;
+      assert' !counter_loc = #0 ;;
       counter_loc <- #1 ;;
       let: "pk_sk" := KeyGen #() in
       let: "pk" := Fst "pk_sk" in
@@ -402,7 +402,7 @@ Module AsymmetricScheme (ASA : AsymmetricSchemeAlgorithms).
   Definition L_pk_ots_real counter_loc pk_loc sk_loc :=
     (λ:<>, !pk_loc,
      λ:"m",
-      assert !counter_loc = #0 ;;
+      assert' !counter_loc = #0 ;;
       counter_loc <- #1 ;;
       let: "pk_sk" := KeyGen #() in
       let: "pk" := Fst "pk_sk" in
@@ -415,7 +415,7 @@ Module AsymmetricScheme (ASA : AsymmetricSchemeAlgorithms).
   Definition L_pk_ots_rand counter_loc pk_loc sk_loc :=
     (λ:<>, !pk_loc,
      λ:"mL" "mR",
-      assert !counter_loc = #0 ;;
+      assert' !counter_loc = #0 ;;
       counter_loc <- #1 ;;
       let: "pk_sk" := KeyGen #() in
       let: "pk" := Fst "pk_sk" in

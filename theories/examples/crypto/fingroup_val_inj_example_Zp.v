@@ -99,8 +99,6 @@ Section Z_p.
   Qed.
 
   Let τG := @τG cgs_p.
-  Fact τG_closed_p : ∀ Δ, interp τG Δ = interp τG [::].
-  Proof. simpl. done. Qed.
 
   Fact is_unit_p : vunit = (1 : vgG).
   Proof. by unfold vunit_p. Qed.
@@ -264,11 +262,14 @@ Section Z_p.
     rewrite -ssrnat.plusE. done.
   Qed.
 
+  Fact τG_subtype_p v1 v2 Δ : ⊢ lrel_G v1 v2 -∗ interp τG Δ v1 v2.
+  Proof. iIntros ((w&->&->)). iExists _. eauto. Qed.
+
   Definition cg_p : clutch_group (cg := cgs_p).
     unshelve eapply (
         {| int_of_vg_lrel_G := int_of_vg_lrel_G_p
         ; vg_of_int_lrel_G := vg_of_int_lrel_G_p
-        ; τG_closed := τG_closed_p
+        ; τG_subtype := τG_subtype_p
         ; is_unit := is_unit_p
         ; is_inv := is_inv_p
         ; is_mult := is_mult_p

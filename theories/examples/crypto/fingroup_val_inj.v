@@ -56,9 +56,9 @@ Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
 
 Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
-    { int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
-    ; vg_of_int_lrel_G : ⊢ (interp.interp TInt [] → (() + lrel_G))%lrel vg_of_int vg_of_int
-    ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
+    { int_of_vg_lrel_G : ⊢ (lrel_G → lrel_int)%lrel int_of_vg int_of_vg
+    ; vg_of_int_lrel_G : ⊢ (lrel_int → (() + lrel_G))%lrel vg_of_int vg_of_int
+    ; τG_subtype v1 v2 Δ : ⊢ lrel_G v1 v2 -∗ interp τG Δ v1 v2
     ; is_unit : vunit = 1
     ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
