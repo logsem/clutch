@@ -22,12 +22,12 @@ Import fingroup.fingroup.
 Local Notation "'cval'" := (prob_lang.val).
 
 Class val_group :=
-  Val_group { vgG :> finGroupType
-            ; vgval :> vgG → cval
+  Val_group { vgG : finGroupType
+            ; vgval : vgG → cval
             ; vgval_inj : Inj eq eq vgval }.
 
 (* Both of the below seem necessary since there is a subtle difference in the
-   domain type DOM, despite DOM being to {x : val | P x} in both cases. *)
+   domain type DOM, despite the two being convertible. *)
 #[nonuniform] Coercion vgval_as {vg : val_group}
   (x : FinGroup.arg_sort (FinGroup.base vgG)) : cval := vgval x.
 #[nonuniform] Coercion vgval_s {vg : val_group}
@@ -42,6 +42,7 @@ Class clutch_group_struct :=
     ; vg_of_int : cval
     ; τG : type
     ; vunit_typed : val_typed vunit τG
+    ; vinv_typed : val_typed vinv (τG → τG)%ty
     ; vmult_typed : val_typed vmult (τG → τG → τG)%ty
     ; int_of_vg_typed : val_typed int_of_vg (τG → TInt)%ty
     ; vg_of_int_typed : val_typed vg_of_int (TInt → () + τG)%ty
@@ -53,14 +54,11 @@ Definition vexp `{!clutch_group_struct} : cval := λ:"a", rec: "vexp" "n" :=
 Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
   := LRel (λ w1 w2, ∃ a : vgG, ⌜ w1 = a ∧ w2 = a ⌝)%I.
 
-(* Could push `{clutchRGS Σ} down to the Iris propositions, or move the
-   syntactic typing info into the clutch_group_struct. *)
 Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :=
   Clutch_group
     { int_of_vg_lrel_G : ⊢ (lrel_G → interp.interp TInt [])%lrel int_of_vg int_of_vg
     ; vg_of_int_lrel_G : ⊢ (interp.interp TInt [] → (() + lrel_G))%lrel vg_of_int vg_of_int
     ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
-    (* ; vall_typed : (∀ (x : vgG), ⊢ᵥ x : τG)%ty *)
     ; is_unit : vunit = 1
     ; is_inv (x : vgG) : {{{ True }}} vinv x {{{ v, RET (v : cval); ⌜v = x^-1⌝ }}}
     ; is_spec_inv (x : vgG) K :
@@ -70,11 +68,12 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
     }.
 
+Definition vexp_typed `{!clutch_group_struct} :
+  val_typed vexp (τG → TInt → τG)%ty.
+Proof. unfold vexp ; tychk ; auto using vunit_typed, vmult_typed. Qed.
+
 #[export] Hint Extern 0 (val_typed vunit τG) => apply vunit_typed : core.
-(* #[export] Hint Extern 0 (val_typed _ τG) => apply vall_typed : core. *)
 #[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
-Definition vexp_typed `{!clutch_group_struct} : val_typed vexp (τG → TInt → τG)%ty.
-Proof. unfold vexp ; tychk => //. Qed.
 #[export] Hint Extern 0 (val_typed vexp _) => apply vexp_typed : core.
 #[export] Hint Extern 0 (val_typed int_of_vg _) => apply int_of_vg_typed : core.
 #[export] Hint Extern 0 (val_typed vg_of_int _) => apply vg_of_int_typed : core.
@@ -103,10 +102,6 @@ Context {vg : val_group}.
 Context {cg : clutch_group_struct}.
 Context {G : clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
-
-
-(* Fact mult_typed : ∀ Γ, Γ ⊢ₜ vmult : (τG → τG → τG)%ty. *)
-(* Proof. intros. constructor. apply vmult_typed. Qed. *)
 
 Lemma refines_inv_l E K A (a : vgG) t :
   (refines E (ectxi_language.fill K (Val (a^-1)%g)) t A)

@@ -1,7 +1,6 @@
-(* A game based security proof of ElGamal encryption, following Rosulek's "The
-   Joy of Crypto". *)
+(* ElGamal encryption has one-time secrecy against chosen plaintext attack, in
+   the real/random paradigm. Following Rosulek's "The Joy of Crypto". *)
 From clutch Require Import clutch.
-(* From clutch.examples.crypto Require Import mc_val_instances fingroup_val. *)
 From clutch.examples.crypto Require Import mc_val_instances fingroup_val_inj.
 From clutch.examples.crypto Require fingroup_val_ElGamal_bijection.
 
@@ -553,19 +552,17 @@ Qed.
 
 (*
 Definition DDH :=
-            ∅ ⊨_{#|g|} DH_rnd =ctx= DH_real : τEG_ex.
+            ∅ ⊨_{#|g|} DH_rnd =ctx= DH_real : τ_EG.
 
-            ∅ ⊨_ε({#|g|}) DH_rnd =ctx= DH_real : τEG_ex.
+            ∅ ⊨_ε({#|g|}) DH_rnd =ctx= DH_real : τ_EG.
 
-
-            ∅ ⊨_{#|g|} C [DH_rnd] =ctx= C [DH_real] : τEG_ex.
-
+            ∅ ⊨_{#|g|} C [DH_rnd] =ctx= C [DH_real] : τ_EG.
 
 Fact PPT_C : @PPT #|g| C.
 
 Theorem Ctx_PPT_congr : PPT n C →
-            ∅ ⊨_n e1 =ctx= e2 : τEG →
-            ∅ ⊨_n C [e1] =ctx= C [e2] : τEG_ex.
+            ∅ ⊨_n e1 =ctx= e2 : τ_EG →
+            ∅ ⊨_n C [e1] =ctx= C [e2] : τ_EG.
 *)
 
 End Ctx.
