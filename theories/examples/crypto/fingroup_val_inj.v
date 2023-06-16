@@ -60,10 +60,10 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
     ; vg_of_int_lrel_G : ⊢ (interp.interp TInt [] → (() + lrel_G))%lrel vg_of_int vg_of_int
     ; τG_closed : forall Δ, interp.interp τG Δ = interp.interp τG []
     ; is_unit : vunit = 1
-    ; is_inv (x : vgG) : {{{ True }}} vinv x {{{ v, RET (v : cval); ⌜v = x^-1⌝ }}}
+    ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
       refines_right K (vinv x) ={⊤}=∗ refines_right K (x^-1)
-    ; is_mult (x y : vgG) : {{{ True }}} vmult x y {{{ v, RET (v : cval); ⌜v = (x * y)%g⌝ }}}
+    ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
       refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
     }.
@@ -107,40 +107,34 @@ Lemma refines_inv_l E K A (a : vgG) t :
   (refines E (ectxi_language.fill K (Val (a^-1)%g)) t A)
     ⊢ refines E (ectxi_language.fill K (vinv a)) t A.
 Proof.
-  iIntros "H".
-  rel_apply_l refines_wp_l.
-  iApply (is_inv a) => //.
-  iModIntro ; iIntros (v) "->" => //.
+  iIntros "H". rel_apply_l refines_wp_l.
+  iApply (wp_frame_wand with "H"). iApply (wp_mono $! (is_inv a)).
+  by iIntros ; subst.
 Qed.
 
 Lemma refines_inv_r E K A (a : vgG) t :
   (refines E t (ectxi_language.fill K (Val (a^-1)%g)) A)
     ⊢ refines E t (ectxi_language.fill K (vinv a)) A.
 Proof.
-  iIntros "H".
-  rel_apply_r refines_steps_r => //.
-  iIntros (?).
-  iApply is_spec_inv.
+  iIntros "H". rel_apply_r refines_steps_r => //.
+  iIntros (?). iApply is_spec_inv.
 Qed.
 
 Lemma refines_mult_l E K A (a b : vgG) t :
   (refines E (ectxi_language.fill K (Val (a * b)%g)) t A)
     ⊢ refines E (ectxi_language.fill K (vmult a b)) t A.
 Proof.
-  iIntros "H".
-  rel_apply_l refines_wp_l.
-  iApply (is_mult a b) => //.
-  iModIntro ; iIntros (v) "->" => //.
+  iIntros "H". rel_apply_l refines_wp_l.
+  iApply (wp_frame_wand with "H"). iApply (wp_mono $! (is_mult a b)).
+  by iIntros ; subst.
 Qed.
 
 Lemma refines_mult_r E K A (a b : vgG) t :
   (refines E t (ectxi_language.fill K (Val (a * b)%g)) A)
     ⊢ refines E t (ectxi_language.fill K (vmult a b)) A.
 Proof.
-  iIntros "H".
-  rel_apply_r refines_steps_r => //.
-  iIntros (?).
-  iApply is_spec_mult.
+  iIntros "H". rel_apply_r refines_steps_r => //.
+  iIntros (?). iApply is_spec_mult.
 Qed.
 
 Fact is_exp (b : vgG) (x : nat) :
@@ -158,9 +152,8 @@ Proof.
     replace (S x - 1)%Z with (Z.of_nat x) by lia.
     iApply "IH".
     iIntros. wp_pures.
-    iApply is_mult => //.
-    iModIntro. iIntros. subst.
-    iApply "hlog".
+    iApply (wp_frame_wand with "hlog"). iApply (wp_mono $! (is_mult b v)).
+    iIntros (??) "hlog" ; subst. iApply "hlog".
     by rewrite expgS.
 Qed.
 
@@ -188,20 +181,16 @@ Lemma refines_exp_l E K A (b : vgG) (p : nat) t :
   (refines E (ectxi_language.fill K (Val (b ^+ p)%g)) t A)
     ⊢ refines E (ectxi_language.fill K (vexp b #p)) t A.
 Proof.
-  iIntros "H".
-  rel_apply_l refines_wp_l.
-  iApply (is_exp b p) => //.
-  iModIntro ; iIntros (v) "->" => //.
+  iIntros "H". rel_apply_l refines_wp_l.
+  iApply (is_exp b p) => //. iModIntro ; iIntros (v) "->" => //.
 Qed.
 
 Lemma refines_exp_r E K A (b : vgG) (p : nat) t :
   (refines E t (ectxi_language.fill K (Val (b ^+ p)%g)) A)
     ⊢ refines E t (ectxi_language.fill K (vexp b #p)) A.
 Proof.
-  iIntros "H".
-  rel_apply_r refines_steps_r => //.
-  iIntros (?).
-  iApply (is_spec_exp b).
+  iIntros "H". rel_apply_r refines_steps_r => //.
+  iIntros (?). iApply (is_spec_exp b).
 Qed.
 
 Lemma log_g

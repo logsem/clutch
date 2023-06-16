@@ -157,25 +157,20 @@ Section Z_p.
     apply Z.rem_bound_pos ; lia.
   Qed.
 
-  Fact is_inv_p : ∀ (x : vgG) Φ,
-      True -∗ ▷ (∀ v : vgG, ⌜v = x^-1⌝ -∗ Φ (v : prob_lang.val)) -∗ WP vinv x {{ v, Φ v }}.
+  Fact is_inv_p : ∀ (x : vgG), ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}.
   Proof.
       simpl. unfold vinv_p.
       intros.
-      iIntros "_ hlog".
       wp_pures.
       unfold vgval_p.
       match goal with |- context [ # (LitInt ?vxy)] => set (xy := vxy) end.
-      iSpecialize ("hlog" $! (vg_of_int_unpacked xy (zp_rem_pos _) (zp_rem_bound _))).
+      pose (vg_of_int_unpacked xy (zp_rem_pos _) (zp_rem_bound _)).
       simpl.
-      rewrite Z2Nat.id. 2: apply zp_rem_pos.
-      iApply "hlog".
-      iPureIntro.
-      apply val_inj.
+      iPureIntro. subst xy.
+      do 2 f_equal.
       unfold vg_of_int_unpacked, Zp_trunc ; simpl.
-      subst xy.
       rewrite rem_modn.
-      by rewrite Nat2Z.id.
+      done.
   Qed.
 
   Fact is_spec_inv_p : ∀ (x : vgG) K, refines_right K (vinv x) ={⊤}=∗ refines_right K x^-1.
@@ -239,32 +234,19 @@ Section Z_p.
     apply Nat.mod_upper_bound. done.
   Qed.
 
-  Fact is_mult_p : ∀ (x y : vgG) Φ, True
-      -∗ ▷ (∀ v : vgG, ⌜v = (x * y)%g⌝ -∗ Φ (v : prob_lang.val))
-      -∗ WP vmult x y {{ v, Φ v }}.
+  Fact is_mult_p (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}.
   Proof.
     intros.
-    iIntros "_ hlog".
+    iIntros.
     unfold vmult ; iSimpl ; unfold vmult_p ; wp_pures.
     simpl ; unfold Zp_trunc ; simpl.
     unfold vgval_p ; simpl.
-    match goal with |- context [ # (LitInt ?vxy)] => set (xy := vxy) end.
-    destruct (zp_rem_bound' (x+y)) as [h1 h2].
-    rewrite Nat2Z.inj_add in h1.
-    rewrite Nat2Z.inj_add in h2.
-    unshelve iSpecialize ("hlog" $! (vg_of_int_unpacked xy _ _)).
-    1,2: eauto.
-    assert ((# (LitInt (_ (_ (vg_of_int_unpacked xy _ _))))) = (#xy)) as ->.
-    1: subst xy ; simpl. 1: do 2 f_equal.
-    1: rewrite Z2Nat.id => //.
-    iApply "hlog" ; iPureIntro.
-    apply val_inj.
-    unfold vg_of_int_unpacked. subst xy ; simpl.
+    iPureIntro.
+    do 2 f_equal.
     destruct x, y. simpl.
     rewrite -Nat2Z.inj_add.
     rewrite rem_modn'.
-    rewrite -ssrnat.plusE.
-    rewrite Nat2Z.id => //.
+    by rewrite -ssrnat.plusE.
   Qed.
 
   Fact is_spec_mult_p : ∀ (x y : vgG) K,
