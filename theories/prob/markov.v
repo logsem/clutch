@@ -225,6 +225,23 @@ Section exec.
     pose proof (pmf_pos (exec m a) b).
     lra.
   Qed.
+
+  Lemma is_finite_Sup_seq_exec a b :
+    is_finite (Sup_seq (λ n, exec n a b)).
+  Proof.
+    apply (Rbar_le_sandwich 0 1).
+    - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+    - by apply upper_bound_ge_sup=>/=.
+  Qed.
+
+  Lemma is_finite_Sup_seq_SeriesC_exec a :
+    is_finite (Sup_seq (λ n, SeriesC (exec n a))).
+  Proof.
+    apply (Rbar_le_sandwich 0 1).
+    - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+    - by apply upper_bound_ge_sup=>/=.
+  Qed.
+
 End exec.
 
 (** Full evaluation to a final state *)
@@ -306,15 +323,11 @@ Section lim_exec.
     intro b'.
     rewrite lim_exec_unfold.
     rewrite {2}/pmf /= /dret_pmf.
-    assert (is_finite (Sup_seq (λ n, exec n a b'))) as Hfin.
-    { apply (Rbar_le_sandwich 0 1).
-      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-      - by apply upper_bound_ge_sup=>/=. }
     case_bool_decide; simplify_eq.
     - apply Rle_antisym.
-      + apply finite_rbar_le; [done|].
+      + apply finite_rbar_le; [eapply is_finite_Sup_seq_exec|].
         by apply upper_bound_ge_sup=>/=.
-      + apply rbar_le_finite; [done|].
+      + apply rbar_le_finite; [eapply is_finite_Sup_seq_exec|].
         apply (Sup_seq_minor_le _ _ n)=>/=.
         by erewrite pexec_exec_det.
     - rewrite -(sup_seq_const 0).
@@ -336,11 +349,7 @@ Section lim_exec.
   Proof.
     intro Hexec.
     rewrite lim_exec_unfold.
-    assert (is_finite (Sup_seq (λ n, exec n a b))) as Hfin.
-    { apply (Rbar_le_sandwich 0 1).
-      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-      - by apply upper_bound_ge_sup=>/=. }
-    apply finite_rbar_le; [done|].
+    apply finite_rbar_le; [apply is_finite_Sup_seq_exec|].
     by apply upper_bound_ge_sup=>/=.
   Qed.
 
@@ -348,11 +357,19 @@ Section lim_exec.
     (∀ n, SeriesC (exec n a) <= r) →
     SeriesC (lim_exec a) <= r.
   Proof.
-    intros Hexec.
+    intro Hm.
     erewrite SeriesC_ext; last first.
-    { intros b. rewrite lim_exec_unfold //. }
-
-  Admitted.
+    { intros. rewrite lim_exec_unfold //. }
+    erewrite (MCT_seriesC _ (λ n, SeriesC (exec n a)) (Sup_seq (λ n, SeriesC (exec n a)))); eauto.
+    - apply finite_rbar_le; [apply is_finite_Sup_seq_SeriesC_exec|].
+      by apply upper_bound_ge_sup.
+    - apply exec_mon.
+    - intros. by apply SeriesC_correct.
+    - rewrite (Rbar_le_sandwich 0 1).
+      + apply (Sup_seq_correct (λ n, SeriesC (exec n a))).
+      + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      + by apply upper_bound_ge_sup=>/=.
+  Qed.
 
   Lemma lim_exec_termiated n a :
     SeriesC (exec n a) = 1 →
@@ -362,10 +379,6 @@ Section lim_exec.
     apply distr_ext.
     intro b.
     rewrite lim_exec_unfold.
-    assert (is_finite (Sup_seq (λ n, exec n a b))) as fin.
-    { apply (Rbar_le_sandwich 0 1).
-      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-      - by apply upper_bound_ge_sup=>/=. }
     assert (∀ m, n ≤ m → exec m a b = exec n a b) as Hexc.
     { intros m Hleq.
       apply Rle_antisym; [ |by apply exec_mon'].
@@ -378,7 +391,7 @@ Section lim_exec.
         apply SeriesC_lt; eauto.
         intros b'. by split; [|apply exec_mon']. }
     apply Rle_antisym.
-    - apply finite_rbar_le; [done|].
+    - apply finite_rbar_le; [apply is_finite_Sup_seq_exec|].
       rewrite -/pmf.
       apply upper_bound_ge_sup.
       intros n'.
@@ -386,7 +399,7 @@ Section lim_exec.
       + right. apply Hexc. by apply INR_le.
       + apply exec_mon'.
         apply INR_le. by left.
-    - apply rbar_le_finite; [done|].
+    - apply rbar_le_finite; [apply is_finite_Sup_seq_exec|].
       apply (sup_is_upper_bound (λ m, exec m a b) n).
   Qed.
 

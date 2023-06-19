@@ -2,53 +2,11 @@ From Coq Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import fancy_updates ghost_map.
 From iris.bi Require Export fixpoint big_op.
-From iris.algebra Require Import auth excl.
-From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.tpr Require Import weakestpre.
+From clutch.tpr Require Import weakestpre spec_ra.
 From clutch.prob_lang Require Import lang.
 From clutch.prob Require Import couplings distribution markov.
-
-(* TODO: move *)
-Definition specUR (A : Type) : ucmra := optionUR (exclR (leibnizO A)).
-Definition authUR_spec (A : Type) : ucmra := authUR (specUR A).
-
-Class specG (A : Type) (Σ : gFunctors) := SpecG {
-  specG_authUR :> inG Σ (authUR_spec A);
-  specG_gname : gname;
-}.
-
-Section spec_auth.
-  Context `{specG A Σ}.
-
-  Definition spec_auth (a : A) : iProp Σ :=
-    own specG_gname (● (Excl' a : specUR _)).
-  Definition spec_frag (a : A) : iProp Σ :=
-    own specG_gname (◯ (Excl' a : specUR _)).
-
-  Lemma spec_auth_frag_agree a a' :
-    spec_auth a -∗ spec_frag a' -∗ ⌜a = a'⌝.
-  Proof.
-    iIntros "Ha Hf".
-    iDestruct (own_valid_2 with "Ha Hf") as
-      %[Hexcl ?]%auth_both_valid_discrete.
-    rewrite Excl_included in Hexcl.
-    by apply leibniz_equiv in Hexcl.
-  Qed.
-
-  Lemma spec_update a'' a a' :
-    spec_auth a -∗ spec_frag a' ==∗ spec_auth a'' ∗ spec_frag a''.
-  Proof.
-    iIntros "Ha Hf".
-    iDestruct (spec_auth_frag_agree with "Ha Hf") as %->.
-    iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
-    { eapply auth_update .
-      eapply (@option_local_update _ _ _ (Excl a'' : exclR (leibnizO A))).
-      by eapply exclusive_local_update. }
-    by iFrame.
-  Qed.
-End spec_auth.
 
 (* TODO: move *)
 Class tprG A Σ := TprG {
@@ -72,7 +30,7 @@ Global Instance tprG_tprwpG `{!tprG A Σ} : tprwpG prob_lang Σ := {
 
 #[global]
 Instance spec_auth_spec {A B Σ} `{Countable A} `{!markov A B, !specG A Σ} : spec A Σ :=
-  Spec step spec_auth.
+  Spec step specA.
 
 Section adequacy.
   Context {A B} `{Countable A, Countable B, !markov A B, tprG A Σ}.
@@ -86,8 +44,8 @@ Section adequacy.
       RWP e @ E ⟨⟨ Φ ⟩⟩ -∗
       ∀ σ a b,
         ⌜to_final a = Some b⌝ ∗
-        (∀ v, Φ v -∗ ∃ (a' : A) (b' : B), spec_frag a' ∗ ⌜to_final a' = Some b'⌝ ∗ ⌜φ v b'⌝) ∗
-         state_interp σ ∗ spec_auth a -∗
+        (∀ v, Φ v -∗ ∃ (a' : A) (b' : B), specF a' ∗ ⌜to_final a' = Some b'⌝ ∗ ⌜φ v b'⌝) ∗
+         state_interp σ ∗ specA a -∗
     |={E,∅}=> ⌜Rcoupl (lim_exec_val (e, σ)) (dret b) φ ⌝.
   Proof.
     iApply rwp_ind; [solve_proper|].
@@ -96,7 +54,7 @@ Section adequacy.
     - iIntros "Hvs" (σ a b) "(%Hf & Hφ & Hσ & Ha)".
       iMod ("Hvs" with "[$]") as "(?& Hauth &HΦ)".
       iDestruct ("Hφ" with "HΦ") as "(% & % & Hfrag & % & %)".
-      iDestruct (spec_auth_frag_agree with "Hauth Hfrag") as %<-.
+      iDestruct (specA_frag_agree with "Hauth Hfrag") as %<-.
       simplify_option_eq.
       iApply fupd_mask_intro; [set_solver|]; iIntros "_".
       iPureIntro.
@@ -123,11 +81,11 @@ Section adequacy.
       RWP e @ E ⟨⟨ Φ ⟩⟩ -∗
       ∀ (σ : state) (a : A),
         ⌜¬ is_final a⌝ ∗
-        (∀ v, Φ v -∗ ∃ (a' : A) (b : B), spec_frag a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝) ∗
+        (∀ v, Φ v -∗ ∃ (a' : A) (b : B), specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝) ∗
         (□ (∀ (e' : expr) (σ' : state) (a' : A),
-               state_interp σ' ∗ spec_auth a' ∗ RWP e' @ E ⟨⟨ Φ ⟩⟩ ={E,∅}=∗
+               state_interp σ' ∗ specA a' ∗ RWP e' @ E ⟨⟨ Φ ⟩⟩ ={E,∅}=∗
                |={∅}▷=>^n ⌜lim_exec_val (e', σ') ≿ exec n a' : φ⌝)) ∗
-        state_interp σ ∗ spec_auth a -∗
+        state_interp σ ∗ specA a -∗
       |={E,∅}=> |={∅}▷=>^(S n) ⌜lim_exec_val (e, σ) ≿ exec (S n) a : φ⌝.
   Proof.
     iApply rwp_strong_ind; [solve_proper|].
@@ -139,7 +97,7 @@ Section adequacy.
     - iMod ("Hrwp" with "[$]") as "(? & Hauth & HΦ)".
       iDestruct ("Hφ" with "HΦ") as "(% & % & [Hfrag [%Hf %]])".
       apply to_final_Some_2 in Hf.
-      by iDestruct (spec_auth_frag_agree with "Hauth Hfrag") as %<-.
+      by iDestruct (specA_frag_agree with "Hauth Hfrag") as %<-.
     - rewrite /rwp_step.
       iMod ("Hrwp" with "[$]") as "(% & [(%R & %Hcpl & HR) | (%R & %Hcpl & HR)])".
       + rewrite -(dret_id_left (λ a, step a ≫= exec n)).
@@ -172,7 +130,7 @@ Section adequacy.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : A) (n : nat) (φ : val → B → Prop)  :
-    state_interp σ ∗ spec_auth a ∗ RWP e ⟨⟨ v, ∃ a' b, spec_frag a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ ⟩⟩ ⊢
+    state_interp σ ∗ specA a ∗ RWP e ⟨⟨ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ ⟩⟩ ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec_val (e, σ) ≿ exec n a : φ⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ a).
@@ -204,20 +162,20 @@ Class tprGpreS A Σ := TprGpreS {
   tprGpre_iris  :> invGpreS Σ;
   tprGpre_heap  :> ghost_mapG Σ loc val;
   tprGpre_tapes :> ghost_mapG Σ loc tape;
-  tpr_spec  :> inG Σ (authUR_spec A)
+  tpr_spec      :> specPreG A Σ;
 }.
 
 Definition tprΣ A: gFunctors :=
   #[invΣ;
     ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
-    GFunctor (authUR_spec A)].
+    specΣ A].
 Global Instance subG_tprGPreS {A Σ} : subG (tprΣ A) Σ → tprGpreS A Σ.
 Proof. solve_inG. Qed.
 
 Theorem wp_refRcoupl `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a n φ :
   (∀ `{!tprG A Σ},
-    ⊢ spec_frag a -∗ RWP e ⟨⟨ v, ∃ a' b, spec_frag a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ ⟩⟩) →
+    ⊢ specF a -∗ RWP e ⟨⟨ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ ⟩⟩) →
   lim_exec_val (e, σ) ≿ exec n a : φ.
 Proof.
   intros Hwp.
@@ -225,10 +183,7 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod (own_alloc ((● (Excl' a : specUR _)) ⋅ (◯ (Excl' a : specUR _))))
-    as "(%γspec & Hauth & Hfrag)".
-  { by apply auth_both_valid_discrete. }
-  set (HspecG := SpecG _ Σ _ γspec).
+  iMod (spec_alloc a) as (HspecG) "[Hauth Hfrag]".
   set (HclutchG := TprG _ Σ _ _ _ γH γT HspecG).
   iApply wp_refRcoupl_step_fupdN.
   iFrame.
@@ -236,7 +191,7 @@ Proof.
 Qed.
 
 Corollary wp_refRcoupl_mass `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a :
-  (∀ `{!tprG A Σ}, ⊢ spec_frag a -∗ RWP e ⟨⟨ v, ∃ a', spec_frag a' ∗ ⌜is_final a'⌝ ⟩⟩) →
+  (∀ `{!tprG A Σ}, ⊢ specF a -∗ RWP e ⟨⟨ v, ∃ a', specF a' ∗ ⌜is_final a'⌝ ⟩⟩) →
   SeriesC (lim_exec a) <= SeriesC (lim_exec_val (e, σ)).
 Proof.
   intros Hrwp.
