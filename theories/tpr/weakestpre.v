@@ -5,7 +5,7 @@ From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.bi Require Import weakestpre.
+From clutch.bi Require Export weakestpre.
 From clutch.prob Require Export couplings distribution.
 From clutch.program_logic Require Export exec language.
 
@@ -13,7 +13,7 @@ Import uPred.
 
 Local Open Scope R.
 
-Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
+Class tprwpG (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
 }.
@@ -27,7 +27,7 @@ Class spec (A : Type) `{Countable A} (Σ : gFunctors) := Spec {
 Global Arguments Spec {_ _ _ _}.
 
 (** * The weakest precondition  *)
-Definition rwp_step {Σ Λ A} `{spec A Σ} `{!irisGS Λ Σ} E (e1 : expr Λ) (Z : cfg Λ → A → iProp Σ) : iProp Σ :=
+Definition rwp_step {Σ Λ A} `{spec A Σ} `{!tprwpG Λ Σ} E (e1 : expr Λ) (Z : cfg Λ → A → iProp Σ) : iProp Σ :=
   ∀ σ1 a1,
     state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗
     ⌜reducible e1 σ1⌝ ∗
@@ -36,7 +36,7 @@ Definition rwp_step {Σ Λ A} `{spec A Σ} `{!irisGS Λ Σ} E (e1 : expr Λ) (Z 
     (∃ R, ⌜Rcoupl (prim_step e1 σ1) (spec_step a1) R⌝ ∗
           ∀ ρ2 a2, ⌜R ρ2 a2⌝ ={∅}=∗ ▷ Z ρ2 a2)).
 
-Definition rwp_pre {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ}
+Definition rwp_pre {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ}
     (rwp : coPset -d> expr Λ -d> (val Λ -d> iProp Σ) -d> iProp Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iProp Σ) -d> iProp Σ := λ E e1 Φ,
   match to_val e1 with
@@ -44,7 +44,7 @@ Definition rwp_pre {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ}
   | None => rwp_step E e1 (λ '(e2, σ2) a2, |={∅,E}=> state_interp σ2 ∗ spec_interp a2 ∗ rwp E e2 Φ)
   end%I.
 
-Lemma rwp_pre_mono {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
+Lemma rwp_pre_mono {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
   ⊢ ((□ ∀ E e Φ, wp1 E e Φ -∗ wp2 E e Φ) →
       ∀ E e Φ, rwp_pre wp1 E e Φ -∗ rwp_pre wp2 E e Φ)%I.
 Proof.
@@ -64,12 +64,12 @@ Proof.
 Qed.
 
 (* Uncurry [rwp_pre] and equip its type with an OFE structure *)
-Definition rwp_pre' {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} :
+Definition rwp_pre' {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} :
   (prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ) →
    prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ
   := uncurry3 ∘ rwp_pre ∘ curry3.
 
-Local Instance exec_coupl_pre_mono {Λ A Σ} `{spec A Σ} `{!irisGS Λ Σ} :
+Local Instance exec_coupl_pre_mono {Λ A Σ} `{spec A Σ} `{!tprwpG Λ Σ} :
   BiMonoPred rwp_pre'.
 Proof.
   constructor.
@@ -83,17 +83,17 @@ Proof.
     + do 3 f_equiv. by apply pair_ne.
 Qed.
 
-Definition rwp_def {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
+Definition rwp_def {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
   := bi_least_fixpoint rwp_pre' (E,e,Φ).
-Definition rwp_aux {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} : seal (@rwp_def Σ A Λ _ _ _ _). by eexists. Qed.
+Definition rwp_aux {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} : seal (@rwp_def Σ A Λ _ _ _ _). by eexists. Qed.
 #[global]
-Instance rwp' {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ} : Rwp (iProp Σ) (expr Λ) (val Λ) () := rwp_aux.(unseal).
+Instance rwp' {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} : Rwp (iProp Σ) (expr Λ) (val Λ) () := rwp_aux.(unseal).
 
-Local Lemma rwp_unseal `{spec A Σ} `{!irisGS Λ Σ} : rwp = @rwp_def Σ A Λ _ _ _ _.
+Local Lemma rwp_unseal `{spec A Σ} `{!tprwpG Λ Σ} : rwp = @rwp_def Σ A Λ _ _ _ _.
 Proof. rewrite -rwp_aux.(seal_eq) //. Qed.
 
 Section rwp.
-Context {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ}.
+Context {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -102,7 +102,7 @@ Implicit Types b : bool.
 
 Lemma rwp_unfold E e Φ :
   RWP e @ E ⟨⟨ Φ ⟩⟩ ⊣⊢ rwp_pre (rwp (PROP:=iProp Σ) ()) E e Φ.
-Proof. simpl. by rewrite rwp_unseal /rwp_def least_fixpoint_unfold. Qed.
+Proof. by rewrite rwp_unseal /rwp_def least_fixpoint_unfold. Qed.
 
 Lemma rwp_strong_ind Ψ :
   (∀ n E e, Proper (pointwise_relation _ (dist n) ==> dist n) (Ψ E e)) →
@@ -112,7 +112,7 @@ Proof.
   iIntros (HΨ). iIntros "#IH" (e E Φ) "H". rewrite rwp_unseal.
   set (Ψ' := uncurry3 Ψ :
     prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ).
-  assert (NonExpansive Ψ').
+  assert (NonExpansive Ψ'). 
   { intros n [[E1 e1] Φ1] [[E2 e2] Φ2]
       [[?%leibniz_equiv ?%leibniz_equiv] ?]; simplify_eq/=. by apply HΨ. }
   iApply (least_fixpoint_ind _ Ψ' with "[] H").
@@ -365,7 +365,7 @@ End rwp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context {Σ A Λ} `{spec A Σ} `{!irisGS Λ Σ}.
+  Context {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
 

@@ -199,7 +199,8 @@ Class clutchGpreS Σ := ClutchGpreS {
 }.
 
 Definition clutchΣ : gFunctors :=
-  #[invΣ; ghost_mapΣ loc val;
+  #[invΣ;
+    ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authUR cfgUR);
     GFunctor (authUR progUR)].

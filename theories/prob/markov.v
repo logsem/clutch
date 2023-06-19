@@ -6,9 +6,38 @@ Class markov (A B : Type) `{Countable A} := Markov {
   step     : A → distr A;
   to_final : A → option B;
 
-  to_final_is_final a a' b :
-    to_final a = Some b → step a a' = 0;
+  to_final_is_final a a' :
+    is_Some (to_final a) → step a a' = 0;
 }.
+
+Section is_final.
+  Context `{markov A B}.
+
+  Definition is_final (a : A) := is_Some (to_final a).
+
+  Lemma to_final_None a : ¬ is_final a ↔ to_final a = None.
+  Proof. rewrite eq_None_not_Some //. Qed.
+
+  Lemma to_final_None_1 a : ¬ is_final a → to_final a = None.
+  Proof. apply to_final_None. Qed.
+
+  Lemma to_final_None_2 a : to_final a = None → ¬ is_final a.
+  Proof. apply to_final_None. Qed.
+
+  Lemma to_final_Some a : is_final a ↔ ∃ b, to_final a = Some b.
+  Proof. done. Qed.
+
+  Lemma to_final_Some_1 a : is_final a → ∃ b, to_final a = Some b.
+  Proof. done. Qed.
+
+  Lemma to_final_Some_2 a b : to_final a = Some b → is_final a.
+  Proof. intros. by eexists. Qed.
+End is_final.
+
+Global Hint Extern 0 (is_final _) => eapply to_final_Some_2 : markov.
+Global Hint Extern 0 (¬ is_final _) => apply to_final_None_2 : markov.
+Global Hint Extern 0 (to_final _ = None) => apply to_final_None_1  : markov.
+Global Hint Extern 0 (∃ _, to_final _ = Some _) => apply to_final_Some_2 : markov.
 
 (** Partial evaluation *)
 Section pexec.
@@ -23,11 +52,11 @@ Section pexec.
     end.
 
   Lemma step_or_final_no_final a :
-    to_final a = None → step_or_final a = step a.
-  Proof. rewrite /step_or_final /=. by intros ->. Qed.
+    ¬ is_final a → step_or_final a = step a.
+  Proof. rewrite /step_or_final /is_final /= -eq_None_not_Some. by intros ->. Qed.
 
   Lemma step_or_final_is_final a :
-    is_Some (to_final a) → step_or_final a = dret a.
+    is_final a → step_or_final a = dret a.
   Proof. rewrite /step_or_final /=. by intros [? ->]. Qed.
 
   Definition pexec (n : nat) a : distr A := iterM n step_or_final a.
@@ -133,7 +162,7 @@ Section exec.
   Qed.
 
   Lemma exec_Sn_not_final a n :
-    to_final a = None →
+    ¬ is_final a →
     exec (S n) a = step a ≫= exec n.
   Proof. intros ?. rewrite exec_Sn step_or_final_no_final //. Qed.
 
@@ -141,15 +170,15 @@ Section exec.
     to_final a' = Some b →
     pexec n a a' <= exec n a b.
   Proof.
-    intros Hb. 
+    intros Hb.
     revert a. induction n; intros a.
-    - rewrite pexec_O. 
-      destruct (decide (a = a')) as [->|]. 
-      + erewrite exec_is_final; [|done]. 
+    - rewrite pexec_O.
+      destruct (decide (a = a')) as [->|].
+      + erewrite exec_is_final; [|done].
         rewrite !dret_1_1 //.
       + rewrite dret_0 //.
     - rewrite exec_Sn pexec_Sn.
-      destruct (to_final a) as [b'|] eqn:Heq.
+      destruct (decide (is_final a)).
       + rewrite step_or_final_is_final //.
         rewrite 2!dret_id_left -/exec.
         apply IHn.
@@ -173,9 +202,9 @@ Section exec.
   Qed.
 
   Lemma exec_pexec_val_neq_le n m a a' b b' :
-    to_final a' = Some b' →    
+    to_final a' = Some b' →
     b ≠ b' → exec m a b + pexec n a a' <= 1.
-  Proof. 
+  Proof.
     intros Hf Hneq.
     etrans; [by apply Rplus_le_compat_l, pexec_exec_le_final|].
     etrans; [apply Rplus_le_compat_l, (exec_mon' _ n (n `max` m)), Nat.le_max_l|].
@@ -202,7 +231,7 @@ End exec.
 Section lim_exec.
   Context {A B : Type} `{Countable A, Countable B, !markov A B}.
   Implicit Types a : A.
-  Implicit Types b : B.  
+  Implicit Types b : B.
 
   Definition lim_exec (a : A) : distr B := lim_distr (λ n, exec n a) (exec_mon a).
 
@@ -268,7 +297,7 @@ Section lim_exec.
   Qed.
 
   Lemma lim_exec_det_final n a a' b :
-    to_final a' = Some b →     
+    to_final a' = Some b →
     pexec n a a' = 1 →
     lim_exec a = dret b.
   Proof.
@@ -281,13 +310,13 @@ Section lim_exec.
     { apply (Rbar_le_sandwich 0 1).
       - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
       - by apply upper_bound_ge_sup=>/=. }
-    case_bool_decide; simplify_eq. 
+    case_bool_decide; simplify_eq.
     - apply Rle_antisym.
-      + apply finite_rbar_le; [done|]. 
+      + apply finite_rbar_le; [done|].
         by apply upper_bound_ge_sup=>/=.
-      + apply rbar_le_finite; [done|]. 
+      + apply rbar_le_finite; [done|].
         apply (Sup_seq_minor_le _ _ n)=>/=.
-        by erewrite pexec_exec_det. 
+        by erewrite pexec_exec_det.
     - rewrite -(sup_seq_const 0).
       f_equal. apply Sup_seq_ext=> m.
       f_equal. by eapply pexec_exec_det_neg.
@@ -311,9 +340,19 @@ Section lim_exec.
     { apply (Rbar_le_sandwich 0 1).
       - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
       - by apply upper_bound_ge_sup=>/=. }
-    apply finite_rbar_le; [done|]. 
+    apply finite_rbar_le; [done|].
     by apply upper_bound_ge_sup=>/=.
   Qed.
+
+  Lemma lim_exec_continous_mass  a r :
+    (∀ n, SeriesC (exec n a) <= r) →
+    SeriesC (lim_exec a) <= r.
+  Proof.
+    intros Hexec.
+    erewrite SeriesC_ext; last first.
+    { intros b. rewrite lim_exec_unfold //. }
+
+  Admitted.
 
   Lemma lim_exec_termiated n a :
     SeriesC (exec n a) = 1 →
@@ -325,29 +364,29 @@ Section lim_exec.
     rewrite lim_exec_unfold.
     assert (is_finite (Sup_seq (λ n, exec n a b))) as fin.
     { apply (Rbar_le_sandwich 0 1).
-      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=. 
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
       - by apply upper_bound_ge_sup=>/=. }
     assert (∀ m, n ≤ m → exec m a b = exec n a b) as Hexc.
     { intros m Hleq.
       apply Rle_antisym; [ |by apply exec_mon'].
       destruct (decide (exec m a b <= exec n a b))
-        as [|?%Rnot_le_lt]; [done|]. 
+        as [|?%Rnot_le_lt]; [done|].
       exfalso.
       assert (1 < SeriesC (exec m a)); last first.
       - assert (SeriesC (exec m a) <= 1); [done|]. lra.
       - rewrite -Hv.
-        apply SeriesC_lt; eauto. 
+        apply SeriesC_lt; eauto.
         intros b'. by split; [|apply exec_mon']. }
     apply Rle_antisym.
-    - apply finite_rbar_le; [done|]. 
+    - apply finite_rbar_le; [done|].
       rewrite -/pmf.
       apply upper_bound_ge_sup.
       intros n'.
       destruct (decide (n <= n')) as [|?%Rnot_le_lt].
-      + right. apply Hexc. by apply INR_le. 
+      + right. apply Hexc. by apply INR_le.
       + apply exec_mon'.
-        apply INR_le. by left. 
-    - apply rbar_le_finite; [done|]. 
+        apply INR_le. by left.
+    - apply rbar_le_finite; [done|].
       apply (sup_is_upper_bound (λ m, exec m a b) n).
   Qed.
 

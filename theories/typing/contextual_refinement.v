@@ -225,7 +225,6 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
     termination can be found in [contextual_refinement_alt.v] *)
-(* Can we avoid exposing validity of the initial tapes in this definition? *)
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
