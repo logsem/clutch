@@ -103,11 +103,15 @@ Qed.
 
 (* TODO: Make these notations work *)
 
-Infix "+" := nnreal_plus.
-Infix "*" := nnreal_mult.
 
 End nnreals.
 
+
+Declare Scope NNR_scope.
+Delimit Scope NNR_scope with NNR.
+
+Infix "+" := nnreal_plus : NNR_scope.
+Infix "*" := nnreal_mult : NNR_scope.
 
 (** * Definitions *)
 

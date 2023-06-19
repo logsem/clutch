@@ -390,4 +390,30 @@ Proof.
       apply (sup_is_upper_bound (λ n0 : nat, exec_val n0 ρ v) n).
 Qed.
 
+Lemma lim_exec_continous_mass a r :
+    (∀ n, SeriesC (exec_val n a) <= r) →
+    SeriesC (lim_exec_val a) <= r.
+Proof.
+  intro Hm.
+  erewrite SeriesC_ext; last first.
+  { intro; rewrite lim_exec_val_rw; auto. }
+  assert (is_finite (Sup_seq (λ n : nat, SeriesC (exec_val n a)))) as Haux.
+  {
+    apply (Rbar_le_sandwich 0 1).
+    + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+    + apply upper_bound_ge_sup; intro; simpl; auto.
+  }
+  erewrite (MCT_seriesC _ (λ n, SeriesC (exec_val n a)) (Sup_seq (λ n : nat, SeriesC (exec_val n a)))); auto.
+  - apply finite_rbar_le; auto.
+    apply upper_bound_ge_sup; auto.
+  - apply exec_val_mon.
+  - intro; exists 1; intro; auto.
+  - intros.
+    apply SeriesC_correct; auto.
+  - rewrite (Rbar_le_sandwich 0 1); auto.
+    + apply (Sup_seq_correct (λ n : nat, SeriesC (exec_val n a))).
+    + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+    + apply upper_bound_ge_sup; intro; simpl; auto.
+Qed.
+
 End prim_exec_lim.

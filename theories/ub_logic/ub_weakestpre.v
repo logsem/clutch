@@ -4,13 +4,13 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export weakestpre fixpoint big_op.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext.
+From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Export couplings distribution union_bounds.
 From clutch.program_logic Require Export exec language.
 
 Import uPred.
 
-Local Open Scope R.
+Local Open Scope NNR_scope.
 
 (** [irisGS] specifies the interface for the resource algebras implementing the
     [state] and [cfg] of a [language] [Λ]. For the purposes of defining the
@@ -22,7 +22,7 @@ Local Open Scope R.
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
-  err_interp : R → iProp Σ;
+  err_interp : nonnegreal → iProp Σ;
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
@@ -43,8 +43,9 @@ Qed.
 Section exec_ub.
   Context `{!irisGS Λ Σ}.
 
-  Definition exec_ub_pre (Z : cfg Λ → iProp Σ) (Φ : R * cfg Λ → iProp Σ) :=
-    (λ (x : R * cfg Λ),
+
+  Definition exec_ub_pre (Z : cfg Λ → iProp Σ) (Φ : nonnegreal * cfg Λ → iProp Σ) :=
+    (λ (x : nonnegreal * cfg Λ),
       let '(ε, (e1, σ1)) := x in
       (* [prim_step] *)
       (∃ R, ⌜reducible e1 σ1⌝ ∗
@@ -53,11 +54,12 @@ Section exec_ub.
       (* [state_step]  *)
       ([∨ list] α ∈ get_active σ1,
       (* We allow an explicit weakening of the grading, but maybe it is not needed *)
-        (∃ R ε1 ε2, ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
+        (∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2,((e1, σ2)))))
     )%I.
 
-  Canonical Structure RO := leibnizO R.
+  (* TODO: Define this globally, it appears in error credits too *)
+  Canonical Structure NNRO := leibnizO nonnegreal.
 
   Local Instance exec_state_ub_pre_NonExpansive Z Φ :
     NonExpansive (exec_ub_pre Z Φ).
@@ -97,20 +99,20 @@ Section exec_ub.
             ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ρ2 ) ∨
       ([∨ list] α ∈ get_active σ1,
-        (∃ R ε1 ε2, ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
+        (∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε2 )))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
 
 
-  Lemma exec_ub_mono_grading e1 σ1 (Z : cfg Λ → iProp Σ) ε ε' :
-    ⌜(ε <= ε')⌝ -∗
+  Lemma exec_ub_mono_grading e1 σ1 (Z : cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
+    ⌜(ε <= ε')%R⌝ -∗
     exec_ub e1 σ1 Z ε -∗ exec_ub e1 σ1 Z ε'.
   Proof.
     iIntros "Hleq H_ub". iRevert "Hleq".
     rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, ∀ ε'', ((⌜(x.1 <= ε'' )⌝ -∗ (bi_least_fixpoint (exec_ub_pre Z) (ε'', x.2)))))%I : prodO RO cfgO → iPropI Σ).
+    set (Φ := (λ x, ∀ (ε'' : nonnegreal), ((⌜(x.1 <= ε'' )%R⌝ -∗ (bi_least_fixpoint (exec_ub_pre Z) (ε'', x.2)))))%I : prodO NNRO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [ [=] [[=] [=]]]. by simplify_eq. }
     iPoseProof (least_fixpoint_ind (exec_ub_pre Z) Φ with "[]") as "H"; last first.
@@ -142,17 +144,17 @@ Section exec_ub.
   Qed.
 
 
-  Lemma exec_ub_strong_mono e1 σ1 (Z1 Z2 : cfg Λ → iProp Σ) ε ε' :
-    ⌜(ε <= ε')⌝ -∗
-    (∀ e2 σ2, (⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2))) -∗
+  Lemma exec_ub_strong_mono e1 σ1 (Z1 Z2 : cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
+    ⌜(ε <= ε')%R⌝ -∗
+    (∀ e2 σ2, (⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2))) -∗
     exec_ub e1 σ1 Z1 ε -∗ exec_ub e1 σ1 Z2 ε'.
   Proof.
     iIntros "%Hleq HZ H_ub".
     iApply exec_ub_mono_grading; auto.
     iRevert "HZ".
     rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x,(∀ e2 σ2, ⌜∃ σ, prim_step x.2.1 σ (e2, σ2) > 0⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2)) -∗
-                  (bi_least_fixpoint (exec_ub_pre Z2) x ))%I : prodO RO cfgO → iPropI Σ).
+    set (Φ := (λ x,(∀ e2 σ2, ⌜∃ σ, (prim_step x.2.1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2)) -∗
+                  (bi_least_fixpoint (exec_ub_pre Z2) x ))%I : prodO NNRO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ with "[]") as "H"; last first.
@@ -181,29 +183,29 @@ Section exec_ub.
       + iRight. by iApply ("IH" with "Ht").
   Qed.
 
-  Lemma exec_ub_mono (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 ε1 ε2 :
-    ⌜(ε1 <= ε2)⌝ -∗ (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_ub e1 σ1 Z1 ε1 -∗ exec_ub e1 σ1 Z2 ε2.
+  Lemma exec_ub_mono (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 (ε1 ε2 : nonnegreal) :
+    ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_ub e1 σ1 Z1 ε1 -∗ exec_ub e1 σ1 Z2 ε2.
   Proof.
     iIntros "%Hleq HZ". iApply exec_ub_strong_mono; auto.
     iIntros (??) "[_ ?]". by iApply "HZ".
   Qed.
 
-  Lemma exec_ub_mono_pred (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 ε :
+  Lemma exec_ub_mono_pred (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 (ε : nonnegreal) :
     (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_ub e1 σ1 Z1 ε -∗ exec_ub e1 σ1 Z2 ε.
   Proof.
     iIntros "HZ". iApply exec_ub_strong_mono; auto.
     iIntros (??) "[_ ?]". by iApply "HZ".
   Qed.
 
-  Lemma exec_ub_strengthen e1 σ1 (Z : cfg Λ → iProp Σ) ε :
+  Lemma exec_ub_strengthen e1 σ1 (Z : cfg Λ → iProp Σ) (ε : nonnegreal) :
     exec_ub e1 σ1 Z ε -∗
-    exec_ub e1 σ1 (λ '(e2, σ2), ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∧ Z (e2, σ2)) ε.
+    exec_ub e1 σ1 (λ '(e2, σ2), ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z (e2, σ2)) ε.
   Proof.
     iApply exec_ub_strong_mono; [iPureIntro; lra | ].
     iIntros (??) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
-  Lemma exec_ub_bind K `{!LanguageCtx K} e1 σ1 (Z : cfg Λ → iProp Σ) ε :
+  Lemma exec_ub_bind K `{!LanguageCtx K} e1 σ1 (Z : cfg Λ → iProp Σ) (ε : nonnegreal) :
     to_val e1 = None →
     exec_ub e1 σ1 (λ '(e2, σ2), Z (K e2, σ2)) ε -∗ exec_ub (K e1) σ1 Z ε.
   Proof.
@@ -213,7 +215,7 @@ Section exec_ub.
     rewrite /exec_ub /exec_ub'.
     set (Φ := (λ x, ⌜to_val x.2.1 = None⌝ -∗
                      bi_least_fixpoint (exec_ub_pre Z) (x.1, (K x.2.1, x.2.2)))%I
-           : prodO RO cfgO → iPropI Σ).
+           : prodO NNRO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter
@@ -256,7 +258,7 @@ Section exec_ub.
       + iRight. by iApply ("IH" with "Ht").
   Qed.
 
-  Lemma exec_ub_prim_step e1 σ1 Z ε :
+  Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
     (∃ R, ⌜reducible e1 σ1⌝ ∗
           ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
           ∀ ρ2, ⌜R ρ2⌝ ={∅}=∗ Z ρ2)
@@ -268,7 +270,7 @@ Section exec_ub.
   Qed.
 
   (* TODO: Maybe allow weakening of the grading *)
-  Lemma exec_ub_state_step α e1 σ1 Z ε ε' :
+  Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
     (∃ R, ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
           ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε')
