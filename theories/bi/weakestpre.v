@@ -10,24 +10,31 @@ Delimit Scope expr_scope with E.
 Declare Scope val_scope.
 Delimit Scope val_scope with V.
 
-Class Wp (PROP EXPR VAL A : Type) `{Inhabited A} :=
-  wp : A → coPset → EXPR → (VAL → PROP) → PROP.
-Global Arguments wp {_ _ _ _ _ _} _ _ _%E _%I.
-Global Instance: Params (@wp) 9 := {}.
+Class Wp (PROP EXPR VAL A : Type) := {
+  wp : A → coPset → EXPR → (VAL → PROP) → PROP;
+  wp_default : A
+}.
 
-Class Rwp (PROP EXPR VAL A : Type) `{Inhabited A} :=
-  rwp : A → coPset → EXPR → (VAL → PROP) → PROP.
-Global Arguments rwp {_ _ _ _ _ _} _ _ _%E _%I.
+Global Arguments wp {_ _ _ _ _} _ _ _%E _%I.
+Global Instance: Params (@wp) 9 := {}.
+Global Arguments wp_default : simpl never.
+
+Class Rwp (PROP EXPR VAL A : Type) := {
+  rwp : A → coPset → EXPR → (VAL → PROP) → PROP;
+  rwp_default : A
+}.
+Global Arguments rwp {_ _ _ _ _} _ _ _%E _%I.
 Global Instance: Params (@rwp) 9 := {}.
+Global Arguments rwp_default : simpl never.
 
 (** Notations for partial weakest preconditions *)
 (** Notations without binder -- only parsing because they overlap with the
 notations with binder. *)
 Notation "'WP' e @ s ; E {{ Φ } }" := (wp s E e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e @ E {{ Φ } }" := (wp inhabitant E e%E Φ)
+Notation "'WP' e @ E {{ Φ } }" := (wp wp_default E e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e {{ Φ } }" := (wp inhabitant ⊤ e%E Φ)
+Notation "'WP' e {{ Φ } }" := (wp wp_default ⊤ e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
 
 (** Notations with binder. *)
@@ -40,10 +47,10 @@ them. *)
 Notation "'WP' e @ s ; E {{ v , Q } }" := (wp s E e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'WP' e @ E {{ v , Q } }" := (wp inhabitant E e%E (λ v, Q))
+Notation "'WP' e @ E {{ v , Q } }" := (wp wp_default E e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[hv' 'WP'  e  '/' @  E  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'WP' e {{ v , Q } }" := (wp inhabitant ⊤ e%E (λ v, Q))
+Notation "'WP' e {{ v , Q } }" := (wp wp_default ⊤ e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[hv' 'WP'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
@@ -97,9 +104,9 @@ Notation "'{{{' P } } } e {{{ 'RET' pat ; Q } } }" :=
 notations with binder. *)
 Notation "'RWP' e @ s ; E ⟨⟨ Φ ⟩ ⟩" := (rwp s E e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'RWP' e @ E ⟨⟨ Φ ⟩ ⟩" := (rwp inhabitant E e%E Φ)
+Notation "'RWP' e @ E ⟨⟨ Φ ⟩ ⟩" := (rwp rwp_default E e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'RWP' e ⟨⟨ Φ ⟩ ⟩" := (rwp inhabitant ⊤ e%E Φ)
+Notation "'RWP' e ⟨⟨ Φ ⟩ ⟩" := (rwp rwp_default ⊤ e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
 
 
@@ -109,10 +116,10 @@ should align with the binder(s) on the first line. *)
 Notation "'RWP' e @ s ; E ⟨⟨ v , Q ⟩ ⟩" := (rwp s E e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[' 'RWP'  e  '/' '[          ' @  s ;  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
-Notation "'RWP' e @ E ⟨⟨ v , Q ⟩ ⟩" := (rwp inhabitant E e%E (λ v, Q))
+Notation "'RWP' e @ E ⟨⟨ v , Q ⟩ ⟩" := (rwp rwp_default E e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[' 'RWP'  e  '/' '[       ' @  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
-Notation "'RWP' e ⟨⟨ v , Q ⟩ ⟩" := (rwp inhabitant ⊤ e%E (λ v, Q))
+Notation "'RWP' e ⟨⟨ v , Q ⟩ ⟩" := (rwp rwp_default ⊤ e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[' 'RWP'  e  '/' '[   ' ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
 

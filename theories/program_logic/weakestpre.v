@@ -465,12 +465,12 @@ Proof.
 Qed.
 
 Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
-  λ _ : (), fixpoint (wp_pre).
+  {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = @wp_def Λ Σ _.
+Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = (@wp_def Λ Σ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
@@ -484,11 +484,11 @@ Implicit Types ρ : cfg Λ.
 
 (* Weakest pre *)
 Lemma wp_unfold E e Φ :
-  WP e @ E {{ Φ }} ⊣⊢ wp_pre (wp (PROP:=iProp Σ) ()) E e Φ.
+  WP e @ E {{ Φ }} ⊣⊢ wp_pre (wp (PROP:=iProp Σ) wp_default) E e Φ.
 Proof. rewrite wp_unseal. apply (fixpoint_unfold wp_pre). Qed.
 
 Global Instance wp_ne E e n :
-  Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) wp_default E e).
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /=.
@@ -506,13 +506,13 @@ Proof.
     intros ?. eapply dist_S, HΦ. }
 Qed.
 Global Instance wp_proper E e :
-  Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) wp_default E e).
 Proof.
   by intros Φ Φ' ?; apply equiv_dist=>n; apply wp_ne=>v; apply equiv_dist.
 Qed.
 Global Instance wp_contractive E e n :
   TCEq (to_val e) None →
-  Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) wp_default E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /=.
   do 8 f_equiv.
@@ -626,10 +626,10 @@ Qed.
 Lemma wp_mask_mono E1 E2 e Φ : E1 ⊆ E2 → WP e @ E1 {{ Φ }} ⊢ WP e @ E2 {{ Φ }}.
 Proof. iIntros (?) "H"; iApply (wp_strong_mono with "H"); auto. Qed.
 Global Instance wp_mono' E e :
-  Proper (pointwise_relation _ (⊢) ==> (⊢)) (wp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (⊢) ==> (⊢)) (wp (PROP:=iProp Σ) wp_default E e).
 Proof. by intros Φ Φ' ?; apply wp_mono. Qed.
 Global Instance wp_flip_mono' E e :
-  Proper (pointwise_relation _ (flip (⊢)) ==> (flip (⊢))) (wp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (flip (⊢)) ==> (flip (⊢))) (wp (PROP:=iProp Σ) wp_default E e).
 Proof. by intros Φ Φ' ?; apply wp_mono. Qed.
 
 Lemma wp_value_fupd E Φ e v : IntoVal e v → WP e @ E {{ Φ }} ⊣⊢ |={E}=> Φ v.

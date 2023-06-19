@@ -87,7 +87,8 @@ Definition rwp_def {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} (_ : ()) (E : coPset)
   := bi_least_fixpoint rwp_pre' (E,e,Φ).
 Definition rwp_aux {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} : seal (@rwp_def Σ A Λ _ _ _ _). by eexists. Qed.
 #[global]
-Instance rwp' {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} : Rwp (iProp Σ) (expr Λ) (val Λ) () := rwp_aux.(unseal).
+Instance rwp' {Σ A Λ} `{spec A Σ} `{!tprwpG Λ Σ} : Rwp (iProp Σ) (expr Λ) (val Λ) () :=
+  {| rwp := rwp_aux.(unseal); rwp_default := () |}.
 
 Local Lemma rwp_unseal `{spec A Σ} `{!tprwpG Λ Σ} : rwp = @rwp_def Σ A Λ _ _ _ _.
 Proof. rewrite -rwp_aux.(seal_eq) //. Qed.
@@ -101,7 +102,7 @@ Implicit Types e : expr Λ.
 Implicit Types b : bool.
 
 Lemma rwp_unfold E e Φ :
-  RWP e @ E ⟨⟨ Φ ⟩⟩ ⊣⊢ rwp_pre (rwp (PROP:=iProp Σ) ()) E e Φ.
+  RWP e @ E ⟨⟨ Φ ⟩⟩ ⊣⊢ rwp_pre (rwp (PROP:=iProp Σ) rwp_default) E e Φ.
 Proof. by rewrite rwp_unseal /rwp_def least_fixpoint_unfold. Qed.
 
 Lemma rwp_strong_ind Ψ :
@@ -130,13 +131,13 @@ Proof.
 Qed.
 
 Global Instance rwp_ne E e n :
-  Proper (pointwise_relation _ (dist n) ==> dist n) (rwp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (dist n) ==> dist n) (rwp (PROP:=iProp Σ) rwp_default E e).
 Proof.
   intros Φ1 Φ2 HΦ. rewrite !rwp_unseal. by apply (least_fixpoint_ne _), pair_ne, HΦ.
 Qed.
 
 Global Instance rwp_proper E e :
-  Proper (pointwise_relation _ (≡) ==> (≡)) (rwp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (≡) ==> (≡)) (rwp (PROP:=iProp Σ) rwp_default E e).
 Proof.
   by intros Φ Φ' ?; apply equiv_dist=>n; apply rwp_ne=>v; apply equiv_dist.
 Qed.
@@ -326,7 +327,7 @@ Qed.
 Lemma rwp_mask_mono E1 E2 e Φ : E1 ⊆ E2 → RWP e @ E1 ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E2 ⟨⟨ Φ ⟩⟩.
 Proof. iIntros (?) "H"; iApply (rwp_strong_mono with "H"); auto. Qed.
 Global Instance rwp_mono' E e :
-  Proper (pointwise_relation _ (⊢) ==> (⊢)) (rwp (PROP:=iProp Σ) () E e).
+  Proper (pointwise_relation _ (⊢) ==> (⊢)) (rwp (PROP:=iProp Σ) rwp_default E e).
 Proof. by intros Φ Φ' ?; apply rwp_mono. Qed.
 
 Lemma rwp_value E Φ e v : IntoVal e v → Φ v ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
