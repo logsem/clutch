@@ -7,7 +7,7 @@ From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
   fintype seq ssrbool zmodp.
 Set Warnings "notation-overridden,ambiguous-paths".
 
-From clutch.examples.crypto Require Import fingroup_val_inj.
+From clutch.examples.crypto Require Import valgroup.
 
 Local Open Scope group_scope.
 Import fingroup.fingroup.
@@ -19,9 +19,9 @@ Set Bullet Behavior "Strict Subproofs".
 
 Section Z_p.
 
-  Context `{!clutchRGS Σ}.
   Context (p'' : nat).
   Notation p := (S (S p'')).
+  Context `{!clutchRGS Σ}.
 
   Definition z_p : finGroupType := [finGroupType of 'Z_p].
 

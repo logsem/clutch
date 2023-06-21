@@ -283,3 +283,37 @@ Tactic Notation "rel_exp_r" :=
       end
   | _ => fail "rel_exp_r: not proving a refinement"
   end.
+
+Module valgroup_tactics.
+
+  Ltac rel_pures :=
+    repeat (rel_pures_l ; try rel_exp_l ; try rel_mult_l ; try rel_inv_l) ;
+    repeat (rel_pures_r ; try rel_exp_r ; try rel_mult_r ; try rel_inv_r).
+
+  (* TODO: make this into a general purpose tactic for solving log. rel.s at base
+   type, and add a clause to use a hint database to which local solutions such
+   as τG_subtype can be added. *)
+  Ltac rel_vals' :=
+    lazymatch goal with
+    | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
+        iExists _,_ ; iRight ; iSplit ; [eauto|iSplit ; eauto]
+    | |- environments.envs_entails _ (_ (InjLV _) (InjLV _)) =>
+        iExists _,_ ; iLeft ; iSplit ; [eauto|iSplit ; eauto]
+    | |- environments.envs_entails _ (_ (_ , _)%V (_ , _)%V) =>
+        iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]
+    | |- environments.envs_entails _ (_ (_ (interp τG) _) _ _) =>
+        iApply τG_subtype ; eauto
+    | _ => fail "rel_vals: case not covered"
+    end.
+  Ltac rel_vals := rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto).
+
+End valgroup_tactics.
+
+Module valgroup_notation.
+
+  Notation "e1 · e2" := (vmult e1 e2) (at level 40) : expr_scope.
+  Notation "e ^-1" := (vinv e) : expr_scope.
+  Notation "e1 ^ e2" := (vexp e1 e2) : expr_scope.
+  Notation "e1 ^- e2" := (e1 ^ e2)^-1%E : expr_scope.
+
+End valgroup_notation.

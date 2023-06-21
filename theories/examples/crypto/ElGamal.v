@@ -1,8 +1,8 @@
 (* ElGamal encryption has one-time secrecy against chosen plaintext attack, in
    the real/random paradigm. Following Rosulek's "The Joy of Crypto". *)
 From clutch Require Import clutch.
-From clutch.examples.crypto Require Import mc_val_instances fingroup_val_inj.
-From clutch.examples.crypto Require fingroup_val_ElGamal_bijection.
+From clutch.examples.crypto Require Import mc_val_instances valgroup.
+From clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
 Set Warnings "-notation-overridden,-ambiguous-paths".
@@ -10,27 +10,6 @@ From mathcomp Require Import zmodp finset ssrbool fingroup.fingroup solvable.cyc
 Set Warnings "notation-overridden,ambiguous-paths".
 
 Set Default Proof Using "Type*".
-
-Local Ltac rel_pures :=
-  repeat (rel_pures_l ; try rel_exp_l ; try rel_mult_l ; try rel_inv_l) ;
-  repeat (rel_pures_r ; try rel_exp_r ; try rel_mult_r ; try rel_inv_r).
-
-(* TODO: make this into a general purpose tactic for solving log. rel.s at base
-   type, and add a clause to use a hint database to which local solutions such
-   as τG_subtype can be added. *)
-Local Ltac rel_vals' :=
-  lazymatch goal with
-  | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
-      iExists _,_ ; iRight ; iSplit ; [eauto|iSplit ; eauto]
-  | |- environments.envs_entails _ (_ (InjLV _) (InjLV _)) =>
-      iExists _,_ ; iLeft ; iSplit ; [eauto|iSplit ; eauto]
-  | |- environments.envs_entails _ (_ (_ , _)%V (_ , _)%V) =>
-      iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]
-  | |- environments.envs_entails _ (_ (_ (interp τG) _) _ _) =>
-      iApply τG_subtype ; eauto
-  | _ => fail "rel_vals: case not covered"
-  end.
-Local Ltac rel_vals := rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto).
 
 Section ElGamal.
 
@@ -45,12 +24,9 @@ Context {Δ : listO (lrelC Σ)}.
 #[local] Notation T := (interp τG Δ).
 #[local] Notation n := (S n'').
 
-#[local] Notation "e1 · e2" := (vmult e1 e2) (at level 40) : expr_scope.
-#[local] Notation "e ^-1" := (vinv e) : expr_scope.
-#[local] Notation "e1 ^ e2" := (vexp e1 e2) : expr_scope.
-#[local] Notation "e1 ^- e2" := (e1 ^ e2)^-1%E : expr_scope.
-
 #[local] Definition rnd t := (rand #n from t)%E.
+
+Import valgroup_notation valgroup_tactics.
 
 (* ElGamal public key encryption *)
 Definition keygen : expr :=
@@ -305,10 +281,9 @@ Proof with rel_pures.
   (* Rewrite msg into g^k_msg for some k_msg. *)
   destruct (log_g vmsg) as [k_msg ->].
   (* Sample c on the left, and (c + k_msg mod (S n)) on the right. *)
-  pose (f := fingroup_val_ElGamal_bijection.f n'' k_msg).
+  pose (f := ElGamal_bijection.f n'' k_msg).
   unshelve rel_apply (refines_couple_tape_rand n f with "[- $γ ]") => //.
-  1: constructor ; [ apply fingroup_val_ElGamal_bijection.f_inj
-                   | apply fingroup_val_ElGamal_bijection.f_surj ].
+  1: split ; [ apply ElGamal_bijection.f_inj | apply ElGamal_bijection.f_surj ].
   iIntros (c) "γ".
   set (c_plus_k_msg := f c). rel_rand_l. inv_cl "[- $Hclose]"...
   assert ((g ^+ (k_msg + c)) = (g ^+ c_plus_k_msg))%g as heq.
