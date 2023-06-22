@@ -614,6 +614,105 @@ Section monadic.
         * apply Rmult_le_compat_l; [done|]. eapply pmf_le_1.
   Qed.
 
+
+  Lemma dbind_mass_1_inv_mass `{Countable A, Countable B} (μ1 : distr A) (f : A → distr B) (b : B) :
+    (μ1 ≫= f) b = 1 →
+    SeriesC μ1 = 1.
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    intro Hbind.
+    apply Rle_antisym; auto.
+    rewrite <- Hbind.
+    apply SeriesC_le; auto.
+    intro; split.
+    - apply Rmult_le_pos; auto.
+    - rewrite <- Rmult_1_r.
+      apply Rmult_le_compat_l; auto.
+  Qed.
+
+  Lemma dbind_mass_1_inv_elem `{Countable A, Countable B} (μ1 : distr A) (f : A → distr B) (b : B) :
+    (μ1 ≫= f) b = 1 →
+    (∀ a, μ1 a > 0 → f a b = 1).
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    intro Hbind.
+    intros a Ha.
+    assert (SeriesC (λ a0 : A, μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b )) =  SeriesC (λ a0 : A, μ1 a0 * f a0 b)) as Haux.
+    {
+      apply Rle_antisym.
+      - rewrite Hbind.
+        apply (Rle_trans _ (SeriesC μ1)); auto.
+        apply SeriesC_le; auto.
+        intro; split.
+        + apply Rmult_le_pos; auto.
+          case_bool_decide; auto; lra.
+        + rewrite <- Rmult_1_r.
+          apply Rmult_le_compat_l; auto.
+          case_bool_decide; auto; lra.
+      - apply SeriesC_le.
+        +  intro; split.
+           * apply Rmult_le_pos; auto.
+           * apply Rmult_le_compat_l; auto.
+             case_bool_decide; auto; lra.
+        + apply (ex_seriesC_le _ μ1); auto.
+          intro; split.
+          * apply Rmult_le_pos; auto.
+            case_bool_decide; auto; lra.
+          * rewrite <- Rmult_1_r.
+            apply Rmult_le_compat_l; auto.
+            case_bool_decide; auto; lra.
+    }
+    rewrite (SeriesC_split_elem _ a) in Haux; first last.
+    - apply (ex_seriesC_le _ μ1); auto.
+      intro n; split.
+      + apply Rmult_le_pos; auto.
+        case_bool_decide; auto; lra.
+      + rewrite <- Rmult_1_r.
+        apply Rmult_le_compat_l; auto.
+        case_bool_decide; auto; lra.
+    - intro n.
+      apply Rmult_le_pos; auto.
+      case_bool_decide; auto; lra.
+    - rewrite (SeriesC_split_elem (λ a0 : A, μ1 a0 * f a0 b) a) in Haux; first last.
+    + apply (ex_seriesC_le _ μ1); auto.
+      intro n; split.
+      * apply Rmult_le_pos; auto.
+      * rewrite <- Rmult_1_r.
+        apply Rmult_le_compat_l; auto.
+    + intro n.
+      apply Rmult_le_pos; auto.
+    + (* We do this kind of rewrite often enough that it could be a lemma *)
+      assert (SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a0 * f a0 b else 0)
+             = SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a * f a b else 0)) as Hrw1.
+      {
+        apply SeriesC_ext; intro; case_bool_decide; (try simplify_eq); auto.
+      }
+      rewrite Hrw1 in Haux.
+      rewrite SeriesC_singleton in Haux.
+      assert (SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b) else 0) =
+                SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a else 0)) as Hrw2.
+      {
+        apply SeriesC_ext; intro; case_bool_decide; (try simplify_eq); auto.
+        lra.
+      }
+      rewrite Hrw2 in Haux.
+      rewrite SeriesC_singleton in Haux.
+      assert (SeriesC (λ a0 : A, if bool_decide (a0 ≠ a) then μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b) else 0) =
+                SeriesC (λ a0 : A, if bool_decide (a0 ≠ a) then μ1 a0 * f a0 b else 0)) as Hrw3.
+      {
+        apply SeriesC_ext; intro; case_bool_decide; (try simplify_eq); auto.
+        rewrite bool_decide_eq_false_2; auto.
+      }
+      rewrite Hrw3 in Haux.
+      apply Rplus_eq_reg_r in Haux.
+      apply (Rmult_eq_reg_l (μ1 a)); lra.
+
+      Search Rmult.
+
+      case_bool_decide; auto; lra.
+    apply Rle_antisym; auto.
+    rewrite <- Hbind.
+
   Lemma dbind_eq (f g : A → distr B) (μ1 μ2 : distr A) :
     (∀ a, μ1 a > 0 → f a = g a) →
     (∀ a, μ1 a = μ2 a) →
