@@ -706,12 +706,7 @@ Section monadic.
       rewrite Hrw3 in Haux.
       apply Rplus_eq_reg_r in Haux.
       apply (Rmult_eq_reg_l (μ1 a)); lra.
-
-      Search Rmult.
-
-      case_bool_decide; auto; lra.
-    apply Rle_antisym; auto.
-    rewrite <- Hbind.
+  Qed.
 
   Lemma dbind_eq (f g : A → distr B) (μ1 μ2 : distr A) :
     (∀ a, μ1 a > 0 → f a = g a) →
