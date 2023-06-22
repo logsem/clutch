@@ -660,6 +660,93 @@ Section monadic.
 
 End monadic.
 
+Section probabilities.
+  Context `{Countable A}.
+  Implicit Types μ d : distr A.
+
+  Definition prob (μ : distr A) (P : A → bool) : R :=
+    SeriesC (λ a : A, if (P a) then μ a else 0).
+
+  Lemma prob_le_1 (μ : distr A) (P : A → bool) :
+    prob μ P <= 1.
+  Proof.
+    transitivity (SeriesC μ); [|done].
+    apply SeriesC_le; [|done].
+    real_solver.
+  Qed.
+
+  Lemma prob_ge_0 (μ : distr A) (P : A → bool) :
+    0 <= prob μ P.
+  Proof. apply SeriesC_ge_0'=> a. real_solver. Qed.
+
+End probabilities.
+
+Section probability_prop.
+  Context `{Countable A}.
+
+  Lemma prob_dret_true (a : A) (P : A → bool) :
+    P a = true → prob (dret a) P = 1.
+  Proof.
+    intro HP.
+    rewrite /prob/pmf/=/dret_pmf/=.
+    erewrite SeriesC_ext; [apply SeriesC_singleton|].
+    real_solver.
+  Qed.
+
+  Lemma prob_dret_false (a : A) (P : A → bool) :
+    P a = false → prob (dret a) P = 0.
+  Proof.
+    intro HP.
+    rewrite /prob/pmf/=/dret_pmf/=.
+    apply SeriesC_0. real_solver.
+  Qed.
+
+  Lemma prob_dbind `{Countable B} (μ : distr A) (f : A → distr B) (P : B → bool) :
+    prob (dbind f μ) P = SeriesC (λ a, μ a * prob (f a) P).
+  Proof.
+    rewrite /prob{1}/pmf/=/dbind_pmf/=.
+    assert (∀ a,
+               (if P a then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
+               SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
+    {intro a. destruct (P a); [done|]. rewrite SeriesC_0 //. }
+    setoid_rewrite Haux.
+    rewrite -(fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext=> a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; intro b.
+      real_solver.
+    - real_solver.
+    - intro b.
+      apply (ex_seriesC_le _ μ); [|done].
+      real_solver.
+    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
+      + intro b; split.
+        * apply SeriesC_ge_0'. real_solver.
+        * apply SeriesC_le; [real_solver|].
+          apply pmf_ex_seriesC_mult_fn.
+          exists 1. real_solver.
+      + apply (pmf_ex_seriesC (dbind f μ)).
+  Qed.
+
+  Lemma union_bound (μ : distr A) (P Q : A → bool) :
+    prob μ (λ a, andb (P a) (P a)) <= prob μ P + prob μ Q.
+  Proof.
+    rewrite /prob.
+    rewrite -SeriesC_plus.
+    - apply SeriesC_le.
+      + intro n.
+        pose proof (pmf_pos μ n).
+        destruct (P n); destruct (Q n); real_solver.
+      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
+        * intro n.
+          pose proof (pmf_pos μ n).
+          destruct (P n); destruct (Q n); real_solver.
+        * by apply ex_seriesC_scal_l.
+    - by apply ex_seriesC_filter_bool_pos.
+    - by apply ex_seriesC_filter_bool_pos.
+  Qed.
+
+End probability_prop.
 
 Section probabilities.
   Context `{Countable A}.
@@ -1518,24 +1605,24 @@ Section marginals.
     { extensionality b. by destruct b. }
     done.
   Qed.
-  
-  Lemma lmarg_dcomm (μ : distr (A * B)) :
-    lmarg (dcomm μ) = rmarg μ.
+
+  Lemma lmarg_dswap (μ : distr (A * B)) :
+    lmarg (dswap μ) = rmarg μ.
   Proof.
-    rewrite /lmarg /dcomm dmap_comp.
+    rewrite /lmarg /dswap dmap_comp.
     assert ((fst ∘ (λ '(a, b), (b : B, a : A))) = snd) as ->.
-    { apply functional_extensionality. by intros []. }
+    { extensionality b. by destruct b. }
     done.
   Qed.
 
-  Lemma rmarg_dcomm (μ : distr (A * B)) :
-    rmarg (dcomm μ) = lmarg μ.
+  Lemma rmarg_dswap (μ : distr (A * B)) :
+    rmarg (dswap μ) = lmarg μ.
   Proof.
-    rewrite /rmarg /dcomm dmap_comp.
+    rewrite /rmarg /dswap dmap_comp.
     assert ((snd ∘ (λ '(a, b), (b : B, a : A))) = fst) as ->.
-    { apply functional_extensionality. by intros []. }
+    { extensionality b. by destruct b. }
     done.
-  Qed.   
+  Qed.
 
   Lemma rmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (b : B) :
     rmarg (dprod μ1 μ2) b = μ2 b * SeriesC μ1.

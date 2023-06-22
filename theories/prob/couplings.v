@@ -590,14 +590,14 @@ Section refRcoupl.
   Proof.
     rewrite /refRcoupl /Rcoupl.
     intros (μ & ((HμL & HμR) & HμSupp)).
-    exists (dcomm μ).
+    exists (dswap μ).
     split; last first.
     { intros [b a] [[? ?] [[= <- <-] ?]]%dmap_pos=>/=.      
       by eapply (HμSupp (_, _)). }
     split.
-    { rewrite lmarg_dcomm //. }
+    { rewrite lmarg_dswap //. }
     intros a.
-    rewrite rmarg_dcomm.
+    rewrite rmarg_dswap.
     rewrite HμL //. 
   Qed.
 
