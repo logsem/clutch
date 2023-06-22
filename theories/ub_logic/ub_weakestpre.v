@@ -48,8 +48,7 @@ Section exec_ub.
     (λ (x : nonnegreal * cfg Λ),
       let '(ε, (e1, σ1)) := x in
       (* [prim_step] *)
-      (∃ R, ⌜reducible e1 σ1⌝ ∗
-            ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
+      (∃ R, ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ρ2 ) ∨
       (* [state_step]  *)
       ([∨ list] α ∈ get_active σ1,
@@ -95,8 +94,7 @@ Section exec_ub.
 
   Lemma exec_ub_unfold e1 σ1 Z ε :
     exec_ub e1 σ1 Z ε ≡
-      ((∃ R, ⌜reducible e1 σ1⌝ ∗
-            ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
+      ((∃ R, ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ρ2 ) ∨
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
@@ -118,13 +116,12 @@ Section exec_ub.
     iPoseProof (least_fixpoint_ind (exec_ub_pre Z) Φ with "[]") as "H"; last first.
     { iApply ("H" with "H_ub"). }
     iIntros "!#" ([ε'' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[ (% & % & % & H) | H ] %ε3 %Hleq' /="; simpl in Hleq'.
+    iIntros "[ (% & % & H) | H ] %ε3 %Hleq' /="; simpl in Hleq'.
     - rewrite least_fixpoint_unfold.
       iLeft. iExists _.
-      iSplit; [done|].
       iSplit.
       { iPureIntro.
-        apply (UB_mon_grading _ _ _ _ Hleq') in H1. by apply ub_lift_pos_R. }
+        apply (UB_mon_grading _ _ _ _ Hleq') in H0. by apply ub_lift_pos_R. }
       iIntros ([] (?&?)). iMod ("H" with "[//]").
       iModIntro. eauto.
     - rewrite least_fixpoint_unfold.
@@ -160,10 +157,9 @@ Section exec_ub.
     iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ with "[]") as "H"; last first.
     { by iApply ("H" with "H_ub"). }
     iIntros "!#" ([ε'' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[ (% & % & % & H) | H ] HZ /=".
+    iIntros "[ (% & % & H) | H ] HZ /=".
     - rewrite least_fixpoint_unfold.
       iLeft. iExists _.
-      iSplit; [done|].
       iSplit.
       { iPureIntro.
         by apply ub_lift_pos_R. }
@@ -179,7 +175,7 @@ Section exec_ub.
         iSplit; [iPureIntro; lra | ].
         iSplit; [done | ].
         iIntros.
-        by iApply ("H" with "[//]"). 
+        by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
   Qed.
 
@@ -223,12 +219,11 @@ Section exec_ub.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! (_, (_, _)) with "Hub [//]"). }
     iIntros "!#" ([ε' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[(% & % & % & H) | H] %Hv'".
+    iIntros "[(% & % & H) | H] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. simpl.
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)).
       rewrite fill_dmap //=.
-      iSplit; [eauto using reducible_fill|].
       iSplit.
       { iPureIntro.
         rewrite <- Rplus_0_r.
@@ -259,8 +254,7 @@ Section exec_ub.
   Qed.
 
   Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
-    (∃ R, ⌜reducible e1 σ1⌝ ∗
-          ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
+    (∃ R, ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
           ∀ ρ2, ⌜R ρ2⌝ ={∅}=∗ Z ρ2)
     ⊢ exec_ub e1 σ1 Z ε.
   Proof.
@@ -281,7 +275,57 @@ Section exec_ub.
     rewrite {1}exec_ub_unfold.
     iRight.
     iApply big_orL_elem_of; eauto.
+    iExists R2.
+    iExists ε.
+    iExists ε'.
+    iFrame.
+    iPureIntro.
+    simpl. lra.
   Qed.
+
+(*
+  Lemma exec_ub_reducible e σ Z1 Z2 ε1 ε2 :
+    (exec_ub e σ Z1 ε1)  ={∅}=∗ ⌜irreducible e σ⌝ -∗ (exec_ub e σ Z2 ε2).
+  Proof.
+    rewrite /exec_ub /exec_ub'.
+    set (Φ := (λ x, |={∅}=> ⌜irreducible x.2.1 x.2.2⌝ -∗ (exec_ub x.2.1 x.2.2 Z2 ε2))%I : prodO NNRO cfgO → iPropI Σ).
+    assert (NonExpansive Φ).
+    { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
+    iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ
+                 with "[]") as "H"; last first.
+    { done. }
+    iIntros "!>" ((ε' & [e1 σ1])). rewrite /exec_ub_pre.
+    iIntros "[(% & % & % & H) | H] /="; auto;
+    rewrite /Φ/=.
+    - iModIntro.
+      iIntros.
+      exfalso.
+      pose proof (not_reducible e1 σ1) as (H3 & H4).
+      by apply H4.
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible e1 σ1⌝ -∗ exec_ub e1 σ1 Z2 ε2)%I  with "H") as "H".
+      { intros.
+        iIntros.
+        iModIntro.
+        iIntros.
+        rewrite exec_ub_unfold.
+        iRight.
+        iApply (big_orL_elem_of _ _ y).
+        - eapply elem_of_list_lookup_2; eauto.
+        -
+*)
+
+(*
+  Lemma exec_ub_irreducible e σ Z ε :
+    ⌜irreducible e σ⌝ ⊢ exec_ub e σ Z ε.
+  Proof.
+    iIntros "H".
+    rewrite {1}exec_ub_unfold.
+    iRight.
+    iInduction (get_active σ) as [| l] "IH".
+    { rewrite big_orL_nil //. }
+      rewrite 2!big_orL_cons.
+      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq & %Hub & H)) | Ht]".
+*)
 
   (* This lemma might not be true anymore *)
   (*
@@ -346,26 +390,26 @@ Section exec_ub.
 End exec_ub.
 
 (** * The weakest precondition  *)
-Definition ub_wp_pre `{!irisGS Λ Σ} (s : stuckness)
+Definition ub_wp_pre `{!irisGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 ε,
       state_interp σ1 ∗ err_interp ε ={E,∅}=∗
-      ⌜if s is NotStuck then reducible e1 σ1 else True⌝ ∗
-      ∃ ε1 ε2, ⌜ ε1 + ε2 <= ε ⌝ ∗
+      ⌜reducible e1 σ1⌝ ∗
+      ∃ (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
       exec_ub e1 σ1 (λ '(e2, σ2),
         ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ) ε1
 end%I.
 
-Local Instance wp_pre_contractive `{!irisGS Λ Σ} s : Contractive (ub_wp_pre s).
+Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive (ub_wp_pre).
 Proof.
   rewrite /ub_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
   do 13 (f_equiv).
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [ε' [e' σ']]. rewrite /exec_ub_pre.
-  do 10 f_equiv.
+  do 9 f_equiv.
   f_contractive.
   do 3 f_equiv.
   apply Hwp.
@@ -374,7 +418,7 @@ Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
 Local Definition ub_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
-  λ (s : stuckness), fixpoint (ub_wp_pre s).
+  λ (s : stuckness), fixpoint (ub_wp_pre).
 Local Definition ub_wp_aux : seal (@ub_wp_def). Proof. by eexists. Qed.
 Definition ub_wp' := ub_wp_aux.(unseal).
 Global Arguments ub_wp' {Λ Σ _}.
@@ -394,8 +438,8 @@ Implicit Types ε : R.
 
 (* Weakest pre *)
 Lemma ub_wp_unfold s E e Φ :
-  WP e @ s; E {{ Φ }} ⊣⊢ ub_wp_pre s (wp (PROP:=iProp Σ) s) E e Φ.
-Proof. rewrite ub_wp_unseal. apply (fixpoint_unfold (ub_wp_pre s)). Qed.
+  WP e @ s; E {{ Φ }} ⊣⊢ ub_wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
+Proof. rewrite ub_wp_unseal. apply (fixpoint_unfold (ub_wp_pre)). Qed.
 
 Global Instance ub_wp_ne s E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
@@ -405,7 +449,7 @@ Proof.
   do 13 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? []]. rewrite /exec_ub_pre.
-  do 10 f_equiv.
+  do 9 f_equiv.
   f_contractive.
   do 3 f_equiv. rewrite IH; [done|lia|].
   intros ?. eapply dist_S, HΦ.
@@ -424,7 +468,7 @@ Proof.
   do 12 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? []]. rewrite /exec_ub_pre.
-  do 10 f_equiv.
+  do 9 f_equiv.
   f_contractive. do 6 f_equiv.
 Qed.
 
@@ -442,9 +486,9 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "[% H]".
-  iDestruct "H" as (ε1  ε2  Hleq) "H".
+  iDestruct "H" as (ε1 ε2) "[% H]".
   iModIntro.
-  iSplit; [by destruct s1, s2 | ].
+  iSplit; [by destruct s1,s2 | ].
   iExists _.
   iExists _.
   iSplit; [done | ].
@@ -483,26 +527,20 @@ Proof.
   iIntros ([e2 σ2]) "[[% %Hstep] H]".
   iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
-  destruct s.
-  - rewrite !ub_wp_unfold /ub_wp_pre.
-    destruct (to_val e2) as [v2|] eqn:He2.
-    + iDestruct "H" as ">> $". by iFrame.
-    + iMod ("H" with "[$]") as "H".
-      iDestruct "H" as (? ε3 ε4 Hleq2) "H".
-      pose proof (atomic σ e2 σ2 Hstep) as H3.
-      case_match.
-      * rewrite /is_Some in H3.
-        destruct H3.
-        simplify_eq.
-      * apply not_reducible in H3.
-        done.
-  - destruct (atomic σ e2 σ2 Hstep).
-    rewrite <- (of_to_val _ _ H).
-    rewrite ub_wp_value_fupd'. iMod "H" as ">H".
-    iModIntro.
-    iFrame.
-    by iApply ub_wp_value_fupd'.
+  rewrite !ub_wp_unfold /ub_wp_pre.
+  destruct (to_val e2) as [v2|] eqn:He2.
+  - iDestruct "H" as ">> $". by iFrame.
+  - iMod ("H" with "[$]") as "H".
+    iDestruct "H" as (? ε3 ε4 Hleq2) "H".
+    pose proof (atomic σ e2 σ2 Hstep) as H3.
+    case_match.
+    + rewrite /is_Some in H3.
+      destruct H3.
+      simplify_eq.
+    + apply not_reducible in H3.
+      done.
 Qed.
+
 
 Lemma ub_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
@@ -538,7 +576,7 @@ Proof.
   iMod ("H" with "[$Hσ $Hε]") as "(%Hs & % & % & % & H)".
   iModIntro.
   iSplit.
-  - iPureIntro. destruct s; auto.
+  - iPureIntro.
     apply reducible_fill; auto.
   - iExists ε1.
     iExists ε2.

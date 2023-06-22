@@ -189,6 +189,15 @@ Section ub_theory.
          apply Rmult_le_compat_r; auto.
  Qed.
 
+ Lemma ub_lift_dzero (f : A → Prop) (ε : R) :
+   (ε >= 0) -> ub_lift dzero f ε.
+ Proof.
+   intros Hpos P HP.
+   rewrite /prob.
+   rewrite (SeriesC_ext _ (λ _, 0)); [rewrite SeriesC_0; auto; lra | ].
+   intro n; destruct (P n); simpl; auto.
+ Qed.
+
  Lemma ub_lift_pos_R (μ : distr A) (f : A -> Prop) (ε : R) :
     ub_lift μ f ε → ub_lift μ (λ a, f a ∧ μ a > 0) ε.
  Proof.
@@ -210,6 +219,16 @@ Section ub_theory.
      + destruct (P a); auto.
      + assert (P a = true) as ->; auto.
        apply HP; split; auto; lra.
+ Qed.
+
+ Lemma ub_lift_trivial (μ : distr A) (ε : R) :
+   (0 <= ε) -> ub_lift μ (λ _, True) ε.
+ Proof.
+   intros Hμ P HP.
+   rewrite /prob.
+   rewrite SeriesC_0; auto.
+   intro x.
+   rewrite (HP x); auto.
  Qed.
 
 End ub_theory.
