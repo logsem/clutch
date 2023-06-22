@@ -36,15 +36,18 @@ Section distributions.
     { eapply SeriesC_singleton. }
     etransitivity; [|eapply (pmf_SeriesC μ)].
     apply SeriesC_le; [|done].
-    intros a'. case_bool_decide; subst; split; try (lra || done).
+    real_solver.
   Qed.
 
   Lemma pmf_SeriesC_ge_0 μ : 0 <= SeriesC μ.
   Proof.
     transitivity (SeriesC (λ (_ : A), 0)).
     { apply SeriesC_ge_0; [done|]. apply ex_seriesC_0. }
-    apply SeriesC_le'; auto. apply ex_seriesC_0.
+    apply SeriesC_le'; [done| |done]. apply ex_seriesC_0.
   Qed.
+
+  Hint Resolve pmf_le_1 : core.
+  Hint Resolve pmf_SeriesC_ge_0 : core.
 
   Lemma pmf_ex_seriesC_mult_fn μ (f : A → R) :
     (∃ n, ∀ a, 0 <= f a <= n) →
@@ -52,16 +55,15 @@ Section distributions.
   Proof.
     intros [n Hf].
     eapply (ex_seriesC_le _ (λ a, μ a * n)); [|by apply ex_seriesC_scal_r].
-    intros a. split.
-    - apply Rmult_le_pos; [done|]. eapply Hf.
-    - eapply Rmult_le_compat_l; [done|]. eapply Hf.
+    intros a.
+    specialize (Hf a); real_solver.
   Qed.
 
   Lemma pmf_ex_seriesC_mult (μ1 μ2 : distr A) :
     ex_seriesC (λ a, μ1 a * μ2 a).
   Proof.
     eapply pmf_ex_seriesC_mult_fn.
-    exists 1. intros a; split; [apply pmf_pos|apply pmf_le_1].
+    exists 1. real_solver.
   Qed.
 
   Lemma pmf_le_SeriesC `{Countable A} (μ : distr A) (a : A) :
@@ -84,19 +86,18 @@ Section distributions.
     rewrite (SeriesC_split_elem _ a); [|done|done].
     eapply Rle_plus_plus.
     - erewrite SeriesC_ext; [by erewrite (SeriesC_singleton a (μ a))|].
-      intros; do 2 case_bool_decide; simplify_eq; done.
+      real_solver.
     - rewrite (SeriesC_split_elem _ a'); last first.
       + eapply ex_seriesC_le; [|eapply (pmf_ex_seriesC μ)].
-        intros; repeat case_bool_decide; split; (lra || done).
-      + intros; by case_bool_decide.
+        real_solver.
+      + real_solver.
       + apply Rle_plus_l.
         * erewrite SeriesC_ext; [by erewrite (SeriesC_singleton a' (μ a'))|].
-          intros; do 2 case_bool_decide; simplify_eq=>//.
-          rewrite bool_decide_eq_true_2 //.
+          real_solver.
         * eapply SeriesC_ge_0.
-          { intros; repeat case_bool_decide; (lra || done). }
+          { real_solver. }
           eapply ex_seriesC_le; [|eapply (pmf_ex_seriesC μ)].
-          intros. repeat case_bool_decide; split; (lra || done).
+          real_solver.
   Qed.
 
   Lemma pmf_1_supp_eq (μ : distr A) (a a' : A) :
@@ -150,11 +151,9 @@ Lemma distr_double_swap_ex `{Countable A, Countable B} (f : A → distr B) (μ :
 Proof.
   intro Hex.
   apply (fubini_pos_seriesC_ex_double (λ '(a, b), μ a * f a b)); [| |done].
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - intros. apply (ex_seriesC_le _ (f a)); [|done].
-    intros. split; [by apply Rmult_le_pos| ].
-    rewrite -{2}(Rmult_1_l (f a n)).
-    by apply Rmult_le_compat.
+    real_solver.
 Qed.
 
 Lemma distr_double_swap `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
@@ -162,17 +161,13 @@ Lemma distr_double_swap `{Countable A, Countable B} (f : A → distr B) (μ : di
   SeriesC (λ a : A, SeriesC (λ b : B, μ a * f a b)).
 Proof.
   apply (fubini_pos_seriesC (λ '(a, b), μ a * f a b)).
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - intros a. apply (ex_seriesC_le _ (f a)); [|done].
-    intros b. split; [by apply Rmult_le_pos|].
-    rewrite -{2}(Rmult_1_l (f a b)).
-    by apply Rmult_le_compat.
+    real_solver.
   - eapply (ex_seriesC_ext (λ j, μ j * SeriesC (λ k, f j k))).
     { intros a. rewrite SeriesC_scal_l //. }
     apply (ex_seriesC_le _ (λ a : A, μ a * 1)); [|by apply ex_seriesC_scal_r].
-    intros a. split.
-    + apply Rmult_le_pos; [done|]. by apply SeriesC_ge_0.
-    + by apply Rmult_le_compat_l.
+    real_solver.
 Qed.
 
 Lemma distr_double_lr `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
@@ -180,14 +175,12 @@ Lemma distr_double_lr `{Countable A, Countable B} (f : A → distr B) (μ : dist
   SeriesC (λ a : A, SeriesC (λ b : B, μ a * f a b)).
 Proof.
   apply (fubini_pos_seriesC_prod_lr (λ '(a, b), μ a * f a b)).
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - apply ex_seriesC_prod.
     + intro. by apply ex_seriesC_scal_l.
     + setoid_rewrite SeriesC_scal_l.
       apply (ex_seriesC_le _ μ); [|done].
-      intro a. split; [by apply Rmult_le_pos|].
-      rewrite -{2}(Rmult_1_r (μ _)).
-      by apply Rmult_le_compat.
+      real_solver.
 Qed.
 
 Lemma distr_double_rl `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
@@ -195,14 +188,12 @@ Lemma distr_double_rl `{Countable A, Countable B} (f : A → distr B) (μ : dist
   SeriesC (λ b : B, SeriesC (λ a : A, μ a * f a b)).
 Proof.
   apply (fubini_pos_seriesC_prod_rl (λ '(a, b), μ a * f a b)).
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - apply ex_seriesC_prod.
     + intro. by apply ex_seriesC_scal_l.
     + setoid_rewrite SeriesC_scal_l.
       apply (ex_seriesC_le _ μ); [|done].
-      intro a. split; [by apply Rmult_le_pos|].
-      rewrite -{2}(Rmult_1_r (μ _)).
-      by apply Rmult_le_compat.
+      real_solver.
 Qed.
 
 Lemma distr_double_swap_rmarg_ex `{Countable A, Countable B, Countable B'}
@@ -212,7 +203,7 @@ Lemma distr_double_swap_rmarg_ex `{Countable A, Countable B, Countable B'}
 Proof.
   intro Hex.
   apply (fubini_pos_seriesC_ex_double (λ '(a, b), μ a * f a (b, b'))); [| |done].
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - intros a. apply ex_seriesC_scal_l.
     by apply (ex_seriesC_rmarg (f a) b').
 Qed.
@@ -223,7 +214,7 @@ Lemma distr_double_swap_rmarg `{Countable A, Countable B, Countable B'}
   SeriesC (λ b : B, SeriesC (λ a : A, μ a * f a (b, b'))).
 Proof.
   rewrite (fubini_pos_seriesC (λ '(a, b), μ a * f a (b, b'))); [done| | |].
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - intros. apply ex_seriesC_scal_l.
     by apply (ex_seriesC_rmarg (f a) b').
   - setoid_rewrite SeriesC_scal_l.
@@ -245,7 +236,7 @@ Lemma distr_double_swap_lmarg_ex `{Countable A, Countable B, Countable B'}
 Proof.
   intro Hex.
   apply (fubini_pos_seriesC_ex_double (λ '(a, b'), μ a * f a (b, b'))); auto.
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - intros. apply ex_seriesC_scal_l.
     by apply (ex_seriesC_lmarg (f a) b).
 Qed.
@@ -256,7 +247,7 @@ Lemma distr_double_swap_lmarg `{Countable A, Countable B, Countable B'}
   SeriesC (λ b' : B', SeriesC (λ a : A, μ a * f a (b, b'))).
 Proof.
   rewrite (fubini_pos_seriesC (λ '(a, b'), μ a * f a (b, b'))); [done| | |].
-  - intros. by apply Rmult_le_pos.
+  - real_solver.
   - intros . apply ex_seriesC_scal_l.
     by apply (ex_seriesC_lmarg (f a) b).
   - setoid_rewrite SeriesC_scal_l.
@@ -311,7 +302,7 @@ Section dret.
     dret (f a) (f a') = dret a a'.
   Proof.
     rewrite /pmf /= /dret_pmf. case_bool_decide as Hcase.
-    - apply (inj f) in Hcase as ->.  rewrite bool_decide_eq_true_2 //.
+    - apply (inj f) in Hcase as ->. rewrite bool_decide_eq_true_2 //.
     - case_bool_decide; [|done]. simplify_eq.
   Qed.
 
@@ -350,11 +341,9 @@ Program Definition dbind `{Countable A, Countable B} (f : A → distr B) (μ : d
 Next Obligation.
   intros ?????? f μ b. rewrite /dbind_pmf.
   apply SeriesC_ge_0.
-  - intros a'. by apply Rmult_le_pos.
+  - real_solver.
   - eapply (ex_seriesC_le _ (λ a, μ a * 1)); [|by apply ex_seriesC_scal_r].
-    intros a. split; [by apply Rmult_le_pos|].
-    eapply Rmult_le_compat_l; [done|].
-    eapply pmf_le_1.
+    real_solver.
 Qed.
 Next Obligation.
   intros ?????? f μ. rewrite /dbind_pmf.
@@ -362,10 +351,7 @@ Next Obligation.
   eapply (ex_seriesC_ext (λ j, μ j * SeriesC (λ k, f j k))).
   { intros a. rewrite SeriesC_scal_l //. }
   apply (ex_seriesC_le _ (λ a : A, μ a * 1)); [|by apply ex_seriesC_scal_r].
-  intros a. split.
-  - apply Rmult_le_pos; [done|].
-    apply SeriesC_ge_0; auto.
-  - by apply Rmult_le_compat_l.
+  real_solver.
 Qed.
 Next Obligation.
   intros ?????? f μ. rewrite /dbind_pmf.
@@ -374,11 +360,7 @@ Next Obligation.
   { intros a. rewrite SeriesC_scal_l //. }
   transitivity (SeriesC μ); [|done].
   eapply SeriesC_le; [|done].
-  intros a. split.
-  - apply Rmult_le_pos; [done|].
-    apply SeriesC_ge_0; auto.
-  - rewrite -{2}(Rmult_1_r (μ a)).
-    by apply Rmult_le_compat_l.
+  real_solver.
 Qed.
 
 Lemma dbind_pmf_ext `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) (b1 b2 : B) :
@@ -388,7 +370,7 @@ Lemma dbind_pmf_ext `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A →
   dbind f μ1 b1 = dbind g μ2 b2.
 Proof.
   intros Hfg -> ->=>/=. rewrite /pmf /= /dbind_pmf.
-  setoid_rewrite Hfg. done.
+  eapply SeriesC_ext=>a. rewrite Hfg //.
 Qed.
 
 Lemma dbind_ext_right `{Countable A, Countable B} (μ : distr A) (f g : A → distr B) :
@@ -396,10 +378,10 @@ Lemma dbind_ext_right `{Countable A, Countable B} (μ : distr A) (f g : A → di
   dbind f μ = dbind g μ.
 Proof.
   intro Heq.
-  apply distr_ext; intro a.
-  apply dbind_pmf_ext; auto.
-  intros; auto.
-  rewrite Heq; auto.
+  apply distr_ext=> a.
+  apply dbind_pmf_ext; [|done|done].
+  intros.
+  rewrite Heq //.
 Qed.
 
 #[global] Instance Proper_dbind `{Countable A, Countable B} :
@@ -429,9 +411,7 @@ Section monadic.
     rewrite {1}/pmf /= /dbind_pmf {2}/pmf /= /dret_pmf.
     rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then μ a else 0)).
     { rewrite SeriesC_singleton //. }
-    intros a'. case_bool_decide; simplify_eq.
-    - rewrite bool_decide_eq_true_2 //. lra.
-    - rewrite bool_decide_eq_false_2 //. lra.
+    real_solver.
   Qed.
 
   Lemma dret_id_right (μ : distr A) :
@@ -446,7 +426,7 @@ Section monadic.
     rewrite {1}/pmf /= /dbind_pmf {1}/pmf /= /dret_pmf.
     rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then f a b else 0)).
     { rewrite SeriesC_singleton //. }
-    intros a'. case_bool_decide; simplify_eq; lra.
+    real_solver.
   Qed.
 
   Lemma dret_id_left (f : A → distr B) (a : A) :
@@ -469,10 +449,7 @@ Section monadic.
     rewrite {1}/pmf /= /dbind_pmf {2}/pmf /= /dret_pmf.
     rewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then μ a else 0)).
     { rewrite SeriesC_singleton //. }
-    intros a'. case_bool_decide as Heq; simplify_eq.
-    - rewrite bool_decide_eq_true_2 //. lra.
-    - rewrite bool_decide_eq_false_2; [lra|].
-      by intros ->.
+    real_solver.
   Qed.
 
   Lemma dbind_dret_pmf_map_ne (μ : distr A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
@@ -492,43 +469,30 @@ Section monadic.
     (a ← μ ; b ← f a; g b) c = (b ← (a ← μ; f a); g b) c.
   Proof.
     rewrite !/pmf /= /dbind_pmf.
-    assert (SeriesC (λ a : A, μ a * SeriesC (λ a0 : B, f a a0 * g a0 c)) =
-              SeriesC (λ a : A, SeriesC (λ a0 : B, μ a * f a a0 * g a0 c))) as Heq1.
-    { apply SeriesC_ext; intro a.
-      rewrite <- SeriesC_scal_l.
-      apply SeriesC_ext; intros n; lra. }
+    assert (SeriesC (λ a, μ a * SeriesC (λ a0 : B, f a a0 * g a0 c)) =
+            SeriesC (λ a, SeriesC (λ a0 : B, μ a * f a a0 * g a0 c))) as Heq1.
+    { apply SeriesC_ext=> a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; real_solver. }
     rewrite Heq1.
-    rewrite <- (fubini_pos_seriesC (λ '(a ,a0), μ a * f a a0 * g a0 c)).
-    + apply SeriesC_ext.
-      intro b.
+    rewrite -(fubini_pos_seriesC (λ '(a ,a0), μ a * f a a0 * g a0 c)).
+    - apply SeriesC_ext=> b.
       rewrite {4}/pmf /= /dbind_pmf.
       rewrite -SeriesC_scal_r //.
-    + intros; apply Rmult_le_pos; auto.
-      apply Rmult_le_pos; auto.
-    + intro; apply (ex_seriesC_le _ (f a)); auto.
-      intro; split.
-      * apply Rmult_le_pos; auto.
-        apply Rmult_le_pos; auto.
-      * rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; [apply Rmult_le_pos; auto | ].
-        rewrite <- Rmult_1_l; apply Rmult_le_compat; auto.
-        apply Rle_refl.
-    + setoid_rewrite Rmult_assoc.
+    - real_solver.
+    - intro; apply (ex_seriesC_le _ (f a)); [|done].
+      real_solver.
+    - setoid_rewrite Rmult_assoc.
       setoid_rewrite SeriesC_scal_l.
-      apply (ex_seriesC_le _ μ); auto.
+      apply (ex_seriesC_le _ μ); [|done].
       intro; split.
-      * apply Rmult_le_pos; auto.
-        apply SeriesC_ge_0'; intro.
-        apply Rmult_le_pos; auto.
-      * apply (Rle_trans _ (μ n * (SeriesC (f n)))).
-        -- apply Rmult_le_compat; auto.
-           ++ apply SeriesC_ge_0'; intro; apply Rmult_le_pos; auto.
-           ++ apply Rle_refl.
-           ++ apply SeriesC_le; auto.
-              intro; split; [apply Rmult_le_pos; auto | ].
-              rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-              apply Rle_refl.
-        -- rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-           apply Rle_refl.
+      + apply Rmult_le_pos; [done|].
+        apply SeriesC_ge_0'=> b. real_solver.
+      + transitivity (μ n * (SeriesC (f n))).
+        * apply Rmult_le_compat; [done| |done|].
+          -- apply SeriesC_ge_0'=>b. real_solver.
+          -- apply SeriesC_le; [|done]. real_solver.
+        * real_solver.
   Qed.
 
   Lemma dbind_assoc `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) :
@@ -538,58 +502,33 @@ Section monadic.
   Lemma dbind_comm `{Countable B'} (f : A → B → distr B') (μ1 : distr A) (μ2 : distr B):
     (a ← μ1 ; b ← μ2; f a b) = (b ← μ2; a ← μ1; f a b).
   Proof.
-    apply distr_ext; intro b'.
-    rewrite /pmf/=/dbind_pmf.
+    apply distr_ext=> b'. rewrite /pmf/=/dbind_pmf.
     erewrite SeriesC_ext; last first.
     { intro; rewrite {2}/pmf/=/dbind_pmf/=.
-      rewrite -SeriesC_scal_l;
-      auto.
-    }
+      rewrite -SeriesC_scal_l //. }
     symmetry.
     erewrite SeriesC_ext; last first.
-    { intro; rewrite {2}/pmf/=/dbind_pmf/=.
+    { intro b; rewrite {2}/pmf/=/dbind_pmf/=.
       rewrite -SeriesC_scal_l.
-      erewrite SeriesC_ext; last first.
-      {
-        intro m.
-        rewrite -Rmult_assoc.
-        rewrite (Rmult_comm (μ2 n) (μ1 m)).
-        rewrite Rmult_assoc.
-        auto.
-      }
-      auto.
-    }
+      setoid_rewrite <-Rmult_assoc at 1.
+      setoid_rewrite (Rmult_comm (μ2 _) (μ1 _)) at 1.
+      setoid_rewrite Rmult_assoc at 1.
+      done. }
     apply (fubini_pos_seriesC (λ '(a, b), μ1 a * (μ2 b * f a b b'))).
-    - intros.
-      apply Rmult_le_pos; auto.
-      apply Rmult_le_pos; auto.
-    - intro.
-      apply (ex_seriesC_le _ μ2); auto.
-      intro; split.
-      + apply Rmult_le_pos; auto.
-        apply Rmult_le_pos; auto.
-      + apply (Rle_trans _ (μ2 n * f a n b')).
-        * rewrite <- Rmult_1_l.
-          apply Rmult_le_compat; try lra; auto.
-          apply Rmult_le_pos; auto.
-        * rewrite <- Rmult_1_r.
-          apply Rmult_le_compat; try lra; auto.
-    - apply (ex_seriesC_le _ μ1); auto.
-      intro a; split; auto.
-      + apply SeriesC_ge_0'; intro.
-        apply Rmult_le_pos; auto.
-        apply Rmult_le_pos; auto.
+    - real_solver.
+    - intros a.
+      apply (ex_seriesC_le _ μ2); [|done].
+      real_solver.
+    - apply (ex_seriesC_le _ μ1); [|done].
+      intro a; split.
+      + apply SeriesC_ge_0'=> b. real_solver.
       + rewrite SeriesC_scal_l.
-        rewrite <- Rmult_1_r.
-        apply Rmult_le_compat; try lra; auto.
-        * apply SeriesC_ge_0'; intro.
-          apply Rmult_le_pos; auto.
-        * apply (Rle_trans _ (SeriesC μ2)); auto.
-          apply SeriesC_le; auto.
-          intro; split.
-          ++ apply Rmult_le_pos; auto.
-          ++ rewrite <- Rmult_1_r.
-             apply Rmult_le_compat; auto; lra.
+        rewrite -{2}(Rmult_1_r (μ1 _)).
+        apply Rmult_le_compat; [done| |done|].
+        * apply SeriesC_ge_0'=> b. real_solver.
+        * apply (Rle_trans _ (SeriesC μ2)); [|done].
+          apply SeriesC_le; [|done].
+          real_solver.
    Qed.
 
   Lemma dbind_pos (f : A → distr B) (μ : distr A) (b : B) :
@@ -605,107 +544,11 @@ Section monadic.
       apply Rge_not_gt. rewrite SeriesC_0 //.
     - intros (a & Hf & Hμ). eapply Rlt_gt.
       eapply (Rlt_le_trans _ (SeriesC (λ a', if bool_decide (a' = a) then μ a * f a b else 0))).
-      { rewrite SeriesC_singleton. eapply Rmult_gt_0_compat; lra. }
+      { rewrite SeriesC_singleton. real_solver. }
       eapply SeriesC_le.
-      + intros ?. case_bool_decide; simplify_eq; split; done || by eapply Rmult_le_pos.
+      + real_solver.
       + apply (ex_seriesC_le _ (λ a : A, μ a * 1)); [|by apply ex_seriesC_scal_r].
-        intros a'. split.
-        * by apply Rmult_le_pos.
-        * apply Rmult_le_compat_l; [done|]. eapply pmf_le_1.
-  Qed.
-
-
-  Lemma dbind_mass_1_inv_mass `{Countable A, Countable B} (μ1 : distr A) (f : A → distr B) (b : B) :
-    (μ1 ≫= f) b = 1 →
-    SeriesC μ1 = 1.
-  Proof.
-    rewrite {1}/pmf /= /dbind_pmf.
-    intro Hbind.
-    apply Rle_antisym; auto.
-    rewrite <- Hbind.
-    apply SeriesC_le; auto.
-    intro; split.
-    - apply Rmult_le_pos; auto.
-    - rewrite <- Rmult_1_r.
-      apply Rmult_le_compat_l; auto.
-  Qed.
-
-  Lemma dbind_mass_1_inv_elem `{Countable A, Countable B} (μ1 : distr A) (f : A → distr B) (b : B) :
-    (μ1 ≫= f) b = 1 →
-    (∀ a, μ1 a > 0 → f a b = 1).
-  Proof.
-    rewrite {1}/pmf /= /dbind_pmf.
-    intro Hbind.
-    intros a Ha.
-    assert (SeriesC (λ a0 : A, μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b )) =  SeriesC (λ a0 : A, μ1 a0 * f a0 b)) as Haux.
-    {
-      apply Rle_antisym.
-      - rewrite Hbind.
-        apply (Rle_trans _ (SeriesC μ1)); auto.
-        apply SeriesC_le; auto.
-        intro; split.
-        + apply Rmult_le_pos; auto.
-          case_bool_decide; auto; lra.
-        + rewrite <- Rmult_1_r.
-          apply Rmult_le_compat_l; auto.
-          case_bool_decide; auto; lra.
-      - apply SeriesC_le.
-        +  intro; split.
-           * apply Rmult_le_pos; auto.
-           * apply Rmult_le_compat_l; auto.
-             case_bool_decide; auto; lra.
-        + apply (ex_seriesC_le _ μ1); auto.
-          intro; split.
-          * apply Rmult_le_pos; auto.
-            case_bool_decide; auto; lra.
-          * rewrite <- Rmult_1_r.
-            apply Rmult_le_compat_l; auto.
-            case_bool_decide; auto; lra.
-    }
-    rewrite (SeriesC_split_elem _ a) in Haux; first last.
-    - apply (ex_seriesC_le _ μ1); auto.
-      intro n; split.
-      + apply Rmult_le_pos; auto.
-        case_bool_decide; auto; lra.
-      + rewrite <- Rmult_1_r.
-        apply Rmult_le_compat_l; auto.
-        case_bool_decide; auto; lra.
-    - intro n.
-      apply Rmult_le_pos; auto.
-      case_bool_decide; auto; lra.
-    - rewrite (SeriesC_split_elem (λ a0 : A, μ1 a0 * f a0 b) a) in Haux; first last.
-    + apply (ex_seriesC_le _ μ1); auto.
-      intro n; split.
-      * apply Rmult_le_pos; auto.
-      * rewrite <- Rmult_1_r.
-        apply Rmult_le_compat_l; auto.
-    + intro n.
-      apply Rmult_le_pos; auto.
-    + (* We do this kind of rewrite often enough that it could be a lemma *)
-      assert (SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a0 * f a0 b else 0)
-             = SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a * f a b else 0)) as Hrw1.
-      {
-        apply SeriesC_ext; intro; case_bool_decide; (try simplify_eq); auto.
-      }
-      rewrite Hrw1 in Haux.
-      rewrite SeriesC_singleton in Haux.
-      assert (SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b) else 0) =
-                SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a else 0)) as Hrw2.
-      {
-        apply SeriesC_ext; intro; case_bool_decide; (try simplify_eq); auto.
-        lra.
-      }
-      rewrite Hrw2 in Haux.
-      rewrite SeriesC_singleton in Haux.
-      assert (SeriesC (λ a0 : A, if bool_decide (a0 ≠ a) then μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b) else 0) =
-                SeriesC (λ a0 : A, if bool_decide (a0 ≠ a) then μ1 a0 * f a0 b else 0)) as Hrw3.
-      {
-        apply SeriesC_ext; intro; case_bool_decide; (try simplify_eq); auto.
-        rewrite bool_decide_eq_false_2; auto.
-      }
-      rewrite Hrw3 in Haux.
-      apply Rplus_eq_reg_r in Haux.
-      apply (Rmult_eq_reg_l (μ1 a)); lra.
+        real_solver.
   Qed.
 
   Lemma dbind_eq (f g : A → distr B) (μ1 μ2 : distr A) :
@@ -723,7 +566,7 @@ Section monadic.
     lra.
   Qed.
 
-  Lemma dbind_inhabited `{Countable A, Countable B} (f : A → distr B) (μ : distr A) :
+  Lemma dbind_inhabited (f : A → distr B) (μ : distr A) :
     SeriesC μ > 0 →
     (∀ a, SeriesC (f a) > 0) →
     SeriesC (dbind f μ) > 0.
@@ -734,52 +577,88 @@ Section monadic.
     setoid_rewrite SeriesC_scal_l.
     apply Rlt_gt. rewrite -(SeriesC_0 (λ _ : A, 0)); [|done].
     eapply SeriesC_lt.
-    - intros ?. split; [done|]. by apply Rmult_le_pos.
+    - real_solver.
     - apply SeriesC_gtz_ex in Hμ as [a Ha]; [|done].
-      exists a. by apply Rmult_lt_0_compat, Rgt_lt.
+      exists a. real_solver.
     - eapply pmf_ex_seriesC_mult_fn. eauto.
   Qed.
 
-  Lemma dbind_dret_pair_left `{Countable A, Countable A', Countable B}
+  Lemma dbind_dret_pair_left `{Countable A'}
     (μ : distr A) (a' : A') (b : A) :
     (μ ≫= (λ a, dret (a, a'))) (b, a') = μ b.
   Proof.
     rewrite {1}/pmf/=/dbind_pmf.
-    erewrite SeriesC_ext; last first.
-    { intro. rewrite {2}/pmf/=/dret_pmf.
-      assert
-        (μ n * (if bool_decide ((b, a') = (n, a')) then 1 else 0)=
-           if bool_decide (b = n) then μ b else 0) as ->;
-        [case_bool_decide as H4; simplify_eq | auto].
-      - case_bool_decide; simplify_eq; lra.
-      - case_bool_decide; try lra.
-        destruct H4; simplify_eq; auto. }
-    apply SeriesC_singleton'.
+    erewrite SeriesC_ext; [apply SeriesC_singleton'|].
+    intros a. rewrite {2}/pmf/=/dret_pmf.
+    real_solver.
   Qed.
 
-  Lemma dbind_dret_pair_right `{Countable A, Countable A', Countable B}
+  Lemma dbind_dret_pair_right `{Countable A'}
     (μ : distr A') (a : A) (b : A') :
     (μ ≫= (λ a', dret (a, a'))) (a, b) = μ b.
   Proof.
     rewrite {1}/pmf/=/dbind_pmf.
-    erewrite SeriesC_ext; last first.
-    { intro. rewrite {2}/pmf/=/dret_pmf.
-      assert
-        (μ n * (if bool_decide ((a, b) = (a, n)) then 1 else 0)=
-           if bool_decide (b = n) then μ b else 0) as ->;
-        [case_bool_decide as H4; simplify_eq | auto].
-      - case_bool_decide; simplify_eq; lra.
-      - case_bool_decide; try lra.
-        destruct H4; simplify_eq; auto. }
-    apply SeriesC_singleton'.
+    erewrite SeriesC_ext; [apply SeriesC_singleton'|].
+    intro. rewrite {2}/pmf/=/dret_pmf.
+    real_solver.
+  Qed.
+
+  Lemma dbind_det_inv_l (μ1 : distr A) (f : A → distr B) (b : B) :
+    (μ1 ≫= f) b = 1 →
+    SeriesC μ1 = 1.
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    intros Hbind.
+    apply Rle_antisym; [done|].
+    rewrite -Hbind.
+    apply SeriesC_le; [|done].
+    real_solver.
+  Qed.
+
+  Lemma dbind_det_inv_r (μ1 : distr A) (f : A → distr B) (b : B) :
+    (μ1 ≫= f) b = 1 →
+    (∀ a, μ1 a > 0 → f a b = 1).
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    intros Hbind a Ha.
+    assert (SeriesC (λ a', μ1 a' * (if bool_decide (a' = a) then 1 else f a' b )) =
+            SeriesC (λ a' : A, μ1 a' * f a' b)) as Haux.
+    { apply Rle_antisym.
+      - rewrite Hbind.
+        transitivity (SeriesC μ1); [|done].
+        apply SeriesC_le; [|done].
+        real_solver.
+      - apply SeriesC_le.
+        + real_solver.
+        + apply (ex_seriesC_le _ μ1); [|done]. real_solver. }
+    rewrite (SeriesC_split_elem _ a) in Haux; first last.
+    - apply (ex_seriesC_le _ μ1); [|done]. real_solver.
+    - real_solver.
+    - rewrite (SeriesC_split_elem (λ a', μ1 a' * f a' b) a) in Haux; first last.
+      + apply (ex_seriesC_le _ μ1); [|done]. real_solver.
+      + real_solver.
+      + (* We do this kind of rewrite often enough that it could be a lemma *)
+        assert (SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a0 * f a0 b else 0)
+              = SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a * f a b else 0)) as Hrw1.
+        { apply SeriesC_ext. real_solver. }
+        rewrite Hrw1 in Haux.
+        rewrite SeriesC_singleton in Haux.
+        assert (SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b) else 0) =
+                SeriesC (λ a0 : A, if bool_decide (a0 = a) then μ1 a else 0)) as Hrw2.
+        { apply SeriesC_ext; real_solver. }
+        rewrite Hrw2 in Haux.
+        rewrite SeriesC_singleton in Haux.
+        assert (SeriesC (λ a0 : A, if bool_decide (a0 ≠ a) then μ1 a0 * (if bool_decide (a0 = a) then 1 else f a0 b) else 0) =
+                SeriesC (λ a0 : A, if bool_decide (a0 ≠ a) then μ1 a0 * f a0 b else 0)) as Hrw3.
+        { apply SeriesC_ext; real_solver. }
+        rewrite Hrw3 in Haux.
+        real_solver.
   Qed.
 
 End monadic.
 
-
 Section probabilities.
-
-  Context `{Countable A, Countable B}.
+  Context `{Countable A}.
   Implicit Types μ d : distr A.
 
   Definition prob (μ : distr A) (P : A → bool) : R :=
@@ -788,265 +667,84 @@ Section probabilities.
   Lemma prob_le_1 (μ : distr A) (P : A → bool) :
     prob μ P <= 1.
   Proof.
-    apply (Rle_trans _ (SeriesC μ)); auto.
-    apply SeriesC_le; auto.
-    intro n; destruct (P n); split; auto; lra.
+    transitivity (SeriesC μ); [|done].
+    apply SeriesC_le; [|done].
+    real_solver.
   Qed.
 
-  Lemma prob_ge_0 (μ : distr A) (P : A -> bool) :
+  Lemma prob_ge_0 (μ : distr A) (P : A → bool) :
     0 <= prob μ P.
-  Proof.
-    apply SeriesC_ge_0'.
-    intro n; destruct (P n); auto; lra.
-  Qed.
-
+  Proof. apply SeriesC_ge_0'=> a. real_solver. Qed.
 
 End probabilities.
 
-Section prob_lemmas.
+Section probability_prop.
+  Context `{Countable A}.
 
-  Context `{Countable A, Countable B}.
-
-  Lemma prob_dret_true (a : A) (P : A -> bool) :
-    P a = true -> prob (dret a) P = 1.
+  Lemma prob_dret_true (a : A) (P : A → bool) :
+    P a = true → prob (dret a) P = 1.
   Proof.
     intro HP.
     rewrite /prob/pmf/=/dret_pmf/=.
-    assert
-      (forall a0, (if P a0 then if bool_decide (a0 = a) then 1 else 0 else 0)
-      = (if bool_decide (a0 = a) then 1 else 0)) as Haux.
-    {
-      intro a0.
-      case_bool_decide; simplify_eq; [rewrite HP; auto | destruct (P a0); auto].
-    }
-    setoid_rewrite Haux.
-    apply SeriesC_singleton.
+    erewrite SeriesC_ext; [apply SeriesC_singleton|].
+    real_solver.
   Qed.
 
-
-  Lemma prob_dret_false (a : A) (P : A -> bool) :
-    P a = false -> prob (dret a) P = 0.
+  Lemma prob_dret_false (a : A) (P : A → bool) :
+    P a = false → prob (dret a) P = 0.
   Proof.
     intro HP.
     rewrite /prob/pmf/=/dret_pmf/=.
-    assert
-      (forall a0, (if P a0 then if bool_decide (a0 = a) then 1 else 0 else 0)
-      = 0) as Haux.
-    {
-      intro a0.
-      case_bool_decide; simplify_eq; [rewrite HP; auto | destruct (P a0); auto].
-    }
-    setoid_rewrite Haux.
-    apply SeriesC_0; auto.
+    apply SeriesC_0. real_solver.
   Qed.
 
-
-  Lemma prob_dbind (μ : distr A) (f : A -> distr B) (P : B → bool) :
+  Lemma prob_dbind `{Countable B} (μ : distr A) (f : A → distr B) (P : B → bool) :
     prob (dbind f μ) P = SeriesC (λ a, μ a * prob (f a) P).
   Proof.
     rewrite /prob{1}/pmf/=/dbind_pmf/=.
-    assert (forall a,
+    assert (∀ a,
                (if P a then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
                SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
-    {
-      intro a.
-      destruct (P a); auto.
-      rewrite SeriesC_0; auto.
-    }
+    {intro a. destruct (P a); [done|]. rewrite SeriesC_0 //. }
     setoid_rewrite Haux.
-    rewrite <- (fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
-    - apply SeriesC_ext; intro a.
+    rewrite -(fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext=> a.
       rewrite -SeriesC_scal_l.
       apply SeriesC_ext; intro b.
-      destruct (P b); lra.
-    - intros b a; destruct (P b); [ | lra].
-      apply Rmult_le_pos; auto.
+      real_solver.
+    - real_solver.
     - intro b.
-      apply (ex_seriesC_le _ μ); auto.
-      intro a; split.
-      + destruct (P b); [ | lra].
-        apply Rmult_le_pos; auto.
-      + destruct (P b); auto.
-        rewrite <- Rmult_1_r.
-        apply Rmult_le_compat_l; auto.
+      apply (ex_seriesC_le _ μ); [|done].
+      real_solver.
     - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
-      * intro b; split.
-        -- apply SeriesC_ge_0'.
-           intro; destruct (P b); [ | lra].
-           apply Rmult_le_pos; auto.
-        -- apply SeriesC_le.
-           ++ intro a; split; destruct (P b);
-                [apply Rmult_le_pos; auto | lra | lra | apply Rmult_le_pos; auto ].
-           ++ apply pmf_ex_seriesC_mult_fn.
-              exists 1; intro; split; auto.
-      * apply (pmf_ex_seriesC (dbind f μ)).
+      + intro b; split.
+        * apply SeriesC_ge_0'. real_solver.
+        * apply SeriesC_le; [real_solver|].
+          apply pmf_ex_seriesC_mult_fn.
+          exists 1. real_solver.
+      + apply (pmf_ex_seriesC (dbind f μ)).
   Qed.
 
-  Lemma union_bound (μ : distr A) (P Q : A -> bool) :
+  Lemma union_bound (μ : distr A) (P Q : A → bool) :
     prob μ (λ a, andb (P a) (P a)) <= prob μ P + prob μ Q.
   Proof.
     rewrite /prob.
-    rewrite <- SeriesC_plus.
+    rewrite -SeriesC_plus.
     - apply SeriesC_le.
       + intro n.
         pose proof (pmf_pos μ n).
-        destruct (P n); destruct (Q n); simpl; split; auto; try lra.
+        destruct (P n); destruct (Q n); real_solver.
       + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
         * intro n.
           pose proof (pmf_pos μ n).
-          destruct (P n); destruct (Q n); simpl; split; auto; try lra.
-        * apply ex_seriesC_scal_l; auto.
-    - apply ex_seriesC_filter_bool_pos; auto.
-    - apply ex_seriesC_filter_bool_pos; auto.
+          destruct (P n); destruct (Q n); real_solver.
+        * by apply ex_seriesC_scal_l.
+    - by apply ex_seriesC_filter_bool_pos.
+    - by apply ex_seriesC_filter_bool_pos.
   Qed.
 
-End prob_lemmas.
+End probability_prop.
 
-
-Section prop_probabilities.
-
-  Context `{Countable A, Countable B}.
-  Implicit Types μ d : distr A.
-
-
-  Program Definition probp (μ : distr A) (P : A → Prop) : R :=
-    SeriesC (λ a : A, if @bool_decide (P a) (make_decision (P a)) then μ a else 0).
-
-  Lemma probp_le_1 (μ : distr A) (P : A → Prop) :
-    probp μ P <= 1.
-  Proof.
-    apply (Rle_trans _ (SeriesC μ)); auto.
-    apply SeriesC_le; auto.
-    intro n.
-    case_bool_decide; split; auto; lra.
-  Qed.
-
-  Lemma probp_ge_0 (μ : distr A) (P : A -> Prop) :
-    0 <= probp μ P.
-  Proof.
-    apply SeriesC_ge_0'.
-    intro n.
-    case_bool_decide; auto; lra.
-  Qed.
-
-End prop_probabilities.
-
-
-Section probp_lemmas.
-
-  Context `{Countable A, Countable B}.
-
-  Lemma probp_dret_true (a : A) (P : A -> Prop) :
-    P a -> probp (dret a) P = 1.
-  Proof.
-    intro HP.
-    rewrite /probp/pmf/=/dret_pmf/=.
-    assert
-      (forall a0, (if @bool_decide (P a0) (make_decision (P a0)) then if bool_decide (a0 = a) then 1 else 0 else 0)
-      = (if bool_decide (a0 = a) then 1 else 0)) as Haux.
-    {
-      intro a0.
-      case_bool_decide as H1; case_bool_decide as H2; simplify_eq; auto.
-      destruct H1; auto.
-    }
-    setoid_rewrite Haux.
-    apply SeriesC_singleton.
-  Qed.
-
-
-  Lemma probp_dret_false (a : A) (P : A -> Prop) :
-    ¬ P a -> probp (dret a) P = 0.
-  Proof.
-    intro HP.
-    rewrite /probp/pmf/=/dret_pmf/=.
-    assert
-      (forall a0, (if @bool_decide (P a0) (make_decision (P a0)) then if bool_decide (a0 = a) then 1 else 0 else 0)
-      = 0) as Haux.
-    {
-      intro a0.
-      case_bool_decide as H1; auto.
-      case_bool_decide as H2; simplify_eq; auto.
-      done.
-    }
-    setoid_rewrite Haux.
-    apply SeriesC_0; auto.
-  Qed.
-
-
-  Lemma probp_dbind (μ : distr A) (f : A -> distr B) (P : B → Prop) :
-    probp (dbind f μ) P = SeriesC (λ a, μ a * probp (f a) P).
-  Proof.
-    rewrite /probp{1}/pmf/=/dbind_pmf/=.
-    assert (forall a,
-               (if @bool_decide (P a) (make_decision (P a)) then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
-               SeriesC (λ a0 : A, if @bool_decide (P a) (make_decision (P a)) then μ a0 * f a0 a else 0)) as Haux.
-    {
-      intro a.
-      case_bool_decide as H1; auto.
-      rewrite SeriesC_0; auto.
-    }
-    setoid_rewrite Haux.
-    rewrite <- (fubini_pos_seriesC (λ '(a, a0), if @bool_decide (P a) (make_decision (P a)) then μ a0 * f a0 a else 0)).
-    - apply SeriesC_ext; intro a.
-      rewrite -SeriesC_scal_l.
-      apply SeriesC_ext; intro b.
-      case_bool_decide; lra.
-    - intros b a.
-      case_bool_decide;  [ | lra].
-      apply Rmult_le_pos; auto.
-    - intro b.
-      apply (ex_seriesC_le _ μ); auto.
-      intro a; split.
-      + case_bool_decide; [ | lra].
-        apply Rmult_le_pos; auto.
-      + case_bool_decide; auto.
-        rewrite <- Rmult_1_r.
-        apply Rmult_le_compat_l; auto.
-    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
-      * intro b; split.
-        -- apply SeriesC_ge_0'.
-           intro; case_bool_decide; [ | lra].
-           apply Rmult_le_pos; auto.
-        -- apply SeriesC_le.
-           ++ intro a; split; case_bool_decide;
-                [apply Rmult_le_pos; auto | lra | lra | apply Rmult_le_pos; auto ].
-           ++ apply pmf_ex_seriesC_mult_fn.
-              exists 1; intro; split; auto.
-      * apply (pmf_ex_seriesC (dbind f μ)).
-  Qed.
-
-  Lemma union_bound_p (μ : distr A) (P Q : A -> Prop) :
-    probp μ (λ a, (P a) /\ (Q a)) <= probp μ P + probp μ Q.
-  Proof.
-    rewrite /probp.
-    rewrite <- SeriesC_plus.
-    - apply SeriesC_le.
-      + intro n.
-        pose proof (pmf_pos μ n).
-        do 3 case_bool_decide;
-        try lra; tauto.
-      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
-        * intro n.
-          pose proof (pmf_pos μ n).
-          do 2 case_bool_decide; try lra.
-        * apply ex_seriesC_scal_l; auto.
-    - apply ex_seriesC_filter_bool_pos; auto.
-    - apply ex_seriesC_filter_bool_pos; auto.
-  Qed.
-
-  Lemma probp_singleton (μ : distr A) (a : A) :
-    probp μ (λ a', (a' = a)) = μ a.
-  Proof.
-    rewrite /probp.
-    rewrite (SeriesC_ext _ (λ a0 : A, if bool_decide (a0 = a) then μ a else 0)); last first.
-    - intro a'.
-      case_bool_decide; simplify_eq.
-      + rewrite bool_decide_eq_true_2; auto.
-      + rewrite bool_decide_eq_false_2; auto.
-    - apply SeriesC_singleton.
-  Qed.
-
-End probp_lemmas.
 
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=
@@ -1114,7 +812,7 @@ Section dmap.
     split.
     - intros [a [Hr%dret_pos ?]]%dbind_pos; eauto.
     - intros [a [-> Ha]]. apply dbind_pos.
-      exists a. rewrite dret_1_1 //. split; [lra|done].
+      exists a. rewrite dret_1_1 //. real_solver.
   Qed.
 
   Lemma dmap_elem_eq (μ : distr A) (a : A) (b : B) (f : A → B) `{Inj A B (=) (=) f} :
@@ -1159,8 +857,7 @@ Lemma dbind_strength_l `{Countable A, Countable B, Countable D} (f : A*B → dis
 Proof.
   rewrite /strength_l /dmap.
   rewrite -dbind_assoc.
-  setoid_rewrite dret_id_left.
-  done.
+  by setoid_rewrite (dret_id_left _ (a, _)).
 Qed.
 
 Lemma dbind_strength_r `{Countable A, Countable B, Countable D} (f : A * B → distr D)
@@ -1168,23 +865,17 @@ Lemma dbind_strength_r `{Countable A, Countable B, Countable D} (f : A * B → d
   (strength_r μ b) ≫= f = μ ≫= (λ a, f (a, b)).
 Proof.
   rewrite /strength_r /dmap.
-  rewrite <- dbind_assoc.
-  setoid_rewrite dret_id_left; auto.
+  rewrite -dbind_assoc.
+  by setoid_rewrite (dret_id_left _ (_, b)) .
 Qed.
 
 Lemma strength_l_dbind `{Countable A, Countable B, Countable D} (f : B → distr D) (a : A) (μ : distr B) :
   strength_l a (dbind f μ) = μ ≫= (λ b, strength_l a (f b)).
-Proof.
-  rewrite /strength_l /dmap.
-  rewrite -dbind_assoc //.
-Qed.
+Proof. rewrite /strength_l /dmap -dbind_assoc //. Qed.
 
 Lemma strength_r_dbind `{Countable A, Countable B, Countable D} (f : A → distr D) (μ : distr A) (b : B) :
   strength_r (dbind f μ) b = μ ≫= (λ a, strength_r (f a) b).
-Proof.
-  rewrite /strength_r /dmap.
-  rewrite -dbind_assoc //.
-Qed.
+Proof. rewrite /strength_r /dmap -dbind_assoc //. Qed.
 
 Lemma strength_comm `{Countable A, Countable B} (f : A → distr A) (g : B → distr B) (a : A) (b : B) :
   strength_l a (g b) ≫= (λ '(a',b'), strength_r (f a') b') =
@@ -1199,38 +890,21 @@ Proof.
   rewrite {2 4}/pmf/=/dbind_pmf/=.
   setoid_rewrite <- SeriesC_scal_l.
   rewrite (fubini_pos_seriesC (λ '(x, a0), g b a0 * (f a x * dret (x, a0) (a', b')))).
-  - apply SeriesC_ext.
-    intro a''.
-    apply SeriesC_ext.
-    intro b''.
+  - apply SeriesC_ext => a''.
+    apply SeriesC_ext => b''.
     rewrite /pmf /=; lra.
-  - intros; apply Rmult_le_pos; auto.
-    apply Rmult_le_pos; auto.
-  - intros; apply (ex_seriesC_le _ (g b)); auto.
-    intros; split; [apply Rmult_le_pos; auto; apply Rmult_le_pos; auto | ].
-    rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-    + apply Rmult_le_pos; auto.
-    + apply Rle_refl.
-    + rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-  (* TODO: Write tactic to discharge these side conditions *)
+  - real_solver.
+  - intros. apply (ex_seriesC_le _ (g b)); [|done]. real_solver.
   - eapply (ex_seriesC_le _ (λ a0 : A, SeriesC (λ b0 : B, g b b0 * (f a a0)))).
-    + intro; split; auto.
-      * apply SeriesC_ge_0; [intro; apply Rmult_le_pos; auto; apply Rmult_le_pos; auto | ].
-        apply (ex_seriesC_le _ (g b)); auto.
-        intro; split; auto; [apply Rmult_le_pos; auto; apply Rmult_le_pos; auto | ].
-        rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; [apply Rmult_le_pos | apply Rle_refl | ]; auto.
-        rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-      * apply SeriesC_le.
-        -- intro; split; [apply Rmult_le_pos; auto; apply Rmult_le_pos; auto  | ].
-           apply Rmult_le_compat; auto; [apply Rmult_le_pos | apply Rle_refl | ]; auto.
-           rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-           apply Rle_refl.
-        -- apply ex_seriesC_scal_r; auto.
+    + intros. split.
+      * apply SeriesC_ge_0; [real_solver|].
+        apply (ex_seriesC_le _ (g b)); [|done].
+        real_solver.
+      * apply SeriesC_le; [real_solver|].
+        by apply ex_seriesC_scal_r.
     + setoid_rewrite SeriesC_scal_r.
-      apply (ex_seriesC_le _ (f a)); auto.
-      intro; split; [apply Rmult_le_pos; auto | ].
-      rewrite <- Rmult_1_l; apply Rmult_le_compat; auto.
-      apply Rle_refl.
+      apply (ex_seriesC_le _ (f a)); [|done].
+      real_solver.
 Qed.
 
 (** * Monadic fold left  *)
@@ -1330,34 +1004,17 @@ Section conv_prop.
     intro b.
     rewrite {1}/pmf /= /dbind_pmf.
     rewrite (fair_conv_comb_pmf (μ ≫= f1) (μ ≫= f2) b).
-    assert (forall a, μ a * fair_conv_comb (f1 a) (f2 a) b = 0.5 * (μ a * (f1 a) b + μ a * (f2 a) b)) as Heq.
+    assert (∀ a, μ a * fair_conv_comb (f1 a) (f2 a) b = 0.5 * (μ a * (f1 a) b + μ a * (f2 a) b)) as Heq.
     { intro a; rewrite fair_conv_comb_pmf; lra. }
     setoid_rewrite Heq.
     rewrite SeriesC_scal_l.
     rewrite <- Rmult_plus_distr_l.
     rewrite {5 6}/pmf /= /dbind_pmf.
-    rewrite -> SeriesC_plus; auto.
-    (* TODO: Clean this up *)
-    + apply (ex_seriesC_le _ μ); [ | apply pmf_ex_seriesC].
-      intro a.
-      pose proof (pmf_pos μ a).
-      pose proof (pmf_pos (f1 a) b).
-      pose proof (pmf_le_1 μ a).
-      pose proof (pmf_le_1 (f1 a) b).
-      split.
-      ++ apply Rmult_le_pos; auto.
-      ++ rewrite <- (Rmult_1_r (μ a)).
-         apply Rmult_le_compat; lra.
-    + apply (ex_seriesC_le _ μ); [ | apply pmf_ex_seriesC].
-      intro a.
-      pose proof (pmf_pos μ a).
-      pose proof (pmf_pos (f2 a) b).
-      pose proof (pmf_le_1 μ a).
-      pose proof (pmf_le_1 (f2 a) b).
-      split.
-      ++ apply Rmult_le_pos; auto.
-      ++ rewrite <- (Rmult_1_r (μ a)).
-         apply Rmult_le_compat; lra.
+    rewrite SeriesC_plus //.
+    - apply (ex_seriesC_le _ μ); [| apply pmf_ex_seriesC].
+      real_solver.
+    - apply (ex_seriesC_le _ μ); [| apply pmf_ex_seriesC].
+      real_solver.
   Qed.
 
   (* Helpful lemma to eliminate trivial equalities *)
@@ -1369,7 +1026,7 @@ Section conv_prop.
     rewrite /pmf/=/dbind_pmf.
     apply SeriesC_0; intro.
     rewrite /pmf/=/dret_pmf.
-    rewrite bool_decide_eq_false_2; auto; lra.
+    rewrite bool_decide_eq_false_2 //. lra.
   Qed.
 
   Lemma dbind_dret_coin_nonzero (f : bool → A) (a : A) `{Inj bool A (=) (=) f} :
@@ -1379,10 +1036,8 @@ Section conv_prop.
     intros Hex.
     rewrite /pmf/=/dbind_pmf.
     rewrite (SeriesC_ext _ (λ b, if bool_decide (f b = a) then 0.5 else 0)); last first.
-    - intro. rewrite /pmf/=/fair_coin_pmf/dret_pmf; case_bool_decide.
-      + rewrite bool_decide_eq_true_2; auto; lra.
-      + rewrite bool_decide_eq_false_2; auto; lra.
-    - apply SeriesC_singleton_inj; auto.
+    - intro. rewrite /pmf/=/fair_coin_pmf/dret_pmf. real_solver.
+    - by apply SeriesC_singleton_inj.
   Qed.
 
 End conv_prop.
@@ -1398,7 +1053,7 @@ Section dzero.
 
   Lemma dzero_ext (μ : distr A) :
     (∀ a, μ a = 0) → μ = dzero.
-  Proof. intros ?; apply distr_ext; auto. Qed.
+  Proof. intros ?; by apply distr_ext. Qed.
 
   Lemma dzero_supp_empty (a : A) :
     ¬ (dzero a > 0).
@@ -1481,31 +1136,24 @@ Next Obligation. intros ???? [a b]=>/=. case_bool_decide; auto; lra. Qed.
 Next Obligation.
   intros A?? μ =>/=.
   apply ex_seriesC_prod.
-  + intro a.
-    apply ex_seriesC_singleton'.
-  + eapply ex_seriesC_ext; [ intro; rewrite SeriesC_singleton'; auto | ].
-    apply pmf_ex_seriesC.
+  - intro a. apply ex_seriesC_singleton'.
+  - eapply ex_seriesC_ext; [|done].
+    intro. rewrite SeriesC_singleton' //.
 Qed.
-
 Next Obligation.
   intros A?? μ =>/=.
   rewrite fubini_pos_seriesC_prod_lr.
-  + erewrite SeriesC_ext.
-  { apply (pmf_SeriesC μ). }
-  intro. apply SeriesC_singleton'.
-  + intros; case_bool_decide; auto.
-    apply Rle_refl.
-  + apply ex_seriesC_prod.
-    * intro a.
-      apply ex_seriesC_singleton'.
-    * setoid_rewrite SeriesC_singleton'; auto.
+  - by setoid_rewrite SeriesC_singleton'.
+  - real_solver.
+  - apply ex_seriesC_prod.
+    * intro a. apply ex_seriesC_singleton'.
+    * by setoid_rewrite SeriesC_singleton'.
 Qed.
 
 Lemma ddiag_pmf `{Countable A} (μ : distr A) (p : A * A) :
   ddiag μ p = if bool_decide (p.1 = p.2) then μ p.1 else 0.
 Proof.
-  destruct p as (a1 & a2).
-  destruct (bool_decide (a1 = a2)); simpl; auto.
+  destruct p as (a1 & a2). by destruct (bool_decide (a1 = a2)).
 Qed.
 
 (** * Products  *)
@@ -1519,26 +1167,20 @@ Next Obligation.
     apply ex_seriesC_scal_l.
     apply pmf_ex_seriesC.
   - eapply ex_seriesC_ext.
-    + intro; rewrite SeriesC_scal_l.
-       done.
-    + apply ex_seriesC_scal_r.
-       apply pmf_ex_seriesC.
+    + intro. rewrite SeriesC_scal_l. done.
+    + apply ex_seriesC_scal_r. apply pmf_ex_seriesC.
 Qed.
 Next Obligation.
   intros ?????? μ1 μ2 =>/=.
   rewrite (SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); last first.
-  { intros (a & b); simpl; auto. }
+  { intros (a & b). done. }
   rewrite distr_double_rl.
   rewrite (distr_double_swap (λ a, μ2) μ1).
   rewrite -(SeriesC_ext (λ a, μ1 a * SeriesC μ2)); last first.
   { intros a. rewrite SeriesC_scal_l //. }
   transitivity (SeriesC μ1); [|done].
   eapply SeriesC_le; [|done].
-  intros a. split.
-  - apply Rmult_le_pos; [done|].
-    apply SeriesC_ge_0; auto.
-  - rewrite -{2}(Rmult_1_r (μ1 a)).
-    by apply Rmult_le_compat_l.
+  real_solver.
 Qed.
 
 Section dprod.
@@ -1549,11 +1191,10 @@ Section dprod.
     dprod μ1 μ2 (a, b) > 0 ↔ μ1 a > 0 ∧ μ2 b > 0.
   Proof.
     rewrite {1}/pmf /=.
-    split.
-    - destruct (decide (μ1 a > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
-      destruct (decide (μ2 b > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
-      done.
-    - intros []. by apply Rmult_gt_0_compat.
+    split; [|real_solver].
+    destruct (decide (μ1 a > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
+    destruct (decide (μ2 b > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
+    done.
   Qed.
 
   Lemma dprod_mass :
@@ -1561,12 +1202,15 @@ Section dprod.
   Proof.
     rewrite {1}(SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); [ | intros (a' & b') ; auto ].
     rewrite distr_double_lr.
-    erewrite SeriesC_ext; [ | intro; rewrite SeriesC_scal_l; done].
-    rewrite SeriesC_scal_r.
-    reflexivity.
+    erewrite SeriesC_ext; [|intro; rewrite SeriesC_scal_l //].
+    rewrite SeriesC_scal_r //.
   Qed.
 
 End dprod.
+
+(** * swap  *)
+Definition dswap `{Countable A, Countable B} (μ : distr (A * B)) : distr (B * A) :=
+  dmap (λ '(a, b), (b, a)) μ.
 
 (** * Marginals  *)
 Definition lmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr A :=
@@ -1586,11 +1230,10 @@ Section marginals.
     - apply SeriesC_ext; intro b.
       rewrite {2}/pmf /= /dret_pmf /=.
       erewrite SeriesC_ext; [apply (SeriesC_singleton' a)|].
-      intro a'; simpl; case_bool_decide; simplify_eq; lra.
-    - intros; apply Rmult_le_pos; auto.
-    - apply (ex_seriesC_le _ μ); auto.
-      intros; split; [ apply Rmult_le_pos ; auto | ].
-      rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; apply Rle_refl.
+      real_solver.
+    - real_solver.
+    - apply (ex_seriesC_le _ μ); [|done].
+      real_solver.
   Qed.
 
   Lemma rmarg_pmf (μ : distr (A * B)) (b : B):
@@ -1598,38 +1241,54 @@ Section marginals.
   Proof.
     rewrite {1}/pmf /= /dbind_pmf.
     rewrite fubini_pos_seriesC_prod_lr.
-    - apply SeriesC_ext; intro a.
+    - apply SeriesC_ext=> a.
       rewrite {2}/pmf /= /dret_pmf /=.
       erewrite SeriesC_ext; [apply (SeriesC_singleton' b)|].
-      intro b'; simpl; case_bool_decide; simplify_eq; lra.
-    - intros; apply Rmult_le_pos; auto.
-    - apply (ex_seriesC_le _ μ); auto.
-      intros; split; [ apply Rmult_le_pos ; auto | ].
-      rewrite <- Rmult_1_r; apply Rmult_le_compat; auto; apply Rle_refl.
+      real_solver.
+    - real_solver.
+    - apply (ex_seriesC_le _ μ); [|done]. real_solver.
   Qed.
 
   Lemma ex_distr_lmarg (μ : distr (A * B)) (a : A) :
     ex_seriesC (λ b, μ (a, b)).
-  Proof. eapply ex_seriesC_lmarg; auto. Qed.
+  Proof. by eapply ex_seriesC_lmarg. Qed.
 
   Lemma ex_distr_rmarg (μ : distr (A * B)) (b : B) :
     ex_seriesC (λ a, μ (a, b)).
-  Proof. eapply ex_seriesC_rmarg; auto. Qed.
+  Proof. by eapply ex_seriesC_rmarg. Qed.
 
   Lemma lmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (a : A) :
     lmarg (dprod μ1 μ2) a = μ1 a * SeriesC μ2.
   Proof.
     rewrite lmarg_pmf.
     rewrite {1}/pmf/=/dprod/=.
-    rewrite SeriesC_scal_l; auto.
+    rewrite SeriesC_scal_l //.
   Qed.
 
   Lemma lmarg_dprod (μ1 : distr A) (μ2 : distr B) :
     SeriesC μ2 = 1 →
     lmarg (dprod μ1 μ2) = μ1.
   Proof.
-    intro Hμ2. eapply distr_ext.
-    intro; rewrite lmarg_dprod_pmf Hμ2; lra.
+    intro Hμ2. eapply distr_ext=> a.
+    rewrite lmarg_dprod_pmf Hμ2. lra.
+  Qed.
+
+  Lemma lmarg_dswap (μ : distr (A * B)) :
+    lmarg (dswap μ) = rmarg μ.
+  Proof.
+    rewrite /lmarg /dswap dmap_comp.
+    assert ((fst ∘ (λ '(a, b), (b : B, a : A))) = snd) as ->.
+    { extensionality b. by destruct b. }
+    done.
+  Qed.
+
+  Lemma rmarg_dswap (μ : distr (A * B)) :
+    rmarg (dswap μ) = lmarg μ.
+  Proof.
+    rewrite /rmarg /dswap dmap_comp.
+    assert ((snd ∘ (λ '(a, b), (b : B, a : A))) = fst) as ->.
+    { extensionality b. by destruct b. }
+    done.
   Qed.
 
   Lemma rmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (b : B) :
@@ -1644,8 +1303,8 @@ Section marginals.
     SeriesC μ1 = 1 →
     rmarg (dprod μ1 μ2) = μ2.
   Proof.
-    intro Hμ1. eapply distr_ext.
-    intro; rewrite rmarg_dprod_pmf Hμ1; lra.
+    intro Hμ1. eapply distr_ext=> a.
+    rewrite rmarg_dprod_pmf Hμ1.  lra.
   Qed.
 
 End marginals.
@@ -1653,24 +1312,22 @@ End marginals.
 Lemma ddiag_lmarg `{Countable A} (μ : distr A):
   lmarg (ddiag μ) = μ.
 Proof.
-  apply distr_ext.
-  intros.
+  apply distr_ext=> a.
   rewrite lmarg_pmf.
   setoid_rewrite ddiag_pmf.
   simpl.
-  rewrite SeriesC_singleton'; auto.
+  rewrite SeriesC_singleton' //.
 Qed.
 
 Lemma ddiag_rmarg `{Countable A} (μ : distr A):
   rmarg (ddiag μ) = μ.
 Proof.
-  apply distr_ext.
-  intros.
+  apply distr_ext=> a.
   rewrite rmarg_pmf.
   setoid_rewrite ddiag_pmf.
   simpl.
-  rewrite (SeriesC_ext _ (λ a0 : A, if bool_decide (a0 = a) then μ a else 0));
-    [rewrite SeriesC_singleton; auto | intros; case_bool_decide; simplify_eq; auto ].
+  erewrite SeriesC_ext; [apply SeriesC_singleton|].
+  real_solver.
 Qed.
 
 Lemma lmarg_dzero `{Countable A, Countable B} :
@@ -1707,7 +1364,7 @@ Section order.
   Proof.
     rewrite /distr_le.
     intros H1 H2 a.
-    apply (Rle_trans (μ1 a) (μ2 a)); auto.
+    by transitivity (μ2 a).
   Qed.
 
   Lemma distr_le_antisym (μ1 μ2 : distr A):
@@ -1715,8 +1372,8 @@ Section order.
   Proof.
     rewrite /distr_le.
     intros H1 H2.
-    apply distr_ext; intro a.
-    apply Rle_antisym; auto.
+    apply distr_ext=> a.
+    by apply Rle_antisym.
   Qed.
 
   Lemma distr_le_dbind `{Countable B} (μ1 μ2 : distr A) (f1 f2 : A → distr B) :
@@ -1729,22 +1386,15 @@ Section order.
     rewrite /distr_le /pmf /= /dbind_pmf /=.
     intro b.
     apply SeriesC_le; last first.
-    - eapply pmf_ex_seriesC_mult_fn; eauto.
-    - intro a; split.
-      + by apply Rmult_le_pos.
-      + rewrite /distr_le in Hle, Hf.
-        eapply Rmult_le_compat; auto.
+    - eapply pmf_ex_seriesC_mult_fn. eauto.
+    - rewrite /distr_le in Hle, Hf. real_solver.
   Qed.
 
   Lemma distr_le_dmap_1 `{Countable B} (μ1 μ2 : distr A) (f : A → B) :
     distr_le μ1 μ2 → distr_le (dmap f μ1) (dmap f μ2).
   Proof.
-    intros Hμ.
-    apply distr_le_dbind; [done|].
-    rewrite /distr_le /=.
-    intros a b.
-    rewrite /pmf /= /dret_pmf.
-    by case_bool_decide.
+    intros Hμ. apply distr_le_dbind; [done|].
+    rewrite /distr_le //.
   Qed.
 
   Lemma distr_le_dmap_2 `{Countable B} (μ1 μ2 : distr A) (f : A → B) `{Inj A B (=) (=) f} :
@@ -1761,21 +1411,10 @@ End order.
 Program Definition distr_scal `{Countable A} (r : R) (μ : distr A)
   (Hr : 0 <= r ∧ r * SeriesC μ <= 1) := MkDistr (λ a, r * μ a) _ _ _.
 Next Obligation.
-  intros; simpl; destruct_and?.
-  pose proof (pmf_pos μ a).
-  apply Rmult_le_pos; auto.
+  intros ????? [] a. pose proof (pmf_pos μ a). real_solver.
 Qed.
-Next Obligation.
-  intros.
-  apply ex_seriesC_scal_l.
-  done.
-Qed.
-Next Obligation.
-  intros.
-  rewrite SeriesC_scal_l.
-  destruct_and?.
-  done.
-Qed.
+Next Obligation. intros. by apply ex_seriesC_scal_l. Qed.
+Next Obligation. intros ????? []. rewrite SeriesC_scal_l //. Qed.
 
 (** * Limit distribution  *)
 Section convergence.
@@ -1786,47 +1425,36 @@ Section convergence.
   Next Obligation.
     intros h Hmon a.
     simpl.
-    apply (Rle_trans _ (h 0%nat a)); auto.
-    apply rbar_le_finite; auto.
+    transitivity (h 0%nat a); [done|].
+    apply rbar_le_finite.
     - apply (Rbar_le_sandwich 0 1).
-      + apply (Sup_seq_minor_le _ _ 0%nat); auto.
-        simpl; auto.
-      + apply upper_bound_ge_sup; intro n; simpl; auto.
+      + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      + by apply upper_bound_ge_sup=>/=.
     - apply (sup_is_upper_bound (λ n : nat, h n a) 0%nat).
   Qed.
   Next Obligation.
     intros h Hmon.
     assert (is_finite (Sup_seq (λ x : nat, SeriesC (h x)))) as Haux.
-    {
-       apply (Rbar_le_sandwich 0 1).
-        - apply (Sup_seq_minor_le _ _ 0%nat); auto.
-          simpl; auto.
-        - apply upper_bound_ge_sup; intro n; simpl; auto.
-    }
-    apply (MCT_ex_seriesC h (λ n, SeriesC (h n)) (Sup_seq (λ x : nat, SeriesC (h x)))); auto; try lra.
-    - intros; exists 1; auto.
-    - intros;
-      apply SeriesC_correct; auto.
-    - rewrite rbar_finite_real_eq; auto.
-      apply Sup_seq_correct; auto.
+    { apply (Rbar_le_sandwich 0 1).
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      - by apply upper_bound_ge_sup=>/=. }
+    apply (MCT_ex_seriesC h (λ n, SeriesC (h n))
+             (Sup_seq (λ x : nat, SeriesC (h x)))); [done|done|eauto| |].
+    - intros n. by apply SeriesC_correct.
+    - rewrite rbar_finite_real_eq //. apply Sup_seq_correct.
   Qed.
   Next Obligation.
-    intros.
+    intros h Hmon.
     assert (is_finite (Sup_seq (λ x : nat, SeriesC (h x)))) as Haux.
-    {
-       apply (Rbar_le_sandwich 0 1).
-        - apply (Sup_seq_minor_le _ _ 0%nat); auto.
-          simpl; auto.
-        - apply upper_bound_ge_sup; intro n; simpl; auto.
-    }
-    rewrite (MCT_seriesC h (λ n, SeriesC (h n)) (Sup_seq (λ x : nat, SeriesC (h x)))); auto; try lra.
-    - apply finite_rbar_le; auto.
-      apply (upper_bound_ge_sup (λ x : nat, SeriesC (h x)) 1). intro n; simpl; auto.
-    - intros; exists 1; auto.
-    - intros;
-      apply SeriesC_correct; auto.
-    - rewrite rbar_finite_real_eq; auto.
-      apply Sup_seq_correct; auto.
+    { apply (Rbar_le_sandwich 0 1).
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      - by apply upper_bound_ge_sup=>/=. }
+    rewrite (MCT_seriesC h (λ n, SeriesC (h n)) (Sup_seq (λ x : nat, SeriesC (h x))));
+      [|done|eauto|eauto|eauto|].
+    - apply finite_rbar_le; [done|].
+      by apply (upper_bound_ge_sup (λ x : nat, SeriesC (h x)) 1)=>/=.
+    - intros. by eapply SeriesC_correct.
+    - rewrite rbar_finite_real_eq //. apply Sup_seq_correct.
   Qed.
 
   Lemma lim_distr_pmf (h : nat → distr A) Hmon (a : A) :
@@ -1920,10 +1548,7 @@ Section uniform.
 
   Lemma dunifP_pos N n :
     dunifP N n > 0.
-  Proof.
-    rewrite dunif_pmf /=.
-    apply Rlt_gt, RinvN_pos'.
-  Qed.
+  Proof. rewrite dunif_pmf /=. apply RinvN_pos'. Qed.
 
   Lemma dunifP_mass N :
     SeriesC (dunifP N) = 1.

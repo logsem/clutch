@@ -103,3 +103,45 @@ Proof.
     rewrite -plus_INR. f_equal. lia. }
   apply RinvN_pos. 
 Qed.
+
+Ltac real_solver :=
+    by repeat
+         match goal with
+         | |- _ <= _ <= _ => split
+
+         (* arithmetic patterns *)
+         (* <= *)
+         | |- 0 <= _ * _ => apply Rmult_le_pos
+         | |- ?a * ?b <= 1 => rewrite -(Rmult_1_r 1)
+         | |- ?a * ?b <= ?a => rewrite -{2}(Rmult_1_r a)
+         | |- ?a * ?b <= ?b => rewrite -{2}(Rmult_1_l b)
+
+         | |- ?a * ?b <= ?a * ?c => apply Rmult_le_compat_l
+         | |- ?a * ?b <= ?c * ?b => apply Rmult_le_compat_r
+         | |- ?a * ?b <= ?c * ?d => apply Rmult_le_compat
+         | |- ?a * ?b * ?c <= ?b => rewrite -{2}(Rmult_1_r b)
+
+         (* < *)
+         | |- 0 < _ * _ => apply Rmult_gt_0_compat
+         | |- ?a * ?b < ?a * ?c => apply Rmult_lt_compat_l
+         | |- ?a * ?b < ?c * ?b => apply Rmult_lt_compat_r
+
+         (* = *)
+         | H : ?r1 + ?r = ?r2 + ?r |- _ =>
+             (apply Rplus_eq_reg_r in H; subst)
+         | H : ?a = ?a * ?b |- _ =>
+             (rewrite -{1}(Rmult_1_r a) in H; apply Rmult_eq_reg_l in H)
+
+         (* simplifications *)
+         | |- context[?a * (?b * ?c)] => rewrite -Rmult_assoc
+         | |- context[_ > _] => rewrite /Rgt
+         | H : context[_ > _] |- _ => rewrite /Rgt in H
+
+         (* general solving patterns *)
+         | H : _ <= _ <= _ |-  _  => destruct H
+         | |- ∀ _, _ => intros
+         | |- context [@bool_decide ?P ?dec] =>
+             destruct_decide (@bool_decide_reflect P dec); simplify_eq
+         | |- context [ match ?x with _ => _ end ] => destruct x eqn:Hd
+         | _ => done || lra || eauto
+         end.
