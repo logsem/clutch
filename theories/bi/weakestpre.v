@@ -27,6 +27,14 @@ Global Arguments rwp {_ _ _ _ _} _ _ _%E _%I.
 Global Instance: Params (@rwp) 9 := {}.
 Global Arguments rwp_default : simpl never.
 
+Class Rswp (PROP EXPR VAL A : Type) := {
+  rswp : nat → A → coPset → EXPR → (VAL → PROP) → PROP;
+  rswp_default : A
+}.
+Global Arguments rswp {_ _ _ _ _} _ _ _%E _%I.
+Global Instance: Params (@rswp) 9 := {}.
+Global Arguments rswp_default : simpl never.
+
 (** Notations for partial weakest preconditions *)
 (** Notations without binder -- only parsing because they overlap with the
 notations with binder. *)
@@ -166,3 +174,70 @@ Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :
   (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ RWP e @ E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
 Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
   (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ RWP e ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+
+(** Notations for stronger weakest preconditions *)
+(** Notations without binder -- only parsing because they overlap with the
+notations with binder. *)
+Notation "'RSWP' e 'at' k @ s ; E ⟨⟨ Φ ⟩ ⟩" := (rswp k%nat s E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'RSWP' e 'at' k @ E ⟨⟨ Φ ⟩ ⟩" := (rswp k%nat rswp_default E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'RSWP' e 'at' k ⟨⟨ Φ ⟩ ⟩" := (rswp k%nat rswp_default ⊤ e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+(** Notations with binder.  The indentation for the inner format block is chosen
+such that *if* one has a single-character mask (e.g. [E]), the second line
+should align with the binder(s) on the first line. *)
+Notation "'RSWP' e 'at' k @ s ; E ⟨⟨ v , Q ⟩ ⟩" := (rswp k%nat s E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[' 'RSWP'  e  'at'  k  '/' '[          ' @  s ;  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
+Notation "'RSWP' e 'at' k @ E ⟨⟨ v , Q ⟩ ⟩" := (rswp k%nat rswp_default E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[' 'RSWP'  e  'at'  k  '/' '[       ' @  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
+Notation "'RSWP' e 'at' k ⟨⟨ v , Q ⟩ ⟩" := (rswp k%nat rswp_default ⊤ e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[' 'RSWP'  e  'at'  k  '/' '[   ' ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
+
+(* Texan triples *)
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ,
+      P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  s ;  E  ⟨⟨⟨  x  ..  y ,  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ,
+      P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  E  ⟨⟨⟨  x  ..  y ,  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ,
+      P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩)%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e   'at'  k  '/' ⟨⟨⟨  x  ..  y ,  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  s ;  E  ⟨⟨⟨  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  E  ⟨⟨⟨  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ, P -∗ ▷^k(Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩)%I
+    (at level 20,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' ⟨⟨⟨  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+
+(** Aliases for stdpp scope -- they inherit the levels and format from above. *)
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.

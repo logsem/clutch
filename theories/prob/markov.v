@@ -32,6 +32,14 @@ Section is_final.
 
   Lemma to_final_Some_2 a b : to_final a = Some b → is_final a.
   Proof. intros. by eexists. Qed.
+
+  Lemma is_final_dzero a : is_final a → step a = dzero.
+  Proof.
+    intros Hf.
+    apply distr_ext=> a'.
+    rewrite to_final_is_final //.
+  Qed.
+  
 End is_final.
 
 Global Hint Extern 0 (is_final _) => eapply to_final_Some_2 : markov.
@@ -39,7 +47,38 @@ Global Hint Extern 0 (¬ is_final _) => apply to_final_None_2 : markov.
 Global Hint Extern 0 (to_final _ = None) => apply to_final_None_1  : markov.
 Global Hint Extern 0 (∃ _, to_final _ = Some _) => apply to_final_Some_2 : markov.
 
-(** Partial evaluation *)
+(** Strict partial evaluation  *)
+Section stepN.
+  Context {A B : Type} `{markov A B}.
+  Implicit Types a : A.
+
+  Definition stepN (n : nat) (a : A) : distr A := iterM n step a.
+                                                        
+  Lemma stepN_O a :
+    stepN 0 a = dret a. 
+  Proof. done. Qed.
+
+  Lemma stepN_Sn a n :
+    stepN (S n) a = step a ≫= stepN n.
+  Proof. done. Qed.
+
+  Lemma stepN_plus (a : A) (n m : nat) :
+    stepN (n + m) a = stepN n a ≫= stepN m.
+  Proof. apply iterM_plus. Qed.
+
+  Lemma stepN_Sn_inv n a0 a2 :
+    stepN (S n) a0 a2 > 0 →
+    ∃ a1, step a0 a1 > 0 ∧ stepN n a1 a2 > 0.
+  Proof. intros (?&?&?)%dbind_pos. eauto. Qed. 
+
+  Lemma stepN_det_steps n m a1 a2 :
+    stepN n a1 a2 = 1 →
+    stepN n a1 ≫= stepN m = stepN m a2.
+  Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.  
+          
+End stepN. 
+
+(** Non-strict partial evaluation *)
 Section pexec.
   Context {A B : Type} `{Countable A, !markov A B}.
   Implicit Types a : A.
@@ -87,6 +126,21 @@ Section pexec.
     rewrite pexec_plus pexec_1 //.
   Qed.
 
+  Lemma pexec_is_final n a :
+    is_final a → pexec n a = dret a.
+  Proof.
+    intros ?.
+    induction n.
+    - rewrite pexec_O //.
+    - rewrite pexec_Sn step_or_final_is_final //.
+      rewrite dret_id_left -IHn //. 
+  Qed.
+
+  Lemma pexec_no_final a n :
+    ¬ is_final a →
+    pexec (S n) a = step a ≫= pexec n.
+  Proof. intros. rewrite pexec_Sn step_or_final_no_final //. Qed. 
+
   Lemma pexec_det_step n a1 a2 a0 :
     step a1 a2 = 1 →
     pexec n a0 a1 = 1 →
@@ -99,6 +153,12 @@ Section pexec.
     assert (step a1 a2 = 0) as Hns; [by eapply to_final_is_final|].
     lra.
   Qed.
+
+  Lemma pexec_det_steps n m a1 a2 :
+    pexec n a1 a2 = 1 →
+    pexec n a1 ≫= pexec m = pexec m a2.
+  Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
+  
 
 End pexec.
 
@@ -139,7 +199,7 @@ Section exec.
     by erewrite exec_is_final.
   Qed.
 
-  Lemma exec_mon a n v :
+  Lemma exec_mono a n v :
     exec n a v <= exec (S n) a v.
   Proof.
     apply refRcoupl_eq_elim.
@@ -154,11 +214,28 @@ Section exec.
       by intros ? ? ->.
   Qed.
 
-  Lemma exec_mon' ρ n m v :
+  Lemma exec_mono' ρ n m v :
     n ≤ m → exec n ρ v <= exec m ρ v.
   Proof.
     eapply (mon_succ_to_mon (λ x, exec x ρ v)).
-    intro. apply exec_mon.
+    intro. apply exec_mono.
+  Qed.
+
+  Lemma exec_mono_term a b n m :
+    SeriesC (exec n a) = 1 →
+    n ≤ m →
+    exec m a b = exec n a b.
+  Proof.
+    intros Hv Hleq.
+    apply Rle_antisym; [ |by apply exec_mono'].
+    destruct (decide (exec m a b <= exec n a b))
+      as [|?%Rnot_le_lt]; [done|].
+    exfalso.
+    assert (1 < SeriesC (exec m a)); last first.
+    - assert (SeriesC (exec m a) <= 1); [done|]. lra.
+    - rewrite -Hv.
+      apply SeriesC_lt; eauto.
+      intros b'. by split; [|apply exec_mono'].
   Qed.
 
   Lemma exec_Sn_not_final a n :
@@ -207,8 +284,8 @@ Section exec.
   Proof.
     intros Hf Hneq.
     etrans; [by apply Rplus_le_compat_l, pexec_exec_le_final|].
-    etrans; [apply Rplus_le_compat_l, (exec_mon' _ n (n `max` m)), Nat.le_max_l|].
-    etrans; [apply Rplus_le_compat_r, (exec_mon' _ m (n `max` m)), Nat.le_max_r|].
+    etrans; [apply Rplus_le_compat_l, (exec_mono' _ n (n `max` m)), Nat.le_max_l|].
+    etrans; [apply Rplus_le_compat_r, (exec_mono' _ m (n `max` m)), Nat.le_max_r|].
     etrans; [|apply (pmf_SeriesC (exec (n `max` m) a))].
     by apply pmf_plus_neq_SeriesC.
   Qed.
@@ -250,7 +327,7 @@ Section lim_exec.
   Implicit Types a : A.
   Implicit Types b : B.
 
-  Definition lim_exec (a : A) : distr B := lim_distr (λ n, exec n a) (exec_mon a).
+  Definition lim_exec (a : A) : distr B := lim_distr (λ n, exec n a) (exec_mono a).
 
   Lemma lim_exec_unfold a b :
     lim_exec a b = Sup_seq (λ n, (exec n a) b).
@@ -279,7 +356,7 @@ Section lim_exec.
    - intros. by apply Rmult_le_pos.
    - intros.
      apply Rmult_le_compat; [done|done|done|].
-     apply exec_mon.
+     apply exec_mono.
    - intros a'.
      exists (step_or_final a a').
      intros n.
@@ -298,7 +375,7 @@ Section lim_exec.
        * apply Sup_seq_correct.
        * by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
        * by apply upper_bound_ge_sup=>/=.
-     + intro; apply exec_mon.
+     + intro; apply exec_mono.
   Qed.
 
   Lemma lim_exec_pexec n a :
@@ -343,7 +420,7 @@ Section lim_exec.
     rewrite pexec_O. by apply dret_1_1.
   Qed.
 
-  Lemma lim_exec_continous a b (r : R) :
+  Lemma lim_exec_leq a b (r : R) :
     (∀ n, exec n a b <= r) →
     lim_exec a b <= r.
   Proof.
@@ -353,7 +430,7 @@ Section lim_exec.
     by apply upper_bound_ge_sup=>/=.
   Qed.
 
-  Lemma lim_exec_continous_mass  a r :
+  Lemma lim_exec_leq_mass  a r :
     (∀ n, SeriesC (exec n a) <= r) →
     SeriesC (lim_exec a) <= r.
   Proof.
@@ -363,7 +440,7 @@ Section lim_exec.
     erewrite (MCT_seriesC _ (λ n, SeriesC (exec n a)) (Sup_seq (λ n, SeriesC (exec n a)))); eauto.
     - apply finite_rbar_le; [apply is_finite_Sup_seq_SeriesC_exec|].
       by apply upper_bound_ge_sup.
-    - apply exec_mon.
+    - apply exec_mono.
     - intros. by apply SeriesC_correct.
     - rewrite (Rbar_le_sandwich 0 1).
       + apply (Sup_seq_correct (λ n, SeriesC (exec n a))).
@@ -371,34 +448,21 @@ Section lim_exec.
       + by apply upper_bound_ge_sup=>/=.
   Qed.
 
-  Lemma lim_exec_termiated n a :
+  Lemma lim_exec_term n a :
     SeriesC (exec n a) = 1 →
     lim_exec a = exec n a.
   Proof.
     intro Hv.
-    apply distr_ext.
-    intro b.
+    apply distr_ext=> b.
     rewrite lim_exec_unfold.
-    assert (∀ m, n ≤ m → exec m a b = exec n a b) as Hexc.
-    { intros m Hleq.
-      apply Rle_antisym; [ |by apply exec_mon'].
-      destruct (decide (exec m a b <= exec n a b))
-        as [|?%Rnot_le_lt]; [done|].
-      exfalso.
-      assert (1 < SeriesC (exec m a)); last first.
-      - assert (SeriesC (exec m a) <= 1); [done|]. lra.
-      - rewrite -Hv.
-        apply SeriesC_lt; eauto.
-        intros b'. by split; [|apply exec_mon']. }
     apply Rle_antisym.
     - apply finite_rbar_le; [apply is_finite_Sup_seq_exec|].
       rewrite -/pmf.
       apply upper_bound_ge_sup.
       intros n'.
       destruct (decide (n <= n')) as [|?%Rnot_le_lt].
-      + right. apply Hexc. by apply INR_le.
-      + apply exec_mon'.
-        apply INR_le. by left.
+      + right. apply exec_mono_term; [done|]. by apply INR_le.
+      + apply exec_mono'. apply INR_le. by left.
     - apply rbar_le_finite; [apply is_finite_Sup_seq_exec|].
       apply (sup_is_upper_bound (λ m, exec m a b) n).
   Qed.
