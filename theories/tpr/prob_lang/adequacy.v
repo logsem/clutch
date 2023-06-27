@@ -93,30 +93,35 @@ Section adequacy.
     state_interp σ ∗ specA a ={E,∅}=∗ |={∅}▷=>^(S n)
     ⌜lim_exec_val (e, σ) ≿ exec (S n) a : φ⌝.
   Proof.
-    iIntros (Φ Hnf) "Hrwp".
-    iRevert (σ a Hnf).
+    iIntros (Φ Hnf) "Hrwp IH".
+    rewrite exec_Sn_not_final; [|eauto with markov].
+    clear Hnf.
+    iRevert (σ a) "IH".
     iApply (rwp_strong_ind' (λ E e, _) with "[] Hrwp").
     clear e E.
-    iIntros "!>" (e E) "Hrwp %σ %a %Hnf (#IH & Hσ & Ha)".
+    iIntros "!>" (e E) "Hrwp %σ %a (#IH & Hσ & Ha)".
     rewrite /rwp_pre /Φ.
     iSpecialize ("Hrwp" with "[$]").
     case_match eqn:Hv.
     - iMod "Hrwp" as "(?& Hauth & (% & % & Hfrag & % & ?))".
       iDestruct (spec_auth_agree with "Hauth Hfrag") as %<-.
       simplify_option_eq.
+      rewrite is_final_dzero; [|eauto with markov].
+      iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+      do 3 iModIntro.
+      iApply step_fupdN_intro; [done|]. iModIntro.
+      iPureIntro. rewrite dbind_dzero. apply refRcoupl_dzero.
     - iMod "Hrwp" as "(%Hred & H)". iModIntro.
-
-      iRevert (Hv Hred Hnf).
-
+      iRevert (Hv Hred).
       iApply (rwp_coupl_ind (λ e σ a, _) with "[] H").
       clear e σ a.
       (* rewrite rwp_coupl_unfold. *)
       (* iDestruct "H" as "[%R [(% & HR) | [(%Hcpl & HR) | (%Hcpl & HR)]]]". *)
-      iIntros "!#" (e σ a) "[%R [(% & HR) | [(%Hcpl & HR) | (%Hcpl & HR)]]] % % %".
-      + iEval (rewrite -(dret_id_left (exec (S n)))).
+      iIntros "!#" (e σ a) "[%R [(% & HR) | [(%Hcpl & HR) | (%Hcpl & HR)]]] % %".
+      + iEval (rewrite -(dret_id_left (λ a, step a ≫= exec n))).
         rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ ρ', R ρ' a → exec (S n) a ≾ lim_exec_val ρ' : flip φ⌝)%I).
+                  (⌜∀ ρ', R ρ' a → step a ≫= exec n ≾ lim_exec_val ρ' : flip φ⌝)%I).
         { iIntros (Hcnt). iPureIntro.
           eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
           intros a1 [e' σ'] (HR & Hs & <-%dret_pos). eauto. }
@@ -124,9 +129,8 @@ Section adequacy.
         rewrite step_fupdN_Sn.
         iMod ("HR" with "[//]") as "HR".
         iMod "HR" as "(Hσ' & Ha & [IHr _])".
-        iMod ("IHr" with "[//] [$Hσ' $Ha $IH]") as "$".
-      + rewrite exec_Sn_not_final; [|by eapply to_final_None_2].
-        iEval (rewrite -(dret_id_left (lim_exec_val))).
+        iMod ("IHr" with "[$Hσ' $Ha $IH]") as "$".
+      + iEval (rewrite -(dret_id_left (lim_exec_val))).
         iApply (step_fupdN_mono _ _ _
                   (⌜∀ a, R (e, σ) a → exec n a ≾ lim_exec_val (e, σ) : flip φ⌝)%I).
         { iIntros (HR). iPureIntro.
@@ -137,14 +141,13 @@ Section adequacy.
         iMod ("HR" with "[//] [//] [//]") as "HR".
         do 3 iModIntro.
 
-        (* Hmm, even ignoring the [to_final] requirement, something is off—my
-           hypothesis is for [S n] steps but my goal is for [n] steps... *)
+        (* Hmm, hypothesis is for [S n] and another step on the RHS but my goal
+           is for [n] steps... *)
 
         admit.
 
       + (* [rwp_coupl] base case *)
         rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
-        rewrite exec_Sn_not_final; [|by eapply to_final_None_2].
         iApply (step_fupdN_mono _ _ _ (⌜∀ ρ' a', R ρ' a' → exec n a' ≾ lim_exec_val ρ' : flip φ⌝)%I).
         { iIntros (HR). iPureIntro.
           eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl'].
@@ -178,8 +181,8 @@ Section adequacy.
       + rewrite -step_fupdN_Sn.
         replace (step a ≫= exec n) with (exec (S n) a); last first.
         { rewrite exec_Sn step_or_final_no_final //. eauto with markov. }
-        iApply (rwp_mc_not_final with "Hrwp [$Hσ $Ha]").
-        iFrame "% #". eauto with markov.
+        iApply (rwp_mc_not_final with "Hrwp [$Hσ $Ha]"); [done|]. 
+        iFrame "% #". 
    Qed.
 
 End adequacy.
