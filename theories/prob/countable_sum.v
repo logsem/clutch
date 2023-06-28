@@ -298,6 +298,13 @@ Section series.
     eauto.
   Qed.
 
+  (*
+  Lemma is_seriesC_bijection f h v `{Bij A A h} :
+    is_seriesC f v ->
+    is_seriesC (λ a, f (h a)) v.
+  Proof.
+  *)
+
   Global Instance is_series_Proper:
     Proper (pointwise_relation A (@eq R) ==> @eq R ==> iff) is_seriesC.
   Proof. intros ?? ? ?? ?; subst; split; eapply is_seriesC_ext; eauto. Qed.
@@ -624,7 +631,6 @@ Section positive.
   Context `{Countable A}.
   Implicit Types f g : A → R.
 
-  Definition is_sup_seqC f r := is_sup_seq (countable_sum f) r.
 
   Lemma limC_is_sup (h: A -> R) r :
     (∀ n, 0 <= h n) ->
@@ -786,3 +792,4 @@ Section mct.
   Admitted.
 
 End mct.
+

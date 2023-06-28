@@ -420,3 +420,14 @@ Proof.
     eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros ? [] ?. by apply Hcont.
 Qed.
+
+
+(*
+Lemma ub_lift_erasure (e1 : expr) σ1 α R Φ m bs (ε1 ε2 : nonnegreal) :
+  σ.(tapes) !! α = Some bs →
+  ub_lift (state_step σ1 α) R ε1 →
+  (∀ σ2, R σ2 → ub_lift (exec_val m (e1, σ2)) Φ ε2) →
+  ub_lift (exec_val m (e1, σ1)) Φ (ε1 + ε2).
+Proof.
+Qed.
+*)

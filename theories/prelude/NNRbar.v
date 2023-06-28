@@ -52,6 +52,7 @@ Next Obligation.
   apply Rplus_le_le_0_compat; auto.
 Qed.
 
+
 Program Definition nnreal_mult x y : nonnegreal :=
   mknonnegreal (x * y) _.
 Next Obligation.
@@ -99,6 +100,14 @@ Proof.
   pose proof (Rle_antisym 0 x Hxnn Hxle) as Heq.
   rewrite /nnreal_zero.
   apply nnreal_ext; auto.
+Qed.
+
+
+Lemma nnreal_plus_comm (x y :nonnegreal) :
+  nnreal_plus x y = nnreal_plus y x.
+Proof.
+  apply nnreal_ext.
+  apply Rplus_comm.
 Qed.
 
 (* TODO: Make these notations work *)

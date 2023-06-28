@@ -139,7 +139,7 @@ End NNR.
 
 (** The ghost state for error credits *)
 Class ecGpreS (Σ : gFunctors) := EcGpreS {
-  ecGpreS_inG : inG Σ (authR realUR)
+  ecGpreS_inG :> inG Σ (authR realUR)
 }.
 
 Class ecGS (Σ : gFunctors) := EcGS {
@@ -250,3 +250,14 @@ Section error_credit_theory.
   Qed.
 
 End error_credit_theory.
+
+Lemma ec_alloc `{!ecGpreS Σ} n :
+    ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ € n.
+  Proof.
+    rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
+    iMod (own_alloc (● n ⋅ ◯ n)) as (γEC) "[H● H◯]";
+      first (apply auth_both_valid; split; done).
+    pose (C := EcGS _ _ γEC).
+    iModIntro. iExists C. iFrame.
+  Qed.
+

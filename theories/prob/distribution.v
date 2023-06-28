@@ -678,7 +678,7 @@ Section probabilities.
 
 End probabilities.
 
-Section probability_prop.
+Section probability_lemmas.
   Context `{Countable A}.
 
   Lemma prob_dret_true (a : A) (P : A → bool) :
@@ -726,7 +726,7 @@ Section probability_prop.
   Qed.
 
   Lemma union_bound (μ : distr A) (P Q : A → bool) :
-    prob μ (λ a, andb (P a) (P a)) <= prob μ P + prob μ Q.
+    prob μ (λ a, andb (P a) (Q a)) <= prob μ P + prob μ Q.
   Proof.
     rewrite /prob.
     rewrite -SeriesC_plus.
@@ -743,7 +743,100 @@ Section probability_prop.
     - by apply ex_seriesC_filter_bool_pos.
   Qed.
 
-End probability_prop.
+End probability_lemmas.
+
+
+Section probabilities_prop.
+  Context `{Countable A}.
+  Context (μ : distr A).
+  Context (P : A -> Prop).
+  Context `{forall a, Decision (P a)}.
+
+  Definition probp : R :=
+    SeriesC (λ a : A, if (bool_decide (P a)) then μ a else 0).
+
+  Lemma probp_le_1 :
+    probp <= 1.
+  Proof.
+    transitivity (SeriesC μ); [|done].
+    apply SeriesC_le; [|done].
+    real_solver.
+  Qed.
+
+  Lemma probp_ge_0 :
+    0 <= probp.
+  Proof. apply SeriesC_ge_0'=> a. real_solver. Qed.
+
+End probabilities_prop.
+
+Section probability_prop_lemmas.
+  Context `{Countable A}.
+
+  Lemma probp_dret_true (a : A) (P : A → Prop) `{forall a, Decision (P a)}:
+    P a → probp (dret a) P = 1.
+  Proof.
+    intro HP.
+    rewrite /probp/pmf/=/dret_pmf/=.
+    erewrite SeriesC_ext; [apply SeriesC_singleton|].
+    real_solver.
+  Qed.
+
+  Lemma probp_dret_false (a : A) (P : A → Prop) `{forall a, Decision (P a)}:
+    ¬ (P a) → probp (dret a) P = 0.
+  Proof.
+    intro HP.
+    rewrite /probp/pmf/=/dret_pmf/=.
+    apply SeriesC_0; real_solver.
+  Qed.
+
+  Lemma probp_dbind `{Countable B} (μ : distr A) (f : A → distr B) (P : B → Prop) `{forall a, Decision (P a)}:
+    probp (dbind f μ) P = SeriesC (λ a, μ a * probp (f a) P).
+  Proof.
+    rewrite /probp{1}/pmf/=/dbind_pmf/=.
+    assert (∀ a,
+               (if (bool_decide (P a)) then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
+               SeriesC (λ a0 : A, if (bool_decide (P a)) then μ a0 * f a0 a else 0)) as Haux.
+    {intro a. case_bool_decide; [done|]. rewrite SeriesC_0 //. }
+    setoid_rewrite Haux.
+    rewrite -(fubini_pos_seriesC (λ '(a, a0), if (bool_decide (P a)) then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext=> a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; intro b.
+      real_solver.
+    - real_solver.
+    - intro b.
+      apply (ex_seriesC_le _ μ); [|done].
+      real_solver.
+    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
+      + intro b; split.
+        * apply SeriesC_ge_0'. real_solver.
+        * apply SeriesC_le; [real_solver|].
+          apply pmf_ex_seriesC_mult_fn.
+          exists 1. real_solver.
+      + apply (pmf_ex_seriesC (dbind f μ)).
+  Qed.
+
+  Lemma union_bound_prop (μ : distr A) (P Q : A → Prop) `{forall a, Decision (P a)} `{forall a, Decision (Q a)} :
+    probp μ (λ a, (P a) /\ (Q a)) <= probp μ P + probp μ Q.
+  Proof.
+    rewrite /probp.
+    rewrite -SeriesC_plus.
+    - apply SeriesC_le.
+      + intro n.
+        pose proof (pmf_pos μ n).
+        do 3 case_bool_decide; try real_solver.
+        destruct_and!; done.
+      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
+        * intro n.
+          pose proof (pmf_pos μ n).
+          do 2 case_bool_decide; real_solver.
+        * by apply ex_seriesC_scal_l.
+    - by apply ex_seriesC_filter_bool_pos.
+    - by apply ex_seriesC_filter_bool_pos.
+  Qed.
+
+End probability_prop_lemmas.
+
 
 
 (** * Monadic map *)
