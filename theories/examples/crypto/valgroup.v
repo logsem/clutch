@@ -3,7 +3,6 @@ From clutch.program_logic Require Import weakestpre.
 From clutch.prob_lang Require Import notation lang.
 From clutch.rel_logic Require Import model spec_ra.
 From clutch.typing Require Import types.
-From clutch.examples.crypto Require Import mc_val_instances.
 From clutch Require Import clutch.
 
 Set Warnings "-notation-overridden,-ambiguous-paths".
@@ -13,9 +12,6 @@ From mathcomp Require ssralg.
 Import fingroup.
 Set Warnings "notation-overridden,ambiguous-paths".
 Set Bullet Behavior "Strict Subproofs".
-
-From deriving Require Import deriving.
-From deriving Require Import instances.
 
 Local Open Scope group_scope.
 Import fingroup.fingroup.
@@ -48,8 +44,13 @@ Class clutch_group_struct :=
     ; vg_of_int_typed : val_typed vg_of_int (TInt → () + τG)%ty
     }.
 
-Definition vexp `{!clutch_group_struct} : cval := λ:"a", rec: "vexp" "n" :=
+(* In some cases (Zpˣ), we might want to use exponentiation to define
+   inversion, so we expose a bare version parametrised by only the unit and
+   multiplication instead of the whole group structure. *)
+Definition vexp' (vunit : cval) (vmult : cval) : cval := λ:"a", rec: "vexp" "n" :=
     if: "n" ≤ #0 then vunit else let: "x" := "vexp" ("n" - #1) in vmult "a" "x".
+
+Definition vexp `{!clutch_group_struct} : cval := vexp' vunit vmult.
 
 Definition lrel_G `{clutchRGS Σ} {vg : val_group} : lrel Σ
   := LRel (λ w1 w2, ∃ a : vgG, ⌜ w1 = a ∧ w2 = a ⌝)%I.
@@ -70,7 +71,7 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
 
 Definition vexp_typed `{!clutch_group_struct} :
   val_typed vexp (τG → TInt → τG)%ty.
-Proof. unfold vexp ; tychk ; auto using vunit_typed, vmult_typed. Qed.
+Proof. unfold vexp, vexp' ; tychk ; auto using vunit_typed, vmult_typed. Qed.
 
 #[export] Hint Extern 0 (val_typed vunit τG) => apply vunit_typed : core.
 #[export] Hint Extern 0 (val_typed vmult _) => apply vmult_typed : core.
@@ -140,7 +141,7 @@ Qed.
 Fact is_exp (b : vgG) (x : nat) :
   {{{ True }}} vexp b #x {{{ v, RET (v : cval); ⌜v = (b ^+ x)%g⌝ }}}.
 Proof.
-  unfold vexp. iIntros (? _) "hlog".
+  unfold vexp, vexp'. iIntros (? _) "hlog".
   wp_pure. wp_pure.
   iInduction x as [|x] "IH" forall (Φ).
   - wp_pures.
@@ -160,7 +161,7 @@ Qed.
 Fact is_spec_exp (b : vgG) (x : nat) K :
   refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)%g.
 Proof.
-  unfold vexp. iIntros "hlog".
+  unfold vexp, vexp'. iIntros "hlog".
   tp_pure. tp_pure.
   iInduction x as [|x] "IH" forall (K).
   - tp_pures. rewrite is_unit.

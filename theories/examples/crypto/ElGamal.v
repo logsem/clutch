@@ -1,7 +1,7 @@
 (* ElGamal encryption has one-time secrecy against chosen plaintext attack, in
    the real/random paradigm. Following Rosulek's "The Joy of Crypto". *)
 From clutch Require Import clutch.
-From clutch.examples.crypto Require Import mc_val_instances valgroup.
+From clutch.examples.crypto Require Import valgroup.
 From clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
@@ -210,7 +210,6 @@ Proof with rel_pures.
   rel_alloctape_l β as "β"...
   rel_apply refines_couple_rands_lr ; iIntros "!>" (sk)...
   rel_apply (refines_couple_tape_rand with "[- $β ]") => // ; iIntros (b) "β"...
-  Set Printing Parentheses.
   rewrite -Nat2Z.inj_mul...
   rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'"...
   inv_mk ((β ↪ (n;[b]) ∗ cnt ↦ #0 ∗ cnt' ↦ₛ #0)
@@ -280,19 +279,19 @@ Proof with rel_pures.
   rel_rand_l...
   (* Rewrite msg into g^k_msg for some k_msg. *)
   destruct (log_g vmsg) as [k_msg ->].
-  (* Sample c on the left, and (c + k_msg mod (S n)) on the right. *)
+  (* Sample c on the left, and ((k_msg + c) mod (S n)) on the right. *)
   pose (f := ElGamal_bijection.f n'' k_msg).
   unshelve rel_apply (refines_couple_tape_rand n f with "[- $γ ]") => //.
   1: split ; [ apply ElGamal_bijection.f_inj | apply ElGamal_bijection.f_surj ].
   iIntros (c) "γ".
-  set (c_plus_k_msg := f c). rel_rand_l. inv_cl "[- $Hclose]"...
-  assert ((g ^+ (k_msg + c)) = (g ^+ c_plus_k_msg))%g as heq.
-  { clear. rewrite fin_to_nat_to_fin => /=.
-    rewrite -ssrnat.plusE /Zp_trunc => /=.
+  set (k_msg_plus_c := f c). rel_rand_l. inv_cl "[- $Hclose]"...
+  rewrite -expgD -ssrnat.plusE.
+  assert ((g ^+ (k_msg + c)) = (g ^+ k_msg_plus_c))%g as heq.
+  { clear. rewrite fin_to_nat_to_fin /= -ssrnat.plusE /Zp_trunc /=.
     pose proof (e := eq_sym (expg_mod_order g (k_msg+c))).
     rewrite g_nontriv in e. exact e.
   }
-  rewrite -expgD -ssrnat.plusE -heq. rel_vals. 
+  rewrite -heq. rel_vals.
 Qed.
 
 (* Decryption is left inverse to encryption. We only consider valid messages,
@@ -304,12 +303,12 @@ Lemma ElGamal_correct :
        λ:"msg",
          let:m "msg" := vg_of_int "msg" in
          let: "c" := enc "pk" "msg" in
-         let: "m" := dec "sk" "c" in
-         SOME (int_of_vg "m"))
+         let: "vmsg" := dec "sk" "c" in
+         SOME ("vmsg"))
       (λ:"msg",
-         let:m "m" := vg_of_int "msg" in
-         SOME (int_of_vg "m"))
-      (lrel_int → () + lrel_int).
+         let:m "vmsg" := vg_of_int "msg" in
+         SOME ("vmsg"))
+      (lrel_int → () + lrel_G).
 Proof with rel_pures.
   rel_pures. rel_bind_l (rnd _). rel_apply_l refines_wp_l.
   iApply wp_rand => //. iIntros (sk) "_ !>"...
@@ -317,12 +316,10 @@ Proof with rel_pures.
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
-  rel_bind_l (rnd _) ; rel_apply_l refines_wp_l ; iApply wp_rand ; [auto|]
-  ; iIntros (b) "_ !>"... assert ((vmsg * g ^+ sk ^+ b * g ^+ b ^- sk)%g = vmsg)
-    as -> by by rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
-  rel_bind_l (int_of_vg _) ; rel_bind_r (int_of_vg _) ; rel_apply refines_bind.
-  1: by iApply int_of_vg_lrel_G ; iExists _ ; eauto.
-  iIntros (??) "#(%B&->&->)"... rel_vals.
+  rel_bind_l (rnd _). rel_apply_l refines_wp_l ; iApply wp_rand => // ;
+    iIntros (b) "_ !>"...
+  rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
+  rel_vals.
 Qed.
 
 End ElGamal.
