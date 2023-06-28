@@ -204,9 +204,28 @@ Proof with rel_pures.
   rel_rand_r... inv_cl "[- $Hclose]"... rel_vals.
 Qed.
 
+Lemma pk_ots_rnd_real_lbl_real : ⊢ refines top pk_ots_rnd_real_lbl pk_ots_rnd_real T_EG.
+Proof with rel_pures.
+  rewrite /pk_ots_rnd_real /pk_ots_rnd_real_lbl. rewrite /keygen /enc...
+  rel_alloctape_l β as "β"...
+  rel_apply refines_couple_rands_lr. iIntros "!>" (sk)...
+  rel_alloc_l c as "c" ; rel_alloc_r c' as "c'".
+  inv_mk (β ↪ (n;[]) ∗ (c ↦ #0 ∗ c' ↦ₛ #0) ∨ (c ↦ #1 ∗ c' ↦ₛ #1) )%I "#Hinv"...
+  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "[%v[->->]]"...
+  rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
+  1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
+  iIntros (??) "#(%_&%_'&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
+  iApply (refines_na_inv with "[-$Hinv]"); [done|].
+  iIntros "[>[(β&c&c')|(c&c')] Hclose]" ; rel_load_l ; rel_load_r...
+  2: inv_cl "[- $Hclose]" ; rel_vals.
+  rel_store_l ; rel_store_r...
+  rel_apply (refines_couple_tape_rand with "[-$β]") => // ; iIntros (b) "β"...
+  rel_rand_l... inv_cl "[- $Hclose]"... rel_vals.
+Qed.
+
 Lemma pk_ots_rnd_real_lbl_1 : ⊢ refines top pk_ots_rnd_real_lbl pk_ots_rnd_1 T_EG.
 Proof with rel_pures.
-  rewrite /pk_ots_rnd_real_lbl /pk_ots_rnd_1...
+  rewrite /pk_ots_rnd_real_lbl /pk_ots_rnd_1 /eC /DH_real...
   rel_alloctape_l β as "β"...
   rel_apply refines_couple_rands_lr ; iIntros "!>" (sk)...
   rel_apply (refines_couple_tape_rand with "[- $β ]") => // ; iIntros (b) "β"...
@@ -222,6 +241,27 @@ Proof with rel_pures.
   iIntros "[>[(β&cnt&cnt')|(c&c')] Hclose]" ; rel_load_r ; rel_load_l...
   2: by (inv_cl "[- $Hclose]" ; rel_vals).
   rel_store_l ; rel_store_r. rel_rand_l. inv_cl "[- $Hclose]"...
+  rewrite -expgM -ssrnat.multE. rel_vals.
+Qed.
+
+Lemma pk_ots_rnd_1_real_lbl : ⊢ refines top pk_ots_rnd_1 pk_ots_rnd_real_lbl T_EG.
+Proof with rel_pures.
+  rewrite /pk_ots_rnd_real_lbl /pk_ots_rnd_1 /eC /DH_real...
+  rel_alloctape_r β as "β"...
+  rel_apply refines_couple_rands_lr ; iIntros "!>" (sk)...
+  rel_apply (refines_couple_rand_tape with "[- $β ]") ; iIntros "!>" (b) "β"...
+  rewrite -Nat2Z.inj_mul...
+  rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'"...
+  inv_mk ((β ↪ₛ (n;[b]) ∗ cnt ↦ #0 ∗ cnt' ↦ₛ #0)
+          ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1))%I "#Hinv".
+  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
+  1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
+  iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
+  iApply (refines_na_inv with "[$Hinv]"); [done|].
+  iIntros "[>[(β&cnt&cnt')|(c&c')] Hclose]" ; rel_load_r ; rel_load_l...
+  2: by (inv_cl "[- $Hclose]" ; rel_vals).
+  rel_store_l ; rel_store_r. rel_rand_r. inv_cl "[- $Hclose]"...
   rewrite -expgM -ssrnat.multE. rel_vals.
 Qed.
 
@@ -241,7 +281,7 @@ Qed.
 
 Lemma pk_ots_rnd_2_4 : ⊢ refines top pk_ots_rnd_2 pk_ots_rnd_4 T_EG.
 Proof with rel_pures.
-  rewrite /pk_ots_rnd_2 /pk_ots_rnd_4 /DH_rnd...
+  rewrite /pk_ots_rnd_2 /pk_ots_rnd_4 /eC /DH_rnd...
   rel_alloctape_r β' as "β'". rel_alloctape_r γ' as "γ'"...
   rel_apply refines_couple_rands_lr. iIntros "!>" (sk)...
   rel_apply (refines_couple_rand_tape with "[-$β']") => // ; iIntros "!>" (b) "β'"...
@@ -259,9 +299,29 @@ Proof with rel_pures.
   all: inv_cl "[- $Hclose]" ; rel_vals.
 Qed.
 
+Lemma pk_ots_rnd_4_2 : ⊢ refines top pk_ots_rnd_4 pk_ots_rnd_2 T_EG.
+Proof with rel_pures.
+  rewrite /pk_ots_rnd_2 /pk_ots_rnd_4 /eC /DH_rnd...
+  rel_alloctape_l β as "β". rel_alloctape_l γ as "γ"...
+  rel_apply refines_couple_rands_lr. iIntros "!>" (sk)...
+  rel_apply (refines_couple_tape_rand with "[-$β]") => // ; iIntros (b) "β"...
+  rel_apply (refines_couple_tape_rand with "[-$γ]") => // ; iIntros (c) "γ"...
+  rel_alloc_l cnt as "cnt". rel_alloc_r cnt' as "cnt'"...
+  inv_mk (((β ↪ (n;[b]) ∗ γ ↪ (n;[c]) ∗ cnt ↦ #0 ∗ cnt' ↦ₛ #0))
+          ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1))%I "#Hinv".
+  rel_vals ; [iApply refines_get_pk|] ; iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
+  ; [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
+  iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
+  iApply (refines_na_inv with "[$Hinv]") => //.
+  iIntros "[>[(β'&γ'&cnt&cnt')|(cnt&cnt')] Hclose]" ; rel_load_l ; rel_load_r...
+  1: rel_store_l ; rel_store_r ; do 2 rel_rand_l...
+  all: inv_cl "[- $Hclose]" ; rel_vals.
+Qed.
+
 Lemma pk_ots_rnd_4_rnd : ⊢ refines top pk_ots_rnd_4 pk_ots_rnd_rnd T_EG.
 Proof with rel_pures.
-  rewrite /pk_ots_rnd_4 /pk_ots_rnd_rnd...
+  rewrite /pk_ots_rnd_4 /pk_ots_rnd_rnd /keygen...
   rel_alloctape_l β as "β". rel_alloctape_l γ as "γ"...
   rel_apply refines_couple_rands_lr ; iIntros "!>" (sk)...
   rel_alloc_l cnt as "cnt" ; rel_alloc_r cnt' as "cnt'".
@@ -280,16 +340,64 @@ Proof with rel_pures.
   (* Rewrite msg into g^k_msg for some k_msg. *)
   destruct (log_g vmsg) as [k_msg ->].
   (* Sample c on the left, and ((k_msg + c) mod (S n)) on the right. *)
-  pose (f := ElGamal_bijection.f n'' k_msg).
-  unshelve rel_apply (refines_couple_tape_rand n f with "[- $γ ]") => //.
+  pose (k_msg_plus := ElGamal_bijection.f n'' k_msg).
+  unshelve rel_apply (refines_couple_tape_rand n k_msg_plus with "[- $γ ]") => //.
   1: split ; [ apply ElGamal_bijection.f_inj | apply ElGamal_bijection.f_surj ].
-  iIntros (c) "γ".
-  set (k_msg_plus_c := f c). rel_rand_l. inv_cl "[- $Hclose]"...
+  iIntros (c) "γ". rel_rand_l. inv_cl "[- $Hclose]"...
   rewrite -expgD -ssrnat.plusE.
-  assert ((g ^+ (k_msg + c)) = (g ^+ k_msg_plus_c))%g as heq.
+  assert ((g ^+ (k_msg + c)) = (g ^+ k_msg_plus c))%g as heq.
   { clear. rewrite fin_to_nat_to_fin /= -ssrnat.plusE /Zp_trunc /=.
     pose proof (e := eq_sym (expg_mod_order g (k_msg+c))).
     rewrite g_nontriv in e. exact e.
+  }
+  rewrite -heq. rel_vals.
+Qed.
+
+Lemma pk_ots_rnd_rnd_4 : ⊢ refines top pk_ots_rnd_rnd pk_ots_rnd_4 T_EG.
+Proof with rel_pures.
+  rewrite /pk_ots_rnd_4 /pk_ots_rnd_rnd /keygen...
+  rel_alloctape_r β as "β". rel_alloctape_r γ as "γ"...
+  rel_apply refines_couple_rands_lr ; iIntros "!>" (sk)...
+  rel_alloc_l cnt as "cnt" ; rel_alloc_r cnt' as "cnt'".
+  inv_mk ((β ↪ₛ (n;[]) ∗ γ ↪ₛ (n;[]) ∗ cnt ↦ #0 ∗ cnt' ↦ₛ #0)
+          ∨ (cnt ↦ #1 ∗ cnt' ↦ₛ #1))%I "#Hinv"...
+  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
+  ; [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
+  iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
+  iApply (refines_na_inv with "[-$Hinv]") => //.
+  iIntros "[>[(β&γ&cnt&cnt')|(cnt&cnt')] Hclose]" ; rel_load_r ; rel_load_l...
+  2: by (inv_cl "[-$Hclose]" ; rel_vals).
+  rel_store_l ; rel_store_r...
+  rel_apply (refines_couple_rand_tape with "[- $β ]") => // ; iIntros "!>" (b) "β".
+  rel_rand_r...
+  (* Rewrite msg into g^k_msg for some k_msg. *)
+  destruct (log_g vmsg) as [k_msg ->].
+  (* Sample x on the left, and ((-x + k_msg) mod (S n)) on the right. *)
+  pose (minus_k_msg_plus := ElGamal_bijection.g n'' k_msg).
+  unshelve rel_apply (refines_couple_rand_tape n minus_k_msg_plus with "[- $γ ]") => //.
+  {
+    clear. split.
+    - intros x y hf.
+      rewrite -(ElGamal_bijection.f_g _ k_msg x) -(ElGamal_bijection.f_g _ k_msg y).
+      unfold minus_k_msg_plus in hf. rewrite hf => //.
+    - intros x. exists (ElGamal_bijection.f _ k_msg x).
+      unfold minus_k_msg_plus. by rewrite (ElGamal_bijection.g_f _ k_msg x).
+  }
+  iIntros "!>" (x) "γ".
+  rel_rand_r. inv_cl "[- $Hclose]"...
+  rewrite -expgD -ssrnat.plusE.
+  assert ((g ^+ x) = (g ^+ (k_msg + minus_k_msg_plus x)))%g as heq.
+  { clear. rewrite fin_to_nat_to_fin /= /Zp_trunc /=.
+    epose proof (e := (expg_mod_order g)).
+    rewrite g_nontriv in e.
+    rewrite -[in LHS]e -{}[in RHS]e.
+    f_equal.
+    rewrite div.modnDmr ssrnat.addnC -ssrnat.addnA div.modnDml.
+    rewrite [ssrnat.addn x _]ssrnat.addnC ssrnat.addnA.
+    rewrite ssrnat.subnK.
+    - rewrite div.modnDl. reflexivity.
+    - apply /ssrnat.leP. move : (fin_to_nat_lt k_msg). lia.
   }
   rewrite -heq. rel_vals.
 Qed.
@@ -310,14 +418,13 @@ Lemma ElGamal_correct :
          SOME ("vmsg"))
       (lrel_int → () + lrel_G).
 Proof with rel_pures.
-  rel_pures. rel_bind_l (rnd _). rel_apply_l refines_wp_l.
-  iApply wp_rand => //. iIntros (sk) "_ !>"...
+  rewrite /keygen /enc /dec.
+  rel_pures. rel_apply refines_randU_l. iIntros (sk)...
   rel_arrow_val ; iIntros (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
-  rel_bind_l (rnd _). rel_apply_l refines_wp_l ; iApply wp_rand => // ;
-    iIntros (b) "_ !>"...
+  rel_apply refines_randU_l ; iIntros (b)...
   rewrite -?expgM -ssrnat.multE -mulgA Nat.mul_comm mulgV mulg1.
   rel_vals.
 Qed.
@@ -332,55 +439,82 @@ Context {G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
 
 Lemma ctx_pk_ots_rnd_real_real_lbl :
-  ∅ ⊨ pk_ots_rnd_real ≤ctx≤ pk_ots_rnd_real_lbl : τ_EG.
-Proof. apply (refines_sound clutchRΣ). intros. apply: pk_ots_rnd_real_real_lbl. Qed.
+  ∅ ⊨ pk_ots_rnd_real =ctx= pk_ots_rnd_real_lbl : τ_EG.
+Proof.
+  split ; apply (refines_sound clutchRΣ) ; intros.
+  - apply: pk_ots_rnd_real_real_lbl.
+  - apply: pk_ots_rnd_real_lbl_real.
+Qed.
 
 Lemma ctx_pk_ots_rnd_real_lbl_1 :
-  ∅ ⊨ pk_ots_rnd_real_lbl ≤ctx≤ (fill C DH_real) : τ_EG.
-Proof. apply (refines_sound clutchRΣ). intros. apply: pk_ots_rnd_real_lbl_1. Qed.
+  ∅ ⊨ pk_ots_rnd_real_lbl =ctx= (fill C DH_real) : τ_EG.
+Proof.
+  split ; apply (refines_sound clutchRΣ) ; intros.
+  - apply: pk_ots_rnd_real_lbl_1.
+  - apply: pk_ots_rnd_1_real_lbl.
+Qed.
 
 Lemma ctx_pk_ots_rnd_2_4 :
-  ∅ ⊨ (fill C DH_rnd) ≤ctx≤ pk_ots_rnd_4 : τ_EG.
-Proof. apply (refines_sound clutchRΣ). intros. apply: pk_ots_rnd_2_4. Qed.
+  ∅ ⊨ (fill C DH_rnd) =ctx= pk_ots_rnd_4 : τ_EG.
+Proof.
+  split ; apply (refines_sound clutchRΣ) ; intros.
+  - apply: pk_ots_rnd_2_4.
+  - apply: pk_ots_rnd_4_2.
+Qed.
 
 Lemma ctx_pk_ots_rnd_4_rnd :
-  ∅ ⊨ pk_ots_rnd_4 ≤ctx≤ pk_ots_rnd_rnd : τ_EG.
-Proof. apply (refines_sound clutchRΣ). intros. apply: pk_ots_rnd_4_rnd. Qed.
+  ∅ ⊨ pk_ots_rnd_4 =ctx= pk_ots_rnd_rnd : τ_EG.
+Proof.
+  split ; apply (refines_sound clutchRΣ) ; intros.
+  - apply: pk_ots_rnd_4_rnd.
+  - apply: pk_ots_rnd_rnd_4.
+Qed.
+
+Global Instance ctx_equiv_transitive Γ τ :
+  Transitive (fun e1 e2 => ctx_equiv Γ e1 e2 τ).
+Proof.
+  intros e1 e2 e3 [Hctx11 Hctx12] [Hctx21 Hctx22].
+  split ; eapply ctx_refines_transitive ;eauto.
+Qed.
 
 Lemma pk_ots_rnd_real_ddh_real :
-  ∅ ⊨ pk_ots_rnd_real ≤ctx≤ (fill C DH_real) : τ_EG.
+  ∅ ⊨ pk_ots_rnd_real =ctx= (fill C DH_real) : τ_EG.
 Proof.
-  eapply ctx_refines_transitive.
+  eapply ctx_equiv_transitive.
   - apply: ctx_pk_ots_rnd_real_real_lbl.
   - apply: ctx_pk_ots_rnd_real_lbl_1.
 Qed.
 
 Lemma pk_ots_rnd_rnd_ddh_rnd :
-  ∅ ⊨ (fill C DH_rnd) ≤ctx≤ pk_ots_rnd_rnd : τ_EG.
+  ∅ ⊨ (fill C DH_rnd) =ctx= pk_ots_rnd_rnd : τ_EG.
 Proof.
-  eapply ctx_refines_transitive.
+  eapply ctx_equiv_transitive.
   - apply: ctx_pk_ots_rnd_2_4.
   - apply: ctx_pk_ots_rnd_4_rnd.
 Qed.
 
 Lemma pk_ots_rnd_ddh_C :
-  (∅ ⊨ DH_real ≤ctx≤ DH_rnd : τ_DH) →
-  (∅ ⊨ (fill C DH_real) ≤ctx≤ (fill C DH_rnd) : τ_EG).
+  (∅ ⊨ DH_real =ctx= DH_rnd : τ_DH) →
+  (∅ ⊨ (fill C DH_real) =ctx= (fill C DH_rnd) : τ_EG).
 Proof.
   replace (fill C _) with (fill_ctx C' DH_real) ; auto ;
     replace (fill C _) with (fill_ctx C' DH_rnd) => //.
   intros DDH.
-  eapply ctx_refines_congruence.
-  2: apply DDH.
-  unfold C', eC. tychk => //.
+  split.
+  - eapply ctx_refines_congruence.
+    2: apply DDH.
+    unfold C', eC. tychk => //.
+  - eapply ctx_refines_congruence.
+    2: apply DDH.
+    unfold C', eC. tychk => //.
 Qed.
 
-Lemma pk_ots_rnd_ddh (DDH : ∅ ⊨ DH_real ≤ctx≤ DH_rnd : τ_DH) :
-  (∅ ⊨ pk_ots_rnd_real ≤ctx≤ pk_ots_rnd_rnd : τ_EG).
+Lemma pk_ots_rnd_ddh (DDH : ∅ ⊨ DH_real =ctx= DH_rnd : τ_DH) :
+  (∅ ⊨ pk_ots_rnd_real =ctx= pk_ots_rnd_rnd : τ_EG).
 Proof.
-  eapply ctx_refines_transitive.
+  eapply ctx_equiv_transitive.
   - apply: pk_ots_rnd_real_ddh_real.
-  - eapply ctx_refines_transitive.
+  - eapply ctx_equiv_transitive.
     + apply: pk_ots_rnd_ddh_C => //.
     + apply: pk_ots_rnd_rnd_ddh_rnd.
 Qed.

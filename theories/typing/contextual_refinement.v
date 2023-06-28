@@ -291,6 +291,13 @@ Definition ctx_equiv Γ e1 e2 τ :=
 Notation "Γ ⊨ e '=ctx=' e' : τ" :=
   (ctx_equiv Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
 
+Global Instance ctx_equiv_transitive Γ τ :
+  Transitive (fun e1 e2 => ctx_equiv Γ e1 e2 τ).
+Proof.
+  intros e1 e2 e3 [Hctx11 Hctx12] [Hctx21 Hctx22].
+  split ; eapply ctx_refines_transitive ;eauto.
+Qed.
+
 Section bin_log_related_under_typed_ctx.
   Context `{!clutchRGS Σ}.
 

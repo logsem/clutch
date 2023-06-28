@@ -40,6 +40,12 @@ Section bij.
   Fact f_surj : base.Surj eq f.
   Proof. intros x. exists (g x). by rewrite f_g. Qed.
 
+  Fact g_inj : base.Inj eq eq g.
+  Proof. intros x y hg. rewrite -(f_g x) -(f_g y) hg => //. Qed.
+
+  Fact g_surj : base.Surj eq g.
+  Proof. intros x. exists (f x). by rewrite g_f. Qed.
+
 End bij.
 
 Section bij_lt.
