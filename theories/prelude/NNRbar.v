@@ -76,6 +76,14 @@ Program Definition nnreal_div x y : nonnegreal :=
 Definition nnreal_zero : nonnegreal := mknonnegreal 0 (Rle_refl 0).
 Definition nnreal_one : nonnegreal := mknonnegreal 1 (Rle_0_1).
 
+Program Definition nnreal_nat (n : nat) : nonnegreal :=
+  mknonnegreal (INR n) _.
+Next Obligation.
+  intro.
+  apply pos_INR.
+Qed.
+
+
 Program Definition nnreal_half : nonnegreal := mknonnegreal (/2) _.
 Next Obligation.
   left. apply pos_half_prf.

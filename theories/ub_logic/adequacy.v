@@ -11,10 +11,6 @@ From clutch.ub_logic Require Import error_credits ub_weakestpre primitive_laws.
 From clutch.prob Require Import distribution.
 Import uPred.
 
-
-
-
-
 Section adequacy.
   Context `{!clutchGS Σ}.
 
@@ -181,7 +177,7 @@ Proof.
   done.
 Qed.
 
-Lemma ub_lift_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ : 
+Lemma ub_lift_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ :
   (forall n, ub_lift (exec_val n (e, σ)) φ ε ) ->
   ub_lift (lim_exec_val (e, σ)) φ ε .
 Proof.
@@ -200,3 +196,21 @@ Proof.
   intro n.
   apply (wp_union_bound Σ); auto.
 Qed.
+
+(*
+Lemma wp_rand_err (N : nat) (z : Z) E :
+  TCEq N (Z.to_nat z) →
+  {{{ € (nnreal_inv(nnreal_nat(N+1))) }}} rand #z from #() @ E {{{ (n : fin (S N)), RET #n; ⌜0 < n⌝ }}}.
+Proof.
+  iIntros (-> Φ) "Hε HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "Hσ !#".
+  iSplit; [eauto with head_step|].
+  Unshelve. 2 : { apply 0%fin . }
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  by iApply ("HΦ" $! x) .
+Qed.
+*)
+

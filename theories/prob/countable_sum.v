@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Series Hierarchy Lim_seq Rbar.
+From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite.
 From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
@@ -655,6 +655,94 @@ Section positive.
   Qed.
 
 End positive.
+
+Section bounds.
+
+  (* Lifting some Lemmas from Coquelicot.Lub *)
+
+  Context `{Countable A}.
+
+  Definition is_lubC (h: A → R) (u : Rbar) :=
+    (forall a, Rbar_le (h a) u) /\ (forall u', (forall a, Rbar_le (h a) u') -> Rbar_le u u').
+
+  Lemma ex_lubC (h : A -> R) :
+    {u | is_lubC h u}.
+  Proof.
+    destruct (Lub_Rbar_correct ((λ r : R, ∃ a0 : A, h a0 = r))) as [H1 H2].
+    exists (Lub_Rbar (λ (r : R), exists a, h a = r)); split.
+    - intro a.
+      apply H1; eauto.
+    - intros u' Hu'.
+      apply H2; auto.
+      rewrite /is_ub_Rbar.
+      intros x (a & <-); auto.
+  Qed.
+
+  Definition LubC (h : A -> R) := proj1_sig (ex_lubC h).
+
+  Lemma LubC_correct (h : A -> R) :
+    is_lubC h (LubC h).
+  Proof.
+    rewrite /LubC ; by case: ex_lubC => l /= Hl.
+  Qed.
+
+
+  Lemma seriesC_le_lub (h : A -> R) :
+    ex_seriesC h ->
+    is_finite (LubC h) ->
+    ex_seriesC (λ a : A, real (LubC h)) ->
+    SeriesC h <= SeriesC (λ a : A, real (LubC h)).
+  Proof.
+    intros Hex Hfin Hex2.
+    apply SeriesC_le'; auto.
+    intro n.
+    destruct (LubC_correct h) as [H1 H2].
+    apply rbar_le_finite; auto.
+  Qed.
+
+  (* TODO: Try to minimize duplication *)
+
+  Definition is_glbC (h: A → R) (l : Rbar) :=
+    (forall a, Rbar_le l (h a) ) /\ (forall l', (forall a, Rbar_le l' (h a)) -> Rbar_le l' l).
+
+  Lemma ex_glbC (h : A -> R) :
+    {u | is_glbC h u}.
+  Proof.
+    destruct (Glb_Rbar_correct ((λ r : R, ∃ a0 : A, h a0 = r))) as [H1 H2].
+    exists (Glb_Rbar (λ (r : R), exists a, h a = r)); split.
+    - intro a.
+      apply H1; eauto.
+    - intros u' Hu'.
+      apply H2; auto.
+      rewrite /is_lb_Rbar.
+      intros x (a & <-); auto.
+  Qed.
+
+  Definition GlbC (h : A -> R) := proj1_sig (ex_glbC h).
+
+  Lemma GlbC_correct (h : A -> R) :
+    is_glbC h (GlbC h).
+  Proof.
+    rewrite /GlbC ; by case: ex_glbC => l /= Hl.
+  Qed.
+
+
+  Lemma seriesC_le_glb (h : A -> R) :
+    ex_seriesC h ->
+    is_finite (GlbC h) ->
+    ex_seriesC (λ a : A, real (GlbC h)) ->
+    SeriesC (λ a : A, real (GlbC h)) <= SeriesC h.
+  Proof.
+    intros Hex Hfin Hex2.
+    apply SeriesC_le'; auto.
+    intro n.
+    destruct (GlbC_correct h) as [H1 H2].
+    apply finite_rbar_le; auto.
+  Qed.
+
+End bounds.
+
+
 
 Section fubini.
   Context `{Countable A, Countable B}.
