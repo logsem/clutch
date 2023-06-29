@@ -4,6 +4,7 @@ From clutch.prob_lang Require Import notation lang.
 From clutch.rel_logic Require Import model spec_ra.
 From clutch.typing Require Import types.
 From clutch Require Import clutch.
+From clutch.examples.crypto Require more_tactics.
 
 Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
@@ -287,9 +288,12 @@ Tactic Notation "rel_exp_r" :=
 
 Module valgroup_tactics.
 
+  Import more_tactics.
+
   Ltac rel_pures :=
-    repeat (rel_pures_l ; try rel_exp_l ; try rel_mult_l ; try rel_inv_l) ;
-    repeat (rel_pures_r ; try rel_exp_r ; try rel_mult_r ; try rel_inv_r).
+    iStartProof ;
+    repeat (iredpuresr ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
+    repeat (iredpuresl ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
 
   (* TODO: make this into a general purpose tactic for solving log. rel.s at base
    type, and add a clause to use a hint database to which local solutions such
