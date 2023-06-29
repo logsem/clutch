@@ -324,7 +324,7 @@ Tactic Notation "rel_pure_r" open_constr(ef) open_constr(Kf) :=
 
 Tactic Notation "rel_pure_r" := rel_pure_r _ _.
 
-Ltac2 i_eval_at_redex fpure falloc fload fstore falloctape frand tm :=
+Ltac2 i_eval_at_redex fpure falloc fload fstore falloctape frand fforeign tm :=
   let rec f name tm k :=
     let f' := f in
     let f tm k := f' None tm k in
@@ -405,22 +405,40 @@ Ltac2 i_eval_at_redex fpure falloc fload fstore falloctape frand tm :=
             end
         | _ => f e2 constr:(RandRCtx $e1 :: $k)
         end
-    | _ =>
-        Control.throw (Tactic_failure (Some (fprintf "i_eval_at_redex: no match found: %t" tm)))
+    | _ => fforeign tm k name
     end
   in
   f None tm constr:(@nil ectx_item).
 
+Ltac2 foreign_unfold tm k name :=
+  let rec app_head e := lazy_match! e with ?e _ => app_head e | _ => e end in
+
+  let unfold_it tm := ltac1:(tm |- unfold tm at 1) (Ltac1.of_constr tm) in
+  let tm := app_head tm in
+  match Constr.Unsafe.kind tm with
+  | Constr.Unsafe.Var i  =>
+      (* printf "Var" ; *)
+      (* Std.unfold [(Std.VarRef i , Std.AllOccurrences)] *)
+      (*   ({Std.on_hyps := None ; Std.on_concl := (Std.OnlyOccurrences [1])}) *)
+      unfold_it tm
+  | Constr.Unsafe.Constant _ _  =>
+      unfold_it tm
+  | _ => printf "foreign_unfold: can't unfold %t" tm
+  end
+.
+
 Ltac2 Type side := [ L | R ].
 
-Ltac2 ired side fpure falloc fload fstore falloctape frand :=
+Ltac2 rec ired side fpure falloc fload fstore falloctape frand fforeign :=
   lazy_match! goal with
+  | [ |- context[⊢ (refines _ ?lhs ?rhs _)] ] =>
+      ltac1:(iStartProof) ; ired side fpure falloc fload fstore falloctape frand fforeign
   | [ |- context[environments.envs_entails _ (refines _ ?lhs ?rhs _)] ] =>
       match side with
-      | L => i_eval_at_redex fpure falloc fload fstore falloctape frand lhs
-      | R => i_eval_at_redex fpure falloc fload fstore falloctape frand rhs
+      | L => i_eval_at_redex fpure falloc fload fstore falloctape frand fforeign lhs
+      | R => i_eval_at_redex fpure falloc fload fstore falloctape frand fforeign rhs
       end
-  | [ |- _ ] => Control.throw (Tactic_failure (Some (fprintf "ired: Not in iris proofmode")))
+  | [ |- _ ] => Control.throw (Tactic_failure (Some (fprintf "ired: Not proving a refinement.")))
   end.
 
 Ltac2 rel_pure_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_pure_l ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
@@ -515,35 +533,65 @@ Ltac2 rel_randU_r tm k name :=
     (fun i _ => ltac1:(i |- iIntros (i)) i).
 
 Ltac2 rel_randT_l tm k name :=
-  ltac1:(ef kf |- rel_rand_l ef kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+  lazy_match! tm with
+  | Rand _ (Val (LitV (LitLbl _))) =>
+      ltac1:(ef kf |- rel_rand_l ef kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
+  | _ => () end.
 
 Ltac2 rel_randT_r tm k name :=
-  ltac1:(ef kf |- rel_rand_r ef kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+  lazy_match! tm with
+  | Rand _ (Val (LitV (LitLbl _))) =>
+      ltac1:(ef kf |- rel_rand_r ef kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
+  | _ => () end.
 
-Ltac2 ired_rand_r frand := ired R (fun _ _ => ()) (fun _ _ _ => ()) (fun _ _ => ()) (fun _ _ => ()) (fun _ _ _ => ()) frand.
-Ltac iredpurer := ltac2:(ired R rel_pure_r (fun _ _ _ => ()) (fun _ _ => ()) (fun _ _ => ()) (fun _ _ _ => ()) (fun _ _ _ => ())).
-Ltac iredpuresr := repeat iredpurer.
-Ltac2 iredall_r frand := ired R rel_pure_r rel_alloc_r rel_load_r rel_store_r rel_alloctape_r frand.
-Ltac iredr := ltac2:(iredall_r rel_randT_r).
-Ltac iredsr := repeat iredr.
+#[local] Ltac2 ign2 := fun _ _ => ().
+#[local] Ltac2 ign3 := fun _ _ _ => ().
 
-Ltac2 ired_rand_l frand := ired L (fun _ _ => ()) (fun _ _ _ => ()) (fun _ _ => ()) (fun _ _ => ()) (fun _ _ _ => ()) frand.
-Ltac iredpurel := ltac2:(ired L rel_pure_l (fun _ _ _ => ()) (fun _ _ => ()) (fun _ _ => ()) (fun _ _ _ => ()) (fun _ _ _ => ())).
-Ltac iredpuresl := repeat iredpurel.
-Ltac2 iredall_l frand := ired L rel_pure_l rel_alloc_l rel_load_l rel_store_l rel_alloctape_l frand.
-Ltac iredl := ltac2:(iredall_l rel_randT_l).
-Ltac iredsl := repeat iredl.
+(* Parametrised rand only tactical *)
+Ltac2 ired_rand_r frand := ired R ign2 ign3 ign2 ign2 ign3 frand ign3.
+Ltac2 ired_rand_l frand := ired L ign2 ign3 ign2 ign2 ign3 frand ign3.
+
+(* One step of pure reduction *)
+Ltac2 iredpurer () := ired R rel_pure_r ign3 ign2 ign2 ign3 ign3 foreign_unfold.
+Ltac iredpurer := ltac2:(iredpurer ()).
+Ltac2 iredpurel () := ired L rel_pure_l ign3 ign2 ign2 ign3 ign3 foreign_unfold.
+Ltac iredpurel := ltac2:(iredpurel ()).
+
+(* Iterated pure reduction *)
+Ltac2 iredpuresr () := repeat (iredpurer ()).
+Ltac iredpuresr := ltac2:(iredpuresr ()).
+Ltac2 iredpuresl () := repeat (iredpurel ()).
+Ltac iredpuresl := ltac2:(iredpuresl ()).
+
+(* One step of possibly effectful reduction; rand can only read from tapes *)
+Ltac2 iredall_r frand := ired R rel_pure_r rel_alloc_r rel_load_r rel_store_r rel_alloctape_r frand foreign_unfold.
+Ltac2 iredr () := iredall_r rel_randT_r.
+Ltac iredr := ltac2:(iredr ()).
+Ltac2 iredall_l frand := ired L rel_pure_l rel_alloc_l rel_load_l rel_store_l rel_alloctape_l frand foreign_unfold.
+Ltac2 iredl () := iredall_l rel_randT_l.
+Ltac iredl := ltac2:(iredl ()).
+
+(* Iterated effectful reduction *)
+Ltac2 iredsr () := repeat (iredr ()).
+Ltac iredsr := ltac2:(iredsr ()).
+Ltac2 iredsl () := repeat (iredl ()).
+Ltac iredsl := ltac2:(iredsl ()).
+
+(* Iterated reduction on both sides *)
 Ltac ireds := iredsr ; iredsl.
 Ltac iredpures := iredpuresr ; iredpuresl.
 
+(* Single step of reading from a tape, no other effects. *)
 Ltac rel_randT_l := ltac2:(ired_rand_l rel_randT_l).
 Ltac rel_randT_r := ltac2:(ired_rand_r rel_randT_r).
 
+(* Single step of sampling an empty tape, no other effects. *)
 Ltac rel_randT_empty_l := ltac2:(ired_rand_l rel_randT_empty_l).
 Ltac rel_randT_empty_r := ltac2:(ired_rand_r rel_randT_empty_r).
 
-Ltac rel_randU_l := ltac2:(iredall_l rel_randU_l).
-Ltac rel_randU_r := ltac2:(iredall_r rel_randU_r).
+(* Single step of unlabelled sampling, no other effects. *)
+Ltac rel_randU_l := ltac2:(ired_rand_l rel_randU_l).
+Ltac rel_randU_r := ltac2:(ired_rand_r rel_randU_r).
 
 Ltac2 rel_couple_TT bij tapes tm k name :=
   let kf := Ltac1.of_constr k in

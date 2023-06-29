@@ -6,7 +6,7 @@ From mathcomp Require Import all_ssreflect ssrnat zmodp fingroup.
 Set Warnings "notation-overridden,ambiguous-paths".
 
 From stdpp Require fin.
-From clutch Require Import prelude.zmodp_fin.
+From clutch.prelude Require Import zmodp_fin stdpp_ext.
 
 Set Default Proof Using "Type*".
 
@@ -34,17 +34,23 @@ Section bij.
   Fact g_f x : g (f x) = x.
   Proof. by rewrite /f/g ord_of_fin_of_ord g_f' fin_of_ord_of_fin. Qed.
 
-  Fact f_inj : base.Inj eq eq f.
+  Global Instance f_inj : base.Inj eq eq f.
   Proof. intros x y hf. rewrite -(g_f x) -(g_f y) hf => //. Qed.
 
-  Fact f_surj : base.Surj eq f.
+  Global Instance f_surj : base.Surj eq f.
   Proof. intros x. exists (g x). by rewrite f_g. Qed.
 
-  Fact g_inj : base.Inj eq eq g.
+  Global Instance bij_f : Bij f | 1.
+  Proof. constructor; apply _. Qed.
+
+  Global Instance g_inj : base.Inj eq eq g.
   Proof. intros x y hg. rewrite -(f_g x) -(f_g y) hg => //. Qed.
 
-  Fact g_surj : base.Surj eq g.
+  Global Instance g_surj : base.Surj eq g.
   Proof. intros x. exists (f x). by rewrite g_f. Qed.
+
+  Global Instance bij_g : Bij g | 1.
+  Proof. constructor; apply _. Qed.
 
 End bij.
 
