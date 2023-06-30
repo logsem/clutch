@@ -8,6 +8,10 @@ Section fupd_plainly_derived.
   Context {PROP : bi}.
   Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
 
+  Lemma step_fupdN_Sn (P : PROP) n :
+    (|={∅}▷=>^(S n) P) ⊣⊢ |={∅}▷=> |={∅}▷=>^n P.
+  Proof. done. Qed.
+
   Lemma step_fupd_mono Eo Ei (P Q : PROP) :
     (P ⊢ Q) → (|={Eo}[Ei]▷=> P) ⊢ (|={Eo}[Ei]▷=> Q).
   Proof. intros HPQ. by apply fupd_mono, later_mono, fupd_mono. Qed.

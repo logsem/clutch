@@ -238,6 +238,11 @@ Section exec.
       intros b'. by split; [|apply exec_mono'].
   Qed.
 
+  Lemma exec_O_not_final a :
+    ¬ is_final a →
+    exec 0 a = dzero.
+  Proof. intros ?%to_final_None_1 =>/=; by case_match. Qed. 
+  
   Lemma exec_Sn_not_final a n :
     ¬ is_final a →
     exec (S n) a = step a ≫= exec n.

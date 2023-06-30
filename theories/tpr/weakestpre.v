@@ -358,15 +358,15 @@ Proof.
   by intros Φ Φ' ?; apply equiv_dist=>n; apply rwp_ne=>v; apply equiv_dist.
 Qed.
 
-Lemma rwp_strong_ind' Ψ Φ :
-  (∀ n E e, Proper (dist n) (Ψ E e)) →
-  ⊢ (□ (∀ e E, rwp_pre (λ E e _, Ψ E e ∧ RWP e @ E ⟨⟨ Φ ⟩⟩) E e Φ -∗ Ψ E e) →
-    ∀ e E, RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ E e)%I.
+Lemma rwp_strong_ind' Ψ Φ E e :
+  (∀ n e, Proper (dist n) (Ψ e)) →
+  ⊢ (□ (∀ e, rwp_pre (λ _ e _, Ψ e ∧ RWP e @ E ⟨⟨ Φ ⟩⟩) E e Φ -∗ Ψ e) →
+       RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ e)%I.
 Proof.
-  iIntros (HΨ) "#IH". iIntros (e E) "Hrwp".
+  iIntros (HΨ) "#IH Hrwp".
   iRevert "IH".
   iApply (rwp_strong_ind (λ E e Φ, _) with "[] Hrwp").
-  { intros ??? ???. rewrite /rwp_pre. do 15 f_equiv.
+  { intros ??? ???. rewrite /rwp_pre. do 13 f_equiv.
     - do 2 f_equiv.
     - apply least_fixpoint_ne; f_equiv.
       rewrite /rwp_coupl_pre.
@@ -385,17 +385,17 @@ Proof.
   rewrite bi.and_elim_r //.
 Qed.
 
-Lemma rwp_ind' Ψ Φ :
-  (∀ n E e, Proper (dist n) (Ψ E e)) →
-  ⊢ (□ (∀ e E, rwp_pre (λ E e _, Ψ E e) E e Φ -∗ Ψ E e) →
-    ∀ e E, RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ E e)%I.
+Lemma rwp_ind' Ψ Φ E e:
+  (∀ n e, Proper (dist n) (Ψ e)) →
+  ⊢ (□ (∀ e, rwp_pre (λ _ e _, Ψ e) E e Φ -∗ Ψ e) →
+    RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ e)%I.
 Proof.
   iIntros (?) "#H".
   iApply rwp_strong_ind'.
-  iIntros "!>" (e E) "Hrwp".
+  iIntros (e') "!> Hrwp".
   iApply "H".
   iApply (rwp_pre_mono with "[] Hrwp").
-  iIntros "!>" (E' e' _) "[$ _]".
+  iIntros "!>" (_ ? _) "[$ _]".
 Qed.
 
 Lemma rwp_value' E Φ v : Φ v ⊢ RWP of_val v @ E ⟨⟨ Φ ⟩⟩.
