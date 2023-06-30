@@ -20,35 +20,35 @@ Global Arguments Spec {_ _ _ _ _}.
 Section spec_update.
   Context `{spec A B Σ} `{invGS_gen hlc Σ}.
 
-  Definition spec_update E (P : iProp Σ) : iProp Σ :=
-    (∀ a : A, spec_interp a -∗ |={E}=> ∃ (n : nat) (b : A), ⌜stepN n a b = 1⌝ ∗ spec_interp b ∗ P)%I.
+  Definition spec_update (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
+    (∀ a : A, spec_interp a -∗ |={E}=> ∃ (b : A), ⌜stepN n a b = 1⌝ ∗ spec_interp b ∗ P)%I.
 
-  Lemma spec_update_bind E P Q : spec_update E P ∗ (P -∗ spec_update E Q) ⊢ spec_update E Q.
+  Lemma spec_update_bind n m E P Q : spec_update n E P ∗ (P -∗ spec_update m E Q) ⊢ spec_update (n + m) E Q.
   Proof.
     rewrite /spec_update. iIntros "[P PQ]" (a) "Ha".
-    iMod ("P" $! a with "Ha") as (n b Hab) "[Hb P]".
+    iMod ("P" $! a with "Ha") as (b Hab) "[Hb P]".
     iSpecialize ("PQ" with "P").
-    iMod ("PQ" $! b with "Hb") as (m c Hbc) "[Hc Q]".
-    iModIntro. iExists (n + m)%nat, _. iFrame. iPureIntro.
-    rewrite stepN_plus. 
-    by erewrite stepN_det_steps.
+    iMod ("PQ" $! b with "Hb") as (c Hbc) "[Hc Q]".
+    iModIntro. iExists _.
+    assert (stepN (n + m) a c = 1) by by eapply stepN_det_trans.
+    by iFrame. 
   Qed.
 
-  Lemma spec_update_mono_fupd E P Q : spec_update E P ∗ (P ={E}=∗ Q) ⊢ spec_update E Q.
+  Lemma spec_update_mono_fupd n E P Q : spec_update n E P ∗ (P ={E}=∗ Q) ⊢ spec_update n E Q.
   Proof.
     iIntros "[HP PQ]". iIntros (a) "Hsrc".
-    iMod ("HP" with "Hsrc") as (n b Hstep) "[Hsrc P]".
+    iMod ("HP" with "Hsrc") as (b Hstep) "[Hsrc P]".
     iMod ("PQ" with "P"). iFrame. iModIntro.
-    iExists n, b. by iFrame.
+    iExists b. by iFrame.
   Qed.
 
-  Lemma spec_update_mono E P Q : spec_update E P ∗ (P -∗ Q) ⊢ spec_update E Q.
+  Lemma spec_update_mono n E P Q : spec_update n E P ∗ (P -∗ Q) ⊢ spec_update n E Q.
   Proof.
     iIntros "[Hupd HPQ]". iApply (spec_update_mono_fupd with "[$Hupd HPQ]").
     iIntros "P". iModIntro. by iApply "HPQ".
   Qed.
 
-  Lemma fupd_spec_update E P : (|={E}=> spec_update E P) ⊢ spec_update E P.
+  Lemma fupd_spec_update n E P : (|={E}=> spec_update n E P) ⊢ spec_update n E P.
   Proof.
     iIntros "H". rewrite /spec_update. iIntros (e) "Hsrc".
     iMod "H". by iApply "H".

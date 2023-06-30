@@ -75,6 +75,19 @@ Section stepN.
     stepN n a1 a2 = 1 →
     stepN n a1 ≫= stepN m = stepN m a2.
   Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.  
+
+  Lemma stepN_det_trans n m a1 a2 a3 :
+    stepN n a1 a2 = 1 →
+    stepN m a2 a3 = 1 →
+    stepN (n + m) a1 a3 = 1.
+  Proof.
+    rewrite stepN_plus.
+    intros ->%pmf_1_eq_dret.
+    replace (dret a2 ≫= _)
+      with (stepN m a2); [|by rewrite dret_id_left].
+    intros ->%pmf_1_eq_dret.
+    by apply dret_1.
+  Qed.               
           
 End stepN. 
 

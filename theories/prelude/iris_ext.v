@@ -8,9 +8,24 @@ Section fupd_plainly_derived.
   Context {PROP : bi}.
   Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.
 
-  Lemma step_fupdN_Sn (P : PROP) n :
-    (|={∅}▷=>^(S n) P) ⊣⊢ |={∅}▷=> |={∅}▷=>^n P.
+  Lemma step_fupdN_fupd_swap {E : coPset} (P: PROP) (n: nat):
+    (|={E}▷=>^n |={E}=> P) ⊢ |={E}=> |={E}▷=>^n P.
+  Proof.
+    induction n => //=.
+    iIntros "H". iMod "H". iModIntro. iModIntro. iNext. iMod "H".
+    by iApply IHn.
+  Qed.
+
+  Lemma step_fupdN_Sn (P : PROP) E n :
+    (|={E}▷=>^(S n) P) ⊣⊢ |={E}▷=> |={E}▷=>^n P.
   Proof. done. Qed.
+
+  Lemma step_fupdN_Sn_r (P : PROP) n E :
+    (|={E}▷=>^(S n) P) ⊣⊢ |={E}▷=>^n |={E}▷=> P.
+  Proof.
+    replace (S n) with (n + 1) by lia.
+    rewrite step_fupdN_add //.
+  Qed.
 
   Lemma step_fupd_mono Eo Ei (P Q : PROP) :
     (P ⊢ Q) → (|={Eo}[Ei]▷=> P) ⊢ (|={Eo}[Ei]▷=> Q).
@@ -39,6 +54,36 @@ Section fupd_plainly_derived.
     apply fupd_elim.
     rewrite -later_forall -laterN_forall -except_0_forall.
     apply step_fupd_intro. done.
+  Qed.
+
+  Global Instance step_fupdN_ne k E1 E2:
+    NonExpansive (λ P : PROP, |={E2}[E1]▷=>^k P)%I.
+  Proof.
+    induction k; simpl; solve_proper.
+  Qed.
+
+  Lemma step_fupd_and (P Q : PROP) E :
+    (|={E}▷=> P ∧ Q) ⊢ (|={E}▷=> P) ∧ (|={E}▷=> Q).
+  Proof.
+    rewrite fupd_and.
+    iIntros "H".
+    iSplit; iMod "H".
+    - do 2 iModIntro. iDestruct "H" as "[$ _]".
+    - do 2 iModIntro. iDestruct "H" as "[_ $]".
+  Qed.
+
+  Lemma step_fupdN_and (P Q : PROP) E n :
+    (|={E}▷=>^n P ∧ Q) ⊢ (|={E}▷=>^n P) ∧ (|={E}▷=>^n Q).
+  Proof.
+    induction n; [done|].
+    (* rewrite step_fupdN_Sn_r. *)
+    iIntros "H".
+    rewrite 2!step_fupdN_Sn.
+    iSplit; iMod "H".
+    - do 2 iModIntro. iMod "H". iModIntro.
+      iApply and_elim_l. by iApply IHn.
+    - do 2 iModIntro. iMod "H". iModIntro.
+      iApply and_elim_r. by iApply IHn.
   Qed.
 
 End fupd_plainly_derived.
