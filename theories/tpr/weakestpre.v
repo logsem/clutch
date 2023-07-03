@@ -519,27 +519,6 @@ Proof.
   by iApply "H".
 Qed.
 
-(* Lemma rwp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
-(*   RWP K e @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E ⟨⟨ v, RWP K (of_val v) @ E ⟨⟨ Φ ⟩⟩ ⟩⟩. *)
-(* Proof. *)
-(*   iIntros "H". remember (K e) as e' eqn:He'. *)
-(*   iRevert (e He'). iRevert (e' E Φ) "H". iApply rwp_strong_ind; first solve_proper. *)
-(*   iIntros "!#" (e' E1 Φ) "IH". iIntros (e ->). *)
-(*   rewrite !rwp_unfold {2}/rwp_pre. *)
-(*   destruct (to_val e) as [v|] eqn:He. *)
-(*   { iIntros (???) "($&$)". iModIntro. apply of_to_val in He as <-. rewrite !rwp_unfold. *)
-(*     iApply (rwp_pre_mono with "[] IH"). by iIntros "!#" (E e Φ') "[_ ?]". } *)
-(*   rewrite /rwp_pre fill_not_val //. *)
-(*   iIntros (σ1 κs n) "Hσ". iMod ("IH" with "[$]") as (b) "IH". iModIntro. *)
-(*   iExists b. iNext. iMod "IH" as "[% IH]"; iModIntro. iSplit. *)
-(*   { destruct eauto using reducible_fill. } *)
-(*   iIntros (e2 σ2 efs κ Hstep). *)
-(*   iMod ("IH" $! (K e2) σ2 efs κ with "[]") as "(Hsrc & Hσ & IH & IHefs)"; eauto using fill_step. *)
-(*   iModIntro. iFrame "Hsrc Hσ". iSplitR "IHefs". *)
-(*   - iDestruct "IH" as "[IH _]". by iApply "IH". *)
-(*   - by setoid_rewrite bi.and_elim_r. *)
-(* Qed. *)
-
 (** * Derived rules *)
 Lemma rwp_mono E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → RWP e @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E ⟨⟨ Ψ ⟩⟩.
 Proof.

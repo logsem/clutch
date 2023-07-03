@@ -41,15 +41,14 @@ Section adequacy.
   Lemma rwp_coupl_final e σ a b R n :
     to_final a = Some b →
     to_val e = None →
-    reducible e σ →
     rwp_coupl e σ a (λ '(e2, σ2) a2,
         ∀ n, |={∅}=> |={∅}▷=>^n ⌜exec n a2 ≾ lim_exec_val (e2, σ2) : R⌝)
       ⊢ |={∅}=> |={∅}▷=>^n ⌜exec n a ≾ lim_exec_val (e, σ) : R⌝.
   Proof.
-    iIntros (Hf Hv Hred) "Hcpl".
+    iIntros (Hf Hv) "Hcpl".
     erewrite exec_is_final; [|done].
     rewrite rwp_coupl_unfold.
-    iDestruct "Hcpl" as (R') "[[%Hcpl HR] | [[%Hcpl HR] | [%Hcpl HR]]]".
+    iDestruct "Hcpl" as (R') "[(% & %Hcpl & HR) | [[%Hcpl HR] | (% & %Hcpl & HR)]]".
     - iEval (rewrite -(dret_id_left (λ a, dret b) a)).
       rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
       iApply (step_fupdN_mono _ _ _
@@ -95,7 +94,7 @@ Section adequacy.
       iModIntro.
       iPureIntro.
       by eapply Rcoupl_refRcoupl, Rcoupl_dret.
-    - iMod "Hrwp" as (Hred) "Hcpl".
+    - iMod "Hrwp" as "Hcpl".
       iDestruct (rwp_coupl_strong_mono _ _ _ _
                     ((λ '(e2, σ2) a2, ∀ n, |={∅}=> |={∅}▷=>^n
                         ⌜exec n a2 ≾ lim_exec_val (e2, σ2) : flip φ⌝))%I
@@ -103,7 +102,7 @@ Section adequacy.
       { iIntros ([e' σ'] a') "(% & H) %".
         iMod "H" as "(? & ? & H)".
         by iMod ("H" with "[$] [$]"). }
-      iInduction n as [|n] "IH" forall (e σ a Hred Hv).
+      iInduction n as [|n] "IH" forall (e σ a Hv).
       + destruct (to_final a) eqn:Hf.
         { by iApply rwp_coupl_final. }
         rewrite exec_O_not_final; [|by apply to_final_None_2].
@@ -112,7 +111,7 @@ Section adequacy.
       + destruct (to_final a) eqn:Hf.
         { by iApply rwp_coupl_final. }
         rewrite rwp_coupl_unfold.
-        iDestruct "Hcpl" as (R) "[[%Hcpl HR] | [[%Hcpl HR] | [%Hcpl HR]]]".
+        iDestruct "Hcpl" as (R) "[(%Hred & %Hcpl & HR) | [[%Hcpl HR] | (%Hred & %Hcpl & HR)]]".
         * iEval (rewrite -(dret_id_left (exec _))).
           rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
           iApply (step_fupdN_mono _ _ _
@@ -137,8 +136,8 @@ Section adequacy.
           iIntros "!>" (a'' HR).
           rewrite step_fupdN_Sn.
           iMod ("HR" with "[//]") as "HR".
-          do 2 iModIntro.
-          iApply ("IH" with "[//] [//] HR").
+          do 2 iModIntro. iMod "HR".
+          iApply ("IH" with "[//] HR").
         * rewrite exec_Sn_not_final; [|eauto with markov].
           rewrite lim_exec_val_prim_step prim_step_or_val_no_val; [|done].
           iApply (step_fupdN_mono _ _ _
@@ -151,7 +150,7 @@ Section adequacy.
           rewrite step_fupdN_Sn.
           iMod ("HR" with "[//]") as "HR".
           do 2 iModIntro.
-          iApply "HR".
+          by iMod "HR".
   Qed.
 
 End adequacy.
