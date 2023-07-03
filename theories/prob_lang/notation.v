@@ -34,6 +34,20 @@ Notation "# l" := (LitV l%Z%V%stdpp) (at level 8, format "# l").
 Notation "( e1 , e2 , .. , en )" := (Pair .. (Pair e1 e2) .. en) : expr_scope.
 Notation "( e1 , e2 , .. , en )" := (PairV .. (PairV e1 e2) .. en) : val_scope.
 
+(* I failed to convince Coq that this pattern is recursive, so here's the
+   unrolled version for a pairs and triples. *)
+Notation "'let,' ( x1 , x2 ) := e1 'in' e2" :=
+  (Lam x2%E (Lam x1%E (Lam x2%E e2%E (Snd x2)) (Fst x2)) e1%E)
+  (at level 100, x1, x2 at level 1, e1, e2 at level 200) : expr_scope.
+
+Notation "'let,' ( x1 , x2 , x3 ) := e1 'in' e2" :=
+  (Lam x3%E (Lam x2%E (Lam x3%E (Lam x1%E (Lam x2%E e2%E (Snd x2)) (Fst x2)) (Snd x3)) (Fst x3)) e1%E)
+  (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.
+
+Notation "'let,' ( x1 , ( x2 , x3 ) ) := e1 'in' e2" :=
+  (Lam x1%E (Lam x2%E (Lam x1%E (Lam x3%E (Lam x2%E e2%E (Fst x2)) (Snd x2)) (Fst x1)) (Snd x1)) e1%E)
+  (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.
+
 (*
 Using the '[hv' ']' printing box, we make sure that when the notation for match
 does not fit on a single line, line breaks will be inserted for *each* breaking
@@ -167,3 +181,12 @@ Notation "'match:' e0 'with' 'NONE' => e1 | 'SOME' x => e2 'end'" :=
 Notation "'match:' e0 'with' 'SOME' x => e2 | 'NONE' => e1 'end'" :=
   (Match e0 BAnon e1 x%binder e2)
   (e0, e1, x, e2 at level 200, only parsing) : expr_scope.
+
+(** Notations for the option monad *)
+Notation "'let:m' x := e1 'in' e2" :=
+  (match: e1%E with NONE => NONE | SOME x => e2%E end)%E
+  (at level 100, x at level 1, e1, e2 at level 200) : expr_scope.
+
+(* `assert e1 ;;; e2` errors out if e1 evaluates to false. *)
+Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
+  (at level 200, e1, e2 at level 200) : expr_scope.

@@ -44,7 +44,7 @@ Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Tapes *)
-Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name l dq (v : tape))
+Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ tape _ _ clutchGS_tapes clutchGS_tapes_name l dq v)
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
