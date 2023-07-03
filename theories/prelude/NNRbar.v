@@ -61,6 +61,15 @@ Next Obligation.
   apply Rmult_le_pos; auto.
 Qed.
 
+Program Definition nnreal_minus x y (_ : (nonneg y <= nonneg x)) : nonnegreal :=
+  mknonnegreal (x - y) _.
+Next Obligation.
+  intros x y Hxy.
+  destruct x as [x Hx].
+  destruct y as [y Hy].
+  apply Rge_le, Rge_minus, Rle_ge; auto.
+Qed.
+
 Program Definition nnreal_inv x : nonnegreal :=
   mknonnegreal (/x) _.
 Next Obligation.

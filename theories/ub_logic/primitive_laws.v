@@ -57,6 +57,7 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
+
 Section lifting.
 Context `{!clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
@@ -201,8 +202,8 @@ Proof.
   iFrame.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
-Qed.  
+Qed.
 
 End lifting.
 
-Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances. 
+Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.

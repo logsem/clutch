@@ -216,6 +216,22 @@ Section error_credit_theory.
     by iDestruct "Hown" as "[Hm _]".
   Qed.
 
+  Lemma ec_split_supply ε1 ε2 :
+    ec_supply ε2 -∗ € ε1 -∗
+      ∃ ε3, ⌜ε2 = nnreal_plus ε1 ε3⌝.
+  Proof.
+    rewrite ec_unseal /ec_def.
+    rewrite ec_supply_unseal /ec_supply_def.
+    iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as "%Hop".
+    iPureIntro. eapply auth_both_valid_discrete in Hop as [Hlt _].
+    apply R_included in Hlt.
+    eexists (nnreal_minus ε2 ε1 Hlt).
+    apply nnreal_ext.
+    simpl; lra.
+  Qed.
+
+
   Lemma ec_weaken {ε1 : nonnegreal} (ε2 : nonnegreal) :
     (ε2 <= ε1)%R → € ε1 -∗ € ε2.
   Proof.

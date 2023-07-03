@@ -235,37 +235,32 @@ End ub_theory.
 
 Section ub_examples.
 
-Lemma ub_unif_nonzero (n : nat) :
-  ub_lift (dunifP n) (λ n, 0 < n) (1/(n+1)).
+Lemma ub_unif_err (n : nat) (m : fin (S n)) :
+  ub_lift (dunifP n) (λ n, n <> m) (1/(n+1)).
 Proof.
   intros P HP.
   rewrite /prob.
-  rewrite (SeriesC_split_elem (λ a, if negb (P a) then dunifP n a else 0) 0%fin).
+  rewrite (SeriesC_split_elem (λ a, if negb (P a) then dunifP n a else 0) m).
   - rewrite
-      (SeriesC_ext _ (λ a : fin (S n), if bool_decide (a = 0%fin) then if negb (P 0%fin) then dunifP n 0%fin else 0 else 0)); last first.
+      (SeriesC_ext _ (λ a : fin (S n), if bool_decide (a = m) then if negb (P m) then dunifP n m else 0 else 0)); last first.
     { intro; real_solver. }
     rewrite SeriesC_singleton.
     erewrite (SeriesC_ext _ (λ a, 0)); last first.
     { intro; case_bool_decide; auto.
       rewrite HP; auto.
-      apply lt_0_INR.
-      pose proof (PeanoNat.Nat.eq_0_gt_0_cases n0) as [H1 | ?]; auto.
-      (* What now ????? *)
-      admit.
     }
     rewrite SeriesC_0; auto.
     rewrite Rplus_0_r.
-    destruct (P 0%fin); simpl.
-    + (* ???????? *)
-      admit.
+    destruct (P m); simpl.
+    +  (* ???????? *)
+      apply Rdiv_le_0_compat; [lra |].
+      apply (Rle_lt_trans _ n); [apply pos_INR | lra].
     + rewrite /pmf/=.
-      destruct n.
-      * simpl; lra.
-      * lra.
+      destruct n; simpl; lra.
   - intro a; destruct (P a); real_solver.
   - apply (ex_seriesC_le _ (dunifP n)); auto.
     intro x; destruct (P x); real_solver.
-Admitted.
+Qed.
 
 End ub_examples.
 

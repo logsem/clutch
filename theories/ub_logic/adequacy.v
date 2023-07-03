@@ -5,7 +5,7 @@ From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob_lang Require Import erasure.
+From clutch.prob_lang Require Import erasure notation.
 From clutch.program_logic Require Export language weakestpre.
 From clutch.ub_logic Require Import error_credits ub_weakestpre primitive_laws.
 From clutch.prob Require Import distribution.
@@ -196,21 +196,4 @@ Proof.
   intro n.
   apply (wp_union_bound Σ); auto.
 Qed.
-
-(*
-Lemma wp_rand_err (N : nat) (z : Z) E :
-  TCEq N (Z.to_nat z) →
-  {{{ € (nnreal_inv(nnreal_nat(N+1))) }}} rand #z from #() @ E {{{ (n : fin (S N)), RET #n; ⌜0 < n⌝ }}}.
-Proof.
-  iIntros (-> Φ) "Hε HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "Hσ !#".
-  iSplit; [eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin . }
-  iIntros "!>" (e2 σ2 Hs).
-  inv_head_step.
-  iFrame.
-  by iApply ("HΦ" $! x) .
-Qed.
-*)
 

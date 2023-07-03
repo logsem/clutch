@@ -74,7 +74,38 @@ Section couplings_theory.
       rewrite <- SeriesC_scal_l.
       apply SeriesC_ext; real_solver.
     }
-    rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * h2 b)); [ | admit | admit | admit].
+    rewrite <-(fubini_pos_seriesC (λ '(b,x), μ2 x * g x b * h2 b)).
+    2:{
+      intros b' b.
+      specialize (Hh2pos b').
+      real_solver.
+    }
+    2:{
+      intro b'.
+      specialize (Hh2pos b').
+      apply (ex_seriesC_le _ μ2); auto.
+      intro b; split.
+      - apply Rmult_le_pos.
+        + real_solver.
+        + real_solver.
+      - rewrite <- Rmult_1_r.
+        rewrite Rmult_assoc.
+        apply Rmult_le_compat_l; auto.
+        rewrite <- Rmult_1_r.
+        apply Rmult_le_compat; real_solver.
+       }
+    2:{
+      setoid_rewrite SeriesC_scal_r.
+      apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))); auto.
+      - intros b'; specialize (Hh2pos b'); split.
+        + apply Rmult_le_pos; [ | lra].
+          apply (pmf_pos ((dbind g μ2)) b').
+        + rewrite <- Rmult_1_r.
+          apply Rmult_le_compat_l; auto.
+          * apply SeriesC_ge_0'. real_solver.
+          * real_solver.
+      - apply (pmf_ex_seriesC (dbind g μ2)).
+    }
     assert (SeriesC (λ b : B, SeriesC (λ a : B', μ2 b * g b a * h2 a))
             = SeriesC (λ b : B, μ2 b * SeriesC (λ a : B', g b a * h2 a))) as ->.
     {
@@ -99,10 +130,31 @@ Section couplings_theory.
         specialize (Hh2pos b'); real_solver.
     + intros a b Rab.
       apply Hcoup_fg; auto.
-    - admit.
-    - admit.
-    - admit.
-Admitted.
+    - intros a' a.
+      specialize (Hh1pos a'); real_solver.
+    - intro a'.
+      specialize (Hh1pos a').
+      apply (ex_seriesC_le _ μ1); auto.
+      intro a; split.
+      + apply Rmult_le_pos.
+        * real_solver.
+        * real_solver.
+      + rewrite <- Rmult_1_r.
+        rewrite Rmult_assoc.
+        apply Rmult_le_compat_l; auto.
+        rewrite <- Rmult_1_r.
+        apply Rmult_le_compat; real_solver.
+    - setoid_rewrite SeriesC_scal_r.
+      apply (ex_seriesC_le _ (λ a : A', SeriesC (λ x : A, μ1 x * f x a))); auto.
+      + intros a'; specialize (Hh1pos a'); split.
+        * apply Rmult_le_pos; [ | lra].
+          apply (pmf_pos ((dbind f μ1)) a').
+        * rewrite <- Rmult_1_r.
+          apply Rmult_le_compat_l; auto.
+          -- apply SeriesC_ge_0'. real_solver.
+          -- real_solver.
+      + apply (pmf_ex_seriesC (dbind f μ1)).
+Qed.
 
 
 
@@ -432,7 +484,7 @@ Section Rcoupl.
     apply (Rle_trans _ (SeriesC (λ b : B, μ2 b * (real (GlbC g))))).
     {
       (* We step form LubC f to Glb here because it is easier if
-         we have an inhabitant of b *)
+         we have an inhabitant of B *)
       apply SeriesC_le'; auto.
       - intro b.
         apply Rmult_le_compat_l; auto.
