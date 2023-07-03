@@ -43,8 +43,6 @@ Qed.
 
 End metatheory.
 
-(* TODO: can we factor out a clever lemma to avoid duplication in all the
-   coupling lemmas? *)
 Section rules.
   Context `{!clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
@@ -54,11 +52,13 @@ Section rules.
   Implicit Types v : val.
   Implicit Types l : loc.
 
-Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E :
+Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
-  {{{ € (nnreal_inv(nnreal_nat(N+1))) }}} rand #z from #() @ E {{{ (n : fin (S N)), RET #n; ⌜n ≠ m⌝ }}}.
+  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  (∀ n, ⌜n ≠ m⌝ -∗ Φ #n)
+  ⊢ WP rand #z from #() @ E {{ Φ }}.
 Proof.
-  iIntros (-> Φ) "Herr HΦ".
+  iIntros (->) "[Herr Hwp]".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
@@ -109,6 +109,6 @@ Proof.
   iFrame.
   iModIntro.
   iApply ub_wp_value.
-  iApply "HΦ".
+  iApply "Hwp".
   done.
 Qed.
