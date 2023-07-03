@@ -1922,6 +1922,7 @@ Ltac solve_distr :=
 Ltac solve_distr_mass :=
   match goal with
   | |- SeriesC (dret _).(pmf) = 1 => rewrite SeriesC_singleton //
+  | |- SeriesC (dret _).(pmf) > 0 => rewrite dret_mass; lra
   | |- SeriesC (dmap _ _).(pmf) = 1 => rewrite dmap_mass //
   | |- SeriesC (dunif _).(pmf) = 1 => rewrite dunif_mass //
   | |- SeriesC (dunifP _).(pmf) = 1 => rewrite dunifP_mass //
