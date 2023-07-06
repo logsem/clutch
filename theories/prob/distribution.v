@@ -726,7 +726,7 @@ Section probability_lemmas.
   Qed.
 
   Lemma union_bound (μ : distr A) (P Q : A → bool) :
-    prob μ (λ a, andb (P a) (Q a)) <= prob μ P + prob μ Q.
+    prob μ (λ a, orb (P a) (Q a)) <= prob μ P + prob μ Q.
   Proof.
     rewrite /prob.
     rewrite -SeriesC_plus.
@@ -817,7 +817,7 @@ Section probability_prop_lemmas.
   Qed.
 
   Lemma union_bound_prop (μ : distr A) (P Q : A → Prop) `{forall a, Decision (P a)} `{forall a, Decision (Q a)} :
-    probp μ (λ a, (P a) /\ (Q a)) <= probp μ P + probp μ Q.
+    probp μ (λ a, (P a) \/ (Q a)) <= probp μ P + probp μ Q.
   Proof.
     rewrite /probp.
     rewrite -SeriesC_plus.
@@ -825,7 +825,7 @@ Section probability_prop_lemmas.
       + intro n.
         pose proof (pmf_pos μ n).
         do 3 case_bool_decide; try real_solver.
-        destruct_and!; done.
+        destruct_or?; done.
       + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
         * intro n.
           pose proof (pmf_pos μ n).
