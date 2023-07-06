@@ -55,7 +55,7 @@ Definition τ_DH := (() → (τG * τG * τG))%ty.
 Definition T_DH := Eval cbn in (interp τ_DH Δ).
 
 (* The syntactic and semantic type of the ElGamal game(s). *)
-Definition τ_EG := ((() → τG) * (TInt → () + τG * τG))%ty.
+Definition τ_EG := (τG * (TInt → () + τG * τG))%ty.
 Definition T_EG := Eval cbn in (interp τ_EG Δ).
 
 (* The Decisional Diffie Hellman assumption says the following two programs are
@@ -65,20 +65,19 @@ Definition DH_real : expr :=
     let: "a" := rnd #() in let: "b" := rnd #() in
     (g^"a", g^"b", g^("a"*"b")).
 
-Definition DH_rnd : expr :=
+Definition DH_rand : expr :=
   λ:<>,
     let: "a" := rnd #() in let: "b" := rnd #() in let: "c" := rnd #() in
     (g^"a", g^"b", g^"c").
 
 (* Public key OTS-CPA$ security (one-time secrecy chosen plaintext attack -
-   real/random) is defined as the indistinguishability of pk_ots_rnd_real and
-   pk_ots_rnd_rnd. *)
+   real/random) is defined as the indistinguishability of pk_real and
+   pk_rnd. *)
 (* In the random game, rather than encrypting the message, "query" returns a
    random ciphertext, i.e. two random group elements (B,X). *)
-Definition pk_ots_rnd_rnd : expr :=
+Definition pk_rand : expr :=
   let, ("pk", "sk") := keygen #() in
   let: "count" := ref #0 in
-  let: "getpk" := λ:<>, "pk" in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
       assert (!"count" = #0) ;;;
@@ -86,31 +85,29 @@ Definition pk_ots_rnd_rnd : expr :=
       let: "b" := rnd #() in let: "x" := rnd #() in
       let: "B" := g^"b"   in let: "X" := g^"x"   in
       ("B", "X") in
-  ("getpk", "query").
+  ("pk", "query").
 
 (* The real game instead encrypts the message in "query". Below, we transform
-   pk_ots_rnd_real into C[DH_real] and C[DH_rnd] into pk_ots_rnd_rnd. *)
-Definition pk_ots_rnd_real : expr :=
+   pk_real into C[DH_real] and C[DH_rnd] into pk_rnd. *)
+Definition pk_real : expr :=
   let, ("pk", "sk") := keygen #() in
   let: "count" := ref #0 in
-  let: "getpk" := λ:<>, "pk" in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
       assert (!"count" = #0) ;;;
       "count" <- #1 ;;
       enc "pk" "msg" in
-  ("getpk", "query").
+  ("pk", "query").
 
 (* Unfold definitions and label the flips. We need to label the flip in
    "query" since it occurs in a closure, and we want to relate it to an
    eager sampling in the set-up phase in order to make DH_real appear as a
    sub-expression. *)
-Definition pk_ots_rnd_real_lbl : expr :=
+Definition pk_real_tape : expr :=
   let: "β" := alloc #n in
   let: "sk" := rnd #() in
   let: "pk" := g^"sk" in
   let: "count" := ref #0 in
-  let: "getpk" := λ:<>, "pk" in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
       assert (!"count" = #0) ;;;
@@ -118,42 +115,38 @@ Definition pk_ots_rnd_real_lbl : expr :=
       let: "b" := rnd "β" in
       let: "B" := g^"b" in
       ("B", "msg" · "pk"^"b") in
-  ("getpk", "query").
+  ("pk", "query").
 
-(* Pull out DH_real. This requires moving the sampling of "b" from "query" to
-   the initialisation. Only equivalent because "query" gets called only once:
-   only one message is encrypted, so only one nonce "b" is required, and we can
-   pre-sample it in the setup. *)
+(* Pull out DH_real/rand. This requires moving the sampling of "b" from "query"
+   to the initialisation. Only equivalent because "query" gets called only
+   once: only one message is encrypted, so only one nonce "b" is required, and
+   we can pre-sample it in the setup. *)
 
 Definition eC : expr :=
   (λ: "DH_real_or_rnd",
        let, ("A", "B", "C") := "DH_real_or_rnd" #() in
        let: "count" := ref #0 in
-       let: "getpk" := λ: <>, "A" in
        let: "query" := λ: "msg",
            let:m "msg" := vg_of_int "msg" in
            assert (!"count" = #0) ;;;
            "count" <- #1 ;;
            ("B", "msg" · "C") in
-       ("getpk", "query")).
-
-Definition pk_ots_rnd_1 : expr := eC DH_real.
-
-(* Isolate DH_rnd. *)
-Definition pk_ots_rnd_2 : expr := eC DH_rnd.
+       ("A", "query")).
 
 Definition C : list ectx_item := [AppRCtx eC].
 Definition C' : list ctx_item := [CTX_AppR eC].
 
-(* Inline DH_rnd and push the two random samplings not required for the key
-   generation (and thus getpk) back down (using tapes β and γ). *)
-Definition pk_ots_rnd_4 : expr :=
+Definition C_DH_real : expr := fill C DH_real.
+Definition C_DH_rand : expr := fill C DH_rand.
+
+(* Inline DH_rand and push the two random samplings not required for the key
+   generation back down (using tapes β and γ). *)
+Definition pk_rand_tape : expr :=
   let: "β" := alloc #n in
   let: "γ" := alloc #n in
   let: "a" := rnd #() in
   let: "A" := g^"a" in
   let: "count" := ref #0 in
-  let: "getpk" := λ:<>, "A" in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
       assert (!"count" = #0) ;;;
@@ -163,9 +156,9 @@ Definition pk_ots_rnd_4 : expr :=
       let: "B" := g^"b" in
       let: "C" := g^"c" in
       ("B", "msg" · "C") in
-  ("getpk", "query").
+  ("A", "query").
 
-(* Finally, we connect pk_ots_rnd_4 to pk_ots_rnd_rnd. For this last step, we
+(* Finally, we connect pk_rand_tape to pk_rand. For this last step, we
    want to show that multiplying the message with a random group element really
    looks random, i.e. that msg⋅C = msg⋅g^c looks random, just like X = g^x. *)
 (* We prove this by showing that multiplying by msg induces a bijection f on the
@@ -174,7 +167,7 @@ Definition pk_ots_rnd_4 : expr :=
    by (λ c, c-k)). Let msg⋅g^c = g^k⋅g^c = g^(k+c). Let x = f(c) be sampled along
    the bijection f. Then g^x = g^f(c) = g^(c+k), as required. *)
 (* Since we need to know the value of msg, we cannot combine this game-hop with
-   the previous one: in pk_ots_rnd_2, c is sampled before msg is known. *)
+   the previous one: in C_DH_rand, c is sampled before msg is known. *)
 
 Definition pkN := nroot.@"pks".
 
@@ -187,14 +180,11 @@ Local Tactic Notation "inv_mk" constr(Pinv) constr(h) :=
 Local Tactic Notation "inv_cl" constr(h) :=
   iApply (refines_na_close with h) ; inv_prove.
 
-Fact refines_get_pk sk : ⊢ (() → T)%lrel (λ: <>, (g ^+ sk)%g)%V (λ: <>, (g ^+ sk)%g)%V.
-Proof. iModIntro ; iIntros ; rel_pures ; rel_vals. Qed.
-
-Lemma pk_ots_rnd_real_real_lbl : ⊢ refines top pk_ots_rnd_real pk_ots_rnd_real_lbl T_EG.
+Lemma real_real_tape : ⊢ refines top pk_real pk_real_tape T_EG.
 Proof with rel_red.
   rel_red. rel_couple_UU...
   inv_mk (βₛ ↪ₛ (n;[]) ∗ (count ↦ #0 ∗ countₛ ↦ₛ #0) ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1) )%I "#Hinv"...
-  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "[%v[->->]]"...
+  rel_vals ; iIntros "!>" (??) "[%v[->->]]"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_&%_'&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -205,11 +195,11 @@ Proof with rel_red.
   inv_cl "[- $Hclose]"... rel_vals.
 Qed.
 
-Lemma pk_ots_rnd_real_lbl_real : ⊢ refines top pk_ots_rnd_real_lbl pk_ots_rnd_real T_EG.
+Lemma real_tape_real : ⊢ refines top pk_real_tape pk_real T_EG.
 Proof with rel_red.
   rel_red. rel_couple_UU...
   inv_mk (β ↪ (n;[]) ∗ (count ↦ #0 ∗ countₛ ↦ₛ #0) ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1) )%I "#Hinv"...
-  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "[%v[->->]]"...
+  rel_vals ; iIntros "!>" (??) "[%v[->->]]"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_&%_'&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -220,14 +210,14 @@ Proof with rel_red.
   inv_cl "[- $Hclose]" ; rel_vals.
 Qed.
 
-Lemma pk_ots_rnd_real_lbl_1 : ⊢ refines top pk_ots_rnd_real_lbl pk_ots_rnd_1 T_EG.
+Lemma real_tape_C_DH_real : ⊢ refines top pk_real_tape C_DH_real T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU. ireds.
+  rewrite /C_DH_real /=. rel_red. rel_couple_UU. ireds.
   rel_couple_TU "β"...
   rewrite -Nat2Z.inj_mul...
   inv_mk ((β ↪ (n;[b]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
-  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -238,14 +228,14 @@ Proof with rel_red.
   rewrite -expgM -ssrnat.multE. rel_vals.
 Qed.
 
-Lemma pk_ots_rnd_1_real_lbl : ⊢ refines top pk_ots_rnd_1 pk_ots_rnd_real_lbl T_EG.
+Lemma C_DH_real_real_tape : ⊢ refines top C_DH_real pk_real_tape T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU. ireds.
+  rewrite /C_DH_real /=. rel_red. rel_couple_UU. ireds.
   rel_couple_UT "βₛ"...
   rewrite -Nat2Z.inj_mul...
   inv_mk ((βₛ ↪ₛ (n;[b]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
-  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind.
   1: iApply vg_of_int_lrel_G ; iExists _ ; eauto.
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -259,25 +249,25 @@ Qed.
 (* This assumption is too strong in this generality, since it does not mention
    PPT indistinguishability and assumes a logical instead of contextual
    refinement. *)
-Definition DDH_ref := ⊢ refines top DH_real DH_rnd T_DH.
+Definition DDH_ref := ⊢ refines top DH_real DH_rand T_DH.
 (* If we do make this assumption though, we may prove the following refinement. *)
-Lemma pk_ots_rnd_1_2 (DDH : DDH_ref) : ⊢ refines top pk_ots_rnd_1 pk_ots_rnd_2 T_EG.
+Lemma DDH_C_DH_real_C_DH_rand (DDH : DDH_ref) : ⊢ refines top C_DH_real C_DH_rand T_EG.
 Proof with rel_red.
-  rewrite /pk_ots_rnd_1 /pk_ots_rnd_2.
-  rel_bind_l DH_real. rel_bind_r DH_rnd.
+  rewrite /C_DH_real /C_DH_rand.
+  rel_bind_l DH_real. rel_bind_r DH_rand.
   rel_apply refines_app. 2: iApply DDH.
   replace (T_DH → T_EG)%lrel with (interp (τ_DH → τ_EG)%ty Δ) by auto.
   iApply refines_typed. unfold eC. tychk => //.
 Qed.
 
-Lemma pk_ots_rnd_2_4 : ⊢ refines top pk_ots_rnd_2 pk_ots_rnd_4 T_EG.
+Lemma C_DH_rand_rand_tape : ⊢ refines top C_DH_rand pk_rand_tape T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU...
+  rewrite /C_DH_rand /=. rel_red. rel_couple_UU...
   rel_couple_UT "βₛ"...
   rel_couple_UT "γₛ"...
   inv_mk ((βₛ ↪ₛ (n;[b]) ∗ γₛ ↪ₛ (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
-  rel_vals ; [iApply refines_get_pk|] ; iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind ;
     [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -286,14 +276,14 @@ Proof with rel_red.
   all: inv_cl "[- $Hclose]" ; rel_vals.
 Qed.
 
-Lemma pk_ots_rnd_4_2 : ⊢ refines top pk_ots_rnd_4 pk_ots_rnd_2 T_EG.
+Lemma rand_tape_C_DH_rand : ⊢ refines top pk_rand_tape C_DH_rand T_EG.
 Proof with rel_red.
-  rel_red. rel_couple_UU. iredsr.
+  rewrite /C_DH_rand /=. rel_red. rel_couple_UU. iredsr.
   rel_couple_TU "β". iredsr.
   rel_couple_TU "γ"...
   inv_mk ((β ↪ (n;[b]) ∗ γ ↪ (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
-  rel_vals ; [iApply refines_get_pk|] ; iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
   ; [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -302,12 +292,12 @@ Proof with rel_red.
   all: inv_cl "[- $Hclose]" ; rel_vals.
 Qed.
 
-Lemma pk_ots_rnd_4_rnd : ⊢ refines top pk_ots_rnd_4 pk_ots_rnd_rnd T_EG.
+Lemma rand_tape_rand : ⊢ refines top pk_rand_tape pk_rand T_EG.
 Proof with rel_red.
   rel_red. rel_couple_UU...
   inv_mk ((β ↪ (n;[]) ∗ γ ↪ (n;[]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".
-  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
   ; [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -330,12 +320,12 @@ Proof with rel_red.
   rewrite -heq. rel_vals.
 Qed.
 
-Lemma pk_ots_rnd_rnd_4 : ⊢ refines top pk_ots_rnd_rnd pk_ots_rnd_4 T_EG.
+Lemma rand_rand_tape : ⊢ refines top pk_rand pk_rand_tape T_EG.
 Proof with rel_red.
   rel_red. rel_couple_UU...
   inv_mk ((βₛ ↪ₛ (n;[]) ∗ γₛ ↪ₛ (n;[]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv"...
-  rel_vals ; [iApply refines_get_pk|]. iIntros "!>" (??) "#(%msg&->&->)"...
+  rel_vals ; iIntros "!>" (??) "#(%msg&->&->)"...
   rel_bind_l (vg_of_int _) ; rel_bind_r (vg_of_int _) ; rel_apply refines_bind
   ; [iApply vg_of_int_lrel_G ; iExists _ ; eauto|].
   iIntros (??) "#(%_1&%_2&[(->&->&->&->)|(->&->&%vmsg&->&->)])"... 1: rel_vals.
@@ -400,67 +390,65 @@ Context {cg : clutch_group_struct}.
 Context {G : forall `{!clutchRGS Σ}, clutch_group (vg:=vg) (cg:=cg)}.
 Context {cgg : @clutch_group_generator vg}.
 
-Lemma ctx_pk_ots_rnd_real_real_lbl :
-  ∅ ⊨ pk_ots_rnd_real =ctx= pk_ots_rnd_real_lbl : τ_EG.
+Lemma ctx_real_real_tape :
+  ∅ ⊨ pk_real =ctx= pk_real_tape : τ_EG.
 Proof.
   split ; apply (refines_sound clutchRΣ) ; intros.
-  - apply: pk_ots_rnd_real_real_lbl.
-  - apply: pk_ots_rnd_real_lbl_real.
+  - apply: real_real_tape.
+  - apply: real_tape_real.
 Qed.
 
-Lemma ctx_pk_ots_rnd_real_lbl_1 :
-  ∅ ⊨ pk_ots_rnd_real_lbl =ctx= (fill C DH_real) : τ_EG.
+Lemma ctx_real_tape_C_DH_real :
+  ∅ ⊨ pk_real_tape =ctx= (fill C DH_real) : τ_EG.
 Proof.
   split ; apply (refines_sound clutchRΣ) ; intros.
-  - apply: pk_ots_rnd_real_lbl_1.
-  - apply: pk_ots_rnd_1_real_lbl.
+  - apply: real_tape_C_DH_real.
+  - apply: C_DH_real_real_tape.
 Qed.
 
-Lemma ctx_pk_ots_rnd_2_4 :
-  ∅ ⊨ (fill C DH_rnd) =ctx= pk_ots_rnd_4 : τ_EG.
+Lemma ctx_C_DH_rand_rand_tape :
+  ∅ ⊨ (fill C DH_rand) =ctx= pk_rand_tape : τ_EG.
 Proof.
   split ; apply (refines_sound clutchRΣ) ; intros.
-  - apply: pk_ots_rnd_2_4.
-  - apply: pk_ots_rnd_4_2.
+  - apply: C_DH_rand_rand_tape.
+  - apply: rand_tape_C_DH_rand.
 Qed.
 
-Lemma ctx_pk_ots_rnd_4_rnd :
-  ∅ ⊨ pk_ots_rnd_4 =ctx= pk_ots_rnd_rnd : τ_EG.
+Lemma ctx_rand_tape_rand :
+  ∅ ⊨ pk_rand_tape =ctx= pk_rand : τ_EG.
 Proof.
   split ; apply (refines_sound clutchRΣ) ; intros.
-  - apply: pk_ots_rnd_4_rnd.
-  - apply: pk_ots_rnd_rnd_4.
+  - apply: rand_tape_rand.
+  - apply: rand_rand_tape.
 Qed.
 
-Global Instance ctx_equiv_transitive Γ τ :
-  Transitive (fun e1 e2 => ctx_equiv Γ e1 e2 τ).
-Proof.
-  intros e1 e2 e3 [Hctx11 Hctx12] [Hctx21 Hctx22].
-  split ; eapply ctx_refines_transitive ;eauto.
-Qed.
-
-Lemma pk_ots_rnd_real_ddh_real :
-  ∅ ⊨ pk_ots_rnd_real =ctx= (fill C DH_real) : τ_EG.
+Lemma ctx_real_C_DH_real :
+  ∅ ⊨ pk_real =ctx= (fill C DH_real) : τ_EG.
 Proof.
   eapply ctx_equiv_transitive.
-  - apply: ctx_pk_ots_rnd_real_real_lbl.
-  - apply: ctx_pk_ots_rnd_real_lbl_1.
+  - apply: ctx_real_real_tape.
+  - apply: ctx_real_tape_C_DH_real.
 Qed.
 
-Lemma pk_ots_rnd_rnd_ddh_rnd :
-  ∅ ⊨ (fill C DH_rnd) =ctx= pk_ots_rnd_rnd : τ_EG.
+Lemma ctx_C_DH_rand_rand :
+  ∅ ⊨ (fill C DH_rand) =ctx= pk_rand : τ_EG.
 Proof.
   eapply ctx_equiv_transitive.
-  - apply: ctx_pk_ots_rnd_2_4.
-  - apply: ctx_pk_ots_rnd_4_rnd.
+  - apply: ctx_C_DH_rand_rand_tape.
+  - apply: ctx_rand_tape_rand.
 Qed.
 
-Lemma pk_ots_rnd_ddh_C :
-  (∅ ⊨ DH_real =ctx= DH_rnd : τ_DH) →
-  (∅ ⊨ (fill C DH_real) =ctx= (fill C DH_rnd) : τ_EG).
+(* The following lemmas make the unreasonably strong assumption that
+   DH_real/rand are contextually equivalent when they really should only be
+   assumed to be computationally indistinguishable, but they illustrate how one
+   would combine the results in a logic with support for reasoning about
+   computational indistinguishability. *)
+Lemma ctx_C_DH_real_C_DH_rand :
+  (∅ ⊨ DH_real =ctx= DH_rand : τ_DH) →
+  (∅ ⊨ (fill C DH_real) =ctx= (fill C DH_rand) : τ_EG).
 Proof.
   replace (fill C _) with (fill_ctx C' DH_real) ; auto ;
-    replace (fill C _) with (fill_ctx C' DH_rnd) => //.
+    replace (fill C _) with (fill_ctx C' DH_rand) => //.
   intros DDH.
   split.
   - eapply ctx_refines_congruence.
@@ -471,29 +459,14 @@ Proof.
     unfold C', eC. tychk => //.
 Qed.
 
-Lemma pk_ots_rnd_ddh (DDH : ∅ ⊨ DH_real =ctx= DH_rnd : τ_DH) :
-  (∅ ⊨ pk_ots_rnd_real =ctx= pk_ots_rnd_rnd : τ_EG).
+Lemma pk_ots_rnd_ddh (DDH : ∅ ⊨ DH_real =ctx= DH_rand : τ_DH) :
+  (∅ ⊨ pk_real =ctx= pk_rand : τ_EG).
 Proof.
   eapply ctx_equiv_transitive.
-  - apply: pk_ots_rnd_real_ddh_real.
+  - apply: ctx_real_C_DH_real.
   - eapply ctx_equiv_transitive.
-    + apply: pk_ots_rnd_ddh_C => //.
-    + apply: pk_ots_rnd_rnd_ddh_rnd.
+    + apply: ctx_C_DH_real_C_DH_rand => //.
+    + apply: ctx_C_DH_rand_rand.
 Qed.
-
-(*
-Definition DDH :=
-            ∅ ⊨_{#|g|} DH_rnd =ctx= DH_real : τ_EG.
-
-            ∅ ⊨_ε({#|g|}) DH_rnd =ctx= DH_real : τ_EG.
-
-            ∅ ⊨_{#|g|} C [DH_rnd] =ctx= C [DH_real] : τ_EG.
-
-Fact PPT_C : @PPT #|g| C.
-
-Theorem Ctx_PPT_congr : PPT n C →
-            ∅ ⊨_n e1 =ctx= e2 : τ_EG →
-            ∅ ⊨_n C [e1] =ctx= C [e2] : τ_EG.
-*)
 
 End Ctx.
