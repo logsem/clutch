@@ -34,18 +34,33 @@ Notation "# l" := (LitV l%Z%V%stdpp) (at level 8, format "# l").
 Notation "( e1 , e2 , .. , en )" := (Pair .. (Pair e1 e2) .. en) : expr_scope.
 Notation "( e1 , e2 , .. , en )" := (PairV .. (PairV e1 e2) .. en) : val_scope.
 
+(* We implement a destructing let bind (x₁,…,xₙ) for tuples by storing the
+   value v that e1 computes in xₙ, bind (fst xₙ) to xₙ₋₁ to hold x₁…xₙ₋₁, bind
+   xₙ to the last component of v, so on. Since xₙ is bound in e2, we have no
+   risk of shadowing other uses of x₁. *)
 (* I failed to convince Coq that this pattern is recursive, so here's the
    unrolled version for a pairs and triples. *)
 Notation "'let,' ( x1 , x2 ) := e1 'in' e2" :=
   (Lam x2%E (Lam x1%E (Lam x2%E e2%E (Snd x2)) (Fst x2)) e1%E)
   (at level 100, x1, x2 at level 1, e1, e2 at level 200) : expr_scope.
 
+(* Notation "'let,' ( x1 , x2 , x3 ) := e1 'in' e2" := *)
+(*   (Lam x3%E (Lam x2%E (Lam x3%E (Lam x1%E (Lam x2%E e2%E (Snd x2)) (Fst x2)) (Snd x3)) (Fst x3)) e1%E) *)
+(*   (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope. *)
+
+(* Notation "'let,' ( x1 , ( x2 , x3 ) ) := e1 'in' e2" := *)
+(*   (Lam x1%E (Lam x2%E (Lam x1%E (Lam x3%E (Lam x2%E e2%E (Fst x2)) (Snd x2)) (Fst x1)) (Snd x1)) e1%E) *)
+(*   (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope. *)
+
+(* This version doesn't have as uniform of a recursion as described above, but
+   it is more concise, since it only uses one of the pattern variables as
+   temporary variable from which the others are projected. *)
 Notation "'let,' ( x1 , x2 , x3 ) := e1 'in' e2" :=
-  (Lam x3%E (Lam x2%E (Lam x3%E (Lam x1%E (Lam x2%E e2%E (Snd x2)) (Fst x2)) (Snd x3)) (Fst x3)) e1%E)
+  ((Lam x1%E (Lam x2 (Lam x3 (Lam x1%E e2 (Fst (Fst x1))) (Snd x1)) (Snd (Fst x1)))) e1%E)
   (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.
 
 Notation "'let,' ( x1 , ( x2 , x3 ) ) := e1 'in' e2" :=
-  (Lam x1%E (Lam x2%E (Lam x1%E (Lam x3%E (Lam x2%E e2%E (Fst x2)) (Snd x2)) (Fst x1)) (Snd x1)) e1%E)
+  ((Lam x1%E (Lam x2 (Lam x3 (Lam x1%E e2 (Fst x1)) (Snd (Snd x1))) (Fst (Snd x1)))) e1%E)
   (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.
 
 (*
