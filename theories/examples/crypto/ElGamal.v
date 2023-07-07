@@ -51,7 +51,7 @@ Definition dec : expr :=
     "X" · ("B"^-"sk").
 
 (* The syntactic and semantic type of the Diffie-Hellman game(s). *)
-Definition τ_DH := (() → (τG * τG * τG))%ty.
+Definition τ_DH := (τG * τG * τG)%ty.
 Definition T_DH := Eval cbn in (interp τ_DH Δ).
 
 (* The syntactic and semantic type of the ElGamal game(s). *)
@@ -61,14 +61,12 @@ Definition T_EG := Eval cbn in (interp τ_EG Δ).
 (* The Decisional Diffie Hellman assumption says the following two programs are
    PPT(n) indistinguishable. *)
 Definition DH_real : expr :=
-  λ:<>,
-    let: "a" := rnd #() in let: "b" := rnd #() in
-    (g^"a", g^"b", g^("a"*"b")).
+  let: "a" := rnd #() in let: "b" := rnd #() in
+  (g^"a", g^"b", g^("a"*"b")).
 
 Definition DH_rand : expr :=
-  λ:<>,
-    let: "a" := rnd #() in let: "b" := rnd #() in let: "c" := rnd #() in
-    (g^"a", g^"b", g^"c").
+  let: "a" := rnd #() in let: "b" := rnd #() in let: "c" := rnd #() in
+  (g^"a", g^"b", g^"c").
 
 (* Public key OTS-CPA$ security (one-time secrecy chosen plaintext attack -
    real/random) is defined as the indistinguishability of pk_real and
@@ -114,7 +112,9 @@ Definition pk_real_tape : expr :=
       "count" <- #1 ;;
       let: "b" := rnd "β" in
       let: "B" := g^"b" in
-      ("B", "msg" · "pk"^"b") in
+      let: "C" := "pk"^"b" in
+      let: "X" := "msg" · "C" in
+      ("B", "X") in
   ("pk", "query").
 
 (* Pull out DH_real/rand. This requires moving the sampling of "b" from "query"
@@ -124,18 +124,17 @@ Definition pk_real_tape : expr :=
 
 Definition eC : expr :=
   (λ: "DH_real_or_rnd",
-       let, ("A", "B", "C") := "DH_real_or_rnd" #() in
+       let, ("A", "B", "C") := "DH_real_or_rnd" in
        let: "count" := ref #0 in
        let: "query" := λ: "msg",
            let:m "msg" := vg_of_int "msg" in
            assert (!"count" = #0) ;;;
            "count" <- #1 ;;
-           ("B", "msg" · "C") in
+           let: "X" := "msg" · "C" in
+           ("B", "X") in
        ("A", "query")).
 
 Definition C : list ectx_item := [AppRCtx eC].
-Definition C' : list ctx_item := [CTX_AppR eC].
-
 Definition C_DH_real : expr := fill C DH_real.
 Definition C_DH_rand : expr := fill C DH_rand.
 
@@ -144,8 +143,8 @@ Definition C_DH_rand : expr := fill C DH_rand.
 Definition pk_rand_tape : expr :=
   let: "β" := alloc #n in
   let: "γ" := alloc #n in
-  let: "a" := rnd #() in
-  let: "A" := g^"a" in
+  let: "sk" := rnd #() in
+  let: "pk" := g^"sk" in
   let: "count" := ref #0 in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
@@ -155,8 +154,9 @@ Definition pk_rand_tape : expr :=
       let: "c" := rnd "γ" in
       let: "B" := g^"b" in
       let: "C" := g^"c" in
-      ("B", "msg" · "C") in
-  ("A", "query").
+      let: "X" := "msg" · "C" in
+      ("B", "X") in
+  ("pk", "query").
 
 (* Finally, we connect pk_rand_tape to pk_rand. For this last step, we
    want to show that multiplying the message with a random group element really
@@ -447,16 +447,16 @@ Lemma ctx_C_DH_real_C_DH_rand :
   (∅ ⊨ DH_real =ctx= DH_rand : τ_DH) →
   (∅ ⊨ (fill C DH_real) =ctx= (fill C DH_rand) : τ_EG).
 Proof.
-  replace (fill C _) with (fill_ctx C' DH_real) ; auto ;
-    replace (fill C _) with (fill_ctx C' DH_rand) => //.
+  replace (fill C _) with (fill_ctx [CTX_AppR eC] DH_real) ; auto ;
+    replace (fill C _) with (fill_ctx [CTX_AppR eC] DH_rand) => //.
   intros DDH.
   split.
   - eapply ctx_refines_congruence.
     2: apply DDH.
-    unfold C', eC. tychk => //.
+    unfold eC. tychk => //.
   - eapply ctx_refines_congruence.
     2: apply DDH.
-    unfold C', eC. tychk => //.
+    unfold eC. tychk => //.
 Qed.
 
 Lemma pk_ots_rnd_ddh (DDH : ∅ ⊨ DH_real =ctx= DH_rand : τ_DH) :

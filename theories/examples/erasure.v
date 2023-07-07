@@ -1,7 +1,7 @@
 From clutch Require Export clutch.
 Set Default Proof Using "Type*".
 
-Lemma flip_erasure_l (x : string) (N : nat) :
+Lemma rand_erasure_l (x : string) (N : nat) :
   {[x := TTape]} ⊨ rand #N from x ≤ctx≤ rand #N from #() : TNat.
 Proof.
   eapply (refines_sound_open clutchRΣ).
@@ -35,7 +35,7 @@ Proof.
     rel_values.
 Qed.
 
-Lemma flip_erasure_r (x : string) (N : nat) :
+Lemma rand_erasure_r (x : string) (N : nat) :
   {[x := TTape]} ⊨ rand #N from #() ≤ctx≤ rand #N from x : TNat.
 Proof.
   eapply (refines_sound_open clutchRΣ).
@@ -66,10 +66,10 @@ Proof.
     rel_values.
 Qed.
 
-Lemma flip_erasure_ctx (x : string) (N : nat) :
+Lemma rand_erasure_ctx (x : string) (N : nat) :
   {[ x := TTape ]} ⊨ rand #N from x =ctx= rand #N from #() : TNat.
 Proof.
   split.
-  - apply flip_erasure_l.
-  - apply flip_erasure_r.
+  - apply rand_erasure_l.
+  - apply rand_erasure_r.
 Qed.
