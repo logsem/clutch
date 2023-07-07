@@ -40,9 +40,9 @@ You should now be able build the development by using `make -j N` where `N` is t
 
 | §   | Kind       | Item                                                                                 | Coq file                       | Name                                      | Note |
 |-----|------------|--------------------------------------------------------------------------------------|--------------------------------|-------------------------------------------|------|
-| I   | Example    | $\mathit{eager}$                                                                     | [examples/lazy_eager_coin]     | `eager`                                   |      |
+| 1   | Example    | $\mathit{eager}$                                                                     | [examples/lazy_eager_coin]     | `eager`                                   |      |
 |     | Example    | $\mathit{lazy}$                                                                      |                                | `lazy`                                    |      |
-| II  | Theorem    | 1 (Soundness)                                                                        | [typing/soundness]             | `refines_sound`                           |      |
+| 2   | Theorem    | 1 (Soundness)                                                                        | [typing/soundness]             | `refines_sound`                           |      |
 |     | Rule       | $\text{\scriptsize REL-COUPLE-RANDS}$                                                | [rel_logic/rel_rules]             | `refines_couple_rands_lr`                    |      |
 |     | Rule       | $\text{\scriptsize REL-ALLOC-TAPE-L}$                                                |                                | `refines_alloctape_l`                     |      |
 |     | Rule       | $\text{\scriptsize REL-COUPLE-TAPE-L}$                                               |                                | `refines_couple_tape_rand`                |      |
@@ -50,7 +50,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Rule       | $\text{\scriptsize REL-RAND-ERASE-R}$                                                |                                | `refines_couple_rands_r`                  |      |
 |     | Example    | $\mathit{lazy'}$                                                                     | [examples/lazy_eager_coin]     | `lazy_with_tape`                          |      |
 |     | Theorem    | $\vDash \mathit{lazy} \precsim \mathit{eager} : \text{unit} \rightarrow \text{bool}$ |                                | `lazy_eager_refinement`                   |      |
-| III | Definition | 2 (Sub-distribution)                                                                 | [prob/distribution]            | `distr`                                   |      |
+| 3   | Definition | 2 (Sub-distribution)                                                                 | [prob/distribution]            | `distr`                                   |      |
 |     | Lemma      | 4 (Probability Monad)                                                                |                                | `dret_id_right`, etc.                     |      |
 |     | Definition | $\mathbf{F}_{\mu{},\text{ref}}^\text{flip}$                                          | [prob_lang/lang]               | `expr`, `val`, `state`, `cfg`             |      |
 |     | Definition | types *τ*                                                                            | [typing/types]                 | `type`                                    |      |
@@ -68,7 +68,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | contextual refinement                                                                | [typing/contextual_refinement_alt] | `ctx_refines_alt`                     | (1)  |
 |     | Definition | contextual refinement                                                                | [typing/contextual_refinement] | `ctx_refines`                             |      |
 |     | Definition | contextual equivalence                                                               | [typing/contextual_refinement] | `ctx_equiv`                               |      |
-| IV  | Definition | iProp                                                                                | imported from [Iris upstream]  | `iProp`                                   |      |
+| 4   | Definition | iProp                                                                                | imported from [Iris upstream]  | `iProp`                                   |      |
 |     | Definition | $\ell \mapsto v$                                                                     | [rel_logic/primitive_laws]     | `ghost_map_elem clutchGS_heap`            |      |
 |     | Definition | $\iota \hookrightarrow{} \vec{b}$                                                    | [rel_logic/primitive_laws]     | `ghost_map_elem clutchGS_tapes`           |      |
 |     | Definition | $\ell \mapsto_{\mathsf{s}} v$                                                        | [rel_logic/spec_ra]            | `ghost_map_elem specGS_heap`              |      |
@@ -102,11 +102,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Rule       | $\text{\scriptsize REL-NA-INV-ALLOC}$                                                | [rel_logic/model]                 | `refines_na_alloc`                        |      |
 |     | Rule       | $\text{\scriptsize REL-NA-INV-OPEN}$                                                 | [rel_logic/model]                 | `refines_na_inv`                          |      |
 |     | Rule       | $\text{\scriptsize REL-NA-INV-CLOSE}$                                                | [rel_logic/model]                 | `refines_na_close`                        |      |
-
-|     | Definition | $Δ \vDash e₁ \precsim e₂ : τ$                                                        | [rel_logic/model]                 | `refines_def`                             |      |
-|     | Lemma      | $ι : \text{tape} ⊢ \text{rand} () ≅_{\text{ctx}} \text{flip}(ι) : \text{bool}$       | [examples/erasure]             | `flip_erasure_ctx`                        |      |
-
-| V   | Definition | ($R$-) coupling                                                                      | [prob/couplings]               | `isCoupl`, `isRcoupl`                     |      |
+| 5.1 | Definition | ($R$-) coupling                                                                      | [prob/couplings]               | `isCoupl`, `isRcoupl`                     |      |
 |     | Lemma      | 6 (Composition of couplings)                                                         | [prob/couplings]               | `Rcoupl_dret`, `Rcoupl_dbind`             |      |
 |     | Lemma      | 7 (lifting of equality)                                                              | [prob/couplings]               | `Rcoupl_eq`                               |      |
 |     | Rule       | $\text{\scriptsize WP-WAND}$                                                         | [program_logic/weakestpre]     | `wp_wand`                                 |      |
@@ -127,18 +123,23 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Definition | specInv                                                                              | [rel_logic/spec_ra]            | `spec_inv`                                |      |
 |     | Definition | specCtx                                                                              | [rel_logic/spec_ra]            | `spec_ctx`                                | (3)  |
 |     | Definition | $G(ρ)$ and $S(ρ)$ as used in $\text{wp}$                                             | [rel_logic/primitive_laws]     | `clutchGS_irisGS`                         |      |
-|     | Definition | 8 (Left-Partial Coupling)                                                            | [prob/couplings]               | `isRefCoupl`                              |      |
-|     | Definition | R-refinement-coupling                                                                | [prob/couplings]               | `isRefRcoupl`                             |      |
+| 5.2 | Definition | $Δ \vDash e₁ \precsim e₂ : τ$                                                        | [rel_logic/model]              | `refines_def`                             |      |
+|     | Lemma      | $ι : \text{tape} ⊢ \text{rand} () ≅_{\text{ctx}} \text{flip}(ι) : \text{bool}$       | [examples/erasure]             | `flip_erasure_ctx`                        |      |
+| 5.3 | Definition | 8 (Left-Partial Coupling)                                                            | [prob/couplings]               | `is_refcoupl`                             |      |
+|     | Definition | R-left-partial-coupling                                                              | [prob/couplings]               | `is_refRcoupl`                            |      |
 |     | Lemma      | 9                                                                                    | [prob/couplings]               | `Rcoupl_refRcoupl`                        |      |
 |     | Lemma      | 10                                                                                   | [prob/couplings]               | `refRcoupl_eq_elim`                       |      |
-|     | Theorem    | 11 (Adequacy)                                                                        | [prob_lang/adequacy]           | `wp_refRcoupl`                            |      |
+|     | Theorem    | 11 (Adequacy)                                                                        | [rel_logic/adequacy]           | `wp_refRcoupl`                            |      |
 |     | Lemma      | 12 (Erasure)                                                                         | [prob_lang/erasure]            | `prim_coupl_step_prim`                    |      |
 |     | Definition | Contextual closure of refinement                                                     | [typing/interp]                | `bin_log_related`                         |      |
-|     | Rule       | $\text{\scriptsize FLIP-COMPAT}$                                                     | [rel_logic/compatibility]         | `refines_flip`                            |      |
+|     | Rule       | $\text{\scriptsize RAND-COMPAT}$                                                     | [rel_logic/compatibility]      | `refines_rand_tape`                       |      |
 |     | Theorem    | 13 (Fundamental theorem)                                                             | [typing/fundamental]           | `fundamental`                             |      |
 |     | Theorem    | 14 (Soundness)                                                                       | [typing/soundness]             | `refines_sound`                           |      |
-| VI  | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
-|     | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
+| 6.1 | Example    | Lazy/eager coin                                                                      | [examples/lazy_eager_coin]     |                                           |      |
+| 6.2 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]           |                                           |      |
+| 6.3 | Example    | ElGamal public key encryption                                                        | [examples/crypto/ElGamal]      |                                           |      |
+| 6.4 | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
+| 6.5 | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
 
 (1) In the code, we use `ctx_refines` more than `ctx_refines_alt`, which matches the exact definition of the paper. Nothing is lost, since we prove that `ctx_refines` implies `ctx_refines_alt` in `Lemma ctx_refines_impl_alt` (see [typing/contextual_refinement_alt]).
 
@@ -147,6 +148,8 @@ You should now be able build the development by using `make -j N` where `N` is t
 (3) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
 
+[examples/crypto/ElGamal]: theories/examples/crypto/ElGamal.v
+[examples/env_bisim]: theories/examples/env_bisim.v
 [examples/erasure]: theories/examples/erasure.v
 [examples/hash]: theories/examples/hash.v
 [examples/lazy_eager_coin]: theories/examples/lazy_eager_coin.v
@@ -158,7 +161,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 [rel_logic/coupling_rules]: theories/rel_logic/coupling_rules.v
 [prob/couplings]: theories/prob/couplings.v
 [prob/distribution]: theories/prob/distribution.v
-[prob_lang/adequacy]: theories/prob_lang/adequacy.v
+[rel_logic/adequacy]: theories/rel_logic/adequacy.v
 [prob_lang/erasure]: theories/prob_lang/erasure.v
 [prob_lang/lang]: theories/prob_lang/lang.v
 [rel_logic/spec_ra]: theories/rel_logic/spec_ra.v
