@@ -102,7 +102,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Rule       | $\text{\scriptsize REL-NA-INV-ALLOC}$                                                | [rel_logic/model]                 | `refines_na_alloc`                        |      |
 |     | Rule       | $\text{\scriptsize REL-NA-INV-OPEN}$                                                 | [rel_logic/model]                 | `refines_na_inv`                          |      |
 |     | Rule       | $\text{\scriptsize REL-NA-INV-CLOSE}$                                                | [rel_logic/model]                 | `refines_na_close`                        |      |
-| 5.1 | Definition | ($R$-) coupling                                                                      | [prob/couplings]               | `isCoupl`, `isRcoupl`                     |      |
+| 5.1 | Definition | ($R$-) coupling                                                                      | [prob/couplings]               | `is_coupl`, `is_Rcoupl`                     |      |
 |     | Lemma      | 6 (Composition of couplings)                                                         | [prob/couplings]               | `Rcoupl_dret`, `Rcoupl_dbind`             |      |
 |     | Lemma      | 7 (lifting of equality)                                                              | [prob/couplings]               | `Rcoupl_eq`                               |      |
 |     | Rule       | $\text{\scriptsize WP-WAND}$                                                         | [program_logic/weakestpre]     | `wp_wand`                                 |      |
