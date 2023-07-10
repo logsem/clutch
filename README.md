@@ -13,7 +13,7 @@ The project is known to compile with
 - [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.8.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.2.0
 - [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.0.0
-- [Autosubst](https://github.com/coq-community/autosubst) 1
+- [Autosubst](https://github.com/coq-community/autosubst) dev
 - [Mathcomp-solvable](https://github.com/math-comp/math-comp) 1.17.0
 
 The recommended way to install the dependencies is through [opam](https://opam.ocaml.org/doc/Install.html).
