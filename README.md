@@ -136,10 +136,10 @@ You should now be able build the development by using `make -j N` where `N` is t
 |     | Theorem    | 13 (Fundamental theorem)                                                             | [typing/fundamental]           | `fundamental`                             |      |
 |     | Theorem    | 14 (Soundness)                                                                       | [typing/soundness]             | `refines_sound`                           |      |
 | 6.1 | Example    | Lazy/eager coin                                                                      | [examples/lazy_eager_coin]     |                                           |      |
-| 6.2 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]           |                                           |      |
-| 6.3 | Example    | ElGamal public key encryption                                                        | [examples/crypto/ElGamal]      |                                           |      |
-| 6.4 | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
-| 6.5 | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
+| 6.2 | Example    | ElGamal public key encryption                                                        | [examples/crypto/ElGamal]      |                                           |      |
+| 6.3 | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
+| 6.4 | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
+| C.1 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]           |                                           |      |
 
 (1) In the code, we use `ctx_refines` more than `ctx_refines_alt`, which matches the exact definition of the paper. Nothing is lost, since we prove that `ctx_refines` implies `ctx_refines_alt` in `Lemma ctx_refines_impl_alt` (see [typing/contextual_refinement_alt]).
 
