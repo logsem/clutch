@@ -141,6 +141,7 @@ You should now be able build the development by using `make -j N` where `N` is t
 | 6.3 | Example    | Hash functions                                                                       | [examples/hash]                |                                           |      |
 | 6.4 | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]            |                                           |      |
 | C.1 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]           |                                           |      |
+| C.4 | Example    | Random Generators from Hashes                                                        | [examples/rng], [examples/split_rng] |                                           |      |
 
 (1) In the code, we use `ctx_refines` more than `ctx_refines_alt`, which matches the exact definition of the paper. Nothing is lost, since we prove that `ctx_refines` implies `ctx_refines_alt` in `Lemma ctx_refines_impl_alt` (see [typing/contextual_refinement_alt]).
 
@@ -155,6 +156,8 @@ You should now be able build the development by using `make -j N` where `N` is t
 [examples/hash]: theories/examples/hash.v
 [examples/lazy_eager_coin]: theories/examples/lazy_eager_coin.v
 [examples/lazy_int]: theories/examples/lazy_int.v
+[examples/rng]: theories/examples/rng.v
+[examples/split_rng]: theories/examples/split_rng.v
 [rel_logic/compatibility]: theories/rel_logic/compatibility.v
 [rel_logic/model]: theories/rel_logic/model.v
 [rel_logic/rel_rules]: theories/rel_logic/rel_rules.v
