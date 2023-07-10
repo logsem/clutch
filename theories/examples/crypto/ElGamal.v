@@ -37,13 +37,14 @@ Import valgroup_notation valgroup_tactics.
 Definition keygen : expr :=
   λ:<>, let: "sk" := rnd #() in
     let: "pk" := g^"sk" in
-    ("pk", "sk").
+    ("sk", "pk").
 
 Definition enc : expr :=
   λ: "pk", λ: "msg",
     let: "b" := rnd #() in
     let: "B" := g^"b" in
-    ("B", "msg" · ("pk"^"b")).
+    let: "X" := "msg" · ("pk"^"b") in
+    ("B", "X").
 
 Definition dec : expr :=
   λ:"sk" "BX",
@@ -61,11 +62,14 @@ Definition T_EG := Eval cbn in (interp τ_EG Δ).
 (* The Decisional Diffie Hellman assumption says the following two programs are
    PPT(n) indistinguishable. *)
 Definition DH_real : expr :=
-  let: "a" := rnd #() in let: "b" := rnd #() in
+  let: "a" := rnd #() in
+  let: "b" := rnd #() in
   (g^"a", g^"b", g^("a"*"b")).
 
 Definition DH_rand : expr :=
-  let: "a" := rnd #() in let: "b" := rnd #() in let: "c" := rnd #() in
+  let: "a" := rnd #() in
+  let: "b" := rnd #() in
+  let: "c" := rnd #() in
   (g^"a", g^"b", g^"c").
 
 (* Public key OTS-CPA$ security (one-time secrecy chosen plaintext attack -
@@ -74,21 +78,22 @@ Definition DH_rand : expr :=
 (* In the random game, rather than encrypting the message, "query" returns a
    random ciphertext, i.e. two random group elements (B,X). *)
 Definition pk_rand : expr :=
-  let, ("pk", "sk") := keygen #() in
+  let, ("sk", "pk") := keygen #() in
   let: "count" := ref #0 in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
       assert (!"count" = #0) ;;;
       "count" <- #1 ;;
-      let: "b" := rnd #() in let: "x" := rnd #() in
-      let: "B" := g^"b"   in let: "X" := g^"x"   in
+      let: "b" := rnd #() in
+      let: "x" := rnd #() in
+      let, ("B", "X") := (g^"b", g^"x") in
       ("B", "X") in
   ("pk", "query").
 
 (* The real game instead encrypts the message in "query". Below, we transform
    pk_real into C[DH_real] and C[DH_rnd] into pk_rnd. *)
 Definition pk_real : expr :=
-  let, ("pk", "sk") := keygen #() in
+  let, ("sk", "pk") := keygen #() in
   let: "count" := ref #0 in
   let: "query" := λ:"msg",
       let:m "msg" := vg_of_int "msg" in
@@ -124,7 +129,7 @@ Definition pk_real_tape : expr :=
 
 Definition eC : expr :=
   (λ: "DH_real_or_rnd",
-       let, ("A", "B", "C") := "DH_real_or_rnd" in
+       let, ("pk", "B", "C") := "DH_real_or_rnd" in
        let: "count" := ref #0 in
        let: "query" := λ: "msg",
            let:m "msg" := vg_of_int "msg" in
@@ -132,7 +137,7 @@ Definition eC : expr :=
            "count" <- #1 ;;
            let: "X" := "msg" · "C" in
            ("B", "X") in
-       ("A", "query")).
+       ("pk", "query")).
 
 Definition C : list ectx_item := [AppRCtx eC].
 Definition C_DH_real : expr := fill C DH_real.
@@ -360,7 +365,7 @@ Qed.
    the integer has to be smaller than the group order). *)
 Lemma ElGamal_correct :
   ⊢ refines top
-      (let, ("pk", "sk") := keygen #() in
+      (let, ("sk", "pk") := keygen #() in
        λ:"msg",
          let:m "msg" := vg_of_int "msg" in
          let: "c" := enc "pk" "msg" in
