@@ -8,9 +8,6 @@ COQPROJECT_ARGS := $(shell sed -E -e '/^\#/d' -e 's/-arg ([^ ]*)/\1/g' _CoqProje
 
 all: $(VFILES:.v=.vo)
 
-zip :
-	zip -FSr coq-clutch.zip theories _CoqProject iris-probability.opam Makefile README.md
-
 .coqdeps.d: $(VFILES) _CoqProject
 	@echo "COQDEP $@"
 	$(Q)coqdep -vos -f _CoqProject $(VFILES) > $@
@@ -38,4 +35,8 @@ clean:
 		-o -name ".*.aux" -o -name ".*.cache" -o -name "*.glob" \) -delete
 	$(Q)rm -f .lia.cache
 	rm -f .coqdeps.d
+
+zip:
+	git archive -o coq-clutch.zip main
+
 .PHONY: clean zip
