@@ -11,9 +11,9 @@ A higher-order probabilistic relational separation logic with support for asynch
 The project is known to compile with
 - [Coq](https://coq.inria.fr/) 8.16.1
 - [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.8.0
-- [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.2.0
+- [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.3.1
 - [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.0.0
-- [Autosubst](https://github.com/coq-community/autosubst) dev
+- [Autosubst 1](https://github.com/coq-community/autosubst) dev
 - [Mathcomp-solvable](https://github.com/math-comp/math-comp) 1.17.0
 
 The recommended way to install the dependencies is through [opam](https://opam.ocaml.org/doc/Install.html).
@@ -30,7 +30,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
-4. Install the right version of the dependencies as specified in the `iris-probability.opam` file.
+4. Install the right version of the dependencies as specified in the `clutch.opam` file.
 ```
 opam install . --deps-only
 ```
