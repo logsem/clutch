@@ -1,7 +1,7 @@
 (* ElGamal encryption has one-time secrecy against chosen plaintext attack, in
    the real/random paradigm. Following Rosulek's "The Joy of Crypto". *)
 From clutch Require Import clutch.
-From clutch.examples.crypto Require Import valgroup more_tactics.
+From clutch.examples.crypto Require Import valgroup.
 From clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
@@ -15,8 +15,8 @@ Section ElGamal.
 
 Ltac rel_red :=
   iStartProof ;
-  repeat (iredsr ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
-  repeat (iredsl ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
+  repeat (iredrs ; try first [rel_exp_r | rel_mult_r | rel_inv_r]) ;
+  repeat (iredls ; try first [rel_exp_l | rel_mult_l | rel_inv_l]).
 
 Context `{!clutchRGS Σ}.
 
@@ -283,8 +283,8 @@ Qed.
 
 Lemma rand_tape_C_DH_rand : ⊢ refines top pk_rand_tape C_DH_rand T_EG.
 Proof with rel_red.
-  rewrite /C_DH_rand /=. rel_red. rel_couple_UU. iredsr.
-  rel_couple_TU "β". iredsr.
+  rewrite /C_DH_rand /=. rel_red. rel_couple_UU. iredrs.
+  rel_couple_TU "β". iredrs.
   rel_couple_TU "γ"...
   inv_mk ((β ↪ (n;[b]) ∗ γ ↪ (n;[c]) ∗ count ↦ #0 ∗ countₛ ↦ₛ #0)
           ∨ (count ↦ #1 ∗ countₛ ↦ₛ #1))%I "#Hinv".

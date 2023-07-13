@@ -1,11 +1,28 @@
+(* The tactics in this file are a more performant but less general alternative
+to the tactics in rel_tactics. The essential difference is that the tactics for
+symbolic evaluation defined here syntactically traverse the goal to find the
+redex, which is unique, by definition of the operational semantics. Instead
+rel_tactics is heavily unification based. In some scenarios, the unification
+may succeed in applying a tactic when reltac2 does not. The advantage of
+reltac2 on the other hand is better performance and the ability to generate
+(Coq and Iris) names for variables from the variable names used in the program.
+If the head of the redex expression is a folded (local or global) definition,
+reltac2 tries to unfold the definition enough to proceed with evaluation.
+
+For instance, with e ≜ `let: "c" := ref 42 in k`, if `e` occurs on the
+left-hand side of a refinement and the expression `ref 42` is the redex, then
+invoking `iredl` will introduce `c : loc` and `"c" : c ↦ #42`. If `e` occurs as
+part of the spec, i.e. on the right, the names are instead sub-scripted with
+"ₛ", and we get `cₛ : loc` and `"cₛ" : cₛ ↦ₛ #42`. *)
+
 From Coq Require Import ZArith String.
 
-From clutch Require Import clutch.
+From clutch.prelude Require Import stdpp_ext.
+From clutch.prob_lang Require Import lang.
+From clutch.rel_logic Require Import model rel_rules rel_tactics.
 
-From Ltac2 Require Ltac2 Printf.
+From Ltac2 Require Import Ltac2 Printf.
 From Ltac2 Require String Char Fresh Ident.
-
-Import Ltac2.Printf Ltac2.Ltac2.
 
 Ltac2 rec ltac_int_of_pos (p : constr) : int :=
   let res :=
@@ -55,274 +72,6 @@ Ltac2 ident_of_cstring cs :=
 Ltac2 fresh_ident_of_cstring cs :=
   let i := ident_of_cstring cs in
   Fresh.fresh (Fresh.Free.of_goal ()) i.
-
-
-Tactic Notation "rel_app_l" open_constr(lem) (* tactic(ttt) *) :=
-  (iPoseProofCore lem as false (fun H =>
-    rel_reshape_cont_l ltac:(fun k e =>
-      (rel_bind_ctx_l k;
-      iApplyHyp H ;
-      let t :=
-        ltac2:(k'
-               |-
-                 match Ltac1.to_constr k' with
-                 | None => ()
-                 | Some k' =>
-                     lazy_match! k' with
-                     | ((AppRCtx (Rec _ (BNamed ?cs) _)) :: _) =>
-                         (* let x := fresh_ident_of_cstring cs in *)
-                         let x := ident_of_cstring cs in
-                         let x1 := (Ltac1.of_ident x) in
-                         ltac1:(vident vconstr
-                                |-
-                                (iIntros (vident))
-                                ||
-                                  (* Can't rely on the error of iIntros being
-                                  visible to the user since the lazy pattern
-                                  matching of rel_reshape_cont_l will try other
-                                  branches until a match failure, so we report
-                                  our own error here. *)
-                                (let err :=
-                                   ltac2:(x |- Control.throw
-                                                 (Tactic_failure
-                                                    (Some
-                                                     (fprintf
-                                                        "failed to introduce ``%I'', already in use? "
-                                                        (Option.get (Ltac1.to_ident x)))))) in
-                                 err vident)
-                               )
-                                 x1 (Ltac1.of_constr cs)
-                     | _ => ()
-                     end
-                 end) in
-      t k)
-                            )
-    || lazymatch iTypeOf H with
-      | Some (_,?P) => fail "rel_apply_l: Cannot apply" P
-      end));
-  try rel_finish.
-
-Tactic Notation "rel_app_l" open_constr(lem) ident(x) :=
-  (iPoseProofCore lem as false (fun H =>
-    rel_reshape_cont_l ltac:(fun k e =>
-      rel_bind_ctx_l k;
-      iApplyHyp H ;
-      iIntros (x)
-                            )
-    || lazymatch iTypeOf H with
-      | Some (_,?P) => fail "rel_apply_l: Cannot apply" P
-      end));
-  try rel_finish.
-
-(* added focus ef *)
-Tactic Notation "rel_load_l" open_constr(ef) open_constr(Kf) :=
-  let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
-    iAssumptionCore || fail "rel_load_l: cannot find" l "↦ ?" in
-  first
-    [rel_reshape_cont_l ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_load_l_simp K); first reflexivity)
-    |fail 1 "rel_load_l: cannot find 'Load'"];
-  (* the remaining goals are from tac_lel_load_l (except for the first one, which has already been solved by this point) *)
-  [iSolveTC             (** IntoLaters *)
-  |solve_mapsto ()
-  |reflexivity       (** eres = fill K v *)
-  |rel_finish  (** new goal *)].
-Tactic Notation "rel_load_l" := rel_pures_l ; rel_load_l _ _.
-
-Tactic Notation "rel_load_r" open_constr(ef) open_constr(Kf) :=
-  let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦ₛ{_} _)%I) => l end in
-    iAssumptionCore || fail "rel_load_r: cannot find" l "↦ₛ ?" in
-  first
-    [rel_reshape_cont_r ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_load_r K); first reflexivity)
-    |fail 1 "rel_load_r: cannot find 'Load'"];
-  (* the remaining goals are from tac_rel_load_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_load_r: cannot prove 'nclose specN ⊆ ?'"
-  |solve_mapsto ()
-  |reflexivity
-  |rel_finish  (** new goal *)].
-Tactic Notation "rel_load_r" := rel_pures_r ; rel_load_r _ _.
-
-Tactic Notation "rel_store_l" open_constr(ef) open_constr(Kf) :=
-  let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦ _)%I) => l end in
-    iAssumptionCore || fail "rel_store_l: cannot find" l "↦ ?" in
-  first
-    [rel_reshape_cont_l ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_store_l_simpl K);
-       [reflexivity (** e = fill K (#l <- e') *)
-       |iSolveTC    (** e' is a value *)
-       |idtac..])
-    |fail 1 "rel_store_l: cannot find 'Store'"];
-  (* the remaining goals are from tac_rel_store_l (except for the first one, which has already been solved by this point) *)
-  [iSolveTC        (** IntoLaters *)
-  |solve_mapsto ()
-  |reduction.pm_reflexivity || fail "rel_store_l: this should not happen O-:"
-  |reflexivity
-  |rel_finish  (** new goal *)].
-Tactic Notation "rel_store_l" := rel_pures_l ; rel_store_l _ _.
-
-Tactic Notation "rel_store_r" open_constr(ef) open_constr(Kf) :=
-  let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↦ₛ _)%I) => l end in
-    iAssumptionCore || fail "rel_store_r: cannot find" l "↦ₛ ?" in
-  first
-    [rel_reshape_cont_r ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_store_r K);
-       [reflexivity|iSolveTC|idtac..])
-    |fail 1 "rel_store_r: cannot find 'Store'"];
-  (* the remaining goals are from tac_rel_store_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_store_r: cannot prove 'nclose specN ⊆ ?'"
-  |solve_mapsto ()
-  |reduction.pm_reflexivity || fail "rel_store_r: this should not happen O-:"
-  |reflexivity
-  |rel_finish  (** new goal *)].
-Tactic Notation "rel_store_r" := rel_pures_r ; rel_store_r _ _.
-
-Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
-  first
-    [rel_reshape_cont_l ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_alloc_l_simpl K);
-       [reflexivity (** e = fill K (Alloc e') *)
-       |iSolveTC    (** e' is a value *)
-       |idtac..])
-    |fail 1 "rel_alloc_l: cannot find 'Alloc'"];
-  [iSolveTC        (** IntoLaters *)
-  |iIntros (l) H; rel_finish  (** new goal *)].
-Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) :=
-  rel_pures_l ; rel_alloc_l l as H at _ in _.
-
-Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
-  first
-    [rel_reshape_cont_r ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_alloc_r K);
-       [reflexivity  (** t = K'[alloc t'] *)
-       |iSolveTC     (** t' is a value *)
-       |idtac..])
-    |fail 1 "rel_alloc_r: cannot find 'Alloc'"];
-  [solve_ndisj || fail "rel_alloc_r: cannot prove 'nclose specN ⊆ ?'"
-  |iIntros (l) H; rel_finish  (** new goal *)].
-Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) :=
-  rel_pures_r ; rel_alloc_r l as H at _ in _.
-
-Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
-  first
-    [rel_reshape_cont_l ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_alloctape_l_simpl K);
-       [iSolveTC (** TCEq N (Z.to_nat z) → *)
-       |reflexivity (** e = fill K (Alloc e') *)
-       |idtac..])
-    |fail 1 "rel_alloctape_l: cannot find 'AllocTape'"];
-  [iSolveTC        (** IntoLaters *)
-  |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
-Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
-  rel_pures_l ; rel_alloctape_l l as H at _ in _.
-
-Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
-  first
-    [rel_reshape_cont_r ltac:(fun K e' =>
-       unify K Kf ;
-       unify e' ef ;
-       eapply (tac_rel_alloctape_r K);
-       [iSolveTC
-       |reflexivity  (** t = K'[alloc t'] *)
-       |idtac..])
-    |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
-  [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
-  |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
-Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
-  rel_pures_r ; rel_alloctape_r l as H at _ in _.
-
-Local Set Warnings "-cast-in-pattern".
-Tactic Notation "rel_rand_l" open_constr(ef) open_constr(kf) :=
-  let solve_mapsto _ :=
-    let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
-    iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
-  first
-    [rel_reshape_cont_l ltac:(fun K e' =>
-       unify e' ef ;
-       unify K kf ;
-       eapply (tac_rel_rand_l K); [|reflexivity|..])
-    |fail 1 "rel_rand_l: cannot find 'Rand'"];
-  (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
-  [iSolveTC
-  |solve_mapsto ()
-  |reduction.pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
-  |reflexivity
-  |rel_finish  (** new goal *)].
-Tactic Notation "rel_rand_l" := rel_pures_l ; rel_rand_l _ _.
-
-(* Tactic Notation "rel_rand_l_atomic" := rel_apply_l refines_rand_l. *)
-Tactic Notation "rel_rand_r" open_constr(ef) open_constr(kf) :=
-  let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↪ₛ _)%I) => l end in
-    iAssumptionCore || fail "rel_rand_r: cannot find" l "↪ₛ ?" in
-  first
-    [rel_reshape_cont_r ltac:(fun K e' =>
-       unify e' ef ;
-       unify K kf ;
-       eapply (tac_rel_rand_r K); [|reflexivity|..])
-    |fail 1 "rel_rand_r: cannot find 'Rand'"];
-  (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
-  [iSolveTC
-  |solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
-  |solve_mapsto ()
-  |reduction.pm_reflexivity || fail "rel_rand_r: this should not happen O-:"
-  |reflexivity
-  |rel_finish  (** new goal *)].
-Tactic Notation "rel_rand_r" := rel_pures_r ; rel_rand_r _ _.
-
-Tactic Notation "rel_pure_l" open_constr(ef) open_constr(Kf) :=
-  iStartProof;
-  rel_reshape_cont_l ltac:(fun K e' =>
-      unify K Kf;
-      unify e' ef;
-      eapply (tac_rel_pure_l K e');
-      [reflexivity                  (** e = fill K e1 *)
-      |iSolveTC                     (** PureExec ϕ n e1 e2 *)
-      | .. ]);
-      [try solve_vals_compare_safe                (** φ *)
-      |first [left; reflexivity
-             | right; reflexivity]                  (** (m = n) ∨ (m = 0) *)
-      |iSolveTC                                     (** IntoLaters *)
-      |simpl; reflexivity           (** eres = fill K e2 *)
-      |rel_finish                   (** new goal *)]
-  || fail "rel_pure_l: cannot find the reduct".
-
-Tactic Notation "rel_pure_l" := rel_pure_l _ _.
-
-Tactic Notation "rel_pure_r" open_constr(ef) open_constr(Kf) :=
-  iStartProof;
-  rel_reshape_cont_r ltac:(fun K e' =>
-      unify K Kf;
-      unify e' ef;
-      eapply (tac_rel_pure_r K e');
-      [reflexivity                  (** e = fill K e1 *)
-      |iSolveTC                     (** PureExec ϕ n e1 e2 *)
-      |..]);
-      [try solve_vals_compare_safe                (** φ *)
-      |solve_ndisj        || fail 1 "rel_pure_r: cannot solve ↑specN ⊆ ?"
-      |simpl; reflexivity           (** eres = fill K e2 *)
-      |rel_finish                   (** new goal *)]
-  || fail "rel_pure_r: cannot find the reduct".
-
-Tactic Notation "rel_pure_r" := rel_pure_r _ _.
 
 Ltac2 i_eval_at_redex fpure falloc fload fstore falloctape frand fforeign tm :=
   let rec f name tm k :=
@@ -441,12 +190,12 @@ Ltac2 rec ired side fpure falloc fload fstore falloctape frand fforeign :=
   | [ |- _ ] => Control.throw (Tactic_failure (Some (fprintf "ired: Not proving a refinement.")))
   end.
 
-Ltac2 rel_pure_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_pure_l ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
-Ltac2 rel_pure_r (tm : constr) (k : constr) := ltac1:(ef kf |- rel_pure_r ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
-Ltac2 rel_load_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_load_l ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
-Ltac2 rel_load_r (tm : constr) (k : constr) := ltac1:(ef kf |- rel_load_r ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
-Ltac2 rel_store_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_store_l ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
-Ltac2 rel_store_r (tm : constr) (k : constr) := ltac1:(ef kf |- rel_store_r ef kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+Ltac2 rel_pure_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_pure_l ef in kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+Ltac2 rel_pure_r (tm : constr) (k : constr) := ltac1:(ef kf |- rel_pure_r ef in kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+Ltac2 rel_load_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_load_l ef in kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+Ltac2 rel_load_r (tm : constr) (k : constr) := ltac1:(ef kf |- rel_load_r ef in kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+Ltac2 rel_store_l (tm : constr) (k : constr) := ltac1:(ef kf |- rel_store_l ef in kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
+Ltac2 rel_store_r (tm : constr) (k : constr) := ltac1:(ef kf |- rel_store_r ef in kf) (Ltac1.of_constr tm) (Ltac1.of_constr k).
 
 Ltac2 rel_named_l name fnone fsome :=
   match name with
@@ -535,13 +284,13 @@ Ltac2 rel_randU_r tm k name :=
 Ltac2 rel_randT_l tm k name :=
   lazy_match! tm with
   | Rand _ (Val (LitV (LitLbl _))) =>
-      ltac1:(ef kf |- rel_rand_l ef kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
+      ltac1:(ef kf |- rel_rand_l ef in kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
   | _ => () end.
 
 Ltac2 rel_randT_r tm k name :=
   lazy_match! tm with
   | Rand _ (Val (LitV (LitLbl _))) =>
-      ltac1:(ef kf |- rel_rand_r ef kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
+      ltac1:(ef kf |- rel_rand_r ef in kf ) (Ltac1.of_constr tm) (Ltac1.of_constr k)
   | _ => () end.
 
 #[local] Ltac2 ign2 := fun _ _ => ().
@@ -572,13 +321,13 @@ Ltac2 iredl () := iredall_l rel_randT_l.
 Ltac iredl := ltac2:(iredl ()).
 
 (* Iterated effectful reduction *)
-Ltac2 iredsr () := repeat (iredr ()).
-Ltac iredsr := ltac2:(iredsr ()).
-Ltac2 iredsl () := repeat (iredl ()).
-Ltac iredsl := ltac2:(iredsl ()).
+Ltac2 iredrs () := repeat (iredr ()).
+Ltac iredrs := ltac2:(iredrs ()).
+Ltac2 iredls () := repeat (iredl ()).
+Ltac iredls := ltac2:(iredls ()).
 
 (* Iterated reduction on both sides *)
-Ltac ireds := iredsr ; iredsl.
+Ltac ireds := iredrs ; iredls.
 Ltac iredpures := iredpuresr ; iredpuresl.
 
 (* Single step of reading from a tape, no other effects. *)

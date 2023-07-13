@@ -167,9 +167,10 @@ Proof.
   rewrite -refines_pure_r //.
 Qed.
 
-Tactic Notation "rel_pure_l" open_constr(ef) :=
+Tactic Notation "rel_pure_l" open_constr(ef) "in" open_constr(Kf) :=
   iStartProof;
   rel_reshape_cont_l ltac:(fun K e' =>
+      unify K Kf;
       unify e' ef;
       eapply (tac_rel_pure_l K e');
       [reflexivity                  (** e = fill K e1 *)
@@ -183,11 +184,13 @@ Tactic Notation "rel_pure_l" open_constr(ef) :=
       |rel_finish                   (** new goal *)]
   || fail "rel_pure_l: cannot find the reduct".
 
-Tactic Notation "rel_pure_l" := rel_pure_l _.
+Tactic Notation "rel_pure_l" open_constr(ef) := rel_pure_l ef in _.
+Tactic Notation "rel_pure_l" := rel_pure_l _ in _.
 
-Tactic Notation "rel_pure_r" open_constr(ef) :=
+Tactic Notation "rel_pure_r" open_constr(ef) "in" open_constr(Kf) :=
   iStartProof;
   rel_reshape_cont_r ltac:(fun K e' =>
+      unify K Kf;
       unify e' ef;
       eapply (tac_rel_pure_r K e');
       [reflexivity                  (** e = fill K e1 *)
@@ -199,16 +202,17 @@ Tactic Notation "rel_pure_r" open_constr(ef) :=
       |rel_finish                   (** new goal *)]
   || fail "rel_pure_r: cannot find the reduct".
 
-Tactic Notation "rel_pure_r" := rel_pure_r _.
+Tactic Notation "rel_pure_r" open_constr(ef) := rel_pure_r ef in _.
+Tactic Notation "rel_pure_r" := rel_pure_r _ in _.
 
 (* TODO: do this in one go, without [repeat]. *)
 Ltac rel_pures_l :=
   iStartProof;
-  repeat (rel_pure_l _; []). (* The `;[]` makes sure that no side-condition
+  repeat (rel_pure_l _ in _; []). (* The `;[]` makes sure that no side-condition
                              magically spawns. *)
 Ltac rel_pures_r :=
   iStartProof;
-  repeat (rel_pure_r _; []).
+  repeat (rel_pure_r _ in _; []).
 
 (** Load *)
 
@@ -246,13 +250,14 @@ Proof.
   - by iApply (refines_load_r with "Hl").
 Qed.
 
-Tactic Notation "rel_load_l" :=
+Tactic Notation "rel_load_l" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦{_} _)%I) => l end in
     iAssumptionCore || fail "rel_load_l: cannot find" l "↦ ?" in
-  rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_load_l_simp K); first reflexivity)
     |fail 1 "rel_load_l: cannot find 'Load'"];
   (* the remaining goals are from tac_lel_load_l (except for the first one, which has already been solved by this point) *)
@@ -260,6 +265,7 @@ Tactic Notation "rel_load_l" :=
   |solve_mapsto ()
   |reflexivity       (** eres = fill K v *)
   |rel_finish  (** new goal *)].
+Tactic Notation "rel_load_l" := rel_pures_l ; rel_load_l _ in _.
 
 (* Tactic Notation "rel_load_l_atomic" := rel_apply_l refines_load_l. *)
 
@@ -268,13 +274,14 @@ different. Because there is only one type of rules, we can report
 errors in a more precise way. E.g. if we are executing !#l and l ↦ₛ is
 not found in the environment, then we can immediately fail with an
 error *)
-Tactic Notation "rel_load_r" :=
+Tactic Notation "rel_load_r" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦ₛ{_} _)%I) => l end in
     iAssumptionCore || fail "rel_load_r: cannot find" l "↦ₛ ?" in
-  rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_load_r K); first reflexivity)
     |fail 1 "rel_load_r: cannot find 'Load'"];
   (* the remaining goals are from tac_rel_load_r (except for the first one, which has already been solved by this point) *)
@@ -282,6 +289,7 @@ Tactic Notation "rel_load_r" :=
   |solve_mapsto ()
   |reflexivity
   |rel_finish  (** new goal *)].
+Tactic Notation "rel_load_r" := rel_pures_r ; rel_load_r _ in _.
 
 (** Store *)
 Lemma tac_rel_store_l_simpl `{!clutchRGS Σ} K ℶ1 ℶ2 ℶ3 i1 (l : loc) v e' v' e t eres A E :
@@ -323,13 +331,14 @@ Proof.
   apply bi.wand_elim_l.
 Qed.
 
-Tactic Notation "rel_store_l" :=
+Tactic Notation "rel_store_l" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦ _)%I) => l end in
     iAssumptionCore || fail "rel_store_l: cannot find" l "↦ ?" in
-  rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_store_l_simpl K);
        [reflexivity (** e = fill K (#l <- e') *)
        |iSolveTC    (** e' is a value *)
@@ -338,28 +347,31 @@ Tactic Notation "rel_store_l" :=
   (* the remaining goals are from tac_rel_store_l (except for the first one, which has already been solved by this point) *)
   [iSolveTC        (** IntoLaters *)
   |solve_mapsto ()
-  |pm_reflexivity || fail "rel_store_l: this should not happen O-:"
+  |reduction.pm_reflexivity || fail "rel_store_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
+Tactic Notation "rel_store_l" := rel_pures_l ; rel_store_l _ in _.
 
 (* Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l. *)
 
-Tactic Notation "rel_store_r" :=
+Tactic Notation "rel_store_r" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↦ₛ _)%I) => l end in
     iAssumptionCore || fail "rel_store_r: cannot find" l "↦ₛ ?" in
-  rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_store_r K);
        [reflexivity|iSolveTC|idtac..])
     |fail 1 "rel_store_r: cannot find 'Store'"];
   (* the remaining goals are from tac_rel_store_r (except for the first one, which has already been solved by this point) *)
   [solve_ndisj || fail "rel_store_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
-  |pm_reflexivity || fail "rel_store_r: this should not happen O-:"
+  |reduction.pm_reflexivity || fail "rel_store_r: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
+Tactic Notation "rel_store_r" := rel_pures_r ; rel_store_r _ in _.
 
 
 (** Alloc *)
@@ -379,10 +391,11 @@ Proof.
   apply bi.later_mono.
 Qed.
 
-Tactic Notation "rel_alloc_l" ident(l) "as" constr(H) :=
-  rel_pures_l;
+Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_alloc_l_simpl K);
        [reflexivity (** e = fill K (Alloc e') *)
        |iSolveTC    (** e' is a value *)
@@ -390,6 +403,8 @@ Tactic Notation "rel_alloc_l" ident(l) "as" constr(H) :=
     |fail 1 "rel_alloc_l: cannot find 'Alloc'"];
   [iSolveTC        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
+Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) :=
+  rel_pures_l ; rel_alloc_l l as H at _ in _.
 
 Lemma tac_rel_alloc_r `{!clutchRGS Σ} K' ℶ E t' v' e t A :
   t = fill K' (Alloc t') →
@@ -402,10 +417,11 @@ Proof.
   rewrite -refines_alloc_r //.
 Qed.
 
-Tactic Notation "rel_alloc_r" ident(l) "as" constr(H) :=
-  rel_pures_r;
+Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_alloc_r K);
        [reflexivity  (** t = K'[alloc t'] *)
        |iSolveTC     (** t' is a value *)
@@ -413,16 +429,8 @@ Tactic Notation "rel_alloc_r" ident(l) "as" constr(H) :=
     |fail 1 "rel_alloc_r: cannot find 'Alloc'"];
   [solve_ndisj || fail "rel_alloc_r: cannot prove 'nclose specN ⊆ ?'"
   |iIntros (l) H; rel_finish  (** new goal *)].
-
-Tactic Notation "rel_alloc_r" :=
-  let l := fresh in
-  let H := iFresh "H" in
-  rel_alloc_r l as H.
-
-Tactic Notation "rel_alloc_l" :=
-  let l := fresh in
-  let H := iFresh "H" in
-  rel_alloc_l l as H.
+Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) :=
+  rel_pures_r ; rel_alloc_r l as H at _ in _.
 
 
 (** AllocTape *)
@@ -442,10 +450,11 @@ Proof.
   now apply bi.later_mono.
 Qed.
 
-Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
-  rel_pures_l;
+Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_alloctape_l_simpl K);
        [iSolveTC (** TCEq N (Z.to_nat z) → *)
        |reflexivity (** e = fill K (Alloc e') *)
@@ -453,6 +462,8 @@ Tactic Notation "rel_alloctape_l" ident(l) "as" constr(H) :=
     |fail 1 "rel_alloctape_l: cannot find 'AllocTape'"];
   [iSolveTC        (** IntoLaters *)
   |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
+Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
+  rel_pures_l ; rel_alloctape_l l as H at _ in _.
 
 Lemma tac_rel_alloctape_r `{!clutchRGS Σ} K' ℶ E e N z t A :
   TCEq N (Z.to_nat z) →
@@ -462,10 +473,11 @@ Lemma tac_rel_alloctape_r `{!clutchRGS Σ} K' ℶ E e N z t A :
   envs_entails ℶ (refines E e t A).
 Proof. intros -> ???. subst t. rewrite -refines_alloctape_r //. Qed.
 
-Tactic Notation "rel_alloctape_r" ident(l) "as" constr(H) :=
-  rel_pures_r;
+Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
+       unify K Kf ;
+       unify e' ef ;
        eapply (tac_rel_alloctape_r K);
        [iSolveTC
        |reflexivity  (** t = K'[alloc t'] *)
@@ -473,16 +485,8 @@ Tactic Notation "rel_alloctape_r" ident(l) "as" constr(H) :=
     |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
   [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
   |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
-
-Tactic Notation "rel_alloctape_r" :=
-  let l := fresh in
-  let H := iFresh "H" in
-  rel_alloctape_r l as H.
-
-Tactic Notation "rel_alloctape_l" :=
-  let l := fresh in
-  let H := iFresh "H" in
-  rel_alloctape_l l as H.
+Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
+  rel_pures_r ; rel_alloctape_r l as H at _ in _.
 
 Lemma tac_rel_rand_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) N z n ns e t tres A E :
   TCEq N (Z.to_nat z) →
@@ -525,39 +529,43 @@ Proof.
 Qed.
 
 Local Set Warnings "-cast-in-pattern".
-Tactic Notation "rel_rand_l" :=
-  let solve_mapsto _ := 
+Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(kf) :=
+  let solve_mapsto _ :=
     let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
     iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
-  rel_pures_l;
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
+       unify e' ef ;
+       unify K kf ;
        eapply (tac_rel_rand_l K); [|reflexivity|..])
     |fail 1 "rel_rand_l: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
   [iSolveTC
   |solve_mapsto ()
-  |pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
+  |reduction.pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
+Tactic Notation "rel_rand_l" := rel_pures_l ; rel_rand_l _ in _.
 
 (* Tactic Notation "rel_rand_l_atomic" := rel_apply_l refines_rand_l. *)
-Tactic Notation "rel_rand_r" :=
+Tactic Notation "rel_rand_r" open_constr(ef) "in" open_constr(kf) :=
   let solve_mapsto _ :=
     let l := match goal with |- _ = Some (_, (?l ↪ₛ _)%I) => l end in
     iAssumptionCore || fail "rel_rand_r: cannot find" l "↪ₛ ?" in
-  rel_pures_r;
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
+       unify e' ef ;
+       unify K kf ;
        eapply (tac_rel_rand_r K); [|reflexivity|..])
     |fail 1 "rel_rand_r: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
   [iSolveTC
   |solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
-  |pm_reflexivity || fail "rel_rand_r: this should not happen O-:"
+  |reduction.pm_reflexivity || fail "rel_rand_r: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
+Tactic Notation "rel_rand_r" := rel_pures_r ; rel_rand_r _ in _.
 
 
 (* The handling of beta-reductions is special because it also unlocks
