@@ -231,12 +231,70 @@ Section ub_theory.
    rewrite (HP x); auto.
  Qed.
 
+ (* Is there a way to prove this without make_decision? *)
+ Lemma ub_lift_and (μ : distr A) (f g : A -> Prop) (ε1 ε2 : R) :
+   ub_lift μ f ε1 ->
+   ub_lift μ g ε2 ->
+   ub_lift μ (λ a, f a /\ g a) (ε1 + ε2).
+ Proof.
+   intros Hf Hg P HP.
+   pose proof (make_decision_fun f).
+   pose proof (make_decision_fun g).
+   set (PAndF := (λ a, bool_decide (f a) || P a)).
+   set (PAndG := (λ a, bool_decide (g a) || P a)).
+   epose proof (Hf PAndF _) as Haux1.
+   epose proof (Hg PAndG _) as Haux2.
+   apply (Rle_trans _ (prob μ (λ a : A, negb (PAndF a)) + prob μ (λ a : A, negb (PAndG a)))); [ | lra ].
+   rewrite /prob.
+   rewrite -SeriesC_plus.
+   - apply SeriesC_le.
+     + intro a; split; [real_solver | ].
+       assert (0 <= μ a); [auto | ].
+       rewrite /PAndF /PAndG.
+       destruct (P a) eqn:HPeq; do 2 case_bool_decide; simpl; try lra.
+       assert (f a /\ g a) as Haux; auto.
+       specialize (HP a Haux).
+       destruct (P a); done.
+     + apply (ex_seriesC_le _ (λ a, 2* μ a)).
+       * intro a.
+         assert (0 <= μ a); [auto | ].
+         destruct (PAndF a);
+         destruct (PAndG a);
+         simpl; split; lra.
+       * apply ex_seriesC_scal_l; auto.
+   - apply (ex_seriesC_le _ μ); auto.
+     intros; real_solver.
+   - apply (ex_seriesC_le _ μ); auto.
+     intros; real_solver.
+   Unshelve.
+   { intros a Hfa.
+     rewrite /PAndF.
+     rewrite bool_decide_eq_true_2; auto. }
+   { intros a Hga.
+     rewrite /PAndG.
+     rewrite bool_decide_eq_true_2; auto. }
+Qed.
+
+Lemma ub_lift_ext (μ : distr A) (f g : A -> Prop) ε :
+  (∀ a, f a <-> g a) ->
+  ub_lift μ f ε ->
+  ub_lift μ g ε.
+Proof.
+  intros Hequiv Hf P HP.
+  epose proof (Hf P _); auto.
+  Unshelve.
+  intros.
+  by apply HP, Hequiv.
+Qed.
+
+
+
 End ub_theory.
 
-Section ub_examples.
+Section ub_instances.
 
 Lemma ub_unif_err (n : nat) (m : fin (S n)) :
-  ub_lift (dunifP n) (λ n, n <> m) (1/(n+1)).
+  ub_lift (dunifP n) (λ x, x <> m) (1/(n+1)).
 Proof.
   intros P HP.
   rewrite /prob.
@@ -262,5 +320,136 @@ Proof.
     intro x; destruct (P x); real_solver.
 Qed.
 
-End ub_examples.
+(* More general version *)
+Lemma ub_unif_err_nat (n m : nat) :
+  ub_lift (dunifP n) (λ x, (fin_to_nat x <> m)) (1/(n+1)).
+Proof.
+  intros P HP.
+  rewrite /prob.
+  destruct (le_lt_dec (S n) m) as [Hge | Hlt].
+  - erewrite (SeriesC_ext _ (λ a, 0)); last first.
+    { intros p.
+      specialize (HP p).
+      assert (fin_to_nat p <> m) as Haux.
+      - pose proof (fin_to_nat_lt p) as Hl; lia.
+      - rewrite HP; simpl; auto.
+    }
+    rewrite SeriesC_0; auto.
+    apply Rdiv_le_0_compat; [lra |].
+    apply (Rle_lt_trans _ n); [apply pos_INR | lra].
+  - set (p := Fin.of_nat_lt Hlt).
+    assert (fin_to_nat p = m) as Haux.
+    {
+      rewrite fin_to_nat_to_fin; auto.
+    }
+    rewrite (SeriesC_split_elem (λ a, if negb (P a) then dunifP n a else 0) p).
+    + rewrite
+        (SeriesC_ext _ (λ a : fin (S n), if bool_decide (a = p) then if negb (P p) then dunifP n p else 0 else 0)); last first.
+      { intro; real_solver. }
+      rewrite SeriesC_singleton.
+      erewrite (SeriesC_ext _ (λ a, 0)); last first.
+      { intro; case_bool_decide; auto.
+        rewrite HP; auto.
+        rewrite -Haux.
+        intro H0.
+        destruct H.
+        apply (fin_to_nat_inj _ _ H0).
+      }
+      rewrite SeriesC_0; auto.
+      rewrite Rplus_0_r.
+      destruct (P p); simpl.
+      *  (* ???????? *)
+        apply Rdiv_le_0_compat; [lra |].
+        apply (Rle_lt_trans _ n); [apply pos_INR | lra].
+      * rewrite /pmf/=.
+        destruct n; simpl; lra.
+    + intro a; destruct (P a); real_solver.
+    + apply (ex_seriesC_le _ (dunifP n)); auto.
+      intro x; destruct (P x); real_solver.
+Qed.
 
+(* Lifting to ints *)
+Lemma ub_unif_err_int (n : nat) (m : Z) :
+  ub_lift (dunifP n) (λ x, (Z.of_nat (fin_to_nat x) <> m)) (1/(n+1)).
+Proof.
+  destruct (Z.le_gt_cases 0 m) as [Hpos | Hneg].
+  - apply (ub_lift_ext _ (λ x : fin (S n), fin_to_nat x ≠ Z.to_nat m)); [ | apply ub_unif_err_nat ].
+    intro a; split; intro H.
+    + zify.
+      intro; simplify_eq.
+      destruct_or?;destruct_and?; [done | ].
+      simplify_eq. lia.
+    + zify.
+      intro; simplify_eq.
+      destruct_or?;destruct_and?; [done | ].
+      lia.
+  - apply (ub_lift_ext _ (λ x, True)); [ | apply ub_lift_trivial ].
+    + intro a; split; intro H; auto.
+      zify; intro; simplify_eq; lia.
+    + apply Rdiv_le_0_compat; [lra |].
+      rewrite <- Rplus_0_l at 1.
+      apply Rplus_le_lt_compat; [ apply pos_INR | lra].
+Qed.
+
+
+(* Even more general version *)
+Lemma ub_unif_err_list_nat (n : nat) (l : list nat) :
+  ub_lift (dunifP n) (λ x, Forall (λ m, fin_to_nat x <> m) l) ((length l)/(n+1)).
+Proof.
+  induction l.
+  - intros P HP.
+    simpl.
+    rewrite /prob.
+    erewrite (SeriesC_ext _ (λ a, 0)); last first.
+    { intros p.
+      specialize (HP p).
+      rewrite HP; auto.
+    }
+    rewrite SeriesC_0; auto.
+    apply Rdiv_le_0_compat; [lra |].
+    apply (Rle_lt_trans _ n); [apply pos_INR | lra].
+  - rewrite cons_length.
+    assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
+    {
+      rewrite -Rdiv_plus_distr //.
+      rewrite S_INR Rplus_comm.
+      auto.
+    }
+    eapply ub_lift_ext.
+    + intro; symmetry; apply Forall_cons.
+    + apply ub_lift_and.
+      * apply ub_unif_err_nat.
+      * apply IHl.
+Qed.
+
+
+Lemma ub_unif_err_list_int (n : nat) (l : list Z) :
+  ub_lift (dunifP n) (λ x, Forall (λ m, Z.of_nat (fin_to_nat x) <> m) l) ((length l)/(n+1)).
+Proof.
+  induction l.
+  - intros P HP.
+    simpl.
+    rewrite /prob.
+    erewrite (SeriesC_ext _ (λ a, 0)); last first.
+    { intros p.
+      specialize (HP p).
+      rewrite HP; auto.
+    }
+    rewrite SeriesC_0; auto.
+    apply Rdiv_le_0_compat; [lra |].
+    apply (Rle_lt_trans _ n); [apply pos_INR | lra].
+  - rewrite cons_length.
+    assert (S (length l) / (n + 1) = 1 / (n + 1) + (length l) / (n + 1)) as ->.
+    {
+      rewrite -Rdiv_plus_distr //.
+      rewrite S_INR Rplus_comm.
+      auto.
+    }
+    eapply ub_lift_ext.
+    + intro; symmetry; apply Forall_cons.
+    + apply ub_lift_and.
+      * eapply ub_lift_ext ; [ | eapply (ub_unif_err_int _ a) ]; auto.
+      * apply IHl.
+Qed.
+
+End ub_instances.
