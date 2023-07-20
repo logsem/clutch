@@ -69,12 +69,20 @@ Module simple_bit_hash.
       k1 = k2.
 
   Lemma coll_free_insert (m : gmap nat Z) (n : nat) (z : Z) :
+    m !! n = None ->
     coll_free m ->
     Forall (λ x, z ≠ snd x) (gmap_to_list m) ->
     coll_free (<[ n := z ]>m).
   Proof.
-    intros Hcoll HForall.
+    intros Hnone Hcoll HForall.
     intros k1 k2 Hk1 Hk2 Heq.
+    apply lookup_insert_is_Some' in Hk1.
+    apply lookup_insert_is_Some' in Hk2.
+    destruct (decide (n = k1)).
+    - destruct (decide (n = k2)); simplify_eq; auto.
+      destruct Hk2; auto.
+      rewrite lookup_total_insert in Heq.
+      Search gmap_to_list.
   Admitted.
 
 

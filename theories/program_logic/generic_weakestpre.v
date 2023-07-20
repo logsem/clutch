@@ -5,24 +5,14 @@ From iris.bi Require Export weakestpre fixpoint big_op.
 From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext NNRbar.
-From clutch.prob Require Export couplings distribution union_bounds.
+From clutch.prob Require Export generic_lifting distribution.
 From clutch.program_logic Require Export exec language.
 
 Import uPred.
 
-Local Open Scope NNR_scope.
-
-(** [irisGS] specifies the interface for the resource algebras implementing the
-    [state] and [cfg] of a [language] [Λ]. For the purposes of defining the
-    weakest precondition, we only need [irisGS] to give meaning to invariants,
-    and provide predicates describing valid states via [state_interp].
-    Here [err_interp] is a resource tracking an upper bound on the probability of
-    error (i.e. terminating in a state that does not satisfy the postcondition)
- *)
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :> invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
-  err_interp : nonnegreal → iProp Σ;
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
@@ -39,130 +29,87 @@ Qed.
 
 
 
-(** * The union bound modality [exec_ub]  *)
-Section exec_ub.
+(** * The mlift modality [exec_mlift]  *)
+Section exec_mlift.
   Context `{!irisGS Λ Σ}.
 
+  Context (M : mlift).
 
-  Definition exec_ub_pre (Z : cfg Λ → iProp Σ) (Φ : nonnegreal * cfg Λ → iProp Σ) :=
-    (λ (x : nonnegreal * cfg Λ),
-      let '(ε, (e1, σ1)) := x in
+  Definition exec_mlift_pre (Z : cfg Λ → iProp Σ) (Φ : cfg Λ → iProp Σ) :=
+    (λ (x  : cfg Λ),
+      let '(e1, σ1) := x in
       (* [prim_step] *)
-      (∃ R, ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
+      (∃ R, ⌜M.(mlift_funct) (prim_step e1 σ1) R ⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ρ2 ) ∨
       (* [state_step]  *)
       ([∨ list] α ∈ get_active σ1,
       (* We allow an explicit weakening of the grading, but maybe it is not needed *)
-        (∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2,((e1, σ2)))))
+        (∃ R , ⌜ M.(mlift_funct) (state_step σ1 α) R ⌝ ∗
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ ((e1, σ2))))
     )%I.
 
-  (* TODO: Define this globally, it appears in error credits too *)
-  Canonical Structure NNRO := leibnizO nonnegreal.
-
   Local Instance exec_state_ub_pre_NonExpansive Z Φ :
-    NonExpansive (exec_ub_pre Z Φ).
+    NonExpansive (exec_mlift_pre Z Φ).
   Proof.
-    rewrite /exec_ub_pre.
-    intros n (?&(?&?)) (?&(?&?)) [ [=] [[=] [=]]].
+    rewrite /exec_mlift_pre.
+    intros n (?&?) (?&?) [[=] [=]].
     by simplify_eq.
   Qed.
 
-  Local Instance exec_coupl_pre_mono Z : BiMonoPred (exec_ub_pre Z).
+  Local Instance exec_coupl_pre_mono Z : BiMonoPred (exec_mlift_pre Z).
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    rewrite /exec_ub_pre.
-    iIntros ((ε&(e1 & σ1))) "Hexec".
+    rewrite /exec_mlift_pre.
+    iIntros ((e1 & σ1)) "Hexec".
     iDestruct "Hexec" as "[H | H]".
     - by iLeft.
     - iRight.
       iInduction (get_active σ1) as [| l] "IH" forall "H".
       { rewrite big_orL_nil //. }
       rewrite !big_orL_cons.
-      iDestruct "H" as "[(% & % & % & %Hsum & Hlift & HΦ) | H]".
+      iDestruct "H" as "[(% & Hlift & HΦ) | H]".
       + iLeft. iExists R2.
-        iExists ε1. iExists _.
-        iSplit; [try done|].
         iSplit; [try done|].
         iIntros. iApply "Hwand". by iApply "HΦ".
       + iRight. by iApply "IH".
   Qed.
 
-  Definition exec_ub' Z := bi_least_fixpoint (exec_ub_pre Z).
-  Definition exec_ub e σ Z ε := exec_ub' Z (ε, (e, σ)).
+  Definition exec_mlift' Z := bi_least_fixpoint (exec_mlift_pre Z).
+  Definition exec_mlift e σ Z := exec_mlift' Z (e, σ).
 
-  Lemma exec_ub_unfold e1 σ1 Z ε :
-    exec_ub e1 σ1 Z ε ≡
-      ((∃ R, ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
+  Lemma exec_mlift_unfold e1 σ1 Z :
+    exec_mlift e1 σ1 Z ≡
+      ((∃ R, ⌜M.(mlift_funct) (prim_step e1 σ1) R ⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ρ2 ) ∨
       ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε2 )))%I.
-  Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
+        (∃ R, ⌜ M.(mlift_funct) (state_step σ1 α) R ⌝ ∗
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_mlift e1 σ2 Z )))%I.
+  Proof. rewrite /exec_mlift/exec_mlift' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
 
 
-  Lemma exec_ub_mono_grading e1 σ1 (Z : cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
-    ⌜(ε <= ε')%R⌝ -∗
-    exec_ub e1 σ1 Z ε -∗ exec_ub e1 σ1 Z ε'.
-  Proof.
-    iIntros "Hleq H_ub". iRevert "Hleq".
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, ∀ (ε'' : nonnegreal), ((⌜(x.1 <= ε'' )%R⌝ -∗ (bi_least_fixpoint (exec_ub_pre Z) (ε'', x.2)))))%I : prodO NNRO cfgO → iPropI Σ).
-    assert (NonExpansive Φ).
-    { intros n (?&(?&?)) (?&(?&?)) [ [=] [[=] [=]]]. by simplify_eq. }
-    iPoseProof (least_fixpoint_ind (exec_ub_pre Z) Φ with "[]") as "H"; last first.
-    { iApply ("H" with "H_ub"). }
-    iIntros "!#" ([ε'' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[ (% & % & H) | H ] %ε3 %Hleq' /="; simpl in Hleq'.
-    - rewrite least_fixpoint_unfold.
-      iLeft. iExists _.
-      iSplit.
-      { iPureIntro.
-        apply (UB_mon_grading _ _ _ _ Hleq') in H0. by apply ub_lift_pos_R. }
-      iIntros ([] (?&?)). iMod ("H" with "[//]").
-      iModIntro. eauto.
-    - rewrite least_fixpoint_unfold.
-      iRight.
-      iInduction (get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq2 & %Hub & H)) | Ht]".
-      + iLeft.
-        iExists R2. iExists ε1. iExists ε2.
-        iSplit; [ iPureIntro; lra | ].
-        iSplit; [ done | ].
-        iIntros.
-        iApply ("H" with "[//]").
-        iPureIntro. simpl; lra.
-      + iRight. by iApply ("IH" with "Ht").
-  Qed.
-
-
-  Lemma exec_ub_strong_mono e1 σ1 (Z1 Z2 : cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
-    ⌜(ε <= ε')%R⌝ -∗
+  Lemma exec_mlift_strong_mono e1 σ1 (Z1 Z2 : cfg Λ → iProp Σ) :
     (∀ e2 σ2, (⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2))) -∗
-    exec_ub e1 σ1 Z1 ε -∗ exec_ub e1 σ1 Z2 ε'.
+    exec_mlift e1 σ1 Z1 -∗ exec_mlift e1 σ1 Z2.
   Proof.
-    iIntros "%Hleq HZ H_ub".
-    iApply exec_ub_mono_grading; auto.
+    iIntros "HZ H_mlift".
     iRevert "HZ".
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x,(∀ e2 σ2, ⌜∃ σ, (prim_step x.2.1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2)) -∗
-                  (bi_least_fixpoint (exec_ub_pre Z2) x ))%I : prodO NNRO cfgO → iPropI Σ).
+    rewrite /exec_mlift /exec_mlift'.
+    set (Φ := (λ x,(∀ e2 σ2, ⌜∃ σ, (prim_step x.1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) -∗ Z2 (e2, σ2)) -∗
+                  (bi_least_fixpoint (exec_mlift_pre Z2) x ))%I : cfgO → iPropI Σ).
     assert (NonExpansive Φ).
-    { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
-    iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ with "[]") as "H"; last first.
-    { by iApply ("H" with "H_ub"). }
-    iIntros "!#" ([ε'' [? σ']]). rewrite /exec_ub_pre.
+    { intros n (?&?) (?&?) [[=] [=]]. by simplify_eq. }
+    iPoseProof (least_fixpoint_iter (exec_mlift_pre Z1) Φ with "[]") as "H"; last first.
+    { by iApply ("H" with "H_mlift"). }
+    iIntros "!#" ([? σ']). rewrite /exec_mlift_pre.
     iIntros "[ (% & % & H) | H ] HZ /=".
     - rewrite least_fixpoint_unfold.
       iLeft. iExists _.
       iSplit.
       { iPureIntro.
-        by apply ub_lift_pos_R. }
+        by apply M.(mlift_posR). }
       iIntros ([] (?&?)). iMod ("H" with "[//]").
       iModIntro. iApply "HZ". eauto.
     - rewrite least_fixpoint_unfold.
@@ -170,55 +117,54 @@ Section exec_ub.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & H)) | Ht]".
-      + iLeft. iExists R2. iExists ε1. iExists ε2.
-        iSplit; [iPureIntro; lra | ].
+      iDestruct "H" as "[(%R2 & (% & H)) | Ht]".
+      + iLeft. iExists R2.
         iSplit; [done | ].
         iIntros.
         by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
   Qed.
 
-  Lemma exec_ub_mono (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 (ε1 ε2 : nonnegreal) :
-    ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_ub e1 σ1 Z1 ε1 -∗ exec_ub e1 σ1 Z2 ε2.
+  Lemma exec_mlift_mono (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 :
+    (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_mlift e1 σ1 Z1 -∗ exec_mlift e1 σ1 Z2.
   Proof.
-    iIntros "%Hleq HZ". iApply exec_ub_strong_mono; auto.
+    iIntros "HZ". iApply exec_mlift_strong_mono; auto.
     iIntros (??) "[_ ?]". by iApply "HZ".
   Qed.
 
-  Lemma exec_ub_mono_pred (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 (ε : nonnegreal) :
-    (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_ub e1 σ1 Z1 ε -∗ exec_ub e1 σ1 Z2 ε.
+  Lemma exec_mlift_mono_pred (Z1 Z2 : cfg Λ → iProp Σ) e1 σ1 :
+    (∀ ρ, Z1 ρ -∗ Z2 ρ ) -∗ exec_mlift e1 σ1 Z1 -∗ exec_mlift e1 σ1 Z2.
   Proof.
-    iIntros "HZ". iApply exec_ub_strong_mono; auto.
+    iIntros "HZ". iApply exec_mlift_strong_mono; auto.
     iIntros (??) "[_ ?]". by iApply "HZ".
   Qed.
 
-  Lemma exec_ub_strengthen e1 σ1 (Z : cfg Λ → iProp Σ) (ε : nonnegreal) :
-    exec_ub e1 σ1 Z ε -∗
-    exec_ub e1 σ1 (λ '(e2, σ2), ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z (e2, σ2)) ε.
+  Lemma exec_mlift_strengthen e1 σ1 (Z : cfg Λ → iProp Σ) :
+    exec_mlift e1 σ1 Z -∗
+    exec_mlift e1 σ1 (λ '(e2, σ2), ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z (e2, σ2)).
   Proof.
-    iApply exec_ub_strong_mono; [iPureIntro; lra | ].
+    iApply exec_mlift_strong_mono.
     iIntros (??) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
-  Lemma exec_ub_bind K `{!LanguageCtx K} e1 σ1 (Z : cfg Λ → iProp Σ) (ε : nonnegreal) :
+  Lemma exec_mlift_bind K `{!LanguageCtx K} e1 σ1 (Z : cfg Λ → iProp Σ)  :
     to_val e1 = None →
-    exec_ub e1 σ1 (λ '(e2, σ2), Z (K e2, σ2)) ε -∗ exec_ub (K e1) σ1 Z ε.
+    exec_mlift e1 σ1 (λ '(e2, σ2), Z (K e2, σ2)) -∗ exec_mlift (K e1) σ1 Z.
   Proof.
-    iIntros (Hv) "Hub".
+    iIntros (Hv) "Hmlift".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|].
     iRevert "H".
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, ⌜to_val x.2.1 = None⌝ -∗
-                     bi_least_fixpoint (exec_ub_pre Z) (x.1, (K x.2.1, x.2.2)))%I
-           : prodO NNRO cfgO → iPropI Σ).
+    rewrite /exec_mlift /exec_mlift'.
+    set (Φ := (λ x, ⌜to_val x.1 = None⌝ -∗
+                     bi_least_fixpoint (exec_mlift_pre Z) (K x.1, x.2))%I
+           : cfgO → iPropI Σ).
     assert (NonExpansive Φ).
-    { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
+    { intros n (?&?) (?&?) [[=] [=]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter
-                  (exec_ub_pre (λ '(e2, σ2), Z (K e2, σ2))) Φ
+                  (exec_mlift_pre (λ '(e2, σ2), Z (K e2, σ2))) Φ
                  with "[]") as "H"; last first.
-    { iIntros (?). iApply ("H" $! (_, (_, _)) with "Hub [//]"). }
-    iIntros "!#" ([ε' [? σ']]). rewrite /exec_ub_pre.
+    { iIntros (?). iApply ("H" $! (_, _) with "Hmlift [//]"). }
+    iIntros "!#" ([? σ']). rewrite /exec_mlift_pre.
     iIntros "[(% & % & H) | H] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. simpl.
@@ -226,14 +172,10 @@ Section exec_ub.
       rewrite fill_dmap //=.
       iSplit.
       { iPureIntro.
-        rewrite <- Rplus_0_r.
-        eapply (ub_lift_dbind _ _ R2).
-        - eapply ub_nonneg_grad; eauto.
-        - lra.
-        - intros [] ?? =>/=.
-          apply ub_lift_dret.
-          eauto.
-        - auto.
+        eapply (M.(mlift_bind) _ _ R2); eauto.
+        intros [] ? =>/=.
+        apply M.(mlift_unit).
+        eauto.
        }
       iIntros ([] (? & -> & ?)).
       by iMod ("H" with "[//]").
@@ -242,45 +184,36 @@ Section exec_ub.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq & %Hub & H)) | Ht]".
+      iDestruct "H" as "[(%R2 & (%Hleq & H)) | Ht]".
       + iLeft.
         iExists _.
-        iExists _.
-        iExists _.
-        iSplit; [done|].
         iSplit; [done|].
         iIntros. by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
   Qed.
 
-  Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
-    (∃ R, ⌜ub_lift (prim_step e1 σ1) R ε⌝ ∗
+  Lemma exec_mlift_prim_step e1 σ1 Z :
+    (∃ R, ⌜M.(mlift_funct) (prim_step e1 σ1) R⌝ ∗
           ∀ ρ2, ⌜R ρ2⌝ ={∅}=∗ Z ρ2)
-    ⊢ exec_ub e1 σ1 Z ε.
+    ⊢ exec_mlift e1 σ1 Z.
   Proof.
     iIntros "H".
-    rewrite {1}exec_ub_unfold.
+    rewrite {1}exec_mlift_unfold.
     by iLeft.
   Qed.
 
   (* TODO: Maybe allow weakening of the grading *)
-  Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
+  Lemma exec_mlift_state_step α e1 σ1 Z :
     α ∈ get_active σ1 →
-    (∃ R, ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
-          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε')
-    ⊢ exec_ub e1 σ1 Z (ε + ε').
+    (∃ R, ⌜M.(mlift_funct) (state_step σ1 α) R ⌝ ∗
+          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_mlift e1 σ2 Z )
+    ⊢ exec_mlift e1 σ1 Z.
   Proof.
     iIntros (?) "H".
     iDestruct "H" as (?) "H".
-    rewrite {1}exec_ub_unfold.
+    rewrite {1}exec_mlift_unfold.
     iRight.
     iApply big_orL_elem_of; eauto.
-    iExists R2.
-    iExists ε.
-    iExists ε'.
-    iFrame.
-    iPureIntro.
-    simpl. lra.
   Qed.
 
 (*
@@ -387,46 +320,49 @@ Section exec_ub.
   Qed.
   *)
 
-End exec_ub.
+End exec_mlift.
+
+Section wp_mlift.
+
+Context (M : mlift).
 
 (** * The weakest precondition  *)
-Definition ub_wp_pre `{!irisGS Λ Σ}
+Definition mlift_wp_pre `{!irisGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ε,
-      state_interp σ1 ∗ err_interp ε ={E,∅}=∗
+  | None => ∀ σ1,
+      state_interp σ1 ={E,∅}=∗
       ⌜reducible e1 σ1⌝ ∗
-      ∃ (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
-      exec_ub e1 σ1 (λ '(e2, σ2),
-        ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ) ε1
+      exec_mlift M e1 σ1 (λ '(e2, σ2),
+        ▷ |={∅,E}=> state_interp σ2 ∗ wp E e2 Φ)
 end%I.
 
-Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive (ub_wp_pre).
+Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive (mlift_wp_pre).
 Proof.
-  rewrite /ub_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
-  do 13 (f_equiv).
+  rewrite /mlift_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
+  do 6 (f_equiv);
   apply least_fixpoint_ne_outer; [|done].
-  intros Ψ [ε' [e' σ']]. rewrite /exec_ub_pre.
+  intros Ψ [e' σ']. rewrite /exec_mlift_pre.
   do 9 f_equiv.
   f_contractive.
-  do 3 f_equiv.
+  do 2 f_equiv.
   apply Hwp.
 Qed.
 
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition ub_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
-  λ (s : stuckness), fixpoint (ub_wp_pre).
-Local Definition ub_wp_aux : seal (@ub_wp_def). Proof. by eexists. Qed.
-Definition ub_wp' := ub_wp_aux.(unseal).
-Global Arguments ub_wp' {Λ Σ _}.
-Global Existing Instance ub_wp'.
-Local Lemma ub_wp_unseal `{!irisGS Λ Σ} : wp = @ub_wp_def Λ Σ _.
-Proof. rewrite -ub_wp_aux.(seal_eq) //. Qed.
+Local Definition mlift_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
+  λ (s : stuckness), fixpoint (mlift_wp_pre).
+Local Definition mlift_wp_aux : seal (@mlift_wp_def). Proof. by eexists. Qed.
+Definition mlift_wp' := mlift_wp_aux.(unseal).
+Global Arguments mlift_wp' {Λ Σ _}.
+Global Existing Instance mlift_wp'.
+Local Lemma mlift_wp_unseal `{!irisGS Λ Σ} : wp = @mlift_wp_def Λ Σ _.
+Proof. rewrite -mlift_wp_aux.(seal_eq) //. Qed.
 
-Section ub_wp.
+Section mlift_wp.
 Context `{!irisGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
@@ -434,104 +370,95 @@ Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
 Implicit Types ρ : cfg Λ.
-Implicit Types ε : R.
 
 (* Weakest pre *)
-Lemma ub_wp_unfold s E e Φ :
-  WP e @ s; E {{ Φ }} ⊣⊢ ub_wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
-Proof. rewrite ub_wp_unseal. apply (fixpoint_unfold (ub_wp_pre)). Qed.
+Lemma mlift_wp_unfold s E e Φ :
+  WP e @ s; E {{ Φ }} ⊣⊢ mlift_wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
+Proof. rewrite mlift_wp_unseal. apply (fixpoint_unfold (mlift_wp_pre)). Qed.
 
-Global Instance ub_wp_ne s E e n :
+Global Instance mlift_wp_ne s E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
-  rewrite !ub_wp_unfold /ub_wp_pre /=.
-  do 13 f_equiv.
+  rewrite !mlift_wp_unfold /mlift_wp_pre /=.
+  do 6 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? []]. rewrite /exec_ub_pre.
+  intros ? []. rewrite /exec_mlift_pre.
   do 9 f_equiv.
   f_contractive.
-  do 3 f_equiv. rewrite IH; [done|lia|].
+  do 2 f_equiv. rewrite IH; [done|lia|].
   intros ?. eapply dist_S, HΦ.
 Qed.
 
-Global Instance ub_wp_proper s E e :
+Global Instance mlift_wp_proper s E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
 Proof.
-  by intros Φ Φ' ?; apply equiv_dist=>n; apply ub_wp_ne=>v; apply equiv_dist.
+  by intros Φ Φ' ?; apply equiv_dist=>n; apply mlift_wp_ne=>v; apply equiv_dist.
 Qed.
-Global Instance ub_wp_contractive s E e n :
+Global Instance mlift_wp_contractive s E e n :
   TCEq (to_val e) None →
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
-  intros He Φ Ψ HΦ. rewrite !ub_wp_unfold /ub_wp_pre He /=.
-  do 12 f_equiv.
+  intros He Φ Ψ HΦ. rewrite !mlift_wp_unfold /mlift_wp_pre He /=.
+  do 5 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [? []]. rewrite /exec_ub_pre.
+  intros ? []. rewrite /exec_mlift_pre.
   do 9 f_equiv.
-  f_contractive. do 6 f_equiv.
+  f_contractive. do 5 f_equiv.
 Qed.
 
-Lemma ub_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
-Proof. rewrite ub_wp_unfold /ub_wp_pre to_of_val. auto. Qed.
+Lemma mlift_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
+Proof. rewrite mlift_wp_unfold /mlift_wp_pre to_of_val. auto. Qed.
 
-Lemma ub_wp_strong_mono s1 s2 E1 E2 e Φ Ψ :
+Lemma mlift_wp_strong_mono s1 s2 E1 E2 e Φ Ψ :
   s1 ⊑ s2 → E1 ⊆ E2 →
   WP e @ s1; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ s2; E2 {{ Ψ }}.
 Proof.
   iIntros (? HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
-  rewrite !ub_wp_unfold /ub_wp_pre /=.
+  rewrite !mlift_wp_unfold /mlift_wp_pre /=.
   destruct (to_val e) as [v|] eqn:?.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
-  iIntros (σ1 ε) "[Hσ Hε]".
+  iIntros (σ1) "Hσ".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "[% H]".
-  iDestruct "H" as (ε1 ε2) "[% H]".
   iModIntro.
   iSplit; [by destruct s1,s2 | ].
-  iExists _.
-  iExists _.
-  iSplit; [done | ].
-  iApply (exec_ub_mono_pred with "[Hclose HΦ] H").
+  iApply (exec_mlift_mono_pred with "[Hclose HΦ] H").
   iIntros ([e2 σ2]) "H".
   iModIntro.
-  iMod "H" as "(?&?& Hwp)". iFrame.
+  iMod "H" as "[? Hwp]". iFrame.
   iMod "Hclose" as "_". iModIntro.
   iApply ("IH" with "[] Hwp"); auto.
 Qed.
 
-Lemma fupd_ub_wp s E e Φ : (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
+Lemma fupd_mlift_wp s E e Φ : (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
-  rewrite ub_wp_unfold /ub_wp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
+  rewrite mlift_wp_unfold /mlift_wp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
   { by iMod "H". }
-  iIntros (σ1 ε) "Hi". iMod "H". by iApply "H".
+  iIntros (σ1). iMod "H". by iApply "H".
 Qed.
-Lemma ub_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
-Proof. iIntros "H". iApply (ub_wp_strong_mono s s E with "H"); auto. Qed.
+Lemma mlift_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
+Proof. iIntros "H". iApply (mlift_wp_strong_mono s s E with "H"); auto. Qed.
 
-Lemma ub_wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
+Lemma mlift_wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
-  iIntros "H". rewrite !ub_wp_unfold /ub_wp_pre.
+  iIntros "H". rewrite !mlift_wp_unfold /mlift_wp_pre.
   destruct (to_val e) as [v|] eqn:He.
   { by iDestruct "H" as ">>> $". }
-  iIntros (σ1 ε) "[Hσ Hε]". iMod "H".
+  iIntros (σ1) "Hσ". iMod "H".
   iMod ("H" with "[$]") as "[$ H]".
   iModIntro.
-  iDestruct "H" as (ε1  ε2  Hleq) "H".
-  iExists _.
-  iExists _.
-  iSplit; [done | ].
-  iDestruct (exec_ub_strengthen with "H") as "H".
-  iApply (exec_ub_mono_pred with "[] H").
+  iDestruct (exec_mlift_strengthen with "H") as "H".
+  iApply (exec_mlift_mono_pred with "[] H").
   iIntros ([e2 σ2]) "[[% %Hstep] H]".
   iModIntro.
-  iMod "H" as "(Hσ & Hρ & H)".
-  rewrite !ub_wp_unfold /ub_wp_pre.
+  iMod "H" as "(Hσ & H)".
+  rewrite !mlift_wp_unfold /mlift_wp_pre.
   destruct (to_val e2) as [v2|] eqn:He2.
   - iDestruct "H" as ">> $". by iFrame.
   - iMod ("H" with "[$]") as "H".
-    iDestruct "H" as (? ε3 ε4 Hleq2) "H".
+    iDestruct "H" as (?) "H".
     pose proof (atomic σ e2 σ2 Hstep) as H3.
     case_match.
     + rewrite /is_Some in H3.
@@ -542,53 +469,45 @@ Proof.
 Qed.
 
 
-Lemma ub_wp_step_fupd s E1 E2 e P Φ :
+Lemma mlift_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
   (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
 Proof.
-  rewrite !ub_wp_unfold /ub_wp_pre. iIntros (-> ?) "HR H".
-  iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
-  iMod ("H" with "[$Hσ $Hε]") as "[% H]".
+  rewrite !mlift_wp_unfold /mlift_wp_pre. iIntros (-> ?) "HR H".
+  iIntros (σ1) "Hσ". iMod "HR".
+  iMod ("H" with "[$Hσ]") as "[% H]".
   iModIntro.
-  iDestruct "H" as (ε3 ε4 Hleq2) "H".
   iSplit; [done | ].
-  iExists _.
-  iExists _.
-  iSplit; [done | ].
-  iApply (exec_ub_mono_pred with "[HR] H").
+  iApply (exec_mlift_mono_pred with "[HR] H").
   iIntros ([e2 σ2]) "H".
   iModIntro.
-  iMod "H" as "(Hσ & Hρ & H)".
+  iMod "H" as "(Hσ & H)".
   iMod "HR".
-  iFrame "Hσ Hρ".
-  iApply (ub_wp_strong_mono s s E2 with "H"); [done..|].
+  iFrame "Hσ".
+  iApply (mlift_wp_strong_mono s s E2 with "H"); [done..|].
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
-Lemma ub_wp_bind K `{!LanguageCtx K} s E e Φ :
+Lemma mlift_wp_bind K `{!LanguageCtx K} s E e Φ :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
-  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite ub_wp_unfold /ub_wp_pre.
+  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite mlift_wp_unfold /mlift_wp_pre.
   destruct (to_val e) as [v|] eqn:He.
-  { apply of_to_val in He as <-. by iApply fupd_ub_wp. }
-  rewrite ub_wp_unfold /ub_wp_pre fill_not_val /=; [|done].
-  iIntros (σ1 ε) "[Hσ Hε]".
-  iMod ("H" with "[$Hσ $Hε]") as "(%Hs & % & % & % & H)".
+  { apply of_to_val in He as <-. by iApply fupd_mlift_wp. }
+  rewrite mlift_wp_unfold /mlift_wp_pre fill_not_val /=; [|done].
+  iIntros (σ1) "Hσ".
+  iMod ("H" with "[$Hσ]") as "(%Hs & H)".
   iModIntro.
   iSplit.
   - iPureIntro.
     apply reducible_fill; auto.
-  - iExists ε1.
-    iExists ε2.
-    iSplit; [by iPureIntro | ].
-    iApply exec_ub_bind; [done |].
-    iApply (exec_ub_mono with "[] [] H").
-    + iPureIntro; lra.
-    + iIntros ([e2 σ2]) "H".
-      iModIntro.
-      iMod "H" as "(Hσ & Hρ & H)".
-      iModIntro.
-      iFrame "Hσ Hρ". by iApply "IH".
+  - iApply exec_mlift_bind; [done |].
+    iApply (exec_mlift_mono with "[] H").
+    iIntros ([e2 σ2]) "H".
+    iModIntro.
+    iMod "H" as "(Hσ & H)".
+    iModIntro.
+    iFrame "Hσ". by iApply "IH".
 Qed.
 
 (* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
@@ -608,79 +527,79 @@ Qed.
 (* Qed. *)
 
 (** * Derived rules *)
-Lemma ub_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
+Lemma mlift_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
 Proof.
-  iIntros (HΦ) "H"; iApply (ub_wp_strong_mono with "H"); auto.
+  iIntros (HΦ) "H"; iApply (mlift_wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
-Lemma ub_wp_stuck_mono s1 s2 E e Φ :
+Lemma mlift_wp_stuck_mono s1 s2 E e Φ :
   s1 ⊑ s2 → WP e @ s1; E {{ Φ }} ⊢ WP e @ s2; E {{ Φ }}.
-Proof. iIntros (?) "H". iApply (ub_wp_strong_mono with "H"); auto. Qed.
-Lemma ub_wp_stuck_weaken s E e Φ :
+Proof. iIntros (?) "H". iApply (mlift_wp_strong_mono with "H"); auto. Qed.
+Lemma mlift_wp_stuck_weaken s E e Φ :
   WP e @ s; E {{ Φ }} ⊢ WP e @ E ?{{ Φ }}.
-Proof. apply ub_wp_stuck_mono. by destruct s. Qed.
-Lemma ub_wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
-Proof. iIntros (?) "H"; iApply (ub_wp_strong_mono with "H"); auto. Qed.
-Global Instance ub_wp_mono' s E e :
+Proof. apply mlift_wp_stuck_mono. by destruct s. Qed.
+Lemma mlift_wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
+Proof. iIntros (?) "H"; iApply (mlift_wp_strong_mono with "H"); auto. Qed.
+Global Instance mlift_wp_mono' s E e :
   Proper (pointwise_relation _ (⊢) ==> (⊢)) (wp (PROP:=iProp Σ) s E e).
-Proof. by intros Φ Φ' ?; apply ub_wp_mono. Qed.
-Global Instance ub_wp_flip_mono' s E e :
+Proof. by intros Φ Φ' ?; apply mlift_wp_mono. Qed.
+Global Instance mlift_wp_flip_mono' s E e :
   Proper (pointwise_relation _ (flip (⊢)) ==> (flip (⊢))) (wp (PROP:=iProp Σ) s E e).
-Proof. by intros Φ Φ' ?; apply ub_wp_mono. Qed.
+Proof. by intros Φ Φ' ?; apply mlift_wp_mono. Qed.
 
-Lemma ub_wp_value_fupd s E Φ e v : IntoVal e v → WP e @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
-Proof. intros <-. by apply ub_wp_value_fupd'. Qed.
-Lemma ub_wp_value' s E Φ v : Φ v ⊢ WP (of_val v) @ s; E {{ Φ }}.
-Proof. rewrite ub_wp_value_fupd'. auto. Qed.
-Lemma ub_wp_value s E Φ e v : IntoVal e v → Φ v ⊢ WP e @ s; E {{ Φ }}.
-Proof. intros <-. apply ub_wp_value'. Qed.
+Lemma mlift_wp_value_fupd s E Φ e v : IntoVal e v → WP e @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
+Proof. intros <-. by apply mlift_wp_value_fupd'. Qed.
+Lemma mlift_wp_value' s E Φ v : Φ v ⊢ WP (of_val v) @ s; E {{ Φ }}.
+Proof. rewrite mlift_wp_value_fupd'. auto. Qed.
+Lemma mlift_wp_value s E Φ e v : IntoVal e v → Φ v ⊢ WP e @ s; E {{ Φ }}.
+Proof. intros <-. apply mlift_wp_value'. Qed.
 
-Lemma ub_wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
-Proof. iIntros "[? H]". iApply (ub_wp_strong_mono with "H"); auto with iFrame. Qed.
-Lemma ub_wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
-Proof. iIntros "[H ?]". iApply (ub_wp_strong_mono with "H"); auto with iFrame. Qed.
+Lemma mlift_wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
+Proof. iIntros "[? H]". iApply (mlift_wp_strong_mono with "H"); auto with iFrame. Qed.
+Lemma mlift_wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
+Proof. iIntros "[H ?]". iApply (mlift_wp_strong_mono with "H"); auto with iFrame. Qed.
 
-Lemma ub_wp_frame_step_l s E1 E2 e Φ R :
+Lemma mlift_wp_frame_step_l s E1 E2 e Φ R :
   TCEq (to_val e) None → E2 ⊆ E1 →
   (|={E1}[E2]▷=> R) ∗ WP e @ s; E2 {{ Φ }} ⊢ WP e @ s; E1 {{ v, R ∗ Φ v }}.
 Proof.
-  iIntros (??) "[Hu Hwp]". iApply (ub_wp_step_fupd with "Hu"); try done.
-  iApply (ub_wp_mono with "Hwp"). by iIntros (?) "$$".
+  iIntros (??) "[Hu Hwp]". iApply (mlift_wp_step_fupd with "Hu"); try done.
+  iApply (mlift_wp_mono with "Hwp"). by iIntros (?) "$$".
 Qed.
-Lemma ub_wp_frame_step_r s E1 E2 e Φ R :
+Lemma mlift_wp_frame_step_r s E1 E2 e Φ R :
   TCEq (to_val e) None → E2 ⊆ E1 →
   WP e @ s; E2 {{ Φ }} ∗ (|={E1}[E2]▷=> R) ⊢ WP e @ s; E1 {{ v, Φ v ∗ R }}.
 Proof.
   rewrite [(WP _ @ _; _ {{ _ }} ∗ _)%I]comm; setoid_rewrite (comm _ _ R).
-  apply ub_wp_frame_step_l.
+  apply mlift_wp_frame_step_l.
 Qed.
-Lemma ub_wp_frame_step_l' s E e Φ R :
+Lemma mlift_wp_frame_step_l' s E e Φ R :
   TCEq (to_val e) None → ▷ R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
-Proof. iIntros (?) "[??]". iApply (ub_wp_frame_step_l s E E); try iFrame; eauto. Qed.
-Lemma ub_wp_frame_step_r' s E e Φ R :
+Proof. iIntros (?) "[??]". iApply (mlift_wp_frame_step_l s E E); try iFrame; eauto. Qed.
+Lemma mlift_wp_frame_step_r' s E e Φ R :
   TCEq (to_val e) None → WP e @ s; E {{ Φ }} ∗ ▷ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
-Proof. iIntros (?) "[??]". iApply (ub_wp_frame_step_r s E E); try iFrame; eauto. Qed.
+Proof. iIntros (?) "[??]". iApply (mlift_wp_frame_step_r s E E); try iFrame; eauto. Qed.
 
-Lemma ub_wp_wand s E e Φ Ψ :
+Lemma mlift_wp_wand s E e Φ Ψ :
   WP e @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e @ s; E {{ Ψ }}.
 Proof.
-  iIntros "Hwp H". iApply (ub_wp_strong_mono with "Hwp"); auto.
+  iIntros "Hwp H". iApply (mlift_wp_strong_mono with "Hwp"); auto.
   iIntros (?) "?". by iApply "H".
 Qed.
-Lemma ub_wp_wand_l s E e Φ Ψ :
+Lemma mlift_wp_wand_l s E e Φ Ψ :
   (∀ v, Φ v -∗ Ψ v) ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
-Proof. iIntros "[H Hwp]". iApply (ub_wp_wand with "Hwp H"). Qed.
+Proof. iIntros "[H Hwp]". iApply (mlift_wp_wand with "Hwp H"). Qed.
 Lemma wp_wand_r s E e Φ Ψ :
   WP e @ s; E {{ Φ }} ∗ (∀ v, Φ v -∗ Ψ v) ⊢ WP e @ s; E {{ Ψ }}.
-Proof. iIntros "[Hwp H]". iApply (ub_wp_wand with "Hwp H"). Qed.
-Lemma ub_wp_frame_wand s E e Φ R :
+Proof. iIntros "[Hwp H]". iApply (mlift_wp_wand with "Hwp H"). Qed.
+Lemma mlift_wp_frame_wand s E e Φ R :
   R -∗ WP e @ s; E {{ v, R -∗ Φ v }} -∗ WP e @ s; E {{ Φ }}.
 Proof.
-  iIntros "HR HWP". iApply (ub_wp_wand with "HWP").
+  iIntros "HR HWP". iApply (mlift_wp_wand with "HWP").
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
 
-End ub_wp.
+End mlift_wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
@@ -690,61 +609,61 @@ Section proofmode_classes.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
 
-  Global Instance frame_ub_wp p s E e R Φ Ψ :
+  Global Instance frame_mlift_wp p s E e R Φ Ψ :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
     Frame p R (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Ψ }}) | 2.
-  Proof. rewrite /Frame=> HR. rewrite ub_wp_frame_l. apply ub_wp_mono, HR. Qed.
+  Proof. rewrite /Frame=> HR. rewrite mlift_wp_frame_l. apply mlift_wp_mono, HR. Qed.
 
-  Global Instance is_except_0_ub_wp s E e Φ : IsExcept0 (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /IsExcept0 -{2}fupd_ub_wp -except_0_fupd -fupd_intro. Qed.
+  Global Instance is_except_0_mlift_wp s E e Φ : IsExcept0 (WP e @ s; E {{ Φ }}).
+  Proof. by rewrite /IsExcept0 -{2}fupd_mlift_wp -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance elim_modal_bupd_ub_wp p s E e P Φ :
+  Global Instance elim_modal_bupd_mlift_wp p s E e P Φ :
     ElimModal True p false (|==> P) P (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal intuitionistically_if_elim
-      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_ub_wp.
+      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_mlift_wp.
   Qed.
 
-  Global Instance elim_modal_fupd_ub_wp p s E e P Φ :
+  Global Instance elim_modal_fupd_mlift_wp p s E e P Φ :
     ElimModal True p false (|={E}=> P) P (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal intuitionistically_if_elim
-      fupd_frame_r wand_elim_r fupd_ub_wp.
+      fupd_frame_r wand_elim_r fupd_mlift_wp.
   Qed.
 
-  Global Instance elim_modal_fupd_ub_wp_atomic p s E1 E2 e P Φ :
+  Global Instance elim_modal_fupd_mlift_wp_atomic p s E1 E2 e P Φ :
     ElimModal (Atomic (stuckness_to_atomicity s) e) p false
             (|={E1,E2}=> P) P
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
     intros ?.
     by rewrite intuitionistically_if_elim
-      fupd_frame_r wand_elim_r ub_wp_atomic.
+      fupd_frame_r wand_elim_r mlift_wp_atomic.
   Qed.
 
-  Global Instance add_modal_fupd_ub_wp s E e P Φ :
+  Global Instance add_modal_fupd_mlift_wp s E e P Φ :
     AddModal (|={E}=> P) P (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_ub_wp. Qed.
+  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_mlift_wp. Qed.
 
-  Global Instance elim_acc_ub_wp_atomic {X} E1 E2 α β γ e s Φ :
+  Global Instance elim_acc_mlift_wp_atomic {X} E1 E2 α β γ e s Φ :
     ElimAcc (X:=X) (Atomic (stuckness_to_atomicity s) e)
             (fupd E1 E2) (fupd E2 E1)
             α β γ (WP e @ s; E1 {{ Φ }})
             (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
   Proof.
     iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply (ub_wp_wand with "(Hinner Hα)").
+    iApply (mlift_wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  Global Instance elim_acc_ub_wp_nonatomic {X} E α β γ e s Φ :
+  Global Instance elim_acc_mlift_wp_nonatomic {X} E α β γ e s Φ :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
             α β γ (WP e @ s; E {{ Φ }})
             (λ x, WP e @ s; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
   Proof.
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply ub_wp_fupd.
-    iApply (ub_wp_wand with "(Hinner Hα)").
+    iApply mlift_wp_fupd.
+    iApply (mlift_wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 End proofmode_classes.
