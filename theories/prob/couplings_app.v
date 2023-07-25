@@ -3,7 +3,7 @@ From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
-From clutch.prob Require Export countable_sum distribution.
+From clutch.prob Require Export countable_sum distribution couplings.
 
 Open Scope R.
 
@@ -39,7 +39,17 @@ End couplings.
 Section couplings_theory.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
 
-  Lemma Rcoupl_dret (a : A) (b : B) (R : A → B → Prop) :
+  Lemma ARcoupl_mon_grading (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε1 ε2 :
+    (ε1 <= ε2) ->
+    ARcoupl μ1 μ2 R ε1 ->
+    ARcoupl μ1 μ2 R ε2.
+  Proof.
+    intros Hleq HR f g Hf Hg Hfg.
+    specialize (HR f g Hf Hg Hfg).
+    lra.
+  Qed.
+
+  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) :
     R a b → ARcoupl (dret a) (dret b) R 0.
   Proof.
     intro HR.
@@ -255,7 +265,7 @@ Qed.
   Qed.
 
 
-  Lemma Rcoupl_eq (μ1 : distr A) :
+  Lemma ARcoupl_eq (μ1 : distr A) :
     ARcoupl μ1 μ1 (=) 0.
   Proof.
     intros f g Hf Hg Hfg.
@@ -474,7 +484,7 @@ Qed.
   Qed.
 *)
 
-  Lemma Rcoupl_eq_elim (μ1 μ2 : distr A) ε :
+  Lemma ARcoupl_eq_elim (μ1 μ2 : distr A) ε :
     ARcoupl μ1 μ2 (=) ε → forall a, μ1 a <= μ2 a + ε.
   Proof.
     intros Hcoupl a.
@@ -541,11 +551,11 @@ Qed.
 End couplings_theory.
 
 (* TODO: cleanup *)
-Section Rcoupl.
+Section ARcoupl.
   Context `{Countable A, Countable B}.
   Variable (μ1 : distr A) (μ2 : distr B).
 
-  Lemma Rcoupl_trivial :
+  Lemma ARcoupl_trivial :
     SeriesC μ1 = 1 ->
     SeriesC μ2 = 1 ->
     ARcoupl μ1 μ2 (λ _ _, True) 0.
@@ -606,7 +616,7 @@ Section Rcoupl.
       intro b; specialize (Hg b); real_solver.
   Qed.
 
-  Lemma Rcoupl_pos_R R ε :
+  Lemma ARcoupl_pos_R R ε :
     ARcoupl μ1 μ2 R ε → ARcoupl μ1 μ2 (λ a b, R a b ∧ μ1 a > 0 ∧ μ2 b > 0) ε.
   Proof.
     intros Hμ1μ2 f g Hf Hg Hfg.
@@ -634,9 +644,9 @@ Section Rcoupl.
       real_solver.
   Qed.
 
-End Rcoupl.
+End ARcoupl.
 
-Lemma Rcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
+Lemma ARcoupl_dzero_dzero `{Countable A, Countable B} (R : A → B → Prop) :
   ARcoupl dzero dzero R 0.
 Proof.
   intros f g Hf Hg HR.
@@ -644,7 +654,7 @@ Proof.
   do 2 rewrite SeriesC_scal_l; lra.
 Qed.
 
-Lemma Rcoupl_dzero_r_inv `{Countable A, Countable B} μ1 (R : A → B → Prop) :
+Lemma ARcoupl_dzero_r_inv `{Countable A, Countable B} μ1 (R : A → B → Prop) :
   ARcoupl μ1 dzero R 0 → μ1 = dzero.
 Proof.
   intros Hz%ARcoupl_mass_leq.
@@ -653,6 +663,19 @@ Proof.
   assert (0 <= SeriesC μ1); auto.
   lra.
 Qed.
+
+Lemma ARcoupl_dzero `{Countable A, Countable B} (μ : distr B) (R: A → B → Prop) ε :
+    (0 <= ε) ->
+    ARcoupl dzero μ R ε.
+  Proof.
+    intros Hleq f g Hf Hg HR.
+    rewrite {1}/pmf SeriesC_scal_l Rmult_0_l.
+    rewrite <- Rplus_0_l at 1.
+    apply Rplus_le_compat; auto.
+    apply SeriesC_ge_0'.
+    intro; apply Rmult_le_pos; auto.
+    apply Hg.
+  Qed.
 
 (*
 Lemma Rcoupl_dzero_l_inv `{Countable A, Countable B} μ2 (R : A → B → Prop) :
@@ -664,7 +687,7 @@ Proof.
 Qed.
 *)
 
-Lemma Rcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
+Lemma ARcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
   (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε :
   (0 <= ε) ->
   ARcoupl μ1 μ2 (λ a a', R (f a) (g a')) ε → ARcoupl (dmap f μ1) (dmap g μ2) R ε.
@@ -673,7 +696,50 @@ Proof.
   rewrite -(Rplus_0_r ε).
   eapply (ARcoupl_dbind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a')) _ ε 0); auto; [lra |].
   intros a b Hab.
-  apply (Rcoupl_dret (f a) (g b) R Hab).
+  apply (ARcoupl_dret (f a) (g b) R Hab).
+Qed.
+
+Lemma ARcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
+    (0 <= ε1) ->
+    (0 <= ε2) ->
+    ARcoupl μ1 μ2 (=) ε1 ->
+    ARcoupl μ2 μ3 R ε2 ->
+    ARcoupl μ1 μ3 R (ε1 + ε2).
+Proof.
+  intros Hleq1 Hleq2 Heq HR f g Hf Hg Hfg.
+  specialize (HR f g Hf Hg Hfg).
+  eapply Rle_trans; [apply Heq | ]; auto.
+  - intros ? ? ->; lra.
+  - rewrite (Rplus_comm ε1) -Rplus_assoc.
+  apply Rplus_le_compat_r; auto.
+Qed.
+
+Lemma ARcoupl_eq_trans_r `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
+    (0 <= ε1) ->
+    (0 <= ε2) ->
+    ARcoupl μ1 μ2 R ε1 ->
+    ARcoupl μ2 μ3 (=) ε2 ->
+    ARcoupl μ1 μ3 R (ε1 + ε2).
+Proof.
+  intros Hleq1 Hleq2 HR Heq f g Hf Hg Hfg.
+  specialize (HR f g Hf Hg Hfg).
+  eapply Rle_trans; eauto.
+  rewrite (Rplus_comm ε1) -Rplus_assoc.
+  apply Rplus_le_compat_r.
+  apply Heq; eauto.
+  intros; simplify_eq; lra.
+Qed.
+
+(* Maybe this can be generalized, but for now I only need this version *)
+Lemma ARcoupl_from_eq_Rcoupl `{Countable A} (μ1 μ2 : distr A) ε :
+    (0 <= ε) ->
+    Rcoupl μ1 μ2 (=) ->
+    ARcoupl μ1 μ2 (=) ε.
+Proof.
+   intros Hε Hcpl.
+   rewrite (Rcoupl_eq_elim μ1 μ2); auto.
+   apply (ARcoupl_mon_grading _ _ _ 0); auto.
+   apply ARcoupl_eq.
 Qed.
 
 (* I think this should be true, maybe it can be proven through Strassens theorem, but
@@ -703,7 +769,7 @@ Lemma f_inv_cancel_l {A B} f `{Inj A B (=) (=) f, Surj A B (=) f} b :
   f_inv f (f b) = b.
 Proof. apply (inj f), (epsilon_correct _ (surj f (f b))). Qed.
 
-Lemma Rcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
+Lemma ARcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
   ARcoupl (dunif N) (dunif N) (λ n m, m = f n) 0.
 Proof.
   intros g h Hg Hh Hgh.
@@ -712,7 +778,7 @@ Proof.
   *)
 Admitted.
 
-Lemma Rcoupl_dunif_leq (N M : nat):
+Lemma ARcoupl_dunif_leq (N M : nat):
   (N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, n <= m) 0.
 Proof.
 Admitted.

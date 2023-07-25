@@ -165,14 +165,14 @@ Section exec_coupl.
       iLeft. iExists _.
       iSplit; [done|].
       iSplit.
-      { iPureIntro. by apply Rcoupl_pos_R. }
+      { iPureIntro. by apply ARcoupl_pos_R. }
       iIntros ([] [] (?&?&?)). iMod ("H" with "[//]").
       iModIntro. iApply "HZ". eauto.
     - rewrite least_fixpoint_unfold.
       iRight. iLeft. iExists _.
       iSplit; [done|].
       iSplit.
-      { iPureIntro. by apply Rcoupl_pos_R. }
+      { iPureIntro. by apply ARcoupl_pos_R. }
       iIntros ([] (?&?&?)). iMod ("H" with "[//]").
       iModIntro. iApply "HZ". eauto.
     - rewrite least_fixpoint_unfold.
@@ -189,7 +189,7 @@ Section exec_coupl.
       iDestruct "H" as "[(% & % & % & H) | Ht]".
       + iLeft. iExists _. iSplit; [done|].
         iSplit.
-        { iPureIntro. by apply Rcoupl_pos_R. }
+        { iPureIntro. by apply ARcoupl_pos_R. }
         iIntros (??? (?&?&?)). iMod ("H" with "[//]").
         iModIntro. iApply "HZ". eauto.
       + iRight. by iApply ("IH" with "Ht").
@@ -262,7 +262,7 @@ Section exec_coupl.
         eapply (ARcoupl_dbind _ _ _ _ R2); auto.
         - apply cond_nonneg.
         - lra.
-        - intros [] ?? =>/=. apply Rcoupl_dret. eauto.
+        - intros [] ?? =>/=. apply ARcoupl_dret. eauto.
       }
       iIntros ([] [] (? & -> & ?)).
       by iMod ("H" with "[//]").
@@ -277,7 +277,7 @@ Section exec_coupl.
         eapply ARcoupl_dbind; eauto.
         - apply cond_nonneg.
         - lra.
-        - intros [] ?? =>/=. apply Rcoupl_dret. eauto. }
+        - intros [] ?? =>/=. apply ARcoupl_dret. eauto. }
       iIntros ([] (? & -> & ?)).
       by iMod ("H" with "[//]").
     - rewrite least_fixpoint_unfold.
@@ -292,7 +292,7 @@ Section exec_coupl.
         eapply ARcoupl_dbind; eauto.
         - apply cond_nonneg.
         - lra.
-        - intros [] [] ?. apply Rcoupl_dret. eauto. }
+        - intros [] [] ?. apply ARcoupl_dret. eauto. }
       iIntros (?? (? & <-%(inj _) & ?)).
       iMod ("H" with "[//] [//]") as "H".
       iModIntro. iApply "H".
@@ -313,7 +313,7 @@ Section exec_coupl.
           - apply cond_nonneg.
           - lra.
           - intros [] ?? =>/=.
-            apply Rcoupl_dret. eauto. }
+            apply ARcoupl_dret. eauto. }
         iIntros (??? (?& -> & ?)).
         iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
