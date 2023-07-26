@@ -182,58 +182,114 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
+
+  Theorem wp_ARcoupl_step_fupdN (e e' : expr) (σ σ' : state) n φ (ε : nonnegreal) :
+    state_interp σ ∗ spec_interp (e', σ') ∗ spec_ctx ∗ err_interp ε ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ ε⌝.
+  Proof.
+    iInduction n as [|n] "IH" forall (e σ e' σ' ε); iIntros "([Hh Ht] & HspecI_auth & #Hctx & Herr & Hwp)".
+    - rewrite /exec_val /=.
+      destruct (to_val e) eqn:Heq.
+      + apply of_to_val in Heq as <-.
+        rewrite wp_value_fupd.
+        iMod "Hwp" as (v') "[Hspec_frag %]".
+        iInv specN as (ρ e0 σ0 n) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
+        iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
+        iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        erewrite lim_exec_val_exec_det; [|done].
+        iPureIntro.
+        rewrite /dmap.
+        apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
+        by apply ARcoupl_dret.
+      + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iPureIntro.
+        apply ARcoupl_dzero, cond_nonneg.
+    - rewrite exec_val_Sn /prim_step_or_val /=.
+      destruct (to_val e) eqn:Heq.
+      + apply of_to_val in Heq as <-.
+        rewrite wp_value_fupd.
+        iMod "Hwp" as (v') "[Hspec_frag %]".
+        iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
+        iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
+        iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iApply step_fupdN_intro; [done|]. do 4 iModIntro.
+        iPureIntro.
+        rewrite exec_val_unfold dret_id_left /=.
+        erewrite lim_exec_val_exec_det; [|done].
+        apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
+        by apply ARcoupl_dret.
+      + rewrite wp_unfold /wp_pre /= Heq.
+        iMod ("Hwp" with "[$]") as "(%Hred& %ε1 & %ε2 & %Hleq & Hcpl)".
+        iModIntro.
+        iPoseProof
+          (exec_coupl_mono _ (λ '(e2, σ2) '(e2', σ2'), |={∅}▷=>^(S n)
+             ⌜ARcoupl (exec_val n (e2, σ2)) (lim_exec_val (e2', σ2')) φ ε2⌝)%I
+            with "[] Hcpl") as "H".
+        { iIntros ([] []) "H !> !>".
+          iMod "H" as "(Hstate & HspecI_auth & Hwp)".
+          iMod ("IH" with "[$]") as "H".
+          iModIntro. done. }
+        rewrite -exec_val_Sn_not_val; [|done].
+        iAssert
+          (|={∅}▷=> |={∅}▷=>^n ⌜ARcoupl (exec_val (S n) (e, σ)) (lim_exec_val (e',σ')) φ (nnreal_plus ε2 ε1)⌝)%I
+          with "[H]" as "Haux"; last first.
+        {
+           iMod "Haux".
+           do 2 iModIntro.
+           iMod "Haux".
+           iModIntro.
+           iApply (step_fupdN_wand with "Haux").
+           iPureIntro.
+           apply ARcoupl_mon_grading.
+           rewrite nnreal_plus_comm; done.
+        }
+        by iApply (exec_coupl_erasure with "H").
+  Qed.
+
 End adequacy.
 
-(*
 Class clutchGpreS Σ := ClutchGpreS {
   clutchGpreS_iris  :> invGpreS Σ;
   clutchGpreS_heap  :> ghost_mapG Σ loc val;
   clutchGpreS_tapes :> ghost_mapG Σ loc tape;
+  clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
+  clutchGpreS_prog  :> inG Σ (authR progUR);
   clutchGpreS_err   :> ecGpreS Σ;
 }.
 
 Definition clutchΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
+    GFunctor (authUR cfgUR);
+    GFunctor (authUR progUR);
     GFunctor (authR (realUR))].
 Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_union_bound Σ `{clutchGpreS Σ} (e : expr) (σ : state) n (ε : nonnegreal) φ :
-  (∀ `{clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  ub_lift (exec_val n (e, σ)) φ ε.
+Theorem wp_union_bound Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
+  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  ARcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ ε.
 Proof.
   intros Hwp.
   eapply (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (ghost_map_alloc σ'.(heap)) as "[%γHs [Hh_spec _]]".
+  iMod (ghost_map_alloc σ'.(tapes)) as "[%γTs [Ht_spec _]]".
+  iMod (own_alloc ((● (Excl' (e', σ'))) ⋅ (◯ (Excl' (e', σ'))))) as "(%γsi & Hsi_auth & Hsi_frag)".
+  { by apply auth_both_valid_discrete. }
+  iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
+  { by apply auth_both_valid_discrete. }
   iMod ec_alloc as (?) "[? ?]".
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN.
-  iFrame.
-  iApply Hwp.
-  done.
+  set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
+  set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
+  iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
+  { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //.
+  }
+  iApply wp_ARcoupl_step_fupdN.
+  iFrame. iFrame "Hctx".
+  by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.
-
-Lemma ub_lift_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (forall n, ub_lift (exec_val n (e, σ)) φ ε ) ->
-  ub_lift (lim_exec_val (e, σ)) φ ε .
-Proof.
-  intros Hn P HP.
-  apply lim_exec_continous_prob; auto.
-  intro n.
-  apply Hn; auto.
-Qed.
-
-Theorem wp_union_bound_lim Σ `{clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  ub_lift (lim_exec_val (e, σ)) φ ε.
-Proof.
-  intros.
-  apply ub_lift_closed_lim.
-  intro n.
-  apply (wp_union_bound Σ); auto.
-Qed.
-*)
-
