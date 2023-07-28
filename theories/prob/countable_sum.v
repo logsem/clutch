@@ -444,6 +444,16 @@ Section filter.
     ex_seriesC (λ n, if bool_decide (P n) then f n else 0).
   Proof. intros ? [v His]. by eapply is_seriesC_filter_pos. Qed.
 
+
+  Lemma SeriesC_filter_leq f P `{∀ x, Decision (P x)} :
+    (∀ n, 0 <= f n) →
+    ex_seriesC f →
+    SeriesC (λ n, if bool_decide (P n) then f n else 0) <= SeriesC f.
+  Proof. intros ? ?.
+         apply SeriesC_le; auto.
+         intro n; case_bool_decide; simpl; split; auto; lra.
+  Qed.
+
   (* TODO: make a [SeriesC_minus] lemma and cleanup proof *)
   Lemma is_seriesC_filter_union f v P Q `{∀ x, Decision (P x), ∀ x, Decision (Q x)} :
     (∀ n, 0 <= f n) →
@@ -506,6 +516,8 @@ Section filter.
     apply (ex_seriesC_le _ f); auto.
     intro n; specialize (Hpos n); destruct (P n); lra.
   Qed.
+
+
 
 
 End filter.
@@ -619,7 +631,23 @@ Section finite.
     rewrite -SeriesC_finite_mass.
     apply SeriesC_le; [done|]. 
     apply ex_seriesC_finite. 
-  Qed. 
+  Qed.
+
+(*
+
+  We might need the results below to reason about uniform distributions
+
+  Definition extend_fin_to_R {n : nat} (f: fin n -> R) : (nat->R) :=
+   fun x =>
+     match le_lt_dec n x with
+       | left _ => 0%R
+       | right h => f (nat_to_fin h)
+     end.
+
+  Lemma SeriesC_fin_sum {n : nat} (f : fin (S n) -> R) :
+    SeriesC f = sum_n (extend_fin_to_R f) n.
+  Admitted.
+*)
 
 End finite.   
 
@@ -880,5 +908,3 @@ Section mct.
   Admitted.
 
 End mct.
-
-

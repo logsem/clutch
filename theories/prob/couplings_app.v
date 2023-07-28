@@ -3,7 +3,7 @@ From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
-From clutch.prob Require Export countable_sum distribution couplings.
+From clutch.prob Require Export countable_sum distribution couplings union_bounds.
 
 Open Scope R.
 
@@ -276,213 +276,6 @@ Qed.
       intro a; specialize (Hg a); real_solver.
   Qed.
 
-(*
-  Lemma coupl_sym (μ1 : distr A) (μ2 : distr B) :
-    coupl μ1 μ2 -> coupl μ2 μ1.
-  Proof.
-    intros (μ & HμL & HμR).
-    exists (dmap (λ '(a, b), (b, a)) μ); split; apply distr_ext.
-    + intro b.
-      rewrite <- HμR.
-      rewrite lmarg_pmf rmarg_pmf.
-      apply SeriesC_ext; intro a.
-      simpl.
-      rewrite {1}/pmf /= /dbind_pmf /=.
-      rewrite {2}/pmf /= /dret_pmf /=.
-      assert (∀ a0, μ a0 * (if bool_decide ((b, a) = (let '(a1, b0) := a0 in (b0, a1))) then 1 else 0)
-                    = if bool_decide ((a, b) = a0 ) then μ (a, b) else 0) as Heq1.
-      { intros (a' & b').
-        case_bool_decide; case_bool_decide; simplify_eq; try lra.
-      }
-      rewrite (SeriesC_ext _ _ Heq1).
-      apply SeriesC_singleton'.
-    + intro a.
-      rewrite <- HμL.
-      rewrite lmarg_pmf rmarg_pmf.
-      apply SeriesC_ext; intro b.
-      simpl.
-      rewrite {1}/pmf /= /dbind_pmf /=.
-      rewrite {2}/pmf /= /dret_pmf /=.
-      assert (∀ a0, μ a0 * (if bool_decide ((b, a) = (let '(a1, b0) := a0 in (b0, a1))) then 1 else 0)
-                    = if bool_decide ((a, b) = a0 ) then μ (a, b) else 0) as Heq1.
-      { intros (a' & b').
-        case_bool_decide; case_bool_decide; simplify_eq; try lra. }
-      rewrite (SeriesC_ext _ _ Heq1).
-      apply SeriesC_singleton'.
-  Qed.
-
-  Lemma coupl_dbind (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) :
-    (∀ a b, coupl (f a) (g b)) → coupl μ1 μ2 → coupl (dbind f μ1) (dbind g μ2).
-  Proof.
-    intros Hfg (μ & Hμ).
-    rewrite /coupl in Hfg.
-    assert (∀ (p : A * B), ∃ μ : distr (A' * B'), isCoupl (f p.1) (g p.2) μ) as Hfg'; auto.
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as Ch.
-    rewrite /coupl.
-    destruct Ch as (Ch & HCh).
-    exists (dbind Ch μ); split.
-    + apply distr_ext; intro a'.
-      rewrite lmarg_pmf.
-      rewrite {1 2}/pmf/=/dbind_pmf.
-      rewrite <- distr_double_swap_lmarg.
-      setoid_rewrite SeriesC_scal_l.
-      assert (∀ p , μ p * SeriesC (λ b' : B', Ch p (a', b')) = μ p * f p.1 a') as Heq2.
-      { intros (a & b).
-        specialize (HCh (a, b)) as (HChL & HChR).
-        rewrite <- HChL.
-        rewrite lmarg_pmf.
-        auto.
-      }
-      rewrite (SeriesC_ext _ _ Heq2).
-      rewrite fubini_pos_seriesC_prod_lr; auto.
-      2:{simpl; intros; apply Rmult_le_pos; auto. }
-      2:{apply (ex_seriesC_le _ μ); auto.
-         intros; split; [apply Rmult_le_pos; auto | ].
-         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-         apply Rle_refl.
-      }
-      assert (∀ a : A, SeriesC (λ b : B, μ (a, b) * f (a, b).1 a')
-               = SeriesC (λ b : B, μ (a, b) ) * f a a') as Heq3.
-      {
-        intro a; simpl; apply SeriesC_scal_r.
-      }
-      rewrite (SeriesC_ext _ _ Heq3).
-      assert (∀ a, SeriesC (λ b : B, μ (a, b)) = μ1 a) as Heq4.
-      {
-        intro a.
-        destruct Hμ as (Hμ1 & Hμ2).
-        rewrite <- Hμ1;
-        rewrite lmarg_pmf; auto.
-      }
-      apply SeriesC_ext.
-      intro a.
-      rewrite (Heq4 a); auto.
-    (* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
-    + apply distr_ext; intro b'.
-      rewrite rmarg_pmf.
-      rewrite {1 2}/pmf/=/dbind_pmf.
-      rewrite <- distr_double_swap_rmarg.
-      setoid_rewrite SeriesC_scal_l.
-      assert (∀ p , μ p * SeriesC (λ a' : A', Ch p (a', b')) = μ p * g p.2 b') as Heq2.
-      { intros (a & b).
-        specialize (HCh (a, b)) as (HChL & HChR).
-        rewrite <- HChR.
-        rewrite rmarg_pmf.
-        auto.
-      }
-      rewrite (SeriesC_ext _ _ Heq2).
-      rewrite fubini_pos_seriesC_prod_rl; auto.
-      2:{simpl; intros; apply Rmult_le_pos; auto. }
-      2:{apply (ex_seriesC_le _ μ); auto.
-         intros; split; [apply Rmult_le_pos; auto | ].
-         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-         apply Rle_refl.
-      }
-      assert (∀ b : B, SeriesC (λ a : A, μ (a, b) * g (a, b).2 b')
-               = SeriesC (λ a : A, μ (a, b) ) * g b b') as Heq3.
-      {
-        intro b; simpl; apply SeriesC_scal_r.
-      }
-      rewrite (SeriesC_ext _ _ Heq3).
-      assert (∀ b, SeriesC (λ a : A, μ (a, b)) = μ2 b) as Heq4.
-      {
-        intro b.
-        destruct Hμ as (Hμ1 & Hμ2).
-        rewrite <- Hμ2;
-        rewrite rmarg_pmf; auto.
-      }
-      apply SeriesC_ext.
-      intro b.
-      rewrite (Heq4 b); auto.
-  Qed.
-
-
-  Lemma Rcoupl_dbind (f : A → distr A') (g : B → distr B')
-    (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
-      (∀ a b, R a b → Rcoupl (f a) (g b) S) → Rcoupl μ1 μ2 R → Rcoupl (dbind f μ1) (dbind g μ2) S.
-  Proof.
-    intros Hfg (μ & HμC & HμS).
-    rewrite /Rcoupl /isRcoupl in Hfg.
-    (* First we rewrite Hfg to be able to use Choice *)
-    assert (∀ p, ∃ μ', R p.1 p.2 →
-                       (isCoupl (f p.1) (g p.2) μ' ∧ (∀ q : A' * B', μ' q > 0 → S q.1 q.2)))
-      as Hfg'; auto.
-    {
-      intro p.
-      specialize (HμS p).
-      specialize (Hfg p.1 p.2).
-      pose proof (ExcludedMiddle (R p.1 p.2)) as H3; destruct H3 as [HR | HnR].
-      + specialize (Hfg HR).
-        destruct Hfg as (μ' & Hμ'1 & Hμ'2).
-        exists μ'; auto.
-      + exists dzero; intro ; done.
-    }
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as (Ch & HCh).
-    rewrite /Rcoupl /isRcoupl.
-    exists (dbind Ch μ); split; try split.
- (* To prove that the first marginal coincides is a matter of rearranging the sums and using the
-    fact that μ and (Ch p) are couplings *)
-    + apply distr_ext; intro a'.
-      rewrite lmarg_pmf.
-      rewrite {1 2}/pmf/=/dbind_pmf.
-      rewrite <- distr_double_swap_lmarg.
-      setoid_rewrite SeriesC_scal_l.
-      erewrite (SeriesC_ext _ (λ p, μ p * f p.1 a')); last first.
-      { intros (a & b).
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
-        - pose proof (pmf_pos μ (a, b)); lra.
-        - rewrite Heqz; lra.
-        - specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
-          rewrite -HChL lmarg_pmf //=. }
-      rewrite fubini_pos_seriesC_prod_lr; auto.
-      2:{simpl; intros; apply Rmult_le_pos; auto. }
-      2:{apply (ex_seriesC_le _ μ); auto.
-         intros; split; [apply Rmult_le_pos; auto | ].
-         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-         apply Rle_refl.
-      }
-      erewrite (SeriesC_ext _ (λ a, SeriesC (λ b : B, μ (a, b) ) * f a a'));
-      [ | intro a; simpl; apply SeriesC_scal_r ].
-      erewrite (SeriesC_ext _ (λ a, (μ1 a) * f a a')); auto.
-      intro a.
-      destruct HμC as (Hμ1 & Hμ2).
-      rewrite <- Hμ1;
-      rewrite lmarg_pmf; auto.
-    (* The second half is esentially the same as the first, can it be proven somehow by symmetry? *)
-    + apply distr_ext; intro b'.
-      rewrite rmarg_pmf.
-      rewrite {1 2}/pmf/=/dbind_pmf.
-      rewrite <- distr_double_swap_rmarg.
-      setoid_rewrite SeriesC_scal_l.
-      erewrite (SeriesC_ext _ (λ p, μ p * g p.2 b')); last first.
-      {intros (a & b);
-        destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]];
-        [ pose proof (pmf_pos μ (a, b)); lra | rewrite Heqz; lra |
-        specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS);
-        rewrite -HChR rmarg_pmf //=].
-       }
-      rewrite fubini_pos_seriesC_prod_rl; auto.
-      2:{simpl; intros; apply Rmult_le_pos; auto. }
-      2:{apply (ex_seriesC_le _ μ); auto.
-         intros; split; [apply Rmult_le_pos; auto | ].
-         rewrite <- Rmult_1_r; apply Rmult_le_compat; auto.
-         apply Rle_refl.
-      }
-      erewrite (SeriesC_ext _ (λ b, SeriesC (λ a : A, μ (a, b) ) * g b b'));
-      [ | intro b; simpl; apply SeriesC_scal_r].
-      erewrite (SeriesC_ext _ (λ b, (μ2 b) * g b b')); auto.
-      intro b.
-      destruct HμC as (Hμ1 & Hμ2).
-      rewrite <- Hμ2;
-      rewrite rmarg_pmf; auto.
-    + intros (a' & b') H3; simpl.
-      pose proof (dbind_pos Ch μ (a', b')) as (H4 & H5).
-      specialize (H4 H3) as ((a0, b0) & H7 & H8).
-      specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
-      specialize (HCh2 (a', b') H7).
-      done.
-  Qed.
-*)
 
   Lemma ARcoupl_eq_elim (μ1 μ2 : distr A) ε :
     ARcoupl μ1 μ2 (=) ε → forall a, μ1 a <= μ2 a + ε.
@@ -779,9 +572,120 @@ Proof.
 Admitted.
 
 Lemma ARcoupl_dunif_leq (N M : nat):
-  (N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, n <= m) 0.
+  (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((M-N)/N).
 Proof.
+  intros Hleq f g Hf Hg Hfg.
+  eapply Rle_trans; last first.
+  - rewrite -(Rmult_1_l ((M - N) / N)).
+    rewrite (Rinv_r_sym (card (fin M))); [ | rewrite fin_card; lra].
+    rewrite -SeriesC_finite_mass fin_card -SeriesC_scal_r -SeriesC_plus.
+    + eapply (SeriesC_filter_leq _ (λ n : fin M, (n < N))); [ | apply ex_seriesC_finite].
+      intro; apply Rplus_le_le_0_compat; apply Rmult_le_pos; auto.
+      * apply Hg.
+      * left. apply Rinv_0_lt_compat; lra.
+      * apply Rmult_le_pos; [lra | ].
+        left. apply Rinv_0_lt_compat; lra.
+    + apply ex_seriesC_finite.
+    + apply ex_seriesC_finite.
+  - simpl.
+    eapply Rle_trans; last first.
+    * eapply (SeriesC_le (λ n : fin M, (if bool_decide (n < N) then (1/N) * g n else 0))) ; [ | apply ex_seriesC_finite].
+      intro; split.
+      -- case_bool_decide; [ | lra].
+         apply Rmult_le_pos; [ | apply Hg].
+         apply Rmult_le_pos; [ lra | ].
+         left; apply Rinv_0_lt_compat, Hleq.
+      -- case_bool_decide; try lra.
+         rewrite /pmf/= Rplus_comm.
+         apply Rle_minus_l.
+         rewrite -Rmult_minus_distr_r.
+         apply (Rle_trans _ (1 / N - / M)).
+         ++ rewrite <- Rmult_1_r.
+            apply Rmult_le_compat_l; [ | apply Hg ].
+            apply Rle_minus_r.
+            rewrite Rplus_0_l /Rdiv Rmult_1_l.
+            apply Rinv_le_contravar; apply Hleq.
+         ++ replace (/ M) with (1 / M) by nra.
+            rewrite Rdiv_minus; try lra.
+            do 3 rewrite /Rdiv.
+            do 3 rewrite Rmult_1_l.
+            rewrite (Rmult_comm N).
+            rewrite (Rmult_comm (/M)).
+            rewrite (Rmult_assoc).
+            apply Rmult_le_compat_l; [lra | ].
+            rewrite Rinv_mult; nra.
+    * (* There should be an external lemma for this last bit *)
+      admit.
 Admitted.
+
+(* Note the asymmetry on the error wrt to the previous lemma *)
+Lemma ARcoupl_dunif_leq_rev (N M : nat):
+  (0 < N <= M) -> ARcoupl (dunif M) (dunif N) (λ m n, fin_to_nat m = n) ((M-N)/M).
+Proof.
+  intros Hleq f g Hf Hg Hfg.
+  rewrite /pmf/=.
+  do 2 rewrite SeriesC_scal_l.
+  rewrite Rmult_comm.
+  apply Rle_div_r.
+  - apply Rlt_gt.
+    apply Rinv_0_lt_compat; lra.
+  - rewrite /Rdiv Rinv_inv Rmult_plus_distr_r.
+    rewrite (Rmult_assoc (M-N)) Rinv_l; [ | lra].
+    rewrite Rmult_1_r Rplus_comm.
+    assert (SeriesC f <= SeriesC g + (M - N)) as Haux.
+    { admit. }
+    apply (Rle_trans _ (SeriesC g + (M - N))); auto.
+    { (*?!*) admit. }
+    rewrite Rplus_comm.
+    apply Rplus_le_compat_l.
+Admitted.
+
+Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
+  ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
+  ub_lift μ1 P ε' ->
+  ARcoupl μ1 μ2 Q (ε + ε').
+Proof.
+  intros Hcpl Hub f g Hf Hg Hfg.
+  set (P' := λ a, @bool_decide (P a) (make_decision (P a))).
+  set (f' := λ a, if @bool_decide (P a) (make_decision (P a)) then f a else 0).
+  epose proof (Hub P' _) as Haux.
+  Unshelve.
+  2:{
+    intros a Ha; rewrite /P'.
+    case_bool_decide; auto.
+  }
+  rewrite /prob in Haux.
+  rewrite -Rplus_assoc.
+  eapply Rle_trans; [ | apply Rplus_le_compat_l, Haux].
+  eapply Rle_trans; last first.
+  - eapply Rplus_le_compat_r.
+    eapply (Hcpl f' g); auto.
+    + intro a; specialize (Hf a).
+      rewrite /f'; real_solver.
+    + intros a b HPQ; rewrite /f'.
+      case_bool_decide; [apply Hfg; auto | apply Hg ].
+  - rewrite /f' /P' -SeriesC_plus.
+    + apply SeriesC_le.
+      * intro a; specialize (Hf a); split; [real_solver |].
+        case_bool_decide; simpl; [lra | ].
+        rewrite Rmult_0_r Rplus_0_l.
+        real_solver.
+      * apply (ex_seriesC_le _ (λ x, (μ1 x)*2)); [ | apply ex_seriesC_scal_r; auto].
+        intro a; specialize (Hf a); split.
+        -- case_bool_decide; simpl.
+           ++ rewrite Rplus_0_r. real_solver.
+           ++ rewrite Rmult_0_r Rplus_0_l //.
+        -- case_bool_decide; simpl.
+           ++ rewrite Rplus_0_r. real_solver.
+           ++ rewrite Rmult_0_r Rplus_0_l //.
+              rewrite <- Rmult_1_r at 1.
+              real_solver.
+    + apply (ex_seriesC_le _ μ1); auto.
+      intro a; specialize (Hf a); real_solver.
+    + apply (ex_seriesC_le _ μ1); auto.
+      intro a; specialize (Hf a); real_solver.
+Qed.
+
 
 
 (* Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B} *)
