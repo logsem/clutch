@@ -4,32 +4,12 @@ From iris.base_logic.lib Require Import fancy_updates ghost_map.
 From iris.bi Require Export fixpoint big_op.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.tpr Require Import weakestpre spec.
 From clutch.prob_lang Require Import lang.
+From clutch.tpr Require Import weakestpre spec.
+From clutch.tpr.prob_lang Require Import primitive_laws.
 From clutch.prob Require Import couplings distribution markov.
 
 (* TODO: generalize to any language *)
-
-(* TODO: move *)
-Class tprG A Σ := TprG {
-  tprG_invG :> invGS_gen HasNoLc Σ;
-  tprG_heap  : ghost_mapG Σ loc val;
-  tprG_tapes : ghost_mapG Σ loc tape;
-  tprG_heap_name : gname;
-  tprG_tapes_name : gname;
-  tprG_specG :> specG A Σ;
-}.
-
-Definition heap_auth `{tprG Σ} :=
-  @ghost_map_auth _ _ _ _ _ tprG_heap tprG_heap_name.
-Definition tapes_auth `{tprG Σ} :=
-  @ghost_map_auth _ _ _ _ _ tprG_tapes tprG_tapes_name.
-
-Global Instance tprG_tprwpG `{!tprG A Σ} : tprwpG prob_lang Σ := {
-  iris_invGS := _;
-  state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-}.
-
 Section adequacy.
   Context {A B} `{Countable A, Countable B, !markov A B, tprG A Σ}.
   Implicit Type e : expr.
@@ -154,21 +134,6 @@ Section adequacy.
   Qed.
 
 End adequacy.
-
-Class tprGpreS A Σ := TprGpreS {
-  tprGpre_iris  :> invGpreS Σ;
-  tprGpre_heap  :> ghost_mapG Σ loc val;
-  tprGpre_tapes :> ghost_mapG Σ loc tape;
-  tpr_spec      :> specPreG A Σ;
-}.
-
-Definition tprΣ A: gFunctors :=
-  #[invΣ;
-    ghost_mapΣ loc val;
-    ghost_mapΣ loc tape;
-    specΣ A].
-Global Instance subG_tprGPreS {A Σ} : subG (tprΣ A) Σ → tprGpreS A Σ.
-Proof. solve_inG. Qed.
 
 Theorem wp_refRcoupl `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a n φ :
   (∀ `{!tprG A Σ},

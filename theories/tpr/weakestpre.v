@@ -628,7 +628,7 @@ Proof.
   by iMod ("Hswp" with "[//]").
 Qed.
 
-Lemma rwp_take_steps n P E e Φ:
+Lemma rwp_spec_steps n P E e Φ:
   to_val e = None →
   (P -∗ RSWP e at n @ E ⟨⟨ Φ ⟩⟩) ∗ spec_update n E P ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
 Proof.
@@ -648,7 +648,7 @@ Proof.
   by iMod ("H" with "[//]").
 Qed.
 
-Lemma rswp_do_step k E e Φ :
+Lemma rswp_later k E e Φ :
   ▷ RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at (S k) @ E ⟨⟨ Φ ⟩⟩.
 Proof.
   rewrite 2!rswp_unfold /rswp_def /rswp_step.

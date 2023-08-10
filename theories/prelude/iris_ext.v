@@ -88,6 +88,31 @@ Section fupd_plainly_derived.
 
 End fupd_plainly_derived.
 
+Section step_fupdN.
+  Context {PROP : bi} `{FU: BiFUpd PROP}.
+
+  Lemma step_fupdN_mask_comm n E1 E2 E3 E4 (P: PROP):
+    E1 ⊆ E2 → E4 ⊆ E3 →
+    ((|={E1, E2}=>|={E2}[E3]▷=>^n P) ⊢ |={E1}[E4]▷=>^n |={E1, E2}=> P)%I.
+  Proof.
+    iIntros (Hsub1 Hsub2) "H". iInduction n as [|n] "IH"; auto; simpl.
+    iMod "H". iMod "H". iMod (fupd_mask_subseteq E4) as "Hclose"; auto.
+    iModIntro. iNext. iMod "Hclose". iMod "H".
+    iMod (fupd_mask_subseteq E1) as "Hclose'"; auto.
+    iModIntro. iApply "IH". iMod "Hclose'". by iModIntro.
+  Qed.
+
+  Lemma step_fupdN_mask_comm' n E1 E2 (P: PROP):
+    E2 ⊆ E1 →
+    ((|={E1}[E1]▷=>^n |={E1, E2}=> P) ⊢ |={E1, E2}=> |={E2}[E2]▷=>^n P)%I.
+  Proof.
+    iIntros (Hsub) "H". iInduction n as [|n] "IH"; auto; simpl.
+    iMod "H". iMod (fupd_mask_subseteq E2) as "Hclose"; auto.
+    do 2 iModIntro. iNext. iMod "Hclose". iMod "H". by iApply "IH".
+  Qed.
+
+End step_fupdN.
+
 Section class_instance_updates.
   Context {PROP : bi}.
 
