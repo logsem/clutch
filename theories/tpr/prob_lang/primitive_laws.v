@@ -60,7 +60,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 Section rwp.
-  Context  `{spec A B Σ} `{!tprG A Σ}.
+  Context  `{markov A B} `{!tprG A Σ}.
 
   (** * RSWP  *)
   Lemma rswp_alloc k E v :
@@ -151,5 +151,44 @@ Section rwp.
   Qed.
 
 End rwp.
+
+Section coupl.
+  Context `{markov A B} `{!tprG A Σ}.
+
+  Lemma rwp_couple (N : nat) (z : Z) E R a1 :
+    TCEq N (Z.to_nat z) →
+    Rcoupl (dunifP N) (step a1) R →
+    ⟨⟨⟨ specF a1 ⟩⟩⟩ rand #z from #() @ E ⟨⟨⟨ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R n a2⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (-> ? Φ) "Ha HΦ".
+    iApply rwp_lift_step_fupd_coupl; [done|].
+    iIntros (σ1 a) "[Hσ1 HaA]".
+    iDestruct (spec_auth_agree with "HaA Ha") as %->.
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose".
+    assert (head_reducible (rand #z from #()) σ1) as hr.
+    { eexists (_, _).
+      apply head_step_support_equiv_rel.
+      by eapply (RandNoTapeS _ _ 0%fin). }
+    iApply rwp_coupl_steps.
+    iExists (λ '(e2, σ2) a2, ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R n a2).
+    iSplit.
+    { iPureIntro. by apply head_prim_reducible. }
+    iSplit.
+    { iPureIntro. simpl.
+      rewrite head_prim_step_eq //=.
+      rewrite -(dret_id_right (step _)).
+      eapply Rcoupl_dbind; [|done].
+      intros n a2 HR.
+      apply Rcoupl_dret. eauto. }
+    iIntros ([? ?] a2) "[%n (-> & -> & %)] !> !> !>".
+    iMod (spec_auth_update a2 with "HaA Ha") as "[HaA Ha]".
+    iMod "Hclose" as "_".
+    iModIntro.
+    iFrame.
+    iApply rwp_value.
+    iApply "HΦ". by iFrame.
+  Qed.
+End coupl.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
