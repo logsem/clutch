@@ -1251,13 +1251,6 @@ Section iterM.
 
 End iterM.
 
-(* TODO: goes somewhere else? *)
-(* The lemmas about [Finite A] make use of the [Countable A] instance
-   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
-   already exists another instance. We give the highest priority ([0]) to
-   [finite_countable] to be able to use the lemmas. *)
-Local Existing Instance finite_countable | 0.
-
 (** * Coins  *)
 Definition fair_coin_pmf : bool → R :=
   λ _, 0.5.
@@ -1273,6 +1266,20 @@ Proof.
   rewrite /pmf/=/fair_coin/=/fair_coin_pmf.
   rewrite SeriesC_finite_mass /=. lra.
 Qed.
+
+Lemma fair_coin_dbind_mass `{Countable A} (f : bool → distr A) :
+  SeriesC (fair_coin ≫= f) = 1 / 2 * SeriesC (f true) + 1 / 2 * SeriesC (f false).
+Proof.
+  rewrite {1}/pmf /= /dbind_pmf.
+  rewrite (fubini_pos_seriesC (λ '(a, b), fair_coin a * f a b)).
+  - rewrite SeriesC_bool.
+    rewrite 2!SeriesC_scal_l.
+    rewrite {1 3}/pmf /= /fair_coin_pmf.
+    lra.
+  - real_solver.
+  - intros b. by apply ex_seriesC_scal_l.
+  - eapply ex_seriesC_finite.
+Qed.  
 
 (* We may need this generality later, but I think it is better to define the fair coin explicitly *)
 Definition biased_coin_pmf r : bool → R :=
@@ -1366,6 +1373,10 @@ Section dzero.
   Lemma dzero_ext (μ : distr A) :
     (∀ a, μ a = 0) → μ = dzero.
   Proof. intros ?; by apply distr_ext. Qed.
+
+  Lemma dzero_0 `{Countable A} (a : A) :
+    dzero a = 0.
+  Proof. done. Qed. 
 
   Lemma dzero_supp_empty (a : A) :
     ¬ (dzero a > 0).

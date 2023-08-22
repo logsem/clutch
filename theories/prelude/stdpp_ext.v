@@ -243,6 +243,25 @@ Section countable.
 
 End countable.
 
+Lemma encode_nat_nat (n : nat) :
+  encode_nat n = n.
+Proof.
+  unfold encode_nat, encode; simpl.
+  unfold encode; simpl. 
+  case_match; lia.
+Qed.
+
+Lemma encode_inv_nat_Some_inj (n n' : nat) :
+  encode_inv_nat n = Some n' → n = n'.
+Proof.
+  intros H%encode_inv_Some_nat.
+  by rewrite encode_nat_nat in H.
+Qed.
+
+Lemma encode_inv_nat_None (n : nat) :
+  ¬ (@encode_inv_nat nat _ _ n = None).
+Proof. by rewrite <-(encode_nat_nat n), encode_inv_encode_nat. Qed.  
+
 Section finite. 
   Context `{Finite A}.
   

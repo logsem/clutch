@@ -514,6 +514,38 @@ Section filter.
 
 End filter.
 
+Lemma SeriesC_Series_nat (f : nat → R)  :
+  SeriesC f = Series f.
+Proof.
+  rewrite /SeriesC.
+  erewrite Series_ext; [done|]. 
+  rewrite /countable_sum /from_option /= => n.  
+  case_match eqn:He.
+  - by apply encode_inv_nat_Some_inj in He as ->.
+  - by apply encode_inv_nat_None in He.
+Qed. 
+
+Lemma is_seriesC_is_series_nat (f : nat → R) v :
+  is_series f v → is_seriesC f v.
+Proof. 
+  intros Hf.
+  eapply is_series_ext; [|done]=> n.
+  rewrite /is_seriesC /countable_sum /from_option /=.
+  case_match eqn:He.
+  - by apply encode_inv_nat_Some_inj in He as ->.
+  - by apply encode_inv_nat_None in He.
+Qed.
+
+Lemma SeriesC_bool (f : bool → R) :
+  SeriesC f = f true + f false.
+Proof.
+  rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then f true else 0) +
+                                if bool_decide (b = false) then f false else 0)).
+  { rewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
+    rewrite 2!SeriesC_singleton //. }
+  intros []; simpl; lra.
+Qed.
+
 Section strict.
   Context `{Countable A}.
 
