@@ -56,7 +56,7 @@ From iris.proofmode Require Import coq_tactics ltac_tactics reduction proofmode.
 From clutch.tpr Require Import weakestpre spec lifting ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.tpr.prob_lang Require Import primitive_laws.
+From clutch.tpr.prob_lang Require Import primitive_laws adequacy.
 From clutch.lib Require Import flip conversion.
 
 Definition while (cond body : expr) : expr :=
@@ -339,6 +339,24 @@ Section random_walk.
       iIntros "Hl".
       rwp_pures.
       by iApply "HΦ".
-  Qed. 
+  Qed.
 
 End random_walk.
+
+Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation almost_surely_terminates ρ := (SeriesC (lim_exec_val ρ) = 1%R).
+
+Theorem prog_random_walk_terminates :
+  almost_surely_terminates (prog_random_walk, σ₀).
+Proof.
+  eapply Rle_antisym; [done|].
+  transitivity (SeriesC (lim_exec true)).
+  { by rewrite random_walk_terminates. }
+  eapply (wp_refRcoupl_mass (tprΣ bool)).
+  iIntros (?) "Ha".
+  rwp_apply (random_walk_ref with "Ha").
+  iIntros "Ha".
+  iExists _. iFrame.
+  iPureIntro.
+  by eapply to_final_Some_2.
+Qed.
