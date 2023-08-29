@@ -2,18 +2,50 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From clutch.prob Require Import distribution couplings.
 
-Class markov (A B : Type) `{Countable A} := Markov {
-  step     : A → distr A;
-  to_final : A → option B;
+Section markov_mixin.
+  Context `{Countable mstate, Countable mstate_ret}.
+  Context (step : mstate → distr mstate).
+  Context (to_final : mstate → option mstate_ret).
 
-  to_final_is_final a a' :
-    is_Some (to_final a) → step a a' = 0;
+  Record MarkovMixin := {
+    mixin_to_final_is_final a :
+      is_Some (to_final a) → ∀ a', step a a' = 0;
+  }.
+End markov_mixin.
+
+Structure markov := Markov {
+  mstate : Type;
+  mstate_ret : Type;
+
+  mstate_eqdec : EqDecision mstate;
+  mstate_count : Countable mstate;
+  mstate_ret_eqdec : EqDecision mstate_ret;                     
+  mstate_ret_count : Countable mstate_ret;
+                     
+  step     : mstate → distr mstate;
+  to_final : mstate → option mstate_ret;
+
+  markov_mixin : MarkovMixin step to_final;                       
 }.
+#[global] Arguments Markov {_ _ _ _ _ _} _ _ _.
+#[global] Arguments step {_}.
+#[global] Arguments to_final {_}.
+
+#[global] Existing Instance mstate_eqdec.
+#[global] Existing Instance mstate_count.
+#[global] Existing Instance mstate_ret_eqdec.
+#[global] Existing Instance mstate_ret_count.
 
 Section is_final.
-  Context `{markov A B}.
+  Context {δ : markov}.
+  Implicit Types a : mstate δ.
+  Implicit Types b : mstate_ret δ.
 
-  Definition is_final (a : A) := is_Some (to_final a).
+  Lemma to_final_is_final a :
+    is_Some (to_final a) → ∀ a', step a a' = 0.
+  Proof. apply markov_mixin. Qed. 
+
+  Definition is_final a := is_Some (to_final a).
 
   Lemma to_final_None a : ¬ is_final a ↔ to_final a = None.
   Proof. rewrite eq_None_not_Some //. Qed.
@@ -39,42 +71,43 @@ Section is_final.
     apply distr_ext=> a'.
     rewrite to_final_is_final //.
   Qed.
-  
+
 End is_final.
 
-Global Hint Extern 0 (is_final _) => eapply to_final_Some_2 : markov.
-Global Hint Extern 0 (¬ is_final _) => apply to_final_None_2 : markov.
-Global Hint Extern 0 (to_final _ = None) => apply to_final_None_1  : markov.
-Global Hint Extern 0 (∃ _, to_final _ = Some _) => apply to_final_Some_2 : markov.
+#[global] Hint Extern 0 (is_final _) => eapply to_final_Some_2 : markov.
+#[global] Hint Extern 0 (¬ is_final _) => apply to_final_None_2 : markov.
+#[global] Hint Extern 0 (to_final _ = None) => apply to_final_None_1  : markov.
+#[global] Hint Extern 0 (∃ _, to_final _ = Some _) => apply to_final_Some_2 : markov.
 
-(** Strict partial evaluation  *)
-Section stepN.
-  Context {A B : Type} `{markov A B}.
-  Implicit Types a : A.
+Section markov.
+  Context {δ : markov}. 
+  Implicit Types a : mstate δ.
+  Implicit Types b : mstate_ret δ.
 
-  Definition stepN (n : nat) (a : A) : distr A := iterM n step a.
-                                                        
+  (** Strict partial evaluation  *)
+  Definition stepN (n : nat) a : distr (mstate δ) := iterM n step a.
+
   Lemma stepN_O a :
-    stepN 0 a = dret a. 
+    stepN 0 a = dret a.
   Proof. done. Qed.
 
   Lemma stepN_Sn a n :
     stepN (S n) a = step a ≫= stepN n.
   Proof. done. Qed.
 
-  Lemma stepN_plus (a : A) (n m : nat) :
+  Lemma stepN_plus a (n m : nat) :
     stepN (n + m) a = stepN n a ≫= stepN m.
   Proof. apply iterM_plus. Qed.
 
   Lemma stepN_Sn_inv n a0 a2 :
     stepN (S n) a0 a2 > 0 →
     ∃ a1, step a0 a1 > 0 ∧ stepN n a1 a2 > 0.
-  Proof. intros (?&?&?)%dbind_pos. eauto. Qed. 
+  Proof. intros (?&?&?)%dbind_pos. eauto. Qed.
 
   Lemma stepN_det_steps n m a1 a2 :
     stepN n a1 a2 = 1 →
     stepN n a1 ≫= stepN m = stepN m a2.
-  Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.  
+  Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
 
   Lemma stepN_det_trans n m a1 a2 a3 :
     stepN n a1 a2 = 1 →
@@ -87,17 +120,10 @@ Section stepN.
       with (stepN m a2); [|by rewrite dret_id_left].
     intros ->%pmf_1_eq_dret.
     by apply dret_1.
-  Qed.               
-          
-End stepN. 
+  Qed.
 
-(** Non-strict partial evaluation *)
-Section pexec.
-  Context {A B : Type} `{Countable A, !markov A B}.
-  Implicit Types a : A.
-  Implicit Types b : B.
-
-  Definition step_or_final a : distr A :=
+  (** Non-strict partial evaluation *)
+  Definition step_or_final a : distr (mstate δ) :=
     match to_final a with
     | Some _ => dret a
     | None => step a
@@ -111,7 +137,7 @@ Section pexec.
     is_final a → step_or_final a = dret a.
   Proof. rewrite /step_or_final /=. by intros [? ->]. Qed.
 
-  Definition pexec (n : nat) a : distr A := iterM n step_or_final a.
+  Definition pexec (n : nat) a : distr (mstate δ) := iterM n step_or_final a.
 
   Lemma pexec_O a :
     pexec 0 a = dret a.
@@ -146,13 +172,13 @@ Section pexec.
     induction n.
     - rewrite pexec_O //.
     - rewrite pexec_Sn step_or_final_is_final //.
-      rewrite dret_id_left -IHn //. 
+      rewrite dret_id_left -IHn //.
   Qed.
 
   Lemma pexec_no_final a n :
     ¬ is_final a →
     pexec (S n) a = step a ≫= pexec n.
-  Proof. intros. rewrite pexec_Sn step_or_final_no_final //. Qed. 
+  Proof. intros. rewrite pexec_Sn step_or_final_no_final //. Qed.
 
   Lemma pexec_det_step n a1 a2 a0 :
     step a1 a2 = 1 →
@@ -172,18 +198,8 @@ Section pexec.
     pexec n a1 ≫= pexec m = pexec m a2.
   Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
   
-
-End pexec.
-
-Global Arguments pexec {_ _ _ _ _} _ _ : simpl never.
-
-(** Stratified evaluation to a final state *)
-Section exec.
-  Context {A B : Type} `{Countable A, Countable B, !markov A B}.
-  Implicit Types a : A.
-  Implicit Types b : B.
-
-  Fixpoint exec (n : nat) (a : A) {struct n} : distr B :=
+  (** Stratified evaluation to a final state *)
+  Fixpoint exec (n : nat) (a : mstate δ) {struct n} : distr (mstate_ret δ) :=
     match to_final a, n with
       | Some b, _ => dret b
       | None, 0 => dzero
@@ -254,8 +270,8 @@ Section exec.
   Lemma exec_O_not_final a :
     ¬ is_final a →
     exec 0 a = dzero.
-  Proof. intros ?%to_final_None_1 =>/=; by case_match. Qed. 
-  
+  Proof. intros ?%to_final_None_1 =>/=; by case_match. Qed.
+
   Lemma exec_Sn_not_final a n :
     ¬ is_final a →
     exec (S n) a = step a ≫= exec n.
@@ -337,15 +353,7 @@ Section exec.
     - by apply upper_bound_ge_sup=>/=.
   Qed.
 
-End exec.
-
-(** Full evaluation to a final state *)
-Section lim_exec.
-  Context {A B : Type} `{Countable A, Countable B, !markov A B}.
-  Implicit Types a : A.
-  Implicit Types b : B.
-
-  Definition lim_exec (a : A) : distr B := lim_distr (λ n, exec n a) (exec_mono a).
+  Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a).
 
   Lemma lim_exec_unfold a b :
     lim_exec a b = Sup_seq (λ n, (exec n a) b).
@@ -485,4 +493,5 @@ Section lim_exec.
       apply (sup_is_upper_bound (λ m, exec m a b) n).
   Qed.
 
-End lim_exec.
+End markov.
+#[global] Arguments pexec {_} _ _ : simpl never.

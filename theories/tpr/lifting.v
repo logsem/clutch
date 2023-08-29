@@ -5,7 +5,7 @@ From clutch.tpr Require Export weakestpre.
 Set Default Proof Using "Type".
 
 Section lifting.
-Context `{spec A B Σ} `{!tprwpG Λ Σ}.
+Context `{spec δ Σ} `{!tprwpG Λ Σ}.
 
 (** * RWP *)
 Lemma rwp_lift_step_fupd_coupl E Φ e1 a :
@@ -118,7 +118,7 @@ Lemma rswp_lift_step_fupd k E Φ e1 a :
       WP e2 @ a; E {{ Φ }})
   ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
-  rewrite rswp_unfold /rswp_def /rswp_step.
+  rewrite rswp_unfold /rswp_step.
   iIntros "H" (σ1 ?) "(Hσ & Ha)".
   iMod ("H" with "Hσ") as "H". iModIntro.
   iApply (step_fupdN_wand with "H").

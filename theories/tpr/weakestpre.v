@@ -23,12 +23,10 @@ Global Arguments IrisG {Λ Σ}.
 
 (** * A coupling fixpoint for [rwp] *)
 Section rwp_coupl.
-  Context `{spec A B Σ} `{!tprwpG Λ Σ}.
+  Context `{spec δ Σ} `{!tprwpG Λ Σ}.
 
-  Canonical Structure AO := leibnizO A.
-
-  Definition rwp_coupl_pre (Z : cfg Λ → A → iProp Σ) (Φ : cfg Λ * A → iProp Σ) : cfg Λ * A → iProp Σ :=
-    (λ (x : cfg Λ * A),
+  Definition rwp_coupl_pre (Z : cfg Λ → mstate δ → iProp Σ) (Φ : cfg Λ * mstate δ → iProp Σ) : cfg Λ * mstate δ → iProp Σ :=
+    (λ (x : cfg Λ * mstate δ),
       let '((e1, σ1), a1) := x in
       ∃ R,
         (⌜reducible e1 σ1⌝ ∗
@@ -78,14 +76,14 @@ Section rwp_coupl.
 
   #[local] Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
 
-  Lemma rwp_coupl_strong_mono e1 σ1 a1 (Z1 Z2 : cfg Λ → A → iProp Σ) :
+  Lemma rwp_coupl_strong_mono e1 σ1 a1 (Z1 Z2 : cfg Λ → mstate δ → iProp Σ) :
     (∀ ρ2 a2, (⌜prim_step e1 σ1 ρ2 > 0⌝ ∗ Z1 ρ2 a2 -∗ Z2 ρ2 a2)) -∗
     rwp_coupl e1 σ1 a1 Z1 -∗ rwp_coupl e1 σ1 a1 Z2.
   Proof.
     iIntros "HZ Hrwp". iRevert "HZ".
     set (Φ := (λ x,
       (∀ ρ2 a2, ⌜prim_step x.1.1 x.1.2 ρ2 > 0⌝ ∗ Z1 ρ2 a2 -∗ Z2 ρ2 a2) -∗
-                rwp_coupl x.1.1 x.1.2 x.2 Z2)%I : prodO cfgO AO → iPropI Σ).
+                rwp_coupl x.1.1 x.1.2 x.2 Z2)%I : prodO cfgO (mstateO δ) → iPropI Σ).
     rewrite /rwp_coupl /rwp_coupl'.
     assert (NonExpansive Φ).
     { intros n ((?&?) & ?) ((?&?) & ?) [[[=] [=]] [=]]. by simplify_eq/=. }
@@ -111,14 +109,14 @@ Section rwp_coupl.
       iApply "Hwand". iModIntro. iMod "HZ1". eauto.
   Qed.
 
-  Lemma rwp_coupl_strong_ind (Ψ : expr Λ → state Λ → A → iProp Σ) (Z : cfg Λ → A → iProp Σ) :
+  Lemma rwp_coupl_strong_ind (Ψ : expr Λ → state Λ → mstate δ → iProp Σ) (Z : cfg Λ → mstate δ → iProp Σ) :
     (∀ n e σ a, Proper (dist n) (Ψ e σ a)) →
     ⊢ (□ (∀ e σ a, rwp_coupl_pre Z (λ '((e, σ), a), Ψ e σ a ∧ rwp_coupl e σ a Z)%I ((e, σ), a) -∗ Ψ e σ a) →
        ∀ e σ a, rwp_coupl e σ a Z -∗ Ψ e σ a)%I.
   Proof.
     iIntros (HΨ). iIntros "#IH" (e σ a) "H".
     set (Ψ' := uncurry3 Ψ :
-           (prodO (prodO (exprO Λ) (stateO Λ)) AO) → iProp Σ).
+           (prodO (prodO (exprO Λ) (stateO Λ)) (mstateO δ)) → iProp Σ).
     assert (NonExpansive Ψ').
     { intros n [[e1 σ1] a1] [[e2 σ2] a2]
         [[?%leibniz_equiv ?%leibniz_equiv] ?%leibniz_equiv].
@@ -134,7 +132,7 @@ Section rwp_coupl.
     iIntros (Hv) "Hcpl".
     iRevert (Hv).
     set (Φ := (λ x, ⌜to_val x.1.1 = None⌝ -∗
-                    rwp_coupl (K x.1.1) x.1.2 x.2 Z)%I : prodO cfgO AO → iPropI Σ).
+                    rwp_coupl (K x.1.1) x.1.2 x.2 Z)%I : prodO cfgO (mstateO δ) → iPropI Σ).
     rewrite /rwp_coupl /rwp_coupl'.
     assert (NonExpansive Φ).
     { intros n ((?&?) & ?) ((?&?) & ?) [[[=] [=]] [=]]. by simplify_eq/=. }
@@ -234,7 +232,7 @@ Section rwp_coupl.
 End rwp_coupl.
 
 (** * The refinement weakest preconditions *)
-Definition rwp_pre `{spec A B Σ} `{!tprwpG Λ Σ}
+Definition rwp_pre `{spec δ Σ} `{!tprwpG Λ Σ}
     (rwp : coPset -d> expr Λ -d> (val Λ -d> iProp Σ) -d> iProp Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iProp Σ) -d> iProp Σ := λ E e1 Φ,
   (∀ σ1 a1,
@@ -247,14 +245,14 @@ Definition rwp_pre `{spec A B Σ} `{!tprwpG Λ Σ}
     end)%I.
 
 (* An [rswp] takes an [rswp_step] and afterwards proves an [rwp] *)
-Definition rswp_step `{spec A B Σ} `{!tprwpG Λ Σ} (k : nat) E (e1 : expr Λ) (Z : expr Λ → iProp Σ) : iProp Σ :=
+Definition rswp_step `{spec δ Σ} `{!tprwpG Λ Σ} (k : nat) E (e1 : expr Λ) (Z : expr Λ → iProp Σ) : iProp Σ :=
   (∀ σ1 a1,
       state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗ |={∅}▷=>^k
       ⌜reducible e1 σ1⌝ ∧
       (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret a1) R⌝ ∧
             ∀ e2 σ2, ⌜R (e2, σ2) a1⌝ -∗ |={∅,E}=> (state_interp σ2 ∗ spec_interp a1 ∗ Z e2))).
 
-Lemma rwp_pre_mono `{spec A B Σ} `{!tprwpG Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
+Lemma rwp_pre_mono `{spec δ Σ} `{!tprwpG Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
   ⊢ ((□ ∀ E e Φ, wp1 E e Φ -∗ wp2 E e Φ) →
         ∀ E e Φ, rwp_pre wp1 E e Φ -∗ rwp_pre wp2 E e Φ)%I.
 Proof.
@@ -269,12 +267,12 @@ Proof.
 Qed.
 
 (* Uncurry [rwp_pre] and equip its type with an OFE structure *)
-Definition rwp_pre' {Σ A B Λ} `{spec A B Σ} `{!tprwpG Λ Σ} :
+Definition rwp_pre' {Σ δ Λ} `{spec δ Σ} `{!tprwpG Λ Σ} :
   (prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ) →
    prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ
   := uncurry3 ∘ rwp_pre ∘ curry3.
 
-Local Instance exec_coupl_pre_mono {Λ A B Σ} `{spec A B Σ} `{!tprwpG Λ Σ} :
+Local Instance exec_coupl_pre_mono {Λ δ Σ} `{spec δ Σ} `{!tprwpG Λ Σ} :
   BiMonoPred rwp_pre'.
 Proof.
   constructor.
@@ -286,19 +284,21 @@ Proof.
     do 7 f_equiv.
     + do 3 f_equiv.
     + rewrite /rwp_coupl /rwp_coupl' /rwp_coupl_pre.
-      do 26 (f_equiv || case_match || done).
+      do 19 (f_equiv || case_match || done).
+      * done.       
+      * do 5 (f_equiv || case_match || done). done. 
 Qed.
 
 (** * RWP *)
-#[local] Definition rwp_def `{spec A B Σ} `{!tprwpG Λ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
+#[local] Definition rwp_def {Λ δ Σ} `{!tprwpG Λ Σ, !spec δ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
   := bi_least_fixpoint rwp_pre' (E,e,Φ).
-#[local] Definition rwp_def' `{spec A B Σ} `{!tprwpG Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+#[local] Definition rwp_def' {Λ δ Σ} `{!tprwpG Λ Σ, !spec δ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
   {| wp := rwp_def; wp_default := () |}.
-#[local] Definition rwp_aux `{spec A B Σ} `{!tprwpG Λ Σ} : seal (@rwp_def'). by eexists. Qed
+#[local] Definition rwp_aux : seal (@rwp_def'). by eexists. Qed
                              .
-Definition rwp' `{spec A B Σ} `{!tprwpG Λ Σ} := rwp_aux.(unseal).
+Definition rwp' := rwp_aux.(unseal).
 #[global] Existing Instance rwp'.
-#[local] Lemma rwp_unseal `{spec A B Σ} `{!tprwpG Λ Σ} : wp = (@rwp_def' A B _ _ _ Σ _ Λ _).(wp).
+#[local] Lemma rwp_unseal {Λ δ Σ} `{!tprwpG Λ Σ, !spec δ Σ} : wp = rwp_def'.(wp).
 Proof. rewrite -rwp_aux.(seal_eq) //. Qed.
 
 (** * RSWP  *)
@@ -378,22 +378,22 @@ Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩
 Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
   (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.
 
-Definition rswp_def `{spec A B Σ} `{!tprwpG Λ Σ} (k : nat) (a : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
+#[local] Definition rswp_def {Λ δ Σ} `{!tprwpG Λ Σ, !spec δ Σ}
+  (k : nat) (a : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
   := rswp_step k E e (λ e2, WP e2 @ a; E {{ Φ }})%I.
-Definition rswp_def' `{spec A B Σ} `{!tprwpG Λ Σ} : Rswp (iProp Σ) (expr Λ) (val Λ) ()
+#[local] Definition rswp_def' {Λ δ Σ} `{!tprwpG Λ Σ, !spec δ Σ} : Rswp (iProp Σ) (expr Λ) (val Λ) ()
   := {| rswp := rswp_def; rswp_default := () |}.
 
-Definition rswp_aux `{spec A B Σ} `{!tprwpG Λ Σ} : seal (@rswp_def'). by eexists. Qed.
-#[global]
+#[local] Definition rswp_aux : seal (@rswp_def'). by eexists. Qed.
 
-Definition rswp' `{spec A B Σ} `{!tprwpG Λ Σ} := rswp_aux.(unseal).
+Definition rswp' := rswp_aux.(unseal).
 #[global] Existing Instance rswp'.
 
-#[local] Lemma rswp_unseal `{spec A B Σ} `{!tprwpG Λ Σ} : rswp = (@rswp_def' A B _ _ _ Σ _ Λ _).(rswp).
+#[local] Lemma rswp_unseal `{!spec δ Σ} `{!tprwpG Λ Σ} : rswp = rswp_def'.(rswp).
 Proof. rewrite -rswp_aux.(seal_eq) //. Qed.
 
 Section rwp.
-Context `{spec A B Σ} `{!tprwpG Λ Σ}.
+Context `{!spec δ Σ} `{!tprwpG Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -643,7 +643,7 @@ Qed.
 End rwp.
 
 Section rswp.
-Context `{spec A B Σ} `{!tprwpG Λ Σ}.
+Context `{!spec δ Σ} `{!tprwpG Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -651,13 +651,13 @@ Implicit Types e : expr Λ.
 Implicit Types b : bool.
 
 Lemma rswp_unfold k a E e Φ :
-  RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊣⊢ rswp_def k a E e Φ.
+  RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊣⊢ rswp_step k E e (λ e2, WP e2 @ a; E {{ Φ }}).
 Proof. by rewrite rswp_unseal. Qed.
 
 Global Instance rswp_ne k a E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (rswp (PROP:=iProp Σ) k a E e).
 Proof.
-  intros Φ1 Φ2 HΦ. rewrite !rswp_unfold /rswp_def /rswp_step. do 22 f_equiv.
+  intros Φ1 Φ2 HΦ. rewrite !rswp_unfold /rswp_step. do 22 f_equiv.
 Qed.
 
 Global Instance rswp_proper k a E e :
@@ -670,7 +670,7 @@ Lemma rswp_strong_mono k E1 E2 e Φ Ψ a :
   E1 ⊆ E2 →
   RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ RSWP e at k @ a; E2 ⟨⟨ Ψ ⟩⟩.
 Proof.
-  iIntros (HE); rewrite !rswp_unfold /rswp_def /rswp_step.
+  iIntros (HE); rewrite !rswp_unfold /rswp_step.
   iIntros "H  HΦ" (σ1 m) "Hσ". iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "H". iModIntro.
   iApply (step_fupdN_wand with "H").
@@ -684,7 +684,7 @@ Qed.
 
 Lemma fupd_rswp k E e Φ a : (|={E}=> RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) ⊢ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
-  rewrite rswp_unfold /rswp_def /rswp_step. iIntros "H".
+  rewrite rswp_unfold /rswp_step. iIntros "H".
   iIntros (σ1 m) "HS". iMod "H". by iApply "H".
 Qed.
 Lemma rswp_fupd k E e Φ a : RSWP e at k @ a; E ⟨⟨ v, |={E}=> Φ v ⟩⟩ ⊢ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩.
@@ -694,7 +694,7 @@ Lemma rwp_no_step E e Φ a :
   to_val e = None →
   RSWP e at 0 @ a; E ⟨⟨ Φ ⟩⟩ ⊢ WP e @ a; E {{ Φ }}.
 Proof.
-  rewrite rswp_unfold rwp_unfold /rswp_def /rwp_pre /rswp_step.
+  rewrite rswp_unfold rwp_unfold /rwp_pre /rswp_step.
   iIntros (->) "Hswp". iIntros (σ1 m) "[Ha Hσ]".
   iMod ("Hswp" with "[$]") as "(% & % & % & Hswp)". iModIntro.
   iApply rwp_coupl_prim_step_l.
@@ -709,7 +709,7 @@ Lemma rwp_spec_steps n P E e Φ a :
   to_val e = None →
   (P -∗ RSWP e at n @ a; E ⟨⟨ Φ ⟩⟩) ∗ spec_update n E P ⊢ WP e @ a; E {{ Φ }}.
 Proof.
-  rewrite rswp_unfold rwp_unfold /rswp_def /rwp_pre /rswp_step.
+  rewrite rswp_unfold rwp_unfold /rwp_pre /rswp_step.
   iIntros (->) "[Hswp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_update.
   iMod ("Hspec" with "Ha") as (a' Ha) "(Hsource_interp & HP)".
   iMod ("Hswp" with "HP [$]") as "Hswp".
@@ -728,7 +728,7 @@ Qed.
 Lemma rswp_later k E e Φ a :
   ▷ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at (S k) @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
-  rewrite 2!rswp_unfold /rswp_def /rswp_step.
+  rewrite 2!rswp_unfold /rswp_step.
   iIntros "H" (σ1 m) "[Hσ Ha]".
   iMod (fupd_mask_subseteq ∅) as "Hclose"; [set_solver|].
   rewrite step_fupdN_Sn.
@@ -741,7 +741,7 @@ Qed.
 Lemma rswp_atomic k E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
   (|={E1,E2}=> RSWP e at k @ a; E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩) ⊢ RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩.
 Proof.
-  iIntros "H". rewrite !rswp_unfold /rswp_def /rswp_step.
+  iIntros "H". rewrite !rswp_unfold /rswp_step.
   iIntros (σ1 m) "Hσ". iMod "H".
   iMod ("H" $! σ1 with "Hσ") as "H". iModIntro.
   iApply (step_fupdN_wand with "H"); iIntros "[% (%R & % & H)]".
@@ -760,7 +760,7 @@ Lemma rswp_bind K `{!LanguageCtx K} k E e Φ a :
   to_val e = None →
   RSWP e at k @ a; E ⟨⟨ v, WP K (of_val v) @ a; E {{ Φ }} ⟩⟩ ⊢ RSWP K e at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
-  iIntros (He) "H". rewrite !rswp_unfold /rswp_def /rswp_step.
+  iIntros (He) "H". rewrite !rswp_unfold /rswp_step.
   iIntros (σ1 m) "Hσ". iMod ("H" with "Hσ") as "H".
   iModIntro. iApply (step_fupdN_wand with "H").
   iIntros "[% (%R & % & H)]".
@@ -819,7 +819,7 @@ End rswp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context {Σ A B Λ} `{spec A B Σ} `{!tprwpG Λ Σ}.
+  Context {Σ δ Λ} `{!spec δ Σ} `{!tprwpG Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
 

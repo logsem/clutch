@@ -11,19 +11,23 @@ From clutch.prob Require Export couplings distribution markov.
 Set Default Proof Using "Type".
 
 (** A [spec] is a Markov chain together with an interpretation in the logic  *)
-Class spec (A B : Type) `{markov A B} (Σ : gFunctors) := Spec {
-  spec_interp : A → iProp Σ;
+Class spec (δ : markov) (Σ : gFunctors) := Spec {
+  spec_interp : mstate δ → iProp Σ;
 }.
-Global Arguments Spec {_ _ _ _ _}.
+Global Arguments Spec {_ _}.
+
+Canonical Structure mstateO δ := leibnizO (mstate δ).
 
 (** An "update"-modality for deterministic spec steps  *)
 Section spec_update.
-  Context `{spec A B Σ} `{invGS_gen hlc Σ}.
+  Context `{spec δ Σ} `{invGS_gen hlc Σ}.
+  Implicit Types a : mstate δ.
 
   Definition spec_update (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a : A, spec_interp a -∗ |={E}=> ∃ (b : A), ⌜stepN n a b = 1⌝ ∗ spec_interp b ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
-  Lemma spec_update_bind n m E P Q : spec_update n E P ∗ (P -∗ spec_update m E Q) ⊢ spec_update (n + m) E Q.
+  Lemma spec_update_bind n m E P Q :
+    spec_update n E P ∗ (P -∗ spec_update m E Q) ⊢ spec_update (n + m) E Q.
   Proof.
     rewrite /spec_update. iIntros "[P PQ]" (a) "Ha".
     iMod ("P" $! a with "Ha") as (b Hab) "[Hb P]".
@@ -34,7 +38,8 @@ Section spec_update.
     by iFrame. 
   Qed.
 
-  Lemma spec_update_mono_fupd n E P Q : spec_update n E P ∗ (P ={E}=∗ Q) ⊢ spec_update n E Q.
+  Lemma spec_update_mono_fupd n E P Q :
+    spec_update n E P ∗ (P ={E}=∗ Q) ⊢ spec_update n E Q.
   Proof.
     iIntros "[HP PQ]". iIntros (a) "Hsrc".
     iMod ("HP" with "Hsrc") as (b Hstep) "[Hsrc P]".
@@ -42,13 +47,15 @@ Section spec_update.
     iExists b. by iFrame.
   Qed.
 
-  Lemma spec_update_mono n E P Q : spec_update n E P ∗ (P -∗ Q) ⊢ spec_update n E Q.
+  Lemma spec_update_mono n E P Q :
+    spec_update n E P ∗ (P -∗ Q) ⊢ spec_update n E Q.
   Proof.
     iIntros "[Hupd HPQ]". iApply (spec_update_mono_fupd with "[$Hupd HPQ]").
     iIntros "P". iModIntro. by iApply "HPQ".
   Qed.
 
-  Lemma fupd_spec_update n E P : (|={E}=> spec_update n E P) ⊢ spec_update n E P.
+  Lemma fupd_spec_update n E P :
+    (|={E}=> spec_update n E P) ⊢ spec_update n E P.
   Proof.
     iIntros "H". rewrite /spec_update. iIntros (e) "Hsrc".
     iMod "H". by iApply "H".
@@ -115,6 +122,5 @@ Proof.
 Qed.
 
 (** A Markov chain gives us an instance *)
-#[global]
-Instance spec_auth_spec {A B Σ} `{Countable A} `{!markov A B, !specG A Σ} : spec A B Σ :=
- Spec _ specA.
+Definition spec_auth_spec {δ Σ} `{specG (mstate δ) Σ} : spec δ Σ := Spec specA.
+

@@ -6,10 +6,10 @@ From clutch.tpr Require Export weakestpre lifting.
 Set Default Proof Using "Type".
 
 Section rwp.
-Context {Λ : ectxLanguage} `{spec A B Σ} `{!tprwpG Λ Σ}.
+Context {Λ : ectxLanguage} `{spec δ Σ} `{!tprwpG Λ Σ}.
 
 Implicit Types P Q : iProp Σ.
-Implicit Types a : A.
+Implicit Types a : mstate δ.
 Implicit Types b : bool.
 Implicit Types Φ : val Λ → iProp Σ.
 Hint Resolve head_prim_reducible head_reducible_prim_step : core.

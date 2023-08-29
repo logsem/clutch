@@ -10,8 +10,10 @@ Definition step (b : bool) :=
 Definition to_final (b : bool) : option bool :=
   if b then None else Some false.
 
-#[local] Program Instance random_walk : markov bool bool := Markov bool bool _ _ step to_final _.
-Next Obligation. by intros [] [] []; simplify_eq=>/=. Qed.
+Definition random_walk_mixin : MarkovMixin step to_final.
+Proof. constructor. by intros [] [] []; simplify_eq=>/=. Qed.
+
+Canonical Structure random_walk : markov := Markov step to_final random_walk_mixin.
 
 Lemma exec_random_walk n :
   SeriesC (exec n true) = 1 - (1/2)^n.
@@ -56,7 +58,7 @@ From iris.proofmode Require Import coq_tactics ltac_tactics reduction proofmode.
 From clutch.tpr Require Import weakestpre spec lifting ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.tpr.prob_lang Require Import primitive_laws proofmode adequacy.
+From clutch.tpr Require Import primitive_laws proofmode adequacy.
 From clutch.lib Require Import flip conversion.
 
 Definition while (cond body : expr) : expr :=
@@ -91,7 +93,7 @@ Proof.
 Qed.
 
 Section coupl.
-  Context `{markov A B} `{!tprG A Σ}.
+  Context `{!tprG δ Σ}.
 
   Lemma rwp_couple_flip E R a1 :
     Rcoupl fair_coin (step a1) R →
@@ -190,7 +192,7 @@ Proof.
 Qed.
 
 Section random_walk.
-  Context `{!tprG bool Σ}.
+  Context `{!tprG random_walk Σ}.
 
   Lemma random_walk_ref :
     ⟨⟨⟨ specF true ⟩⟩⟩ prog_random_walk ⟨⟨⟨ RET #(); specF false ⟩⟩⟩.

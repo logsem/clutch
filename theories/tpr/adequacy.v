@@ -5,17 +5,16 @@ From iris.bi Require Export fixpoint big_op.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import lang.
-From clutch.tpr Require Import weakestpre spec.
-From clutch.tpr.prob_lang Require Import primitive_laws.
+From clutch.tpr Require Import weakestpre spec primitive_laws.
 From clutch.prob Require Import couplings distribution markov.
 
-(* TODO: generalize to any language *)
+(* TODO: generalize to any language? *)
 Section adequacy.
-  Context {A B} `{Countable A, Countable B, !markov A B, tprG A Σ}.
+  Context `{!tprG δ Σ}.
   Implicit Type e : expr.
   Implicit Type σ : state.
-  Implicit Type a : A.
-  Implicit Type b : B.
+  Implicit Type a : mstate δ.
+  Implicit Type b : mstate_ret δ.
 
   #[local]
   Lemma rwp_coupl_final e σ a b R n :
@@ -54,7 +53,7 @@ Section adequacy.
       lra.
   Qed.
 
-  Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : A) (n : nat) (φ : val → B → Prop)  :
+  Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : mstate δ) (n : nat) (φ : val → mstate_ret δ → Prop)  :
     state_interp σ ∗ specA a ∗ WP e {{ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec_val (e, σ) ≿ exec n a : φ⌝.
   Proof.
@@ -135,8 +134,8 @@ Section adequacy.
 
 End adequacy.
 
-Theorem wp_refRcoupl `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a n φ :
-  (∀ `{!tprG A Σ},
+Theorem wp_refRcoupl `{!tprGpreS δ Σ} e σ a n φ :
+  (∀ `{!tprG δ Σ},
     ⊢ specF a -∗ WP e {{ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ }}) →
   lim_exec_val (e, σ) ≿ exec n a : φ.
 Proof.
@@ -152,15 +151,15 @@ Proof.
   by iApply (Hwp with "[Hfrag]").
 Qed.
 
-Corollary wp_refRcoupl_mass `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a :
-  (∀ `{!tprG A Σ}, ⊢ specF a -∗ WP e {{ v, ∃ a', specF a' ∗ ⌜is_final a'⌝ }}) →
+Corollary wp_refRcoupl_mass Σ `{!tprGpreS δ Σ} e σ a :
+  (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ v, ∃ a', specF a' ∗ ⌜is_final a'⌝ }}) →
   SeriesC (lim_exec a) <= SeriesC (lim_exec_val (e, σ)).
 Proof.
   intros Hrwp.
   apply lim_exec_leq_mass.
   intros.
   eapply (refRcoupl_mass_eq _ _ (λ _ _, True)).
-  eapply wp_refRcoupl; [done|].
+  eapply wp_refRcoupl.
   iIntros (?) "Hfrag".
   iApply rwp_mono; [|iApply (Hrwp with "Hfrag")].
   iIntros (?) "(% & ? & [% %])". eauto.

@@ -5,11 +5,11 @@ From clutch.tpr Require Import weakestpre spec ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 
-Class tprGpreS A Σ := TprGpreS {
+Class tprGpreS δ Σ := TprGpreS {
   tprGpre_iris  :> invGpreS Σ;
   tprGpre_heap  :> ghost_mapG Σ loc val;
   tprGpre_tapes :> ghost_mapG Σ loc tape;
-  tpr_spec      :> specPreG A Σ;
+  tprGpre_spec  :> specPreG (mstate δ) Σ;
 }.
 
 Definition tprΣ A: gFunctors :=
@@ -17,16 +17,16 @@ Definition tprΣ A: gFunctors :=
     ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     specΣ A].
-Global Instance subG_tprGPreS {A Σ} : subG (tprΣ A) Σ → tprGpreS A Σ.
+#[global] Instance subG_tprGPreS {δ Σ} : subG (tprΣ (mstate δ)) Σ → tprGpreS δ Σ.
 Proof. solve_inG. Qed.
 
-Class tprG A Σ := TprG {
+Class tprG (δ : markov) (Σ : gFunctors) := TprG {
   tprG_invG :> invGS_gen HasNoLc Σ;
   tprG_heap  : ghost_mapG Σ loc val;
   tprG_tapes : ghost_mapG Σ loc tape;
   tprG_heap_name : gname;
   tprG_tapes_name : gname;
-  tprG_specG :> specG A Σ;
+  tprG_specG :> specG (mstate δ) Σ;
 }.
 
 Definition heap_auth `{tprG Σ} :=
@@ -34,7 +34,7 @@ Definition heap_auth `{tprG Σ} :=
 Definition tapes_auth `{tprG Σ} :=
   @ghost_map_auth _ _ _ _ _ tprG_tapes tprG_tapes_name.
 
-Global Instance tprG_tprwpG `{!tprG A Σ} : tprwpG prob_lang Σ := {
+#[global] Instance tprG_tprwpG `{!tprG δ Σ} : tprwpG prob_lang Σ := {
   iris_invGS := _;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
 }.
@@ -59,12 +59,14 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
+#[global] Existing Instance spec_auth_spec.
+
 Section rwp.
-  Context  `{markov A B} `{!tprG A Σ}.
+  Context `{!tprG δ Σ}.
 
   (** * RSWP  *)
   Lemma rswp_alloc k E v a :
-    ⟨⟨⟨ True ⟩⟩⟩ ref v at k @ a; E ⟨⟨⟨ l, RET #l; l ↦ v ⟩⟩⟩.
+    ⟨⟨⟨ True ⟩⟩⟩ ref v at k @ a; E ⟨⟨⟨ l, RET #l; l ↦ v  ⟩⟩⟩.
   Proof.
     iIntros (Φ) "_ HΦ".
     iApply rswp_lift_atomic_head_step.
@@ -153,7 +155,7 @@ Section rwp.
 End rwp.
 
 Section coupl.
-  Context `{markov A B} `{!tprG A Σ}.
+  Context `{!tprG δ Σ}.
 
   Lemma rwp_couple (N : nat) (z : Z) E R a1 a :
     TCEq N (Z.to_nat z) →
