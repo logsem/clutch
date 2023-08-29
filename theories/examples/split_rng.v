@@ -79,6 +79,8 @@ Section rng.
 
   Context `{!clutchRGS Σ}.
 
+  
+
   (* TODO: it would be better to wrap this ghost_mapG with keyed_mapG *)
   Context {GHOST_MAP: ghost_mapG Σ (fin_hash_dom_space MAX_RNGS_POW MAX_SAMPLES_POW) (option bool)}.
 

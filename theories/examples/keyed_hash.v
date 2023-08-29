@@ -235,14 +235,8 @@ Section keyed_hash.
   Definition fin_key_space : Type := fin (S (MAX_KEYS)).
   Definition fin_val_space : Type := fin (S (MAX_VALS)).
 
-  (*
-  Instance finite_fin_val_space : Finite (fin_val_space).
+  #[global] Instance countable_fin_hash_dom_space : Countable (fin_hash_dom_space).
   Proof. apply _. Qed.
-  Instance finite_fin_key_space : Finite (fin_key_space).
-  Proof. apply _. Qed.
-  Instance finite_fin_hash_dom_space : Finite (fin_hash_dom_space).
-  Proof. apply _. Qed.
-   *)
 
   Context {GHOST_MAP: ghost_mapG Σ fin_hash_dom_space (option bool)}.
 
@@ -291,7 +285,7 @@ Section keyed_hash.
       (∀ x b, mphys !! (fin_to_nat x) = Some b → mghost !! x = Some (Some b)) ∧
       (∀ x, mphys !! (fin_to_nat x) = None → mghost !! x = Some (None)).
 
-  Definition keyed_hash_auth_pure f f0 (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool))
+  Definition keyed_hash_auth_pure (f f0 : expr) (mphys : gmap nat bool) (mghost : gmap fin_hash_dom_space (option bool))
     : iProp Σ :=
       ⌜ f = (λ: "k" "v", f0 (enc "k" "v"))%V ⌝ ∗
       ⌜ ghost_phys_dom mphys mghost ⌝.
@@ -444,6 +438,8 @@ Section keyed_hash.
     { iExists _, _, _. iFrame. iPureIntro; split_and!; eauto using ghost_phys_dom_init. }
     { iApply keyed_hash_ghost_init_split. auto. }
   Qed.
+
+  From stdpp Require Import countable.
 
   Lemma khashfun_own_acc_assign_hash γ k v m :
     khashfun_own γ k m -∗
