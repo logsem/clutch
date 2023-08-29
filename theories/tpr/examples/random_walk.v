@@ -56,7 +56,7 @@ From iris.proofmode Require Import coq_tactics ltac_tactics reduction proofmode.
 From clutch.tpr Require Import weakestpre spec lifting ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.tpr.prob_lang Require Import primitive_laws adequacy.
+From clutch.tpr.prob_lang Require Import primitive_laws proofmode adequacy.
 From clutch.lib Require Import flip conversion.
 
 Definition while (cond body : expr) : expr :=
@@ -68,121 +68,6 @@ Notation "'while' e1 'do' e2 'end'" := (while e1 e2)
 Definition prog_random_walk : expr :=
   let: "c" := ref #true in
   while !"c" do "c" <- flip end.
-
-Lemma tac_rwp_value `{markov A B} `{!tprG A Σ} Δ E Φ v :
-  envs_entails Δ (Φ v) → envs_entails Δ (RWP (Val v) @ E ⟨⟨ Φ ⟩⟩).
-Proof. rewrite envs_entails_unseal=> ->. by apply rwp_value. Qed.
-
-Lemma tac_rwp_expr_eval `{markov A B} `{!tprG A Σ}  Δ E Φ e e' :
-  (∀ (e'':=e'), e = e'') →
-  envs_entails Δ (RWP e' @ E ⟨⟨ Φ ⟩⟩) → envs_entails Δ (RWP e @ E ⟨⟨ Φ ⟩⟩).
-Proof. by intros ->. Qed.
-
-Tactic Notation "rwp_expr_eval" tactic3(t) :=
-  iStartProof;
-  lazymatch goal with
-  | |- envs_entails _ (rwp ?s ?E ?e ?Q) =>
-    notypeclasses refine (tac_rwp_expr_eval _ _ _ e _ _ _);
-      [let x := fresh in intros x; t; unfold x; notypeclasses refine eq_refl|]
-  | _ => fail "rwp_expr_eval: not a 'wp'"
-  end.
-Ltac rwp_expr_simpl := rwp_expr_eval simpl.
-
-Lemma tac_rwp_pure `{markov A B} `{!tprG A Σ} Δ E K e1 e2 φ n Φ :
-  PureExec φ n e1 e2 →
-  φ →
-  envs_entails Δ (RWP (fill K e2) @ E ⟨⟨ Φ ⟩⟩) →
-  envs_entails Δ (RWP (fill K e1) @ E ⟨⟨ Φ ⟩⟩).
-Proof.
-  rewrite envs_entails_unseal=> ?? HΔ.
-  pose proof @pure_exec_fill.
-  rewrite HΔ -lifting.rwp_pure_step //.
-Qed.
-
-Lemma tac_rwp_bind `{markov A B} `{!tprG A Σ} K Δ E Φ e f :
-  f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
-  envs_entails Δ (RWP e @ E ⟨⟨ v, RWP f (Val v) @ E ⟨⟨ Φ ⟩⟩ ⟩⟩)%I →
-  envs_entails Δ (RWP fill K e @ E ⟨⟨ Φ ⟩⟩).
-Proof. rewrite envs_entails_unseal=> -> ->. by apply: rwp_bind. Qed.
-
-Ltac rwp_bind_core K :=
-  lazymatch eval hnf in K with
-  | [] => idtac
-  | _ => eapply (tac_rwp_bind K); [simpl; reflexivity|reduction.pm_prettify]
-  end.
-
-Tactic Notation "rwp_bind" open_constr(efoc) :=
-  iStartProof;
-  lazymatch goal with
-  | |- envs_entails _ (rwp ?s ?E ?e ?Q) =>
-    first [ reshape_expr e ltac:(fun K e' => unify e' efoc; rwp_bind_core K)
-          | fail 1 "rwp_bind: cannot find" efoc "in" e ]
-  | _ => fail "rwp_bind: not a 'rwp'"
-  end.
-
-
-(* Ltac wp_value_head := *)
-(*   first (eapply tac_rwp_value). *)
-
-
-
-Ltac wp_finish :=
-  rwp_expr_simpl;      (* simplify occurences of subst/fill *)
-  try eapply tac_rwp_value;  (* in case we have reached a value, get rid of the WP *)
-  pm_prettify.        (* prettify ▷s caused by [MaybeIntoLaterNEnvs] and
-                         λs caused by wp_value *)
-
-
-Ltac solve_vals_compare_safe :=
-  (* The first branch is for when we have [vals_compare_safe] in the context.
-     The other two branches are for when either one of the branches reduces to
-     [True] or we have it in the context. *)
-  fast_done || (left; fast_done) || (right; fast_done).
-
-Tactic Notation "rwp_pure" open_constr(efoc) :=
-  iStartProof;
-  lazymatch goal with
-  | |- envs_entails _ (rwp ?s ?E ?e ?Q) =>
-
-      let e := eval simpl in e in
-
-    reshape_expr e ltac:(fun K e' =>
-      unify e' efoc;
-      eapply (tac_rwp_pure _ _ K e');
-      [iSolveTC                       (* PureExec *)
-      |try solve_vals_compare_safe                  (* The pure condition for PureExec *)
-      |wp_finish                      (* new goal *)
-      ])
-    || fail "rwp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
-  | _ => fail "rwp_pure: not a 'wp'"
-  end.
-
-(* TODO: do this in one go, without [repeat]. *)
-Ltac rwp_pures :=
-  iStartProof;
-  repeat (rwp_pure _; []). (* The `;[]` makes sure that no side-condition
-                             magically spawns. *)
-
-
-Ltac rwp_apply_core lem tac_suc tac_fail := first
-  [iPoseProofCore lem as false (fun H =>
-     lazymatch goal with
-     | |- envs_entails _ (rwp ?s ?E ?e ?Q) =>
-       reshape_expr e ltac:(fun K e' =>
-         rwp_bind_core K; tac_suc H)
-     | _ => fail 1 "wp_apply: not a 'wp'"
-     end)
-  |tac_fail ltac:(fun _ => rwp_apply_core lem tac_suc tac_fail)
-  |let P := type of lem in
-   fail "wp_apply: cannot apply" lem ":" P ].
-
-Tactic Notation "rwp_apply" open_constr(lem) :=
-  rwp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try rwp_expr_simpl)
-                    ltac:(fun cont => fail).
-Tactic Notation "rwp_smart_apply" open_constr(lem) :=
-  rwp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try rwp_expr_simpl)
-                    ltac:(fun cont => rwp_pure _; []; cont ()).
-
 
 (* TODO: generalize *)
 Lemma Rcoupl_dunifP_1_coin `{Countable A} (μ : distr A) R :
@@ -208,24 +93,18 @@ Qed.
 Section coupl.
   Context `{markov A B} `{!tprG A Σ}.
 
-  Lemma rwp_couple_flip E R a1 Φ :
+  Lemma rwp_couple_flip E R a1 :
     Rcoupl fair_coin (step a1) R →
-    specF a1 -∗
-    (▷ ∀ v, (∃ (b : bool) a2, ⌜v = #b⌝ ∗ specF a2 ∗ ⌜R b a2⌝) -∗ Φ v) -∗
-    RWP flip @ E ⟨⟨ Φ ⟩⟩.
+    {{{ specF a1 }}} flip @ E {{{ (b : bool) a2, RET #b; specF a2 ∗ ⌜R b a2⌝  }}}.
   Proof.
-    iIntros (?) "Ha HΦ". rewrite /flip/flipL.
-    rwp_pures.
-    rwp_apply (rwp_couple with "Ha"); [by eapply Rcoupl_dunifP_1_coin|].
-    iIntros (v) "(%n & %a2 & -> & Ha & %)". rewrite /int_to_bool.
-    rwp_pures.
-    case_bool_decide; rwp_pures.
-    - iApply ("HΦ").
-      iExists _, _. iFrame. iSplit; [done|].
-      inv_fin n; eauto.
-    - iApply ("HΦ").
-      iExists _, _. iFrame. iSplit; [done|].
-      inv_fin n; eauto.
+    iIntros (? Φ) "Ha HΦ". rewrite /flip/flipL.
+    wp_pures.
+    wp_apply (rwp_couple with "Ha"); [by eapply Rcoupl_dunifP_1_coin|].
+    iIntros (n a2) "[Ha %HR]". rewrite /int_to_bool.
+    wp_pures.
+    case_bool_decide; wp_pures.
+    - iApply "HΦ". iFrame. inv_fin n; eauto.
+    - iApply ("HΦ"). iFrame. inv_fin n; eauto.
   Qed.
 
 End coupl.
@@ -318,27 +197,19 @@ Section random_walk.
   Proof.
     rewrite /prog_random_walk.
     iIntros (Φ) "Ha HΦ".
-    rwp_apply rwp_alloc; [done|].
-    iIntros (l) "Hl".
-    do 3 rwp_pure _.
+    wp_alloc l as "Hl".
+    do 3 wp_pure _.
     iLöb as "IH".
-    rwp_pures.
-    rwp_apply (rwp_load with "Hl").
-    iIntros "Hl".
-    rwp_pures.
-    rwp_apply (rwp_couple_flip _ (=) with "Ha").
+    wp_pures.
+    wp_load.
+    wp_pures.
+    wp_apply (rwp_couple_flip _ (=) with "Ha").
     { simpl. apply Rcoupl_fair_coin. apply _. }
-    iIntros (?) "(%b & %a2 & -> & Ha & <-)".
-    rwp_apply (rwp_store with "Hl").
-    iIntros "Hl".
-    do 2 rwp_pure _.
+    iIntros (b a2) "[Ha <-]".
+    wp_store.
     destruct b.
-    - rwp_apply ("IH" with "Ha HΦ Hl").
-    - rwp_pures.
-      rwp_apply (rwp_load with "Hl").
-      iIntros "Hl".
-      rwp_pures.
-      by iApply "HΦ".
+    - wp_apply ("IH" with "Ha HΦ Hl").
+    - wp_pures. wp_load. wp_pures. by iApply "HΦ".
   Qed.
 
 End random_walk.
@@ -354,7 +225,7 @@ Proof.
   { by rewrite random_walk_terminates. }
   eapply (wp_refRcoupl_mass (tprΣ bool)).
   iIntros (?) "Ha".
-  rwp_apply (random_walk_ref with "Ha").
+  wp_apply (random_walk_ref with "Ha").
   iIntros "Ha".
   iExists _. iFrame.
   iPureIntro.

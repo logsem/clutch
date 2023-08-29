@@ -17,7 +17,6 @@ Section compatibility.
     iApply (refines_bind with IH);
     iIntros (v w) (Hvs); simpl.
 
-
   Lemma refines_pair e1 e2 e1' e2' A B :
     (REL e1 << e1' : A) -∗
     (REL e2 << e2' : B) -∗

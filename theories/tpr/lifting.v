@@ -8,24 +8,24 @@ Section lifting.
 Context `{spec A B Σ} `{!tprwpG Λ Σ}.
 
 (** * RWP *)
-Lemma rwp_lift_step_fupd_coupl E Φ e1 :
+Lemma rwp_lift_step_fupd_coupl E Φ e1 a :
   to_val e1 = None →
   (∀ σ1 a1,
       state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗
       rwp_coupl e1 σ1 a1 (λ '(e2, σ2) a2,
-        |={∅,E}=> state_interp σ2 ∗ spec_interp a2 ∗ RWP e2 @ E ⟨⟨ Φ ⟩⟩))
-  ⊢ RWP e1 @ E ⟨⟨ Φ ⟩⟩.
+        |={∅,E}=> state_interp σ2 ∗ spec_interp a2 ∗ WP e2 @ a; E {{ Φ }}))
+  ⊢ WP e1 @ a; E {{ Φ }}.
 Proof. by rewrite rwp_unfold /rwp_pre=>->. Qed.
 
-Lemma rwp_lift_step_fupd E Φ e1 :
+Lemma rwp_lift_step_fupd E Φ e1 a :
   to_val e1 = None →
   (∀ σ1 a1,
       state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗
       ⌜reducible e1 σ1⌝ ∗
       ∀ e2 σ2,
         ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ |={∅,E}=>
-        state_interp σ2 ∗ spec_interp a1 ∗ RWP e2 @ E ⟨⟨ Φ ⟩⟩)
-  ⊢ RWP e1 @ E ⟨⟨ Φ ⟩⟩.
+        state_interp σ2 ∗ spec_interp a1 ∗ WP e2 @ a; E {{ Φ }})
+  ⊢ WP e1 @ a; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
   iApply rwp_lift_step_fupd_coupl; [done|].
@@ -44,11 +44,11 @@ Proof.
   by iIntros "!>".
 Qed.
 
-Lemma rwp_lift_pure_step `{!Inhabited (state Λ)} E Φ e1 :
+Lemma rwp_lift_pure_step `{!Inhabited (state Λ)} E Φ e1 a :
   (∀ σ1, reducible e1 σ1) →
   (∀ σ1 e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → σ2 = σ1) →
-  (∀ e2 σ, ⌜prim_step e1 σ (e2, σ) > 0⌝ → RWP e2 @ E ⟨⟨ Φ ⟩⟩)
-  ⊢ RWP e1 @ E ⟨⟨ Φ ⟩⟩.
+  (∀ e2 σ, ⌜prim_step e1 σ (e2, σ) > 0⌝ → WP e2 @ a; E {{ Φ }})
+  ⊢ WP e1 @ a; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply rwp_lift_step_fupd.
   { specialize (Hsafe inhabitant). eauto using reducible_not_val. }
@@ -64,14 +64,14 @@ Proof.
   iFrame.
 Qed.
 
-Lemma rwp_lift_atomic_step_fupd {E Φ} e1 :
+Lemma rwp_lift_atomic_step_fupd {E Φ} e1 a :
   to_val e1 = None →
   (∀ σ1 a1, state_interp σ1 ∗ spec_interp a1 ={E}=∗
     ⌜reducible e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
       state_interp σ2 ∗ spec_interp a1 ∗
       from_option Φ False (to_val e2))
-  ⊢ RWP e1 @ E ⟨⟨ Φ ⟩⟩.
+  ⊢ WP e1 @ a; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
   iApply (rwp_lift_step_fupd E _ e1)=>//; iIntros (σ1 a1) "Hσ1".
@@ -85,20 +85,20 @@ Proof.
   iApply rwp_value; [|done]. by apply of_to_val.
 Qed.
 
-Lemma rwp_lift_pure_det_step `{!Inhabited (state Λ)} {E Φ} e1 e2 :
+Lemma rwp_lift_pure_det_step `{!Inhabited (state Λ)} {E Φ} e1 e2 a :
   (∀ σ1, reducible e1 σ1) →
   (∀ σ1 e2' σ2, prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
-  RWP e2 @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e1 @ E ⟨⟨ Φ ⟩⟩.
+  WP e2 @ a; E {{ Φ }} ⊢ WP e1 @ a; E {{ Φ }}.
 Proof.
   iIntros (? Hpuredet) "H". iApply (rwp_lift_pure_step E); try done.
   { naive_solver. }
   by iIntros (?? (?&->)%Hpuredet).
 Qed.
 
-Lemma rwp_pure_step `{!Inhabited (state Λ)} E e1 e2 φ n Φ :
+Lemma rwp_pure_step `{!Inhabited (state Λ)} E e1 e2 φ n Φ a :
   PureExec φ n e1 e2 →
   φ →
-  RWP e2 @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e1 @ E ⟨⟨ Φ ⟩⟩.
+  WP e2 @ a; E {{ Φ }} ⊢ WP e1 @ a; E {{ Φ }}.
 Proof.
   iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
@@ -110,13 +110,13 @@ Proof.
 Qed.
 
 (** * RSWP  *)
-Lemma rswp_lift_step_fupd k E Φ e1 :
+Lemma rswp_lift_step_fupd k E Φ e1 a :
   (∀ σ1, state_interp σ1 ={E,∅}=∗
     |={∅}▷=>^k ⌜reducible e1 σ1⌝ ∗
      ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0%R⌝ ={∅,E}=∗
       state_interp σ2  ∗
-      RWP e2 @ E ⟨⟨ Φ ⟩⟩)
-  ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+      WP e2 @ a; E {{ Φ }})
+  ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   rewrite rswp_unfold /rswp_def /rswp_step.
   iIntros "H" (σ1 ?) "(Hσ & Ha)".
@@ -134,23 +134,23 @@ Proof.
   by iFrame.
 Qed.
 
-Lemma rswp_lift_step k E Φ e1 :
+Lemma rswp_lift_step k E Φ e1 a :
   (∀ σ1, state_interp σ1 ={E,∅}=∗
     ▷^k (⌜reducible e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0%R⌝ ={∅,E}=∗
       state_interp σ2  ∗
-      RWP e2 @ E ⟨⟨ Φ ⟩⟩))
-  ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+      WP e2 @ a; E {{ Φ }}))
+  ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros "H". iApply rswp_lift_step_fupd. iIntros (?) "Hσ".
   iMod ("H" with "Hσ") as "H". iIntros "!>". by iApply step_fupdN_intro.
 Qed.
 
-Lemma rswp_lift_pure_step k E E' Φ e1 :
+Lemma rswp_lift_pure_step k E E' Φ e1 a :
   (∀ σ1, reducible e1 σ1) →
   (∀ σ1 e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → σ2 = σ1) →
-  (|={E}=> |={E}[E']▷=>^k ∀ e2 σ, ⌜prim_step e1 σ (e2, σ) > 0%R⌝ → RWP e2 @ E ⟨⟨ Φ ⟩⟩)
-  ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+  (|={E}=> |={E}[E']▷=>^k ∀ e2 σ, ⌜prim_step e1 σ (e2, σ) > 0%R⌝ → WP e2 @ a; E {{ Φ }})
+  ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply rswp_lift_step_fupd.
   iIntros (σ1) "Hσ". iMod "H".
@@ -165,13 +165,13 @@ Proof.
   iFrame. by iApply "H".
 Qed.
 
-Lemma rswp_lift_atomic_step_fupd e1 k E1 Φ :
+Lemma rswp_lift_atomic_step_fupd e1 k E1 Φ a :
   (∀ σ1, state_interp σ1 ={E1}=∗
   |={E1}[E1]▷=>^k ⌜reducible e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0%R⌝ ={E1}=∗
       state_interp σ2 ∗
       from_option Φ False (to_val e2))
-  ⊢ RSWP e1 at k @ E1 ⟨⟨ Φ ⟩⟩.
+  ⊢ RSWP e1 at k @ a; E1 ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros "H".
   iApply (rswp_lift_step_fupd k E1 _ e1)=>//; iIntros (σ1) "Hσ1".
@@ -186,23 +186,23 @@ Proof.
   iApply rwp_value; [|done]. by apply of_to_val.
 Qed.
 
-Lemma rswp_lift_atomic_step e1 k E Φ :
+Lemma rswp_lift_atomic_step e1 k E Φ a :
   (∀ σ1, state_interp σ1 ={E}=∗
     ▷^k (⌜reducible e1 σ1⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0%R⌝ ={E}=∗
       state_interp σ2 ∗
       from_option Φ False (to_val e2)))
-  ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+  ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros "H". iApply rswp_lift_atomic_step_fupd.
   iIntros (?) "?". iMod ("H" with "[$]") as "H".
   iIntros "!>". by iApply step_fupdN_intro.
 Qed.
 
-Lemma rswp_lift_pure_det_step e1 e2 k E E' Φ :
+Lemma rswp_lift_pure_det_step e1 e2 k E E' Φ a :
   (∀ σ1, reducible e1 σ1) →
   (∀ σ1 e2' σ2 , prim_step e1 σ1 (e2', σ2) > 0%R → σ2 = σ1 ∧ e2' = e2) →
-  (|={E}[E']▷=>^k RWP e2 @ E ⟨⟨ Φ ⟩⟩) ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+  (|={E}[E']▷=>^k WP e2 @ a; E {{ Φ }}) ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros (? Hpuredet) "H". iApply (rswp_lift_pure_step k E); [done| |].
   { naive_solver. }
@@ -210,10 +210,10 @@ Proof.
   by iIntros (e' σ [_ ->]%Hpuredet).
 Qed.
 
-Lemma rswp_pure_step_fupd k E E' e1 e2 φ Φ `{!Inhabited (state Λ)} :
+Lemma rswp_pure_step_fupd k E E' e1 e2 φ Φ `{!Inhabited (state Λ)} a :
   PureExec φ 1 e1 e2 →
   φ →
-  (|={E}[E']▷=>^k RWP e2 @ E ⟨⟨ Φ ⟩⟩) ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+  (|={E}[E']▷=>^k WP e2 @ a; E {{ Φ }}) ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
   inversion Hexec as [|n' ? e1' ? Hstep Hrest]; subst.
@@ -225,10 +225,10 @@ Proof.
   - inversion Hrest; subst; eauto.
 Qed.
 
-Lemma rswp_pure_step_later `{!Inhabited (state Λ)} k E e1 e2 φ Φ :
+Lemma rswp_pure_step_later `{!Inhabited (state Λ)} k E e1 e2 φ Φ a :
   PureExec φ 1 e1 e2 →
   φ →
-  ▷^k RWP e2 @ E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e1 at k @ E ⟨⟨ Φ ⟩⟩.
+  ▷^k WP e2 @ a; E {{ Φ }} ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   intros Hexec ?. rewrite -rswp_pure_step_fupd //.
   iIntros "H".

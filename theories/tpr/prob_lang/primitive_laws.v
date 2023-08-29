@@ -63,8 +63,8 @@ Section rwp.
   Context  `{markov A B} `{!tprG A Σ}.
 
   (** * RSWP  *)
-  Lemma rswp_alloc k E v :
-    ⟨⟨⟨ True ⟩⟩⟩ ref v at k @ E ⟨⟨⟨ l, RET #l; l ↦ v ⟩⟩⟩.
+  Lemma rswp_alloc k E v a :
+    ⟨⟨⟨ True ⟩⟩⟩ ref v at k @ a; E ⟨⟨⟨ l, RET #l; l ↦ v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "_ HΦ".
     iApply rswp_lift_atomic_head_step.
@@ -76,8 +76,8 @@ Section rwp.
     iIntros "!>". iFrame. by iApply "HΦ".
   Qed.
 
-  Lemma rswp_load k E l q v :
-    ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l at k @ E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
+  Lemma rswp_load k E l q v a :
+    ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l at k @ a; E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
   Proof.
     iIntros (Φ) ">Hl HΦ". iApply rswp_lift_atomic_head_step.
     iIntros (σ1) "[Hh Ht] !> !>".
@@ -87,8 +87,8 @@ Section rwp.
     iModIntro. iFrame. by iApply "HΦ".
   Qed.
 
-  Lemma rswp_store k E l v' v :
-    ⟨⟨⟨ ▷ l ↦ v' ⟩⟩⟩ #l <- v at k @ E ⟨⟨⟨ RET #(); l ↦ v ⟩⟩⟩.
+  Lemma rswp_store k E l v' v a :
+    ⟨⟨⟨ ▷ l ↦ v' ⟩⟩⟩ #l <- v at k @ a; E ⟨⟨⟨ RET #(); l ↦ v ⟩⟩⟩.
   Proof.
     iIntros (Φ) ">Hl HΦ".
     iApply rswp_lift_atomic_head_step.
@@ -100,9 +100,9 @@ Section rwp.
     iFrame. iModIntro. by iApply "HΦ".
   Qed.
 
-  Lemma rswp_rand (N : nat) (z : Z) k E :
+  Lemma rswp_rand (N : nat) (z : Z) k E a :
     TCEq N (Z.to_nat z) →
-    ⟨⟨⟨ True ⟩⟩⟩ rand #z from #() at k @ E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
+    ⟨⟨⟨ True ⟩⟩⟩ rand #z from #() at k @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
   Proof.
     iIntros (-> Φ) "_ HΦ".
     iApply rswp_lift_atomic_head_step.
@@ -117,33 +117,33 @@ Section rwp.
   Qed.
 
   (** * RWP  *)
-  Lemma rwp_alloc E v :
-    ⟨⟨⟨ True ⟩⟩⟩ ref v @ E ⟨⟨⟨ l, RET #l; l ↦ v ⟩⟩⟩.
+  Lemma rwp_alloc E v a :
+    ⟨⟨⟨ True ⟩⟩⟩ ref v @ a; E ⟨⟨⟨ l, RET #l; l ↦ v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
     iApply rwp_no_step; [done|].
     by iApply (rswp_alloc with "H HΦ").
   Qed.
 
-  Lemma rwp_load E l q v :
-    ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l @ E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
+  Lemma rwp_load E l q v a :
+    ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l @ a; E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
     iApply rwp_no_step; [done|].
     by iApply (rswp_load with "H HΦ").
   Qed.
 
-  Lemma rwp_store E l v' v :
-    ⟨⟨⟨ ▷ l ↦ v' ⟩⟩⟩ #l <- v @ E ⟨⟨⟨ RET #(); l ↦ v ⟩⟩⟩.
+  Lemma rwp_store E l v' v a :
+    ⟨⟨⟨ ▷ l ↦ v' ⟩⟩⟩ #l <- v @ a; E ⟨⟨⟨ RET #(); l ↦ v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
     iApply rwp_no_step; [done|].
     by iApply (rswp_store with "H HΦ").
   Qed.
 
-  Lemma rwp_rand (N : nat) (z : Z) E :
+  Lemma rwp_rand (N : nat) (z : Z) E a :
     TCEq N (Z.to_nat z) →
-    ⟨⟨⟨ True ⟩⟩⟩ rand #z from #() @ E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
+    ⟨⟨⟨ True ⟩⟩⟩ rand #z from #() @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
   Proof.
     iIntros (? Φ) "H HΦ".
     iApply rwp_no_step; [done|].
@@ -155,16 +155,14 @@ End rwp.
 Section coupl.
   Context `{markov A B} `{!tprG A Σ}.
 
-  Lemma rwp_couple (N : nat) (z : Z) E R a1 Φ :
+  Lemma rwp_couple (N : nat) (z : Z) E R a1 a :
     TCEq N (Z.to_nat z) →
     Rcoupl (dunifP N) (step a1) R →
-    specF a1 -∗
-    (▷ ∀ v, (∃ (n : fin (S N)) a2, ⌜v = #n⌝ ∗ specF a2 ∗ ⌜R n a2⌝) -∗ Φ v) -∗                
-    RWP rand #z from #() @ E ⟨⟨ Φ ⟩⟩.
+    {{{ specF a1 }}} rand #z from #() @ a; E {{{ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R n a2⌝ }}}.
   Proof.
-    iIntros (-> ?) "Ha HΦ".
+    iIntros (-> ? Φ) "Ha HΦ /=".
     iApply rwp_lift_step_fupd_coupl; [done|].
-    iIntros (σ1 a) "[Hσ1 HaA]".
+    iIntros (σ1 m) "[Hσ1 HaA]".
     iDestruct (spec_auth_agree with "HaA Ha") as %->.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
@@ -190,43 +188,9 @@ Section coupl.
     iFrame.
     iApply rwp_value.
     iApply "HΦ".
-    eauto. 
-  Qed. 
-    
-  (* Lemma rwp_couple (N : nat) (z : Z) E R a1 : *)
-  (*   TCEq N (Z.to_nat z) → *)
-  (*   Rcoupl (dunifP N) (step a1) R → *)
-  (*   ⟨⟨⟨ specF a1 ⟩⟩⟩ rand #z from #() @ E ⟨⟨⟨ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R n a2⌝ ⟩⟩⟩. *)
-  (* Proof. *)
-  (*   iIntros (-> ? Φ) "Ha HΦ". *)
-  (*   iApply rwp_lift_step_fupd_coupl; [done|]. *)
-  (*   iIntros (σ1 a) "[Hσ1 HaA]". *)
-  (*   iDestruct (spec_auth_agree with "HaA Ha") as %->. *)
-  (*   iApply fupd_mask_intro; [set_solver|]. *)
-  (*   iIntros "Hclose". *)
-  (*   assert (head_reducible (rand #z from #()) σ1) as hr. *)
-  (*   { eexists (_, _). *)
-  (*     apply head_step_support_equiv_rel. *)
-  (*     by eapply (RandNoTapeS _ _ 0%fin). } *)
-  (*   iApply rwp_coupl_steps. *)
-  (*   iExists (λ '(e2, σ2) a2, ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R n a2). *)
-  (*   iSplit. *)
-  (*   { iPureIntro. by apply head_prim_reducible. } *)
-  (*   iSplit. *)
-  (*   { iPureIntro. simpl. *)
-  (*     rewrite head_prim_step_eq //=. *)
-  (*     rewrite -(dret_id_right (step _)). *)
-  (*     eapply Rcoupl_dbind; [|done]. *)
-  (*     intros n a2 HR. *)
-  (*     apply Rcoupl_dret. eauto. } *)
-  (*   iIntros ([? ?] a2) "[%n (-> & -> & %)] !> !> !>". *)
-  (*   iMod (spec_auth_update a2 with "HaA Ha") as "[HaA Ha]". *)
-  (*   iMod "Hclose" as "_". *)
-  (*   iModIntro. *)
-  (*   iFrame. *)
-  (*   iApply rwp_value. *)
-  (*   iApply "HΦ". by iFrame. *)
-  (* Qed. *)
+    eauto.
+  Qed.
+
 End coupl.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.

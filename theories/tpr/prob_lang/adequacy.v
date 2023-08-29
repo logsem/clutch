@@ -55,7 +55,7 @@ Section adequacy.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : A) (n : nat) (φ : val → B → Prop)  :
-    state_interp σ ∗ specA a ∗ RWP e ⟨⟨ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ ⟩⟩ ⊢
+    state_interp σ ∗ specA a ∗ WP e {{ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec_val (e, σ) ≿ exec n a : φ⌝.
   Proof.
     iIntros "(Hσ & Ha & Hrwp)".
@@ -137,7 +137,7 @@ End adequacy.
 
 Theorem wp_refRcoupl `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a n φ :
   (∀ `{!tprG A Σ},
-    ⊢ specF a -∗ RWP e ⟨⟨ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ ⟩⟩) →
+    ⊢ specF a -∗ WP e {{ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ }}) →
   lim_exec_val (e, σ) ≿ exec n a : φ.
 Proof.
   intros Hwp.
@@ -153,7 +153,7 @@ Proof.
 Qed.
 
 Corollary wp_refRcoupl_mass `{Countable A, Countable B} `{!markov A B} Σ `{!tprGpreS A Σ} e σ a :
-  (∀ `{!tprG A Σ}, ⊢ specF a -∗ RWP e ⟨⟨ v, ∃ a', specF a' ∗ ⌜is_final a'⌝ ⟩⟩) →
+  (∀ `{!tprG A Σ}, ⊢ specF a -∗ WP e {{ v, ∃ a', specF a' ∗ ⌜is_final a'⌝ }}) →
   SeriesC (lim_exec a) <= SeriesC (lim_exec_val (e, σ)).
 Proof.
   intros Hrwp.

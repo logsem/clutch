@@ -31,7 +31,8 @@ Section rules.
     intros Hpure Hϕ.
     rewrite refines_eq /refines_def.
     iIntros "IH" (j) "Hs Hnais".
-    wp_pures. iApply ("IH" with "Hs Hnais").
+    wp_pures. 
+    iApply ("IH" with "Hs Hnais").
   Qed.
 
   Lemma refines_wp_l E K e1 t A :
@@ -245,7 +246,7 @@ Section rules.
   Proof.
     iIntros (<-) "Hlog".
     iApply refines_wp_l.
-    wp_alloc l. by iApply "Hlog".
+    wp_alloc l as "Hl". by iApply "Hlog".
   Qed.
 
   Lemma refines_load_l K E l q t A :

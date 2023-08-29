@@ -292,18 +292,94 @@ Qed.
 (** * RWP *)
 #[local] Definition rwp_def `{spec A B Σ} `{!tprwpG Λ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
   := bi_least_fixpoint rwp_pre' (E,e,Φ).
-#[local] Definition rwp_def' `{spec A B Σ} `{!tprwpG Λ Σ} : Rwp (iProp Σ) (expr Λ) (val Λ) () :=
-  {| rwp := rwp_def; rwp_default := () |}.
+#[local] Definition rwp_def' `{spec A B Σ} `{!tprwpG Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+  {| wp := rwp_def; wp_default := () |}.
 #[local] Definition rwp_aux `{spec A B Σ} `{!tprwpG Λ Σ} : seal (@rwp_def'). by eexists. Qed
                              .
 Definition rwp' `{spec A B Σ} `{!tprwpG Λ Σ} := rwp_aux.(unseal).
 #[global] Existing Instance rwp'.
-#[local] Lemma rwp_unseal `{spec A B Σ} `{!tprwpG Λ Σ} : rwp = (@rwp_def' A B _ _ _ Σ _ Λ _).(rwp).
+#[local] Lemma rwp_unseal `{spec A B Σ} `{!tprwpG Λ Σ} : wp = (@rwp_def' A B _ _ _ Σ _ Λ _).(wp).
 Proof. rewrite -rwp_aux.(seal_eq) //. Qed.
 
 (** * RSWP  *)
-Definition rswp_def `{spec A B Σ} `{!tprwpG Λ Σ} (k : nat) (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
-  := rswp_step k E e (λ e2, RWP e2 @ E ⟨⟨ Φ ⟩⟩)%I.
+(** Notations for 'stronger' weakest preconditions *)
+Class Rswp (PROP EXPR VAL A : Type) := {
+  rswp : nat → A → coPset → EXPR → (VAL → PROP) → PROP;
+  rswp_default : A
+}.
+Global Arguments rswp {_ _ _ _ _} _ _ _%E _%I.
+Global Instance: Params (@rswp) 9 := {}.
+Global Arguments rswp_default : simpl never.
+
+
+(** Notations without binder -- only parsing because they overlap with the
+notations with binder. *)
+Notation "'RSWP' e 'at' k @ s ; E ⟨⟨ Φ ⟩ ⟩" := (rswp k%nat s E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'RSWP' e 'at' k @ E ⟨⟨ Φ ⟩ ⟩" := (rswp k%nat rswp_default E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'RSWP' e 'at' k ⟨⟨ Φ ⟩ ⟩" := (rswp k%nat rswp_default ⊤ e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+(** Notations with binder.  The indentation for the inner format block is chosen
+such that *if* one has a single-character mask (e.g. [E]), the second line
+should align with the binder(s) on the first line. *)
+Notation "'RSWP' e 'at' k @ s ; E ⟨⟨ v , Q ⟩ ⟩" := (rswp k%nat s E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[' 'RSWP'  e  'at'  k  '/' '[          ' @  s ;  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
+Notation "'RSWP' e 'at' k @ E ⟨⟨ v , Q ⟩ ⟩" := (rswp k%nat rswp_default E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[' 'RSWP'  e  'at'  k  '/' '[       ' @  E  ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
+Notation "'RSWP' e 'at' k ⟨⟨ v , Q ⟩ ⟩" := (rswp k%nat rswp_default ⊤ e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[' 'RSWP'  e  'at'  k  '/' '[   ' ⟨⟨  v ,  Q  ⟩ ⟩ ']' ']'") : bi_scope.
+
+(* Texan triples *)
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ,
+      P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  s ;  E  ⟨⟨⟨  x  ..  y ,  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ,
+      P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  E  ⟨⟨⟨  x  ..  y ,  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ,
+      P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩)%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e   'at'  k  '/' ⟨⟨⟨  x  ..  y ,  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  s ;  E  ⟨⟨⟨  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩)%I
+    (at level 20,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' @  E  ⟨⟨⟨  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (□ ∀ Φ, P -∗ ▷^k(Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩)%I
+    (at level 20,
+     format "'[hv' ⟨⟨⟨  P  ⟩ ⟩ ⟩  '/  ' e  'at'  k  '/' ⟨⟨⟨  RET  pat ;  Q  ⟩ ⟩ ⟩ ']'") : bi_scope.
+
+(** Aliases for stdpp scope -- they inherit the levels and format from above. *)
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ x .. y , 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ s ; E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
+  (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+
+Definition rswp_def `{spec A B Σ} `{!tprwpG Λ Σ} (k : nat) (a : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
+  := rswp_step k E e (λ e2, WP e2 @ a; E {{ Φ }})%I.
 Definition rswp_def' `{spec A B Σ} `{!tprwpG Λ Σ} : Rswp (iProp Σ) (expr Λ) (val Λ) ()
   := {| rswp := rswp_def; rswp_default := () |}.
 
@@ -324,14 +400,14 @@ Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types b : bool.
 
-Lemma rwp_unfold E e Φ :
-  RWP e @ E ⟨⟨ Φ ⟩⟩ ⊣⊢ rwp_pre (rwp (PROP:=iProp Σ) rwp_default) E e Φ.
+Lemma rwp_unfold E e Φ a :
+  WP e @ a; E {{ Φ }} ⊣⊢ rwp_pre (wp (PROP:=iProp Σ) a) E e Φ.
 Proof. rewrite rwp_unseal /= /rwp_def least_fixpoint_unfold //. Qed.
 
-Lemma rwp_strong_ind  Ψ :
+Lemma rwp_strong_ind Ψ a :
   (∀ n E e, Proper (pointwise_relation _ (dist n) ==> dist n) (Ψ E e)) →
-  ⊢ (□ (∀ e E Φ, rwp_pre (λ E e Φ, Ψ E e Φ ∧ RWP e @ E ⟨⟨ Φ ⟩⟩) E e Φ -∗ Ψ E e Φ) →
-        ∀ e E Φ, RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ E e Φ)%I.
+  ⊢ (□ (∀ e E Φ, rwp_pre (λ E e Φ, Ψ E e Φ ∧ WP e @ a; E {{ Φ }}) E e Φ -∗ Ψ E e Φ) →
+        ∀ e E Φ, WP e @ a; E {{ Φ }} -∗ Ψ E e Φ)%I.
 Proof.
   iIntros (HΨ). iIntros "#IH" (e E Φ) "H". rewrite rwp_unseal.
   set (Ψ' := uncurry3 Ψ :
@@ -343,32 +419,32 @@ Proof.
   iIntros "!#" ([[??] ?]) "H". by iApply "IH".
 Qed.
 
-Lemma rwp_ind Ψ :
+Lemma rwp_ind Ψ a :
   (∀ n E e, Proper (pointwise_relation _ (dist n) ==> dist n) (Ψ E e)) →
   ⊢ (□ (∀ e E Φ, rwp_pre (λ E e Φ, Ψ E e Φ) E e Φ -∗ Ψ E e Φ)
-      → ∀ e E Φ, RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ E e Φ)%I.
+      → ∀ e E Φ, WP e @ a; E {{ Φ }} -∗ Ψ E e Φ)%I.
 Proof.
   iIntros (HΨ) "#H". iApply rwp_strong_ind. iIntros "!>" (e E Φ) "Hrwp".
   iApply "H". iApply (rwp_pre_mono with "[] Hrwp"). clear.
   iIntros "!>" (E e Φ) "[$ _]".
 Qed.
 
-Global Instance rwp_ne E e n :
-  Proper (pointwise_relation _ (dist n) ==> dist n) (rwp (PROP:=iProp Σ) rwp_default E e).
+Global Instance rwp_ne E e n a :
+  Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) a E e).
 Proof.
   intros Φ1 Φ2 HΦ. rewrite !rwp_unseal /= /rwp_def' /rwp_def. by apply least_fixpoint_ne.
 Qed.
 
-Global Instance rwp_proper E e :
-  Proper (pointwise_relation _ (≡) ==> (≡)) (rwp (PROP:=iProp Σ) rwp_default E e).
+Global Instance rwp_proper E e a :
+  Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) a E e).
 Proof.
   by intros Φ Φ' ?; apply equiv_dist=>n; apply rwp_ne=>v; apply equiv_dist.
 Qed.
 
-Lemma rwp_strong_ind' Ψ Φ E e :
+Lemma rwp_strong_ind' Ψ Φ E e a :
   (∀ n e, Proper (dist n) (Ψ e)) →
-  ⊢ (□ (∀ e, rwp_pre (λ _ e _, Ψ e ∧ RWP e @ E ⟨⟨ Φ ⟩⟩) E e Φ -∗ Ψ e) →
-       RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ e)%I.
+  ⊢ (□ (∀ e, rwp_pre (λ _ e _, Ψ e ∧ WP e @ a; E {{ Φ }}) E e Φ -∗ Ψ e) →
+       WP e @ a; E {{ Φ }} -∗ Ψ e)%I.
 Proof.
   iIntros (HΨ) "#IH Hrwp".
   iRevert "IH".
@@ -381,7 +457,7 @@ Proof.
   clear.
   iIntros "!#" (e E Φ) "H #IH".
   iApply "IH".
-  iIntros (σ a) "[Hσ Ha]".
+  iIntros (σ ?) "[Hσ Ha]".
   iSpecialize ("H" with "[$]").
   case_match; [done|].
   iMod "H" as "H".
@@ -392,10 +468,10 @@ Proof.
   by iDestruct "H" as "[_ ?]".
 Qed.
 
-Lemma rwp_ind' Ψ Φ E e:
+Lemma rwp_ind' Ψ Φ E e a :
   (∀ n e, Proper (dist n) (Ψ e)) →
   ⊢ (□ (∀ e, rwp_pre (λ _ e _, Ψ e) E e Φ -∗ Ψ e) →
-    RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ Ψ e)%I.
+    WP e @ a; E {{ Φ }} -∗ Ψ e)%I.
 Proof.
   iIntros (?) "#H".
   iApply rwp_strong_ind'.
@@ -405,15 +481,15 @@ Proof.
   iIntros "!>" (_ ? _) "[$ _]".
 Qed.
 
-Lemma rwp_value' E Φ v : Φ v ⊢ RWP of_val v @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_value' E Φ v a : Φ v ⊢ WP of_val v @ a; E {{ Φ }}.
 Proof. iIntros "HΦ". rewrite rwp_unfold /rwp_pre to_of_val. by iIntros (??) "[$ $]". Qed.
 
-Lemma rwp_strong_mono' E1 E2 e Φ Ψ :
+Lemma rwp_strong_mono' E1 E2 e Φ Ψ a :
   E1 ⊆ E2 →
-  RWP e @ E1 ⟨⟨ Φ ⟩⟩ -∗
+  WP e @ a; E1 {{ Φ }} -∗
   (∀ σ a v, state_interp σ ∗ spec_interp a ∗ Φ v ={E2}=∗
             state_interp σ ∗ spec_interp a ∗ Ψ v) -∗
-  RWP e @ E2 ⟨⟨ Ψ ⟩⟩.
+  WP e @ a; E2 {{ Ψ }}.
 Proof.
   iIntros (HE) "H HΦ". iRevert (E2 Ψ HE) "HΦ"; iRevert (e E1 Φ) "H".
   iApply rwp_ind; first solve_proper.
@@ -434,24 +510,24 @@ Proof.
   by iApply "H".
 Qed.
 
-Lemma rwp_strong_mono E1 E2 e Φ Ψ :
+Lemma rwp_strong_mono E1 E2 e Φ Ψ a :
   E1 ⊆ E2 →
-  RWP e @ E1 ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ RWP e @ E2 ⟨⟨ Ψ ⟩⟩.
+  WP e @ a; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ a; E2 {{ Ψ }}.
 Proof.
   iIntros (?) "Hrwp H". iApply (rwp_strong_mono' with "[$]"); auto.
   iIntros (???) "($&$&HΦ)". by iApply "H".
 Qed.
 
-Lemma fupd_rwp E e Φ : (|={E}=> RWP e @ E ⟨⟨ Φ ⟩⟩) ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma fupd_rwp E e Φ a : (|={E}=> WP e @ a; E {{ Φ }}) ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rwp_unfold /rwp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
   { by iMod "H". }
-  iIntros (σ1 a) "HS". iMod "H". by iApply "H".
+  iIntros (σ1 a') "HS". iMod "H". by iApply "H".
 Qed.
-Lemma fupd_rwp' E e Φ :
-  (∀ σ a, state_interp σ ∗ spec_interp a ={E}=∗
-          state_interp σ ∗ spec_interp a ∗ RWP e @ E ⟨⟨ Φ ⟩⟩)
-  ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma fupd_rwp' E e Φ a :
+  (∀ σ m, state_interp σ ∗ spec_interp m ={E}=∗
+          state_interp σ ∗ spec_interp m ∗ WP e @ a; E {{ Φ }})
+  ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   iIntros "H".
   iEval (rewrite rwp_unfold /rwp_pre). destruct (to_val e) as [v|] eqn:Heq.
@@ -462,21 +538,21 @@ Proof.
   iEval (rewrite rwp_unfold /rwp_pre Heq) in "Hwand".
   by iMod ("Hwand" with "[$]") as "$".
 Qed.
-Lemma rwp_fupd E e Φ : RWP e @ E ⟨⟨ v, |={E}=> Φ v ⟩⟩ ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_fupd E e Φ a : WP e @ a; E {{ v, |={E}=> Φ v }} ⊢ WP e @ a; E {{ Φ }}.
 Proof. iIntros "H". iApply (rwp_strong_mono E with "H"); auto. Qed.
 
-Lemma rwp_fupd' E e Φ :
-  RWP e @ E ⟨⟨ v, ∀ σ a, state_interp σ ∗ spec_interp a ={E}=∗
-                         state_interp σ ∗ spec_interp a ∗ Φ v⟩⟩
-  ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_fupd' E e Φ a :
+  WP e @ a; E {{ v, ∀ σ m, state_interp σ ∗ spec_interp m ={E}=∗
+                            state_interp σ ∗ spec_interp m ∗ Φ v}}
+  ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   iIntros "H". iApply (rwp_strong_mono' E with "H"); auto. iIntros (???) "(?&?&H)".
   by iMod ("H" with "[$]").
 Qed.
 
 (* TODO: not just StronglyAtomic?  *)
-Lemma rwp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} :
-  (|={E1,E2}=> RWP e @ E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩) ⊢ RWP e @ E1 ⟨⟨ Φ ⟩⟩.
+Lemma rwp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
+  (|={E1,E2}=> WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ a; E1 {{ Φ }}.
 Proof.
   iIntros "H". rewrite !rwp_unfold /rwp_pre.
   destruct (to_val e) as [v|] eqn:He.
@@ -495,11 +571,12 @@ Proof.
     destruct Hatomic. congruence.
 Qed.
 
-Lemma rwp_bind K `{!LanguageCtx K} E e Φ :
-  RWP e @ E ⟨⟨ v, RWP K (of_val v) @ E ⟨⟨ Φ ⟩⟩ ⟩⟩ ⊢ RWP K e @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_bind K `{!LanguageCtx K} E e Φ a :
+  WP e @ a; E {{ v, WP K (of_val v) @ a; E {{ Φ }} }} ⊢ WP K e @ a; E {{ Φ }}.
 Proof.
-  revert Φ. cut (∀ Φ', RWP e @ E ⟨⟨ Φ' ⟩⟩ -∗ ∀ Φ,
-  (∀ v, Φ' v -∗ RWP K (of_val v) @ E ⟨⟨ Φ ⟩⟩) -∗ RWP K e @ E ⟨⟨ Φ ⟩⟩).
+  revert Φ.
+  cut (∀ Φ', WP e @ a; E {{ Φ' }} -∗
+       ∀ Φ, (∀ v, Φ' v -∗ WP K (of_val v) @ a; E {{ Φ }}) -∗ WP K e @ a; E {{ Φ }}).
   { iIntros (help Φ) "H". iApply (help with "H"); auto. }
   iIntros (Φ') "H". iRevert (e E Φ') "H". iApply rwp_strong_ind; first solve_proper.
   iIntros "!#" (e E1 Φ') "IH". iIntros (Φ) "HΦ".
@@ -520,46 +597,46 @@ Proof.
 Qed.
 
 (** * Derived rules *)
-Lemma rwp_mono E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → RWP e @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rwp_mono E e Φ Ψ a : (∀ v, Φ v ⊢ Ψ v) → WP e @ a; E {{ Φ }} ⊢ WP e @ a; E {{ Ψ }}.
 Proof.
   iIntros (HΦ) "H"; iApply (rwp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
-Lemma rwp_mask_mono E1 E2 e Φ : E1 ⊆ E2 → RWP e @ E1 ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E2 ⟨⟨ Φ ⟩⟩.
+Lemma rwp_mask_mono E1 E2 e Φ a : E1 ⊆ E2 → WP e @ a; E1 {{ Φ }} ⊢ WP e @ a; E2 {{ Φ }}.
 Proof. iIntros (?) "H"; iApply (rwp_strong_mono with "H"); auto. Qed.
-Global Instance rwp_mono' E e :
-  Proper (pointwise_relation _ (⊢) ==> (⊢)) (rwp (PROP:=iProp Σ) rwp_default E e).
+Global Instance rwp_mono' E e a :
+  Proper (pointwise_relation _ (⊢) ==> (⊢)) (wp (PROP:=iProp Σ) a E e).
 Proof. by intros Φ Φ' ?; apply rwp_mono. Qed.
 
-Lemma rwp_value E Φ e v : IntoVal e v → Φ v ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_value E Φ e v a : IntoVal e v → Φ v ⊢ WP e @ a; E {{ Φ }}.
 Proof. intros <-. by apply rwp_value'. Qed.
-Lemma rwp_value_fupd' E Φ v : (|={E}=> Φ v) ⊢ RWP of_val v @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_value_fupd' E Φ v a : (|={E}=> Φ v) ⊢ WP of_val v @ a; E {{ Φ }}.
 Proof. intros. by rewrite -rwp_fupd -rwp_value'. Qed.
-Lemma rwp_value_fupd E Φ e v `{!IntoVal e v} :
-  (|={E}=> Φ v) ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_value_fupd E Φ e v `{!IntoVal e v} a :
+  (|={E}=> Φ v) ⊢ WP e @ a; E {{ Φ }}.
 Proof. intros. rewrite -rwp_fupd -rwp_value //. Qed.
 
-Lemma rwp_frame_l E e Φ R : R ∗ RWP e @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E ⟨⟨ v, R ∗ Φ v ⟩⟩.
+Lemma rwp_frame_l E e Φ R a : R ∗ WP e @ a; E {{ Φ }} ⊢ WP e @ a; E {{ v, R ∗ Φ v }}.
 Proof. iIntros "[? H]". iApply (rwp_strong_mono with "H"); auto with iFrame. Qed.
-Lemma rwp_frame_r E e Φ R : RWP e @ E ⟨⟨ Φ ⟩⟩ ∗ R ⊢ RWP e @ E ⟨⟨ v, Φ v ∗ R ⟩⟩.
+Lemma rwp_frame_r E e Φ R a : WP e @ a; E {{ Φ }} ∗ R ⊢ WP e @ a; E {{ v, Φ v ∗ R }}.
 Proof. iIntros "[H ?]". iApply (rwp_strong_mono with "H"); auto with iFrame. Qed.
 
-Lemma rwp_wand E e Φ Ψ :
-  RWP e @ E ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v -∗ Ψ v) -∗ RWP e @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rwp_wand E e Φ Ψ a :
+  WP e @ a; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e @ a; E {{ Ψ }}.
 Proof.
   iIntros "Hwp H". iApply (rwp_strong_mono with "Hwp"); auto.
   iIntros (?) "?". by iApply "H".
 Qed.
-Lemma rwp_wand_l E e Φ Ψ :
-  (∀ v, Φ v -∗ Ψ v) ∗ RWP e @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rwp_wand_l E e Φ Ψ a :
+  (∀ v, Φ v -∗ Ψ v) ∗ WP e @ a; E {{ Φ }} ⊢ WP e @ a; E {{ Ψ }}.
 Proof. iIntros "[H Hwp]". iApply (rwp_wand with "Hwp H"). Qed.
-Lemma rwp_wand_r E e Φ Ψ :
-  RWP e @ E ⟨⟨ Φ ⟩⟩ ∗ (∀ v, Φ v -∗ Ψ v) ⊢ RWP e @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rwp_wand_r E e Φ Ψ a :
+  WP e @ a; E {{ Φ }} ∗ (∀ v, Φ v -∗ Ψ v) ⊢ WP e @ a; E {{ Ψ }}.
 Proof. iIntros "[Hwp H]". iApply (rwp_wand with "Hwp H"). Qed.
-Lemma rwp_frame_wand_l E e Q Φ :
-  Q ∗ RWP e @ E ⟨⟨ v, Q -∗ Φ v ⟩⟩ -∗ RWP e @ E ⟨⟨ Φ ⟩⟩.
+Lemma rwp_frame_wand_l E e Q Φ a :
+  Q ∗ WP e @ a; E {{ v, Q -∗ Φ v }} -∗ WP e @ a; E {{ Φ }}.
 Proof.
-  iIntros "[HQ HRWP]". iApply (rwp_wand with "HRWP").
+  iIntros "[HQ HWP]". iApply (rwp_wand with "HWP").
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
 
@@ -573,28 +650,28 @@ Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types b : bool.
 
-Lemma rswp_unfold k s E e Φ :
-  RSWP e at k @ s; E ⟨⟨ Φ ⟩⟩ ⊣⊢ rswp_def k s E e Φ.
+Lemma rswp_unfold k a E e Φ :
+  RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊣⊢ rswp_def k a E e Φ.
 Proof. by rewrite rswp_unseal. Qed.
 
-Global Instance rswp_ne k s E e n :
-  Proper (pointwise_relation _ (dist n) ==> dist n) (rswp (PROP:=iProp Σ) k s E e).
+Global Instance rswp_ne k a E e n :
+  Proper (pointwise_relation _ (dist n) ==> dist n) (rswp (PROP:=iProp Σ) k a E e).
 Proof.
   intros Φ1 Φ2 HΦ. rewrite !rswp_unfold /rswp_def /rswp_step. do 22 f_equiv.
 Qed.
 
-Global Instance rswp_proper k s E e :
-  Proper (pointwise_relation _ (≡) ==> (≡)) (rswp (PROP:=iProp Σ) k s E e).
+Global Instance rswp_proper k a E e :
+  Proper (pointwise_relation _ (≡) ==> (≡)) (rswp (PROP:=iProp Σ) k a E e).
 Proof.
   by intros Φ Φ' ?; apply equiv_dist=>n; apply rswp_ne=>v; apply equiv_dist.
 Qed.
 
-Lemma rswp_strong_mono k E1 E2 e Φ Ψ :
+Lemma rswp_strong_mono k E1 E2 e Φ Ψ a :
   E1 ⊆ E2 →
-  RSWP e at k @ E1 ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ RSWP e at k @ E2 ⟨⟨ Ψ ⟩⟩.
+  RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ RSWP e at k @ a; E2 ⟨⟨ Ψ ⟩⟩.
 Proof.
   iIntros (HE); rewrite !rswp_unfold /rswp_def /rswp_step.
-  iIntros "H  HΦ" (σ1 a) "Hσ". iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
+  iIntros "H  HΦ" (σ1 m) "Hσ". iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "H". iModIntro.
   iApply (step_fupdN_wand with "H").
   iIntros "(% & % & % & H)".
@@ -605,20 +682,20 @@ Proof.
   by iApply (rwp_strong_mono with "H").
 Qed.
 
-Lemma fupd_rswp k E e Φ : (|={E}=> RSWP e at k @ E ⟨⟨ Φ ⟩⟩) ⊢ RSWP e at k @ E ⟨⟨ Φ ⟩⟩.
+Lemma fupd_rswp k E e Φ a : (|={E}=> RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) ⊢ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   rewrite rswp_unfold /rswp_def /rswp_step. iIntros "H".
-  iIntros (σ1 a) "HS". iMod "H". by iApply "H".
+  iIntros (σ1 m) "HS". iMod "H". by iApply "H".
 Qed.
-Lemma rswp_fupd k E e Φ : RSWP e at k @ E ⟨⟨ v, |={E}=> Φ v ⟩⟩ ⊢ RSWP e at k @ E ⟨⟨ Φ ⟩⟩.
+Lemma rswp_fupd k E e Φ a : RSWP e at k @ a; E ⟨⟨ v, |={E}=> Φ v ⟩⟩ ⊢ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof. iIntros "H". iApply (rswp_strong_mono k E with "H"); auto. Qed.
 
-Lemma rwp_no_step E e Φ:
+Lemma rwp_no_step E e Φ a :
   to_val e = None →
-  RSWP e at 0 @ E ⟨⟨ Φ ⟩⟩ ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+  RSWP e at 0 @ a; E ⟨⟨ Φ ⟩⟩ ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rswp_unfold rwp_unfold /rswp_def /rwp_pre /rswp_step.
-  iIntros (->) "Hswp". iIntros (σ1 a) "[Ha Hσ]".
+  iIntros (->) "Hswp". iIntros (σ1 m) "[Ha Hσ]".
   iMod ("Hswp" with "[$]") as "(% & % & % & Hswp)". iModIntro.
   iApply rwp_coupl_prim_step_l.
   iExists _.
@@ -628,12 +705,12 @@ Proof.
   by iMod ("Hswp" with "[//]").
 Qed.
 
-Lemma rwp_spec_steps n P E e Φ:
+Lemma rwp_spec_steps n P E e Φ a :
   to_val e = None →
-  (P -∗ RSWP e at n @ E ⟨⟨ Φ ⟩⟩) ∗ spec_update n E P ⊢ RWP e @ E ⟨⟨ Φ ⟩⟩.
+  (P -∗ RSWP e at n @ a; E ⟨⟨ Φ ⟩⟩) ∗ spec_update n E P ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rswp_unfold rwp_unfold /rswp_def /rwp_pre /rswp_step.
-  iIntros (->) "[Hswp Hspec]". iIntros (σ1 a) "[Hσ1 Ha]". rewrite /spec_update.
+  iIntros (->) "[Hswp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_update.
   iMod ("Hspec" with "Ha") as (a' Ha) "(Hsource_interp & HP)".
   iMod ("Hswp" with "HP [$]") as "Hswp".
   iModIntro.
@@ -648,11 +725,11 @@ Proof.
   by iMod ("H" with "[//]").
 Qed.
 
-Lemma rswp_later k E e Φ :
-  ▷ RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at (S k) @ E ⟨⟨ Φ ⟩⟩.
+Lemma rswp_later k E e Φ a :
+  ▷ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at (S k) @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   rewrite 2!rswp_unfold /rswp_def /rswp_step.
-  iIntros "H" (σ1 a) "[Hσ Ha]".
+  iIntros "H" (σ1 m) "[Hσ Ha]".
   iMod (fupd_mask_subseteq ∅) as "Hclose"; [set_solver|].
   rewrite step_fupdN_Sn.
   do 3 iModIntro.
@@ -661,11 +738,11 @@ Proof.
 Qed.
 
 (* TODO: not just [StronglyAtomic]? *)
-Lemma rswp_atomic k E1 E2 e Φ `{!Atomic StronglyAtomic e} :
-  (|={E1,E2}=> RSWP e at k @ E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩) ⊢ RSWP e at k @ E1 ⟨⟨ Φ ⟩⟩.
+Lemma rswp_atomic k E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
+  (|={E1,E2}=> RSWP e at k @ a; E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩) ⊢ RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros "H". rewrite !rswp_unfold /rswp_def /rswp_step.
-  iIntros (σ1 a) "Hσ". iMod "H".
+  iIntros (σ1 m) "Hσ". iMod "H".
   iMod ("H" $! σ1 with "Hσ") as "H". iModIntro.
   iApply (step_fupdN_wand with "H"); iIntros "[% (%R & % & H)]".
   iSplit; [done|].
@@ -679,12 +756,12 @@ Proof.
     destruct Hatomic. congruence.
 Qed.
 
-Lemma rswp_bind K `{!LanguageCtx K} k E e Φ :
+Lemma rswp_bind K `{!LanguageCtx K} k E e Φ a :
   to_val e = None →
-  RSWP e at k @ E ⟨⟨ v, RWP K (of_val v) @ E ⟨⟨ Φ ⟩⟩ ⟩⟩ ⊢ RSWP K e at k @ E ⟨⟨ Φ ⟩⟩.
+  RSWP e at k @ a; E ⟨⟨ v, WP K (of_val v) @ a; E {{ Φ }} ⟩⟩ ⊢ RSWP K e at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros (He) "H". rewrite !rswp_unfold /rswp_def /rswp_step.
-  iIntros (σ1 a) "Hσ". iMod ("H" with "Hσ") as "H".
+  iIntros (σ1 m) "Hσ". iMod ("H" with "Hσ") as "H".
   iModIntro. iApply (step_fupdN_wand with "H").
   iIntros "[% (%R & % & H)]".
   iSplit; [eauto using reducible_fill|].
@@ -702,36 +779,36 @@ Proof.
 Qed.
 
 (** * Derived rules *)
-Lemma rswp_mono k E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rswp_mono k E e Φ Ψ a : (∀ v, Φ v ⊢ Ψ v) → RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ a; E ⟨⟨ Ψ ⟩⟩.
 Proof.
   iIntros (HΦ) "H". iApply (rswp_strong_mono with "[H] []"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
-Lemma rswp_mask_mono k E1 E2 e Φ : E1 ⊆ E2 → RSWP e at k @ E1 ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ E2 ⟨⟨ Φ ⟩⟩.
+Lemma rswp_mask_mono k E1 E2 e Φ a : E1 ⊆ E2 → RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ a; E2 ⟨⟨ Φ ⟩⟩.
 Proof. iIntros (?) "H"; iApply (rswp_strong_mono with "H"); auto. Qed.
-Global Instance rswp_mono' k E e :
-  Proper (pointwise_relation _ (⊢) ==> (⊢)) (rswp (PROP:=iProp Σ) k rswp_default E e).
+Global Instance rswp_mono' k E e a :
+  Proper (pointwise_relation _ (⊢) ==> (⊢)) (rswp (PROP:=iProp Σ) k a E e).
 Proof. by intros Φ Φ' ?; apply rswp_mono. Qed.
 
-Lemma rswp_frame_l k E e Φ R : R ∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ E ⟨⟨ v, R ∗ Φ v ⟩⟩.
+Lemma rswp_frame_l k E e Φ R a : R ∗ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ a; E ⟨⟨ v, R ∗ Φ v ⟩⟩.
 Proof. iIntros "[? H]". iApply (rswp_strong_mono with "H"); auto with iFrame. Qed.
-Lemma rswp_frame_r k E e Φ R : RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ∗ R ⊢ RSWP e at k @ E ⟨⟨ v, Φ v ∗ R ⟩⟩.
+Lemma rswp_frame_r k E e Φ R a : RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ∗ R ⊢ RSWP e at k @ a; E ⟨⟨ v, Φ v ∗ R ⟩⟩.
 Proof. iIntros "[H ?]". iApply (rswp_strong_mono with "H"); auto with iFrame. Qed.
 
-Lemma rswp_wand k E e Φ Ψ :
-  RSWP e at k @ E ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v -∗ Ψ v) -∗ RSWP e at k @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rswp_wand k E e Φ Ψ a :
+  RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ -∗ (∀ v, Φ v -∗ Ψ v) -∗ RSWP e at k @ a; E ⟨⟨ Ψ ⟩⟩.
 Proof.
   iIntros "Hwp H". iApply (rswp_strong_mono with "Hwp"); auto.
   iIntros (?) "?". by iApply "H".
 Qed.
-Lemma rswp_wand_l k E e Φ Ψ :
-  (∀ v, Φ v -∗ Ψ v) ∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rswp_wand_l k E e Φ Ψ a :
+  (∀ v, Φ v -∗ Ψ v) ∗ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ⊢ RSWP e at k @ a; E ⟨⟨ Ψ ⟩⟩.
 Proof. iIntros "[H Hwp]". iApply (rswp_wand with "Hwp H"). Qed.
-Lemma rswp_wand_r k E e Φ Ψ :
-  RSWP e at k @ E ⟨⟨ Φ ⟩⟩ ∗ (∀ v, Φ v -∗ Ψ v) ⊢ RSWP e at k @ E ⟨⟨ Ψ ⟩⟩.
+Lemma rswp_wand_r k E e Φ Ψ a :
+  RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩ ∗ (∀ v, Φ v -∗ Ψ v) ⊢ RSWP e at k @ a; E ⟨⟨ Ψ ⟩⟩.
 Proof. iIntros "[Hwp H]". iApply (rswp_wand with "Hwp H"). Qed.
-Lemma rswp_frame_wand_l k E e Q Φ :
-  Q ∗ RSWP e at k @ E ⟨⟨ v, Q -∗ Φ v ⟩⟩ -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩.
+Lemma rswp_frame_wand_l k E e Q Φ a :
+  Q ∗ RSWP e at k @ a; E ⟨⟨ v, Q -∗ Φ v ⟩⟩ -∗ RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
   iIntros "[HQ HWP]". iApply (rswp_wand with "HWP").
   iIntros (v) "HΦ". by iApply "HΦ".
@@ -746,80 +823,80 @@ Section proofmode_classes.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
 
-  Global Instance frame_rwp p E e R Φ Ψ :
+  Global Instance frame_rwp p E e R Φ Ψ a :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
-    Frame p R (RWP e @ E ⟨⟨ Φ ⟩⟩) (RWP e @ E ⟨⟨ Ψ ⟩⟩).
+    Frame p R (WP e @ a; E {{ Φ }}) (WP e @ a; E {{ Ψ }}).
   Proof. rewrite /Frame=> HR. rewrite rwp_frame_l. apply rwp_mono, HR. Qed.
 
-  Global Instance frame_rswp k p E e R Φ Ψ :
+  Global Instance frame_rswp k p E e R Φ Ψ a :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
-    Frame p R (RSWP e at k @ E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ E ⟨⟨ Ψ ⟩⟩).
+    Frame p R (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E ⟨⟨ Ψ ⟩⟩).
   Proof. rewrite /Frame=> HR. rewrite rswp_frame_l. apply rswp_mono, HR. Qed.
 
-  Global Instance is_except_0_rwp E e Φ : IsExcept0 (RWP e @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance is_except_0_rwp E e Φ a : IsExcept0 (WP e @ a; E {{ Φ }}).
   Proof. by rewrite /IsExcept0 -{2}fupd_rwp -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance is_except_0_rswp k E e Φ : IsExcept0 (RSWP e at k @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance is_except_0_rswp k E e Φ a : IsExcept0 (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩).
   Proof. by rewrite /IsExcept0 -{2}fupd_rswp -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance elim_modal_bupd_rwp p E e P Φ :
-    ElimModal True p false (|==> P) P (RWP e @ E ⟨⟨ Φ ⟩⟩) (RWP e @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance elim_modal_bupd_rwp p E e P Φ a :
+    ElimModal True p false (|==> P) P (WP e @ a; E {{ Φ }}) (WP e @ a; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
       (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_rwp.
   Qed.
 
-  Global Instance elim_modal_bupd_rswp k p E e P Φ :
-    ElimModal True p false (|==> P) P (RSWP e at k @ E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance elim_modal_bupd_rswp k p E e P Φ a :
+    ElimModal True p false (|==> P) P (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
       (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_rswp.
   Qed.
 
-  Global Instance elim_modal_fupd_rwp p E e P Φ :
-    ElimModal True p false (|={E}=> P) P (RWP e @ E ⟨⟨ Φ ⟩⟩) (RWP e @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance elim_modal_fupd_rwp p E e P Φ a :
+    ElimModal True p false (|={E}=> P) P (WP e @ a; E {{ Φ }}) (WP e @ a; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
       fupd_frame_r bi.wand_elim_r fupd_rwp.
   Qed.
 
-  Global Instance elim_modal_fupd_rswp k p E e P Φ :
-    ElimModal True p false (|={E}=> P) P (RSWP e at k @ E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance elim_modal_fupd_rswp k p E e P Φ a :
+    ElimModal True p false (|={E}=> P) P (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
       fupd_frame_r bi.wand_elim_r fupd_rswp.
   Qed.
 
-  Global Instance elim_modal_fupd_rwp_atomic p E1 E2 e P Φ :
+  Global Instance elim_modal_fupd_rwp_atomic p E1 E2 e P Φ a :
     Atomic StronglyAtomic e →
     ElimModal True p false (|={E1,E2}=> P) P
-            (RWP e @ E1 ⟨⟨ Φ ⟩⟩) (RWP e @ E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩)%I.
+            (WP e @ a; E1 {{ Φ }}) (WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }})%I.
   Proof.
     intros. by rewrite /ElimModal bi.intuitionistically_if_elim
       fupd_frame_r bi.wand_elim_r rwp_atomic.
   Qed.
 
- Global Instance elim_modal_fupd_rswp_atomic k p E1 E2 e P Φ :
+ Global Instance elim_modal_fupd_rswp_atomic k p E1 E2 e P Φ a :
     Atomic StronglyAtomic e →
     ElimModal True p false (|={E1,E2}=> P) P
-            (RSWP e at k @ E1 ⟨⟨ Φ ⟩⟩) (RSWP e at k @ E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩)%I.
+            (RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩)%I.
   Proof.
     intros. by rewrite /ElimModal bi.intuitionistically_if_elim
       fupd_frame_r bi.wand_elim_r rswp_atomic.
   Qed.
 
-  Global Instance add_modal_fupd_rwp E e P Φ :
-    AddModal (|={E}=> P) P (RWP e @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance add_modal_fupd_rwp E e P Φ a :
+    AddModal (|={E}=> P) P (WP e @ a; E {{ Φ }}).
   Proof. by rewrite /AddModal fupd_frame_r bi.wand_elim_r fupd_rwp. Qed.
 
-  Global Instance add_modal_fupd_rswp k E e P Φ :
-    AddModal (|={E}=> P) P (RSWP e at k @ E ⟨⟨ Φ ⟩⟩).
+  Global Instance add_modal_fupd_rswp k E e P Φ a :
+    AddModal (|={E}=> P) P (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩).
   Proof. by rewrite /AddModal fupd_frame_r bi.wand_elim_r fupd_rswp. Qed.
 
-  Global Instance elim_acc_wp {X} E1 E2 α β γ e Φ :
+  Global Instance elim_acc_wp {X} E1 E2 α β γ e Φ a :
     ElimAcc (X:=X) (Atomic StronglyAtomic e) (fupd E1 E2) (fupd E2 E1)
-            α β γ (RWP e @ E1 ⟨⟨ Φ ⟩⟩)
-            (λ x, RWP e @ E2 ⟨⟨ v, |={E2}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
+            α β γ (WP e @ a; E1 {{ Φ }})
+            (λ x, WP e @ a; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I.
   Proof.
     intros ?. rewrite /ElimAcc.
     iIntros "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
@@ -827,10 +904,10 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  Global Instance elim_acc_rswp {X} k E1 E2 α β γ e Φ :
+  Global Instance elim_acc_rswp {X} k E1 E2 α β γ e Φ a :
     ElimAcc (X:=X) (Atomic StronglyAtomic e) (fupd E1 E2) (fupd E2 E1)
-            α β γ (RSWP e at k @ E1 ⟨⟨ Φ ⟩⟩)
-            (λ x, RSWP e at k @ E2 ⟨⟨ v, |={E2}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
+            α β γ (RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩)
+            (λ x, RSWP e at k @ a; E2 ⟨⟨ v, |={E2}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
   Proof.
     intros ?. rewrite /ElimAcc.
     iIntros "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
@@ -838,10 +915,10 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  Global Instance elim_acc_wp_nonatomic {X} E α β γ e Φ :
+  Global Instance elim_acc_wp_nonatomic {X} E α β γ e Φ a :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
-            α β γ (RWP e @ E ⟨⟨ Φ ⟩⟩)
-            (λ x, RWP e @ E ⟨⟨ v, |={E}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
+            α β γ (WP e @ a; E {{ Φ }})
+            (λ x, WP e @ a; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
   Proof.
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
     iApply rwp_fupd.
@@ -849,10 +926,10 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  Global Instance elim_acc_swp_nonatomic {X} k E α β γ e Φ :
+  Global Instance elim_acc_swp_nonatomic {X} k E α β γ e Φ a :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
-            α β γ (RSWP e at k @ E ⟨⟨ Φ ⟩⟩)
-            (λ x, RSWP e at k @ E ⟨⟨ v, |={E}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
+            α β γ (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩)
+            (λ x, RSWP e at k @ a; E ⟨⟨ v, |={E}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
   Proof.
     rewrite /ElimAcc.
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
