@@ -5,15 +5,13 @@ Module simple_bit_hash.
 
   Context `{!clutchGS Σ}.
 
-  (* A simple bit hash map. *)
-
   Variable val_size : nat.
 
   (* A hash function's internal state is a map from previously queried keys to their hash value *)
   Definition init_hash_state : val := init_map.
 
   (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
-     If it has we return the saved hash value, otherwise we flip a bit and save it in the map *)
+     If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
   Definition compute_hash_specialized hm : val :=
     λ: "v",
       match: get hm "v" with
