@@ -138,3 +138,5 @@ Module simple_bit_hash.
       apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
   Qed.
 
+
+End simple_bit_hash.
