@@ -57,7 +57,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[$Hα $Hαs]").
     rewrite !wp_unfold /wp_pre /= He.
@@ -108,7 +108,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //; iSplit; auto. }
+      iFrame. rewrite pexec_O dret_1_1 //; iSplit; auto. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[$Hα $Hαs //]").
     rewrite !wp_unfold /wp_pre /= He.
@@ -189,7 +189,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$]").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(_; ns ++ [b]) : tape]> σ1)
@@ -242,7 +242,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" $! b with "[$Hαs]").
     iFrame.
     iModIntro.
@@ -348,7 +348,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
@@ -432,7 +432,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
@@ -480,7 +480,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
@@ -528,7 +528,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").

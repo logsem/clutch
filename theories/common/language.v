@@ -3,7 +3,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Export weakestpre.
 From clutch.prob Require Import distribution.
-
+From clutch.prob Require Export markov. 
 
 Section language_mixin.
   Context {expr val state state_idx : Type}.
@@ -320,5 +320,15 @@ Section language.
     by rewrite to_of_val in Hval.
   Qed.
 End language.
+
+Definition lang_markov_mixin (Λ : language) :
+  MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1).
+Proof.
+  constructor.
+  move=> [e σ] /= [v Hv] [e' σ'].
+  case (Rgt_dec (prim_step e σ (e', σ')) 0)
+    as [?%val_stuck | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
+Qed. 
+Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ).
 
 Global Hint Mode PureExec + - - ! - : typeclass_instances.

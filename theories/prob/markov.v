@@ -74,10 +74,7 @@ Section is_final.
 
 End is_final.
 
-#[global] Hint Extern 0 (is_final _) => eapply to_final_Some_2 : markov.
-#[global] Hint Extern 0 (¬ is_final _) => apply to_final_None_2 : markov.
-#[global] Hint Extern 0 (to_final _ = None) => apply to_final_None_1  : markov.
-#[global] Hint Extern 0 (∃ _, to_final _ = Some _) => apply to_final_Some_2 : markov.
+#[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
 
 Section markov.
   Context {δ : markov}. 
@@ -353,6 +350,7 @@ Section markov.
     - by apply upper_bound_ge_sup=>/=.
   Qed.
 
+  (** Full evaluation (limit of stratification) *)
   Definition lim_exec (a : mstate δ) : distr (mstate_ret δ) := lim_distr (λ n, exec n a) (exec_mono a).
 
   Lemma lim_exec_unfold a b :

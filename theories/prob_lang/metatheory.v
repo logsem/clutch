@@ -717,7 +717,8 @@ Proof.
     specialize (H3 Hρ).
     assert (head_step_pred e1 σ1) as []; [|auto|auto].
     apply head_step_pred_ex_rel; eauto.
-  - pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1)); lra.
+  - by pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1))
+      as ?%Rle_not_lt.
   - apply SeriesC_zero_dzero in HZ. eauto.
 Qed.
 

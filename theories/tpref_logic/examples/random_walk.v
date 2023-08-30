@@ -88,7 +88,7 @@ Section random_walk.
 End random_walk.
 
 Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
-Notation almost_surely_terminates ρ := (SeriesC (lim_exec_val ρ) = 1%R).
+Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
 Theorem prog_random_walk_terminates :
   almost_surely_terminates (prog_random_walk, σ₀).

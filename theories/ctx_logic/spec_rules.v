@@ -6,6 +6,35 @@ From clutch.ctx_logic Require Import lifting ectx_lifting.
 From clutch.prob_lang Require Import lang notation tactics metatheory.
 From clutch.ctx_logic Require Export primitive_laws spec_ra. 
 
+Lemma exec_det_step_ctx K `{!LanguageCtx K} n ρ (e1 e2 : expr) σ1 σ2 :
+  prim_step e1 σ1 (e2, σ2) = 1%R →
+  pexec n ρ (K e1, σ1) = 1%R →
+  pexec (S n) ρ (K e2, σ2) = 1%R.
+Proof.
+  intros. eapply pexec_det_step; [|done].
+  rewrite -fill_step_prob //.
+  eapply (val_stuck _ σ1 (e2, σ2)).  
+  rewrite H. lra.
+Qed.
+
+Lemma exec_PureExec_ctx K `{!LanguageCtx K} (P : Prop) m n ρ (e e' : expr) σ :
+  P →
+  PureExec P n e e' →
+  pexec m ρ (K e, σ) = 1 →
+  pexec (m + n) ρ (K e', σ) = 1.
+Proof.
+  move=> HP /(_ HP).
+  destruct ρ as [e0 σ0].
+  revert e e' m. induction n=> e e' m.
+  { rewrite -plus_n_O. by inversion 1. }
+  intros (e'' & Hsteps & Hpstep)%nsteps_inv_r Hdet.
+  specialize (IHn _ _ m Hsteps Hdet).
+  rewrite -plus_n_Sm.
+  eapply exec_det_step_ctx; [done| |done].
+  apply Hpstep.
+Qed.
+
+
 Section rules.
   Context `{!clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
@@ -158,8 +187,8 @@ Section rules.
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
-      rewrite exec_1.
-      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite pexec_1.
+      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
       eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_r].
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
@@ -172,7 +201,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "Hj").
     rewrite !wp_unfold /wp_pre /= He.
     by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".
@@ -201,8 +230,8 @@ Section rules.
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
-      rewrite exec_1.
-      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite pexec_1.
+      rewrite step_or_final_no_final /=; [|by apply to_final_None_2,fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
       eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_empty_r].
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
@@ -215,7 +244,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".
@@ -245,8 +274,8 @@ Section rules.
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
-      rewrite exec_1.
-      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite pexec_1.
+      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
       eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_wrong_r].
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
@@ -259,7 +288,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".

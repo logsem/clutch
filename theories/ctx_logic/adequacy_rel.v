@@ -1,6 +1,5 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import na_invariants.
-From clutch.common Require Import exec.
 From clutch.ctx_logic Require Import weakestpre model adequacy.
 From clutch.prob_lang Require Import lang.
 
@@ -17,7 +16,7 @@ Theorem refines_coupling Σ `{clutchRGpreS Σ}
   (A : ∀ `{clutchRGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' n :
   (∀ `{clutchRGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
   (∀ `{clutchRGS Σ}, ⊢ REL e << e' : A) →
-  refRcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ.
+  refRcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ.
 Proof.
   intros HA Hlog.
   apply (wp_refRcoupl Σ); auto.

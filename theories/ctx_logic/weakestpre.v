@@ -6,8 +6,8 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.bi Require Import weakestpre.
-From clutch.prob Require Export couplings distribution.
-From clutch.common Require Export exec language.
+From clutch.prob Require Export couplings distribution markov.
+From clutch.common Require Export language.
 
 Import uPred.
 
@@ -42,7 +42,7 @@ Section exec_coupl.
             ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
       (* an arbitrary amount of [prim_step]s on the right *)
-      (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (exec n (e1', σ1')) R⌝ ∗
+      (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ Φ ((e1, σ1), (e2', σ2'))) ∨
       (* [prim_step] on the left, [state_step] on the right *)
       ([∨ list] α' ∈ get_active σ1',
@@ -116,7 +116,7 @@ Section exec_coupl.
       (∃ R, ⌜reducible e1 σ1⌝ ∗
             ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
-      (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (exec n (e1', σ1')) R⌝ ∗
+      (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R⌝ ∗
               ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z) ∨
       ([∨ list] α' ∈ get_active σ1',
         (∃ R, ⌜reducible e1 σ1⌝ ∗
@@ -129,8 +129,8 @@ Section exec_coupl.
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
               (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))))%I.
   Proof. rewrite /exec_coupl/exec_coupl' least_fixpoint_unfold //. Qed.
-
-  Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
+  
+  #[local] Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
 
   Lemma exec_coupl_strong_mono e1 σ1 e1' σ1' (Z1 Z2 : cfg Λ → cfg Λ → iProp Σ) :
     (∀ e2 σ2 ρ', (⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 (e2, σ2) ρ' -∗ Z2 (e2, σ2) ρ')) -∗
@@ -257,7 +257,7 @@ Section exec_coupl.
       iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R2 (e2', σ2) ρ'), n. simpl.
       iSplit.
       { iPureIntro.
-        rewrite -(dret_id_right (exec _ _)).
+        rewrite -(dret_id_right (pexec _ _)).
         rewrite -(dret_id_left (λ ρ, dret (K ρ.1, ρ.2)) (_, σ)).
         eapply Rcoupl_dbind; [|done].
         intros [] [] ?. apply Rcoupl_dret. eauto. }
@@ -327,7 +327,7 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_exec_r e1 σ1 e1' σ1' Z :
-    (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (exec n (e1', σ1')) R⌝ ∗
+    (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z)
     ⊢ exec_coupl e1 σ1 e1' σ1' Z.
   Proof.
@@ -424,7 +424,7 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z :
-    exec n (e1', σ1') (e2', σ2') = 1 →
+    pexec n (e1', σ1') (e2', σ2') = 1 →
     exec_coupl e1 σ1 e2' σ2' Z -∗
     exec_coupl e1 σ1 e1' σ1' Z.
   Proof.

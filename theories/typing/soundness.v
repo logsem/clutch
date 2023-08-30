@@ -1,6 +1,5 @@
 (** Logical relation is sound w.r.t. the contextual refinement. *)
 From Coq Require Export Reals.
-From clutch.common Require Import exec.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import notation metatheory lang.
 From clutch.ctx_logic Require Export primitive_laws model adequacy_rel.
@@ -11,11 +10,9 @@ Lemma refines_sound_open Σ `{!clutchRGpreS Σ} Γ e e' τ :
   Γ ⊨ e ≤ctx≤ e' : τ.
 Proof.
   intros Hlog K σ₀ b Htyped.
-  cut (∀ n, ((exec_val n (fill_ctx K e, σ₀)) (LitV (LitBool b)) <=
-             (lim_exec_val (fill_ctx K e', σ₀)) (LitV (LitBool b)))%R).
-  { intros Hn.
-    by eapply lim_exec_val_continous.
-  }
+  cut (∀ n, ((exec n (fill_ctx K e, σ₀)) (LitV (LitBool b)) <=
+             (lim_exec (fill_ctx K e', σ₀)) (LitV (LitBool b)))%R).
+  { intros Hn. by eapply lim_exec_leq. }
   intros n.
   eapply refRcoupl_eq_elim.
   eapply (refines_coupling Σ (λ _, lrel_bool)); auto; last first.

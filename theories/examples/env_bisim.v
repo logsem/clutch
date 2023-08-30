@@ -52,8 +52,8 @@ Proof.
   revert h1.
   unfold I, L.
   simpl.
-  rewrite lim_exec_val_prim_step.
-  rewrite prim_step_or_val_no_val // /=.
+  rewrite lim_exec_step.
+  rewrite step_or_final_no_final // /=; [|auto].
 Abort.
 
 

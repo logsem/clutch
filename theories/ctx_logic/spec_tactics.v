@@ -3,7 +3,7 @@ From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
-From clutch.common Require Import language ectx_language ectxi_language exec.
+From clutch.common Require Import language ectx_language ectxi_language.
 From clutch.prob_lang Require Import locations notation tactics metatheory lang
   class_instances.
 From clutch.ctx_logic Require Import weakestpre lifting spec_ra spec_rules.
