@@ -224,8 +224,8 @@ Local Open Scope R.
 Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
 Proof.
@@ -250,8 +250,8 @@ Lemma Rcoupl_rand_lbl_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 
   N ≠ M →
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #lbl:α1) σ1)
-    (prim_step (rand #z from #lbl:α2) σ2)
+    (prim_step (rand(#lbl:α1) #z) σ1)
+    (prim_step (rand(#lbl:α2) #z) σ2)
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
@@ -276,8 +276,8 @@ Lemma Rcoupl_rand_lbl_rand_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 z σ
   N ≠ M →
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #lbl:α1) σ1)
-    (prim_step (rand #z from #()) σ2)
+    (prim_step (rand(#lbl:α1) #z) σ1)
+    (prim_step (rand #z) σ2)
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
@@ -302,8 +302,8 @@ Lemma Rcoupl_rand_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α2 z σ
   N ≠ M →
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #z from #lbl:α2) σ2)
+    (prim_step (rand #z) σ1)
+    (prim_step (rand(#lbl:α2) #z) σ2)
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
@@ -379,7 +379,7 @@ Lemma Rcoupl_rand_state N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α' xs:
   N = Z.to_nat z →
   σ1'.(tapes) !! α' = Some (N; xs) →
   Rcoupl
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (state_step σ1' α')
     (λ ρ2 σ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ σ2' = state_upd_tapes <[α' := (N; xs ++ [f n])]> σ1').
@@ -403,7 +403,7 @@ Lemma Rcoupl_state_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α xs :
   σ1.(tapes) !! α = Some (N; xs) →
   Rcoupl
     (state_step σ1 α)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1')
     (λ σ2 ρ2' , ∃ (n : fin (S N)),
         σ2 = state_upd_tapes <[α := (N; xs ++ [n])]> σ1 ∧ ρ2' = (Val #(f n), σ1') ).
 Proof.
@@ -424,11 +424,11 @@ Lemma Rcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   Rcoupl
     (dret ρ1)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ?.
-  assert (head_reducible (rand #z from #()) σ1') as hr.
+  assert (head_reducible (rand #z) σ1') as hr.
   { eexists (_, _).
     apply head_step_support_equiv_rel.
     by apply (RandNoTapeS _ N 0%fin). }
@@ -446,11 +446,11 @@ Lemma Rcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
   tapes σ1' !! α' = Some (N; []) →
   Rcoupl
     (dret ρ1)
-    (prim_step (rand #z from #lbl:α') σ1')
+    (prim_step (rand(#lbl:α') #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ??.
-  assert (head_reducible (rand #z from #lbl:α') σ1') as hr.
+  assert (head_reducible (rand(#lbl:α') #z) σ1') as hr.
   { eexists (_, _).
     apply head_step_support_equiv_rel.
     by apply (RandTapeEmptyS _ _ N 0%fin). }
@@ -468,11 +468,11 @@ Lemma Rcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
   tapes σ1' !! α' = Some (M; ns) →
   Rcoupl
     (dret ρ1)
-    (prim_step (rand #z from #lbl:α') σ1')
+    (prim_step (rand(#lbl:α') #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ???.
-  assert (head_reducible (rand #z from #lbl:α') σ1') as hr.
+  assert (head_reducible (rand(#lbl:α') #z) σ1') as hr.
   { eexists (_, _).
     apply head_step_support_equiv_rel.
     by apply (RandTapeOtherS _ _ M N ns 0%fin). }
@@ -601,19 +601,19 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
 | RandTapePSP α σ N n ns z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; n :: ns) : tape) →
-  prob_head_step_pred (rand #z from #lbl:α) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandEmptyPSP N α σ z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; []) : tape) →
-  prob_head_step_pred (rand #z from #lbl:α) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandTapeOtherPSP N M α σ ns z :
   N ≠ M →
   M = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; ns) : tape) →
-  prob_head_step_pred (rand #z from #lbl:α) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
-  prob_head_step_pred (rand #z from #()) σ.
+  prob_head_step_pred (rand #z) σ.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.

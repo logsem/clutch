@@ -490,7 +490,7 @@ Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
 
 Lemma tac_rel_rand_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) N z n ns e t tres A E :
   TCEq N (Z.to_nat z) →
-  t = fill K (rand #z from #lbl:α) →
+  t = fill K (rand(#lbl:α) #z) →
   envs_lookup i1 ℶ1 = Some (false, α ↪ (N; n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (N; ns))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #n) →
@@ -510,7 +510,7 @@ Qed.
 
 Lemma tac_rel_rand_r `{!clutchRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tres A :
   TCEq N (Z.to_nat z) →
-  t = fill K (rand #z from (#lbl:α)) →
+  t = fill K (rand(#lbl:α) #z) →
   nclose specN ⊆ E →
   envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (N; n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (N; ns))) ℶ1 = Some ℶ2 →

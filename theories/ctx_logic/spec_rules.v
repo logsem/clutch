@@ -146,7 +146,7 @@ Section rules.
   Lemma step_rand E K l N z n ns :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:l) ∗ l ↪ₛ (N; n :: ns)
+    spec_ctx ∗ ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
     ={E}=∗ spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (N; ns).
   Proof.
     iIntros (-> ?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
@@ -170,7 +170,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #()) ∗ 
+    spec_ctx ∗ ⤇ fill K (rand #z) ∗ 
     (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -212,7 +212,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (N; []) ∗
+    spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
     ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -256,7 +256,7 @@ Section rules.
     N ≠ M →
     to_val e = None →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (M; ns) ∗
+    spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
     ((α ↪ₛ (M; ns) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -309,7 +309,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     l ↪ₛ (N; n :: ns) -∗
-    refines_right K (rand #z from #lbl:l) ={E}=∗ refines_right K #n ∗ l ↪ₛ (N; ns).
+    refines_right K (rand(#lbl:l) #z) ={E}=∗ refines_right K #n ∗ l ↪ₛ (N; ns).
   Proof.
     iIntros (??) "? (?&?)".
     iMod (step_rand with "[$]") as "(?&?&?)"; [done|].

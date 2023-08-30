@@ -106,9 +106,13 @@ Notation "'ref' e" := (Alloc e%E) (at level 10) : expr_scope.
 Notation "- e" := (UnOp MinusUnOp e%E) : expr_scope.
 
 Notation alloc := AllocTape.
-Notation "'rand' e1 'from' e2" := (Rand e1%E e2%E) (at level 75, left associativity) : expr_scope.
-Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
 
+
+Notation "'rand(' α ) e" := (Rand e%E α%E) (at level 70, right associativity, format "'rand(' α )  e") : expr_scope.
+Notation "'rand' e" := (Rand e%E (Val $ LitV LitUnit)) (at level 70) : expr_scope.
+
+Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
+  
 Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
 Notation "e1 - e2" := (BinOp MinusOp e1%E e2%E) : expr_scope.
 Notation "e1 * e2" := (BinOp MultOp e1%E e2%E) : expr_scope.
@@ -205,9 +209,6 @@ Notation "'let:m' x := e1 'in' e2" :=
 (* `assert e1 ;;; e2` errors out if e1 evaluates to false. *)
 Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
   (at level 200, e1, e2 at level 200) : expr_scope.
-
-Definition while (cond body : expr) : expr :=
-   #().
 
 Notation "'while' e1 'do' e2 'end'" :=
   ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #())) #())%E

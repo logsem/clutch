@@ -154,7 +154,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; ns) ∗ refines_right K (rand #z from #()) ∗
+    α ↪ (N; ns) ∗ refines_right K (rand #z) ∗
     (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ refines_right K #(f n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -201,7 +201,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; ns) ∗ refines_right K (rand #z from #()) ∗
+    α ↪ (N; ns) ∗ refines_right K (rand #z) ∗
     (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ refines_right K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof. apply (wp_couple_tape_rand _ Datatypes.id). Qed.
@@ -210,9 +210,9 @@ Section rules.
   Lemma wp_couple_rand_tape N f `{Bij (fin (S N)) (fin (S N)) f} z E α ns Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ▷ α ↪ₛ (N; ns) ∗
-    ▷ (∀ n : fin (S N), α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    spec_ctx ∗ α ↪ₛ (N; ns) ∗
+    (∀ n : fin (S N), α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> He) "(#Hinv & >Hαs & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -252,18 +252,18 @@ Section rules.
   Lemma wp_couple_rand_tape_eq E α N z ns Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ▷ α ↪ₛ (N; ns) ∗
-    ▷ (∀ n : fin (S N), α ↪ₛ (N; ns ++ [n]) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    spec_ctx ∗ α ↪ₛ (N; ns) ∗
+    (∀ n : fin (S N), α ↪ₛ (N; ns ++ [n]) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_tape _ Datatypes.id). Qed.
 
   (** * rand(α, N) ~ rand(unit, N) coupling *)
   Lemma wp_couple_rand_lbl_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ refines_right K (rand #z from #()) ∗
-    ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    α ↪ (N; []) ∗ refines_right K (rand #z) ∗
+    (∀ n : fin (S N), α ↪ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (??) "(>Hα & [#Hinv Hr] & HΦ)".
     iApply wp_couple_tape_rand => //.
@@ -277,18 +277,18 @@ Section rules.
   Lemma wp_couple_rand_lbl_rand_eq N z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ refines_right K (rand #z from #()) ∗
-    ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    α ↪ (N; []) ∗ refines_right K (rand #z) ∗
+    (∀ n : fin (S N), α ↪ (N; []) ∗ refines_right K #n -∗ Φ #n)
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_lbl_rand _ Datatypes.id). Qed.
 
   (** * rand(unit, N) ~ rand(α, N) coupling *)
   Lemma wp_couple_rand_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α) ∗
-    ▷ (∀ n : fin (S N), α ↪ₛ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    α ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α) #z) ∗
+    (∀ n : fin (S N), α ↪ₛ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (??) "(Hα & [#Hinv Hr] & Hwp)".
     iApply wp_fupd.
@@ -303,18 +303,18 @@ Section rules.
   Lemma wp_couple_rand_rand_lbl_eq N z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α) ∗
-    ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) ∗ refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    α ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α) #z) ∗
+    (∀ (n : fin (S N)), α ↪ₛ (N; []) ∗ refines_right K #n -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand_lbl _ Datatypes.id). Qed.
 
   (** * rand(unit, N) ~ rand(unit, N) coupling *)
   Lemma wp_couple_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    refines_right K (rand #z from #()) ∗
-    ▷ (∀ n : fin (S N), refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    refines_right K (rand #z) ∗
+    (∀ n : fin (S N), refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ?) "([#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -357,18 +357,18 @@ Section rules.
   Lemma wp_couple_rand_rand_eq N z K E Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    refines_right K (rand #z from #()) ∗
-    ▷ (∀ n : fin (S N), refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    refines_right K (rand #z) ∗
+    (∀ n : fin (S N), refines_right K #n -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand _ Datatypes.id). Qed.
 
     (** * rand(α, N) ~ rand(α, N) coupling *)
   Lemma wp_couple_rand_lbl_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α α' Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α') ∗
-    ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α') #z) ∗
+    (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (??) "(>Hα & >Hαs & [#Hinv Hr] & Hwp)".
     iApply wp_couple_tapes; [done|done|].
@@ -383,9 +383,9 @@ Section rules.
   Lemma wp_couple_rand_lbl_rand_lbl_eq N z K E α α' Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α') ∗
-    ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α') #z) ∗
+    (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K #n -∗ Φ #n)
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_lbl_rand_lbl _ Datatypes.id). Qed.
 
   (** * rand(α, N) ~ rand(α, N) wrong bound coupling *)
@@ -394,9 +394,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     nclose specN ⊆ E →
-    ▷ α ↪ (M; xs) ∗ ▷ α' ↪ₛ (M; ys) ∗ refines_right K (rand #z from #lbl:α') ∗
-    ▷ (∀ n : fin (S N), α ↪ (M; xs) ∗ α' ↪ₛ (M; ys) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    α ↪ (M; xs) ∗ α' ↪ₛ (M; ys) ∗ refines_right K (rand(#lbl:α') #z) ∗
+    (∀ n : fin (S N), α ↪ (M; xs) ∗ α' ↪ₛ (M; ys) ∗ refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(>Hα & >Hαs & [#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -443,9 +443,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     nclose specN ⊆ E →
-    ▷ α ↪ (M; xs) ∗ refines_right K (rand #z from #()) ∗
-    ▷ (∀ n : fin (S N), α ↪ (M; xs) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    α ↪ (M; xs) ∗ refines_right K (rand #z) ∗
+    (∀ n : fin (S N), α ↪ (M; xs) ∗ refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(>Hα & [#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -491,9 +491,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     nclose specN ⊆ E →
-    ▷ α ↪ₛ (M; ys) ∗ refines_right K (rand #z from #lbl:α) ∗
-    ▷ (∀ n : fin (S N), α ↪ₛ (M; ys) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    α ↪ₛ (M; ys) ∗ refines_right K (rand(#lbl:α) #z) ∗
+    (∀ n : fin (S N), α ↪ₛ (M; ys) ∗ refines_right K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(> Hα & [#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].

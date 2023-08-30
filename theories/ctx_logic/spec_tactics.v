@@ -345,7 +345,7 @@ Lemma tac_tp_rand `{clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) N z n ns Q
   TCEq N (Z.to_nat z) →
   nclose specN ⊆ E1 →
   envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
-  e = fill K' (rand #z from #lbl:l) →
+  e = fill K' (rand(#lbl:l) #z) →
   envs_lookup i2 Δ2 = Some (false, l ↪ₛ (N; n::ns))%I →
   e2 = fill K' (of_val #n) →
   match envs_simple_replace i2 false
@@ -392,7 +392,7 @@ Tactic Notation "tp_rand" :=
 (*   to_val t = None → *)
 (*   nclose specN ⊆ E → *)
 (*   envs_lookup i1 Δ1 = Some (false, refines_right k e)%I → *)
-(*   e = fill K' (rand #z from #()) → *)
+(*   e = fill K' (rand #z) → *)
 (*   (forall (b : bool), exists e2, *)
 (*       e2 = fill K' (of_val #b) /\ *)
 (*       match envs_simple_replace i1 false *)

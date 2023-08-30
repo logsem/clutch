@@ -138,7 +138,7 @@ Section compatibility.
   Lemma refines_rand_tape e1 e1' e2 e2' :
     (REL e1 << e1' : lrel_nat) -∗
     (REL e2 << e2' : lrel_tape) -∗
-    REL rand e1 from e2 << rand e1' from e2' : lrel_nat.
+    REL rand(e2) e1  << rand(e2') e1' : lrel_nat.
   Proof.
     iIntros "IH1 IH2".
     rel_bind_ap e2 e2' "IH2" w w' "IH2".
@@ -167,14 +167,14 @@ Section compatibility.
 
   Lemma refines_rand_unit e e' :
     (REL e << e' : lrel_nat) -∗
-    REL rand e from #() << rand e' from #() : lrel_nat.
+    REL rand e << rand e' : lrel_nat.
   Proof.
     iIntros "H".
     rel_bind_ap e e' "H" v v' "H".
     iDestruct "H" as (n) "%H".
     destruct H as [-> ->].
-    rel_bind_l (rand _ from _)%E.
-    rel_bind_r (rand _ from _)%E.
+    rel_bind_l (rand(_) _)%E.
+    rel_bind_r (rand(_) _)%E.
     iApply (refines_couple_rands_lr).
     iIntros (b).
     value_case.

@@ -98,9 +98,5 @@ Proof.
   { by rewrite random_walk_terminates. }
   eapply (wp_refRcoupl_mass (tprΣ bool)).
   iIntros (?) "Ha".
-  wp_apply (random_walk_ref with "Ha").
-  iIntros "Ha".
-  iExists _. iFrame.
-  iPureIntro.
-  by eapply to_final_Some_2.
+  wp_apply (random_walk_ref with "Ha"); eauto.
 Qed.

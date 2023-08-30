@@ -7,14 +7,13 @@ Section coupl.
 
   Definition int_to_bool : val :=
     λ: "z", if: "z" = #0 then #false else #true.
-  Definition flipL : val := λ: "e", int_to_bool (rand #1%nat from "e").
-  Definition flip : expr := (flipL #()).
+  Definition flip : expr := (int_to_bool (rand #1))%E.
 
   Lemma rwp_couple_flip E R a1 :
     Rcoupl fair_coin (step a1) R →
     {{{ specF a1 }}} flip @ E {{{ (b : bool) a2, RET #b; specF a2 ∗ ⌜R b a2⌝  }}}.
   Proof.
-    iIntros (? Φ) "Ha HΦ". rewrite /flip/flipL.
+    iIntros (? Φ) "Ha HΦ". rewrite /flip.
     wp_pures.
     wp_apply (rwp_couple with "Ha"); [by eapply Rcoupl_fair_coin_dunifP|].
     iIntros (n a2) "[Ha %HR]". rewrite /int_to_bool.

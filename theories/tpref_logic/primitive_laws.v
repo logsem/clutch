@@ -104,7 +104,7 @@ Section rwp.
 
   Lemma rswp_rand (N : nat) (z : Z) k E a :
     TCEq N (Z.to_nat z) →
-    ⟨⟨⟨ True ⟩⟩⟩ rand #z from #() at k @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
+    ⟨⟨⟨ True ⟩⟩⟩ rand #z at k @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
   Proof.
     iIntros (-> Φ) "_ HΦ".
     iApply rswp_lift_atomic_head_step.
@@ -145,7 +145,7 @@ Section rwp.
 
   Lemma rwp_rand (N : nat) (z : Z) E a :
     TCEq N (Z.to_nat z) →
-    ⟨⟨⟨ True ⟩⟩⟩ rand #z from #() @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
+    ⟨⟨⟨ True ⟩⟩⟩ rand #z @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
   Proof.
     iIntros (? Φ) "H HΦ".
     iApply rwp_no_step; [done|].
@@ -160,7 +160,7 @@ Section coupl.
   Lemma rwp_couple (N : nat) (z : Z) E R a1 a :
     TCEq N (Z.to_nat z) →
     Rcoupl (dunifP N) (step a1) R →
-    {{{ specF a1 }}} rand #z from #() @ a; E {{{ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R n a2⌝ }}}.
+    {{{ specF a1 }}} rand #z @ a; E {{{ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R n a2⌝ }}}.
   Proof.
     iIntros (-> ? Φ) "Ha HΦ /=".
     iApply rwp_lift_step_fupd_coupl; [done|].
@@ -168,7 +168,7 @@ Section coupl.
     iDestruct (spec_auth_agree with "HaA Ha") as %->.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    assert (head_reducible (rand #z from #()) σ1) as hr.
+    assert (head_reducible (rand #z) σ1) as hr.
     { eexists (_, _).
       apply head_step_support_equiv_rel.
       by eapply (RandNoTapeS _ _ 0%fin). }

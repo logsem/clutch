@@ -85,10 +85,10 @@ Section erasure_helpers.
     tapes σ !! α = Some (M; ns') →
     tapes σ !! α' = Some (N; n :: ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec m)
+      (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= exec m)
       (dunifP M ≫=
          (λ n, dmap (fill_lift K)
-                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α:= (M; ns' ++ [n])]> σ))
+                 (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:= (M; ns' ++ [n])]> σ))
                  ≫= exec m))
       (=).
   Proof using m IH.
@@ -129,10 +129,10 @@ Section erasure_helpers.
     tapes σ !! α = Some (N; ns) →
     tapes σ !! α' = Some (M; []) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec m)
+      (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= exec m)
       (dunifP N ≫=
          (λ n, dmap (fill_lift K)
-                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α := (N; ns ++ [n])]> σ))
+                 (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α := (N; ns ++ [n])]> σ))
                  ≫= exec m))
       eq.
   Proof using m IH.
@@ -177,10 +177,10 @@ Section erasure_helpers.
     tapes σ !! α = Some (M; ns') →
     tapes σ !! α' = Some (N; ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec m)
+      (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= exec m)
       (dunifP M ≫=
          (λ n, dmap (fill_lift K)
-                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α:= (M; ns' ++ [n]) : tape]> σ))
+                 (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:= (M; ns' ++ [n]) : tape]> σ))
                  ≫= exec m))
       (=).
   Proof using m IH.
@@ -221,11 +221,11 @@ Section erasure_helpers.
     N = Z.to_nat z →
     tapes σ !! α = Some (M; ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #()) σ) ≫= exec m)
+      (dmap (fill_lift K) (head_step (rand #z) σ) ≫= exec m)
       (dunifP M ≫=
          (λ n,
            dmap (fill_lift K)
-             (head_step (rand #z from #()) (state_upd_tapes <[α := (M; ns ++ [n]) : tape]> σ))
+             (head_step (rand #z) (state_upd_tapes <[α := (M; ns ++ [n]) : tape]> σ))
              ≫= exec m))
       eq.
   Proof using m IH.
