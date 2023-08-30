@@ -112,7 +112,7 @@ Section spec_auth.
 End spec_auth.
 
 Lemma spec_auth_alloc {A} (a : A) `{specPreG A Σ} :
-  ⊢ |==> ∃ `{_ : specG A Σ}, specA a ∗ specF a.
+  ⊢ |==> ∃ (_ : specG A Σ), specA a ∗ specF a.
 Proof.
   iMod (own_alloc ((● (Excl' a : specUR _)) ⋅ (◯ (Excl' a : specUR _))))
     as "(%γspec & Hauth & Hfrag)".

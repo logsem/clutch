@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob Require Import distribution couplings.
-From clutch.program_logic Require Import ectx_language.
+From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation.
 From clutch.prob_lang Require Export lang.
 From iris.prelude Require Import options.

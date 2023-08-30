@@ -2,11 +2,11 @@
     applying the lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.program_logic Require Export weakestpre.
-From clutch.program_logic Require Import ectx_lifting.
+From clutch.ctx_logic Require Export weakestpre.
+From clutch.ctx_logic Require Import ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.rel_logic Require Import spec_ra.
+From clutch.ctx_logic Require Import spec_ra.
 From iris.prelude Require Import options.
 
 Class clutchGS Σ := HeapG {

@@ -3,10 +3,10 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.program_logic Require Import language ectxi_language.
+From clutch.common Require Import language ectxi_language.
 From clutch.prob_lang Require Import locations class_instances notation tactics lang.
-From clutch.rel_logic Require Import primitive_laws model rel_rules proofmode.
-From clutch.rel_logic Require Export spec_tactics.
+From clutch.ctx_logic Require Import primitive_laws model rel_rules proofmode.
+From clutch.ctx_logic Require Export spec_tactics.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!clutchRGS Σ} e' K ℶ E e t A :

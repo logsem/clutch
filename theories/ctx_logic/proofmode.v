@@ -1,6 +1,6 @@
 From clutch.prob_lang Require Import lang notation class_instances tactics.
 From clutch.prob_lang Require Export wp_tactics.
-From clutch.rel_logic Require Import primitive_laws.
+From clutch.ctx_logic Require Import primitive_laws.
 From iris.prelude Require Import options.
 
 #[global] Program Instance rel_logic_wptactics_base `{!clutchGS Σ} : @WpTacticsBase Σ unit wp' _ _.

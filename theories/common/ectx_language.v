@@ -2,7 +2,7 @@
     that this gives rise to a "language" in our sense. *)
 From Coq Require Import Reals Psatz.
 From iris.prelude Require Export prelude.
-From clutch.program_logic Require Import language.
+From clutch.common Require Import language.
 From clutch.prob Require Import distribution.
 
 Section ectx_language_mixin.

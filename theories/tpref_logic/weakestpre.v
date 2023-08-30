@@ -7,8 +7,8 @@ From iris.prelude Require Import options.
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.bi Require Export weakestpre.
 From clutch.prob Require Export couplings distribution.
-From clutch.program_logic Require Export exec language.
-From clutch.tpr Require Export spec.
+From clutch.common Require Export exec language.
+From clutch.tpref_logic Require Export spec.
 
 Import uPred.
 

@@ -5,7 +5,7 @@ From iris.bi Require Export fixpoint big_op.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import lang.
-From clutch.tpr Require Import weakestpre spec primitive_laws.
+From clutch.tpref_logic Require Import weakestpre spec primitive_laws.
 From clutch.prob Require Import couplings distribution markov.
 
 (* TODO: generalize to any language? *)

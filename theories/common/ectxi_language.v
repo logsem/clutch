@@ -3,7 +3,7 @@
 From Coq Require Import Reals.
 From Coq.Program Require Import Wf.
 From iris.prelude Require Export prelude.
-From clutch.program_logic Require Import language ectx_language.
+From clutch.common Require Import language ectx_language.
 From clutch.prob Require Import distribution.
 
 Section ectxi_language_mixin.

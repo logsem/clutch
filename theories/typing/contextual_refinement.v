@@ -1,9 +1,9 @@
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
 From Coq Require Import Reals.
-From clutch.program_logic Require Import exec.
+From clutch.common Require Import exec.
 From clutch.prob_lang Require Export lang notation.
 From iris.proofmode Require Import proofmode.
-From clutch.rel_logic Require Import primitive_laws model.
+From clutch.ctx_logic Require Import primitive_laws model.
 From clutch.typing Require Export types interp fundamental.
 
 Inductive ctx_item :=

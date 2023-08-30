@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import relations.
-From clutch.prob_lang Require Import lang.
 From clutch.program_logic Require Import language.
+From clutch.common Require Import language.
 From clutch.prob Require Import distribution couplings.
 
 (** Distribution for [n]-step partial evaluation *)

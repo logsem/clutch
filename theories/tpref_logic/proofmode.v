@@ -1,6 +1,6 @@
 From clutch.prob_lang Require Import lang notation class_instances tactics.
 From clutch.prob_lang Require Export wp_tactics.
-From clutch.tpr Require Import weakestpre primitive_laws.
+From clutch.tpref_logic Require Import weakestpre primitive_laws.
 From iris.prelude Require Import options.
 
 #[local] Definition rwp' `{!tprG δ Σ} := (rwp' _ _ _ _ _).

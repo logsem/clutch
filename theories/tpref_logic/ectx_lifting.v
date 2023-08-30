@@ -1,8 +1,8 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import tactics.
 
-From clutch.program_logic Require Export ectx_language.
-From clutch.tpr Require Export weakestpre lifting.
+From clutch.common Require Export ectx_language.
+From clutch.tpref_logic Require Export weakestpre lifting.
 Set Default Proof Using "Type".
 
 Section rwp.
