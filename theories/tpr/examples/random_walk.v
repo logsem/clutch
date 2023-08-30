@@ -1,19 +1,22 @@
+(** Almost-sure termination of a simple random walk  *)
 From Coq Require Import Reals Psatz.
-From Coq.Reals Require Import Rfunctions.
-From Coquelicot Require Import Lim_seq Rbar Hierarchy.
-From clutch.prelude Require Import stdpp_ext.
+From clutch.prob_lang Require Import lang notation.
+From clutch.tpr Require Import weakestpre spec primitive_laws proofmode adequacy.
 From clutch.prob Require Import distribution markov.
+From clutch.tpr.examples Require Import flip.
+#[local] Open Scope R.
 
-Definition step (b : bool) :=
+(** Model *)
+Definition rw_step (b : bool) :=
   if b then fair_coin else dzero.
 
-Definition to_final (b : bool) : option bool :=
+Definition rw_to_final (b : bool) : option bool :=
   if b then None else Some false.
 
-Definition random_walk_mixin : MarkovMixin step to_final.
+Definition random_walk_mixin : MarkovMixin rw_step rw_to_final.
 Proof. constructor. by intros [] [] []; simplify_eq=>/=. Qed.
 
-Canonical Structure random_walk : markov := Markov step to_final random_walk_mixin.
+Canonical Structure random_walk : markov := Markov _ _ random_walk_mixin.
 
 Lemma exec_random_walk n :
   SeriesC (exec n true) = 1 - (1/2)^n.
@@ -54,142 +57,10 @@ Proof.
   - eauto.
 Qed.
 
-From iris.proofmode Require Import coq_tactics ltac_tactics reduction proofmode.
-From clutch.tpr Require Import weakestpre spec lifting ectx_lifting.
-From clutch.prob_lang Require Export class_instances.
-From clutch.prob_lang Require Import tactics lang notation.
-From clutch.tpr Require Import primitive_laws proofmode adequacy.
-From clutch.lib Require Import flip conversion.
-
-Definition while (cond body : expr) : expr :=
-  (rec: "loop" <> := (if: cond then body ;; "loop" #() else #())) #().
-
-Notation "'while' e1 'do' e2 'end'" := (while e1 e2)
-   (e1, e2 at level 200) : expr_scope.
-
+(** Program  *)
 Definition prog_random_walk : expr :=
   let: "c" := ref #true in
   while !"c" do "c" <- flip end.
-
-(* TODO: generalize *)
-Lemma Rcoupl_dunifP_1_coin `{Countable A} (μ : distr A) R :
-  Rcoupl fair_coin μ R →
-  Rcoupl (dunifP 1) μ (λ n a, R (fin_to_bool n) a).
-Proof.
-  intros Hcpl.
-  assert (dunifP 1 = dmap bool_to_fin fair_coin) as ->.
-  { apply distr_ext=>n.
-    (* TODO: use some nicer lemma *)
-    rewrite /pmf/= /dbind_pmf SeriesC_bool.
-    rewrite /pmf/= /fair_coin_pmf /dret_pmf.
-    inv_fin n; simpl; [lra|]=> n.
-    inv_fin n; simpl; [lra|].
-    inversion 1. }
-  rewrite -(dret_id_right μ).
-  apply Rcoupl_dmap.
-  assert ((λ (a : bool) (a' : A), R (fin_to_bool (bool_to_fin a)) a') = R) as ->; [|done].
-  extensionality b.
-  rewrite bool_to_fin_to_bool //.
-Qed.
-
-Section coupl.
-  Context `{!tprG δ Σ}.
-
-  Lemma rwp_couple_flip E R a1 :
-    Rcoupl fair_coin (step a1) R →
-    {{{ specF a1 }}} flip @ E {{{ (b : bool) a2, RET #b; specF a2 ∗ ⌜R b a2⌝  }}}.
-  Proof.
-    iIntros (? Φ) "Ha HΦ". rewrite /flip/flipL.
-    wp_pures.
-    wp_apply (rwp_couple with "Ha"); [by eapply Rcoupl_dunifP_1_coin|].
-    iIntros (n a2) "[Ha %HR]". rewrite /int_to_bool.
-    wp_pures.
-    case_bool_decide; wp_pures.
-    - iApply "HΦ". iFrame. inv_fin n; eauto.
-    - iApply ("HΦ"). iFrame. inv_fin n; eauto.
-  Qed.
-
-End coupl.
-
-Section fair_coins.
-  Variable (f : bool → bool).
-  Context `{Inj bool bool (=) (=) f, Surj bool bool (=) f}.
-
-  Definition fair_coins_pmf (bs : bool * bool) : R :=
-    if bool_decide (bs.1 = f bs.2) then 0.5%R else 0.
-
-  Program Definition fair_coins : distr (bool * bool) :=
-    MkDistr fair_coins_pmf _ _ _.
-  Next Obligation.
-    rewrite /fair_coins_pmf.
-    intros [[] []]; simpl; case_bool_decide; lra.
-  Qed.
-  Next Obligation.
-    rewrite /fair_coins_pmf.
-    destruct (f true) eqn:Hf1.
-    - assert (f false = false) as Hf2.
-      { destruct (f false) eqn:Hf2; [|done]. rewrite -Hf1 in Hf2. simplify_eq. }
-      apply (ex_seriesC_ext (λ bs, (if bool_decide (bs = (true, true)) then 0.5 else 0) +
-                                   (if bool_decide (bs = (false, false)) then 0.5 else 0)))%R.
-      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
-      eapply ex_seriesC_plus; eapply ex_seriesC_singleton.
-    - assert (f false = true) as Hf2.
-      { destruct (f false) eqn:Hf2; [done|]. rewrite -Hf2 in Hf1. simplify_eq. }
-      apply (ex_seriesC_ext (λ bs, (if bool_decide (bs = (true, false)) then 0.5 else 0) +
-                                   (if bool_decide (bs = (false, true)) then 0.5 else 0)))%R.
-      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
-      eapply ex_seriesC_plus; eapply ex_seriesC_singleton.
-  Qed.
-  Next Obligation.
-    rewrite /fair_coins_pmf.
-    destruct (f true) eqn:Hf1.
-    - assert (f false = false) as Hf2.
-      { destruct (f false) eqn:Hf2; [|done]. rewrite -Hf1 in Hf2. simplify_eq. }
-      rewrite (SeriesC_ext _ (λ bs, (if bool_decide (bs = (true, true)) then 0.5 else 0) +
-                                     if bool_decide (bs = (false, false)) then 0.5 else 0))%R; last first.
-      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
-      erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
-      rewrite 2!SeriesC_singleton. lra.
-    - assert (f false = true) as Hf2.
-      { destruct (f false) eqn:Hf2; [done|]. rewrite -Hf2 in Hf1. simplify_eq. }
-      rewrite (SeriesC_ext _ (λ bs, (if bool_decide (bs = (true, false)) then 0.5 else 0) +
-                                     if bool_decide (bs = (false, true)) then 0.5 else 0))%R; last first.
-      { intros [[] []]; simpl; rewrite ?Hf1 ?Hf2 /=; lra. }
-      erewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
-      rewrite 2!SeriesC_singleton. lra.
-  Qed.
-End fair_coins.
-
-Definition f_inv {A B} f `{Surj A B (=) f} : B → A := λ b, epsilon (surj f b).
-
-Lemma f_inv_cancel_r {A B} f `{Surj A B (=) f} b :
-  f (f_inv f b) = b.
-Proof. rewrite /f_inv /= (epsilon_correct _ (surj f b)) //. Qed.
-
-Lemma f_inv_cancel_l {A B} f `{Inj A B (=) (=) f, Surj A B (=) f} b :
-  f_inv f (f b) = b.
-Proof. apply (inj f), (epsilon_correct _ (surj f (f b))). Qed.
-
-
-Lemma Rcoupl_fair_coin f `{Bij bool bool f} :
-  Rcoupl fair_coin fair_coin (λ b b', b = f b').
-Proof.
-  exists (fair_coins f). repeat split.
-  - eapply distr_ext=> b.
-    rewrite lmarg_pmf /pmf /= /fair_coins_pmf /fair_coin_pmf /=.
-    rewrite (SeriesC_ext _ (λ b', if bool_decide (b' = f_inv f b) then 0.5 else 0))%R.
-    { rewrite SeriesC_singleton //. }
-    intros b'. case_bool_decide as Heq.
-    + rewrite bool_decide_eq_true_2 //.
-      rewrite Heq f_inv_cancel_l //.
-    + rewrite bool_decide_eq_false_2 //.
-      intros [= ->]. apply Heq. rewrite f_inv_cancel_r //.
-  - eapply distr_ext=> b.
-    rewrite rmarg_pmf /pmf /= /fair_coins_pmf /fair_coin_pmf /=.
-    rewrite SeriesC_singleton //.
-  - intros []. rewrite /pmf /= /fair_coins_pmf /=.
-    case_bool_decide; [done|lra].
-Qed.
 
 Section random_walk.
   Context `{!tprG random_walk Σ}.
@@ -206,7 +77,7 @@ Section random_walk.
     wp_load.
     wp_pures.
     wp_apply (rwp_couple_flip _ (=) with "Ha").
-    { simpl. apply Rcoupl_fair_coin. apply _. }
+    { simpl. apply Rcoupl_eq. }
     iIntros (b a2) "[Ha <-]".
     wp_store.
     destruct b.

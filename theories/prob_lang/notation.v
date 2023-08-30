@@ -205,3 +205,10 @@ Notation "'let:m' x := e1 'in' e2" :=
 (* `assert e1 ;;; e2` errors out if e1 evaluates to false. *)
 Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
   (at level 200, e1, e2 at level 200) : expr_scope.
+
+Definition while (cond body : expr) : expr :=
+   #().
+
+Notation "'while' e1 'do' e2 'end'" :=
+  ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #())) #())%E
+  (e1, e2 at level 200) : expr_scope.
