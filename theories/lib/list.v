@@ -7,6 +7,16 @@ Section list.
 
 (* Simple linked list with operations operating on indices of list *)
 
+  Definition in_list : val :=
+    (rec: "in" "h" "v" :=
+       match: !"h" with
+         NONE => #false
+       | SOME "p" =>
+           let: "hv" := Fst "p" in
+           let: "next" := Snd "p" in
+           if: "hv" = "v" then #true else "in" "next" "v"
+       end).
+
   Definition get_list_idx : val :=
     (rec: "get" "h" "idx" :=
        match: !"h" with
@@ -15,6 +25,19 @@ Section list.
            let: "kv" := Fst "p" in
            let: "next" := Snd "p" in
            if: "idx" = #0 then SOME ("kv") else "get" "next" ("idx" - #1)
+       end).
+
+  Definition del_list_idx : val :=
+    (rec: "del" "h" "idx" :=
+       match: !"h" with
+         NONE => #()
+       | SOME "p" =>
+           let: "kv" := Fst "p" in
+           let: "next" := Snd "p" in
+           if: "idx" = #0 then
+             "h" <- !"next"
+           else
+             "del" "next" ("idx" - #1)
        end).
 
   Definition cons_list : val :=
@@ -90,6 +113,55 @@ Section list.
     iExists _. iFrame. iExists _; iFrame. auto.
   Qed.
 
+  Lemma wp_in_list_true E l vs (v: val) :
+    Forall (λ v', vals_compare_safe v v') vs →
+    v ∈ vs ->
+    {{{ linked_list l vs }}}
+      in_list #l v @ E
+    {{{ RET #true; linked_list l vs }}}.
+  Proof.
+    iIntros (Hcompare Hin Φ) "Hassoc HΦ".
+    rewrite /in_list. iInduction vs as [|v' vs] "IH" forall (l).
+    - exfalso. set_solver.
+    - wp_pures. iDestruct "Hassoc" as (?) "(Hl&Hassoc)". rewrite -/linked_list.
+      wp_load. inversion Hcompare; subst. wp_pures. case_bool_decide as Hcase.
+      { wp_pures. inversion Hcase.
+        iApply "HΦ". simpl.
+        iModIntro. iExists _; iFrame; eauto. }
+      { wp_pure.
+        inversion Hin; subst; try congruence; [].
+        iApply ("IH" with "[//] [//] [$]"). iNext.
+        iIntros  "Hin". iApply "HΦ".
+        iEval simpl.
+        iExists _; iFrame.
+      }
+  Qed.
+
+  Lemma spec_in_list_true E K l vs (v: val) :
+    Forall (λ v', vals_compare_safe v v') vs →
+    v ∈ vs ->
+    ↑specN ⊆ E →
+    linked_slist l vs -∗
+    refines_right K (in_list #l v) ={E}=∗
+    refines_right K (#true) ∗ linked_slist l vs.
+  Proof.
+    iIntros (Hcompare Hin ?) "H Hr".
+    rewrite /in_list. iInduction vs as [| v' vs] "IH" forall (l).
+    - exfalso. set_solver.
+    - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
+      tp_load. inversion Hcompare; subst. tp_pures; first solve_vals_compare_safe.
+      case_bool_decide as Hcase.
+      { tp_pures. inversion Hcase.
+        iFrame. simpl. iExists _. by iFrame.
+      }
+      { tp_pure.
+        inversion Hin; subst; try congruence; [].
+        iMod ("IH" with "[//] [//] [$] [$]") as "(?&?)".
+        iEval simpl.
+        iFrame. iExists _; by iFrame.
+      }
+  Qed.
+
   Definition opt_to_val (ov: option val) :=
     match ov with
     | Some v => SOMEV v
@@ -116,7 +188,7 @@ Section list.
         replace ((Z.of_nat (S k) - 1))%Z with (Z.of_nat k) by lia; last first.
         iApply ("IH" with "[$]"). iNext.
         iIntros (v) "Hfind". iApply "HΦ".
-        iEval simpl. 
+        iEval simpl.
         iDestruct "Hfind" as "(?&$)". iExists _; iFrame.
       }
   Qed.
@@ -134,6 +206,46 @@ Section list.
     wp_apply (wp_get_list_idx with "[$]").
     rewrite Z2Nat.id //.
   Qed.
+
+  Lemma wp_del_list_idx E l vs (k: nat) :
+    {{{ linked_list l vs }}}
+      del_list_idx #l #k @ E
+    {{{ RET #(); linked_list l (delete k vs) }}}.
+  Proof.
+    iIntros (Φ) "Hassoc HΦ".
+    rewrite /del_list_idx. iInduction vs as [|v' vs] "IH" forall (l k).
+    - wp_pures. rewrite /linked_list. wp_load. wp_pures. iModIntro. iApply "HΦ"; auto.
+    - wp_pures. iDestruct "Hassoc" as (?) "(Hl&Hassoc)". rewrite -/linked_list.
+      wp_load. wp_pures. case_bool_decide as Hcase.
+      { wp_pures. inversion Hcase. destruct k; try lia; [].
+        simpl. destruct vs.
+        * simpl. wp_load. wp_store. iApply "HΦ". eauto.
+        * simpl. iDestruct "Hassoc" as (?) "(?&?)". wp_load. wp_store. iApply "HΦ".
+          iExists _; iFrame; eauto.
+      }
+      { wp_pure. wp_pure. destruct k.
+        { exfalso. apply Hcase. f_equal. }
+        replace ((Z.of_nat (S k) - 1))%Z with (Z.of_nat k) by lia; last first.
+        iApply ("IH" with "[$]"). iNext.
+        iIntros "Hlinked". iApply "HΦ".
+        iEval simpl.
+        iExists _; iFrame.
+      }
+  Qed.
+
+
+  Lemma wp_del_list_idx_Z E l vs (z: Z) :
+    (0 ≤ z)%Z →
+    {{{ linked_list l vs }}}
+      del_list_idx #l #z @ E
+    {{{ RET #(); linked_list l (delete (Z.to_nat z) vs) }}}.
+  Proof.
+    iIntros (Hnonneg Φ) "Hassoc HΦ".
+    replace z with (Z.of_nat (Z.to_nat z)) by lia.
+    wp_apply (wp_del_list_idx with "[$]").
+    rewrite Z2Nat.id //.
+  Qed.
+
 
   Lemma spec_get_list_idx E K l vs (k : nat):
     ↑specN ⊆ E →
@@ -170,5 +282,43 @@ Section list.
     rewrite ?Z2Nat.id //.
   Qed.
 
+  Lemma spec_del_list_idx E K l vs (k : nat):
+    ↑specN ⊆ E →
+    linked_slist l vs -∗
+    refines_right K (del_list_idx #l #k) ={E}=∗
+    refines_right K (#()) ∗ linked_slist l (delete k vs).
+  Proof.
+    iIntros (?) "H Hr".
+    rewrite /del_list_idx. iInduction vs as [| v' vs] "IH" forall (l k).
+    - tp_pures. rewrite /linked_list. tp_load. tp_pures. iModIntro. iFrame.
+    - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
+      tp_load. tp_pures; first solve_vals_compare_safe. case_bool_decide as Hcase.
+      { tp_pures. inversion Hcase. destruct k; try lia; [].
+        simpl. destruct vs.
+        * simpl. tp_load. tp_store. by iFrame.
+        * simpl. iDestruct "Hassoc" as (?) "(?&?)". tp_load. tp_store.
+          iFrame. iExists _; by iFrame.
+      }
+      { tp_pure. tp_pure. destruct k.
+        { exfalso. apply Hcase. f_equal. }
+        replace ((Z.of_nat (S k) - 1))%Z with (Z.of_nat k) by lia; last first.
+        iMod ("IH" with "[$] [$]") as "(?&?)".
+        iEval simpl.
+        iFrame. iExists _; by iFrame.
+      }
+  Qed.
+
+  Lemma spec_del_list_idx_Z E K l vs (z : Z):
+    (0 ≤ z)%Z →
+    ↑specN ⊆ E →
+    linked_slist l vs -∗
+    refines_right K (del_list_idx #l #z) ={E}=∗
+    refines_right K (#()) ∗ linked_slist l (delete (Z.to_nat z) vs).
+  Proof.
+    iIntros (??) "H Hr".
+    replace z with (Z.of_nat (Z.to_nat z)) by lia.
+    iApply (spec_del_list_idx with "[$]"); auto.
+    rewrite ?Z2Nat.id //.
+  Qed.
 
 End list.
