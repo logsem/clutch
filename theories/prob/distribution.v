@@ -1279,7 +1279,7 @@ Proof.
   - real_solver.
   - intros b. by apply ex_seriesC_scal_l.
   - eapply ex_seriesC_finite.
-Qed.  
+Qed.
 
 (* We may need this generality later, but I think it is better to define the fair coin explicitly *)
 Definition biased_coin_pmf r : bool → R :=
@@ -1376,7 +1376,7 @@ Section dzero.
 
   Lemma dzero_0 `{Countable A} (a : A) :
     dzero a = 0.
-  Proof. done. Qed. 
+  Proof. done. Qed.
 
   Lemma dzero_supp_empty (a : A) :
     ¬ (dzero a > 0).
@@ -1482,31 +1482,27 @@ Proof.
 Qed.
 
 (** * Products  *)
-Program Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
-  MkDistr (λ '(a, b), μ1 a * μ2 b) _ _ _.
-Next Obligation. intros ???????? [a b] =>/=. by eapply Rmult_le_pos. Qed.
-Next Obligation.
-  intros A ?? B ?? μ1 μ2=>/=.
-  apply ex_seriesC_prod.
-  - real_solver.
-  - intro a.
-    apply ex_seriesC_scal_l.
-    apply pmf_ex_seriesC.
-  - eapply ex_seriesC_ext.
-    + intro. rewrite SeriesC_scal_l. done.
-    + apply ex_seriesC_scal_r. apply pmf_ex_seriesC.
-Qed.
-Next Obligation.
-  intros ?????? μ1 μ2 =>/=.
-  rewrite (SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); last first.
-  { intros (a & b). done. }
-  rewrite distr_double_rl.
-  rewrite (distr_double_swap (λ a, μ2) μ1).
-  rewrite -(SeriesC_ext (λ a, μ1 a * SeriesC μ2)); last first.
-  { intros a. rewrite SeriesC_scal_l //. }
-  transitivity (SeriesC μ1); [|done].
-  eapply SeriesC_le; [|done].
-  real_solver.
+Definition dprod `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) : distr (A * B) :=
+  a ← μ1;
+  b ← μ2;
+  dret (a, b).
+
+Lemma dprod_pmf `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) a b :
+  dprod μ1 μ2 (a, b) = μ1 a * μ2 b.
+Proof.
+  rewrite {1}/pmf /= /dbind_pmf.
+  rewrite {2}/pmf /= /dbind_pmf.
+  erewrite SeriesC_ext; last first.
+  { intros a'.
+    erewrite (SeriesC_ext _ (λ b', if bool_decide (b' = b) then μ2 b * dret (a', b) (a, b) else 0)).
+    - rewrite SeriesC_singleton //.
+    - intros b'. case_bool_decide; simplify_eq=>//=.
+      rewrite dret_0; [lra|]. by intros [=]. }
+  erewrite (SeriesC_ext _ (λ a', if bool_decide (a' = a) then μ1 a * μ2 b else 0)).
+  - rewrite SeriesC_singleton //.
+  - intros a'. case_bool_decide; simplify_eq=>/=.
+    + rewrite dret_1_1 //. lra.
+    + rewrite dret_0; [lra|]. by intros [=].
 Qed.
 
 Section dprod.
@@ -1516,7 +1512,7 @@ Section dprod.
   Lemma dprod_pos (a : A) (b : B) :
     dprod μ1 μ2 (a, b) > 0 ↔ μ1 a > 0 ∧ μ2 b > 0.
   Proof.
-    rewrite {1}/pmf /=.
+    rewrite dprod_pmf /=.
     split; [|real_solver].
     destruct (decide (μ1 a > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
     destruct (decide (μ2 b > 0)) as [| ->%pmf_eq_0_not_gt_0]; [|lra].
@@ -1526,7 +1522,8 @@ Section dprod.
   Lemma dprod_mass :
     SeriesC (dprod μ1 μ2) = SeriesC μ1 * SeriesC μ2.
   Proof.
-    rewrite {1}(SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); [ | intros (a' & b') ; auto ].
+    rewrite {1}(SeriesC_ext _ (λ '(a, b), μ1 a * μ2 b)); last first.
+    { intros [a' b']. rewrite dprod_pmf //. }
     rewrite distr_double_lr.
     erewrite SeriesC_ext; [|intro; rewrite SeriesC_scal_l //].
     rewrite SeriesC_scal_r //.
@@ -1587,7 +1584,7 @@ Section marginals.
     lmarg (dprod μ1 μ2) a = μ1 a * SeriesC μ2.
   Proof.
     rewrite lmarg_pmf.
-    rewrite {1}/pmf/=/dprod/=.
+    erewrite SeriesC_ext; [|intros ?; rewrite dprod_pmf //].
     rewrite SeriesC_scal_l //.
   Qed.
 
@@ -1639,7 +1636,7 @@ Section marginals.
     rmarg (dprod μ1 μ2) b = μ2 b * SeriesC μ1.
   Proof.
     rewrite rmarg_pmf.
-    rewrite {1}/pmf/=/dprod/=.
+    erewrite SeriesC_ext; [|intros ?; rewrite dprod_pmf //].
     rewrite SeriesC_scal_r; lra.
   Qed.
 
