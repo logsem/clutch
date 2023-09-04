@@ -1,6 +1,6 @@
 From clutch.prob Require Import distribution markov.
 From clutch.prob_lang Require Import lang notation.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
+From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
 
 Section coupl.
   Context `{!tprG δ Σ}.

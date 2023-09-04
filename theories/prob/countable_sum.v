@@ -546,6 +546,18 @@ Proof.
   intros []; simpl; lra.
 Qed.
 
+Lemma SeriesC_fin2 (f : fin 2 → R) :
+  SeriesC f = f 0%fin + f 1%fin.
+Proof.
+  rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = 0%fin) then f 0%fin else 0) +
+                                 if bool_decide (b = 1%fin) then f 1%fin else 0)).
+  { rewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
+    rewrite 2!SeriesC_singleton //. }
+  intros n; inv_fin n; [simpl; lra|].
+  intros n; inv_fin n; [simpl; lra|].
+  intros n; inv_fin n.
+Qed.
+
 Section strict.
   Context `{Countable A}.
 

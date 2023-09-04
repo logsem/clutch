@@ -1,24 +1,12 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob_lang Require Import lang notation.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
+From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
 From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples Require Import flip.
 #[local] Open Scope R.
 
 Section lazy_int.
   (* Context (CHUNCK_SIZE : nat). *)
-
-  Lemma SeriesC_fin2 (f : fin 2 → R) :
-    SeriesC f = f 0%fin + f 1%fin.
-  Proof.
-    rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = 0%fin) then f 0%fin else 0) +
-                                  if bool_decide (b = 1%fin) then f 1%fin else 0)).
-    { rewrite SeriesC_plus; [|eapply ex_seriesC_singleton..].
-      rewrite 2!SeriesC_singleton //. }
-    intros n; inv_fin n; [simpl; lra|].
-    intros n; inv_fin n; [simpl; lra|].
-    intros n; inv_fin n.
-  Qed.
 
   Lemma state_step_fair_coin_coupl σ α bs :
     σ.(tapes) !! α = Some ((1%nat; bs) : tape) →
@@ -71,7 +59,6 @@ Section lazy_int.
     eapply Rcoupl_dret.
     rewrite /state_upd_tapes insert_commute //.
   Qed.
-
 
   Definition mstep (bs : bool * bool) : distr (bool * bool) :=
     let '(b1, b2) := bs in
@@ -138,6 +125,33 @@ Section lazy_int.
 
 
   Context `{tprG random_walks Σ}.
+
+  (* TODO: why is this neccesary?!?! *)
+  Definition foo : specG (bool * bool) Σ := (@tprG_specG _ _ _).
+  Existing Instance foo.
+
+  Lemma rwp_coupl_two_tapes ns1 ns2 α1 α2 (e : expr) E (Φ : val → iProp Σ) (b : bool) :
+    to_val e = None →
+    α1 ↪ (1%nat; ns1) ∗
+    α2 ↪ (1%nat; ns2) ∗
+    specF (b, b) ∗
+    ▷ (∀ b1 b2, specF (b1, b2) -∗
+                α1 ↪ (1%nat; ns1 ++ [bool_to_fin b1]) -∗
+                α2 ↪ (1%nat; ns2 ++ [bool_to_fin b2]) -∗
+                WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "(Hα1 & Hα2 & Hspec & Hcnt)".
+    iApply (rwp_couple_two_tapes (δ := random_walks) _ _
+              (λ '(n1, n2) '(b1, b2), n1 = bool_to_fin b1 ∧ n2 = bool_to_fin b2)
+             with "[$Hα1 $Hα2 $Hspec Hcnt]"); [done| |].
+    { intros ???? => /=.
+      rewrite bool_decide_eq_false_2; auto.
+      eapply Rcoupl_mono; [by apply state_steps_fair_coins_coupl|].
+      intros [] [b1 b2] [= -> ->] =>/=. eauto. }
+    iIntros "!>" (?? [b1 b2] [-> ->]) "Hf1 Hα1 Hα2".
+    iApply ("Hcnt" with "Hf1 Hα1 Hα2").
+  Qed.
 
   Fixpoint chunk_list (l : loc) (zs : list Z) : iProp Σ :=
     match zs with
