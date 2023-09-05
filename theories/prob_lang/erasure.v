@@ -268,7 +268,7 @@ Proof.
   - rewrite exec_Sn /step_or_final /=.
     destruct (to_val e1) eqn:He1.
     + rewrite dret_id_left -/exec.
-      erewrite (exec_is_final); [|done].  
+      erewrite (exec_is_final); [|done].
       rewrite dret_const; [|solve_distr_mass].
       by apply Rcoupl_dret.
     + rewrite /prim_step /=.
@@ -330,15 +330,15 @@ Proof.
    }
    rewrite Haux.
    rewrite (MCT_seriesC _ (λ n, exec n (e1,σ1) v) (lim_exec (e1,σ1) v)); auto.
-   - real_solver. 
+   - real_solver.
    - intros. apply Rmult_le_compat; auto; [done|apply exec_mono].
-   - intro. exists (state_step σ1 α a)=>?. real_solver. 
+   - intro. exists (state_step σ1 α a)=>?. real_solver.
    - intro n.
      rewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim n e1 σ1 α bs Hsome)); auto.
      rewrite {3}/pmf/=/dbind_pmf.
      apply SeriesC_correct; auto.
      apply (ex_seriesC_le _ (state_step σ1 α)); auto.
-     real_solver. 
+     real_solver.
    - rewrite lim_exec_unfold.
      rewrite rbar_finite_real_eq; [apply Sup_seq_correct |].
      rewrite mon_sup_succ.
@@ -360,6 +360,28 @@ Proof.
   - intro a.
     apply (limprim_coupl_step_limprim_aux _ _ _ _ _ Hsome).
   - apply Rcoupl_eq.
+Qed.
+
+Lemma lim_exec_eq_erasure α e σ bs :
+  σ.(tapes) !! α = Some bs →
+  lim_exec (e, σ) = state_step σ α ≫= (λ σ', lim_exec (e, σ')).
+Proof. intros ?. by eapply Rcoupl_eq_elim, limprim_coupl_step_limprim. Qed.
+
+Lemma lim_exec_eq_erasure_twice α1 α2 e σ bs1 bs2 :
+  σ.(tapes) !! α1 = Some bs1 →
+  σ.(tapes) !! α2 = Some bs2 →
+  lim_exec (e, σ) = state_step σ α1 ≫= (λ σ', state_step σ' α2 ≫= (λ σ'', lim_exec (e, σ''))).
+Proof.
+  intros ??.
+  erewrite (lim_exec_eq_erasure α1); [|done].
+  eapply dbind_eq; [|done].
+  intros ? Hs%state_step_support_equiv_rel.
+  inversion_clear Hs; simplify_eq=>/=.
+  destruct (decide (α1 = α2)); simplify_map_eq/=.
+  - erewrite (lim_exec_eq_erasure α2); [done|].
+    rewrite lookup_insert //.
+  - erewrite (lim_exec_eq_erasure α2); [done|].
+    rewrite lookup_insert_ne //.
 Qed.
 
 Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':
@@ -391,7 +413,7 @@ Lemma refRcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ m bs':
   refRcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) Φ.
 Proof.
   intros He1 Hα' HR Hcont.
-  rewrite exec_Sn_not_final; [|eauto]. 
+  rewrite exec_Sn_not_final; [|eauto].
   eapply (refRcoupl_eq_refRcoupl_unfoldr _ (state_step σ1' α' ≫= (λ σ2', lim_exec (e1', σ2')))).
   - eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros [] ??. by apply Hcont.
