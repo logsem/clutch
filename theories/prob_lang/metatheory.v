@@ -1,10 +1,10 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.prob Require Import distribution couplings.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation.
 From clutch.prob_lang Require Export lang.
+From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [prob_lang] language *)
@@ -482,6 +482,60 @@ Proof.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).
     inv_head_step; eauto.
+Qed.
+
+(** * state_step ~ fair_coin  *)
+Lemma state_step_fair_coin_coupl σ α bs :
+  σ.(tapes) !! α = Some ((1%nat; bs) : tape) →
+  Rcoupl
+    (state_step σ α)
+    fair_coin
+    (λ σ' b, σ' = state_upd_tapes (<[α := (1%nat; bs ++ [bool_to_fin b])]>) σ).
+Proof.
+  intros Hα.
+  exists (dmap (λ b, (state_upd_tapes (<[α := (1%nat; bs ++ [bool_to_fin b]) : tape]>) σ, b)) fair_coin).
+  repeat split.
+  - rewrite /lmarg dmap_comp /state_step.
+    rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2].
+    rewrite lookup_total_alt Hα /=.
+    eapply distr_ext=> σ'.
+    rewrite /dmap /= /pmf /= /dbind_pmf.
+    rewrite SeriesC_bool SeriesC_fin2 /=.
+    rewrite {1 3 5 7}/pmf /= /fair_coin_pmf.
+    destruct (decide (state_upd_tapes <[α:=(1%nat; bs ++ [1%fin])]> σ = σ')); subst.
+    + rewrite {1 2}dret_1_1 // dret_0; [lra|].
+      intros [= H%(insert_inv (tapes σ))]. simplify_eq.
+    + destruct (decide (state_upd_tapes <[α:=(1%nat; bs ++ [0%fin])]> σ = σ')); subst.
+      * rewrite {1 2}dret_0 // dret_1_1 //. lra.
+      * rewrite !dret_0 //. lra.
+  - rewrite /rmarg dmap_comp.
+    assert ((snd ∘ (λ b : bool, _)) = Datatypes.id) as -> by f_equal.
+    rewrite dmap_id //.
+  - by intros [σ' b] (b' & [=-> ->] & ?)%dmap_pos=>/=.
+Qed.
+
+(** * state_step ≫= state_step ~ dprod fair_coin fair_coin  *)
+Lemma state_steps_fair_coins_coupl (σ : state) (α1 α2 : loc) (bs1 bs2 : list (fin 2)):
+  α1 ≠ α2 →
+  σ.(tapes) !! α1 = Some ((1%nat; bs1) : tape) →
+  σ.(tapes) !! α2 = Some ((1%nat; bs2) : tape) →
+  Rcoupl
+    (state_step σ α1 ≫= (λ σ', state_step σ' α2))
+    (dprod fair_coin fair_coin)
+    (λ σ' '(b1, b2),
+      σ' = (state_upd_tapes (<[α1 := (1%nat; bs1 ++ [bool_to_fin b1])]>)
+              (state_upd_tapes (<[α2 := (1%nat; bs2 ++ [bool_to_fin b2])]>) σ))).
+Proof.
+  intros Hneq Hα1 Hα2.
+  rewrite /dprod.
+  rewrite -(dret_id_right (state_step _ _ ≫= _)) -dbind_assoc.
+  eapply Rcoupl_dbind; [|by eapply state_step_fair_coin_coupl].
+  intros σ' b1 ->.
+  eapply Rcoupl_dbind; [|eapply state_step_fair_coin_coupl]; last first.
+  { rewrite lookup_insert_ne //. }
+  intros σ' b2 ->.
+  eapply Rcoupl_dret.
+  rewrite /state_upd_tapes insert_commute //.
 Qed.
 
 

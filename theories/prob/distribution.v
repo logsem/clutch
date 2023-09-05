@@ -606,6 +606,22 @@ Section monadic.
     real_solver.
   Qed.
 
+  Lemma dbind_det (μ : distr A) (f : A → distr B) :
+    SeriesC μ = 1 →
+    (∀ a, μ a > 0 → SeriesC (f a) = 1) →
+    SeriesC (μ ≫= f) = 1.
+  Proof.
+    intros Hμ Hf.
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite -Hμ.
+    rewrite distr_double_swap.
+    setoid_rewrite SeriesC_scal_l.
+    eapply SeriesC_ext.
+    intros a.
+    destruct (decide (μ a > 0)) as [Hgt | ->%pmf_eq_0_not_gt_0]; [|lra].
+    rewrite Hf // Rmult_1_r // .
+  Qed.
+  
   Lemma dbind_det_inv_l (μ1 : distr A) (f : A → distr B) (b : B) :
     (μ1 ≫= f) b = 1 →
     SeriesC μ1 = 1.

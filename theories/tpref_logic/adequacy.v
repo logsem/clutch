@@ -8,22 +8,6 @@ From clutch.prob_lang Require Import lang erasure.
 From clutch.tpref_logic Require Import weakestpre spec primitive_laws.
 From clutch.prob Require Import couplings distribution markov.
 
-Lemma dbind_det `{Countable A, Countable B} (μ : distr A) (f : A → distr B) :
-  SeriesC μ = 1 →
-  (∀ a, μ a > 0 → SeriesC (f a) = 1) →
-  SeriesC (μ ≫= f) = 1.
-Proof.
-  intros Hμ Hf.
-  rewrite {1}/pmf /= /dbind_pmf.
-  rewrite -Hμ.
-  rewrite distr_double_swap.
-  setoid_rewrite SeriesC_scal_l.
-  eapply SeriesC_ext.
-  intros a.
-  destruct (decide (μ a > 0)) as [Hgt | ->%pmf_eq_0_not_gt_0]; [|lra].
-  rewrite Hf // Rmult_1_r // .
-Qed.
-
 Section adequacy.
   Context `{!tprG δ Σ}.
   Implicit Type e : expr.
@@ -111,8 +95,6 @@ Section adequacy.
       iInduction n as [|n] "IH" forall (e σ a Hv).
       + destruct (to_final a) eqn:Hf.
         { by iApply rwp_coupl_final. }
-
-
         rewrite exec_O_not_final; [|by apply to_final_None_2].
         iModIntro. iPureIntro.
         apply refRcoupl_dzero.
