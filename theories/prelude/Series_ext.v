@@ -463,8 +463,10 @@ Section positive.
       | S m => max (f (S m)) (max_seq f m)
     end.
 
+  Lemma sum_max_seq (f : nat -> R) h n `{Bij nat nat h}:
+  (forall n, 0 <= f n) ->
+  (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
 
-  (*
   Lemma is_seriesC_bijection (f : nat -> R) h v `{Bij nat nat h} :
     (forall n, 0 <= f n) ->
     is_series f v ->
@@ -484,10 +486,11 @@ Section positive.
           + pose proof (PeanoNat.Nat.max_r_iff (h (S n)) (max_seq h n)) as [? ->]; auto.
             apply (Rle_trans _ (sum_n (λ n0 : nat, f n0) (max_seq h n) + f (h (S n))));
               [apply Rplus_le_compat_r; auto | ].
+            admit.
+          + admit.
       }
       intro n.
       eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
-  *)
 
   Lemma fubini_fin_sum (h : nat * nat → R) n m:
     sum_n (λ a, sum_n (λ b, h (a, b)) n ) m
