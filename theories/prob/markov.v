@@ -531,9 +531,10 @@ Section martingales.
         apply (step_total h).
   Qed.
 
-  Local Lemma ex_expval_step_distr : forall (μ : distr (mstate δ)), ex_expval μ h -> ex_expval (dbind (λ a, step_or_final a) μ) h.
+  Local Lemma ex_expval_step_distr (μ : distr (mstate δ)) :
+    ex_expval μ h -> ex_expval (dbind (λ a, step_or_final a) μ) h.
   Proof.
-    intros μ Hex.
+    intros Hex.
     rewrite /ex_expval.
     rewrite /ex_expval in Hex.
     setoid_rewrite <- SeriesC_scal_r.
@@ -564,11 +565,11 @@ Section martingales.
           rewrite /Expval; lra.
   Qed.
 
-  Local Lemma Expval_step_dec : forall (μ : distr (mstate δ)),
+  Local Lemma Expval_step_dec (μ : distr (mstate δ)) :
       ex_expval μ h ->
         Expval (dbind (λ a, step_or_final a) μ) h <= Expval μ h.
   Proof.
-    intros μ Hex.
+    intros Hex.
     rewrite Expval_dbind.
     - apply SeriesC_le; auto.
       intro a; split.
@@ -614,9 +615,9 @@ Section martingales.
   Qed.
 
 
-  Local Lemma rsm_lt_eps_final : forall a, h a < (rsm_eps h) -> is_final a.
+  Local Lemma rsm_lt_eps_final a : h a < (rsm_eps h) -> is_final a.
   Proof.
-    intros a Heps.
+    intros Heps.
     destruct (decide (is_final a)) as [ ? | Hnf]; auto.
     exfalso.
     specialize (rsm_int h a Hnf) as Hex.
@@ -626,12 +627,11 @@ Section martingales.
     pose proof ((rsm_nneg h a')); lra.
   Qed.
 
-  Local Lemma rsm_markov_ineq :
-    forall (μ : distr (mstate δ)),
+  Local Lemma rsm_markov_ineq (μ : distr (mstate δ)) :
       ex_expval μ h ->
          (rsm_eps h) * Expval μ (λ a, if bool_decide (is_final a) then 0 else 1) <= Expval μ h.
   Proof.
-    intros μ Hex.
+    intros Hex.
     rewrite /Expval.
     rewrite -SeriesC_scal_l.
     assert (forall x,
@@ -688,11 +688,9 @@ Section martingales.
       + apply (ex_expval_bounded _ _ 1); real_solver.
   Qed.
 
-  Local Lemma rsm_dec_aux_1 :
-    forall (a : mstate δ),
+  Local Lemma rsm_dec_aux_1 (a : mstate δ) :
          Expval (step_or_final a) h + (rsm_eps h) * (if bool_decide (is_final a) then 0 else 1) <= h a.
   Proof.
-    intro a.
     rewrite /step_or_final.
     case_bool_decide as H.
     - apply to_final_Some_1 in H as [? ->].
@@ -702,13 +700,12 @@ Section martingales.
       apply rsm_dec; auto.
   Qed.
 
-  Local Lemma rsm_dec_aux_2 :
-    forall (μ : distr (mstate δ)),
+  Local Lemma rsm_dec_aux_2 (μ : distr (mstate δ)) :
       ex_expval μ h ->
       SeriesC μ = 1 ->
          Expval (dbind step_or_final μ) h + (rsm_eps h) * Expval μ (λ x, if bool_decide (is_final x) then 0 else 1) <= Expval μ h.
   Proof.
-    intros μ Hex Hmass.
+    intros Hex Hmass.
     rewrite Expval_dbind.
     - rewrite -Expval_scal_l
               -Expval_plus.
@@ -849,15 +846,15 @@ Section martingales.
   Qed.
 
   (* This does not seem to be in the library ??? *)
-  Local Lemma Req_minus_r :
-    forall (x y z : R), x + z = y -> x = y - z.
+  Local Lemma Req_minus_r (x y z : R):
+    x + z = y -> x = y - z.
   Proof. intros; lra. Qed.
 
-  Local Lemma Rle_exists_nat :
-    forall (x y : R), (0 <= x) -> (0 < y) ->
+  Local Lemma Rle_exists_nat (x y : R) :
+    (0 <= x) -> (0 < y) ->
                  exists (n : nat), x / (1 + n) < y.
   Proof.
-    intros x y Hx Hy.
+    intros Hx Hy.
     assert (exists (r : R), 0 < r /\ x / r < y) as [r [Hr1 Hr2]].
     {
       exists ((x+1)/y); split.
@@ -876,11 +873,9 @@ Section martingales.
     apply Rmult_le_compat_l; lra.
   Qed.
 
-  Lemma rsm_term_bound_exec_n :
-    forall (n : nat) (a : mstate δ),
+  Lemma rsm_term_bound_exec_n (n : nat) (a : mstate δ) :
          1 - h a / ((1 + n) * (rsm_eps h)) <= SeriesC (exec n a).
   Proof.
-    intros n a.
     rewrite -expval_is_final_eq_mass.
     assert (Expval (pexec n a) (λ x : mstate δ, if bool_decide (is_final x) then 1 else 0) =
            1 - Expval (pexec n a) (λ x : mstate δ, if bool_decide (is_final x) then 0 else 1)) as ->.
@@ -910,12 +905,10 @@ Section martingales.
   Qed.
 
 
-  Lemma rsm_term_bound_exec_n_eps :
-    forall (a : mstate δ) (eps : posreal),
-         exists (n : nat),
-         1 - eps < SeriesC (exec n a).
+  Lemma rsm_term_bound_exec_n_eps (a : mstate δ) (eps : posreal) :
+    exists (n : nat), 1 - eps < SeriesC (exec n a).
   Proof using h δ.
-    intros a [eps Hpos].
+    destruct eps as [eps Hpos].
     simpl.
     assert (exists (n : nat), h a / ((1 + n) * (rsm_eps h)) < eps) as [n Hn].
     {
@@ -937,11 +930,9 @@ Section martingales.
     lra.
   Qed.
 
-  Lemma rsm_term_limexec :
-    forall (a : mstate δ),
+  Lemma rsm_term_limexec (a : mstate δ) :
          SeriesC (lim_exec a) = 1.
   Proof using h δ.
-    intro a.
     erewrite SeriesC_ext; last first.
     { intros. rewrite lim_exec_unfold //. }
     erewrite (MCT_seriesC _ (λ n, SeriesC (exec n a)) (Sup_seq (λ n, SeriesC (exec n a)))); eauto.
@@ -966,7 +957,6 @@ Section martingales.
 
 
 End martingales.
-
 
 
 
