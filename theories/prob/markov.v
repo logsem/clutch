@@ -492,4 +492,485 @@ Section markov.
   Qed.
 
 End markov.
+
+
+
+
+Structure rsm {δ : markov} := Rsm {
+  rsm_fun :>  (mstate δ) -> R;
+  rsm_eps : R;
+  rsm_nneg : forall a, 0 <= rsm_fun a;
+  eps_pos : 0 < rsm_eps;
+  step_total :  forall a : mstate δ, SeriesC (step a) = 1;
+  rsm_term : forall a, rsm_fun a = 0 -> is_final a;
+  rsm_int : forall a, ¬ is_final a -> ex_expval (step a) rsm_fun;
+  rsm_dec : forall a, ¬ is_final a -> Expval (step a) rsm_fun + rsm_eps <= rsm_fun a;
+  }.
+
+
+Section martingales.
+
+  Context {δ : markov}.
+  Context {h : @rsm δ}.
+
+  Local Lemma pexec_mass : forall n (a : mstate δ), SeriesC (pexec n a) = 1.
+  Proof using h δ.
+    induction n.
+    - intro a; rewrite pexec_O.
+      apply dret_mass.
+    - intro a.
+      destruct (decide (is_final a)) as [Hf | Hnf].
+      + rewrite pexec_is_final; auto.
+        apply dret_mass.
+      + rewrite pexec_no_final; auto.
+        rewrite /pmf/=/dbind_pmf/=.
+        rewrite distr_double_swap.
+        setoid_rewrite SeriesC_scal_l.
+        setoid_rewrite IHn.
+        setoid_rewrite Rmult_1_r.
+        apply (step_total h).
+  Qed.
+
+  Local Lemma ex_expval_step_distr : forall (μ : distr (mstate δ)), ex_expval μ h -> ex_expval (dbind (λ a, step_or_final a) μ) h.
+  Proof.
+    intros μ Hex.
+    rewrite /ex_expval.
+    rewrite /ex_expval in Hex.
+    setoid_rewrite <- SeriesC_scal_r.
+    apply (fubini_pos_seriesC_ex_double (λ '(x, a), μ x * step_or_final x a * h a)).
+    - intros a' b'.
+      specialize (rsm_nneg h b'); real_solver.
+    - intros.
+      setoid_rewrite Rmult_assoc. apply ex_seriesC_scal_l.
+      destruct (decide (is_final a)) as [Hf | Hnf].
+      * rewrite (step_or_final_is_final); auto.
+        apply (ex_expval_dret h a).
+      * rewrite (step_or_final_no_final); auto.
+        apply (rsm_int); auto.
+    - setoid_rewrite Rmult_assoc.
+      setoid_rewrite SeriesC_scal_l.
+      eapply ex_seriesC_le ; [ | apply Hex ].
+      intros a; split.
+      + apply Rmult_le_pos; auto.
+        apply SeriesC_ge_0'; intro x;
+        specialize (rsm_nneg h x); real_solver.
+      + apply Rmult_le_compat_l; auto.
+        destruct (decide (is_final a)) as [Hf | Hnf].
+        * rewrite (step_or_final_is_final); auto.
+          rewrite -(Expval_dret h a) /Expval //.
+        * rewrite (step_or_final_no_final); auto.
+          etrans; [ | apply (rsm_dec h a Hnf) ].
+          pose proof (eps_pos h).
+          rewrite /Expval; lra.
+  Qed.
+
+  Local Lemma Expval_step_dec : forall (μ : distr (mstate δ)),
+      ex_expval μ h ->
+        Expval (dbind (λ a, step_or_final a) μ) h <= Expval μ h.
+  Proof.
+    intros μ Hex.
+    rewrite Expval_dbind.
+    - apply SeriesC_le; auto.
+      intro a; split.
+      + apply Rmult_le_pos; auto.
+        apply SeriesC_ge_0'.
+        intro x; specialize (rsm_nneg h x); real_solver.
+      + apply Rmult_le_compat_l; auto.
+        destruct (decide (is_final a)) as [Hf | Hnf].
+        * rewrite step_or_final_is_final; auto.
+          rewrite Expval_dret; lra.
+        * rewrite step_or_final_no_final; auto.
+          etrans; [ | apply (rsm_dec h a Hnf) ].
+          pose proof (eps_pos h).
+          rewrite /Expval; lra.
+    - intro b; apply rsm_nneg.
+    - apply ex_expval_step_distr; auto.
+  Qed.
+
+  Local Lemma ex_expval_pexec : forall n a, ex_expval (pexec n a) h.
+  Proof.
+    induction n; intro a.
+    - rewrite pexec_O.
+      apply ex_expval_dret.
+    - rewrite pexec_Sn_r.
+      apply ex_expval_step_distr; auto.
+  Qed.
+
+  Local Lemma Expval_pexec_dec : forall n a, Expval (pexec (S n) a) h <= Expval (pexec n a) h.
+  Proof.
+    intros n a.
+    rewrite pexec_Sn_r.
+    apply Expval_step_dec, ex_expval_pexec.
+  Qed.
+
+  Local Lemma Expval_pexec_bounded : forall n a, Expval (pexec n a) h <= h a.
+  Proof.
+    induction n.
+    - intro a; rewrite pexec_O.
+      rewrite Expval_dret; lra.
+    - intro a.
+      etrans; [ | apply IHn].
+      apply Expval_pexec_dec.
+  Qed.
+
+
+  Local Lemma rsm_lt_eps_final : forall a, h a < (rsm_eps h) -> is_final a.
+  Proof.
+    intros a Heps.
+    destruct (decide (is_final a)) as [ ? | Hnf]; auto.
+    exfalso.
+    specialize (rsm_int h a Hnf) as Hex.
+    specialize (rsm_dec h a Hnf) as Hdec.
+    apply Rle_minus_r in Hdec.
+    epose proof (Expval_convex_ex_le (step a) h (h a - rsm_eps h) (rsm_nneg h) Hex (step_total h a) Hdec) as [a' [Ha'1 Ha'2]]; eauto.
+    pose proof ((rsm_nneg h a')); lra.
+  Qed.
+
+  Local Lemma rsm_markov_ineq :
+    forall (μ : distr (mstate δ)),
+      ex_expval μ h ->
+         (rsm_eps h) * Expval μ (λ a, if bool_decide (is_final a) then 0 else 1) <= Expval μ h.
+  Proof.
+    intros μ Hex.
+    rewrite /Expval.
+    rewrite -SeriesC_scal_l.
+    assert (forall x,
+      (rsm_eps h * (μ x * (if bool_decide (is_final x) then 0 else 1))) =
+      (μ x * (if bool_decide (is_final x) then 0 else rsm_eps h))) as Haux.
+    {
+      intro x; real_solver.
+    }
+    setoid_rewrite Haux.
+    apply SeriesC_le; auto.
+    pose proof (eps_pos h).
+    intro a; split.
+    - real_solver.
+    - apply Rmult_le_compat_l; auto.
+      apply (Rle_trans _ (if bool_decide (h a < rsm_eps h) then 0 else rsm_eps h)).
+      + do 2 case_bool_decide; try real_solver.
+        assert (is_final a); try done.
+        by apply rsm_lt_eps_final.
+      + case_bool_decide; try lra.
+        apply rsm_nneg.
+  Qed.
+
+
+  Local Lemma rsm_term_dec :
+    forall (n : nat) (a : mstate δ),
+      Expval (pexec (S n) a) (λ x, if bool_decide (is_final x) then 0 else 1) <=
+        Expval (pexec n a) (λ x, if bool_decide (is_final x) then 0 else 1).
+  Proof.
+    induction n; intro a.
+    - rewrite pexec_O pexec_Sn Expval_dret.
+      case_bool_decide.
+      + rewrite step_or_final_is_final // dret_id_left
+          Expval_dret.
+        real_solver.
+      + rewrite step_or_final_no_final //.
+        etransitivity.
+        * apply (SeriesC_le _ (λ x, (step a ≫= pexec 0) x)); auto.
+          intro a'; split; real_solver.
+        * auto.
+    - do 2 rewrite pexec_Sn.
+      rewrite Expval_dbind.
+      + rewrite Expval_dbind.
+        * apply SeriesC_le.
+          -- intro a'; specialize (IHn a'); split; [ | real_solver].
+             apply Rmult_le_pos; auto.
+             apply SeriesC_ge_0'.
+             intros; real_solver.
+          -- apply (ex_expval_bounded _ _ 1).
+             intro a'; split; [apply SeriesC_ge_0'; intros; real_solver | ].
+             eapply Expval_bounded; real_solver.
+        * real_solver.
+        * apply (ex_expval_bounded _ _ 1); real_solver.
+      + real_solver.
+      + apply (ex_expval_bounded _ _ 1); real_solver.
+  Qed.
+
+  Local Lemma rsm_dec_aux_1 :
+    forall (a : mstate δ),
+         Expval (step_or_final a) h + (rsm_eps h) * (if bool_decide (is_final a) then 0 else 1) <= h a.
+  Proof.
+    intro a.
+    rewrite /step_or_final.
+    case_bool_decide as H.
+    - apply to_final_Some_1 in H as [? ->].
+      rewrite Expval_dret; lra.
+    - pose proof (to_final_None_1 _ H) as ->.
+      rewrite Rmult_1_r.
+      apply rsm_dec; auto.
+  Qed.
+
+  Local Lemma rsm_dec_aux_2 :
+    forall (μ : distr (mstate δ)),
+      ex_expval μ h ->
+      SeriesC μ = 1 ->
+         Expval (dbind step_or_final μ) h + (rsm_eps h) * Expval μ (λ x, if bool_decide (is_final x) then 0 else 1) <= Expval μ h.
+  Proof.
+    intros μ Hex Hmass.
+    rewrite Expval_dbind.
+    - rewrite -Expval_scal_l
+              -Expval_plus.
+      + apply SeriesC_le; auto.
+        intro a; split.
+        * apply Rmult_le_pos; auto.
+          apply Rplus_le_le_0_compat.
+          -- apply SeriesC_ge_0'.
+             intro; specialize (rsm_nneg h x); real_solver.
+          -- specialize (eps_pos h); real_solver.
+        * apply Rmult_le_compat_l; auto.
+          apply rsm_dec_aux_1.
+      + eapply (ex_expval_le); [ | apply Hex].
+        intro a; split.
+        * apply SeriesC_ge_0'.
+          intro x; specialize (rsm_nneg h x); real_solver.
+        * destruct (decide (is_final a)).
+          -- rewrite step_or_final_is_final; auto.
+             rewrite Expval_dret; lra.
+          -- rewrite step_or_final_no_final; auto.
+             eapply Rle_trans; [ | apply (rsm_dec h); auto].
+             specialize (eps_pos h); lra.
+      + apply (ex_seriesC_le _ (λ x, μ x * rsm_eps h));
+          [ | apply ex_seriesC_scal_r; auto ].
+        intro; split.
+        * apply Rmult_le_pos; auto.
+          apply Rmult_le_pos; [left; apply (eps_pos h) | ].
+          real_solver.
+        * apply Rmult_le_compat_l; auto.
+          case_bool_decide.
+          ++ rewrite Rmult_0_r; left; apply (eps_pos h).
+          ++ lra.
+    - intro; apply rsm_nneg.
+    - rewrite /ex_expval /pmf /= /dbind_pmf.
+      setoid_rewrite <- SeriesC_scal_r.
+      apply (fubini_pos_seriesC_ex_double (λ '(x,a), μ x * step_or_final x a * h a)).
+      + intros a b; specialize (rsm_nneg h b); real_solver.
+      + intro a.
+        setoid_rewrite Rmult_assoc.
+        apply ex_seriesC_scal_l.
+        destruct (decide (is_final a)).
+        * setoid_rewrite step_or_final_is_final; auto.
+          apply ex_expval_dret.
+        * setoid_rewrite step_or_final_no_final; auto.
+          apply (rsm_int h); auto.
+      + eapply ex_seriesC_le; [ | apply Hex ].
+        intro a; split.
+        * apply SeriesC_ge_0'.
+          intro b; specialize (rsm_nneg h b); real_solver.
+        * setoid_rewrite Rmult_assoc.
+          rewrite SeriesC_scal_l.
+          apply Rmult_le_compat_l; auto.
+          destruct (decide (is_final a)) as [Hf | Hnf].
+          -- setoid_rewrite step_or_final_is_final; auto.
+             (* Rewriting directly does not seem to work *)
+             pose proof (Expval_dret h a) as Haux.
+             rewrite /Expval in Haux.
+             rewrite Haux; lra.
+          -- setoid_rewrite step_or_final_no_final; auto.
+             pose proof (rsm_dec h a Hnf) as H.
+             rewrite /Expval in H.
+             specialize (eps_pos h); real_solver.
+  Qed.
+
+  Local Lemma rsm_dec_pexec :
+    forall (n : nat) (a : mstate δ),
+         Expval (pexec n a) h + n * (rsm_eps h) * Expval (pexec n a) (λ x, if bool_decide (is_final x) then 0 else 1) <= h a.
+  Proof.
+    induction n.
+    - intro a.
+      replace (h a) with (Expval (pexec 0 a) h).
+      2:{
+        by rewrite pexec_O Expval_dret.
+        }
+      simpl; lra.
+    - intro a.
+      rewrite {1}pexec_Sn_r.
+      replace (INR(S n)) with (1 + (INR n)); [ | rewrite S_INR; lra].
+      (*rewrite Expval_dbind;
+        [ | apply rsm_nneg | rewrite -pexec_Sn_r; apply ex_expval_pexec ].*)
+      rewrite Rmult_assoc Rmult_plus_distr_r Rmult_1_l.
+      etransitivity; [ | apply IHn].
+      rewrite -Rplus_assoc.
+      apply Rplus_le_compat.
+      + etransitivity; [ | apply rsm_dec_aux_2].
+        * apply Rplus_le_compat_l.
+          apply Rmult_le_compat_l; [ left; apply eps_pos | ].
+          apply rsm_term_dec.
+        * apply ex_expval_pexec.
+        * apply pexec_mass.
+      + rewrite -Rmult_assoc. apply Rmult_le_compat_l.
+        * apply Rmult_le_pos; [apply pos_INR | left; apply eps_pos].
+        * apply rsm_term_dec.
+  Qed.
+
+  Local Lemma expval_is_final_eq_mass :
+    forall (n : nat) (a : mstate δ),
+         Expval (pexec n a) (λ x, if bool_decide (is_final x) then 1 else 0) = SeriesC (exec n a).
+  Proof.
+    induction n; intro a.
+    - destruct (decide (is_final a)) as [Hf | Hnf].
+      + pose proof (to_final_Some_1 a Hf) as [? ?].
+        rewrite pexec_O Expval_dret.
+        rewrite bool_decide_eq_true_2; auto.
+        setoid_rewrite exec_is_final; auto.
+        * rewrite dret_mass; auto.
+        * eauto.
+      + rewrite pexec_O Expval_dret.
+        case_bool_decide; try done.
+        rewrite /exec to_final_None_1; auto.
+        rewrite dzero_mass; auto.
+    - rewrite <- Rmult_1_l.
+      rewrite -Expval_const; [ | lra].
+      rewrite pexec_Sn.
+      rewrite exec_Sn.
+      rewrite Expval_dbind.
+      + rewrite Expval_dbind; [ | intro; lra | apply ex_expval_const ].
+        apply SeriesC_ext.
+        intro; rewrite IHn Expval_const; lra.
+      + intro; real_solver.
+      + apply (ex_expval_bounded _ _ 1).
+        intro; real_solver.
+  Qed.
+
+  Local Lemma rsm_nonterm_bound :
+    forall (n : nat) (a : mstate δ),
+         (1 + n) * (rsm_eps h) * Expval (pexec n a) (λ x, if bool_decide (is_final x) then 0 else 1) <= h a.
+  Proof.
+    intros n a.
+    rewrite Rmult_assoc
+      Rmult_plus_distr_r
+      Rmult_1_l.
+    etransitivity; [ | apply rsm_dec_pexec].
+    rewrite -Rmult_assoc.
+    eapply Rplus_le_compat_r.
+    apply rsm_markov_ineq.
+    apply ex_expval_pexec.
+  Qed.
+
+  (* This does not seem to be in the library ??? *)
+  Local Lemma Req_minus_r :
+    forall (x y z : R), x + z = y -> x = y - z.
+  Proof. intros; lra. Qed.
+
+  Local Lemma Rle_exists_nat :
+    forall (x y : R), (0 <= x) -> (0 < y) ->
+                 exists (n : nat), x / (1 + n) < y.
+  Proof.
+    intros x y Hx Hy.
+    assert (exists (r : R), 0 < r /\ x / r < y) as [r [Hr1 Hr2]].
+    {
+      exists ((x+1)/y); split.
+      - apply Rdiv_lt_0_compat; lra.
+      - apply Rlt_div_l.
+        + apply Rlt_gt,
+          Rdiv_lt_0_compat; lra.
+        + rewrite Rmult_comm Rmult_assoc Rinv_l; lra.
+    }
+    destruct (nfloor1_ex r Hr1) as [n Hn].
+    exists (S (S n)).
+    do 2 rewrite S_INR.
+    apply Rlt_div_l; [lra | ].
+    apply Rlt_div_l in Hr2; auto.
+    apply (Rlt_le_trans _ _ _ Hr2).
+    apply Rmult_le_compat_l; lra.
+  Qed.
+
+  Lemma rsm_term_bound_exec_n :
+    forall (n : nat) (a : mstate δ),
+         1 - h a / ((1 + n) * (rsm_eps h)) <= SeriesC (exec n a).
+  Proof.
+    intros n a.
+    rewrite -expval_is_final_eq_mass.
+    assert (Expval (pexec n a) (λ x : mstate δ, if bool_decide (is_final x) then 1 else 0) =
+           1 - Expval (pexec n a) (λ x : mstate δ, if bool_decide (is_final x) then 0 else 1)) as ->.
+    {
+      apply Req_minus_r.
+      rewrite -SeriesC_plus.
+      - setoid_rewrite <- Rmult_plus_distr_l.
+        erewrite SeriesC_ext.
+        + apply (pexec_mass n a).
+        + intros; case_bool_decide; lra.
+      - apply (ex_seriesC_le _ (pexec n a)); auto.
+        intros; real_solver.
+      - apply (ex_seriesC_le _ (pexec n a)); auto.
+        intros; real_solver.
+    }
+    apply Rplus_le_compat_l,
+      Ropp_ge_le_contravar,
+      Rle_ge.
+    apply Rle_div_r.
+    - pose proof (eps_pos h).
+      apply Rlt_gt,
+        Rmult_lt_0_compat; auto.
+      apply Rplus_lt_le_0_compat; try lra.
+      apply pos_INR.
+    - rewrite Rmult_comm.
+      apply rsm_nonterm_bound.
+  Qed.
+
+
+  Lemma rsm_term_bound_exec_n_eps :
+    forall (a : mstate δ) (eps : posreal),
+         exists (n : nat),
+         1 - eps < SeriesC (exec n a).
+  Proof using h δ.
+    intros a [eps Hpos].
+    simpl.
+    assert (exists (n : nat), h a / ((1 + n) * (rsm_eps h)) < eps) as [n Hn].
+    {
+      pose proof (eps_pos h).
+      epose proof (Rle_exists_nat (h a) (eps * (rsm_eps h)) _ _) as [n Hn].
+      exists n.
+      pose proof (pos_INR n).
+      apply Rlt_div_l.
+      - apply Rlt_gt.
+        apply Rmult_lt_0_compat; [  | lra].
+        apply Rplus_lt_le_0_compat; lra.
+      - apply (Rlt_div_l (h a)) in Hn; lra.
+      Unshelve.
+        + apply (rsm_nneg h).
+        + apply Rmult_lt_0_compat; lra.
+    }
+    exists n.
+    eapply Rlt_le_trans ; [  | apply rsm_term_bound_exec_n].
+    lra.
+  Qed.
+
+  Lemma rsm_term_limexec :
+    forall (a : mstate δ),
+         SeriesC (lim_exec a) = 1.
+  Proof using h δ.
+    intro a.
+    erewrite SeriesC_ext; last first.
+    { intros. rewrite lim_exec_unfold //. }
+    erewrite (MCT_seriesC _ (λ n, SeriesC (exec n a)) (Sup_seq (λ n, SeriesC (exec n a)))); eauto.
+    - symmetry. apply eq_rbar_finite.
+      symmetry. apply is_sup_seq_unique.
+      split.
+      + intro.
+        apply (Rle_lt_trans _ 1); auto.
+        rewrite <-(Rplus_0_r 1) at 1.
+        apply Rplus_lt_compat_l; auto.
+        apply cond_pos.
+      + pose proof (rsm_term_bound_exec_n_eps a eps) as [n Hn].
+        eexists n.
+        simpl; lra.
+    - apply exec_mono.
+    - intros. by apply SeriesC_correct.
+    - rewrite (Rbar_le_sandwich 0 1).
+      + apply (Sup_seq_correct (λ n, SeriesC (exec n a))).
+      + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      + by apply upper_bound_ge_sup=>/=.
+  Qed.
+
+
+End martingales.
+
+
+
+
+
+
+
 #[global] Arguments pexec {_} _ _ : simpl never.

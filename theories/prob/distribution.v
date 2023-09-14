@@ -586,6 +586,22 @@ Section monadic.
     - eapply pmf_ex_seriesC_mult_fn. eauto.
   Qed.
 
+
+  Lemma dbind_inhabited_ex (f : A → distr B) (μ : distr A) :
+    (exists a, μ a > 0 /\ SeriesC (f a) > 0) →
+    SeriesC (dbind f μ) > 0.
+  Proof.
+    intros [a [Ha1 Ha2]].
+    rewrite /pmf /= /dbind_pmf.
+    rewrite (distr_double_swap f μ).
+    setoid_rewrite SeriesC_scal_l.
+    apply Rlt_gt. rewrite -(SeriesC_0 (λ _ : A, 0)); [|done].
+    eapply SeriesC_lt.
+    - real_solver.
+    - exists a. nra.
+    - eapply pmf_ex_seriesC_mult_fn. eauto.
+  Qed.
+
   Lemma dbind_dret_pair_left `{Countable A'}
     (μ : distr A) (a' : A') (b : A) :
     (μ ≫= (λ a, dret (a, a'))) (b, a') = μ b.
@@ -1073,6 +1089,248 @@ Section bind_lemmas.
     
 End bind_lemmas.
 
+
+Section exp_val.
+
+  Context `{Countable A}.
+  Implicit Types μ : distr A.
+  Implicit Types f : A -> R.
+
+  Definition ex_expval μ f :=
+    ex_seriesC (λ a, μ a * f a).
+
+  Definition Expval μ f :=
+    SeriesC (λ a, μ a * f a).
+
+End exp_val.
+
+Section exp_val_prop.
+
+  Context `{Countable A, Countable B}.
+  Implicit Types μ : distr A.
+  Implicit Types f : A -> R.
+
+  Lemma ex_expval_dret f a :
+    ex_expval (dret a) f.
+  Proof.
+    rewrite /ex_expval/pmf/=/dret_pmf.
+    assert (forall a0, ((if bool_decide (a0 = a) then 1 else 0) * f a0) = (if bool_decide (a0 = a) then f a else 0)) as Haux.
+    { intro x; real_solver. }
+    setoid_rewrite Haux.
+    apply ex_seriesC_singleton.
+  Qed.
+
+
+  Lemma Expval_dret f a :
+    Expval (dret a) f = f a.
+  Proof.
+    rewrite /Expval/pmf/=/dret_pmf.
+    assert (forall a0, ((if bool_decide (a0 = a) then 1 else 0) * f a0) = (if bool_decide (a0 = a) then f a else 0)) as Haux.
+    { intro x; real_solver. }
+    setoid_rewrite Haux.
+    apply SeriesC_singleton.
+  Qed.
+
+  Lemma ex_expval_const μ c :
+    ex_expval μ (λ x, c).
+  Proof.
+    rewrite /ex_expval.
+    apply ex_seriesC_scal_r; auto.
+  Qed.
+
+  Lemma Expval_const μ c :
+    (0 <= c) ->
+    Expval μ (λ x, c) = c * (SeriesC μ).
+  Proof.
+    intros Hpos.
+    rewrite /Expval SeriesC_scal_r; lra.
+  Qed.
+
+  Lemma ex_expval_le μ f g :
+    (forall x, 0 <= f x <= g x) ->
+    ex_expval μ g ->
+    ex_expval μ f.
+  Proof.
+    intros Hleq Hex.
+    apply (ex_seriesC_le _ (λ x, μ x * g x)); auto.
+    intro x; specialize (Hleq x); real_solver.
+  Qed.
+
+
+  Lemma Expval_le μ f g :
+    (forall x, 0 <= f x <= g x) ->
+    ex_expval μ g ->
+    Expval μ f <= Expval μ g.
+  Proof.
+    intros Hleq Hex.
+    apply SeriesC_le; auto.
+    intro x; specialize (Hleq x); real_solver.
+  Qed.
+
+  Lemma ex_expval_bounded μ f c :
+    (forall x, 0 <= f x <= c) ->
+    ex_expval μ f.
+  Proof.
+    intros Hleq.
+    eapply ex_expval_le; [ | apply (ex_expval_const _ c) ]; auto.
+  Qed.
+
+
+  Lemma Expval_bounded μ f c :
+    (0 <= c) ->
+    (forall x, 0 <= f x <= c) ->
+    Expval μ f <= c.
+  Proof.
+    intros Hpos Hleq.
+    etransitivity.
+    - apply Expval_le; [ | apply (ex_expval_const _ c)].
+      auto.
+    - rewrite Expval_const;
+      real_solver.
+  Qed.
+
+
+  (*
+     Should hold without the positivity assumption, but then
+     we don't get Fubini
+  *)
+  Lemma Expval_dbind μ (k : A -> distr B) (f : B -> R):
+    (forall b, 0 <= f b) ->
+    ex_expval (μ ≫= k) f ->
+    Expval (μ ≫= k) f = Expval μ (λ a, Expval (k a) f).
+  Proof.
+    intros Hpos Hex.
+    rewrite /Expval {1}/pmf/=/dbind_pmf.
+    setoid_rewrite <- SeriesC_scal_l.
+    setoid_rewrite <- SeriesC_scal_r.
+    setoid_rewrite Rmult_assoc.
+    rewrite (fubini_pos_seriesC (λ '(a,x), μ x * (k x a * f a))); auto.
+    - real_solver.
+    - intros.
+      setoid_rewrite <- Rmult_assoc.
+      apply ex_seriesC_scal_r.
+      apply (ex_seriesC_le _ μ); auto; real_solver.
+    - setoid_rewrite <- Rmult_assoc.
+      setoid_rewrite SeriesC_scal_r; auto.
+  Qed.
+
+  Lemma Expval_scal_l μ f c :
+    Expval μ (λ x, c * f x) = c * Expval μ f.
+  Proof.
+    rewrite /Expval.
+    rewrite -SeriesC_scal_l.
+    apply SeriesC_ext; intro; lra.
+  Qed.
+
+  Lemma Expval_scal_r μ f c :
+    Expval μ (λ x, f x * c) = Expval μ f * c.
+  Proof.
+    rewrite /Expval.
+    rewrite -SeriesC_scal_r.
+    apply SeriesC_ext; intro; lra.
+  Qed.
+
+  Lemma Expval_plus μ f g :
+    ex_expval μ f ->
+    ex_expval μ g ->
+    Expval μ (λ x, f x + g x) = Expval μ f + Expval μ g.
+  Proof.
+    intros Hex1 Hex2.
+    rewrite /Expval.
+    rewrite -SeriesC_plus; auto.
+    apply SeriesC_ext; intro; lra.
+  Qed.
+
+
+  Lemma Expval_ge_0 μ f :
+    (forall a, 0 <= f a) ->
+    ex_expval μ f ->
+    0 <= Expval μ f.
+  Proof.
+    intros Hleq Hex.
+    apply SeriesC_ge_0; auto.
+    intros; real_solver.
+  Qed.
+
+  Lemma Expval_convex_le μ f r :
+    (forall a, 0 <= r <= f a) ->
+    ex_expval μ f ->
+    SeriesC μ = 1 ->
+    r <= Expval μ f.
+  Proof.
+    intros Hleq Hex Htot.
+    replace r with (Expval μ (λ a, r)).
+    - apply SeriesC_le; auto.
+      intro a. specialize (Hleq a); real_solver.
+    - rewrite /Expval SeriesC_scal_r; nra.
+  Qed.
+
+
+  Lemma Expval_convex_lt μ f r :
+    (forall a, 0 <= r < f a) ->
+    ex_expval μ f ->
+    SeriesC μ = 1 ->
+    r < Expval μ f.
+  Proof.
+    intros Hleq Hex Htot.
+    replace r with (Expval μ (λ a, r)).
+    - apply SeriesC_lt; auto.
+      + intro a. specialize (Hleq a); real_solver.
+      + assert (exists a, 0 < μ a) as [a Ha].
+        { apply SeriesC_gtz_ex; auto; lra. }
+        exists a. specialize (Hleq a); real_solver.
+    - rewrite /Expval SeriesC_scal_r; nra.
+  Qed.
+
+
+  Lemma Expval_convex_ex_le μ f r :
+    (forall a, 0 <= f a) ->
+    ex_expval μ f ->
+    SeriesC μ = 1 ->
+    Expval μ f <= r ->
+    exists a', 0 < μ a' /\ f a' <= r.
+  Proof.
+    intros Hleq Hex Htot Hub.
+    apply NNP_P.
+    intro H2.
+    assert (forall a, μ a = 0 \/ 0 <= r < f a) as Hleq'.
+    {
+      intro a.
+      pose proof (not_exists_forall_not _ (λ a, 0 < μ a ∧ f a <= r) H2 a) as Haux.
+      simpl in Haux.
+      apply not_and_or_not in Haux as [? | ?]; [left | right].
+      - pose proof (pmf_pos μ a); lra.
+      - split; [ | lra].
+        eapply Rle_trans; [ apply (Expval_ge_0 μ f) | ]; auto.
+    }
+    assert (r < Expval μ f); [ | lra].
+    replace r with (Expval μ (λ a, r));
+      [ | rewrite /Expval SeriesC_scal_r; nra ].
+    apply SeriesC_lt; auto.
+    - intro a.
+      specialize (Hleq' a) as [->| ]; [lra | real_solver].
+    - assert (exists a, 0 < μ a) as [a Ha].
+        { apply SeriesC_gtz_ex; auto; lra. }
+        exists a.
+        specialize (Hleq' a) as [|]; [lra | real_solver].
+  Qed.
+
+  Lemma Expval_convex_ge μ f r :
+    (forall a, 0 <= f a <= r) ->
+    ex_expval μ f ->
+    SeriesC μ = 1 ->
+    Expval μ f <= r.
+  Proof.
+    intros Hleq Hex Htot.
+    replace r with (Expval μ (λ a, r)).
+    - apply SeriesC_le; auto.
+      + intro a. specialize (Hleq a); real_solver.
+      + apply ex_seriesC_scal_r; auto.
+    - rewrite /Expval SeriesC_scal_r; nra.
+  Qed.
+
+
+End exp_val_prop.
 
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=
