@@ -501,7 +501,7 @@ Structure rsm {δ : markov} := Rsm {
   rsm_eps : R;
   rsm_nneg : forall a, 0 <= rsm_fun a;
   eps_pos : 0 < rsm_eps;
-  step_total :  forall a : mstate δ, SeriesC (step a) = 1;
+  step_total :  forall a : mstate δ, ¬ is_final a -> SeriesC (step a) = 1;
   rsm_term : forall a, rsm_fun a = 0 -> is_final a;
   rsm_int : forall a, ¬ is_final a -> ex_expval (step a) rsm_fun;
   rsm_dec : forall a, ¬ is_final a -> Expval (step a) rsm_fun + rsm_eps <= rsm_fun a;
@@ -513,7 +513,7 @@ Section martingales.
   Context {δ : markov}.
   Context {h : @rsm δ}.
 
-  Local Lemma pexec_mass : forall n (a : mstate δ), SeriesC (pexec n a) = 1.
+  Local Lemma pexec_mass : forall n (a : mstate δ),  SeriesC (pexec n a) = 1.
   Proof using h δ.
     induction n.
     - intro a; rewrite pexec_O.
@@ -528,7 +528,7 @@ Section martingales.
         setoid_rewrite SeriesC_scal_l.
         setoid_rewrite IHn.
         setoid_rewrite Rmult_1_r.
-        apply (step_total h).
+        apply (step_total h); auto.
   Qed.
 
   Local Lemma ex_expval_step_distr (μ : distr (mstate δ)) :
@@ -623,7 +623,7 @@ Section martingales.
     specialize (rsm_int h a Hnf) as Hex.
     specialize (rsm_dec h a Hnf) as Hdec.
     apply Rle_minus_r in Hdec.
-    epose proof (Expval_convex_ex_le (step a) h (h a - rsm_eps h) (rsm_nneg h) Hex (step_total h a) Hdec) as [a' [Ha'1 Ha'2]]; eauto.
+    epose proof (Expval_convex_ex_le (step a) h (h a - rsm_eps h) (rsm_nneg h) Hex (step_total h a Hnf) Hdec) as [a' [Ha'1 Ha'2]]; eauto.
     pose proof ((rsm_nneg h a')); lra.
   Qed.
 
@@ -957,9 +957,6 @@ Section martingales.
 
 
 End martingales.
-
-
-
 
 
 

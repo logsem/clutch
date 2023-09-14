@@ -57,6 +57,47 @@ Proof.
   - eauto.
 Qed.
 
+(** Alternative *)
+Program Definition rw_rsm := Rsm random_walk (λ b, if b then 2 else 0) 1 _ _ _ _ _ _.
+Next Obligation.
+  intro a; simpl; real_solver.
+Qed.
+Next Obligation.
+  real_solver.
+Qed.
+Next Obligation.
+  intros a H; rewrite /step /=.
+  destruct a.
+  - rewrite /rw_step.
+    apply fair_coin_mass.
+  - destruct H.
+    rewrite /is_final/=; auto.
+Qed.
+Next Obligation.
+ intros [] ?; rewrite /is_final/=; auto; lra.
+Qed.
+Next Obligation.
+ intros [] H; rewrite /is_final/= in H.
+ - apply (ex_seriesC_le _ (λ a, step true a * 2)); [ | apply ex_seriesC_scal_r; auto ].
+   intro; real_solver.
+ - apply (ex_seriesC_le _ (λ a, step false a * 2)); [ | apply ex_seriesC_scal_r; auto ].
+   intro; real_solver.
+Qed.
+Next Obligation.
+ intros [] H; rewrite /is_final/= in H.
+ - rewrite /Expval/step/=.
+   rewrite SeriesC_bool/pmf/=/fair_coin_pmf.
+   lra.
+ - destruct H; auto.
+Qed.
+
+Lemma random_wal_terminates_alt :
+  SeriesC (lim_exec true) = 1.
+Proof.
+  eapply (@rsm_term_limexec _ rw_rsm).
+Qed.
+
+
 (** Program  *)
 Definition prog_random_walk : expr :=
   let: "c" := ref #true in
