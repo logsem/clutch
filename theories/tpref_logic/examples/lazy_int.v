@@ -28,6 +28,60 @@ Section lazy_int.
 
   Canonical Structure random_walks : markov := Markov _ _ random_walks_mixin.
 
+
+  Program Definition rws_rsm := Rsm random_walks (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1 _ _ _ _ _ _.
+  Next Obligation.
+    intro a; simpl; real_solver.
+  Qed.
+  Next Obligation.
+    real_solver.
+  Qed.
+  Next Obligation.
+    intros a H; rewrite /step /=.
+    destruct a.
+    rewrite /mstep.
+    case_bool_decide.
+    - destruct H.
+      rewrite /is_final/=; auto.
+      rewrite bool_decide_eq_true_2; auto.
+    - rewrite dprod_mass fair_coin_mass; lra.
+  Qed.
+  Next Obligation.
+   intros [] H; rewrite /is_final/=; auto.
+   simpl in H.
+   case_bool_decide; auto; lra.
+  Qed.
+  Next Obligation.
+   intros p H; rewrite /is_final/= in H.
+   eapply (ex_seriesC_le _ (λ a, mstep p a * 2)); [ | eapply ex_seriesC_scal_r; auto ].
+     intro; simpl; real_solver.
+  Qed.
+  Next Obligation.
+   intros [b1 b2] H; rewrite /is_final/= in H.
+   destruct (decide (b1 = b2)) as [Heq | Hneq].
+   - rewrite /Expval/step/=.
+     setoid_rewrite (bool_decide_eq_false_2); auto.
+     apply (Rle_trans _ (1 + 1)); [ | lra].
+     apply Rplus_le_compat_r.
+     rewrite fubini_pos_seriesC_prod_lr; auto.
+     + do 3 rewrite SeriesC_bool.
+       do 4 rewrite dprod_pmf.
+       rewrite /pmf/=/fair_coin_pmf; lra.
+     + intros; real_solver.
+     + apply ex_seriesC_prod.
+       * intro; apply ex_seriesC_finite.
+       * apply ex_seriesC_finite.
+   - destruct H; auto.
+     rewrite bool_decide_eq_true_2; auto.
+  Qed.
+
+  Lemma random_wal_terminates_alt :
+    forall p : mstate random_walks, SeriesC (lim_exec p) = 1.
+  Proof.
+    intro.
+    eapply (@rsm_term_limexec _ rws_rsm).
+  Qed.
+
   (** Program *)
   Definition get_chunk : val :=
     λ: "α" "chnk",

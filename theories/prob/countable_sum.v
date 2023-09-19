@@ -310,6 +310,7 @@ Section series.
     eauto.
   Qed.
 
+
   Global Instance is_series_Proper:
     Proper (pointwise_relation A (@eq R) ==> @eq R ==> iff) is_seriesC.
   Proof. intros ?? ? ?? ?; subst; split; eapply is_seriesC_ext; eauto. Qed.
@@ -323,6 +324,50 @@ Section series.
   Proof. intros ?? ?; eapply SeriesC_ext; eauto. Qed.
 
 End series.
+
+Section series_nat.
+
+  Lemma encode_inv_nat_nat (n : nat) :
+    (encode_inv_nat n) = Some n.
+  Proof.
+    rewrite /encode_inv_nat/decode_nat/decode/nat_countable/decode/N_countable.
+    destruct n eqn:Hn; simpl; auto.
+    rewrite decide_False //=; [ | lia].
+    rewrite Nat2Pos.inj_succ //
+              Pos.pred_succ
+              Nat2Pos.id //
+              option_guard_True //
+              /encode_nat/encode/=.
+      lia.
+  Qed.
+
+
+  Lemma ex_seriesC_nat (f : nat -> R) :
+    ex_series f <-> ex_seriesC f.
+  Proof.
+    split; intro Hex.
+    - apply (ex_series_ext f); auto.
+      intros. rewrite /countable_sum.
+      rewrite encode_inv_nat_nat //.
+    - destruct Hex as [r Hr].
+      exists r.
+      rewrite /is_seriesC/countable_sum in Hr.
+      setoid_rewrite encode_inv_nat_nat in Hr.
+      auto.
+  Qed.
+
+  Lemma SeriesC_nat (f : nat -> R) :
+    SeriesC f = Series f.
+  Proof.
+    rewrite /SeriesC/Series/countable_sum.
+    f_equal.
+    apply Lim_seq_ext.
+    intro n.
+    apply sum_n_ext.
+    intro; rewrite encode_inv_nat_nat; auto.
+  Qed.
+
+End series_nat.
 
 Section filter.
   Context `{Countable A, Countable B}.
@@ -557,6 +602,63 @@ Proof.
   intros n; inv_fin n; [simpl; lra|].
   intros n; inv_fin n.
 Qed.
+
+Lemma ex_seriesC_nat_bounded (f : nat -> R) (N : nat) :
+  ex_seriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0).
+Proof.
+  induction N.
+  - apply (ex_seriesC_ext (λ n : nat, if bool_decide (n = 0%nat) then f 0%nat else 0)); [ | apply ex_seriesC_singleton ].
+    intro; do 2 case_bool_decide; simplify_eq; try lia; try lra.
+  - eapply (ex_seriesC_ext); last first.
+    + apply ex_seriesC_plus; [ apply IHN | ].
+      apply (ex_seriesC_singleton (S N) (f (S N))).
+    + intros; do 3 case_bool_decide; simplify_eq; try lia; try lra.
+Qed.
+
+Lemma ex_seriesC_nat_bounded_Rle (f : nat -> R) (N : nat) :
+  ex_seriesC (λ (n : nat), if bool_decide (n <= N) then f n else 0).
+Proof.
+  eapply ex_seriesC_ext; [ | apply (ex_seriesC_nat_bounded f N)].
+  intro.
+  case_bool_decide.
+  - rewrite bool_decide_eq_true_2; auto.
+    by apply INR_le.
+  - rewrite bool_decide_eq_false_2; auto.
+    apply Nat.lt_nge.
+    apply INR_lt.
+    lra.
+Qed.
+
+
+
+
+Lemma SeriesC_nat_bounded (f : nat -> R) (N : nat) :
+  SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = sum_n f N.
+Proof.
+  induction N.
+  - rewrite sum_O.
+    rewrite (SeriesC_ext _ (λ n : nat, if bool_decide (n = 0%nat) then f 0%nat else 0)).
+    {
+      apply SeriesC_singleton.
+    }
+    intros n.
+    pose proof (pos_INR n).
+    case_bool_decide as H2; case_bool_decide as H3;
+      simplify_eq; auto.
+    + inversion H2; done.
+    + destruct H2; auto.
+  - rewrite sum_Sn //.
+    rewrite -IHN.
+    rewrite -(SeriesC_singleton (S N) (f (S N))).
+    rewrite /plus/=.
+    rewrite -SeriesC_plus.
+    + apply SeriesC_ext.
+      intro.
+      do 3 case_bool_decide; simplify_eq; try lia; try lra.
+    + apply ex_seriesC_nat_bounded.
+    + apply ex_seriesC_singleton.
+Qed.
+
 
 Section strict.
   Context `{Countable A}.

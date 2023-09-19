@@ -1330,6 +1330,7 @@ Section exp_val_prop.
   Qed.
 
 
+
 End exp_val_prop.
 
 (** * Monadic map *)
@@ -1553,6 +1554,12 @@ Proof.
   - real_solver.
   - intros b. by apply ex_seriesC_scal_l.
   - eapply ex_seriesC_finite.
+Qed.
+
+Lemma Expval_fair_coin f :
+    Expval fair_coin f = 0.5 * f (true) + 0.5 * f (false).
+Proof.
+  rewrite /Expval/pmf/=/fair_coin_pmf SeriesC_scal_l SeriesC_bool; lra.
 Qed.
 
 (* We may need this generality later, but I think it is better to define the fair coin explicitly *)
