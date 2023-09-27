@@ -3,7 +3,20 @@ From clutch.prob_lang Require Import lang notation metatheory.
 From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
 From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples Require Import flip.
+Set Default Proof Using "Type*".
 #[local] Open Scope R.
+
+Section list_pair_ind.
+  Context [A B : Type].
+  Context (P : list A → list B → Prop).
+
+  Hypothesis base : P [] [].
+  Hypothesis ind_X : ∀ x xs ys, P xs ys → P (x :: xs) ys.
+  Hypothesis ind_Y : ∀ xs y ys, P xs ys → P xs (y :: ys).
+
+  Lemma list_pair_ind xs ys : P xs ys.
+  Proof. revert ys; induction xs; induction ys; naive_solver. Qed.
+End list_pair_ind.
 
 Section lazy_int.
   (* Context (CHUNCK_SIZE : nat). *)
@@ -32,58 +45,58 @@ Section lazy_int.
   Canonical Structure random_walks : markov := Markov _ _ random_walks_mixin.
 
 
-  Program Definition rws_rsm := Rsm random_walks (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1 _ _ _ _ _ _.
-  Next Obligation.
-    intro a; simpl; real_solver.
-  Qed.
-  Next Obligation.
-    real_solver.
-  Qed.
-  Next Obligation.
-    intros a H; rewrite /step /=.
-    destruct a.
-    rewrite /mstep.
-    case_bool_decide.
-    - destruct H.
-      rewrite /is_final/=; auto.
-      rewrite bool_decide_eq_true_2; auto.
-    - rewrite dprod_mass fair_coin_mass; lra.
-  Qed.
-  Next Obligation.
-   intros [] H; rewrite /is_final/=; auto.
-   simpl in H.
-   case_bool_decide; auto; lra.
-  Qed.
-  Next Obligation.
-   intros p H; rewrite /is_final/= in H.
-   eapply (ex_seriesC_le _ (λ a, mstep p a * 2)); [ | eapply ex_seriesC_scal_r; auto ].
-     intro; simpl; real_solver.
-  Qed.
-  Next Obligation.
-   intros [b1 b2] H; rewrite /is_final/= in H.
-   destruct (decide (b1 = b2)) as [Heq | Hneq].
-   - rewrite /Expval/step/=.
-     setoid_rewrite (bool_decide_eq_false_2); auto.
-     apply (Rle_trans _ (1 + 1)); [ | lra].
-     apply Rplus_le_compat_r.
-     rewrite fubini_pos_seriesC_prod_lr; auto.
-     + do 3 rewrite SeriesC_bool.
-       do 4 rewrite dprod_pmf.
-       rewrite /pmf/=/fair_coin_pmf; lra.
-     + intros; real_solver.
-     + apply ex_seriesC_prod.
-       * intro; apply ex_seriesC_finite.
-       * apply ex_seriesC_finite.
-   - destruct H; auto.
-     rewrite bool_decide_eq_true_2; auto.
-  Qed.
+  (* Program Definition rws_rsm := Rsm random_walks (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1 _ _ _ _ _ _. *)
+  (* Next Obligation. *)
+  (*   intro a; simpl; real_solver. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*   real_solver. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*   intros a H; rewrite /step /=. *)
+  (*   destruct a. *)
+  (*   rewrite /mstep. *)
+  (*   case_bool_decide. *)
+  (*   - destruct H. *)
+  (*     rewrite /is_final/=; auto. *)
+  (*     rewrite bool_decide_eq_true_2; auto. *)
+  (*   - rewrite dprod_mass fair_coin_mass; lra. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*  intros [] H; rewrite /is_final/=; auto. *)
+  (*  simpl in H. *)
+  (*  case_bool_decide; auto; lra. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*  intros p H; rewrite /is_final/= in H. *)
+  (*  eapply (ex_seriesC_le _ (λ a, mstep p a * 2)); [ | eapply ex_seriesC_scal_r; auto ]. *)
+  (*    intro; simpl; real_solver. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*  intros [b1 b2] H; rewrite /is_final/= in H. *)
+  (*  destruct (decide (b1 = b2)) as [Heq | Hneq]. *)
+  (*  - rewrite /Expval/step/=. *)
+  (*    setoid_rewrite (bool_decide_eq_false_2); auto. *)
+  (*    apply (Rle_trans _ (1 + 1)); [ | lra]. *)
+  (*    apply Rplus_le_compat_r. *)
+  (*    rewrite fubini_pos_seriesC_prod_lr; auto. *)
+  (*    + do 3 rewrite SeriesC_bool. *)
+  (*      do 4 rewrite dprod_pmf. *)
+  (*      rewrite /pmf/=/fair_coin_pmf; lra. *)
+  (*    + intros; real_solver. *)
+  (*    + apply ex_seriesC_prod. *)
+  (*      * intro; apply ex_seriesC_finite. *)
+  (*      * apply ex_seriesC_finite. *)
+  (*  - destruct H; auto. *)
+  (*    rewrite bool_decide_eq_true_2; auto. *)
+  (* Qed. *)
 
-  Lemma random_wal_terminates_alt :
-    forall p : mstate random_walks, SeriesC (lim_exec p) = 1.
-  Proof.
-    intro.
-    eapply (@rsm_term_limexec _ rws_rsm).
-  Qed.
+  (* Lemma random_wal_terminates_alt : *)
+  (*   forall p : mstate random_walks, SeriesC (lim_exec p) = 1. *)
+  (* Proof. *)
+  (*   intro. *)
+  (*   eapply (@rsm_term_limexec _ rws_rsm). *)
+  (* Qed. *)
 
   (** Program *)
   Definition get_chunk : val :=
@@ -156,7 +169,6 @@ Section lazy_int.
              with "[$Hα1 $Hα2 $Hspec Hcnt]").
     { rewrite Hv //. }
     { intros ???? => /=.
-      (* rewrite bool_decide_eq_false_2; auto. *)
       rewrite -(dret_id_right (state_step _ _ ≫= _)).
       eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
       intros [] [b1 b2]  [= -> ->] =>/=.
@@ -218,12 +230,32 @@ Section lazy_int.
     iFrame.
   Qed.
 
+  Lemma rwp_get_chunk_nil α l E :
+    ⟨⟨⟨ chunk_and_tape_list α l [] ⟩⟩⟩
+      get_chunk #lbl:α #l @ E
+    ⟨⟨⟨ (z : fin 2) (l' : loc), RET (#z, #l');
+        chunk_and_tape_list α l' [] ∗
+        (∀ zs, chunk_and_tape_list α l' zs -∗ chunk_and_tape_list α l (z :: zs)) ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "(%zs1 & %zs2 & %Heq & Hl & Hα) HΨ".
+    rewrite /get_chunk.
+    symmetry in Heq. apply app_nil in Heq as [-> ->].
+    wp_pures.
+    wp_load. wp_pures.
+    wp_apply (rwp_rand_tape_empty with "Hα").
+    iIntros (n) "Hα". wp_pures. wp_alloc l' as "Hl'". wp_pures. wp_store.
+    iModIntro. iApply "HΨ".
+    iSplitR "Hl".
+    { iExists [], []. iSplit; [done|]. iFrame. }
+    { iIntros (?) "Htail". iApply (chunk_and_tape_list_cons_chunk with "Hl Htail"). }
+  Qed.
+
   Lemma rwp_get_chunk_cons z zs α l E :
     ⟨⟨⟨ chunk_and_tape_list α l (z :: zs) ⟩⟩⟩
       get_chunk #lbl:α #l @ E
     ⟨⟨⟨ l', RET (#z, #l');
         chunk_and_tape_list α l' zs ∗
-       (chunk_and_tape_list α l' zs -∗ chunk_and_tape_list α l (z :: zs)) ⟩⟩⟩.
+       (∀ zs, chunk_and_tape_list α l' zs -∗ chunk_and_tape_list α l (z :: zs)) ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "(%zs1 & %zs2 & %Heq & Hl & Hα) HΨ".
     rewrite /get_chunk.
@@ -237,13 +269,13 @@ Section lazy_int.
       wp_pures. wp_alloc l' as "Hl'". wp_pures. wp_store.
       iModIntro. iApply "HΨ". iSplitR "Hl".
       { iExists [], zs. iSplit; [done|]. iFrame. }
-      { iIntros "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
+      { iIntros (?) "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
     - rewrite /=. iDestruct "Hl" as "(%l' & Hl & Hl')".
       wp_load. wp_pures. inversion Heq; subst.
       iModIntro. iApply "HΨ".
       iSplitR "Hl".
       { iExists _, _. by iFrame. }
-      { iIntros "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
+      { iIntros (?) "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
   Qed.
 
   Lemma rwp_couple_chunk_and_tape_list α1 α2 l1 l2 zs1 zs2 N (e : expr) E (Φ : val → iProp Σ) b :
@@ -266,21 +298,21 @@ Section lazy_int.
     { iExists _, _. iFrame. subst. rewrite app_assoc //. }
   Qed.
 
-  Lemma rwp_cmp_list N α1 α2 l1 l2 E b :
+  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E b :
     ⟨⟨⟨ specF (S N, b, b) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) (b1 b2 : bool), RET #z;
-        specF (N, b1, b2) ∗ ⌜b1 ≠ b2⌝
-        (* ⌜ z = comparison2z (digit_list_cmp zs1 zs2) ⌝ ∗ *)
-        (* chunk_and_tape_list α1 l1 zs1 ∗ chunk_and_tape_list α2 l2 zs2 *) ⟩⟩⟩.
+    ⟨⟨⟨ (z : Z) (b1 b2 : bool) (zs : list (fin _)), RET #z;
+        specF (N, b1, b2) ∗
+          ⌜b1 ≠ b2⌝ ∗
+          chunk_and_tape_list α1 l1 (zs ++ [bool_to_fin b1]) ∗
+          chunk_and_tape_list α2 l2 (zs ++ [bool_to_fin b2]) ⟩⟩⟩.
   Proof.
     iLöb as "IH" forall (b l1 l2).
     iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
     wp_rec. wp_pures.
-    iApply (rwp_couple_chunk_and_tape_list α1).
+    wp_apply (rwp_couple_chunk_and_tape_list α1).
     iFrame.
-    iIntros "!>" (b1 b2) "Hspec Hl1 Hl2".
-    rewrite /=.
+    iIntros "!>" (b1 b2) "Hspec Hl1 Hl2 /=".
     wp_apply (rwp_get_chunk_cons with "Hl1").
     iIntros (l1') "(Hl1' & Hl1)".
     wp_pures.
@@ -291,11 +323,140 @@ Section lazy_int.
     destruct (Z.compare_spec (bool_to_fin b1) (bool_to_fin b2))
       as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
    - wp_pures. rewrite bool_decide_eq_false_2; [|eauto].
-     by iApply ("IH" with "[$Hspec $Hl1' $Hl2']").
+     wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
+     iIntros (????) "(?&?& Hl1' & Hl2')".
+     iSpecialize ("Hl1" with "Hl1'").
+     iSpecialize ("Hl2" with "Hl2'").
+     rewrite 2!app_comm_cons. iApply ("HΨ" with "[$]").
    - wp_pures. rewrite bool_decide_eq_true_2; [|by intros ->].
-     iApply "HΨ". iFrame. iModIntro. iPureIntro. by intros ->.
+     iSpecialize ("Hl1" with "Hl1'").
+     iSpecialize ("Hl2" with "Hl2'").
+     iApply ("HΨ" $! _ _ _ []). iFrame.
+     iModIntro. iPureIntro. by intros ->.
    - wp_pures. rewrite bool_decide_eq_true_2; [|by intros ->].
-     iApply "HΨ". iFrame. iModIntro. iPureIntro. by intros ->.
+     iSpecialize ("Hl1" with "Hl1'").
+     iSpecialize ("Hl2" with "Hl2'").
+     iApply ("HΨ" $! _ _ _ []). iFrame.
+     iModIntro. iPureIntro. by intros ->.
+  Qed.
+
+  Lemma rwp_cmp_list N α1 α2 l1 l2 E b zs1 zs2 :
+    ⟨⟨⟨ specF (S N, b, b) ∗
+        chunk_and_tape_list α1 l1 zs1 ∗
+        chunk_and_tape_list α2 l2 zs2 ⟩⟩⟩
+      cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
+    ⟨⟨⟨ (z : Z) (z1 z2 : fin _) (zs zs1' zs2' : list (fin _)), RET #z;
+        chunk_and_tape_list α1 l1 (zs ++ [z1] ++ zs1') ∗
+        chunk_and_tape_list α2 l2 (zs ++ [z2] ++ zs2') ∗
+        ⌜z1 ≠ z2⌝ ∗
+        (specF (S N, b, b)
+         ∨ ∃ b1 b2,
+            specF (N, b1, b2) ∗
+              ⌜b1 ≠ b2⌝ ∗
+              ⌜bool_to_fin b1 = z1⌝ ∗
+              ⌜bool_to_fin b2 = z2⌝ ∗
+              ⌜zs1' = []⌝ ∗
+              ⌜zs2' = []⌝) ⟩⟩⟩.
+  Proof.
+    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 b zs2).
+    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2 b).
+      + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
+        wp_apply (rwp_cmp_list_nil_nil with "[$Hspec $Hl1 $Hl2]").
+        iIntros (z b1 b2 zs) "(Hspec & % & Hl1 & Hl2)".
+        iApply "HΨ".
+        iFrame. iSplit; [|eauto].
+        iPureIntro. by intros ?%(inj _).
+      + iIntros (Ψ) " (Hspec & Hl1 & Hl2) HΨ".
+        rewrite {2}/cmp_list. wp_pures.
+        wp_apply (rwp_get_chunk_nil with "Hl1").
+        iIntros (z1 l1') "(Hl1' & Hl1)". wp_pures.
+        wp_apply (rwp_get_chunk_cons with "Hl2").
+        iIntros (l2') "[Hl2' Hl2]".
+        wp_pures.
+        wp_apply wp_cmpZ; [done|]; iIntros "_".
+        wp_pures.
+        destruct (Z.compare_spec z1 z2)
+          as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
+        * do 3 wp_pure _.
+          wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
+          iIntros (??????)  "(Hl1' & Hl2' & % & Hspec)".
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          rewrite 2!app_comm_cons.
+          iApply "HΨ". by iFrame.
+        * wp_pures.
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          iModIntro.
+          iApply ("HΨ" $! _ z1 z2 [] [] zs2).
+          iFrame. iPureIntro. intros ?; simplify_eq.
+        * wp_pures.
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          iModIntro.
+          iApply ("HΨ" $! _ z1 z2 [] [] zs2).
+          iFrame. iPureIntro. intros ?; simplify_eq.
+    - destruct zs2 as [|z2 zs2].
+      + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
+        rewrite {2}/cmp_list. wp_pures.
+        wp_apply (rwp_get_chunk_cons with "Hl1").
+        iIntros (l1') "(Hl1' & Hl1)". wp_pures.
+        wp_apply (rwp_get_chunk_nil with "Hl2").
+        iIntros (z2 l2') "[Hl2' Hl2]".
+        wp_pures.
+        wp_apply wp_cmpZ; [done|]; iIntros "_".
+        wp_pures.
+        destruct (Z.compare_spec z1 z2)
+          as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
+        * do 3 wp_pure _.
+          wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
+          iIntros (??????)  "(Hl1' & Hl2' & % & Hspec)".
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          rewrite 2!app_comm_cons.
+          iApply "HΨ". by iFrame.
+        * wp_pures.
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          iModIntro.
+          iApply ("HΨ" $! _ z1 z2 [] zs1 []).
+          iFrame. iPureIntro. intros ?; simplify_eq.
+        * wp_pures.
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          iModIntro.
+          iApply ("HΨ" $! _ z1 z2 [] zs1 []).
+          iFrame. iPureIntro. intros ?; simplify_eq.
+      + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
+        rewrite {2}/cmp_list. wp_pures.
+        wp_apply (rwp_get_chunk_cons with "Hl1").
+        iIntros (l1') "(Hl1' & Hl1)". wp_pures.
+        wp_apply (rwp_get_chunk_cons with "Hl2").
+        iIntros (l2') "[Hl2' Hl2]".
+        wp_pures.
+        wp_apply wp_cmpZ; [done|]; iIntros "_".
+        wp_pures.
+        destruct (Z.compare_spec z1 z2)
+          as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
+        * do 3 wp_pure _.
+          wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
+          iIntros (??????)  "(Hl1' & Hl2' & % & Hspec)".
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          rewrite 2!app_comm_cons.
+          iApply "HΨ". by iFrame.
+        * wp_pures.
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          iModIntro.
+          iApply ("HΨ" $! _ z1 z2 [] zs1 zs2).
+          iFrame. iPureIntro. intros ?; simplify_eq.
+        * wp_pures.
+          iSpecialize ("Hl1" with "Hl1'").
+          iSpecialize ("Hl2" with "Hl2'").
+          iModIntro.
+          iApply ("HΨ" $! _ z1 z2 [] zs1 zs2).
+          iFrame. iPureIntro. intros ?; simplify_eq.
   Qed.
 
 End lazy_int.
