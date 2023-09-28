@@ -5,15 +5,13 @@ Module simple_bit_hash.
 
   Context `{!clutchGS Σ}.
 
-  (* A simple bit hash map. *)
-
   Variable val_size : nat.
 
   (* A hash function's internal state is a map from previously queried keys to their hash value *)
   Definition init_hash_state : val := init_map.
 
   (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
-     If it has we return the saved hash value, otherwise we flip a bit and save it in the map *)
+     If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
   Definition compute_hash_specialized hm : val :=
     λ: "v",
       match: get hm "v" with
@@ -80,10 +78,34 @@ Module simple_bit_hash.
     apply lookup_insert_is_Some' in Hk2.
     destruct (decide (n = k1)).
     - destruct (decide (n = k2)); simplify_eq; auto.
-      destruct Hk2; auto.
+      destruct Hk2 as [|Hk2]; auto.
       rewrite lookup_total_insert in Heq.
-      Search gmap_to_list.
-  Admitted.
+      rewrite lookup_total_insert_ne // in Heq.
+      apply lookup_lookup_total in Hk2.
+      rewrite -Heq in Hk2.
+      eapply (Forall_iff (uncurry ((λ (k : nat) (v : Z), z ≠ v)))) in HForall; last first.
+      { intros (?&?); eauto. }
+      eapply map_Forall_to_list in HForall.
+      rewrite /map_Forall in HForall.
+      eapply HForall in Hk2; congruence.
+    - destruct (decide (n = k2)); simplify_eq; auto.
+      {
+        destruct Hk1 as [|Hk1]; auto.
+        rewrite lookup_total_insert in Heq.
+        rewrite lookup_total_insert_ne // in Heq.
+        apply lookup_lookup_total in Hk1.
+        rewrite Heq in Hk1.
+        eapply (Forall_iff (uncurry ((λ (k : nat) (v : Z), z ≠ v)))) in HForall; last first.
+        { intros (?&?); eauto. }
+        eapply map_Forall_to_list in HForall.
+        rewrite /map_Forall in HForall.
+        eapply HForall in Hk1; congruence.
+      }
+      rewrite ?lookup_total_insert_ne // in Heq.
+      destruct Hk1 as [|Hk1]; try congruence; [].
+      destruct Hk2 as [|Hk2]; try congruence; [].
+      apply Hcoll; eauto.
+  Qed.
 
 
   Lemma wp_hashfun_prev E f m (n : nat) (b : Z) :
@@ -138,3 +160,5 @@ Module simple_bit_hash.
       apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
   Qed.
 
+
+End simple_bit_hash.
