@@ -81,7 +81,6 @@ Section brw.
     }
     assert (INR (Nat.pred n) = n - 1 ).
     { rewrite -Nat.sub_1_r.
-      Set Printing All.
       rewrite minus_INR; auto.
       assert ((IZR Z0) = INR 0) as Hrw; [simpl; auto | ].
       rewrite Hrw in Hn1.
@@ -172,3 +171,5 @@ Section brw.
     intro.
     eapply (@rsm_term_limexec _ rws_rsm).
   Qed.
+
+End brw.
