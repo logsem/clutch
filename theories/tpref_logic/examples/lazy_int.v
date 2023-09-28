@@ -6,18 +6,6 @@ From clutch.tpref_logic.examples Require Import flip.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-Section list_pair_ind.
-  Context [A B : Type].
-  Context (P : list A → list B → Prop).
-
-  Hypothesis base : P [] [].
-  Hypothesis ind_X : ∀ x xs ys, P xs ys → P (x :: xs) ys.
-  Hypothesis ind_Y : ∀ xs y ys, P xs ys → P xs (y :: ys).
-
-  Lemma list_pair_ind xs ys : P xs ys.
-  Proof. revert ys; induction xs; induction ys; naive_solver. Qed.
-End list_pair_ind.
-
 Section lazy_int.
   (* Context (CHUNCK_SIZE : nat). *)
 

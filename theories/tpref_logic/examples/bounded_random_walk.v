@@ -5,12 +5,8 @@ From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples Require Import flip.
 #[local] Open Scope R.
 
-
-
 Section brw.
-
   Context (N : nat).
-
 
   Definition brw_step (n : nat) : distr (nat) :=
     if bool_decide (N <= n) then dzero
@@ -27,7 +23,7 @@ Section brw.
     end.
 
   Local Lemma brw_to_final_is_Some (n : nat) :
-    is_Some (brw_to_final n) -> n = 0%nat \/ N <= n.
+    is_Some (brw_to_final n) → n = 0%nat \/ N <= n.
   Proof.
     rewrite /brw_to_final; case_bool_decide; auto.
     destruct n; auto.
@@ -35,7 +31,7 @@ Section brw.
   Qed.
 
   Local Lemma brw_to_final_None (n : nat) :
-    brw_to_final n = None -> 0 < n < N.
+    brw_to_final n = None → 0 < n < N.
   Proof.
     rewrite /brw_to_final; case_bool_decide.
     - intro; done.
@@ -67,11 +63,11 @@ Section brw.
     pose proof (pos_INR n). nra.
   Qed.
 
-  Lemma rws_rsm_dec : forall n : nat,
-      0 < n < N ->
+  Lemma rws_rsm_dec (n : nat) :
+      0 < n < N →
       0.5 * rws_rsm_fun (S n) + 0.5 * rws_rsm_fun (Nat.pred n) + 0.5 <= rws_rsm_fun n.
   Proof.
-    intros n [Hn1 Hn2].
+    intros [Hn1 Hn2].
     pose proof (S_INR n).
     assert (S n <= N).
     {
@@ -92,21 +88,9 @@ Section brw.
     nra.
   Qed.
 
-
-  Program Definition rws_rsm :=
-    Rsm bounded_random_walk rws_rsm_fun 0.5 rws_rsm_fun_nneg _ _ _ _ _.
-
-  Local Lemma pos_INR_S n :
-    0 < INR (S n).
-  Proof.
-    pose proof (pos_INR n).
-    rewrite S_INR; lra.
-  Qed.
-
-  Next Obligation.
-    real_solver.
-  Qed.
-
+  Program Instance rws_rsm : rsm rws_rsm_fun 0.5.
+  Next Obligation. apply rws_rsm_fun_nneg. Qed.
+  Next Obligation. lra. Qed.
   Next Obligation.
     intros a H; rewrite /step/=/brw_step.
     apply to_final_None_1 in H.
@@ -116,7 +100,6 @@ Section brw.
     rewrite /fair_conv_comb fair_coin_dbind_mass.
     do 2 rewrite dret_mass; lra.
   Qed.
-
   Next Obligation.
    intros a H; rewrite /is_final/=/brw_to_final; auto.
    case_bool_decide as H1; auto.
@@ -128,18 +111,13 @@ Section brw.
    - apply Rnot_le_gt in H1. nra.
    - lra.
   Qed.
-
   Next Obligation.
     intros.
     rewrite /ex_expval /rws_rsm_fun.
     apply (ex_seriesC_ext (λ a0 : mstate bounded_random_walk, if bool_decide (a0 <= N) then (step a a0) * a0 * (N - a0) else 0 )).
-    {
-      intro n.
-      case_bool_decide; lra.
-    }
+    { intro n. case_bool_decide; lra. }
     apply ex_seriesC_nat_bounded_Rle.
   Qed.
-
   Next Obligation.
    intros a H.
    apply to_final_None_1 in H.
@@ -152,24 +130,17 @@ Section brw.
    rewrite Expval_dbind.
    - rewrite Expval_fair_coin.
      do 2 rewrite Expval_dret.
-     rewrite <- (Nat.pred_succ m) at 2.
-     apply rws_rsm_dec.
-     auto.
+     rewrite -{2}(Nat.pred_succ m).
+     by apply rws_rsm_dec.
    - apply rws_rsm_fun_nneg.
    - rewrite /ex_expval.
      eapply (ex_seriesC_le _ rws_rsm_fun).
-     + intro n.
-       pose proof (rws_rsm_fun_nneg n).
-       real_solver.
-     + rewrite /rws_rsm_fun.
-       apply ex_seriesC_nat_bounded_Rle.
+     + intro n. pose proof (rws_rsm_fun_nneg n). real_solver.
+     + rewrite /rws_rsm_fun. apply ex_seriesC_nat_bounded_Rle.
   Qed.
 
-  Lemma bounded_random_walk_terminates :
-    forall p : mstate bounded_random_walk, SeriesC (lim_exec p) = 1.
-  Proof.
-    intro.
-    eapply (@rsm_term_limexec _ rws_rsm).
-  Qed.
-
+  Lemma bounded_random_walk_terminates (p : mstate bounded_random_walk) :
+    SeriesC (lim_exec p) = 1.
+  Proof. by eapply (rsm_term_limexec). Qed.
+  
 End brw.

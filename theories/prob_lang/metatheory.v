@@ -501,7 +501,7 @@ Proof.
     eapply distr_ext=> σ'.
     rewrite /dmap /= /pmf /= /dbind_pmf.
     rewrite SeriesC_bool SeriesC_fin2 /=.
-    rewrite {1 3 5 7}/pmf /= /fair_coin_pmf.
+    rewrite {1 3 5 7}/pmf /=.
     destruct (decide (state_upd_tapes <[α:=(1%nat; bs ++ [1%fin])]> σ = σ')); subst.
     + rewrite {1 2}dret_1_1 // dret_0; [lra|].
       intros [= H%(insert_inv (tapes σ))]. simplify_eq.

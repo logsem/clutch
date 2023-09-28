@@ -1527,20 +1527,21 @@ Section iterM.
 End iterM.
 
 (** * Coins  *)
-Definition fair_coin_pmf : bool → R :=
-  λ _, 0.5.
-
-Program Definition fair_coin : distr bool := MkDistr (fair_coin_pmf) _ _ _.
-Next Obligation. intros b. rewrite /fair_coin_pmf. destruct b; lra. Qed.
+Program Definition fair_coin : distr bool := MkDistr (λ _, 0.5) _ _ _.
+Next Obligation. intros []; lra. Qed.
 Next Obligation. apply ex_seriesC_finite. Qed.
 Next Obligation. rewrite SeriesC_finite_mass /=. lra. Qed.
 
 Lemma fair_coin_mass:
   SeriesC fair_coin = 1.
 Proof.
-  rewrite /pmf/=/fair_coin/=/fair_coin_pmf.
+  rewrite /pmf /= /fair_coin /=.
   rewrite SeriesC_finite_mass /=. lra.
 Qed.
+
+Lemma fair_coin_pmf b :
+  fair_coin b = 0.5.
+Proof. done. Qed. 
 
 Lemma fair_coin_dbind_mass `{Countable A} (f : bool → distr A) :
   SeriesC (fair_coin ≫= f) = 1 / 2 * SeriesC (f true) + 1 / 2 * SeriesC (f false).
@@ -1549,8 +1550,7 @@ Proof.
   rewrite (fubini_pos_seriesC (λ '(a, b), fair_coin a * f a b)).
   - rewrite SeriesC_bool.
     rewrite 2!SeriesC_scal_l.
-    rewrite {1 3}/pmf /= /fair_coin_pmf.
-    lra.
+    rewrite {1 3}/pmf /=. lra.
   - real_solver.
   - intros b. by apply ex_seriesC_scal_l.
   - eapply ex_seriesC_finite.
@@ -1559,7 +1559,7 @@ Qed.
 Lemma Expval_fair_coin f :
     Expval fair_coin f = 0.5 * f (true) + 0.5 * f (false).
 Proof.
-  rewrite /Expval/pmf/=/fair_coin_pmf SeriesC_scal_l SeriesC_bool; lra.
+  rewrite /Expval/pmf/= SeriesC_scal_l SeriesC_bool; lra.
 Qed.
 
 (* We may need this generality later, but I think it is better to define the fair coin explicitly *)
@@ -1589,10 +1589,10 @@ Section conv_prop.
   Lemma fair_conv_comb_pmf `{Countable D} (μ1 μ2 : distr D) (a : D) :
     fair_conv_comb μ1 μ2 a = 0.5 * (μ1 a) + 0.5 * (μ2 a).
   Proof.
-    rewrite {1}/pmf /fair_coin_pmf /= /dbind_pmf.
+    rewrite {1}/pmf /= /dbind_pmf.
     rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = true) then 0.5 * μ1 a else 0) +
                                   if bool_decide (b = false) then 0.5 * μ2 a else 0)).
-    2: { intros []; rewrite /= /pmf /fair_coin_pmf /= /fair_coin_pmf /=; lra. }
+    2: { intros []; rewrite /= /pmf /=; lra. }
     erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
     rewrite 2!SeriesC_singleton /=. lra.
   Qed.
@@ -1636,7 +1636,7 @@ Section conv_prop.
     intros Hex.
     rewrite /pmf/=/dbind_pmf.
     rewrite (SeriesC_ext _ (λ b, if bool_decide (f b = a) then 0.5 else 0)); last first.
-    - intro. rewrite /pmf/=/fair_coin_pmf/dret_pmf. real_solver.
+    - intro. rewrite /pmf/=/dret_pmf. real_solver.
     - by apply SeriesC_singleton_inj.
   Qed.
 

@@ -18,6 +18,7 @@ Proof. constructor. by intros [] [] []; simplify_eq=>/=. Qed.
 
 Canonical Structure random_walk : markov := Markov _ _ random_walk_mixin.
 
+(** Termination proof, by hand  *)
 Lemma exec_random_walk n :
   SeriesC (exec n true) = 1 - (1/2)^n.
 Proof.
@@ -57,45 +58,32 @@ Proof.
   - eauto.
 Qed.
 
-(** Alternative *)
-Program Definition rw_rsm := Rsm random_walk (λ b, if b then 2 else 0) 1 _ _ _ _ _ _.
+(** Termination proof, using a ranking supermartingale *)
+#[global] Program Instance rw_rsm :
+  rsm (λ b : mstate random_walk, if b then 2 else 0) 1. 
+Next Obligation. simpl. real_solver. Qed. 
+Next Obligation. lra. Qed.
 Next Obligation.
-  intro a; simpl; real_solver.
+  simpl; intros [] Hf=>/=. 
+  - apply fair_coin_mass.
+  - destruct Hf. eauto.  
+Qed.
+Next Obligation. intros [] ?; rewrite /is_final//=. lra. Qed.
+Next Obligation.
+  intros a Hf.
+  apply (ex_seriesC_le _ (λ a', step a a' * 2)); [|by apply ex_seriesC_scal_r].
+  intros []; real_solver. 
 Qed.
 Next Obligation.
-  real_solver.
-Qed.
-Next Obligation.
-  intros a H; rewrite /step /=.
-  destruct a.
-  - rewrite /rw_step.
-    apply fair_coin_mass.
-  - destruct H.
-    rewrite /is_final/=; auto.
-Qed.
-Next Obligation.
- intros [] ?; rewrite /is_final/=; auto; lra.
-Qed.
-Next Obligation.
- intros [] H; rewrite /is_final/= in H.
- - apply (ex_seriesC_le _ (λ a, step true a * 2)); [ | apply ex_seriesC_scal_r; auto ].
-   intro; real_solver.
- - apply (ex_seriesC_le _ (λ a, step false a * 2)); [ | apply ex_seriesC_scal_r; auto ].
-   intro; real_solver.
-Qed.
-Next Obligation.
- intros [] H; rewrite /is_final/= in H.
- - rewrite /Expval/step/=.
-   rewrite SeriesC_bool/pmf/=/fair_coin_pmf.
-   lra.
- - destruct H; auto.
+ intros [] Hf.
+- rewrite /Expval /=.
+   rewrite SeriesC_bool fair_coin_pmf. lra.
+ - destruct Hf. eauto.
 Qed.
 
 Lemma random_wal_terminates_alt :
   SeriesC (lim_exec true) = 1.
-Proof.
-  eapply (@rsm_term_limexec _ rw_rsm).
-Qed.
+Proof. eapply rsm_term_limexec. Qed.
 
 
 (** Program  *)

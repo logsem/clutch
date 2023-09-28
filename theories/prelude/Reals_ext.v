@@ -95,14 +95,24 @@ Proof.
   destruct Hq as [ Hq | Hq ]; simplify_eq ; auto; lra.
 Qed.
 
-Lemma RinvN_pos' : forall n:nat, 0 < / (INR (S n)).
+Lemma pos_INR_S n :
+  0 < INR (S n).
 Proof.
-  intros n.
+  pose proof (pos_INR n).
+  rewrite S_INR; lra.
+Qed.
+
+Lemma RinvN_pos' n : 0 < / (INR (S n)).
+Proof.
   assert (INR (S n) = (INR n + 1)) as ->.
   { replace 1 with (INR 1); [|done].
     rewrite -plus_INR. f_equal. lia. }
   apply RinvN_pos. 
 Qed.
+
+Lemma Req_minus_r (x y z : R):
+  x + z = y → x = y - z.
+Proof. intros; lra. Qed.
 
 Ltac real_solver :=
     by repeat
