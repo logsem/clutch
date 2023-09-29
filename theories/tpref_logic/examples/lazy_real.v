@@ -6,7 +6,7 @@ From clutch.tpref_logic.examples Require Import flip.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
-Section lazy_int.
+Section lazy_real.
   (* Context (CHUNCK_SIZE : nat). *)
 
   Definition mstep (bs : nat * bool * bool) : distr (nat * bool * bool) :=
@@ -31,7 +31,6 @@ Section lazy_int.
   Qed.
 
   Canonical Structure random_walks : markov := Markov _ _ random_walks_mixin.
-
 
   (* Program Definition rws_rsm := Rsm random_walks (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1 _ _ _ _ _ _. *)
   (* Next Obligation. *)
@@ -116,13 +115,13 @@ Section lazy_int.
       else
         "res".
 
-  Definition sample_lazy_no : val :=
+  Definition init : val :=
     λ: <>,
       let: "hd" := ref NONEV in
       let: "α" := alloc #1 in
       ("α", "hd").
 
-  Definition cmp_lazy_no : val :=
+  Definition cmp : val :=
     λ: "lz1" "lz2",
       (* We short-circuit if the two locations are physically equal to avoid forcing sampling *)
       if: Snd "lz1" = Snd "lz2" then
@@ -130,21 +129,20 @@ Section lazy_int.
       else
         cmp_list (Fst "lz1") (Snd "lz1") (Fst "lz2") (Snd "lz2").
 
-
   Context `{tprG random_walks Σ}.
 
   (* TODO: why is this neccesary?!?! *)
   Definition foo : specG _ _ := (@tprG_specG _ _ _).
   Existing Instance foo.
 
-  Lemma rwp_coupl_two_tapes ns1 ns2 α1 α2 N (e : expr) E (Φ : val → iProp Σ) (b : bool) :
+  Lemma rwp_coupl_two_tapes ns1 ns2 α1 α2 N (e : expr) E (Φ : val → iProp Σ) (b1 b2 : bool) :
     TCEq (to_val e) None →
     α1 ↪ (1%nat; ns1) ∗
     α2 ↪ (1%nat; ns2) ∗
-    specF (S N, b, b) ∗
-    ▷ (∀ b1 b2, specF (if bool_decide (b1 ≠ b2) then N else S N, b1, b2) -∗
-                α1 ↪ (1%nat; ns1 ++ [bool_to_fin b1]) -∗
-                α2 ↪ (1%nat; ns2 ++ [bool_to_fin b2]) -∗
+    specF (S N, b1, b2) ∗
+    ▷ (∀ b1' b2', specF (if bool_decide (b1' ≠ b2') then N else S N, b1', b2') -∗
+                α1 ↪ (1%nat; ns1 ++ [bool_to_fin b1']) -∗
+                α2 ↪ (1%nat; ns2 ++ [bool_to_fin b2']) -∗
                 WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -159,9 +157,9 @@ Section lazy_int.
     { intros ???? => /=.
       rewrite -(dret_id_right (state_step _ _ ≫= _)).
       eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
-      intros [] [b1 b2]  [= -> ->] =>/=.
+      intros [] [b1' b2']  [= -> ->] =>/=.
       eapply Rcoupl_dret. eauto 6. }
-    iIntros "!>" (?? [[N' b1] b2] (-> & -> & ->)) "Hf1 Hα1 Hα2".
+    iIntros "!>" (?? [[N' b1'] b2'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
     iApply ("Hcnt" with "Hf1 Hα1 Hα2").
   Qed.
 
@@ -203,6 +201,25 @@ Section lazy_int.
     ∃ (l : loc) (α : loc),
       ⌜v = (#lbl:α, #l)%V⌝ ∗
       chunk_and_tape_list α l zs.
+
+  Lemma chunk_list_hd_acc l zs :
+    chunk_list l zs -∗
+    (∃ v, l ↦ v ∗ (l ↦ v -∗ chunk_list l zs)).
+  Proof.
+    destruct zs.
+    - simpl. iIntros. iExists _. iFrame. eauto.
+    - simpl. iIntros "(%&H1&H2)". iExists _. iFrame.
+      iIntros "H". iExists _. iFrame.
+  Qed.
+
+  Lemma chunk_and_tape_list_ne (l1 l2 α1 α2 : loc) zs1 zs2 :
+    chunk_and_tape_list α1 l1 zs1 -∗ chunk_and_tape_list α2 l2 zs2 -∗ ⌜l1 ≠ l2⌝.
+  Proof.
+    iIntros "(% & % & _ & Hl1 & _) (% & % & _ & Hl2 & _)".
+    iDestruct (chunk_list_hd_acc with "Hl1") as (?) "[Hl1 _]".
+    iDestruct (chunk_list_hd_acc with "Hl2") as (?) "[Hl2 _]".
+    iApply (ghost_map_elem_ne with "Hl1 Hl2").
+  Qed.
 
   Lemma chunk_and_tape_list_cons_chunk (l l' : loc) (z : fin _) zs α :
     l ↦ SOMEV (#z, #l') -∗
@@ -266,41 +283,41 @@ Section lazy_int.
       { iIntros (?) "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
   Qed.
 
-  Lemma rwp_couple_chunk_and_tape_list α1 α2 l1 l2 zs1 zs2 N (e : expr) E (Φ : val → iProp Σ) b :
+  Lemma rwp_couple_chunk_and_tape_list α1 α2 l1 l2 zs1 zs2 N (e : expr) E (Φ : val → iProp Σ) b1 b2 :
     TCEq (to_val e) None →
     chunk_and_tape_list α1 l1 zs1 ∗
     chunk_and_tape_list α2 l2 zs2 ∗
-    specF (S N, b, b) ∗
-    ▷ (∀ b1 b2, specF (if bool_decide (b1 ≠ b2) then N else S N, b1, b2) -∗
-                chunk_and_tape_list α1 l1 (zs1 ++ [bool_to_fin b1]) -∗
-                chunk_and_tape_list α2 l2 (zs2 ++ [bool_to_fin b2]) -∗
+    specF (S N, b1, b2) ∗
+    ▷ (∀ b1' b2', specF (if bool_decide (b1' ≠ b2') then N else S N, b1', b2') -∗
+                chunk_and_tape_list α1 l1 (zs1 ++ [bool_to_fin b1']) -∗
+                chunk_and_tape_list α2 l2 (zs2 ++ [bool_to_fin b2']) -∗
                 WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (?) "((% & % & % & Hl1 & Hα1) & (% & % & % & Hl2 & Hα2) & Hspec & Hcnt)".
     iApply rwp_coupl_two_tapes.
     iFrame "Hα1 Hα2 Hspec".
-    iIntros "!>" (b1 b2) "Hspec Hα1 Hα2".
+    iIntros "!>" (b1' b2') "Hspec Hα1 Hα2".
     iApply ("Hcnt" with "Hspec [Hl1 Hα1] [Hl2 Hα2]").
     { iExists _, _. iFrame. subst. rewrite app_assoc //. }
     { iExists _, _. iFrame. subst. rewrite app_assoc //. }
   Qed.
 
-  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E b :
-    ⟨⟨⟨ specF (S N, b, b) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
+  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E b1 b2 :
+    ⟨⟨⟨ specF (S N, b1, b2) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) (b1 b2 : bool) (zs : list (fin _)), RET #z;
-        specF (N, b1, b2) ∗
-          ⌜b1 ≠ b2⌝ ∗
-          chunk_and_tape_list α1 l1 (zs ++ [bool_to_fin b1]) ∗
-          chunk_and_tape_list α2 l2 (zs ++ [bool_to_fin b2]) ⟩⟩⟩.
+    ⟨⟨⟨ (z : Z) (b1' b2' : bool) (zs : list (fin _)), RET #z;
+        specF (N, b1', b2') ∗
+          ⌜b1' ≠ b2'⌝ ∗
+          chunk_and_tape_list α1 l1 (zs ++ [bool_to_fin b1']) ∗
+          chunk_and_tape_list α2 l2 (zs ++ [bool_to_fin b2']) ⟩⟩⟩.
   Proof.
-    iLöb as "IH" forall (b l1 l2).
+    iLöb as "IH" forall (b1 b2 l1 l2).
     iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
     wp_rec. wp_pures.
     wp_apply (rwp_couple_chunk_and_tape_list α1).
     iFrame.
-    iIntros "!>" (b1 b2) "Hspec Hl1 Hl2 /=".
+    iIntros "!>" (b1' b2') "Hspec Hl1 Hl2 /=".
     wp_apply (rwp_get_chunk_cons with "Hl1").
     iIntros (l1') "(Hl1' & Hl1)".
     wp_pures.
@@ -308,7 +325,7 @@ Section lazy_int.
     iIntros (l2') "(Hl2' & Hl2)".
     wp_pures.
     wp_apply wp_cmpZ; [done|]; iIntros "_".
-    destruct (Z.compare_spec (bool_to_fin b1) (bool_to_fin b2))
+    destruct (Z.compare_spec (bool_to_fin b1') (bool_to_fin b2'))
       as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
    - wp_pures. rewrite bool_decide_eq_false_2; [|eauto].
      wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
@@ -328,8 +345,8 @@ Section lazy_int.
      iModIntro. iPureIntro. by intros ->.
   Qed.
 
-  Lemma rwp_cmp_list N α1 α2 l1 l2 E b zs1 zs2 :
-    ⟨⟨⟨ specF (S N, b, b) ∗
+  Lemma rwp_cmp_list N α1 α2 l1 l2 E b1 b2 zs1 zs2 :
+    ⟨⟨⟨ specF (S N, b1, b2) ∗
         chunk_and_tape_list α1 l1 zs1 ∗
         chunk_and_tape_list α2 l2 zs2 ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
@@ -337,20 +354,20 @@ Section lazy_int.
         chunk_and_tape_list α1 l1 (zs ++ [z1] ++ zs1') ∗
         chunk_and_tape_list α2 l2 (zs ++ [z2] ++ zs2') ∗
         ⌜z1 ≠ z2⌝ ∗
-        (specF (S N, b, b)
-         ∨ ∃ b1 b2,
-            specF (N, b1, b2) ∗
-              ⌜b1 ≠ b2⌝ ∗
-              ⌜bool_to_fin b1 = z1⌝ ∗
-              ⌜bool_to_fin b2 = z2⌝ ∗
+        (specF (S N, b1, b2)
+         ∨ ∃ b1' b2',
+            specF (N, b1', b2') ∗
+              ⌜b1' ≠ b2'⌝ ∗
+              ⌜bool_to_fin b1' = z1⌝ ∗
+              ⌜bool_to_fin b2' = z2⌝ ∗
               ⌜zs1' = []⌝ ∗
               ⌜zs2' = []⌝) ⟩⟩⟩.
   Proof.
-    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 b zs2).
-    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2 b).
+    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 b1 b2 zs2).
+    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2 b1 b2).
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
         wp_apply (rwp_cmp_list_nil_nil with "[$Hspec $Hl1 $Hl2]").
-        iIntros (z b1 b2 zs) "(Hspec & % & Hl1 & Hl2)".
+        iIntros (z b1' b2' zs) "(Hspec & % & Hl1 & Hl2)".
         iApply "HΨ".
         iFrame. iSplit; [|eauto].
         iPureIntro. by intros ?%(inj _).
@@ -447,4 +464,106 @@ Section lazy_int.
           iFrame. iPureIntro. intros ?; simplify_eq.
   Qed.
 
-End lazy_int.
+  Lemma rwp_cmp_list' (N : nat) α1 α2 l1 l2 E b1 b2 zs1 zs2 :
+    (N > 0)%nat →
+    ⟨⟨⟨ specF (N, b1, b2) ∗
+        chunk_and_tape_list α1 l1 zs1 ∗
+        chunk_and_tape_list α2 l2 zs2 ⟩⟩⟩
+      cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
+    ⟨⟨⟨ (z : Z) M b1 b2 (zs1' zs2' : list (fin _)), RET #z;
+        chunk_and_tape_list α1 l1 (zs1') ∗
+        chunk_and_tape_list α2 l2 (zs2') ∗
+        ⌜zs1' ≠ zs2'⌝ ∗
+        specF (M, b1, b2) ∗
+        ⌜(N - 1 ≤ M ≤ N)%nat⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (? Ψ) "HP HΨ".
+    destruct N; [lia|].
+    wp_apply (rwp_cmp_list N with "HP").
+    iIntros (??????) "(?&?& % & [? | (% & % & ? & _)])".
+    - iApply "HΨ". iFrame.
+      iSplit; iPureIntro; [set_solver|lia].
+    - iApply "HΨ". iFrame.
+      iSplit; iPureIntro; [set_solver|lia].
+  Qed.
+
+  Lemma rwp_init E :
+    ⟨⟨⟨ True ⟩⟩⟩
+      init #() @ E
+    ⟨⟨⟨ v, RET v; lazy_no [] v ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "_ HΨ".
+    wp_rec.
+    wp_alloc l as "Hl".
+    wp_pures.
+    wp_apply rwp_alloc_tape; [done|].
+    iIntros (α) "Hα".
+    wp_pures.
+    iModIntro.
+    iApply "HΨ".
+    iExists _, _. iSplit; [done|].
+    iExists [], []. by iFrame.
+  Qed.
+
+  Definition cmp_fuel (N : nat) : iProp Σ := ∃ b1 b2, specF (N, b1, b2).
+
+  Lemma rwp_cmp E v1 v2 zs1 zs2 N :
+    (N > 0)%nat →
+    ⟨⟨⟨ lazy_no zs1 v1 ∗ lazy_no zs2 v2 ∗ cmp_fuel N ⟩⟩⟩
+      cmp v1 v2 @ E
+    ⟨⟨⟨ (z : Z) M zs1' zs2', RET #z;
+        lazy_no zs1' v1 ∗ lazy_no zs2' v2 ∗
+        cmp_fuel M ∗ ⌜(N - 1 ≤ M ≤ N)%nat⌝⟩⟩⟩.
+  Proof.
+    iIntros (? Ψ) "((%l1 & %α1 & -> & Hl1) & (%l2 & %α2 & -> & Hl2) & (%b1 & %b2 & Hfuel)) HΨ".
+    wp_rec. wp_pures.
+    iDestruct (chunk_and_tape_list_ne with "Hl1 Hl2") as %?.
+    rewrite bool_decide_eq_false_2; [|by intros [=]].
+    wp_pures.
+    wp_apply (rwp_cmp_list' with "[$Hfuel $Hl1 $Hl2]"); [done|].
+    iIntros (??????) "(Hl1 & Hl2 & % & Hs & %)".
+    iApply "HΨ".
+    iSplitL "Hl1".
+    { iExists _, _. by iFrame. }
+    iSplitL "Hl2".
+    { iExists _, _. by iFrame. }
+    iSplit; [|done].
+    by iExists _, _.
+  Qed.
+
+End lazy_real.
+
+Section client.
+  Context `{tprG random_walks Σ}.
+
+  Definition cmp_three_numbers : expr :=
+    let: "r1" := init #() in
+    let: "r2" := init #() in
+    let: "r3" := init #() in
+    cmp "r1" "r2";;
+    cmp "r2" "r3";;
+    #().
+
+  Lemma rwp_cmp_three_numbers :
+    ⟨⟨⟨ cmp_fuel 2 ⟩⟩⟩
+      cmp_three_numbers
+    ⟨⟨⟨ RET #(); cmp_fuel 0 ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "Hfuel HΨ".
+    rewrite /cmp_three_numbers.
+    wp_apply rwp_init; [done|].
+    iIntros (r1) "Hr1"; wp_pures.
+    wp_apply rwp_init; [done|].
+    iIntros (r2) "Hr2"; wp_pures.
+    wp_apply rwp_init; [done|].
+    iIntros (r3) "Hr3"; wp_pures.
+    wp_apply (rwp_cmp with "[$Hr1 $Hr2 $Hfuel]"); [lia|].
+    iIntros (c1 M ? ?) "(Hr1 & Hr2 & Hfuel & %)"; wp_pures.
+    wp_apply (rwp_cmp with "[$Hr2 $Hr3 $Hfuel]"); [lia|].
+    iIntros (c2 P ? ?) "(Hr2 & Hr3 & Hfuel & %)"; wp_pures.
+    iModIntro.
+    iApply "HΨ".
+    (* Ooops... I don't know this :/ *)
+  Abort.
+
+End client.

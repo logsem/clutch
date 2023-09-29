@@ -74,6 +74,9 @@ Section is_final.
     rewrite to_final_is_final //.
   Qed.
 
+  #[global] Instance is_final_dec a : Decision (is_final a).
+  Proof. rewrite /is_final. apply _. Qed. 
+
 End is_final.
 
 #[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
