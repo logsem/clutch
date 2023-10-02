@@ -959,5 +959,23 @@ Section martingales.
 End martingales.
 
 
+Structure lex_rsm {δ : markov} := LexRsm {
+  lex_rsm_fun :>  (mstate δ) -> R*R;
+  lex_rsm_eps : R;
+  lex_rsm_nneg : forall a, 0 <= fst (lex_rsm_fun a) /\ 0 <= snd (lex_rsm_fun a);
+  lex_eps_pos : 0 < lex_rsm_eps;
+  lex_step_total :  forall a : mstate δ, ¬ is_final a -> SeriesC (step a) = 1;
+  lex_rsm_term : forall a, is_final a -> lex_rsm_fun a = (0, 0);
+  lex_rsm_fst_int : forall a, ¬ is_final a -> ex_expval (step a) (fst ∘ lex_rsm_fun);
+  lex_rsm_snd_int : forall a, ¬ is_final a -> ex_expval (step a) (snd ∘ lex_rsm_fun);
+  lex_rsm_dec : forall a, ¬ is_final a ->
+                     (Expval (step a) (fst ∘ lex_rsm_fun) + lex_rsm_eps <= fst (lex_rsm_fun a))
+                       \/
+                     (Expval (step a) (fst ∘ lex_rsm_fun) <= fst (lex_rsm_fun a) /\
+                     Expval (step a) (snd ∘ lex_rsm_fun) + lex_rsm_eps <= snd (lex_rsm_fun a))
+  }.
+
+
+
 
 #[global] Arguments pexec {_} _ _ : simpl never.
