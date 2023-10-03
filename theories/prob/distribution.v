@@ -1329,6 +1329,23 @@ Section exp_val_prop.
     - rewrite /Expval SeriesC_scal_r; nra.
   Qed.
 
+  Lemma markov_ineq μ f r :
+    (forall a, 0 <= f a) ->
+    ( 0 <= r ) ->
+    ex_expval μ f ->
+    r * Expval μ (λ a, if bool_decide (r <= f a) then 1 else 0) <= Expval μ f.
+  Proof.
+    intros Hpos Hr Hex.
+    rewrite /Expval.
+    rewrite -SeriesC_scal_l.
+    assert (∀ x,
+      (r * (μ x * (if bool_decide (r <= f x) then 1 else 0))) =
+      (μ x * (if bool_decide (r <= f x) then r else 0))) as Haux.
+    { real_solver. }
+    setoid_rewrite Haux.
+    apply SeriesC_le; auto.
+    intro a; split; real_solver.
+  Qed.
 
 
 End exp_val_prop.

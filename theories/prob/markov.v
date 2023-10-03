@@ -897,23 +897,62 @@ Section martingales.
 
 End martingales.
 
-Structure lex_rsm {δ : markov} := LexRsm {
-  lex_rsm_fun :>  (mstate δ) -> R*R;
-  lex_rsm_eps : R;
-  lex_rsm_nneg : forall a, 0 <= fst (lex_rsm_fun a) /\ 0 <= snd (lex_rsm_fun a);
-  lex_eps_pos : 0 < lex_rsm_eps;
-  lex_step_total :  forall a : mstate δ, ¬ is_final a -> SeriesC (step a) = 1;
-  lex_rsm_term : forall a, is_final a -> lex_rsm_fun a = (0, 0);
-  lex_rsm_fst_int : forall a, ¬ is_final a -> ex_expval (step a) (fst ∘ lex_rsm_fun);
-  lex_rsm_snd_int : forall a, ¬ is_final a -> ex_expval (step a) (snd ∘ lex_rsm_fun);
+
+Class lex_rsm {δ} (h : mstate δ → R*R) (ϵ : R) := LexRsm {
+  lex_rsm_nneg : forall a, 0 <= (h a).1 /\ 0 <= (h a).2;
+  lex_eps_pos : 0 < ϵ;
+  lex_rsm_step_total :  forall a : mstate δ, ¬ is_final a -> SeriesC (step a) = 1;
+  lex_rsm_term : forall a, is_final a -> h a = (0, 0);
+  lex_rsm_fst_int : forall a, ¬ is_final a -> ex_expval (step a) (fst ∘ h);
+  lex_rsm_snd_int : forall a, ¬ is_final a -> ex_expval (step a) (snd ∘ h);
   lex_rsm_dec : forall a, ¬ is_final a ->
-                     (Expval (step a) (fst ∘ lex_rsm_fun) + lex_rsm_eps <= fst (lex_rsm_fun a))
+                     (Expval (step a) (fst ∘ h) + ϵ <= (h a).1)
                        \/
-                     (Expval (step a) (fst ∘ lex_rsm_fun) <= fst (lex_rsm_fun a) /\
-                     Expval (step a) (snd ∘ lex_rsm_fun) + lex_rsm_eps <= snd (lex_rsm_fun a))
+                     (Expval (step a) (fst ∘ h) <= (h a).1 /\
+                     Expval (step a) (snd ∘ h) + ϵ <= (h a).2)
   }.
 
+Section lex_martingales.
+
+  Context `{lex_rsm δ h ϵ}.
+
+  Implicit Type a : mstate δ.
+  Implicit Types μ : distr (mstate δ).
+
+  Local Lemma lrsm_final_iff_lt_eps a : is_final a <-> (h a).1 < ϵ /\ (h a).2 < ϵ.
+  Proof.
+    split; intro H2.
+    - apply lex_rsm_term in H2.
+      rewrite H2 /=.
+      split; apply lex_eps_pos.
+    - destruct H2.
+      destruct (decide (is_final a)) as [ ? | Hnf]; auto.
+      exfalso.
+      specialize (lex_rsm_fst_int a Hnf) as Hex1.
+      specialize (lex_rsm_snd_int a Hnf) as Hex2.
+      specialize (lex_rsm_dec a Hnf) as [Hdec1 | [Hdec21 Hdec22]].
+      + apply Rle_minus_r in Hdec1.
+        assert (forall a, 0 <= (h a).1) as Haux.
+        { apply lex_rsm_nneg. }
+        epose proof (Expval_convex_ex_le (step a) (fst ∘ h) (fst (h a) - ϵ) Haux Hex1 (lex_rsm_step_total a Hnf) Hdec1)
+        as [a' [Ha'1 Ha'2]].
+      pose proof lex_rsm_nneg a'. simpl in Ha'2. lra.
+      + apply Rle_minus_r in Hdec22.
+        assert (forall a, 0 <= (h a).2) as Haux.
+        { apply lex_rsm_nneg. }
+        epose proof (Expval_convex_ex_le (step a) (snd ∘ h) (snd (h a) - ϵ) Haux Hex2 (lex_rsm_step_total a Hnf) Hdec22)
+        as [a' [Ha'1 Ha'2]].
+      pose proof lex_rsm_nneg a'. simpl in Ha'2. lra.
+  Qed.
+
+  (*
+  Local Lemma lrsm_is_final_bound μ :
+    ex_expval μ (fst ∘ h) →
+    ex_expval μ (snd ∘ h) →
+    ϵ * Expval μ (λ a, if bool_decide (is_final a) then 0 else 1) <= Expval μ (fst ∘ h) + Expval μ (snd ∘ h).
+  Proof.
+    intros Hex1 Hex2.
+  *)
 
 
-
-#[global] Arguments pexec {_} _ _ : simpl never.
+End lex_martingales.
