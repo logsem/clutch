@@ -116,6 +116,18 @@ Section series.
     apply is_series_unique.
   Qed.
 
+  Lemma ex_seriesC_ex_series f :
+     ex_series (countable_sum f) -> ex_seriesC f .
+  Proof.
+    intros; auto.
+  Qed.
+
+  Lemma ex_seriesC_ex_series_inv f :
+     ex_seriesC f -> ex_series (countable_sum f).
+  Proof.
+    intros; auto.
+  Qed.
+
   Lemma ex_seriesC_ext f g :
     (∀ n, f n = g n) → ex_seriesC f → ex_seriesC g.
   Proof.
@@ -758,14 +770,75 @@ Section fubini.
     (∀ a, ex_seriesC (λ b, h (a, b))) ->
     (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
     (∀ b, ex_seriesC (λ a, h (a, b))).
-  Admitted.
+  Proof.
+    intros Hpos Hex1 Hex2 b.
+    set (f := λ '(n, m), countable_sum (λ a, countable_sum (λ b, h (a,b)) m) n).
+    assert (forall m, ex_series (λ n, f (n, m))) as H1.
+    {
+      apply fubini_pos_series_ex.
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat n);
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intro n. rewrite /f {1}/countable_sum.
+        destruct (encode_inv_nat n); simpl.
+        + apply Hex1.
+        + exists 0. apply is_series_0; auto.
+     - rewrite /f/countable_sum/=.
+       apply ex_seriesC_ex_series_inv in Hex2.
+       rewrite /SeriesC/countable_sum/= in Hex2.
+       eapply ex_series_ext; [ | apply Hex2].
+       intro n; simpl.
+       destruct (encode_inv_nat n); simpl; auto.
+       symmetry; apply Series_0; auto.
+    }
+    apply ex_seriesC_ex_series.
+    eapply ex_series_ext; [ | apply (H1 (encode_nat b)) ].
+    intros; simpl.
+    apply countable_sum_ext.
+    intro a.
+    rewrite /countable_sum
+      encode_inv_encode_nat; auto.
+  Qed.
 
   Lemma fubini_pos_seriesC_ex_double (h : A * B → R) :
     (∀ a b, 0 <= h (a, b)) ->
     (∀ a, ex_seriesC (λ b, h (a, b))) ->
     (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
     (ex_seriesC (λ b, SeriesC (λ a, h (a, b)))).
-  Admitted.
+  Proof.
+    intros Hpos Hex1 Hex2.
+    set (f := λ '(n, m), countable_sum (λ a, countable_sum (λ b, h (a,b)) m) n).
+    assert (ex_series (λ m, Series (λ n, f (n, m)))) as H1.
+    {
+      apply fubini_pos_series_ex_double.
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat n);
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intro n. rewrite /f {1}/countable_sum.
+        destruct (encode_inv_nat n); simpl.
+        + apply Hex1.
+        + exists 0. apply is_series_0; auto.
+     - rewrite /f/countable_sum/=.
+       apply ex_seriesC_ex_series_inv in Hex2.
+       rewrite /SeriesC/countable_sum/= in Hex2.
+       eapply ex_series_ext; [ | apply Hex2].
+       intro n; simpl.
+       destruct (encode_inv_nat n); simpl; auto.
+       symmetry; apply Series_0; auto.
+    }
+    apply ex_seriesC_ex_series.
+    eapply ex_series_ext; [ | apply H1 ].
+    intros; simpl.
+    rewrite /SeriesC /countable_sum.
+    destruct (encode_inv_nat n); simpl; auto.
+    apply Series_0.
+    intro m.
+    destruct (encode_inv_nat m); simpl; auto.
+  Qed.
 
   Lemma fubini_pos_seriesC (h : A * B → R) :
     (∀ a b, 0 <= h (a, b)) ->
@@ -773,7 +846,43 @@ Section fubini.
     (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
     SeriesC (λ b, SeriesC (λ a, h (a, b))) =
       SeriesC (λ a, SeriesC (λ b, h (a, b))).
-  Admitted.
+  Proof.
+    intros Hpos Hex1 Hex2.
+    set (f := λ '(n, m), countable_sum (λ a, countable_sum (λ b, h (a,b)) m) n).
+    assert (Series (λ m, Series (λ n, f (n, m))) = Series (λ n, Series (λ m, f (n, m)))) as H1.
+    {
+      apply fubini_pos_series.
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat n);
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intro n. rewrite /f {1}/countable_sum.
+        destruct (encode_inv_nat n); simpl.
+        + apply Hex1.
+        + exists 0. apply is_series_0; auto.
+     - rewrite /f/countable_sum/=.
+       apply ex_seriesC_ex_series_inv in Hex2.
+       rewrite /SeriesC/countable_sum/= in Hex2.
+       eapply ex_series_ext; [ | apply Hex2].
+       intro n; simpl.
+       destruct (encode_inv_nat n); simpl; auto.
+       symmetry; apply Series_0; auto.
+    }
+    etrans; [ etrans; [ | exact H1] | ].
+    - rewrite /f/SeriesC/countable_sum.
+      apply Series_ext.
+      intro n.
+      destruct (encode_inv_nat n); simpl; auto.
+      symmetry; apply Series_0; auto.
+      intro m.
+      destruct (encode_inv_nat m); simpl; auto.
+    - rewrite /f/SeriesC/countable_sum.
+      apply Series_ext.
+      intro n.
+      destruct (encode_inv_nat n); simpl; auto.
+      apply Series_0; auto.
+  Qed.
 
   (*
     The rest of the lemmas are admitted without a direct counterpart
