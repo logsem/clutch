@@ -513,7 +513,7 @@ Section positive.
       }
       intro n.
       eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
-    -
+  Admitted.
 
   Lemma fubini_fin_sum (h : nat * nat → R) n m:
     sum_n (λ a, sum_n (λ b, h (a, b)) n ) m
