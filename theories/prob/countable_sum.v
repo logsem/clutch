@@ -759,12 +759,6 @@ End bounds.
 Section fubini.
   Context `{Countable A, Countable B}.
 
-  (*
-     The following three lemmas have been proven for
-     Series, so the only missing part is lifting them
-     to SeriesC
-   *)
-
   Lemma fubini_pos_seriesC_ex (h : A * B → R) :
     (∀ a b, 0 <= h (a, b)) ->
     (∀ a, ex_seriesC (λ b, h (a, b))) ->
@@ -968,7 +962,6 @@ End fubini.
 Section mct.
   Context `{Countable A}.
 
-  (* TODO: Lift the proof from Series_extra *)
   Lemma MCT_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
     (∀ n a, 0 <= (h n a)) ->
     (∀ n a, (h n a) <= (h (S n) a)) ->
@@ -976,9 +969,44 @@ Section mct.
     (∀ n, is_seriesC (h n) (l n)) ->
     is_sup_seq l (Rbar.Finite r) ->
     SeriesC (λ a, Sup_seq (λ n, h n a)) = r.
-  Admitted.
+  Proof.
+    intros Hpos Hle1 Hle2 Hsr Hsup.
+    set (f := λ n m, countable_sum (λ a, h n a) m).
+    assert (Series (λ m, Sup_seq (λ n, f n m)) = r ) as H1.
+    {
+      apply (MCT_series f l r).
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intro n.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat) as [a | ].
+        + destruct (Hle2 a) as [s Hs].
+          exists s; auto.
+        + exists 0; real_solver.
+      - intro n.
+        specialize (Hsr n).
+        eapply is_series_ext; [ | exact Hsr].
+        intro m.
+        rewrite /f /countable_sum.
+        destruct (encode_inv_nat m); simpl; auto.
+     - auto.
+    }
+    rewrite -H1.
+    apply Series_ext.
+    intro n.
+    rewrite /f/countable_sum.
+    destruct (encode_inv_nat n); simpl; auto.
+    symmetry.
+    apply sup_seq_const.
+Qed.
 
-  (* TODO: Lift the proof from Series_extra *)
+
   Lemma MCT_ex_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
     (∀ n a, 0 <= (h n a)) ->
     (∀ n a, (h n a) <= (h (S n) a)) ->
@@ -986,7 +1014,40 @@ Section mct.
     (∀ n, is_seriesC (h n) (l n)) ->
     is_sup_seq l (Rbar.Finite r) ->
     ex_seriesC (λ a, Sup_seq (λ n, h n a)).
-  Admitted.
+  Proof.
+    intros Hpos Hle1 Hle2 Hsr Hsup.
+    set (f := λ n m, countable_sum (λ a, h n a) m).
+    assert (ex_series (λ m, real (Sup_seq (λ n, f n m)))) as H1.
+    {
+      apply (MCT_ex_series f l r).
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intros n m.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat m);
+        simpl; real_solver.
+      - intro n.
+        rewrite /f/countable_sum.
+        destruct (encode_inv_nat) as [a | ].
+        + destruct (Hle2 a) as [s Hs].
+          exists s; auto.
+        + exists 0; real_solver.
+      - intro n.
+        specialize (Hsr n).
+        eapply is_series_ext; [ | exact Hsr].
+        intro m.
+        rewrite /f /countable_sum.
+        destruct (encode_inv_nat m); simpl; auto.
+     - auto.
+    }
+    eapply ex_series_ext; [ | apply H1].
+    intro n.
+    rewrite /f/countable_sum.
+    destruct (encode_inv_nat n); simpl; auto.
+    apply sup_seq_const.
+  Qed.
 
 End mct.
 
