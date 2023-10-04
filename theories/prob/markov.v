@@ -75,7 +75,7 @@ Section is_final.
   Qed.
 
   #[global] Instance is_final_dec a : Decision (is_final a).
-  Proof. rewrite /is_final. apply _. Qed. 
+  Proof. rewrite /is_final. apply _. Qed.
 
 End is_final.
 
@@ -499,6 +499,35 @@ Section markov.
 End markov.
 
 #[global] Arguments pexec {_} _ _ : simpl never.
+
+(** * Iterated Markov chain *)
+Section iter_markov.
+  Context `{δ : markov}.
+
+  Definition iter_step (initial : mstate δ) (s : mstate δ * nat) : distr (mstate δ * nat) :=
+    let '(a, n) := s in
+    match n with
+    | 0 => dzero
+    | S n =>
+        if bool_decide (is_final a) then dret (initial, n)
+        else a' ← step a; dret (a', S n)
+    end.
+
+  Definition iter_to_final (s : mstate δ * nat) : option (mstate δ) :=
+    let '(a, n) := s in
+    if n is 0 then Some a else None.
+
+  Lemma iter_mixin a : MarkovMixin (iter_step a) iter_to_final.
+  Proof.
+    constructor.
+    move=> [? n] /= [? ?] [? ?] .
+    destruct n; simplify_eq=>//.
+  Qed.
+
+  Definition iter_markov (a : mstate δ) : markov := Markov _ _ (iter_mixin a).
+End iter_markov.
+
+#[global] Arguments iter_markov : clear implicits.
 
 (** * Ranking Supermartingales  *)
 Class rsm {δ} (h : mstate δ → R) (ϵ : R) := Rsm {

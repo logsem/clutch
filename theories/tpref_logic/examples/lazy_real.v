@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob_lang Require Import lang notation metatheory.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
+From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy spec.
 From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples Require Import flip.
 Set Default Proof Using "Type*".
@@ -9,85 +9,70 @@ Set Default Proof Using "Type*".
 Section lazy_real.
   (* Context (CHUNCK_SIZE : nat). *)
 
-  Definition mstep (bs : nat * bool * bool) : distr (nat * bool * bool) :=
-    let '(fuel, _, _) := bs in
-    match fuel with
-    | 0 => dzero
-    | S n =>
-        '(b1, b2) ← dprod fair_coin fair_coin;
-        dret (if bool_decide (b1 ≠ b2) then n else S n, b1, b2)
-    end.
+  Definition mstep (bs : bool * bool) : distr (bool * bool) :=
+    let '(b1, b2) := bs in
+    if bool_decide (b1 ≠ b2) then dzero else dprod fair_coin fair_coin.
 
-  Definition mto_final (bs : nat * bool * bool) : option (bool * bool) :=
-    let '(fuel, b1, b2) := bs in
-    if bool_decide (b1 ≠ b2 ∧ fuel = 0%nat)then Some (b1, b2) else None.
+  Definition mto_final (bs : bool * bool) : option (bool * bool) :=
+    let '(b1, b2) := bs in
+    if bool_decide (b1 ≠ b2) then Some (b1, b2) else None.
 
-  Definition random_walks_mixin : MarkovMixin mstep mto_final.
+  Definition two_coins_mixin : MarkovMixin mstep mto_final.
   Proof.
     constructor.
-    move=> [[? ?] ?] =>/= [[[? ?] ?] [? ?]].
+    move=> [? ?] =>/= [[[? ?] ?] [? ?]].
     case_bool_decide as Heq; simplify_eq=>//.
-    by destruct Heq as [? ->].
   Qed.
 
-  Canonical Structure random_walks : markov := Markov _ _ random_walks_mixin.
+  Definition two_coins : markov := Markov _ _ two_coins_mixin.
 
-  Lemma random_walks_terminates N b1 b2 :
-    SeriesC (lim_exec ((N, b1, b2) : mstate random_walks)) = 1.
+  #[global] Program Instance two_coins_rsm :
+    rsm (δ := two_coins) (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1.
+  Next Obligation. intro a; simpl; real_solver. Qed.
+  Next Obligation. real_solver. Qed.
+  Next Obligation.
+    move=> /= [b1 b2] Hf. rewrite /= /mstep.
+    case_bool_decide as Heq; simpl in *.
+    - exfalso; apply Hf. apply to_final_Some.
+      eexists. rewrite /= /mto_final /=.
+      rewrite bool_decide_eq_true_2 //.
+    - rewrite dprod_mass fair_coin_mass. lra.
+  Qed.
+  Next Obligation.
+    move=> [b1 b2] /= H.
+    apply to_final_Some.
+    eexists. rewrite /= /mto_final /=.
+    case_bool_decide; [done|]. lra.
+  Qed.
+  Next Obligation.
+   move=> [b1 b2] H /=.
+   eapply (ex_seriesC_le _ (λ a, mstep (b1, b2) a * 2)); [|by eapply ex_seriesC_scal_r].
+   move=> [b1' b2'] /=. real_solver.
+  Qed.
+  Next Obligation.
+    move=> [b1 b2] /= H.
+    case_bool_decide as Heq.
+    - exfalso. apply H. apply to_final_Some.
+      eexists. rewrite /= /mto_final /=.
+      rewrite /= bool_decide_eq_true_2 //.
+    - subst. rewrite /Expval /mstep /=.
+      trans (1 + 1); [|lra].
+      apply Rplus_le_compat_r.
+      rewrite fubini_pos_seriesC_prod_lr.
+      + rewrite !SeriesC_bool !dprod_pmf !fair_coin_pmf. real_solver.
+      + real_solver.
+      + apply ex_seriesC_prod; eauto using ex_seriesC_finite.
+  Qed.
+
+  Lemma two_coins_terminates (bs : mstate two_coins)  :
+    SeriesC (lim_exec bs) = 1.
+  Proof. eapply rsm_term_limexec. Qed.
+
+  Definition model := iter_markov two_coins (true, true).
+
+  Lemma iter_two_coins_terminates (s : mstate model) :
+    SeriesC (lim_exec s) = 1.
   Proof. Admitted.
-
-  (* Program Definition rws_rsm := Rsm random_walks (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1 _ _ _ _ _ _. *)
-  (* Next Obligation. *)
-  (*   intro a; simpl; real_solver. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   real_solver. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*   intros a H; rewrite /step /=. *)
-  (*   destruct a. *)
-  (*   rewrite /mstep. *)
-  (*   case_bool_decide. *)
-  (*   - destruct H. *)
-  (*     rewrite /is_final/=; auto. *)
-  (*     rewrite bool_decide_eq_true_2; auto. *)
-  (*   - rewrite dprod_mass fair_coin_mass; lra. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*  intros [] H; rewrite /is_final/=; auto. *)
-  (*  simpl in H. *)
-  (*  case_bool_decide; auto; lra. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*  intros p H; rewrite /is_final/= in H. *)
-  (*  eapply (ex_seriesC_le _ (λ a, mstep p a * 2)); [ | eapply ex_seriesC_scal_r; auto ]. *)
-  (*    intro; simpl; real_solver. *)
-  (* Qed. *)
-  (* Next Obligation. *)
-  (*  intros [b1 b2] H; rewrite /is_final/= in H. *)
-  (*  destruct (decide (b1 = b2)) as [Heq | Hneq]. *)
-  (*  - rewrite /Expval/step/=. *)
-  (*    setoid_rewrite (bool_decide_eq_false_2); auto. *)
-  (*    apply (Rle_trans _ (1 + 1)); [ | lra]. *)
-  (*    apply Rplus_le_compat_r. *)
-  (*    rewrite fubini_pos_seriesC_prod_lr; auto. *)
-  (*    + do 3 rewrite SeriesC_bool. *)
-  (*      do 4 rewrite dprod_pmf. *)
-  (*      rewrite /pmf/=/fair_coin_pmf; lra. *)
-  (*    + intros; real_solver. *)
-  (*    + apply ex_seriesC_prod. *)
-  (*      * intro; apply ex_seriesC_finite. *)
-  (*      * apply ex_seriesC_finite. *)
-  (*  - destruct H; auto. *)
-  (*    rewrite bool_decide_eq_true_2; auto. *)
-  (* Qed. *)
-
-  (* Lemma random_wal_terminates_alt : *)
-  (*   forall p : mstate random_walks, SeriesC (lim_exec p) = 1. *)
-  (* Proof. *)
-  (*   intro. *)
-  (*   eapply (@rsm_term_limexec _ rws_rsm). *)
-  (* Qed. *)
 
   (** Program *)
   Definition get_chunk : val :=
@@ -133,38 +118,68 @@ Section lazy_real.
       else
         cmp_list (Fst "lz1") (Snd "lz1") (Fst "lz2") (Snd "lz2").
 
-  Context `{tprG random_walks Σ}.
+  Context `{tprG model Σ}.
 
   (* TODO: why is this neccesary?!?! *)
   Definition foo : specG _ _ := (@tprG_specG _ _ _).
   Existing Instance foo.
 
-  Lemma rwp_coupl_two_tapes ns1 ns2 α1 α2 N (e : expr) E (Φ : val → iProp Σ) (b1 b2 : bool) :
+  Lemma two_coins_final b1 b2 :
+    is_final ((b1, b2) : mstate two_coins) ↔ b1 ≠ b2.
+  Proof.
+    split.
+    - intros [? Hf] ->. simpl in *. by case_bool_decide.
+    - intros ?. eexists. simpl. rewrite bool_decide_eq_true_2//.
+  Qed.
+
+  Lemma two_coins_not_final b1 b2 :
+    ¬ is_final ((b1, b2) : mstate two_coins) ↔ b1 = b2.
+  Proof.
+    split.
+    - intros ?%to_final_None_1.
+      simpl in *. by case_bool_decide.
+    - by intros -> ?%two_coins_final.
+  Qed.
+
+  Lemma spec_restart E b1 b2 N :
+    b1 ≠ b2 →
+    specF (b1, b2, S N) -∗ spec_update 1 E (specF (true, true, N)).
+  Proof.
+    iIntros (?) "Hspec". iIntros (s) "Hs".
+    iDestruct (spec_auth_agree with "Hs Hspec") as %->.
+    iExists (true, true, N).
+    iMod (spec_auth_update (true, true, N) with "Hs Hspec") as "[$ $]".
+    iModIntro. iPureIntro.
+    rewrite stepN_Sn /=.
+    rewrite bool_decide_eq_true_2; [|by apply two_coins_final].
+    rewrite dret_id_left /=. by apply dret_1.
+  Qed.
+
+  Lemma rwp_coupl_two_tapes ns1 ns2 α1 α2 N (e : expr) E (Φ : val → iProp Σ) b :
     TCEq (to_val e) None →
     α1 ↪ (1%nat; ns1) ∗
     α2 ↪ (1%nat; ns2) ∗
-    specF (S N, b1, b2) ∗
-    ▷ (∀ b1' b2', specF (if bool_decide (b1' ≠ b2') then N else S N, b1', b2') -∗
+    specF (b, b, S N) ∗
+    ▷ (∀ b1' b2', specF (b1', b2', S N) -∗
                 α1 ↪ (1%nat; ns1 ++ [bool_to_fin b1']) -∗
                 α2 ↪ (1%nat; ns2 ++ [bool_to_fin b2']) -∗
                 WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (Hv) "(Hα1 & Hα2 & Hspec & Hcnt)".
-    iApply (rwp_couple_two_tapes (δ := random_walks) _ _
-              (λ '(n1, n2) '(N', b1, b2),
-                (N' = if bool_decide (b1 ≠ b2) then N else S N) ∧
-                  n1 = bool_to_fin b1 ∧
-                  n2 = bool_to_fin b2)
-             with "[$Hα1 $Hα2 $Hspec Hcnt]").
-    { rewrite Hv //. }
-    { intros ???? => /=.
-      rewrite -(dret_id_right (state_step _ _ ≫= _)).
-      eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
-      intros [] [b1' b2']  [= -> ->] =>/=.
-      eapply Rcoupl_dret. eauto 6. }
-    iIntros "!>" (?? [[N' b1'] b2'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
-    iApply ("Hcnt" with "Hf1 Hα1 Hα2").
+    iApply (rwp_couple_two_tapes (δ := model) _ _
+              (λ '(n1, n2) '(b1, b2, N'),
+                N' = S N ∧ n1 = bool_to_fin b1 ∧ n2 = bool_to_fin b2)
+               with "[$Hα1 $Hα2 $Hspec Hcnt]").
+      { intros ???? => /=.
+        rewrite bool_decide_eq_false_2; [|by apply two_coins_not_final].
+        rewrite bool_decide_eq_false_2; [|auto].
+        rewrite -(dret_id_right (state_step _ _ ≫= _)).
+        eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
+        intros [] [b1' b2']  [= -> ->] =>/=.
+        eapply Rcoupl_dret=>/=. eauto 6. }
+      iIntros "!>" (?? [[b1' b2'] N'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
+      iApply ("Hcnt" with "Hf1 Hα1 Hα2").
   Qed.
 
   Definition comparison2z c : Z :=
@@ -287,12 +302,12 @@ Section lazy_real.
       { iIntros (?) "Htail". iApply (chunk_and_tape_list_cons_chunk with "[$] [$]"). }
   Qed.
 
-  Lemma rwp_couple_chunk_and_tape_list α1 α2 l1 l2 zs1 zs2 N (e : expr) E (Φ : val → iProp Σ) b1 b2 :
+  Lemma rwp_couple_chunk_and_tape_list α1 α2 l1 l2 zs1 zs2 N (e : expr) E (Φ : val → iProp Σ) b  :
     TCEq (to_val e) None →
     chunk_and_tape_list α1 l1 zs1 ∗
     chunk_and_tape_list α2 l2 zs2 ∗
-    specF (S N, b1, b2) ∗
-    ▷ (∀ b1' b2', specF (if bool_decide (b1' ≠ b2') then N else S N, b1', b2') -∗
+    specF (b, b, S N) ∗
+    ▷ (∀ b1' b2', specF (b1', b2', S N) -∗
                 chunk_and_tape_list α1 l1 (zs1 ++ [bool_to_fin b1']) -∗
                 chunk_and_tape_list α2 l2 (zs2 ++ [bool_to_fin b2']) -∗
                 WP e @ E {{ Φ }})
@@ -307,17 +322,19 @@ Section lazy_real.
     { iExists _, _. iFrame. subst. rewrite app_assoc //. }
   Qed.
 
-  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E b1 b2 :
-    ⟨⟨⟨ specF (S N, b1, b2) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
+  Definition cmps (N : nat) : iProp Σ := ∃ b, specF (b, b, N).
+
+  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E :
+    ⟨⟨⟨ cmps (S N) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) (b1' b2' : bool) (zs : list (fin _)), RET #z;
-        specF (N, b1', b2') ∗
-          ⌜b1' ≠ b2'⌝ ∗
-          chunk_and_tape_list α1 l1 (zs ++ [bool_to_fin b1']) ∗
-          chunk_and_tape_list α2 l2 (zs ++ [bool_to_fin b2']) ⟩⟩⟩.
+    ⟨⟨⟨ (z : Z) (z1 z2 : fin _) (zs : list (fin _)), RET #z;
+        cmps N ∗
+          ⌜z1 ≠ z2⌝ ∗
+          chunk_and_tape_list α1 l1 (zs ++ [z1]) ∗
+          chunk_and_tape_list α2 l2 (zs ++ [z2]) ⟩⟩⟩.
   Proof.
-    iLöb as "IH" forall (b1 b2 l1 l2).
-    iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
+    iLöb as "IH" forall (l1 l2).
+    iIntros (Ψ) "([%b Hspec] & Hl1 & Hl2) HΨ".
     wp_rec. wp_pures.
     wp_apply (rwp_couple_chunk_and_tape_list α1).
     iFrame.
@@ -331,50 +348,57 @@ Section lazy_real.
     wp_apply wp_cmpZ; [done|]; iIntros "_".
     destruct (Z.compare_spec (bool_to_fin b1') (bool_to_fin b2'))
       as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
-   - wp_pures. rewrite bool_decide_eq_false_2; [|eauto].
-     wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
+   - wp_pures.
+     wp_apply ("IH" with "[Hspec $Hl1' $Hl2']"); [by iExists _|].
      iIntros (????) "(?&?& Hl1' & Hl2')".
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
      rewrite 2!app_comm_cons. iApply ("HΨ" with "[$]").
-   - wp_pures. rewrite bool_decide_eq_true_2; [|by intros ->].
+   - wp_apply rwp_spec_steps'.
+     assert (b1' ≠ b2') by (intros ->; eauto).
+     iSplitR "Hspec"; [|by iApply (spec_restart with "Hspec")].
+     iIntros "Hspec".
+     wp_pures.
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
      iApply ("HΨ" $! _ _ _ []). iFrame.
-     iModIntro. iPureIntro. by intros ->.
-   - wp_pures. rewrite bool_decide_eq_true_2; [|by intros ->].
+     iModIntro. iSplit; [by iExists _|].
+     iPureIntro. by intros ?%(inj _).
+   - wp_apply rwp_spec_steps'.
+     assert (b1' ≠ b2') by (intros ->; eauto).
+     iSplitR "Hspec"; [|by iApply (spec_restart with "Hspec")].
+     iIntros "Hspec".
+     wp_pures.
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
      iApply ("HΨ" $! _ _ _ []). iFrame.
-     iModIntro. iPureIntro. by intros ->.
+     iModIntro. iSplit; [by iExists _|].
+     iPureIntro. by intros ?%(inj _).
   Qed.
 
-  Lemma rwp_cmp_list N α1 α2 l1 l2 E b1 b2 zs1 zs2 :
-    ⟨⟨⟨ specF (S N, b1, b2) ∗
+  Lemma rwp_cmp_list N α1 α2 l1 l2 E zs1 zs2 :
+    (N > 0)%nat →
+    ⟨⟨⟨ cmps N ∗
         chunk_and_tape_list α1 l1 zs1 ∗
         chunk_and_tape_list α2 l2 zs2 ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) (z1 z2 : fin _) (zs zs1' zs2' : list (fin _)), RET #z;
+    ⟨⟨⟨ (z : Z) (M : nat) (z1 z2 : fin _) (zs zs1' zs2' : list (fin _)), RET #z;
         chunk_and_tape_list α1 l1 (zs ++ [z1] ++ zs1') ∗
         chunk_and_tape_list α2 l2 (zs ++ [z2] ++ zs2') ∗
         ⌜z1 ≠ z2⌝ ∗
-        (specF (S N, b1, b2)
-         ∨ ∃ b1' b2',
-            specF (N, b1', b2') ∗
-              ⌜b1' ≠ b2'⌝ ∗
-              ⌜bool_to_fin b1' = z1⌝ ∗
-              ⌜bool_to_fin b2' = z2⌝ ∗
-              ⌜zs1' = []⌝ ∗
-              ⌜zs2' = []⌝) ⟩⟩⟩.
+        cmps M ∗
+        ⌜(N - 1 ≤ M ≤ N)%nat⌝ ⟩⟩⟩.
   Proof.
-    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 b1 b2 zs2).
-    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2 b1 b2).
+    iIntros (?).
+    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 zs2).
+    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2).
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
+        destruct N; [lia|].
         wp_apply (rwp_cmp_list_nil_nil with "[$Hspec $Hl1 $Hl2]").
-        iIntros (z b1' b2' zs) "(Hspec & % & Hl1 & Hl2)".
-        iApply "HΨ".
-        iFrame. iSplit; [|eauto].
-        iPureIntro. by intros ?%(inj _).
+        iIntros (z z1 z2 zs) "(Hspec & % & Hl1 & Hl2)".
+        iApply ("HΨ").
+        iFrame. iSplit; [done|].
+        iPureIntro. lia.
       + iIntros (Ψ) " (Hspec & Hl1 & Hl2) HΨ".
         rewrite {2}/cmp_list. wp_pures.
         wp_apply (rwp_get_chunk_nil with "Hl1").
@@ -388,7 +412,7 @@ Section lazy_real.
           as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
         * do 3 wp_pure _.
           wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
-          iIntros (??????)  "(Hl1' & Hl2' & % & Hspec)".
+          iIntros (???????)  "(Hl1' & Hl2' & % & Hspec)".
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           rewrite 2!app_comm_cons.
@@ -397,14 +421,15 @@ Section lazy_real.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ z1 z2 [] [] zs2).
-          iFrame. iPureIntro. intros ?; simplify_eq.
+          iApply ("HΨ" $! _ _ z1 z2 [] [] zs2).
+          iFrame. iSplit; [|iPureIntro; lia].
+          iPureIntro. by intros ->.
         * wp_pures.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ z1 z2 [] [] zs2).
-          iFrame. iPureIntro. intros ?; simplify_eq.
+          iApply ("HΨ" $! _ _ z1 z2 [] [] zs2).
+          iFrame. iPureIntro. split; [|lia]. by intros ->.
     - destruct zs2 as [|z2 zs2].
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
         rewrite {2}/cmp_list. wp_pures.
@@ -419,7 +444,7 @@ Section lazy_real.
           as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
         * do 3 wp_pure _.
           wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
-          iIntros (??????)  "(Hl1' & Hl2' & % & Hspec)".
+          iIntros (???????)  "(Hl1' & Hl2' & % & Hspec)".
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           rewrite 2!app_comm_cons.
@@ -428,14 +453,14 @@ Section lazy_real.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ z1 z2 [] zs1 []).
-          iFrame. iPureIntro. intros ?; simplify_eq.
+          iApply ("HΨ" $! _ _ z1 z2 [] zs1 []).
+          iFrame. iPureIntro. split; [|lia]. by intros ->.
         * wp_pures.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ z1 z2 [] zs1 []).
-          iFrame. iPureIntro. intros ?; simplify_eq.
+          iApply ("HΨ" $! _ _ z1 z2 [] zs1 []).
+          iFrame. iPureIntro. split; [|lia]. by intros ->.
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
         rewrite {2}/cmp_list. wp_pures.
         wp_apply (rwp_get_chunk_cons with "Hl1").
@@ -449,7 +474,7 @@ Section lazy_real.
           as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
         * do 3 wp_pure _.
           wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
-          iIntros (??????)  "(Hl1' & Hl2' & % & Hspec)".
+          iIntros (???????)  "(Hl1' & Hl2' & % & Hspec)".
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           rewrite 2!app_comm_cons.
@@ -458,37 +483,14 @@ Section lazy_real.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ z1 z2 [] zs1 zs2).
-          iFrame. iPureIntro. intros ?; simplify_eq.
+          iApply ("HΨ" $! _ _ z1 z2 [] zs1 zs2).
+          iFrame. iPureIntro. split; [|lia]. by intros ->.
         * wp_pures.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ z1 z2 [] zs1 zs2).
-          iFrame. iPureIntro. intros ?; simplify_eq.
-  Qed.
-
-  Lemma rwp_cmp_list' (N : nat) α1 α2 l1 l2 E b1 b2 zs1 zs2 :
-    (N > 0)%nat →
-    ⟨⟨⟨ specF (N, b1, b2) ∗
-        chunk_and_tape_list α1 l1 zs1 ∗
-        chunk_and_tape_list α2 l2 zs2 ⟩⟩⟩
-      cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) M b1 b2 (zs1' zs2' : list (fin _)), RET #z;
-        chunk_and_tape_list α1 l1 (zs1') ∗
-        chunk_and_tape_list α2 l2 (zs2') ∗
-        ⌜zs1' ≠ zs2'⌝ ∗
-        specF (M, b1, b2) ∗
-        ⌜(N - 1 ≤ M ≤ N)%nat⌝ ⟩⟩⟩.
-  Proof.
-    iIntros (? Ψ) "HP HΨ".
-    destruct N; [lia|].
-    wp_apply (rwp_cmp_list N with "HP").
-    iIntros (??????) "(?&?& % & [? | (% & % & ? & _)])".
-    - iApply "HΨ". iFrame.
-      iSplit; iPureIntro; [set_solver|lia].
-    - iApply "HΨ". iFrame.
-      iSplit; iPureIntro; [set_solver|lia].
+          iApply ("HΨ" $! _ _ z1 z2 [] zs1 zs2).
+          iFrame. iPureIntro. split; [|lia]. by intros ->.
   Qed.
 
   Lemma rwp_init E :
@@ -509,30 +511,27 @@ Section lazy_real.
     iExists [], []. by iFrame.
   Qed.
 
-  Definition cmp_fuel (N : nat) : iProp Σ := ∃ b1 b2, specF (N, b1, b2).
-
   Lemma rwp_cmp E v1 v2 zs1 zs2 N :
     (N > 0)%nat →
-    ⟨⟨⟨ lazy_no zs1 v1 ∗ lazy_no zs2 v2 ∗ cmp_fuel N ⟩⟩⟩
+    ⟨⟨⟨ lazy_no zs1 v1 ∗ lazy_no zs2 v2 ∗ cmps N ⟩⟩⟩
       cmp v1 v2 @ E
     ⟨⟨⟨ (z : Z) M zs1' zs2', RET #z;
         lazy_no zs1' v1 ∗ lazy_no zs2' v2 ∗
-        cmp_fuel M ∗ ⌜(N - 1 ≤ M ≤ N)%nat⌝⟩⟩⟩.
+        cmps M ∗ ⌜(N - 1 ≤ M ≤ N)%nat⌝⟩⟩⟩.
   Proof.
-    iIntros (? Ψ) "((%l1 & %α1 & -> & Hl1) & (%l2 & %α2 & -> & Hl2) & (%b1 & %b2 & Hfuel)) HΨ".
+    iIntros (? Ψ) "((%l1 & %α1 & -> & Hl1) & (%l2 & %α2 & -> & Hl2) & Hcmps) HΨ".
     wp_rec. wp_pures.
     iDestruct (chunk_and_tape_list_ne with "Hl1 Hl2") as %?.
     rewrite bool_decide_eq_false_2; [|by intros [=]].
     wp_pures.
-    wp_apply (rwp_cmp_list' with "[$Hfuel $Hl1 $Hl2]"); [done|].
-    iIntros (??????) "(Hl1 & Hl2 & % & Hs & %)".
+    wp_apply (rwp_cmp_list with "[$Hcmps $Hl1 $Hl2]"); [done|].
+    iIntros (???????) "(Hl1 & Hl2 & % & Hs & %)".
     iApply "HΨ".
     iSplitL "Hl1".
     { iExists _, _. by iFrame. }
     iSplitL "Hl2".
     { iExists _, _. by iFrame. }
-    iSplit; [|done].
-    by iExists _, _.
+    iFrame. done.
   Qed.
 
 End lazy_real.
@@ -546,10 +545,10 @@ Definition cmp_three_numbers : expr :=
   #().
 
 Section client.
-  Context `{tprG random_walks Σ}.
+  Context `{!tprG model Σ}.
 
   Lemma rwp_cmp_three_numbers :
-    ⟨⟨⟨ cmp_fuel 2 ⟩⟩⟩
+    ⟨⟨⟨ cmps 2 ⟩⟩⟩
       cmp_three_numbers
     ⟨⟨⟨ RET #(); True ⟩⟩⟩.
   Proof.
@@ -578,10 +577,10 @@ Theorem prog_random_walk_terminates :
   almost_surely_terminates (cmp_three_numbers, σ₀).
 Proof.
   eapply Rle_antisym; [done|].
-  transitivity (SeriesC (lim_exec ((2%nat, true, true) : mstate random_walks))).
-  { by rewrite random_walks_terminates. }
-  eapply (wp_refRcoupl_mass (tprΣ (nat * bool * bool))).
+  transitivity (SeriesC (lim_exec ((true, true, 2%nat) : mstate model))).
+  { by rewrite iter_two_coins_terminates. }
+  eapply (wp_refRcoupl_mass (tprΣ (bool * bool * nat))).
   iIntros (?) "Ha".
   wp_apply (rwp_cmp_three_numbers with "[Ha]"); [|done].
-  iExists _, _. done.
+  iExists _. done.
 Qed.

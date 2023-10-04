@@ -789,7 +789,7 @@ Lemma rswp_fupd k E e Φ a : RSWP e at k @ a; E ⟨⟨ v, |={E}=> Φ v ⟩⟩ �
 Proof. iIntros "H". iApply (rswp_strong_mono k E with "H"); auto. Qed.
 
 Lemma rwp_no_step E e Φ a :
-  to_val e = None →
+  TCEq (to_val e) None →
   RSWP e at 0 @ a; E ⟨⟨ Φ ⟩⟩ ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rswp_unfold rwp_unfold /rwp_pre /rswp_step.
@@ -804,7 +804,7 @@ Proof.
 Qed.
 
 Lemma rwp_spec_steps n P E e Φ a :
-  to_val e = None →
+  TCEq (to_val e) None →  
   (P -∗ RSWP e at n @ a; E ⟨⟨ Φ ⟩⟩) ∗ spec_update n E P ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rswp_unfold rwp_unfold /rwp_pre /rswp_step.
@@ -821,6 +821,20 @@ Proof.
   iSplit; [done|].
   iIntros ([e2 σ2] HR) "!>".
   by iMod ("H" with "[//]").
+Qed.
+
+Lemma rwp_spec_steps' n P E e Φ a :
+  TCEq (to_val e) None →  
+  (P -∗ WP e @ a; E {{ Φ }}) ∗ spec_update n E P ⊢ WP e @ a; E {{ Φ }}.
+Proof.
+  rewrite rwp_unfold /rwp_pre.
+  iIntros (->) "[Hrwp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_update.
+  iMod ("Hspec" with "Ha") as (a' Ha) "(Hsource_interp & HP)".
+  iMod ("Hrwp" with "HP [$]") as "Hrwp".
+  iModIntro.
+  iApply rwp_coupl_det_r; [done|].
+  iApply step_fupdN_intro; [done|].
+  iModIntro. done. 
 Qed.
 
 Lemma rswp_later k E e Φ a :

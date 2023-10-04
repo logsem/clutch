@@ -1,11 +1,11 @@
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import fancy_updates.
-From iris.base_logic.lib Require Export ghost_map. 
+From iris.base_logic.lib Require Export ghost_map.
 
 From clutch.tpref_logic Require Import weakestpre spec ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.prob Require Import distribution. 
+From clutch.prob Require Import distribution.
 
 Class tprGpreS δ Σ := TprGpreS {
   tprGpre_iris  :> invGpreS Σ;
@@ -186,14 +186,14 @@ Section rwp.
     iFrame.
     iModIntro.
     iApply ("HΦ" with "[$Hl //]").
-  Qed.    
+  Qed.
 
   (** * RWP  *)
   Lemma rwp_alloc E v a :
     ⟨⟨⟨ True ⟩⟩⟩ ref v @ a; E ⟨⟨⟨ l, RET #l; l ↦ v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
-    iApply rwp_no_step; [done|].
+    iApply rwp_no_step.
     by iApply (rswp_alloc with "H HΦ").
   Qed.
 
@@ -201,7 +201,7 @@ Section rwp.
     ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l @ a; E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
-    iApply rwp_no_step; [done|].
+    iApply rwp_no_step.
     by iApply (rswp_load with "H HΦ").
   Qed.
 
@@ -209,7 +209,7 @@ Section rwp.
     ⟨⟨⟨ ▷ l ↦ v' ⟩⟩⟩ #l <- v @ a; E ⟨⟨⟨ RET #(); l ↦ v ⟩⟩⟩.
   Proof.
     iIntros (Φ) "H HΦ".
-    iApply rwp_no_step; [done|].
+    iApply rwp_no_step.
     by iApply (rswp_store with "H HΦ").
   Qed.
 
@@ -218,7 +218,7 @@ Section rwp.
     ⟨⟨⟨ True ⟩⟩⟩ rand #z @ a; E ⟨⟨⟨ (n : fin (S N)), RET #n; True ⟩⟩⟩.
   Proof.
     iIntros (? Φ) "H HΦ".
-    iApply rwp_no_step; [done|].
+    iApply rwp_no_step.
     by iApply (rswp_rand with "H HΦ").
   Qed.
 
@@ -227,7 +227,7 @@ Section rwp.
     ⟨⟨⟨ True ⟩⟩⟩ alloc #z @ s; E ⟨⟨⟨ α, RET #lbl:α; α ↪ (N; []) ⟩⟩⟩.
   Proof.
     iIntros (? Φ) "H HΦ".
-    iApply rwp_no_step; [done|].    
+    iApply rwp_no_step.
     by iApply (rswp_alloc_tape with "H HΦ").
   Qed.
 
@@ -236,7 +236,7 @@ Section rwp.
     ⟨⟨⟨ ▷ α ↪ (N; n :: ns) ⟩⟩⟩ rand(#lbl: α) #z @ s; E ⟨⟨⟨ RET #(LitInt n); α ↪ (N; ns) ⟩⟩⟩.
   Proof.
     iIntros (-> Φ) ">Hl HΦ".
-    iApply rwp_no_step; [done|]. 
+    iApply rwp_no_step.
     by iApply (rswp_rand_tape with "Hl HΦ").
   Qed.
 
@@ -245,8 +245,8 @@ Section rwp.
     ⟨⟨⟨ ▷ α ↪ (N; []) ⟩⟩⟩ rand(#lbl:α) #z @ s; E ⟨⟨⟨ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) ⟩⟩⟩.
   Proof.
     iIntros (-> Φ) ">Hl HΦ".
-    iApply rwp_no_step; [done|]. 
-    by iApply (rswp_rand_tape_empty with "Hl HΦ").    
+    iApply rwp_no_step.
+    by iApply (rswp_rand_tape_empty with "Hl HΦ").
   Qed.
 
   Lemma rwp_rand_tape_wrong_bound N M z α E ns s :
@@ -255,9 +255,9 @@ Section rwp.
     ⟨⟨⟨ ▷ α ↪ (M; ns) ⟩⟩⟩ rand(#lbl:α) #z @ s; E ⟨⟨⟨ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) ⟩⟩⟩.
   Proof.
     iIntros (-> ? Φ) ">Hl HΦ".
-    iApply rwp_no_step; [done|]. 
+    iApply rwp_no_step.
     by iApply (rswp_rand_tape_wrong_bound with "Hl HΦ").
-  Qed. 
+  Qed.
 
 End rwp.
 
@@ -301,7 +301,7 @@ Section coupl.
   Qed.
 
   Lemma rwp_couple_two_tapes N1 N2 R ns1 ns2 α1 α2 e m1 a E Φ :
-    to_val e = None →    
+    TCEq (to_val e) None →
     (∀ σ, α1 ≠ α2 →
           σ.(tapes) !! α1 = Some ((N1; ns1) : tape) →
           σ.(tapes) !! α2 = Some ((N2; ns2) : tape) →
@@ -314,13 +314,13 @@ Section coupl.
                      (state_upd_tapes (<[α2 := (N2; ns2 ++ [n2])]>) σ)))) →
     α1 ↪ (N1; ns1) ∗
     α2 ↪ (N2; ns2) ∗
-    specF m1 ∗                         
+    specF m1 ∗
     ▷ (∀ n1 n2 m2, ⌜R (n1, n2) m2⌝ -∗ specF m2 -∗
                    α1 ↪ (N1; ns1 ++ [n1]) -∗ α2 ↪ (N2; ns2 ++ [n2]) -∗ WP e @ a; E {{ Φ }})
     ⊢ WP e @ a; E {{ Φ }}.
   Proof.
     iIntros (He Hcpl) "(Hα1 & Hα2 & Hm1F & Hcnt)".
-    iApply rwp_lift_step_fupd_coupl; [done|].
+    iApply rwp_lift_step_fupd_coupl; [rewrite /= He //|].
     iIntros (σ1 m1') "[[Hh1 Ht1] Hm1A]".
     iDestruct (spec_auth_agree with "Hm1A Hm1F") as %->.
     iDestruct (ghost_map_lookup with "Ht1 Hα1") as %?.
@@ -330,18 +330,18 @@ Section coupl.
     iIntros "Hclose".
     iApply (rwp_coupl_double_state_step _ _ _ _ α1 α2).
     { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }
-    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }    
-    iExists _. iSplit; [eauto|]. 
+    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }
+    iExists _. iSplit; [eauto|].
     iIntros (σ2 m2 (n1 & n2 & ? & ->)).
     iMod (spec_auth_update m2 with "Hm1A Hm1F") as "[HmA HmF]".
     iMod (ghost_map_update ((N2; ns2 ++ [n2]) : tape) with "Ht1 Hα2") as "[Ht2 Hα2]".
     iMod (ghost_map_update ((N1; ns1 ++ [n1]) : tape) with "Ht2 Hα1") as "[Ht2 Hα1]".
     do 2 iModIntro.
-    iMod "Hclose" as "_". 
+    iMod "Hclose" as "_".
     iSpecialize ("Hcnt" with "[//] HmF Hα1 Hα2").
-    rewrite !rwp_unfold /rwp_pre [language.to_val _]/=  He.
-    iApply "Hcnt". iFrame. 
-  Qed. 
+    rewrite !rwp_unfold /rwp_pre [language.to_val _]/= He.
+    iApply "Hcnt". iFrame.
+  Qed.
 
 End coupl.
 
