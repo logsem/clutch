@@ -27,7 +27,7 @@ Lemma wp_lift_head_step_fupd_couple {E Φ} e1 :
       ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε1 ))
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_coupl; [done |].
+  iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done |].
   iIntros (σ1 e1' σ1' ε) "Hσ".
   iMod ("H" with "Hσ") as "[% H]"; iModIntro.
   iSplit; auto.

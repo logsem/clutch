@@ -470,22 +470,24 @@ Section exec_coupl.
       iDestruct "H" as "[? | H]"; [done|].
       by iApply "IH".
   Qed.
+*)
 
-  Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z :
+  Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z (ε : nonnegreal) :
     exec n (e1', σ1') (e2', σ2') = 1 →
-    exec_coupl e1 σ1 e2' σ2' Z -∗
-    exec_coupl e1 σ1 e1' σ1' Z.
+    exec_coupl e1 σ1 e2' σ2' Z ε -∗
+    exec_coupl e1 σ1 e1' σ1' Z ε.
   Proof.
     iIntros (Hexec%pmf_1_eq_dret) "Hcpl".
+    replace ε with (nnreal_plus nnreal_zero ε) at 2
+      by by apply nnreal_ext => /= ; lra.
     iApply exec_coupl_exec_r.
     iExists _, n. iSplit.
-    { iPureIntro. apply Rcoupl_pos_R, Rcoupl_trivial.
+    { iPureIntro. apply ARcoupl_pos_R, ARcoupl_trivial.
       - apply dret_mass.
       - rewrite Hexec; apply dret_mass. }
     iIntros (e2'' σ2'' (_ & _ & H)).
     rewrite Hexec in H. by apply dret_pos in H as [= -> ->].
   Qed.
-*)
 
 End exec_coupl.
 
