@@ -65,7 +65,7 @@ Section adequacy.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : mstate δ) (n : nat) :
-    state_interp σ ∗ specA a ∗ WP e {{ v, ∃ a', specF a' }} ⊢
+    state_interp σ ∗ specA a ∗ WP e {{ _, True }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec (e, σ) ≿ exec n a : λ _ _, True⌝.
   Proof.
     iIntros "(Hσ & Ha & Hrwp)".
@@ -75,8 +75,7 @@ Section adequacy.
     rewrite /rwp_pre.
     iSpecialize ("Hrwp" with "[$]").
     case_match eqn:Hv.
-    - iMod "Hrwp" as "(Hσ & Hauth & %a' & Hfrag)".
-      iDestruct (spec_auth_agree with "Hauth Hfrag") as %<-.
+    - iMod "Hrwp" as "(Hσ & Hauth)".
       erewrite lim_exec_final; [|done].
       iApply fupd_mask_intro; [set_solver|]; iIntros "_".
       iApply step_fupdN_intro; [done|].
@@ -167,7 +166,7 @@ End adequacy.
 
 Theorem wp_refRcoupl `{!tprGpreS δ Σ} e σ a n :
   (∀ `{!tprG δ Σ},
-    ⊢ specF a -∗ WP e {{ v, ∃ a', specF a' }}) →
+    ⊢ specF a -∗ WP e {{ _, True }}) →
   lim_exec (e, σ) ≿ exec n a : (λ _ _, True).
 Proof.
   intros Hwp.
@@ -183,7 +182,7 @@ Proof.
 Qed.
 
 Corollary wp_refRcoupl_mass Σ `{!tprGpreS δ Σ} e σ a :
-  (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ v, ∃ a', specF a' }}) →
+  (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
   SeriesC (lim_exec a) <= SeriesC (lim_exec (e, σ)).
 Proof.
   intros Hrwp.

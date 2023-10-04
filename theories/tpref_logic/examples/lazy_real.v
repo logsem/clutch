@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob_lang Require Import lang notation metatheory.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
+From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
 From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples Require Import flip.
 Set Default Proof Using "Type*".
@@ -10,12 +10,12 @@ Section lazy_real.
   (* Context (CHUNCK_SIZE : nat). *)
 
   Definition mstep (bs : nat * bool * bool) : distr (nat * bool * bool) :=
-    let '(fuel, b1, b2) := bs in
+    let '(fuel, _, _) := bs in
     match fuel with
     | 0 => dzero
     | S n =>
-        '(b1', b2') ← dprod fair_coin fair_coin;
-        dret (if bool_decide (b1' ≠ b2') then n else S n, b1', b2')
+        '(b1, b2) ← dprod fair_coin fair_coin;
+        dret (if bool_decide (b1 ≠ b2) then n else S n, b1, b2)
     end.
 
   Definition mto_final (bs : nat * bool * bool) : option (bool * bool) :=
@@ -31,6 +31,10 @@ Section lazy_real.
   Qed.
 
   Canonical Structure random_walks : markov := Markov _ _ random_walks_mixin.
+
+  Lemma random_walks_terminates N b1 b2 :
+    SeriesC (lim_exec ((N, b1, b2) : mstate random_walks)) = 1.
+  Proof. Admitted.
 
   (* Program Definition rws_rsm := Rsm random_walks (λ '(b1, b2), if bool_decide (b1 ≠ b2) then 0 else 2) 1 _ _ _ _ _ _. *)
   (* Next Obligation. *)
@@ -533,21 +537,21 @@ Section lazy_real.
 
 End lazy_real.
 
+Definition cmp_three_numbers : expr :=
+  let: "r1" := init #() in
+  let: "r2" := init #() in
+  let: "r3" := init #() in
+  cmp "r1" "r2";;
+  cmp "r2" "r3";;
+  #().
+
 Section client.
   Context `{tprG random_walks Σ}.
-
-  Definition cmp_three_numbers : expr :=
-    let: "r1" := init #() in
-    let: "r2" := init #() in
-    let: "r3" := init #() in
-    cmp "r1" "r2";;
-    cmp "r2" "r3";;
-    #().
 
   Lemma rwp_cmp_three_numbers :
     ⟨⟨⟨ cmp_fuel 2 ⟩⟩⟩
       cmp_three_numbers
-    ⟨⟨⟨ RET #(); cmp_fuel 0 ⟩⟩⟩.
+    ⟨⟨⟨ RET #(); True ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "Hfuel HΨ".
     rewrite /cmp_three_numbers.
@@ -562,8 +566,22 @@ Section client.
     wp_apply (rwp_cmp with "[$Hr2 $Hr3 $Hfuel]"); [lia|].
     iIntros (c2 P ? ?) "(Hr2 & Hr3 & Hfuel & %)"; wp_pures.
     iModIntro.
-    iApply "HΨ".
-    (* Ooops... I don't know this :/ *)
-  Abort.
+    by iApply "HΨ".
+  Qed.
 
 End client.
+
+Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
+
+Theorem prog_random_walk_terminates :
+  almost_surely_terminates (cmp_three_numbers, σ₀).
+Proof.
+  eapply Rle_antisym; [done|].
+  transitivity (SeriesC (lim_exec ((2%nat, true, true) : mstate random_walks))).
+  { by rewrite random_walks_terminates. }
+  eapply (wp_refRcoupl_mass (tprΣ (nat * bool * bool))).
+  iIntros (?) "Ha".
+  wp_apply (rwp_cmp_three_numbers with "[Ha]"); [|done].
+  iExists _, _. done.
+Qed.
