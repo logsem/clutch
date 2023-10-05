@@ -322,19 +322,17 @@ Section lazy_real.
     { iExists _, _. iFrame. subst. rewrite app_assoc //. }
   Qed.
 
-  Definition cmps (N : nat) : iProp Σ := ∃ b, specF (b, b, N).
-
-  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E :
-    ⟨⟨⟨ cmps (S N) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
+  Lemma rwp_cmp_list_nil_nil N α1 α2 l1 l2 E b :
+    ⟨⟨⟨ specF (b, b, S N) ∗ chunk_and_tape_list α1 l1 [] ∗ chunk_and_tape_list α2 l2 [] ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) (z1 z2 : fin _) (zs : list (fin _)), RET #z;
-        cmps N ∗
+    ⟨⟨⟨ (z : Z) (b' : bool) (z1 z2 : fin _) (zs : list (fin _)), RET #z;
+        specF (b', b', N) ∗
           ⌜z1 ≠ z2⌝ ∗
           chunk_and_tape_list α1 l1 (zs ++ [z1]) ∗
           chunk_and_tape_list α2 l2 (zs ++ [z2]) ⟩⟩⟩.
   Proof.
-    iLöb as "IH" forall (l1 l2).
-    iIntros (Ψ) "([%b Hspec] & Hl1 & Hl2) HΨ".
+    iLöb as "IH" forall (l1 l2 b).
+    iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
     wp_rec. wp_pures.
     wp_apply (rwp_couple_chunk_and_tape_list α1).
     iFrame.
@@ -349,8 +347,8 @@ Section lazy_real.
     destruct (Z.compare_spec (bool_to_fin b1') (bool_to_fin b2'))
       as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
    - wp_pures.
-     wp_apply ("IH" with "[Hspec $Hl1' $Hl2']"); [by iExists _|].
-     iIntros (????) "(?&?& Hl1' & Hl2')".
+     wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
+     iIntros (?????) "(?&?& Hl1' & Hl2')".
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
      rewrite 2!app_comm_cons. iApply ("HΨ" with "[$]").
@@ -361,9 +359,8 @@ Section lazy_real.
      wp_pures.
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
-     iApply ("HΨ" $! _ _ _ []). iFrame.
-     iModIntro. iSplit; [by iExists _|].
-     iPureIntro. by intros ?%(inj _).
+     iApply ("HΨ" $! _ _ _ _ []). iFrame.
+     iModIntro. iPureIntro. by intros ?%(inj _).
    - wp_apply rwp_spec_steps'.
      assert (b1' ≠ b2') by (intros ->; eauto).
      iSplitR "Hspec"; [|by iApply (spec_restart with "Hspec")].
@@ -371,31 +368,30 @@ Section lazy_real.
      wp_pures.
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
-     iApply ("HΨ" $! _ _ _ []). iFrame.
-     iModIntro. iSplit; [by iExists _|].
-     iPureIntro. by intros ?%(inj _).
+     iApply ("HΨ" $! _ _ _ _ []). iFrame.
+     iModIntro. iPureIntro. by intros ?%(inj _).
   Qed.
 
-  Lemma rwp_cmp_list N α1 α2 l1 l2 E zs1 zs2 :
+  Lemma rwp_cmp_list N α1 α2 l1 l2 E zs1 zs2 b :
     (N > 0)%nat →
-    ⟨⟨⟨ cmps N ∗
+    ⟨⟨⟨ specF (b, b, N) ∗
         chunk_and_tape_list α1 l1 zs1 ∗
         chunk_and_tape_list α2 l2 zs2 ⟩⟩⟩
       cmp_list #lbl:α1 #l1 #lbl:α2 #l2 @ E
-    ⟨⟨⟨ (z : Z) (M : nat) (z1 z2 : fin _) (zs zs1' zs2' : list (fin _)), RET #z;
+    ⟨⟨⟨ (z : Z) (M : nat) (b' : bool) (z1 z2 : fin _) (zs zs1' zs2' : list (fin _)), RET #z;
         chunk_and_tape_list α1 l1 (zs ++ [z1] ++ zs1') ∗
         chunk_and_tape_list α2 l2 (zs ++ [z2] ++ zs2') ∗
         ⌜z1 ≠ z2⌝ ∗
-        cmps M ∗
+        specF (b', b', M) ∗
         ⌜(N - 1 ≤ M ≤ N)%nat⌝ ⟩⟩⟩.
   Proof.
     iIntros (?).
-    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 zs2).
-    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2).
+    iInduction zs1 as [|z1 zs1] "IH" forall (l1 l2 zs2 b).
+    - iInduction zs2 as [|z2 zs2] "IH" forall (l1 l2 b).
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
         destruct N; [lia|].
         wp_apply (rwp_cmp_list_nil_nil with "[$Hspec $Hl1 $Hl2]").
-        iIntros (z z1 z2 zs) "(Hspec & % & Hl1 & Hl2)".
+        iIntros (z b' z1 z2 zs) "(Hspec & % & Hl1 & Hl2)".
         iApply ("HΨ").
         iFrame. iSplit; [done|].
         iPureIntro. lia.
@@ -412,7 +408,7 @@ Section lazy_real.
           as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
         * do 3 wp_pure _.
           wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
-          iIntros (???????)  "(Hl1' & Hl2' & % & Hspec)".
+          iIntros (????????)  "(Hl1' & Hl2' & % & Hspec)".
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           rewrite 2!app_comm_cons.
@@ -421,14 +417,14 @@ Section lazy_real.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ _ z1 z2 [] [] zs2).
+          iApply ("HΨ" $! _ _ _ z1 z2 [] [] zs2).
           iFrame. iSplit; [|iPureIntro; lia].
           iPureIntro. by intros ->.
         * wp_pures.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ _ z1 z2 [] [] zs2).
+          iApply ("HΨ" $! _ _ _ z1 z2 [] [] zs2).
           iFrame. iPureIntro. split; [|lia]. by intros ->.
     - destruct zs2 as [|z2 zs2].
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
@@ -444,7 +440,7 @@ Section lazy_real.
           as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
         * do 3 wp_pure _.
           wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
-          iIntros (???????)  "(Hl1' & Hl2' & % & Hspec)".
+          iIntros (????????)  "(Hl1' & Hl2' & % & Hspec)".
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           rewrite 2!app_comm_cons.
@@ -453,13 +449,13 @@ Section lazy_real.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ _ z1 z2 [] zs1 []).
+          iApply ("HΨ" $! _ _ _ z1 z2 [] zs1 []).
           iFrame. iPureIntro. split; [|lia]. by intros ->.
         * wp_pures.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ _ z1 z2 [] zs1 []).
+          iApply ("HΨ" $! _ _ _ z1 z2 [] zs1 []).
           iFrame. iPureIntro. split; [|lia]. by intros ->.
       + iIntros (Ψ) "(Hspec & Hl1 & Hl2) HΨ".
         rewrite {2}/cmp_list. wp_pures.
@@ -474,7 +470,7 @@ Section lazy_real.
           as [? | Hlt%Z.lt_neq | Hgt%Z.lt_neq]; simplify_eq=>/=.
         * do 3 wp_pure _.
           wp_apply ("IH" with "[$Hspec $Hl1' $Hl2']").
-          iIntros (???????)  "(Hl1' & Hl2' & % & Hspec)".
+          iIntros (????????)  "(Hl1' & Hl2' & % & Hspec)".
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           rewrite 2!app_comm_cons.
@@ -483,13 +479,13 @@ Section lazy_real.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ _ z1 z2 [] zs1 zs2).
+          iApply ("HΨ" $! _ _ _ z1 z2 [] zs1 zs2).
           iFrame. iPureIntro. split; [|lia]. by intros ->.
         * wp_pures.
           iSpecialize ("Hl1" with "Hl1'").
           iSpecialize ("Hl2" with "Hl2'").
           iModIntro.
-          iApply ("HΨ" $! _ _ z1 z2 [] zs1 zs2).
+          iApply ("HΨ" $! _ _ _ z1 z2 [] zs1 zs2).
           iFrame. iPureIntro. split; [|lia]. by intros ->.
   Qed.
 
@@ -511,27 +507,29 @@ Section lazy_real.
     iExists [], []. by iFrame.
   Qed.
 
+  Definition cmps (N : nat) : iProp Σ := ∃ b M, specF (b, b, M) ∗ ⌜M ≥ N⌝.
+
   Lemma rwp_cmp E v1 v2 zs1 zs2 N :
     (N > 0)%nat →
     ⟨⟨⟨ lazy_no zs1 v1 ∗ lazy_no zs2 v2 ∗ cmps N ⟩⟩⟩
       cmp v1 v2 @ E
-    ⟨⟨⟨ (z : Z) M zs1' zs2', RET #z;
-        lazy_no zs1' v1 ∗ lazy_no zs2' v2 ∗
-        cmps M ∗ ⌜(N - 1 ≤ M ≤ N)%nat⌝⟩⟩⟩.
+    ⟨⟨⟨ (z : Z) zs1' zs2', RET #z;
+        lazy_no zs1' v1 ∗ lazy_no zs2' v2 ∗ cmps (N - 1) ⟩⟩⟩.
   Proof.
-    iIntros (? Ψ) "((%l1 & %α1 & -> & Hl1) & (%l2 & %α2 & -> & Hl2) & Hcmps) HΨ".
+    iIntros (? Ψ) "((%l1 & %α1 & -> & Hl1) & (%l2 & %α2 & -> & Hl2) & (% & % & Hcmps & %)) HΨ".
     wp_rec. wp_pures.
     iDestruct (chunk_and_tape_list_ne with "Hl1 Hl2") as %?.
     rewrite bool_decide_eq_false_2; [|by intros [=]].
     wp_pures.
-    wp_apply (rwp_cmp_list with "[$Hcmps $Hl1 $Hl2]"); [done|].
-    iIntros (???????) "(Hl1 & Hl2 & % & Hs & %)".
+    destruct M; [lia|].
+    wp_apply (rwp_cmp_list with "[$Hcmps $Hl1 $Hl2]"); [lia|].
+    iIntros (????????) "(Hl1 & Hl2 & % & Hs & %)".
     iApply "HΨ".
     iSplitL "Hl1".
     { iExists _, _. by iFrame. }
     iSplitL "Hl2".
     { iExists _, _. by iFrame. }
-    iFrame. done.
+    iFrame. iExists _, _. eauto with lia.
   Qed.
 
 End lazy_real.
@@ -552,7 +550,7 @@ Section client.
       cmp_three_numbers
     ⟨⟨⟨ RET #(); True ⟩⟩⟩.
   Proof.
-    iIntros (Ψ) "Hfuel HΨ".
+    iIntros (Ψ) "Hcmps HΨ".
     rewrite /cmp_three_numbers.
     wp_apply rwp_init; [done|].
     iIntros (r1) "Hr1"; wp_pures.
@@ -560,10 +558,10 @@ Section client.
     iIntros (r2) "Hr2"; wp_pures.
     wp_apply rwp_init; [done|].
     iIntros (r3) "Hr3"; wp_pures.
-    wp_apply (rwp_cmp with "[$Hr1 $Hr2 $Hfuel]"); [lia|].
-    iIntros (c1 M ? ?) "(Hr1 & Hr2 & Hfuel & %)"; wp_pures.
-    wp_apply (rwp_cmp with "[$Hr2 $Hr3 $Hfuel]"); [lia|].
-    iIntros (c2 P ? ?) "(Hr2 & Hr3 & Hfuel & %)"; wp_pures.
+    wp_apply (rwp_cmp with "[$Hr1 $Hr2 $Hcmps]"); [lia|].
+    iIntros (c1 ? ?) "(Hr1 & Hr2 & Hcmps)"; wp_pures.
+    wp_apply (rwp_cmp with "[$Hr2 $Hr3 $Hcmps]"); [lia|].
+    iIntros (c2 ? ?) "(Hr2 & Hr3 & Hcmps)"; wp_pures.
     iModIntro.
     by iApply "HΨ".
   Qed.
@@ -582,5 +580,5 @@ Proof.
   eapply (wp_refRcoupl_mass (tprΣ (bool * bool * nat))).
   iIntros (?) "Ha".
   wp_apply (rwp_cmp_three_numbers with "[Ha]"); [|done].
-  iExists _. done.
+  iExists _, _. eauto with lia.
 Qed.
