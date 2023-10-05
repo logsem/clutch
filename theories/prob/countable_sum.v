@@ -1076,7 +1076,30 @@ Section double.
   *)
   Admitted.
 
-  Lemma aprod_double_summable: double_summable aprod.
+  Lemma aprod_double_summable:
+    ex_seriesC h ->
+    double_summable aprod.
+  Proof.
+    intros Hex.
+    eapply (summable_implies_ds' aprod σprod).
+    - apply aprod_pos.
+    - apply σprod_inj.
+    - apply σprod_cov.
+    - apply ex_pos_bounded_series.
+      + intro n; simpl; (destruct (σprod n)). apply aprod_pos.
+      + exists (SeriesC h).
+        apply ex_seriesC_ex_series_inv in Hex.
+        intro n.
+        etrans; last first.
+        * eapply series_pos_partial_le; auto.
+          intro m. apply countable_sum_ge_0.
+          intros []. done.
+        * apply sum_n_le.
+          intro m.
+          rewrite /aprod/σprod/countable_sum/=.
+          destruct (encode_inv_nat m) as [ [] | ] eqn:Heq; simpl; [ | lra].
+          do 2 rewrite encode_inv_encode_nat.
+          lra.
   Admitted.
 
   Lemma ex_series_σprod :
@@ -1084,6 +1107,7 @@ Section double.
     ex_series (aprod ∘ σprod).
   Proof using POS.
     intros Hex. apply ds_implies_exseries, aprod_double_summable.
+    auto.
   Qed.
 
   Lemma is_series_prod_row:
