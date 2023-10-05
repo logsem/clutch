@@ -423,6 +423,16 @@ Section positive.
   Qed.
 
 
+  Lemma is_series_chain s1 s2 v:
+    is_series s2 (Series s1) →
+    is_series s1 v →
+    is_series s2 v.
+  Proof.
+    intros Hs2 Hs1.
+    rewrite -(is_series_unique s1 v); auto.
+  Qed.
+
+
   Lemma series_ge_0 (h : nat -> R):
     (∀ a, 0 <= h a) ->
     0 <= Series h.
@@ -665,6 +675,7 @@ Section positive.
         * apply partial_sum_pos; auto.
         * apply series_pos_partial_le; auto.
   Qed.
+
 
 End positive.
 
@@ -1035,3 +1046,66 @@ Section mct.
   Qed.
 
 End mct.
+
+
+
+Section double.
+
+  Variable (a: nat * nat → R).
+  Variable (σ: nat → nat * nat).
+  
+  Variable (POS: forall n n', 0 <= a (n, n')).
+  Variable (INJ: ∀ n n', a (σ n) <> 0 → σ n = σ n' → n = n').
+  Variable (COV: ∀ n, a n <> 0 → ∃ m, σ m = n).
+  Variable (EXS: ex_series (a ∘ σ)).
+  
+  Lemma abs_inj: ∀ n n', a (σ n) <> 0 → σ n = σ n' → n = n'.
+  Admitted.
+  
+  Lemma abs_cov: ∀ n, a n <> 0 → ∃ m, σ m = n.
+  Admitted.
+
+(*
+Lemma summable_implies_ds:
+  double_summable a.
+Proof.
+  destruct (sum_n_m_cover_diff_double (λ x, Rabs (a x)) σ abs_inj abs_cov O) as (N&HN).
+  apply double_summable_mono_cond.
+  destruct EXS as (r&His).
+  exists r, N. intros n Hge.
+  destruct (HN n n) as (N'&Hge'&Hdiff); try omega.
+  rewrite sum_O //= in Hdiff.
+  setoid_rewrite <-Rabs_triang_inv in Hdiff.
+  apply Rle_minus_l in Hdiff.
+  rewrite Rplus_comm in Hdiff.
+  rewrite /comp//= in Hdiff.
+
+  replace (Rabs (Rabs (a (σ 0))) + sum_n_m (λ x : nat, Rabs (Rabs (a (σ x)))) 1 N')
+          with (sum_n_m (λ x, Rabs (Rabs (a (σ x)))) 0 N') in Hdiff; last first.
+  { rewrite (sum_Sn_m (λ x, Rabs (Rabs (a (σ x)))) 0 N') //=. }
+  etransitivity.
+  { eapply Rle_abs. }
+  etransitivity; eauto.
+  apply is_series_partial_pos.
+  * intros; apply Rle_ge, Rabs_pos.
+  * eapply is_series_ext; last eassumption.
+    intros ? => //=. by rewrite Rabs_Rabsolu.
+Qed.
+*)
+
+  Lemma is_series_double_covering:
+    is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
+  Proof.
+  Admitted.
+  
+  Lemma is_series_double_covering':
+    is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
+  Proof.
+  Admitted.
+  
+  Lemma Series_double_covering:
+    Series (λ j, Series (λ k, a (j, k))) = (Series (a ∘ σ)).
+  Admitted.
+
+End double.
+

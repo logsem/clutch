@@ -903,60 +903,6 @@ Section fubini.
  Admitted.
  *)
 
-  Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) b :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ a, SeriesC (λ b, h(a, b))).
-  Admitted.
-
-  Lemma fubini_pos_seriesC_prod_ex_rl (h : A * B -> R) b :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
-  Admitted.
-
-  Lemma fubini_pos_seriesC_prod_lr (h : A * B -> R) :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
-  Admitted.
-
-  Lemma fubini_pos_seriesC_prod_rl (h : A * B -> R) :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
-  Admitted.
-
-  Lemma ex_seriesC_lmarg (h : A * B -> R) a :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ b, h (a, b)).
-  Admitted.
-
-  Lemma seriesC_lmarg_le (h : A * B -> R) a :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC (λ b, h (a, b)) <= SeriesC h.
-  Admitted.
-
-  Lemma ex_seriesC_rmarg (h : A * B -> R) b :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ a, h (a, b)).
-  Admitted.
-
-  Lemma seriesC_rmarg_le (h : A * B -> R) b :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC (λ a, h (a, b)) <= SeriesC h.
-  Admitted.
-
-  Lemma ex_seriesC_prod (h: A * B -> R) :
-    (∀ a, ex_seriesC (λ b, h(a,b))) ->
-    ex_seriesC (λ a, SeriesC (λ b, h(a,b))) ->
-    ex_seriesC h.
-  Proof. Admitted.
-
 End fubini.
 
 Section mct.
@@ -1051,3 +997,136 @@ Qed.
 
 End mct.
 
+Section double.
+
+  Context `{Countable A, Countable B}.
+
+  Variable (h : A * B -> R).
+
+  Definition σprod :=
+    λ n, match @encode_inv_nat (A*B) _ _ n with
+         | Some (a, b) => (S (encode_nat a), S (encode_nat b))
+         | None => (O, O)
+         end.
+
+  Definition aprod :=
+    λ mn, match mn with
+          | (S m, S n) =>
+            match (@encode_inv_nat A _ _ m) with
+            | Some a =>
+              match (@encode_inv_nat B _ _ n) with
+              |  Some b =>
+                  h (a, b)
+              | None => 0
+              end
+            | None => 0
+            end
+          | _ => 0
+          end.
+
+  Lemma is_series_prod_row:
+    ex_seriesC h ->
+    is_seriesC h (Series (λ j, Series (λ k, aprod (S j, S k)))).
+  Proof.
+    intro Hex.
+    apply (is_series_ext (aprod ∘ σprod)).
+    {
+      intros n. rewrite /aprod/σprod/countable_sum//=.
+      destruct (encode_inv_nat _) as [s|] => //=.
+      destruct s as (a0, b0) => //=.
+      rewrite encode_inv_encode_nat //=.
+      rewrite encode_inv_encode_nat //=.
+    }
+    eapply (is_series_chain _ _ _
+                            (is_series_double_covering' _ _)).
+    cut (Series (λ j, Series (λ k, aprod (j, k))) =
+        (Series (λ j : nat, Series (λ k : nat, aprod (S j, S k))))).
+    {
+      intros <-. apply Series_correct.
+      eexists; eapply (is_series_double_covering _ _ ); eauto.
+    }
+    rewrite Series_incr_1; last first.
+    { eexists; eapply (is_series_double_covering _ _ ); eauto. }
+    rewrite {1}/aprod Series_0 // Rplus_0_l.
+    apply Series_ext => n.
+    rewrite Series_incr_1; last first.
+    { admit. }
+    rewrite {1}/aprod Rplus_0_l => //=.
+  Admitted.
+
+  Lemma fubini_pos_seriesC_prod_ex_lr  :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ a, SeriesC (λ b, h(a, b))).
+  Admitted.
+
+  Lemma fubini_pos_seriesC_prod_ex_rl  :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
+  Admitted.
+
+  Lemma fubini_pos_seriesC_prod_lr  :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
+  Proof.
+    intros Hpos Hex.
+    erewrite (is_seriesC_unique h); [ | apply is_series_prod_row].
+    rewrite /SeriesC/aprod/countable_sum.
+    apply Series_ext.
+    intro n; destruct (encode_inv_nat n); simpl; [ | apply Series_0; auto].
+    apply Series_ext.
+    intro m; destruct (encode_inv_nat m); simpl; auto.
+  Qed.
+
+
+  Lemma fubini_pos_seriesC_prod_rl (h : A * B -> R) :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
+  Admitted.
+
+  Lemma ex_seriesC_lmarg (h : A * B -> R) a :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ b, h (a, b)).
+  Admitted.
+
+  Lemma ex_seriesC_rmarg (h : A * B -> R) b :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    ex_seriesC (λ a, h (a, b)).
+  Admitted.
+
+  Lemma seriesC_lmarg_le (h : A * B -> R) a :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC (λ b, h (a, b)) <= SeriesC h.
+  Proof.
+    intros Hpos Hex.
+    rewrite fubini_pos_seriesC_prod_rl //.
+    apply SeriesC_le; [ | eapply fubini_pos_seriesC_prod_ex_rl; eauto].
+    intro b; split; [real_solver | ].
+    apply (SeriesC_ge_elem (λ a0, h (a0, b))); [ | apply ex_seriesC_rmarg; auto]; auto.
+  Qed.
+
+  Lemma seriesC_rmarg_le (h : A * B -> R) b :
+    (∀ a b, 0 <= h (a, b)) ->
+    (ex_seriesC h) ->
+    SeriesC (λ a, h (a, b)) <= SeriesC h.
+  Proof.
+    intros Hpos Hex.
+    rewrite fubini_pos_seriesC_prod_lr //.
+    apply SeriesC_le; [ | eapply fubini_pos_seriesC_prod_ex_lr; eauto].
+    intro a; split; [real_solver | ].
+    apply (SeriesC_ge_elem (λ b0, h (a, b0))); [ | apply ex_seriesC_lmarg; auto]; auto.
+  Qed.
+
+  Lemma ex_seriesC_prod (h: A * B -> R) :
+    (∀ a, ex_seriesC (λ b, h(a,b))) ->
+    ex_seriesC (λ a, SeriesC (λ b, h(a,b))) ->
+    ex_seriesC h.
+  Proof. Admitted.
+
+End double.
