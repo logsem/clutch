@@ -140,7 +140,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 | 6.2 | Example    | ElGamal public key encryption                                                        | [examples/crypto/ElGamal]            |                                           |      |
 | 6.3 | Example    | Hash functions                                                                       | [examples/hash]                      |                                           |      |
 | 6.4 | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]                  |                                           |      |
-| A   | Example    | Counterexample                                                                       | [examples/counterexample]            |                                           |      |
+| A   | Example    | Counterexample                                                                       | [examples/counterexample](theories/examples/counterexample.v)            |                                           |      |
 | C.1 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]                 |                                           |      |
 | C.4 | Example    | Random Generators from Hashes                                                        | [examples/rng], [examples/split_rng] |                                           |      |
 
@@ -150,7 +150,6 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 (3) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
-[examples/counterexample]: theories/examples/counterexample.v
 [examples/crypto/ElGamal]: theories/examples/crypto/ElGamal.v
 [examples/env_bisim]: theories/examples/env_bisim.v
 [examples/erasure]: theories/examples/erasure.v
