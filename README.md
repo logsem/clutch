@@ -13,7 +13,7 @@ The project is known to compile with
 - [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.8.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.3.1
 - [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.0.0
-- [Autosubst 1](https://github.com/coq-community/autosubst) dev
+- [Autosubst](https://github.com/coq-community/autosubst) 1.8
 - [Mathcomp-solvable](https://github.com/math-comp/math-comp) 1.17.0
 
 The recommended way to install the dependencies is through [opam](https://opam.ocaml.org/doc/Install.html).
@@ -140,6 +140,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 | 6.2 | Example    | ElGamal public key encryption                                                        | [examples/crypto/ElGamal]            |                                           |      |
 | 6.3 | Example    | Hash functions                                                                       | [examples/hash]                      |                                           |      |
 | 6.4 | Example    | Lazily sampled big integers                                                          | [examples/lazy_int]                  |                                           |      |
+| A   | Example    | Counterexample                                                                       | [examples/counterexample]            |                                           |      |
 | C.1 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]                 |                                           |      |
 | C.4 | Example    | Random Generators from Hashes                                                        | [examples/rng], [examples/split_rng] |                                           |      |
 
@@ -149,7 +150,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 (3) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
-
+[examples/counterexample]: theories/examples/counterexample.v
 [examples/crypto/ElGamal]: theories/examples/crypto/ElGamal.v
 [examples/env_bisim]: theories/examples/env_bisim.v
 [examples/erasure]: theories/examples/erasure.v
