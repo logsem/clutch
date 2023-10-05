@@ -19,6 +19,10 @@ Section rbar_extra.
     - destruct Hp.
   Qed.
 
+  Lemma Rbar_le_fin x y: 0 <= y → Rbar_le x (Finite y) → (real x) <= y.
+  Proof.
+    rewrite /Rbar_le. destruct x => //=.
+  Qed.
 
   Lemma rbar_le_finite (p : R) (q : Rbar) :
     is_finite q ->
@@ -261,6 +265,13 @@ Section positive.
     destruct y; simplify_eq; auto.
   Qed.
 
+  Lemma eq_rbar_finite' x y :
+    x = (Finite y) -> real x = y.
+  Proof.
+    intro Heq.
+    destruct x; simplify_eq; auto.
+  Qed.
+
   Lemma Rbar_0_le_to_Rle x :
     Rbar_le 0 x -> 0 <= x.
   Proof.
@@ -295,6 +306,13 @@ Section positive.
     rewrite <- lim_is_sup'; auto.
     apply Series_correct; auto.
   Qed.
+
+  Lemma Series_gt_0_ex_series (h : nat -> R) :
+    (forall n, 0 <= h n) ->
+    0 < Series h -> ex_series h.
+  Proof.
+    rewrite /Series.
+  Admitted.
 
   Lemma sup_is_upper_bound (h : nat → Rbar) n :
     Rbar_le (h n) (Sup_seq h).
@@ -1224,15 +1242,212 @@ Section prod.
   Qed.
   *)
 
+Lemma inj_nat_cover1:
+  ∀ N, ∃ K, ∀ n, n ≤ N → (fst (σ n) ≤ K ∧ snd (σ n) ≤ K).
+Proof.
+  induction N.
+  - exists (max (fst (σ O)) (snd (σ O))); intros n Hle; inversion Hle; split.
+    * apply Max.le_max_l.
+    * apply Max.le_max_r.
+  - edestruct IHN as (K&HK).
+    exists (max (max (fst (σ (S N))) (snd (σ (S N)))) K); intros n Hle; inversion Hle.
+    * split.
+      ** etransitivity; last apply Max.le_max_l. apply Max.le_max_l.
+      ** etransitivity; last apply Max.le_max_l. apply Max.le_max_r.
+    * split.
+      ** etransitivity; last apply Max.le_max_r. edestruct HK; eauto.
+      ** etransitivity; last apply Max.le_max_r. edestruct HK; eauto.
+Qed.
+
+Lemma inj_nat_cover2:
+  ∀ K1 K2, ∃ N, ∀ l m, l ≤ K1 → m ≤ K2 →
+ ( ∃ n, n ≤ N ∧ σ n = (l, m)) ∨ a (l, m) = 0.
+Proof using a σ COV.
+  induction K1.
+  - induction K2.
+    * destruct (Req_dec (a (O, O)) 0) as [|Hneq].
+      ** exists O => l m. inversion 1; subst. inversion 1; subst.
+         right. done.
+      ** edestruct (COV _ Hneq) as (N&?).
+         exists N => l m. inversion 1; subst. inversion 1; subst.
+         left. exists N; split; auto.
+    * destruct IHK2 as (N&HN).
+      destruct (Req_dec (a (O, S K2)) 0) as [|Hneq].
+      ** exists N => l m. inversion 1; subst. inversion 1; subst.
+         *** right. done.
+         *** eapply HN; auto.
+      ** edestruct (COV _ Hneq) as (N'&?).
+         exists (max N N') => l m. inversion 1; subst. inversion 1; subst.
+         *** left. exists N'. split; auto. apply Max.le_max_r.
+         *** edestruct (HN O m) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N; auto.
+             apply Max.le_max_l.
+  - induction K2.
+    * destruct (IHK1 O) as (N&HN).
+      destruct (Req_dec (a (S K1, O)) 0) as [|Hneq].
+      ** exists N => l m. inversion 1; subst; inversion 1; subst.
+         *** right. done.
+         *** eapply HN; auto.
+      ** edestruct (COV _ Hneq) as (N'&?).
+         exists (max N N') => l m. inversion 1; subst; inversion 1; subst.
+         *** left. exists N'. split; auto. apply Max.le_max_r.
+         *** edestruct (HN l O) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N; auto.
+             apply Max.le_max_l.
+    * destruct (IHK1 (S K2)) as (N1&HN1).
+      destruct IHK2 as (N2&HN2).
+      destruct (Req_dec (a (S K1, S K2)) 0) as [|Hneq].
+      ** exists (max N1 N2) => l m. inversion 1; subst; inversion 1; subst.
+         *** right. done.
+         *** edestruct (HN2 (S K1) m) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N2; auto.
+             apply Max.le_max_r.
+         *** edestruct (HN1 l (S K2)) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N1; auto.
+             apply Max.le_max_l.
+         *** edestruct (HN1 l m) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N1; auto.
+             apply Max.le_max_l.
+      ** edestruct (COV _ Hneq) as (N'&?).
+         exists (max (max N1 N2) N') => l m. inversion 1; subst; inversion 1; subst.
+         *** left.  exists N'; split; auto.
+             apply Max.le_max_r.
+         *** edestruct (HN2 (S K1) m) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N2; auto.
+             etransitivity; first apply Max.le_max_r; apply Max.le_max_l.
+         *** edestruct (HN1 l (S K2)) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N1; auto.
+             etransitivity; first apply Max.le_max_l; apply Max.le_max_l.
+         *** edestruct (HN1 l m) as [(n&?&?)|]; eauto.
+             left. exists n. split; auto. transitivity N1; auto.
+             etransitivity; first apply Max.le_max_l; apply Max.le_max_l.
+Qed.
+
+
   Lemma sum_n_m_cover_diff_double:
     ∀ N, ∃ K, ∀ l m, l ≥ K → m ≥ K →
     ∃ n, n ≥ N ∧ Rabs (sum_n (λ j, sum_n (λ k, a (j, k)) m) l - sum_n (a ∘ σ) N)
                  <= sum_n_m (a ∘ σ) (S N) n.
   Proof using a σ POS INJ COV.
+    (*
+    intros N.
+    edestruct (inj_nat_cover1 N) as (K&HK).
+    exists K => l m Hl Hm.
+    edestruct (inj_nat_cover2 l m) as (n&Hn).
+    exists (max n N). repeat split.
+    { lia. }
+    transitivity (Rabs
+                    (sum_n_m (λ i:nat, if bool_decide (((σ i).1 <= l)%nat /\ ((σ i).2 <= m)%nat) then (a (σ i)) else 0) (S N) (S (Init.Nat.max n N))));
+    last first.
+    {
+      rewrite sum_n_m_bigop. etransitivity; first apply Rabs_bigop_triang.
+      rewrite //=. apply Rabs_bigop_filter. auto.
+    }
+    assert (sum_n (λ j, sum_n (λ k, a (j, k)) m) l =
+            \big[Rplus/0]_(i < S (Init.Nat.max n N) |
+                           leq (fst (σ i)) l && leq (snd (σ i)) m) a (σ i)) as Hleft.
+    {
+      etransitivity.
+      { rewrite sum_n_bigop. eapply eq_bigr => ??. rewrite sum_n_bigop. done. }
+        rewrite pair_big => //=. rewrite bigop_cond_non0 //=.
+        rewrite /index_enum.
+        symmetry.
+        transitivity (\big[Rplus/0]_(i : {i : 'I_(S (max n N)) | leq (fst (σ i)) l &&
+                                                              leq (snd (σ i)) m })
+                       a (σ (sval i))).
+        {
+          rewrite bigop_cond_non0 [a in _ = a]bigop_cond_non0.
+          symmetry; eapply (sum_reidx_map _ _ _ _ sval).
+          - auto.
+          - intros (i&Hpf) _ Hneq0; split.
+            * rewrite -enumT mem_enum //.
+            * rewrite //=. apply /andP; split; auto.
+          - intros i _ Hbound Hfalse.
+            move /andP in Hbound. destruct Hbound as (Hbound&Hneq0).
+            move /andP in Hbound. destruct Hbound as (Hb1&Hb2).
+            exfalso. apply Hfalse. rewrite //=.
+            assert (is_true ((leq (σ i).1 l) && (leq (σ i).2 m))) as Hpf'.
+            { rewrite //=; apply /andP; split; rewrite //= in Hb1 Hb2; destruct (σ n0); nify;
+                omega. }
+            exists (exist _ i Hpf'); repeat split.
+              ** rewrite /index_enum //= -enumT mem_enum //=.
+              ** rewrite //=.
+          - rewrite /index_enum//= -enumT. apply enum_uniq.
+          - rewrite /index_enum//= -enumT. apply enum_uniq.
+          - intros (?&?) (?&?) ? Heq => //=.
+            rewrite //= in Heq. subst. f_equal. apply bool_irrelevance.
+        }
+        refine (let σ' := (λ x, match x with
+                                | exist o Hpf =>
+                                  (@Ordinal _ (fst (σ o)) _, @ Ordinal _ (snd (σ o)) _)
+                                end) :
+            { x: 'I_(S (max n N)) | leq (fst (σ x)) l && leq (snd (σ x)) m} → 'I_(S l) * 'I_(S m) in _).
+        Unshelve. all:swap 1 3.
+        { abstract (move: Hpf; move /andP => [? ?]; nify; omega). }
+        { abstract (move: Hpf; move /andP => [? ?]; nify; omega). }
+        rewrite [a in a = _]bigop_cond_non0.
+        eapply (sum_reidx_map _ _ _ _ σ').
+          - rewrite /σ'//=. intros (?&?) _ => //=. destruct (σ x) => //.
+          - intros (i&Hpf) _ Hneq0; split.
+            * rewrite -enumT mem_enum //.
+            * rewrite //=. rewrite //= in Hneq0. destruct (σ i); auto.
+          - rewrite //=. intros (l0, m0) _. rewrite //=. move /eqP. intros Hneq0 Hfalse.
+            exfalso; apply Hfalse. edestruct (Hn l0 m0) as [(n0&Hle&Heq)|]; last by (exfalso; eauto).
+            { clear. destruct l0 => //=. nify. omega. }
+            { clear. destruct m0 => //=. nify. omega. }
+            assert (Hpf1:  (n0 < S (max n N))%nat).
+            { nify. specialize (Max.le_max_l n N); omega. }
+            set (n0' := Ordinal Hpf1).
+            assert (Hpf2: leq (fst (σ n0')) l && leq (snd (σ n0')) m).
+            { apply /andP; rewrite Heq//=; destruct l0, m0 => //=; clear; split; nify. }
+            exists (exist _ n0' Hpf2).
+            repeat split => //=.
+            * rewrite /index_enum//= -enumT mem_enum //.
+            * rewrite Heq. apply /eqP. done.
+            * rewrite /n0' //=; f_equal; apply ord_inj => //=; rewrite Heq; done.
+          - rewrite /index_enum//= -enumT enum_uniq //.
+          - rewrite /index_enum//= -enumT enum_uniq //.
+          - rewrite /σ'//=. intros ?? Hneq0 Heq. cut (sval x = sval x').
+            {  destruct x, x'. rewrite //=. intros; subst. f_equal. apply bool_irrelevance. }
+            destruct x as ((?&?)&?), x' as ((?&?)&?) => //=.
+            apply ord_inj. apply INJ => //=.
+            ** apply /eqP; auto.
+            ** rewrite //= in Heq. clear -Heq.
+               inversion Heq as [[Heq1 Heq2]]. clear -Heq1 Heq2. destruct (σ m0), (σ m1); auto.
+    }
+    rewrite Hleft.
+    assert (sum_n (a \o σ) N =
+            \big[Rplus/0]_(i < S N |  ((σ i).1 <= l)%N && ((σ i).2 <= m)%N) a (σ i)) as Hright.
+    {
+      rewrite sum_n_bigop.
+      rewrite bigop_cond_non0 [a in _ = a]bigop_cond_non0.
+      eapply (sum_reidx_map _ _ _ _ id).
+      * intros (x&Hlex) ? => //=.
+      * intros (n'&Hle) ? Hneq0; split; auto. apply /andP; split; auto.
+        rewrite //=. apply /andP; split.
+        ** nify. transitivity K; auto. edestruct (HK n'); eauto. clear -Hle. nify. omega.
+        ** nify. transitivity K; auto. edestruct (HK n'); eauto. clear -Hle. nify. omega.
+      * intros i _. move /andP => [? Hneq0] => //= Hfalse.
+        exfalso. apply Hfalse. exists i; split; auto.
+        rewrite /index_enum -enumT mem_enum //.
+      * rewrite /index_enum. rewrite -enumT. apply enum_uniq.
+      * rewrite /index_enum. rewrite -enumT. apply enum_uniq.
+      * intros (x&?) (y&?) => //=.
+    }
+    rewrite Hright.
+    right.
+    rewrite -(@big_mkord _ 0 Rplus (S (max n N)) (λ i, (leq (fst (σ i)) l) && (leq (snd (σ i)) m))
+               (a \o σ)).
+    assert (S N <= S (max n N))%nat as Hsplit by (nify; lia).
+    rewrite (big_cat_nat _ _ _ _ Hsplit) //=.
+    rewrite big_mkord.
+    assert (∀ a b, a + b - a = b) as -> by (intros; field).
+    done.
+    *)
   Admitted.
 
 
-  Lemma summable_implies_ds':
+  Lemma summable_implies_ds:
     double_summable a.
   Proof using a σ POS INJ COV EXS.
     destruct (sum_n_m_cover_diff_double O) as (N&HN).
@@ -1274,11 +1489,34 @@ Section prod.
       admit.
   Admitted.
 
+  Lemma is_lim_seq_sum_n (f: nat * nat → R) (h: nat → R) l:
+    (∀ j, j ≤ l → is_lim_seq (λ m, sum_n (λ k, f (j, k)) m) (h j)) →
+    is_lim_seq (λ m, sum_n (λ j, sum_n (λ k, f (j, k)) m) l) (sum_n h l).
+  Proof.
+    intros Hh.
+    induction l => //=.
+    - intros. rewrite sum_O => //=. apply (is_lim_seq_ext (λ m, sum_n (λ k, f (O, k)) m)).
+      * intros. rewrite sum_O. done.
+      * by apply Hh.
+    - rewrite sum_Sn.
+      apply (is_lim_seq_ext (λ m, plus (sum_n (λ j, sum_n (λ k, f (j, k)) m) l)
+                                       (sum_n (λ k, f (S l, k)) m))).
+      * intros. by rewrite sum_Sn.
+      * apply: is_lim_seq_plus; eauto.
+        rewrite //=.
+  Qed.
+
+  Lemma is_lim_seq_fin_abs:
+    ∀ (u : nat → R) (l : R), is_lim_seq u l → is_lim_seq (λ n : nat, Rabs (u n)) (Rabs l).
+  Proof.
+    intros.
+    assert (Rabs l = Rbar_abs l) as -> by auto.
+    by apply (is_lim_seq_abs u (Finite l)).
+  Qed.
 
   Lemma is_series_double_covering:
     is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
   Proof using a σ POS INJ COV EXS.
-    (*
     destruct (EXS) as (v'&Hconv).
     assert(Hnorm: ∀ eps : posreal, ∃ N K, ∀ l m, K ≤ l → K ≤ m →
            norm (sum_n (λ j, sum_n (λ k, a (j, k)) m) l - sum_n (a ∘ σ) N) < eps ∧
@@ -1301,11 +1539,11 @@ Section prod.
         eapply Rle_lt_trans; first eapply Hle.
         rewrite /norm//=/abs//= in IHN.
         eapply Rle_lt_trans; first apply Rle_abs.
-        assert (N0 <= N)%coq_nat.
+        assert (N0 <= N)%nat.
         { rewrite /N. apply Max.le_max_l. }
-        eapply IHN; auto. omega.
+        eapply IHN; auto. lia.
       - eapply HN2.
-        rewrite /N. etransitivity; first apply Max.le_max_r. done.
+        rewrite /N. lia.
     }
     assert(Hnorm': ∀ eps : posreal, ∃ N K, ∀ l, K ≤ l  →
            norm (sum_n (λ j, Series (λ k, a (j, k))) l - sum_n (a ∘ σ) N) < eps ∧
@@ -1318,25 +1556,28 @@ Section prod.
         transitivity (Lim_seq (λ k, norm (sum_n (λ j, sum_n (λ k, a (j, k)) k) l
                                           - sum_n (a ∘ σ) N))); last first.
         {
-          eapply Rbar_le_fin; first by (destruct eps; rewrite //=; nra).
+          eapply Rbar_le_fin ; first by (destruct eps; rewrite //=; nra).
           rewrite -Lim_seq_const. apply Lim_seq_le_loc.
           exists K => m Hle. apply Rlt_le. eapply Hdiff; auto.
         }
-        right. symmetry. apply Rbar_eq_fin.
+        right. symmetry.
+        apply eq_rbar_finite'.
         eapply is_lim_seq_unique.
         rewrite /norm//=/abs//=. apply is_lim_seq_fin_abs.
                 eapply is_lim_seq_minus; [ | apply is_lim_seq_const | ].
-         eapply (is_lim_seq_sum_n _ (λ j, Series (λ k, a (j, k)))).
+         + eapply (is_lim_seq_sum_n _ (λ j, Series (λ k, a (j, k)))).
          { intros ????.
            edestruct (Series_correct (λ k, a (j, k))) as (n&?).
-           { apply ex_series_Rabs, ex_series_row, summable_implies_ds. }
-           eauto. rewrite /filtermap. exists n. eauto.
+           { apply ex_series_row; auto.
+             apply summable_implies_ds. }
+           - eauto.
+           - rewrite /filtermap. exists n. eauto.
          }
-         rewrite //=.
+         + rewrite //=.
       - edestruct Hdiff; eauto. transitivity (pos_div_2 eps); auto.
-        destruct eps => //=; fourier.
+        destruct eps => //=; lra.
     }
-    assert (Series (a \o σ) = v') as -> by (eapply is_series_unique; eauto).
+    assert (Series (a ∘ σ) = v') as -> by (eapply is_series_unique; eauto).
       rewrite /is_series. eapply filterlim_locally => eps.
       edestruct (Hnorm' (pos_div_2 eps)) as (N&M&?HNM).
       exists M => m Hle.
@@ -1349,18 +1590,21 @@ Section prod.
       destruct eps as (eps&?).
       replace (eps) with (eps/2 + eps/2); last by field.
       apply Rplus_lt_compat; eauto.
-  *)
-  Admitted.
+  Qed.
 
   Lemma is_series_double_covering':
     is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
   Proof using a σ POS INJ COV EXS.
-  Admitted.
+    specialize (is_series_unique _ _ (is_series_double_covering)) => ->.
+    by apply Series_correct.
+  Qed.
 
   Lemma Series_double_covering:
     Series (λ j, Series (λ k, a (j, k))) = (Series (a ∘ σ)).
   Proof using a σ POS INJ COV EXS.
-  Admitted.
+    apply is_series_unique, is_series_double_covering.
+  Qed.
+
 
 End prod.
 
