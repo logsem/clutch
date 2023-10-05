@@ -307,12 +307,6 @@ Section positive.
     apply Series_correct; auto.
   Qed.
 
-  Lemma Series_gt_0_ex_series (h : nat -> R) :
-    (forall n, 0 <= h n) ->
-    0 < Series h -> ex_series h.
-  Proof.
-    rewrite /Series.
-  Admitted.
 
   Lemma sup_is_upper_bound (h : nat → Rbar) n :
     Rbar_le (h n) (Sup_seq h).
@@ -483,6 +477,53 @@ Section positive.
       apply Rbar_0_le_to_Rle.
       rewrite <- (Rbar_plus_0_r 0).
       apply Rbar_plus_le_compat; auto.
+  Qed.
+
+  Lemma LimSup_incr_seq (h : nat -> R) k :
+    (forall n, h n <= h (S n)) ->
+    is_finite (LimSup_seq h) ->
+    h k <= LimSup_seq h.
+  Proof.
+    intros Hmon Hfin.
+    apply rbar_le_finite; auto.
+    rewrite -(LimSup_seq_const (h k)).
+    apply LimSup_le.
+    rewrite /eventually.
+    rewrite /LimSup_seq.
+    exists k. intros n H1. induction n.
+    - inversion H1. lra.
+    - inversion H1; simplify_eq; try lra.
+      etrans; [ | apply Hmon].
+      apply IHn; auto.
+  Qed.
+
+
+  Lemma Series_gt_0_ex_series (h : nat -> R) :
+    (forall n, 0 <= h n) ->
+    0 < Series h -> ex_series h.
+  Proof.
+    rewrite /Series.
+    intros.
+    assert (ex_lim_seq (sum_n h)) as Haux.
+    { apply ex_lim_seq_incr.
+      intro; rewrite sum_Sn.
+      rewrite <- Rplus_0_r at 1.
+      apply Rplus_le_compat_l; auto.
+    }
+    apply  ex_lim_LimSup_LimInf_seq in Haux.
+    rewrite /Lim_seq Haux in H1.
+    destruct (LimInf_seq (sum_n h)) eqn:Heq.
+    - apply ex_pos_bounded_series; auto.
+      exists r; intro n.
+      pose proof Haux as Haux2.
+      apply eq_rbar_finite' in Haux.
+      rewrite -Haux.
+      apply LimSup_incr_seq.
+      + intro. apply partial_sum_mon; auto.
+      + rewrite Haux2.
+        rewrite /is_finite; auto.
+    - simpl in H1; lra.
+    - simpl in H1; lra.
   Qed.
 
   Fixpoint max_seq (f : nat -> nat) n :=
