@@ -144,12 +144,17 @@ You should now be able to build the development by using `make -j N` where `N` i
 | C.1 | Example    | Sangiorgi and Vignudelli's example                                                   | [examples/env_bisim]                 |                                           |      |
 | C.4 | Example    | Random Generators from Hashes                                                        | [examples/rng], [examples/split_rng] |                                           |      |
 
+[test](theories/examples/counterexample.v)
+
+[test]
+
 (1) In the code, we use `ctx_refines` more than `ctx_refines_alt`, which matches the exact definition of the paper. Nothing is lost, since we prove that `ctx_refines` implies `ctx_refines_alt` in `Lemma ctx_refines_impl_alt` (see [typing/contextual_refinement_alt]).
 
 (2) `pack` for existential types has no operational meaning, and thus `pack e` simply stands for `e`. The requirement for `R` to be persistent in the `rel-pack` rule is reflected in the code by the fact that logical relations are defined as persistent predicates (see [rel_logic/model]).
 
 (3) In the code, we often use the shorthand `refines_right K e` to refer to the combined `spec_ctx ∗ ⤇ K[e]`.
 
+[test]: theories/examples/counterexample.v
 [examples/counterexample]: theories/examples/counterexample.v
 [examples/crypto/ElGamal]: theories/examples/crypto/ElGamal.v
 [examples/env_bisim]: theories/examples/env_bisim.v
