@@ -1085,7 +1085,7 @@ Section double.
 
   Lemma aprod_double_summable:
     ex_seriesC h → double_summable aprod.
-  Proof. intros Hex. eapply (summable_implies_ds' aprod σprod); auto. Qed.
+  Proof. intros Hex. eapply (summable_implies_ds aprod σprod); auto. Qed.
 
   Lemma is_seriesC_prod_row:
     ex_seriesC h → is_seriesC h (Series (λ j, Series (λ k, aprod (S j, S k)))).

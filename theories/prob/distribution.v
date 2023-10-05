@@ -177,6 +177,7 @@ Proof.
   apply (fubini_pos_seriesC_prod_lr (λ '(a, b), μ a * f a b)).
   - real_solver.
   - apply ex_seriesC_prod.
+    + real_solver.
     + intro. by apply ex_seriesC_scal_l.
     + setoid_rewrite SeriesC_scal_l.
       apply (ex_seriesC_le _ μ); [|done].
@@ -190,6 +191,7 @@ Proof.
   apply (fubini_pos_seriesC_prod_rl (λ '(a, b), μ a * f a b)).
   - real_solver.
   - apply ex_seriesC_prod.
+    + real_solver.
     + intro. by apply ex_seriesC_scal_l.
     + setoid_rewrite SeriesC_scal_l.
       apply (ex_seriesC_le _ μ); [|done].
@@ -205,7 +207,8 @@ Proof.
   apply (fubini_pos_seriesC_ex_double (λ '(a, b), μ a * f a (b, b'))); [| |done].
   - real_solver.
   - intros a. apply ex_seriesC_scal_l.
-    by apply (ex_seriesC_rmarg (f a) b').
+    apply (ex_seriesC_rmarg (f a)); [|done].
+    real_solver.
 Qed.
 
 Lemma distr_double_swap_rmarg `{Countable A, Countable B, Countable B'}
@@ -216,7 +219,7 @@ Proof.
   rewrite (fubini_pos_seriesC (λ '(a, b), μ a * f a (b, b'))); [done| | |].
   - real_solver.
   - intros. apply ex_seriesC_scal_l.
-    by apply (ex_seriesC_rmarg (f a) b').
+    apply (ex_seriesC_rmarg (f a)); [real_solver|done].
   - setoid_rewrite SeriesC_scal_l.
     apply (ex_seriesC_le _ μ); [|done].
     intro a; split.
@@ -226,7 +229,7 @@ Proof.
     + rewrite -{2}(Rmult_1_r (μ _)).
       apply Rmult_le_compat_l; [done|].
       apply (Rle_trans _ (SeriesC (f a))); [|done].
-      by apply (seriesC_rmarg_le (f a) b').
+      apply (seriesC_rmarg_le (f a)); [real_solver|done].
 Qed.
 
 Lemma distr_double_swap_lmarg_ex `{Countable A, Countable B, Countable B'}
@@ -238,7 +241,7 @@ Proof.
   apply (fubini_pos_seriesC_ex_double (λ '(a, b'), μ a * f a (b, b'))); auto.
   - real_solver.
   - intros. apply ex_seriesC_scal_l.
-    by apply (ex_seriesC_lmarg (f a) b).
+    apply (ex_seriesC_lmarg (f a)); [real_solver|done].
 Qed.
 
 Lemma distr_double_swap_lmarg `{Countable A, Countable B, Countable B'}
@@ -249,7 +252,7 @@ Proof.
   rewrite (fubini_pos_seriesC (λ '(a, b'), μ a * f a (b, b'))); [done| | |].
   - real_solver.
   - intros . apply ex_seriesC_scal_l.
-    by apply (ex_seriesC_lmarg (f a) b).
+    apply (ex_seriesC_lmarg (f a)); [real_solver|done].
   - setoid_rewrite SeriesC_scal_l.
     apply (ex_seriesC_le _ μ); [|done].
     intro a; split.
@@ -259,7 +262,7 @@ Proof.
     + rewrite -{2}(Rmult_1_r (μ _)).
       apply Rmult_le_compat_l; [done|].
       apply (Rle_trans _ (SeriesC (f a))); [|done].
-      by apply (seriesC_lmarg_le (f a) b).
+      apply (seriesC_lmarg_le (f a)); [real_solver|done].
 Qed.
 
 (** * Monadic return  *)
@@ -1048,6 +1051,7 @@ Next Obligation. intros ???? [a b]=>/=. case_bool_decide; auto; lra. Qed.
 Next Obligation.
   intros A?? μ =>/=.
   apply ex_seriesC_prod.
+  - real_solver.
   - intro a. apply ex_seriesC_singleton'.
   - eapply ex_seriesC_ext; [|done].
     intro. rewrite SeriesC_singleton' //.
@@ -1058,8 +1062,9 @@ Next Obligation.
   - by setoid_rewrite SeriesC_singleton'.
   - real_solver.
   - apply ex_seriesC_prod.
-    * intro a. apply ex_seriesC_singleton'.
-    * by setoid_rewrite SeriesC_singleton'.
+    + real_solver.
+    + intro a. apply ex_seriesC_singleton'.
+    + by setoid_rewrite SeriesC_singleton'.
 Qed.
 
 Lemma ddiag_pmf `{Countable A} (μ : distr A) (p : A * A) :
@@ -1075,6 +1080,7 @@ Next Obligation. intros ???????? [a b] =>/=. by eapply Rmult_le_pos. Qed.
 Next Obligation.
   intros A ?? B ?? μ1 μ2=>/=.
   apply ex_seriesC_prod.
+  - real_solver.
   - intro a.
     apply ex_seriesC_scal_l.
     apply pmf_ex_seriesC.
