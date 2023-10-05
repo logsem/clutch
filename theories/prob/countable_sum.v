@@ -3,6 +3,7 @@ From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite.
 From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
+Set Default Proof Using "Type*".
 Import Hierarchy.
 
 Open Scope R.
@@ -590,11 +591,11 @@ Section strict.
   Qed.
 
 End strict.
-  
+
 Section finite.
   Context `{Finite A}.
 
-  Lemma ex_seriesC_finite (f : A → R) : 
+  Lemma ex_seriesC_finite (f : A → R) :
     ex_seriesC f.
   Proof.
     apply ex_series_eventually0.
@@ -605,35 +606,35 @@ Section finite.
     pose proof (encode_lt_card a).
     rewrite /encode_inv_nat in Heq.
     destruct (decode_nat n); simplify_option_eq.
-    lia. 
+    lia.
   Qed.
-  
+
   Lemma SeriesC_finite_mass v :
     SeriesC (λ _ : A, v) = card A * v.
   Proof.
     rewrite /SeriesC.
     rewrite -(Series_ext (λ n, if bool_decide (n < card A)%nat then v else 0)); last first.
-    { intros n. rewrite /countable_sum /=.      
-      case_bool_decide as Hn; simpl. 
-      - destruct (encode_inv_nat) eqn:Heq; [done|]; simpl. 
+    { intros n. rewrite /countable_sum /=.
+      case_bool_decide as Hn; simpl.
+      - destruct (encode_inv_nat) eqn:Heq; [done|]; simpl.
         destruct (encode_inv_decode _ Hn) as (a & Hinv & He).
         simplify_option_eq.
-      - destruct (encode_inv_nat) eqn:Heq; [|done]; simpl. 
+      - destruct (encode_inv_nat) eqn:Heq; [|done]; simpl.
         rewrite encode_inv_decode_ge in Heq; [done|lia]. }
     apply (SeriesC_leq (card A) v).
-  Qed. 
-  
+  Qed.
+
   Lemma SeriesC_finite_bound (f : A → R) v :
-    (∀ a, 0 <= f a <= v) →    
+    (∀ a, 0 <= f a <= v) →
     SeriesC f <= card A * v.
   Proof.
     intros Hf.
     rewrite -SeriesC_finite_mass.
-    apply SeriesC_le; [done|]. 
-    apply ex_seriesC_finite. 
-  Qed. 
+    apply SeriesC_le; [done|].
+    apply ex_seriesC_finite.
+  Qed.
 
-End finite.   
+End finite.
 
 Section positive.
 
@@ -998,222 +999,194 @@ Qed.
 End mct.
 
 Section double.
-
   Context `{Countable A, Countable B}.
 
-  Variable (h : A * B -> R).
-  Variable (POS : forall a b, 0 <= h(a,b)).
+  Variable (h : A * B → R).
+  Variable (POS : ∀ a b, 0 <= h (a, b)).
 
-  Definition σprod :=
-    λ n, match @encode_inv_nat (A*B) _ _ n with
-         | Some (a, b) => (S (encode_nat a), S (encode_nat b))
-         | None => (O, O)
-         end.
+  Definition σprod (n : nat) :=
+    match @encode_inv_nat (A*B) _ _ n with
+    | Some (a, b) => (S (encode_nat a), S (encode_nat b))
+    | None => (O, O)
+    end.
 
-  Definition aprod :=
-    λ mn, match mn with
-          | (S m, S n) =>
-            match (@encode_inv_nat A _ _ m) with
-            | Some a =>
-              match (@encode_inv_nat B _ _ n) with
-              |  Some b =>
-                  h (a, b)
-              | None => 0
-              end
-            | None => 0
-            end
-          | _ => 0
-          end.
+  Definition aprod (mn : nat * nat) :=
+    match mn with
+    | (S m, S n) =>
+        match @encode_inv_nat A _ _ m, @encode_inv_nat B _ _ n with
+        | Some a, Some b => h (a, b)
+        | _, _ => 0
+        end
+    | _ => 0
+    end.
 
   Lemma aprod_pos: ∀ m n, 0 <= aprod (m, n).
-  Proof using POS.
-    intros m n.
-    rewrite /aprod.
-    do 4 (case_match; try lra); auto.
+  Proof .
+    intros m n. rewrite /aprod.
+    do 4 (case_match; try lra). auto.
   Qed.
 
-  Lemma σprod_inj: ∀ n n', aprod (σprod n) <> 0 → σprod n = σprod n' → n = n'.
+  Lemma σprod_inj n n' :
+    aprod (σprod n) ≠ 0 → σprod n = σprod n' → n = n'.
   Proof.
-    (*
-    intros n n'. rewrite /σprod/aprod.
-    case_eq (@pickle_inv [countType of dep_prod_type] n); last by nra.
-    case_eq (@pickle_inv [countType of dep_prod_type] n'); last first.
-    { intros Heq_none (a&b) Heq_some => //=. }
-    intros (a'&b') Heq' (a&b) Heq Hneq0 => //=.
-    inversion 1 as [[Hp1 Hp2]].
-    assert (a = a').
-    {
-      apply (f_equal (@pickle_inv A)) in Hp1. rewrite ?pickleK_inv in Hp1.
-      inversion Hp1; done.
-    }
-    subst.
-    assert (b = b').
-    {
-      apply (f_equal (@pickle_inv (B a'))) in Hp2. rewrite ?pickleK_inv in Hp2.
-      inversion Hp2; done.
-    }
-    subst.
-    apply (f_equal (oapp (@pickle _) n)) in Heq.
-    apply (f_equal (oapp (@pickle _) n')) in Heq'.
-    rewrite ?pickle_invK //= in Heq Heq'. congruence.
-    *)
-  Admitted.
+    rewrite /σprod /aprod.
+    destruct (encode_inv_nat n) as [[a b]|] eqn: Heq1 => /=; [|nra].
+    destruct (encode_inv_nat (encode_nat a)) as [a'|] eqn: Heq2; [|nra].
+    destruct (encode_inv_nat (encode_nat b)) as [b'|] eqn: Heq3; [|nra].
+    intros _.
+    destruct (encode_inv_nat n') as [[a'' b'']|] eqn:Heq4;
+      intros [= <-%(inj _) <-%(inj _)].
+    rewrite encode_inv_encode_nat in Heq2.
+    rewrite encode_inv_encode_nat in Heq3.
+    simplify_eq. rewrite -Heq1 in Heq4.
+    by eapply encode_inv_nat_some_inj.
+  Qed.
 
-  Lemma σprod_cov: ∀ n, aprod n <> 0 → ∃ m, σprod m = n.
+  Lemma σprod_cov n : aprod n ≠ 0 → ∃ m, σprod m = n.
   Proof.
-  (*
-    intros (n1&n2).
-    destruct n1, n2 => //=.
-    rewrite /countable_sum.
-    case_eq (@pickle_inv A n1) => //=; [].
-    intros a Heq1.
-    case_eq (@pickle_inv (B a) n2) => //=; [].
-    intros b Heq2 => Hneq0.
-    exists (@pickle [countType of dep_prod_type] (existT a b)).
-    rewrite /σprod pickleK_inv. repeat f_equal.
-    - apply (f_equal (oapp (@pickle _) n1)) in Heq1. rewrite pickle_invK //= in Heq1.
-    - apply (f_equal (oapp (@pickle _) n2)) in Heq2. rewrite pickle_invK //= in Heq2.
-  *)
-  Admitted.
+    destruct n as [[] []]=> //=.
+    case_match eqn:Ha; [|lra].
+    case_match eqn:Hb; [|lra].
+    intros _.
+    exists (encode_nat (a, b)).
+    rewrite /σprod.
+    rewrite encode_inv_encode_nat.
+    erewrite encode_inv_Some_nat; [|done].
+    erewrite encode_inv_Some_nat; [|done].
+    done.
+  Qed.
 
-  Lemma aprod_double_summable:
-    ex_seriesC h ->
-    double_summable aprod.
+  Lemma aprod_σprod_countable_sum n :
+    (aprod ∘ σprod) n = countable_sum h n.
   Proof.
-    intros Hex.
-    eapply (summable_implies_ds' aprod σprod).
-    - apply aprod_pos.
-    - apply σprod_inj.
-    - apply σprod_cov.
-    - apply ex_pos_bounded_series.
-      + intro n; simpl; (destruct (σprod n)). apply aprod_pos.
-      + exists (SeriesC h).
-        apply ex_seriesC_ex_series_inv in Hex.
-        intro n.
-        etrans; last first.
-        * eapply series_pos_partial_le; auto.
-          intro m. apply countable_sum_ge_0.
-          intros []. done.
-        * apply sum_n_le.
-          intro m.
-          rewrite /aprod/σprod/countable_sum/=.
-          destruct (encode_inv_nat m) as [ [] | ] eqn:Heq; simpl; [ | lra].
-          do 2 rewrite encode_inv_encode_nat.
-          lra.
-  Admitted.
+    rewrite /aprod/σprod/countable_sum/=.
+    destruct (encode_inv_nat n) as [[]|] eqn:Heq; simpl; [|lra].
+    do 2 rewrite encode_inv_encode_nat.
+    lra.
+  Qed.
 
   Lemma ex_series_σprod :
-    ex_seriesC h ->
-    ex_series (aprod ∘ σprod).
-  Proof using POS.
-    intros Hex. apply ds_implies_exseries, aprod_double_summable.
-    auto.
+    ex_seriesC h → ex_series (aprod ∘ σprod).
+  Proof.
+    intros Hex.
+    apply ex_pos_bounded_series.
+    + intros n. simpl. destruct (σprod n). apply aprod_pos.
+    + exists (SeriesC h).
+      apply ex_seriesC_ex_series_inv in Hex.
+      intro n.
+      etrans; last first.
+      * eapply series_pos_partial_le; [|done].
+        intro m. apply countable_sum_ge_0. by intros [].
+      * apply sum_n_le => m.
+        rewrite aprod_σprod_countable_sum //.
   Qed.
 
-  Lemma is_series_prod_row:
-    ex_seriesC h ->
-    is_seriesC h (Series (λ j, Series (λ k, aprod (S j, S k)))).
-  Proof using POS.
+  #[local] Hint Resolve aprod_pos σprod_inj σprod_cov ex_series_σprod : core.
+
+  Lemma aprod_double_summable:
+    ex_seriesC h → double_summable aprod.
+  Proof. intros Hex. eapply (summable_implies_ds' aprod σprod); auto. Qed.
+
+  Lemma is_seriesC_prod_row:
+    ex_seriesC h → is_seriesC h (Series (λ j, Series (λ k, aprod (S j, S k)))).
+  Proof.
     intro Hex.
-    apply (is_series_ext (aprod ∘ σprod)).
-    {
-      intros n. rewrite /aprod/σprod/countable_sum//=.
-      destruct (encode_inv_nat _) as [s|] => //=.
-      destruct s as (a0, b0) => //=.
-      rewrite encode_inv_encode_nat //=.
-      rewrite encode_inv_encode_nat //=.
-    }
-    eapply (is_series_chain _ _ _
-                            (is_series_double_covering' _ _ aprod_pos σprod_inj σprod_cov (ex_series_σprod Hex))).
+    apply (is_series_ext (aprod ∘ σprod)); [apply aprod_σprod_countable_sum|].
+    eapply is_series_chain; [apply is_series_double_covering'; auto|].
     cut (Series (λ j, Series (λ k, aprod (j, k))) =
-        (Series (λ j : nat, Series (λ k : nat, aprod (S j, S k))))).
-    {
-      intros <-. apply Series_correct.
-      eexists; eapply (is_series_double_covering _ _ aprod_pos σprod_inj σprod_cov (ex_series_σprod Hex)); eauto.
-    }
+        (Series (λ j, Series (λ k, aprod (S j, S k))))).
+    { intros <-. apply Series_correct. eexists.
+      eapply (is_series_double_covering aprod σprod); auto. }
     rewrite Series_incr_1; last first.
-    {
-      eexists; eapply (is_series_double_covering _ _ aprod_pos σprod_inj σprod_cov (ex_series_σprod Hex)); eauto.
-    }
+    { eexists. eapply is_series_double_covering; eauto. }
     rewrite {1}/aprod Series_0 // Rplus_0_l.
     apply Series_ext => n.
     rewrite Series_incr_1; last first.
-    { apply ex_series_row; [ apply aprod_double_summable | apply aprod_pos]. }
+    { apply ex_series_row; [|auto]. by apply aprod_double_summable. }
     rewrite {1}/aprod Rplus_0_l => //=.
   Qed.
 
-  Lemma fubini_pos_seriesC_prod_ex_lr  :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ a, SeriesC (λ b, h(a, b))).
-  Admitted.
-
-  Lemma fubini_pos_seriesC_prod_ex_rl  :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
-  Admitted.
+  Lemma is_seriesC_prod_row':
+    ex_seriesC h → is_series (λ j, Series (λ k, aprod (S j, S k))) (SeriesC h).
+  Proof. Admitted.
 
   Lemma fubini_pos_seriesC_prod_lr  :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
+    ex_seriesC h → SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
   Proof.
-    intros Hpos Hex.
-    erewrite (is_seriesC_unique h); [ | apply is_series_prod_row].
+    intros Hex.
+    erewrite (is_seriesC_unique h); [ | by apply is_seriesC_prod_row].
     rewrite /SeriesC/aprod/countable_sum.
     apply Series_ext.
     intro n; destruct (encode_inv_nat n); simpl; [ | apply Series_0; auto].
     apply Series_ext.
     intro m; destruct (encode_inv_nat m); simpl; auto.
-  Qed.
+  Qed .
 
+  Lemma fubini_pos_seriesC_prod_rl :
+    ex_seriesC h → SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
+  Proof. 
+  Admitted.  
 
-  Lemma fubini_pos_seriesC_prod_rl (h : A * B -> R) :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
-  Admitted.
-
-  Lemma ex_seriesC_lmarg (h : A * B -> R) a :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ b, h (a, b)).
-  Admitted.
-
-  Lemma ex_seriesC_rmarg (h : A * B -> R) b :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    ex_seriesC (λ a, h (a, b)).
-  Admitted.
-
-  Lemma seriesC_lmarg_le (h : A * B -> R) a :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC (λ b, h (a, b)) <= SeriesC h.
+  Lemma is_seriesC_prod_row'' :
+    ex_seriesC h → is_seriesC h (SeriesC (λ a, SeriesC (λ b, h (a, b)))).
   Proof.
-    intros Hpos Hex.
+    intros Hex.
+    rewrite -fubini_pos_seriesC_prod_lr //.
+    by apply SeriesC_correct.
+  Qed. 
+
+  Lemma fubini_pos_is_seriesC_prod_ex_lr  :
+    ex_seriesC h → is_seriesC (λ a, SeriesC (λ b, h (a, b))) (SeriesC h).
+  Proof.
+    intros Hex.
+    eapply is_series_ext; [|by eapply is_seriesC_prod_row'].
+    intros n=>/=. rewrite /countable_sum /=.
+    destruct (encode_inv_nat n) eqn:Heq; [|by eapply Series_0].
+    eapply Series_ext. intros m=>/=.
+    rewrite /countable_sum.
+    by destruct (encode_inv_nat m) eqn:Heq'.
+  Qed. 
+    
+  Lemma fubini_pos_ex_seriesC_prod_ex_lr  :
+    ex_seriesC h → ex_seriesC (λ a, SeriesC (λ b, h (a, b))).
+  Proof. intros Hex. eexists. by apply fubini_pos_is_seriesC_prod_ex_lr. Qed. 
+
+  Lemma fubini_pos_ex_seriesC_prod_ex_rl  :
+    ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
+  Admitted.
+
+
+  Lemma ex_seriesC_lmarg a :
+    ex_seriesC h → ex_seriesC (λ b, h (a, b)).
+  Admitted.
+
+  Lemma ex_seriesC_rmarg b :
+    ex_seriesC h → ex_seriesC (λ a, h (a, b)).
+  Admitted.
+
+  Lemma seriesC_lmarg_le a :
+    ex_seriesC h → SeriesC (λ b, h (a, b)) <= SeriesC h.
+  Proof.
+    intros Hex.
     rewrite fubini_pos_seriesC_prod_rl //.
-    apply SeriesC_le; [ | eapply fubini_pos_seriesC_prod_ex_rl; eauto].
+    apply SeriesC_le; [ | eapply fubini_pos_ex_seriesC_prod_ex_rl; eauto].
     intro b; split; [real_solver | ].
     apply (SeriesC_ge_elem (λ a0, h (a0, b))); [ | apply ex_seriesC_rmarg; auto]; auto.
   Qed.
 
-  Lemma seriesC_rmarg_le (h : A * B -> R) b :
-    (∀ a b, 0 <= h (a, b)) ->
-    (ex_seriesC h) ->
-    SeriesC (λ a, h (a, b)) <= SeriesC h.
+  Lemma seriesC_rmarg_le b :
+    ex_seriesC h → SeriesC (λ a, h (a, b)) <= SeriesC h.
   Proof.
-    intros Hpos Hex.
+    intros Hex.
     rewrite fubini_pos_seriesC_prod_lr //.
-    apply SeriesC_le; [ | eapply fubini_pos_seriesC_prod_ex_lr; eauto].
+    apply SeriesC_le; [ | eapply fubini_pos_ex_seriesC_prod_ex_lr; eauto].
     intro a; split; [real_solver | ].
     apply (SeriesC_ge_elem (λ b0, h (a, b0))); [ | apply ex_seriesC_lmarg; auto]; auto.
   Qed.
 
-  Lemma ex_seriesC_prod (h: A * B -> R) :
-    (∀ a, ex_seriesC (λ b, h(a,b))) ->
-    ex_seriesC (λ a, SeriesC (λ b, h(a,b))) ->
+  Lemma ex_seriesC_prod :
+    (∀ a, ex_seriesC (λ b, h (a,b))) →
+    ex_seriesC (λ a, SeriesC (λ b, h (a,b))) →
     ex_seriesC h.
   Proof. Admitted.
 
