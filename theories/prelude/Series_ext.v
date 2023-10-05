@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Series Lim_seq Rbar.
+From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
 From stdpp Require Export countable.
 From clutch.prelude Require Import base Coquelicot_ext.
 Import Hierarchy.
@@ -1048,8 +1048,123 @@ Section mct.
 End mct.
 
 
-
 Section double.
+
+
+Definition double_summable a :=
+  ∃ (r: R), ∀ n, sum_n (λ j, sum_n (λ k, a (j, k)) n) n <= r.
+
+Lemma double_summable_mono_cond a:
+  (forall n m, 0 <= a(n,m)) ->
+  (∃ (r: R), ∃ N, ∀ n, n ≥ N → sum_n (λ j, sum_n (λ k, a (j, k)) n) n <= r) →
+  double_summable a.
+Proof.
+  intros Hpos (r&N&Hcond).
+  exists r => n.
+  destruct (le_ge_dec N n) as [Hle|Hge].
+  - apply Hcond. lia.
+  - transitivity (sum_n (λ j, sum_n (λ k, a (j, k)) N) N).
+    { clear Hcond.
+      induction Hge; first reflexivity.
+      etransitivity; first eapply IHHge.
+      rewrite sum_Sn /plus//=.
+      rewrite -[a in a <= _]Rplus_0_r.
+      apply Rplus_le_compat.
+      * rewrite ?sum_n_bigop.
+        apply sum_n_le => k.
+        rewrite sum_Sn.
+        rewrite <- Rplus_0_r at 1.
+        apply Rplus_le_compat_l; auto.
+      * apply partial_sum_pos; eauto => ?.
+    }
+    eauto.
+Qed.
+
+(*
+Lemma double_summable_ext a a':
+  (∀ j k, Rabs (a (j, k)) = Rabs (a' (j, k))) →
+  double_summable a → double_summable a'.
+Proof.
+  intros Hext (r&Hle).
+  exists r => n. etransitivity; last (eapply (Hle n)).
+  right.
+  apply sum_n_ext => ?.
+  apply sum_n_ext => ?.
+  rewrite Hext. done.
+Qed.
+
+Lemma double_summable_abs a :
+  double_summable a → double_summable (Rabs \o a).
+Proof.
+  apply double_summable_ext; eauto.
+  intros. by rewrite Rabs_Rabsolu.
+Qed.
+*)
+
+Lemma double_summable_by_flip a:
+  double_summable a →
+  double_summable (λ xy, a (snd xy, fst xy)).
+Proof.
+  intros (r&Hle).
+  exists r => n. rewrite sum_n_switch => //=.
+Qed.
+
+Lemma double_summable_flip a:
+  double_summable (λ xy, a (snd xy, fst xy)) → double_summable a.
+Proof.
+  intros (r&Hle).
+  exists r => n. rewrite sum_n_switch => //=.
+Qed.
+
+Lemma ex_series_rows_ds a:
+  (forall n m, 0 <= a(n,m)) ->
+  (∀ j, ex_series (λ k, a (j, k))) →
+  ex_series (λ j, Series (λ k,  a (j, k))) →
+  double_summable a.
+Proof.
+  intros Hpos Hrows Hex.
+  destruct Hex as (r&Hseries).
+  exists r => n.
+  transitivity (sum_n (λ j, Series (λ k, a (j, k))) n).
+  {  rewrite ?sum_n_bigop. apply sum_n_le. intros j.
+     edestruct (Hrows j) as (v&Hrow). rewrite (is_series_unique _ _ Hrow).
+     apply is_series_partial_pos; auto.
+  }
+  apply is_series_partial_pos; eauto.
+  intros j.
+  apply series_ge_0; auto.
+Qed.
+
+Lemma ex_series_columns_ds a:
+  (forall n m, 0 <= a(n,m)) ->
+  (∀ k, ex_series (λ j, a (j, k))) →
+  ex_series (λ k, Series (λ j,  a (j, k))) →
+  double_summable a.
+Proof.
+  intros. apply double_summable_flip, ex_series_rows_ds; auto.
+Qed.
+
+Lemma ex_series_row a (DS: double_summable a) j:
+  (forall n m, 0 <= a(n,m)) ->
+  ex_series (λ k, a (j, k)).
+Admitted.
+
+Lemma ex_series_column a (DS: double_summable a) k:
+  (forall n m, 0 <= a(n,m)) ->
+  ex_series (λ j, a (j, k)).
+Proof.
+  intros Hpos.
+  set (flip := λ (x : nat * nat), (snd x, fst x)).
+  eapply ex_series_ext; last first.
+  { eapply ex_series_row.
+    - apply double_summable_by_flip => //=.
+    - intros; simpl; auto. }
+  intros n => //=.
+Qed.
+
+End double.
+
+Section prod.
 
   Variable (a: nat * nat → R).
   Variable (σ: nat → nat * nat).
@@ -1065,47 +1180,139 @@ Section double.
   Lemma abs_cov: ∀ n, a n <> 0 → ∃ m, σ m = n.
   Admitted.
 
-(*
+  Lemma sum_n_m_cover_diff_double:
+    ∀ N, ∃ K, ∀ l m, l ≥ K → m ≥ K →
+    ∃ n, n ≥ N ∧ sum_n (λ j, sum_n (λ k, a (j, k)) m) l - sum_n (a ∘ σ) N
+                 <= sum_n_m (a ∘ σ) (S N) n.
+  Admitted.
+
+
 Lemma summable_implies_ds:
   double_summable a.
-Proof.
-  destruct (sum_n_m_cover_diff_double (λ x, Rabs (a x)) σ abs_inj abs_cov O) as (N&HN).
-  apply double_summable_mono_cond.
+Proof using a σ POS INJ COV EXS.
+  destruct (sum_n_m_cover_diff_double O) as (N&HN).
+  apply double_summable_mono_cond; auto.
   destruct EXS as (r&His).
   exists r, N. intros n Hge.
-  destruct (HN n n) as (N'&Hge'&Hdiff); try omega.
-  rewrite sum_O //= in Hdiff.
-  setoid_rewrite <-Rabs_triang_inv in Hdiff.
+  destruct (HN n n) as (N'&Hge'&Hdiff); try lia.
   apply Rle_minus_l in Hdiff.
+  rewrite sum_O //= in Hdiff.
   rewrite Rplus_comm in Hdiff.
   rewrite /comp//= in Hdiff.
-
-  replace (Rabs (Rabs (a (σ 0))) + sum_n_m (λ x : nat, Rabs (Rabs (a (σ x)))) 1 N')
-          with (sum_n_m (λ x, Rabs (Rabs (a (σ x)))) 0 N') in Hdiff; last first.
-  { rewrite (sum_Sn_m (λ x, Rabs (Rabs (a (σ x)))) 0 N') //=. }
-  etransitivity.
-  { eapply Rle_abs. }
+  replace (a (σ 0) + sum_n_m (λ x : nat, a (σ x)) 1 N')
+          with (sum_n_m (λ x, a (σ x)) 0 N') in Hdiff; last first.
+  { rewrite (sum_Sn_m (λ x, a (σ x)) 0 N') //=. }
   etransitivity; eauto.
+  replace (a (σ 0) + sum_n_m (a ∘ σ) 1 N')
+          with (sum_n (a ∘ σ) N'); last first.
+  { replace (a (σ 0)) with ((a ∘ σ) 0%nat); auto.
+    assert ((0 <= N')%nat) as Hge''; auto.
+    epose proof (sum_Sn_m (a ∘ σ) 0 N' Hge''); eauto. }
   apply is_series_partial_pos.
-  * intros; apply Rle_ge, Rabs_pos.
+  * intros n0; simpl; destruct (σ n0); auto.
   * eapply is_series_ext; last eassumption.
-    intros ? => //=. by rewrite Rabs_Rabsolu.
+    intros ? => //=.
 Qed.
-*)
+
+  (* Maybe move out of section *)
+  Lemma ds_implies_exseries:
+    double_summable a -> ex_series (a ∘ σ).
+  Proof.
+    clear EXS.
+    rewrite /double_summable.
+    intros (r & Hr).
+    apply ex_pos_bounded_series.
+    - intro n; simpl; destruct (σ n); auto.
+    - exists r; intro n.
+      admit.
+  Admitted.
+
 
   Lemma is_series_double_covering:
     is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
-  Proof.
-  Admitted.
-  
-  Lemma is_series_double_covering':
-    is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
-  Proof.
-  Admitted.
-  
-  Lemma Series_double_covering:
-    Series (λ j, Series (λ k, a (j, k))) = (Series (a ∘ σ)).
+  Proof using a σ POS INJ COV EXS.
+    (*
+    destruct (EXS) as (v'&Hconv).
+    assert(Hnorm: ∀ eps : posreal, ∃ N K, ∀ l m, K ≤ l → K ≤ m →
+           norm (sum_n (λ j, sum_n (λ k, a (j, k)) m) l - sum_n (a ∘ σ) N) < eps ∧
+           norm (sum_n (a ∘ σ) N - v') < eps).
+    {
+      intros eps.
+      edestruct (Cauchy_ex_series (a ∘ σ)) as (N0&IHN).
+      { exists v'; eauto. }
+      assert (∃ N, ∀ N', N' ≥ N → norm (sum_n (a ∘ σ) N' - v') < eps) as (N2&HN2).
+      { rewrite /is_series in Hconv.
+        edestruct Hconv as (x&Hball). eapply locally_ball.
+        exists x. eapply Hball.
+      }
+      set (N := max N0 N2).
+      edestruct (sum_n_m_cover_diff_double _ _ INJ COV N) as (M&IHM2).
+      exists N. exists M => m l Hm Hl.
+      rewrite /norm//=/abs//=; repeat split; auto.
+      - edestruct (IHM2 m l) as (n&?&Hle); auto.
+        eapply Rle_lt_trans; first eapply Hle.
+        rewrite /norm//=/abs//= in IHN.
+        eapply Rle_lt_trans; first apply Rle_abs.
+        assert (N0 <= N)%coq_nat.
+        { rewrite /N. apply Max.le_max_l. }
+        eapply IHN; auto. omega.
+      - eapply HN2.
+        rewrite /N. etransitivity; first apply Max.le_max_r. done.
+    }
+    assert(Hnorm': ∀ eps : posreal, ∃ N K, ∀ l, K ≤ l  →
+           norm (sum_n (λ j, Series (λ k, a (j, k))) l - sum_n (a ∘ σ) N) < eps ∧
+           norm (sum_n (a ∘ σ) N - v') < eps).
+    {
+      intros eps.
+      edestruct (Hnorm (pos_div_2 eps)) as (N&K&Hdiff).
+      exists N, K; split.
+      - apply (Rle_lt_trans _ (pos_div_2 eps)); last by (destruct eps => //=; nra).
+        transitivity (Lim_seq (λ k, norm (sum_n (λ j, sum_n (λ k, a (j, k)) k) l
+                                          - sum_n (a ∘ σ) N))); last first.
+        {
+          eapply Rbar_le_fin; first by (destruct eps; rewrite //=; nra).
+          rewrite -Lim_seq_const. apply Lim_seq_le_loc.
+          exists K => m Hle. apply Rlt_le. eapply Hdiff; auto.
+        }
+        right. symmetry. apply Rbar_eq_fin.
+        eapply is_lim_seq_unique.
+        rewrite /norm//=/abs//=. apply is_lim_seq_fin_abs.
+                eapply is_lim_seq_minus; [ | apply is_lim_seq_const | ].
+         eapply (is_lim_seq_sum_n _ (λ j, Series (λ k, a (j, k)))).
+         { intros ????.
+           edestruct (Series_correct (λ k, a (j, k))) as (n&?).
+           { apply ex_series_Rabs, ex_series_row, summable_implies_ds. }
+           eauto. rewrite /filtermap. exists n. eauto.
+         }
+         rewrite //=.
+      - edestruct Hdiff; eauto. transitivity (pos_div_2 eps); auto.
+        destruct eps => //=; fourier.
+    }
+    assert (Series (a \o σ) = v') as -> by (eapply is_series_unique; eauto).
+      rewrite /is_series. eapply filterlim_locally => eps.
+      edestruct (Hnorm' (pos_div_2 eps)) as (N&M&?HNM).
+      exists M => m Hle.
+      specialize (HNM m Hle) as (?&?).
+      rewrite /ball//=/AbsRing_ball//=/abs/AbsRing.abs//=/minus//=/plus//=/opp//=.
+      specialize (norm_dist_mid (sum_n (λ j : nat, Series (λ k : nat, a (j, k))) m)
+                                v' (sum_n (a ∘ σ) N)).
+      rewrite {1}/norm//={1}/Rminus.
+      intros Hle'. eapply Rle_lt_trans; first eapply Hle'.
+      destruct eps as (eps&?).
+      replace (eps) with (eps/2 + eps/2); last by field.
+      apply Rplus_lt_compat; eauto.
+     *)
   Admitted.
 
-End double.
+  Lemma is_series_double_covering':
+    is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
+  Proof using a σ POS INJ COV EXS.
+  Admitted.
+
+  Lemma Series_double_covering:
+    Series (λ j, Series (λ k, a (j, k))) = (Series (a ∘ σ)).
+  Proof using a σ POS INJ COV EXS.
+  Admitted.
+
+End prod.
 

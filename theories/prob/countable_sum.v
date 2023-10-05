@@ -1002,6 +1002,7 @@ Section double.
   Context `{Countable A, Countable B}.
 
   Variable (h : A * B -> R).
+  Variable (POS : forall a b, 0 <= h(a,b)).
 
   Definition σprod :=
     λ n, match @encode_inv_nat (A*B) _ _ n with
@@ -1024,10 +1025,71 @@ Section double.
           | _ => 0
           end.
 
+  Lemma aprod_pos: ∀ m n, 0 <= aprod (m, n).
+  Proof using POS.
+    intros m n.
+    rewrite /aprod.
+    do 4 (case_match; try lra); auto.
+  Qed.
+
+  Lemma σprod_inj: ∀ n n', aprod (σprod n) <> 0 → σprod n = σprod n' → n = n'.
+  Proof.
+    (*
+    intros n n'. rewrite /σprod/aprod.
+    case_eq (@pickle_inv [countType of dep_prod_type] n); last by nra.
+    case_eq (@pickle_inv [countType of dep_prod_type] n'); last first.
+    { intros Heq_none (a&b) Heq_some => //=. }
+    intros (a'&b') Heq' (a&b) Heq Hneq0 => //=.
+    inversion 1 as [[Hp1 Hp2]].
+    assert (a = a').
+    {
+      apply (f_equal (@pickle_inv A)) in Hp1. rewrite ?pickleK_inv in Hp1.
+      inversion Hp1; done.
+    }
+    subst.
+    assert (b = b').
+    {
+      apply (f_equal (@pickle_inv (B a'))) in Hp2. rewrite ?pickleK_inv in Hp2.
+      inversion Hp2; done.
+    }
+    subst.
+    apply (f_equal (oapp (@pickle _) n)) in Heq.
+    apply (f_equal (oapp (@pickle _) n')) in Heq'.
+    rewrite ?pickle_invK //= in Heq Heq'. congruence.
+    *)
+  Admitted.
+
+  Lemma σprod_cov: ∀ n, aprod n <> 0 → ∃ m, σprod m = n.
+  Proof.
+  (*
+    intros (n1&n2).
+    destruct n1, n2 => //=.
+    rewrite /countable_sum.
+    case_eq (@pickle_inv A n1) => //=; [].
+    intros a Heq1.
+    case_eq (@pickle_inv (B a) n2) => //=; [].
+    intros b Heq2 => Hneq0.
+    exists (@pickle [countType of dep_prod_type] (existT a b)).
+    rewrite /σprod pickleK_inv. repeat f_equal.
+    - apply (f_equal (oapp (@pickle _) n1)) in Heq1. rewrite pickle_invK //= in Heq1.
+    - apply (f_equal (oapp (@pickle _) n2)) in Heq2. rewrite pickle_invK //= in Heq2.
+  *)
+  Admitted.
+
+  Lemma aprod_double_summable: double_summable aprod.
+  Admitted.
+
+  Lemma ex_series_σprod :
+    ex_seriesC h ->
+    ex_series (aprod ∘ σprod).
+  Proof using POS.
+    intros Hex. apply ds_implies_exseries, aprod_double_summable.
+  Qed.
+
   Lemma is_series_prod_row:
     ex_seriesC h ->
     is_seriesC h (Series (λ j, Series (λ k, aprod (S j, S k)))).
-  Proof.
+  Proof using POS.
     intro Hex.
     apply (is_series_ext (aprod ∘ σprod)).
     {
@@ -1038,21 +1100,23 @@ Section double.
       rewrite encode_inv_encode_nat //=.
     }
     eapply (is_series_chain _ _ _
-                            (is_series_double_covering' _ _)).
+                            (is_series_double_covering' _ _ aprod_pos σprod_inj σprod_cov (ex_series_σprod Hex))).
     cut (Series (λ j, Series (λ k, aprod (j, k))) =
         (Series (λ j : nat, Series (λ k : nat, aprod (S j, S k))))).
     {
       intros <-. apply Series_correct.
-      eexists; eapply (is_series_double_covering _ _ ); eauto.
+      eexists; eapply (is_series_double_covering _ _ aprod_pos σprod_inj σprod_cov (ex_series_σprod Hex)); eauto.
     }
     rewrite Series_incr_1; last first.
-    { eexists; eapply (is_series_double_covering _ _ ); eauto. }
+    {
+      eexists; eapply (is_series_double_covering _ _ aprod_pos σprod_inj σprod_cov (ex_series_σprod Hex)); eauto.
+    }
     rewrite {1}/aprod Series_0 // Rplus_0_l.
     apply Series_ext => n.
     rewrite Series_incr_1; last first.
-    { admit. }
+    { apply ex_series_row; [ apply aprod_double_summable | apply aprod_pos]. }
     rewrite {1}/aprod Rplus_0_l => //=.
-  Admitted.
+  Qed.
 
   Lemma fubini_pos_seriesC_prod_ex_lr  :
     (∀ a b, 0 <= h (a, b)) ->
