@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 From discprob.basic Require sval base Reals_ext Series_Ext stdpp_ext.
-From discprob.prob Require countable.
+From discprob.prob Require countable rearrange.
 
 From mathcomp Require Import bigop fintype choice.
 From mathcomp Require Import eqtype.
@@ -91,8 +91,6 @@ End Countable_countType.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 From clutch.prob Require Import countable_sum.
 
-Locate countable_sum.
-
 Notation dcountable_sum := discprob.prob.countable.countable_sum.
 
 Lemma is_seriesC_is_series_countable_sum
@@ -112,12 +110,12 @@ Proof.
   rewrite /ssrfun.Option.bind //=.
   rewrite /ssrfun.Option.apply //=.
   rewrite /ssrfun.pcomp //=.
-  destruct (encode_inv_nat n) as [| x] eqn:Heq.
+  destruct (encode_inv_nat n) as [|] eqn:Heq.
   - apply encode_inv_Some_nat in Heq.
     rewrite -Heq decode_encode_nat /=.
     rewrite /pickle/=/pickle/=.
     rewrite eq_refl //.
-  - destruct (decode_nat n) as [| x] eqn:Hdecode => //=.
+  - destruct (decode_nat n) as [|] eqn:Hdecode => //=.
     rewrite /pickle/=/pickle/=.
     case: (@eq_op ssrnat.nat_eqType (encode_nat a) n) / eqP.
     * intros Hfalse. rewrite -Hfalse in Heq.
@@ -125,8 +123,7 @@ Proof.
     * nra.
 Qed.
 
-(*
-Lemma is_seriesC_is_series_countable_sum
+Lemma is_seriesC_is_series_countable_sum_alt
   {A} `{COUNT: Countable A} (CLASS: Countable.class_of A) (f: A → R) (g : Countable.Pack CLASS → R) v
   (HEQ: ∀ x, g x = f x)
   (Hfnonneg: ∀ x, 0 <= f x) :
@@ -135,24 +132,20 @@ Lemma is_seriesC_is_series_countable_sum
 Proof.
   intros Hseries.
   rewrite /is_seriesC in Hseries.
-  rewrite /countable_sum in Hseries.
-Abort.
-
-
-Lemma is_seriesC_is_series_countable_sum
-  {A} `{COUNT: Countable A} (CLASS: Countable.class_of A) (f: A → R) g v
-  (HEQ: ∀ x, g x = f x)
-  (Hfnonneg: ∀ x, 0 <= f x) :
-  is_seriesC f v →
-  is_series (dcountable_sum g) v.
-Proof.
-
-
-Lemma is_seriesC_is_series_countable_sum
-  {A} `{COUNT: Countable A} (B: countType) (f: A → R) (f': B → R) v
-  (HEQ: Countable.sort B = A)
-  (Hfnonneg: ∀ x, 0 <= f x) :
-  is_seriesC f v →
-  is_series (dcountable_sum f') v.
-Proof.
-*)
+  apply is_seriesC_is_series_countable_sum in Hseries; auto.
+  assert (Hsupp: ∀ x, g x ≠ 0 → f x ≠ 0).
+  { intros. rewrite -HEQ. eauto. }
+  set (σ := λ x : {x : Countable.Pack CLASS  | g x ≠ 0},
+           (exist _ (`x) (Hsupp (`x) (proj2_sig x)) : {x : _ | f x ≠ 0})).
+  unshelve (eapply (rearrange.countable_series_rearrange_covering_match); try eassumption).
+  { intros (x&?); exists x; rewrite -HEQ; done. }
+  { eauto. }
+  { intros. rewrite HEQ. eauto. }
+  { intros (?&?) (?&?) => //=. inversion 1. subst.
+    apply sval.sval_inj_pi; auto. }
+  { intros (?&?).
+    unshelve (eexists (exist _ x _)).
+    { simpl. rewrite HEQ //=. }
+    rewrite //=. apply sval.sval_inj_pi; auto. }
+  { intros (?&?) => //=.  }
+Qed.
