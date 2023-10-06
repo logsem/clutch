@@ -1,20 +1,4 @@
-From Coq Require Import Reals Psatz.
-From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
-From stdpp Require Export countable.
-From clutch.prelude Require Import base Coquelicot_ext.
-Import Hierarchy.
-
-Open Scope R.
-
-Section rbar_extra.
-
-  Lemma Rbar_le_sandwich p q r :
-    Rbar_le (Finite p) r ->
-    Rbar_le r (Finite q) ->
-    Finite (real r) = r.
-  Proof.
-    intros Hp Hq.
-    destruct r eqn:Hr; auto.
+F; auto.
     - destruct Hq.
     - destruct Hp.
   Qed.
@@ -432,6 +416,75 @@ Section positive.
       +  eapply Rbar_le_trans; last first.
          * apply (sup_is_upper_bound _ n).
          * apply Rbar_le_refl.
+  Qed.
+
+  Lemma double_sup_double_major (h1 : nat -> R) (h2 : nat -> R) :
+    (forall n m, (n <= m)%nat -> h1 n <= h1 m) ->
+    (forall n m, (n <= m)%nat -> h2 n <= h2 m) ->
+    (forall n, exists m,  h1 n <= h2 m) ->
+    (forall n, exists m,  h2 n <= h1 m) ->
+    Sup_seq h1 = Sup_seq h2.
+  Proof.
+    intros Hmon1 Hmon2 Hmaj1 Hmaj2.
+    apply Rbar_le_antisym.
+    - apply upper_bound_ge_sup.
+      intros n.
+      destruct (Hmaj1 n) as (m&?).
+      by eapply (Sup_seq_minor_le).
+    - apply upper_bound_ge_sup.
+      intros n.
+      destruct (Hmaj2 n) as (m&?).
+      by eapply (Sup_seq_minor_le).
+  Qed.
+
+
+  Lemma double_major_ex_series (h1 : nat -> R) (h2 : nat -> R) :
+    (forall n, 0 <= h1 n) ->
+    (forall n, 0 <= h2 n) ->
+    (forall n, exists m,  sum_n h1 n <= sum_n h2 m) ->
+    (forall n, exists m,  sum_n h2 n <= sum_n h1 m) ->
+    ex_series h1 ->
+    ex_series h2.
+  Proof.
+    intros Hpos1 Hpos2 Hmaj1 Hmaj2 Hex.
+    epose proof (Series_correct _ Hex) as Hsup1.
+    exists (Series h1).
+    apply sup_is_lim; auto.
+    apply lim_is_sup in Hsup1; auto.
+    apply is_sup_seq_unique in Hsup1.
+    assert (Sup_seq (λ n : nat, sum_n h1 n) = Sup_seq (λ n : nat, sum_n h2 n)) as Haux; last first.
+    {
+      rewrite -Hsup1 Haux.
+      apply Sup_seq_correct.
+    }
+    apply double_sup_double_major.
+    - intros; apply partial_sum_mon; auto.
+    - intros; apply partial_sum_mon; auto.
+    - auto.
+    - auto.
+  Qed.
+
+
+  Lemma double_major_Series (h1 : nat -> R) (h2 : nat -> R) :
+    (forall n, 0 <= h1 n) ->
+    (forall n, 0 <= h2 n) ->
+    (forall n, exists m,  sum_n h1 n <= sum_n h2 m) ->
+    (forall n, exists m,  sum_n h2 n <= sum_n h1 m) ->
+    ex_series h1 ->
+    Series h1 = Series h2.
+  Proof.
+    intros Hpos1 Hpos2 Hmaj1 Hmaj2 Hex.
+    rewrite lim_is_sup'; auto.
+    rewrite lim_is_sup'; auto; last first.
+    {
+      apply (double_major_ex_series h1 h2); auto.
+    }
+    f_equal.
+    apply double_sup_double_major.
+    - intros; apply partial_sum_mon; auto.
+    - intros; apply partial_sum_mon; auto.
+    - auto.
+    - auto.
   Qed.
 
 
@@ -1487,10 +1540,33 @@ Qed.
     *)
   Admitted.
 
+  Lemma summable_ds_helper:
+    Sup_seq (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) =
+      Sup_seq (λ n, sum_n (a ∘ σ) n).
+  Proof.
+    apply double_sup_double_major.
+    - admit.
+    - intros; apply partial_sum_mon; auto.
+      intros n0; simpl.
+      destruct (σ n0); auto.
+    - admit.
+    - admit.
+  Admitted.
+
 
   Lemma summable_implies_ds:
     double_summable a.
   Proof using a σ POS INJ COV EXS.
+    rewrite /double_summable.
+    exists (Sup_seq (λ n, sum_n (a ∘ σ) n)).
+    intro.
+    apply rbar_le_finite.
+    - admit.
+    - rewrite -summable_ds_helper.
+    apply (sup_is_upper_bound (λ n0 : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n0) n0)).
+  Admitted.
+  (*
+    Search Sup_seq.
     destruct (sum_n_m_cover_diff_double O) as (N&HN).
     apply double_summable_mono_cond; auto.
     destruct EXS as (r&His).
@@ -1516,8 +1592,9 @@ Qed.
     * eapply is_series_ext; last eassumption.
       intros ? => //=.
   Qed.
+  *)
 
-  (* Maybe move out of section *)
+  (* Maybe move out of section so that we do not have to clear EXS *)
   Lemma ds_implies_exseries:
     double_summable a -> ex_series (a ∘ σ).
   Proof.
@@ -1526,8 +1603,12 @@ Qed.
     intros (r & Hr).
     apply ex_pos_bounded_series.
     - intro n; simpl; destruct (σ n); auto.
-    - exists r; intro n.
-      admit.
+    - exists (Sup_seq (λ n, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) ).
+      intro n.
+      apply rbar_le_finite.
+      + admit.
+      + rewrite summable_ds_helper.
+        apply (sup_is_upper_bound (λ n0 : nat, sum_n (a ∘ σ) n0)).
   Admitted.
 
   Lemma is_lim_seq_sum_n (f: nat * nat → R) (h: nat → R) l:
@@ -1559,6 +1640,19 @@ Qed.
     is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
   Proof using a σ POS INJ COV EXS.
     destruct (EXS) as (v'&Hconv).
+    apply sup_is_lim.
+    - intros; apply series_ge_0; auto.
+    - rewrite lim_is_sup'; auto; last first.
+      + admit.
+      + rewrite -summable_ds_helper.
+        rewrite -(double_sup_diag (λ '(n,m), sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) m) n)).
+        * Search is_sup_seq.
+          (*
+      erewrite (double_major_Series _ (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n)); last first.
+    {
+      auto.
+    }
+    apply lim_is_sup in Hconv.
     assert(Hnorm: ∀ eps : posreal, ∃ N K, ∀ l m, K ≤ l → K ≤ m →
            norm (sum_n (λ j, sum_n (λ k, a (j, k)) m) l - sum_n (a ∘ σ) N) < eps ∧
            norm (sum_n (a ∘ σ) N - v') < eps).
@@ -1631,7 +1725,8 @@ Qed.
       destruct eps as (eps&?).
       replace (eps) with (eps/2 + eps/2); last by field.
       apply Rplus_lt_compat; eauto.
-  Qed.
+*)
+  Admitted.
 
   Lemma is_series_double_covering':
     is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
