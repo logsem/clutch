@@ -94,8 +94,7 @@ From clutch.prob Require Import countable_sum.
 Notation dcountable_sum := discprob.prob.countable.countable_sum.
 
 Lemma is_seriesC_is_series_countable_sum
-  {A} `{COUNT: Countable A} (f: A → R) v
-  (Hfnonneg: ∀ x, 0 <= f x) :
+  {A} `{COUNT: Countable A} (f: A → R) v :
   is_seriesC f v →
   is_series (dcountable_sum (λ x : (Countable.Pack (StdppCountCountClass COUNT)), f x)) v.
 Proof.
@@ -146,6 +145,62 @@ Proof.
   { intros (?&?).
     unshelve (eexists (exist _ x _)).
     { simpl. rewrite HEQ //=. }
+    rewrite //=. apply sval.sval_inj_pi; auto. }
+  { intros (?&?) => //=.  }
+Qed.
+
+Lemma is_series_countable_sum_is_seriesC
+  {A} `{COUNT: Countable A} (f: A → R) v :
+  is_series (dcountable_sum (λ x : (Countable.Pack (StdppCountCountClass COUNT)), f x)) v →
+  is_seriesC f v.
+Proof.
+  rewrite /is_seriesC.
+  rewrite /countable_sum.
+  rewrite /dcountable_sum/=.
+  rewrite /pickle_inv/=/unpickle/=.
+  intros Hseries.
+  eapply is_series_ext; try eassumption.
+  intros n. rewrite /=.
+  move: Hseries.
+  rewrite /ssrfun.Option.apply //=.
+  rewrite /ssrfun.Option.bind //=.
+  rewrite /ssrfun.Option.apply //=.
+  rewrite /ssrfun.pcomp //=.
+  destruct (encode_inv_nat n) as [|] eqn:Heq.
+  - apply encode_inv_Some_nat in Heq.
+    rewrite -Heq decode_encode_nat /=.
+    rewrite /pickle/=/pickle/=.
+    rewrite eq_refl //.
+  - destruct (decode_nat n) as [|] eqn:Hdecode => //=.
+    rewrite /pickle/=/pickle/=.
+    case: (@eq_op ssrnat.nat_eqType (encode_nat a) n) / eqP.
+    * intros Hfalse. rewrite -Hfalse in Heq.
+      rewrite encode_inv_encode_nat in Heq. congruence.
+    * nra.
+Qed.
+
+Lemma is_series_countable_sum_is_seriesC_alt
+  {A} `{COUNT: Countable A} (CLASS: Countable.class_of A) (f: A → R) (g : Countable.Pack CLASS → R) v
+  (HEQ: ∀ x, g x = f x)
+  (Hfnonneg: ∀ x, 0 <= f x) :
+  is_series (dcountable_sum g) v →
+  is_seriesC f v.
+Proof.
+  intros Hseries.
+  apply is_series_countable_sum_is_seriesC.
+  assert (Hsupp: ∀ x, f x ≠ 0 → g x ≠ 0).
+  { intros. rewrite HEQ. eauto. }
+  set (σ := λ x : {x : Countable.Pack CLASS  | f x ≠ 0},
+           (exist _ (`x) (Hsupp (`x) (proj2_sig x)) : {x : _ | g x ≠ 0})).
+  unshelve (eapply (rearrange.countable_series_rearrange_covering_match); try eassumption).
+  { intros (x&?); exists x; rewrite HEQ; done. }
+  { intros. rewrite HEQ. eauto. }
+  { auto. }
+  { intros (?&?) (?&?) => //=. inversion 1. subst.
+    apply sval.sval_inj_pi; auto. }
+  { intros (?&?).
+    unshelve (eexists (exist _ x _)).
+    { simpl. rewrite -HEQ //=. }
     rewrite //=. apply sval.sval_inj_pi; auto. }
   { intros (?&?) => //=.  }
 Qed.
