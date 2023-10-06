@@ -1,4 +1,5 @@
 -Q theories clutch
+-Q external/proba discprob
 
 -arg -w -arg -notation-overridden
 -arg -w -arg -redundant-canonical-projection
