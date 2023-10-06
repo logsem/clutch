@@ -1,4 +1,21 @@
-F; auto.
+From Coq Require Import Reals Psatz.
+From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
+From stdpp Require Export countable.
+From clutch.prelude Require Import base Coquelicot_ext stdpp_ext.
+Set Default Proof Using "Type*".
+Import Hierarchy.
+
+Open Scope R.
+
+Section rbar_extra.
+
+  Lemma Rbar_le_sandwich p q r :
+    Rbar_le (Finite p) r ->
+    Rbar_le r (Finite q) ->
+    Finite (real r) = r.
+  Proof.
+    intros Hp Hq.
+    destruct r eqn:Hr; auto.
     - destruct Hq.
     - destruct Hp.
   Qed.
@@ -1598,7 +1615,7 @@ Qed.
   Lemma ds_implies_exseries:
     double_summable a -> ex_series (a ∘ σ).
   Proof.
-    clear EXS.
+    (* clear EXS. *)
     rewrite /double_summable.
     intros (r & Hr).
     apply ex_pos_bounded_series.
@@ -1740,7 +1757,6 @@ Qed.
   Proof using a σ POS INJ COV EXS.
     apply is_series_unique, is_series_double_covering.
   Qed.
-
 
 End prod.
 

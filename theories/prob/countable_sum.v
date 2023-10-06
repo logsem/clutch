@@ -879,31 +879,6 @@ Section fubini.
       apply Series_0; auto.
   Qed.
 
-  (*
-    The rest of the lemmas are admitted without a direct counterpart
-    for Series. They should only rely on showing that if a set of
-    nonnegative real numbers has a finite sum, then (1) every reordering
-    of the sum has the same result and (2) every subset has a sum bounded
-    by the sum of the whole set. Both can be derived by proving that the
-    sum of a set is the sup of the sums of the finite subsets.
- *)
-
- (*
- Lemma ex_seriesC_nat (h : nat -> R) :
-   ex_seriesC h <-> ex_series h.
- Admitted.
-
- Lemma SeriesC_nat (h : nat -> R) :
-   SeriesC h = Series h.
- Admitted.
-
- Lemma fubini_pos_seriesC_prod_nat (h : nat * nat -> R) :
-    (forall a b, 0 <= h (a, b)) ->
-    Sup_seq (sum_n (countable_sum h)) =
-    Sup_seq (λ n, Sup_seq (λ m, h (n, m))).
- Admitted.
- *)
-
 End fubini.
 
 Section mct.
@@ -1106,58 +1081,83 @@ Section double.
     rewrite {1}/aprod Rplus_0_l => //=.
   Qed.
 
-  Lemma is_seriesC_prod_row':
-    ex_seriesC h → is_series (λ j, Series (λ k, aprod (S j, S k))) (SeriesC h).
-  Proof. Admitted.
+  Lemma is_seriesC_prod_column:
+    ex_seriesC h → is_seriesC h (Series (λ k, Series (λ j, aprod (S j, S k)))).
+  Proof.
+    Admitted. 
+
+  Lemma SeriesC_prod_row :
+    ex_seriesC h → SeriesC h = Series (λ j, Series (λ k, aprod (S j, S k))).
+  Proof. intros ?. by apply is_series_unique, is_seriesC_prod_row. Qed.
+
+  Lemma SeriesC_prod_column :
+    ex_seriesC h → SeriesC h = Series (λ k, Series (λ j, aprod (S j, S k))).
+  Proof. intros ?. by apply is_series_unique, is_seriesC_prod_column. Qed.  
+
 
   Lemma fubini_pos_seriesC_prod_lr  :
-    ex_seriesC h → SeriesC h = SeriesC (λ a, SeriesC (λ b, h(a, b))).
+    ex_seriesC h → SeriesC h = SeriesC (λ a, SeriesC (λ b, h (a, b))).
   Proof.
     intros Hex.
-    erewrite (is_seriesC_unique h); [ | by apply is_seriesC_prod_row].
+    rewrite SeriesC_prod_row //. 
     rewrite /SeriesC/aprod/countable_sum.
-    apply Series_ext.
-    intro n; destruct (encode_inv_nat n); simpl; [ | apply Series_0; auto].
-    apply Series_ext.
-    intro m; destruct (encode_inv_nat m); simpl; auto.
+    apply Series_ext => n.
+    destruct (encode_inv_nat n); simpl; [ | apply Series_0; auto].
+    apply Series_ext => m.
+    destruct (encode_inv_nat m); simpl; auto.
   Qed .
 
   Lemma fubini_pos_seriesC_prod_rl :
-    ex_seriesC h → SeriesC h = SeriesC (λ b, SeriesC (λ a, h(a, b))).
-  Proof. 
-  Admitted.  
-
-  Lemma is_seriesC_prod_row'' :
-    ex_seriesC h → is_seriesC h (SeriesC (λ a, SeriesC (λ b, h (a, b)))).
+    ex_seriesC h → SeriesC h = SeriesC (λ b, SeriesC (λ a, h (a, b))).
   Proof.
     intros Hex.
-    rewrite -fubini_pos_seriesC_prod_lr //.
-    by apply SeriesC_correct.
-  Qed. 
+    rewrite SeriesC_prod_column //. 
+    rewrite /SeriesC/aprod/countable_sum.
+    apply Series_ext => n.
+    destruct (encode_inv_nat n); simpl; last first.
+    { rewrite Series_0 //. intros. by case_match. }
+    apply Series_ext => m.
+    destruct (encode_inv_nat m); simpl; auto.
+  Qed.     
 
-  Lemma fubini_pos_is_seriesC_prod_ex_lr  :
-    ex_seriesC h → is_seriesC (λ a, SeriesC (λ b, h (a, b))) (SeriesC h).
-  Proof.
-    intros Hex.
-    eapply is_series_ext; [|by eapply is_seriesC_prod_row'].
-    intros n=>/=. rewrite /countable_sum /=.
-    destruct (encode_inv_nat n) eqn:Heq; [|by eapply Series_0].
-    eapply Series_ext. intros m=>/=.
-    rewrite /countable_sum.
-    by destruct (encode_inv_nat m) eqn:Heq'.
-  Qed. 
+  (* Lemma is_seriesC_prod_row'' : *)
+  (*   ex_seriesC h → is_seriesC h (SeriesC (λ a, SeriesC (λ b, h (a, b)))). *)
+  (* Proof. *)
+  (*   intros Hex. *)
+  (*   rewrite -fubini_pos_seriesC_prod_lr //. *)
+  (*   by apply SeriesC_correct. *)
+  (* Qed. *)
+
+  (* Lemma fubini_pos_is_seriesC_prod_ex_lr  : *)
+  (*   ex_seriesC h → is_seriesC (λ a, SeriesC (λ b, h (a, b))) (SeriesC h). *)
+  (* Proof. *)
+  (*   intros Hex. *)
+    
+    
+  (*   eapply is_series_ext; [|by eapply is_seriesC_prod_row']. *)
+  (*   intros n=>/=. rewrite /countable_sum /=. *)
+  (*   destruct (encode_inv_nat n) eqn:Heq; [|by eapply Series_0]. *)
+  (*   eapply Series_ext. intros m=>/=. *)
+  (*   rewrite /countable_sum. *)
+  (*   by destruct (encode_inv_nat m) eqn:Heq'. *)
+  (* Qed.  *)
     
   Lemma fubini_pos_ex_seriesC_prod_ex_lr  :
     ex_seriesC h → ex_seriesC (λ a, SeriesC (λ b, h (a, b))).
-  Proof. intros Hex. eexists. by apply fubini_pos_is_seriesC_prod_ex_lr. Qed. 
+  Proof. Admitted. 
+    
 
   Lemma fubini_pos_ex_seriesC_prod_ex_rl  :
     ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
+  Proof.
+    
+    
   Admitted.
 
 
   Lemma ex_seriesC_lmarg a :
     ex_seriesC h → ex_seriesC (λ b, h (a, b)).
+  Proof.
   Admitted.
 
   Lemma ex_seriesC_rmarg b :
