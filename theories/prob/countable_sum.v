@@ -1084,6 +1084,20 @@ Section double.
   Lemma is_seriesC_prod_column:
     ex_seriesC h → is_seriesC h (Series (λ k, Series (λ j, aprod (S j, S k)))).
   Proof.
+    intro Hex.
+    apply (is_series_ext (aprod ∘ σprod)); [apply aprod_σprod_countable_sum|].
+    eapply is_series_chain; [apply is_series_double_covering'; auto|].
+    cut (Series (λ j, Series (λ k, aprod (j, k))) =
+        (Series (λ j, Series (λ k, aprod (S j, S k))))).
+    { intros <-. apply Series_correct. eexists.
+      eapply (is_series_double_covering aprod σprod); auto. }
+    rewrite Series_incr_1; last first.
+    { eexists. eapply is_series_double_covering; eauto. }
+    rewrite {1}/aprod Series_0 // Rplus_0_l.
+    apply Series_ext => n.
+    rewrite Series_incr_1; last first.
+    { apply ex_series_row; [|auto]. by apply aprod_double_summable. }
+    rewrite {1}/aprod Rplus_0_l => //=.
     Admitted. 
 
   Lemma SeriesC_prod_row :

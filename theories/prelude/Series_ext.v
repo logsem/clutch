@@ -1611,6 +1611,7 @@ Qed.
   Qed.
   *)
 
+
   (* Maybe move out of section so that we do not have to clear EXS *)
   Lemma ds_implies_exseries:
     double_summable a -> ex_series (a ∘ σ).
@@ -1660,10 +1661,15 @@ Qed.
     apply sup_is_lim.
     - intros; apply series_ge_0; auto.
     - rewrite lim_is_sup'; auto; last first.
-      + admit.
+      + intro n; simpl; destruct (σ n); auto.
       + rewrite -summable_ds_helper.
+        replace (λ n : nat, sum_n (λ j : nat, Series (λ k : nat, a (j, k))) n)
+                  with (λ n : nat, sum_n (λ j : nat, real (Sup_seq (λ m, sum_n (λ k : nat, a (j, k)) m))) n); last first.
+        { admit. }
         rewrite -(double_sup_diag (λ '(n,m), sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) m) n)).
-        * Search is_sup_seq.
+        * eapply is_sup_seq_ext; last first.
+          ** admit.
+          ** 
           (*
       erewrite (double_major_Series _ (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n)); last first.
     {
@@ -1757,6 +1763,102 @@ Qed.
   Proof using a σ POS INJ COV EXS.
     apply is_series_unique, is_series_double_covering.
   Qed.
+
+  Lemma double_summable_diag f:
+    (forall n m, 0 <= f(n,m)) ->
+    double_summable f ->
+    Series (λ n, Series (λ m, f (n, m))) =
+    Sup_seq (λ n, sum_n (λ i, sum_n (λ j, f(i,j)) n ) n).
+  Proof.
+    intros Hpos DS.
+    assert (forall n, Series (λ m : nat, f (n, m)) = Sup_seq (λ i, sum_n (λ m : nat, f (n, m)) i)) as Haux.
+    { admit. }
+    setoid_rewrite Haux.
+    rewrite lim_is_sup'.
+    - f_equal.
+      rewrite -(double_sup_diag (λ '(n,m), sum_n (λ i : nat, sum_n (λ j : nat, f (i, j)) m) n)).
+      + admit.
+      + intros.
+        apply partial_sum_mon; auto.
+        intros; apply partial_sum_pos.
+        intros; auto.
+      + intros.
+        apply sum_n_le.
+        intros.
+        apply partial_sum_mon; auto.
+    - intro n.
+      apply Rbar_0_le_to_Rle.
+      apply (Sup_seq_minor_le _ _ 0).
+      rewrite sum_O; simpl; auto.
+    - apply ex_pos_bounded_series.
+      + intros.
+        apply Rbar_0_le_to_Rle.
+        apply (Sup_seq_minor_le _ _ 0).
+        rewrite sum_O; simpl; auto.
+      + destruct DS as (r&Hr).
+        exists r.
+        intro n.
+        (*
+        rewrite (MCT_aux1 (λ x, λ y, sum_n (λ m : nat, f (y, m)) x)).
+        rewrite -(fubini_fin_inf (λ '(x,y), f(y,x))).
+        * rewrite lim_is_sup'.
+          ** admit.
+          ** intros. apply partial_sum_pos; auto.
+          ** apply ex_pos_bounded_series.
+             *** intros; apply partial_sum_pos; auto.
+             *** exists s; intro m.
+                 rewrite -fubini_fin_sum //.
+        * intros; auto.
+        * intros.
+          apply ex_pos_bounded_series.
+          ** intros; auto.
+          ** exists s; intro m.
+             etrans; [ | apply (Hs m b)].
+             apply (partial_sum_elem (λ j : nat, sum_n (λ k : nat, f (j, k)) m) b).
+             intros; apply partial_sum_pos; auto.
+        *)
+  Admitted.
+
+  Lemma double_summable_fubini f:
+    (forall n m, 0 <= f(n,m)) ->
+    double_summable f ->
+    Series (λ n, Series (λ m, f (n, m))) =
+    Series (λ m, Series (λ n, f (n, m))).
+  Proof using POS.
+    intros Hpos DS.
+    rewrite fubini_pos_series; auto.
+    - intro.
+      apply ex_pos_bounded_series; auto.
+      destruct DS as (r&Hr).
+      exists r; intro n; admit.
+    - apply ex_pos_bounded_series.
+      + intro; apply series_ge_0; auto.
+      + assert (forall j, ex_series (λ k : nat, f (j, k))).
+        {
+          intros; apply ex_series_row; auto.
+        }
+        destruct DS as (r&Hr).
+        exists r; intro n.
+        rewrite -(fubini_fin_inf (λ '(x,y), f(y,x))).
+        *
+ (*
+    rewrite double_summable_diag; auto.
+    erewrite (double_summable_diag (λ '(j,i), f (i, j))); auto.
+    - f_equal.
+      apply Sup_seq_ext.
+      intros.
+      rewrite (fubini_fin_sum (λ '(i,j), f (i, j))); auto.
+    - destruct DS as (r&Hr).
+      exists r.
+      intro n.
+      rewrite (fubini_fin_sum (λ '(i,j), f (j, i))); auto.
+  *)
+  Qed.
+
+
+
+
+
 
 End prod.
 
