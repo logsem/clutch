@@ -1,3 +1,4 @@
+From Coq Require Import Reals Psatz.
 From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 From discprob.basic Require sval base Reals_ext Series_Ext stdpp_ext.
 From discprob.prob Require countable.
@@ -5,43 +6,58 @@ From discprob.prob Require countable.
 From mathcomp Require Import bigop fintype choice.
 From mathcomp Require Import eqtype.
 
+Section Countable_countType.
+
 Lemma Countable_to_pcancel {T: Type} `{EqDecision T} (HC: Countable T):
-    ssrfun.pcancel (λ x : T, Pos.to_nat (@encode _ _ HC x))
-                   (λ x, @decode _ _ HC (Pos.of_nat x)).
+    ssrfun.pcancel (λ x : T, (@encode_nat _ _ HC x))
+                   (λ x, @decode_nat _ _ HC x).
 Proof.
   rewrite /ssrfun.pcancel.
   intros x.
+  specialize (pos_INR_nat_of_P (countable.encode x)).
   destruct HC => //=.
-  rewrite /countable.decode/countable.encode.
-  rewrite Pos2Nat.id decode_encode //=.
-Qed.
+  rewrite /countable.decode/countable.encode/encode_nat.
+  rewrite Nat.succ_pred.
+  { rewrite Pos2Nat.id decode_encode //=. }
+  { lia. }
+Defined.
 
 Definition StdppCountEqMixin {T : Type} `{EqDecision T}:
   Countable T → eqtype.Equality.mixin_of T.
 Proof.
   intros HC.
-  eapply (@PcanEqMixin T [countType of nat] (λ x, Pos.to_nat (@encode _ _ HC x))
-                       (λ x, @decode _ _ HC (Pos.of_nat x))).
+  eapply (@PcanEqMixin T [countType of nat] (λ x, (@encode_nat _ _ HC x))
+                       (λ x, @decode_nat _ _ HC x)).
   apply Countable_to_pcancel.
-Qed.
+Defined.
 
 Definition StdppCountChoiceMixin {T : Type} `{EqDecision T}:
   Countable T → Choice.mixin_of T.
 Proof.
   intros HC.
-  eapply (@PcanChoiceMixin [countType of nat] _ (λ x, Pos.to_nat (@encode _ _ HC x))
-                       (λ x, @decode _ _ HC (Pos.of_nat x))).
+  eapply (@PcanChoiceMixin [countType of nat] _ (λ x, (@encode_nat _ _ HC x))
+                       (λ x, @decode_nat _ _ HC x)).
   apply Countable_to_pcancel.
-Qed.
+Defined.
 
 Definition StdppCountCountMixin {T : Type} `{EqDecision T}:
   Countable T → Countable.mixin_of T.
 Proof.
   intros HC.
-  eapply (@PcanCountMixin [countType of nat] _ (λ x, Pos.to_nat (@encode _ _ HC x))
-                       (λ x, @decode _ _ HC (Pos.of_nat x))).
+  eapply (@PcanCountMixin [countType of nat] _ (λ x, @encode_nat _ _ HC x)
+                       (λ x, @decode_nat _ _ HC x)).
   apply Countable_to_pcancel.
-Qed.
+Defined.
+
+Definition StdppCountCountClass {T : Type} `{EqDecision T}:
+  Countable T → Countable.class_of T.
+Proof.
+  split.
+  - split.
+    * apply StdppCountEqMixin. apply _.
+    * apply StdppCountChoiceMixin. apply _.
+  - apply StdppCountCountMixin. apply _.
+Defined.
 
 #[local] Instance sig_eqdecision {T : Type} `{EqDecision T} (P: T → Prop):
   EqDecision T → EqDecision {x : T | P x}.
@@ -50,7 +66,7 @@ Proof.
   - destruct (Heq x y).
     * rewrite /Decision. left. subst. apply sval.sval_inj_pi => //=.
     * right. inversion 1; subst; eauto.
-Qed.
+Defined.
 
 Definition sig_countable {T : Type} `{EqDecision T} (P: T → Prop):
   Countable T → Countable {x : T | P x}.
@@ -70,4 +86,73 @@ Proof.
     ** exfalso; eauto.
 Qed.
 
+End Countable_countType.
 
+From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
+From clutch.prob Require Import countable_sum.
+
+Locate countable_sum.
+
+Notation dcountable_sum := discprob.prob.countable.countable_sum.
+
+Lemma is_seriesC_is_series_countable_sum
+  {A} `{COUNT: Countable A} (f: A → R) v
+  (Hfnonneg: ∀ x, 0 <= f x) :
+  is_seriesC f v →
+  is_series (dcountable_sum (λ x : (Countable.Pack (StdppCountCountClass COUNT)), f x)) v.
+Proof.
+  intros Hseries.
+  rewrite /is_seriesC in Hseries.
+  rewrite /countable_sum in Hseries.
+  rewrite /dcountable_sum/=.
+  rewrite /pickle_inv/=/unpickle/=.
+  eapply is_series_ext; try eassumption.
+  intros n. rewrite /=.
+  rewrite /ssrfun.Option.apply //=.
+  rewrite /ssrfun.Option.bind //=.
+  rewrite /ssrfun.Option.apply //=.
+  rewrite /ssrfun.pcomp //=.
+  destruct (encode_inv_nat n) as [| x] eqn:Heq.
+  - apply encode_inv_Some_nat in Heq.
+    rewrite -Heq decode_encode_nat /=.
+    rewrite /pickle/=/pickle/=.
+    rewrite eq_refl //.
+  - destruct (decode_nat n) as [| x] eqn:Hdecode => //=.
+    rewrite /pickle/=/pickle/=.
+    case: (@eq_op ssrnat.nat_eqType (encode_nat a) n) / eqP.
+    * intros Hfalse. rewrite -Hfalse in Heq.
+      rewrite encode_inv_encode_nat in Heq. congruence.
+    * nra.
+Qed.
+
+(*
+Lemma is_seriesC_is_series_countable_sum
+  {A} `{COUNT: Countable A} (CLASS: Countable.class_of A) (f: A → R) (g : Countable.Pack CLASS → R) v
+  (HEQ: ∀ x, g x = f x)
+  (Hfnonneg: ∀ x, 0 <= f x) :
+  is_seriesC f v →
+  is_series (dcountable_sum g) v.
+Proof.
+  intros Hseries.
+  rewrite /is_seriesC in Hseries.
+  rewrite /countable_sum in Hseries.
+Abort.
+
+
+Lemma is_seriesC_is_series_countable_sum
+  {A} `{COUNT: Countable A} (CLASS: Countable.class_of A) (f: A → R) g v
+  (HEQ: ∀ x, g x = f x)
+  (Hfnonneg: ∀ x, 0 <= f x) :
+  is_seriesC f v →
+  is_series (dcountable_sum g) v.
+Proof.
+
+
+Lemma is_seriesC_is_series_countable_sum
+  {A} `{COUNT: Countable A} (B: countType) (f: A → R) (f': B → R) v
+  (HEQ: Countable.sort B = A)
+  (Hfnonneg: ∀ x, 0 <= f x) :
+  is_seriesC f v →
+  is_series (dcountable_sum f') v.
+Proof.
+*)
