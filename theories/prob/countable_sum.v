@@ -1062,6 +1062,41 @@ Section double.
     ex_seriesC h → double_summable aprod.
   Proof. intros Hex. eapply (summable_implies_ds aprod σprod); auto. Qed.
 
+  (* TODO: move *)
+  Lemma sum_n_shift (a : nat → R) n :
+    sum_n (λ m, a (S m)) n = sum_n a (S n) - a 0%nat.
+  Proof.
+    rewrite sum_Sn /plus /=.
+    induction n as [|n IH].
+    - rewrite 2!sum_O /=. lra.
+    - rewrite 2!sum_Sn /plus /= IH. lra.
+  Qed.
+
+  Lemma sum_n_Ropp (a : nat → R) n :
+    sum_n (λ n, - a n) n = - sum_n a n.
+  Proof.
+    revert a; induction n => a.
+    - rewrite 2!sum_O //.
+    - rewrite 2!sum_Sn /plus /= IHn. lra.
+  Qed.
+
+  Lemma aprod_S_double_summable :
+    ex_seriesC h → double_summable (λ '(j, k), aprod (S j, S k)).
+  Proof.
+    intros [r Hr]%aprod_double_summable.
+    rewrite /double_summable.
+    exists r.
+    intros n.
+    erewrite sum_n_ext; last first.
+    { intros m. rewrite (sum_n_shift (λ k, aprod (S m, k))) //. }
+    rewrite sum_n_plus /plus /=.
+    rewrite (sum_n_shift (λ k, sum_n (λ j, aprod (k, j)) (S n))).
+    rewrite sum_n_const.
+    assert (0 <= sum_n (λ j, aprod (0%nat, j)) (S n)) by eapply partial_sum_pos=>//.
+    specialize (Hr (S n)).
+    lra.
+  Qed.
+
   Lemma is_seriesC_prod_row:
     ex_seriesC h → is_seriesC h (Series (λ j, Series (λ k, aprod (S j, S k)))).
   Proof.
@@ -1084,21 +1119,12 @@ Section double.
   Lemma is_seriesC_prod_column:
     ex_seriesC h → is_seriesC h (Series (λ k, Series (λ j, aprod (S j, S k)))).
   Proof.
-    intro Hex.
-    apply (is_series_ext (aprod ∘ σprod)); [apply aprod_σprod_countable_sum|].
-    eapply is_series_chain; [apply is_series_double_covering'; auto|].
-    cut (Series (λ j, Series (λ k, aprod (j, k))) =
-        (Series (λ j, Series (λ k, aprod (S j, S k))))).
-    { intros <-. apply Series_correct. eexists.
-      eapply (is_series_double_covering aprod σprod); auto. }
-    rewrite Series_incr_1; last first.
-    { eexists. eapply is_series_double_covering; eauto. }
-    rewrite {1}/aprod Series_0 // Rplus_0_l.
-    apply Series_ext => n.
-    rewrite Series_incr_1; last first.
-    { apply ex_series_row; [|auto]. by apply aprod_double_summable. }
-    rewrite {1}/aprod Rplus_0_l => //=.
-    Admitted. 
+    intros Hex.
+    rewrite -(double_summable_fubini (λ '(j, k), aprod (S j, S k))).
+    - by apply is_seriesC_prod_row.
+    - intros []; auto.
+    - by apply aprod_S_double_summable.
+  Qed.
 
   Lemma SeriesC_prod_row :
     ex_seriesC h → SeriesC h = Series (λ j, Series (λ k, aprod (S j, S k))).
@@ -1106,14 +1132,13 @@ Section double.
 
   Lemma SeriesC_prod_column :
     ex_seriesC h → SeriesC h = Series (λ k, Series (λ j, aprod (S j, S k))).
-  Proof. intros ?. by apply is_series_unique, is_seriesC_prod_column. Qed.  
-
+  Proof. intros ?. by apply is_series_unique, is_seriesC_prod_column. Qed.
 
   Lemma fubini_pos_seriesC_prod_lr  :
     ex_seriesC h → SeriesC h = SeriesC (λ a, SeriesC (λ b, h (a, b))).
   Proof.
     intros Hex.
-    rewrite SeriesC_prod_row //. 
+    rewrite SeriesC_prod_row //.
     rewrite /SeriesC/aprod/countable_sum.
     apply Series_ext => n.
     destruct (encode_inv_nat n); simpl; [ | apply Series_0; auto].
@@ -1125,14 +1150,14 @@ Section double.
     ex_seriesC h → SeriesC h = SeriesC (λ b, SeriesC (λ a, h (a, b))).
   Proof.
     intros Hex.
-    rewrite SeriesC_prod_column //. 
+    rewrite SeriesC_prod_column //.
     rewrite /SeriesC/aprod/countable_sum.
     apply Series_ext => n.
     destruct (encode_inv_nat n); simpl; last first.
     { rewrite Series_0 //. intros. by case_match. }
     apply Series_ext => m.
     destruct (encode_inv_nat m); simpl; auto.
-  Qed.     
+  Qed.
 
   (* Lemma is_seriesC_prod_row'' : *)
   (*   ex_seriesC h → is_seriesC h (SeriesC (λ a, SeriesC (λ b, h (a, b)))). *)
@@ -1146,8 +1171,8 @@ Section double.
   (*   ex_seriesC h → is_seriesC (λ a, SeriesC (λ b, h (a, b))) (SeriesC h). *)
   (* Proof. *)
   (*   intros Hex. *)
-    
-    
+
+
   (*   eapply is_series_ext; [|by eapply is_seriesC_prod_row']. *)
   (*   intros n=>/=. rewrite /countable_sum /=. *)
   (*   destruct (encode_inv_nat n) eqn:Heq; [|by eapply Series_0]. *)
@@ -1155,17 +1180,17 @@ Section double.
   (*   rewrite /countable_sum. *)
   (*   by destruct (encode_inv_nat m) eqn:Heq'. *)
   (* Qed.  *)
-    
+
   Lemma fubini_pos_ex_seriesC_prod_ex_lr  :
     ex_seriesC h → ex_seriesC (λ a, SeriesC (λ b, h (a, b))).
-  Proof. Admitted. 
-    
+  Proof. Admitted.
+
 
   Lemma fubini_pos_ex_seriesC_prod_ex_rl  :
     ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
   Proof.
-    
-    
+
+
   Admitted.
 
 
