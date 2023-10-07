@@ -2023,30 +2023,30 @@ Qed.
              intros; apply partial_sum_pos; auto.
         *)
   Admitted.
+End prod.
 
-  Lemma double_summable_fubini f:
-    (forall n m, 0 <= f(n,m)) ->
-    double_summable f ->
-    Series (λ n, Series (λ m, f (n, m))) =
-    Series (λ m, Series (λ n, f (n, m))).
-  Proof using POS.
-    intros Hpos DS.
-    rewrite fubini_pos_series; auto.
-    - intro.
-      apply ex_pos_bounded_series; auto.
+Lemma double_summable_fubini f:
+  (∀ n m, 0 <= f(n,m)) →
+  double_summable f →
+  Series (λ n, Series (λ m, f (n, m))) = Series (λ m, Series (λ n, f (n, m))).
+Proof.
+  intros Hpos DS.
+  rewrite fubini_pos_series; auto.
+  - intro.
+    apply ex_pos_bounded_series; auto.
+    destruct DS as (r&Hr).
+    exists r; intro n; admit.
+  - apply ex_pos_bounded_series.
+    + intro; apply series_ge_0; auto.
+    + assert (forall j, ex_series (λ k : nat, f (j, k))).
+      {
+        intros; apply ex_series_row; auto.
+      }
       destruct DS as (r&Hr).
-      exists r; intro n; admit.
-    - apply ex_pos_bounded_series.
-      + intro; apply series_ge_0; auto.
-      + assert (forall j, ex_series (λ k : nat, f (j, k))).
-        {
-          intros; apply ex_series_row; auto.
-        }
-        destruct DS as (r&Hr).
-        exists r; intro n.
-        rewrite -(fubini_fin_inf (λ '(x,y), f(y,x))).
-        *
- (*
+      exists r; intro n.
+      rewrite -(fubini_fin_inf (λ '(x,y), f(y,x))).
+      *
+(*
     rewrite double_summable_diag; auto.
     erewrite (double_summable_diag (λ '(j,i), f (i, j))); auto.
     - f_equal.
@@ -2058,12 +2058,6 @@ Qed.
       intro n.
       rewrite (fubini_fin_sum (λ '(i,j), f (j, i))); auto.
   *)
+<<<<<<< HEAD
   Qed.
 *)
-
-
-
-
-
-End prod.
-
