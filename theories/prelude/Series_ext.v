@@ -81,6 +81,16 @@ Section rbar_extra.
     apply Rle_refl.
   Qed.
 
+
+Lemma Rbar_plus_le_pos_l:
+  ∀ a b c : Rbar, Rbar_lt 0 c → Rbar_le a (Rbar_plus a c).
+Proof.
+  intros.
+  rewrite <- (Rbar_plus_0_r a) at 1.
+  apply Rbar_plus_le_compat; [ reflexivity | ].
+  by apply Rbar_lt_le.
+Qed.
+
 End rbar_extra.
 
 Lemma ex_series_eventually0 (a: nat → R):
@@ -309,6 +319,16 @@ Section positive.
   Qed.
 
 
+  (*
+  Lemma sup_is_fin (h : nat -> R) :
+    (∀ n, 0 <= h n) ->
+    ex_series h →
+    is_finite (Sup_seq (sum_n h)).
+  Proof.
+    intros Hpos Hex.
+    Search is_finite.
+  *)
+
   Lemma sup_is_upper_bound (h : nat → Rbar) n :
     Rbar_le (h n) (Sup_seq h).
   Proof.
@@ -364,6 +384,66 @@ Section positive.
     + apply upper_bound_ge_sup; intro n.
       destruct (H2 n) as (m & ?).
       apply (Sup_seq_minor_le _ _ m); auto.
+  Qed.
+
+  Lemma sup_seq_swap (h : nat * nat -> R) :
+    Sup_seq (λ n, Sup_seq (λ m, h (n , m))) =
+                    Sup_seq (λ m, Sup_seq (λ n, h (n , m))).
+  Proof.
+    apply Rbar_le_antisym.
+    + apply upper_bound_ge_sup; intro n.
+      apply upper_bound_ge_sup; intro m.
+      apply (Sup_seq_minor_le _ _ m).
+      apply (Sup_seq_minor_le _ _ n).
+      simpl; lra.
+    + apply upper_bound_ge_sup; intro n.
+      apply upper_bound_ge_sup; intro m.
+      apply (Sup_seq_minor_le _ _ m).
+      apply (Sup_seq_minor_le _ _ n).
+      simpl; lra.
+  Qed.
+
+
+  Lemma Series_real_sup (h: nat -> R) :
+    (∀ n, 0 <= h n) ->
+    Series h = (real (Sup_seq (sum_n h))).
+  Proof.
+    intros Hpos.
+    rewrite /Series.
+    f_equal.
+    apply is_lim_seq_unique.
+    apply is_LimSup_LimInf_lim_seq.
+    - apply is_LimSup_infSup_seq.
+      apply Rbar_is_glb_inf_seq.
+      rewrite /Lub.Rbar_is_glb/=;split.
+      + rewrite /Lub.Rbar_is_lower_bound.
+        intros x (n&->).
+        apply Sup_seq_le.
+        intro; simpl.
+        apply partial_sum_mon; auto; lia.
+      + rewrite /Lub.Rbar_is_lower_bound.
+        intros b Hb.
+        apply Hb.
+        exists 0%nat. apply Sup_seq_ext; intro.
+        by rewrite Nat.add_0_r.
+    - apply is_LimInf_supInf_seq.
+      eapply (is_sup_seq_ext (λ n : nat, sum_n h (n))).
+      + intro n; symmetry.
+        apply is_inf_seq_unique.
+        rewrite /is_inf_seq.
+        intro eps; split.
+        * intro n0; simpl.
+          eapply (Rlt_le_trans _ (sum_n h n));
+            [ | apply partial_sum_mon; auto; lia].
+          apply Rlt_minus_l.
+          rewrite <- Rplus_0_r at 1.
+          apply Rplus_lt_compat_l.
+          apply cond_pos.
+        * exists 0%nat; simpl.
+          rewrite <- Rplus_0_r at 1.
+          apply Rplus_lt_compat_l.
+          apply cond_pos.
+      + apply Sup_seq_correct.
   Qed.
 
 
@@ -435,26 +515,6 @@ Section positive.
          * apply Rbar_le_refl.
   Qed.
 
-  Lemma double_sup_double_major (h1 : nat -> R) (h2 : nat -> R) :
-    (forall n m, (n <= m)%nat -> h1 n <= h1 m) ->
-    (forall n m, (n <= m)%nat -> h2 n <= h2 m) ->
-    (forall n, exists m,  h1 n <= h2 m) ->
-    (forall n, exists m,  h2 n <= h1 m) ->
-    Sup_seq h1 = Sup_seq h2.
-  Proof.
-    intros Hmon1 Hmon2 Hmaj1 Hmaj2.
-    apply Rbar_le_antisym.
-    - apply upper_bound_ge_sup.
-      intros n.
-      destruct (Hmaj1 n) as (m&?).
-      by eapply (Sup_seq_minor_le).
-    - apply upper_bound_ge_sup.
-      intros n.
-      destruct (Hmaj2 n) as (m&?).
-      by eapply (Sup_seq_minor_le).
-  Qed.
-
-
   Lemma double_major_ex_series (h1 : nat -> R) (h2 : nat -> R) :
     (forall n, 0 <= h1 n) ->
     (forall n, 0 <= h2 n) ->
@@ -474,11 +534,7 @@ Section positive.
       rewrite -Hsup1 Haux.
       apply Sup_seq_correct.
     }
-    apply double_sup_double_major.
-    - intros; apply partial_sum_mon; auto.
-    - intros; apply partial_sum_mon; auto.
-    - auto.
-    - auto.
+    apply sup_seq_eq_antisym; auto.
   Qed.
 
 
@@ -497,11 +553,7 @@ Section positive.
       apply (double_major_ex_series h1 h2); auto.
     }
     f_equal.
-    apply double_sup_double_major.
-    - intros; apply partial_sum_mon; auto.
-    - intros; apply partial_sum_mon; auto.
-    - auto.
-    - auto.
+    apply sup_seq_eq_antisym; auto.
   Qed.
 
 
@@ -1183,8 +1235,11 @@ Section double.
 Definition double_summable a :=
   ∃ (r: R), ∀ n, sum_n (λ j, sum_n (λ k, a (j, k)) n) n <= r.
 
-Definition double_summable_nm a := 
+Definition double_summable_nm a :=
   ∃ (r: R), ∀ n m, sum_n (λ j, sum_n (λ k, a (j, k)) n) m <= r.
+
+Definition double_summable_n_Series a :=
+  ∃ (r: R), ∀ n, sum_n (λ j, Series (λ k, a (j, k))) n <= r.
 
 Lemma DS_n_to_nm a :
   (forall n m, 0 <= a(n,m)) ->
@@ -1205,6 +1260,31 @@ Proof.
   apply partial_sum_mon; [ | apply Nat.le_max_l].
   intro; auto.
 Qed.
+
+(*
+Lemma DS_n_to_n_Series a :
+  (forall n m, 0 <= a(n,m)) ->
+  double_summable a -> double_summable_n_Series a.
+Proof.
+  intros Hpos (r&Hr).
+  exists r.
+  intro n.
+  transitivity (Sup_seq (λ n, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n ) n)); last first.
+  - apply Rbar_le_fin.
+    * etrans; [ | apply (Hr 0%nat)].
+      do 2 rewrite sum_O; auto.
+    * apply upper_bound_ge_sup.
+      intro; simpl; done.
+  - Search sum_n.
+    apply rbar_le_finite.
+    + admit.
+    + rewrite -(double_sup_diag (λ '(n1, n2), sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n2) n1)).
+      * etrans.
+        ** apply (sup_is_upper_bound (λ n, sum_n (λ j : nat, Series (λ k : nat, a (j, k))) n)).
+        ** apply Sup_seq_le.
+           intro m.
+           Search sum_n.
+*)
 
 Lemma double_summable_mono_cond a:
   (forall n m, 0 <= a(n,m)) ->
@@ -1327,6 +1407,53 @@ Proof.
   intros n => //=.
 Qed.
 
+Lemma ex_series_row_col a (DS : double_summable a) :
+  (forall n m, 0 <= a(n,m)) ->
+  ex_series (λ j, Series (λ k, a (j, k))).
+Proof.
+  intros Hpos.
+  pose proof (DS_n_to_nm a Hpos DS) as (r&Hr).
+  apply ex_pos_bounded_series.
+  - intro; apply series_ge_0; auto.
+  - exists r; intro n.
+    rewrite -(fubini_fin_inf (λ '(x,y), a(y,x))).
+    + apply series_bounded.
+      * intro; apply partial_sum_pos; auto.
+      * intro. rewrite (fubini_fin_sum ((λ '(x,y), a(y,x)))); auto.
+      * apply ex_pos_bounded_series.
+        ** intro; apply partial_sum_pos; auto.
+        ** exists r; intro.
+           rewrite (fubini_fin_sum ((λ '(x,y), a(y,x)))); auto.
+    + intros; auto.
+    + intros.
+      apply (ex_series_column (λ '(x,y), a(y,x))).
+      * exists r; intros.
+        rewrite (fubini_fin_sum ((λ '(x,y), a(y,x)))); auto.
+      * intros; auto.
+Qed.
+
+
+Lemma ex_series_col_row a (DS : double_summable a) :
+  (forall n m, 0 <= a(n,m)) ->
+  ex_series (λ k, Series (λ j, a (j, k))).
+Proof.
+  intros Hpos.
+  pose proof (DS_n_to_nm a Hpos DS) as (r&Hr).
+  apply ex_pos_bounded_series.
+  - intro; apply series_ge_0; auto.
+  - exists r; intro n.
+    rewrite -(fubini_fin_inf).
+    + apply series_bounded.
+      * intro; apply partial_sum_pos; auto.
+      * intro; auto.
+      * apply ex_pos_bounded_series.
+        ** intro; apply partial_sum_pos; auto.
+        ** exists r; intro; auto.
+    + intros; auto.
+    + intros.
+      apply ex_series_column; auto.
+Qed.
+
 End double.
 
 Section prod.
@@ -1353,6 +1480,7 @@ Section prod.
   Qed.
   *)
 
+(*
 Lemma inj_nat_cover1:
   ∀ N, ∃ K, ∀ n, n ≤ N → (fst (σ n) ≤ K ∧ snd (σ n) ≤ K).
 Proof.
@@ -1556,19 +1684,24 @@ Qed.
     done.
     *)
   Admitted.
+*)
+
+  Lemma foo : forall n, exists m,
+    sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n <= sum_n (a ∘ σ) m.
+  Admitted.
+
+  Lemma bar : forall n, exists m,
+    sum_n (a ∘ σ) n <= sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) m) m.
+  Admitted.
 
   Lemma summable_ds_helper:
     Sup_seq (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) =
       Sup_seq (λ n, sum_n (a ∘ σ) n).
   Proof.
-    apply double_sup_double_major.
-    - admit.
-    - intros; apply partial_sum_mon; auto.
-      intros n0; simpl.
-      destruct (σ n0); auto.
-    - admit.
-    - admit.
-  Admitted.
+    apply sup_seq_eq_antisym.
+    - apply foo.
+    - apply bar.
+  Qed.
 
 
   Lemma summable_implies_ds:
@@ -1578,10 +1711,17 @@ Qed.
     exists (Sup_seq (λ n, sum_n (a ∘ σ) n)).
     intro.
     apply rbar_le_finite.
-    - admit.
+    - apply (is_finite_bounded 0 (Series (a ∘ σ))).
+      * apply (Sup_seq_minor_le _ _ 0).
+        rewrite /=sum_O//.
+        simpl; destruct (σ 0). auto.
+      * apply upper_bound_ge_sup.
+        intro n0; simpl.
+        apply series_pos_partial_le; auto.
+        intro m; simpl; destruct (σ m); auto.
     - rewrite -summable_ds_helper.
     apply (sup_is_upper_bound (λ n0 : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n0) n0)).
-  Admitted.
+  Qed.
   (*
     Search Sup_seq.
     destruct (sum_n_m_cover_diff_double O) as (N&HN).
@@ -1624,10 +1764,13 @@ Qed.
     - exists (Sup_seq (λ n, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) ).
       intro n.
       apply rbar_le_finite.
-      + admit.
+      + apply (is_finite_bounded 0 r).
+        * apply (Sup_seq_minor_le _ _ 0).
+          rewrite /=sum_O/=sum_O//.
+        * by apply upper_bound_ge_sup.
       + rewrite summable_ds_helper.
         apply (sup_is_upper_bound (λ n0 : nat, sum_n (a ∘ σ) n0)).
-  Admitted.
+  Qed.
 
   Lemma is_lim_seq_sum_n (f: nat * nat → R) (h: nat → R) l:
     (∀ j, j ≤ l → is_lim_seq (λ m, sum_n (λ k, f (j, k)) m) (h j)) →
@@ -1654,22 +1797,84 @@ Qed.
     by apply (is_lim_seq_abs u (Finite l)).
   Qed.
 
+  (* TODO: factor out some of the proofs of is_finite_bounded,
+     clean up *)
   Lemma is_series_double_covering:
     is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
   Proof using a σ POS INJ COV EXS.
+    pose proof (summable_implies_ds) as DS.
+    destruct (DS_n_to_nm a POS DS) as (r&Hr).
     destruct (EXS) as (v'&Hconv).
     apply sup_is_lim.
     - intros; apply series_ge_0; auto.
     - rewrite lim_is_sup'; auto; last first.
       + intro n; simpl; destruct (σ n); auto.
-      + rewrite -summable_ds_helper.
-        replace (λ n : nat, sum_n (λ j : nat, Series (λ k : nat, a (j, k))) n)
-                  with (λ n : nat, sum_n (λ j : nat, real (Sup_seq (λ m, sum_n (λ k : nat, a (j, k)) m))) n); last first.
-        { admit. }
-        rewrite -(double_sup_diag (λ '(n,m), sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) m) n)).
-        * eapply is_sup_seq_ext; last first.
-          ** admit.
-          ** 
+      + eapply is_sup_seq_ext.
+        {
+          intro n.
+          rewrite -(fubini_fin_inf (λ '(x,y), a(y,x))); auto.
+          intro.
+          apply ex_series_row; auto.
+        }
+        rewrite -summable_ds_helper.
+        apply Rbar_is_lub_sup_seq.
+        rewrite /Lub.Rbar_is_lub; split.
+        * rewrite /Lub.Rbar_is_upper_bound.
+          intros x (n&->).
+          rewrite rbar_finite_real_eq; last first.
+          {
+            apply (is_finite_bounded 0 r).
+            - apply (Sup_seq_minor_le _ _ 0).
+              rewrite /=sum_O/=sum_O//.
+            - apply upper_bound_ge_sup.
+              intro; simpl; auto.
+          }
+          rewrite Series_real_sup; last first.
+          { intros; apply partial_sum_pos; auto. }
+          rewrite rbar_finite_real_eq; last first.
+          {
+            apply (is_finite_bounded 0 r).
+            - apply (Sup_seq_minor_le _ _ 0).
+              rewrite //=sum_O.
+              by apply partial_sum_pos.
+            - apply upper_bound_ge_sup.
+              intro; simpl.
+              by rewrite -fubini_fin_sum.
+          }
+          apply upper_bound_ge_sup.
+          intro m.
+          apply (Sup_seq_minor_le _ _ (n `max` m)).
+          simpl.
+          etrans.
+          ** apply partial_sum_mon; [ intro; apply partial_sum_pos; auto | ].
+             by apply (Nat.le_max_r n).
+          ** rewrite {1}fubini_fin_sum.
+             apply sum_n_le.
+             intros. apply partial_sum_mon; [ intro; auto | ].
+             lia.
+        * rewrite /Lub.Rbar_is_upper_bound.
+          intros b Hb.
+          rewrite rbar_finite_real_eq; last first.
+          {
+            apply (is_finite_bounded 0 r).
+            - apply (Sup_seq_minor_le _ _ 0).
+              rewrite /=sum_O/=sum_O//.
+            - apply upper_bound_ge_sup.
+              intro; simpl; auto.
+          }
+          apply upper_bound_ge_sup.
+          intro n.
+          etrans; last first.
+          ** apply Hb.
+             exists n. reflexivity.
+          ** simpl.
+             rewrite fubini_fin_sum.
+             apply series_pos_partial_le; [ intro; apply partial_sum_pos; auto | ].
+             apply ex_pos_bounded_series; [ intro; apply partial_sum_pos; auto | ].
+             exists r.
+             intro.
+             rewrite -fubini_fin_sum; auto.
+ Qed.
           (*
       erewrite (double_major_Series _ (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n)); last first.
     {
@@ -1749,7 +1954,6 @@ Qed.
       replace (eps) with (eps/2 + eps/2); last by field.
       apply Rplus_lt_compat; eauto.
 *)
-  Admitted.
 
   Lemma is_series_double_covering':
     is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
@@ -1764,6 +1968,7 @@ Qed.
     apply is_series_unique, is_series_double_covering.
   Qed.
 
+  (*
   Lemma double_summable_diag f:
     (forall n m, 0 <= f(n,m)) ->
     double_summable f ->
@@ -1854,7 +2059,7 @@ Qed.
       rewrite (fubini_fin_sum (λ '(i,j), f (j, i))); auto.
   *)
   Qed.
-
+*)
 
 
 

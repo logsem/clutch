@@ -1102,7 +1102,7 @@ Section double.
 
   Lemma SeriesC_prod_row :
     ex_seriesC h → SeriesC h = Series (λ j, Series (λ k, aprod (S j, S k))).
-  Proof. intros ?. by apply is_series_unique, is_seriesC_prod_row. Qed.
+  Proof. intros ?. by apply is_s Qed.
 
   Lemma SeriesC_prod_column :
     ex_seriesC h → SeriesC h = Series (λ k, Series (λ j, aprod (S j, S k))).
