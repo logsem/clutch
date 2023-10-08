@@ -133,6 +133,7 @@ Section positive.
         apply not_le; auto.
   Qed.
 
+  Search sum_n.
 
   Lemma partial_sum_pos (h : nat → R) p :
     (∀ n, 0 <= h n) ->
@@ -1456,7 +1457,54 @@ Qed.
 
 End double.
 
-Section prod.
+
+Section prod1.
+
+  Variable (a: nat * nat → R).
+  Variable (σ: nat → nat * nat).
+
+  Variable (POS: forall n n', 0 <= a (n, n')).
+  Variable (INJ: ∀ n n', a (σ n) <> 0 → σ n = σ n' → n = n').
+  Variable (COV: ∀ n, a n <> 0 → ∃ m, σ m = n).
+
+
+  Lemma foo : forall n, exists m,
+    sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n <= sum_n (a ∘ σ) m.
+  Admitted.
+
+  Lemma bar : forall n, exists m,
+    sum_n (a ∘ σ) n <= sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) m) m.
+  Admitted.
+
+  Lemma summable_ds_helper:
+    Sup_seq (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) =
+      Sup_seq (λ n, sum_n (a ∘ σ) n).
+  Proof.
+    apply sup_seq_eq_antisym.
+    - apply foo.
+    - apply bar.
+  Qed.
+
+  Lemma ds_implies_exseries :
+      double_summable a -> ex_series (a ∘ σ).
+  Proof.
+    intros (r & Hr).
+    apply ex_pos_bounded_series.
+    - intro n; simpl; destruct (σ n); auto.
+    - exists (Sup_seq (λ n, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) ).
+      intro n.
+      apply rbar_le_finite.
+      + apply (is_finite_bounded 0 r).
+        * apply (Sup_seq_minor_le _ _ 0).
+          rewrite /=sum_O/=sum_O//.
+        * by apply upper_bound_ge_sup.
+      + rewrite summable_ds_helper.
+        apply (sup_is_upper_bound (λ n0 : nat, sum_n (a ∘ σ) n0)).
+  Qed.
+
+End prod1.
+
+Section prod2.
 
   Variable (a: nat * nat → R).
   Variable (σ: nat → nat * nat).
@@ -1465,6 +1513,7 @@ Section prod.
   Variable (INJ: ∀ n n', a (σ n) <> 0 → σ n = σ n' → n = n').
   Variable (COV: ∀ n, a n <> 0 → ∃ m, σ m = n).
   Variable (EXS: ex_series (a ∘ σ)).
+
 
   (*
   Lemma abs_inj: ∀ n n', a (σ n) <> 0 → σ n = σ n' → n = n'.
@@ -1686,27 +1735,10 @@ Qed.
   Admitted.
 *)
 
-  Lemma foo : forall n, exists m,
-    sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n <= sum_n (a ∘ σ) m.
-  Admitted.
-
-  Lemma bar : forall n, exists m,
-    sum_n (a ∘ σ) n <= sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) m) m.
-  Admitted.
-
-  Lemma summable_ds_helper:
-    Sup_seq (λ n : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) =
-      Sup_seq (λ n, sum_n (a ∘ σ) n).
-  Proof.
-    apply sup_seq_eq_antisym.
-    - apply foo.
-    - apply bar.
-  Qed.
-
 
   Lemma summable_implies_ds:
     double_summable a.
-  Proof using a σ POS INJ COV EXS.
+  Proof.
     rewrite /double_summable.
     exists (Sup_seq (λ n, sum_n (a ∘ σ) n)).
     intro.
@@ -1719,7 +1751,7 @@ Qed.
         intro n0; simpl.
         apply series_pos_partial_le; auto.
         intro m; simpl; destruct (σ m); auto.
-    - rewrite -summable_ds_helper.
+    - rewrite -summable_ds_helper; auto.
     apply (sup_is_upper_bound (λ n0 : nat, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n0) n0)).
   Qed.
   (*
@@ -1752,25 +1784,6 @@ Qed.
   *)
 
 
-  (* Maybe move out of section so that we do not have to clear EXS *)
-  Lemma ds_implies_exseries:
-    double_summable a -> ex_series (a ∘ σ).
-  Proof.
-    (* clear EXS. *)
-    rewrite /double_summable.
-    intros (r & Hr).
-    apply ex_pos_bounded_series.
-    - intro n; simpl; destruct (σ n); auto.
-    - exists (Sup_seq (λ n, sum_n (λ j : nat, sum_n (λ k : nat, a (j, k)) n) n) ).
-      intro n.
-      apply rbar_le_finite.
-      + apply (is_finite_bounded 0 r).
-        * apply (Sup_seq_minor_le _ _ 0).
-          rewrite /=sum_O/=sum_O//.
-        * by apply upper_bound_ge_sup.
-      + rewrite summable_ds_helper.
-        apply (sup_is_upper_bound (λ n0 : nat, sum_n (a ∘ σ) n0)).
-  Qed.
 
   Lemma is_lim_seq_sum_n (f: nat * nat → R) (h: nat → R) l:
     (∀ j, j ≤ l → is_lim_seq (λ m, sum_n (λ k, f (j, k)) m) (h j)) →
@@ -1801,7 +1814,7 @@ Qed.
      clean up *)
   Lemma is_series_double_covering:
     is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
-  Proof using a σ POS INJ COV EXS.
+  Proof.
     pose proof (summable_implies_ds) as DS.
     destruct (DS_n_to_nm a POS DS) as (r&Hr).
     destruct (EXS) as (v'&Hconv).
@@ -1816,7 +1829,7 @@ Qed.
           intro.
           apply ex_series_row; auto.
         }
-        rewrite -summable_ds_helper.
+        rewrite -summable_ds_helper; auto.
         apply Rbar_is_lub_sup_seq.
         rewrite /Lub.Rbar_is_lub; split.
         * rewrite /Lub.Rbar_is_upper_bound.
@@ -1957,14 +1970,14 @@ Qed.
 
   Lemma is_series_double_covering':
     is_series (a ∘ σ) (Series (λ j, Series (λ k, a (j, k)))).
-  Proof using a σ POS INJ COV EXS.
+  Proof.
     specialize (is_series_unique _ _ (is_series_double_covering)) => ->.
     by apply Series_correct.
   Qed.
 
   Lemma Series_double_covering:
     Series (λ j, Series (λ k, a (j, k))) = (Series (a ∘ σ)).
-  Proof using a σ POS INJ COV EXS.
+  Proof.
     apply is_series_unique, is_series_double_covering.
   Qed.
 
@@ -2024,6 +2037,7 @@ Qed.
         *)
   Admitted.
 End prod.
+*)
 
 Lemma double_summable_fubini f:
   (∀ n m, 0 <= f(n,m)) →
@@ -2033,31 +2047,11 @@ Proof.
   intros Hpos DS.
   rewrite fubini_pos_series; auto.
   - intro.
-    apply ex_pos_bounded_series; auto.
-    destruct DS as (r&Hr).
-    exists r; intro n; admit.
-  - apply ex_pos_bounded_series.
-    + intro; apply series_ge_0; auto.
-    + assert (forall j, ex_series (λ k : nat, f (j, k))).
-      {
-        intros; apply ex_series_row; auto.
-      }
-      destruct DS as (r&Hr).
-      exists r; intro n.
-      rewrite -(fubini_fin_inf (λ '(x,y), f(y,x))).
-      *
-(*
-    rewrite double_summable_diag; auto.
-    erewrite (double_summable_diag (λ '(j,i), f (i, j))); auto.
-    - f_equal.
-      apply Sup_seq_ext.
-      intros.
-      rewrite (fubini_fin_sum (λ '(i,j), f (i, j))); auto.
-    - destruct DS as (r&Hr).
-      exists r.
-      intro n.
-      rewrite (fubini_fin_sum (λ '(i,j), f (j, i))); auto.
-  *)
-<<<<<<< HEAD
+    apply ex_series_row; auto.
+  - apply ex_series_row_col; auto.
   Qed.
-*)
+
+
+  End prod2.
+
+

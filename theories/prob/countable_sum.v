@@ -1128,7 +1128,7 @@ Section double.
 
   Lemma SeriesC_prod_row :
     ex_seriesC h → SeriesC h = Series (λ j, Series (λ k, aprod (S j, S k))).
-  Proof. intros ?. by apply is_s Qed.
+  Proof. intros ?. by apply is_series_unique, is_seriesC_prod_row. Qed.
 
   Lemma SeriesC_prod_column :
     ex_seriesC h → SeriesC h = Series (λ k, Series (λ j, aprod (S j, S k))).
@@ -1181,27 +1181,212 @@ Section double.
   (*   by destruct (encode_inv_nat m) eqn:Heq'. *)
   (* Qed.  *)
 
+  Lemma sum_n_shift' (a : nat → R) (n : nat) :
+   sum_n a (S n) = sum_n (λ m : nat, a (S m)) n + a 0%nat.
+  Proof.
+    rewrite sum_n_shift; lra.
+  Qed.
+
   Lemma fubini_pos_ex_seriesC_prod_ex_lr  :
     ex_seriesC h → ex_seriesC (λ a, SeriesC (λ b, h (a, b))).
-  Proof. Admitted.
+  Proof.
+    intros Hex.
+    apply ex_seriesC_ex_series.
+    rewrite /SeriesC/countable_sum.
+    assert (forall n,
+       (from_option
+         (λ a : A,
+            Series (λ n0 : nat, from_option (λ b : B, h (a, b)) 0 (encode_inv_nat n0))) 0
+         (encode_inv_nat n)) =
+       (Series (λ n0 : nat,
+         from_option
+         (λ a : A, from_option (λ b : B, h (a, b)) 0 (encode_inv_nat n0)) 0
+         (encode_inv_nat n)))) as Haux.
+    {
+      intro n. destruct (encode_inv_nat); simpl; auto.
+      by rewrite Series_0.
+    }
+    setoid_rewrite Haux.
+    apply (ex_series_row_col
+             (λ '(n,n0),
+            from_option (λ a : A, from_option (λ b : B, h (a, b)) 0 (encode_inv_nat n0)) 0
+              (encode_inv_nat n))).
+    - apply aprod_double_summable in Hex as (r&Hr).
+      exists r.
+      intro n.
+      etrans; [ | apply (Hr (S n))].
+      right.
+      rewrite sum_n_shift'.
+      replace (sum_n (λ k : nat, aprod (0%nat, k)) (S n)) with 0; last first.
+      {
+        rewrite (sum_n_ext _ (λ n, 0)).
+        - rewrite sum_n_const; lra.
+        - intro; rewrite /aprod //.
+      }
+      rewrite Rplus_0_r.
+      apply sum_n_ext; intro m.
+      rewrite sum_n_shift'.
+      replace (aprod (S m, 0%nat)) with 0; [ | by rewrite /aprod].
+      rewrite Rplus_0_r.
+      apply sum_n_ext; intro l.
+      rewrite /aprod.
+      destruct (encode_inv_nat m);
+      destruct (encode_inv_nat l); simpl; auto.
+    - intros n m.
+      destruct (encode_inv_nat n);
+      destruct (encode_inv_nat m); simpl; auto; lra.
+  Qed.
 
 
+  (* Maybe it can be simplified using the previous lemma *)
   Lemma fubini_pos_ex_seriesC_prod_ex_rl  :
     ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
   Proof.
-
-
-  Admitted.
+    intros Hex.
+    apply ex_seriesC_ex_series.
+    rewrite /SeriesC/countable_sum.
+    assert (forall n,
+       (from_option
+         (λ b,
+            Series (λ n0 : nat, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0))) 0
+         (encode_inv_nat n)) =
+       (Series (λ n0 : nat,
+         from_option
+         (λ b, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0)) 0
+         (encode_inv_nat n)))) as Haux.
+    {
+      intro n. destruct (encode_inv_nat); simpl; auto.
+      by rewrite Series_0.
+    }
+    setoid_rewrite Haux.
+    apply (ex_series_row_col
+             (λ '(n,n0),
+            from_option (λ b, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0)) 0
+              (encode_inv_nat n))).
+    - apply aprod_double_summable in Hex as (r&Hr).
+      exists r.
+      intro n.
+      etrans; [ | apply (Hr (S n))].
+      right.
+      rewrite fubini_fin_sum.
+      rewrite sum_n_shift'.
+      replace (sum_n (λ a : nat, aprod (a, 0%nat)) (S n)) with 0; last first.
+      {
+        rewrite (sum_n_ext _ (λ n, 0)).
+        - rewrite sum_n_const; lra.
+        - intro; rewrite /aprod.
+          case_match; auto.
+      }
+      rewrite Rplus_0_r.
+      apply sum_n_ext; intro m.
+      rewrite sum_n_shift'.
+      replace (aprod (0%nat, S m)) with 0; [ | by rewrite /aprod].
+      rewrite Rplus_0_r.
+      apply sum_n_ext; intro l.
+      rewrite /aprod.
+      destruct (encode_inv_nat m); simpl;
+      destruct (encode_inv_nat l); simpl; auto.
+    - intros n m.
+      destruct (encode_inv_nat n);
+      destruct (encode_inv_nat m); simpl; auto; lra.
+  Qed.
 
 
   Lemma ex_seriesC_lmarg a :
     ex_seriesC h → ex_seriesC (λ b, h (a, b)).
   Proof.
-  Admitted.
+    intros Hex.
+    apply ex_seriesC_ex_series.
+    rewrite /SeriesC/countable_sum.
+    apply aprod_double_summable in Hex.
+    apply DS_n_to_nm in Hex as (r&Hr); last first.
+    {
+      intros n m.
+      rewrite /aprod.
+      do 4 (case_match; simpl; auto; try lra).
+    }
+    apply ex_pos_bounded_series.
+    - intro n; destruct (encode_inv_nat n); simpl; auto.
+      lra.
+    - exists r. intro n.
+      etrans; [ | apply (Hr (S n) (S (encode_nat a)))].
+      rewrite sum_n_shift'.
+      rewrite (sum_n_ext ((λ k : nat, aprod (0%nat, k))) (λ _, 0)); last first.
+      {
+        intro; rewrite /aprod //.
+      }
+      rewrite sum_n_const Rmult_0_r Rplus_0_r.
+      etrans; [ | apply partial_sum_elem]; last first.
+      {
+        intro.
+        apply partial_sum_pos.
+        intro.
+        rewrite /aprod.
+        do 4 (case_match; simpl; auto; try lra).
+      }
+      rewrite sum_n_shift'.
+      etrans; last first.
+      {
+        apply (Rplus_le_compat_l _ 0).
+        rewrite /aprod; lra.
+      }
+      rewrite Rplus_0_r.
+      right.
+      apply sum_n_ext.
+      intro m.
+      rewrite /aprod.
+      rewrite encode_inv_encode_nat.
+      destruct (encode_inv_nat m); simpl; auto.
+  Qed.
 
   Lemma ex_seriesC_rmarg b :
     ex_seriesC h → ex_seriesC (λ a, h (a, b)).
-  Admitted.
+  Proof.
+    intros Hex.
+    apply ex_seriesC_ex_series.
+    rewrite /SeriesC/countable_sum.
+    apply aprod_double_summable in Hex.
+    apply DS_n_to_nm in Hex as (r&Hr); last first.
+    {
+      intros n m.
+      rewrite /aprod.
+      do 4 (case_match; simpl; auto; try lra).
+    }
+    apply ex_pos_bounded_series.
+    - intro n; destruct (encode_inv_nat n); simpl; auto.
+      lra.
+    - exists r. intro n.
+      etrans; [ | apply (Hr (S (encode_nat b)) (S n) )].
+      rewrite fubini_fin_sum.
+      rewrite sum_n_shift'.
+      rewrite (sum_n_ext (λ a : nat, aprod (a, 0%nat)) (λ _, 0)); last first.
+      {
+        intro; rewrite /aprod //.
+        case_match; auto.
+      }
+      rewrite sum_n_const Rmult_0_r Rplus_0_r.
+      etrans; [ | apply partial_sum_elem]; last first.
+      {
+        intro.
+        apply partial_sum_pos.
+        intro.
+        rewrite /aprod.
+        do 4 (case_match; simpl; auto; try lra).
+      }
+      rewrite sum_n_shift'.
+      etrans; last first.
+      {
+        apply (Rplus_le_compat_l _ 0).
+        rewrite /aprod; lra.
+      }
+      rewrite Rplus_0_r.
+      right.
+      apply sum_n_ext.
+      intro m.
+      rewrite /aprod.
+      rewrite encode_inv_encode_nat.
+      destruct (encode_inv_nat m); simpl; auto.
+  Qed.
 
   Lemma seriesC_lmarg_le a :
     ex_seriesC h → SeriesC (λ b, h (a, b)) <= SeriesC h.
@@ -1227,6 +1412,57 @@ Section double.
     (∀ a, ex_seriesC (λ b, h (a,b))) →
     ex_seriesC (λ a, SeriesC (λ b, h (a,b))) →
     ex_seriesC h.
-  Proof. Admitted.
+  Proof.
+    intros Hex1 Hex2.
+    assert (ex_series (aprod ∘ σprod)) as Haux; last first.
+    {
+      apply ex_seriesC_ex_series.
+      apply (ex_series_ext _ _ aprod_σprod_countable_sum Haux).
+    }
+    apply ds_implies_exseries.
+    - apply aprod_pos.
+    - apply σprod_inj.
+    - apply σprod_cov.
+    - apply ex_series_rows_ds.
+      + apply aprod_pos.
+      + intro m. rewrite /aprod.
+        destruct m as [ | m'].
+        {
+          apply ex_pos_bounded_series.
+          - intro; lra.
+          - exists 0. intro. rewrite sum_n_const; lra.
+        }
+        destruct (encode_inv_nat m') as [ | a]; last first.
+        {
+          apply ex_pos_bounded_series.
+          - intro. case_match; lra.
+          - exists 0. intro. rewrite (sum_n_ext _ (λ _, 0)).
+            + rewrite sum_n_const; lra.
+            + intro; case_match; auto.
+        }
+        specialize (Hex1 a).
+        apply ex_seriesC_ex_series_inv in Hex1.
+        rewrite /countable_sum in Hex1.
+        apply ex_series_incr_1.
+        eapply (ex_series_ext _ _ _ Hex1). Unshelve.
+        intro n; simpl.
+        destruct (encode_inv_nat n); auto.
+       + apply ex_seriesC_ex_series_inv in Hex2.
+         rewrite /SeriesC/countable_sum in Hex2.
+         apply ex_series_incr_1.
+         eapply (ex_series_ext _ _ _ Hex2). Unshelve.
+         intro n; simpl.
+         destruct (encode_inv_nat n); simpl.
+         * rewrite (Series_incr_1_aux (λ k : nat,
+                          match k with
+                          | 0%nat => 0
+                          | S n0 => match encode_inv_nat n0 with
+                                   | Some b => h (a, b)
+                                   | None => 0
+                                   end
+                          end)); auto.
+         * rewrite Series_0; auto.
+           intro; case_match; auto.
+  Qed.
 
 End double.
