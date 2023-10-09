@@ -3,6 +3,14 @@
 A higher-order probabilistic relational separation logic with support for asynchronous probabilistic couplings. 
 The logic is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
 
+## Preprint
+
+A preprint describing this work is available on arXiv.
+
+> Gregersen, S.O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L., 2023. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. [arXiv preprint arXiv:2301.10061](https://arxiv.org/abs/2301.10061).
+
+[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to the Coq formalization.
+
 ## Building the development
 
 The project is known to compile with
@@ -37,7 +45,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning found in Coq's standard library. The following list is produced when executing the `Print Assumptions` command in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
+The development relies on axioms for classical reasoning and the axiomatization of the reals numbers, both found in Coq's standard library. The following list is produced when executing the command "Print Assumptions eager_lazy_equiv." in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
@@ -47,10 +55,3 @@ constructive_indefinite_description : ∀ (A : Type) (P : A → Prop), (∃ x : 
 classic : ∀ P : Prop, P ∨ ¬ P
 ```
 
-## Preprint
-
-A preprint describing this work is available on arXiv.
-
-> Gregersen, S.O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L., 2023. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. [arXiv preprint arXiv:2301.10061](https://arxiv.org/abs/2301.10061).
-
-[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to the Coq formalization.

@@ -177,6 +177,16 @@ for asynchronous probabilistic couplings. The logic is built using the
 <a href="https://iris-project.org">Iris</a> program logic framework and
 mechanized in the <a href="https://coq.inria.fr/">Coq proof
 assistant</a>.</p>
+<h2 id="preprint">Preprint</h2>
+<p>A preprint describing this work is available on arXiv.</p>
+<blockquote>
+<p>Gregersen, S.O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and
+Birkedal, L., 2023. Asynchronous Probabilistic Couplings in Higher-Order
+Separation Logic. <a href="https://arxiv.org/abs/2301.10061">arXiv
+preprint arXiv:2301.10061</a>.</p>
+</blockquote>
+<p><a href="paper_mapping.html">This table</a> maps definitions, concepts,
+and results found in the paper to the Coq formalization.</p>
 <h2 id="building-the-development">Building the development</h2>
 <p>The project is known to compile with</p>
 <ul>
@@ -216,24 +226,15 @@ opam update</code></pre>
 <code>make -j N</code> where <code>N</code> is the number of cores
 available on your machine.</p>
 <h2 id="axioms">Axioms</h2>
-<p>The development relies on axioms for classical reasoning found in
-Coq’s standard library. The following list is produced when executing
-the <code>Print Assumptions</code> command in <a
+<p>The development relies on axioms for classical reasoning and the
+axiomatization of the reals numbers, both found in Coq’s standard
+library. The following list is produced when executing the command
+“Print Assumptions eager_lazy_equiv.” in <a
 href="theories/examples/lazy_eager_coin.v"><code>theories/examples/lazy_eager_coin.v</code></a>:</p>
 <pre><code>ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
 ClassicalDedekindReals.sig_forall_dec : ∀ P : nat → Prop, (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}
 functional_extensionality_dep : ∀ (A : Type) (B : A → Type) (f g : ∀ x : A, B x), (∀ x : A, f x = g x) → f = g
 constructive_indefinite_description : ∀ (A : Type) (P : A → Prop), (∃ x : A, P x) → {x : A | P x}
 classic : ∀ P : Prop, P ∨ ¬ P</code></pre>
-<h2 id="preprint">Preprint</h2>
-<p>A preprint describing this work is available on arXiv.</p>
-<blockquote>
-<p>Gregersen, S.O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and
-Birkedal, L., 2023. Asynchronous Probabilistic Couplings in Higher-Order
-Separation Logic. <a href="https://arxiv.org/abs/2301.10061">arXiv
-preprint arXiv:2301.10061</a>.</p>
-</blockquote>
-<p><a href="paper_mapping.html">This table</a> maps definitions, concepts,
-and results found in the paper to the Coq formalization.</p>
 </body>
 </html>
