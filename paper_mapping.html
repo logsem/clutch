@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>paper_mapping</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h2 id="reference-from-the-paper-to-the-code">Reference from the paper
+to the code</h2>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 2%" />
+<col style="width: 6%" />
+<col style="width: 45%" />
+<col style="width: 19%" />
+<col style="width: 22%" />
+<col style="width: 3%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>§</th>
+<th>Kind</th>
+<th>Item</th>
+<th>Coq file</th>
+<th>Name</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Example</td>
+<td><span class="math inline">\(\mathit{eager}\)</span></td>
+<td><a
+href="theories/examples/lazy_eager_coin.v">examples/lazy_eager_coin</a></td>
+<td><code>eager</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td><span class="math inline">\(\mathit{lazy}\)</span></td>
+<td></td>
+<td><code>lazy</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Theorem</td>
+<td>1 (Soundness)</td>
+<td><a href="theories/typing/soundness.v">typing/soundness</a></td>
+<td><code>refines_sound</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-COUPLE-RANDS}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_couple_rands_lr</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-ALLOC-TAPE-L}\)</span></td>
+<td></td>
+<td><code>refines_alloctape_l</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-COUPLE-TAPE-L}\)</span></td>
+<td></td>
+<td><code>refines_couple_tape_rand</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-TAPE-L}\)</span></td>
+<td></td>
+<td><code>refines_rand_l</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-ERASE-R}\)</span></td>
+<td></td>
+<td><code>refines_couple_rands_r</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Example</td>
+<td><span class="math inline">\(\mathit{lazy&#39;}\)</span></td>
+<td><a
+href="theories/examples/lazy_eager_coin.v">examples/lazy_eager_coin</a></td>
+<td><code>lazy_with_tape</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Theorem</td>
+<td><span class="math inline">\(\vDash \mathit{lazy} \precsim
+\mathit{eager} : \text{unit} \rightarrow \text{bool}\)</span></td>
+<td></td>
+<td><code>lazy_eager_refinement</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Definition</td>
+<td>2 (Sub-distribution)</td>
+<td><a href="theories/prob/distribution.v">prob/distribution</a></td>
+<td><code>distr</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Lemma</td>
+<td>4 (Probability Monad)</td>
+<td></td>
+<td><code>dret_id_right</code>, etc.</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span
+class="math inline">\(\mathbf{F}_{\mu{},\text{ref}}^\text{flip}\)</span></td>
+<td><a href="theories/prob_lang/lang.v">prob_lang/lang</a></td>
+<td><code>expr</code>, <code>val</code>, <code>state</code>,
+<code>cfg</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>types <em>τ</em></td>
+<td><a href="theories/typing/types.v">typing/types</a></td>
+<td><code>type</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\text{step}\)</span></td>
+<td><a
+href="theories/program_logic/ectx_language.v">program_logic/ectx_language</a></td>
+<td><code>prim_step</code> (by lifting <code>head_step</code>)</td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Aux. def.</td>
+<td>stepping relation for top redices</td>
+<td><a href="theories/prob_lang/lang.v">prob_lang/lang</a></td>
+<td><code>head_step</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Aux. def.</td>
+<td>evaluation context</td>
+<td><a
+href="theories/program_logic/ectxi_language.v">program_logic/ectxi_language</a></td>
+<td><code>ectx = list ectx_item</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Aux. def.</td>
+<td>evaluation ctx. item</td>
+<td><a href="theories/prob_lang/lang.v">prob_lang/lang</a></td>
+<td><code>ectx_item</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\text{exec}_n(e,σ)\)</span></td>
+<td><a href="theories/program_logic/exec.v">program_logic/exec</a></td>
+<td><code>exec</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\text{exec}(ρ)\)</span></td>
+<td><a href="theories/program_logic/exec.v">program_logic/exec</a></td>
+<td><code>lim_exec_val ρ</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span
+class="math inline">\(\text{exec}_\Downarrow{}(ρ)\)</span></td>
+<td><a href="theories/program_logic/exec.v">program_logic/exec</a></td>
+<td><code>SeriesC(lim_exec_val ρ)</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize T-TAPE}\)</span></td>
+<td><a href="theories/typing/types.v">typing/types</a></td>
+<td><code>TAllocTape</code> (part of <code>typed</code>)</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize T-RAND}\)</span></td>
+<td><a href="theories/typing/types.v">typing/types</a></td>
+<td><code>TRand</code>, <code>TRandU</code> (part of
+<code>typed</code>)</td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>program context</td>
+<td><a
+href="theories/typing/contextual_refinement.v">typing/contextual_refinement</a></td>
+<td><code>ctx_item</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>typed prog. context</td>
+<td><a
+href="theories/typing/contextual_refinement.v">typing/contextual_refinement</a></td>
+<td><code>typed_ctx_item</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>contextual refinement</td>
+<td><a
+href="theories/typing/contextual_refinement_alt.v">typing/contextual_refinement_alt</a></td>
+<td><code>ctx_refines_alt</code></td>
+<td>(1)</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>contextual refinement</td>
+<td><a
+href="theories/typing/contextual_refinement.v">typing/contextual_refinement</a></td>
+<td><code>ctx_refines</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>contextual equivalence</td>
+<td><a
+href="theories/typing/contextual_refinement.v">typing/contextual_refinement</a></td>
+<td><code>ctx_equiv</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td>Definition</td>
+<td>iProp</td>
+<td>imported from <a
+href="https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v">Iris
+upstream</a></td>
+<td><code>iProp</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\ell \mapsto v\)</span></td>
+<td><a
+href="theories/rel_logic/primitive_laws.v">rel_logic/primitive_laws</a></td>
+<td><code>ghost_map_elem clutchGS_heap</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\iota \hookrightarrow{}
+\vec{b}\)</span></td>
+<td><a
+href="theories/rel_logic/primitive_laws.v">rel_logic/primitive_laws</a></td>
+<td><code>ghost_map_elem clutchGS_tapes</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\ell \mapsto_{\mathsf{s}}
+v\)</span></td>
+<td><a href="theories/rel_logic/spec_ra.v">rel_logic/spec_ra</a></td>
+<td><code>ghost_map_elem specGS_heap</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\iota \hookrightarrow_{\mathsf{s}}
+\vec{b}\)</span></td>
+<td><a href="theories/rel_logic/spec_ra.v">rel_logic/spec_ra</a></td>
+<td><code>ghost_map_elem specGS_tapes</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>Value interperation <span class="math inline">\(⟦ τ
+⟧_Δ(-,-)\)</span></td>
+<td><a href="theories/typing/interp.v">typing/interp</a></td>
+<td><code>interp</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>Value interperation <span class="math inline">\(⟦ τ
+⟧_Δ(-,-)\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>lrel_bool</code>, <code>lrel_ref</code>,
+<code>lrel_tape</code>, etc</td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(e₁
+\overset{\mathrm{pure}}{\rightsquigarrow} e₂\)</span></td>
+<td><a
+href="theories/program_logic/language.v">program_logic/language</a></td>
+<td><code>PureExec</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-PURE-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_pure_l</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-PURE-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_pure_r</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-ALLOC-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_alloc_l</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-ALLOC-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_alloc_r</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-LOAD-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_load_l</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-LOAD-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_load_r</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-STORE-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_store_l</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-STORE-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_store_r</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-PACK}\)</span></td>
+<td><a
+href="theories/rel_logic/compatibility.v">rel_logic/compatibility</a></td>
+<td><code>refines_pack</code></td>
+<td>(2)</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RETURN}\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>refines_ret</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-BIND}\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>refines_bind</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_randU_l</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_randU_r</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-ALLOC-TAPE-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_alloctape_l</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-ALLOC-TAPE-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_alloctape_r</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-TAPE-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_rand_l</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-TAPE-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_rand_r</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-TAPE-EMPTY-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_rand_empty_l</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-RAND-TAPE-EMPTY-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_rand_empty_r</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-COUPLE-RANDS}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_couple_rands_lr</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-COUPLE-TAPE-L}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_couple_TU</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-COUPLE-TAPE-R}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_couple_UT</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-COUPLE-TAPES}\)</span></td>
+<td><a
+href="theories/rel_logic/rel_rules.v">rel_logic/rel_rules</a></td>
+<td><code>refines_couple_tapes</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-NA-INV-ALLOC}\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>refines_na_alloc</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-NA-INV-OPEN}\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>refines_na_inv</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+REL-NA-INV-CLOSE}\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>refines_na_close</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>5.1</td>
+<td>Definition</td>
+<td>(<span class="math inline">\(R\)</span>-) coupling</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>is_coupl</code>, <code>is_Rcoupl</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Lemma</td>
+<td>6 (Composition of couplings)</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>Rcoupl_dret</code>, <code>Rcoupl_dbind</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Lemma</td>
+<td>7 (lifting of equality)</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>Rcoupl_eq</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize WP-WAND}\)</span></td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>wp_wand</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize WP-BIND}\)</span></td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>wp_bind</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize WP-LOAD}\)</span></td>
+<td><a
+href="theories/rel_logic/primitive_laws.v">rel_logic/primitive_laws</a></td>
+<td><code>wp_load</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+WP-COUPLE-RANDS}\)</span></td>
+<td><a
+href="theories/rel_logic/coupling_rules.v">rel_logic/coupling_rules</a></td>
+<td><code>wp_couple_rand_rand</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+WP-COUPLE-TAPE-L}\)</span></td>
+<td><a
+href="theories/rel_logic/coupling_rules.v">rel_logic/coupling_rules</a></td>
+<td><code>wp_couple_tape_rand</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>weakest precondition</td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>wp</code>, <code>wp_pre</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>execCoupl</td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>exec_coupl</code>, <code>exec_couple_pre</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td>execCoupl rule for <span class="math inline">\(\text{step}(ρ_1) \sim
+\text{step}(ρ_1&#39;) : R\)</span></td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>exec_coupl_prim_steps</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td>execCoupl rule for <span class="math inline">\(\text{ret}(ρ_1) \sim
+\text{step}(ρ_1&#39;) : R\)</span></td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>exec_coupl_prim_step_l</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><em>state step</em> relation</td>
+<td><a href="theories/prob_lang/lang.v">prob_lang/lang</a></td>
+<td><code>state_step</code>, <code>state_step_pmf</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td>execCoupl rule for <span class="math inline">\(\text{step}_ι(σ_1)
+\sim \text{step}(ρ_1&#39;) : R\)</span></td>
+<td><a
+href="theories/program_logic/weakestpre.v">program_logic/weakestpre</a></td>
+<td><code>exec_coupl_state_prim</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+SPEC-PURE}\)</span></td>
+<td><a
+href="theories/rel_logic/spec_rules.v">rel_logic/spec_rules</a></td>
+<td><code>step_pure</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+SPEC-STORE}\)</span></td>
+<td><a
+href="theories/rel_logic/spec_rules.v">rel_logic/spec_rules</a></td>
+<td><code>step_store</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\text{spec}_\circ(ρ)\)</span></td>
+<td><a href="theories/rel_logic/spec_ra.v">rel_logic/spec_ra</a></td>
+<td><code>⤇ e</code> (<code>spec_prog_frag</code>)</td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span
+class="math inline">\(\text{specInterp}_\bullet(ρ)\)</span></td>
+<td><a href="theories/rel_logic/spec_ra.v">rel_logic/spec_ra</a></td>
+<td><code>spec_interp_auth</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>specInv</td>
+<td><a href="theories/rel_logic/spec_ra.v">rel_logic/spec_ra</a></td>
+<td><code>spec_inv</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>specCtx</td>
+<td><a href="theories/rel_logic/spec_ra.v">rel_logic/spec_ra</a></td>
+<td><code>spec_ctx</code></td>
+<td>(3)</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(G(ρ)\)</span> and <span
+class="math inline">\(S(ρ)\)</span> as used in <span
+class="math inline">\(\text{wp}\)</span></td>
+<td><a
+href="theories/rel_logic/primitive_laws.v">rel_logic/primitive_laws</a></td>
+<td><code>clutchGS_irisGS</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>5.2</td>
+<td>Definition</td>
+<td><span class="math inline">\(Δ \vDash e₁ \precsim e₂ :
+τ\)</span></td>
+<td><a href="theories/rel_logic/model.v">rel_logic/model</a></td>
+<td><code>refines_def</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Lemma</td>
+<td><span class="math inline">\(ι : \text{tape} ⊢ \text{rand} ()
+≅_{\text{ctx}} \text{flip}(ι) : \text{bool}\)</span></td>
+<td><a href="theories/examples/erasure.v">examples/erasure</a></td>
+<td><code>flip_erasure_ctx</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>5.3</td>
+<td>Definition</td>
+<td>8 (Left-Partial Coupling)</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>is_refcoupl</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>R-left-partial-coupling</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>is_refRcoupl</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Lemma</td>
+<td>9</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>Rcoupl_refRcoupl</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Lemma</td>
+<td>10</td>
+<td><a href="theories/prob/couplings.v">prob/couplings</a></td>
+<td><code>refRcoupl_eq_elim</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Theorem</td>
+<td>11 (Adequacy)</td>
+<td><a href="theories/rel_logic/adequacy.v">rel_logic/adequacy</a></td>
+<td><code>wp_refRcoupl</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Lemma</td>
+<td>12 (Erasure)</td>
+<td><a href="theories/prob_lang/erasure.v">prob_lang/erasure</a></td>
+<td><code>prim_coupl_step_prim</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>Contextual closure of refinement</td>
+<td><a href="theories/typing/interp.v">typing/interp</a></td>
+<td><code>bin_log_related</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+RAND-COMPAT}\)</span></td>
+<td><a
+href="theories/rel_logic/compatibility.v">rel_logic/compatibility</a></td>
+<td><code>refines_rand_tape</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Theorem</td>
+<td>13 (Fundamental theorem)</td>
+<td><a href="theories/typing/fundamental.v">typing/fundamental</a></td>
+<td><code>fundamental</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Theorem</td>
+<td>14 (Soundness)</td>
+<td><a href="theories/typing/soundness.v">typing/soundness</a></td>
+<td><code>refines_sound</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>6.1</td>
+<td>Example</td>
+<td>Lazy/eager coin</td>
+<td><a
+href="theories/examples/lazy_eager_coin.v">examples/lazy_eager_coin</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>6.2</td>
+<td>Example</td>
+<td>ElGamal public key encryption</td>
+<td><a
+href="theories/examples/crypto/ElGamal.v">examples/crypto/ElGamal</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>6.3</td>
+<td>Example</td>
+<td>Hash functions</td>
+<td><a href="theories/examples/hash.v">examples/hash</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>6.4</td>
+<td>Example</td>
+<td>Lazily sampled big integers</td>
+<td><a href="theories/examples/lazy_int.v">examples/lazy_int</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>A</td>
+<td>Example</td>
+<td>Counterexample</td>
+<td><a
+href="theories/examples/counterexample.v">examples/counterexample</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>C.1</td>
+<td>Example</td>
+<td>Sangiorgi and Vignudelli’s example</td>
+<td><a href="theories/examples/env_bisim.v">examples/env_bisim</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>C.4</td>
+<td>Example</td>
+<td>Random Generators from Hashes</td>
+<td><a href="theories/examples/rng.v">examples/rng</a>, <a
+href="theories/examples/split_rng.v">examples/split_rng</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<ol type="1">
+<li><p>In the code, we use <code>ctx_refines</code> more than
+<code>ctx_refines_alt</code>, which matches the exact definition of the
+paper. Nothing is lost, since we prove that <code>ctx_refines</code>
+implies <code>ctx_refines_alt</code> in
+<code>Lemma ctx_refines_impl_alt</code> (see <a
+href="theories/typing/contextual_refinement_alt.v">typing/contextual_refinement_alt</a>).</p></li>
+<li><p><code>pack</code> for existential types has no operational
+meaning, and thus <code>pack e</code> simply stands for <code>e</code>.
+The requirement for <code>R</code> to be persistent in the
+<code>rel-pack</code> rule is reflected in the code by the fact that
+logical relations are defined as persistent predicates (see <a
+href="theories/rel_logic/model.v">rel_logic/model</a>).</p></li>
+<li><p>In the code, we often use the shorthand
+<code>refines_right K e</code> to refer to the combined
+<code>spec_ctx ∗ ⤇ K[e]</code>.</p></li>
+</ol>
+</body>
+</html>
