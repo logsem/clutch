@@ -1432,7 +1432,7 @@ Section double.
           - intro; lra.
           - exists 0. intro. rewrite sum_n_const; lra.
         }
-        destruct (encode_inv_nat m') as [ | a]; last first.
+        destruct (encode_inv_nat m') as [ |]; last first.
         {
           apply ex_pos_bounded_series.
           - intro. case_match; lra.

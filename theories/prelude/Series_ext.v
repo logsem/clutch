@@ -133,8 +133,6 @@ Section positive.
         apply not_le; auto.
   Qed.
 
-  Search sum_n.
-
   Lemma partial_sum_pos (h : nat → R) p :
     (∀ n, 0 <= h n) ->
     0 <= sum_n h p.
