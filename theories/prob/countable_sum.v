@@ -87,7 +87,6 @@ Section countable_sum.
 
 End countable_sum.
 
-
 Section series.
   Context `{Countable A}.
 
@@ -118,13 +117,13 @@ Section series.
   Qed.
 
   Lemma ex_seriesC_ex_series f :
-     ex_series (countable_sum f) -> ex_seriesC f .
+     ex_series (countable_sum f) → ex_seriesC f .
   Proof.
     intros; auto.
   Qed.
 
   Lemma ex_seriesC_ex_series_inv f :
-     ex_seriesC f -> ex_series (countable_sum f).
+     ex_seriesC f → ex_series (countable_sum f).
   Proof.
     intros; auto.
   Qed.
@@ -311,13 +310,6 @@ Section series.
     eauto.
   Qed.
 
-  (*
-  Lemma is_seriesC_bijection f h v `{Bij A A h} :
-    is_seriesC f v ->
-    is_seriesC (λ a, f (h a)) v.
-  Proof.
-  *)
-
   Global Instance is_series_Proper:
     Proper (pointwise_relation A (@eq R) ==> @eq R ==> iff) is_seriesC.
   Proof. intros ?? ? ?? ?; subst; split; eapply is_seriesC_ext; eauto. Qed.
@@ -358,7 +350,7 @@ Section filter.
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
   Proof. apply is_series_unique, is_seriesC_singleton. Qed.
 
-  Lemma is_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+  Lemma is_seriesC_singleton_inj (b : B) (f : A → B) v `{Inj A B (=) (=) f} :
     (∃ a, f a = b) →
     is_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0) v.
   Proof.
@@ -375,15 +367,15 @@ Section filter.
       apply Hneq. symmetry. by apply encode_inv_Some_nat.
   Qed.
 
-  Lemma ex_seriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
+  Lemma ex_seriesC_singleton_inj (b : B) (f : A → B) v `{Inj A B (=) (=) f} :
     (∃ a, f a = b) →
     ex_seriesC (λ (a : A), if bool_decide (f a = b) then v else 0).
   Proof.
     eexists. apply is_seriesC_singleton_inj; auto.
   Qed.
 
-  Lemma SeriesC_singleton_inj (b : B) (f : A -> B) v `{Inj A B (=) (=) f} :
-    (∃ a, f a = b) ->
+  Lemma SeriesC_singleton_inj (b : B) (f : A → B) v `{Inj A B (=) (=) f} :
+    (∃ a, f a = b) →
     SeriesC (λ (a : A), if bool_decide (f a = b) then v else 0) = v.
   Proof.
     intros. apply is_seriesC_unique, is_seriesC_singleton_inj; auto.
@@ -512,14 +504,13 @@ Section filter.
 
   Lemma ex_seriesC_filter_bool_pos f (P : A → bool) :
     (∀ a, 0 <= f a) →
-    ex_seriesC f ->
+    ex_seriesC f →
     ex_seriesC (λ a, if P a then f a else 0).
   Proof.
     intros Hpos Hex.
     apply (ex_seriesC_le _ f); auto.
     intro n; specialize (Hpos n); destruct (P n); lra.
   Qed.
-
 
 End filter.
 
@@ -528,7 +519,6 @@ Section strict.
 
   Implicit Types f g : A → R.
 
-  (** Some extra theorems about strict inequalities, etc. **)
   Lemma SeriesC_lt f g :
     (∀ n, 0 <= f n <= g n) →
     (∃ m, f m < g m) →
@@ -565,15 +555,15 @@ Section strict.
     pose proof (is_seriesC_unique _ _ Hz) as Hz'.
     pose proof (Rtotal_order (f n) 0) as Htri.
     destruct Htri as [H1 | [H2 | H3]] ; try lra.
-    + specialize (Hf n); lra.
-    + assert (0 < SeriesC f); try lra.
+    - specialize (Hf n); lra.
+    - assert (0 < SeriesC f); try lra.
       assert (SeriesC (λ _ : A, 0) = 0) as H4.
       { apply SeriesC_0; auto. }
       destruct H4.
       eapply (SeriesC_lt (λ n, 0) f).
-      ++ intro n0; specialize (Hf n0); lra.
-      ++ exists n; lra.
-      ++ exists 0; done.
+      + intro n0; specialize (Hf n0); lra.
+      + exists n; lra.
+      + exists 0; done.
   Qed.
 
   Lemma SeriesC_gtz_ex f :
@@ -636,17 +626,13 @@ Section finite.
 
 End finite.
 
+(** Results about positive (non-negative) series *)
 Section positive.
-
-  (* Results about positive (non-negative) series *)
-
-  (** Lifting of the Coquliecot predicates for limits *)
   Context `{Countable A}.
   Implicit Types f g : A → R.
 
-
-  Lemma limC_is_sup (h: A -> R) r :
-    (∀ n, 0 <= h n) ->
+  Lemma limC_is_sup (h: A → R) r :
+    (∀ n, 0 <= h n) →
     is_seriesC h r →
     is_sup_seq (sumC_n h) (Rbar.Finite r).
   Proof.
@@ -657,8 +643,8 @@ Section positive.
   Qed.
 
   Lemma sup_is_limC (h: A → R) r :
-    (∀ n, 0 <= h n) ->
-    is_sup_seq (sumC_n h) (Rbar.Finite r) ->
+    (∀ n, 0 <= h n) →
+    is_sup_seq (sumC_n h) (Rbar.Finite r) →
     is_seriesC h r.
   Proof.
     intros Hge Hsup.
@@ -670,15 +656,12 @@ Section positive.
 End positive.
 
 Section bounds.
-
-  (* Lifting some Lemmas from Coquelicot.Lub *)
-
   Context `{Countable A}.
 
   Definition is_lubC (h: A → R) (u : Rbar) :=
-    (forall a, Rbar_le (h a) u) /\ (forall u', (forall a, Rbar_le (h a) u') -> Rbar_le u u').
+    (∀ a, Rbar_le (h a) u) /\ (∀ u', (∀ a, Rbar_le (h a) u') → Rbar_le u u').
 
-  Lemma ex_lubC (h : A -> R) :
+  Lemma ex_lubC (h : A → R) :
     {u | is_lubC h u}.
   Proof.
     destruct (Lub_Rbar_correct ((λ r : R, ∃ a0 : A, h a0 = r))) as [H1 H2].
@@ -691,19 +674,18 @@ Section bounds.
       intros x (a & <-); auto.
   Qed.
 
-  Definition LubC (h : A -> R) := proj1_sig (ex_lubC h).
+  Definition LubC (h : A → R) := proj1_sig (ex_lubC h).
 
-  Lemma LubC_correct (h : A -> R) :
+  Lemma LubC_correct (h : A → R) :
     is_lubC h (LubC h).
   Proof.
     rewrite /LubC ; by case: ex_lubC => l /= Hl.
   Qed.
 
-
-  Lemma seriesC_le_lub (h : A -> R) :
-    ex_seriesC h ->
-    is_finite (LubC h) ->
-    ex_seriesC (λ a : A, real (LubC h)) ->
+  Lemma seriesC_le_lub (h : A → R) :
+    ex_seriesC h →
+    is_finite (LubC h) →
+    ex_seriesC (λ a : A, real (LubC h)) →
     SeriesC h <= SeriesC (λ a : A, real (LubC h)).
   Proof.
     intros Hex Hfin Hex2.
@@ -713,12 +695,10 @@ Section bounds.
     apply rbar_le_finite; auto.
   Qed.
 
-  (* TODO: Try to minimize duplication *)
-
   Definition is_glbC (h: A → R) (l : Rbar) :=
-    (forall a, Rbar_le l (h a) ) /\ (forall l', (forall a, Rbar_le l' (h a)) -> Rbar_le l' l).
+    (∀ a, Rbar_le l (h a) ) ∧ (∀ l', (∀ a, Rbar_le l' (h a)) → Rbar_le l' l).
 
-  Lemma ex_glbC (h : A -> R) :
+  Lemma ex_glbC (h : A → R) :
     {u | is_glbC h u}.
   Proof.
     destruct (Glb_Rbar_correct ((λ r : R, ∃ a0 : A, h a0 = r))) as [H1 H2].
@@ -731,19 +711,18 @@ Section bounds.
       intros x (a & <-); auto.
   Qed.
 
-  Definition GlbC (h : A -> R) := proj1_sig (ex_glbC h).
+  Definition GlbC (h : A → R) := proj1_sig (ex_glbC h).
 
-  Lemma GlbC_correct (h : A -> R) :
+  Lemma GlbC_correct (h : A → R) :
     is_glbC h (GlbC h).
   Proof.
     rewrite /GlbC ; by case: ex_glbC => l /= Hl.
   Qed.
 
-
-  Lemma seriesC_le_glb (h : A -> R) :
-    ex_seriesC h ->
-    is_finite (GlbC h) ->
-    ex_seriesC (λ a : A, real (GlbC h)) ->
+  Lemma seriesC_le_glb (h : A → R) :
+    ex_seriesC h →
+    is_finite (GlbC h) →
+    ex_seriesC (λ a : A, real (GlbC h)) →
     SeriesC (λ a : A, real (GlbC h)) <= SeriesC h.
   Proof.
     intros Hex Hfin Hex2.
@@ -755,20 +734,18 @@ Section bounds.
 
 End bounds.
 
-
-
 Section fubini.
   Context `{Countable A, Countable B}.
 
   Lemma fubini_pos_seriesC_ex (h : A * B → R) :
-    (∀ a b, 0 <= h (a, b)) ->
-    (∀ a, ex_seriesC (λ b, h (a, b))) ->
-    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
+    (∀ a b, 0 <= h (a, b)) →
+    (∀ a, ex_seriesC (λ b, h (a, b))) →
+    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) →
     (∀ b, ex_seriesC (λ a, h (a, b))).
   Proof.
     intros Hpos Hex1 Hex2 b.
     set (f := λ '(n, m), countable_sum (λ a, countable_sum (λ b, h (a,b)) m) n).
-    assert (forall m, ex_series (λ n, f (n, m))) as H1.
+    assert (∀ m, ex_series (λ n, f (n, m))) as H1.
     {
       apply fubini_pos_series_ex.
       - intros n m.
@@ -791,16 +768,14 @@ Section fubini.
     apply ex_seriesC_ex_series.
     eapply ex_series_ext; [ | apply (H1 (encode_nat b)) ].
     intros; simpl.
-    apply countable_sum_ext.
-    intro a.
-    rewrite /countable_sum
-      encode_inv_encode_nat; auto.
+    apply countable_sum_ext => a.
+    rewrite /countable_sum encode_inv_encode_nat //.
   Qed.
 
   Lemma fubini_pos_seriesC_ex_double (h : A * B → R) :
-    (∀ a b, 0 <= h (a, b)) ->
-    (∀ a, ex_seriesC (λ b, h (a, b))) ->
-    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
+    (∀ a b, 0 <= h (a, b)) →
+    (∀ a, ex_seriesC (λ b, h (a, b))) →
+    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) →
     (ex_seriesC (λ b, SeriesC (λ a, h (a, b)))).
   Proof.
     intros Hpos Hex1 Hex2.
@@ -836,9 +811,9 @@ Section fubini.
   Qed.
 
   Lemma fubini_pos_seriesC (h : A * B → R) :
-    (∀ a b, 0 <= h (a, b)) ->
-    (∀ a, ex_seriesC (λ b, h (a, b))) ->
-    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) ->
+    (∀ a b, 0 <= h (a, b)) →
+    (∀ a, ex_seriesC (λ b, h (a, b))) →
+    (ex_seriesC (λ a, SeriesC (λ b, h (a, b)))) →
     SeriesC (λ b, SeriesC (λ a, h (a, b))) =
       SeriesC (λ a, SeriesC (λ b, h (a, b))).
   Proof.
@@ -884,12 +859,12 @@ End fubini.
 Section mct.
   Context `{Countable A}.
 
-  Lemma MCT_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
-    (∀ n a, 0 <= (h n a)) ->
-    (∀ n a, (h n a) <= (h (S n) a)) ->
-    (∀ a, exists s, ∀ n, h n a <= s ) ->
-    (∀ n, is_seriesC (h n) (l n)) ->
-    is_sup_seq l (Rbar.Finite r) ->
+  Lemma MCT_seriesC (h : nat → A → R) (l : nat → R) (r : R) :
+    (∀ n a, 0 <= (h n a)) →
+    (∀ n a, (h n a) <= (h (S n) a)) →
+    (∀ a, exists s, ∀ n, h n a <= s ) →
+    (∀ n, is_seriesC (h n) (l n)) →
+    is_sup_seq l (Rbar.Finite r) →
     SeriesC (λ a, Sup_seq (λ n, h n a)) = r.
   Proof.
     intros Hpos Hle1 Hle2 Hsr Hsup.
@@ -926,15 +901,14 @@ Section mct.
     destruct (encode_inv_nat n); simpl; auto.
     symmetry.
     apply sup_seq_const.
-Qed.
+  Qed.
 
-
-  Lemma MCT_ex_seriesC (h : nat -> A → R) (l : nat -> R) (r : R) :
-    (∀ n a, 0 <= (h n a)) ->
-    (∀ n a, (h n a) <= (h (S n) a)) ->
-    (∀ a, exists s, ∀ n, h n a <= s ) ->
-    (∀ n, is_seriesC (h n) (l n)) ->
-    is_sup_seq l (Rbar.Finite r) ->
+  Lemma MCT_ex_seriesC (h : nat → A → R) (l : nat → R) (r : R) :
+    (∀ n a, 0 <= (h n a)) →
+    (∀ n a, (h n a) <= (h (S n) a)) →
+    (∀ a, exists s, ∀ n, h n a <= s ) →
+    (∀ n, is_seriesC (h n) (l n)) →
+    is_sup_seq l (Rbar.Finite r) →
     ex_seriesC (λ a, Sup_seq (λ n, h n a)).
   Proof.
     intros Hpos Hle1 Hle2 Hsr Hsup.
@@ -945,11 +919,11 @@ Qed.
       - intros n m.
         rewrite /f/countable_sum.
         destruct (encode_inv_nat m);
-        simpl; real_solver.
+          simpl; real_solver.
       - intros n m.
         rewrite /f/countable_sum.
         destruct (encode_inv_nat m);
-        simpl; real_solver.
+          simpl; real_solver.
       - intro n.
         rewrite /f/countable_sum.
         destruct (encode_inv_nat) as [a | ].
@@ -962,7 +936,7 @@ Qed.
         intro m.
         rewrite /f /countable_sum.
         destruct (encode_inv_nat m); simpl; auto.
-     - auto.
+      - auto.
     }
     eapply ex_series_ext; [ | apply H1].
     intro n.
@@ -1062,24 +1036,6 @@ Section double.
     ex_seriesC h → double_summable aprod.
   Proof. intros Hex. eapply (summable_implies_ds aprod σprod); auto. Qed.
 
-  (* TODO: move *)
-  Lemma sum_n_shift (a : nat → R) n :
-    sum_n (λ m, a (S m)) n = sum_n a (S n) - a 0%nat.
-  Proof.
-    rewrite sum_Sn /plus /=.
-    induction n as [|n IH].
-    - rewrite 2!sum_O /=. lra.
-    - rewrite 2!sum_Sn /plus /= IH. lra.
-  Qed.
-
-  Lemma sum_n_Ropp (a : nat → R) n :
-    sum_n (λ n, - a n) n = - sum_n a n.
-  Proof.
-    revert a; induction n => a.
-    - rewrite 2!sum_O //.
-    - rewrite 2!sum_Sn /plus /= IHn. lra.
-  Qed.
-
   Lemma aprod_S_double_summable :
     ex_seriesC h → double_summable (λ '(j, k), aprod (S j, S k)).
   Proof.
@@ -1104,7 +1060,7 @@ Section double.
     apply (is_series_ext (aprod ∘ σprod)); [apply aprod_σprod_countable_sum|].
     eapply is_series_chain; [apply is_series_double_covering'; auto|].
     cut (Series (λ j, Series (λ k, aprod (j, k))) =
-        (Series (λ j, Series (λ k, aprod (S j, S k))))).
+           (Series (λ j, Series (λ k, aprod (S j, S k))))).
     { intros <-. apply Series_correct. eexists.
       eapply (is_series_double_covering aprod σprod); auto. }
     rewrite Series_incr_1; last first.
@@ -1159,58 +1115,25 @@ Section double.
     destruct (encode_inv_nat m); simpl; auto.
   Qed.
 
-  (* Lemma is_seriesC_prod_row'' : *)
-  (*   ex_seriesC h → is_seriesC h (SeriesC (λ a, SeriesC (λ b, h (a, b)))). *)
-  (* Proof. *)
-  (*   intros Hex. *)
-  (*   rewrite -fubini_pos_seriesC_prod_lr //. *)
-  (*   by apply SeriesC_correct. *)
-  (* Qed. *)
-
-  (* Lemma fubini_pos_is_seriesC_prod_ex_lr  : *)
-  (*   ex_seriesC h → is_seriesC (λ a, SeriesC (λ b, h (a, b))) (SeriesC h). *)
-  (* Proof. *)
-  (*   intros Hex. *)
-
-
-  (*   eapply is_series_ext; [|by eapply is_seriesC_prod_row']. *)
-  (*   intros n=>/=. rewrite /countable_sum /=. *)
-  (*   destruct (encode_inv_nat n) eqn:Heq; [|by eapply Series_0]. *)
-  (*   eapply Series_ext. intros m=>/=. *)
-  (*   rewrite /countable_sum. *)
-  (*   by destruct (encode_inv_nat m) eqn:Heq'. *)
-  (* Qed.  *)
-
-  Lemma sum_n_shift' (a : nat → R) (n : nat) :
-   sum_n a (S n) = sum_n (λ m : nat, a (S m)) n + a 0%nat.
-  Proof.
-    rewrite sum_n_shift; lra.
-  Qed.
-
   Lemma fubini_pos_ex_seriesC_prod_ex_lr  :
     ex_seriesC h → ex_seriesC (λ a, SeriesC (λ b, h (a, b))).
   Proof.
     intros Hex.
     apply ex_seriesC_ex_series.
     rewrite /SeriesC/countable_sum.
-    assert (forall n,
-       (from_option
-         (λ a : A,
-            Series (λ n0 : nat, from_option (λ b : B, h (a, b)) 0 (encode_inv_nat n0))) 0
-         (encode_inv_nat n)) =
-       (Series (λ n0 : nat,
-         from_option
-         (λ a : A, from_option (λ b : B, h (a, b)) 0 (encode_inv_nat n0)) 0
-         (encode_inv_nat n)))) as Haux.
-    {
-      intro n. destruct (encode_inv_nat); simpl; auto.
-      by rewrite Series_0.
-    }
+    assert (∀ n,
+               (from_option
+                  (λ a, Series (λ n0, from_option (λ b, h (a, b)) 0 (encode_inv_nat n0))) 0
+                  (encode_inv_nat n)) =
+                 (Series (λ n0, from_option
+                                  (λ a, from_option (λ b, h (a, b)) 0 (encode_inv_nat n0)) 0
+                                  (encode_inv_nat n)))) as Haux.
+    { intro n. destruct (encode_inv_nat); simpl; auto. by rewrite Series_0. }
     setoid_rewrite Haux.
     apply (ex_series_row_col
              (λ '(n,n0),
-            from_option (λ a : A, from_option (λ b : B, h (a, b)) 0 (encode_inv_nat n0)) 0
-              (encode_inv_nat n))).
+               from_option (λ a, from_option (λ b, h (a, b)) 0 (encode_inv_nat n0)) 0
+                 (encode_inv_nat n))).
     - apply aprod_double_summable in Hex as (r&Hr).
       exists r.
       intro n.
@@ -1218,11 +1141,9 @@ Section double.
       right.
       rewrite sum_n_shift'.
       replace (sum_n (λ k : nat, aprod (0%nat, k)) (S n)) with 0; last first.
-      {
-        rewrite (sum_n_ext _ (λ n, 0)).
+      { rewrite (sum_n_ext _ (λ n, 0)).
         - rewrite sum_n_const; lra.
-        - intro; rewrite /aprod //.
-      }
+        - intro; rewrite /aprod //. }
       rewrite Rplus_0_r.
       apply sum_n_ext; intro m.
       rewrite sum_n_shift'.
@@ -1230,30 +1151,27 @@ Section double.
       rewrite Rplus_0_r.
       apply sum_n_ext; intro l.
       rewrite /aprod.
-      destruct (encode_inv_nat m);
-      destruct (encode_inv_nat l); simpl; auto.
+      destruct (encode_inv_nat m), (encode_inv_nat l); simpl; auto.
     - intros n m.
-      destruct (encode_inv_nat n);
-      destruct (encode_inv_nat m); simpl; auto; lra.
+      destruct (encode_inv_nat n), (encode_inv_nat m); simpl; auto; lra.
   Qed.
 
-
-  (* Maybe it can be simplified using the previous lemma *)
+  (* TODO: simplify using previous lemma  *)
   Lemma fubini_pos_ex_seriesC_prod_ex_rl  :
-    ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
+    ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h (a, b))).
   Proof.
     intros Hex.
     apply ex_seriesC_ex_series.
     rewrite /SeriesC/countable_sum.
-    assert (forall n,
-       (from_option
-         (λ b,
-            Series (λ n0 : nat, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0))) 0
-         (encode_inv_nat n)) =
-       (Series (λ n0 : nat,
-         from_option
-         (λ b, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0)) 0
-         (encode_inv_nat n)))) as Haux.
+    assert (∀ n,
+               (from_option
+                  (λ b,
+                    Series (λ n0 : nat, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0))) 0
+                  (encode_inv_nat n)) =
+                 (Series (λ n0 : nat,
+                        from_option
+                          (λ b, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0)) 0
+                          (encode_inv_nat n)))) as Haux.
     {
       intro n. destruct (encode_inv_nat); simpl; auto.
       by rewrite Series_0.
@@ -1261,8 +1179,8 @@ Section double.
     setoid_rewrite Haux.
     apply (ex_series_row_col
              (λ '(n,n0),
-            from_option (λ b, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0)) 0
-              (encode_inv_nat n))).
+               from_option (λ b, from_option (λ a, h (a, b)) 0 (encode_inv_nat n0)) 0
+                 (encode_inv_nat n))).
     - apply aprod_double_summable in Hex as (r&Hr).
       exists r.
       intro n.
@@ -1284,13 +1202,10 @@ Section double.
       rewrite Rplus_0_r.
       apply sum_n_ext; intro l.
       rewrite /aprod.
-      destruct (encode_inv_nat m); simpl;
-      destruct (encode_inv_nat l); simpl; auto.
+      destruct (encode_inv_nat m), (encode_inv_nat l); simpl; auto.
     - intros n m.
-      destruct (encode_inv_nat n);
-      destruct (encode_inv_nat m); simpl; auto; lra.
+      destruct (encode_inv_nat n), (encode_inv_nat m); simpl; auto; lra.
   Qed.
-
 
   Lemma ex_seriesC_lmarg a :
     ex_seriesC h → ex_seriesC (λ b, h (a, b)).
@@ -1419,50 +1334,43 @@ Section double.
       apply ex_seriesC_ex_series.
       apply (ex_series_ext _ _ aprod_σprod_countable_sum Haux).
     }
-    apply ds_implies_exseries.
+    apply ds_implies_exseries; auto.
+    apply ex_series_rows_ds.
     - apply aprod_pos.
-    - apply σprod_inj.
-    - apply σprod_cov.
-    - apply ex_series_rows_ds.
-      + apply aprod_pos.
-      + intro m. rewrite /aprod.
-        destruct m as [ | m'].
-        {
-          apply ex_pos_bounded_series.
-          - intro; lra.
-          - exists 0. intro. rewrite sum_n_const; lra.
-        }
-        destruct (encode_inv_nat m') as [ |]; last first.
-        {
-          apply ex_pos_bounded_series.
-          - intro. case_match; lra.
-          - exists 0. intro. rewrite (sum_n_ext _ (λ _, 0)).
-            + rewrite sum_n_const; lra.
-            + intro; case_match; auto.
-        }
-        specialize (Hex1 a).
-        apply ex_seriesC_ex_series_inv in Hex1.
-        rewrite /countable_sum in Hex1.
-        apply ex_series_incr_1.
-        eapply (ex_series_ext _ _ _ Hex1). Unshelve.
-        intro n; simpl.
-        destruct (encode_inv_nat n); auto.
-       + apply ex_seriesC_ex_series_inv in Hex2.
-         rewrite /SeriesC/countable_sum in Hex2.
-         apply ex_series_incr_1.
-         eapply (ex_series_ext _ _ _ Hex2). Unshelve.
-         intro n; simpl.
-         destruct (encode_inv_nat n); simpl.
-         * rewrite (Series_incr_1_aux (λ k : nat,
-                          match k with
-                          | 0%nat => 0
-                          | S n0 => match encode_inv_nat n0 with
-                                   | Some b => h (a, b)
-                                   | None => 0
-                                   end
-                          end)); auto.
-         * rewrite Series_0; auto.
-           intro; case_match; auto.
+    - intro m. rewrite /aprod.
+      destruct m as [ | m'].
+      {
+        apply ex_pos_bounded_series.
+        - intro; lra.
+        - exists 0. intro. rewrite sum_n_const; lra.
+      }
+      destruct (encode_inv_nat m') as [ |]; last first.
+      {
+        apply ex_pos_bounded_series.
+        - intro. case_match; lra.
+        - exists 0. intro. rewrite (sum_n_ext _ (λ _, 0)).
+          + rewrite sum_n_const; lra.
+          + intro; case_match; auto.
+      }
+      specialize (Hex1 a).
+      apply ex_seriesC_ex_series_inv in Hex1.
+      rewrite /countable_sum in Hex1.
+      apply ex_series_incr_1.
+      eapply (ex_series_ext _ _ _ Hex1). Unshelve.
+      intro n; simpl.
+      destruct (encode_inv_nat n); auto.
+    - apply ex_seriesC_ex_series_inv in Hex2.
+      rewrite /SeriesC/countable_sum in Hex2.
+      apply ex_series_incr_1.
+      eapply (ex_series_ext _ _ _ Hex2). Unshelve.
+      intro n; simpl.
+      destruct (encode_inv_nat n); simpl.
+      + rewrite (Series_incr_1_aux
+                   (λ k, match k with
+                     | 0%nat => 0
+                     | S n0 => _
+                     end)); auto.
+      + rewrite Series_0 //. intro; by case_match.
   Qed.
 
 End double.
