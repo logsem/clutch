@@ -433,7 +433,7 @@ Proof.
           { clear. destruct l0 => //=. nify. lia. }
           { clear. destruct m0 => //=. nify. lia. }
           assert (Hpf1:  (n0 < S (max n N))%nat).
-          { nify. specialize (Max.le_max_l n N); lia. }
+          { nify. specialize (Nat.le_max_l n N); lia. }
           set (n0' := Ordinal Hpf1).
           assert (Hpf2: leq (fst (σ n0')) l && leq (snd (σ n0')) m).
           { apply /andP; rewrite Heq//=; destruct l0, m0 => //=; clear; split; nify. }
