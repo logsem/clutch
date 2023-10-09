@@ -367,6 +367,93 @@ Proof.
   done.
 Qed.
 
+
+Lemma sum_n_m_cover_diff_double_aux (N l m n : nat) :
+  (∀ l0 m0 : nat, (l0 <= l)%coq_nat → (m0 <= m)%coq_nat → (∃ n0 : nat, (n0 <= n)%coq_nat ∧ σ n0 = (l0, m0)) ∨ a (l0, m0) = 0) ->
+  (sum_n (λ j, sum_n (λ k, a (j, k)) m) l =
+     sum_n (λ i, if (leq (fst (σ i)) l && leq (snd (σ i)) m) then (a (σ i)) else 0 ) (Init.Nat.max n N)).
+Proof.
+    intros Hn.
+    assert (
+        sum_n (λ i, if (leq (fst (σ i)) l && leq (snd (σ i)) m) then (a (σ i)) else 0 ) (Init.Nat.max n N)
+       =
+       \big[Rplus/0]_(i < S (Init.Nat.max n N) | leq (fst (σ i)) l && leq (snd (σ i)) m) a (σ i)) as ->.
+    {
+      rewrite sum_n_bigop.
+      rewrite -big_mkcondr.
+      apply eq_bigr.
+      intros; auto.
+    }
+    etransitivity.
+    { rewrite sum_n_bigop. eapply eq_bigr => ??. rewrite sum_n_bigop. done. }
+      rewrite pair_big => //=. rewrite bigop_cond_non0 //=.
+      rewrite /index_enum.
+      symmetry.
+      transitivity (\big[Rplus/0]_(i : {i : 'I_(S (max n N)) | leq (fst (σ i)) l &&
+                                                            leq (snd (σ i)) m })
+                     a (σ (sval i))).
+      {
+        rewrite bigop_cond_non0 [a in _ = a]bigop_cond_non0.
+        symmetry; eapply (sum_reidx_map _ _ _ _ sval).
+        - auto.
+        - intros (i&Hpf) _ Hneq0; split.
+          * rewrite -enumT mem_enum //.
+          * rewrite //=. apply /andP; split; auto.
+        - intros i _ Hbound Hfalse.
+          move /andP in Hbound. destruct Hbound as (Hbound&Hneq0).
+          move /andP in Hbound. destruct Hbound as (Hb1&Hb2).
+          exfalso. apply Hfalse. rewrite //=.
+          assert (is_true ((leq (σ i).1 l) && (leq (σ i).2 m))) as Hpf'.
+          { rewrite //=; apply /andP; split; rewrite //= in Hb1 Hb2; destruct (σ n0); nify;
+              lia. }
+          exists (exist _ i Hpf'); repeat split.
+            ** rewrite /index_enum //= -enumT mem_enum //=.
+            ** rewrite //=.
+        - rewrite /index_enum//= -enumT. apply enum_uniq.
+        - rewrite /index_enum//= -enumT. apply enum_uniq.
+        - intros (?&?) (?&?) ? Heq => //=.
+          rewrite //= in Heq. subst. f_equal. apply bool_irrelevance.
+      }
+      refine (let σ' := (λ x, match x with
+                              | exist o Hpf =>
+                                (@Ordinal _ (fst (σ o)) _, @ Ordinal _ (snd (σ o)) _)
+                              end) :
+          { x: 'I_(S (max n N)) | leq (fst (σ x)) l && leq (snd (σ x)) m} → 'I_(S l) * 'I_(S m) in _).
+      Unshelve. all:swap 1 3.
+      { abstract (move: Hpf; move /andP => [? ?]; nify; lia). }
+      { abstract (move: Hpf; move /andP => [? ?]; nify; lia). }
+      rewrite [a in a = _]bigop_cond_non0.
+      eapply (sum_reidx_map _ _ _ _ σ').
+        - rewrite /σ'//=. intros (?&?) _ => //=. destruct (σ x) => //.
+        - intros (i&Hpf) _ Hneq0; split.
+          * rewrite -enumT mem_enum //.
+          * rewrite //=. rewrite //= in Hneq0. destruct (σ i); auto.
+        - rewrite //=. intros (l0, m0) _. rewrite //=. move /eqP. intros Hneq0 Hfalse.
+          exfalso; apply Hfalse. edestruct (Hn l0 m0) as [(n0&Hle&Heq)|]; last by (exfalso; eauto).
+          { clear. destruct l0 => //=. nify. lia. }
+          { clear. destruct m0 => //=. nify. lia. }
+          assert (Hpf1:  (n0 < S (max n N))%nat).
+          { nify. specialize (Max.le_max_l n N); lia. }
+          set (n0' := Ordinal Hpf1).
+          assert (Hpf2: leq (fst (σ n0')) l && leq (snd (σ n0')) m).
+          { apply /andP; rewrite Heq//=; destruct l0, m0 => //=; clear; split; nify. }
+          exists (exist _ n0' Hpf2).
+          repeat split => //=.
+          * rewrite /index_enum//= -enumT mem_enum //.
+          * rewrite Heq. apply /eqP. done.
+          * rewrite /n0' //=; f_equal; apply ord_inj => //=; rewrite Heq; done.
+        - rewrite /index_enum//= -enumT enum_uniq //.
+        - rewrite /index_enum//= -enumT enum_uniq //.
+        - rewrite /σ'//=. intros ?? Hneq0 Heq. cut (sval x = sval x').
+          {  destruct x, x'. rewrite //=. intros; subst. f_equal. apply bool_irrelevance. }
+          destruct x as ((?&?)&?), x' as ((?&?)&?) => //=.
+          apply ord_inj. apply INJ => //=.
+          ** apply /eqP; auto.
+          ** rewrite //= in Heq. clear -Heq.
+             inversion Heq as [[Heq1 Heq2]]. clear -Heq1 Heq2. destruct (σ m0), (σ m1); auto.
+  Qed.
+
+
 Lemma is_lim_seq_sum_n (f: nat * nat → R) (h: nat → R) l:
   (∀ j, j ≤ l → is_lim_seq (λ m, sum_n (λ k, f (j, k)) m) (h j)) →
   is_lim_seq (λ m, sum_n (λ j, sum_n (λ k, f (j, k)) m) l) (sum_n h l).
