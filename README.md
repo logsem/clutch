@@ -6,7 +6,7 @@ The logic is built using the [Iris](https://iris-project.org) program logic fram
 ## Building the development
 
 The project is known to compile with
-- [Coq](https://coq.inria.fr/) 8.17.1
+- [Coq](https://coq.inria.fr/) 8.16.1
 - [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.8.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.3.1
 - [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.0.0
