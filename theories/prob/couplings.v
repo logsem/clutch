@@ -3,7 +3,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements.
 From stdpp Require Export countable.
 
-From clutch.prelude Require Import base Coquelicot_ext Reals_ext stdpp_ext.
+From clutch.prelude Require Import base Coquelicot_ext Reals_ext stdpp_ext classical.
 From clutch.prob Require Export countable_sum distribution.
 
 #[local] Open Scope R.
@@ -103,9 +103,8 @@ Section ex_coupl.
     intros Hfg (μ & Hμ).
     rewrite /ex_coupl in Hfg.
     assert (∀ (p : A * B), ∃ μ : distr (A' * B'), is_coupl (f p.1) (g p.2) μ) as Hfg'; [done|].
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as Ch.
+    apply ClassicalEpsilon.choice in Hfg' as (Ch & HCh).
     rewrite /ex_coupl.
-    destruct Ch as (Ch & HCh).
     exists (dbind Ch μ); split.
     + apply distr_ext; intro a'.
       rewrite lmarg_pmf.
@@ -230,7 +229,7 @@ Section Rcoupl.
         destruct Hfg as (μ' & Hμ'1 & Hμ'2).
         exists μ'; auto.
       + exists dzero; intro ; done. }
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as (Ch & HCh).
+    apply ClassicalEpsilon.choice in Hfg' as (Ch & Hch).
     rewrite /Rcoupl /is_Rcoupl.
     exists (dbind Ch μ); split; try split.
     (* To prove that the marginal coincides is a matter of rearranging the sums and using the
@@ -245,7 +244,7 @@ Section Rcoupl.
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         - pose proof (pmf_pos μ (a, b)); lra.
         - rewrite Heqz; lra.
-        - specialize (HCh (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
+        - specialize (Hch (a, b) (HμS (a, b) Hgt )) as ((HChL & HChR) & HChS).
           rewrite -HChL lmarg_pmf //=. }
       rewrite fubini_pos_seriesC_prod_lr; auto.
       2: { simpl; intros; by apply Rmult_le_pos. }
@@ -268,7 +267,7 @@ Section Rcoupl.
         destruct (Rtotal_order (μ (a, b)) 0) as [Hlt | [Heqz | Hgt]].
         - pose proof (pmf_pos μ (a, b)); lra.
         - rewrite Heqz. lra.
-        - specialize (HCh (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS).
+        - specialize (Hch (a, b) (HμS (a, b) Hgt)) as ((HChL & HChR) & HChS).
           rewrite -HChR rmarg_pmf //=. }
       rewrite fubini_pos_seriesC_prod_rl.
       2: { simpl; intros; by apply Rmult_le_pos. }
@@ -284,7 +283,7 @@ Section Rcoupl.
     + intros (a' & b') H3; simpl.
       pose proof (dbind_pos Ch μ (a', b')) as (H4 & H5).
       specialize (H4 H3) as ((a0, b0) & H7 & H8).
-      specialize (HCh (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
+      specialize (Hch (a0, b0) (HμS (a0, b0) H8)) as (HCh1 & HCh2).
       specialize (HCh2 (a', b') H7).
       done.
   Qed.
@@ -614,7 +613,7 @@ Section refRcoupl.
         destruct Hfg as (μ' & Hμ'1 & Hμ'2).
         exists μ'; auto.
       + exists dzero; intro ; done. }
-    pose proof (Choice (A * B) (distr (A' * B')) _ Hfg') as (Ch & HCh).
+    apply ClassicalEpsilon.choice  in Hfg' as (Ch & HCh).
     rewrite /Rcoupl /is_Rcoupl.
     exists (dbind Ch μ); split; try split.
     (* To prove that the first marginal coincides is a matter of rearranging the sums and using the

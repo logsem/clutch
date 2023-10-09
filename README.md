@@ -1,10 +1,7 @@
 # Clutch
+
 A higher-order probabilistic relational separation logic with support for asynchronous probabilistic couplings. 
-
-## Preprint
-
-[Asynchronous Probabilistic Couplings in Higher-Order Separation Logic](https://arxiv.org/abs/2301.10061).
-
+The logic is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
 
 ## Building the development
 
@@ -21,7 +18,7 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 4.14.0
+opam switch create clutch 5.1.0
 opam switch link clutch .
 ```
 3. Add the Coq and Iris `opam` repositories.
@@ -37,6 +34,26 @@ opam install . --deps-only
 
 You should now be able to build the development by using `make -j N` where `N` is the number of cores available on your machine.
 
-## Reference from the paper to the code
+## Axioms
 
-We collected a detailed correspondence mapping the concepts from the paper to the corresponding Coq code in [this table](code_paper_map.md).
+The development relies on axioms for classical reasoning found in Coq's standard library. The following list is produced when executing the `Print Assumptions` command in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
+
+```
+ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
+ClassicalDedekindReals.sig_forall_dec : ∀ P : nat → Prop, (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}
+functional_extensionality_dep : ∀ (A : Type) (B : A → Type) (f g : ∀ x : A, B x), (∀ x : A, f x = g x) → f = g
+constructive_indefinite_description : ∀ (A : Type) (P : A → Prop), (∃ x : A, P x) → {x : A | P x}
+classic : ∀ P : Prop, P ∨ ¬ P
+```
+
+## Preprint
+
+A preprint describing this work is available on arXiv:
+
+- [Asynchronous Probabilistic Couplings in Higher-Order Separation Logic](https://arxiv.org/abs/2301.10061).
+
+[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to its Coq formalization.
+
+[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to its Coq formalization.
+
+

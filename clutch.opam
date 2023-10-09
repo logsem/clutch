@@ -18,6 +18,6 @@ depends: [
   "coq-coquelicot" { (= "3.3.1") }
   "coq-iris" { (= "4.0.0") | (= "dev") }
   "coq-stdpp" { (= "1.8.0") | (= "dev") }
-  "coq-autosubst" { (>= "1.8") | (= "dev") }
+  "coq-autosubst" { (= "1.8") | (= "dev") }
   "coq-mathcomp-solvable" { (= "1.17.0") }
 ]
