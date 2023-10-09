@@ -9,7 +9,7 @@
 From discprob.basic Require Import base order bigop_ext nify Series_Ext.
 From discprob.prob Require Import countable rearrange.
 From stdpp Require tactics.
-Require Import Reals Fourier Lia Psatz.
+Require Import Reals Lia Psatz.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq bigop fintype ssrnat choice.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 
@@ -171,16 +171,16 @@ Lemma inj_nat_cover1:
 Proof.
   induction N.
   - exists (max (fst (σ O)) (snd (σ O))); intros n Hle; inversion Hle; split.
-    * apply Max.le_max_l.
-    * apply Max.le_max_r.
+    * apply Nat.le_max_l.
+    * apply Nat.le_max_r.
   - edestruct IHN as (K&HK).
     exists (max (max (fst (σ (S N))) (snd (σ (S N)))) K); intros n Hle; inversion Hle.
     * split.
-      ** etransitivity; last apply Max.le_max_l. apply Max.le_max_l.
-      ** etransitivity; last apply Max.le_max_l. apply Max.le_max_r.
+      ** etransitivity; last apply Nat.le_max_l. apply Nat.le_max_l.
+      ** etransitivity; last apply Nat.le_max_l. apply Nat.le_max_r.
     * split.
-      ** etransitivity; last apply Max.le_max_r. edestruct HK; eauto.
-      ** etransitivity; last apply Max.le_max_r. edestruct HK; eauto.
+      ** etransitivity; last apply Nat.le_max_r. edestruct HK; eauto.
+      ** etransitivity; last apply Nat.le_max_r. edestruct HK; eauto.
 Qed.
 
 Lemma inj_nat_cover2:
@@ -202,10 +202,10 @@ Proof.
          *** eapply HN; auto.
       ** edestruct (COV _ Hneq) as (N'&?).
          exists (max N N') => l m. inversion 1; subst. inversion 1; subst.
-         *** left. exists N'. split; auto. apply Max.le_max_r.
+         *** left. exists N'. split; auto. apply Nat.le_max_r.
          *** edestruct (HN O m) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N; auto.
-             apply Max.le_max_l.
+             apply Nat.le_max_l.
   - induction K2.
     * destruct (IHK1 O) as (N&HN).
       destruct (Req_dec (a (S K1, O)) 0) as [|Hneq].
@@ -214,10 +214,10 @@ Proof.
          *** eapply HN; auto.
       ** edestruct (COV _ Hneq) as (N'&?).
          exists (max N N') => l m. inversion 1; subst; inversion 1; subst.
-         *** left. exists N'. split; auto. apply Max.le_max_r.
+         *** left. exists N'. split; auto. apply Nat.le_max_r.
          *** edestruct (HN l O) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N; auto.
-             apply Max.le_max_l.
+             apply Nat.le_max_l.
     * destruct (IHK1 (S K2)) as (N1&HN1).
       destruct IHK2 as (N2&HN2).
       destruct (Req_dec (a (S K1, S K2)) 0) as [|Hneq].
@@ -225,26 +225,26 @@ Proof.
          *** right. done.
          *** edestruct (HN2 (S K1) m) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N2; auto.
-             apply Max.le_max_r.
+             apply Nat.le_max_r.
          *** edestruct (HN1 l (S K2)) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N1; auto.
-             apply Max.le_max_l.
+             apply Nat.le_max_l.
          *** edestruct (HN1 l m) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N1; auto.
-             apply Max.le_max_l.
+             apply Nat.le_max_l.
       ** edestruct (COV _ Hneq) as (N'&?).
          exists (max (max N1 N2) N') => l m. inversion 1; subst; inversion 1; subst.
          *** left.  exists N'; split; auto.
-             apply Max.le_max_r.
+             apply Nat.le_max_r.
          *** edestruct (HN2 (S K1) m) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N2; auto.
-             etransitivity; first apply Max.le_max_r; apply Max.le_max_l.
+             etransitivity; first apply Nat.le_max_r; apply Nat.le_max_l.
          *** edestruct (HN1 l (S K2)) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N1; auto.
-             etransitivity; first apply Max.le_max_l; apply Max.le_max_l.
+             etransitivity; first apply Nat.le_max_l; apply Nat.le_max_l.
          *** edestruct (HN1 l m) as [(n&?&?)|]; eauto.
              left. exists n. split; auto. transitivity N1; auto.
-             etransitivity; first apply Max.le_max_l; apply Max.le_max_l.
+             etransitivity; first apply Nat.le_max_l; apply Nat.le_max_l.
 Qed.
 
 Lemma sum_n_m_cover_diff_double:
@@ -318,7 +318,7 @@ Proof.
           { clear. destruct l0 => //=. nify. lia. }
           { clear. destruct m0 => //=. nify. lia. }
           assert (Hpf1:  (n0 < S (max n N))%nat).
-          { nify. specialize (Max.le_max_l n N); lia. }
+          { nify. specialize (Nat.le_max_l n N); lia. }
           set (n0' := Ordinal Hpf1).
           assert (Hpf2: leq (fst (σ n0')) l && leq (snd (σ n0')) m).
           { apply /andP; rewrite Heq//=; destruct l0, m0 => //=; clear; split; nify. }
@@ -469,10 +469,10 @@ Proof.
       rewrite /norm//=/abs//= in IHN.
       eapply Rle_lt_trans; first apply Rle_abs.
       assert (N0 <= N)%coq_nat.
-      { rewrite /N. apply Max.le_max_l. }
+      { rewrite /N. apply Nat.le_max_l. }
       eapply IHN; auto. lia.
     - eapply HN2.
-      rewrite /N. etransitivity; first apply Max.le_max_r. done.
+      rewrite /N. etransitivity; first apply Nat.le_max_r. done.
   }
   assert(Hnorm': ∀ eps : posreal, ∃ N K, ∀ l, K ≤ l  →
          norm (sum_n (λ j, Series (λ k, a (j, k))) l - sum_n (a \o σ) N) < eps ∧
@@ -501,7 +501,7 @@ Proof.
        }
        rewrite //=.
     - edestruct Hdiff; eauto. transitivity (pos_div_2 eps); auto.
-      destruct eps => //=; fourier.
+      destruct eps => //=; lra.
   }
   assert (Series (a \o σ) = v') as -> by (eapply is_series_unique; eauto).
     rewrite /is_series. eapply filterlim_locally => eps.

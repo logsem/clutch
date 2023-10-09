@@ -24,7 +24,7 @@ Proof. apply Rlt_le. apply exp_ineq1. nra. Qed.
 
 Lemma Rlt_0_ln x: 1 < x → 0 < ln x.
 Proof.
-  intros Hlt; rewrite -ln_1; apply ln_increasing; fourier.
+  intros Hlt; rewrite -ln_1; apply ln_increasing; lra.
 Qed.
 
 Lemma exp_ineq1_le x: 0 <= x → 1 + x <= exp x.

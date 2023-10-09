@@ -32,7 +32,7 @@ Lemma Rdiv_le_compat_contra: ∀ r1 r2 r3 r4 : R,
     0 ≤ r1 → 0 < r4 → r1 ≤ r2 → r4 ≤ r3 → r1 / r3 ≤ r2 / r4.
 Proof.
   intros. rewrite /Rdiv. apply Rmult_le_compat; auto.
-  rewrite -(Rmult_1_l (/ r3)). apply Rle_mult_inv_pos; fourier.
+  rewrite -(Rmult_1_l (/ r3)). apply Rle_mult_inv_pos; lra.
     by apply Rinv_le_contravar.
 Qed.
 
@@ -70,7 +70,7 @@ Proof.
       ** edestruct (Hin a); eauto; first by left.
 Qed.
 
-Hint Resolve Rabs_pos Rle_ge.
+#[global] Hint Resolve Rabs_pos Rle_ge : core.
 
 
 Lemma Rabs_case r (P : R → Type):

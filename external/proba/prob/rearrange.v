@@ -24,7 +24,7 @@ Lemma foldl_max l:
 Proof.
   induction l; rewrite //=; intros; try lia.
   specialize (IHl (Init.Nat.max x a)).
-  etransitivity; eauto. apply Max.le_max_l.
+  etransitivity; eauto. apply Nat.le_max_l.
 Qed.
 
 Lemma max_fun_range (σ: nat → nat) m:
@@ -38,8 +38,8 @@ Proof.
     exists (Init.Nat.max N (σ (S m))). split.
     * intros m'. inversion 1; subst.
       ** auto with *.
-      ** etransitivity; last apply Max.le_max_l; eauto.
-    * apply (Max.max_case_strong).
+      ** etransitivity; last apply Nat.le_max_l; eauto.
+    * apply (Nat.max_case_strong).
       ** intros. destruct Hachieve as (m0&?&?). exists m0; split; subst; auto.
       ** intros. exists (S m). split; auto.
 Qed.
@@ -63,13 +63,13 @@ Proof.
     exists N'; repeat split.
     * intros n'. inversion 1; subst.
       ** exists (σinv (S n)). split; auto.
-         transitivity (Init.Nat.max m (σinv (S n))); first apply Max.le_max_r; eauto.
+         transitivity (Init.Nat.max m (σinv (S n))); first apply Nat.le_max_r; eauto.
       ** destruct (Hm m') as (N&(IHm1&?&?)).
-         { etransitivity; eauto; first apply Max.le_max_l. }
+         { etransitivity; eauto; first apply Nat.le_max_l. }
          destruct (IHm1 n') as (x&?&?); auto.
     * specialize (Hbound (σinv (S n))).
       rewrite Hcan2 in Hbound. apply Hbound. auto with *.
-    * intros m'' Hlem'. eapply Hbound. etransitivity; eauto. apply Max.le_max_l.
+    * intros m'' Hlem'. eapply Hbound. etransitivity; eauto. apply Nat.le_max_l.
 Qed.
 
 Lemma sum_n_bij_sandwich (a: nat → R) (σ: nat → nat) (bij: bijective σ):
@@ -241,19 +241,19 @@ Proof.
       rewrite /norm//=/abs//= in IHN.
       eapply Rle_lt_trans; first apply Rle_abs.
       assert (N0 <= N)%coq_nat.
-      { rewrite /N. apply Max.le_max_l. }
+      { rewrite /N. apply Nat.le_max_l. }
       eapply IHN; auto. lia.
     - rewrite Rabs_minus_sym. edestruct (IHM2 m) as (n&?&Hle); auto.
       eapply Rle_lt_trans; first eapply Hle.
       rewrite /norm//=/abs//= in IHN.
       eapply Rle_lt_trans; first apply Rle_abs.
       assert (N0 <= N)%coq_nat.
-      { rewrite /N. apply Max.le_max_l. }
+      { rewrite /N. apply Nat.le_max_l. }
       eapply IHN; auto. lia.
     - eapply HN1.
-      rewrite /N. etransitivity; first apply Max.le_max_r. apply Max.le_max_l.
+      rewrite /N. etransitivity; first apply Nat.le_max_r. apply Nat.le_max_l.
     - eapply HN2.
-      rewrite /N. etransitivity; first apply Max.le_max_r. apply Max.le_max_r.
+      rewrite /N. etransitivity; first apply Nat.le_max_r. apply Nat.le_max_r.
   }
   split.
   - rewrite /is_series. eapply filterlim_locally => eps.
@@ -322,13 +322,13 @@ Proof.
     exists N'; repeat split.
     ** intros n'. inversion 1; subst. left.
       *** exists minv. split; auto.
-         transitivity (Init.Nat.max m minv); first apply Max.le_max_r; eauto.
+         transitivity (Init.Nat.max m minv); first apply Nat.le_max_r; eauto.
       *** destruct (Hm m') as (N&(IHm1&?&?)).
-         { etransitivity; eauto; first apply Max.le_max_l. }
+         { etransitivity; eauto; first apply Nat.le_max_l. }
          eauto.
     ** specialize (Hbound minv).
-       rewrite -Heq. eapply Hbound. apply Max.le_max_r.
-    ** intros m'' Hlem'. eapply Hbound. etransitivity; eauto. apply Max.le_max_l.
+       rewrite -Heq. eapply Hbound. apply Nat.le_max_r.
+    ** intros m'' Hlem'. eapply Hbound. etransitivity; eauto. apply Nat.le_max_l.
 Qed.
 
 Lemma sum_n_m_cover_diff:
@@ -452,7 +452,7 @@ Proof.
       rewrite /norm//=/abs//= in IHN.
       eapply Rle_lt_trans; first apply Rle_abs.
       assert (N0 <= N)%coq_nat.
-      { rewrite /N. apply Max.le_max_l. }
+      { rewrite /N. apply Nat.le_max_l. }
       eapply Rle_lt_trans; last apply (IHN (S N) n); auto; try lia.
       right. f_equal. apply sum_n_m_ext_loc; auto.
       intros => //=. rewrite //= Rabs_Rabsolu. done.
@@ -461,12 +461,12 @@ Proof.
       rewrite /norm//=/abs//= in IHN.
       eapply Rle_lt_trans; first apply Rle_abs.
       assert (N0 <= N)%coq_nat.
-      { rewrite /N. apply Max.le_max_l. }
+      { rewrite /N. apply Nat.le_max_l. }
       eapply IHN; auto. lia.
     - eapply HN1.
-      rewrite /N. etransitivity; first apply Max.le_max_r. apply Max.le_max_l.
+      rewrite /N. etransitivity; first apply Nat.le_max_r. apply Nat.le_max_l.
     - eapply HN2.
-      rewrite /N. etransitivity; first apply Max.le_max_r. apply Max.le_max_r.
+      rewrite /N. etransitivity; first apply Nat.le_max_r. apply Nat.le_max_r.
   }
   split.
   - rewrite /is_series. eapply filterlim_locally => eps.
