@@ -48,8 +48,8 @@ classic : ∀ P : Prop, P ∨ ¬ P
 
 ## Preprint
 
-A preprint describing this work is available on arXiv:
+A preprint describing this work is available on arXiv.
 
-- [Asynchronous Probabilistic Couplings in Higher-Order Separation Logic](https://arxiv.org/abs/2301.10061).
+> Gregersen, S.O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L., 2023. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. [arXiv preprint arXiv:2301.10061.](https://arxiv.org/abs/2301.10061).
 
 [This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to its Coq formalization.
