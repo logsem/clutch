@@ -18,7 +18,7 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 5.1.0
+opam switch create clutch 4.14.1
 opam switch link clutch .
 ```
 3. Add the Coq and Iris `opam` repositories.
@@ -53,7 +53,3 @@ A preprint describing this work is available on arXiv:
 - [Asynchronous Probabilistic Couplings in Higher-Order Separation Logic](https://arxiv.org/abs/2301.10061).
 
 [This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to its Coq formalization.
-
-[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to its Coq formalization.
-
-
