@@ -45,7 +45,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and the axiomatization of the reals numbers, both found in Coq's standard library. The following list is produced when executing the command "Print Assumptions eager_lazy_equiv." in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. The following list is produced when executing the command `Print Assumptions eager_lazy_equiv.` in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}

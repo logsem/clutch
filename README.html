@@ -226,10 +226,10 @@ opam update</code></pre>
 <code>make -j N</code> where <code>N</code> is the number of cores
 available on your machine.</p>
 <h2 id="axioms">Axioms</h2>
-<p>The development relies on axioms for classical reasoning and the
+<p>The development relies on axioms for classical reasoning and an
 axiomatization of the reals numbers, both found in Coq’s standard
 library. The following list is produced when executing the command
-“Print Assumptions eager_lazy_equiv.” in <a
+<code>Print Assumptions eager_lazy_equiv.</code> in <a
 href="theories/examples/lazy_eager_coin.v"><code>theories/examples/lazy_eager_coin.v</code></a>:</p>
 <pre><code>ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
 ClassicalDedekindReals.sig_forall_dec : ∀ P : nat → Prop, (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}
