@@ -16,7 +16,7 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 #[local] Open Scope R.
 
-Lemma wp_lift_step_fupd_coupl E Φ e1 :
+Lemma wp_lift_step_fupd_couple E Φ e1 :
   to_val e1 = None →
   (∀ σ1 e1' σ1' ε,
     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε
@@ -41,7 +41,7 @@ Lemma wp_lift_step_fupd E Φ e1 :
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply wp_lift_step_fupd_coupl; [done|].
+  iApply wp_lift_step_fupd_couple; [done|].
   iIntros (σ1 e1' σ1' ε) "[Hσ [Hρ Hε]]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
   iSplit; [done|].

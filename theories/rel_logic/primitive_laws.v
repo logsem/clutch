@@ -61,7 +61,7 @@ Implicit Types σ : state.
 Implicit Types v : val.
 Implicit Types l : loc.
 
-(** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
+(** Recursive functions: we do not use this lemma as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
 Lemma wp_rec_löb E f x e Φ Ψ :
