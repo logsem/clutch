@@ -181,6 +181,66 @@ Proof.
   apply Rabs_pos.
 Qed.
 
+
+Lemma partial_sum_pos (h : nat → R) p :
+  (∀ n, 0 <= h n) →
+  0 <= sum_n h p.
+Proof.
+  intros Hpos.
+  rewrite /sum_n.
+  induction p.
+  - rewrite sum_n_n; auto.
+  - rewrite sum_n_Sm; auto with arith.
+    apply Rplus_le_le_0_compat; auto.
+Qed.
+
+Lemma partial_sum_elem (h : nat → R) p :
+  (∀ n, 0 <= h n) →
+  h p <= sum_n h p.
+Proof.
+  intros Hpos.
+  rewrite /sum_n.
+  induction p.
+  - rewrite sum_n_n; auto.
+    apply Rle_refl.
+  - rewrite sum_n_Sm; auto with arith.
+    assert (h (S p) = 0 + h (S p)) as Haux; try lra.
+    rewrite {1}Haux.
+    apply Rplus_le_compat; [apply partial_sum_pos | apply Rle_refl]; auto.
+Qed.
+
+Lemma partial_sum_mon (h : nat → R) p q :
+  (∀ n, 0 <= h n) →
+  p ≤ q →
+  sum_n h p <= sum_n h q.
+Proof.
+  intros Hge Hpq.
+  rewrite /sum_n.
+  induction q.
+  - assert (p = 0%nat); auto with arith.
+    simplify_eq; done.
+  - destruct (PeanoNat.Nat.le_gt_cases p q) as [H1 | H1].
+    + specialize (IHq H1).
+      rewrite sum_n_Sm; auto with arith.
+      rewrite /plus /=.
+      specialize (Hge (S q)).
+      lra.
+    + assert (p = S q) as ->; auto with arith.
+      lra.
+Qed.
+
+Lemma sum_n_le (h g: nat → R) n:
+  (∀ m, h m <= g m) →
+  sum_n h n <= sum_n g n.
+Proof.
+  intro Hle.
+  induction n.
+  - rewrite 2!sum_O //.
+  - rewrite 2!sum_Sn.
+    by apply Rplus_le_compat.
+Qed.
+
+
 Lemma is_series_0 a :
   (∀ n, a n = 0) → is_series a 0.
 Proof.
