@@ -44,10 +44,10 @@ Section counterexample_annotation.
 
 End counterexample_annotation.
 
-(** This counter example shows that prophecy variables (as developed for
-    HeapLang in Iris) is unsound for the coupling logic, for the same reason
-    that presampling is unsound without syntatic tape labels: If you can predict
-    the outcomes of random samples ahead of time, it gives you too much power to
+(** This counterexample shows that prophecy variables (as developed in HeapLang
+    and Iris) is unsound for the coupling logic, for the same reason that
+    presampling is unsound without syntatic tape labels: If you can predict the
+    outcomes of random samples ahead of time, it gives you too much power to
     choose which sampling you couple with. *)
 Section counterexample_prophecies.
   Context `{!clutchRGS Σ}.
@@ -72,7 +72,7 @@ Section counterexample_prophecies.
        {{{ pvs', RET (LitV LitUnit); ⌜pvs = (LitV LitUnit, v)::pvs'⌝ ∗ proph p pvs' }}};
     }.
 
-  (** [flip_ands] return true with probability 1/4, false with 3/4  *)
+  (** [flip_ands] returns [true] with probability 1/4, [false] with 3/4 *)
   Definition flip_ands `{prophecies} : expr :=
     let: "p" := NewProph #() in
     let: "x" := flip in
@@ -80,7 +80,7 @@ Section counterexample_prophecies.
     ResolveProph "p" "y";;
     "x" && "y".
 
-  (** We show that [flip_ands] refines [flip] which can cannot be true. *)
+  (** We show that [flip_ands] refines [flip] which is not true. *)
   Lemma counterexample_prophecies `{prophecies} :
     ⊢ REL flip_ands << flip : lrel_bool.
   Proof.
@@ -109,7 +109,7 @@ Section counterexample_prophecies.
       wp_apply (wp_resolve_proph with "Hp").
       iIntros (?) "(% & ?)". congruence. }
 
-    (** Now, we're in the interesting situation. We case on the Boolean content
+    (** Now we're in the interesting situation. We case on the Boolean content
         of the prophecy. *)
     destruct Hbool as [[] ->].
     - (** The prophecy was [true], and we do an identity coupling with the
@@ -126,8 +126,7 @@ Section counterexample_prophecies.
     - (** The prophecy is [false], and we do an identity coupling with the
           [flip] of [y]. The result of the left is predetermined to be [x &&
           false = false]. By coupling [y] (that we know will be [false]) with
-          the [flip] on the right, we guarantee that the right also evaluates to
-          [false]. *)
+          the [flip] on the right, we ensure that the right is also [false]. *)
       wp_apply wp_flip; [done|]; iIntros (b1) "_". wp_pures.
       wp_apply wp_couple_flip_flip; [done|]. iFrame.
       iIntros "/= !>" (b2) "Hr". wp_pures.
