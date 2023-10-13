@@ -1912,24 +1912,6 @@ Section marginals.
     done.
   Qed.
 
-  Lemma lmarg_dswap (μ : distr (A * B)) :
-    lmarg (dswap μ) = rmarg μ.
-  Proof.
-    rewrite /lmarg /dswap dmap_comp.
-    assert ((fst ∘ (λ '(a, b), (b : B, a : A))) = snd) as ->.
-    { extensionality b. by destruct b. }
-    done.
-  Qed.
-
-  Lemma rmarg_dswap (μ : distr (A * B)) :
-    rmarg (dswap μ) = lmarg μ.
-  Proof.
-    rewrite /rmarg /dswap dmap_comp.
-    assert ((snd ∘ (λ '(a, b), (b : B, a : A))) = fst) as ->.
-    { extensionality b. by destruct b. }
-    done.
-  Qed.
-
   Lemma rmarg_dprod_pmf (μ1 : distr A) (μ2 : distr B) (b : B) :
     rmarg (dprod μ1 μ2) b = μ2 b * SeriesC μ1.
   Proof.

@@ -297,7 +297,7 @@ Section prim_exec_lim.
    setoid_rewrite lim_exec_val_rw.
    assert
      (SeriesC (λ a : cfg Λ, prim_step_or_val ρ a * Sup_seq (λ n : nat, exec_val n a v)) =
-     SeriesC (λ a : cfg Λ, Sup_seq (λ n : nat, prim_step_or_val ρ a * exec_val n a v))) as ->.
+     SeriesC (λ a : cfg Λ, Sup_seq (λ n : nat, prim_step_or_val ρ a * exec_val n a v))) as H.
    { apply SeriesC_ext; intro v'.
      apply eq_rbar_finite.
      rewrite rmult_finite.
@@ -307,6 +307,7 @@ Section prim_exec_lim.
        + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
        + apply upper_bound_ge_sup; intro; simpl; auto.
    }
+   rewrite H. 
    rewrite (MCT_seriesC _ (λ n, exec_val (S n) ρ v) (lim_exec_val ρ v)); auto.
    - intros; apply Rmult_le_pos; auto.
    - intros.

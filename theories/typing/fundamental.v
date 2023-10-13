@@ -286,7 +286,7 @@ Section fundamental.
   Lemma bin_log_related_rand_tape Δ Γ e1 e1' e2 e2' :
     (〈Δ; Γ〉 ⊨ e1 ≤log≤ e1' : TNat) -∗
     (〈Δ; Γ〉 ⊨ e2 ≤log≤ e2' : TTape) -∗
-    〈Δ; Γ〉 ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
+    〈Δ; Γ〉 ⊨ rand(e2) e1 ≤log≤ rand(e2') e1' : TNat.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.
@@ -300,7 +300,7 @@ Section fundamental.
   Lemma bin_log_related_rand_unit Δ Γ e1 e1' e2 e2' :
     (〈Δ; Γ〉 ⊨ e1 ≤log≤ e1' : TNat) -∗
     (〈Δ; Γ〉 ⊨ e2 ≤log≤ e2' : TUnit) -∗
-    〈Δ; Γ〉 ⊨ rand e1 from e2 ≤log≤ rand e1' from e2' : TNat.
+    〈Δ; Γ〉 ⊨ rand(e2) e1 ≤log≤ rand(e2') e1' : TNat.
   Proof.
     iIntros "IH1 IH2".
     intro_clause.

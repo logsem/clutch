@@ -62,6 +62,9 @@ Section lazy_real.
       + rewrite !SeriesC_bool !dprod_pmf !fair_coin_pmf. real_solver.
       + real_solver.
       + apply ex_seriesC_prod; eauto using ex_seriesC_finite.
+        intros ??.
+        pose proof (pmf_pos (dprod fair_coin fair_coin) (a, b)).
+        case_match; lra.        
   Qed.
 
   Lemma two_coins_terminates (bs : mstate two_coins)  :

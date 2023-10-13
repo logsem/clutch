@@ -297,7 +297,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     ▷ α ↪ (N; []) ∗
       ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << e @ E : A)
-    ⊢ REL fill K (rand #z from #lbl:α) << e @ E : A.
+    ⊢ REL fill K (rand(#lbl:α) #z) << e @ E : A.
   Proof.
     iIntros (->) "[>Hα H]".
     rewrite refines_eq /refines_def.
@@ -312,7 +312,7 @@ Section rules.
   Lemma refines_randU_l E K e (N : nat) (z : Z) A :
     TCEq N (Z.to_nat z) →
     (∀ (n : fin (S N)), REL fill K (Val #n) << e @ E : A)
-      ⊢ REL fill K (rand #z from #()) << e @ E : A.
+      ⊢ REL fill K (rand #z) << e @ E : A.
   Proof.
     iIntros (?) "H".
     rewrite refines_eq /refines_def.
@@ -366,8 +366,8 @@ Section rules.
   Lemma refines_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' E α A z ns e :
     TCEq N (Z.to_nat z) →
     to_val e = None →
-    α ↪ (N; ns) ∗
-      (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #n) @ E : A)
+    ▷ α ↪ (N; ns) ∗
+      (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #(f n)) @ E : A)
     ⊢ REL e << fill K' (rand #z) @ E : A.
   Proof.
     iIntros (-> ?) "[>Hα Hcnt]".
@@ -388,8 +388,8 @@ Section rules.
 
   Lemma refines_couple_UT N f `{Bij (fin (S N)) (fin (S N)) f} K E α A z ns e :
     TCEq N (Z.to_nat z) →
-    α ↪ₛ (N; ns) ∗
-      (∀ (n : fin (S N)), α ↪ₛ (N; ns ++ [n]) -∗ REL fill K (Val #n) << e @ E : A)
+    ▷ α ↪ₛ (N; ns) ∗
+      ▷ (∀ (n : fin (S N)), α ↪ₛ (N; ns ++ [f n]) -∗ REL fill K (Val #n) << e @ E : A)
     ⊢ REL fill K (rand #z) << e @ E : A.
   Proof.
     iIntros (->) "[Hα Hcnt]".
@@ -408,11 +408,11 @@ Section rules.
 
   Corollary refines_couple_TU_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
     TCEq N (Z.to_nat z) →
-    α ↪ (N; []) ∗
-      (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ▷ α ↪ (N; []) ∗
+      ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
     ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
   Proof.
-    iIntros (->) "(> α & H)".
+    iIntros (->) "(>α & H)".
     iApply refines_couple_tape_rand.
     { rewrite fill_not_val //. }
     iFrame => /=. iIntros (n) "Hα".
@@ -423,8 +423,8 @@ Section rules.
 
   Corollary refines_couple_UT_empty N f `{Bij (fin (S N)) (fin (S N)) f} K K' E α A z :
     TCEq N (Z.to_nat z) →
-    α ↪ₛ (N; []) ∗
-      (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ▷ α ↪ₛ (N; []) ∗
+      ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
     ⊢ REL fill K (rand #z) << fill K' (rand(#lbl:α) #z) @ E : A.
   Proof.
     iIntros (->) "(>Hα & H)".
@@ -439,7 +439,7 @@ Section rules.
 
   Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
     TCEq N (Z.to_nat z) →
-    (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ▷ (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
     ⊢ REL fill K (rand #z) << fill K' (rand #z) @ E : A.
   Proof.
     iIntros (->) "Hcnt".
@@ -458,41 +458,5 @@ Section rules.
   Qed.
 
   Definition refines_couple_rands_lr := refines_couple_UU.
-
-  Lemma refines_rand_empty_l K E α A N z e :
-    TCEq N (Z.to_nat z) →
-    α ↪ (N; []) ∗
-      (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << e @ E : A)
-    ⊢ REL fill K (rand(#lbl:α) #z) << e @ E : A.
-  Proof.
-    iIntros (->) "[Hα H]".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply (wp_rand_tape_empty with "Hα").
-    iIntros (n) "Hα /=".
-    iApply ("H" with "Hα [$Hs $Hspec] Hnais").
-  Qed.
-
-  Lemma refines_rand_empty_r K E α A N z e :
-    TCEq N (Z.to_nat z) →
-    to_val e = None →
-    α ↪ₛ (N; []) ∗
-      (∀ n : fin (S N), α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
-    ⊢ REL e << fill K (rand(#lbl:α) #z) @ E : A.
-  Proof.
-    iIntros (-> ev) "[Hα H]".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_rand_empty_r; [done|done|].
-    rewrite -fill_app.
-    iFrame "Hα Hspec Hs".
-    iIntros "(Hα & _ & %n & Hb)".
-    rewrite /= fill_app.
-    iSpecialize ("H" with "Hα [$Hs $Hb] Hnais").
-    wp_apply (wp_mono with "H").
-    iIntros (?) "[% ([? ?] & ? & ?)]".
-    iExists _. iFrame.
-  Qed.
 
 End rules.

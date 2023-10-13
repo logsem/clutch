@@ -1,3 +1,4 @@
+From stdpp Require Import countable.
 From clutch Require Export clutch. 
 From clutch.examples Require Export hash.
 
@@ -438,8 +439,6 @@ Section keyed_hash.
     { iExists _, _, _. iFrame. iPureIntro; split_and!; eauto using ghost_phys_dom_init. }
     { iApply keyed_hash_ghost_init_split. auto. }
   Qed.
-
-  From stdpp Require Import countable.
 
   Lemma khashfun_own_acc_assign_hash γ k v m :
     khashfun_own γ k m -∗

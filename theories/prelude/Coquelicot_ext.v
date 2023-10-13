@@ -141,6 +141,7 @@ Proof.
     destruct p eqn:Hp;
       destruct q eqn:Hq;
       simpl in *; try lra.
+Qed. 
 
 Lemma Rle_exists_nat (x y : R) :
   (0 <= x) → (0 < y) → ∃ (n : nat), x / (1 + n) < y.
