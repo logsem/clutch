@@ -139,7 +139,79 @@ Section rules.
 
   Lemma ARcoupl_refRcoupl `{Countable A, Countable B}
     μ1 μ2 (ψ : A → B → Prop) : refRcoupl μ1 μ2 ψ -> ARcoupl μ1 μ2 ψ 0.
-  Admitted.
+  Proof.
+    intros (μ&(<-&Hrm)&Hs).
+    setoid_rewrite rmarg_pmf in Hrm.
+    intros f g Hf Hg Hfg.
+    rewrite Rplus_0_r.
+    setoid_rewrite lmarg_pmf.
+    etrans; last first.
+    {
+      apply SeriesC_le.
+      - split; last first.
+        + apply Rmult_le_compat_r; [apply Hg | apply Hrm].
+        + simpl. apply Rmult_le_pos; [ | apply Hg].
+          by apply SeriesC_ge_0'.
+      - eapply ex_seriesC_le ; [ | eapply (pmf_ex_seriesC μ2)].
+        intros; split.
+        * apply Rmult_le_pos; auto. apply Hg.
+        * rewrite <- Rmult_1_r.
+          apply Rmult_le_compat_l; auto. apply Hg.
+    }
+    setoid_rewrite <- SeriesC_scal_r.
+    rewrite (fubini_pos_seriesC (λ '(a,n), Rmult (μ (a, n)) (g n))).
+    - apply SeriesC_le.
+      + intro a; split.
+        * apply SeriesC_ge_0'.
+          intro.
+          apply Rmult_le_pos; auto. apply Hf.
+        * apply SeriesC_le.
+          ** intro b; split.
+             *** apply Rmult_le_pos; auto.
+                 apply Hf.
+             *** destruct (decide ((μ(a,b) > 0)%R)) as [H3 | H4].
+                 **** apply Hs, Hfg in H3.
+                      by apply Rmult_le_compat_l.
+                 **** apply Rnot_gt_le in H4.
+                      replace (μ(a,b)) with 0%R; [ lra | by apply Rle_antisym].
+          ** eapply ex_seriesC_le; [ | eapply (ex_seriesC_lmarg μ); eauto ].
+             intros; split.
+             *** apply Rmult_le_pos; auto.
+                 apply Hg.
+             *** rewrite <- Rmult_1_r.
+                 apply Rmult_le_compat_l; auto.
+                 apply Hg.
+     + eapply ex_seriesC_le; [ | eapply (fubini_pos_seriesC_prod_ex_lr μ)]; eauto.
+       * intro; simpl.
+         split.
+         ** apply SeriesC_ge_0'.
+            intro; apply Rmult_le_pos; auto.
+            apply Hg.
+         ** apply SeriesC_le.
+            *** intro; split.
+                **** apply Rmult_le_pos; auto. apply Hg.
+                **** rewrite <- Rmult_1_r.
+                     apply Rmult_le_compat_l; eauto; eapply Hg.
+            *** apply ex_seriesC_lmarg; auto.
+    - intros; apply Rmult_le_pos; auto. apply Hg.
+    - intros a.
+      eapply ex_seriesC_le; [ | eapply (ex_seriesC_lmarg μ a) ]; eauto.
+      intros. split.
+      + apply Rmult_le_pos; auto. apply Hg.
+      + rewrite <- Rmult_1_r. apply Rmult_le_compat_l; auto; apply Hg.
+    - eapply ex_seriesC_le; [ | eapply (fubini_pos_seriesC_prod_ex_lr μ)]; eauto.
+       + intro; simpl.
+         split.
+         * apply SeriesC_ge_0'.
+           intro; apply Rmult_le_pos; auto.
+           apply Hg.
+         * apply SeriesC_le.
+            ** intro; split.
+                *** apply Rmult_le_pos; auto. apply Hg.
+                *** rewrite <- Rmult_1_r.
+                    apply Rmult_le_compat_l; eauto; eapply Hg.
+            ** apply ex_seriesC_lmarg; auto.
+  Qed.
 
   Lemma ARcoupl_exact `{Countable A, Countable B}
     μ1 μ2 (ψ : A → B → Prop) : Rcoupl μ1 μ2 ψ → ARcoupl μ1 μ2 ψ 0.

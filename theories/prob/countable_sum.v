@@ -828,13 +828,13 @@ Section fubini.
  Admitted.
  *)
 
-  Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) b :
+  Lemma fubini_pos_seriesC_prod_ex_lr (h : A * B -> R) :
     (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     ex_seriesC (λ a, SeriesC (λ b, h(a, b))).
   Admitted.
 
-  Lemma fubini_pos_seriesC_prod_ex_rl (h : A * B -> R) b :
+  Lemma fubini_pos_seriesC_prod_ex_rl (h : A * B -> R) :
     (∀ a b, 0 <= h (a, b)) ->
     (ex_seriesC h) ->
     ex_seriesC (λ b, SeriesC (λ a, h(a, b))).
