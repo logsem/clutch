@@ -22,9 +22,8 @@ Lemma wp_lift_step_fupd_couple E Φ e1 :
     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε
     ={E,∅}=∗
     ⌜reducible e1 σ1⌝ ∗
-    (∃ (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R⌝ ∗
-    exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε1))
+    (exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε2,
+      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε))
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   by rewrite wp_unfold /wp_pre =>->.
@@ -45,10 +44,12 @@ Proof.
   iIntros (σ1 e1' σ1' ε) "[Hσ [Hρ Hε]]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
   iSplit; [done|].
-  iExists nnreal_zero.
-  iExists ε.
-  iSplit.
-  { iPureIntro. simpl. lra. }
+  replace (ε) with ((nnreal_zero + ε)%NNR) at 2; last first.
+  {
+    rewrite /nnreal_plus/=.
+    apply nnreal_ext.
+    simpl. lra.
+  }
   iApply (exec_coupl_prim_step_l e1 σ1 _ _ _ nnreal_zero).
   iExists _. (*(λ '(e2, σ2), prim_step e1 σ1 (e2, σ2) > 0). *)
   iSplit; [done | ].
@@ -61,7 +62,7 @@ Proof.
   iIntros ([e2 σ2] (?&?&?)).
   iMod ("H" with "[//]") as "H".
   iIntros "!> !>".
-  iFrame; done.
+  iFrame. done.
 Qed.
 
 (* Lemma wp_lift_stuck E Φ e : *)

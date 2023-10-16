@@ -181,32 +181,30 @@ Section rules.
     iSplitR ; [done|].
     (* iExists nnreal_zero, ε. iSplitR ; [iPureIntro => /=; lra|]. *)
 
-    assert nonnegreal as ε_now by admit.
-    assert (ε_now = nnreal_nat 0) as hε_now by admit.
-    assert nonnegreal as ε_cont by admit.
     (* assert (ε_cont = nnreal_nat 0) as hε_cont by admit. *)
-    iExists ε_now, ε_cont. iSplitR ; [admit|].
+    (*iExists ε_now, ε_cont. iSplitR ; [admit|].*)
+    replace (ε) with (nnreal_plus nnreal_zero ε)
+      by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
     (* Do a (trivially) coupled [prim_step] on the right *)
 
     (* Might have to pick a better ε for the continuation here than 0. Can we
        predict this or does it come from Hwp? *)
-    replace ε_now with (nnreal_plus ε_now nnreal_zero)
-      by by apply nnreal_ext => /= ; lra.
+(*    replace ε_now with (nnreal_plus ε_now nnreal_zero)
+      by by apply nnreal_ext => /= ; lra. *)
     iApply (exec_coupl_exec_r).
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S (Z.to_nat z)), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
       rewrite exec_1.
-      replace ε_now with (nnreal_plus nnreal_zero ε_now)
+      replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
                                by by apply nnreal_ext => /= ; lra.
       rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply (ARcoupl_dbind _ _ _ _ _ _ nnreal_zero ε_now) => /=.
-      1,2: rewrite ?hε_now ; simpl ; lra.
+      eapply (ARcoupl_dbind _ _ _ _ _ _ _ _) => /=.
+      1,2: simpl ; lra.
       2: by eapply ARcoupl_rand_r.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
-      rewrite hε_now.
       apply ARcoupl_dret => /=. eauto. }
     iIntros (σ2 e2' (n & [= -> ->])).
     iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
@@ -222,14 +220,12 @@ Section rules.
     (* replace ε with (nnreal_plus ε nnreal_zero) *)
     (*   by by apply nnreal_ext => /= ; lra. *)
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
-    iDestruct "Hwp" as "[hred (%ε1 & %ε2 & %hε & Hwp)]".
+    replace (nnreal_plus nnreal_zero ε) with (ε)
+      by by apply nnreal_ext => /= ; lra.
     iModIntro.
-
-    (* In the goal, we have the RHS = K[#n], a value.
-       Why is the current ε on the exec_coupl nnreal_zero? Is this ε_now?
-     *)
-
-  Abort.
+    iDestruct "Hwp" as "[hred Hwp]".
+    done.
+  Qed.
 
 (*
 TODO Adapt the rest of the file below.
