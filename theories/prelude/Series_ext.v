@@ -76,6 +76,17 @@ Section rbar_extra.
     apply Rle_refl.
   Qed.
 
+
+  Lemma rbar_scal_r (p : Rbar) (r : R) :
+    is_finite p ->
+    (real p) * r = real (Rbar_mult p (Finite r)).
+  Proof.
+    intro Hfin.
+    destruct p ; simpl; auto.
+    all:case_match; simpl; try lra; inversion Hfin.
+  Qed.
+
+
 End rbar_extra.
 
 Lemma ex_series_eventually0 (a: nat → R):
@@ -351,6 +362,16 @@ Section positive.
     + apply upper_bound_ge_sup; intro n.
       destruct (H2 n) as (m & ?).
       apply (Sup_seq_minor_le _ _ m); auto.
+  Qed.
+
+  Lemma Sup_seq_scal_r (a : R) (u : nat → Rbar):
+    0 <= a →
+    Sup_seq (λ n : nat, Rbar_mult (u n) a) = Rbar_mult (Sup_seq u) a.
+  Proof.
+    intro.
+    rewrite Rbar_mult_comm -Sup_seq_scal_l //.
+    apply Sup_seq_ext.
+    intro; apply Rbar_mult_comm.
   Qed.
 
 

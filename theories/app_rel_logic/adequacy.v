@@ -248,7 +248,7 @@ Definition clutchΣ : gFunctors :=
 Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_union_bound Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
+Theorem wp_aRcoupl Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
   (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ ε.
 Proof.
@@ -272,4 +272,67 @@ Proof.
   iApply wp_ARcoupl_step_fupdN.
   iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
+Qed.
+
+
+Theorem wp_aRcoupl_lim Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
+  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  ARcoupl (lim_exec_val (e, σ)) (lim_exec_val (e', σ')) φ ε.
+Proof.
+  intros Hwp.
+  rewrite {1}/lim_exec_val/=.
+  intros f g Hf Hg Hfg.
+  assert (forall n,
+    SeriesC (λ a, exec_val n (e, σ) a * f a) <=
+         SeriesC (λ b, lim_exec_val (e', σ') b * g b) + ε) as Haux2.
+  {
+   intro. eapply wp_aRcoupl; eauto.
+  }
+  assert (forall a,
+             Rbar.is_finite (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (exec_val n (e, σ) a)))) as Hfin.
+  {
+    intro a.
+    apply (is_finite_bounded 0 1).
+    - apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
+      case_match; auto.
+    - by apply upper_bound_ge_sup; intro; simpl.
+  }
+  setoid_rewrite lim_distr_pmf at 1.
+  transitivity (Rbar.real (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (SeriesC (λ a : val, exec_val n (e, σ) a * f a))))).
+  - right.
+    setoid_rewrite (rbar_scal_r); auto.
+    setoid_rewrite <- Sup_seq_scal_r; [ | apply Hf].
+    simpl.
+    eapply MCT_seriesC.
+    + intros n a; auto. specialize (Hf a); real_solver.
+    + intros n a. apply Rmult_le_compat_r; [apply Hf | apply exec_val_mon].
+    + intro a; exists 1; intro n. specialize (Hf a); real_solver.
+    + intro n. apply SeriesC_correct.
+      apply (ex_seriesC_le _ (exec_val n (e, σ))); auto.
+      intro a; specialize (Hf a). split; [ real_solver |].
+      rewrite <- Rmult_1_r. real_solver.
+    + rewrite rbar_finite_real_eq; last first.
+    {
+      apply (is_finite_bounded 0 1).
+      - apply (Lim_seq.Sup_seq_minor_le _ _ 0); simpl.
+        apply SeriesC_ge_0'.
+        intro a. specialize (Hf a).
+        case_match; real_solver.
+      - apply upper_bound_ge_sup; intro; simpl.
+        etrans.
+        + apply (SeriesC_le _ (exec_val n (e, σ))); auto.
+          intro a; specialize (Hf a). split; [ real_solver |].
+          rewrite <- Rmult_1_r. real_solver.
+        + auto.
+    }
+    apply Lim_seq.Sup_seq_correct.
+  - Search Rbar.real.
+    apply Rbar_le_fin'.
+    {
+      apply Rplus_le_le_0_compat; [ | apply cond_nonneg].
+      apply SeriesC_ge_0'.
+      intro b. specialize (Hg b); real_solver.
+    }
+    apply upper_bound_ge_sup.
+    intro; simpl. auto.
 Qed.
