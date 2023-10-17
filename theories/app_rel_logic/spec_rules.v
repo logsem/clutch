@@ -149,6 +149,35 @@ Section rules.
     by apply Rcoupl_rand_r.
   Qed.
 
+
+  Lemma ARcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
+    N = Z.to_nat z →
+    tapes σ1' !! α' = Some (N; []) →
+    ARcoupl
+      (dret ρ1)
+      (prim_step (rand #z from #lbl:α') σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+  Proof.
+    intros ??.
+    apply ARcoupl_exact.
+    by apply Rcoupl_rand_empty_r.
+  Qed.
+
+
+  Lemma ARcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
+    N = Z.to_nat z →
+    N ≠ M →
+    tapes σ1' !! α' = Some (M; ns) →
+    ARcoupl
+      (dret ρ1)
+      (prim_step (rand #z from #lbl:α') σ1')
+      (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+  Proof.
+    intros ???.
+    apply ARcoupl_exact.
+    eapply Rcoupl_rand_wrong_r; eauto.
+  Qed.
+
   (* TODO: Can we get this as a lifting of the corresponding exact relational rule? *)
 
   (** RHS [rand] *)
@@ -161,7 +190,7 @@ Section rules.
     (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> He HE Hred) "(#Hinv & Hj & Hwp)".
+    iIntros (-> He Hred HE) "(#Hinv & Hj & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -169,19 +198,9 @@ Section rules.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iSplitR ; [done|].
-    (* iExists nnreal_zero, ε. iSplitR ; [iPureIntro => /=; lra|]. *)
-
-    (* assert (ε_cont = nnreal_nat 0) as hε_cont by admit. *)
-    (*iExists ε_now, ε_cont. iSplitR ; [admit|].*)
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
-    (* Do a (trivially) coupled [prim_step] on the right *)
-
-    (* Might have to pick a better ε for the continuation here than 0. Can we
-       predict this or does it come from Hwp? *)
-(*    replace ε_now with (nnreal_plus ε_now nnreal_zero)
-      by by apply nnreal_ext => /= ; lra. *)
     iApply (exec_coupl_exec_r).
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S (Z.to_nat z)), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
@@ -191,7 +210,7 @@ Section rules.
                                by by apply nnreal_ext => /= ; lra.
       rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply (ARcoupl_dbind _ _ _ _ _ _ _ _) => /=.
+      eapply ARcoupl_dbind => /=.
       1,2: simpl ; lra.
       2: by eapply ARcoupl_rand_r.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
@@ -207,8 +226,6 @@ Section rules.
       iFrame. rewrite exec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "Hj").
     rewrite !wp_unfold /wp_pre /= He.
-    (* replace ε with (nnreal_plus ε nnreal_zero) *)
-    (*   by by apply nnreal_ext => /= ; lra. *)
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
     replace (nnreal_plus nnreal_zero ε) with (ε)
       by by apply nnreal_ext => /= ; lra.
@@ -217,26 +234,27 @@ Section rules.
     done.
   Qed.
 
-(*
-TODO Adapt the rest of the file below.
-
   (** RHS [rand(α)] with empty tape  *)
   Lemma wp_rand_empty_r N z E e K α Φ :
     TCEq N (Z.to_nat z) →
     to_val e = None →
+    (∀ σ1, reducible e σ1) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (N; []) ∗
     ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> He HE) "(#Hinv & Hj & Hα & Hwp)".
+    iIntros (-> He Hred HE) "(#Hinv & Hj & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iSplitR; [done|].
+    replace (ε) with (nnreal_plus nnreal_zero ε)
+      by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
     (* Do a (trivially) coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
@@ -244,11 +262,15 @@ TODO Adapt the rest of the file below.
     iSplit.
     { iPureIntro.
       rewrite exec_1.
+      replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
+                               by by apply nnreal_ext => /= ; lra.
       rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_empty_r].
+      eapply ARcoupl_dbind => /=.
+      1,2: simpl; lra.
+      2: by eapply ARcoupl_rand_empty_r.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
-      apply Rcoupl_dret=>/=. eauto. }
+      apply ARcoupl_dret=>/=. eauto. }
     iIntros (σ2 e2' (n & [= -> ->])).
     iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
     iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
@@ -260,7 +282,12 @@ TODO Adapt the rest of the file below.
       iFrame. rewrite exec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
-    by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".
+    iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
+    replace (nnreal_plus nnreal_zero ε) with (ε)
+      by by apply nnreal_ext => /= ; lra.
+    iModIntro.
+    iDestruct "Hwp" as "[hred Hwp]".
+    done.
   Qed.
 
     (** RHS [rand(α)] with wrong tape  *)
@@ -268,19 +295,23 @@ TODO Adapt the rest of the file below.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     to_val e = None →
+    (∀ σ1, reducible e σ1) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (M; ns) ∗
     ((α ↪ₛ (M; ns) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> ? He HE) "(#Hinv & Hj & Hα & Hwp)".
+    iIntros (-> Hneq He Hred HE) "(#Hinv & Hj & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iSplitR; [done|].
+    replace (ε) with (nnreal_plus nnreal_zero ε)
+      by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
     (* Do a (trivially) coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
@@ -288,11 +319,16 @@ TODO Adapt the rest of the file below.
     iSplit.
     { iPureIntro.
       rewrite exec_1.
+      replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
+                               by by apply nnreal_ext => /= ; lra.
       rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_wrong_r].
+      eapply ARcoupl_dbind => /=.
+      1,2: simpl; lra.
+      2: by eapply ARcoupl_rand_wrong_r.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
-      apply Rcoupl_dret=>/=. eauto. }
+      apply ARcoupl_dret=>/=. eauto.
+    }
     iIntros (σ2 e2' (n & [= -> ->])).
     iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
     iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
@@ -304,7 +340,12 @@ TODO Adapt the rest of the file below.
       iFrame. rewrite exec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
-    by iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1]") as "Hwp".
+    iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
+    replace (nnreal_plus nnreal_zero ε) with (ε)
+      by by apply nnreal_ext => /= ; lra.
+    iModIntro.
+    iDestruct "Hwp" as "[hred Hwp]".
+    done.
   Qed.
 
   (** * Corollaries about [refines_right]  *)
@@ -328,6 +369,5 @@ TODO Adapt the rest of the file below.
     iMod (step_rand with "[$]") as "(?&?&?)"; [done|].
     iModIntro; iFrame.
   Qed.
-*)
 
 End rules.
