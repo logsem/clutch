@@ -641,7 +641,60 @@ Proof.
     apply Rplus_le_compat_l.
 Admitted.
 
-Lemma ARcoupl_dunif_no_coll (N : nat) (x : fin N):
+
+Lemma ARcoupl_dunif_no_coll_l (N : nat) (x : fin N):
+  (0 < N ) -> ARcoupl (dunif N) (dret x) (λ m n, m ≠ n) (1/N).
+Proof.
+  intros Hleq f g Hf Hg Hfg.
+  rewrite /pmf/=/dret_pmf.
+  setoid_rewrite (SeriesC_ext _ (λ a, (if bool_decide (a = x) then g x else 0))) at 2; last first.
+  {
+    intro; case_bool_decide; simplify_eq; real_solver.
+  }
+  transitivity (SeriesC (λ a : fin N, if bool_decide (a = x) then 1 / N else / N * g x )).
+  {
+    apply SeriesC_le.
+    - intros; case_bool_decide.
+      + split.
+        * apply Rmult_le_pos; [ | apply Hf ].
+          left. apply Rinv_0_lt_compat. lra.
+        * rewrite -(Rmult_1_r (1/N)); simpl.
+          apply Rmult_le_compat; [ | apply Hf | nra | apply Hf].
+          left. apply Rinv_0_lt_compat. lra.
+      + split.
+        * apply Rmult_le_pos; [ | apply Hf ].
+          left. apply Rinv_0_lt_compat. lra.
+        * apply Rmult_le_compat_l; auto.
+          left. apply Rinv_0_lt_compat. lra.
+    - apply ex_seriesC_finite.
+  }
+  rewrite (SeriesC_split_elem _ x).
+  + rewrite {1}Rplus_comm.
+    apply Rplus_le_compat.
+    * etrans.
+      ** apply (SeriesC_finite_bound _ (/ N * g x)).
+         intros; split.
+         *** case_bool_decide; [|lra].
+             rewrite bool_decide_eq_false_2; auto.
+             apply Rmult_le_pos; [ | apply Hg ].
+             left. apply Rinv_0_lt_compat. lra.
+         *** case_bool_decide; [rewrite bool_decide_eq_false_2; auto; lra |].
+             apply Rmult_le_pos; [ | apply Hg ].
+             left. apply Rinv_0_lt_compat. lra.
+      ** rewrite SeriesC_singleton fin_card.
+         rewrite -Rmult_assoc Rinv_r; lra.
+    * etrans; [ | right; apply (SeriesC_singleton x (1/N))].
+      right; apply SeriesC_ext => n.
+      by case_bool_decide.
+  + intro; case_bool_decide.
+    * apply Rmult_le_pos; [ lra | ].
+      left. apply Rinv_0_lt_compat. lra.
+    * apply Rmult_le_pos; [ | apply Hg].
+      left. apply Rinv_0_lt_compat. lra.
+  + apply ex_seriesC_finite.
+Qed.
+
+Lemma ARcoupl_dunif_no_coll_r (N : nat) (x : fin N):
   (0 < N ) -> ARcoupl (dret x) (dunif N) (λ m n, m ≠ n) (1/N).
 Proof.
   intros Hleq f g Hf Hg Hfg.

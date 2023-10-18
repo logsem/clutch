@@ -148,7 +148,7 @@ Section rules.
     apply ARcoupl_exact.
     by apply Rcoupl_rand_r.
   Qed.
-
+  
 
   Lemma ARcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
     N = Z.to_nat z →
