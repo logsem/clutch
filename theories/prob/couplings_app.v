@@ -643,7 +643,7 @@ Admitted.
 
 
 Lemma ARcoupl_dunif_no_coll_l (N : nat) (x : fin N):
-  (0 < N ) -> ARcoupl (dunif N) (dret x) (λ m n, m ≠ n) (1/N).
+  (0 < N ) -> ARcoupl (dunif N) (dret x) (λ m n, n = x ∧ m ≠ n) (1/N).
 Proof.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=/dret_pmf.
