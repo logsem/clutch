@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.prob Require Import distribution couplings.
+From clutch.prelude Require Import stdpp_ext NNRbar.
+From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.program_logic Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation.
 From clutch.prob_lang Require Export lang.
@@ -482,6 +482,106 @@ Proof.
     all : auto using dret_mass, head_step_mass.
   - intros ? [] (_ & hh%dret_pos & ?).
     inv_head_step; eauto.
+Qed.
+
+
+(** * Approximate state_step(α, N) ~ state_step(α', N) coupling *)
+Lemma ARcoupl_state_state N M σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
+  (0 < S N <= S M)%R →
+  (((S M - S N) / S N) = ε)%R →
+  σ1.(tapes) !! α1 = Some (N; xs) →
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  ARcoupl
+    (state_step σ1 α1)
+    (state_step σ2 α2)
+    (λ σ1' σ2', ∃ (n : fin (S N)) (m : fin (S M)),
+        (fin_to_nat n = m) ∧
+        σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := (M; ys ++ [m])]> σ2)
+    ε.
+Proof.
+  intros NMpos NMε Hα1 Hα2.
+  rewrite /state_step.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ Hα1).
+  rewrite (lookup_total_correct _ _ _ Hα2).
+  replace ε with (nnreal_plus ε nnreal_zero); last first.
+  { apply nnreal_ext; simpl; lra. }
+  unshelve eapply ARcoupl_dbind.
+  { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
+  { destruct ε ; done. } { simpl ; lra. }
+  2: { rewrite -NMε. by apply ARcoupl_dunif_leq. }
+  intros n m nm.
+  apply ARcoupl_dret.
+  simpl in nm. eauto.
+Qed.
+
+Lemma ARcoupl_state_state_rev N M σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
+  (0 < S M <= S N)%R →
+  (((S N - S M) / S N) = ε)%R →
+  σ1.(tapes) !! α1 = Some (N; xs) →
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  ARcoupl
+    (state_step σ1 α1)
+    (state_step σ2 α2)
+    (λ σ1' σ2', ∃ (n : fin (S N)) (m : fin (S M)),
+        (fin_to_nat n = m) ∧
+        σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := (M; ys ++ [m])]> σ2)
+    ε.
+Proof.
+  intros NMpos NMε Hα1 Hα2.
+  rewrite /state_step.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ Hα1).
+  rewrite (lookup_total_correct _ _ _ Hα2).
+  replace ε with (nnreal_plus ε nnreal_zero); last first.
+  { apply nnreal_ext; simpl; lra. }
+  unshelve eapply ARcoupl_dbind.
+  { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
+  { destruct ε ; done. } { simpl ; lra. }
+  2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev. }
+  intros n m nm.
+  apply ARcoupl_dret.
+  simpl in nm. eauto.
+Qed.
+Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
+  N = Z.to_nat z →
+  ARcoupl
+    (dret ρ1)
+    (prim_step (rand #z from #()) σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+Proof.
+  intros ?.
+  apply ARcoupl_exact.
+  by apply Rcoupl_rand_r.
+Qed.
+
+Lemma ARcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
+  N = Z.to_nat z →
+  tapes σ1' !! α' = Some (N; []) →
+  ARcoupl
+    (dret ρ1)
+    (prim_step (rand #z from #lbl:α') σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+Proof.
+  intros ??.
+  apply ARcoupl_exact.
+  by apply Rcoupl_rand_empty_r.
+Qed.
+
+Lemma ARcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
+  N = Z.to_nat z →
+  N ≠ M →
+  tapes σ1' !! α' = Some (M; ns) →
+  ARcoupl
+    (dret ρ1)
+    (prim_step (rand #z from #lbl:α') σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+Proof.
+  intros ???.
+  apply ARcoupl_exact.
+  eapply Rcoupl_rand_wrong_r; eauto.
 Qed.
 
 
