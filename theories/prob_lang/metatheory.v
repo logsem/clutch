@@ -516,6 +516,35 @@ Proof.
   simpl in nm. eauto.
 Qed.
 
+Lemma ARcoupl_state_state_rev N M σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
+  (0 < S M <= S N)%R →
+  (((S N - S M) / S N) = ε)%R →
+  σ1.(tapes) !! α1 = Some (N; xs) →
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  ARcoupl
+    (state_step σ1 α1)
+    (state_step σ2 α2)
+    (λ σ1' σ2', ∃ (n : fin (S N)) (m : fin (S M)),
+        (fin_to_nat n = m) ∧
+        σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := (M; ys ++ [m])]> σ2)
+    ε.
+Proof.
+  intros NMpos NMε Hα1 Hα2.
+  rewrite /state_step.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ Hα1).
+  rewrite (lookup_total_correct _ _ _ Hα2).
+  replace ε with (nnreal_plus ε nnreal_zero); last first.
+  { apply nnreal_ext; simpl; lra. }
+  unshelve eapply ARcoupl_dbind.
+  { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
+  { destruct ε ; done. } { simpl ; lra. }
+  2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev. }
+  intros n m nm.
+  apply ARcoupl_dret.
+  simpl in nm. eauto.
+Qed.
 Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   ARcoupl
