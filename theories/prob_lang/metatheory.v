@@ -628,6 +628,31 @@ Proof.
   simpl in nm. eauto.
 Qed.
 
+Lemma wp_couple_no_coll_rand N z (σ σₛ : state) (x : Fin.t (S N)) (ε : nonnegreal) :
+  (0 < S N)%R →
+  ((1 / S N) = ε)%R →
+  N = Z.to_nat z →
+  ARcoupl
+    (dret (Val #x, σ))
+    (prim_step (rand #z from #()) σₛ)
+    (λ ρ' ρₛ', ∃ n : fin (S N),
+        ρ' = ((Val #x), σ) ∧ ρₛ' = (Val #n, σₛ) ∧ (fin_to_nat n ≠ x))
+    ε.
+Proof.
+  intros Npos Nε Nz.
+  rewrite head_prim_step_eq /=.
+  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
+  by eapply (RandNoTapeS _ _ 0%fin).
+  rewrite -Nz.
+  rewrite -(dmap_dret (λ x : Fin.t (S N), (Val #x, σ)) x).
+  rewrite /dmap.
+  replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
+  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
+  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll _ x Npos).
+  move => x' n [-> xn]. apply ARcoupl_dret.
+  exists n. intuition auto. subst. apply xn. by apply fin_to_nat_inj.
+Qed.
+
 Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   ARcoupl

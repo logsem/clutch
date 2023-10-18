@@ -694,9 +694,9 @@ Proof.
   + apply ex_seriesC_finite.
 Qed.
 
-Lemma ARcoupl_dunif_no_coll_r (N : nat) (x : fin N):
-  (0 < N ) -> ARcoupl (dret x) (dunif N) (λ m n, m ≠ n) (1/N).
-Proof.
+Lemma ARcoupl_dunif_no_coll_r (N : nat) (x : fin N) :
+  (0 < N) -> ARcoupl (dret x) (dunif N) (λ m n, m = x ∧ m ≠ n) (1/N).
+Proof with try (by apply ex_seriesC_finite) ; auto.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=/dret_pmf.
   transitivity (SeriesC (λ a, (if bool_decide (a = x) then f x else 0))).
