@@ -619,8 +619,8 @@ Proof.
 Admitted.
 
 (* Note the asymmetry on the error wrt to the previous lemma *)
-Lemma ARcoupl_dunif_leq_rev (N M : nat):
-  (0 < N <= M) -> ARcoupl (dunif M) (dunif N) (λ m n, fin_to_nat m = n) ((M-N)/M).
+Lemma ARcoupl_dunif_leq_rev (N M : nat) :
+  (0 < M <= N) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((N-M)/N).
 Proof.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=.
@@ -630,19 +630,19 @@ Proof.
   - apply Rlt_gt.
     apply Rinv_0_lt_compat; lra.
   - rewrite /Rdiv Rinv_inv Rmult_plus_distr_r.
-    rewrite (Rmult_assoc (M-N)) Rinv_l; [ | lra].
+    rewrite (Rmult_assoc (N-M)) Rinv_l; [ | lra].
     rewrite Rmult_1_r Rplus_comm.
-    assert (SeriesC f <= SeriesC g + (M - N)) as Haux.
+    assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
     { admit. }
-    apply (Rle_trans _ (SeriesC g + (M - N))); auto.
+    apply (Rle_trans _ (SeriesC g + (N - M))); auto.
     (* { (*?!*) *)
     (*   admit. } *)
     rewrite Rplus_comm.
     apply Rplus_le_compat_l.
 Admitted.
 
-Lemma ARcoupl_dunif_no_coll (N : nat) (x : fin N):
-  (0 < N ) -> ARcoupl (dret x) (dunif N) (λ m n, m ≠ n) (1/N).
+Lemma ARcoupl_dunif_no_coll (N : nat) (x : fin N) :
+  (0 < N) -> ARcoupl (dret x) (dunif N) (λ m n, m ≠ n) (1/N).
 Proof with try (by apply ex_seriesC_finite) ; auto.
   intros Hleq f g Hf Hg Hfg.
   assert (0 < /N) by (apply Rinv_0_lt_compat ; lra).
