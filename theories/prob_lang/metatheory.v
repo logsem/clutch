@@ -484,10 +484,92 @@ Proof.
     inv_head_step; eauto.
 Qed.
 
+Lemma S_INR_le_compat (N M : nat) :
+  (N <= M)%R ->
+  (0 < S N <= S M)%R.
+Proof.
+  split; [| do 2 rewrite S_INR; lra ].
+  rewrite S_INR.
+  apply Rplus_le_lt_0_compat; [ apply pos_INR | lra].
+Qed.
+
+(** * Approximate rand(N) ~ rand(M) coupling, N <= M *)
+Lemma ARcoupl_rand_rand (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
+  (N <= M)%R ->
+  (((S M - S N) / S N) = ε)%R →
+  N = Z.to_nat z →
+  M = Z.to_nat w →
+  ARcoupl
+    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #w from #()) σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)) (m : fin (S M)),
+        (fin_to_nat n = m) ∧
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #m, σ1'))
+   ε.
+Proof.
+  intros NMpos NMε Hz Hw.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1'). eapply head_step_support_equiv_rel.
+    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite /dmap -Hz -Hw.
+  replace ε with (nnreal_plus ε nnreal_zero); last first.
+  { apply nnreal_ext; simpl; lra. }
+  eapply ARcoupl_dbind.
+  1,2: apply cond_nonneg.
+  2 : {
+    rewrite -NMε.
+    by eapply ARcoupl_dunif_leq, S_INR_le_compat.
+  }
+  intros n m Hnm.
+  apply ARcoupl_dret.
+  exists n . exists m.
+  by rewrite Hnm //.
+Qed.
+
+
+(** * Approximate rand(N) ~ rand(M) coupling, M <= N *)
+Lemma ARcoupl_rand_rand_rev (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
+  (M <= N)%R ->
+  (((S N - S M) / S N) = ε)%R →
+  N = Z.to_nat z →
+  M = Z.to_nat w →
+  ARcoupl
+    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #w from #()) σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)) (m : fin (S M)),
+        (fin_to_nat n = m) ∧
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #m, σ1'))
+   ε.
+Proof.
+  intros NMpos NMε Hz Hw.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1'). eapply head_step_support_equiv_rel.
+    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite /dmap -Hz -Hw.
+  replace ε with (nnreal_plus ε nnreal_zero); last first.
+  { apply nnreal_ext; simpl; lra. }
+  eapply ARcoupl_dbind.
+  1,2: apply cond_nonneg.
+  2 : {
+    rewrite -NMε.
+    by eapply ARcoupl_dunif_leq_rev, S_INR_le_compat.
+  }
+  intros n m Hnm.
+  apply ARcoupl_dret.
+  exists n . exists m.
+  by rewrite Hnm //.
+Qed.
+
 
 (** * Approximate state_step(α, N) ~ state_step(α', N) coupling *)
-Lemma ARcoupl_state_state N M σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
-  (0 < S N <= S M)%R →
+Lemma ARcoupl_state_state (N M : nat) σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
+  (N <= M)%R ->
   (((S M - S N) / S N) = ε)%R →
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
@@ -510,14 +592,14 @@ Proof.
   unshelve eapply ARcoupl_dbind.
   { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
   { destruct ε ; done. } { simpl ; lra. }
-  2: { rewrite -NMε. by apply ARcoupl_dunif_leq. }
+  2: { rewrite -NMε. by apply ARcoupl_dunif_leq, S_INR_le_compat. }
   intros n m nm.
   apply ARcoupl_dret.
   simpl in nm. eauto.
 Qed.
 
-Lemma ARcoupl_state_state_rev N M σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
-  (0 < S M <= S N)%R →
+Lemma ARcoupl_state_state_rev (N M : nat) σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
+  (M <= N)%R ->
   (((S N - S M) / S N) = ε)%R →
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
@@ -540,11 +622,12 @@ Proof.
   unshelve eapply ARcoupl_dbind.
   { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
   { destruct ε ; done. } { simpl ; lra. }
-  2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev. }
+  2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev, S_INR_le_compat. }
   intros n m nm.
   apply ARcoupl_dret.
   simpl in nm. eauto.
 Qed.
+
 Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   ARcoupl

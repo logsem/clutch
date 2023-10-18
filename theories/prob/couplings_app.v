@@ -698,8 +698,6 @@ Lemma ARcoupl_dunif_no_coll_r (N : nat) (x : fin N):
   (0 < N ) -> ARcoupl (dret x) (dunif N) (λ m n, m ≠ n) (1/N).
 Proof.
   intros Hleq f g Hf Hg Hfg.
-  assert (0 < /N) by (apply Rinv_0_lt_compat ; lra).
-  assert (0 <= /N) by (left ; auto).
   rewrite /pmf/=/dret_pmf.
   transitivity (SeriesC (λ a, (if bool_decide (a = x) then f x else 0))).
   {
@@ -712,24 +710,32 @@ Proof.
     apply SeriesC_le.
     - intros; case_bool_decide.
       + split; try lra.
-        apply Rmult_le_pos, Hg...
+        apply Rmult_le_pos; [ | apply Hg ].
+        left. apply Rinv_0_lt_compat. lra.
       + split.
-        * apply Rmult_le_pos, Hf...
-        * apply Rmult_le_compat_l...
+        * apply Rmult_le_pos; [ | apply Hf ].
+          left. apply Rinv_0_lt_compat. lra.
+        * apply Rmult_le_compat_l; auto.
+          left. apply Rinv_0_lt_compat. lra.
     - apply ex_seriesC_finite.
   }
   rewrite -(SeriesC_singleton x (1 / N)).
-  rewrite <- SeriesC_plus...
+  rewrite <- SeriesC_plus.
   - transitivity (SeriesC (λ x0 : fin N, /N * f x)).
     + rewrite SeriesC_finite_mass SeriesC_singleton fin_card.
       rewrite -Rmult_assoc Rinv_r; lra.
-    + apply SeriesC_le...
-      intros; split.
-      * apply Rmult_le_pos, Hf...
-      * case_bool_decide; [|lra].
-        rewrite Rplus_0_l -(Rmult_1_r (1/N)); simpl.
-        apply Rmult_le_compat ; [ | apply Hf | nra | apply Hf]...
-Qed.
+    + apply SeriesC_le.
+      * intros; split.
+        ** apply Rmult_le_pos; [ | apply Hf ].
+           left. apply Rinv_0_lt_compat. lra.
+        ** case_bool_decide; [|lra].
+           rewrite Rplus_0_l -(Rmult_1_r (1/N)); simpl.
+           apply Rmult_le_compat; [ | apply Hf | nra | apply Hf].
+           left. apply Rinv_0_lt_compat. lra.
+     * apply ex_seriesC_finite.
+  - apply ex_seriesC_finite.
+  - apply ex_seriesC_finite.
+ Qed.
 
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
