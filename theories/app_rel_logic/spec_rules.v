@@ -137,46 +137,6 @@ Section rules.
     by apply dret_1_1.
   Qed.
 
-  Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
-    N = Z.to_nat z →
-    ARcoupl
-      (dret ρ1)
-      (prim_step (rand #z from #()) σ1')
-      (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-  Proof using clutchGS0 Σ.
-    intros ?.
-    apply ARcoupl_exact.
-    by apply Rcoupl_rand_r.
-  Qed.
-
-
-  Lemma ARcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
-    N = Z.to_nat z →
-    tapes σ1' !! α' = Some (N; []) →
-    ARcoupl
-      (dret ρ1)
-      (prim_step (rand #z from #lbl:α') σ1')
-      (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-  Proof.
-    intros ??.
-    apply ARcoupl_exact.
-    by apply Rcoupl_rand_empty_r.
-  Qed.
-
-
-  Lemma ARcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
-    N = Z.to_nat z →
-    N ≠ M →
-    tapes σ1' !! α' = Some (M; ns) →
-    ARcoupl
-      (dret ρ1)
-      (prim_step (rand #z from #lbl:α') σ1')
-      (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-  Proof.
-    intros ???.
-    apply ARcoupl_exact.
-    eapply Rcoupl_rand_wrong_r; eauto.
-  Qed.
 
   (* TODO: Can we get this as a lifting of the corresponding exact relational rule? *)
 
