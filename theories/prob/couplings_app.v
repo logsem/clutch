@@ -635,20 +635,11 @@ Proof.
     assert (SeriesC f <= SeriesC g + (M - N)) as Haux.
     { admit. }
     apply (Rle_trans _ (SeriesC g + (M - N))); auto.
-    { (*?!*)
-      admit. }
+    (* { (*?!*) *)
+    (*   admit. } *)
     rewrite Rplus_comm.
     apply Rplus_le_compat_l.
 Admitted.
-
-(* TODO: Fix typeclass issues
-
-  Check (@finite_countable (fin N) (@fin_dec N) (fin_finite N)).
-  fin_countable N
-
- *)
-
-Local Existing Instance finite_countable | 0.
 
 Lemma ARcoupl_dunif_no_coll (N : nat) (x : fin N):
   (0 < N ) -> ARcoupl (dret x) (dunif N) (λ m n, m ≠ n) (1/N).

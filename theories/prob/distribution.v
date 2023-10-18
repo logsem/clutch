@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
-From clutch.prelude Require Export base Reals_ext Coquelicot_ext Series_ext classical.
+From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical.
 From clutch.prob Require Export countable_sum.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
@@ -1031,13 +1031,6 @@ Section iterM.
   Qed.
 
 End iterM.
-
-(* TODO: goes somewhere else? *)
-(* The lemmas about [Finite A] make use of the [Countable A] instance
-   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
-   already exists another instance. We give the highest priority ([0]) to
-   [finite_countable] to be able to use the lemmas. *)
-Local Existing Instance finite_countable | 0.
 
 (** * Coins  *)
 Definition fair_coin_pmf : bool → R :=

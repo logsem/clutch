@@ -265,6 +265,12 @@ Section finite.
   
 End finite.
 
+(* The lemmas about [Finite A] make use of the [Countable A] instance
+   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
+   already exists another instance. We give the highest priority ([0]) to
+   [finite_countable] to be able to use the lemmas. *)
+#[export] Existing Instance finite_countable | 0.
+
 Section fin_maps.
   Context `{FinMap K M}.
 
