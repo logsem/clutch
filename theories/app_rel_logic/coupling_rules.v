@@ -191,16 +191,21 @@ Section rules.
     iApply (exec_coupl_exec_r).
   Abort.
 
-  Lemma wp_couple_rand_no_coll K N z E (x : Fin.t N) Φ ε :
+  (* TODO (1) The step-taking fancy update in the WP hypothesis is silly. *)
+  (*      (2) The spec program should be allowed to occur in arbitrary context K. *)
+  Lemma wp_couple_rand_no_coll (* K *) N z E (x : Fin.t (S N)) Φ ε :
     nclose specN ⊆ E →
     (0 < S N)%R →
     ((1 / S N) = ε)%R →
     N = Z.to_nat z →
     € ε ∗
-    refines_right K #x ∗
+    (* refines_right K #x -∗ *)
+    refines_right [] #x ∗
     (∀ (n : fin (S N)),
         ⌜(fin_to_nat n ≠ x)⌝ →
-        refines_right K #x -∗
+        (* refines_right K #x -∗ *)
+        refines_right [] #x -∗
+        |={E}[∅]▷=>
         WP (Val #n) @ E {{ Φ }})
     ⊢ WP (rand #z from #()) @ E {{ Φ }}.
   Proof.
@@ -209,15 +214,13 @@ Section rules.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    (* iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?. *)
-    (* iDestruct (ghost_map_lookup with "Ht1 Hα") as %?. *)
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR. { (* iPureIntro. *)
-               (* replace (#() ;; #x)%E with (fill [AppLCtx #()] (λ:<>, #x))%E by auto. *)
-               (* apply head_prim_fill_reducible. *)
-               (* eexists (_, _). *)
-               (* apply head_step_support_equiv_rel. *)
-               (* eapply RecS. *) admit. }
+    assert (∀ σ, reducible (rand #z from #())%E σ).
+    { intros. eapply head_prim_reducible.
+      eexists (_, _).
+      apply head_step_support_equiv_rel.
+      by apply (RandNoTapeS _ N 0%fin). }
+    iSplitR ; [auto|].
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     (* split ε_now into ε + (ε_now - ε) *)
@@ -225,15 +228,33 @@ Section rules.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε') by (apply nnreal_ext; simpl; lra).
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    From clutch.rel_logic Require Import proofmode.
-    (* wp_bind #x. *)
-    set (e := (let: "x" := #x in "x")%E).
-    (* Unset Printing Notations. Set Printing Coercions. *)
-    replace e with (fill [AppRCtx (λ:"x", "x")] (Val #x))%E by reflexivity.
-    (* Do a coupled [state_step] on both sides  *)
-    iApply (exec_coupl_exec_r).
-
-  Abort.
+    (* Do a coupled [prim_step] on the left and a [dret] on the right. *)
+    iApply (exec_coupl_prim_step_l).
+    iExists _. iSplitR ; auto.
+    iSplitR.
+    { iPureIntro => /=.
+      apply (wp_couple_rand_no_coll N z σ1 σ0' x ε Npos Nε Nz). }
+    iIntros (ρ2 (n & -> & ? & nx)).
+    (* Update our resources *)
+    iMod (spec_interp_update (fill [] (Val #x), σ0')
+           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    (* Update Hε2 *)
+    iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants *)
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, _, 0. simpl.
+      iFrame. rewrite exec_O dret_1_1 //. }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
+    iSpecialize ("Hwp" $! n nx with "[$]").
+    rewrite !wp_unfold /wp_pre /=.
+    iMod "Hwp".
+    iModIntro.
+    iModIntro.
+    iMod "Hwp".
+    by iFrame.
+  Qed.
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
   Lemma wp_couple_rand_rand_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
