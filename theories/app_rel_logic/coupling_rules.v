@@ -14,6 +14,7 @@ Section rules.
   Implicit Types e : expr.
   Implicit Types v : val.
   Implicit Types l : loc.
+  Implicit Types ε : nonnegreal.
 
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
@@ -147,6 +148,92 @@ Section rules.
     iModIntro. done.
   Qed.
 
+  Lemma wp_couple_no_coll_rand K N z E (x : Fin.t N) Φ ε :
+    nclose specN ⊆ E →
+    (0 < S N)%R →
+    ((1 / S N) = ε)%R →
+    N = Z.to_nat z →
+    € ε ∗
+    refines_right K (rand #z from #()) ∗
+    (∀ (n : fin (S N)),
+        ⌜(fin_to_nat n ≠ x)⌝ →
+        refines_right K #n -∗
+        WP (let: "x" := of_val #(fin_to_nat x) in "x") @ E {{ Φ }})
+    ⊢ WP (let: "x" := of_val #(fin_to_nat x) in "x") @ E {{ Φ }}.
+  Proof.
+    iIntros (? Npos Nε Nz) "(Hε & [#Hinv Hj] &  Hwp)".
+    iApply wp_lift_step_fupd_couple ; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    (* iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?. *)
+    (* iDestruct (ghost_map_lookup with "Ht1 Hα") as %?. *)
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iSplitR. { (* iPureIntro. *)
+               (* replace (#() ;; #x)%E with (fill [AppLCtx #()] (λ:<>, #x))%E by auto. *)
+               (* apply head_prim_fill_reducible. *)
+               (* eexists (_, _). *)
+               (* apply head_step_support_equiv_rel. *)
+               (* eapply RecS. *) admit. }
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* split ε_now into ε + (ε_now - ε) *)
+    iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
+    set (ε' := nnreal_minus ε_now ε Hle ).
+    replace ε_now with (nnreal_plus ε ε') by (apply nnreal_ext; simpl; lra).
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    From clutch.rel_logic Require Import proofmode.
+    (* wp_bind #x. *)
+    set (e := (let: "x" := #x in "x")%E).
+    (* Unset Printing Notations. Set Printing Coercions. *)
+    replace e with (fill [AppRCtx (λ:"x", "x")] (Val #x))%E by reflexivity.
+    (* Do a coupled [state_step] on both sides  *)
+    iApply (exec_coupl_exec_r).
+  Abort.
+
+  Lemma wp_couple_rand_no_coll K N z E (x : Fin.t N) Φ ε :
+    nclose specN ⊆ E →
+    (0 < S N)%R →
+    ((1 / S N) = ε)%R →
+    N = Z.to_nat z →
+    € ε ∗
+    refines_right K #x ∗
+    (∀ (n : fin (S N)),
+        ⌜(fin_to_nat n ≠ x)⌝ →
+        refines_right K #x -∗
+        WP (Val #n) @ E {{ Φ }})
+    ⊢ WP (rand #z from #()) @ E {{ Φ }}.
+  Proof.
+    iIntros (? Npos Nε Nz) "(Hε & [#Hinv Hj] &  Hwp)".
+    iApply wp_lift_step_fupd_couple ; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    (* iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?. *)
+    (* iDestruct (ghost_map_lookup with "Ht1 Hα") as %?. *)
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iSplitR. { (* iPureIntro. *)
+               (* replace (#() ;; #x)%E with (fill [AppLCtx #()] (λ:<>, #x))%E by auto. *)
+               (* apply head_prim_fill_reducible. *)
+               (* eexists (_, _). *)
+               (* apply head_step_support_equiv_rel. *)
+               (* eapply RecS. *) admit. }
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* split ε_now into ε + (ε_now - ε) *)
+    iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
+    set (ε' := nnreal_minus ε_now ε Hle ).
+    replace ε_now with (nnreal_plus ε ε') by (apply nnreal_ext; simpl; lra).
+    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    From clutch.rel_logic Require Import proofmode.
+    (* wp_bind #x. *)
+    set (e := (let: "x" := #x in "x")%E).
+    (* Unset Printing Notations. Set Printing Coercions. *)
+    replace e with (fill [AppRCtx (λ:"x", "x")] (Val #x))%E by reflexivity.
+    (* Do a coupled [state_step] on both sides  *)
+    iApply (exec_coupl_exec_r).
+
+  Abort.
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M *)
   Lemma wp_couple_rand_rand (N M : nat) z w K E Φ (ε : nonnegreal) :
