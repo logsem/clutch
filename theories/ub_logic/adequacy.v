@@ -30,54 +30,56 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
 
-  Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε ε' : nonnegreal) :
+  Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
-    exec_ub e σ (λ '(e2, σ2),
-        |={∅}▷=>^(S n) ⌜ub_lift (exec_val n (e2, σ2)) φ ε⌝) ε'
-    ⊢ |={∅}▷=>^(S n) ⌜ub_lift (exec_val (S n) (e, σ)) φ (ε + ε')%NNR⌝.
+    exec_ub e σ (λ ε' '(e2, σ2),
+        |={∅}▷=>^(S n) ⌜ub_lift (exec_val n (e2, σ2)) φ ε'⌝) ε
+    ⊢ |={∅}▷=>^(S n) ⌜ub_lift (exec_val (S n) (e, σ)) φ ε⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_ub /exec_ub'.
     set (Φ := (λ '(ε'', (e1, σ1)),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                 ⌜ub_lift (exec_val (S n) (e1, σ1)) φ (ε + ε'')%NNR⌝)%I) :
+                 ⌜ub_lift (exec_val (S n) (e1, σ1)) φ ε''⌝)%I) :
            prodO NNRO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
-    set (F := (exec_ub_pre (λ '(e2, σ2),
-                   |={∅}▷=>^(S n) ⌜ub_lift (exec_val n (e2, σ2)) φ ε⌝)%I)).
+    set (F := (exec_ub_pre (λ ε' '(e2, σ2),
+                   |={∅}▷=>^(S n) ⌜ub_lift (exec_val n (e2, σ2)) φ ε'⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       by iMod ("H" $! ((_, _)) with "Hfix [//]").
     }
     clear.
     iIntros "!#" ([ε'' [e1 σ1]]). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %Hlift & H)| H] %Hv".
-    - rewrite exec_val_Sn_not_val; [|done].
-      rewrite nnreal_plus_comm.
+    iIntros "[ (%R & %ε1 & %ε2 & % & %Hlift & H)| H] %Hv".
+    - 
+      iApply step_fupdN_mono.
+      { apply pure_mono.
+        eapply UB_mon_grading; eauto. }
+      rewrite exec_val_Sn_not_val; [|done].
       iApply ub_lift_dbind'.
-      + iPureIntro; apply cond_nonneg.
-      + iPureIntro; apply cond_nonneg.
-      + iPureIntro; apply Hlift.
+      1,2 : iPureIntro; apply cond_nonneg.
+      + done.
       + iIntros ([] ?).
         by iMod ("H"  with "[//]").
     - rewrite exec_val_Sn_not_val; [|done].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
-                       ⌜ub_lift (prim_step e1 σ1 ≫= exec_val n) φ (ε + ε'')⌝)%I
+                       ⌜ub_lift (prim_step e1 σ1 ≫= exec_val n) φ ε''⌝)%I
                   with "H") as "H".
       { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hleq & %Hlift & H)".
         rewrite -exec_val_Sn_not_val; [|done].
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 , R2 σ2 → ub_lift (exec_val (S n) (e1, σ2)) φ (ε + ε2)⌝)%I).
+                  (⌜∀ σ2 , R2 σ2 → ub_lift (exec_val (S n) (e1, σ2)) φ ε2 ⌝)%I).
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα.
           apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-          apply (UB_mon_grading _ _ (ε1 + (ε + ε2))); [lra | ].
+          apply (UB_mon_grading _ _ (ε1 + ε2)); [lra | ].
           erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
           eapply ub_lift_dbind; eauto; [apply cond_nonneg | ].
-          apply Rplus_le_le_0_compat; apply cond_nonneg.
+          apply cond_nonneg.
         - iIntros (??). by iMod ("H" with "[//] [//]"). }
       iInduction (language.get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
@@ -116,29 +118,27 @@ Section adequacy.
         apply (UB_mon_grading _ _ 0); [apply cond_nonneg | ].
         apply ub_lift_dret; auto.
       + rewrite ub_wp_unfold /ub_wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "(%Hexec_ub & %ε1 & %ε2 & %Hleq & Hlift)".
+        iMod ("Hwp" with "[$]") as "(%Hexec_ub & Hlift)".
         iModIntro.
         iPoseProof
-          (exec_ub_mono _ (λ '(e2, σ2), |={∅}▷=>^(S n)
-             ⌜ub_lift (exec_val n (e2, σ2)) φ ε2⌝)%I
+          (exec_ub_mono _ (λ ε' '(e2, σ2), |={∅}▷=>^(S n)
+             ⌜ub_lift (exec_val n (e2, σ2)) φ ε'⌝)%I
             with "[%] [] Hlift") as "H".
         { apply Rle_refl. }
-        { iIntros ([]) "H !> !>".
+        { iIntros (? []) "H !> !>".
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
           iMod ("IH" with "[$]") as "H".
           iModIntro. done. }
         rewrite -exec_val_Sn_not_val; [|done].
         iAssert
-          (|={∅}▷=> |={∅}▷=>^n ⌜ub_lift (exec_val (S n) (e, σ)) φ (nnreal_plus ε2 ε1)⌝)%I
+          (|={∅}▷=> |={∅}▷=>^n ⌜ub_lift (exec_val (S n) (e, σ)) φ ε⌝)%I
           with "[H]" as "Haux"; last first.
         {  iMod "Haux".
            do 2 iModIntro.
            iMod "Haux".
            iModIntro.
            iApply (step_fupdN_wand with "Haux").
-           iPureIntro.
-           apply UB_mon_grading.
-           rewrite nnreal_plus_comm; done.
+           iPureIntro; done.
          }
         by iApply (exec_ub_erasure with "H").
   Qed.

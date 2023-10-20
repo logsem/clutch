@@ -22,9 +22,8 @@ Lemma wp_lift_step_fupd_exec_ub E Φ e1 :
     state_interp σ1 ∗ err_interp ε
     ={E,∅}=∗
     ⌜reducible e1 σ1⌝ ∗
-    (∃ (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R⌝ ∗
-    exec_ub e1 σ1 (λ '(e2, σ2),
-      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε1))
+    exec_ub e1 σ1 (λ ε2 '(e2, σ2),
+      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε)
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   by rewrite ub_wp_unfold /ub_wp_pre =>->.
@@ -45,12 +44,12 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
   iSplit; [done|].
+  iApply (exec_ub_prim_step e1 σ1).
+  iExists _.
   iExists nnreal_zero.
   iExists ε.
   iSplit.
   { iPureIntro. simpl. lra. }
-  iApply (exec_ub_prim_step e1 σ1 _ nnreal_zero).
-  iExists _. (*(λ '(e2, σ2), prim_step e1 σ1 (e2, σ2) > 0). *)
   iSplit.
   { iPureIntro.
     eapply ub_lift_pos_R, ub_lift_trivial.
