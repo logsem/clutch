@@ -166,22 +166,23 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iExists (nnreal_div (nnreal_nat 1) (nnreal_nat (Z.to_nat z + 1))).
-  iExists ε'.
-  iSplit.
-  { iPureIntro; simpl; lra. }
   iApply exec_ub_prim_step.
   iExists
       (λ (ρ : expr * state),
-        ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)).
+        ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)), _, _.
+  iSplit.
+  {
+    iPureIntro.
+    apply Rle_refl.
+  }
   iSplit.
   {
     iPureIntro.
     eapply UB_mon_pred; last first.
-    - assert (nonneg (nnreal_div (nnreal_nat 1) (nnreal_nat (Z.to_nat z + 1)))
+    - assert (nonneg ( nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
              = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
-        rewrite /Rdiv/=.
+        rewrite /Rdiv/= Rmult_1_l.
         do 2 f_equal.
         rewrite plus_INR.
         f_equal.
@@ -228,22 +229,22 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iExists (nnreal_div (nnreal_nat 1) (nnreal_nat (Z.to_nat z + 1))).
-  iExists ε'.
-  iSplit.
-  { iPureIntro; simpl; lra. }
   iApply exec_ub_prim_step.
   iExists
       (λ (ρ : expr * state),
-        ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)).
+        ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)),_,_.
+  iSplit.
+  {
+    iPureIntro; apply Rle_refl.
+  }
   iSplit.
   {
     iPureIntro.
     eapply UB_mon_pred; last first.
-    - assert (nonneg (nnreal_div (nnreal_nat 1) (nnreal_nat (Z.to_nat z + 1)))
+    - assert (nonneg (nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
              = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
-        rewrite /Rdiv/=.
+        rewrite /Rdiv/= Rmult_1_l.
         do 2 f_equal.
         rewrite plus_INR.
         f_equal.
@@ -290,14 +291,14 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iExists (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))).
-  iExists ε'.
-  iSplit.
-  { iPureIntro; simpl; lra. }
   iApply exec_ub_prim_step.
   iExists
       (λ (ρ : expr * state),
-        ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)).
+        ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)),_,_.
+  iSplit.
+  {
+    iPureIntro; apply Rle_refl.
+  }
   iSplit.
   {
     iPureIntro.
@@ -352,14 +353,14 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iExists (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))).
-  iExists ε'.
-  iSplit.
-  { iPureIntro; simpl; lra. }
   iApply exec_ub_prim_step.
   iExists
       (λ (ρ : expr * state),
-        ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)).
+        ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)),_,_.
+  iSplit.
+  {
+    iPureIntro; apply Rle_refl.
+  }
   iSplit.
   {
     iPureIntro.
