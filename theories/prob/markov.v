@@ -252,6 +252,20 @@ Section markov.
     by erewrite exec_is_final.
   Qed.
 
+  Lemma exec_plus a n1 n2 :
+    exec (n1 + n2) a = pexec n1 a ≫= exec n2.
+  Proof.
+    revert a. induction n1.
+    - intro a. rewrite pexec_O dret_id_left //.
+    - intro a. replace ((S n1 + n2)%nat) with ((S (n1 + n2))); auto.
+      rewrite exec_Sn pexec_Sn.
+      apply distr_ext.
+      intro.
+      rewrite -dbind_assoc.
+      rewrite /pmf/=/dbind_pmf.
+      by setoid_rewrite IHn1.
+  Qed.
+
   Lemma exec_mono a n v :
     exec n a v <= exec (S n) a v.
   Proof.
@@ -581,6 +595,57 @@ Section iter_markov.
   (* Lemma is_sup_seq_foo (h : nat → R) l1 l2 : *)
   (*   is_sup_seq h l1 → *)
   (*   l1 = l2  *)
+
+
+  Lemma iter_markov_seq a a' k1 k2 m:
+    SeriesC (exec (δ := (iter_markov a)) (S(k1 + k2)) (a', S m)) >=
+      SeriesC (exec (δ := (iter_markov a)) k1 (a', 1%nat)) * SeriesC (exec (δ := (iter_markov a)) k2 (a, m)).
+  Proof.
+    replace (S(k1 + k2)) with ((S k1 + k2)%nat); auto.
+    rewrite exec_plus.
+    revert k2.
+    induction k1; intro k2.
+    - rewrite exec_O_not_final.
+      + rewrite dzero_mass Rmult_0_l.
+        apply Rle_ge; auto.
+      + rewrite /is_final/to_final/=//.
+    - rewrite pexec_Sn.
+      destruct (to_final a') eqn:Ha.
+      + rewrite step_or_final_no_final; [ | rewrite /is_final/to_final/=// ].
+        rewrite /step/=.
+        setoid_rewrite bool_decide_eq_true_2. 2,3:rewrite /is_final/to_final/=//.
+        setoid_rewrite dret_id_left.
+        admit.
+        (*
+        erewrite (exec_is_final (δ := (iter_markov a)) (a', 0%nat)); auto.
+        * rewrite dret_mass Rmult_1_l.
+          admit.
+        * rewrite /to_final/=//.
+        *)
+      + rewrite step_or_final_no_final.
+        *
+    revert k1 k2.
+    induction m.
+    - intros.
+      destruct (to_final a) eqn:Ha.
+      + erewrite (exec_is_final (δ := (iter_markov a)) (a, 0%nat)); auto.
+        * rewrite dret_mass Rmult_1_r.
+          apply Rle_ge, SeriesC_le; auto.
+          intro; split ; auto.
+          apply exec_mono'; lia.
+        * rewrite /to_final /= //.
+      + destruct k2.
+        * erewrite (exec_O_not_final (δ := (iter_markov a)) (a, 0%nat)); auto.
+          rewrite dzero_mass Rmult_0_r.
+          by apply Rle_ge.
+        * erewrite (exec_Sn_not_final (δ := (iter_markov a)) (a, 0%nat)); auto.
+          rewrite /step/= dbind_dzero dzero_mass Rmult_0_r.
+          by apply Rle_ge.
+    - intros.
+      rewrite exec_plus.
+      induction k1.
+      + rewrite pexec_O dret_id_left -/exec.
+       destruct (to_final a) eqn:Ha.
 
 
 
