@@ -647,7 +647,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
 | StoreS l v w σ :
   σ.(heap) !! l = Some v →
-  head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+  head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w))
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
 | RandNoTapeS z N (n : fin (S N)) σ:
   N = Z.to_nat z →
