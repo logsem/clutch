@@ -557,12 +557,12 @@ Section iter_markov.
 
   Definition iter_step (initial : mstate δ) (s : mstate δ * nat) : distr (mstate δ * nat) :=
     let '(a, n) := s in
-    match n with
-    | 0 => dzero
-    | S n =>
-        if bool_decide (is_final a) then dret (initial, n)
-        else a' ← step a; dret (a', S n)
-    end.
+    match to_final a, n  with
+    | Some _, 0 => dzero
+    | None, 0 => a' ← step a; dret (a', 0%nat)
+    | Some _, S n => a' ← step a; dret (a', n)
+    | None, S n => a' ← step a; dret (a', S n)
+  end.
 
   Definition iter_to_final (s : mstate δ * nat) : option (mstate_ret δ) :=
     let '(a, n) := s in
@@ -572,85 +572,26 @@ Section iter_markov.
   Proof.
     constructor.
     move=> [? n] /= [? ?] [? ?] .
-    destruct n; simplify_eq=>//.
+    destruct n; case_match; simplify_eq=>//.
   Qed.
 
   Definition iter_markov (a : mstate δ) : markov := Markov _ _ (iter_mixin a).
 
-  Lemma iter_markov_lim_exec n a :
-    lim_exec (δ := iter_markov a) (a, S n) =
-      lim_exec (δ := δ) a ≫= λ _, lim_exec (δ := iter_markov a) (a, n).
+
+
+  Lemma iter_markov_1 m a :
+    SeriesC (exec m a) = SeriesC (exec (δ := iter_markov a) m (a, 0%nat)).
   Proof.
-    apply distr_ext => b.
-    rewrite {2}/pmf /= /dbind_pmf.
-    rewrite 2!lim_exec_unfold.
-    setoid_rewrite lim_exec_unfold.
-    rewrite SeriesC_scal_r.
-
-
-
-
-  Admitted.
-
-  (* Lemma is_sup_seq_foo (h : nat → R) l1 l2 : *)
-  (*   is_sup_seq h l1 → *)
-  (*   l1 = l2  *)
-
-
-  Lemma iter_markov_seq a a' k1 k2 m:
-    SeriesC (exec (δ := (iter_markov a)) (S(k1 + k2)) (a', S m)) >=
-      SeriesC (exec (δ := (iter_markov a)) k1 (a', 1%nat)) * SeriesC (exec (δ := (iter_markov a)) k2 (a, m)).
-  Proof.
-    replace (S(k1 + k2)) with ((S k1 + k2)%nat); auto.
-    rewrite exec_plus.
-    revert k2.
-    induction k1; intro k2.
-    - rewrite exec_O_not_final.
-      + rewrite dzero_mass Rmult_0_l.
-        apply Rle_ge; auto.
-      + rewrite /is_final/to_final/=//.
-    - rewrite pexec_Sn.
-      destruct (to_final a') eqn:Ha.
-      + rewrite step_or_final_no_final; [ | rewrite /is_final/to_final/=// ].
-        rewrite /step/=.
-        setoid_rewrite bool_decide_eq_true_2. 2,3:rewrite /is_final/to_final/=//.
-        setoid_rewrite dret_id_left.
-        admit.
-        (*
-        erewrite (exec_is_final (δ := (iter_markov a)) (a', 0%nat)); auto.
-        * rewrite dret_mass Rmult_1_l.
-          admit.
-        * rewrite /to_final/=//.
-        *)
-      + rewrite step_or_final_no_final.
-        *
-    revert k1 k2.
     induction m.
-    - intros.
-      destruct (to_final a) eqn:Ha.
-      + erewrite (exec_is_final (δ := (iter_markov a)) (a, 0%nat)); auto.
-        * rewrite dret_mass Rmult_1_r.
-          apply Rle_ge, SeriesC_le; auto.
-          intro; split ; auto.
-          apply exec_mono'; lia.
-        * rewrite /to_final /= //.
-      + destruct k2.
-        * erewrite (exec_O_not_final (δ := (iter_markov a)) (a, 0%nat)); auto.
-          rewrite dzero_mass Rmult_0_r.
-          by apply Rle_ge.
-        * erewrite (exec_Sn_not_final (δ := (iter_markov a)) (a, 0%nat)); auto.
-          rewrite /step/= dbind_dzero dzero_mass Rmult_0_r.
-          by apply Rle_ge.
-    - intros.
-      rewrite exec_plus.
-      induction k1.
-      + rewrite pexec_O dret_id_left -/exec.
-       destruct (to_final a) eqn:Ha.
+    { simpl. by case_match. }
+    destruct (to_final a) eqn:Heq.
+    { by repeat erewrite exec_is_final. }
+    do 2 (rewrite exec_Sn_not_final; [|auto]).
+    simpl.
+    rewrite Heq.
 
 
-
-
-
+    Admitted.
 
   Lemma iter_markov_terminates (a : mstate δ) (n : nat) :
     SeriesC (lim_exec (δ := δ) a) = 1 →
@@ -687,6 +628,9 @@ Section iter_markov.
             destruct (H (mkposreal eps Heps0)) as [H1 [m Hfoo]].
             simpl in *.
             exists m.
+            eapply Rlt_le_trans; [done|].
+
+
             admit.
           - set (eps' := eps / 2).
             assert (0 < eps' <= 1).
