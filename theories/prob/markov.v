@@ -574,7 +574,7 @@ Section iter_markov.
     rewrite IHm //.
   Qed.
 
-  Lemma iter_markov_0_eps (ϵ : posreal) a :
+  Lemma iter_markov_terminates_0_eps (ϵ : posreal) a :
     SeriesC (lim_exec a) = 1 →
     ∃ n, SeriesC (exec (δ := (iter_markov a)) n (a, 0%nat)) > 1 - ϵ.
   Proof.
@@ -591,58 +591,70 @@ Section iter_markov.
     exists n. rewrite iter_markov_0 //.
   Qed.
 
-  Canonical Structure iter_markov. 
-  
   Lemma iter_markov_plus_ge k1 k2 m a :
     SeriesC (exec k1 (δ := iter_markov a) (a, 0%nat))
     * SeriesC (exec (δ := (iter_markov a)) k2 (a, m))
     <= SeriesC (exec (δ := (iter_markov a)) (k1 + k2) (a, S m)).
   Proof. Admitted.
 
-  Lemma iter_markov_terminates (a : mstate δ) (n : nat) :
-    SeriesC (lim_exec (δ := δ) a) = 1 →
-    SeriesC (lim_exec (δ := iter_markov a) (a, n)) = 1.
+  Lemma iter_markov_terminates_eps (ϵ : posreal) a m:
+    SeriesC (lim_exec a) = 1 →
+    ϵ <= 1 → (* TODO: this assumption should not be necessary *)
+    ∃ n, SeriesC (exec (δ := iter_markov a) n (a, m)) > 1 - ϵ.
+  Proof.
+    intros Ha.
+    induction m in ϵ |-*; intros Heps.
+    - rewrite lim_exec_Sup_seq in Ha.
+      assert (is_sup_seq (λ n : nat, SeriesC (exec n a)) 1).
+      { rewrite -Ha.
+        rewrite (Rbar_le_sandwich 0 1).
+        + apply Sup_seq_correct.
+        + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+        + by apply upper_bound_ge_sup=>/=. }
+      destruct (H ϵ) as [H1 [m Hlt]]; simpl in *.
+      exists m. eapply Rlt_le_trans; [done|].
+      rewrite iter_markov_0 //.
+    - set (ϵ' := pos_div_2 ϵ).
+      assert (1 + ϵ' * ϵ' - 2 * ϵ' > 1 - ϵ).
+      { rewrite /ϵ' /=. pose proof (cond_pos ϵ). nra. }
+      edestruct (IHm ϵ') as [k2 Hk2]; [simpl; lra|].
+      destruct (iter_markov_terminates_0_eps ϵ' a Ha) as [k1 Hk1].
+      exists (k1 + k2)%nat.
+      eapply Rlt_le_trans; [apply H|].
+      etrans; [|eapply iter_markov_plus_ge].
+      assert (1 + ϵ' * ϵ' - 2 * ϵ' = (1 - ϵ') * (1 - ϵ')) as -> by lra.
+      assert (ϵ' <= 1); [simpl; lra|].
+      real_solver.
+  Qed.
+
+  Lemma iter_markov_is_sup_seq initial n :
+    SeriesC (lim_exec (δ := δ) initial) = 1 →
+    is_sup_seq (λ m, SeriesC (λ a, exec (δ := iter_markov initial) m (initial, n) a)) 1.
+  Proof.
+    intros Ha ϵ. split.
+    - intros m.
+      eapply Rle_lt_trans; [eapply pmf_SeriesC|].
+      destruct ϵ. simpl. lra.
+    - destruct (decide (ϵ <= 1)) as [Hle | Hnle].
+      + by eapply iter_markov_terminates_eps.
+      + exists 1%nat.
+        apply Rnot_le_gt in Hnle.
+        eapply Rlt_le_trans; [|apply pmf_SeriesC_ge_0].
+        lra.
+  Qed.
+
+  Lemma iter_markov_terminates (initial : mstate δ) (n : nat) :
+    SeriesC (lim_exec (δ := δ) initial) = 1 →
+    SeriesC (lim_exec (δ := iter_markov initial) (initial, n)) = 1.
   Proof.
     intros Ha.
     erewrite SeriesC_ext; last first.
     { intros ?. rewrite lim_exec_unfold //. }
     erewrite (SeriesC_Sup_seq_swap 1).
-    - f_equal. simpl.
-      assert (∀ m, ∀ (ϵ : posreal), ϵ <= 1 → ∃ n, SeriesC (exec (δ := iter_markov a) n (a, m)) > 1 - ϵ).
-      { intros m. induction m; intros ϵ Hϵ.
-        - rewrite lim_exec_Sup_seq in Ha.
-          assert (is_sup_seq (λ n : nat, SeriesC (exec n a)) 1).
-          { rewrite -Ha.
-            rewrite (Rbar_le_sandwich 0 1).
-            + apply Sup_seq_correct.
-            + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
-            + by apply upper_bound_ge_sup=>/=. }
-          destruct (H ϵ) as [H1 [m Hlt]]; simpl in *.
-          exists m. eapply Rlt_le_trans; [done|].
-          rewrite iter_markov_0 //.
-        - set (ϵ' := pos_div_2 ϵ).
-          assert (1 + ϵ' * ϵ' - 2 * ϵ' > 1 - ϵ).
-          { rewrite /ϵ' /=. pose proof (cond_pos ϵ). nra. }
-          edestruct (IHm ϵ') as [k2 Hk2]; [simpl; lra|].
-          destruct (iter_markov_0_eps ϵ' a Ha) as [k1 Hk1].
-          exists (k1 + k2)%nat.
-          eapply Rlt_le_trans; [done|].
-          etrans; [|eapply iter_markov_plus_ge].
-          assert (1 + ϵ' * ϵ' - 2 * ϵ' = (1 - ϵ') * (1 - ϵ')) as -> by lra.
-          assert (ϵ' <= 1); [simpl; lra|].
-          real_solver. }
-      assert (is_sup_seq (λ m, SeriesC (λ a', exec (δ := iter_markov a) m (a, n) a')) 1).
-      { simpl. intros ϵ. split.
-        - intros m.
-          eapply Rle_lt_trans; [eapply pmf_SeriesC|].
-          destruct ϵ. simpl. lra.
-        - destruct (decide (ϵ <= 1)) as [Hle | Hnle]; [eauto|].
-          exists 1%nat.
-          apply Rnot_le_gt in Hnle.
-          eapply Rlt_le_trans; [|apply pmf_SeriesC_ge_0].
-          lra. }
-      rewrite (eq_rbar_finite 1 1) //.
-      f_equal. by eapply is_sup_seq_unique.
+    - rewrite (eq_rbar_finite 1 1) //.
+      f_equal.
+      eapply is_sup_seq_unique.
+      by eapply iter_markov_is_sup_seq.
     - auto.
     - intros. apply exec_mono.
     - eauto.
