@@ -622,6 +622,14 @@ Section monadic.
     real_solver.
   Qed.
 
+  Lemma dbind_mass (μ : distr A) (f : A → distr B) :
+    SeriesC (μ ≫= f) = SeriesC (λ a, μ a * SeriesC (f a)).
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite distr_double_swap.
+    eapply SeriesC_ext. intros. rewrite SeriesC_scal_l //.
+  Qed.
+
   Lemma dbind_det (μ : distr A) (f : A → distr B) :
     SeriesC μ = 1 →
     (∀ a, μ a > 0 → SeriesC (f a) = 1) →
@@ -629,15 +637,13 @@ Section monadic.
   Proof.
     intros Hμ Hf.
     rewrite {1}/pmf /= /dbind_pmf.
+    rewrite dbind_mass.
     rewrite -Hμ.
-    rewrite distr_double_swap.
-    setoid_rewrite SeriesC_scal_l.
-    eapply SeriesC_ext.
-    intros a.
+    eapply SeriesC_ext => a.
     destruct (decide (μ a > 0)) as [Hgt | ->%pmf_eq_0_not_gt_0]; [|lra].
-    rewrite Hf // Rmult_1_r // .
+    rewrite Hf //. lra.
   Qed.
-  
+
   Lemma dbind_det_inv_l (μ1 : distr A) (f : A → distr B) (b : B) :
     (μ1 ≫= f) b = 1 →
     SeriesC μ1 = 1.
@@ -1558,7 +1564,7 @@ Qed.
 
 Lemma fair_coin_pmf b :
   fair_coin b = 0.5.
-Proof. done. Qed. 
+Proof. done. Qed.
 
 Lemma fair_coin_dbind_mass `{Countable A} (f : bool → distr A) :
   SeriesC (fair_coin ≫= f) = 1 / 2 * SeriesC (f true) + 1 / 2 * SeriesC (f false).

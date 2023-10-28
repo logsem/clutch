@@ -563,16 +563,16 @@ Lemma SeriesC_Series_nat (f : nat → R)  :
   SeriesC f = Series f.
 Proof.
   rewrite /SeriesC.
-  erewrite Series_ext; [done|]. 
-  rewrite /countable_sum /from_option /= => n.  
+  erewrite Series_ext; [done|].
+  rewrite /countable_sum /from_option /= => n.
   case_match eqn:He.
   - by apply encode_inv_nat_Some_inj in He as ->.
   - by apply encode_inv_nat_None in He.
-Qed. 
+Qed.
 
 Lemma is_seriesC_is_series_nat (f : nat → R) v :
   is_series f v → is_seriesC f v.
-Proof. 
+Proof.
   intros Hf.
   eapply is_series_ext; [|done]=> n.
   rewrite /is_seriesC /countable_sum /from_option /=.
@@ -1089,6 +1089,27 @@ Section mct.
     rewrite /f/countable_sum.
     destruct (encode_inv_nat n); simpl; auto.
     apply sup_seq_const.
+  Qed.
+
+  Lemma SeriesC_Sup_seq_swap (r : R) (l : nat → R) (h : nat → A → R) :
+    (∀ n a, 0 <= (h n a)) →
+    (∀ n a, (h n a) <= (h (S n) a)) →
+    (∀ a, exists s, ∀ n, h n a <= s ) →
+    (∀ n, is_seriesC (h n) (l n)) →
+    (∀ n, l n <= r) →
+    SeriesC (λ a, Sup_seq (λ n, h n a)) = Sup_seq (λ n, SeriesC (h n)).
+  Proof.
+    intros ?????.
+    eapply MCT_seriesC; [done..|].
+    assert (∀ n, SeriesC (λ a : A, h n a) = l n) as Heq.
+    { intros ?. by eapply is_seriesC_unique. }
+    erewrite Sup_seq_ext; last first.
+    { intros n. rewrite Heq //. }
+    rewrite (Rbar_le_sandwich 0 r).
+    - apply Sup_seq_correct.
+    - apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      rewrite -Heq. by apply SeriesC_ge_0'.
+    - by apply upper_bound_ge_sup=>/=.
   Qed.
 
 End mct.
