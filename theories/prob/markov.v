@@ -591,11 +591,48 @@ Section iter_markov.
     exists n. rewrite iter_markov_0 //.
   Qed.
 
-  Lemma iter_markov_plus_ge k1 k2 m a :
-    SeriesC (exec k1 (δ := iter_markov a) (a, 0%nat))
-    * SeriesC (exec (δ := (iter_markov a)) k2 (a, m))
-    <= SeriesC (exec (δ := (iter_markov a)) (k1 + k2) (a, S m)).
-  Proof. Admitted.
+  Lemma iter_markov_plus_ge a a' k1 k2 m:
+    SeriesC (exec (δ := (iter_markov a)) k1 (a', 0%nat))
+    * SeriesC (exec (δ := (iter_markov a)) k2 (a, m)) <=
+      SeriesC (exec (δ := (iter_markov a)) (S (k1 + k2)) (a', S m)).
+  Proof.
+    replace (S (k1 + k2)) with (S k1 + k2)%nat; [|done].
+    induction k1 in a' |-*.
+    - destruct (to_final a') eqn:Ha'.
+      + erewrite exec_is_final; [|done].
+        rewrite dret_mass /=.
+        rewrite Ha' dret_id_left'.
+        lra.
+      + rewrite exec_O_not_final; [|auto].
+        rewrite dzero_mass Rmult_0_l //.
+    - replace (S (S k1) + k2)%nat with (S (S k1 + k2)); [|done].
+      destruct (to_final a') eqn:Ha'.
+      + erewrite (exec_Sn (δ := (iter_markov a)) (a', 0%nat)).
+        rewrite step_or_final_is_final; [|eauto].
+        rewrite dret_id_left'.
+        etrans; [apply IHk1 |].
+        apply SeriesC_le'; [|done..].
+        intros. apply exec_mono.
+      + rewrite exec_Sn_not_final; [|auto].
+        rewrite exec_Sn_not_final; [|auto].
+        erewrite (SeriesC_ext (step (m := (iter_markov a)) (a', 0%nat) ≫= exec k1)); last first.
+        { intro. rewrite /= Ha'. rewrite -dbind_assoc'.
+          eapply dbind_pmf_ext; [|done|done].
+          intros. rewrite dret_id_left' //. }
+        erewrite (SeriesC_ext (step (m := (iter_markov a)) (a', S m) ≫= exec (S k1 + k2))); last first.
+        { intro. rewrite [step _]/= Ha'. rewrite -dbind_assoc'.
+          eapply dbind_pmf_ext; [|done|done].
+          intros. rewrite dret_id_left' //. }
+        rewrite 2!dbind_mass.
+        etrans; last first.
+        { apply SeriesC_le.
+          - intros; split; last first.
+            + apply Rmult_le_compat_l; [done|]. apply IHk1.
+            + simpl. real_solver.
+          - apply pmf_ex_seriesC_mult_fn. exists 1; eauto. }
+       rewrite -SeriesC_scal_r.
+       by setoid_rewrite Rmult_assoc.
+  Qed.
 
   Lemma iter_markov_terminates_eps (ϵ : posreal) a m:
     SeriesC (lim_exec a) = 1 →
