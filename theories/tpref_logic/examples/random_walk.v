@@ -125,7 +125,7 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec true)).
   { by rewrite random_walk_terminates. }
-  eapply (wp_refRcoupl_mass (tprΣ bool)).
+  eapply (wp_refRcoupl_mass (tprΣ random_walk)).
   iIntros (?) "Ha".
   wp_apply (random_walk_ref with "Ha"); eauto.
 Qed.

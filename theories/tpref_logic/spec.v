@@ -35,7 +35,7 @@ Section spec_update.
     iMod ("PQ" $! b with "Hb") as (c Hbc) "[Hc Q]".
     iModIntro. iExists _.
     assert (stepN (n + m) a c = 1) by by eapply stepN_det_trans.
-    by iFrame. 
+    by iFrame.
   Qed.
 
   Lemma spec_update_mono_fupd n E P Q :
@@ -64,27 +64,28 @@ Section spec_update.
 End spec_update.
 
 (** The authoritative spec tracking algebra  *)
-Definition specUR (A : Type) : ucmra := optionUR (exclR (leibnizO A)).
-Definition authUR_spec (A : Type) : ucmra := authUR (specUR A).
+Definition specUR (δ : markov) : ucmra := optionUR (exclR (leibnizO (mstate δ))).
+Definition authUR_spec (δ : markov) : ucmra := authUR (specUR δ).
 
-Class specPreG (A : Type) (Σ : gFunctors) := SpecPreG {
-  specG_pre_authUR :> inG Σ (authUR_spec A);
+Class specPreG (δ : markov) (Σ : gFunctors) := SpecPreG {
+  specG_pre_authUR :> inG Σ (authUR_spec δ);
 }.
-Definition specΣ (A : Type) : gFunctors := GFunctor (authUR_spec A).
-Global Instance subG_tprGPreS {A Σ} : subG (specΣ A) Σ → specPreG A Σ.
+Definition specΣ (δ : markov) : gFunctors := GFunctor (authUR_spec δ).
+Global Instance subG_tprGPreS {δ Σ} : subG (specΣ δ) Σ → specPreG δ Σ.
 Proof. solve_inG. Qed.
 
-Class specG (A : Type) (Σ : gFunctors) := SpecG {
-  specG_authUR :> inG Σ (authUR_spec A);
+Class specG (δ : markov) (Σ : gFunctors) := SpecG {
+  specG_authUR :> inG Σ (authUR_spec δ);
   specG_gname : gname;
 }.
 
 Section spec_auth.
-  Context `{specG A Σ}.
+  Context `{specG δ Σ}.
+  Implicit Types a : mstate δ.
 
-  Definition specA (a : A) : iProp Σ :=
+  Definition specA a : iProp Σ :=
     own specG_gname (● (Excl' a : specUR _)).
-  Definition specF (a : A) : iProp Σ :=
+  Definition specF a : iProp Σ :=
     own specG_gname (◯ (Excl' a : specUR _)).
 
   Lemma spec_auth_agree a a' :
@@ -104,23 +105,22 @@ Section spec_auth.
     iDestruct (spec_auth_agree with "Ha Hf") as %->.
     iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
     { eapply auth_update .
-      eapply (@option_local_update _ _ _ (Excl a'' : exclR (leibnizO A))).
+      eapply (@option_local_update _ _ _ (Excl a'' : exclR (leibnizO (mstate δ)))).
       by eapply exclusive_local_update. }
     by iFrame.
   Qed.
 
 End spec_auth.
 
-Lemma spec_auth_alloc {A} (a : A) `{specPreG A Σ} :
-  ⊢ |==> ∃ (_ : specG A Σ), specA a ∗ specF a.
+Lemma spec_auth_alloc {δ Σ} a `{!specPreG δ Σ} :
+  ⊢ |==> ∃ (_ : specG δ Σ), specA a ∗ specF a.
 Proof.
   iMod (own_alloc ((● (Excl' a : specUR _)) ⋅ (◯ (Excl' a : specUR _))))
     as "(%γspec & Hauth & Hfrag)".
   { by apply auth_both_valid_discrete. }
-  set (HspecG := SpecG _ Σ _ γspec).
+  set (HspecG := SpecG δ Σ _ γspec).
   iModIntro. iExists HspecG. iFrame.
 Qed.
 
 (** A Markov chain gives us an instance *)
-Definition spec_auth_spec {δ Σ} `{specG (mstate δ) Σ} : spec δ Σ := Spec specA.
-
+Definition spec_auth_spec {δ Σ} `{specG δ Σ} : spec δ Σ := Spec specA.

@@ -64,7 +64,7 @@ Section lazy_real.
       + apply ex_seriesC_prod; eauto using ex_seriesC_finite.
         intros ??.
         pose proof (pmf_pos (dprod fair_coin fair_coin) (a, b)).
-        case_match; lra.        
+        case_match; lra.
   Qed.
 
   Lemma two_coins_terminates (bs : mstate two_coins)  :
@@ -73,9 +73,12 @@ Section lazy_real.
 
   Definition model := iter_markov two_coins (true, true).
 
-  Lemma iter_two_coins_terminates (s : mstate model) :
-    SeriesC (lim_exec s) = 1.
-  Proof. Admitted.
+  Lemma iter_two_coins_terminates n :
+    SeriesC (lim_exec (δ := model) ((true, true), n)) = 1.
+  Proof.
+    apply: iter_markov_terminates.
+    apply two_coins_terminates.
+  Qed.
 
   (** Program *)
   Definition get_chunk : val :=
@@ -123,10 +126,6 @@ Section lazy_real.
 
   Context `{tprG model Σ}.
 
-  (* TODO: why is this neccesary?!?! *)
-  Definition foo : specG _ _ := (@tprG_specG _ _ _).
-  Existing Instance foo.
-
   Lemma two_coins_final b1 b2 :
     is_final ((b1, b2) : mstate two_coins) ↔ b1 ≠ b2.
   Proof.
@@ -151,11 +150,12 @@ Section lazy_real.
     iIntros (?) "Hspec". iIntros (s) "Hs".
     iDestruct (spec_auth_agree with "Hs Hspec") as %->.
     iExists (true, true, N).
-    iMod (spec_auth_update (true, true, N) with "Hs Hspec") as "[$ $]".
+    iMod (spec_auth_update with "Hs Hspec") as "[$ $]".
     iModIntro. iPureIntro.
     rewrite stepN_Sn /=.
-    rewrite bool_decide_eq_true_2; [|by apply two_coins_final].
-    rewrite dret_id_left /=. by apply dret_1.
+    rewrite bool_decide_eq_true_2 //.
+    rewrite dret_id_left /=.
+    by apply dret_1.
   Qed.
 
   Lemma rwp_coupl_two_tapes ns1 ns2 α1 α2 N (e : expr) E (Φ : val → iProp Σ) b :
@@ -174,15 +174,14 @@ Section lazy_real.
               (λ '(n1, n2) '(b1, b2, N'),
                 N' = S N ∧ n1 = bool_to_fin b1 ∧ n2 = bool_to_fin b2)
                with "[$Hα1 $Hα2 $Hspec Hcnt]").
-      { intros ???? => /=.
-        rewrite bool_decide_eq_false_2; [|by apply two_coins_not_final].
-        rewrite bool_decide_eq_false_2; [|auto].
-        rewrite -(dret_id_right (state_step _ _ ≫= _)).
-        eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
-        intros [] [b1' b2']  [= -> ->] =>/=.
-        eapply Rcoupl_dret=>/=. eauto 6. }
-      iIntros "!>" (?? [[b1' b2'] N'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
-      iApply ("Hcnt" with "Hf1 Hα1 Hα2").
+    { intros ???? => /=.
+      rewrite bool_decide_eq_false_2; [|auto].
+      rewrite -(dret_id_right (state_step _ _ ≫= _)).
+      eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
+      intros [] [b1' b2']  [= -> ->] =>/=.
+      eapply Rcoupl_dret=>/=. eauto 6. }
+    iIntros "!>" (?? [[b1' b2'] N'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
+    iApply ("Hcnt" with "Hf1 Hα1 Hα2").
   Qed.
 
   Definition comparison2z c : Z :=
@@ -580,7 +579,7 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec ((true, true, 2%nat) : mstate model))).
   { by rewrite iter_two_coins_terminates. }
-  eapply (wp_refRcoupl_mass (tprΣ (bool * bool * nat))).
+  eapply (wp_refRcoupl_mass (tprΣ model)).
   iIntros (?) "Ha".
   wp_apply (rwp_cmp_three_numbers with "[Ha]"); [|done].
   iExists _, _. eauto with lia.

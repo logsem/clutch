@@ -35,7 +35,7 @@ Section brw.
   Proof.
     rewrite /brw_to_final; case_bool_decide.
     - intro; done.
-    - destruct n as [? | n0] eqn:Hn ; [ intro; done | ].
+    - destruct n as [|n0] eqn:Hn ; [ intro; done | ].
       intro; split.
       + rewrite S_INR.
         pose proof (pos_INR n0); lra.
