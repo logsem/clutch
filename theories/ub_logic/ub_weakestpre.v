@@ -377,6 +377,23 @@ Section exec_ub.
     iSplit; done.
   Qed.
 
+
+  Lemma exec_ub_adv_comp e1 σ1 Z (ε : nonnegreal) :
+      (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
+          ⌜ forall ρ, (ε2 ρ <= 1)%R ⌝ ∗
+          ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
+            ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
+    ⊢ exec_ub e1 σ1 Z ε.
+  Proof.
+    iIntros "(% & % & % & % & % & % & H)".
+    rewrite {1}exec_ub_unfold.
+    iRight; iLeft.
+    iExists _,_,_.
+    iSplit; [done|].
+    iSplit; [done|].
+    iSplit; done.
+  Qed.
+
   (* TODO: Maybe allow weakening of the grading *)
   Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
@@ -387,7 +404,7 @@ Section exec_ub.
     iIntros (?) "H".
     iDestruct "H" as (?) "H".
     rewrite {1}exec_ub_unfold.
-    iRight.
+    iRight; iRight.
     iApply big_orL_elem_of; eauto.
     iExists R2.
     iExists ε.
@@ -523,9 +540,8 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [ε' [e' σ']]. rewrite /exec_ub_pre.
   do 14 f_equiv.
-  f_contractive.
-  do 3 f_equiv.
-  apply Hwp.
+  { f_contractive. do 3 f_equiv. apply Hwp. }
+  { do 2 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
 Qed.
 
 
@@ -563,9 +579,10 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? []]. rewrite /exec_ub_pre.
   do 14 f_equiv.
-  f_contractive.
-  do 3 f_equiv. rewrite IH; [done|lia|].
-  intros ?. eapply dist_S, HΦ.
+  { f_contractive. do 3 f_equiv. rewrite IH; [done|lia|].
+    intros ?. eapply dist_S, HΦ. }
+  { do 2 f_equiv. f_contractive. rewrite IH; [done|lia|].
+    intros ?. eapply dist_S, HΦ. }
 Qed.
 
 Global Instance ub_wp_proper s E e :
@@ -582,7 +599,8 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? []]. rewrite /exec_ub_pre.
   do 14 f_equiv.
-  f_contractive. do 6 f_equiv.
+  { f_contractive. do 6 f_equiv. }
+  { do 2 f_equiv. f_contractive. do 6 f_equiv. }
 Qed.
 
 Lemma ub_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
