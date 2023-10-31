@@ -573,7 +573,7 @@ End client.
 Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
 Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
 
-Theorem prog_random_walk_terminates :
+Theorem lazy_real_terminates :
   almost_surely_terminates (cmp_three_numbers, σ₀).
 Proof.
   eapply Rle_antisym; [done|].

@@ -156,70 +156,88 @@ Definition insert : val :=
           else "root"
     end.
 
-Section termination.
+Section spec.
   Context `{!tprG lazy_real.model Σ}.
 
   Fixpoint is_treap (v : val) (t : tree Z) : iProp Σ :=
     match t with
     | leaf => ⌜v = NONEV⌝
     | node k l r =>
-        ∃ (ℓ : loc) (k : Z) (p vl vr : val) (ps : list _),
+        ∃ (ℓ : loc) (p vl vr : val) (ps : list _),
           ⌜v = SOMEV #ℓ⌝ ∗ ℓ ↦ (#k, p, vl, vr)%V ∗ lazy_no ps p ∗
           is_treap vl l ∗ is_treap vr r
   end.
 
+  Lemma wp_new_node (k : Z) E :
+    ⟨⟨⟨ True ⟩⟩⟩
+      new_node #k @ E
+    ⟨⟨⟨ v, RET v; is_treap v (node k leaf leaf) ⟩⟩⟩.
+  Proof.
+    iIntros (?) "_ H". rewrite /new_node.
+    wp_pures.
+    wp_apply rwp_init; [done|].
+    iIntros (v) "Hp".
+    wp_alloc l as "Hl".
+    wp_pures.
+    iModIntro.
+    iApply "H".
+    simpl.
+    iExists _, _, _, _, _.
+    iFrame. done.
+  Qed.
+
   Lemma wp_rotate_right v t E :
     ⟨⟨⟨ is_treap v t ⟩⟩⟩
       rotate_right v @ E
-   ⟨⟨⟨ v, RET v; is_treap v (bst_rotate_right t) ⟩⟩⟩.
+    ⟨⟨⟨ v, RET v; is_treap v (bst_rotate_right t) ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "Ht HΨ". wp_rec.
     destruct t as [|ykey l T3].
     { iDestruct "Ht" as %->. wp_pures. by iApply "HΨ". }
     iSimpl in "Ht".
-    iDestruct "Ht" as (ℓ k p vl vr ps) "(-> & Hℓ & Hp & Hl & Hr)".
+    iDestruct "Ht" as (ℓ p vl vr ps) "(-> & Hℓ & Hp & Hl & Hr)".
     wp_pures.
     rewrite /get_left; wp_load; wp_pures.
     destruct l as [|xkey T1 T2].
     { iDestruct "Hl" as %->. wp_pures. iApply "HΨ".
-      iModIntro. simpl. iExists _, _, _, _, _, _. by iFrame. }
+      iModIntro. simpl. iExists _, _, _, _, _. by iFrame. }
     iSimpl in "Hl".
-    iDestruct "Hl" as (ℓx kx px vlx vrx psx) "(-> & Hℓx & Hpx & Hlx & Hrx)".
+    iDestruct "Hl" as (ℓx px vlx vrx psx) "(-> & Hℓx & Hpx & Hlx & Hrx)".
     wp_pures.
     rewrite /get_right; wp_load; wp_pures.
     rewrite /set_right; wp_load; wp_pures; wp_store.
     rewrite /set_left; wp_load; wp_pures; wp_store; wp_pures.
     iApply "HΨ".
-    iModIntro. simpl. iExists _, _, _, _, _, _. iFrame.
+    iModIntro. simpl. iExists _, _, _, _, _. iFrame.
     iSplit; [done|].
-    iExists _, _, _, _, _, _. by iFrame.
+    iExists _, _, _, _, _. by iFrame.
   Qed.
 
   Lemma wp_rotate_left v t E :
     ⟨⟨⟨ is_treap v t ⟩⟩⟩
       rotate_left v @ E
-   ⟨⟨⟨ v, RET v; is_treap v (bst_rotate_left t) ⟩⟩⟩.
+    ⟨⟨⟨ v, RET v; is_treap v (bst_rotate_left t) ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "Ht HΨ". wp_rec.
     destruct t as [|xkey T1 r].
     { iDestruct "Ht" as %->. wp_pures. by iApply "HΨ". }
     iSimpl in "Ht".
-    iDestruct "Ht" as (ℓ k p vl vr ps) "(-> & Hℓ & Hp & Hl & Hr)".
+    iDestruct "Ht" as (ℓ p vl vr ps) "(-> & Hℓ & Hp & Hl & Hr)".
     wp_pures.
     rewrite /get_right; wp_load; wp_pures.
     destruct r as [|ykey T2 T3].
     { iDestruct "Hr" as %->. wp_pures. iApply "HΨ".
-      iModIntro. simpl. iExists _, _, _, _, _, _. by iFrame. }
+      iModIntro. simpl. iExists _, _, _, _, _. by iFrame. }
     iSimpl in "Hr".
-    iDestruct "Hr" as (ℓy ky py vly vry psy) "(-> & Hℓy & Hpy & Hly & Hry)".
+    iDestruct "Hr" as (ℓy py vly vry psy) "(-> & Hℓy & Hpy & Hly & Hry)".
     wp_pures.
     rewrite /get_left; wp_load; wp_pures.
     rewrite /set_left; wp_load; wp_pures; wp_store.
     rewrite /set_right; wp_load; wp_pures; wp_store; wp_pures.
     iApply "HΨ".
-    iModIntro. simpl. iExists _, _, _, _, _, _. iFrame.
+    iModIntro. simpl. iExists _, _, _, _, _. iFrame.
     iSplit; [done|].
-    iExists _, _, _, _, _, _. by iFrame.
+    iExists _, _, _, _, _. by iFrame.
   Qed.
 
   Lemma wp_insert v t E (z : Z) N :
@@ -234,26 +252,23 @@ Section termination.
       iIntros (Hheight Ψ) "(Ht & Hcmps) HΨ".
     - iSimpl in "Ht". iDestruct "Ht" as %->.
       rewrite /insert. wp_pures.
-      rewrite /new_node. wp_pures.
-      wp_apply rwp_init; [done|].
-      iIntros (p) "Hp".
-      wp_alloc ℓ as "Hℓ"; wp_pures.
-      iModIntro.
+      wp_apply wp_new_node; [done|].
+      iIntros (t) "Ht".
       iApply ("HΨ" $! z leaf leaf).
-      iFrame. iSplitL.
-      { iExists _, _, _, _, _, _. iSplit; [done|]. by iFrame. }
-      simpl. iSplit; iPureIntro; lia.
+      iFrame. simpl in *.
+      iSplit; iPureIntro; lia.
     - rewrite {3}/insert. wp_pures; rewrite -/insert.
       iSimpl in "Ht".
-      iDestruct "Ht" as (ℓ k' p vl vr ps) "(-> & Hℓ & Hp & Hl & Hr)".
+      iDestruct "Ht" as (ℓ p vl vr ps) "(-> & Hℓ & Hp & Hl & Hr)".
       wp_pures. wp_load; wp_pures.
 
       case_bool_decide; wp_pures.
-      { iApply ("HΨ" $! k' l t1). iModIntro. iFrame.
+      { iApply ("HΨ" $! _ l t1). iModIntro. iFrame.
         iSplitL.
-        { iExists _, _, _, _, _, _. iSplit; [done|]. by iFrame. }
+        { iExists _, _, _, _, _. iSplit; [done|]. by iFrame. }
         simpl. iSplit; iPureIntro; lia. }
       simpl in Hheight.
+
       case_bool_decide; wp_pures.
       + wp_apply ("IH" $! _ N with "[] [$]").
         { iPureIntro. lia. }
@@ -261,58 +276,147 @@ Section termination.
         wp_pures.
         rewrite /set_left; wp_load; wp_store; wp_pures.
         iSimpl in "Hvl'".
-        iDestruct "Hvl'" as (ℓy ky py vly vry psy) "(-> & Hℓy & Hpy & Hly & Hry)".
+        iDestruct "Hvl'" as (ℓy py vly vry psy) "(-> & Hℓy & Hpy & Hly & Hry)".
         rewrite /unSOME /get_priority; wp_load; wp_pures.
         wp_apply (rwp_cmp with "[$]"); [lia|].
         iIntros (c z1 z2) "(Hz1 & Hz2 & Hcmps)".
         wp_pures.
         case_bool_decide; wp_pures.
-        * wp_apply (wp_rotate_right _ (node k' (node ky _ _) _) with "[-HΨ Hcmps]").
-          { simpl. iExists _, _, _, _, _, _.
+        * wp_apply (wp_rotate_right _ (node _ (node _  _ _) _) with "[-HΨ Hcmps]").
+          { simpl. iExists _, _, _, _, _.
             iSplit; [done|]. iFrame "Hℓ". iFrame.
-            iExists _, _, _, _, _, _.
+            iExists  _, _, _, _, _.
             iFrame "Hℓy". by iFrame. }
           iIntros (w) "Hw".
           iApply "HΨ". iFrame.
           simpl in *.
           iSplit; iPureIntro; lia.
-        * iApply ("HΨ" $! k' (node ky l1 r1) t1). iFrame.
+        * iApply ("HΨ" $! _ (node _ l1 r1) t1). iFrame.
           iModIntro. iSplit.
-          { iExists _, _, _, _, _, _. rewrite -/is_treap.
+          { iExists _, _, _, _, _. rewrite -/is_treap.
             iSplit; [done|]. iFrame.
-            iExists _, _, _, _, _, _.
+            iExists _, _, _, _, _.
             iSplit; [done|]. iFrame. }
           simpl in *.
-          iSplit; iPureIntro; try lia.          
+          iSplit; iPureIntro; try lia.
       + wp_apply ("IH1" $! _ N with "[] [$]").
         { iPureIntro. lia. }
         iIntros (k1 l1 r1 M vl') "(Hvl' & % & Hcmps & %)".
         wp_pures.
         rewrite /set_right; wp_load; wp_store; wp_pures.
         iSimpl in "Hvl'".
-        iDestruct "Hvl'" as (ℓy ky py vly vry psy) "(-> & Hℓy & Hpy & Hly & Hry)".
+        iDestruct "Hvl'" as (ℓy py vly vry psy) "(-> & Hℓy & Hpy & Hly & Hry)".
         rewrite /unSOME /get_priority; wp_load; wp_pures.
         wp_apply (rwp_cmp with "[$]"); [lia|].
         iIntros (c z1 z2) "(Hz1 & Hz2 & Hcmps)".
         wp_pures.
         case_bool_decide; wp_pures.
-        * wp_apply (wp_rotate_left _ (node k' _ (node ky _ _)) with "[-HΨ Hcmps]").
-          { simpl. iExists _, _, _, _, _, _.
+        * wp_apply (wp_rotate_left _ (node _ _ (node _ _ _)) with "[-HΨ Hcmps]").
+          { simpl. iExists _, _, _, _, _.
             iSplit; [done|]. iFrame "Hℓ". iFrame.
-            iExists _, _, _, _, _, _.
+            iExists _, _, _, _, _.
             iFrame "Hℓy". by iFrame. }
           iIntros (w) "Hw".
           iApply "HΨ". iFrame.
           simpl in *.
           iSplit; iPureIntro; lia.
-        * iApply ("HΨ" $! k' l (node ky l1 r1)). iFrame.
+        * iApply ("HΨ" $! _ l (node _ l1 r1)). iFrame.
           iModIntro. iSplit.
-          { iExists _, _, _, _, _, _; rewrite -/is_treap.
+          { iExists _, _, _, _, _; rewrite -/is_treap.
             iSplit; [done|]. iFrame.
-            iExists _, _, _, _, _, _.
+            iExists _, _, _, _, _.
             iSplit; [done|]. iFrame. }
           simpl in *.
           iSplit; iPureIntro; try lia.
   Qed.
 
-End termination.
+End spec.
+
+Definition new_treap : val :=
+  λ: <>, ref (NONEV).
+
+Definition insert_treap : val :=
+  λ: "t" "k", "t" <- insert !"t" "k".
+
+Definition runner : expr :=
+  let: "t" := new_treap #() in
+  insert_treap "t" #3;;
+  insert_treap "t" #2;;
+  insert_treap "t" #5.
+
+Section runner_spec.
+  Context `{!tprG lazy_real.model Σ}.
+
+  Definition treap (l : loc) (t : tree Z) : iProp Σ :=
+    ∃ v, l ↦ v ∗ is_treap v t.
+
+  Lemma wp_new_treap E :
+    ⟨⟨⟨ True ⟩⟩⟩
+      new_treap #() @ E
+    ⟨⟨⟨ l, RET #l; treap l leaf ⟩⟩⟩.
+  Proof.
+    iIntros (?) "_ H". rewrite /new_treap.
+    wp_pures.
+    wp_alloc l as "Hl".
+    iModIntro.
+    iApply "H".
+    iExists _.
+    by iFrame.
+  Qed.
+
+  Lemma wp_insert_treap l t (k : Z) E N :
+    bst_height t ≤ N →
+    ⟨⟨⟨ treap l t ∗ cmps N ⟩⟩⟩
+      insert_treap #l #k @ E
+    ⟨⟨⟨ t' M, RET #();
+        treap l t' ∗ ⌜bst_height t ≤ bst_height t' ≤ bst_height t + 1⌝ ∗
+        cmps M ∗ ⌜N - bst_height t ≤ M⌝
+    ⟩⟩⟩.
+  Proof.
+    iIntros (??) "[(%v & Hl & Ht) Hcmps] H". rewrite /insert_treap.
+    wp_pures. wp_load.
+    wp_apply (wp_insert with "[$]"); [done|].
+    iIntros (?????) "(Ht & % & Hcmps & %)".
+    wp_store. iModIntro.
+    iApply "H".
+    iFrame.
+    iSplit; [|done].
+    iExists _. iFrame.
+  Qed.
+
+  Lemma wp_runner :
+    ⟨⟨⟨ cmps 3 ⟩⟩⟩
+      runner
+    ⟨⟨⟨ v, RET v; True ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "Hcmps HΨ". rewrite /runner.
+    wp_apply wp_new_treap; [done|].
+    iIntros (v) "Ht".
+    wp_pures.
+    wp_apply (wp_insert_treap with "[$Ht $Hcmps]"); [simpl; lia|].
+    iIntros (??) "/= (Ht & % & Hcmps & %)".
+    wp_pures.
+    wp_apply (wp_insert_treap with "[$Ht $Hcmps]"); [simpl; lia|].
+    iIntros (??) "/= (Ht & % & Hcmps & %)".
+    wp_pures.
+    wp_apply (wp_insert_treap with "[$Ht $Hcmps]"); [simpl; lia|].
+    iIntros (??) "/= (Ht & % & Hcmps & %)".
+    by iApply "HΨ".
+  Qed.
+
+End runner_spec.
+
+Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
+
+Theorem runner_terminates :
+  almost_surely_terminates (runner, σ₀).
+Proof.
+  eapply Rle_antisym; [done|].
+  transitivity (SeriesC (lim_exec ((true, true, 3%nat) : mstate model))).
+  { by rewrite iter_two_coins_terminates. }
+  eapply (wp_refRcoupl_mass (tprΣ model)).
+  iIntros (?) "Ha".
+  wp_apply (wp_runner with "[Ha]"); [|done].
+  iExists _, _. eauto with lia.
+Qed.
