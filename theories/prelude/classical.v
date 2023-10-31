@@ -115,3 +115,21 @@ Proof.
   destruct (ExcludedMiddle Q) as [HQ|HnQ]; [|auto].
   tauto.
 Qed.
+
+Lemma partial_inv_fun {A B : Type} (f : A -> B) :
+  {f_inv : B -> option A | (forall b a, (f_inv b = Some a -> f a = b) /\ (f_inv b = None -> f a ≠ b)) }.
+Proof.
+  epose proof (Choice B (option A) (λ b o, forall a, (o = Some a -> f a = b) /\ (o = None -> f a ≠ b))  _) as (g & Hg).
+  by exists g.
+  Unshelve.
+  intros b.
+  destruct (ExcludedMiddle (exists a, f a = b)) as [ (a &Ha) | Hb].
+  - exists (Some a).
+    intros a'; split; intros HS; try done.
+    inversion HS.
+    rewrite <- Ha.
+    f_equal; auto.
+  - exists None.
+    intros a'; split; intros HS; try done.
+    intro. apply Hb. by exists a'.
+Qed.

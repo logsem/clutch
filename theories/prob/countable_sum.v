@@ -186,6 +186,16 @@ Section series.
     destruct (encode_inv_nat _) => //=.
   Qed.
 
+
+  Lemma SeriesC_le_inj (f : A -> R) (h : A -> option A) :
+    (∀ n, 0 <= f n) →
+    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
+    ex_seriesC f →
+    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
+  Admitted.
+
+
+
   Lemma SeriesC_scal_l f c :
     SeriesC (λ x, c * f x) = c * SeriesC f.
   Proof.

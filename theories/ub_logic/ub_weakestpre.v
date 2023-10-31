@@ -263,10 +263,26 @@ Section exec_ub.
       by iMod ("H" with "[//]").
     - rewrite least_fixpoint_unfold.
       iRight; iLeft. simpl.
-      assert (cfg Λ -> nonnegreal) as ε3; [admit |].
-      assert (forall e2 σ2, ε3 (K e2, σ2) = ε2 (e2, σ2)) as Haux; [admit |].
+      destruct (partial_inv_fun K) as (Kinv & HKinv).
+      assert (forall e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
+      assert (forall e e', Kinv e = None -> K e' ≠ e) as HKinv2; [intros; by apply HKinv |].
+      assert (forall e, Kinv (K e) = Some e) as HKinv3.
+      { intro e.
+        destruct (Kinv (K e)) eqn:H3.
+        - apply HKinv1 in H3. f_equal. by apply fill_inj.
+        - eapply (HKinv2 _ e) in H3. done. }
+      set (ε3 := (λ '(e,σ), from_option (λ e', ε2 (e',σ)) nnreal_zero (Kinv e))).
+      assert (forall e2 σ2, ε3 (K e2, σ2) = ε2 (e2, σ2)) as Haux.
+      {
+        intros e2 σ2.
+        rewrite /ε3 HKinv3 //.
+      }
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,ε3.
-      iSplit; [admit|].
+      iSplit.
+      {
+        iPureIntro. intros (e&σ). rewrite /ε3.
+        destruct (Kinv e); simpl; real_solver.
+      }
       iSplit; [ | iSplit].
       2:{ iPureIntro.
         rewrite <- Rplus_0_r.
@@ -282,12 +298,60 @@ Section exec_ub.
       + iPureIntro.
         etrans; [ | apply H1].
         apply Rplus_le_compat_l.
-        rewrite -fill_dmap.
+        transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * ε3 (K e, σ))%R)).
+        * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
+          ** apply SeriesC_le.
+             *** intros (e & σ); simpl; split.
+                 **** apply Rmult_le_pos; auto.
+                      apply cond_nonneg.
+                 **** destruct (Kinv e) eqn:He; simpl.
+                      ***** rewrite (HKinv1 _ _ He).
+                            rewrite He /from_option //.
+                      ***** destruct (decide (prim_step (K o) σ' (e, σ) > 0)%R) as [Hgt | Hngt].
+                            -- epose proof (fill_step_inv _ _ _ _ _ Hgt) as (e2' & (H3&?)).
+                               by destruct (HKinv2 e e2' He).
+                            --  apply Rnot_gt_le in Hngt.
+                                assert (prim_step (K o) σ' (e, σ) = 0); [by apply Rle_antisym | ].
+                                by rewrite H3 Rmult_0_l.
+            *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * ε3 (e, σ))%R)).
+                **** intros (e & σ); simpl; split.
+                     ***** destruct (Kinv e); simpl; try lra.
+                           apply Rmult_le_pos; auto.
+                           destruct (Kinv _); simpl; try lra.
+                           apply cond_nonneg.
+                     ***** destruct (Kinv e) eqn:He; simpl; try real_solver.
+                           rewrite HKinv3 /= (HKinv1 _ _ He) //.
+                **** apply (ex_seriesC_le _ (prim_step (K o) σ')); auto.
+                     intros (e&σ); split.
+                     ***** apply Rmult_le_pos; auto.
+                           apply cond_nonneg.
+                     ***** rewrite /ε3. destruct (Kinv e); simpl; real_solver.
+         ** intros [].
+            apply Rmult_le_pos; auto.
+            apply cond_nonneg.
+         ** intros (e3&σ3) (e4&σ4) (e5&σ5) ? ?.
+            destruct (Kinv e3) eqn:He3; destruct (Kinv e4) eqn:He4; simpl in *; simplify_eq.
+            f_equal; auto.
+            rewrite -(HKinv1 _ _ He3).
+            by rewrite -(HKinv1 _ _ He4).
+         ** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (K e, σ)))); auto.
+            *** intros (e&σ); split.
+                **** apply Rmult_le_pos; auto.
+                     apply cond_nonneg.
+                **** rewrite /ε3 HKinv3 /=. real_solver.
+            *** apply (ex_seriesC_ext (prim_step o σ')); auto.
+                intros []. by apply fill_step_prob.
+        * right. apply SeriesC_ext.
+          intros (e&σ).
+          rewrite Haux.
+          f_equal; auto.
+          symmetry; by apply fill_step_prob.
       + iIntros ([] (? & -> & ?)).
-      iMod ("H" with "[//]").
-      by replace (ε3 (K x, s)) with (ε2 (x, s)).
+        iMod ("H" with "[//]").
+        by rewrite Haux.
+       Unshelve. auto.
     - rewrite least_fixpoint_unfold /=.
-      iRight.
+      iRight; iRight.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
