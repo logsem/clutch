@@ -537,9 +537,8 @@ Section iter_markov.
     let '(a, n) := s in
     match to_final a, n  with
     | Some _, 0 => dzero
-    | None, 0 => a' ← step a; dret (a', 0%nat)
     | Some _, S n => dret (initial, n)
-    | None, S n => a' ← step a; dret (a', S n)
+    | None, _ => a' ← step a; dret (a', n)
   end.
 
   Definition iter_to_final (s : mstate δ * nat) : option (mstate_ret δ) :=

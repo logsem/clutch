@@ -132,11 +132,13 @@ Definition insert : val :=
     | NONE => new_node "key"
     | SOME "r" =>
         let, ("rkey", "rpriority", "rleft", "rright") := !"r" in
+
         if: "key" = "rkey" then "root"
+
         else if: "key" < "rkey" then
 
           (* Insert in left subtree *)
-          let: "new_left" :="insert" "rleft" "key" in
+          let: "new_left" := "insert" "rleft" "key" in
           set_left "r" "new_left";;
 
           (* Rebalance relative to priority  *)
