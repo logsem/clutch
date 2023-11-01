@@ -764,8 +764,8 @@ Proof.
   + apply ex_seriesC_finite.
 Qed.
 
-Lemma ARcoupl_dunif_no_coll_r (N : nat) (x : fin N) :
-  (0 < N) -> ARcoupl (dret x) (dunif N) (λ m n, m = x ∧ m ≠ n) (1/N).
+Lemma ARcoupl_dunif_no_coll_r `{Countable A} (N : nat) (x : fin N) (y : A) :
+  (0 < N) -> ARcoupl (dret y) (dunif N) (λ m n, m = y ∧ x ≠ n) (1/N).
 Proof with try (by apply ex_seriesC_finite) ; auto.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=/dret_pmf.
@@ -837,9 +837,9 @@ Proof.
 Admitted.
 
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
-  ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
+  ARcoupl μ1' μ2 (λ a b, P a -> Q a b) ε ->
   ub_lift μ1 P ε' ->
-  ARcoupl μ1 μ2 Q (ε + ε').
+  ARcoupl (μ1 ≫ μ1') μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
   set (P' := λ a, @bool_decide (P a) (make_decision (P a))).

@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
-From clutch.program_logic Require Export language weakestpre.
+From clutch.program_logic Require Import language weakestpre.
 From clutch.ub_logic Require Import error_credits.
 From clutch.rel_logic Require Import spec_ra.
 From clutch.app_rel_logic Require Import app_weakestpre primitive_laws.

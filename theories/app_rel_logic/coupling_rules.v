@@ -193,18 +193,18 @@ Section rules.
 
   (* TODO (1) The step-taking fancy update in the WP hypothesis is silly. *)
   (*      (2) The spec program should be allowed to occur in arbitrary context K. *)
-  Lemma wp_couple_rand_no_coll (* K *) N z E (x : Fin.t (S N)) Φ ε :
+  Lemma wp_couple_rand_no_coll K N z E (x : Fin.t (S N)) e Φ ε :
     nclose specN ⊆ E →
     (0 < S N)%R →
     ((1 / S N) = ε)%R →
     N = Z.to_nat z →
     € ε ∗
-    (* refines_right K #x -∗ *)
-    refines_right [] #x ∗
+    (* refines_right K e ∗ *)
+    refines_right [] e ∗
     (∀ (n : fin (S N)),
         ⌜(fin_to_nat n ≠ x)⌝ →
-        (* refines_right K #x -∗ *)
-        refines_right [] #x -∗
+        refines_right K e -∗
+        refines_right [] e -∗
         |={E}[∅]▷=>
         WP (Val #n) @ E {{ Φ }})
     ⊢ WP (rand #z from #()) @ E {{ Φ }}.
@@ -233,7 +233,26 @@ Section rules.
     iExists _. iSplitR ; auto.
     iSplitR.
     { iPureIntro => /=.
-      apply (wp_couple_rand_no_coll N z σ1 σ0' x ε Npos Nε Nz). }
+      (* rewrite -(dret_id_right (dret _)). *)
+      rewrite -(dret_id_right (prim_step _ _)). simpl.
+(* Admitted. *)
+
+
+      (* set (e := Val #x). *)
+      set (K' := []).
+      assert ( (dret (fill K' e, σ0')) = (dmap (fill_lift K') (dret (e, σ0'))) ).
+      1: admit.
+      rewrite H1.
+      rename ε into Ε.
+      replace Ε with (nnreal_plus Ε nnreal_zero)
+                               by by apply nnreal_ext => /= ; lra.
+      rewrite /dmap => /=.
+      eapply ARcoupl_dbind => /=.
+      1,2: simpl; try lra. 1: rewrite -Nε. 1: admit.
+      2: apply (wp_couple_rand_no_coll N z σ1 σ0' x ε Npos Nε Nz).
+      simpl. intros ??(n&->&->&?).
+      apply ARcoupl_dret=>/=. admit.
+    }
     iIntros (ρ2 (n & -> & ? & nx)).
     (* Update our resources *)
     iMod (spec_interp_update (fill [] (Val #x), σ0')
