@@ -418,10 +418,10 @@ Qed.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
-  (forall n, (ε2 n <= 1)%R ) ->
-  (SeriesC (λ n, (1 / (S N)) * (ε2 n)) = ε1)%R →
+  (∀ n, (ε2 n <= 1)%R) →
+  (SeriesC (λ n, (1 / (S N)) * ε2 n) = ε1)%R →
   € ε1 ∗
-  ▷ (∀ (n : fin (S N)), €(ε2 n) -∗ Φ #n)
+  ▷ (∀ (n : fin (S N)), € (ε2 n) -∗ Φ #n)
   ⊢ WP (rand #z from #()) @ E {{ Φ }}.
 Proof.
   iIntros (-> Hε2 Hε1) "[Herr Hwp]".
@@ -437,33 +437,39 @@ Proof.
     apply head_step_support_equiv_rel.
     by eapply (RandNoTapeS _ _ 0%fin).
   }
-  iDestruct (ec_supply_bound with "Hε Herr") as %Hle.
-  set (ε' := nnreal_minus ε_now ε1 Hle).
+  (* iDestruct (ec_supply_bound with "Hε Herr") as %Hle. *)
+  iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
+  rewrite Hε3.
+  
+  (* set (ε' := nnreal_minus ε_now ε1 Hle). *)
   (*
   replace ε_now with (nnreal_plus ε' ε1); last first.
   { apply nnreal_ext; simpl. lra. }
 *)
-  set (ε3 := (λ (ρ : expr * state),
+  set (foo := (λ (ρ : expr * state),
+                ε3 +
           match ρ with
             | (Val (LitV (LitInt n)), σ1) =>
                 if bool_decide (0 ≤ n)%Z
-                  then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
+                then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
                        | left H => ε2 (@Fin.of_nat_lt (Z.to_nat n) (S (Z.to_nat z)) H)
                        | _ => nnreal_zero
                      end
                   else nnreal_zero
             | _ => nnreal_zero
-          end)).
-  iApply exec_ub_mono_grading; auto.
-  iApply exec_ub_adv_comp'; simpl.
-  assert (cfg -> nonnegreal) as foo by admit.
+          end)%NNR).
+  (* iApply exec_ub_mono_grading; auto. *)
+  iApply exec_ub_adv_comp; simpl.
+  (* assert (cfg -> nonnegreal) as foo by admit. *)
   iExists
       (λ (ρ : expr * state),
-        ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), foo.
+        ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
   iSplit.
   { admit. }
   iSplit.
-  { admit. }
+  { rewrite /foo /=.
+    (* WE CAN DO THIS *)
+    admit. }
   iSplit.
   {
     iPureIntro.
@@ -473,6 +479,10 @@ Proof.
   }
   iIntros ((e2 & σ2)) "%H".
   destruct H as (n & Hn1); simplify_eq.
+  rewrite /foo /=. 
+  
+  
+  
   rewrite bool_decide_eq_true_2; last first.
   {
     by zify.
@@ -482,72 +492,22 @@ Proof.
     destruct n0.
     rewrite Nat2Z.id.
     apply fin_to_nat_lt.
-    }
+  }  
+  
+  
   iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
   do 2 iModIntro.
   iMod "Hclose'".
   iFrame.
-  iModIntro.
-  simpl.
-  rewrite bool_decide_eq_true_2; last first.
-  {
-    by zify.
-  }
-  case_match eqn:Hcase; simpl.
-  iApply "Hwp".
-  iApply ub_wp_value.
-  done.
+  iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
+  iFrame. iModIntro. wp_pures.
+  iModIntro. iApply "Hwp".
+  assert (nat_to_fin l = n) as ->; [|done].
+  apply fin_to_nat_inj.
+  rewrite fin_to_nat_to_fin.
+  rewrite Nat2Z.id.
+  reflexivity.  
 
-
-
-
-
-  {
-    iPureIntro. intros []. simpl.
-    case_match; simpl; try lra.
-    case_match; simpl; try lra.
-    case_match; simpl; try lra.
-    case_bool_decide as Haux; simpl; try lra.
-    case_match; simpl; try lra.
-    apply Hε2.
-  }
-  iSplit.
-  {
-    admit.
-  }
-  iSplit.
-  {
-    iPureIntro.
-    eapply UB_mon_pred; last first.
-    - apply (ub_lift_rand_trivial (Z.to_nat z) z σ1); auto.
-    - done.
-  }
-  iIntros ((e2 & σ2)) "%H".
-  destruct H as (n & Hn1); simplify_eq.
-  simpl.
-  rewrite bool_decide_eq_true_2; last first.
-  {
-    by zify.
-  }
-  case_match.
-  2:{
-    destruct n0.
-    rewrite Nat2Z.id.
-    apply fin_to_nat_lt.
-    }
-  iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
-  do 2 iModIntro.
-  iMod "Hclose'".
-  iFrame.
-  iModIntro.
-  simpl.
-  rewrite bool_decide_eq_true_2; last first.
-  {
-    by zify.
-  }
-  case_match eqn:Hcase; simpl.
-  iApply "Hwp".
-  iApply ub_wp_value.
-  done.
-
+Admitted. 
+  
 End rules.
