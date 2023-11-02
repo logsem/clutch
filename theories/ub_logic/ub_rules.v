@@ -419,12 +419,10 @@ Qed.
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   (∀ n, (ε2 n <= 1)%R) →
-  (SeriesC (λ n, (1 / (S N)) * ε2 n) = ε1)%R →
-  € ε1 ∗
-  ▷ (∀ (n : fin (S N)), € (ε2 n) -∗ Φ #n)
-  ⊢ WP (rand #z from #()) @ E {{ Φ }}.
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1 →
+  {{{ € ε1 }}} rand #z from #() @ E {{{ n, RET #n; € (ε2 n) }}}.
 Proof.
-  iIntros (-> Hε2 Hε1) "[Herr Hwp]".
+  iIntros (-> Hε2 Hε1 Ψ) "Herr HΨ".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
@@ -437,15 +435,9 @@ Proof.
     apply head_step_support_equiv_rel.
     by eapply (RandNoTapeS _ _ 0%fin).
   }
-  (* iDestruct (ec_supply_bound with "Hε Herr") as %Hle. *)
+  iApply exec_ub_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
   rewrite Hε3.
-  
-  (* set (ε' := nnreal_minus ε_now ε1 Hle). *)
-  (*
-  replace ε_now with (nnreal_plus ε' ε1); last first.
-  { apply nnreal_ext; simpl. lra. }
-*)
   set (foo := (λ (ρ : expr * state),
                 ε3 +
           match ρ with
@@ -458,9 +450,6 @@ Proof.
                   else nnreal_zero
             | _ => nnreal_zero
           end)%NNR).
-  (* iApply exec_ub_mono_grading; auto. *)
-  iApply exec_ub_adv_comp; simpl.
-  (* assert (cfg -> nonnegreal) as foo by admit. *)
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
@@ -501,7 +490,7 @@ Proof.
   iFrame.
   iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
   iFrame. iModIntro. wp_pures.
-  iModIntro. iApply "Hwp".
+  iModIntro. iApply "HΨ".
   assert (nat_to_fin l = n) as ->; [|done].
   apply fin_to_nat_inj.
   rewrite fin_to_nat_to_fin.
