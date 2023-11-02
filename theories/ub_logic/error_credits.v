@@ -205,7 +205,7 @@ Section error_credit_theory.
   Qed.
 
   Lemma ec_decrease_supply ε1 ε2 :
-    ec_supply (nnreal_plus ε1 ε2) -∗ € ε1 -∗ |==> ec_supply ε2.
+    ec_supply (ε1 + ε2)%NNR -∗ € ε1 -∗ |==> ec_supply ε2.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
@@ -216,9 +216,19 @@ Section error_credit_theory.
     by iDestruct "Hown" as "[Hm _]".
   Qed.
 
+  Lemma ec_increase_supply ε1 ε2 :
+    ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ € ε2.
+  Proof.
+    rewrite ec_unseal /ec_def.
+    rewrite ec_supply_unseal /ec_supply_def.
+    iIntros "H".
+    iMod (own_update with "H") as "[$ $]"; [|done].
+    eapply (auth_update_alloc _ (ε1 + ε2)%NNR ε2%NNR).
+    eapply R_local_update. eapply nnreal_ext; simpl; lra.
+  Qed.
+
   Lemma ec_split_supply ε1 ε2 :
-    ec_supply ε2 -∗ € ε1 -∗
-      ∃ ε3, ⌜ε2 = nnreal_plus ε1 ε3⌝.
+    ec_supply ε2 -∗ € ε1 -∗ ∃ ε3, ⌜ε2 = (ε1 + ε3)%NNR⌝.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
@@ -230,7 +240,6 @@ Section error_credit_theory.
     apply nnreal_ext.
     simpl; lra.
   Qed.
-
 
   Lemma ec_weaken {ε1 : nonnegreal} (ε2 : nonnegreal) :
     (ε2 <= ε1)%R → € ε1 -∗ € ε2.
@@ -268,12 +277,11 @@ Section error_credit_theory.
 End error_credit_theory.
 
 Lemma ec_alloc `{!ecGpreS Σ} n :
-    ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ € n.
-  Proof.
-    rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
-    iMod (own_alloc (● n ⋅ ◯ n)) as (γEC) "[H● H◯]";
-      first (apply auth_both_valid; split; done).
-    pose (C := EcGS _ _ γEC).
-    iModIntro. iExists C. iFrame.
-  Qed.
-
+  ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ € n.
+Proof.
+  rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
+  iMod (own_alloc (● n ⋅ ◯ n)) as (γEC) "[H● H◯]";
+    first (apply auth_both_valid; split; done).
+  pose (C := EcGS _ _ γEC).
+  iModIntro. iExists C. iFrame.
+Qed.
