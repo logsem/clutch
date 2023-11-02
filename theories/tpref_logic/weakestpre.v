@@ -342,14 +342,6 @@ Definition rwp_pre `{spec δ Σ} `{!tprwpG Λ Σ}
             |={∅,E}=> state_interp σ2 ∗ spec_interp a2 ∗ rwp E e2 Φ)
     end)%I.
 
-(* An [rswp] takes an [rswp_step] and afterwards proves an [rwp] *)
-Definition rswp_step `{spec δ Σ} `{!tprwpG Λ Σ} (k : nat) E (e1 : expr Λ) (Z : expr Λ → iProp Σ) : iProp Σ :=
-  (∀ σ1 a1,
-      state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗ |={∅}▷=>^k
-      ⌜reducible e1 σ1⌝ ∧
-      (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret a1) R⌝ ∧
-            ∀ e2 σ2, ⌜R (e2, σ2) a1⌝ -∗ |={∅,E}=> (state_interp σ2 ∗ spec_interp a1 ∗ Z e2))).
-
 Lemma rwp_pre_mono `{spec δ Σ} `{!tprwpG Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
   ⊢ ((□ ∀ E e Φ, wp1 E e Φ -∗ wp2 E e Φ) →
         ∀ E e Φ, rwp_pre wp1 E e Φ -∗ rwp_pre wp2 E e Φ)%I.
@@ -475,6 +467,14 @@ Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩
   (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k @ E ⟨⟨ Φ ⟩⟩) : stdpp_scope.
 Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
   (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.
+
+(** An [rswp] takes an [rswp_step] and afterwards proves an [rwp] *)
+Definition rswp_step `{spec δ Σ} `{!tprwpG Λ Σ} (k : nat) E (e1 : expr Λ) (Z : expr Λ → iProp Σ) : iProp Σ :=
+  (∀ σ1 a1,
+      state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗ |={∅}▷=>^k
+      ⌜reducible e1 σ1⌝ ∧
+      (∃ R, ⌜Rcoupl (prim_step e1 σ1) (dret a1) R⌝ ∧
+            ∀ e2 σ2, ⌜R (e2, σ2) a1⌝ -∗ |={∅,E}=> (state_interp σ2 ∗ spec_interp a1 ∗ Z e2))).
 
 #[local] Definition rswp_def {Λ δ Σ} `{!tprwpG Λ Σ, !spec δ Σ}
   (k : nat) (a : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
