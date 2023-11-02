@@ -517,6 +517,23 @@ Section filter.
     - rewrite bool_decide_eq_true_2 //. lra.
   Qed.
 
+
+  Lemma SeriesC_split_pred f (P : A -> bool) :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f →
+    SeriesC f = SeriesC (λ a, if P a then f a else 0) +
+                  SeriesC (λ a, if P a then 0 else f a).
+  Proof.
+    intros Hle Hex.
+    rewrite -SeriesC_plus.
+    - apply SeriesC_ext; intro.
+      destruct (P _); lra.
+    - apply (ex_seriesC_le _ f); auto.
+      intro; real_solver.
+    - apply (ex_seriesC_le _ f); auto.
+      intro; real_solver.
+  Qed.
+
   Lemma ex_seriesC_filter_bool_pos f (P : A → bool) :
     (∀ a, 0 <= f a) →
     ex_seriesC f ->

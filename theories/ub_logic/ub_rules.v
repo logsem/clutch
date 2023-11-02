@@ -9,7 +9,31 @@ From clutch.ub_logic Require Export lifting ectx_lifting primitive_laws proofmod
 
 Section metatheory.
 
-Local Open Scope R.
+  Local Open Scope R.
+
+
+(** * rand(N) no error *)
+Lemma ub_lift_rand_trivial N z σ1 :
+  N = Z.to_nat z →
+  ub_lift
+    (prim_step (rand #z from #()) σ1)
+    (λ ρ2, ∃ (n : fin (S N)),
+        ρ2 = (Val #n, σ1)) 0.
+Proof.
+  simpl in *.
+  intros Hz.
+  rewrite head_prim_step_eq /=; last first.
+  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite /dmap -Hz.
+  rewrite -(Rplus_0_r 0).
+  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  { by apply ub_lift_trivial. }
+  2,3: done.
+  intros n ?.
+  apply ub_lift_dret.
+  by exists n.
+Qed.
 
 (** * rand(N) error *)
 Lemma ub_lift_rand_err N z σ1 (m : fin (S N)):
@@ -390,5 +414,140 @@ Proof.
   iApply "Hwp".
   done.
 Qed.
+
+
+Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  (forall n, (ε2 n <= 1)%R ) ->
+  (SeriesC (λ n, (1 / (S N)) * (ε2 n)) = ε1)%R →
+  € ε1 ∗
+  ▷ (∀ (n : fin (S N)), €(ε2 n) -∗ Φ #n)
+  ⊢ WP (rand #z from #()) @ E {{ Φ }}.
+Proof.
+  iIntros (-> Hε2 Hε1) "[Herr Hwp]".
+  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iIntros (σ1 ε_now) "[Hσ Hε]".
+  iApply fupd_mask_intro; [set_solver|].
+  iIntros "Hclose'".
+  iSplit; [ eauto with head_step | ].
+  { iPureIntro.
+    simpl.
+    apply head_prim_reducible.
+    eexists (Val #0%fin, σ1).
+    apply head_step_support_equiv_rel.
+    by eapply (RandNoTapeS _ _ 0%fin).
+  }
+  iDestruct (ec_supply_bound with "Hε Herr") as %Hle.
+  set (ε' := nnreal_minus ε_now ε1 Hle).
+  (*
+  replace ε_now with (nnreal_plus ε' ε1); last first.
+  { apply nnreal_ext; simpl. lra. }
+*)
+  set (ε3 := (λ (ρ : expr * state),
+          match ρ with
+            | (Val (LitV (LitInt n)), σ1) =>
+                if bool_decide (0 ≤ n)%Z
+                  then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
+                       | left H => ε2 (@Fin.of_nat_lt (Z.to_nat n) (S (Z.to_nat z)) H)
+                       | _ => nnreal_zero
+                     end
+                  else nnreal_zero
+            | _ => nnreal_zero
+          end)).
+  iApply exec_ub_mono_grading; auto.
+  iApply exec_ub_adv_comp'; simpl.
+  assert (cfg -> nonnegreal) as foo by admit.
+  iExists
+      (λ (ρ : expr * state),
+        ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), foo.
+  iSplit.
+  { admit. }
+  iSplit.
+  { admit. }
+  iSplit.
+  {
+    iPureIntro.
+    eapply UB_mon_pred; last first.
+    - apply (ub_lift_rand_trivial (Z.to_nat z) z σ1); auto.
+    - done.
+  }
+  iIntros ((e2 & σ2)) "%H".
+  destruct H as (n & Hn1); simplify_eq.
+  rewrite bool_decide_eq_true_2; last first.
+  {
+    by zify.
+  }
+  case_match.
+  2:{
+    destruct n0.
+    rewrite Nat2Z.id.
+    apply fin_to_nat_lt.
+    }
+  iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
+  do 2 iModIntro.
+  iMod "Hclose'".
+  iFrame.
+  iModIntro.
+  simpl.
+  rewrite bool_decide_eq_true_2; last first.
+  {
+    by zify.
+  }
+  case_match eqn:Hcase; simpl.
+  iApply "Hwp".
+  iApply ub_wp_value.
+  done.
+
+
+
+
+
+  {
+    iPureIntro. intros []. simpl.
+    case_match; simpl; try lra.
+    case_match; simpl; try lra.
+    case_match; simpl; try lra.
+    case_bool_decide as Haux; simpl; try lra.
+    case_match; simpl; try lra.
+    apply Hε2.
+  }
+  iSplit.
+  {
+    admit.
+  }
+  iSplit.
+  {
+    iPureIntro.
+    eapply UB_mon_pred; last first.
+    - apply (ub_lift_rand_trivial (Z.to_nat z) z σ1); auto.
+    - done.
+  }
+  iIntros ((e2 & σ2)) "%H".
+  destruct H as (n & Hn1); simplify_eq.
+  simpl.
+  rewrite bool_decide_eq_true_2; last first.
+  {
+    by zify.
+  }
+  case_match.
+  2:{
+    destruct n0.
+    rewrite Nat2Z.id.
+    apply fin_to_nat_lt.
+    }
+  iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
+  do 2 iModIntro.
+  iMod "Hclose'".
+  iFrame.
+  iModIntro.
+  simpl.
+  rewrite bool_decide_eq_true_2; last first.
+  {
+    by zify.
+  }
+  case_match eqn:Hcase; simpl.
+  iApply "Hwp".
+  iApply ub_wp_value.
+  done.
 
 End rules.

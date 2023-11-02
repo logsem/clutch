@@ -737,6 +737,35 @@ Proof with try (by apply ex_seriesC_finite) ; auto.
   - apply ex_seriesC_finite.
  Qed.
 
+
+Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
+  ub_lift μ1 P ε ->
+  ARcoupl μ1 (dret tt) (λ a _, P a) ε.
+Proof.
+  rewrite /ub_lift /prob.
+  intros Hub f g Hf Hg Hfg.
+  epose proof (Hub (λ a, bool_decide (f a <= g tt)) _) as Haux.
+  etransitivity; last first.
+  - eapply Rplus_le_compat_l; apply Haux.
+  - rewrite (SeriesC_split_pred _ (λ a, bool_decide (f a <= g tt))).
+    + apply Rplus_le_compat.
+      * rewrite (SeriesC_ext  (λ b : (), dret () b * g b) (λ b : (), g tt)); last first.
+        { intro n; destruct n. rewrite dret_1_1; auto. lra. }
+        rewrite SeriesC_finite_mass /= Rmult_1_l.
+        admit.
+      * apply SeriesC_le.
+        ** intro n; specialize (Hf n). real_solver.
+        ** apply (ex_seriesC_le _ μ1); auto.
+           intro n; specialize (Hf n). real_solver.
+   + intro n; specialize (Hf n). real_solver.
+   + apply (ex_seriesC_le _ μ1); auto.
+     intro n; specialize (Hf n). real_solver.
+  Unshelve.
+  intros a Pa; simpl.
+  apply bool_decide_eq_true_2.
+  by apply Hfg.
+Admitted.
+
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
   ub_lift μ1 P ε' ->

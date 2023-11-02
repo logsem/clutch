@@ -394,6 +394,26 @@ Section exec_ub.
     iSplit; done.
   Qed.
 
+
+  Lemma exec_ub_adv_comp' e1 σ1 Z (ε : nonnegreal) :
+      (∃ R (ε2 : cfg Λ -> nonnegreal),
+          ⌜ forall ρ, (ε2 ρ <= 1)%R ⌝ ∗
+          ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R nnreal_zero⌝ ∗
+            ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
+    ⊢ exec_ub e1 σ1 Z ε.
+  Proof.
+    iIntros "(% & % & % & % & % & H)".
+    rewrite {1}exec_ub_unfold.
+    iRight; iLeft.
+    iExists _,nnreal_zero,_.
+    iSplit; [done|].
+    iSplit.
+    { iPureIntro.
+      simpl. lra.
+    }
+    iSplit; done.
+  Qed.
+
   (* TODO: Maybe allow weakening of the grading *)
   Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
