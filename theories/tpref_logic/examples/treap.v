@@ -335,7 +335,7 @@ Section spec.
 End spec.
 
 Definition new_treap : val :=
-  λ: <>, ref (NONEV).
+  λ: <>, ref NONEV.
 
 Definition insert_treap : val :=
   λ: "t" "k", "t" <- insert !"t" "k".

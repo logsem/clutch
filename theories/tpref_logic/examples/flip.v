@@ -23,4 +23,17 @@ Section coupl.
     - iApply ("HΦ"). iFrame. inv_fin n; eauto.
   Qed.
 
+  Lemma rwp_flip E :
+    ⟨⟨⟨ True ⟩⟩⟩ flip @ E ⟨⟨⟨ (b : bool), RET #(LitBool b); True ⟩⟩⟩.
+  Proof.
+    iIntros (Φ) "_ HΦ". rewrite /flip.
+    wp_bind (rand(_) _)%E.
+    wp_apply (rwp_rand 1 with "[//]").
+    iIntros (?) "_ /=". rewrite /int_to_bool.
+    wp_pures.
+    case_bool_decide; wp_pures.
+    - iApply "HΦ". iFrame. inv_fin n; eauto.
+    - iApply ("HΦ"). iFrame. inv_fin n; eauto.
+  Qed.
+
 End coupl.

@@ -217,3 +217,16 @@ Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
 Notation "'while' e1 'do' e2 'end'" :=
   ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #())) #())%E
   (e1, e2 at level 200) : expr_scope.
+
+Notation "'letrec:' f x := e1 'in' e2" :=
+  (Lam f%binder e2%E (Rec f%binder x%binder e1%E))
+  (at level 200, f at level 1, x at level 1, e1, e2 at level 200,
+   format "'[' 'letrec:'  f  x  :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
+  : expr_scope.
+
+Notation "'letrec:' f x y .. z := e1 'in' e2" :=
+  (Lam f%binder e2%E
+     (Rec f%binder x%binder (Lam y%binder .. (Lam z%binder e1%E) ..)))
+  (at level 200, f at level 1, x,y,z at level 1, e1, e2 at level 200,
+   format "'[' 'letrec:'  f  x y .. z :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
+  : expr_scope.
