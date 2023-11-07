@@ -418,11 +418,11 @@ Qed.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
-  (∀ n, (ε2 n <= 1)%R) →
-  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1 →
+  (exists r, ∀ n, (ε2 n <= r)%R) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
   {{{ € ε1 }}} rand #z from #() @ E {{{ n, RET #n; € (ε2 n) }}}.
 Proof.
-  iIntros (-> Hε2 Hε1 Ψ) "Herr HΨ".
+  iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
@@ -454,11 +454,107 @@ Proof.
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
   iSplit.
-  { admit. }
+  {
+    iPureIntro. exists (ε3 + r)%R.
+    intros (e & σ); simpl.
+    apply Rplus_le_compat; [lra |].
+    assert (nnreal_zero <= r)%R.
+    { transitivity (ε2 0%fin); auto.
+      apply cond_nonneg.
+    }
+    do 5 (case_match; auto).
+    apply Hε2.
+  }
   iSplit.
-  { rewrite /foo /=.
-    (* WE CAN DO THIS *)
-    admit. }
+  {
+    iPureIntro.
+    rewrite /foo /= Rplus_0_l.
+    setoid_rewrite Rmult_plus_distr_l.
+    rewrite SeriesC_plus.
+    - rewrite Rplus_comm.
+      apply Rplus_le_compat.
+      + rewrite <- Hε1.
+        etrans; last first.
+        * apply (SeriesC_le_inj _
+                                (λ ρ : expr * state,
+      let (e, σ) := ρ in
+        if bool_decide (σ = σ1) then
+          match e with
+          | Val #(LitInt n) =>
+              if bool_decide (0 ≤ n)%Z
+              then match lt_dec (Z.to_nat n) (S (Z.to_nat z)) with
+                   | left H => Some (nat_to_fin H)
+                   | right _ => None
+                   end
+              else None
+          | _ => None
+          end
+        else None)).
+          ** intros.
+             (* TODO: Add this to real solver *)
+             apply Rmult_le_pos; [ | apply cond_nonneg ].
+             apply Rmult_le_pos; [lra |].
+             left. apply RinvN_pos'.
+          ** intros ρ1 ρ2 m Hc1 Hc2.
+             do 14 (case_match; simplify_eq).
+             f_equal.
+             *** do 3 f_equal.
+                 admit.
+             *** apply bool_decide_eq_true_1 in H2.
+                 apply bool_decide_eq_true_1 in H.
+                 simplify_eq. done.
+          ** apply ex_seriesC_finite.
+        * apply SeriesC_le.
+          ** intros []; split.
+             *** apply Rmult_le_pos; auto.
+                 case_match; (try apply cond_nonneg).
+             *** case_bool_decide; simplify_eq.
+                 **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
+                      apply Rmult_le_compat_r; [ apply cond_nonneg |].
+                      rewrite head_prim_step_eq /=; last first.
+                      { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+                        by eapply (RandNoTapeS _ _ 0%fin).
+                      }
+                      rewrite /dmap /pmf/=/dbind_pmf/dunifP.
+                      setoid_rewrite dunif_pmf.
+                      rewrite SeriesC_scal_l /= /Rdiv Rmult_1_l.
+                      rewrite <- Rmult_1_r.
+                      apply Rmult_le_compat_l; auto.
+                      ***** left. eapply Rlt_le_trans; [apply (RinvN_pos' (Z.to_nat z)) |].
+                            done.
+                      ***** rewrite /pmf/=/dret_pmf.
+                            erewrite <- (SeriesC_singleton (nat_to_fin l0)).
+                            apply SeriesC_le; [ | apply ex_seriesC_singleton ].
+                            intro; split; [ real_solver |].
+                            case_bool_decide; simplify_eq.
+                            case_bool_decide; try real_solver.
+                            rewrite bool_decide_eq_true_2; [lra|].
+                            simplify_eq.
+                            apply fin_to_nat_inj.
+                            rewrite fin_to_nat_to_fin.
+                            rewrite Nat2Z.id //.
+                 **** simpl. etrans; [ | right; eapply Rmult_0_l ].
+                      apply Rmult_le_compat_r; [apply cond_nonneg | ].
+                      right.
+                      rewrite head_prim_step_eq /=; last first.
+                      { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
+                        by eapply (RandNoTapeS _ _ 0%fin).
+                      }
+                      rewrite /dmap /pmf/=/dbind_pmf/dunifP.
+                      setoid_rewrite dunif_pmf.
+                      rewrite SeriesC_scal_l /= /Rdiv.
+                      erewrite (SeriesC_ext _ (λ _, 0));
+                        [rewrite SeriesC_0; auto; by rewrite Rmult_0_r|].
+                      intro; rewrite dret_0; auto.
+                      intro; simplify_eq.
+          ** admit.
+      + rewrite SeriesC_scal_r.
+        rewrite <- Rmult_1_l.
+        apply Rmult_le_compat; auto; try lra.
+        apply cond_nonneg.
+    - by apply ex_seriesC_scal_r.
+    - admit.
+  }
   iSplit.
   {
     iPureIntro.
@@ -468,10 +564,7 @@ Proof.
   }
   iIntros ((e2 & σ2)) "%H".
   destruct H as (n & Hn1); simplify_eq.
-  rewrite /foo /=. 
-  
-  
-  
+  rewrite /foo /=.
   rewrite bool_decide_eq_true_2; last first.
   {
     by zify.
@@ -481,9 +574,7 @@ Proof.
     destruct n0.
     rewrite Nat2Z.id.
     apply fin_to_nat_lt.
-  }  
-  
-  
+  }
   iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
   do 2 iModIntro.
   iMod "Hclose'".
@@ -495,8 +586,7 @@ Proof.
   apply fin_to_nat_inj.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
-  reflexivity.  
+  reflexivity.
+Admitted.
 
-Admitted. 
-  
 End rules.

@@ -187,12 +187,6 @@ Section series.
   Qed.
 
 
-  Lemma SeriesC_le_inj (f : A -> R) (h : A -> option A) :
-    (∀ n, 0 <= f n) →
-    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
-    ex_seriesC f →
-    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
-  Admitted.
 
 
 
@@ -801,6 +795,16 @@ End bounds.
 
 Section fubini.
   Context `{Countable A, Countable B}.
+
+
+  (* A lemma about rearranging SeriesC along an injective function *)
+
+  Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
+    (∀ n, 0 <= f n) →
+    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
+    ex_seriesC f →
+    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
+  Admitted.
 
   (*
      The following three lemmas have been proven for

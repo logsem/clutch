@@ -34,7 +34,7 @@ Section adequacy.
   Lemma ub_lift_dbind_adv' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
-    ⌜ forall a, 0 <= ε' a <= 1 ⌝ -∗
+    ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
     ⌜ub_lift μ R ε⌝ -∗
     (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (f a) T (ε' a)⌝) -∗
     |={∅}▷=>^(S n) ⌜ub_lift (dbind f μ) T (ε + SeriesC (λ a : A, (μ a * ε' a)%R))⌝ : iProp Σ.
@@ -69,7 +69,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([ε'' [e1 σ1]]). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %ε1 & %ε2 & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & % & % & %Hlift & H)| H]] %Hv".
+    iIntros "[ (%R & %ε1 & %ε2 & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & (%r & %Hr) & % & %Hlift & H)| H]] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply UB_mon_grading; eauto. }
@@ -85,7 +85,7 @@ Section adequacy.
       rewrite exec_val_Sn_not_val; [|done].
       iApply ub_lift_dbind_adv'.
       + iPureIntro; apply cond_nonneg.
-      + iPureIntro; split; auto. apply cond_nonneg.
+      + iPureIntro. exists r. split; auto. apply cond_nonneg.
       + done.
       + iIntros ([] ?).
         by iMod ("H"  with "[//]").

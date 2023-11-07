@@ -210,15 +210,15 @@ Section ub_theory.
   Lemma ub_lift_dbind_adv (h : A → distr A')
     (μ : distr A) (f : A -> Prop) (g : A' → Prop) (ε : R) (ε' : A -> R) :
     (0 <= ε) ->
-    (forall a, 0 <= ε'(a) <= 1) ->
+    (exists r, forall a, 0 <= ε'(a) <= r) ->
     (∀ a, f a -> ub_lift (h a) g (ε' a)) →
     ub_lift μ f ε ->
     ub_lift (dbind h μ) g (ε + SeriesC (λ a, μ(a) * ε'(a))).
   Proof.
-    intros Hε Hε' Hg Hf P HP.
+    intros Hε (r & Hε') Hg Hf P HP.
     assert (ex_seriesC (λ a, μ(a) * ε'(a))) as Hex.
     {
-      apply (ex_seriesC_le _ μ); auto.
+      eapply (ex_seriesC_le _ (λ a, μ(a) * r)); [ | apply ex_seriesC_scal_r; auto].
       intros a; split; specialize (Hε' a); real_solver.
     }
     rewrite prob_dbind.
@@ -265,8 +265,12 @@ Section ub_theory.
                setoid_rewrite Haux2.
                lra.
             -- apply prob_le_1.
-      - apply (ex_seriesC_le _ μ); auto.
-        intros a; split; specialize (Hε' a); real_solver.
+      - destruct (decide (1 <= r)).
+        + eapply (ex_seriesC_le _ (λ a, μ(a) * r)); [ | apply ex_seriesC_scal_r; auto].
+          intros a; split; specialize (Hε' a); case_bool_decide; try real_solver.
+          rewrite <- Rmult_1_r at 1. real_solver.
+        + eapply (ex_seriesC_le _ μ); auto.
+          intros a; split; specialize (Hε' a); case_bool_decide; try real_solver.
     }
     apply (Rle_trans _ _ _ Haux).
     assert (SeriesC (λ a : A, if bool_decide (f a) then μ a * ε' a else μ a)

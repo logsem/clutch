@@ -52,7 +52,7 @@ Section exec_ub.
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ε2 ρ2 ) ∨
       (* [prim_step] with adv composition *)
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜ forall ρ, (ε2 ρ <= 1)%R ⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 ) ∨
       (* [state_step]  *)
@@ -103,7 +103,7 @@ Section exec_ub.
       ((∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ε2 ρ2 ) ∨
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜ forall ρ, (ε2 ρ <= 1)%R ⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 ) ∨
       ([∨ list] α ∈ get_active σ1,
@@ -242,7 +242,7 @@ Section exec_ub.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! (_, (_, _)) with "Hub [//]"). }
     iIntros "!#" ([ε' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[(% & % & % & % & % & H) | [ (% & % & % & % & % & % & H) | H]] %Hv'".
+    iIntros "[(% & % & % & % & % & H) | [ (% & % & % & (%r & %Hr) & % & % & H) | H]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. simpl.
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,_.
@@ -280,8 +280,9 @@ Section exec_ub.
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,ε3.
       iSplit.
       {
-        iPureIntro. intros (e&σ). rewrite /ε3.
-        destruct (Kinv e); simpl; real_solver.
+        iPureIntro. exists r. intros (e&σ). rewrite /ε3.
+        destruct (Kinv e); simpl; try real_solver.
+        etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
       }
       iSplit; [ | iSplit].
       2:{ iPureIntro.
@@ -296,7 +297,7 @@ Section exec_ub.
         - auto.
        }
       + iPureIntro.
-        etrans; [ | apply H1].
+        etrans; [ | apply H0].
         apply Rplus_le_compat_l.
         transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * ε3 (K e, σ))%R)).
         * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
@@ -312,7 +313,7 @@ Section exec_ub.
                                by destruct (HKinv2 e e2' He).
                             --  apply Rnot_gt_le in Hngt.
                                 assert (prim_step (K o) σ' (e, σ) = 0); [by apply Rle_antisym | ].
-                                by rewrite H3 Rmult_0_l.
+                                lra.
             *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * ε3 (e, σ))%R)).
                 **** intros (e & σ); simpl; split.
                      ***** destruct (Kinv e); simpl; try lra.
@@ -321,11 +322,13 @@ Section exec_ub.
                            apply cond_nonneg.
                      ***** destruct (Kinv e) eqn:He; simpl; try real_solver.
                            rewrite HKinv3 /= (HKinv1 _ _ He) //.
-                **** apply (ex_seriesC_le _ (prim_step (K o) σ')); auto.
+                **** apply (ex_seriesC_le _ (λ ρ, ((prim_step (K o) σ' ρ ) * r)%R)); [ | apply ex_seriesC_scal_r; auto].
                      intros (e&σ); split.
                      ***** apply Rmult_le_pos; auto.
                            apply cond_nonneg.
-                     ***** rewrite /ε3. destruct (Kinv e); simpl; real_solver.
+                     ***** rewrite /ε3. destruct (Kinv e); simpl; try real_solver.
+                           apply Rmult_le_compat_l; auto.
+                           etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
          ** intros [].
             apply Rmult_le_pos; auto.
             apply cond_nonneg.
@@ -334,13 +337,14 @@ Section exec_ub.
             f_equal; auto.
             rewrite -(HKinv1 _ _ He3).
             by rewrite -(HKinv1 _ _ He4).
-         ** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (K e, σ)))); auto.
+         ** apply (ex_seriesC_le _ (λ '(e, σ), ((prim_step (K o) σ' (K e, σ)) * r)%R)).
             *** intros (e&σ); split.
                 **** apply Rmult_le_pos; auto.
                      apply cond_nonneg.
                 **** rewrite /ε3 HKinv3 /=. real_solver.
-            *** apply (ex_seriesC_ext (prim_step o σ')); auto.
-                intros []. by apply fill_step_prob.
+            *** apply (ex_seriesC_ext (λ ρ, ((prim_step o σ' ρ) * r)%R)); auto.
+                **** intros []. apply Rmult_eq_compat_r. by apply fill_step_prob.
+                **** by apply ex_seriesC_scal_r.
         * right. apply SeriesC_ext.
           intros (e&σ).
           rewrite Haux.
@@ -380,7 +384,7 @@ Section exec_ub.
 
   Lemma exec_ub_adv_comp e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜ forall ρ, (ε2 ρ <= 1)%R ⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
     ⊢ exec_ub e1 σ1 Z ε.
@@ -397,7 +401,7 @@ Section exec_ub.
 
   Lemma exec_ub_adv_comp' e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε2 : cfg Λ -> nonnegreal),
-          ⌜ forall ρ, (ε2 ρ <= 1)%R ⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R nnreal_zero⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
     ⊢ exec_ub e1 σ1 Z ε.
