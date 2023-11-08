@@ -3,7 +3,7 @@ From clutch.ub_logic Require Export ub_clutch.
 
 Set Default Proof Using "Type*".
 
-Section proofs.
+Section basic.
   Local Open Scope R.
   Context `{!clutchGS Σ}.
 
@@ -99,7 +99,11 @@ Section proofs.
   (* this lemma is for proofs which iterate up until the last sample
      ie, a rejection sampler to exclude the final recursive step *)
   Lemma bdd_cd_error_penultimate n m : bdd_cf_error n m 1 = err_factor n m.
-  Proof. rewrite /bdd_cf_error /nnreal_nat_exp. (* nnreal: _ * 1 = _ *) Admitted.
+  Proof. rewrite /bdd_cf_error /nnreal_nat_exp. (* nnreal: _ * 1 = _ *)
+
+         Locate nnreal_one.
+
+  Admitted.
 
   (* distribution of error mass 𝜀₁ for a given sample:
       - zero error given to cases which are inbounds
@@ -316,7 +320,7 @@ Section proofs.
   Theorem ubdd_cf_safety (n' m' : nat) (Hnm : (S n' < S m')%nat) E : forall 𝜀,
     ⊢ {{{ €𝜀 ∗ ⌜𝜀 > 0 ⌝  }}} ubdd_rejection_sampler n' m' #()@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
-    iIntros (𝜀 Φ) " !> (Hcr&%Hcrpos) HΦ".
+    iIntros (𝜀 Φ) "!> (Hcr&%Hcrpos) HΦ".
     destruct (nnreal_nat_exp_limit (err_factor (S n') (S m')) 𝜀) as [d].
     - apply err_factor_lt1; lia.
     - iApply (ubdd_approx_safe with "[Hcr] [HΦ]"); auto.
@@ -328,11 +332,58 @@ Section proofs.
 
 
   (* PROBLEM ??: If error credits can rule out nontermination we could show that the unbounded
-     rejection sampler doesn't terminate with probability zero (in the UB logic)  *)
+     rejection sampler doesn't terminate with probability zero (in the UB logic)
+
+        total wp in iris
+         - no laters required
+
+        finite later credit budget or 𝜔
+         - not yet
+
+        higher order version:
+          - sampler
+          -  f: () -> (A, test)
+          -  {{{ € 𝜖 }}} f {{{ true  }}}
+   *)
 
   (* PROBLEM ??: We should be able to prove:
         - the unbounded sampler is equivalent to the bounded sampler with a given error
         - the bounded sampler is equivalent to a single sample with a given error
-      in the approximate relational logic. *)
+      in the approximate relational logic.
 
-End proofs.
+      - distinct
+      - hard to do lifting in Iris
+      - encode UB judgements as relational program with no spec
+
+      Refinement up to error for bdd and ubdd
+
+      higher order spec fo
+
+      input:
+        with € \varpesilon, g and f are equal with err ... (refinemenet)
+        then if we use one for the programs in a rejection sampler
+
+        one does a pure sample, the other one is used in a rejection sampler
+   *)
+
+End basic.
+
+
+Section termination.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
+
+
+End termination.
+
+
+
+
+Section higherorder.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
+  Definition generic_sampler : Set = False.
+
+End higherorder.
