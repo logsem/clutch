@@ -1130,7 +1130,6 @@ Section exp_val_prop.
     apply ex_seriesC_singleton.
   Qed.
 
-
   Lemma Expval_dret f a :
     Expval (dret a) f = f a.
   Proof.
@@ -1199,6 +1198,25 @@ Section exp_val_prop.
       real_solver.
   Qed.
 
+  Lemma ex_expval_dbind (μ : distr A) (f : A → distr B) h :
+    (∀ a, 0 <= h a) →
+    ex_expval μ (λ a, Expval (f a) h) →
+    (∀ a, ex_expval (f a) h) →
+    ex_expval (μ ≫= f) h.
+  Proof.
+    intros Hh Hμ Hf.
+    rewrite /ex_expval.
+    rewrite /pmf /= /dbind_pmf /=.
+    setoid_rewrite <- SeriesC_scal_r.
+    eapply (fubini_pos_seriesC_ex_double (λ '(x, a), μ x * f x a * h a)).
+    { real_solver. }
+    { intros a.
+      setoid_rewrite Rmult_assoc.
+      eapply ex_seriesC_scal_l. eapply Hf. }
+    setoid_rewrite Rmult_assoc.
+    setoid_rewrite SeriesC_scal_l.
+    eapply Hμ.
+  Qed.
 
   (*
      Should hold without the positivity assumption, but then
@@ -1275,7 +1293,6 @@ Section exp_val_prop.
     - rewrite /Expval SeriesC_scal_r; nra.
   Qed.
 
-
   Lemma Expval_convex_lt μ f r :
     (forall a, 0 <= r < f a) ->
     ex_expval μ f ->
@@ -1291,7 +1308,6 @@ Section exp_val_prop.
         exists a. specialize (Hleq a); real_solver.
     - rewrite /Expval SeriesC_scal_r; nra.
   Qed.
-
 
   Lemma Expval_convex_ex_le μ f r :
     (forall a, 0 <= f a) ->
@@ -1356,7 +1372,6 @@ Section exp_val_prop.
     apply SeriesC_le; auto.
     intro a; split; real_solver.
   Qed.
-
 
 End exp_val_prop.
 
@@ -1583,8 +1598,27 @@ Proof.
   - eapply ex_seriesC_finite.
 Qed.
 
+Lemma ex_expval_fair_coin_dbind `{Countable A} (f : bool → distr A) h :
+  (∀ b, ex_expval (f b) h) →
+  ex_expval (fair_coin ≫= f) h.
+Proof.
+  intros Hf.
+  rewrite /ex_expval.
+  rewrite /pmf /= /dbind_pmf /=.
+  setoid_rewrite SeriesC_bool.
+  rewrite !fair_coin_pmf.
+  setoid_rewrite Rmult_plus_distr_r.
+  eapply ex_seriesC_plus.
+  - setoid_rewrite Rmult_assoc.
+    eapply ex_seriesC_scal_l.
+    eapply Hf.
+  - setoid_rewrite Rmult_assoc.
+    eapply ex_seriesC_scal_l.
+    eapply Hf.
+Qed.
+
 Lemma Expval_fair_coin f :
-    Expval fair_coin f = 0.5 * f (true) + 0.5 * f (false).
+  Expval fair_coin f = 0.5 * f (true) + 0.5 * f (false).
 Proof.
   rewrite /Expval/pmf/= SeriesC_scal_l SeriesC_bool; lra.
 Qed.
@@ -1748,6 +1782,10 @@ Section dzero.
   Proof.
     apply dbind_dzero.
   Qed.
+
+  Lemma Expval_dzero `{Countable A} (h : A → R) :
+    Expval dzero h = 0.
+  Proof. eapply SeriesC_0 => a. rewrite dzero_0. lra. Qed.
 
 End dzero.
 

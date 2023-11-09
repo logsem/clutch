@@ -72,6 +72,10 @@ Lemma Rle_plus_l (r1 r2 r3 : R) :
   r1 <= r2 → 0 <= r3 → r1 <= r2 + r3.
 Proof. lra. Qed.
 
+Lemma Rle_plus_r (r1 r2 r3 : R) :
+  r1 <= r3 → 0 <= r2 → r1 <= r2 + r3.
+Proof. lra. Qed.
+
 Lemma pos_sum_nn_real p q :
     0 <= p →
     0 <= q →
