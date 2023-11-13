@@ -745,6 +745,23 @@ Section finite.
     lia.
   Qed.
 
+  Lemma SeriesC_finite_foldr (f : A → R) :
+    SeriesC f = foldr (Rplus ∘ f) 0%R (enum A).
+  Proof.
+    rewrite /SeriesC /countable_sum.
+    setoid_rewrite encode_inv_nat_finite.
+    generalize (enum A).
+    induction l.
+    { apply Series_0. eauto. }
+    rewrite Series_incr_1.
+    { rewrite IHl //. }
+    eapply ex_series_ext;
+      [|eapply ex_seriesC_nat, (ex_seriesC_nat_bounded _ (length l + 1))].
+    intros n => /=.
+    case_bool_decide; [done|].
+    rewrite lookup_ge_None_2 //=. lia.
+  Qed.
+
   Lemma SeriesC_finite_mass v :
     SeriesC (λ _ : A, v) = card A * v.
   Proof.
