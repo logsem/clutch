@@ -195,14 +195,8 @@ Section basic.
     (depth = 3%nat) ->
     {{{ € (bdd_cf_error (S n') (S m') depth Hnm) }}} bdd_rejection_sampler n' m' #(S depth) @ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
-    (* make these off by one errors easier to unpack *)
-    (* remember (S n') as n.
-    remember (S m') as m.
-    assert (Hn : (0 < n)%nat) by lia.
-    assert (Hm : (0 < m)%nat) by lia. *)
-
     iIntros (-> Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
-    wp_pures. (* rewrite Heqm. Heqn. *)
+    wp_pures.
 
     (* S depth=3 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
@@ -343,22 +337,31 @@ Section basic.
         wp_apply ("IH" with "Hcr HΦ").
   Qed.
 
+  Lemma error_limit (r : nonnegreal) : (r < 1) -> forall 𝜀 : nonnegreal, exists n : nat, r ^ (S n) < 𝜀.
+  Proof.
+    intros Hr 𝜀.
+    assert (Har : Rabs r < 1).
+    { destruct r as [rv Hrv]. simpl. rewrite Rabs_pos_eq; auto. }
+    pose Lm := Lim_seq.is_lim_seq_geom r Har.
+    unfold Lim_seq.is_lim_seq in Lm.
+    unfold Hierarchy.eventually in Lm.
+    pose Q := Lim_seq.filterlim_le _ _ _ _ _ Lm.
+    (* how to get the regular defeinition of a limit from this??? *)
+  Admitted.
+
 
   (** PROBLEM 4: show that any positive error 𝜀 suffices to make the unbounded sampler terminate inbounds *)
   Theorem ubdd_cf_safety (n' m' : nat) (Hnm : (S n' < S m')%nat) E : forall 𝜀,
     ⊢ {{{ €𝜀 ∗ ⌜𝜀 > 0 ⌝  }}} ubdd_rejection_sampler n' m' #()@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
     iIntros (𝜀 Φ) "!> (Hcr&%Hcrpos) HΦ".
-
-    Admitted.
-  (*
-    destruct (nnreal_nat_exp_limit (err_factor (S n') (S m')) 𝜀) as [d].
-    - apply err_factor_lt1; lia.
-    - iApply (ubdd_approx_safe with "[Hcr] [HΦ]"); auto.
-      iApply ec_weaken; last iAssumption.
-      rewrite /bdd_cf_error.
-      apply Rlt_le.
-      specialize H with (S d); apply H; lia.
-  Qed. *)
+    assert (Hef: (err_factor (S n') (S m')) < 1).
+    { rewrite /err_factor.  apply factor_lt_1; try lia. }
+    destruct (error_limit (err_factor (S n') (S m')) Hef 𝜀) as [d].
+    iApply ((ubdd_approx_safe _ _ d Hnm) with "[Hcr] [HΦ]"); auto.
+    iApply ec_weaken; last iAssumption.
+    rewrite /bdd_cf_error.
+    simpl. simpl in H. apply Rlt_le. done.
+  Qed.
 
 End basic.
