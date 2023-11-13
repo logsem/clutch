@@ -9,7 +9,9 @@ Set Default Proof Using "Type*".
 Section lazy_real.
   (* Context (CHUNCK_SIZE : nat). *)
 
-  Definition mstep (bs : bool * bool) : distr (bool * bool) :=
+  #[global] Existing Instance finite_countable | 0.
+
+  Definition mstep (bs : bool * bool) :=
     let '(b1, b2) := bs in
     if bool_decide (b1 ≠ b2) then dzero else dprod fair_coin fair_coin.
 
@@ -69,7 +71,7 @@ Section lazy_real.
 
   Lemma two_coins_terminates (bs : mstate two_coins)  :
     SeriesC (lim_exec bs) = 1.
-  Proof. eapply rsm_term_limexec. Qed.
+  Proof. apply (rsm_term_limexec bs). Qed.
 
   Definition model := iter_markov two_coins (true, true).
 
@@ -579,7 +581,7 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec ((true, true, 2%nat) : mstate model))).
   { by rewrite iter_two_coins_terminates. }
-  eapply (wp_refRcoupl_mass (tprΣ model)).
+  eapply (wp_refRcoupl_mass (δ := model) (tprΣ model)).
   iIntros (?) "Ha".
   wp_apply (rwp_cmp_three_numbers with "[Ha]"); [|done].
   iExists _, _. eauto with lia.
