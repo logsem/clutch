@@ -45,8 +45,7 @@ Proof. constructor. by intros [] [] []; simplify_eq=>/=. Qed.
 
 Canonical Structure random_walk_nested : markov := Markov _ _ model_mixin.
 
-(** The model almost-surely terminates (straightforward argument using a ranking
-    supermartingale) *)
+(** The model almost-surely terminates *)
 #[export] Program Instance rw_nested_rsm :
   rsm (λ s, match s with | q0 => 2 | q1 => 3 | qf => 0 end) (1 / 2).
 Next Obligation. simpl. real_solver. Qed.
@@ -343,7 +342,7 @@ Section nested_ho_spec.
       wp_pures.
       iApply rwp_spec_steps'.
       iSplitR "Hspec"; [|by iApply (spec_restart with "Hspec")].
-      iIntros "Hspec".
+      iIntros "Hspec !>".
       wp_apply ("IH" with "Hspec").
       iIntros (?) "Hspec".
       wp_pures. iModIntro.
@@ -351,34 +350,6 @@ Section nested_ho_spec.
   Qed.
 
 End nested_ho_spec.
-
-(* Instance foo δ m0 Σ : *)
-(*   tprG (nested_markov δ m0) Σ → tprG δ Σ. *)
-(* Proof. *)
-(* Admitted. *)
-
-(* Lemma wp_listgen' Σ δ m0 (f : val) : *)
-(*   (∀ `{tprG δ Σ}, ⊢ *)
-(*       ⟨⟨⟨ specF m0 ⟩⟩⟩ *)
-(*          f #() *)
-(*       ⟨⟨⟨ m v, RET v; specF m ∗ ⌜is_final m⌝ ⟩⟩⟩) → *)
-(*   (∀ `{tprG (nested_markov δ m0) Σ}, *)
-(*       ⟨⟨⟨ specF initial ⟩⟩⟩ *)
-(*         listgen f *)
-(*       ⟨⟨⟨ v, RET v; specF final ⟩⟩⟩). *)
-(* Proof. *)
-(*   iIntros (Hf HtprG). *)
-(*   iLöb as "IH". *)
-(*   iIntros (Ψ) "Hspec HΨ". *)
-(*   rewrite /listgen. *)
-(*   wp_pures; rewrite -/flip -/listgen. *)
-(*   wp_apply (rwp_couple_flip with "Hspec"). *)
-(*   { apply Rcoupl_nested_step_initial. } *)
-(*   iIntros ([] s) "[Hspec ->]". *)
-(*   - wp_pures. iModIntro. by iApply "HΨ". *)
-(*   - wp_pures. *)
-    (* hmm *)
-(* Abort. *)
 
 (** Trivial one-point Markov chain  *)
 Definition unit_markov_mixin : MarkovMixin (λ _ : (), dzero) (λ _, Some ()).
@@ -423,8 +394,6 @@ Section listgen_listgen_flip_spec.
     wp_pures.
 
     wp_apply (wp_listgen with "[] [Hspec]").
-
-    2 : { Set Printing All. simpl.
 
     (* Hmm.... *)
   Abort.

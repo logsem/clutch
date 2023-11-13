@@ -357,7 +357,7 @@ Section lazy_real.
    - wp_apply rwp_spec_steps'.
      assert (b1' ≠ b2') by (intros ->; eauto).
      iSplitR "Hspec"; [|by iApply (spec_restart with "Hspec")].
-     iIntros "Hspec".
+     iIntros "Hspec !>".
      wp_pures.
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
@@ -366,7 +366,7 @@ Section lazy_real.
    - wp_apply rwp_spec_steps'.
      assert (b1' ≠ b2') by (intros ->; eauto).
      iSplitR "Hspec"; [|by iApply (spec_restart with "Hspec")].
-     iIntros "Hspec".
+     iIntros "Hspec !>".
      wp_pures.
      iSpecialize ("Hl1" with "Hl1'").
      iSpecialize ("Hl2" with "Hl2'").
