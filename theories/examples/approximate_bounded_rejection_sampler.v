@@ -179,12 +179,53 @@ Section basic.
   Lemma sample_err_mean n' m' 𝜀₁ :
     SeriesC (λ s : fin (S m'), (1 / S m') * bdd_cf_sampling_error (S n') (S m') 𝜀₁ s) = 𝜀₁.
   Proof.
-    remember (S n') as n.
-    remember (S m') as m.
-    rewrite /bdd_cf_sampling_error /err_factor.
+    (* remember (S n') as n.
+    remember (S m') as m. *)
+    rewrite /bdd_cf_sampling_error.
+    (* for some reason it doesn't unify unless I explicitly give it the body? awkward *)
+    remember
+      (fun s : fin (S m') => 1 / INR (S m') * nonneg (if (fin_to_nat s <? S n')%nat then nnreal_zero else nnreal_div 𝜀₁ (err_factor (S n') (S m'))))
+      as Body.
+    rewrite (SeriesC_split_pred Body (fun s => (s <? S n')%nat)).
+    -  Check SeriesC_finite_bound.
+       unfold SeriesC.
+       unfold Series.Series.
+
+
+      (* simplify the first series
+      replace (SeriesC (λ a : fin (S m'), if (a <? S n')%nat then Body a else 0))
+        with (SeriesC (λ a : fin (S m'), 0)); last first.
+      { apply SeriesC_ext.
+        intros s.
+        remember (s <? S n')%nat as HCond.
+        destruct HCond; try done.
+        rewrite HeqBody; rewrite <- HeqHCond.
+        replace (nonneg nnreal_zero) with 0 by auto.
+        by rewrite Rmult_0_r. }
+      (* simplify the second series *)
+      pose K := (1 / S m' * nnreal_div 𝜀₁ (err_factor (S n') (S m'))).
+      replace (SeriesC (λ a : fin (S m'), if (a <? S n')%nat then 0 else Body a)) with (nonneg 𝜀₁); last first.
+      {  apply SeriesC_ext.
+         intros s.
+         remember (s <? S n')%nat as HCond.
+         destruct HCond.
+
+      }
+
+      (* lol wait, this is the same problem *)
+
+    -
+    -
+
+
+
+
+    /err_factor.
     (* split the sum into the elements less than n and those greater *)
     (* sum of constant zero is zero *)
     (* after simplification, the other sum has m-n elements at constant (𝜀₁/m-n) *)
+
+    *)
   Admitted.
 
 
