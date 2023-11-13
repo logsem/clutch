@@ -1,5 +1,6 @@
 From clutch.app_rel_logic Require Export app_weakestpre primitive_laws.
 From clutch.ub_logic Require Export ub_clutch.
+Require Import Lra.
 
 Set Default Proof Using "Type*".
 
@@ -72,8 +73,39 @@ Section basic.
     | S n' => nnreal_mult r (nnreal_nat_exp r n')
     end.
 
-  Lemma nnreal_nat_exp_limit : forall (r 𝜀 : nonnegreal), (r < 1) -> exists n, forall n0, (n0 > n)%nat -> (nnreal_nat_exp r n0) < 𝜀.
-  Proof. (* this is true, how to prove it in the nnreal framework? *) Admitted.
+  Lemma nnreal_nat_exp_bound (r : nonnegreal) (Hr : r < 1) (n : nat) : nnreal_nat_exp r (S n) < 1.
+  Proof.
+    induction n as [|n' IH].
+    - simpl; by rewrite Rmult_1_r.
+    - remember (S n') as nₛ.
+      simpl.
+      apply (Rcomplements.Rle_mult_Rlt r).
+      + apply Rlt_0_1.
+      + auto.
+      + replace (1 * nonneg r) with (nonneg r * 1); last first.
+        { rewrite -> Rmult_1_r; rewrite -> Rmult_1_l; done. }
+        apply Rmult_le_compat_l; try (by apply Rlt_le).
+        apply cond_nonneg.
+  Qed.
+
+  Lemma nnreal_nat_exp_limit : forall (r 𝜀 : nonnegreal), (* (0 < 𝜀) -> (𝜀 < 1) -> (0 < r) -> *) (r < 1) -> exists n, forall n0, (n0 > n)%nat -> (nnreal_nat_exp r n0) < 𝜀.
+  Proof.
+    (*
+    intros r 𝜀 H𝜀L HεU HrL HrU.
+    exists (Z.to_nat $ up $ Rlog r 𝜀).
+    intros n0 Hn0.
+    induction n0 as [| n0' Hn0'].
+    - simpl. lia.
+    - simpl.
+      rewrite -> Rcomplements.Rlt_div_r; last first.
+      { induction n0' as [|m Hm].
+        + simpl; apply Rlt_gt; apply Rlt_0_1.
+        + simpl; apply Rlt_gt; apply Rmult_lt_0_compat; auto; apply Rgt_lt. apply Hm; [admit | admit].
+
+     this proof is a mess and is going nowhere*)
+
+    (* use an actual limit thm. *)
+  Admitted.
 
 
   (** defining error values for each step *)
@@ -83,10 +115,32 @@ Section basic.
   Lemma err_factor_lt1 n m (Hn : (0 < n)%nat) (Hnm : (n < m)%nat) : err_factor n m < 1.
   Proof.
     rewrite /err_factor.
-    assert (Hdenom : (0 < m)%nat) by lia.
-    assert (Hnum : (m - n < m)%nat) by lia.
-    (* numerator is less than the denominator and they are both positive *)
-  Admitted.
+    simpl. apply Rcomplements.Rlt_div_l.
+    - apply Rlt_gt; apply lt_0_INR; by lia.
+    - rewrite Rmult_1_l; apply lt_INR; by lia.
+  Qed.
+
+
+  Lemma err_factor_nz_R n m (Hnm : (n < m)%nat) : (m - n)%nat * / m ≠ 0.
+  Proof.
+    intros.
+    rewrite /not; intros HR; apply Rmult_integral in HR; destruct HR as [HRL|HRR].
+    * rewrite minus_INR in HRL; last lia.
+      apply Rminus_diag_uniq_sym in HRL.
+      apply INR_eq in HRL.
+      lia.
+    * assert (K : not (eq (INR m) 0)).
+      { apply not_0_INR; apply PeanoNat.Nat.neq_0_lt_0; lia. }
+      by apply (Rinv_neq_0_compat (INR m) K).
+  Qed.
+
+  Lemma err_factor_nz n m (Hnm : (n < m)%nat) : err_factor n m ≠ nnreal_zero.
+  Proof.
+    rewrite /err_factor.
+    rewrite /not; intros H; inversion H.
+    by apply (err_factor_nz_R n m Hnm).
+  Qed.
+
 
   (* error for the bounded sampler with a given number of tries remaining *)
   Definition bdd_cf_error n m depth := nnreal_nat_exp (err_factor n m) depth.
@@ -98,12 +152,14 @@ Section basic.
 
   (* this lemma is for proofs which iterate up until the last sample
      ie, a rejection sampler to exclude the final recursive step *)
+  (* proof irrelevant *)
   Lemma bdd_cd_error_penultimate n m : bdd_cf_error n m 1 = err_factor n m.
-  Proof. rewrite /bdd_cf_error /nnreal_nat_exp. (* nnreal: _ * 1 = _ *)
+  Proof.
+    rewrite /bdd_cf_error /nnreal_nat_exp.
+    apply nnreal_ext.
+    simpl; by apply Rmult_1_r.
+  Qed.
 
-         Locate nnreal_one.
-
-  Admitted.
 
   (* distribution of error mass 𝜀₁ for a given sample:
       - zero error given to cases which are inbounds
@@ -115,30 +171,49 @@ Section basic.
             else (nnreal_div 𝜀₁ (err_factor n m)).
 
   (* lemma for simplifying accumulated error in the recursive case *)
-  Lemma simplify_accum_err (n m d': nat) (s : fin m)  :
+  Lemma simplify_accum_err (n m d': nat) (Hnm : (n < m)%nat) (s : fin m)  :
     (s <? n)%nat = false -> bdd_cf_sampling_error n m (bdd_cf_error n m (S d')) s = (bdd_cf_error n m d' ).
   Proof.
     intros Hcase.
     rewrite /bdd_cf_sampling_error Hcase /bdd_cf_error {1}/nnreal_nat_exp -/nnreal_nat_exp.
     remember (err_factor n m) as X.
     remember (nnreal_nat_exp X d') as Y.
-    (* nnreal: X * Y  / X = Y *)
-  Admitted.
+    apply nnreal_ext; simpl.
+    replace (X * Y) with (Y * X) by apply Rmult_comm.
+    apply Rinv_r_simpl_l.
+    rewrite HeqX.
+    rewrite /not; intros; apply (err_factor_nz n m Hnm).
+    simpl. apply nnreal_ext.
+    by replace (nonneg nnreal_zero) with 0 by auto.
+  Qed.
 
 
   (* error distribution is well-formed for each possible sample *)
-  Lemma sample_err_wf n m d (s : fin m) : bdd_cf_sampling_error n m (bdd_cf_error n m (S d)) s <= 1.
+  Lemma sample_err_wf n m d (s : fin m) (Hn : (0 < n)%nat) (Hnm : (n < m)%nat) : bdd_cf_sampling_error n m (bdd_cf_error n m (S d)) s <= 1.
   Proof.
     (* it is either 1, or epsilon times something at most 1 *)
     rewrite /bdd_cf_sampling_error.
     remember (s <? n)%nat as H.
-    destruct H.
-    - admit. (* nnreal: 0 < 1 *)
-    - rewrite /bdd_cf_error.
-      (* nnreal: this is true because we can pull out a factor from the exponent, and the remainder is
-         a natural power of a number less than 1. *)
-      admit.
-  Admitted.
+    destruct H; simpl.
+    - by apply Rle_0_1.
+    - rewrite -> Rinv_r_simpl_m.
+      + destruct d as [|d'].
+        * simpl; apply Rge_refl.
+        * apply Rlt_le. apply nnreal_nat_exp_bound. apply err_factor_lt1; done.
+      + apply err_factor_nz_R; auto.
+  Qed.
+
+      (* lemma: the geometric factor is less than 1
+      assert (Hfc : ((m - n)%nat  * / m) < 1).
+      { apply (Rmult_lt_reg_l m); first (apply lt_0_INR; lia).
+        rewrite Rmult_1_r.
+        replace (m * (INR ((m-n)%nat) * / m)) with (INR (m-n)%nat); last first.
+        { rewrite Rmult_comm.
+          rewrite Rmult_assoc.
+          replace (/m * m) with 1; last by (symmetry; apply Rinv_l; apply not_0_INR; lia).
+          symmetry; apply Rmult_1_r. }
+        apply lt_INR; lia. }
+      *)
 
   (* mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' 𝜀₁ :
@@ -330,60 +405,4 @@ Section basic.
       specialize H with (S d); apply H; lia.
   Qed.
 
-
-  (* PROBLEM ??: If error credits can rule out nontermination we could show that the unbounded
-     rejection sampler doesn't terminate with probability zero (in the UB logic)
-
-        total wp in iris
-         - no laters required
-
-        finite later credit budget or 𝜔
-         - not yet
-
-        higher order version:
-          - sampler
-          -  f: () -> (A, test)
-          -  {{{ € 𝜖 }}} f {{{ true  }}}
-   *)
-
-  (* PROBLEM ??: We should be able to prove:
-        - the unbounded sampler is equivalent to the bounded sampler with a given error
-        - the bounded sampler is equivalent to a single sample with a given error
-      in the approximate relational logic.
-
-      - distinct
-      - hard to do lifting in Iris
-      - encode UB judgements as relational program with no spec
-
-      Refinement up to error for bdd and ubdd
-
-      higher order spec fo
-
-      input:
-        with € \varpesilon, g and f are equal with err ... (refinemenet)
-        then if we use one for the programs in a rejection sampler
-
-        one does a pure sample, the other one is used in a rejection sampler
-   *)
-
 End basic.
-
-
-Section termination.
-  Local Open Scope R.
-  Context `{!clutchGS Σ}.
-
-
-
-End termination.
-
-
-
-
-Section higherorder.
-  Local Open Scope R.
-  Context `{!clutchGS Σ}.
-
-  Definition generic_sampler : Set = False.
-
-End higherorder.
