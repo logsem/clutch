@@ -246,23 +246,23 @@ Section basic.
 
     (* S depth=3 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-    { apply sample_err_wf. }
+    { intros s. apply sample_err_wf; try lia. }
     { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') 3)); apply P. }
     iIntros (sample) "Hcr".
     wp_pures.
     case_bool_decide; wp_pures.
     { iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample); split; [auto|lia]. }
-    rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia).
+    rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
 
     (* S depth=2 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-    { apply sample_err_wf. }
+    { intros s. apply sample_err_wf; try lia. }
     { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') 2)); apply P. }
     iIntros (sample') "Hcr".
     wp_pures.
     case_bool_decide; wp_pures.
     { iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample'); split; [auto|lia]. }
-    rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia).
+    rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
 
     (* S depth=1 sample *)
     rewrite bdd_cd_error_penultimate.
@@ -327,14 +327,14 @@ Section basic.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { apply sample_err_wf. }
+      { intros s. apply sample_err_wf; try lia. }
       { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') _)); rewrite Heqn Heqm; by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
       case_bool_decide.
       + wp_pures; iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample'); split; [auto|lia].
       + wp_pure.
-        rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia).
+        rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
         wp_bind (#_ - #_)%E. wp_pure.
         replace (S (S depth') - 1)%Z with (Z.of_nat (S depth')) by lia.
         rewrite Heqn Heqm.
@@ -378,14 +378,14 @@ Section basic.
           specialize (fin_to_nat_lt sample''); by lia.
     - wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { apply sample_err_wf. }
+      { intros s. apply sample_err_wf; try lia. }
       { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') _)); rewrite Heqn Heqm; by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
       case_bool_decide.
       + wp_pures. iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample'); split; [auto|lia].
       + wp_pure.
-        rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia).
+        rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
         rewrite Heqn Heqm.
         wp_apply ("IH" with "Hcr HΦ").
   Qed.
