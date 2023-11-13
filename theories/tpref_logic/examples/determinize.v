@@ -31,6 +31,18 @@ Section backedge_markov.
   Qed.
 
   Canonical Structure backedge_markov : markov := Markov _ _ model_mixin.
+
+  Lemma backedge_markov_terminates :
+    SeriesC (lim_exec (δ := δ) initial) = 1 →
+    (∀ s a, ¬ has_backedge s ∧ to_final s = Some a → lim_exec (δ := δ) initial a > 0) →
+    SeriesC (lim_exec (δ := backedge_markov) initial) = 1.
+  Proof.
+    intros Hterm Hback.
+
+
+    admit.
+  Admitted.
+
 End backedge_markov.
 
 Section determinize_spec.
@@ -100,14 +112,26 @@ Section determinize_flip_spec.
 
   Canonical Structure flip_markov : markov := Markov _ _ flip_model_mixin.
 
-  Definition flip_has_backedge (s : option bool) :=
-    match s with
-    | None => False
-    | Some b => b = true
-    end.
+  Lemma flip_markov_terminates :
+    SeriesC (lim_exec None) = 1.
+  Proof.
+    rewrite lim_exec_step.
+    rewrite step_or_final_no_final; [|auto].
+    rewrite dbind_mass /=.
+    rewrite SeriesC_finite_foldr /=.
+    rewrite dmap_elem_ne; [|intros (?&?& [=])].
+    rewrite Rmult_0_l.
+    do 2 (erewrite dmap_elem_eq; [|apply _|done]).
+    rewrite 2!fair_coin_pmf.
+    do 2 (erewrite lim_exec_final; [|done]).
+    rewrite 2!dret_mass.
+    lra.
+  Qed.
+
+  Definition flip_has_backedge (s : option bool) := s = Some true.
 
   Instance flip_has_backedge_dec s : Decision (flip_has_backedge s).
-  Proof. destruct s as [[]|]=>/=; [left|right|right]; eauto. Qed.
+  Proof. destruct s as [[]|]=>/=; [left|right|right]; done. Qed.
 
   Notation model := (backedge_markov flip_markov None flip_has_backedge).
 
@@ -116,7 +140,7 @@ Section determinize_flip_spec.
       (λ b s, match s with Some b' => b = b' | None => False end).
   Proof.
     rewrite /= /backedge_step /=.
-    rewrite bool_decide_eq_false_2; [|eauto].
+    rewrite bool_decide_eq_false_2; [|intros [=]].
     rewrite /dmap /=.
     rewrite -{1}(dret_id_right fair_coin).
     eapply Rcoupl_dbind; [|eapply Rcoupl_eq].
@@ -143,7 +167,7 @@ Section determinize_flip_spec.
     - iModIntro. iApply "HΨ2". iFrame. iRight.
       iExists _. iSplit; [done|]. iPureIntro.
       rewrite /is_final /= /backedge_to_final /=.
-      rewrite bool_decide_eq_false_2 //.
+      rewrite bool_decide_eq_false_2 //; eauto.
   Qed.
 
 End determinize_flip_spec.

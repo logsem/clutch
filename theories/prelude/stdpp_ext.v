@@ -243,6 +243,12 @@ Section countable.
 
 End countable.
 
+(* The lemmas about [Finite A] make use of the [Countable A] instance
+   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
+   already exists another instance. We give the highest priority ([0]) to
+   [finite_countable] to be able to use the lemmas. *)
+#[global] Existing Instance finite_countable | 0.
+
 Lemma encode_nat_nat (n : nat) :
   encode_nat n = n.
 Proof.
