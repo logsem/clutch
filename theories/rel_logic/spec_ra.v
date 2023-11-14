@@ -136,7 +136,7 @@ Section spec_ctx.
   Proof. apply _. Qed.
 
   Definition refines_right K (e : expr) := (spec_ctx ∗ ⤇ fill K e)%I.
-
+  
 End spec_ctx.
 
 Ltac iAsimpl :=

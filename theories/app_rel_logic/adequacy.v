@@ -14,7 +14,7 @@ From clutch.prob Require Import distribution couplings_app.
 Import uPred.
 
 Section adequacy.
-  Context `{!clutchGS Σ}.
+  Context `{!app_clutchGS Σ}.
 
 
   Lemma ARcoupl_dbind' `{Countable A, Countable A', Countable B, Countable B'}
@@ -326,8 +326,7 @@ Proof.
         + auto.
     }
     apply Lim_seq.Sup_seq_correct.
-  - Search Rbar.real.
-    apply Rbar_le_fin'.
+  - apply Rbar_le_fin'.
     {
       apply Rplus_le_le_0_compat; [ | apply cond_nonneg].
       apply SeriesC_ge_0'.

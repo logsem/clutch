@@ -618,9 +618,79 @@ Proof.
       admit.
 Admitted.
 
+
+Lemma ARcoupl_dunif_leq_inj (N M : nat) h `{Inj (fin N) (fin M) (=) (=) h}:
+  (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, m = h n) ((M-N)/N).
+Proof.
+  intros Hleq f g Hf Hg Hfg.
+  eapply Rle_trans; last first.
+  - rewrite -(Rmult_1_l ((M - N) / N)).
+    rewrite (Rinv_r_sym (card (fin M))); [ | rewrite fin_card; lra].
+    rewrite -SeriesC_finite_mass fin_card -SeriesC_scal_r -SeriesC_plus.
+    + eapply (SeriesC_filter_leq _ (λ n : fin M, (n < N))); [ | apply ex_seriesC_finite].
+      intro; apply Rplus_le_le_0_compat; apply Rmult_le_pos; auto.
+      * apply Hg.
+      * left. apply Rinv_0_lt_compat; lra.
+      * apply Rmult_le_pos; [lra | ].
+        left. apply Rinv_0_lt_compat; lra.
+    + apply ex_seriesC_finite.
+    + apply ex_seriesC_finite.
+  - simpl.
+    eapply Rle_trans; last first.
+    * eapply (SeriesC_le (λ n : fin M, (if bool_decide (n < N) then (1/N) * g n else 0))) ; [ | apply ex_seriesC_finite].
+      intro; split.
+      -- case_bool_decide; [ | lra].
+         apply Rmult_le_pos; [ | apply Hg].
+         apply Rmult_le_pos; [ lra | ].
+         left; apply Rinv_0_lt_compat, Hleq.
+      -- case_bool_decide; try lra.
+         rewrite /pmf/= Rplus_comm.
+         apply Rle_minus_l.
+         rewrite -Rmult_minus_distr_r.
+         apply (Rle_trans _ (1 / N - / M)).
+         ++ rewrite <- Rmult_1_r.
+            apply Rmult_le_compat_l; [ | apply Hg ].
+            apply Rle_minus_r.
+            rewrite Rplus_0_l /Rdiv Rmult_1_l.
+            apply Rinv_le_contravar; apply Hleq.
+         ++ replace (/ M) with (1 / M) by nra.
+            rewrite Rdiv_minus; try lra.
+            do 3 rewrite /Rdiv.
+            do 3 rewrite Rmult_1_l.
+            rewrite (Rmult_comm N).
+            rewrite (Rmult_comm (/M)).
+            rewrite (Rmult_assoc).
+            apply Rmult_le_compat_l; [lra | ].
+            rewrite Rinv_mult; nra.
+    * (* There should be an external lemma for this last bit *)
+      admit.
+Admitted.
+
 (* Note the asymmetry on the error wrt to the previous lemma *)
 Lemma ARcoupl_dunif_leq_rev (N M : nat) :
   (0 < M <= N) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((N-M)/N).
+Proof.
+  intros Hleq f g Hf Hg Hfg.
+  rewrite /pmf/=.
+  do 2 rewrite SeriesC_scal_l.
+  rewrite Rmult_comm.
+  apply Rle_div_r.
+  - apply Rlt_gt.
+    apply Rinv_0_lt_compat; lra.
+  - rewrite /Rdiv Rinv_inv Rmult_plus_distr_r.
+    rewrite (Rmult_assoc (N-M)) Rinv_l; [ | lra].
+    rewrite Rmult_1_r Rplus_comm.
+    assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
+    { admit. }
+    apply (Rle_trans _ (SeriesC g + (N - M))); auto.
+    (* { (*?!*) *)
+    (*   admit. } *)
+    rewrite Rplus_comm.
+    apply Rplus_le_compat_l.
+Admitted.
+
+Lemma ARcoupl_dunif_leq_rev_inj (N M : nat) h `{Inj (fin M) (fin N) (=) (=) h}:
+  (0 < M <= N) -> ARcoupl (dunif N) (dunif M) (λ n m, n = h m) ((N-M)/N).
 Proof.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=.

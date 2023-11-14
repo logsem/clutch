@@ -8,7 +8,7 @@ From clutch.rel_logic Require Export spec_ra.
 From clutch.app_rel_logic Require Export app_weakestpre primitive_laws.
 
 Section rules.
-  Context `{!clutchGS Σ}.
+  Context `{!app_clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types σ : state.
@@ -329,5 +329,9 @@ Section rules.
     iMod (step_rand with "[$]") as "(?&?&?)"; [done|].
     iModIntro; iFrame.
   Qed.
+
+  Lemma refines_right_bind K' K e :
+    refines_right K' (fill K e) ≡ refines_right (K ++ K') e.
+  Proof. rewrite /refines_right /=. by rewrite fill_app. Qed.
 
 End rules.
