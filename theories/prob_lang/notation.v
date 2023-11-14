@@ -190,3 +190,17 @@ Notation "'let:m' x := e1 'in' e2" :=
 (* `assert e1 ;;; e2` errors out if e1 evaluates to false. *)
 Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
   (at level 200, e1, e2 at level 200) : expr_scope.
+
+(* Shortcut for recursive definitions *)
+Notation "'letrec:' f x := e1 'in' e2" :=
+  (Lam f%binder e2%E (Rec f%binder x%binder e1%E))
+  (at level 200, f at level 1, x at level 1, e1, e2 at level 200,
+   format "'[' 'letrec:'  f  x  :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
+  : expr_scope.
+
+Notation "'letrec:' f x y .. z := e1 'in' e2" :=
+  (Lam f%binder e2%E
+     (Rec f%binder x%binder (Lam y%binder .. (Lam z%binder e1%E) ..)))
+  (at level 200, f at level 1, x,y,z at level 1, e1, e2 at level 200,
+   format "'[' 'letrec:'  f  x y .. z :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
+  : expr_scope.

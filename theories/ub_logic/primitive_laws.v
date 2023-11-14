@@ -8,7 +8,7 @@ From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
-Class clutchGS Σ := HeapG {
+Class ub_clutchGS Σ := HeapG {
   clutchGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
   clutchGS_heap : ghost_mapG Σ loc val;
@@ -17,7 +17,7 @@ Class clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the error *)
-  clutchGS_error :> ecGS Σ;
+  ub_clutchGS_error :> ecGS Σ;
 }.
 
 
@@ -25,13 +25,13 @@ Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
 Definition cfgUR : ucmra := optionUR (exclR cfgO).
 
-Definition heap_auth `{clutchGS Σ} :=
+Definition heap_auth `{ub_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
-Definition tapes_auth `{clutchGS Σ} :=
+Definition tapes_auth `{ub_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
 
-Global Instance clutchGS_irisGS `{!clutchGS Σ} : irisGS prob_lang Σ := {
+Global Instance clutchGS_irisGS `{!ub_clutchGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   err_interp ε := (ec_supply ε);
@@ -58,8 +58,9 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 
+
 Section lifting.
-Context `{!clutchGS Σ}.
+Context `{!ub_clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
