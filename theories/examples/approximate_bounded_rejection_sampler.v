@@ -378,17 +378,21 @@ Section basic.
         wp_apply ("IH" with "Hcr HΦ").
   Qed.
 
-  Lemma error_limit (r : nonnegreal) : (r < 1) -> forall 𝜀 : nonnegreal, exists n : nat, r ^ (S n) < 𝜀.
+  Lemma error_limit (r : nonnegreal) : (r < 1) -> forall 𝜀 : posreal, exists n : nat, r ^ (S n) < 𝜀.
   Proof.
     intros Hr 𝜀.
     assert (Har : Rabs r < 1).
     { destruct r as [rv Hrv]. simpl. rewrite Rabs_pos_eq; auto. }
     pose Lm := Lim_seq.is_lim_seq_geom r Har.
-    unfold Lim_seq.is_lim_seq in Lm.
-    unfold Hierarchy.eventually in Lm.
-    pose Q := Lim_seq.filterlim_le _ _ _ _ _ Lm.
-    (* how to get the regular defeinition of a limit from this??? *)
-  Admitted.
+    apply Lim_seq.is_lim_seq_spec in Lm.
+    simpl in Lm.
+    specialize Lm with 𝜀.
+    rewrite /Hierarchy.eventually in Lm.
+    destruct Lm as [n Hn]; exists n; specialize Hn with (S n).
+    replace (Rabs (r ^ S n - 0)) with (r ^ S n) in Hn; last first.
+    { rewrite Rabs_right; rewrite Rminus_0_r; [done | apply Rle_ge, pow_le; by destruct r ]. }
+    apply Hn; lia.
+  Qed.
 
 
   (** PROBLEM 4: show that any positive error 𝜀 suffices to make the unbounded sampler terminate inbounds *)
