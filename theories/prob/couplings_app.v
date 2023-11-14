@@ -712,8 +712,8 @@ Proof.
 Admitted.
 
 
-Lemma ARcoupl_dunif_no_coll_l (N : nat) (x : fin N):
-  (0 < N ) -> ARcoupl (dunif N) (dret x) (λ m n, n = x ∧ m ≠ n) (1/N).
+Lemma ARcoupl_dunif_no_coll_l (N : nat) (x : fin N) :
+  (0 < N ) -> ARcoupl (dunif N) (dret x) (λ m n, m ≠ x ∧ n = x) (1/N).
 Proof.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=/dret_pmf.
@@ -764,8 +764,10 @@ Proof.
   + apply ex_seriesC_finite.
 Qed.
 
-Lemma ARcoupl_dunif_no_coll_r `{Countable A} (N : nat) (x : fin N) (y : A) :
-  (0 < N) -> ARcoupl (dret y) (dunif N) (λ m n, m = y ∧ x ≠ n) (1/N).
+(* Lemma ARcoupl_dunif_no_coll_r `{Countable A} (N : nat) (x : fin N) (y : A) : *)
+(*   (0 < N) -> ARcoupl (dret y) (dunif N) (λ m n, m = y ∧ x ≠ n) (1/N). *)
+Lemma ARcoupl_dunif_no_coll_r (N : nat) (x : fin N) :
+  (0 < N) -> ARcoupl (dret x) (dunif N) (λ m n, m = x ∧ x ≠ n) (1/N).
 Proof with try (by apply ex_seriesC_finite) ; auto.
   intros Hleq f g Hf Hg Hfg.
   rewrite /pmf/=/dret_pmf.
@@ -807,6 +809,90 @@ Proof with try (by apply ex_seriesC_finite) ; auto.
   - apply ex_seriesC_finite.
  Qed.
 
+Lemma ARcoupl_dunif_no_coll_l' `{Countable A} (v : A) (N : nat) (x : fin N) :
+  (0 < N ) -> ARcoupl (dunif N) (dret v) (λ m n, m ≠ x ∧ n = v) (1/N).
+Proof with try (by apply ex_seriesC_finite) ; auto ; try done.
+  intros Hleq f g Hf Hg Hfg.
+  rewrite /pmf/=/dret_pmf.
+  assert (∀ b, 0 <= g b) by apply Hg.
+  assert (∀ b, g b <= 1) by apply Hg.
+  assert (∀ a, 0 <= f a) by apply Hf.
+  assert (∀ a, f a <= 1) by apply Hf.
+  assert (0 <= / N) by (left ; apply Rinv_0_lt_compat ; lra).
+  assert (forall n, 0 <= / N * f n).
+  { intros ; apply Rmult_le_pos... }
+  setoid_rewrite (SeriesC_ext _ (λ b, (if bool_decide (b = v) then g v else 0))) at 1; last first.
+  { intro ; case_bool_decide ; simplify_eq ; real_solver. }
+  transitivity (SeriesC (λ a : fin N, if bool_decide (a = x) then 1 / N else / N * f a )).
+  { apply SeriesC_le...
+    intros ; case_bool_decide ; split...
+    rewrite -(Rmult_1_r (1/N)).
+    apply Rmult_le_compat... nra. }
+  rewrite (SeriesC_split_elem _ x)...
+  - rewrite {1}Rplus_comm.
+    apply Rplus_le_compat.
+    + etrans.
+      * apply (SeriesC_finite_bound _ (/ N * g v)).
+        intros; split.
+        -- case_bool_decide; [|lra].
+           rewrite bool_decide_eq_false_2...
+        -- case_bool_decide.
+           2: apply Rmult_le_pos...
+           rewrite bool_decide_eq_false_2...
+           apply Rmult_le_compat_l...
+      * rewrite SeriesC_singleton fin_card.
+        rewrite -Rmult_assoc Rinv_r ; lra.
+    + etrans ; [ | right; apply (SeriesC_singleton x (1/N))].
+      right ; apply SeriesC_ext => n.
+      by case_bool_decide.
+  - intro ; case_bool_decide... lra.
+Qed.
+
+Corollary ARcoupl_dunif_no_coll_l'' (N : nat) (x : fin N) :
+  (0 < N ) -> ARcoupl (dunif N) (dret x) (λ m n, m ≠ x ∧ n = x) (1/N).
+Proof.
+  apply ARcoupl_dunif_no_coll_l'.
+Qed.
+
+Lemma ARcoupl_dunif_no_coll_r' `{Countable A} (v : A) (N : nat) (x : fin N) :
+  (0 < N ) -> ARcoupl (dret v) (dunif N) (λ m n, m = v ∧ n ≠ x) (1/N).
+Proof with try (by apply ex_seriesC_finite) ; auto ; try done.
+  intros Hleq f g Hf Hg Hfg.
+  rewrite /pmf/=/dret_pmf.
+  assert (∀ b, 0 <= g b) by apply Hg.
+  assert (∀ b, g b <= 1) by apply Hg.
+  assert (∀ a, 0 <= f a) by apply Hf.
+  assert (∀ a, f a <= 1) by apply Hf.
+  assert (0 <= / N) by (left ; apply Rinv_0_lt_compat ; lra).
+  assert (forall n, 0 <= / N * f n).
+  { intros ; apply Rmult_le_pos... }
+  assert (forall a, 0 <= / N * g a).
+  { intros ; apply Rmult_le_pos... }
+  setoid_rewrite (SeriesC_ext _ (λ a, (if bool_decide (a = v) then f v else 0))) at 1; last first.
+  { intro ; case_bool_decide ; simplify_eq ; real_solver. }
+  transitivity (SeriesC (λ n : fin N, if bool_decide (n = x) then 0 else / N * g n) + 1/N) ; last first.
+  { apply Rplus_le_compat...
+    apply SeriesC_le...
+    intros n.
+    case_bool_decide... }
+  rewrite -(SeriesC_singleton x (1 / N)).
+  rewrite <- SeriesC_plus...
+  transitivity (SeriesC (λ _ : fin N, / N * f v)).
+    + rewrite SeriesC_finite_mass SeriesC_singleton fin_card.
+      rewrite -Rmult_assoc Rinv_r ; lra.
+    + apply SeriesC_le...
+      intros ; split...
+      case_bool_decide.
+      * rewrite Rplus_0_l -(Rmult_1_r (1/N)).
+        apply Rmult_le_compat... nra.
+      * rewrite Rplus_0_r. apply Rmult_le_compat_l...
+Qed.
+
+Corollary ARcoupl_dunif_no_coll_r'' (N : nat) (x : fin N) :
+  (0 < N) -> ARcoupl (dret x) (dunif N) (λ m n, m = x ∧ n ≠ x) (1/N).
+Proof.
+  eapply ARcoupl_dunif_no_coll_r'.
+Qed.
 
 Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
   ub_lift μ1 P ε ->
@@ -837,9 +923,9 @@ Proof.
 Admitted.
 
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
-  ARcoupl μ1' μ2 (λ a b, P a -> Q a b) ε ->
+  ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
   ub_lift μ1 P ε' ->
-  ARcoupl (μ1 ≫ μ1') μ2 Q (ε + ε').
+  ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
   set (P' := λ a, @bool_decide (P a) (make_decision (P a))).
