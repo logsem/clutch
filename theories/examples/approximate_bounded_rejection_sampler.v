@@ -180,23 +180,33 @@ Section basic.
       + apply err_factor_nz_R; auto.
   Qed.
 
-  (* FinFun.Fin2Restrict.extend: *)
+  (* generalization of Coq.Logic.FinFun *)
+  Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : (nat -> A) :=
+    fun n =>
+      match le_lt_dec N n with
+      | left _ => a
+      | right h => f (Fin.of_nat_lt h)
+      end.
 
-  (* extends a function from fin to a function on nat using a default value *)
-  Program Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : nat -> A
-    := fun n => match (n <? N)%nat with
-              | true => f (nat_to_fin (_ : (n < N)%nat))
-              | false => a
-              end.
-  Next Obligation. intros; by apply (reflect_iff _ _ (Nat.ltb_spec0 _ _)). Qed.
 
-  Lemma f_lift_fin_nat_ltN {A} (N n: nat) (a : A) (Hn : (n < N)%nat) f :
+  (* uses proof irrelevance *)
+  Lemma f_lift_fin_nat_ltN {A} (n N: nat) (a : A) (Hn : (n < N)%nat) f :
     (f_lift_fin_nat N a f) n = f (nat_to_fin Hn).
-  Proof. Admitted.
+  Proof.
+    rewrite /f_lift_fin_nat.
+    destruct (le_lt_dec N n) as [Hl|Hr].
+    - lia.
+    - f_equal; f_equal.
+      apply proof_irrelevance.
+  Qed.
+
 
   Lemma f_lift_fin_nat_geN {A} (N n: nat) (a : A) (Hn : not (n < N)%nat) f :
     (f_lift_fin_nat N a f) n = a.
-  Proof. Admitted.
+  Proof.
+    rewrite /f_lift_fin_nat.
+    destruct (le_lt_dec N n); [done | lia].
+  Qed.
 
 
   Lemma encode_inv_nat_nat_total (n : nat) : (@encode_inv_nat nat _ _ n)  = Some n.
@@ -341,14 +351,9 @@ Section basic.
     remember (S m' - S n')%nat as 𝛥.
     induction 𝛥 as [| 𝛥' IH].
     - (* extensionally equal to 0 *)
-      rewrite <- (SeriesC_ext (fun x : fin (S n' + 0) => nnreal_zero)).
-
-    -
-
-
-
-    Check SeriesC_leq.
-    rewrite /SeriesC.
+      Fail rewrite <- (SeriesC_ext (fun x : fin (S n' + 0) => nnreal_zero)).
+      admit.
+    - admit.
 
 
   Admitted.
@@ -432,7 +437,6 @@ Qed.
     (* after simplification, the other sum has m-n elements at constant (𝜀₁/m-n) *)
 
     *)*)
-  Admitted.
 
 
 
@@ -443,12 +447,13 @@ Qed.
     {{{ € (bdd_cf_error (S n') (S m') depth Hnm) }}} bdd_rejection_sampler n' m' #(S depth) @ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
     iIntros (-> Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
+    assert (Hnm' : (n' < m')%nat) by lia.
     wp_pures.
 
     (* S depth=3 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
     { intros s. apply sample_err_wf; try lia. }
-    { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') 3 Hnm)); apply P. }
+    { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') 3 Hnm)); apply P. }
     iIntros (sample) "Hcr".
     wp_pures.
     case_bool_decide; wp_pures.
@@ -458,7 +463,7 @@ Qed.
     (* S depth=2 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
     { intros s. apply sample_err_wf; try lia. }
-    { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') 2 Hnm)); apply P. }
+    { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') 2 Hnm)); apply P. }
     iIntros (sample') "Hcr".
     wp_pures.
     case_bool_decide; wp_pures.
@@ -496,6 +501,7 @@ Qed.
     {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}} bdd_rejection_sampler n' m' #(S depth)@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
     iIntros (Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
+    assert (Hnm' : (n' < m')%nat) by lia.
     do 4 wp_pure.
 
     (* induction should reach the base cse when S depth = 1 <=> depth = 0 *)
@@ -527,7 +533,7 @@ Qed.
       wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
       { intros s. apply sample_err_wf; try lia. }
-      { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') _ Hnm)); by eapply P. }
+      { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm)); by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
       case_bool_decide.
@@ -546,6 +552,7 @@ Qed.
     {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}} ubdd_rejection_sampler n' m' #() @ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝  }}}.
   Proof.
     iIntros (Φ) "Hcr HΦ"; rewrite /ubdd_rejection_sampler.
+    assert (Hnm' : (n' < m')%nat) by lia.
     do 4 wp_pure.
 
     iInduction depth as [|depth' Hdepth'] "IH".
@@ -574,7 +581,7 @@ Qed.
     - wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
       { intros s. apply sample_err_wf; try lia. }
-      { pose P := (sample_err_mean n' m' (bdd_cf_error (S n') (S m') _ Hnm));  by eapply P. }
+      { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm));  by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
       case_bool_decide.
@@ -607,7 +614,6 @@ Qed.
   Proof.
     iIntros (𝜀 Φ) "!> (Hcr&%Hcrpos) HΦ".
     assert (Hef: (err_factor (S n') (S m')) < 1).
-    { rewrite /err_factor.  apply factor_lt_1; try lia. }
     destruct (error_limit (err_factor (S n') (S m')) Hef 𝜀) as [d].
     iApply ((ubdd_approx_safe _ _ d Hnm) with "[Hcr] [HΦ]"); auto.
     iApply ec_weaken; last iAssumption.
