@@ -180,6 +180,7 @@ Section basic.
       + apply err_factor_nz_R; auto.
   Qed.
 
+  (* FinFun.Fin2Restrict.extend: *)
 
   (* extends a function from fin to a function on nat using a default value *)
   Program Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : nat -> A
@@ -223,11 +224,14 @@ Section basic.
     replace (list_find (eq (nat_to_fin H)) (enum (fin N))) with (Some (n, nat_to_fin H)); first by simpl.
 
 
-    (* the fact that I'm using nat_to_fin H has being... extremely annoying. *)
+    (* the fact that I'm using nat_to_fin H has being... extremely annoying. But I'm not sure
+        if there's a better option.
 
-    Set Printing Coercions.
-    Check fin_to_nat_to_fin.
-    Check nat_to_fin_to_nat.
+
+
+     *)
+    (* Check fin_to_nat_to_fin.
+    Check nat_to_fin_to_nat. *)
 
     rewrite /enum; simpl.
     symmetry; apply list_find_Some; split; last split.
@@ -254,7 +258,6 @@ Section basic.
   Lemma SeriesC_fin_to_nat (N : nat) (f : fin N -> R) :
     SeriesC (fun s : fin N => f s) = SeriesC (fun n : nat => (f_lift_fin_nat N 0 f) n).
   Proof.
-    Set Printing Coercions.
     (* can't use SeriesC_ext since the two series have different types
        can we use series_ext on the underlying countable sum? *)
     rewrite /SeriesC.
@@ -268,16 +271,43 @@ Section basic.
     - rewrite encode_inv_nat_fin_undef; last (apply Nat.ltb_nlt; by symmetry).
       simpl.
       rewrite f_lift_fin_nat_geN; last (apply Nat.ltb_nlt; by symmetry).
+      done.
   Qed.
 
 
 
   Lemma series_incr_N_zero f N :
-    SeriesC (fun n : nat => if (bool_decide (n < N)%nat) then 0 else f n) = SeriesC (fun n : nat => f (N + n)%nat).
+    (forall m : nat, (m < N)%nat -> f m = 0) -> SeriesC (fun n : nat => f n) = SeriesC (fun n : nat => f (N + n)%nat).
   Proof.
-    rewrite /SeriesC.
+    intros Hinit.
+    rewrite /SeriesC /Series.
+    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
+    f_equal; apply Lim_seq.Lim_seq_ext; intros n.
+    rewrite /Hierarchy.sum_n.
+    replace (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 (n + N))
+      with (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) N (n + N));
+      last first.
+    { destruct N as [|N']; first by simpl.
+      rewrite (Hierarchy.sum_n_m_Chasles _ 0%nat N' (n + S N')%nat); try lia.
+      replace  (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
+          with (@Hierarchy.zero Hierarchy.R_AbelianGroup).
+      - by rewrite Hierarchy.plus_zero_l.
+      - replace (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
+          with  (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (λ n0 : nat, 0) 0 N').
+          { rewrite (Hierarchy.sum_n_m_const _ _ 0); rewrite Rmult_0_r; auto. }
+          (* their extensionality is too weak... it claims equality at all points rather than
+                just those on the sum indices *)
+            (* apply Hierarchy.sum_n_m_ext.
+            intros.
+            apply countable_sum_ext; intros.
+            symmetry; apply Hinit. *)
+            admit. }
+
+    (* now it's the reindexing problem *)
+    admit.
 
   Admitted.
+
 
 
 
@@ -294,9 +324,11 @@ Section basic.
     rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
 
+    (* turn it into a sum over the naturals so we can use all the familiar SeriesC lemmas *)
+    rewrite SeriesC_fin_to_nat.
+
     (* somehow we want to _reindex_ this series *)
 
-    assert (HReindex : )
 
     (* finite sum to sum_n_m? *)
     (* finite sum to nat sum? *)
@@ -321,6 +353,8 @@ Section basic.
 
   Admitted.
 
+
+
 Lemma SeriesC_leq (N : nat) (v : R) :
   Series (λ (n : nat), if bool_decide (n < N)%nat then v else 0) = INR N * v.
 Proof.
@@ -336,6 +370,11 @@ Proof.
     rewrite Rplus_0_l.
     apply Series_singleton.
 Qed.
+
+
+
+
+
 
 
     (* we want something pretty close to SeriesC_leq *)
