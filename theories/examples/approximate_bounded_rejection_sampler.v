@@ -319,8 +319,6 @@ Section basic.
   Admitted.
 
 
-
-
   (* mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
     SeriesC (λ s : fin (S m'), (1 / S m') * bdd_cf_sampling_error (S n') (S m') 𝜀₁ s) = 𝜀₁.
@@ -338,23 +336,17 @@ Section basic.
     rewrite SeriesC_fin_to_nat.
 
     (* somehow we want to _reindex_ this series *)
+    rewrite (series_incr_N_zero _ (S n')); last first.
+    { intros.
+      rewrite f_lift_fin_nat_ltN; first lia.
+      intros Hyp.
+      rewrite bool_decide_eq_true_2; auto.
+      rewrite fin_to_nat_to_fin.
+      lia.
+    }
 
-
-    (* finite sum to sum_n_m? *)
-    (* finite sum to nat sum? *)
-
-    Check Hierarchy.sum_n_m _ 0 5.
-
-
-    (* rewrite to be a difference? *)
-    replace (S m') with (S n' + (S m' - S n'))%nat; last lia.
-    remember (S m' - S n')%nat as 𝛥.
-    induction 𝛥 as [| 𝛥' IH].
-    - (* extensionally equal to 0 *)
-      Fail rewrite <- (SeriesC_ext (fun x : fin (S n' + 0) => nnreal_zero)).
-      admit.
-    - admit.
-
+    (* now the sum is constant, but we run into the same kind of reindexing nonsense as above.
+       prove that first. *)
 
   Admitted.
 
@@ -376,67 +368,6 @@ Proof.
     apply Series_singleton.
 Qed.
 
-
-
-
-
-
-
-    (* we want something pretty close to SeriesC_leq *)
-
-
-
-
-    (* replace (s <? S n') with (bool_decide (s < S n')%nat).
-    (* for some reason it doesn't unify unless I explicitly give it the body? awkward *)
-    Set Printing Coercions.
-    rewrite /SeriesC /countable_sum. rewrite /Series.Series.
-
-
-
-    remember
-      (fun s : fin (S m') => 1 / INR (S m') * nonneg (if (fin_to_nat s <? S n')%nat then nnreal_zero else nnreal_div 𝜀₁ (err_factor (S n') (S m'))))
-      as Body.
-    rewrite (SeriesC_split_pred Body (fun s => (s <? S n')%nat)).
-    - Check SeriesC_finite_bound.
-       unfold SeriesC.
-       unfold Series.Series.
-
-
-      (* simplify the first series
-      replace (SeriesC (λ a : fin (S m'), if (a <? S n')%nat then Body a else 0))
-        with (SeriesC (λ a : fin (S m'), 0)); last first.
-      { apply SeriesC_ext.
-        intros s.
-        remember (s <? S n')%nat as HCond.
-        destruct HCond; try done.
-        rewrite HeqBody; rewrite <- HeqHCond.
-        replace (nonneg nnreal_zero) with 0 by auto.
-        by rewrite Rmult_0_r. }
-      (* simplify the second series *)
-      pose K := (1 / S m' * nnreal_div 𝜀₁ (err_factor (S n') (S m'))).
-      replace (SeriesC (λ a : fin (S m'), if (a <? S n')%nat then 0 else Body a)) with (nonneg 𝜀₁); last first.
-      {  apply SeriesC_ext.
-         intros s.
-         remember (s <? S n')%nat as HCond.
-         destruct HCond.
-
-      }
-
-      (* lol wait, this is the same problem *)
-
-    -
-    -
-
-
-
-
-    /err_factor.
-    (* split the sum into the elements less than n and those greater *)
-    (* sum of constant zero is zero *)
-    (* after simplification, the other sum has m-n elements at constant (𝜀₁/m-n) *)
-
-    *)*)
 
 
 
