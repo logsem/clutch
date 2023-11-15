@@ -540,12 +540,12 @@ Qed.
 
 
   (** PROBLEM 4: show that any positive error 𝜀 suffices to make the unbounded sampler terminate inbounds *)
-  Theorem ubdd_cf_safety (n' m' : nat) (Hnm : (S n' < S m')%nat) E : forall 𝜀,
-    ⊢ {{{ €𝜀 ∗ ⌜𝜀 > 0 ⌝  }}} ubdd_rejection_sampler n' m' #()@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
+  Theorem ubdd_cf_safety (n' m' : nat) (Hnm : (S n' < S m')%nat) E : forall 𝜀 : nonnegreal,
+    ⊢ {{{ €𝜀 ∗ ⌜0 < 𝜀 ⌝  }}} ubdd_rejection_sampler n' m' #()@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
     iIntros (𝜀 Φ) "!> (Hcr&%Hcrpos) HΦ".
-    assert (Hef: (err_factor (S n') (S m')) < 1).
-    destruct (error_limit (err_factor (S n') (S m')) Hef 𝜀) as [d].
+    assert (Hef: (err_factor (S n') (S m')) < 1) by (apply err_factor_lt1; lia).
+    destruct (error_limit (err_factor (S n') (S m')) Hef (mkposreal 𝜀 Hcrpos)) as [d].
     iApply ((ubdd_approx_safe _ _ d Hnm) with "[Hcr] [HΦ]"); auto.
     iApply ec_weaken; last iAssumption.
     rewrite /bdd_cf_error.
