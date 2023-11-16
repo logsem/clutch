@@ -144,22 +144,21 @@ Module prf_prp.
    λ: "_",
       let: "val_map" := init_map #() in
       let: "fr_val" := list_seq #0 #(S val_size) in
-      let: "fr_size" := #(val_size) in
-      ("val_map", ref "fr_val", ref "fr_size").
+      ("val_map", ref "fr_val").
 
   (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
      If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
-  Definition query_prp_specialized hm fv fs : val :=
+  Definition query_prp_specialized hm fv : val :=
     λ: "v",
       match: get hm "v" with
       | SOME "n" => "n"
       | NONE =>
-          let: "n" := (rand !fs from #()) in
-          (match: list_remove_nth fv "n" with
+          let: "ln" := list_length !fv in
+          let: "n" := (rand ("ln" - #1) from #()) in
+          (match: list_remove_nth !fv "n" with
           | SOME "p" =>
               set hm "v" (Fst "p");;
               fv <- (Snd "p") ;;
-              fs <- !fs - #1 ;;
               (Fst "p")
           (* This should never be reached *)
           | NONE => "b"
@@ -167,16 +166,16 @@ Module prf_prp.
       end.
 
   Definition query_prp : val :=
-    λ: "hm" "fv" "fs" "v",
+    λ: "hm" "fv" "v",
       match: get "hm" "v" with
       | SOME "n" => "n"
       | NONE =>
-          let: "n" := (rand !"fs" from #()) in
-          (match: list_remove_nth "fv" "n" with
+          let: "ln" := list_length !"fv" in
+          let: "n" := (rand ("ln" - #1) from #()) in
+          (match: list_remove_nth !"fv" "n" with
           | SOME "p" =>
               set "hm" "v" (Fst "p");;
               "fv" <- (Snd "p") ;;
-              "fs" <- !"fs" - #1 ;;
               (Fst "p")
           (* This should never be reached *)
           | NONE => "b"
@@ -188,15 +187,14 @@ Module prf_prp.
   Definition init_prp : val :=
     λ: "_",
       let: "p" := init_prp_state #() in
-      query_prp (Fst (Fst "p")) (Snd (Fst "p")) (Snd "p").
+      query_prp (Fst "p") (Snd "p").
 
 
   Definition is_prp f (m : gmap nat Z) (r : list Z) : iProp Σ :=
-    ∃ (hm : loc) (fv : loc) (fs : loc),
-      ⌜ f = query_prp_specialized #hm #fv #fs⌝
+    ∃ (hm : loc) (fv : loc),
+      ⌜ f = query_prp_specialized #hm #fv⌝
       ∗ map_list hm ((λ b, LitV (LitInt b)) <$> m)
       ∗ (∃ lf , fv ↦ lf ∗ ⌜ is_list r lf ⌝ )
-      ∗ (∃ vl : nat , fs ↦ #vl ∗ ⌜ length r = S (vl) ⌝)
       ∗ ⌜((snd <$> (map_to_list m)) ++ r) ≡ₚ (Z.of_nat) <$> (seq 0 (S val_size))⌝.
 
   #[global] Instance timeless_is_prp f m r:
@@ -205,11 +203,10 @@ Module prf_prp.
 
 
   Definition is_sprp f (m : gmap nat Z) (r : list Z) : iProp Σ :=
-    ∃ (hm : loc) (fv : loc) (fs : loc),
-      ⌜ f = query_prp_specialized #hm #fv #fs⌝
+    ∃ (hm : loc) (fv : loc),
+      ⌜ f = query_prp_specialized #hm #fv ⌝
       ∗ map_slist hm ((λ b, LitV (LitInt b)) <$> m)
       ∗ (∃ lf , fv ↦ₛ lf ∗ ⌜ is_list r lf ⌝)
-      ∗ (∃ vl : nat , fs ↦ₛ #vl ∗ ⌜ length r = S (vl) ⌝)
       ∗ ⌜((snd <$> (map_to_list m)) ++ r) ≡ₚ (Z.of_nat) <$> (seq 0 (S val_size))⌝.
 
   #[global] Instance timeless_is_sprp f m r:
@@ -244,15 +241,13 @@ Module prf_prp.
     wp_pures.
     wp_apply (wp_alloc); auto.
     iIntros (ls) "Hls".
-    wp_apply (wp_alloc); auto.
-    iIntros (lm) "Hlm".
     wp_pures.
     rewrite /query_prp.
     wp_pures.
     iApply "Hφ".
     iModIntro.
     rewrite /is_prp.
-    iExists l, lm, ls.
+    iExists l, ls.
     iSplit.
     {
       iPureIntro.
@@ -260,7 +255,7 @@ Module prf_prp.
     }
     rewrite fmap_empty.
     iFrame.
-    iSplitL "Hlm".
+    iSplitL "Hls".
     {
       iExists _.
       iFrame.
@@ -268,13 +263,6 @@ Module prf_prp.
       apply is_list_inject.
       apply is_list_inject in Hv as ->.
       apply inject_seq.
-    }
-    iSplit.
-    {
-      iExists _.
-      iFrame.
-      iPureIntro.
-      rewrite fmap_length seq_length //.
     }
     iPureIntro.
     rewrite map_to_list_empty //.
@@ -307,13 +295,12 @@ Module prf_prp.
     iEval (rewrite -refines_right_bind /=) in "Hspec".
     tp_pures.
     tp_alloc as ls "Hls".
-    tp_alloc as lm "Hlm".
     tp_pures.
     iModIntro.
     iExists _.
     iFrame.
     rewrite /is_sprp.
-    iExists l, lm, ls.
+    iExists l, ls.
     iSplit.
     {
       iPureIntro.
@@ -321,7 +308,7 @@ Module prf_prp.
     }
     rewrite fmap_empty.
     iFrame.
-    iSplitL "Hlm".
+    iSplitL "Hls".
     {
       iExists _.
       iFrame.
@@ -329,13 +316,6 @@ Module prf_prp.
       apply is_list_inject.
       apply is_list_inject in Hv as ->.
       apply inject_seq.
-    }
-    iSplit.
-    {
-      iExists _.
-      iFrame.
-      iPureIntro.
-      rewrite fmap_length seq_length //.
     }
     iPureIntro.
     rewrite map_to_list_empty //.
@@ -349,13 +329,13 @@ Module prf_prp.
     {{{ RET #b; is_prp f m r }}}.
   Proof.
     iIntros (Hlookup Φ) "Hprp HΦ".
-    iDestruct "Hprp" as (lm lr ls) "(-> & Hlm & Hlr & Hls)".
+    iDestruct "Hprp" as (lm lr) "(-> & Hlm & Hlr)".
     rewrite /query_prp_specialized.
     wp_pures.
     wp_apply (wp_get with "[$]").
     iIntros (res) "(Hmap&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ".
-    iExists lm,lr,ls.
+    iExists lm,lr.
     iSplit.
     {
       rewrite /query_prp_specialized //.
@@ -363,10 +343,41 @@ Module prf_prp.
     iFrame.
   Qed.
 
+ Lemma seq_to_seqZ (l : nat) :
+    Z.of_nat <$> seq 0 l = seqZ 0 l.
+ Proof.
+   rewrite /seqZ.
+   rewrite Nat2Z.id.
+   apply list_fmap_ext.
+   intros. lia.
+ Qed.
+
+ Lemma NoDup_remove_pref [A : Type] (l l' : list A):
+   List.NoDup (l ++ l') → List.NoDup (l').
+ Proof.
+   induction l as [? | a l]; simpl; auto.
+   intros H.
+   apply IHl.
+   replace (l ++ l') with ([] ++ (l ++ l')); auto.
+   replace (a :: l ++ l') with ([] ++ a :: (l ++ l')) in H; auto.
+   eapply NoDup_remove_1; eauto.
+ Qed.
+
+ Lemma prp_None_non_full (m : gmap nat Z) (sr : list Z) (n : nat) :
+    n <= val_size ->
+    m !! n = None ->
+    (forall n', val_size < n' -> m !! n' = None) ->
+    ((snd <$> (map_to_list m)) ++ sr) ≡ₚ (Z.of_nat) <$> (seq 0 (S val_size)) →
+    (exists vl, length sr = (S vl)).
+ Admitted.
+
+
 
  Lemma wp_prf_prp_couple_eq_err E K (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
     m !! n = None →
+    n <= val_size ->
+    (∀ n' : nat, val_size < n' → m !! n' = None) ->
     ((S val_size - (length sr)) / S val_size)%R = ε ->
     {{{ refines_right K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr ∗ € ε }}}
       f #n @ E
@@ -376,13 +387,27 @@ Module prf_prp.
                 ⌜ sr = l1 ++ z :: l2 ⌝ ∗
           is_sprp sf (<[n := z]>m) (l1 ++ l2) }}}.
  Proof.
-    iIntros (Hspec Hnone Hε Φ) "(HK & Hprf & Hprp & Herr) HΦ".
+    iIntros (Hspec Hnone Hrange Hdom Hε Φ) "(HK & Hprf & Hprp & Herr) HΦ".
     iDestruct "Hprf" as (hm ->) "Hm".
-    iDestruct "Hprp" as (lsm lsr lsl) "(-> & Hsm & Hlsr & Hlsl & %Hperm)".
+    iDestruct "Hprp" as (lsm lsr) "(-> & Hsm & Hlsr & %Hperm)".
     rewrite /compute_hash_specialized.
     rewrite /query_prp_specialized.
     wp_pures.
     tp_pures.
+
+    (* Some helper lemmas *)
+    assert (Forall (λ z: Z , (Z.of_nat (Z.to_nat z)) = z) sr) as HZsr.
+    {
+      eapply (Forall_app _ ((map_to_list m).*2) sr).
+      rewrite Hperm.
+      apply Forall_fmap.
+      apply Forall_seq.
+      intros j Hj. simpl.
+      lia.
+    }
+
+    edestruct prp_None_non_full as (vl & Hvl); eauto.
+
 
     (* spec get *)
     tp_bind (get _ _).
@@ -398,35 +423,94 @@ Module prf_prp.
     rewrite lookup_fmap Hnone /=.
     wp_pures.
 
-    iDestruct "Hlsl" as (vl) "(Hlsl & %Hvl)".
+    iDestruct "Hlsr" as (lf) "(Hlsr & %Hlf)".
+
     tp_load.
+    tp_bind (list_length _).
+    iEval (rewrite refines_right_bind) in "HK".
+    iMod (spec_list_length with "[% //] HK") as (len) "(HK&->)"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    rewrite Hvl.
+    tp_pure.
+    tp_pure.
+    tp_pure.
+    assert (#(S vl - 1) = #vl) as ->.
+    {
+     do 3 f_equal; lia.
+    }
+
     tp_bind (rand _ from _ )%E.
     iEval (rewrite refines_right_bind) in "HK".
-    assert (fin (S vl) -> fin (S val_size)) as f; [admit | ].
-    assert (forall n : fin (S vl), nth n sr 0 = f n) as Hnth; [admit | ].
-    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f (Z.of_nat val_size) (Z.of_nat vl)); first done.
+    set f := (λ n : nat, if (n <=? vl) then Z.to_nat (nth n sr 0) else n + val_size).
+    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl).
     {
-      admit.
+      intros x Hx.
+      rewrite /f.
+      rewrite leb_correct; [ | lia].
+      apply Forall_nth; [ | lia].
+      eapply (Forall_app _ ((map_to_list m).*2) sr).
+      rewrite Hperm.
+      apply Forall_fmap.
+      apply Forall_seq.
+      intros j Hj. simpl.
+      rewrite Nat2Z.id.
+      lia.
+    }
+    {
+      rewrite /f.
+      intros x y Hx Hy Hxy.
+      rewrite leb_correct in Hxy; [ | lia].
+      rewrite leb_correct in Hxy; [ | lia].
+      eapply (NoDup_nth sr 0); try lia.
+      + apply (NoDup_remove_pref ((map_to_list m).*2)).
+        rewrite Hperm.
+        rewrite seq_to_seqZ.
+        apply NoDup_ListNoDup.
+        apply NoDup_seqZ.
+      + pose proof (Forall_nth (λ z : Z, Z.of_nat (Z.to_nat z) = z) 0 sr ) as [Haux ?].
+        specialize (Haux HZsr).
+        rewrite -Haux; [ |lia].
+        rewrite -(Haux y); [ |lia].
+        by rewrite Hxy.
+    }
+    1:done.
+    {
+      apply Permutation_length in Hperm.
+      rewrite app_length in Hperm.
+      do 2 rewrite fmap_length in Hperm.
+      rewrite seq_length Hvl in Hperm.
+      apply le_INR.
+      lia.
     }
     { rewrite -Hvl. apply Hε. }
     iFrame.
     iIntros "!>" (x) "HK".
     iEval (rewrite -refines_right_bind /=) in "HK".
 
+
     tp_pures.
     wp_pures.
     pose proof (fin_to_nat_lt x).
+    tp_load.
     tp_bind (list_remove_nth _ _).
     iEval (rewrite refines_right_bind) in "HK".
-    iMod (spec_remove_nth _ _ sr $! _ with "HK") as (v) "(HK & (%e & %v' & %l1 & %l2 & (%Hsr & %Hlen & -> & %Hil)))"; first done.
+    unshelve iMod (spec_remove_nth _ _ sr _ with "[#] HK")
+      as (v) "(HK & (%e & %v' & %l1 & %l2 & (%Hsr & %Hlen & -> & %Hil)))"; first done.
+    {
+      iPureIntro; split; auto.
+      lia.
+    }
     iEval (rewrite -refines_right_bind /=) in "HK".
-
     tp_pures.
-    iDestruct "Hlsr" as (lf) "(Hlsr & %Hlf)".
+
+
     assert (#(f x) = # e) as ->.
     {
       do 3 f_equal.
-      rewrite -Hnth Hsr -Hlen nth_middle //.
+      rewrite /f.
+      rewrite Hsr -Hlen nth_middle leb_correct; [ | lia].
+      rewrite Hsr in HZsr.
+      eapply (Forall_elt _ _ _ HZsr).
     }
     wp_pures.
 
@@ -437,27 +521,30 @@ Module prf_prp.
     tp_pures.
     tp_store.
     tp_pures.
-    tp_load.
-    tp_pures.
-    tp_store.
-    tp_pures.
 
     wp_apply (wp_set with "[$]").
     iIntros "Hm". wp_pures. iApply "HΦ".
     iModIntro. iFrame.
     iSplitL "Hm".
     { iExists _. iSplit; first auto. rewrite fmap_insert //. }
-    { iExists _, _. iSplit; first auto.
-      rewrite /is_prp.
-      iExists _,_,_.
-      iSplit; first auto.
-      rewrite fmap_insert.
-      iFrame.
-      iSplitL "Hlsr".
-      - iExists _ ; auto.
-      - iSplit.
-        + (* Argh *) admit.
-        + iPureIntro.
-          (* Should be true? *)
-          admit.
-    Admitted.
+    iExists _, _. iSplit; first auto.
+    rewrite /is_sprp.
+    iExists _,_.
+    iSplit; first auto.
+    rewrite fmap_insert.
+    iFrame.
+    iSplitL "Hlsr".
+    - iExists _ ; auto.
+    - iPureIntro.
+      etrans; [ | apply Hperm ].
+      rewrite Hsr.
+      rewrite map_to_list_insert; auto.
+      replace (((n, e) :: map_to_list m).*2) with (e :: (map_to_list m).*2); [ | auto].
+      rewrite Permutation_app_rot.
+      rewrite (Permutation_app_rot ((map_to_list m).*2) l1 (e :: l2)).
+      apply Permutation_app_head.
+      rewrite Permutation_app_comm.
+      simpl.
+      apply perm_skip.
+      by rewrite Permutation_app_comm.
+ Qed.

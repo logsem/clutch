@@ -159,7 +159,7 @@ Qed.
 End metatheory.
 
 Section rules.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types σ : state.

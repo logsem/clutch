@@ -306,7 +306,9 @@ Section rules.
 
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, M <= N, along an injection *)
-  Lemma wp_couple_rand_rand_rev_inj (N M : nat) f `{Inj (fin (S M)) (fin (S N)) (=) (=) f } z w K E Φ (ε : nonnegreal) :
+  Lemma wp_couple_rand_rand_rev_inj (N M : nat) (f : nat -> nat) z w K E Φ (ε : nonnegreal) :
+    (forall n, n < S M -> f n < S N) ->
+    (forall n1 n2, n1 < S M -> n2 < S M -> f n1 = f n2 -> n1 = n2) ->
     TCEq N (Z.to_nat z) →
     TCEq M (Z.to_nat w) →
     nclose specN ⊆ E →
@@ -318,6 +320,8 @@ Section rules.
         refines_right K #m  -∗ WP (Val #(f m)) @ E {{ Φ }})
     ⊢ WP rand #z from #() @ E {{ Φ }}.
   Proof.
+    iIntros (Hdom Hinj).
+    set g := (λ m : fin (S M), Fin.of_nat_lt (Hdom m (fin_to_nat_lt m))).
     iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
@@ -338,7 +342,7 @@ Section rules.
     iApply exec_coupl_prim_steps.
     iExists (λ '(e2, σ2) '(e2', σ2'),
         ∃ (m : fin _),
-        (e2, σ2) = (Val #(f m), σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
+        (e2, σ2) = (Val #(g m), σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
     iSplit.
     { iPureIntro. apply head_prim_reducible.
       eexists (Val #0%fin, σ1).
@@ -352,7 +356,7 @@ Section rules.
       { apply nnreal_ext; simpl; lra. }
       eapply ARcoupl_dbind.
       1,2:apply cond_nonneg.
-      2:eapply ARcoupl_rand_rand_rev_inj; eauto.
+      2:eapply (ARcoupl_rand_rand_rev_inj _ _ g); eauto.
       intros [] [] (b & [=] & [=])=>/=.
       apply ARcoupl_dret.
       simplify_eq. eauto. }
@@ -368,10 +372,32 @@ Section rules.
       iExists _, _, _, 0. simpl.
       iFrame. rewrite exec_O dret_1_1 //. }
     iModIntro. iFrame.
+    assert (#(g b) = #(f b)) as ->.
+    {
+      f_equal.
+      rewrite /g fin_to_nat_to_fin //.
+    }
     iApply "Hwp"; eauto.
     iSplit; done.
+    Unshelve.
+    (* TODO: Is there a cleaner way? *)
+    intros m1 m2 Heq.
+    assert (fin_to_nat (g m1) = f (fin_to_nat m1)) as H1.
+    {
+      rewrite /g fin_to_nat_to_fin //.
+    }
+    assert (fin_to_nat (g m2) = f (fin_to_nat m2)) as H2.
+    {
+      rewrite /g fin_to_nat_to_fin //.
+    }
+    apply fin_to_nat_inj.
+    apply Hinj.
+    - apply fin_to_nat_lt.
+    - apply fin_to_nat_lt.
+    - rewrite -H1.
+      rewrite -H2.
+      by f_equal.
   Qed.
-
 
 
 
