@@ -53,15 +53,15 @@ Section wp_refinement.
 
   Fact ref_no_coll_l N ε z (t : fin (S N)) :
     (0 < S N)%R →
-    ((1 / S N) = ε)%R →
-    N = Z.to_nat z →
+    (TCEq (1 / (S N)) ε)%R →
+    TCEq N (Z.to_nat z) →
     (€ ε ∗
        refines_right [] (of_val #false))
       ⊢ WP
       (let: "x" := rand #z from #() in "x" = #t)
-      {{ v , ∃ v', ⤇ v' ∗ ⌜v = #false⌝ }}.
+      {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
-    iIntros (? Nε Nz) "(ε & hj)".
+    iIntros (? Nε Nz) "(ε & #hs & hj)".
     iApply wp_bind.
     {
       replace (App (λ: (BNamed "x"), Var "x" = Val #(LitInt (Z.of_nat (fin_to_nat t)))))
@@ -69,55 +69,10 @@ Section wp_refinement.
         by auto.
       eapply ectxi_lang_ctx_item.
     }
-    iApply (wp_couple_rand_no_coll [] N z _ t _ ε) ; auto.
-    iFrame. iIntros (x xt) "hj".
-    iApply fupd_mask_intro ; auto.
-    iIntros "h". iNext. iMod "h".
-    iModIntro. iApply wp_value.
-    simpl.
-    iApply (wp_pure_step_later _ _ ((λ: "x", "x" = #t)%V #x) True) ; try easy.
-    { replace (let: "x" := #x in "x" = #t)%E with (fill [AppLCtx #x] (λ:"x", "x" = #t)%E) by auto.
-      replace ((λ: "x", "x" = #t)%V #x) with (fill [AppLCtx #x] (Val (λ: "x", "x" = #t)%V)) by auto.
-      eapply pure_exec_fill.
-      apply _. }
-    iModIntro.
-    iApply (wp_pure_step_later _ _ ((#x = #t)%E) True 1) ; try easy.
-    1: solve_pure_exec.
-    iModIntro.
-    iApply (wp_pure_step_later _ _ (Val $ LitV $ LitBool $ bool_decide (#x = #t))%E).
-    1: unfold bin_op_eval ; simpl ; auto.
-    case_bool_decide as xt'.
-    - inversion xt' as [xt''].
-      apply Nat2Z.inj' in xt''.
-      rewrite xt'' in xt.
-      exfalso. apply xt. auto.
-    - iApply wp_value. iExists _. iNext. iDestruct "hj" as "[hs hj]". iFrame "hj". done.
-  Qed.
+    iApply (wp_rand_avoid t with "hs ε") ; auto.
+    { rewrite TCEq_eq. apply nnreal_ext. rewrite -Nε. real_solver. }
+    iNext. iIntros (x) "%xt". simpl.
 
-  Fact ref_no_coll_l N ε z (t : fin (S N)) :
-    (0 < S N)%R →
-    ((1 / S N) = ε)%R →
-    N = Z.to_nat z →
-    (€ ε ∗
-       refines_right [] (of_val #t))
-      ⊢ WP
-      (let: "x" := rand #z from #() in "x" = #t)
-      {{ v , ∃ v', ⤇ v' ∗ ⌜v = #false⌝ }}.
-  Proof.
-    iIntros (? Nε Nz) "(ε & hj)".
-    iApply wp_bind.
-    {
-      replace (App (λ: (BNamed "x"), Var "x" = Val #(LitInt (Z.of_nat (fin_to_nat t)))))
-        with (fill [(AppRCtx (λ: (BNamed "x"), Var "x" = Val #(LitInt (Z.of_nat (fin_to_nat t)))))])
-        by auto.
-      eapply ectxi_lang_ctx_item.
-    }
-    iApply (wp_couple_rand_no_coll [] N z _ t _ ε) ; auto.
-    iFrame. iIntros (x xt) "hj".
-    iApply fupd_mask_intro ; auto.
-    iIntros "h". iNext. iMod "h".
-    iModIntro. iApply wp_value.
-    simpl.
     iApply (wp_pure_step_later _ _ ((λ: "x", "x" = #t)%V #x) True) ; try easy.
     { replace (let: "x" := #x in "x" = #t)%E with (fill [AppLCtx #x] (λ:"x", "x" = #t)%E) by auto.
       replace ((λ: "x", "x" = #t)%V #x) with (fill [AppLCtx #x] (Val (λ: "x", "x" = #t)%V)) by auto.
@@ -132,22 +87,22 @@ Section wp_refinement.
     case_bool_decide as xt'.
     - inversion xt' as [xt''].
       apply Nat2Z.inj' in xt''.
-      rewrite xt'' in xt.
-      exfalso. apply xt. auto.
-    - iApply wp_value. iExists _. iNext. iDestruct "hj" as "[hs hj]". iFrame "hj". done.
+      exfalso. apply xt.
+      by apply fin_to_nat_inj.
+    - iApply wp_value. iExists _. iNext. iFrame "hj". done.
   Qed.
 
   (* Bring the statement of the lemma into the shape that the adequacy theorem
      expects. *)
   Corollary ref_no_coll_l' N ε z (t : fin (S N)) :
     (0 < S N)%R →
-    ((1 / S N) = ε)%R →
-    N = Z.to_nat z →
+    (TCEq (1 / S N) ε)%R →
+    TCEq N (Z.to_nat z) →
     (⊢ spec_ctx
-     -∗ ⤇ (fill [] (of_val #t))
+     -∗ ⤇ (fill [] (of_val #false))
      -∗ € ε
      -∗ WP (let: "x" := rand #z from #() in "x" = #t)
-        {{ v , ∃ v', ⤇ v' ∗ ⌜v = #false⌝ }}).
+        {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}).
   Proof.
     iIntros. iApply ref_no_coll_l ; eauto. iFrame. done.
   Qed.
@@ -156,28 +111,24 @@ End wp_refinement.
 
 Section opsem_refinement.
 
-  Implicit Types σ : state.
-  Implicit Types e : expr.
-  Implicit Types v : val.
-  Implicit Types l : loc.
-  Implicit Types ε : nonnegreal.
-
-  Lemma no_coll_l Σ `{clutchGpreS Σ} N ε z (t : fin (S N)) σ σ' :
+  Lemma no_coll_l Σ `{clutchGpreS Σ} N (ε : nonnegreal) z (t : fin (S N)) σ σ' :
       (0 < S N)%R →
       ((1 / S N) = ε)%R →
       N = Z.to_nat z →
       ARcoupl
         (lim_exec_val ((let: "x" := rand #z from #() in "x" = #t)%E, σ))
-        (lim_exec_val (Val #t, σ'))
-        (λ v _ : val, v = #false)
+        (lim_exec_val (Val #false, σ'))
+        (λ v v' : val, v = v')
         ε.
   Proof.
     intros Npos Nε Nz.
     epose proof
       (wp_aRcoupl_lim _
          (let: "x" := rand #z from #() in "x" = #t)%E
-         #t σ σ' ε (λ v v', v = #false)) as adequacy.
-    epose proof (fun H => @ref_no_coll_l' _ H N ε z t Npos Nε Nz) as ref_wp.
+         #false σ σ' ε (λ v v', v = v')) as adequacy.
+    assert (TCEq N (Z.to_nat z)) by by rewrite Nz.
+    assert (TCEq (1 / S N)%R ε) by by rewrite Nε.
+    epose proof (fun H => @ref_no_coll_l' _ H N ε z t Npos _ _) as ref_wp.
     simpl in ref_wp.
     epose proof (adequacy ref_wp) as P.
     simpl in P.

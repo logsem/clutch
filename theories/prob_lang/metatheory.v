@@ -701,56 +701,6 @@ Proof.
   simpl in nm. eauto.
 Qed.
 
-Lemma wp_couple_no_coll_rand N z (σ σₛ : state) (x : Fin.t (S N)) (ε : nonnegreal) :
-  (0 < S N)%R →
-  ((1 / S N) = ε)%R →
-  N = Z.to_nat z →
-  ARcoupl
-    (dret (Val #x, σ))
-    (prim_step (rand #z from #()) σₛ)
-    (λ ρ' ρₛ', ∃ n : fin (S N),
-        ρ' = ((Val #x), σ) ∧ ρₛ' = (Val #n, σₛ) ∧ (fin_to_nat n ≠ x))
-    ε.
-Proof.
-  intros Npos Nε Nz.
-  rewrite head_prim_step_eq /=.
-  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
-  by eapply (RandNoTapeS _ _ 0%fin).
-  rewrite -Nz.
-  rewrite -(dmap_dret (λ x : Fin.t (S N), (Val #x, σ)) x).
-  rewrite /dmap.
-  replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
-  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
-  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_r _ x Npos).
-  move => ? n [-> xn]. apply ARcoupl_dret.
-  exists n. intuition auto. subst. apply xn. by apply fin_to_nat_inj.
-Qed.
-
-Lemma wp_couple_rand_no_coll N z (σ σₛ : state) (x : Fin.t (S N)) (ε : nonnegreal) :
-  (0 < S N)%R →
-  ((1 / S N) = ε)%R →
-  N = Z.to_nat z →
-  ARcoupl
-    (prim_step (rand #z from #()) σ)
-    (dret (Val #x, σₛ))
-    (λ ρ' ρₛ', ∃ n : fin (S N),
-        ρ' = (Val #n, σ) ∧ ρₛ' = ((Val #x), σₛ) ∧ (fin_to_nat n ≠ x))
-    ε.
-Proof.
-  intros Npos Nε Nz.
-  rewrite head_prim_step_eq /=.
-  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
-  by eapply (RandNoTapeS _ _ 0%fin).
-  rewrite -Nz.
-  rewrite -(dmap_dret (λ x : Fin.t (S N), (Val #x, σₛ)) x).
-  rewrite /dmap.
-  replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
-  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
-  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_l _ x Npos).
-  move => n ? [-> xn]. apply ARcoupl_dret.
-  exists n. intuition auto. subst. apply xn. by apply fin_to_nat_inj.
-Qed.
-
 Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   ARcoupl
@@ -790,6 +740,54 @@ Proof.
   eapply Rcoupl_rand_wrong_r; eauto.
 Qed.
 
+Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
+  (0 < S N)%R →
+  ((1 / S N) = ε)%R →
+  N = Z.to_nat z →
+  ARcoupl
+    (prim_step (rand #z from #()) σ)
+    (dret ρₛ1)
+    (λ ρ ρₛ2, ∃ n : fin (S N),
+        ρ = (Val #n, σ) ∧ (n ≠ x) ∧ ρₛ2 = ρₛ1)
+    ε.
+Proof.
+  intros Npos Nε Nz.
+  rewrite head_prim_step_eq /=.
+  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
+  by eapply (RandNoTapeS _ _ 0%fin).
+  rewrite -Nz.
+  rewrite -(dmap_dret (λ x, x) _) /dmap.
+  replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext ; simpl ; lra).
+  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
+  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_l _ _ x Npos).
+  move => n ? [xn ->]. apply ARcoupl_dret.
+  exists n. auto.
+Qed.
+
+Lemma wp_couple_rand_no_coll_r N z (σₛ : state) (ρ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
+  (0 < S N)%R →
+  ((1 / S N) = ε)%R →
+  N = Z.to_nat z →
+  ARcoupl
+    (dret ρ1)
+    (prim_step (rand #z from #()) σₛ)
+    (λ ρ2 ρₛ, ∃ n : fin (S N),
+        ρ2 = ρ1 ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
+    ε.
+Proof.
+  intros Npos Nε Nz.
+  rewrite head_prim_step_eq /=.
+  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
+  by eapply (RandNoTapeS _ _ 0%fin).
+  rewrite -Nz.
+  rewrite -(dmap_dret (λ x, x) _).
+  rewrite /dmap.
+  replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
+  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
+  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_r _ _ x Npos).
+  move => ? n [-> xn]. apply ARcoupl_dret.
+  exists n. auto.
+Qed.
 
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
