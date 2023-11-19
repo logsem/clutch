@@ -148,115 +148,43 @@ Section rules.
     iModIntro. done.
   Qed.
 
-  Lemma wp_couple_no_coll_rand K N z E (x : Fin.t N) Φ ε :
+  Lemma wp_rand_avoid {N : nat} (t : fin (S N)) (z : Z) ε E :
+    TCEq N (Z.to_nat z) →
+    TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
     nclose specN ⊆ E →
-    (0 < S N)%R →
-    ((1 / S N) = ε)%R →
-    N = Z.to_nat z →
-    € ε ∗
-    refines_right K (rand #z from #()) ∗
-    (∀ (n : fin (S N)),
-        ⌜(fin_to_nat n ≠ x)⌝ →
-        refines_right K #n -∗
-        WP (let: "x" := of_val #(fin_to_nat x) in "x") @ E {{ Φ }})
-    ⊢ WP (let: "x" := of_val #(fin_to_nat x) in "x") @ E {{ Φ }}.
+    spec_ctx ⊢
+    {{{ € ε }}}
+      rand #z from #() @ E
+      {{{ (n : fin (S N)), RET #n; ⌜ n ≠ t ⌝ }}}.
   Proof.
-    iIntros (? Npos Nε Nz) "(Hε & [#Hinv Hj] &  Hwp)".
-    iApply wp_lift_step_fupd_couple ; [done|].
-    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    (* iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?. *)
-    (* iDestruct (ghost_map_lookup with "Ht1 Hα") as %?. *)
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR. { (* iPureIntro. *)
-               (* replace (#() ;; #x)%E with (fill [AppLCtx #()] (λ:<>, #x))%E by auto. *)
-               (* apply head_prim_fill_reducible. *)
-               (* eexists (_, _). *)
-               (* apply head_step_support_equiv_rel. *)
-               (* eapply RecS. *) admit. }
-    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
-    iApply exec_coupl_det_r; [done|].
-    (* split ε_now into ε + (ε_now - ε) *)
-    iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
-    set (ε' := nnreal_minus ε_now ε Hle ).
-    replace ε_now with (nnreal_plus ε ε') by (apply nnreal_ext; simpl; lra).
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    From clutch.rel_logic Require Import proofmode.
-    (* wp_bind #x. *)
-    set (e := (let: "x" := #x in "x")%E).
-    (* Unset Printing Notations. Set Printing Coercions. *)
-    replace e with (fill [AppRCtx (λ:"x", "x")] (Val #x))%E by reflexivity.
-    (* Do a coupled [state_step] on both sides  *)
-    iApply (exec_coupl_exec_r).
-  Abort.
-
-  (* TODO (1) The step-taking fancy update in the WP hypothesis is silly. *)
-  (*      (2) The spec program should be allowed to occur in arbitrary context K. *)
-  Lemma wp_couple_rand_no_coll K N z E (x : Fin.t (S N)) e Φ ε :
-    nclose specN ⊆ E →
-    (0 < S N)%R →
-    ((1 / S N) = ε)%R →
-    N = Z.to_nat z →
-    € ε ∗
-    (* refines_right K e ∗ *)
-    refines_right [] e ∗
-    (∀ (n : fin (S N)),
-        ⌜(fin_to_nat n ≠ x)⌝ →
-        refines_right K e -∗
-        refines_right [] e -∗
-        |={E}[∅]▷=>
-        WP (Val #n) @ E {{ Φ }})
-    ⊢ WP (rand #z from #()) @ E {{ Φ }}.
-  Proof.
-    iIntros (? Npos Nε Nz) "(Hε & [#Hinv Hj] &  Hwp)".
-    iApply wp_lift_step_fupd_couple ; [done|].
+    iIntros (Nz Nε ?) "#Hinv %Φ !> Hε Hwp".
+    iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    assert (∀ σ, reducible (rand #z from #())%E σ).
-    { intros. eapply head_prim_reducible.
-      eexists (_, _).
-      apply head_step_support_equiv_rel.
-      by apply (RandNoTapeS _ N 0%fin). }
-    iSplitR ; [auto|].
+    iSplitR ; [iPureIntro ; eapply head_prim_reducible ; eauto with head_step|].
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
-    (* split ε_now into ε + (ε_now - ε) *)
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
-    replace ε_now with (nnreal_plus ε ε') by (apply nnreal_ext; simpl; lra).
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    (* Do a coupled [prim_step] on the left and a [dret] on the right. *)
+    replace ε_now with (nnreal_plus ε ε'); last first.
+    1: apply nnreal_ext ; simpl ; lra.
     iApply (exec_coupl_prim_step_l).
-    iExists _. iSplitR ; auto.
-    iSplitR.
-    { iPureIntro => /=.
-      (* rewrite -(dret_id_right (dret _)). *)
-      rewrite -(dret_id_right (prim_step _ _)). simpl.
-(* Admitted. *)
-
-
-      (* set (e := Val #x). *)
-      set (K' := []).
-      assert ( (dret (fill K' e, σ0')) = (dmap (fill_lift K') (dret (e, σ0'))) ).
-      1: admit.
-      rewrite H1.
-      rename ε into Ε.
-      replace Ε with (nnreal_plus Ε nnreal_zero)
-                               by by apply nnreal_ext => /= ; lra.
-      rewrite /dmap => /=.
-      eapply ARcoupl_dbind => /=.
-      1,2: simpl; try lra. 1: rewrite -Nε. 1: admit.
-      2: apply (wp_couple_rand_no_coll N z σ1 σ0' x ε Npos Nε Nz).
-      simpl. intros ??(n&->&->&?).
-      apply ARcoupl_dret=>/=. admit.
+    iExists _.
+    iSplit ; [iPureIntro ; eapply head_prim_reducible ; eauto with head_step|].
+    iSplit.
+    { iPureIntro.
+      eapply (wp_couple_rand_no_coll_l _ _ _ _ t) ; eauto.
+      - apply lt_0_INR. lia.
+      - rewrite Nε. simpl. lra.
+      - by rewrite Nz.
     }
-    iIntros (ρ2 (n & -> & ? & nx)).
+    iIntros (? (n & -> & nt & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (fill [] (Val #x), σ0')
+    iMod (spec_interp_update (e0', σ0')
            with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    simplify_map_eq.
     (* Update Hε2 *)
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants *)
@@ -266,13 +194,10 @@ Section rules.
       iExists _, _, _, 0. simpl.
       iFrame. rewrite exec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
-    iSpecialize ("Hwp" $! n nx with "[$]").
+    iSpecialize ("Hwp" $! n with "[]"). 1: easy.
     rewrite !wp_unfold /wp_pre /=.
-    iMod "Hwp".
-    iModIntro.
-    iModIntro.
-    iMod "Hwp".
-    by iFrame.
+    iFrame. iApply fupd_mask_intro. 1: easy. iIntros "hclose". iModIntro.
+    iMod "hclose". done.
   Qed.
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
