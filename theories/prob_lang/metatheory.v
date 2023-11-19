@@ -753,8 +753,7 @@ Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N))
 Proof.
   intros Npos Nε Nz.
   rewrite head_prim_step_eq /=.
-  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
-  by eapply (RandNoTapeS _ _ 0%fin).
+  2: eauto with head_step.
   rewrite -Nz.
   rewrite -(dmap_dret (λ x, x) _) /dmap.
   replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext ; simpl ; lra).
@@ -777,8 +776,7 @@ Lemma wp_couple_rand_no_coll_r N z (σₛ : state) (ρ1 : cfg) (x : Fin.t (S N))
 Proof.
   intros Npos Nε Nz.
   rewrite head_prim_step_eq /=.
-  2: eexists (Val #0, _) ; eapply head_step_support_equiv_rel ;
-  by eapply (RandNoTapeS _ _ 0%fin).
+  2: eauto with head_step.
   rewrite -Nz.
   rewrite -(dmap_dret (λ x, x) _).
   rewrite /dmap.

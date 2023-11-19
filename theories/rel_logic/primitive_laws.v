@@ -123,7 +123,6 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
   iSplit; [eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin . }
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
@@ -170,8 +169,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-  iSplit; [by eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin. }
+  iSplit ; [by eauto with head_step|].
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
@@ -187,8 +185,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-  iSplit; [by eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin. }
+  iSplit; [by info_eauto with head_step|].
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.

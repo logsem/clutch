@@ -674,6 +674,17 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
+(* 0%fin always has non-zero mass, so propose this choice if the reduct is
+   unconstrained. *)
+Global Hint Extern 1
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
+         eapply (RandNoTapeS _ _ 0%fin) : head_step.
+Global Hint Extern 1
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
+         eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
+Global Hint Extern 1
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
+         eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
 
 Inductive state_step_rel : state → loc → state → Prop :=
 | AddTapeS α N (n : fin (S N)) ns σ :
