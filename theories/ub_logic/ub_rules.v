@@ -22,7 +22,7 @@ Lemma ub_lift_rand_trivial N z σ1 :
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -43,9 +43,7 @@ Lemma ub_lift_rand_err N z σ1 (m : fin (S N)):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #m%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ m). }
+  rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -73,7 +71,7 @@ Lemma ub_lift_rand_err_nat N z σ1 (m : nat):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -102,7 +100,7 @@ Lemma ub_lift_rand_err_list_nat N z σ1 (ms : list nat):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -130,7 +128,7 @@ Lemma ub_lift_rand_err_list_int N z σ1 (ms : list Z):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.

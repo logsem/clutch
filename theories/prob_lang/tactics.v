@@ -57,12 +57,15 @@ Global Hint Extern 0 (head_reducible _ _) =>
 Global Hint Extern 1 (head_step _ _ _ > 0) =>
          eapply head_step_support_equiv_rel; econstructor : head_step.
 
+Global Hint Extern 2 (head_reducible _ _) =>
+         by eauto with head_step : typeclass_instances.
+
 Ltac solve_step :=
   simpl;
   match goal with
   | |- (prim_step _ _).(pmf) _ = 1%R  =>
-      rewrite head_prim_step_eq /=;
-        [simplify_map_eq; solve_distr|eauto with head_step]
+      rewrite head_prim_step_eq /= ;
+        simplify_map_eq ; solve_distr
   | |- (head_step _ _).(pmf) _ = 1%R  => simplify_map_eq; solve_distr
   | |- (head_step _ _).(pmf) _ > 0%R  => eauto with head_step
   end.
