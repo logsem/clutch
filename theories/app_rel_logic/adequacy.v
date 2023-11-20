@@ -230,7 +230,7 @@ Section adequacy.
 
 End adequacy.
 
-Class clutchGpreS Σ := ClutchGpreS {
+Class app_clutchGpreS Σ := ClutchGpreS {
   clutchGpreS_iris  :> invGpreS Σ;
   clutchGpreS_heap  :> ghost_mapG Σ loc val;
   clutchGpreS_tapes :> ghost_mapG Σ loc tape;
@@ -239,17 +239,17 @@ Class clutchGpreS Σ := ClutchGpreS {
   clutchGpreS_err   :> ecGpreS Σ;
 }.
 
-Definition clutchΣ : gFunctors :=
+Definition app_clutchΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authUR cfgUR);
     GFunctor (authUR progUR);
     GFunctor (authR (realUR))].
-Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
+Global Instance subG_app_clutchGPreS {Σ} : subG app_clutchΣ Σ → app_clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_aRcoupl Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
-  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+Theorem wp_aRcoupl Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
+  (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -275,8 +275,8 @@ Proof.
 Qed.
 
 
-Theorem wp_aRcoupl_lim Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+Theorem wp_aRcoupl_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
+  (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec_val (e, σ)) (lim_exec_val (e', σ')) φ ε.
 Proof.
   intros Hwp.
