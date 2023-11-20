@@ -1017,9 +1017,6 @@ Section list_specs.
     - destruct Hl as [? [-> _]]. wp_pures. by iApply "HΦ".
   Qed.
 
-  Search list.
-
-
   Lemma is_list_eq lM :
     ∀ l1 l2, is_list lM l1 → is_list lM l2 → l1 = l2.
   Proof. induction lM; intros []; naive_solver eauto with f_equal. Qed.

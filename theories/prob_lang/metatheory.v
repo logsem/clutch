@@ -492,7 +492,6 @@ Proof.
   by rewrite Hnm //.
 Qed.
 
-
 (** * Approximate rand(N) ~ rand(M) coupling, N <= M, along an injection *)
 Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
   (N <= M)%R ->
@@ -507,12 +506,7 @@ Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) 
    ε.
 Proof.
   intros NMpos NMε Hz Hw.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1'). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite ?head_prim_step_eq /=.
   rewrite /dmap -Hz -Hw.
   replace ε with (nnreal_plus ε nnreal_zero); last first.
   { apply nnreal_ext; simpl; lra. }
@@ -528,7 +522,6 @@ Proof.
   exists n .
   by rewrite Hnm //.
 Qed.
-
 
 (** * Approximate rand(N) ~ rand(M) coupling, M <= N *)
 Lemma ARcoupl_rand_rand_rev (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
@@ -576,12 +569,7 @@ Lemma ARcoupl_rand_rand_rev_inj (N M : nat) f `{Inj (fin (S M)) (fin (S N)) (=) 
    ε.
 Proof.
   intros NMpos NMε Hz Hw.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1'). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite ?head_prim_step_eq /=.
   rewrite /dmap -Hz -Hw.
   replace ε with (nnreal_plus ε nnreal_zero); last first.
   { apply nnreal_ext; simpl; lra. }

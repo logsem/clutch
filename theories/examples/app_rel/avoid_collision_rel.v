@@ -30,7 +30,7 @@ From clutch.prob_lang Require Import class_instances.
 
 
 Section wp_refinement.
-  Context `{!clutchGS Σ}.
+  Context `{!app_clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types σ : state.
@@ -111,7 +111,7 @@ End wp_refinement.
 
 Section opsem_refinement.
 
-  Lemma no_coll_l Σ `{clutchGpreS Σ} N (ε : nonnegreal) z (t : fin (S N)) σ σ' :
+  Lemma no_coll_l Σ `{app_clutchGpreS Σ} N (ε : nonnegreal) z (t : fin (S N)) σ σ' :
       (0 < S N)%R →
       ((1 / S N) = ε)%R →
       N = Z.to_nat z →

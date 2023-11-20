@@ -466,10 +466,7 @@ Proof.
              *** case_bool_decide; simplify_eq.
                  **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ apply cond_nonneg |].
-                      rewrite head_prim_step_eq /=; last first.
-                      { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-                        by eapply (RandNoTapeS _ _ 0%fin).
-                      }
+                      rewrite head_prim_step_eq /=.
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
                       rewrite SeriesC_scal_l /= /Rdiv Rmult_1_l.
@@ -491,10 +488,7 @@ Proof.
                  **** simpl. etrans; [ | right; eapply Rmult_0_l ].
                       apply Rmult_le_compat_r; [apply cond_nonneg | ].
                       right.
-                      rewrite head_prim_step_eq /=; last first.
-                      { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-                        by eapply (RandNoTapeS _ _ 0%fin).
-                      }
+                      rewrite head_prim_step_eq /=.
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
                       rewrite SeriesC_scal_l /= /Rdiv.
