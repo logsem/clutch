@@ -230,12 +230,8 @@ Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
 Proof.
   intros Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0, σ1'). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz.
   eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
   intros n ? ->.
@@ -256,12 +252,8 @@ Lemma Rcoupl_rand_lbl_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
   intros Hσ1 Hσ2 Hneq Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply RandTapeOtherS. }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
-    by eapply RandTapeOtherS. }
+  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz Hσ1 Hσ2.
   rewrite bool_decide_eq_false_2 //.
   eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
@@ -282,12 +274,8 @@ Lemma Rcoupl_rand_lbl_rand_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 z σ
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
   intros Hσ1 Hneq Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply RandTapeOtherS. }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
-    by eapply RandNoTapeS. }
+  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz Hσ1.
   rewrite bool_decide_eq_false_2 //.
   eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
@@ -308,12 +296,8 @@ Lemma Rcoupl_rand_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α2 z σ
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
   intros Hσ2 Hneq Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply RandNoTapeS. }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ2). eapply head_step_support_equiv_rel.
-    by eapply RandTapeOtherS. }
+  rewrite head_prim_step_eq /=; [|solve_red].
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz Hσ2.
   rewrite bool_decide_eq_false_2 //.
   eapply Rcoupl_dbind; [|by eapply Rcoupl_dunif].
@@ -385,9 +369,7 @@ Lemma Rcoupl_rand_state N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α' xs:
         ρ2 = (Val #n, σ1) ∧ σ2' = state_upd_tapes <[α' := (N; xs ++ [f n])]> σ1').
 Proof.
   intros Hz Hα'.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /state_step.
   rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2] .
   rewrite -Hz.
@@ -408,9 +390,7 @@ Lemma Rcoupl_state_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α xs :
         σ2 = state_upd_tapes <[α := (N; xs ++ [n])]> σ1 ∧ ρ2' = (Val #(f n), σ1') ).
 Proof.
   intros Hz Hα.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0, σ1'). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /state_step.
   rewrite bool_decide_eq_true_2; [ |by eapply elem_of_dom_2] .
   rewrite -Hz.
@@ -428,10 +408,7 @@ Lemma Rcoupl_rand_r N z (ρ1 : cfg) σ1' :
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ?.
-  assert (head_reducible (rand #z from #()) σ1') as hr.
-  { eexists (_, _).
-    apply head_step_support_equiv_rel.
-    by apply (RandNoTapeS _ N 0%fin). }
+  assert (head_reducible (rand #z from #()) σ1') as hr by solve_red.
   rewrite head_prim_step_eq //.
   eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
@@ -450,10 +427,7 @@ Lemma Rcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ??.
-  assert (head_reducible (rand #z from #lbl:α') σ1') as hr.
-  { eexists (_, _).
-    apply head_step_support_equiv_rel.
-    by apply (RandTapeEmptyS _ _ N 0%fin). }
+  assert (head_reducible (rand #z from #lbl:α') σ1') as hr by solve_red.
   rewrite head_prim_step_eq //.
   eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
@@ -472,10 +446,7 @@ Lemma Rcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ???.
-  assert (head_reducible (rand #z from #lbl:α') σ1') as hr.
-  { eexists (_, _).
-    apply head_step_support_equiv_rel.
-    by apply (RandTapeOtherS _ _ M N ns 0%fin). }
+  assert (head_reducible (rand #z from #lbl:α') σ1') as hr by solve_red.
   rewrite head_prim_step_eq //.
   eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
@@ -508,12 +479,8 @@ Lemma ARcoupl_rand_rand (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
    ε.
 Proof.
   intros NMpos NMε Hz Hw.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1'). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /= ; [| solve_red ].
+  rewrite head_prim_step_eq /= ; [| solve_red ].
   rewrite /dmap -Hz -Hw.
   replace ε with (nnreal_plus ε nnreal_zero); last first.
   { apply nnreal_ext; simpl; lra. }
@@ -582,12 +549,8 @@ Lemma ARcoupl_rand_rand_rev (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
    ε.
 Proof.
   intros NMpos NMε Hz Hw.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1'). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /= ; [| solve_red ].
+  rewrite head_prim_step_eq /= ; [| solve_red ].
   rewrite /dmap -Hz -Hw.
   replace ε with (nnreal_plus ε nnreal_zero); last first.
   { apply nnreal_ext; simpl; lra. }
@@ -752,8 +715,7 @@ Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N))
     ε.
 Proof.
   intros Npos Nε Nz.
-  rewrite head_prim_step_eq /=.
-  2: eauto with head_step.
+  rewrite head_prim_step_eq /= ; [| solve_red ].
   rewrite -Nz.
   rewrite -(dmap_dret (λ x, x) _) /dmap.
   replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext ; simpl ; lra).
@@ -775,8 +737,7 @@ Lemma wp_couple_rand_no_coll_r N z (σₛ : state) (ρ1 : cfg) (x : Fin.t (S N))
     ε.
 Proof.
   intros Npos Nε Nz.
-  rewrite head_prim_step_eq /=.
-  2: eauto with head_step.
+  rewrite head_prim_step_eq /= ; [| solve_red ].
   rewrite -Nz.
   rewrite -(dmap_dret (λ x, x) _).
   rewrite /dmap.

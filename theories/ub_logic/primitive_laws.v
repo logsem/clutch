@@ -90,7 +90,7 @@ Proof.
   iIntros (Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
-  iSplit; [by eauto with head_step|].
+  solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
@@ -104,7 +104,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-  iSplit; [by eauto with head_step|].
+  solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
@@ -117,7 +117,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
-  iSplit; [by eauto with head_step|].
+  solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
@@ -130,8 +130,7 @@ Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
-  iSplit; [eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin . }
+  solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
@@ -147,7 +146,7 @@ Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !# /=".
-  iSplit; [by eauto with head_step|].
+  solve_red.
   iIntros "!>" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
@@ -163,7 +162,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-  iSplit; [eauto with head_step|].
+  solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
@@ -179,8 +178,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-  iSplit; [by eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin. }
+  solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
@@ -196,8 +194,7 @@ Proof.
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-  iSplit; [by eauto with head_step|].
-  Unshelve. 2 : { apply 0%fin. }
+  solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.

@@ -22,9 +22,7 @@ Lemma ub_lift_rand_trivial N z σ1 :
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -75,9 +73,7 @@ Lemma ub_lift_rand_err_nat N z σ1 (m : nat):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -106,9 +102,7 @@ Lemma ub_lift_rand_err_list_nat N z σ1 (ms : list nat):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -136,9 +130,7 @@ Lemma ub_lift_rand_err_list_int N z σ1 (ms : list Z):
 Proof.
   simpl in *.
   intros Hz.
-  rewrite head_prim_step_eq /=; last first.
-  { eexists (Val #0%fin, σ1). eapply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin). }
+  rewrite head_prim_step_eq /=; [|solve_red].
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
   eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
@@ -178,14 +170,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iSplit; [ eauto with head_step | ].
-  { iPureIntro.
-    simpl.
-    apply head_prim_reducible.
-    eexists (Val #0%fin, σ1).
-    apply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin).
-  }
+  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -241,14 +226,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iSplit; [ eauto with head_step | ].
-  { iPureIntro.
-    simpl.
-    apply head_prim_reducible.
-    eexists (Val #0%fin, σ1).
-    apply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin).
-  }
+  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -303,14 +281,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iSplit; [ eauto with head_step | ].
-  { iPureIntro.
-    simpl.
-    apply head_prim_reducible.
-    eexists (Val #0%fin, σ1).
-    apply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin).
-  }
+  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -365,14 +336,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iSplit; [ eauto with head_step | ].
-  { iPureIntro.
-    simpl.
-    apply head_prim_reducible.
-    eexists (Val #0%fin, σ1).
-    apply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin).
-  }
+  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -427,14 +391,7 @@ Proof.
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iSplit; [ eauto with head_step | ].
-  { iPureIntro.
-    simpl.
-    apply head_prim_reducible.
-    eexists (Val #0%fin, σ1).
-    apply head_step_support_equiv_rel.
-    by eapply (RandNoTapeS _ _ 0%fin).
-  }
+  solve_red.
   iApply exec_ub_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
   rewrite Hε3.

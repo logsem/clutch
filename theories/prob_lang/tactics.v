@@ -1,5 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
+From iris.proofmode Require Import environments proofmode.
 From clutch.prob Require Import distribution.
 From clutch.program_logic Require Import ectx_language.
 From clutch.prob_lang Require Import lang.
@@ -64,4 +65,16 @@ Ltac solve_step :=
         [simplify_map_eq; solve_distr|eauto with head_step]
   | |- (head_step _ _).(pmf) _ = 1%R  => simplify_map_eq; solve_distr
   | |- (head_step _ _).(pmf) _ > 0%R  => eauto with head_step
+  end.
+
+Ltac solve_red :=
+  match goal with
+  | |- (environments.envs_entails _ ( ⌜ _ ⌝ ∗ _)) =>
+      iSplitR ; [ by (iPureIntro ; solve_red) | ]
+  | |- (environments.envs_entails _ ( _ ∗ ⌜ _ ⌝)) =>
+      iSplitL ; [ by (iPureIntro ; solve_red) | ]
+  | |- (reducible _ _) =>
+      apply head_prim_reducible ; solve_red
+  | |- (head_reducible _ _) =>
+      by eauto with head_step
   end.
