@@ -4,7 +4,7 @@ Set Default Proof Using "Type*".
 (* Prophecy variables are unsound with up-to-bad reasoning *)
 
 Module counter_example.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
   Axiom NewProph : val.
   Axiom ResolveProph : val.

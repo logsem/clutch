@@ -75,7 +75,7 @@ Proof.
                 else if bool_decide (n = 1%fin) then nnreal_one
                                             else nnreal_inv((nnreal_nat 2))).
   unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ _ f with "Herr").
-  { intro. exact ⌜ true ⌝%I. }.
+  { intro. exact ⌜ true ⌝%I. }
   {
     exists 1; intro n.
     rewrite /f.

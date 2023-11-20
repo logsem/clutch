@@ -287,7 +287,7 @@ Module prf_prp.
     iEval (rewrite refines_right_bind) in "Hspec".
     (* TODO: Instantiate this properly *)
     iMod (spec_list_seq with "[Hspec]") as (v) "(Hspec & %Hv)".
-    { done. }.
+    { done. }
     Unshelve.
     4: { exact 0. }
     4: { exact (S val_size). }

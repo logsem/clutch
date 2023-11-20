@@ -12,7 +12,7 @@ From clutch.prob Require Import distribution.
 Import uPred.
 
 Section adequacy.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
 
   Lemma ub_lift_dbind' `{Countable A, Countable A'}
@@ -171,22 +171,22 @@ Section adequacy.
 End adequacy.
 
 
-Class clutchGpreS Σ := ClutchGpreS {
-  clutchGpreS_iris  :> invGpreS Σ;
-  clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  clutchGpreS_tapes :> ghost_mapG Σ loc tape;
-  clutchGpreS_err   :> ecGpreS Σ;
+Class ub_clutchGpreS Σ := UB_ClutchGpreS {
+  ub_clutchGpreS_iris  :> invGpreS Σ;
+  ub_clutchGpreS_heap  :> ghost_mapG Σ loc val;
+  ub_clutchGpreS_tapes :> ghost_mapG Σ loc tape;
+  ub_clutchGpreS_err   :> ecGpreS Σ;
 }.
 
-Definition clutchΣ : gFunctors :=
+Definition ub_clutchΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authR (realUR))].
-Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
+Global Instance subG_ub_clutchGPreS {Σ} : subG ub_clutchΣ Σ → ub_clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_union_bound Σ `{clutchGpreS Σ} (e : expr) (σ : state) n (ε : nonnegreal) φ :
-  (∀ `{clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+Theorem wp_union_bound Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) n (ε : nonnegreal) φ :
+  (∀ `{ub_clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ub_lift (exec_val n (e, σ)) φ ε.
 Proof.
   intros Hwp.
@@ -212,8 +212,8 @@ Proof.
   apply Hn; auto.
 Qed.
 
-Theorem wp_union_bound_lim Σ `{clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+Theorem wp_union_bound_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{ub_clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ub_lift (lim_exec_val (e, σ)) φ ε.
 Proof.
   intros.

@@ -230,13 +230,13 @@ Section adequacy.
 
 End adequacy.
 
-Class app_clutchGpreS Σ := ClutchGpreS {
-  clutchGpreS_iris  :> invGpreS Σ;
-  clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  clutchGpreS_tapes :> ghost_mapG Σ loc tape;
-  clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
-  clutchGpreS_prog  :> inG Σ (authR progUR);
-  clutchGpreS_err   :> ecGpreS Σ;
+Class app_clutchGpreS Σ := App_ClutchGpreS {
+  app_clutchGpreS_iris  :> invGpreS Σ;
+  app_clutchGpreS_heap  :> ghost_mapG Σ loc val;
+  app_clutchGpreS_tapes :> ghost_mapG Σ loc tape;
+  app_clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
+  app_clutchGpreS_prog  :> inG Σ (authR progUR);
+  app_clutchGpreS_err   :> ecGpreS Σ;
 }.
 
 Definition app_clutchΣ : gFunctors :=

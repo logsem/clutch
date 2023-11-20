@@ -3,7 +3,7 @@ Set Default Proof Using "Type*".
 
 Module simple_bit_hash.
 
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
   Variable val_size : nat.
 
