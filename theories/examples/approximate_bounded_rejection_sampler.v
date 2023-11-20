@@ -345,6 +345,8 @@ Section basic.
       lia.
     }
 
+
+
     (* now the sum is constant, but we run into the same kind of reindexing nonsense as above.
        prove that first. *)
 
@@ -553,3 +555,244 @@ Qed.
   Qed.
 
 End basic.
+
+
+
+Section higherorder.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
+  (* generic definition of eliminating some cases with credut
+     given some credit, we should be able to assume some expression evaluates to some
+     value which satisfies some proposition *)
+  (* Definition wp_generic_err `{ RepresentibleV A } (e : expr) (v : val) (𝜀 : nonnegreal) E Φ Ψ : iProp Σ
+    := (€ 𝜀 ∗ (∀ a : A, ⌜toV a = v ⌝ ∗ Ψ a -∗ Φ v) -∗ WP e @ E {{ Φ }})%I. *)
+
+
+  (* is this defined anywhere else? *)
+  Program Definition expectation `{ Countable A } (𝜇 : distr A) (f : A -> nonnegreal) (_ : ex_seriesC (λ a : A, 𝜇 a * f a)) : nonnegreal
+    := mknonnegreal (SeriesC (λ a, 𝜇 a * f a)) _.
+  Next Obligation.
+    intros. apply SeriesC_ge_0.
+    - intros. apply Rmult_le_pos; [apply pmf_pos | apply cond_nonneg].
+    - done.
+  Qed.
+
+  Definition ex_expectation  `{ Countable A } (𝜇 : distr A) (f : A -> nonnegreal) : Prop := ex_seriesC (λ a : A, 𝜇 a * f a).
+
+  (* generic (nonuniform) version of the adv_comp rule *)
+  Definition wp_couple_generic_adv_comp (Ψ : val -> bool) (e : expr) (𝜀1 : nonnegreal) (𝜀2 : val -> nonnegreal) E : iProp Σ
+      := (* there exists a distribution 𝜇 over values with all mass contained in Ψ *)
+         ∃ (𝜇 : distr val) (Hsupp : forall v : val, (Ψ v = false) -> 𝜇 v = 0)
+            (* and and the expectation exists *)
+            (Hs : ex_expectation 𝜇 𝜀2),
+              (* so the expectation matches 𝜀1*)
+              ⌜ expectation 𝜇 𝜀2 Hs = 𝜀1 ⌝ ∗
+              (* and the amplified mass is bounded *)
+              ⌜(exists r, forall v : val, (Ψ v = true) -> (𝜀2 v <= r)) ⌝ ∗
+              (* and we can step the expression while amplifying it's error  *)
+              {{{ € 𝜀1 }}} e @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (𝜀2 v) }}}.
+
+  (* we want to execute checker only in terms of spending or apmplifying error credits.
+      Ψ is the range of values our funtion takes, (eg Ψ z := z < N for fin N)
+      We might need Ψ to be decidable to split up the sum later on?
+      It's kind of like a logical type, in a lot of cases I suspect is just _is_ one.
+   *)
+
+  Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
+    := (fun z => if (Θ z) then nnreal_zero else (𝜀 * 𝜀1)%NNR).
+
+  Definition sampling_scheme_spec (e : expr) 𝜀 E (Ψ : val -> bool) (Θ : val -> bool) : Prop
+    := {{{ True }}}
+         e @ E
+       {{{sampler checker, RET (PairV sampler checker);
+            (* sampler needs to be able to amplify the mass during sampling *)
+            (∀ 𝜀1, wp_couple_generic_adv_comp Ψ ((Val sampler) #())%E 𝜀1 (scale_unless 𝜀 𝜀1 Θ) E) ∗
+            (* Θ reflects checker whenever the value is one we could have sampled *)
+            (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
+            (* 𝜀 credit suffices to force checker to pass, on all possible sampled values *)
+            (∀ v, {{{ €𝜀 ∗ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = true ⌝ }}}) ∗
+            (* we can always just get _some_ value out of the sampler if we want *)
+            ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v = true ⌝ }}})
+       }}}.
+
+  (* next, we should show that this can actually be instantiated by some sane samplers *)
+  Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
+     := (λ: "_", (Pair
+                    (λ: "_", rand #m' from #())
+                    (λ: "sample", "sample" ≤ #n')))%E.
+
+
+  Definition flip_sampling_scheme : expr
+     := (λ: "_",  (Pair
+                     (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
+                     (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
+
+  (* TODO could try an unbounded one? *)
+
+  Definition rand_support (m' : nat) (v : val) : bool :=
+    match v with
+    | LitV (LitInt n) => (Z.leb 0 n)%Z && (Z.leb n (Z.of_nat m'))%Z
+    | _ => false
+    end.
+
+  Definition rand_check_accepts (n' : nat) (v : val): bool :=
+    match v with
+    | LitV (LitInt n) => (Z.leb n (Z.of_nat n'))%Z
+    | _ => false
+    end.
+
+  (* TODO lift logical types into unofrm distributions? *)
+
+  (* should be uniform when lrel_fin (is that a thing?) val and 0 elsewhere *)
+  Definition rand_unif_distr : distr val.
+  Proof. Admitted.
+
+
+  Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
+    sampling_scheme_spec
+      (rand_sampling_scheme n' m' Hnm #())
+      (nnreal_div (nnreal_nat (S m' - S n')%nat) (nnreal_nat (S m')%nat))
+      E
+      (rand_support m')
+      (rand_check_accepts n')
+  .
+  Proof.
+    rewrite /sampling_scheme_spec. iIntros (Φ) "_ HΦ".
+    rewrite /rand_sampling_scheme. wp_pures.
+    iModIntro; iApply "HΦ".
+    iSplit.
+    { (* the generic composition rule *)
+      rewrite /wp_couple_generic_adv_comp.
+      iIntros (𝜀1); iExists rand_unif_distr.
+        assert (K : ∀ v : val, rand_support m' v = false → rand_unif_distr v = 0).
+        { admit. }
+        iExists K.
+        assert (Hs :  ex_expectation rand_unif_distr
+                        (scale_unless (nnreal_div (nnreal_nat (S m' - S n')) (nnreal_nat (S m'))) 𝜀1
+                        (rand_check_accepts n'))).
+        { admit. }
+        iExists Hs.
+        iSplit.
+        { (* calculate the expectation here*)
+          admit. }
+        iSplit.
+        {  admit. }
+
+        (* finally, apply the regular rule here. *)
+        admit. }
+    iSplit.
+    {  admit. }
+    iSplit.
+    { admit. }
+  Admitted.
+
+
+  (* higher order rejection sampler *)
+  Definition ho_bdd_rejection_sampler :=
+    (λ: "depth",
+      λ: "ho_sampler",
+        let: "sampler" := (Fst "ho_sampler") in
+        let: "checker" := (Snd "ho_sampler") in
+        let: "do_sample" :=
+          (rec: "f" "tries_left" :=
+              if: ("tries_left" - #1) < #0
+                then NONE
+                else let: "next_sample" := ("sampler" #()) in
+                     if: ("checker" "next_sample")
+                        then SOME "next_sample"
+                        else "f" ("tries_left" - #1))
+        in "do_sample" "depth")%E.
+
+
+  Program Definition generic_geometric_error (r : nonnegreal) (depth : nat) : nonnegreal := nnreal_inv (mknonnegreal (r ^ depth) _).
+  Next Obligation. intros. apply pow_le. by destruct r. Qed.
+
+  Lemma simpl_generic_geometric_error (r : nonnegreal) (depth : nat) : (r * generic_geometric_error r (S depth))%NNR = (generic_geometric_error r depth).
+  Proof.
+    rewrite /generic_geometric_error.
+    simpl.
+    (* easy proof, come back to this. *)
+  Admitted.
+
+
+
+  (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
+  Definition ho_bdd_approx_safe (make_sampler : val) (r : nonnegreal) (depth : nat) Ψ Θ E :
+    sampling_scheme_spec make_sampler r E Ψ Θ ->
+    {{{ € (generic_geometric_error r (S depth)) }}}
+      ho_bdd_rejection_sampler #(S depth) make_sampler  @ E
+    {{{ v, RET v; ∃ v', ⌜ v = SOMEV v' ⌝}}}.
+  Proof.
+    (* initial setup *)
+    iIntros (Hmake_sampler Φ) "Hcr HΦ".
+    rewrite /ho_bdd_rejection_sampler.
+    wp_pures.
+    wp_bind (_ make_sampler)%E.
+    rewrite /sampling_scheme_spec in Hmake_sampler.
+    wp_apply Hmake_sampler; try done.
+    iIntros (sampler _c) "(#Hcomp&_&_&#Hsampler)".
+    wp_pures.
+    wp_bind (_ make_sampler)%E.
+    wp_apply Hmake_sampler; try done.
+    iIntros (_s checker) "(_&#HcheckΘ&#HcheckErr&_)".
+    do 6 wp_pure.
+    clear _s _c.
+
+    iInduction depth as [|depth' Hdepth'] "IH".
+    - (* base case: we should be able to spend the geometric error to eliminate the bad sample
+         and end up in the right branch *)
+      wp_pures.
+
+      (* step the sampler*)
+      wp_bind (sampler #())%E.
+      wp_apply "Hsampler"; try done.
+      iIntros (next_sample) "%Hnext_sample"; wp_pures.
+
+      (* spend the credits in the checker*)
+      wp_bind (checker next_sample)%E.
+      wp_apply ("HcheckErr" with "[Hcr]").
+      { iSplit; last by iPureIntro.
+          (* proof irrelevance thing *)
+          admit. }
+      iIntros (b) "->"; wp_pures.
+      iModIntro; iApply "HΦ".
+      iExists next_sample; auto.
+    - wp_pures.
+      replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
+      wp_pures.
+
+      (* apply the amplification lemma step the sampler *)
+      iDestruct ("Hcomp" $! (generic_geometric_error r (S (S depth')))) as "[%𝜇 [%Hsupp [%Hexp_ex (Hexp&Hbound&Hcomp')]]]".
+      wp_apply ("Hcomp'" with "Hcr").
+      iIntros (sample) "(%HΨ&Hcr)".
+      wp_pures.
+
+
+      (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
+      wp_bind (checker sample)%E.
+      wp_apply "HcheckΘ"; first (iPureIntro; by assumption).
+      iIntros (b) "%Hb".
+      destruct b.
+      + wp_pures.
+        iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
+      +
+
+        (* looks like we need to do the intro part again? better specialize IH beforehand. *)
+        iSpecialize ("IH" with "[Hcr]").
+        { iClear "#".
+            rewrite /scale_unless.
+            replace (Θ sample) with false.
+            rewrite simpl_generic_geometric_error.
+            iFrame. }
+        iSpecialize ("IH" with "HΦ").
+        iClear "#".
+        wp_pure.
+        wp_bind (#(S (S depth'))- #1%nat)%E; wp_pure.
+
+        replace #((S (S depth')) - 1) with #(S depth'); last first.
+        { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
+        iApply "IH".
+  Admitted.
+
+End higherorder.
