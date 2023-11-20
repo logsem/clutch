@@ -337,3 +337,9 @@ Tactic Notation "case_bool_decide_and_destruct" "in" ident(H) :=
   case_bool_decide in H as Hf;
   destruct_and? Hf;
   simplify_eq.
+
+Ltac destruct_match :=
+  match goal with
+  | |- context [ match ?x with _ => _ end ] => destruct x
+  | H : context [ match ?x with _ => _ end ] |- _ => destruct x
+  end.
