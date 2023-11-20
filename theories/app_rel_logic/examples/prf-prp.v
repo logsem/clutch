@@ -373,6 +373,7 @@ Module prf_prp.
 
 
 
+
  Lemma wp_prf_prp_couple_eq_err E K (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
     m !! n = None →
@@ -548,3 +549,116 @@ Module prf_prp.
       apply perm_skip.
       by rewrite Permutation_app_comm.
  Qed.
+
+
+Definition test_prf: val :=
+  λ: "n",
+    let: "f" := init_hash #() in
+  letrec: "aux" "f" "i" :=
+    (if: "i" ≤ #0
+     then  "f"
+     else let: "x" := rand #val_size from #() in
+          "f" "x";;
+          "aux" "f" ("i" - #1)) in
+    "aux" "f" "n".
+
+
+Definition test_prp: val :=
+  λ: "n",
+    let: "f" := init_prp #() in
+  letrec: "aux" "f" "i" :=
+    (if: "i" ≤ #0
+     then  "f"
+     else let: "x" := rand #val_size from #() in
+          "f" "x";;
+          "aux" "f" ("i" - #1)) in
+    "aux" "f" "n".
+
+
+ Search fold_left.
+
+ Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
+    ↑specN ⊆ E →
+    INR(fold_left (Nat.add) (seq 0 n) 0) = ε ->
+    {{{ refines_right K (test_prp #n) ∗ € ε }}}
+      test_prf #n @ E
+    {{{ f, RET f;
+        ∃ g m l, refines_right K (of_val g) ∗ hashfun f m∗
+          is_sprp g m l }}}.
+ Proof.
+   iIntros (Hspec Hε Φ) "(HK & Herr) HΦ ".
+
+   rewrite /test_prf.
+   wp_pure.
+   wp_bind (init_hash _).
+   wp_apply (wp_init_hash); first done.
+   iIntros (f) "Hf".
+   do 2 wp_pure.
+
+   rewrite /test_prp.
+   tp_pure.
+   tp_bind (init_prp _).
+   iEval (rewrite refines_right_bind) in "HK".
+   iMod (spec_init_prp with "HK") as (g) "(HK & Hg)"; first done.
+   iEval (rewrite -refines_right_bind /=) in "HK".
+
+   do 5 tp_pure.
+   do 3 wp_pure.
+   iInduction n as [|m] "IH".
+   - wp_pures.
+     tp_pures.
+     iModIntro.
+     iApply "HΦ".
+     iExists _,_,_. iFrame.
+
+   - wp_pures.
+     wp_bind (rand _ from _)%E.
+
+     tp_pures.
+     tp_bind (rand _ from _)%E.
+     iEval (rewrite refines_right_bind) in "HK".
+
+     iMod (ec_zero).
+     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero); first done.
+     { lra. }
+     { rewrite Rminus_eq_0 /Rdiv Rmult_0_l /=//. }
+
+     iFrame.
+     iIntros "!>" (n2 m2 ->) "HK".
+     iEval (rewrite -refines_right_bind /=) in "HK".
+
+     wp_pures.
+     wp_pures.
+     tp_pures.
+     wp_bind (f _).
+     tp_bind (g _).
+     iEval (rewrite refines_right_bind) in "HK".
+
+     iMod (ec_zero).
+     wp_apply (wp_prf_prp_couple_eq_err _ _ _ ∅ _ ((Z.of_nat) <$> (seq 0 (S val_size))) m2 nnreal_zero
+                with "[$]"); first done.
+     { apply lookup_empty. }
+     { pose proof (fin_to_nat_lt m2); lia. }
+     { intros; apply lookup_empty. }
+     { rewrite fmap_length seq_length.
+       rewrite Rminus_eq_0 /Rdiv Rmult_0_l /=//.
+     }
+
+     iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
+     iEval (rewrite -refines_right_bind /=) in "HK".
+     do 3 wp_pure.
+     do 3 tp_pure.
+     assert (#(S m - 1) = #m) as ->.
+     {
+       do 3 f_equal. lia.
+     }
+     iApply "IH".
+
+
+
+
+
+
+
+
+
