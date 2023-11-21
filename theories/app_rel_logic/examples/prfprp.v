@@ -575,11 +575,9 @@ Definition test_prp: val :=
     "aux" "f" "n".
 
 
- Search fold_left.
-
  Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
-    INR(fold_left (Nat.add) (seq 0 n) 0) = ε ->
+    (INR(fold_left (Nat.add) (seq 0 n) 0%nat) / INR (S val_size))%R = ε ->
     {{{ refines_right K (test_prp #n) ∗ € ε }}}
       test_prf #n @ E
     {{{ f, RET f;
