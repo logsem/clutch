@@ -305,18 +305,28 @@ Section basic.
       - replace (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
           with  (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (λ n0 : nat, 0) 0 N').
           { rewrite (Hierarchy.sum_n_m_const _ _ 0); rewrite Rmult_0_r; auto. }
-          (* their extensionality is too weak... it claims equality at all points rather than
-                just those on the sum indices *)
-            (* apply Hierarchy.sum_n_m_ext.
-            intros.
-            apply countable_sum_ext; intros.
-            symmetry; apply Hinit. *)
-            admit. }
+            apply Hierarchy.sum_n_m_ext_loc.
+            intros K Hk.
+            rewrite /countable_sum.
+            (* I can simplify this with some of my lemmas now? *)
+            rewrite encode_inv_nat_nat_total /=.
+            symmetry; apply Hinit.
+            lia. }
 
-    (* now it's the reindexing problem *)
-    admit.
+    induction n as [| n' IH].
+    - simpl.
+      do 2 (rewrite Hierarchy.sum_n_n).
+      (* now we do the song and dance to evaluate the countable_sum at a value again *)
+      rewrite /countable_sum encode_inv_nat_nat_total /=.
+      replace (N + 0)%nat with N%nat by lia.
+      reflexivity.
+    - simpl.
+      do 2 (rewrite Hierarchy.sum_n_Sm; last by lia).
+      f_equal; first by apply IH.
+      do 2 (rewrite /countable_sum encode_inv_nat_nat_total /=).
+      f_equal; lia.
+  Qed.
 
-  Admitted.
 
 
   (* mean of error distribution is preserved *)
@@ -353,7 +363,7 @@ Section basic.
   Admitted.
 
 
-
+(*
 Lemma SeriesC_leq (N : nat) (v : R) :
   Series (λ (n : nat), if bool_decide (n < N)%nat then v else 0) = INR N * v.
 Proof.
@@ -369,6 +379,7 @@ Proof.
     rewrite Rplus_0_l.
     apply Series_singleton.
 Qed.
+*)
 
 
 
@@ -594,7 +605,11 @@ Section higherorder.
               {{{ € 𝜀1 }}} e @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (𝜀2 v) }}}.
 
   (* this should suffice to prove part of the sampling scheme spec for other examples
-     (IE we'd admit this) *)
+     (IE we'd admit this for a sampler, or prove it some other way, and we can use the
+      higher order spec)
+
+     could we prove this? what might go wrong? Do we need any other hypotheses?
+   *)
 
 
 
@@ -606,7 +621,6 @@ Section higherorder.
          e @ E
        {{{sampler checker, RET (PairV sampler checker);
             (* sampler needs to be able to amplify the mass during sampling *)
-            (* (∀ 𝜀1, wp_couple_generic_adv_comp Ψ ((Val sampler) #())%E 𝜀1 (scale_unless 𝜀 𝜀1 Θ) E) ∗ *)
             (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀 𝜀1 Θ v) }}}) ∗
             (* Θ reflects checker whenever the value is one we could have sampled *)
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
