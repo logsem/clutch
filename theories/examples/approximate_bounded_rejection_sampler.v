@@ -593,11 +593,10 @@ Section higherorder.
               (* and we can step the expression while amplifying it's error  *)
               {{{ € 𝜀1 }}} e @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (𝜀2 v) }}}.
 
-  (* we want to execute checker only in terms of spending or apmplifying error credits.
-      Ψ is the range of values our funtion takes, (eg Ψ z := z < N for fin N)
-      We might need Ψ to be decidable to split up the sum later on?
-      It's kind of like a logical type, in a lot of cases I suspect is just _is_ one.
-   *)
+  (* this should suffice to prove part of the sampling scheme spec for other examples
+     (IE we'd admit this) *)
+
+
 
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
     := (fun z => if (Θ z) then nnreal_zero else (𝜀 * 𝜀1)%NNR).
@@ -607,7 +606,8 @@ Section higherorder.
          e @ E
        {{{sampler checker, RET (PairV sampler checker);
             (* sampler needs to be able to amplify the mass during sampling *)
-            (∀ 𝜀1, wp_couple_generic_adv_comp Ψ ((Val sampler) #())%E 𝜀1 (scale_unless 𝜀 𝜀1 Θ) E) ∗
+            (* (∀ 𝜀1, wp_couple_generic_adv_comp Ψ ((Val sampler) #())%E 𝜀1 (scale_unless 𝜀 𝜀1 Θ) E) ∗ *)
+            (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀 𝜀1 Θ v) }}}) ∗
             (* Θ reflects checker whenever the value is one we could have sampled *)
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
             (* 𝜀 credit suffices to force checker to pass, on all possible sampled values *)
@@ -655,35 +655,34 @@ Section higherorder.
       (nnreal_div (nnreal_nat (S m' - S n')%nat) (nnreal_nat (S m')%nat))
       E
       (rand_support m')
-      (rand_check_accepts n')
-  .
+      (rand_check_accepts n').
   Proof.
     rewrite /sampling_scheme_spec. iIntros (Φ) "_ HΦ".
     rewrite /rand_sampling_scheme. wp_pures.
     iModIntro; iApply "HΦ".
     iSplit.
     { (* the generic composition rule *)
-      rewrite /wp_couple_generic_adv_comp.
-      iIntros (𝜀1); iExists rand_unif_distr.
-        assert (K : ∀ v : val, rand_support m' v = false → rand_unif_distr v = 0).
-        { admit. }
-        iExists K.
-        assert (Hs :  ex_expectation rand_unif_distr
-                        (scale_unless (nnreal_div (nnreal_nat (S m' - S n')) (nnreal_nat (S m'))) 𝜀1
-                        (rand_check_accepts n'))).
-        { admit. }
-        iExists Hs.
-        iSplit.
-        { (* calculate the expectation here*)
-          admit. }
-        iSplit.
-        {  admit. }
-
-        (* finally, apply the regular rule here. *)
-        admit. }
+      iIntros (𝜀1 Post) "!> Hcr HPost".
+      wp_pures.
+      pose 𝜀2 := (fun (z : fin (S m')) =>
+          (scale_unless (nnreal_div (nnreal_nat (S m' - S n')) (nnreal_nat (S m'))) 𝜀1 (rand_check_accepts n')) #z).
+      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀1 𝜀2 _ with "Hcr") .
+      - (* uniform bound on 𝜀2*) admit.
+      - (* series converges to expectation *) admit.
+      - iNext; iIntros (n) "Hcr".
+        iApply "HPost".
+        iSplitR.
+        + iPureIntro. rewrite /rand_support.
+          (* true fact for fin types *)
+          admit.
+        + rewrite /𝜀2.
+          iApply "Hcr".}
     iSplit.
-    {  admit. }
+    { iIntros (v).
+      (* in the support, sample ... *)
+      admit. }
     iSplit.
+    { admit. }
     { admit. }
   Admitted.
 
@@ -719,13 +718,14 @@ Section higherorder.
 
   (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
   Definition ho_bdd_approx_safe (make_sampler : val) (r : nonnegreal) (depth : nat) Ψ Θ E :
+    r < 1 ->
     sampling_scheme_spec make_sampler r E Ψ Θ ->
     {{{ € (generic_geometric_error r (S depth)) }}}
       ho_bdd_rejection_sampler #(S depth) make_sampler  @ E
     {{{ v, RET v; ∃ v', ⌜ v = SOMEV v' ⌝}}}.
   Proof.
     (* initial setup *)
-    iIntros (Hmake_sampler Φ) "Hcr HΦ".
+    iIntros (Hr Hmake_sampler Φ) "Hcr HΦ".
     rewrite /ho_bdd_rejection_sampler.
     wp_pures.
     wp_bind (_ make_sampler)%E.
@@ -737,7 +737,7 @@ Section higherorder.
     wp_apply Hmake_sampler; try done.
     iIntros (_s checker) "(_&#HcheckΘ&#HcheckErr&_)".
     do 6 wp_pure.
-    clear _s _c.
+    clear _s _c Hmake_sampler.
 
     iInduction depth as [|depth' Hdepth'] "IH".
     - (* base case: we should be able to spend the geometric error to eliminate the bad sample
@@ -754,21 +754,24 @@ Section higherorder.
       wp_apply ("HcheckErr" with "[Hcr]").
       { iSplit; last by iPureIntro.
           (* proof irrelevance thing *)
+          iClear "#".
+          iApply (ec_weaken with "Hcr").
+          rewrite /generic_geometric_error /=.
+          rewrite Rmult_1_r.
+          (* this is true... but I want to double check that this generic_geometric_error spec is right first *)
           admit. }
       iIntros (b) "->"; wp_pures.
       iModIntro; iApply "HΦ".
       iExists next_sample; auto.
     - wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
-      wp_pures.
-
       (* apply the amplification lemma step the sampler *)
-      iDestruct ("Hcomp" $! (generic_geometric_error r (S (S depth')))) as "[%𝜇 [%Hsupp [%Hexp_ex (Hexp&Hbound&Hcomp')]]]".
-      wp_apply ("Hcomp'" with "Hcr").
+      wp_pures.
+      wp_bind (sampler #())%E.
+      (* why did this stop working? *)
+      wp_apply ("Hcomp" $! (generic_geometric_error r (S (S depth'))) with "Hcr").
       iIntros (sample) "(%HΨ&Hcr)".
       wp_pures.
-
-
       (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
       wp_bind (checker sample)%E.
       wp_apply "HcheckΘ"; first (iPureIntro; by assumption).
@@ -776,15 +779,9 @@ Section higherorder.
       destruct b.
       + wp_pures.
         iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
-      +
-
-        (* looks like we need to do the intro part again? better specialize IH beforehand. *)
-        iSpecialize ("IH" with "[Hcr]").
-        { iClear "#".
-            rewrite /scale_unless.
-            replace (Θ sample) with false.
-            rewrite simpl_generic_geometric_error.
-            iFrame. }
+      +  iSpecialize ("IH" with "[Hcr]").
+        { iClear "#". rewrite /scale_unless. replace (Θ sample) with false.
+          rewrite simpl_generic_geometric_error. iFrame. }
         iSpecialize ("IH" with "HΦ").
         iClear "#".
         wp_pure.
