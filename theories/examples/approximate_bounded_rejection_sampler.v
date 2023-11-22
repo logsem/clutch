@@ -262,8 +262,17 @@ Section basic.
       f_equal; lia.
   Qed.
 
+  Lemma encode_inv_nat_fin_undef (n N: nat) (H : not (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = None.
+  Proof.
+    apply encode_inv_decode_ge.
+    rewrite fin_card.
+    lia.
+  Qed.
 
-  Lemma reindex_fin_series M N K:
+  Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
+  Proof. Admitted.
+
+  Lemma reindex_fin_series M N K (Hnm : (N < M)%nat):
     SeriesC (fun x : fin M => nonneg (if bool_decide (x < N)%nat then nnreal_zero else K)) = SeriesC (fun x : fin (M-N) => nonneg K).
   Proof.
     (* try to do the same induction dance as the reindexing part of the above lemma *)
@@ -274,32 +283,85 @@ Section basic.
     apply Lim_seq.Lim_seq_ext; intros n.
 
     (* rewrite to a two-ended sum, and compute the first N terms to be zero like above *)
-    (* wait do I do this lol?
-    rewrite /Hierarchy.sum_n.
-    replace
-      (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M)) (λ x : fin M, if (@bool_decide (x < N)%nat (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat M x) N)) then nnreal_zero else K)) 0 (n + N)%nat)
-    with
-      (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M)) (λ x : fin M, if (@bool_decide (x < N)%nat (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat M x) N)) then nnreal_zero else K)) N (n + N)%nat);
-      last first.
-    { admit. }*)
 
     induction n as [| n' IH].
     - simpl.
       (* sum of zero equals sum of zero *)
+      rewrite Hierarchy.sum_O.
+      remember (fun x : fin M => nonneg $ if bool_decide (x < N)%nat then nnreal_zero else K) as body.
+      remember (fun _ : fin M => nnreal_zero) as body1.
+      replace
+        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body) N)
+      with
+        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body1) N);
+      last first.
+      { apply Hierarchy.sum_n_ext_loc.
+        intros n Hn.
+        rewrite /countable_sum.
+        (* the encode_inv_nat doesn't matter here, I don't need to prove that horrible lemma. *)
+        destruct (encode_inv_nat n) as [t|]; last by simpl.
+        rewrite /= Heqbody1 Heqbody.
+        (* provable *)
+        admit.
+      }
+
+      (* now we can replace the countable sum with a constant zero function (TODO: make me a lemma)*)
+      rewrite Heqbody1.
+      replace
+        (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M))
+          (fun _ : Fin.t M => nonneg nnreal_zero))
+      with (fun _ : nat => 0); last first.
+      { apply functional_extensionality.
+        intros x; rewrite /countable_sum.
+        destruct (encode_inv_nat x) as [t|]; by simpl. }
+
+      (* now the two series are both constant zero, we cam simplify *)
+      rewrite Hierarchy.sum_n_const Rmult_0_r.
+      rewrite /countable_sum.
+
+      (* here, it suffices to use the weaker encode_inv_decode lemma, since
+        if encode_inv_nat 0 is _any_ Some value then ... wait does this need to be None? *)
+
+
+      (* destruct (encode_inv_nat 0%nat) as [t|]; simpl. *)
       admit.
+
+
+
     - simpl.
       rewrite Hierarchy.sum_Sn.
       rewrite Hierarchy.sum_Sn.
       f_equal; first by apply IH.
       remember (bool_decide (S n' < (M - N))%nat) as HCond1.
       case_bool_decide.
+      + rewrite {2}/countable_sum.
+        assert (H' : (S n' < (card $ fin (M - N)%nat))%nat).
+        { by rewrite fin_card. }
+        destruct (encode_inv_decode (S n') H') as [x [-> _]]; simpl.
+
+
+        rewrite /countable_sum.
+        rewrite encode_inv_nat_fin_total; first by lia.
+        intros H''.
+
+        (* now we can show that (nat_to_fin H'') is >= N *)
+
+
+        (*
+        assert (H'' : (S (n' + N) < (card $ fin M%nat))%nat).
+        { rewrite fin_card. lia. }
+        destruct (encode_inv_decode (S (n' + N)) H'') as [y [Hy1 Hy2]]; simpl.
+        rewrite Hy1.
+        simpl.
+        *)
+
+        (* somehow we need to use the fact that the encoding of y is greater than N,
+           since it was encoded by something greater than N *)
+
+        admit.
       + rewrite /countable_sum.
-
-
-        admit.
-      + (* rewrite /countable_sum encode_inv_nat_fin_undef; last auto *)
-        admit.
-
+        rewrite encode_inv_nat_fin_undef; last lia.
+        rewrite encode_inv_nat_fin_undef; last auto.
   Admitted.
 
   (* mean of error distribution is preserved *)
