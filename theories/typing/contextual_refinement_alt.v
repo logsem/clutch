@@ -137,12 +137,22 @@ Proof.
   rewrite H.
 Admitted. 
 
+Lemma lim_exec_val_to_true e σ (b:bool) : lim_exec_val (e, σ) #b = lim_exec_val ((e = #b)%E, σ) #true.
+Proof.
+  replace ((e=#b)%E) with (fill_item (BinOpLCtx EqOp (#b)) e); last first.
+  { done. }
+  rewrite lim_exec_val_context_bind => /=.
+Admitted.
+
 Lemma lim_exec_val_mass_equal_true e σ: 
   SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) = lim_exec_val (e,σ) (#true).
 Proof.
+  replace (if: e then #() else loop)%E with (fill_item (IfCtx #() loop) e); last first.
+  { done. }
+  rewrite lim_exec_val_context_bind => /=.
 Admitted.
 
-Lemma alt_impl_ctx_refines_loop_lemma e b σ:
+Lemma alt_impl_ctx_refines_loop_lemma e (b:bool) σ:
   lim_exec_val (e, σ) #b = SeriesC (lim_exec_val ((if: e = #b then #() else loop)%E, σ)).
 Proof.
   rewrite lim_exec_val_mass_equal_true.

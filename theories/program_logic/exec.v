@@ -177,13 +177,9 @@ Section exec_val.
     rewrite dret_id_left -/exec_cfg.
     fold exec_cfg.
     epose proof (exec_cfg_is_val _ _ _ _ Hv) as Hv'. 
-    destruct Hv.
-    eapply exec_cfg_is_val in Hv as Hv'. erewrite Hv'.
+    erewrite Hv'.
     apply of_to_val in Hv. by subst.
-    Unshelve.
-    - done. 
-    - done.
-  Qed.     
+  Qed.      
   
   Lemma exec_cfg_mon ρ n ρ':
     exec_cfg n ρ ρ' <= exec_cfg (S n) ρ ρ'.
@@ -350,12 +346,17 @@ Section prim_exec_lim.
       intros ??. apply IHn.
   Qed.
 
-  Lemma lim_exec_val_context `{!LanguageCtx K} e σ:
-    lim_exec_cfg (K e, σ) =
-    lim_exec_cfg (e, σ) ≫= λ '(e', σ'), lim_exec_cfg (K e', σ').
+  Lemma lim_exec_val_context_bind `{!LanguageCtx K} e σ:
+    lim_exec_val (K e, σ) =
+    lim_exec_cfg (e, σ) ≫= λ '(e', σ'), lim_exec_val (K e', σ').
   Proof. 
   Admitted.
 
+  Lemma lim_exec_val_relate_cfg e σ v:
+    lim_exec_val (e, σ) v = SeriesC (λ σ', lim_exec_cfg (e,σ) (of_val v, σ')).
+  Proof.
+  Admitted.
+    
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →
     lim_exec_val ρ = dret v.
