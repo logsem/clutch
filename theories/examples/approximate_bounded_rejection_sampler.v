@@ -381,40 +381,19 @@ Section basic.
     { intros. by rewrite Rmult_assoc. }
     rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
-
-
-   (*
-    (* turn it into a sum over the naturals so we can use all the familiar SeriesC lemmas *)
-    rewrite SeriesC_fin_to_nat.
-
-    (* somehow we want to _reindex_ this series *)
-    rewrite (series_incr_N_zero _ (S n')); last first.
-    { intros.
-      rewrite f_lift_fin_nat_ltN; first lia.
-      intros Hyp.
-      rewrite bool_decide_eq_true_2; auto.
-      rewrite fin_to_nat_to_fin.
-      lia.
-    }*)
-
-
-
-    (* now the sum is constant, but we run into the same kind of reindexing nonsense as above.
-       prove that first. *)
-
-    (* or now that I think about it again, I think that since I want to eventually use SeriesC_finite_mass,
-       I might want to keep this as a sum over fin?
-
-        I'll eventually have to do the same series comparison dance as before... does that also work on fin?
-     *)
     rewrite reindex_fin_series SeriesC_finite_mass fin_card.
     rewrite /err_factor.
-    (* provable *)
-  Admitted.
-
-
-
-
+    remember (S m' - S n')%nat as D.
+    remember (S m') as M.
+    rewrite /= Rinv_mult Rinv_inv.
+    rewrite -Rmult_assoc -Rmult_assoc Rmult_comm.
+    apply Rmult_eq_compat_l.
+    rewrite Rmult_comm -Rmult_assoc Rinv_l.
+    - by rewrite Rmult_1_l.
+    - rewrite HeqD HeqM.
+      apply not_0_INR.
+      lia.
+  Qed.
 
 
 
