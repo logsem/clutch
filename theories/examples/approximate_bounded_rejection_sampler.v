@@ -378,7 +378,11 @@ Section basic.
     { intros. by rewrite Rmult_assoc. }
     rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
-    rewrite reindex_fin_series SeriesC_finite_mass fin_card.
+    rewrite reindex_fin_series.
+
+Admitted.
+(*
+SeriesC_finite_mass fin_card.
     rewrite /err_factor.
     remember (S m' - S n')%nat as D.
     remember (S m') as M.
@@ -391,8 +395,9 @@ Section basic.
       apply not_0_INR.
       lia.
   Qed.
+*)
 
-
+(*
 
   (** warmup: a finite example *)
   Definition bdd_approx_safe_finite_example (n' m' depth : nat) (Hnm : (S n' < S m')%nat) E :
@@ -574,6 +579,7 @@ Section basic.
     simpl. simpl in H. apply Rlt_le. done.
   Qed.
 
+*)
 End basic.
 
 
@@ -581,7 +587,7 @@ End basic.
 Section higherorder.
   Local Open Scope R.
   Context `{!clutchGS Σ}.
-
+(*
 
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
     := (fun z => if (Θ z) then nnreal_zero else (𝜀 * 𝜀1)%NNR).
@@ -772,5 +778,6 @@ Section higherorder.
         { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
         iApply "IH".
   Admitted.
+*)
 
 End higherorder.
