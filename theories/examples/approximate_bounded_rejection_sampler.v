@@ -328,6 +328,46 @@ Section basic.
   Qed.
 
 
+  Lemma reindex_fin_series M N K:
+    SeriesC (fun x : fin M => nonneg (if bool_decide (x < N)%nat then nnreal_zero else K)) = SeriesC (fun x : fin (M-N) => nonneg K).
+  Proof.
+    (* try to do the same induction dance as the reindexing part of the above lemma *)
+    rewrite /SeriesC /Series.
+    f_equal.
+    (* after we increment the top sum by N, they are pointwise equal *)
+    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
+    apply Lim_seq.Lim_seq_ext; intros n.
+
+    (* rewrite to a two-ended sum, and compute the first N terms to be zero like above *)
+    (* wait do I do this lol?
+    rewrite /Hierarchy.sum_n.
+    replace
+      (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M)) (λ x : fin M, if (@bool_decide (x < N)%nat (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat M x) N)) then nnreal_zero else K)) 0 (n + N)%nat)
+    with
+      (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M)) (λ x : fin M, if (@bool_decide (x < N)%nat (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat M x) N)) then nnreal_zero else K)) N (n + N)%nat);
+      last first.
+    { admit. }*)
+
+
+
+    induction n as [| n' IH].
+    - simpl.
+      (* sum of zero equals sum of zero *)
+      admit.
+    - simpl.
+      rewrite Hierarchy.sum_Sn.
+      rewrite Hierarchy.sum_Sn.
+      f_equal; first by apply IH.
+      remember (bool_decide (S n' < (M - N))%nat) as HCond1.
+      case_bool_decide.
+      + rewrite /countable_sum.
+
+
+        admit.
+      + (* rewrite /countable_sum encode_inv_nat_fin_undef; last auto *)
+        admit.
+
+  Admitted.
 
   (* mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
@@ -342,6 +382,8 @@ Section basic.
     rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
 
+
+   (*
     (* turn it into a sum over the naturals so we can use all the familiar SeriesC lemmas *)
     rewrite SeriesC_fin_to_nat.
 
@@ -353,33 +395,24 @@ Section basic.
       rewrite bool_decide_eq_true_2; auto.
       rewrite fin_to_nat_to_fin.
       lia.
-    }
+    }*)
 
 
 
     (* now the sum is constant, but we run into the same kind of reindexing nonsense as above.
        prove that first. *)
 
+    (* or now that I think about it again, I think that since I want to eventually use SeriesC_finite_mass,
+       I might want to keep this as a sum over fin?
+
+        I'll eventually have to do the same series comparison dance as before... does that also work on fin?
+     *)
+    rewrite reindex_fin_series SeriesC_finite_mass fin_card.
+    rewrite /err_factor.
+    (* provable *)
   Admitted.
 
 
-(*
-Lemma SeriesC_leq (N : nat) (v : R) :
-  Series (λ (n : nat), if bool_decide (n < N)%nat then v else 0) = INR N * v.
-Proof.
-  induction N as [|N IHN].
-  - rewrite Series_0 //=; lra.
-  - assert (INR (S N) = (INR N + 1)) as ->; [apply S_INR | ].
-    rewrite Rmult_plus_distr_r Rmult_1_l.
-    rewrite -IHN.
-    rewrite -(Series_singleton (N)%nat v).
-    erewrite <- Series_plus; [ | apply ex_series_leq | apply ex_series_singleton].
-    apply Series_ext; intro n.
-    repeat case_bool_decide; simplify_eq; try (lra || lia).
-    rewrite Rplus_0_l.
-    apply Series_singleton.
-Qed.
-*)
 
 
 
@@ -624,8 +657,10 @@ Section higherorder.
             (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀 𝜀1 Θ v) }}}) ∗
             (* Θ reflects checker whenever the value is one we could have sampled *)
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
-            (* 𝜀 credit suffices to force checker to pass, on all possible sampled values *)
-            (∀ v, {{{ €𝜀 ∗ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = true ⌝ }}}) ∗
+            (* 𝜀 credit suffices to force checker to pass, on any possible sampled values *)
+            (∀ v, {{{ €𝜀 }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
+            (* get weird typeclass errors when including this...
+                {{{ True }}} ((Val checker) v) @ E {{{ v', RET v'; ⌜v' = true ⌝ }}} *)
             (* we can always just get _some_ value out of the sampler if we want *)
             ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v = true ⌝ }}})
        }}}.
@@ -745,11 +780,11 @@ Section higherorder.
     wp_bind (_ make_sampler)%E.
     rewrite /sampling_scheme_spec in Hmake_sampler.
     wp_apply Hmake_sampler; try done.
-    iIntros (sampler _c) "(#Hcomp&_&_&#Hsampler)".
+    iIntros (sampler _c) "(#Hcomp&_&#HsampleErr&#Hsampler)".
     wp_pures.
     wp_bind (_ make_sampler)%E.
     wp_apply Hmake_sampler; try done.
-    iIntros (_s checker) "(_&#HcheckΘ&#HcheckErr&_)".
+    iIntros (_s checker) "(_&#Hcheck&_&_)".
     do 6 wp_pure.
     clear _s _c Hmake_sampler.
 
@@ -760,21 +795,21 @@ Section higherorder.
 
       (* step the sampler*)
       wp_bind (sampler #())%E.
-      wp_apply "Hsampler"; try done.
-      iIntros (next_sample) "%Hnext_sample"; wp_pures.
-
-      (* spend the credits in the checker*)
-      wp_bind (checker next_sample)%E.
-      wp_apply ("HcheckErr" with "[Hcr]").
-      { iSplit; last by iPureIntro.
-          (* proof irrelevance thing *)
+      wp_apply ("HsampleErr" with "[Hcr]"); try done.
+      { (* proof irrelevance thing *)
           iClear "#".
           iApply (ec_weaken with "Hcr").
           rewrite /generic_geometric_error /=.
           rewrite Rmult_1_r.
           (* this is true... but I want to double check that this generic_geometric_error spec is right first *)
           admit. }
+
+      iIntros (next_sample) "(%HsampleV & %HcheckV )"; wp_pures.
+      (* spend the credits in the checker*)
+      wp_bind (checker next_sample)%E.
+      wp_apply "Hcheck"; first by iPureIntro.
       iIntros (b) "->"; wp_pures.
+      rewrite HcheckV; wp_pures.
       iModIntro; iApply "HΦ".
       iExists next_sample; auto.
     - wp_pures.
@@ -788,7 +823,7 @@ Section higherorder.
       wp_pures.
       (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
       wp_bind (checker sample)%E.
-      wp_apply "HcheckΘ"; first (iPureIntro; by assumption).
+      wp_apply "Hcheck"; first (iPureIntro; by assumption).
       iIntros (b) "%Hb".
       destruct b.
       + wp_pures.
