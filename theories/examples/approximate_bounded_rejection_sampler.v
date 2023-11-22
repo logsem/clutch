@@ -270,11 +270,26 @@ Section basic.
   Qed.
 
   Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
-  Proof. Admitted.
-
-  Lemma reindex_fin_series M N K (Hnm : (N < M)%nat):
-    SeriesC (fun x : fin M => nonneg (if bool_decide (x < N)%nat then nnreal_zero else K)) = SeriesC (fun x : fin (M-N) => nonneg K).
   Proof.
+    assert (G : (n < card $ fin N)%nat).
+    { rewrite fin_card. lia. }
+    destruct (encode_inv_decode n G) as [y [Hy1 Hy2]]; simpl.
+
+    rewrite Hy1; f_equal.
+    symmetry.
+
+    Set Printing Coercions.
+
+    Check  (encode_inv_nat_some_inj _ y _ Hy1).
+    (* there has to be a better way to prove this than unfolding the definitions one by one,
+       unfortunately I think it is necessary.
+     *)
+  Admitted.
+
+  Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
+    SeriesC (fun x : fin M => nonneg (if bool_decide (x < (S z))%nat then nnreal_zero else K)) = SeriesC (fun x : fin (M-(S z)) => nonneg K).
+  Proof.
+    remember (S z) as N.
     (* try to do the same induction dance as the reindexing part of the above lemma *)
     rewrite /SeriesC /Series.
     f_equal.
@@ -285,25 +300,27 @@ Section basic.
     (* rewrite to a two-ended sum, and compute the first N terms to be zero like above *)
 
     induction n as [| n' IH].
-    - simpl.
-      (* sum of zero equals sum of zero *)
+    - (* split the sum into the zero part, and the singular term of value K *)
+      rewrite /= HeqN Hierarchy.sum_Sn -HeqN.
+
+      (* now we can evaluate the first handful of terms to be zero *)
+
       rewrite Hierarchy.sum_O.
       remember (fun x : fin M => nonneg $ if bool_decide (x < N)%nat then nnreal_zero else K) as body.
       remember (fun _ : fin M => nnreal_zero) as body1.
       replace
-        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body) N)
+        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body) z)
       with
-        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body1) N);
+        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body1) z);
       last first.
       { apply Hierarchy.sum_n_ext_loc.
         intros n Hn.
         rewrite /countable_sum.
-        (* the encode_inv_nat doesn't matter here, I don't need to prove that horrible lemma. *)
-        destruct (encode_inv_nat n) as [t|]; last by simpl.
-        rewrite /= Heqbody1 Heqbody.
-        (* provable *)
-        admit.
-      }
+        rewrite encode_inv_nat_fin_total; first lia.
+        intros Hn1.
+        rewrite /= Heqbody1 Heqbody HeqN fin_to_nat_to_fin /=.
+        rewrite bool_decide_true; first done.
+        lia. }
 
       (* now we can replace the countable sum with a constant zero function (TODO: make me a lemma)*)
       rewrite Heqbody1.
@@ -319,15 +336,12 @@ Section basic.
       rewrite Hierarchy.sum_n_const Rmult_0_r.
       rewrite /countable_sum.
 
-      (* here, it suffices to use the weaker encode_inv_decode lemma, since
-        if encode_inv_nat 0 is _any_ Some value then ... wait does this need to be None? *)
-
-
-      (* destruct (encode_inv_nat 0%nat) as [t|]; simpl. *)
-      admit.
-
-
-
+      do 2 (rewrite encode_inv_nat_fin_total; try lia).
+      intros H''.
+      rewrite /= Heqbody fin_to_nat_to_fin /=.
+      rewrite bool_decide_false; try lia.
+      rewrite Hierarchy.plus_zero_l.
+      done.
     - simpl.
       rewrite Hierarchy.sum_Sn.
       rewrite Hierarchy.sum_Sn.
@@ -335,34 +349,22 @@ Section basic.
       remember (bool_decide (S n' < (M - N))%nat) as HCond1.
       case_bool_decide.
       + rewrite {2}/countable_sum.
-        assert (H' : (S n' < (card $ fin (M - N)%nat))%nat).
-        { by rewrite fin_card. }
-        destruct (encode_inv_decode (S n') H') as [x [-> _]]; simpl.
-
-
-        rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_total; first by lia.
-        intros H''.
-
-        (* now we can show that (nat_to_fin H'') is >= N *)
-
-
-        (*
-        assert (H'' : (S (n' + N) < (card $ fin M%nat))%nat).
-        { rewrite fin_card. lia. }
-        destruct (encode_inv_decode (S (n' + N)) H'') as [y [Hy1 Hy2]]; simpl.
-        rewrite Hy1.
+        rewrite encode_inv_nat_fin_total.
         simpl.
-        *)
-
-        (* somehow we need to use the fact that the encoding of y is greater than N,
-           since it was encoded by something greater than N *)
-
-        admit.
+        rewrite /countable_sum.
+        rewrite encode_inv_nat_fin_total; try lia.
+        intros H''.
+        remember (nat_to_fin H'') as D.
+        simpl.
+        rewrite bool_decide_false; first done.
+        rewrite HeqD.
+        rewrite fin_to_nat_to_fin.
+        lia.
       + rewrite /countable_sum.
         rewrite encode_inv_nat_fin_undef; last lia.
         rewrite encode_inv_nat_fin_undef; last auto.
-  Admitted.
+        done.
+  Qed.
 
   (* mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
@@ -580,45 +582,6 @@ Section higherorder.
   Local Open Scope R.
   Context `{!clutchGS Σ}.
 
-  (* generic definition of eliminating some cases with credut
-     given some credit, we should be able to assume some expression evaluates to some
-     value which satisfies some proposition *)
-  (* Definition wp_generic_err `{ RepresentibleV A } (e : expr) (v : val) (𝜀 : nonnegreal) E Φ Ψ : iProp Σ
-    := (€ 𝜀 ∗ (∀ a : A, ⌜toV a = v ⌝ ∗ Ψ a -∗ Φ v) -∗ WP e @ E {{ Φ }})%I. *)
-
-
-  (* is this defined anywhere else? *)
-  Program Definition expectation `{ Countable A } (𝜇 : distr A) (f : A -> nonnegreal) (_ : ex_seriesC (λ a : A, 𝜇 a * f a)) : nonnegreal
-    := mknonnegreal (SeriesC (λ a, 𝜇 a * f a)) _.
-  Next Obligation.
-    intros. apply SeriesC_ge_0.
-    - intros. apply Rmult_le_pos; [apply pmf_pos | apply cond_nonneg].
-    - done.
-  Qed.
-
-  Definition ex_expectation  `{ Countable A } (𝜇 : distr A) (f : A -> nonnegreal) : Prop := ex_seriesC (λ a : A, 𝜇 a * f a).
-
-  (* generic (nonuniform) version of the adv_comp rule *)
-  Definition wp_couple_generic_adv_comp (Ψ : val -> bool) (e : expr) (𝜀1 : nonnegreal) (𝜀2 : val -> nonnegreal) E : iProp Σ
-      := (* there exists a distribution 𝜇 over values with all mass contained in Ψ *)
-         ∃ (𝜇 : distr val) (Hsupp : forall v : val, (Ψ v = false) -> 𝜇 v = 0)
-            (* and and the expectation exists *)
-            (Hs : ex_expectation 𝜇 𝜀2),
-              (* so the expectation matches 𝜀1*)
-              ⌜ expectation 𝜇 𝜀2 Hs = 𝜀1 ⌝ ∗
-              (* and the amplified mass is bounded *)
-              ⌜(exists r, forall v : val, (Ψ v = true) -> (𝜀2 v <= r)) ⌝ ∗
-              (* and we can step the expression while amplifying it's error  *)
-              {{{ € 𝜀1 }}} e @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (𝜀2 v) }}}.
-
-  (* this should suffice to prove part of the sampling scheme spec for other examples
-     (IE we'd admit this for a sampler, or prove it some other way, and we can use the
-      higher order spec)
-
-     could we prove this? what might go wrong? Do we need any other hypotheses?
-   *)
-
-
 
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
     := (fun z => if (Θ z) then nnreal_zero else (𝜀 * 𝜀1)%NNR).
@@ -666,11 +629,6 @@ Section higherorder.
     end.
 
   (* TODO lift logical types into unofrm distributions? *)
-
-  (* should be uniform when lrel_fin (is that a thing?) val and 0 elsewhere *)
-  Definition rand_unif_distr : distr val.
-  Proof. Admitted.
-
 
   Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
     sampling_scheme_spec
