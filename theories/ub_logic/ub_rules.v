@@ -233,7 +233,7 @@ Qed.
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
-  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z from #() @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
@@ -295,7 +295,7 @@ Qed.
 Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
-  (∀ x, ⌜Forall (λ m, x ≠ m) ns⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
   ⊢ WP rand #z from #() @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
@@ -357,7 +357,7 @@ Qed.
 Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
-  (∀ x : Z , ⌜Forall (λ m, x ≠ m) zs⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
   ⊢ WP rand #z from #() @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
