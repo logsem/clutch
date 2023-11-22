@@ -220,71 +220,6 @@ Section basic.
     symmetry; apply SuccNat2Pos.pred_id.
   Qed.
 
-  Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
-  Proof.
-    (* assert (H' : (n < card (fin N))%nat) by (rewrite fin_card; lia).
-    destruct (encode_inv_decode n H') as [x [-> Hx]]; f_equal.
-    rewrite /encode_nat in Hx.   *)
-
-    rewrite -encode_inv_encode_nat.
-    f_equal.
-    rewrite /encode_nat.
-    rewrite /encode /nat_countable /finite_countable.
-    rewrite -Pos.of_nat_succ SuccNat2Pos.pred_id.
-    replace (list_find (eq (nat_to_fin H)) (enum (fin N))) with (Some (n, nat_to_fin H)); first by simpl.
-
-
-    (* the fact that I'm using nat_to_fin H has being... extremely annoying. But I'm not sure
-        if there's a better option.
-
-
-
-     *)
-    (* Check fin_to_nat_to_fin.
-    Check nat_to_fin_to_nat. *)
-
-    rewrite /enum; simpl.
-    symmetry; apply list_find_Some; split; last split.
-    - induction n as [|n' IH].
-      + intros. simpl. destruct N; [lia | done].
-      + (* lost, is this the right induction? *)
-
-        (* can use to turn (nat_to_fin (_ < (S N'))) into (nat_to_fin (_ < N'))
-           Check Fin.of_nat_ext.
-        *)
-        admit.
-    - done.
-    - admit.
-  Admitted.
-
-
-  Lemma encode_inv_nat_fin_undef (n N: nat) (H : not (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = None.
-  Proof.
-    apply encode_inv_decode_ge.
-    rewrite fin_card.
-    lia.
-  Qed.
-
-  Lemma SeriesC_fin_to_nat (N : nat) (f : fin N -> R) :
-    SeriesC (fun s : fin N => f s) = SeriesC (fun n : nat => (f_lift_fin_nat N 0 f) n).
-  Proof.
-    (* can't use SeriesC_ext since the two series have different types
-       can we use series_ext on the underlying countable sum? *)
-    rewrite /SeriesC.
-    apply Series_ext; intros n.
-    rewrite /countable_sum.
-    rewrite encode_inv_nat_nat_total.
-    remember (n <? N)%nat as K; destruct K.
-    - symmetry in HeqK; apply Nat.ltb_lt in HeqK.
-      rewrite encode_inv_nat_fin_total.
-      simpl. by rewrite f_lift_fin_nat_ltN.
-    - rewrite encode_inv_nat_fin_undef; last (apply Nat.ltb_nlt; by symmetry).
-      simpl.
-      rewrite f_lift_fin_nat_geN; last (apply Nat.ltb_nlt; by symmetry).
-      done.
-  Qed.
-
-
 
   Lemma series_incr_N_zero f N :
     (forall m : nat, (m < N)%nat -> f m = 0) -> SeriesC (fun n : nat => f n) = SeriesC (fun n : nat => f (N + n)%nat).
@@ -347,8 +282,6 @@ Section basic.
       (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M)) (λ x : fin M, if (@bool_decide (x < N)%nat (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat M x) N)) then nnreal_zero else K)) N (n + N)%nat);
       last first.
     { admit. }*)
-
-
 
     induction n as [| n' IH].
     - simpl.
