@@ -1,6 +1,7 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import relations.
+From clutch.prob_lang Require Import lang.
 From clutch.program_logic Require Import language.
 From clutch.prob Require Import distribution couplings.
 
@@ -52,7 +53,7 @@ Section exec.
     assert (S n = n + 1)%nat as -> by lia.
     rewrite exec_plus exec_1 //.
   Qed.
-
+    
   Lemma exec_det_step n ρ e1 e2 σ1 σ2 :
     prim_step e1 σ1 (e2, σ2) = 1 →
     exec n ρ (e1, σ1) = 1 →
@@ -113,6 +114,13 @@ Section exec_val.
       | None, S n => prim_step ρ.1 ρ.2 ≫= exec_val n
     end.
 
+  Fixpoint exec_cfg (n : nat) (ρ : cfg Λ) {struct n} : distr (cfg Λ) :=
+    match to_val ρ.1, n with
+      | Some _, _ => dret ρ
+      | None, 0 => dzero
+      | None, S n => prim_step ρ.1 ρ.2 ≫= exec_cfg n
+    end.
+
   Lemma exec_val_unfold (n : nat) :
     exec_val n = λ ρ,
       match to_val ρ.1, n with
@@ -148,6 +156,46 @@ Section exec_val.
       intros w. rewrite /distr_le /=.
       by case_match.
     - intros; do 2 rewrite exec_val_Sn.
+      eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
+      by intros ? ? ->.
+  Qed.
+
+  Lemma exec_cfg_is_val v e σ n :
+    to_val e = Some v →  exec_cfg n (e, σ) = dret (of_val v, σ).
+  Proof.
+    intros. 
+    apply of_to_val in H; subst.
+    destruct n; simpl; intros; by rewrite to_of_val.
+  Qed.      
+  
+  Lemma exec_cfg_Sn (ρ : cfg Λ) (n: nat) :
+    exec_cfg (S n) ρ = prim_step_or_val ρ ≫= exec_cfg n.
+  Proof.
+    destruct ρ as [e σ].
+    rewrite /prim_step_or_val /=.
+    destruct (to_val e) eqn:Hv=>/=; [|done].
+    rewrite dret_id_left -/exec_cfg.
+    fold exec_cfg.
+    epose proof (exec_cfg_is_val _ _ _ _ Hv) as Hv'. 
+    destruct Hv.
+    eapply exec_cfg_is_val in Hv as Hv'. erewrite Hv'.
+    apply of_to_val in Hv. by subst.
+    Unshelve.
+    - done. 
+    - done.
+  Qed.     
+  
+  Lemma exec_cfg_mon ρ n ρ':
+    exec_cfg n ρ ρ' <= exec_cfg (S n) ρ ρ'.
+  Proof.
+    apply refRcoupl_eq_elim.
+    move : ρ.
+    induction n.
+    - intros.
+      apply refRcoupl_from_leq.
+      intros w. rewrite /distr_le /=.
+      by case_match.
+    - intros; do 2 rewrite exec_cfg_Sn.
       eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
       by intros ? ? ->.
   Qed.
@@ -234,6 +282,9 @@ Section prim_exec_lim.
   Definition lim_exec_val (ρ : cfg Λ) : distr (val Λ):=
     lim_distr (λ n, exec_val n ρ) (exec_val_mon ρ).
 
+  Definition lim_exec_cfg (ρ : cfg Λ) : distr (cfg Λ) :=
+    lim_distr (λ n, exec_cfg n ρ) (exec_cfg_mon ρ).
+  
   Lemma lim_exec_val_rw (ρ : cfg Λ) v :
     lim_exec_val ρ v = Sup_seq (λ n, (exec_val n ρ) v).
   Proof.
@@ -298,6 +349,12 @@ Section prim_exec_lim.
       apply dbind_eq; [|done].
       intros ??. apply IHn.
   Qed.
+
+  Lemma lim_exec_val_context `{!LanguageCtx K} e σ:
+    lim_exec_cfg (K e, σ) =
+    lim_exec_cfg (e, σ) ≫= λ '(e', σ'), lim_exec_cfg (K e', σ').
+  Proof. 
+  Admitted.
 
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →

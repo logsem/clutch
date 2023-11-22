@@ -121,3 +121,47 @@ Proof.
   - intros e.
     rewrite lim_exec_val_SeriesC_SeqV_true //.
 Qed.
+
+(*Other direction*)
+
+Definition loop := App (Rec "f" "x" (App (Var "f") (Var "x"))) (#()).
+
+Lemma loop_zero_mass σ: SeriesC (lim_exec_val (loop, σ)) = 0.
+Proof.
+  apply SeriesC_0.
+  intros x.
+  rewrite /lim_exec_val.
+  rewrite lim_distr_pmf.
+  assert (H: (λ n, Rbar.Finite (exec_val n (loop, σ) x)) = λ n, 0).
+  { admit. }
+  rewrite H.
+Admitted. 
+
+Lemma lim_exec_val_mass_equal_true e σ: 
+  SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) = lim_exec_val (e,σ) (#true).
+Proof.
+Admitted.
+
+Lemma alt_impl_ctx_refines_loop_lemma e b σ:
+  lim_exec_val (e, σ) #b = SeriesC (lim_exec_val ((if: e = #b then #() else loop)%E, σ)).
+Proof.
+  rewrite lim_exec_val_mass_equal_true.
+Admitted.
+
+Lemma alt_impl_ctx_refines Γ e1 e2 τ :
+  ctx_refines_alt Γ e1 e2 τ -> (Γ ⊨ e1 ≤ctx≤ e2 : τ).
+Proof.
+  intros H K σ0 b Hty.
+  destruct (bool_decide_reflect (lim_exec_val (fill_ctx K e1, σ0) #b <= lim_exec_val (fill_ctx K e2, σ0) #b)) as [|HC]; first done.
+  apply Rnot_le_gt in HC. 
+  pose (K' := CTX_IfL (#()) loop :: CTX_BinOpL EqOp #b :: K).
+  assert (¬ SeriesC (lim_exec_val (fill_ctx K' e1, σ0)) <= SeriesC (lim_exec_val (fill_ctx K' e2, σ0))); last first.
+  - exfalso. eapply H0, H.
+    rewrite /K'.
+    econstructor.
+    2:{ econstructor; eauto. econstructor; eauto. econstructor. econstructor. }
+    rewrite /loop. econstructor; tychk.
+  - apply Rlt_not_le, Rgt_lt.
+    rewrite /K' /=. 
+    by do 2 rewrite -alt_impl_ctx_refines_loop_lemma.
+Qed. 
