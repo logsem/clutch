@@ -122,7 +122,30 @@ Proof.
     rewrite lim_exec_val_SeriesC_SeqV_true //.
 Qed.
 
+
+
 (*Other direction*)
+
+(* first part *)
+Lemma lim_exec_val_of_val_b_one e b σ: e = of_val #b -> lim_exec_val ((e = #b)%E, σ) #true = 1.
+Proof.
+  intros ->.
+  rewrite lim_exec_val_rw.
+Admitted.
+
+Lemma lim_exec_val_of_val_not_b_zero e b σ: e ≠ of_val #b -> lim_exec_val ((e = #b)%E, σ) #true = 0.
+Proof.
+  intros H.
+Admitted.
+
+Lemma lim_exec_val_is_b_test e σ (b:bool) : lim_exec_val (e, σ) #b = lim_exec_val ((e = #b)%E, σ) #true.
+Proof.
+  replace ((e=#b)%E) with (fill_item (BinOpLCtx EqOp (#b)) e); last first.
+  { done. }
+  rewrite lim_exec_val_context_bind => /=.
+Admitted.
+
+(* second part *)
 
 Definition loop := App (Rec "f" "x" (App (Var "f") (Var "x"))) (#()).
 
@@ -135,16 +158,17 @@ Proof.
   assert (H: (λ n, Rbar.Finite (exec_val n (loop, σ) x)) = λ n, 0).
   { admit. }
   rewrite H.
-Admitted. 
-
-Lemma lim_exec_val_to_true e σ (b:bool) : lim_exec_val (e, σ) #b = lim_exec_val ((e = #b)%E, σ) #true.
-Proof.
-  replace ((e=#b)%E) with (fill_item (BinOpLCtx EqOp (#b)) e); last first.
-  { done. }
-  rewrite lim_exec_val_context_bind => /=.
 Admitted.
 
-Lemma lim_exec_val_mass_equal_true e σ: 
+Lemma lim_exec_val_of_val_true_one e σ: e = #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 1.
+Proof.
+Admitted.
+
+Lemma lim_exec_val_of_val_not_true_zero e σ: e ≠ #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 0.
+Proof.
+  Admitted.
+
+Lemma lim_exec_val_is_true_test e σ: 
   SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) = lim_exec_val (e,σ) (#true).
 Proof.
   replace (if: e then #() else loop)%E with (fill_item (IfCtx #() loop) e); last first.
@@ -152,11 +176,13 @@ Proof.
   rewrite lim_exec_val_context_bind => /=.
 Admitted.
 
+(*Combining both *)
 Lemma alt_impl_ctx_refines_loop_lemma e (b:bool) σ:
   lim_exec_val (e, σ) #b = SeriesC (lim_exec_val ((if: e = #b then #() else loop)%E, σ)).
 Proof.
-  rewrite lim_exec_val_mass_equal_true.
-Admitted.
+  rewrite lim_exec_val_is_true_test.
+  apply lim_exec_val_is_b_test.
+Qed. 
 
 Lemma alt_impl_ctx_refines Γ e1 e2 τ :
   ctx_refines_alt Γ e1 e2 τ -> (Γ ⊨ e1 ≤ctx≤ e2 : τ).

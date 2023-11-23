@@ -351,11 +351,6 @@ Section prim_exec_lim.
     lim_exec_cfg (e, σ) ≫= λ '(e', σ'), lim_exec_val (K e', σ').
   Proof. 
   Admitted.
-
-  Lemma lim_exec_val_relate_cfg e σ v:
-    lim_exec_val (e, σ) v = SeriesC (λ σ', lim_exec_cfg (e,σ) (of_val v, σ')).
-  Proof.
-  Admitted.
     
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →
