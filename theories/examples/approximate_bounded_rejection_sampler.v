@@ -274,7 +274,6 @@ Section basic.
     assert (G : (n < card $ fin N)%nat).
     { rewrite fin_card. lia. }
     destruct (encode_inv_decode n G) as [y [Hy1 Hy2]]; simpl.
-
     rewrite Hy1; f_equal.
     symmetry.
 
@@ -282,7 +281,7 @@ Section basic.
 
     Check  (encode_inv_nat_some_inj _ y _ Hy1).
     (* there has to be a better way to prove this than unfolding the definitions one by one,
-       unfortunately I think it is necessary.
+       unfortunately I think it is necessary....
      *)
   Admitted.
 
@@ -584,7 +583,7 @@ Section higherorder.
 
 
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
-    := (fun z => if (Θ z) then nnreal_zero else (𝜀 * 𝜀1)%NNR).
+    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
 
   Definition sampling_scheme_spec (e : expr) 𝜀 E (Ψ : val -> bool) (Θ : val -> bool) : Prop
     := {{{ True }}}
@@ -595,7 +594,7 @@ Section higherorder.
             (* Θ reflects checker whenever the value is one we could have sampled *)
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
             (* 𝜀 credit suffices to force checker to pass, on any possible sampled values *)
-            (∀ v, {{{ €𝜀 }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
+            (∀ v : val, {{{ €𝜀 }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
             (* get weird typeclass errors when including this...
                 {{{ True }}} ((Val checker) v) @ E {{{ v', RET v'; ⌜v' = true ⌝ }}} *)
             (* we can always just get _some_ value out of the sampler if we want *)
@@ -630,10 +629,70 @@ Section higherorder.
 
   (* TODO lift logical types into unofrm distributions? *)
 
+  Definition rand_𝜀2 (n' m' : nat) (𝜀1 : nonnegreal) : (fin (S m')) -> nonnegreal
+    := fun z =>
+         (scale_unless (err_factor (S n') (S m')) 𝜀1 (rand_check_accepts n')) #z.
+
+
+  (* mean of error distribution is preserved *)
+  Lemma sample_err_mean_higherorder n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
+    SeriesC (λ n : fin (S m'), (1 / S m') * rand_𝜀2 n' m' 𝜀₁ n) = 𝜀₁.
+  Proof.
+    (* annoying: pull out the constant factor to leave a bare SeriesC on the left. I guess it's not necessary. *)
+    rewrite /bdd_cf_sampling_error SeriesC_scal_l.
+    apply (Rmult_eq_reg_l (S m')); last (apply not_0_INR; lia).
+    rewrite Rmult_assoc -Rmult_assoc Rmult_1_r.
+    assert (X : forall A B C, (Rmult A (Rmult B C)) = (Rmult (Rmult A B) C)).
+    { intros. by rewrite Rmult_assoc. }
+    rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
+    rewrite Rmult_1_l.
+
+    rewrite /rand_𝜀2 /scale_unless.
+    rewrite /rand_check_accepts.
+    replace
+      (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
+       (fun x : Fin.t (S m') =>
+        nonneg
+          match Z.leb (Z.of_nat (@fin_to_nat (S m') x)) (Z.of_nat n') return nonnegreal with
+          | true => nnreal_zero
+          | false => nnreal_div 𝜀₁ (err_factor (S n') (S m') )%NNR
+          end))
+      with
+      (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
+       (fun x : Fin.t (S m') =>
+        nonneg
+          match (bool_decide (x < S n')%nat) return nonnegreal with
+          | true => nnreal_zero
+          | false => nnreal_div 𝜀₁ (err_factor (S n') (S m'))%NNR
+          end));
+    last first.
+    { apply SeriesC_ext; intros z.
+      replace
+        (@bool_decide (lt (@fin_to_nat (S m') z) (S n'))
+           (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat (S m') z) (S n')))
+        with (z <=? n')%Z; first done.
+      case_bool_decide; [ apply Z.leb_le | apply Z.leb_nle]; lia. }
+    rewrite reindex_fin_series; try lia.
+    rewrite SeriesC_finite_mass fin_card.
+    rewrite /err_factor.
+    remember (S m' - S n')%nat as D.
+    remember (S m') as M.
+    rewrite /= -Rmult_assoc Rmult_comm -Rmult_assoc.
+    apply Rmult_eq_compat_r.
+    rewrite Rmult_comm Rinv_mult -Rmult_assoc Rinv_r.
+    - by rewrite Rinv_inv Rmult_1_l.
+    - rewrite HeqD HeqM.
+      apply not_0_INR.
+      lia.
+  Qed.
+
+
+
   Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
     sampling_scheme_spec
       (rand_sampling_scheme n' m' Hnm #())
-      (nnreal_div (nnreal_nat (S m' - S n')%nat) (nnreal_nat (S m')%nat))
+      (err_factor (S n') (S m'))
+      (* (nnreal_div (nnreal_nat (S m')%nat) (nnreal_nat (S m' - S n')%nat)) *)
       E
       (rand_support m')
       (rand_check_accepts n').
@@ -641,15 +700,23 @@ Section higherorder.
     rewrite /sampling_scheme_spec. iIntros (Φ) "_ HΦ".
     rewrite /rand_sampling_scheme. wp_pures.
     iModIntro; iApply "HΦ".
+
     iSplit.
     { (* the generic composition rule *)
       iIntros (𝜀1 Post) "!> Hcr HPost".
       wp_pures.
-      pose 𝜀2 := (fun (z : fin (S m')) =>
-          (scale_unless (nnreal_div (nnreal_nat (S m' - S n')) (nnreal_nat (S m'))) 𝜀1 (rand_check_accepts n')) #z).
-      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀1 𝜀2 _ with "Hcr") .
-      - (* uniform bound on 𝜀2*) admit.
-      - (* series converges to expectation *) admit.
+
+      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀1 (rand_𝜀2 n' m' 𝜀1) _ with "Hcr").
+      - (* 𝜀2 has a uniform upper bound *)
+        exists (nnreal_div 𝜀1 (err_factor (S n') (S m')))%NNR.
+        intros v.
+        rewrite /rand_𝜀2 /scale_unless.
+        destruct (rand_check_accepts n' #v).
+        + destruct (nnreal_div 𝜀1 (err_factor (S n') (S m')))%NNR.
+          auto.
+        + apply Rle_refl.
+      - (* series converges to expectation *)
+        by apply sample_err_mean_higherorder.
       - iNext; iIntros (n) "Hcr".
         iApply "HPost".
         iSplitR.
@@ -659,13 +726,63 @@ Section higherorder.
         + rewrite /𝜀2.
           iApply "Hcr".}
     iSplit.
-    { iIntros (v).
-      (* in the support, sample ... *)
-      admit. }
+    { iIntros (v Post) "!> %Hsupp HPost".
+      wp_pures.
+      remember v as v'.
+      destruct v; try (rewrite /rand_support Heqv' in Hsupp; discriminate).
+      destruct l; try (rewrite /rand_support Heqv' in Hsupp; discriminate).
+      rewrite /rand_check_accepts Heqv'. wp_pures. iApply "HPost".
+      iModIntro. iPureIntro. case_bool_decide.
+        - symmetry; by apply Z.leb_le.
+        - symmetry; by apply Z.leb_nle. }
     iSplit.
-    { admit. }
-    { admit. }
-  Admitted.
+    { iIntros (v Post) "!> Hcr HPost".
+      wp_pures.
+      remember (S n') as n.
+      remember (S m') as m.
+      wp_apply (wp_rand_err_list_nat _ m' (seq n (m - n))).
+      iSplitL "Hcr".
+      - iApply (ec_weaken with "Hcr").
+        rewrite /err_factor seq_length /=.
+        apply Rmult_le_compat_l.
+        { rewrite Heqn Heqm; apply pos_INR. }
+        apply Rle_Rinv; try lia.
+        + apply lt_0_INR. lia.
+        + apply lt_0_INR. lia.
+        + apply le_INR. lia.
+      - iIntros (sample'') "%Hsample''".
+        iApply "HPost"; iSplit; iPureIntro.
+        + rewrite /rand_support.
+          apply andb_true_intro; split; apply Z.leb_le; try lia.
+          pose P := (fin_to_nat_lt sample'').
+          lia.
+        + rewrite /rand_check_accepts.
+          apply Z.leb_le.
+          rewrite List.Forall_forall in Hsample''.
+          specialize Hsample'' with sample''.
+          apply Znot_gt_le.
+          intros H.
+          apply Hsample''; last reflexivity.
+          rewrite in_seq.
+          split; first lia.
+          replace (n + (m-n))%nat with m by lia.
+          specialize (fin_to_nat_lt sample''); by lia. }
+    { iIntros (v) "!> _ HPost".
+      wp_pures.
+      iApply wp_rand; auto.
+      iNext; iIntros (n) "_".
+      iApply "HPost"; iPureIntro.
+      rewrite /rand_support.
+      apply andb_true_intro; split; apply Z.leb_le; try lia.
+      pose P := (fin_to_nat_lt n).
+      lia.
+    }
+  Qed.
+
+
+
+
+
 
 
   (* higher order rejection sampler *)
@@ -685,15 +802,17 @@ Section higherorder.
         in "do_sample" "depth")%E.
 
 
-  Program Definition generic_geometric_error (r : nonnegreal) (depth : nat) : nonnegreal := nnreal_inv (mknonnegreal (r ^ depth) _).
+  Program Definition generic_geometric_error (r : nonnegreal) (depth : nat) : nonnegreal := (mknonnegreal (r ^ depth) _).
   Next Obligation. intros. apply pow_le. by destruct r. Qed.
 
-  Lemma simpl_generic_geometric_error (r : nonnegreal) (depth : nat) : (r * generic_geometric_error r (S depth))%NNR = (generic_geometric_error r depth).
+  Lemma simpl_generic_geometric_error (r : nonnegreal) (depth : nat) (Hr : not (eq (nonneg r) 0)) :
+    (nnreal_div (generic_geometric_error r (S depth)) r)%NNR = (generic_geometric_error r depth).
   Proof.
-    rewrite /generic_geometric_error.
-    simpl.
-    (* easy proof, come back to this. *)
-  Admitted.
+    rewrite /generic_geometric_error /nnreal_div /nnreal_mult.
+    apply  nnreal_ext; simpl.
+    rewrite -Rmult_comm -Rmult_assoc Rinv_l; try auto.
+    by apply Rmult_1_l.
+  Qed.
 
 
 
@@ -733,9 +852,7 @@ Section higherorder.
           iApply (ec_weaken with "Hcr").
           rewrite /generic_geometric_error /=.
           rewrite Rmult_1_r.
-          (* this is true... but I want to double check that this generic_geometric_error spec is right first *)
-          admit. }
-
+          apply Rle_refl. }
       iIntros (next_sample) "(%HsampleV & %HcheckV )"; wp_pures.
       (* spend the credits in the checker*)
       wp_bind (checker next_sample)%E.
@@ -771,6 +888,6 @@ Section higherorder.
         replace #((S (S depth')) - 1) with #(S depth'); last first.
         { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
         iApply "IH".
-  Admitted.
+  Qed.
 
 End higherorder.
