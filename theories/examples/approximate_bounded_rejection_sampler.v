@@ -585,21 +585,141 @@ Section higherorder.
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
     := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
 
-  Definition sampling_scheme_spec (e : expr) 𝜀 E (Ψ : val -> bool) (Θ : val -> bool) : Prop
+  Definition sampling_scheme_spec (e : expr) 𝜀factor 𝜀final E (Ψ : val -> bool) (Θ : val -> bool) : Prop
     := {{{ True }}}
          e @ E
        {{{sampler checker, RET (PairV sampler checker);
             (* sampler needs to be able to amplify the mass during sampling *)
-            (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀 𝜀1 Θ v) }}}) ∗
+            (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀factor 𝜀1 Θ v) }}}) ∗
             (* Θ reflects checker whenever the value is one we could have sampled *)
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
             (* 𝜀 credit suffices to force checker to pass, on any possible sampled values *)
-            (∀ v : val, {{{ €𝜀 }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
+            (∀ v : val, {{{ €𝜀final }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
             (* get weird typeclass errors when including this...
                 {{{ True }}} ((Val checker) v) @ E {{{ v', RET v'; ⌜v' = true ⌝ }}} *)
             (* we can always just get _some_ value out of the sampler if we want *)
             ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v = true ⌝ }}})
        }}}.
+
+  (* higher order rejection sampler *)
+  Definition ho_bdd_rejection_sampler :=
+    (λ: "depth",
+      λ: "ho_sampler",
+        let: "sampler" := (Fst "ho_sampler") in
+        let: "checker" := (Snd "ho_sampler") in
+        let: "do_sample" :=
+          (rec: "f" "tries_left" :=
+              if: ("tries_left" - #1) < #0
+                then NONE
+                else let: "next_sample" := ("sampler" #()) in
+                     if: ("checker" "next_sample")
+                        then SOME "next_sample"
+                        else "f" ("tries_left" - #1))
+        in "do_sample" "depth")%E.
+
+
+  Program Definition generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) : nonnegreal
+    := (𝜀final * (mknonnegreal (r ^ depth) _))%NNR.
+  Next Obligation. intros. apply pow_le. by destruct r. Qed.
+
+
+  Lemma final_generic_geometric_error (r 𝜀final : nonnegreal) : (generic_geometric_error r 𝜀final 0%nat) = 𝜀final.
+  Proof. apply nnreal_ext; by rewrite /generic_geometric_error /= Rmult_1_r. Qed.
+
+  Lemma simpl_generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) (Hr : not (eq (nonneg r) 0)) :
+    (nnreal_div (generic_geometric_error r 𝜀final (S depth)) r)%NNR = (generic_geometric_error r 𝜀final  depth).
+  Proof.
+    rewrite /generic_geometric_error /nnreal_div /nnreal_mult.
+    apply  nnreal_ext; simpl.
+    rewrite Rmult_assoc;  apply Rmult_eq_compat_l.
+    rewrite -Rmult_comm -Rmult_assoc Rinv_l; try auto.
+    by apply Rmult_1_l.
+  Qed.
+
+  (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
+  Definition ho_bdd_approx_safe (make_sampler : val) (r 𝜀final : nonnegreal) (depth : nat) Ψ Θ E :
+    (not (eq (nonneg r) 0)) ->
+    (not (eq (nonneg 𝜀final) 0)) ->
+    r < 1 ->
+    𝜀final < 1 ->
+    sampling_scheme_spec make_sampler r 𝜀final E Ψ Θ ->
+    {{{ € (generic_geometric_error r 𝜀final depth) }}}
+      ho_bdd_rejection_sampler #(S depth) make_sampler  @ E
+    {{{ v, RET v; ∃ v', ⌜ v = SOMEV v' ⌝}}}.
+  Proof.
+    (* initial setup *)
+    iIntros (Hr0 H𝜀final0 Hr H𝜀final Hmake_sampler Φ) "Hcr HΦ".
+    rewrite /ho_bdd_rejection_sampler.
+    wp_pures.
+    wp_bind (_ make_sampler)%E.
+    rewrite /sampling_scheme_spec in Hmake_sampler.
+    wp_apply Hmake_sampler; try done.
+    iIntros (sampler _c) "(#Hcomp&_&#HsampleErr&#Hsampler)".
+    wp_pures.
+    wp_bind (_ make_sampler)%E.
+    wp_apply Hmake_sampler; try done.
+    iIntros (_s checker) "(_&#Hcheck&_&_)".
+    do 6 wp_pure.
+    clear _s _c Hmake_sampler.
+
+    iInduction depth as [|depth' Hdepth'] "IH".
+    - (* base case: we should be able to spend the geometric error to eliminate the bad sample
+         and end up in the right branch *)
+      wp_pures.
+
+      (* step the sampler*)
+      wp_bind (sampler #())%E.
+      wp_apply ("HsampleErr" with "[Hcr]"); try done.
+      { (* proof irrelevance thing *)
+          iClear "#".
+          iApply (ec_weaken with "Hcr").
+          rewrite /generic_geometric_error /= Rmult_1_r.
+          apply Rle_refl. }
+      iIntros (next_sample) "(%HsampleV & %HcheckV )"; wp_pures.
+      (* spend the credits in the checker*)
+      wp_bind (checker next_sample)%E.
+      wp_apply "Hcheck"; first by iPureIntro.
+      iIntros (b) "->"; wp_pures.
+      rewrite HcheckV; wp_pures.
+      iModIntro; iApply "HΦ".
+      iExists next_sample; auto.
+    - wp_pures.
+      replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
+      (* apply the amplification lemma step the sampler *)
+      wp_pures.
+      wp_bind (sampler #())%E.
+      (* why did this stop working? *)
+      wp_apply ("Hcomp" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
+      iIntros (sample) "(%HΨ&Hcr)".
+      wp_pures.
+      (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
+      wp_bind (checker sample)%E.
+      wp_apply "Hcheck"; first (iPureIntro; by assumption).
+      iIntros (b) "%Hb".
+      destruct b.
+      + wp_pures.
+        iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
+      +  iSpecialize ("IH" with "[Hcr]").
+        { iClear "#". rewrite /scale_unless. replace (Θ sample) with false.
+          rewrite simpl_generic_geometric_error; [iFrame | done].}
+        iSpecialize ("IH" with "HΦ").
+        iClear "#".
+        wp_pure.
+        wp_bind (#(S (S depth'))- #1%nat)%E; wp_pure.
+
+        replace #((S (S depth')) - 1) with #(S depth'); last first.
+        { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
+        iApply "IH".
+  Qed.
+
+End higherorder.
+
+
+
+Section higherorder_rand.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
 
   (* next, we should show that this can actually be instantiated by some sane samplers *)
   Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
@@ -608,12 +728,6 @@ Section higherorder.
                     (λ: "sample", "sample" ≤ #n')))%E.
 
 
-  Definition flip_sampling_scheme : expr
-     := (λ: "_",  (Pair
-                     (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
-                     (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
-
-  (* TODO could try an unbounded one? *)
 
   Definition rand_support (m' : nat) (v : val) : bool :=
     match v with
@@ -642,20 +756,19 @@ Section higherorder.
     rewrite /bdd_cf_sampling_error SeriesC_scal_l.
     apply (Rmult_eq_reg_l (S m')); last (apply not_0_INR; lia).
     rewrite Rmult_assoc -Rmult_assoc Rmult_1_r.
-    assert (X : forall A B C, (Rmult A (Rmult B C)) = (Rmult (Rmult A B) C)).
-    { intros. by rewrite Rmult_assoc. }
-    rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
+    rewrite -Rmult_assoc -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
 
     rewrite /rand_𝜀2 /scale_unless.
     rewrite /rand_check_accepts.
+    (* this is only here to let me rewrite under the series body. A more general setoid tactic might do this? *)
     replace
       (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
        (fun x : Fin.t (S m') =>
         nonneg
-          match Z.leb (Z.of_nat (@fin_to_nat (S m') x)) (Z.of_nat n') return nonnegreal with
-          | true => nnreal_zero
-          | false => nnreal_div 𝜀₁ (err_factor (S n') (S m') )%NNR
+          match Z.leb (Z.of_nat _) (Z.of_nat n') return nonnegreal with
+          | true => _
+          | false => _
           end))
       with
       (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
@@ -672,6 +785,7 @@ Section higherorder.
            (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat (S m') z) (S n')))
         with (z <=? n')%Z; first done.
       case_bool_decide; [ apply Z.leb_le | apply Z.leb_nle]; lia. }
+
     rewrite reindex_fin_series; try lia.
     rewrite SeriesC_finite_mass fin_card.
     rewrite /err_factor.
@@ -692,7 +806,7 @@ Section higherorder.
     sampling_scheme_spec
       (rand_sampling_scheme n' m' Hnm #())
       (err_factor (S n') (S m'))
-      (* (nnreal_div (nnreal_nat (S m')%nat) (nnreal_nat (S m' - S n')%nat)) *)
+      (err_factor (S n') (S m'))
       E
       (rand_support m')
       (rand_check_accepts n').
@@ -778,116 +892,102 @@ Section higherorder.
       lia.
     }
   Qed.
+End higherorder_rand.
 
 
 
 
+Section higherorder_flip2.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
+
+  Definition flip2_sampling_scheme : expr
+     := (λ: "_",  (Pair
+                     (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
+                     (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
+
+
+  Definition flip2_support (v : val) : bool :=
+    match v with
+    | PairV (LitV (LitInt v0%nat)) (LitV (LitInt v1%nat)) => (((v0 =? 0) || (v0 =? 1)) &&  ((v1 =? 0) || (v1 =? 1)))%Z
+    | _ => false
+    end.
+
+  Definition flip2_check_accepts  (v : val): bool :=
+    match v with
+    | PairV (LitV (LitInt 1%Z)) (LitV (LitInt 1%Z)) => true
+    | _ => false
+    end.
 
 
 
-  (* higher order rejection sampler *)
-  Definition ho_bdd_rejection_sampler :=
-    (λ: "depth",
-      λ: "ho_sampler",
-        let: "sampler" := (Fst "ho_sampler") in
-        let: "checker" := (Snd "ho_sampler") in
-        let: "do_sample" :=
-          (rec: "f" "tries_left" :=
-              if: ("tries_left" - #1) < #0
-                then NONE
-                else let: "next_sample" := ("sampler" #()) in
-                     if: ("checker" "next_sample")
-                        then SOME "next_sample"
-                        else "f" ("tries_left" - #1))
-        in "do_sample" "depth")%E.
-
-
-  Program Definition generic_geometric_error (r : nonnegreal) (depth : nat) : nonnegreal := (mknonnegreal (r ^ depth) _).
-  Next Obligation. intros. apply pow_le. by destruct r. Qed.
-
-  Lemma simpl_generic_geometric_error (r : nonnegreal) (depth : nat) (Hr : not (eq (nonneg r) 0)) :
-    (nnreal_div (generic_geometric_error r (S depth)) r)%NNR = (generic_geometric_error r depth).
+  Lemma flip2_sampling_scheme_spec E :
+    sampling_scheme_spec
+      (flip2_sampling_scheme #())%E
+      (err_factor 3%nat 4%nat) (err_factor 3%nat 4%nat)
+      E flip2_support flip2_check_accepts.
   Proof.
-    rewrite /generic_geometric_error /nnreal_div /nnreal_mult.
-    apply  nnreal_ext; simpl.
-    rewrite -Rmult_comm -Rmult_assoc Rinv_l; try auto.
-    by apply Rmult_1_l.
-  Qed.
+    rewrite /sampling_scheme_spec /flip2_sampling_scheme.
+    iIntros (Φ) "_ HΦ"; wp_pures; iModIntro; iApply "HΦ".
+
+    iSplit.
+    { (* amplification: apply the other amplification lemma twice? *)
+
+      admit. }
+
+    iSplit.
+    { (* checker spec is accurate on range of sample *)
+      iIntros (v Post) "!> %Hsup Hpost". wp_pures.
+      remember v as l.
+      destruct v; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct v1; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct l0; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct v2; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct l0; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      rewrite Heql; wp_pures.
+      case_bool_decide; wp_pures.
+      - iModIntro; case_bool_decide; iApply "Hpost"; iPureIntro.
+        + rewrite /flip2_check_accepts.
+          replace n with 1%Z by (inversion H; done).
+          replace n0 with 1%Z by (inversion H0; done).
+          done.
+        + (* there has to be a cleaner way to do this *)
+          rewrite /flip2_check_accepts.
+          rewrite /flip2_support Heql in Hsup.
+          replace n with 1%Z by (inversion H; done).
+          replace n0 with 0%Z; first done.
+          apply andb_true_iff in Hsup as [_ Hsup].
+          apply orb_true_iff in Hsup as [Hsup | Hsup]; try lia.
+          apply Z.eqb_eq in Hsup.
+          rewrite Hsup in H0.
+          exfalso; apply H0; auto.
+      - iModIntro; iApply "Hpost"; iPureIntro.
+        rewrite /flip2_check_accepts; rewrite /flip2_support Heql in Hsup.
+        apply andb_true_iff in Hsup as [Hs0 Hs1];
+        apply orb_true_iff in Hs0 as [Hsa | Hsa];
+        apply orb_true_iff in Hs1 as [Hsb | Hsb];
+        apply Z.eqb_eq in Hsa;
+        apply Z.eqb_eq in Hsb;
+        try (rewrite Hsa);
+        try (rewrite Hsb);
+        try done.
+
+        (* last case *)
+        rewrite Hsa in H; exfalso; apply H; auto. }
+    iSplit.
+    { (* credit spending rule *)
+
+      admit. }
+
+    { (* sampler range spec is accurate *)
+
+      admit. }
+  Admitted.
+
+End higherorder_flip2.
 
 
 
-  (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
-  Definition ho_bdd_approx_safe (make_sampler : val) (r : nonnegreal) (depth : nat) Ψ Θ E :
-    r < 1 ->
-    sampling_scheme_spec make_sampler r E Ψ Θ ->
-    {{{ € (generic_geometric_error r (S depth)) }}}
-      ho_bdd_rejection_sampler #(S depth) make_sampler  @ E
-    {{{ v, RET v; ∃ v', ⌜ v = SOMEV v' ⌝}}}.
-  Proof.
-    (* initial setup *)
-    iIntros (Hr Hmake_sampler Φ) "Hcr HΦ".
-    rewrite /ho_bdd_rejection_sampler.
-    wp_pures.
-    wp_bind (_ make_sampler)%E.
-    rewrite /sampling_scheme_spec in Hmake_sampler.
-    wp_apply Hmake_sampler; try done.
-    iIntros (sampler _c) "(#Hcomp&_&#HsampleErr&#Hsampler)".
-    wp_pures.
-    wp_bind (_ make_sampler)%E.
-    wp_apply Hmake_sampler; try done.
-    iIntros (_s checker) "(_&#Hcheck&_&_)".
-    do 6 wp_pure.
-    clear _s _c Hmake_sampler.
 
-    iInduction depth as [|depth' Hdepth'] "IH".
-    - (* base case: we should be able to spend the geometric error to eliminate the bad sample
-         and end up in the right branch *)
-      wp_pures.
-
-      (* step the sampler*)
-      wp_bind (sampler #())%E.
-      wp_apply ("HsampleErr" with "[Hcr]"); try done.
-      { (* proof irrelevance thing *)
-          iClear "#".
-          iApply (ec_weaken with "Hcr").
-          rewrite /generic_geometric_error /=.
-          rewrite Rmult_1_r.
-          apply Rle_refl. }
-      iIntros (next_sample) "(%HsampleV & %HcheckV )"; wp_pures.
-      (* spend the credits in the checker*)
-      wp_bind (checker next_sample)%E.
-      wp_apply "Hcheck"; first by iPureIntro.
-      iIntros (b) "->"; wp_pures.
-      rewrite HcheckV; wp_pures.
-      iModIntro; iApply "HΦ".
-      iExists next_sample; auto.
-    - wp_pures.
-      replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
-      (* apply the amplification lemma step the sampler *)
-      wp_pures.
-      wp_bind (sampler #())%E.
-      (* why did this stop working? *)
-      wp_apply ("Hcomp" $! (generic_geometric_error r (S (S depth'))) with "Hcr").
-      iIntros (sample) "(%HΨ&Hcr)".
-      wp_pures.
-      (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
-      wp_bind (checker sample)%E.
-      wp_apply "Hcheck"; first (iPureIntro; by assumption).
-      iIntros (b) "%Hb".
-      destruct b.
-      + wp_pures.
-        iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
-      +  iSpecialize ("IH" with "[Hcr]").
-        { iClear "#". rewrite /scale_unless. replace (Θ sample) with false.
-          rewrite simpl_generic_geometric_error. iFrame. }
-        iSpecialize ("IH" with "HΦ").
-        iClear "#".
-        wp_pure.
-        wp_bind (#(S (S depth'))- #1%nat)%E; wp_pure.
-
-        replace #((S (S depth')) - 1) with #(S depth'); last first.
-        { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
-        iApply "IH".
-  Qed.
-
-End higherorder.
+(* TODO could try an unbounded one? *)
