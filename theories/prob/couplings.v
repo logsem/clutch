@@ -452,6 +452,17 @@ Proof.
   rewrite bool_to_fin_to_bool //.
 Qed.
 
+Lemma fair_conv_comb_dbind `{Countable A, Countable B} (f : A → distr B) (μ1 μ2 : distr A):
+  fair_conv_comb μ1 μ2 ≫= f = fair_conv_comb (μ1 ≫= f) (μ2 ≫= f).
+Proof.
+  rewrite /fair_conv_comb.
+  rewrite -dbind_assoc.
+  apply Rcoupl_eq_elim.
+  eapply Rcoupl_dbind; [| apply Rcoupl_eq].
+  intros a b ->.
+  destruct b; simpl; apply Rcoupl_eq.
+Qed.
+
 Section Rcoupl_strength.
   Context `{Countable A, Countable B, Countable D, Countable E}.
   Context (μ1 : distr A) (μ2 : distr B).

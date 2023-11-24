@@ -1657,9 +1657,9 @@ Section conv_prop.
     erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
     rewrite 2!SeriesC_singleton /=. lra.
   Qed.
-
+  
   Definition dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
-    dbind (λ a, fair_conv_comb (f1 a) (f2 a)) μ = fair_conv_comb (dbind f1 μ) (dbind f2 μ).
+    μ ≫= (λ a, fair_conv_comb (f1 a) (f2 a)) = fair_conv_comb (μ ≫= f1) (μ ≫= f2).
   Proof.
     apply distr_ext.
     intro b.
@@ -1678,7 +1678,6 @@ Section conv_prop.
       real_solver.
   Qed.
 
-  (* Helpful lemma to eliminate trivial equalities *)
   Lemma dbind_dret_coin_zero (f : bool→ A) (a : A) :
     (∀ b, f b ≠ a) →
     (fair_coin ≫= (λ b, dret (f b))) a = 0.
@@ -1699,6 +1698,15 @@ Section conv_prop.
     rewrite (SeriesC_ext _ (λ b, if bool_decide (f b = a) then 0.5 else 0)); last first.
     - intro. rewrite /pmf/=/dret_pmf. real_solver.
     - by apply SeriesC_singleton_inj.
+  Qed.
+
+  Lemma fair_conv_comb_mass `{Countable A} (μ1 μ2 : distr A) :
+    SeriesC (fair_conv_comb μ1 μ2) = 0.5 * (SeriesC μ1 + SeriesC μ2).
+  Proof.
+    rewrite -SeriesC_plus // -SeriesC_scal_l.
+    apply SeriesC_ext => a.
+    rewrite fair_conv_comb_pmf.
+    lra.
   Qed.
 
 End conv_prop.
