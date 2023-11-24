@@ -17,7 +17,6 @@ Section backedge_markov.
   Context (initial : mstate δ).
   Context (has_backedge : mstate δ → Prop).
   Context `{!∀ s, Decision (has_backedge s)}.
-
   Definition backedge_step (s : mstate δ) : distr (mstate δ) :=
     if bool_decide (has_backedge s) then dret initial else step s.
   Definition backedge_to_final (s : mstate δ) : option (mstate_ret δ) :=
@@ -34,14 +33,9 @@ Section backedge_markov.
 
   Lemma backedge_markov_terminates :
     SeriesC (lim_exec (δ := δ) initial) = 1 →
-    (∀ s a, ¬ has_backedge s ∧ to_final s = Some a → lim_exec (δ := δ) initial a > 0) →
+    (∃ s a, ¬ has_backedge s ∧ to_final s = Some a → lim_exec (δ := δ) initial a > 0) →
     SeriesC (lim_exec (δ := backedge_markov) initial) = 1.
-  Proof.
-    intros Hterm Hback.
-
-
-    admit.
-  Admitted.
+  Proof. Admitted.
 
 End backedge_markov.
 

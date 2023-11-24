@@ -9,8 +9,6 @@ Set Default Proof Using "Type*".
 Section lazy_real.
   (* Context (CHUNCK_SIZE : nat). *)
 
-  #[global] Existing Instance finite_countable | 0.
-
   Definition mstep (bs : bool * bool) :=
     let '(b1, b2) := bs in
     if bool_decide (b1 ≠ b2) then dzero else dprod fair_coin fair_coin.
