@@ -143,6 +143,12 @@ Proof.
   replace ((e=#b)%E) with (fill_item (BinOpLCtx EqOp (#b)) e); last first.
   { done. }
   rewrite lim_exec_val_context_bind => /=.
+  pose (ν := λ '(e', σ'), lim_exec_val ((e' = #b)%E, σ')).
+  assert ((λ '(e', σ'), lim_exec_val ((e' = #b)%E, σ'))=(λ c, ν c)) as K.
+  { admit. }
+  rewrite K.
+  erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #b))).
+  
 Admitted.
 
 (* second part *)

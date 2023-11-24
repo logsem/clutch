@@ -661,6 +661,257 @@ Section monadic.
 End monadic.
 
 
+Section probabilities.
+  Context `{Countable A}.
+  Implicit Types μ d : distr A.
+
+  Definition prob (μ : distr A) (P : A → bool) : R :=
+    SeriesC (λ a : A, if (P a) then μ a else 0).
+
+  Lemma prob_le_1 (μ : distr A) (P : A → bool) :
+    prob μ P <= 1.
+  Proof.
+    transitivity (SeriesC μ); [|done].
+    apply SeriesC_le; [|done].
+    real_solver.
+  Qed.
+
+  Lemma prob_ge_0 (μ : distr A) (P : A → bool) :
+    0 <= prob μ P.
+  Proof. apply SeriesC_ge_0'=> a. real_solver. Qed.
+
+End probabilities.
+
+Section probability_lemmas.
+  Context `{Countable A}.
+
+  Lemma prob_dret_true (a : A) (P : A → bool) :
+    P a = true → prob (dret a) P = 1.
+  Proof.
+    intro HP.
+    rewrite /prob/pmf/=/dret_pmf/=.
+    erewrite SeriesC_ext; [apply SeriesC_singleton|].
+    real_solver.
+  Qed.
+
+  Lemma prob_dret_false (a : A) (P : A → bool) :
+    P a = false → prob (dret a) P = 0.
+  Proof.
+    intro HP.
+    rewrite /prob/pmf/=/dret_pmf/=.
+    apply SeriesC_0. real_solver.
+  Qed.
+
+  Lemma prob_dbind `{Countable B} (μ : distr A) (f : A → distr B) (P : B → bool) :
+    prob (dbind f μ) P = SeriesC (λ a, μ a * prob (f a) P).
+  Proof.
+    rewrite /prob{1}/pmf/=/dbind_pmf/=.
+    assert (∀ a,
+               (if P a then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
+               SeriesC (λ a0 : A, if P a then μ a0 * f a0 a else 0)) as Haux.
+    {intro a. destruct (P a); [done|]. rewrite SeriesC_0 //. }
+    setoid_rewrite Haux.
+    rewrite -(fubini_pos_seriesC (λ '(a, a0), if P a then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext=> a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; intro b.
+      real_solver.
+    - real_solver.
+    - intro b.
+      apply (ex_seriesC_le _ μ); [|done].
+      real_solver.
+    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
+      + intro b; split.
+        * apply SeriesC_ge_0'. real_solver.
+        * apply SeriesC_le; [real_solver|].
+          apply pmf_ex_seriesC_mult_fn.
+          exists 1. real_solver.
+      + apply (pmf_ex_seriesC (dbind f μ)).
+  Qed.
+
+  Lemma union_bound (μ : distr A) (P Q : A → bool) :
+    prob μ (λ a, orb (P a) (Q a)) <= prob μ P + prob μ Q.
+  Proof.
+    rewrite /prob.
+    rewrite -SeriesC_plus.
+    - apply SeriesC_le.
+      + intro n.
+        pose proof (pmf_pos μ n).
+        destruct (P n); destruct (Q n); real_solver.
+      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
+        * intro n.
+          pose proof (pmf_pos μ n).
+          destruct (P n); destruct (Q n); real_solver.
+        * by apply ex_seriesC_scal_l.
+    - by apply ex_seriesC_filter_bool_pos.
+    - by apply ex_seriesC_filter_bool_pos.
+  Qed.
+
+End probability_lemmas.
+
+
+Section probabilities_prop.
+  Context `{Countable A}.
+  Context (μ : distr A).
+  Context (P : A -> Prop).
+  Context `{forall a, Decision (P a)}.
+
+  Definition probp : R :=
+    SeriesC (λ a : A, if (bool_decide (P a)) then μ a else 0).
+
+  Lemma probp_le_1 :
+    probp <= 1.
+  Proof.
+    transitivity (SeriesC μ); [|done].
+    apply SeriesC_le; [|done].
+    real_solver.
+  Qed.
+
+  Lemma probp_ge_0 :
+    0 <= probp.
+  Proof. apply SeriesC_ge_0'=> a. real_solver. Qed.
+
+End probabilities_prop.
+
+Section probability_prop_lemmas.
+  Context `{Countable A}.
+
+  Lemma probp_dret_true (a : A) (P : A → Prop) `{forall a, Decision (P a)}:
+    P a → probp (dret a) P = 1.
+  Proof.
+    intro HP.
+    rewrite /probp/pmf/=/dret_pmf/=.
+    erewrite SeriesC_ext; [apply SeriesC_singleton|].
+    real_solver.
+  Qed.
+
+  Lemma probp_dret_false (a : A) (P : A → Prop) `{forall a, Decision (P a)}:
+    ¬ (P a) → probp (dret a) P = 0.
+  Proof.
+    intro HP.
+    rewrite /probp/pmf/=/dret_pmf/=.
+    apply SeriesC_0; real_solver.
+  Qed.
+
+  Lemma probp_dbind `{Countable B} (μ : distr A) (f : A → distr B) (P : B → Prop) `{forall a, Decision (P a)}:
+    probp (dbind f μ) P = SeriesC (λ a, μ a * probp (f a) P).
+  Proof.
+    rewrite /probp{1}/pmf/=/dbind_pmf/=.
+    assert (∀ a,
+               (if (bool_decide (P a)) then SeriesC (λ a0 : A, μ a0 * f a0 a) else 0) =
+               SeriesC (λ a0 : A, if (bool_decide (P a)) then μ a0 * f a0 a else 0)) as Haux.
+    {intro a. case_bool_decide; [done|]. rewrite SeriesC_0 //. }
+    setoid_rewrite Haux.
+    rewrite -(fubini_pos_seriesC (λ '(a, a0), if (bool_decide (P a)) then μ a0 * f a0 a else 0)).
+    - apply SeriesC_ext=> a.
+      rewrite -SeriesC_scal_l.
+      apply SeriesC_ext; intro b.
+      real_solver.
+    - real_solver.
+    - intro b.
+      apply (ex_seriesC_le _ μ); [|done].
+      real_solver.
+    - apply (ex_seriesC_le _ (λ a : B, SeriesC (λ b : A, μ b * f b a))).
+      + intro b; split.
+        * apply SeriesC_ge_0'. real_solver.
+        * apply SeriesC_le; [real_solver|].
+          apply pmf_ex_seriesC_mult_fn.
+          exists 1. real_solver.
+      + apply (pmf_ex_seriesC (dbind f μ)).
+  Qed.
+
+  Lemma union_bound_prop (μ : distr A) (P Q : A → Prop) `{forall a, Decision (P a)} `{forall a, Decision (Q a)} :
+    probp μ (λ a, (P a) \/ (Q a)) <= probp μ P + probp μ Q.
+  Proof.
+    rewrite /probp.
+    rewrite -SeriesC_plus.
+    - apply SeriesC_le.
+      + intro n.
+        pose proof (pmf_pos μ n).
+        do 3 case_bool_decide; try real_solver.
+        destruct_or?; done.
+      + apply (ex_seriesC_le _ (λ x, 2 * μ x)).
+        * intro n.
+          pose proof (pmf_pos μ n).
+          do 2 case_bool_decide; real_solver.
+        * by apply ex_seriesC_scal_l.
+    - by apply ex_seriesC_filter_bool_pos.
+    - by apply ex_seriesC_filter_bool_pos.
+  Qed.
+
+End probability_prop_lemmas.
+ 
+
+Section subset_distribution.
+  Context `{Countable A}.
+  Context (P : A -> bool).
+  Implicit Types μ d : distr A.
+
+  Definition ssd_pmf (μ : distr A) :=
+    λ a : A, if P a then μ a else 0.
+
+  Program Definition ssd (μ : distr A) := MkDistr (ssd_pmf μ) _ _ _.
+  Next Obligation.
+    move=> μ a.
+    rewrite /ssd_pmf. by (destruct (P a)).
+  Qed.
+  Next Obligation.
+    move=> μ. rewrite /ssd_pmf.
+    eapply (ex_seriesC_le _ μ); try done.
+    move=> n. split; by (destruct (P n)). 
+  Qed.
+  Next Obligation.
+    move=> μ.
+    etrans.
+    - eapply (SeriesC_le _ μ); try done. rewrite /ssd_pmf.
+      split; by (destruct (P n)).
+    - done.
+  Qed. 
+  
+End subset_distribution.
+
+
+Declare Scope predicate_scope.
+Delimit Scope predicate_scope with P.
+Notation "∽ K " := (λ a, negb (K a)) (at level 70, right associativity) : predicate_scope.
+  
+Section subset_distribution_lemmas.
+  Context `{Countable A}.
+  Implicit Type P : A -> bool.
+  Implicit Types μ : distr A.
+  
+  Lemma ssd_ret_pos P μ (a : A) : ssd P μ a > 0 -> P a.
+  Proof.
+  Admitted.
+
+  Lemma ssd_sum P μ (a : A) : μ a = ssd P μ a + ssd (∽ P)%P μ a.
+  Proof.
+  Admitted. 
+
+End subset_distribution_lemmas.
+
+Section bind_lemmas.
+  Context `{Countable A, Countable B}.
+  Implicit Types μ: distr A.
+  Implicit Types ν: A -> distr B.
+
+  Lemma bind_split_sum (μ μ1 μ2 : distr A) ν:
+    (∀ a, μ a = μ1 a + μ2 a) ->
+    (∀ b, (μ ≫= λ a', ν a') b = (μ1 ≫= λ a', ν a') b + (μ2 ≫= λ a', ν a') b).
+  Proof.
+  Admitted.
+
+  Lemma ssd_bind_split_sum μ ν P :
+    ∀ b, (μ ≫= λ a', ν a') b = (ssd P μ ≫= λ a', ν a') b + (ssd (∽ P)%P μ ≫= λ a', ν a')b.
+  Proof.
+    move=> b.
+    erewrite <-bind_split_sum; first done.
+    intros. apply ssd_sum.
+  Qed. 
+    
+End bind_lemmas.
+
+
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=
     a ← μ; dret (f a).
