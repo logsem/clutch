@@ -8,11 +8,16 @@ From clutch.prob_lang Require Import tactics lang notation.
 From clutch.prob Require Import distribution.
 
 Class tprGpreS δ Σ := TprGpreS {
-  tprGpre_iris  :> invGpreS Σ;
-  tprGpre_heap  :> ghost_mapG Σ loc val;
-  tprGpre_tapes :> ghost_mapG Σ loc tape;
-  tprGpre_spec  :> specPreG δ Σ;
+  tprGpre_iris  : invGpreS Σ;
+  tprGpre_heap  : ghost_mapG Σ loc val;
+  tprGpre_tapes : ghost_mapG Σ loc tape;
+  tprGpre_spec  : specPreG δ Σ;
 }.
+
+#[export] Existing Instance tprGpre_iris.
+#[export] Existing Instance tprGpre_heap.
+#[export] Existing Instance tprGpre_tapes.
+#[export] Existing Instance tprGpre_spec. 
 
 Definition tprΣ δ : gFunctors :=
   #[invΣ;
@@ -30,17 +35,15 @@ Class tprG (δ : markov) (Σ : gFunctors) := TprG {
   tprG_tapes_name : gname;
   tprG_specG : specG δ Σ;
 }.
-
-#[export] Existing Instance tprG_invG.
 #[export] Existing Instance tprG_specG.
 
-Definition heap_auth `{tprG Σ} :=
+Definition heap_auth `{tprG δ Σ} :=
   @ghost_map_auth _ _ _ _ _ tprG_heap tprG_heap_name.
-Definition tapes_auth `{tprG Σ} :=
+Definition tapes_auth `{tprG δ Σ} :=
   @ghost_map_auth _ _ _ _ _ tprG_tapes tprG_tapes_name.
 
-#[export] Instance tprG_tprwpG `{!tprG δ Σ} : tprwpG prob_lang Σ := {
-  iris_invGS := _;
+#[export] Instance tprG_tprwpG `{tprG δ Σ} : tprwpG prob_lang Σ := {
+  iris_invGS := tprG_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
 }.
 

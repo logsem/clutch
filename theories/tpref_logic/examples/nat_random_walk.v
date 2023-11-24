@@ -149,16 +149,11 @@ Section myrec_spec.
     wp_let.
     wp_store.
     wp_load.
-    (* TODO: fix proof mode *)
-    iApply fupd_rwp.
     iMod (inv_alloc (nroot .@ "myrec") _ _ with "Hr") as "#inv".
-    iModIntro.
     iLöb as "IH" forall (v1 Ψ).
     wp_lam.
     wp_bind (! _)%E.
-    iApply rwp_atomic.
-    iInv (nroot.@"myrec") as ">Hr" "cl".
-    iModIntro.
+    iInv nmyrec as ">Hr" "cl".
     wp_load.
     iMod ("cl" with "Hr") as "_".
     iModIntro.

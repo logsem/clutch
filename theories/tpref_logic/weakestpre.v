@@ -957,46 +957,44 @@ Section proofmode_classes.
     ElimModal True p false (|==> P) P (WP e @ a; E {{ Φ }}) (WP e @ a; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
-      (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_rwp.
+         (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_rwp.
   Qed.
 
   Global Instance elim_modal_bupd_rswp k p E e P Φ a :
     ElimModal True p false (|==> P) P (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
-      (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_rswp.
+         (bupd_fupd E) fupd_frame_r bi.wand_elim_r fupd_rswp.
   Qed.
 
   Global Instance elim_modal_fupd_rwp p E e P Φ a :
     ElimModal True p false (|={E}=> P) P (WP e @ a; E {{ Φ }}) (WP e @ a; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
-      fupd_frame_r bi.wand_elim_r fupd_rwp.
+         fupd_frame_r bi.wand_elim_r fupd_rwp.
   Qed.
 
   Global Instance elim_modal_fupd_rswp k p E e P Φ a :
     ElimModal True p false (|={E}=> P) P (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩).
   Proof.
     by rewrite /ElimModal bi.intuitionistically_if_elim
-      fupd_frame_r bi.wand_elim_r fupd_rswp.
+         fupd_frame_r bi.wand_elim_r fupd_rswp.
   Qed.
 
   Global Instance elim_modal_fupd_rwp_atomic p E1 E2 e P Φ a :
-    Atomic StronglyAtomic e →
-    ElimModal True p false (|={E1,E2}=> P) P
-            (WP e @ a; E1 {{ Φ }}) (WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }})%I.
+    ElimModal (Atomic StronglyAtomic e) p false (|={E1,E2}=> P) P
+      (WP e @ a; E1 {{ Φ }}) (WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
-    intros. by rewrite /ElimModal bi.intuitionistically_if_elim
-      fupd_frame_r bi.wand_elim_r rwp_atomic.
+    intros ?. by rewrite intuitionistically_if_elim
+                   fupd_frame_r wand_elim_r rwp_atomic.
   Qed.
 
- Global Instance elim_modal_fupd_rswp_atomic k p E1 E2 e P Φ a :
-    Atomic StronglyAtomic e →
-    ElimModal True p false (|={E1,E2}=> P) P
-            (RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩)%I.
+  Global Instance elim_modal_fupd_rswp_atomic k p E1 E2 e P Φ a :
+    ElimModal (Atomic StronglyAtomic e) p false (|={E1,E2}=> P) P
+      (RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩) (RSWP e at k @ a; E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩)%I | 100.
   Proof.
-    intros. by rewrite /ElimModal bi.intuitionistically_if_elim
-      fupd_frame_r bi.wand_elim_r rswp_atomic.
+    intros ?. by rewrite intuitionistically_if_elim
+                   fupd_frame_r wand_elim_r rswp_atomic.
   Qed.
 
   Global Instance add_modal_fupd_rwp E e P Φ a :
@@ -1009,8 +1007,8 @@ Section proofmode_classes.
 
   Global Instance elim_acc_wp {X} E1 E2 α β γ e Φ a :
     ElimAcc (X:=X) (Atomic StronglyAtomic e) (fupd E1 E2) (fupd E2 E1)
-            α β γ (WP e @ a; E1 {{ Φ }})
-            (λ x, WP e @ a; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I.
+      α β γ (WP e @ a; E1 {{ Φ }})
+      (λ x, WP e @ a; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
   Proof.
     intros ?. rewrite /ElimAcc.
     iIntros "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
@@ -1020,8 +1018,8 @@ Section proofmode_classes.
 
   Global Instance elim_acc_rswp {X} k E1 E2 α β γ e Φ a :
     ElimAcc (X:=X) (Atomic StronglyAtomic e) (fupd E1 E2) (fupd E2 E1)
-            α β γ (RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩)
-            (λ x, RSWP e at k @ a; E2 ⟨⟨ v, |={E2}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
+      α β γ (RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩)
+      (λ x, RSWP e at k @ a; E2 ⟨⟨ v, |={E2}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I | 100.
   Proof.
     intros ?. rewrite /ElimAcc.
     iIntros "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
@@ -1031,8 +1029,8 @@ Section proofmode_classes.
 
   Global Instance elim_acc_wp_nonatomic {X} E α β γ e Φ a :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
-            α β γ (WP e @ a; E {{ Φ }})
-            (λ x, WP e @ a; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
+      α β γ (WP e @ a; E {{ Φ }})
+      (λ x, WP e @ a; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
   Proof.
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
     iApply rwp_fupd.
@@ -1042,8 +1040,8 @@ Section proofmode_classes.
 
   Global Instance elim_acc_swp_nonatomic {X} k E α β γ e Φ a :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
-            α β γ (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩)
-            (λ x, RSWP e at k @ a; E ⟨⟨ v, |={E}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
+      α β γ (RSWP e at k @ a; E ⟨⟨ Φ ⟩⟩)
+      (λ x, RSWP e at k @ a; E ⟨⟨ v, |={E}=> β x ∗ (γ x -∗? Φ v) ⟩⟩)%I.
   Proof.
     rewrite /ElimAcc.
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
