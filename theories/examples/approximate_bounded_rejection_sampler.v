@@ -271,14 +271,52 @@ Section basic.
 
   Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
   Proof.
-    assert (G : (n < card $ fin N)%nat).
-    { rewrite fin_card. lia. }
-    destruct (encode_inv_decode n G) as [y [Hy1 Hy2]]; simpl.
-    rewrite Hy1; f_equal.
-    symmetry.
-    (* there has to be a better way to prove this than unfolding the definitions one by one,
-       unfortunately I think it is necessary....
-     *)
+    Set Printing Coercions.
+
+
+    Check nat_to_fin_to_nat.
+
+    (* maybe I turn it into an encode_nat problem? is that easier than encode_inv_nat? *)
+    rewrite -encode_inv_encode_nat; f_equal.
+
+    (* even though this looks promising, I think it's going nowhere because the a is under an existential.
+    assert (H' : (n < card (fin N))%nat).
+    { by rewrite fin_card. }
+    destruct (@encode_inv_decode (fin N) _ _ n H') as [a Ha].
+    *)
+
+    rewrite /encode_nat.
+    rewrite /encode. simpl.
+    rewrite Nat2Pos.id; try lia.
+    rewrite -pred_Sn.
+    replace (fst <$> _) with (Some n); first by simpl.
+    replace (list_find _ _) with (Some (n, nat_to_fin H)); first by simpl.
+    symmetry; rewrite list_find_Some.
+    induction n as [|n' IH].
+    - split. { destruct N; simpl; [lia | done]. }
+      split. { done. }
+      intros ? ? ? Hcontra; lia.
+    - split. {
+        assert (H' : (n' < N)%nat) by lia.
+        destruct (IH H') as [HR _ _].
+        (* now HR tells us how to lookup at n'... we need to unroll the lookup one level *)
+
+        rewrite -lookup_tail.
+        (* somehow we need to pull out the fact that tail of (fin_enum (S N)) is FS <$> (fin_enum N), right? *)
+
+        rewrite /fin_enum.
+        induction N; try lia.
+        simpl.
+        fold fin_enum.
+        (* literally no idea how I'm going to apply that IH because I'm not even sure S n' < N is true *)
+        rewrite list_lookup_fmap.
+
+
+        admit.
+
+      }
+      split. { done. }
+      admit.
   Admitted.
 
   Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
@@ -936,31 +974,56 @@ Section higherorder_flip2.
 
   Definition 𝜀2_flip2 (𝜀1 : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
     if (fin_to_bool v)
-      then (nnreal_nat(2%nat) * 𝜀1)%NNR
-      else nnreal_zero.
+      then nnreal_zero
+      else (nnreal_nat(2%nat) * 𝜀1)%NNR.
 
 
   Lemma fin2_enum (x : fin 2) : (fin_to_nat x = 0%nat) \/ (fin_to_nat x = 1%nat).
   Proof. Admitted.
 
-  Lemma flip_amplification (𝜀1 : nonnegreal) E :
-    {{{ € 𝜀1 }}}
-      rand #1 from #() @ E
-    {{{ v, RET #v; ⌜v = 0%nat ⌝ ∗ € (scale_unless (nnreal_div (nnreal_nat 1%nat) (nnreal_nat 2%nat)) 𝜀1 flip_is_1 #v) }}}.
+  Lemma fin2_nat_bool0 (x : fin 2) : (fin_to_nat x = 0%nat) <-> (fin_to_bool x = false).
   Proof. Admitted.
+
+  Lemma fin2_nat_bool1(x : fin 2) : (fin_to_nat x = 1%nat) <-> (fin_to_bool x = true).
+  Proof. Admitted.
+
 
   Lemma scale_unless_cmp a b 𝜀 v Θ : (scale_unless b (scale_unless a 𝜀 Θ #v) Θ #v) = (scale_unless (a*b)%NNR 𝜀 Θ #v).
   Proof. Admitted.
 
-  (* uses proof irrelevance *)
-  Lemma ec_spend_irrel a b : (nonneg a = nonneg b) -> € a -∗ € b.
-  Proof. iIntros (H) "?". replace b with a; last by apply nnreal_ext. iFrame. Qed.
+  Lemma ec_spend_irrel a b : (nonneg b <= nonneg a) -> € a -∗ € b.
+  Proof. iIntros (H) "?". iApply (ec_weaken _ H). iFrame. Qed.
+
+
+  Lemma flip_amplification (𝜀1 : nonnegreal) E :
+    {{{ € 𝜀1 }}}
+      rand #1 from #() @ E
+    {{{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_unless (nnreal_div (nnreal_nat 1%nat) (nnreal_nat 2%nat)) 𝜀1 flip_is_1 #v) }}}.
+  Proof.
+    iIntros (Φ) "Hcr HΦ".
+    iApply (wp_couple_rand_adv_comp 1%nat  _ _ _ 𝜀1 (𝜀2_flip2 𝜀1) _ with "Hcr").
+    - (* uniform bound *)
+      admit.
+    - (* series mean *)
+      admit.
+    - (* continutation *)
+      iNext. iIntros (n) "Hcr".
+      iApply ("HΦ" $! (fin_to_nat n)); iSplitR.
+      + iPureIntro; apply fin2_enum.
+      + iApply (ec_spend_irrel with "Hcr"). rewrite /𝜀2_flip2.
+        destruct (fin2_enum n) as [H|H].
+        * replace (fin_to_bool n) with false; last (symmetry; by apply fin2_nat_bool0).
+          rewrite /scale_unless H /= Rmult_1_l Rmult_comm Rinv_inv. apply Req_le_sym; by apply Rmult_eq_compat_l.
+        * replace (fin_to_bool n) with true; last (symmetry; by apply fin2_nat_bool1).
+          rewrite /scale_unless H /=; done.
+  Admitted.
+
 
   Lemma flip2_sampling_scheme_spec E :
     sampling_scheme_spec
       (flip2_sampling_scheme #())%E
       (nnreal_div (nnreal_nat 1%nat) (nnreal_nat 4%nat))
-      (nnreal_div (nnreal_nat 1%nat) (nnreal_nat 4%nat))
+      (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
       E flip2_support flip2_check_accepts.
   Proof.
     rewrite /sampling_scheme_spec /flip2_sampling_scheme.
@@ -975,15 +1038,26 @@ Section higherorder_flip2.
       wp_pures.
       wp_bind (rand #1 from #())%E.
       wp_apply (flip_amplification 𝜀1 with "Hcr").
-      iIntros (v) "(->&Hcr)".
+      iIntros (v) "(%Hv&Hcr)".
       wp_apply (flip_amplification _ with "Hcr").
-      iIntros (v) "(->&Hcr)".
+      iIntros (v') "(%Hv'&Hcr)".
       wp_pures.
       iModIntro; iApply "Hpost".
       iSplitR.
-      - iPureIntro. rewrite /flip2_support. auto.
+      - iPureIntro. rewrite /flip2_support.
+        destruct Hv, Hv' as [-> | ->]; rewrite H; auto.
       - iApply (ec_spend_irrel with "Hcr").
-        rewrite scale_unless_cmp; f_equal.
+        (* we need to amplify the first case *)
+
+
+        destruct Hv, Hv' as [-> | ->]; rewrite H; simpl; admit.
+
+        (*
+
+        replace (scale_unless _ (scale_unless _ _ _ #_) _ #_)%NNR with nnreal_zero.
+        {  }
+
+        f_equal.
         (* need to combine the two scale_unless statements together now... *)
         rewrite /scale_unless /flip_is_1 /flip2_check_accepts /=.
         rewrite /nnreal_div /=.
@@ -993,6 +1067,7 @@ Section higherorder_flip2.
         do 2 rewrite Rmult_1_l.
         replace (((1 + 1) + 1) + 1) with ((1 + 1) * (1 + 1)); first by rewrite Rinv_mult.
         by rewrite Rmult_plus_distr_l Rmult_1_r -Rplus_assoc. }
+        *) }
 
     iSplit.
     { (* checker spec is accurate on range of sample *)
@@ -1050,12 +1125,31 @@ Section higherorder_flip2.
       wp_pures.
       wp_bind (rand #1 from #())%E.
       wp_apply (flip_amplification with "Hcr").
-      iIntros (v') "(->&Hcr)".
+      iIntros (v') "(%Hv'&Hcr)".
+
+      destruct Hv' as [-> | ->]; last first.
+      { (* if the first is a zero, we need to amplify again?? *)
+        (* before we do anything, we should simplify that error credit. *)
+        rewrite /scale_unless; simpl.
+        (* so I think... do we get flip2_check_accepts for free? *)
+        wp_bind (rand _ from _)%E; iApply wp_rand; auto.
+        iNext; iIntros (n) "_"; wp_pures.
+        iApply "Hclose".
+
+
+
+
+
+
+        - admit. (* clean this up-- it's the same as the prior bullet point I think *)
+
+
+      }
+
       wp_bind (rand #1 from #())%E.
       iApply (wp_rand_err _ _ 0%fin).
       iSplitL "Hcr".
-      { iApply (ec_spend_irrel with "Hcr").
-        admit. }
+      { iApply (ec_spend_irrel with "Hcr"). simpl; lra. }
       iIntros (x) "%Hx".
       wp_pures; iModIntro.
       iApply "Hclose".
