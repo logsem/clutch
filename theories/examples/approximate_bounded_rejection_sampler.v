@@ -138,9 +138,15 @@ Section finite.
   Qed.
 
   Lemma fin2_nat_bool (x : fin 2) : (fin_to_nat x =? 1)%nat = (fin_to_bool x).
-  Proof. Admitted.
-
-
+  Proof.
+    destruct (fin2_enum x) as [H|H]; rewrite H; simpl.
+    - replace 0%nat with (@fin_to_nat 2 (0%fin)) in H by auto.
+      apply fin_to_nat_inj in H.
+      by rewrite H /=.
+    - replace 1%nat with (@fin_to_nat 2 (1%fin)) in H by auto.
+      apply fin_to_nat_inj in H.
+      by rewrite H /=.
+  Qed.
 
 End finite.
 
@@ -867,13 +873,8 @@ Section higherorder.
   Lemma credit_spend_1 : €nnreal_one -∗ ▷ False.
   Proof. Admitted.
 
-
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
     := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
-
-  Lemma scale_unless_cmp a b 𝜀 v Θ : (scale_unless b (scale_unless a 𝜀 Θ #v) Θ #v) = (scale_unless (a*b)%NNR 𝜀 Θ #v).
-  Proof. Admitted.
-
 
   Definition sampling_scheme_spec (e : expr) 𝜀factor 𝜀final E (Ψ : val -> bool) (Θ : val -> bool) : Prop
     := {{{ True }}}
