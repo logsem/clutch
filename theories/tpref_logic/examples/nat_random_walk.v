@@ -113,19 +113,12 @@ Proof.
     apply nrw_non_decr.
 Qed.
 
-(** Random walk by recursion through the store (Landin's knot) *)
+(** Recursion through the store (Landin's knot) *)
 Definition myrec : val :=
   λ: "f",
     let: "r" := ref (λ: "x", "x") in
     "r" <- (λ: "x", "f" (! "r") "x");;
     ! "r".
-
-Definition F : val :=
-  λ: "f", λ: "n",
-    if: "n" = #0 then #() else
-    if: flip #() then "f" ("n" - #1) else "f" ("n" + #1).
-
-Definition nat_rw_prog : expr := myrec F.
 
 Section myrec_spec.
   Context `{!tprG δ Σ}.
@@ -162,7 +155,65 @@ Section myrec_spec.
     iIntros (v3).
     iModIntro.
     iIntros (Φ) "HP HQ".
+    (* To do a fully generic higher-order spec we'll need something akin to
+       later credits or a model construction (just like in [determinize.v]) *)
+
   Abort.
-    (* iApply ("IH" with "HP HQ"); done. *)
 
 End myrec_spec.
+
+(** A random walk on the natural numbers  *)
+Definition F : val :=
+  λ: "f", λ: "n",
+    if: "n" = #0 then #() else
+    if: flip then "f" ("n" - #1) else "f" ("n" + #1).
+
+Lemma flip_couple n :
+    Rcoupl fair_coin (step (m := nat_random_walk) (S n))
+      (λ b m, if b then m = n else m = S (S n)).
+Proof.
+  rewrite /=.
+  rewrite /fair_conv_comb.
+  rewrite -{1}(dret_id_right fair_coin).
+  eapply Rcoupl_dbind; [|eapply Rcoupl_eq].
+  intros ? [] ->; by eapply Rcoupl_dret.
+Qed.
+
+Section nat_rw_prog_spec.
+  Context `{!tprG nat_random_walk Σ}.
+
+  Lemma wp_nat_rw (n : nat) :
+    ⟨⟨⟨ specF n ⟩⟩⟩
+      myrec F #n
+    ⟨⟨⟨ m, RET #(); specF m ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "HP HΨ".
+    wp_lam.
+    wp_alloc r as "Hr".
+    wp_let.
+    wp_store.
+    wp_load.
+    iMod (inv_alloc (nroot .@ "myrec") _ _ with "Hr") as "#inv".
+    wp_pures.
+    iLöb as "IH" forall (n Ψ).
+    wp_bind (! _)%E.
+    iInv nmyrec as ">Hr" "cl".
+    wp_load.
+    iMod ("cl" with "Hr") as "_".
+    iModIntro.
+    rewrite {3}/F.
+    wp_pures; rewrite -/flip.
+    destruct n.
+    { rewrite bool_decide_eq_true_2 //. wp_if. by iApply "HΨ". }
+    rewrite bool_decide_eq_false_2; [|done].
+    wp_if.
+    wp_apply (rwp_couple_flip with "HP").
+    { apply flip_couple. }
+    iIntros ([] m) "[Hspec ->] /="; wp_pures.
+    - assert (S n - 1 = n)%Z as -> by lia.
+      wp_apply ("IH" with "Hspec HΨ").
+    - assert (S n + 1 = S (S n))%Z as -> by lia.
+      wp_apply ("IH" with "Hspec HΨ").
+  Qed.
+
+End nat_rw_prog_spec.
