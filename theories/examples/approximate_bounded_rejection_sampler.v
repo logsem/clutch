@@ -5,7 +5,258 @@ Require Import Lra.
 
 Set Default Proof Using "Type*".
 
+
+Section finite.
+  (* generalization of Coq.Logic.FinFun: lift functions over fin to functions over nat *)
+  Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : (nat -> A) :=
+    fun n =>
+      match le_lt_dec N n with
+      | left _ => a
+      | right h => f (Fin.of_nat_lt h)
+      end.
+
+
+  (* uses proof irrelevance *)
+  Lemma f_lift_fin_nat_ltN {A} (n N: nat) (a : A) (Hn : (n < N)%nat) f :
+    (f_lift_fin_nat N a f) n = f (nat_to_fin Hn).
+  Proof.
+    rewrite /f_lift_fin_nat.
+    destruct (le_lt_dec N n) as [Hl|Hr].
+    - lia.
+    - f_equal; f_equal.
+      apply proof_irrelevance.
+  Qed.
+
+
+  Lemma f_lift_fin_nat_geN {A} (N n: nat) (a : A) (Hn : not (n < N)%nat) f :
+    (f_lift_fin_nat N a f) n = a.
+  Proof.
+    rewrite /f_lift_fin_nat.
+    destruct (le_lt_dec N n); [done | lia].
+  Qed.
+
+
+  Lemma encode_inv_nat_nat_total (n : nat) : (@encode_inv_nat nat _ _ n)  = Some n.
+  Proof.
+    rewrite -encode_inv_encode_nat.
+    f_equal.
+    rewrite /encode_nat.
+    rewrite /encode /nat_countable.
+    destruct n; try done.
+    rewrite /= /encode /N_countable /= -SuccNat2Pos.inj_succ.
+    symmetry; apply SuccNat2Pos.pred_id.
+  Qed.
+
+  Lemma encode_inv_nat_fin_undef (n N: nat) (H : not (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = None.
+  Proof.
+    apply encode_inv_decode_ge.
+    rewrite fin_card.
+    lia.
+  Qed.
+
+
+  Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
+  Proof.
+    (* maybe I turn it into an encode_nat problem? is that easier than encode_inv_nat? *)
+    rewrite -encode_inv_encode_nat; f_equal.
+
+    (* Set Printing Coercions. *)
+
+    Check nat_to_fin_to_nat.
+
+
+    (* even though this looks promising, I think it's going nowhere because the a is under an existential.
+    assert (H' : (n < card (fin N))%nat).
+    { by rewrite fin_card. }
+    destruct (@encode_inv_decode (fin N) _ _ n H') as [a Ha].
+    *)
+
+    rewrite /encode_nat.
+    rewrite /encode. simpl.
+    rewrite Nat2Pos.id; try lia.
+    rewrite -pred_Sn.
+    replace (fst <$> _) with (Some n); first by simpl.
+    replace (list_find _ _) with (Some (n, nat_to_fin H)); first by simpl.
+    symmetry; rewrite list_find_Some.
+    induction n as [|n' IH].
+    - split. { destruct N; simpl; [lia | done]. }
+      split. { done. }
+      intros ? ? ? Hcontra; lia.
+    - split. {
+        assert (H' : (n' < N)%nat) by lia.
+        destruct (IH H') as [HR _ _].
+        (* now HR tells us how to lookup at n'... we need to unroll the lookup one level *)
+
+        rewrite -lookup_tail.
+        (* somehow we need to pull out the fact that tail of (fin_enum (S N)) is FS <$> (fin_enum N), right? *)
+
+        rewrite /fin_enum.
+        induction N; try lia.
+        simpl.
+        fold fin_enum.
+        (* literally no idea how I'm going to apply that IH because I'm not even sure S n' < N is true *)
+        rewrite list_lookup_fmap.
+
+
+        admit.
+
+      }
+      split. { done. }
+      admit.
+  Admitted.
+
+
+
+  Lemma fin2_enum (x : fin 2) : (fin_to_nat x = 0%nat) \/ (fin_to_nat x = 1%nat).
+  Proof.
+  Admitted.
+
+  Lemma fin2_nat_bool (x : fin 2) : (fin_to_nat x =? 1)%nat = (fin_to_bool x).
+  Proof. Admitted.
+
+
+
+End finite.
+
+
+Section finSeries.
+  Local Open Scope R.
+
+  (* increment the index of a series whose first terms are zero *)
+  Lemma series_incr_N_zero f N :
+    (forall m : nat, (m < N)%nat -> f m = 0) -> SeriesC (fun n : nat => f n) = SeriesC (fun n : nat => f (N + n)%nat).
+  Proof.
+    intros Hinit.
+    rewrite /SeriesC /Series.
+    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
+    f_equal; apply Lim_seq.Lim_seq_ext; intros n.
+    rewrite /Hierarchy.sum_n.
+    replace (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 (n + N))
+      with (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) N (n + N));
+      last first.
+    { destruct N as [|N']; first by simpl.
+      rewrite (Hierarchy.sum_n_m_Chasles _ 0%nat N' (n + S N')%nat); try lia.
+      replace  (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
+          with (@Hierarchy.zero Hierarchy.R_AbelianGroup).
+      - by rewrite Hierarchy.plus_zero_l.
+      - replace (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
+          with  (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (λ n0 : nat, 0) 0 N').
+          { rewrite (Hierarchy.sum_n_m_const _ _ 0); rewrite Rmult_0_r; auto. }
+            apply Hierarchy.sum_n_m_ext_loc.
+            intros K Hk.
+            rewrite /countable_sum.
+            (* I can simplify this with some of my lemmas now? *)
+            rewrite encode_inv_nat_nat_total /=.
+            symmetry; apply Hinit.
+            lia. }
+
+    induction n as [| n' IH].
+    - simpl.
+      do 2 (rewrite Hierarchy.sum_n_n).
+      (* now we do the song and dance to evaluate the countable_sum at a value again *)
+      rewrite /countable_sum encode_inv_nat_nat_total /=.
+      replace (N + 0)%nat with N%nat by lia.
+      reflexivity.
+    - simpl.
+      do 2 (rewrite Hierarchy.sum_n_Sm; last by lia).
+      f_equal; first by apply IH.
+      do 2 (rewrite /countable_sum encode_inv_nat_nat_total /=).
+      f_equal; lia.
+  Qed.
+
+
+  (* reindex a series over fin which is zero below some value *)
+  Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
+    SeriesC (fun x : fin M => nonneg (if bool_decide (x < (S z))%nat then nnreal_zero else K))
+      = SeriesC (fun x : fin (M-(S z)) => nonneg K).
+  Proof.
+    remember (S z) as N.
+    (* try to do the same induction dance as the reindexing part of the above lemma *)
+    rewrite /SeriesC /Series.
+    f_equal.
+    (* after we increment the top sum by N, they are pointwise equal *)
+    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
+    apply Lim_seq.Lim_seq_ext; intros n.
+
+    (* rewrite to a two-ended sum, and compute the first N terms to be zero like above *)
+
+    induction n as [| n' IH].
+    - (* split the sum into the zero part, and the singular term of value K *)
+      rewrite /= HeqN Hierarchy.sum_Sn -HeqN.
+
+      (* now we can evaluate the first handful of terms to be zero *)
+
+      rewrite Hierarchy.sum_O.
+      remember (fun x : fin M => nonneg $ if bool_decide (x < N)%nat then nnreal_zero else K) as body.
+      remember (fun _ : fin M => nnreal_zero) as body1.
+      replace
+        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body) z)
+      with
+        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body1) z);
+      last first.
+      { apply Hierarchy.sum_n_ext_loc.
+        intros n Hn.
+        rewrite /countable_sum.
+        rewrite encode_inv_nat_fin_total; first lia.
+        intros Hn1.
+        rewrite /= Heqbody1 Heqbody HeqN fin_to_nat_to_fin /=.
+        rewrite bool_decide_true; first done.
+        lia. }
+
+      (* now we can replace the countable sum with a constant zero function (TODO: make me a lemma)*)
+      rewrite Heqbody1.
+      replace
+        (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M))
+          (fun _ : Fin.t M => nonneg nnreal_zero))
+      with (fun _ : nat => 0); last first.
+      { apply functional_extensionality.
+        intros x; rewrite /countable_sum.
+        destruct (encode_inv_nat x) as [t|]; by simpl. }
+
+      (* now the two series are both constant zero, we cam simplify *)
+      rewrite Hierarchy.sum_n_const Rmult_0_r.
+      rewrite /countable_sum.
+
+      do 2 (rewrite encode_inv_nat_fin_total; try lia).
+      intros H''.
+      rewrite /= Heqbody fin_to_nat_to_fin /=.
+      rewrite bool_decide_false; try lia.
+      rewrite Hierarchy.plus_zero_l.
+      done.
+    - simpl.
+      rewrite Hierarchy.sum_Sn.
+      rewrite Hierarchy.sum_Sn.
+      f_equal; first by apply IH.
+      remember (bool_decide (S n' < (M - N))%nat) as HCond1.
+      case_bool_decide.
+      + rewrite {2}/countable_sum.
+        rewrite encode_inv_nat_fin_total.
+        simpl.
+        rewrite /countable_sum.
+        rewrite encode_inv_nat_fin_total; try lia.
+        intros H''.
+        remember (nat_to_fin H'') as D.
+        simpl.
+        rewrite bool_decide_false; first done.
+        rewrite HeqD.
+        rewrite fin_to_nat_to_fin.
+        lia.
+      + rewrite /countable_sum.
+        rewrite encode_inv_nat_fin_undef; last lia.
+        rewrite encode_inv_nat_fin_undef; last auto.
+        done.
+  Qed.
+
+End finSeries.
+
+
+
+
+
 Section basic.
+  (* basic version of the rejection sampler, bounded and unbounded *)
+
+
   Local Open Scope R.
   Context `{!clutchGS Σ}.
 
@@ -180,224 +431,8 @@ Section basic.
       + apply err_factor_nz_R; auto.
   Qed.
 
-  (* generalization of Coq.Logic.FinFun *)
-  Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : (nat -> A) :=
-    fun n =>
-      match le_lt_dec N n with
-      | left _ => a
-      | right h => f (Fin.of_nat_lt h)
-      end.
 
 
-  (* uses proof irrelevance *)
-  Lemma f_lift_fin_nat_ltN {A} (n N: nat) (a : A) (Hn : (n < N)%nat) f :
-    (f_lift_fin_nat N a f) n = f (nat_to_fin Hn).
-  Proof.
-    rewrite /f_lift_fin_nat.
-    destruct (le_lt_dec N n) as [Hl|Hr].
-    - lia.
-    - f_equal; f_equal.
-      apply proof_irrelevance.
-  Qed.
-
-
-  Lemma f_lift_fin_nat_geN {A} (N n: nat) (a : A) (Hn : not (n < N)%nat) f :
-    (f_lift_fin_nat N a f) n = a.
-  Proof.
-    rewrite /f_lift_fin_nat.
-    destruct (le_lt_dec N n); [done | lia].
-  Qed.
-
-
-  Lemma encode_inv_nat_nat_total (n : nat) : (@encode_inv_nat nat _ _ n)  = Some n.
-  Proof.
-    rewrite -encode_inv_encode_nat.
-    f_equal.
-    rewrite /encode_nat.
-    rewrite /encode /nat_countable.
-    destruct n; try done.
-    rewrite /= /encode /N_countable /= -SuccNat2Pos.inj_succ.
-    symmetry; apply SuccNat2Pos.pred_id.
-  Qed.
-
-
-  Lemma series_incr_N_zero f N :
-    (forall m : nat, (m < N)%nat -> f m = 0) -> SeriesC (fun n : nat => f n) = SeriesC (fun n : nat => f (N + n)%nat).
-  Proof.
-    intros Hinit.
-    rewrite /SeriesC /Series.
-    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
-    f_equal; apply Lim_seq.Lim_seq_ext; intros n.
-    rewrite /Hierarchy.sum_n.
-    replace (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 (n + N))
-      with (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) N (n + N));
-      last first.
-    { destruct N as [|N']; first by simpl.
-      rewrite (Hierarchy.sum_n_m_Chasles _ 0%nat N' (n + S N')%nat); try lia.
-      replace  (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
-          with (@Hierarchy.zero Hierarchy.R_AbelianGroup).
-      - by rewrite Hierarchy.plus_zero_l.
-      - replace (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
-          with  (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (λ n0 : nat, 0) 0 N').
-          { rewrite (Hierarchy.sum_n_m_const _ _ 0); rewrite Rmult_0_r; auto. }
-            apply Hierarchy.sum_n_m_ext_loc.
-            intros K Hk.
-            rewrite /countable_sum.
-            (* I can simplify this with some of my lemmas now? *)
-            rewrite encode_inv_nat_nat_total /=.
-            symmetry; apply Hinit.
-            lia. }
-
-    induction n as [| n' IH].
-    - simpl.
-      do 2 (rewrite Hierarchy.sum_n_n).
-      (* now we do the song and dance to evaluate the countable_sum at a value again *)
-      rewrite /countable_sum encode_inv_nat_nat_total /=.
-      replace (N + 0)%nat with N%nat by lia.
-      reflexivity.
-    - simpl.
-      do 2 (rewrite Hierarchy.sum_n_Sm; last by lia).
-      f_equal; first by apply IH.
-      do 2 (rewrite /countable_sum encode_inv_nat_nat_total /=).
-      f_equal; lia.
-  Qed.
-
-  Lemma encode_inv_nat_fin_undef (n N: nat) (H : not (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = None.
-  Proof.
-    apply encode_inv_decode_ge.
-    rewrite fin_card.
-    lia.
-  Qed.
-
-  Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
-  Proof.
-    Set Printing Coercions.
-
-
-    Check nat_to_fin_to_nat.
-
-    (* maybe I turn it into an encode_nat problem? is that easier than encode_inv_nat? *)
-    rewrite -encode_inv_encode_nat; f_equal.
-
-    (* even though this looks promising, I think it's going nowhere because the a is under an existential.
-    assert (H' : (n < card (fin N))%nat).
-    { by rewrite fin_card. }
-    destruct (@encode_inv_decode (fin N) _ _ n H') as [a Ha].
-    *)
-
-    rewrite /encode_nat.
-    rewrite /encode. simpl.
-    rewrite Nat2Pos.id; try lia.
-    rewrite -pred_Sn.
-    replace (fst <$> _) with (Some n); first by simpl.
-    replace (list_find _ _) with (Some (n, nat_to_fin H)); first by simpl.
-    symmetry; rewrite list_find_Some.
-    induction n as [|n' IH].
-    - split. { destruct N; simpl; [lia | done]. }
-      split. { done. }
-      intros ? ? ? Hcontra; lia.
-    - split. {
-        assert (H' : (n' < N)%nat) by lia.
-        destruct (IH H') as [HR _ _].
-        (* now HR tells us how to lookup at n'... we need to unroll the lookup one level *)
-
-        rewrite -lookup_tail.
-        (* somehow we need to pull out the fact that tail of (fin_enum (S N)) is FS <$> (fin_enum N), right? *)
-
-        rewrite /fin_enum.
-        induction N; try lia.
-        simpl.
-        fold fin_enum.
-        (* literally no idea how I'm going to apply that IH because I'm not even sure S n' < N is true *)
-        rewrite list_lookup_fmap.
-
-
-        admit.
-
-      }
-      split. { done. }
-      admit.
-  Admitted.
-
-  Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
-    SeriesC (fun x : fin M => nonneg (if bool_decide (x < (S z))%nat then nnreal_zero else K)) = SeriesC (fun x : fin (M-(S z)) => nonneg K).
-  Proof.
-    remember (S z) as N.
-    (* try to do the same induction dance as the reindexing part of the above lemma *)
-    rewrite /SeriesC /Series.
-    f_equal.
-    (* after we increment the top sum by N, they are pointwise equal *)
-    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
-    apply Lim_seq.Lim_seq_ext; intros n.
-
-    (* rewrite to a two-ended sum, and compute the first N terms to be zero like above *)
-
-    induction n as [| n' IH].
-    - (* split the sum into the zero part, and the singular term of value K *)
-      rewrite /= HeqN Hierarchy.sum_Sn -HeqN.
-
-      (* now we can evaluate the first handful of terms to be zero *)
-
-      rewrite Hierarchy.sum_O.
-      remember (fun x : fin M => nonneg $ if bool_decide (x < N)%nat then nnreal_zero else K) as body.
-      remember (fun _ : fin M => nnreal_zero) as body1.
-      replace
-        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body) z)
-      with
-        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body1) z);
-      last first.
-      { apply Hierarchy.sum_n_ext_loc.
-        intros n Hn.
-        rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_total; first lia.
-        intros Hn1.
-        rewrite /= Heqbody1 Heqbody HeqN fin_to_nat_to_fin /=.
-        rewrite bool_decide_true; first done.
-        lia. }
-
-      (* now we can replace the countable sum with a constant zero function (TODO: make me a lemma)*)
-      rewrite Heqbody1.
-      replace
-        (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M))
-          (fun _ : Fin.t M => nonneg nnreal_zero))
-      with (fun _ : nat => 0); last first.
-      { apply functional_extensionality.
-        intros x; rewrite /countable_sum.
-        destruct (encode_inv_nat x) as [t|]; by simpl. }
-
-      (* now the two series are both constant zero, we cam simplify *)
-      rewrite Hierarchy.sum_n_const Rmult_0_r.
-      rewrite /countable_sum.
-
-      do 2 (rewrite encode_inv_nat_fin_total; try lia).
-      intros H''.
-      rewrite /= Heqbody fin_to_nat_to_fin /=.
-      rewrite bool_decide_false; try lia.
-      rewrite Hierarchy.plus_zero_l.
-      done.
-    - simpl.
-      rewrite Hierarchy.sum_Sn.
-      rewrite Hierarchy.sum_Sn.
-      f_equal; first by apply IH.
-      remember (bool_decide (S n' < (M - N))%nat) as HCond1.
-      case_bool_decide.
-      + rewrite {2}/countable_sum.
-        rewrite encode_inv_nat_fin_total.
-        simpl.
-        rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_total; try lia.
-        intros H''.
-        remember (nat_to_fin H'') as D.
-        simpl.
-        rewrite bool_decide_false; first done.
-        rewrite HeqD.
-        rewrite fin_to_nat_to_fin.
-        lia.
-      + rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_undef; last lia.
-        rewrite encode_inv_nat_fin_undef; last auto.
-        done.
-  Qed.
 
   (* mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
@@ -612,13 +647,27 @@ End basic.
 
 
 
+
 Section higherorder.
+  (* higher order rejection sampling *)
   Local Open Scope R.
   Context `{!clutchGS Σ}.
+
+  (* spending error credits is proof irrelevant *)
+  Lemma ec_spend_irrel a b : (nonneg b <= nonneg a) -> € a -∗ € b.
+  Proof. iIntros (H) "?". iApply (ec_weaken _ H). iFrame. Qed.
+
+
+  Lemma credit_spend_1 : €nnreal_one -∗ ▷ False.
+  Proof. Admitted.
 
 
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
     := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
+
+  Lemma scale_unless_cmp a b 𝜀 v Θ : (scale_unless b (scale_unless a 𝜀 Θ #v) Θ #v) = (scale_unless (a*b)%NNR 𝜀 Θ #v).
+  Proof. Admitted.
+
 
   Definition sampling_scheme_spec (e : expr) 𝜀factor 𝜀final E (Ψ : val -> bool) (Θ : val -> bool) : Prop
     := {{{ True }}}
@@ -752,6 +801,7 @@ End higherorder.
 
 
 Section higherorder_rand.
+  (* higher order version of the basic rejection sampler *)
   Local Open Scope R.
   Context `{!clutchGS Σ}.
 
@@ -944,9 +994,9 @@ End higherorder_rand.
 
 
 Section higherorder_flip2.
+  (* higher order version of a sampler which rejects until two coin flips are 1 *)
   Local Open Scope R.
   Context `{!clutchGS Σ}.
-
 
   Definition flip2_sampling_scheme : expr
      := (λ: "_",  (Pair
@@ -978,23 +1028,6 @@ Section higherorder_flip2.
       else (nnreal_nat(2%nat) * 𝜀1)%NNR.
 
 
-  Lemma fin2_enum (x : fin 2) : (fin_to_nat x = 0%nat) \/ (fin_to_nat x = 1%nat).
-  Proof. Admitted.
-
-  Lemma fin2_nat_bool0 (x : fin 2) : (fin_to_nat x = 0%nat) <-> (fin_to_bool x = false).
-  Proof. Admitted.
-
-  Lemma fin2_nat_bool1(x : fin 2) : (fin_to_nat x = 1%nat) <-> (fin_to_bool x = true).
-  Proof. Admitted.
-
-
-  Lemma scale_unless_cmp a b 𝜀 v Θ : (scale_unless b (scale_unless a 𝜀 Θ #v) Θ #v) = (scale_unless (a*b)%NNR 𝜀 Θ #v).
-  Proof. Admitted.
-
-  Lemma ec_spend_irrel a b : (nonneg b <= nonneg a) -> € a -∗ € b.
-  Proof. iIntros (H) "?". iApply (ec_weaken _ H). iFrame. Qed.
-
-
   Lemma flip_amplification (𝜀1 : nonnegreal) E :
     {{{ € 𝜀1 }}}
       rand #1 from #() @ E
@@ -1012,9 +1045,12 @@ Section higherorder_flip2.
       + iPureIntro; apply fin2_enum.
       + iApply (ec_spend_irrel with "Hcr"). rewrite /𝜀2_flip2.
         destruct (fin2_enum n) as [H|H].
-        * replace (fin_to_bool n) with false; last (symmetry; by apply fin2_nat_bool0).
-          rewrite /scale_unless H /= Rmult_1_l Rmult_comm Rinv_inv. apply Req_le_sym; by apply Rmult_eq_compat_l.
-        * replace (fin_to_bool n) with true; last (symmetry; by apply fin2_nat_bool1).
+        * rewrite -fin2_nat_bool.
+          replace (n =? 1)%nat with false; last by (symmetry; apply Nat.eqb_neq; lia).
+          rewrite /scale_unless H /= Rmult_1_l Rmult_comm Rinv_inv.
+          apply Req_le_sym; apply Rmult_eq_compat_l; done.
+        * rewrite -fin2_nat_bool.
+          replace (n =? 1)%nat with true; last by (symmetry; apply Nat.eqb_eq; lia).
           rewrite /scale_unless H /=; done.
   Admitted.
 
