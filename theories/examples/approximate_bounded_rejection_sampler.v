@@ -271,19 +271,52 @@ Section basic.
 
   Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
   Proof.
-    assert (G : (n < card $ fin N)%nat).
-    { rewrite fin_card. lia. }
-    destruct (encode_inv_decode n G) as [y [Hy1 Hy2]]; simpl.
-
-    rewrite Hy1; f_equal.
-    symmetry.
-
     Set Printing Coercions.
 
-    Check  (encode_inv_nat_some_inj _ y _ Hy1).
-    (* there has to be a better way to prove this than unfolding the definitions one by one,
-       unfortunately I think it is necessary.
-     *)
+
+    Check nat_to_fin_to_nat.
+
+    (* maybe I turn it into an encode_nat problem? is that easier than encode_inv_nat? *)
+    rewrite -encode_inv_encode_nat; f_equal.
+
+    (* even though this looks promising, I think it's going nowhere because the a is under an existential.
+    assert (H' : (n < card (fin N))%nat).
+    { by rewrite fin_card. }
+    destruct (@encode_inv_decode (fin N) _ _ n H') as [a Ha].
+    *)
+
+    rewrite /encode_nat.
+    rewrite /encode. simpl.
+    rewrite Nat2Pos.id; try lia.
+    rewrite -pred_Sn.
+    replace (fst <$> _) with (Some n); first by simpl.
+    replace (list_find _ _) with (Some (n, nat_to_fin H)); first by simpl.
+    symmetry; rewrite list_find_Some.
+    induction n as [|n' IH].
+    - split. { destruct N; simpl; [lia | done]. }
+      split. { done. }
+      intros ? ? ? Hcontra; lia.
+    - split. {
+        assert (H' : (n' < N)%nat) by lia.
+        destruct (IH H') as [HR _ _].
+        (* now HR tells us how to lookup at n'... we need to unroll the lookup one level *)
+
+        rewrite -lookup_tail.
+        (* somehow we need to pull out the fact that tail of (fin_enum (S N)) is FS <$> (fin_enum N), right? *)
+
+        rewrite /fin_enum.
+        induction N; try lia.
+        simpl.
+        fold fin_enum.
+        (* literally no idea how I'm going to apply that IH because I'm not even sure S n' < N is true *)
+        rewrite list_lookup_fmap.
+
+
+        admit.
+
+      }
+      split. { done. }
+      admit.
   Admitted.
 
   Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
@@ -378,11 +411,8 @@ Section basic.
     { intros. by rewrite Rmult_assoc. }
     rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
-    rewrite reindex_fin_series.
-
-Admitted.
-(*
-SeriesC_finite_mass fin_card.
+    rewrite reindex_fin_series; try lia.
+    rewrite SeriesC_finite_mass fin_card.
     rewrite /err_factor.
     remember (S m' - S n')%nat as D.
     remember (S m') as M.
@@ -395,9 +425,8 @@ SeriesC_finite_mass fin_card.
       apply not_0_INR.
       lia.
   Qed.
-*)
 
-(*
+
 
   (** warmup: a finite example *)
   Definition bdd_approx_safe_finite_example (n' m' depth : nat) (Hnm : (S n' < S m')%nat) E :
@@ -410,7 +439,7 @@ SeriesC_finite_mass fin_card.
 
     (* S depth=3 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-    { intros s. apply sample_err_wf; try lia. }
+    { exists nnreal_one. intros s. apply sample_err_wf; try lia. }
     { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') 3 Hnm)); apply P. }
     iIntros (sample) "Hcr".
     wp_pures.
@@ -420,7 +449,7 @@ SeriesC_finite_mass fin_card.
 
     (* S depth=2 sample *)
     wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-    { intros s. apply sample_err_wf; try lia. }
+    { exists nnreal_one. intros s. apply sample_err_wf; try lia. }
     { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') 2 Hnm)); apply P. }
     iIntros (sample') "Hcr".
     wp_pures.
@@ -490,7 +519,7 @@ SeriesC_finite_mass fin_card.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { intros s. apply sample_err_wf; try lia. }
+      { exists 1. intros s. apply sample_err_wf; try lia. }
       { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm)); by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
@@ -538,7 +567,7 @@ SeriesC_finite_mass fin_card.
           specialize (fin_to_nat_lt sample''); by lia.
     - wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { intros s. apply sample_err_wf; try lia. }
+      { exists 1. intros s. apply sample_err_wf; try lia. }
       { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm));  by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
@@ -579,7 +608,6 @@ SeriesC_finite_mass fin_card.
     simpl. simpl in H. apply Rlt_le. done.
   Qed.
 
-*)
 End basic.
 
 
@@ -587,92 +615,26 @@ End basic.
 Section higherorder.
   Local Open Scope R.
   Context `{!clutchGS Σ}.
-(*
+
 
   Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
-    := (fun z => if (Θ z) then nnreal_zero else (𝜀 * 𝜀1)%NNR).
+    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
 
-  Definition sampling_scheme_spec (e : expr) 𝜀 E (Ψ : val -> bool) (Θ : val -> bool) : Prop
+  Definition sampling_scheme_spec (e : expr) 𝜀factor 𝜀final E (Ψ : val -> bool) (Θ : val -> bool) : Prop
     := {{{ True }}}
          e @ E
        {{{sampler checker, RET (PairV sampler checker);
             (* sampler needs to be able to amplify the mass during sampling *)
-            (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀 𝜀1 Θ v) }}}) ∗
+            (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀factor 𝜀1 Θ v) }}}) ∗
             (* Θ reflects checker whenever the value is one we could have sampled *)
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
             (* 𝜀 credit suffices to force checker to pass, on any possible sampled values *)
-            (∀ v, {{{ €𝜀 }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
+            (∀ v : val, {{{ €𝜀final }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
             (* get weird typeclass errors when including this...
                 {{{ True }}} ((Val checker) v) @ E {{{ v', RET v'; ⌜v' = true ⌝ }}} *)
             (* we can always just get _some_ value out of the sampler if we want *)
             ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v = true ⌝ }}})
        }}}.
-
-  (* next, we should show that this can actually be instantiated by some sane samplers *)
-  Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
-     := (λ: "_", (Pair
-                    (λ: "_", rand #m' from #())
-                    (λ: "sample", "sample" ≤ #n')))%E.
-
-
-  Definition flip_sampling_scheme : expr
-     := (λ: "_",  (Pair
-                     (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
-                     (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
-
-  (* TODO could try an unbounded one? *)
-
-  Definition rand_support (m' : nat) (v : val) : bool :=
-    match v with
-    | LitV (LitInt n) => (Z.leb 0 n)%Z && (Z.leb n (Z.of_nat m'))%Z
-    | _ => false
-    end.
-
-  Definition rand_check_accepts (n' : nat) (v : val): bool :=
-    match v with
-    | LitV (LitInt n) => (Z.leb n (Z.of_nat n'))%Z
-    | _ => false
-    end.
-
-  (* TODO lift logical types into unofrm distributions? *)
-
-  Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
-    sampling_scheme_spec
-      (rand_sampling_scheme n' m' Hnm #())
-      (nnreal_div (nnreal_nat (S m' - S n')%nat) (nnreal_nat (S m')%nat))
-      E
-      (rand_support m')
-      (rand_check_accepts n').
-  Proof.
-    rewrite /sampling_scheme_spec. iIntros (Φ) "_ HΦ".
-    rewrite /rand_sampling_scheme. wp_pures.
-    iModIntro; iApply "HΦ".
-    iSplit.
-    { (* the generic composition rule *)
-      iIntros (𝜀1 Post) "!> Hcr HPost".
-      wp_pures.
-      pose 𝜀2 := (fun (z : fin (S m')) =>
-          (scale_unless (nnreal_div (nnreal_nat (S m' - S n')) (nnreal_nat (S m'))) 𝜀1 (rand_check_accepts n')) #z).
-      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀1 𝜀2 _ with "Hcr") .
-      - (* uniform bound on 𝜀2*) admit.
-      - (* series converges to expectation *) admit.
-      - iNext; iIntros (n) "Hcr".
-        iApply "HPost".
-        iSplitR.
-        + iPureIntro. rewrite /rand_support.
-          (* true fact for fin types *)
-          admit.
-        + rewrite /𝜀2.
-          iApply "Hcr".}
-    iSplit.
-    { iIntros (v).
-      (* in the support, sample ... *)
-      admit. }
-    iSplit.
-    { admit. }
-    { admit. }
-  Admitted.
-
 
   (* higher order rejection sampler *)
   Definition ho_bdd_rejection_sampler :=
@@ -691,28 +653,37 @@ Section higherorder.
         in "do_sample" "depth")%E.
 
 
-  Program Definition generic_geometric_error (r : nonnegreal) (depth : nat) : nonnegreal := nnreal_inv (mknonnegreal (r ^ depth) _).
+  Program Definition generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) : nonnegreal
+    := (𝜀final * (mknonnegreal (r ^ depth) _))%NNR.
   Next Obligation. intros. apply pow_le. by destruct r. Qed.
 
-  Lemma simpl_generic_geometric_error (r : nonnegreal) (depth : nat) : (r * generic_geometric_error r (S depth))%NNR = (generic_geometric_error r depth).
+
+  Lemma final_generic_geometric_error (r 𝜀final : nonnegreal) : (generic_geometric_error r 𝜀final 0%nat) = 𝜀final.
+  Proof. apply nnreal_ext; by rewrite /generic_geometric_error /= Rmult_1_r. Qed.
+
+  Lemma simpl_generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) (Hr : not (eq (nonneg r) 0)) :
+    (nnreal_div (generic_geometric_error r 𝜀final (S depth)) r)%NNR = (generic_geometric_error r 𝜀final  depth).
   Proof.
-    rewrite /generic_geometric_error.
-    simpl.
-    (* easy proof, come back to this. *)
-  Admitted.
-
-
+    rewrite /generic_geometric_error /nnreal_div /nnreal_mult.
+    apply  nnreal_ext; simpl.
+    rewrite Rmult_assoc;  apply Rmult_eq_compat_l.
+    rewrite -Rmult_comm -Rmult_assoc Rinv_l; try auto.
+    by apply Rmult_1_l.
+  Qed.
 
   (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
-  Definition ho_bdd_approx_safe (make_sampler : val) (r : nonnegreal) (depth : nat) Ψ Θ E :
+  Definition ho_bdd_approx_safe (make_sampler : val) (r 𝜀final : nonnegreal) (depth : nat) Ψ Θ E :
+    (not (eq (nonneg r) 0)) ->
+    (not (eq (nonneg 𝜀final) 0)) ->
     r < 1 ->
-    sampling_scheme_spec make_sampler r E Ψ Θ ->
-    {{{ € (generic_geometric_error r (S depth)) }}}
+    𝜀final < 1 ->
+    sampling_scheme_spec make_sampler r 𝜀final E Ψ Θ ->
+    {{{ € (generic_geometric_error r 𝜀final depth) }}}
       ho_bdd_rejection_sampler #(S depth) make_sampler  @ E
     {{{ v, RET v; ∃ v', ⌜ v = SOMEV v' ⌝}}}.
   Proof.
     (* initial setup *)
-    iIntros (Hr Hmake_sampler Φ) "Hcr HΦ".
+    iIntros (Hr0 H𝜀final0 Hr H𝜀final Hmake_sampler Φ) "Hcr HΦ".
     rewrite /ho_bdd_rejection_sampler.
     wp_pures.
     wp_bind (_ make_sampler)%E.
@@ -737,11 +708,8 @@ Section higherorder.
       { (* proof irrelevance thing *)
           iClear "#".
           iApply (ec_weaken with "Hcr").
-          rewrite /generic_geometric_error /=.
-          rewrite Rmult_1_r.
-          (* this is true... but I want to double check that this generic_geometric_error spec is right first *)
-          admit. }
-
+          rewrite /generic_geometric_error /= Rmult_1_r.
+          apply Rle_refl. }
       iIntros (next_sample) "(%HsampleV & %HcheckV )"; wp_pures.
       (* spend the credits in the checker*)
       wp_bind (checker next_sample)%E.
@@ -756,7 +724,7 @@ Section higherorder.
       wp_pures.
       wp_bind (sampler #())%E.
       (* why did this stop working? *)
-      wp_apply ("Hcomp" $! (generic_geometric_error r (S (S depth'))) with "Hcr").
+      wp_apply ("Hcomp" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
       iIntros (sample) "(%HΨ&Hcr)".
       wp_pures.
       (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
@@ -768,7 +736,7 @@ Section higherorder.
         iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
       +  iSpecialize ("IH" with "[Hcr]").
         { iClear "#". rewrite /scale_unless. replace (Θ sample) with false.
-          rewrite simpl_generic_geometric_error. iFrame. }
+          rewrite simpl_generic_geometric_error; [iFrame | done].}
         iSpecialize ("IH" with "HΦ").
         iClear "#".
         wp_pure.
@@ -777,7 +745,453 @@ Section higherorder.
         replace #((S (S depth')) - 1) with #(S depth'); last first.
         { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
         iApply "IH".
-  Admitted.
-*)
+  Qed.
 
 End higherorder.
+
+
+
+Section higherorder_rand.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
+
+  (* next, we should show that this can actually be instantiated by some sane samplers *)
+  Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
+     := (λ: "_", (Pair
+                    (λ: "_", rand #m' from #())
+                    (λ: "sample", "sample" ≤ #n')))%E.
+
+
+
+  Definition rand_support (m' : nat) (v : val) : bool :=
+    match v with
+    | LitV (LitInt n) => (Z.leb 0 n)%Z && (Z.leb n (Z.of_nat m'))%Z
+    | _ => false
+    end.
+
+  Definition rand_check_accepts (n' : nat) (v : val): bool :=
+    match v with
+    | LitV (LitInt n) => (Z.leb n (Z.of_nat n'))%Z
+    | _ => false
+    end.
+
+  (* TODO lift logical types into unofrm distributions? *)
+
+  Definition rand_𝜀2 (n' m' : nat) (𝜀1 : nonnegreal) : (fin (S m')) -> nonnegreal
+    := fun z =>
+         (scale_unless (err_factor (S n') (S m')) 𝜀1 (rand_check_accepts n')) #z.
+
+
+  (* mean of error distribution is preserved *)
+  Lemma sample_err_mean_higherorder n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
+    SeriesC (λ n : fin (S m'), (1 / S m') * rand_𝜀2 n' m' 𝜀₁ n) = 𝜀₁.
+  Proof.
+    (* annoying: pull out the constant factor to leave a bare SeriesC on the left. I guess it's not necessary. *)
+    rewrite /bdd_cf_sampling_error SeriesC_scal_l.
+    apply (Rmult_eq_reg_l (S m')); last (apply not_0_INR; lia).
+    rewrite Rmult_assoc -Rmult_assoc Rmult_1_r.
+    rewrite -Rmult_assoc -Rinv_r_sym; last (apply not_0_INR; lia).
+    rewrite Rmult_1_l.
+
+    rewrite /rand_𝜀2 /scale_unless.
+    rewrite /rand_check_accepts.
+    (* this is only here to let me rewrite under the series body. A more general setoid tactic might do this? *)
+    replace
+      (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
+       (fun x : Fin.t (S m') =>
+        nonneg
+          match Z.leb (Z.of_nat _) (Z.of_nat n') return nonnegreal with
+          | true => _
+          | false => _
+          end))
+      with
+      (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
+       (fun x : Fin.t (S m') =>
+        nonneg
+          match (bool_decide (x < S n')%nat) return nonnegreal with
+          | true => nnreal_zero
+          | false => nnreal_div 𝜀₁ (err_factor (S n') (S m'))%NNR
+          end));
+    last first.
+    { apply SeriesC_ext; intros z.
+      replace
+        (@bool_decide (lt (@fin_to_nat (S m') z) (S n'))
+           (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat (S m') z) (S n')))
+        with (z <=? n')%Z; first done.
+      case_bool_decide; [ apply Z.leb_le | apply Z.leb_nle]; lia. }
+
+    rewrite reindex_fin_series; try lia.
+    rewrite SeriesC_finite_mass fin_card.
+    rewrite /err_factor.
+    remember (S m' - S n')%nat as D.
+    remember (S m') as M.
+    rewrite /= -Rmult_assoc Rmult_comm -Rmult_assoc.
+    apply Rmult_eq_compat_r.
+    rewrite Rmult_comm Rinv_mult -Rmult_assoc Rinv_r.
+    - by rewrite Rinv_inv Rmult_1_l.
+    - rewrite HeqD HeqM.
+      apply not_0_INR.
+      lia.
+  Qed.
+
+
+
+  Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
+    sampling_scheme_spec
+      (rand_sampling_scheme n' m' Hnm #())
+      (err_factor (S n') (S m'))
+      (err_factor (S n') (S m'))
+      E
+      (rand_support m')
+      (rand_check_accepts n').
+  Proof.
+    rewrite /sampling_scheme_spec. iIntros (Φ) "_ HΦ".
+    rewrite /rand_sampling_scheme. wp_pures.
+    iModIntro; iApply "HΦ".
+
+    iSplit.
+    { (* the generic composition rule *)
+      iIntros (𝜀1 Post) "!> Hcr HPost".
+      wp_pures.
+
+      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀1 (rand_𝜀2 n' m' 𝜀1) _ with "Hcr").
+      - (* 𝜀2 has a uniform upper bound *)
+        exists (nnreal_div 𝜀1 (err_factor (S n') (S m')))%NNR.
+        intros v.
+        rewrite /rand_𝜀2 /scale_unless.
+        destruct (rand_check_accepts n' #v).
+        + destruct (nnreal_div 𝜀1 (err_factor (S n') (S m')))%NNR.
+          auto.
+        + apply Rle_refl.
+      - (* series converges to expectation *)
+        by apply sample_err_mean_higherorder.
+      - iNext; iIntros (n) "Hcr".
+        iApply "HPost".
+        iSplitR.
+        + iPureIntro. rewrite /rand_support.
+          (* true fact for fin types *)
+          apply andb_true_intro; split; apply Z.leb_le; try lia.
+          pose P := (fin_to_nat_lt n).
+          lia.
+        + rewrite /rand_𝜀2.
+          rewrite /err_factor.
+          iApply "Hcr".
+
+      (* where are these goals coming from???*)
+      Unshelve.
+      { apply Post. }
+      { rewrite Nat2Z.id; apply TCEq_refl. }
+    }
+
+
+    iSplit.
+    { iIntros (v Post) "!> %Hsupp HPost".
+      wp_pures.
+      remember v as v'.
+      destruct v; try (rewrite /rand_support Heqv' in Hsupp; discriminate).
+      destruct l; try (rewrite /rand_support Heqv' in Hsupp; discriminate).
+      rewrite /rand_check_accepts Heqv'. wp_pures. iApply "HPost".
+      iModIntro. iPureIntro. case_bool_decide.
+        - symmetry; by apply Z.leb_le.
+        - symmetry; by apply Z.leb_nle. }
+    iSplit.
+    { iIntros (v Post) "!> Hcr HPost".
+      wp_pures.
+      remember (S n') as n.
+      remember (S m') as m.
+      wp_apply (wp_rand_err_list_nat _ m' (seq n (m - n))).
+      iSplitL "Hcr".
+      - iApply (ec_weaken with "Hcr").
+        rewrite /err_factor seq_length /=.
+        apply Rmult_le_compat_l.
+        { rewrite Heqn Heqm; apply pos_INR. }
+        apply Rle_Rinv; try lia.
+        + apply lt_0_INR. lia.
+        + apply lt_0_INR. lia.
+        + apply le_INR. lia.
+      - iIntros (sample'') "%Hsample''".
+        iApply "HPost"; iSplit; iPureIntro.
+        + rewrite /rand_support.
+          apply andb_true_intro; split; apply Z.leb_le; try lia.
+          pose P := (fin_to_nat_lt sample'').
+          lia.
+        + rewrite /rand_check_accepts.
+          apply Z.leb_le.
+          rewrite List.Forall_forall in Hsample''.
+          specialize Hsample'' with sample''.
+          apply Znot_gt_le.
+          intros H.
+          apply Hsample''; last reflexivity.
+          rewrite in_seq.
+          split; first lia.
+          replace (n + (m-n))%nat with m by lia.
+          specialize (fin_to_nat_lt sample''); by lia. }
+    { iIntros (v) "!> _ HPost".
+      wp_pures.
+      iApply wp_rand; auto.
+      iNext; iIntros (n) "_".
+      iApply "HPost"; iPureIntro.
+      rewrite /rand_support.
+      apply andb_true_intro; split; apply Z.leb_le; try lia.
+      pose P := (fin_to_nat_lt n).
+      lia.
+    }
+  Qed.
+End higherorder_rand.
+
+
+
+
+Section higherorder_flip2.
+  Local Open Scope R.
+  Context `{!clutchGS Σ}.
+
+
+  Definition flip2_sampling_scheme : expr
+     := (λ: "_",  (Pair
+                     (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
+                     (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
+
+
+  Definition flip2_support (v : val) : bool :=
+    match v with
+    | PairV (LitV (LitInt v0%nat)) (LitV (LitInt v1%nat)) => (((v0 =? 0) || (v0 =? 1)) &&  ((v1 =? 0) || (v1 =? 1)))%Z
+    | _ => false
+    end.
+
+  Definition flip2_check_accepts  (v : val): bool :=
+    match v with
+    | PairV (LitV (LitInt 1%Z)) (LitV (LitInt 1%Z)) => true
+    | _ => false
+    end.
+
+  Definition flip_is_1  (v : val): bool :=
+    match v with
+    | LitV (LitInt 1%Z) => true
+    | _ => false
+    end.
+
+  Definition 𝜀2_flip2 (𝜀1 : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
+    if (fin_to_bool v)
+      then nnreal_zero
+      else (nnreal_nat(2%nat) * 𝜀1)%NNR.
+
+
+  Lemma fin2_enum (x : fin 2) : (fin_to_nat x = 0%nat) \/ (fin_to_nat x = 1%nat).
+  Proof. Admitted.
+
+  Lemma fin2_nat_bool0 (x : fin 2) : (fin_to_nat x = 0%nat) <-> (fin_to_bool x = false).
+  Proof. Admitted.
+
+  Lemma fin2_nat_bool1(x : fin 2) : (fin_to_nat x = 1%nat) <-> (fin_to_bool x = true).
+  Proof. Admitted.
+
+
+  Lemma scale_unless_cmp a b 𝜀 v Θ : (scale_unless b (scale_unless a 𝜀 Θ #v) Θ #v) = (scale_unless (a*b)%NNR 𝜀 Θ #v).
+  Proof. Admitted.
+
+  Lemma ec_spend_irrel a b : (nonneg b <= nonneg a) -> € a -∗ € b.
+  Proof. iIntros (H) "?". iApply (ec_weaken _ H). iFrame. Qed.
+
+
+  Lemma flip_amplification (𝜀1 : nonnegreal) E :
+    {{{ € 𝜀1 }}}
+      rand #1 from #() @ E
+    {{{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_unless (nnreal_div (nnreal_nat 1%nat) (nnreal_nat 2%nat)) 𝜀1 flip_is_1 #v) }}}.
+  Proof.
+    iIntros (Φ) "Hcr HΦ".
+    iApply (wp_couple_rand_adv_comp 1%nat  _ _ _ 𝜀1 (𝜀2_flip2 𝜀1) _ with "Hcr").
+    - (* uniform bound *)
+      admit.
+    - (* series mean *)
+      admit.
+    - (* continutation *)
+      iNext. iIntros (n) "Hcr".
+      iApply ("HΦ" $! (fin_to_nat n)); iSplitR.
+      + iPureIntro; apply fin2_enum.
+      + iApply (ec_spend_irrel with "Hcr"). rewrite /𝜀2_flip2.
+        destruct (fin2_enum n) as [H|H].
+        * replace (fin_to_bool n) with false; last (symmetry; by apply fin2_nat_bool0).
+          rewrite /scale_unless H /= Rmult_1_l Rmult_comm Rinv_inv. apply Req_le_sym; by apply Rmult_eq_compat_l.
+        * replace (fin_to_bool n) with true; last (symmetry; by apply fin2_nat_bool1).
+          rewrite /scale_unless H /=; done.
+  Admitted.
+
+
+  Lemma flip2_sampling_scheme_spec E :
+    sampling_scheme_spec
+      (flip2_sampling_scheme #())%E
+      (nnreal_div (nnreal_nat 1%nat) (nnreal_nat 4%nat))
+      (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
+      E flip2_support flip2_check_accepts.
+  Proof.
+    rewrite /sampling_scheme_spec /flip2_sampling_scheme.
+    iIntros (Φ) "_ HΦ"; wp_pures; iModIntro; iApply "HΦ".
+
+    iSplit.
+    { (* amplification: apply the other amplification lemma twice?
+         multiply by 2 twice => multiply by 4
+         so my initial error should be (3/4) * (1/4)^depth?
+       *)
+      iIntros (𝜀1 post) "!> Hcr Hpost".
+      wp_pures.
+      wp_bind (rand #1 from #())%E.
+      wp_apply (flip_amplification 𝜀1 with "Hcr").
+      iIntros (v) "(%Hv&Hcr)".
+      wp_apply (flip_amplification _ with "Hcr").
+      iIntros (v') "(%Hv'&Hcr)".
+      wp_pures.
+      iModIntro; iApply "Hpost".
+      iSplitR.
+      - iPureIntro. rewrite /flip2_support.
+        destruct Hv, Hv' as [-> | ->]; rewrite H; auto.
+      - iApply (ec_spend_irrel with "Hcr").
+        (* we need to amplify the first case *)
+
+
+        destruct Hv, Hv' as [-> | ->]; rewrite H; simpl; admit.
+
+        (*
+
+        replace (scale_unless _ (scale_unless _ _ _ #_) _ #_)%NNR with nnreal_zero.
+        {  }
+
+        f_equal.
+        (* need to combine the two scale_unless statements together now... *)
+        rewrite /scale_unless /flip_is_1 /flip2_check_accepts /=.
+        rewrite /nnreal_div /=.
+        apply nnreal_ext; simpl.
+        apply Rmult_eq_compat_l; simpl.
+        f_equal.
+        do 2 rewrite Rmult_1_l.
+        replace (((1 + 1) + 1) + 1) with ((1 + 1) * (1 + 1)); first by rewrite Rinv_mult.
+        by rewrite Rmult_plus_distr_l Rmult_1_r -Rplus_assoc. }
+        *) }
+
+    iSplit.
+    { (* checker spec is accurate on range of sample *)
+      iIntros (v Post) "!> %Hsup Hpost". wp_pures.
+      remember v as l.
+      destruct v; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct v1; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct l0; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct v2; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      destruct l0; try (rewrite /flip2_support Heql in Hsup; discriminate).
+      rewrite Heql; wp_pures.
+      case_bool_decide; wp_pures.
+      - iModIntro; case_bool_decide; iApply "Hpost"; iPureIntro.
+        + rewrite /flip2_check_accepts.
+          replace n with 1%Z by (inversion H; done).
+          replace n0 with 1%Z by (inversion H0; done).
+          done.
+        + (* there has to be a cleaner way to do this *)
+          rewrite /flip2_check_accepts.
+          rewrite /flip2_support Heql in Hsup.
+          replace n with 1%Z by (inversion H; done).
+          replace n0 with 0%Z; first done.
+          apply andb_true_iff in Hsup as [_ Hsup].
+          apply orb_true_iff in Hsup as [Hsup | Hsup]; try lia.
+          apply Z.eqb_eq in Hsup.
+          rewrite Hsup in H0.
+          exfalso; apply H0; auto.
+      - iModIntro; iApply "Hpost"; iPureIntro.
+        rewrite /flip2_check_accepts; rewrite /flip2_support Heql in Hsup.
+        apply andb_true_iff in Hsup as [Hs0 Hs1];
+        apply orb_true_iff in Hs0 as [Hsa | Hsa];
+        apply orb_true_iff in Hs1 as [Hsb | Hsb];
+        apply Z.eqb_eq in Hsa;
+        apply Z.eqb_eq in Hsb;
+        try (rewrite Hsa);
+        try (rewrite Hsb);
+        try done.
+
+        (* last case *)
+        rewrite Hsa in H; exfalso; apply H; auto. }
+    iSplit.
+    { (* credit spending rule *)
+
+      (* err.. how do I do this? I guess I have to spend once, then amplify, then spend again? *)
+      (* okay so this is actually kind of interesting
+         with the regular error stuff we would never be able to force two flips to give us a singular value
+         because we would need (1/2 + 1/2 = 1) error
+
+         instead, we can first amplify 1/4 to 1/2, and spend that 1/2 on the last flip
+
+         this is exploits the fact that even though the two flips are independent, we are not
+         using them in an independent way... we just care that _either_ of them avoid a value. (is that even a coherent statement)
+       *)
+      iIntros (v close) "!> Hcr Hclose".
+      wp_pures.
+      wp_bind (rand #1 from #())%E.
+      wp_apply (flip_amplification with "Hcr").
+      iIntros (v') "(%Hv'&Hcr)".
+
+      destruct Hv' as [-> | ->]; last first.
+      { (* if the first is a zero, we need to amplify again?? *)
+        (* before we do anything, we should simplify that error credit. *)
+        rewrite /scale_unless; simpl.
+        (* so I think... do we get flip2_check_accepts for free? *)
+        wp_bind (rand _ from _)%E; iApply wp_rand; auto.
+        iNext; iIntros (n) "_"; wp_pures.
+        iApply "Hclose".
+
+
+
+
+
+
+        - admit. (* clean this up-- it's the same as the prior bullet point I think *)
+
+
+      }
+
+      wp_bind (rand #1 from #())%E.
+      iApply (wp_rand_err _ _ 0%fin).
+      iSplitL "Hcr".
+      { iApply (ec_spend_irrel with "Hcr"). simpl; lra. }
+      iIntros (x) "%Hx".
+      wp_pures; iModIntro.
+      iApply "Hclose".
+      iSplit; iPureIntro.
+      - rewrite /flip2_support.
+        apply andb_true_iff; split; last auto.
+        apply orb_true_iff; right.
+        apply Z.eqb_eq.
+        admit.
+        (* how to prove this?? am I going to have to more cursed unfolding?
+
+          Unset Printing Notations.
+          Set Printing Coercions.
+        admit.
+      -
+        destruct (fin2_enum x).
+        + exfalso.
+          admit.
+        + rewrite /flip2_check_accepts /=.
+          admit.
+
+         *)
+      - (* basically the same issue, nothing too complex otherwise? *)
+
+        admit. }
+      - iIntros (close) "!> _ Hclose". wp_pures.
+        wp_bind (rand #1 from #())%E.
+        iApply wp_rand; auto; iNext; iIntros (v') "_".
+        wp_bind (rand #1 from #())%E.
+        iApply wp_rand; auto; iNext; iIntros (v'') "_".
+        wp_pures; iModIntro; iApply "Hclose"; iPureIntro.
+        rewrite /flip2_support.
+        destruct (fin2_enum v') as [HA|HA];
+        destruct (fin2_enum v'') as [HB|HB];
+        try (rewrite HA);
+        try (rewrite HB);
+        auto.
+  Admitted.
+
+End higherorder_flip2.
+
+
+
+
+(* TODO could try an unbounded one? *)
