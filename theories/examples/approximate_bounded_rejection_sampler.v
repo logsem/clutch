@@ -247,6 +247,12 @@ Section finSeries.
         done.
   Qed.
 
+  (* almost certainly this is the better way to prove the above *)
+  Lemma SeriesC_finite_foldr `{Finite A} (f : A → R) :
+    SeriesC f = foldr (Rplus ∘ f) 0%R (enum A).
+  Proof. (* proven in the tpref branch *) Admitted.
+
+
 End finSeries.
 
 
@@ -1036,9 +1042,15 @@ Section higherorder_flip2.
     iIntros (Φ) "Hcr HΦ".
     iApply (wp_couple_rand_adv_comp 1%nat  _ _ _ 𝜀1 (𝜀2_flip2 𝜀1) _ with "Hcr").
     - (* uniform bound *)
-      admit.
+      pose bound := (nnreal_nat 2 * 𝜀1)%NNR.
+      exists bound; intros n.
+      rewrite /𝜀2_flip2.
+      destruct (fin_to_bool n).
+      + destruct bound; auto.
+      + rewrite /bound /=; lra.
     - (* series mean *)
-      admit.
+      rewrite SeriesC_finite_foldr /enum /fin_finite /fin_enum /=.
+      lra.
     - (* continutation *)
       iNext. iIntros (n) "Hcr".
       iApply ("HΦ" $! (fin_to_nat n)); iSplitR.
@@ -1052,7 +1064,11 @@ Section higherorder_flip2.
         * rewrite -fin2_nat_bool.
           replace (n =? 1)%nat with true; last by (symmetry; apply Nat.eqb_eq; lia).
           rewrite /scale_unless H /=; done.
-  Admitted.
+      Unshelve.
+      { apply Φ. }
+      { apply TCEq_refl. }
+
+  Qed.
 
 
   Lemma flip2_sampling_scheme_spec E :
