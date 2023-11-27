@@ -1,4 +1,4 @@
-From Coq Require Import Reals.
+From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From clutch.program_logic Require Import language ectx_language exec.
 From clutch.prob_lang Require Import lang notation metatheory.
@@ -148,12 +148,17 @@ Proof.
   { admit. }
   rewrite K.
   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #b))).
-  
+  erewrite (ssd_bind_constant _ _ _ _ 1), (ssd_bind_constant _ _ _ _ 0).
+  2: { (* use lim_exec_val_of_val_b_one *) admit. }
+  2: { (* use lim_exec_val_of_val_b_one *) admit. }
+  rewrite Rmult_0_l Rplus_0_r Rmult_1_l. 
+  rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg.
+  by rewrite ssd_fix_value.
 Admitted.
 
 (* second part *)
 
-Definition loop := App (Rec "f" "x" (App (Var "f") (Var "x"))) (#()).
+Definition loop := App (RecV "f" "x" (App (Var "f") (Var "x"))) (#()).
 
 Lemma loop_zero_mass σ: SeriesC (lim_exec_val (loop, σ)) = 0.
 Proof.
@@ -162,9 +167,18 @@ Proof.
   rewrite /lim_exec_val.
   rewrite lim_distr_pmf.
   assert (H: (λ n, Rbar.Finite (exec_val n (loop, σ) x)) = λ n, 0).
-  { admit. }
+  { apply functional_extensionality_dep => n.
+    induction n as [n Hn] using (well_founded_induction lt_wf).
+    destruct n.
+    - simpl. destruct x; auto.
+    -  rewrite /loop. simpl. rewrite head_prim_step_eq; last first.
+        -- eexists _. erewrite det_head_step_singleton; [|by econstructor]. simpl.
+            rewrite dret_1_1; [|done]. lra.
+        -- simpl. rewrite dret_id_left -/exec_val. apply Hn. lia.
+  }
   rewrite H.
-Admitted.
+  apply sup_seq_const.
+Qed. 
 
 Lemma lim_exec_val_of_val_true_one e σ: e = #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 1.
 Proof.
@@ -175,17 +189,36 @@ Proof.
   Admitted.
 
 Lemma lim_exec_val_is_true_test e σ: 
-  SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) = lim_exec_val (e,σ) (#true).
+  lim_exec_val ((if: e then #() else loop)%E, σ) #() = lim_exec_val (e,σ) (#true).
 Proof.
   replace (if: e then #() else loop)%E with (fill_item (IfCtx #() loop) e); last first.
   { done. }
   rewrite lim_exec_val_context_bind => /=.
+  pose (ν := λ '(e', σ'), lim_exec_val ((if: e' then #() else loop)%E, σ')).
+  assert ((λ '(e', σ'), lim_exec_val ((if: e' then #() else loop)%E, σ'))=(λ c, ν c)) as K.
+  { admit. }
+  rewrite K.
+  erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #true))).
+  erewrite (ssd_bind_constant _ _ _ _ 1), (ssd_bind_constant _ _ _ _ 0).
+  2: { (* use lim_exec_val_of_val_true_one *) admit. }
+  2: { (* use lim_exec_val_of_val_not_true_zero *) admit. }
+  rewrite Rmult_0_l Rplus_0_r Rmult_1_l. 
+  rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg.
+  by rewrite ssd_fix_value.
 Admitted.
 
+Lemma lim_exec_val_seriesc_return_value e σ:
+  SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) =
+  lim_exec_val ((if: e then #() else loop)%E, σ) #(). 
+Proof.
+  (* see lim_exec_val_SeriesC_SeqV_true *)
+  Admitted. 
+  
 (*Combining both *)
 Lemma alt_impl_ctx_refines_loop_lemma e (b:bool) σ:
   lim_exec_val (e, σ) #b = SeriesC (lim_exec_val ((if: e = #b then #() else loop)%E, σ)).
 Proof.
+  rewrite lim_exec_val_seriesc_return_value.
   rewrite lim_exec_val_is_true_test.
   apply lim_exec_val_is_b_test.
 Qed. 

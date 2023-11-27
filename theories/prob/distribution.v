@@ -908,7 +908,19 @@ Section bind_lemmas.
     erewrite <-bind_split_sum; first done.
     intros. apply ssd_sum.
   Qed. 
-    
+
+
+  (** *strengthen following lemma? *)
+  Lemma ssd_bind_constant P μ ν (b : B) k:
+    (∀ a, P a = true -> ν a b = k) -> (ssd P μ ≫= λ a', ν a') b = k * SeriesC (ssd P μ).
+  Proof.
+  Admitted.
+
+  Lemma ssd_fix_value μ (v : A):
+    SeriesC (ssd (λ a, bool_decide (a = v)) μ) = μ v.
+  Proof.
+  Admitted.
+  
 End bind_lemmas.
 
 

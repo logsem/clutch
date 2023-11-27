@@ -346,10 +346,102 @@ Section prim_exec_lim.
       intros ??. apply IHn.
   Qed.
 
+  Lemma lim_exec_cfg_bind_continuity e σ ν v:
+    (lim_exec_cfg (e, σ) ≫= (λ s, ν s)) v =
+    Sup_seq (λ n, (exec_cfg n (e, σ) ≫= (λ s, ν s)) v).
+  Proof.
+  Admitted. 
+  
   Lemma lim_exec_val_context_bind `{!LanguageCtx K} e σ:
     lim_exec_val (K e, σ) =
     lim_exec_cfg (e, σ) ≫= λ '(e', σ'), lim_exec_val (K e', σ').
-  Proof. 
+  Proof.
+    apply distr_le_antisym; rewrite /distr_le; intros v;
+      [unfold lim_exec_val|]; rewrite lim_distr_pmf; rewrite lim_exec_cfg_bind_continuity.
+    - apply Rbar_le_fin.
+      { admit. }
+      rewrite rbar_finite_real_eq; last first.
+      { eapply is_finite_bounded.
+        ++ eapply Sup_seq_minor_le. rewrite /lim_exec_val. apply pmf_pos. 
+        ++ apply upper_bound_ge_sup => ?. apply pmf_le_1. 
+      }
+      apply Sup_seq_le.
+      intros n; revert e σ v; induction n => e σ v/=.
+      ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2.
+         --- rewrite dret_id_left. rewrite /lim_exec_val lim_distr_pmf.
+             apply rbar_le_finite. { admit. }             
+             eapply (Sup_seq_minor_le _ _ 0). simpl; rewrite H2. lra.
+         --- replace (dzero v) with 0.
+             2:{ done. }
+             apply pmf_pos.
+         --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2.
+         --- replace (dzero v) with 0.
+             2:{ done. }
+             apply pmf_pos.                         
+      ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2.
+         --- rewrite dret_id_left. rewrite /lim_exec_val lim_distr_pmf.
+             apply rbar_le_finite. { admit. }
+             eapply (Sup_seq_minor_le _ _ 0). simpl; rewrite H2. lra.
+         --- rewrite dret_id_left. rewrite -exec_val_Sn_not_val; last done.
+             unfold lim_exec_val. rewrite lim_distr_pmf.
+             eapply rbar_le_finite. { admit. }
+             eapply (Sup_seq_minor_le _ _ (S n)). done.
+         --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2.
+         --- rewrite fill_dmap; last done. rewrite /dmap.
+             rewrite -!dbind_assoc -/exec_cfg -/exec_val.
+             revert v. apply distr_le_dbind. { apply distr_le_refl. }
+             intros [e' σ']. unfold distr_le. intros v.
+             rewrite dret_id_left. simpl.
+             apply IHn.
+    - apply Rbar_le_fin.
+      { admit. }
+      rewrite rbar_finite_real_eq; last first.
+      { eapply is_finite_bounded.
+        ++ eapply Sup_seq_minor_le. rewrite /lim_exec_val. admit.
+        ++ admit.
+      }
+      admit.
+      (* transitivity (Sup_seq (λ n : nat, (exec_cfg n (e, σ) ≫= (λ '(e', σ'), exec_val n (K e', σ'))) v)). *)
+      (* { apply upper_bound_ge_sup => n. simpl. } *)
+      (* apply Sup_seq_le. *)
+      (* intros n; revert e σ v; induction n => e σ v/=. *)
+      (* ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2. *)
+      (*    --- rewrite dret_id_left. rewrite lim_distr_pmf. *)
+      (*        apply Rbar_le_fin. { admit. } *)
+      (*        apply upper_bound_ge_sup. *)
+      (*        intros. apply of_to_val in H2. rewrite -H2. *)
+      (*        destruct n; simpl; rewrite to_of_val; apply distr_le_refl. *)
+      (*    --- rewrite dret_id_left. *)
+      (*      replace (dzero v) with 0. *)
+      (*        2:{ done. } *)
+      (*        apply pmf_pos. *)
+      (*    --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2. *)
+      (*    --- replace (dzero v) with 0. *)
+      (*        2:{ done. } *)
+      (*        apply pmf_pos.                          *)
+      (* ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2. *)
+      (*    --- rewrite dret_id_left. rewrite /lim_exec_val lim_distr_pmf. *)
+      (*        apply rbar_le_finite. { admit. } *)
+      (*        eapply (Sup_seq_minor_le _ _ 0). simpl; rewrite H2. lra. *)
+      (*    --- rewrite dret_id_left. rewrite -exec_val_Sn_not_val; last done. *)
+      (*        unfold lim_exec_val. rewrite lim_distr_pmf. *)
+      (*        eapply rbar_le_finite. { admit. } *)
+      (*        eapply (Sup_seq_minor_le _ _ (S n)). done. *)
+      (*    --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2. *)
+      (*    --- rewrite fill_dmap; last done. rewrite /dmap. *)
+      (*        rewrite -!dbind_assoc -/exec_cfg -/exec_val. *)
+      (*        revert v. apply distr_le_dbind. { apply distr_le_refl. } *)
+      (*        intros [e' σ']. unfold distr_le. intros v. *)
+      (*        rewrite dret_id_left. simpl. *)
+      (*        apply IHn. *)
+      (* admit. *)
+  Admitted.
+
+  (** * strengthen lemma? *)
+  Lemma ssd_fix_value_lim_exec_val_lim_exec_cfg e σ (v : val Λ):
+    SeriesC (ssd (λ '(e', σ'), bool_decide (to_val e' = Some v)) (lim_exec_cfg (e, σ))) =
+    SeriesC (ssd (λ e' : val Λ, bool_decide (e' = v)) (lim_exec_val (e, σ))).
+  Proof.
   Admitted.
     
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
