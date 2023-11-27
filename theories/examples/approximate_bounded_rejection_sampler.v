@@ -1082,8 +1082,8 @@ Section higherorder_flip2.
       exists bound; intros n.
       rewrite /𝜀2_flip1.
       destruct (fin_to_bool n).
-      + destruct bound. admit.
-      + destruct bound. admit.
+      + destruct 𝜀t as [𝜀tv H𝜀tvpos]. rewrite /bound /=. lra.
+      + destruct 𝜀h as [𝜀hv H𝜀hvpos]. rewrite /bound /=. lra.
     - (* series mean *)
       rewrite SeriesC_finite_foldr /enum /fin_finite /fin_enum /𝜀2_flip1 /=.
       lra.
@@ -1104,7 +1104,7 @@ Section higherorder_flip2.
       Unshelve.
       { apply Φ. }
       { apply TCEq_refl. }
-  Admitted.
+  Qed.
 
 
   Lemma flip2_sampling_scheme_spec E :
@@ -1118,11 +1118,7 @@ Section higherorder_flip2.
     iIntros (Φ) "_ HΦ"; wp_pures; iModIntro; iApply "HΦ".
 
     iSplit.
-    { (* amplification: apply the other amplification lemma twice?
-         multiply by 2 twice => multiply by 4
-         so my initial error should be (3/4) * (1/4)^depth?
-       *)
-      iIntros (𝜀1 post) "!> Hcr Hpost".
+    { iIntros (𝜀1 post) "!> Hcr Hpost".
       wp_pures.
       wp_bind (rand #1 from #())%E.
       (* amplify: give 4/3 error to the false branch, and 2/3 error to the second *)
