@@ -346,45 +346,153 @@ Section prim_exec_lim.
       intros ??. apply IHn.
   Qed.
 
-  Lemma lim_exec_cfg_bind_continuity e σ ν v:
+
+  (** * strengthen this lemma? *)
+  Lemma lim_exec_bind_continuity_1 e σ ν v:
     (lim_exec_cfg (e, σ) ≫= (λ s, ν s)) v =
     Sup_seq (λ n, (exec_cfg n (e, σ) ≫= (λ s, ν s)) v).
   Proof.
-  Admitted. 
+    rewrite /pmf /= /dbind_pmf.
+    rewrite /lim_exec_cfg.
+    assert (SeriesC (λ a : cfg Λ, lim_distr (λ n : nat, exec_cfg n (e, σ)) (exec_cfg_mon (e, σ)) a * ν a v) = SeriesC (λ a : cfg Λ, Sup_seq (λ n : nat, exec_cfg n (e, σ) a) * ν a v)) as H by f_equal.
+    rewrite H. clear H.
+    pose (h := λ n a, exec_cfg n (e, σ) a * ν a v).
+    assert (SeriesC (λ a : cfg Λ, Sup_seq (λ n : nat, exec_cfg n (e, σ) a) * ν a v) =
+            SeriesC (λ a : cfg Λ, Sup_seq (λ n : nat, h n a))).
+    { f_equal. apply functional_extensionality_dep => s. rewrite /h.
+      rewrite Rmult_comm. apply eq_rbar_finite. rewrite rmult_finite rbar_finite_real_eq; last first.
+      { apply (is_finite_bounded 0 1).
+        - apply (Sup_seq_minor_le _ _ 0). apply pmf_pos.
+        - apply upper_bound_ge_sup => n. apply pmf_le_1.
+      }
+      rewrite -Sup_seq_scal_l; [|done].
+      f_equal. apply functional_extensionality_dep => n. rewrite Rmult_comm. done.
+    }
+    rewrite H. clear H.
+    rewrite /h. clear h.
+    eapply MCT_seriesC; intros.
+    - by apply Rmult_le_pos.
+    - apply Rmult_le_compat_r; [done|apply exec_cfg_mon].
+    - exists 1. intros. replace 1 with (1*1); [by apply Rmult_le_compat|lra].
+    - apply SeriesC_correct.
+      eapply (ex_seriesC_le _ (λ a, exec_cfg n (e, σ) a)).
+      + intros; split; [by apply Rmult_le_pos|].
+        rewrite <-Rmult_1_r.
+        by apply Rmult_le_compat_l.
+      + apply pmf_ex_seriesC.
+    - rewrite (Rbar_le_sandwich 0 1).
+      + eapply is_sup_seq_ext; last first.
+        { eapply Sup_seq_correct. }
+        intros => /=. done.
+      + eapply (Sup_seq_minor_le _ _ 0%nat). apply SeriesC_ge_0' => ?.
+        by apply Rmult_le_pos.
+      + apply upper_bound_ge_sup => n.
+        trans ((exec_cfg n (e, σ) ≫= λ a, ν a) v ).
+        -- by rewrite {3}/pmf.
+        -- apply pmf_le_1.
+  Qed. 
+
+    
+  (** * strengthen this lemma? *)
+  Lemma lim_exec_bind_continuity_2 (μ : distr (cfg Λ)) v `{!LanguageCtx K}:
+    (μ ≫= (λ '(e, σ), lim_exec_val ((K e), σ) )) v =
+    Sup_seq (λ n, (μ ≫= (λ '(e, σ), exec_val n ((K e), σ))) v).
+  Proof.
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite {3}/pmf /= /dbind_pmf.
+    rewrite /lim_exec_val.
+    assert (SeriesC
+    (λ a : expr Λ * state Λ,
+       μ a *
+         (let '(e, σ) := a in lim_distr (λ n : nat, exec_val n (K e, σ)) (exec_val_mon (K e, σ))) v) =
+            SeriesC
+    (λ a : expr Λ * state Λ,
+       μ a *
+         (let '(e, σ) := a in Sup_seq (λ n : nat, exec_val n (K e, σ) v) )
+           )) as H.
+    { f_equal. apply functional_extensionality_dep => e. destruct e. f_equal. }
+    rewrite H. clear H.
+    assert (SeriesC
+              (λ a : expr Λ * state Λ, μ a * (let '(e, σ) := a in Sup_seq (λ n : nat, exec_val n (K e, σ) v)))=
+           SeriesC
+             (λ a : expr Λ * state Λ, Sup_seq (λ n : nat, μ a * (let '(e, σ) := a in exec_val n (K e, σ) v)))) as H.
+    { f_equal. apply functional_extensionality_dep => e. destruct e.
+      apply eq_rbar_finite. rewrite rmult_finite rbar_finite_real_eq; last first.
+      { apply (is_finite_bounded 0 1).
+        - apply (Sup_seq_minor_le _ _ 0). apply pmf_pos.
+        - apply upper_bound_ge_sup => n. apply pmf_le_1.
+      }
+      rewrite -Sup_seq_scal_l; [|done].
+      f_equal.
+    }
+    rewrite H. clear H.
+    eapply MCT_seriesC; intros.
+    - destruct a. by apply Rmult_le_pos.
+    - apply Rmult_le_compat_l; [done|]. destruct a. apply exec_val_mon.
+    - exists 1. intros. destruct a. replace 1 with (1*1); [by apply Rmult_le_compat|lra].
+    - apply SeriesC_correct.
+      pose (ν := λ a, let '(e, σ) := a in exec_val n (K e, σ) v).
+      assert (ex_seriesC (λ a : expr Λ * state Λ, μ a * (let '(e, σ) := a in exec_val n (K e, σ) v))
+              = ex_seriesC (λ a : expr Λ * state Λ, μ a * ν a)) as H by f_equal.
+      rewrite H.
+      eapply pmf_ex_seriesC_mult_fn. exists 1. intros [e σ]. rewrite /ν. split; done.
+    - rewrite (Rbar_le_sandwich 0 1).
+      + eapply is_sup_seq_ext; last first.
+        { eapply Sup_seq_correct. }
+        intros. simpl. repeat f_equal. apply functional_extensionality_dep. by intros [e σ].
+      + eapply (Sup_seq_minor_le _ _ 0%nat). apply SeriesC_ge_0' => ?.
+        apply Rmult_le_pos; done.
+      + apply upper_bound_ge_sup => n.
+        trans ((μ ≫= λ '(e, σ), exec_val n (K e, σ)) v).
+        -- by rewrite {3}/pmf /= /dbind_pmf.
+        -- apply pmf_le_1.
+  Qed. 
   
   Lemma lim_exec_val_context_bind `{!LanguageCtx K} e σ:
     lim_exec_val (K e, σ) =
     lim_exec_cfg (e, σ) ≫= λ '(e', σ'), lim_exec_val (K e', σ').
   Proof.
     apply distr_le_antisym; rewrite /distr_le; intros v;
-      [unfold lim_exec_val|]; rewrite lim_distr_pmf; rewrite lim_exec_cfg_bind_continuity.
+      [unfold lim_exec_val|]; rewrite lim_distr_pmf; rewrite lim_exec_bind_continuity_1.
     - apply Rbar_le_fin.
-      { admit. }
-      rewrite rbar_finite_real_eq; last first.
-      { eapply is_finite_bounded.
-        ++ eapply Sup_seq_minor_le. rewrite /lim_exec_val. apply pmf_pos. 
+      { apply Rbar_0_le_to_Rle. apply (Sup_seq_minor_le _ _ 0). apply pmf_pos. }
+      rewrite rbar_finite_real_eq; last first. 
+      { eapply is_finite_bounded. 
+        ++ apply (Sup_seq_minor_le _ _ 0). rewrite /lim_exec_val. apply pmf_pos.
         ++ apply upper_bound_ge_sup => ?. apply pmf_le_1. 
-      }
+      } 
       apply Sup_seq_le.
       intros n; revert e σ v; induction n => e σ v/=.
       ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2.
          --- rewrite dret_id_left. rewrite /lim_exec_val lim_distr_pmf.
-             apply rbar_le_finite. { admit. }             
+             apply rbar_le_finite.
+             { apply (is_finite_bounded 0 1).
+               +++ apply (Sup_seq_minor_le _ _ 0). apply pmf_pos.
+               +++ apply upper_bound_ge_sup => n. apply pmf_le_1.
+             }             
              eapply (Sup_seq_minor_le _ _ 0). simpl; rewrite H2. lra.
          --- replace (dzero v) with 0.
              2:{ done. }
              apply pmf_pos.
          --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2.
          --- replace (dzero v) with 0.
-             2:{ done. }
+             2:{ done. } 
              apply pmf_pos.                         
       ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2.
          --- rewrite dret_id_left. rewrite /lim_exec_val lim_distr_pmf.
-             apply rbar_le_finite. { admit. }
+             apply rbar_le_finite.
+             { apply (is_finite_bounded 0 1).
+               +++ apply (Sup_seq_minor_le _ _ 0). apply pmf_pos.
+               +++ apply upper_bound_ge_sup => ?. apply pmf_le_1.
+             } 
              eapply (Sup_seq_minor_le _ _ 0). simpl; rewrite H2. lra.
          --- rewrite dret_id_left. rewrite -exec_val_Sn_not_val; last done.
              unfold lim_exec_val. rewrite lim_distr_pmf.
-             eapply rbar_le_finite. { admit. }
+             eapply rbar_le_finite.
+             { apply (is_finite_bounded 0 1).
+               +++ apply (Sup_seq_minor_le _ _ 0). apply pmf_pos.
+               +++ apply upper_bound_ge_sup => ?. apply pmf_le_1.
+             } 
              eapply (Sup_seq_minor_le _ _ (S n)). done.
          --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2.
          --- rewrite fill_dmap; last done. rewrite /dmap.
@@ -394,48 +502,53 @@ Section prim_exec_lim.
              rewrite dret_id_left. simpl.
              apply IHn.
     - apply Rbar_le_fin.
-      { admit. }
+      { apply Rbar_0_le_to_Rle. apply (Sup_seq_minor_le _ _ 0). apply pmf_pos. }
       rewrite rbar_finite_real_eq; last first.
       { eapply is_finite_bounded.
-        ++ eapply Sup_seq_minor_le. rewrite /lim_exec_val. admit.
-        ++ admit.
+        ++ by eapply (Sup_seq_minor_le _ _ 0). 
+        ++ apply upper_bound_ge_sup => n. apply pmf_le_1.
       }
-      admit.
-      (* transitivity (Sup_seq (λ n : nat, (exec_cfg n (e, σ) ≫= (λ '(e', σ'), exec_val n (K e', σ'))) v)). *)
-      (* { apply upper_bound_ge_sup => n. simpl. } *)
-      (* apply Sup_seq_le. *)
-      (* intros n; revert e σ v; induction n => e σ v/=. *)
-      (* ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2. *)
-      (*    --- rewrite dret_id_left. rewrite lim_distr_pmf. *)
-      (*        apply Rbar_le_fin. { admit. } *)
-      (*        apply upper_bound_ge_sup. *)
-      (*        intros. apply of_to_val in H2. rewrite -H2. *)
-      (*        destruct n; simpl; rewrite to_of_val; apply distr_le_refl. *)
-      (*    --- rewrite dret_id_left. *)
-      (*      replace (dzero v) with 0. *)
-      (*        2:{ done. } *)
-      (*        apply pmf_pos. *)
-      (*    --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2. *)
-      (*    --- replace (dzero v) with 0. *)
-      (*        2:{ done. } *)
-      (*        apply pmf_pos.                          *)
-      (* ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2. *)
-      (*    --- rewrite dret_id_left. rewrite /lim_exec_val lim_distr_pmf. *)
-      (*        apply rbar_le_finite. { admit. } *)
-      (*        eapply (Sup_seq_minor_le _ _ 0). simpl; rewrite H2. lra. *)
-      (*    --- rewrite dret_id_left. rewrite -exec_val_Sn_not_val; last done. *)
-      (*        unfold lim_exec_val. rewrite lim_distr_pmf. *)
-      (*        eapply rbar_le_finite. { admit. } *)
-      (*        eapply (Sup_seq_minor_le _ _ (S n)). done. *)
-      (*    --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2. *)
-      (*    --- rewrite fill_dmap; last done. rewrite /dmap. *)
-      (*        rewrite -!dbind_assoc -/exec_cfg -/exec_val. *)
-      (*        revert v. apply distr_le_dbind. { apply distr_le_refl. } *)
-      (*        intros [e' σ']. unfold distr_le. intros v. *)
-      (*        rewrite dret_id_left. simpl. *)
-      (*        apply IHn. *)
-      (* admit. *)
-  Admitted.
+      pose (μ := λ n (s : cfg Λ), exec_cfg n s).
+      assert (Sup_seq (λ n : nat, (exec_cfg n (e, σ) ≫= (λ '(e', σ'), lim_exec_val (K e', σ'))) v) =
+               Sup_seq (λ n : nat, Sup_seq (λ m, ((μ n) (e, σ) ≫= (λ '(e', σ'), exec_val m (K e', σ'))) v))) as H.
+      { rewrite /μ. apply Sup_seq_ext => ?.
+        rewrite lim_exec_bind_continuity_2 rbar_finite_real_eq;[f_equal|].
+        apply (is_finite_bounded 0 1).
+        ++ apply (Sup_seq_minor_le _ _ 0). apply pmf_pos.
+        ++ apply upper_bound_ge_sup => n. apply pmf_le_1. 
+      }
+      rewrite H.
+      rewrite /μ. clear H μ.
+      pose (μ := λ '(n, m), ((exec_cfg n (e, σ) ≫= (λ '(e', σ'), exec_val m (K e', σ'))) v)).
+      assert (Sup_seq
+                (λ n : nat, Sup_seq (λ m : nat, (exec_cfg n (e, σ) ≫= (λ '(e', σ'), exec_val m (K e', σ'))) v)) =
+             Sup_seq
+               (λ n : nat, Sup_seq (λ m : nat, μ (n, m)) )) as -> by f_equal.
+      rewrite sup_seq_swap.
+      apply upper_bound_ge_sup => m.      
+      replace (Sup_seq (λ n : nat, exec_val n (K e, σ) v)) with (Sup_seq (λ n : nat, exec_val (n+m) (K e, σ) v)); last first.
+      { apply sup_seq_eq_antisym => n; try by eexists _.
+        eexists n. apply exec_val_mon'. lia.
+      }
+      rewrite /μ. clear μ.
+      apply Sup_seq_le => n. revert e σ m v.
+      induction n => e σ m v.
+      ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2.
+         all: simpl; rewrite H1; try rewrite dret_id_left; try rewrite dbind_dzero; try rewrite H2.
+         all: done.
+      ++ destruct (to_val e) eqn:H1; destruct (to_val (K e)) eqn:H2.
+         all: simpl; rewrite H1; try rewrite dret_id_left; try rewrite H2.
+         --- erewrite exec_val_is_val; done.
+         --- rewrite -prim_step_or_val_no_val; [|done]. rewrite -exec_val_Sn.
+             apply exec_val_mon'. lia.
+         --- apply fill_not_val in H1. rewrite H1 in H2. inversion H2.
+         --- rewrite fill_dmap; last done. rewrite /dmap.
+             rewrite -!dbind_assoc -/exec_cfg -/exec_val.
+             revert v. apply distr_le_dbind. { apply distr_le_refl. }
+             intros [e' σ']. unfold distr_le. intros v.
+             rewrite dret_id_left. simpl.
+             apply IHn.
+  Qed.
 
   (** * strengthen lemma? *)
   Lemma ssd_fix_value_lim_exec_val_lim_exec_cfg e σ (v : val Λ):
