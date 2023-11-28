@@ -712,11 +712,24 @@ Section higherorder.
             (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
             (* 𝜀 credit suffices to force checker to pass, on any possible sampled values *)
             (∀ v : val, {{{ €𝜀final }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
-            (* get weird typeclass errors when including this...
-                {{{ True }}} ((Val checker) v) @ E {{{ v', RET v'; ⌜v' = true ⌝ }}} *)
             (* we can always just get _some_ value out of the sampler if we want *)
             ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v = true ⌝ }}})
        }}}.
+
+  (* version of the sampling scheme spec which removes the need for Θ, and expresses Ψ as a prop *)
+  Definition sampling_scheme_spec_aggressive_ho (sampler checker : val) 𝜀factor 𝜀final E (Ψ : val -> Prop) : iProp Σ
+    := (* amplification during the rejection check  *)
+       ((∀ 𝜀,  {{{ € 𝜀 }}}
+                ((Val sampler) #())%E @ E
+              {{{ v, RET v; ⌜Ψ v⌝ ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
+                                       (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) {{ λ v', ⌜v' = #false⌝ }}))) }}}) ∗
+        (* final sample can be forced to accept *)
+        (∀ v : val,
+              {{{ € 𝜀final }}}
+                ((Val sampler) v) @ E
+              {{{ v', RET v'; ⌜Ψ v'⌝ ∗ (WP ((Val checker) v') {{ λ v', ⌜v' = #true ⌝ }}) }}}) ∗
+        (* we can always just get _some_ value out of the sampler if we want *)
+        ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v⌝ }}}))%I.
 
   (* higher order rejection sampler *)
   Definition ho_bdd_rejection_sampler :=
@@ -828,6 +841,79 @@ Section higherorder.
         { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
         iApply "IH".
   Qed.
+
+  (* for some reason wp_wand doesn't work-- I guess something like this would be provale though?
+     maybe I can try lifting it myself *)
+  Lemma ub_wp_wand s E e Φ Ψ : WP e @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e @ s; E {{ Ψ }}.
+  Proof. Admitted.
+
+  (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
+  Definition aggressive_ho_bdd_approx_safe (sampler checker : val) (r 𝜀final : nonnegreal) (depth : nat) Ψ E :
+    (not (eq (nonneg r) 0)) ->
+    (not (eq (nonneg 𝜀final) 0)) ->
+    r < 1 ->
+    𝜀final < 1 ->
+    sampling_scheme_spec_aggressive_ho sampler checker r 𝜀final E Ψ -∗
+    € (generic_geometric_error r 𝜀final depth) -∗
+    (WP (ho_bdd_rejection_sampler #(S depth) ((sampler, checker))%V) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
+  Proof.
+    (* initial setup *)
+    rewrite /sampling_scheme_spec_aggressive_ho.
+    iIntros (Hr_pos H𝜀final_pos Hr H𝜀final) "(#Hamplify&#Haccept&#Hsample) Hcr".
+    rewrite /ho_bdd_rejection_sampler.
+    do 13 wp_pure.
+
+    iInduction depth as [|depth' Hdepth'] "IH".
+    - (* base case: spend to eliminate the bad sample *)
+
+      (* step the sampler*)
+      wp_pures; wp_bind (sampler #())%E.
+      wp_apply ("Haccept" with "[Hcr]").
+      { iApply (ec_weaken with "Hcr"). rewrite /generic_geometric_error /=; lra. }
+
+      (* step the checker using the new WP *)
+      iIntros (next_sample) "(#Hnext_sample&Hcheck_accept)".
+      (* for some reason this is unhappy, but the proof is basically done now *)
+      wp_pures.
+      wp_bind (checker next_sample)%E.
+      Fail iApply (wp_wand with "[Hcheck_accept]").
+      replace (checker next_sample)%E with (of_val #true) by admit; iClear "Hcheck_accept".
+      wp_pures.
+      wp_pures.
+      iModIntro; iExists next_sample; iFrame; auto.
+    - (* inductive case; either accept or amplify. *)
+      wp_pures.
+      replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
+      wp_pures; wp_bind (sampler #())%E.
+      iApply ("Hamplify" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
+      iIntros (next_sample) "!> (%Hnext_sample&[Hcheck_accept|[%𝜀'(Hcr&%H𝜀'&Hcheck_reject)]])"; wp_pures.
+      + (* first case: check accepts *)
+        wp_bind (checker next_sample)%V.
+        Fail iApply (wp_wand with "Hcheck_accept").
+        replace (checker next_sample)%E with (of_val #true) by admit; iClear "Hcheck_accept".
+        wp_pures.
+        wp_pures.
+        iModIntro; iExists next_sample; iFrame; auto.
+      + (* second case: check does not accept but the error amplifies *)
+        wp_bind (checker next_sample)%V.
+        replace (checker next_sample)%E with (of_val #false) by admit; iClear "Hcheck_reject".
+        wp_pures.
+        wp_pure.
+        iSpecialize ("IH" with "[Hcr]").
+        * (* spend the credit *)
+          iApply (ec_spend_irrel with "Hcr").
+          rewrite /generic_geometric_error /=.
+          rewrite /generic_geometric_error /= in H𝜀'.
+          assert (0 <= nonneg r) by (destruct r; auto).
+          apply (Rmult_le_reg_l r); first by lra.
+          (* this is true, but it's being annoying and for some reason lra can't figure it out *)
+          admit.
+        * iClear "#".
+          wp_bind (#(S (S depth'))- #1%nat)%E; wp_pure.
+          replace #((S (S depth')) - 1) with #(S depth'); last first.
+          { do 2 f_equal. rewrite Nat2Z.inj_succ; lia. }
+          iApply "IH".
+  Admitted.
 
 End higherorder.
 
@@ -1257,3 +1343,18 @@ End higherorder_flip2.
 
 
 (* TODO could try an unbounded one? *)
+
+(* read more clutch *)
+
+(* the sampling relational thing *)
+
+(* axiomitize termination with
+   tpref treap (other tpref examples) *)
+
+(* partial rejection sampling
+   resample false clause in SAT
+    something like overlapping variables <-> true
+    => uniform sample of the satisfying instances
+
+  termination
+ *)
