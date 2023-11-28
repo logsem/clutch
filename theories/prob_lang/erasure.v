@@ -403,8 +403,6 @@ Proof.
   by eapply Rcoupl_refRcoupl.
 Qed.
 
-(* #[global] Hint Extern 0 (¬ is_final _) => by apply to_final_None_2 : markov. *)
-
 Lemma refRcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ m bs':
   to_val e1 = None →
   σ1'.(tapes) !! α' = Some bs' →
@@ -437,14 +435,3 @@ Proof.
     eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros ? [] ?. by apply Hcont.
 Qed.
-
-
-(*
-Lemma ub_lift_erasure (e1 : expr) σ1 α R Φ m bs (ε1 ε2 : nonnegreal) :
-  σ.(tapes) !! α = Some bs →
-  ub_lift (state_step σ1 α) R ε1 →
-  (∀ σ2, R σ2 → ub_lift (exec_val m (e1, σ2)) Φ ε2) →
-  ub_lift (exec_val m (e1, σ1)) Φ (ε1 + ε2).
-Proof.
-Qed.
-*)

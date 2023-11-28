@@ -143,8 +143,8 @@ Section myrec_spec.
     wp_store.
     wp_load.
     iMod (inv_alloc (nroot .@ "myrec") _ _ with "Hr") as "#inv".
+    wp_pures.
     iLöb as "IH" forall (v1 Ψ).
-    wp_lam.
     wp_bind (! _)%E.
     iInv nmyrec as ">Hr" "cl".
     wp_load.
@@ -155,9 +155,9 @@ Section myrec_spec.
     iIntros (v3).
     iModIntro.
     iIntros (Φ) "HP HQ".
+    wp_pures.
     (* To do a fully generic higher-order spec we'll need something akin to
        later credits or a model construction (just like in [determinize.v]) *)
-
   Abort.
 
 End myrec_spec.
@@ -193,15 +193,11 @@ Section nat_rw_prog_spec.
     wp_let.
     wp_store.
     wp_load.
-    iMod (inv_alloc (nroot .@ "myrec") _ _ with "Hr") as "#inv".
     wp_pures.
     iLöb as "IH" forall (n Ψ).
     wp_bind (! _)%E.
-    iInv nmyrec as ">Hr" "cl".
     wp_load.
-    iMod ("cl" with "Hr") as "_".
-    iModIntro.
-    rewrite {3}/F.
+    rewrite {4}/F.
     wp_pures; rewrite -/flip.
     destruct n.
     { rewrite bool_decide_eq_true_2 //. wp_if. by iApply "HΨ". }
@@ -211,9 +207,9 @@ Section nat_rw_prog_spec.
     { apply flip_couple. }
     iIntros ([] m) "[Hspec ->] /="; wp_pures.
     - assert (S n - 1 = n)%Z as -> by lia.
-      wp_apply ("IH" with "Hspec HΨ").
+      wp_apply ("IH" with "Hspec HΨ Hr").
     - assert (S n + 1 = S (S n))%Z as -> by lia.
-      wp_apply ("IH" with "Hspec HΨ").
+      wp_apply ("IH" with "Hspec HΨ Hr").
   Qed.
 
 End nat_rw_prog_spec.
