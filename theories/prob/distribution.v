@@ -882,11 +882,15 @@ Section subset_distribution_lemmas.
   
   Lemma ssd_ret_pos P μ (a : A) : ssd P μ a > 0 -> P a.
   Proof.
-  Admitted.
+    rewrite /ssd /ssd_pmf /pmf. move=> H0.
+    destruct (P a); [done|lra].
+  Qed. 
 
   Lemma ssd_sum P μ (a : A) : μ a = ssd P μ a + ssd (∽ P)%P μ a.
   Proof.
-  Admitted. 
+    rewrite /ssd /ssd_pmf /pmf /=.
+    destruct (P a) => /=; lra.
+  Qed. 
 
 End subset_distribution_lemmas.
 
@@ -899,7 +903,21 @@ Section bind_lemmas.
     (∀ a, μ a = μ1 a + μ2 a) ->
     (∀ b, (μ ≫= λ a', ν a') b = (μ1 ≫= λ a', ν a') b + (μ2 ≫= λ a', ν a') b).
   Proof.
-  Admitted.
+    move=> H1 b.
+    rewrite /pmf /= /dbind_pmf.
+    rewrite -SeriesC_plus; last first.
+    { eapply (ex_seriesC_le _ (λ a, μ2 a)); [intros n; split|apply pmf_ex_seriesC].
+      - real_solver.
+      - rewrite <-Rmult_1_r. by apply Rmult_le_compat_l.
+    }
+    { eapply (ex_seriesC_le _ (λ a, μ1 a)); [intros n; split|apply pmf_ex_seriesC].
+      - real_solver.
+      - rewrite <-Rmult_1_r. by apply Rmult_le_compat_l.
+    }
+    f_equal. apply functional_extensionality_dep => a.
+    replace (_*_+_*_) with ((μ1 a + μ2 a) * ν a b); last real_solver.
+    by rewrite -H1.
+  Qed. 
 
   Lemma ssd_bind_split_sum μ ν P :
     ∀ b, (μ ≫= λ a', ν a') b = (ssd P μ ≫= λ a', ν a') b + (ssd (∽ P)%P μ ≫= λ a', ν a')b.
@@ -914,13 +932,34 @@ Section bind_lemmas.
   Lemma ssd_bind_constant P μ ν (b : B) k:
     (∀ a, P a = true -> ν a b = k) -> (ssd P μ ≫= λ a', ν a') b = k * SeriesC (ssd P μ).
   Proof.
-  Admitted.
+    move=> H1.
+    rewrite {1}/pmf /= /dbind_pmf.
+    rewrite -SeriesC_scal_l.
+    f_equal. apply functional_extensionality_dep => a.
+    destruct (P a) eqn:H'.
+    - apply H1 in H'. rewrite H'. real_solver.
+    - rewrite /ssd /pmf /ssd_pmf H'. real_solver.
+  Qed. 
 
   Lemma ssd_fix_value μ (v : A):
     SeriesC (ssd (λ a, bool_decide (a = v)) μ) = μ v.
   Proof.
-  Admitted.
-  
+    erewrite <-(SeriesC_singleton v).
+    f_equal.
+    apply functional_extensionality_dep => a.
+    rewrite /ssd/pmf/ssd_pmf/pmf. case_bool_decide; eauto.
+    by rewrite H1.
+  Qed. 
+
+
+  Lemma ssd_chain μ (P Q: A -> bool):
+    ssd P (ssd Q μ) = ssd (λ a, P a && Q a) μ.
+  Proof.
+    apply distr_ext => a.
+    rewrite /ssd/pmf/ssd_pmf/pmf.
+    destruct (P a) eqn:H1; destruct (Q a) eqn:H2; eauto.
+  Qed. 
+    
 End bind_lemmas.
 
 

@@ -348,6 +348,7 @@ Section prim_exec_lim.
 
 
   (** * strengthen this lemma? *)
+  
   Lemma lim_exec_bind_continuity_1 e σ ν v:
     (lim_exec_cfg (e, σ) ≫= (λ s, ν s)) v =
     Sup_seq (λ n, (exec_cfg n (e, σ) ≫= (λ s, ν s)) v).
@@ -394,6 +395,7 @@ Section prim_exec_lim.
 
     
   (** * strengthen this lemma? *)
+  
   Lemma lim_exec_bind_continuity_2 (μ : distr (cfg Λ)) v `{!LanguageCtx K}:
     (μ ≫= (λ '(e, σ), lim_exec_val ((K e), σ) )) v =
     Sup_seq (λ n, (μ ≫= (λ '(e, σ), exec_val n ((K e), σ))) v).
@@ -447,6 +449,7 @@ Section prim_exec_lim.
         -- by rewrite {3}/pmf /= /dbind_pmf.
         -- apply pmf_le_1.
   Qed. 
+
   
   Lemma lim_exec_val_context_bind `{!LanguageCtx K} e σ:
     lim_exec_val (K e, σ) =
@@ -551,12 +554,15 @@ Section prim_exec_lim.
   Qed.
 
   (** * strengthen lemma? *)
+
+  
   Lemma ssd_fix_value_lim_exec_val_lim_exec_cfg e σ (v : val Λ):
     SeriesC (ssd (λ '(e', σ'), bool_decide (to_val e' = Some v)) (lim_exec_cfg (e, σ))) =
     SeriesC (ssd (λ e' : val Λ, bool_decide (e' = v)) (lim_exec_val (e, σ))).
   Proof.
   Admitted.
-    
+
+  
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :
     exec n ρ (of_val v, σ) = 1 →
     lim_exec_val ρ = dret v.

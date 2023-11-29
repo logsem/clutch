@@ -125,17 +125,123 @@ Qed.
 
 
 (*Other direction*)
+Lemma ssd_is_value_lim_exec_cfg_same e σ :
+  (ssd (λ '(e', _), bool_decide (is_Some (to_val e'))) (lim_exec_cfg (e, σ))) =
+  lim_exec_cfg (e, σ).
+Proof.
+  apply distr_ext. intros [e' σ'].
+  rewrite /ssd{1}/pmf/ssd_pmf.
+  case_bool_decide; eauto; simpl.
+  rewrite -eq_None_not_Some in H.
+  rewrite /lim_exec_cfg lim_distr_pmf.
+  symmetry. 
+  rewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
+  intros. revert e σ. induction x; intros; simpl; destruct (to_val e) eqn:H1; eauto.
+  - assert (e ≠ e').
+    { intro. rewrite H0 in H1. by rewrite H in H1. }
+    rewrite /dret/pmf/dret_pmf; case_bool_decide; [|done].
+    by inversion H2.  
+  - assert (e ≠ e').
+    { intro. rewrite H0 in H1. by rewrite H in H1. }
+    rewrite /dret/pmf/dret_pmf; case_bool_decide; [|done].
+    by inversion H2.
+  - rewrite /dbind/pmf/dbind_pmf.
+    erewrite <-dzero_mass. do 2 f_equal.
+    apply functional_extensionality_dep.
+    intros [??].
+    replace (dzero _) with 0; last done.
+    erewrite <-Rbar_finite_eq. rewrite rmult_finite.
+    rewrite IHx. apply Rbar_mult_0_r.
+Qed. 
+                                                                               
+
+Lemma ssd_not_value_lim_exec_cfg_dzero e σ :
+  ssd (λ a : expr * state, negb (let '(e', _) := a in bool_decide (is_Some (to_val e'))))
+    (lim_exec_cfg (e, σ)) = dzero.
+Proof.
+  apply distr_ext. intros [e' σ'].
+  rewrite /dzero/ssd/pmf/ssd_pmf.
+  case_bool_decide; eauto; simpl.
+  rewrite -eq_None_not_Some in H.
+  rewrite /lim_exec_cfg lim_distr_pmf.
+  rewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
+  intros. revert e σ. induction x; intros; simpl; destruct (to_val e) eqn:H1; eauto.
+  - assert (e ≠ e').
+    { intro. rewrite H0 in H1. by rewrite H in H1. }
+    rewrite /dret/pmf/dret_pmf; case_bool_decide; [|done].
+    by inversion H2.  
+  - assert (e ≠ e').
+    { intro. rewrite H0 in H1. by rewrite H in H1. }
+    rewrite /dret/pmf/dret_pmf; case_bool_decide; [|done].
+    by inversion H2.
+  - rewrite /dbind/pmf/dbind_pmf.
+    erewrite <-dzero_mass. do 2 f_equal.
+    apply functional_extensionality_dep.
+    intros [??].
+    replace (dzero _) with 0; last done.
+    erewrite <-Rbar_finite_eq. rewrite rmult_finite.
+    rewrite IHx. apply Rbar_mult_0_r.
+Qed. 
 
 (* first part *)
 Lemma lim_exec_val_of_val_b_one e b σ: e = of_val #b -> lim_exec_val ((e = #b)%E, σ) #true = 1.
 Proof.
   intros ->.
   rewrite lim_exec_val_rw.
-Admitted.
+  rewrite mon_sup_succ.
+  - erewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
+    intros n. simpl. rewrite head_prim_step_eq => /=.
+    2: { eexists (_, _). destruct b;
+        eapply head_step_support_equiv_rel;
+        by econstructor.
+    }
+    destruct b => /=; try case_bool_decide; try done.
+    all: rewrite dret_id_left; destruct n => /=; by rewrite dret_1_1.
+  - intro. apply exec_val_mon.
+Qed.
 
-Lemma lim_exec_val_of_val_not_b_zero e b σ: e ≠ of_val #b -> lim_exec_val ((e = #b)%E, σ) #true = 0.
+Lemma lim_exec_val_of_val_not_b_zero e b σ: (is_Some (to_val e)) -> e ≠ of_val #b -> lim_exec_val ((e = #b)%E, σ) #true = 0.
 Proof.
-  intros H.
+  intros H H0.
+  rewrite lim_exec_val_rw.
+  erewrite <-sup_seq_const. do 2 f_equal.
+  apply functional_extensionality_dep.
+  intros [].
+  - by rewrite /pmf /=.
+  - simpl. destruct H.
+    apply of_to_val in H as H1. rewrite -H1.
+    assert (prim_step (x = #b) σ= head_step (x=#b) σ) as H'.
+    { apply distr_ext => s.
+      unfold prim_step.
+      simpl. unfold decomp => /=.
+      admit. }
+    rewrite H'.
+    destruct x.
+    (* { rewrite head_prim_step_eq => /=. *)
+    (*   rewrite /bin_op_eval. *)
+    (*   destruct l; destruct b; *)
+        
+    (*                                   eexists (_, _). destruct b *)
+    (*     eapply head_step_support_equiv_rel; *)
+    (*     by econstructor. } *)
+    (* rewrite head_prim_step_eq => /=. *)
+    (* -- destruct e eqn:H1; try rewrite dbind_dzero; eauto. *)
+    (*    destruct (bin_op_eval EqOp v #b) eqn:H2; try rewrite dbind_dzero; eauto. *)
+    (*    assert (v0 = #false). *)
+    (*    { destruct v eqn:H3; rewrite /bin_op_eval in H2; repeat case_decide; *)
+    (*        try case_bool_decide; try done. *)
+    (*      1 : try (exfalso; apply H0; try by f_equal). *)
+    (*      all: by inversion H2. *)
+    (*    } *)
+    (*    rewrite dret_id_left; destruct n => /=. *)
+    (*    all: rewrite H3; eauto. *)
+    (* -- apply of_to_val in H as H1. *)
+    (*    erewrite <-H1. *)
+    (*    eexists (_, _). *)
+    (*    destruct b; destruct x; *)
+    (*     eapply head_step_support_equiv_rel; *)
+    (*     try by econstructor. *)
+    (* } *)
 Admitted.
 
 Lemma lim_exec_val_is_b_test e σ (b:bool) : lim_exec_val (e, σ) #b = lim_exec_val ((e = #b)%E, σ) #true.
@@ -145,16 +251,36 @@ Proof.
   rewrite lim_exec_val_context_bind => /=.
   pose (ν := λ '(e', σ'), lim_exec_val ((e' = #b)%E, σ')).
   assert ((λ '(e', σ'), lim_exec_val ((e' = #b)%E, σ'))=(λ c, ν c)) as K.
-  { admit. }
+  { by apply functional_extensionality_dep. }
   rewrite K.
+  erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (is_Some (to_val e')))).
+  rewrite ssd_not_value_lim_exec_cfg_dzero.
+  rewrite dbind_dzero /dzero {3}/pmf. rewrite Rplus_0_r.
   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #b))).
-  erewrite (ssd_bind_constant _ _ _ _ 1), (ssd_bind_constant _ _ _ _ 0).
-  2: { (* use lim_exec_val_of_val_b_one *) admit. }
-  2: { (* use lim_exec_val_of_val_b_one *) admit. }
-  rewrite Rmult_0_l Rplus_0_r Rmult_1_l. 
+  erewrite (ssd_bind_constant _ _ _ _ 1); last first.
+  { intros [e' s] H. rewrite /ν.
+    apply lim_exec_val_of_val_b_one.
+    rewrite bool_decide_eq_true in H.
+    by apply of_to_val in H.
+  }
+  rewrite Rmult_1_l.
+  rewrite {1}ssd_is_value_lim_exec_cfg_same.
+  rewrite ssd_chain.
+  rewrite (ssd_bind_constant _ _ _ _ 0); last first.
+  { intros [??] H.
+    rewrite /ν.
+    rewrite andb_true_iff in H. destruct H as [H1 H2].
+    rewrite negb_true_iff in H1.
+    rewrite bool_decide_eq_false in H1.
+    rewrite bool_decide_eq_true in H2.
+    apply lim_exec_val_of_val_not_b_zero; eauto.
+    intro. rewrite H in H1. simpl in H1. by apply H1. 
+  }
+  rewrite Rmult_0_l Rplus_0_r.
   rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg.
   by rewrite ssd_fix_value.
-Admitted.
+Qed. 
+
 
 (* second part *)
 
@@ -180,11 +306,11 @@ Proof.
   apply sup_seq_const.
 Qed. 
 
-Lemma lim_exec_val_of_val_true_one e σ: e = #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 1.
+Lemma lim_exec_val_of_val_true_one (e : expr) σ: e = #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 1.
 Proof.
 Admitted.
 
-Lemma lim_exec_val_of_val_not_true_zero e σ: e ≠ #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 0.
+Lemma lim_exec_val_of_val_not_true_zero (e : expr) σ: (∃ v, e = of_val v) -> e ≠ #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 0.
 Proof.
   Admitted.
 
@@ -196,16 +322,38 @@ Proof.
   rewrite lim_exec_val_context_bind => /=.
   pose (ν := λ '(e', σ'), lim_exec_val ((if: e' then #() else loop)%E, σ')).
   assert ((λ '(e', σ'), lim_exec_val ((if: e' then #() else loop)%E, σ'))=(λ c, ν c)) as K.
-  { admit. }
+  { by apply functional_extensionality_dep. }
   rewrite K.
+  erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (is_Some (to_val e')))).
+  rewrite (ssd_bind_constant (λ a : expr * state, negb (let '(e', _) := a in bool_decide (is_Some (to_val e')))) _ _ _ 0); last first.
+  { admit. }
+  rewrite Rmult_0_l Rplus_0_r.
   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #true))).
-  erewrite (ssd_bind_constant _ _ _ _ 1), (ssd_bind_constant _ _ _ _ 0).
-  2: { (* use lim_exec_val_of_val_true_one *) admit. }
-  2: { (* use lim_exec_val_of_val_not_true_zero *) admit. }
-  rewrite Rmult_0_l Rplus_0_r Rmult_1_l. 
-  rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg.
-  by rewrite ssd_fix_value.
+  erewrite (ssd_bind_constant _ _ _ _ 1); last first.
+  { intros [e' s] H. rewrite /ν.
+    apply lim_exec_val_of_val_true_one.
+    rewrite bool_decide_eq_true in H.
+    by apply of_to_val in H.
+  }
+  rewrite Rmult_1_l.
 Admitted.
+
+  
+(*   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #true))). *)
+(*   erewrite (ssd_bind_constant _ _ _ _ 1), (ssd_bind_constant _ _ _ _ 0); last first. *)
+(*   - intros [e' s] H. rewrite /ν. *)
+(*     apply lim_exec_val_of_val_true_one. *)
+(*     rewrite bool_decide_eq_true in H. *)
+(*     by apply of_to_val in H. *)
+(*   - intros [e' s] H. rewrite /ν. *)
+(*     apply lim_exec_val_of_val_not_true_zero. *)
+(*     rewrite negb_true_iff in H. *)
+(*     rewrite bool_decide_eq_false in H. *)
+(*     unfold not. intros ->. by apply H. *)
+(*   - rewrite Rmult_0_l Rplus_0_r Rmult_1_l.  *)
+(*     rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg. *)
+(*     by rewrite ssd_fix_value. *)
+(* Qed.  *)
 
 Lemma lim_exec_val_seriesc_return_value e σ:
   SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) =
