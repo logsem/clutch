@@ -893,17 +893,19 @@ Section higherorder.
   (* version of the sampling scheme spec which removes the need for Θ, and expresses Ψ as a prop *)
   Definition sampling_scheme_spec_aggressive_ho (sampler checker : val) 𝜀factor 𝜀final E : iProp Σ
     := (* amplification during the rejection check  *)
-       ((∀ 𝜀,  {{{ € 𝜀 }}}
-                ((Val sampler) #())%E @ E
-              {{{ v, RET #v; ((WP ((Val checker) #v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
-                                       (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) #v) @ E {{ λ v', ⌜v' = #false⌝ }}))) }}}) ∗
+       ((∀ 𝜀,
+          {{{ € 𝜀 }}}
+            ((Val sampler) #())%E @ E
+          {{{ (v : val), RET v;
+               ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
+               (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #false⌝ }})))}}}) ∗
+
         (* final sample can be forced to accept *)
         (∀ v : val,
-              {{{ € 𝜀final }}}
-                ((Val sampler) v) @ E
-              {{{ v', RET #v'; (WP ((Val checker) #v') @ E {{ λ v', ⌜v' = #true ⌝ }}) }}})
-        (* we can always just get _some_ value out of the sampler if we want *)
-        (*{{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v⌝ }}}*))%I.
+          {{{ € 𝜀final }}}
+            ((Val sampler) v) @ E
+          {{{ (v' : val), RET v';
+               (WP ((Val checker) v') @ E {{ λ v', ⌜v' = #true ⌝ }})}}}))%I.
 
   (* higher order rejection sampler *)
   Definition ho_bdd_rejection_sampler :=
@@ -1048,12 +1050,12 @@ Section higherorder.
       (* step the checker using the new WP *)
       iIntros (next_sample) "Hcheck_accept".
       wp_pures.
-      wp_bind (checker #next_sample)%E.
+      wp_bind (checker next_sample)%E.
       iApply (ub_wp_wand with "Hcheck_accept").
 
       (* checker accepts *)
       iIntros (?) "#->"; wp_pures.
-      iModIntro; iExists #next_sample; iFrame; auto.
+      iModIntro; iExists next_sample; iFrame; auto.
     - (* inductive case; either accept or amplify. *)
       wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
@@ -1061,12 +1063,12 @@ Section higherorder.
       iApply ("Hamplify" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
       iIntros (next_sample) "!> [Hcheck_accept|[%𝜀'(Hcr&%H𝜀'&Hcheck_reject)]]"; wp_pures.
       + (* first case: check accepts *)
-        wp_bind (checker #next_sample)%V.
+        wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_accept").
         iIntros (?) "#->"; wp_pures.
-        iModIntro; iExists #next_sample; iFrame; auto.
+        iModIntro; iExists next_sample; iFrame; auto.
       + (* second case: check does not accept but the error amplifies *)
-        wp_bind (checker #next_sample)%V.
+        wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_reject").
         iIntros (?) "#->".
         iSpecialize ("IH" with "[Hcr]").
@@ -1344,10 +1346,6 @@ Section higherorder_rand.
     { rewrite Nat2Z.id; apply TCEq_refl. }
   Qed.
 
-
-
-
-
 End higherorder_rand.
 
 
@@ -1460,7 +1458,6 @@ Section higherorder_flip2.
       - (* first flip was zero, second flip doesn't matter. *)
         wp_bind (rand _ from #())%E; iApply wp_rand; auto.
         iNext; iIntros (v') "_"; wp_pures; iModIntro; iApply "Hpost".
-
         iSplitR.
         + rewrite /flip2_support.
           destruct (fin2_enum v') as [H|H]; rewrite H; auto.
@@ -1577,6 +1574,92 @@ Section higherorder_flip2.
         try (rewrite HB);
         auto. }
   Qed.
+
+
+
+  Lemma flip2_sampling_scheme_spec_aggressive_ho E :
+    ⊢ sampling_scheme_spec_aggressive_ho
+          (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
+          (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))
+          (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
+          (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
+          E.
+  Proof.
+    rewrite /sampling_scheme_spec_aggressive_ho.
+    iStartProof; iSplit.
+    - (* amplification rule *)
+      iIntros (𝜀 Φ) "!> Hcr HΦ"; wp_pures.
+      wp_apply (flip_amplification 𝜀
+                  (nnreal_mult 𝜀 (nnreal_div (nnreal_nat 2) (nnreal_nat 3)))
+                  (nnreal_mult 𝜀 (nnreal_div (nnreal_nat 4) (nnreal_nat 3)))
+                   with "Hcr"); [simpl; lra| ].
+      iIntros (v) "(%Hv&Hcr)".
+      destruct Hv as [-> | ->].
+      + (* first flip was zero, check is going to false and the second flip doesn't matter. *)
+        wp_bind (rand _ from #())%E; iApply wp_rand; auto.
+        iNext; iIntros (v') "_"; wp_pures; iModIntro; iApply "HΦ".
+        iRight; iExists _.
+        iSplitL "Hcr"; [iFrame|].
+        iSplit.
+        * (* credit accounting *)
+          iPureIntro; simpl; lra.
+        * (* step the checker *)
+          wp_pures; case_bool_decide; wp_pures; auto.
+      + (* first flip was 1, we only have 2/3 error so we need to amplify up to 4/3
+            in the case that the second flip is not 1 *)
+        replace (scale_flip 𝜀 _ _ _) with (𝜀 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR; last first.
+        { rewrite /scale_flip /flip_is_1 /=. by apply nnreal_ext. }
+        remember (𝜀 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR as 𝜀'.
+        wp_bind (rand #1 from #())%E.
+        wp_apply (flip_amplification 𝜀' nnreal_zero (nnreal_mult 𝜀' (nnreal_nat 2)) with "Hcr").
+        { simpl. lra. }
+        iIntros (v) "(%Hv&Hcr)".
+        destruct Hv as [-> | ->].
+        * (* second flip was zero *)
+          wp_pures; iModIntro; iApply "HΦ".
+          iRight; iExists _.
+          iSplitL "Hcr"; [iFrame|].
+          iSplit.
+          -- (* credit accounting *)
+            iPureIntro; rewrite Heq𝜀' /=; lra.
+          -- (* step the checker *)
+            wp_pures; auto.
+        * (* both flips are 1, checker should accept *)
+          wp_pures; iModIntro; iApply "HΦ".
+          iLeft; wp_pures; auto.
+
+    - (* credit spending rule *)
+      iIntros (s Φ) "!> Hcr HΦ"; wp_pures.
+      wp_bind (rand #1 from #())%E.
+
+      (* give € 1 to the 0 flip, and € 1/2 to the 1 flip *)
+      wp_apply (flip_amplification
+                  (nnreal_div (nnreal_nat 3) (nnreal_nat 4))
+                  (nnreal_div (nnreal_nat 1) (nnreal_nat 2))
+                  nnreal_one with "Hcr"); [simpl; lra|].
+      iIntros (v') "(%Hv'&Hcr)".
+      destruct Hv' as [-> | ->].
+      + (* first flip is zero: but we can spend € 1 to conclude *)
+        iAssert (▷ False)%I with "[Hcr]" as "Hspend".
+        { iApply credit_spend_1. iApply (ec_spend_irrel with "Hcr").
+          rewrite /scale_flip /flip_is_1 /=. lra. }
+        wp_bind (rand _ from _)%E; iApply wp_rand; try auto.
+      +  (* we have € 1/2 so we can make the second flip be 1 too *)
+        wp_bind (rand #1 from #())%E.
+        iApply (wp_rand_err _ _ 0%fin with "[Hcr HΦ]").
+        iSplitL "Hcr". { iApply (ec_spend_irrel with "Hcr"). rewrite /=; lra. }
+        iIntros (v') "%Hv'".
+        wp_pures; iModIntro; iApply "HΦ".
+        wp_pures; case_bool_decide; wp_pures; auto.
+        exfalso.
+        (* we have a contradiction in Hv' and H *)
+        apply fin2_not_0  in Hv'.
+        apply H.
+        rewrite Hv'.
+        simpl.
+        f_equal.
+  Qed.
+
 
 End higherorder_flip2.
 
