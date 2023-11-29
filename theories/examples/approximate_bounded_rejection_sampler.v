@@ -891,19 +891,19 @@ Section higherorder.
        }}}.
 
   (* version of the sampling scheme spec which removes the need for Θ, and expresses Ψ as a prop *)
-  Definition sampling_scheme_spec_aggressive_ho (sampler checker : val) 𝜀factor 𝜀final E (Ψ : val -> Prop) : iProp Σ
+  Definition sampling_scheme_spec_aggressive_ho (sampler checker : val) 𝜀factor 𝜀final E : iProp Σ
     := (* amplification during the rejection check  *)
        ((∀ 𝜀,  {{{ € 𝜀 }}}
                 ((Val sampler) #())%E @ E
-              {{{ v, RET v; ⌜Ψ v⌝ ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
-                                       (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) {{ λ v', ⌜v' = #false⌝ }}))) }}}) ∗
+              {{{ v, RET #v; ((WP ((Val checker) #v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
+                                       (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) #v) @ E {{ λ v', ⌜v' = #false⌝ }}))) }}}) ∗
         (* final sample can be forced to accept *)
         (∀ v : val,
               {{{ € 𝜀final }}}
                 ((Val sampler) v) @ E
-              {{{ v', RET v'; ⌜Ψ v'⌝ ∗ (WP ((Val checker) v') {{ λ v', ⌜v' = #true ⌝ }}) }}}) ∗
+              {{{ v', RET #v'; (WP ((Val checker) #v') @ E {{ λ v', ⌜v' = #true ⌝ }}) }}})
         (* we can always just get _some_ value out of the sampler if we want *)
-        ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v⌝ }}}))%I.
+        (*{{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v⌝ }}}*))%I.
 
   (* higher order rejection sampler *)
   Definition ho_bdd_rejection_sampler :=
@@ -1022,18 +1022,18 @@ Section higherorder.
   Proof. Admitted.
 
   (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
-  Definition aggressive_ho_bdd_approx_safe (sampler checker : val) (r 𝜀final : nonnegreal) (depth : nat) Ψ E :
+  Definition aggressive_ho_bdd_approx_safe (sampler checker : val) (r 𝜀final : nonnegreal) (depth : nat) E :
     (not (eq (nonneg r) 0)) ->
     (not (eq (nonneg 𝜀final) 0)) ->
     r < 1 ->
     𝜀final < 1 ->
-    sampling_scheme_spec_aggressive_ho sampler checker r 𝜀final E Ψ -∗
+    sampling_scheme_spec_aggressive_ho sampler checker r 𝜀final E -∗
     € (generic_geometric_error r 𝜀final depth) -∗
     (WP (ho_bdd_rejection_sampler #(S depth) ((sampler, checker))%V) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
   Proof.
     (* initial setup *)
     rewrite /sampling_scheme_spec_aggressive_ho.
-    iIntros (Hr_pos H𝜀final_pos Hr H𝜀final) "(#Hamplify&#Haccept&#Hsample) Hcr".
+    iIntros (Hr_pos H𝜀final_pos Hr H𝜀final) "(#Hamplify&#Haccept) Hcr".
     rewrite /ho_bdd_rejection_sampler.
     do 13 wp_pure.
 
@@ -1046,33 +1046,29 @@ Section higherorder.
       { iApply (ec_weaken with "Hcr"). rewrite /generic_geometric_error /=; lra. }
 
       (* step the checker using the new WP *)
-      iIntros (next_sample) "(#Hnext_sample&Hcheck_accept)".
-      (* for some reason this is unhappy, but the proof is basically done now *)
+      iIntros (next_sample) "Hcheck_accept".
       wp_pures.
-      wp_bind (checker next_sample)%E.
-      Fail iApply (wp_wand with "[Hcheck_accept]").
-      replace (checker next_sample)%E with (of_val #true) by admit; iClear "Hcheck_accept".
-      wp_pures.
-      wp_pures.
-      iModIntro; iExists next_sample; iFrame; auto.
+      wp_bind (checker #next_sample)%E.
+      iApply (ub_wp_wand with "Hcheck_accept").
+
+      (* checker accepts *)
+      iIntros (?) "#->"; wp_pures.
+      iModIntro; iExists #next_sample; iFrame; auto.
     - (* inductive case; either accept or amplify. *)
       wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures; wp_bind (sampler #())%E.
       iApply ("Hamplify" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
-      iIntros (next_sample) "!> (%Hnext_sample&[Hcheck_accept|[%𝜀'(Hcr&%H𝜀'&Hcheck_reject)]])"; wp_pures.
+      iIntros (next_sample) "!> [Hcheck_accept|[%𝜀'(Hcr&%H𝜀'&Hcheck_reject)]]"; wp_pures.
       + (* first case: check accepts *)
-        wp_bind (checker next_sample)%V.
-        Fail iApply (wp_wand with "Hcheck_accept").
-        replace (checker next_sample)%E with (of_val #true) by admit; iClear "Hcheck_accept".
-        wp_pures.
-        wp_pures.
-        iModIntro; iExists next_sample; iFrame; auto.
+        wp_bind (checker #next_sample)%V.
+        iApply (ub_wp_wand with "Hcheck_accept").
+        iIntros (?) "#->"; wp_pures.
+        iModIntro; iExists #next_sample; iFrame; auto.
       + (* second case: check does not accept but the error amplifies *)
-        wp_bind (checker next_sample)%V.
-        replace (checker next_sample)%E with (of_val #false) by admit; iClear "Hcheck_reject".
-        wp_pures.
-        wp_pure.
+        wp_bind (checker #next_sample)%V.
+        iApply (ub_wp_wand with "Hcheck_reject").
+        iIntros (?) "#->".
         iSpecialize ("IH" with "[Hcr]").
         * (* spend the credit *)
           iApply (ec_spend_irrel with "Hcr").
@@ -1080,14 +1076,12 @@ Section higherorder.
           rewrite /generic_geometric_error /= in H𝜀'.
           assert (0 <= nonneg r) by (destruct r; auto).
           apply (Rmult_le_reg_l r); first by lra.
-          (* this is true, but it's being annoying and for some reason lra can't figure it out *)
-          admit.
-        * iClear "#".
-          wp_bind (#(S (S depth'))- #1%nat)%E; wp_pure.
-          replace #((S (S depth')) - 1) with #(S depth'); last first.
-          { do 2 f_equal. rewrite Nat2Z.inj_succ; lia. }
+          lra.
+        * do 2 wp_pure.
+          iClear "#".
+          replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
           iApply "IH".
-  Admitted.
+  Qed.
 
 End higherorder.
 
@@ -1270,6 +1264,90 @@ Section higherorder_rand.
       lia.
     }
   Qed.
+
+
+
+  Lemma rand_sampling_scheme_spec_aggressive_ho (n' m' : nat) (Hnm : (n' < m')%nat) E :
+    ⊢ sampling_scheme_spec_aggressive_ho
+          (λ: "_", rand #m' from #())%V
+          (λ: "sample", "sample" ≤ #n')%V
+          (err_factor (S n') (S m'))
+          (err_factor (S n') (S m'))
+          E.
+  Proof.
+    rewrite /sampling_scheme_spec_aggressive_ho.
+    iStartProof; iSplit.
+    - (* amplification rule *)
+      iIntros (𝜀 Φ) "!> Hcr HΦ"; wp_pures.
+      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀 (rand_𝜀2 n' m' 𝜀) _ with "Hcr").
+      { (* uniform bound *)
+        eexists (nnreal_div 𝜀 (err_factor (S n') (S m'))); intros s.
+        rewrite /rand_𝜀2 /scale_unless.
+        destruct (rand_check_accepts _ _); [|simpl; lra].
+        destruct (nnreal_div _ _); simpl; lra. }
+
+      { (* series convergence *)
+        by apply sample_err_mean_higherorder. }
+
+      iNext; iIntros (s) "Hcr".
+      iApply "HΦ".
+      destruct (le_gt_dec s n'); [iLeft | iRight].
+      + (* sample is inbounds, the checker should accept *)
+        wp_pures; iModIntro; iPureIntro.
+        do 2 f_equal; apply bool_decide_true; lia.
+      + (* sample is out of bounds *)
+        iExists _; iSplitL; first iFrame.
+        iSplit.
+        * (* credit is amplified *)
+          iPureIntro.
+          replace (nonneg (rand_𝜀2 _ _ _ _)) with (𝜀 * / (err_factor (S n') (S m'))).
+          { rewrite Rmult_assoc -Rinv_l_sym; [lra | apply err_factor_nz_R; lia ]. }
+          { rewrite  /rand_𝜀2 /scale_unless /rand_check_accepts.
+            replace (s <=? n')%Z with false by lia. simpl; lra. }
+        * (* sampler rejects *)
+          wp_pures; iModIntro; iPureIntro.
+          do 2 f_equal; apply bool_decide_false; lia.
+
+    - (* spending rule *)
+      iIntros (s Φ) "!> Hcr HΦ"; wp_pures.
+      wp_apply (wp_rand_err_list_nat _ m' (seq (S n') ((S m') - (S n')))).
+      iSplitL "Hcr".
+      + (* credit accounting *)
+        iApply (ec_spend_irrel with "Hcr").
+        rewrite /err_factor seq_length /=.
+        apply Rmult_le_compat_l; [apply pos_INR | ].
+        apply Rle_Rinv.
+        * destruct m'; try lra.
+          apply Rle_lt_0_plus_1.
+          apply pos_INR.
+        * apply lt_0_INR. lia.
+        * apply Req_le.
+          destruct m'; first simpl; try lra.
+          rewrite -S_INR.
+          f_equal; lia.
+      + (* force the checker to return true *)
+        iIntros (s') "%Hs'".
+        iApply "HΦ"; wp_pures.
+        iModIntro; iPureIntro.
+        do 2 f_equal; apply bool_decide_true.
+        rewrite List.Forall_forall in Hs'.
+        specialize Hs' with s'.
+        apply Znot_gt_le.
+        intros Hcont; apply Hs'; last reflexivity.
+        rewrite in_seq.
+        split; first lia.
+        replace (S n' + (S m' - S n'))%nat with (S m') by lia.
+        specialize (fin_to_nat_lt s'); by lia.
+
+    Unshelve.
+    { apply Φ. }
+    { rewrite Nat2Z.id; apply TCEq_refl. }
+  Qed.
+
+
+
+
+
 End higherorder_rand.
 
 
