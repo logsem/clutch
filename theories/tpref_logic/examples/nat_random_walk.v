@@ -128,10 +128,10 @@ Section myrec_spec.
   Lemma wp_myrec (P : val → iProp Σ) (Q : val → val → iProp Σ) (F v1 : val) E :
     ↑nmyrec ⊆ E →
     (∀ (f v2 : val),
-        ⟨⟨⟨ (∀ (v3 : val), ⟨⟨⟨ P v3 ⟩⟩⟩ f v3 @ E ⟨⟨⟨ u, RET u; Q u v3 ⟩⟩⟩) ∗
+        ⟨⟨⟨ (∀ (v3 : val), ▷ ⟨⟨⟨ P v3 ⟩⟩⟩ f v3 @ E ⟨⟨⟨ u, RET u; Q u v3 ⟩⟩⟩) ∗
             P v2 ⟩⟩⟩
           F f v2 @ E
-        ⟨⟨⟨ u, RET u; Q u v2 ⟩⟩⟩) ⊢
+        ⟨⟨⟨ u, RET u; Q u v2  ⟩⟩⟩) ⊢
     ⟨⟨⟨ P v1 ⟩⟩⟩
       myrec F v1 @ E
     ⟨⟨⟨ u, RET u; Q u v1 ⟩⟩⟩.
@@ -143,22 +143,20 @@ Section myrec_spec.
     wp_store.
     wp_load.
     iMod (inv_alloc (nroot .@ "myrec") _ _ with "Hr") as "#inv".
-    wp_pures.
     iLöb as "IH" forall (v1 Ψ).
+    wp_lam.
     wp_bind (! _)%E.
     iInv nmyrec as ">Hr" "cl".
     wp_load.
     iMod ("cl" with "Hr") as "_".
     iModIntro.
-    iApply ("HF" with "[HP]"); [|done].
+    iApply ("HF" with "[$HP]"); [|done].
     iFrame.
     iIntros (v3).
     iModIntro.
-    iIntros (Φ) "HP HQ".
-    wp_pures.
-    (* To do a fully generic higher-order spec we'll need something akin to
-       later credits or a model construction (just like in [determinize.v]) *)
-  Abort.
+    iIntros (Φ) "!# HP HQ".
+    by iApply ("IH" with "HP").
+  Qed.
 
 End myrec_spec.
 
@@ -188,28 +186,24 @@ Section nat_rw_prog_spec.
     ⟨⟨⟨ m, RET #(); specF m ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "HP HΨ".
-    wp_lam.
-    wp_alloc r as "Hr".
-    wp_let.
-    wp_store.
-    wp_load.
-    wp_pures.
-    iLöb as "IH" forall (n Ψ).
-    wp_bind (! _)%E.
-    wp_load.
-    rewrite {4}/F.
+    wp_apply (wp_myrec (λ v, ∃ n : nat, specF n ∗ ⌜v = #n⌝)%I
+                       (λ v _, ∃ m : nat, specF m ∗ ⌜v = #()⌝)%I
+               with "[] [HP]"); [done| |eauto|]; last first.
+    { iIntros (?) "(% & ? & ->)". by iApply "HΨ". }
+    iIntros (f w Ψ2) "!# [IH (%m & Hspec & ->)] HΨ2".
+    wp_rec.
     wp_pures; rewrite -/flip.
-    destruct n.
-    { rewrite bool_decide_eq_true_2 //. wp_if. by iApply "HΨ". }
+    destruct m.
+    { rewrite bool_decide_eq_true_2 //. wp_if. iModIntro. iApply "HΨ2". eauto. }
     rewrite bool_decide_eq_false_2; [|done].
     wp_if.
-    wp_apply (rwp_couple_flip with "HP").
+    wp_apply (rwp_couple_flip with "Hspec").
     { apply flip_couple. }
-    iIntros ([] m) "[Hspec ->] /="; wp_pures.
-    - assert (S n - 1 = n)%Z as -> by lia.
-      wp_apply ("IH" with "Hspec HΨ Hr").
-    - assert (S n + 1 = S (S n))%Z as -> by lia.
-      wp_apply ("IH" with "Hspec HΨ Hr").
+    iIntros ([] p) "[Hspec ->] /="; wp_pures.
+    - assert (S m - 1 = m)%Z as -> by lia.
+      wp_apply ("IH" with "[Hspec]"); [eauto|done].
+    - assert (S m + 1 = S (S m))%Z as -> by lia.
+      wp_apply ("IH" with "[Hspec]"); [eauto|done].
   Qed.
 
 End nat_rw_prog_spec.
