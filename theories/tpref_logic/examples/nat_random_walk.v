@@ -166,9 +166,9 @@ Definition F : val :=
     if: "n" = #0 then #() else
     if: flip then "f" ("n" - #1) else "f" ("n" + #1).
 
-Lemma flip_couple n :
-    Rcoupl fair_coin (step (m := nat_random_walk) (S n))
-      (λ b m, if b then m = n else m = S (S n)).
+Lemma Rcoupl_flip n :
+  Rcoupl fair_coin (step (m := nat_random_walk) (S n))
+    (λ b m, if b then m = n else m = S (S n)).
 Proof.
   rewrite /=.
   rewrite /fair_conv_comb.
@@ -198,7 +198,7 @@ Section nat_rw_prog_spec.
     rewrite bool_decide_eq_false_2; [|done].
     wp_if.
     wp_apply (rwp_couple_flip with "Hspec").
-    { apply flip_couple. }
+    { apply Rcoupl_flip. }
     iIntros ([] p) "[Hspec ->] /="; wp_pures.
     - assert (S m - 1 = m)%Z as -> by lia.
       wp_apply ("IH" with "[Hspec]"); [eauto|done].
