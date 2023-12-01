@@ -553,45 +553,9 @@ Section prim_exec_lim.
              apply IHn.
   Qed.
 
-
-
-  
-  (** * strengthen lemma? *)
-  Lemma ssd_fix_value_lim_exec_val_lim_exec_cfg e σ (v : val Λ):
-    SeriesC (ssd (λ '(e', σ'), bool_decide (to_val e' = Some v)) (lim_exec_cfg (e, σ))) =
-    SeriesC (ssd (λ e' : val Λ, bool_decide (e' = v)) (lim_exec_val (e, σ))).
-  Proof.
-    rewrite {2}/ssd {2}/pmf/ssd_pmf.
-    pose (id := λ a: val Λ, a).
-    assert ( SeriesC (λ a : val Λ, if bool_decide (a = v) then lim_exec_val (e, σ) a else 0) =
-      (SeriesC (λ a : val Λ, if bool_decide (id a = v) then lim_exec_val (e, σ) v else 0))). 
-    { f_equal. apply functional_extensionality_dep.
-      intros. rewrite /id. case_bool_decide; by subst. }
-    rewrite H.
-    rewrite SeriesC_singleton_inj; [|eauto]. clear H id.
-    
-    replace (SeriesC _) with
-            (SeriesC (λ σ', lim_exec_cfg (e, σ) (of_val v, σ'))); last first.
-    { erewrite <-(dmap_mass _ (λ s, s.2)). f_equal.
-      apply functional_extensionality_dep.
-      intros.
-      rewrite /dmap.
-      rewrite {2}/pmf/=/dbind_pmf.
-      replace (SeriesC _) with (SeriesC (λ s, if bool_decide (s = (of_val v, x)) then lim_exec_cfg (e, σ) (of_val v, x) else 0)).
-      2: { f_equal. apply functional_extensionality_dep. intros [].
-           case_bool_decide; rewrite /ssd {2}/pmf/=/ssd_pmf; first case_bool_decide.
-           - inversion H. rewrite dret_1_1; [|done]. by rewrite Rmult_1_r.
-           - inversion H. subst. rewrite to_of_val in H0. done.
-           - rewrite /pmf. case_bool_decide.
-             + apply of_to_val in H0. rewrite H0 in H.
-               replace (dret_pmf _ _) with 0; [lra|].
-               assert (s ≠ x); [intro; by subst|].
-               rewrite /dret_pmf. case_bool_decide; [done|lra].
-             + lra. 
-      }
-      rewrite SeriesC_singleton_inj; eauto.
-    }
-    assert ( (λ σ', lim_exec_cfg (e, σ) (of_val v, σ')) = (λ σ', Sup_seq (λ n, exec_cfg n (e, σ) (of_val v, σ')))).
+  Lemma lim_exec_cfg_lim_exec_val_relate e σ v: SeriesC (λ σ', lim_exec_cfg (e, σ) (of_val v, σ')) = lim_exec_val (e, σ) v.
+    Proof. 
+assert ( (λ σ', lim_exec_cfg (e, σ) (of_val v, σ')) = (λ σ', Sup_seq (λ n, exec_cfg n (e, σ) (of_val v, σ')))).
     { apply functional_extensionality_dep. by intros. }
     rewrite H.
     assert (SeriesC (λ σ', Sup_seq (λ n : nat, exec_cfg n (e, σ) (of_val v, σ'))) = Sup_seq (λ n, SeriesC (λ σ', exec_cfg n (e, σ) (of_val v, σ')))).
@@ -672,6 +636,46 @@ Section prim_exec_lim.
         repeat f_equal. apply functional_extensionality_dep.
         intros []. f_equal. apply Rbar_finite_eq. apply IHn.
   Qed. 
+  
+  (** * strengthen lemma? *)
+  Lemma ssd_fix_value_lim_exec_val_lim_exec_cfg e σ (v : val Λ):
+    SeriesC (ssd (λ '(e', σ'), bool_decide (to_val e' = Some v)) (lim_exec_cfg (e, σ))) =
+    SeriesC (ssd (λ e' : val Λ, bool_decide (e' = v)) (lim_exec_val (e, σ))).
+  Proof.
+    rewrite {2}/ssd {2}/pmf/ssd_pmf.
+    pose (id := λ a: val Λ, a).
+    assert ( SeriesC (λ a : val Λ, if bool_decide (a = v) then lim_exec_val (e, σ) a else 0) =
+      (SeriesC (λ a : val Λ, if bool_decide (id a = v) then lim_exec_val (e, σ) v else 0))). 
+    { f_equal. apply functional_extensionality_dep.
+      intros. rewrite /id. case_bool_decide; by subst. }
+    rewrite H.
+    rewrite SeriesC_singleton_inj; [|eauto]. clear H id.
+    
+    replace (SeriesC _) with
+            (SeriesC (λ σ', lim_exec_cfg (e, σ) (of_val v, σ'))); last first.
+    { erewrite <-(dmap_mass _ (λ s, s.2)). f_equal.
+      apply functional_extensionality_dep.
+      intros.
+      rewrite /dmap.
+      rewrite {2}/pmf/=/dbind_pmf.
+      replace (SeriesC _) with (SeriesC (λ s, if bool_decide (s = (of_val v, x)) then lim_exec_cfg (e, σ) (of_val v, x) else 0)).
+      2: { f_equal. apply functional_extensionality_dep. intros [].
+           case_bool_decide; rewrite /ssd {2}/pmf/=/ssd_pmf; first case_bool_decide.
+           - inversion H. rewrite dret_1_1; [|done]. by rewrite Rmult_1_r.
+           - inversion H. subst. rewrite to_of_val in H0. done.
+           - rewrite /pmf. case_bool_decide.
+             + apply of_to_val in H0. rewrite H0 in H.
+               replace (dret_pmf _ _) with 0; [lra|].
+               assert (s ≠ x); [intro; by subst|].
+               rewrite /dret_pmf. case_bool_decide; [done|lra].
+             + lra. 
+      }
+      rewrite SeriesC_singleton_inj; eauto.
+    }
+    apply lim_exec_cfg_lim_exec_val_relate.
+Qed. 
+    
+    
     
   
   Lemma lim_exec_val_exec_det n ρ (v : val Λ) σ :

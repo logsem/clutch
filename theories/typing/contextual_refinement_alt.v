@@ -460,4 +460,3 @@ Proof.
     rewrite /K' /=. 
     by do 2 rewrite -alt_impl_ctx_refines_loop_lemma.
 Qed. 
-
