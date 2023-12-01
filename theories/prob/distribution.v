@@ -890,6 +890,14 @@ Section subset_distribution_lemmas.
   Proof.
     rewrite /ssd /ssd_pmf /pmf /=.
     destruct (P a) => /=; lra.
+  Qed.
+
+  Lemma ssd_remove P μ : (∀ a, negb (P a) -> μ a = 0) -> ssd P μ = μ.
+  Proof.
+    move=> H0.
+    apply distr_ext. move=> a. destruct (P a) eqn:H'.
+    - by rewrite /ssd{1}/pmf/ssd_pmf H'. 
+    - rewrite /ssd{1}/pmf/ssd_pmf H'. rewrite H0; [done|by rewrite H']. 
   Qed. 
 
 End subset_distribution_lemmas.

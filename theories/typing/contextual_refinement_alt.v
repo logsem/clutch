@@ -209,40 +209,37 @@ Proof.
   intros [].
   - by rewrite /pmf /=.
   - simpl. destruct H.
-    apply of_to_val in H as H1. rewrite -H1.
-    assert (prim_step (x = #b) σ= head_step (x=#b) σ) as H'.
-    { apply distr_ext => s.
-      unfold prim_step.
-      simpl. unfold decomp => /=.
-      admit. }
-    rewrite H'.
-    destruct x.
-    (* { rewrite head_prim_step_eq => /=. *)
-    (*   rewrite /bin_op_eval. *)
-    (*   destruct l; destruct b; *)
-        
-    (*                                   eexists (_, _). destruct b *)
-    (*     eapply head_step_support_equiv_rel; *)
-    (*     by econstructor. } *)
-    (* rewrite head_prim_step_eq => /=. *)
-    (* -- destruct e eqn:H1; try rewrite dbind_dzero; eauto. *)
-    (*    destruct (bin_op_eval EqOp v #b) eqn:H2; try rewrite dbind_dzero; eauto. *)
-    (*    assert (v0 = #false). *)
-    (*    { destruct v eqn:H3; rewrite /bin_op_eval in H2; repeat case_decide; *)
-    (*        try case_bool_decide; try done. *)
-    (*      1 : try (exfalso; apply H0; try by f_equal). *)
-    (*      all: by inversion H2. *)
-    (*    } *)
-    (*    rewrite dret_id_left; destruct n => /=. *)
-    (*    all: rewrite H3; eauto. *)
-    (* -- apply of_to_val in H as H1. *)
-    (*    erewrite <-H1. *)
-    (*    eexists (_, _). *)
-    (*    destruct b; destruct x; *)
-    (*     eapply head_step_support_equiv_rel; *)
-    (*     try by econstructor. *)
-    (* } *)
-Admitted.
+    apply of_to_val in H as H1. rewrite -H1. rewrite -H1 in H0.
+    clear H H1. 
+    destruct x eqn:H2; rewrite head_prim_step_eq.
+    -- destruct b, l => /=; try (rewrite dret_id_left; destruct n => /=; done).
+       all: rewrite bool_decide_eq_false_2;[rewrite dret_id_left; by destruct n|].
+       all: intro; apply H0; by rewrite H.
+    -- eexists (_,_).
+       eapply head_step_support_equiv_rel.
+       destruct l, b; by econstructor.
+    -- destruct b => /=; try (rewrite dret_id_left; destruct n => /=; done).
+    -- eexists (_,_).
+       eapply head_step_support_equiv_rel.
+       destruct b; by econstructor.
+    -- destruct b => /=; try (rewrite dret_id_left; destruct n => /=; done).
+    -- eexists (_,_).
+       eapply head_step_support_equiv_rel.
+       destruct b; by econstructor.
+    -- destruct v, b => /=; try (rewrite dret_id_left; destruct n => /=; done).
+       all: destruct l => /=; try (rewrite dret_id_left; destruct n => /=; done).
+    -- eexists (_,_).
+       eapply head_step_support_equiv_rel.
+       destruct v, b; try by econstructor.
+       all: destruct l; by econstructor.
+    -- destruct v, b => /=; try (rewrite dret_id_left; destruct n => /=; done).
+       all: destruct l => /=; try (rewrite dret_id_left; destruct n => /=; done).
+    -- eexists (_,_).
+       eapply head_step_support_equiv_rel.
+       destruct v, b; try by econstructor.
+       all: destruct l; by econstructor.
+Qed.         
+
 
 Lemma lim_exec_val_is_b_test e σ (b:bool) : lim_exec_val (e, σ) #b = lim_exec_val ((e = #b)%E, σ) #true.
 Proof.
@@ -286,33 +283,62 @@ Qed.
 
 Definition loop := App (RecV "f" "x" (App (Var "f") (Var "x"))) (#()).
 
-Lemma loop_zero_mass σ: SeriesC (lim_exec_val (loop, σ)) = 0.
+Lemma loop_zero_mass n σ x: exec_val n (loop, σ) x = 0.
 Proof.
-  apply SeriesC_0.
-  intros x.
-  rewrite /lim_exec_val.
-  rewrite lim_distr_pmf.
-  assert (H: (λ n, Rbar.Finite (exec_val n (loop, σ) x)) = λ n, 0).
-  { apply functional_extensionality_dep => n.
-    induction n as [n Hn] using (well_founded_induction lt_wf).
-    destruct n.
-    - simpl. destruct x; auto.
-    -  rewrite /loop. simpl. rewrite head_prim_step_eq; last first.
-        -- eexists _. erewrite det_head_step_singleton; [|by econstructor]. simpl.
-            rewrite dret_1_1; [|done]. lra.
-        -- simpl. rewrite dret_id_left -/exec_val. apply Hn. lia.
-  }
-  rewrite H.
-  apply sup_seq_const.
+  induction n as [n Hn] using (well_founded_induction lt_wf).
+  destruct n.
+  - simpl. destruct x; auto.
+  -  rewrite /loop. simpl. rewrite head_prim_step_eq; last first.
+     -- eexists _. erewrite det_head_step_singleton; [|by econstructor]. simpl.
+        rewrite dret_1_1; [|done]. lra.
+     -- simpl. rewrite dret_id_left -/exec_val. apply Hn. lia.
 Qed. 
 
 Lemma lim_exec_val_of_val_true_one (e : expr) σ: e = #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 1.
 Proof.
-Admitted.
+intros ->.
+  rewrite lim_exec_val_rw.
+  rewrite mon_sup_succ.
+  - erewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
+    intros n. simpl. rewrite head_prim_step_eq => /=.
+    2: { eexists (_, _). 
+        eapply head_step_support_equiv_rel;
+        by econstructor.
+    }
+    rewrite dret_id_left; destruct n => /=; by rewrite dret_1_1.
+  - intro. apply exec_val_mon.
+Qed.
 
 Lemma lim_exec_val_of_val_not_true_zero (e : expr) σ: (∃ v, e = of_val v) -> e ≠ #true -> lim_exec_val ((if: e then #() else loop)%E, σ) (#()) = 0.
 Proof.
-  Admitted.
+  intros H H0.
+  rewrite lim_exec_val_rw.
+  erewrite <-sup_seq_const. do 2 f_equal.
+  apply functional_extensionality_dep.
+  intros [].
+  - by rewrite /pmf /=.
+  - simpl. destruct H.
+    rewrite H. rewrite H in H0.
+    clear H. 
+    destruct x eqn:H2.
+    { destruct l.
+      2: { destruct b; [exfalso; by apply H0|].
+           rewrite head_prim_step_eq => /=; last first.
+           + eexists (_, _). 
+             eapply head_step_support_equiv_rel;
+               by econstructor.
+           + rewrite dret_id_left -/ exec_val. rewrite loop_zero_mass. f_equal.
+      } 
+      all: replace (_≫=_) with (dzero ≫= exec_val n); [by rewrite dbind_dzero|f_equal].
+      all: apply distr_ext => s; replace (dzero s) with 0 by done.
+      all: rewrite /prim_step => /=; rewrite decomp_unfold => /=.
+      all: by rewrite dmap_dzero.
+    }
+    all: replace (_≫=_) with (dzero ≫= exec_val n); [by rewrite dbind_dzero|f_equal].
+    all: apply distr_ext => s; replace (dzero s) with 0 by done.
+    all: rewrite /prim_step => /=; rewrite decomp_unfold => /=.
+    all: by rewrite dmap_dzero.
+Qed. 
 
 Lemma lim_exec_val_is_true_test e σ: 
   lim_exec_val ((if: e then #() else loop)%E, σ) #() = lim_exec_val (e,σ) (#true).
@@ -325,9 +351,8 @@ Proof.
   { by apply functional_extensionality_dep. }
   rewrite K.
   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (is_Some (to_val e')))).
-  rewrite (ssd_bind_constant (λ a : expr * state, negb (let '(e', _) := a in bool_decide (is_Some (to_val e')))) _ _ _ 0); last first.
-  { admit. }
-  rewrite Rmult_0_l Rplus_0_r.
+  rewrite ssd_not_value_lim_exec_cfg_dzero.
+  rewrite dbind_dzero /dzero {3}/pmf. rewrite Rplus_0_r.
   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #true))).
   erewrite (ssd_bind_constant _ _ _ _ 1); last first.
   { intros [e' s] H. rewrite /ν.
@@ -336,32 +361,79 @@ Proof.
     by apply of_to_val in H.
   }
   rewrite Rmult_1_l.
-Admitted.
+  rewrite {1}ssd_is_value_lim_exec_cfg_same.
+  rewrite ssd_chain.
+  rewrite (ssd_bind_constant _ _ _ _ 0); last first.
+  { intros [??] H.
+    rewrite /ν.
+    rewrite andb_true_iff in H. destruct H as [H1 H2].
+    rewrite negb_true_iff in H1.
+    rewrite bool_decide_eq_false in H1.
+    rewrite bool_decide_eq_true in H2.
+    apply lim_exec_val_of_val_not_true_zero.
+    - destruct H2. apply of_to_val in H. eauto.
+    - intro. rewrite H in H1. simpl in H1. by apply H1. 
+  }
+  rewrite Rmult_0_l Rplus_0_r.
+  rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg.
+  by rewrite ssd_fix_value.
+Qed. 
 
-  
-(*   erewrite (ssd_bind_split_sum _ _ (λ '(e', σ'), bool_decide (to_val e' = Some #true))). *)
-(*   erewrite (ssd_bind_constant _ _ _ _ 1), (ssd_bind_constant _ _ _ _ 0); last first. *)
-(*   - intros [e' s] H. rewrite /ν. *)
-(*     apply lim_exec_val_of_val_true_one. *)
-(*     rewrite bool_decide_eq_true in H. *)
-(*     by apply of_to_val in H. *)
-(*   - intros [e' s] H. rewrite /ν. *)
-(*     apply lim_exec_val_of_val_not_true_zero. *)
-(*     rewrite negb_true_iff in H. *)
-(*     rewrite bool_decide_eq_false in H. *)
-(*     unfold not. intros ->. by apply H. *)
-(*   - rewrite Rmult_0_l Rplus_0_r Rmult_1_l.  *)
-(*     rewrite ssd_fix_value_lim_exec_val_lim_exec_cfg. *)
-(*     by rewrite ssd_fix_value. *)
-(* Qed.  *)
 
 Lemma lim_exec_val_seriesc_return_value e σ:
   SeriesC (lim_exec_val ((if: e then #() else loop)%E, σ)) =
   lim_exec_val ((if: e then #() else loop)%E, σ) #(). 
 Proof.
-  (* see lim_exec_val_SeriesC_SeqV_true *)
-  Admitted. 
-  
+  rewrite -ssd_fix_value.
+  f_equal. f_equal.
+  apply distr_ext. intros v.
+  destruct (bool_decide (v=#())) eqn:H.
+  - by rewrite /ssd {2}/pmf /=/ssd_pmf H.
+  - rewrite /ssd {2}/pmf /=/ssd_pmf H.
+    rewrite bool_decide_eq_false in H.
+    rewrite lim_exec_val_rw.
+    rewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
+    intros n. revert e σ. induction n.
+    + by intros.
+    + intros. simpl. 
+      destruct (to_val e) eqn:H'.
+      -- apply of_to_val in H'; subst. destruct v0.
+         { destruct l.
+           2: { destruct b;
+                rewrite head_prim_step_eq => /=; last first.
+                + eexists (_, _). 
+                  eapply head_step_support_equiv_rel;
+                    by econstructor.
+                + rewrite dret_id_left -/ exec_val. rewrite loop_zero_mass. f_equal.
+                + eexists (_, _). 
+                  eapply head_step_support_equiv_rel;
+                    by econstructor.
+                + rewrite dret_id_left -/ exec_val.
+                  destruct n => /=; f_equal; by apply dret_0.
+           }
+           all: replace (_≫=_) with (dzero ≫= exec_val n); [by rewrite dbind_dzero|f_equal].
+           all: apply distr_ext => s; replace (dzero s) with 0 by done.
+           all: rewrite /prim_step => /=; rewrite decomp_unfold => /=.
+           all: by rewrite dmap_dzero.
+         }
+         all: replace (_≫=_) with (dzero ≫= exec_val n); [by rewrite dbind_dzero|f_equal].
+         all: apply distr_ext => s; replace (dzero s) with 0 by done.
+         all: rewrite /prim_step => /=; rewrite decomp_unfold => /=.
+         all: by rewrite dmap_dzero.
+      -- replace (if: _ then _ else _)%E with (fill [IfCtx (#()) loop] e); last done.
+         rewrite fill_prim_step_dbind; [|done].
+         rewrite /dmap => /=.
+         rewrite -dbind_assoc -/exec_val.
+         rewrite {1}/dbind/pmf/dbind_pmf.
+         f_equal. apply SeriesC_0. intros [??].
+         rewrite dret_id_left => /=.
+         replace (exec_val _ _ _) with 0; [lra|].
+         do 2 f_equal.
+         rewrite <- Rbar_finite_eq.
+         by rewrite IHn.
+Qed.
+
+
 (*Combining both *)
 Lemma alt_impl_ctx_refines_loop_lemma e (b:bool) σ:
   lim_exec_val (e, σ) #b = SeriesC (lim_exec_val ((if: e = #b then #() else loop)%E, σ)).
@@ -388,3 +460,4 @@ Proof.
     rewrite /K' /=. 
     by do 2 rewrite -alt_impl_ctx_refines_loop_lemma.
 Qed. 
+
