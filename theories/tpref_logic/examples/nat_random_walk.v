@@ -123,10 +123,7 @@ Definition myrec : val :=
 Section myrec_spec.
   Context `{!tprG δ Σ}.
 
-  Definition nmyrec := nroot .@ "myrec".
-
   Lemma wp_myrec (P : val → iProp Σ) (Q : val → val → iProp Σ) (F v1 : val) E :
-    ↑nmyrec ⊆ E →
     (∀ (f v2 : val),
         ⟨⟨⟨ (∀ (v3 : val), ▷ ⟨⟨⟨ P v3 ⟩⟩⟩ f v3 @ E ⟨⟨⟨ u, RET u; Q u v3 ⟩⟩⟩) ∗
             P v2 ⟩⟩⟩
@@ -136,20 +133,16 @@ Section myrec_spec.
       myrec F v1 @ E
     ⟨⟨⟨ u, RET u; Q u v1 ⟩⟩⟩.
   Proof.
-    iIntros (?) "#HF"; iIntros (Ψ) "!# HP HΨ".
+    iIntros "#HF"; iIntros (Ψ) "!# HP HΨ".
     wp_lam.
     wp_alloc r as "Hr".
     wp_let.
     wp_store.
+    iMod (ghost_map_elem_persist with "Hr") as "#Hr".
     wp_load.
-    iMod (inv_alloc (nroot .@ "myrec") _ _ with "Hr") as "#inv".
     iLöb as "IH" forall (v1 Ψ).
     wp_lam.
-    wp_bind (! _)%E.
-    iInv nmyrec as ">Hr" "cl".
     wp_load.
-    iMod ("cl" with "Hr") as "_".
-    iModIntro.
     iApply ("HF" with "[$HP]"); [|done].
     iFrame.
     iIntros (v3).
@@ -188,7 +181,7 @@ Section nat_rw_prog_spec.
     iIntros (Ψ) "HP HΨ".
     wp_apply (wp_myrec (λ v, ∃ n : nat, specF n ∗ ⌜v = #n⌝)%I
                        (λ v _, ∃ m : nat, specF m ∗ ⌜v = #()⌝)%I
-               with "[] [HP]"); [done| |eauto|]; last first.
+               with "[] [HP]"); [|eauto|]; last first.
     { iIntros (?) "(% & ? & ->)". by iApply "HΨ". }
     iIntros (f w Ψ2) "!# [IH (%m & Hspec & ->)] HΨ2".
     wp_rec.
