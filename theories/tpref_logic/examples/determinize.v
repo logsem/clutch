@@ -175,7 +175,7 @@ Section determinize_spec.
     (∀ (P : iProp Σ) (w : val) (s : mstate δ),
         ⟨⟨⟨ specF s ∗ ⌜¬ is_final s⌝ ∗ ▷ P ⟩⟩⟩
           f w
-          ⟨⟨⟨ w s', RET w; specF s' ∗ P ∗ ((⌜w = NONEV⌝ ∗ ⌜¬ is_final s'⌝) ∨ (∃ u, ⌜w = SOMEV u⌝ ∗ ⌜is_final s'⌝)) ⟩⟩⟩) -∗
+        ⟨⟨⟨ w s', RET w; specF s' ∗ P ∗ ((⌜w = NONEV⌝ ∗ ⌜¬ is_final s'⌝) ∨ (∃ u, ⌜w = SOMEV u⌝ ∗ ⌜is_final s'⌝)) ⟩⟩⟩) -∗
     ⟨⟨⟨ specF s ∗ ⌜¬ is_final s⌝ ⟩⟩⟩ determinize f v ⟨⟨⟨ w s', RET w; specF s' ∗ ⌜is_final s'⌝ ⟩⟩⟩.
   Proof.
     iIntros "#Hf".

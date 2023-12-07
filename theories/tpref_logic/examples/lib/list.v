@@ -7,7 +7,12 @@ Definition list_create : val :=
   λ: <>, NONEV.
 
 Definition list_cons : val :=
-  λ: "l" "v", SOME (ref ("v", "l")).
+  λ: "v" "l", SOME (ref ("v", "l")).
+
+Definition list_init : val :=
+  rec: "list_init" "n" "f" :=
+    if: "n" = #0 then list_create #()
+    else list_cons ("f" "n") ("list_init" ("n" - #1) "f").
 
 Section list.
   Context `{!tprG δ Σ}.
@@ -33,7 +38,7 @@ Section list.
 
   Lemma wp_list_cons v x xs E :
     ⟨⟨⟨ is_list v xs ⟩⟩⟩
-      list_cons v x @ E
+      list_cons x v @ E
     ⟨⟨⟨ w, RET w; is_list w (x :: xs) ⟩⟩⟩.
   Proof.
     iIntros (Φ) "Hv HΦ".
@@ -58,12 +63,33 @@ Section list.
 
   Lemma wp_listP_cons v x xs E P :
     ⟨⟨⟨ is_listP v xs P ∗ P x ⟩⟩⟩
-      list_cons v x @ E
+      list_cons x v @ E
     ⟨⟨⟨ w, RET w; is_listP w (x :: xs) P ⟩⟩⟩.
   Proof.
     iIntros (Φ) "[[Hv HPs] HP] HΦ".
     wp_apply (wp_list_cons with "Hv").
     iIntros (w) "Hw". iApply "HΦ". iFrame.
+  Qed.
+
+  Lemma wp_listP_init P (n : nat) (f : val) E :
+    ⟨⟨⟨ ∀ (m : nat), ⟨⟨⟨ True ⟩⟩⟩ f #m @ E ⟨⟨⟨ v, RET v; P v ⟩⟩⟩ ⟩⟩⟩
+      list_init #n f @ E
+    ⟨⟨⟨ (l : val) (xs : list val), RET l; is_listP l xs P ∗ ⌜length xs = n⌝ ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "#Hf HΨ".
+    iInduction (n) as [|n] "IH" forall (Ψ).
+    - wp_rec; wp_pures. wp_apply (wp_listP_create P); [done|].
+      iIntros (l) "Hl". iApply "HΨ". by iFrame.
+    - wp_rec; wp_pures.
+      replace #(S n - 1) with #n; [|do 2 f_equal; lia].
+      wp_bind (list_init _ _).
+      wp_apply "IH".
+      iIntros (v xs) "[Hx <-]".
+      wp_apply "Hf"; [done|].
+      iIntros (x) "HP".
+      wp_apply (wp_listP_cons with "[$Hx $HP]").
+      iIntros (w) "Hw".
+      iApply "HΨ". by iFrame.
   Qed.
 
 End list.
@@ -79,7 +105,7 @@ Definition queue_create : val :=
   λ: <>, ref (list_create #()).
 
 Definition queue_add : val :=
-  λ: "q" "v", "q" <- list_cons (!"q") "v".
+  λ: "v" "q", "q" <- list_cons "v" !"q".
 
 Definition queue_take : val :=
   λ: "q",
@@ -91,13 +117,13 @@ Definition queue_take : val :=
 Section queue.
   Context `{!tprG δ Σ}.
 
-  Definition is_queue (q : val) (P : val → iProp Σ) : iProp Σ :=
-    ∃ (l : loc) (v : val) (xs : list val), ⌜q = #l⌝ ∗ l ↦ v ∗ is_listP v xs P.
+  Definition is_queue (q : val) (n : nat) (P : val → iProp Σ) : iProp Σ :=
+    ∃ (l : loc) (v : val) (xs : list val), ⌜q = #l⌝ ∗ ⌜length xs = n⌝ ∗ l ↦ v ∗ is_listP v xs P.
 
   Lemma wp_queue_create P E :
     ⟨⟨⟨ True ⟩⟩⟩
       queue_create #() @ E
-    ⟨⟨⟨ q, RET q; is_queue q P ⟩⟩⟩.
+    ⟨⟨⟨ q, RET q; is_queue q 0 P ⟩⟩⟩.
   Proof.
     iIntros (Φ) "_ HΦ". wp_rec.
     wp_apply wp_listP_create; [done|].
@@ -107,40 +133,67 @@ Section queue.
     iExists _, _, _. by iFrame.
   Qed.
 
-  Lemma wp_queue_add q x P E :
-    ⟨⟨⟨ is_queue q P ∗ P x ⟩⟩⟩
-      queue_add q x @ E
-    ⟨⟨⟨ RET #(); is_queue q P ⟩⟩⟩.
+  Lemma wp_queue_add q x n P E :
+    ⟨⟨⟨ is_queue q n P ∗ P x ⟩⟩⟩
+      queue_add x q @ E
+    ⟨⟨⟨ RET #(); is_queue q (S n) P ⟩⟩⟩.
   Proof.
-    iIntros (Φ) "[(%l & %v & %xs & -> & Hl & H) HP] HΦ".
+    iIntros (Φ) "[(%l & %v & %xs & -> & %Hlen & Hl & H) HP] HΦ".
     wp_rec. wp_pures.
     wp_load.
     wp_apply (wp_listP_cons with "[$H $HP]").
     iIntros (w) "Hw".
     wp_store.
     iModIntro. iApply "HΦ".
-    iExists _, _, _. by iFrame.
+    iExists _, _, _. iFrame.
+    rewrite -Hlen //.
   Qed.
 
-  Lemma wp_queue_take q P E :
-    ⟨⟨⟨ is_queue q P ⟩⟩⟩
+  Lemma wp_queue_take q n P E :
+    ⟨⟨⟨ is_queue q n P ⟩⟩⟩
       queue_take q @ E
-    ⟨⟨⟨ v, RET v; is_queue q P ∗ (⌜v = NONEV⌝ ∨ ∃ x, ⌜v = SOMEV x⌝ ∗ P x) ⟩⟩⟩.
+    ⟨⟨⟨ v, RET v; is_queue q (n - 1) P ∗
+         ((⌜v = NONEV⌝ ∗ ⌜n = 0⌝) ∨ (∃ x m, ⌜v = SOMEV x⌝ ∗ ⌜n = S m⌝ ∗ P x)) ⟩⟩⟩.
   Proof.
-    iIntros (Φ) "(%l & %v & %xs & -> & Hl & [H HPs]) HΦ".
+    iIntros (Φ) "(%l & %v & %xs & -> & %Hlen & Hl & [H HPs]) HΦ".
     wp_rec. wp_load.
     destruct xs; iSimpl in "H".
     - iDestruct "H" as %->. wp_pures.
       iModIntro. iApply "HΦ".
       iSplitL; [|eauto].
-      iExists _, _, _. by iFrame.
+      iExists _, _, _. iFrame.
+      rewrite -Hlen //.
     - iDestruct "H" as (l' v') "(-> & Hl' & Hxs)". wp_pures.
       wp_load. wp_pures.
       wp_store. wp_pures.
       iModIntro. iApply "HΦ".
       iDestruct "HPs" as "[HP HPs]".
-      iSplitR "HP"; [|eauto].
-      iExists _, _, _. by iFrame.
+      iSplitR "HP"; [|iRight; eauto].
+      iExists _, _, _. iFrame.
+      rewrite -Hlen /= Nat.sub_0_r //.
+  Qed.
+
+  Lemma wp_queue_take_Sn q n P E :
+    ⟨⟨⟨ is_queue q (S n) P ⟩⟩⟩
+      queue_take q @ E
+    ⟨⟨⟨ x, RET (SOMEV x); is_queue q n P ∗ P x ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "Hq HΨ".
+    iApply (wp_queue_take with "Hq").
+    iIntros (v) "(Hq & [[% %] | (% & % & -> & _ & HP)])"; [done|].
+    rewrite /= Nat.sub_0_r.
+    iApply "HΨ". iFrame.
+  Qed.
+
+  Lemma wp_queue_take_0 q P E :
+    ⟨⟨⟨ is_queue q 0 P ⟩⟩⟩
+      queue_take q @ E
+    ⟨⟨⟨ RET NONEV; is_queue q 0 P ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "Hq HΨ".
+    iApply (wp_queue_take with "Hq").
+    iIntros (v) "(Hq & [[-> %] | (% & % & _ & % & _)])"; [|done].
+    iApply "HΨ". iFrame.
   Qed.
 
 End queue.
