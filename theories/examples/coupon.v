@@ -1,6 +1,7 @@
 (* A case study of coupon collection *)
 From clutch Require Export clutch.
 From clutch.lib Require Export map.
+From stdpp Require Export fin_maps. 
 
 
 Set Default Proof Using "Type*".
@@ -71,50 +72,72 @@ Section proofs.
   Lemma wp_cnt_map_helper E lm m n s start:
     start <= n ->
     map_set_relate start n m s ->
-    {{{ map_list lm m}}}
+    {{{ map_list lm m ∗ ⌜s∩set_seq 0 n = s⌝}}}
       cnt_map_helper #lm #start #n @ E
-      {{{v, RET #v; map_list lm m ∗ ⌜v = size s⌝}}}.
+      {{{v, RET #v; map_list lm m ∗ ⌜v = size (s ∩ (set_seq start (n-start)))⌝
+                                              ∗ ⌜s∩set_seq 0 n = s⌝
+      }}}.
   Proof. 
-    iIntros (H Hms Φ) "(%&%&Hlm&%&Ha) HΦ".
-    wp_pure.
-    iRevert (H H0 Hms).
-    iLöb as "IH" forall (start lv vs).
-    iIntros "%H %H0 %Hms".
-    wp_pures.
-    case_bool_decide.
-    - wp_pures. iModIntro. replace 0%Z with (Z.of_nat 0) by lia.
-      iApply ("HΦ" with "[Hlm Ha]").
-      rewrite /map_list.
-      iSplitL.
-      + iExists _, _. iFrame. by iPureIntro.
-      + subst. iPureIntro. rewrite /map_set_relate in Hms.
-        inversion H1. rewrite Nat2Z.inj_iff in H2. subst.
-        assert (s = ∅); last first.
-        { by subst. }
-        rewrite elem_of_equiv_empty_L.
-        intros. intro. rewrite Hms in H0. destruct H0 as [??].
-        lia.
-    - wp_pures. wp_bind (get _ _).
-      wp_apply (wp_get with "[Hlm Ha]").
-      { iExists _, _. iFrame. by iPureIntro. }
-      iIntros (b) "[ (%&%&Hlm&%&Ha) %Hres]".
-      subst.
-      destruct (list_to_map vs !! start) eqn:Hd.
-      + do 3 wp_pure.
-        replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia.
-        admit. 
-      + do 3 wp_pure. 
-        replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia.
-        iApply ("IH" with "[$Hlm][$Ha][$HΦ][]").
-        -- iPureIntro. destruct H; try done. lia.
-        -- by iPureIntro.
-        -- iPureIntro. intro. split; intros.
-           ++ apply Hms in H0. destruct H0. split; try done.
-              destruct H3. split; try done.
-              destruct H3; try lia. rewrite Hd in H0. inversion H0. done.
-           ++ rewrite Hms. destruct H0. split; try done.
-              destruct H3; split; try done.
-              lia.
+    iIntros (H Hms Φ) "[(%&%&Hlm&%&Ha) %] HΦ".
+    (* wp_pure. *)
+    (* iRevert (H H0 Hms Φ) "HΦ". *)
+    (* iLöb as "IH" forall (start lv vs). *)
+    (* iIntros "%H %H0 %Hms %Φ HΦ". *)
+    (* wp_pures. *)
+    (* case_bool_decide. *)
+    (* - wp_pures. iModIntro. replace 0%Z with (Z.of_nat 0) by lia. *)
+    (*   iApply ("HΦ" with "[Hlm Ha]"). *)
+    (*   rewrite /map_list. *)
+    (*   iSplitL. *)
+    (*   + iExists _, _. iFrame. by iPureIntro. *)
+    (*   + subst. iPureIntro. rewrite /map_set_relate in Hms. *)
+    (*     inversion H1. rewrite Nat2Z.inj_iff in H2. subst => /=. *)
+    (*     assert (set_seq n (n-n) = (∅ : gset nat)). *)
+    (*     { rewrite elem_of_equiv_empty_L. intros. intro. rewrite elem_of_set_seq in H0. *)
+    (*       destruct H0. lia. *)
+    (*     } rewrite H0. *)
+    (*     assert (s∩∅ = ∅). *)
+    (*     { rewrite elem_of_equiv_empty_L. intros. intro. *)
+    (*       rewrite elem_of_intersection in H2. *)
+    (*       destruct H2. *)
+    (*       by rewrite elem_of_empty in H3. *)
+    (*     } *)
+    (*     rewrite H2. done. *)
+    (* - wp_pures. wp_bind (get _ _). *)
+    (*   wp_apply (wp_get with "[Hlm Ha]"). *)
+    (*   { iExists _, _. iFrame. by iPureIntro. } *)
+    (*   iIntros (b) "[ (%&%&Hlm&%&Ha) %Hres]". *)
+    (*   subst. *)
+    (*   destruct (list_to_map vs !! start) eqn:Hd. *)
+    (*   + do 3 wp_pure. *)
+    (*     replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia. *)
+    (*     wp_bind (App _ _)%E. *)
+    (*     wp_apply (wp_mono with "[Hlm Ha]"); last first. *)
+    (*     { wp_apply ("IH" with "[$Hlm][$Ha]"). *)
+    (*       - iPureIntro. assert (start ≠ n). *)
+    (*         { intro. subst. done. } *)
+    (*         assert (start < n) by lia. *)
+    (*         lia. *)
+    (*       - done. *)
+    (*       - admit. *)
+    (*       - admit. *)
+    (*     } *)
+    (*     intros. *)
+        
+    (*     admit. *)
+    (*   + do 3 wp_pure. *)
+    (*     replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia. *)
+    (*     iApply ("IH" with "[$Hlm][$Ha]"). *)
+    (*     -- iPureIntro. destruct H; try done. lia. *)
+    (*     -- by iPureIntro. *)
+    (*     -- iPureIntro. intro. split; intros. *)
+    (*        ++ apply Hms in H0. destruct H0. split; try done. *)
+    (*           destruct H3. split; try done. *)
+    (*           destruct H3; try lia. rewrite Hd in H0. inversion H0. done. *)
+    (*        ++ rewrite Hms. destruct H0. split; try done. *)
+    (*           destruct H3; split; try done. *)
+    (*           lia. *)
+    (*     -- admit.       *)
   Admitted.
 
   
@@ -149,8 +172,18 @@ Section proofs.
       wp_apply (wp_cnt_map_helper with "[$Hml][Hc' Hc]").
       { lia. }
       { done. }
-      iModIntro. iIntros (?) "[?%]". rewrite H1. rewrite H0.
-      rel_pures_l. case_bool_decide; last done.
+      { iPureIntro. rewrite set_eq_subseteq.
+        split.
+        - apply intersection_subseteq_l.
+        - apply intersection_greatest; try done.
+          intro.
+          intros.
+          rewrite elem_of_set_seq.
+          rewrite Hms in H0. lia.  
+      }
+      iModIntro. iIntros (?) "[?[%%]]". rewrite H1. rewrite H0.
+      rel_pures_l. case_bool_decide; last first.
+      { exfalso. apply H3. f_equal. replace (n-0) with n by lia. rewrite H2.  done. }
       rel_pures_l.
       rel_load_l.
       rel_values.
@@ -164,10 +197,20 @@ Section proofs.
       wp_apply (wp_cnt_map_helper with "[$Hml][Hc' Hc]").
       { lia. }
       { done. }
-      iModIntro. iIntros (?) "[Hml %]". rewrite H2.
+      { iPureIntro. rewrite set_eq_subseteq.
+        split.
+        - apply intersection_subseteq_l.
+        - apply intersection_greatest; try done.
+          intro.
+          intros.
+          rewrite elem_of_set_seq.
+          rewrite Hms in H2. lia.  
+      }
+      iModIntro. iIntros (?) "[Hml [%%]]". rewrite H2.
       rel_pures_l.
       case_bool_decide.
-      { rewrite H0 in H3. done. }
+      { replace (n-0) with n in H4 by lia. rewrite H3 in H4.
+        rewrite H0 in H4. done. }
       rel_pures_l.
       rel_load_l.
       rel_pures_l.
@@ -190,7 +233,8 @@ Section proofs.
         iExists _, ({[fin_to_nat r]} ∪ s), _.
         replace (Z.of_nat cntv + 1)%Z with (Z.of_nat (S cntv)) by lia.
         iFrame.
-        iSplit; iPureIntro.
+        clear H4. 
+        iSplit; iPureIntro. 
         -- intros. split; intros; try split.
            ++ rewrite lookup_insert_is_Some'.
               apply elem_of_union in H4 as [H4|H4].
@@ -220,7 +264,8 @@ Section proofs.
         iExists _, s, _.
         replace (Z.of_nat cntv + 1)%Z with (Z.of_nat (S cntv)) by lia.
         iFrame.
-        iSplit; iPureIntro.
+        clear H4. 
+        iSplit; iPureIntro.        
         -- split; intros; try split.
            ++ apply Hms in H4 as [].
               rewrite lookup_insert_is_Some'.
