@@ -12,6 +12,7 @@ Definition determinize : val :=
     | SOME "r" => "r"
     end.
 
+(** * Higher-order spec w/model construction *)
 Section backedge_markov.
   Context (δ : markov).
   Context (initial : mstate δ).
@@ -162,6 +163,55 @@ Section determinize_flip_spec.
       iExists _. iSplit; [done|]. iPureIntro.
       rewrite /is_final /= /backedge_to_final /=.
       rewrite bool_decide_eq_false_2 //; eauto.
+  Qed.
+
+End determinize_flip_spec.
+
+(** * Higher-order spec w/o model construction *)
+Section determinize_spec.
+  Context `{tprG δ Σ}.
+
+  Lemma wp_determinize' (f v : val) (s : mstate δ) :
+    (∀ (P : iProp Σ) (w : val) (s : mstate δ),
+        ⟨⟨⟨ specF s ∗ ⌜¬ is_final s⌝ ∗ ▷ P ⟩⟩⟩
+          f w
+          ⟨⟨⟨ w s', RET w; specF s' ∗ P ∗ ((⌜w = NONEV⌝ ∗ ⌜¬ is_final s'⌝) ∨ (∃ u, ⌜w = SOMEV u⌝ ∗ ⌜is_final s'⌝)) ⟩⟩⟩) -∗
+    ⟨⟨⟨ specF s ∗ ⌜¬ is_final s⌝ ⟩⟩⟩ determinize f v ⟨⟨⟨ w s', RET w; specF s' ∗ ⌜is_final s'⌝ ⟩⟩⟩.
+  Proof.
+    iIntros "#Hf".
+    iLöb as "IH" forall (s).
+    iIntros (Ψ) "!# [Hspec %] HΨ".
+    wp_rec; wp_pures.
+    wp_apply ("Hf" with "[$Hspec $IH //]").
+    iIntros (w s') "(Hspec & #IH' & [(-> & %) | (% & -> & %)])".
+    - wp_pures. by iApply ("IH'" with "[$Hspec //]").
+    - wp_pures. iApply "HΨ". iFrame. done.
+  Qed.
+
+End determinize_spec.
+
+From clutch.tpref_logic.examples Require Import coin_random_walk.
+
+Section determinize_flip_spec.
+  (** We pick the simple coin-flipping model from the [coin_random_walk.v] *)
+  Context `{!tprG random_walk Σ}.
+
+  Lemma wp_determinize_flip' :
+    ⟨⟨⟨ specF true ⟩⟩⟩
+      determinize (λ: <>, if: flip then NONE else SOME #())%V #()
+    ⟨⟨⟨ w, RET w; True ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ1) "Hs HΨ1".
+    wp_apply (wp_determinize' with "[] [$Hs]"); [|eauto|]; last first.
+    { iIntros (? s) "[Hspec %Hf]". by iApply "HΨ1". }
+    iIntros (P w s) "!#". iIntros (Ψ2) "(Hspec & % & HP) HΨ2".
+    wp_pures.
+    destruct s; [|exfalso; eauto].
+    wp_apply (rwp_couple_flip _ (=) with "Hspec").
+    { rewrite /= /rw_step. apply Rcoupl_eq. }
+    iIntros ([] a2) "[Ha <-]"; wp_pures.
+    - iModIntro. iApply "HΨ2". iFrame. eauto.
+    - iModIntro. iApply "HΨ2". iFrame. eauto.
   Qed.
 
 End determinize_flip_spec.
