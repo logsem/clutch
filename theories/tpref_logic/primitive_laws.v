@@ -17,7 +17,7 @@ Class tprGpreS δ Σ := TprGpreS {
 #[export] Existing Instance tprGpre_iris.
 #[export] Existing Instance tprGpre_heap.
 #[export] Existing Instance tprGpre_tapes.
-#[export] Existing Instance tprGpre_spec. 
+#[export] Existing Instance tprGpre_spec.
 
 Definition tprΣ δ : gFunctors :=
   #[invΣ;
@@ -304,6 +304,40 @@ Section coupl.
     iApply rwp_value.
     iApply "HΦ".
     eauto.
+  Qed.
+
+  Lemma rwp_couple_two_tape N R ns α e m a E Φ :
+    TCEq (to_val e) None →
+    (∀ σ, σ.(tapes) !! α = Some ((N; ns) : tape) →
+          Rcoupl
+            (state_step σ α)
+            (step m)
+            (λ σ' m', ∃ n,
+                R n m' ∧
+                σ' = (state_upd_tapes (<[α := (N; ns ++ [n])]>) σ))) →
+    α ↪ (N; ns) ∗
+    specF m ∗
+    ▷ (∀ n m', ⌜R n m'⌝ -∗ specF m' -∗ α ↪ (N; ns ++ [n]) -∗ WP e @ a; E {{ Φ }})
+    ⊢ WP e @ a; E {{ Φ }}.
+  Proof.
+    iIntros (He Hcpl) "(Hα & HmF & Hcnt)".
+    iApply rwp_lift_step_fupd_coupl; [rewrite /= He //|].
+    iIntros (σ1 m1') "[[Hh Ht] HmA]".
+    iDestruct (spec_auth_agree with "HmA HmF") as %->.
+    iDestruct (ghost_map_lookup with "Ht Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose".
+    iApply (rwp_coupl_state_step _ _ _ _ α).
+    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }
+    iExists _. iSplit; [eauto|].
+    iIntros (σ2 m2 (n & ? & ->)).
+    iMod (spec_auth_update m2 with "HmA HmF") as "[HmA HmF]".
+    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht Hα") as "[Ht Hα]".
+    do 2 iModIntro.
+    iMod "Hclose" as "_".
+    iSpecialize ("Hcnt" with "[//] HmF Hα").
+    rewrite !rwp_unfold /rwp_pre [language.to_val _]/= He.
+    iApply "Hcnt". iFrame.
   Qed.
 
   Lemma rwp_couple_two_tapes N1 N2 R ns1 ns2 α1 α2 e m1 a E Φ :

@@ -39,10 +39,11 @@ Section rwp_coupl.
         (∃ R, ⌜reducible e1 σ1⌝ ∗
               ⌜Rcoupl (prim_step e1 σ1) (step a1) R⌝ ∗
               ∀ ρ2 a2, ⌜R ρ2 a2⌝ ={∅}▷=∗ Z ρ2 a2) ∨
-        (* LHS state step *)
-        (* ([∨ list] α ∈ get_active σ1, *)
-        (*   (∃ R, ⌜Rcoupl (state_step σ1 α) (dret a1) R⌝ ∗ *)
-        (*         ∀ σ2, ⌜R σ2 a1⌝ ={∅}=∗ Φ ((e1, σ2), a1))) ∨           *)
+        (* TODO: generic case for any number of (finite) state steps *)
+        (* LHS state step coupled with RHS step *)
+        ([∨ list] α ∈ get_active σ1,
+          (∃ R, ⌜Rcoupl (state_step σ1 α) (step a1) R⌝ ∗
+                ∀ σ2 a2, ⌜R σ2 a2⌝ ={∅}▷=∗ Φ ((e1, σ2), a2))) ∨
         (* 2 x LHS state step coupled with 1 x RHS step *)
         ([∨ list] αs ∈ list_prod (get_active σ1) (get_active σ1),
           (∃ R, ⌜Rcoupl (state_step σ1 αs.1 ≫= λ σ1', state_step σ1' αs.2) (step a1) R⌝ ∗
@@ -61,20 +62,20 @@ Section rwp_coupl.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([(e & σ1) a]) "[(% & % & % & ?) | [(% & % & HR) | [(% & % & HR) | Hα]]]".
+    iIntros ([(e & σ1) a]) "[(% & % & % & ?) | [(% & % & HR) | [(% & % & HR) | [Hα | Hα]]]]".
     - iLeft. iExists _. eauto.
     - iRight; iLeft. iExists _. iSplit; [done|].
       iIntros (??). iApply "Hwand". by iApply "HR".
     - iRight; iRight; iLeft. iExists _. eauto.
-    (* - iRight; iRight; iRight; iLeft. *)
-    (*   iInduction (get_active σ1) as [| l] "IH" forall "Hα". *)
-    (*   { rewrite big_orL_nil //. } *)
-    (*   rewrite !big_orL_cons. *)
-    (*   iDestruct "Hα" as "[(% & % & HZ) | H]". *)
-    (*   + iLeft. iExists _. iSplit; [done|]. *)
-    (*     iIntros. iApply "Hwand". by iApply "HZ". *)
-    (*   + iRight. by iApply "IH". *)
-    - iRight; iRight; iRight.
+    - iRight; iRight; iRight; iLeft.
+      iInduction (get_active σ1) as [| l] "IH" forall "Hα".
+      { rewrite big_orL_nil //. }
+      rewrite !big_orL_cons.
+      iDestruct "Hα" as "[(% & % & HZ) | H]".
+      + iLeft. iExists _. iSplit; [done|].
+        iIntros. iApply "Hwand". by iApply "HZ".
+      + iRight. by iApply "IH".
+    - iRight; iRight; iRight; iRight.
       iInduction (list_prod (get_active σ1) (get_active σ1)) as [| l] "IH" forall "Hα".
       { rewrite big_orL_nil //. }
       rewrite !big_orL_cons.
@@ -99,10 +100,10 @@ Section rwp_coupl.
       (∃ R, ⌜reducible e1 σ1⌝ ∗
             ⌜Rcoupl (prim_step e1 σ1) (step a1) R⌝ ∗
             ∀ ρ2 a2, ⌜R ρ2 a2⌝ ={∅}▷=∗ Z ρ2 a2) ∨
-      (* LHS state step *)
-      (* ([∨ list] α ∈ get_active σ1, *)
-      (*   (∃ R, ⌜Rcoupl (state_step σ1 α) (dret a1) R⌝ ∗ *)
-      (*         ∀ σ2, ⌜R σ2 a1⌝ ={∅}=∗ rwp_coupl e1 σ2 a1 Z)) ∨ *)
+      (* LHS state step coupled with RHS step*)
+       ([∨ list] α ∈ get_active σ1,
+          (∃ R, ⌜Rcoupl (state_step σ1 α) (step a1) R⌝ ∗
+                ∀ σ2 a2, ⌜R σ2 a2⌝ ={∅}▷=∗ rwp_coupl e1 σ2 a2 Z)) ∨
       (* 2 x LHS state step coupled with 1 x RHS step *)
       ([∨ list] αs ∈ list_prod (get_active σ1) (get_active σ1),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1 ≫= λ σ1', state_step σ1' αs.2) (step a1) R⌝ ∗
@@ -125,7 +126,7 @@ Section rwp_coupl.
     iPoseProof (least_fixpoint_iter (rwp_coupl_pre Z1) Φ with "[]") as "H"; last first.
     { iIntros "HZ". by iApply ("H" with "Hrwp"). }
     clear.
-    iIntros "!#" ([(e & σ1) a]) "[(% & % & % & HR) | [(% & % & HR) | [(% & % & % & HR) | Hα]]] Hwand /=".
+    iIntros "!#" ([(e & σ1) a]) "[(% & % & % & HR) | [(% & % & HR) | [(% & % & % & HR) | [Hα | Hα]]]] Hwand /=".
     - rewrite rwp_coupl_unfold. iLeft. iExists _.
       iSplit; [done|].
       iSplit; [iPureIntro; by eapply Rcoupl_pos_R|].
@@ -142,15 +143,15 @@ Section rwp_coupl.
       iIntros (ρ2 a2 (HR & Hs & _)).
       iMod ("HR" with "[//]") as "HZ1". iModIntro.
       iApply "Hwand". iModIntro. iMod "HZ1". eauto.
-    (* - rewrite rwp_coupl_unfold. iRight; iRight; iRight; iLeft. *)
-    (*   iInduction (get_active σ1) as [| l] "IH". *)
-    (*   { rewrite big_orL_nil //. } *)
-    (*   rewrite 2!big_orL_cons. *)
-    (*   iDestruct "Hα" as "[(% & % & H) | Ht]". *)
-    (*   + iLeft. iExists _. iSplit; [done|]. *)
-    (*     iIntros. by iApply ("H" with "[//]"). *)
-    (*   + iRight. by iApply ("IH" with "Ht"). *)
-    - rewrite rwp_coupl_unfold. iRight; iRight; iRight.
+    - rewrite rwp_coupl_unfold. iRight; iRight; iRight; iLeft.
+      iInduction (get_active σ1) as [| l] "IH".
+      { rewrite big_orL_nil //. }
+      rewrite 2!big_orL_cons.
+      iDestruct "Hα" as "[(% & % & H) | Ht]".
+      + iLeft. iExists _. iSplit; [done|].
+        iIntros. by iApply ("H" with "[//]").
+      + iRight. by iApply ("IH" with "Ht").
+    - rewrite rwp_coupl_unfold. iRight; iRight; iRight; iRight.
       iInduction (list_prod (get_active σ1) (get_active σ1)) as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
@@ -190,7 +191,7 @@ Section rwp_coupl.
     iPoseProof (least_fixpoint_iter _ Φ with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! (e1, _, _) with "Hcpl [//]").  }
     clear e1 σ1 a1.
-    iIntros "!#" ([(e & σ1) a]) "[(%R & % & % & HR) | [(%R & % & HR) | [(%R & % & % & HR) | Hα]]] % ".
+    iIntros "!#" ([(e & σ1) a]) "[(%R & % & % & HR) | [(%R & % & HR) | [(%R & % & % & HR) | [Hα | Hα]]]] % ".
     - rewrite rwp_coupl_unfold.
       iLeft.
       iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R (e2', σ2) ρ').
@@ -226,17 +227,17 @@ Section rwp_coupl.
         intros [] ?? =>/=. apply Rcoupl_dret. eauto. }
       iIntros ([] ? (? & -> & ?)).
       by iMod ("HR" with "[//]").
-    (* - rewrite rwp_coupl_unfold /=. *)
-    (*   iRight; iRight; iRight; iLeft.  *)
-    (*   iInduction (get_active σ1) as [| l] "IH". *)
-    (*   { rewrite big_orL_nil //. } *)
-    (*   rewrite 2!big_orL_cons. *)
-    (*   iDestruct "Hα" as "[(% & % & H) | Ht]". *)
-    (*   + iLeft. iExists _. iSplit; [done|]. *)
-    (*     iIntros. by iApply ("H" with "[//]"). *)
-    (*   + iRight. by iApply ("IH" with "Ht"). *)
     - rewrite rwp_coupl_unfold /=.
-      iRight; iRight; iRight.
+      iRight; iRight; iRight; iLeft.
+      iInduction (get_active σ1) as [| l] "IH".
+      { rewrite big_orL_nil //. }
+      rewrite 2!big_orL_cons.
+      iDestruct "Hα" as "[(% & % & H) | Ht]".
+      + iLeft. iExists _. iSplit; [done|].
+        iIntros. by iApply ("H" with "[//]").
+      + iRight. by iApply ("IH" with "Ht").
+    - rewrite rwp_coupl_unfold /=.
+      iRight; iRight; iRight; iRight.
       iInduction (list_prod (get_active σ1) (get_active σ1)) as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
@@ -302,17 +303,17 @@ Section rwp_coupl.
     iPureIntro. by eapply dbind_det_inv_r.
   Qed.
 
-  (* Lemma rwp_coupl_state_step e1 σ1 a1 Z α : *)
-  (*   α ∈ get_active σ1 → *)
-  (*   (∃ R, ⌜Rcoupl (state_step σ1 α) (dret a1) R⌝ ∗ *)
-  (*         ∀ σ2, ⌜R σ2 a1⌝ ={∅}=∗ rwp_coupl e1 σ2 a1 Z) *)
-  (*   ⊢ rwp_coupl e1 σ1 a1 Z. *)
-  (* Proof. *)
-  (*   iIntros (?) "H". *)
-  (*   rewrite {1}rwp_coupl_unfold. *)
-  (*   iRight; iRight; iRight; iLeft. *)
-  (*   by iApply big_orL_elem_of.    *)
-  (* Qed. *)
+  Lemma rwp_coupl_state_step e1 σ1 a1 Z α :
+    α ∈ get_active σ1 →
+    (∃ R, ⌜Rcoupl (state_step σ1 α) (step a1) R⌝ ∗
+          ∀ σ2 a2, ⌜R σ2 a2⌝ ={∅}▷=∗ rwp_coupl e1 σ2 a2 Z)
+    ⊢ rwp_coupl e1 σ1 a1 Z.
+  Proof.
+    iIntros (?) "H".
+    rewrite {1}rwp_coupl_unfold.
+    iRight; iRight; iRight; iLeft.
+    by iApply big_orL_elem_of.
+  Qed.
 
   Lemma rwp_coupl_double_state_step e1 σ1 a1 Z α α' :
     α ∈ get_active σ1 →
@@ -323,7 +324,7 @@ Section rwp_coupl.
   Proof.
     iIntros (??) "H".
     rewrite {1}rwp_coupl_unfold.
-    iRight; iRight; iRight.
+    iRight; iRight; iRight; iRight.
     by iApply (big_orL_elem_of _ _ (α, α')); [apply elem_of_list_prod_2|].
   Qed.
 
