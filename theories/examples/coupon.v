@@ -205,9 +205,8 @@ Section proofs.
               assert (x≠start).
               { intro. subst. done. }
               lia.
-Qed.              
-
-  
+Qed.            
+         
 
   Lemma coupon_bijection n m s (k:Z):
     n>0 -> map_set_relate m s -> Z.of_nat (size s) = k -> s∩set_seq 0 n = s ->
@@ -225,9 +224,201 @@ Qed.
     }
     clear m H1.
     replace (S (n-1)) with n by lia.
-    
-    Admitted. 
+    assert (k>=0)%Z.
+    { rewrite <- H2. lia. }
+    assert (∃ k', Z.of_nat k' = k) as [k' Hk].
+    { eexists (Z.to_nat k). lia. }
+    rewrite <- Hk in H2.
+    rewrite <- Hk.
+    clear k H Hk.
+    apply Nat2Z.inj in H2 as H2.
+    rewrite Nat2Z.id.
+    pose (s' := set_seq 0 n ∖ s).
+    assert (size s' = n - k').
+    { rewrite /s'. rewrite size_difference.
+      - f_equal; try done. apply size_set_seq.
+      - intro. apply H3.
+    }
+    rename k' into k.
+    assert (k<=n) as Hk.
+    { rewrite <- H2.
+      erewrite <- size_set_seq.
+      apply subseteq_size.
+      intro. apply H3.
+    }
+    pose (f' := λ x: fin n,
+            let x' := fin_to_nat x in
+            match list_find (λ y, y=x') (elements s) with
+            | None => match list_find (λ y, y=x') (elements s') with
+                     | None => 0 (* doesnt happen*)
+                     | Some (i, _) => k+i
+                     end
+            | Some (i, _) => i
+             end               
+         ).
+    assert (∀ x, f' x < n).
+    { intros. rewrite /f'.
+      case_match. 
+      - destruct p. rewrite list_find_Some in H1.
+        destruct H1. apply lookup_lt_Some in H1.
+        assert (n0 < k); try lia.
+        by replace k with (length (elements s)).
+      - case_match; try lia.
+        destruct p.
+        rewrite list_find_Some in H4. destruct H4.
+        apply lookup_lt_Some in H4.
+        assert (length(elements s') = n-k); try lia.
+        rewrite <- H. done.
+    }
+    pose (f:= λ x, nat_to_fin (H1 x)).
+    exists f.
+    assert (Inj eq eq f) as Hinj.
+    { rewrite /Inj.
+      intros.
+      rewrite /f in H4.
+      assert (fin_to_nat (nat_to_fin (H1 x)) = fin_to_nat (nat_to_fin (H1 y))).
+      { by rewrite H4. }
+      rewrite !fin_to_nat_to_fin in H5.
+      rewrite /f' in H5.
+      case_match.
+      + (* x in s*) destruct p.
+        case_match.
+        -- (*y in s*)
+          destruct p. 
+          rewrite list_find_Some in H6. rewrite list_find_Some in H7.
+          destruct H6 as [?[??]]. destruct H7 as [?[??]]. subst.
+          rewrite H6 in H7. inversion H7. by apply fin_to_nat_inj in H5.
+        -- (*y not in s*)
+          case_match.
+          ++ (*y in s'*)
+            destruct p.
+            exfalso.
+            assert (n0 < k); try lia.
+            rewrite list_find_Some in H6.
+            destruct H6.
+            apply lookup_lt_Some in H6. replace k with (length(elements s)).
+            eauto.
+          ++ assert (fin_to_nat y∈((set_seq 0 n):gset nat)).
+             --- pose proof (fin_to_nat_lt y).
+                 rewrite elem_of_set_seq. lia.
+             --- exfalso.
+                 rewrite list_find_None in H7. rewrite list_find_None in H8.
+                 rewrite Forall_forall in H7. rewrite Forall_forall in H8.
+                 assert (s∪s' = set_seq 0 n).
+                 { apply set_eq. split; intros.
+                   - rewrite elem_of_union in H10. destruct H10.
+                     + eauto.
+                     + rewrite /s' in H10. set_solver.
+                   - rewrite /s'. rewrite elem_of_union. destruct (decide (x0∈s)).
+                     + eauto.
+                     + right. rewrite elem_of_difference. eauto.
+                 }
+                 rewrite <-H10 in H9.
+                 rewrite elem_of_union in H9.
+                 destruct H9; rewrite -elem_of_elements in H9.
+                 +++ apply H7 in H9. done.
+                 +++ apply H8 in H9. done.
+      + (* x not in s*)
+        case_match.
+        -- (*x in s'*)
+          destruct p.
+          case_match.
+          ++ (*y in s*) destruct p. assert (n2 < k); try lia.
+             rewrite list_find_Some in H8. destruct H8.
+             apply lookup_lt_Some in H8. by replace (k) with (length (elements s)).
+          ++ case_match.
+             --- (*y in s' *) destruct p. assert (n0=n2) by lia; subst.
+                 rewrite list_find_Some in H7. rewrite list_find_Some in H9.
+                 destruct H7. destruct H9.
+                 rewrite H2 in H9. inversion H9.
+                 subst.
+                 destruct H7. destruct H10.
+                 subst. by apply fin_to_nat_inj in H10.
+             --- assert (fin_to_nat y∈((set_seq 0 n):gset nat)) as K.
+                 { pose proof (fin_to_nat_lt y).
+                   rewrite elem_of_set_seq. lia. }
+                 exfalso.
+                 rewrite list_find_None in H8. rewrite list_find_None in H9.
+                 rewrite Forall_forall in H8. rewrite Forall_forall in H9.
+                 assert (s∪s' = set_seq 0 n).
+                 { apply set_eq. split; intros.
+                   - rewrite elem_of_union in H10. destruct H10.
+                     + eauto.
+                     + rewrite /s' in H10. set_solver.
+                   - rewrite /s'. rewrite elem_of_union. destruct (decide (x0∈s)).
+                     + eauto.
+                     + right. rewrite elem_of_difference. eauto.
+                 }
+                 rewrite <-H10 in K.
+                 rewrite elem_of_union in K.
+                 destruct K as [K|K]; rewrite -elem_of_elements in K.
+                 +++ apply H8 in K. done.
+                 +++ apply H9 in K. done.
+        -- assert (fin_to_nat x∈((set_seq 0 n):gset nat)) as K.
+           { pose proof (fin_to_nat_lt x).
+             rewrite elem_of_set_seq. lia. }
+           exfalso.
+           rewrite list_find_None in H6. rewrite list_find_None in H7.
+           rewrite Forall_forall in H6. rewrite Forall_forall in H7.
+           assert (s∪s' = set_seq 0 n).
+           { apply set_eq. split; intros.
+             - rewrite elem_of_union in H8. destruct H8.
+               + eauto.
+               + rewrite /s' in H8. set_solver.
+             - rewrite /s'. rewrite elem_of_union. destruct (decide (x0∈s)).
+               + eauto.
+               + right. rewrite elem_of_difference. eauto.
+           }
+           rewrite <-H8 in K.
+           rewrite elem_of_union in K.
+           destruct K as [K|K]; rewrite -elem_of_elements in K.
+           +++ apply H6 in K. done.
+           +++ apply H7 in K. done.
+    }
+    repeat split; try rewrite /f fin_to_nat_to_fin /f'; intros; last first.
+    - case_match.
+      2:{ rewrite list_find_None in H5. rewrite Forall_forall in H5.
+          rewrite <-elem_of_elements in H4.
+          apply H5 in H4. done.
+      }
+      destruct p.
+      rewrite list_find_Some in H5. destruct H5.
+      apply lookup_lt_Some in H5.
+      rewrite <- H2. done.
+    - case_match.
+      2: {
+        case_match.
+        - destruct p. lia.
+        - rewrite list_find_None in H6. rewrite list_find_None in H5.
+          rewrite Forall_forall in H5. rewrite Forall_forall in H6.
+          assert (fin_to_nat x ∈ ((set_seq 0 n):gset nat)).
+          { rewrite elem_of_set_seq. split; try lia. simpl. apply fin_to_nat_lt. }
+          exfalso.
+          assert (s∪s' = set_seq 0 n).
+          { apply set_eq. split; intros.
+            - rewrite elem_of_union in H8. destruct H8.
+              + eauto.
+              + rewrite /s' in H8. set_solver.
+            - rewrite /s'. rewrite elem_of_union. destruct (decide (x0∈s)).
+              + eauto.
+              + right. rewrite elem_of_difference. eauto.
+          }
+          rewrite <- H8 in H7. rewrite elem_of_union in H7. destruct H7.
+          + rewrite -elem_of_elements in H7. apply H5 in H7. done.
+          + rewrite -elem_of_elements in H7. apply H6 in H7. done. 
+      }
+      destruct p.
+      rewrite list_find_Some in H5. destruct H5 as [?[??]].
+      subst.
+      rewrite <- elem_of_elements.
+      eapply elem_of_list_lookup_2. done.
+    - apply finite_inj_surj; try done.
+    - done. 
+      Unshelve.
+      all: apply _.
+Qed.
 
+    
   Lemma coupon_collection_refines_spec_helper n lm (k:Z) cnt cnt':
     n>0->
     ⊢ coupon_collection_inv n lm k cnt cnt' -∗ REL coupon_helper #lm #n #cnt << spec_coupon_helper #k #n #cnt' : lrel_nat.
