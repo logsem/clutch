@@ -306,7 +306,7 @@ Section coupl.
     eauto.
   Qed.
 
-  Lemma rwp_couple_two_tape N R ns α e m a E Φ :
+  Lemma rwp_couple_tape N R ns α e m a E Φ :
     TCEq (to_val e) None →
     (∀ σ, σ.(tapes) !! α = Some ((N; ns) : tape) →
           Rcoupl

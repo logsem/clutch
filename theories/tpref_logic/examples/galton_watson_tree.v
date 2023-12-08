@@ -24,12 +24,12 @@ End galton_watson_process.
 (** * Task loop  *)
 Definition add_task := queue_add.
 Definition run : val :=
-  rec: "run_loop" "q" :=
+  rec: "run" "q" :=
     match: queue_take "q" with
     | NONE => #()
     | SOME "f" =>
         "f" #();;
-        "run_loop" "q"
+        "run" "q"
     end.
 
 (** * Galton-Watson tree *)
@@ -39,7 +39,7 @@ Definition sample_node : val :=
     let: "l" := list_init "num_children"
       (λ: <>, let: "r" := ref (list_create #()) in
               add_task ("sample_node" "child_dist" "r" "q") "q";;
-         "r") in
+             "r") in
     "r" <- "l".
 
 Definition gen_tree : val :=
@@ -50,35 +50,61 @@ Definition gen_tree : val :=
     run "q";;
     ! "rinit".
 
-
 Section task_loop_spec.
-  Context `{tprG (gwp μ) Σ}.
-  Context `{na_invG Σ}.
+  Context `{tprG (gwp μ) Σ} (N : nat).
 
-  Context (p : na_inv_pool_name) (N : namespace).
+  Definition task_spec (f q : val) (queue : nat → val → iProp Σ) (α : loc) : iProp Σ :=
+    tc_opaque (▷ ∀ n m E, ⟨⟨⟨ queue n q ∗ α ↪ (N; [m]) ⟩⟩⟩ f #() @ E ⟨⟨⟨ RET #(); queue (n + m)%nat q ⟩⟩⟩)%I.
 
-  Definition queue_pred (f : val) : iProp Σ :=
-    ∀ (P : iProp Σ), ⟨⟨⟨ ▷ P ⟩⟩⟩ f #() ⟨⟨⟨ RET #(); P ⟩⟩⟩.
+  Definition queue_pre (queue : natO -d> valO -d> iPropO Σ) : natO -d> valO -d> iPropO Σ :=
+    (λ n q, is_queue q n (λ f, ∃ α, α ↪ (N; []) ∗ task_spec f q queue α))%I.
 
-  Definition queue (q : val) : iProp Σ :=
-    na_inv p N (∃ n, specF n ∗ is_queue q n queue_pred)%I.
-
-  Lemma wp_add_task q f E F :
-    ↑N ⊆ E →
-    ↑N ⊆ F →
-    ⟨⟨⟨ queue q ∗ queue_pred f ∗ na_own p F ⟩⟩⟩
-      add_task f q @ E
-    ⟨⟨⟨ RET #(); na_own p F ⟩⟩⟩.
+  #[local] Instance queue_pre_contractive : Contractive queue_pre.
   Proof.
-    iIntros (?? Ψ) "(Hq & #Hf & Hp) HΨ".
-    iMod (na_inv_acc with "Hq Hp") as "((%n & >Hspec & Hq) & Hp & Hclose)"; [done|done|].
-  Admitted.
+    rewrite /queue_pre => n ?????. rewrite /is_queue /is_listP /task_spec /tc_opaque.
+    do 16 f_equiv. f_contractive; repeat f_equiv.
+  Qed.
 
+  Definition queue : nat → val → iProp Σ := fixpoint queue_pre.
 
-  Lemma wp_run_loop n q E :
-    ⟨⟨⟨ is_queue q n queue_pred ∗ specF n ⟩⟩⟩
+  Lemma queue_unfold n q :
+    queue n q ⊣⊢ queue_pre queue n q.
+  Proof. apply (fixpoint_unfold queue_pre). Qed.
+
+  Lemma wp_run n q E :
+    Rcoupl (dunifP N) μ (λ n m, fin_to_nat n = m) →
+    ⟨⟨⟨ queue n q ∗ specF n ⟩⟩⟩
       run q @ E
-    ⟨⟨⟨ m, RET #(); is_queue q m queue_pred ∗ specF m ⟩⟩⟩.
-  Proof. Admitted.
+    ⟨⟨⟨ m, RET #(); queue m q ∗ specF m ⟩⟩⟩.
+  Proof.
+    iIntros (Hcpl Ψ) "[Hq Hspec] HΨ".
+    iLöb as "IH" forall (n).
+    wp_rec.
+    iEval (rewrite queue_unfold /queue_pre) in "Hq".
+    destruct n.
+    - wp_apply (wp_queue_take_0 with "Hq").
+      iIntros "Hq". wp_pures.
+      iApply "HΨ". iModIntro.
+      iFrame. by iApply queue_unfold.
+    - wp_apply (wp_queue_take_Sn with "Hq").
+      iIntros (f) "[Hq (%α & Hα & Hf)]".
+      wp_pures.
+      iApply (rwp_couple_tape _ (λ m s, s = n + m)%nat); [|iFrame].
+      { iIntros (σ Hσ).
+        rewrite /state_step /=.
+        rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2].
+        rewrite lookup_total_alt Hσ /=.
+        eapply Rcoupl_dbind; [|apply Hcpl].
+        intros n1 n2 <-.
+        apply Rcoupl_dret; eauto. }
+      rewrite {2}/task_spec /tc_opaque.
+      iIntros "!>" (m ? ->) "Hspec Hα /=".
+      wp_pures.
+      wp_apply ("Hf" with "[$Hα Hq]").
+      { iEval (rewrite queue_unfold). iFrame.  }
+      iIntros "Hq".
+      wp_pures.
+      wp_apply ("IH" with "Hq Hspec HΨ").
+  Qed.
 
 End task_loop_spec.
