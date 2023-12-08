@@ -12,7 +12,7 @@ Definition list_cons : val :=
 Definition list_init : val :=
   rec: "list_init" "n" "f" :=
     if: "n" = #0 then list_create #()
-    else list_cons ("f" "n") ("list_init" ("n" - #1) "f").
+    else list_cons ("f" ("n" - #1)) ("list_init" ("n" - #1) "f").
 
 Section list.
   Context `{!tprG δ Σ}.
@@ -71,22 +71,24 @@ Section list.
     iIntros (w) "Hw". iApply "HΦ". iFrame.
   Qed.
 
-  Lemma wp_listP_init P (n : nat) (f : val) E :
-    ⟨⟨⟨ ∀ (m : nat), ⟨⟨⟨ True ⟩⟩⟩ f #m @ E ⟨⟨⟨ v, RET v; P v ⟩⟩⟩ ⟩⟩⟩
+  Lemma wp_listP_init P Q (n : nat) (f : val) E :
+    ⟨⟨⟨ Q 0 ∗
+       ∀ (m : nat), ⟨⟨⟨ Q m ⟩⟩⟩ f #m @ E ⟨⟨⟨ v, RET v; P v ∗ Q (S m) ⟩⟩⟩ ⟩⟩⟩
       list_init #n f @ E
-    ⟨⟨⟨ (l : val) (xs : list val), RET l; is_listP l xs P ∗ ⌜length xs = n⌝ ⟩⟩⟩.
+    ⟨⟨⟨ (l : val) (xs : list val), RET l; is_listP l xs P ∗ Q n ∗ ⌜length xs = n⌝ ⟩⟩⟩.
   Proof.
-    iIntros (Ψ) "#Hf HΨ".
+    iIntros (Ψ) "[HQ #Hf] HΨ".
     iInduction (n) as [|n] "IH" forall (Ψ).
     - wp_rec; wp_pures. wp_apply (wp_listP_create P); [done|].
       iIntros (l) "Hl". iApply "HΨ". by iFrame.
     - wp_rec; wp_pures.
       replace #(S n - 1) with #n; [|do 2 f_equal; lia].
-      wp_bind (list_init _ _).
-      wp_apply "IH".
-      iIntros (v xs) "[Hx <-]".
-      wp_apply "Hf"; [done|].
-      iIntros (x) "HP".
+      wp_apply ("IH" with "HQ").
+      iIntros (v xs) "(Hx & HQ & <-)".
+      wp_pures.
+      replace #(S (length xs) - 1) with #(length xs); [|do 2 f_equal; lia].
+      wp_apply ("Hf" with "HQ").
+      iIntros (x) "[HP HQ]".
       wp_apply (wp_listP_cons with "[$Hx $HP]").
       iIntros (w) "Hw".
       iApply "HΨ". by iFrame.

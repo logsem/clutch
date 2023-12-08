@@ -37,32 +37,33 @@ Definition sample_node : val :=
   rec: "sample_node" "child_dist" "r" "q" <> :=
     let: "num_children" := "child_dist" #() in
     let: "l" := list_init "num_children"
-      (λ: <>, let: "r" := ref (list_create #()) in
-              add_task ("sample_node" "child_dist" "r" "q") "q";;
-             "r") in
+                  (λ: <>, let: "r" := ref (list_create #()) in
+                          add_task ("sample_node" "child_dist" "r" "q") "q";;
+                         "r") in
     "r" <- "l".
 
 Definition gen_tree : val :=
   λ: "child_dist",
     let: "rinit" := ref (list_create #()) in
     let: "q" := queue_create #() in
-    queue_add (sample_node "child_dist" "rinit" "q") "q";;
+    add_task (sample_node "child_dist" "rinit" "q") "q";;
     run "q";;
     ! "rinit".
 
 Section task_loop_spec.
-  Context `{tprG (gwp μ) Σ} (N : nat).
+  Context `{tprG (gwp μ) Σ, na_invG Σ}.
+  Context (N : nat) (α : loc).
 
-  Definition task_spec (f q : val) (queue : nat → val → iProp Σ) (α : loc) : iProp Σ :=
-    tc_opaque (▷ ∀ n m E, ⟨⟨⟨ queue n q ∗ α ↪ (N; [m]) ⟩⟩⟩ f #() @ E ⟨⟨⟨ RET #(); queue (n + m)%nat q ⟩⟩⟩)%I.
+  Definition task_spec (f q : val) (queue : nat → val → iProp Σ) : iProp Σ :=
+    tc_opaque (▷ ∀ n m, ⟨⟨⟨ queue n q ∗ α ↪ (N; [m]) ⟩⟩⟩ f #() ⟨⟨⟨ RET #(); queue (n + m)%nat q ∗ α ↪ (N; [])⟩⟩⟩)%I.
 
   Definition queue_pre (queue : natO -d> valO -d> iPropO Σ) : natO -d> valO -d> iPropO Σ :=
-    (λ n q, is_queue q n (λ f, ∃ α, α ↪ (N; []) ∗ task_spec f q queue α))%I.
+    (λ n q, is_queue q n (λ f, task_spec f q queue))%I.
 
   #[local] Instance queue_pre_contractive : Contractive queue_pre.
   Proof.
     rewrite /queue_pre => n ?????. rewrite /is_queue /is_listP /task_spec /tc_opaque.
-    do 16 f_equiv. f_contractive; repeat f_equiv.
+    do 13 f_equiv. f_contractive; repeat f_equiv.
   Qed.
 
   Definition queue : nat → val → iProp Σ := fixpoint queue_pre.
@@ -71,13 +72,13 @@ Section task_loop_spec.
     queue n q ⊣⊢ queue_pre queue n q.
   Proof. apply (fixpoint_unfold queue_pre). Qed.
 
-  Lemma wp_run n q E :
+  Lemma wp_run n q :
     Rcoupl (dunifP N) μ (λ n m, fin_to_nat n = m) →
-    ⟨⟨⟨ queue n q ∗ specF n ⟩⟩⟩
-      run q @ E
-    ⟨⟨⟨ m, RET #(); queue m q ∗ specF m ⟩⟩⟩.
+    ⟨⟨⟨ queue n q ∗ specF n ∗ α ↪ (N; []) ⟩⟩⟩
+      run q
+    ⟨⟨⟨ m, RET #(); queue m q ∗ specF m ∗ α ↪ (N; []) ⟩⟩⟩.
   Proof.
-    iIntros (Hcpl Ψ) "[Hq Hspec] HΨ".
+    iIntros (Hcpl Ψ) "(Hq & Hspec & Hα) HΨ".
     iLöb as "IH" forall (n).
     wp_rec.
     iEval (rewrite queue_unfold /queue_pre) in "Hq".
@@ -87,7 +88,7 @@ Section task_loop_spec.
       iApply "HΨ". iModIntro.
       iFrame. by iApply queue_unfold.
     - wp_apply (wp_queue_take_Sn with "Hq").
-      iIntros (f) "[Hq (%α & Hα & Hf)]".
+      iIntros (f) "[Hq Hf]".
       wp_pures.
       iApply (rwp_couple_tape _ (λ m s, s = n + m)%nat); [|iFrame].
       { iIntros (σ Hσ).
@@ -100,11 +101,59 @@ Section task_loop_spec.
       rewrite {2}/task_spec /tc_opaque.
       iIntros "!>" (m ? ->) "Hspec Hα /=".
       wp_pures.
-      wp_apply ("Hf" with "[$Hα Hq]").
+      wp_apply ("Hf" with "[Hα Hq]").
       { iEval (rewrite queue_unfold). iFrame.  }
+      iIntros "[Hq Hα]".
+      wp_pures.
+      wp_apply ("IH" with "Hq Hspec Hα HΨ").
+  Qed.
+
+  Definition child_dist_spec (child_dist : val) (α : loc) : iProp Σ :=
+    ∀ m, ⟨⟨⟨ α ↪ (N; [m]) ⟩⟩⟩ child_dist #() ⟨⟨⟨ RET #m; α ↪ (N; []) ⟩⟩⟩.
+
+  Lemma wp_sample_node child_dist r q p N0 :
+    ⟨⟨⟨ na_inv p N0 (∃ xs l, r ↦ l ∗ is_list l xs) ∗ child_dist_spec child_dist α ⟩⟩⟩
+      sample_node child_dist #r q
+    ⟨⟨⟨ (f : val), RET f; task_spec f q queue ⟩⟩⟩.
+  Proof.
+    iIntros (Ψ) "(#Hr & #Hc) HΨ".
+    iLöb as "IH" forall (Ψ r) "Hr".
+    wp_rec. wp_pures.
+    iModIntro.
+    iApply "HΨ"; clear.
+    iIntros "!> %n %m !# %Ψ [Hq Hα] HΨ".
+    wp_pures.
+    wp_apply ("Hc" with "Hα"); iIntros "Hα".
+    wp_pures.
+    wp_apply (wp_listP_init (λ _, True)%I (λ m, queue (n + m) q) with "[Hq]").
+    { rewrite Nat.add_0_r. iFrame.
+      iIntros (s Ψ') "!# Hq HΨ'".
+      wp_pures.
+      wp_apply wp_list_create; [done|].
+      iIntros (v) "Hv".
+      wp_alloc l as "Hl".
+      wp_pures.
+      iMod (na_inv_alloc p _ N0 (∃ xs v, l ↦ v ∗ is_list v xs)%I with "[Hv Hl]") as "#Hl".
+      { iModIntro. iExists _, _. iFrame. }
+      wp_apply ("IH" with "[Hq HΨ'] Hl").
+      iIntros (f) "Hf".
+      iEval (rewrite queue_unfold) in "Hq".
+      wp_apply (wp_queue_add with "[$Hq $Hf]").
       iIntros "Hq".
       wp_pures.
-      wp_apply ("IH" with "Hq Hspec HΨ").
-  Qed.
+      iModIntro. iApply "HΨ'".
+      rewrite plus_n_Sm.
+      iEval (rewrite queue_unfold).
+      iFrame. }
+    iIntros (l xs) "(Hl & Hq & %)".
+    wp_pures.
+    iMod (na_inv_acc with "Hr []") as "(>(%&%& Hr' & ?) & Hp & Hclose)"; [set_solver| | |].
+    { admit. }
+    { admit. }
+    wp_store.
+    iModIntro.
+    iApply ("HΨ" with "[$Hq $Hα]").
+    (* Basically done, just need to thread through the [na_inv] token *)
+  Admitted.
 
 End task_loop_spec.
