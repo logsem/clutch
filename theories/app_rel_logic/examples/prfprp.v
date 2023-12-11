@@ -1,7 +1,7 @@
 From clutch.app_rel_logic Require Export app_clutch map list.
 Set Default Proof Using "Type*".
 
-Module prf_prp.
+Section prf_prp.
 
   (* This is the same as the simple hash *)
 
@@ -355,7 +355,7 @@ Module prf_prp.
  Lemma NoDup_remove_pref [A : Type] (l l' : list A):
    List.NoDup (l ++ l') → List.NoDup (l').
  Proof.
-   induction l as [? | a l]; simpl; auto.
+   induction l as [| a l]; simpl; auto.
    intros H.
    apply IHl.
    replace (l ++ l') with ([] ++ (l ++ l')); auto.
@@ -651,12 +651,6 @@ Definition test_prp: val :=
        do 3 f_equal. lia.
      }
      iApply "IH".
+ Abort.
 
-
-
-
-
-
-
-
-
+End prf_prp.

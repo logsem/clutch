@@ -1,4 +1,5 @@
-From clutch.app_rel_logic Require Export app_clutch.
+From clutch.prob_lang Require Import lang notation.
+From clutch.prelude Require Import base.
 Set Default Proof Using "Type*".
 
 Section inject.

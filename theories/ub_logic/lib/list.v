@@ -1,7 +1,7 @@
 From clutch.lib Require Import utils.
-From clutch Require Import app_clutch.
+From clutch Require Import ub_clutch.
 
-From clutch.app_rel_logic.examples Require Export map.
+(* From clutch.app_rel_logic.examples Require Export map. *)
 Set Default Proof Using "Type*".
 
 Section list_code.
@@ -302,7 +302,7 @@ Qed.
 
 Section list_specs.
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
   Context `[!Inject A val].
 
   Fixpoint is_list (l : list A) (v : val) :=
@@ -325,7 +325,7 @@ Section list_specs.
     {{{ True }}}
       list_nil @ E
     {{{ v, RET v; ⌜is_list [] v⌝}}}.
-  Proof. iIntros (Φ) "_ HΦ". wp_pures. by iApply "HΦ". Qed.
+  Proof. iIntros (Φ) "_ HΦ". unfold list_nil. wp_pure. by iApply "HΦ". Qed.
 
   Lemma wp_list_cons a l lv E :
     {{{ ⌜is_list l lv⌝ }}}
@@ -334,20 +334,6 @@ Section list_specs.
   Proof.
     iIntros (Φ) "% HΦ". wp_lam. wp_pures.
     iApply "HΦ". iPureIntro; by eexists.
-  Qed.
-
-  Lemma spec_list_cons E K (a : A) (l : list A) lv :
-    ↑specN ⊆ E →
-    ⌜ is_list l lv ⌝ -∗
-    refines_right K (list_cons (inject a) lv) ={E}=∗
-    ∃ v, refines_right K (of_val v) ∗ ⌜is_list (a :: l) v⌝.
-  Proof.
-    iIntros (?) "%Hlist Hspec".
-    tp_lam. tp_pures.
-    iModIntro.
-    iExists _.
-    iFrame.
-    iPureIntro; by eexists.
   Qed.
 
   Lemma wp_list_singleton E a :
@@ -401,42 +387,6 @@ Section list_specs.
       wp_op. iSpecialize ("HΦ" $! (1 + v)%nat).
       rewrite Nat2Z.inj_add. iApply "HΦ"; by auto.
   Qed.
-
-  Lemma spec_list_length K E l lv :
-    ↑specN ⊆ E →
-    ⌜ is_list l lv ⌝ -∗
-    refines_right K (list_length lv) ={E}=∗
-    ∃ v, refines_right K (of_val v) ∗ ⌜v = inject (length l)⌝.
-  Proof.
-    iIntros (?).
-    iInduction l as [| a l'] "IH" forall (lv K);
-    iIntros "%Hlist Hspec".
-    - rewrite /list_length.
-      tp_rec.
-      apply is_list_inject in Hlist as ->.
-      tp_pures.
-      iModIntro.
-      iExists _; iFrame.
-      iPureIntro. done.
-    - tp_lam.
-      apply is_list_inject in Hlist as ->.
-      tp_pure.
-      fold inject_list.
-      do 3 tp_pure.
-      tp_bind (list_length _).
-      iEval (rewrite refines_right_bind) in "Hspec".
-      iMod ("IH" $! _ _ _ with "Hspec") as (v) "[Hspec %Hv]".
-      iEval (rewrite -refines_right_bind) in "Hspec".
-      simpl.
-      rewrite Hv.
-      tp_op.
-      iModIntro.
-      iExists _; iFrame.
-      iPureIntro.
-      do 2 f_equal; lia.
-      Unshelve. by apply is_list_inject.
-   Qed.
-
 
   Lemma wp_list_iter_invariant' Φ1 Φ2 (Ψ: list A -> iProp Σ) P E l lv handler
          lrest:
@@ -791,68 +741,6 @@ Section list_specs.
   Qed.
 
 
-  Lemma spec_remove_nth E K (l : list A) lv (i : nat) :
-    ↑specN ⊆ E →
-    (⌜is_list l lv /\ i < length l⌝ ) -∗
-      refines_right K (list_remove_nth lv #i) ={E}=∗
-    ∃ v, refines_right K (of_val v) ∗
-     ∃ e lv' l1 l2,
-            (⌜l = l1 ++ e :: l2 ∧
-             length l1 = i /\
-            v = SOMEV ((inject e), lv') ∧
-            is_list (l1 ++ l2) lv'⌝).
-  Proof.
-    iIntros (?) "Hl Hspec".
-    iInduction l as [|a l'] "IH" forall (i lv K);
-      iDestruct "Hl" as "(%Hl & %Hi)"; simpl in Hl; subst.
-    - inversion Hi.
-    - destruct Hl as [lv' [Hlv Hlcoh]]; subst.
-      rewrite /list_remove_nth.
-      tp_pures.
-      { rewrite /vals_compare_safe /val_is_unboxed /lit_is_unboxed. auto. }
-      fold list_remove_nth.
-      case_bool_decide; tp_pures.
-      + iModIntro.
-        iExists _.
-        iFrame.
-        iExists a, (inject l'), [], l'.
-        destruct i; auto.
-        iPureIntro; split; auto.
-        split; auto.
-        split; auto.
-        * by apply is_list_inject in Hlcoh as ->.
-        * by apply is_list_inject.
-      + destruct i; first done.
-        assert ((S i - 1)%Z = i) as -> by lia.
-        iAssert (⌜ is_list l' lv' /\ i < length l' ⌝%I) as "Haux".
-        {
-          iPureIntro.
-          split; auto.
-          inversion Hi; auto. lia.
-        }
-        tp_bind (list_remove_nth _ _).
-        iEval (rewrite refines_right_bind) in "Hspec".
-        iMod ("IH" $! _ _ _ with "Haux Hspec") as (v) "(Hspec & (%e & %v' & %l1 & %l2 & (-> & %Hlen & -> & %Hil)))".
-        iEval (rewrite -refines_right_bind /=) in "Hspec".
-        tp_pures.
-        tp_bind (list_cons _ _).
-        iEval (rewrite refines_right_bind ) in "Hspec".
-        iMod (spec_list_cons $! Hil with "Hspec") as (v'') "(Hspec & %Hv'')"; first done.
-        iEval (rewrite -refines_right_bind /=) in "Hspec".
-        tp_pures.
-        iModIntro.
-        iExists _.
-        iFrame.
-        iExists _, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
-        iSplit.
-        { iPureIntro; auto. }
-        iPureIntro.
-        split; [rewrite cons_length Hlen // |].
-        split; auto.
-        * simpl. by apply is_list_inject in Hv'' as ->.
-        * by apply is_list_inject.
-  Qed.
-
   Lemma wp_remove_nth_total E (l : list A) lv (i : nat) :
     {{{ ⌜is_list l lv /\ i < length l⌝ }}}
       list_remove_nth_total lv #i @ E
@@ -1071,7 +959,7 @@ Global Arguments wp_list_nil {_ _ _} _ {_}.
    list type. *)
 Section list_specs_extra.
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
   Context `[!Inject A val].
 
   Lemma wp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :
@@ -1298,43 +1186,5 @@ Section list_specs_extra.
       by apply is_list_inject.
   Qed.
 
-  
-  Lemma spec_list_seq E K (n m : nat) :
-    ↑specN ⊆ E →
-    refines_right K (list_seq #n #m) ={E}=∗ ∃ v, (refines_right K (of_val v) ∗ ⌜is_list (seq n m) v⌝).
-  Proof.
-    iIntros (?) "Hspec".
-    iInduction m as [ | p] "IHm" forall (n K).
-    - rewrite /list_seq.
-      tp_pures.
-      iModIntro.
-      iExists _.
-      iFrame.
-      iPureIntro.
-      rewrite /seq.
-      by apply is_list_inject.
-    - rewrite /list_seq.
-      tp_rec.
-      do 6 tp_pure.
-      assert (#(S p - 1) = #p) as ->.
-      { do 3 f_equal. lia. }
-      fold list_seq.
-      assert (#(n + 1) = #(Z.of_nat (S n))) as ->.
-      { do 3 f_equal. lia. }
-      tp_bind (list_seq _ _).
-      iEval (rewrite refines_right_bind) in "Hspec".
-      iMod ("IHm" $! (S n) with "[$Hspec]") as (v) "(Hspec & %Hlist)".
-      iEval (rewrite -refines_right_bind) in "Hspec".
-      simpl.
-      assert (#n = (inject n)) as -> by done.
-      iMod (spec_list_cons $! Hlist with "Hspec") as (v') "(Hspec & %Hlist')"; [done | ].
-      iModIntro.
-      iExists _. iFrame.
-      iPureIntro.
-      exists (inject (seq (S n) p)).
-      apply is_list_inject in Hlist' as ->.
-      split; auto.
-      by apply is_list_inject.
-  Qed.
 
 End list_specs_extra.
