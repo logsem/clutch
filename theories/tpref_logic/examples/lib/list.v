@@ -119,66 +119,94 @@ Definition queue_take : val :=
 Section queue.
   Context `{!tprG δ Σ}.
 
-  Definition is_queue (q : val) (n : nat) (P : val → iProp Σ) : iProp Σ :=
-    ∃ (l : loc) (v : val) (xs : list val), ⌜q = #l⌝ ∗ ⌜length xs = n⌝ ∗ l ↦ v ∗ is_listP v xs P.
+  Definition is_queue (q : val) (n : nat) (Q : val → iProp Σ) : iProp Σ :=
+    ∃ (l : loc) (v : val) (xs : list val), ⌜q = #l⌝ ∗ ⌜length xs = n⌝ ∗ l ↦ v ∗ is_listP v xs Q.
 
-  Lemma wp_queue_create P E :
-    ⟨⟨⟨ True ⟩⟩⟩
-      queue_create #() @ E
-    ⟨⟨⟨ q, RET q; is_queue q 0 P ⟩⟩⟩.
+  Implicit Type P : val → val → (valO -d> natO -d> iProp Σ) -d> iProp Σ.
+
+  Definition queue_pre P (queue : valO -d> natO -d> iPropO Σ) : valO -d> natO -d> iPropO Σ :=
+    (λ q n, is_queue q n (λ f, P f q queue))%I.
+
+  #[local] Instance queue_pre_contractive `{∀ n q, Contractive (P n q)} :
+    Contractive (queue_pre P).
   Proof.
-    iIntros (Φ) "_ HΦ". wp_rec.
-    wp_apply wp_listP_create; [done|].
-    iIntros (v) "Hv".
-    wp_alloc l as "Hl".
-    iModIntro. iApply "HΦ".
-    iExists _, _, _. by iFrame.
+    rewrite /queue_pre => n ?????. rewrite /is_queue /is_listP.
+    do 13 f_equiv. by f_contractive.
   Qed.
 
-  Lemma wp_queue_add q x n P E :
-    ⟨⟨⟨ is_queue q n P ∗ P x ⟩⟩⟩
-      queue_add x q @ E
-    ⟨⟨⟨ RET #(); is_queue q (S n) P ⟩⟩⟩.
+  Definition queue P `{∀ n q, Contractive (P n q)} : val → nat → iProp Σ := fixpoint (queue_pre P).
+
+  Lemma queue_unfold P `{∀ n q, Contractive (P n q)} n q :
+    queue P q n ⊣⊢ queue_pre P (queue P) q n.
+  Proof. apply (fixpoint_unfold (queue_pre _)). Qed.
+
+  Lemma wp_queue_create P `{∀ n q, Contractive (P n q)} E :
+    ⟨⟨⟨ True ⟩⟩⟩
+      queue_create #() @ E
+    ⟨⟨⟨ q, RET q; queue P q 0 ⟩⟩⟩.
   Proof.
-    iIntros (Φ) "[(%l & %v & %xs & -> & %Hlen & Hl & H) HP] HΦ".
+    iIntros (Φ) "_ HΦ". wp_rec.
+    wp_rec.
+    wp_alloc l as "Hl".
+    iModIntro. iApply "HΦ".
+    rewrite queue_unfold.
+    iExists _, _, [].
+    iFrame. rewrite /is_listP; eauto.
+  Qed.
+
+  Lemma wp_queue_add q x n P `{∀ n q, Contractive (P n q)} E :
+    ⟨⟨⟨ queue P q n ∗ P x q (queue P) ⟩⟩⟩
+      queue_add x q @ E
+    ⟨⟨⟨ RET #(); queue P q (S n) ⟩⟩⟩.
+  Proof.
+    iIntros (Φ) "[Hq HP] HΦ".
     wp_rec. wp_pures.
+    rewrite queue_unfold.
+    iDestruct "Hq" as "(%l & %v & %xs & -> & %Hlen & Hl & H)".
     wp_load.
     wp_apply (wp_listP_cons with "[$H $HP]").
     iIntros (w) "Hw".
     wp_store.
     iModIntro. iApply "HΦ".
+    rewrite queue_unfold.
     iExists _, _, _. iFrame.
     rewrite -Hlen //.
   Qed.
 
-  Lemma wp_queue_take q n P E :
-    ⟨⟨⟨ is_queue q n P ⟩⟩⟩
+  Lemma wp_queue_take q n P `{∀ n q, Contractive (P n q)} E :
+    ⟨⟨⟨ queue P q n ⟩⟩⟩
       queue_take q @ E
-    ⟨⟨⟨ v, RET v; is_queue q (n - 1) P ∗
-         ((⌜v = NONEV⌝ ∗ ⌜n = 0⌝) ∨ (∃ x m, ⌜v = SOMEV x⌝ ∗ ⌜n = S m⌝ ∗ P x)) ⟩⟩⟩.
+    ⟨⟨⟨ v, RET v; queue P q (n - 1) ∗
+         ((⌜v = NONEV⌝ ∗ ⌜n = 0⌝) ∨ (∃ x m, ⌜v = SOMEV x⌝ ∗ ⌜n = S m⌝ ∗ P x q (queue P))) ⟩⟩⟩.
   Proof.
-    iIntros (Φ) "(%l & %v & %xs & -> & %Hlen & Hl & [H HPs]) HΦ".
-    wp_rec. wp_load.
+    iIntros (Φ) "Hq HΦ". wp_rec.
+    rewrite queue_unfold.
+    iDestruct "Hq" as "(%l & %v & %xs & -> & %Hlen & Hl & H)".
+    wp_load.
     destruct xs; iSimpl in "H".
-    - iDestruct "H" as %->. wp_pures.
+    - iDestruct "H" as "[-> Hv]".
+      wp_pures.
       iModIntro. iApply "HΦ".
       iSplitL; [|eauto].
+      rewrite queue_unfold.
       iExists _, _, _. iFrame.
       rewrite -Hlen //.
-    - iDestruct "H" as (l' v') "(-> & Hl' & Hxs)". wp_pures.
+    - iDestruct "H" as "[H HPs] /=".
+      iDestruct "H" as (l' v') "(-> & Hl' & Hxs)". wp_pures.
       wp_load. wp_pures.
       wp_store. wp_pures.
       iModIntro. iApply "HΦ".
       iDestruct "HPs" as "[HP HPs]".
       iSplitR "HP"; [|iRight; eauto].
+      rewrite queue_unfold.
       iExists _, _, _. iFrame.
       rewrite -Hlen /= Nat.sub_0_r //.
   Qed.
 
-  Lemma wp_queue_take_Sn q n P E :
-    ⟨⟨⟨ is_queue q (S n) P ⟩⟩⟩
+  Lemma wp_queue_take_Sn P `{∀ n q, Contractive (P n q)} q n E :
+    ⟨⟨⟨ queue P q (S n) ⟩⟩⟩
       queue_take q @ E
-    ⟨⟨⟨ x, RET (SOMEV x); is_queue q n P ∗ P x ⟩⟩⟩.
+    ⟨⟨⟨ x, RET (SOMEV x); queue P q n ∗ P x q (queue P) ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "Hq HΨ".
     iApply (wp_queue_take with "Hq").
@@ -187,10 +215,10 @@ Section queue.
     iApply "HΨ". iFrame.
   Qed.
 
-  Lemma wp_queue_take_0 q P E :
-    ⟨⟨⟨ is_queue q 0 P ⟩⟩⟩
+  Lemma wp_queue_take_0 P `{∀ n q, Contractive (P n q)} q E :
+    ⟨⟨⟨ queue P q 0 ⟩⟩⟩
       queue_take q @ E
-    ⟨⟨⟨ RET NONEV; is_queue q 0 P ⟩⟩⟩.
+    ⟨⟨⟨ RET NONEV; queue P q 0 ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "Hq HΨ".
     iApply (wp_queue_take with "Hq").
