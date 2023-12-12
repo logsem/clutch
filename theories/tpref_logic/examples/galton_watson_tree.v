@@ -175,3 +175,32 @@ Section task_loop_spec.
   Qed.
 
 End task_loop_spec.
+
+Definition gen_tree_unif3 : val :=
+  λ: <>,
+    let: "α" := alloc #3 in
+    let: "child_dist" := λ: <>, rand("α") #3 in
+    gen_tree "child_dist".
+
+Definition dunif3 := dmap fin_to_nat (dunifP 3).
+
+Section unif_3.
+  Context `{tprG (gwp dunif3) Σ, seqG Σ}.
+
+  Lemma wp_gen_tree_unif3 :
+    specF 1%nat ⊢ SEQ gen_tree_unif3 #() {{ _, True }}.
+  Proof.
+    iIntros "Hspec Hna". wp_rec.
+    wp_apply rwp_alloc_tape; [done|].
+    iIntros (α) "Hα".
+    wp_pures.
+    wp_apply (wp_gen_tree 3 _ nroot with "[$Hα $Hspec] Hna").
+    { rewrite -(dret_id_right (dunifP 3)) /dunif3 /dmap.
+      eapply Rcoupl_dbind; [|eapply Rcoupl_eq].
+      intros n m ->. by apply Rcoupl_dret. }
+    iIntros (n) "!#"; iIntros (Ψ) "Hα HΨ".
+    wp_pures.
+    by wp_apply (rwp_rand_tape with "Hα").
+  Qed.
+
+End unif_3.
