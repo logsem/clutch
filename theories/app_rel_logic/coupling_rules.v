@@ -437,7 +437,7 @@ Section rules.
   Qed.
 
 
-  Lemma presample_planner N prefix suffix 𝛼 ε (HN : (0 < N)%nat) (HL : (0 < (length suffix))%nat) (Hε : (0 < ε)%R) :
+  Lemma presample_planner_pos N prefix suffix 𝛼 ε (HN : (0 < N)%nat) (HL : (0 < (length suffix))%nat) (Hε : (0 < ε)%R) :
     € ε -∗
     (𝛼 ↪ (N; prefix)) -∗
     (∃ junk, 𝛼 ↪ (N; prefix ++ junk ++ suffix)).
@@ -457,6 +457,19 @@ Section rules.
     rewrite /pos_to_nn /εAmp_iter /=.
     replace (nonneg ε) with (pos ε') by auto.
     done.
+  Qed.
+
+  Lemma presample_planner N prefix suffix 𝛼 ε (Hε : (0 < ε)%R) :
+    € ε -∗
+    (𝛼 ↪ (S N; prefix)) -∗
+    (∃ junk, 𝛼 ↪ (S N; prefix ++ junk ++ suffix)).
+  Proof.
+    destruct suffix as [|h R].
+    - iIntros "_ Htape". iExists []. do 2 (rewrite -app_nil_end); iFrame.
+    - remember (h :: R) as suffix.
+      iApply presample_planner_pos; auto; try lia.
+      rewrite Heqsuffix cons_length.
+      lia.
   Qed.
 
 End rules.
