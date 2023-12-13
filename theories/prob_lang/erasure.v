@@ -362,26 +362,32 @@ Proof.
   - apply Rcoupl_eq.
 Qed.
 
-Lemma lim_exec_eq_erasure α e σ bs :
-  σ.(tapes) !! α = Some bs →
-  lim_exec (e, σ) = state_step σ α ≫= (λ σ', lim_exec (e, σ')).
-Proof. intros ?. by eapply Rcoupl_eq_elim, limprim_coupl_step_limprim. Qed.
-
-Lemma lim_exec_eq_erasure_twice α1 α2 e σ bs1 bs2 :
-  σ.(tapes) !! α1 = Some bs1 →
-  σ.(tapes) !! α2 = Some bs2 →
-  lim_exec (e, σ) = state_step σ α1 ≫= (λ σ', state_step σ' α2 ≫= (λ σ'', lim_exec (e, σ''))).
+Lemma lim_exec_eq_erasure αs e σ :
+  αs ⊆ get_active σ →
+  lim_exec (e, σ) = foldlM state_step σ αs ≫= (λ σ', lim_exec (e, σ')).
 Proof.
-  intros ??.
-  erewrite (lim_exec_eq_erasure α1); [|done].
-  eapply dbind_eq; [|done].
-  intros ? Hs%state_step_support_equiv_rel.
-  inversion_clear Hs; simplify_eq=>/=.
-  destruct (decide (α1 = α2)); simplify_map_eq/=.
-  - erewrite (lim_exec_eq_erasure α2); [done|].
-    rewrite lookup_insert //.
-  - erewrite (lim_exec_eq_erasure α2); [done|].
-    rewrite lookup_insert_ne //.
+  induction αs as [|α αs IH] in σ |-*.
+  { rewrite /= dret_id_left //. }
+  intros Hα.
+  eapply Rcoupl_eq_elim.
+  assert (lim_exec (e, σ) = state_step σ α ≫= (λ σ2, lim_exec (e, σ2))) as ->.
+  { apply distr_ext => v.
+    assert (α ∈ get_active σ) as Hel; [apply Hα; left|].
+    rewrite /get_active in Hel.
+    apply elem_of_elements, elem_of_dom in Hel as [? ?].
+    by eapply limprim_coupl_step_limprim_aux. }
+  rewrite foldlM_cons -dbind_assoc.
+  eapply Rcoupl_dbind; [|eapply Rcoupl_pos_R, Rcoupl_eq].
+  intros ?? (-> & Hs%state_step_support_equiv_rel & _).
+  inversion_clear Hs.
+  rewrite IH; [eapply Rcoupl_eq|].
+  intros α' ?. rewrite /get_active /=.
+  apply elem_of_elements.
+  apply elem_of_dom.
+  destruct (decide (α = α')); subst.
+  + eexists. rewrite lookup_insert //.
+  + rewrite lookup_insert_ne //.
+    apply elem_of_dom. eapply elem_of_elements, Hα. by right.
 Qed.
 
 Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':

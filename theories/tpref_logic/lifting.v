@@ -32,11 +32,8 @@ Proof.
   iIntros (σ1 a1) "[Hσ1 Ha1]".
   iMod ("H" with "[$]") as "[%Hred H]".
   iModIntro.
-  iApply rwp_coupl_prim_step_l.
-  iExists _.
-  iSplit; [done|].
-  iSplit.
-  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial.
+  iApply rwp_coupl_prim_step_l; [done| |].
+  { eapply Rcoupl_pos_R, Rcoupl_trivial.
     - apply prim_step_mass. eauto.
     - apply dret_mass. }
   iIntros ([e2 σ2] (_ & Hstep & _)).

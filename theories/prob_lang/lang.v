@@ -828,6 +828,26 @@ Lemma state_step_get_active_mass σ α :
   α ∈ get_active σ → SeriesC (state_step σ α) = 1.
 Proof. rewrite elem_of_elements. apply state_step_mass. Qed.
 
+Lemma state_steps_mass σ αs :
+  αs ⊆ get_active σ →
+  SeriesC (foldlM state_step σ αs) = 1.
+Proof.
+  induction αs as [|α αs IH] in σ |-* ; intros Hact.
+  { rewrite /= dret_mass //. }
+  rewrite foldlM_cons.
+  rewrite dbind_det //.
+  - apply state_step_get_active_mass. set_solver. 
+  - intros σ' Hσ'. apply IH.
+    apply state_step_support_equiv_rel in Hσ'.
+    inversion Hσ'; simplify_eq.
+    intros α' ?. rewrite /get_active /=.
+    apply elem_of_elements, elem_of_dom.
+    destruct (decide (α = α')); subst.
+    + eexists. rewrite lookup_insert //.
+    + rewrite lookup_insert_ne //.
+      apply elem_of_dom. eapply elem_of_elements, Hact. by right.
+Qed.
+
 Lemma prob_lang_mixin :
   EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
 Proof.

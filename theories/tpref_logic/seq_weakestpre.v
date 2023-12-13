@@ -22,9 +22,6 @@ Notation "'SEQ' e {{ Φ } }" := (seq ⊤ e%E Φ)
 Notation "'SEQ' e @ E {{ v , Q } }" := (seq E e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[hv' 'SEQ'  e  '/' @  '['  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
-Notation "'SEQ' e @ E {{ v , Q } }" := (seq E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'SEQ'  e  '/' @  E  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 Notation "'SEQ' e {{ v , Q } }" := (seq ⊤ e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[hv' 'SEQ'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.

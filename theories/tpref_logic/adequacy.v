@@ -26,7 +26,7 @@ Section adequacy.
     iIntros (Hf Hv) "Hcpl".
     erewrite exec_is_final; [|done].
     rewrite rwp_coupl_unfold.
-    iDestruct "Hcpl" as "[(%S & % & % & HR) | [(%S & %Hcpl & HR) | [(%S & % & %Hcpl & HR) | [Hα | Hα]]]]".
+    iDestruct "Hcpl" as "[(%S & % & % & HR) | [(%S & %Hcpl & HR) | [(%S & % & %Hcpl & HR) | (% & % & %Hαs & %Hcpl & HR)]]]".
     - iEval (rewrite -(dret_id_left (λ a, dret b) a)).
       rewrite lim_exec_step step_or_final_no_final; [|auto].
       iApply (step_fupdN_mono _ _ _ (⌜∀ ρ', S ρ' a → dret b ≾ lim_exec ρ' : R⌝)%I).
@@ -49,28 +49,10 @@ Section adequacy.
       apply Rcoupl_mass_eq in Hcpl.
       rewrite prim_step_mass ?dzero_mass in Hcpl; [|done].
       lra.
-    - rewrite big_orL_exist.
-      iDestruct "Hα" as (? α) "[%Hel (%R2 & %Hcpl & H)]".
-      rewrite /= /get_active in Hel.
-      apply elem_of_list_lookup_2 in Hel as ?%elem_of_elements.
-      rewrite is_final_dzero in Hcpl; [|eauto].
+    - rewrite is_final_dzero in Hcpl; [|eauto].
       apply Rcoupl_mass_eq in Hcpl.
       rewrite dzero_mass in Hcpl.
-      rewrite state_step_mass // in Hcpl.
-      lra.
-    - rewrite big_orL_exist.
-      iDestruct "Hα" as (? [α1 α2]) "[%Hel (%R2 & %Hcpl & H)]".
-      rewrite /= /get_active in Hel.
-      apply elem_of_list_lookup_2, elem_of_list_prod_1 in Hel as
-          [?%elem_of_elements ?%elem_of_elements].
-      rewrite is_final_dzero in Hcpl; [|eauto].
-      apply Rcoupl_mass_eq in Hcpl.
-      rewrite dzero_mass in Hcpl.
-      rewrite dbind_det in Hcpl; [lra| |].
-      + by apply state_step_mass.
-      + intros ? Hs%state_step_support_equiv_rel.
-        inversion_clear Hs.
-        apply state_step_mass. set_solver.
+      rewrite state_steps_mass // in Hcpl. lra.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : mstate δ) (n : nat) :
@@ -109,7 +91,7 @@ Section adequacy.
       + destruct (to_final a) eqn:Hf.
         { by iApply rwp_coupl_final. }
         rewrite rwp_coupl_unfold.
-        iDestruct "Hcpl" as "[(%R & % & % & HR) | [(%R & %Hcpl & HR) | [(%R & % & %Hcpl & HR) | [Hα | Hα]]]]".
+        iDestruct "Hcpl" as "[(%R & % & % & HR) | [(%R & %Hcpl & HR) | [(%R & % & %Hcpl & HR) | (% & % & %Hαs & %Hcpl & HR)]]]".
         * iEval (rewrite -(dret_id_left (exec _))).
           rewrite lim_exec_step step_or_final_no_final; [|eauto].
           iApply (step_fupdN_mono _ _ _
@@ -149,12 +131,8 @@ Section adequacy.
           iMod ("HR" with "[//]") as "HR".
           do 2 iModIntro.
           by iMod "HR".
-        * rewrite big_orL_exist.
-          iDestruct "Hα" as (? α) "[%Hel (%R2 & %Hcpl & H)]".
-          rewrite /= /get_active in Hel.
-          apply elem_of_list_lookup_2 in Hel as [? ?]%elem_of_elements%elem_of_dom.
-          rewrite exec_Sn_not_final; [|eauto].
-          erewrite (lim_exec_eq_erasure α); [|done].
+        * rewrite exec_Sn_not_final; [|eauto].
+          erewrite (lim_exec_eq_erasure αs); [|done].
           iModIntro.
           iApply (step_fupdN_mono _ _ _
                     (⌜∀ σ' a', R2 σ' a' → exec n a' ≾ lim_exec (e, σ') : λ _ _, True⌝)%I).
@@ -163,27 +141,7 @@ Section adequacy.
             intros ???. by eapply Hcnt. }
           iIntros (σ' a' ?).
           rewrite step_fupdN_Sn.
-          iMod ("H" with "[//]") as "H".
-          iIntros "!> !>".
-          iMod "H".
-          iApply ("IH" with "[//] H").
-        * rewrite big_orL_exist.
-          iDestruct "Hα" as (? [α1 α2]) "[%Hel (%R2 & %Hcpl & H)]".
-          rewrite /= /get_active in Hel.
-          apply elem_of_list_lookup_2, elem_of_list_prod_1 in Hel as
-              [[? ?]%elem_of_elements%elem_of_dom [? ?]%elem_of_elements%elem_of_dom].
-          rewrite exec_Sn_not_final; [|eauto].
-          erewrite (lim_exec_eq_erasure_twice α1 α2); [|done|done].
-          iModIntro.
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ σ' a', R2 σ' a' → exec n a' ≾ lim_exec (e, σ') : λ _ _, True⌝)%I).
-          { iIntros (Hcnt). iPureIntro.
-            rewrite dbind_assoc.
-            eapply refRcoupl_dbind; [|by eapply Rcoupl_refRcoupl'].
-            intros ???. by eapply Hcnt. }
-          iIntros (σ' a' ?).
-          rewrite step_fupdN_Sn.
-          iMod ("H" with "[//]") as "H".
+          iMod ("HR" with "[//]") as "H".
           iIntros "!> !>".
           iMod "H".
           iApply ("IH" with "[//] H").

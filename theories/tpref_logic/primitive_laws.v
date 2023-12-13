@@ -285,13 +285,9 @@ Section coupl.
     { eexists (_, _).
       apply head_step_support_equiv_rel.
       by eapply (RandNoTapeS _ _ 0%fin). }
-    iApply rwp_coupl_steps.
-    iExists (λ '(e2, σ2) a2, ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R n a2).
-    iSplit.
-    { iPureIntro. by apply head_prim_reducible. }
-    iSplit.
-    { iPureIntro. simpl.
-      rewrite head_prim_step_eq //=.
+    iApply (rwp_coupl_steps (λ '(e2, σ2) a2, ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R n a2)).
+    { by apply head_prim_reducible. }
+    { rewrite /= head_prim_step_eq //=.
       rewrite -(dret_id_right (step _)).
       eapply Rcoupl_dbind; [|done].
       intros n a2 HR.
@@ -306,6 +302,7 @@ Section coupl.
     eauto.
   Qed.
 
+  (* TODO: generic state step coupling rule with list of tapes *)
   Lemma rwp_couple_tape N R ns α e m a E Φ :
     TCEq (to_val e) None →
     (∀ σ, σ.(tapes) !! α = Some ((N; ns) : tape) →
@@ -327,9 +324,10 @@ Section coupl.
     iDestruct (ghost_map_lookup with "Ht Hα") as %?.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    iApply (rwp_coupl_state_step _ _ _ _ α).
-    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }
-    iExists _. iSplit; [eauto|].
+    iApply (rwp_coupl_state_steps _ [α]).
+    { rewrite /= /get_active. intros ? ->%elem_of_list_singleton.
+      apply elem_of_elements, elem_of_dom; auto. }
+    { rewrite /= dret_id_right. by apply Hcpl. }
     iIntros (σ2 m2 (n & ? & ->)).
     iMod (spec_auth_update m2 with "HmA HmF") as "[HmA HmF]".
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht Hα") as "[Ht Hα]".
@@ -368,10 +366,11 @@ Section coupl.
     iDestruct (ghost_map_elem_ne with "Hα1 Hα2") as %?.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    iApply (rwp_coupl_double_state_step _ _ _ _ α1 α2).
-    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }
-    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; auto. }
-    iExists _. iSplit; [eauto|].
+    iApply (rwp_coupl_state_steps _ [α1; α2]).
+    { rewrite /= /get_active => α Hα. apply elem_of_elements, elem_of_dom.
+      apply elem_of_cons in Hα as [-> |Hα]; [auto|].
+      apply elem_of_list_singleton in Hα as ->; auto. }
+    { rewrite /= dbind_assoc dret_id_right. by apply Hcpl. }
     iIntros (σ2 m2 (n1 & n2 & ? & ->)).
     iMod (spec_auth_update m2 with "Hm1A Hm1F") as "[HmA HmF]".
     iMod (ghost_map_update ((N2; ns2 ++ [n2]) : tape) with "Ht1 Hα2") as "[Ht2 Hα2]".

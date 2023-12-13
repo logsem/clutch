@@ -1540,6 +1540,19 @@ Qed.
 Definition foldlM {A B} `{Countable B} (f : B → A → distr B) (b : B) (xs : list A) : distr B :=
   foldr (λ a m b, f b a ≫= m) dret xs b.
 
+Section foldlM.
+  Context {A : Type} `{Countable B}.
+
+  Lemma foldlM_nil (f : B → A → distr B) (b : B) :
+    foldlM f b [] = dret b.
+  Proof. done. Qed.
+
+  Lemma foldlM_cons (f : B → A → distr B) (b : B) (x : A) (xs : list A) :
+    foldlM f b (x :: xs) = f b x ≫= (λ b', foldlM f b' xs).
+  Proof. done. Qed.
+
+End foldlM.
+
 (** * Monadic itereration  *)
 Fixpoint iterM {A} `{Countable A} (n : nat) (f : A → distr A) (a : A) : distr A :=
   match n with O => dret a | S n => f a ≫= iterM n f end.
@@ -1657,7 +1670,7 @@ Section conv_prop.
     erewrite SeriesC_plus; [|eapply ex_seriesC_singleton.. ].
     rewrite 2!SeriesC_singleton /=. lra.
   Qed.
-  
+
   Definition dbind_fair_conv_comb (f1 f2 : A → distr B) (μ : distr A) :
     μ ≫= (λ a, fair_conv_comb (f1 a) (f2 a)) = fair_conv_comb (μ ≫= f1) (μ ≫= f2).
   Proof.
