@@ -655,7 +655,7 @@ Section iter_markov.
       { rewrite /ϵ' /=. pose proof (cond_pos ϵ). nra. }
       edestruct (IHm ϵ') as [k2 Hk2]; [simpl; lra|].
       destruct (iter_markov_terminates_0_eps ϵ' a Ha) as [k1 Hk1].
-      exists (k1 + k2)%nat.
+      exists (S(k1 + k2)).
       eapply Rlt_le_trans; [apply H|].
       etrans; [|eapply iter_markov_plus_ge].
       assert (1 + ϵ' * ϵ' - 2 * ϵ' = (1 - ϵ') * (1 - ϵ')) as -> by lra.
