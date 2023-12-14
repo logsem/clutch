@@ -166,8 +166,8 @@ Section ectx_language.
     head_step (fill K e) σ1 ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx.
   Proof. apply ectx_language_mixin. Qed.
 
-  Definition head_reducible (e : expr Λ) (σ : state Λ) :=
-    ∃ ρ, head_step e σ ρ > 0.
+  Class head_reducible (e : expr Λ) (σ : state Λ) :=
+    head_reducible_step : ∃ ρ, head_step e σ ρ > 0.
   Definition head_irreducible (e : expr Λ) (σ : state Λ) :=
     ∀ ρ, head_step e σ ρ = 0.
   Definition head_stuck (e : expr Λ) (σ : state Λ) :=

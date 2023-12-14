@@ -136,7 +136,11 @@ Section spec_ctx.
   Proof. apply _. Qed.
 
   Definition refines_right K (e : expr) := (spec_ctx ∗ ⤇ fill K e)%I.
-  
+
+  Lemma refines_right_bind K' K e :
+    refines_right K' (fill K e) ≡ refines_right (K ++ K') e.
+  Proof. rewrite /refines_right /=. by rewrite fill_app. Qed.
+
 End spec_ctx.
 
 Ltac iAsimpl :=

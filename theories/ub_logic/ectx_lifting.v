@@ -1,6 +1,7 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
-From clutch.program_logic Require Import ectx_language weakestpre lifting.
+From clutch.program_logic Require Import ectx_language.
+From clutch.ub_logic Require Import ub_weakestpre lifting.
 From iris.prelude Require Import options.
 
 Local Open Scope R.
@@ -18,17 +19,17 @@ Local Hint Resolve head_stuck_stuck : core.
 
 Lemma wp_lift_head_step_fupd_couple {E Φ} e1 :
   to_val e1 = None →
-  (∀ σ1 e1' σ1',
-    state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
+  (∀ σ1 ε,
+    state_interp σ1 ∗ err_interp ε
+    ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ WP e2 @ E {{ Φ }}))
+    exec_ub e1 σ1 (λ ε2 '(e2, σ2),
+      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε )
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 e1' σ1') "Hσ".
-  iMod ("H" with "Hσ") as "[% H]"; iModIntro.
-  done.
+  iIntros (?) "H". iApply wp_lift_step_fupd_exec_ub; [done|].
+  iIntros (σ1 ε) "Hσε".
+  iMod ("H" with "Hσε") as "[% H]"; iModIntro; auto.
 Qed.
 
 Lemma wp_lift_head_step {E Φ} e1 :

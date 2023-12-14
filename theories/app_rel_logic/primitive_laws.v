@@ -2,14 +2,14 @@
     applying the lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.program_logic Require Export weakestpre.
-From clutch.program_logic Require Import ectx_lifting.
+From clutch.app_rel_logic Require Export app_weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From clutch.rel_logic Require Import spec_ra.
 From iris.prelude Require Import options.
+From clutch.ub_logic Require Export error_credits.
 
-Class clutchGS Σ := HeapG {
+Class app_clutchGS Σ := HeapG {
   clutchGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
   clutchGS_heap : ghost_mapG Σ loc val;
@@ -19,18 +19,21 @@ Class clutchGS Σ := HeapG {
   clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
   clutchGS_spec :> specGS Σ;
+  (* CMRA and ghost name for the error *)
+  clutchGS_error :> ecGS Σ;
 }.
 
-Definition heap_auth `{clutchGS Σ} :=
+Definition heap_auth `{app_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
-Definition tapes_auth `{clutchGS Σ} :=
+Definition tapes_auth `{app_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
 
-Global Instance clutchGS_irisGS `{!clutchGS Σ} : irisGS prob_lang Σ := {
+Global Instance clutchGS_irisGS `{!app_clutchGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   spec_interp ρ := (spec_interp_auth ρ)%I ;
+  err_interp ε := (ec_supply ε);
 }.
 
 (** Heap *)
@@ -54,7 +57,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 Section lifting.
-Context `{!clutchGS Σ}.
+Context `{!app_clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -64,6 +67,7 @@ Implicit Types l : loc.
 (** Recursive functions: we do not use this lemma as it is easier to use Löb *)
 (* induction directly, but this demonstrates that we can state the expected *)
 (* reasoning principle for recursive functions, without any visible ▷. *)
+
 Lemma wp_rec_löb E f x e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
      ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
@@ -195,4 +199,4 @@ Qed.
 
 End lifting.
 
-Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances. 
+Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.

@@ -373,44 +373,47 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | RandRCtx e1 => Rand e1 e
   end.
 
+
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
+  let noval (e : expr) (ei : ectx_item) :=
+    match e with Val _ => None | _ => Some (ei, e) end in
   match e with
-  | App (Val _) (Val _)      => None
-  | App e (Val v)            => Some (AppLCtx v, e)
-  | App e1 e2                => Some (AppRCtx e1, e2)
-  | UnOp _ (Val _)           => None
-  | UnOp op e                => Some (UnOpCtx op, e)
-  | BinOp _ (Val _) (Val _)  => None
-  | BinOp op e (Val v)       => Some (BinOpLCtx op v, e)
-  | BinOp op e1 e2           => Some (BinOpRCtx op e1, e2)
-  | If (Val _) _ _           => None
-  | If e0 e1 e2              => Some (IfCtx e1 e2, e0)
-  | Pair (Val _) (Val _)     => None
-  | Pair e (Val v)           => Some (PairLCtx v, e)
-  | Pair e1 e2               => Some (PairRCtx e1, e2)
-  | Fst (Val _)              => None
-  | Fst e                    => Some (FstCtx, e)
-  | Snd (Val _)              => None
-  | Snd e                    => Some (SndCtx, e)
-  | InjL (Val _)             => None
-  | InjL e                   => Some (InjLCtx, e)
-  | InjR (Val _)             => None
-  | InjR e                   => Some (InjRCtx, e)
-  | Case (Val _) _ _         => None
-  | Case e0 e1 e2            => Some (CaseCtx e1 e2, e0)
-  | Alloc (Val _)            => None
-  | Alloc e                  => Some (AllocCtx, e)
-  | Load (Val _)             => None
-  | Load e                   => Some (LoadCtx, e)
-  | Store (Val _) (Val _)    => None
-  | Store e (Val v)          => Some (StoreLCtx v, e)
-  | Store e1 e2              => Some (StoreRCtx e1, e2)
-  | AllocTape (Val _)        => None
-  | AllocTape e              => Some (AllocTapeCtx, e)
-  | Rand (Val _) (Val _)     => None
-  | Rand e1 (Val v2)         => Some (RandLCtx v2, e1)
-  | Rand e1 e2               => Some (RandRCtx e1, e2)
-  | _                        => None
+  | App e1 e2      =>
+      match e2 with
+      | (Val v)    => noval e1 (AppLCtx v)
+      | _          => Some (AppRCtx e1, e2)
+      end
+  | UnOp op e      => noval e (UnOpCtx op)
+  | BinOp op e1 e2 =>
+      match e2 with
+      | Val v      => noval e1 (BinOpLCtx op v)
+      | _          => Some (BinOpRCtx op e1, e2)
+      end
+  | If e0 e1 e2    => noval e0 (IfCtx e1 e2)
+  | Pair e1 e2     =>
+      match e2 with
+      | Val v      => noval e1 (PairLCtx v)
+      | _          => Some (PairRCtx e1, e2)
+      end
+  | Fst e          => noval e FstCtx
+  | Snd e          => noval e SndCtx
+  | InjL e         => noval e InjLCtx
+  | InjR e         => noval e InjRCtx
+  | Case e0 e1 e2  => noval e0 (CaseCtx e1 e2)
+  | Alloc e        => noval e AllocCtx
+  | Load e         => noval e LoadCtx
+  | Store e1 e2    =>
+      match e2 with
+      | Val v      => noval e1 (StoreLCtx v)
+      | _          => Some (StoreRCtx e1, e2)
+      end
+  | AllocTape e    => noval e AllocTapeCtx
+  | Rand e1 e2     =>
+      match e2 with
+      | Val v      => noval e1 (RandLCtx v)
+      | _          => Some (RandRCtx e1, e2)
+      end
+  | _              => None
   end.
 
 (** Substitution *)
@@ -601,9 +604,9 @@ Proof. destruct ρ, e; [|done..]. rewrite /pmf /=. lra. Qed.
 Lemma head_ctx_step_val Ki e σ ρ :
   head_step (fill_item Ki e) σ ρ > 0 → is_Some (to_val e).
 Proof.
-  destruct ρ, Ki;
-    rewrite /pmf/=;
-      repeat case_match; try (done || lra); try (inversion H; lra).
+  destruct ρ, Ki ;
+    rewrite /pmf/= ;
+    repeat case_match; clear -H ; inversion H; intros ; (lra || done).
 Qed.
 
 (** A relational characterization of the support of [head_step] to make it easier to
@@ -674,6 +677,17 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
+(* 0%fin always has non-zero mass, so propose this choice if the reduct is
+   unconstrained. *)
+Global Hint Extern 1
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
+         eapply (RandNoTapeS _ _ 0%fin) : head_step.
+Global Hint Extern 1
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
+         eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
+Global Hint Extern 1
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
+         eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
 
 Inductive state_step_rel : state → loc → state → Prop :=
 | AddTapeS α N (n : fin (S N)) ns σ :
@@ -804,22 +818,20 @@ Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
 Proof.
   rewrite /expr_ord /decomp_item.
-  destruct e; try done;
-  destruct Ki; simpl;
-    repeat case_match; intros [=]; subst; lia.
+  destruct Ki ; repeat destruct_match ; intros [=] ; subst ; cbn ; lia.
 Qed.
 
 Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
-Proof. destruct Ki; simpl; by repeat case_match. Qed.
+Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
 Proof.
-  destruct e; try done;
-    destruct Ki; simpl;
-    repeat case_match; intros [=]; subst; done.
+  rewrite /decomp_item ;
+    destruct e ; try done ;
+    destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed.
 
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).

@@ -225,11 +225,7 @@ Section rules.
     iApply (exec_coupl_prim_state α).
     { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
     iExists _.
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply (RandNoTapeS _ _ 0%fin). }
+    solve_red.
     iSplit.
     { iPureIntro. by eapply (Rcoupl_rand_state _ f). }
     iIntros (e2 σ2 σ2' (b & [=-> ->] & ->)).
@@ -328,11 +324,7 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply (RandNoTapeS _ _ 0%fin). }
+    solve_red.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -412,11 +404,7 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply RandTapeOtherS. }
+    solve_red.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -460,11 +448,7 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply RandTapeOtherS. }
+    solve_red.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -508,11 +492,7 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply RandNoTapeS. }
+    solve_red.
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.

@@ -2,7 +2,9 @@
 semantics to the program logic. *)
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
-From clutch.program_logic Require Import weakestpre.
+From clutch.prelude Require Import NNRbar.
+From clutch.ub_logic Require Import ub_weakestpre.
+
 
 Section lifting.
 Context `{!irisGS Λ Σ}.
@@ -14,36 +16,48 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 #[local] Open Scope R.
 
-Lemma wp_lift_step_fupd_couple E Φ e1 :
+Lemma wp_lift_step_fupd_exec_ub E Φ e1 :
   to_val e1 = None →
-  (∀ σ1 e1' σ1',
-    state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
-    exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ WP e2 @ E {{ Φ }}))
+  (∀ σ1 ε,
+    state_interp σ1 ∗ err_interp ε
+    ={E,∅}=∗
+    ⌜reducible e1 σ1⌝ ∗
+    exec_ub e1 σ1 (λ ε2 '(e2, σ2),
+      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε)
   ⊢ WP e1 @ E {{ Φ }}.
-Proof. by rewrite wp_unfold /wp_pre=>->. Qed.
+Proof.
+  by rewrite ub_wp_unfold /ub_wp_pre =>->.
+Qed.
+
+
 
 Lemma wp_lift_step_fupd E Φ e1 :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E,∅}=∗
-     ⌜reducible e1 σ1⌝ ∗
+  (∀ σ1, state_interp σ1
+     ={E,∅}=∗
+    ⌜reducible e1 σ1⌝ ∗
      ∀ e2 σ2,
-      ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ ▷ |={∅,E}=>
+      ⌜prim_step e1 σ1 (e2, σ2) > 0 ⌝ ={∅}=∗ ▷ |={∅,E}=>
       state_interp σ2 ∗ WP e2 @ E {{ Φ }})
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 e1' σ1') "[Hσ Hρ]".
+  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iIntros (σ1 ε) "[Hσ Hε]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iApply exec_coupl_prim_step_l.
-  iExists _.
   iSplit; [done|].
+  iApply (exec_ub_prim_step e1 σ1).
+  iExists _.
+  iExists nnreal_zero.
+  iExists ε.
   iSplit.
-  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial.
-    - apply prim_step_mass. eauto.
-    - apply dret_mass. }
-  iIntros ([e2 σ2] (_ & Hstep & _)).
+  { iPureIntro. simpl. lra. }
+  iSplit.
+  { iPureIntro.
+    eapply ub_lift_pos_R, ub_lift_trivial.
+    simpl; lra.
+  }
+  iIntros ([e2 σ2] (?&?)).
   iMod ("H" with "[//]")as "H".
   iIntros "!> !>".
   by iMod "H" as "[$ $]".
@@ -127,7 +141,7 @@ Proof.
   iApply fupd_mask_intro; first set_solver. iIntros "Hclose !>".
   iMod "Hclose" as "_". iMod "H" as "($ & HQ)".
   destruct (to_val e2) eqn:?; last by iExFalso.
-  iApply wp_value; last done. by apply of_to_val.
+  iApply ub_wp_value; last done. by apply of_to_val.
 Qed.
 
 Lemma wp_lift_atomic_step {E Φ} e1 :

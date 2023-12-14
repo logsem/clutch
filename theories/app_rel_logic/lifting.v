@@ -2,7 +2,9 @@
 semantics to the program logic. *)
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
-From clutch.program_logic Require Import weakestpre.
+From clutch.prelude Require Import NNRbar.
+From clutch.app_rel_logic Require Import app_weakestpre.
+
 
 Section lifting.
 Context `{!irisGS Λ Σ}.
@@ -16,37 +18,51 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 Lemma wp_lift_step_fupd_couple E Φ e1 :
   to_val e1 = None →
-  (∀ σ1 e1' σ1',
-    state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
-    exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
-      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ WP e2 @ E {{ Φ }}))
+  (∀ σ1 e1' σ1' ε,
+    state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε
+    ={E,∅}=∗
+    ⌜reducible e1 σ1⌝ ∗
+    (exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε2,
+      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε))
   ⊢ WP e1 @ E {{ Φ }}.
-Proof. by rewrite wp_unfold /wp_pre=>->. Qed.
+Proof.
+  by rewrite wp_unfold /wp_pre =>->.
+Qed.
 
 Lemma wp_lift_step_fupd E Φ e1 :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1 ={E,∅}=∗
-     ⌜reducible e1 σ1⌝ ∗
+  (∀ σ1, state_interp σ1
+     ={E,∅}=∗
+    ⌜reducible e1 σ1⌝ ∗
      ∀ e2 σ2,
-      ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ ▷ |={∅,E}=>
+      ⌜prim_step e1 σ1 (e2, σ2) > 0 ⌝ ={∅}=∗ ▷ |={∅,E}=>
       state_interp σ2 ∗ WP e2 @ E {{ Φ }})
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   iIntros (?) "H".
   iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 e1' σ1') "[Hσ Hρ]".
+  iIntros (σ1 e1' σ1' ε) "[Hσ [Hρ Hε]]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iApply exec_coupl_prim_step_l.
-  iExists _.
   iSplit; [done|].
+  replace (ε) with ((nnreal_zero + ε)%NNR) at 2; last first.
+  {
+    rewrite /nnreal_plus/=.
+    apply nnreal_ext.
+    simpl. lra.
+  }
+  iApply (exec_coupl_prim_step_l e1 σ1 _ _ _ nnreal_zero).
+  iExists _. (*(λ '(e2, σ2), prim_step e1 σ1 (e2, σ2) > 0). *)
+  iSplit; [done | ].
   iSplit.
-  { iPureIntro. eapply Rcoupl_pos_R, Rcoupl_trivial.
-    - apply prim_step_mass. eauto.
-    - apply dret_mass. }
-  iIntros ([e2 σ2] (_ & Hstep & _)).
-  iMod ("H" with "[//]")as "H".
+  { iPureIntro.
+    eapply ARcoupl_pos_R, ARcoupl_trivial.
+    - apply prim_step_mass; eauto.
+    - apply dret_mass.
+  }
+  iIntros ([e2 σ2] (?&?&?)).
+  iMod ("H" with "[//]") as "H".
   iIntros "!> !>".
-  by iMod "H" as "[$ $]".
+  iFrame. done.
 Qed.
 
 (* Lemma wp_lift_stuck E Φ e : *)

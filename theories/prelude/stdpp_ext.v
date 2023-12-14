@@ -265,6 +265,12 @@ Section finite.
   
 End finite.
 
+(* The lemmas about [Finite A] make use of the [Countable A] instance
+   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
+   already exists another instance. We give the highest priority ([0]) to
+   [finite_countable] to be able to use the lemmas. *)
+#[export] Existing Instance finite_countable | 0.
+
 Section fin_maps.
   Context `{FinMap K M}.
 
@@ -331,3 +337,9 @@ Tactic Notation "case_bool_decide_and_destruct" "in" ident(H) :=
   case_bool_decide in H as Hf;
   destruct_and? Hf;
   simplify_eq.
+
+Ltac destruct_match :=
+  match goal with
+  | |- context [ match ?x with _ => _ end ] => destruct x
+  | H : context [ match ?x with _ => _ end ] |- _ => destruct x
+  end.

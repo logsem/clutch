@@ -198,6 +198,10 @@ Section series.
     destruct (encode_inv_nat _) => //=.
   Qed.
 
+
+
+
+
   Lemma SeriesC_scal_l f c :
     SeriesC (λ x, c * f x) = c * SeriesC f.
   Proof.
@@ -449,6 +453,16 @@ Section filter.
     ex_seriesC (λ n, if bool_decide (P n) then f n else 0).
   Proof. intros ? [v His]. by eapply is_seriesC_filter_pos. Qed.
 
+
+  Lemma SeriesC_filter_leq f P `{∀ x, Decision (P x)} :
+    (∀ n, 0 <= f n) →
+    ex_seriesC f →
+    SeriesC (λ n, if bool_decide (P n) then f n else 0) <= SeriesC f.
+  Proof. intros ? ?.
+         apply SeriesC_le; auto.
+         intro n; case_bool_decide; simpl; split; auto; lra.
+  Qed.
+
   (* TODO: make a [SeriesC_minus] lemma and cleanup proof *)
   Lemma is_seriesC_filter_union f v P Q `{∀ x, Decision (P x), ∀ x, Decision (Q x)} :
     (∀ n, 0 <= f n) →
@@ -500,6 +514,23 @@ Section filter.
     intros a. simpl. case_bool_decide as Heq.
     - rewrite bool_decide_eq_false_2; [lra|]. eauto.
     - rewrite bool_decide_eq_true_2 //. lra.
+  Qed.
+
+
+  Lemma SeriesC_split_pred f (P : A -> bool) :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f →
+    SeriesC f = SeriesC (λ a, if P a then f a else 0) +
+                  SeriesC (λ a, if P a then 0 else f a).
+  Proof.
+    intros Hle Hex.
+    rewrite -SeriesC_plus.
+    - apply SeriesC_ext; intro.
+      destruct (P _); lra.
+    - apply (ex_seriesC_le _ f); auto.
+      intro; real_solver.
+    - apply (ex_seriesC_le _ f); auto.
+      intro; real_solver.
   Qed.
 
   Lemma ex_seriesC_filter_bool_pos f (P : A → bool) :
@@ -620,9 +651,26 @@ Section finite.
   Proof.
     intros Hf.
     rewrite -SeriesC_finite_mass.
-    apply SeriesC_le; [done|].
+    apply SeriesC_le ; [done|].
     apply ex_seriesC_finite.
   Qed.
+
+(*
+
+  We might need the results below to reason about uniform distributions
+
+  Definition extend_fin_to_R {n : nat} (f: fin n -> R) : (nat->R) :=
+   fun x =>
+     match le_lt_dec n x with
+       | left _ => 0%R
+       | right h => f (nat_to_fin h)
+     end.
+
+  Lemma SeriesC_fin_sum {n : nat} (f : fin (S n) -> R) :
+    SeriesC f = sum_n (extend_fin_to_R f) n.
+  Admitted.
+*)
+
 
 End finite.
 
@@ -736,6 +784,22 @@ End bounds.
 
 Section fubini.
   Context `{Countable A, Countable B}.
+
+
+  (* A lemma about rearranging SeriesC along an injective function *)
+
+  Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
+    (∀ n, 0 <= f n) →
+    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
+    ex_seriesC f →
+    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
+  Admitted.
+
+  (*
+     The following three lemmas have been proven for
+     Series, so the only missing part is lifting them
+     to SeriesC
+   *)
 
   Lemma fubini_pos_seriesC_ex (h : A * B → R) :
     (∀ a b, 0 <= h (a, b)) →

@@ -151,3 +151,10 @@ Section pure_exec.
     PureExec True 1 (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
   Proof. solve_pure_exec. Qed.
 End pure_exec.
+
+(** * Instances of the [reducible] class *)
+
+Global Instance reducible_rand_no_tape (z : Z) σ : reducible (rand #z from #()) σ.
+Proof.
+  eapply head_prim_reducible ; eauto with head_step.
+Qed.

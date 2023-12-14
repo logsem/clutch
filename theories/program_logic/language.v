@@ -128,8 +128,8 @@ Section language.
     (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1.
   Proof. apply language_mixin. Qed.
 
-  Definition reducible (e : expr Λ) (σ : state Λ) :=
-    ∃ ρ, prim_step e σ ρ > 0.
+  Class reducible (e : expr Λ) (σ : state Λ) :=
+    reducible_prim_step : ∃ ρ, prim_step e σ ρ > 0.
   Definition irreducible (e : expr Λ) (σ : state Λ) :=
     ∀ ρ, prim_step e σ ρ = 0.
   Definition stuck (e : expr Λ) (σ : state Λ) :=

@@ -39,10 +39,7 @@ Proof.
   intros He.
   rewrite 1!prim_step_or_val_no_val /=; [|done].
   apply of_to_val in He. rewrite -He.
-  rewrite head_prim_step_eq; last first.
-  { eexists (_, _).
-    eapply head_step_support_equiv_rel.
-    by econstructor. }
+  rewrite head_prim_step_eq.
   erewrite det_head_step_singleton; [|by econstructor]; simpl.
   rewrite dret_id_left -/exec_val //.
 Qed.
