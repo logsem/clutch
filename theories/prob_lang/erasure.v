@@ -416,10 +416,10 @@ Lemma ARcoupl_erasure e1 σ1 e1' σ1' α α' R Φ ε ε' m bs bs':
   σ1'.(tapes) !! α' = Some bs' →
   ARcoupl (state_step σ1 α) (state_step σ1' α') R ε →
   (∀ σ2 σ2', R σ2 σ2' →
-             ARcoupl (exec_val m (e1, σ2))
-               (lim_exec_val (e1', σ2')) Φ  ε' ) →
-  ARcoupl (exec_val m (e1, σ1))
-    (lim_exec_val (e1', σ1')) Φ (ε + ε').
+             ARcoupl (exec m (e1, σ2))
+               (lim_exec (e1', σ2')) Φ  ε' ) →
+  ARcoupl (exec m (e1, σ1))
+    (lim_exec (e1', σ1')) Φ (ε + ε').
 Proof.
   intros Hε Hε' Hα Hα' HR Hcont.
   rewrite -(Rplus_0_l (ε + ε')).
@@ -455,13 +455,13 @@ Lemma ARcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ ε ε' m bs':
   to_val e1 = None →
   σ1'.(tapes) !! α' = Some bs' →
   ARcoupl (prim_step e1 σ1) (state_step σ1' α') R ε →
-  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → ARcoupl (exec_val m (e2, σ2)) (lim_exec_val (e1', σ2')) Φ ε' ) →
-  ARcoupl (exec_val (S m) (e1, σ1)) (lim_exec_val (e1', σ1')) Φ (ε + ε').
+  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → ARcoupl (exec m (e2, σ2)) (lim_exec (e1', σ2')) Φ ε' ) →
+  ARcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) Φ (ε + ε').
 Proof.
   intros Hε Hε' He1 Hα' HR Hcont.
-  rewrite exec_val_Sn_not_val //.
+  rewrite exec_Sn_not_final; [|eauto].
   rewrite -(Rplus_0_r (ε + ε')).
-  eapply (ARcoupl_eq_trans_r _ (state_step σ1' α' ≫= (λ σ2', lim_exec_val (e1', σ2')))); try lra.
+  eapply (ARcoupl_eq_trans_r _ (state_step σ1' α' ≫= (λ σ2', lim_exec (e1', σ2')))); try lra.
   - eapply ARcoupl_dbind; try lra; auto; [| apply HR].
     intros [] ??. by apply Hcont.
   - eapply ARcoupl_from_eq_Rcoupl; [lra | ].
@@ -491,30 +491,30 @@ Lemma ARcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ ε ε' m bs :
   0 <= ε' ->
   σ1.(tapes) !! α = Some bs →
   ARcoupl (state_step σ1 α) (prim_step e1' σ1') R ε →
-  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → ARcoupl (exec_val m (e1, σ2)) (lim_exec_val (e2', σ2')) Φ ε') →
-  ARcoupl (exec_val m (e1, σ1)) (lim_exec_val (e1', σ1')) Φ (ε + ε').
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → ARcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) Φ ε') →
+  ARcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) Φ (ε + ε').
 Proof.
   intros Hε Hε' Hα HR Hcont.
   destruct (to_val e1') eqn:Hval.
   - assert (prim_step e1' σ1' = dzero) as Hz by by apply val_stuck_dzero.
     rewrite /= (val_stuck_dzero e1') in HR; [|eauto].
     rewrite -(Rplus_0_l (ε + ε')).
-    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec_val m (e1, σ2)))); [lra| lra | | ].
+    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
     + apply ARcoupl_from_eq_Rcoupl; [lra |].
       by eapply prim_coupl_step_prim.
-    + rewrite lim_exec_val_prim_step.
-      rewrite prim_step_or_val_is_val //.
+    + rewrite lim_exec_step.
+      rewrite step_or_final_is_final; [|eauto].
       eapply ARcoupl_dbind; [lra|lra| | ]; last first.
       * rewrite -(Rplus_0_r ε).
         eapply ARcoupl_eq_trans_r; [lra|lra| | apply ARcoupl_dzero; lra ].
         eauto.
       * intros ? [] ?. by apply Hcont.
   - rewrite -(Rplus_0_l (ε + ε')).
-    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec_val m (e1, σ2)))); [lra| lra | | ].
+    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
     + apply ARcoupl_from_eq_Rcoupl; [lra |].
       by eapply prim_coupl_step_prim.
-    + rewrite lim_exec_val_prim_step.
-      rewrite prim_step_or_val_no_val //.
+    + rewrite lim_exec_step.
+      rewrite step_or_final_no_final; [|eauto].
       eapply ARcoupl_dbind; [lra|lra| | apply HR].
       intros ? [] ?. by apply Hcont.
 Qed.

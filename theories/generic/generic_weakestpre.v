@@ -6,7 +6,8 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Export generic_lifting distribution.
-From clutch.program_logic Require Export exec language.
+From clutch.common Require Export exec language.
+From iris.bi Require Export weakestpre.
 
 Import uPred.
 
@@ -322,7 +323,6 @@ Section exec_mlift.
 End exec_mlift.
 
 
-
 (** * The weakest precondition  *)
 Definition mlift_wp_pre `{!irisGS Λ Σ} (M : mlift)
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
@@ -350,8 +350,7 @@ Qed.
 
 
 (* We use the extra argument to pass the mlift to the Wp *)
-Local Definition mlift_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) mlift :=
-  λ (M : mlift), fixpoint (mlift_wp_pre M).
+Local Definition mlift_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) mlift := λ M0, fixpoint (mlift_wp_pre M0).
 Local Definition mlift_wp_aux : seal (@mlift_wp_def). Proof. by eexists. Qed.
 Definition mlift_wp' := mlift_wp_aux.(unseal).
 Global Arguments mlift_wp' {Λ Σ _}.

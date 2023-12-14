@@ -3,7 +3,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 From iris.program_logic Require Import atomic.
 
-From clutch.program_logic Require Import language ectx_language.
+From clutch.common Require Import language ectx_language.
 From clutch.prob_lang Require Import lang notation class_instances tactics.
 From clutch.ub_logic Require Import ub_weakestpre primitive_laws.
 From iris.prelude Require Import options.

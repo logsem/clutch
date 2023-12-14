@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings_app distribution.
-From clutch.program_logic Require Export exec language.
+From clutch.common Require Export language.
 
 Import uPred.
 
@@ -44,7 +44,7 @@ Section exec_coupl.
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1') ε2) ∨
       (* an arbitrary amount of [prim_step]s on the right *)
       (∃ R n (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
-          ⌜ARcoupl (dret (e1, σ1)) (exec n (e1', σ1')) R ε1⌝ ∗
+          ⌜ARcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R ε1⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ Φ (((e1, σ1), (e2', σ2')), ε2)) ∨
       (* [prim_step] on the left, [state_step] on the right *)
       ([∨ list] α' ∈ get_active σ1',
@@ -129,7 +129,7 @@ Section exec_coupl.
             ⌜ARcoupl (prim_step e1 σ1) (dret (e1', σ1')) R ε1⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1') ε2) ∨
       (∃ R n (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
-          ⌜ARcoupl (dret (e1, σ1)) (exec n (e1', σ1')) R ε1⌝ ∗
+          ⌜ARcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R ε1⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z ε2) ∨
       (* [prim_step] on the left, [state_step] on the right *)
       ([∨ list] α' ∈ get_active σ1',
@@ -301,7 +301,7 @@ Section exec_coupl.
       iSplit; [done | ].
       iSplit.
       { iPureIntro.
-        rewrite -(dret_id_right (exec _ _)).
+        rewrite -(dret_id_right (pexec _ _)).
         rewrite -(dret_id_left (λ ρ, dret (K ρ.1, ρ.2)) (_, σ)).
         rewrite <- Rplus_0_r.
         eapply ARcoupl_dbind; eauto.
@@ -387,7 +387,7 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_exec_r e1 σ1 e1' σ1' Z (ε ε' : nonnegreal) :
-    (∃ R n, ⌜ARcoupl (dret (e1, σ1)) (exec n (e1', σ1')) R ε⌝ ∗
+    (∃ R n, ⌜ARcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R ε⌝ ∗
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z ε')
     ⊢ exec_coupl e1 σ1 e1' σ1' Z (nnreal_plus ε ε').
   Proof.
@@ -497,7 +497,7 @@ Section exec_coupl.
 *)
 
   Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z (ε : nonnegreal) :
-    exec n (e1', σ1') (e2', σ2') = 1 →
+    pexec n (e1', σ1') (e2', σ2') = 1 →
     exec_coupl e1 σ1 e2' σ2' Z ε -∗
     exec_coupl e1 σ1 e1' σ1' Z ε.
   Proof.
@@ -541,13 +541,13 @@ Proof.
 Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
-  λ (s : stuckness), fixpoint (wp_pre).
+Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+  {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = @wp_def Λ Σ _.
+Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = (@wp_def Λ Σ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
@@ -604,11 +604,11 @@ Qed.
 Lemma wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
 Proof. rewrite wp_unfold /wp_pre to_of_val. auto. Qed.
 
-Lemma wp_strong_mono s1 s2 E1 E2 e Φ Ψ :
-  s1 ⊑ s2 → E1 ⊆ E2 →
-  WP e @ s1; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ s2; E2 {{ Ψ }}.
+Lemma wp_strong_mono E1 E2 e Φ Ψ s :
+  E1 ⊆ E2 →
+  WP e @ s ; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ s ; E2 {{ Ψ }}.
 Proof.
-  iIntros (? HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
+  iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
   rewrite !wp_unfold /wp_pre /=.
   destruct (to_val e) as [v|] eqn:?.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
@@ -632,7 +632,7 @@ Proof.
   iIntros (σ1 e1' σ1' ε) "Hi". iMod "H". by iApply "H".
 Qed.
 Lemma wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
-Proof. iIntros "H". iApply (wp_strong_mono s s E with "H"); auto. Qed.
+Proof. iIntros "H". iApply (wp_strong_mono E with "H"); auto. Qed.
 
 Lemma wp_atomic s E1 E2 e Φ `{!Atomic WeaklyAtomic e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
@@ -679,7 +679,7 @@ Proof.
   iMod "H" as "(Hσ & Hρ & Hε & H)".
   iMod "HR".
   iFrame "Hσ Hρ Hε".
-  iApply (wp_strong_mono s s E2 with "H"); [done..|].
+  iApply (wp_strong_mono E2 with "H"); [done..|].
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
@@ -726,12 +726,6 @@ Proof.
   iIntros (HΦ) "H"; iApply (wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
-Lemma wp_stuck_mono s1 s2 E e Φ :
-  s1 ⊑ s2 → WP e @ s1; E {{ Φ }} ⊢ WP e @ s2; E {{ Φ }}.
-Proof. iIntros (?) "H". iApply (wp_strong_mono with "H"); auto. Qed.
-Lemma wp_stuck_weaken s E e Φ :
-  WP e @ s; E {{ Φ }} ⊢ WP e @ E ?{{ Φ }}.
-Proof. apply wp_stuck_mono. by destruct s. Qed.
 Lemma wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
 Proof. iIntros (?) "H"; iApply (wp_strong_mono with "H"); auto. Qed.
 Global Instance wp_mono' s E e :

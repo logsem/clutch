@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
-From clutch.common Require Import language ectx_language.
+From clutch.common Require Import language ectx_language exec.
 From clutch.prob_lang Require Import lang notation metatheory.
-From clutch.typing Require Import types exec contextual_refinement.
+From clutch.typing Require Import types contextual_refinement.
 From clutch.prob Require Import distribution.
 
 (** Alternative formulation of contextual refinement without restricting to
@@ -183,7 +183,7 @@ Proof.
   rewrite lim_exec_val_rw.
   rewrite mon_sup_succ.
   - erewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
-    intros n. simpl. rewrite head_prim_step_eq => /=.
+    intros n. simpl. erewrite head_prim_step_eq => /=.
     2: { eexists (_, _). destruct b;
         eapply head_step_support_equiv_rel;
         by econstructor.
@@ -205,7 +205,7 @@ Proof.
   - simpl. destruct H.
     apply of_to_val in H as H1. rewrite -H1. rewrite -H1 in H0.
     clear H H1.
-    destruct x eqn:H2; rewrite head_prim_step_eq.
+    destruct x eqn:H2; erewrite head_prim_step_eq.
     + destruct b, l => /=; try (rewrite dret_id_left; destruct n => /=; done).
       all: rewrite bool_decide_eq_false_2;[rewrite dret_id_left; by destruct n|].
       all: intro; apply H0; by rewrite H.
@@ -280,9 +280,7 @@ Proof.
   destruct n.
   - simpl. destruct x; auto.
   - rewrite /loop. simpl. rewrite head_prim_step_eq; last first.
-    + eexists _. erewrite det_head_step_singleton; [|by econstructor]. simpl.
-      rewrite dret_1_1; [|done]. lra.
-    + simpl. rewrite dret_id_left -/exec_val. apply Hn. lia.
+    simpl. rewrite dret_id_left -/exec_val. apply Hn. lia.
 Qed.
 
 Lemma lim_exec_val_of_val_true_one (e : expr) σ :
@@ -294,8 +292,7 @@ intros ->.
   rewrite mon_sup_succ.
   - erewrite <-sup_seq_const. do 2 f_equal. apply functional_extensionality_dep.
     intros n. simpl. rewrite head_prim_step_eq => /=.
-    + rewrite dret_id_left; destruct n => /=; by rewrite dret_1_1.
-    + eexists (_, _). eapply head_step_support_equiv_rel; by econstructor.
+    rewrite dret_id_left; destruct n => /=; by rewrite dret_1_1.
   - intro. apply exec_val_mon.
 Qed.
 
@@ -317,8 +314,7 @@ Proof.
     { destruct l.
       2: { destruct b; [exfalso; by apply H0|].
            rewrite head_prim_step_eq => /=; last first.
-           + eexists (_, _). eapply head_step_support_equiv_rel; by econstructor.
-           + rewrite dret_id_left -/ exec_val. rewrite loop_zero_mass //. }
+           rewrite dret_id_left -/ exec_val. rewrite loop_zero_mass //. }
       all: replace (_≫=_) with (dzero ≫= exec_val (Λ := prob_lang) n); [by rewrite dbind_dzero|f_equal].
       all: apply distr_ext => s; replace (dzero s) with 0 by done.
       all: rewrite /prim_step => /=; rewrite decomp_unfold => /=.
@@ -389,13 +385,7 @@ Proof.
          { destruct l.
            2: { destruct b;
                 rewrite head_prim_step_eq => /=; last first.
-                + eexists (_, _).
-                  eapply head_step_support_equiv_rel;
-                    by econstructor.
                 + rewrite dret_id_left -/ exec_val. rewrite loop_zero_mass. f_equal.
-                + eexists (_, _).
-                  eapply head_step_support_equiv_rel;
-                    by econstructor.
                 + rewrite dret_id_left -/ exec_val.
                   destruct n => /=; f_equal; by apply dret_0.
            }

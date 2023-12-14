@@ -749,7 +749,9 @@ Proof.
   {
       intros n. rewrite /countable_sum/σ'//=.
       destruct pickle_inv as [s|] => //=.
-      { destruct Req_EM_T as [Heq0|Hneq0] => //=. }
+      { destruct Req_EM_T as [Heq0|Hneq0] => //= ;
+          rewrite //= ; eapply EQ.
+      }
   }
   cut (is_series (countable_sum (λ n, Rabs (oapp a R0 (σ' n)))) v ∧
        is_series (countable_sum (λ n, oapp a R0 (σ' n))) (Series (countable_sum a))).

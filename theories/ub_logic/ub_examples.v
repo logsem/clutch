@@ -5,7 +5,7 @@ Local Open Scope R.
 Context `{!ub_clutchGS Σ}.
 
 Definition foo N (m : nat) : expr :=
-  let: "n" := rand #N from #() in
+  let: "n" := rand #N in
   if: "n" = #m then #false else #true.
 
 
@@ -16,7 +16,7 @@ Lemma wp_foo (N : nat) m E :
 Proof.
   iIntros (Φ) "Herr HΦ".
   rewrite /foo/=.
-  wp_bind (rand _ from #())%E.
+  wp_bind (rand _)%E.
   wp_apply (wp_rand_err_nat _ _ m).
   iFrame.
   iIntros.
@@ -28,8 +28,8 @@ Qed.
 
 
 Definition bar N : expr :=
-  let: "m" := rand #N from #() in
-  let: "n" := rand #N from #() in
+  let: "m" := rand #N in
+  let: "n" := rand #N in
   if: "n" = "m" then #false else #true.
 
 
@@ -40,7 +40,7 @@ Definition wp_bar (N : nat) E :
 Proof.
   iIntros (Φ) "Herr HΦ".
   rewrite /bar/=.
-  wp_bind (rand _ from #())%E.
+  wp_bind (rand _)%E.
   wp_apply (wp_rand); auto.
   iIntros "%m ?".
   wp_pures.
@@ -56,7 +56,7 @@ Qed.
 
 Definition baz : expr :=
   rec: "baz" "x" :=
-    let: "n" := rand #2 from #() in
+    let: "n" := rand #2 in
     (if: "n" < #2
       then "n"
       else "baz" #() ).

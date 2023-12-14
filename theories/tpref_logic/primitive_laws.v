@@ -118,8 +118,6 @@ Section rwp.
     iApply rswp_lift_atomic_head_step.
     iIntros (σ1) "Hσ !#".
     iSplit; [eauto with head_step|].
-    Unshelve.
-    2 : { apply 0%fin . }
     iIntros "!>" (e2 σ2 Hs).
     inv_head_step.
     iFrame.
@@ -166,9 +164,7 @@ Section rwp.
     iApply rswp_lift_atomic_head_step.
     iIntros (σ1) "(Hh & Ht) !#".
     iDestruct (ghost_map_lookup with "Ht Hl") as %?.
-    iSplit; [by eauto with head_step|].
-    Unshelve.
-    2 : { apply 0%fin. }
+    iSplit ; [by eauto with head_step|].
     iIntros "!>" (e2 σ2 Hs).
     inv_head_step.
     iFrame.
@@ -185,8 +181,6 @@ Section rwp.
     iIntros (σ1) "(Hh & Ht) !#".
     iDestruct (ghost_map_lookup with "Ht Hl") as %?.
     iSplit; [by eauto with head_step|].
-    Unshelve.
-    2 : { apply 0%fin. }
     iIntros "!>" (e2 σ2 Hs).
     inv_head_step.
     iFrame.
@@ -286,7 +280,6 @@ Section coupl.
       apply head_step_support_equiv_rel.
       by eapply (RandNoTapeS _ _ 0%fin). }
     iApply (rwp_coupl_steps (λ '(e2, σ2) a2, ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R n a2)).
-    { by apply head_prim_reducible. }
     { rewrite /= head_prim_step_eq //=.
       rewrite -(dret_id_right (step _)).
       eapply Rcoupl_dbind; [|done].

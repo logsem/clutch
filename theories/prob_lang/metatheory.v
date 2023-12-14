@@ -469,8 +469,8 @@ Lemma ARcoupl_rand_rand (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #w from #()) σ1')
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #w) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)) (m : fin (S M)),
         (fin_to_nat n = m) ∧
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #m, σ1'))
@@ -500,8 +500,8 @@ Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) 
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #w from #()) σ1')
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #w) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1'))
    ε.
@@ -531,8 +531,8 @@ Lemma ARcoupl_rand_rand_rev (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #w from #()) σ1')
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #w) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)) (m : fin (S M)),
         (fin_to_nat n = m) ∧
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #m, σ1'))
@@ -563,8 +563,8 @@ Lemma ARcoupl_rand_rand_rev_inj (N M : nat) f `{Inj (fin (S M)) (fin (S N)) (=) 
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #w from #()) σ1')
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #w) σ1')
     (λ ρ2 ρ2', ∃ (m : fin (S M)),
         ρ2 = (Val #(f m), σ1) ∧ ρ2' = (Val #m, σ1'))
    ε.
@@ -652,7 +652,7 @@ Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   ARcoupl
     (dret ρ1)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
 Proof.
   intros ?.
@@ -665,7 +665,7 @@ Lemma ARcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
   tapes σ1' !! α' = Some (N; []) →
   ARcoupl
     (dret ρ1)
-    (prim_step (rand #z from #lbl:α') σ1')
+    (prim_step (rand(#lbl:α') #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
 Proof.
   intros ??.
@@ -679,7 +679,7 @@ Lemma ARcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
   tapes σ1' !! α' = Some (M; ns) →
   ARcoupl
     (dret ρ1)
-    (prim_step (rand #z from #lbl:α') σ1')
+    (prim_step (rand(#lbl:α') #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
 Proof.
   intros ???.
@@ -692,7 +692,7 @@ Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N))
   ((1 / S N) = ε)%R →
   N = Z.to_nat z →
   ARcoupl
-    (prim_step (rand #z from #()) σ)
+    (prim_step (rand #z) σ)
     (dret ρₛ1)
     (λ ρ ρₛ2, ∃ n : fin (S N),
         ρ = (Val #n, σ) ∧ (n ≠ x) ∧ ρₛ2 = ρₛ1)
@@ -715,7 +715,7 @@ Lemma wp_couple_rand_no_coll_r N z (σₛ : state) (ρ1 : cfg) (x : Fin.t (S N))
   N = Z.to_nat z →
   ARcoupl
     (dret ρ1)
-    (prim_step (rand #z from #()) σₛ)
+    (prim_step (rand #z) σₛ)
     (λ ρ2 ρₛ, ∃ n : fin (S N),
         ρ2 = ρ1 ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
     ε.

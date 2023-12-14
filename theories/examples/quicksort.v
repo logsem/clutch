@@ -31,7 +31,7 @@ Section quicksort.
     rec: "qs" "l" :=
       let: "n" := list_length "l" in
       if: "n" < #1 then "l" else
-        let: "ip" := rand ("n" - #1) from #() in
+        let: "ip" := rand ("n" - #1) in
         let, ("p", "r") := list_remove_nth_unsafe "l" "ip" in
         let, ("le", "gt") := partition "r" "p" in
         let, ("les", "gts") := ("qs" "le", "qs" "gt") in

@@ -3,8 +3,8 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.app_rel_logic Require Import lifting ectx_lifting.
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.rel_logic Require Export spec_ra.
+From clutch.prob_lang Require Import lang notation tactics metatheory exec_lang.
+From clutch.app_rel_logic Require Export spec_ra.
 From clutch.app_rel_logic Require Export app_weakestpre primitive_laws.
 
 Section rules.
@@ -118,7 +118,7 @@ Section rules.
   Lemma step_rand E K l N z n ns :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:l) ∗ l ↪ₛ (N; n :: ns)
+    spec_ctx ∗ ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
     ={E}=∗ spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (N; ns).
   Proof.
     iIntros (-> ?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
@@ -146,7 +146,7 @@ Section rules.
     to_val e = None →
     (∀ σ1, reducible e σ1) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #()) ∗
+    spec_ctx ∗ ⤇ fill K (rand #z) ∗
     (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -165,10 +165,10 @@ Section rules.
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S (Z.to_nat z)), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
-      rewrite exec_1.
+      rewrite pexec_1.
       replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
                                by by apply nnreal_ext => /= ; lra.
-      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
       eapply ARcoupl_dbind => /=.
       1,2: simpl ; lra.
@@ -183,7 +183,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "Hj").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
@@ -200,7 +200,7 @@ Section rules.
     to_val e = None →
     (∀ σ1, reducible e σ1) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (N; []) ∗
+    spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
     ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -221,10 +221,10 @@ Section rules.
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
-      rewrite exec_1.
+      rewrite pexec_1.
       replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
                                by by apply nnreal_ext => /= ; lra.
-      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
       eapply ARcoupl_dbind => /=.
       1,2: simpl; lra.
@@ -239,7 +239,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
@@ -257,7 +257,7 @@ Section rules.
     to_val e = None →
     (∀ σ1, reducible e σ1) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z from #lbl:α) ∗ α ↪ₛ (M; ns) ∗
+    spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
     ((α ↪ₛ (M; ns) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -278,10 +278,10 @@ Section rules.
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
     iSplit.
     { iPureIntro.
-      rewrite exec_1.
+      rewrite pexec_1.
       replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
                                by by apply nnreal_ext => /= ; lra.
-      rewrite prim_step_or_val_no_val /=; [|by apply fill_not_val].
+      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
       rewrite -(dret_id_right (dret _)) fill_dmap //.
       eapply ARcoupl_dbind => /=.
       1,2: simpl; lra.
@@ -297,7 +297,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
@@ -323,7 +323,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     l ↪ₛ (N; n :: ns) -∗
-    refines_right K (rand #z from #lbl:l) ={E}=∗ refines_right K #n ∗ l ↪ₛ (N; ns).
+    refines_right K (rand(#lbl:l) #z ) ={E}=∗ refines_right K #n ∗ l ↪ₛ (N; ns).
   Proof.
     iIntros (??) "? (?&?)".
     iMod (step_rand with "[$]") as "(?&?&?)"; [done|].

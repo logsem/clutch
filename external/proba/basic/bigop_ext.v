@@ -469,7 +469,8 @@ Proof.
   intros HP.
   rewrite -(sum_index_ordinal_P_aux f l r P''); last first.
   {
-    intros i Hlt. rewrite /P'' //=. destruct lt_dec as [?|n] => //=.
+    intros i Hlt. rewrite /P'' //=.
+    destruct lt_dec as [?|n] => //= ; eauto.
     exfalso; apply n. apply /ltP. done.
   }
   rewrite /P'' //=.

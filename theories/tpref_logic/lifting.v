@@ -32,7 +32,7 @@ Proof.
   iIntros (σ1 a1) "[Hσ1 Ha1]".
   iMod ("H" with "[$]") as "[%Hred H]".
   iModIntro.
-  iApply rwp_coupl_prim_step_l; [done| |].
+  iApply rwp_coupl_prim_step_l.
   { eapply Rcoupl_pos_R, Rcoupl_trivial.
     - apply prim_step_mass. eauto.
     - apply dret_mass. }
@@ -100,7 +100,6 @@ Proof.
   iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
   iApply rwp_lift_pure_det_step.
-  - intros σ. specialize (Hsafe σ). eauto using reducible_not_val.
   - intros σ1 e2' σ2 Hpstep.
     by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
   - by iApply "IH".
@@ -201,7 +200,7 @@ Lemma rswp_lift_pure_det_step e1 e2 k E E' Φ a :
   (∀ σ1 e2' σ2 , prim_step e1 σ1 (e2', σ2) > 0%R → σ2 = σ1 ∧ e2' = e2) →
   (|={E}[E']▷=>^k WP e2 @ a; E {{ Φ }}) ⊢ RSWP e1 at k @ a; E ⟨⟨ Φ ⟩⟩.
 Proof.
-  iIntros (? Hpuredet) "H". iApply (rswp_lift_pure_step k E); [done| |].
+  iIntros (? Hpuredet) "H". iApply (rswp_lift_pure_step k E).
   { naive_solver. }
   iModIntro. iApply (step_fupdN_wand with "H"); iIntros "H".
   by iIntros (e' σ [_ ->]%Hpuredet).

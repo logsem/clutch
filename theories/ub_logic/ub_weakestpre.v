@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Export couplings distribution union_bounds.
-From clutch.program_logic Require Export exec language.
+From clutch.common Require Export language.
 
 Import uPred.
 
@@ -406,14 +406,14 @@ Section exec_ub.
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
     ⊢ exec_ub e1 σ1 Z ε.
   Proof.
-    iIntros "(% & % & % & % & % & H)".
+    iIntros "(% & % & % & %Hε & % & H)".
     rewrite {1}exec_ub_unfold.
     iRight; iLeft.
     iExists _,nnreal_zero,_.
     iSplit; [done|].
     iSplit.
     { iPureIntro.
-      simpl. lra.
+      simpl. rewrite Hε. lra.
     }
     iSplit; done.
   Qed.
@@ -570,13 +570,13 @@ Qed.
 
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition ub_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) stuckness :=
-  λ (s : stuckness), fixpoint (ub_wp_pre).
+Local Definition ub_wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+  {| wp := λ _ : (), fixpoint (ub_wp_pre); wp_default := () |}.
 Local Definition ub_wp_aux : seal (@ub_wp_def). Proof. by eexists. Qed.
 Definition ub_wp' := ub_wp_aux.(unseal).
 Global Arguments ub_wp' {Λ Σ _}.
 Global Existing Instance ub_wp'.
-Local Lemma ub_wp_unseal `{!irisGS Λ Σ} : wp = @ub_wp_def Λ Σ _.
+Local Lemma ub_wp_unseal `{!irisGS Λ Σ} : wp = (@ub_wp_def Λ Σ _).(wp).
 Proof. rewrite -ub_wp_aux.(seal_eq) //. Qed.
 
 Section ub_wp.
@@ -630,11 +630,11 @@ Qed.
 Lemma ub_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
 Proof. rewrite ub_wp_unfold /ub_wp_pre to_of_val. auto. Qed.
 
-Lemma ub_wp_strong_mono s1 s2 E1 E2 e Φ Ψ :
-  s1 ⊑ s2 → E1 ⊆ E2 →
-  WP e @ s1; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ s2; E2 {{ Ψ }}.
+Lemma ub_wp_strong_mono E1 E2 e Φ Ψ s :
+  E1 ⊆ E2 →
+  WP e @ s ; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ s ; E2 {{ Ψ }}.
 Proof.
-  iIntros (? HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
+  iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
   rewrite !ub_wp_unfold /ub_wp_pre /=.
   destruct (to_val e) as [v|] eqn:?.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
@@ -642,7 +642,7 @@ Proof.
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "[% H]".
   iModIntro.
-  iSplit; [by destruct s1,s2 | ].
+  iSplit; [done | ].
   iApply (exec_ub_mono_pred with "[Hclose HΦ] H").
   iIntros (? [e2 σ2]) "H".
   iModIntro.
@@ -658,7 +658,7 @@ Proof.
   iIntros (σ1 ε) "Hi". iMod "H". by iApply "H".
 Qed.
 Lemma ub_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
-Proof. iIntros "H". iApply (ub_wp_strong_mono s s E with "H"); auto. Qed.
+Proof. iIntros "H". iApply (ub_wp_strong_mono E with "H"); auto. Qed.
 
 Lemma ub_wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
@@ -703,7 +703,7 @@ Proof.
   iMod "H" as "(Hσ & Hρ & H)".
   iMod "HR".
   iFrame "Hσ Hρ".
-  iApply (ub_wp_strong_mono s s E2 with "H"); [done..|].
+  iApply (ub_wp_strong_mono E2 with "H"); [done..|].
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
@@ -752,12 +752,6 @@ Proof.
   iIntros (HΦ) "H"; iApply (ub_wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
-Lemma ub_wp_stuck_mono s1 s2 E e Φ :
-  s1 ⊑ s2 → WP e @ s1; E {{ Φ }} ⊢ WP e @ s2; E {{ Φ }}.
-Proof. iIntros (?) "H". iApply (ub_wp_strong_mono with "H"); auto. Qed.
-Lemma ub_wp_stuck_weaken s E e Φ :
-  WP e @ s; E {{ Φ }} ⊢ WP e @ E ?{{ Φ }}.
-Proof. apply ub_wp_stuck_mono. by destruct s. Qed.
 Lemma ub_wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
 Proof. iIntros (?) "H"; iApply (ub_wp_strong_mono with "H"); auto. Qed.
 Global Instance ub_wp_mono' s E e :
@@ -852,7 +846,7 @@ Section proofmode_classes.
   Qed.
 
   Global Instance elim_modal_fupd_ub_wp_atomic p s E1 E2 e P Φ :
-    ElimModal (Atomic (stuckness_to_atomicity s) e) p false
+    ElimModal (Atomic WeaklyAtomic e) p false
             (|={E1,E2}=> P) P
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
@@ -866,7 +860,7 @@ Section proofmode_classes.
   Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_ub_wp. Qed.
 
   Global Instance elim_acc_ub_wp_atomic {X} E1 E2 α β γ e s Φ :
-    ElimAcc (X:=X) (Atomic (stuckness_to_atomicity s) e)
+    ElimAcc (X:=X) (Atomic WeaklyAtomic e)
             (fupd E1 E2) (fupd E2 E1)
             α β γ (WP e @ s; E1 {{ Φ }})
             (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.

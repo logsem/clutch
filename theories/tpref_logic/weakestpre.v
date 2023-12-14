@@ -727,7 +727,7 @@ Proof.
   rewrite rswp_unfold rwp_unfold /rwp_pre /rswp_step.
   iIntros (->) "Hswp". iIntros (σ1 m) "[Ha Hσ]".
   iMod ("Hswp" with "[$]") as "(% & % & % & Hswp)". iModIntro.
-  iApply rwp_coupl_prim_step_l; [done|done|].
+  iApply rwp_coupl_prim_step_l; [done|].
   iIntros ([e2 σ2] HR) "!>".
   by iMod ("Hswp" with "[//]").
 Qed.
@@ -744,7 +744,7 @@ Proof.
   iApply rwp_coupl_det_r; [done|].
   iApply (step_fupdN_mono with "Hswp").
   iIntros "(% & % & % & H)".
-  iApply rwp_coupl_prim_step_l; [done|done|].
+  iApply rwp_coupl_prim_step_l; [done|].
   iIntros ([e2 σ2] HR) "!>".
   by iMod ("H" with "[//]").
 Qed.

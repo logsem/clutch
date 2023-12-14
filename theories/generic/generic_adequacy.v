@@ -1,10 +1,12 @@
 From iris.proofmode Require Import base proofmode.
-From iris.bi Require Export weakestpre fixpoint big_op.
+(* From iris.bi Require Export weakestpre fixpoint big_op. *)
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map invariants fancy_updates.
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob Require Import distribution.
-From clutch.program_logic Require Export language weakestpre generic_weakestpre.
+From clutch.prob Require Import distribution couplings.
+(* From clutch.bi Require Import weakestpre. *)
+From clutch.common Require Export language.
+From clutch.generic Require Export generic_weakestpre.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation erasure.
 From iris.prelude Require Import options.
@@ -63,20 +65,20 @@ Section adequacy.
   Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ  :
     to_val e = None →
     exec_mlift M e σ (λ '(e2, σ2),
-        |={∅}▷=>^(S n) ⌜ M.(mlift_funct)(exec_val n (e2, σ2)) φ ⌝)
-    ⊢ |={∅}▷=>^(S n) ⌜M.(mlift_funct) (exec_val (S n) (e, σ)) φ ⌝.
+        |={∅}▷=>^(S n) ⌜ M.(mlift_funct) (exec n (e2, σ2)) φ ⌝)
+    ⊢ |={∅}▷=>^(S n) ⌜M.(mlift_funct) (exec (S n) (e, σ)) φ ⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_mlift /exec_mlift'.
     set (Φ := (λ '(e1, σ1),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                 ⌜M.(mlift_funct) (exec_val (S n) (e1, σ1)) φ ⌝)%I) :
+                 ⌜M.(mlift_funct) (exec (S n) (e1, σ1)) φ ⌝)%I) :
            cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m (?&?) (?&?) [[=] [=]]. by simplify_eq. }
     set (F := (exec_mlift_pre M (λ '(e2, σ2),
-                   |={∅}▷=>^(S n) ⌜M.(mlift_funct) (exec_val n (e2, σ2)) φ⌝)%I)).
+                   |={∅}▷=>^(S n) ⌜M.(mlift_funct) (exec n (e2, σ2)) φ⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       by iMod ("H" $! ((_, _)) with "Hfix [//]").
@@ -84,20 +86,21 @@ Section adequacy.
     clear.
     iIntros "!#" ([e1 σ1]). rewrite /Φ/F/exec_mlift_pre.
     iIntros "[ (%R & %Hlift & H)| H] %Hv".
-    - rewrite exec_val_Sn_not_val; [|done].
+    - rewrite exec_Sn_not_final; [|eauto].
       iApply ub_lift_dbind'.
       + iPureIntro; apply Hlift.
       + iIntros ([] ?).
         by iMod ("H"  with "[//]").
-    - rewrite exec_val_Sn_not_val; [|done].
+    - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
-                       ⌜M.(mlift_funct) (prim_step e1 σ1 ≫= exec_val n) φ ⌝)%I
+                       ⌜M.(mlift_funct) (prim_step e1 σ1 ≫= exec n) φ ⌝)%I
                   with "H") as "H".
       { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %Hlift & H)".
-        rewrite -exec_val_Sn_not_val; [|done].
+        replace (prim_step e1 σ1) with (step (e1, σ1)) by easy.
+        rewrite -exec_Sn_not_final ; [|eauto].
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 , R2 σ2 → M.(mlift_funct) (exec_val (S n) (e1, σ2)) φ ⌝)%I).
+                  (⌜∀ σ2 , R2 σ2 → M.(mlift_funct) (exec (S n) (e1, σ2)) φ ⌝)%I).
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα.
           apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
@@ -110,14 +113,16 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
+  Import generic_weakestpre.
+
   (* TODO: Fix notation to get rid of the mask *)
-  Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) n φ  :
+  Theorem wp_refRcoupl_step_fupdN (e : expr prob_lang) (σ : state prob_lang) n φ  :
     state_interp σ ∗ WP e @ M ; ⊤ {{ v, ⌜φ v⌝ }} ⊢
-    |={⊤,∅}=> |={∅}▷=>^n ⌜M.(mlift_funct) (exec_val n (e, σ)) φ ⌝.
+    |={⊤,∅}=> |={∅}▷=>^n ⌜M.(mlift_funct) (exec n (e, σ)) φ ⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ); iIntros "((Hσh & Hσt) & Hwp)".
     - rewrite /exec_val /=.
-      destruct (to_val e) eqn:Heq.
+      destruct (prob_lang.to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
         rewrite mlift_wp_value_fupd.
         iMod (fupd_mask_subseteq _); [set_solver |].
@@ -128,15 +133,15 @@ Section adequacy.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iPureIntro.
         apply M.(mlift_dzero).
-    - rewrite exec_val_Sn /prim_step_or_val /=.
-      destruct (to_val e) eqn:Heq.
-      + apply of_to_val in Heq as <-.
+    - rewrite exec_Sn /step_or_final /=.
+      destruct (prob_lang.to_val e) eqn:Heq.
+      + apply prob_lang.of_to_val in Heq as <-.
         rewrite mlift_wp_value_fupd.
         iMod "Hwp" as "%".
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
         iPureIntro.
-        rewrite exec_val_unfold dret_id_left /=.
+        rewrite exec_unfold dret_id_left /=.
         apply M.(mlift_unit); auto.
       + rewrite mlift_wp_unfold /mlift_wp_pre /= Heq.
         iMod ("Hwp" with "[$]") as "(%Hexec_ub & Hlift)".
@@ -178,9 +183,11 @@ Definition clutchΣ : gFunctors :=
 Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_mlift Σ `{clutchGpreS Σ} (M : mlift) (e : expr) (σ : state) n φ :
+Import generic_weakestpre.
+
+Theorem wp_mlift Σ `{clutchGpreS Σ} (M : mlift) (e : expr prob_lang) (σ : state prob_lang) n φ :
   (∀ `{clutchGS Σ}, ⊢ WP e @ M ; ⊤ {{ v, ⌜φ v⌝ }}) →
-  M.(mlift_funct) (exec_val n (e, σ)) φ.
+  M.(mlift_funct) (exec n (e, σ)) φ.
 Proof.
   intros Hwp.
   eapply (step_fupdN_soundness_no_lc _ n 0).

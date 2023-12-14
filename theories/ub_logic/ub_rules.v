@@ -16,7 +16,7 @@ Section metatheory.
 Lemma ub_lift_rand_trivial N z σ1 :
   N = Z.to_nat z →
   ub_lift
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1)) 0.
 Proof.
@@ -37,7 +37,7 @@ Qed.
 Lemma ub_lift_rand_err N z σ1 (m : fin (S N)):
   N = Z.to_nat z →
   ub_lift
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         (n ≠ m)%fin /\ ρ2 = (Val #n, σ1)) (1/(N+1)).
 Proof.
@@ -65,7 +65,7 @@ Qed.
 Lemma ub_lift_rand_err_nat N z σ1 (m : nat):
   N = Z.to_nat z →
   ub_lift
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         (fin_to_nat n ≠ m)%fin /\ ρ2 = (Val #n, σ1)) (1/(N+1)).
 Proof.
@@ -94,7 +94,7 @@ Qed.
 Lemma ub_lift_rand_err_list_nat N z σ1 (ms : list nat):
   N = Z.to_nat z →
   ub_lift
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         Forall (λ m, (fin_to_nat n ≠ m)%fin) ms /\ ρ2 = (Val #n, σ1)) ((length ms)/(N+1)).
 Proof.
@@ -122,7 +122,7 @@ Qed.
 Lemma ub_lift_rand_err_list_int N z σ1 (ms : list Z):
   N = Z.to_nat z →
   ub_lift
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         Forall (λ m, (Z.of_nat (fin_to_nat n) ≠ m)%fin) ms /\ ρ2 = (Val #n, σ1)) ((length ms)/(N+1)).
 Proof.
@@ -161,7 +161,7 @@ Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
-  ⊢ WP rand #z from #() @ E {{ Φ }}.
+  ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply wp_lift_step_fupd_exec_ub; [done|].
@@ -217,7 +217,7 @@ Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
-  ⊢ WP rand #z from #() @ E {{ Φ }}.
+  ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply wp_lift_step_fupd_exec_ub; [done|].
@@ -272,7 +272,7 @@ Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
   (∀ x, ⌜Forall (λ m, x ≠ m) ns⌝ -∗ Φ #x)
-  ⊢ WP rand #z from #() @ E {{ Φ }}.
+  ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply wp_lift_step_fupd_exec_ub; [done|].
@@ -327,7 +327,7 @@ Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
   (∀ x : Z , ⌜Forall (λ m, x ≠ m) zs⌝ -∗ Φ #x)
-  ⊢ WP rand #z from #() @ E {{ Φ }}.
+  ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply wp_lift_step_fupd_exec_ub; [done|].
@@ -382,7 +382,7 @@ Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S 
   TCEq N (Z.to_nat z) →
   (exists r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  {{{ € ε1 }}} rand #z from #() @ E {{{ n, RET #n; € (ε2 n) }}}.
+  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
 Proof.
   iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
   iApply wp_lift_step_fupd_exec_ub; [done|].

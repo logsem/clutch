@@ -6,9 +6,9 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
-From clutch.program_logic Require Import language weakestpre.
+From clutch.common Require Import language.
 From clutch.ub_logic Require Import error_credits.
-From clutch.rel_logic Require Import spec_ra.
+From clutch.app_rel_logic Require Import spec_ra.
 From clutch.app_rel_logic Require Import app_weakestpre primitive_laws.
 From clutch.prob Require Import distribution couplings_app.
 Import uPred.
@@ -36,20 +36,20 @@ Section adequacy.
     to_val e1 = None →
     reducible e1 σ1 ->
     exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε',
-        |={∅}▷=>^(S n) ⌜ARcoupl (exec_val n (e2, σ2)) (lim_exec_val (e2', σ2')) φ ε'⌝) ε
-    ⊢ |={∅}▷=>^(S n) ⌜ARcoupl (exec_val (S n) (e1, σ1)) (lim_exec_val (e1', σ1')) φ ε⌝.
+        |={∅}▷=>^(S n) ⌜ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) ε
+    ⊢ |={∅}▷=>^(S n) ⌜ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) φ ε⌝.
   Proof.
     iIntros (Hv Hred) "Hexec".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_coupl /exec_coupl'.
     set (Φ := (λ '(((e1, σ1),(e1', σ1')),ε'),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                 ⌜ARcoupl (exec_val (S n) (e1, σ1)) (lim_exec_val (e1', σ1')) φ ε'⌝)%I) :
+                 ⌜ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) φ ε'⌝)%I) :
            prodO (prodO cfgO cfgO) NNRO  → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m (((?&?)&(?&?))&?) (((?&?)&(?&?))&?) [[[[=] [=]] [[=] [=]]] [=] ]. by simplify_eq. }
     set (F := (exec_coupl_pre (λ '(e2, σ2) '(e2', σ2') ε',
-                   |={∅}▷=>^(S n) ⌜ARcoupl (exec_val n (e2, σ2)) (lim_exec_val (e2', σ2')) φ ε'⌝)%I)).
+                   |={∅}▷=>^(S n) ⌜ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) φ ε'⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       by iMod ("H" $! ((_, _)) with "Hfix [//]").
@@ -57,8 +57,8 @@ Section adequacy.
     clear.
     iIntros "!#" ([[[e1 σ1] [e1' σ1']] ε'']). rewrite /exec_coupl_pre.
     iIntros "[(%R & %ε1 & %ε2 & %Hleq & % & %Hcpl & H) | [(%R & %ε1 & %ε2 & %Hleq & % & %Hcpl & H) | [(%R & %m & %ε1 & %ε2 & %Hleq & %Hcpl & H) | [H | [H | H]]]]] %Hv".
-    - rewrite exec_val_Sn_not_val; [|done].
-      rewrite lim_exec_val_prim_step.
+    - rewrite exec_Sn_not_final; [|eauto].
+      rewrite lim_exec_step.
       iApply step_fupdN_mono.
       { apply pure_mono.
         eapply ARcoupl_mon_grading; eauto. }
@@ -75,32 +75,32 @@ Section adequacy.
           -- iPureIntro; apply cond_nonneg.
           -- iPureIntro; apply cond_nonneg.
           -- iPureIntro.
-             rewrite -(Rplus_0_r ε1).
+             pose proof (Rplus_0_r ε1) as h. simpl in h. rewrite -h. clear h.
              apply (ARcoupl_eq_trans_r _ dzero); [apply cond_nonneg | lra | eauto |].
              apply ARcoupl_dzero; lra.
           -- iIntros ([e3 σ3] [e3' σ3']) "HR".
              by iMod ("H" $! (e3,σ3) (e3',σ3') with "HR").
-      + rewrite prim_step_or_val_no_val; [|done].
+      + rewrite step_or_final_no_final; [|eauto].
         iApply (ARcoupl_dbind' _ _ _ _ R); auto.
         * iPureIntro; apply cond_nonneg.
         * iPureIntro; apply cond_nonneg.
         * iIntros ([] [] HR). by iMod ("H" with "[//]").
-    - rewrite exec_val_Sn_not_val; [|done].
+    - rewrite exec_Sn_not_final; [|eauto].
       iApply step_fupdN_mono.
       { apply pure_mono.
         eapply ARcoupl_mon_grading; eauto. }
-      rewrite -(dret_id_left (lim_exec_val)).
+      rewrite -(dret_id_left (lim_exec)).
       iApply ARcoupl_dbind'.
       * iPureIntro; apply cond_nonneg.
       * iPureIntro; apply cond_nonneg.
       * iPureIntro. by apply ARcoupl_pos_R in Hcpl.
       * iIntros ([] [] (?&?& [= -> ->]%dret_pos)).
         by iMod ("H"  with "[//]").
-    - rewrite -(dret_id_left (exec_val _)).
+    - rewrite -(dret_id_left (exec _)).
       iApply step_fupdN_mono.
       { apply pure_mono.
         eapply ARcoupl_mon_grading; eauto. }
-      rewrite (lim_exec_val_exec m).
+      rewrite (lim_exec_pexec m).
       iApply ARcoupl_dbind'.
       + iPureIntro; apply cond_nonneg.
       + iPureIntro; apply cond_nonneg.
@@ -109,13 +109,13 @@ Section adequacy.
           by iMod ("H"  with "[//] [//]").
     - iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
-                       ⌜ARcoupl (exec_val (S n) (e1, σ1))
-                                  (lim_exec_val (e1', σ1')) φ ε''⌝)%I
+                       ⌜ARcoupl (exec (S n) (e1, σ1))
+                                  (lim_exec (e1', σ1')) φ ε''⌝)%I
                   with "H") as "H".
       { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hleq & % & %Hcpl & H)".
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ e2 σ2 σ2', R2 (e2, σ2) σ2' → ARcoupl (exec_val n (e2, σ2))
-                                                             (lim_exec_val (e1', σ2')) φ ε2⌝)%I).
+                  (⌜∀ e2 σ2 σ2', R2 (e2, σ2) σ2' → ARcoupl (exec n (e2, σ2))
+                                                             (lim_exec (e1', σ2')) φ ε2⌝)%I).
         - iIntros (?). iPureIntro.
           eapply ARcoupl_mon_grading; eauto.
           rewrite /= /get_active in Hα.
@@ -130,13 +130,13 @@ Section adequacy.
       by iApply "IH".
     - iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
-                       ⌜ARcoupl (exec_val (S n) (e1, σ1))
-                                  (lim_exec_val (e1', σ1')) φ ε''⌝)%I
+                       ⌜ARcoupl (exec (S n) (e1, σ1))
+                                  (lim_exec (e1', σ1')) φ ε''⌝)%I
                   with "H") as "H".
       { iIntros (i α' Hα'%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hleq & %Hcpl & H)".
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 e2' σ2', R2 σ2 (e2', σ2') → ARcoupl (exec_val (S n) (e1, σ2))
-                                                               (lim_exec_val (e2', σ2')) φ ε2⌝)%I).
+                  (⌜∀ σ2 e2' σ2', R2 σ2 (e2', σ2') → ARcoupl (exec (S n) (e1, σ2))
+                                                               (lim_exec (e2', σ2')) φ ε2⌝)%I).
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα'.
           apply elem_of_elements, elem_of_dom in Hα' as [].
@@ -149,17 +149,18 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-    - rewrite exec_val_Sn_not_val; [|done].
+    - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
-                       ⌜ARcoupl (prim_step e1 σ1 ≫= exec_val n)
-                                  (lim_exec_val (e1', σ1')) φ ε''⌝)%I
+                       ⌜ARcoupl (prim_step e1 σ1 ≫= exec n)
+                                  (lim_exec (e1', σ1')) φ ε''⌝)%I
                   with "H") as "H".
       { iIntros (i [α1 α2] [Hα1 Hα2]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %ε1 & %ε2 & %Hleq & %Hcpl & H)".
-        rewrite -exec_val_Sn_not_val; [|done].
+        replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
+        rewrite -exec_Sn_not_final; [|eauto].
         iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec_val (S n) (e1, σ2))
-                                                    (lim_exec_val (e1', σ2')) φ ε2⌝)%I).
+                  (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec (S n) (e1, σ2))
+                                                    (lim_exec (e1', σ2')) φ ε2⌝)%I).
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα1, Hα2.
           apply elem_of_elements, elem_of_dom in Hα1 as [], Hα2 as [].
@@ -178,10 +179,10 @@ Section adequacy.
 
   Theorem wp_ARcoupl_step_fupdN (e e' : expr) (σ σ' : state) n φ (ε : nonnegreal) :
     state_interp σ ∗ spec_interp (e', σ') ∗ spec_ctx ∗ err_interp ε ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
-    |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ ε⌝.
+    |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ e' σ' ε); iIntros "([Hh Ht] & HspecI_auth & #Hctx & Herr & Hwp)".
-    - rewrite /exec_val /=.
+    - rewrite /exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
@@ -190,7 +191,7 @@ Section adequacy.
         iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
         iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-        erewrite lim_exec_val_exec_det; [|done].
+        erewrite lim_exec_det_final ; last first ; eauto.
         iPureIntro.
         rewrite /dmap.
         apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
@@ -198,7 +199,7 @@ Section adequacy.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iPureIntro.
         apply ARcoupl_dzero, cond_nonneg.
-    - rewrite exec_val_Sn /prim_step_or_val /=.
+    - rewrite exec_Sn /step_or_final /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
@@ -209,17 +210,18 @@ Section adequacy.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
         iPureIntro.
-        rewrite exec_val_unfold dret_id_left /=.
-        erewrite lim_exec_val_exec_det; [|done].
+        rewrite exec_unfold dret_id_left /=.
+        erewrite lim_exec_det_final; do 2 eauto.
         apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
         by apply ARcoupl_dret.
       + rewrite wp_unfold /wp_pre /= Heq.
         iMod ("Hwp" with "[$]") as "(%Hred & Hcpl)".
         iModIntro.
-        rewrite -exec_val_Sn_not_val; [|done].
+        assert ((prim_step e σ) = (step (e, σ))) as h => //. rewrite h. clear h.
+        rewrite -exec_Sn_not_final ; [|auto].
         iPoseProof
           (exec_coupl_mono _ (λ '(e2, σ2) '(e2', σ2') ε', |={∅}▷=>^(S n)
-             ⌜ARcoupl (exec_val n (e2, σ2)) (lim_exec_val (e2', σ2')) φ ε'⌝)%I
+             ⌜ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) φ ε'⌝)%I
             with "[] Hcpl") as "H".
         { iIntros ([] [] ?) "H !> !>".
           iMod "H" as "(Hstate & HspecI_auth & Hwp)".
@@ -250,7 +252,7 @@ Proof. solve_inG. Qed.
 
 Theorem wp_aRcoupl Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
   (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
-  ARcoupl (exec_val n (e, σ)) (lim_exec_val (e', σ')) φ ε.
+  ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
   eapply (step_fupdN_soundness_no_lc _ n 0).
@@ -267,7 +269,7 @@ Proof.
   set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
   iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
-  { iModIntro. iExists _, _, _, O. iFrame. rewrite exec_O dret_1_1 //.
+  { iModIntro. iExists _, _, _, O. iFrame. rewrite pexec_O dret_1_1 //.
   }
   iApply wp_ARcoupl_step_fupdN.
   iFrame. iFrame "Hctx".
@@ -277,19 +279,19 @@ Qed.
 
 Theorem wp_aRcoupl_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
   (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
-  ARcoupl (lim_exec_val (e, σ)) (lim_exec_val (e', σ')) φ ε.
+  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
-  rewrite {1}/lim_exec_val/=.
+  rewrite {1}/lim_exec/=.
   intros f g Hf Hg Hfg.
   assert (forall n,
-    SeriesC (λ a, exec_val n (e, σ) a * f a) <=
-         SeriesC (λ b, lim_exec_val (e', σ') b * g b) + ε) as Haux2.
+    SeriesC (λ a, exec n (e, σ) a * f a) <=
+         SeriesC (λ b, lim_exec (e', σ') b * g b) + ε) as Haux2.
   {
    intro. eapply wp_aRcoupl; eauto.
   }
   assert (forall a,
-             Rbar.is_finite (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (exec_val n (e, σ) a)))) as Hfin.
+             Rbar.is_finite (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (exec n (e, σ) a)))) as Hfin.
   {
     intro a.
     apply (is_finite_bounded 0 1).
@@ -298,17 +300,17 @@ Proof.
     - by apply upper_bound_ge_sup; intro; simpl.
   }
   setoid_rewrite lim_distr_pmf at 1.
-  transitivity (Rbar.real (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (SeriesC (λ a : val, exec_val n (e, σ) a * f a))))).
+  transitivity (Rbar.real (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (SeriesC (λ a : val, exec n (e, σ) a * f a))))).
   - right.
     setoid_rewrite (rbar_scal_r); auto.
     setoid_rewrite <- Sup_seq_scal_r; [ | apply Hf].
     simpl.
     eapply MCT_seriesC.
     + intros n a; auto. specialize (Hf a); real_solver.
-    + intros n a. apply Rmult_le_compat_r; [apply Hf | apply exec_val_mon].
+    + intros n a. apply Rmult_le_compat_r; [apply Hf | apply (exec_mono (e,σ))].
     + intro a; exists 1; intro n. specialize (Hf a); real_solver.
     + intro n. apply SeriesC_correct.
-      apply (ex_seriesC_le _ (exec_val n (e, σ))); auto.
+      apply (ex_seriesC_le _ (exec n (e, σ))); auto.
       intro a; specialize (Hf a). split; [ real_solver |].
       rewrite <- Rmult_1_r. real_solver.
     + rewrite rbar_finite_real_eq; last first.
@@ -320,7 +322,7 @@ Proof.
         case_match; real_solver.
       - apply upper_bound_ge_sup; intro; simpl.
         etrans.
-        + apply (SeriesC_le _ (exec_val n (e, σ))); auto.
+        + apply (SeriesC_le _ (exec n (e, σ))); auto.
           intro a; specialize (Hf a). split; [ real_solver |].
           rewrite <- Rmult_1_r. real_solver.
         + auto.

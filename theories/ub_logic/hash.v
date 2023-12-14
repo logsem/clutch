@@ -17,7 +17,7 @@ Module simple_bit_hash.
       match: get hm "v" with
       | SOME "b" => "b"
       | NONE =>
-          let: "b" := (rand #val_size from #()) in
+          let: "b" := (rand #val_size) in
           set hm "v" "b";;
           "b"
       end.
@@ -26,7 +26,7 @@ Module simple_bit_hash.
       match: get "hm" "v" with
       | SOME "b" => "b"
       | NONE =>
-          let: "b" := (rand #val_size from #()) in
+          let: "b" := (rand #val_size) in
           set "hm" "v" "b";;
           "b"
       end.
@@ -139,7 +139,7 @@ Module simple_bit_hash.
     wp_apply (wp_get with "[$]").
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures.
-    wp_bind (rand _ from #())%E.
+    wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_int _ val_size (map (λ p, snd p) (gmap_to_list m))); auto.
     rewrite map_length.
     iFrame.

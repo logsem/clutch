@@ -28,7 +28,7 @@ Module counter_example.
 
   Definition bad : expr :=
     let: "p" := NewProph #() in
-    let: "x" := (rand #99 from #()) in
+    let: "x" := (rand #99) in
     (ResolveProph "p" "x").
 
   Lemma falso :

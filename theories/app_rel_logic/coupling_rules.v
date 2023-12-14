@@ -73,7 +73,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" $! n m nm with "[$Hα $Hαₛ]").
     rewrite !wp_unfold /wp_pre /= He.
@@ -139,7 +139,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" $! n m nm with "[$Hα $Hαₛ]").
     rewrite !wp_unfold /wp_pre /= He.
@@ -154,7 +154,7 @@ Section rules.
     nclose specN ⊆ E →
     spec_ctx ⊢
     {{{ € ε }}}
-      rand #z from #() @ E
+      rand #z @ E
       {{{ (n : fin (S N)), RET #n; ⌜ n ≠ t ⌝ }}}.
   Proof.
     iIntros (Nz Nε ?) "#Hinv %Φ !> Hε Hwp".
@@ -192,7 +192,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" $! n with "[]"). 1: easy.
     rewrite !wp_unfold /wp_pre /=.
@@ -207,12 +207,12 @@ Section rules.
     nclose specN ⊆ E →
     (N <= M)%R ->
     (((S M - S N) / S N) = ε)%R →
-    refines_right K (rand #w from #()) ∗
+    refines_right K (rand #w) ∗
     € ε ∗
     ▷ (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
         refines_right K #m  -∗ WP (Val #n) @ E {{ Φ }})
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -255,7 +255,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply "Hwp"; eauto.
     iSplit; done.
@@ -271,11 +271,11 @@ Section rules.
     nclose specN ⊆ E →
     (M <= N)%R ->
     (((S N - S M) / S N) = ε)%R →
-    refines_right K (rand #w from #()) ∗
+    refines_right K (rand #w) ∗
     € ε ∗
     ▷ (∀ (m : fin (S M)),
         refines_right K #m  -∗ WP (Val #(f m)) @ E {{ Φ }})
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (Hdom Hinj).
     set g := (λ m : fin (S M), Fin.of_nat_lt (Hdom m (fin_to_nat_lt m))).
@@ -327,7 +327,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     assert (#(g b) = #(f b)) as ->.
     {

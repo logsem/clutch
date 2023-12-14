@@ -58,7 +58,7 @@ Section wp_refinement.
     (€ ε ∗
        refines_right [] (of_val #false))
       ⊢ WP
-      (let: "x" := rand #z from #() in "x" = #t)
+      (let: "x" := rand #z in "x" = #t)
       {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
     iIntros (? Nε Nz) "(ε & #hs & hj)".
@@ -101,7 +101,7 @@ Section wp_refinement.
     (⊢ spec_ctx
      -∗ ⤇ (fill [] (of_val #false))
      -∗ € ε
-     -∗ WP (let: "x" := rand #z from #() in "x" = #t)
+     -∗ WP (let: "x" := rand #z in "x" = #t)
         {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}).
   Proof.
     iIntros. iApply ref_no_coll_l ; eauto. iFrame. done.
@@ -116,15 +116,15 @@ Section opsem_refinement.
       ((1 / S N) = ε)%R →
       N = Z.to_nat z →
       ARcoupl
-        (lim_exec_val ((let: "x" := rand #z from #() in "x" = #t)%E, σ))
-        (lim_exec_val (Val #false, σ'))
+        (lim_exec ((let: "x" := rand #z in "x" = #t)%E, σ))
+        (lim_exec (Val #false, σ'))
         (λ v v' : val, v = v')
         ε.
   Proof.
     intros Npos Nε Nz.
     epose proof
       (wp_aRcoupl_lim _
-         (let: "x" := rand #z from #() in "x" = #t)%E
+         (let: "x" := rand #z in "x" = #t)%E
          #false σ σ' ε (λ v v', v = v')) as adequacy.
     assert (TCEq N (Z.to_nat z)) by by rewrite Nz.
     assert (TCEq (1 / S N)%R ε) by by rewrite Nε.

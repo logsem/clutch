@@ -5,7 +5,7 @@ From iris.base_logic.lib Require Export ghost_map.
 From clutch.app_rel_logic Require Export app_weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.rel_logic Require Import spec_ra.
+From clutch.app_rel_logic Require Import spec_ra.
 From iris.prelude Require Import options.
 From clutch.ub_logic Require Export error_credits.
 
@@ -121,7 +121,7 @@ Qed.
 
 Lemma wp_rand (N : nat) (z : Z) E :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} rand #z from #() @ E {{{ (n : fin (S N)), RET #n; True }}}.
+  {{{ True }}} rand #z @ E {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -151,7 +151,7 @@ Qed.
 
 Lemma wp_rand_tape N α n ns z E :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; n :: ns) }}} rand #z from #lbl:α @ E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
+  {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl:α) #z @ E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -167,7 +167,7 @@ Qed.
 
 Lemma wp_rand_tape_empty N z α E :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; []) }}} rand #z from #lbl:α @ E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
+  {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -183,7 +183,7 @@ Qed.
 Lemma wp_rand_tape_wrong_bound N M z α E ns :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  {{{ ▷ α ↪ (M; ns) }}} rand #z from #lbl:α @ E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
+  {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
