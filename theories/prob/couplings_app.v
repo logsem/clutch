@@ -915,7 +915,7 @@ Qed.
              *** rewrite <- Rmult_1_r.
                  apply Rmult_le_compat_l; auto.
                  apply Hg.
-     + eapply ex_seriesC_le; [ | eapply (fubini_pos_seriesC_prod_ex_lr μ)]; eauto.
+     + eapply ex_seriesC_le; [ | eapply (fubini_pos_ex_seriesC_prod_ex_lr μ)]; eauto.
        * intro; simpl.
          split.
          ** apply SeriesC_ge_0'.
@@ -929,11 +929,11 @@ Qed.
             *** apply ex_seriesC_lmarg; auto.
     - intros; apply Rmult_le_pos; auto. apply Hg.
     - intros a.
-      eapply ex_seriesC_le; [ | eapply (ex_seriesC_lmarg μ a) ]; eauto.
+      eapply ex_seriesC_le; [ | unshelve eapply (ex_seriesC_lmarg μ _ a) ]; eauto.
       intros. split.
       + apply Rmult_le_pos; auto. apply Hg.
       + rewrite <- Rmult_1_r. apply Rmult_le_compat_l; auto; apply Hg.
-    - eapply ex_seriesC_le; [ | eapply (fubini_pos_seriesC_prod_ex_lr μ)]; eauto.
+    - eapply ex_seriesC_le; [ | eapply (fubini_pos_ex_seriesC_prod_ex_lr μ)]; eauto.
        + intro; simpl.
          split.
          * apply SeriesC_ge_0'.

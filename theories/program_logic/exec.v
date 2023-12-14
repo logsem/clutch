@@ -416,4 +416,62 @@ Proof.
     + apply upper_bound_ge_sup; intro; simpl; auto.
 Qed.
 
+Lemma lim_exec_continous_prob a ϕ r :
+    (∀ n, prob (exec_val n a) ϕ <= r) →
+    prob (lim_exec_val a) ϕ <= r.
+Proof.
+  intro Hm.
+  rewrite /prob.
+  erewrite SeriesC_ext; last first.
+  { intro; rewrite lim_exec_val_rw; auto. }
+  assert
+    (forall v, (if ϕ v then real (Sup_seq (λ n0 : nat, exec_val n0 a v)) else 0) =
+          (real (Sup_seq (λ n0 : nat, if ϕ v then exec_val n0 a v else 0)))) as Haux.
+  { intro v.
+    destruct (ϕ v); auto.
+    rewrite sup_seq_const //.
+  }
+  assert
+    (is_finite (Sup_seq (λ n0 : nat, SeriesC (λ v, if ϕ v then exec_val n0 a v else 0)))) as Hfin.
+  {
+    apply (Rbar_le_sandwich 0 1).
+    + apply (Sup_seq_minor_le _ _ 0%nat); simpl.
+      apply SeriesC_ge_0'.
+      intro v; destruct (ϕ v); auto.
+      lra.
+    + apply upper_bound_ge_sup; intro; simpl; auto.
+      apply (Rle_trans _ (SeriesC (exec_val n a))); auto.
+      apply (SeriesC_le _ (exec_val n a)); auto.
+      intro v; destruct (ϕ v); real_solver.
+  }
+  erewrite SeriesC_ext; last first.
+  {
+    intro; rewrite Haux //.
+  }
+  erewrite (MCT_seriesC _ (λ n, SeriesC (λ v, if ϕ v then exec_val n a v else 0))
+              (Sup_seq (λ n0 : nat, SeriesC (λ v, if ϕ v then exec_val n0 a v else 0))));
+    auto.
+  - apply finite_rbar_le; auto.
+    apply upper_bound_ge_sup; auto.
+  - intros n v.
+    destruct (ϕ v); auto.
+    lra.
+  - intros n v.
+    destruct (ϕ v); [ apply exec_val_mon | lra].
+  - intro v; destruct (ϕ v); exists 1; intro; auto; lra.
+  - intros n.
+    apply SeriesC_correct; auto.
+    apply (ex_seriesC_le _ (exec_val n a)); auto.
+    intro v; destruct (ϕ v); real_solver.
+  - rewrite (Rbar_le_sandwich 0 1); auto.
+    + apply (Sup_seq_correct (λ n0 : nat, SeriesC (λ v, if ϕ v then exec_val n0 a v else 0))).
+    + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+      apply SeriesC_ge_0'.
+      intro v; destruct (ϕ v); real_solver.
+    + apply upper_bound_ge_sup; intro; simpl; auto.
+      apply (Rle_trans _ (SeriesC (exec_val n a))); auto.
+      apply (SeriesC_le _ (exec_val n a)); auto.
+      intro v; destruct (ϕ v); real_solver.
+Qed.
+
 End prim_exec_lim.

@@ -72,6 +72,27 @@ Proof.
   tauto.
 Qed.
 
+(* PGH: resurrected some old classical facts in the Great Merge of 2023 to fix
+compatibility issues. Prove choice as a lemma instead of an additional axiom
+though. *)
+Lemma Choice :
+  ∀ A B (R : A → B → Prop), (∀ x, ∃ y, R x y) → {f : A → B | ∀ x, R x (f x)}.
+Proof.
+  intros ??? H.
+  exists (fun x => proj1_sig (constructive_indefinite_description _ (H x))).
+  intro x.
+  apply (proj2_sig (constructive_indefinite_description _ (H x))).
+Qed.
+
+Definition epsilon {A : Type} {P : A → Prop} (Hex : ∃ x, P x) : A :=
+  proj1_sig (Choice unit A (λ _ x, P x) (λ _, Hex)) tt.
+
+Lemma epsilon_correct {A : Type} (P : A → Prop) (Hex : ∃ x, P x) :
+  P (epsilon Hex).
+Proof.
+  exact (proj2_sig (Choice unit A (λ _ x, P x) (λ _, Hex)) tt).
+Qed.
+
 Lemma partial_inv_fun {A B : Type} (f : A -> B) :
   {f_inv : B -> option A | (forall b a, (f_inv b = Some a -> f a = b) /\ (f_inv b = None -> f a ≠ b)) }.
 Proof.

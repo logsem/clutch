@@ -576,11 +576,6 @@ Proof.
   - simpl in Hl; lra.
 Qed.
 
-Lemma fubini_fin_sum (h : nat * nat → R) n m:
-  sum_n (λ a, sum_n (λ b, h (a, b)) n ) m
-  = sum_n (λ b, sum_n (λ a, h (a, b)) m ) n.
-Proof. intros. apply sum_n_switch. Qed.
-
 Lemma series_pos_partial_le (h : nat → R) n:
   (∀ a, 0 <= h a) →
   ex_series h →

@@ -1,5 +1,5 @@
 From clutch.app_rel_logic Require Export app_clutch.
-From clutch.app_rel_logic.examples Require Export utils.
+From clutch.lib Require Export utils.
 
 Set Default Proof Using "Type*".
 
