@@ -2,9 +2,10 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap.
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Import distribution couplings couplings_app.
-From clutch.program_logic Require Import ectx_language.
+From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation.
 From clutch.prob_lang Require Export lang.
+From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [prob_lang] language *)
@@ -224,8 +225,8 @@ Local Open Scope R.
 Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ1')).
 Proof.
@@ -246,8 +247,8 @@ Lemma Rcoupl_rand_lbl_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 
   N ≠ M →
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #lbl:α1) σ1)
-    (prim_step (rand #z from #lbl:α2) σ2)
+    (prim_step (rand(#lbl:α1) #z) σ1)
+    (prim_step (rand(#lbl:α2) #z) σ2)
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
@@ -267,8 +268,8 @@ Lemma Rcoupl_rand_lbl_rand_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α1 z σ
   N ≠ M →
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #lbl:α1) σ1)
-    (prim_step (rand #z from #()) σ2)
+    (prim_step (rand(#lbl:α1) #z) σ1)
+    (prim_step (rand #z) σ2)
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
@@ -288,8 +289,8 @@ Lemma Rcoupl_rand_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} α2 z σ
   N ≠ M →
   N = Z.to_nat z →
   Rcoupl
-    (prim_step (rand #z from #()) σ1)
-    (prim_step (rand #z from #lbl:α2) σ2)
+    (prim_step (rand #z) σ1)
+    (prim_step (rand(#lbl:α2) #z) σ2)
     (λ ρ2 ρ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #(f n), σ2)).
 Proof.
@@ -360,7 +361,7 @@ Lemma Rcoupl_rand_state N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α' xs:
   N = Z.to_nat z →
   σ1'.(tapes) !! α' = Some (N; xs) →
   Rcoupl
-    (prim_step (rand #z from #()) σ1)
+    (prim_step (rand #z) σ1)
     (state_step σ1' α')
     (λ ρ2 σ2', ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1) ∧ σ2' = state_upd_tapes <[α' := (N; xs ++ [f n])]> σ1').
@@ -382,7 +383,7 @@ Lemma Rcoupl_state_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' α xs :
   σ1.(tapes) !! α = Some (N; xs) →
   Rcoupl
     (state_step σ1 α)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1')
     (λ σ2 ρ2' , ∃ (n : fin (S N)),
         σ2 = state_upd_tapes <[α := (N; xs ++ [n])]> σ1 ∧ ρ2' = (Val #(f n), σ1') ).
 Proof.
@@ -401,11 +402,11 @@ Lemma Rcoupl_rand_r N z (ρ1 : cfg) σ1' :
   N = Z.to_nat z →
   Rcoupl
     (dret ρ1)
-    (prim_step (rand #z from #()) σ1')
+    (prim_step (rand #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ?.
-  assert (head_reducible (rand #z from #()) σ1') as hr by solve_red.
+  assert (head_reducible (rand #z) σ1') as hr by solve_red.
   rewrite head_prim_step_eq //.
   eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
@@ -420,11 +421,11 @@ Lemma Rcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
   tapes σ1' !! α' = Some (N; []) →
   Rcoupl
     (dret ρ1)
-    (prim_step (rand #z from #lbl:α') σ1')
+    (prim_step (rand(#lbl:α') #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ??.
-  assert (head_reducible (rand #z from #lbl:α') σ1') as hr by solve_red.
+  assert (head_reducible (rand(#lbl:α') #z) σ1') as hr by solve_red.
   rewrite head_prim_step_eq //.
   eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
@@ -439,11 +440,11 @@ Lemma Rcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
   tapes σ1' !! α' = Some (M; ns) →
   Rcoupl
     (dret ρ1)
-    (prim_step (rand #z from #lbl:α') σ1')
+    (prim_step (rand(#lbl:α') #z) σ1')
     (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ???.
-  assert (head_reducible (rand #z from #lbl:α') σ1') as hr by solve_red.
+  assert (head_reducible (rand(#lbl:α') #z) σ1') as hr by solve_red.
   rewrite head_prim_step_eq //.
   eapply Rcoupl_mono.
   - apply Rcoupl_pos_R, Rcoupl_trivial.
@@ -730,6 +731,60 @@ Proof.
   move => ? n [-> xn]. apply ARcoupl_dret.
   exists n. auto.
 Qed.
+(** * state_step ~ fair_coin  *)
+Lemma state_step_fair_coin_coupl σ α bs :
+  σ.(tapes) !! α = Some ((1%nat; bs) : tape) →
+  Rcoupl
+    (state_step σ α)
+    fair_coin
+    (λ σ' b, σ' = state_upd_tapes (<[α := (1%nat; bs ++ [bool_to_fin b])]>) σ).
+Proof.
+  intros Hα.
+  exists (dmap (λ b, (state_upd_tapes (<[α := (1%nat; bs ++ [bool_to_fin b]) : tape]>) σ, b)) fair_coin).
+  repeat split.
+  - rewrite /lmarg dmap_comp /state_step.
+    rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2].
+    rewrite lookup_total_alt Hα /=.
+    eapply distr_ext=> σ'.
+    rewrite /dmap /= /pmf /= /dbind_pmf.
+    rewrite SeriesC_bool SeriesC_fin2 /=.
+    rewrite {1 3 5 7}/pmf /=.
+    destruct (decide (state_upd_tapes <[α:=(1%nat; bs ++ [1%fin])]> σ = σ')); subst.
+    + rewrite {1 2}dret_1_1 // dret_0; [lra|].
+      intros [= H%(insert_inv (tapes σ))]. simplify_eq.
+    + destruct (decide (state_upd_tapes <[α:=(1%nat; bs ++ [0%fin])]> σ = σ')); subst.
+      * rewrite {1 2}dret_0 // dret_1_1 //. lra.
+      * rewrite !dret_0 //. lra.
+  - rewrite /rmarg dmap_comp.
+    assert ((snd ∘ (λ b : bool, _)) = Datatypes.id) as -> by f_equal.
+    rewrite dmap_id //.
+  - by intros [σ' b] (b' & [=-> ->] & ?)%dmap_pos=>/=.
+Qed.
+
+(** * state_step ≫= state_step ~ dprod fair_coin fair_coin  *)
+Lemma state_steps_fair_coins_coupl (σ : state) (α1 α2 : loc) (bs1 bs2 : list (fin 2)):
+  α1 ≠ α2 →
+  σ.(tapes) !! α1 = Some ((1%nat; bs1) : tape) →
+  σ.(tapes) !! α2 = Some ((1%nat; bs2) : tape) →
+  Rcoupl
+    (state_step σ α1 ≫= (λ σ', state_step σ' α2))
+    (dprod fair_coin fair_coin)
+    (λ σ' '(b1, b2),
+      σ' = (state_upd_tapes (<[α1 := (1%nat; bs1 ++ [bool_to_fin b1])]>)
+              (state_upd_tapes (<[α2 := (1%nat; bs2 ++ [bool_to_fin b2])]>) σ))).
+Proof.
+  intros Hneq Hα1 Hα2.
+  rewrite /dprod.
+  rewrite -(dret_id_right (state_step _ _ ≫= _)) -dbind_assoc.
+  eapply Rcoupl_dbind; [|by eapply state_step_fair_coin_coupl].
+  intros σ' b1 ->.
+  eapply Rcoupl_dbind; [|eapply state_step_fair_coin_coupl]; last first.
+  { rewrite lookup_insert_ne //. }
+  intros σ' b2 ->.
+  eapply Rcoupl_dret.
+  rewrite /state_upd_tapes insert_commute //.
+Qed.
+
 
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
@@ -847,19 +902,19 @@ Inductive prob_head_step_pred : expr -> state -> Prop :=
 | RandTapePSP α σ N n ns z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; n :: ns) : tape) →
-  prob_head_step_pred (rand #z from #lbl:α) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandEmptyPSP N α σ z :
   N = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; []) : tape) →
-  prob_head_step_pred (rand #z from #lbl:α) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandTapeOtherPSP N M α σ ns z :
   N ≠ M →
   M = Z.to_nat z →
   σ.(tapes) !! α = Some ((N; ns) : tape) →
-  prob_head_step_pred (rand #z from #lbl:α) σ
+  prob_head_step_pred (rand(#lbl:α) #z) σ
 | RandNoTapePSP (N : nat) σ z :
   N = Z.to_nat z →
-  prob_head_step_pred (rand #z from #()) σ.
+  prob_head_step_pred (rand #z) σ.
 
 Definition head_step_pred e1 σ1 :=
   det_head_step_pred e1 σ1 ∨ prob_head_step_pred e1 σ1.
@@ -963,7 +1018,8 @@ Proof.
     specialize (H3 Hρ).
     assert (head_step_pred e1 σ1) as []; [|auto|auto].
     apply head_step_pred_ex_rel; eauto.
-  - pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1)); lra.
+  - by pose proof (pmf_SeriesC_ge_0 (head_step e1 σ1))
+      as ?%Rle_not_lt.
   - apply SeriesC_zero_dzero in HZ. eauto.
 Qed.
 

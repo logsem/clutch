@@ -61,7 +61,11 @@ Notation "'let,' ( x1 , x2 , x3 ) := e1 'in' e2" :=
 
 Notation "'let,' ( x1 , ( x2 , x3 ) ) := e1 'in' e2" :=
   ((Lam x1%E (Lam x2 (Lam x3 (Lam x1%E e2 (Fst x1)) (Snd (Snd x1))) (Fst (Snd x1)))) e1%E)
-  (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.
+    (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.
+
+Notation "'let,' ( x1 , x2 , x3 , x4 ) := e1 'in' e2" :=
+  ((Lam x1%E (Lam x2 (Lam x3 (Lam x4 (Lam x1%E e2 (Fst (Fst (Fst x1)))) (Snd x1)) (Snd (Fst x1))) (Snd (Fst (Fst x1))))) e1%E)
+  (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.  
 
 (*
 Using the '[hv' ']' printing box, we make sure that when the notation for match
@@ -106,9 +110,13 @@ Notation "'ref' e" := (Alloc e%E) (at level 10) : expr_scope.
 Notation "- e" := (UnOp MinusUnOp e%E) : expr_scope.
 
 Notation alloc := AllocTape.
-Notation "'rand' e1 'from' e2" := (Rand e1%E e2%E) (at level 75, left associativity) : expr_scope.
-Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
 
+
+Notation "'rand(' α ) e" := (Rand e%E α%E) (at level 70, right associativity, format "'rand(' α )  e") : expr_scope.
+Notation "'rand' e" := (Rand e%E (Val $ LitV LitUnit)) (at level 70) : expr_scope.
+
+Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
+  
 Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
 Notation "e1 - e2" := (BinOp MinusOp e1%E e2%E) : expr_scope.
 Notation "e1 * e2" := (BinOp MultOp e1%E e2%E) : expr_scope.
@@ -205,6 +213,10 @@ Notation "'let:m' x := e1 'in' e2" :=
 (* `assert e1 ;;; e2` errors out if e1 evaluates to false. *)
 Notation "'assert' e1 ;;; e2" := (if: e1%E then SOME e2%E else NONE)%E
   (at level 200, e1, e2 at level 200) : expr_scope.
+
+Notation "'while' e1 'do' e2 'end'" :=
+  ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #())) #())%E
+  (e1, e2 at level 200) : expr_scope.
 
 (* Shortcut for recursive definitions *)
 Notation "'letrec:' f x := e1 'in' e2" :=

@@ -2,10 +2,10 @@
 From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
-From clutch.program_logic Require Import language ectx_language ectxi_language ectx_lifting weakestpre.
+From clutch.common Require Import language ectx_language ectxi_language.
 From clutch.prob_lang Require Import locations notation lang.
-From clutch.rel_logic Require Import spec_ra model.
-From clutch.rel_logic Require Export proofmode primitive_laws spec_rules spec_tactics coupling_rules.
+From clutch.ctx_logic Require Import ectx_lifting weakestpre spec_ra model.
+From clutch.ctx_logic Require Export proofmode primitive_laws spec_rules spec_tactics coupling_rules.
 
 Section rules.
   Context `{!clutchRGS Σ}.
@@ -31,7 +31,8 @@ Section rules.
     intros Hpure Hϕ.
     rewrite refines_eq /refines_def.
     iIntros "IH" (j) "Hs Hnais".
-    wp_pures. iApply ("IH" with "Hs Hnais").
+    wp_pures. 
+    iApply ("IH" with "Hs Hnais").
   Qed.
 
   Lemma refines_wp_l E K e1 t A :
@@ -173,7 +174,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     α ↪ₛ (N; n :: ns)
     -∗ (α ↪ₛ (N; ns) -∗ REL t << fill K (of_val #n) @ E : A)
-    -∗ REL t << (fill K (rand #z from #lbl:α)) @ E : A.
+    -∗ REL t << (fill K (rand(#lbl:α) #z)) @ E : A.
   Proof.
     iIntros (->) "Hα Hlog".
     iApply refines_step_r.
@@ -188,7 +189,7 @@ Section rules.
     to_val e = None →
     ▷ α ↪ₛ (N; []) ∗
       (∀ n : fin (S N), α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
-    ⊢ REL e << fill K (rand #z from #lbl:α) @ E : A.
+    ⊢ REL e << fill K (rand(#lbl:α) #z) @ E : A.
   Proof.
     iIntros (-> ev) "[>Hα H]".
     rewrite refines_eq /refines_def.
@@ -209,7 +210,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (∀ (n : fin (S N)), REL e << fill K (Val #n) @ E : A)
-      ⊢ REL e << fill K (rand #z from #()) @ E : A.
+      ⊢ REL e << fill K (rand #z) @ E : A.
   Proof.
     iIntros (??) "H".
     rewrite refines_eq /refines_def.
@@ -245,7 +246,7 @@ Section rules.
   Proof.
     iIntros (<-) "Hlog".
     iApply refines_wp_l.
-    wp_alloc l. by iApply "Hlog".
+    wp_alloc l as "Hl". by iApply "Hlog".
   Qed.
 
   Lemma refines_load_l K E l q t A :
@@ -284,7 +285,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     (▷ α ↪ (N; n :: ns) ∗
      ▷ (α ↪ (N; ns) -∗ REL fill K (of_val #n) << t @ E : A))
-    -∗ REL fill K (rand #z from #lbl:α) << t @ E : A.
+    -∗ REL fill K (rand(#lbl:α) #z) << t @ E : A.
   Proof.
     iIntros (->) "[Hα Hlog]".
     iApply refines_wp_l.
@@ -296,7 +297,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     ▷ α ↪ (N; []) ∗
       ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << e @ E : A)
-    ⊢ REL fill K (rand #z from #lbl:α) << e @ E : A.
+    ⊢ REL fill K (rand(#lbl:α) #z) << e @ E : A.
   Proof.
     iIntros (->) "[>Hα H]".
     rewrite refines_eq /refines_def.
@@ -311,7 +312,7 @@ Section rules.
   Lemma refines_randU_l E K e (N : nat) (z : Z) A :
     TCEq N (Z.to_nat z) →
     (∀ (n : fin (S N)), REL fill K (Val #n) << e @ E : A)
-      ⊢ REL fill K (rand #z from #()) << e @ E : A.
+      ⊢ REL fill K (rand #z) << e @ E : A.
   Proof.
     iIntros (?) "H".
     rewrite refines_eq /refines_def.
@@ -367,7 +368,7 @@ Section rules.
     to_val e = None →
     ▷ α ↪ (N; ns) ∗
       (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL e << fill K' (rand #z from #()) @ E : A.
+    ⊢ REL e << fill K' (rand #z) @ E : A.
   Proof.
     iIntros (-> ?) "[>Hα Hcnt]".
     rewrite {2}refines_eq {1}/refines_def.
@@ -389,7 +390,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     ▷ α ↪ₛ (N; ns) ∗
       ▷ (∀ (n : fin (S N)), α ↪ₛ (N; ns ++ [f n]) -∗ REL fill K (Val #n) << e @ E : A)
-    ⊢ REL fill K (rand #z from #()) << e @ E : A.
+    ⊢ REL fill K (rand #z) << e @ E : A.
   Proof.
     iIntros (->) "[Hα Hcnt]".
     rewrite refines_eq /refines_def.
@@ -409,9 +410,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     ▷ α ↪ (N; []) ∗
       ▷ (∀ (n : fin (S N)), α ↪ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL fill K (rand #z from #lbl:α) << fill K' (rand #z from #()) @ E : A.
+    ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
   Proof.
-    iIntros (->) "(> α & H)".
+    iIntros (->) "(>α & H)".
     iApply refines_couple_tape_rand.
     { rewrite fill_not_val //. }
     iFrame => /=. iIntros (n) "Hα".
@@ -424,7 +425,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     ▷ α ↪ₛ (N; []) ∗
       ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL fill K (rand #z from #()) << fill K' (rand #z from #lbl:α) @ E : A.
+    ⊢ REL fill K (rand #z) << fill K' (rand(#lbl:α) #z) @ E : A.
   Proof.
     iIntros (->) "(>Hα & H)".
     iApply refines_couple_rand_tape.
@@ -439,7 +440,7 @@ Section rules.
   Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
     TCEq N (Z.to_nat z) →
     ▷ (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL fill K (rand #z from #()) << fill K' (rand #z from #()) @ E : A.
+    ⊢ REL fill K (rand #z) << fill K' (rand #z) @ E : A.
   Proof.
     iIntros (->) "Hcnt".
     rewrite refines_eq /refines_def.
@@ -455,6 +456,7 @@ Section rules.
     iIntros (v) "[% ([? ?] &?&?)]".
     iExists _. iFrame.
   Qed.
+
   Definition refines_couple_rands_lr := refines_couple_UU.
 
 End rules.

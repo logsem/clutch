@@ -2,9 +2,9 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.program_logic Require Import lifting ectx_lifting. 
+From clutch.ctx_logic Require Import lifting ectx_lifting. 
 From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.rel_logic Require Export primitive_laws spec_ra spec_rules. 
+From clutch.ctx_logic Require Export primitive_laws spec_ra spec_rules. 
 
 (* TODO: can we factor out a clever lemma to avoid duplication in all the
    coupling lemmas? *)
@@ -57,7 +57,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[$Hα $Hαs]").
     rewrite !wp_unfold /wp_pre /= He.
@@ -108,7 +108,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //; iSplit; auto. }
+      iFrame. rewrite pexec_O dret_1_1 //; iSplit; auto. }
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" with "[$Hα $Hαs //]").
     rewrite !wp_unfold /wp_pre /= He.
@@ -154,7 +154,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; ns) ∗ refines_right K (rand #z from #()) ∗
+    ▷ α ↪ (N; ns) ∗ refines_right K (rand #z) ∗
     (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ refines_right K #(f n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -189,7 +189,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" with "[$]").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(_; ns ++ [b]) : tape]> σ1)
@@ -201,7 +201,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; ns) ∗ refines_right K (rand #z from #()) ∗
+    ▷ α ↪ (N; ns) ∗ refines_right K (rand #z) ∗
     (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ refines_right K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof. apply (wp_couple_tape_rand _ Datatypes.id). Qed.
@@ -212,7 +212,7 @@ Section rules.
     nclose specN ⊆ E →
     spec_ctx ∗ ▷ α ↪ₛ (N; ns) ∗
     ▷ (∀ n : fin (S N), α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> He) "(#Hinv & >Hαs & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -238,7 +238,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iSpecialize ("Hwp" $! b with "[$Hαs]").
     iFrame.
     iModIntro.
@@ -250,16 +250,16 @@ Section rules.
     nclose specN ⊆ E →
     spec_ctx ∗ ▷ α ↪ₛ (N; ns) ∗
     ▷ (∀ n : fin (S N), α ↪ₛ (N; ns ++ [n]) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_tape _ Datatypes.id). Qed.
 
   (** * rand(α, N) ~ rand(unit, N) coupling *)
   Lemma wp_couple_rand_lbl_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ refines_right K (rand #z from #()) ∗
+    ▷ α ↪ (N; []) ∗ refines_right K (rand #z) ∗
     ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (??) "(>Hα & [#Hinv Hr] & HΦ)".
     iApply wp_couple_tape_rand => //.
@@ -273,18 +273,18 @@ Section rules.
   Lemma wp_couple_rand_lbl_rand_eq N z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ refines_right K (rand #z from #()) ∗
+    ▷ α ↪ (N; []) ∗ refines_right K (rand #z) ∗
     ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_lbl_rand _ Datatypes.id). Qed.
 
   (** * rand(unit, N) ~ rand(α, N) coupling *)
   Lemma wp_couple_rand_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α) ∗
+    ▷ α ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α) #z) ∗
     ▷ (∀ n : fin (S N), α ↪ₛ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (??) "(Hα & [#Hinv Hr] & Hwp)".
     iApply wp_fupd.
@@ -299,18 +299,18 @@ Section rules.
   Lemma wp_couple_rand_rand_lbl_eq N z K E α Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α) ∗
+    ▷ α ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α) #z) ∗
     ▷ (∀ (n : fin (S N)), α ↪ₛ (N; []) ∗ refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand_lbl _ Datatypes.id). Qed.
 
   (** * rand(unit, N) ~ rand(unit, N) coupling *)
   Lemma wp_couple_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    refines_right K (rand #z from #()) ∗
+    refines_right K (rand #z) ∗
     ▷ (∀ n : fin (S N), refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ?) "([#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -340,7 +340,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
@@ -349,18 +349,18 @@ Section rules.
   Lemma wp_couple_rand_rand_eq N z K E Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    refines_right K (rand #z from #()) ∗
+    refines_right K (rand #z) ∗
     ▷ (∀ n : fin (S N), refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_rand _ Datatypes.id). Qed.
 
     (** * rand(α, N) ~ rand(α, N) coupling *)
   Lemma wp_couple_rand_lbl_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α α' Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α') ∗
+    ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α') #z) ∗
     ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (??) "(>Hα & >Hαs & [#Hinv Hr] & Hwp)".
     iApply wp_couple_tapes; [done|done|].
@@ -375,9 +375,9 @@ Section rules.
   Lemma wp_couple_rand_lbl_rand_lbl_eq N z K E α α' Φ :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ refines_right K (rand #z from #lbl:α') ∗
+    ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ refines_right K (rand(#lbl:α') #z) ∗
     ▷ (∀ n : fin (S N), α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ refines_right K #n -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof. apply (wp_couple_rand_lbl_rand_lbl _ Datatypes.id). Qed.
 
   (** * rand(α, N) ~ rand(α, N) wrong bound coupling *)
@@ -386,9 +386,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     nclose specN ⊆ E →
-    ▷ α ↪ (M; xs) ∗ ▷ α' ↪ₛ (M; ys) ∗ refines_right K (rand #z from #lbl:α') ∗
+    ▷ α ↪ (M; xs) ∗ ▷ α' ↪ₛ (M; ys) ∗ refines_right K (rand(#lbl:α') #z) ∗
     ▷ (∀ n : fin (S N), α ↪ (M; xs) ∗ α' ↪ₛ (M; ys) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(>Hα & >Hαs & [#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -420,7 +420,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
@@ -431,9 +431,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     nclose specN ⊆ E →
-    ▷ α ↪ (M; xs) ∗ refines_right K (rand #z from #()) ∗
+    ▷ α ↪ (M; xs) ∗ refines_right K (rand #z) ∗
     ▷ (∀ n : fin (S N), α ↪ (M; xs) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #lbl:α @ E {{ Φ }}.
+    ⊢ WP rand(#lbl:α) #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(>Hα & [#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -464,7 +464,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
@@ -475,9 +475,9 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     nclose specN ⊆ E →
-    ▷ α ↪ₛ (M; ys) ∗ refines_right K (rand #z from #lbl:α) ∗
+    ▷ α ↪ₛ (M; ys) ∗ refines_right K (rand(#lbl:α) #z) ∗
     ▷ (∀ n : fin (S N), α ↪ₛ (M; ys) ∗ refines_right K #(f n) -∗ Φ #n)
-    ⊢ WP rand #z from #() @ E {{ Φ }}.
+    ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (-> ??) "(> Hα & [#Hinv Hr] & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
@@ -508,7 +508,7 @@ Section rules.
     iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
     { iModIntro. rewrite /spec_inv.
       iExists _, _, _, 0. simpl.
-      iFrame. rewrite exec_O dret_1_1 //. }
+      iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply wp_value.
     iApply ("Hwp" with "[$]").

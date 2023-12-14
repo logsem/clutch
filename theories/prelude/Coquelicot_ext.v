@@ -141,6 +141,28 @@ Proof.
     destruct p eqn:Hp;
       destruct q eqn:Hq;
       simpl in *; try lra.
+Qed. 
+
+Lemma Rle_exists_nat (x y : R) :
+  (0 <= x) → (0 < y) → ∃ (n : nat), x / (1 + n) < y.
+Proof.
+  intros Hx Hy.
+  assert (exists (r : R), 0 < r /\ x / r < y) as [r [Hr1 Hr2]].
+  {
+    exists ((x+1)/y); split.
+    - apply Rdiv_lt_0_compat; lra.
+    - apply Rlt_div_l.
+      + apply Rlt_gt,
+          Rdiv_lt_0_compat; lra.
+      + rewrite Rmult_comm Rmult_assoc Rinv_l; lra.
+  }
+  destruct (nfloor1_ex r Hr1) as [n Hn].
+  exists (S (S n)).
+  do 2 rewrite S_INR.
+  apply Rlt_div_l; [lra | ].
+  apply Rlt_div_l in Hr2; auto.
+  apply (Rlt_le_trans _ _ _ Hr2).
+  apply Rmult_le_compat_l; lra.
 Qed.
 
 Lemma norm_dist_mid x y z: norm (x - y) <= norm (x - z) + norm (z - y).

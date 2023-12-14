@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
 From clutch.prob Require Import distribution.
-From clutch.program_logic Require Import ectx_language.
+From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import lang.
 From iris.prelude Require Import options.
 Import prob_lang.

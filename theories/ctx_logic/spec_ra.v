@@ -5,7 +5,7 @@ From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
-From clutch.program_logic Require Import language ectxi_language exec.
+From clutch.common Require Import language ectxi_language.
 From clutch.prob_lang Require Import locations lang.
 
 Definition specN := nroot .@ "spec".
@@ -124,7 +124,7 @@ Section spec_ctx.
   Definition spec_inv : iProp Σ :=
     (∃ ρ e σ n,
         spec_interp_frag ρ ∗
-        ⌜exec n ρ (e, σ) = 1%R⌝ ∗
+        ⌜pexec n ρ (e, σ) = 1%R⌝ ∗
         spec_prog_auth e ∗
         spec_heap_auth σ.(heap) ∗
         spec_tapes_auth σ.(tapes))%I.

@@ -4,7 +4,7 @@ From iris.proofmode Require Import
   coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
 From clutch Require Import clutch lib.conversion.
 
-Definition flipL : val := λ: "e", int_to_bool (rand #1%nat from "e").
+Definition flipL : val := λ: "e", int_to_bool (rand("e") #1%nat).
 Definition flip : expr := (flipL #()).
 Definition allocB := alloc #1%nat.
 
@@ -29,7 +29,7 @@ Section specs.
   Proof.
     iIntros (Φ) "_ HΦ". rewrite /flip/flipL.
     wp_pures.
-    wp_bind (rand _ from _)%E.
+    wp_bind (rand(_) _)%E.
     wp_apply (wp_rand 1 with "[//]").
     iIntros (?) "_ /=".
     wp_apply (wp_int_to_bool with "[//]").
@@ -42,7 +42,7 @@ Section specs.
   Proof.
     iIntros (Φ) ">Hl HΦ". rewrite /flip/flipL.
     wp_pures.
-    wp_bind (rand _ from _)%E.
+    wp_bind (rand(_) _)%E.
     wp_apply (wp_rand_tape 1 with "Hl").
     iIntros "Hl /=".
     wp_apply (wp_int_to_bool with "[//]").
@@ -56,7 +56,7 @@ Section specs.
   Proof.
     iIntros (Φ) ">Hl HΦ". rewrite /flip/flipL.
     wp_pures.
-    wp_bind (rand _ from _)%E.
+    wp_bind (rand(_) _)%E.
     wp_apply (wp_rand_tape_empty with "Hl").
     iIntros (n) "Hl /=".
     wp_apply (wp_int_to_bool with "[//]").
@@ -80,7 +80,7 @@ Section specs.
   Proof.
     iIntros (?) "Hα Hr". rewrite /flip/flipL.
     tp_pures.
-    tp_bind (rand _ from _ )%E.
+    tp_bind (rand(_) _)%E.
     rewrite refines_right_bind.
     iDestruct "Hr" as "[#Hinv Hr]".
     iMod (step_rand with "[$]") as "(_ & Hj & Hl) /="; [done|].
@@ -182,8 +182,8 @@ Section specs.
   Proof.
     iIntros (?) "(Hr & HΦ)". rewrite /flip/flipL.
     wp_pures. tp_pures.
-    wp_bind (rand _ from _)%E.
-    tp_bind (rand _ from _)%E.
+    wp_bind (rand(_) _)%E.
+    tp_bind (rand(_) _)%E.
     rewrite refines_right_bind.
     iApply (wp_couple_rand_rand 1 (fn_bool_to_fin f)); [done|].
     iFrame.
@@ -284,7 +284,7 @@ Section specs.
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??) "(Hα & Hr & Hcnt)". rewrite /flip/flipL.
-    tp_pures. tp_bind (rand _ from _)%E.
+    tp_pures. tp_bind (rand(_) _)%E.
     rewrite refines_right_bind.
     iApply (wp_couple_tape_rand 1 (fn_bool_to_fin f) _ _ _ 1); [done|solve_ndisj|iFrame].
     iIntros (n) "[Hα Hr]".
@@ -327,7 +327,7 @@ Section specs.
     ⊢ WP flip @ E {{ Φ }}.
   Proof.
     iIntros (?) "(#Hctx & Hα & Hcnt)". rewrite /flip/flipL.
-    wp_pures. wp_bind (rand _ from _)%E.
+    wp_pures. wp_bind (rand(_) _)%E.
     iApply (wp_couple_rand_tape 1 (fn_bool_to_fin f)); [solve_ndisj|iFrame "Hctx Hα"].
     iIntros "!>" (n) "Hα".
     wp_apply (wp_int_to_bool with "[//]").

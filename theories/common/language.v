@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
-From iris.bi Require Export weakestpre.
+From clutch.bi Require Export weakestpre.
 From clutch.prob Require Import distribution.
-
+From clutch.prob Require Export markov. 
 
 Section language_mixin.
   Context {expr val state state_idx : Type}.
@@ -104,9 +104,6 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
- Definition stuckness_to_atomicity (s : stuckness) : atomicity := 
-   if s is MaybeStuck then StronglyAtomic else WeaklyAtomic. 
-
 Section language.
   Context {Λ : language}.
   Implicit Types v : val Λ.
@@ -141,18 +138,6 @@ Section language.
     atomic σ e' σ' :
       prim_step e σ (e', σ') > 0 →
       if a is WeaklyAtomic then irreducible e' σ' else is_Some (to_val e').
-
-  Inductive step (ρ1 : cfg Λ) (ρ2 : cfg Λ) : Prop :=
-  | step_atomic e1 σ1 :
-    ρ1 = (e1, σ1) →
-    prim_step e1 σ1 ρ2 > 0 →
-    step ρ1 ρ2
-  | step_state e α σ1 σ2 :
-    ρ1 = (e, σ1) →
-    ρ2 = (e, σ2) →
-    state_step σ1 α σ2 > 0 →
-    step ρ1 ρ2.
-  Local Hint Constructors step : core.
 
   Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.
@@ -336,7 +321,14 @@ Section language.
   Qed.
 End language.
 
-Global Hint Mode PureExec + - - ! - : typeclass_instances.
+Definition lang_markov_mixin (Λ : language) :
+  MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1).
+Proof.
+  constructor.
+  move=> [e σ] /= [v Hv] [e' σ'].
+  case (Rgt_dec (prim_step e σ (e', σ')) 0)
+    as [?%val_stuck | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
+Qed. 
+Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ).
 
-Global Arguments step_atomic {Λ ρ1 ρ2}.
-Global Arguments step_state {Λ ρ1 ρ2}.
+Global Hint Mode PureExec + - - ! - : typeclass_instances.

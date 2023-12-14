@@ -431,6 +431,38 @@ Proof.
   - intros (m1 & m2) (n & [=] & Hn)%dmap_pos =>/=. by simplify_eq.
 Qed.
 
+(* TODO: generalize *)
+Lemma Rcoupl_fair_coin_dunifP `{Countable A} (μ : distr A) R :
+  Rcoupl fair_coin μ R →
+  Rcoupl (dunifP 1) μ (λ n a, R (fin_to_bool n) a).
+Proof.
+  intros Hcpl.
+  assert (dunifP 1 = dmap bool_to_fin fair_coin) as ->.
+  { apply distr_ext=>n.
+    (* TODO: use some nicer lemma *)
+    rewrite /pmf/= /dbind_pmf SeriesC_bool.
+    rewrite /pmf/= /fair_coin_pmf /dret_pmf.
+    inv_fin n; simpl; [lra|]=> n.
+    inv_fin n; simpl; [lra|].
+    inversion 1. }
+  rewrite -(dret_id_right μ).
+  apply Rcoupl_dmap.
+  assert ((λ (a : bool) (a' : A), R (fin_to_bool (bool_to_fin a)) a') = R) as ->; [|done].
+  extensionality b.
+  rewrite bool_to_fin_to_bool //.
+Qed.
+
+Lemma fair_conv_comb_dbind `{Countable A, Countable B} (f : A → distr B) (μ1 μ2 : distr A):
+  fair_conv_comb μ1 μ2 ≫= f = fair_conv_comb (μ1 ≫= f) (μ2 ≫= f).
+Proof.
+  rewrite /fair_conv_comb.
+  rewrite -dbind_assoc.
+  apply Rcoupl_eq_elim.
+  eapply Rcoupl_dbind; [| apply Rcoupl_eq].
+  intros a b ->.
+  destruct b; simpl; apply Rcoupl_eq.
+Qed.
+
 Section Rcoupl_strength.
   Context `{Countable A, Countable B, Countable D, Countable E}.
   Context (μ1 : distr A) (μ2 : distr B).
@@ -583,6 +615,22 @@ Section refRcoupl.
     split; [|done].
     split; [done|].
     intro. rewrite HμR; lra.
+  Qed.
+
+  Lemma Rcoupl_refRcoupl' (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+    Rcoupl μ1 μ2 R → refRcoupl μ2 μ1 (flip R).
+  Proof.
+    rewrite /refRcoupl /Rcoupl.
+    intros (μ & ((HμL & HμR) & HμSupp)).
+    exists (dswap μ).
+    split; last first.
+    { intros [b a] [[? ?] [[= <- <-] ?]]%dmap_pos=>/=.      
+      by eapply (HμSupp (_, _)). }
+    split.
+    { rewrite lmarg_dswap //. }
+    intros a.
+    rewrite rmarg_dswap.
+    rewrite HμL //. 
   Qed.
 
   Lemma refRcoupl_dret a b (R : A → B → Prop) :
@@ -752,9 +800,9 @@ Notation "μ1 '≾' μ2 ':' R" :=
   (refRcoupl μ1 μ2 R)
   (at level 100, μ2 at next level,
    R at level 200,
-    format "'[hv' μ1  '/' '≾'  '/  ' μ2  :  R ']'").
+    format "'[hv' μ1  '/' '≾'  '/' μ2  :  R ']'").
 
 Notation "μ1 '≿' μ2 ':' R" :=
-  (refRcoupl μ2 μ1 R)
+  (refRcoupl μ2 μ1 (flip R))
   (at level 100, μ2 at next level,
    R at level 200, only parsing).

@@ -3,10 +3,10 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.program_logic Require Import language ectxi_language.
+From clutch.common Require Import language ectxi_language.
 From clutch.prob_lang Require Import locations class_instances notation tactics lang.
-From clutch.rel_logic Require Import primitive_laws model rel_rules proofmode.
-From clutch.rel_logic Require Export spec_tactics.
+From clutch.ctx_logic Require Import primitive_laws model rel_rules proofmode.
+From clutch.ctx_logic Require Export spec_tactics.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!clutchRGS Σ} e' K ℶ E e t A :
@@ -490,7 +490,7 @@ Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
 
 Lemma tac_rel_rand_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) N z n ns e t tres A E :
   TCEq N (Z.to_nat z) →
-  t = fill K (rand #z from #lbl:α) →
+  t = fill K (rand(#lbl:α) #z) →
   envs_lookup i1 ℶ1 = Some (false, α ↪ (N; n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (N; ns))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #n) →
@@ -510,7 +510,7 @@ Qed.
 
 Lemma tac_rel_rand_r `{!clutchRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tres A :
   TCEq N (Z.to_nat z) →
-  t = fill K (rand #z from (#lbl:α)) →
+  t = fill K (rand(#lbl:α) #z) →
   nclose specN ⊆ E →
   envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (N; n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (N; ns))) ℶ1 = Some ℶ2 →

@@ -1,5 +1,5 @@
 From stdpp Require Import base stringmap fin_sets fin_map_dom.
-From clutch.program_logic Require Export ectx_language ectxi_language.
+From clutch.common Require Export ectx_language ectxi_language.
 From clutch.prob_lang Require Export lang metatheory.
 
 (** Substitution in the contexts *)

@@ -19,7 +19,7 @@ From Coq Require Import ZArith String.
 
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_lang Require Import lang.
-From clutch.rel_logic Require Import model rel_rules rel_tactics.
+From clutch.ctx_logic Require Import model rel_rules rel_tactics.
 
 From Ltac2 Require Import Ltac2 Printf.
 From Ltac2 Require String Char Fresh Ident.
