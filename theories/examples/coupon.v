@@ -741,6 +741,125 @@ Qed.
   Lemma coupon_bijection' n m s (k:Z):
     n>0 -> map_set_relate m s -> Z.of_nat (size s) = k -> s∩set_seq 0 n = s ->
     ∃ f: (fin (S(n-1))) -> fin (S (n-1)), Bij f /\ forall x, fin_to_nat x < Z.to_nat k <-> is_Some (m!! fin_to_nat (f x)).
+    intros H0 H1 H2 H3.
+    apply subseteq_intersection_2_L in H3.
+    rewrite elem_of_subseteq in H3.
+    rewrite /map_set_relate in H1.
+    assert (∃ f : fin (S (n - 1)) → fin (S (n - 1)),
+               Bij f ∧ (∀ x : fin (S (n - 1)), x < Z.to_nat k ↔ fin_to_nat (f x) ∈ s)); last first.
+    { destruct H as [f[??]]. exists f. split; try done. intros; split; intros.
+      - rewrite <- H1. rewrite <- H4. done.
+      - rewrite H4.  rewrite H1. done.
+    }
+    clear m H1.
+    replace (S (n-1)) with n by lia.
+    assert (k>=0)%Z.
+    { rewrite <- H2. lia. }
+    assert (∃ k', Z.of_nat k' = k) as [k' Hk].
+    { eexists (Z.to_nat k). lia. }
+    rewrite <- Hk in H2.
+    rewrite <- Hk.
+    clear k H Hk.
+    apply Nat2Z.inj in H2 as H2.
+    rewrite Nat2Z.id.
+    pose (s' := set_seq 0 n ∖ s).
+    assert (size s' = n - k').
+    { rewrite /s'. rewrite size_difference.
+      - f_equal; try done. apply size_set_seq.
+      - intro. apply H3.
+    }
+    rename k' into k.
+    assert (k<=n) as Hk.
+    { rewrite <- H2.
+      erewrite <- size_set_seq.
+      apply subseteq_size.
+      intro. apply H3.
+    }
+    pose (f' := λ x: fin n,
+            let x' := fin_to_nat x in
+            if (decide(x'<k))
+            then elements s!!!x'
+            else elements s'!!!(x'-k)   
+         ).
+    assert (∀ x, f' x < n).
+    { intros. rewrite /f'.
+      case_decide.
+      + apply Forall_lookup_total_1.
+        -- rewrite <-set_Forall_elements. intro.
+           intros. apply H3 in H4. rewrite elem_of_set_seq in H4.
+           lia. 
+        -- replace (length (elements s)) with (size s) by done.
+           lia.
+      + apply Forall_lookup_total_1.
+        -- rewrite <-set_Forall_elements. intro.
+           intros. rewrite /s' in H4.
+           rewrite elem_of_difference in H4.
+           destruct H4. rewrite elem_of_set_seq in H4.
+           lia. 
+        -- replace (length (elements s')) with (size s') by done.
+           rewrite H. pose proof (fin_to_nat_lt x). lia.
+    }
+    pose (f:= λ x, nat_to_fin (H1 x)).
+    exists f.
+    split; last first; try rewrite /f; intros.
+    - rewrite fin_to_nat_to_fin. split; intros.
+      + rewrite /f'.
+        case_decide; try done.
+        apply Forall_lookup_total_1.
+        -- rewrite <- set_Forall_elements. intro. done.
+        -- replace (length _) with (size s) by done. lia.
+      + rewrite /f' in H4.
+        case_decide; try done.
+        exfalso.
+        assert (elements s' !!! (x-k) ∈ elements s').
+        { apply elem_of_list_lookup_total_2. replace (length(elements _)) with (size s') by done.
+          rewrite H. pose proof (fin_to_nat_lt x). lia.
+        }
+        rewrite elem_of_elements in H6.
+        rewrite /s' in H6.
+        rewrite elem_of_difference in H6.
+        destruct H6; eauto.
+    - assert (Inj eq eq (λ x : fin n, nat_to_fin (H1 x))).
+      + rewrite /Inj. intros x y.
+        simpl. intros.
+        assert (fin_to_nat (nat_to_fin (H1 x)) = fin_to_nat (nat_to_fin (H1 y))).
+        { by rewrite H4. } rewrite !fin_to_nat_to_fin in H5. clear H4.
+        rewrite /f' in H5.
+        do 2 case_decide.
+        -- admit.
+        -- (*contradiction *) exfalso.
+           assert (elements s !!! fin_to_nat x ∈ elements s).
+           { apply elem_of_list_lookup_total_2. replace (length _) with (size s) by done.
+             lia.
+           }
+           assert (elements s' !!! (y-k) ∈ elements s').
+           { apply elem_of_list_lookup_total_2. replace (length _) with (size s') by done.
+             rewrite H.
+             pose proof (fin_to_nat_lt y). lia.
+           }
+           rewrite elem_of_elements in H7. rewrite elem_of_elements in H8.
+           assert (s##s').
+           { rewrite /s'. by apply disjoint_difference_r1. }
+           pose proof (elem_of_disjoint s s'). rewrite H10 in H9.
+           eapply H9; try eauto. rewrite H5; done.
+        -- (* contradiction *)
+           exfalso.
+           assert (elements s' !!! (fin_to_nat (x) -k) ∈ elements s').
+           { apply elem_of_list_lookup_total_2. replace (length _) with (size s') by done.
+             rewrite H. pose proof (fin_to_nat_lt x). lia.
+           }
+           assert (elements s !!! fin_to_nat y ∈ elements s).
+           { apply elem_of_list_lookup_total_2. replace (length _) with (size s) by done.
+             lia.
+           }
+           rewrite elem_of_elements in H7. rewrite elem_of_elements in H8.
+           assert (s##s').
+           { rewrite /s'. by apply disjoint_difference_r1. }
+           pose proof (elem_of_disjoint s s'). rewrite H10 in H9.
+           eapply H9; try eauto. rewrite -H5; done.
+        -- admit. 
+      + split; try done.
+        apply finite_inj_surj; try done. 
   Admitted.
 
   Lemma spec_refines_coupon_collection_helper n lm (k:Z) cnt cnt':
