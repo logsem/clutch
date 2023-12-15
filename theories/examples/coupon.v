@@ -28,7 +28,7 @@ Definition cnt_map_helper : expr :=
     rec: "coupon_helper" "m" "n" "cnt" :=
       if: cnt_map "m" "n" = "n" then !"cnt" else
         "cnt" <- !"cnt" + #1;;
-        let: "k" := rand ("n" - #1) from #() in
+        let: "k" := rand ("n" - #1) in
         set "m" "k" #();;
         "coupon_helper" "m" "n" "cnt".
         
@@ -42,7 +42,7 @@ Definition cnt_map_helper : expr :=
     rec: "spec_coupon_helper" "t" "n" "cnt" :=
       if: "n" = "t" then !"cnt" else
         "cnt" <- !"cnt" + #1;;
-        let: "k" := rand ("n" - #1) from #() in
+        let: "k" := rand ("n" - #1) in
         if: ("t" ≤ "k") then "spec_coupon_helper" ("t"+#1) "n" "cnt"
         else "spec_coupon_helper" "t" "n" "cnt".
   
@@ -64,11 +64,14 @@ Section proofs.
   (* This is an invariant in the sense that it holds true for every recursive call, 
      but we do not technically allocate it as an invariant in the RA sense. 
    *)
+
+
+  (** * implementation refines spec*)
   Definition coupon_collection_inv n lm (k:Z) (cnt cnt' : loc): iProp Σ :=
     (∃(cntv : nat) s m,
         map_list lm m ∗ ⌜map_set_relate m s⌝ ∗ cnt' ↦ₛ #cntv ∗ cnt ↦ #cntv ∗ ⌜Z.of_nat (size s) = k⌝ ∗⌜s∩set_seq 0 n = s⌝ )%I.
 
-  
+
   Lemma wp_cnt_map_helper E lm m n s start:
     start <= n ->
     map_set_relate m s ->
@@ -587,5 +590,283 @@ Qed.
   
   
   
+
+
+  (** spec refines implementation*)
+
+  Definition coupon_collection_inv' n lm (k:Z) (cnt cnt' : loc): iProp Σ :=
+    (∃(cntv : nat) s m,
+        map_slist lm m ∗ ⌜map_set_relate m s⌝ ∗ cnt' ↦ₛ #cntv ∗ cnt ↦ #cntv ∗ ⌜Z.of_nat (size s) = k⌝ ∗⌜s∩set_seq 0 n = s⌝ )%I.
+
+
+  Local Lemma reverse_nat_ind bound:
+    forall (P:nat -> Prop), (∀ n, bound < n -> P n) ->
+                 (P bound) ->
+                 (forall n, n< bound-> P (S n) -> P n) ->                            
+                 ∀ n, P n.
+  Proof.
+    intros.
+    destruct (decide (bound < n)).
+    { apply H. done. }
+    apply not_lt in n0.
+    destruct (decide (bound = n)).
+    { subst. exact H0. }
+    remember (bound - n) as k.
+    assert (n<bound) by lia.
+    clear n0 n1.
+    clear H.
+    replace (n) with (bound - k) by lia.
+    clear n Heqk H2.
+    induction k.
+    { replace (bound - 0) with bound by lia. auto. }
+    destruct (decide (k<bound)).
+    (* - replace (bound - S k) with (bound - k) by lia. *)
+    (*   apply IHk. lia. *)
+    - apply H1; first lia.
+      replace (S (_-_)) with (bound - k) by lia.
+      done.
+    - replace (bound - S k) with (bound - k) by lia.
+      done.
+ Qed. 
   
+  Lemma step_cnt_map_helper E K lm m n s start:
+    ↑specN ⊆ E →
+    start <= n ->
+    map_set_relate m s ->
+    map_slist lm m -∗ ⌜s∩set_seq 0 n = s⌝ -∗
+    refines_right K (cnt_map_helper #lm #start #n) ={E}=∗
+    ∃ z: Z, refines_right K (#z) ∗ map_slist lm m ∗ ⌜z=size (s∩(set_seq start (n-start)))⌝ ∗
+         ⌜s∩set_seq 0 n = s⌝.
+  Proof.
+    iIntros (Hspec H Hms) "Hlm %Hs Hrr".
+    tp_pure.
+    iRevert (H).
+    iInduction start as [] "IH" using (reverse_nat_ind n) forall (K).
+    { iIntros. lia. }
+    - iIntros "%Hstart".
+    tp_pures; first simpl; eauto.
+    case_bool_decide; last done.
+    tp_pures. iModIntro. replace 0%Z with (Z.of_nat 0) by lia.
+    iExists 0. iFrame. iSplit; iPureIntro; try done.
+    inversion H. replace (_-_) with 0 by lia.
+    replace (set_seq _ _) with (∅ : gset nat).
+      ++ replace (s∩_) with (∅ : gset nat); first done.
+         symmetry. rewrite -disjoint_intersection_L. apply disjoint_empty_r.
+      ++ rewrite elem_of_equiv_empty_L. intros. intro.
+         by rewrite elem_of_empty in H0.
+    - iIntros "%Hstart". tp_pures; first simpl; eauto.
+      case_bool_decide.
+      { inversion H0. lia. }
+      tp_pures.
+      tp_bind (get _ _).
+      rewrite refines_right_bind.
+      iMod (spec_get with "[$Hlm][$Hrr]") as "[Hrr Hlm]"; first done.
+      rewrite -refines_right_bind /=.
+      destruct  (m !! start) eqn:Hd.
+      + do 3 tp_pure. replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia.
+        iPoseProof ("IH" with "Hlm") as "IH'".
+        tp_bind (App _ _)%E.
+        rewrite refines_right_bind.
+        iPoseProof ("IH'" with "Hrr") as "IH'".
+        iAssert (⌜S start <= n⌝)%I as "T".
+        { iPureIntro. lia. }
+        iMod ("IH'" with "[$T]") as "H".
+        iDestruct "H" as "(%z & Hrr & Hlm & %Hsize & _)".
+        rewrite -refines_right_bind => /=.
+        tp_pures.
+        iModIntro.
+        iExists _. iFrame. iSplit; try done.
+        iPureIntro.
+        replace (_∩ set_seq start _) with ({[start]}∪(s ∩ set_seq (S start) (n - S start))).
+        { rewrite size_union.
+           { rewrite size_singleton. lia. }
+           rewrite disjoint_singleton_l.
+           rewrite elem_of_intersection.
+           intros [??].
+           rewrite elem_of_set_seq in H2. lia.
+        }
+        -- rewrite set_eq. clear K. intros. split; intros K.
+           --- rewrite elem_of_union in K. destruct K as [K|K].
+               +++ rewrite elem_of_singleton in K. subst.
+                   rewrite elem_of_intersection. split; first by rewrite Hms Hd.
+                   rewrite elem_of_set_seq. split; try lia.
+               +++ rewrite elem_of_intersection in K.
+                   destruct K as [K K'].
+                   rewrite elem_of_intersection. split; try done.
+                   rewrite elem_of_set_seq. rewrite elem_of_set_seq in K'.
+                   destruct K'.
+                   split; try lia.
+           --- rewrite elem_of_intersection in K. destruct K as [K K'].
+               rewrite elem_of_union. 
+               rewrite elem_of_intersection.
+               rewrite elem_of_set_seq. rewrite elem_of_set_seq in K'.
+               destruct K' as [K' K''].
+               destruct (decide (x=start)).
+               +++ left. subst. by apply elem_of_singleton.
+               +++ right.
+                   split; try done.
+                   split; try lia.
+      + do 3 tp_pure.
+        tp_bind (App _ _)%E.
+        rewrite refines_right_bind.
+        replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia.
+        iPoseProof ("IH" with "[$Hlm][$Hrr]") as "IH'".
+        iAssert (⌜S start <= n⌝)%I as "T".
+        { iPureIntro. lia. }
+        iMod ("IH'" with "[$T]") as "H".
+        iDestruct "H" as "(%z & Hrr & Hlm & %Hsize & _)".
+        rewrite -refines_right_bind => /=.
+        tp_pures.
+        iModIntro.
+        iExists _. iFrame. iSplit; try done.
+        iPureIntro.
+        rewrite Hsize.
+        assert (start ∉ s).
+        { intro H5. rewrite Hms in H5. rewrite Hd in H5. inversion H5. done. }
+        do 2 f_equal.
+        rewrite set_eq. intros. split; intros.
+        ++ rename H2 into H6. rewrite elem_of_intersection in H6. destruct H6 as [H6 H6'].
+           rewrite elem_of_intersection; split; try done.
+           rewrite elem_of_set_seq in H6'. destruct H6'. rewrite elem_of_set_seq.
+           split; try lia.
+        ++ rewrite elem_of_intersection. rename H2 into H6. rewrite elem_of_intersection in H6. 
+           destruct H6. split; try done.
+           rewrite elem_of_set_seq in H3. rewrite elem_of_set_seq. split; try lia.
+           assert (x≠start).
+           { intro. subst. done. }
+           lia.
+  Qed.
+
+  
+  Lemma coupon_bijection' n m s (k:Z):
+    n>0 -> map_set_relate m s -> Z.of_nat (size s) = k -> s∩set_seq 0 n = s ->
+    ∃ f: (fin (S(n-1))) -> fin (S (n-1)), Bij f /\ forall x, fin_to_nat x < Z.to_nat k <-> is_Some (m!! fin_to_nat (f x)).
+  Admitted.
+
+  Lemma spec_refines_coupon_collection_helper n lm (k:Z) cnt cnt':
+    n>0->
+    ⊢ coupon_collection_inv' n lm k cnt cnt' -∗ REL spec_coupon_helper #k #n #cnt << coupon_helper #lm #n #cnt' : lrel_nat.
+  Proof.
+    intros.  
+    iIntros "Inv".
+    rel_pure_l.
+    rel_pure_r.
+    iRevert "Inv".
+    iLöb as "IH" forall (k).
+    iIntros "Inv".
+    iDestruct "Inv" as (???) "(Hml&%Hms&Hc'&Hc&%&%)".
+    rel_pures_l.
+    do 9 rel_pure_r.
+    rewrite -!/cnt_map_helper.
+    case_bool_decide.
+    - (* finish collecting*)
+      rel_apply_r (refines_step_r _ _ _ (cnt_map_helper _ _ _)).
+      iIntros (K) "Hrr".
+      replace 0%Z with (Z.of_nat 0%nat) by lia.
+      iMod (step_cnt_map_helper with "[$Hml][][$Hrr]") as "Hrr";[done|lia|done|done|..].
+      iDestruct "Hrr" as "(%v & Hrr & Hlm & %Hv & %Hs)".
+      iModIntro. iExists (#v). iFrame. subst.
+      replace (size (_∩_)) with n.
+      2:{ inversion H2. replace (n-0) with n by lia. rewrite Hs. by apply Nat2Z.inj. }
+      rel_pures_r. case_bool_decide; try done.
+      rel_pures_r. rel_pures_l.
+      rel_load_l. rel_load_r. rel_values.
+    - rel_apply_r (refines_step_r _ _ _ (cnt_map_helper _ _ _)).
+      iIntros (K) "Hrr".
+      replace 0%Z with (Z.of_nat 0) by lia.
+      iMod (step_cnt_map_helper with "[$Hml][][$Hrr]") as "Hrr"; [done|lia|done|done|].
+      iDestruct "Hrr" as "(%v & Hrr & Hlm & %Hv & %Hs)".
+      iModIntro. iExists (#v).
+      iFrame.
+      rel_pure_r.
+      case_bool_decide.
+      { exfalso. subst. apply H2. f_equal. inversion H3.
+        repeat f_equal. replace (n-0) with n by lia. done.
+      }
+      rel_pures_l; rel_pures_r.
+      rel_load_l; rel_load_r.
+      rel_pures_l; rel_pures_r.
+      rel_store_l; rel_store_r.
+      rel_pures_l; rel_pures_r.
+      destruct (coupon_bijection' _ _ _ _ H  Hms H0 H1) as [f[]].
+      rel_apply (refines_couple_UU _ f).
+      { by replace (Z.to_nat(Z.of_nat n - 1)) with (n-1) by lia. }
+      iModIntro.
+      iIntros (r).
+      rel_pures_l. rel_pures_r.
+      rel_apply_r (refines_step_r _ _ _ (set _ _ _)).
+      iIntros (K') "Hrr".
+      iMod (spec_set with "[$Hlm][$Hrr]") as "[Hrr Hlm]"; first done.
+      iModIntro. iExists _; iFrame.
+      do 2 rel_pure_r.
+      case_bool_decide.
+      + (* new coupon*) do 2 rel_pure_l.
+        iApply ("IH" $! (k+1)%Z with "[Hc' Hc Hlm]").
+        iExists _, ({[fin_to_nat (f r)]} ∪ s), _.
+        replace (Z.of_nat cntv + 1)%Z with (Z.of_nat (S cntv)) by lia. iFrame.
+        iSplit; iPureIntro.
+        -- split; intros.
+           ++ rewrite lookup_insert_is_Some'.
+              apply elem_of_union in H7 as [H7|H7].
+              --- rewrite elem_of_singleton in H7; subst; eauto.
+              --- right. by rewrite -Hms.
+           ++ rewrite elem_of_union. rewrite lookup_insert_is_Some' in H7.
+              destruct H7 as [H7|H7].
+              --- left. subst. by apply elem_of_singleton.
+              --- right. by rewrite Hms.
+        -- split.
+           ++ rewrite size_union.
+              --- rewrite size_singleton. rewrite -H0. lia.
+              --- rewrite disjoint_singleton_l. intro. rewrite Hms in H7.
+                  rewrite -H5 in H7. lia.
+           ++ apply subseteq_intersection_1_L.
+              rewrite union_subseteq. split; [|by apply subseteq_intersection_2_L].
+              rewrite singleton_subseteq_l. rewrite elem_of_set_seq.
+              split; simpl; try lia.
+              pose proof (fin_to_nat_lt (f r)). lia.
+      + (* old coupon*)
+        rel_pure_l.
+        iApply ("IH" $! k with "[Hc' Hc Hlm]").
+        iExists _, s, _.
+        replace (Z.of_nat cntv + 1)%Z with (Z.of_nat (S cntv)) by lia.
+        iFrame.
+        iSplit; iPureIntro.
+        -- split; intros; try split.
+           ++ rewrite lookup_insert_is_Some'.
+              rewrite Hms in H7. by right.
+           ++ rewrite Hms. rewrite lookup_insert_is_Some' in H7.
+              destruct H7.
+              --- subst. rewrite -H5. lia.
+              --- done.
+        -- by split.
+  Qed. 
+  
+  Lemma spec_refines_coupon_collection n:
+    n>0 ->
+    ⊢ REL spec_coupon_collection (#n) << coupon_collection (#n): lrel_nat.
+  Proof.
+    intros Hn.
+    rel_pures_l.
+    rel_pures_r.
+    rel_apply_r (refines_step_r _ _ _ (init_map #())).
+    iIntros (K) "Hrr".
+    iMod (spec_init_map with "[Hrr]") as "(%m & H1 & H2)"; try done.
+    iModIntro.
+    iExists (#m); iFrame.
+    rel_pures_r.
+    rel_alloc_r cnt' as "Hcnt'".
+    do 2 rel_pure_r.
+    rel_alloc_l cnt as "Hcnt". do 2 rel_pure_l.
+    rewrite -/spec_coupon_helper-/coupon_helper.
+    iApply (spec_refines_coupon_collection_helper with "[Hcnt' Hcnt H2]"); first done.
+    rewrite /coupon_collection_inv.
+    iExists 0,∅,_. iFrame. iSplit.
+    - iPureIntro. intros. split; intros H; [by rewrite elem_of_empty in H|]. 
+      destruct H as [? H']. rewrite lookup_empty in H'.
+      inversion H'.
+    - iPureIntro. split; try done.
+      apply disjoint_intersection_L.
+      done.
+  Qed.
+    
 End proofs.
