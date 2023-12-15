@@ -826,7 +826,24 @@ Qed.
         { by rewrite H4. } rewrite !fin_to_nat_to_fin in H5. clear H4.
         rewrite /f' in H5.
         do 2 case_decide.
-        -- admit.
+        -- pose proof (NoDup_elements s).
+           assert (∃ q, elements s !! (fin_to_nat x) = Some q) as [??].
+           { assert (is_Some (elements s !! fin_to_nat x)); last eauto.
+             apply lookup_lt_is_Some_2.
+             replace (length _) with (size s) by done.
+             lia.
+           }
+           assert (∃ q, elements s !! (fin_to_nat y) = Some q) as [??].
+           { assert (is_Some (elements s !! fin_to_nat y)); last eauto.
+             apply lookup_lt_is_Some_2.
+             replace (length _) with (size s) by done.
+             lia.
+           }
+           apply list_lookup_total_correct in H9 as H11.
+           rewrite -H5 in H11. apply list_lookup_total_correct in H8 as H12.
+           rewrite H11 in H12. rewrite H12 in H9.
+           epose proof (NoDup_lookup (elements s) _ _ _ H7 H8 H9).
+           apply fin_to_nat_inj. done.
         -- (*contradiction *) exfalso.
            assert (elements s !!! fin_to_nat x ∈ elements s).
            { apply elem_of_list_lookup_total_2. replace (length _) with (size s) by done.
@@ -857,10 +874,28 @@ Qed.
            { rewrite /s'. by apply disjoint_difference_r1. }
            pose proof (elem_of_disjoint s s'). rewrite H10 in H9.
            eapply H9; try eauto. rewrite -H5; done.
-        -- admit. 
+        -- pose proof (NoDup_elements s').
+           assert (∃ q, elements s' !! ((fin_to_nat x)-k) = Some q) as [??].
+           { assert (is_Some (elements s' !! ((fin_to_nat x)-k))); last eauto.
+             apply lookup_lt_is_Some_2.
+             replace (length _) with (size s') by done.
+             pose proof (fin_to_nat_lt x). lia.
+           }
+           assert (∃ q, elements s' !! ((fin_to_nat y)-k) = Some q) as [??].
+           { assert (is_Some (elements s' !! ((fin_to_nat y)-k))); last eauto.
+             apply lookup_lt_is_Some_2.
+             replace (length _) with (size s') by done.
+             pose proof (fin_to_nat_lt y). lia.
+           }
+           apply list_lookup_total_correct in H9 as H11.
+           rewrite -H5 in H11. apply list_lookup_total_correct in H8 as H12.
+           rewrite H11 in H12. rewrite H12 in H9.
+           epose proof (NoDup_lookup (elements s') _ _ _ H7 H8 H9).
+           apply fin_to_nat_inj. lia. 
       + split; try done.
-        apply finite_inj_surj; try done. 
-  Admitted.
+        apply finite_inj_surj; try done.
+        Unshelve. all: apply _.
+  Qed.
 
   Lemma spec_refines_coupon_collection_helper n lm (k:Z) cnt cnt':
     n>0->
