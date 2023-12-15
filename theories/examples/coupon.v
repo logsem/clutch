@@ -1022,5 +1022,17 @@ Qed.
       apply disjoint_intersection_L.
       done.
   Qed.
-    
+
+  
 End proofs.
+
+  Theorem coupon_collection_spec_equiv (n:nat):
+    (n>0)%Z -> ∅ ⊨ coupon_collection (#n) =ctx= spec_coupon_collection (#n) : TNat.
+  Proof.
+    intros. 
+    split.
+    - eapply (refines_sound clutchRΣ).
+      intros. simpl. apply: coupon_collection_refines_spec. lia.
+    - eapply (refines_sound clutchRΣ).
+      intros. simpl. apply: spec_refines_coupon_collection. lia.    
+  Qed.
