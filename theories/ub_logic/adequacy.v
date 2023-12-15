@@ -224,3 +224,23 @@ Proof.
   intro n.
   apply (wp_union_bound Σ); auto.
 Qed.
+
+Theorem wp_union_bound_epsilon_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{ub_clutchGS Σ} (ε':nonnegreal), ε<ε' -> ⊢ € ε' -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  ub_lift (lim_exec (e, σ)) φ ε.
+Proof.
+  intros H'.
+  apply ub_lift_epsilon_limit.
+  { destruct ε. simpl. lra. }
+  intros ε0 H1.
+  assert (0<=ε0) as Hε0.
+  { trans ε; try lra. by destruct ε. }
+  pose (mknonnegreal ε0 Hε0) as NNRε0.
+  assert (ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
+  { by simpl. }
+  rewrite Heq.
+  eapply wp_union_bound_lim; first done.
+  intros. iIntros "He".
+  iApply H'; try iFrame.
+  simpl. destruct ε; simpl in H1; simpl; lra.
+Qed.
