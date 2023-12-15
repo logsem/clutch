@@ -1,7 +1,6 @@
 From clutch.prelude Require Import base.
-From clutch.program_logic Require Import weakestpre.
 From clutch.prob_lang Require Import notation lang.
-From clutch.rel_logic Require Import model spec_ra.
+From clutch.ctx_logic Require Import weakestpre model spec_ra.
 From clutch.typing Require Import types.
 From clutch Require Import clutch.
 

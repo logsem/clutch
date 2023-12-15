@@ -29,7 +29,7 @@ Context {Δ : listO (lrelC Σ)}.
 #[local] Notation T := (interp τG Δ).
 #[local] Notation n := (S n'').
 
-#[local] Definition rnd t := (rand #n from t)%E.
+#[local] Definition rnd t := (rand(t) #n)%E.
 
 Import valgroup_notation valgroup_tactics.
 

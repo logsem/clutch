@@ -7,7 +7,7 @@ Definition lazy : expr :=
     let: "s" := ref NONEV in
     λ: <>,
       match: !"s" with
-      | NONE => let: "n" := rand "N" from #() in
+      | NONE => let: "n" := rand "N" in
                 "s" <- SOME "n" ;;
                 "n"
       | SOME "n" => "n"
@@ -15,7 +15,7 @@ Definition lazy : expr :=
 
 Definition eager : expr :=
   λ: "N",
-  let: "n" := rand "N" from #() in
+  let: "n" := rand "N" in
   λ: <>, "n".
 
 (** An intermediate version of [lazy] that uses a tape to allow presampling
@@ -26,7 +26,7 @@ Definition lazy_with_tape : expr :=
   let: "s" := ref NONEV in
   λ: <>,
     match: !"s" with
-    | NONE => let: "n" := rand "N" from "α" in
+    | NONE => let: "n" := rand("α") "N" in
               "s" <- SOME "n" ;;
               "n"
     | SOME "n" => "n"
@@ -66,8 +66,8 @@ Section logical_ref.
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
-      rel_bind_l (rand _ from _)%E.
-      rel_bind_r (rand _ from _)%E.
+      rel_bind_l (rand(_) _)%E.
+      rel_bind_r (rand(_) _)%E.
       rel_apply_l (refines_couple_rands_r with "[-$Hα]").
       iIntros "!>" (n) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
@@ -174,8 +174,8 @@ Section logical_ref.
     iIntros "[(Hα & [[Hl Hl'] | >[%b [Hl Hl']]]) Hclose]".
     - rel_load_l. rel_pures_l.
       rel_load_r. rel_pures_r.
-      rel_bind_l (rand _ from _)%E.
-      rel_bind_r (rand _ from _)%E.
+      rel_bind_l (rand(_) _)%E.
+      rel_bind_r (rand(_) _)%E.
       iApply (refines_couple_rands_l with "[-$Hα]").
       iIntros "!>" (n) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.

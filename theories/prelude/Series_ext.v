@@ -8,6 +8,88 @@ Import Hierarchy.
 
 Open Scope R.
 
+Section rbar_extra.
+
+  Lemma Rbar_le_sandwich p q r :
+    Rbar_le (Finite p) r ->
+    Rbar_le r (Finite q) ->
+    Finite (real r) = r.
+  Proof.
+    intros Hp Hq.
+    destruct r eqn:Hr; auto.
+    - destruct Hq.
+    - destruct Hp.
+  Qed.
+
+  Lemma rbar_le_finite (p : R) (q : Rbar) :
+    is_finite q ->
+    Rbar_le p q ->
+    p <= real q.
+  Proof.
+    intros Hq Hle.
+    rewrite /is_finite/= in Hq.
+    destruct q; auto; simplify_eq.
+  Qed.
+
+  Lemma finite_rbar_le (p : R) (q : Rbar) :
+    is_finite q ->
+    Rbar_le q p ->
+    q <= real p.
+  Proof.
+    intros Hq Hle.
+    rewrite /is_finite/= in Hq.
+    destruct q; auto; simplify_eq.
+  Qed.
+
+  Lemma rbar_le_rle (p : R) (q : R) :
+    Rbar_le (Finite p) (Finite q) <-> Rle p q.
+  Proof.
+    auto.
+  Qed.
+
+  Lemma is_finite_bounded (p q : R) (r : Rbar) :
+    Rbar_le p r ->
+    Rbar_le r q ->
+    is_finite r.
+  Proof.
+    intros H1 H2.
+    rewrite /is_finite.
+    destruct r eqn:Hr; auto.
+    - destruct H2.
+    - destruct H1.
+  Qed.
+
+  Lemma rbar_finite_real_eq (p : Rbar) :
+    is_finite p ->
+    Finite (real p) = p.
+  Proof.
+    intro Hfin.
+    destruct p; auto.
+  Qed.
+
+
+  Lemma rbar_le_finite_real r :
+    Rbar_le (Finite 0) r ->
+    Rbar_le (Finite (real r)) r.
+  Proof.
+    intro Hpos.
+    destruct r eqn:Heq; simpl; auto.
+    apply Rle_refl.
+  Qed.
+
+
+  Lemma rbar_scal_r (p : Rbar) (r : R) :
+    is_finite p ->
+    (real p) * r = real (Rbar_mult p (Finite r)).
+  Proof.
+    intro Hfin.
+    destruct p ; simpl; auto.
+    all:case_match; simpl; try lra; inversion Hfin.
+  Qed.
+
+
+End rbar_extra.
+
 Lemma ex_series_eventually0 (a: nat → R):
   (∃ N, ∀ n, n ≥ N → a n = 0) → ex_series a.
 Proof.
@@ -202,6 +284,83 @@ Proof.
     apply (Sup_seq_minor_le _ _ m).
     apply (Sup_seq_minor_le _ _ n).
     simpl; lra.
+Qed.
+
+Lemma Sup_seq_scal_r (a : R) (u : nat → Rbar):
+  0 <= a →
+  Sup_seq (λ n : nat, Rbar_mult (u n) a) = Rbar_mult (Sup_seq u) a.
+Proof.
+  intro.
+  rewrite Rbar_mult_comm -Sup_seq_scal_l //.
+  apply Sup_seq_ext.
+  intro; apply Rbar_mult_comm.
+Qed.
+
+
+Fixpoint max_seq (f : nat -> nat) n :=
+  match n with
+  | 0 => f 0%nat
+  | S m => max (f (S m)) (max_seq f m)
+  end.
+
+Lemma sum_max_seq (f : nat -> R) h n `{Bij nat nat h}:
+  (forall n, 0 <= f n) ->
+  (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
+Admitted.
+(*
+    intro.
+    apply partial_sum_mon.
+    intro; induction n.
+    - rewrite sum_O /max_seq.
+      destruct (h 0%nat).
+      + rewrite sum_O; lra.
+      + rewrite sum_Sn.
+        etrans; [ | apply Rplus_le_compat_r, partial_sum_pos; auto].
+        lra.
+   - rewrite sum_Sn.
+     unfold max_seq.
+     fold max_seq.
+     etrans; [ apply Rplus_le_compat_r, IHn | ].
+     apply Nat.max_case.
+ *)
+
+Lemma is_series_bijection (f : nat -> R) h v `{Bij nat nat h} :
+  (forall n, 0 <= f n) ->
+  is_series f v ->
+  is_series (λ n, f (h n)) v.
+Proof.
+  intros Hpos Hf.
+  unfold is_series.
+  rewrite /is_series.
+  apply sup_is_lim; auto.
+  apply lim_is_sup in Hf; auto.
+  intro eps; split.
+  - assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
+    {
+      intro; eapply sum_max_seq; eauto.
+    (*
+        induction n.
+        - rewrite sum_O/=.
+          apply partial_sum_elem; auto.
+        - rewrite sum_Sn/=.
+          destruct (Nat.le_dec (h (S n)) (max_seq h n)) as [H1 | H2].
+          + pose proof (PeanoNat.Nat.max_r_iff (h (S n)) (max_seq h n)) as [? ->]; auto.
+            apply (Rle_trans _ (sum_n (λ n0 : nat, f n0) (max_seq h n) + f (h (S n))));
+              [apply Rplus_le_compat_r; auto | ].
+            admit.
+          + admit.
+     *)
+    }
+    intro n.
+    eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
+Abort.
+
+Lemma fubini_fin_sum (h : nat * nat → R) n m:
+  sum_n (λ a, sum_n (λ b, h (a, b)) n ) m
+  = sum_n (λ b, sum_n (λ a, h (a, b)) m ) n.
+Proof.
+  intros.
+  apply sum_n_switch.
 Qed.
 
 Lemma Series_real_sup (h: nat → R) :
@@ -416,11 +575,6 @@ Proof.
   - simpl in Hl; lra.
   - simpl in Hl; lra.
 Qed.
-
-Lemma fubini_fin_sum (h : nat * nat → R) n m:
-  sum_n (λ a, sum_n (λ b, h (a, b)) n ) m
-  = sum_n (λ b, sum_n (λ a, h (a, b)) m ) n.
-Proof. intros. apply sum_n_switch. Qed.
 
 Lemma series_pos_partial_le (h : nat → R) n:
   (∀ a, 0 <= h a) →
