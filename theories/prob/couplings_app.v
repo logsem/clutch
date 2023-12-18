@@ -953,6 +953,11 @@ Qed.
     intros ; by eapply ARcoupl_refRcoupl, Rcoupl_refRcoupl.
   Qed.
 
+  Lemma ARcoupl_limit `{Countable A, Countable B} μ1 μ2 ε (ψ : A -> B -> Prop):
+    (forall ε', ε' > ε -> ARcoupl μ1 μ2 ψ ε') -> ARcoupl μ1 μ2 ψ ε.
+  Proof.
+    Admitted.
+  
 (* Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B} *)
 (*   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} *)
 (*   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
