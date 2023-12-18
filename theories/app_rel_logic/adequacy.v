@@ -337,3 +337,23 @@ Proof.
     apply upper_bound_ge_sup.
     intro; simpl. auto.
 Qed.
+
+
+Theorem wp_ARcoupl_epsilon_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
+  (∀ `{app_clutchGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ spec_ctx -∗ ⤇ e' -∗ € ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
+Proof.
+  intros H'.
+  apply ARcoupl_limit.
+  intros ε' Hineq.
+  assert (0<=ε') as Hε'.
+  { trans ε; try lra. by destruct ε. }
+  pose (mknonnegreal ε' Hε') as NNRε'.
+  assert (ε' = (NNRbar_to_real (NNRbar.Finite NNRε'))) as Heq.
+  { by simpl. }
+  rewrite Heq.
+  eapply wp_aRcoupl_lim; first done.
+  intros. iIntros "Hctx".
+  iApply (H' with "[$Hctx]").
+  lra.
+Qed. 

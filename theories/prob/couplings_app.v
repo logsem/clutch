@@ -953,6 +953,92 @@ Qed.
     intros ; by eapply ARcoupl_refRcoupl, Rcoupl_refRcoupl.
   Qed.
 
+  Lemma ARcoupl_limit `{Countable A, Countable B} μ1 μ2 ε (ψ : A -> B -> Prop):
+    (forall ε', ε' > ε -> ARcoupl μ1 μ2 ψ ε') -> ARcoupl μ1 μ2 ψ ε.
+  Proof.
+    intros Hlimit.
+    assert (forall seq, (∃ b, ∀ n, 0 <= - seq n <= b) ->
+                   (∀ n, ARcoupl μ1 μ2 ψ (ε-seq n)) ->
+                   ARcoupl μ1 μ2 ψ (ε-Sup_seq seq)) as Hlemma.
+    { clear Hlimit. intros seq [b Hbound] Hlimit.
+      rewrite /ARcoupl.
+      intros f g Hf Hg Hmono.
+      assert (Sup_seq (λ x : nat, seq x) <= SeriesC (λ b0 : B, μ2 b0 * g b0) + ε - SeriesC (λ a : A, μ1 a * f a)); last lra.
+      rewrite -rbar_le_rle.
+      rewrite rbar_finite_real_eq; [apply upper_bound_ge_sup|].
+      + intros n.
+        specialize (Hlimit n f g Hf Hg Hmono).
+        assert (seq n <= SeriesC (λ b : B, μ2 b * g b) + ε - SeriesC (λ a : A, μ1 a * f a)) as H1.
+        { lra. }
+        apply H1.
+      + apply (is_finite_bounded (-b) 0).
+        -- apply (Sup_seq_minor_le _ _ 0).
+           assert (-b <= seq 0%nat) as H'.
+           { specialize (Hbound 0%nat) as []. lra. }
+           apply H'.
+        -- apply upper_bound_ge_sup. intros.
+           assert (seq n <= 0) as H'.
+           { destruct (Hbound n). lra. }
+           apply H'.
+    }
+    replace ε with (ε- Sup_seq (λ x,(λ n,-1%R/(S n)) x)).
+    - apply Hlemma.
+      + exists 1. intros; split; rewrite Ropp_div.
+        -- rewrite Ropp_involutive.
+           apply Rcomplements.Rdiv_le_0_compat; try lra.
+           rewrite S_INR. pose proof (pos_INR n); lra.
+        -- rewrite Ropp_involutive. rewrite Rcomplements.Rle_div_l; last apply Rlt_gt.
+           ++ assert (1<= S n); try lra. rewrite S_INR. pose proof (pos_INR n); lra.
+           ++ rewrite S_INR. pose proof (pos_INR n). lra.
+      + intros. apply Hlimit. assert (1/(S n) > 0); try lra.
+        apply Rlt_gt. apply Rdiv_lt_0_compat; first lra. rewrite S_INR.
+        pose proof (pos_INR n); lra.
+    - assert (Sup_seq (λ x : nat, - (1)%R/S x) = 0) as ->.
+      2:{ simpl. lra. }
+      apply is_sup_seq_unique. rewrite /is_sup_seq.
+      intro err. split.
+      -- intros n. eapply (Rbar_le_lt_trans _ (Rbar.Finite 0)); last first.
+         ++ rewrite Rplus_0_l. apply (cond_pos err).  
+         ++ apply Rge_le. rewrite Ropp_div. apply Ropp_0_le_ge_contravar.
+            apply Rcomplements.Rdiv_le_0_compat; try lra.
+            rewrite S_INR. pose proof (pos_INR n); lra.
+      -- pose (r := 1/err -1).
+         assert (exists n, r<INR n) as [n Hr]; last first.
+         ++ eexists n.
+            erewrite Ropp_div. replace (_-_) with (- (pos err)) by lra.
+            apply Ropp_lt_contravar.
+            rewrite Rcomplements.Rlt_div_l.
+            2:{ rewrite S_INR. pose proof pos_INR. apply Rlt_gt.
+                eapply Rle_lt_trans; [eapply H1|].
+                apply Rlt_n_Sn.
+            }
+            rewrite S_INR.
+            rewrite Rmult_comm.
+            rewrite <-Rcomplements.Rlt_div_l.
+            2:{ pose proof (cond_pos err); lra. }
+            rewrite <- Rcomplements.Rlt_minus_l.
+            rewrite -/r. done.
+         ++ pose proof (Rgt_or_ge 0 r).
+            destruct H1.
+            --- exists 0%nat. eapply Rlt_le_trans; last apply pos_INR.
+                lra.
+            --- exists (Z.to_nat (up r)).
+                pose proof (archimed r) as [? ?].
+                rewrite INR_IZR_INZ.
+                rewrite ZifyInst.of_nat_to_nat_eq.
+                rewrite /Z.max.
+                case_match.
+                { rewrite Z.compare_eq_iff in H4.
+                  exfalso. rewrite -H4 in H2. lra.
+                }
+                2: { rewrite Z.compare_gt_iff in H4. exfalso.
+                     assert (IZR (up r) >= 0) by lra.
+                     apply IZR_lt in H4. lra. 
+                }
+                lra.
+  Qed. 
+      
+  
 (* Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B} *)
 (*   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} *)
 (*   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
