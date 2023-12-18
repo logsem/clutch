@@ -92,6 +92,7 @@ Proof.
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iIntros "!>". iFrame. by iApply "HΦ".
