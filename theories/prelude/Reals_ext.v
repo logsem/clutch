@@ -75,6 +75,10 @@ Lemma Rle_plus_l (r1 r2 r3 : R) :
   r1 <= r2 → 0 <= r3 → r1 <= r2 + r3.
 Proof. lra. Qed.
 
+Lemma Rle_plus_r (r1 r2 r3 : R) :
+  r1 <= r3 → 0 <= r2 → r1 <= r2 + r3.
+Proof. lra. Qed.
+
 Lemma pos_sum_nn_real p q :
     0 <= p →
     0 <= q →
@@ -98,14 +102,24 @@ Proof.
   destruct Hq as [ Hq | Hq ]; simplify_eq ; auto; lra.
 Qed.
 
-Lemma RinvN_pos' : forall n:nat, 0 < / (INR (S n)).
+Lemma pos_INR_S n :
+  0 < INR (S n).
 Proof.
-  intros n.
+  pose proof (pos_INR n).
+  rewrite S_INR; lra.
+Qed.
+
+Lemma RinvN_pos' n : 0 < / (INR (S n)).
+Proof.
   assert (INR (S n) = (INR n + 1)) as ->.
   { replace 1 with (INR 1); [|done].
     rewrite -plus_INR. f_equal. lia. }
   apply RinvN_pos. 
 Qed.
+
+Lemma Req_minus_r (x y z : R):
+  x + z = y → x = y - z.
+Proof. intros; lra. Qed.
 
 Ltac real_solver :=
     by repeat

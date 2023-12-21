@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob Require Export distribution.
-From clutch.program_logic Require Export language. 
+From clutch.common Require Export language. 
 From clutch.prob_lang Require Export lang.
 From clutch.prob_lang Require Import tactics notation.
 From iris.prelude Require Import options.
@@ -151,3 +151,10 @@ Section pure_exec.
     PureExec True 1 (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
   Proof. solve_pure_exec. Qed.
 End pure_exec.
+
+(** * Instances of the [reducible] class *)
+
+Global Instance reducible_rand_no_tape (z : Z) σ : reducible (rand #z) σ.
+Proof.
+  eapply head_prim_reducible ; eauto with head_step.
+Qed.

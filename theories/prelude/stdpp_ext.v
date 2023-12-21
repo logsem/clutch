@@ -68,7 +68,7 @@ Definition fin_to_bool (n : fin 2) : bool :=
   match n with
   | 0%fin => false
   | _ => true
-  end. 
+  end.
 
 Definition bool_to_fin (b : bool) := ((if b then 1%fin else 0%fin) : fin 2).
 
@@ -79,33 +79,33 @@ Proof.
   inv_fin n; [naive_solver|].
   intros n.
   inv_fin n; [naive_solver|].
-  intros n. 
-  inv_fin n. 
+  intros n.
+  inv_fin n.
 Qed.
 
 Lemma bool_to_fin_to_nat_inv b :
   nat_to_bool (fin_to_nat (bool_to_fin b)) = b.
-Proof. by destruct b. Qed. 
+Proof. by destruct b. Qed.
 
-Lemma fin_to_nat_to_bool_inv n : 
+Lemma fin_to_nat_to_bool_inv n :
   nat_to_bool (fin_to_nat n) = fin_to_bool n.
 Proof.
   inv_fin n; [naive_solver|].
   intros n.
   inv_fin n; [naive_solver|].
-  intros n. 
-  inv_fin n.   
-Qed. 
+  intros n.
+  inv_fin n.
+Qed.
 
 Global Instance bool_to_fin_inj : Inj (=) (=) bool_to_fin.
 Proof. by intros [] [] ?. Qed.
 Global Instance bool_to_fin_surj : Surj (=) bool_to_fin.
 Proof.
   intros n.
-  inv_fin n; [by exists false|]. 
+  inv_fin n; [by exists false|].
   intros n; inv_fin n; [by exists true|].
   intros n. inv_fin n.
-Qed. 
+Qed.
 
 Global Instance fin_to_bool_inj : Inj (=) (=) fin_to_bool.
 Proof.
@@ -117,7 +117,7 @@ Proof.
   - intros p. inv_fin p.
 Qed.
 Global Instance fin_to_bool_surj : Surj (=) fin_to_bool.
-Proof. intros []; [by exists 1%fin|by exists 0%fin]. Qed. 
+Proof. intros []; [by exists 1%fin|by exists 0%fin]. Qed.
 
 (** ** [Z_to_bool] *)
 (* We take [0] to mean [false] and any other value to be [true] *)
@@ -243,9 +243,34 @@ Section countable.
 
 End countable.
 
-Section finite. 
+(* The lemmas about [Finite A] make use of the [Countable A] instance
+   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
+   already exists another instance. We give the highest priority ([0]) to
+   [finite_countable] to be able to use the lemmas. *)
+#[global] Existing Instance finite_countable | 0.
+
+Lemma encode_nat_nat (n : nat) :
+  encode_nat n = n.
+Proof.
+  unfold encode_nat, encode; simpl.
+  unfold encode; simpl.
+  case_match; lia.
+Qed.
+
+Lemma encode_inv_nat_Some_inj (n n' : nat) :
+  encode_inv_nat n = Some n' → n = n'.
+Proof.
+  intros H%encode_inv_Some_nat.
+  by rewrite encode_nat_nat in H.
+Qed.
+
+Lemma encode_inv_nat_None (n : nat) :
+  ¬ (@encode_inv_nat nat _ _ n = None).
+Proof. by rewrite <-(encode_nat_nat n), encode_inv_encode_nat. Qed.
+
+Section finite.
   Context `{Finite A}.
-  
+
   Lemma encode_inv_decode  (i : nat) :
     i < card A → ∃ a : A, encode_inv_nat i = Some a ∧ encode_nat a = i.
   Proof.
@@ -262,8 +287,46 @@ Section finite.
     case_option_guard; [|done].
     pose proof (encode_lt_card a). lia.
   Qed.
-  
+
+  Lemma encode_nat_finite a n :
+    encode_nat a = n ↔ enum A !! n = Some a.
+  Proof.
+    unfold encode_nat, encode; simpl.
+    rewrite Nat2Pos.id; [|done].
+    destruct (list_find_elem_of (a =.) (enum A) a) as [[i y] Hfind]; auto.
+    { eapply elem_of_enum. }
+    rewrite Hfind. simpl.
+    eapply list_find_Some in Hfind as (? & -> & ?).
+    split; [by intros <-|].
+    intros Hn.
+    eapply NoDup_alt; [|done|done].
+    apply NoDup_enum.
+  Qed.
+
+  Lemma encode_inv_nat_finite n :
+    encode_inv_nat n = enum A !! n.
+  Proof.
+    unfold encode_inv_nat. simpl.
+    rewrite Nat2Pos.id; [|done].
+    destruct (decide (n < card A)%nat) as [Hlt | Hnlt%not_lt]; simpl.
+    - destruct (encode_inv_decode n Hlt) as (? & Hdec & Henc).
+      unfold encode_inv_nat, decode_nat, decode in Hdec.
+      simpl in Hdec.
+      rewrite Nat2Pos.id in Hdec; [|done].
+      simpl in Hdec.
+      rewrite Hdec. by apply encode_nat_finite in Henc.
+    - destruct (enum A !! n) eqn:Henum; [|done].
+      apply encode_nat_finite in Henum.
+      simpl. by rewrite option_guard_True.
+  Qed.
+
 End finite.
+
+(* The lemmas about [Finite A] make use of the [Countable A] instance
+   `[finite_countable] from std++ [finite.v]. For [fin N], for example, there
+   already exists another instance. We give the highest priority ([0]) to
+   [finite_countable] to be able to use the lemmas. *)
+#[export] Existing Instance finite_countable | 0.
 
 Section fin_maps.
   Context `{FinMap K M}.
@@ -331,3 +394,9 @@ Tactic Notation "case_bool_decide_and_destruct" "in" ident(H) :=
   case_bool_decide in H as Hf;
   destruct_and? Hf;
   simplify_eq.
+
+Ltac destruct_match :=
+  match goal with
+  | |- context [ match ?x with _ => _ end ] => destruct x
+  | H : context [ match ?x with _ => _ end ] |- _ => destruct x
+  end.

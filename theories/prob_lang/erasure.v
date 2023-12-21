@@ -2,9 +2,9 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.program_logic Require Import language ectx_language exec.
+From clutch.common Require Import language ectx_language.
 From clutch.prob_lang Require Import locations notation lang metatheory.
-From clutch.prob Require Import couplings.
+From clutch.prob Require Import couplings couplings_app markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -16,17 +16,17 @@ Section erasure_helpers.
     ∀ (e1 : expr) (σ1 : state) α N zs,
     tapes σ1 !! α = Some (N; zs) →
     Rcoupl
-      (exec_val m (e1, σ1))
-      (dunifP N ≫= (λ z, exec_val m (e1, state_upd_tapes <[α:= (N; zs ++ [z])]> σ1))) eq.
+      (exec m (e1, σ1))
+      (dunifP N ≫= (λ z, exec m (e1, state_upd_tapes <[α:= (N; zs ++ [z])]> σ1))) eq.
 
   Local Lemma ind_case_det e σ α N zs K :
     tapes σ !! α = Some (N; zs) →
     is_det_head_step e σ = true →
     Rcoupl
-      (dmap (fill_lift K) (head_step e σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step e σ) ≫= exec m)
       (dunifP N ≫= (λ z, dmap
                            (fill_lift K)
-                           (head_step e (state_upd_tapes <[α:= (N; zs ++ [z]) ]> σ)) ≫= exec_val m))
+                           (head_step e (state_upd_tapes <[α:= (N; zs ++ [z]) ]> σ)) ≫= exec m))
        (=).
   Proof using m IH.
     intros Hα (e2 & (σ2 & Hdet))%is_det_head_step_true%det_step_pred_ex_rel.
@@ -37,7 +37,7 @@ Section erasure_helpers.
       rewrite !dmap_dret.
       setoid_rewrite (dmap_dret (fill_lift K)).
       rewrite !dret_id_left.
-      setoid_rewrite (dret_id_left (exec_val m)).
+      setoid_rewrite (dret_id_left (exec m)).
       eapply IH; eauto.
   Qed.
 
@@ -45,9 +45,9 @@ Section erasure_helpers.
     tapes σ !! α = Some (N; zs) →
     head_step e σ = dzero →
     Rcoupl
-      (dmap (fill_lift K) (head_step e σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step e σ) ≫= exec m)
       (dunifP N ≫= (λ z,
-         dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=(N; zs ++ [z])]> σ)) ≫= exec_val m)) eq.
+         dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=(N; zs ++ [z])]> σ)) ≫= exec m)) eq.
   Proof using m IH.
     intros Hα Hz.
     rewrite Hz.
@@ -59,15 +59,15 @@ Section erasure_helpers.
   Local Lemma ind_case_alloc σ α N ns (z : Z) K :
     tapes σ !! α = Some (N; ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (alloc #z) σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (alloc #z) σ) ≫= exec m)
       (dunifP N ≫=
-         (λ n, dmap (fill_lift K) (head_step (alloc #z) (state_upd_tapes <[α:= (N; ns ++ [n])]> σ)) ≫= exec_val m))
+         (λ n, dmap (fill_lift K) (head_step (alloc #z) (state_upd_tapes <[α:= (N; ns ++ [n])]> σ)) ≫= exec m))
       eq.
   Proof using m IH.
     intros Hα.
-    rewrite dmap_dret dret_id_left -/exec_val.
+    rewrite dmap_dret dret_id_left -/exec.
     setoid_rewrite (dmap_dret (fill_lift K)).
-    setoid_rewrite (dret_id_left (exec_val m)).
+    setoid_rewrite (dret_id_left (exec m)).
     (* TODO: fix slightly ugly hack ... *)
     revert IH; intro IHm.
     apply lookup_total_correct in Hα as Hαtot.
@@ -85,11 +85,11 @@ Section erasure_helpers.
     tapes σ !! α = Some (M; ns') →
     tapes σ !! α' = Some (N; n :: ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= exec m)
       (dunifP M ≫=
          (λ n, dmap (fill_lift K)
-                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α:= (M; ns' ++ [n])]> σ))
-                 ≫= exec_val m))
+                 (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:= (M; ns' ++ [n])]> σ))
+                 ≫= exec m))
       (=).
   Proof using m IH.
     intros Hz Hα Hα'.
@@ -99,11 +99,11 @@ Section erasure_helpers.
     - simplify_eq. rewrite /head_step Hα.
       setoid_rewrite lookup_insert.
       rewrite bool_decide_eq_true_2 //.
-      rewrite dmap_dret dret_id_left -/exec_val.
+      rewrite dmap_dret dret_id_left -/exec.
       erewrite dbind_ext_right; last first.
       { intros.
         rewrite -app_comm_cons.
-        rewrite upd_tape_twice dmap_dret dret_id_left -/exec_val //. }
+        rewrite upd_tape_twice dmap_dret dret_id_left -/exec //. }
       assert (Haux : ∀ n,
                  state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> σ =
                  state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> (state_upd_tapes <[α':=(Z.to_nat z; ns)]> σ)).
@@ -115,11 +115,11 @@ Section erasure_helpers.
       rewrite bool_decide_eq_true_2 //.
       setoid_rewrite lookup_insert_ne; [|done].
       rewrite Hα' bool_decide_eq_true_2 //.
-      rewrite !dmap_dret !dret_id_left -/exec_val.
+      rewrite !dmap_dret !dret_id_left -/exec.
       erewrite dbind_ext_right; last first.
       { intros.
         rewrite upd_diff_tape_comm; [|done].
-        rewrite dmap_dret dret_id_left -/exec_val //. }
+        rewrite dmap_dret dret_id_left -/exec //. }
       eapply IH.
       rewrite lookup_insert_ne //.
   Qed.
@@ -129,11 +129,11 @@ Section erasure_helpers.
     tapes σ !! α = Some (N; ns) →
     tapes σ !! α' = Some (M; []) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= exec m)
       (dunifP N ≫=
          (λ n, dmap (fill_lift K)
-                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α := (N; ns ++ [n])]> σ))
-                 ≫= exec_val m))
+                 (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α := (N; ns ++ [n])]> σ))
+                 ≫= exec m))
       eq.
   Proof using m IH.
     intros Hz Hα Hα'.
@@ -141,13 +141,13 @@ Section erasure_helpers.
     + simplify_eq.  rewrite /head_step Hα.
       rewrite bool_decide_eq_true_2 //.
       rewrite {1 2}/dmap.
-      rewrite -!dbind_assoc -/exec_val.
+      rewrite -!dbind_assoc -/exec.
       eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
       intros ? b ->.
       do 2 rewrite dret_id_left.
       rewrite lookup_insert.
       rewrite bool_decide_eq_true_2 //.
-      rewrite dmap_dret dret_id_left -/exec_val.
+      rewrite dmap_dret dret_id_left -/exec.
       rewrite upd_tape_twice.
       rewrite /state_upd_tapes insert_id //.
       destruct σ; simpl.
@@ -160,9 +160,9 @@ Section erasure_helpers.
       erewrite (dbind_ext_right (dunifP N)); last first.
       { intro.
         rewrite {1 2}/dmap.
-        do 2 rewrite -dbind_assoc -/exec_val.
+        do 2 rewrite -dbind_assoc -/exec.
         done. }
-      rewrite -!dbind_assoc -/exec_val.
+      rewrite -!dbind_assoc -/exec.
       rewrite dbind_comm.
       eapply Rcoupl_dbind; [|apply Rcoupl_eq].
       intros; simplify_eq.
@@ -177,11 +177,11 @@ Section erasure_helpers.
     tapes σ !! α = Some (M; ns') →
     tapes σ !! α' = Some (N; ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #lbl:α') σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= exec m)
       (dunifP M ≫=
          (λ n, dmap (fill_lift K)
-                 (head_step (rand #z from #lbl:α') (state_upd_tapes <[α:= (M; ns' ++ [n]) : tape]> σ))
-                 ≫= exec_val m))
+                 (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:= (M; ns' ++ [n]) : tape]> σ))
+                 ≫= exec m))
       (=).
   Proof using m IH.
     intros Hz Hα Hα'.
@@ -192,9 +192,9 @@ Section erasure_helpers.
       setoid_rewrite lookup_insert.
       rewrite bool_decide_eq_false_2 //.
       rewrite /dmap /=.
-      rewrite -!dbind_assoc -/exec_val.
+      rewrite -!dbind_assoc -/exec.
       erewrite (dbind_ext_right (dunifP M)); last first.
-      { intros. rewrite -!dbind_assoc -/exec_val //. }
+      { intros. rewrite -!dbind_assoc -/exec //. }
       rewrite dbind_comm.
       eapply Rcoupl_dbind; [|apply Rcoupl_eq].
       intros; simplify_eq.
@@ -205,9 +205,9 @@ Section erasure_helpers.
     - setoid_rewrite lookup_insert_ne; [|done].
       rewrite Hα' bool_decide_eq_false_2 //.
       rewrite /dmap.
-      rewrite -!dbind_assoc -/exec_val.
+      rewrite -!dbind_assoc -/exec.
       erewrite (dbind_ext_right (dunifP M)); last first.
-      { intros. rewrite -!dbind_assoc -/exec_val //. }
+      { intros. rewrite -!dbind_assoc -/exec //. }
       rewrite dbind_comm.
       eapply Rcoupl_dbind; [|apply Rcoupl_eq].
       intros; simplify_eq.
@@ -221,12 +221,12 @@ Section erasure_helpers.
     N = Z.to_nat z →
     tapes σ !! α = Some (M; ns) →
     Rcoupl
-      (dmap (fill_lift K) (head_step (rand #z from #()) σ) ≫= exec_val m)
+      (dmap (fill_lift K) (head_step (rand #z) σ) ≫= exec m)
       (dunifP M ≫=
          (λ n,
            dmap (fill_lift K)
-             (head_step (rand #z from #()) (state_upd_tapes <[α := (M; ns ++ [n]) : tape]> σ))
-             ≫= exec_val m))
+             (head_step (rand #z) (state_upd_tapes <[α := (M; ns ++ [n]) : tape]> σ))
+             ≫= exec m))
       eq.
   Proof using m IH.
     intros Hz Hα.
@@ -236,8 +236,8 @@ Section erasure_helpers.
     { intro.
       rewrite {1 2}/dmap.
       do 2 rewrite -dbind_assoc //. }
-    rewrite -/exec_val /=.
-    rewrite -!dbind_assoc -/exec_val.
+    rewrite -/exec /=.
+    rewrite -!dbind_assoc -/exec.
     erewrite (dbind_ext_right (dunifP M)); last first.
     { intros n. rewrite -!dbind_assoc. done. }
     rewrite dbind_comm.
@@ -255,20 +255,20 @@ End erasure_helpers.
 Lemma prim_coupl_upd_tapes_dom m e1 σ1 α N ns :
   σ1.(tapes) !! α = Some (N; ns) →
   Rcoupl
-    (exec_val m (e1, σ1))
+    (exec m (e1, σ1))
     (dunifP N ≫=
-       (λ n, exec_val m (e1, state_upd_tapes <[α := (N; ns ++ [n])]> σ1)))
+       (λ n, exec m (e1, state_upd_tapes <[α := (N; ns ++ [n])]> σ1)))
     (=).
 Proof.
   revert e1 σ1 α N ns; induction m; intros e1 σ1 α N ns Hα.
-  - rewrite /exec_val /=.
+  - rewrite /exec /=.
     destruct (to_val e1) as [v|] eqn:He1.
     + rewrite (dret_const (dunifP N) v); [apply Rcoupl_eq | apply dunif_mass; lia].
     + rewrite dzero_dbind. apply Rcoupl_dzero_dzero.
-  - rewrite exec_val_Sn /prim_step_or_val /=.
+  - rewrite exec_Sn /step_or_final /=.
     destruct (to_val e1) eqn:He1.
-    + rewrite dret_id_left -/exec_val.
-      rewrite (exec_val_is_val v) //.
+    + rewrite dret_id_left -/exec.
+      erewrite (exec_is_final); [|done].
       rewrite dret_const; [|solve_distr_mass].
       by apply Rcoupl_dret.
     + rewrite /prim_step /=.
@@ -288,8 +288,8 @@ Qed.
 Lemma prim_coupl_step_prim m e1 σ1 α bs :
   σ1.(tapes) !! α = Some bs →
   Rcoupl
-    (exec_val m (e1, σ1))
-    (state_step σ1 α ≫= (λ σ2, exec_val m (e1, σ2)))
+    (exec m (e1, σ1))
+    (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))
     eq.
 Proof.
   intros Hα.
@@ -308,65 +308,86 @@ Qed.
 
 Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v:
   σ1.(tapes) !! α = Some bs →
-  (lim_exec_val (e1, σ1)) v =
-  (state_step σ1 α ≫= (λ σ2, lim_exec_val (e1, σ2))) v.
+  (lim_exec (e1, σ1)) v =
+  (state_step σ1 α ≫= (λ σ2, lim_exec (e1, σ2))) v.
 Proof.
   intro Hsome.
-   rewrite lim_exec_val_rw/=.
+   rewrite lim_exec_unfold/=.
    rewrite {2}/pmf/=/dbind_pmf.
-   setoid_rewrite lim_exec_val_rw.
+   setoid_rewrite lim_exec_unfold.
    simpl in *.
    assert
-     (SeriesC (λ a: state, state_step σ1 α a * Sup_seq (λ n : nat, exec_val n (e1, a) v)) =
-     SeriesC (λ a: state, Sup_seq (λ n : nat, state_step σ1 α a * exec_val n (e1, a) v))) as Haux.
+     (SeriesC (λ a: state, state_step σ1 α a * Sup_seq (λ n : nat, exec n (e1, a) v)) =
+     SeriesC (λ a: state, Sup_seq (λ n : nat, state_step σ1 α a * exec n (e1, a) v))) as Haux.
    { apply SeriesC_ext; intro v'.
      apply eq_rbar_finite.
      rewrite rmult_finite.
-     rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, exec_val n (e1, v') v))); auto.
-     - rewrite <- (Sup_seq_scal_l (state_step σ1 α v') (λ n : nat, exec_val n (e1, v') v)); auto.
+     rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, exec n (e1, v') v))); auto.
+     - rewrite <- (Sup_seq_scal_l (state_step σ1 α v') (λ n : nat, exec n (e1, v') v)); auto.
      - apply (Rbar_le_sandwich 0 1).
        + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
        + apply upper_bound_ge_sup; intro; simpl; auto.
    }
    rewrite Haux.
-   rewrite (MCT_seriesC _ (λ n, exec_val n (e1,σ1) v) (lim_exec_val (e1,σ1) v)); auto.
-   - intros; apply Rmult_le_pos; auto.
-   - intros.
-     apply Rmult_le_compat; auto; [apply Rle_refl | apply exec_val_mon]; auto.
-   - intro.
-     exists (state_step σ1 α a); intro.
-     rewrite <- Rmult_1_r.
-     apply Rmult_le_compat_l; auto.
+   rewrite (MCT_seriesC _ (λ n, exec n (e1,σ1) v) (lim_exec (e1,σ1) v)); auto.
+   - real_solver.
+   - intros. apply Rmult_le_compat; auto; [done|apply exec_mono].
+   - intro. exists (state_step σ1 α a)=>?. real_solver.
    - intro n.
      rewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim n e1 σ1 α bs Hsome)); auto.
      rewrite {3}/pmf/=/dbind_pmf.
      apply SeriesC_correct; auto.
      apply (ex_seriesC_le _ (state_step σ1 α)); auto.
-     intro; split; auto.
-     + apply Rmult_le_pos; auto.
-     + rewrite <- Rmult_1_r.
-       apply Rmult_le_compat_l; auto.
-   - rewrite lim_exec_val_rw.
-     rewrite rbar_finite_real_eq; [ apply Sup_seq_correct | ].
+     real_solver.
+   - rewrite lim_exec_unfold.
+     rewrite rbar_finite_real_eq; [apply Sup_seq_correct |].
      rewrite mon_sup_succ.
      + apply (Rbar_le_sandwich 0 1); auto.
        * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
        * apply upper_bound_ge_sup; intro; simpl; auto.
-     + intro; apply exec_val_mon.
+     + intros. eapply exec_mono.
 Qed.
 
 Lemma limprim_coupl_step_limprim e1 σ1 α bs :
   σ1.(tapes) !! α = Some bs →
   Rcoupl
-    (lim_exec_val (e1, σ1))
-    (state_step σ1 α ≫= (λ σ2, lim_exec_val (e1, σ2)))
+    (lim_exec (e1, σ1))
+    (state_step σ1 α ≫= (λ σ2, lim_exec (e1, σ2)))
     eq.
 Proof.
   intro Hsome.
-  erewrite (distr_ext (lim_exec_val (e1, σ1))); last first.
+  erewrite (distr_ext (lim_exec (e1, σ1))); last first.
   - intro a.
     apply (limprim_coupl_step_limprim_aux _ _ _ _ _ Hsome).
   - apply Rcoupl_eq.
+Qed.
+
+Lemma lim_exec_eq_erasure αs e σ :
+  αs ⊆ get_active σ →
+  lim_exec (e, σ) = foldlM state_step σ αs ≫= (λ σ', lim_exec (e, σ')).
+Proof.
+  induction αs as [|α αs IH] in σ |-*.
+  { rewrite /= dret_id_left //. }
+  intros Hα.
+  eapply Rcoupl_eq_elim.
+  assert (lim_exec (e, σ) = state_step σ α ≫= (λ σ2, lim_exec (e, σ2))) as ->.
+  { apply distr_ext => v.
+    assert (α ∈ get_active σ) as Hel; [apply Hα; left|].
+    rewrite /get_active in Hel.
+    apply elem_of_elements, elem_of_dom in Hel as [? ?].
+    by eapply limprim_coupl_step_limprim_aux. }
+  rewrite foldlM_cons -dbind_assoc.
+  eapply Rcoupl_dbind; [|eapply Rcoupl_pos_R, Rcoupl_eq].
+  intros ?? (-> & Hs%state_step_support_equiv_rel & _).
+  inversion_clear Hs.
+  rewrite IH; [eapply Rcoupl_eq|].
+  intros α' ?. rewrite /get_active /=.
+  apply elem_of_elements.
+  apply elem_of_dom.
+  destruct (decide (α = α')); subst.
+  + eexists. rewrite lookup_insert //.
+  + rewrite lookup_insert_ne //.
+    apply elem_of_dom. eapply elem_of_elements, Hα. by right.
 Qed.
 
 Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':
@@ -374,10 +395,10 @@ Lemma refRcoupl_erasure e1 σ1 e1' σ1' α α' R Φ m bs bs':
   σ1'.(tapes) !! α' = Some bs' →
   Rcoupl (state_step σ1 α) (state_step σ1' α') R →
   (∀ σ2 σ2', R σ2 σ2' →
-             refRcoupl (exec_val m (e1, σ2))
-               (lim_exec_val (e1', σ2')) Φ ) →
-  refRcoupl (exec_val m (e1, σ1))
-    (lim_exec_val (e1', σ1')) Φ.
+             refRcoupl (exec m (e1, σ2))
+               (lim_exec (e1', σ2')) Φ ) →
+  refRcoupl (exec m (e1, σ1))
+    (lim_exec (e1', σ1')) Φ.
 Proof.
   intros Hα Hα' HR Hcont.
   eapply refRcoupl_eq_refRcoupl_unfoldl ;
@@ -388,39 +409,115 @@ Proof.
   by eapply Rcoupl_refRcoupl.
 Qed.
 
+Lemma ARcoupl_erasure e1 σ1 e1' σ1' α α' R Φ ε ε' m bs bs':
+  0 <= ε ->
+  0 <= ε' ->
+  σ1.(tapes) !! α = Some bs →
+  σ1'.(tapes) !! α' = Some bs' →
+  ARcoupl (state_step σ1 α) (state_step σ1' α') R ε →
+  (∀ σ2 σ2', R σ2 σ2' →
+             ARcoupl (exec m (e1, σ2))
+               (lim_exec (e1', σ2')) Φ  ε' ) →
+  ARcoupl (exec m (e1, σ1))
+    (lim_exec (e1', σ1')) Φ (ε + ε').
+Proof.
+  intros Hε Hε' Hα Hα' HR Hcont.
+  rewrite -(Rplus_0_l (ε + ε')).
+  eapply ARcoupl_eq_trans_l; try lra.
+  - eapply ARcoupl_from_eq_Rcoupl; try lra; eauto.
+    eapply prim_coupl_step_prim; eauto.
+  - rewrite -(Rplus_0_r (ε + ε')).
+    eapply ARcoupl_eq_trans_r; auto; try lra; last first.
+    + eapply ARcoupl_from_eq_Rcoupl; try lra; eauto.
+      eapply Rcoupl_eq_sym, limprim_coupl_step_limprim; eauto.
+    + apply (ARcoupl_dbind _ _ _ _ R); auto.
+Qed.
+
 Lemma refRcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ m bs':
   to_val e1 = None →
   σ1'.(tapes) !! α' = Some bs' →
   Rcoupl (prim_step e1 σ1) (state_step σ1' α') R →
-  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → refRcoupl (exec_val m (e2, σ2)) (lim_exec_val (e1', σ2')) Φ ) →
-  refRcoupl (exec_val (S m) (e1, σ1)) (lim_exec_val (e1', σ1')) Φ.
+  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → refRcoupl (exec m (e2, σ2)) (lim_exec (e1', σ2')) Φ ) →
+  refRcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) Φ.
 Proof.
   intros He1 Hα' HR Hcont.
-  rewrite exec_val_Sn_not_val //.
-  eapply (refRcoupl_eq_refRcoupl_unfoldr _ (state_step σ1' α' ≫= (λ σ2', lim_exec_val (e1', σ2')))).
+  rewrite exec_Sn_not_final; [|eauto].
+  eapply (refRcoupl_eq_refRcoupl_unfoldr _ (state_step σ1' α' ≫= (λ σ2', lim_exec (e1', σ2')))).
   - eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros [] ??. by apply Hcont.
   - apply Rcoupl_eq_sym. by eapply limprim_coupl_step_limprim.
 Qed.
 
+
+Lemma ARcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ ε ε' m bs':
+  0 <= ε ->
+  0 <= ε' ->
+  to_val e1 = None →
+  σ1'.(tapes) !! α' = Some bs' →
+  ARcoupl (prim_step e1 σ1) (state_step σ1' α') R ε →
+  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → ARcoupl (exec m (e2, σ2)) (lim_exec (e1', σ2')) Φ ε' ) →
+  ARcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) Φ (ε + ε').
+Proof.
+  intros Hε Hε' He1 Hα' HR Hcont.
+  rewrite exec_Sn_not_final; [|eauto].
+  rewrite -(Rplus_0_r (ε + ε')).
+  eapply (ARcoupl_eq_trans_r _ (state_step σ1' α' ≫= (λ σ2', lim_exec (e1', σ2')))); try lra.
+  - eapply ARcoupl_dbind; try lra; auto; [| apply HR].
+    intros [] ??. by apply Hcont.
+  - eapply ARcoupl_from_eq_Rcoupl; [lra | ].
+    apply Rcoupl_eq_sym. by eapply limprim_coupl_step_limprim.
+Qed.
+
 Lemma refRcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ m bs :
   σ1.(tapes) !! α = Some bs →
   Rcoupl (state_step σ1 α) (prim_step e1' σ1') R →
-  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → refRcoupl (exec_val m (e1, σ2)) (lim_exec_val (e2', σ2')) Φ ) →
-  refRcoupl (exec_val m (e1, σ1)) (lim_exec_val (e1', σ1')) Φ.
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → refRcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) Φ ) →
+  refRcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) Φ.
 Proof.
   intros Hα HR Hcont.
   assert (to_val e1' = None).
   { apply Rcoupl_pos_R, Rcoupl_inhabited_l in HR as (?&?&?&?&?); [eauto using val_stuck|].
     rewrite state_step_mass; [lra|]. apply elem_of_dom. eauto. }
-  eapply (refRcoupl_eq_refRcoupl_unfoldl _ (state_step σ1 α ≫= (λ σ2, exec_val m (e1, σ2)))).
+  eapply (refRcoupl_eq_refRcoupl_unfoldl _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))).
   - by eapply prim_coupl_step_prim.
-  - rewrite lim_exec_val_prim_step.
-    rewrite prim_step_or_val_no_val //.
+  - rewrite lim_exec_step.
+    rewrite step_or_final_no_final; [|eauto].
     eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros ? [] ?. by apply Hcont.
 Qed.
 
+Lemma ARcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ ε ε' m bs :
+  0 <= ε ->
+  0 <= ε' ->
+  σ1.(tapes) !! α = Some bs →
+  ARcoupl (state_step σ1 α) (prim_step e1' σ1') R ε →
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → ARcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) Φ ε') →
+  ARcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) Φ (ε + ε').
+Proof.
+  intros Hε Hε' Hα HR Hcont.
+  destruct (to_val e1') eqn:Hval.
+  - assert (prim_step e1' σ1' = dzero) as Hz by by apply val_stuck_dzero.
+    rewrite /= (val_stuck_dzero e1') in HR; [|eauto].
+    rewrite -(Rplus_0_l (ε + ε')).
+    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
+    + apply ARcoupl_from_eq_Rcoupl; [lra |].
+      by eapply prim_coupl_step_prim.
+    + rewrite lim_exec_step.
+      rewrite step_or_final_is_final; [|eauto].
+      eapply ARcoupl_dbind; [lra|lra| | ]; last first.
+      * rewrite -(Rplus_0_r ε).
+        eapply ARcoupl_eq_trans_r; [lra|lra| | apply ARcoupl_dzero; lra ].
+        eauto.
+      * intros ? [] ?. by apply Hcont.
+  - rewrite -(Rplus_0_l (ε + ε')).
+    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
+    + apply ARcoupl_from_eq_Rcoupl; [lra |].
+      by eapply prim_coupl_step_prim.
+    + rewrite lim_exec_step.
+      rewrite step_or_final_no_final; [|eauto].
+      eapply ARcoupl_dbind; [lra|lra| | apply HR].
+      intros ? [] ?. by apply Hcont.
+Qed.
 
 (*
 Lemma ub_lift_erasure (e1 : expr) σ1 α R Φ m bs (ε1 ε2 : nonnegreal) :

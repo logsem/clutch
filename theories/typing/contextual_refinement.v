@@ -1,9 +1,9 @@
 (** Notion of contextual refinement & proof that it is a precongruence wrt the logical relation *)
 From Coq Require Import Reals.
-From clutch.program_logic Require Import exec.
+From clutch.prob Require Import markov. 
 From clutch.prob_lang Require Export lang notation.
 From iris.proofmode Require Import proofmode.
-From clutch.rel_logic Require Import primitive_laws model.
+From clutch.ctx_logic Require Import primitive_laws model.
 From clutch.typing Require Export types interp fundamental.
 
 Inductive ctx_item :=
@@ -225,11 +225,10 @@ Inductive typed_ctx: ctx → stringmap type → type → stringmap type → type
 (** The main definition of contextual refinement that we use. An
     alternative (equivalent) formulation which observes only
     termination can be found in [contextual_refinement_alt.v] *)
-(* Can we avoid exposing validity of the initial tapes in this definition? *)
 Definition ctx_refines (Γ : stringmap type)
     (e e' : expr) (τ : type) : Prop := ∀ K σ₀ (b : bool),
   typed_ctx K Γ τ ∅ TBool →
-  (lim_exec_val (fill_ctx K e, σ₀) #b <= lim_exec_val (fill_ctx K e', σ₀) #b)%R.
+  (lim_exec (fill_ctx K e, σ₀) #b <= lim_exec (fill_ctx K e', σ₀) #b)%R.
 
 Notation "Γ ⊨ e '≤ctx≤' e' : τ" :=
   (ctx_refines Γ e e' τ) (at level 100, e, e' at next level, τ at level 200).
