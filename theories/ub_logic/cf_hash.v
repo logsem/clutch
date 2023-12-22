@@ -1,7 +1,5 @@
 From clutch.ub_logic Require Export ub_clutch hash lib.map.
-From clutch.prelude Require Export sum_n_ext.
 Import Hierarchy.
-Set Default Proof Using "Type*".
 
 Module coll_free_hash.
 
