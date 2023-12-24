@@ -541,18 +541,34 @@ Admitted.
 
 
 (** * Approximate Lifting *)
-(* see ARcoupl_state_state  *)
-Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns (ε : nonnegreal) :
+(* FIXME: clean up *)
+Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
   𝜎.(tapes) !! 𝛼 = Some (N; ns) →
   ub_lift
     (state_step 𝜎 𝛼)
     (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
-    ε.
+    nnreal_zero.
 Proof.
-
-
-
-Admitted.
+  rewrite /ub_lift.
+  intros Htapes P Hp.
+  apply Req_le_sym; simpl.
+  rewrite /prob SeriesC_0; auto.
+  intros 𝜎'.
+  remember (negb (P 𝜎')) as K; destruct K; auto.
+  rewrite /state_step.
+  case_bool_decide.
+  2: { exfalso. apply H. by apply elem_of_dom. }
+  intros.
+  replace (lookup_total 𝛼 (tapes 𝜎)) with (N; ns).
+  2: { rewrite (lookup_total_correct _ _ (existT N ns)); auto.  }
+  apply dmap_unif_zero.
+  intros n Hcont.
+  apply diff_true_false.
+  specialize Hp with 𝜎'.
+  rewrite -Hp; [| by exists n].
+  replace false with (negb true) by auto.
+  by rewrite HeqK negb_involutive.
+Qed.
 
 (** adapted from wp_couple_tapes in the relational logic *)
 Lemma wp_presample (N : nat) E e 𝛼 ns Φ :
