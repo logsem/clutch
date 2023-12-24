@@ -538,4 +538,60 @@ Proof.
   reflexivity.
 Admitted.
 
+
+
+(** * Approximate Lifting *)
+(* see ARcoupl_state_state  *)
+Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns (ε : nonnegreal) :
+  𝜎.(tapes) !! 𝛼 = Some (N; ns) →
+  ub_lift
+    (state_step 𝜎 𝛼)
+    (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
+    ε.
+Proof.
+
+
+
+Admitted.
+
+(** adapted from wp_couple_tapes in the relational logic *)
+Lemma wp_presample (N : nat) E e 𝛼 ns Φ :
+  to_val e = None →
+  (∀ σ', reducible e σ') →
+  ▷ 𝛼 ↪ (N; ns) ∗
+  (∀ (n : fin (S N)), 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+    iIntros (He Hred) "(>H𝛼&Hwp)".
+    iApply wp_lift_step_fupd_exec_ub; [done|].
+    iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
+    iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iSplitR; [done|].
+    (* now we need to prove an exec_ub, we should be able to do this with a state step. *)
+    replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
+    iApply exec_ub_state_step.
+    { rewrite /= /get_active.
+      by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+    iExists _.
+    iSplit.
+    { iPureIntro. apply ub_lift_state, Hlookup. }
+    iIntros (𝜎') "[%n %H𝜎']".
+    (* now we have to prove the exec_ub about 𝜎', we should be able to do this with the wp *)
+    (* first: udpate the resources *)
+    iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
+    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
+    iMod "Hclose'" as "_". (* ?? *)
+    iSpecialize ("Hwp" $! n with "H𝛼").
+    rewrite !ub_wp_unfold /ub_wp_pre /= He.
+    iSpecialize ("Hwp" $! 𝜎' ε).
+    iMod ("Hwp" with "[Hheap Htapes Hε]") as "(?&Hwp)".
+    { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
+      rewrite H𝜎'.
+      iFrame.
+    }
+    iModIntro. iApply "Hwp".
+Qed.
+
+
 End rules.
