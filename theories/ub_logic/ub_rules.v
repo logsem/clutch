@@ -610,4 +610,18 @@ Proof.
 Qed.
 
 
+Lemma wp_presample_adv_comp (N : nat) 𝛼 ns z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  to_val e = None →
+  (∀ σ', reducible e σ') →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  ▷ 𝛼 ↪ (N; ns) ∗
+  € ε1 ∗
+  (∀ (n : fin (S N)), € (ε2 n) ∗ 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+Admitted.
+
+
+
 End rules.
