@@ -106,13 +106,39 @@ Section adequacy.
           erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
           eapply ub_lift_dbind; eauto; [apply cond_nonneg | ].
           apply cond_nonneg.
+        - iIntros (??).
+          by iMod ("H" with "[//] [//]") as "W". }
+      iInduction (language.get_active σ1) as [| α] "IH"; [done|].
+      rewrite big_orL_cons.
+      iDestruct "H" as "[H | Ht]"; [done|].
+      by iApply "IH".
+   - rewrite exec_Sn_not_final; [|eauto].
+      iDestruct (big_orL_mono _ (λ _ _,
+                     |={∅}▷=>^(S n)
+                       ⌜ub_lift (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
+                  with "H") as "H".
+      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
+        replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
+        rewrite -exec_Sn_not_final; [|eauto].
+        iApply (step_fupdN_mono _ _ _
+                  (⌜∀ σ2 , R2 σ2 → ub_lift (exec (S n) (e1, σ2)) φ (ε2 (e1, σ2))⌝)%I).
+        - iIntros (?). iPureIntro.
+          rewrite /= /get_active in Hα.
+          apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
+
+          erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
+          apply (UB_mon_grading _ _
+                   (ε1 + (SeriesC (λ ρ : language.state prob_lang, language.state_step σ1 α ρ * ε2 (e1, ρ))))) => //.
+          eapply ub_lift_dbind_adv; eauto; [by destruct ε1|].
+          destruct Hε'' as [r Hr]; exists r.
+          intros a.
+          split; [by destruct (ε2 _) | by apply Hr].
         - iIntros (??). by iMod ("H" with "[//] [//]"). }
       iInduction (language.get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-   - admit.
-  Admitted.
+  Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
