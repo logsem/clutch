@@ -295,7 +295,7 @@ Section exec_ub.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! (_, (_, _)) with "Hub [//]"). }
     iIntros "!#" ([ε' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[(% & % & % & % & % & H) | [ (% & % & % & (%r & %Hr) & % & % & H) | [H|H]]] %Hv'".
+    iIntros "[(% & % & % & % & % & H) | [ (% & % & % & (%r & %Hr) & % & % & H) | [H | H]]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. simpl.
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,_.
@@ -419,21 +419,62 @@ Section exec_ub.
         iSplit; [done|].
         iIntros. by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
-    - rewrite least_fixpoint_unfold /=.
+    - rewrite least_fixpoint_unfold; simpl.
       iRight; iRight; iRight.
-      iInduction (get_active σ') as [| l] "IH".
+      (* from above (combine?)*)
+      destruct (partial_inv_fun K) as (Kinv & HKinv).
+      assert (forall e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
+      assert (forall e e', Kinv e = None -> K e' ≠ e) as HKinv2; [intros; by apply HKinv |].
+      assert (forall e, Kinv (K e) = Some e) as HKinv3.
+      { intro e.
+        destruct (Kinv (K e)) eqn:H3.
+        - apply HKinv1 in H3. f_equal. by apply fill_inj.
+        - eapply (HKinv2 _ e) in H3. done. }
+      iInduction (get_active σ') as [| l ls] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq & %Hub & %Hlift & H)) | Ht]".
-      + iLeft.
-        iExists _,_,_.
-        iSplit; [done|].
-        (* is this still true??? I think I'll need to adapt the adv_comp case in more detail *)
-        iSplit; [admit|].
-        iSplit; [done|].
-        iIntros. admit.
+      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hub & %Hleq & %Hlift & H)) | Ht]".
+      + set (ε3 := (λ '(e,σ), from_option (λ e', ε2 (e',σ)) nnreal_zero (Kinv e))).
+        assert (forall e2 σ2, ε3 (K e2, σ2) = ε2 (e2, σ2)) as Haux.
+        { intros e2 σ2. rewrite /ε3 HKinv3 //. }
+        iLeft.
+        iExists R2,_,ε3.
+        iSplit.
+        { iPureIntro.
+          destruct Hub as [r Hr]; exists r.
+          intros (e&σ). rewrite /ε3.
+          destruct (Kinv e); simpl; try real_solver.
+          etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
+        }
+        iSplit; [| iSplit].
+        2: { iPureIntro; done. }
+        * iPureIntro.
+          etrans; [ | apply Hleq].
+          apply Rplus_le_compat_l.
+          apply SeriesC_le; last first.
+          { destruct Hub as [r Hr].
+            apply (ex_seriesC_le _ (λ ρ, (state_step σ' l ρ * r)%R)).
+            - intros; split.
+              + apply Rmult_le_pos; [apply pmf_pos | by destruct (ε2 _ )].
+              + apply Rmult_le_compat_l; auto; apply pmf_pos.
+            - apply ex_seriesC_scal_r.
+              apply pmf_ex_seriesC.
+          }
+          intros 𝜎; simpl.
+          split.
+          ** apply Rmult_le_pos; auto; apply cond_nonneg.
+          ** rewrite HKinv3 /=. lra.
+        * rewrite /Φ.
+          iIntros (σ).
+          iSpecialize ("H" $! σ).
+          iIntros "Hr"; iSpecialize ("H" with "Hr").
+          iMod "H"; iModIntro.
+          rewrite /ε3 HKinv3 /=.
+          iApply "H".
+          by simpl in Hv'.
       + iRight. by iApply ("IH" with "Ht").
-  Admitted.
+  Qed.
+
 
   Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
     (∃ R (ε1 ε2 : nonnegreal), ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
