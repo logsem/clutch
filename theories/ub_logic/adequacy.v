@@ -106,8 +106,7 @@ Section adequacy.
           erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
           eapply ub_lift_dbind; eauto; [apply cond_nonneg | ].
           apply cond_nonneg.
-        - iIntros (??).
-          by iMod ("H" with "[//] [//]") as "W". }
+        - iIntros (??). by iMod ("H" with "[//] [//]"). }
       iInduction (language.get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
