@@ -632,9 +632,7 @@ Defined.
 
 Lemma SeriesC_singleton_dependent `{Countable A} (a : A) (v : A -> nonnegreal) :
   SeriesC (λ n, if bool_decide (n = a) then v n else nnreal_zero) = nonneg (v a).
-Proof. (* proven in other branch *)
-Admitted.
-
+Proof. (* proven in other branch *) Admitted.
 
 
 Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
