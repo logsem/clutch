@@ -392,6 +392,7 @@ Proof.
   solve_red.
   iApply exec_ub_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
+  (* ε3 is the amount of credit supply left outside of ε1 *)
   rewrite Hε3.
   set (foo := (λ (ρ : expr * state),
                 ε3 +
@@ -610,18 +611,167 @@ Proof.
 Qed.
 
 
-Lemma wp_presample_adv_comp (N : nat) 𝛼 ns z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+
+
+Definition compute_ε2_in_state (ρ : expr * state) N z (ε2 : fin (S N) -> nonnegreal) (_ : TCEq N (Z.to_nat z)) : nonnegreal.
+refine(
+  match ρ with
+  | (Val (LitV (LitInt n)), σ) =>
+      if bool_decide (0 <= n)%Z
+      then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
+             | left H => ε2 (@Fin.of_nat_lt (Z.to_nat n) _ _)
+             | _ => nnreal_zero
+            end
+      else nnreal_zero
+  | _ => nnreal_zero
+  end).
+  eapply Nat.le_trans.
+  - apply Nat.le_succ_l, H.
+  - apply Nat.eq_le_incl, eq_S. symmetry. by apply TCEq_eq.
+Defined.
+
+Lemma SeriesC_singleton_dependent `{Countable A} (a : A) (v : A -> nonnegreal) :
+  SeriesC (λ n, if bool_decide (n = a) then v n else nnreal_zero) = nonneg (v a).
+Proof. (* proven in other branch *)
+Admitted.
+
+
+
+Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   (∀ σ', reducible e σ') →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  ▷ 𝛼 ↪ (N; ns) ∗
+  ▷ α ↪ (N; ns) ∗
   € ε1 ∗
-  (∀ (n : fin (S N)), € (ε2 n) ∗ 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+  (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
+  iIntros (? Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
+  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iIntros (σ1 ε_now) "[Hσ_interp Hε_interp]".
+  iApply fupd_mask_intro; [set_solver|].
+  iIntros "Hclose'".
+  iSplitR; [auto|].
+  iApply (exec_ub_state_adv_comp' α); simpl.
+  { (* should be able to prove α is active since we have α ↪ _ right? *) admit. }
+  (* split supply by ε1*)
+  iDestruct (ec_split_supply with "Hε_interp Hε") as (ε3) "%Hε3".
+  rewrite Hε3.
+
+  (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
+
+  iExists (fun σ' : state => exists n : fin (S N), σ' = (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> σ1)).
+  (* ε2: lifted version of ε2 to states *)
+  iExists (fun ρ => (ε3 + compute_ε2_in_state ρ N z ε2 H)%NNR).
+
+  (* upper bound *)
+  iSplit.
+  { iPureIntro. exists (ε3 + (nnreal_nat (S N)) * ε1)%NNR.
+    intros [e' σ'].
+    apply Rplus_le_compat_l.
+    rewrite /compute_ε2_in_state.
+    assert (H' : (0 <= (S N)* ε1)%R).
+    { apply Rmult_le_pos.
+      - apply pos_INR.
+      - by destruct ε1. }
+    destruct e'; try apply H'.
+    destruct v; try apply H'.
+    destruct l; try apply H'.
+    case_bool_decide; try apply H'.
+    destruct (lt_dec _ _); try apply H'.
+    remember (nat_to_fin _) as F.
+    Opaque nnreal_nat. simpl.
+    rewrite -Hsum -SeriesC_scal_l.
+    rewrite -(SeriesC_singleton_dependent F ε2).
+    apply SeriesC_le.
+    - intros.
+      case_bool_decide.
+      (* could be a lot simpler *)
+      + split.
+        * by destruct (ε2 _).
+        * Set Printing Coercions.
+          rewrite -(Rmult_1_l (ε2 n0)) -Rmult_assoc -Rmult_assoc.
+          apply Rmult_le_compat_r.
+          ** by destruct (ε2 _); simpl.
+          ** rewrite Rmult_1_r.
+             rewrite /Rdiv Rmult_comm Rmult_1_l.
+             Transparent nnreal_nat. simpl.
+             rewrite Rinv_l; try lra.
+             destruct N; try lra.
+             rewrite S_INR.
+             rewrite /not; intros.
+             assert (K : (0 <= INR N)%R) by apply pos_INR.
+             lra. (* yikes lol *)
+      + split; simpl; try lra.
+        rewrite Rmult_assoc Rmult_1_l -Rmult_assoc.
+        rewrite Rinv_r.
+          * apply Rmult_le_pos; try lra.
+            by destruct (ε2 _); simpl.
+          * rewrite /not; intros.
+            assert (K : (0 <= INR N)%R) by apply pos_INR.
+            destruct N.
+            ** lra.
+            ** lra.
+    - apply ex_seriesC_finite.
+  }
+
+  iSplit.
+  { iPureIntro.
+    rewrite /compute_ε2_in_state /=.
+    setoid_rewrite Rmult_plus_distr_l.
+    admit. (* what am I even using ε3 for again??? *)
+  }
+
+  assert (Htape_state: tapes σ1 !! α = Some (N; ns)) by admit.
+
+  (* lifted lookup on tapes *)
+  iSplit.
+  {
+    iPureIntro.
+    eapply UB_mon_pred; last first.
+    - apply ub_lift_state. apply Htape_state.
+    - done.
+  }
+
+  (* finally update the wp *)
+  iIntros ((e2 & σ2)) "[%n Hn1]"; simplify_eq.
+  (* I should be able to use Hwp here, since we've now chosen a sample *)
+  (* I need to get rid of that exec modality somehow, anyways. *)
+  iSpecialize ("Hwp" $! n).
+  rewrite /compute_ε2_in_state /=.
+  admit.
 Admitted.
 
+(*
 
+  iSplit.
+  iIntros ((e2 & σ2)) "%H".
+  destruct H as (n & Hn1); simplify_eq.
+  rewrite /foo /=.
+  rewrite bool_decide_eq_true_2; last first.
+  {
+    by zify.
+  }
+  case_match.
+  2:{
+    destruct n0.
+    rewrite Nat2Z.id.
+    apply fin_to_nat_lt.
+  }
+  iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
+  do 2 iModIntro.
+  iMod "Hclose'".
+  iFrame.
+  iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
+  iFrame. iModIntro. wp_pures.
+  iModIntro. iApply "HΨ".
+  assert (nat_to_fin l = n) as ->; [|done].
+  apply fin_to_nat_inj.
+  rewrite fin_to_nat_to_fin.
+  rewrite Nat2Z.id.
+  reflexivity.
+Admitted.
+*)
 
 End rules.
