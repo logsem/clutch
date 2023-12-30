@@ -1,5 +1,5 @@
 (** * Union bound rules  *)
-From stdpp Require Import namespaces.
+From stdpp Require Import namespaces finite.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_lang Require Import notation tactics metatheory.
@@ -650,7 +650,7 @@ Qed.
 
 
 
-
+(* old (broken?) version *)
 Definition compute_ε2_in_state (ρ : expr * state) N z (ε2 : fin (S N) -> nonnegreal) (_ : TCEq N (Z.to_nat z)) : nonnegreal.
 refine(
   match ρ with
@@ -677,6 +677,27 @@ Proof.
   case_match; auto.
   simplify_eq.
 Qed.
+
+
+Check (fun (s : state) => s.(tapes)).
+Check (fun α z ns sample=> (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample]) : tape]> )).
+Check (fun σ σ' α z ns N => (exists s : fin _, σ' = (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s]) : tape]> σ))).
+Check (fun σ σ' α z ns N =>
+            match exists_dec (fun s : fin _ => σ' = (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s]) : tape]> σ)) with
+                | left H => _ H
+                | right H => nnreal_zero
+              end).
+
+(* I'll admit this for now to see if the rest of the proof works  *)
+
+(* really this should not depend on the expr at all :/*)
+
+Definition compute_ε2 (σ : state) (ρ : cfg) α N ns (ε2 : fin (S N) -> nonnegreal) : nonnegreal :=
+  match finite.find (fun s => state_upd_tapes <[α:=(N; ns ++ [s]) : tape]> σ = snd ρ) with
+    | Some s => ε2 s
+    | None => nnreal_zero
+  end.
+
 
 
 Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
@@ -712,7 +733,7 @@ Proof.
 
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
   iExists (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)).
-  iExists (fun ρ => (ε3 + compute_ε2_in_state ρ _ z ε2 _)%NNR).
+  iExists (fun ρ => (ε3 + compute_ε2 σ1 ρ α _ ns ε2)%NNR).
 
   (* upper bound *)
   iSplit.
@@ -725,15 +746,13 @@ Proof.
     exists (ε3 + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
-    rewrite /compute_ε2_in_state.
-    destruct e'; try (simpl; lra).
-    destruct v; try (simpl; lra).
-    destruct l; try (simpl; lra).
-    case_bool_decide; try (simpl; lra).
-    destruct (lt_dec _ _); try (simpl; lra).
-    remember (nat_to_fin _) as n'.
-    rewrite -match_nonneg_coercions.
-    apply (Hr n').
+    destruct_decide
+      (exists_dec (fun s : fin _ => σ' = (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s]) : tape]> σ1))).
+    + destruct H as [s Hs].
+      rewrite /compute_ε2.
+      (* should be provale from here *)
+      admit.
+    + admit.
   }
 
   iSplit.
@@ -743,20 +762,14 @@ Proof.
        the state_step factor should eliminate all of those except S N of them
        which are of the form ρ with a new value on α
 
+       so the series is reduced to S N terms, and each _should_ be 1/S N.
 
-       this gets us the factor of (1/(S N))
+       then for each state, the second term will be (ε2 s)
 
-       the second factor is nonzero only in the cases where
-       e is the value #n with 0 ≤ n, in which case it becomes
-       ε2
+       by Hsum, the total is ε1
 
-      by Hsum, the total is ε1
-
-      then we need ε1 ≤ ε_now, which we can get without splitting into
-      ε1 and ε3 with ec_supply_bounnd (above)
-
+       conclude by 0 <= ε3
      *)
-
     admit.
   }
 
@@ -770,17 +783,25 @@ Proof.
   }
 
   iIntros ((heap2 & tapes2)) "[%sample %Hsample]"; simplify_eq.
-  rewrite compute_ε2_in_state_expr; auto. (* sus *)
-
-
+  (* we should be able to get ε2 from compute_ε2 now *)
+  replace (compute_ε2 _ _ _ _ _ _) with (ε2 sample); last first.
+  { rewrite Hsample /compute_ε2 /=.
+    remember (λ s : fin (S (Z.to_nat z)),
+         state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
+        as F.
+    assert (FS: F sample).
+    { rewrite HeqF /=; done. }
+    assert (HD:  ∀ x : fin (S (Z.to_nat z)), Decision (F x) ).
+    { intros. rewrite HeqF. admit. (* ok *)}
+    destruct (@find_is_Some _ _ _ F HD sample FS) as [s' [Hs' Fs']].
+    (* fixable *)
+    admit.
+  }
   (* decrease the supply to ε1 (to get rid of the € ε1) and then increase it to ε2.
-     the decrease is probably not needed lol *)
+     the decrease is probably not needed I think? *)
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   iSpecialize ("Hwp" $! sample).
-  (* FIXME I'm getting weird unification errors I don't understand so I'll just
-    curry Hwp by admits *)
-  (* iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes H𝛼]". *)
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
 
 
@@ -792,49 +813,31 @@ Proof.
   iAssert (state_interp (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample]) : tape]> σ1)) with "[Hheap Htapes]" as "Hσ1".
   { rewrite /state_interp; iFrame. }
 
-  (*
-  iAssert (err_interp (εrem + ε2 sample)%NNR ) with "[Hε_supply]" as "Hε_supply".
+  iAssert (err_interp (ε3 + ε2 sample)%NNR ) with "[Hε_supply]" as "Hε_supply".
   { rewrite /err_interp; iFrame. }
   iSpecialize ("Hwp" with "[Hε Hα]").
   {  iFrame. }
-  iSpecialize ("Hwp" $! {| heap := heap2; tapes := tapes2 |} (εrem + ε2 sample)%NNR).
+  iSpecialize ("Hwp" $! {| heap := heap2; tapes := tapes2 |} (ε3 + ε2 sample)%NNR).
   iSpecialize ("Hwp" with "[Hσ1 Hε_supply]").
   { rewrite Hsample. iFrame. }
-*)
 
-  (* oh no-- the nnreal_zero is wrong! it needs to be at least (εrem + r) *)
+  clear.
+
+  remember (exec_ub e {| heap := heap2; tapes := tapes2 |}
+              (λ (ε0 : nonnegreal) '(e2, σ2), ▷ (|={∅,E}=> state_interp σ2 ∗ err_interp ε0 ∗ WP e2 @ E {{ v, Φ v }}))
+              (ε3 + ε2 sample)%NNR)%I as EUB.
+  rewrite -HeqEUB.
+
+  iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose']" as "W".
+  { iIntros. iFrame. }
+
+  iPoseProof (fupd_trans_frame E ∅ E EUB (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝))%I as "Z".
+  iSpecialize ("Z" with "[W Hwp]").
+  {  iFrame. }
+  iApply fupd_mask_mono; last done.
+
+  (* oh damn! this can't be proven. can we only take this step when E = ∅? *)
+  admit.
 
 Admitted.
-
-(*
-
-  iSplit.
-  iIntros ((e2 & σ2)) "%H".
-  destruct H as (n & Hn1); simplify_eq.
-  rewrite /foo /=.
-  rewrite bool_decide_eq_true_2; last first.
-  {
-    by zify.
-  }
-  case_match.
-  2:{
-    destruct n0.
-    rewrite Nat2Z.id.
-    apply fin_to_nat_lt.
-  }
-  iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
-  do 2 iModIntro.
-  iMod "Hclose'".
-  iFrame.
-  iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
-  iFrame. iModIntro. wp_pures.
-  iModIntro. iApply "HΨ".
-  assert (nat_to_fin l = n) as ->; [|done].
-  apply fin_to_nat_inj.
-  rewrite fin_to_nat_to_fin.
-  rewrite Nat2Z.id.
-  reflexivity.
-Admitted.
-*)
-
 End rules.
