@@ -775,8 +775,6 @@ Proof.
 
   (* decrease the supply to ε1 (to get rid of the € ε1) and then increase it to ε2.
      the decrease is probably not needed lol *)
-  iDestruct (ec_split_supply with "Hε_supply Hε") as (εrem) "%Hεrem".
-  simplify_eq.
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   iSpecialize ("Hwp" $! sample).
@@ -793,6 +791,8 @@ Proof.
 
   iAssert (state_interp (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample]) : tape]> σ1)) with "[Hheap Htapes]" as "Hσ1".
   { rewrite /state_interp; iFrame. }
+
+  (*
   iAssert (err_interp (εrem + ε2 sample)%NNR ) with "[Hε_supply]" as "Hε_supply".
   { rewrite /err_interp; iFrame. }
   iSpecialize ("Hwp" with "[Hε Hα]").
@@ -800,6 +800,7 @@ Proof.
   iSpecialize ("Hwp" $! {| heap := heap2; tapes := tapes2 |} (εrem + ε2 sample)%NNR).
   iSpecialize ("Hwp" with "[Hσ1 Hε_supply]").
   { rewrite Hsample. iFrame. }
+*)
 
   (* oh no-- the nnreal_zero is wrong! it needs to be at least (εrem + r) *)
 
