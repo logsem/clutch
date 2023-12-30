@@ -382,7 +382,7 @@ Lemma SeriesC_singleton_dependent `{Countable A} (a : A) (v : A -> nonnegreal) :
   SeriesC (λ n, if bool_decide (n = a) then v n else nnreal_zero) = nonneg (v a).
 Proof.  Admitted.
 
-Lemma mean_constraint_ub (N : nat) (ε2 : fin (S N) -> nonnegreal) ε1 :
+Lemma mean_constraint_ub (N : nat) ε1 (ε2 : fin (S N) -> nonnegreal) :
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) ->
   (exists r, ∀ n, (ε2 n <= r)%R).
 Proof.
@@ -410,6 +410,10 @@ Proof.
       case_bool_decide; try lra.
     + apply ex_seriesC_finite.
 Qed.
+
+
+Lemma match_nonneg_coercions (n : nonnegreal) : NNRbar_to_real (NNRbar.Finite n) = nonneg n.
+Proof. by simpl. Qed.
 
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
@@ -689,60 +693,30 @@ Proof.
   rewrite Hε3.
 
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
-
-  iExists (fun σ' : state => exists n : fin (S N), σ' = (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> σ1)).
+  iExists (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)).
   (* ε2: lifted version of ε2 to states *)
-  iExists (fun ρ => (ε3 + compute_ε2_in_state ρ N z ε2 H)%NNR).
+  iExists (fun ρ => (ε3 + compute_ε2_in_state ρ _ z ε2 _)%NNR).
 
   (* upper bound *)
   iSplit.
-  { iPureIntro. exists (ε3 + (nnreal_nat (S N)) * ε1)%NNR.
+  { iPureIntro.
+    destruct (mean_constraint_ub _ _ _ Hsum) as [r Hr].
+    assert (Hr_nnonneg : (0 <= r)%R).
+    { eapply Rle_trans; [|apply (Hr 0%fin)].
+      rewrite match_nonneg_coercions.
+      apply cond_nonneg. }
+    eexists (ε3 + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
     rewrite /compute_ε2_in_state.
-    assert (H' : (0 <= (S N)* ε1)%R).
-    { apply Rmult_le_pos.
-      - apply pos_INR.
-      - by destruct ε1. }
-    destruct e'; try apply H'.
-    destruct v; try apply H'.
-    destruct l; try apply H'.
-    case_bool_decide; try apply H'.
-    destruct (lt_dec _ _); try apply H'.
-    remember (nat_to_fin _) as F.
-    Opaque nnreal_nat. simpl.
-    rewrite -Hsum -SeriesC_scal_l.
-    rewrite -(SeriesC_singleton_dependent F ε2).
-    apply SeriesC_le.
-    - intros.
-      case_bool_decide.
-      (* could be a lot simpler *)
-      + split.
-        * by destruct (ε2 _).
-        * Set Printing Coercions.
-          rewrite -(Rmult_1_l (ε2 n0)) -Rmult_assoc -Rmult_assoc.
-          apply Rmult_le_compat_r.
-          ** by destruct (ε2 _); simpl.
-          ** rewrite Rmult_1_r.
-             rewrite /Rdiv Rmult_comm Rmult_1_l.
-             Transparent nnreal_nat. simpl.
-             rewrite Rinv_l; try lra.
-             destruct N; try lra.
-             rewrite S_INR.
-             rewrite /not; intros.
-             assert (K : (0 <= INR N)%R) by apply pos_INR.
-             lra. (* yikes lol *)
-      + split; simpl; try lra.
-        rewrite Rmult_assoc Rmult_1_l -Rmult_assoc.
-        rewrite Rinv_r.
-          * apply Rmult_le_pos; try lra.
-            by destruct (ε2 _); simpl.
-          * rewrite /not; intros.
-            assert (K : (0 <= INR N)%R) by apply pos_INR.
-            destruct N.
-            ** lra.
-            ** lra.
-    - apply ex_seriesC_finite.
+    destruct e'; try (simpl; lra).
+    destruct v; try (simpl; lra).
+    destruct l; try (simpl; lra).
+    case_bool_decide; try (simpl; lra).
+    destruct (lt_dec _ _); try (simpl; lra).
+    remember (nat_to_fin _) as n'.
+    rewrite -match_nonneg_coercions.
+    apply (Hr n').
   }
 
   iSplit.
