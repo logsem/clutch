@@ -377,6 +377,40 @@ Proof.
   done.
 Qed.
 
+(* FIXME: merge me from other branch *)
+Lemma SeriesC_singleton_dependent `{Countable A} (a : A) (v : A -> nonnegreal) :
+  SeriesC (λ n, if bool_decide (n = a) then v n else nnreal_zero) = nonneg (v a).
+Proof.  Admitted.
+
+Lemma mean_constraint_ub (N : nat) (ε2 : fin (S N) -> nonnegreal) ε1 :
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) ->
+  (exists r, ∀ n, (ε2 n <= r)%R).
+Proof.
+  intros Hsum.
+  exists (nnreal_nat (S N) * ε1)%NNR.
+  intros n.
+  Opaque nnreal_nat.
+  rewrite /= -Hsum.
+  rewrite SeriesC_scal_l -Rmult_assoc -(Rmult_1_l (nonneg (ε2 _))).
+  apply Rmult_le_compat; try lra.
+  - by apply cond_nonneg.
+  - rewrite /Rdiv Rmult_1_l.
+    rewrite /= Rinv_r; try lra.
+    Transparent nnreal_nat.
+    rewrite /nnreal_nat.
+    (* simpl does too much here and I can't figure out how to stop it *)
+    replace (nonneg {| nonneg := INR (S N); cond_nonneg := _ |}) with (INR (S N)); [| by simpl ].
+    apply not_0_INR.
+    auto.
+  - rewrite -(SeriesC_singleton_dependent _ ε2).
+    apply SeriesC_le.
+    + intros n'.
+      assert (H : (0 <= (nonneg (ε2 n')))%R) by apply cond_nonneg.
+      rewrite /nnreal_zero /=.
+      case_bool_decide; try lra.
+    + apply ex_seriesC_finite.
+Qed.
+
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -392,7 +426,7 @@ Proof.
   solve_red.
   iApply exec_ub_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
-  (* ε3 is the amount of credit supply left outside of ε1 *)
+  (* ε3 is the amount of credit supply left outside of ε1 (?) *)
   rewrite Hε3.
   set (foo := (λ (ρ : expr * state),
                 ε3 +
@@ -630,9 +664,6 @@ refine(
   - apply Nat.eq_le_incl, eq_S. symmetry. by apply TCEq_eq.
 Defined.
 
-Lemma SeriesC_singleton_dependent `{Countable A} (a : A) (v : A -> nonnegreal) :
-  SeriesC (λ n, if bool_decide (n = a) then v n else nnreal_zero) = nonneg (v a).
-Proof. (* proven in other branch *) Admitted.
 
 
 Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
@@ -645,7 +676,7 @@ Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 :
   (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
+  iIntros (-> Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[Hσ_interp Hε_interp]".
   iApply fupd_mask_intro; [set_solver|].
