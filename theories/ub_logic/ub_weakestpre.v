@@ -553,7 +553,7 @@ Section exec_ub.
     (α ∈ get_active σ1 ->
      (∃ R (ε2 : cfg Λ -> nonnegreal),
         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-        ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) = ε)%R ⌝ ∗
+        ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
         ⌜ub_lift (state_step σ1 α) R nnreal_zero⌝ ∗
         ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))
       ⊢ exec_ub e1 σ1 Z ε)%I.
@@ -565,7 +565,7 @@ Section exec_ub.
     iExists _,nnreal_zero,_.
     iSplit; [auto|].
     iSplit.
-    { iPureIntro. apply Req_le. rewrite Hε /=. lra. }
+    { iPureIntro. by rewrite /= Rplus_0_l. }
     iSplit; [done|done].
   Qed.
 

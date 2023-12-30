@@ -669,32 +669,49 @@ refine(
 Defined.
 
 
+Lemma compute_ε2_in_state_expr e σ N z ε2 H :
+  to_val e = None ->
+  compute_ε2_in_state (e, σ) N z ε2 H = nnreal_zero.
+Proof.
+  intros; rewrite /compute_ε2_in_state; simpl.
+  case_match; auto.
+  simplify_eq.
+Qed.
+
 
 Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   (∀ σ', reducible e σ') →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  ▷ α ↪ (N; ns) ∗
+  α ↪ (N; ns) ∗
   € ε1 ∗
   (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (-> Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_exec_ub; [done|].
-  iIntros (σ1 ε_now) "[Hσ_interp Hε_interp]".
+  iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+  iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
+  iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
+
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iSplitR; [auto|].
   iApply (exec_ub_state_adv_comp' α); simpl.
-  { (* should be able to prove α is active since we have α ↪ _ right? *) admit. }
-  (* split supply by ε1*)
-  iDestruct (ec_split_supply with "Hε_interp Hε") as (ε3) "%Hε3".
-  rewrite Hε3.
+  { rewrite /get_active.
+    by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+
+  (* split supply by ε1 (why? is this necessary since I'm not weakening the amount of
+     credit in my exec_ub_state_adv_comp'? )
+     I guess we could be weakening the supply in any case? confusing. *)
+  (* is it because the second obligation needs exact equality? *)
+  (* I tu*)
+  iDestruct (ec_split_supply with "Hε_supply Hε") as (ε3) "%Hε_supply".
+  rewrite Hε_supply.
 
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
   iExists (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)).
-  (* ε2: lifted version of ε2 to states *)
   iExists (fun ρ => (ε3 + compute_ε2_in_state ρ _ z ε2 _)%NNR).
 
   (* upper bound *)
@@ -705,7 +722,7 @@ Proof.
     { eapply Rle_trans; [|apply (Hr 0%fin)].
       rewrite match_nonneg_coercions.
       apply cond_nonneg. }
-    eexists (ε3 + r)%R.
+    exists (ε3 + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
     rewrite /compute_ε2_in_state.
@@ -722,28 +739,70 @@ Proof.
   iSplit.
   { iPureIntro.
     rewrite /compute_ε2_in_state /=.
-    setoid_rewrite Rmult_plus_distr_l.
-    admit. (* what am I even using ε3 for again??? *)
-  }
+    (* so we have this gigantic sum over all states
+       the state_step factor should eliminate all of those except S N of them
+       which are of the form ρ with a new value on α
 
-  assert (Htape_state: tapes σ1 !! α = Some (N; ns)) by admit.
+
+       this gets us the factor of (1/(S N))
+
+       the second factor is nonzero only in the cases where
+       e is the value #n with 0 ≤ n, in which case it becomes
+       ε2
+
+      by Hsum, the total is ε1
+
+      then we need ε1 ≤ ε_now, which we can get without splitting into
+      ε1 and ε3 with ec_supply_bounnd (above)
+
+     *)
+
+    admit.
+  }
 
   (* lifted lookup on tapes *)
   iSplit.
   {
     iPureIntro.
     eapply UB_mon_pred; last first.
-    - apply ub_lift_state. apply Htape_state.
+    - apply ub_lift_state. apply Hlookup.
     - done.
   }
 
-  (* finally update the wp *)
-  iIntros ((e2 & σ2)) "[%n Hn1]"; simplify_eq.
-  (* I should be able to use Hwp here, since we've now chosen a sample *)
-  (* I need to get rid of that exec modality somehow, anyways. *)
-  iSpecialize ("Hwp" $! n).
-  rewrite /compute_ε2_in_state /=.
-  admit.
+  iIntros ((heap2 & tapes2)) "[%sample %Hsample]"; simplify_eq.
+  rewrite compute_ε2_in_state_expr; auto. (* sus *)
+
+
+  (* decrease the supply to ε1 (to get rid of the € ε1) and then increase it to ε2.
+     the decrease is probably not needed lol *)
+  iDestruct (ec_split_supply with "Hε_supply Hε") as (εrem) "%Hεrem".
+  simplify_eq.
+  iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
+  iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
+  iSpecialize ("Hwp" $! sample).
+  (* FIXME I'm getting weird unification errors I don't understand so I'll just
+    curry Hwp by admits *)
+  (* iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes H𝛼]". *)
+  iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+
+
+  rewrite ub_wp_unfold /ub_wp_pre.
+  (* then we should be able to specialize using the updated ghost state.. *)
+  iAssert (⌜ (common.language.to_val e) = None ⌝)%I as "%X". { auto. }
+  rewrite X; clear X.
+
+  iAssert (state_interp (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample]) : tape]> σ1)) with "[Hheap Htapes]" as "Hσ1".
+  { rewrite /state_interp; iFrame. }
+  iAssert (err_interp (εrem + ε2 sample)%NNR ) with "[Hε_supply]" as "Hε_supply".
+  { rewrite /err_interp; iFrame. }
+  iSpecialize ("Hwp" with "[Hε Hα]").
+  {  iFrame. }
+  iSpecialize ("Hwp" $! {| heap := heap2; tapes := tapes2 |} (εrem + ε2 sample)%NNR).
+  iSpecialize ("Hwp" with "[Hσ1 Hε_supply]").
+  { rewrite Hsample. iFrame. }
+
+  (* oh no-- the nnreal_zero is wrong! it needs to be at least (εrem + r) *)
+
 Admitted.
 
 (*
