@@ -692,12 +692,12 @@ Check (fun σ σ' α z ns N =>
 
 (* really this should not depend on the expr at all :/*)
 
+
 Definition compute_ε2 (σ : state) (ρ : cfg) α N ns (ε2 : fin (S N) -> nonnegreal) : nonnegreal :=
   match finite.find (fun s => state_upd_tapes <[α:=(N; ns ++ [s]) : tape]> σ = snd ρ) with
     | Some s => ε2 s
     | None => nnreal_zero
   end.
-
 
 
 Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
@@ -754,22 +754,41 @@ Proof.
     (* we want to split the sum based on state_step_rel (and then invert state_step_rel)*)
     Search SeriesC.
 
+    remember (fun ρ : state => _) as Body.
 
+    (* FIXME there must be a better way to define this *)
+    (* should tapes_insert be a cannonical instance? *)
+    pose P := fun ρ => (exists s : fin _, ρ = state_upd_tapes <[α:=(_ ; ns ++ [s]) : tape]> σ1).
+    assert (Pdec : forall ρ : state, Decision (P tapes_insert ρ)).
+    { intros ρ.
+      rewrite /P.
+      apply exists_dec.
+      intros; apply state_eq_dec.
+    }
+    pose Body' :=
+      (fun ρ : _ =>
+          if (@bool_decide (P tapes_insert ρ) (Pdec ρ))
+             then Body ρ
+             else 0%R).
+    rewrite (SeriesC_ext _ Body'); last first.
+    { intros s.
+      rewrite /Body' /P /=.
+      case_bool_decide; [auto|].
+      (* should be provable *)
+      admit.
+    }
+    rewrite /Body' /P.
 
+    (* how to we show that there are exactly S N states which satisfy P, and
+       that body is ε1/(S N) for all of them? *)
+    (* NEED: lemma to take a  series over different indices (with an injection or something? )*)
 
-
+    Check state_step_rel.
     Search (state_step).
-    Locate state_step_rel.
 
-
-    (* so we have this gigantic sum over all states
-       the state_step factor should eliminate all of those except S N of them
-       which are of the form ρ with a new value on α
-
+    (*
        so the series is reduced to S N terms, and each _should_ be 1/S N.
-
        then for each state, the second term will be (ε2 s)
-
        by Hsum, the total is ε1
      *)
     admit.
