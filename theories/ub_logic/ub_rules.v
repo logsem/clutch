@@ -747,8 +747,21 @@ Proof.
   }
 
   iSplit.
-  { iPureIntro.
-    rewrite /compute_ε2_in_state /=.
+  { iPureIntro. simpl.
+    (* apply Rle_plus_l; [|apply cond_nonneg]. *)
+
+    Check state_step_support_equiv_rel.
+    (* we want to split the sum based on state_step_rel (and then invert state_step_rel)*)
+    Search SeriesC.
+
+
+
+
+
+    Search (state_step).
+    Locate state_step_rel.
+
+
     (* so we have this gigantic sum over all states
        the state_step factor should eliminate all of those except S N of them
        which are of the form ρ with a new value on α
@@ -758,8 +771,6 @@ Proof.
        then for each state, the second term will be (ε2 s)
 
        by Hsum, the total is ε1
-
-       conclude by 0 <= ε3
      *)
     admit.
   }
@@ -785,29 +796,16 @@ Proof.
   rewrite X; clear X.
   (* then we should be able to specialize using the updated ghost state.. *)
 
-
-  iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose]" as "W".
+  iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose]" as "HcloseW".
   { iIntros; iFrame. }
 
   iPoseProof (fupd_trans_frame E ∅ E _ (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝))%I as "HR".
-  iSpecialize ("HR" with "[Hwp Hheap Hε_supply Hε Htapes Hα W]").
+  iSpecialize ("HR" with "[Hwp Hheap Hε_supply Hε Htapes Hα HcloseW]").
   { iFrame.
     iApply ("Hwp" with "[Hε Hα]"). { iFrame. }
-
     rewrite /state_interp /=.
     rewrite /state_upd_tapes in Hsample.
-    (* FIXME is there a tactic to turn record equality into equalities for all its fields? *)
-    assert (Heqt : tapes2 = <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1)).
-    { assert (H' : {| heap := heap2; tapes := tapes2 |}.(tapes) =
-                   {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1) |}.(tapes))
-          by (f_equal; apply Hsample).
-      by simpl in H'. }
-    assert (Heqh : heap2 = heap σ1).
-    { assert (H' : {| heap := heap2; tapes := tapes2 |}.(heap) =
-                   {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1) |}.(heap))
-          by (f_equal; apply Hsample).
-      by simpl in H'. }
-    rewrite Heqt Heqh.
+    inversion Hsample.
     iFrame. }
 
   rewrite Hsample /compute_ε2 /=.
@@ -819,13 +817,9 @@ Proof.
   replace r with sample; last first.
   { rewrite /state_upd_tapes in Hr.
     (* again: I want to destruct this equality *)
-    assert (Heqt : <[α:=(Z.to_nat z; ns ++ [r])]> (tapes σ1) = <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1)).
-    { assert (H' : {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [r])]> (tapes σ1) |}.(tapes) =
-                   {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1) |}.(tapes))
-          by (f_equal; apply Hr).
-      by simpl in H'. }
+    inversion Hr as [Heqt].
     apply (insert_inv (tapes σ1) α) in Heqt.
-    (* is there a way around using clasical theorem here?
+    (* FIXME is there a way around using clasical theorem here?
        Search ((_; ?X) = (_; ?Y)) (?X = ?Y).
        apply eq_sigT_eq_dep in Heqt.
        apply eq_dep_non_dep in Heqt. *)
@@ -835,8 +829,10 @@ Proof.
 
   iApply fupd_mask_mono; last done.
 
-  (* I can't see where this could be improved in the proof, but I also see no reason why it could't.
+  (* FIXME I can't see where this could be improved in the proof, but I also see no reason why it could't.
       (related to the prophecy counterexample? idk. )*)
   set_solver.
 Admitted.
+
+
 End rules.
