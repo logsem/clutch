@@ -748,12 +748,74 @@ Proof.
 
   iSplit.
   { iPureIntro. simpl.
-    (* apply Rle_plus_l; [|apply cond_nonneg]. *)
+    rewrite -Hsum.
 
-    Check state_step_support_equiv_rel.
-    (* we want to split the sum based on state_step_rel (and then invert state_step_rel)*)
-    Search SeriesC.
+    (* first: deal with the ε_rem term *)
+    setoid_rewrite Rmult_plus_distr_l.
+    rewrite SeriesC_plus; [|admit|admit]. (* existence *)
 
+    rewrite -Rplus_comm; apply Rplus_le_compat; last first.
+    { (* true because state_step is a pmf so is lt 1 *)
+      rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
+      apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
+
+
+    (* now we make an injection: we rewrite the lhs series to use a from_option *)
+    pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
+    rewrite (SeriesC_ext
+               (λ x : state, state_step σ1 α x * compute_ε2 σ1 (e, x) α (Z.to_nat z) ns ε2)%R
+               (fun x : state => from_option f 0
+                                (finite.find (fun n => state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1 = x ))%R));
+      last first.
+    { intros n.
+      rewrite /compute_ε2.
+      destruct (finite.find _) as [sf|].
+      - rewrite /= /f.
+        (* we will need the assumption that ε2 sf = 0 later, or we will get stuck
+           maybe this is what we should destruct instead of finite.find?
+           I need to get evidence from somewhere and the destruct is not giving me that rn
+           either way... pretty sure this is provable
+         *)
+        Check (ε2 sf = nnreal_zero)%R.
+
+        (*
+        apply Rmult_eq_compat_r.
+        rewrite /state_step.
+        Set Printing Coercions.
+        rewrite bool_decide_true; last first.
+        { rewrite elem_of_dom Hlookup /= /is_Some.
+          by exists (Z.to_nat z; ns). }
+        rewrite (lookup_total_correct _ _ (Z.to_nat z; ns)); auto.
+        Opaque Z.to_nat.
+        rewrite /state_upd_tapes.
+        rewrite /dunifP /dunif.
+
+        }
+
+
+      rewrite /nnreal_zero; simpl. *)
+        admit.
+      - admit. }
+
+    apply SeriesC_le_inj.
+    - (* f is nonnegative *)
+      intros.
+      apply Rmult_le_pos.
+      + rewrite /Rdiv.
+        apply Rmult_le_pos; try lra.
+        apply Rlt_le, Rinv_0_lt_compat, pos_INR_S.
+      + apply cond_nonneg.
+    - (* injection *)
+      intros σ' σ'' σ''' HF1 HF2.
+      rewrite /state_upd_tapes /= in HF1.
+      rewrite -HF2 in HF1.
+      admit.
+    - (* existence *)
+      admit.
+
+
+
+    (*
     remember (fun ρ : state => _) as Body.
 
     (* FIXME there must be a better way to define this *)
@@ -770,6 +832,10 @@ Proof.
           if (@bool_decide (P tapes_insert ρ) (Pdec ρ))
              then Body ρ
              else 0%R).
+
+    Check SeriesC_le_inj.
+
+
     rewrite (SeriesC_ext _ Body'); last first.
     { intros s.
       rewrite /Body' /P /=.
@@ -777,12 +843,19 @@ Proof.
       (* should be provable *)
       admit.
     }
+
+
+    Check (SeriesC_le_inj)
+
+
+
     rewrite /Body' /P.
 
     (* how to we show that there are exactly S N states which satisfy P, and
        that body is ε1/(S N) for all of them? *)
     (* NEED: lemma to take a  series over different indices (with an injection or something? )*)
 
+    Check state_step_support_equiv_rel.
     Check state_step_rel.
     Search (state_step).
 
@@ -792,6 +865,7 @@ Proof.
        by Hsum, the total is ε1
      *)
     admit.
+    *)
   }
 
   (* lifted lookup on tapes *)
