@@ -701,6 +701,7 @@ Definition compute_ε2 (σ : state) (ρ : cfg) α N ns (ε2 : fin (S N) -> nonne
 
 
 Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  E = ∅ -> (* can this really only be proven when E = ∅ or can we improve this? *)
   TCEq N (Z.to_nat z) →
   to_val e = None →
   (∀ σ', reducible e σ') →
@@ -710,30 +711,25 @@ Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 :
   (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (-> Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
+  iIntros (? -> Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
   iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
   iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
-
   iApply fupd_mask_intro; [set_solver|].
-  iIntros "Hclose'".
+  iIntros "Hclose".
   iSplitR; [auto|].
   iApply (exec_ub_state_adv_comp' α); simpl.
   { rewrite /get_active.
-    by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
-
-  (* split supply by ε1 (why? is this necessary since I'm not weakening the amount of
-     credit in my exec_ub_state_adv_comp'? )
-     I guess we could be weakening the supply in any case? confusing. *)
-  (* is it because the second obligation needs exact equality? *)
-  (* I tu*)
-  iDestruct (ec_split_supply with "Hε_supply Hε") as (ε3) "%Hε_supply".
+    apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
+    done. }
+  iDestruct (ec_split_supply with "Hε_supply Hε") as (ε_rem) "%Hε_supply".
   rewrite Hε_supply.
 
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
-  iExists (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)).
-  iExists (fun ρ => (ε3 + compute_ε2 σ1 ρ α _ ns ε2)%NNR).
+  iExists
+    (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)),
+    (fun ρ => (ε_rem + compute_ε2 σ1 ρ α _ ns ε2)%NNR).
 
   (* upper bound *)
   iSplit.
@@ -743,16 +739,11 @@ Proof.
     { eapply Rle_trans; [|apply (Hr 0%fin)].
       rewrite match_nonneg_coercions.
       apply cond_nonneg. }
-    exists (ε3 + r)%R.
+    exists (ε_rem + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
-    destruct_decide
-      (exists_dec (fun s : fin _ => σ' = (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s]) : tape]> σ1))).
-    + destruct H as [s Hs].
-      rewrite /compute_ε2.
-      (* should be provale from here *)
-      admit.
-    + admit.
+    rewrite /compute_ε2.
+    destruct (finite.find _); auto; apply Hr.
   }
 
   iSplit.
@@ -782,62 +773,70 @@ Proof.
     - done.
   }
 
-  iIntros ((heap2 & tapes2)) "[%sample %Hsample]"; simplify_eq.
-  (* we should be able to get ε2 from compute_ε2 now *)
-  replace (compute_ε2 _ _ _ _ _ _) with (ε2 sample); last first.
-  { rewrite Hsample /compute_ε2 /=.
-    remember (λ s : fin (S (Z.to_nat z)),
-         state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
-        as F.
-    assert (FS: F sample).
-    { rewrite HeqF /=; done. }
-    assert (HD:  ∀ x : fin (S (Z.to_nat z)), Decision (F x) ).
-    { intros. rewrite HeqF. admit. (* ok *)}
-    destruct (@find_is_Some _ _ _ F HD sample FS) as [s' [Hs' Fs']].
-    (* fixable *)
-    admit.
-  }
-  (* decrease the supply to ε1 (to get rid of the € ε1) and then increase it to ε2.
-     the decrease is probably not needed I think? *)
+  iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
-  iSpecialize ("Hwp" $! sample).
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+  iSpecialize ("Hwp" $! sample).
 
-
+  (* open the WP and specialize it to get the goal *)
   rewrite ub_wp_unfold /ub_wp_pre.
-  (* then we should be able to specialize using the updated ghost state.. *)
   iAssert (⌜ (common.language.to_val e) = None ⌝)%I as "%X". { auto. }
   rewrite X; clear X.
+  (* then we should be able to specialize using the updated ghost state.. *)
 
-  iAssert (state_interp (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample]) : tape]> σ1)) with "[Hheap Htapes]" as "Hσ1".
-  { rewrite /state_interp; iFrame. }
 
-  iAssert (err_interp (ε3 + ε2 sample)%NNR ) with "[Hε_supply]" as "Hε_supply".
-  { rewrite /err_interp; iFrame. }
-  iSpecialize ("Hwp" with "[Hε Hα]").
-  {  iFrame. }
-  iSpecialize ("Hwp" $! {| heap := heap2; tapes := tapes2 |} (ε3 + ε2 sample)%NNR).
-  iSpecialize ("Hwp" with "[Hσ1 Hε_supply]").
-  { rewrite Hsample. iFrame. }
+  iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose]" as "W".
+  { iIntros; iFrame. }
 
-  clear.
+  iPoseProof (fupd_trans_frame E ∅ E _ (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝))%I as "HR".
+  iSpecialize ("HR" with "[Hwp Hheap Hε_supply Hε Htapes Hα W]").
+  { iFrame.
+    iApply ("Hwp" with "[Hε Hα]"). { iFrame. }
 
-  remember (exec_ub e {| heap := heap2; tapes := tapes2 |}
-              (λ (ε0 : nonnegreal) '(e2, σ2), ▷ (|={∅,E}=> state_interp σ2 ∗ err_interp ε0 ∗ WP e2 @ E {{ v, Φ v }}))
-              (ε3 + ε2 sample)%NNR)%I as EUB.
-  rewrite -HeqEUB.
+    rewrite /state_interp /=.
+    rewrite /state_upd_tapes in Hsample.
+    (* FIXME is there a tactic to turn record equality into equalities for all its fields? *)
+    assert (Heqt : tapes2 = <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1)).
+    { assert (H' : {| heap := heap2; tapes := tapes2 |}.(tapes) =
+                   {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1) |}.(tapes))
+          by (f_equal; apply Hsample).
+      by simpl in H'. }
+    assert (Heqh : heap2 = heap σ1).
+    { assert (H' : {| heap := heap2; tapes := tapes2 |}.(heap) =
+                   {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1) |}.(heap))
+          by (f_equal; apply Hsample).
+      by simpl in H'. }
+    rewrite Heqt Heqh.
+    iFrame. }
 
-  iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose']" as "W".
-  { iIntros. iFrame. }
+  rewrite Hsample /compute_ε2 /=.
+  destruct (@find_is_Some _ _ _
+               (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
+               _ sample eq_refl)
+            as [r [Hfind Hr]].
+  rewrite Hfind.
+  replace r with sample; last first.
+  { rewrite /state_upd_tapes in Hr.
+    (* again: I want to destruct this equality *)
+    assert (Heqt : <[α:=(Z.to_nat z; ns ++ [r])]> (tapes σ1) = <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1)).
+    { assert (H' : {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [r])]> (tapes σ1) |}.(tapes) =
+                   {| heap := heap σ1; tapes := <[α:=(Z.to_nat z; ns ++ [sample])]> (tapes σ1) |}.(tapes))
+          by (f_equal; apply Hr).
+      by simpl in H'. }
+    apply (insert_inv (tapes σ1) α) in Heqt.
+    (* is there a way around using clasical theorem here?
+       Search ((_; ?X) = (_; ?Y)) (?X = ?Y).
+       apply eq_sigT_eq_dep in Heqt.
+       apply eq_dep_non_dep in Heqt. *)
+    apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2 in Heqt.
+    apply app_inv_head in Heqt.
+    by inversion Heqt. }
 
-  iPoseProof (fupd_trans_frame E ∅ E EUB (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝))%I as "Z".
-  iSpecialize ("Z" with "[W Hwp]").
-  {  iFrame. }
   iApply fupd_mask_mono; last done.
 
-  (* oh damn! this can't be proven. can we only take this step when E = ∅? *)
-  admit.
-
+  (* I can't see where this could be improved in the proof, but I also see no reason why it could't.
+      (related to the prophecy counterexample? idk. )*)
+  set_solver.
 Admitted.
 End rules.
