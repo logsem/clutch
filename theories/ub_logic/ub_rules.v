@@ -384,10 +384,11 @@ Proof.  Admitted.
 
 Lemma mean_constraint_ub (N : nat) ε1 (ε2 : fin (S N) -> nonnegreal) :
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) ->
-  (exists r, ∀ n, (ε2 n <= r)%R).
+  (exists r, (0 <= r)%R /\ ∀ n,(ε2 n <= r)%R).
 Proof.
   intros Hsum.
   exists (nnreal_nat (S N) * ε1)%NNR.
+  split. { apply Rmult_le_pos; apply cond_nonneg. }
   intros n.
   Opaque nnreal_nat.
   rewrite /= -Hsum.
@@ -734,16 +735,16 @@ Proof.
   (* upper bound *)
   iSplit.
   { iPureIntro.
-    destruct (mean_constraint_ub _ _ _ Hsum) as [r Hr].
+    destruct (mean_constraint_ub _ _ _ Hsum) as [r [Hr_nonneg Hr_ub]].
     assert (Hr_nnonneg : (0 <= r)%R).
-    { eapply Rle_trans; [|apply (Hr 0%fin)].
+    { eapply Rle_trans; [|apply (Hr_ub 0%fin)].
       rewrite match_nonneg_coercions.
       apply cond_nonneg. }
     exists (ε_rem + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
     rewrite /compute_ε2.
-    destruct (finite.find _); auto; apply Hr.
+    destruct (finite.find _); auto; apply Hr_ub.
   }
 
   iSplit.
@@ -752,13 +753,23 @@ Proof.
 
     (* first: deal with the ε_rem term *)
     setoid_rewrite Rmult_plus_distr_l.
-    rewrite SeriesC_plus; [|admit|admit]. (* existence *)
+    rewrite SeriesC_plus.
+
+    2: { apply ex_seriesC_scal_r, pmf_ex_seriesC. }
+    2: { apply pmf_ex_seriesC_mult_fn.
+         destruct (mean_constraint_ub _ _ _ Hsum) as [r [Hr_nonneg Hr_ub]].
+         exists r; intros; split.
+          - apply cond_nonneg.
+          - rewrite /compute_ε2.
+            destruct (finite.find _).
+            + apply Hr_ub.
+            + simpl; apply Hr_nonneg.
+    }
 
     rewrite -Rplus_comm; apply Rplus_le_compat; last first.
     { (* true because state_step is a pmf so is lt 1 *)
       rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
       apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
-
 
     (* now we make an injection: we rewrite the lhs series to use a from_option *)
     pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
@@ -769,33 +780,47 @@ Proof.
       last first.
     { intros n.
       rewrite /compute_ε2.
-      destruct (finite.find _) as [sf|].
-      - rewrite /= /f.
-        (* we will need the assumption that ε2 sf = 0 later, or we will get stuck
-           maybe this is what we should destruct instead of finite.find?
-           I need to get evidence from somewhere and the destruct is not giving me that rn
-           either way... pretty sure this is provable
-         *)
-        Check (ε2 sf = nnreal_zero)%R.
-
-        (*
+      remember (finite.find _) as F.
+      destruct F as [sf|].
+      - Opaque INR.
+        symmetry in HeqF.
+        apply find_Some in HeqF.
+        simpl in HeqF; rewrite -HeqF.
+        rewrite /from_option /f.
         apply Rmult_eq_compat_r.
+        rewrite /state_upd_tapes /=.
+        rewrite /pmf.
         rewrite /state_step.
-        Set Printing Coercions.
         rewrite bool_decide_true; last first.
         { rewrite elem_of_dom Hlookup /= /is_Some.
           by exists (Z.to_nat z; ns). }
         rewrite (lookup_total_correct _ _ (Z.to_nat z; ns)); auto.
-        Opaque Z.to_nat.
-        rewrite /state_upd_tapes.
-        rewrite /dunifP /dunif.
+        rewrite /dmap /dbind /dbind_pmf /pmf.
+        rewrite /= SeriesC_scal_l -{1}(Rmult_1_r (1 / _))%R.
+        rewrite /Rdiv Rmult_1_l; apply Rmult_eq_compat_l.
+        (* then show that this series is 0 unless a = sf *)
+        rewrite /dret /dret_pmf.
+        rewrite -{2}(SeriesC_singleton sf 1%R).
+        apply SeriesC_ext; intros.
+        symmetry.
+        case_bool_decide; simplify_eq.
+        + rewrite bool_decide_true; auto.
+        + rewrite bool_decide_false; auto.
+          rewrite /not; intros K.
+          rewrite /not in H0; apply H0.
+          rewrite /state_upd_tapes in K.
 
-        }
+          assert (R1 : ((Z.to_nat z; ns ++ [sf]) : tape) = (Z.to_nat z; ns ++ [n0])).
+          { apply (insert_inv (tapes σ1) α).
+            by inversion K.
+          }
 
-
-      rewrite /nnreal_zero; simpl. *)
-        admit.
-      - admit. }
+          (* FIXME: same problem as below: is classical logic really necessary here? *)
+          apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2, app_inv_head in R1.
+          by inversion R1.
+          Transparent INR.
+      - rewrite /from_option /INR /=. lra.
+    }
 
     apply SeriesC_le_inj.
     - (* f is nonnegative *)
@@ -806,66 +831,12 @@ Proof.
         apply Rlt_le, Rinv_0_lt_compat, pos_INR_S.
       + apply cond_nonneg.
     - (* injection *)
-      intros σ' σ'' σ''' HF1 HF2.
-      rewrite /state_upd_tapes /= in HF1.
-      rewrite -HF2 in HF1.
-      admit.
+      intros ? ? ? HF1 HF2.
+      apply find_Some in HF1.
+      apply find_Some in HF2.
+      by rewrite -HF1 -HF2.
     - (* existence *)
-      admit.
-
-
-
-    (*
-    remember (fun ρ : state => _) as Body.
-
-    (* FIXME there must be a better way to define this *)
-    (* should tapes_insert be a cannonical instance? *)
-    pose P := fun ρ => (exists s : fin _, ρ = state_upd_tapes <[α:=(_ ; ns ++ [s]) : tape]> σ1).
-    assert (Pdec : forall ρ : state, Decision (P tapes_insert ρ)).
-    { intros ρ.
-      rewrite /P.
-      apply exists_dec.
-      intros; apply state_eq_dec.
-    }
-    pose Body' :=
-      (fun ρ : _ =>
-          if (@bool_decide (P tapes_insert ρ) (Pdec ρ))
-             then Body ρ
-             else 0%R).
-
-    Check SeriesC_le_inj.
-
-
-    rewrite (SeriesC_ext _ Body'); last first.
-    { intros s.
-      rewrite /Body' /P /=.
-      case_bool_decide; [auto|].
-      (* should be provable *)
-      admit.
-    }
-
-
-    Check (SeriesC_le_inj)
-
-
-
-    rewrite /Body' /P.
-
-    (* how to we show that there are exactly S N states which satisfy P, and
-       that body is ε1/(S N) for all of them? *)
-    (* NEED: lemma to take a  series over different indices (with an injection or something? )*)
-
-    Check state_step_support_equiv_rel.
-    Check state_step_rel.
-    Search (state_step).
-
-    (*
-       so the series is reduced to S N terms, and each _should_ be 1/S N.
-       then for each state, the second term will be (ε2 s)
-       by Hsum, the total is ε1
-     *)
-    admit.
-    *)
+      apply ex_seriesC_finite.
   }
 
   (* lifted lookup on tapes *)
@@ -925,7 +896,7 @@ Proof.
   (* FIXME I can't see where this could be improved in the proof, but I also see no reason why it could't.
       (related to the prophecy counterexample? idk. )*)
   set_solver.
-Admitted.
+Qed.
 
 
 End rules.
