@@ -902,15 +902,62 @@ Proof.
   replace ε1 with ε2; [iFrame|by apply nnreal_ext].
 Qed.
 
+Lemma wp_ec_spend e E Φ ε :
+  (1 <= ε.(nonneg))%R →
+  (to_val e = None) ->
+  € ε -∗ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (? Hred) "Hε".
+  rewrite ub_wp_unfold /ub_wp_pre /= Hred.
+  iIntros (σ1 ε0) "(_&Hε_supply)".
+  iExFalso.
+  (* we'd need *)
+Abort.
 
-(* FIXME make this a wp rule *)
 Lemma ec_spend_1 ε1 : (1 <= ε1.(nonneg))%R → € ε1 -∗ False.
 Proof. Admitted.
 
-Lemma amplification_depth N L (ε : posreal) (kwf : kwf N L) : exists n : nat, (1 <= ε * (k N L kwf) ^ n)%R.
+
+(* there has to be a better proof, fix this *)
+Lemma amplification_depth N L (ε : posreal) (kwf : kwf N L) :
+  exists n : nat, (1 <= ε * (k N L kwf) ^ n)%R.
 Proof.
-  (* shouldn't be too hard, it's the log *)
-Admitted.
+  destruct kwf.
+  intros.
+  remember (1 + 1 / (S N ^ L - 1))%R as β.
+  assert (H1 : Lim_seq.is_lim_seq (fun n => (β ^ n)%R) Rbar.p_infty).
+  { eapply Lim_seq.is_lim_seq_geom_p.
+    rewrite Heqβ.
+    apply (Rplus_lt_reg_l (-1)%R).
+    rewrite -Rplus_assoc Rplus_opp_l Rplus_0_l.
+    rewrite /Rdiv Rmult_1_l.
+    apply Rinv_0_lt_compat.
+    apply (Rplus_lt_reg_r 1%R).
+    rewrite Rplus_assoc Rplus_opp_l Rplus_0_r Rplus_0_l.
+    apply Rlt_pow_R1; auto.
+    apply lt_1_INR; lia.
+  }
+  rewrite /Lim_seq.is_lim_seq
+          /Hierarchy.filterlim
+          /Hierarchy.filter_le
+          /Hierarchy.eventually
+          /Hierarchy.filtermap
+          /= in H1.
+  specialize H1 with (fun r : R => (/ ε <= r)%R).
+  simpl in H1; destruct H1.
+  { exists (/ε)%R. intros. by apply Rlt_le. }
+  specialize H with x.
+  exists x.
+
+  apply (Rmult_le_reg_l (/ ε)%R).
+  - apply Rinv_0_lt_compat, cond_pos.
+  - rewrite -Rmult_assoc Rinv_l; last first.
+    { pose (cond_pos ε); lra. }
+    rewrite Rmult_1_l Rmult_1_r /k.
+    rewrite -Heqβ.
+    apply H.
+    done.
+Qed.
 
 
 Lemma lookup_ex {A} (n : nat) (L : list A) : (n < length L)%nat -> exists x, (L !! n) = Some x.
