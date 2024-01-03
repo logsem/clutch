@@ -377,10 +377,9 @@ Proof.
   done.
 Qed.
 
-(* FIXME: merge me from other branch *)
-Lemma SeriesC_singleton_dependent `{Countable A} (a : A) (v : A -> nonnegreal) :
-  SeriesC (λ n, if bool_decide (n = a) then v n else nnreal_zero) = nonneg (v a).
-Proof.  Admitted.
+(* FIXME: where should this go (if anywhere?) *)
+Lemma match_nonneg_coercions (n : nonnegreal) : NNRbar_to_real (NNRbar.Finite n) = nonneg n.
+Proof. by simpl. Qed.
 
 Lemma mean_constraint_ub (N : nat) ε1 (ε2 : fin (S N) -> nonnegreal) :
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) ->
@@ -403,7 +402,8 @@ Proof.
     replace (nonneg {| nonneg := INR (S N); cond_nonneg := _ |}) with (INR (S N)); [| by simpl ].
     apply not_0_INR.
     auto.
-  - rewrite -(SeriesC_singleton_dependent _ ε2).
+  - rewrite -match_nonneg_coercions.
+    rewrite -(SeriesC_singleton_dependent _ ε2).
     apply SeriesC_le.
     + intros n'.
       assert (H : (0 <= (nonneg (ε2 n')))%R) by apply cond_nonneg.
@@ -413,8 +413,6 @@ Proof.
 Qed.
 
 
-Lemma match_nonneg_coercions (n : nonnegreal) : NNRbar_to_real (NNRbar.Finite n) = nonneg n.
-Proof. by simpl. Qed.
 
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
@@ -898,5 +896,176 @@ Proof.
   set_solver.
 Qed.
 
+
+(*
+Lemma ec_spend_irrel ε1 ε2 : (ε1.(nonneg) = ε2.(nonneg)) → € ε1 -∗ € ε2.
+Proof.
+  iIntros (?) "?".
+  replace ε1 with ε2; first by iFrame.
+  by apply nnreal_ext.
+Qed.
+
+Lemma ec_spend_1 ε1 : (1 <= ε1.(nonneg))%R → € ε1 -∗ False.
+Proof. Admitted.
+
+(** advanced composition on one tape *)
+(* not really sure what this lemma will look like in the real version? *)
+Lemma presample_adv_comp (N : nat) α ns (ε : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε) →
+  (α ↪ (N; ns) ∗ € ε) -∗ (∃ s, (α ↪ (N; ns ++ [s])) ∗ €(ε2 s)).
+Proof. Admitted.
+
+Lemma amplification_depth N L (ε : posreal) (kwf : kwf N L) : exists n : nat, (1 <= ε * (k N L kwf) ^ n)%R.
+Proof.
+  (* shouldn't be too hard, it's the log *)
+Admitted.
+
+
+Lemma lookup_ex {A} (n : nat) (L : list A) : (n < length L)%nat -> exists x, (L !! n) = Some x.
+Proof.
+  (* can't figure out how to do this with existing lemmas! *)
+  intros HL.
+  destruct L as [|h H]; [simpl in HL; lia|].
+  generalize dependent H. generalize dependent h.
+  induction n as [|n' IH].
+  - intros h ? ?. exists h; by simpl.
+  - intros h H HL.
+    rewrite cons_length in HL; apply Arith_prebase.lt_S_n in HL.
+    destruct H as [|h' H']; [simpl in HL; lia|].
+    replace ((h :: h' :: H') !! S n') with ((h' :: H') !! n'); last by simpl.
+    by apply IH.
+Qed.
+
+
+(* whenever i is strictly less than l (ie, (S i) <= l) we can amplify *)
+(* we'll need another rule for spending?, but that should be simple *)
+Lemma presample_amplify' N L kwf prefix (suffix_total suffix_remaining : list (fin (S N))) 𝛼 (ε : posreal) :
+  ⊢ ⌜ L = length suffix_total ⌝ →
+    ⌜ (0 < L)%nat ⌝ →
+    𝛼 ↪ (N; prefix) -∗
+    (€ (pos_to_nn ε)) -∗
+    ∀ (i : nat),
+      (∀ (HL : (i <= L)%nat),
+          (∃ junk, 𝛼 ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf)) ∨
+          ((𝛼 ↪ (N; prefix ++ (take i suffix_total))) ∗
+            € (εR N L i ε (mk_fRwf N L i kwf HL)))).
+Proof.
+  iIntros (Htotal HLpos) "Htape Hcr_initial"; iIntros (i).
+  iInduction i as [|i'] "IH" forall (suffix_remaining).
+  - iIntros (HL).
+    iRight. iSplitL "Htape".
+    + rewrite take_0 -app_nil_end. iFrame.
+    + iApply ec_spend_irrel; last iFrame.
+      rewrite /εR /fR /pos_to_nn /=; lra.
+  - iIntros "%HL".
+    assert (HL' : (i' <= L)%nat) by lia.
+    iSpecialize ("IH" $! _ with "Htape Hcr_initial").
+    iSpecialize ("IH" $! HL').
+    iDestruct "IH" as "[[%junk(Htape&Hcr)]|(Htape&Hcr)]".
+    + iLeft; iExists junk; iFrame.
+    +
+      (* we need to do something different dependning on if (S i') is L? No. in that case we still need 1 amp*)
+      assert (Hi' : (i' < length suffix_total)%nat) by lia.
+      destruct (lookup_ex i' suffix_total Hi') as [target Htarget].
+      rewrite (take_S_r _ _ target); [|apply Htarget].
+      pose M := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
+      iPoseProof (presample_adv_comp N 𝛼
+                   (prefix ++ take i' suffix_total)
+                   (εR N L i' ε (fRwf_dec_i N L i' _)) (εDistr N L i' ε target _) M) as "PS".
+      replace {| k_wf := kwf; i_ub := HL' |} with(fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |});
+        last by apply fRwf_ext.
+      iSpecialize ("PS" with "[Htape Hcr]"); first iFrame.
+      iDestruct "PS" as "[%s (Htape&Hcr)]".
+      (* NOW we can destruct and decide if we're left or right *)
+      rewrite /εDistr.
+      case_bool_decide.
+      * iRight. rewrite H app_assoc. iFrame.
+      * iLeft. iExists (take i' suffix_total ++ [s]).
+        replace (k_wf N L (S i') {| k_wf := kwf; i_ub := HL |}) with kwf; last by apply kwf_ext.
+        rewrite -app_assoc; iFrame.
+    Unshelve. auto.
+Qed.
+
+(* do one step in the amplification sequence *)
+Lemma presample_amplify N L prefix suffix 𝛼 (ε : posreal) (kwf: kwf N L) :
+  L = (length suffix) ->
+  € (pos_to_nn ε) -∗
+  (𝛼 ↪ (N; prefix)) -∗
+  (𝛼 ↪ (N; prefix ++ suffix) ∨ (∃ junk, 𝛼 ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf))).
+Proof.
+  iIntros (Hl) "Hcr Htape".
+
+  destruct suffix as [|s0 sr].
+  - iLeft. rewrite -app_nil_end. iFrame.
+  - remember (s0 :: sr) as suffix.
+    assert (Hl_pos : (0 < L)%nat).
+    { rewrite Hl Heqsuffix cons_length. lia. }
+    iPoseProof (presample_amplify' N L _ prefix suffix suffix 𝛼 ε $! Hl Hl_pos) as "X".
+    iSpecialize ("X" with "Htape Hcr").
+    iSpecialize ("X" $! L (le_n L)).
+    iDestruct "X" as "[H|(H&_)]".
+    + iRight. iApply "H".
+    + iLeft. rewrite Hl firstn_all. iFrame.
+Qed.
+
+
+Lemma seq_amplify N L d prefix suffix 𝛼 (ε : posreal) (kwf: kwf N L) :
+  L = (length suffix) ->
+  € (pos_to_nn ε) -∗
+  (𝛼 ↪ (N; prefix)) -∗
+  (∃ junk,
+      𝛼 ↪ (N; prefix ++ junk ++ suffix) ∨ 𝛼 ↪ (N; prefix ++ junk) ∗ €(pos_to_nn (εAmp_iter N L d ε kwf))).
+Proof.
+  iIntros (HL) "Hcr Htape".
+  iInduction (d) as [|d'] "IH".
+  - iExists []; rewrite app_nil_r. iRight. iFrame.
+    iApply ec_spend_irrel; last auto.
+    by rewrite /εAmp_iter /pos_to_nn /= Rmult_1_r.
+  - iDestruct ("IH" with "Hcr Htape") as "[%junk [Hlucky|(Htape&Hcr)]]".
+    + iExists junk; iLeft; iFrame.
+    + rewrite -εAmp_iter_cmp.
+      iPoseProof (presample_amplify N L (prefix ++ junk) suffix 𝛼 (εAmp_iter N L d' ε kwf)) as "X"; try auto.
+      iDestruct ("X" with "Hcr Htape") as "[Hlucky|[%junk' (Htape&Hcr)]]".
+      * iExists junk; iLeft. rewrite -app_assoc; iFrame.
+      * iExists (junk ++ junk'); iRight.
+        rewrite app_assoc; iFrame.
+Qed.
+
+
+Lemma presample_planner_pos N prefix suffix 𝛼 ε (HN : (0 < N)%nat) (HL : (0 < (length suffix))%nat) (Hε : (0 < ε)%R) :
+  € ε -∗
+  (𝛼 ↪ (N; prefix)) -∗
+  (∃ junk, 𝛼 ↪ (N; prefix ++ junk ++ suffix)).
+Proof.
+  iIntros "Hcr Htape".
+  (* make the interface match the other coupling rules *)
+  remember (length suffix) as L.
+  assert (kwf : kwf N L). { apply mk_kwf; lia. }
+  pose ε' := mkposreal ε.(nonneg) Hε.
+  replace ε with (pos_to_nn ε'); last first.
+  { rewrite /ε' /pos_to_nn. by apply nnreal_ext. }
+
+  destruct (amplification_depth N L ε' kwf) as [d Hdepth].
+  iDestruct ((seq_amplify N L d prefix suffix 𝛼 ε' kwf) with "Hcr Htape") as "[%junk [?|(_&Hcr)]]"; auto.
+  iExFalso; iApply ec_spend_1; last iFrame.
+  Set Printing Coercions.
+  rewrite /pos_to_nn /εAmp_iter /=.
+  replace (nonneg ε) with (pos ε') by auto.
+  done.
+Qed.
+
+Lemma presample_planner N prefix suffix 𝛼 ε (Hε : (0 < ε)%R) :
+  € ε -∗
+  (𝛼 ↪ (S N; prefix)) -∗
+  (∃ junk, 𝛼 ↪ (S N; prefix ++ junk ++ suffix)).
+Proof.
+  destruct suffix as [|h R].
+  - iIntros "_ Htape". iExists []. do 2 (rewrite -app_nil_end); iFrame.
+  - remember (h :: R) as suffix.
+    iApply presample_planner_pos; auto; try lia.
+    rewrite Heqsuffix cons_length.
+    lia.
+Qed.
+*)
 
 End rules.
