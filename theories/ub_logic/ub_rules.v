@@ -646,26 +646,6 @@ Proof.
 Qed.
 
 
-
-(* old (broken?) version *)
-Definition compute_ε2_in_state (ρ : expr * state) N z (ε2 : fin (S N) -> nonnegreal) (_ : TCEq N (Z.to_nat z)) : nonnegreal.
-refine(
-  match ρ with
-  | (Val (LitV (LitInt n)), σ) =>
-      if bool_decide (0 <= n)%Z
-      then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
-             | left H => ε2 (@Fin.of_nat_lt (Z.to_nat n) _ _)
-             | _ => nnreal_zero
-            end
-      else nnreal_zero
-  | _ => nnreal_zero
-  end).
-  eapply Nat.le_trans.
-  - apply Nat.le_succ_l, H.
-  - apply Nat.eq_le_incl, eq_S. symmetry. by apply TCEq_eq.
-Defined.
-
-
 Definition compute_ε2 (σ : state) (ρ : cfg) α N ns (ε2 : fin (S N) -> nonnegreal) : nonnegreal :=
   match finite.find (fun s => state_upd_tapes <[α:=(N; ns ++ [s]) : tape]> σ = snd ρ) with
     | Some s => ε2 s
@@ -827,21 +807,6 @@ Proof.
   rewrite ub_wp_unfold /ub_wp_pre.
   iAssert (⌜ (common.language.to_val e) = None ⌝)%I as "%X". { auto. }
   rewrite X; clear X.
-  (* then we should be able to specialize using the updated ghost state.. *)
-
-  (* iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose]" as "HcloseW".
-  { iIntros; iFrame. } *)
-
-  (*
-  iPoseProof (fupd_trans_frame E ∅ E _ (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝))%I as "HR".
-  iSpecialize ("HR" with "[Hwp Hheap Hε_supply Hε Htapes Hα Hclose]").
-  { iFrame.
-    iApply ("Hwp" with "[Hε Hα]"). { iFrame. }
-    rewrite /state_interp /=.
-    rewrite /state_upd_tapes in Hsample.
-    inversion Hsample.
-    iFrame. }
-    *)
   rewrite Hsample /compute_ε2 /=.
   destruct (@find_is_Some _ _ _
                (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
@@ -850,7 +815,6 @@ Proof.
   rewrite Hfind.
   replace r with sample; last first.
   { rewrite /state_upd_tapes in Hr.
-    (* again: I want to destruct this equality *)
     inversion Hr as [Heqt].
     apply (insert_inv (tapes σ1) α) in Heqt.
     (* FIXME is there a way around using clasical theorem here?
@@ -860,8 +824,6 @@ Proof.
     apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2 in Heqt.
     apply app_inv_head in Heqt.
     by inversion Heqt. }
-
-  (* iSpecialize ("Hwp" with "[Hwp Hheap Hε_supply Hε Htapes Hα HcloseW]"). *)
   iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
   remember {| heap := heap2; tapes := tapes2 |} as σ2.
   iSpecialize ("Hwp" $! σ2 _).
@@ -871,7 +833,6 @@ Proof.
       rewrite Heqσ2 in Hsample. inversion Hsample.
       simplify_eq. simpl. iFrame.
     - iFrame. }
-
   rewrite -Hsample.
   (* FIXME I can't see where this could be improved in the proof, but I also see no reason why it could't.
       (related to the prophecy counterexample? idk. )*)
@@ -959,8 +920,6 @@ Proof.
 Qed.
 
 
-(* whenever i is strictly less than l (ie, (S i) <= l) we can amplify *)
-(* we'll need another rule for spending?, but that should be simple *)
 Lemma presample_amplify' N z L e E Φ kwf prefix (suffix_total suffix_remaining : list (fin (S N))) α (ε : posreal) :
   E = ∅ ->
   TCEq N (Z.to_nat z) →
@@ -989,8 +948,7 @@ Proof.
     iApply "IH". iIntros "[[%junk(Htape&Hcr)]|(Htape&Hcr)]".
     + iApply "Hwand".
       iLeft; iExists junk. iFrame.
-    + (* we need to do something different dependning on if (S i') is L? No. in that case we still need 1 amp*)
-      assert (Hi' : (i' < length suffix_total)%nat) by lia.
+    + assert (Hi' : (i' < length suffix_total)%nat) by lia.
       destruct (lookup_ex i' suffix_total Hi') as [target Htarget].
       rewrite (take_S_r _ _ target); [|apply Htarget].
       pose HMean := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
@@ -1003,7 +961,6 @@ Proof.
       iFrame.
       iIntros (s) "(Htape&Hcr)".
       iApply "Hwand".
-      (* NOW we can destruct and decide if we're left or right *)
       rewrite /εDistr.
       case_bool_decide.
       * iRight. simplify_eq; rewrite app_assoc; iFrame.
@@ -1078,7 +1035,6 @@ Lemma presample_planner_pos N z e E Φ prefix suffix α (ε : nonnegreal) (HN : 
   ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (? ? ?) "(Hcr & Htape & Hwp)".
-  (* make the interface match the other coupling rules *)
   remember (length suffix) as L.
   assert (kwf : kwf N L). { apply mk_kwf; lia. }
   pose ε' := mkposreal ε.(nonneg) Hε.
