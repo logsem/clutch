@@ -63,7 +63,6 @@ Section exec_ub.
       ([∨ list] α ∈ get_active σ1,
       (* We allow an explicit weakening of the grading, but maybe it is not needed *)
         (∃ R (ε1 ε2 : nonnegreal),
-            ⌜reducible e1 σ1⌝ ∗
             ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
             ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2,((e1, σ2))))) ∨
@@ -100,10 +99,9 @@ Section exec_ub.
       iInduction (get_active σ1) as [| l] "IH" forall "H".
       { rewrite big_orL_nil //. }
       rewrite !big_orL_cons.
-      iDestruct "H" as "[(% & % & % & %Hred & %Hsum & %Hlift & HΦ) | H]".
+      iDestruct "H" as "[(% & % & % & %Hsum & %Hlift & HΦ) | H]".
       + iLeft. iExists R2.
         iExists ε1. iExists _.
-        iSplit; [try done|].
         iSplit; [try done|].
         iSplit; [try done|].
         iIntros. iApply "Hwand". by iApply "HΦ".
@@ -139,7 +137,6 @@ Section exec_ub.
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 ) ∨
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 ε2 : nonnegreal),
-            ⌜reducible e1 σ1⌝ ∗
             ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
             ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε2 )) ∨
@@ -182,10 +179,9 @@ Section exec_ub.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hred & %Hleq2 & %Hub & H)) | Ht]".
+      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq2 & %Hub & H)) | Ht]".
       + iLeft.
         iExists R2. iExists ε1. iExists ε2.
-        iSplit; [ done |].
         iSplit; [ iPureIntro; lra | ].
         iSplit; [ done | ].
         iIntros.
@@ -252,9 +248,8 @@ Section exec_ub.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & % & H)) | Ht]".
+      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & H)) | Ht]".
       + iLeft. iExists R2. iExists ε1. iExists ε2.
-        iSplit; [done | ].
         iSplit; [iPureIntro; lra | ].
         iSplit; [done | ].
         iIntros.
@@ -434,10 +429,9 @@ Section exec_ub.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hred & %Hleq & %Hub & H)) | Ht]".
+      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq & %Hub & H)) | Ht]".
       + iLeft.
         iExists _,_,_.
-        iSplit; [iPureIntro; by apply reducible_fill|].
         iSplit; [done|].
         iSplit; [done|].
         iIntros. by iApply ("H" with "[//]").

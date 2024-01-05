@@ -94,7 +94,7 @@ Section adequacy.
                      |={∅}▷=>^(S n)
                        ⌜ub_lift (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
                   with "H") as "H".
-      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hleq & %Hlift & %Hred & H)".
+      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hleq & %Hlift & H)".
         replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
         rewrite -exec_Sn_not_final; [|eauto].
         iApply (step_fupdN_mono _ _ _
