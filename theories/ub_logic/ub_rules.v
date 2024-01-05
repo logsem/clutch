@@ -167,7 +167,6 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -176,6 +175,8 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)), _, _.
+  iSplit.
+  { iPureIntro. solve_red. }
   iSplit.
   {
     iPureIntro.
@@ -223,7 +224,6 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -232,6 +232,7 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)),_,_.
+  iSplit. { iPureIntro. solve_red. }
   iSplit.
   {
     iPureIntro; apply Rle_refl.
@@ -278,7 +279,6 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -287,6 +287,7 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)),_,_.
+  iSplit. {iPureIntro. solve_red. }
   iSplit.
   {
     iPureIntro; apply Rle_refl.
@@ -333,7 +334,6 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  solve_red.
   iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
@@ -342,6 +342,7 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)),_,_.
+  iSplit. { iPureIntro. solve_red. }
   iSplit.
   {
     iPureIntro; apply Rle_refl.
@@ -425,7 +426,6 @@ Proof.
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  solve_red.
   iApply exec_ub_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
   (* ε3 is the amount of credit supply left outside of ε1 (?) *)
@@ -445,6 +445,7 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
+  iSplit. { iPureIntro. solve_red. }
   iSplit.
   {
     iPureIntro. exists (ε3 + r)%R.
@@ -610,24 +611,22 @@ Qed.
 (** adapted from wp_couple_tapes in the relational logic *)
 Lemma wp_presample (N : nat) E e 𝛼 ns Φ :
   to_val e = None →
-  (∀ σ', reducible e σ') →
   ▷ 𝛼 ↪ (N; ns) ∗
   (∀ (n : fin (S N)), 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-    iIntros (He Hred) "(>H𝛼&Hwp)".
+    iIntros (He) "(>H𝛼&Hwp)".
     iApply wp_lift_step_fupd_exec_ub; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR; [done|].
     (* now we need to prove an exec_ub, we should be able to do this with a state step. *)
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply exec_ub_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
-    iSplit.
+    iSplitR.
     { iPureIntro. apply ub_lift_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
     (* now we have to prove the exec_ub about 𝜎', we should be able to do this with the wp *)
@@ -638,7 +637,7 @@ Proof.
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !ub_wp_unfold /ub_wp_pre /= He.
     iSpecialize ("Hwp" $! 𝜎' ε).
-    iMod ("Hwp" with "[Hheap Htapes Hε]") as "(?&Hwp)".
+    iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
       rewrite H𝜎'.
       iFrame.
@@ -667,30 +666,6 @@ refine(
 Defined.
 
 
-Lemma compute_ε2_in_state_expr e σ N z ε2 H :
-  to_val e = None ->
-  compute_ε2_in_state (e, σ) N z ε2 H = nnreal_zero.
-Proof.
-  intros; rewrite /compute_ε2_in_state; simpl.
-  case_match; auto.
-  simplify_eq.
-Qed.
-
-
-Check (fun (s : state) => s.(tapes)).
-Check (fun α z ns sample=> (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample]) : tape]> )).
-Check (fun σ σ' α z ns N => (exists s : fin _, σ' = (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s]) : tape]> σ))).
-Check (fun σ σ' α z ns N =>
-            match exists_dec (fun s : fin _ => σ' = (state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s]) : tape]> σ)) with
-                | left H => _ H
-                | right H => nnreal_zero
-              end).
-
-(* I'll admit this for now to see if the rest of the proof works  *)
-
-(* really this should not depend on the expr at all :/*)
-
-
 Definition compute_ε2 (σ : state) (ρ : cfg) α N ns (ε2 : fin (S N) -> nonnegreal) : nonnegreal :=
   match finite.find (fun s => state_upd_tapes <[α:=(N; ns ++ [s]) : tape]> σ = snd ρ) with
     | Some s => ε2 s
@@ -702,21 +677,19 @@ Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 :
   E = ∅ -> (* can this really only be proven when E = ∅ or can we improve this? *)
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (∀ σ', reducible e σ') →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
   α ↪ (N; ns) ∗
   € ε1 ∗
   (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? -> Hred Hσ_red Hsum) "(Hα & Hε & Hwp)".
+  iIntros (? -> Hσ_red Hsum) "(Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
   iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
   iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose".
-  iSplitR; [auto|].
   iApply (exec_ub_state_adv_comp' α); simpl.
   { rewrite /get_active.
     apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
@@ -850,25 +823,25 @@ Proof.
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
-
   (* open the WP and specialize it to get the goal *)
   rewrite ub_wp_unfold /ub_wp_pre.
   iAssert (⌜ (common.language.to_val e) = None ⌝)%I as "%X". { auto. }
   rewrite X; clear X.
   (* then we should be able to specialize using the updated ghost state.. *)
 
-  iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose]" as "HcloseW".
-  { iIntros; iFrame. }
+  (* iAssert (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝ ={∅,E}=∗ emp)%I with "[Hclose]" as "HcloseW".
+  { iIntros; iFrame. } *)
 
+  (*
   iPoseProof (fupd_trans_frame E ∅ E _ (⌜reducible e {| heap := heap2; tapes := tapes2 |}⌝))%I as "HR".
-  iSpecialize ("HR" with "[Hwp Hheap Hε_supply Hε Htapes Hα HcloseW]").
+  iSpecialize ("HR" with "[Hwp Hheap Hε_supply Hε Htapes Hα Hclose]").
   { iFrame.
     iApply ("Hwp" with "[Hε Hα]"). { iFrame. }
     rewrite /state_interp /=.
     rewrite /state_upd_tapes in Hsample.
     inversion Hsample.
     iFrame. }
-
+    *)
   rewrite Hsample /compute_ε2 /=.
   destruct (@find_is_Some _ _ _
                (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
@@ -888,11 +861,22 @@ Proof.
     apply app_inv_head in Heqt.
     by inversion Heqt. }
 
-  iApply fupd_mask_mono; last done.
+  (* iSpecialize ("Hwp" with "[Hwp Hheap Hε_supply Hε Htapes Hα HcloseW]"). *)
+  iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
+  remember {| heap := heap2; tapes := tapes2 |} as σ2.
+  iSpecialize ("Hwp" $! σ2 _).
+  iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
+  { iSplitL "Hheap Htapes".
+    - rewrite /tapes_auth.
+      rewrite Heqσ2 in Hsample. inversion Hsample.
+      simplify_eq. simpl. iFrame.
+    - iFrame. }
 
+  rewrite -Hsample.
   (* FIXME I can't see where this could be improved in the proof, but I also see no reason why it could't.
       (related to the prophecy counterexample? idk. )*)
-  set_solver.
+  simplify_eq.
+  done.
 Qed.
 
 
@@ -981,7 +965,6 @@ Lemma presample_amplify' N z L e E Φ kwf prefix (suffix_total suffix_remaining 
   E = ∅ ->
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (∀ σ', reducible e σ') →
   L = length suffix_total ->
   (0 < L)%nat ->
   (α ↪ (N; prefix) ∗
@@ -992,7 +975,7 @@ Lemma presample_amplify' N z L e E Φ kwf prefix (suffix_total suffix_remaining 
          -∗ WP e @ E {{ Φ }})
       -∗ WP e @ E {{ Φ }}))%I.
 Proof.
-  iIntros (? ? ? ? Htotal HLpos) "(Htape & Hcr_initial)".
+  iIntros (? ? ? Htotal HLpos) "(Htape & Hcr_initial)".
   iIntros (i HL).
   iInduction i as [|i'] "IH" forall (suffix_remaining).
   - iIntros "Hwp"; iApply "Hwp".
@@ -1035,14 +1018,13 @@ Lemma wp_presample_amplify N z L e E Φ prefix suffix α (ε : posreal) (kwf: kw
   E = ∅ ->
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (∀ σ', reducible e σ') →
   L = (length suffix) ->
   € (pos_to_nn ε) ∗
   (α ↪ (N; prefix)) ∗
   ((α ↪ (N; prefix ++ suffix) ∨ (∃ junk, α ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf))) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ? ? Hl) "(Hcr & Htape & Hwp)".
+  iIntros (? ? ? Hl) "(Hcr & Htape & Hwp)".
   destruct suffix as [|s0 sr].
   - iApply "Hwp". iLeft. rewrite -app_nil_end. iFrame.
   - remember (s0 :: sr) as suffix.
@@ -1060,7 +1042,6 @@ Lemma seq_amplify N z L e E Φ d prefix suffix α (ε : posreal) (kwf: kwf N L) 
   E = ∅ ->
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (∀ σ', reducible e σ') →
   L = (length suffix) ->
   € (pos_to_nn ε) ∗
   (α ↪ (N; prefix)) ∗
@@ -1068,7 +1049,7 @@ Lemma seq_amplify N z L e E Φ d prefix suffix α (ε : posreal) (kwf: kwf N L) 
    -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ? ? HL) "(Hcr&Htape&Hwp)".
+  iIntros (? ? ? HL) "(Hcr&Htape&Hwp)".
   iInduction (d) as [|d'] "IH".
   - iApply "Hwp".
     iExists []; rewrite app_nil_r. iRight. iFrame.
@@ -1091,13 +1072,12 @@ Lemma presample_planner_pos N z e E Φ prefix suffix α (ε : nonnegreal) (HN : 
   E = ∅ ->
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (∀ σ', reducible e σ') →
   € ε ∗
   (α ↪ (N; prefix)) ∗
   ((∃ junk, α ↪ (N; prefix ++ junk ++ suffix)) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ? ?) "(Hcr & Htape & Hwp)".
+  iIntros (? ? ?) "(Hcr & Htape & Hwp)".
   (* make the interface match the other coupling rules *)
   remember (length suffix) as L.
   assert (kwf : kwf N L). { apply mk_kwf; lia. }
@@ -1120,13 +1100,12 @@ Lemma presample_planner N z e E Φ prefix suffix α (ε : nonnegreal) (Hε : (0 
   E = ∅ ->
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (∀ σ', reducible e σ') →
   € ε ∗
   (α ↪ (S N; prefix)) ∗
   ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix)) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ? ?).
+  iIntros (? ? ?).
   destruct suffix as [|h R].
   - iIntros "(_ & Htape & Hwp)".
     iApply "Hwp".

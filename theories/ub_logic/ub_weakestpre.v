@@ -551,13 +551,12 @@ Section exec_ub.
   (* TODO: Maybe allow weakening of the grading *)
   Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
-    (∃ R, ⌜reducible e1 σ1⌝ ∗
-          ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
+    (∃ R, ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
           ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε')
     ⊢ exec_ub e1 σ1 Z (ε + ε').
   Proof.
     iIntros (?) "H".
-    iDestruct "H" as (?) "(% & % & H)".
+    iDestruct "H" as (?) "(% & H)".
     rewrite {1}exec_ub_unfold.
     iRight; iRight; iLeft.
     iApply big_orL_elem_of; eauto.
@@ -837,7 +836,12 @@ Proof.
       destruct H3.
       simplify_eq.
     + apply not_reducible in H3.
-      admit.
+      (* so... we could get this back if we did a case match on
+         the exec_ub in H. We would need to exclude the two state step cases somehow. *)
+      rewrite {1}exec_ub_unfold.
+      iDestruct "H" as "[[% [% [% (%Hred&_)]]]|[[% [% [% (%Hred&_)]]]|[H|H]]]".
+      1,2: by destruct H3.
+      (* ??? *)
 Admitted.
 
 
