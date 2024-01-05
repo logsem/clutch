@@ -911,7 +911,6 @@ Proof.
   rewrite ub_wp_unfold /ub_wp_pre /= Hred.
   iIntros (σ1 ε0) "(_&Hε_supply)".
   iExFalso.
-  (* we'd need *)
 Abort.
 
 Lemma ec_spend_1 ε1 : (1 <= ε1.(nonneg))%R → € ε1 -∗ False.
