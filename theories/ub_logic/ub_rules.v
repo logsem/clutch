@@ -734,9 +734,8 @@ Proof.
           rewrite /state_upd_tapes in Hcont.
           assert (R1 : ((Z.to_nat z; ns ++ [sf]) : tape) = (Z.to_nat z; ns ++ [n0])).
           { apply (insert_inv (tapes σ1) α). by inversion Hcont. }
-
-          (* FIXME: is classical logic really necessary here? *)
-          apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2, app_inv_head in R1.
+          apply Eqdep_dec.inj_pair2_eq_dec in R1; [|apply PeanoNat.Nat.eq_dec].
+          apply app_inv_head in R1.
           by inversion R1.
           Transparent INR.
       - rewrite /from_option /INR /=. lra.
@@ -784,8 +783,7 @@ Proof.
   { rewrite /state_upd_tapes in Hr.
     inversion Hr as [Heqt].
     apply (insert_inv (tapes σ1) α) in Heqt.
-    (* FIXME is classical necessary here? *)
-    apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2 in Heqt.
+    apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
   remember {| heap := heap2; tapes := tapes2 |} as σ2.
