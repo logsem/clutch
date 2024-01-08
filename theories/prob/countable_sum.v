@@ -378,20 +378,6 @@ Section filter.
 
   Implicit Types P Q : A → Prop.
 
-  Lemma is_seriesC_singleton (a : A) v :
-    is_seriesC (λ (n : A), if bool_decide (n = a) then v else 0) v.
-  Proof.
-    rewrite /is_seriesC.
-    eapply is_series_ext; [|apply (is_series_singleton (encode_nat a))].
-    intros n =>/=. rewrite /countable_sum.
-    case_bool_decide as Hneq=>/=; subst.
-    - rewrite encode_inv_encode_nat //= bool_decide_eq_true_2 //.
-    - destruct (encode_inv_nat _) eqn:Heq=>//=.
-      case_bool_decide; [|done]; subst.
-      exfalso. apply Hneq. symmetry. by apply encode_inv_Some_nat.
-  Qed.
-
-  (* same proof as is_seriesC_singleton but stronger *)
   Lemma is_seriesC_singleton_dependent (a : A) v :
     is_seriesC (λ (n : A), if bool_decide (n = a) then v n else 0) (v a).
   Proof.
@@ -405,21 +391,25 @@ Section filter.
       exfalso. apply Hneq. symmetry. by apply encode_inv_Some_nat.
   Qed.
 
-  Lemma ex_seriesC_singleton (a : A) v :
-    ex_seriesC (λ (n : A), if bool_decide (n = a) then v else 0).
-  Proof. eexists. eapply is_seriesC_singleton. Qed.
+  Lemma is_seriesC_singleton (a : A) v :
+    is_seriesC (λ (n : A), if bool_decide (n = a) then v else 0) v.
+  Proof. apply is_seriesC_singleton_dependent. Qed.
 
   Lemma ex_seriesC_singleton_dependent (a : A) v :
     ex_seriesC (λ (n : A), if bool_decide (n = a) then v n else 0).
   Proof. eexists. eapply is_seriesC_singleton_dependent. Qed.
 
-  Lemma SeriesC_singleton (a : A) v :
-    SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
-  Proof. apply is_series_unique, is_seriesC_singleton. Qed.
+  Lemma ex_seriesC_singleton (a : A) v :
+    ex_seriesC (λ (n : A), if bool_decide (n = a) then v else 0).
+  Proof. eexists. eapply is_seriesC_singleton. Qed.
 
   Lemma SeriesC_singleton_dependent (a : A) v :
     SeriesC (λ n, if bool_decide (n = a) then v n else 0) = v a.
   Proof. apply is_series_unique, is_seriesC_singleton_dependent. Qed.
+
+  Lemma SeriesC_singleton (a : A) v :
+    SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
+  Proof. apply is_series_unique, is_seriesC_singleton. Qed.
 
   Lemma is_seriesC_singleton_inj (b : B) (f : A → B) v `{Inj A B (=) (=) f} :
     (∃ a, f a = b) →

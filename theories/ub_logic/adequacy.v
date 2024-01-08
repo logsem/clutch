@@ -69,7 +69,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([ε'' [e1 σ1]]). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %ε1 & %ε2 & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & (%r & %Hr) & % & %Hlift & H)| [H|H]]] %Hv".
+    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H|H]]] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply UB_mon_grading; eauto. }
@@ -124,7 +124,6 @@ Section adequacy.
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα.
           apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-
           erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
           apply (UB_mon_grading _ _
                    (ε1 + (SeriesC (λ ρ : language.state prob_lang, language.state_step σ1 α ρ * ε2 (e1, ρ))))) => //.
@@ -170,7 +169,7 @@ Section adequacy.
         apply (UB_mon_grading _ _ 0); [apply cond_nonneg | ].
         apply ub_lift_dret; auto.
       + rewrite ub_wp_unfold /ub_wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "(%Hexec_ub & Hlift)".
+        iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
           (exec_ub_mono _ (λ ε' '(e2, σ2), |={∅}▷=>^(S n)
