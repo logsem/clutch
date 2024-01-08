@@ -454,7 +454,11 @@ Proof.
              do 14 (case_match; simplify_eq).
              f_equal.
              *** do 3 f_equal.
-                 admit.
+                 assert (fin_to_nat (nat_to_fin l0) = fin_to_nat (nat_to_fin l)) as He.
+                 { by rewrite Hc1. }
+                 rewrite !fin_to_nat_to_fin in He.
+                 apply Z2Nat.inj;
+                   [by eapply bool_decide_eq_true_1|by eapply bool_decide_eq_true_1|done].
              *** apply bool_decide_eq_true_1 in H2.
                  apply bool_decide_eq_true_1 in H.
                  simplify_eq. done.
