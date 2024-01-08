@@ -812,6 +812,30 @@ Qed.
 Lemma ub_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
 Proof. iIntros "H". iApply (ub_wp_strong_mono E with "H"); auto. Qed.
 
+Lemma ub_wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
+  (|={E1,E2}=> WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ a; E1 {{ Φ }}.
+Proof.
+  iIntros "H".
+  rewrite !ub_wp_unfold /ub_wp_pre.
+  destruct (to_val e) as [v|] eqn:He; [by do 2 iMod "H"|].
+  iIntros (σ1 ε1) "(Hσ&Hε)".
+  iSpecialize ("H" $! σ1 ε1).
+  iMod ("H" with "[Hσ Hε]") as "H"; [iFrame|].
+  iMod "H"; iModIntro.
+  iApply (exec_ub_strong_mono with "[] [] H"); [done|].
+  iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H)".
+  iNext.
+  iMod "H" as "(Hσ&Hε&Hwp)".
+  rewrite !ub_wp_unfold /ub_wp_pre.
+  destruct (to_val e2) as [?|] eqn:He2.
+  + iFrame. do 2 (iMod "Hwp"). by do 2 iModIntro.
+  + iMod ("Hwp" $! _ _ with "[Hσ Hε]") as "Hwp"; [iFrame|].
+    specialize (atomic _ _ _ Hstep) as Hatomic. (* key step *)
+    destruct Hatomic.
+    congruence. (* how do we do this "by hand"? Not obvious to me *)
+Qed.
+
+(* Fixable?
 Lemma ub_wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
@@ -843,7 +867,7 @@ Proof.
       1,2: by destruct H3.
       (* ??? *)
 Admitted.
-
+*)
 
 Lemma ub_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
@@ -999,7 +1023,7 @@ Section proofmode_classes.
   Qed.
 
   Global Instance elim_modal_fupd_ub_wp_atomic p s E1 E2 e P Φ :
-    ElimModal (Atomic WeaklyAtomic e) p false
+    ElimModal (Atomic StronglyAtomic e) p false
             (|={E1,E2}=> P) P
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
@@ -1013,7 +1037,7 @@ Section proofmode_classes.
   Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_ub_wp. Qed.
 
   Global Instance elim_acc_ub_wp_atomic {X} E1 E2 α β γ e s Φ :
-    ElimAcc (X:=X) (Atomic WeaklyAtomic e)
+    ElimAcc (X:=X) (Atomic StronglyAtomic e)
             (fupd E1 E2) (fupd E2 E1)
             α β γ (WP e @ s; E1 {{ Φ }})
             (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
