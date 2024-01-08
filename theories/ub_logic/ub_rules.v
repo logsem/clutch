@@ -398,10 +398,8 @@ Proof.
     rewrite /= Rinv_r; try lra.
     Transparent nnreal_nat.
     rewrite /nnreal_nat.
-    (* simpl does too much here and I can't figure out how to stop it *)
     replace (nonneg {| nonneg := INR (S N); cond_nonneg := _ |}) with (INR (S N)); [| by simpl ].
-    apply not_0_INR.
-    auto.
+    by apply not_0_INR.
   - rewrite -match_nonneg_coercions.
     rewrite -(SeriesC_singleton_dependent _ ε2).
     apply SeriesC_le.
@@ -411,8 +409,6 @@ Proof.
       case_bool_decide; try lra.
     + apply ex_seriesC_finite.
 Qed.
-
-
 
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
@@ -428,7 +424,6 @@ Proof.
   iIntros "Hclose'".
   iApply exec_ub_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
-  (* ε3 is the amount of credit supply left outside of ε1 (?) *)
   rewrite Hε3.
   set (foo := (λ (ρ : expr * state),
                 ε3 +
@@ -579,7 +574,6 @@ Admitted.
 
 
 (** * Approximate Lifting *)
-(* FIXME: clean up *)
 Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
   𝜎.(tapes) !! 𝛼 = Some (N; ns) →
   ub_lift
@@ -587,8 +581,7 @@ Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
     (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
     nnreal_zero.
 Proof.
-  rewrite /ub_lift.
-  intros Htapes P Hp.
+  rewrite /ub_lift. intros Htapes P Hp.
   apply Req_le_sym; simpl.
   rewrite /prob SeriesC_0; auto.
   intros 𝜎'.
@@ -602,14 +595,13 @@ Proof.
   apply dmap_unif_zero.
   intros n Hcont.
   apply diff_true_false.
-  specialize Hp with 𝜎'.
-  rewrite -Hp; [| by exists n].
+  rewrite -(Hp 𝜎'); [| by exists n].
   replace false with (negb true) by auto.
   by rewrite HeqK negb_involutive.
 Qed.
 
 (** adapted from wp_couple_tapes in the relational logic *)
-Lemma wp_presample (N : nat) E e 𝛼 ns Φ :
+Lemma wp_presample (N : nat) E e 𝛼 Φ ns :
   to_val e = None →
   ▷ 𝛼 ↪ (N; ns) ∗
   (∀ (n : fin (S N)), 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
@@ -620,7 +612,6 @@ Proof.
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    (* now we need to prove an exec_ub, we should be able to do this with a state step. *)
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply exec_ub_state_step.
     { rewrite /= /get_active.
@@ -629,11 +620,9 @@ Proof.
     iSplitR.
     { iPureIntro. apply ub_lift_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
-    (* now we have to prove the exec_ub about 𝜎', we should be able to do this with the wp *)
-    (* first: udpate the resources *)
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
-    iMod "Hclose'" as "_". (* ?? *)
+    iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
     rewrite !ub_wp_unfold /ub_wp_pre /= He.
     iSpecialize ("Hwp" $! 𝜎' ε).
@@ -645,16 +634,7 @@ Proof.
     iModIntro. iApply "Hwp".
 Qed.
 
-
-Definition compute_ε2 (σ : state) (ρ : cfg) α N ns (ε2 : fin (S N) -> nonnegreal) : nonnegreal :=
-  match finite.find (fun s => state_upd_tapes <[α:=(N; ns ++ [s]) : tape]> σ = snd ρ) with
-    | Some s => ε2 s
-    | None => nnreal_zero
-  end.
-
-
-Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
-  E = ∅ -> (* can this really only be proven when E = ∅ or can we improve this? *)
+Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
@@ -663,7 +643,7 @@ Lemma wp_presample_adv_comp (N : nat) α (ns : list (fin (S N))) z e E Φ (ε1 :
   (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? -> Hσ_red Hsum) "(Hα & Hε & Hwp)".
+  iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
   iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
@@ -680,9 +660,13 @@ Proof.
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
   iExists
     (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)),
-    (fun ρ => (ε_rem + compute_ε2 σ1 ρ α _ ns ε2)%NNR).
+    (fun ρ => (ε_rem +
+              match finite.find (fun s => state_upd_tapes <[α:=(_; ns ++ [s]) : tape]> σ1 = snd ρ) with
+                | Some s => ε2 s
+                | None => nnreal_zero
+              end))%NNR.
 
-  (* upper bound *)
+  (* upper bound on ε2 *)
   iSplit.
   { iPureIntro.
     destruct (mean_constraint_ub _ _ _ Hsum) as [r [Hr_nonneg Hr_ub]].
@@ -693,62 +677,51 @@ Proof.
     exists (ε_rem + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
-    rewrite /compute_ε2.
     destruct (finite.find _); auto; apply Hr_ub.
   }
 
+  (* upper bound on total error *)
   iSplit.
   { iPureIntro. simpl.
     rewrite -Hsum.
-
-    (* first: deal with the ε_rem term *)
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus.
-
+    (* existence *)
     2: { apply ex_seriesC_scal_r, pmf_ex_seriesC. }
     2: { apply pmf_ex_seriesC_mult_fn.
          destruct (mean_constraint_ub _ _ _ Hsum) as [r [Hr_nonneg Hr_ub]].
          exists r; intros; split.
-          - apply cond_nonneg.
-          - rewrite /compute_ε2.
-            destruct (finite.find _).
-            + apply Hr_ub.
-            + simpl; apply Hr_nonneg.
-    }
+         - apply cond_nonneg.
+         - destruct (finite.find _); [apply Hr_ub | simpl; apply Hr_nonneg]. }
 
     rewrite -Rplus_comm; apply Rplus_le_compat; last first.
-    { (* true because state_step is a pmf so is lt 1 *)
+    { (* holds because state_step is a pmf so is lt 1 *)
       rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
       apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
 
-    (* now we make an injection: we rewrite the lhs series to use a from_option *)
+    (* rewrite to a form for SeriesC_le *)
     pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
     rewrite (SeriesC_ext
-               (λ x : state, state_step σ1 α x * compute_ε2 σ1 (e, x) α (Z.to_nat z) ns ε2)%R
+               (λ x : state, state_step σ1 α x * _)%R
                (fun x : state => from_option f 0
                                 (finite.find (fun n => state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1 = x ))%R));
       last first.
     { intros n.
-      rewrite /compute_ε2.
-      remember (finite.find _) as F.
-      destruct F as [sf|].
+      destruct (finite.find _) as [sf|] eqn:HeqF.
       - Opaque INR.
-        symmetry in HeqF.
         apply find_Some in HeqF.
         simpl in HeqF; rewrite -HeqF.
         rewrite /from_option /f.
         apply Rmult_eq_compat_r.
         rewrite /state_upd_tapes /=.
-        rewrite /pmf.
-        rewrite /state_step.
+        rewrite /pmf /state_step.
         rewrite bool_decide_true; last first.
-        { rewrite elem_of_dom Hlookup /= /is_Some.
-          by exists (Z.to_nat z; ns). }
+        { rewrite elem_of_dom Hlookup /= /is_Some; by exists (Z.to_nat z; ns). }
         rewrite (lookup_total_correct _ _ (Z.to_nat z; ns)); auto.
         rewrite /dmap /dbind /dbind_pmf /pmf.
         rewrite /= SeriesC_scal_l -{1}(Rmult_1_r (1 / _))%R.
         rewrite /Rdiv Rmult_1_l; apply Rmult_eq_compat_l.
-        (* then show that this series is 0 unless a = sf *)
+        (* this series is 0 unless a = sf *)
         rewrite /dret /dret_pmf.
         rewrite -{2}(SeriesC_singleton sf 1%R).
         apply SeriesC_ext; intros.
@@ -756,16 +729,13 @@ Proof.
         case_bool_decide; simplify_eq.
         + rewrite bool_decide_true; auto.
         + rewrite bool_decide_false; auto.
-          rewrite /not; intros K.
-          rewrite /not in H0; apply H0.
-          rewrite /state_upd_tapes in K.
-
+          rewrite /not; intros Hcont.
+          rewrite /not in H; apply H.
+          rewrite /state_upd_tapes in Hcont.
           assert (R1 : ((Z.to_nat z; ns ++ [sf]) : tape) = (Z.to_nat z; ns ++ [n0])).
-          { apply (insert_inv (tapes σ1) α).
-            by inversion K.
-          }
+          { apply (insert_inv (tapes σ1) α). by inversion Hcont. }
 
-          (* FIXME: same problem as below: is classical logic really necessary here? *)
+          (* FIXME: is classical logic really necessary here? *)
           apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2, app_inv_head in R1.
           by inversion R1.
           Transparent INR.
@@ -803,11 +773,8 @@ Proof.
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
-  (* open the WP and specialize it to get the goal *)
   rewrite ub_wp_unfold /ub_wp_pre.
-  iAssert (⌜ (common.language.to_val e) = None ⌝)%I as "%X". { auto. }
-  rewrite X; clear X.
-  rewrite Hsample /compute_ε2 /=.
+  rewrite Hsample /=.
   destruct (@find_is_Some _ _ _
                (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
                _ sample eq_refl)
@@ -817,15 +784,13 @@ Proof.
   { rewrite /state_upd_tapes in Hr.
     inversion Hr as [Heqt].
     apply (insert_inv (tapes σ1) α) in Heqt.
-    (* FIXME is there a way around using clasical theorem here?
-       Search ((_; ?X) = (_; ?Y)) (?X = ?Y).
-       apply eq_sigT_eq_dep in Heqt.
-       apply eq_dep_non_dep in Heqt. *)
+    (* FIXME is classical necessary here? *)
     apply classic_proof_irrel.PIT.EqdepTheory.inj_pair2 in Heqt.
     apply app_inv_head in Heqt.
     by inversion Heqt. }
-  iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
   remember {| heap := heap2; tapes := tapes2 |} as σ2.
+  rewrite Hσ_red.
+  iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
   iSpecialize ("Hwp" $! σ2 _).
   iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
   { iSplitL "Hheap Htapes".
@@ -834,9 +799,7 @@ Proof.
       simplify_eq. simpl. iFrame.
     - iFrame. }
   rewrite -Hsample.
-  (* FIXME I can't see where this could be improved in the proof, but I also see no reason why it could't.
-      (related to the prophecy counterexample? idk. )*)
-  simplify_eq.
+  iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
 
@@ -862,8 +825,7 @@ Lemma ec_spend_1 ε1 : (1 <= ε1.(nonneg))%R → € ε1 -∗ False.
 Proof. Admitted.
 
 
-(* there has to be a better proof, fix this *)
-Lemma amplification_depth N L (ε : posreal) (kwf : kwf N L) :
+Lemma amplification_depth N L (kwf : kwf N L) (ε : posreal) :
   exists n : nat, (1 <= ε * (k N L kwf) ^ n)%R.
 Proof.
   destruct kwf.
@@ -887,26 +849,20 @@ Proof.
           /Hierarchy.eventually
           /Hierarchy.filtermap
           /= in H1.
-  specialize H1 with (fun r : R => (/ ε <= r)%R).
-  simpl in H1; destruct H1.
-  { exists (/ε)%R. intros. by apply Rlt_le. }
-  specialize H with x.
-  exists x.
-
-  apply (Rmult_le_reg_l (/ ε)%R).
-  - apply Rinv_0_lt_compat, cond_pos.
-  - rewrite -Rmult_assoc Rinv_l; last first.
-    { pose (cond_pos ε); lra. }
-    rewrite Rmult_1_l Rmult_1_r /k.
-    rewrite -Heqβ.
-    apply H.
-    done.
+  destruct (H1 (fun r : R => (/ ε <= r)%R)); simpl.
+  - exists (/ε)%R; intros; by apply Rlt_le.
+  - exists x.
+    apply (Rmult_le_reg_l (/ ε)%R).
+    + apply Rinv_0_lt_compat, cond_pos.
+    + rewrite -Rmult_assoc Rinv_l; last first.
+      { pose (cond_pos ε); lra. }
+      rewrite Rmult_1_l Rmult_1_r /k -Heqβ.
+      by apply H.
 Qed.
 
-
+(* FIXME: relocate? *)
 Lemma lookup_ex {A} (n : nat) (L : list A) : (n < length L)%nat -> exists x, (L !! n) = Some x.
 Proof.
-  (* can't figure out how to do this with existing lemmas! *)
   intros HL.
   destruct L as [|h H]; [simpl in HL; lia|].
   generalize dependent H. generalize dependent h.
@@ -920,8 +876,7 @@ Proof.
 Qed.
 
 
-Lemma presample_amplify' N z L e E Φ kwf prefix (suffix_total suffix_remaining : list (fin (S N))) α (ε : posreal) :
-  E = ∅ ->
+Lemma presample_amplify' N z e E α Φ (ε : posreal) L kwf prefix suffix_total (suffix_remaining : list (fin (S N))) :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   L = length suffix_total ->
@@ -934,7 +889,7 @@ Lemma presample_amplify' N z L e E Φ kwf prefix (suffix_total suffix_remaining 
          -∗ WP e @ E {{ Φ }})
       -∗ WP e @ E {{ Φ }}))%I.
 Proof.
-  iIntros (? ? ? Htotal HLpos) "(Htape & Hcr_initial)".
+  iIntros (? ? Htotal HLpos) "(Htape & Hcr_initial)".
   iIntros (i HL).
   iInduction i as [|i'] "IH" forall (suffix_remaining).
   - iIntros "Hwp"; iApply "Hwp".
@@ -952,12 +907,9 @@ Proof.
       destruct (lookup_ex i' suffix_total Hi') as [target Htarget].
       rewrite (take_S_r _ _ target); [|apply Htarget].
       pose HMean := (εDistr_mean N L i' ε target (mk_fRwf N L (S i') kwf HL)).
-      wp_apply (wp_presample_adv_comp N α
-              (prefix ++ take i' suffix_total)
-              _ _ _ _
-              (εR N L i' ε (fRwf_dec_i N L i' _))
-              (εDistr N L i' ε target _)); eauto.
-      replace {| k_wf := kwf; i_ub := HL' |} with (fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |}); [|apply fRwf_ext].
+      wp_apply wp_presample_adv_comp; [done | apply HMean | ].
+      replace {| k_wf := kwf; i_ub := HL' |} with
+        (fRwf_dec_i N L i' {| k_wf := kwf; i_ub := HL |}); [|apply fRwf_ext].
       iFrame.
       iIntros (s) "(Htape&Hcr)".
       iApply "Hwand".
@@ -971,8 +923,7 @@ Proof.
 Qed.
 
 (* do one step in the amplification sequence *)
-Lemma wp_presample_amplify N z L e E Φ prefix suffix α (ε : posreal) (kwf: kwf N L) :
-  E = ∅ ->
+Lemma wp_presample_amplify N z e E α Φ (ε : posreal) L (kwf: kwf N L) prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   L = (length suffix) ->
@@ -981,7 +932,7 @@ Lemma wp_presample_amplify N z L e E Φ prefix suffix α (ε : posreal) (kwf: kw
   ((α ↪ (N; prefix ++ suffix) ∨ (∃ junk, α ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf))) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ? Hl) "(Hcr & Htape & Hwp)".
+  iIntros (? ? Hl) "(Hcr & Htape & Hwp)".
   destruct suffix as [|s0 sr].
   - iApply "Hwp". iLeft. rewrite -app_nil_end. iFrame.
   - remember (s0 :: sr) as suffix.
@@ -994,9 +945,7 @@ Proof.
  Unshelve. lia.
 Qed.
 
-
-Lemma seq_amplify N z L e E Φ d prefix suffix α (ε : posreal) (kwf: kwf N L) :
-  E = ∅ ->
+Lemma seq_amplify N z e E α Φ (ε : posreal) L (kwf: kwf N L) prefix suffix d :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   L = (length suffix) ->
@@ -1006,7 +955,7 @@ Lemma seq_amplify N z L e E Φ d prefix suffix α (ε : posreal) (kwf: kwf N L) 
    -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ? HL) "(Hcr&Htape&Hwp)".
+  iIntros (? ? HL) "(Hcr&Htape&Hwp)".
   iInduction (d) as [|d'] "IH".
   - iApply "Hwp".
     iExists []; rewrite app_nil_r. iRight. iFrame.
@@ -1018,44 +967,43 @@ Proof.
     + iApply wp_presample_amplify; eauto; iFrame.
       iIntros "[?|[%junk' (Htape&Hcr)]]"; iApply "Hwp".
       * iExists _; iLeft.
-        rewrite -app_assoc.
-        iFrame.
+        rewrite -app_assoc; iFrame.
       * iExists _; iRight.
         rewrite -app_assoc -εAmp_iter_cmp; iFrame.
 Qed.
 
 
-Lemma presample_planner_pos N z e E Φ prefix suffix α (ε : nonnegreal) (HN : (0 < N)%nat) (HL : (0 < (length suffix))%nat) (Hε : (0 < ε)%R) :
-  E = ∅ ->
+Lemma presample_planner_pos N z e E α Φ (ε : nonnegreal) prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
+  (0 < N)%nat ->
+  (0 < (length suffix))%nat ->
+  (0 < ε)%R ->
   € ε ∗
   (α ↪ (N; prefix)) ∗
   ((∃ junk, α ↪ (N; prefix ++ junk ++ suffix)) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (? ? ?) "(Hcr & Htape & Hwp)".
+  iIntros (? ? ? ? Hε) "(Hcr & Htape & Hwp)".
   remember (length suffix) as L.
   assert (kwf : kwf N L). { apply mk_kwf; lia. }
   pose ε' := mkposreal ε.(nonneg) Hε.
   replace ε with (pos_to_nn ε'); last first.
   { rewrite /ε' /pos_to_nn. by apply nnreal_ext. }
-  destruct (amplification_depth N L ε' kwf) as [d Hdepth].
+  destruct (amplification_depth N L kwf ε') as [d Hdepth].
   iApply seq_amplify; eauto; iFrame.
   iIntros "[%junk [?|(_&Hcr)]]".
-  + iApply "Hwp".
-    iExists _.
-    iFrame.
+  + iApply "Hwp"; iExists _; iFrame.
   + iExFalso; iApply ec_spend_1; last iFrame.
     rewrite /pos_to_nn /εAmp_iter /=.
     replace (nonneg ε) with (pos ε') by auto.
     done.
 Qed.
 
-Lemma presample_planner N z e E Φ prefix suffix α (ε : nonnegreal) (Hε : (0 < ε)%R) :
-  E = ∅ ->
+Lemma presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
+  (0 < ε)%R ->
   € ε ∗
   (α ↪ (S N; prefix)) ∗
   ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix)) -∗ WP e @ E {{ Φ }})
@@ -1068,9 +1016,9 @@ Proof.
     iExists [].
     do 2 (rewrite -app_nil_end); iFrame.
   - remember (h :: R) as suffix.
-    iApply presample_planner_pos; eauto; try lia.
-    + rewrite Heqsuffix cons_length; lia.
+    iApply (presample_planner_pos); eauto; try lia.
     + by erewrite Nat2Z.id.
+    + rewrite Heqsuffix cons_length; lia.
 Qed.
 
 End rules.
