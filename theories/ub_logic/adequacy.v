@@ -124,7 +124,6 @@ Section adequacy.
         - iIntros (?). iPureIntro.
           rewrite /= /get_active in Hα.
           apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-
           erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
           apply (UB_mon_grading _ _
                    (ε1 + (SeriesC (λ ρ : language.state prob_lang, language.state_step σ1 α ρ * ε2 (e1, ρ))))) => //.

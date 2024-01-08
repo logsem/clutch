@@ -29,12 +29,14 @@ Section seq_ampl.
   Qed.
 
 
-
   (* well-formedness for k *)
   (* well-formedness of k doesn't depend on the proof => OK to use proof irrelevence *)
   Record kwf N l : Set := mk_kwf { N_lb : (0 < N)%nat; l_lb: (0 < l)%nat }.
   Lemma kwf_ext N l (x : kwf N l) (y : kwf N l) : x = y.
-  Proof. destruct x; destruct y. Admitted.
+  Proof.
+    destruct x; destruct y.
+    f_equal; apply proof_irrelevance.
+  Qed.
 
   (** amplification factor on our error *)
   Definition k N l (kwf : kwf N l) : R := 1 + 1 / ((S N)^l - 1).
@@ -63,7 +65,7 @@ Section seq_ampl.
   Lemma fRwf_lower N l : kwf N l -> fRwf N l 0.
   Proof. intros. apply mk_fRwf; auto. lia. Qed.
   Lemma fRwf_ext N l i (x : fRwf N l i) (y : fRwf N l i) : x = y.
-  Proof. destruct x; destruct y. Admitted.
+  Proof. destruct x; destruct y. f_equal; [apply kwf_ext | apply proof_irrelevance]. Qed.
 
 
   (** remainder factor on error after step i *)
@@ -80,7 +82,6 @@ Section seq_ampl.
   Proof.
     destruct fRwf as [[Hn Hl] Hi].
     remember {| k_wf := _; i_ub := _|} as fRwf.
-
     induction i as [|i' IH].
     - simpl; lra.
     - Opaque INR.
@@ -201,29 +202,17 @@ Section seq_ampl.
   Proof.
     destruct fRwf as [[Hn Hl] Hi].
     remember {| k_wf := _; i_ub := _ |} as fRwf.
-
     remember (fun n : fin _ => 1 / INR (S N) * nonneg (εDistr N l i ε target fRwf n))%R as body.
     (* we want to exclude the n=target case, and then it's a constant *)
-
     assert (body_pos : ∀ a : fin _, 0 <= body a).
     { intro a.
       rewrite Heqbody.
       apply Rmult_le_pos.
       - apply Rle_mult_inv_pos; [lra|apply lt_0_INR; lia].
       - destruct εDistr. simpl; lra. }
-    rewrite (SeriesC_split_elem body target body_pos); try (apply ex_seriesC_finite).
-    simpl.
-
-    (* FIXME: Revisit that thing about rewriting under the function
-        setoid something?
-        Then we don't need the dependent versions of the function in this case
-
-     *)
-
-    (* this will come up a bunch *)
+    rewrite (SeriesC_split_elem body target body_pos) /=; try (apply ex_seriesC_finite).
     assert (HSN : not (@eq R (INR (S N)) (IZR Z0))).
     { rewrite S_INR. apply Rgt_not_eq. apply Rcomplements.INRp1_pos. }
-
 
     (* Evaluate the first series *)
     replace (SeriesC (λ a : fin _, if bool_decide (a = target) then body a else 0))
@@ -236,21 +225,20 @@ Section seq_ampl.
     replace (SeriesC (λ a : fin _, if bool_decide (not (a = target)) then body a else 0))
        with (N  * / INR (S N) * (εAmp N l ε (fRwf.(k_wf N l (S i))))); last first.
     { apply (Rplus_eq_reg_l (1 * / INR (S N) * (εAmp N l ε (fRwf.(k_wf N l (S i)))))).
+
       (* simplify the LHS *)
       do 2 rewrite Rmult_assoc.
       rewrite -Rmult_plus_distr_r.
       rewrite Rplus_comm -S_INR -Rmult_assoc Rinv_r; try auto.
       do 2 rewrite Rmult_1_l.
 
-
       (* turn the first term on the RHS into a singleton series, and combine into constant series *)
       rewrite -(SeriesC_singleton target  (/ INR (S N) * _)).
       rewrite -SeriesC_plus; try (apply ex_seriesC_finite).
       rewrite -(SeriesC_ext (fun x : fin (S N) => / INR (S N) * (εAmp N l ε (fRwf.(k_wf N l (S i)))))); last first.
-      { (* series are extensionally equal*)
-        intros n.
+      { intros n.
         case_bool_decide.
-        - rewrite bool_decide_false; auto. lra.
+        - rewrite bool_decide_false; auto; lra.
         - rewrite bool_decide_true; auto.
           rewrite Heqbody /εDistr.
           rewrite bool_decide_false; auto.
@@ -258,7 +246,7 @@ Section seq_ampl.
           apply Rmult_eq_compat_l.
           by simpl nonneg. }
 
-      (* compute the finite series *)
+      (* evaluate the finite series *)
       rewrite SeriesC_finite_mass fin_card.
       rewrite -Rmult_assoc Rinv_r; try auto.
       lra.
@@ -273,7 +261,7 @@ Section seq_ampl.
     rewrite Rinv_r; [| apply not_0_INR;lia].
     rewrite Rmult_1_l.
 
-    (* Turn everything into fR and k by dividing out 𝜀*)
+    (* Divide by 𝜀 *)
     rewrite /εR. Opaque fR. simpl nonneg.
     do 2 rewrite (Rmult_comm (INR _)) Rmult_assoc.
     rewrite -Rmult_plus_distr_l.
