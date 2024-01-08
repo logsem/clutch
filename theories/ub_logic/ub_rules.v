@@ -500,7 +500,18 @@ Proof.
                         [rewrite SeriesC_0; auto; by rewrite Rmult_0_r|].
                       intro; rewrite dret_0; auto.
                       intro; simplify_eq.
-          ** admit.
+          ** eapply ex_seriesC_ext; last first.
+             { apply ex_seriesC_list. }
+             instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
+             intros [e s].
+             case_bool_decide; last first.
+             *** case_bool_decide; last done.
+                 repeat (case_match; try done).
+                 subst. exfalso. apply H.
+                 apply (elem_of_list_fmap_1_alt _ _ (Z.to_nat n)).
+                 { rewrite elem_of_seq. lia. }
+                 repeat f_equal. apply bool_decide_eq_true in H4. lia.
+             *** admit.
       + rewrite SeriesC_scal_r.
         rewrite <- Rmult_1_l.
         apply Rmult_le_compat; auto; try lra.
