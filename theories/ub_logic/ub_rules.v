@@ -506,7 +506,7 @@ Proof.
              instantiate (1 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
              intros [e s].
              split.
-             *** case_bool_decide; last first.
+             --- case_bool_decide; last first.
                  { intros H0. inversion H0. done. }
                  case_match; try (intros H1; by inversion H1).
                  case_match; try (intros H2; by inversion H2).
@@ -516,7 +516,7 @@ Proof.
                  intros. subst. eapply elem_of_list_fmap_1_alt; last first.
                  { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
                  rewrite elem_of_seq. lia.
-             *** intros H. apply elem_of_list_fmap_2 in H.
+             --- intros H. apply elem_of_list_fmap_2 in H.
                  destruct H as [n[H1 H2]].
                  inversion H1.
                  replace (bool_decide (_=_)) with true.
@@ -534,7 +534,7 @@ Proof.
       intros [e s].
       instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
       case_bool_decide; last first.
-      -- repeat (case_match; try (simpl; lra)).
+      + repeat (case_match; try (simpl; lra)).
          exfalso. apply H. subst.
          eapply elem_of_list_fmap_1_alt; last first.
          { apply bool_decide_eq_true_1 in H3, H4. repeat f_equal.
@@ -542,7 +542,7 @@ Proof.
            - done.
          }
          rewrite elem_of_seq. lia.
-      -- instantiate (1 :=
+      + instantiate (1 :=
                         (λ '(e, s), (prim_step (rand #z) σ1 (e, s) *
                                        match e with
                                        | Val #(LitInt n) =>
