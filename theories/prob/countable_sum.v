@@ -378,8 +378,8 @@ Section filter.
 
   Implicit Types P Q : A → Prop.
 
-  Lemma is_seriesC_singleton (a : A) v :
-    is_seriesC (λ (n : A), if bool_decide (n = a) then v else 0) v.
+  Lemma is_seriesC_singleton_dependent (a : A) v :
+    is_seriesC (λ (n : A), if bool_decide (n = a) then v n else 0) (v a).
   Proof.
     rewrite /is_seriesC.
     eapply is_series_ext; [|apply (is_series_singleton (encode_nat a))].
@@ -391,9 +391,21 @@ Section filter.
       exfalso. apply Hneq. symmetry. by apply encode_inv_Some_nat.
   Qed.
 
+  Lemma is_seriesC_singleton (a : A) v :
+    is_seriesC (λ (n : A), if bool_decide (n = a) then v else 0) v.
+  Proof. apply is_seriesC_singleton_dependent. Qed.
+
+  Lemma ex_seriesC_singleton_dependent (a : A) v :
+    ex_seriesC (λ (n : A), if bool_decide (n = a) then v n else 0).
+  Proof. eexists. eapply is_seriesC_singleton_dependent. Qed.
+
   Lemma ex_seriesC_singleton (a : A) v :
     ex_seriesC (λ (n : A), if bool_decide (n = a) then v else 0).
   Proof. eexists. eapply is_seriesC_singleton. Qed.
+
+  Lemma SeriesC_singleton_dependent (a : A) v :
+    SeriesC (λ n, if bool_decide (n = a) then v n else 0) = v a.
+  Proof. apply is_series_unique, is_seriesC_singleton_dependent. Qed.
 
   Lemma SeriesC_singleton (a : A) v :
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.

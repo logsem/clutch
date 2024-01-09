@@ -79,6 +79,7 @@ Section task_loop_spec.
       iIntros (f) "[Hq Hf]".
       wp_pures.
       iApply (rwp_couple_tape _ (λ m s, s = n + m)%nat); [|iFrame "Hspec Hα"].
+      (* Notice how the model step in the preceding line introduces a later in the goal. *)
       { iIntros (σ Hσ).
         rewrite /state_step /=.
         rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2].
@@ -88,6 +89,7 @@ Section task_loop_spec.
         apply Rcoupl_dret; eauto. }
       rewrite {2}/task_spec /tc_opaque.
       iIntros "!>" (m ? ->) "Hspec Hα /=".
+      (* Notice how the above line strips a later from the goal and the Loeb induction hyptothesis. *)
       iSpecialize ("Hf" with "Hq Hα Hna").
       wp_apply (rwp_wand with "Hf").
       iIntros (v) "(Hna & Hq & Hα)".
@@ -108,6 +110,7 @@ Section task_loop_spec.
     wp_rec. wp_pures.
     iModIntro. iFrame.
     iIntros "!> %n %m Hq Hα Hna".
+    (* Notice how the above line strips later from the goal and the Loeb IH since task_spec has a later in front *)
     wp_pures.
     wp_apply ("Hc" with "Hα"); iIntros "Hα".
     wp_pures.

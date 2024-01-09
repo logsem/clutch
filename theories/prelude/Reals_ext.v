@@ -19,6 +19,9 @@ Proof. intros ???. eapply Rgt_trans. Qed.
 #[global] Instance Rlt_Transitive: Transitive Rlt.
 Proof. intros ???. eapply Rlt_trans. Qed.
 
+#[global] Instance Req_decision (r1 r2 : R) : Decision (r1 = r2).
+Proof. destruct (Rle_dec r1 r2); destruct (Rle_dec r2 r1);
+ [left | right | right |]; lra. Qed.
 #[global] Instance Rgt_decision (r1 r2 : R) : Decision (Rgt r1 r2).
 Proof. apply Rgt_dec. Qed.
 #[global] Instance Rge_decision (r1 r2 : R) : Decision (Rge r1 r2).
