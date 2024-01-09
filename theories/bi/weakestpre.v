@@ -19,6 +19,15 @@ Global Arguments wp {_ _ _ _ _} _ _ _%E _%I.
 Global Instance: Params (@wp) 9 := {}.
 Global Arguments wp_default : simpl never.
 
+Class Twp (PROP EXPR VAL A : Type) := {
+    twp : A → coPset → EXPR → (VAL → PROP) → PROP;
+    twp_default : A
+    }.
+Global Arguments twp {_ _ _ _ _} _ _ _%E _%I.
+Global Instance: Params (@twp) 9 := {}.
+Global Arguments twp_default : simpl never.
+
+
 (** Notations for partial weakest preconditions *)
 (** Notations without binder -- only parsing because they overlap with the
 notations with binder. *)
@@ -176,3 +185,70 @@ Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e @ E ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :
   (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e @ E {{ Φ }}) : stdpp_scope.
 Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
   (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e {{ Φ }}) : stdpp_scope.
+
+
+
+(** Notations for total weakest preconditions *)
+(** Notations without binder -- only parsing because they overlap with the
+notations with binder. *)
+Notation "'WP' e @ s ; E [{ Φ } ]" := (twp s E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e @ E [{ Φ } ]" := (twp wp_default E e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+Notation "'WP' e [{ Φ } ]" := (twp wp_default ⊤ e%E Φ)
+  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+(** Notations with binder. *)
+Notation "'WP' e @ s ; E [{ v , Q } ]" := (twp s E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' [{  '[' v ,  '/' Q  ']' } ] ']'") : bi_scope.
+Notation "'WP' e @ E [{ v , Q } ]" := (twp twp_default E e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' @  E  '/' [{  '[' v ,  '/' Q  ']' } ] ']'") : bi_scope.
+Notation "'WP' e [{ v , Q } ]" := (twp twp_default ⊤ e%E (λ v, Q))
+  (at level 20, e, Q at level 200,
+   format "'[hv' 'WP'  e  '/' [{  '[' v ,  '/' Q  ']' } ] ']'") : bi_scope.
+
+(* Texan triples *)
+Notation "'[[{' P } ] ] e @ s ; E [[{ x .. y , 'RET' pat ; Q } ] ]" :=
+  (□ ∀ Φ,
+      P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; E [{ Φ }])%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' [[{  '[' P  ']' } ] ]  '/  ' e  '/' @  '[' s ;  '/' E  ']' '/' [[{  '[hv' x  ..  y ,  RET  pat ;  '/' Q  ']' } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e @ E [[{ x .. y , 'RET' pat ; Q } ] ]" :=
+  (□ ∀ Φ,
+      P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E [{ Φ }])%I
+    (at level 20, x closed binder, y closed binder,
+     format "'[hv' [[{  '[' P  ']' } ] ]  '/  ' e  '/' @  E  '/' [[{  '[hv' x  ..  y ,  RET  pat ;  '/' Q  ']' } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e [[{ x .. y , 'RET' pat ; Q } ] ]" :=
+  (□ ∀ Φ,
+      P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e [{ Φ }])%I
+    (at level 20, x closed binder, y closed binder,
+       format "'[hv' [[{  '[' P  ']' } ] ]  '/  ' e  '/' [[{  '[hv' x  ..  y ,  RET  pat ;  '/' Q  ']' } ] ] ']'") : bi_scope.
+
+Notation "'[[{' P } ] ] e @ s ; E [[{ 'RET' pat ; Q } ] ]" :=
+  (□ ∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e @ s; E [{ Φ }])%I
+    (at level 20,
+     format "'[hv' [[{  '[' P  ']' } ] ]  '/  ' e  '/' @  '[' s ;  '/' E  ']' '/' [[{  '[hv' RET  pat ;  '/' Q  ']' } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e @ E [[{ 'RET' pat ; Q } ] ]" :=
+  (□ ∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e @ E [{ Φ }])%I
+    (at level 20,
+     format "'[hv' [[{  '[' P  ']' } ] ]  '/  ' e  '/' @  E  '/' [[{  '[hv' RET  pat ;  '/' Q  ']' } ] ] ']'") : bi_scope.
+Notation "'[[{' P } ] ] e [[{ 'RET' pat ; Q } ] ]" :=
+  (□ ∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e [{ Φ }])%I
+    (at level 20,
+     format "'[hv' [[{  '[' P  ']' } ] ]  '/  ' e  '/' [[{  '[hv' RET  pat ;  '/' Q  ']' } ] ] ']'") : bi_scope.
+
+(** Aliases for stdpp scope -- they inherit the levels and format from above. *)
+Notation "'[[{' P } ] ] e @ s ; E [[{ x .. y , 'RET' pat ; Q } ] ]" :=
+  (∀ Φ, P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ s; E [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e @ E [[{ x .. y , 'RET' pat ; Q } ] ]" :=
+  (∀ Φ, P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e @ E [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e [[{ x .. y , 'RET' pat ; Q } ] ]" :=
+  (∀ Φ, P -∗ (∀ x, .. (∀ y, Q -∗ Φ pat%V) .. ) -∗ WP e [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e @ s ; E [[{ 'RET' pat ; Q } ] ]" :=
+  (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e @ s; E [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e @ E [[{ 'RET' pat ; Q } ] ]" :=
+  (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e @ E [{ Φ }]) : stdpp_scope.
+Notation "'[[{' P } ] ] e [[{ 'RET' pat ; Q } ] ]" :=
+  (∀ Φ, P -∗ (Q -∗ Φ pat%V) -∗ WP e [{ Φ }]) : stdpp_scope. 
