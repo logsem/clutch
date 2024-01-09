@@ -500,24 +500,45 @@ Proof.
                         [rewrite SeriesC_0; auto; by rewrite Rmult_0_r|].
                       intro; rewrite dret_0; auto.
                       intro; simplify_eq.
-          ** eapply ex_seriesC_ext; last first.
-             { apply ex_seriesC_list. }
-             instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
+          ** eapply ex_seriesC_finite_from_option.
+             instantiate (1 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
              intros [e s].
-             case_bool_decide; last first.
-             *** case_bool_decide; last done.
-                 repeat (case_match; try done).
-                 subst. exfalso. apply H.
-                 apply (elem_of_list_fmap_1_alt _ _ (Z.to_nat n)).
-                 { rewrite elem_of_seq. lia. }
-                 repeat f_equal. apply bool_decide_eq_true in H4. lia.
-             *** admit.
+             split.
+             *** case_bool_decide; last first.
+                 { intros H0. inversion H0. done. }
+                 case_match; try (intros H1; by inversion H1).
+                 case_match; try (intros H2; by inversion H2).
+                 case_match; try (intros H3; by inversion H3).
+                 case_bool_decide; try (intros H4; by inversion H4).
+                 case_match; try (intros H5; by inversion H5).
+                 intros. subst. eapply elem_of_list_fmap_1_alt; last first.
+                 { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
+                 rewrite elem_of_seq. lia.
+             *** intros H. apply elem_of_list_fmap_2 in H.
+                 destruct H as [n[H1 H2]].
+                 inversion H1.
+                 replace (bool_decide (_=_)) with true.
+                 2: { case_bool_decide; done. }
+                 replace (bool_decide _) with true.
+                 2: { case_bool_decide; lia. }
+                 case_match; first done.
+                 rewrite elem_of_seq in H2. lia.
       + rewrite SeriesC_scal_r.
         rewrite <- Rmult_1_l.
         apply Rmult_le_compat; auto; try lra.
         apply cond_nonneg.
     - by apply ex_seriesC_scal_r.
-    - admit.
+    - (* eapply ex_seriesC_ext; last eapply ex_seriesC_list. *)
+      (* intros [e s]. *)
+      (* instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))). *)
+      (* case_bool_decide; last first. *)
+      (* -- repeat (case_match; try (simpl; lra)). *)
+      (*    exfalso. apply H. subst. *)
+      (*    eapply elem_of_list_fmap_1_alt; last first. *)
+      (*    { repeat f_equal. instantiate (1 := Z.to_nat n). done. *)
+      (*    } *)
+      (*    case_match; try (simpl; lra). *)
+      admit.   
   }
   iSplit.
   {

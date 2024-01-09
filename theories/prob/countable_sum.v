@@ -485,8 +485,21 @@ Section filter.
     - subst. apply Rplus_0_l. 
     - subst. set_solver.
   Qed.
-    
-    
+
+  Lemma ex_seriesC_finite_from_option (l : list A) (f : B -> R) (g : A -> option B):
+    (∀ a : A, is_Some (g a) <-> a ∈ l) ->
+    ex_seriesC (λ (a : A), from_option f 0%R (g a)).
+  Proof.
+    intros Hl.
+    eapply ex_seriesC_ext; last apply (ex_seriesC_list l).
+    intros a.
+    simpl.
+    case_bool_decide as H1; first done. 
+    destruct (g a) eqn:K.
+    { exfalso. apply H1. apply Hl. done. }
+    done.
+  Qed.
+  
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
     is_seriesC f v →
