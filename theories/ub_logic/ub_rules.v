@@ -396,13 +396,15 @@ Proof.
   set (foo := (λ (ρ : expr * state),
                 ε3 +
           match ρ with
-            | (Val (LitV (LitInt n)), σ1) =>
-                if bool_decide (0 ≤ n)%Z
+          | (Val (LitV (LitInt n)), σ) =>
+              if bool_decide(σ = σ1)
+              then if bool_decide (0 ≤ n)%Z
                 then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
                        | left H => ε2 (@Fin.of_nat_lt (Z.to_nat n) (S (Z.to_nat z)) H)
                        | _ => nnreal_zero
                      end
-                  else nnreal_zero
+                else nnreal_zero
+                       else nnreal_zero
             | _ => nnreal_zero
           end)%NNR).
   iExists
@@ -417,7 +419,7 @@ Proof.
     { transitivity (ε2 0%fin); auto.
       apply cond_nonneg.
     }
-    do 5 (case_match; auto).
+    do 6 (case_match; auto).
     apply Hε2.
   }
   iSplit.
@@ -528,17 +530,36 @@ Proof.
         apply Rmult_le_compat; auto; try lra.
         apply cond_nonneg.
     - by apply ex_seriesC_scal_r.
-    - (* eapply ex_seriesC_ext; last eapply ex_seriesC_list. *)
-      (* intros [e s]. *)
-      (* instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))). *)
-      (* case_bool_decide; last first. *)
-      (* -- repeat (case_match; try (simpl; lra)). *)
-      (*    exfalso. apply H. subst. *)
-      (*    eapply elem_of_list_fmap_1_alt; last first. *)
-      (*    { repeat f_equal. instantiate (1 := Z.to_nat n). done. *)
-      (*    } *)
-      (*    case_match; try (simpl; lra). *)
-      admit.   
+    - eapply ex_seriesC_ext; last eapply ex_seriesC_list.
+      intros [e s].
+      instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1)) <$> (seq 0%nat (S (Z.to_nat z)))).
+      case_bool_decide; last first.
+      -- repeat (case_match; try (simpl; lra)).
+         exfalso. apply H. subst.
+         eapply elem_of_list_fmap_1_alt; last first.
+         { apply bool_decide_eq_true_1 in H3, H4. repeat f_equal.
+           - instantiate (1 := Z.to_nat n). lia.
+           - done.
+         }
+         rewrite elem_of_seq. lia.
+      -- instantiate (1 :=
+                        (λ '(e, s), (prim_step (rand #z) σ1 (e, s) *
+                                       match e with
+                                       | Val #(LitInt n) =>
+                                           if bool_decide (s = σ1)
+                                           then
+                                             if bool_decide (0 ≤ n)%Z
+                                             then
+                                               match lt_dec (Z.to_nat n) (S (Z.to_nat z)) with
+                                               | left H0 => ε2 (nat_to_fin H0)
+                                               | right _ => nnreal_zero
+                                               end
+                                             else nnreal_zero
+                                           else nnreal_zero
+                                       | _ => nnreal_zero
+                                       end)%R)).
+         simpl. repeat f_equal.
+         repeat (case_match; try (simpl; lra)).
   }
   iSplit.
   {
@@ -550,6 +571,7 @@ Proof.
   iIntros ((e2 & σ2)) "%H".
   destruct H as (n & Hn1); simplify_eq.
   rewrite /foo /=.
+  rewrite bool_decide_eq_true_2; last done.
   rewrite bool_decide_eq_true_2; last first.
   {
     by zify.
@@ -572,6 +594,6 @@ Proof.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-Admitted.
+Qed.
 
 End rules.
