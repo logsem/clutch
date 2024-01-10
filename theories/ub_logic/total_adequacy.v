@@ -64,4 +64,32 @@ Proof.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Hε]" as "H".
   2:{ destruct twp_default. destruct wp_default. iExact "H". }
   by iApply H0.
-Qed. 
+Qed.
+
+(** limit rules *)
+Theorem twp_mass_lim_exec_limit Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{ub_clutchGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
+Proof.
+  intros H'.
+  apply real_le_limit.
+  intros ε0 H1.
+  replace (1-_-_) with (1- (ε+ε0)) by lra.
+  assert (0<=ε+ ε0) as Hε0.
+  { trans ε; try lra. by destruct ε. }
+  pose (mknonnegreal (ε+ε0) Hε0) as NNRε0.
+  assert (ε+ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
+  { by simpl. }
+  rewrite Heq.
+  eapply twp_mass_lim_exec; first done.
+  intros. iIntros "He".
+  iApply H'; try iFrame.
+  simpl. destruct ε; simpl in H1; simpl; lra.
+Qed.
+
+Theorem twp_union_bound_lim_limit Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{ub_clutchGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  ub_lift (lim_exec (e, σ)) φ ε.
+Proof.
+  (* This lemma can be proven with the continuity of ub_lift lemma in the pull request *)
+Admitted.
