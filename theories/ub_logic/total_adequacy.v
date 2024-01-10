@@ -15,20 +15,21 @@ Section adequacy.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
     iRevert (σ ε) "Hstate Herr".
-    pose proof (ub_twp_ind ()  (λ _ e _, ∀ (a : state) (a0 : nonnegreal),
-                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜1 - a0 <= SeriesC (lim_exec (e, a))⌝)%I) as H.
-    simpl in H.
-    iApply H.
+    pose proof (ub_twp_ind' ⊤ ()  (λ _ e _, ∀ (a : state) (a0 : nonnegreal),
+                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜1 - a0 <= SeriesC (lim_exec (e, a))⌝)%I) as H. iApply H.
     2: { destruct twp_default. done. }
     clear H e.
     iModIntro.
-    iIntros (e E Φ) "H".
-    iIntros (σ ε) "[Hheap Htapes] Hec".
+    iIntros (e Φ) "H".
+    iIntros (σ ε) "Hs Hec".
     rewrite /ub_twp_pre.
     case_match.
     - iApply fupd_mask_intro; first done. iIntros "_".
       admit.
-    - iSpecialize ("H" $! σ ε). 
+    - iSpecialize ("H" $! σ ε with "[$]").
+      iMod "H".
+      rewrite exec_ub_unfold.
+      iDestruct "H" as "[H|[H|[H|H]]]".
   Admitted.
   
 End adequacy.

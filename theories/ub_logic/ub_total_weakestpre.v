@@ -103,6 +103,13 @@ Section ub_twp.
     by intros Φ Φ' ?; apply equiv_dist=>n; apply ub_twp_ne=>v; apply equiv_dist.
   Qed.
 
+  Lemma ub_twp_ind' E s Ψ :
+  (∀ n e, Proper (pointwise_relation _ (dist n) ==> dist n) (Ψ E e)) →
+  □ (∀ e Φ, ub_twp_pre (λ E e Φ, Ψ E e Φ ∧ WP e @ s; E [{ Φ }]) E e Φ -∗ Ψ E e Φ) -∗
+  ∀ e Φ, WP e @ s; E [{ Φ }] -∗ Ψ E e Φ.
+  Proof.
+    Admitted.
+  
   Lemma ub_twp_value_fupd' s E Φ v : WP of_val v @ s; E [{ Φ }] ⊣⊢ |={E}=> Φ v.
   Proof. rewrite ub_twp_unfold /ub_twp_pre to_of_val. auto. Qed.
 
