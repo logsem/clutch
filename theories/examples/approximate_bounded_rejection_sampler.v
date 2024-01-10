@@ -296,7 +296,7 @@ Section basic.
 
 
   Local Open Scope R.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
   (* In general:
       S n' = n
@@ -313,7 +313,7 @@ Section basic.
         (rec: "f" "tries_left" :=
            if: ("tries_left" - #1) < #0
             then NONE
-            else let: "next_sample" := (rand #m' from #()) in
+            else let: "next_sample" := (rand #m') in
                 if: ("next_sample" ≤ #n')
                 then SOME "next_sample"
                 else "f" ("tries_left" - #1))
@@ -325,7 +325,7 @@ Section basic.
     λ: "_",
       let: "do_sample" :=
         (rec: "f" "_" :=
-           let: "next_sample" := (rand #m' from #()) in
+           let: "next_sample" := (rand #m') in
            if: ("next_sample" ≤ #n')
             then SOME "next_sample"
             else "f" #())
@@ -863,7 +863,7 @@ End basic.
 Section higherorder.
   (* higher order rejection sampling *)
   Local Open Scope R.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
   (* spending error credits is proof irrelevant *)
   Lemma ec_spend_irrel a b : (nonneg b <= nonneg a) -> € a -∗ € b.
@@ -1006,8 +1006,12 @@ Section higherorder.
       + wp_pures.
         iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
       +  iSpecialize ("IH" with "[Hcr]").
-        { iClear "#". rewrite /scale_unless. replace (Θ sample) with false.
-          rewrite simpl_generic_geometric_error; [iFrame | done].}
+        { iClear "#".
+          rewrite /scale_unless.
+          replace (Θ sample) with false.
+          rewrite simpl_generic_geometric_error.
+          - iFrame.
+          - done. }
         iSpecialize ("IH" with "HΦ").
         iClear "#".
         wp_pure.
@@ -1092,13 +1096,13 @@ End higherorder.
 Section higherorder_rand.
   (* higher order version of the basic rejection sampler *)
   Local Open Scope R.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
 
   (* next, we should show that this can actually be instantiated by some sane samplers *)
   Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
      := (λ: "_", (Pair
-                    (λ: "_", rand #m' from #())
+                    (λ: "_", rand #m')
                     (λ: "sample", "sample" ≤ #n')))%E.
 
 
@@ -1271,7 +1275,7 @@ Section higherorder_rand.
 
   Lemma rand_sampling_scheme_spec_aggressive_ho (n' m' : nat) (Hnm : (n' < m')%nat) E :
     ⊢ sampling_scheme_spec_aggressive_ho
-          (λ: "_", rand #m' from #())%V
+          (λ: "_", rand #m')%V
           (λ: "sample", "sample" ≤ #n')%V
           (err_factor (S n') (S m'))
           (err_factor (S n') (S m'))
@@ -1354,11 +1358,11 @@ End higherorder_rand.
 Section higherorder_flip2.
   (* higher order version of a sampler which rejects until two coin flips are 1 *)
   Local Open Scope R.
-  Context `{!clutchGS Σ}.
+  Context `{!ub_clutchGS Σ}.
 
   Definition flip2_sampling_scheme : expr
      := (λ: "_",  (Pair
-                     (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
+                     (λ: "_", Pair (rand #1) (rand #1))
                      (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
 
 
@@ -1398,7 +1402,7 @@ Section higherorder_flip2.
    *)
   Lemma flip_amplification (𝜀1 𝜀h 𝜀t : nonnegreal) (Hmean : (𝜀h + 𝜀t) = 2 * 𝜀1 ) E :
     {{{ € 𝜀1 }}}
-      rand #1 from #() @ E
+      rand #1 @ E
     {{{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_flip 𝜀1 𝜀h 𝜀t #v) }}}.
   Proof.
     iIntros (Φ) "Hcr HΦ".
@@ -1446,7 +1450,7 @@ Section higherorder_flip2.
     iSplit.
     { iIntros (𝜀1 post) "!> Hcr Hpost".
       wp_pures.
-      wp_bind (rand #1 from #())%E.
+      wp_bind (rand #1)%E.
       (* amplify: give 4/3 error to the false branch, and 2/3 error to the second *)
       wp_apply (flip_amplification 𝜀1
                   (nnreal_mult 𝜀1 (nnreal_div (nnreal_nat 2) (nnreal_nat 3)))
@@ -1456,7 +1460,7 @@ Section higherorder_flip2.
       iIntros (v) "(%Hv&Hcr)".
       destruct Hv as [-> | ->].
       - (* first flip was zero, second flip doesn't matter. *)
-        wp_bind (rand _ from #())%E; iApply wp_rand; auto.
+        wp_bind (rand _)%E; iApply wp_rand; auto.
         iNext; iIntros (v') "_"; wp_pures; iModIntro; iApply "Hpost".
         iSplitR.
         + rewrite /flip2_support.
@@ -1473,7 +1477,7 @@ Section higherorder_flip2.
           (𝜀1 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR; last first.
         { rewrite /scale_flip /flip_is_1 /=. by apply nnreal_ext. }
         remember (𝜀1 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR as 𝜀'.
-        wp_bind (rand #1 from #())%E.
+        wp_bind (rand #1 )%E.
         wp_apply (flip_amplification 𝜀' nnreal_zero (nnreal_mult 𝜀' (nnreal_nat 2)) with "Hcr").
         { simpl. lra. }
         iIntros (v) "(%Hv&Hcr)".
@@ -1533,7 +1537,7 @@ Section higherorder_flip2.
 
       iIntros (v close) "!> Hcr Hclose".
       wp_pures.
-      wp_bind (rand #1 from #())%E.
+      wp_bind (rand #1 )%E.
 
       (* give € 1 to the 0 flip, and € 1/2 to the 1 flip *)
       wp_apply (flip_amplification
@@ -1548,9 +1552,9 @@ Section higherorder_flip2.
         iAssert (▷ False)%I with "[Hcr]" as "Hspend".
         { iApply credit_spend_1. iApply (ec_spend_irrel with "Hcr").
           rewrite /scale_flip /flip_is_1 /=. lra. }
-        wp_bind (rand _ from _)%E; iApply wp_rand; auto.
+        wp_bind (rand _)%E; iApply wp_rand; auto.
       -  (* we have € 1/2 so we can make the second flip be 1 too *)
-        wp_bind (rand #1 from #())%E.
+        wp_bind (rand #1)%E.
         iApply (wp_rand_err _ _ 0%fin with "[Hcr Hclose]").
         iSplitL "Hcr". { iApply (ec_spend_irrel with "Hcr"). rewrite /=; lra. }
         iIntros (v') "%Hv'".
@@ -1562,9 +1566,9 @@ Section higherorder_flip2.
 
       { (* sampling support *)
         iIntros (close) "!> _ Hclose". wp_pures.
-        wp_bind (rand #1 from #())%E.
+        wp_bind (rand #1)%E.
         iApply wp_rand; auto; iNext; iIntros (v') "_".
-        wp_bind (rand #1 from #())%E.
+        wp_bind (rand #1 )%E.
         iApply wp_rand; auto; iNext; iIntros (v'') "_".
         wp_pures; iModIntro; iApply "Hclose"; iPureIntro.
         rewrite /flip2_support.
@@ -1579,7 +1583,7 @@ Section higherorder_flip2.
 
   Lemma flip2_sampling_scheme_spec_aggressive_ho E :
     ⊢ sampling_scheme_spec_aggressive_ho
-          (λ: "_", Pair (rand #1 from #()) (rand #1 from #()))
+          (λ: "_", Pair (rand #1) (rand #1))
           (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))
           (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
           (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
@@ -1596,7 +1600,7 @@ Section higherorder_flip2.
       iIntros (v) "(%Hv&Hcr)".
       destruct Hv as [-> | ->].
       + (* first flip was zero, check is going to false and the second flip doesn't matter. *)
-        wp_bind (rand _ from #())%E; iApply wp_rand; auto.
+        wp_bind (rand _)%E; iApply wp_rand; auto.
         iNext; iIntros (v') "_"; wp_pures; iModIntro; iApply "HΦ".
         iRight; iExists _.
         iSplitL "Hcr"; [iFrame|].
@@ -1610,7 +1614,7 @@ Section higherorder_flip2.
         replace (scale_flip 𝜀 _ _ _) with (𝜀 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR; last first.
         { rewrite /scale_flip /flip_is_1 /=. by apply nnreal_ext. }
         remember (𝜀 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR as 𝜀'.
-        wp_bind (rand #1 from #())%E.
+        wp_bind (rand #1 )%E.
         wp_apply (flip_amplification 𝜀' nnreal_zero (nnreal_mult 𝜀' (nnreal_nat 2)) with "Hcr").
         { simpl. lra. }
         iIntros (v) "(%Hv&Hcr)".
@@ -1630,7 +1634,7 @@ Section higherorder_flip2.
 
     - (* credit spending rule *)
       iIntros (s Φ) "!> Hcr HΦ"; wp_pures.
-      wp_bind (rand #1 from #())%E.
+      wp_bind (rand #1)%E.
 
       (* give € 1 to the 0 flip, and € 1/2 to the 1 flip *)
       wp_apply (flip_amplification
@@ -1643,9 +1647,9 @@ Section higherorder_flip2.
         iAssert (▷ False)%I with "[Hcr]" as "Hspend".
         { iApply credit_spend_1. iApply (ec_spend_irrel with "Hcr").
           rewrite /scale_flip /flip_is_1 /=. lra. }
-        wp_bind (rand _ from _)%E; iApply wp_rand; try auto.
+        wp_bind (rand _)%E; iApply wp_rand; try auto.
       +  (* we have € 1/2 so we can make the second flip be 1 too *)
-        wp_bind (rand #1 from #())%E.
+        wp_bind (rand #1)%E.
         iApply (wp_rand_err _ _ 0%fin with "[Hcr HΦ]").
         iSplitL "Hcr". { iApply (ec_spend_irrel with "Hcr"). rewrite /=; lra. }
         iIntros (v') "%Hv'".
