@@ -860,6 +860,12 @@ Proof.
 Qed.
 
 
+
+
+Lemma ec_spend_le_irrel ε1 ε2 : (ε2.(nonneg) <= ε1.(nonneg))%R → € ε1 -∗ € ε2.
+Proof. iIntros (?) "?". iApply ec_weaken; done. Qed.
+
+
 Lemma ec_spend_irrel ε1 ε2 : (ε1.(nonneg) = ε2.(nonneg)) → € ε1 -∗ € ε2.
 Proof.
   iIntros (?) "?".

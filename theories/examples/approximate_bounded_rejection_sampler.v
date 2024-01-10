@@ -819,63 +819,15 @@ End basic.
 
 
 
-
-
-
-
 Section higherorder.
-  (* higher order rejection sampling *)
+  (** Specification for general (stateful) bounded rejection samplers which makes use of
+      Iris' higher order Hoare triples *)
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
-  (* spending error credits is proof irrelevant *)
-  Lemma ec_spend_irrel a b : (nonneg b <= nonneg a) -> € a -∗ € b.
-  Proof. iIntros (H) "?". iApply (ec_weaken _ H). iFrame. Qed.
-
-
-  Lemma credit_spend_1 : €nnreal_one -∗ ▷ False.
-  Proof. Admitted.
-
-  Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
-    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
-
-  Definition sampling_scheme_spec (e : expr) 𝜀factor 𝜀final E (Ψ : val -> bool) (Θ : val -> bool) : Prop
-    := {{{ True }}}
-         e @ E
-       {{{sampler checker, RET (PairV sampler checker);
-            (* sampler needs to be able to amplify the mass during sampling *)
-            (∀ 𝜀1, {{{€  𝜀1}}} ((Val sampler) #())%E @ E {{{ v, RET v; ⌜Ψ v = true ⌝ ∗ € (scale_unless 𝜀factor 𝜀1 Θ v) }}}) ∗
-            (* Θ reflects checker whenever the value is one we could have sampled *)
-            (∀ v : val, {{{ ⌜Ψ v = true⌝ }}} ((Val checker) v) @ E {{{ b, RET #b; ⌜b = Θ v⌝ }}}) ∗
-            (* 𝜀 credit suffices to force checker to pass, on any possible sampled values *)
-            (∀ v : val, {{{ €𝜀final }}} ((Val sampler) v) @ E {{{ v', RET v'; ⌜Ψ v' = true ⌝ ∗ ⌜Θ v' = true ⌝ }}}) ∗
-            (* we can always just get _some_ value out of the sampler if we want *)
-            ({{{ True }}} (Val sampler) #() @ E {{{ v, RET v; ⌜Ψ v = true ⌝ }}})
-       }}}.
-
-  (* version of the sampling scheme spec which removes the need for Θ, and expresses Ψ as a prop *)
-  Definition sampling_scheme_spec_aggressive_ho (sampler checker : val) 𝜀factor 𝜀final E : iProp Σ
-    := (* amplification during the rejection check  *)
-       ((∀ 𝜀,
-          {{{ € 𝜀 }}}
-            ((Val sampler) #())%E @ E
-          {{{ (v : val), RET v;
-               ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
-               (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #false⌝ }})))}}}) ∗
-
-        (* final sample can be forced to accept *)
-        (∀ v : val,
-          {{{ € 𝜀final }}}
-            ((Val sampler) v) @ E
-          {{{ (v' : val), RET v';
-               (WP ((Val checker) v') @ E {{ λ v', ⌜v' = #true ⌝ }})}}}))%I.
-
-  (* higher order rejection sampler *)
+  (* higher order boundeded rejection sampler *)
   Definition ho_bdd_rejection_sampler :=
-    (λ: "depth",
-      λ: "ho_sampler",
-        let: "sampler" := (Fst "ho_sampler") in
-        let: "checker" := (Snd "ho_sampler") in
+    (λ: "depth" "sampler" "checker",
         let: "do_sample" :=
           (rec: "f" "tries_left" :=
               if: ("tries_left" - #1) < #0
@@ -887,171 +839,102 @@ Section higherorder.
         in "do_sample" "depth")%E.
 
 
+  (* higher order unbounded rejection sampler *)
+  Definition ho_ubdd_rejection_sampler :=
+    (λ: "sampler" "checker",
+        let: "do_sample" :=
+          (rec: "f" "_" :=
+             let: "next_sample" := ("sampler" #()) in
+              if: ("checker" "next_sample")
+                  then SOME "next_sample"
+                  else "f" #())
+        in "do_sample" #())%E.
+
+
+  Definition sampling_scheme_spec (sampler checker : val) 𝜀factor 𝜀final E : iProp Σ
+    := ((∀ 𝜀,
+          {{{ € 𝜀 }}}
+            ((Val sampler) #())%E @ E
+          {{{ (v : val), RET v;
+               ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
+               (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #false⌝ }})))}}}) ∗
+        (∀ v : val,
+          {{{ € 𝜀final }}}
+            ((Val sampler) v) @ E
+          {{{ (v' : val), RET v'; (WP ((Val checker) v') @ E {{ λ v', ⌜v' = #true ⌝ }})}}}))%I.
+
   Program Definition generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) : nonnegreal
     := (𝜀final * (mknonnegreal (r ^ depth) _))%NNR.
   Next Obligation. intros. apply pow_le. by destruct r. Qed.
 
-
   Lemma final_generic_geometric_error (r 𝜀final : nonnegreal) : (generic_geometric_error r 𝜀final 0%nat) = 𝜀final.
   Proof. apply nnreal_ext; by rewrite /generic_geometric_error /= Rmult_1_r. Qed.
 
-  Lemma simpl_generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) (Hr : not (eq (nonneg r) 0)) :
+  Lemma simpl_generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) :
+    (not (eq (nonneg r) 0)) ->
     (nnreal_div (generic_geometric_error r 𝜀final (S depth)) r)%NNR = (generic_geometric_error r 𝜀final  depth).
   Proof.
+    intros.
     rewrite /generic_geometric_error /nnreal_div /nnreal_mult.
     apply  nnreal_ext; simpl.
     rewrite Rmult_assoc;  apply Rmult_eq_compat_l.
-    rewrite -Rmult_comm -Rmult_assoc Rinv_l; try auto.
-    by apply Rmult_1_l.
+    rewrite -Rmult_comm -Rmult_assoc Rinv_l; [lra|auto].
   Qed.
 
-  (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
-  Definition ho_bdd_approx_safe (make_sampler : val) (r 𝜀final : nonnegreal) (depth : nat) Ψ Θ E :
+  (* safety for higher-order bounded rejection samplers *)
+  Definition ho_bdd_approx_safe (sampler checker : val) (r 𝜀final : nonnegreal) (depth : nat) E :
     (not (eq (nonneg r) 0)) ->
     (not (eq (nonneg 𝜀final) 0)) ->
     r < 1 ->
     𝜀final < 1 ->
-    sampling_scheme_spec make_sampler r 𝜀final E Ψ Θ ->
-    {{{ € (generic_geometric_error r 𝜀final depth) }}}
-      ho_bdd_rejection_sampler #(S depth) make_sampler  @ E
-    {{{ v, RET v; ∃ v', ⌜ v = SOMEV v' ⌝}}}.
-  Proof.
-    (* initial setup *)
-    iIntros (Hr0 H𝜀final0 Hr H𝜀final Hmake_sampler Φ) "Hcr HΦ".
-    rewrite /ho_bdd_rejection_sampler.
-    wp_pures.
-    wp_bind (_ make_sampler)%E.
-    rewrite /sampling_scheme_spec in Hmake_sampler.
-    wp_apply Hmake_sampler; try done.
-    iIntros (sampler _c) "(#Hcomp&_&#HsampleErr&#Hsampler)".
-    wp_pures.
-    wp_bind (_ make_sampler)%E.
-    wp_apply Hmake_sampler; try done.
-    iIntros (_s checker) "(_&#Hcheck&_&_)".
-    do 6 wp_pure.
-    clear _s _c Hmake_sampler.
-
-    iInduction depth as [|depth' Hdepth'] "IH".
-    - (* base case: we should be able to spend the geometric error to eliminate the bad sample
-         and end up in the right branch *)
-      wp_pures.
-
-      (* step the sampler*)
-      wp_bind (sampler #())%E.
-      wp_apply ("HsampleErr" with "[Hcr]"); try done.
-      { (* proof irrelevance thing *)
-          iClear "#".
-          iApply (ec_weaken with "Hcr").
-          rewrite /generic_geometric_error /= Rmult_1_r.
-          apply Rle_refl. }
-      iIntros (next_sample) "(%HsampleV & %HcheckV )"; wp_pures.
-      (* spend the credits in the checker*)
-      wp_bind (checker next_sample)%E.
-      wp_apply "Hcheck"; first by iPureIntro.
-      iIntros (b) "->"; wp_pures.
-      rewrite HcheckV; wp_pures.
-      iModIntro; iApply "HΦ".
-      iExists next_sample; auto.
-    - wp_pures.
-      replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
-      (* apply the amplification lemma step the sampler *)
-      wp_pures.
-      wp_bind (sampler #())%E.
-      (* why did this stop working? *)
-      wp_apply ("Hcomp" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
-      iIntros (sample) "(%HΨ&Hcr)".
-      wp_pures.
-      (* depending on which case we're in (as in, depending on (Θ sample)), either conclude or apply the IH. *)
-      wp_bind (checker sample)%E.
-      wp_apply "Hcheck"; first (iPureIntro; by assumption).
-      iIntros (b) "%Hb".
-      destruct b.
-      + wp_pures.
-        iApply "HΦ"; iModIntro; iPureIntro. exists sample; auto.
-      +  iSpecialize ("IH" with "[Hcr]").
-        { iClear "#".
-          rewrite /scale_unless.
-          replace (Θ sample) with false.
-          rewrite simpl_generic_geometric_error.
-          - iFrame.
-          - done. }
-        iSpecialize ("IH" with "HΦ").
-        iClear "#".
-        wp_pure.
-        wp_bind (#(S (S depth'))- #1%nat)%E; wp_pure.
-
-        replace #((S (S depth')) - 1) with #(S depth'); last first.
-        { do 2 f_equal. rewrite Nat2Z.inj_succ. lia. }
-        iApply "IH".
-  Qed.
-
-  (* for some reason wp_wand doesn't work-- I guess something like this would be provale though?
-     maybe I can try lifting it myself *)
-  Lemma ub_wp_wand s E e Φ Ψ : WP e @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e @ s; E {{ Ψ }}.
-  Proof. Admitted.
-
-  (* prove the bounded rejection sampler always ends in SOME using only the higher order spec *)
-  Definition aggressive_ho_bdd_approx_safe (sampler checker : val) (r 𝜀final : nonnegreal) (depth : nat) E :
-    (not (eq (nonneg r) 0)) ->
-    (not (eq (nonneg 𝜀final) 0)) ->
-    r < 1 ->
-    𝜀final < 1 ->
-    sampling_scheme_spec_aggressive_ho sampler checker r 𝜀final E -∗
+    sampling_scheme_spec sampler checker r 𝜀final E -∗
     € (generic_geometric_error r 𝜀final depth) -∗
-    (WP (ho_bdd_rejection_sampler #(S depth) ((sampler, checker))%V) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
+    (WP (ho_bdd_rejection_sampler #(S depth) sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
   Proof.
     (* initial setup *)
-    rewrite /sampling_scheme_spec_aggressive_ho.
+    rewrite /sampling_scheme_spec.
     iIntros (Hr_pos H𝜀final_pos Hr H𝜀final) "(#Hamplify&#Haccept) Hcr".
     rewrite /ho_bdd_rejection_sampler.
-    do 13 wp_pure.
-
+    do 9 wp_pure.
     iInduction depth as [|depth' Hdepth'] "IH".
-    - (* base case: spend to eliminate the bad sample *)
-
-      (* step the sampler*)
-      wp_pures; wp_bind (sampler #())%E.
+    - wp_pures; wp_bind (sampler #())%E.
       wp_apply ("Haccept" with "[Hcr]").
-      { iApply (ec_weaken with "Hcr"). rewrite /generic_geometric_error /=; lra. }
-
-      (* step the checker using the new WP *)
+      { iApply (ec_weaken with "Hcr"); rewrite /generic_geometric_error /=; lra. }
       iIntros (next_sample) "Hcheck_accept".
-      wp_pures.
-      wp_bind (checker next_sample)%E.
+      wp_pures; wp_bind (checker next_sample)%E.
       iApply (ub_wp_wand with "Hcheck_accept").
-
-      (* checker accepts *)
       iIntros (?) "#->"; wp_pures.
       iModIntro; iExists next_sample; iFrame; auto.
-    - (* inductive case; either accept or amplify. *)
-      wp_pures.
+    - wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures; wp_bind (sampler #())%E.
       iApply ("Hamplify" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
-      iIntros (next_sample) "!> [Hcheck_accept|[%𝜀'(Hcr&%H𝜀'&Hcheck_reject)]]"; wp_pures.
-      + (* first case: check accepts *)
-        wp_bind (checker next_sample)%V.
+      iIntros (next_sample) "!> [Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
+      + wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_accept").
         iIntros (?) "#->"; wp_pures.
         iModIntro; iExists next_sample; iFrame; auto.
-      + (* second case: check does not accept but the error amplifies *)
-        wp_bind (checker next_sample)%V.
+      + wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_reject").
         iIntros (?) "#->".
         iSpecialize ("IH" with "[Hcr]").
-        * (* spend the credit *)
-          iApply (ec_spend_irrel with "Hcr").
+        * iApply (ec_spend_le_irrel with "Hcr").
           rewrite /generic_geometric_error /=.
-          rewrite /generic_geometric_error /= in H𝜀'.
-          assert (0 <= nonneg r) by (destruct r; auto).
-          admit.
-          (* apply (Rmult_le_reg_l r); first by lra.
-          lra. *)
+          apply (Rmult_le_reg_r r).
+          { destruct (cond_nonneg r); [auto|].
+            exfalso; by apply Hr_pos. }
+          by rewrite /generic_geometric_error /=
+                     (Rmult_comm r _) -Rmult_assoc in Hε'.
         * do 2 wp_pure.
           iClear "#".
           replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
           iApply "IH".
-  Admitted.
+  Qed.
+
+
+
+  Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
+    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
 
 End higherorder.
 
@@ -1639,7 +1522,7 @@ Section higherorder_flip2.
 End higherorder_flip2.
 
 
-
+(* stateful sampler? *)
 
 (* TODO could try an unbounded one? *)
 
