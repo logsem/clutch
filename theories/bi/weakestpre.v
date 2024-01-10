@@ -193,9 +193,9 @@ Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩" :=
 notations with binder. *)
 Notation "'WP' e @ s ; E [{ Φ } ]" := (twp s E e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e @ E [{ Φ } ]" := (twp wp_default E e%E Φ)
+Notation "'WP' e @ E [{ Φ } ]" := (twp twp_default E e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-Notation "'WP' e [{ Φ } ]" := (twp wp_default ⊤ e%E Φ)
+Notation "'WP' e [{ Φ } ]" := (twp twp_default ⊤ e%E Φ)
   (at level 20, e, Φ at level 200, only parsing) : bi_scope.
 
 (** Notations with binder. *)
