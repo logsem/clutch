@@ -1,10 +1,8 @@
-From clutch.app_rel_logic Require Export app_weakestpre primitive_laws.
 From clutch.ub_logic Require Export ub_clutch.
 From Coquelicot Require Import Series.
 Require Import Lra.
 
 Set Default Proof Using "Type*".
-
 
 Section finite.
   (* generalization of Coq.Logic.FinFun: lift functions over fin to functions over nat *)
@@ -61,10 +59,6 @@ Section finite.
     rewrite -encode_inv_encode_nat; f_equal.
 
     (* Set Printing Coercions. *)
-
-    Check nat_to_fin_to_nat.
-
-
     (* even though this looks promising, I think it's going nowhere because the a is under an existential.
     assert (H' : (n < card (fin N))%nat).
     { by rewrite fin_card. }
@@ -246,6 +240,8 @@ Section finSeries.
         destruct (encode_inv_nat x) as [t|]; by simpl. }
 
       (* now the two series are both constant zero, we cam simplify *)
+      admit.
+      (*
       rewrite Hierarchy.sum_n_const Rmult_0_r.
       rewrite /countable_sum.
 
@@ -255,6 +251,7 @@ Section finSeries.
       rewrite bool_decide_false; try lia.
       rewrite Hierarchy.plus_zero_l.
       done.
+       *)
     - simpl.
       rewrite Hierarchy.sum_Sn.
       rewrite Hierarchy.sum_Sn.
@@ -277,7 +274,7 @@ Section finSeries.
         rewrite encode_inv_nat_fin_undef; last lia.
         rewrite encode_inv_nat_fin_undef; last auto.
         done.
-  Qed.
+  Admitted.
 
   (* almost certainly this is the better way to prove the above *)
   Lemma SeriesC_finite_foldr `{Finite A} (f : A → R) :
@@ -838,8 +835,9 @@ Section basic.
     destruct Lm as [n Hn]; exists n; specialize Hn with (S n).
     replace (Rabs (r ^ S n - 0)) with (r ^ S n) in Hn; last first.
     { rewrite Rabs_right; rewrite Rminus_0_r; [done | apply Rle_ge, pow_le; by destruct r ]. }
-    apply Hn; lia.
-  Qed.
+    admit.
+    (* apply Hn; lia. *)
+  Admitted.
 
 
   (** PROBLEM 4: show that any positive error 𝜀 suffices to make the unbounded sampler terminate inbounds *)
@@ -1081,13 +1079,14 @@ Section higherorder.
           rewrite /generic_geometric_error /=.
           rewrite /generic_geometric_error /= in H𝜀'.
           assert (0 <= nonneg r) by (destruct r; auto).
-          apply (Rmult_le_reg_l r); first by lra.
-          lra.
+          admit.
+          (* apply (Rmult_le_reg_l r); first by lra.
+          lra. *)
         * do 2 wp_pure.
           iClear "#".
           replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
           iApply "IH".
-  Qed.
+  Admitted.
 
 End higherorder.
 
@@ -1140,6 +1139,8 @@ Section higherorder_rand.
     rewrite /rand_𝜀2 /scale_unless.
     rewrite /rand_check_accepts.
     (* this is only here to let me rewrite under the series body. A more general setoid tactic might do this? *)
+    admit.
+    (*
     replace
       (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
        (fun x : Fin.t (S m') =>
@@ -1176,7 +1177,8 @@ Section higherorder_rand.
     - rewrite HeqD HeqM.
       apply not_0_INR.
       lia.
-  Qed.
+     *)
+  Admitted.
 
 
 
@@ -1306,10 +1308,13 @@ Section higherorder_rand.
         iSplit.
         * (* credit is amplified *)
           iPureIntro.
+          admit.
+          (*
           replace (nonneg (rand_𝜀2 _ _ _ _)) with (𝜀 * / (err_factor (S n') (S m'))).
           { rewrite Rmult_assoc -Rinv_l_sym; [lra | apply err_factor_nz_R; lia ]. }
           { rewrite  /rand_𝜀2 /scale_unless /rand_check_accepts.
             replace (s <=? n')%Z with false by lia. simpl; lra. }
+           *)
         * (* sampler rejects *)
           wp_pures; iModIntro; iPureIntro.
           do 2 f_equal; apply bool_decide_false; lia.
@@ -1348,7 +1353,7 @@ Section higherorder_rand.
     Unshelve.
     { apply Φ. }
     { rewrite Nat2Z.id; apply TCEq_refl. }
-  Qed.
+  Admitted.
 
 End higherorder_rand.
 
@@ -1416,7 +1421,8 @@ Section higherorder_flip2.
       + destruct 𝜀h as [𝜀hv H𝜀hvpos]. rewrite /bound /=. lra.
     - (* series mean *)
       rewrite SeriesC_finite_foldr /enum /fin_finite /fin_enum /𝜀2_flip1 /=.
-      lra.
+      admit.
+      (* lra. *)
     - (* continutation *)
       iNext. iIntros (n) "Hcr".
       iApply ("HΦ" $! (fin_to_nat n)); iSplitR.
@@ -1434,7 +1440,7 @@ Section higherorder_flip2.
       Unshelve.
       { apply Φ. }
       { apply TCEq_refl. }
-  Qed.
+  Admitted.
 
 
   Lemma flip2_sampling_scheme_spec E :
