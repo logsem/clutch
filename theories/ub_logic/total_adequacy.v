@@ -1,7 +1,8 @@
 From iris.proofmode Require Import base proofmode.
+From Coquelicot Require Export Lim_seq Rbar.
 From clutch.common Require Export language.
 From clutch.ub_logic Require Import ub_total_weakestpre adequacy primitive_laws.
-From clutch.prob Require Import distribution.
+From clutch.prob Require Import distribution union_bounds.
 
 Import uPred.
 
@@ -13,6 +14,21 @@ Section adequacy.
     |={⊤,∅}=> ⌜(1 - ε <= SeriesC (lim_exec (e, σ)))%R⌝.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
+    iRevert (σ ε) "Hstate Herr".
+    pose proof (ub_twp_ind ()  (λ _ e _, ∀ (a : state) (a0 : nonnegreal),
+                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜1 - a0 <= SeriesC (lim_exec (e, a))⌝)%I) as H.
+    simpl in H.
+    iApply H.
+    2: { destruct twp_default. done. }
+    clear H e.
+    iModIntro.
+    iIntros (e E Φ) "H".
+    iIntros (σ ε) "[Hheap Htapes] Hec".
+    rewrite /ub_twp_pre.
+    case_match.
+    - iApply fupd_mask_intro; first done. iIntros "_".
+      admit.
+    - iSpecialize ("H" $! σ ε). 
   Admitted.
   
 End adequacy.
@@ -23,7 +39,7 @@ Theorem twp_mass_lim_exec Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : 
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
   intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ _ 0) => Hinv.
+  eapply (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
   iIntros "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
@@ -32,8 +48,7 @@ Proof.
   epose proof (twp_step_fupd e σ ε φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
-  -  iIntros "%". iApply step_fupdN_intro; first done. by iModIntro.
-     Unshelve. constructor.
+  -  iIntros "%". iApply step_fupdN_intro; first done. done. 
 Qed. 
 
 Theorem twp_union_bound_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
