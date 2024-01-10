@@ -1028,90 +1028,39 @@ Section higherorder.
   Qed.
 
 
-  Definition scale_unless (ε ε1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
-    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div ε1 ε)%NNR).
-
 End higherorder.
 
 
+
 Section higherorder_rand.
-  (* higher order version of the basic rejection sampler *)
+  (** Instantiation of the higher-order spec for a basic rejection sampler *)
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
-
-  (* next, we should show that this can actually be instantiated by some sane samplers *)
   Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
      := (λ: "_", (Pair
                     (λ: "_", rand #m')
                     (λ: "sample", "sample" ≤ #n')))%E.
 
 
-
-  Definition rand_support (m' : nat) (v : val) : bool :=
-    match v with
-    | LitV (LitInt n) => (Z.leb 0 n)%Z && (Z.leb n (Z.of_nat m'))%Z
-    | _ => false
-    end.
-
-  Definition rand_check_accepts (n' : nat) (v : val): bool :=
-    match v with
-    | LitV (LitInt n) => (Z.leb n (Z.of_nat n'))%Z
-    | _ => false
-    end.
-
-  (* TODO lift logical types into unofrm distributions? *)
-
-  Definition rand_𝜀2 (n' m' : nat) (𝜀1 : nonnegreal) : (fin (S m')) -> nonnegreal
-    := fun z =>
-         (scale_unless (err_factor (S n') (S m')) 𝜀1 (rand_check_accepts n')) #z.
+  Definition rand_ε2 (n' m' : nat) (ε1 : nonnegreal) : (fin (S m')) -> nonnegreal
+    := fun z => if (bool_decide (z < S n')%nat)
+                  then nnreal_zero
+                  else (nnreal_div ε1 (err_factor (S n') (S m'))).
 
 
-  (* mean of error distribution is preserved *)
   Lemma sample_err_mean_higherorder n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
-    SeriesC (λ n : fin (S m'), (1 / S m') * rand_𝜀2 n' m' 𝜀₁ n) = 𝜀₁.
+    SeriesC (λ n : fin (S m'), (1 / S m') * rand_ε2 n' m' 𝜀₁ n) = 𝜀₁.
   Proof.
-    (* annoying: pull out the constant factor to leave a bare SeriesC on the left. I guess it's not necessary. *)
     rewrite /bdd_cf_sampling_error SeriesC_scal_l.
     apply (Rmult_eq_reg_l (S m')); last (apply not_0_INR; lia).
     rewrite Rmult_assoc -Rmult_assoc Rmult_1_r.
     rewrite -Rmult_assoc -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
-
-    rewrite /rand_𝜀2 /scale_unless.
-    rewrite /rand_check_accepts.
-    (* this is only here to let me rewrite under the series body. A more general setoid tactic might do this? *)
-    admit.
-    (*
-    replace
-      (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
-       (fun x : Fin.t (S m') =>
-        nonneg
-          match Z.leb (Z.of_nat _) (Z.of_nat n') return nonnegreal with
-          | true => _
-          | false => _
-          end))
-      with
-      (@SeriesC (Fin.t (S m')) (@fin_dec (S m')) (@finite_countable (Fin.t (S m')) (@fin_dec (S m')) (fin_finite (S m')))
-       (fun x : Fin.t (S m') =>
-        nonneg
-          match (bool_decide (x < S n')%nat) return nonnegreal with
-          | true => nnreal_zero
-          | false => nnreal_div 𝜀₁ (err_factor (S n') (S m'))%NNR
-          end));
-    last first.
-    { apply SeriesC_ext; intros z.
-      replace
-        (@bool_decide (lt (@fin_to_nat (S m') z) (S n'))
-           (@decide_rel nat nat lt Nat.lt_dec (@fin_to_nat (S m') z) (S n')))
-        with (z <=? n')%Z; first done.
-      case_bool_decide; [ apply Z.leb_le | apply Z.leb_nle]; lia. }
-
+    rewrite /rand_ε2.
     rewrite reindex_fin_series; try lia.
     rewrite SeriesC_finite_mass fin_card.
     rewrite /err_factor.
-    remember (S m' - S n')%nat as D.
-    remember (S m') as M.
     rewrite /= -Rmult_assoc Rmult_comm -Rmult_assoc.
     apply Rmult_eq_compat_r.
     rewrite Rmult_comm Rinv_mult -Rmult_assoc Rinv_r.
@@ -1216,70 +1165,67 @@ Section higherorder_rand.
   Qed.
 
 
-
-  Lemma rand_sampling_scheme_spec_aggressive_ho (n' m' : nat) (Hnm : (n' < m')%nat) E :
-    ⊢ sampling_scheme_spec_aggressive_ho
+  Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
+    ⊢ sampling_scheme_spec
           (λ: "_", rand #m')%V
           (λ: "sample", "sample" ≤ #n')%V
           (err_factor (S n') (S m'))
           (err_factor (S n') (S m'))
           E.
   Proof.
-    rewrite /sampling_scheme_spec_aggressive_ho.
+    Opaque INR.
+    rewrite /sampling_scheme_spec.
     iStartProof; iSplit.
-    - (* amplification rule *)
-      iIntros (𝜀 Φ) "!> Hcr HΦ"; wp_pures.
-      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀 (rand_𝜀2 n' m' 𝜀) _ with "Hcr").
+    - (* sampling rule *)
+      iIntros (ε Φ) "!> Hcr HΦ"; wp_pures.
+      iApply (wp_couple_rand_adv_comp  m' _ _ _ ε (rand_ε2 n' m' ε) _ with "Hcr").
       { (* uniform bound *)
-        eexists (nnreal_div 𝜀 (err_factor (S n') (S m'))); intros s.
-        rewrite /rand_𝜀2 /scale_unless.
-        destruct (rand_check_accepts _ _); [|simpl; lra].
-        destruct (nnreal_div _ _); simpl; lra. }
+        eexists (nnreal_div ε (err_factor (S n') (S m'))); intros s.
+        rewrite /rand_ε2.
+        case_bool_decide; simpl; [|lra].
+        apply Rmult_le_pos.
+        - by apply cond_nonneg.
+        - apply Rlt_le, Rinv_0_lt_compat, Rmult_lt_0_compat.
+          + apply lt_0_INR. lia.
+          + apply Rinv_0_lt_compat. apply lt_0_INR. lia.
+      }
 
       { (* series convergence *)
         by apply sample_err_mean_higherorder. }
 
       iNext; iIntros (s) "Hcr".
       iApply "HΦ".
-      destruct (le_gt_dec s n'); [iLeft | iRight].
-      + (* sample is inbounds, the checker should accept *)
+      destruct (le_gt_dec s n') as [|] eqn:Hdec; [iLeft | iRight].
+      + (* the sample is inbounds, the checker should accept *)
         wp_pures; iModIntro; iPureIntro.
         do 2 f_equal; apply bool_decide_true; lia.
-      + (* sample is out of bounds *)
+      + (* the sample is out of bounds *)
         iExists _; iSplitL; first iFrame.
         iSplit.
         * (* credit is amplified *)
           iPureIntro.
-          admit.
-          (*
-          replace (nonneg (rand_𝜀2 _ _ _ _)) with (𝜀 * / (err_factor (S n') (S m'))).
-          { rewrite Rmult_assoc -Rinv_l_sym; [lra | apply err_factor_nz_R; lia ]. }
-          { rewrite  /rand_𝜀2 /scale_unless /rand_check_accepts.
-            replace (s <=? n')%Z with false by lia. simpl; lra. }
-           *)
+          rewrite /rand_ε2 bool_decide_eq_false_2; last first.
+          { rewrite /not; intros; lia. }
+          rewrite /nnreal_div Rmult_assoc /nnreal_inv; simpl.
+          rewrite Rinv_l; [lra|].
+          apply Rmult_integral_contrapositive; split.
+          -- apply Rgt_not_eq, Rlt_gt, lt_0_INR; lia.
+          -- apply Rinv_neq_0_compat.
+             apply Rgt_not_eq, Rlt_gt, lt_0_INR; lia.
         * (* sampler rejects *)
           wp_pures; iModIntro; iPureIntro.
           do 2 f_equal; apply bool_decide_false; lia.
 
-    - (* spending rule *)
+    - (* checking rule *)
       iIntros (s Φ) "!> Hcr HΦ"; wp_pures.
       wp_apply (wp_rand_err_list_nat _ m' (seq (S n') ((S m') - (S n')))).
       iSplitL "Hcr".
       + (* credit accounting *)
         iApply (ec_spend_irrel with "Hcr").
         rewrite /err_factor seq_length /=.
-        apply Rmult_le_compat_l; [apply pos_INR | ].
-        apply Rle_Rinv.
-        * destruct m'; try lra.
-          apply Rle_lt_0_plus_1.
-          apply pos_INR.
-        * apply lt_0_INR. lia.
-        * apply Req_le.
-          destruct m'; first simpl; try lra.
-          rewrite -S_INR.
-          f_equal; lia.
-      + (* force the checker to return true *)
-        iIntros (s') "%Hs'".
+        apply Rmult_eq_compat_l.
+        do 2 f_equal; lia.
+      + iIntros (s') "%Hs'".
         iApply "HΦ"; wp_pures.
         iModIntro; iPureIntro.
         do 2 f_equal; apply bool_decide_true.
@@ -1295,7 +1241,7 @@ Section higherorder_rand.
     Unshelve.
     { apply Φ. }
     { rewrite Nat2Z.id; apply TCEq_refl. }
-  Admitted.
+  Qed.
 
 End higherorder_rand.
 
