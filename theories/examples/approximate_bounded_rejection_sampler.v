@@ -1,6 +1,6 @@
 (** * Examples related to rejection samplers with a bounded number of attempts *)
 
-From clutch.ub_logic Require Export ub_clutch.
+From clutch.ub_logic Require Export ub_clutch ub_rules.
 From Coquelicot Require Import Series.
 Require Import Lra.
 
@@ -1249,7 +1249,7 @@ End higherorder_rand.
 
 
 Section higherorder_flip2.
-  (* higher order version of a sampler which rejects until two coin flips are 1 *)
+  (** Instantiation of the higher-order spec for a pair of coin flips *)
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
@@ -1258,18 +1258,10 @@ Section higherorder_flip2.
                      (λ: "_", Pair (rand #1) (rand #1))
                      (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
 
-
-  Definition flip2_support (v : val) : bool :=
-    match v with
-    | PairV (LitV (LitInt v0%nat)) (LitV (LitInt v1%nat)) => (((v0 =? 0) || (v0 =? 1)) &&  ((v1 =? 0) || (v1 =? 1)))%Z
-    | _ => false
-    end.
-
-  Definition flip2_check_accepts  (v : val): bool :=
-    match v with
-    | PairV (LitV (LitInt 1%Z)) (LitV (LitInt 1%Z)) => true
-    | _ => false
-    end.
+  Definition ε2_flip2 (ε1 : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
+    if (fin_to_bool v)
+      then nnreal_zero
+      else (nnreal_nat(2%nat) * ε1)%NNR.
 
   Definition flip_is_1  (v : val): bool :=
     match v with
@@ -1277,213 +1269,63 @@ Section higherorder_flip2.
     | _ => false
     end.
 
-  Definition 𝜀2_flip2 (𝜀1 : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
-    if (fin_to_bool v)
-      then nnreal_zero
-      else (nnreal_nat(2%nat) * 𝜀1)%NNR.
+  Definition ε2_flip1 (ε1 εh εt : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
+    if (fin_to_bool v) then εh else εt.
 
+  Definition scale_flip (ε1 εh εt : nonnegreal) : val -> nonnegreal
+    := (fun z => if (flip_is_1 z) then εh else εt).
 
-  Definition 𝜀2_flip1 (𝜀1 𝜀h 𝜀t : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
-    if (fin_to_bool v) then 𝜀h else 𝜀t.
-
-
-  Definition scale_flip (𝜀1 𝜀h 𝜀t : nonnegreal) : val -> nonnegreal
-    := (fun z => if (flip_is_1 z) then 𝜀h else 𝜀t).
-
-  (* general strategy for amplifying flip: give some credit to 0 and some credit to 1 so that
-      in total
-   *)
-  Lemma flip_amplification (𝜀1 𝜀h 𝜀t : nonnegreal) (Hmean : (𝜀h + 𝜀t) = 2 * 𝜀1 ) E :
-    {{{ € 𝜀1 }}}
+  Lemma flip_amplification (ε1 εh εt : nonnegreal) (Hmean : (εh + εt) = 2 * ε1 ) E :
+    {{{ € ε1 }}}
       rand #1 @ E
-    {{{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_flip 𝜀1 𝜀h 𝜀t #v) }}}.
+    {{{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_flip ε1 εh εt #v) }}}.
   Proof.
     iIntros (Φ) "Hcr HΦ".
-    iApply (wp_couple_rand_adv_comp 1%nat  _ _ _ 𝜀1 (𝜀2_flip1 𝜀1 𝜀h 𝜀t) _ with "Hcr").
+    iApply (wp_couple_rand_adv_comp 1%nat  _ _ _ ε1 (ε2_flip1 ε1 εh εt) _ with "Hcr").
     - (* uniform bound *)
-      pose bound := (𝜀h + 𝜀t)%NNR.
-      exists bound; intros n.
-      rewrite /𝜀2_flip1.
-      destruct (fin_to_bool n).
-      + destruct 𝜀t as [𝜀tv H𝜀tvpos]. rewrite /bound /=. lra.
-      + destruct 𝜀h as [𝜀hv H𝜀hvpos]. rewrite /bound /=. lra.
+      exists (εh + εt)%NNR; intros n.
+      rewrite /ε2_flip1.
+      destruct (fin_to_bool n); destruct εt, εh; rewrite /bound /=; lra.
     - (* series mean *)
-      rewrite SeriesC_finite_foldr /enum /fin_finite /fin_enum /𝜀2_flip1 /=.
-      admit.
-      (* lra. *)
+      rewrite SeriesC_finite_foldr /enum /fin_finite /fin_enum /ε2_flip1 /=.
+      rewrite Rplus_0_r -Rmult_plus_distr_l Rplus_comm Hmean /=.
+      lra.
     - (* continutation *)
       iNext. iIntros (n) "Hcr".
       iApply ("HΦ" $! (fin_to_nat n)); iSplitR.
       + iPureIntro; apply fin2_enum.
-      + iApply (ec_spend_irrel with "Hcr"). rewrite /𝜀2_flip2.
+      + iApply (ec_spend_irrel with "Hcr"). rewrite /ε2_flip2.
         destruct (fin2_enum n) as [H|H].
-        * rewrite /scale_flip /𝜀2_flip1 /flip_is_1 H /=.
+        * rewrite /ε2_flip1 H /=.
           rewrite -fin2_nat_bool.
           replace (n =? 1)%nat with false; [done|].
           symmetry; apply Nat.eqb_neq; lia.
-        * rewrite /scale_flip /𝜀2_flip1 /flip_is_1 H /=.
+        * rewrite /ε2_flip1 H /=.
           rewrite -fin2_nat_bool.
           replace (n =? 1)%nat with true; [done|].
           symmetry; apply Nat.eqb_eq; lia.
       Unshelve.
       { apply Φ. }
       { apply TCEq_refl. }
-  Admitted.
+  Qed.
+
+  (* not importing, for some reason? *)
+  Lemma wp_ec_spend e E Φ ε :
+    (1 <= ε.(nonneg))%R →
+    (to_val e = None) ->
+    € ε -∗ WP e @ E {{ Φ }}.
+  Proof. Admitted.
 
 
   Lemma flip2_sampling_scheme_spec E :
-    sampling_scheme_spec
-      (flip2_sampling_scheme #())%E
-      (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
-      (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
-      E flip2_support flip2_check_accepts.
-  Proof.
-    rewrite /sampling_scheme_spec /flip2_sampling_scheme.
-    iIntros (Φ) "_ HΦ"; wp_pures; iModIntro; iApply "HΦ".
-
-    iSplit.
-    { iIntros (𝜀1 post) "!> Hcr Hpost".
-      wp_pures.
-      wp_bind (rand #1)%E.
-      (* amplify: give 4/3 error to the false branch, and 2/3 error to the second *)
-      wp_apply (flip_amplification 𝜀1
-                  (nnreal_mult 𝜀1 (nnreal_div (nnreal_nat 2) (nnreal_nat 3)))
-                  (nnreal_mult 𝜀1 (nnreal_div (nnreal_nat 4) (nnreal_nat 3)))
-                   with "Hcr").
-      { simpl. lra. }
-      iIntros (v) "(%Hv&Hcr)".
-      destruct Hv as [-> | ->].
-      - (* first flip was zero, second flip doesn't matter. *)
-        wp_bind (rand _)%E; iApply wp_rand; auto.
-        iNext; iIntros (v') "_"; wp_pures; iModIntro; iApply "Hpost".
-        iSplitR.
-        + rewrite /flip2_support.
-          destruct (fin2_enum v') as [H|H]; rewrite H; auto.
-        + iApply (ec_spend_irrel with "Hcr").
-          rewrite /scale_unless /flip2_check_accepts.
-          destruct (fin2_enum v') as [H|H]; rewrite H /=; lra.
-
-      - (* first flip was 1, we only have 2/3 error so we need to amplify up to 4/3
-            in the case that the second flip is not 1 *)
-        replace
-          (scale_flip 𝜀1 (𝜀1 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR (𝜀1 * nnreal_div (nnreal_nat 4) (nnreal_nat 3))%NNR #1%nat)
-        with
-          (𝜀1 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR; last first.
-        { rewrite /scale_flip /flip_is_1 /=. by apply nnreal_ext. }
-        remember (𝜀1 * nnreal_div (nnreal_nat 2) (nnreal_nat 3))%NNR as 𝜀'.
-        wp_bind (rand #1 )%E.
-        wp_apply (flip_amplification 𝜀' nnreal_zero (nnreal_mult 𝜀' (nnreal_nat 2)) with "Hcr").
-        { simpl. lra. }
-        iIntros (v) "(%Hv&Hcr)".
-        destruct Hv as [-> | ->].
-        + (* second flip was zero *)
-          wp_pures; iModIntro; iApply "Hpost".
-          iSplitR.
-          * iPureIntro; rewrite /flip2_support; auto.
-          * iApply (ec_spend_irrel with "Hcr").
-            rewrite /scale_unless /flip2_check_accepts Heq𝜀' /=. lra.
-        + wp_pures; iModIntro; iApply "Hpost".
-          iSplitR.
-          * iPureIntro; rewrite /flip2_support; auto.
-          * iApply (ec_spend_irrel with "Hcr").
-            rewrite /scale_unless /flip2_check_accepts Heq𝜀' /=. lra. }
-    iSplit.
-    { (* checker spec is accurate on range of sample *)
-      iIntros (v Post) "!> %Hsup Hpost". wp_pures.
-      remember v as l.
-      destruct v; try (rewrite /flip2_support Heql in Hsup; discriminate).
-      destruct v1; try (rewrite /flip2_support Heql in Hsup; discriminate).
-      destruct l0; try (rewrite /flip2_support Heql in Hsup; discriminate).
-      destruct v2; try (rewrite /flip2_support Heql in Hsup; discriminate).
-      destruct l0; try (rewrite /flip2_support Heql in Hsup; discriminate).
-      rewrite Heql; wp_pures.
-      case_bool_decide; wp_pures.
-      - iModIntro; case_bool_decide; iApply "Hpost"; iPureIntro.
-        + rewrite /flip2_check_accepts.
-          replace n with 1%Z by (inversion H; done).
-          replace n0 with 1%Z by (inversion H0; done).
-          done.
-        + (* there has to be a cleaner way to do this *)
-          rewrite /flip2_check_accepts.
-          rewrite /flip2_support Heql in Hsup.
-          replace n with 1%Z by (inversion H; done).
-          replace n0 with 0%Z; first done.
-          apply andb_true_iff in Hsup as [_ Hsup].
-          apply orb_true_iff in Hsup as [Hsup | Hsup]; try lia.
-          apply Z.eqb_eq in Hsup.
-          rewrite Hsup in H0.
-          exfalso; apply H0; auto.
-      - iModIntro; iApply "Hpost"; iPureIntro.
-        rewrite /flip2_check_accepts; rewrite /flip2_support Heql in Hsup.
-        apply andb_true_iff in Hsup as [Hs0 Hs1];
-        apply orb_true_iff in Hs0 as [Hsa | Hsa];
-        apply orb_true_iff in Hs1 as [Hsb | Hsb];
-        apply Z.eqb_eq in Hsa;
-        apply Z.eqb_eq in Hsb;
-        try (rewrite Hsa);
-        try (rewrite Hsb);
-        try done.
-
-        (* last case *)
-        rewrite Hsa in H; exfalso; apply H; auto. }
-    iSplit.
-    { (* credit spending rule *)
-
-      iIntros (v close) "!> Hcr Hclose".
-      wp_pures.
-      wp_bind (rand #1 )%E.
-
-      (* give € 1 to the 0 flip, and € 1/2 to the 1 flip *)
-      wp_apply (flip_amplification
-                  (nnreal_div (nnreal_nat 3) (nnreal_nat 4))
-                  (nnreal_div (nnreal_nat 1) (nnreal_nat 2))
-                  nnreal_one with "Hcr").
-      { simpl; lra. }
-
-      iIntros (v') "(%Hv'&Hcr)".
-      destruct Hv' as [-> | ->].
-      - (* first flip is zero: but we can spend € 1 to conclude *)
-        iAssert (▷ False)%I with "[Hcr]" as "Hspend".
-        { iApply credit_spend_1. iApply (ec_spend_irrel with "Hcr").
-          rewrite /scale_flip /flip_is_1 /=. lra. }
-        wp_bind (rand _)%E; iApply wp_rand; auto.
-      -  (* we have € 1/2 so we can make the second flip be 1 too *)
-        wp_bind (rand #1)%E.
-        iApply (wp_rand_err _ _ 0%fin with "[Hcr Hclose]").
-        iSplitL "Hcr". { iApply (ec_spend_irrel with "Hcr"). rewrite /=; lra. }
-        iIntros (v') "%Hv'".
-        wp_pures; iModIntro; iApply "Hclose"; iPureIntro.
-        split.
-        + by rewrite /flip2_support (fin2_not_0 v' Hv').
-        + by rewrite /flip2_check_accepts (fin2_not_0 v' Hv') /=. }
-
-
-      { (* sampling support *)
-        iIntros (close) "!> _ Hclose". wp_pures.
-        wp_bind (rand #1)%E.
-        iApply wp_rand; auto; iNext; iIntros (v') "_".
-        wp_bind (rand #1 )%E.
-        iApply wp_rand; auto; iNext; iIntros (v'') "_".
-        wp_pures; iModIntro; iApply "Hclose"; iPureIntro.
-        rewrite /flip2_support.
-        destruct (fin2_enum v') as [HA|HA];
-        destruct (fin2_enum v'') as [HB|HB];
-        try (rewrite HA);
-        try (rewrite HB);
-        auto. }
-  Qed.
-
-
-
-  Lemma flip2_sampling_scheme_spec_aggressive_ho E :
-    ⊢ sampling_scheme_spec_aggressive_ho
+    ⊢ sampling_scheme_spec
           (λ: "_", Pair (rand #1) (rand #1))
           (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))
           (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
           (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 4%nat))
           E.
   Proof.
-    rewrite /sampling_scheme_spec_aggressive_ho.
+    rewrite /sampling_scheme_spec.
     iStartProof; iSplit.
     - (* amplification rule *)
       iIntros (𝜀 Φ) "!> Hcr HΦ"; wp_pures.
@@ -1538,10 +1380,9 @@ Section higherorder_flip2.
       iIntros (v') "(%Hv'&Hcr)".
       destruct Hv' as [-> | ->].
       + (* first flip is zero: but we can spend € 1 to conclude *)
-        iAssert (▷ False)%I with "[Hcr]" as "Hspend".
-        { iApply credit_spend_1. iApply (ec_spend_irrel with "Hcr").
-          rewrite /scale_flip /flip_is_1 /=. lra. }
-        wp_bind (rand _)%E; iApply wp_rand; try auto.
+        iApply (wp_ec_spend with "Hcr").
+        * rewrite /scale_flip /flip_is_1 /=; lra.
+        * rewrite /to_val; done.
       +  (* we have € 1/2 so we can make the second flip be 1 too *)
         wp_bind (rand #1)%E.
         iApply (wp_rand_err _ _ 0%fin with "[Hcr HΦ]").
@@ -1549,13 +1390,8 @@ Section higherorder_flip2.
         iIntros (v') "%Hv'".
         wp_pures; iModIntro; iApply "HΦ".
         wp_pures; case_bool_decide; wp_pures; auto.
-        exfalso.
         (* we have a contradiction in Hv' and H *)
-        apply fin2_not_0  in Hv'.
-        apply H.
-        rewrite Hv'.
-        simpl.
-        f_equal.
+        exfalso. apply fin2_not_0  in Hv'. apply H. rewrite Hv' /=. f_equal.
   Qed.
 
 
