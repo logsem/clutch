@@ -1,9 +1,12 @@
+(** * Examples related to rejection samplers with a bounded number of attempts *)
+
 From clutch.ub_logic Require Export ub_clutch.
 From Coquelicot Require Import Series.
 Require Import Lra.
 
 Set Default Proof Using "Type*".
 
+(* FIXME: move *)
 Section finite.
   (* generalization of Coq.Logic.FinFun: lift functions over fin to functions over nat *)
   Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : (nat -> A) :=
@@ -287,23 +290,14 @@ End finSeries.
 
 
 
-
 Section basic.
-  (* basic version of the rejection sampler, bounded and unbounded *)
-
+  (** * Correctness of bounded and unbounded rejection samplers using error credits instead of Löb induction *)
+  (** The samplers in this section simulate (rand #n') using (rand #m') samplers *)
 
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
-  (* In general:
-      S n' = n
-      S m' = m
-     This notation simplifies the proofs. *)
-
-
-  (** PROGRAMS *)
-
-  (** rejection sampler which takes a preset number of attempts *)
+  (** Bounded sampler (fails after `depth` attempts) *)
   Definition bdd_rejection_sampler (n' m' : nat) : val :=
     λ: "depth",
       let: "do_sample" :=
@@ -317,7 +311,7 @@ Section basic.
       in "do_sample" "depth".
 
 
-  (** rejection sampler that may take an unbounded number of attempts *)
+  (** Unbounded sampler (may not terminate) *)
   Definition ubdd_rejection_sampler (n' m' : nat) : val :=
     λ: "_",
       let: "do_sample" :=
@@ -328,47 +322,22 @@ Section basic.
             else "f" #())
       in "do_sample" #().
 
+  (* constant we can amplify our error by in the case that the samplers reject *)
+  Definition err_factor n m : nonnegreal := (nnreal_div (nnreal_nat (m - n)%nat) (nnreal_nat m%nat)).
 
 
-
-
-  (** PROBLEM 0: show that the unbounded sampler only returns inbounds values *)
-  Definition ubdd_sampler_safe (n' m' : nat) E :
-    {{{ True }}} ubdd_rejection_sampler  n' m' #() @ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
+  Lemma err_factor_lt1 n m : (0 < n)%nat -> (n < m)%nat -> err_factor n m < 1.
   Proof.
-    iIntros (Φ) "_ HΦ". rewrite /ubdd_rejection_sampler.
-    do 4 wp_pure.
-    iLöb as "IH"; wp_pures.
-    (* this is a regular lob induction proof, it does not use error credits *)
-    wp_apply wp_rand; [done|]; iIntros (n0) "_".
-    wp_pures.
-    case_bool_decide; last first.
-    - wp_pure; by wp_apply ("IH" with "HΦ").
-    - wp_pures; iApply "HΦ"; iModIntro; iPureIntro.
-      exists (fin_to_nat n0); split; [auto|lia].
-  Qed.
-
-
-
-
-  (** PROBLEM 1: show the bounded sampler terminates inbounds with some error *)
-
-  (** defining error values for each step *)
-
-  Definition err_factor n m := (nnreal_div (nnreal_nat (m - n)%nat) (nnreal_nat m%nat)).
-
-  Lemma err_factor_lt1 n m (Hn : (0 < n)%nat) (Hnm : (n < m)%nat) : err_factor n m < 1.
-  Proof.
-    rewrite /err_factor.
-    simpl. apply Rcomplements.Rlt_div_l.
+    intros ? ?.
+    rewrite /err_factor /=.
+    apply Rcomplements.Rlt_div_l.
     - apply Rlt_gt; apply lt_0_INR; by lia.
     - rewrite Rmult_1_l; apply lt_INR; by lia.
   Qed.
 
-
-  Lemma err_factor_nz_R n m (Hnm : (n < m)%nat) : (m - n)%nat * / m ≠ 0.
+  Lemma err_factor_nz n m : (n < m)%nat -> (m - n)%nat * / m ≠ 0.
   Proof.
-    intros.
+    intros ?.
     rewrite /not; intros HR; apply Rmult_integral in HR; destruct HR as [HRL|HRR].
     * rewrite minus_INR in HRL; last lia.
       apply Rminus_diag_uniq_sym in HRL.
@@ -379,15 +348,8 @@ Section basic.
       by apply (Rinv_neq_0_compat (INR m) K).
   Qed.
 
-  Lemma err_factor_nz n m (Hnm : (n < m)%nat) : err_factor n m ≠ nnreal_zero.
-  Proof.
-    rewrite /err_factor.
-    rewrite /not; intros H; inversion H.
-    by apply (err_factor_nz_R n m Hnm).
-  Qed.
 
-
-  (* error for the bounded sampler with a given number of tries remaining *)
+  (* closed form for the error in the bounded sampler, with a given number of tries remaining *)
   Program Definition bdd_cf_error n m depth (Hnm : (n < m)%nat) := mknonnegreal ((err_factor n m) ^ depth) _.
   Next Obligation.
     intros.
@@ -397,30 +359,21 @@ Section basic.
     - apply lt_0_INR; lia.
   Qed.
 
-  (* this lemma is for proofs which iterate to the very end
-     ie, doing 0 samples requires error tolerance of 1 *)
-  Lemma bdd_cd_error_final n m (Hnm : (n < m)%nat) : bdd_cf_error n m 0 Hnm = nnreal_one.
-  Proof. by apply nnreal_ext; simpl. Qed.
 
-  (* this lemma is for proofs which iterate up until the last sample
-     ie, a rejection sampler to exclude the final recursive step *)
-  (* proof irrelevant *)
-  Lemma bdd_cd_error_penultimate n m (Hnm : (n < m)%nat) : bdd_cf_error n m 1 Hnm = err_factor n m.
-  Proof. apply nnreal_ext; simpl; apply Rmult_1_r. Qed.
-
-
-  (* distribution of error mass 𝜀₁ for a given sample:
+  (* distribution of error mass ε₁ for a given sample:
       - zero error given to cases which are inbounds
       - uniform error to the recursive case *)
-  Definition bdd_cf_sampling_error n m 𝜀₁ : (fin m) -> nonnegreal
+  Definition bdd_cf_sampling_error n m ε₁ : (fin m) -> nonnegreal
     := fun sample =>
          if bool_decide (sample < n)%nat
             then nnreal_zero
-            else (nnreal_div 𝜀₁ (err_factor n m)).
+            else (nnreal_div ε₁ (err_factor n m)).
 
-  (* lemma for simplifying accumulated error in the recursive case *)
-  Lemma simplify_accum_err (n m d': nat) (Hnm : (n < m)%nat) (s : fin m)  :
-    (s <? n)%nat = false -> bdd_cf_sampling_error n m (bdd_cf_error n m (S d') Hnm) s = (bdd_cf_error n m d' Hnm).
+
+  (* simplify amplified errors *)
+  Lemma simplify_amp_err (n m d': nat) (s : fin m) Hnm :
+    (s <? n)%nat = false ->
+    bdd_cf_sampling_error n m (bdd_cf_error n m (S d') Hnm) s = (bdd_cf_error n m d' Hnm).
   Proof.
     intros Hcase.
     apply nnreal_ext.
@@ -428,42 +381,43 @@ Section basic.
     rewrite bool_decide_false; last by apply Nat.ltb_nlt.
     rewrite /bdd_cf_error /=.
     apply Rinv_r_simpl_m.
-    by apply err_factor_nz_R.
+    by apply err_factor_nz.
   Qed.
 
 
-  Lemma factor_lt_1 n m (Hnm : (n < m)%nat) (Hn : (0 < n)%nat): ((m - n)%nat  * / m) < 1.
+  Lemma factor_lt_1 n m :
+    (0 < n)%nat ->
+    (n < m)%nat ->
+    ((m - n)%nat  * / m) < 1.
   Proof.
+    intros.
     apply (Rmult_lt_reg_l m); first (apply lt_0_INR; lia).
     rewrite Rmult_1_r.
-    replace (m * (INR ((m-n)%nat) * / m)) with (INR (m-n)%nat); last first.
-    - rewrite Rmult_comm.
-      rewrite Rmult_assoc.
-      replace (/m * m) with 1; last by (symmetry; apply Rinv_l; apply not_0_INR; lia).
-      symmetry; apply Rmult_1_r.
-    - apply lt_INR. lia.
+    replace (m * (INR ((m-n)%nat) * / m)) with (INR (m-n)%nat); [apply lt_INR; lia|].
+    rewrite Rmult_comm Rmult_assoc Rinv_l; [|apply not_0_INR; lia].
+    by rewrite Rmult_1_r.
   Qed.
 
 
-  (* error distribution is well-formed for each possible sample *)
-  Lemma sample_err_wf n m d (s : fin m) (Hn : (0 < n)%nat) (Hnm : (n < m)%nat) : bdd_cf_sampling_error n m (bdd_cf_error n m (S d) Hnm) s <= 1.
+  (* error distribution is bounded above for each possible sample *)
+  Lemma sample_err_wf n m d (s : fin m) Hnm :
+    (0 < n)%nat ->
+    bdd_cf_sampling_error n m (bdd_cf_error n m (S d) Hnm) s <= 1.
   Proof.
-    (* it is either 1, or epsilon times something at most 1 *)
+    intros.
     rewrite /bdd_cf_sampling_error.
-    remember (s <? n)%nat as H.
-    destruct H; simpl.
-    - rewrite bool_decide_true; last by apply Nat.ltb_lt.
+    destruct (s <? n)%nat as [|] eqn:Hs; simpl.
+    - rewrite bool_decide_true; [|by apply Nat.ltb_lt].
       by apply Rle_0_1.
-    - rewrite bool_decide_false; last by apply Nat.ltb_nlt.
+    - rewrite bool_decide_false; [|by apply Nat.ltb_nlt].
       rewrite /nnreal_div /=.
       rewrite -> Rinv_r_simpl_m.
       + destruct d as [|d'].
         * simpl; apply Rge_refl.
-        * apply Rlt_le.
-          apply pow_lt_1_compat; try lia; split.
+        * apply Rlt_le, pow_lt_1_compat; try lia; split.
           -- apply Rle_mult_inv_pos; [ apply pos_INR | apply lt_0_INR; lia ].
           -- apply factor_lt_1; auto.
-      + apply err_factor_nz_R; auto.
+      + apply err_factor_nz; auto.
   Qed.
 
 
@@ -648,7 +602,7 @@ Section basic.
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
     SeriesC (λ s : fin (S m'), (1 / S m') * bdd_cf_sampling_error (S n') (S m') 𝜀₁ s) = 𝜀₁.
   Proof.
-    (* annoying: pull out the constant factor to leave a bare SeriesC on the left. I guess it's not necessary. *)
+    intros Hnm.
     rewrite /bdd_cf_sampling_error SeriesC_scal_l.
     apply (Rmult_eq_reg_l (S m')); last (apply not_0_INR; lia).
     rewrite Rmult_assoc -Rmult_assoc Rmult_1_r.
@@ -658,16 +612,13 @@ Section basic.
     rewrite Rmult_1_l.
     rewrite reindex_fin_series SeriesC_finite_mass fin_card.
     rewrite /err_factor.
-    remember (S m' - S n')%nat as D.
-    remember (S m') as M.
+    Opaque INR.
     rewrite /= Rinv_mult Rinv_inv.
     rewrite -Rmult_assoc -Rmult_assoc Rmult_comm.
     apply Rmult_eq_compat_l.
     rewrite Rmult_comm -Rmult_assoc Rinv_l.
     - by rewrite Rmult_1_l.
-    - rewrite HeqD HeqM.
-      apply not_0_INR.
-      lia.
+    - apply not_0_INR; lia.
   Qed.
 
 
@@ -734,19 +685,15 @@ Section basic.
     iIntros (Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
     assert (Hnm' : (n' < m')%nat) by lia.
     do 4 wp_pure.
-
-    (* induction should reach the base cse when S depth = 1 <=> depth = 0 *)
+    (* Induction will reach the base cse when S depth = 1 <=> depth = 0 *)
     iInduction depth as [|depth' Hdepth'] "IH".
     - wp_pures.
-      rewrite bdd_cd_error_penultimate.
-      remember (S n') as n.
-      remember (S m') as m.
-      wp_apply (wp_rand_err_list_nat _ m' (seq n (m - n))).
+      wp_apply (wp_rand_err_list_nat _ m' (seq (S n') ((S m') - (S n')))).
       iSplitL "Hcr".
-      + rewrite /err_factor.
-        replace (length (seq _ _)) with (m - n)%nat by (symmetry; apply seq_length).
-        replace (m) with (m' + 1)%nat by lia.
-        done.
+      + iApply (ec_spend_irrel with "[$]").
+        rewrite /= Rmult_1_r.
+        rewrite seq_length; apply Rmult_eq_compat_l.
+        do 2 f_equal; lia.
       + iIntros (sample'') "%Hsample''".
         wp_pures.
         case_bool_decide; wp_pures.
@@ -757,8 +704,8 @@ Section basic.
           apply Hsample''; last reflexivity.
           rewrite in_seq.
           split; first lia.
-          replace (n + (m-n))%nat with m by lia.
-          specialize (fin_to_nat_lt sample''); by lia.
+          replace (S n' + (S m' - S n'))%nat with (S m') by lia.
+          apply fin_to_nat_lt.
     - wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures.
@@ -770,17 +717,19 @@ Section basic.
       case_bool_decide.
       + wp_pures; iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample'); split; [auto|lia].
       + wp_pure.
-        rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
-        wp_bind (#_ - #_)%E. wp_pure.
+        rewrite (simplify_amp_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
+        wp_bind (#_ - #_)%E; wp_pure.
         replace (S (S depth') - 1)%Z with (Z.of_nat (S depth')) by lia.
         wp_apply ("IH" with "Hcr HΦ").
   Qed.
 
 
 
-  (** PROBLEM 3: show that the unbounded approximate sampler is safe if we have enough error to eliminate past a depth *)
-  Definition ubdd_approx_safe (n' m' depth : nat) (Hnm : (S n' < S m')%nat) E :
-    {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}} ubdd_rejection_sampler n' m' #() @ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝  }}}.
+  (** (approximate) safety of the unbounded rejection sampler *)
+  Definition ubdd_approx_safe (n' m' depth : nat) Hnm E :
+    {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}}
+      ubdd_rejection_sampler n' m' #() @ E
+    {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝  }}}.
   Proof.
     iIntros (Φ) "Hcr HΦ"; rewrite /ubdd_rejection_sampler.
     assert (Hnm' : (n' < m')%nat) by lia.
@@ -788,15 +737,12 @@ Section basic.
 
     iInduction depth as [|depth' Hdepth'] "IH".
     - wp_pures.
-      rewrite bdd_cd_error_penultimate.
-      remember (S n') as n.
-      remember (S m') as m.
-      wp_apply (wp_rand_err_list_nat _ m' (seq n (m - n))).
+      wp_apply (wp_rand_err_list_nat _ _ (seq (S n') (S m' - S n'))).
       iSplitL "Hcr".
-      + rewrite /err_factor.
-        replace (length (seq _ _)) with (m - n)%nat by (symmetry; apply seq_length).
-        replace (m) with (m' + 1)%nat by lia.
-        done.
+      + iApply (ec_spend_irrel with "[$]").
+        rewrite /= Rmult_1_r.
+        rewrite seq_length; apply Rmult_eq_compat_l.
+        do 2 f_equal; lia.
       + iIntros (sample'') "%Hsample''".
         wp_pures.
         case_bool_decide; wp_pures.
@@ -807,7 +753,7 @@ Section basic.
           apply Hsample''; last reflexivity.
           rewrite in_seq.
           split; first lia.
-          replace (n + (m-n))%nat with m by lia.
+          replace (S n' + (S m'-S n'))%nat with (S m') by lia.
           specialize (fin_to_nat_lt sample''); by lia.
     - wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
@@ -818,42 +764,61 @@ Section basic.
       case_bool_decide.
       + wp_pures. iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample'); split; [auto|lia].
       + wp_pure.
-        rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
+        rewrite simplify_amp_err; last (apply Nat.ltb_nlt; by lia); try lia.
         wp_apply ("IH" with "Hcr HΦ").
   Qed.
 
-  Lemma error_limit (r : nonnegreal) : (r < 1) -> forall 𝜀 : posreal, exists n : nat, r ^ (S n) < 𝜀.
+  Lemma error_limit (r : nonnegreal) : (r < 1) -> forall ε : posreal, exists n : nat, r ^ (S n) < ε.
   Proof.
-    intros Hr 𝜀.
-    assert (Har : Rabs r < 1).
-    { destruct r as [rv Hrv]. simpl. rewrite Rabs_pos_eq; auto. }
-    pose Lm := Lim_seq.is_lim_seq_geom r Har.
-    apply Lim_seq.is_lim_seq_spec in Lm.
-    simpl in Lm.
-    specialize Lm with 𝜀.
-    rewrite /Hierarchy.eventually in Lm.
-    destruct Lm as [n Hn]; exists n; specialize Hn with (S n).
-    replace (Rabs (r ^ S n - 0)) with (r ^ S n) in Hn; last first.
-    { rewrite Rabs_right; rewrite Rminus_0_r; [done | apply Rle_ge, pow_le; by destruct r ]. }
-    admit.
-    (* apply Hn; lia. *)
-  Admitted.
+    intros Hr ε.
+    assert (H1 : Lim_seq.is_lim_seq (fun n => (r ^ n)%R) (Rbar.Finite 0)).
+    { eapply Lim_seq.is_lim_seq_geom.
+      rewrite Rabs_pos_eq; auto.
+      apply cond_nonneg.
+    }
+    rewrite /Lim_seq.is_lim_seq
+            /Hierarchy.filterlim
+            /Hierarchy.filter_le
+            /Hierarchy.eventually
+            /Hierarchy.filtermap
+            in H1.
+    destruct (H1 (fun e' : R => (e' <= ε)%R)); simpl.
+    - rewrite /Hierarchy.locally.
+      eexists _. intros.
+      rewrite /Hierarchy.ball /Hierarchy.UniformSpace.ball /Hierarchy.R_UniformSpace /=
+              /Hierarchy.AbsRing_ball Hierarchy.minus_zero_r /Hierarchy.abs /=
+            in H.
+      eapply Rle_trans; [eapply RRle_abs|].
+      by apply Rlt_le.
+    - exists x.
+      apply (Rcomplements.Rle_mult_Rlt r); [apply cond_pos|lra|].
+      rewrite Rmult_comm.
+      apply Rmult_le_compat_r; [apply cond_nonneg|].
+      auto.
+  Qed.
 
 
-  (** PROBLEM 4: show that any positive error 𝜀 suffices to make the unbounded sampler terminate inbounds *)
-  Theorem ubdd_cf_safety (n' m' : nat) (Hnm : (S n' < S m')%nat) E : forall 𝜀 : nonnegreal,
-    ⊢ {{{ €𝜀 ∗ ⌜0 < 𝜀 ⌝  }}} ubdd_rejection_sampler n' m' #()@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
+  (** Improve the safety of the unbounded sampler to use any positive amount of error credit *)
+  Theorem ubdd_cf_safety (n' m' : nat) ε E :
+    (n' < m')%nat ->
+    ⊢ {{{ €ε ∗ ⌜0 < ε ⌝ }}}
+        ubdd_rejection_sampler n' m' #() @ E
+      {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
-    iIntros (𝜀 Φ) "!> (Hcr&%Hcrpos) HΦ".
+    iIntros (? Φ) "!> (Hcr&%Hcrpos) HΦ".
     assert (Hef: (err_factor (S n') (S m')) < 1) by (apply err_factor_lt1; lia).
-    destruct (error_limit (err_factor (S n') (S m')) Hef (mkposreal 𝜀 Hcrpos)) as [d].
-    iApply ((ubdd_approx_safe _ _ d Hnm) with "[Hcr] [HΦ]"); auto.
+    destruct (error_limit (err_factor (S n') (S m')) Hef (mkposreal ε Hcrpos)) as [d].
+    iApply ((ubdd_approx_safe _ _ d _) with "[Hcr] [HΦ]"); auto.
     iApply ec_weaken; last iAssumption.
-    rewrite /bdd_cf_error.
-    simpl. simpl in H. apply Rlt_le. done.
+    rewrite /bdd_cf_error /=; simpl in H.
+    apply Rlt_le. done.
+    Unshelve. by lia.
   Qed.
 
 End basic.
+
+
+
 
 
 
