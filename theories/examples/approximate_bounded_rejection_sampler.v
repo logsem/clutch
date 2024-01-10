@@ -768,6 +768,8 @@ Section basic.
         wp_apply ("IH" with "Hcr HΦ").
   Qed.
 
+
+  (* FIXME: maybe use errror_limit' from below with ε/2 *)
   Lemma error_limit (r : nonnegreal) : (r < 1) -> forall ε : posreal, exists n : nat, r ^ (S n) < ε.
   Proof.
     intros Hr ε.
@@ -882,18 +884,16 @@ Section higherorder.
   Qed.
 
   (* safety for higher-order bounded rejection samplers *)
-  Definition ho_bdd_approx_safe (sampler checker : val) (r 𝜀final : nonnegreal) (depth : nat) E :
-    (not (eq (nonneg r) 0)) ->
-    (not (eq (nonneg 𝜀final) 0)) ->
-    r < 1 ->
-    𝜀final < 1 ->
-    sampling_scheme_spec sampler checker r 𝜀final E -∗
-    € (generic_geometric_error r 𝜀final depth) -∗
+  Lemma ho_bdd_approx_safe (sampler checker : val) (r εfinal : nonnegreal) (depth : nat) E :
+    (0 < r < 1) ->
+    (0 < εfinal < 1) ->
+    sampling_scheme_spec sampler checker r εfinal E -∗
+    € (generic_geometric_error r εfinal depth) -∗
     (WP (ho_bdd_rejection_sampler #(S depth) sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
   Proof.
     (* initial setup *)
     rewrite /sampling_scheme_spec.
-    iIntros (Hr_pos H𝜀final_pos Hr H𝜀final) "(#Hamplify&#Haccept) Hcr".
+    iIntros ([Hr_pos Hr] [Hεfinal_pos Hεfinal]) "(#Hamplify&#Haccept) Hcr".
     rewrite /ho_bdd_rejection_sampler.
     do 9 wp_pure.
     iInduction depth as [|depth' Hdepth'] "IH".
@@ -908,7 +908,7 @@ Section higherorder.
     - wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures; wp_bind (sampler #())%E.
-      iApply ("Hamplify" $! (generic_geometric_error r 𝜀final (S depth')) with "Hcr").
+      iApply ("Hamplify" $! (generic_geometric_error r εfinal (S depth')) with "Hcr").
       iIntros (next_sample) "!> [Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
       + wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_accept").
@@ -920,9 +920,7 @@ Section higherorder.
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").
           rewrite /generic_geometric_error /=.
-          apply (Rmult_le_reg_r r).
-          { destruct (cond_nonneg r); [auto|].
-            exfalso; by apply Hr_pos. }
+          apply (Rmult_le_reg_r r); auto.
           by rewrite /generic_geometric_error /=
                      (Rmult_comm r _) -Rmult_assoc in Hε'.
         * do 2 wp_pure.
@@ -932,12 +930,108 @@ Section higherorder.
   Qed.
 
 
+  (* safety for higher-order unbounded rejection samplers (almost the same proof) *)
+  Lemma ho_ubdd_approx_safe (sampler checker : val) (r εfinal : nonnegreal) (depth : nat) E :
+    (0 < r < 1) ->
+    (0 < εfinal < 1) ->
+    sampling_scheme_spec sampler checker r εfinal E -∗
+    ▷ € (generic_geometric_error r εfinal depth) -∗
+    (WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
+  Proof.
+    rewrite /sampling_scheme_spec.
+    iIntros ([Hr_pos Hr] [Hεfinal_pos Hεfinal]) "(#Hamplify&#Haccept) Hcr".
+    rewrite /ho_ubdd_rejection_sampler.
+    do 7 wp_pure.
+    iInduction depth as [|depth' Hdepth'] "IH".
+    - wp_pures; wp_bind (sampler #())%E.
+      wp_apply ("Haccept" with "[Hcr]").
+      { iApply (ec_weaken with "Hcr"); rewrite /generic_geometric_error /=; lra. }
+      iIntros (next_sample) "Hcheck_accept".
+      wp_pures; wp_bind (checker next_sample)%E.
+      iApply (ub_wp_wand with "Hcheck_accept").
+      iIntros (?) "#->"; wp_pures.
+      iModIntro; iExists next_sample; iFrame; auto.
+    - wp_pures.
+      wp_pures; wp_bind (sampler #())%E.
+      iApply ("Hamplify" $! (generic_geometric_error r εfinal (S depth')) with "Hcr").
+      iIntros (next_sample) "!> [Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
+      + wp_bind (checker next_sample)%V.
+        iApply (ub_wp_wand with "Hcheck_accept").
+        iIntros (?) "#->"; wp_pures.
+        iModIntro; iExists next_sample; iFrame; auto.
+      + wp_bind (checker next_sample)%V.
+        iApply (ub_wp_wand with "Hcheck_reject").
+        iIntros (?) "#->".
+        iSpecialize ("IH" with "[Hcr]").
+        * iApply (ec_spend_le_irrel with "Hcr").
+          rewrite /generic_geometric_error /=.
+          apply (Rmult_le_reg_r r); auto.
+          by rewrite /generic_geometric_error /=
+                     (Rmult_comm r _) -Rmult_assoc in Hε'.
+        * wp_pure.
+          iClear "#".
+          replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
+          iApply "IH".
+  Qed.
 
-  Definition scale_unless (𝜀 𝜀1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
-    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div 𝜀1 𝜀)%NNR).
+  Lemma error_limit' (r : nonnegreal) : (r < 1) -> forall ε : posreal, exists n : nat, r ^ n < ε.
+  Proof.
+    intros Hr ε.
+    assert (H1 : Lim_seq.is_lim_seq (fun n => (r ^ n)%R) (Rbar.Finite 0)).
+    { eapply Lim_seq.is_lim_seq_geom.
+      rewrite Rabs_pos_eq; auto.
+      apply cond_nonneg.
+    }
+    rewrite /Lim_seq.is_lim_seq
+            /Hierarchy.filterlim
+            /Hierarchy.filter_le
+            /Hierarchy.eventually
+            /Hierarchy.filtermap
+            in H1.
+    destruct (H1 (fun e' : R => (e' < ε)%R)); simpl.
+    - rewrite /Hierarchy.locally.
+      eexists _. intros.
+      rewrite /Hierarchy.ball /Hierarchy.UniformSpace.ball /Hierarchy.R_UniformSpace /=
+              /Hierarchy.AbsRing_ball Hierarchy.minus_zero_r /Hierarchy.abs /=
+            in H.
+      eapply Rle_lt_trans; [eapply RRle_abs| eapply H].
+    - exists x. by apply H.
+  Qed.
+
+  (** Limiting argument: any amount of credit suffices to show the unbounded sampler is safe *)
+  Lemma ho_ubdd_safe (sampler checker : val) (r εfinal ε : nonnegreal) E :
+    (0 < r < 1) ->
+    (0 < εfinal < 1) ->
+    0 < ε ->
+    ⊢ sampling_scheme_spec sampler checker r εfinal E -∗
+      €ε -∗
+      WP ho_ubdd_rejection_sampler sampler checker @ E {{ v, ∃ v', ⌜ v = SOMEV v' ⌝ }}.
+  Proof.
+    iIntros (? ? ?) "#Hspec Hcr".
+    remember (/ NNRbar_to_real (NNRbar.Finite εfinal) * nonneg ε) as p.
+    assert (Hp : (0 < p)).
+    { rewrite Heqp.
+      apply Rmult_lt_0_compat; try done.
+      apply Rinv_0_lt_compat.
+      by destruct H0. }
+    assert (H' : r < 1); first by destruct H.
+    destruct (error_limit' r H' (mkposreal p Hp)) as [depth Hlim].
+    iApply (ho_ubdd_approx_safe _ _ _ _ depth);[|done|done|];[done|]. (* weird unification order *)
+    iApply (ec_spend_le_irrel with "Hcr").
+    rewrite /generic_geometric_error /=.
+    apply (Rmult_le_reg_l (/ εfinal)).
+    { apply Rinv_0_lt_compat; by destruct H0. }
+    rewrite /= Heqp in Hlim.
+    rewrite -Rmult_assoc Rinv_l; last lra.
+    rewrite Rmult_1_l.
+    by apply Rlt_le.
+  Qed.
+
+
+  Definition scale_unless (ε ε1 : nonnegreal) (Θ : val -> bool) : val -> nonnegreal
+    := (fun z => if (Θ z) then nnreal_zero else (nnreal_div ε1 ε)%NNR).
 
 End higherorder.
-
 
 
 Section higherorder_rand.
