@@ -42,14 +42,14 @@ Section adequacy.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
         rewrite dbind_mass.
         admit.
-      + iInduction (get_active σ) as [| l] "IH".
+      + iInduction (language.get_active σ) as [| l] "IH".
         { rewrite big_orL_nil //. }
         rewrite !big_orL_cons.
         iDestruct "H" as "[H|H]".
         2:{ by iApply "IH". }
         iDestruct "H" as "(%R & %ε1 & %ε2 & %Hineq & %Hub & H)".
         admit.
-      + iInduction (get_active σ) as [| l] "IH".
+      + iInduction (language.get_active σ) as [| l] "IH".
         { rewrite big_orL_nil //. }
         rewrite !big_orL_cons.
         iDestruct "H" as "[H|H]".
