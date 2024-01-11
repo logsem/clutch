@@ -15,7 +15,7 @@ Section adequacy.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
     iRevert (σ ε) "Hstate Herr".
-    pose proof (ub_twp_ind' ⊤ ()  (λ _ e _, ∀ (a : state) (a0 : nonnegreal),
+    pose proof (ub_twp_ind' ⊤ ()  (λ e _, ∀ (a : state) (a0 : nonnegreal),
                                   state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜1 - a0 <= SeriesC (lim_exec (e, a))⌝)%I) as H. iApply H.
     2: { destruct twp_default. done. }
     clear H e.

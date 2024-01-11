@@ -104,10 +104,27 @@ Section ub_twp.
   Qed.
 
   Lemma ub_twp_ind' E s Ψ :
-  (∀ n e, Proper (pointwise_relation _ (dist n) ==> dist n) (Ψ E e)) →
-  □ (∀ e Φ, ub_twp_pre (λ E e Φ, Ψ E e Φ ∧ WP e @ s; E [{ Φ }]) E e Φ -∗ Ψ E e Φ) -∗
-  ∀ e Φ, WP e @ s; E [{ Φ }] -∗ Ψ E e Φ.
+  (∀ n e, Proper (pointwise_relation _ (dist n) ==> dist n) (Ψ e)) →
+  □ (∀ e Φ, ub_twp_pre (λ E e Φ, Ψ e Φ ∧ WP e @ s; E [{ Φ }]) E e Φ -∗ Ψ e Φ) -∗
+  ∀ e Φ, WP e @ s; E [{ Φ }] -∗ Ψ e Φ.
   Proof.
+    iIntros (Hp) "#IH". iIntros (e Φ) "Hwp".
+    iRevert "IH".
+    iApply (ub_twp_ind _ (λ E e Φ, _) with "[][$]").
+    - admit.
+    - iModIntro.
+      clear. iIntros (e E Φ) "H #IH".
+      iApply "IH".
+      rewrite {2 4}/ub_twp_pre. case_match; first done.
+      iIntros (σ ε) "[Hs He]".
+      iMod ("H" with "[$]") as "H".
+      iModIntro.
+      iApply (exec_ub_mono_pred with "[]H").
+      iIntros ([] []) "H".
+      iMod "H". iModIntro. iDestruct "H" as "(?&?&H)".
+      iFrame. iSplit.
+      { by iApply "H". }
+      by iDestruct "H" as "[_?]".
     Admitted.
   
   Lemma ub_twp_value_fupd' s E Φ v : WP of_val v @ s; E [{ Φ }] ⊣⊢ |={E}=> Φ v.
