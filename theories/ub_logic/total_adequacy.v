@@ -30,7 +30,7 @@ Section adequacy.
       iMod "H".
       iRevert (H).
       iApply (exec_ub_strong_ind (λ ε e σ, ⌜language.to_val e = None⌝ ={∅}=∗ ⌜1 - ε <= SeriesC (lim_exec (e, σ))⌝)%I with "[][$H]").
-      iModIntro. clear e σ ε. simpl. iIntros (e σ ε) "H %Hval".
+      iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
       iDestruct "H" as "[H|[H|[H|H]]]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
