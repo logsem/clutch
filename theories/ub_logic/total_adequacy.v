@@ -28,40 +28,34 @@ Section adequacy.
       admit.
     - iSpecialize ("H" $! σ ε with "[$]").
       iMod "H".
-      rewrite /exec_ub /exec_ub'.
-      iPoseProof (least_fixpoint_ind with "[][$H]") as "IH".
-      { apply exec_coupl_pre_mono. }
-      (* iDestruct "H" as "[H|[H|[H|H]]]". *)
-      (* + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)". *)
-      (*   rewrite lim_exec_step step_or_final_no_final. *)
-      (*   2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. } *)
-      (*   rewrite dbind_mass.  *)
-      (*   admit.  *)
-      (* + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)". *)
-      (*   rewrite lim_exec_step step_or_final_no_final. *)
-      (*   2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. } *)
-      (*   rewrite dbind_mass. *)
-      (*   admit.  *)
-      (* + iInduction (language.get_active σ) as [| l] "IH". *)
-      (*   { rewrite big_orL_nil //. } *)
-      (*   rewrite !big_orL_cons. *)
-      (*   iDestruct "H" as "[H|H]". *)
-      (*   2:{ by iApply "IH". } *)
-      (*   iDestruct "H" as "(%R & %ε1 & %ε2 & %Hineq & %Hub & H)". *)
-      (*   rewrite lim_exec_step step_or_final_no_final. *)
-      (*   2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. done. } *)
-      (*   rewrite dbind_mass. *)
-      (*   admit.  *)
-      (* + iInduction (language.get_active σ) as [| l] "IH". *)
-      (*   { rewrite big_orL_nil //. } *)
-      (*   rewrite !big_orL_cons. *)
-      (*   iDestruct "H" as "[H|H]". *)
-      (*   2:{ by iApply "IH". } *)
-      (*   iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)". *)
-      (*   rewrite lim_exec_step step_or_final_no_final. *)
-      (*   2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. done. } *)
-      (*   rewrite dbind_mass. *)
-      (*   admit. *) 
+      iRevert (H).
+      iApply (exec_ub_strong_ind (λ ε e σ, ⌜language.to_val e = None⌝ ={∅}=∗ ⌜1 - ε <= SeriesC (lim_exec (e, σ))⌝)%I with "[][$H]").
+      iModIntro. clear e σ ε. simpl. iIntros (e σ ε) "H %Hval".
+      iDestruct "H" as "[H|[H|[H|H]]]".
+      + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
+        rewrite lim_exec_step step_or_final_no_final.
+        2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
+        rewrite dbind_mass.
+        admit.
+      + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
+        rewrite lim_exec_step step_or_final_no_final.
+        2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
+        rewrite dbind_mass.
+        admit.
+      + iInduction (get_active σ) as [| l] "IH".
+        { rewrite big_orL_nil //. }
+        rewrite !big_orL_cons.
+        iDestruct "H" as "[H|H]".
+        2:{ by iApply "IH". }
+        iDestruct "H" as "(%R & %ε1 & %ε2 & %Hineq & %Hub & H)".
+        admit.
+      + iInduction (get_active σ) as [| l] "IH".
+        { rewrite big_orL_nil //. }
+        rewrite !big_orL_cons.
+        iDestruct "H" as "[H|H]".
+        2:{ by iApply "IH". }
+        iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)".
+        admit. 
   Admitted.
   
 End adequacy.
