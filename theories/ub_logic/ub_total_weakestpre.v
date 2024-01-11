@@ -111,7 +111,7 @@ Section ub_twp.
     iIntros (Hp) "#IH". iIntros (e Φ) "Hwp".
     iRevert "IH".
     iApply (ub_twp_ind _ (λ E e Φ, _) with "[][$]").
-    - admit.
+    - intros. intros ???. repeat f_equiv.
     - iModIntro.
       clear. iIntros (e E Φ) "H #IH".
       iApply "IH".
@@ -125,7 +125,7 @@ Section ub_twp.
       iFrame. iSplit.
       { by iApply "H". }
       by iDestruct "H" as "[_?]".
-    Admitted.
+  Qed.
   
   Lemma ub_twp_value_fupd' s E Φ v : WP of_val v @ s; E [{ Φ }] ⊣⊢ |={E}=> Φ v.
   Proof. rewrite ub_twp_unfold /ub_twp_pre to_of_val. auto. Qed.
