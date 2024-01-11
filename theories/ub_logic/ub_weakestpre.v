@@ -591,6 +591,22 @@ Section exec_ub.
     iSplit; [done|done].
   Qed.
 
+  Lemma exec_ub_strong_ind (Ψ : nonnegreal → expr Λ → state Λ →  iProp Σ) (Z : nonnegreal → cfg Λ → iProp Σ) :
+    (∀ n e σ ε, Proper (dist n) (Ψ ε e σ)) →
+    ⊢ (□ (∀ e σ ε, exec_ub_pre Z (λ '(ε, (e, σ)), Ψ ε e σ ∧ exec_ub e σ Z ε)%I (ε, (e, σ)) -∗ Ψ ε e σ) →
+       ∀ e σ ε, exec_ub e σ Z ε -∗ Ψ ε e σ)%I.
+  Proof.
+    iIntros (HΨ). iIntros "#IH" (e σ ε) "H".
+    set (Ψ' := (λ '(ε, (e, σ)), Ψ ε e σ):
+           (prodO NNRO (prodO (exprO Λ) (stateO Λ))) → iProp Σ).
+    assert (NonExpansive Ψ').
+    { intros n [?[e1 σ1]] [?[e2 σ2]]
+        [?%leibniz_equiv[?%leibniz_equiv ?%leibniz_equiv]].
+      simplify_eq/=. f_equiv. }
+    rewrite /exec_ub/exec_ub'.
+    iApply (least_fixpoint_ind _ Ψ' with "[] H").
+    iModIntro. iIntros ([?[??]]) "H". by iApply "IH".
+  Qed. 
 
 
 (*
