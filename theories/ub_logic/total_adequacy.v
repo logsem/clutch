@@ -26,7 +26,11 @@ Section adequacy.
     case_match.
     - iApply fupd_mask_intro; first done. iIntros "_".
       iPureIntro.
-      admit.
+      etrans.
+      2:{ eapply SeriesC_ge_elem; last done. intros. apply pmf_pos. }
+      erewrite (lim_exec_term 0).
+      { simpl. rewrite H. rewrite dret_1_1; last done. destruct ε. simpl. lra. }
+      simpl. rewrite H. by rewrite dret_mass.
     - iSpecialize ("H" $! σ ε with "[$]").
       iMod "H".
       iRevert (H).
