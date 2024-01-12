@@ -44,8 +44,12 @@ Section adequacy.
         { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
           destruct ρ2. iMod "H" as "(?&?&H)".
           iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
-        } 
-        admit.
+        }
+        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - ε2 <= SeriesC (lim_exec e)⌝)%I).
+        { iIntros (H). iPureIntro. admit. }
+        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
+        destruct a.
+        iApply "H".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
@@ -59,7 +63,11 @@ Section adequacy.
           destruct ρ2. iMod "H" as "(?&?&H)".
           iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
         }
-        admit.
+        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= SeriesC (lim_exec e)⌝)%I).
+        { iIntros (H). iPureIntro. admit. }
+        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
+        destruct a.
+        iApply "H".
       + iInduction (language.get_active σ) as [| l] "IH".
         { rewrite big_orL_nil //. }
         rewrite !big_orL_cons.
@@ -69,7 +77,11 @@ Section adequacy.
         iAssert (∀ σ2 : language.state prob_lang,
                    ⌜R σ2⌝ ={∅}=∗ ⌜1 - ε2 <= SeriesC (lim_exec (e, σ2))⌝)%I with "[H]" as "H".
         { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
-        admit.
+        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 <= SeriesC (lim_exec (e, s))⌝)%I).
+        { iIntros (H). iPureIntro. admit. }
+        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
+        destruct a.
+        iApply "H".
       + iInduction (language.get_active σ) as [| l] "IH".
         { rewrite big_orL_nil //. }
         rewrite !big_orL_cons.
@@ -79,7 +91,11 @@ Section adequacy.
         iAssert (∀ σ2 : language.state prob_lang,
                    ⌜R σ2⌝ ={∅}=∗ ⌜1 - (ε2 (e, σ2)) <= SeriesC (lim_exec (e, σ2))⌝)%I with "[H]" as "H".
         { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
-        admit. 
+        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= SeriesC (lim_exec (e, s))⌝)%I).
+        { iIntros (H). iPureIntro. admit. }
+        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
+        destruct a.
+        iApply "H".
   Admitted.
   
 End adequacy.
