@@ -36,11 +36,29 @@ Section adequacy.
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
         rewrite dbind_mass.
+        iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
+          ⌜R ρ2⌝ ={∅}=∗
+          let
+          '(e2, σ2) := ρ2 in
+          |={∅}=> ⌜1 - ε2 <= SeriesC (lim_exec (e2, σ2))⌝)%I with "[H]" as "H".
+        { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
+          destruct ρ2. iMod "H" as "(?&?&H)".
+          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
+        } 
         admit.
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
         rewrite dbind_mass.
+        iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
+          ⌜R ρ2⌝ ={∅}=∗
+          let
+          '(e2, σ2) := ρ2 in
+          |={∅}=> ⌜1 - (ε2 ρ2) <= SeriesC (lim_exec (e2, σ2))⌝)%I with "[H]" as "H".
+        { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
+          destruct ρ2. iMod "H" as "(?&?&H)".
+          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
+        }
         admit.
       + iInduction (language.get_active σ) as [| l] "IH".
         { rewrite big_orL_nil //. }
@@ -48,6 +66,9 @@ Section adequacy.
         iDestruct "H" as "[H|H]".
         2:{ by iApply "IH". }
         iDestruct "H" as "(%R & %ε1 & %ε2 & %Hineq & %Hub & H)".
+        iAssert (∀ σ2 : language.state prob_lang,
+                   ⌜R σ2⌝ ={∅}=∗ ⌜1 - ε2 <= SeriesC (lim_exec (e, σ2))⌝)%I with "[H]" as "H".
+        { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
         admit.
       + iInduction (language.get_active σ) as [| l] "IH".
         { rewrite big_orL_nil //. }
@@ -55,6 +76,9 @@ Section adequacy.
         iDestruct "H" as "[H|H]".
         2:{ by iApply "IH". }
         iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)".
+        iAssert (∀ σ2 : language.state prob_lang,
+                   ⌜R σ2⌝ ={∅}=∗ ⌜1 - (ε2 (e, σ2)) <= SeriesC (lim_exec (e, σ2))⌝)%I with "[H]" as "H".
+        { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
         admit. 
   Admitted.
   
