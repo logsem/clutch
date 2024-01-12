@@ -25,6 +25,7 @@ Section adequacy.
     rewrite /ub_twp_pre.
     case_match.
     - iApply fupd_mask_intro; first done. iIntros "_".
+      iPureIntro.
       admit.
     - iSpecialize ("H" $! σ ε with "[$]").
       iMod "H".
