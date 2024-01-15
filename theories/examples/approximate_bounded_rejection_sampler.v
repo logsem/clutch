@@ -1,6 +1,7 @@
 (** * Examples related to rejection samplers with a bounded number of attempts *)
 
 From clutch.ub_logic Require Export ub_clutch ub_rules.
+From iris.base_logic.lib Require Import invariants.
 From Coquelicot Require Import Series.
 Require Import Lra.
 
@@ -120,8 +121,6 @@ Section finSeries.
   Lemma fin_enum_take n N (v : fin N) :
     v ∈ take n (enum (fin N)) -> (fin_to_nat v < n)%nat.
   Proof.
-    Set Printing Coercions.
-    Set Printing Implicit.
     Opaque firstn.
     simpl.
     induction v as [|N' v' IH].
@@ -939,12 +938,6 @@ Section higherorder_rand.
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
-  Definition rand_sampling_scheme (n' m' : nat) (Hnm : (n' < m')%nat) : expr
-     := (λ: "_", (Pair
-                    (λ: "_", rand #m')
-                    (λ: "sample", "sample" ≤ #n')))%E.
-
-
   Definition rand_ε2 (n' m' : nat) (ε1 : nonnegreal) : (fin (S m')) -> nonnegreal
     := fun z => if (bool_decide (z < S n')%nat)
                   then nnreal_zero
@@ -1154,11 +1147,6 @@ Section higherorder_flip2.
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
-  Definition flip2_sampling_scheme : expr
-     := (λ: "_",  (Pair
-                     (λ: "_", Pair (rand #1) (rand #1))
-                     (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))))%E.
-
   Definition ε2_flip2 (ε1 : nonnegreal) (v : fin (S 1%nat)) : nonnegreal :=
     if (fin_to_bool v)
       then nnreal_zero
@@ -1297,3 +1285,64 @@ Section higherorder_flip2.
 
 End higherorder_flip2.
 
+Section presampled_flip2.
+  (** Demonstration of using the planner rule instead of the higher-order spec *)
+  Local Open Scope R.
+  Context `{!ub_clutchGS Σ}.
+
+  Check list_ind.
+
+  Lemma tapes_flip2_ubdd_safe (ε : nonnegreal) E :
+    0 < ε ->
+    ⊢ €ε -∗
+      WP
+        let: "α" := (alloc #(Z.succ 0)) in
+        ho_ubdd_rejection_sampler
+        (λ: "_", Pair (rand("α")#1) (rand("α") #1))
+        (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))
+        @ E {{ v, ∃ v', ⌜ v = SOMEV v' ⌝ }}.
+  Proof.
+    iIntros (?) "Hcr".
+    wp_bind (alloc _)%I.
+    wp_apply (wp_alloc_tape); auto.
+    iIntros (α) "Hα".
+    rewrite Z2Nat.inj_succ; try lia.
+    wp_apply (presample_planner_aligned _ _ _ _ _ _ _ _ [1%fin; 1%fin]); auto; [apply H|].
+    iFrame.
+    iIntros "[%junk Hα] /=".
+    pose flip2_junk_inv k s : iProp Σ := (∃ j, α ↪ (S (Z.to_nat 0); j ++ s) ∗ ⌜length j = (2 * k)%nat ⌝)%I.
+    iAssert (flip2_junk_inv _ _ _ _ _) with "[Hα]" as "Hinv".
+    { rewrite /flip2_junk_inv app_assoc.
+      iExists _; iFrame; iPureIntro.
+      apply Nat.Div0.div_exact.
+      rewrite app_length.
+      apply (blocks_aligned (Z.to_nat 0%nat) 2%nat).
+      lia.
+    }
+    do 11 wp_pure.
+    iInduction (length (junk ++ block_pad (Z.to_nat 0) 2 junk) `div` 2) as [|k'] "IH".
+    - rewrite /flip2_junk_inv /=.
+      iDestruct "Hinv" as "[%j (Hα & %Hl)] /=".
+      rewrite (nil_length_inv _ Hl) /=.
+      wp_pures.
+      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
+      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
+      wp_pures.
+      iModIntro; iExists _; iPureIntro. done.
+    - rewrite /flip2_junk_inv.
+      iDestruct "Hinv" as "[%j (Hα & %Hl)] /=".
+      rewrite Nat.mul_succ_r Nat.add_comm /= in Hl.
+      destruct j as [| s0 j0]. { simpl in Hl. exfalso; lia. }
+      destruct j0 as [| s1 j']. { simpl in Hl. exfalso; lia. }
+      wp_pures.
+      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
+      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
+      iSpecialize ("IH" with "[Hα]").
+      { iExists _; iFrame; iPureIntro. do 2 rewrite cons_length in Hl. congruence. }
+      wp_pures.
+      case_bool_decide; [wp_pures; case_bool_decide|].
+      + wp_pures; iModIntro; iExists _; auto.
+      + wp_pure. iApply "IH".
+      + do 2 wp_pure; iApply "IH".
+  Qed.
+End presampled_flip2.
