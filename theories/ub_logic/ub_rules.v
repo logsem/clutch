@@ -1132,14 +1132,14 @@ Qed.
 
 (* pads the junk up to a multiple of blocksize *)
 Definition block_pad N blocksize : list (fin (S (S N))) -> list (fin (S (S N))) :=
-  fun junk => repeat 0%fin (blocksize - (length junk mod blocksize))%nat.
+  fun junk => repeat 0%fin ((blocksize - (length junk mod blocksize)) mod blocksize)%nat.
 
 Lemma blocks_aligned N blocksize : (0 < blocksize) -> forall junk, (length junk + length (block_pad N blocksize junk)) mod blocksize = 0%nat.
 Proof.
   intros Hblocksize junk.
   rewrite /block_pad.
-  rewrite -Nat.Div0.add_mod_idemp_l.
   rewrite repeat_length.
+  rewrite -Nat.Div0.add_mod_idemp_l -PeanoNat.Nat.Div0.add_mod -Nat.Div0.add_mod_idemp_l.
   rewrite -Nat.le_add_sub; [apply Nat.Div0.mod_same|].
   edestruct Nat.mod_bound_pos as [? H]; last first.
   - eapply Nat.lt_le_incl, H.
@@ -1147,9 +1147,14 @@ Proof.
   - lia.
 Qed.
 
-Lemma block_pad_ub N blocksize : forall junk, (length (block_pad N blocksize junk) <= blocksize)%nat.
-Proof. intros. rewrite /block_pad repeat_length. apply Nat.le_sub_l. Qed.
-
+Lemma block_pad_ub N blocksize : (0 < blocksize) -> forall junk, (length (block_pad N blocksize junk) <= blocksize)%nat.
+Proof.
+  intros. rewrite /block_pad repeat_length.
+  edestruct Nat.mod_bound_pos; last first.
+  - eapply Nat.lt_le_incl, H1.
+  - lia.
+  - lia.
+Qed.
 
 
 (* version where junk is a mipltple of sample length *)
@@ -1172,6 +1177,7 @@ Proof.
       * rewrite app_length HS /=. lia.
       * rewrite app_length /=.
         apply Nat.add_le_mono_r, block_pad_ub.
+        rewrite HS /=. lia.
     + rewrite HS.
       (* iFrame is very slow here *)
       iFrame.
