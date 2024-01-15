@@ -7,7 +7,7 @@ Require Import Lra.
 
 Set Default Proof Using "Type*".
 
-(* FIXME: move *)
+(* FIXME: move. Or better yet delete. *)
 Section finite.
   (* generalization of Coq.Logic.FinFun: lift functions over fin to functions over nat *)
   Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : (nat -> A) :=
@@ -320,188 +320,10 @@ Section basic.
   Qed.
 
 
-
-  (* uses proof irrelevance *)
-  Lemma f_lift_fin_nat_ltN {A} (n N: nat) (a : A) (Hn : (n < N)%nat) f :
-    (f_lift_fin_nat N a f) n = f (nat_to_fin Hn).
-  Proof.
-    rewrite /f_lift_fin_nat.
-    destruct (le_lt_dec N n) as [Hl|Hr].
-    - lia.
-    - f_equal; f_equal.
-      apply proof_irrelevance.
-  Qed.
-
-
-  Lemma f_lift_fin_nat_geN {A} (N n: nat) (a : A) (Hn : not (n < N)%nat) f :
-    (f_lift_fin_nat N a f) n = a.
-  Proof.
-    rewrite /f_lift_fin_nat.
-    destruct (le_lt_dec N n); [done | lia].
-  Qed.
-
-
-  Lemma encode_inv_nat_nat_total (n : nat) : (@encode_inv_nat nat _ _ n)  = Some n.
-  Proof.
-    rewrite -encode_inv_encode_nat.
-    f_equal.
-    rewrite /encode_nat.
-    rewrite /encode /nat_countable.
-    destruct n; try done.
-    rewrite /= /encode /N_countable /= -SuccNat2Pos.inj_succ.
-    symmetry; apply SuccNat2Pos.pred_id.
-  Qed.
-
-
-  Lemma series_incr_N_zero f N :
-    (forall m : nat, (m < N)%nat -> f m = 0) -> SeriesC (fun n : nat => f n) = SeriesC (fun n : nat => f (N + n)%nat).
-  Proof.
-    intros Hinit.
-    rewrite /SeriesC /Series.
-    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
-    f_equal; apply Lim_seq.Lim_seq_ext; intros n.
-    rewrite /Hierarchy.sum_n.
-    replace (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 (n + N))
-      with (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) N (n + N));
-      last first.
-    { destruct N as [|N']; first by simpl.
-      rewrite (Hierarchy.sum_n_m_Chasles _ 0%nat N' (n + S N')%nat); try lia.
-      replace  (@Hierarchy.sum_n_m Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
-          with (@Hierarchy.zero Hierarchy.R_AbelianGroup).
-      - by rewrite Hierarchy.plus_zero_l.
-      - replace (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (countable_sum (λ n0 : nat, f n0)) 0 N')
-          with  (@Hierarchy.sum_n_m  Hierarchy.R_AbelianGroup (λ n0 : nat, 0) 0 N').
-          { rewrite (Hierarchy.sum_n_m_const _ _ 0); rewrite Rmult_0_r; auto. }
-            apply Hierarchy.sum_n_m_ext_loc.
-            intros K Hk.
-            rewrite /countable_sum.
-            (* I can simplify this with some of my lemmas now? *)
-            rewrite encode_inv_nat_nat_total /=.
-            symmetry; apply Hinit.
-            lia. }
-
-    induction n as [| n' IH].
-    - simpl.
-      do 2 (rewrite Hierarchy.sum_n_n).
-      (* now we do the song and dance to evaluate the countable_sum at a value again *)
-      rewrite /countable_sum encode_inv_nat_nat_total /=.
-      replace (N + 0)%nat with N%nat by lia.
-      reflexivity.
-    - simpl.
-      do 2 (rewrite Hierarchy.sum_n_Sm; last by lia).
-      f_equal; first by apply IH.
-      do 2 (rewrite /countable_sum encode_inv_nat_nat_total /=).
-      f_equal; lia.
-  Qed.
-
-  Lemma encode_inv_nat_fin_undef (n N: nat) (H : not (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = None.
-  Proof.
-    apply encode_inv_decode_ge.
-    rewrite fin_card.
-    lia.
-  Qed.
-
-  Lemma encode_inv_nat_fin_total (n N: nat) (H : (n < N)%nat) : (@encode_inv_nat (fin N) _ _ n) = Some (nat_to_fin H).
-  Proof.
-    assert (G : (n < card $ fin N)%nat).
-    { rewrite fin_card. lia. }
-    destruct (encode_inv_decode n G) as [y [Hy1 Hy2]]; simpl.
-    rewrite Hy1; f_equal.
-    symmetry.
-
-    Set Printing Coercions.
-
-    Check  (encode_inv_nat_some_inj _ y _ Hy1).
-    (* there has to be a better way to prove this than unfolding the definitions one by one,
-       unfortunately I think it is necessary....
-     *)
-  Admitted.
-
-  Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
-    SeriesC (fun x : fin M => nonneg (if bool_decide (x < (S z))%nat then nnreal_zero else K)) = SeriesC (fun x : fin (M-(S z)) => nonneg K).
-  Proof.
-    remember (S z) as N.
-    (* try to do the same induction dance as the reindexing part of the above lemma *)
-    rewrite /SeriesC /Series.
-    f_equal.
-    (* after we increment the top sum by N, they are pointwise equal *)
-    rewrite -(Lim_seq.Lim_seq_incr_n (λ n : nat, @Hierarchy.sum_n Hierarchy.R_AbelianGroup _ _) N).
-    apply Lim_seq.Lim_seq_ext; intros n.
-
-    (* rewrite to a two-ended sum, and compute the first N terms to be zero like above *)
-
-    induction n as [| n' IH].
-    - (* split the sum into the zero part, and the singular term of value K *)
-      rewrite /= HeqN Hierarchy.sum_Sn -HeqN.
-
-      (* now we can evaluate the first handful of terms to be zero *)
-
-      rewrite Hierarchy.sum_O.
-      remember (fun x : fin M => nonneg $ if bool_decide (x < N)%nat then nnreal_zero else K) as body.
-      remember (fun _ : fin M => nnreal_zero) as body1.
-      replace
-        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body) z)
-      with
-        (@Hierarchy.sum_n Hierarchy.R_AbelianGroup (countable_sum body1) z);
-      last first.
-      { apply Hierarchy.sum_n_ext_loc.
-        intros n Hn.
-        rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_total; first lia.
-        intros Hn1.
-        rewrite /= Heqbody1 Heqbody HeqN fin_to_nat_to_fin /=.
-        rewrite bool_decide_true; first done.
-        lia. }
-
-      (* now we can replace the countable sum with a constant zero function (TODO: make me a lemma)*)
-      rewrite Heqbody1.
-      replace
-        (@countable_sum (Fin.t M) (@fin_dec M) (@finite_countable (Fin.t M) (@fin_dec M) (fin_finite M))
-          (fun _ : Fin.t M => nonneg nnreal_zero))
-      with (fun _ : nat => 0); last first.
-      { apply functional_extensionality.
-        intros x; rewrite /countable_sum.
-        destruct (encode_inv_nat x) as [t|]; by simpl. }
-
-      (* now the two series are both constant zero, we cam simplify *)
-      rewrite Hierarchy.sum_n_const Rmult_0_r.
-      rewrite /countable_sum.
-
-      do 2 (rewrite encode_inv_nat_fin_total; try lia).
-      intros H''.
-      rewrite /= Heqbody fin_to_nat_to_fin /=.
-      rewrite bool_decide_false; try lia.
-      rewrite Hierarchy.plus_zero_l.
-      done.
-    - simpl.
-      rewrite Hierarchy.sum_Sn.
-      rewrite Hierarchy.sum_Sn.
-      f_equal; first by apply IH.
-      remember (bool_decide (S n' < (M - N))%nat) as HCond1.
-      case_bool_decide.
-      + rewrite {2}/countable_sum.
-        rewrite encode_inv_nat_fin_total.
-        simpl.
-        rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_total; try lia.
-        intros H''.
-        remember (nat_to_fin H'') as D.
-        simpl.
-        rewrite bool_decide_false; first done.
-        rewrite HeqD.
-        rewrite fin_to_nat_to_fin.
-        lia.
-      + rewrite /countable_sum.
-        rewrite encode_inv_nat_fin_undef; last lia.
-        rewrite encode_inv_nat_fin_undef; last auto.
-        done.
-  Qed.
-
   (* mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
     SeriesC (λ s : fin (S m'), (1 / S m') * bdd_cf_sampling_error (S n') (S m') 𝜀₁ s) = 𝜀₁.
   Proof.
-    intros Hnm.
     rewrite /bdd_cf_sampling_error SeriesC_scal_l.
     apply (Rmult_eq_reg_l (S m')); last (apply not_0_INR; lia).
     rewrite Rmult_assoc -Rmult_assoc Rmult_1_r.
@@ -509,7 +331,7 @@ Section basic.
     { intros. by rewrite Rmult_assoc. }
     rewrite X -Rinv_r_sym; last (apply not_0_INR; lia).
     rewrite Rmult_1_l.
-    rewrite reindex_fin_series SeriesC_finite_mass fin_card.
+    rewrite reindex_fin_series; last lia.
     rewrite /err_factor.
     Opaque INR.
     rewrite /= Rinv_mult Rinv_inv.
@@ -524,66 +346,11 @@ Section basic.
 
 
 
-  (** warmup: a finite example *)
-  Definition bdd_approx_safe_finite_example (n' m' depth : nat) (Hnm : (S n' < S m')%nat) E :
-    (depth = 3%nat) ->
-    {{{ € (bdd_cf_error (S n') (S m') depth Hnm) }}} bdd_rejection_sampler n' m' #(S depth) @ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
-  Proof.
-    iIntros (-> Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
-    assert (Hnm' : (n' < m')%nat) by lia.
-    wp_pures.
-
-    (* S depth=3 sample *)
-    wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-    { intros s. apply sample_err_wf; try lia. }
-    { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') 3 Hnm)); apply P. }
-    iIntros (sample) "Hcr".
-    wp_pures.
-    case_bool_decide; wp_pures.
-    { iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample); split; [auto|lia]. }
-    rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
-
-    (* S depth=2 sample *)
-    wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-    { intros s. apply sample_err_wf; try lia. }
-    { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') 2 Hnm)); apply P. }
-    iIntros (sample') "Hcr".
-    wp_pures.
-    case_bool_decide; wp_pures.
-    { iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample'); split; [auto|lia]. }
-    rewrite (simplify_accum_err (S n') (S m') _); last (apply Nat.ltb_nlt; by lia); try lia.
-
-    (* S depth=1 sample *)
-    rewrite bdd_cd_error_penultimate.
-    remember (S n') as n.
-    remember (S m') as m.
-    wp_apply (wp_rand_err_list_nat _ m' (seq n (m - n))).
-    iSplitL "Hcr".
-    - (* yeesh *)
-      rewrite /err_factor.
-      replace (length (seq _ _)) with (m - n)%nat by (symmetry; apply seq_length).
-      replace (m) with (m' + 1)%nat by lia.
-      done.
-    - iIntros (sample'') "%Hsample''".
-      wp_pures.
-      case_bool_decide; wp_pures.
-      + iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample''); split; [auto|lia].
-      + exfalso.
-        rewrite List.Forall_forall in Hsample''.
-        specialize Hsample'' with sample''.
-        apply Hsample''; last reflexivity.
-        rewrite in_seq.
-        split; first lia.
-        replace (n + (m-n))%nat with m by lia.
-        specialize (fin_to_nat_lt sample''); by lia.
-  Qed.
-
-
   (** general case for the bounded sampler *)
   Definition bdd_approx_safe (n' m' depth : nat) (Hnm : (S n' < S m')%nat) E :
     {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}} bdd_rejection_sampler n' m' #(S depth)@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
-    iIntros (Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
+ iIntros (Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
     assert (Hnm' : (n' < m')%nat) by lia.
     do 4 wp_pure.
     (* Induction will reach the base cse when S depth = 1 <=> depth = 0 *)
@@ -598,7 +365,7 @@ Section basic.
       + iIntros (sample'') "%Hsample''".
         wp_pures.
         case_bool_decide; wp_pures.
-        * iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample''); split; [auto|lia].
+        * iApply "HΦ"; iModIntro; iPureIntro; eexists _; split; [auto|lia].
         * exfalso.
           rewrite List.Forall_forall in Hsample''.
           specialize Hsample'' with sample''.
@@ -611,8 +378,8 @@ Section basic.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { intros s. apply sample_err_wf; try lia. }
-      { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm)); by eapply P. }
+      { exists 1. intros s. apply sample_err_wf; try lia. }
+      { by apply sample_err_mean. }
       iIntros (sample') "Hcr".
       wp_pures.
       case_bool_decide.
@@ -647,7 +414,7 @@ Section basic.
       + iIntros (sample'') "%Hsample''".
         wp_pures.
         case_bool_decide; wp_pures.
-        * iApply "HΦ"; iModIntro; iPureIntro; exists (fin_to_nat sample''); split; [auto|lia].
+        * iApply "HΦ"; iModIntro; iPureIntro; eexists _. split; [auto|lia].
         * exfalso.
           rewrite List.Forall_forall in Hsample''.
           specialize Hsample'' with sample''.
@@ -658,8 +425,8 @@ Section basic.
           specialize (fin_to_nat_lt sample''); by lia.
     - wp_pures.
       wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
-      { intros s. apply sample_err_wf; try lia. }
-      { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm));  by eapply P. }
+      { eexists _. intros s. apply sample_err_wf; try lia. }
+      { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm)). by eapply P. }
       iIntros (sample') "Hcr".
       wp_pures.
       case_bool_decide.
@@ -955,109 +722,16 @@ Section higherorder_rand.
     rewrite /rand_ε2.
     rewrite reindex_fin_series; try lia.
     rewrite /err_factor.
-    rewrite /= -Rmult_assoc Rmult_comm -Rmult_assoc.
-    apply Rmult_eq_compat_r.
-    rewrite Rmult_comm Rinv_mult -Rmult_assoc Rinv_r.
-    - by rewrite Rinv_inv Rmult_1_l.
-    - rewrite HeqD HeqM.
-      apply not_0_INR.
-      lia.
-     *)
-  Admitted.
-
-
-
-  Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
-    sampling_scheme_spec
-      (rand_sampling_scheme n' m' Hnm #())
-      (err_factor (S n') (S m'))
-      (err_factor (S n') (S m'))
-      E
-      (rand_support m')
-      (rand_check_accepts n').
-  Proof.
-    rewrite /sampling_scheme_spec. iIntros (Φ) "_ HΦ".
-    rewrite /rand_sampling_scheme. wp_pures.
-    iModIntro; iApply "HΦ".
-
-    iSplit.
-    { (* the generic composition rule *)
-      iIntros (𝜀1 Post) "!> Hcr HPost".
-      wp_pures.
-
-      iApply (wp_couple_rand_adv_comp  m' _ _ _ 𝜀1 (rand_𝜀2 n' m' 𝜀1) _ with "Hcr").
-      - (* 𝜀2 has a uniform upper bound *)
-        exists (nnreal_div 𝜀1 (err_factor (S n') (S m')))%NNR.
-        intros v.
-        rewrite /rand_𝜀2 /scale_unless.
-        destruct (rand_check_accepts n' #v).
-        + destruct (nnreal_div 𝜀1 (err_factor (S n') (S m')))%NNR.
-          auto.
-        + apply Rle_refl.
-      - (* series converges to expectation *)
-        by apply sample_err_mean_higherorder.
-      - iNext; iIntros (n) "Hcr".
-        iApply "HPost".
-        iSplitR.
-        + iPureIntro. rewrite /rand_support.
-          (* true fact for fin types *)
-          admit.
-        + rewrite /𝜀2.
-          iApply "Hcr".}
-    iSplit.
-    { iIntros (v Post) "!> %Hsupp HPost".
-      wp_pures.
-      remember v as v'.
-      destruct v; try (rewrite /rand_support Heqv' in Hsupp; discriminate).
-      destruct l; try (rewrite /rand_support Heqv' in Hsupp; discriminate).
-      rewrite /rand_check_accepts Heqv'. wp_pures. iApply "HPost".
-      iModIntro. iPureIntro. case_bool_decide.
-        - symmetry; by apply Z.leb_le.
-        - symmetry; by apply Z.leb_nle. }
-    iSplit.
-    { iIntros (v Post) "!> Hcr HPost".
-      wp_pures.
-      remember (S n') as n.
-      remember (S m') as m.
-      wp_apply (wp_rand_err_list_nat _ m' (seq n (m - n))).
-      iSplitL "Hcr".
-      - iApply (ec_weaken with "Hcr").
-        rewrite /err_factor seq_length /=.
-        apply Rmult_le_compat_l.
-        { rewrite Heqn Heqm; apply pos_INR. }
-        apply Rle_Rinv; try lia.
-        + apply lt_0_INR. lia.
-        + apply lt_0_INR. lia.
-        + apply le_INR. lia.
-      - iIntros (sample'') "%Hsample''".
-        iApply "HPost"; iSplit; iPureIntro.
-        + rewrite /rand_support.
-          apply andb_true_intro; split; apply Z.leb_le; try lia.
-          pose P := (fin_to_nat_lt sample'').
-          lia.
-        + rewrite /rand_check_accepts.
-          apply Z.leb_le.
-          rewrite List.Forall_forall in Hsample''.
-          specialize Hsample'' with sample''.
-          apply Znot_gt_le.
-          intros H.
-          apply Hsample''; last reflexivity.
-          rewrite in_seq.
-          split; first lia.
-          replace (n + (m-n))%nat with m by lia.
-          specialize (fin_to_nat_lt sample''); by lia. }
-    { iIntros (v) "!> _ HPost".
-      wp_pures.
-      iApply wp_rand; auto.
-      iNext; iIntros (n) "_".
-      iApply "HPost"; iPureIntro.
-      rewrite /rand_support.
-      apply andb_true_intro; split; apply Z.leb_le; try lia.
-      pose P := (fin_to_nat_lt n).
-      lia.
-    }
+    Opaque INR.
+    rewrite /= Rinv_mult Rinv_inv.
+    rewrite -Rmult_assoc -Rmult_assoc Rmult_comm.
+    apply Rmult_eq_compat_l.
+    rewrite Rmult_comm -Rmult_assoc.
+    rewrite -minus_INR; [|lia].
+    rewrite Nat.sub_succ Rinv_l.
+    - by rewrite Rmult_1_l.
+    - apply not_0_INR; lia.
   Qed.
-
 
   Lemma rand_sampling_scheme_spec (n' m' : nat) (Hnm : (n' < m')%nat) E :
     ⊢ sampling_scheme_spec
@@ -1135,7 +809,7 @@ Section higherorder_rand.
     Unshelve.
     { apply Φ. }
     { rewrite Nat2Z.id; apply TCEq_refl. }
-  Qed.
+  Admitted.
 
 End higherorder_rand.
 
