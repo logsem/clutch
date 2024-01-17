@@ -1,5 +1,4 @@
 (** * Examples related to rejection samplers with a bounded number of attempts *)
-
 From clutch.ub_logic Require Export ub_clutch ub_rules.
 From iris.base_logic.lib Require Import invariants.
 From Coquelicot Require Import Series.
@@ -527,7 +526,7 @@ Section higherorder.
             ((Val sampler) #())%E @ E
           {{{ (v : val), RET v;
                ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}) ∨
-               (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #false⌝ }})))}}}) ∗
+               (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }})))}}}) ∗
         (∀ v : val,
           {{{ € 𝜀final }}}
             ((Val sampler) v) @ E
@@ -584,17 +583,19 @@ Section higherorder.
         iModIntro; iExists next_sample; iFrame; auto.
       + wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_reject").
-        iIntros (?) "#->".
+        iIntros (?) "%Hresult".
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").
           rewrite /generic_geometric_error /=.
           apply (Rmult_le_reg_r r); auto.
           by rewrite /generic_geometric_error /=
                      (Rmult_comm r _) -Rmult_assoc in Hε'.
-        * do 2 wp_pure.
-          iClear "#".
-          replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
-          iApply "IH".
+        * destruct Hresult as [-> | ->].
+          { wp_pures; eauto. }
+          { do 2 wp_pure.
+            iClear "#".
+            replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
+            iApply "IH". }
   Qed.
 
 
@@ -629,17 +630,19 @@ Section higherorder.
         iModIntro; iExists next_sample; iFrame; auto.
       + wp_bind (checker next_sample)%V.
         iApply (ub_wp_wand with "Hcheck_reject").
-        iIntros (?) "#->".
+        iIntros (?) "%Hresult".
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").
           rewrite /generic_geometric_error /=.
           apply (Rmult_le_reg_r r); auto.
           by rewrite /generic_geometric_error /=
                      (Rmult_comm r _) -Rmult_assoc in Hε'.
-        * wp_pure.
-          iClear "#".
-          replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
-          iApply "IH".
+        * destruct Hresult as [-> | ->].
+          { wp_pures; eauto. }
+          { wp_pure.
+            iClear "#".
+            replace #((S (S depth')) - 1) with #(S depth'); [| do 2 f_equal; lia].
+            iApply "IH". }
   Qed.
 
   Lemma error_limit' (r : nonnegreal) : (r < 1) -> forall ε : posreal, exists n : nat, r ^ n < ε.
@@ -781,7 +784,7 @@ Section higherorder_rand.
           -- apply Rinv_neq_0_compat.
              apply Rgt_not_eq, Rlt_gt, lt_0_INR; lia.
         * (* sampler rejects *)
-          wp_pures; iModIntro; iPureIntro.
+          wp_pures; iModIntro; iPureIntro. right.
           do 2 f_equal; apply bool_decide_false; lia.
 
     - (* checking rule *)
@@ -809,7 +812,7 @@ Section higherorder_rand.
     Unshelve.
     { apply Φ. }
     { rewrite Nat2Z.id; apply TCEq_refl. }
-  Admitted.
+  Qed.
 
 End higherorder_rand.
 
@@ -961,10 +964,9 @@ End higherorder_flip2.
 
 Section presampled_flip2.
   (** Demonstration of using the planner rule instead of the higher-order spec *)
+  (** This proof is fairly idiomatic Iris and does not need to do manual credit accounting *)
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
-
-  Check list_ind.
 
   Lemma tapes_flip2_ubdd_safe (ε : nonnegreal) E :
     0 < ε ->
@@ -1020,3 +1022,178 @@ Section presampled_flip2.
       + do 2 wp_pure; iApply "IH".
   Qed.
 End presampled_flip2.
+
+Section higherorder_walkSAT.
+  (** Demonstration of using the higher-order spec for stateful computation (WalkSAT) *)
+  (** This "sampler" does not just return a value, but modifies a state *)
+  Local Open Scope R.
+  Context `{!ub_clutchGS Σ}.
+
+  Context (N : nat).
+
+  (* set up a random assignment of n boolean variables *)
+  Definition mk_init_asn : expr :=
+    (rec: "mk_asn'" "n" :=
+       if: ("n" = #0)
+        then NONE
+        else
+          let: "b" := rand #1 in
+          let: "r" := ("mk_asn'" ("n" - #1)) in
+          SOME ("b", "r"))
+    #N.
+
+  Definition error : expr := (#42 #42)%E.
+
+  (* An assignment is a linked list, NONE is the empty list, and SOME (b, L)*)
+  Definition eval_asn : val :=
+    (rec: "eval_asn" "asnV" "n" :=
+       match: "asnV" with
+          NONE => error
+        | SOME "R" => if: ("n" = #0)
+                        then (Fst "R")
+                        else ("eval_asn" (Snd "R") ("n" - #1))
+       end)%V.
+
+  (* to avoid needless reflections, we will paramaterize the checker by a fixed formula *)
+  (* A formula is a list of clauss, we should be able to access formula m by (formula !! m) *)
+  Inductive clause :=
+      | ClauseV (e1 e2 e3 : fVar)
+    with fVar :=
+      | Pos (n : Z)
+      | Neg (n : Z).
+  Definition formula : Type := list clause.
+
+  (* evaluate an assignment against an fVar *)
+  Definition evaluate_fvar (f: fVar) : val :=
+    (λ: "asnV",
+       match f with
+        | (Pos n) => (#true = eval_asn "asnV" #n)
+        | (Neg n) => (#false = eval_asn "asnV" #n)
+       end).
+
+  (* so this is actually not what we want to measure... we want to evaluate how closely the
+     assignemnt matches some fixed satisfying assignment (since that progresses monotonely).
+     The problem is, if there's multiple satisfying assignments, now our analysis will not
+     actually decrease *)
+  Definition evaluate_clause (c : clause) : val :=
+    (λ: "asnV",
+        match c with
+         | ClauseV e1 e2 e3 => ((evaluate_fvar e1 "asnV") || (evaluate_fvar e2 "asnV") || (evaluate_fvar e3 "asnV"))
+        end)%V.
+
+  (* collect the indices of all UNSAT clauses as a value-level list *)
+  Fixpoint collect_unsat_clauses_rec (f : formula) (start_index : nat) : val :=
+    (λ: "asnV",
+       match f with
+         | (c :: cs) =>
+             if: ((evaluate_clause c) "asnV")
+              then SOME (#start_index, (collect_unsat_clauses_rec cs (S start_index)) "asnV")
+              else ((collect_unsat_clauses_rec cs (S start_index)) "asnV")
+         | [] => NONE
+       end).
+
+  Definition collect_unsat_clauses (f : formula) : val :=
+    (λ: "asnV", collect_unsat_clauses_rec f 0%nat "asnV").
+
+  (* return true when the list of UNSAT clauses is [] *)
+  Definition checker (f : formula) : val :=
+    (λ: "asnV", (collect_unsat_clauses f) "asnV" = NONEV).
+
+  (* collect the indices of the UNSAT clauses and either
+      - return the Hoare triple which says (checker "asnV") {{ True }}
+      - resample a random clause. Either it's SAT, and it makes progress, or we amplify the error
+   *)
+  Definition sampler (f : formula) : val :=
+    (λ: "asnV", #()).
+
+
+  Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
+    := (  (* 1. After some amount of progress, we can ensure the checker will pass *)
+          (* 2. We can always spend εfinal to obtain a sample which will surely pass *)
+          {{{ € εfinal ∨ Ψ 0%nat }}}
+            ((Val sampler) #())%E @ E
+          {{{ (v : val), RET v; WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}}}} ∗
+          (* 3. Given any amount of credit and progress, the sampler will either... *)
+          (∀ ε p,
+            {{{ € ε }}}
+              ((Val sampler) #())%E @ E
+            {{{ (v : val), RET v;
+                (* 3.1: obtain a sample which makes progress without consuming error, or *)
+                (Ψ p -∗ ∃ p', € ε ∗ Ψ p' ∗ (* ⌜ (p' < p)%nat ⌝*) ⌜S p' = p ⌝ ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }}))) ∨
+                (* 3.2: amplifies the error by a factor, possibly losing progress *)
+                (∃ ε', € ε' ∗ ⌜(ε <= ε' * εfactor)%NNR ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }}))}}}))%I.
+
+  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ p (εfactor εfinal : nonnegreal) (depth : nat) E :
+    (0 < εfactor < 1) ->
+    (0 < εfinal < 1) ->
+    incremental_sampling_scheme_spec sampler checker Ψ εfactor εfinal E -∗
+    ▷ € (generic_geometric_error εfactor εfinal depth) -∗
+    ▷ Ψ p -∗
+    (WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
+  Proof.
+    iIntros ([Hfactor_lb Hfactor_ub] [Hfinal_lb Hfinal_ub]) "(#Haccept & #Hamplify) Hε HΨ".
+    do 7 wp_pure.
+    iInduction p as [|p'] "IHp". (* FIXME: this should be strong induction but iInduction isn't happy with that  *)
+    { wp_pures; wp_bind (sampler #())%E.
+      wp_apply (ub_wp_wand with "[HΨ]").
+      { iApply ("Haccept" with "[$]").
+        iNext. iIntros (?) "Hv"; iApply "Hv". }
+      iIntros (s) "Hs".
+      wp_pures.
+      wp_bind (checker s)%E.
+      iApply (ub_wp_wand with "Hs").
+      iIntros (?) "#->".
+      wp_pures.
+      iModIntro; iExists _; eauto.
+    }
+    iInduction depth as [|depth' Hdepth'] "IH".
+    - wp_pures; wp_bind (sampler #())%E.
+      wp_apply (ub_wp_wand with "[Hε]").
+      { iApply ("Haccept" with "[Hε]").
+        - iLeft.
+          iApply ec_spend_irrel; [|iFrame].
+          rewrite /generic_geometric_error /=; lra.
+        - iNext. iIntros (?) "Hv"; iApply "Hv".
+      }
+      iIntros (s) "Hs".
+      wp_pures.
+      wp_bind (checker s)%E.
+      iApply (ub_wp_wand with "Hs").
+      iIntros (?) "#->"; wp_pures.
+      iModIntro; iExists _; iFrame; auto.
+    - wp_pures.
+      wp_bind (sampler #())%E.
+      iApply ("Hamplify" with "[$]"); iNext.
+      iIntros (s)  "[H1|[%ε' (Hε'&%Hamp&Hcheck)]]"; wp_pures.
+      + (* we get lucky and make progress. Should be able to conclude by IHp *)
+        iSpecialize ("H1" with "HΨ").
+        iDestruct "H1" as "[%p'' (Hε&HΨ&%Hp''&Hcheck)]".
+        inversion Hp''; simplify_eq.
+        wp_bind (checker s)%E.
+        wp_apply (ub_wp_wand with "Hcheck").
+        iIntros (v) "[ -> | -> ]"; [wp_pures; eauto|].
+        wp_pure.
+        iApply ("IHp" with "[$]"); iFrame.
+      + (* we do not get lucky, but we can amplify *)
+        wp_bind (checker s)%E.
+        wp_apply (ub_wp_wand with "Hcheck").
+        iIntros (v) "[ -> | -> ]"; [wp_pures; eauto|].
+        wp_pure.
+        iApply ("IH" with "[] [Hε'] [HΨ]"); [| | iFrame].
+        * iIntros "!> Hε' HΨ".
+          wp_apply ("IHp" with "[Hε'] HΨ").
+          iApply (ec_spend_le_irrel with "Hε'").
+          rewrite /generic_geometric_error /=.
+          rewrite Rmult_comm (Rmult_comm εfinal) Rmult_assoc.
+          eapply Rle_trans.
+          { apply Rlt_le.
+            eapply Rmult_lt_compat_r; [|done].
+            apply Rmult_lt_0_compat; [|done].
+            by apply pow_lt. }
+          by rewrite Rmult_1_l.
+        * iApply (ec_spend_le_irrel with "Hε'").
+          rewrite /generic_geometric_error /=; simpl in Hamp.
+          eapply (Rmult_le_reg_r (nonneg εfactor)); [done|lra].
+  Qed.
+
+End higherorder_walkSAT.
