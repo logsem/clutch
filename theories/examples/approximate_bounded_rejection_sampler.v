@@ -1031,20 +1031,78 @@ Section higherorder_walkSAT.
 
   Context (N : nat).
 
-  (* set up a random assignment of n boolean variables *)
-  Definition mk_init_asn : expr :=
-    (rec: "mk_asn'" "n" :=
-       if: ("n" = #0)
-        then NONE
-        else
-          let: "b" := rand #1 in
-          let: "r" := ("mk_asn'" ("n" - #1)) in
-          SOME ("b", "r"))
-    #N.
+  (* an assignment is a list of length N booleans *)
+  (* value-level representation for assignments *)
+  Inductive inv_asn' : val -> list bool -> Prop :=
+    | inv_emp : inv_asn' NONEV []
+    | inv_cons (b : bool) (m' : list bool) (asn' : val) : (inv_asn' asn' m') -> inv_asn' (SOMEV (#b, asn')) (b :: m').
+  Definition inv_asn m asn : Prop := length m = N /\ inv_asn' asn m.
 
+  (* stuck expression *)
   Definition error : expr := (#42 #42)%E.
 
-  (* An assignment is a linked list, NONE is the empty list, and SOME (b, L)*)
+  Definition flip : expr := (if: (rand #1 = #(bool_to_fin true)) then #true else #false)%E.
+
+  (* FIXME: see how they do this in lib.flip (unfortunate that we cannot reuse?) *)
+  Lemma wp_flip E : ⊢ (WP flip @ E {{ fun v => ⌜v = #true \/ v = #false ⌝ }})%I.
+  Proof.
+    rewrite /flip; wp_pures.
+    wp_bind (rand _)%E; wp_apply wp_rand; eauto.
+    iIntros (n) "_".
+    destruct (fin_to_bool n) as [|] eqn:Hn; wp_pures.
+    - replace #n with #1%nat by admit. (* look through lib.conversion to fix this the proper way (also the conversion stuff above) *)
+      wp_pures; eauto.
+    - replace #n with #0%nat by admit.
+      wp_pures; eauto.
+  Admitted.
+
+  (* set up a random assignment of n boolean variables *)
+  Definition mk_init_asn': val :=
+    (rec: "mk_asn'" "n" :=
+       if: ("n" = #0)
+       then NONE
+       else
+         let: "b" := flip in
+         let: "r" := ("mk_asn'" ("n" - #1)) in
+         SOME ("b", "r"))%V.
+  Definition mk_init_asn : expr := mk_init_asn' #N.
+
+
+  Lemma init_asn'_inv (l: nat) E : ⊢ (WP (mk_init_asn' #l) @ E {{ fun v' => ∃ m, ⌜ inv_asn' v' m ⌝}})%I.
+  Proof.
+    iInduction l as [|l'] "IH".
+    - rewrite /mk_init_asn'; wp_pures.
+      iModIntro; iExists []; iPureIntro; constructor.
+    - rewrite /mk_init_asn'.
+      do 3 wp_pure.
+      (* seems to need some help to unfold flip the right amount of times?
+         should be fixable (see lib.flip) *)
+      iPoseProof (wp_flip E) as "wp_flip".
+      wp_bind flip.
+      wp_apply (ub_wp_wand with "wp_flip").
+      iClear "wp_flip".
+      iIntros (b) "%Hb".
+      do 3 wp_pure.
+      replace #(S l' - 1)%Z with #l'; [| do 2 f_equal; lia].
+      wp_bind (RecV _ _ _ _).
+      wp_apply (ub_wp_wand  with "IH").
+      iIntros (asn') "[%m' %Hinv_m']".
+      wp_pures.
+      (* get a boolean (FIXME: with the rest of the conversion stuff )*)
+      assert (Hb' : exists b' : bool, b = #b').
+      { destruct Hb; rewrite H; eexists _; eauto. }
+      destruct Hb' as [b' ->].
+      iModIntro; iExists (b' :: m').
+      iPureIntro; by constructor.
+  Qed.
+
+
+  (* FIXME
+  Lemma wp_init_asn E : ⊢ (WP mk_init_asn @ E {{ fun v' => ∃ m, ⌜inv_asn' v' m ⌝}})%I.
+  Proof. iStartProof. rewrite /mk_init_asn /inv_asn.
+  Admitted.
+   *)
+
   Definition eval_asn : val :=
     (rec: "eval_asn" "asnV" "n" :=
        match: "asnV" with
@@ -1054,16 +1112,83 @@ Section higherorder_walkSAT.
                         else ("eval_asn" (Snd "R") ("n" - #1))
        end)%V.
 
-  (* to avoid needless reflections, we will paramaterize the checker by a fixed formula *)
-  (* A formula is a list of clauss, we should be able to access formula m by (formula !! m) *)
+
+  Definition wp_eval_asn m asn E  n :
+    (n < length m)%nat -> inv_asn' asn m -> ⊢ (WP (eval_asn asn #n)%E @ E {{ fun v => ∃ b: bool, ⌜v = #b /\ (m !! n = Some b)⌝}})%I .
+  Proof.
+    intros Hlength Hinv.
+    generalize dependent n.
+    iInduction Hinv as [| b m' asn' Hinv H] "IH".
+    - simpl. iIntros (? ?). lia.
+    - iIntros (n Hlength).
+      rewrite /eval_asn.
+      wp_pures.
+      destruct n as [|n'].
+      + wp_pures; iModIntro; iExists b; eauto.
+      + do 3 wp_pure.
+        replace #(S n' - 1) with #n'; [|do 2 f_equal; lia].
+        iApply "IH".
+        iPureIntro.
+        rewrite cons_length in Hlength.
+        lia.
+  Qed.
+
+  Definition update_asn : expr :=
+    (rec: "update_asn'" "asnV" "n" "b" :=
+       match: "asnV" with
+         NONE => error
+        | SOME "R" => if: ("n" = #0)
+                     then SOME ("b", (Snd "R"))
+                     else SOME (Fst "R", "update_asn'" (Snd "R") ("n" - #1) "b")
+       end)%E.
+
+  Definition wp_update_asn m asn E n (b: bool) :
+    (n < length m)%nat -> inv_asn' asn m -> ⊢ (WP (update_asn asn #n #b)%E @ E {{ fun asn' => ⌜inv_asn' asn' (<[n := b]> m)⌝ }})%I.
+  Proof.
+    intros Hlength Hinv.
+    generalize dependent n.
+    iInduction Hinv as [| b' m' asn' Hinv H] "IH".
+    - simpl. iIntros (? ?). lia.
+    - iIntros (n Hlength).
+      rewrite /update_asn.
+      wp_pures.
+      destruct n as [|n'].
+      + wp_pures; iModIntro; iPureIntro. by constructor.
+      + do 3 wp_pure.
+        replace #(S n' - 1) with #n'; [|do 2 f_equal; lia].
+        iSpecialize ("IH" $! n' _).
+        remember (Rec _ _ _ _) as X.
+        remember (RecV _ _ _ _) as Y.
+        (* I think I can't apply it because the IH is not a value. Weird but I bet it's fixable.  *)
+  Admitted.
+
+  (* our program will be indexed by a fixed formula to avoid manipulating value-level formulae *)
+
   Inductive clause :=
       | ClauseV (e1 e2 e3 : fVar)
     with fVar :=
-      | Pos (n : Z)
-      | Neg (n : Z).
-  Definition formula : Type := list clause.
+      | Pos (n : nat)
+      | Neg (n : nat).
+  Definition formula : Type := list (clause).
 
-  (* evaluate an assignment against an fVar *)
+  (* evaluation of the coq-level assignments *)
+
+  Definition fvar_SAT (m : list bool) (* (Hm: length m = N) *) (v : fVar) : bool :=
+    match v with
+    | (Pos n) => (bool_decide (m !! n = Some true)) (* super inelegant, doing this only because of the partial lookup. use a total lookup w/ Hm *)
+    | (Neg n) => (bool_decide (m !! n = Some true)) (* or write your own total lookup *)
+    end.
+
+  Definition clause_SAT (m : list bool) (c : clause) : bool :=
+    match c with
+      | ClauseV e1 e2 e3 => (fvar_SAT m e1) || (fvar_SAT m e2) || (fvar_SAT m e3)
+    end.
+
+  Definition formula_SAT (m : list bool) (f : formula) : bool :=
+    fold_right (fun c acc => clause_SAT m c || acc) true f.
+
+  (* evaluation of the value-level assignments *)
+
   Definition evaluate_fvar (f: fVar) : val :=
     (λ: "asnV",
        match f with
@@ -1071,15 +1196,20 @@ Section higherorder_walkSAT.
         | (Neg n) => (#false = eval_asn "asnV" #n)
        end).
 
-  (* so this is actually not what we want to measure... we want to evaluate how closely the
-     assignemnt matches some fixed satisfying assignment (since that progresses monotonely).
-     The problem is, if there's multiple satisfying assignments, now our analysis will not
-     actually decrease *)
   Definition evaluate_clause (c : clause) : val :=
     (λ: "asnV",
         match c with
          | ClauseV e1 e2 e3 => ((evaluate_fvar e1 "asnV") || (evaluate_fvar e2 "asnV") || (evaluate_fvar e3 "asnV"))
         end)%V.
+
+  (* TODO: specs relating the coq-level and value-level evaluators *)
+
+
+  (* WALKSAT (simplified version)
+
+      Find the first UNSAT clause and randomly resample a variable from it
+
+   *)
 
   (* collect the indices of all UNSAT clauses as a value-level list *)
   Fixpoint collect_unsat_clauses_rec (f : formula) (start_index : nat) : val :=
@@ -1107,32 +1237,45 @@ Section higherorder_walkSAT.
     (λ: "asnV", #()).
 
 
+
+
+
+
   Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
-    := (  (* 1. After some amount of progress, we can ensure the checker will pass *)
+    := (* 0: we always need to be able to construct some progress measurement *)
+       (  (* 1. After some amount of progress, we can ensure the checker will pass *)
           (* 2. We can always spend εfinal to obtain a sample which will surely pass *)
           {{{ € εfinal ∨ Ψ 0%nat }}}
             ((Val sampler) #())%E @ E
           {{{ (v : val), RET v; WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}}}} ∗
           (* 3. Given any amount of credit and progress, the sampler will either... *)
           (∀ ε p,
-            {{{ € ε }}}
+            {{{ € ε ∗ □ Ψ (S p)}}}
               ((Val sampler) #())%E @ E
             {{{ (v : val), RET v;
                 (* 3.1: obtain a sample which makes progress without consuming error, or *)
-                (Ψ p -∗ ∃ p', € ε ∗ Ψ p' ∗ (* ⌜ (p' < p)%nat ⌝*) ⌜S p' = p ⌝ ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }}))) ∨
+                (€ ε ∗ Ψ p ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }}))) ∨
                 (* 3.2: amplifies the error by a factor, possibly losing progress *)
-                (∃ ε', € ε' ∗ ⌜(ε <= ε' * εfactor)%NNR ⌝ ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }}))}}}))%I.
+                (∃ ε' p', € ε' ∗ ⌜(ε <= ε' * εfactor)%NNR ⌝ ∗ Ψ p' ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true \/ v' = #false⌝ }}))}}}))%I.
 
   Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ p (εfactor εfinal : nonnegreal) (depth : nat) E :
     (0 < εfactor < 1) ->
     (0 < εfinal < 1) ->
     incremental_sampling_scheme_spec sampler checker Ψ εfactor εfinal E -∗
     ▷ € (generic_geometric_error εfactor εfinal depth) -∗
-    ▷ Ψ p -∗
+    Ψ p -∗
     (WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
   Proof.
     iIntros ([Hfactor_lb Hfactor_ub] [Hfinal_lb Hfinal_ub]) "(#Haccept & #Hamplify) Hε HΨ".
     do 7 wp_pure.
+    (* outermost induction should be on depth, generalized over p, since amplification can lose progress *)
+    iInduction depth as [|depth' Hdepth'] "IH" forall (p).
+    -
+
+
+
+
+
     iInduction p as [|p'] "IHp". (* FIXME: this should be strong induction but iInduction isn't happy with that  *)
     { wp_pures; wp_bind (sampler #())%E.
       wp_apply (ub_wp_wand with "[HΨ]").
@@ -1164,7 +1307,8 @@ Section higherorder_walkSAT.
     - wp_pures.
       wp_bind (sampler #())%E.
       iApply ("Hamplify" with "[$]"); iNext.
-      iIntros (s)  "[H1|[%ε' (Hε'&%Hamp&Hcheck)]]"; wp_pures.
+      (* iIntros (s)  "[H1|[%ε' (Hε'&%Hamp&Hcheck)]]"; wp_pures. *)
+      iIntros (s) "[(Hcr&#HΨ'&H2)|H]".
       + (* we get lucky and make progress. Should be able to conclude by IHp *)
         iSpecialize ("H1" with "HΨ").
         iDestruct "H1" as "[%p'' (Hε&HΨ&%Hp''&Hcheck)]".
@@ -1195,5 +1339,32 @@ Section higherorder_walkSAT.
           rewrite /generic_geometric_error /=; simpl in Hamp.
           eapply (Rmult_le_reg_r (nonneg εfactor)); [done|lra].
   Qed.
+
+
+  Lemma ho_spec_is_incremental (sampler checker : val) (εfactor εfinal : nonnegreal) E :
+    ⊢ sampling_scheme_spec sampler checker εfactor εfinal E -∗ incremental_sampling_scheme_spec sampler checker (fun n: nat => ⌜False⌝) εfactor εfinal E.
+  Proof.
+    iIntros "(#Hamp&#Hspend)".
+    rewrite /incremental_sampling_scheme_spec.
+    iSplit.
+    - iIntros (Φ) "!> [Hcr|?] HΦ"; [|iExFalso; iFrame].
+      iSpecialize ("Hspend" $! #()).
+      wp_apply (ub_wp_wand with "[Hcr]").
+      + iApply ("Hspend" with "Hcr").
+        iNext.  (* sus *)
+        iIntros (?) "Hr".
+        iApply "Hr".
+      + iIntros (?).
+        (* problem: need to strip a later here *)
+        admit.
+    - iIntros (ε p) "!>"; iIntros (Φ) "Hcr HΦ".
+      iSpecialize ("Hamp" $! ε with "Hcr").
+      iApply "Hamp".
+      iNext.
+      iIntros (v).
+      iSpecialize ("HΦ" $! v).
+      (* very sus *)
+    Abort.
+
 
 End higherorder_walkSAT.
