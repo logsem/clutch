@@ -630,6 +630,20 @@ Proof.
 Qed.
 
 
+(* FIXME: merge with Hei Li's changes *)
+Lemma wp_couple_rand_adv_comp1 (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
+Proof.
+  iIntros (H1 H2).
+  eapply (wp_couple_rand_adv_comp _ _ _ Φ ε1 ε2).
+  - apply H1.
+  - edestruct mean_constraint_ub as [H3 H4].
+    + apply H2.
+    + eexists _; eapply H4.
+  - apply H2.
+Qed.
 
 (** * Approximate Lifting *)
 Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :

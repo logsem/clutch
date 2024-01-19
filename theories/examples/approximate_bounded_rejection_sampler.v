@@ -1104,8 +1104,8 @@ Section higherorder_walkSAT.
    *)
 
   Definition eval_asn : val :=
-    (rec: "eval_asn" "asnV" "n" :=
-       match: "asnV" with
+    (rec: "eval_asn" "asn" "n" :=
+       match: "asn" with
           NONE => error
         | SOME "R" => if: ("n" = #0)
                         then (Fst "R")
@@ -1133,14 +1133,14 @@ Section higherorder_walkSAT.
         lia.
   Qed.
 
-  Definition update_asn : expr :=
-    (rec: "update_asn'" "asnV" "n" "b" :=
-       match: "asnV" with
+  Definition update_asn : val :=
+    (rec: "update_asn'" "asn" "n" "b" :=
+       match: "asn" with
          NONE => error
         | SOME "R" => if: ("n" = #0)
                      then SOME ("b", (Snd "R"))
                      else SOME (Fst "R", "update_asn'" (Snd "R") ("n" - #1) "b")
-       end)%E.
+       end)%V.
 
   Definition wp_update_asn m asn E n (b: bool) :
     (n < length m)%nat -> inv_asn' asn m -> ⊢ (WP (update_asn asn #n #b)%E @ E {{ fun asn' => ⌜inv_asn' asn' (<[n := b]> m)⌝ }})%I.
@@ -1157,9 +1157,10 @@ Section higherorder_walkSAT.
       + do 3 wp_pure.
         replace #(S n' - 1) with #n'; [|do 2 f_equal; lia].
         iSpecialize ("IH" $! n' _).
-        remember (Rec _ _ _ _) as X.
+
+
         remember (RecV _ _ _ _) as Y.
-        (* I think I can't apply it because the IH is not a value. Weird but I bet it's fixable.  *)
+        (* FIXME: now that I changed update_asn to a val this proof can be clsoed *)
   Admitted.
 
   (* our program will be indexed by a fixed formula to avoid manipulating value-level formulae *)
@@ -1197,11 +1198,26 @@ Section higherorder_walkSAT.
        end).
 
   Definition evaluate_clause (c : clause) : val :=
-    (λ: "asnV",
-       let: "asn" := (! "asnV") in
+    (λ: "asn",
         match c with
          | ClauseV e1 e2 e3 => ((evaluate_fvar e1 "asn") || (evaluate_fvar e2 "asn") || (evaluate_fvar e3 "asn"))
         end)%V.
+
+  Definition fVar_index (v : fVar) : nat :=
+    match v with
+      | (Pos n) => n
+      | (Neg n) => n
+    end.
+
+  Definition clause_index (c : clause) (target : fin 3) : nat :=
+    match c with
+      | (ClauseV e1 e2 e3) =>
+          if target =? (0 : fin 3)%fin
+            then fVar_index e1
+            else if target =? (1 : fin 3)%fin
+                 then fVar_index e2
+                 else fVar_index e3
+      end.
 
   (* TODO: specs relating the coq-level and value-level evaluators *)
 
@@ -1212,11 +1228,6 @@ Section higherorder_walkSAT.
 
    *)
 
-  Definition fVar_index (v : fVar) : nat :=
-    match v with
-      | (Pos n) => n
-      | (Neg n) => n
-    end.
 
   Definition clause_to_index (c : clause) : val :=
     (λ: "i",
@@ -1230,12 +1241,101 @@ Section higherorder_walkSAT.
        end)%V.
 
 
+  Lemma wp_clause_to_index (c: clause) (target : fin 3) E :
+    ⊢ (WP (clause_to_index c #target)%E @ E {{ fun i => ⌜ i = #(clause_index c target)⌝ }})%I.
+  Proof.
+    iStartProof; rewrite /clause_to_index /clause_index.
+    destruct c.
+    destruct target; simpl; wp_pures; eauto.
+    destruct target; simpl; wp_pures; eauto.
+    rewrite (bool_decide_false); first (wp_pures; eauto).
+    rewrite /not; intros Hk; inversion Hk; lia.
+  Qed.
+
   Definition resample_clause (c : clause) : val :=
-    (λ: "asnV",
-       let: "asn" := (! "asnV") in
+    (λ: "l",
+       let: "asn" := (! "l") in
        let: "n" := clause_to_index c (rand #2) in
-       let: "b" := flip in
-       "asn" <- ("update_asn" "n" "b"))%V.
+       let: "b" := eval_asn "asn" "n" in
+       "l" <- (update_asn "asn" "n" (!"b")))%V.
+
+  Definition εFac : nonnegreal := (nnreal_div (nnreal_nat 3) (nnreal_nat 2)).
+
+  (* amplify using the 1/6 chance that the resampler flips a variable "target" *)
+  Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε (asn : val) E :
+    inv_asn m asn ->
+    (* (clause_SAT m c = false) -> *)
+    ⊢ (l ↦ asn -∗
+       € ε -∗
+       WP (resample_clause c #l)%E @ E
+         {{ fun _ => ∃ asn' m', (l ↦ asn') ∗ ⌜inv_asn m' asn' ⌝ ∗
+                              ((⌜(m' !! (clause_index c target)) = (negb <$> (m !! (clause_index c target))) ⌝) ∨
+                               (€ (ε * εFac)%NNR ))}})%I.
+  Proof.
+    iIntros (Hinv) "Hl Hε".
+    Opaque update_asn.
+    rewrite /resample_clause.
+    wp_pures.
+    wp_apply (wp_load with "Hl").
+    iIntros "Hl".
+    wp_pures.
+    wp_bind (rand _)%E.
+    (* amplification:
+        and 7/6 error to the other cases (7/6 > 1 is an amplification)
+     *)
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε
+                (fun s => if (s =? target)
+                         then (nnreal_nat 0%nat)%NNR
+                         else (ε * (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 2%nat)))%NNR)
+              with "Hε").
+    { (* (0 + 3/2 + 3/2) / 3 = 1 *)
+      admit. }
+    iIntros  (i) "Hcr".
+    destruct (i =? target) eqn:Hi.
+    - (* sampler chooses the target index; flips it *)
+      wp_bind (clause_to_index c _)%E.
+      wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
+      iIntros (i') "Hi'".
+      wp_pures.
+      wp_bind (eval_asn _ _)%E.
+      (* wp_apply (ub_wp_wand).
+      { wp_apply wp_eval_asn. } FIXME *)
+      iAssert (∃ v, ∃ b : bool, ⌜v = #b /\ m !! i' = Some b ⌝)%I as "[%v [%b (%Hv&%Hlookup)]]"; first admit.
+      replace (eval_asn _ _)%E with (Val v) by admit.
+      wp_pures.
+      wp_let.
+      wp_bind (update_asn _ _ _).
+      iAssert (∃ asn', ⌜inv_asn' asn' (<[i' := (negb b)]> m)⌝)%I as "[%asn' %Hasn']"; first admit.
+      replace (update_asn _ _ _) with (Val asn')%E by admit.
+      wp_pures.
+      wp_store.
+      iModIntro.
+      iExists asn', (<[i':=negb b]> m).
+      iFrame.
+      iSplitR; first admit.  (*Fix the inv_asn spec*)
+      iLeft.
+      iPureIntro.
+
+      (* probably doable *)
+      admit.
+    - (* sampler chooses the wrong index, step through and conclude by the 7/6 amplification  *)
+      wp_bind (clause_to_index c _)%E.
+      wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
+      iIntros (i') "Hi'".
+      wp_pures.
+      iAssert (∃ v, ∃ b : bool, ⌜v = #b /\ m !! i' = Some b ⌝)%I as "[%v [%b (%Hv&%Hlookup)]]"; first admit.
+      replace (eval_asn _ _)%E with (Val v) by admit.
+      wp_pures.
+      iAssert (∃ asn', ⌜inv_asn' asn' (<[i' := true]> m)⌝)%I as "[%asn' %Hasn']"; first admit.
+      replace (update_asn _ _ _) with (Val asn')%E by admit.
+      wp_pures; wp_store.
+      iModIntro.
+      iExists _, _; iFrame.
+      iPureIntro.
+      rewrite /inv_asn; split; last eauto.
+      (* from using inv_asn' instead of inv_asn *)
+      admit.
+  Admitted.
 
 
   Fixpoint sampler (f : formula) : val :=
@@ -1248,7 +1348,6 @@ Section higherorder_walkSAT.
                 else (sampler cs) "asnV"
         end)%V.
 
-  (* return true when the list of UNSAT clauses is [] *)
   Fixpoint checker (f : formula) : val :=
     (λ: "asnV",
        match f with
