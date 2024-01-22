@@ -1222,8 +1222,9 @@ Section higherorder_walkSAT.
       | ClauseV e1 e2 e3 => (fvar_SAT m e1) || (fvar_SAT m e2) || (fvar_SAT m e3)
     end.
 
-  Definition formula_SAT (m : list bool) (f : formula) : Prop :=
-    Forall (fun c => clause_SAT m c = false) f.
+  Definition formula_SAT (m : list bool) (f : formula) : bool :=
+    fold_left (fun acc c => acc && clause_SAT m c) f true.
+
 
   (* If there is a solution s, for any unsatisfied clause, the clause contains a variable
       which differers from the solution. *)
@@ -1487,22 +1488,40 @@ Section higherorder_walkSAT.
     (λ: "asnV",
        match f with
         | [] => #true
-        | (c :: cs) => (evaluate_clause c "asnV") && (checker cs)
+        | (c :: cs) => (evaluate_clause c "asnV") && (checker cs "asnV")
         end).
 
 
-  (* can always "just run" the checker *)
-  Lemma wp_check l asn f E :
-    (⊢ l ↦ asn -∗ ((WP ((Val (checker f)) asn) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }})))%I.
+  (* running the checker *)
+  Lemma wp_check l asn m f E :
+    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ ((WP ((Val (checker f)) asn) @ E {{ λ v', l ↦ asn ∗ ⌜v' = #(formula_SAT m f)⌝ }})))%I.
   Proof.
-    iIntros "Hl".
-    rewrite /checker.
-    iInduction f as [|c cs] "IH".
-    - wp_pures. iModIntro; eauto.
-    - wp_pure.
+    iInduction f as [|c f'] "IH".
+    - iIntros "%Hinv Hl".
+      rewrite /checker.
+      wp_pures.
+      iModIntro; iFrame; iPureIntro; f_equal.
+    - iIntros "%Hinv Hl".
+      wp_pures.
       wp_bind (evaluate_clause _ _)%E.
+      wp_apply (ub_wp_wand with "[Hl]").
+      { wp_apply wp_evaluate_clause; [|iFrame]. iPureIntro. eapply Hinv.  }
+      iIntros (ev) "(Hl&->)".
+      destruct (clause_SAT m c) as [|] eqn:Hcsat.
+      + wp_pure.
+        wp_apply (ub_wp_wand with "[Hl]").
+        { iApply "IH"; [eauto|iFrame]. }
+        iIntros (v) "(Hl&%Hf')".
+        iFrame; iPureIntro.
+        rewrite Hf'; f_equal.
+        by rewrite {2}/formula_SAT /= Hcsat /formula_SAT.
+      + wp_pures.
+        iModIntro; iFrame; iPureIntro; f_equal.
+        rewrite /formula_SAT /= Hcsat.
 
-  Abort.
+        (* this induction might be proven somewhere else *)
+        induction f' as [|? ? ?]; simpl; done.
+  Qed.
 
 
   Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
