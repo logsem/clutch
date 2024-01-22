@@ -1172,6 +1172,23 @@ Section higherorder_walkSAT.
       | Neg (n : nat).
   Definition formula : Type := list (clause).
 
+  Definition fVar_index (v : fVar) : nat :=
+    match v with
+      | (Pos n) => n
+      | (Neg n) => n
+    end.
+
+  Definition fVar_in_clause (v : fVar) (c : clause) : Prop :=
+    match c with
+      | ClauseV e1 e2 e3  => (v = e1) \/ (v = e2) \/ (v = e3)
+    end.
+
+  Definition index_in_clause (n : nat) (c : clause) : Prop :=
+    match c with
+      | ClauseV e1 e2 e3 => (n = fVar_index e1) \/ (n = fVar_index e1) \/ (n = fVar_index e1)
+    end.
+
+
   (* evaluation of the coq-level assignments *)
 
   Definition fvar_SAT (m : list bool) (* (Hm: length m = N) *) (v : fVar) : bool :=
@@ -1188,6 +1205,42 @@ Section higherorder_walkSAT.
   Definition formula_SAT (m : list bool) (f : formula) : bool :=
     fold_right (fun c acc => clause_SAT m c || acc) true f.
 
+
+  (* flipping any variable in an UNSAT clause will make it SAT *)
+  (* is this useful? We're measuring progress by equality to solution now *)
+  (*
+  Lemma flip_improves_clause (c : clause) (m : list bool) :
+    (clause_SAT m c = false) ->
+    forall (n : nat) (b: bool),
+        (index_in_clause n c) ->
+        (m !! n = Some b) ->
+        (clause_SAT (<[n := negb b]> m) c = true).
+  Proof. Admitted.
+  *)
+
+
+  (* if there is a solution s, for any unsatisfied clause, the clause contains a variable
+      which differers from the solution. *)
+  Lemma progress_is_possible (f : formula) (c : clause) (m solution : list bool) :
+    (clause_SAT solution c = true) ->
+    (clause_SAT m c = false) ->
+    exists (v : fVar) b, (fVar_in_clause v c) /\ (m !! (fVar_index v) = Some b) /\ (solution !! (fVar_index v) = Some (negb b)).
+  Proof.
+    intros Hsat Hunsat.
+    destruct c as [e1 e2 e3].
+    rewrite /clause_SAT /= in Hsat, Hunsat.
+    apply orb_false_elim in Hunsat as [Hunsat' He3].
+    apply orb_false_elim in Hunsat' as [He1 He2].
+    apply orb_prop in Hsat as [Hsat'|Hsat]; first apply orb_prop in Hsat' as [Hsat|Hsat].
+    - rewrite /fvar_SAT in He1, Hsat.
+      destruct e1.
+      + case_bool_decide; [|discriminate].
+        case_bool_decide; [discriminate|].
+
+        (* this is provable (w/ length assumptions) but I really really should use total lookups instead *)
+  Admitted.
+
+
   (* evaluation of the value-level assignments *)
 
   Definition evaluate_fvar (f: fVar) : val :=
@@ -1203,11 +1256,6 @@ Section higherorder_walkSAT.
          | ClauseV e1 e2 e3 => ((evaluate_fvar e1 "asn") || (evaluate_fvar e2 "asn") || (evaluate_fvar e3 "asn"))
         end)%V.
 
-  Definition fVar_index (v : fVar) : nat :=
-    match v with
-      | (Pos n) => n
-      | (Neg n) => n
-    end.
 
   Definition clause_index (c : clause) (target : fin 3) : nat :=
     match c with
@@ -1264,7 +1312,6 @@ Section higherorder_walkSAT.
   (* amplify using the 1/6 chance that the resampler flips a variable "target" *)
   Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε (asn : val) E :
     inv_asn m asn ->
-    (* (clause_SAT m c = false) -> *)
     ⊢ (l ↦ asn -∗
        € ε -∗
        WP (resample_clause c #l)%E @ E
@@ -1280,9 +1327,6 @@ Section higherorder_walkSAT.
     iIntros "Hl".
     wp_pures.
     wp_bind (rand _)%E.
-    (* amplification:
-        and 7/6 error to the other cases (7/6 > 1 is an amplification)
-     *)
     wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε
                 (fun s => if (s =? target)
                          then (nnreal_nat 0%nat)%NNR
@@ -1299,7 +1343,7 @@ Section higherorder_walkSAT.
       wp_pures.
       wp_bind (eval_asn _ _)%E.
       (* wp_apply (ub_wp_wand).
-      { wp_apply wp_eval_asn. } FIXME *)
+      wp_apply wp_eval_asn. } FIXME *)
       iAssert (∃ v, ∃ b : bool, ⌜v = #b /\ m !! i' = Some b ⌝)%I as "[%v [%b (%Hv&%Hlookup)]]"; first admit.
       replace (eval_asn _ _)%E with (Val v) by admit.
       wp_pures.
@@ -1354,9 +1398,6 @@ Section higherorder_walkSAT.
         | [] => #true
         | (c :: cs) => (evaluate_clause c "asnV") && (checker cs)
         end).
-
-
-
 
 
 
