@@ -1033,28 +1033,13 @@ Section higherorder_walkSAT.
 
   (* an assignment is a list of length N booleans *)
   (* value-level representation for assignments *)
-  Inductive inv_asn' : val -> list bool -> Prop :=
-    | inv_emp : inv_asn' NONEV []
-    | inv_cons (b : bool) (m' : list bool) (asn' : val) : (inv_asn' asn' m') -> inv_asn' (SOMEV (#b, asn')) (b :: m').
-  Definition inv_asn m asn : Prop := length m = N /\ inv_asn' asn m.
+  Inductive inv_asn' : list bool -> val -> Prop :=
+    | inv_emp : inv_asn' [] NONEV
+    | inv_cons (b : bool) (m' : list bool) (asn' : val) : (inv_asn' m' asn') -> inv_asn' (b :: m') (SOMEV (#b, asn')).
+  Definition inv_asn m asn : Prop := length m = N /\ inv_asn' m asn.
 
   (* stuck expression *)
   Definition error : expr := (#42 #42)%E.
-
-  Definition flip : expr := (if: (rand #1 = #(bool_to_fin true)) then #true else #false)%E.
-
-  (* FIXME: see how they do this in lib.flip (unfortunate that we cannot reuse?) *)
-  Lemma wp_flip E : ⊢ (WP flip @ E {{ fun v => ⌜v = #true \/ v = #false ⌝ }})%I.
-  Proof.
-    rewrite /flip; wp_pures.
-    wp_bind (rand _)%E; wp_apply wp_rand; eauto.
-    iIntros (n) "_".
-    destruct (fin_to_bool n) as [|] eqn:Hn; wp_pures.
-    - replace #n with #1%nat by admit. (* look through lib.conversion to fix this the proper way (also the conversion stuff above) *)
-      wp_pures; eauto.
-    - replace #n with #0%nat by admit.
-      wp_pures; eauto.
-  Admitted.
 
   (* set up a random assignment of n boolean variables *)
   Definition mk_init_asn': val :=
@@ -1062,46 +1047,31 @@ Section higherorder_walkSAT.
        if: ("n" = #0)
        then NONE
        else
-         let: "b" := flip in
+         let: "b" := (rand #1 = #1) in
          let: "r" := ("mk_asn'" ("n" - #1)) in
          SOME ("b", "r"))%V.
-  Definition mk_init_asn : expr := mk_init_asn' #N.
+  Definition mk_init_asn : val := (λ: "_", mk_init_asn' #N).
 
 
-  Lemma init_asn'_inv (l: nat) E : ⊢ (WP (mk_init_asn' #l) @ E {{ fun v' => ∃ m, ⌜ inv_asn' v' m ⌝}})%I.
+  Lemma init_asn'_inv (M: nat) E : (⊢ WP (mk_init_asn' #M) @ E {{ fun v' => ∃ m, ⌜ inv_asn' m v' /\ length m = M ⌝}})%I.
   Proof.
-    iInduction l as [|l'] "IH".
+    iInduction M as [|M'] "IH".
     - rewrite /mk_init_asn'; wp_pures.
-      iModIntro; iExists []; iPureIntro; constructor.
+      iModIntro; iExists []; iPureIntro; split; [constructor | by simpl].
     - rewrite /mk_init_asn'.
       do 3 wp_pure.
-      (* seems to need some help to unfold flip the right amount of times?
-         should be fixable (see lib.flip) *)
-      iPoseProof (wp_flip E) as "wp_flip".
-      wp_bind flip.
-      wp_apply (ub_wp_wand with "wp_flip").
-      iClear "wp_flip".
-      iIntros (b) "%Hb".
-      do 3 wp_pure.
-      replace #(S l' - 1)%Z with #l'; [| do 2 f_equal; lia].
+      wp_bind (rand _)%E; wp_apply wp_rand; eauto; iIntros (b) "%Hb".
+      do 4 wp_pure.
+      replace #(S M' - 1)%Z with #M'; [| do 2 f_equal; lia].
       wp_bind (RecV _ _ _ _).
       wp_apply (ub_wp_wand  with "IH").
-      iIntros (asn') "[%m' %Hinv_m']".
+      iIntros (asn') "[%m' (%Hm'_inv' & %Hm'_len)]".
       wp_pures.
-      (* get a boolean (FIXME: with the rest of the conversion stuff )*)
-      assert (Hb' : exists b' : bool, b = #b').
-      { destruct Hb; rewrite H; eexists _; eauto. }
-      destruct Hb' as [b' ->].
-      iModIntro; iExists (b' :: m').
-      iPureIntro; by constructor.
+      iModIntro; iExists ((bool_decide (#b = #1)) :: m').
+      iPureIntro; split.
+      + by apply inv_cons.
+      + rewrite cons_length Hm'_len /=; lia.
   Qed.
-
-
-  (* FIXME
-  Lemma wp_init_asn E : ⊢ (WP mk_init_asn @ E {{ fun v' => ∃ m, ⌜inv_asn' v' m ⌝}})%I.
-  Proof. iStartProof. rewrite /mk_init_asn /inv_asn.
-  Admitted.
-   *)
 
   Definition eval_asn : val :=
     (rec: "eval_asn" "asn" "n" :=
@@ -1113,69 +1083,106 @@ Section higherorder_walkSAT.
        end)%V.
 
 
-  Definition wp_eval_asn m asn E  n :
-    (n < length m)%nat -> inv_asn' asn m -> ⊢ (WP (eval_asn asn #n)%E @ E {{ fun v => ∃ b: bool, ⌜v = #b /\ (m !! n = Some b)⌝}})%I .
+  Definition wp_eval_asn m asn E (n : nat) :
+    (⊢ ⌜ (n < (length m))%nat ⌝ -∗ ⌜ inv_asn' m asn ⌝ -∗ WP (eval_asn asn #n)%E @ E {{ fun v => ⌜#(m !!! n : bool) = v⌝}})%I .
   Proof.
-    intros Hlength Hinv.
-    generalize dependent n.
+    iIntros "%Hn %Hinv".
+    iRevert (Hn).
+    iRevert (n).
     iInduction Hinv as [| b m' asn' Hinv H] "IH".
-    - simpl. iIntros (? ?). lia.
-    - iIntros (n Hlength).
+    - iIntros (? Hk). simpl in Hk; lia.
+    - iIntros (n' Hlen).
       rewrite /eval_asn.
       wp_pures.
-      destruct n as [|n'].
-      + wp_pures; iModIntro; iExists b; eauto.
+      case_bool_decide.
+      + wp_pures.
+        iModIntro; iPureIntro.
+        inversion H as [H'].
+        by rewrite -(Nat2Z.id n') H' /=.
       + do 3 wp_pure.
-        replace #(S n' - 1) with #n'; [|do 2 f_equal; lia].
-        iApply "IH".
-        iPureIntro.
-        rewrite cons_length in Hlength.
-        lia.
+        replace (Z.of_nat n' - 1)%Z with (Z.of_nat (n' - 1)%nat); last first.
+        { rewrite Nat2Z.inj_sub; try lia.
+          pose Hc := Nat.le_0_l; apply (Nat.lt_eq_cases 0%nat n') in Hc.
+          destruct Hc; try lia.
+          by rewrite -H0 /= Nat2Z.inj_0 in H. }
+        destruct n' as [|n''] eqn:Hn'; [by rewrite Nat2Z.inj_0 in H |].
+        wp_apply (ub_wp_wand with "[IH]").
+        { iApply "IH".
+          iPureIntro.
+          rewrite cons_length in Hlen.
+          apply (Nat.le_lt_add_lt 1%nat 1%nat); try lia. }
+        iIntros (v) "%Hv"; iPureIntro.
+        rewrite lookup_total_cons_ne_0; try eauto.
+        rewrite -Hv Nat.pred_succ.
+        by replace (S n'' - 1)%nat with n'' by lia.
   Qed.
+
 
   Definition update_asn : val :=
     (rec: "update_asn'" "asn" "n" "b" :=
        match: "asn" with
          NONE => error
-        | SOME "R" => if: ("n" = #0)
-                     then SOME ("b", (Snd "R"))
-                     else SOME (Fst "R", "update_asn'" (Snd "R") ("n" - #1) "b")
+        | SOME "R" =>
+            if: ("n" = #0)
+              then SOME ("b", (Snd "R"))
+              else
+                let: "b0" := (Fst "R") in
+                let: "r0" := ("update_asn'" (Snd "R") ("n" - #1) "b") in
+                SOME ("b0", "r0")
        end)%V.
 
   Definition wp_update_asn m asn E n (b: bool) :
-    (n < length m)%nat -> inv_asn' asn m -> ⊢ (WP (update_asn asn #n #b)%E @ E {{ fun asn' => ⌜inv_asn' asn' (<[n := b]> m)⌝ }})%I.
+    (⊢ ⌜(n < length m)%nat ⌝ -∗ ⌜inv_asn' m asn ⌝ -∗ WP (update_asn asn #n #b)%E @ E {{ fun asn' => ⌜inv_asn' (<[n := b]> m) asn' ⌝}})%I.
   Proof.
-    intros Hlength Hinv.
-    generalize dependent n.
+    iIntros "%Hn %Hinv".
+    iRevert (Hn).
+    iRevert (n).
     iInduction Hinv as [| b' m' asn' Hinv H] "IH".
-    - simpl. iIntros (? ?). lia.
-    - iIntros (n Hlength).
+    - iIntros (? Hk). simpl in Hk; lia.
+    - iIntros (n' Hlen).
       rewrite /update_asn.
       wp_pures.
-      destruct n as [|n'].
-      + wp_pures; iModIntro; iPureIntro. by constructor.
-      + do 3 wp_pure.
-        replace #(S n' - 1) with #n'; [|do 2 f_equal; lia].
-        iSpecialize ("IH" $! n' _).
-
-
-        remember (RecV _ _ _ _) as Y.
-        (* FIXME: now that I changed update_asn to a val this proof can be clsoed *)
+      case_bool_decide.
+      + wp_pures.
+        iModIntro; iPureIntro.
+        inversion H as [H'].
+        replace (<[n':=b]> (b' :: m')) with (b :: m'); [by constructor|].
+        rewrite -Nat2Z.inj_0 in H'; apply Nat2Z.inj in H'.
+        by rewrite H' /=.
+      + do 6 wp_pure.
+        wp_bind (RecV _ _ _ _ _ _).
+        replace (Z.of_nat n' - 1)%Z with (Z.of_nat (n' - 1)%nat); last first.
+        { rewrite Nat2Z.inj_sub; try lia.
+          pose Hc := Nat.le_0_l; apply (Nat.lt_eq_cases 0%nat n') in Hc.
+          destruct Hc; try lia.
+          by rewrite -H0 /= Nat2Z.inj_0 in H. }
+        wp_apply (ub_wp_wand with "[IH]").
+        { iApply "IH".
+          iPureIntro.
+          rewrite cons_length in Hlen.
+          apply (Nat.le_lt_add_lt 1%nat 1%nat); try lia.
+          admit. (* doable *)
+        }
+        iIntros (v) "%Hv".
+        wp_pures.
+        iModIntro; iPureIntro.
+        replace (n')%nat with (S (n' - 1))%nat; last admit. (* provable *)
+        simpl.
+        by constructor.
   Admitted.
 
   (* our program will be indexed by a fixed formula to avoid manipulating value-level formulae *)
+  Inductive Polarity := Pos | Neg.
 
   Inductive clause :=
       | ClauseV (e1 e2 e3 : fVar)
     with fVar :=
-      | Pos (n : nat)
-      | Neg (n : nat).
+      | FvarV (p : Polarity) (n : nat) (nwf : (n < N)%nat).
   Definition formula : Type := list (clause).
 
   Definition fVar_index (v : fVar) : nat :=
     match v with
-      | (Pos n) => n
-      | (Neg n) => n
+      | FvarV _ n _ => n
     end.
 
   Definition fVar_in_clause (v : fVar) (c : clause) : Prop :=
@@ -1188,13 +1195,26 @@ Section higherorder_walkSAT.
       | ClauseV e1 e2 e3 => (n = fVar_index e1) \/ (n = fVar_index e1) \/ (n = fVar_index e1)
     end.
 
+  Definition proj_clause_value (c : clause) (target : fin 3) : fVar :=
+    match c with
+      | (ClauseV e1 e2 e3) =>
+          if target =? (0 : fin 3)%fin
+            then e1
+            else if target =? (1 : fin 3)%fin
+                 then e2
+                 else e3
+      end.
+
 
   (* evaluation of the coq-level assignments *)
 
-  Definition fvar_SAT (m : list bool) (* (Hm: length m = N) *) (v : fVar) : bool :=
+  Definition fvar_SAT (m : list bool) (v : fVar) : bool :=
     match v with
-    | (Pos n) => (bool_decide (m !! n = Some true)) (* super inelegant, doing this only because of the partial lookup. use a total lookup w/ Hm *)
-    | (Neg n) => (bool_decide (m !! n = Some true)) (* or write your own total lookup *)
+    | FvarV p n _ =>
+        match p with
+          | Pos => (m !!! n)
+          | Neg => (negb (m !!! n))
+        end
     end.
 
   Definition clause_SAT (m : list bool) (c : clause) : bool :=
@@ -1202,9 +1222,8 @@ Section higherorder_walkSAT.
       | ClauseV e1 e2 e3 => (fvar_SAT m e1) || (fvar_SAT m e2) || (fvar_SAT m e3)
     end.
 
-  Definition formula_SAT (m : list bool) (f : formula) : bool :=
-    fold_right (fun c acc => clause_SAT m c || acc) true f.
-
+  Definition formula_SAT (m : list bool) (f : formula) : Prop :=
+    Forall (fun c => clause_SAT m c = false) f.
 
   (* flipping any variable in an UNSAT clause will make it SAT *)
   (* is this useful? We're measuring progress by equality to solution now *)
@@ -1224,7 +1243,7 @@ Section higherorder_walkSAT.
   Lemma progress_is_possible (f : formula) (c : clause) (m solution : list bool) :
     (clause_SAT solution c = true) ->
     (clause_SAT m c = false) ->
-    exists (v : fVar) b, (fVar_in_clause v c) /\ (m !! (fVar_index v) = Some b) /\ (solution !! (fVar_index v) = Some (negb b)).
+    exists (v : fVar), (fVar_in_clause v c) /\ (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))).
   Proof.
     intros Hsat Hunsat.
     destruct c as [e1 e2 e3].
@@ -1232,13 +1251,39 @@ Section higherorder_walkSAT.
     apply orb_false_elim in Hunsat as [Hunsat' He3].
     apply orb_false_elim in Hunsat' as [He1 He2].
     apply orb_prop in Hsat as [Hsat'|Hsat]; first apply orb_prop in Hsat' as [Hsat|Hsat].
-    - rewrite /fvar_SAT in He1, Hsat.
-      destruct e1.
-      + case_bool_decide; [|discriminate].
-        case_bool_decide; [discriminate|].
+    - exists e1; simpl; split; [by left |].
+      destruct e1 as [p n nwf]; simpl.
+      destruct p; simpl in Hsat, He1.
+      + by rewrite Hsat He1 /=.
+      + apply negb_true_iff in Hsat, He1; rewrite negb_involutive in He1.
+        by rewrite Hsat He1 /=.
+    - exists e2; simpl; split; [right; by left|].
+      destruct e2 as [p n nwf]; simpl.
+      destruct p; simpl in Hsat, He2.
+      + by rewrite Hsat He2 /=.
+      + apply negb_true_iff in Hsat, He2; rewrite negb_involutive in He2.
+        by rewrite Hsat He2 /=.
+    - exists e3; simpl; split; [right; by right|].
+      destruct e3 as [p n nwf]; simpl.
+      destruct p; simpl in Hsat, He3.
+      + by rewrite Hsat He3 /=.
+      + apply negb_true_iff in Hsat, He3; rewrite negb_involutive in He3.
+        by rewrite Hsat He3 /=.
+  Qed.
 
-        (* this is provable (w/ length assumptions) but I really really should use total lookups instead *)
-  Admitted.
+
+
+  (* turns the existence of an fvar that can be improved into a concrete sample to amplify against *)
+  Lemma reflect_progress_to_target (v : fVar) (c : clause) :
+    fVar_in_clause v c -> exists s : fin 3, (proj_clause_value c s = v).
+  Proof.
+    intros H.
+    destruct c as [e1 e2 e3].
+    simpl in H; destruct H as [H|[H|H]].
+    - exists 0%fin. by simpl.
+    - exists 1%fin. by simpl.
+    - exists 2%fin. by simpl.
+  Qed.
 
 
   (* evaluation of the value-level assignments *)
@@ -1246,8 +1291,8 @@ Section higherorder_walkSAT.
   Definition evaluate_fvar (f: fVar) : val :=
     (λ: "asn",
        match f with
-        | (Pos n) => (#true = eval_asn "asn" #n)
-        | (Neg n) => (#false = eval_asn "asn" #n)
+         | FvarV Pos n _ => (#true  = eval_asn "asn" #n)
+         | FvarV Neg n _ => (#false = eval_asn "asn" #n)
        end).
 
   Definition evaluate_clause (c : clause) : val :=
@@ -1257,24 +1302,11 @@ Section higherorder_walkSAT.
         end)%V.
 
 
-  Definition clause_index (c : clause) (target : fin 3) : nat :=
-    match c with
-      | (ClauseV e1 e2 e3) =>
-          if target =? (0 : fin 3)%fin
-            then fVar_index e1
-            else if target =? (1 : fin 3)%fin
-                 then fVar_index e2
-                 else fVar_index e3
-      end.
 
   (* TODO: specs relating the coq-level and value-level evaluators *)
 
 
-  (* WALKSAT (simplified version)
-
-      Find the first UNSAT clause and randomly resample a variable from it
-
-   *)
+  (** WALKSAT (simplified version): Find the first UNSAT clause and randomly flip a variable from it *)
 
 
   Definition clause_to_index (c : clause) : val :=
@@ -1290,9 +1322,9 @@ Section higherorder_walkSAT.
 
 
   Lemma wp_clause_to_index (c: clause) (target : fin 3) E :
-    ⊢ (WP (clause_to_index c #target)%E @ E {{ fun i => ⌜ i = #(clause_index c target)⌝ }})%I.
+    ⊢ (WP (clause_to_index c #target)%E @ E {{ fun i => ⌜ i = #(fVar_index (proj_clause_value c target))⌝ }})%I.
   Proof.
-    iStartProof; rewrite /clause_to_index /clause_index.
+    iStartProof; rewrite /clause_to_index /proj_clause_value /fVar_index.
     destruct c.
     destruct target; simpl; wp_pures; eauto.
     destruct target; simpl; wp_pures; eauto.
@@ -1300,23 +1332,26 @@ Section higherorder_walkSAT.
     rewrite /not; intros Hk; inversion Hk; lia.
   Qed.
 
+  (* selects a variable references in the clause, and flips it *)
   Definition resample_clause (c : clause) : val :=
     (λ: "l",
        let: "asn" := (! "l") in
        let: "n" := clause_to_index c (rand #2) in
        let: "b" := eval_asn "asn" "n" in
-       "l" <- (update_asn "asn" "n" (!"b")))%V.
+       "l" <- (update_asn "asn" "n" (~ "b")))%V.
 
   Definition εFac : nonnegreal := (nnreal_div (nnreal_nat 3) (nnreal_nat 2)).
 
   (* amplify using the 1/6 chance that the resampler flips a variable "target" *)
+  (* this proof repeats itself, I think I could refactor my lemmas above to make it cleaner.
+     in any case, this follows directly by symbolic execution. *)
   Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε (asn : val) E :
     inv_asn m asn ->
     ⊢ (l ↦ asn -∗
        € ε -∗
        WP (resample_clause c #l)%E @ E
          {{ fun _ => ∃ asn' m', (l ↦ asn') ∗ ⌜inv_asn m' asn' ⌝ ∗
-                              ((⌜(m' !! (clause_index c target)) = (negb <$> (m !! (clause_index c target))) ⌝) ∨
+                              ((⌜(m' !!! (fVar_index (proj_clause_value c target))) = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
                                (€ (ε * εFac)%NNR ))}})%I.
   Proof.
     iIntros (Hinv) "Hl Hε".
@@ -1339,46 +1374,70 @@ Section higherorder_walkSAT.
     - (* sampler chooses the target index; flips it *)
       wp_bind (clause_to_index c _)%E.
       wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
-      iIntros (i') "Hi'".
+      iIntros (i') "->".
       wp_pures.
       wp_bind (eval_asn _ _)%E.
-      (* wp_apply (ub_wp_wand).
-      wp_apply wp_eval_asn. } FIXME *)
-      iAssert (∃ v, ∃ b : bool, ⌜v = #b /\ m !! i' = Some b ⌝)%I as "[%v [%b (%Hv&%Hlookup)]]"; first admit.
-      replace (eval_asn _ _)%E with (Val v) by admit.
+      wp_apply (ub_wp_wand with "[]").
+      { iApply wp_eval_asn; iPureIntro; last first.
+        - rewrite /inv_asn in Hinv. by destruct Hinv.
+        - destruct (proj_clause_value c i) as [? ? ?].
+          destruct Hinv as [? ?] .
+          simpl; lia. }
+      iIntros (v) "<-".
       wp_pures.
-      wp_let.
       wp_bind (update_asn _ _ _).
-      iAssert (∃ asn', ⌜inv_asn' asn' (<[i' := (negb b)]> m)⌝)%I as "[%asn' %Hasn']"; first admit.
-      replace (update_asn _ _ _) with (Val asn')%E by admit.
+      wp_apply (ub_wp_wand with "[]").
+      { iApply wp_update_asn; iPureIntro; last first.
+        - rewrite /inv_asn in Hinv. by destruct Hinv.
+        - destruct (proj_clause_value c i) as [? ? ?].
+          destruct Hinv as [? ?] .
+          simpl; lia. }
+      iIntros (v) "%Hinv'".
       wp_pures.
       wp_store.
       iModIntro.
-      iExists asn', (<[i':=negb b]> m).
+      iExists _, _.
       iFrame.
-      iSplitR; first admit.  (*Fix the inv_asn spec*)
+      iSplitR.
+      { iPureIntro; split; [|eapply Hinv'].
+        rewrite insert_length.
+        by destruct Hinv.  }
       iLeft.
       iPureIntro.
-
-      (* probably doable *)
-      admit.
-    - (* sampler chooses the wrong index, step through and conclude by the 7/6 amplification  *)
+      apply Nat.eqb_eq in Hi.
+      replace i with target; [|by apply fin_to_nat_inj].
+      apply list_lookup_total_insert.
+      destruct (proj_clause_value c target) as [? ? ?].
+      simpl; destruct Hinv; lia.
+    - (* sampler chooses the wrong index, step through and conclude by the amplification  *)
       wp_bind (clause_to_index c _)%E.
       wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
-      iIntros (i') "Hi'".
+      iIntros (i') "->".
       wp_pures.
-      iAssert (∃ v, ∃ b : bool, ⌜v = #b /\ m !! i' = Some b ⌝)%I as "[%v [%b (%Hv&%Hlookup)]]"; first admit.
-      replace (eval_asn _ _)%E with (Val v) by admit.
+      wp_bind (eval_asn _ _)%E.
+      wp_apply (ub_wp_wand with "[]").
+      { iApply wp_eval_asn; iPureIntro; last first.
+        - rewrite /inv_asn in Hinv. by destruct Hinv.
+        - destruct (proj_clause_value c i) as [? ? ?].
+          destruct Hinv as [? ?] .
+          simpl; lia. }
+      iIntros (v) "<-".
       wp_pures.
-      iAssert (∃ asn', ⌜inv_asn' asn' (<[i' := true]> m)⌝)%I as "[%asn' %Hasn']"; first admit.
-      replace (update_asn _ _ _) with (Val asn')%E by admit.
+      wp_bind (update_asn _ _ _).
+      wp_apply (ub_wp_wand with "[]").
+      { iApply wp_update_asn; iPureIntro; last first.
+        - rewrite /inv_asn in Hinv. by destruct Hinv.
+        - destruct (proj_clause_value c i) as [? ? ?].
+          destruct Hinv as [? ?] .
+          simpl; lia. }
+      iIntros (v) "%Hinv'".
       wp_pures; wp_store.
       iModIntro.
       iExists _, _; iFrame.
       iPureIntro.
-      rewrite /inv_asn; split; last eauto.
-      (* from using inv_asn' instead of inv_asn *)
-      admit.
+      split; last apply Hinv'.
+      rewrite insert_length.
+      by destruct Hinv.
   Admitted.
 
 
