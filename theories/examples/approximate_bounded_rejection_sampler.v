@@ -1225,20 +1225,7 @@ Section higherorder_walkSAT.
   Definition formula_SAT (m : list bool) (f : formula) : Prop :=
     Forall (fun c => clause_SAT m c = false) f.
 
-  (* flipping any variable in an UNSAT clause will make it SAT *)
-  (* is this useful? We're measuring progress by equality to solution now *)
-  (*
-  Lemma flip_improves_clause (c : clause) (m : list bool) :
-    (clause_SAT m c = false) ->
-    forall (n : nat) (b: bool),
-        (index_in_clause n c) ->
-        (m !! n = Some b) ->
-        (clause_SAT (<[n := negb b]> m) c = true).
-  Proof. Admitted.
-  *)
-
-
-  (* if there is a solution s, for any unsatisfied clause, the clause contains a variable
+  (* If there is a solution s, for any unsatisfied clause, the clause contains a variable
       which differers from the solution. *)
   Lemma progress_is_possible (f : formula) (c : clause) (m solution : list bool) :
     (clause_SAT solution c = true) ->
@@ -1291,9 +1278,30 @@ Section higherorder_walkSAT.
   Definition evaluate_fvar (f: fVar) : val :=
     (λ: "asn",
        match f with
-         | FvarV Pos n _ => (#true  = eval_asn "asn" #n)
-         | FvarV Neg n _ => (#false = eval_asn "asn" #n)
-       end).
+         | FvarV p n _ =>
+             let: "b" := (eval_asn "asn" #n) in
+             match p with
+               | Pos => "b"
+               | Neg => ~"b"
+              end
+        end).
+
+  Lemma wp_evaluate_fvar l asn m v E :
+    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ WP (evaluate_fvar v) asn @ E {{ fun v' => l ↦ asn ∗ ⌜v' = #(fvar_SAT m v)⌝ }} )%I.
+  Proof.
+    iIntros "%Hinv Hl".
+    destruct v as [p v vwf].
+    rewrite /evaluate_fvar.
+    wp_pures.
+    wp_bind (eval_asn _ _)%E.
+    wp_apply (ub_wp_wand with "[]").
+    { iApply wp_eval_asn; iPureIntro; last first.
+      - rewrite /inv_asn in Hinv. by destruct Hinv.
+      - destruct Hinv; lia. }
+    iIntros (b) "<-".
+    destruct p; wp_pures; iModIntro; eauto.
+  Qed.
+
 
   Definition evaluate_clause (c : clause) : val :=
     (λ: "asn",
@@ -1301,9 +1309,33 @@ Section higherorder_walkSAT.
          | ClauseV e1 e2 e3 => ((evaluate_fvar e1 "asn") || (evaluate_fvar e2 "asn") || (evaluate_fvar e3 "asn"))
         end)%V.
 
-
-
-  (* TODO: specs relating the coq-level and value-level evaluators *)
+  Lemma wp_evaluate_clause l asn m c E :
+    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ WP (evaluate_clause c) asn @ E {{ fun v => l ↦ asn ∗ ⌜v = #(clause_SAT m c)⌝ }} )%I.
+  Proof.
+    iIntros "%Hinv Hl".
+    destruct c as [e1 e2 e3].
+    rewrite /evaluate_clause.
+    wp_pures.
+    wp_bind (evaluate_fvar _ _).
+    wp_apply (ub_wp_wand with "[Hl]").
+    { iApply wp_evaluate_fvar; [eauto|iFrame]. }
+    iIntros (s1) "(Hl&%Hs1)".
+    destruct (fvar_SAT m e1) as [|] eqn:HeqS1; rewrite Hs1; wp_pures.
+    { iModIntro; iFrame; iPureIntro; f_equal. simpl; by rewrite HeqS1. }
+    wp_bind (evaluate_fvar _ _).
+    wp_apply (ub_wp_wand with "[Hl]").
+    { iApply wp_evaluate_fvar; [eauto|iFrame]. }
+    iIntros (s2) "(Hl&%Hs2)".
+    destruct (fvar_SAT m e2) as [|] eqn:HeqS2; rewrite Hs2; wp_pures.
+    { iModIntro; iFrame; iPureIntro; f_equal. simpl; by rewrite HeqS2 orb_true_r. }
+    wp_apply (ub_wp_wand with "[Hl]").
+    { iApply wp_evaluate_fvar; [eauto|iFrame]. }
+    iIntros (s3) "(Hl&%Hs3)".
+    destruct (fvar_SAT m e3) as [|] eqn:HeqS3; rewrite Hs3.
+    { iFrame; iPureIntro; f_equal. simpl; by rewrite HeqS3 orb_true_r. }
+    iFrame; iPureIntro; f_equal.
+    by rewrite /= HeqS1 HeqS2 HeqS3 /=.
+  Qed.
 
 
   (** WALKSAT (simplified version): Find the first UNSAT clause and randomly flip a variable from it *)
@@ -1459,8 +1491,18 @@ Section higherorder_walkSAT.
         end).
 
 
+  (* can always "just run" the checker *)
+  Lemma wp_check l asn f E :
+    (⊢ l ↦ asn -∗ ((WP ((Val (checker f)) asn) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }})))%I.
+  Proof.
+    iIntros "Hl".
+    rewrite /checker.
+    iInduction f as [|c cs] "IH".
+    - wp_pures. iModIntro; eauto.
+    - wp_pure.
+      wp_bind (evaluate_clause _ _)%E.
 
-
+  Abort.
 
 
   Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
