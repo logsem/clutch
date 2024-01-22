@@ -1228,7 +1228,7 @@ Section higherorder_walkSAT.
 
   (* If there is a solution s, for any unsatisfied clause, the clause contains a variable
       which differers from the solution. *)
-  Lemma progress_is_possible (f : formula) (c : clause) (m solution : list bool) :
+  Lemma progress_is_possible_clause (c : clause) (m solution : list bool) :
     (clause_SAT solution c = true) ->
     (clause_SAT m c = false) ->
     exists (v : fVar), (fVar_in_clause v c) /\ (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))).
@@ -1272,6 +1272,42 @@ Section higherorder_walkSAT.
     - exists 1%fin. by simpl.
     - exists 2%fin. by simpl.
   Qed.
+
+
+
+  (* this proof measues progress by the similarity to a fixed (known) solution *)
+  Definition progress_measure (m solution : list bool) : nat :=
+    fold_right (fun p acc => (acc + match p with | (s, t) => if (eqb s t)then 0%nat else 1%nat end)%nat) 0%nat (zip m solution).
+
+
+  Lemma progress_complete m solution : (length m = length solution) -> (progress_measure m solution = 0%nat) -> m = solution.
+  Proof.
+    generalize dependent solution.
+    induction m as [|m0 ms IH].
+    - intros solution Hl _; destruct solution; eauto.
+      simpl in Hl; discriminate.
+    - intros solution Hl Hp.
+      destruct solution as [|s0 ss].
+      { simpl in Hl; discriminate. }
+      rewrite /progress_measure /fold_left /= in Hp.
+      apply Nat.eq_add_0 in Hp; destruct Hp as [Hp Hhp].
+      f_equal.
+      + apply eqb_eq. destruct (eqb m0 s0); [done|discriminate].
+      + apply IH.
+        * do 2 rewrite cons_length in Hl; by inversion Hl.
+        * by rewrite /progress_measure.
+  Qed.
+
+
+  (* flipping a variable which is different to the solution brings an assignment closer to the solution *)
+  Lemma flip_makes_progress (m solution : list bool) (v : fVar) :
+      (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))) ->
+      (progress_measure (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution < progress_measure m solution)%nat.
+  Proof.
+    intros Hdiff.
+    (* Induct over the lists, = when not equal to fVar_index v, < when equal *)
+    (* need to show we hit fVar_index... induction should keep track of location? *)
+  Admitted.
 
 
   (* evaluation of the value-level assignments *)
@@ -1480,8 +1516,8 @@ Section higherorder_walkSAT.
           | [] => #()
           | (c :: cs) =>
               if: (evaluate_clause c) "asnV"
-                then (resample_clause c) "asnV"
-                else (sampler cs) "asnV"
+                then (sampler cs) "asnV"
+                else (resample_clause c) "asnV"
         end)%V.
 
   Fixpoint checker (f : formula) : val :=
@@ -1518,11 +1554,76 @@ Section higherorder_walkSAT.
       + wp_pures.
         iModIntro; iFrame; iPureIntro; f_equal.
         rewrite /formula_SAT /= Hcsat.
-
-        (* this induction might be proven somewhere else *)
         induction f' as [|? ? ?]; simpl; done.
   Qed.
 
+
+  (* running the sampler when the formula is SAT (equal to the solution or not) does nothing *)
+  Lemma wp_sampler_done l asn m f E :
+    (⊢ ⌜formula_SAT m f = true ⌝ -∗
+       ⌜ inv_asn m asn ⌝ -∗
+       l ↦ asn -∗
+       (WP ((Val (sampler f)) asn) @ E {{ λ v', l ↦ asn }}))%I.
+  Proof.
+    iInduction f as [|c f'] "IHf".
+    - iIntros "? ? ?".
+      rewrite /sampler /=.
+      wp_pures.
+      iModIntro; iFrame.
+    - iIntros "%Hsat %Hinv Hl".
+      rewrite {2}/sampler.
+      wp_pures.
+      wp_bind (evaluate_clause _ _)%E.
+      wp_apply (ub_wp_wand with "[Hl]").
+      { wp_apply wp_evaluate_clause; [|iFrame]. iPureIntro. eapply Hinv.  }
+      iIntros (v) "(Hl&->)".
+      rewrite /formula_SAT /= in Hsat.
+      assert (Hcsat: (clause_SAT m c && fold_left (λ (acc : bool) (c : clause), acc && clause_SAT m c) f' true) = true).
+      { (* commuting problem (fixable, even if maybe manually) *)
+        admit. }
+      apply andb_prop in Hcsat; destruct Hcsat as [Hcsat Hfsat].
+      rewrite Hcsat.
+      wp_pures.
+      iApply "IHf".
+      + iPureIntro. by rewrite /formula_SAT.
+      + iPureIntro; done.
+      + iFrame.
+  Admitted.
+
+
+
+
+
+(* 
+
+
+
+
+                (* all clauses true *)
+                    (l ↦ asn ∗ ⌜formula_SAT m f = true ⌝) ∨
+                    (* resample... *)
+                    ∃ asn' m',
+                      (l ↦ asn') ∗
+                      ⌜inv_asn m' asn' ⌝ ∗
+                      ((*... with progress*)
+                       (⌜(m' !!! (fVar_index (proj_clause_value c target))) = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
+                       (*... or with amplification*)
+                       (€ (ε * εFac)%NNR ))}}))%I.
+
+
+
+                l ↦ asn ∗ ⌜v' = #(formula_SAT m f)⌝ }})))%I.
+
+
+
+
+
+       WP (resample_clause c #l)%E @ E
+         {{ fun _ => ∃ asn' m', (l ↦ asn') ∗ ⌜inv_asn m' asn' ⌝ ∗
+                              ((⌜(m' !!! (fVar_index (proj_clause_value c target))) = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
+                               (€ (ε * εFac)%NNR ))}})%I.
+
+*)
 
   Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
     := (* 0: we always need to be able to construct some progress measurement *)
