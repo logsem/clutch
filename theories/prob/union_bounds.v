@@ -393,7 +393,17 @@ Proof.
   by apply HP, Hequiv.
 Qed.
 
-
+Lemma ub_lift_epsilon_limit `{Eq: EqDecision A} (μ : distr A) f ε':
+  ε'>=0 -> (forall ε, ε>ε' -> ub_lift μ f ε) -> ub_lift μ f ε'.
+Proof.
+  rewrite /ub_lift.
+  intros Hε' H'.
+  intros. apply real_le_limit.
+  intros ε Hε.
+  rewrite Rle_minus_l.
+  apply H'; first lra.
+  done.
+Qed.
 
 End ub_theory.
 
