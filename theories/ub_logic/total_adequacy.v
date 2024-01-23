@@ -442,5 +442,10 @@ Theorem twp_union_bound_lim_limit Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state
   (∀ `{ub_clutchGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   ub_lift (lim_exec (e, σ)) φ ε.
 Proof.
-  (* This lemma can be proven with the continuity of ub_lift lemma in the pull request *)
-Admitted.
+  intros. eapply wp_union_bound_epsilon_lim; first done.
+  intros. iStartProof. iIntros "Herr". iApply ub_twp_ub_wp.
+  iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Herr]" as "K".
+  2:{ destruct twp_default. destruct wp_default. done. }
+  iApply (H0 with "[$]").
+  apply Rlt_gt. done.
+Qed.
