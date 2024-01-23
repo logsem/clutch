@@ -912,4 +912,16 @@ Section total_ub_theory.
     done.
   Qed.
 
+  Lemma total_ub_lift_termination_ineq (μ : distr A) f ε:
+    total_ub_lift μ f ε -> 1 - ε <= SeriesC μ.
+  Proof.
+    intros H2.
+    assert (∀ x, Decision (f x)).
+    { intros. apply make_decision. }
+    trans (prob μ (λ x, bool_decide (f x))).
+    - apply H2. intros. by apply bool_decide_eq_true_2.
+    - apply SeriesC_le; last apply pmf_ex_seriesC.
+      intros n; case_bool_decide; pose proof (pmf_pos (μ) n); lra. 
+  Qed.
+  
 End total_ub_theory.
