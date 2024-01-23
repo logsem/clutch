@@ -1274,6 +1274,36 @@ Section higherorder_walkSAT.
   Qed.
 
 
+  (* obtains the clause which simplified walkSAT will resample*)
+  Lemma find_progress m f :
+    (formula_SAT m f = false) ->
+    exists f1 f2 c,
+      f = f1 ++ [c] ++ f2 /\
+      Forall (fun c' => clause_SAT m c' = true) f1 /\
+      clause_SAT m c = false.
+  Proof.
+    intros Hunsat.
+    induction f as [|c f' IH].
+    - rewrite /formula_SAT /= in Hunsat. discriminate.
+    - destruct (clause_SAT m c) as [|] eqn:Hc.
+      + assert (Hunsat' : formula_SAT m f' = false).
+        { (* true b/c clause_SAT m c is true (another fold commuting problem) *)
+          rewrite /formula_SAT /= in Hunsat.
+          admit.
+        }
+        destruct (IH Hunsat') as [f1 [f2 [c' (H & Hf1 & Hc')]]].
+        exists (c :: f1), f2, c'; split; last split.
+        * by rewrite /= H.
+        * apply Forall_cons_2; [apply Hc | apply Hf1].
+        * apply Hc'.
+      + exists [], f', c; split; last split.
+        * by simpl.
+        * apply Forall_nil_2.
+        * apply Hc.
+  Admitted.
+
+
+
 
   (* this proof measues progress by the similarity to a fixed (known) solution *)
   Definition progress_measure (m solution : list bool) : nat :=
@@ -1515,7 +1545,7 @@ Section higherorder_walkSAT.
         match f with
           | [] => #()
           | (c :: cs) =>
-              if: (evaluate_clause c) "asnV"
+              if: (evaluate_clause c) (! "asnV")
                 then (sampler cs) "asnV"
                 else (resample_clause c) "asnV"
         end)%V.
@@ -1524,13 +1554,13 @@ Section higherorder_walkSAT.
     (λ: "asnV",
        match f with
         | [] => #true
-        | (c :: cs) => (evaluate_clause c "asnV") && (checker cs "asnV")
+        | (c :: cs) => (evaluate_clause c (! "asnV")) && (checker cs "asnV")
         end).
 
 
   (* running the checker *)
   Lemma wp_check l asn m f E :
-    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ ((WP ((Val (checker f)) asn) @ E {{ λ v', l ↦ asn ∗ ⌜v' = #(formula_SAT m f)⌝ }})))%I.
+    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ ((WP ((Val (checker f)) #l) @ E {{ λ v', l ↦ asn ∗ ⌜v' = #(formula_SAT m f)⌝ }})))%I.
   Proof.
     iInduction f as [|c f'] "IH".
     - iIntros "%Hinv Hl".
@@ -1539,6 +1569,8 @@ Section higherorder_walkSAT.
       iModIntro; iFrame; iPureIntro; f_equal.
     - iIntros "%Hinv Hl".
       wp_pures.
+      wp_bind (! _)%E.
+      wp_load.
       wp_bind (evaluate_clause _ _)%E.
       wp_apply (ub_wp_wand with "[Hl]").
       { wp_apply wp_evaluate_clause; [|iFrame]. iPureIntro. eapply Hinv.  }
@@ -1563,7 +1595,7 @@ Section higherorder_walkSAT.
     (⊢ ⌜formula_SAT m f = true ⌝ -∗
        ⌜ inv_asn m asn ⌝ -∗
        l ↦ asn -∗
-       (WP ((Val (sampler f)) asn) @ E {{ λ v', l ↦ asn }}))%I.
+       (WP ((Val (sampler f)) #l) @ E {{ λ v', l ↦ asn }}))%I.
   Proof.
     iInduction f as [|c f'] "IHf".
     - iIntros "? ? ?".
@@ -1573,9 +1605,13 @@ Section higherorder_walkSAT.
     - iIntros "%Hsat %Hinv Hl".
       rewrite {2}/sampler.
       wp_pures.
+      wp_bind (! _)%E.
+      wp_load.
+      wp_pures.
       wp_bind (evaluate_clause _ _)%E.
       wp_apply (ub_wp_wand with "[Hl]").
-      { wp_apply wp_evaluate_clause; [|iFrame]. iPureIntro. eapply Hinv.  }
+      { wp_apply wp_evaluate_clause; [|iFrame].
+        iPureIntro. eapply Hinv.  }
       iIntros (v) "(Hl&->)".
       rewrite /formula_SAT /= in Hsat.
       assert (Hcsat: (clause_SAT m c && fold_left (λ (acc : bool) (c : clause), acc && clause_SAT m c) f' true) = true).
@@ -1592,38 +1628,76 @@ Section higherorder_walkSAT.
 
 
 
+  Lemma wp_sampler_amplify l asn m solution f ε E :
+    (⊢ ⌜formula_SAT solution f = true ⌝ -∗
+       ⌜formula_SAT m f = false ⌝ -∗
+       ⌜ inv_asn m asn ⌝ -∗
+       l ↦ asn -∗
+       € ε -∗
+       (WP ((Val (sampler f)) #l) @ E
+          {{ λ v', ∃ asn' m', l ↦ asn' ∗ ⌜ inv_asn m' asn' ⌝ ∗
+                      (⌜(progress_measure m' solution < progress_measure m solution)%nat ⌝ ∨
+                       € (ε * εFac)%NNR) }}))%I.
+    Proof.
+      iIntros "%Hsol %Hm %Hinv Hl Hε".
+      destruct (find_progress _ _ Hm) as [f1 [f2 [c (-> & Hf1 & Hc)]]].
+      (* induct over the SAT clauses doing nothing *)
+      iInduction f1 as [| c' f1'] "IH"; last first.
+      { assert (Hc': clause_SAT m c' = true) by admit. (* uses Hf1*)
+        rewrite /sampler.
+        wp_pures.
+        wp_load.
+        wp_bind (evaluate_clause _ _)%E.
+        wp_apply (ub_wp_wand with "[Hl]").
+        { wp_apply (wp_evaluate_clause with "[] Hl").
+          iPureIntro; eauto. }
+        iIntros (r) "(Hl&->)".
+        rewrite Hc'.
+        wp_pure.
+        wp_apply ("IH" with "[] [] [] Hl Hε").
+        - admit. (* by Hm and Hc'*)
+        - admit. (* by Hsol*)
+        - admit. (* by Hf1*)
+      }
+      simpl app.
+
+      (* Now we start with an UNSAT clause, so do the amplification at the resample step *)
+      rewrite /sampler.
+      wp_pures.
+      wp_load.
+      wp_bind (evaluate_clause _ _)%E.
+      wp_apply (ub_wp_wand with "[Hl]").
+      { wp_apply (wp_evaluate_clause with "[] Hl"). iPureIntro; eapply Hinv. }
+      iIntros (r) "(Hl&->)".
+      rewrite Hc; wp_pures.
+      wp_apply (ub_wp_wand with "[Hε Hl]").
+      { wp_apply (resample_amplify with "Hl Hε").  eapply Hinv. }
+
+      iIntros (s) "[%asn' [%m' (Hl & %Hasn' & Hs)]]".
+      iExists _, _.
+      iFrame.
+      iSplit; [iPureIntro; eapply Hasn'|].
+      iDestruct "Hs" as "[%H|Hε]".
+
+      - (* Flip is lucky and makes progress *)
+        iLeft.
+        iPureIntro.
+        (* the lemma I proved before seems almost usable *)
 
 
-(* 
+      (* Lemma flip_makes_progress (m solution : list bool) (v : fVar) :
+         (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))) ->
+         (progress_measure (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution
+         < progress_measure m solution)%nat. *)
+
+        admit.
+
+      - iRight; iFrame.
+  Admitted.
 
 
 
 
-                (* all clauses true *)
-                    (l ↦ asn ∗ ⌜formula_SAT m f = true ⌝) ∨
-                    (* resample... *)
-                    ∃ asn' m',
-                      (l ↦ asn') ∗
-                      ⌜inv_asn m' asn' ⌝ ∗
-                      ((*... with progress*)
-                       (⌜(m' !!! (fVar_index (proj_clause_value c target))) = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
-                       (*... or with amplification*)
-                       (€ (ε * εFac)%NNR ))}}))%I.
-
-
-
-                l ↦ asn ∗ ⌜v' = #(formula_SAT m f)⌝ }})))%I.
-
-
-
-
-
-       WP (resample_clause c #l)%E @ E
-         {{ fun _ => ∃ asn' m', (l ↦ asn') ∗ ⌜inv_asn m' asn' ⌝ ∗
-                              ((⌜(m' !!! (fVar_index (proj_clause_value c target))) = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
-                               (€ (ε * εFac)%NNR ))}})%I.
-
-*)
 
   Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
     := (* 0: we always need to be able to construct some progress measurement *)
@@ -1637,6 +1711,8 @@ Section higherorder_walkSAT.
             {{{ € ε ∗ Ψ (S p)}}}
               ((Val sampler) #())%E @ E
             {{{ (v : val), RET v;
+                (* 3.0 just get lucky and end up done *)
+                (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true⌝ }}) ∨
                 (* 3.1: obtain a sample which makes progress without consuming error, or *)
                 (€ ε ∗ Ψ p ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))) ∨
                 (* 3.2: amplifies the error by a factor, possibly losing progress *)
@@ -1682,7 +1758,13 @@ Section higherorder_walkSAT.
         wp_pures.
         wp_pures; wp_bind (sampler #())%E.
         wp_apply ("Hamplify" with "[$]").
-        iIntros (v) "[(Hε&HΨ&Hcheck)|[%ε'[%p'' (Hε&%Hamp&Hp''&Hcheck)]]]".
+        iIntros (v) "[Hluck|[(Hε&HΨ&Hcheck)|[%ε'[%p'' (Hε&%Hamp&Hp''&Hcheck)]]]]".
+        * (* very lucky sample: we are done *)
+          wp_pures.
+          wp_apply (ub_wp_wand with "Hluck").
+          iIntros (?) "->".
+          wp_pures.
+          iModIntro; eauto.
         * (* lucky sample: makes progress *)
           wp_pures.
           wp_bind (checker _)%E.
@@ -1712,7 +1794,106 @@ Section higherorder_walkSAT.
   Qed.
 
 
+(*WP (checker f #l) {{ fun v' => ⌜v' = #true ⌝ }}*)
+  Lemma walksat_sampling_scheme (f : formula) solution (l : loc) E :
+    (⊢ ⌜formula_SAT solution f = true ⌝ -∗
+       ⌜length solution = N ⌝ -∗
+       ⌜(length f > 0)%nat ⌝ -∗
+        incremental_sampling_scheme_spec
+          (λ: "_", (sampler f) #l)%V
+          (λ: "_", (checker f) #l)%V
+          (fun n => ∃ asn m,
+                      (l ↦ asn ∗
+                      ⌜ inv_asn m asn ⌝ ∗
+                      ⌜(progress_measure m solution <= n)%nat⌝))
+          εFac
+          (nnreal_nat 1%nat)
+          E)%I.
+  Proof.
+    iIntros "%Hsolution %Hsl %Hnontrivial".
+    rewrite /incremental_sampling_scheme_spec.
+    iSplit.
+    - iIntros (Φ) "!> [Hcr | [%asn [%m (Hl&%Hinv&%Hp)]]] HΦ".
+      + (* € 1 case: spend *)
+        iApply (wp_ec_spend with "Hcr"); [|auto].
+        simpl; lra.
+      + (* Ψ 0 case *)
+        apply Nat.le_0_r in Hp.
+        apply (progress_complete _) in Hp; [|destruct Hinv; lia].
+        simplify_eq.
+        (* using Ψ, asn now equals the solution. step the sampler... *)
+        wp_pures.
+        wp_apply (ub_wp_wand with "[Hl]").
+        { wp_apply wp_sampler_done; try by iPureIntro. iFrame. }
+        iIntros (v) "Hl".
+        iApply "HΦ".
+        (* then step the checker... *)
+        wp_pures.
+        wp_apply (ub_wp_wand with "[Hl]").
+        { iApply wp_check; [|iFrame].
+          iPureIntro; apply Hinv. }
+        iIntros (r) "(Hl&->)"; iPureIntro; do 2 f_equal.
+        done.
+    - iIntros (ε p Φ) "!> (Hε&[%asn [%m (Hl&%Hinv&%Hp)]]) HΦ".
+      wp_pures.
+      (* step the sampler differently depending on if it is SAT *)
+      destruct (formula_SAT m f) as [|] eqn:Hsat.
+      + (* SAT: we can't make progress or amplify, but that is be okay, since we can pass the check *)
+        wp_apply (ub_wp_wand with "[Hl]").
+        { wp_apply wp_sampler_done; try by iPureIntro. iFrame. }
+        iIntros (?) "Hl".
+        iApply "HΦ".
+        (* go directly to jail, do not pass go, do not collect € εFac *)
+        iLeft.
+        wp_pures.
+        wp_apply (ub_wp_wand with "[Hl]").
+        { iApply wp_check; [|iFrame].
+          iPureIntro. eapply Hinv. }
+        iIntros (?) "(Hr&->)"; iPureIntro.
+        do 2 f_equal. done.
+      + (* UNSAT *)
+
+        wp_apply (ub_wp_wand with "[Hl Hε]").
+        { wp_apply (wp_sampler_amplify with "[] [] [] Hl Hε"); iPureIntro.
+          - apply Hsolution.
+          - apply Hsat.
+          - apply Hinv. }
+
+        iIntros (s) "[%Hasn' [%Hm' (Hl & %Hinv' & [Hp | Hε])]]".
+        * (* amkes progress *)
+          iApply "HΦ".
+          iRight. iLeft.
+
+          (* PROBLEM: Spec needs to let credit decrease in the good cases
+             so really, the invariant should connect a lower bound of credit
+             and an upper bound on progress
+           *)
+          admit.
+
+        * iApply "HΦ".
+          iRight. iRight.
+          iExists _, _.
+          iFrame.
+          iSplitR; [iPureIntro|].
+          { (* something backwards here *) admit.  }
+          iSplitL.
+          -- iExists _, _.
+             iFrame.
+             iSplit; iPureIntro; eauto.
+          -- wp_pures.
+             wp_apply ub_wp_wand.
+             (* Also a problem: I lose l ↦ asn' here. I guess I need to use proper invariants instead of Ψ? *)
+             { iApply (wp_check with "[]"); admit. }
+             iIntros (?) "(? & ->)". iPureIntro; eexists; eauto.
+  Abort.
+
+
+
   (*
+
+    Needs a better Ψ... higher order with WP checker?
+
+
   Lemma ho_spec_is_incremental (sampler checker : val) (εfactor εfinal : nonnegreal) E :
     ⊢ sampling_scheme_spec sampler checker εfactor εfinal E -∗ incremental_sampling_scheme_spec sampler checker (fun n: nat => ⌜False⌝) εfactor εfinal E.
   Proof.
