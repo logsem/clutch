@@ -126,6 +126,31 @@ Section ub_twp.
       { by iApply "H". }
       by iDestruct "H" as "[_?]".
   Qed.
+
+  Lemma ub_twp_ind_simple E s Ψ Φ e:
+  (∀ n e, Proper (dist n) (Ψ e)) →
+  □ (∀ e, ub_twp_pre (λ _ e _, Ψ e) E e Φ -∗ Ψ e) -∗
+  WP e @ s; E [{ Φ }] -∗ Ψ e.
+  Proof.
+    iIntros (HΨ) "#IH Htwp".
+    iRevert "IH".
+    iApply (ub_twp_ind _ (λ E e Φ, _)  with "[]Htwp").
+    { intros. intros ???.
+      rewrite /ub_twp_pre. repeat f_equiv.
+    }
+    clear.
+    iModIntro.
+    iIntros (e E Φ) "H #IH".
+    iApply "IH".
+    rewrite {2 4}/ub_twp_pre. case_match; first done.
+    iIntros (σ ε) "[Hs He]".
+    iMod ("H" with "[$]") as "H".
+    iModIntro.
+    iApply (exec_ub_mono_pred with "[]H").
+    iIntros ([] []) "H".
+    iMod "H". iModIntro. iDestruct "H" as "(?&?&H)".
+    iFrame. iApply "H". done.
+  Qed.
   
   Lemma ub_twp_value_fupd' s E Φ v : WP of_val v @ s; E [{ Φ }] ⊣⊢ |={E}=> Φ v.
   Proof. rewrite ub_twp_unfold /ub_twp_pre to_of_val. auto. Qed.
