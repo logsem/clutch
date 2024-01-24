@@ -1,7 +1,9 @@
 (** * Examples related to rejection samplers with a bounded number of attempts *)
 From clutch.ub_logic Require Export ub_clutch ub_rules.
-From iris.base_logic.lib Require Import invariants.
+(* From iris.base_logic.lib Require Import invariants. *)
+From iris.algebra Require Import auth.
 From Coquelicot Require Import Series.
+Require Import iris.base_logic.lib.cancelable_invariants.
 Require Import Lra.
 
 Set Default Proof Using "Type*".
@@ -1023,6 +1025,221 @@ Section presampled_flip2.
   Qed.
 End presampled_flip2.
 
+Section incremental_spec.
+  Local Open Scope R.
+  Context `{!ub_clutchGS Σ}.
+
+  (* Ψ : state
+     ξ : error
+     L : progress bound
+   *)
+  Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L E : iProp Σ :=
+    (((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
+     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
+            WP sampler #() @ E {{ fun s =>
+                  WP checker (Val s) @ E {{fun v => ∃ b: bool, ⌜v = #b⌝}} ∗
+                  ((€ (ξ (S i)) ∗ Ψ p) ∨ (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ))}}))%I.
+
+
+  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i p :
+    ⊢ ⌜(p <= L)%nat ⌝ ∗
+    incr_sampling_scheme_spec sampler checker Ψ ξ L E ∗
+    € (ξ i) ∗
+    Ψ p -∗
+    WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}}.
+  Proof.
+    rewrite /incr_sampling_scheme_spec.
+    iIntros "(%Hl&(Hfinal&#Hamp)&Hcr&HΨ)".
+    rewrite /ho_ubdd_rejection_sampler.
+    do 7 wp_pure.
+    iRevert (Hl).
+    iInduction i as [|i'] "IHerror" forall (p).
+    - (* base case for error credits *)
+      iIntros "%Hl".
+      wp_pures.
+      wp_bind (sampler _).
+      wp_apply (ub_wp_wand with "[Hfinal Hcr]"); first (iApply "Hfinal"; iFrame).
+      iIntros (s) "Hcheck"; wp_pures.
+      wp_apply (ub_wp_wand with "Hcheck").
+      iIntros (v) "->"; wp_pures.
+      eauto.
+    - (* inductive case for error credits *)
+      iIntros "%Hl".
+      iInduction p as [|p'] "IHp".
+      + (* base case for progress measure *)
+        wp_pures.
+        wp_bind (sampler _).
+        wp_apply (ub_wp_wand with "[Hfinal HΨ]"); first (iApply "Hfinal"; iFrame).
+        iIntros (s) "Hcheck"; wp_pures.
+        wp_apply (ub_wp_wand with "Hcheck").
+        iIntros (v) "->"; wp_pures.
+        eauto.
+      + (* Inductive case for progress measure *)
+        wp_pures.
+        wp_bind (sampler _).
+        wp_apply (ub_wp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
+        iIntros (s) "(Hcheck & [(Hcr&HΨ)|[%p'' (%Hp''&Hcr&HΨ)]])".
+        * (* progress *)
+          wp_pures.
+          wp_bind (checker _).
+          wp_apply (ub_wp_wand with "Hcheck").
+          iIntros (r) "[%b ->]".
+          destruct b as [|].
+          -- (* lucky: checker accepts *)
+             wp_pures. eauto.
+          -- (* not lucky: checker rejects *)
+             wp_pure. iApply ("IHp" with "[] Hfinal Hcr HΨ").
+             iPureIntro. lia.
+        * (* amplification *)
+          wp_pures.
+          wp_bind (checker _).
+          wp_apply (ub_wp_wand with "Hcheck").
+          iIntros (r) "[%b ->]".
+          destruct b as [|].
+          -- (* lucky: checker accepts *)
+             wp_pures. eauto.
+          -- (* not lucky: checker rejects *)
+             wp_pure. iApply ("IHerror" with "Hfinal Hcr HΨ"). eauto.
+    Qed.
+
+End incremental_spec.
+
+
+Section integer_walk.
+  (** Random walk: Sampler increments or decrements a value, checker accepts when that value is negative *)
+
+  Context `{!ub_clutchGS Σ, cinvG Σ}. (* inG Σ (authR natUR)}. *)
+
+  Definition sampler : val :=
+    (λ: "l",
+       if: (rand #1 = #1)
+        then "l" <- (!"l" - #1%nat)
+        else "l" <- (!"l" + #1%nat))%V.
+
+  Definition checker : val :=
+    (λ: "l", (!"l" < #0))%V.
+
+
+
+  (** We make progress when we move left. Once we move left enough, the checker will pass.  *)
+  Definition integer_walk_progress l (* γ 𝜄 *) : nat -> iProp Σ :=
+    fun n => (l ↦ #(n - 2))%I.
+
+  (* cinv 𝜄 γ (∃ (n' : Z), (l ↦ #n' ∗ ⌜(n' + 1 < n)%Z ⌝))%I. *)
+
+  (** We get error when we move right. Once we move right enough, we will have € 1. The amount of
+      spaces depends on the initial error ε0: we can add ε0 each space we move right.  *)
+  Program Definition integer_walk_error (ε0 : nonnegreal) : nat -> nonnegreal :=
+      fun i => mknonnegreal (Rmax (1 - i / (nonneg ε0)) 0)%R _.
+  Next Obligation. intros ? ?. apply Rmax_r. Qed.
+
+  (** The worst possible progress we might have during the integer walk. Depends on ε0. *)
+  (* FIXME: I don't know how to take a ceiling, but this value is ceil (1/ε0) *)
+  (* In fact... I think this is true for all L? So we can kick that Coq lesson further down the road for now
+  Definition integer_walk_L (ε0 : nonnegreal) : nat. Admitted. *)
+
+  (* FIXME: After proving this spec, we also should prove that some setup gets the preconditions we want!
+      ie. given any €ε, we can allocate the l and such, and get Ψ p and ε i for some p, i *)
+  Lemma integer_walk_sampling_scheme (l : loc) (* γ 𝜄 *) ε0  L E :
+    ⊢ (* ⌜(0 < nonneg ε0)%R ⌝ -∗ *)
+      incr_sampling_scheme_spec
+        (λ: "_", sampler #l)
+        (λ: "_", checker #l)
+        (integer_walk_progress l (* γ 𝜄 *) )
+        (integer_walk_error ε0)
+        L
+        E.
+        (* (↑𝜄).  I want to be able to open the invariant, this is a silly way to do that. FIXME: is there a better way? E \ γ? *)
+  Proof.
+    (* iIntros "%Hε0". *)
+    iSplit.
+    - (* Spending rules *)
+      iIntros "[Hcr | HΨ]".
+      + (* Credit spending rule *)
+        wp_apply (wp_ec_spend _ _ _ nnreal_one); simpl; [lra|eauto|].
+        iApply (ec_spend_irrel with "Hcr").
+        rewrite /integer_walk_error /=.
+        rewrite /Rdiv Rmult_0_l Rminus_0_r.
+        rewrite Rmax_left; lra.
+      + (* Progress spending rule *)
+        wp_pures.
+        rewrite /sampler; wp_pures.
+        wp_bind (rand _)%E; wp_apply wp_rand; eauto.
+        iIntros (n) "_"; wp_pures.
+        case_bool_decide; wp_pures.
+        (* Unfortunate duplication, but the point is it doens't matter what branch we take here *)
+        * wp_bind (! _)%E.
+          rewrite /integer_walk_progress.
+          wp_load.
+          wp_pures.
+          wp_store.
+          rewrite /checker.
+          wp_pures.
+          wp_load.
+          wp_pures.
+          iModIntro; iPureIntro; f_equal.
+        * wp_bind (! _)%E.
+          rewrite /integer_walk_progress.
+          wp_load.
+          wp_pures.
+          wp_store.
+          rewrite /checker.
+          wp_pures.
+          wp_load.
+          wp_pures.
+          iModIntro; iPureIntro; f_equal.
+    - iModIntro.
+      iIntros (i p) "(%Hp & Hcr & HΨ)".
+      rewrite /sampler.
+      wp_pures.
+      wp_bind (rand _)%E.
+
+      wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
+            _ (fun v => if (v =? 1) then (integer_walk_error ε0 (S (S i))) else (integer_walk_error ε0 i)) with "Hcr").
+      { Opaque INR.
+        rewrite SeriesC_fin2 /=.
+        (* I think this is right? Might need to use L bound... Or possibly improve it.  *)
+        admit. }
+      iIntros (s) "Hcr".
+      wp_pures.
+      case_bool_decide as Hs.
+      + (* s=1, decrement. This makes progress. *)
+        wp_pures.
+        wp_load.
+        wp_pures.
+        wp_store.
+        iModIntro.
+        (* Same problem with needing to duplicate Ψ! *)
+        admit.
+      + (* s=0, increment. This gives error. *)
+        assert (H1 : s = 0%fin) by admit.
+        rewrite H1 /=.
+        wp_pures.
+        wp_load.
+        wp_pures.
+        wp_store.
+        iModIntro.
+        iSplitL "HΨ".
+        * rewrite /checker.
+          wp_pures.
+          wp_load.
+          wp_pures.
+          iModIntro; iExists _; eauto.
+        * iRight.
+          iExists _.
+          iSplit; [iPureIntro; eauto|].
+          iFrame.
+          (* dangit we need HΨ again! *)
+          admit.
+    Admitted.
+
+
+
+
+End integer_walk.
+
+
+
 Section higherorder_walkSAT.
   (** Demonstration of using the higher-order spec for stateful computation (WalkSAT) *)
   (** This "sampler" does not just return a value, but modifies a state *)
@@ -1696,78 +1913,6 @@ Section higherorder_walkSAT.
   Admitted.
 
 
-  (* Ψ : state (includes amplification error)
-     ξ : excess error (not used for amplification)
-     L : progress bound
-   *)
-  Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L E : iProp Σ :=
-    (□ ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
-     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
-            WP sampler #() @ E {{ fun s =>
-                  WP checker (Val s) @ E {{fun v => ∃ b: bool, ⌜v = #b⌝}} ∗
-                  ((€ (ξ (S i)) ∗ Ψ p) ∨ (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ))}}))%I.
-
-
-  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i p :
-    ⊢ ⌜(p <= L)%nat ⌝ ∗
-    incr_sampling_scheme_spec sampler checker Ψ ξ L E ∗
-    € (ξ i) ∗
-    Ψ p -∗
-    WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}}.
-  Proof.
-    rewrite /incr_sampling_scheme_spec.
-    iIntros "(%Hl&(#Hfinal&#Hamp)&Hcr&HΨ)".
-    rewrite /ho_ubdd_rejection_sampler.
-    do 7 wp_pure.
-    iRevert (Hl).
-    iInduction i as [|i'] "IHerror" forall (p).
-    - (* base case for error credits *)
-      iIntros "%Hl".
-      wp_pures.
-      wp_bind (sampler _).
-      wp_apply (ub_wp_wand with "[Hfinal Hcr]"); first (iApply "Hfinal"; iFrame).
-      iIntros (s) "Hcheck"; wp_pures.
-      wp_apply (ub_wp_wand with "Hcheck").
-      iIntros (v) "->"; wp_pures.
-      eauto.
-    - (* inductive case for error credits *)
-      iIntros "%Hl".
-      iInduction p as [|p'] "IHp".
-      + (* base case for progress measure *)
-        wp_pures.
-        wp_bind (sampler _).
-        wp_apply (ub_wp_wand with "[Hfinal HΨ]"); first (iApply "Hfinal"; iFrame).
-        iIntros (s) "Hcheck"; wp_pures.
-        wp_apply (ub_wp_wand with "Hcheck").
-        iIntros (v) "->"; wp_pures.
-        eauto.
-      + (* Inductive case for progress measure *)
-        wp_pures.
-        wp_bind (sampler _).
-        wp_apply (ub_wp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
-        iIntros (s) "(Hcheck & [(Hcr&HΨ)|[%p'' (%Hp''&Hcr&HΨ)]])".
-        * (* progress *)
-          wp_pures.
-          wp_bind (checker _).
-          wp_apply (ub_wp_wand with "Hcheck").
-          iIntros (r) "[%b ->]".
-          destruct b as [|].
-          -- (* lucky: checker accepts *)
-             wp_pures. eauto.
-          -- (* not lucky: checker rejects *)
-             wp_pure. iApply ("IHp" with "[] Hcr HΨ").
-             iPureIntro. lia.
-        * (* amplification *)
-          wp_pures.
-          wp_bind (checker _).
-          wp_apply (ub_wp_wand with "Hcheck").
-          iIntros (r) "[%b ->]".
-          destruct b as [|].
-          -- (* lucky: checker accepts *)
-             wp_pures. eauto.
-          -- (* not lucky: checker rejects *)
-             wp_pure. iApply ("IHerror" with "Hcr HΨ"). eauto.
-    Qed.
 
   (*
   Lemma walksat_sampling_scheme (f : formula) solution (l : loc) E :
