@@ -1034,11 +1034,16 @@ Section incremental_spec.
      L : progress bound
    *)
   Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L E : iProp Σ :=
-    (((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
+    ( (* Either 0 credit or 0 progress => we will sample a value which the checker accepts
+         Allowed to consume (or invalidate Ψ) in this process *)
+      ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
+      (* Given any amount of credit and progress, we can get a sample such that... *)
      □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
             WP sampler #() @ E {{ fun s =>
-                  WP checker (Val s) @ E {{fun v => ∃ b: bool, ⌜v = #b⌝}} ∗
-                  ((€ (ξ (S i)) ∗ Ψ p) ∨ (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ))}}))%I.
+                   (*... we make prgress, and can run the checker on the sample without losing progress, or *)
+                  ((€ (ξ (S i)) ∗ Ψ p ∗ (Ψ p -∗ WP checker (Val s) @ E {{fun v => Ψ p ∗ ∃ b: bool, ⌜v = #b⌝}})) ∨
+                   (*... we lose progress & amplify error, and can run the checker on the sample without losing progress. *)
+                   (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ∗ (Ψ p' -∗ WP checker (Val s) @ E {{fun v => Ψ p' ∗ ∃ b: bool, ⌜v = #b⌝}})))}}))%I.
 
 
   Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i p :
@@ -1078,12 +1083,12 @@ Section incremental_spec.
         wp_pures.
         wp_bind (sampler _).
         wp_apply (ub_wp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
-        iIntros (s) "(Hcheck & [(Hcr&HΨ)|[%p'' (%Hp''&Hcr&HΨ)]])".
+        iIntros (s) "[(Hcr&HΨ&Hcheck)|[%p'' (%Hp''&Hcr&HΨ&Hcheck)]]".
         * (* progress *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_wp_wand with "Hcheck").
-          iIntros (r) "[%b ->]".
+          wp_apply (ub_wp_wand with "[Hcheck HΨ]"); first (iApply ("Hcheck" with "[$]")).
+          iIntros (r) "(HΨ&[%b ->])".
           destruct b as [|].
           -- (* lucky: checker accepts *)
              wp_pures. eauto.
@@ -1093,8 +1098,8 @@ Section incremental_spec.
         * (* amplification *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_wp_wand with "Hcheck").
-          iIntros (r) "[%b ->]".
+          wp_apply (ub_wp_wand with "[Hcheck HΨ]"); first (iApply ("Hcheck" with "[$]")).
+          iIntros (r) "(HΨ&[%b ->])".
           destruct b as [|].
           -- (* lucky: checker accepts *)
              wp_pures. eauto.
@@ -1108,134 +1113,244 @@ End incremental_spec.
 Section integer_walk.
   (** Random walk: Sampler increments or decrements a value, checker accepts when that value is negative *)
 
+  (* This might fit into the higher-order spec, the problem is our error and progress are linked.
+     We don't really get "excess error" in the same way that we do with eg. WalkSAT. *)
+
   Context `{!ub_clutchGS Σ, cinvG Σ}. (* inG Σ (authR natUR)}. *)
 
-  Definition sampler : val :=
+  Definition int_walk_sampler : val :=
     (λ: "l",
        if: (rand #1 = #1)
-        then "l" <- (!"l" - #1%nat)
-        else "l" <- (!"l" + #1%nat))%V.
+        then "l" <- (!"l" + #1%nat)
+        else "l" <- (!"l" - #1%nat))%V.
 
-  Definition checker : val :=
+  Definition int_walk_checker : val :=
     (λ: "l", (!"l" < #0))%V.
 
 
 
-  (** We make progress when we move left. Once we move left enough, the checker will pass.  *)
-  Definition integer_walk_progress l (* γ 𝜄 *) : nat -> iProp Σ :=
-    fun n => (l ↦ #(n - 2))%I.
+  (** Credit accounting for the invariant *)
 
-  (* cinv 𝜄 γ (∃ (n' : Z), (l ↦ #n' ∗ ⌜(n' + 1 < n)%Z ⌝))%I. *)
+  Definition L (εᵢ : nonnegreal) : nat := Z.to_nat (up (1 / εᵢ)%R - 1)%Z.
 
-  (** We get error when we move right. Once we move right enough, we will have € 1. The amount of
-      spaces depends on the initial error ε0: we can add ε0 each space we move right.  *)
-  Program Definition integer_walk_error (ε0 : nonnegreal) : nat -> nonnegreal :=
-      fun i => mknonnegreal (Rmax (1 - i / (nonneg ε0)) 0)%R _.
-  Next Obligation. intros ? ?. apply Rmax_r. Qed.
+  Program Definition IC εᵢ : Z -> nonnegreal := fun n => mknonnegreal (Rmax 0 (nonneg εᵢ * IZR (n + 1)%Z))%R _.
+  Next Obligation. intros; apply Rmax_l. Defined.
 
-  (** The worst possible progress we might have during the integer walk. Depends on ε0. *)
-  (* FIXME: I don't know how to take a ceiling, but this value is ceil (1/ε0) *)
-  (* In fact... I think this is true for all L? So we can kick that Coq lesson further down the road for now
-  Definition integer_walk_L (ε0 : nonnegreal) : nat. Admitted. *)
+  Lemma IC_neg εᵢ : forall (z : Z), (z < 0)%Z -> (nonneg (IC εᵢ z) = 0)%R.
+  Proof.
+    intros. rewrite /IC /=.
+    apply Rmax_left.
+    apply Rcomplements.Rmult_le_0_l; [apply cond_nonneg|].
+    (* true... but how do I do this? *)
+  Admitted.
 
-  (* FIXME: After proving this spec, we also should prove that some setup gets the preconditions we want!
-      ie. given any €ε, we can allocate the l and such, and get Ψ p and ε i for some p, i *)
-  Lemma integer_walk_sampling_scheme (l : loc) (* γ 𝜄 *) ε0  L E :
+  Lemma IC_ge_L εᵢ : forall (z : Z), (z >= (L εᵢ))%Z -> (nonneg (IC εᵢ z) >= 1)%R.
+  Proof.
+    intros. rewrite /IC /=.
+    rewrite Rmax_right; last first.
+    { apply Rmult_le_pos; [apply cond_nonneg|].
+      (* FIXME: *)
+      admit.
+    }
+    rewrite /L in H0.
+    (* yep *)
+  Admitted.
+
+  Lemma IC_mean εᵢ : forall (z : Z), (z >= 0)%Z ->
+                       (nonneg (IC εᵢ (z - 1)%Z) + nonneg (IC εᵢ (z + 1)%Z) = 2 * nonneg (IC εᵢ z))%R.
+  Proof.
+    (* It's linear for z ∈ [-1, ∞) *)
+  Admitted.
+
+  (* Credit to amplify within the sequence *)
+  Definition AC (εᵢ : nonnegreal) (εₐ : posreal) (p : nat) pwf kwf : nonnegreal :=
+    εR 2 (L εᵢ) p εₐ (mk_fRwf _ _ _ kwf pwf).
+
+  Program Definition I (εᵢ : nonnegreal) εₐ (l : loc) kwf : nat -> iProp Σ :=
+    fun p => (∃ z: Z, l ↦ #z ∗ € (IC εᵢ p) ∗ ⌜(z < p - 1)%Z⌝ ∗ € (AC εᵢ εₐ ((L εᵢ) - p) _ kwf))%I.
+  Next Obligation. intros. lia. Qed.
+
+  (** Credit accounting for the amplifcation *)
+
+  Program Definition kwf_L εᵢ (Hεᵢ : (nonneg εᵢ < 1)%R) : kwf 2 (L εᵢ) := mk_kwf _ _ _ _.
+  Next Obligation. intros; lia. Qed.
+  Next Obligation. intros. rewrite /L. Admitted. (* doable *)
+
+  Program Definition Δε (εᵢ : nonnegreal) (εₐ : posreal) kwf : nonnegreal :=
+    mknonnegreal (εAmp 2 (L εᵢ) εₐ kwf - εₐ)%R _.
+  Next Obligation. intros. pose P := (εAmp_amplification 2 (L εᵢ) εₐ kwf). lra. Qed.
+
+  Lemma Δε_exchange (εᵢ : nonnegreal) (εₐ : posreal) kwf :
+    € (εAmp 2 (L εᵢ) εₐ kwf) -∗ (€ (Δε εᵢ εₐ kwf) ∗ € (pos_to_nn εₐ)).
+  Proof.
+    iIntros.
+    iApply ec_split.
+    iApply ec_spend_irrel; [|iFrame].
+    rewrite /Δε /=.
+    lra.
+  Qed.
+
+  (* This is easy to initialize for sufficiently large i! *)
+  Program Definition AX (εᵢ : nonnegreal) (εₐ : posreal) kwf : nat -> nonnegreal :=
+    (fun i => mknonnegreal (Rmax 0 (1 - i * (Δε εᵢ εₐ kwf))%R) _).
+  Next Obligation. intros; apply Rmax_l. Defined.
+
+  (* Error credit distribution at each amplifications step *)
+
+  Program Definition integer_walk_distr εᵢ εₐ (p : nat) kwf : fin 2 -> nonnegreal :=
+    (fun v => if v =? 1
+              then (εAmp 2 (L εᵢ) εₐ kwf        + IC εᵢ (p + 1))%NNR  (* moves right; amplification *)
+              else (AC εᵢ εₐ ((L εᵢ) - (p - 1)) _ kwf + IC εᵢ (p - 1))%NNR  (* moves left; progress *)).
+  Next Obligation. intros. apply PeanoNat.Nat.le_sub_l. Qed.
+
+
+  (* sampler either gives us progress or amplifies our error *)
+  Lemma wp_sampler_amp εᵢ εₐ l p i kwf E :
+    ⊢ I εᵢ εₐ l kwf (S p) ∗ € (AX εᵢ εₐ kwf (S i)) -∗
+      WP (int_walk_sampler #l) @ E {{ fun _ => ((I εᵢ εₐ l kwf p ∗ € (AX εᵢ εₐ kwf (S i))) ∨
+                                     (I εᵢ εₐ l kwf (S (S p)) ∗ € (AX εᵢ εₐ kwf i)))}}.
+  Proof.
+    iIntros "([%z (Hl & HcrIC & %Hz & HcrAC)] & HcrAX)".
+    rewrite /int_walk_sampler.
+    wp_pures.
+    wp_bind (rand _)%E.
+
+    (* I think we need a special case for z < 0? *)
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
+                ((IC εᵢ (S p)) + (AC εᵢ εₐ (L εᵢ - S p) (I_obligation_1 εᵢ (S p)) kwf))%NNR
+                (integer_walk_distr εᵢ εₐ (S p) kwf) with "[HcrAC HcrIC]").
+    { (* Series mean *)
+      rewrite SeriesC_fin2.
+      admit.
+    }
+    { (* credit total *)
+      iApply ec_split; iFrame. }
+    iIntros (s) "Hcr".
+    wp_pures.
+    destruct (fin_to_bool s) as [|] eqn:sB; last first.
+    - assert (Hs : s = 0%fin) by admit.  (* FIXME fin 2 nonsense *)
+      rewrite Hs.
+      wp_pures; wp_load; wp_pures; wp_store.
+      iModIntro.
+      iLeft.
+      iFrame.
+      iExists _; iFrame.
+      rewrite /integer_walk_distr /=.
+      iAssert (€ (AC εᵢ εₐ (L εᵢ - (p - 0)) (integer_walk_distr_obligation_1 εᵢ (S p)) kwf) ∗ € (IC εᵢ (S p - 1)))%I with "[Hcr]" as "[HcrAmp HcrIC]".
+      { iApply ec_split; iFrame. }
+      iSplitL "HcrIC".
+      { iApply ec_spend_irrel; [|iFrame]. f_equal. f_equal. lia. }
+      iSplitR.
+      { iPureIntro. lia. }
+      iApply ec_spend_irrel; [|iFrame].
+      (* some kind of proof irrelevance here, same as the kwf stuff. *)
+      admit.
+    - assert (Hs : s = 1%fin) by admit.  (* FIXME fin 2 nonsense *)
+      rewrite Hs.
+      wp_pures; wp_load; wp_pures; wp_store.
+      iModIntro.
+      (* moved right: amplification *)
+      iRight.
+      rewrite /integer_walk_distr /=.
+      iAssert (€ (εAmp 2 (L εᵢ) εₐ kwf) ∗ € (IC εᵢ (S p + 1)))%I with "[Hcr]" as "[HcrAmp HcrIC]".
+      { iApply ec_split; iFrame. }
+
+      assert (HAX: ((AX εᵢ εₐ kwf (S i)) + (Δε εᵢ εₐ kwf) = (AX εᵢ εₐ kwf i))%NNR).
+      { Opaque INR.
+        rewrite /AX.
+        apply nnreal_ext. simpl.
+        (* True because (εₐ * k 2 (L εᵢ) kwf - εₐ) > 0*)
+        admit.
+      }
+      iDestruct (Δε_exchange with "HcrAmp") as "(HΔε&Hεₐ)".
+      rewrite -HAX.
+
+      iSplitR "HcrAX HΔε"; [|iApply ec_split; iFrame].
+      rewrite /I.
+      iExists _.
+      iFrame.
+      iSplitL "HcrIC".
+      { iApply ec_spend_irrel; [|iFrame].
+        simpl; do 3 f_equal.
+        lia. }
+      iSplitR.
+      { iPureIntro. lia. }
+      iApply ec_spend_le_irrel; [|iFrame].
+      rewrite /AC.
+      simpl nonneg.
+      (* holds because fR is <= 1 *)
+      admit.
+
+  Admitted.
+
+
+  (* We can always run the checker with any bound on it's position (with no loss in progress) *)
+  Lemma wp_checker_triv εᵢ εₐ l kwf E : forall p, I εᵢ εₐ l kwf p -∗ WP int_walk_checker #l @ E {{fun v => I εᵢ εₐ l kwf p ∗ ∃ b: bool, ⌜v = #b⌝}}.
+  Proof.
+    iIntros (p) "[%z (Hl & HcrIC & %Hz & HcrAC)]".
+    rewrite /int_walk_checker.
+    wp_pures; wp_load; wp_pures.
+    iModIntro.
+    iSplitL.
+    - iFrame. eauto.
+    - eauto.
+  Qed.
+
+  Lemma integer_walk_sampling_scheme (l : loc) εᵢ εₐ kwf E :
     ⊢ (* ⌜(0 < nonneg ε0)%R ⌝ -∗ *)
       incr_sampling_scheme_spec
-        (λ: "_", sampler #l)
-        (λ: "_", checker #l)
-        (integer_walk_progress l (* γ 𝜄 *) )
-        (integer_walk_error ε0)
-        L
+        (λ: "_", int_walk_sampler #l)
+        (λ: "_", int_walk_checker #l)
+        (I εᵢ εₐ l kwf)
+        (AX εᵢ εₐ kwf)
+        (L εᵢ)
         E.
-        (* (↑𝜄).  I want to be able to open the invariant, this is a silly way to do that. FIXME: is there a better way? E \ γ? *)
   Proof.
-    (* iIntros "%Hε0". *)
     iSplit.
     - (* Spending rules *)
-      iIntros "[Hcr | HΨ]".
+      iIntros "[Hcr | [%z (Hl & _ & %Hz & _)]]".
       + (* Credit spending rule *)
         wp_apply (wp_ec_spend _ _ _ nnreal_one); simpl; [lra|eauto|].
-        iApply (ec_spend_irrel with "Hcr").
-        rewrite /integer_walk_error /=.
-        rewrite /Rdiv Rmult_0_l Rminus_0_r.
-        rewrite Rmax_left; lra.
+        iApply (ec_spend_le_irrel with "Hcr"); simpl.
+        rewrite Rmult_0_l Rminus_0_r.
+        apply Rmax_r.
       + (* Progress spending rule *)
-        wp_pures.
-        rewrite /sampler; wp_pures.
+        rewrite /int_walk_sampler; wp_pures.
         wp_bind (rand _)%E; wp_apply wp_rand; eauto.
         iIntros (n) "_"; wp_pures.
-        case_bool_decide; wp_pures.
-        (* Unfortunate duplication, but the point is it doens't matter what branch we take here *)
-        * wp_bind (! _)%E.
-          rewrite /integer_walk_progress.
-          wp_load.
-          wp_pures.
-          wp_store.
-          rewrite /checker.
-          wp_pures.
-          wp_load.
-          wp_pures.
-          iModIntro; iPureIntro; f_equal.
-        * wp_bind (! _)%E.
-          rewrite /integer_walk_progress.
-          wp_load.
-          wp_pures.
-          wp_store.
-          rewrite /checker.
-          wp_pures.
-          wp_load.
-          wp_pures.
-          iModIntro; iPureIntro; f_equal.
+        rewrite /int_walk_checker.
+        (* the rest of the symbolic execution doesn't change depeding on the value.  *)
+        case_bool_decide; repeat (try wp_pures; try wp_load; try wp_store).
+        * (* l ↦ -3 *)
+          iModIntro. iPureIntro. f_equal. f_equal.
+          apply bool_decide_eq_true_2. lia.
+        * (* l ↦ -1 *)
+          iModIntro. iPureIntro. f_equal. f_equal.
+          apply bool_decide_eq_true_2. lia.
     - iModIntro.
-      iIntros (i p) "(%Hp & Hcr & HΨ)".
-      rewrite /sampler.
-      wp_pures.
-      wp_bind (rand _)%E.
-
-      wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
-            _ (fun v => if (v =? 1) then (integer_walk_error ε0 (S (S i))) else (integer_walk_error ε0 i)) with "Hcr").
-      { Opaque INR.
-        rewrite SeriesC_fin2 /=.
-        (* I think this is right? Might need to use L bound... Or possibly improve it.  *)
-        admit. }
-      iIntros (s) "Hcr".
-      wp_pures.
-      case_bool_decide as Hs.
-      + (* s=1, decrement. This makes progress. *)
-        wp_pures.
-        wp_load.
-        wp_pures.
-        wp_store.
-        iModIntro.
-        (* Same problem with needing to duplicate Ψ! *)
-        admit.
-      + (* s=0, increment. This gives error. *)
-        assert (H1 : s = 0%fin) by admit.
-        rewrite H1 /=.
-        wp_pures.
-        wp_load.
-        wp_pures.
-        wp_store.
-        iModIntro.
-        iSplitL "HΨ".
-        * rewrite /checker.
-          wp_pures.
-          wp_load.
-          wp_pures.
-          iModIntro; iExists _; eauto.
-        * iRight.
-          iExists _.
-          iSplit; [iPureIntro; eauto|].
+      iIntros (i p) "(%Hpwf&HcrAX&HI)".
+      wp_pure.
+      wp_apply (ub_wp_wand with "[HcrAX HI]"); first iApply (wp_sampler_amp with "[$]").
+      iIntros (s) "[(HI&HAX)|(HI&HAX)]".
+      + (* progress *)
+        iLeft; iFrame.
+        iIntros "?"; wp_pure.
+        iApply (wp_checker_triv with "[$]").
+      + (* amplification *)
+        iRight; iFrame.
+        (* S (S p) may or may not be less than (L εᵢ), but if it isn't, we have € 1. *)
+        destruct (le_lt_eq_dec _ _ Hpwf) as [Hp|Hp].
+        * iExists (S (S p)).
+          iSplitR; [iPureIntro; lia|].
           iFrame.
-          (* dangit we need HΨ again! *)
-          admit.
-    Admitted.
-
-
-
-
+          iIntros "?"; wp_pure.
+          iApply (wp_checker_triv with "[$]").
+        * iExFalso.
+          iDestruct "HI" as "[%z (_& HIC &_&_)]".
+          assert (Hk :  (Z.of_nat (S (L εᵢ)) >= Z.of_nat (L εᵢ))%Z) by lia.
+          Check (IC_ge_L εᵢ (S (L εᵢ)) Hk).
+          (* We have an amount of credit greater than or equal to 1, so we conclude *)
+  Admitted.
 End integer_walk.
 
 
