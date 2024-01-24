@@ -1696,105 +1696,80 @@ Section higherorder_walkSAT.
   Admitted.
 
 
+  (* Ψ : state (includes amplification error)
+     ξ : excess error (not used for amplification)
+     L : progress bound
+   *)
+  Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L E : iProp Σ :=
+    (□ ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
+     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
+            WP sampler #() @ E {{ fun s =>
+                  WP checker (Val s) @ E {{fun v => ∃ b: bool, ⌜v = #b⌝}} ∗
+                  ((€ (ξ (S i)) ∗ Ψ p) ∨ (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ))}}))%I.
 
 
-
-  Definition incremental_sampling_scheme_spec (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
-    := (* 0: we always need to be able to construct some progress measurement *)
-       (  (* 1. After some amount of progress, we can ensure the checker will pass *)
-          (* 2. We can always spend εfinal to obtain a sample which will surely pass *)
-          {{{ € εfinal ∨ Ψ 0%nat }}}
-            ((Val sampler) #())%E @ E
-          {{{ (v : val), RET v; WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}}}} ∗
-          (* 3. Given any amount of credit and progress, the sampler will either... *)
-          (∀ ε p,
-            {{{ € ε ∗ Ψ (S p)}}}
-              ((Val sampler) #())%E @ E
-            {{{ (v : val), RET v;
-                (* 3.0 just get lucky and end up done *)
-                (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true⌝ }}) ∨
-                (* 3.1: obtain a sample which makes progress without consuming error, or *)
-                (€ ε ∗ Ψ p ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))) ∨
-                (* 3.2: amplifies the error by a factor, possibly losing progress *)
-                (∃ ε' p', € ε' ∗ ⌜(ε <= ε' * εfactor)%NNR ⌝ ∗ Ψ p' ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))}}}))%I.
-
-  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ p (εfactor εfinal : nonnegreal) (depth : nat) E :
-    (0 < εfactor < 1) ->
-    (0 < εfinal < 1) ->
-    incremental_sampling_scheme_spec sampler checker Ψ εfactor εfinal E -∗
-    ▷ € (generic_geometric_error εfactor εfinal depth) -∗
+  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i p :
+    ⊢ ⌜(p <= L)%nat ⌝ ∗
+    incr_sampling_scheme_spec sampler checker Ψ ξ L E ∗
+    € (ξ i) ∗
     Ψ p -∗
-    (WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
+    WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}}.
   Proof.
-    iIntros ([Hfactor_lb Hfactor_ub] [Hfinal_lb Hfinal_ub]) "(#Haccept & #Hamplify) Hε HΨ".
+    rewrite /incr_sampling_scheme_spec.
+    iIntros "(%Hl&(#Hfinal&#Hamp)&Hcr&HΨ)".
+    rewrite /ho_ubdd_rejection_sampler.
     do 7 wp_pure.
-    (* outermost induction should be on depth, generalized over p, since amplification can lose progress *)
-    iInduction depth as [|depth' Hdepth'] "IH" forall (p).
-    - (* depth=0, ie we have €εfinal *)
+    iRevert (Hl).
+    iInduction i as [|i'] "IHerror" forall (p).
+    - (* base case for error credits *)
+      iIntros "%Hl".
       wp_pures.
-      wp_bind (sampler #())%E.
-      wp_apply ("Haccept" with "[Hε]").
-      { iLeft. iApply (ec_spend_irrel with "Hε"). rewrite /generic_geometric_error /=. lra. }
-      iIntros (v) "Hcheck".
-      wp_pures.
-      wp_bind (checker v)%E.
+      wp_bind (sampler _).
+      wp_apply (ub_wp_wand with "[Hfinal Hcr]"); first (iApply "Hfinal"; iFrame).
+      iIntros (s) "Hcheck"; wp_pures.
       wp_apply (ub_wp_wand with "Hcheck").
-      iIntros (r) "->".
-      wp_pures.
-      iModIntro; eauto.
-    - (* depth > 0; either make sufficient progress or amplify. *)
-      iInduction p as [|p'] "IHp". (* FIXME: this should be strong induction but iInduction isn't happy with that  *)
-      + (* p = 0; progress complete *)
-        wp_pures; wp_bind (sampler #())%E.
-        wp_apply ("Haccept" with "[HΨ]"); [iRight; eauto|].
-        iIntros (v) "Hcheck".
+      iIntros (v) "->"; wp_pures.
+      eauto.
+    - (* inductive case for error credits *)
+      iIntros "%Hl".
+      iInduction p as [|p'] "IHp".
+      + (* base case for progress measure *)
         wp_pures.
-        wp_bind (checker v)%E.
+        wp_bind (sampler _).
+        wp_apply (ub_wp_wand with "[Hfinal HΨ]"); first (iApply "Hfinal"; iFrame).
+        iIntros (s) "Hcheck"; wp_pures.
         wp_apply (ub_wp_wand with "Hcheck").
-        iIntros (r) "->".
+        iIntros (v) "->"; wp_pures.
+        eauto.
+      + (* Inductive case for progress measure *)
         wp_pures.
-        iModIntro; eauto.
-      + (* p > 0, make progress or amplify *)
-        wp_pures.
-        wp_pures; wp_bind (sampler #())%E.
-        wp_apply ("Hamplify" with "[$]").
-        iIntros (v) "[Hluck|[(Hε&HΨ&Hcheck)|[%ε'[%p'' (Hε&%Hamp&Hp''&Hcheck)]]]]".
-        * (* very lucky sample: we are done *)
+        wp_bind (sampler _).
+        wp_apply (ub_wp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
+        iIntros (s) "(Hcheck & [(Hcr&HΨ)|[%p'' (%Hp''&Hcr&HΨ)]])".
+        * (* progress *)
           wp_pures.
-          wp_apply (ub_wp_wand with "Hluck").
-          iIntros (?) "->".
-          wp_pures.
-          iModIntro; eauto.
-        * (* lucky sample: makes progress *)
-          wp_pures.
-          wp_bind (checker _)%E.
+          wp_bind (checker _).
           wp_apply (ub_wp_wand with "Hcheck").
           iIntros (r) "[%b ->]".
-          destruct b.
-          -- (* lucky day, checker accepts! *)
-             wp_pures; iModIntro; eauto.
-          -- (* checker rejects (but we keep the progress) *)
-             wp_pure. wp_apply ("IHp" with "[$] [$]").
-        * (* unlucky guess, progress may get worse but we can amplify *)
+          destruct b as [|].
+          -- (* lucky: checker accepts *)
+             wp_pures. eauto.
+          -- (* not lucky: checker rejects *)
+             wp_pure. iApply ("IHp" with "[] Hcr HΨ").
+             iPureIntro. lia.
+        * (* amplification *)
           wp_pures.
-          wp_bind (checker _)%E.
+          wp_bind (checker _).
           wp_apply (ub_wp_wand with "Hcheck").
           iIntros (r) "[%b ->]".
-          destruct b.
-          -- (* really lucky day! checker accepts on bad sample *)
-             wp_pures. iModIntro; eauto.
-          -- (* use the amplified credit *)
-             wp_pure.
-             wp_apply ("IH" with "[Hε] Hp''").
-             iApply (ec_spend_le_irrel with "Hε").
-             simpl in Hamp.
-             rewrite /generic_geometric_error /=.
-             rewrite (Rmult_comm εfactor) -Rmult_assoc in Hamp.
-             apply (Rmult_le_reg_r εfactor); done.
-  Qed.
+          destruct b as [|].
+          -- (* lucky: checker accepts *)
+             wp_pures. eauto.
+          -- (* not lucky: checker rejects *)
+             wp_pure. iApply ("IHerror" with "Hcr HΨ"). eauto.
+    Qed.
 
-
-(*WP (checker f #l) {{ fun v' => ⌜v' = #true ⌝ }}*)
+  (*
   Lemma walksat_sampling_scheme (f : formula) solution (l : loc) E :
     (⊢ ⌜formula_SAT solution f = true ⌝ -∗
        ⌜length solution = N ⌝ -∗
@@ -1886,14 +1861,10 @@ Section higherorder_walkSAT.
              { iApply (wp_check with "[]"); admit. }
              iIntros (?) "(? & ->)". iPureIntro; eexists; eauto.
   Abort.
-
+*)
 
 
   (*
-
-    Needs a better Ψ... higher order with WP checker?
-
-
   Lemma ho_spec_is_incremental (sampler checker : val) (εfactor εfinal : nonnegreal) E :
     ⊢ sampling_scheme_spec sampler checker εfactor εfinal E -∗ incremental_sampling_scheme_spec sampler checker (fun n: nat => ⌜False⌝) εfactor εfinal E.
   Proof.
@@ -1921,3 +1892,100 @@ Section higherorder_walkSAT.
    *)
 
 End higherorder_walkSAT.
+
+  (*
+
+  Definition incremental_sampling_scheme_spec' (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
+    := (* 0: we always need to be able to construct some progress measurement *)
+       (  (* 1. After some amount of progress, we can ensure the checker will pass *)
+          (* 2. We can always spend εfinal to obtain a sample which will surely pass *)
+          {{{ € εfinal ∨ Ψ 0%nat }}}
+            ((Val sampler) #())%E @ E
+          {{{ (v : val), RET v; WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}}}} ∗
+          (* 3. Given any amount of credit and progress, the sampler will either... *)
+          (∀ ε p,
+            {{{ € ε ∗ Ψ (S p)}}}
+              ((Val sampler) #())%E @ E
+            {{{ (v : val), RET v;
+                (* 3.0 just get lucky and end up done *)
+                (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true⌝ }}) ∨
+                (* 3.1: obtain a sample which makes progress without consuming error, or *)
+                (€ ε ∗ Ψ p ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))) ∨
+                (* 3.2: amplifies the error by a factor, possibly losing progress *)
+                (∃ ε' p', € ε' ∗ ⌜(ε <= ε' * εfactor)%NNR ⌝ ∗ Ψ p' ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))}}}))%I.
+
+  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ p (εfactor εfinal : nonnegreal) (depth : nat) E :
+    (0 < εfactor < 1) ->
+    (0 < εfinal < 1) ->
+    incremental_sampling_scheme_spec' sampler checker Ψ εfactor εfinal E -∗
+    ▷ € (generic_geometric_error εfactor εfinal depth) -∗
+    Ψ p -∗
+    (WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
+  Proof.
+    iIntros ([Hfactor_lb Hfactor_ub] [Hfinal_lb Hfinal_ub]) "(#Haccept & #Hamplify) Hε HΨ".
+    do 7 wp_pure.
+    (* outermost induction should be on depth, generalized over p, since amplification can lose progress *)
+    iInduction depth as [|depth' Hdepth'] "IH" forall (p).
+    - (* depth=0, ie we have €εfinal *)
+      wp_pures.
+      wp_bind (sampler #())%E.
+      wp_apply ("Haccept" with "[Hε]").
+      { iLeft. iApply (ec_spend_irrel with "Hε"). rewrite /generic_geometric_error /=. lra. }
+      iIntros (v) "Hcheck".
+      wp_pures.
+      wp_bind (checker v)%E.
+      wp_apply (ub_wp_wand with "Hcheck").
+      iIntros (r) "->".
+      wp_pures.
+      iModIntro; eauto.
+    - (* depth > 0; either make sufficient progress or amplify. *)
+      iInduction p as [|p'] "IHp". (* FIXME: this should be strong induction but iInduction isn't happy with that  *)
+      + (* p = 0; progress complete *)
+        wp_pures; wp_bind (sampler #())%E.
+        wp_apply ("Haccept" with "[HΨ]"); [iRight; eauto|].
+        iIntros (v) "Hcheck".
+        wp_pures.
+        wp_bind (checker v)%E.
+        wp_apply (ub_wp_wand with "Hcheck").
+        iIntros (r) "->".
+        wp_pures.
+        iModIntro; eauto.
+      + (* p > 0, make progress or amplify *)
+        wp_pures.
+        wp_pures; wp_bind (sampler #())%E.
+        wp_apply ("Hamplify" with "[$]").
+        iIntros (v) "[Hluck|[(Hε&HΨ&Hcheck)|[%ε'[%p'' (Hε&%Hamp&Hp''&Hcheck)]]]]".
+        * (* very lucky sample: we are done *)
+          wp_pures.
+          wp_apply (ub_wp_wand with "Hluck").
+          iIntros (?) "->".
+          wp_pures.
+          iModIntro; eauto.
+        * (* lucky sample: makes progress *)
+          wp_pures.
+          wp_bind (checker _)%E.
+          wp_apply (ub_wp_wand with "Hcheck").
+          iIntros (r) "[%b ->]".
+          destruct b.
+          -- (* lucky day, checker accepts! *)
+             wp_pures; iModIntro; eauto.
+          -- (* checker rejects (but we keep the progress) *)
+             wp_pure. wp_apply ("IHp" with "[$] [$]").
+        * (* unlucky guess, progress may get worse but we can amplify *)
+          wp_pures.
+          wp_bind (checker _)%E.
+          wp_apply (ub_wp_wand with "Hcheck").
+          iIntros (r) "[%b ->]".
+          destruct b.
+          -- (* really lucky day! checker accepts on bad sample *)
+             wp_pures. iModIntro; eauto.
+          -- (* use the amplified credit *)
+             wp_pure.
+             wp_apply ("IH" with "[Hε] Hp''").
+             iApply (ec_spend_le_irrel with "Hε").
+             simpl in Hamp.
+             rewrite /generic_geometric_error /=.
+             rewrite (Rmult_comm εfactor) -Rmult_assoc in Hamp.
+             apply (Rmult_le_reg_r εfactor); done.
+  Qed.
+*)
