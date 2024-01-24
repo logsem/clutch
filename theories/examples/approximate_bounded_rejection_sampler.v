@@ -1141,7 +1141,8 @@ Section integer_walk.
     intros. rewrite /IC /=.
     apply Rmax_left.
     apply Rcomplements.Rmult_le_0_l; [apply cond_nonneg|].
-    (* true... but how do I do this? *)
+    rewrite /IZR.
+    (* true but annoying *)
   Admitted.
 
   Lemma IC_ge_L εᵢ : forall (z : Z), (z >= (L εᵢ))%Z -> (nonneg (IC εᵢ z) >= 1)%R.
@@ -1149,7 +1150,7 @@ Section integer_walk.
     intros. rewrite /IC /=.
     rewrite Rmax_right; last first.
     { apply Rmult_le_pos; [apply cond_nonneg|].
-      (* FIXME: *)
+      (* FIXME: IZR of pos is pos *)
       admit.
     }
     rewrite /L in H0.
@@ -1159,7 +1160,8 @@ Section integer_walk.
   Lemma IC_mean εᵢ : forall (z : Z), (z >= 0)%Z ->
                        (nonneg (IC εᵢ (z - 1)%Z) + nonneg (IC εᵢ (z + 1)%Z) = 2 * nonneg (IC εᵢ z))%R.
   Proof.
-    (* It's linear for z ∈ [-1, ∞) *)
+    (* It's linear for z ∈ [-1, ∞)
+       this is unused atm *)
   Admitted.
 
   (* Credit to amplify within the sequence *)
@@ -1174,7 +1176,7 @@ Section integer_walk.
 
   Program Definition kwf_L εᵢ (Hεᵢ : (nonneg εᵢ < 1)%R) : kwf 2 (L εᵢ) := mk_kwf _ _ _ _.
   Next Obligation. intros; lia. Qed.
-  Next Obligation. intros. rewrite /L. Admitted. (* doable *)
+  Next Obligation. intros. rewrite /L. Admitted. (* doable, unused atm though *)
 
   Program Definition Δε (εᵢ : nonnegreal) (εₐ : posreal) kwf : nonnegreal :=
     mknonnegreal (εAmp 2 (L εᵢ) εₐ kwf - εₐ)%R _.
@@ -1215,7 +1217,24 @@ Section integer_walk.
     wp_pures.
     wp_bind (rand _)%E.
 
-    (* I think we need a special case for z < 0? *)
+    (* I think we need a special case for z < 0?
+       IC (-3) = 0
+       IC (-2) = 0
+       IC (-1) = 0
+       IC (0)  =  εᵢ
+       IC (0)  = 2εᵢ
+       IC (0)  = 3εᵢ
+
+      The mean proerty does _not_ hold at z = -1!
+
+      My intuition is that this should be fixable by strengthening the spec, though, since we only ever
+      get to z = -1 once the checker has already passed and the program has already terminated.
+
+      Maybe I move the progress measure backwards to hit 0 at -2 or -3? If I do this, I can change it to
+      quantify over nat instead of Z... the same problem will arise at the left endpoint, but that should be
+      excluded by virtue of the (S p) in the amp spec.
+
+     *)
     wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
                 ((IC εᵢ (S p)) + (AC εᵢ εₐ (L εᵢ - S p) (I_obligation_1 εᵢ (S p)) kwf))%NNR
                 (integer_walk_distr εᵢ εₐ (S p) kwf) with "[HcrAC HcrIC]").
@@ -1351,6 +1370,18 @@ Section integer_walk.
           Check (IC_ge_L εᵢ (S (L εᵢ)) Hk).
           (* We have an amount of credit greater than or equal to 1, so we conclude *)
   Admitted.
+
+
+  (* TODO: a spec which actually gives the resources for the higher order thing for any € ε and (l ↦ 0).
+      - Split the credit in half
+        - ((AX εᵢ εₐ kwf) p) is 0 for even relatively small values of p (depends on ε), so this is free.
+        - IC is quantified over εᵢ, and AC goes to 0 in the limit of p, so this should exist.
+          + We need p <= L, could this be a culprit for not generalizing to unbiased coins?
+            Unfold the definitions of (εR L) to see.
+   *)
+  Lemma wp_checker_init
+
+
 End integer_walk.
 
 
