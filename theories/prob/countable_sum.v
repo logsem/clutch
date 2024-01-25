@@ -1001,15 +1001,6 @@ Section fubini.
   Context `{Countable A, Countable B}.
 
 
-  (* A lemma about rearranging SeriesC along an injective function *)
-
-  Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
-    (∀ n, 0 <= f n) →
-    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
-    ex_seriesC f →
-    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
-  Admitted.
-
   (*
      The following three lemmas have been proven for
      Series, so the only missing part is lifting them
@@ -1132,6 +1123,7 @@ Section fubini.
       destruct (encode_inv_nat n); simpl; auto.
       apply Series_0; auto.
   Qed.
+
 
 End fubini.
 
@@ -1674,3 +1666,123 @@ Section double.
   Qed.
 
 End double.
+
+Section inj.
+  Context `{Countable A, Countable B}.
+
+    (* A lemma about rearranging SeriesC along an injective function *)
+
+  Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
+    (∀ n, 0 <= f n) →
+    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
+    ex_seriesC f →
+    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
+  Proof.
+    intros Hf Hinj Hex.
+    rewrite {1}/SeriesC/Series.
+    apply Series_Ext.Lim_seq_le_loc_const.
+    - by apply SeriesC_ge_0'.
+    - rewrite /eventually. exists 0%nat.
+      intros n Hn.
+      assert (∃ l : list _, (∀ m, m∈l->(∃ k a, (k<=n)%nat /\
+                                              (@encode_inv_nat A _ _ k%nat) = Some a /\
+                                              h a = Some m)) /\
+                   sum_n (countable_sum (λ a : A, from_option f 0 (h a))) n <=
+                    SeriesC (λ a, if bool_decide(a ∈ l) then f a else 0)
+             ) as H'; last first.
+      { destruct H' as [?[??]].
+        etrans; first exact.
+        apply SeriesC_le'; try done.
+        - intros. case_bool_decide; try lra. apply Hf.
+        - apply ex_seriesC_list.          
+      }
+      induction n.
+      + destruct (@encode_inv_nat A _ _ 0%nat) eqn:Ha.
+        * destruct (h a) eqn : Hb.
+          -- exists [b]. split.
+             ++ intros. exists 0%nat, a.
+                repeat split; try lia; try done.
+                rewrite Hb. f_equal. set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                erewrite SeriesC_ext.
+                ** erewrite SeriesC_singleton_dependent. done.
+                ** intro. simpl.
+                   repeat case_bool_decide; set_solver.
+          -- exists []. split.
+             ++ intros; set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                rewrite SeriesC_0; intros; lra.
+        * exists []. split.
+          ++ intros; set_solver.
+          ++ rewrite sum_O. rewrite /countable_sum.
+             rewrite Ha. simpl. 
+             rewrite SeriesC_0; intros; lra.
+      + assert (0<=n)%nat as Hge0.
+        * lia.
+        * specialize (IHn Hge0) as [l[H1 H2]].
+          destruct (@encode_inv_nat A _ _ (S n)%nat) eqn:Ha.
+          -- destruct (h a) eqn : Hb.
+             ++ exists (b::l). split.
+                ** intros. set_unfold.
+                   destruct H3; subst.
+                   --- exists (S n), a. split; try lia. split; done.
+                   --- specialize (H1 m H3).
+                       destruct H1 as [?[?[?[??]]]].
+                       exists x, x0. split; try lia. by split.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum.
+                   rewrite Ha. simpl. rewrite Hb. simpl.
+                   rewrite (SeriesC_ext _ (λ x, (if bool_decide (x=b) then f b else 0) +
+                                                  if bool_decide (x∈l) then f x else 0
+                           )); last first.
+                   { intros.
+                     case_bool_decide.
+                     - set_unfold. destruct H3.
+                       + case_bool_decide; last done. 
+                         case_bool_decide.
+                         * subst. specialize (H1 b H5).
+                           destruct H1 as [?[?[?[??]]]].
+                           rewrite -H6 in Hb.
+                           assert (a = x0).
+                           { eapply Hinj; try done. rewrite Hb. done. }
+                           subst. exfalso.
+                           rewrite -H3 in Ha. assert (x≠ (S n)) by lia.
+                           apply H7. by eapply encode_inv_nat_some_inj.
+                         * subst. lra. 
+                       + case_bool_decide.
+                         { subst. specialize (H1 b H3) as [?[?[?[??]]]].
+                           assert (x ≠ S n) by lia.
+                           exfalso. apply H6. eapply encode_inv_nat_some_inj; try done.
+                           rewrite Ha H4. f_equal.
+                           by eapply Hinj.
+                         }
+                         case_bool_decide; try done. lra.
+                     - repeat case_bool_decide.
+                       + set_solver.
+                       + set_solver.
+                       + set_solver.
+                       + lra.
+                   }
+                   rewrite SeriesC_plus; last first.
+                   { by apply ex_seriesC_filter_pos. }
+                   { by apply ex_seriesC_singleton. }
+                   rewrite Rplus_comm. rewrite SeriesC_singleton.
+                   trans ((sum_n (countable_sum (λ a0 : A, from_option f 0 (h a0))) n) + f b); try lra.
+                   done.
+             ++ exists l. split.
+                ** intros. specialize (H1 _ H3) as [?[?[?[??]]]].
+                   exists x, x0. repeat split; try done. lia.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                   rewrite Hb. simpl. etrans; last exact.
+                   by rewrite plus_zero_r.
+          -- exists l. split.
+             ++ intros. specialize (H1 _ H3) as [?[?[?[??]]]].
+                exists x, x0. repeat split; try done. lia.
+             ++ rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                etrans; last exact.
+                by rewrite plus_zero_r.
+  Qed.
+    
+
+End inj.
