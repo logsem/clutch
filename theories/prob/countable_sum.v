@@ -1001,15 +1001,6 @@ Section fubini.
   Context `{Countable A, Countable B}.
 
 
-  (* A lemma about rearranging SeriesC along an injective function *)
-
-  Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
-    (∀ n, 0 <= f n) →
-    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
-    ex_seriesC f →
-    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
-  Admitted.
-
   (*
      The following three lemmas have been proven for
      Series, so the only missing part is lifting them
@@ -1132,6 +1123,7 @@ Section fubini.
       destruct (encode_inv_nat n); simpl; auto.
       apply Series_0; auto.
   Qed.
+
 
 End fubini.
 
@@ -1674,3 +1666,42 @@ Section double.
   Qed.
 
 End double.
+
+Section inj.
+  Context `{Countable A, Countable B}.
+
+    (* A lemma about rearranging SeriesC along an injective function *)
+
+  Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
+    (∀ n, 0 <= f n) →
+    (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
+    ex_seriesC f →
+    SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
+  Proof.
+    intros Hf Hinj Hex.
+    pose (λ '(a,b), if bool_decide (Some b = h a) then f b else 0) as P.
+    rewrite (SeriesC_ext _ (λ a, SeriesC (λ b, P (a, b)))); last first.
+    { intros. rewrite /P.
+      destruct (h n) eqn:H1 => /=.
+      - rewrite <- SeriesC_singleton_dependent.
+        apply SeriesC_ext. intros.
+        repeat case_bool_decide; try lra.
+        all: (exfalso; subst).
+        + by apply H3.
+        + apply H2. by inversion H3.
+      - rewrite SeriesC_0; try lra. by intros.
+    }
+    rewrite -fubini_pos_seriesC_prod_lr.
+    - rewrite fubini_pos_seriesC_prod_rl.
+      + apply SeriesC_le; last done.
+        intros; split.
+        * rewrite /P. apply SeriesC_ge_0'. intros; case_bool_decide; try lra. apply Hf.
+        * (* case split *) admit. 
+      + intros. rewrite /P. case_bool_decide; try lra. apply Hf.
+      + rewrite /P. admit. 
+    - intros. rewrite /P. case_bool_decide; try lra. apply Hf.
+    - admit. 
+  Admitted.
+    
+
+End inj.
