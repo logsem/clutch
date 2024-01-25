@@ -1679,28 +1679,73 @@ Section inj.
     SeriesC (λ a, from_option f 0 (h a)) <= SeriesC f.
   Proof.
     intros Hf Hinj Hex.
-    pose (λ '(a,b), if bool_decide (Some b = h a) then f b else 0) as P.
-    rewrite (SeriesC_ext _ (λ a, SeriesC (λ b, P (a, b)))); last first.
-    { intros. rewrite /P.
-      destruct (h n) eqn:H1 => /=.
-      - rewrite <- SeriesC_singleton_dependent.
-        apply SeriesC_ext. intros.
-        repeat case_bool_decide; try lra.
-        all: (exfalso; subst).
-        + by apply H3.
-        + apply H2. by inversion H3.
-      - rewrite SeriesC_0; try lra. by intros.
-    }
-    rewrite -fubini_pos_seriesC_prod_lr.
-    - rewrite fubini_pos_seriesC_prod_rl.
-      + apply SeriesC_le; last done.
-        intros; split.
-        * rewrite /P. apply SeriesC_ge_0'. intros; case_bool_decide; try lra. apply Hf.
-        * (* case split *) admit. 
-      + intros. rewrite /P. case_bool_decide; try lra. apply Hf.
-      + rewrite /P. admit. 
-    - intros. rewrite /P. case_bool_decide; try lra. apply Hf.
-    - admit. 
+    rewrite {1}/SeriesC/Series.
+    apply Series_Ext.Lim_seq_le_loc_const.
+    - by apply SeriesC_ge_0'.
+    - rewrite /eventually. exists 0%nat.
+      intros n Hn.
+      assert (∃ l : list _, (∀ m, m∈l->(∃ k a, (k<=n)%nat /\
+                                              (@encode_inv_nat A _ _ k%nat) = Some a /\
+                                              h a = Some m)) /\
+                   sum_n (countable_sum (λ a : A, from_option f 0 (h a))) n <=
+                    SeriesC (λ a, if bool_decide(a ∈ l) then f a else 0)
+             ) as H'; last first.
+      { destruct H' as [?[??]].
+        etrans; first exact.
+        apply SeriesC_le'; try done.
+        - intros. case_bool_decide; try lra. apply Hf.
+        - apply ex_seriesC_list.          
+      }
+      induction n.
+      + destruct (@encode_inv_nat A _ _ 0%nat) eqn:Ha.
+        * destruct (h a) eqn : Hb.
+          -- exists [b]. split.
+             ++ intros. exists 0%nat, a.
+                repeat split; try lia; try done.
+                rewrite Hb. f_equal. set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                erewrite SeriesC_ext.
+                ** erewrite SeriesC_singleton_dependent. done.
+                ** intro. simpl.
+                   repeat case_bool_decide; set_solver.
+          -- exists []. split.
+             ++ intros; set_solver.
+             ++ rewrite sum_O. rewrite /countable_sum.
+                rewrite Ha. simpl. rewrite Hb. simpl.
+                rewrite SeriesC_0; intros; lra.
+        * exists []. split.
+          ++ intros; set_solver.
+          ++ rewrite sum_O. rewrite /countable_sum.
+             rewrite Ha. simpl. 
+             rewrite SeriesC_0; intros; lra.
+      + assert (0<=n)%nat as Hge0.
+        * lia.
+        * specialize (IHn Hge0) as [l[H1 H2]].
+          destruct (@encode_inv_nat A _ _ (S n)%nat) eqn:Ha.
+          -- destruct (h a) eqn : Hb.
+             ++ exists (b::l). split.
+                ** intros. set_unfold.
+                   destruct H3; subst.
+                   --- exists (S n), a. split; try lia. split; done.
+                   --- specialize (H1 m H3).
+                       destruct H1 as [?[?[?[??]]]].
+                       exists x, x0. split; try lia. by split.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum.
+                   rewrite Ha. simpl. rewrite Hb. simpl.
+                   rewrite (SeriesC_ext _ (λ x, (if bool_decide (x=b) then f b else 0) +
+                                                  if bool_decide (x∈l) then f x else 0
+                           )); last first.
+                   { intros.
+                     case_bool_decide.
+                     - set_unfold. destruct H3.
+                       + admit. 
+                       + admit.
+                     - admit.
+                   }
+                   admit.
+             ++ admit.
+          -- admit.
   Admitted.
     
 
