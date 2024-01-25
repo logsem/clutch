@@ -259,7 +259,26 @@ Section ub_twp.
     iIntros "H".
     iApply ub_twp_ub_wp.
     by destruct wp_default, twp_default.
-  Qed. 
+  Qed.
+
+  Lemma ub_twp_ub_wp_step s E e P Φ :
+    TCEq (to_val e) None →
+    ▷ P -∗
+    WP e @ s; E [{ v, P ={E}=∗ Φ v }] -∗ WP e @ s; E {{ Φ }}.
+  Proof.
+    iIntros (?) "HP Hwp".
+    iApply (ub_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply ub_twp_ub_wp.
+  Qed.
+
+  Lemma ub_twp_ub_wp_step' E e P Φ :
+    TCEq (to_val e) None →
+    ▷ P -∗
+    WP e @ E [{ v, P ={E}=∗ Φ v }] -∗ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (?) "HP Hwp".
+    iApply (ub_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply ub_twp_ub_wp'.
+  Qed.
+  
 
   (** * Derived rules *)
   Lemma ub_twp_mono s E e Φ Ψ :

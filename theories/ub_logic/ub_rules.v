@@ -224,14 +224,14 @@ Proof.
 Qed.
 
 
-Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
+Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E {{ Φ }}.
+  ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -268,25 +268,35 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
-  do 2 iModIntro.
+  iModIntro.
   iMod "Hclose'".
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_wp_value.
+  iApply ub_twp_value.
   iApply "Hwp".
   done.
 Qed.
 
+Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
+  TCEq N (Z.to_nat z) →
+  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros. iApply ub_twp_ub_wp'.
+  iApply (twp_rand_err_nat with "[$]").
+Qed.
 
-Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
+
+Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
   (∀ x, ⌜Forall (λ m, x ≠ m) ns⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E {{ Φ }}.
+  ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -323,25 +333,34 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
-  do 2 iModIntro.
+  iModIntro.
   iMod "Hclose'".
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_wp_value.
+  iApply ub_twp_value.
   iApply "Hwp".
   done.
 Qed.
 
+Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
+  TCEq N (Z.to_nat z) →
+  € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
+  (∀ x, ⌜Forall (λ m, x ≠ m) ns⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros. iApply ub_twp_ub_wp'.
+  by iApply (twp_rand_err_list_nat).
+Qed.
 
-Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
+Lemma twp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
   (∀ x : Z , ⌜Forall (λ m, x ≠ m) zs⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E {{ Φ }}.
+  ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -378,14 +397,24 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
-  do 2 iModIntro.
+  iModIntro.
   iMod "Hclose'".
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_wp_value.
+  iApply ub_twp_value.
   iApply "Hwp".
   done.
+Qed.
+
+Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
+  TCEq N (Z.to_nat z) →
+  € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
+  (∀ x : Z , ⌜Forall (λ m, x ≠ m) zs⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros. iApply ub_twp_ub_wp'.
+  by iApply twp_rand_err_list_int.
 Qed.
 
 (* FIXME: where should this go (if anywhere?) *)
@@ -422,14 +451,14 @@ Proof.
 Qed.
 
 
-Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma twp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   (exists r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
+  [[{ € ε1 }]] rand #z @ E [[{ n, RET #n; € (ε2 n) }]].
 Proof.
   iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
-  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -627,7 +656,7 @@ Proof.
     apply fin_to_nat_lt.
   }
   iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
-  do 2 iModIntro.
+  iModIntro.
   iMod "Hclose'".
   iFrame.
   iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
@@ -640,7 +669,18 @@ Proof.
   reflexivity.
 Qed.
 
-
+Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  (exists r, ∀ n, (ε2 n <= r)%R) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
+Proof.
+  iIntros.
+  iApply (ub_twp_ub_wp_step' with "[$]").
+  wp_apply (twp_couple_rand_adv_comp with "[$]"); try done.
+  iIntros (?) "H1 H2". iModIntro.
+  iApply ("H2" with "[$]").
+Qed.
 
 (** * Approximate Lifting *)
 Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
