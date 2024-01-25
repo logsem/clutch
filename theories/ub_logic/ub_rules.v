@@ -5,6 +5,7 @@ From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
 From clutch.ub_logic Require Export lifting ectx_lifting primitive_laws proofmode seq_amplification.
+From clutch.ub_logic Require Export total_lifting total_ectx_lifting total_primitive_laws.
 
 Section metatheory.
 
@@ -156,14 +157,14 @@ Section rules.
   Implicit Types v : val.
   Implicit Types l : loc.
 
-Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
+Lemma twp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E {{ Φ }}.
+  ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -202,14 +203,24 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
-  do 2 iModIntro.
+  iModIntro.
   iMod "Hclose'".
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_wp_value.
+  iApply ub_twp_value.
   iApply "Hwp".
   done.
+Qed.
+
+Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
+  TCEq N (Z.to_nat z) →
+  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros. iApply ub_twp_ub_wp'.
+  iApply (twp_rand_err with "[$]").
 Qed.
 
 

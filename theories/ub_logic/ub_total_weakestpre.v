@@ -254,6 +254,13 @@ Section ub_twp.
     iModIntro. iFrame. iApply "IH". done.
   Qed.
 
+  Lemma ub_twp_ub_wp' E e Φ : WP e @ E [{ Φ }] -∗ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros "H".
+    iApply ub_twp_ub_wp.
+    by destruct wp_default, twp_default.
+  Qed. 
+
   (** * Derived rules *)
   Lemma ub_twp_mono s E e Φ Ψ :
     (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E [{ Φ }] ⊢ WP e @ s; E [{ Ψ }].
