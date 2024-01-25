@@ -1153,18 +1153,13 @@ Proof.
   intros Hblocksize junk.
   rewrite /block_pad.
   rewrite repeat_length.
-
-  (* This proof works, but it breaks CI *)
-  (*
-  rewrite -PeanoNat.Nat.Div0.add_mod_idemp_l -PeanoNat.Nat.Div0.add_mod -PeanoNat.Nat.Div0.add_mod_idemp_l.
-  rewrite -Nat.le_add_sub; [apply PeanoNat.Nat.Div0.mod_same|].
-  edestruct Nat.mod_bound_pos as [? H]; last first.
-  - eapply Nat.lt_le_incl, H.
-  - lia.
-  - lia.
+  rewrite -PeanoNat.Nat.add_mod_idemp_l; [|lia].
+  rewrite -PeanoNat.Nat.add_mod; [|lia].
+  rewrite -PeanoNat.Nat.add_mod_idemp_l; [|lia].
+  rewrite -Nat.le_add_sub; [apply Nat.mod_same; lia|].
+  apply Nat.lt_le_incl.
+  apply Nat.mod_bound_pos; [apply Nat.le_0_l | done].
 Qed.
-  *)
-Admitted.
 
 Lemma block_pad_ub N blocksize : (0 < blocksize) -> forall junk, (length (block_pad N blocksize junk) <= blocksize)%nat.
 Proof.

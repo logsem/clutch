@@ -34,14 +34,10 @@ Section presampled_flip2.
     iAssert (flip2_junk_inv _ _ _ (length (junk ++ block_pad (Z.to_nat 0) 2 junk) `div` 2) _) with "[Hα]" as "Hinv".
     { rewrite /flip2_junk_inv app_assoc.
       iExists _; iFrame; iPureIntro.
-
-      (* Works but breaks CI
-      apply Nat.Div0.div_exact.
+      apply Nat.div_exact; [lia|].
       rewrite app_length.
       apply (blocks_aligned (Z.to_nat 0%nat) 2%nat).
       lia.
-       *)
-      admit.
     }
     do 11 wp_pure.
     iInduction (length (junk ++ block_pad (Z.to_nat 0) 2 junk) `div` 2) as [|k'] "IH".
@@ -68,5 +64,5 @@ Section presampled_flip2.
       + wp_pures; iModIntro; iExists _; auto.
       + wp_pure. iApply "IH".
       + do 2 wp_pure; iApply "IH".
-  Admitted.
+  Qed.
 End presampled_flip2.
