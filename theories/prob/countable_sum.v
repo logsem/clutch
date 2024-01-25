@@ -1775,13 +1775,13 @@ Section inj.
                    exists x, x0. repeat split; try done. lia.
                 ** rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
                    rewrite Hb. simpl. etrans; last exact.
-                   rewrite /plus. rewrite AbelianGroup.ax3. done.
+                   by rewrite plus_zero_r.
           -- exists l. split.
              ++ intros. specialize (H1 _ H3) as [?[?[?[??]]]].
                 exists x, x0. repeat split; try done. lia.
              ++ rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
                 etrans; last exact.
-                rewrite /plus. rewrite AbelianGroup.ax3. done.
+                by rewrite plus_zero_r.
   Qed.
     
 
