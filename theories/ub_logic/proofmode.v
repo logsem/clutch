@@ -6,6 +6,7 @@ From iris.program_logic Require Import atomic.
 From clutch.common Require Import language ectx_language.
 From clutch.prob_lang Require Import lang notation class_instances tactics.
 From clutch.ub_logic Require Import ub_weakestpre primitive_laws.
+From clutch.ub_logic Require Import total_lifting total_ectx_lifting.
 From clutch.ub_logic Require Import ub_total_weakestpre total_primitive_laws.
 From iris.prelude Require Import options.
 Import uPred.
@@ -14,6 +15,11 @@ Lemma tac_wp_expr_eval `{!irisGS hlc Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
+Lemma tac_twp_expr_eval `{!irisGS hlc Σ} Δ s E Φ e e' :
+  (∀ (e'':=e'), e = e'') →
+  envs_entails Δ (WP e' @ s; E [{ Φ }]) → envs_entails Δ (WP e @ s; E [{ Φ }]).
+Proof. by intros ->. Qed.
+
 
 Tactic Notation "wp_expr_eval" tactic3(t) :=
   iStartProof;
@@ -21,6 +27,10 @@ Tactic Notation "wp_expr_eval" tactic3(t) :=
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     notypeclasses refine (tac_wp_expr_eval _ _ _ _ e _ _ _);
       [let x := fresh in intros x; t; unfold x; notypeclasses refine eq_refl|]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+    notypeclasses refine (tac_twp_expr_eval _ _ _ _ e _ _ _);
+      [let x := fresh in intros x; t; unfold x; notypeclasses refine eq_refl|]
+
   | _ => fail "wp_expr_eval: not a 'wp'"
   end.
 Ltac wp_expr_simpl := wp_expr_eval simpl.
@@ -38,6 +48,19 @@ Proof.
   rewrite HΔ' -lifting.wp_pure_step_later //.
   (* iIntros "Hwp !> _" => //. *)
 Qed.
+Lemma tac_twp_pure `{!ub_clutchGS Σ} Δ E K e1 e2 φ n Φ :
+  PureExec φ n e1 e2 →
+  φ →
+  envs_entails Δ (WP (fill K e2) @ E [{ Φ }]) →
+  envs_entails Δ (WP (fill K e1) @ E [{ Φ }]).
+Proof.
+  rewrite envs_entails_unseal=> ?? ->.
+  (* We want [pure_exec_fill] to be available to TC search locally. *)
+  pose proof @pure_exec_fill.
+  rewrite -total_lifting.twp_pure_step_fupd //.
+Qed.
+
+
 
 Lemma tac_wp_value_nofupd `{!ub_clutchGS Σ} Δ E Φ v :
   envs_entails Δ (Φ v) → envs_entails Δ (WP (Val v) @ E {{ Φ }}).
