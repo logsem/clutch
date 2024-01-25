@@ -1739,14 +1739,50 @@ Section inj.
                    { intros.
                      case_bool_decide.
                      - set_unfold. destruct H3.
-                       + admit. 
-                       + admit.
-                     - admit.
+                       + case_bool_decide; last done. 
+                         case_bool_decide.
+                         * subst. specialize (H1 b H5).
+                           destruct H1 as [?[?[?[??]]]].
+                           rewrite -H6 in Hb.
+                           assert (a = x0).
+                           { eapply Hinj; try done. rewrite Hb. done. }
+                           subst. exfalso.
+                           rewrite -H3 in Ha. assert (x≠ (S n)) by lia.
+                           apply H7. by eapply encode_inv_nat_some_inj.
+                         * subst. lra. 
+                       + case_bool_decide.
+                         { subst. specialize (H1 b H3) as [?[?[?[??]]]].
+                           assert (x ≠ S n) by lia.
+                           exfalso. apply H6. eapply encode_inv_nat_some_inj; try done.
+                           rewrite Ha H4. f_equal.
+                           by eapply Hinj.
+                         }
+                         case_bool_decide; try done. lra.
+                     - repeat case_bool_decide.
+                       + set_solver.
+                       + set_solver.
+                       + set_solver.
+                       + lra.
                    }
-                   admit.
-             ++ admit.
-          -- admit.
-  Admitted.
+                   rewrite SeriesC_plus; last first.
+                   { by apply ex_seriesC_filter_pos. }
+                   { by apply ex_seriesC_singleton. }
+                   rewrite Rplus_comm. rewrite SeriesC_singleton.
+                   trans ((sum_n (countable_sum (λ a0 : A, from_option f 0 (h a0))) n) + f b); try lra.
+                   done.
+             ++ exists l. split.
+                ** intros. specialize (H1 _ H3) as [?[?[?[??]]]].
+                   exists x, x0. repeat split; try done. lia.
+                ** rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                   rewrite Hb. simpl. etrans; last exact.
+                   rewrite /plus. rewrite AbelianGroup.ax3. done.
+          -- exists l. split.
+             ++ intros. specialize (H1 _ H3) as [?[?[?[??]]]].
+                exists x, x0. repeat split; try done. lia.
+             ++ rewrite sum_Sn. rewrite {2}/countable_sum. rewrite Ha. simpl.
+                etrans; last exact.
+                rewrite /plus. rewrite AbelianGroup.ax3. done.
+  Qed.
     
 
 End inj.
