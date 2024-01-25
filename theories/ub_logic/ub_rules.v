@@ -1153,8 +1153,8 @@ Proof.
   intros Hblocksize junk.
   rewrite /block_pad.
   rewrite repeat_length.
-  rewrite -Nat.Div0.add_mod_idemp_l -PeanoNat.Nat.Div0.add_mod -Nat.Div0.add_mod_idemp_l.
-  rewrite -Nat.le_add_sub; [apply Nat.Div0.mod_same|].
+  rewrite -PeanoNat.Nat.Div0.add_mod_idemp_l -PeanoNat.Nat.Div0.add_mod -PeanoNat.Nat.Div0.add_mod_idemp_l.
+  rewrite -Nat.le_add_sub; [apply PeanoNat.Nat.Div0.mod_same|].
   edestruct Nat.mod_bound_pos as [? H]; last first.
   - eapply Nat.lt_le_incl, H.
   - lia.
