@@ -147,10 +147,10 @@ Qed.
 Lemma wp_lift_atomic_step {E Φ} e1 :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
-    ⌜reducible e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
-      state_interp σ2 ∗
-      from_option Φ False (to_val e2))
+         ⌜reducible e1 σ1⌝ ∗
+         ▷ ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
+                    state_interp σ2 ∗
+                    from_option Φ False (to_val e2))
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
