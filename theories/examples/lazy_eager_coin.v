@@ -87,7 +87,7 @@ Section logical_ref.
     iApply (refines_couple_tape_flip with "[$Hα]"); [solve_ndisj|done|].
     iIntros (b) "Hα /=".
     rel_pures_r.
-    rel_alloc_l l as "Hl". rel_pures_l.
+    rel_alloc_l l as "Hl". rel_pures_l. 
     set (P := ((α ↪B [b] ∗ l ↦ NONEV) ∨ (l ↦ SOMEV #b))%I).
     iApply (refines_na_alloc P coinN).
     iSplitL.
