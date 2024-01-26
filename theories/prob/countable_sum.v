@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
-From stdpp Require Export countable finite.
+From stdpp Require Export countable finite gmap.
 From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 Set Default Proof Using "Type*".
 Import Hierarchy.
@@ -472,6 +472,46 @@ Section filter.
     + intro a'; rewrite (bool_decide_ext (a = a') (a' = a)); done.
   Qed.
 
+  Lemma ex_seriesC_list (l : list A) (f : A -> R):
+    ex_seriesC (λ (a : A), if bool_decide(a ∈ l) then f a else 0).
+  Proof.
+    induction l.
+    { eapply ex_seriesC_ext; last apply ex_seriesC_0.
+      intros; done.
+    }
+    destruct (decide(a ∈ l)).
+    { eapply ex_seriesC_ext; last done.
+      intros.
+      simpl.
+      erewrite bool_decide_ext; first done.
+      set_solver.
+    }
+    eapply ex_seriesC_ext; last apply ex_seriesC_plus.
+    2:{ apply IHl. }
+    2:{ eapply (ex_seriesC_singleton _ (f a)). }
+    intros x.
+    simpl.
+    repeat case_bool_decide; try set_solver.
+    all: try (by subst).
+    all: try lra.
+    - subst. apply Rplus_0_l. 
+    - subst. set_solver.
+  Qed.
+
+  Lemma ex_seriesC_finite_from_option (l : list A) (f : B -> R) (g : A -> option B):
+    (∀ a : A, is_Some (g a) <-> a ∈ l) ->
+    ex_seriesC (λ (a : A), from_option f 0%R (g a)).
+  Proof.
+    intros Hl.
+    eapply ex_seriesC_ext; last apply (ex_seriesC_list l).
+    intros a.
+    simpl.
+    case_bool_decide as H1; first done. 
+    destruct (g a) eqn:K.
+    { exfalso. apply H1. apply Hl. done. }
+    done.
+  Qed.
+  
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
     is_seriesC f v →

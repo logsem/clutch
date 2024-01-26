@@ -600,6 +600,22 @@ Section total_ub_theory.
     - by apply Htotal. 
   Qed. 
 
+  Lemma total_ub_lift_implies_ub_lift_strong (μ : distr A) f ε:
+    total_ub_lift μ f ε -> ub_lift μ f (ε - (1 - SeriesC μ)).
+  Proof.
+    rewrite /total_ub_lift /ub_lift /prob.
+    intros Htotal P HP.
+    rewrite (SeriesC_ext _ (λ a, if P a then 0 else μ a)); last first.
+    { intros. by destruct (P n). }
+    eapply Rplus_le_reg_l.
+    rewrite <-SeriesC_split_pred; last first.
+    { apply pmf_ex_seriesC. }
+    { intros. apply pmf_pos. }
+    apply Rle_minus_l.
+    trans (1-ε).
+    - pose proof (pmf_SeriesC μ). lra.
+    - by apply Htotal. 
+  Qed. 
 
   
   Lemma total_UB_mon_grading (μ : distr A) (f : A -> Prop) ε ε' :
