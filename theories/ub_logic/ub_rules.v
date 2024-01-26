@@ -216,7 +216,7 @@ Qed.
 Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
-  (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
+  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros. iApply ub_twp_ub_wp'.
@@ -227,7 +227,7 @@ Qed.
 Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
-  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
@@ -281,7 +281,7 @@ Qed.
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
-  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros. iApply ub_twp_ub_wp'.
@@ -292,7 +292,7 @@ Qed.
 Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
-  (∀ x, ⌜Forall (λ m, x ≠ m) ns⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
@@ -346,7 +346,7 @@ Qed.
 Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
-  (∀ x, ⌜Forall (λ m, x ≠ m) ns⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros. iApply ub_twp_ub_wp'.
@@ -356,7 +356,7 @@ Qed.
 Lemma twp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
-  (∀ x : Z , ⌜Forall (λ m, x ≠ m) zs⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
@@ -410,7 +410,7 @@ Qed.
 Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
   € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
-  (∀ x : Z , ⌜Forall (λ m, x ≠ m) zs⌝ -∗ Φ #x)
+  (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros. iApply ub_twp_ub_wp'.
@@ -680,6 +680,34 @@ Proof.
   wp_apply (twp_couple_rand_adv_comp with "[$]"); try done.
   iIntros (?) "H1 H2". iModIntro.
   iApply ("H2" with "[$]").
+Qed.
+
+Lemma twp_couple_rand_adv_comp1 (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  [[{ € ε1 }]] rand #z @ E [[{ n, RET #n; € (ε2 n) }]].
+Proof.
+  iIntros (H1 H2).
+  eapply (twp_couple_rand_adv_comp _ _ _ Φ ε1 ε2).
+  - apply H1.
+  - edestruct mean_constraint_ub as [H3 H4].
+    + apply H2.
+    + eexists _; eapply H4.
+  - apply H2.
+Qed.
+
+Lemma wp_couple_rand_adv_comp1 (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
+Proof.
+  iIntros (H1 H2).
+  eapply (wp_couple_rand_adv_comp _ _ _ Φ ε1 ε2).
+  - apply H1.
+  - edestruct mean_constraint_ub as [H3 H4].
+    + apply H2.
+    + eexists _; eapply H4.
+  - apply H2.
 Qed.
 
 (** * Approximate Lifting *)
@@ -1341,10 +1369,10 @@ Qed.
 Lemma twp_seq_amplify N z e E α Φ (ε : posreal) L (kwf: kwf N L) prefix suffix d :
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  L = (length suffix) ->
+  (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
   € (pos_to_nn ε) ∗
   (α ↪ (N; prefix)) ∗
-  ((∃ junk, α ↪ (N; prefix ++ junk ++ suffix) ∨ α ↪ (N; prefix ++ junk) ∗ €(pos_to_nn (εAmp_iter N L d ε kwf)))
+  ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk))) ∨ α ↪ (N; prefix ++ junk) ∗ €(pos_to_nn (εAmp_iter N L d ε kwf)))
    -∗ WP e @ E [{ Φ }])
   ⊢ WP e @ E [{ Φ }].
 Proof.
@@ -1357,12 +1385,33 @@ Proof.
   - iApply ("IH" with "Hcr Htape").
     iIntros "[%junk [Hlucky|(Htape&Hcr)]]".
     + iApply "Hwp". iExists junk; iLeft; iFrame.
-    + iApply twp_presample_amplify; eauto; iFrame.
+    + pose L' := (length (suffix (prefix ++ junk))).
+      iApply (twp_presample_amplify _ _ _ _ _ _ _ L'); eauto; iFrame.
       iIntros "[?|[%junk' (Htape&Hcr)]]"; iApply "Hwp".
       * iExists _; iLeft.
         rewrite -app_assoc; iFrame.
       * iExists _; iRight.
         rewrite -app_assoc -εAmp_iter_cmp; iFrame.
+        iApply (ec_spend_le_irrel with "Hcr").
+        rewrite /εAmp /=.
+        apply Rmult_le_compat_l.
+        { apply Rmult_le_pos; [apply Rlt_le, cond_pos | apply pow_le, Rlt_le, k_pos]. }
+        apply Rplus_le_compat_l.
+        rewrite /Rdiv Rmult_1_l Rmult_1_l.
+        apply Rinv_le_contravar.
+        -- apply (Rplus_lt_reg_r 1%R).
+           rewrite /Rminus Rplus_assoc Rplus_opp_l Rplus_0_l Rplus_0_r.
+           apply Rlt_pow_R1.
+           --- apply lt_1_INR; destruct kwf; lia.
+           --- rewrite /L'. by destruct (HL junk).
+        -- apply Rplus_le_compat_r, Rle_pow.
+           --- rewrite S_INR. pose P := (pos_INR N); lra.
+           --- rewrite /L'. by destruct (HL junk).
+  Unshelve.
+    destruct kwf.
+    destruct (HL junk).
+    rewrite /L'.
+    constructor; try lia.
 Qed.
 
 Lemma seq_amplify N z e E α Φ (ε : posreal) L (kwf: kwf N L) prefix suffix d :
@@ -1413,20 +1462,22 @@ Proof.
     constructor; try lia.
 Qed.
 
-Lemma twp_presample_planner_pos N z e E α Φ (ε : nonnegreal) prefix suffix :
+Lemma twp_presample_planner_pos N z e E α Φ (ε : nonnegreal) L prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   (0 < N)%nat ->
-  (0 < (length suffix))%nat ->
+  (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
   (0 < ε)%R ->
   € ε ∗
   (α ↪ (N; prefix)) ∗
-  ((∃ junk, α ↪ (N; prefix ++ junk ++ suffix)) -∗ WP e @ E [{ Φ }])
+  ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk)))) -∗ WP e @ E [{ Φ }])
   ⊢ WP e @ E [{ Φ }].
 Proof.
   iIntros (? ? ? ? Hε) "(Hcr & Htape & Hwp)".
-  remember (length suffix) as L.
-  assert (kwf : kwf N L). { apply mk_kwf; lia. }
+  assert (kwf : kwf N L). {
+    apply mk_kwf; try lia.
+    destruct (H2 []) as [H2' H2''].
+    eapply Nat.lt_le_trans; eauto. }
   pose ε' := mkposreal ε.(nonneg) Hε.
   replace ε with (pos_to_nn ε'); last first.
   { rewrite /ε' /pos_to_nn. by apply nnreal_ext. }
@@ -1470,28 +1521,30 @@ Proof.
     done.
 Qed.
 
-Lemma twp_presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix :
+(* general planner rule, with bounded synchronization strings *)
+Lemma twp_presample_planner_sync N z e E α Φ (ε : nonnegreal) L prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   (0 < ε)%R ->
+  (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
   € ε ∗
   (α ↪ (S N; prefix)) ∗
-  ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix)) -∗ WP e @ E [{ Φ }])
+  ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e @ E [{ Φ }])
   ⊢ WP e @ E [{ Φ }].
 Proof.
-  iIntros (? ? ?).
-  destruct suffix as [|h R].
+  iIntros (? ? ? ?).
+  destruct (suffix prefix) as [|h R] eqn:Hsp.
   - iIntros "(_ & Htape & Hwp)".
     iApply "Hwp".
     iExists [].
-    do 2 (rewrite -app_nil_end); iFrame.
-  - remember (h :: R) as suffix.
-    iApply (twp_presample_planner_pos); eauto; try lia.
-    + by erewrite Nat2Z.id.
-    + rewrite Heqsuffix cons_length; lia.
+    rewrite app_nil_r app_assoc app_nil_r Hsp app_nil_r.
+    iFrame.
+  - iApply (twp_presample_planner_pos); eauto; try lia.
+    by erewrite Nat2Z.id.
 Qed.
 
-Lemma presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix :
+(* general planner rule, with bounded synchronization strings *)
+Lemma presample_planner_sync N z e E α Φ (ε : nonnegreal) L prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
   (0 < ε)%R ->
@@ -1514,6 +1567,25 @@ Qed.
 
 
 (* classic version *)
+Lemma twp_presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix :
+  TCEq N (Z.to_nat z) →
+  to_val e = None →
+  (0 < ε)%R ->
+  € ε ∗
+  (α ↪ (S N; prefix)) ∗
+  ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix)) -∗ WP e @ E [{ Φ }])
+  ⊢ WP e @ E [{ Φ }].
+Proof.
+  iIntros (? ? ?) "(Hcr&Htape&Hwp)".
+  destruct suffix as [|] eqn:HS.
+  - iApply "Hwp".
+    iExists [].
+    do 2 rewrite app_nil_r; iFrame.
+  - iApply (twp_presample_planner_sync _ _ _ _ _ _ _ (length suffix) _ (fun _ => suffix)); eauto.
+    + intros; rewrite HS /=. lia.
+    + rewrite HS. iFrame.
+Qed.
+
 Lemma presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →
@@ -1532,7 +1604,6 @@ Proof.
     + intros; rewrite HS /=. lia.
     + rewrite HS. iFrame.
 Qed.
-
 
 (* pads the junk up to a multiple of blocksize *)
 Definition block_pad N blocksize : list (fin (S (S N))) -> list (fin (S (S N))) :=
@@ -1562,6 +1633,31 @@ Qed.
 
 
 (* version where junk is a mipltple of sample length *)
+Lemma twp_presample_planner_aligned N z e E α Φ (ε : nonnegreal) prefix suffix :
+  TCEq N (Z.to_nat z) →
+  to_val e = None →
+  (0 < ε)%R ->
+  € ε ∗
+  (α ↪ (S N; prefix)) ∗
+  ((∃ junk, α ↪ (S N; prefix ++ junk ++ (block_pad N (length suffix) (prefix ++ junk)) ++ suffix)) -∗ WP e @ E [{ Φ }])
+  ⊢ WP e @ E [{ Φ }].
+Proof.
+  iIntros (? ? ?) "(Hcr&Htape&Hwp)".
+  destruct suffix as [|] eqn:HS.
+  - iApply "Hwp".
+    iExists [].
+    do 2 rewrite app_nil_r; iFrame.
+  - iApply (twp_presample_planner_sync _ _ _ _ _ _ _ (length suffix + length suffix) _ (fun samples => block_pad N (length suffix) samples ++ suffix)); eauto.
+    + intros. split.
+      * rewrite app_length HS /=. lia.
+      * rewrite app_length /=.
+        apply Nat.add_le_mono_r, block_pad_ub.
+        rewrite HS /=. lia.
+    + rewrite HS.
+      (* iFrame is very slow here *)
+      iFrame.
+Qed.
+
 Lemma presample_planner_aligned N z e E α Φ (ε : nonnegreal) prefix suffix :
   TCEq N (Z.to_nat z) →
   to_val e = None →

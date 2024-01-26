@@ -366,7 +366,6 @@ Module coll_free_hash.
       + iSplit.
         * iPureIntro.
           rewrite mult_INR.
-          Search Rlt.
           rewrite <- (Rmult_1_l rval) at 1.
           apply Rmult_lt_compat_r.
           -- eapply Rle_lt_trans; eauto.
