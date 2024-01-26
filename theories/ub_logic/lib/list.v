@@ -1009,21 +1009,66 @@ Section list_specs_extra.
     {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ }}}.
   Proof.
     iIntros (Φ) "[#H %Hl] HΦ".
-    iApply wp_list_map.
-    - iSplit; last first.
-      + iSplit; first done.
-        instantiate (1 := (λ _, True)%I).
-        done.
-      + instantiate (1 := (λ _ _, True)%I). simpl.
-        iIntros (x Ψ) "!> #IH HΨ".
-        iApply "H"; first done.
-        iModIntro. iIntros.
-        by iApply "HΨ".
-    - iModIntro. iIntros (rv) "[%Hlist ?]".
-      by iApply "HΦ".
+    iApply wp_list_map; last first.
+    - iModIntro. iIntros (?) "[% ?]". by iApply "HΦ".
+    - iIntros. repeat iSplit.
+      + iIntros (??) "!> _ K". wp_apply "H"; [done|].
+        iIntros. iApply "K". by iSplit.
+      + done.
+      + by instantiate (1 := (λ _, True)%I). 
   Qed.
     
-  
+  Lemma wp_list_map_err `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
+    (P : A -> iProp Σ) (Q : A -> val -> iProp Σ) (err : A -> nonnegreal) E :
+    {{{ (∀ (x : A),
+          {{{ P x ∗ € (err x)}}}
+            fv (inject x) @ E
+          {{{ fr, RET fr; ⌜fr = inject $ f x ⌝ ∗ Q x fr }}}) ∗
+        ⌜is_list l lv⌝ ∗
+        [∗ list] x∈l, (P x ∗ € (err x))
+    }}}
+      list_map fv lv @ E
+      {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
+                      [∗ list] p ∈ zip l (List.map f l), Q (fst p) (inject $ snd p)
+      }}}.
+  Proof.
+    iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
+    iApply (wp_list_map with "[HP]"); try iFrame.
+    by iSplit.
+  Qed. 
+
+  Lemma wp_list_map_err_constant `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
+    (P : A -> iProp Σ) (Q : A -> val -> iProp Σ) (err : nonnegreal) E : 
+    {{{ (∀ (x : A),
+          {{{ P x ∗ € err}}}
+            fv (inject x) @ E
+          {{{ fr, RET fr; ⌜fr = inject $ f x ⌝ ∗ Q x fr }}}) ∗
+        ⌜is_list l lv⌝ ∗
+        ([∗ list] x∈l, P x) ∗
+        € (err * nnreal_nat (length l))%NNR
+    }}}
+      list_map fv lv @ E
+      {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
+                      [∗ list] p ∈ zip l (List.map f l), Q (fst p) (inject $ snd p)
+      }}}.
+  Proof.
+    iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
+    iAssert (([∗ list] x ∈ l, P x ∗ € err))%I with "[HP]" as "HP".
+    { clear Hil. iInduction (l) as [| h t] "IH"; first done.
+      rewrite !big_sepL_cons. simpl.
+      iDestruct "HP" as "[[HP HP'] Herr]".
+      iFrame.
+      iAssert (€ err ∗ € (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
+      { iApply ec_split.
+        assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%NNR as ->.
+        - apply nnreal_ext. simpl. case_match; destruct err; simpl; lra.
+        - done.
+      }
+      iFrame. iApply "IH"; iFrame.
+    }
+    iApply (wp_list_map with "[HP]"); try iFrame.
+    by iSplit.
+  Qed. 
 
   (* TODO: is this in some Coq library? *)
   Fixpoint mapi_loop {B : Type} (f : nat -> A -> B) (k : nat) (l : list A) : list B :=
