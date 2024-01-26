@@ -741,6 +741,7 @@ Qed.
   Lemma coupon_bijection' n m s (k:Z):
     n>0 -> map_set_relate m s -> Z.of_nat (size s) = k -> s∩set_seq 0 n = s ->
     ∃ f: (fin (S(n-1))) -> fin (S (n-1)), Bij f /\ forall x, fin_to_nat x < Z.to_nat k <-> is_Some (m!! fin_to_nat (f x)).
+  Proof.
     intros H0 H1 H2 H3.
     apply subseteq_intersection_2_L in H3.
     rewrite elem_of_subseteq in H3.
