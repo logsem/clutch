@@ -1,4 +1,4 @@
-(** * Termination with probability 1 of the WalkSAT algorithm*)
+(** * Termination with probability 1 of the WalkSAT algorithm *)
 From clutch.ub_logic Require Export ub_clutch ub_rules.
 From clutch Require Export examples.approximate_samplers.approx_sampler_lib.
 From Coquelicot Require Import Series.
@@ -8,23 +8,24 @@ Set Default Proof Using "Type*".
 
 Section higherorder_walkSAT.
   (** Demonstration of using the higher-order spec for stateful computation (WalkSAT) *)
-  (** This "sampler" does not just return a value, but modifies a state *)
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
   Context (N : nat).
+  Context (HN : (0 < N)%nat).
 
-  (* an assignment is a list of length N booleans *)
-  (* value-level representation for assignments *)
+  (** Assignments *)
+
+  (* Reflection of Coq- and value-level assignments *)
   Inductive inv_asn' : list bool -> val -> Prop :=
     | inv_emp : inv_asn' [] NONEV
     | inv_cons (b : bool) (m' : list bool) (asn' : val) : (inv_asn' m' asn') -> inv_asn' (b :: m') (SOMEV (#b, asn')).
   Definition inv_asn m asn : Prop := length m = N /\ inv_asn' m asn.
 
-  (* stuck expression *)
+  (* Placeholder stuck expression *)
   Definition error : expr := (#42 #42)%E.
 
-  (* set up a random assignment of n boolean variables *)
+  (* Set up a random assignment of n boolean variables *)
   Definition mk_init_asn': val :=
     (rec: "mk_asn'" "n" :=
        if: ("n" = #0)
@@ -35,9 +36,10 @@ Section higherorder_walkSAT.
          SOME ("b", "r"))%V.
   Definition mk_init_asn : val := (λ: "_", mk_init_asn' #N).
 
-
-  Lemma init_asn'_inv (M: nat) E : (⊢ WP (mk_init_asn' #M) @ E {{ fun v' => ∃ m, ⌜ inv_asn' m v' /\ length m = M ⌝}})%I.
-  Proof.
+  (* init_asn' spec *)
+  Lemma init_asn'_inv (M: nat) E :
+    (⊢ WP (mk_init_asn' #M) @ E {{ fun v' => ∃ m, ⌜ inv_asn' m v' /\ length m = M ⌝}})%I.
+  Proof using N HN.
     iInduction M as [|M'] "IH".
     - rewrite /mk_init_asn'; wp_pures.
       iModIntro; iExists []; iPureIntro; split; [constructor | by simpl].
@@ -56,6 +58,7 @@ Section higherorder_walkSAT.
       + rewrite cons_length Hm'_len /=; lia.
   Qed.
 
+  (* Evaluates a value-level assignment *)
   Definition eval_asn : val :=
     (rec: "eval_asn" "asn" "n" :=
        match: "asn" with
@@ -66,9 +69,11 @@ Section higherorder_walkSAT.
        end)%V.
 
 
+  (* eval_asn spec *)
   Definition wp_eval_asn m asn E (n : nat) :
-    (⊢ ⌜ (n < (length m))%nat ⌝ -∗ ⌜ inv_asn' m asn ⌝ -∗ WP (eval_asn asn #n)%E @ E {{ fun v => ⌜#(m !!! n : bool) = v⌝}})%I .
-  Proof.
+    (⊢ ⌜ (n < (length m))%nat ⌝ -∗ ⌜ inv_asn' m asn ⌝ -∗
+       WP (eval_asn asn #n)%E @ E {{ fun v => ⌜#(m !!! n : bool) = v⌝}})%I .
+  Proof using N HN.
     iIntros "%Hn %Hinv".
     iRevert (Hn).
     iRevert (n).
@@ -101,6 +106,7 @@ Section higherorder_walkSAT.
   Qed.
 
 
+  (* Updates an assignment at a given location *)
   Definition update_asn : val :=
     (rec: "update_asn'" "asn" "n" "b" :=
        match: "asn" with
@@ -114,9 +120,11 @@ Section higherorder_walkSAT.
                 SOME ("b0", "r0")
        end)%V.
 
+  (* update_asn spec *)
   Definition wp_update_asn m asn E n (b: bool) :
-    (⊢ ⌜(n < length m)%nat ⌝ -∗ ⌜inv_asn' m asn ⌝ -∗ WP (update_asn asn #n #b)%E @ E {{ fun asn' => ⌜inv_asn' (<[n := b]> m) asn' ⌝}})%I.
-  Proof.
+    (⊢ ⌜(n < length m)%nat ⌝ -∗ ⌜inv_asn' m asn ⌝ -∗
+        WP (update_asn asn #n #b)%E @ E {{ fun asn' => ⌜inv_asn' (<[n := b]> m) asn' ⌝}})%I.
+  Proof using N HN.
     iIntros "%Hn %Hinv".
     iRevert (Hn).
     iRevert (n).
@@ -144,7 +152,10 @@ Section higherorder_walkSAT.
           iPureIntro.
           rewrite cons_length in Hlen.
           apply (Nat.le_lt_add_lt 1%nat 1%nat); try lia.
-          admit. (* doable *)
+          rewrite Nat.sub_add; [lia|].
+          destruct n'; [|lia].
+          rewrite /not in H; exfalso; apply H.
+          auto.
         }
         iIntros (v) "%Hv".
         wp_pures.
@@ -154,7 +165,8 @@ Section higherorder_walkSAT.
         by constructor.
   Admitted.
 
-  (* our program will be indexed by a fixed formula to avoid manipulating value-level formulae *)
+  (** 3SAT formulas *)
+
   Inductive Polarity := Pos | Neg.
 
   Inductive clause :=
@@ -181,15 +193,15 @@ Section higherorder_walkSAT.
   Definition proj_clause_value (c : clause) (target : fin 3) : fVar :=
     match c with
       | (ClauseV e1 e2 e3) =>
-          if (Fin.eqb target (0 : fin 3))%fin
+          if (target =? (0%fin : fin 3))%nat
             then e1
-            else if (Fin.eqb target (1 : fin 3))%fin
+            else if (target =? (1%fin : fin 3))%nat
                  then e2
                  else e3
       end.
 
 
-  (* evaluation of the coq-level assignments *)
+  (** Coq-level formula evaluation *)
 
   Definition fvar_SAT (m : list bool) (v : fVar) : bool :=
     match v with
@@ -206,11 +218,12 @@ Section higherorder_walkSAT.
     end.
 
   Definition formula_SAT (m : list bool) (f : formula) : bool :=
-    fold_left (fun acc c => acc && clause_SAT m c) f true.
+    (fun l => fold_left andb l true) $ (fun c => clause_SAT m c) <$> f.
 
 
-  (* If there is a solution s, for any unsatisfied clause, the clause contains a variable
-      which differers from the solution. *)
+  (** Lemmas about the existence of progress *)
+  (* If there exists a solution to the clause, and an assignment is UNSAT, the assignment
+     differs from the solution in at least one variable *)
   Lemma progress_is_possible_clause (c : clause) (m solution : list bool) :
     (clause_SAT solution c = true) ->
     (clause_SAT m c = false) ->
@@ -243,8 +256,7 @@ Section higherorder_walkSAT.
   Qed.
 
 
-
-  (* turns the existence of an fvar that can be improved into a concrete sample to amplify against *)
+  (* Transform a fvar into a value which the resampler can sample against *)
   Lemma reflect_progress_to_target (v : fVar) (c : clause) :
     fVar_in_clause v c -> exists s : fin 3, (proj_clause_value c s = v).
   Proof.
@@ -257,7 +269,7 @@ Section higherorder_walkSAT.
   Qed.
 
 
-  (* obtains the clause which simplified walkSAT will resample*)
+  (* Obtains the first UNSAT clause; the resampler will resample inside this clause *)
   Lemma find_progress m f :
     (formula_SAT m f = false) ->
     exists f1 f2 c,
@@ -271,8 +283,12 @@ Section higherorder_walkSAT.
     - destruct (clause_SAT m c) as [|] eqn:Hc.
       + assert (Hunsat' : formula_SAT m f' = false).
         { (* true b/c clause_SAT m c is true (another fold commuting problem) *)
-          rewrite /formula_SAT /= in Hunsat.
-          admit.
+          rewrite /formula_SAT in Hunsat.
+          rewrite (fold_symmetric _ andb_assoc) in Hunsat; [|intros; apply andb_comm].
+          rewrite fmap_cons /= in Hunsat.
+          rewrite /formula_SAT.
+          apply andb_false_iff in Hunsat; destruct Hunsat as [H | H]; [exfalso; eauto|].
+          by rewrite (fold_symmetric _ andb_assoc); [|intros; apply andb_comm].
         }
         destruct (IH Hunsat') as [f1 [f2 [c' (H & Hf1 & Hc')]]].
         exists (c :: f1), f2, c'; split; last split.
@@ -283,17 +299,16 @@ Section higherorder_walkSAT.
         * by simpl.
         * apply Forall_nil_2.
         * apply Hc.
-  Admitted.
+  Qed.
 
 
+  (** Progress measurement *)
+  (* Hamming distance to some fixed solution *)
+  Definition progress_measure (f : formula) (m solution : list bool) : nat :=
+      fold_right (fun p acc => (acc + match p with | (s, t) => if (eqb s t)then 0%nat else 1%nat end)%nat) 0%nat (zip m solution).
 
-
-  (* this proof measues progress by the similarity to a fixed (known) solution *)
-  Definition progress_measure (m solution : list bool) : nat :=
-    fold_right (fun p acc => (acc + match p with | (s, t) => if (eqb s t)then 0%nat else 1%nat end)%nat) 0%nat (zip m solution).
-
-
-  Lemma progress_complete m solution : (length m = length solution) -> (progress_measure m solution = 0%nat) -> m = solution.
+  (* Hamming distance 0 -> assignments are equal *)
+  Lemma progress_complete f m solution : (length m = length solution) -> (progress_measure f m solution = 0%nat) -> (m = solution).
   Proof.
     generalize dependent solution.
     induction m as [|m0 ms IH].
@@ -311,11 +326,10 @@ Section higherorder_walkSAT.
         * by rewrite /progress_measure.
   Qed.
 
-
-  (* flipping a variable which is different to the solution brings an assignment closer to the solution *)
-  Lemma flip_makes_progress (m solution : list bool) (v : fVar) :
+  (* Flipping a variable which is different to the solution decreases the Hamming distance *)
+  Lemma flip_makes_progress f (m solution : list bool) (v : fVar) :
       (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))) ->
-      (progress_measure (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution < progress_measure m solution)%nat.
+      (progress_measure f (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution < progress_measure f m solution)%nat.
   Proof.
     intros Hdiff.
     (* Induct over the lists, = when not equal to fVar_index v, < when equal *)
@@ -323,8 +337,9 @@ Section higherorder_walkSAT.
   Admitted.
 
 
-  (* evaluation of the value-level assignments *)
+  (** Value-level formula evaluation *)
 
+  (* Evaluate a single fVar against a value-level assignment *)
   Definition evaluate_fvar (f: fVar) : val :=
     (λ: "asn",
        match f with
@@ -336,8 +351,10 @@ Section higherorder_walkSAT.
               end
         end).
 
+  (* evaluate_fvar spec*)
   Lemma wp_evaluate_fvar l asn m v E :
-    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ WP (evaluate_fvar v) asn @ E {{ fun v' => l ↦ asn ∗ ⌜v' = #(fvar_SAT m v)⌝ }} )%I.
+    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗
+       WP (evaluate_fvar v) asn @ E {{ fun v' => l ↦ asn ∗ ⌜v' = #(fvar_SAT m v)⌝ }} )%I.
   Proof.
     iIntros "%Hinv Hl".
     destruct v as [p v vwf].
@@ -352,15 +369,17 @@ Section higherorder_walkSAT.
     destruct p; wp_pures; iModIntro; eauto.
   Qed.
 
-
+  (* Evaluate a clause against a value-level assignment *)
   Definition evaluate_clause (c : clause) : val :=
     (λ: "asn",
         match c with
          | ClauseV e1 e2 e3 => ((evaluate_fvar e1 "asn") || (evaluate_fvar e2 "asn") || (evaluate_fvar e3 "asn"))
         end)%V.
 
+  (* evaluate_clause spec *)
   Lemma wp_evaluate_clause l asn m c E :
-    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗ WP (evaluate_clause c) asn @ E {{ fun v => l ↦ asn ∗ ⌜v = #(clause_SAT m c)⌝ }} )%I.
+    (⊢ ⌜ inv_asn m asn ⌝ -∗ l ↦ asn -∗
+     WP (evaluate_clause c) asn @ E {{ fun v => l ↦ asn ∗ ⌜v = #(clause_SAT m c)⌝ }} )%I.
   Proof.
     iIntros "%Hinv Hl".
     destruct c as [e1 e2 e3].
@@ -388,9 +407,9 @@ Section higherorder_walkSAT.
   Qed.
 
 
-  (** WALKSAT (simplified version): Find the first UNSAT clause and randomly flip a variable from it *)
+  (** WALKSAT (simplified version): Find the first UNSAT clause and flip a random variable inside it *)
 
-
+  (* Helper function: turn a sampled index within a clause (1, 2, 3) into the corresponding fVar *)
   Definition clause_to_index (c : clause) : val :=
     (λ: "i",
        match c with
@@ -402,20 +421,6 @@ Section higherorder_walkSAT.
                  else #(fVar_index e3))%E
        end)%V.
 
-
-  Lemma wp_clause_to_index (c: clause) (target : fin 3) E :
-    ⊢ (WP (clause_to_index c #target)%E @ E {{ fun i => ⌜ i = #(fVar_index (proj_clause_value c target))⌝ }})%I.
-  Proof.
-    iStartProof; rewrite /clause_to_index /proj_clause_value /fVar_index.
-    destruct c.
-    (*
-    destruct target. simpl; wp_pures.
-    destruct target; simpl; wp_pures; eauto.
-    rewrite (bool_decide_false); first (wp_pures; eauto).
-    rewrite /not; intros Hk; inversion Hk; lia.
-    *)
-  Admitted.
-
   (* selects a variable references in the clause, and flips it *)
   Definition resample_clause (c : clause) : val :=
     (λ: "l",
@@ -424,19 +429,121 @@ Section higherorder_walkSAT.
        let: "b" := eval_asn "asn" "n" in
        "l" <- (update_asn "asn" "n" (~ "b")))%V.
 
-  Definition εFac : nonnegreal := (nnreal_div (nnreal_nat 3) (nnreal_nat 2)).
 
-  (* amplify using the 1/6 chance that the resampler flips a variable "target" *)
-  (* this proof repeats itself, I think I could refactor my lemmas above to make it cleaner.
-     in any case, this follows directly by symbolic execution. *)
-  Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε (asn : val) E :
+  Fixpoint sampler (f : formula) : val :=
+    (λ: "asnV",
+        match f with
+          | [] => #()
+          | (c :: cs) =>
+              if: (evaluate_clause c) (! "asnV")
+                then (sampler cs) "asnV"
+                else (resample_clause c) "asnV"
+        end)%V.
+
+  Fixpoint checker (f : formula) : val :=
+    (λ: "asnV",
+       match f with
+        | [] => #true
+        | (c :: cs) => (evaluate_clause c (! "asnV")) && (checker cs "asnV")
+        end).
+
+  (* spec for helper lemma *)
+  Lemma wp_clause_to_index (c: clause) (target : fin 3) E :
+    ⊢ (WP (clause_to_index c #target)%E @ E {{ fun i => ⌜ i = #(fVar_index (proj_clause_value c target))⌝ }})%I.
+  Proof.
+    iStartProof. rewrite /proj_clause_value/clause_to_index /proj_clause_value /fVar_index.
+    destruct c.
+    destruct target; simpl; wp_pures; eauto.
+    destruct target; simpl; wp_pures; eauto.
+    rewrite (bool_decide_false); first (wp_pures; eauto).
+    rewrite /not; intros Hk; inversion Hk; lia.
+  Qed.
+
+
+  (** General credit accounting (FIXME: move to seq_amplification) *)
+
+  (* Every time we amplify, we have to restore εInv p for some value of p. The seq_amplification sampling scheme
+     ensures that we have enough credit for this, plus some excess credit. Δε is a lower bound on that excess credit. *)
+  Program Definition Δε (ε : posreal) N1 L kwf : posreal := mkposreal (εAmp N1 L ε kwf - ε) _.
+  Next Obligation. intros. pose (εAmp_amplification N1 L ε kwf). lra. Qed.
+
+  Lemma fR_lt_1 N1 L i fRwf : (fR N1 L i fRwf <= 1)%R.
+  Proof.
+    rewrite fR_closed_2.
+    (* True *)
+  Admitted.
+
+  Lemma εAmp_excess (ε : posreal) N1 L kwf :
+    forall i fRwf, ((εR N1 L i ε fRwf) + (Δε ε N1 L kwf) <= εAmp N1 L ε kwf)%R.
+  Proof.
+    intros.
+    rewrite -(Rplus_0_r (εAmp _ _ _ _)).
+    rewrite /Δε /=.
+    rewrite Rplus_comm Rplus_assoc; apply Rplus_le_compat_l.
+    apply (Rplus_le_reg_l ε).
+    rewrite -Rplus_assoc Rplus_opp_r Rplus_0_l Rplus_0_r.
+    rewrite -{2}(Rmult_1_r ε).
+    apply Rmult_le_compat_l; [apply Rlt_le, cond_pos|].
+    apply fR_lt_1.
+  Qed.
+
+
+
+  (** Accounting specific to this example *)
+
+  (* We need to keep some amount of credit inside the progress invariant so we always have something to amplify against *)
+  Program Definition εInv ε0 : nat -> nonnegreal
+    := fun p => εR 2         (* amplifying against samples of (S 2) = 3 *)
+                 N         (* bound on number of correct samples we need *)
+                 (N - p)   (* worst case progress is N, in which case we need €ε0. *)
+                           (* best case progress is 0, in which case we need €0 *)
+                 ε0        (* starting amount of credit given to the amplifier *)
+                 _.
+  Next Obligation. intros. constructor; try lia. constructor; lia. Qed.
+
+  (* Amount of credit we get whenever the resampler picks wrong *)
+  Program Definition εAmplified ε0 : nonnegreal
+    := εAmp 2 N ε0 _.
+  Next Obligation. intros. constructor; lia. Qed.
+
+  (* Excess credit obtained each amplification *)
+  Program Definition εExcess ε0 : posreal
+    := Δε ε0 2 N _.
+  Next Obligation. intros. constructor; lia. Qed.
+
+  (* Accumulated credit after some number of amplifications *)
+  Program Definition εProgress ε0 : nat -> nonnegreal
+    := fun i => mknonnegreal (Rmax 0 (1 - i * εExcess ε0))%R _.
+  Next Obligation. intros. apply Rmax_l. Qed.
+
+  (* We can start out with some amount of progress for free *)
+  (* This value is up (1/εExcess...)*)
+  Lemma initial_progress : ⊢ ∀ ε0, ∃ i, € (εProgress ε0 i).
+  Proof. Admitted.
+
+  Lemma final_progress ε0 : (1 <= εProgress ε0 0%nat)%R.
+  Proof. rewrite /= Rmult_0_l Rminus_0_r. apply Rmax_r. Qed.
+
+
+  (* Error distribution for the resampling step *)
+  Program Definition εDistr_resampler ε0 i (Hi : (S i <= N)%nat)
+    := (fun v: fin 3 => εDistr 2 N i ε0 v _).
+  Next Obligation. intros. do 2 (constructor; try lia). Qed.
+
+  Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε0 p (Hp : ((S p) <= length m)%nat) (asn : val) E :
     inv_asn m asn ->
     ⊢ (l ↦ asn -∗
-       € ε -∗
+       € (εInv ε0 (S p)) -∗
        WP (resample_clause c #l)%E @ E
-         {{ fun _ => ∃ asn' m', (l ↦ asn') ∗ ⌜inv_asn m' asn' ⌝ ∗
-                              ((⌜(m' !!! (fVar_index (proj_clause_value c target))) = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
-                               (€ (ε * εFac)%NNR ))}})%I.
+         {{ fun _ =>
+              ∃ asn' m', (l ↦ asn') ∗
+                         ⌜inv_asn m' asn' ⌝ ∗
+                         ( (* Flips the target variable and loses some credit, or... *)
+                           ( € (εInv ε0 p) ∗
+                            ⌜(m' !!! (fVar_index (proj_clause_value c target)))
+                                = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
+                            (* ...obtains the amplified credit *)
+                            (€ (εAmplified ε0)))}})%I.
   Proof.
     iIntros (Hinv) "Hl Hε".
     Opaque update_asn.
@@ -446,16 +553,14 @@ Section higherorder_walkSAT.
     iIntros "Hl".
     wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε
-                (fun s => if (Fin.eqb s target)
-                         then (nnreal_nat 0%nat)%NNR
-                         else (ε * (nnreal_div (nnreal_nat 3%nat) (nnreal_nat 2%nat)))%NNR)
-              with "Hε").
-    { (* (0 + 3/2 + 3/2) / 3 = 1 *)
-      admit. }
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ _ (εDistr_resampler _ _ _ target) with "Hε").
+    { rewrite εDistr_mean.
+      rewrite /εInv.
+      replace (fRwf_dec_i _ _ _ _) with (εInv_obligation_1 (S p)) by apply fRwf_ext.
+      eauto. }
     iIntros  (i) "Hcr".
     destruct (Fin.eqb i target) eqn:Hi.
-    - (* sampler chooses the target index; flips it *)
+    - (* sampler chooses the target index and flips it *)
       wp_bind (clause_to_index c _)%E.
       wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
       iIntros (i') "->".
@@ -487,6 +592,15 @@ Section higherorder_walkSAT.
         rewrite insert_length.
         by destruct Hinv.  }
       iLeft.
+      iSplitL "Hcr".
+      { apply Fin.eqb_eq in Hi.
+        rewrite -Hi.
+        rewrite /εDistr_resampler /εDistr /εInv.
+        rewrite bool_decide_true; eauto.
+        iApply (ec_spend_irrel with "Hcr").
+        (* provable but the rewrite is annoying *)
+        admit.
+      }
       iPureIntro.
       apply Fin.eqb_eq in Hi.
       replace i with target.
@@ -518,29 +632,18 @@ Section higherorder_walkSAT.
       wp_pures; wp_store.
       iModIntro.
       iExists _, _; iFrame.
-      iPureIntro.
-      split; last apply Hinv'.
-      rewrite insert_length.
-      by destruct Hinv.
+      { assert (i ≠ target)%fin by admit. (* fin nonsense *)
+        rewrite /εDistr_resampler /εDistr.
+        rewrite bool_decide_false; eauto.
+        iSplitR.
+        { iPureIntro. split; last eapply Hinv'. rewrite insert_length. by destruct Hinv. }
+        iRight.
+        iApply (ec_spend_irrel with "Hcr").
+        rewrite /εAmplified.
+        (* provable but the rewrite is annoying, like above *)
+        admit.
+      }
   Admitted.
-
-
-  Fixpoint sampler (f : formula) : val :=
-    (λ: "asnV",
-        match f with
-          | [] => #()
-          | (c :: cs) =>
-              if: (evaluate_clause c) (! "asnV")
-                then (sampler cs) "asnV"
-                else (resample_clause c) "asnV"
-        end)%V.
-
-  Fixpoint checker (f : formula) : val :=
-    (λ: "asnV",
-       match f with
-        | [] => #true
-        | (c :: cs) => (evaluate_clause c (! "asnV")) && (checker cs "asnV")
-        end).
 
 
   (* running the checker *)
@@ -598,33 +701,34 @@ Section higherorder_walkSAT.
       { wp_apply wp_evaluate_clause; [|iFrame].
         iPureIntro. eapply Hinv.  }
       iIntros (v) "(Hl&->)".
-      rewrite /formula_SAT /= in Hsat.
-      assert (Hcsat: (clause_SAT m c && fold_left (λ (acc : bool) (c : clause), acc && clause_SAT m c) f' true) = true).
-      { (* commuting problem (fixable, even if maybe manually) *)
-        admit. }
-      apply andb_prop in Hcsat; destruct Hcsat as [Hcsat Hfsat].
+      rewrite /formula_SAT in Hsat.
+      rewrite (fold_symmetric _ andb_assoc) in Hsat; [|intros; apply andb_comm].
+      rewrite fmap_cons /= in Hsat.
+      apply andb_prop in Hsat; destruct Hsat as [Hcsat Hfsat].
       rewrite Hcsat.
       wp_pures.
       iApply "IHf".
-      + iPureIntro. by rewrite /formula_SAT.
+      + iPureIntro.
+        rewrite /formula_SAT.
+        by rewrite (fold_symmetric _ andb_assoc); [|intros; apply andb_comm].
       + iPureIntro; done.
       + iFrame.
-  Admitted.
+  Qed.
 
-
-
-  Lemma wp_sampler_amplify l asn m solution f ε E :
-    (⊢ ⌜formula_SAT solution f = true ⌝ -∗
+  (* Running the sampler when we have work to do *)
+  Lemma wp_sampler_amplify l asn m solution f ε p E :
+    (⊢ ⌜(S p <= N)%nat⌝ -∗
+       ⌜formula_SAT solution f = true ⌝ -∗
        ⌜formula_SAT m f = false ⌝ -∗
        ⌜ inv_asn m asn ⌝ -∗
        l ↦ asn -∗
-       € ε -∗
+       € (εInv ε (S p)) -∗
        (WP ((Val (sampler f)) #l) @ E
           {{ λ v', ∃ asn' m', l ↦ asn' ∗ ⌜ inv_asn m' asn' ⌝ ∗
-                      (⌜(progress_measure m' solution < progress_measure m solution)%nat ⌝ ∨
-                       € (ε * εFac)%NNR) }}))%I.
+                      ((⌜(progress_measure f m' solution < progress_measure f m solution)%nat ⌝ ∗ €(εInv ε p)) ∨
+                       (€ (εAmplified ε)) )}}))%I.
     Proof.
-      iIntros "%Hsol %Hm %Hinv Hl Hε".
+      iIntros "%Hp %Hsol %Hm %Hinv Hl Hε".
       destruct (find_progress _ _ Hm) as [f1 [f2 [c (-> & Hf1 & Hc)]]].
       (* induct over the SAT clauses doing nothing *)
       iInduction f1 as [| c' f1'] "IH"; last first.
@@ -639,10 +743,16 @@ Section higherorder_walkSAT.
         iIntros (r) "(Hl&->)".
         rewrite Hc'.
         wp_pure.
-        wp_apply ("IH" with "[] [] [] Hl Hε").
-        - admit. (* by Hm and Hc'*)
-        - admit. (* by Hsol*)
-        - admit. (* by Hf1*)
+        replace (f1' ++ [c] ++ f2) with (f1' ++ c :: f2) by auto.
+        wp_apply (ub_wp_wand with "[Hl Hε]").
+        { iApply ("IH" with "[] [] [] Hl Hε").
+          - admit. (* by Hm and Hc'*)
+          - admit. (* by Hsol*)
+          - admit.  (* by Hf1*)
+        }
+        (* Provable *)
+        admit.
+
       }
       simpl app.
 
@@ -656,16 +766,17 @@ Section higherorder_walkSAT.
       iIntros (r) "(Hl&->)".
       rewrite Hc; wp_pures.
       wp_apply (ub_wp_wand with "[Hε Hl]").
-      { wp_apply (resample_amplify with "Hl Hε").  eapply Hinv. }
-
+      { wp_apply (resample_amplify with "Hl Hε"); last first.
+        - eapply Hinv.
+        - destruct Hinv; lia. }
       iIntros (s) "[%asn' [%m' (Hl & %Hasn' & Hs)]]".
       iExists _, _.
       iFrame.
       iSplit; [iPureIntro; eapply Hasn'|].
-      iDestruct "Hs" as "[%H|Hε]".
+      iDestruct "Hs" as "[[Hε %H]|Hε]".
 
       - (* Flip is lucky and makes progress *)
-        iLeft.
+        iLeft; iFrame.
         iPureIntro.
         (* the lemma I proved before seems almost usable *)
 
@@ -680,31 +791,34 @@ Section higherorder_walkSAT.
       - iRight; iFrame.
   Admitted.
 
+  Definition iProgress ε (l : loc) solution f : nat -> iProp Σ :=
+          (fun n => ∃ asn m,
+                      (l ↦ asn ∗
+                       € (εInv ε n) ∗
+                      ⌜ inv_asn m asn ⌝ ∗
+                      ⌜(progress_measure f m solution <= n)%nat⌝))%I.
 
 
-  (*
-  Lemma walksat_sampling_scheme (f : formula) solution (l : loc) E :
+
+  Lemma walksat_sampling_scheme f solution ε (l : loc) E :
     (⊢ ⌜formula_SAT solution f = true ⌝ -∗
        ⌜length solution = N ⌝ -∗
        ⌜(length f > 0)%nat ⌝ -∗
-        incremental_sampling_scheme_spec
+        incr_sampling_scheme_spec
           (λ: "_", (sampler f) #l)%V
           (λ: "_", (checker f) #l)%V
-          (fun n => ∃ asn m,
-                      (l ↦ asn ∗
-                      ⌜ inv_asn m asn ⌝ ∗
-                      ⌜(progress_measure m solution <= n)%nat⌝))
-          εFac
-          (nnreal_nat 1%nat)
+          (iProgress ε l solution f)
+          (εProgress ε)
+          N
           E)%I.
   Proof.
     iIntros "%Hsolution %Hsl %Hnontrivial".
-    rewrite /incremental_sampling_scheme_spec.
+    rewrite /incr_sampling_scheme_spec.
     iSplit.
-    - iIntros (Φ) "!> [Hcr | [%asn [%m (Hl&%Hinv&%Hp)]]] HΦ".
+    - iIntros "[Hcr | [%asn [%m (Hl & Hcr & %Hinv & %Hp)]]]".
       + (* € 1 case: spend *)
         iApply (wp_ec_spend with "Hcr"); [|auto].
-        simpl; lra.
+        apply final_progress.
       + (* Ψ 0 case *)
         apply Nat.le_0_r in Hp.
         apply (progress_complete _) in Hp; [|destruct Hinv; lia].
@@ -712,193 +826,85 @@ Section higherorder_walkSAT.
         (* using Ψ, asn now equals the solution. step the sampler... *)
         wp_pures.
         wp_apply (ub_wp_wand with "[Hl]").
-        { wp_apply wp_sampler_done; try by iPureIntro. iFrame. }
+        { wp_apply wp_sampler_done; iFrame; iPureIntro; eauto. }
         iIntros (v) "Hl".
-        iApply "HΦ".
         (* then step the checker... *)
         wp_pures.
         wp_apply (ub_wp_wand with "[Hl]").
         { iApply wp_check; [|iFrame].
           iPureIntro; apply Hinv. }
         iIntros (r) "(Hl&->)"; iPureIntro; do 2 f_equal.
-        done.
-    - iIntros (ε p Φ) "!> (Hε&[%asn [%m (Hl&%Hinv&%Hp)]]) HΦ".
+        simplify_eq; done.
+    - iIntros (i p) "!> (%Hp_bound & Hε & [%asn [%m (Hl & Hcr & %Hinv & %Hp)]])".
       wp_pures.
-      (* step the sampler differently depending on if it is SAT *)
+      (* step the sampler differently depending on if it is SAT or not *)
       destruct (formula_SAT m f) as [|] eqn:Hsat.
       + (* SAT: we can't make progress or amplify, but that is be okay, since we can pass the check *)
         wp_apply (ub_wp_wand with "[Hl]").
         { wp_apply wp_sampler_done; try by iPureIntro. iFrame. }
         iIntros (?) "Hl".
-        iApply "HΦ".
-        (* go directly to jail, do not pass go, do not collect € εFac *)
         iLeft.
         wp_pures.
-        wp_apply (ub_wp_wand with "[Hl]").
-        { iApply wp_check; [|iFrame].
-          iPureIntro. eapply Hinv. }
-        iIntros (?) "(Hr&->)"; iPureIntro.
-        do 2 f_equal. done.
+        iApply (ub_wp_wand with "[Hε Hcr Hl]").
+        { iApply wp_check; iFrame. iPureIntro. eapply Hinv. }
+        iIntros (?) "[? ->]"; iPureIntro.
+        by do 2 f_equal.
       + (* UNSAT *)
-
-        wp_apply (ub_wp_wand with "[Hl Hε]").
-        { wp_apply (wp_sampler_amplify with "[] [] [] Hl Hε"); iPureIntro.
-          - apply Hsolution.
-          - apply Hsat.
-          - apply Hinv. }
-
-        iIntros (s) "[%Hasn' [%Hm' (Hl & %Hinv' & [Hp | Hε])]]".
-        * (* amkes progress *)
-          iApply "HΦ".
-          iRight. iLeft.
-
-          (* PROBLEM: Spec needs to let credit decrease in the good cases
-             so really, the invariant should connect a lower bound of credit
-             and an upper bound on progress
-           *)
-          admit.
-
-        * iApply "HΦ".
-          iRight. iRight.
-          iExists _, _.
+        (* Step to the resampling step, and amplify *)
+        rewrite /sampler.
+        wp_pures.
+        wp_apply (ub_wp_wand with "[Hl Hcr]").
+        { wp_apply (wp_sampler_amplify with "[] [] [] [] Hl [Hcr]"); last iFrame; try eauto. }
+        iIntros (s) "[%asn' [%m' (Hl & %Hinv' & [(%Hp' & A)|Hamp])]]".
+        * (* makes progress *)
+          iRight; iLeft.
           iFrame.
-          iSplitR; [iPureIntro|].
-          { (* something backwards here *) admit.  }
           iSplitL.
-          -- iExists _, _.
+          { iExists _, _. iFrame. iSplit; iPureIntro; eauto. lia. }
+          iIntros "[%asn'' [%m'' (Hl & Hcr & %Hasn'' & %Ap'')]]".
+          wp_pures.
+          iApply (ub_wp_wand with "[Hl]").
+          { iApply wp_check; iFrame. iPureIntro. eauto. }
+          iIntros (?) "(Hl & ->)".
+          iSplitL.
+          {  iFrame. iExists _, _. iFrame. iSplit; iPureIntro; eauto. }
+          iExists _; iPureIntro; eauto.
+        * (* amplifies *)
+          iRight; iRight.
+          iFrame.
+          (* Revert back to iProgress N *)
+          iExists N.
+          iSplitR; eauto.
+
+          (* Transfer the amplfied credits between the invariants *)
+          iAssert (€ (εInv ε N) ∗ € (pos_to_nn (εExcess ε)) )%I with "[Hamp]" as "[Hinv Hexcess]".
+          { iApply ec_split.
+            iApply (ec_spend_le_irrel with "Hamp").
+            apply εAmp_excess. }
+          iAssert (€ (εProgress ε i)) with "[Hε Hexcess]" as "Hε".
+          { iAssert (€ (εProgress ε (S i) + pos_to_nn (εExcess ε))%NNR) with "[Hε Hexcess]" as "Hε".
+            { iApply ec_split; iFrame. }
+            iApply ec_spend_irrel; [|iFrame].
+            Opaque INR.
+            rewrite /εProgress /=.
+            (* doable *)
+            admit.
+          }
+
+          iFrame.
+          iSplitL.
+          -- iExists _, _; iFrame; iSplit; iPureIntro; eauto.
+             rewrite /progress_measure.
+             (* doable by induction *)
+             admit.
+          -- iIntros "[%asn'' [%m'' (Hl & ? & % & %)]]".
+             wp_pures.
+             wp_apply (ub_wp_wand with "[Hl]").
+             { iApply wp_check; [|iFrame]. iPureIntro; eauto. }
+             iIntros (?) "[? ->]".
              iFrame.
-             iSplit; iPureIntro; eauto.
-          -- wp_pures.
-             wp_apply ub_wp_wand.
-             (* Also a problem: I lose l ↦ asn' here. I guess I need to use proper invariants instead of Ψ? *)
-             { iApply (wp_check with "[]"); admit. }
-             iIntros (?) "(? & ->)". iPureIntro; eexists; eauto.
-  Abort.
-*)
-
-
-  (*
-  Lemma ho_spec_is_incremental (sampler checker : val) (εfactor εfinal : nonnegreal) E :
-    ⊢ sampling_scheme_spec sampler checker εfactor εfinal E -∗ incremental_sampling_scheme_spec sampler checker (fun n: nat => ⌜False⌝) εfactor εfinal E.
-  Proof.
-    iIntros "(#Hamp&#Hspend)".
-    rewrite /incremental_sampling_scheme_spec.
-    iSplit.
-    - iIntros (Φ) "!> [Hcr|?] HΦ"; [|iExFalso; iFrame].
-      iSpecialize ("Hspend" $! #()).
-      wp_apply (ub_wp_wand with "[Hcr]").
-      + iApply ("Hspend" with "Hcr").
-        iNext.  (* sus *)
-        iIntros (?) "Hr".
-        iApply "Hr".
-      + iIntros (?).
-        (* problem: need to strip a later here *)
-        admit.
-    - iIntros (ε p) "!>"; iIntros (Φ) "Hcr HΦ".
-      iSpecialize ("Hamp" $! ε with "Hcr").
-      iApply "Hamp".
-      iNext.
-      iIntros (v).
-      iSpecialize ("HΦ" $! v).
-      (* very sus *)
-    Abort.
-   *)
-
+             iSplitL.
+             { iExists _, _. iFrame.  iSplit; eauto. }
+             eauto.
+    Admitted.
 End higherorder_walkSAT.
-
-  (*
-
-  Definition incremental_sampling_scheme_spec' (sampler checker : val) Ψ εfactor εfinal E : iProp Σ
-    := (* 0: we always need to be able to construct some progress measurement *)
-       (  (* 1. After some amount of progress, we can ensure the checker will pass *)
-          (* 2. We can always spend εfinal to obtain a sample which will surely pass *)
-          {{{ € εfinal ∨ Ψ 0%nat }}}
-            ((Val sampler) #())%E @ E
-          {{{ (v : val), RET v; WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true ⌝ }}}}} ∗
-          (* 3. Given any amount of credit and progress, the sampler will either... *)
-          (∀ ε p,
-            {{{ € ε ∗ Ψ (S p)}}}
-              ((Val sampler) #())%E @ E
-            {{{ (v : val), RET v;
-                (* 3.0 just get lucky and end up done *)
-                (WP ((Val checker) v) @ E {{ λ v', ⌜v' = #true⌝ }}) ∨
-                (* 3.1: obtain a sample which makes progress without consuming error, or *)
-                (€ ε ∗ Ψ p ∗ ((WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))) ∨
-                (* 3.2: amplifies the error by a factor, possibly losing progress *)
-                (∃ ε' p', € ε' ∗ ⌜(ε <= ε' * εfactor)%NNR ⌝ ∗ Ψ p' ∗ (WP ((Val checker) v) @ E {{ λ v', ⌜exists b: bool, v' = #b⌝ }}))}}}))%I.
-
-  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ p (εfactor εfinal : nonnegreal) (depth : nat) E :
-    (0 < εfactor < 1) ->
-    (0 < εfinal < 1) ->
-    incremental_sampling_scheme_spec' sampler checker Ψ εfactor εfinal E -∗
-    ▷ € (generic_geometric_error εfactor εfinal depth) -∗
-    Ψ p -∗
-    (WP (ho_ubdd_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}})%I.
-  Proof.
-    iIntros ([Hfactor_lb Hfactor_ub] [Hfinal_lb Hfinal_ub]) "(#Haccept & #Hamplify) Hε HΨ".
-    do 7 wp_pure.
-    (* outermost induction should be on depth, generalized over p, since amplification can lose progress *)
-    iInduction depth as [|depth' Hdepth'] "IH" forall (p).
-    - (* depth=0, ie we have €εfinal *)
-      wp_pures.
-      wp_bind (sampler #())%E.
-      wp_apply ("Haccept" with "[Hε]").
-      { iLeft. iApply (ec_spend_irrel with "Hε"). rewrite /generic_geometric_error /=. lra. }
-      iIntros (v) "Hcheck".
-      wp_pures.
-      wp_bind (checker v)%E.
-      wp_apply (ub_wp_wand with "Hcheck").
-      iIntros (r) "->".
-      wp_pures.
-      iModIntro; eauto.
-    - (* depth > 0; either make sufficient progress or amplify. *)
-      iInduction p as [|p'] "IHp". (* FIXME: this should be strong induction but iInduction isn't happy with that  *)
-      + (* p = 0; progress complete *)
-        wp_pures; wp_bind (sampler #())%E.
-        wp_apply ("Haccept" with "[HΨ]"); [iRight; eauto|].
-        iIntros (v) "Hcheck".
-        wp_pures.
-        wp_bind (checker v)%E.
-        wp_apply (ub_wp_wand with "Hcheck").
-        iIntros (r) "->".
-        wp_pures.
-        iModIntro; eauto.
-      + (* p > 0, make progress or amplify *)
-        wp_pures.
-        wp_pures; wp_bind (sampler #())%E.
-        wp_apply ("Hamplify" with "[$]").
-        iIntros (v) "[Hluck|[(Hε&HΨ&Hcheck)|[%ε'[%p'' (Hε&%Hamp&Hp''&Hcheck)]]]]".
-        * (* very lucky sample: we are done *)
-          wp_pures.
-          wp_apply (ub_wp_wand with "Hluck").
-          iIntros (?) "->".
-          wp_pures.
-          iModIntro; eauto.
-        * (* lucky sample: makes progress *)
-          wp_pures.
-          wp_bind (checker _)%E.
-          wp_apply (ub_wp_wand with "Hcheck").
-          iIntros (r) "[%b ->]".
-          destruct b.
-          -- (* lucky day, checker accepts! *)
-             wp_pures; iModIntro; eauto.
-          -- (* checker rejects (but we keep the progress) *)
-             wp_pure. wp_apply ("IHp" with "[$] [$]").
-        * (* unlucky guess, progress may get worse but we can amplify *)
-          wp_pures.
-          wp_bind (checker _)%E.
-          wp_apply (ub_wp_wand with "Hcheck").
-          iIntros (r) "[%b ->]".
-          destruct b.
-          -- (* really lucky day! checker accepts on bad sample *)
-             wp_pures. iModIntro; eauto.
-          -- (* use the amplified credit *)
-             wp_pure.
-             wp_apply ("IH" with "[Hε] Hp''").
-             iApply (ec_spend_le_irrel with "Hε").
-             simpl in Hamp.
-             rewrite /generic_geometric_error /=.
-             rewrite (Rmult_comm εfactor) -Rmult_assoc in Hamp.
-             apply (Rmult_le_reg_r εfactor); done.
-  Qed.
-*)

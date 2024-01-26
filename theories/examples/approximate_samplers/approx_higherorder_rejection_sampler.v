@@ -151,29 +151,6 @@ Section safety.
             iApply "IH". }
   Qed.
 
-  Lemma error_limit' (r : nonnegreal) : (r < 1) -> forall ε : posreal, exists n : nat, r ^ n < ε.
-  Proof.
-    intros Hr ε.
-    assert (H1 : Lim_seq.is_lim_seq (fun n => (r ^ n)%R) (Rbar.Finite 0)).
-    { eapply Lim_seq.is_lim_seq_geom.
-      rewrite Rabs_pos_eq; auto.
-      apply cond_nonneg.
-    }
-    rewrite /Lim_seq.is_lim_seq
-            /Hierarchy.filterlim
-            /Hierarchy.filter_le
-            /Hierarchy.eventually
-            /Hierarchy.filtermap
-            in H1.
-    destruct (H1 (fun e' : R => (e' < ε)%R)); simpl.
-    - rewrite /Hierarchy.locally.
-      eexists _. intros.
-      rewrite /Hierarchy.ball /Hierarchy.UniformSpace.ball /Hierarchy.R_UniformSpace /=
-              /Hierarchy.AbsRing_ball Hierarchy.minus_zero_r /Hierarchy.abs /=
-            in H.
-      eapply Rle_lt_trans; [eapply RRle_abs| eapply H].
-    - exists x. by apply H.
-  Qed.
 
   (** Limiting argument: any amount of credit suffices to show the unbounded sampler is safe *)
   Lemma ho_ubdd_safe (sampler checker : val) (r εfinal ε : nonnegreal) E :

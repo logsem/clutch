@@ -338,6 +338,32 @@ Section accounting.
     - by rewrite Rmult_1_l.
     - apply not_0_INR; lia.
   Qed.
+
+  Lemma error_limit' (r : nonnegreal) : (r < 1) -> forall ε : posreal, exists n : nat, r ^ n < ε.
+  Proof.
+    intros Hr ε.
+    assert (H1 : Lim_seq.is_lim_seq (fun n => (r ^ n)%R) (Rbar.Finite 0)).
+    { eapply Lim_seq.is_lim_seq_geom.
+      rewrite Rabs_pos_eq; auto.
+      apply cond_nonneg.
+    }
+    rewrite /Lim_seq.is_lim_seq
+            /Hierarchy.filterlim
+            /Hierarchy.filter_le
+            /Hierarchy.eventually
+            /Hierarchy.filtermap
+            in H1.
+    destruct (H1 (fun e' : R => (e' < ε)%R)); simpl.
+    - rewrite /Hierarchy.locally.
+      eexists _. intros.
+      rewrite /Hierarchy.ball /Hierarchy.UniformSpace.ball /Hierarchy.R_UniformSpace /=
+              /Hierarchy.AbsRing_ball Hierarchy.minus_zero_r /Hierarchy.abs /=
+            in H.
+      eapply Rle_lt_trans; [eapply RRle_abs| eapply H].
+    - exists x. by apply H.
+  Qed.
+
+
 End accounting.
 
 
@@ -358,10 +384,12 @@ Section incremental_spec.
       (* Given any amount of credit and progress, we can get a sample such that... *)
      □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
             WP sampler #() @ E {{ fun s =>
+                   (*...we're done by chance alone, or... *)
+                  (WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}) ∨
                    (*... we make prgress, and can run the checker on the sample without losing progress, or *)
-                  ((€ (ξ (S i)) ∗ Ψ p ∗ (Ψ p -∗ WP checker (Val s) @ E {{fun v => Ψ p ∗ ∃ b: bool, ⌜v = #b⌝}})) ∨
+                  (€ (ξ (S i)) ∗ Ψ p ∗ (Ψ p -∗ WP checker (Val s) @ E {{fun v => Ψ p ∗ ∃ b: bool, ⌜v = #b⌝}})) ∨
                    (*... we lose progress & amplify error, and can run the checker on the sample without losing progress. *)
-                   (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ∗ (Ψ p' -∗ WP checker (Val s) @ E {{fun v => Ψ p' ∗ ∃ b: bool, ⌜v = #b⌝}})))}}))%I.
+                  (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ∗ (Ψ p' -∗ WP checker (Val s) @ E {{fun v => Ψ p' ∗ ∃ b: bool, ⌜v = #b⌝}}))}}))%I.
 
 
   Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i p :
@@ -401,7 +429,14 @@ Section incremental_spec.
         wp_pures.
         wp_bind (sampler _).
         wp_apply (ub_wp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
-        iIntros (s) "[(Hcr&HΨ&Hcheck)|[%p'' (%Hp''&Hcr&HΨ&Hcheck)]]".
+        iIntros (s) "[Hluck | [(Hcr&HΨ&Hcheck)|[%p'' (%Hp''&Hcr&HΨ&Hcheck)]]]".
+        * (* luck *)
+          wp_pures.
+          wp_bind (checker _).
+          wp_apply (ub_wp_wand with "Hluck").
+          iIntros (?) "->".
+          wp_pures.
+          eauto.
         * (* progress *)
           wp_pures.
           wp_bind (checker _).

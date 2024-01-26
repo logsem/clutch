@@ -249,11 +249,13 @@ Section integer_walk.
       iIntros (s) "[(HI&HAX)|(HI&HAX)]".
       + (* progress *)
         iLeft; iFrame.
-        iIntros "?"; wp_pure.
-        iApply (wp_checker_triv with "[$]").
+        admit.
+        (* iIntros "?"; wp_pure.
+        iApply (wp_checker_triv with "[$]"). *)
       + (* amplification *)
         iRight; iFrame.
-        (* S (S p) may or may not be less than (L εᵢ), but if it isn't, we have € 1. *)
+        admit.
+        (* S (S p) may or may not be less than (L εᵢ), but if it isn't, we have € 1.
         destruct (le_lt_eq_dec _ _ Hpwf) as [Hp|Hp].
         * iExists (S (S p)).
           iSplitR; [iPureIntro; lia|].
@@ -264,7 +266,7 @@ Section integer_walk.
           iDestruct "HI" as "[%z (_& HIC &_&_)]".
           assert (Hk :  (Z.of_nat (S (L εᵢ)) >= Z.of_nat (L εᵢ))%Z) by lia.
           (* Check (IC_ge_L εᵢ (S (L εᵢ)) Hk). *)
-          (* We have an amount of credit greater than or equal to 1, so we conclude *)
+          (* We have an amount of credit greater than or equal to 1, so we conclude *) *)
   Admitted.
 
 
