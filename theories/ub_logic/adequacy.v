@@ -69,7 +69,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([ε'' [e1 σ1]]). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %ε1 & %ε2 & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & (%r & %Hr) & % & %Hlift & H)| H]] %Hv".
+    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H|H]]] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply UB_mon_grading; eauto. }
@@ -111,6 +111,31 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
+   - rewrite exec_Sn_not_final; [|eauto].
+      iDestruct (big_orL_mono _ (λ _ _,
+                     |={∅}▷=>^(S n)
+                       ⌜ub_lift (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
+                  with "H") as "H".
+      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
+        replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
+        rewrite -exec_Sn_not_final; [|eauto].
+        iApply (step_fupdN_mono _ _ _
+                  (⌜∀ σ2 , R2 σ2 → ub_lift (exec (S n) (e1, σ2)) φ (ε2 (e1, σ2))⌝)%I).
+        - iIntros (?). iPureIntro.
+          rewrite /= /get_active in Hα.
+          apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
+          erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
+          apply (UB_mon_grading _ _
+                   (ε1 + (SeriesC (λ ρ : language.state prob_lang, language.state_step σ1 α ρ * ε2 (e1, ρ))))) => //.
+          eapply ub_lift_dbind_adv; eauto; [by destruct ε1|].
+          destruct Hε'' as [r Hr]; exists r.
+          intros a.
+          split; [by destruct (ε2 _) | by apply Hr].
+        - iIntros (??). by iMod ("H" with "[//] [//]"). }
+      iInduction (language.get_active σ1) as [| α] "IH"; [done|].
+      rewrite big_orL_cons.
+      iDestruct "H" as "[H | Ht]"; [done|].
+      by iApply "IH".
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
@@ -144,7 +169,7 @@ Section adequacy.
         apply (UB_mon_grading _ _ 0); [apply cond_nonneg | ].
         apply ub_lift_dret; auto.
       + rewrite ub_wp_unfold /ub_wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "(%Hexec_ub & Hlift)".
+        iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
           (exec_ub_mono _ (λ ε' '(e2, σ2), |={∅}▷=>^(S n)
@@ -223,4 +248,24 @@ Proof.
   apply ub_lift_closed_lim.
   intro n.
   apply (wp_union_bound Σ); auto.
+Qed.
+
+Theorem wp_union_bound_epsilon_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{ub_clutchGS Σ} (ε':nonnegreal), ε<ε' -> ⊢ € ε' -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  ub_lift (lim_exec (e, σ)) φ ε.
+Proof.
+  intros H'.
+  apply ub_lift_epsilon_limit.
+  { destruct ε. simpl. lra. }
+  intros ε0 H1.
+  assert (0<=ε0) as Hε0.
+  { trans ε; try lra. by destruct ε. }
+  pose (mknonnegreal ε0 Hε0) as NNRε0.
+  assert (ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
+  { by simpl. }
+  rewrite Heq.
+  eapply wp_union_bound_lim; first done.
+  intros. iIntros "He".
+  iApply H'; try iFrame.
+  simpl. destruct ε; simpl in H1; simpl; lra.
 Qed.

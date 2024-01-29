@@ -21,7 +21,6 @@ Lemma wp_lift_step_fupd_exec_ub E Φ e1 :
   (∀ σ1 ε,
     state_interp σ1 ∗ err_interp ε
     ={E,∅}=∗
-    ⌜reducible e1 σ1⌝ ∗
     exec_ub e1 σ1 (λ ε2 '(e2, σ2),
       ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε)
   ⊢ WP e1 @ E {{ Φ }}.
@@ -45,11 +44,12 @@ Proof.
   iApply wp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iSplit; [done|].
   iApply (exec_ub_prim_step e1 σ1).
   iExists _.
   iExists nnreal_zero.
   iExists ε.
+  iSplit.
+  { iPureIntro. simpl. done. }
   iSplit.
   { iPureIntro. simpl. lra. }
   iSplit.
@@ -147,10 +147,10 @@ Qed.
 Lemma wp_lift_atomic_step {E Φ} e1 :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
-    ⌜reducible e1 σ1⌝ ∗
-    ▷ ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
-      state_interp σ2 ∗
-      from_option Φ False (to_val e2))
+         ⌜reducible e1 σ1⌝ ∗
+         ▷ ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
+                    state_interp σ2 ∗
+                    from_option Φ False (to_val e2))
   ⊢ WP e1 @ E {{ Φ }}.
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
