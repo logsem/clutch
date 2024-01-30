@@ -338,15 +338,14 @@ Section higherorder_flip2.
     - (* continutation *)
       iNext. iIntros (n) "Hcr".
       iApply ("HΦ" $! _); iSplitR.
-      + iPureIntro. apply fin2_enum.
-      + iApply (ec_spend_irrel with "Hcr"). rewrite /ε2_flip2.
-        destruct (fin2_enum n) as [H|H].
-        * rewrite /ε2_flip1 H /=.
-          rewrite -fin_to_nat_to_bool_inv H /=.
-          f_equal.
-        * rewrite /ε2_flip1 H /=.
-          rewrite -fin_to_nat_to_bool_inv H /=.
-          f_equal.
+      + iPureIntro.
+        inv_fin n; first (left; done).
+        intros i; inv_fin i; first (right; done).
+        intros k. by apply Fin.case0.
+      + iApply (ec_spend_irrel with "Hcr"). rewrite /ε2_flip1 /scale_flip.
+        inv_fin n; first by rewrite /ε2_flip1 /=.
+        intros n; inv_fin n; first by rewrite /ε2_flip1 /=.
+        intros n; by apply Fin.case0.
       Unshelve.
       { apply TCEq_refl. }
   Qed.
@@ -428,8 +427,8 @@ Section higherorder_flip2.
         (* we have a contradiction in Hv' and H *)
         exfalso.
         rewrite /not in Hv', H.
-        destruct (fin2_enum v').
-        { apply Hv', fin_to_nat_inj. rewrite H0 /=. done.  }
-        { apply H. do 2 f_equal. rewrite H0 /=. auto. }
+        inv_fin v'; first auto.
+        intros v'; inv_fin v'; first auto.
+        intros v'; by apply Fin.case0.
   Qed.
 End higherorder_flip2.
