@@ -1,4 +1,5 @@
 From clutch.ub_logic Require Export ub_clutch lib.map.
+From stdpp Require Export fin_maps.
 Import Hierarchy.
 Set Default Proof Using "Type*".
 
@@ -170,7 +171,7 @@ Section amortized_hash.
   Context `{!ub_clutchGS Σ}.
   Variable val_size:nat.
   Variable max_hash_size : nat.
-  Variable Hineq : max_hash_size <= (val_size+1).
+  Variable Hineq : (max_hash_size <= (val_size+1))%nat.
   Program Definition amortized_error : nonnegreal :=
     mknonnegreal ((max_hash_size + 1)/(2*(val_size + 1)))%R _.
   Next Obligation.
@@ -275,7 +276,7 @@ Section amortized_hash.
   Qed.
   
 
-  Lemma wp_insert_no_coll_amortized E f m (n : nat) (z : Z) :
+  Lemma wp_insert_new_amortized E f m (n : nat) (z : Z) :
     m !! n = None →
     (size m < max_hash_size)%nat ->
     {{{ hashfun_amortized f m ∗ € amortized_error ∗
@@ -351,4 +352,25 @@ Section amortized_hash.
           case_match => /=; lia.
   Qed.
 
+  Lemma wp_insert_amortized E f m (n : nat) (z : Z) :
+    (size m < max_hash_size)%nat ->
+    {{{ hashfun_amortized f m ∗ € amortized_error ∗
+        ⌜coll_free m⌝ }}}
+      f #n @ E
+      {{{ (v : Z), RET #v; ∃ m', hashfun_amortized f m' ∗ ⌜coll_free m'⌝ ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= max_hash_size)%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
+  Proof.
+    iIntros (Hsize Φ) "[Hh[Herr %Hc]] HΦ".
+    destruct (m!!n) eqn:Heq.
+    - wp_apply (wp_hashfun_prev_amortized with "[$]"); first done.
+      iIntros. iApply "HΦ".
+      iExists _; iFrame.
+      repeat iSplit; try done. iPureIntro; lia.
+    - wp_apply (wp_insert_new_amortized with "[$Hh $Herr]"); try done.
+      iIntros (?) "[??]"; iApply "HΦ".
+      iExists _; iFrame. iPureIntro. repeat split.
+      + rewrite lookup_insert_Some. naive_solver.
+      + rewrite map_size_insert. case_match; try (simpl; lia).
+      + by apply insert_subseteq.
+  Qed.
+  
 End amortized_hash.
