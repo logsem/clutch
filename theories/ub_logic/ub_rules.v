@@ -451,7 +451,7 @@ Proof.
 Qed.
 
 
-Lemma twp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma twp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   (exists r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
@@ -669,7 +669,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma wp_couple_rand_adv_comp (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   (exists r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
@@ -682,13 +682,13 @@ Proof.
   iApply ("H2" with "[$]").
 Qed.
 
-Lemma twp_couple_rand_adv_comp1 (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma twp_couple_rand_adv_comp1 (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
   [[{ € ε1 }]] rand #z @ E [[{ n, RET #n; € (ε2 n) }]].
 Proof.
   iIntros (H1 H2).
-  eapply (twp_couple_rand_adv_comp _ _ _ Φ ε1 ε2).
+  eapply (twp_couple_rand_adv_comp _ _ _ ε1 ε2).
   - apply H1.
   - edestruct mean_constraint_ub as [H3 H4].
     + apply H2.
@@ -696,13 +696,13 @@ Proof.
   - apply H2.
 Qed.
 
-Lemma wp_couple_rand_adv_comp1 (N : nat) z E Φ (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp1 (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
   {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
 Proof.
   iIntros (H1 H2).
-  eapply (wp_couple_rand_adv_comp _ _ _ Φ ε1 ε2).
+  eapply (wp_couple_rand_adv_comp _ _ _ ε1 ε2).
   - apply H1.
   - edestruct mean_constraint_ub as [H3 H4].
     + apply H2.
@@ -1655,7 +1655,6 @@ Proof.
         apply Nat.add_le_mono_r, block_pad_ub.
         rewrite HS /=. lia.
     + rewrite HS.
-      (* iFrame is very slow here *)
       iFrame.
 Qed.
 
@@ -1680,7 +1679,6 @@ Proof.
         apply Nat.add_le_mono_r, block_pad_ub.
         rewrite HS /=. lia.
     + rewrite HS.
-      (* iFrame is very slow here *)
       iFrame.
 Qed.
 

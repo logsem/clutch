@@ -160,10 +160,13 @@ Section higherorder_walkSAT.
         iIntros (v) "%Hv".
         wp_pures.
         iModIntro; iPureIntro.
-        replace (n')%nat with (S (n' - 1))%nat; last admit. (* provable *)
+        replace (n')%nat with (S (n' - 1))%nat; last first.
+        { destruct n'; last by lia.
+          exfalso; rewrite /not in H; apply H.
+          f_equal. }
         simpl.
         by constructor.
-  Admitted.
+  Qed.
 
   (** 3SAT formulas *)
 
@@ -331,6 +334,8 @@ Section higherorder_walkSAT.
       (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))) ->
       (progress_measure f (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution < progress_measure f m solution)%nat.
   Proof.
+    (* We want to split the list into before- and after (fVar_index v). The IH will only be
+       true on suffixes of the list containing (fVar_index v) *)
     intros Hdiff.
     (* Induct over the lists, = when not equal to fVar_index v, < when equal *)
     (* need to show we hit fVar_index... induction should keep track of location? *)
@@ -459,36 +464,6 @@ Section higherorder_walkSAT.
     rewrite /not; intros Hk; inversion Hk; lia.
   Qed.
 
-
-  (** General credit accounting (FIXME: move to seq_amplification) *)
-
-  (* Every time we amplify, we have to restore εInv p for some value of p. The seq_amplification sampling scheme
-     ensures that we have enough credit for this, plus some excess credit. Δε is a lower bound on that excess credit. *)
-  Program Definition Δε (ε : posreal) N1 L kwf : posreal := mkposreal (εAmp N1 L ε kwf - ε) _.
-  Next Obligation. intros. pose (εAmp_amplification N1 L ε kwf). lra. Qed.
-
-  Lemma fR_lt_1 N1 L i fRwf : (fR N1 L i fRwf <= 1)%R.
-  Proof.
-    rewrite fR_closed_2.
-    (* True *)
-  Admitted.
-
-  Lemma εAmp_excess (ε : posreal) N1 L kwf :
-    forall i fRwf, ((εR N1 L i ε fRwf) + (Δε ε N1 L kwf) <= εAmp N1 L ε kwf)%R.
-  Proof.
-    intros.
-    rewrite -(Rplus_0_r (εAmp _ _ _ _)).
-    rewrite /Δε /=.
-    rewrite Rplus_comm Rplus_assoc; apply Rplus_le_compat_l.
-    apply (Rplus_le_reg_l ε).
-    rewrite -Rplus_assoc Rplus_opp_r Rplus_0_l Rplus_0_r.
-    rewrite -{2}(Rmult_1_r ε).
-    apply Rmult_le_compat_l; [apply Rlt_le, cond_pos|].
-    apply fR_lt_1.
-  Qed.
-
-
-
   (** Accounting specific to this example *)
 
   (* We need to keep some amount of credit inside the progress invariant so we always have something to amplify against *)
@@ -518,8 +493,37 @@ Section higherorder_walkSAT.
 
   (* We can start out with some amount of progress for free *)
   (* This value is up (1/εExcess...)*)
-  Lemma initial_progress : ⊢ ∀ ε0, ∃ i, € (εProgress ε0 i).
-  Proof. Admitted.
+  (* Doing this in a super annoying way because I can't find a good way to round numbers
+     that works well with the INR/IZR coercions *)
+  Lemma initial_progress : ⊢ ∀ ε0, ∃ i, |==> € (εProgress ε0 i).
+  Proof.
+    iIntros (ε0).
+    iExists (Z.to_nat (up _)).
+    replace (εProgress _ _) with nnreal_zero; first iApply ec_zero.
+    apply nnreal_ext.
+    rewrite /εProgress /=.
+    rewrite Rmax_left; eauto.
+    apply Rle_minus.
+    rewrite INR_IZR_INZ Z2Nat.id.
+    - erewrite Rinv_l_sym.
+      + eapply Rmult_le_compat_r.
+        * rewrite -{2}(Rmult_1_r (pos _)) -Rmult_minus_distr_l.
+          apply Rmult_le_pos; [apply Rlt_le, cond_pos|].
+          apply Rle_0_le_minus, Rlt_le, lt_1_k.
+        * eapply Rlt_le, Rgt_lt, archimed.
+      + rewrite -{2}(Rmult_1_r (pos _)) -Rmult_minus_distr_l.
+        apply Rgt_not_eq, Rlt_gt, Rmult_lt_0_compat; [apply cond_pos|].
+        apply Rlt_Rminus, lt_1_k.
+    - apply le_IZR.
+      apply Rge_le, Rgt_ge.
+      eapply Rgt_trans.
+      + eapply archimed.
+      + apply Rlt_gt, Rinv_0_lt_compat.
+        rewrite -{2}(Rmult_1_r (pos _)) -Rmult_minus_distr_l.
+        apply Rmult_lt_0_compat; [apply cond_pos|].
+        apply Rlt_Rminus, lt_1_k.
+  Qed.
+
 
   Lemma final_progress ε0 : (1 <= εProgress ε0 0%nat)%R.
   Proof. rewrite /= Rmult_0_l Rminus_0_r. apply Rmax_r. Qed.
@@ -529,6 +533,8 @@ Section higherorder_walkSAT.
   Program Definition εDistr_resampler ε0 i (Hi : (S i <= N)%nat)
     := (fun v: fin 3 => εDistr 2 N i ε0 v _).
   Next Obligation. intros. do 2 (constructor; try lia). Qed.
+
+
 
   Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε0 p (Hp : ((S p) <= length m)%nat) (asn : val) E :
     inv_asn m asn ->
@@ -553,13 +559,16 @@ Section higherorder_walkSAT.
     iIntros "Hl".
     wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ _ (εDistr_resampler _ _ _ target) with "Hε").
-    { rewrite εDistr_mean.
+    replace (length m) with N in Hp; [|by destruct Hinv].
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ (εDistr_resampler _ _ _ target) with "Hε").
+    {
+      rewrite εDistr_mean.
       rewrite /εInv.
       replace (fRwf_dec_i _ _ _ _) with (εInv_obligation_1 (S p)) by apply fRwf_ext.
       eauto. }
     iIntros  (i) "Hcr".
     destruct (Fin.eqb i target) eqn:Hi.
+
     - (* sampler chooses the target index and flips it *)
       wp_bind (clause_to_index c _)%E.
       wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
@@ -583,6 +592,7 @@ Section higherorder_walkSAT.
           simpl; lia. }
       iIntros (v) "%Hinv'".
       wp_pures.
+
       wp_store.
       iModIntro.
       iExists _, _.
@@ -597,9 +607,14 @@ Section higherorder_walkSAT.
         rewrite -Hi.
         rewrite /εDistr_resampler /εDistr /εInv.
         rewrite bool_decide_true; eauto.
+        erewrite εR_ext.
         iApply (ec_spend_irrel with "Hcr").
-        (* provable but the rewrite is annoying *)
-        admit.
+        f_equal.
+        (* weird unification thing I guess *)
+        assert (Her : forall a b c d e f g , (a = b) -> εR c d a e f = εR c d b e g).
+        { intros. simplify_eq. apply εR_ext. }
+        eapply Her.
+        lia.
       }
       iPureIntro.
       apply Fin.eqb_eq in Hi.
@@ -607,6 +622,7 @@ Section higherorder_walkSAT.
       apply list_lookup_total_insert.
       destruct (proj_clause_value c target) as [? ? ?].
       simpl; destruct Hinv; lia.
+
     - (* sampler chooses the wrong index, step through and conclude by the amplification  *)
       wp_bind (clause_to_index c _)%E.
       wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
@@ -632,7 +648,12 @@ Section higherorder_walkSAT.
       wp_pures; wp_store.
       iModIntro.
       iExists _, _; iFrame.
-      { assert (i ≠ target)%fin by admit. (* fin nonsense *)
+      { assert (i ≠ target)%fin.
+        { rewrite /not.
+          intros.
+          simplify_eq.
+          replace (Fin.eqb target target) with true in Hi; [discriminate|].
+          symmetry. by apply Fin.eqb_eq. }
         rewrite /εDistr_resampler /εDistr.
         rewrite bool_decide_false; eauto.
         iSplitR.
@@ -640,10 +661,12 @@ Section higherorder_walkSAT.
         iRight.
         iApply (ec_spend_irrel with "Hcr").
         rewrite /εAmplified.
-        (* provable but the rewrite is annoying, like above *)
-        admit.
+        f_equal.
       }
-  Admitted.
+    Unshelve.
+    { lia. }
+    { constructor; last lia. constructor; lia. }
+  Qed.
 
 
   (* running the checker *)
@@ -732,7 +755,8 @@ Section higherorder_walkSAT.
       destruct (find_progress _ _ Hm) as [f1 [f2 [c (-> & Hf1 & Hc)]]].
       (* induct over the SAT clauses doing nothing *)
       iInduction f1 as [| c' f1'] "IH"; last first.
-      { assert (Hc': clause_SAT m c' = true) by admit. (* uses Hf1*)
+      { assert (Hc': clause_SAT m c' = true).
+        { by apply Forall_inv in Hf1. }
         rewrite /sampler.
         wp_pures.
         wp_load.
@@ -746,13 +770,17 @@ Section higherorder_walkSAT.
         replace (f1' ++ [c] ++ f2) with (f1' ++ c :: f2) by auto.
         wp_apply (ub_wp_wand with "[Hl Hε]").
         { iApply ("IH" with "[] [] [] Hl Hε").
-          - admit. (* by Hm and Hc'*)
-          - admit. (* by Hsol*)
-          - admit.  (* by Hf1*)
+          - iPureIntro. rewrite -Hm /formula_SAT /= /fmap. f_equal. auto.
+          - iPureIntro. rewrite -Hsol /formula_SAT /= /fmap. f_equal.
+            replace ((c' :: f1') ++ [c] ++ f2) with (c' :: (f1' ++ c :: f2)) in Hsol; [|by simpl].
+            rewrite /formula_SAT in Hsol.
+            rewrite (fold_symmetric _ andb_assoc) in Hsol; [|intros; apply andb_comm].
+            rewrite /= in Hsol.
+            apply andb_prop in Hsol.
+            by destruct Hsol.
+          - iPureIntro. by apply Forall_inv_tail in Hf1.
         }
-        (* Provable *)
-        admit.
-
+        iIntros (v) "H". iFrame.
       }
       simpl app.
 
@@ -800,8 +828,9 @@ Section higherorder_walkSAT.
 
 
 
-  Lemma walksat_sampling_scheme f solution ε (l : loc) E :
-    (⊢ ⌜formula_SAT solution f = true ⌝ -∗
+  Lemma walksat_sampling_scheme f solution ε (l : loc) HiL E :
+    (⊢ ⌜forall w : nat, (w < HiL)%nat -> (0 <= 1 - w * εExcess ε)%R ⌝ -∗ (* FIXME: Define HiL in terms of ε*)
+       ⌜formula_SAT solution f = true ⌝ -∗
        ⌜length solution = N ⌝ -∗
        ⌜(length f > 0)%nat ⌝ -∗
         incr_sampling_scheme_spec
@@ -810,9 +839,10 @@ Section higherorder_walkSAT.
           (iProgress ε l solution f)
           (εProgress ε)
           N
+          HiL
           E)%I.
   Proof.
-    iIntros "%Hsolution %Hsl %Hnontrivial".
+    iIntros "%HHil %Hsolution %Hsl %Hnontrivial".
     rewrite /incr_sampling_scheme_spec.
     iSplit.
     - iIntros "[Hcr | [%asn [%m (Hl & Hcr & %Hinv & %Hp)]]]".
@@ -835,7 +865,7 @@ Section higherorder_walkSAT.
           iPureIntro; apply Hinv. }
         iIntros (r) "(Hl&->)"; iPureIntro; do 2 f_equal.
         simplify_eq; done.
-    - iIntros (i p) "!> (%Hp_bound & Hε & [%asn [%m (Hl & Hcr & %Hinv & %Hp)]])".
+    - iIntros (i p) "!> (%Hp_bound & %Hi_bound & Hε & [%asn [%m (Hl & Hcr & %Hinv & %Hp)]])".
       wp_pures.
       (* step the sampler differently depending on if it is SAT or not *)
       destruct (formula_SAT m f) as [|] eqn:Hsat.
@@ -887,16 +917,24 @@ Section higherorder_walkSAT.
             iApply ec_spend_irrel; [|iFrame].
             Opaque INR.
             rewrite /εProgress /=.
-            (* doable *)
-            admit.
+            rewrite /εExcess /= in HHil.
+            do 2 (rewrite Rmax_right; [|apply HHil; lia]).
+            rewrite S_INR. lra.
           }
 
           iFrame.
           iSplitL.
           -- iExists _, _; iFrame; iSplit; iPureIntro; eauto.
              rewrite /progress_measure.
-             (* doable by induction *)
-             admit.
+
+              (*
+             assert (LzipLen: forall T : Type, forall A B : list T, (length A = length B) -> (length (zip A B) = length A)).
+              *)
+             replace N with (length (zip m' solution)) by admit.
+             induction (zip m' solution) as [|H T IH].
+             ++ simpl; lia.
+             ++ simpl.
+                destruct H as [m0 s0]; destruct (eqb m0 s0); try lia.
           -- iIntros "[%asn'' [%m'' (Hl & ? & % & %)]]".
              wp_pures.
              wp_apply (ub_wp_wand with "[Hl]").

@@ -73,7 +73,7 @@ Section basic.
     - wp_pures.
       replace (bool_decide _) with false; last (symmetry; apply bool_decide_eq_false; lia).
       wp_pures.
-      wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
+      wp_apply (wp_couple_rand_adv_comp _ _ _ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
       { exists 1. intros s. apply sample_err_wf; try lia. }
       { by apply sample_err_mean. }
       iIntros (sample') "Hcr".
@@ -120,7 +120,7 @@ Section basic.
           replace (S n' + (S m'-S n'))%nat with (S m') by lia.
           specialize (fin_to_nat_lt sample''); by lia.
     - wp_pures.
-      wp_apply (wp_couple_rand_adv_comp _ _ _ Φ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
+      wp_apply (wp_couple_rand_adv_comp _ _ _ _ (bdd_cf_sampling_error (S n') _ _) with "Hcr").
       { eexists _. intros s. apply sample_err_wf; try lia. }
       { pose P := (sample_err_mean n' m' Hnm' (bdd_cf_error (S n') (S m') _ Hnm)). by eapply P. }
       iIntros (sample') "Hcr".
