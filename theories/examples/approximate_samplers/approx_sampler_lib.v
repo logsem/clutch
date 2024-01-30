@@ -79,46 +79,21 @@ Section finite.
   Qed.
 
 
-
+  (* I feel like there has to be a better way to do this *)
+  (* The best way would be to delete it, I don't think they do this in the actual flip library *)
   Lemma fin2_enum (x : fin 2) : (fin_to_nat x = 0%nat) \/ (fin_to_nat x = 1%nat).
-  Proof. Admitted.
-
-
-  (* surely there has to be a better way *)
-  Lemma fin2_not_0 (x : fin 2) : not (x = 0%fin) -> (x = 1%fin).
   Proof.
-    intros Hx.
-    destruct (fin2_enum x) as [H|H].
-    - replace 0%nat with (@fin_to_nat 2 (0%fin)) in H by auto.
-      apply fin_to_nat_inj in H.
-      exfalso; apply Hx; apply H.
-    - replace 1%nat with (@fin_to_nat 2 (1%fin)) in H by auto.
-      apply fin_to_nat_inj in H.
-      done.
-  Qed.
-
-
-  Lemma fin2_not_1 (x : fin 2) : not (x = 1%fin) -> (x = 0%fin).
-  Proof.
-    intros Hx.
-    destruct (fin2_enum x) as [H|H]; last first.
-    - replace 1%nat with (@fin_to_nat 2 (1%fin)) in H by auto.
-      apply fin_to_nat_inj in H.
-      exfalso; apply Hx; apply H.
-    - replace 0%nat with (@fin_to_nat 2 (0%fin)) in H by auto.
-      apply fin_to_nat_inj in H.
-      done.
-  Qed.
-
-  Lemma fin2_nat_bool (x : fin 2) : (fin_to_nat x =? 1)%nat = (fin_to_bool x).
-  Proof.
-    destruct (fin2_enum x) as [H|H]; rewrite H; simpl.
-    - replace 0%nat with (@fin_to_nat 2 (0%fin)) in H by auto.
-      apply fin_to_nat_inj in H.
-      by rewrite H /=.
-    - replace 1%nat with (@fin_to_nat 2 (1%fin)) in H by auto.
-      apply fin_to_nat_inj in H.
-      by rewrite H /=.
+    destruct (fin_to_bool x) as [|] eqn:H.
+    - right.
+      replace 1%nat with (fin_to_nat (1 : fin 2)%fin); [|simpl; done].
+      replace true with (fin_to_bool (bool_to_fin true)) in H; [|simpl; done].
+      rewrite (@inj _ _ eq eq _ fin_to_bool_inj x (bool_to_fin true) H).
+      simpl. done.
+    - left.
+      replace 0%nat with (fin_to_nat (0 : fin 2)%fin); [|simpl; done].
+      replace false with (fin_to_bool (bool_to_fin false)) in H; [|simpl; done].
+      rewrite (@inj _ _ eq eq _ fin_to_bool_inj x (bool_to_fin false) H).
+      simpl. done.
   Qed.
 End finite.
 
@@ -147,24 +122,36 @@ Section finSeries.
   Proof.
     Opaque firstn.
     simpl.
-    induction v as [|N' v' IH].
-    - simpl; intros. admit. (* wait now this isn't true too *)
-    - simpl.
+    induction n as [|n' IH].
+    - intros H. rewrite take_0 in H. by apply elem_of_nil in H.
+    - (* We can finish cases that are too large immediately  *)
+      destruct (PeanoNat.Nat.le_gt_cases (S n') N) as [Hn'|?]; last first.
+      { intros _. eapply Nat.lt_trans; [apply fin_to_nat_lt | apply H ]. }
+      (* Rewrite ∈ ... fin_enum to a useful form *)
       intros H.
-      destruct n; simpl.
-      { exfalso. rewrite take_0 in H. by eapply (elem_of_nil _). }
-      rewrite firstn_cons in H.
-      apply elem_of_cons in H; destruct H; first simplify_eq.
-      rewrite -fmap_take in H.
-      (* really, we should be able to get the v ∈ take n (fin_enum N') now from H *)
-      assert (HIH: v' ∈ take n (fin_enum N')).
-      { admit. }
-
-      (* anad this should be provable *)
-      assert (Hs: forall A x i (l : list A), (x ∈ take i l) -> (x ∈ take (S i) l) (* and it's not the last element *)).
-      { admit. }
-
-      apply Hs, IH in HIH.
+      assert (Hn'_alt : (n' < length (fin_enum N))%nat).
+      { rewrite fin_enum_length. lia. }
+      edestruct (lookup_ex n' (fin_enum N) Hn'_alt) as [r Hr].
+      erewrite take_S_r in H; last apply Hr.
+      apply elem_of_app in H; destruct H as [H|H].
+      { eapply Nat.lt_le_trans; [apply (IH H)|lia]. }
+      apply elem_of_list_singleton in H; simplify_eq.
+      (* Now we just have to prove it for the last element *)
+      apply Nat.lt_succ_r, Nat.eq_le_incl.
+      Set Printing Coercions.
+      clear IH Hn' Hn'_alt.
+      generalize dependent N.
+      induction n' as [|n'' IHn''].
+      { destruct N.
+        -- intros. simpl in Hr. discriminate.
+        -- intros. simpl in Hr. inversion Hr. auto.
+      }
+      induction N as [|N' IHN'].
+      { intros. rewrite /fin_enum /= in Hr. discriminate. }
+      intros.
+      simpl in Hr.
+      apply (nth_lookup_Some _ _ 0%fin _) in Hr.
+      (* brutal *)
   Admitted.
 
 
@@ -177,6 +164,7 @@ Section finSeries.
   Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
     SeriesC (fun x : fin M => nonneg (if bool_decide (x < (S z))%nat then nnreal_zero else K)) = (M-(S z)) * nonneg K.
   Proof.
+    Set Printing Coercions.
     rewrite countable_sum.SeriesC_finite_foldr.
     rewrite -(take_drop (S z) (enum (fin M))).
     rewrite foldr_app.
@@ -377,12 +365,12 @@ Section incremental_spec.
      ξ : error
      L : progress bound
    *)
-  Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L E : iProp Σ :=
+  Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L iL E : iProp Σ :=
     ( (* Either 0 credit or 0 progress => we will sample a value which the checker accepts
          Allowed to consume (or invalidate Ψ) in this process *)
       ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
       (* Given any amount of credit and progress, we can get a sample such that... *)
-     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
+     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ ⌜((S i) < iL)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
             WP sampler #() @ E {{ fun s =>
                    (*...we're done by chance alone, or... *)
                   (WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}) ∨
@@ -392,15 +380,16 @@ Section incremental_spec.
                   (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ∗ (Ψ p' -∗ WP checker (Val s) @ E {{fun v => Ψ p' ∗ ∃ b: bool, ⌜v = #b⌝}}))}}))%I.
 
 
-  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i p :
+  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i iL p :
     ⊢ ⌜(p <= L)%nat ⌝ ∗
-    incr_sampling_scheme_spec sampler checker Ψ ξ L E ∗
+      ⌜(i < iL)%nat ⌝ ∗
+    incr_sampling_scheme_spec sampler checker Ψ ξ L iL E ∗
     € (ξ i) ∗
     Ψ p -∗
     WP (gen_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}}.
   Proof.
     rewrite /incr_sampling_scheme_spec.
-    iIntros "(%Hl&(Hfinal&#Hamp)&Hcr&HΨ)".
+    iIntros "(%Hl&%Hil&(Hfinal&#Hamp)&Hcr&HΨ)".
     rewrite /gen_rejection_sampler.
     do 7 wp_pure.
     iRevert (Hl).
@@ -457,7 +446,8 @@ Section incremental_spec.
           -- (* lucky: checker accepts *)
              wp_pures. eauto.
           -- (* not lucky: checker rejects *)
-             wp_pure. iApply ("IHerror" with "Hfinal Hcr HΨ"). eauto.
+             assert (HiL' : (i' < iL)%nat) by lia.
+             wp_pure. iApply ("IHerror" $! HiL' with "Hfinal Hcr HΨ"). eauto.
     Qed.
 
 

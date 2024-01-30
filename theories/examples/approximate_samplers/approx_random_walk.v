@@ -131,7 +131,7 @@ Section integer_walk.
       excluded by virtue of the (S p) in the amp spec.
 
      *)
-    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _
                 ((IC εᵢ (S p)) + (AC εᵢ εₐ (L εᵢ - S p) (I_obligation_1 εᵢ (S p)) kwf))%NNR
                 (integer_walk_distr εᵢ εₐ (S p) kwf) with "[HcrAC HcrIC]").
     { (* Series mean *)
@@ -211,7 +211,7 @@ Section integer_walk.
     - eauto.
   Qed.
 
-  Lemma integer_walk_sampling_scheme (l : loc) εᵢ εₐ kwf E :
+  Lemma integer_walk_sampling_scheme (l : loc) εᵢ εₐ kwf E B:
     ⊢ (* ⌜(0 < nonneg ε0)%R ⌝ -∗ *)
       incr_sampling_scheme_spec
         (λ: "_", int_walk_sampler #l)
@@ -219,6 +219,7 @@ Section integer_walk.
         (I εᵢ εₐ l kwf)
         (AX εᵢ εₐ kwf)
         (L εᵢ)
+        B
         E.
   Proof.
     iSplit.
@@ -243,7 +244,7 @@ Section integer_walk.
           iModIntro. iPureIntro. f_equal. f_equal.
           apply bool_decide_eq_true_2. lia.
     - iModIntro.
-      iIntros (i p) "(%Hpwf&HcrAX&HI)".
+      iIntros (i p) "(%Hpwf&%Hb&HcrAX&HI)".
       wp_pure.
       wp_apply (ub_wp_wand with "[HcrAX HI]"); first iApply (wp_sampler_amp with "[$]").
       iIntros (s) "[(HI&HAX)|(HI&HAX)]".

@@ -229,7 +229,7 @@ Section higherorder_rand.
     iStartProof; iSplit.
     - (* sampling rule *)
       iIntros (ε Φ) "!> Hcr HΦ"; wp_pures.
-      iApply (wp_couple_rand_adv_comp  m' _ _ _ ε (rand_ε2 n' m' ε) _ with "Hcr").
+      iApply (wp_couple_rand_adv_comp  m' _ _ ε (rand_ε2 n' m' ε) _ with "Hcr").
       { (* uniform bound *)
         eexists (nnreal_div ε (err_factor (S n') (S m'))); intros s.
         rewrite /rand_ε2.
@@ -290,7 +290,6 @@ Section higherorder_rand.
         specialize (fin_to_nat_lt s'); by lia.
 
     Unshelve.
-    { apply Φ. }
     { rewrite Nat2Z.id; apply TCEq_refl. }
   Qed.
 
@@ -327,7 +326,7 @@ Section higherorder_flip2.
     {{{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_flip ε1 εh εt #v) }}}.
   Proof.
     iIntros (Φ) "Hcr HΦ".
-    iApply (wp_couple_rand_adv_comp 1%nat  _ _ _ ε1 (ε2_flip1 ε1 εh εt) _ with "Hcr").
+    iApply (wp_couple_rand_adv_comp 1%nat  _ _ ε1 (ε2_flip1 ε1 εh εt) _ with "Hcr").
     - (* uniform bound *)
       exists (εh + εt)%NNR; intros n.
       rewrite /ε2_flip1.
@@ -338,20 +337,17 @@ Section higherorder_flip2.
       lra.
     - (* continutation *)
       iNext. iIntros (n) "Hcr".
-      iApply ("HΦ" $! (fin_to_nat n)); iSplitR.
-      + iPureIntro; apply fin2_enum.
+      iApply ("HΦ" $! _); iSplitR.
+      + iPureIntro. apply fin2_enum.
       + iApply (ec_spend_irrel with "Hcr"). rewrite /ε2_flip2.
         destruct (fin2_enum n) as [H|H].
         * rewrite /ε2_flip1 H /=.
-          rewrite -fin2_nat_bool.
-          replace (n =? 1)%nat with false; [done|].
-          symmetry; apply Nat.eqb_neq; lia.
+          rewrite -fin_to_nat_to_bool_inv H /=.
+          f_equal.
         * rewrite /ε2_flip1 H /=.
-          rewrite -fin2_nat_bool.
-          replace (n =? 1)%nat with true; [done|].
-          symmetry; apply Nat.eqb_eq; lia.
+          rewrite -fin_to_nat_to_bool_inv H /=.
+          f_equal.
       Unshelve.
-      { apply Φ. }
       { apply TCEq_refl. }
   Qed.
 
@@ -430,6 +426,10 @@ Section higherorder_flip2.
         wp_pures; iModIntro; iApply "HΦ".
         wp_pures; case_bool_decide; wp_pures; auto.
         (* we have a contradiction in Hv' and H *)
-        exfalso. apply fin2_not_0  in Hv'. apply H. rewrite Hv' /=. f_equal.
+        exfalso.
+        rewrite /not in Hv', H.
+        destruct (fin2_enum v').
+        { apply Hv', fin_to_nat_inj. rewrite H0 /=. done.  }
+        { apply H. do 2 f_equal. rewrite H0 /=. auto. }
   Qed.
 End higherorder_flip2.

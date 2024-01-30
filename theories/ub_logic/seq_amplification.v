@@ -131,6 +131,21 @@ Section seq_ampl.
       lia.
   Qed.
 
+  Lemma fR_lt_1 N1 L i fRwf : (fR N1 L i fRwf <= 1)%R.
+  Proof.
+    destruct fRwf as [kwf ?]; destruct kwf.
+    rewrite fR_closed_2.
+    apply Rcomplements.Rle_minus_l.
+    rewrite -{1}(Rplus_0_r 1%R); apply Rplus_le_compat_l.
+    apply Rcomplements.Rdiv_le_0_compat; [apply -> Rcomplements.Rminus_le_0 | apply Rlt_Rminus ].
+    - apply pow_R1_Rle.
+      pose (pos_INR N1).
+      rewrite S_INR.
+      lra.
+    - apply Rlt_pow_R1; try lia.
+      apply lt_1_INR. lia.
+  Qed.
+
   (* fR will have the mean property we need *)
   Lemma fR_mean N l i fRwf :
     (S N) * (fR N l i (fRwf_dec_i N l i fRwf)) = N * (k N l (fRwf.(k_wf N l (S i)))) +  fR N l (S i) fRwf .
@@ -272,4 +287,24 @@ Section seq_ampl.
     rewrite (fR_mean N); try lia.
     lra.
   Qed.
+
+
+  Program Definition Δε (ε : posreal) N L kwf : posreal := mkposreal (εAmp N L ε kwf - ε) _.
+  Next Obligation. intros. pose (εAmp_amplification N L ε kwf0). lra. Qed.
+
+  Lemma εAmp_excess (ε : posreal) N1 L kwf :
+    forall i fRwf, ((εR N1 L i ε fRwf) + (Δε ε N1 L kwf) <= εAmp N1 L ε kwf)%R.
+  Proof.
+    intros.
+    rewrite -(Rplus_0_r (εAmp _ _ _ _)).
+    rewrite /Δε /=.
+    rewrite Rplus_comm Rplus_assoc; apply Rplus_le_compat_l.
+    apply (Rplus_le_reg_l ε).
+    rewrite -Rplus_assoc Rplus_opp_r Rplus_0_l Rplus_0_r.
+    rewrite -{2}(Rmult_1_r ε).
+    apply Rmult_le_compat_l; [apply Rlt_le, cond_pos|].
+    apply fR_lt_1.
+  Qed.
+
+
 End seq_ampl.
