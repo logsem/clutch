@@ -133,7 +133,7 @@ Module coll_free_hash.
       map_list hm ((λ b, LitV (LitInt b)) <$> m) ∗
       ⌜ sval < rval ⌝ ∗
       ⌜ sval = (length (gmap_to_list m)) ⌝ ∗
-      ⌜(ε + (rval - sval)*(init_r)/(init_val_size) >=
+      ⌜(ε + (rval - sval)*( 3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval-1) )%R ⌝ ∗
       ⌜ coll_free m ⌝.
 
@@ -206,10 +206,10 @@ Module coll_free_hash.
     (0 <= ε) ->
     (0 < vsval) ->
     (sval + 1 < rval) ->
-    (ε + (rval - sval)*(init_r)/(init_val_size) >=
+    (ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval - 1))%R ->
     exists ε',
-    (0 <= ε') /\ (ε' + (sval / vsval) <= ε + (init_r)/(init_val_size)) /\ (ε' + (rval - (sval + 1))*(init_r)/(init_val_size) >=
+    (0 <= ε') /\ (ε' + (sval / vsval) <= ε + (3 * init_r)/(4 * init_val_size)) /\ (ε' + (rval - (sval + 1))*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) (sval + 1) (rval - 1)).
    Proof.
      intros Hpos Hvs Hcomp Hsum.
@@ -223,7 +223,7 @@ Module coll_free_hash.
          apply INR_le.
          rewrite S_INR in Hcomp. lra.
      }
-     exists (ε + (init_r / init_val_size) - (sval / vsval)).
+     exists (ε + ((3 * init_r) / (4 * init_val_size)) - (sval / vsval)).
      split; [ | split].
      - apply (Rmult_le_reg_l (rval - sval)); [lra |].
        rewrite Rmult_0_r {2}/Rminus Rplus_assoc Rmult_plus_distr_l.
@@ -234,8 +234,8 @@ Module coll_free_hash.
        apply Rcomplements.Rle_minus_l.
        etrans; eauto.
        replace
-         (0 - ((rval - sval - 1) * ε + (rval - sval) * (init_r / init_val_size + - (sval / vsval)))) with
-         (((rval - sval) * (sval / vsval) - (rval - sval - 1) * ε) + - ((rval - sval) * init_r / init_val_size) ) by lra.
+         (0 - ((rval - sval - 1) * ε + (rval - sval) * (3 * init_r / ( 4 * init_val_size) + - (sval / vsval)))) with
+         (((rval - sval) * (sval / vsval) - (rval - sval - 1) * ε) + - ((rval - sval) * (3 * init_r) / (4 * init_val_size))) by lra.
        rewrite {6}/Rminus.
        apply Rplus_le_compat_r.
        apply Rcomplements.Rle_minus_l.
@@ -278,8 +278,8 @@ Module coll_free_hash.
        + apply le_INR, H.
      - lra.
      - replace
-         (ε + init_r / init_val_size - sval / vsval + (rval - (sval + 1)) * init_r / init_val_size) with
-         (ε - sval / vsval + (rval - sval) * (init_r / init_val_size)) by lra.
+         (ε + 3 * init_r / (4 * init_val_size) - sval / vsval + (rval - (sval + 1)) * (3 * init_r) / (4 * init_val_size)) with
+         (ε - sval / vsval + (rval - sval) * (3 * init_r / (4 * init_val_size))) by lra.
        rewrite Rplus_comm.
        rewrite -Rplus_assoc.
        apply Rle_ge.
@@ -299,13 +299,13 @@ Module coll_free_hash.
     (sval + 1 < rval)%nat ->
     ( 0 < vsval) ->
       € ε -∗
-      ⌜ (ε + (rval - sval)*(init_r)/(init_val_size) >=
+      ⌜ (ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval - 1))%R ⌝%I -∗
-      € (nnreal_div (nnreal_nat (init_r)) (nnreal_nat(init_val_size))) -∗
+      € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
       ∃ (ε' : nonnegreal),
       (€ ε' ∗
       € (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
-      ⌜(ε' + (rval - (sval + 1))*init_r/(init_val_size) >=
+      ⌜(ε' + (rval - (sval + 1))*(3 * init_r)/(4 *init_val_size) >=
           sum_n_m (λ x, x/vsval) (sval + 1) (rval - 1))%R ⌝.
   Proof.
     intros Hsval Hvsval.
@@ -328,7 +328,12 @@ Module coll_free_hash.
       + simpl.
         rewrite /Rdiv in Hupd.
         rewrite -(Rplus_comm ε).
-        auto.
+        do 2 rewrite Nat.add_0_r.
+        etrans; eauto.
+        apply Rplus_le_compat; [lra |].
+        do 5 rewrite plus_INR. right.
+        f_equal; [lra |].
+        f_equal. lra.
     - iPureIntro.
       auto.
   Qed.
@@ -339,9 +344,9 @@ Module coll_free_hash.
     ( 0 < vsval) ->
     (sval + 1 = rval) ->
     (rval / vsval =  init_r / init_val_size)%R ->
-    (ε + (init_r)/(init_val_size) >= ((rval - 1)/vsval)%R) ->
-    ((sval / vsval) <= ε + (init_r)/(init_val_size)) /\
-      ((2 * rval - (sval + 1))*(init_r)/(init_val_size) >=
+    (ε + (3 * init_r)/(4 * init_val_size) >= ((rval - 1)/vsval)%R) ->
+    ((sval / vsval) <= ε + (3 * init_r)/(4 * init_val_size)) /\
+      ((2 * rval - (sval + 1))*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/(2*vsval)) (sval + 1) (2*rval - 1)).
   Proof.
     intros Hpos Hvsval Heq Hratio Hsum.
@@ -366,26 +371,23 @@ Module coll_free_hash.
       }
       rewrite Heq.
       replace (2*rval - rval) with (INR rval) by lra.
-      replace (rval * init_r / init_val_size) with (rval * rval / vsval); last first.
+      replace (rval * (3 * init_r) / (4 * init_val_size)) with (rval * (3 * rval) / (4 * vsval)); last first.
       {
         rewrite /Rdiv.
         rewrite /Rdiv in Hratio.
         do 2 rewrite (Rmult_assoc rval).
-        by rewrite Hratio.
+        replace (3 * rval * / (4 * vsval)) with ((3 / 4) * (rval / vsval)); last first.
+        - rewrite /Rdiv Rinv_mult. lra.
+        - rewrite /Rdiv Hratio Rinv_mult. lra.
       }
       transitivity (rval * (3 * rval - 1) / (4 * vsval)).
       + apply Rle_ge.
         rewrite /Rdiv.
         do 2 rewrite Rmult_assoc.
         apply Rmult_le_compat_l; [ apply pos_INR |].
-        transitivity (( 4 * rval) * / (4 * vsval));
-          last by rewrite Rinv_mult; lra.
-        apply Rmult_le_compat_r;
-          first by left; apply Rinv_0_lt_compat; real_solver.
-        transitivity (4 * rval - 1); last by lra.
-        apply Rplus_le_compat;
-          last by lra.
-        apply Rmult_le_compat_r; [apply pos_INR | lra].
+        apply Rmult_le_compat_r; [ | lra ].
+        left.
+        apply Rinv_0_lt_compat. lra.
       + right.
         rewrite -Rmult_assoc.
         rewrite -(Rmult_comm rval (1 / (2 * vsval))).
@@ -406,11 +408,11 @@ Module coll_free_hash.
     ( 0 < vsval) ->
       € ε -∗
       ⌜ (rval / vsval = init_r / init_val_size)%R ⌝ -∗
-      ⌜ (ε + (init_r)/(init_val_size) >= ((rval - 1)/vsval))%R ⌝%I -∗
-      € (nnreal_div (nnreal_nat (init_r)) (nnreal_nat(init_val_size))) -∗
+      ⌜ (ε + (3 * init_r)/(4 * init_val_size) >= ((rval - 1)/vsval))%R ⌝%I -∗
+      € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
       (€ nnreal_zero ∗
       € (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
-      ⌜((2 * rval - (sval + 1))*(init_r)/(init_val_size) >=
+      ⌜((2 * rval - (sval + 1))*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/(2*vsval)) (sval + 1) (2*rval - 1))%R ⌝.
   Proof.
     intros Hsval Hvsval.
@@ -433,7 +435,13 @@ Module coll_free_hash.
         rewrite Rplus_0_l.
         rewrite /Rdiv in Hupd.
         rewrite -(Rplus_comm ε).
-        auto.
+        etrans; eauto.
+        apply Rplus_le_compat; [lra |].
+        do 7 rewrite plus_INR. right.
+        simpl.
+        do 2 rewrite Rplus_0_r.
+        f_equal; [lra |].
+        f_equal. lra.
     - iPureIntro.
       auto.
   Qed.
@@ -444,7 +452,7 @@ Module coll_free_hash.
     0 < vsval ->
     (sval + 1 < rval)%nat ->
     {{{ cf_hashfun f m vsval sval rval ε ∗
-          € (nnreal_div (nnreal_nat (init_r)) (nnreal_nat(init_val_size))) }}}
+          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       f #n @ E
     {{{ (v : Z), RET #v;
         ∃ ε',
@@ -539,7 +547,7 @@ Module coll_free_hash.
     0 < vsval ->
     (sval + 1 = rval)%nat ->
     {{{ cf_hashfun f m vsval sval rval ε ∗
-          € (nnreal_div (nnreal_nat (init_r)) (nnreal_nat(init_val_size))) }}}
+          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       f #n @ E
     {{{ (v : Z), RET #v;
           cf_hashfun f (<[ n := v ]>m) (Nat.mul 2 vsval) rval (Nat.mul 2 rval) nnreal_zero }}}.
@@ -671,11 +679,11 @@ Module coll_free_hash.
                   intro. rewrite mult_INR /= //.
                 }
                 right.
-                rewrite mult_INR -Heq /Rdiv /=.
+                rewrite -Heq /=.
                 rewrite Rplus_0_l.
-                do 2 rewrite Rmult_assoc.
-                f_equal.
-                rewrite plus_INR /= //.
+                do 2 f_equal.
+                do 4 rewrite plus_INR /=.
+                lra.
              ++ iPureIntro.
                 apply coll_free_insert; auto.
                 apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
