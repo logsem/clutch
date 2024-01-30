@@ -1,8 +1,9 @@
 From clutch.ub_logic Require Export ub_clutch lib.map hash lib.list.
 Import Hierarchy.
 Set Default Proof Using "Type*".
+Open Scope nat.
 
-Section merkel_tree.
+Section merkle_tree.
   Context `{!ub_clutchGS Σ}.
   Variables height:nat.
   Variables val_bit_size':nat.
@@ -14,28 +15,37 @@ Section merkel_tree.
   (* Definition identifier : nat := 2^leaf_bit_size. *)
   Definition num_of_leafs : nat := 2^height.
   
-  Inductive merkel_tree :=
+  Inductive merkle_tree :=
   | Leaf (hash_value : nat) (leaf_value:nat)
-  | Branch (hash_value : nat) (t1 t2:merkel_tree).
+  | Branch (hash_value : nat) (t1 t2:merkle_tree).
 
-  Definition root_hash_value (t: merkel_tree) :=
+  Definition root_hash_value (t: merkle_tree) :=
     match t with
     | Leaf h _ => h
     | Branch h _ _ => h
     end.
-    
-  Fixpoint tree_relate (h:nat) (lt : val) (t:merkel_tree) : Prop:=
-    match h with
-    |0 => (∃ (hv v:nat), lt = InjLV (#hv, #v) /\ t = Leaf hv v)
-    |S h' => ∃ (hv:nat) (ll lr:val) (l r:merkel_tree), lt = InjRV (#hv, ll, lr) /\ t = Branch hv l r /\
-                                tree_relate h' ll l /\ tree_relate h' lr r 
-  end.
 
-  Fixpoint tree_valid (t:merkel_tree) (m:gmap nat Z) : Prop :=
-    match t with
-    | Leaf h l => h < 2^val_bit_size /\ l < 2^leaf_bit_size /\ m!!l%nat = Some (Z.of_nat h)
-    | Branch h l r => h < 2^val_bit_size /\ m!!((root_hash_value l)*2^val_bit_size + root_hash_value r)%nat=Some (Z.of_nat h) /\ tree_valid l m /\ tree_valid r m
-    end.
+  Inductive tree_relate: nat -> val -> merkle_tree -> Prop:=
+  | tree_relate_lf (hv v:nat): tree_relate 0 (InjLV (#hv, #v)) (Leaf hv v)
+  | tree_relate_br n (hv:nat) ll l lr r:
+    tree_relate n ll l ->
+    tree_relate n lr r ->
+    tree_relate (S n) (InjRV (#hv, ll, lr)) (Branch hv l r)
+  .
+
+  Inductive tree_valid: merkle_tree -> gmap nat Z -> Prop :=
+  |tree_valid_lf (h l:nat) m:
+    h < 2^val_bit_size ->
+    l < 2^leaf_bit_size ->
+    m!!l%nat = Some (Z.of_nat h) ->
+    tree_valid (Leaf h l) m
+  |tree_valid_br (h:nat) l r m:
+    tree_valid l m ->
+    tree_valid r m ->
+    h < 2^val_bit_size ->
+    m!!((root_hash_value l)*2^val_bit_size + root_hash_value r)%nat=Some (Z.of_nat h) ->
+    tree_valid (Branch h l r) m.
+    
 
   Definition map_valid (m:gmap nat Z) : Prop := coll_free m.
 
@@ -63,22 +73,20 @@ Section merkel_tree.
 
   .
 
-   Fixpoint tree_value_match (tree:merkel_tree) (v:nat) (path:list bool) :=
-     match (tree, path) with
-     | (Leaf h lf, []) => lf=v
-     | (Branch h l r, x::xs) => if x then tree_value_match l v xs else tree_value_match r v xs
-     | _ => False
-     end.
+  Inductive tree_value_match: merkle_tree -> nat -> list bool -> Prop:=
+  | tree_value_match_lf h lf: tree_value_match (Leaf h lf) lf []
+  | tree_value_match_left h l r xs v:
+    tree_value_match l v xs ->
+    tree_value_match (Branch h l r) v (true::xs)
+  | tree_value_match_right h l r xs v:
+    tree_value_match r v xs ->
+    tree_value_match (Branch h l r) v (false::xs).
 
   (** Lemmas *)
-  Lemma tree_relate_leaf h ltree a b :
-    tree_relate h ltree (Leaf a b) -> h = 0%nat /\ ltree = InjLV (#a, #b).
-  Proof.
-  Admitted.
   
 
   (** Spec *)
-  Lemma wp_correct_check (ltree:val) (tree:merkel_tree) (m:gmap nat Z) (v:nat) (path:list bool) llist f E:
+  Lemma wp_correct_check (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (path:list bool) llist f E:
      {{{ ⌜tree_relate height ltree tree⌝ ∗
         ⌜tree_valid tree m⌝ ∗
         hashfun_amortized (val_size-1)%nat max_hash_size f m ∗
@@ -97,7 +105,7 @@ Section merkel_tree.
     induction tree.
     - intros.
       rewrite /compute_hash_from_leaf.
-      wp_pures. apply tree_relate_leaf in Htrelate as [-> ->].
+      wp_pures. inversion Htrelate; subst. 
       wp_match.
       wp_apply (wp_hashfun_prev_amortized with "[$]").
       + lia.
@@ -107,4 +115,4 @@ Section merkel_tree.
     - admit.
   Admitted.
   
-End merkel_tree.
+End merkle_tree.
