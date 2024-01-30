@@ -66,7 +66,7 @@ Section adequacy.
     rewrite /rwp_pre.
     iSpecialize ("Hrwp" with "[$]").
     case_match eqn:Hv.
-    - iMod "Hrwp" as "(Hσ & Hauth)".
+    - iMod "Hrwp" as "(Hσ & Hauth & _)".
       erewrite lim_exec_final; [|done].
       iApply fupd_mask_intro; [set_solver|]; iIntros "_".
       iApply step_fupdN_intro; [done|].
@@ -243,8 +243,7 @@ Section adequacy.
 End adequacy.
 
 Theorem wp_refRcoupl `{!tprGpreS δ Σ} e σ a n :
-  (∀ `{!tprG δ Σ},
-    ⊢ specF a -∗ WP e {{ _, True }}) →
+  (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
   lim_exec (e, σ) ≿ exec n a : (λ _ _, True).
 Proof.
   intros Hwp.

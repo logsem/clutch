@@ -6,7 +6,7 @@ Section coupl.
   Context `{!tprG δ Σ}.
 
   Definition int_to_bool : val :=
-    λ: "z", if: "z" = #0 then #false else #true.
+    λ: "z", ~ ("z" = #0).
   Definition flip : expr := (int_to_bool (rand #1))%E.
 
   Lemma rwp_couple_flip E R a1 :
@@ -18,7 +18,7 @@ Section coupl.
     wp_apply (rwp_couple with "Ha"); [by eapply Rcoupl_fair_coin_dunifP|].
     iIntros (n a2) "[Ha %HR]". rewrite /int_to_bool.
     wp_pures.
-    case_bool_decide; wp_pures.
+    case_bool_decide.
     - iApply "HΦ". iFrame. inv_fin n; eauto.
     - iApply ("HΦ"). iFrame. inv_fin n; eauto.
   Qed.
@@ -31,7 +31,7 @@ Section coupl.
     wp_apply (rwp_rand 1 with "[//]").
     iIntros (?) "_ /=". rewrite /int_to_bool.
     wp_pures.
-    case_bool_decide; wp_pures.
+    case_bool_decide.
     - iApply "HΦ". iFrame. inv_fin n; eauto.
     - iApply ("HΦ"). iFrame. inv_fin n; eauto.
   Qed.
