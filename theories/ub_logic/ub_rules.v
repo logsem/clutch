@@ -1163,7 +1163,24 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_bound with "Hsupply Hcr") as %Hle.
+
+  (* Version which is too strong to prove adequacy for *)
   iApply exec_ub_stutter_step.
+
+  (* Can I do this proof when I weaken the stutter step rule to use ε1 = 0 and R = (fun _ => False)?
+     Looks like no.
+     What weakenings still work? *)
+  (*
+  iExists (fun _ => False), nnreal_zero, ε1.
+  iSplitR; first admit.
+  iSplitL.
+  { iPureIntro.
+    rewrite /ub_lift.
+    intros p Hp.
+  }
+  *)
+
+
   assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
   iExists (λ _, False), ε, (mknonnegreal (ε1 - ε) Hdiff).
   iSplitR; [iPureIntro; simpl; lra|].

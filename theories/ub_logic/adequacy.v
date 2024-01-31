@@ -136,7 +136,46 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  - admit.
+  - iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
+
+    (*
+    iApply step_fupdN_mono.
+    { apply pure_mono. eapply UB_mon_grading; eauto. }
+    rewrite exec_Sn_not_final; [|eauto].
+    iApply ub_lift_dbind'.
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro; apply cond_nonneg.
+    + admit.
+    + iIntros ([] ?).
+      iSpecialize ("Hwand" with "[]"); first (iPureIntro; eapply H).
+      iMod ("Hwand"  with "[//]").
+     *)
+
+
+    (* can we prove it if R is (fun _ => False)? This does trivialize Hwand *)
+    (* can we prove it if ε1 is 0? yes but this cannot be used *) (*
+    assert (Hlift1 : ub_lift (dret σ1) (fun _ => False) nnreal_zero) by admit.
+    rewrite /ub_lift in Hlift1.
+    assert (H : (∀ a : language.stateO prob_lang, False → (λ _ : language.stateO prob_lang, false) a = true)); first (intros; done).
+    specialize (Hlift1 (fun _ => false) H).
+    clear H.
+    simpl in Hlift1.
+    assert (Hlift2 : (prob (dret σ1) (λ _ : language.stateO prob_lang, true) = 0)%R) by admit.
+    rewrite /prob in Hlift2.
+    Check (SeriesC_ge_elem (λ a : language.stateO prob_lang, dret σ1 a) σ1 _ _).
+    assert (Hdret : (dret_pmf σ1 σ1 = 0)%R) by admit.
+    rewrite /dret_pmf /= in Hdret.
+    (* Gives us false *)
+    *)
+
+    (* can we prove it if ε1 is 1? *) (*
+    assert (Hlift1 : ub_lift (dret σ1) (fun _ => False) nnreal_one) by admit.
+    rewrite /ub_lift in Hlift1.
+                                       *)
+    (* Hlift1 is trivial and doesn't get us anywhere *)
+
+
+    admit.
   Admitted.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
