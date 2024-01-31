@@ -6,10 +6,15 @@ Require Import Lra.
 
 Set Default Proof Using "Type*".
 
+
+
 Section higherorder_walkSAT.
   (** Demonstration of using the higher-order spec for stateful computation (WalkSAT) *)
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
+
+
+
 
   Context (N : nat).
   Context (HN : (0 < N)%nat).
@@ -308,7 +313,8 @@ Section higherorder_walkSAT.
   (** Progress measurement *)
   (* Hamming distance to some fixed solution *)
   Definition progress_measure (f : formula) (m solution : list bool) : nat :=
-      fold_right (fun p acc => (acc + match p with | (s, t) => if (eqb s t)then 0%nat else 1%nat end)%nat) 0%nat (zip m solution).
+      fold_right Nat.add 0%nat
+        ((fun p => match p with | (s, t) => if (eqb s t)then 0%nat else 1%nat end) <$> (zip m solution)).
 
   (* Hamming distance 0 -> assignments are equal *)
   Lemma progress_complete f m solution : (length m = length solution) -> (progress_measure f m solution = 0%nat) -> (m = solution).
@@ -331,16 +337,46 @@ Section higherorder_walkSAT.
 
   (* Flipping a variable which is different to the solution decreases the Hamming distance *)
   Lemma flip_makes_progress f (m solution : list bool) (v : fVar) :
+      (length m = length solution) ->
+      (fVar_index v < length m)%nat ->
       (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))) ->
       (progress_measure f (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution < progress_measure f m solution)%nat.
   Proof.
-    (* We want to split the list into before- and after (fVar_index v). The IH will only be
-       true on suffixes of the list containing (fVar_index v) *)
-    intros Hdiff.
-    (* Induct over the lists, = when not equal to fVar_index v, < when equal *)
-    (* need to show we hit fVar_index... induction should keep track of location? *)
-  Admitted.
-
+    intros.
+    assert (Hm_d : forall n, (n < length m)%nat -> exists m1 x m2, (m = m1 ++ [x] ++ m2) /\ (length m1 = n)).
+    { intros.
+      destruct (drop n m) as [| d0 ds] eqn:Hdrop.
+      { exfalso.
+        assert (HK : length (drop n m) = (length m - n)%nat) by apply drop_length.
+        rewrite Hdrop /= in HK.
+        lia.
+      }
+      eexists (take n m), d0, ds.
+      split; last (apply take_length_le; lia).
+      rewrite -{1}(take_drop n m).
+      apply app_inv_head_iff.
+      done.
+    }
+    edestruct  (Hm_d _ H0) as [m1 [x [m2 [-> Hm]]]].
+    rewrite -Hm.
+    rewrite -Hm in H1.
+    rewrite list_lookup_total_middle in H1; [|auto].
+    rewrite list_lookup_total_middle; [|auto].
+    clear Hm.
+    clear H0.
+    clear Hm_d.
+    generalize dependent solution.
+    induction m1 as [|m1' m1's IH].
+    - intros.
+      rewrite /= /progress_measure.
+      destruct solution as [|s0 ss]; [simpl in H; lia|].
+      destruct x, s0; simpl; simpl in H1; auto; discriminate.
+    - intros.
+      rewrite /= /progress_measure.
+      destruct solution as [|s0 ss]; [simpl in H; lia|].
+      simpl.
+      apply Nat.add_lt_mono_l, IH; auto.
+  Qed.
 
   (** Value-level formula evaluation *)
 
@@ -546,8 +582,7 @@ Section higherorder_walkSAT.
                          ⌜inv_asn m' asn' ⌝ ∗
                          ( (* Flips the target variable and loses some credit, or... *)
                            ( € (εInv ε0 p) ∗
-                            ⌜(m' !!! (fVar_index (proj_clause_value c target)))
-                                = (negb (m !!! (fVar_index (proj_clause_value c target)))) ⌝) ∨
+                            ⌜m' = (<[(fVar_index (proj_clause_value c target)) := negb (m !!! (fVar_index (proj_clause_value c target)))]> m)⌝) ∨
                             (* ...obtains the amplified credit *)
                             (€ (εAmplified ε0)))}})%I.
   Proof.
@@ -618,11 +653,8 @@ Section higherorder_walkSAT.
       }
       iPureIntro.
       apply Fin.eqb_eq in Hi.
-      replace i with target.
-      apply list_lookup_total_insert.
-      destruct (proj_clause_value c target) as [? ? ?].
-      simpl; destruct Hinv; lia.
-
+      simplify_eq.
+      done.
     - (* sampler chooses the wrong index, step through and conclude by the amplification  *)
       wp_bind (clause_to_index c _)%E.
       wp_apply (ub_wp_wand); first iApply (wp_clause_to_index c i).
@@ -741,6 +773,7 @@ Section higherorder_walkSAT.
   (* Running the sampler when we have work to do *)
   Lemma wp_sampler_amplify l asn m solution f ε p E :
     (⊢ ⌜(S p <= N)%nat⌝ -∗
+       ⌜length solution = N ⌝ -∗
        ⌜formula_SAT solution f = true ⌝ -∗
        ⌜formula_SAT m f = false ⌝ -∗
        ⌜ inv_asn m asn ⌝ -∗
@@ -751,7 +784,7 @@ Section higherorder_walkSAT.
                       ((⌜(progress_measure f m' solution < progress_measure f m solution)%nat ⌝ ∗ €(εInv ε p)) ∨
                        (€ (εAmplified ε)) )}}))%I.
     Proof.
-      iIntros "%Hp %Hsol %Hm %Hinv Hl Hε".
+      iIntros "%Hp %Hsol_len %Hsol %Hm %Hinv Hl Hε".
       destruct (find_progress _ _ Hm) as [f1 [f2 [c (-> & Hf1 & Hc)]]].
       (* induct over the SAT clauses doing nothing *)
       iInduction f1 as [| c' f1'] "IH"; last first.
@@ -793,8 +826,16 @@ Section higherorder_walkSAT.
       { wp_apply (wp_evaluate_clause with "[] Hl"). iPureIntro; eapply Hinv. }
       iIntros (r) "(Hl&->)".
       rewrite Hc; wp_pures.
+      (* let's explicitly find the index we're resampling against using Hm and Hsol *)
+      rewrite /= /formula_SAT fmap_cons in Hm, Hsol.
+      rewrite /fmap in Hm.
+      rewrite (fold_symmetric _ andb_assoc) in Hm; [|intros; apply andb_comm]; simpl in Hm.
+      rewrite (fold_symmetric _ andb_assoc) in Hsol; [|intros; apply andb_comm]; simpl in Hsol.
+      apply andb_prop in Hsol; destruct Hsol as [Hc_solution Hf2_solution].
+      destruct (progress_is_possible_clause _ _ _ Hc_solution Hc) as [targetFV [HtargetClause HtargetFV]].
+      destruct (reflect_progress_to_target targetFV _ HtargetClause) as [target Htarget].
       wp_apply (ub_wp_wand with "[Hε Hl]").
-      { wp_apply (resample_amplify with "Hl Hε"); last first.
+      { wp_apply ((resample_amplify _ target) with "Hl Hε"); last first.
         - eapply Hinv.
         - destruct Hinv; lia. }
       iIntros (s) "[%asn' [%m' (Hl & %Hasn' & Hs)]]".
@@ -806,18 +847,23 @@ Section higherorder_walkSAT.
       - (* Flip is lucky and makes progress *)
         iLeft; iFrame.
         iPureIntro.
-        (* the lemma I proved before seems almost usable *)
-
-
-      (* Lemma flip_makes_progress (m solution : list bool) (v : fVar) :
-         (m !!! (fVar_index v) = negb (solution !!! (fVar_index v))) ->
-         (progress_measure (<[fVar_index v := negb (m !!! (fVar_index v))]> m ) solution
-         < progress_measure m solution)%nat. *)
-
-        admit.
-
+        rewrite H.
+        apply flip_makes_progress.
+        + destruct (proj_clause_value c target).
+          destruct Hinv.
+          simpl.
+          destruct Hasn'.
+          lia.
+        + simplify_eq.
+          destruct (proj_clause_value c target).
+          destruct Hasn'.
+          rewrite /= insert_length in H.
+          simpl.
+          lia.
+        + simplify_eq.
+          done.
       - iRight; iFrame.
-  Admitted.
+  Qed.
 
   Definition iProgress ε (l : loc) solution f : nat -> iProp Σ :=
           (fun n => ∃ asn m,
@@ -826,6 +872,17 @@ Section higherorder_walkSAT.
                       ⌜ inv_asn m asn ⌝ ∗
                       ⌜(progress_measure f m solution <= n)%nat⌝))%I.
 
+
+
+  (* FIXME: move or delete *)
+  Lemma len_zip_eq `{T} : forall (A B : list T),  length A = length B -> length (zip A B) = length A.
+  Proof.
+    induction A, B.
+    - intros; simpl; done.
+    - intros H1; simpl in H1. discriminate.
+    - intros H1; simpl in H1. discriminate.
+    - intros; simpl. f_equal. apply IHA. simpl in H0. by inversion H0.
+  Qed.
 
 
   Lemma walksat_sampling_scheme f solution ε (l : loc) HiL E :
@@ -884,7 +941,7 @@ Section higherorder_walkSAT.
         rewrite /sampler.
         wp_pures.
         wp_apply (ub_wp_wand with "[Hl Hcr]").
-        { wp_apply (wp_sampler_amplify with "[] [] [] [] Hl [Hcr]"); last iFrame; try eauto. }
+        { wp_apply (wp_sampler_amplify with "[] [] [] [] [] Hl [Hcr]"); last iFrame; try eauto. }
         iIntros (s) "[%asn' [%m' (Hl & %Hinv' & [(%Hp' & A)|Hamp])]]".
         * (* makes progress *)
           iRight; iLeft.
@@ -926,15 +983,16 @@ Section higherorder_walkSAT.
           iSplitL.
           -- iExists _, _; iFrame; iSplit; iPureIntro; eauto.
              rewrite /progress_measure.
-
-              (*
-             assert (LzipLen: forall T : Type, forall A B : list T, (length A = length B) -> (length (zip A B) = length A)).
-              *)
-             replace N with (length (zip m' solution)) by admit.
+             replace N with (length (zip m' solution)); last first.
+             { destruct Hinv'. rewrite len_zip_eq; auto; [constructor|lia]. }
              induction (zip m' solution) as [|H T IH].
              ++ simpl; lia.
              ++ simpl.
-                destruct H as [m0 s0]; destruct (eqb m0 s0); try lia.
+                destruct H as [m0 s0]; destruct (eqb m0 s0).
+                { eapply Nat.le_trans; [eapply IH|]. lia. }
+                { replace (S (length T)) with (1 + length T)%nat by lia.
+                  apply Plus.plus_le_compat_l_stt.
+                  apply IH. }
           -- iIntros "[%asn'' [%m'' (Hl & ? & % & %)]]".
              wp_pures.
              wp_apply (ub_wp_wand with "[Hl]").
@@ -944,5 +1002,5 @@ Section higherorder_walkSAT.
              iSplitL.
              { iExists _, _. iFrame.  iSplit; eauto. }
              eauto.
-    Admitted.
+    Qed.
 End higherorder_walkSAT.

@@ -33,71 +33,6 @@ Section samplers.
 End samplers.
 
 
-
-
-
-(* FIXME: move. Or better yet delete. *)
-Section finite.
-  (* generalization of Coq.Logic.FinFun: lift functions over fin to functions over nat *)
-  Definition f_lift_fin_nat {A} (N : nat) (a : A) (f : fin N -> A) : (nat -> A) :=
-    fun n =>
-      match le_lt_dec N n with
-      | left _ => a
-      | right h => f (Fin.of_nat_lt h)
-      end.
-
-
-  (* uses proof irrelevance *)
-  Lemma f_lift_fin_nat_ltN {A} (n N: nat) (a : A) (Hn : (n < N)%nat) f :
-    (f_lift_fin_nat N a f) n = f (nat_to_fin Hn).
-  Proof.
-    rewrite /f_lift_fin_nat.
-    destruct (le_lt_dec N n) as [Hl|Hr].
-    - lia.
-    - f_equal; f_equal.
-      apply proof_irrelevance.
-  Qed.
-
-
-  Lemma f_lift_fin_nat_geN {A} (N n: nat) (a : A) (Hn : not (n < N)%nat) f :
-    (f_lift_fin_nat N a f) n = a.
-  Proof.
-    rewrite /f_lift_fin_nat.
-    destruct (le_lt_dec N n); [done | lia].
-  Qed.
-
-
-  Lemma encode_inv_nat_nat_total (n : nat) : (@encode_inv_nat nat _ _ n)  = Some n.
-  Proof.
-    rewrite -encode_inv_encode_nat.
-    f_equal.
-    rewrite /encode_nat.
-    rewrite /encode /nat_countable.
-    destruct n; try done.
-    rewrite /= /encode /N_countable /= -SuccNat2Pos.inj_succ.
-    symmetry; apply SuccNat2Pos.pred_id.
-  Qed.
-
-
-  (* I feel like there has to be a better way to do this *)
-  (* The best way would be to delete it, I don't think they do this in the actual flip library *)
-  Lemma fin2_enum (x : fin 2) : (fin_to_nat x = 0%nat) \/ (fin_to_nat x = 1%nat).
-  Proof.
-    destruct (fin_to_bool x) as [|] eqn:H.
-    - right.
-      replace 1%nat with (fin_to_nat (1 : fin 2)%fin); [|simpl; done].
-      replace true with (fin_to_bool (bool_to_fin true)) in H; [|simpl; done].
-      rewrite (@inj _ _ eq eq _ fin_to_bool_inj x (bool_to_fin true) H).
-      simpl. done.
-    - left.
-      replace 0%nat with (fin_to_nat (0 : fin 2)%fin); [|simpl; done].
-      replace false with (fin_to_bool (bool_to_fin false)) in H; [|simpl; done].
-      rewrite (@inj _ _ eq eq _ fin_to_bool_inj x (bool_to_fin false) H).
-      simpl. done.
-  Qed.
-End finite.
-
-
 Section finSeries.
   Local Open Scope R.
 
@@ -114,88 +49,39 @@ Section finSeries.
     - right; apply elem_of_list_here.
   Qed.
 
-  Lemma fin_enum_length M : length (enum (fin M)) = M.
-  Proof. induction M; simpl; [done|]. f_equal; by rewrite fmap_length. Qed.
-
-  Lemma fin_enum_take n N (v : fin N) :
-    v ∈ take n (enum (fin N)) -> (fin_to_nat v < n)%nat.
+  Lemma reindex_fin_series M z K (Hnm : (z < M)%nat):
+    SeriesC (fun x : fin M => nonneg (if bool_decide (x < z)%nat then nnreal_zero else K)) = (M-z) * nonneg K.
   Proof.
-    Opaque firstn.
-    simpl.
-    induction n as [|n' IH].
-    - intros H. rewrite take_0 in H. by apply elem_of_nil in H.
-    - (* We can finish cases that are too large immediately  *)
-      destruct (PeanoNat.Nat.le_gt_cases (S n') N) as [Hn'|?]; last first.
-      { intros _. eapply Nat.lt_trans; [apply fin_to_nat_lt | apply H ]. }
-      (* Rewrite ∈ ... fin_enum to a useful form *)
-      intros H.
-      assert (Hn'_alt : (n' < length (fin_enum N))%nat).
-      { rewrite fin_enum_length. lia. }
-      edestruct (lookup_ex n' (fin_enum N) Hn'_alt) as [r Hr].
-      erewrite take_S_r in H; last apply Hr.
-      apply elem_of_app in H; destruct H as [H|H].
-      { eapply Nat.lt_le_trans; [apply (IH H)|lia]. }
-      apply elem_of_list_singleton in H; simplify_eq.
-      (* Now we just have to prove it for the last element *)
-      apply Nat.lt_succ_r, Nat.eq_le_incl.
-      Set Printing Coercions.
-      clear IH Hn' Hn'_alt.
-      generalize dependent N.
-      induction n' as [|n'' IHn''].
-      { destruct N.
-        -- intros. simpl in Hr. discriminate.
-        -- intros. simpl in Hr. inversion Hr. auto.
+    induction z as [|z' IH].
+    - rewrite -(SeriesC_ext (fun _ => K)); last auto.
+      rewrite SeriesC_finite_mass fin_card /=.
+      rewrite Rminus_0_r; done.
+    - rewrite -(SeriesC_ext (fun x => nonneg (if bool_decide (fin_to_nat x < z')%nat then nnreal_zero else K) -
+                                     nonneg (if bool_decide (fin_to_nat x = z')%nat then K else nnreal_zero))); last first.
+      { intros z.
+        destruct (lt_eq_lt_dec (fin_to_nat z) z') as [H|H]; [destruct H as [H|H]|];
+          repeat (try (rewrite bool_decide_true; last by lia);
+                  try (rewrite bool_decide_false; last by lia);
+                  try (simpl; lra)).
       }
-      induction N as [|N' IHN'].
-      { intros. rewrite /fin_enum /= in Hr. discriminate. }
-      intros.
-      simpl in Hr.
-      apply (nth_lookup_Some _ _ 0%fin _) in Hr.
-      (* brutal *)
-  Admitted.
-
-
-  Lemma fin_enum_drop n N (v : fin N) :
-    v ∈ drop n (enum (fin N)) -> not (fin_to_nat v < n)%nat.
-  Proof. Admitted.
-
-
-  (* FIXME: bad name, and maybe bad proof *)
-  Lemma reindex_fin_series M z K (Hnm : ((S z) < M)%nat):
-    SeriesC (fun x : fin M => nonneg (if bool_decide (x < (S z))%nat then nnreal_zero else K)) = (M-(S z)) * nonneg K.
-  Proof.
-    Set Printing Coercions.
-    rewrite countable_sum.SeriesC_finite_foldr.
-    rewrite -(take_drop (S z) (enum (fin M))).
-    rewrite foldr_app.
-    assert (Hfoldr_const : forall A K l r0, foldr (Rplus ∘ (fun x : A => K)) r0 l = r0 + K * length l).
-    { intros.
-      generalize dependent r0.
-      induction l as [|l' ls IH] using rev_ind; intros; [simpl; lra| ].
-      rewrite app_length foldr_app plus_INR Rmult_plus_distr_l Rmult_1_r.
-      rewrite -Rplus_assoc IH /=.
-      lra. }
-    replace (foldr _ 0 _) with  ((M - S z) * K).
-    - (* Outer series (0) *)
-      rewrite -{2}(Rplus_0_r (_ * K)).
-      replace 0 with (0 * length (take (S z) (enum (fin M)))); [|lra].
-      rewrite -Hfoldr_const.
-      apply foldr_ext'; [|lra].
-      intros; simpl.
-      rewrite bool_decide_true; [done|].
-      apply fin_enum_take, H.
-    - (* Inner series (K) *)
-      rewrite -(Rplus_0_l (_ * K)).
-      rewrite Rmult_comm.
-      replace (_ - _)%R with (INR (length (drop (S z) (enum (fin M))))); last first.
-      { rewrite drop_length fin_enum_length. apply minus_INR; lia. }
-      rewrite -Hfoldr_const.
-      apply foldr_ext'; [|lra].
-      intros. simpl.
-      rewrite bool_decide_false; [done|].
-      apply fin_enum_drop, H.
+      rewrite SeriesC_plus; try apply ex_seriesC_finite.
+      assert (Hz' : (z' < M)%nat) by lia.
+      rewrite IH; last apply Hz'.
+      rewrite -(SeriesC_ext (fun x => (if bool_decide (x = (nat_to_fin Hz'))%nat then -K else nnreal_zero))); last first.
+      { intros.
+         replace (bool_decide (n = nat_to_fin Hz')) with (bool_decide (fin_to_nat n = z')).
+         { case_bool_decide; simpl; try lra. }
+         apply bool_decide_ext.
+         assert (H1 : (fin_to_nat (nat_to_fin Hz') = z')%nat); first by rewrite fin_to_nat_to_fin.
+         split; intros.
+        - apply (@inj _ _ eq eq _ fin_to_nat_inj). rewrite H H1. done.
+        - rewrite -H1. f_equal. done.
+      }
+      Opaque INR.
+      rewrite SeriesC_singleton /=.
+      rewrite S_INR.
+      lra.
   Qed.
-
 End finSeries.
 
 
