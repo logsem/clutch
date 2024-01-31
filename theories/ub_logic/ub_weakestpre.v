@@ -77,7 +77,7 @@ Section exec_ub.
       (* stutter step: spend ε1 to obtain (R σ1) *)
       (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
                   ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
-                  ⌜ R σ1 ⌝ ={∅}=∗ Φ (ε2, (e1, σ1))))%I.
+                  (⌜ R σ1 ⌝ ={∅}=∗ Φ (ε2, (e1, σ1)))))%I.
 
 
   (* TODO: Define this globally, it appears in error credits too *)
@@ -154,7 +154,7 @@ Section exec_ub.
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))) ∨
        (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
                   ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
-                  ⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))%I.
+                  (⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
@@ -606,7 +606,7 @@ Section exec_ub.
   Lemma exec_ub_stutter_step e1 σ1 Z (ε : nonnegreal) :
     (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
                   ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
-                  ⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)
+                  (⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))
     ⊢ exec_ub e1 σ1 Z ε.
   Proof. Admitted.
 
