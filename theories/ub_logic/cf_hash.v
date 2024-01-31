@@ -13,7 +13,7 @@ Module coll_free_hash.
      query on a new element, it samples uniformly from (0,...,VS-1). Once S
      reaches R, the hash is resized, so that L becomes R, R becomes 2R
      and S becomes 2S (e.g., we could sample one extra bit to keep uniformity).
-     This guarantees a constant amortized error cost of R0/VS0 assuming
+     This guarantees a constant amortized error cost of 3*R0/4*VS0 assuming
      on initialization S = 0, R = R0 and VS = VS0. This is not a tight bound,
      it is chosen to work nicely with powers of 2, so there is some extra
      unused error credits
@@ -65,6 +65,8 @@ Module coll_free_hash.
       compute_cf_hash "hm" "vs" "s" "r".
 
 
+  (* A hash function is collision free if the partial map it
+     implements is an injective function *)
   Definition coll_free (m : gmap nat Z) :=
     forall k1 k2,
       is_Some (m !! k1) ->
@@ -113,6 +115,7 @@ Module coll_free_hash.
       apply Hcoll; eauto.
   Qed.
 
+
   (*
      The representation predicate stores, alongside the
      values for all the variables keeping track of the
@@ -125,25 +128,23 @@ Module coll_free_hash.
 
   Definition cf_hashfun f m (vsval sval rval : nat) ε: iProp Σ :=
     ∃ (hm vs s r : loc),
+      (* The reserve of error credits *)
       € ε ∗
       vs ↦ #vsval ∗ s ↦ #sval ∗ r ↦ #rval ∗
       ⌜ 0 < vsval ⌝ ∗
+      (* The ratio between the threshold and the size of the sample space
+         is kept constant *)
       ⌜ (rval / vsval = init_r/ init_val_size)%R ⌝ ∗
       ⌜ f = compute_cf_hash_specialized #hm #vs #s #r⌝ ∗
       map_list hm ((λ b, LitV (LitInt b)) <$> m) ∗
       ⌜ sval < rval ⌝ ∗
       ⌜ sval = (length (gmap_to_list m)) ⌝ ∗
+      (* The current reserve plus the amortized cost times the number of insertions
+         until the next resize is enough to pay for all the error *)
       ⌜(ε + (rval - sval)*( 3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval-1) )%R ⌝ ∗
       ⌜ coll_free m ⌝.
 
-  (*
-    The management of the potential is kept abstract by the following
-    two lemmas. These allow us to update our error resources after every
-    insertion while ensuring that what we get afterwards is still a valid
-    collision-free hash. The actual math is in here, after proving these
-    the proof of the specifications is straightforward
-  *)
 
   Lemma sum_n_m_le_cond (a b : nat → R) (n m : nat) :
     (n <= m)%nat ->
@@ -200,6 +201,15 @@ Module coll_free_hash.
       rewrite S_INR /=. lra.
   Qed.
 
+
+   (*
+     Auxiliary lemma for updating our error resources in the non-resizing cases.
+     This is mostly "straightforward" since, by assumption, the representation
+     predicate already states that we have all the error credits that we will need,
+     so this is mostly moving around the credits associated to the first insertion.
+     Most of the proof is showing that the credit reserve we are left with is still
+     non-negative.
+   *)
 
 
   Lemma cf_update_potential_aux (vsval sval rval : nat) (ε : R) :
@@ -294,50 +304,12 @@ Module coll_free_hash.
        rewrite (sum_Sn_m _ sval); [rewrite /plus/=; lra|]; auto.
   Qed.
 
-
-  Lemma cf_update_potential (vsval sval rval : nat) ε :
-    (sval + 1 < rval)%nat ->
-    ( 0 < vsval) ->
-      € ε -∗
-      ⌜ (ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
-          sum_n_m (λ x, x/vsval) sval (rval - 1))%R ⌝%I -∗
-      € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
-      ∃ (ε' : nonnegreal),
-      (€ ε' ∗
-      € (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
-      ⌜(ε' + (rval - (sval + 1))*(3 * init_r)/(4 *init_val_size) >=
-          sum_n_m (λ x, x/vsval) (sval + 1) (rval - 1))%R ⌝.
-  Proof.
-    intros Hsval Hvsval.
-    iIntros "Herr1".
-    iIntros "%Hsum".
-    iIntros "Herr2".
-    epose proof (cf_update_potential_aux vsval sval rval ε (cond_nonneg ε) Hvsval _ Hsum) as (ε' & Hε'pos & Hupd & Hsum').
-    Unshelve.
-    2:{
-      apply lt_INR in Hsval.
-      rewrite plus_INR /= in Hsval.
-      lra.
-      }
-    iExists (mknonnegreal ε' Hε'pos). simpl.
-    iSplitL.
-    - iApply ec_split.
-      simpl.
-      iApply (ec_weaken); last first.
-      + iApply ec_split; iFrame.
-      + simpl.
-        rewrite /Rdiv in Hupd.
-        rewrite -(Rplus_comm ε).
-        do 2 rewrite Nat.add_0_r.
-        etrans; eauto.
-        apply Rplus_le_compat; [lra |].
-        do 5 rewrite plus_INR. right.
-        f_equal; [lra |].
-        f_equal. lra.
-    - iPureIntro.
-      auto.
-  Qed.
-
+   (*
+     Auxiliary lemma for updating our error resources in the resizing case.
+     This is more interesting, since when updating the bounds and the sampling space
+     size we need to re-establish the representation predicate. Most of the actual
+     math is used in here.
+   *)
 
   Lemma cf_update_potential_resize_aux (vsval sval rval : nat) (ε : R) :
     (0 <= ε) ->
@@ -403,6 +375,59 @@ Module coll_free_hash.
   Qed.
 
 
+  (*
+    The management of the potential is kept abstract by the following
+    two lemmas. These allow us to update our error resources after every
+    insertion while ensuring that what we get afterwards is still a valid
+    collision-free hash.  *)
+
+
+  Lemma cf_update_potential (vsval sval rval : nat) ε :
+    (sval + 1 < rval)%nat ->
+    ( 0 < vsval) ->
+      € ε -∗
+      ⌜ (ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
+          sum_n_m (λ x, x/vsval) sval (rval - 1))%R ⌝%I -∗
+      € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
+      ∃ (ε' : nonnegreal),
+      (€ ε' ∗
+      € (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
+      ⌜(ε' + (rval - (sval + 1))*(3 * init_r)/(4 *init_val_size) >=
+          sum_n_m (λ x, x/vsval) (sval + 1) (rval - 1))%R ⌝.
+  Proof.
+    intros Hsval Hvsval.
+    iIntros "Herr1".
+    iIntros "%Hsum".
+    iIntros "Herr2".
+    epose proof (cf_update_potential_aux vsval sval rval ε (cond_nonneg ε) Hvsval _ Hsum) as (ε' & Hε'pos & Hupd & Hsum').
+    Unshelve.
+    2:{
+      apply lt_INR in Hsval.
+      rewrite plus_INR /= in Hsval.
+      lra.
+      }
+    iExists (mknonnegreal ε' Hε'pos). simpl.
+    iSplitL.
+    - iApply ec_split.
+      simpl.
+      iApply (ec_weaken); last first.
+      + iApply ec_split; iFrame.
+      + simpl.
+        rewrite /Rdiv in Hupd.
+        rewrite -(Rplus_comm ε).
+        do 2 rewrite Nat.add_0_r.
+        etrans; eauto.
+        apply Rplus_le_compat; [lra |].
+        do 5 rewrite plus_INR. right.
+        f_equal; [lra |].
+        f_equal. lra.
+    - iPureIntro.
+      auto.
+  Qed.
+
+
+
+
   Lemma cf_update_potential_resize (vsval sval rval : nat) ε :
     (sval + 1 = rval)%nat ->
     ( 0 < vsval) ->
@@ -446,6 +471,11 @@ Module coll_free_hash.
       auto.
   Qed.
 
+
+  (* The spec for a non-resizing insertion.
+     If we have a collision free hash, and we get € (3 * init_r) / (4 * init_val_size)
+     then we return a collision free hash, with enough credits in the reserve to pay
+     for future insertions *)
 
   Lemma wp_insert_no_coll E f m (vsval sval rval: nat) ε (n : nat) :
     m !! n = None →
@@ -541,6 +571,11 @@ Module coll_free_hash.
                 apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
  Qed.
 
+
+  (* The spec for a resizing insertion.
+     If we have a collision free hash that is one insertion away from the threshold,
+     and we get € (3 * init_r) / (4 * init_val_size) then we return a collision free hash
+     with updated sizes and threshold, and an empty credit reserve  *)
 
   Lemma wp_insert_no_coll_resize E f m (vsval sval rval: nat) ε (n : nat) :
     m !! n = None →
@@ -672,7 +707,6 @@ Module coll_free_hash.
           -- iSplit.
              ++ iPureIntro.
                 rewrite <- Heq at 3.
-                (* This is true, should follow from Hupdp, just annoying to prove *)
                 etrans; last first.
                 {
                   erewrite sum_n_m_ext; [ apply Hupdp |].
