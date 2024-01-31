@@ -44,6 +44,7 @@ Section exec_ub.
   Context `{!irisGS Λ Σ}.
 
 
+
   Definition exec_ub_pre (Z : nonnegreal -> cfg Λ → iProp Σ) (Φ : nonnegreal * cfg Λ → iProp Σ) :=
     (λ (x : nonnegreal * cfg Λ),
       let '(ε, (e1, σ1)) := x in
@@ -72,7 +73,11 @@ Section exec_ub.
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2 (e1, σ2), (e1, σ2)))))%I.
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2 (e1, σ2), (e1, σ2)))) ∨
+      (* stutter step: spend ε1 to obtain (R σ1) *)
+      (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
+                  ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
+                  ⌜ R σ1 ⌝ ={∅}=∗ Φ (ε2, (e1, σ1))))%I.
 
 
   (* TODO: Define this globally, it appears in error credits too *)
@@ -92,7 +97,7 @@ Section exec_ub.
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
     rewrite /exec_ub_pre.
     iIntros ((ε&(e1 & σ1))) "Hexec".
-    iDestruct "Hexec" as "[H | [H | [H | H]]]".
+    iDestruct "Hexec" as "[H | [H | [H | [H | H]]]]".
     - by iLeft.
     - by iRight; iLeft.
     - iRight; iRight; iLeft.
@@ -106,7 +111,7 @@ Section exec_ub.
         iSplit; [try done|].
         iIntros. iApply "Hwand". by iApply "HΦ".
       + iRight. by iApply "IH".
-    - iRight; iRight; iRight.
+    - iRight; iRight; iRight; iLeft.
       iInduction (get_active σ1) as [| l] "IH" forall "H".
       { rewrite big_orL_nil //. }
       rewrite !big_orL_cons.
@@ -118,7 +123,8 @@ Section exec_ub.
         iSplit; [try done|].
         iIntros. iApply "Hwand". by iApply "HΦ".
       + iRight. by iApply "IH".
-  Qed.
+    - admit.
+  Admitted.
 
   Definition exec_ub' Z := bi_least_fixpoint (exec_ub_pre Z).
   Definition exec_ub e σ Z ε := exec_ub' Z (ε, (e, σ)).
@@ -145,7 +151,10 @@ Section exec_ub.
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))))%I.
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))) ∨
+       (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
+                  ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
+                  ⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
@@ -163,7 +172,7 @@ Section exec_ub.
     iPoseProof (least_fixpoint_ind (exec_ub_pre Z) Φ with "[]") as "H"; last first.
     { iApply ("H" with "H_ub"). }
     iIntros "!#" ([ε'' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[ (% & % & % & % & % & % & H) | [ (% & % & % & % & % & % & % & H) | [ H | H ]]] %ε3 %Hleq' /="; simpl in Hleq'.
+    iIntros "[ (% & % & % & % & % & % & H) | [ (% & % & % & % & % & % & % & H) | [ H | [H | H] ]]] %ε3 %Hleq' /="; simpl in Hleq'.
     - rewrite least_fixpoint_unfold.
       iLeft. iExists _,_,_.
       iSplit; [done|].
@@ -189,7 +198,7 @@ Section exec_ub.
         iPureIntro. simpl; lra.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
-      iRight; iRight; iRight.
+      iRight; iRight; iRight; iLeft.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
@@ -203,7 +212,8 @@ Section exec_ub.
         iApply ("H" with "[//]").
         iPureIntro. simpl; lra.
       + iRight. by iApply ("IH" with "Ht").
-  Qed.
+    - admit.
+  Admitted.
 
 
   Lemma exec_ub_strong_mono e1 σ1 (Z1 Z2 : nonnegreal -> cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
@@ -222,7 +232,7 @@ Section exec_ub.
     iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ with "[]") as "H"; last first.
     { by iApply ("H" with "H_ub"). }
     iIntros "!#" ([ε'' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[ (% & % & % & % & % & % & H) | [ (% & % & % & % & % & % & % & H) | [H | H]] ] HZ /=".
+    iIntros "[ (% & % & % & % & % & % & H) | [ (% & % & % & % & % & % & % & H) | [H | [H | H]]] ] HZ /=".
     - rewrite least_fixpoint_unfold.
       iLeft. iExists _,_,_.
       iSplit; [done|].
@@ -256,7 +266,7 @@ Section exec_ub.
         by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
-      iRight; iRight; iRight.
+      iRight; iRight; iRight; iLeft.
       iInduction (get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
@@ -268,7 +278,8 @@ Section exec_ub.
         iIntros.
         by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
-  Qed.
+    - admit.
+  Admitted.
 
   Lemma exec_ub_mono (Z1 Z2 : nonnegreal -> cfg Λ → iProp Σ) e1 σ1 (ε1 ε2 : nonnegreal) :
     ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ exec_ub e1 σ1 Z1 ε1 -∗ exec_ub e1 σ1 Z2 ε2.
@@ -310,7 +321,7 @@ Section exec_ub.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! (_, (_, _)) with "Hub [//]"). }
     iIntros "!#" ([ε' [? σ']]). rewrite /exec_ub_pre.
-    iIntros "[(% & % & % & % & % & % & H) | [ (% & % & % & % & (%r & %Hr) & % & % & H) | [H | H]]] %Hv'".
+    iIntros "[(% & % & % & % & % & % & H) | [ (% & % & % & % & (%r & %Hr) & % & % & H) | [H | [H | H]]]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. simpl.
       iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,_.
@@ -437,7 +448,7 @@ Section exec_ub.
         iIntros. by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold; simpl.
-      iRight; iRight; iRight.
+      iRight; iRight; iRight; iLeft.
       (* from above (combine?)*)
       destruct (partial_inv_fun K) as (Kinv & HKinv).
       assert (forall e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
@@ -490,7 +501,8 @@ Section exec_ub.
           iApply "H".
           by simpl in Hv'.
       + iRight. by iApply ("IH" with "Ht").
-  Qed.
+    - admit.
+  Admitted.
 
 
   Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
@@ -582,7 +594,7 @@ Section exec_ub.
   Proof.
     iIntros (?) "(% & % & % & %Hε & % & H)".
     rewrite {1}exec_ub_unfold.
-    iRight; iRight; iRight.
+    iRight; iRight; iRight; iLeft.
     iApply big_orL_elem_of; eauto.
     iExists _,nnreal_zero,_.
     iSplit; [auto|].
@@ -590,6 +602,13 @@ Section exec_ub.
     { iPureIntro. by rewrite /= Rplus_0_l. }
     iSplit; [done|done].
   Qed.
+
+  Lemma exec_ub_stutter_step e1 σ1 Z (ε : nonnegreal) :
+    (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
+                  ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
+                  ⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)
+    ⊢ exec_ub e1 σ1 Z ε.
+  Proof. Admitted.
 
   Lemma exec_ub_strong_ind (Ψ : nonnegreal → expr Λ → state Λ →  iProp Σ) (Z : nonnegreal → cfg Λ → iProp Σ) :
     (∀ n e σ ε, Proper (dist n) (Ψ ε e σ)) →
