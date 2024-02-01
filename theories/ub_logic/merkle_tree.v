@@ -49,26 +49,30 @@ Section merkle_tree.
 
   Definition map_valid (m:gmap nat Z) : Prop := coll_free m.
 
+  Definition root_hash_value_program : val :=
+    λ: "ltree",
+      match: "ltree" with
+      | InjL "x" => Fst "x"
+      | InjR "x" => let, ("a", "b", "c") := "x" in "a"
+      end.
+
   Definition compute_hash_from_leaf : val :=
-    rec: "compute_hash_from_leaf" "ltree" "lhmf" "ll" "lf" := 
+    rec: "compute_hash_from_leaf" "ltree" "lhmf" "ll" "lleaf" := 
     match: "ltree" with
-    | InjL "x" => "lhmf" "lf"  
+    | InjL "x" => "lhmf" "lleaf"  
     | InjR "x"  => let: "b" := (match: list_head "ll" with
                                | SOME "a" => "a"
                                | NONE => #()
                                end
                               ) in
-                  let: "ll'" := (match: list_tail "ll" with
-                               | SOME "a" => "a"
-                               | NONE => #()
-                                 end
-                                ) in
-                  let, ("l", "r") := Snd "x" in
+                  let: "ll'" := list_tail "ll"  in
+                  let, ("notneeded", "l", "r") := "x" in
                   if: "b"
                   then "lhmf"
-                         (("compute_hash_from_leaf" "l" "lhmf" "ll'" "lleaf")*#(2^val_bit_size)+"r")
+                         (("compute_hash_from_leaf" "l" "lhmf" "ll'" "lleaf")*#(2^val_bit_size)+
+                            root_hash_value_program "r")
                   else "lhmf"
-                         ("l"*#(2^val_bit_size)+("compute_hash_from_leaf" "r" "lhmf" "ll'" "lleaf"))
+                         ((root_hash_value_program "l")*#(2^val_bit_size)+("compute_hash_from_leaf" "r" "lhmf" "ll'" "lleaf"))
     end
 
   .
@@ -83,10 +87,20 @@ Section merkle_tree.
     tree_value_match (Branch h l r) v (false::xs).
 
   (** Lemmas *)
-  
+  Lemma wp_root_hash_value_program n lt tree E:
+    {{{ ⌜tree_relate n lt tree⌝ }}}
+    root_hash_value_program lt @ E
+    {{{ (retv:Z), RET #retv; ⌜retv = root_hash_value tree⌝}}}.
+  Proof.
+    iIntros (Φ) "%H HΦ".
+    rewrite /root_hash_value_program. wp_pures.
+    inversion H.
+    - wp_pures. iApply "HΦ". by iPureIntro.
+    - wp_pures. iApply "HΦ". by iPureIntro.
+  Qed.
 
   (** Spec *)
-  Lemma wp_correct_check (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (path:list bool) llist f E:
+  Lemma wp_compute_hash_from_leaf_correct (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (path:list bool) llist f E:
      {{{ ⌜tree_relate height ltree tree⌝ ∗
         ⌜tree_valid tree m⌝ ∗
         hashfun_amortized (val_size-1)%nat max_hash_size f m ∗
@@ -100,19 +114,54 @@ Section merkle_tree.
       }}}.
   Proof.
     iIntros (Φ) "(%Htrelate&%Htvalid&H&%Hlsit&%Hvmatch&%Hmvalid) HΦ".
-    revert Htrelate Htvalid Hlsit Hvmatch Hmvalid.
-    revert height ltree v path llist f.
-    induction tree.
-    - intros.
-      rewrite /compute_hash_from_leaf.
+    iInduction tree as [|] "IH"
+                         forall (height ltree v path llist f Htrelate Htvalid Hlsit Hvmatch Hmvalid Φ).
+    - rewrite /compute_hash_from_leaf.
       wp_pures. inversion Htrelate; subst. 
       wp_match.
+      inversion Htrelate. inversion Htvalid. inversion Hvmatch. subst.
       wp_apply (wp_hashfun_prev_amortized with "[$]").
       + lia.
-      + admit.
-      + admit.
-      
-    - admit.
-  Admitted.
+      + done. 
+      + iIntros. iApply "HΦ". iFrame. by iPureIntro. 
+    - rewrite /compute_hash_from_leaf.
+      inversion Htrelate. inversion Htvalid. inversion Hvmatch; subst.
+      + wp_pures. wp_apply wp_list_head; first done. iIntros (v') "[[%%]|(%&%&%&%)]"; first done.
+        subst. inversion H; subst. wp_pures. rewrite -/compute_hash_from_leaf.
+        wp_apply wp_list_tail; first done. iIntros (v') "%". wp_pures.
+        wp_apply wp_root_hash_value_program; try done.
+        iIntros (x) "->".
+        wp_apply ("IH" with "[][][][][][H][HΦ]"); try done.
+        iModIntro. iIntros (?) "[H ->]".
+        wp_pures.
+        replace (_*_+_)%Z with (Z.of_nat (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2)); last first.
+        { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul. f_equal.
+          apply Z2Nat.inj_pow.
+        }
+        wp_apply (wp_hashfun_prev_amortized with "H").
+        * lia.
+        * done.
+        * iIntros "H". iApply "HΦ". iFrame.
+          done.
+      + wp_pures. wp_apply wp_list_head; first done. iIntros (v') "[[%%]|(%&%&%&%)]"; first done.
+        subst. inversion H; subst. wp_pures. rewrite -/compute_hash_from_leaf.
+        wp_apply wp_list_tail; first done. iIntros (v') "%". wp_pures.
+        wp_apply ("IH1" with "[][][][][][H][HΦ]"); try done.
+        iModIntro. iIntros (?) "[H ->]".
+        wp_apply wp_root_hash_value_program; try done.
+        iIntros (x) "->".
+        wp_pures.
+        replace (_*_+_)%Z with (Z.of_nat (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2)); last first.
+        { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul. f_equal.
+          apply Z2Nat.inj_pow.
+        }
+        wp_apply (wp_hashfun_prev_amortized with "H").
+        * lia.
+        * done.
+        * iIntros "H". iApply "HΦ". iFrame.
+          done.
+  Qed.
+  
+          
   
 End merkle_tree.
