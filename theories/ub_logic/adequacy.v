@@ -31,58 +31,6 @@ Section adequacy.
   Qed.
 
 
-  Lemma ub_lift_dbind'' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' x n :
-    ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜ub_lift μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (dret x) T ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜ub_lift (dbind (fun _ => dret x) μ) T (ε + ε')⌝ : iProp Σ.
-  Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (dret x) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto. }
-    iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
-  Qed.
-
-
-
-
-
-
-  (*
-  Lemma ub_lift_dbind'_dret `{Countable A, Countable A'}
-     (μ : distr A) (R : A → Prop) a ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜ub_lift μ R ε⌝ -∗
-    (⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (dret a) R ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜ub_lift (dbind (fun _ => dret a) μ) R (ε + ε')⌝ : iProp Σ.
-  Proof.
-    iIntros (???) "H".
-
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift _ _ ε')⌝)).
-    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto.
-      intros a0 HR.
-      eapply H4; last eapply HR.
-      eapply n. }
-    iIntros (???) "/=".
-
-    iApply "H".
-
-    iMod ("H" with "[//]") as "H"; auto.
-    iModIntro.
-    iNext.
-    iFrame.
-
-  Admitted.
-*)
-
-  (*
-  Qed.
-   *)
-
   Lemma ub_lift_dbind_adv' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
@@ -188,108 +136,16 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  - iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
-
+  - iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]".
     iApply step_fupdN_mono.
     { apply pure_mono. eapply UB_mon_grading, Hsum. }
-
-    (* Maybe this is enough *)
-    (* DOA: we can't establish this for the one instance we care about on the other end *)
-    assert (Hconv : (ub_lift (dret σ1) R ε1)%R -> R σ1) by admit.
-    clear Hconv.
-
-    (* Try to use the dbind lemma *)
-    (* rewrite -{2}dret_id_left'.
-       iApply ub_lift_dbind'.
-     *)
-
-
-
-
-    rewrite -(dret_id_right (exec (S n) (e1, σ1))).
-    Check ub_lift_dbind'.
-    (* Check ub_lift_dbind'' _ (exec (S n) (e1, σ1)) _ . *)
-    + iPureIntro; apply cond_nonneg.
-    + iPureIntro; apply cond_nonneg.
-    + iPureIntro.
-      (* If this works, change the statement of the theorem to make it lift over e1 too *)
-      Check (e1, σ1).
-      assert (Hlift' : (ub_lift
-                          (dret (e1, σ1))
-                          (fun a: language.exprO prob_lang * language.stateO prob_lang => R (snd a))
-                          ε1)); first admit.
-      Check dmap_dret.
-      eapply Hlift'.
-    + iIntros ([e2 σ2] Hx).
-      (* Maybe I need to quantify over all σ1 *)
-      assert (Hstates : σ1 = σ2) by admit.
-
-      iSpecialize ("Hwand" with "[]").
-      { simpl in Hx.
-        rewrite Hstates.
-        eauto. }
-
-      (* I also need to get rid of that fupd
-         I could change the rule to use a wand, but I feel like I should be able to
-         just commute it out???
-
-       *)
-      remember (ub_lift (exec (S n) (pair e2 σ2)) φ ε2) as X.
-      rewrite -HeqX.
-        (ub_lift (exec (S n) (e2, σ2)) φ ε2) as X.
-
-
-
-      Set Printing Coercions.
-
-
-    Unset Printing Notations.
-
-    (*
-    + iPureIntro; apply cond_nonneg.
-    + iPureIntro; apply cond_nonneg.
-    + iPureIntro. admit.
-    + iIntros ([] ?).
-      iMod ("Hwand"  with "[]").
-      * eapply H.
-      *)
-
-    (*
+    rewrite -(dret_id_left' (fun _ : () => (exec (S n) (e1, σ1))) tt).
     iApply ub_lift_dbind'.
     + iPureIntro; apply cond_nonneg.
     + iPureIntro; apply cond_nonneg.
-    + admit.
-    + iIntros ([] ?).
-      iSpecialize ("Hwand" with "[]"); first (iPureIntro; eapply H).
-      iMod ("Hwand"  with "[//]").
-     *)
-
-
-    (* can we prove it if R is (fun _ => False)? This does trivialize Hwand *)
-    (* can we prove it if ε1 is 0? yes but this cannot be used *) (*
-    assert (Hlift1 : ub_lift (dret σ1) (fun _ => False) nnreal_zero) by admit.
-    rewrite /ub_lift in Hlift1.
-    assert (H : (∀ a : language.stateO prob_lang, False → (λ _ : language.stateO prob_lang, false) a = true)); first (intros; done).
-    specialize (Hlift1 (fun _ => false) H).
-    clear H.
-    simpl in Hlift1.
-    assert (Hlift2 : (prob (dret σ1) (λ _ : language.stateO prob_lang, true) = 0)%R) by admit.
-    rewrite /prob in Hlift2.
-    Check (SeriesC_ge_elem (λ a : language.stateO prob_lang, dret σ1 a) σ1 _ _).
-    assert (Hdret : (dret_pmf σ1 σ1 = 0)%R) by admit.
-    rewrite /dret_pmf /= in Hdret.
-    (* Gives us false *)
-    *)
-
-    (* can we prove it if ε1 is 1? *) (*
-    assert (Hlift1 : ub_lift (dret σ1) (fun _ => False) nnreal_one) by admit.
-    rewrite /ub_lift in Hlift1.
-                                       *)
-    (* Hlift1 is trivial and doesn't get us anywhere *)
-
-
-    admit.
-  Admitted.
+    + iPureIntro. eapply Hlift.
+    + iIntros (? Hcont). destruct Hcont.
+  Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
@@ -347,7 +203,7 @@ Section adequacy.
            iPureIntro; done.
          }
         by iApply (exec_ub_erasure with "H").
-  Qed.
+  Admitted.
 
 End adequacy.
 

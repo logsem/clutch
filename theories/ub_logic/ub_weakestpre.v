@@ -44,7 +44,6 @@ Section exec_ub.
   Context `{!irisGS Λ Σ}.
 
 
-
   Definition exec_ub_pre (Z : nonnegreal -> cfg Λ → iProp Σ) (Φ : nonnegreal * cfg Λ → iProp Σ) :=
     (λ (x : nonnegreal * cfg Λ),
       let '(ε, (e1, σ1)) := x in
@@ -75,9 +74,9 @@ Section exec_ub.
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2 (e1, σ2), (e1, σ2)))) ∨
       (* stutter step: spend ε1 to obtain (R σ1) *)
-      (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
-                  ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
-                  (⌜ R σ1 ⌝ ={∅}=∗ Φ (ε2, (e1, σ1)))))%I.
+      (∃ (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
+                  ⌜ub_lift (dret tt) (fun _ : unit => False) ε1 ⌝ ∗
+                  (⌜ False ⌝ ={∅}=∗ Φ (ε2, (e1, σ1)))))%I.
 
 
   (* TODO: Define this globally, it appears in error credits too *)
@@ -124,8 +123,8 @@ Section exec_ub.
         iIntros. iApply "Hwand". by iApply "HΦ".
       + iRight. by iApply "IH".
     - iRight; iRight; iRight; iRight.
-      iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
-      iExists _, _, _.
+      iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]".
+      iExists _, _.
       iSplitR; [try done|].
       iSplitR; [try done|].
       iIntros. iApply "Hwand". by iApply "HΦ".
@@ -157,9 +156,9 @@ Section exec_ub.
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))) ∨
-       (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
-                  ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
-                  (⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)))%I.
+       (∃ (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
+                  ⌜ub_lift (dret tt) (fun x : unit => False) ε1 ⌝ ∗
+                  (⌜ False ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
@@ -219,8 +218,8 @@ Section exec_ub.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
       iRight; iRight; iRight; iRight.
-      iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
-      iExists R, ε1, ε2.
+      iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]".
+      iExists ε1, ε2.
       iSplitR; [ iPureIntro; lra |].
       iSplitR; [ done |].
       iIntros; iApply "HΦ"; done.
@@ -291,8 +290,8 @@ Section exec_ub.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
       iRight; iRight; iRight; iRight.
-      iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
-      iExists R, ε1, ε2.
+      iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]".
+      iExists ε1, ε2.
       iSplitR; [iPureIntro; lra|].
       iSplitR; [done|].
       iIntros; iApply "HΦ"; done.
@@ -520,8 +519,8 @@ Section exec_ub.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
       iRight; iRight; iRight; iRight.
-      iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
-      iExists R, ε1, ε2.
+      iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]".
+      iExists ε1, ε2.
       iSplitR; [iPureIntro; simpl; lra|].
       iSplitR; [done|].
       iIntros; iApply "HΦ"; done.
@@ -627,15 +626,15 @@ Section exec_ub.
   Qed.
 
   Lemma exec_ub_stutter_step e1 σ1 Z (ε : nonnegreal) :
-    (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
-                  ⌜ub_lift (dret σ1) R ε1 ⌝ ∗
-                  (⌜ R σ1 ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))
+    (∃ (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
+                  ⌜ub_lift (dret tt) (fun x: unit => False) ε1 ⌝ ∗
+                  (⌜ False ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))
     ⊢ exec_ub e1 σ1 Z ε.
   Proof.
-    iIntros "[%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
+    iIntros "[%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]".
     rewrite (exec_ub_unfold _ _ _ ε).
     iRight; iRight; iRight; iRight.
-    iExists R, ε1, ε2.
+    iExists ε1, ε2.
     iSplitR; [iPureIntro; simpl; lra|].
     iSplitR; [done|].
     iIntros; iApply "HΦ"; done.

@@ -1178,11 +1178,6 @@ Proof.
   by iIntros (? Hfalse).
 Qed.
 
-
-
-
-
-
 Lemma twp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
   (to_val e = None) ->
@@ -1194,40 +1189,10 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_bound with "Hsupply Hcr") as %Hle.
-
-  (* Version which is too strong to prove adequacy for *)
   iApply exec_ub_stutter_step.
 
-  (* Can I weaken stutter_step with to show (ub_lift (dret _) _ 1 -> R _ )*)
-  assert (Hconv : (ub_lift (dret σ1) (fun _ => False) 1)%R -> False).
-  { intros.
-    rewrite /ub_lift in H.
-    specialize H with (fun _ => false).
-    assert (W: (∀ a : state, False → (λ _ : state, false) a = true)); [intros; auto|].
-    specialize (H W).
-    clear W.
-    rewrite /prob /= in H.
-    (* Nope *)
-    admit.
-  }
-  clear Hconv.
-
-  (* Can I do this proof when I weaken the stutter step rule to use ε1 = 0 and R = (fun _ => False)?
-     Looks like no.
-     What weakenings still work? *)
-  (*
-  iExists (fun _ => False), nnreal_zero, ε1.
-  iSplitR; first admit.
-  iSplitL.
-  { iPureIntro.
-    rewrite /ub_lift.
-    intros p Hp.
-  }
-  *)
-
-
   assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
-  iExists (λ _, False), ε, (mknonnegreal (ε1 - ε) Hdiff).
+  iExists ε, (mknonnegreal (ε1 - ε) Hdiff).
   iSplitR; [iPureIntro; simpl; lra|].
   iSplitR.
   { iPureIntro. unfold ub_lift. intros.
