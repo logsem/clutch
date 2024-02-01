@@ -1152,6 +1152,37 @@ Proof.
   replace ε1 with ε2; [iFrame|by apply nnreal_ext].
 Qed.
 
+
+Lemma wp_1_err e E Φ :
+  to_val e = None -> (forall σ, reducible e σ) -> € nnreal_one ⊢ WP e @ E {{Φ}}.
+Proof.
+  iIntros (H1 H2) "He".
+  iApply wp_lift_step_fupd_exec_ub; first done.
+  iIntros (σ1 ε) "[Hσ Hε]".
+  iApply fupd_mask_intro; [set_solver|].
+  iIntros "Hclose'".
+  iDestruct (ec_supply_bound with "Hε He ") as %Hle.
+  iApply exec_ub_prim_step.
+  iExists (λ _, False), nnreal_one, nnreal_zero.
+  iSplitR.
+  { iPureIntro. eauto. }
+  iSplitR.
+  { iPureIntro.
+    assert (nnreal_one + nnreal_zero = nnreal_one)%R as Heq; last by rewrite Heq.
+    simpl. lra.
+  }
+  iSplitR.
+  { iPureIntro. unfold ub_lift. intros.
+    by epose proof prob_le_1 as K.
+  }
+  by iIntros (? Hfalse).
+Qed.
+
+
+
+
+
+
 Lemma twp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
   (to_val e = None) ->
@@ -1166,6 +1197,20 @@ Proof.
 
   (* Version which is too strong to prove adequacy for *)
   iApply exec_ub_stutter_step.
+
+  (* Can I weaken stutter_step with to show (ub_lift (dret _) _ 1 -> R _ )*)
+  assert (Hconv : (ub_lift (dret σ1) (fun _ => False) 1)%R -> False).
+  { intros.
+    rewrite /ub_lift in H.
+    specialize H with (fun _ => false).
+    assert (W: (∀ a : state, False → (λ _ : state, false) a = true)); [intros; auto|].
+    specialize (H W).
+    clear W.
+    rewrite /prob /= in H.
+    (* Nope *)
+    admit.
+  }
+  clear Hconv.
 
   (* Can I do this proof when I weaken the stutter step rule to use ε1 = 0 and R = (fun _ => False)?
      Looks like no.
@@ -1187,6 +1232,7 @@ Proof.
   iSplitR.
   { iPureIntro. unfold ub_lift. intros.
     eapply Rle_trans; [|eapply Hε_ge_1].
+    (* Need this to be 1 so we can always establish the ub_lift *)
     apply prob_le_1.
   }
   by iIntros (Hfalse).

@@ -31,6 +31,58 @@ Section adequacy.
   Qed.
 
 
+  Lemma ub_lift_dbind'' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' x n :
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ 0 <= ε' ⌝ -∗
+    ⌜ub_lift μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (dret x) T ε'⌝) -∗
+    |={∅}▷=>^(S n) ⌜ub_lift (dbind (fun _ => dret x) μ) T (ε + ε')⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (dret x) T ε')⌝)).
+    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto. }
+    iIntros (???) "/=".
+    iMod ("H" with "[//]"); auto.
+  Qed.
+
+
+
+
+
+
+  (*
+  Lemma ub_lift_dbind'_dret `{Countable A, Countable A'}
+     (μ : distr A) (R : A → Prop) a ε ε' n :
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ 0 <= ε' ⌝ -∗
+    ⌜ub_lift μ R ε⌝ -∗
+    (⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (dret a) R ε'⌝) -∗
+    |={∅}▷=>^(S n) ⌜ub_lift (dbind (fun _ => dret a) μ) R (ε + ε')⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift _ _ ε')⌝)).
+    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto.
+      intros a0 HR.
+      eapply H4; last eapply HR.
+      eapply n. }
+    iIntros (???) "/=".
+
+    iApply "H".
+
+    iMod ("H" with "[//]") as "H"; auto.
+    iModIntro.
+    iNext.
+    iFrame.
+
+  Admitted.
+*)
+
+  (*
+  Qed.
+   *)
+
   Lemma ub_lift_dbind_adv' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
@@ -72,7 +124,7 @@ Section adequacy.
     iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H| [H | H]]]] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
-        eapply UB_mon_grading; eauto. }
+        eapply UB_mon_grading. eauto. }
       rewrite exec_Sn_not_final; [|eauto].
       iApply ub_lift_dbind'.
       1,2 : iPureIntro; apply cond_nonneg.
@@ -138,10 +190,71 @@ Section adequacy.
       by iApply "IH".
   - iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
 
-    (*
     iApply step_fupdN_mono.
-    { apply pure_mono. eapply UB_mon_grading; eauto. }
-    rewrite exec_Sn_not_final; [|eauto].
+    { apply pure_mono. eapply UB_mon_grading, Hsum. }
+
+    (* Maybe this is enough *)
+    (* DOA: we can't establish this for the one instance we care about on the other end *)
+    assert (Hconv : (ub_lift (dret σ1) R ε1)%R -> R σ1) by admit.
+    clear Hconv.
+
+    (* Try to use the dbind lemma *)
+    (* rewrite -{2}dret_id_left'.
+       iApply ub_lift_dbind'.
+     *)
+
+
+
+
+    rewrite -(dret_id_right (exec (S n) (e1, σ1))).
+    Check ub_lift_dbind'.
+    (* Check ub_lift_dbind'' _ (exec (S n) (e1, σ1)) _ . *)
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro.
+      (* If this works, change the statement of the theorem to make it lift over e1 too *)
+      Check (e1, σ1).
+      assert (Hlift' : (ub_lift
+                          (dret (e1, σ1))
+                          (fun a: language.exprO prob_lang * language.stateO prob_lang => R (snd a))
+                          ε1)); first admit.
+      Check dmap_dret.
+      eapply Hlift'.
+    + iIntros ([e2 σ2] Hx).
+      (* Maybe I need to quantify over all σ1 *)
+      assert (Hstates : σ1 = σ2) by admit.
+
+      iSpecialize ("Hwand" with "[]").
+      { simpl in Hx.
+        rewrite Hstates.
+        eauto. }
+
+      (* I also need to get rid of that fupd
+         I could change the rule to use a wand, but I feel like I should be able to
+         just commute it out???
+
+       *)
+      remember (ub_lift (exec (S n) (pair e2 σ2)) φ ε2) as X.
+      rewrite -HeqX.
+        (ub_lift (exec (S n) (e2, σ2)) φ ε2) as X.
+
+
+
+      Set Printing Coercions.
+
+
+    Unset Printing Notations.
+
+    (*
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro. admit.
+    + iIntros ([] ?).
+      iMod ("Hwand"  with "[]").
+      * eapply H.
+      *)
+
+    (*
     iApply ub_lift_dbind'.
     + iPureIntro; apply cond_nonneg.
     + iPureIntro; apply cond_nonneg.
