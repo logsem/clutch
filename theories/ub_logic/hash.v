@@ -41,7 +41,10 @@ Section simple_bit_hash.
       compute_hash "hm".
 
   Definition hashfun f m : iProp Σ :=
-    ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ map_list hm ((λ b, LitV (LitInt b)) <$> m).
+    ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
+                  map_list hm ((λ b, LitV (LitInt b)) <$> m) ∗
+                  ⌜map_Forall (λ ind i, (0<= i <=val_size)%Z) m⌝
+  .
 
   #[global] Instance timeless_hashfun f m :
     Timeless (hashfun f m).
@@ -117,7 +120,7 @@ Section simple_bit_hash.
     {{{ RET #b; hashfun f m }}}.
   Proof.
     iIntros (Hlookup Φ) "Hhash HΦ".
-    iDestruct "Hhash" as (hm ->) "H".
+    iDestruct "Hhash" as (hm ->) "[H Hbound]".
     rewrite /compute_hash_specialized.
     wp_pures.
     wp_apply (wp_get with "[$]").
@@ -127,7 +130,7 @@ Section simple_bit_hash.
   Qed.
 
 
-  Lemma wp_insert_no_coll E f m (n : nat) (z : Z) :
+  Lemma wp_insert_no_coll E f m (n : nat) :
     m !! n = None →
     {{{ hashfun f m ∗ € (nnreal_div (nnreal_nat (length (gmap_to_list m))) (nnreal_nat(val_size+1))) ∗
           ⌜coll_free m⌝ }}}
@@ -135,7 +138,7 @@ Section simple_bit_hash.
     {{{ (v : Z), RET #v; hashfun f (<[ n := v ]>m) ∗ ⌜coll_free (<[ n := v ]>m)⌝ }}}.
   Proof.
     iIntros (Hlookup Φ) "(Hhash & Herr & %Hcoll) HΦ".
-    iDestruct "Hhash" as (hm ->) "H".
+    iDestruct "Hhash" as (hm ->) "[H %Hbound]".
     rewrite /compute_hash_specialized.
     wp_pures.
     wp_apply (wp_get with "[$]").
@@ -156,7 +159,14 @@ Section simple_bit_hash.
     - rewrite /hashfun.
       iExists _.
       iSplit; first auto.
-      rewrite fmap_insert //.
+      iSplitL.
+      + rewrite fmap_insert //.
+      + iPureIntro.
+        apply map_Forall_insert_2; last done.
+        split.
+        * lia.
+        * pose proof (fin_to_nat_lt x).
+          lia. 
     - iPureIntro.
       apply coll_free_insert; auto.
       apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
@@ -183,6 +193,7 @@ Section amortized_hash.
   Definition hashfun_amortized f m : iProp Σ :=
     ∃ (hm : loc) (k : nat) (ε : nonnegreal),
       ⌜ f = compute_hash_specialized val_size #hm ⌝ ∗
+      ⌜map_Forall (λ ind i, (0<= i <=val_size)%Z) m⌝ ∗
       ⌜k = size m⌝ ∗
       ⌜ (ε.(nonneg) = (((max_hash_size + 1) * k)/2 - sum_n_m (λ x, INR x) 0%nat (k-1)) / (val_size + 1))%R⌝ ∗
       € ε ∗
@@ -221,16 +232,17 @@ Section amortized_hash.
       {{{ RET #b; hashfun_amortized f m }}}.
   Proof.
     iIntros (Hlookup Φ) "Hhash HΦ".
-    iDestruct "Hhash" as (hm k ε -> ->) "[% [Hε H]]".
+    iDestruct "Hhash" as (hm k ε ->) "[%[-> [% [Hε H]]]]".
     wp_apply (wp_hashfun_prev with "[H]"); first done.
     - iExists _. by iFrame.
-    - iIntros "(%&%&H)". iApply "HΦ".
-      iExists _,_,_. by iFrame.
+    - iIntros "(%&%&H)". inversion H1; subst. iApply "HΦ".
+      iExists _,_,_. iFrame. repeat iSplit; try done.
+      by iDestruct "H" as "[??]".
   Qed.
 
   Lemma hashfun_amortized_hashfun f m: ⊢ hashfun_amortized f m -∗ hashfun val_size f m.
   Proof.
-    iIntros "(%&%&%&->&->&%&He&H)".
+    iIntros "(%&%&%&->&%&->&%&He&H)".
     iExists _; by iFrame.
   Qed.
 
@@ -276,7 +288,7 @@ Section amortized_hash.
   Qed.
   
 
-  Lemma wp_insert_new_amortized E f m (n : nat) (z : Z) :
+  Lemma wp_insert_new_amortized E f m (n : nat) :
     m !! n = None →
     (size m < max_hash_size)%nat ->
     {{{ hashfun_amortized f m ∗ € amortized_error ∗
@@ -285,14 +297,14 @@ Section amortized_hash.
       {{{ (v : Z), RET #v; hashfun_amortized f (<[ n := v ]>m) ∗ ⌜coll_free (<[ n := v ]>m)⌝ }}}.
   Proof.
     iIntros (Hlookup Hsize Φ) "(Hhash & Herr & %Hcoll) HΦ".
-    iDestruct "Hhash" as (hm k ε -> ->) "[% [Hε H]]".
+    iDestruct "Hhash" as (hm k ε -> ) "[%[->[% [Hε H]]]]".
     iAssert (€ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗
              € (mknonnegreal (((max_hash_size + 1) * size (<[n:=0%Z]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%Z]> m) - 1)) / (val_size + 1)) _ )
             )%I with "[Hε Herr]" as "[Hε Herr]".
     - iApply ec_split.
       iCombine "Hε Herr" as "H".
       iApply (ec_spend_irrel with "[$]").
-      simpl. rewrite H. rewrite map_size_insert_None; [|done].
+      simpl. rewrite H0. rewrite map_size_insert_None; [|done].
       remember (size m) as k.
       remember (val_size + 1) as v.
       remember (max_hash_size) as h.
@@ -333,31 +345,30 @@ Section amortized_hash.
         rewrite -{2}(Rmult_1_r (h+1)).
         rewrite -Rmult_plus_distr_l.
         f_equal.
-    - wp_apply (wp_insert_no_coll with "[H Hε]"); [done|done|..].
+    - wp_apply (wp_insert_no_coll with "[H Hε]"); [done|..].
       + iFrame. iSplitL; try done.
         iExists _. by iFrame.
       + iIntros (v) "[H %]".
         iApply "HΦ".
         iSplitL; last done.
         iExists _, _, _. iFrame.
+        iDestruct "H" as "(%&%&H&%)".
         repeat (iSplitR); try done.
         * iPureIntro. simpl. do 3 f_equal.
           all: by repeat rewrite map_size_insert.
-        * iDestruct "H" as "[% [% H]]".
-          inversion H1; subst.
-          iFrame.
+        * inversion H2; by subst.
           Unshelve.
           apply amortized_inequality.
           rewrite map_size_insert.
           case_match => /=; lia.
   Qed.
 
-  Lemma wp_insert_amortized E f m (n : nat) (z : Z) :
+  Lemma wp_insert_amortized E f m (n : nat) :
     (size m < max_hash_size)%nat ->
     {{{ hashfun_amortized f m ∗ € amortized_error ∗
         ⌜coll_free m⌝ }}}
       f #n @ E
-      {{{ (v : Z), RET #v; ∃ m', hashfun_amortized f m' ∗ ⌜coll_free m'⌝ ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= max_hash_size)%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
+      {{{ (v : Z), RET #v; ∃ m', hashfun_amortized f m' ∗ ⌜coll_free m'⌝ ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= S $ size(m))%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
   Proof.
     iIntros (Hsize Φ) "[Hh[Herr %Hc]] HΦ".
     destruct (m!!n) eqn:Heq.

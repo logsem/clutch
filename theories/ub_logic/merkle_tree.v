@@ -99,6 +99,17 @@ Section merkle_tree.
     - wp_pures. iApply "HΦ". by iPureIntro.
   Qed.
 
+  Lemma tree_valid_superset m m' tree:
+    tree_valid tree m -> m ⊆ m' -> tree_valid tree m'.
+  Proof.
+    induction tree.
+    - intros. inversion H; subst.
+      constructor; try done.
+      by eapply lookup_weaken.
+    - intros. inversion H; subst. constructor; try naive_solver.
+      by eapply lookup_weaken.
+  Qed.
+
   (** Spec *)
   Lemma wp_compute_hash_from_leaf_correct (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (path:list bool) llist f E:
      {{{ ⌜tree_relate height ltree tree⌝ ∗
@@ -161,7 +172,157 @@ Section merkle_tree.
         * iIntros "H". iApply "HΦ". iFrame.
           done.
   Qed.
+
   
-          
+  Lemma wp_compute_hash_from_leaf_incorrect (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v v':nat) (path:list bool) llist f E:
+     {{{ ⌜tree_relate height ltree tree⌝ ∗
+        ⌜tree_valid tree m⌝ ∗
+        hashfun_amortized (val_size-1)%nat max_hash_size f m ∗
+        ⌜is_list path llist⌝ ∗
+        ⌜tree_value_match tree v path⌝ ∗
+        ⌜map_valid m⌝ ∗
+        ⌜ size m + (S height) <= max_hash_size⌝ ∗
+        ⌜v ≠ v'⌝ ∗ 
+        € (nnreal_nat (S height) * amortized_error (val_size-1)%nat max_hash_size)%NNR
+     }}}
+      compute_hash_from_leaf ltree f llist (#v') @ E
+      {{{ (retv:Z), RET #retv;
+          ∃ m', ⌜m ⊆ m'⌝ ∗
+                hashfun_amortized (val_size-1) max_hash_size f m' ∗
+                ⌜map_valid m'⌝ ∗
+                ⌜size (m') <= size m + (S height)⌝ ∗
+                ⌜retv ≠ root_hash_value tree⌝ ∗
+                ⌜(0 <= retv)%Z⌝
+      }}}.
+  Proof.
+    iIntros (Φ) "(%Htrelate&%Htvalid&H&%Hlsit&%Hvmatch&%Hmvalid&%Hmsize&%Hneq&Herr) HΦ".
+    iInduction tree as [|] "IH"
+                         forall (height ltree m path llist Φ Htrelate Htvalid Hlsit Hvmatch Hmvalid Hmsize Hneq).
+    - rewrite /compute_hash_from_leaf.
+      wp_pures. inversion Htrelate; subst. 
+      wp_match.
+      inversion Htrelate. inversion Htvalid. inversion Hvmatch. subst.
+      wp_apply (wp_insert_amortized with "[$H Herr]").
+      + lia.
+      + lia.
+      + iSplitL.
+        * assert (∀ x, (nnreal_nat 1 * x)%NNR = x) as ->; last iFrame.
+          intros. apply nnreal_ext. simpl. lra.
+        * done.
+      + iIntros (v2) "(%m' & Hm & %Hmvalid' & %Hmv' & %Hmsize' & %Hmsubset)".
+        iApply "HΦ". iExists m'.
+        repeat iSplit; try done.
+        * iPureIntro. lia.
+        * iPureIntro. simpl. intro Hfalse; subst.
+          apply Hneq. apply Hmvalid'; try done.
+          -- by eapply lookup_weaken_is_Some.
+          -- erewrite lookup_total_correct; last eapply lookup_weaken; try done.
+             by erewrite lookup_total_correct.
+        * iDestruct "Hm" as "(%&%&%&%&%&H)". iPureIntro.
+          eapply map_Forall_lookup_1 in H2; last done.
+          lia. 
+    - rewrite /compute_hash_from_leaf.
+      wp_pures. rewrite -/compute_hash_from_leaf.
+      inversion Htrelate; subst.
+      wp_pures. inversion Htvalid; subst.
+      inversion Hvmatch; subst.
+      + wp_apply wp_list_head; try done. iIntros (?) "[%|%Hl]".
+        { naive_solver. }
+        destruct Hl as (?&?&?&?); subst. inversion H; subst.
+        wp_pures.
+        wp_apply wp_list_tail; try done.
+        iIntros (l') "%".
+        wp_pures.
+        wp_apply wp_root_hash_value_program; try done.
+        iIntros (?) "->".
+        iAssert (€ ((nnreal_nat (S n) * amortized_error (val_size - 1) max_hash_size)%NNR) ∗
+                 € (amortized_error (val_size - 1) max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+        { iApply ec_split. iApply (ec_spend_irrel with "[$]").
+          simpl. lra.
+        }
+        wp_apply ("IH" with "[][][][][][][][$H][$Herr]"); try done.
+        * iPureIntro. lia. 
+        * iIntros (retv) "(%m' & %Htvalid' & H & %Hmvalid' & %Hmsize' & %Hneq' & %Hnonneg)".
+          wp_pures.
+          replace (_*_+_)%Z with (Z.of_nat (Z.to_nat retv * 2 ^ val_bit_size + root_hash_value tree2)); last first.
+          { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul. f_equal; first lia.
+            apply Z2Nat.inj_pow.
+          }
+          wp_apply (wp_insert_amortized with "[$H $Herr']").
+          -- lia.
+          -- lia.
+          -- iPureIntro. done.
+          -- iIntros (hv) "(%m''&Hm'' & %Hcoll_free' & %Hmsome'' & %Hsize'' & %Hsubset'')".
+             iApply "HΦ".
+             iExists m''.
+             repeat iSplit; try done.
+             ++ iPureIntro. etrans; exact.
+             ++ iPureIntro. lia.
+             ++ simpl. iPureIntro.
+                intro; subst. apply Hneq'.
+                assert (Z.to_nat retv * 2 ^ val_bit_size + root_hash_value tree2 =
+                        root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2); last first.
+                { assert (Z.to_nat retv =
+                          root_hash_value tree1 ); try lia.
+                  assert (Z.to_nat retv * 2 ^ val_bit_size =
+                          root_hash_value tree1 * 2 ^ val_bit_size); try lia.
+                  rewrite <- Nat.mul_cancel_r; try done.
+                  lia.
+                }
+                apply Hcoll_free'; try done.
+                ** eapply lookup_weaken_is_Some; try done.
+                   etrans; exact.
+                ** erewrite lookup_total_correct; last done.
+                   erewrite lookup_total_correct; last eapply lookup_weaken; try done.
+                   etrans; exact.
+             ++ iDestruct "Hm''" as "(%&%&%&%&%&%&H)".
+                iPureIntro. eapply map_Forall_lookup_1 in H6; last done. lia.
+      + wp_apply wp_list_head; try done. iIntros (?) "[%|%Hl]".
+        { naive_solver. }
+        destruct Hl as (?&?&?&?); subst. inversion H; subst.
+        wp_pures.
+        wp_apply wp_list_tail; try done.
+        iIntros (l') "%".
+        wp_pures.
+        iAssert (€ ((nnreal_nat (S n) * amortized_error (val_size - 1) max_hash_size)%NNR) ∗
+                 € (amortized_error (val_size - 1) max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+        { iApply ec_split. iApply (ec_spend_irrel with "[$]").
+          simpl. lra.
+        }
+        wp_apply ("IH1" with "[][][][][][][][$H][$Herr]"); try done.
+        * iPureIntro. lia.
+        * iIntros (retv) "(%m' & %Htvalid' & H & %Hmvalid' & %Hmsize' & %Hneq' & %Hnonneg)".
+          wp_pures.
+          wp_apply wp_root_hash_value_program; try done.
+          iIntros (?) "->".
+          wp_pures.
+          replace (_*_+_)%Z with (Z.of_nat ((root_hash_value tree1) * 2 ^ val_bit_size + Z.to_nat retv)); last first.
+          { rewrite Nat2Z.inj_add. f_equal; try lia. rewrite Nat2Z.inj_mul. f_equal. 
+            apply Z2Nat.inj_pow.
+          }
+          wp_apply (wp_insert_amortized with "[$H $Herr']").
+          -- lia.
+          -- lia.
+          -- iPureIntro. done.
+          -- iIntros (hv) "(%m''&Hm'' & %Hcoll_free' & %Hmsome'' & %Hsize'' & %Hsubset'')".
+             iApply "HΦ".
+             iExists m''.
+             repeat iSplit; try done.
+             ++ iPureIntro. etrans; exact.
+             ++ iPureIntro. lia.
+             ++ simpl. iPureIntro.
+                intro; subst. apply Hneq'.
+                assert (root_hash_value tree1 * 2 ^ val_bit_size + Z.to_nat retv =
+                        root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2); try lia.
+                apply Hcoll_free'; try done.
+                ** eapply lookup_weaken_is_Some; try done.
+                   etrans; exact.
+                ** erewrite lookup_total_correct; last done.
+                   erewrite lookup_total_correct; last eapply lookup_weaken; try done.
+                   etrans; exact.
+             ++ iDestruct "Hm''" as "(%&%&%&%&%&%&H)".
+                iPureIntro. eapply map_Forall_lookup_1 in H6; last done. lia.
+  Qed.
+  
   
 End merkle_tree.
