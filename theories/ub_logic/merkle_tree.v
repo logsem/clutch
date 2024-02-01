@@ -48,6 +48,33 @@ Section merkle_tree.
     
 
   Definition map_valid (m:gmap nat Z) : Prop := coll_free m.
+  
+
+  Inductive tree_value_match: merkle_tree -> nat -> list bool -> Prop:=
+  | tree_value_match_lf h lf: tree_value_match (Leaf h lf) lf []
+  | tree_value_match_left h l r xs v:
+    tree_value_match l v xs ->
+    tree_value_match (Branch h l r) v (true::xs)
+  | tree_value_match_right h l r xs v:
+    tree_value_match r v xs ->
+    tree_value_match (Branch h l r) v (false::xs).
+
+  Inductive possible_proof: list bool -> list nat -> Prop:=
+  | possible_proof_lf: possible_proof [] []
+  | possible_proof_br b path hashlist hash:
+    possible_proof path hashlist ->
+    hash < 2^val_bit_size ->
+    possible_proof (b::path) (hash::hashlist).
+
+  Inductive correct_proof: merkle_tree -> list bool -> list nat -> Prop :=
+  | correct_proof_lf h l: correct_proof (Leaf h l) [] []
+  | correct_proof_left ltree rtree h path hashlist:
+    correct_proof (ltree) path hashlist ->
+    correct_proof (Branch h ltree rtree) (true::path) (root_hash_value rtree::hashlist)
+  | correct_proof_right ltree rtree h path hashlist:
+    correct_proof (rtree) path hashlist ->
+    correct_proof (Branch h ltree rtree) (false::path) (root_hash_value ltree::hashlist).
+    
 
   Definition root_hash_value_program : val :=
     λ: "ltree",
@@ -76,15 +103,6 @@ Section merkle_tree.
     end
 
   .
-
-  Inductive tree_value_match: merkle_tree -> nat -> list bool -> Prop:=
-  | tree_value_match_lf h lf: tree_value_match (Leaf h lf) lf []
-  | tree_value_match_left h l r xs v:
-    tree_value_match l v xs ->
-    tree_value_match (Branch h l r) v (true::xs)
-  | tree_value_match_right h l r xs v:
-    tree_value_match r v xs ->
-    tree_value_match (Branch h l r) v (false::xs).
 
   (** Lemmas *)
   Lemma wp_root_hash_value_program n lt tree E:
