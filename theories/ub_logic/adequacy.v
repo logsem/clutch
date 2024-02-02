@@ -46,9 +46,6 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
 
-  Print Assumptions ub_lift_dbind_adv' .
-
-
   Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
     exec_ub e σ (λ ε' '(e2, σ2),
