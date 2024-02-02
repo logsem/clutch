@@ -417,8 +417,9 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec ((true, true, 3%nat) : mstate model))).
   { by rewrite iter_two_coins_terminates. }
-  eapply (wp_refRcoupl_mass (δ := model) (tprΣ model)).
+  eapply (rwp_soundness_mass (δ := model) (tprΣ model)).
   iIntros (?) "Ha".
   wp_apply (wp_runner with "[Ha]"); [|done].
   iExists _, _. eauto with lia.
 Qed.
+

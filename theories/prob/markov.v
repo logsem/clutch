@@ -478,6 +478,13 @@ Section markov.
     rewrite pexec_O. by apply dret_1_1.
   Qed.
 
+  Lemma lim_exec_not_final a :
+    ¬ is_final a →
+    lim_exec a = step a ≫= lim_exec.
+  Proof.
+    intros Hn. rewrite lim_exec_step step_or_final_no_final //.
+  Qed.  
+
   Lemma lim_exec_leq a b (r : R) :
     (∀ n, exec n a b <= r) →
     lim_exec a b <= r.

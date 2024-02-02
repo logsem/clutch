@@ -1,7 +1,30 @@
 From iris.bi Require Export bi fixpoint.
 From iris.proofmode Require Import base proofmode.
-From iris.base_logic.lib Require Export fancy_updates.
+From iris.base_logic.lib Require Export fancy_updates wsat.
 Import uPred.
+
+Section fupd.
+  Local Existing Instances invGpreS_wsat invGpreS_lc.
+
+  (* TODO: remove when Iris is updated (this is on upstream main now) *)
+  Lemma fupd_soundness_no_lc_unfold `{!invGpreS Σ} m E :
+    ⊢ |==> ∃ `(Hws: invGS_gen HasNoLc Σ) (ω : coPset → iProp Σ),
+        £ m ∗ ω E ∗ □ (∀ E1 E2 P, (|={E1, E2}=> P) -∗ ω E1 ==∗ ◇ (ω E2 ∗ P)).
+  Proof.
+    iMod wsat_alloc as (Hw) "[Hw HE]".
+    (* We don't actually want any credits, but we need the [lcGS]. *)
+    iMod (later_credits.le_upd.lc_alloc m) as (Hc) "[_ Hlc]".
+    set (Hi := InvG HasNoLc _ Hw Hc).
+   iExists Hi, (λ E, wsat ∗ ownE E)%I.
+    rewrite (union_difference_L E ⊤); [|set_solver].
+    rewrite ownE_op; [|set_solver].
+    iDestruct "HE" as "[HE _]". iFrame.
+    iIntros "!>!>" (E1 E2 P) "HP HwE".
+    rewrite fancy_updates.uPred_fupd_unseal
+      /fancy_updates.uPred_fupd_def -assoc /=.
+    by iApply ("HP" with "HwE").
+  Qed.
+End fupd.
 
 (* TODO: upstream? *)
 Section fupd_plainly_derived.

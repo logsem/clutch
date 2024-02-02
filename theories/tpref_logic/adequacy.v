@@ -1,290 +1,290 @@
 From Coq Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
+From iris.bi Require Import bi derived_laws_later.
+From iris.bi.lib Require Export fixpoint.
+From iris.base_logic Require Import derived.
 From iris.base_logic.lib Require Import fancy_updates ghost_map.
-From iris.bi Require Export fixpoint big_op.
 
 From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob_lang Require Import lang erasure.
+From clutch.prob_lang Require Import lang metatheory erasure.
 From clutch.tpref_logic Require Import weakestpre spec primitive_laws.
 From clutch.prob Require Import couplings distribution markov.
 
-Section adequacy.
-  Context `{!tprG δ Σ}.
+Section refines.
+  Context {Σ : gFunctors} {δ : markov}.
+
   Implicit Type e : expr.
   Implicit Type σ : state.
+  Implicit Type ρ : cfg.
   Implicit Type a : mstate δ.
   Implicit Type b : mstate_ret δ.
 
-  #[local]
-  Lemma rwp_coupl_final e σ a b R n :
-    to_final a = Some b →
-    to_val e = None →
-    rwp_coupl e σ a (λ '(e2, σ2) a2,
-        ∀ n, |={∅}=> |={∅}▷=>^n ⌜exec n a2 ≾ lim_exec (e2, σ2) : R⌝)
-      ⊢ |={∅}=> |={∅}▷=>^n ⌜exec n a ≾ lim_exec (e, σ) : R⌝.
+  (** * A Step-indexed left-partial coupling *)
+  (** A stratified plain coupling relation where steps of the model are tied to
+      the step index. This is the "simulation relation" that the relational
+      logic constructs.
+
+      Everything looks like you'd expect, *except* the [except_0] modality [◇]
+      in the front. This is technically needed because [fupd] does not interact
+      well with [▷], i.e.,
+
+            (▷ |={E}=> P) ⊢ |={E}=> ▷ ◇ P
+
+      Philosophically, I guess this is the price we pay, for working "up to"
+      timelessness in the logic. *)
+  Definition refines_pre (refines : mstate δ * cfg -d> iProp Σ) : mstate δ * cfg -d> iProp Σ :=
+    λ '(a, (e, σ)),
+      (◇ (⌜is_final (e, σ)⌝ ∨
+         (⌜reducible e σ⌝ ∧ ∃ R, ⌜Rcoupl (prim_step e σ) (dret a) R⌝ ∧
+                                 ∀ ρ', ⌜R ρ' a⌝ → refines (a, ρ')) ∨
+         (⌜reducible e σ⌝ ∧ ∃ R, ⌜Rcoupl (prim_step e σ) (step a) R⌝ ∧
+                              ∀ ρ' a', ⌜R ρ' a'⌝ → ▷ refines (a', ρ')) ∨
+         (∃ R, ⌜Rcoupl (dret (e, σ)) (step a) R⌝ ∧ ∀ a', ⌜R (e, σ) a'⌝ → ▷ refines (a', (e, σ))) ∨
+         (∃ R αs, ⌜αs ⊆ get_active σ⌝ ∗ ⌜Rcoupl (foldlM state_step σ αs) (step a) R⌝ ∗
+                  ∀ σ' a', ⌜R σ' a'⌝ → ▷ refines (a', (e, σ')))))%I.
+
+  #[local] Instance refine_pre_ne Φ :
+    NonExpansive (refines_pre Φ).
   Proof.
-    iIntros (Hf Hv) "Hcpl".
-    erewrite exec_is_final; [|done].
-    rewrite rwp_coupl_unfold.
-    iDestruct "Hcpl" as "[(%S & % & % & HR) | [(%S & %Hcpl & HR) | [(%S & % & %Hcpl & HR) | (% & % & %Hαs & %Hcpl & HR)]]]".
-    - iEval (rewrite -(dret_id_left (λ a, dret b) a)).
-      rewrite lim_exec_step step_or_final_no_final; [|auto].
-      iApply (step_fupdN_mono _ _ _ (⌜∀ ρ', S ρ' a → dret b ≾ lim_exec ρ' : R⌝)%I).
-      { iIntros (Hcnt). iPureIntro.
+    rewrite /refines_pre.
+    intros ? [? []] [? []] [[=] [[=] [=]]].
+    by simplify_eq.
+  Qed.
+
+  #[local] Instance refines_pre_mono : BiMonoPred refines_pre.
+  Proof.
+    split; [|apply _].
+    iIntros (Φ Ψ HNEΦ HNEΨ) "#Hw".
+    iIntros ([a (e1 & σ1)]) ">[[%v %Hv] | [(% & % & % & H) | [(% & % & % & H) |
+                                          [(% & % & H)| (% & % & % & % & H)]]]] !>".
+    - iLeft. eauto.
+    - iRight; iLeft. iFrame "%". iExists _. iFrame "%".
+      iIntros (??). iApply "Hw". by iApply "H".
+    - iRight; iRight; iLeft. iFrame "%". iExists _. iFrame "%".
+      iIntros (???). iApply "Hw". by iApply "H".
+    - iRight; iRight; iRight; iLeft. iFrame "%". iExists _. iFrame "%".
+      iIntros (??). iApply "Hw". by iApply "H".
+    - iRight; iRight; iRight; iRight. iFrame "%". iExists _, _. iFrame "%".
+      iIntros (???). iApply "Hw". by iApply "H".
+  Qed.
+
+  Definition refines' := bi_least_fixpoint refines_pre.
+  Definition refines a ρ := refines' (a, ρ).
+
+  Lemma refines_unfold a ρ :
+    refines a ρ ≡ refines_pre refines' (a, ρ).
+  Proof. apply least_fixpoint_unfold. apply _. Qed.
+
+  Lemma refines_ind (Ψ : mstate δ → cfg → iProp Σ):
+    (∀ n a ρ, Proper (dist n) (Ψ a ρ)) →
+    ⊢ (□ (∀ a ρ, refines_pre (λ '(a, ρ), Ψ a ρ ∧ refines a ρ) (a, ρ) -∗ Ψ a ρ) →
+       ∀ a ρ , refines a ρ -∗ Ψ a ρ)%I.
+  Proof.
+    iIntros (HΨ). iIntros "#IH" (a [e σ]) "H".
+    set (Ψ' := uncurry Ψ : prodO (mstateO δ) (prodO (exprO) (stateO)) → iProp Σ).
+    assert (NonExpansive Ψ').
+    { intros ? [? []] [? []] [[=] [[=] [=]]]. simplify_eq/=. by apply HΨ. }
+    iApply (least_fixpoint_ind _ Ψ' with "[] H").
+    iIntros "!#" ([? []]) "H". by iApply "IH".
+  Qed.
+
+  #[global] Instance refines_plain a ρ : Plain (refines a ρ).
+  Proof.
+    rewrite /Plain.
+    iRevert (a ρ); iApply refines_ind.
+    iIntros "!#" (a [e σ]).
+    rewrite refines_unfold /refines_pre.
+    rewrite -except_0_plainly.
+    iIntros ">[[%v %Hv] | [(% & % & % & H) | [(% & % & % & H) |
+                          [(% & % & H)| (% & % & % & % & H)]]]] !>".
+    - eauto.
+    - iRight; iLeft. iSplit; [done|].
+      iExists _. iSplit; [done|].
+      iIntros (? HR). by iDestruct ("H" $! _ HR) as "[H _]".
+    - iRight; iRight; iLeft. iSplit; [done|].
+      iExists _. iSplit; [done|].
+      iIntros (?? HR). iDestruct ("H" $! _ _ HR) as "[H _]".
+      by iApply later_plainly_1.
+    - iRight; iRight; iRight; iLeft.
+      iExists _. iSplit; [done|].
+      iIntros (? HR).
+      iDestruct ("H" $! _ HR) as "[H _]".
+      by iApply later_plainly_1.
+    - iRight; iRight; iRight; iRight.
+      iExists _, _. iSplit; [done|]. iSplit; [done|].
+      iIntros (?? HR).
+      iApply later_plainly_1.
+      by iDestruct ("H" $! _ _ HR) as "[H _]".
+  Qed.
+
+  #[global] Instance isexcept0_refines a ρ : IsExcept0 (refines a ρ).
+  Proof.
+    rewrite /IsExcept0. destruct ρ as [e σ].
+    iIntros "H".
+    rewrite refines_unfold.
+    by iMod "H".
+  Qed.
+
+  Lemma refines_soundness_laterN n a ρ :
+    refines a ρ ⊢ ◇ ▷^(S n) ⌜exec n a ≾ lim_exec ρ : λ _ _, True⌝.
+  Proof.
+    iIntros "H". iRevert (n); iRevert (a ρ) "H".
+    iApply refines_ind.
+    iIntros "!#" (a [e σ]).
+    iIntros ">[[%v %Hv] | [(% & %R & % & H) | [(% & %R & %Hcpl & H) |
+                          [(%R & %Hcpl & H)| (%R & % & % & %Hcpl & H)]]]] %n !>".
+    - iPureIntro. erewrite lim_exec_final; [|done]. apply refRcoupl_dret_trivial.
+    - rewrite lim_exec_not_final /=; [|by eapply reducible_not_final].
+      rewrite -(dret_id_left (exec n)).
+      iApply (bi.laterN_mono _ (∀ ρ', ⌜R ρ' a → exec n a ≾ lim_exec ρ' : (λ _ _, True)⌝)).
+      { iIntros (?). iPureIntro.
         eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
-        intros a1 [e' σ'] (HR & Hs & <-%dret_pos). eauto. }
+        intros ?? (? & ? & ->%dret_pos); eauto. }
+      iIntros (? HR).
+      iDestruct ("H" $! _ HR) as "[H _]".
+      by iDestruct ("H" $! n) as ">H".
+    - rewrite lim_exec_not_final /=; [|by eapply reducible_not_final].
       destruct n.
-      + iIntros ([e2 σ2] HR).
-        iMod ("HR" with "[//]") as "H".
-        iMod ("H" $! O). by erewrite exec_is_final.
-      + iIntros "!>" ([e2 σ2] HR).
-        rewrite step_fupdN_Sn.
-        iMod ("HR" with "[//]") as "H".
-        iMod ("H" $! n). by erewrite exec_is_final.
-    - rewrite is_final_dzero in Hcpl; [|eauto].
-      apply Rcoupl_mass_eq in Hcpl.
-      rewrite dret_mass dzero_mass in Hcpl.
-      lra.
-    - rewrite is_final_dzero in Hcpl; [|eauto].
-      apply Rcoupl_mass_eq in Hcpl.
-      rewrite prim_step_mass ?dzero_mass in Hcpl; [|done].
-      lra.
-    - rewrite is_final_dzero in Hcpl; [|eauto].
-      apply Rcoupl_mass_eq in Hcpl.
-      rewrite dzero_mass in Hcpl.
-      rewrite state_steps_mass // in Hcpl. lra.
+      + destruct (decide (is_final a)); last first.
+        { iPureIntro. rewrite exec_O_not_final //. apply refRcoupl_dzero. }
+        exfalso. move: Hcpl => /Rcoupl_mass_eq.
+        rewrite is_final_dzero ?dzero_mass ?prim_step_mass; eauto. lra.
+      + destruct (to_final a) eqn:Ha.
+        { exfalso. move: Hcpl => /Rcoupl_mass_eq.
+          rewrite is_final_dzero ?dzero_mass ?prim_step_mass; eauto. lra. }
+        rewrite /= Ha.
+        iApply (bi.laterN_mono _ (∀ ρ' a', ⌜R ρ' a' → exec n a' ≾ lim_exec ρ' : (λ _ _, True)⌝)).
+        { iIntros (?). iPureIntro.
+          eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl'].
+          intros ???. eauto. }
+        iIntros (?? HR).
+        iDestruct ("H" $! _ _ HR) as "[HR _]". iModIntro.
+        by iDestruct ("HR" $! n) as ">H".
+    - rewrite -{2}(dret_id_left lim_exec).
+      destruct n.
+      + destruct (decide (is_final a)); last first.
+        { iPureIntro. rewrite exec_O_not_final //. apply refRcoupl_dzero. }
+        exfalso. move: Hcpl => /Rcoupl_mass_eq.
+        rewrite is_final_dzero ?dzero_mass ?dret_mass; eauto. lra.
+      + destruct (to_final a) eqn:Ha.
+        { exfalso. move: Hcpl => /Rcoupl_mass_eq.
+          rewrite is_final_dzero ?dzero_mass ?dret_mass; eauto. lra. }
+        rewrite /= Ha.
+        iApply (bi.laterN_mono _ (∀ a', ⌜R (e, σ) a' → exec n a' ≾ lim_exec (e, σ) : (λ _ _, True)⌝)).
+        { iIntros (?). iPureIntro.
+          eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
+          intros ?? (?&->%dret_pos&?). eauto. }
+        iIntros (a' HR).
+        iDestruct ("H" $! _ HR) as "[HR _]". iModIntro.
+        by iDestruct ("HR" $! n) as ">H".
+    - (* Erasure *)
+      erewrite (lim_exec_eq_erasure αs); [|done].
+      destruct n.
+      + destruct (decide (is_final a)); last first.
+        { iPureIntro. rewrite exec_O_not_final //. apply refRcoupl_dzero. }
+        exfalso. move: Hcpl => /Rcoupl_mass_eq.
+        rewrite is_final_dzero ?dzero_mass ?state_steps_mass; eauto. lra.
+      + destruct (to_final a) eqn:Ha.
+        { exfalso. move: Hcpl => /Rcoupl_mass_eq.
+          rewrite is_final_dzero ?dzero_mass ?state_steps_mass; eauto. lra. }
+        rewrite exec_Sn_not_final; [|eauto].
+        iApply (bi.laterN_mono _ (∀ σ' a', ⌜R σ' a' → exec n a' ≾ lim_exec (e, σ') : (λ _ _, True)⌝)).
+        { iIntros (?). iPureIntro.
+          eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl'].
+          intros ???. eauto. }
+        iIntros (σ' a' HR).
+        iDestruct ("H" $! _ _ HR) as "[HR _]". iModIntro.
+        by iDestruct ("HR" $! n) as ">H".
   Qed.
 
-  Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (a : mstate δ) (n : nat) :
-    state_interp σ ∗ specA a ∗ WP e {{ _, True }} ⊢
-    |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec (e, σ) ≿ exec n a : λ _ _, True⌝.
+  (** [refines] is sound ... *)
+  Lemma refines_soundness n a ρ :
+    (⊢ refines a ρ) → exec n a ≾ lim_exec ρ : λ _ _, True.
   Proof.
-    iIntros "(Hσ & Ha & Hrwp)".
-    iRevert (σ a n) "Hσ Ha".
-    iApply (rwp_ind' (λ e, _) with "[] Hrwp"); clear.
-    iIntros "!#" (e) "Hrwp"; iIntros (σ a n) "Hσ Ha".
-    rewrite /rwp_pre.
-    iSpecialize ("Hrwp" with "[$]").
-    case_match eqn:Hv.
-    - iMod "Hrwp" as "(Hσ & Hauth & _)".
-      erewrite lim_exec_final; [|done].
-      iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-      iApply step_fupdN_intro; [done|].
-      iModIntro.
-      iPureIntro.
-      eapply refRcoupl_trivial.
-      rewrite dret_mass //.
-    - iMod "Hrwp" as "Hcpl".
-      iDestruct (rwp_coupl_strong_mono _ _ _ _
-                   ((λ '(e2, σ2) a2, ∀ n, |={∅}=> |={∅}▷=>^n
-                        ⌜exec n a2 ≾ lim_exec (e2, σ2) : _⌝))%I
-                 with "[] Hcpl") as "Hcpl".
-      { iIntros ([e' σ'] a') "(% & H) %".
-        iMod "H" as "(? & ? & H)".
-        by iMod ("H" with "[$] [$]"). }
-      iInduction n as [|n] "IH" forall (e σ a Hv).
-      + destruct (to_final a) eqn:Hf.
-        { by iApply rwp_coupl_final. }
-        rewrite exec_O_not_final; [|by apply to_final_None_2].
-        iModIntro. iPureIntro.
-        apply refRcoupl_dzero.
-      + destruct (to_final a) eqn:Hf.
-        { by iApply rwp_coupl_final. }
-        rewrite rwp_coupl_unfold.
-        iDestruct "Hcpl" as "[(%R & % & % & HR) | [(%R & %Hcpl & HR) | [(%R & % & %Hcpl & HR) | (% & % & %Hαs & %Hcpl & HR)]]]".
-        * iEval (rewrite -(dret_id_left (exec _))).
-          rewrite lim_exec_step step_or_final_no_final; [|eauto].
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ ρ', R ρ' a → exec _ a ≾ lim_exec ρ' : _⌝)%I).
-          { iIntros (Hcnt). iPureIntro.
-            eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
-            intros a1 [e' σ'] (HR & Hs & <-%dret_pos). eauto. }
-          iModIntro.
-          iIntros ([e2 σ2] HR).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "H".
-          iMod ("H" $! (S n)) as "HR".
-          rewrite -step_fupdN_Sn.
-          iApply "HR".
-        * rewrite exec_Sn_not_final; [|eauto].
-          iEval (rewrite -(dret_id_left (lim_exec))).
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ a, R (e, σ) a → exec n a ≾ lim_exec (e, σ) :_⌝)%I).
-          { iIntros (HR). iPureIntro.
-            eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
-            intros a1 [? ?] (? & [= -> ->]%dret_pos & Hs). eauto. }
-          iIntros "!>" (a'' HR).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "HR".
-          do 2 iModIntro. iMod "HR".
-          iApply ("IH" with "[//] HR").
-        * rewrite exec_Sn_not_final; [|eauto].
-          rewrite lim_exec_step step_or_final_no_final; [|eauto].
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ ρ' a', R ρ' a' → exec n a' ≾ lim_exec ρ' : _⌝)%I).
-          { iIntros (HR). iPureIntro.
-            eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl'].
-            intros ???. by apply HR. }
-          iModIntro.
-          iIntros ([e' σ'] a0 HR).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "HR".
-          do 2 iModIntro.
-          by iMod "HR".
-        * rewrite exec_Sn_not_final; [|eauto].
-          erewrite (lim_exec_eq_erasure αs); [|done].
-          iModIntro.
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ σ' a', R2 σ' a' → exec n a' ≾ lim_exec (e, σ') : λ _ _, True⌝)%I).
-          { iIntros (Hcnt). iPureIntro.
-            eapply refRcoupl_dbind; [|by eapply Rcoupl_refRcoupl'].
-            intros ???. by eapply Hcnt. }
-          iIntros (σ' a' ?).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "H".
-          iIntros "!> !>".
-          iMod "H".
-          iApply ("IH" with "[//] H").
+    rewrite refines_soundness_laterN.
+    rewrite bi.except_0_into_later.
+    eapply (uPred.soundness _ (S (S n))).
   Qed.
 
-  Theorem wp_refRcoupl_step_fupdN_res (e : expr) (σ : state) (a : mstate δ) (n : nat) (φ : val → mstate_ret δ → Prop) :
-    state_interp σ ∗ specA a ∗ WP e {{ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ }} ⊢
-    |={⊤,∅}=> |={∅}▷=>^n ⌜lim_exec (e, σ) ≿ exec n a : φ⌝.
-  Proof.
-    iIntros "(Hσ & Ha & Hrwp)".
-    iRevert (σ a n) "Hσ Ha".
-    iApply (rwp_ind' (λ e, _) with "[] Hrwp"); clear.
-    iIntros "!#" (e) "Hrwp"; iIntros (σ a n) "Hσ Ha".
-    rewrite /rwp_pre.
-    iSpecialize ("Hrwp" with "[$]").
-    case_match eqn:Hv.
-    - iMod "Hrwp" as "(Hσ & Hauth & (% & % & Hspec & % & %))".
-      iDestruct (spec_auth_agree with "Hauth Hspec") as %<-.
-      erewrite lim_exec_final; [|done].
-      iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-      iApply step_fupdN_intro; [done|].
-      iModIntro.
-      iPureIntro.
-      erewrite exec_is_final; [|done].
-      by apply Rcoupl_refRcoupl, Rcoupl_dret.
-    - iMod "Hrwp" as "Hcpl".
-      iDestruct (rwp_coupl_strong_mono _ _ _ _
-                   ((λ '(e2, σ2) a2, ∀ n, |={∅}=> |={∅}▷=>^n
-                        ⌜exec n a2 ≾ lim_exec (e2, σ2) : _⌝))%I
-                 with "[] Hcpl") as "Hcpl".
-      { iIntros ([e' σ'] a') "(% & H) %".
-        iMod "H" as "(? & ? & H)".
-        by iMod ("H" with "[$] [$]"). }
-      iInduction n as [|n] "IH" forall (e σ a Hv).
-      + destruct (to_final a) eqn:Hf.
-        { by iApply rwp_coupl_final. }
-        rewrite exec_O_not_final; [|by apply to_final_None_2].
-        iModIntro. iPureIntro.
-        apply refRcoupl_dzero.
-      + destruct (to_final a) eqn:Hf.
-        { by iApply rwp_coupl_final. }
-        rewrite rwp_coupl_unfold.
-        iDestruct "Hcpl" as "[(%R & % & % & HR) | [(%R & %Hcpl & HR) | [(%R & % & %Hcpl & HR) | (% & % & %Hαs & %Hcpl & HR)]]]".
-        * iEval (rewrite -(dret_id_left (exec _))).
-          rewrite lim_exec_step step_or_final_no_final; [|eauto].
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ ρ', R ρ' a → exec _ a ≾ lim_exec ρ' : _⌝)%I).
-          { iIntros (Hcnt). iPureIntro.
-            eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
-            intros a1 [e' σ'] (HR & Hs & <-%dret_pos). eauto. }
-          iModIntro.
-          iIntros ([e2 σ2] HR).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "H".
-          iMod ("H" $! (S n)) as "HR".
-          rewrite -step_fupdN_Sn.
-          iApply "HR".
-        * rewrite exec_Sn_not_final; [|eauto].
-          iEval (rewrite -(dret_id_left (lim_exec))).
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ a, R (e, σ) a → exec n a ≾ lim_exec (e, σ) :_⌝)%I).
-          { iIntros (HR). iPureIntro.
-            eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', Rcoupl_pos_R].
-            intros a1 [? ?] (? & [= -> ->]%dret_pos & Hs). eauto. }
-          iIntros "!>" (a'' HR).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "HR".
-          do 2 iModIntro. iMod "HR".
-          iApply ("IH" with "[//] HR").
-        * rewrite exec_Sn_not_final; [|eauto].
-          rewrite lim_exec_step step_or_final_no_final; [|eauto].
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ ρ' a', R ρ' a' → exec n a' ≾ lim_exec ρ' : _⌝)%I).
-          { iIntros (HR). iPureIntro.
-            eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl'].
-            intros ???. by apply HR. }
-          iModIntro.
-          iIntros ([e' σ'] a0 HR).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "HR".
-          do 2 iModIntro.
-          by iMod "HR".
-        * rewrite exec_Sn_not_final; [|eauto].
-          erewrite (lim_exec_eq_erasure αs); [|done].
-          iModIntro.
-          iApply (step_fupdN_mono _ _ _
-                    (⌜∀ σ' a', R2 σ' a' → exec n a' ≾ lim_exec (e, σ') : _⌝)%I).
-          { iIntros (Hcnt). iPureIntro.
-            eapply refRcoupl_dbind; [|by eapply Rcoupl_refRcoupl'].
-            intros ???. by eapply Hcnt. }
-          iIntros (σ' a' ?).
-          rewrite step_fupdN_Sn.
-          iMod ("HR" with "[//]") as "H".
-          iIntros "!> !>".
-          iMod "H".
-          iApply ("IH" with "[//] H").
-  Qed.
+End refines.
 
-End adequacy.
-
-Theorem wp_refRcoupl `{!tprGpreS δ Σ} e σ a n :
+(** ... and our relational logic implies [refines].  *)
+Lemma rwp_refines `{!tprGpreS δ Σ} e σ a :
   (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
-  lim_exec (e, σ) ≿ exec n a : (λ _ _, True).
+  (⊢@{iProp Σ} refines a (e, σ)).
 Proof.
   intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ n 0).
-  iIntros (Hinv) "_".
+  (* Here we are breaking the [fupd] abstraction *)
+  iMod (fupd_soundness_no_lc_unfold 0) as (??) "(_ & Hω & #Hfupd)".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod (spec_auth_alloc a) as (HspecG) "[Hauth Hfrag]".
-  set (HclutchG := TprG _ Σ _ _ _ γH γT HspecG).
-  iApply wp_refRcoupl_step_fupdN.
-  iFrame.
-  by iApply (Hwp with "[Hfrag]").
+  iMod (spec_auth_alloc a) as (HspecG) "[Ha Hfrag]".
+  iCombine "Hh Ht" as "Hσ".
+  set (HtprG := TprG _ Σ _ _ _ γH γT HspecG).
+  iDestruct (Hwp HtprG with "Hfrag") as "Hwp"; clear Hwp.
+  iRevert (σ a) "Hσ Ha Hω".
+  iApply (rwp_ind' (λ e, _) with "[] Hwp"); clear e.
+  iIntros "!#" (e); iIntros "H"; iIntros (σ a) "Hσ Ha Hω".
+  iSpecialize ("H" with "[$Hσ $Ha]").
+  case_match eqn:Hv; [|clear Hv].
+  { rewrite refines_unfold. iLeft. eauto. }
+  iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+  iDestruct (rwp_coupl_strong_mono _ _ _ _
+               ((λ '(e2, σ2) a2, |={∅, ⊤}=> ω ⊤ -∗ refines a2 (e2, σ2)))%I with "[] H") as "H".
+  { iIntros ([e' σ'] a') "[% H]".
+    iMod "H" as "(Hσ & Ha & H)".
+    iModIntro. iApply ("H" with "Hσ Ha"). }
+  iRevert (e σ a) "H Hω".
+  iApply rwp_coupl_strong_ind.
+  iIntros "!#" (e σ a) "H Hω".
+  rewrite refines_unfold.
+  iDestruct "H" as "[(%R & % & % & H) | [(%R & %H & H) |
+                    [(%R & % & % & H) | (% & % & %Hαs & %H & H)]]]".
+  - iRight; iLeft. iFrame "%".
+    iExists _. iFrame "%".
+    iIntros ([? ?] HR).
+    iDestruct ("H" $! _ HR) as "H".
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    iModIntro. by iApply ("H" with "Hω").
+  - iRight; iRight; iRight; iLeft.
+    iExists _. iFrame "%".
+    iIntros (? HR).
+    iSpecialize ("H" $! _ HR).
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    do 2 iModIntro.
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω [H _]]".
+    by iApply "H".
+  - iRight; iRight; iLeft. iFrame "%".
+    iExists _. iFrame "%".
+    iIntros ([? ?] ? HR).
+    iDestruct ("H" $! _ _ HR) as "H".
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    do 2 iModIntro.
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    by iApply "H".
+  - iRight; iRight; iRight; iRight.
+    iExists _, _. iFrame "%".
+    iIntros (?? HR).
+    iDestruct ("H" $! _ _ HR) as "H".
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
+    do 2 iModIntro.
+    iDestruct ("Hfupd" with "H Hω") as ">>[Hω [H _]]".
+    by iApply "H".
 Qed.
 
-Theorem wp_refRcoupl_res `{!tprGpreS δ Σ} e σ a n φ :
-  (∀ `{!tprG δ Σ},
-    ⊢ specF a -∗  WP e {{ v, ∃ a' b, specF a' ∗ ⌜to_final a' = Some b⌝ ∗ ⌜φ v b⌝ }}) →
-  lim_exec (e, σ) ≿ exec n a : φ.
-Proof.
-  intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ n 0).
-  iIntros (Hinv) "_".
-  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod (spec_auth_alloc a) as (HspecG) "[Hauth Hfrag]".
-  set (HclutchG := TprG _ Σ _ _ _ γH γT HspecG).
-  iApply wp_refRcoupl_step_fupdN_res.
-  iFrame.
-  by iApply (Hwp with "[Hfrag]").
-Qed.
-
-Corollary wp_refRcoupl_mass Σ `{!tprGpreS δ Σ} e σ a :
+(** * Soundness  *)
+Lemma rwp_soundness `{!tprGpreS δ Σ} e σ a n :
   (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
-  SeriesC (lim_exec a) <= SeriesC (lim_exec (e, σ)).
+  exec n a ≾ lim_exec (e, σ) : (λ _ _, True).
+Proof. intros. by eapply refines_soundness, rwp_refines. Qed.
+
+Lemma rwp_soundness_mass Σ `{!tprGpreS δ Σ} e σ a :
+  (∀ `{!tprG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
+  (SeriesC (lim_exec a) <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
-  intros Hrwp.
-  apply lim_exec_leq_mass.
-  intros.
+  intros. apply lim_exec_leq_mass => n.
   eapply (refRcoupl_mass_eq _ _ (λ _ _, True)).
-  eapply wp_refRcoupl.
-  iIntros (?) "Hfrag".
-  iApply rwp_mono; [|iApply (Hrwp with "Hfrag")].
-  iIntros (?) "H". eauto.
+  by apply rwp_soundness.
 Qed.
