@@ -74,8 +74,14 @@ Section exec_ub.
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (ε2 (e1, σ2), (e1, σ2)))) ∨
       (* stutter step: spend ε1 to obtain (R σ1) *)
-      (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
+      (* This version is enough to prove the regular adequacy, but I don't think enough for the total adequacy *)
+      (*(∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
                   ⌜ub_lift (dret tt) R ε1 ⌝ ∗
+                  (⌜ R tt⌝ ={∅}=∗ Φ (ε2, (e1, σ1))))*)
+
+      (* This one can do the total lift *)
+      (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
+                  ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
                   (⌜ R tt⌝ ={∅}=∗ Φ (ε2, (e1, σ1)))))%I.
 
 
@@ -157,7 +163,7 @@ Section exec_ub.
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))) ∨
        (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
-                  ⌜ub_lift (dret tt) R ε1 ⌝ ∗
+                  ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
                   (⌜ R tt ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
@@ -627,7 +633,7 @@ Section exec_ub.
 
   Lemma exec_ub_stutter_step e1 σ1 Z (ε : nonnegreal) :
     (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
-                  ⌜ub_lift (dret tt) R ε1 ⌝ ∗
+                  ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
                   (⌜ R tt⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))
     ⊢ exec_ub e1 σ1 Z ε.
   Proof.

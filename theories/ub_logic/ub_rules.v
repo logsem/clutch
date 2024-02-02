@@ -1195,10 +1195,9 @@ Proof.
   iExists (fun _ => False), ε, (mknonnegreal (ε1 - ε) Hdiff).
   iSplitR; [iPureIntro; simpl; lra|].
   iSplitR.
-  { iPureIntro. unfold ub_lift. intros.
-    eapply Rle_trans; [|eapply Hε_ge_1].
-    (* Need this to be 1 so we can always establish the ub_lift *)
-    apply prob_le_1.
+  { iPureIntro. unfold total_ub_lift. intros.
+    eapply Rle_trans; [|eapply prob_ge_0].
+    lra.
   }
   by iIntros (Hfalse).
 Qed.

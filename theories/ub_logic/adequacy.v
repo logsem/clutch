@@ -142,7 +142,9 @@ Section adequacy.
     iApply ub_lift_dbind'.
     + iPureIntro; apply cond_nonneg.
     + iPureIntro; apply cond_nonneg.
-    + iPureIntro. eapply Hlift.
+    + iPureIntro.
+      apply total_ub_lift_implies_ub_lift in Hlift.
+      eapply Hlift.
     + iIntros (? Hcont).
       replace tt with a; [| by destruct a].
       do 2 rewrite Nat.iter_succ.
