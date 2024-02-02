@@ -401,43 +401,7 @@ Section adequacy.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
-    + iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]".
-      rewrite {2}/total_ub_lift.
-
-
-
-      (*
-      setoid_rewrite prob_dbind.
-      iAssert (∀ ρ2 : (),
-        ⌜False⌝ ={∅}=∗
-        |={∅}=> ⌜total_ub_lift (lim_exec (e, σ)) φ ε2⌝)%I with "[Hwand]" as "H".
-      { iIntros (ρ2) "%Hρ2". done. }
-
-      iApply (fupd_mono _ _ (⌜(False ) -> 1 - ε2 <=  prob (lim_exec (e, σ)) P⌝)%I).
-      {
-        iIntros (HR). iPureIntro.
-        admit.
-      }
-      iIntros ( HR). iMod ("H" $! tt (HR)) as "H".
-      iMod "H" as "%".
-      iPureIntro.
-      rewrite /total_ub_lift in H.
-      by apply H.
-
-
-
-
-      (* We need to get False to apply this fancy wand somehow *)
-      rewrite /ub_lift in Hlift.
-      assert (W : (∀ a : (), False → (λ _ : (), false) a = true)); [by intros|].
-      specialize (Hlift _ W).
-      rewrite /prob in Hlift.
-      rewrite SeriesC_finite_foldr /= in Hlift.
-      rewrite /dret /dret_pmf /= in Hlift.
-
-      (* Even specializing this doesn't give us False from Hlift... *)
-
-       *)
+    + iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
     admit.
   Admitted.
 End adequacy.

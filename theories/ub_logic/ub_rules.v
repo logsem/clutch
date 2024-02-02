@@ -1192,7 +1192,7 @@ Proof.
   iApply exec_ub_stutter_step.
 
   assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
-  iExists ε, (mknonnegreal (ε1 - ε) Hdiff).
+  iExists (fun _ => False), ε, (mknonnegreal (ε1 - ε) Hdiff).
   iSplitR; [iPureIntro; simpl; lra|].
   iSplitR.
   { iPureIntro. unfold ub_lift. intros.

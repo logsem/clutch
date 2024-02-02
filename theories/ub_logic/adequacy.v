@@ -46,6 +46,9 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
 
+  Print Assumptions ub_lift_dbind_adv' .
+
+
   Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
     exec_ub e σ (λ ε' '(e2, σ2),
@@ -136,15 +139,20 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  - iDestruct "H" as "[%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]".
-    iApply step_fupdN_mono.
-    { apply pure_mono. eapply UB_mon_grading, Hsum. }
+  - iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
+    iApply step_fupdN_mono. { apply pure_mono. eapply UB_mon_grading, Hsum. }
     rewrite -(dret_id_left' (fun _ : () => (exec (S n) (e1, σ1))) tt).
     iApply ub_lift_dbind'.
     + iPureIntro; apply cond_nonneg.
     + iPureIntro; apply cond_nonneg.
     + iPureIntro. eapply Hlift.
-    + iIntros (? Hcont). destruct Hcont.
+    + iIntros (? Hcont).
+      replace tt with a; [| by destruct a].
+      do 2 rewrite Nat.iter_succ.
+      iSpecialize ("Hwand" with "[]"); [iPureIntro; eauto|].
+      rewrite (dret_id_left').
+      iMod ("Hwand" with "[//]") as "H".
+      iFrame.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
