@@ -659,11 +659,11 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
-
-Admitted.
-
-(*
-  iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
+  (* Separate case for when we are trying to amplify beyond 1... where does it go though?? *)
+  destruct (Rlt_decision (nonneg ε3 + nonneg (ε2 (nat_to_fin l))%NNR) 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    admit. }
+  iMod (ec_increase_supply ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hfoo]"; [by iFrame|].
   iFrame. iModIntro. wp_pures.
   iModIntro. iApply "HΨ".
   assert (nat_to_fin l = n) as ->; [|done].
@@ -671,8 +671,8 @@ Admitted.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-Qed.
-*)
+Admitted.
+
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -945,16 +945,11 @@ Proof.
 
   iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
-  (*
-  iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
-  iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
-  iSpecialize ("Hwp" $! sample).
-  rewrite ub_twp_unfold /ub_twp_pre.
-  rewrite Hsample /=.
+  rewrite /= Hsample.
   destruct (@find_is_Some _ _ _
-               (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
-               _ sample eq_refl)
-            as [r [Hfind Hr]].
+              (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
+              _ sample eq_refl)
+    as [r [Hfind Hr]].
   rewrite Hfind.
   replace r with sample; last first.
   { rewrite /state_upd_tapes in Hr.
@@ -963,6 +958,26 @@ Proof.
     apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
+  (* Separate case for when we are trying to amplify beyond 1 *)
+  destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    iModIntro.
+    iApply exec_ub_stutter_step.
+    assert (Hdiff : (0 <= (ε_rem + ε2 sample) - 1)%R) by (simpl; lra).
+    iExists (fun _ => False), nnreal_one, (mknonnegreal ((ε_rem + ε2 sample) - 1)%R Hdiff).
+    iSplit; last iSplit.
+    - iPureIntro. simpl. lra.
+    - iPureIntro.
+      intros P HP; simpl.
+      eapply Rle_trans; [|eapply prob_ge_0].
+      lra.
+    - by iIntros (?).
+  }
+  iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
+  iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+  iSpecialize ("Hwp" $! sample).
+  rewrite ub_twp_unfold /ub_twp_pre.
+  simpl.
   remember {| heap := heap2; tapes := tapes2 |} as σ2.
   rewrite Hσ_red.
   iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
@@ -977,8 +992,6 @@ Proof.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
-*)
-Admitted.
 
 Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -1115,12 +1128,7 @@ Proof.
 
   iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
-Admitted.
-(*
-  iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
-  iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
-  iSpecialize ("Hwp" $! sample).
-  rewrite ub_wp_unfold /ub_wp_pre.
+
   rewrite Hsample /=.
   destruct (@find_is_Some _ _ _
                (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
@@ -1134,8 +1142,28 @@ Admitted.
     apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
+
+  (* Separate case for when we are trying to amplify beyond 1 *)
+  destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    iModIntro.
+    iApply exec_ub_stutter_step.
+    assert (Hdiff : (0 <= (ε_rem + ε2 sample) - 1)%R) by (simpl; lra).
+    iExists (fun _ => False), nnreal_one, (mknonnegreal ((ε_rem + ε2 sample) - 1)%R Hdiff).
+    iSplit; last iSplit.
+    - iPureIntro. simpl. lra.
+    - iPureIntro.
+      intros P HP; simpl.
+      eapply Rle_trans; [|eapply prob_ge_0].
+      lra.
+    - by iIntros (?).
+  }
+  iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
+  iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+  iSpecialize ("Hwp" $! sample).
+  rewrite ub_wp_unfold /ub_wp_pre.
   remember {| heap := heap2; tapes := tapes2 |} as σ2.
-  rewrite Hσ_red.
+  rewrite /= Hσ_red /=.
   iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
   iSpecialize ("Hwp" $! σ2 _).
   iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
@@ -1148,7 +1176,6 @@ Admitted.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
-*)
 
 
 
@@ -1200,7 +1227,6 @@ Proof.
   iIntros "Hclose'".
   iDestruct (ec_supply_bound with "Hsupply Hcr") as %Hle.
   iApply exec_ub_stutter_step.
-
   assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
   iExists (fun _ => False), ε, (mknonnegreal (ε1 - ε) Hdiff).
   iSplitR; [iPureIntro; simpl; lra|].
@@ -1726,7 +1752,5 @@ Proof.
     + rewrite HS.
       iFrame.
 Qed.
-
-
 
 End rules.
