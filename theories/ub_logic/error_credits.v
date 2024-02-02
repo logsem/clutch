@@ -14,14 +14,12 @@ Import uPred.
 
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
-
   Canonical Structure nonnegrealO : ofe := leibnizO nonnegreal.
 
-  Local Instance R_valid_instance : Valid (nonnegreal)  := λ _ , True.
-  Local Instance R_validN_instance : ValidN (nonnegreal) := λ _ _, True.
+  Local Instance R_valid_instance : Valid (nonnegreal)  := λ r, (r < 1)%R.
+  Local Instance R_validN_instance : ValidN (nonnegreal) := λ _ r, (r < 1)%R.
   Local Instance R_pcore_instance : PCore (nonnegreal) := λ _, Some nnreal_zero.
   Local Instance R_op_instance : Op (nonnegreal) := λ x y, nnreal_plus x y.
-
   Local Instance R_equiv : Equiv nonnegreal := λ x y, x = y.
 
   Definition R_op (x y : nonnegreal) : x ⋅ y = nnreal_plus x y := eq_refl.
@@ -68,6 +66,7 @@ Section NNR.
   Proof.
     apply ra_total_mixin; try by eauto.
     - solve_proper.
+    - solve_proper.
     - intros ? ? ?.
       rewrite /equiv/R_equiv.
       apply nnreal_ext; simpl; lra.
@@ -79,6 +78,10 @@ Section NNR.
       apply nnreal_ext; simpl; lra.
     - intros ? ? ?.
       apply R_included; simpl; lra.
+    - rewrite /valid/R_valid_instance.
+      rewrite /op/R_op_instance /=.
+      intros ? ? ?.
+      pose (cond_nonneg y). lra.
   Qed.
 
   (* Massive hack to override Coq reals *)
@@ -94,7 +97,7 @@ Section NNR.
   Proof. split.
          - rewrite /valid.
            rewrite /R_valid_instance.
-           auto.
+           simpl. lra.
          - rewrite /LeftId.
            intro.
            rewrite /equiv/R_equiv/op/R_op_instance/=.
@@ -115,19 +118,22 @@ Section NNR.
   Qed.
 
 
-
   Global Instance R_cancelable (x : nonnegreal) : Cancelable x.
   Proof. by intros ???? ?%nonnegreal_add_cancel_l. Qed.
 
+  (* FIXME: unused (it should factor out the proof in ec_credit_supply) *)
   Lemma R_local_update (x y x' y' : nonnegreal) :
-    nnreal_plus x y' = nnreal_plus x' y → (x,y) ~l~> (x',y').
+    (y' <= y)%R -> nnreal_plus x y' = nnreal_plus x' y → (x,y) ~l~> (x',y').
   Proof.
     intros ??; apply (local_update_unital_discrete x y x' y') => z H1 H2.
-    split; auto.
-    compute.
     compute in H2; simplify_eq; simpl.
     destruct y, x', y', z; simplify_eq; simpl.
-    apply nnreal_ext; simpl in *; lra.
+    split.
+    - compute; compute in *.
+      eapply Rle_lt_trans; [| eapply H1].
+      lra.
+    - compute.
+      apply nnreal_ext; simpl in *; lra.
   Qed.
 
   (* This one has a higher precendence than [is_op_op] so we get a [+] instead
@@ -136,6 +142,8 @@ Section NNR.
   Proof. done. Qed.
   *)
 End NNR.
+
+
 
 (** The ghost state for error credits *)
 Class ecGpreS (Σ : gFunctors) := EcGpreS {
@@ -211,20 +219,29 @@ Section error_credit_theory.
     rewrite ec_supply_unseal /ec_supply_def.
     iIntros "H1 H2".
     iMod (own_update_2 with "H1 H2") as "Hown".
-    { eapply auth_update. eapply (R_local_update _ _ ε2 nnreal_zero).
+    { eapply auth_update. eapply (R_local_update _ _ ε2 nnreal_zero); [apply cond_nonneg|].
       apply nnreal_ext; simpl; lra. }
     by iDestruct "Hown" as "[Hm _]".
   Qed.
 
-  Lemma ec_increase_supply ε1 ε2 :
-    ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ € ε2.
+  Lemma ec_increase_supply (ε1 ε2 : nonnegreal) :
+    ⌜(ε1 + ε2 < 1)%R ⌝ ∗ ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ € ε2.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
-    iIntros "H".
+    iIntros "[%Hsum H]".
     iMod (own_update with "H") as "[$ $]"; [|done].
-    eapply (auth_update_alloc _ (ε1 + ε2)%NNR ε2%NNR).
-    eapply R_local_update. eapply nnreal_ext; simpl; lra.
+    eapply (auth_update_alloc _ ). (* (ε1 + ε2)%NNR ε2%NNR). *)
+    apply (local_update_unital_discrete _ _ _ _) => z H1 H2.
+    split.
+    - compute. done.
+    - compute. apply nnreal_ext. simpl.
+      compute in H2.
+      simpl in H2.
+      rewrite Rplus_comm.
+      apply Rplus_eq_compat_l.
+      rewrite H2 /=.
+      lra.
   Qed.
 
   Lemma ec_split_supply ε1 ε2 :
@@ -276,12 +293,15 @@ Section error_credit_theory.
 
 End error_credit_theory.
 
-Lemma ec_alloc `{!ecGpreS Σ} n :
-  ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ € n.
+Lemma ec_alloc `{!ecGpreS Σ} (n : nonnegreal) :
+  ⌜(nonneg n < 1)%R ⌝ ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ € n.
 Proof.
+  iIntros.
   rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
-  iMod (own_alloc (● n ⋅ ◯ n)) as (γEC) "[H● H◯]";
-    first (apply auth_both_valid; split; done).
-  pose (C := EcGS _ _ γEC).
-  iModIntro. iExists C. iFrame.
+  iMod (own_alloc (● n ⋅ ◯ n)) as (γEC) "[H● H◯]".
+  - apply auth_both_valid_2.
+    + compute. destruct n; simpl in H. lra.
+    + apply R_included; lra.
+  - pose (C := EcGS _ _ γEC).
+    iModIntro. iExists C. iFrame.
 Qed.
