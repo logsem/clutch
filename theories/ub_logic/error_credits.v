@@ -269,6 +269,16 @@ Section error_credit_theory.
     rewrite ec_split. iIntros "[$ _]".
   Qed.
 
+  Lemma ec_spend (ε : nonnegreal) : (1 <= nonneg ε)%R -> € ε -∗ False.
+  Proof.
+    iIntros (Hge1) "Hε".
+    rewrite ec_unseal /ec_def.
+    iAssert (✓ (◯ ε))%I with "[Hε]" as "%Hε" ; [by iApply own_valid|].
+    apply auth_frag_valid_1 in Hε.
+    exfalso; destruct ε; compute in *.
+    lra.
+  Qed.
+
   Global Instance ec_timeless ε : Timeless (€ ε).
   Proof.
     rewrite ec_unseal /ec_def. apply _.
