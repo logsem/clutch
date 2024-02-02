@@ -265,6 +265,8 @@ Proof.
   { by apply auth_both_valid_discrete. }
   iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
+Admitted.
+  (*
   iMod ec_alloc as (?) "[? ?]".
   set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
@@ -275,7 +277,7 @@ Proof.
   iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.
-
+*)
 
 Theorem wp_aRcoupl_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
   (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →

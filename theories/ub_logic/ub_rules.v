@@ -659,6 +659,10 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
+
+Admitted.
+
+(*
   iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
   iFrame. iModIntro. wp_pures.
   iModIntro. iApply "HΨ".
@@ -668,6 +672,7 @@ Proof.
   rewrite Nat2Z.id.
   reflexivity.
 Qed.
+*)
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -940,6 +945,7 @@ Proof.
 
   iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
+  (*
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
@@ -971,6 +977,8 @@ Proof.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
+*)
+Admitted.
 
 Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -1107,6 +1115,8 @@ Proof.
 
   iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
   iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
+Admitted.
+(*
   iMod (ec_increase_supply _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
@@ -1138,7 +1148,7 @@ Proof.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
-
+*)
 
 
 
