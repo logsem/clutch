@@ -1129,3 +1129,13 @@ Proof.
   pose proof (elem_fresh_ne _ _ _ H).
   by rewrite lookup_insert_ne.
 Qed.
+
+(* TODO: reducible should be a general property of Markov chains, so all the
+     theory in [language.v] about stuck, irreducible etc. should be generalized *)
+Lemma reducible_not_final (e : expr) (σ : state) :
+  reducible e σ → ¬ is_final (e, σ).
+Proof.
+  rewrite /reducible /=.
+  intros [v Hv] ?%is_final_dzero.
+  simpl in H. rewrite H in Hv. inv_distr.
+Qed.

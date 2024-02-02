@@ -794,6 +794,12 @@ Section refRcoupl.
         by apply (Rdiv_le_1 (SeriesC μ1)).
   Qed.
 
+  Lemma refRcoupl_dret_trivial (μ : distr A) (b : B) :
+    refRcoupl μ (dret b) (λ _ _, True).
+  Proof.
+    apply refRcoupl_trivial. rewrite dret_mass. eapply pmf_SeriesC.
+  Qed.
+
 End refRcoupl.
 
 Notation "μ1 '≾' μ2 ':' R" :=
