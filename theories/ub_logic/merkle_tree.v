@@ -358,6 +358,87 @@ Section merkle_tree.
              assert (1<=2 ^val_bit_size); last lia. clear.
              induction val_bit_size; simpl; lia. 
   Qed.
-  
+
+  (** checker*)
+  Definition merkle_tree_decider_program : val :=
+    λ: "correct_root_hash" "lhmf",
+      (λ: "lproof" "lleaf",
+         "correct_root_hash" = compute_hash_from_leaf "lhmf" "lproof" "lleaf"
+      ).
+
+  Lemma merkle_tree_decider_program_spec ltree tree (m:gmap nat Z) f:
+    {{{ ⌜tree_relate height ltree tree⌝ ∗
+        ⌜tree_valid tree m⌝ ∗
+        hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+        ⌜map_valid m⌝ 
+    }}} merkle_tree_decider_program #(root_hash_value tree) f
+    {{{
+          (checker:val), RET checker;
+          hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+          (** correct*)
+          (∀ lproof proof v m',
+             {{{
+                  ⌜m⊆m'⌝ ∗
+                  hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
+                  ⌜is_list proof lproof⌝ ∗
+                  ⌜correct_proof tree proof⌝ ∗
+                  ⌜tree_leaf_value_match tree v proof⌝∗
+                  ⌜map_valid m'⌝ 
+                   
+            }}}
+              checker lproof (#v)
+              {{{ RET #true;
+                    hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' 
+          }}}) ∗
+          (** incorrect*)
+          (∀ lproof proof v v' m',
+             {{{  ⌜m⊆m'⌝ ∗
+                  hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
+                  ⌜is_list proof lproof⌝ ∗
+                  ⌜possible_proof proof⌝ ∗
+                  ⌜tree_leaf_value_match tree v proof⌝ ∗
+                  ⌜v ≠ v'⌝ ∗
+                  ⌜map_valid m'⌝ ∗
+                  ⌜ size m' + (S height) <= max_hash_size⌝ ∗
+                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+                   
+            }}}
+              checker lproof (#v')
+              {{{ RET #false;
+                  ∃ m'', ⌜m' ⊆ m''⌝ ∗
+                        hashfun_amortized (val_size_for_hash) max_hash_size f m'' ∗
+                        ⌜map_valid m''⌝ ∗
+                        ⌜size (m'') <= size m' + (S height)⌝ 
+          }}})
+    }}}.
+  Proof.
+    iIntros (Φ) "(%Htrelate & %Htvalid & H & %Hmvalid) IH".
+    rewrite /merkle_tree_decider_program.
+    wp_pures. iModIntro.
+    iApply "IH". iFrame.
+    iSplit.
+    - iIntros (?????). iModIntro.
+      iIntros "(%&H&%&%&%&%)IH".
+      wp_pures.
+      wp_apply (wp_compute_hash_from_leaf_correct with "[$H]").
+      + repeat iSplit; iPureIntro; try done.
+        by eapply tree_valid_superset.
+      + iIntros (?) "[H ->]". wp_pures.
+        iModIntro. case_bool_decide; last done.
+        iApply "IH"; iFrame.
+    - iIntros (??????).
+      iModIntro.
+      iIntros "(%&H&%&%&%&%&%&%&Herr) IH".
+      wp_pures.
+      wp_apply (wp_compute_hash_from_leaf_incorrect with "[$H $Herr]").
+      + repeat iSplit; iPureIntro; try done.
+        by eapply tree_valid_superset.
+      + iIntros (?) "(%&%&H&%&%&%&%)".
+        wp_pures. iModIntro.
+        case_bool_decide as K; first by inversion K.
+        iApply "IH".
+        iExists _; iFrame.
+        repeat iSplit; try done.
+  Qed.
   
 End merkle_tree.
