@@ -273,20 +273,17 @@ Section adequacy.
   Lemma total_ub_lift_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε':
     ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜ub_lift μ R ε⌝ -∗
+    ⌜ 0 <= ε'⌝ -∗
+    ⌜total_ub_lift μ R ε⌝ -∗
     (∀ a , ⌜R a⌝ -∗ |={∅}=> ⌜total_ub_lift (f a) T ε'⌝) -∗
     |={∅}=> ⌜total_ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
   Proof.
     iIntros (???) "H".
     iApply (fupd_mono _ _ (⌜(∀ a b, R a → total_ub_lift (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply total_ub_lift_dbind; eauto; admit.
-      (* Probably doable if we change the exec to use total_ub_lift? *)
-
-    }
+    { iIntros (?). iPureIntro. eapply total_ub_lift_dbind; eauto. }
     iIntros (???) "/=".
     iMod ("H" with "[//]"); auto.
-  Admitted.
+  Qed.
 
   
   Theorem twp_step_fupd_total_ub_lift (e : expr) (σ : state) (ε : nonnegreal) φ  :
@@ -440,24 +437,22 @@ Section adequacy.
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
     + iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
-      replace (nonneg ε) with (nonneg ε1 + nonneg ε2) by admit. (* I think this isn't a problem but if it is I can change the spec *)
+      iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e, σ)) φ (ε1 + ε2)⌝)%I).
+      { iPureIntro. apply total_UB_mon_grading, Hsum. }
       rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ))) tt).
       iApply total_ub_lift_dbind'.
-      * iPureIntro; apply cond_nonneg.
-      * iPureIntro; apply cond_nonneg.
-      * iPureIntro; eapply Hlift.
+      (* Fix the weakening for the first two goals *)
+      * iPureIntro. apply cond_nonneg.
+      * iPureIntro. apply cond_nonneg.
+      * iPureIntro. eapply Hlift.
       * iIntros.
         iMod ("Hwand" with "[]") as "[Hwand _]". { iPureIntro. by destruct a. }
-        iApply ("Hwand" with "[]").
-        iPureIntro; eauto.
-    admit.
-  Admitted.
-
-
-
-
-
-
+        iApply (fupd_mono with "[Hwand]"); last first.
+        -- iApply ("Hwand" with "[]").
+           iPureIntro; eauto.
+        -- iPureIntro.
+           by apply total_UB_mon_grading.
+  Qed.
 
 
 

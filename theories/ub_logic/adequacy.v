@@ -210,7 +210,7 @@ Section adequacy.
            iPureIntro; done.
          }
         by iApply (exec_ub_erasure with "H").
-  Admitted.
+  Qed.
 
 End adequacy.
 

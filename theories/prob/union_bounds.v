@@ -655,9 +655,18 @@ Section total_ub_theory.
 
   Lemma total_ub_lift_dbind (h : A → distr A')
     (μ1 : distr A) (f : A → Prop) (g : A' → Prop) ε ε' :
-    0 <= ε <= 1 -> 0 <= ε' <= 1 ->
+    0 <= ε -> 0 <= ε' ->
     (∀ a, f a → total_ub_lift (h a) g ε') → total_ub_lift μ1 f ε → total_ub_lift (dbind h μ1) g (ε + ε').
   Proof.
+    (* Handle the (ε' > 1) case separately.
+       Can't apply total_ub_lift_ge_1 b/c A != A'
+       This proof can probably be simplified? *)
+    destruct (Rge_decision ε' 1).
+    { intros ? ? ? ?.
+      rewrite /total_ub_lift.
+      intros. trans 0.
+      - lra.
+      - apply prob_ge_0. }
     intros Hε Hε' Hf Hμ1 P HP.
     rewrite prob_dbind.
     rewrite /total_ub_lift in Hf.
