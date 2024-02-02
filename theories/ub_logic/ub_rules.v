@@ -1152,17 +1152,55 @@ Proof.
   replace ε1 with ε2; [iFrame|by apply nnreal_ext].
 Qed.
 
+
+Lemma wp_1_err e E Φ :
+  to_val e = None -> (forall σ, reducible e σ) -> € nnreal_one ⊢ WP e @ E {{Φ}}.
+Proof.
+  iIntros (H1 H2) "He".
+  iApply wp_lift_step_fupd_exec_ub; first done.
+  iIntros (σ1 ε) "[Hσ Hε]".
+  iApply fupd_mask_intro; [set_solver|].
+  iIntros "Hclose'".
+  iDestruct (ec_supply_bound with "Hε He ") as %Hle.
+  iApply exec_ub_prim_step.
+  iExists (λ _, False), nnreal_one, nnreal_zero.
+  iSplitR.
+  { iPureIntro. eauto. }
+  iSplitR.
+  { iPureIntro.
+    assert (nnreal_one + nnreal_zero = nnreal_one)%R as Heq; last by rewrite Heq.
+    simpl. lra.
+  }
+  iSplitR.
+  { iPureIntro. unfold ub_lift. intros.
+    by epose proof prob_le_1 as K.
+  }
+  by iIntros (? Hfalse).
+Qed.
+
 Lemma twp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
   (to_val e = None) ->
   € ε -∗ WP e @ E [{ Φ }].
 Proof.
-  iIntros (? Hred) "Hε".
-  rewrite ub_twp_unfold /ub_twp_pre /= Hred.
-  iIntros (σ1 ε0) "(_&Hε_supply)".
+  iIntros (Hε_ge_1 Hred) "Hcr".
+  rewrite ub_twp_unfold /ub_twp_pre /= Hred /=.
+  iIntros (σ1 ε1) "[Hσ Hsupply]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-Admitted.
+  iDestruct (ec_supply_bound with "Hsupply Hcr") as %Hle.
+  iApply exec_ub_stutter_step.
+
+  assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
+  iExists (fun _ => False), ε, (mknonnegreal (ε1 - ε) Hdiff).
+  iSplitR; [iPureIntro; simpl; lra|].
+  iSplitR.
+  { iPureIntro. unfold total_ub_lift. intros.
+    eapply Rle_trans; [|eapply prob_ge_0].
+    lra.
+  }
+  by iIntros (Hfalse).
+Qed.
 
 Lemma wp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
@@ -1173,9 +1211,6 @@ Proof.
   iApply ub_twp_ub_wp'.
   iApply twp_ec_spend; try done.
 Qed.
-
-Lemma ec_spend_1 ε1 : (1 <= ε1.(nonneg))%R → € ε1 -∗ False.
-Proof. Admitted.
 
 
 Lemma amplification_depth N L (kwf : kwf N L) (ε : posreal) :
@@ -1486,7 +1521,7 @@ Proof.
   iApply twp_seq_amplify; eauto; iFrame.
   iIntros "[%junk [?|(_&Hcr)]]".
   + iApply "Hwp"; iExists _; iFrame.
-  + iExFalso; iApply ec_spend_1; last iFrame.
+  + iApply (twp_ec_spend with "Hcr"); auto.
     rewrite /pos_to_nn /εAmp_iter /=.
     replace (nonneg ε) with (pos ε') by auto.
     done.
@@ -1516,7 +1551,7 @@ Proof.
   iApply seq_amplify; eauto; iFrame.
   iIntros "[%junk [?|(_&Hcr)]]".
   + iApply "Hwp"; iExists _; iFrame.
-  + iExFalso; iApply ec_spend_1; last iFrame.
+  + iApply (wp_ec_spend with "Hcr"); auto.
     rewrite /pos_to_nn /εAmp_iter /=.
     replace (nonneg ε) with (pos ε') by auto.
     done.

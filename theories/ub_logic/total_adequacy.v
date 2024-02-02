@@ -250,6 +250,41 @@ Qed.
 
 Section adequacy.
   Context `{!ub_clutchGS Σ}.
+
+  (*
+
+  Lemma ub_lift_dbind' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ 0 <= ε' ⌝ -∗
+    ⌜ub_lift μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (f a) T ε'⌝) -∗
+    |={∅}▷=>^(S n) ⌜ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (f a) T ε')⌝)).
+    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto. }
+    iIntros (???) "/=".
+    iMod ("H" with "[//]"); auto.
+  Qed.
+
+*)
+
+  Lemma total_ub_lift_dbind' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε':
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ 0 <= ε'⌝ -∗
+    ⌜total_ub_lift μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ -∗ |={∅}=> ⌜total_ub_lift (f a) T ε'⌝) -∗
+    |={∅}=> ⌜total_ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+    iApply (fupd_mono _ _ (⌜(∀ a b, R a → total_ub_lift (f a) T ε')⌝)).
+    { iIntros (?). iPureIntro. eapply total_ub_lift_dbind; eauto. }
+    iIntros (???) "/=".
+    iMod ("H" with "[//]"); auto.
+  Qed.
+
   
   Theorem twp_step_fupd_total_ub_lift (e : expr) (σ : state) (ε : nonnegreal) φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
@@ -282,7 +317,7 @@ Section adequacy.
       iRevert (H).
       iApply (exec_ub_strong_ind (λ ε e σ, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
-      iDestruct "H" as "[H|[H|[H|H]]]".
+      iDestruct "H" as "[H|[H|[H|[H|H]]]]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
@@ -401,9 +436,26 @@ Section adequacy.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
+    + iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
+      iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e, σ)) φ (ε1 + ε2)⌝)%I).
+      { iPureIntro. apply total_UB_mon_grading, Hsum. }
+      rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ))) tt).
+      iApply total_ub_lift_dbind'.
+      (* Fix the weakening for the first two goals *)
+      * iPureIntro. apply cond_nonneg.
+      * iPureIntro. apply cond_nonneg.
+      * iPureIntro. eapply Hlift.
+      * iIntros.
+        iMod ("Hwand" with "[]") as "[Hwand _]". { iPureIntro. by destruct a. }
+        iApply (fupd_mono with "[Hwand]"); last first.
+        -- iApply ("Hwand" with "[]").
+           iPureIntro; eauto.
+        -- iPureIntro.
+           by apply total_UB_mon_grading.
   Qed.
 
-  
+
+
 End adequacy.
 
 

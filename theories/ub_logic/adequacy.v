@@ -69,10 +69,10 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([ε'' [e1 σ1]]). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H|H]]] %Hv".
+    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H| [H | H]]]] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
-        eapply UB_mon_grading; eauto. }
+        eapply UB_mon_grading. eauto. }
       rewrite exec_Sn_not_final; [|eauto].
       iApply ub_lift_dbind'.
       1,2 : iPureIntro; apply cond_nonneg.
@@ -136,6 +136,22 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
+  - iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
+    iApply step_fupdN_mono. { apply pure_mono. eapply UB_mon_grading, Hsum. }
+    rewrite -(dret_id_left' (fun _ : () => (exec (S n) (e1, σ1))) tt).
+    iApply ub_lift_dbind'.
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro; apply cond_nonneg.
+    + iPureIntro.
+      apply total_ub_lift_implies_ub_lift in Hlift.
+      eapply Hlift.
+    + iIntros (? Hcont).
+      replace tt with a; [| by destruct a].
+      do 2 rewrite Nat.iter_succ.
+      iSpecialize ("Hwand" with "[]"); [iPureIntro; eauto|].
+      rewrite (dret_id_left').
+      iMod ("Hwand" with "[//]") as "H".
+      iFrame.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
