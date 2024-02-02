@@ -238,16 +238,23 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-Admitted.
-(*
-  iMod ec_alloc as (?) "[? ?]".
+  (* Handle the trivial 1 <= ε case *)
+  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro; iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /ub_lift; intros.
+    eapply Rle_trans; [eapply prob_le_1|done]. }
+  iMod (ec_alloc with "[//]") as (?) "[? ?]".
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN.
   iFrame.
   iApply Hwp.
   done.
 Qed.
-*)
 
 Lemma ub_lift_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ :
   (forall n, ub_lift (exec n (e, σ)) φ ε ) ->
