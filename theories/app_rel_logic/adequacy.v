@@ -265,9 +265,63 @@ Proof.
   { by apply auth_both_valid_discrete. }
   iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
-Admitted.
-  (*
-  iMod ec_alloc as (?) "[? ?]".
+
+
+  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro.
+    iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    (* FIXME: cleanup and move into ARcoupl file *)
+    rewrite /ARcoupl. intros.
+    apply (Rle_trans _ 1%R _).
+    - eapply Rle_trans.
+      + eapply SeriesC_le'.
+        * intros n'.
+          apply Rge_le; rewrite -(Rmult_1_r (_ n')); apply Rle_ge.
+          apply Rmult_le_compat.
+          -- apply pmf_pos.
+          -- destruct (H0 n'); lra.
+          -- eapply Rle_refl.
+          -- destruct (H0 n'); lra.
+        * eapply ex_seriesC_le.
+          -- intros n'.
+             split.
+             --- apply Rmult_le_pos; [apply pmf_pos|destruct (H0 n'); lra].
+             --- apply Rge_le; rewrite -(Rmult_1_r (_ n')); apply Rle_ge.
+                apply Rmult_le_compat.
+                ---- apply pmf_pos.
+                ---- destruct (H0 n'); lra.
+                ---- eapply Rle_refl.
+                ---- destruct (H0 n'); lra.
+          -- apply pmf_ex_seriesC.
+        * apply pmf_ex_seriesC.
+      + apply pmf_SeriesC.
+    - eapply Rle_trans; first eapply Hcr.
+      simpl.
+      rewrite -{1}(Rplus_0_l (nonneg ε)).
+      apply Rplus_le_compat_r.
+      apply SeriesC_ge_0.
+      + intros.
+        apply Rmult_le_pos.
+        * apply pmf_pos.
+        * destruct (H1 x); lra.
+      + eapply ex_seriesC_le.
+        * intros n'.
+          split.
+          -- apply Rmult_le_pos; [apply pmf_pos|destruct (H1 n'); lra].
+          -- apply Rge_le; rewrite -(Rmult_1_r (_ n')); apply Rle_ge.
+             apply Rmult_le_compat.
+              --- apply pmf_pos.
+              --- destruct (H1 n'); lra.
+              --- eapply Rle_refl.
+              --- destruct (H1 n'); lra.
+        * apply pmf_ex_seriesC.
+  }
+  iMod (ec_alloc with "[]") as (?) "[? ?]"; first eauto.
   set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
   iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
@@ -277,7 +331,6 @@ Admitted.
   iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.
-*)
 
 Theorem wp_aRcoupl_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
   (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
