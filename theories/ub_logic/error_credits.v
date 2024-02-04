@@ -244,6 +244,8 @@ Section error_credit_theory.
       lra.
   Qed.
 
+
+
   Lemma ec_split_supply ε1 ε2 :
     ec_supply ε2 -∗ € ε1 -∗ ∃ ε3, ⌜ε2 = (ε1 + ε3)%NNR⌝.
   Proof.

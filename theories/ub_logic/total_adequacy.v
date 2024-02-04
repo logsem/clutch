@@ -468,16 +468,23 @@ Proof.
   iIntros "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-Admitted.
-  (*
-  iMod ec_alloc as (?) "[? ?]".
+  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    simpl.
+    iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /total_ub_lift; intros.
+    eapply Rle_trans; last eapply prob_ge_0.
+    lra. }
+  iMod (ec_alloc with "[]") as (?) "[? ?]"; [iPureIntro; eapply Hcr|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   epose proof (twp_step_fupd_total_ub_lift e σ ε φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
   - iIntros "%". iApply step_fupdN_intro; first done. done.
 Qed.
-  *)
 
 Theorem twp_mass_lim_exec Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
   (∀ `{ub_clutchGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →

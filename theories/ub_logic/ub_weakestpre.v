@@ -567,6 +567,8 @@ Section exec_ub.
   Qed.
 
 
+
+
   Lemma exec_ub_adv_comp' e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible e1 σ1⌝ ∗

@@ -649,6 +649,8 @@ Proof.
   {
     by zify.
   }
+
+
   case_match.
   2:{
     destruct n0.
@@ -659,10 +661,13 @@ Proof.
   iModIntro.
   iMod "Hclose'".
   iFrame.
-  (* Separate case for when we are trying to amplify beyond 1... where does it go though?? *)
-  destruct (Rlt_decision (nonneg ε3 + nonneg (ε2 (nat_to_fin l))%NNR) 1%R) as [Hdec|Hdec]; last first.
-  { apply Rnot_lt_ge, Rge_le in Hdec.
-    admit. }
+
+  (* PROBLEM: We need to eagerly get ε... < 1. In the presample proof this was easy because we
+     were still proving an exec_ub.
+
+     I wonder if it wouldn't be a good idea to remove this case entireley.... *)
+Admitted.
+(*
   iMod (ec_increase_supply ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hfoo]"; [by iFrame|].
   iFrame. iModIntro. wp_pures.
   iModIntro. iApply "HΨ".
@@ -671,8 +676,7 @@ Proof.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-Admitted.
-
+*)
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -1247,6 +1251,7 @@ Proof.
   iApply ub_twp_ub_wp'.
   iApply twp_ec_spend; try done.
 Qed.
+
 
 
 Lemma amplification_depth N L (kwf : kwf N L) (ε : posreal) :
