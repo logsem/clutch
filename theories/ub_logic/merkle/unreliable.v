@@ -6,13 +6,13 @@ Open Scope nat.
 Section unreliable_storage.
   Context `{!ub_clutchGS Σ}.
   Variables ε_write ε_read: nonnegreal.
-  Variables unreliable_write_program unreliable_read_program:val.
+  Variables unreliable_alloc_program unreliable_read_program:val.
 
-  Axiom unreliable_write_spec :
-    ∀ l (n:nat), 
-    {{{€ ε_write ∗ ∃ v, l ↦ v }}}
-      unreliable_write_program #l #n
-      {{{ RET #(); l ↦ #n}}}.
+  Axiom unreliable_alloc_spec :
+    ∀ (n:nat), 
+    {{{€ ε_write }}}
+      unreliable_alloc_program #n
+      {{{ RET #(); ∃ l, l ↦ #n}}}.
   Axiom unreliable_read_spec :
     ∀ l (n:nat), 
     {{{€ ε_read ∗ l ↦ #n }}}
@@ -44,13 +44,13 @@ Section unreliable_storage.
       then
         let: "head":= list_head "list" in 
         let: "hash" := "lhmf" "head" in
-        ("hash", Alloc ("hash", "head"))
+        ("hash", unreliable_alloc_program ("hash", "head"))
       else
         let, ("list1", "list2") := list_split (pow ("n"-#1)) "list" in
         let, ("lhash", "ltree") := "helper" ("n"-#1) "list1" in
         let, ("rhash", "rtree") := "helper" ("n"-#1) "list2" in
         let: "hash" := "lhmf" (pow "n" * "lhash" + "rhash") in
-        ("hash", Alloc ("hash", "ltree", "rtree"))
+        ("hash", unreliable_alloc_program ("hash", "ltree", "rtree"))
   .
 
   Definition tree_builder : val :=
