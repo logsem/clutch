@@ -4,6 +4,18 @@ Set Default Proof Using "Type*".
 Open Scope nat.
 
 Section merkle_tree.
+  (*val_bit_size is a positive integer, 
+    referring to the bit size of the return value of the hash function
+    Therefore all hashes are smalelr than 2 ^ val_bit_size
+    val_bit_size_for_hash is one smaller than 2^val_bit_size since the spec for hash
+    adds one to that value implicitly (to ensure positive codomain size)
+    Leaf bit size is fixed to be twice of val_bit_size.
+    For each branch, the concatentation of the left and right hash are provided as input.
+    
+    In other words, input bit size = 2 * 2 ^ val_bit_size 
+                    and output bit size = 2 ^ val_bit_size
+    
+   *)
   Context `{!ub_clutchGS Σ}.
   Variables height:nat.
   Variables val_bit_size':nat.
@@ -59,7 +71,10 @@ Section merkle_tree.
     tree_leaf_value_match r v xs ->
     tree_leaf_value_match (Branch h l r) v ((false,lhash)::xs).
 
-  (*This ensures all numbers in the proof are smaller than 2^val_bit_size*)
+  (*This ensures all numbers in the proof are smaller than 2^val_bit_size
+    If the numbers are larger or equal to 2^val_bit_size
+    One knows immediately that the proof is invalid and should not be considered.
+   *)
   Inductive possible_proof: merkle_tree -> list (bool*nat) -> Prop:=
   | possible_proof_lf h v: possible_proof (Leaf h v) [] 
   | possible_proof_br_left h ltree rtree hash prooflist:
@@ -192,7 +207,9 @@ Section merkle_tree.
     - destruct (IHtree2 _ H4). eexists _. constructor. naive_solver.
   Qed.
 
-  
+  (*This lemma is here to ensure that the return value lies within a bound 
+    This lemma is eventually used in the case where the proof is incorrect.
+   *)
   Lemma wp_compute_hash_from_leaf_size (n:nat) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid n tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
@@ -318,7 +335,7 @@ Section merkle_tree.
              induction val_bit_size; simpl; lia.        
   Qed.
   
-  (** Spec *)
+  (* The case where everything is correct *)
   Lemma wp_compute_hash_from_leaf_correct (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
@@ -383,6 +400,7 @@ Section merkle_tree.
           iFrame. done.
   Qed.
 
+  (*The case where the leaf is incorrect*)
   Lemma wp_compute_hash_from_leaf_incorrect (tree:merkle_tree) (m:gmap nat Z) (v v':nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
@@ -542,6 +560,7 @@ Section merkle_tree.
              induction val_bit_size; simpl; lia. 
   Qed.
 
+  (*The case where the leaf is correct but the proof is not *)
   Lemma wp_compute_hash_from_leaf_incorrect_proof (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid height tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
