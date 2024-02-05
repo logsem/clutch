@@ -5,34 +5,33 @@ Open Scope nat.
 
 Section unreliable_storage.
   Context `{!ub_clutchGS Σ}.
-  Variables ε_write ε_read: nonnegreal.
-  Variables unreliable_alloc_program unreliable_read_program:val.
+  Variables unreliable_alloc_program unreliable_write_program unreliable_read_program:val.
 
   Axiom unreliable_alloc_spec :
-    ∀ (n:nat), 
-    {{{€ ε_write }}}
-      unreliable_alloc_program #n
-      {{{ RET #(); ∃ l, l ↦ #n}}}.
+    ∀ (m:nat),
+    m>0 -> 
+    {{{ True }}}
+      unreliable_alloc_program #m
+      {{{ (x:nat), RET #x; True }}}.
+
+  
   Axiom unreliable_read_spec :
-    ∀ l (n:nat), 
-    {{{€ ε_read ∗ l ↦ #n }}}
+    ∀ (l : nat),
+    {{{ True }}}
       unreliable_read_program #l 
-      {{{ RET #n; l ↦ #n}}}.
+      {{{(n:nat), RET #n; True}}}.
+
+
+  Axiom unreliable_write_spec :
+    ∀ (n l: nat),
+    {{{ True }}}
+      unreliable_write_program #l #n
+      {{{ RET #(); True}}}.
 
   Variables val_bit_size':nat.
   Variables max_hash_size : nat.
   Definition val_bit_size : nat := S val_bit_size'.
   Definition val_size_for_hash := 2^val_bit_size -1.
-  
-  Fixpoint tree_relate (n:nat) (l:loc) (t:merkle_tree) :iProp Σ :=
-    match n with
-    | O => (∃ (hv v:nat),  l ↦ (#hv, #v)%V ∗ ⌜t= (Leaf hv v)⌝)
-    | S n' => ∃ (hv:nat) (leftbrl rightbrl:loc) leftbr rightbr,
-               l ↦ (#hv, #leftbrl, #rightbrl)%V ∗
-               ⌜t=(Branch hv leftbr rightbr)⌝ ∗
-               tree_relate n' leftbrl leftbr ∗
-               tree_relate n' rightbrl rightbr
-  end.
 
   Definition pow : val :=
     rec: "pow" "x":=
@@ -44,13 +43,20 @@ Section unreliable_storage.
       then
         let: "head":= list_head "list" in 
         let: "hash" := "lhmf" "head" in
-        ("hash", unreliable_alloc_program ("hash", "head"))
+        let: "l" := unreliable_alloc_program #2 in
+        unreliable_write_program "l" "hash";;
+        unreliable_write_program ("l"+#1) "head";;
+        ("hash", "l")
       else
         let, ("list1", "list2") := list_split (pow ("n"-#1)) "list" in
         let, ("lhash", "ltree") := "helper" ("n"-#1) "list1" in
         let, ("rhash", "rtree") := "helper" ("n"-#1) "list2" in
         let: "hash" := "lhmf" (pow "n" * "lhash" + "rhash") in
-        ("hash", unreliable_alloc_program ("hash", "ltree", "rtree"))
+        let: "l" := unreliable_alloc_program #3 in
+        unreliable_write_program "l" "hash";;
+        unreliable_write_program ("l"+#1) "ltree";;
+        unreliable_write_program ("l"+#2) "rtree";;
+        ("hash", "l")
   .
 
   Definition tree_builder : val :=
