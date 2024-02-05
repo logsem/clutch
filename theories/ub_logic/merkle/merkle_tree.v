@@ -37,13 +37,6 @@ Section merkle_tree.
     | Branch h _ _ => h
     end.
 
-  (* Inductive tree_relate: nat -> val -> merkle_tree -> Prop:= *)
-  (* | tree_relate_lf (hv v:nat): tree_relate 0 (InjLV (#hv, #v)) (Leaf hv v) *)
-  (* | tree_relate_br n (hv:nat) ll l lr r: *)
-  (*   tree_relate n ll l -> *)
-  (*   tree_relate n lr r -> *)
-  (*   tree_relate (S n) (InjRV (#hv, ll, lr)) (Branch hv l r) *)
-  (* . *)
 
   Inductive tree_valid: nat -> merkle_tree -> gmap nat Z -> Prop :=
   |tree_valid_lf (h l:nat) m:
@@ -859,3 +852,5 @@ Section merkle_tree.
   Qed.
   
 End merkle_tree.
+
+
