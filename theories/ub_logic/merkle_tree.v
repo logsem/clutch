@@ -182,6 +182,17 @@ Section merkle_tree.
         * by apply incorrect_proof_base_right.
   Qed.
 
+  Lemma possible_proof_implies_exists_leaf tree proof:
+    possible_proof tree proof -> ∃ v, tree_leaf_value_match tree v proof.
+  Proof.
+    revert proof.
+    induction tree; intros proof H; inversion H; subst.
+    - eexists _. constructor.
+    - destruct (IHtree1 _ H4). eexists _. constructor. naive_solver.
+    - destruct (IHtree2 _ H4). eexists _. constructor. naive_solver.
+  Qed.
+
+  
   Lemma wp_compute_hash_from_leaf_size (n:nat) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid n tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
@@ -757,70 +768,75 @@ Section merkle_tree.
     {{{
           (checker:val), RET checker;
           hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
-          (** correct*)
           (∀ lproof proof v m',
              {{{
                   ⌜m⊆m'⌝ ∗
                   hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
                   ⌜is_list proof lproof⌝ ∗
-                  ⌜correct_proof tree proof⌝ ∗
-                  ⌜tree_leaf_value_match tree v proof⌝∗
-                  ⌜map_valid m'⌝ 
+                  ⌜possible_proof tree proof ⌝∗
+                  ⌜map_valid m'⌝ ∗
+                  ⌜ size m' + (S height) <= max_hash_size⌝ ∗
+                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR
                    
             }}}
               checker lproof (#v)
-              {{{ RET #true;
-                    hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' 
-          }}}) ∗
-          (** incorrect*)
-          (∀ lproof proof v v' m',
-             {{{  ⌜m⊆m'⌝ ∗
-                  hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
-                  ⌜is_list proof lproof⌝ ∗
-                  ⌜possible_proof tree proof⌝ ∗
-                  ⌜tree_leaf_value_match tree v proof⌝ ∗
-                  ⌜v ≠ v'⌝ ∗
-                  ⌜map_valid m'⌝ ∗
-                  ⌜ size m' + (S height) <= max_hash_size⌝ ∗
-                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
-                   
-            }}}
-              checker lproof (#v')
-              {{{ RET #false;
-                  ∃ m'', ⌜m' ⊆ m''⌝ ∗
+              {{{ (b:bool), RET #b;
+                  if b then
+                    ⌜correct_proof tree proof⌝ ∗
+                    ⌜tree_leaf_value_match tree v proof⌝ ∗
+                    hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
+                    € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR
+                  else
+                    ⌜incorrect_proof tree proof \/
+                      (∃ v', tree_leaf_value_match tree v' proof /\ v ≠ v')⌝ ∗
+                    ∃ m'', ⌜m' ⊆ m''⌝ ∗
                         hashfun_amortized (val_size_for_hash) max_hash_size f m'' ∗
                         ⌜map_valid m''⌝ ∗
                         ⌜size (m'') <= size m' + (S height)⌝ 
-          }}})
+          }}} )
     }}}.
   Proof.
     iIntros (Φ) "(%Htvalid & H & %Hmvalid) IH".
     rewrite /merkle_tree_decider_program.
     wp_pures. iModIntro.
     iApply "IH". iFrame.
-    iSplit.
-    - iIntros (?????). iModIntro.
-      iIntros "(%&H&%&%&%&%)IH".
-      wp_pures.
-      wp_apply (wp_compute_hash_from_leaf_correct with "[$H]").
-      + repeat iSplit; iPureIntro; try done.
-        by eapply tree_valid_superset.
-      + iIntros (?) "[H ->]". wp_pures.
-        iModIntro. case_bool_decide; last done.
-        iApply "IH"; iFrame.
-    - iIntros (??????).
-      iModIntro.
-      iIntros "(%&H&%&%&%&%&%&%&Herr) IH".
-      wp_pures.
-      wp_apply (wp_compute_hash_from_leaf_incorrect with "[$H $Herr]").
-      + repeat iSplit; iPureIntro; try done.
-        by eapply tree_valid_superset.
+    iIntros (?????) "!> (%&H&%&%&%&%&Herr) HΦ".
+    wp_pures.
+    epose proof (possible_proof_implies_exists_leaf tree proof _) as [v' ?].
+    destruct (decide (v=v')).
+    - destruct (@decide (correct_proof tree proof) (make_decision (correct_proof tree proof))) as [K|K].
+      + wp_apply (wp_compute_hash_from_leaf_correct with "[$H]").
+        * repeat iSplit; try done; iPureIntro.
+          -- by eapply tree_valid_superset.
+          -- by subst.
+        * iIntros (?) "(H&%)".
+          wp_pures. subst. case_bool_decide; last done.
+          iModIntro. iApply "HΦ". iFrame.
+          by iSplit.
+      + epose proof (proof_not_correct_implies_incorrect _ _ _ K).
+        wp_apply (wp_compute_hash_from_leaf_incorrect_proof with "[$H $Herr]").
+        * repeat iSplit; try done; iPureIntro.
+          -- by eapply tree_valid_superset.
+          -- by subst.
+        * iIntros (?) "(%&%&H&%&%&%&%)".
+          wp_pures.
+          rewrite bool_decide_eq_false_2; last first.
+          { intros K'; inversion K'; by subst. }
+          iModIntro; iApply "HΦ".
+          repeat iSplit.
+          -- iPureIntro. naive_solver.
+          -- iExists _; by repeat iSplit.
+    - wp_apply (wp_compute_hash_from_leaf_incorrect with "[$H $Herr]").
+      + repeat iSplit; try done. iPureIntro. by eapply tree_valid_superset.
       + iIntros (?) "(%&%&H&%&%&%&%)".
-        wp_pures. iModIntro.
-        case_bool_decide as K; first by inversion K.
-        iApply "IH".
-        iExists _; iFrame.
-        repeat iSplit; try done.
+        wp_pures. rewrite bool_decide_eq_false_2; last first.
+        { intros K. inversion K. by subst. }
+        iModIntro. iApply "HΦ".
+        repeat iSplit.
+        * iPureIntro. right. eexists _; naive_solver.
+        * iExists _; by repeat iSplit.
+          Unshelve.
+          all: done.
   Qed.
   
 End merkle_tree.
