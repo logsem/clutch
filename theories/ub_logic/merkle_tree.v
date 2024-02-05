@@ -308,7 +308,7 @@ Section merkle_tree.
   Qed.
   
   (** Spec *)
-  Lemma wp_compute_hash_from_leaf_correct (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Lemma wp_compute_hash_from_leaf_correct (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
@@ -531,7 +531,7 @@ Section merkle_tree.
              induction val_bit_size; simpl; lia. 
   Qed.
 
-  Lemma wp_compute_hash_from_leaf_incorrect_proof (ltree:val) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Lemma wp_compute_hash_from_leaf_incorrect_proof (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid height tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
@@ -749,9 +749,8 @@ Section merkle_tree.
          "correct_root_hash" = compute_hash_from_leaf "lhmf" "lproof" "lleaf"
       ).
 
-  Lemma merkle_tree_decider_program_spec ltree tree (m:gmap nat Z) f:
-    {{{ ⌜tree_relate height ltree tree⌝ ∗
-        ⌜tree_valid tree m⌝ ∗
+  Lemma merkle_tree_decider_program_spec tree (m:gmap nat Z) f:
+    {{{ ⌜tree_valid height tree m⌝ ∗
         hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜map_valid m⌝ 
     }}} merkle_tree_decider_program #(root_hash_value tree) f
@@ -795,7 +794,7 @@ Section merkle_tree.
           }}})
     }}}.
   Proof.
-    iIntros (Φ) "(%Htrelate & %Htvalid & H & %Hmvalid) IH".
+    iIntros (Φ) "(%Htvalid & H & %Hmvalid) IH".
     rewrite /merkle_tree_decider_program.
     wp_pures. iModIntro.
     iApply "IH". iFrame.
