@@ -136,7 +136,7 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
     let e := eval simpl in e in
     reshape_expr e ltac:(fun K e' =>
       unify e' efoc;
-      (* eapply (tac_twp_pure _ _ _ K e'); *)
+       eapply (tac_twp_pure _ _ K e'); 
       [iSolveTC                       (* PureExec *)
       |try solve_vals_compare_safe    (* The pure condition for PureExec *)
       |wp_finish                      (* new goal *)
@@ -447,7 +447,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
     let process_single _ :=
         first
-          [reshape_expr e ltac:(fun K e' => eapply (tac_twp_alloc _ _ _ Htmp K))
+          [reshape_expr e ltac:(fun K e' => eapply (tac_twp_alloc _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
         finish ()
     in process_single ()
@@ -472,7 +472,7 @@ Tactic Notation "wp_load" :=
     |wp_finish]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
     first
-      [reshape_expr e ltac:(fun K e' => eapply (tac_twp_load _ _ _ _ K))
+      [reshape_expr e ltac:(fun K e' => eapply (tac_twp_load _ _ _ K))
       |fail 1 "wp_load: cannot find 'Load' in" e];
     [solve_mapsto ()
     |wp_finish]
@@ -494,7 +494,7 @@ Tactic Notation "wp_store" :=
     |pm_reduce; first [wp_seq|wp_finish]]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
     first
-      [reshape_expr e ltac:(fun K e' => eapply (tac_twp_store _ _ _ _ K))
+      [reshape_expr e ltac:(fun K e' => eapply (tac_twp_store _ _ _ K))
       |fail 1 "wp_store: cannot find 'Store' in" e];
     [solve_mapsto ()
     |pm_reduce; first [wp_seq|wp_finish]]

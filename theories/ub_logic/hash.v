@@ -181,7 +181,7 @@ Section amortized_hash.
   Context `{!ub_clutchGS Σ}.
   Variable val_size:nat.
   Variable max_hash_size : nat.
-  Variable Hineq : (max_hash_size <= (val_size+1))%nat.
+  (* Variable Hineq : (max_hash_size <= (val_size+1))%nat. *)
   Program Definition amortized_error : nonnegreal :=
     mknonnegreal ((max_hash_size + 1)/(2*(val_size + 1)))%R _.
   Next Obligation.
