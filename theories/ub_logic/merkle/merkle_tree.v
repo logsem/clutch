@@ -276,7 +276,6 @@ Section merkle_tree.
         } 
         wp_apply (wp_insert_amortized with "[$H $Herr']").
         * lia.
-        * lia.
         * by iPureIntro.
         * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
           iApply "HΦ".
@@ -305,7 +304,6 @@ Section merkle_tree.
           apply Z2Nat.inj_pow.
         }
         wp_apply (wp_insert_amortized with "[$H $Herr']").
-        * lia.
         * lia.
         * by iPureIntro.
         * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
@@ -353,7 +351,6 @@ Section merkle_tree.
         inversion H. }
       wp_pures. inversion Htvalid; inversion Hvmatch; subst.
       wp_apply (wp_hashfun_prev_amortized with "[$]").
-      + lia.
       + done.
       + iIntros "H". iApply "HΦ"; iFrame.
         done.
@@ -374,7 +371,6 @@ Section merkle_tree.
           apply Z2Nat.inj_pow.
         }
         wp_apply (wp_hashfun_prev_amortized with "H").
-        * lia.
         * done.
         * iIntros "H". iApply "HΦ".
           iFrame. done.
@@ -387,7 +383,6 @@ Section merkle_tree.
           apply Z2Nat.inj_pow.
         }
         wp_apply (wp_hashfun_prev_amortized with "H").
-        * lia.
         * done.
         * iIntros "H". iApply "HΦ".
           iFrame. done.
@@ -472,7 +467,6 @@ Section merkle_tree.
         } 
         wp_apply (wp_insert_amortized with "[$H $Herr']").
         * lia.
-        * lia.
         * by iPureIntro.
         * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
           iApply "HΦ".
@@ -514,7 +508,6 @@ Section merkle_tree.
           rewrite Z2Nat.inj_pow. f_equal.
         } 
         wp_apply (wp_insert_amortized with "[$H $Herr']").
-        * lia.
         * lia.
         * by iPureIntro.
         * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
@@ -605,7 +598,6 @@ Section merkle_tree.
           }
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
           -- lia.
-          -- lia.
           -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
              iExists m''. repeat iSplit; try done.
@@ -646,7 +638,6 @@ Section merkle_tree.
           }
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
           -- lia.
-          -- lia.
           -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
              iExists m''. repeat iSplit; try done.
@@ -686,7 +677,6 @@ Section merkle_tree.
             rewrite Z2Nat.inj_pow. f_equal.
           }
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
-          -- lia.
           -- lia.
           -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
@@ -729,7 +719,6 @@ Section merkle_tree.
             rewrite Z2Nat.inj_pow. f_equal.
           } 
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
-          -- lia.
           -- lia.
           -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
