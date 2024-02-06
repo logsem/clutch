@@ -94,8 +94,9 @@ Section unreliable_storage.
   Definition tree_builder : val :=
     λ: "list" "height",
       let: "lhmf" := init_hash val_size_for_hash #() in
-      (tree_builder_helper "lhmf" "height" "list", "lhmf")
-  .
+      let, ("hash", "l") := tree_builder_helper "lhmf" "height" "list" in 
+      ("l", merkle_tree_decider_program val_bit_size' "hash" "lhmf").
+  
 
   Inductive tree_leaf_list: merkle_tree -> list nat -> Prop :=
   | tree_leaf_list_lf h lf: tree_leaf_list (Leaf h lf) (lf::[])
@@ -274,9 +275,9 @@ Section unreliable_storage.
                 induction x; simpl; lia.
              ++ iPureIntro. by constructor.
              ++ iPureIntro. constructor.
-                --- eapply tree_valid_superset; [done|done|].
+                --- eapply tree_valid_superset; [done|..]. 
                     by do 2 (etrans; last exact).
-                --- eapply tree_valid_superset; [done|done|].
+                --- eapply tree_valid_superset; [done|..].
                     by etrans; last exact.
                 --- rewrite Z2Nat.inj_lt in Hb; try lia.
                     eapply Nat.lt_stepr; first exact.
@@ -295,14 +296,14 @@ Section unreliable_storage.
           € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size)%NNR
     }}}
       tree_builder vlist #height
-      {{{ (hash:nat) (l:nat) (f:val), RET ((#hash, #l), f);
-          ∃ (m:gmap nat Z) (tree:merkle_tree),
+      {{{ (l:nat) (checker:val), RET (#l, checker);
+          ∃ (m:gmap nat Z) (tree:merkle_tree) (f:val),
             hashfun_amortized val_size_for_hash max_hash_size f m ∗
             ⌜tree_valid val_bit_size' height tree m⌝ ∗
             ⌜coll_free m⌝ ∗
             ⌜size (m) <= 2^(S height) - 1⌝ ∗
             ⌜tree_leaf_list tree list⌝ ∗
-            ⌜root_hash_value tree = hash ⌝
+            decider_program_helper_spec height val_bit_size' max_hash_size checker tree f
       }}}.
   Proof.
     iIntros (Hmsize Hlistsize Hforall Hislist Φ) "Herr HΦ".
@@ -313,11 +314,15 @@ Section unreliable_storage.
     wp_pures.
     wp_apply (tree_builder_helper_spec with "[$H $Herr]"); [done|done|done|done|..].
     { iPureIntro. intros ???H??. exfalso. destruct H. set_solver. }
-    iIntros (hash l) "(%m'&%tree&%&%&H&%&%&%&%)".
-    wp_pures. iModIntro.
-    iApply "HΦ".
-    iExists m', tree. iFrame.
-    repeat iSplit; done.
+    iIntros (hash l) "(%m'&%tree&%&%&H&%&%&%&%Hhash)".
+    wp_pures. rewrite <-Hhash.
+    wp_apply (merkle_tree_decider_program_spec with "[$H]").
+    - done. 
+    - iIntros (checker) "[H #Hchecker]".
+      wp_pures.
+      iApply "HΦ".
+      iModIntro.
+      iExists _,_,_. by repeat iSplit. 
   Qed.
   
 
