@@ -65,7 +65,7 @@ Section unreliable_storage.
 
     
 
-  (* Building the tree*)
+  (** Building the tree*)
   Definition tree_builder_helper : val:=
     rec: "helper" "lhmf" "n" "list":=
       if: "n" = #0
@@ -98,11 +98,22 @@ Section unreliable_storage.
       ("l", merkle_tree_decider_program val_bit_size' "hash" "lhmf").
   
 
-  Inductive tree_leaf_list: merkle_tree -> list nat -> Prop :=
-  | tree_leaf_list_lf h lf: tree_leaf_list (Leaf h lf) (lf::[])
-  | tree_leaf_list_br a alist b blist h: tree_leaf_list a alist ->
-                       tree_leaf_list b blist ->
-                       tree_leaf_list (Branch h a b) (alist ++ blist).
+  Inductive tree_leaf_list: nat -> merkle_tree -> list nat -> Prop :=
+  | tree_leaf_list_lf h lf: tree_leaf_list 0 (Leaf h lf) (lf::[])
+  | tree_leaf_list_br n a alist b blist h:
+    tree_leaf_list n a alist ->
+    tree_leaf_list n b blist ->
+    tree_leaf_list (S n) (Branch h a b) (alist ++ blist).
+
+  Lemma tree_leaf_list_length n tree lis:
+    tree_leaf_list n tree lis -> length lis = 2^n.
+  Proof.
+    revert tree lis.
+    induction n; intros tree lis Hlist.
+    - inversion Hlist. by simpl.
+    - inversion Hlist; subst. rewrite app_length. simpl. erewrite !IHn; try done.
+      lia.
+  Qed.
 
   Lemma tree_builder_helper_spec (list:list nat) (vlist: val) (height:nat) (m:gmap nat Z) (f:val):
     size (m) + 2^(S height) - 1 <= max_hash_size ->
@@ -120,7 +131,7 @@ Section unreliable_storage.
             ⌜size (m') <= size (m) + 2^(S height) - 1⌝ ∗
             hashfun_amortized val_size_for_hash max_hash_size f m' ∗
             ⌜coll_free m'⌝ ∗
-            ⌜tree_leaf_list tree list⌝ ∗
+            ⌜tree_leaf_list height tree list⌝ ∗
             ⌜tree_valid val_bit_size' height tree m'⌝ ∗
             ⌜root_hash_value tree = hash ⌝
       }}}.
@@ -302,7 +313,7 @@ Section unreliable_storage.
             ⌜tree_valid val_bit_size' height tree m⌝ ∗
             ⌜coll_free m⌝ ∗
             ⌜size (m) <= 2^(S height) - 1⌝ ∗
-            ⌜tree_leaf_list tree list⌝ ∗
+            ⌜tree_leaf_list height tree list⌝ ∗
             decider_program_helper_spec height val_bit_size' max_hash_size checker tree f
       }}}.
   Proof.
@@ -325,11 +336,237 @@ Section unreliable_storage.
       iExists _,_,_. by repeat iSplit. 
   Qed.
   
+  (** looking up the tree *)
+  Definition tree_lookup_helper : val :=
+    rec: "tree_lookup_helper" "tree" "height" "idx" :=
+      if: "height" = #0
+      then (InjLV #(), unreliable_read_program ("tree"+#1))
+      else
+        let: "height'" := "height" - #1 in
+        let: "split" := pow "height'" in
+        if: "idx" < "split"
+        then let: "rhash" := unreliable_read_program (unreliable_read_program ("tree"+#2)) in
+             let, ("proof", "leaf"):=
+               "tree_lookup_helper" (unreliable_read_program ("tree"+#1)) "height'" "idx" in
+             (list_cons (#true, "rhash") "proof","leaf")
+        else let: "lhash" := unreliable_read_program (unreliable_read_program ("tree"+#1)) in
+             let, ("proof", "leaf"):=
+               "tree_lookup_helper" (unreliable_read_program ("tree"+#2)) "height'" ("idx"-"split") in
+             (list_cons (#false, "lhash") "proof","leaf").
+
+  Definition proof_bound_checker : val :=
+    λ: "x",
+      let, ("a", "b") := "x" in
+      "b" < #(2^val_bit_size).
+
+  Definition tree_lookup : val :=
+    λ: "tree" "height" "idx" "checker",
+      let, ("proof", "leaf") := tree_lookup_helper "tree" "height" "idx" in
+      if: list_forall proof_bound_checker "proof" && (#0 < "leaf") && ("leaf" < #(2^(val_bit_size*2)))
+      then if: "checker" "proof" "leaf" then (SOME "leaf") else NONEV
+      else NONEV.
+
+  Inductive proof_idx_relate : nat -> list (bool*nat) -> nat -> Prop :=
+  | proof_idx_relate_lf: proof_idx_relate 0 [] 0
+  | proof_idx_relate_left idx n rhash proof:
+    proof_idx_relate n proof idx ->
+    idx < 2^n -> 
+    proof_idx_relate (S n) ((true, rhash)::proof) idx
+  | proof_idx_relate_right idx n lhash proof:
+      proof_idx_relate n proof (idx - 2^n) ->
+      2^n <= idx ->
+      proof_idx_relate (S n) ((false, lhash)::proof) idx
+  .
+
+  Lemma proof_idx_relate_implies_possible_proof tree proof height idx m:
+    tree_valid val_bit_size' height tree m ->
+    proof_idx_relate height proof idx ->
+    Forall (λ x : bool * nat, x.2 < 2 ^ val_bit_size) proof ->
+    possible_proof val_bit_size' tree proof.
+  Proof.
+    revert tree proof idx.
+    induction height; intros tree proof idx Htvalid Hrelate Hforall.
+    - inversion Hrelate; inversion Htvalid; subst. constructor.
+    - inversion Htvalid; inversion Hrelate; subst.
+      + constructor.
+        * eapply IHheight; try done. by eapply Forall_inv_tail.
+        * by apply Forall_inv in Hforall.
+      + constructor.
+        * eapply IHheight; try done. by eapply Forall_inv_tail.
+        * by apply Forall_inv in Hforall.
+  Qed.
 
   
-  
-                                 
-    
+  Lemma tree_leaf_list_implies_lookup_some lis tree height proof idx leafv:
+    tree_leaf_list height tree lis ->
+    proof_idx_relate height proof idx ->
+    tree_leaf_value_match tree leafv proof ->
+    lis !! idx = Some leafv. 
+  Proof.
+    revert lis tree proof idx leafv.
+    induction height as [|height]; intros lis tree proof idx leafv Hlist Hrelate Hmatch.
+    - inversion Hrelate; inversion Hmatch; subst; try done.
+      by inversion Hlist; subst.
+    - inversion Hrelate; subst.
+      + inversion Hrelate; inversion Hmatch; inversion Hlist; subst.
+        assert (length alist = 2^height).
+        { by eapply tree_leaf_list_length. }
+        rewrite lookup_app_l; last lia.
+        naive_solver.
+      + inversion Hrelate; inversion Hmatch; inversion Hlist; subst.
+        assert (length alist = 2^height) as K.
+        { by eapply tree_leaf_list_length. }
+        rewrite lookup_app_r; last lia.
+        rewrite K.
+        naive_solver.
+  Qed.
+
+
+  Lemma tree_lookup_helper_spec (ltree:nat) (height:nat) (idx:nat):
+    idx < 2^height -> 
+    {{{ True }}}
+      tree_lookup_helper #ltree #height #idx
+      {{{ (a:val) (b:nat), RET (a, #b)%V;
+          ∃ lis:(list (bool*nat)),
+            ⌜is_list lis a⌝ ∗
+            ⌜proof_idx_relate height lis idx⌝
+      }}}.
+  Proof.
+    iIntros (Hidx Φ) "_ HΦ".
+    iInduction height as [|height] "IH" forall (ltree idx Hidx Φ) "HΦ".
+    - simpl in Hidx. assert (idx = 0) as -> by lia.
+      rewrite /tree_lookup_helper.
+      wp_pures. replace (_+_)%Z with (Z.of_nat (ltree + 1)) by lia.
+      wp_apply unreliable_read_spec; first done.
+      iIntros (?) "_".
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      iExists [].
+      iSplit; first done.
+      iPureIntro; constructor.
+    - rewrite /tree_lookup_helper.
+      wp_pures.
+      rewrite -/tree_lookup_helper.
+      replace (Z.of_nat (S height) - 1)%Z with (Z.of_nat height) by lia.
+      wp_apply pow_spec; first done.
+      iIntros (?) "->".
+      wp_pures.
+      case_bool_decide.
+      + (*left case*)
+        wp_pures. replace (Z.of_nat _+_)%Z with (Z.of_nat (ltree+2)) by lia.
+        wp_apply unreliable_read_spec; first done.
+        iIntros (?) "_".
+        wp_apply unreliable_read_spec; first done.
+        iIntros (rhash) "_". wp_pures. replace (Z.of_nat _+_)%Z with (Z.of_nat (ltree+1)) by lia.
+        wp_apply unreliable_read_spec; first done.
+        iIntros (?) "_".
+        wp_apply "IH"; first (iPureIntro; lia).
+        iIntros (lproof ?) "(%proof & %&%)".
+        wp_pures.
+        replace (_,_)%V with (utils.inject (true, rhash) : val); last done.
+        wp_apply wp_list_cons; first done.
+        iIntros (lproof') "%".
+        wp_pures.
+        iModIntro. iApply "HΦ".
+        iExists ((true, rhash)::proof).
+        iSplit; first done.
+        iPureIntro. constructor; [done|lia].
+      + (*right case*)
+        wp_pures. replace (Z.of_nat _+_)%Z with (Z.of_nat (ltree+1)) by lia.
+        wp_apply unreliable_read_spec; first done.
+        iIntros (?) "_".
+        wp_apply unreliable_read_spec; first done.
+        iIntros (lhash) "_". wp_pures. replace (Z.of_nat _+_)%Z with (Z.of_nat (ltree+2)) by lia.
+        wp_apply unreliable_read_spec; first done.
+        iIntros (?) "_".
+        rewrite -Nat2Z.inj_sub; last lia.
+        wp_apply "IH".
+        { iPureIntro.  simpl in Hidx. lia. }
+        iIntros (lproof ?) "(%proof & %&%)".
+        wp_pures.
+        replace (_,_)%V with (utils.inject (false, lhash) : val); last done.
+        wp_apply wp_list_cons; first done.
+        iIntros (lproof') "%".
+        wp_pures.
+        iModIntro. iApply "HΦ".
+        iExists ((false, lhash)::proof).
+        iSplit; first done.
+        iPureIntro. constructor; [done|lia].
+  Qed.
+
+  Lemma list_forall_proof_bound_checker_spec (lproof:val) (proof : list (bool*nat)):
+    {{{ ⌜is_list proof lproof⌝ }}}
+      list_forall proof_bound_checker lproof
+    {{{ (b:bool), RET #b; if b then ⌜Forall (λ x, snd x < 2^val_bit_size) proof⌝ else True }}}
+  .
+  Proof.
+    iIntros (Φ) "% HΦ".
+    wp_apply wp_list_forall; [|done|]; last first.
+    - iIntros (b) "H".
+      iApply "HΦ".
+      destruct b; last done.
+      instantiate (1 := (λ '(a, b), ⌜b < 2^val_bit_size⌝)%I).
+      clear.
+      iInduction proof as [|] "IH"; first done.
+      rewrite Forall_cons_iff.
+      destruct a. rewrite big_sepL_cons.
+      iDestruct "H" as "[%H1 H2]".
+      iSplit; [done|].
+      by iApply "IH".
+    - iIntros ([??] Φ') "!>_ HΦ".
+      rewrite /proof_bound_checker.
+      wp_pures. case_bool_decide; iModIntro.
+      + iApply "HΦ".
+        iPureIntro. rewrite Nat2Z.inj_lt.
+        rewrite Nat2Z.inj_pow. done.
+      + iApply "HΦ".
+        by instantiate (1:= (λ _, True)%I).
+  Qed.
+
+
+
+  Lemma tree_lookup_spec (ltree:nat) (height:nat) (idx:nat) (checker:val) (lis:list nat) f tree m:
+    idx < 2^height ->
+    {{{ decider_program_helper_spec height val_bit_size' max_hash_size checker tree f ∗
+        ⌜tree_leaf_list height tree lis⌝ ∗
+        ⌜tree_valid val_bit_size' height tree m⌝ ∗
+        hashfun_amortized val_size_for_hash max_hash_size f m ∗
+        ⌜coll_free m⌝ ∗
+        ⌜size (m) + S height <= max_hash_size⌝ ∗
+        € ((nnreal_nat (S height)) * amortized_error val_size_for_hash max_hash_size)%NNR              
+    }}}
+      tree_lookup #ltree #height #idx checker
+      {{{ (v:val), RET v;
+          ⌜∀ x:nat, v=SOMEV #x -> lis!!idx = Some x⌝
+      }}}.
+  Proof.
+    iIntros (Hidx Φ) "(#Hdecider & %Htreelist & %Htvalid & H & %Hmvalid & %Hmsize & Herr) HΦ".
+    rewrite /tree_lookup.
+    wp_pures.
+    wp_apply tree_lookup_helper_spec; [done|done|].
+    iIntros (lproof leafv) "(%proof & %Hproof & %Hproofrelate)".
+    wp_pures.
+    wp_apply list_forall_proof_bound_checker_spec; first done.
+    iIntros ([]) "%Hb"; last first.
+    { wp_pures. iModIntro. iApply "HΦ". iPureIntro. naive_solver. }
+    wp_pures. case_bool_decide; last first.
+    { wp_pures. iModIntro. iApply "HΦ". iPureIntro. naive_solver. }
+    wp_pures. case_bool_decide; last first.
+    { wp_pures. iModIntro. iApply "HΦ". iPureIntro. naive_solver. }
+    wp_pures.
+    wp_apply ("Hdecider" with "[$H $Herr]").
+    - repeat iSplit; try done. iPureIntro. by eapply proof_idx_relate_implies_possible_proof.
+    - iIntros ([]) "Hb"; last first.
+      { wp_pures. iApply "HΦ". iPureIntro. naive_solver. }
+      iDestruct "Hb" as "(%Hcorrect & %Hmatch & H & Herr)".
+      wp_pures.
+      iApply "HΦ". iPureIntro.
+      intros x Hx.
+      inversion Hx as [Hx1]; apply Nat2Z.inj in Hx1; subst.
+      by eapply tree_leaf_list_implies_lookup_some.
+  Qed.
 
   
 End unreliable_storage.
+                 

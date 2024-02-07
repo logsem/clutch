@@ -6,7 +6,7 @@ Open Scope nat.
 Section merkle_tree.
   (*val_bit_size is a positive integer, 
     referring to the bit size of the return value of the hash function
-    Therefore all hashes are smalelr than 2 ^ val_bit_size
+    Therefore all hashes are smaller than 2 ^ val_bit_size
     val_bit_size_for_hash is one smaller than 2^val_bit_size since the spec for hash
     adds one to that value implicitly (to ensure positive codomain size)
     Leaf bit size is fixed to be twice of val_bit_size.
