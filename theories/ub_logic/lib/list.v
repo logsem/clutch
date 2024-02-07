@@ -949,6 +949,37 @@ Section list_specs.
       + iApply "HΦ"; iPureIntro.
         simpl. rewrite HP. done.
   Qed.
+
+  
+  Lemma wp_list_split E (n:nat) (lv:val) l:
+    {{{ ⌜is_list l lv⌝ ∗ ⌜n<=length l⌝ }}}
+      list_split #n lv @ E
+      {{{ a b, RET (a, b)%V;
+          ∃ l1 l2, ⌜is_list l1 a⌝ ∗ ⌜is_list l2 b⌝ ∗ ⌜l=l1++l2⌝ ∗ ⌜length (l1) = n⌝
+      }}}.
+  Proof.
+    revert lv l.
+    induction n;
+      iIntros (lv l Φ) "[%Hlist %Hlength] HΦ".
+    - rewrite /list_split. wp_pures. iModIntro. iApply "HΦ".
+      iExists [], l.
+      repeat iSplit; by iPureIntro.
+    - rewrite /list_split. wp_pures. rewrite -/list_split.
+      destruct l.
+      { simpl in Hlength. lia. }
+      destruct Hlist as [?[-> Hlist]].
+      wp_pures. replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n) by lia.
+      wp_apply IHn.
+      + iSplit; iPureIntro; try done. simpl in Hlength. lia.
+      + iIntros (??) "(%l1 & %l2 &%&%&%&%)".
+        wp_pures.
+        wp_apply wp_list_cons; first done.
+        iIntros. wp_pures. iApply "HΦ".
+        iExists (_::l1), l2.
+        iModIntro; repeat iSplit; iPureIntro; try done.
+        * set_solver.
+        * set_solver.
+  Qed.
 End list_specs.
 
 Global Arguments wp_list_nil : clear implicits.
@@ -1266,6 +1297,7 @@ Section list_specs_extra.
       apply (is_list_inject) in Hv' as ->.
       by apply is_list_inject.
   Qed.
+
 
 
 End list_specs_extra.
