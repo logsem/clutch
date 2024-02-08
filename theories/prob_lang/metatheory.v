@@ -24,9 +24,9 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | Val v => is_closed_val v
   | Var x => bool_decide (x ∈ X)
   | Rec f x e => is_closed_expr (set_binder_insert f (set_binder_insert x X)) e
-  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Alloc e | Load e =>
+  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Load e =>
      is_closed_expr X e
-  | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | Store e1 e2 | Rand e1 e2 =>
+  | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | AllocN e1 e2 | Store e1 e2 | Rand e1 e2 =>
      is_closed_expr X e1 && is_closed_expr X e2
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
@@ -56,7 +56,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | InjL e => InjL (subst_map vs e)
   | InjR e => InjR (subst_map vs e)
   | Case e0 e1 e2 => Case (subst_map vs e0) (subst_map vs e1) (subst_map vs e2)
-  | Alloc e => Alloc (subst_map vs e)
+  | AllocN e1 e2 => AllocN (subst_map vs e1) (subst_map vs e2)
   | Load e => Load (subst_map vs e)
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
   | AllocTape e => AllocTape (subst_map vs e)
@@ -135,9 +135,44 @@ Lemma bin_op_eval_closed op v1 v2 v' :
   is_closed_val v1 → is_closed_val v2 → bin_op_eval op v1 v2 = Some v' →
   is_closed_val v'.
 Proof.
-  rewrite /bin_op_eval /bin_op_eval_bool /bin_op_eval_int;
+  rewrite /bin_op_eval /bin_op_eval_bool /bin_op_eval_int /bin_op_eval_loc;
     repeat case_match; by naive_solver.
 Qed.
+
+Lemma heap_closed_alloc σ l n w :
+  (0 < n)%Z →
+  is_closed_val w →
+  map_Forall (λ _ v, is_closed_val v) (heap σ) →
+  (∀ i : Z, (0 ≤ i)%Z → (i < n)%Z → heap σ !! (l +ₗ i) = None) →
+  map_Forall (λ _ v, is_closed_val v)
+             (heap_array l (replicate (Z.to_nat n) w) ∪ heap σ).
+Proof.
+  intros Hn Hw Hσ Hl.
+  eapply (map_Forall_ind
+            (λ k v, ((heap_array l (replicate (Z.to_nat n) w) ∪ heap σ)
+                       !! k = Some v))).
+  - apply map_Forall_empty.
+  - intros m i x Hi Hix Hkwm Hm.
+    apply map_Forall_insert_2; auto.
+    apply lookup_union_Some in Hix; last first.
+    { eapply heap_array_map_disjoint;
+        rewrite replicate_length Z2Nat.id; auto with lia. }
+    destruct Hix as [(?&?&?&[-> Hlt%inj_lt]%lookup_replicate_1)%heap_array_lookup|
+                      [j Hj]%elem_of_map_to_list%elem_of_list_lookup_1].
+    + simplify_eq/=. rewrite !Z2Nat.id in Hlt; eauto with lia.
+    + apply map_Forall_to_list in Hσ.
+      by eapply Forall_lookup in Hσ; eauto; simpl in *.
+  - apply map_Forall_to_list, Forall_forall.
+    intros [? ?]; apply elem_of_map_to_list.
+Qed.
+
+
+Lemma fresh_loc_offset_none σ (z : Z) :
+  (0 ≤ z)%Z →
+  heap σ !! ((fresh_loc (heap σ)) +ₗ z) = None.
+Admitted.
+
+
 
 (* The stepping relation preserves closedness *)
 Lemma head_step_is_closed e1 σ1 e2 σ2 :
@@ -153,6 +188,9 @@ Proof.
   - subst. repeat apply is_closed_subst'; naive_solver.
   - unfold un_op_eval in *. repeat case_match; naive_solver.
   - eapply bin_op_eval_closed; eauto; naive_solver.
+  - simplify_eq. apply heap_closed_alloc; try done; try lia.
+    intros.
+    by apply fresh_loc_offset_none.
 Qed.
 
 Lemma subst_map_empty e : subst_map ∅ e = e.
@@ -817,10 +855,12 @@ Inductive det_head_step_rel : expr → state → expr → state → Prop :=
   det_head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
 | CaseRDS v e1 e2 σ :
   det_head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
-| AllocDS v σ l :
+| AllocNDS z N v σ l :
   l = fresh_loc σ.(heap) →
-  det_head_step_rel (Alloc (Val v)) σ
-    (Val $ LitV $ LitLoc l) (state_upd_heap <[l:=v]> σ)
+  N = Z.to_nat z →
+  (0 < N)%nat ->
+  det_head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+    (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
 | LoadDS l v σ :
   σ.(heap) !! l = Some v →
   det_head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
@@ -858,9 +898,11 @@ Inductive det_head_step_pred : expr → state → Prop :=
   det_head_step_pred (Case (Val $ InjLV v) e1 e2) σ
 | CaseRDSP v e1 e2 σ :
   det_head_step_pred (Case (Val $ InjRV v) e1 e2) σ
-| AllocDSP v σ l :
+| AllocNDSP z N v σ l :
   l = fresh_loc σ.(heap) →
-  det_head_step_pred (Alloc (Val v)) σ
+  N = Z.to_nat z →
+  (0 < N)%nat ->
+  det_head_step_pred (AllocN (Val (LitV (LitInt z))) (Val v)) σ
 | LoadDSP l v σ :
   σ.(heap) !! l = Some v →
   det_head_step_pred (Load (Val $ LitV $ LitLoc l)) σ
@@ -883,7 +925,7 @@ Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
   | Snd (Val (PairV v1 v2)) => true
   | Case (Val (InjLV v)) e1 e2 => true
   | Case (Val (InjRV v)) e1 e2 => true
-  | Alloc (Val v) => true
+  | AllocN (Val (LitV (LitInt z))) (Val v) => bool_decide (0 < Z.to_nat z)%nat
   | Load (Val (LitV (LitLoc l)))  =>
       bool_decide (is_Some (σ1.(heap) !! l))
   | Store (Val (LitV (LitLoc l))) (Val w) =>
@@ -939,7 +981,7 @@ Qed.
 Local Ltac solve_step_det :=
   rewrite /pmf /=;
     repeat (rewrite bool_decide_eq_true_2 // || case_match);
-  try (lra || done).
+  try (lra || lia || done).
 
 Local Ltac inv_det_head_step :=
   repeat
@@ -1055,7 +1097,11 @@ Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 α z zs :
   det_head_step_rel
     e1 (state_upd_tapes <[α := (N; zs ++ [z])]> σ1)
     e2 (state_upd_tapes <[α := (N; zs ++ [z])]> σ2).
-Proof. inversion 1; econstructor; eauto. Qed.
+Proof.
+  inversion 1; try econstructor; eauto.
+  (* Unsolved case *)
+  intros. rewrite state_upd_tapes_heap. econstructor; eauto.
+Qed.
 
 Lemma upd_tape_some σ α N n ns :
   tapes σ !! α = Some (N; ns) →

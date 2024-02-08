@@ -4,7 +4,7 @@ From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
 
 From clutch.bi Require Import weakestpre.
-From clutch.prob_lang Require Import lang tactics class_instances.
+From clutch.prob_lang Require Import lang tactics notation class_instances.
 Set Default Proof Using "Type*".
 
 (** A basic set of requirements for a weakest precondition *)
@@ -26,11 +26,17 @@ Class WpTacticsPure Σ A `{Wp (iProp Σ) expr val A} (laters : bool) := {
 (** Heap *)
 Class WpTacticsHeap Σ A `{Wp (iProp Σ) expr val A} (laters : bool) := {
   wptac_mapsto : loc → dfrac → val → iProp Σ;
+  wptac_mapsto_array : loc → dfrac → (list val) → iProp Σ;
 
-  wptac_wp_alloc E v a : 
+  wptac_wp_alloc E v a :
     {{{ True }}}
       (Alloc (Val v)) at (if laters then 1 else 0) @ a; E
     {{{ l, RET LitV (LitLoc l); wptac_mapsto l (DfracOwn 1) v }}};
+ wptac_wp_allocN E v n a :
+    (0 < n)%Z →
+    {{{ True }}}
+      (AllocN (Val $ LitV $ LitInt $ n) (Val v)) at (if laters then 1 else 0) @ a; E
+    {{{ l, RET LitV (LitLoc l); wptac_mapsto_array l (DfracOwn 1) (replicate (Z.to_nat n) v) }}};
   wptac_wp_load E v l dq a :
     {{{ ▷ wptac_mapsto l dq v }}}
       Load (Val $ LitV $ LitLoc l) at (if laters then 1 else 0) @ a; E
@@ -253,6 +259,31 @@ Section heap_tactics.
     rewrite bi.wand_elim_r //.
   Qed.
 
+  Lemma tac_wp_allocN Δ Δ' E j K v n Φ a :
+    (0 < n)%Z →
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    (∀ l,
+        match envs_app false (Esnoc Enil j (wptac_mapsto_array l (DfracOwn 1) (replicate (Z.to_nat n) v))) Δ' with
+        | Some Δ'' =>
+            envs_entails Δ'' (WP fill K (Val $ LitV $ LitLoc l) @ a; E {{ Φ }})
+        | None => False
+        end) →
+    envs_entails Δ (WP fill K (AllocN (Val $ LitV $ LitInt n) (Val v)) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ? ? HΔ.
+    rewrite -wptac_wp_bind.
+    eapply bi.wand_apply; first exact: wptac_wp_allocN.
+    rewrite left_id into_laterN_env_sound.
+    apply bi.laterN_mono, bi.forall_intro=> l.
+    specialize (HΔ l).
+    destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
+    rewrite envs_app_sound //; simpl.
+    apply bi.wand_intro_l.
+    rewrite right_id.
+    rewrite bi.wand_elim_r //.
+  Qed.
+
+
   Lemma tac_wp_load Δ Δ' E i K b l dq v Φ a :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
     envs_lookup i Δ' = Some (b, wptac_mapsto l dq v)%I →
@@ -316,7 +347,7 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
      references. However, that would produce the resource l ↦∗ [v] instead of
      l ↦ v for single references. These are logically equivalent assertions
      but are not equal. *)
-  lazymatch goal with
+lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
     let process_single _ :=
         first
@@ -324,9 +355,17 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
         [iSolveTC
         |finish ()]
-    in (process_single ())
+    in
+    let process_array _ :=
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_allocN _ _ _ Htmp K))
+          |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
+        [idtac| iSolveTC
+         |finish ()]
+    in (process_single ()) || (process_array ())
   | _ => fail "wp_alloc: not a 'wp'"
   end.
+
 
 Tactic Notation "wp_alloc" ident(l) :=
   wp_alloc l as "?".

@@ -18,7 +18,7 @@ part of the spec, i.e. on the right, the names are instead sub-scripted with
 From Coq Require Import ZArith String.
 
 From clutch.prelude Require Import stdpp_ext.
-From clutch.prob_lang Require Import lang.
+From clutch.prob_lang Require Import lang notation.
 From clutch.ctx_logic Require Import model rel_rules rel_tactics.
 
 From Ltac2 Require Import Ltac2 Printf.
@@ -131,7 +131,7 @@ Ltac2 i_eval_at_redex fpure falloc fload fstore falloctape frand fforeign tm :=
     | Case (Val _) _ _        => fpure tm k
     | Case ?tm ?e1 ?e2        => f tm constr:(CaseCtx $e1 $e2 :: $k)
     | (Alloc (Val _))         => falloc tm k name
-    | (Alloc ?tm)             => f tm constr:(AllocCtx :: $k)
+    | (Alloc ?tm)             => f tm constr:(AllocNRCtx #1 :: $k)
     | (Load (Val _))          => fload tm k
     | (Load ?tm)              => f tm constr:(LoadCtx :: $k)
     | Store ?e1 ?e2 =>

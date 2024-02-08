@@ -21,7 +21,8 @@ Inductive bin_op : Set :=
   | PlusOp | MinusOp | MultOp | QuotOp | RemOp (* Arithmetic *)
   | AndOp | OrOp | XorOp (* Bitwise *)
   | ShiftLOp | ShiftROp (* Shifts *)
-  | LeOp | LtOp | EqOp. (* Relations *)
+  | LeOp | LtOp | EqOp (* Relations *)
+  | OffsetOp. (* Pointer offset *)
 
 Inductive expr :=
   (* Values *)
@@ -43,7 +44,7 @@ Inductive expr :=
   | InjR (e : expr)
   | Case (e0 : expr) (e1 : expr) (e2 : expr)
   (* Heap *)
-  | Alloc (e : expr)
+  | AllocN (e1 e2 : expr) (* Array length and initial value *)
   | Load (e : expr)
   | Store (e1 : expr) (e2 : expr)
   (* Probabilistic choice *)
@@ -177,7 +178,7 @@ Proof.
      | InjR e, InjR e' => cast_if (decide (e = e'))
      | Case e0 e1 e2, Case e0' e1' e2' =>
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
-     | Alloc e, Alloc e' => cast_if (decide (e = e'))
+     | AllocN e1 e2, AllocN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Load e, Load e' => cast_if (decide (e = e'))
      | Store e1 e2, Store e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
@@ -229,11 +230,11 @@ Proof.
  refine (inj_countable' (λ op, match op with
   | PlusOp => 0 | MinusOp => 1 | MultOp => 2 | QuotOp => 3 | RemOp => 4
   | AndOp => 5 | OrOp => 6 | XorOp => 7 | ShiftLOp => 8 | ShiftROp => 9
-  | LeOp => 10 | LtOp => 11 | EqOp => 12
+  | LeOp => 10 | LtOp => 11 | EqOp => 12 | OffsetOp => 13
   end) (λ n, match n with
   | 0 => PlusOp | 1 => MinusOp | 2 => MultOp | 3 => QuotOp | 4 => RemOp
   | 5 => AndOp | 6 => OrOp | 7 => XorOp | 8 => ShiftLOp | 9 => ShiftROp
-  | 10 => LeOp | 11 => LtOp | _ => EqOp
+  | 10 => LeOp | 11 => LtOp | 12 => EqOp | _ => OffsetOp
   end) _); by intros [].
 Qed.
 Global Instance expr_countable : Countable expr.
@@ -254,7 +255,7 @@ Proof.
      | InjL e => GenNode 9 [go e]
      | InjR e => GenNode 10 [go e]
      | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
-     | Alloc e => GenNode 12 [go e]
+     | AllocN e1 e2 => GenNode 12 [go e1; go e2]
      | Load e => GenNode 13 [go e]
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | AllocTape e => GenNode 15 [go e]
@@ -286,7 +287,7 @@ Proof.
      | GenNode 9 [e] => InjL (go e)
      | GenNode 10 [e] => InjR (go e)
      | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
-     | GenNode 12 [e] => Alloc (go e)
+     | GenNode 12 [e1 ; e2] => AllocN (go e1) (go e2)
      | GenNode 13 [e] => Load (go e)
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => AllocTape (go e)
@@ -341,7 +342,8 @@ Inductive ectx_item :=
   | InjLCtx
   | InjRCtx
   | CaseCtx (e1 : expr) (e2 : expr)
-  | AllocCtx
+  | AllocNLCtx (v2 : val)
+  | AllocNRCtx (e1 : expr)
   | LoadCtx
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
@@ -364,7 +366,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | InjLCtx => InjL e
   | InjRCtx => InjR e
   | CaseCtx e1 e2 => Case e e1 e2
-  | AllocCtx => Alloc e
+  | AllocNLCtx v2 => AllocN e (Val v2)
+  | AllocNRCtx e1 => AllocN e1 e
   | LoadCtx => Load e
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
@@ -400,7 +403,12 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   | InjL e         => noval e InjLCtx
   | InjR e         => noval e InjRCtx
   | Case e0 e1 e2  => noval e0 (CaseCtx e1 e2)
-  | Alloc e        => noval e AllocCtx
+  | AllocN e1 e2        =>
+      match e2 with
+      | Val v      => noval e1 (AllocNLCtx v)
+      | _          => Some (AllocNRCtx e1, e2)
+      end
+
   | Load e         => noval e LoadCtx
   | Store e1 e2    =>
       match e2 with
@@ -433,7 +441,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | InjL e => InjL (subst x v e)
   | InjR e => InjR (subst x v e)
   | Case e0 e1 e2 => Case (subst x v e0) (subst x v e1) (subst x v e2)
-  | Alloc e => Alloc (subst x v e)
+  | AllocN e1 e2 => AllocN (subst x v e1) (subst x v e2)
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | AllocTape e => AllocTape (subst x v e)
@@ -467,6 +475,7 @@ Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
   | LeOp => LitBool (bool_decide (n1 ≤ n2))
   | LtOp => LitBool (bool_decide (n1 < n2))
   | EqOp => LitBool (bool_decide (n1 = n2))
+  | OffsetOp => LitInt (n1 + n2) (* Treat offsets as ints *)
   end%Z.
 
 Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
@@ -478,7 +487,17 @@ Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
   | ShiftLOp | ShiftROp => None (* Shifts *)
   | LeOp | LtOp => None (* InEquality *)
   | EqOp => Some (LitBool (bool_decide (b1 = b2)))
+  | OffsetOp => None
   end.
+
+Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option base_lit :=
+  match op, v2 with
+  | OffsetOp, LitInt off => Some $ LitLoc (l1 +ₗ off)
+  | LeOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 ≤ₗ l2))
+  | LtOp, LitLoc l2 => Some $ LitBool (bool_decide (l1 <ₗ l2))
+  | _, _ => None
+  end.
+
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then
@@ -490,6 +509,7 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     match v1, v2 with
     | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
     | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
+    | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
     | _, _ => None
     end.
 
@@ -504,6 +524,139 @@ Global Arguments state_upd_tapes _ !_ /.
 Lemma state_upd_tapes_twice σ l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
 Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
+
+
+Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
+  match vs with
+  | [] => ∅
+  | v :: vs' => {[l := v]} ∪ heap_array (l +ₗ 1) vs'
+  end.
+
+
+Lemma heap_array_singleton l v : heap_array l [v] = {[l := v]}.
+Proof. by rewrite /heap_array right_id. Qed.
+
+Lemma heap_array_app l vs1 vs2 : heap_array l (vs1 ++ vs2) = (heap_array l vs1) ∪ (heap_array (l +ₗ (length vs1)) vs2) .
+Proof.
+  revert l.
+  induction vs1; intro l.
+  - simpl.
+    rewrite map_empty_union loc_add_0 //.
+  - rewrite -app_comm_cons /= IHvs1.
+    rewrite map_union_assoc.
+    do 2 f_equiv.
+    rewrite Nat2Z.inj_succ /=.
+    rewrite /Z.succ
+      Z.add_comm
+      loc_add_assoc //.
+Qed.
+
+
+Lemma heap_array_lookup l vs v k :
+  heap_array l vs !! k = Some v ↔
+  ∃ j, (0 ≤ j)%Z ∧ k = l +ₗ j ∧ vs !! (Z.to_nat j) = Some v.
+Proof.
+  revert k l; induction vs as [|v' vs IH]=> l' l /=.
+  { rewrite lookup_empty. naive_solver lia. }
+  rewrite -insert_union_singleton_l lookup_insert_Some IH. split.
+  - intros [[-> ?] | (Hl & j & ? & -> & ?)].
+    { eexists 0. rewrite loc_add_0. naive_solver lia. }
+    eexists (1 + j)%Z. rewrite loc_add_assoc !Z.add_1_l Z2Nat.inj_succ; auto with lia.
+  - intros (j & ? & -> & Hil). destruct (decide (j = 0)); simplify_eq/=.
+    { rewrite loc_add_0; eauto. }
+    right. split.
+    { rewrite -{1}(loc_add_0 l). intros ?%(inj (loc_add _)); lia. }
+    assert (Z.to_nat j = S (Z.to_nat (j - 1))) as Hj.
+    { rewrite -Z2Nat.inj_succ; last lia. f_equal; lia. }
+    rewrite Hj /= in Hil.
+    eexists (j - 1)%Z. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
+    auto with lia.
+Qed.
+
+Lemma heap_array_map_disjoint (h : gmap loc val) (l : loc) (vs : list val) :
+  (∀ i, (0 ≤ i)%Z → (i < length vs)%Z → h !! (l +ₗ i) = None) →
+  (heap_array l vs) ##ₘ h.
+Proof.
+  intros Hdisj. apply map_disjoint_spec=> l' v1 v2.
+  intros (j&?&->&Hj%lookup_lt_Some%inj_lt)%heap_array_lookup.
+  move: Hj. rewrite Z2Nat.id // => ?. by rewrite Hdisj.
+Qed.
+
+Definition state_upd_heap_N (l : loc) (n : nat) (v : val) (σ : state) : state :=
+  state_upd_heap (λ h, heap_array l (replicate n v) ∪ h) σ.
+
+Lemma state_upd_heap_singleton l v σ :
+  state_upd_heap_N l 1 v σ = state_upd_heap <[l:= v]> σ.
+Proof.
+  destruct σ as [h p]. rewrite /state_upd_heap_N /=. f_equiv.
+  rewrite right_id insert_union_singleton_l. done.
+Qed.
+
+Lemma state_upd_tapes_heap σ l1 l2 n xs m v :
+  state_upd_tapes <[l2:=(n; xs)]> (state_upd_heap_N l1 m v σ) =
+  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=(n; xs)]> σ).
+Proof.
+  by rewrite /state_upd_tapes /state_upd_heap_N /=.
+Qed.
+
+Lemma heap_array_replicate_S_end l v n :
+  heap_array l (replicate (S n) v) = heap_array l (replicate n v) ∪ {[l +ₗ n:= v]}.
+Proof.
+  induction n.
+  - simpl.
+    rewrite map_union_empty.
+    rewrite map_empty_union.
+    by rewrite loc_add_0.
+  - rewrite replicate_S_end
+     heap_array_app
+     IHn /=.
+    rewrite map_union_empty replicate_length //.
+Qed.
+
+
+(*
+Lemma state_upd_tapes_N_S n l v σ :
+  state_upd_heap_N l (S n) v σ = state_upd_heap_N (l +ₗ 1) n v (state_upd_heap <[l:= v]> σ).
+Proof.
+  rewrite /state_upd_heap_N /= /state_upd_heap.
+  f_equiv.
+  revert l.
+  induction n; intro l.
+  - simpl.
+    rewrite map_empty_union map_union_empty.
+    rewrite -insert_union_l map_empty_union //.
+  - simpl.
+    rewrite -map_union_assoc IHn.
+    do 2 rewrite insert_union_singleton_l.
+    rewrite (map_union_assoc (heap_array (l +ₗ 1 +ₗ 1) (replicate n v)) {[l +ₗ 1 := v]}).
+    rewrite (map_union_comm (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
+    2:{
+      apply heap_array_map_disjoint.
+      intros.
+      apply lookup_singleton_ne.
+      destruct l; rewrite /loc_add/=.
+      admit.
+    }
+    rewrite -(map_union_assoc ({[l +ₗ 1 := v]}) (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))
+                ({[l := v]} ∪ heap σ)).
+    rewrite (map_union_assoc (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
+    rewrite (map_union_comm (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
+    2:{
+      apply heap_array_map_disjoint.
+      intros.
+      apply lookup_singleton_ne.
+      destruct l; rewrite /loc_add/=.
+      admit.
+    }
+    do 4 rewrite (map_union_assoc).
+    do 2 f_equiv.
+    apply map_union_comm.
+    apply map_disjoint_dom_2.
+    do 2 rewrite dom_singleton_L.
+    admit.
+Admitted.
+*)
+
 
 #[local] Open Scope R.
 
@@ -541,9 +694,11 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
       dret (App e1 (Val v), σ1)
   | Case (Val (InjRV v)) e1 e2 =>
       dret (App e2 (Val v), σ1)
-  | Alloc (Val v) =>
+  | AllocN (Val (LitV (LitInt N))) (Val v) =>
       let ℓ := fresh_loc σ1.(heap) in
-      dret (Val $ LitV $ LitLoc ℓ, state_upd_heap <[ℓ:=v]> σ1)
+      if bool_decide (0 < Z.to_nat N)%nat
+        then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1)
+        else dzero
   | Load (Val (LitV (LitLoc l))) =>
       match σ1.(heap) !! l with
         | Some v => dret (Val v, σ1)
@@ -641,10 +796,12 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
 | CaseRS v e1 e2 σ :
   head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
-| AllocS v σ l :
+| AllocNS z N v σ l :
   l = fresh_loc σ.(heap) →
-  head_step_rel (Alloc (Val v)) σ
-    (Val $ LitV $ LitLoc l) (state_upd_heap <[l:=v]> σ)
+  N = Z.to_nat z →
+  (0 < N)%nat ->
+  head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+    (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
 | LoadS l v σ :
   σ.(heap) !! l = Some v →
   head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
@@ -712,7 +869,7 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
-  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr.
+  - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
 Qed.
 
 Lemma state_step_support_equiv_rel σ1 α σ2 :
@@ -771,7 +928,7 @@ Lemma head_step_mass e σ :
 Proof.
   intros [[] Hs%head_step_support_equiv_rel].
   inversion Hs;
-    repeat (simplify_map_eq/=; solve_distr_mass || case_match).
+    repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
 Qed.
 
 Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
@@ -794,7 +951,7 @@ Fixpoint height (e : expr) : nat :=
   | InjL e => 1 + height e
   | InjR e => 1 + height e
   | Case e0 e1 e2 => 1 + height e0 + height e1 + height e2
-  | Alloc e => 1 + height e
+  | AllocN e1 e2 => 1 + height e1 + height e2
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e

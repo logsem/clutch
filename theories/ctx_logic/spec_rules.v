@@ -53,6 +53,8 @@ Section rules.
     eapply exec_det_step_ctx; [apply _| |done].
     subst l.
     solve_step.
+    rewrite state_upd_heap_singleton.
+    solve_distr.
   Qed.
 
   Lemma step_load E K l q v:

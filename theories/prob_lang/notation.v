@@ -19,6 +19,7 @@ Notation Seq e1 e2 := (Let BAnon e1 e2) (only parsing).
 Notation LamV x e := (RecV BAnon x e) (only parsing).
 Notation LetCtx x e2 := (AppRCtx (LamV x e2)) (only parsing).
 Notation SeqCtx e2 := (LetCtx BAnon e2) (only parsing).
+Notation Alloc e := (AllocN (Val $ LitV $ LitInt 1) e) (only parsing).
 Notation Match e0 x1 e1 x2 e2 := (Case e0 (Lam x1 e1) (Lam x2 e2)) (only parsing).
 
 (* Skip should be atomic, we sometimes open invariants around
@@ -118,6 +119,7 @@ Notation "'rand' e" := (Rand e%E (Val $ LitV LitUnit)) (at level 70) : expr_scop
 Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
   
 Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
+Notation "e1 +ₗ e2" := (BinOp OffsetOp e1%E e2%E) : expr_scope.
 Notation "e1 - e2" := (BinOp MinusOp e1%E e2%E) : expr_scope.
 Notation "e1 * e2" := (BinOp MultOp e1%E e2%E) : expr_scope.
 Notation "e1 `quot` e2" := (BinOp QuotOp e1%E e2%E) : expr_scope.
