@@ -59,8 +59,9 @@ Section adequacy.
           do 3 iModIntro. iApply step_fupdN_intro; [done|].
           iModIntro. iPureIntro.
           apply refRcoupl_dzero.
-        * assert (prim_step e1' σ1' = dzero) as Hz by by apply val_stuck_dzero.
-          rewrite /= (val_stuck_dzero e1') in Hcpl; [|eauto].
+        * assert (prim_step e1' σ1' = dzero) as Hz.
+          { apply (is_final_dzero (e1', σ1')). eauto. }
+          simpl in *. rewrite Hz in Hcpl.           
           by apply Rcoupl_dzero_r_inv in Hcpl.
       + rewrite step_or_final_no_final; [|eauto].
         iApply (refRcoupl_dbind' _ _ _ _ R).

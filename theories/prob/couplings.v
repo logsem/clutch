@@ -330,6 +330,18 @@ Section Rcoupl.
     exists μ; split; [split| ]; auto.
   Qed.
 
+  Lemma Rcoupl_swap (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+    Rcoupl μ1 μ2 R → Rcoupl μ2 μ1 (flip R).
+  Proof.
+    intros (μ & ((HμL & HμR) & HμSupp)).
+    eexists (dswap μ).
+    rewrite /is_Rcoupl /is_coupl. 
+    rewrite lmarg_dswap rmarg_dswap.  
+    split; [eauto|]. 
+    intros [] ?%dswap_pos. simpl.
+    by eapply (HμSupp (_, _)).
+  Qed.
+
   Lemma Rcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R :
     Rcoupl μ1 μ2 R →
     SeriesC μ1 > 0 →
@@ -624,13 +636,13 @@ Section refRcoupl.
     intros (μ & ((HμL & HμR) & HμSupp)).
     exists (dswap μ).
     split; last first.
-    { intros [b a] [[? ?] [[= <- <-] ?]]%dmap_pos=>/=.      
+    { intros [b a] [[? ?] [[= <- <-] ?]]%dmap_pos=>/=.
       by eapply (HμSupp (_, _)). }
     split.
     { rewrite lmarg_dswap //. }
     intros a.
     rewrite rmarg_dswap.
-    rewrite HμL //. 
+    rewrite HμL //.
   Qed.
 
   Lemma refRcoupl_dret a b (R : A → B → Prop) :
@@ -794,10 +806,46 @@ Section refRcoupl.
         by apply (Rdiv_le_1 (SeriesC μ1)).
   Qed.
 
+  Lemma refRcoupl_pos_R (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) :
+    refRcoupl μ1 μ2 R →
+    refRcoupl μ1 μ2 (λ a' b', R a' b' ∧ μ1 a' > 0 ∧ μ2 b' > 0).
+  Proof.
+    intros [μ [[Hμ1 Hμ2] HR]].
+    exists μ. split; [done|].
+    intros [a' b'] Hρ.
+    split; [eauto|].
+    assert (SeriesC (λ a : A, μ (a, b')) > 0).
+    { eapply SeriesC_pos; [eauto| |done]. by eapply ex_seriesC_rmarg. }
+    specialize (Hμ2 b').
+    rewrite rmarg_pmf in Hμ2.
+    split; [|simpl; lra].
+    rewrite -Hμ1 lmarg_pmf.
+    eapply SeriesC_pos; eauto.
+    by eapply ex_seriesC_lmarg.
+  Qed.
+
   Lemma refRcoupl_dret_trivial (μ : distr A) (b : B) :
     refRcoupl μ (dret b) (λ _ _, True).
   Proof.
     apply refRcoupl_trivial. rewrite dret_mass. eapply pmf_SeriesC.
+  Qed.
+
+  Lemma refRcoupl_dret_r_inv (μ1 : distr A) (b : B) (R : A → B → Prop) :
+    refRcoupl μ1 (dret b) R →
+    refRcoupl μ1 (dret b) (λ a' b', R a' b' ∧ b = b').
+  Proof.
+    intros ?%(refRcoupl_pos_R).
+    eapply refRcoupl_mono; [|done].
+   by intros ?? (?&?& -> %dret_pos).
+  Qed.
+
+  Lemma refRcoupl_dret_l_inv (μ2 : distr B) (a : A) (R : A → B → Prop) :
+    refRcoupl (dret a) μ2 R →
+    refRcoupl (dret a) μ2 (λ a' b', R a' b' ∧ a' = a ∧ μ2 b' > 0).
+  Proof.
+    intros ?%(refRcoupl_pos_R).
+    eapply refRcoupl_mono; [|done].
+    by intros ?? (?& -> %dret_pos & ?).
   Qed.
 
 End refRcoupl.

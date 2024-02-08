@@ -331,7 +331,7 @@ Definition mlift_wp_pre `{!irisGS Λ Σ} (M : mlift)
   | Some v => |={E}=> Φ v
   | None => ∀ σ1,
       state_interp σ1 ={E,∅}=∗
-      ⌜reducible e1 σ1⌝ ∗
+      ⌜reducible (e1, σ1)⌝ ∗
       exec_mlift M e1 σ1 (λ '(e2, σ2),
         ▷ |={∅,E}=> state_interp σ2 ∗ wp E e2 Φ)
 end%I.

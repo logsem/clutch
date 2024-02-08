@@ -18,7 +18,7 @@ Section rules.
 
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
-    (∀ σ1, reducible e σ1) →
+    (∀ σ1, reducible (e, σ1)) →
     nclose specN ⊆ E →
     (N <= M)%R →
     (((S M - S N) / S N) = ε)%R →
@@ -84,7 +84,7 @@ Section rules.
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
-    (∀ σ1, reducible e σ1) →
+    (∀ σ1, reducible (e, σ1)) →
     nclose specN ⊆ E →
     (M <= N)%R →
     (((S N - S M) / S N) = ε)%R →
@@ -163,7 +163,8 @@ Section rules.
     iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
@@ -172,7 +173,8 @@ Section rules.
     1: apply nnreal_ext ; simpl ; lra.
     iApply (exec_coupl_prim_step_l).
     iExists _.
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro.
       eapply (wp_couple_rand_no_coll_l _ _ _ _ t) ; eauto.
@@ -221,7 +223,8 @@ Section rules.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
@@ -231,8 +234,9 @@ Section rules.
     iExists (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _) (m : fin _),
         (fin_to_nat n = m) ∧
-        (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
-    solve_red.
+          (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -301,10 +305,7 @@ Section rules.
         ∃ (m : fin _),
         (e2, σ2) = (Val #(g m), σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
     iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply (RandNoTapeS _ _ 0%fin). }
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.

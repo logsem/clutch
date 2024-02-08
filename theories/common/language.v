@@ -3,7 +3,7 @@ From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Export weakestpre.
 From clutch.prob Require Import distribution.
-From clutch.prob Require Export markov. 
+From clutch.prob Require Export markov.
 
 Section language_mixin.
   Context {expr val state state_idx : Type}.
@@ -34,6 +34,7 @@ Section language_mixin.
       (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1;
   }.
 End language_mixin.
+
 
 Structure language := Language {
   expr : Type;
@@ -102,6 +103,20 @@ Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
 
 #[global] Existing Instance fill_inj.
 
+Definition lang_markov_mixin (Λ : language) :
+  MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1).
+Proof.
+  constructor.
+  move=> [e σ] /= [v Hv] [e' σ'].
+  case (Rgt_dec (prim_step e σ (e', σ')) 0)
+    as [H | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
+  eapply mixin_val_stuck in H; [|eapply language_mixin].
+  simplify_eq.
+Qed.
+
+Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ).
+
+
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
 Section language.
@@ -125,68 +140,23 @@ Section language.
     (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1.
   Proof. apply language_mixin. Qed.
 
-  Class reducible (e : expr Λ) (σ : state Λ) :=
-    reducible_prim_step : ∃ ρ, prim_step e σ ρ > 0.
-  Definition irreducible (e : expr Λ) (σ : state Λ) :=
-    ∀ ρ, prim_step e σ ρ = 0.
-  Definition stuck (e : expr Λ) (σ : state Λ) :=
-    to_val e = None ∧ irreducible e σ.
-  Definition not_stuck (e : expr Λ) (σ : state Λ) :=
-    is_Some (to_val e) ∨ reducible e σ.
-
   Class Atomic (a : atomicity) (e : expr Λ) : Prop :=
     atomic σ e' σ' :
       prim_step e σ (e', σ') > 0 →
-      if a is WeaklyAtomic then irreducible e' σ' else is_Some (to_val e').
+      if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
 
   Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.
-  Lemma not_reducible e σ : ¬reducible e σ ↔ irreducible e σ.
-  Proof.
-    unfold reducible, irreducible. split.
-    - move=> /not_exists_forall_not Hneg ρ.
-      specialize (Hneg ρ). apply Rnot_gt_ge in Hneg.
-      pose proof (pmf_pos (prim_step e σ) ρ). lra.
-    - intros Hall [ρ ?]. specialize (Hall ρ). lra.
-  Qed.
-  Lemma reducible_not_val e σ : reducible e σ → to_val e = None.
-  Proof. intros ([] & ?). eauto using val_stuck. Qed.
-  Lemma val_irreducible e σ : is_Some (to_val e) → irreducible e σ.
-  Proof.
-    intros [??] ?.
-    destruct (pmf_pos (prim_step e σ) ρ) as [Hs%val_stuck|]; [|done].
-    simplify_eq.
-  Qed.
   Global Instance of_val_inj : Inj (=) (=) (@of_val Λ).
   Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
-  Lemma not_not_stuck e σ : ¬not_stuck e σ ↔ stuck e σ.
-  Proof.
-    rewrite /stuck /not_stuck -not_eq_None_Some -not_reducible.
-    destruct (decide (to_val e = None)); naive_solver.
-  Qed.
-  Lemma val_stuck_dzero e σ :
-    is_Some (to_val e) → prim_step e σ = dzero.
-  Proof.
-    intros []. apply distr_ext=>ρ.
-    destruct (decide (prim_step e σ ρ > 0)) as
-      [?%val_stuck | ->%pmf_eq_0_not_gt_0]; [|done].
-    simplify_eq.
-  Qed.
-  Lemma irreducible_dzero e σ :
-    irreducible e σ → prim_step e σ = dzero.
-  Proof.
-    intros Hirr%not_reducible. apply dzero_ext=> ρ.
-    destruct (Req_dec (prim_step e σ ρ)0); [done|].
-    exfalso. eapply Hirr.
-    exists ρ.
-    pose proof (pmf_le_1 (prim_step e σ) ρ).
-    pose proof (pmf_pos (prim_step e σ) ρ).
-    lra.
-  Qed.
 
   Lemma strongly_atomic_atomic e a :
     Atomic StronglyAtomic e → Atomic a e.
-  Proof. unfold Atomic. destruct a; eauto using val_irreducible. Qed.
+  Proof.
+    unfold Atomic. destruct a; eauto.
+    intros ?????. eapply is_final_irreducible.
+    rewrite /is_final /to_final /=. eauto.
+  Qed.
 
   Lemma fill_step e1 σ1 e2 σ2 `{!LanguageCtx K} :
     prim_step e1 σ1 (e2, σ2) > 0 →
@@ -216,43 +186,45 @@ Section language.
   Qed.
 
   Lemma reducible_fill `{!@LanguageCtx Λ K} e σ :
-    reducible e σ → reducible (K e) σ.
+    reducible (e, σ) → reducible (K e, σ).
   Proof.
     unfold reducible in *. intros [[] ?]. eexists; by apply fill_step.
   Qed.
   Lemma reducible_fill_inv `{!@LanguageCtx Λ K} e σ :
-    to_val e = None → reducible (K e) σ → reducible e σ.
+    to_val e = None → reducible (K e, σ) → reducible (e, σ).
   Proof.
     intros ? [[e1 σ1] Hstep]; unfold reducible.
+    rewrite /step /= in Hstep.
     rewrite fill_dmap // in Hstep.
     apply dmap_pos in Hstep as ([e1' σ2] & ? & Hstep).
     eauto.
   Qed.
   Lemma state_step_reducible e σ σ' α :
-    state_step σ α σ' > 0 → reducible e σ ↔ reducible e σ'.
+    state_step σ α σ' > 0 → reducible (e, σ) ↔ reducible (e, σ').
   Proof. apply state_step_not_stuck. Qed.
 
   Lemma irreducible_fill `{!@LanguageCtx Λ K} e σ :
-    to_val e = None → irreducible e σ → irreducible (K e) σ.
+    to_val e = None → irreducible (e, σ) → irreducible (K e, σ).
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill_inv. Qed.
   Lemma irreducible_fill_inv `{!@LanguageCtx Λ K} e σ :
-    irreducible (K e) σ → irreducible e σ.
+    irreducible (K e, σ) → irreducible (e, σ).
   Proof. rewrite -!not_reducible. naive_solver eauto using reducible_fill. Qed.
 
   Lemma not_stuck_fill_inv K `{!@LanguageCtx Λ K} e σ :
-    not_stuck (K e) σ → not_stuck e σ.
+    not_stuck (K e, σ) → not_stuck (e, σ).
   Proof.
-    rewrite /not_stuck -!not_eq_None_Some. intros [?|?].
+    rewrite /not_stuck /is_final /to_final /= -!not_eq_None_Some.
+    intros [?|?].
     - auto using fill_not_val.
     - destruct (decide (to_val e = None)); eauto using reducible_fill_inv.
   Qed.
 
   Lemma stuck_fill `{!@LanguageCtx Λ K} e σ :
-    stuck e σ → stuck (K e) σ.
+    stuck (e, σ) → stuck (K e, σ).
   Proof. rewrite -!not_not_stuck. eauto using not_stuck_fill_inv. Qed.
 
   Record pure_step (e1 e2 : expr Λ)  := {
-    pure_step_safe σ1 : reducible e1 σ1;
+    pure_step_safe σ1 : reducible (e1, σ1);
     pure_step_det σ : prim_step e1 σ (e2, σ) = 1;
   }.
 
@@ -267,7 +239,9 @@ Section language.
       destruct (Hred σ1) as [[]].
       eexists. by eapply fill_step.
     - intros σ.
-      rewrite -fill_step_prob //; eauto using (reducible_not_val _ σ).
+      rewrite -fill_step_prob //.
+      eapply (to_final_None_1 (_, σ)).
+      by eapply reducible_not_final.
   Qed.
 
   Lemma pure_step_nsteps_ctx K `{!@LanguageCtx Λ K} n e1 e2 :
@@ -306,10 +280,6 @@ Section language.
     is_Some (to_val (K e)) → is_Some (to_val e).
   Proof. rewrite -!not_eq_None_Some. eauto using fill_not_val. Qed.
 
-  Lemma prim_step_not_stuck e σ e' σ' :
-    prim_step e σ (e', σ') > 0 → not_stuck e σ.
-  Proof. rewrite /not_stuck /reducible. eauto 10. Qed.
-
   Lemma rtc_pure_step_val `{!Inhabited (state Λ)} v e :
     rtc pure_step (of_val v) e → to_val e = Some v.
   Proof.
@@ -320,15 +290,5 @@ Section language.
     by rewrite to_of_val in Hval.
   Qed.
 End language.
-
-Definition lang_markov_mixin (Λ : language) :
-  MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1).
-Proof.
-  constructor.
-  move=> [e σ] /= [v Hv] [e' σ'].
-  case (Rgt_dec (prim_step e σ (e', σ')) 0)
-    as [?%val_stuck | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
-Qed. 
-Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ).
 
 Global Hint Mode PureExec + - - ! - : typeclass_instances.

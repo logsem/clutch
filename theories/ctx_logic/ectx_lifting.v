@@ -13,8 +13,6 @@ Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
-Local Definition reducible_not_val_inhabitant e := reducible_not_val e inhabitant.
-Local Hint Resolve reducible_not_val_inhabitant : core.
 Local Hint Resolve head_stuck_stuck : core.
 
 Lemma wp_lift_head_step_fupd_couple {E Φ} e1 s :
@@ -42,29 +40,10 @@ Lemma wp_lift_head_step {E Φ} e1 s :
 Proof.
   iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (?) "Hσ".
   iMod ("H" with "Hσ") as "[% H]"; iModIntro.
-  iSplit; [by eauto|].
+  iSplit.
+  { iPureIntro. by apply head_prim_reducible. }
   iIntros (???) "!> !>". iApply "H"; auto.
 Qed.
-
-(* Lemma wp_lift_head_stuck E Φ e : *)
-(*   to_val e = None → *)
-(*   sub_redexes_are_values e → *)
-(*   (∀ σ ρ, state_interp σ ∗ spec_interp ρ ={E,∅}=∗ ⌜head_stuck e σ⌝) *)
-(*   ⊢ WP e @ s; E ?{{ Φ }}. *)
-(* Proof. *)
-(*   iIntros (??) "H". iApply wp_lift_stuck; first done. *)
-(*   iIntros (σ ρ) "Hσ". iMod ("H" with "Hσ") as "%". by auto. *)
-(* Qed. *)
-
-(* Lemma wp_lift_pure_head_stuck E Φ e : *)
-(*   to_val e = None → *)
-(*   sub_redexes_are_values e → *)
-(*   (∀ σ, head_stuck e σ) → *)
-(*   ⊢ WP e @ s; E ?{{ Φ }}. *)
-(* Proof using Hinh. *)
-(*   iIntros (?? Hstuck). iApply wp_lift_head_stuck; [done|done|]. *)
-(*   iIntros (σ ρ) "_". iApply fupd_mask_intro; by auto with set_solver. *)
-(* Qed. *)
 
 Lemma wp_lift_atomic_head_step_fupd {E1 E2 Φ} e1 s :
   to_val e1 = None →
@@ -77,7 +56,9 @@ Lemma wp_lift_atomic_head_step_fupd {E1 E2 Φ} e1 s :
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step_fupd; [done|].
   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
-  iSplit; first by auto. iIntros (e2 σ2 Hstep).
+  iSplit.
+  { iPureIntro. by apply head_prim_reducible. }
+  iIntros (e2 σ2 Hstep).
   iApply "H"; eauto.
 Qed.
 
@@ -92,7 +73,9 @@ Lemma wp_lift_atomic_head_step {E Φ} e1 s :
 Proof.
   iIntros (?) "H". iApply wp_lift_atomic_step; eauto.
   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "[% H]"; iModIntro.
-  iSplit; [by auto|]. iNext. iIntros (e2 σ2 Hstep).
+  iSplit.
+  { iPureIntro. by apply head_prim_reducible. }
+  iNext. iIntros (e2 σ2 Hstep).
   iApply "H"; eauto.
 Qed.
 
@@ -104,6 +87,7 @@ Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. erewrite !(wp_lift_pure_det_step e1 e2); eauto.
+  intros. by apply head_prim_reducible.
 Qed.
 
 Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 s :

@@ -152,9 +152,8 @@ Section pure_exec.
   Proof. solve_pure_exec. Qed.
 End pure_exec.
 
-(** * Instances of the [reducible] class *)
-
-Global Instance reducible_rand_no_tape (z : Z) σ : reducible (rand #z) σ.
-Proof.
-  eapply head_prim_reducible ; eauto with head_step.
-Qed.
+(* (** * Instances of the [reducible] class *) *)
+(* Global Instance reducible_rand_no_tape (z : Z) σ : reducible (rand #z) σ. *)
+(* Proof. *)
+(*   eapply head_prim_reducible ; eauto with head_step. *)
+(* Qed. *)

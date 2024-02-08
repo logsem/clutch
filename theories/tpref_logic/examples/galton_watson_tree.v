@@ -51,6 +51,21 @@ Definition gen_tree : val :=
     run "q";;
     ! "rinit".
 
+Lemma Rcoupl_reducible_r `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) R :
+  (∃ a, μ1 a > 0) →
+  Rcoupl μ1 μ2 R →
+  ∃ b, μ2 b > 0.
+Proof.
+  intros [a Ha] (?&?&?&?&?)%Rcoupl_pos_R%Rcoupl_inhabited_l; [eauto|].
+  apply not_dzero_gt_0 => ?. subst. inv_distr.
+Qed.
+
+Lemma Rcoupl_reducible_l `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) R :
+  (∃ b, μ2 b > 0) →
+  Rcoupl μ1 μ2 R →
+  ∃ a, μ1 a > 0.
+Proof. intros ? ?%Rcoupl_swap. by eapply Rcoupl_reducible_r. Qed.
+
 Section task_loop_spec.
   Context `{tprG (gwp μ) Σ, seqG Σ}.
   Context (M : nat) (α : loc) (N : namespace).
@@ -64,7 +79,7 @@ Section task_loop_spec.
   Definition task_queue : val → nat → iProp Σ := queue task_spec.
 
   Lemma wp_run n q :
-    Rcoupl (dunifP M) μ (λ n m, fin_to_nat n = m) →
+    Rcoupl μ (dunifP M) (λ m n, fin_to_nat n = m) →
     task_queue q n ∗ specF n ∗ α ↪ (M; [])
     ⊢ SEQ run q {{ _, ∃ m, task_queue q m ∗ specF m ∗ α ↪ (M; []) }}.
   Proof.
@@ -78,15 +93,18 @@ Section task_loop_spec.
     - wp_apply (wp_queue_take_Sn with "Hq").
       iIntros (f) "[Hq Hf]".
       wp_pures.
-      iApply (rwp_couple_tape _ (λ m s, s = n + m)%nat); [|iFrame "Hspec Hα"].
+      iApply (rwp_couple_tape _ (λ s m, s = n + m)%nat); [| |iFrame "Hspec Hα"].
+      { eapply Rcoupl_reducible_l in Hcpl as [? ?]; [|eauto using (dunifP_pos _ 0%fin)].
+        eexists ((_ + _)%nat). apply dbind_pos. eexists. split; [|done].
+        rewrite dret_1_1 //. lra. }
       (* Notice how the model step in the preceding line introduces a later in the goal. *)
       { iIntros (σ Hσ).
         rewrite /state_step /=.
         rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2].
         rewrite lookup_total_alt Hσ /=.
-        eapply Rcoupl_dbind; [|apply Hcpl].
+        eapply refRcoupl_dbind; [|apply Rcoupl_refRcoupl, Hcpl].
         intros n1 n2 <-.
-        apply Rcoupl_dret; eauto. }
+        apply refRcoupl_dret; eauto. }
       rewrite {2}/task_spec /tc_opaque.
       iIntros "!>" (m ? ->) "Hspec Hα /=".
       (* Notice how the above line strips a later from the goal and the Loeb induction hyptothesis. *)
@@ -144,7 +162,7 @@ Section task_loop_spec.
   Qed.
 
   Lemma wp_gen_tree child_dist :
-    Rcoupl (dunifP M) μ (λ n m, fin_to_nat n = m) →
+    Rcoupl μ (dunifP M) (λ m n, fin_to_nat n = m) →
     child_dist_spec child_dist ∗ specF 1%nat ∗ α ↪ (M; [])
     ⊢ SEQ gen_tree child_dist {{ _, True }}.
   Proof using N.

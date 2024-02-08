@@ -7,7 +7,7 @@ From clutch.prob Require Import distribution union_bounds.
 Import uPred.
 
 Lemma twp_step_fupd_total_ub_lift_prim_step (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R P:
-  reducible e σ -> 
+  reducible (e, σ) -> 
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
   ε1 + SeriesC
          (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> ub_lift (prim_step e σ) R ε1 ->
@@ -320,7 +320,7 @@ Section adequacy.
       iDestruct "H" as "[H|[H|[H|[H|H]]]]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
-        2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
+        2: { by apply reducible_not_final. }
         rewrite {2}/total_ub_lift.
         iIntros (P HP).
         setoid_rewrite prob_dbind.
@@ -353,7 +353,7 @@ Section adequacy.
         by apply H.
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
-        2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
+        2: { by apply reducible_not_final. }
         iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
           ⌜R ρ2⌝ ={∅}=∗
           let

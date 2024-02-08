@@ -144,7 +144,7 @@ Section rules.
   Lemma wp_rand_r N z E e K Φ :
     TCEq N (Z.to_nat z) →
     to_val e = None →
-    (∀ σ1, reducible e σ1) →
+    (∀ σ1, reducible (e, σ1)) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand #z) ∗
     (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
@@ -198,7 +198,7 @@ Section rules.
   Lemma wp_rand_empty_r N z E e K α Φ :
     TCEq N (Z.to_nat z) →
     to_val e = None →
-    (∀ σ1, reducible e σ1) →
+    (∀ σ1, reducible (e, σ1)) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
     ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
@@ -255,7 +255,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     to_val e = None →
-    (∀ σ1, reducible e σ1) →
+    (∀ σ1, reducible (e, σ1)) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
     ((α ↪ₛ (M; ns) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})

@@ -2,9 +2,9 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.ctx_logic Require Import lifting ectx_lifting. 
+From clutch.ctx_logic Require Import lifting ectx_lifting.
 From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.ctx_logic Require Export primitive_laws spec_ra spec_rules. 
+From clutch.ctx_logic Require Export primitive_laws spec_ra spec_rules.
 
 (* TODO: can we factor out a clever lemma to avoid duplication in all the
    coupling lemmas? *)
@@ -135,7 +135,7 @@ Section rules.
     - iIntros "(#Hctx & >Hα & >Hαₛ & Hwp)".
       iApply ("Hwp" $! []).
       rewrite 2!app_nil_r.
-      by iFrame. 
+      by iFrame.
     - iIntros "(#Hctx & >Hα & >Hαₛ & Hwp)".
       iApply "IH". iFrame "Hα Hαₛ Hctx".
       iIntros (?) "(%Hlen & Hα & Hαₛ)".
@@ -224,8 +224,8 @@ Section rules.
     iApply exec_coupl_det_r; [done|].
     iApply (exec_coupl_prim_state α).
     { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
-    iExists _.
-    solve_red.
+    iExists _. iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. by eapply (Rcoupl_rand_state _ f). }
     iIntros (e2 σ2 σ2' (b & [=-> ->] & ->)).
@@ -324,7 +324,8 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -404,7 +405,8 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -448,7 +450,8 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -492,7 +495,8 @@ Section rules.
     iExists
       (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #(f n), σ0')).
-    solve_red.
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
     { iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.

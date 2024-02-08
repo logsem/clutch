@@ -1818,6 +1818,10 @@ End dprod.
 Definition dswap `{Countable A, Countable B} (μ : distr (A * B)) : distr (B * A) :=
   dmap (λ '(a, b), (b, a)) μ.
 
+Lemma dswap_pos `{Countable A, Countable B} (μ : distr (A * B)) a b :
+  (dswap μ (b, a) > 0 → μ (a, b) > 0)%R.
+Proof. by intros ([] & [= <- <-] & ?)%dmap_pos. Qed. 
+
 (** * Marginals  *)
 Definition lmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr A :=
   dmap fst μ.

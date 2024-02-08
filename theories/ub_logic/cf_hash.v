@@ -1,7 +1,7 @@
 From clutch.ub_logic Require Export ub_clutch hash lib.map.
 Import Hierarchy.
 
-Module coll_free_hash.
+Section coll_free_hash.
 
   Context `{!ub_clutchGS Σ}.
 
