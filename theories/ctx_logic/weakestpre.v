@@ -34,11 +34,11 @@ Section exec_coupl.
     (λ (x : cfg Λ * cfg Λ),
       let '((e1, σ1), (e1', σ1')) := x in
       (* [prim_step] on both sides *)
-      (∃ R, ⌜reducible e1 σ1⌝ ∗
+      (∃ R, ⌜reducible (e1, σ1)⌝ ∗
             ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
             ∀ ρ2 ρ2', ⌜R ρ2 ρ2'⌝ ={∅}=∗ Z ρ2 ρ2') ∨
       (* [prim_step] only on the left *)
-      (∃ R, ⌜reducible e1 σ1⌝ ∗
+      (∃ R, ⌜reducible (e1, σ1)⌝ ∗
             ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
       (* an arbitrary amount of [prim_step]s on the right *)
@@ -46,7 +46,7 @@ Section exec_coupl.
             ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ Φ ((e1, σ1), (e2', σ2'))) ∨
       (* [prim_step] on the left, [state_step] on the right *)
       ([∨ list] α' ∈ get_active σ1',
-        (∃ R, ⌜reducible e1 σ1⌝ ∗
+        (∃ R, ⌜reducible (e1, σ1)⌝ ∗
               ⌜Rcoupl (prim_step e1 σ1) (state_step σ1' α')  R⌝ ∗
               ∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z (e2, σ2) (e1', σ2'))) ∨
       (* [state_step] on the left, a [prim_step] on the right *)
@@ -110,16 +110,16 @@ Section exec_coupl.
 
   Lemma exec_coupl_unfold e1 σ1 e1' σ1' Z :
     exec_coupl e1 σ1 e1' σ1' Z ≡
-      ((∃ R, ⌜reducible e1 σ1⌝ ∗
+      ((∃ R, ⌜reducible (e1, σ1)⌝ ∗
             ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
             ∀ ρ2 ρ2', ⌜R ρ2 ρ2'⌝ ={∅}=∗ Z ρ2 ρ2') ∨
-      (∃ R, ⌜reducible e1 σ1⌝ ∗
+      (∃ R, ⌜reducible (e1, σ1)⌝ ∗
             ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
             ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1')) ∨
       (∃ R n, ⌜Rcoupl (dret (e1, σ1)) (pexec n (e1', σ1')) R⌝ ∗
               ∀ e2' σ2', ⌜R (e1, σ1) (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ1 e2' σ2' Z) ∨
       ([∨ list] α' ∈ get_active σ1',
-        (∃ R, ⌜reducible e1 σ1⌝ ∗
+        (∃ R, ⌜reducible (e1, σ1)⌝ ∗
               ⌜Rcoupl (prim_step e1 σ1) (state_step σ1' α')  R⌝ ∗
               ∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z (e2, σ2) (e1', σ2'))) ∨
       ([∨ list] α ∈ get_active σ1,
@@ -304,7 +304,7 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_prim_steps e1 σ1 e1' σ1' Z :
-    (∃ R, ⌜reducible e1 σ1⌝ ∗
+    (∃ R, ⌜reducible (e1, σ1)⌝ ∗
           ⌜Rcoupl (prim_step e1 σ1) (prim_step e1' σ1') R⌝ ∗
           ∀ ρ2 ρ2', ⌜R ρ2 ρ2'⌝ ={∅}=∗ Z ρ2 ρ2')
     ⊢ exec_coupl e1 σ1 e1' σ1' Z.
@@ -315,7 +315,7 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_prim_step_l e1 σ1 e1' σ1' Z :
-    (∃ R, ⌜reducible e1 σ1⌝ ∗
+    (∃ R, ⌜reducible (e1, σ1)⌝ ∗
           ⌜Rcoupl (prim_step e1 σ1) (dret (e1', σ1')) R⌝ ∗
           ∀ ρ2, ⌜R ρ2 (e1', σ1')⌝ ={∅}=∗ Z ρ2 (e1', σ1'))
     ⊢ exec_coupl e1 σ1 e1' σ1' Z.
@@ -339,7 +339,7 @@ Section exec_coupl.
 
   Lemma exec_coupl_prim_state α' e1 σ1 e1' σ1' Z :
     α' ∈ get_active σ1' →
-    (∃ R, ⌜reducible e1 σ1⌝ ∗
+    (∃ R, ⌜reducible (e1, σ1)⌝ ∗
           ⌜Rcoupl (prim_step e1 σ1) (state_step σ1' α')  R⌝ ∗
           ∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z (e2, σ2) (e1', σ2'))
     ⊢ exec_coupl e1 σ1 e1' σ1' Z.
@@ -375,10 +375,10 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_reducible e e' σ σ' Z :
-    exec_coupl e σ e' σ' Z ={∅}=∗ ⌜reducible e σ⌝.
+    exec_coupl e σ e' σ' Z ={∅}=∗ ⌜reducible (e, σ)⌝.
   Proof.
     rewrite /exec_coupl /exec_coupl'.
-    set (Φ := (λ x, |={∅}=> ⌜reducible x.1.1 x.1.2⌝)%I : prodO cfgO cfgO → iPropI Σ).
+    set (Φ := (λ x, |={∅}=> ⌜reducible x.1⌝)%I : prodO cfgO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n ((?&?)&(?&?)) ((?&?)&(?&?)) [[[=] [=]] [[=] [=]]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter (exec_coupl_pre Z) Φ
@@ -391,30 +391,30 @@ Section exec_coupl.
       eapply Rcoupl_inhabited_l in Hcpl as ([] & [] & ? & [= -> ->]%dret_pos & ?); last first.
       { rewrite dret_mass; lra. }
       by iMod ("H" with "[//]").
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible e1 σ1⌝)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
       { iIntros (? α' ?%elem_of_list_lookup_2) "(% & % & _)". eauto. }
       iInduction (get_active σ1') as [| α'] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[? | H]"; [done|].
       by iApply "IH".
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible e1 σ1⌝)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
       { iIntros (? α' ?%elem_of_list_lookup_2) "(% & %Hcpl & H)".
         eapply Rcoupl_pos_R in Hcpl.
         eapply Rcoupl_inhabited_l in Hcpl as (σ2 & [] & ? & ? & ?); last first.
         { rewrite state_step_mass //. lra. }
-        iApply (pure_impl_1 (reducible e1 σ2)).
+        iApply (pure_impl_1 (reducible (e1, σ2))).
         { iPureIntro. by eapply state_step_reducible. }
         by iMod ("H" with "[//]"). }
       iInduction (get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[? | H]"; [done|].
       by iApply "IH".
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible e1 σ1⌝)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
       { iIntros (? [α1 α2] [? ?]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %Hcpl & H)".
         eapply Rcoupl_pos_R in Hcpl.
         eapply Rcoupl_inhabited_l in Hcpl as (σ2 &?&?& Hs &?); last first.
         { rewrite state_step_mass //. lra. }
-        iApply (pure_impl_1 (reducible e1 σ2)).
+        iApply (pure_impl_1 (reducible (e1, σ2))).
         { iPureIntro. by eapply state_step_reducible. }
         by iMod ("H" with "[//]"). }
       iInduction (list_prod (get_active σ1) (get_active σ1')) as [| [α α']] "IH"; [done|].
@@ -578,7 +578,7 @@ Proof.
     destruct a.
     * pose proof (atomic _ _ _ Hstep) as [? Hval].
       apply val_stuck in Hr. simplify_eq.
-    * pose proof (atomic _ _ _ Hstep ρ). lra.
+    * rewrite (atomic (a := WeaklyAtomic) _ _ _ Hstep ρ) in Hr. lra.
 Qed.
 
 Lemma wp_step_fupd E1 E2 e P Φ s :

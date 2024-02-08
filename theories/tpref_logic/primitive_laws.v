@@ -266,10 +266,11 @@ Section coupl.
 
   Lemma rwp_couple (N : nat) (z : Z) E R a1 a :
     TCEq N (Z.to_nat z) →
-    Rcoupl (dunifP N) (step a1) R →
-    {{{ specF a1 }}} rand #z @ a; E {{{ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R n a2⌝ }}}.
+    reducible a1 →
+    refRcoupl (step a1) (dunifP N) R →
+    {{{ specF a1 }}} rand #z @ a; E {{{ (n : fin (S N)) a2, RET #n; specF a2 ∗ ⌜R a2 n⌝ }}}.
   Proof.
-    iIntros (-> ? Φ) "Ha HΦ /=".
+    iIntros (-> ?? Φ) "Ha HΦ /=".
     iApply rwp_lift_step_fupd_coupl; [done|].
     iIntros (σ1 m) "[Hσ1 HaA]".
     iDestruct (spec_auth_agree with "HaA Ha") as %->.
@@ -279,12 +280,14 @@ Section coupl.
     { eexists (_, _).
       apply head_step_support_equiv_rel.
       by eapply (RandNoTapeS _ _ 0%fin). }
-    iApply (rwp_coupl_steps (λ '(e2, σ2) a2, ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R n a2)).
+    iApply (rwp_coupl_steps (λ a2 '(e2, σ2), ∃ (n : fin _), e2 = Val #n ∧ σ2 = σ1 ∧ R a2 n)).
+    { done. }
+    { by eapply head_prim_reducible. }
     { rewrite /= head_prim_step_eq //=.
       rewrite -(dret_id_right (step _)).
-      eapply Rcoupl_dbind; [|done].
+      eapply refRcoupl_dbind; [|done].
       intros n a2 HR.
-      apply Rcoupl_dret. eauto. }
+      apply refRcoupl_dret. eauto. }
     iIntros ([? ?] a2) "[%n (-> & -> & %)] !> !> !>".
     iMod (spec_auth_update a2 with "HaA Ha") as "[HaA Ha]".
     iMod "Hclose" as "_".
@@ -298,19 +301,20 @@ Section coupl.
   (* TODO: generic state step coupling rule with list of tapes *)
   Lemma rwp_couple_tape N R ns α e m a E Φ :
     TCEq (to_val e) None →
+    reducible m →
     (∀ σ, σ.(tapes) !! α = Some ((N; ns) : tape) →
-          Rcoupl
-            (state_step σ α)
+          refRcoupl
             (step m)
-            (λ σ' m', ∃ n,
-                R n m' ∧
+            (state_step σ α)
+            (λ m' σ', ∃ n,
+                R m' n ∧
                 σ' = (state_upd_tapes (<[α := (N; ns ++ [n])]>) σ))) →
     α ↪ (N; ns) ∗
     specF m ∗
-    ▷ (∀ n m', ⌜R n m'⌝ -∗ specF m' -∗ α ↪ (N; ns ++ [n]) -∗ WP e @ a; E {{ Φ }})
+    ▷ (∀ n m', ⌜R m' n⌝ -∗ specF m' -∗ α ↪ (N; ns ++ [n]) -∗ WP e @ a; E {{ Φ }})
     ⊢ WP e @ a; E {{ Φ }}.
   Proof.
-    iIntros (He Hcpl) "(Hα & HmF & Hcnt)".
+    iIntros (He Hm Hcpl) "(Hα & HmF & Hcnt)".
     iApply rwp_lift_step_fupd_coupl; [rewrite /= He //|].
     iIntros (σ1 m1') "[[Hh Ht] HmA]".
     iDestruct (spec_auth_agree with "HmA HmF") as %->.
@@ -318,6 +322,7 @@ Section coupl.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
     iApply (rwp_coupl_state_steps _ [α]).
+    { done. }
     { rewrite /= /get_active. intros ? ->%elem_of_list_singleton.
       apply elem_of_elements, elem_of_dom; auto. }
     { rewrite /= dret_id_right. by apply Hcpl. }
@@ -333,24 +338,25 @@ Section coupl.
 
   Lemma rwp_couple_two_tapes N1 N2 R ns1 ns2 α1 α2 e m1 a E Φ :
     TCEq (to_val e) None →
+    reducible m1 →
     (∀ σ, α1 ≠ α2 →
           σ.(tapes) !! α1 = Some ((N1; ns1) : tape) →
           σ.(tapes) !! α2 = Some ((N2; ns2) : tape) →
-          Rcoupl
-            (state_step σ α1 ≫= (λ σ', state_step σ' α2))
+          refRcoupl
             (step m1)
-            (λ σ' m2, ∃ n1 n2,
-                R (n1, n2) m2 ∧
+            (state_step σ α1 ≫= (λ σ', state_step σ' α2))
+            (λ m2 σ', ∃ n1 n2,
+                R m2 (n1, n2) ∧
                 σ' = (state_upd_tapes (<[α1 := (N1; ns1 ++ [n1])]>)
                      (state_upd_tapes (<[α2 := (N2; ns2 ++ [n2])]>) σ)))) →
     α1 ↪ (N1; ns1) ∗
     α2 ↪ (N2; ns2) ∗
     specF m1 ∗
-    ▷ (∀ n1 n2 m2, ⌜R (n1, n2) m2⌝ -∗ specF m2 -∗
+    ▷ (∀ n1 n2 m2, ⌜R m2 (n1, n2)⌝ -∗ specF m2 -∗
                    α1 ↪ (N1; ns1 ++ [n1]) -∗ α2 ↪ (N2; ns2 ++ [n2]) -∗ WP e @ a; E {{ Φ }})
     ⊢ WP e @ a; E {{ Φ }}.
   Proof.
-    iIntros (He Hcpl) "(Hα1 & Hα2 & Hm1F & Hcnt)".
+    iIntros (He Hm1 Hcpl) "(Hα1 & Hα2 & Hm1F & Hcnt)".
     iApply rwp_lift_step_fupd_coupl; [rewrite /= He //|].
     iIntros (σ1 m1') "[[Hh1 Ht1] Hm1A]".
     iDestruct (spec_auth_agree with "Hm1A Hm1F") as %->.
@@ -360,6 +366,7 @@ Section coupl.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
     iApply (rwp_coupl_state_steps _ [α1; α2]).
+    { done. }
     { rewrite /= /get_active => α Hα. apply elem_of_elements, elem_of_dom.
       apply elem_of_cons in Hα as [-> |Hα]; [auto|].
       apply elem_of_list_singleton in Hα as ->; auto. }

@@ -28,7 +28,7 @@ Section total_lifting.
   to_val e1 = None →
   (∀ σ1, state_interp σ1
      ={E,∅}=∗
-    ⌜reducible e1 σ1⌝ ∗
+    ⌜reducible (e1, σ1)⌝ ∗
      ∀ e2 σ2,
       ⌜prim_step e1 σ1 (e2, σ2) > 0 ⌝ ={∅}=∗ |={∅,E}=>
       state_interp σ2 ∗ WP e2 @ E [{ Φ }])
@@ -61,7 +61,7 @@ Section total_lifting.
   Lemma twp_lift_step E Φ e1 :
     to_val e1 = None →
     (∀ σ1, state_interp σ1 ={E,∅}=∗
-           ⌜reducible e1 σ1⌝ ∗
+           ⌜reducible (e1, σ1)⌝ ∗
            ∀ e2 σ2,
        ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗
        state_interp σ2 ∗
@@ -74,13 +74,13 @@ Section total_lifting.
   Qed.
 
   Lemma twp_lift_pure_step `{!Inhabited (state Λ)} E Φ e1 :
-    (∀ σ1, reducible e1 σ1) →
+    (∀ σ1, reducible (e1, σ1)) →
     (∀ σ1 e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → σ2 = σ1) →
     (|={E}=> ∀ e2 σ, ⌜prim_step e1 σ (e2, σ) > 0⌝ → WP e2 @ E [{ Φ }])
     ⊢ WP e1 @ E [{ Φ }].
   Proof.
     iIntros (Hsafe Hstep) "H". iApply twp_lift_step.
-    { specialize (Hsafe inhabitant). eauto using reducible_not_val. }
+    { by eapply (to_final_None_1 (e1, inhabitant)), reducible_not_final. }
     iIntros (σ1) "Hσ". iMod "H".
     iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
     iSplit; [done|].
@@ -93,7 +93,7 @@ Section total_lifting.
   Lemma twp_lift_atomic_step_fupd {E1 Φ} e1 :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E1}=∗
-    ⌜reducible e1 σ1⌝ ∗
+    ⌜reducible (e1, σ1)⌝ ∗
     ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E1}=∗
       state_interp σ2 ∗
       from_option Φ False (to_val e2))
@@ -115,7 +115,7 @@ Section total_lifting.
   Lemma twp_lift_atomic_step {E Φ} e1 :
     to_val e1 = None →
     (∀ σ1, state_interp σ1 ={E}=∗
-           ⌜reducible e1 σ1⌝ ∗
+           ⌜reducible (e1, σ1)⌝ ∗
           ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗
                     state_interp σ2 ∗
                     from_option Φ False (to_val e2))
@@ -128,7 +128,7 @@ Section total_lifting.
   Qed.
 
   Lemma twp_lift_pure_det_step `{!Inhabited (state Λ)} {E Φ} e1 e2 :
-    (∀ σ1, reducible e1 σ1) →
+    (∀ σ1, reducible (e1, σ1)) →
     (∀ σ1 e2' σ2, prim_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
     (|={E}=> WP e2 @ E [{ Φ }]) ⊢ WP e1 @ E [{ Φ }].
   Proof.
@@ -146,6 +146,7 @@ Section total_lifting.
     iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
     iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
     iApply twp_lift_pure_det_step.
+    - done. 
     - intros σ1 e2' σ2 Hpstep.
       by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
     - iModIntro. iApply "IH". iApply "Hwp". 

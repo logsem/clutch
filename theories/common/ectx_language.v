@@ -244,7 +244,7 @@ Section ectx_language.
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ',
       head_step e σ (e', σ') > 0 →
-      if a is WeaklyAtomic then irreducible e' σ' else is_Some (to_val e').
+      if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
 
   (** * Some lemmas about this language *)
   Lemma not_head_reducible e σ : ¬head_reducible e σ ↔ head_irreducible e σ.
@@ -347,50 +347,51 @@ Section ectx_language.
       by eapply val_head_stuck.
   Qed.
 
-  Lemma head_step_not_stuck e σ ρ : head_step e σ ρ > 0 → not_stuck e σ.
+  Lemma head_step_not_stuck e σ ρ : head_step e σ ρ > 0 → not_stuck (e, σ).
   Proof.
     rewrite /not_stuck /reducible /=. intros Hs. right.
     eexists ρ. by apply head_prim_step.
   Qed.
 
-  Lemma fill_reducible K e σ : reducible e σ → reducible (fill K e) σ.
+  Lemma fill_reducible K e σ : reducible (e, σ) → reducible (fill K e, σ).
   Proof.
     rewrite /reducible /=. intros [[e2 σ2] (K' & e1' & e2' & <- & <- & Hs)%prim_step_iff].
     exists (fill (comp_ectx K K') e2', σ2).
     eapply prim_step_iff. do 3 eexists. rewrite !fill_comp //.
   Qed.
-  Lemma head_prim_reducible e σ : head_reducible e σ → reducible e σ.
+  Lemma head_prim_reducible e σ : head_reducible e σ → reducible (e, σ).
   Proof. intros [ρ Hstep]. exists ρ. by apply head_prim_step. Qed.
   Lemma head_prim_fill_reducible e K σ :
-    head_reducible e σ → reducible (fill K e) σ.
+    head_reducible e σ → reducible (fill K e, σ).
   Proof. intro. by apply fill_reducible, head_prim_reducible. Qed.
   Lemma state_step_head_reducible e σ σ' α :
     state_step σ α σ' > 0 → head_reducible e σ ↔ head_reducible e σ'.
   Proof. eapply state_step_head_not_stuck. Qed.
 
-  Lemma head_prim_irreducible e σ : irreducible e σ → head_irreducible e σ.
+  Lemma head_prim_irreducible e σ : irreducible (e, σ) → head_irreducible e σ.
   Proof.
     rewrite -not_reducible -not_head_reducible. eauto using head_prim_reducible.
   Qed.
 
   Lemma prim_head_reducible e σ :
-    reducible e σ → sub_redexes_are_values e → head_reducible e σ.
+    reducible (e, σ) → sub_redexes_are_values e → head_reducible e σ.
   Proof.
     rewrite /reducible.
-    intros [[e2 σ2] (K & e1' & e2' & <- & <- & Hs)%prim_step_iff] Hsub.
+    intros [[e2 σ2] (K & e1' & e2' & ? & ? & Hs)%prim_step_iff] Hsub.
+    simplify_eq=>/=; simpl in *.
     assert (K = empty_ectx) as -> by eauto 10 using val_head_stuck.
     simplify_eq. rewrite fill_empty. eexists; eauto.
   Qed.
   Lemma prim_head_irreducible e σ :
-    head_irreducible e σ → sub_redexes_are_values e → irreducible e σ.
+    head_irreducible e σ → sub_redexes_are_values e → irreducible (e, σ).
   Proof.
     rewrite -not_reducible -not_head_reducible. eauto using prim_head_reducible.
   Qed.
 
   Lemma head_stuck_stuck e σ :
-    head_stuck e σ → sub_redexes_are_values e → stuck e σ.
+    head_stuck e σ → sub_redexes_are_values e → stuck (e, σ).
   Proof.
-    intros [] ?. split; first done.
+    intros [] ?. split; [by eapply to_final_None_2|].
     by apply prim_head_irreducible.
   Qed.
 

@@ -27,7 +27,8 @@ Lemma rwp_lift_head_step_fupd {E Φ} e1 s :
 Proof.
   iIntros (?) "H". iApply rwp_lift_step_fupd=>//. iIntros (σ1 a) "Hσ".
   iMod ("H" with "Hσ") as "[%Hred H]".  iModIntro.
-  iSplit; [eauto|].
+  iSplit.
+  { iPureIntro. by eapply head_prim_reducible. }
   iIntros (e2 σ2 ?) "!>".
   iApply "H". eauto.
 Qed.
@@ -46,7 +47,8 @@ Proof.
   iIntros (σ1 a) "H'".
   iMod ("H"  with "H'") as "[%Hred H]".
   iModIntro.
-  iSplit; [eauto|].
+  iSplit.
+  { iPureIntro. by eapply head_prim_reducible. }
   iIntros (e2 σ2 Hstep).
   iApply "H". eauto.
 Qed.
@@ -59,7 +61,7 @@ Lemma rwp_lift_pure_head_step `{!Inhabited (state Λ)} E Φ e1 s :
 Proof.
   intros Hsafe Hstep.
   iIntros "H". iApply rwp_lift_head_step_fupd; auto.
-  { eauto using (reducible_not_val _ inhabitant). }
+  { by eapply (to_final_None_1 (e1, inhabitant)), reducible_not_final, head_prim_reducible.  }
   iIntros (σ1 a) "[Ha Hσ]". iMod (fupd_mask_subseteq ∅) as "Hclose"; [set_solver|].
   iModIntro. iSplit; auto.
   iIntros (e2 σ2 H').
@@ -93,7 +95,8 @@ Proof.
   iIntros "H". iApply rswp_lift_step_fupd=>//. iIntros (σ1) "Hσ".
   iMod ("H" with "Hσ") as "H". iModIntro. iApply (step_fupdN_wand with "H").
   iIntros "[% H]".
-  iSplit; [eauto|].
+  iSplit.
+  { iPureIntro. by eapply head_prim_reducible. }
   iIntros (e2 σ2 ?).
   iApply "H"; eauto.
 Qed.
@@ -109,7 +112,9 @@ Proof.
   iIntros "H". iApply rswp_lift_atomic_step_fupd; eauto.
   iIntros (σ1) "Hσ1". iMod ("H" with "Hσ1") as "H"; iModIntro.
   iApply (step_fupdN_wand with "H"); iIntros "[% H]".
-  iSplit; [eauto|]. iIntros (e2 σ2 Hstep).
+  iSplit.
+  { iPureIntro. by eapply head_prim_reducible. }
+  iIntros (e2 σ2 Hstep).
   iApply "H"; eauto.
 Qed.
 
@@ -133,7 +138,9 @@ Lemma rswp_lift_pure_head_step_fupd k E Φ e1 s :
   ⊢ RSWP e1 at k @ s; E ⟨⟨ Φ ⟩⟩.
 Proof.
   intros Hsafe Hstep.
-  iIntros "H". iApply rswp_lift_pure_step; eauto.
+  iIntros "H". iApply rswp_lift_pure_step.
+  { intros. by eapply head_prim_reducible. }
+  { eauto. }
   iModIntro. iApply (step_fupdN_wand with "H").
   iIntros "H" (e2 σ Hs).
   iApply "H"; eauto. iPureIntro.

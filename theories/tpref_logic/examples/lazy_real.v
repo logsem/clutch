@@ -171,15 +171,18 @@ Section lazy_real.
   Proof.
     iIntros (Hv) "(Hα1 & Hα2 & Hspec & Hcnt)".
     iApply (rwp_couple_two_tapes (δ := model) _ _
-              (λ '(n1, n2) '(b1, b2, N'),
+              (λ '(b1, b2, N') '(n1, n2),
                 N' = S N ∧ n1 = bool_to_fin b1 ∧ n2 = bool_to_fin b2)
-               with "[$Hα1 $Hα2 $Hspec Hcnt]").
+             with "[$Hα1 $Hα2 $Hspec Hcnt]").
+    { exists (true, true, S N) => /=. rewrite bool_decide_eq_false_2; [|eauto].
+      eapply dbind_pos. eexists. rewrite dret_1_1 //. split; [lra|].
+      eapply dprod_pos. rewrite fair_coin_pmf. lra. }
     { intros ???? => /=.
       rewrite bool_decide_eq_false_2; [|auto].
       rewrite -(dret_id_right (state_step _ _ ≫= _)).
-      eapply Rcoupl_dbind; [|by apply state_steps_fair_coins_coupl].
+      eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl', state_steps_fair_coins_coupl].
       intros [] [b1' b2']  [= -> ->] =>/=.
-      eapply Rcoupl_dret=>/=. eauto 6. }
+      eapply refRcoupl_dret=>/=. eauto 6. }
     iIntros "!>" (?? [[b1' b2'] N'] (-> & -> & ->)) "Hf1 Hα1 Hα2".
     iApply ("Hcnt" with "Hf1 Hα1 Hα2").
   Qed.

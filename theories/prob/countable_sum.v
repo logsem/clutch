@@ -494,7 +494,7 @@ Section filter.
     repeat case_bool_decide; try set_solver.
     all: try (by subst).
     all: try lra.
-    - subst. apply Rplus_0_l. 
+    - subst. apply Rplus_0_l.
     - subst. set_solver.
   Qed.
 
@@ -506,12 +506,12 @@ Section filter.
     eapply ex_seriesC_ext; last apply (ex_seriesC_list l).
     intros a.
     simpl.
-    case_bool_decide as H1; first done. 
+    case_bool_decide as H1; first done.
     destruct (g a) eqn:K.
     { exfalso. apply H1. apply Hl. done. }
     done.
   Qed.
-  
+
   Lemma is_seriesC_filter_pos f v P `{∀ x, Decision (P x)} :
     (∀ n, 0 <= f n) →
     is_seriesC f v →
@@ -638,6 +638,20 @@ Section filter.
     intros Hpos Hex.
     apply (ex_seriesC_le _ f); auto.
     intro n; specialize (Hpos n); destruct (P n); lra.
+  Qed.
+
+  Lemma SeriesC_pos (f : A → R) a :
+    (∀ a, 0 <= f a) →
+    ex_seriesC f →
+    f a > 0 →
+    SeriesC f > 0.
+  Proof.
+    intros Hpos Hex Ha.
+    rewrite (SeriesC_split_elem _ a); [|done|done].
+    rewrite SeriesC_singleton_dependent.
+    assert (0 <= SeriesC (λ a', if bool_decide (a' ≠ a) then f a' else 0)); [|lra].
+    eapply SeriesC_ge_0' => a'.
+    by case_bool_decide.
   Qed.
 
 End filter.
@@ -1694,7 +1708,7 @@ Section inj.
         etrans; first exact.
         apply SeriesC_le'; try done.
         - intros. case_bool_decide; try lra. apply Hf.
-        - apply ex_seriesC_list.          
+        - apply ex_seriesC_list.
       }
       induction n.
       + destruct (@encode_inv_nat A _ _ 0%nat) eqn:Ha.
@@ -1717,7 +1731,7 @@ Section inj.
         * exists []. split.
           ++ intros; set_solver.
           ++ rewrite sum_O. rewrite /countable_sum.
-             rewrite Ha. simpl. 
+             rewrite Ha. simpl.
              rewrite SeriesC_0; intros; lra.
       + assert (0<=n)%nat as Hge0.
         * lia.
@@ -1739,7 +1753,7 @@ Section inj.
                    { intros.
                      case_bool_decide.
                      - set_unfold. destruct H3.
-                       + case_bool_decide; last done. 
+                       + case_bool_decide; last done.
                          case_bool_decide.
                          * subst. specialize (H1 b H5).
                            destruct H1 as [?[?[?[??]]]].
@@ -1749,7 +1763,7 @@ Section inj.
                            subst. exfalso.
                            rewrite -H3 in Ha. assert (x≠ (S n)) by lia.
                            apply H7. by eapply encode_inv_nat_some_inj.
-                         * subst. lra. 
+                         * subst. lra.
                        + case_bool_decide.
                          { subst. specialize (H1 b H3) as [?[?[?[??]]]].
                            assert (x ≠ S n) by lia.
@@ -1783,6 +1797,6 @@ Section inj.
                 etrans; last exact.
                 by rewrite plus_zero_r.
   Qed.
-    
+
 
 End inj.

@@ -49,13 +49,13 @@ Section exec_ub.
       let '(ε, (e1, σ1)) := x in
       (* [prim_step] *)
       (∃ R (ε1 ε2 : nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
+          ⌜reducible (e1, σ1)⌝ ∗
           ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
           ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ε2 ρ2 ) ∨
       (* [prim_step] with adv composition *)
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
+          ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 ) ∨
@@ -142,12 +142,12 @@ Section exec_ub.
   Lemma exec_ub_unfold e1 σ1 Z ε :
     exec_ub e1 σ1 Z ε ≡
       ((∃ R (ε1 ε2 : nonnegreal),
-           ⌜reducible e1 σ1⌝ ∗
+           ⌜reducible (e1, σ1)⌝ ∗
            ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
            ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z ε2 ρ2 ) ∨
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
+          ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 ) ∨
@@ -534,7 +534,7 @@ Section exec_ub.
 
 
   Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
-    (∃ R (ε1 ε2 : nonnegreal), ⌜reducible e1 σ1⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
+    (∃ R (ε1 ε2 : nonnegreal), ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
           ∀ ρ2 , ⌜R ρ2⌝ ={∅}=∗ Z ε2 ρ2)
     ⊢ exec_ub e1 σ1 Z ε.
   Proof.
@@ -550,7 +550,7 @@ Section exec_ub.
 
   Lemma exec_ub_adv_comp e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
+          ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
@@ -569,7 +569,7 @@ Section exec_ub.
 
   Lemma exec_ub_adv_comp' e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε2 : cfg Λ -> nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
+          ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R nnreal_zero⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
@@ -681,9 +681,9 @@ Section exec_ub.
     - iModIntro.
       iIntros.
       exfalso.
-      pose proof (not_reducible e1 σ1) as (H3 & H4).
+      pose proof (not_reducible (e1, σ1)) as (H3 & H4).
       by apply H4.
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible e1 σ1⌝ -∗ exec_ub e1 σ1 Z2 ε2)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible (e1, σ1)⌝ -∗ exec_ub e1 σ1 Z2 ε2)%I  with "H") as "H".
       { intros.
         iIntros.
         iModIntro.
@@ -724,7 +724,7 @@ Section exec_ub.
     iIntros "[(% & % & % & H) | H] /="; auto.
     rewrite /Φ/=.
     Search "big_orL".
-    iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible e1 σ1⌝)%I  with "H") as "H".
+    iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
       { iIntros (? α' ?%elem_of_list_lookup_2) "(%R2 & %ε1 & %ε2 & %Hleq & %Hub & H)".
         eapply ub_lift_pos_R in Hub.
         eapply Rcoupl_inhabited_l in Hcpl as (σ2 & [] & ? & ? & ?); last first.
@@ -736,7 +736,7 @@ Section exec_ub.
       rewrite big_orL_cons.
       iDestruct "H" as "[? | H]"; [done|].
       by iApply "IH".
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible e1 σ1⌝)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
       { iIntros (? [α1 α2] [? ?]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %Hcpl & H)".
         eapply Rcoupl_pos_R in Hcpl.
         eapply Rcoupl_inhabited_l in Hcpl as (σ2 &?&?& Hs &?); last first.

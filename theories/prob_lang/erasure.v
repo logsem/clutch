@@ -496,8 +496,9 @@ Lemma ARcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ ε ε' m bs :
 Proof.
   intros Hε Hε' Hα HR Hcont.
   destruct (to_val e1') eqn:Hval.
-  - assert (prim_step e1' σ1' = dzero) as Hz by by apply val_stuck_dzero.
-    rewrite /= (val_stuck_dzero e1') in HR; [|eauto].
+  - assert (prim_step e1' σ1' = dzero) as Hz.
+    { by eapply (is_final_dzero (e1', σ1')), to_final_Some_2. }
+    rewrite Hz in HR.
     rewrite -(Rplus_0_l (ε + ε')).
     eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
     + apply ARcoupl_from_eq_Rcoupl; [lra |].
@@ -518,13 +519,3 @@ Proof.
       eapply ARcoupl_dbind; [lra|lra| | apply HR].
       intros ? [] ?. by apply Hcont.
 Qed.
-
-(*
-Lemma ub_lift_erasure (e1 : expr) σ1 α R Φ m bs (ε1 ε2 : nonnegreal) :
-  σ.(tapes) !! α = Some bs →
-  ub_lift (state_step σ1 α) R ε1 →
-  (∀ σ2, R σ2 → ub_lift (exec_val m (e1, σ2)) Φ ε2) →
-  ub_lift (exec_val m (e1, σ1)) Φ (ε1 + ε2).
-Proof.
-Qed.
-*)

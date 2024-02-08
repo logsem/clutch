@@ -34,7 +34,7 @@ Section adequacy.
 
   Lemma exec_coupl_erasure (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (n : nat) φ (ε : nonnegreal) :
     to_val e1 = None →
-    reducible e1 σ1 ->
+    reducible (e1, σ1) ->
     exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε',
         |={∅}▷=>^(S n) ⌜ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) ε
     ⊢ |={∅}▷=>^(S n) ⌜ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) φ ε⌝.
@@ -69,8 +69,9 @@ Section adequacy.
           iModIntro. iPureIntro.
           apply ARcoupl_dzero.
           apply Rplus_le_le_0_compat; apply cond_nonneg.
-        * assert (prim_step e1' σ1' = dzero) as Hz by by apply val_stuck_dzero.
-          rewrite /= (val_stuck_dzero e1') in Hcpl; [|eauto].
+        * assert (prim_step e1' σ1' = dzero) as Hz.
+          { eapply (is_final_dzero (e1', σ1')). eauto. }
+          simpl in *. rewrite Hz in Hcpl.
           iApply ARcoupl_dbind'.
           -- iPureIntro; apply cond_nonneg.
           -- iPureIntro; apply cond_nonneg.

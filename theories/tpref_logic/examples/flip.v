@@ -15,7 +15,10 @@ Section coupl.
   Proof.
     iIntros (? Φ) "Ha HΦ". rewrite /flip.
     wp_pures.
-    wp_apply (rwp_couple with "Ha"); [by eapply Rcoupl_fair_coin_dunifP|].
+    wp_apply (rwp_couple with "Ha").
+    { eapply Rcoupl_mass_eq in H. rewrite fair_coin_mass in H.
+      eapply mass_pos_reducible. lra. }
+    { by eapply Rcoupl_refRcoupl, Rcoupl_swap, Rcoupl_fair_coin_dunifP. }      
     iIntros (n a2) "[Ha %HR]". rewrite /int_to_bool.
     wp_pures.
     case_bool_decide.

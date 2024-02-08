@@ -81,6 +81,59 @@ End is_final.
 
 #[global] Hint Immediate to_final_Some_2 to_final_None_2 to_final_None_1: core.
 
+Section reducible.
+  Context {δ : markov}.
+  Implicit Types a : mstate δ.
+
+  Definition reducible a := ∃ a', step a a' > 0.
+  Definition irreducible a := ∀ a', step a a' = 0.
+  Definition stuck a := ¬ is_final a ∧ irreducible a.
+  Definition not_stuck a := is_final a ∨ reducible a.
+
+  Lemma not_reducible a  : ¬ reducible a ↔ irreducible a.
+  Proof.
+    unfold reducible, irreducible. split.
+    - move=> /not_exists_forall_not Hneg ρ.
+      specialize (Hneg ρ). apply Rnot_gt_ge in Hneg.
+      pose proof (pmf_pos (step a) ρ). lra.
+    - intros Hall [ρ ?]. specialize (Hall ρ). lra.
+  Qed.
+
+  Lemma reducible_not_final a :
+    reducible a → ¬ is_final a.
+  Proof. move => [] a' /[swap] /is_final_dzero -> ?. inv_distr. Qed.
+
+  Lemma is_final_irreducible a : is_final a → irreducible a.
+  Proof. intros ??. rewrite is_final_dzero //. Qed.
+
+  Lemma not_not_stuck a : ¬ not_stuck a ↔ stuck a.
+  Proof.
+    rewrite /stuck /not_stuck -not_reducible.
+    destruct (decide (is_final a)); naive_solver.
+  Qed.
+  
+  Lemma irreducible_dzero a :
+    irreducible a → step a = dzero.
+  Proof.
+    intros Hirr%not_reducible. apply dzero_ext=> a'.
+    destruct (decide (step a a' = 0)); [done|].
+    exfalso. eapply Hirr.
+    exists a'.
+    pose proof (pmf_le_1 (step a) a').
+    pose proof (pmf_pos (step a) a').
+    lra.
+  Qed.
+
+  Lemma reducible_not_stuck a :
+    reducible a → not_stuck a.
+  Proof. intros. by right. Qed. 
+
+  Lemma mass_pos_reducible a :
+    SeriesC (step a) > 0 → reducible a.
+  Proof. by intros ?%SeriesC_gtz_ex. Qed. 
+
+End reducible.
+
 Section markov.
   Context {δ : markov}.
   Implicit Types a : mstate δ.
@@ -483,7 +536,7 @@ Section markov.
     lim_exec a = step a ≫= lim_exec.
   Proof.
     intros Hn. rewrite lim_exec_step step_or_final_no_final //.
-  Qed.  
+  Qed.
 
   Lemma lim_exec_leq a b (r : R) :
     (∀ n, exec n a b <= r) →

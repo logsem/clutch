@@ -177,7 +177,7 @@ Proof.
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)), _, _.
   iSplit.
-  { iPureIntro. solve_red. }
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
   {
     iPureIntro.
@@ -243,7 +243,8 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)),_,_.
-  iSplit. { iPureIntro. solve_red. }
+  iSplit.
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
   {
     iPureIntro; apply Rle_refl.
@@ -308,7 +309,8 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)),_,_.
-  iSplit. {iPureIntro. solve_red. }
+  iSplit.
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
   {
     iPureIntro; apply Rle_refl.
@@ -372,7 +374,8 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)),_,_.
-  iSplit. { iPureIntro. solve_red. }
+  iSplit.
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
   {
     iPureIntro; apply Rle_refl.
@@ -482,7 +485,8 @@ Proof.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1)), nnreal_zero, foo.
-  iSplit. { iPureIntro. solve_red. }
+  iSplit.
+  { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
   {
     iPureIntro. exists (ε3 + r)%R.
@@ -1154,7 +1158,7 @@ Qed.
 
 
 Lemma wp_1_err e E Φ :
-  to_val e = None -> (forall σ, reducible e σ) -> € nnreal_one ⊢ WP e @ E {{Φ}}.
+  to_val e = None -> (forall σ, reducible (e, σ)) -> € nnreal_one ⊢ WP e @ E {{Φ}}.
 Proof.
   iIntros (H1 H2) "He".
   iApply wp_lift_step_fupd_exec_ub; first done.
