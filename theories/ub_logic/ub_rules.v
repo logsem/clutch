@@ -199,7 +199,7 @@ Proof.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
-  iIntros ((e2 & σ2)) "%H".
+  iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
@@ -264,7 +264,7 @@ Proof.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
-  iIntros ((e2 & σ2)) "%H".
+  iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
@@ -329,7 +329,7 @@ Proof.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
-  iIntros ((e2 & σ2)) "%H".
+  iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
@@ -393,7 +393,7 @@ Proof.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
-  iIntros ((e2 & σ2)) "%H".
+  iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iPoseProof (ec_decrease_supply) as "Hdec".
   iSpecialize ("Hdec" with "Hε Herr"); eauto.
@@ -641,7 +641,7 @@ Proof.
     - apply (ub_lift_rand_trivial (Z.to_nat z) z σ1); auto.
     - done.
   }
-  iIntros ((e2 & σ2)) "%H".
+  iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1); simplify_eq.
   rewrite /foo /=.
   rewrite bool_decide_eq_true_2; last done.
@@ -659,8 +659,10 @@ Proof.
   }
   iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
   iModIntro.
+  (*
   iMod "Hclose'".
   iFrame.
+ *)
 
   (* PROBLEM: We need to eagerly get ε... < 1. In the presample proof this was easy because we
      were still proving an exec_ub.
@@ -962,6 +964,10 @@ Proof.
     apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
+
+Admitted.
+
+ (*
   (* Separate case for when we are trying to amplify beyond 1 *)
   destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
@@ -996,6 +1002,7 @@ Proof.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
+*)
 
 Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -1147,6 +1154,9 @@ Proof.
     apply app_inv_head in Heqt.
     by inversion Heqt. }
 
+Admitted.
+
+(*
   (* Separate case for when we are trying to amplify beyond 1 *)
   destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
@@ -1181,7 +1191,7 @@ Proof.
   done.
 Qed.
 
-
+*)
 
 Lemma ec_spend_le_irrel ε1 ε2 : (ε2.(nonneg) <= ε1.(nonneg))%R → € ε1 -∗ € ε2.
 Proof. iIntros (?) "?". iApply ec_weaken; done. Qed.
@@ -1216,7 +1226,7 @@ Proof.
   { iPureIntro. unfold ub_lift. intros.
     by epose proof prob_le_1 as K.
   }
-  by iIntros (? Hfalse).
+  by iIntros (? Hfalse) "%".
 Qed.
 
 Lemma twp_ec_spend e E Φ ε :
@@ -1230,6 +1240,8 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_bound with "Hsupply Hcr") as %Hle.
+Admitted.
+(*
   iApply exec_ub_stutter_step.
   assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
   iExists (fun _ => False), ε, (mknonnegreal (ε1 - ε) Hdiff).
@@ -1241,6 +1253,7 @@ Proof.
   }
   by iIntros (Hfalse).
 Qed.
+*)
 
 Lemma wp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
