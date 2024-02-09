@@ -823,11 +823,10 @@ Proof.
   do 7 (f_equiv).
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [ε' [e' σ']]. rewrite /exec_ub_pre.
-  do 19 f_equiv.
-  { f_equiv. admit. (* f_contractive. do 3 f_equiv. apply Hwp. *) }
-  { f_equal. admit. (* f_contractive. do 3 f_equiv. apply Hwp. *) }
-Admitted.
-(* Qed. *)
+  do 16 f_equiv.
+  { f_contractive. do 3 f_equiv. apply Hwp. }
+  { rewrite /exec_stutter. do 12 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
+Qed.
 
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
@@ -863,15 +862,14 @@ Proof.
   do 7 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? []]. rewrite /exec_ub_pre.
-Admitted.
-(*
-  do 15 f_equiv.
+  do 16 f_equiv.
   { f_contractive. do 3 f_equiv. rewrite IH; [done|lia|].
     intros ?. eapply dist_S, HΦ. }
-  { do 2 f_equiv. f_contractive. rewrite IH; [done|lia|].
+  { rewrite /exec_stutter.
+    do 12 f_equiv. f_contractive.
+    rewrite IH; [done|lia|].
     intros ?. eapply dist_S, HΦ. }
 Qed.
-*)
 
 Global Instance ub_wp_proper s E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
@@ -886,14 +884,10 @@ Proof.
   do 6 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [? []]. rewrite /exec_ub_pre.
-  do 15 f_equiv.
-Admitted.
-
-(*
+  do 16 f_equiv.
   { f_contractive. do 6 f_equiv. }
-  { do 2 f_equiv. f_contractive. do 6 f_equiv. }
+  { rewrite /exec_stutter. do 12 f_equiv. f_contractive. do 6 f_equiv. }
 Qed.
-*)
 
 Lemma ub_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
 Proof. rewrite ub_wp_unfold /ub_wp_pre to_of_val. auto. Qed.

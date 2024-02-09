@@ -316,23 +316,19 @@ Section adequacy.
       iMod "H".
       iRevert (H).
       iApply (exec_ub_strong_ind (λ ε e σ, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
-  Admitted.
-  (*
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
-      iDestruct "H" as "[H|[H|[H|[H|H]]]]".
+      iDestruct "H" as "[H|[H|[H|H]]]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
         rewrite {2}/total_ub_lift.
         iIntros (P HP).
         setoid_rewrite prob_dbind.
-        iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
-          ⌜R ρ2⌝ ={∅}=∗
-          let
-          '(e2, σ2) := ρ2 in
-          |={∅}=> ⌜total_ub_lift (lim_exec (e2, σ2)) φ ε2⌝)%I with "[H]" as "H".
-        { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
-          destruct ρ2. iMod "H" as "(?&?&H)".
+        iAssert (∀ (e2 : language.expr prob_lang) (s2: language.state prob_lang),
+          ⌜R (e2, s2)⌝ ={∅}=∗
+          |={∅}=> ⌜total_ub_lift (lim_exec (e2, s2)) φ ε2⌝)%I with "[H]" as "H".
+        { iIntros (e2 s2) "%Hρ2". iMod ("H" $! e2 s2 Hρ2) as "H".
+          iMod "H" as "(?&?&H)".
           iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
         }
         iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - ε2 <=  prob (lim_exec e) P⌝)%I).
@@ -348,21 +344,25 @@ Section adequacy.
               * apply cond_nonneg.
               * exact.
         }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
-        destruct a.
+        iIntros ([e2 s2] HR). iMod ("H" $! e2 s2 (HR)) as "H".
         iMod "H" as "%".
         iPureIntro.
         by apply H.
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
-        iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
-          ⌜R ρ2⌝ ={∅}=∗
-          let
-          '(e2, σ2) := ρ2 in
-          |={∅}=>  ⌜total_ub_lift (lim_exec (e2, σ2)) φ (ε2 ρ2)⌝)%I with "[H]" as "H".
-        { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
-          destruct ρ2. iMod "H" as "(?&?&H)".
+        (* iAssert (∀ e2 s2,
+          ⌜R (e2, s2)⌝ ={∅}=∗
+          |={∅}=>  ⌜total_ub_lift (lim_exec (e2, s2)) φ (ε2 (e2, s2))⌝)%I with "[H]" as "H".
+        { iIntros (e2 s2) "%Hρ2".
+          iMod ("H" $! e2 s2 Hρ2) as "H".
+          do 2 iModIntro.
+          iDestruct "H" as "[%R' [%ε1' [%ε2' (% & % & H)]]]".
+
+          iSpecialize ("H" with "[//]").
+
+
+          iMod "H" as "(?&?&H)".
           iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
         }
         rewrite {2}/total_ub_lift.
@@ -373,11 +373,18 @@ Section adequacy.
           iIntros (HR). iPureIntro.
           by eapply twp_step_fupd_total_ub_lift_prim_step.
         }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
+        iIntros ([e2 s2] HR).
+        iSpecialize ("H" $! e2 s2 with "[//]").
+        iMod "H"; iModIntro.
+
+
+        iMod ("H" $! a (HR)) as "H".
         destruct a.
         iMod "H" as "%".
         iPureIntro.
         by apply H.
+        *)
+        admit.
       + remember (language.get_active σ) as l.
         assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
         clear Heql.
@@ -421,6 +428,11 @@ Section adequacy.
         iDestruct "H" as "[H|H]".
         2:{ iApply "IH"; try done. iPureIntro. set_solver. }
         iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)".
+
+
+        admit.
+        (*
+
         iAssert (∀ σ2 : language.state prob_lang,
                    ⌜R σ2⌝ ={∅}=∗ ⌜total_ub_lift (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
         { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
@@ -438,6 +450,9 @@ Section adequacy.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
+        *)
+
+      (* USE THIS TO GET THE STUTTER STEPS
     + iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
       iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e, σ)) φ (ε1 + ε2)⌝)%I).
       { iPureIntro. apply total_UB_mon_grading, Hsum. }
@@ -454,9 +469,9 @@ Section adequacy.
            iPureIntro; eauto.
         -- iPureIntro.
            by apply total_UB_mon_grading.
-  Qed.
-*)
 
+       *)
+  Admitted.
 
 End adequacy.
 
