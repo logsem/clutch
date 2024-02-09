@@ -48,13 +48,10 @@ Proof.
     rewrite /exec_ub /exec_ub'.
     f_equiv.
     intros Φ e. unfold exec_ub_pre.
-    do 21 f_equiv.
-Admitted.
-(*    { by apply pair_ne. }
-    do 2 f_equiv.
-    by apply pair_ne.
+    do 20 f_equiv.
+    { do 2 f_equiv. by apply pair_ne. }
+    { rewrite /exec_stutter. do 14 f_equiv. by apply pair_ne. }
 Qed.
-*)
 
 Local Definition ub_twp_def `{!irisGS Λ Σ} : Twp (iProp Σ) (expr Λ) (val Λ) () :=
   {| twp := λ (_ : ()) E e Φ, (bi_least_fixpoint ub_twp_pre') (E, e, Φ); twp_default := () |}.
