@@ -646,9 +646,7 @@ Proof.
   rewrite /foo /=.
   rewrite bool_decide_eq_true_2; last done.
   rewrite bool_decide_eq_true_2; last first.
-  {
-    by zify.
-  }
+  { by zify. }
 
 
   case_match.
@@ -659,26 +657,26 @@ Proof.
   }
   iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
   iModIntro.
-  (*
+  destruct (Rlt_decision (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    iApply exec_stutter_spend.
+    iPureIntro.
+    lra.
+  }
+  replace (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R with (nonneg (ε3 + (ε2 (nat_to_fin l)))%NNR); [|by simpl].
+  iApply exec_stutter_free.
+  iMod (ec_increase_supply ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hcr]"; [by iFrame|].
   iMod "Hclose'".
+  iApply fupd_mask_intro; [eauto|]; iIntros "_".
   iFrame.
- *)
-
-  (* PROBLEM: We need to eagerly get ε... < 1. In the presample proof this was easy because we
-     were still proving an exec_ub.
-
-     I wonder if it wouldn't be a good idea to remove this case entireley.... *)
-Admitted.
-(*
-  iMod (ec_increase_supply ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hfoo]"; [by iFrame|].
-  iFrame. iModIntro. wp_pures.
-  iModIntro. iApply "HΨ".
+  iApply ub_twp_value.
+  iApply "HΨ".
   assert (nat_to_fin l = n) as ->; [|done].
   apply fin_to_nat_inj.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
-*)
+Qed.
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -964,25 +962,14 @@ Proof.
     apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
-
-Admitted.
-
- (*
-  (* Separate case for when we are trying to amplify beyond 1 *)
   destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
-    iModIntro.
-    iApply exec_ub_stutter_step.
-    assert (Hdiff : (0 <= (ε_rem + ε2 sample) - 1)%R) by (simpl; lra).
-    iExists (fun _ => False), nnreal_one, (mknonnegreal ((ε_rem + ε2 sample) - 1)%R Hdiff).
-    iSplit; last iSplit.
-    - iPureIntro. simpl. lra.
-    - iPureIntro.
-      intros P HP; simpl.
-      eapply Rle_trans; [|eapply prob_ge_0].
-      lra.
-    - by iIntros (?).
+    iApply exec_stutter_spend.
+    iPureIntro.
+    lra.
   }
+  replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl].
+  iApply exec_stutter_free.
   iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
@@ -1002,7 +989,6 @@ Admitted.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
   done.
 Qed.
-*)
 
 Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -1153,24 +1139,11 @@ Proof.
     apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
-
-Admitted.
-
-(*
-  (* Separate case for when we are trying to amplify beyond 1 *)
   destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
-    iModIntro.
-    iApply exec_ub_stutter_step.
-    assert (Hdiff : (0 <= (ε_rem + ε2 sample) - 1)%R) by (simpl; lra).
-    iExists (fun _ => False), nnreal_one, (mknonnegreal ((ε_rem + ε2 sample) - 1)%R Hdiff).
-    iSplit; last iSplit.
-    - iPureIntro. simpl. lra.
-    - iPureIntro.
-      intros P HP; simpl.
-      eapply Rle_trans; [|eapply prob_ge_0].
-      lra.
-    - by iIntros (?).
+    iApply exec_stutter_spend.
+    iPureIntro.
+    lra.
   }
   iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
@@ -1188,10 +1161,10 @@ Admitted.
     - iFrame. }
   rewrite -Hsample.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
-  done.
+  replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl].
+  iApply exec_stutter_free.
+  iFrame.
 Qed.
-
-*)
 
 Lemma ec_spend_le_irrel ε1 ε2 : (ε2.(nonneg) <= ε1.(nonneg))%R → € ε1 -∗ € ε2.
 Proof. iIntros (?) "?". iApply ec_weaken; done. Qed.
@@ -1229,32 +1202,18 @@ Proof.
   by iIntros (? Hfalse) "%".
 Qed.
 
+(* FIXME: remove me *)
 Lemma twp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
   (to_val e = None) ->
   € ε -∗ WP e @ E [{ Φ }].
 Proof.
-  iIntros (Hε_ge_1 Hred) "Hcr".
-  rewrite ub_twp_unfold /ub_twp_pre /= Hred /=.
-  iIntros (σ1 ε1) "[Hσ Hsupply]".
-  iApply fupd_mask_intro; [set_solver|].
-  iIntros "Hclose'".
-  iDestruct (ec_supply_bound with "Hsupply Hcr") as %Hle.
-Admitted.
-(*
-  iApply exec_ub_stutter_step.
-  assert (Hdiff : (0 <= ε1 - ε)%R); [by apply Rle_0_le_minus|].
-  iExists (fun _ => False), ε, (mknonnegreal (ε1 - ε) Hdiff).
-  iSplitR; [iPureIntro; simpl; lra|].
-  iSplitR.
-  { iPureIntro. unfold total_ub_lift. intros.
-    eapply Rle_trans; [|eapply prob_ge_0].
-    lra.
-  }
-  by iIntros (Hfalse).
+  iIntros (? ?) "?".
+  iExFalso.
+  by iApply ec_spend.
 Qed.
-*)
 
+(* FIXME: remove me *)
 Lemma wp_ec_spend e E Φ ε :
   (1 <= ε.(nonneg))%R →
   (to_val e = None) ->
@@ -1264,7 +1223,6 @@ Proof.
   iApply ub_twp_ub_wp'.
   iApply twp_ec_spend; try done.
 Qed.
-
 
 
 Lemma amplification_depth N L (kwf : kwf N L) (ε : posreal) :
