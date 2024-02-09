@@ -6,7 +6,6 @@ Open Scope nat.
 Section unreliable_storage.
   Context `{!ub_clutchGS Σ}.
   Variables unreliable_alloc_program unreliable_write_program unreliable_read_program:val.
-
   Axiom unreliable_alloc_spec :
     ∀ (m:nat),
     m>0 -> 
@@ -30,6 +29,7 @@ Section unreliable_storage.
 
   Variables val_bit_size':nat.
   Variables max_hash_size : nat.
+  Hypothesis max_hash_size_pos: (0<max_hash_size)%nat.
   Definition val_bit_size : nat := S val_bit_size'.
   Definition val_size_for_hash := 2^val_bit_size -1.
 
@@ -42,6 +42,7 @@ Section unreliable_storage.
       pow #n
       {{{(x:nat), RET (#x); ⌜x = 2^n⌝ }}}.
   Proof.
+    clear max_hash_size_pos max_hash_size.
     iIntros (Φ) "_ HΦ".
     iLöb as "IH" forall (Φ n).
     rewrite /pow.
@@ -105,7 +106,7 @@ Section unreliable_storage.
     Forall (λ x, x < 2^(2*val_bit_size)) list ->
     is_list list vlist ->
     {{{ coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
-        € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size)%NNR
+        € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
       tree_builder_helper f #height vlist 
       {{{ (hash:nat) (l:nat), RET (#hash, #l);
@@ -140,7 +141,7 @@ Section unreliable_storage.
         iIntros (l) "_".
         wp_pures.
         iAssert (⌜(0<=hash<2^val_bit_size)%Z⌝)%I as "[%Ha %Hb]".
-        { iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %T]".
+        { iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %T]"; first done.
           iPureIntro. by apply hash_bound_manipulation.
         }
         replace (hash) with (Z.of_nat $ Z.to_nat hash); last lia.
@@ -173,15 +174,15 @@ Section unreliable_storage.
       wp_apply wp_list_split; first (iSplit; iPureIntro; try done; rewrite Hlength).
       { apply PeanoNat.Nat.pow_le_mono_r; lia. }
       iIntros (a b) "(%l1 & %l2 &%&%&%&%)"; wp_pures.
-      iAssert (€ ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € ((nnreal_nat (1) * amortized_error val_size_for_hash max_hash_size)%NNR)
+      iAssert (€ ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € ((nnreal_nat (1) * amortized_error val_size_for_hash max_hash_size _)%NNR)
                  
               )%I with "[Herr]" as "[Herr [Herr' Herr'']]".
       { repeat rewrite  -ec_split. iApply ec_spend_irrel; last done.
         remember (amortized_error val_size_for_hash max_hash_size) as x.
         clear.
-        assert (forall x y z, (nnreal_nat x * z + nnreal_nat y * z)%NNR = (nnreal_nat (x+y) * z)%NNR) as Hr; last rewrite !Hr.
+        assert (forall x y z, (nnreal_nat x * z + nnreal_nat y * z)%NNR = (nnreal_nat (x+y) * z)%NNR) as Hr; last erewrite !Hr.
         - clear. intros. destruct z. apply nnreal_ext. simpl. rewrite plus_INR. lra. 
         - repeat f_equal. remember (S height) as h.
           simpl. assert (1<=2^h).
@@ -225,7 +226,7 @@ Section unreliable_storage.
              iIntros (?) "_".
              wp_pures.
              iAssert (⌜(0<=hash<2^val_bit_size)%Z⌝)%I as "[%Ha %Hb]".
-             { iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %T]".
+             { iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %T]"; first done.
                iPureIntro. by apply hash_bound_manipulation.
              }
              replace (hash) with (Z.of_nat (Z.to_nat hash)); last lia.
@@ -263,6 +264,7 @@ Section unreliable_storage.
                     f_equal.
                 --- rewrite Z2Nat.id; last lia.
                     rewrite -Hfound. f_equal. subst. simpl. lia.
+                    Unshelve. all: done.
   Qed.
 
   Lemma tree_builder_spec (list:list nat) (vlist: val) (height:nat):
@@ -271,7 +273,7 @@ Section unreliable_storage.
     Forall (λ x, x < 2^(2*val_bit_size)) list ->
     is_list list vlist ->
     {{{ 
-          € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size)%NNR
+          € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
       tree_builder vlist #height
       {{{ (l:nat) (checker:val), RET (#l, checker);
@@ -280,13 +282,13 @@ Section unreliable_storage.
             ⌜tree_valid val_bit_size' height tree m⌝ ∗
             ⌜size (m) <= 2^(S height) - 1⌝ ∗
             ⌜tree_leaf_list height tree list⌝ ∗
-            decider_program_helper_spec height val_bit_size' max_hash_size checker tree f
+            decider_program_helper_spec height val_bit_size' max_hash_size max_hash_size_pos checker tree f
       }}}.
   Proof.
     iIntros (Hmsize Hlistsize Hforall Hislist Φ) "Herr HΦ".
     rewrite /tree_builder.
     wp_pures.
-    wp_apply (wp_init_hash_amortized _ max_hash_size); first done.
+    wp_apply (wp_init_hash_amortized _ max_hash_size); [done|done|].
     iIntros (f) "H". iMod "H".
     wp_pures.
     wp_apply (tree_builder_helper_spec with "[$H $Herr]"); [done|done|done|done|..].
@@ -341,6 +343,7 @@ Section unreliable_storage.
             ⌜proof_idx_relate height lis idx⌝
       }}}.
   Proof.
+    clear max_hash_size_pos max_hash_size.
     iIntros (Hidx Φ) "_ HΦ".
     iInduction height as [|height] "IH" forall (ltree idx Hidx Φ) "HΦ".
     - simpl in Hidx. assert (idx = 0) as -> by lia.
@@ -437,12 +440,12 @@ Section unreliable_storage.
 
   Lemma tree_lookup_spec (ltree:nat) (height:nat) (idx:nat) (checker:val) (lis:list nat) f tree m:
     idx < 2^height ->
-    {{{ decider_program_helper_spec height val_bit_size' max_hash_size checker tree f ∗
+    {{{ decider_program_helper_spec height val_bit_size' max_hash_size max_hash_size_pos checker tree f ∗
         ⌜tree_leaf_list height tree lis⌝ ∗
         ⌜tree_valid val_bit_size' height tree m⌝ ∗
         coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
         ⌜size (m) + S height <= max_hash_size⌝ ∗
-        € ((nnreal_nat (S height)) * amortized_error val_size_for_hash max_hash_size)%NNR              
+        € ((nnreal_nat (S height)) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR              
     }}}
       tree_lookup #ltree #height #idx checker
       {{{ (v:val), RET v;

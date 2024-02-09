@@ -20,6 +20,7 @@ Section merkle_tree.
   Variables height:nat.
   Variables val_bit_size':nat.
   Variables max_hash_size : nat.
+  Hypothesis max_hash_size_pos: (0<max_hash_size)%nat.
   Definition val_bit_size : nat := S val_bit_size'.
   Definition val_size_for_hash:nat := (2^val_bit_size)-1.
   (* Variable (Hineq: (max_hash_size <= val_size_for_hash)%nat). *)
@@ -141,6 +142,7 @@ Section merkle_tree.
     (0 ≤ finalhash)%Z -> (finalhash ≤ val_size_for_hash)%Z ->
     (0 ≤ finalhash < 2 ^ val_bit_size)%Z.
   Proof.
+    clear.
     intros H K.
     apply Zle_lt_succ in K. split; first done.
     eapply Z.lt_stepr; try done.
@@ -220,7 +222,7 @@ Section merkle_tree.
         ⌜is_list proof lproof⌝ ∗
         ⌜possible_proof tree proof⌝ ∗
         ⌜ size m + (S n) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S n) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+        € (nnreal_nat (S n) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
      }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
@@ -248,7 +250,7 @@ Section merkle_tree.
         iExists _; do 2 (iSplit; try done).
         iSplit.
         * iPureIntro; lia.
-        * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+        * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
           iPureIntro. by apply hash_bound_manipulation.
     - rewrite /compute_hash_from_leaf. wp_pures. rewrite -/compute_hash_from_leaf.
       wp_apply wp_list_head; first done.
@@ -258,8 +260,8 @@ Section merkle_tree.
       iIntros (proof') "%Hproof'".
       wp_pures. 
       inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n0) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (€ ((nnreal_nat (S n0) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -282,7 +284,7 @@ Section merkle_tree.
           iSplit; try (iPureIntro; etrans; exact).
           do 2 (iSplit; try done).
           -- iPureIntro; lia.
-          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
              iPureIntro. by apply hash_bound_manipulation.   
       + wp_apply ("IH1" with "[][][][][$H][$Herr]"); try done.
         { iPureIntro; lia. }
@@ -299,8 +301,10 @@ Section merkle_tree.
           iExists m''. iSplit; first (iPureIntro; etrans; exact).
           do 2 (iSplit; try done).
           -- iPureIntro; lia.
-          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
-             iPureIntro. by apply hash_bound_manipulation.        
+          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+             iPureIntro. by apply hash_bound_manipulation.
+             Unshelve.
+             all: done.
   Qed.
   
   (* The case where everything is correct *)
@@ -329,6 +333,7 @@ Section merkle_tree.
       wp_pures. inversion Htvalid; inversion Hvmatch; subst.
       wp_apply (wp_coll_free_hashfun_prev_amortized with "[$]").
       + done.
+      + done.
       + iIntros "H". iApply "HΦ"; iFrame.
         done.
     - rewrite /compute_hash_from_leaf. wp_pures.
@@ -349,6 +354,7 @@ Section merkle_tree.
         }
         wp_apply (wp_coll_free_hashfun_prev_amortized with "H").
         * done.
+        * done.
         * iIntros "H". iApply "HΦ".
           iFrame. done.
       + inversion Htvalid. inversion Hvmatch; subst; first done.
@@ -360,6 +366,7 @@ Section merkle_tree.
           apply Z2Nat.inj_pow.
         }
         wp_apply (wp_coll_free_hashfun_prev_amortized with "H").
+        * done.
         * done.
         * iIntros "H". iApply "HΦ".
           iFrame. done.
@@ -374,7 +381,7 @@ Section merkle_tree.
         ⌜tree_leaf_value_match tree v proof⌝ ∗
         ⌜v ≠ v'⌝ ∗
         ⌜ size m + (S height) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
      }}}
       compute_hash_from_leaf f lproof (#v') @ E
       {{{ (retv:Z), RET #retv;
@@ -408,7 +415,7 @@ Section merkle_tree.
           { by iApply coll_free_hashfun_amortized_implies_coll_free. }
           iPureIntro. intro; subst. apply Hneq. eapply coll_free_lemma; try done.
           by erewrite lookup_weaken.
-        * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+        * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
           apply Zle_lt_succ in K. iPureIntro; split; first done.
           eapply Z.lt_stepr; try done.
           rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
@@ -424,8 +431,8 @@ Section merkle_tree.
       iIntros (proof') "%Hproof'".
       wp_pures. 
       inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -460,9 +467,11 @@ Section merkle_tree.
              epose proof (Nat.mul_split_l _ _ _ _ _ _ _ helper) as [Hsplit _].
              lia.
              Unshelve.
+             ++ done.
+             ++ done.
              ++ by inversion H22.
              ++ by inversion Hpossible. 
-          --  iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+          --  iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
               iPureIntro. by apply hash_bound_manipulation.    
       + wp_apply ("IH1" with "[][][][][][$H][$Herr]"); try done.
         { iPureIntro; lia. }
@@ -497,7 +506,7 @@ Section merkle_tree.
              ++ rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
                 replace (Z.of_nat 2) with 2%Z by lia.
                 rewrite Z2Nat.id; lia.
-          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
              iPureIntro. by apply hash_bound_manipulation.     
   Qed.
 
@@ -510,7 +519,7 @@ Section merkle_tree.
         ⌜incorrect_proof tree proof ⌝ ∗
         ⌜tree_leaf_value_match tree v proof⌝ ∗
         ⌜ size m + (S height) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
      }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
@@ -533,8 +542,8 @@ Section merkle_tree.
       wp_pures. wp_apply wp_list_tail; first done.
       iIntros (proof') "%Hproof'".
       wp_pures. inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -568,9 +577,9 @@ Section merkle_tree.
                 }
                 epose proof (Nat.mul_split_l _ _ _ _ _ _ _ helper) as [Hsplit Hsplit']; subst. done.
                 Unshelve.
+                all: try done.
                 ** by inversion H22.
-                ** by inversion Hposs. 
-             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
                 iPureIntro. by apply hash_bound_manipulation.
       + (*incorrect happens above*)
         wp_apply ("IH" with "[][][][][][][$H][$Herr]"); try done.
@@ -604,7 +613,7 @@ Section merkle_tree.
                 Unshelve.
                 ** by inversion H22.
                 ** by inversion Hposs. 
-             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
                 iPureIntro. by apply hash_bound_manipulation.
       + (*left neq guess left *)
         wp_apply (wp_compute_hash_from_leaf_size with "[$H $Herr]").
@@ -639,7 +648,7 @@ Section merkle_tree.
                    rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
                    replace (Z.of_nat 2) with 2%Z by lia.
                    rewrite Z2Nat.id; lia.
-             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
                 iPureIntro. by apply hash_bound_manipulation.
       + (*incorrect happens above *)
         wp_apply ("IH1" with "[][][][][][][$H][$Herr]"); try done.
@@ -675,7 +684,7 @@ Section merkle_tree.
                    rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
                    replace (Z.of_nat 2) with 2%Z by lia.
                    rewrite Z2Nat.id; lia.
-             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]".
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
                 iPureIntro. by apply hash_bound_manipulation.
   Qed.
 
@@ -694,7 +703,7 @@ Section merkle_tree.
                   ⌜is_list proof lproof⌝ ∗
                   ⌜possible_proof tree proof ⌝∗
                   ⌜ size m' + (S height) <= max_hash_size⌝ ∗
-                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR
+                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
                    
             }}}
               checker lproof (#v)
@@ -703,7 +712,7 @@ Section merkle_tree.
                     ⌜correct_proof tree proof⌝ ∗
                     ⌜tree_leaf_value_match tree v proof⌝ ∗
                     coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
-                    € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR
+                    € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
                   else
                     ⌜incorrect_proof tree proof \/
                       (∃ v', tree_leaf_value_match tree v' proof /\ v ≠ v')⌝ ∗
@@ -810,6 +819,7 @@ Section merkle_tree.
   Lemma tree_leaf_list_length n tree lis:
     tree_leaf_list n tree lis -> length lis = 2^n.
   Proof.
+    clear.
     revert tree lis.
     induction n; intros tree lis Hlist.
     - inversion Hlist. by simpl.
@@ -823,6 +833,7 @@ Section merkle_tree.
     (tree_leaf_value_match tree leafv proof <->
     lis !! idx = Some leafv). 
   Proof.
+    clear.
     revert lis tree proof idx leafv.
     induction h as [|h IHheight]; intros lis tree proof idx leafv Hlist Hrelate.
     - split.

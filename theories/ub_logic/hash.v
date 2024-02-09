@@ -235,20 +235,23 @@ Section amortized_hash.
   Context `{!ub_clutchGS Σ}.
   Variable val_size:nat.
   Variable max_hash_size : nat.
+  Hypothesis max_hash_size_pos: (0<max_hash_size)%nat.
   (* Variable Hineq : (max_hash_size <= (val_size+1))%nat. *)
   Program Definition amortized_error : nonnegreal :=
-    mknonnegreal ((max_hash_size + 1)/(2*(val_size + 1)))%R _.
+    mknonnegreal ((max_hash_size-1) /(2*(val_size + 1)))%R _.
   Next Obligation.
     pose proof (pos_INR val_size) as H.
     pose proof (pos_INR max_hash_size) as H'.
-    apply Rcomplements.Rdiv_le_0_compat; lra.
+    apply Rcomplements.Rdiv_le_0_compat; try lra.
+    assert (1 <= INR max_hash_size); try lra.
+    replace 1 with (INR 1); last simpl; [by apply le_INR|done].
   Qed.
   
   Definition hashfun_amortized f m : iProp Σ :=
     ∃ (k : nat) (ε : nonnegreal),
       hashfun val_size f m ∗
       ⌜k = size m⌝ ∗
-      ⌜ (ε.(nonneg) = (((max_hash_size + 1) * k)/2 - sum_n_m (λ x, INR x) 0%nat (k-1)) / (val_size + 1))%R⌝ ∗
+      ⌜ (ε.(nonneg) = (((max_hash_size-1) * k)/2 - sum_n_m (λ x, INR x) 0%nat (k-1)) / (val_size + 1))%R⌝ ∗
       € ε 
   .
 
@@ -335,7 +338,7 @@ Section amortized_hash.
 
   Lemma amortized_inequality (k : nat):
     (k <= max_hash_size)%nat ->
-    0 <= ((max_hash_size + 1) * k / 2 - sum_n_m (λ x : nat, INR x) 0 (k - 1)) / (val_size + 1).
+    0 <= ((max_hash_size-1) * k / 2 - sum_n_m (λ x : nat, INR x) 0 (k - 1)) / (val_size + 1).
   Proof.
     intros H.
     pose proof (pos_INR max_hash_size) as H1.
@@ -385,7 +388,7 @@ Section amortized_hash.
     iIntros (Hlookup Hsize Φ) "([Hhash %Hcoll_free] & Herr) HΦ".
     iDestruct "Hhash" as (k ε) "(H&->&%H0&Herr')".
     iAssert (€ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗
-             € (mknonnegreal (((max_hash_size + 1) * size (<[n:=0%Z]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%Z]> m) - 1)) / (val_size + 1)) _ )
+             € (mknonnegreal (((max_hash_size-1) * size (<[n:=0%Z]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%Z]> m) - 1)) / (val_size + 1)) _ )
             )%I with "[Herr Herr']" as "[Hε Herr]".
     - iApply ec_split. 
       iCombine "Herr Herr'" as "H".
@@ -417,18 +420,18 @@ Section amortized_hash.
         rewrite -!Rplus_assoc.
         rewrite Ropp_plus_distr.
         rewrite -!Rplus_assoc.
-        assert ((h + 1) * S k * / 2 * / v+ (h + 1) * / (2 * v) = S k * / (val_size + 1)%nat + (h + 1) * S (S k) * / 2 * / v  + - (S k * / v)); try lra.
+        assert ((h-1) * S k * / 2 * / v+ (h-1) * / (2 * v) = S k * / (val_size + 1)%nat + (h-1) * S (S k) * / 2 * / v  + - (S k * / v)); try lra.
         replace (INR((_+_)%nat)) with v; last first.
         { rewrite Heqv. rewrite -S_INR. f_equal. lia. }
-        assert ( (h + 1) * S k * / 2 * / v + (h + 1) * / (2 * v) = (h + 1) * S (S k) * / 2 * / v); try lra.
-        replace (_*_*_*_) with ((h+1) * (S k) * /(2*v)); last first.
+        assert ( (h-1) * S k * / 2 * / v + (h-1) * / (2 * v) = (h-1) * S (S k) * / 2 * / v); try lra.
+        replace (_*_*_*_) with ((h-1) * (S k) * /(2*v)); last first.
         { rewrite Rinv_mult. lra. }
-        replace (_*_*_*_) with ((h+1) * (S(S k)) * /(2*v)); last first.
+        replace (_*_*_*_) with ((h-1) * (S(S k)) * /(2*v)); last first.
         { rewrite Rinv_mult. lra. }
         rewrite -Rdiv_plus_distr.
         rewrite Hdiv.
         f_equal.
-        rewrite -{2}(Rmult_1_r (h+1)).
+        rewrite -{2}(Rmult_1_r (h-1)).
         rewrite -Rmult_plus_distr_l.
         f_equal.
     - wp_apply (wp_insert_no_coll with "[H Hε]"); [done|..].
