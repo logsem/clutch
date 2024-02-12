@@ -125,6 +125,43 @@ Proof.
     apply K. apply Hred.
 Qed.
 
+(* same as above but expressed in terms of a total_ub_lift
+Lemma twp_step_fupd_total_ub_lift_prim_step' (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R:
+  reducible e σ ->
+  (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
+  ε1 + SeriesC (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> ub_lift (prim_step e σ) R ε1 ->
+  (∀ P,
+     (∀ e, R e → 1 - ε2 e <= prob (lim_exec e) P) ->
+     total_ub_lift (step (e, σ) ≫= lim_exec) P ε ).
+Proof.
+  rewrite /total_ub_lift. intros.
+  epose (twp_step_fupd_total_ub_lift_prim_step _ _ _ _ _ _ P _ _ _ _ _) as Hs; eauto.
+  rewrite prob_dbind.
+  etrans; [eapply Hs|].
+  eapply SeriesC_le.
+  2: { admit. }
+  intros ?; split.
+  + apply Rmult_le_pos; [apply pmf_pos |apply prob_ge_0].
+  + apply Rmult_le_compat_l; [apply pmf_pos|].
+    rewrite /prob.
+    eapply SeriesC_le.
+    2: {admit. }
+    intros n'.
+    remember (P n') as k.
+    destruct k; simpl.
+    * split; [apply pmf_pos|].
+      rewrite H4; [lra|].
+      rewrite -Heqk; eauto.
+    * split; [lra|].
+      destruct (P0 n'); [apply pmf_pos|lra].
+  Unshelve.
+  7: { eauto. }
+  4: { eauto. }
+  2: { eauto. }
+  eauto.
+Admitted.
+*)
+
 Lemma twp_step_fupd_total_ub_lift_state_step (e : language.expr prob_lang) σ l (ε ε1:nonnegreal) (ε2: _ -> nonnegreal) R P:
   l ∈ language.get_active σ -> 
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
@@ -285,6 +322,26 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
 
+
+
+  Lemma total_ub_lift_dbind_adv' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' :
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
+    ⌜ub_lift μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ ={∅}=∗ ⌜total_ub_lift (f a) T (ε' a)⌝) -∗
+    ⌜total_ub_lift (dbind f μ) T (ε + SeriesC (λ a : A, (μ a * ε' a)%R))⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+
+    (* Nightmare *)
+
+    (* { iIntros (?). iPureIntro. eapply ub_lift_dbind_adv; eauto. }
+    iIntros (???) "/=".
+    iMod ("H" with "[//]"); auto. *)
+  Admitted.
+
+
   
   Theorem twp_step_fupd_total_ub_lift (e : expr) (σ : state) (ε : nonnegreal) φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
@@ -324,13 +381,6 @@ Section adequacy.
         rewrite {2}/total_ub_lift.
         iIntros (P HP).
         setoid_rewrite prob_dbind.
-        iAssert (∀ (e2 : language.expr prob_lang) (s2: language.state prob_lang),
-          ⌜R (e2, s2)⌝ ={∅}=∗
-          |={∅}=> ⌜total_ub_lift (lim_exec (e2, s2)) φ ε2⌝)%I with "[H]" as "H".
-        { iIntros (e2 s2) "%Hρ2". iMod ("H" $! e2 s2 Hρ2) as "H".
-          iMod "H" as "(?&?&H)".
-          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
-        }
         iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - ε2 <=  prob (lim_exec e) P⌝)%I).
         {
           iIntros (HR). iPureIntro.
@@ -344,47 +394,46 @@ Section adequacy.
               * apply cond_nonneg.
               * exact.
         }
+        iAssert (∀ (e2 : language.expr prob_lang) (s2: language.state prob_lang),
+          ⌜R (e2, s2)⌝ ={∅}=∗
+          |={∅}=> ⌜total_ub_lift (lim_exec (e2, s2)) φ ε2⌝)%I with "[H]" as "H".
+        { iIntros (e2 s2) "%Hρ2". iMod ("H" $! e2 s2 Hρ2) as "H".
+          iMod "H" as "(?&?&H)".
+          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
+        }
         iIntros ([e2 s2] HR). iMod ("H" $! e2 s2 (HR)) as "H".
         iMod "H" as "%".
         iPureIntro.
         by apply H.
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
+        iApply fupd_mono.
+        { iApply pure_mono. intros. eapply total_UB_mon_grading; [eapply Hineq|eauto]. }
         rewrite lim_exec_step step_or_final_no_final.
         2: { rewrite /is_final. rewrite -eq_None_not_Some. simpl. by eapply reducible_not_val. }
-        (* iAssert (∀ e2 s2,
-          ⌜R (e2, s2)⌝ ={∅}=∗
-          |={∅}=>  ⌜total_ub_lift (lim_exec (e2, s2)) φ (ε2 (e2, s2))⌝)%I with "[H]" as "H".
-        { iIntros (e2 s2) "%Hρ2".
-          iMod ("H" $! e2 s2 Hρ2) as "H".
-          do 2 iModIntro.
-          iDestruct "H" as "[%R' [%ε1' [%ε2' (% & % & H)]]]".
-
-          iSpecialize ("H" with "[//]").
-
-
-          iMod "H" as "(?&?&H)".
-          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
+        iApply fupd_mono.
+        { iIntros.
+          iApply total_ub_lift_dbind_adv'.
+          - iPureIntro; apply cond_nonneg.
+          - iPureIntro.
+            destruct Hbound.
+            eexists; intros; split; [apply cond_nonneg|done].
+          - iPureIntro; eapply Hub.
+          - eauto.
         }
-        rewrite {2}/total_ub_lift.
-        iIntros (P HP).
-        setoid_rewrite prob_dbind.
-        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) P⌝)%I).
-        {
-          iIntros (HR). iPureIntro.
-          by eapply twp_step_fupd_total_ub_lift_prim_step.
-        }
-        iIntros ([e2 s2] HR).
-        iSpecialize ("H" $! e2 s2 with "[//]").
-        iMod "H"; iModIntro.
-
-
-        iMod ("H" $! a (HR)) as "H".
-        destruct a.
-        iMod "H" as "%".
-        iPureIntro.
-        by apply H.
-        *)
-        admit.
+        iModIntro; iIntros ([e' s'] HR).
+        iMod ("H" $! e' s' with "[//]") as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
+        iApply fupd_mono.
+        { iApply pure_mono. intros. eapply total_UB_mon_grading; [eapply Hineq'| eauto]. }
+        rewrite -(dret_id_left' (fun _ : () => (lim_exec (e', s'))) tt).
+        iApply total_ub_lift_dbind'.
+        * iPureIntro; apply cond_nonneg.
+        * iPureIntro; apply cond_nonneg.
+        * iPureIntro; eapply Hub'.
+        * iIntros.
+          replace tt with a; [| by destruct a].
+          iMod ("H" with "[//]") as "H".
+          iMod "H" as "(? & ? & H)".
+          iApply ("H" with "[$] [$]").
       + remember (language.get_active σ) as l.
         assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
         clear Heql.
@@ -429,9 +478,7 @@ Section adequacy.
         2:{ iApply "IH"; try done. iPureIntro. set_solver. }
         iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)".
 
-
-        admit.
-        (*
+        (* -------------- *)
 
         iAssert (∀ σ2 : language.state prob_lang,
                    ⌜R σ2⌝ ={∅}=∗ ⌜total_ub_lift (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
@@ -450,9 +497,28 @@ Section adequacy.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
-        *)
 
-      (* USE THIS TO GET THE STUTTER STEPS
+        (*
+
+      + remember (language.get_active σ) as l.
+        assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
+        clear Heql.
+        iInduction l as [| l] "IH".
+        { rewrite big_orL_nil //. }
+        rewrite !big_orL_cons.
+        iDestruct "H" as "[H|H]".
+        2:{ iApply "IH"; try done. iPureIntro. set_solver. }
+        iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)".
+
+
+        admit.
+         *)
+
+
+
+
+
+      (* USE THIS PATTERN TO GET THE STUTTER STEPS
     + iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
       iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e, σ)) φ (ε1 + ε2)⌝)%I).
       { iPureIntro. apply total_UB_mon_grading, Hsum. }
