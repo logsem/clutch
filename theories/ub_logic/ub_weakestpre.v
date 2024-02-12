@@ -1,9 +1,10 @@
 From Coq Require Export Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
-From iris.bi Require Export weakestpre fixpoint big_op.
+From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
 
+From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Export couplings distribution union_bounds.
 From clutch.common Require Export language.

@@ -94,7 +94,7 @@ Proof.
 Qed.
 
 
-Lemma wp_allocN (N : nat) (z : Z) E v s:
+Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
   {{{ True }}}

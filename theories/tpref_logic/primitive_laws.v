@@ -81,10 +81,69 @@ Section rwp.
     iIntros (σ1) "[Hh Ht] !# !>".
     iSplit; [by eauto with head_step|].
     iIntros (e2 σ2 Hs); inv_head_step.
-    iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[$ Hl]".
+    iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
-    iIntros "!>". iFrame. by iApply "HΦ".
+    iFrame.
+    rewrite map_union_empty -insert_union_singleton_l.
+    iFrame.
+    iIntros "!>". by iApply "HΦ".
   Qed.
+
+Lemma rswp_allocN_seq (N : nat) (z : Z) k E v a:
+  TCEq N (Z.to_nat z) →
+  (0 < N)%Z →
+  ⟨⟨⟨  True ⟩⟩⟩
+    AllocN (Val $ LitV $ LitInt $ z) (Val v) at k @ a; E
+                                                    ⟨⟨⟨  l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v ⟩⟩⟩.
+Proof.
+  iIntros (-> Hn Φ) "_ HΦ".
+  iApply rswp_lift_atomic_head_step.
+  iIntros (σ1) "[Hh Ht] !# !>".
+  iSplit.
+  { iPureIntro.
+    rewrite /head_reducible.
+    eexists.
+    apply head_step_support_equiv_rel.
+    econstructor; eauto.
+    lia.
+  }
+  iIntros (e2 σ2 Hs); inv_head_step.
+  iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
+  iIntros "!>". iFrame.
+  iApply "HΦ".
+  iInduction (H0) as [ | ?] "IH" forall (σ1).
+  - simpl.
+    iSplit; auto.
+    rewrite map_union_empty.
+    rewrite loc_add_0.
+    by rewrite big_sepM_singleton.
+  - rewrite seq_S.
+    rewrite heap_array_replicate_S_end.
+    iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
+    iApply big_sepL_app.
+    iSplitL "H1".
+    + iApply "IH".
+      { iPureIntro. lia. }
+      iApply "H1".
+    + simpl. iSplit; auto.
+      by rewrite big_sepM_singleton.
+      Unshelve.
+      {
+        apply heap_array_map_disjoint.
+        intros.
+        apply not_elem_of_dom_1.
+        by apply fresh_loc_offset_is_fresh.
+      }
+      apply heap_array_map_disjoint.
+      intros.
+      apply not_elem_of_dom_1.
+      rewrite dom_singleton.
+      apply not_elem_of_singleton_2.
+      intros H2.
+      apply loc_add_inj in H2.
+      rewrite replicate_length in H1.
+      lia.
+Qed.
 
   Lemma rswp_load k E l q v a :
     ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l at k @ a; E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
@@ -195,6 +254,19 @@ Section rwp.
     iIntros (Φ) "H HΦ".
     iApply rwp_no_step.
     by iApply (rswp_alloc with "H HΦ").
+  Qed.
+
+  Lemma rwp_allocN_seq (N : nat) (z : Z) E v a:
+    TCEq N (Z.to_nat z) →
+    (0 < N)%Z →
+    ⟨⟨⟨  True ⟩⟩⟩
+      AllocN (Val $ LitV $ LitInt $ z) (Val v) @ a; E
+    ⟨⟨⟨  l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v ⟩⟩⟩.
+  Proof.
+    intros HN Hz.
+    iIntros (Φ) "H HΦ".
+    iApply rwp_no_step.
+    by iApply (rswp_allocN_seq with "H HΦ").
   Qed.
 
   Lemma rwp_load E l q v a :

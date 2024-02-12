@@ -2,6 +2,9 @@ From clutch.prob Require Import distribution markov.
 From clutch.prob_lang Require Import lang notation.
 From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
 
+
+From iris.proofmode Require Import proofmode.
+
 (** * Linked list  *)
 Definition list_create : val :=
   λ: <>, NONEV.
@@ -22,7 +25,7 @@ Section list.
     | [] => ⌜v = NONEV⌝
     | x :: xs =>
         ∃ (l : loc) (v' : val), ⌜v = SOMEV #l⌝ ∗ l ↦ (x, v')%V ∗ is_list v' xs
-    end.
+  end.
 
   #[global] Instance timeless_is_list l vs :
     Timeless (is_list l vs).
@@ -31,9 +34,12 @@ Section list.
   Lemma wp_list_create E :
     ⟨⟨⟨ True ⟩⟩⟩
       list_create #() @ E
-    ⟨⟨⟨ (l : val), RET l; is_list l [] ⟩⟩⟩.
+      ⟨⟨⟨ (l : val), RET l; is_list l [] ⟩⟩⟩.
   Proof.
-    iIntros (Φ) "_ HΦ". wp_rec. iModIntro. iApply "HΦ". eauto.
+    iIntros (Φ) "_ HΦ".
+    Set Printing All.
+    wp_rec.
+    iModIntro. iApply "HΦ". eauto.
   Qed.
 
   Lemma wp_list_cons v x xs E :

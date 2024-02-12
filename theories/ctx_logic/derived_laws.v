@@ -119,7 +119,7 @@ Lemma wp_allocN s E v n :
           l ↦∗ replicate (Z.to_nat n) v }}}.
   Proof.
     iIntros (? Φ) "_ HΦ".
-    iApply wp_allocN; auto; try lia.
+    iApply wp_allocN_seq; auto; try lia.
     iModIntro.
     iIntros (l) "Hlm".
     iApply "HΦ".

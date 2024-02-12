@@ -157,11 +157,11 @@ Section rules.
   Implicit Types v : val.
   Implicit Types l : loc.
 
-Lemma twp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
+Lemma twp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ s :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E [{ Φ }].
+  ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_exec_ub; [done|].
@@ -224,11 +224,11 @@ Proof.
 Qed.
 
 
-Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
+Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ s :
   TCEq N (Z.to_nat z) →
   € (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E [{ Φ }].
+  ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_exec_ub; [done|].
@@ -664,14 +664,16 @@ Proof.
   iMod "Hclose'".
   iFrame.
   iMod (ec_increase_supply _ (ε2 (nat_to_fin l)) with "Hε2") as "[Hε2 Hfoo]".
-  iFrame. iModIntro. wp_pures.
-  iModIntro. iApply "HΨ".
+  iFrame. iModIntro.
+  wp_pures.
+  iApply "HΨ".
   assert (nat_to_fin l = n) as ->; [|done].
   apply fin_to_nat_inj.
   rewrite fin_to_nat_to_fin.
   rewrite Nat2Z.id.
   reflexivity.
 Qed.
+
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
