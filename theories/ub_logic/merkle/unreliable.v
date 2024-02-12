@@ -6,6 +6,8 @@ Open Scope nat.
 Section unreliable_storage.
   Context `{!ub_clutchGS Σ}.
   Variables unreliable_alloc_program unreliable_write_program unreliable_read_program:val.
+
+  (*We provide three axioms of the specification of the operations of the unreliable storage*)
   Axiom unreliable_alloc_spec :
     ∀ (m:nat),
     m>0 -> 
