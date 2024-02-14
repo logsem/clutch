@@ -63,7 +63,7 @@ Section unreliable_storage.
           destruct n; try done. lia.
   Qed.
 
-    
+
 
   (** Building the tree*)
   Definition tree_builder_helper : val:=
@@ -94,7 +94,7 @@ Section unreliable_storage.
   Definition tree_builder : val :=
     λ: "list" "height",
       let: "lhmf" := init_hash val_size_for_hash #() in
-      let, ("hash", "l") := tree_builder_helper "lhmf" "height" "list" in 
+      let, ("hash", "l") := tree_builder_helper "lhmf" "height" "list" in
       ("l", merkle_tree_decider_program val_bit_size' "hash" "lhmf").
   
 

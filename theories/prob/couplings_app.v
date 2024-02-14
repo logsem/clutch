@@ -409,6 +409,7 @@ Section ARcoupl.
       intro b; specialize (Hg b); real_solver.
   Qed.
 
+
   Lemma ARcoupl_pos_R R ε :
     ARcoupl μ1 μ2 R ε → ARcoupl μ1 μ2 (λ a b, R a b ∧ μ1 a > 0 ∧ μ2 b > 0) ε.
   Proof.
