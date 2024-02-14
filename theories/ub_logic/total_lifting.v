@@ -14,11 +14,11 @@ Section total_lifting.
 
   Lemma twp_lift_step_fupd_exec_ub E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1 ε,
-    state_interp σ1 ∗ err_interp ε
+  (∀ σ1 ε1,
+    state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
-    exec_ub e1 σ1 (λ ε2 '(e2, σ2),
-                      |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]) ε)
+    exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+                      |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
   ⊢ WP e1 @ s; E [{ Φ }].
   Proof.
     by rewrite ub_twp_unfold /ub_twp_pre =>->.
@@ -37,12 +37,12 @@ Section total_lifting.
     intros Hval.
     iIntros "H".
     iApply twp_lift_step_fupd_exec_ub; [done|].
-    iIntros (σ1 ε) "[Hσ Hε]".
+    iIntros (σ1 ε1) "[Hσ Hε]".
     iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
     iApply (exec_ub_prim_step e1 σ1).
     iExists _.
     iExists nnreal_zero.
-    iExists ε.
+    iExists ε1.
     iSplit.
     { iPureIntro. simpl. done. }
     iSplit.

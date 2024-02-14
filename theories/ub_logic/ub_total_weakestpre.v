@@ -9,10 +9,10 @@ Definition ub_twp_pre `{!irisGS Λ Σ}
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ε,
-      state_interp σ1 ∗ err_interp ε ={E,∅}=∗
-      exec_ub e1 σ1 (λ ε2 '(e2, σ2),
-        |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ) ε
+  | None => ∀ σ1 ε1,
+      state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
+      exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+        |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
 Local Lemma ub_twp_pre_mono `{!irisGS Λ Σ}
