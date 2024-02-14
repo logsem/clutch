@@ -52,7 +52,7 @@ Section total_lifting.
       eapply ub_lift_pos_R, ub_lift_trivial.
       simpl; lra.
     }
-    iIntros ([e2 σ2] (?&?)).
+    iIntros (e2 σ2 (?&?)).
     iMod ("H" with "[//]")as "H".
     iModIntro. iMod "H". iModIntro. iFrame. done.
   Qed.

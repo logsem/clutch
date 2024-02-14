@@ -125,6 +125,43 @@ Proof.
     apply K. apply Hred.
 Qed.
 
+(* same as above but expressed in terms of a total_ub_lift
+Lemma twp_step_fupd_total_ub_lift_prim_step' (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R:
+  reducible e σ ->
+  (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
+  ε1 + SeriesC (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> ub_lift (prim_step e σ) R ε1 ->
+  (∀ P,
+     (∀ e, R e → 1 - ε2 e <= prob (lim_exec e) P) ->
+     total_ub_lift (step (e, σ) ≫= lim_exec) P ε ).
+Proof.
+  rewrite /total_ub_lift. intros.
+  epose (twp_step_fupd_total_ub_lift_prim_step _ _ _ _ _ _ P _ _ _ _ _) as Hs; eauto.
+  rewrite prob_dbind.
+  etrans; [eapply Hs|].
+  eapply SeriesC_le.
+  2: { admit. }
+  intros ?; split.
+  + apply Rmult_le_pos; [apply pmf_pos |apply prob_ge_0].
+  + apply Rmult_le_compat_l; [apply pmf_pos|].
+    rewrite /prob.
+    eapply SeriesC_le.
+    2: {admit. }
+    intros n'.
+    remember (P n') as k.
+    destruct k; simpl.
+    * split; [apply pmf_pos|].
+      rewrite H4; [lra|].
+      rewrite -Heqk; eauto.
+    * split; [lra|].
+      destruct (P0 n'); [apply pmf_pos|lra].
+  Unshelve.
+  7: { eauto. }
+  4: { eauto. }
+  2: { eauto. }
+  eauto.
+Admitted.
+*)
+
 Lemma twp_step_fupd_total_ub_lift_state_step (e : language.expr prob_lang) σ l (ε ε1:nonnegreal) (ε2: _ -> nonnegreal) R P:
   l ∈ language.get_active σ -> 
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
@@ -285,7 +322,7 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
 
-  
+
   Theorem twp_step_fupd_total_ub_lift (e : expr) (σ : state) (ε : nonnegreal) φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
     |={⊤,∅}=> ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝.
@@ -317,22 +354,13 @@ Section adequacy.
       iRevert (H).
       iApply (exec_ub_strong_ind (λ ε e σ, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
-      iDestruct "H" as "[H|[H|[H|[H|H]]]]".
+      iDestruct "H" as "[H|[H|[H|H]]]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { by apply reducible_not_final. }
         rewrite {2}/total_ub_lift.
         iIntros (P HP).
         setoid_rewrite prob_dbind.
-        iAssert (∀ ρ2 : language.expr prob_lang * language.state prob_lang,
-          ⌜R ρ2⌝ ={∅}=∗
-          let
-          '(e2, σ2) := ρ2 in
-          |={∅}=> ⌜total_ub_lift (lim_exec (e2, σ2)) φ ε2⌝)%I with "[H]" as "H".
-        { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
-          destruct ρ2. iMod "H" as "(?&?&H)".
-          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
-        }
         iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - ε2 <=  prob (lim_exec e) P⌝)%I).
         {
           iIntros (HR). iPureIntro.
@@ -346,8 +374,14 @@ Section adequacy.
               * apply cond_nonneg.
               * exact.
         }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "H".
-        destruct a.
+        iAssert (∀ (e2 : language.expr prob_lang) (s2: language.state prob_lang),
+          ⌜R (e2, s2)⌝ ={∅}=∗
+          |={∅}=> ⌜total_ub_lift (lim_exec (e2, s2)) φ ε2⌝)%I with "[H]" as "H".
+        { iIntros (e2 s2) "%Hρ2". iMod ("H" $! e2 s2 Hρ2) as "H".
+          iMod "H" as "(?&?&H)".
+          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
+        }
+        iIntros ([e2 s2] HR). iMod ("H" $! e2 s2 (HR)) as "H".
         iMod "H" as "%".
         iPureIntro.
         by apply H.
@@ -359,9 +393,21 @@ Section adequacy.
           let
           '(e2, σ2) := ρ2 in
           |={∅}=>  ⌜total_ub_lift (lim_exec (e2, σ2)) φ (ε2 ρ2)⌝)%I with "[H]" as "H".
-        { iIntros (ρ2) "%Hρ2". iMod ("H" $! ρ2 Hρ2) as "H".
-          destruct ρ2. iMod "H" as "(?&?&H)".
-          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
+        { iIntros (ρ2) "%Hρ2". destruct (ρ2) as (e2&σ2). iMod ("H" $! e2 σ2 Hρ2) as "H".
+          rewrite /exec_stutter.
+          iDestruct "H" as (R2 ε1' ε2' Hineq' Htotal_ub) "H".
+          iModIntro.
+          iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e2, σ2)) φ (ε1' + ε2')⌝)%I).
+          { iPureIntro. apply total_UB_mon_grading, Hineq'. }
+          rewrite -(dret_id_left' (fun _ : () => (lim_exec (e2, σ2))) tt).
+          iApply total_ub_lift_dbind'.
+          (* Fix the weakening for the first two goals *)
+          * iPureIntro. apply cond_nonneg.
+          * iPureIntro. apply cond_nonneg.
+          * iPureIntro. eapply Htotal_ub.
+          * iIntros ([] ?).
+            iMod ("H" with "[]") as ">(Hσ&Herr&Hwand)". { iPureIntro; auto. }
+            iMod ("Hwand" with "[$] [$]"); eauto.
         }
         rewrite {2}/total_ub_lift.
         iIntros (P HP).
@@ -418,10 +464,23 @@ Section adequacy.
         rewrite !big_orL_cons.
         iDestruct "H" as "[H|H]".
         2:{ iApply "IH"; try done. iPureIntro. set_solver. }
-        iDestruct "H" as "(%R & %ε1 & %ε2  & %Hbound & %Hineq & %Hub & H)".
+        iDestruct "H" as "(%R & %ε1 & %ε2 & %Hbound & %Hineq & %Hub & H)".
         iAssert (∀ σ2 : language.state prob_lang,
                    ⌜R σ2⌝ ={∅}=∗ ⌜total_ub_lift (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
-        { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
+        { iClear "IH".
+          iIntros. iMod ("H" $! σ2 (H)) as "H".
+          iDestruct "H" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
+          iApply fupd_mono.
+          { iApply pure_mono. intros. eapply total_UB_mon_grading; [eapply Hineq'|eauto]. }
+          rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ2))) tt).
+          iApply total_ub_lift_dbind'.
+          - iPureIntro; apply cond_nonneg.
+          - iPureIntro; apply cond_nonneg.
+          - iPureIntro; eapply Hub'.
+          - iIntros. destruct a.
+            iMod ("H" with "[//]") as "[H _]".
+            iApply ("H" with "[//]").
+        }
         rewrite {2}/total_ub_lift.
         iIntros (P HP).
         iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= prob (lim_exec (e, s)) P⌝)%I).
@@ -436,26 +495,7 @@ Section adequacy.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
         iPureIntro. by apply H.
-    + iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
-      iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e, σ)) φ (ε1 + ε2)⌝)%I).
-      { iPureIntro. apply total_UB_mon_grading, Hsum. }
-      rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ))) tt).
-      iApply total_ub_lift_dbind'.
-      (* Fix the weakening for the first two goals *)
-      * iPureIntro. apply cond_nonneg.
-      * iPureIntro. apply cond_nonneg.
-      * iPureIntro. eapply Hlift.
-      * iIntros.
-        iMod ("Hwand" with "[]") as "[Hwand _]". { iPureIntro. by destruct a. }
-        iApply (fupd_mono with "[Hwand]"); last first.
-        -- iApply ("Hwand" with "[]").
-           iPureIntro; eauto.
-        -- iPureIntro.
-           by apply total_UB_mon_grading.
-  Qed.
-
-
-
+    Qed.
 End adequacy.
 
 
@@ -468,14 +508,23 @@ Proof.
   iIntros "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod ec_alloc as (?) "[? ?]".
+  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    simpl.
+    iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /total_ub_lift; intros.
+    eapply Rle_trans; last eapply prob_ge_0.
+    lra. }
+  iMod (ec_alloc with "[]") as (?) "[? ?]"; [iPureIntro; eapply Hcr|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   epose proof (twp_step_fupd_total_ub_lift e σ ε φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
   - iIntros "%". iApply step_fupdN_intro; first done. done.
 Qed.
-  
 
 Theorem twp_mass_lim_exec Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
   (∀ `{ub_clutchGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →

@@ -829,7 +829,7 @@ Section merkle_tree.
           -- iPureIntro. naive_solver.
           -- iExists _; by repeat iSplit.
     - wp_apply (wp_compute_hash_from_leaf_incorrect with "[$H $Herr]").
-      + repeat iSplit; done. 
+      + repeat iSplit; done.
       + iIntros (?) "(%&%&H&%&%&%&%)".
         wp_pures. rewrite bool_decide_eq_false_2; last first.
         { intros K. inversion K. by subst. }

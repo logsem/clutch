@@ -14,6 +14,9 @@ Import uPred.
 Section adequacy.
   Context `{!ub_clutchGS Σ}.
 
+  Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
+  Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
+
 
   Lemma ub_lift_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
@@ -30,7 +33,6 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
 
-
   Lemma ub_lift_dbind_adv' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
@@ -45,6 +47,7 @@ Section adequacy.
     iIntros (???) "/=".
     iMod ("H" with "[//]"); auto.
   Qed.
+
 
   Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
@@ -69,7 +72,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([ε'' [e1 σ1]]). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H| [H | H]]]] %Hv".
+    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H | H]]] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply UB_mon_grading. eauto. }
@@ -88,7 +91,24 @@ Section adequacy.
       + iPureIntro. exists r. split; auto. apply cond_nonneg.
       + done.
       + iIntros ([] ?).
-        by iMod ("H"  with "[//]").
+        iApply step_fupd_fupdN_S.
+        iMod ("H" $! e s with "[]") as "H";  [iPureIntro; eauto| iModIntro ].
+        iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
+        rewrite -(dret_id_left' (fun _ : () => (exec n (e, s))) tt).
+        iApply (step_fupdN_mono _ _ _ ⌜(ub_lift _ _ (ε1' + ε2')) ⌝).
+        { iIntros "%H'"; iPureIntro. eapply UB_mon_grading; eauto. }
+        iApply (ub_lift_dbind').
+        * iPureIntro; apply cond_nonneg.
+        * iPureIntro; apply cond_nonneg.
+        * iPureIntro.
+          apply total_ub_lift_implies_ub_lift in Hlift'.
+          eapply Hlift'.
+        * iIntros (? Hcont).
+          replace tt with a; [| by destruct a].
+          iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
+          rewrite (dret_id_left').
+          iApply step_fupd_fupdN_S.
+          iFrame.
     - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
@@ -131,27 +151,29 @@ Section adequacy.
           destruct Hε'' as [r Hr]; exists r.
           intros a.
           split; [by destruct (ε2 _) | by apply Hr].
-        - iIntros (??). by iMod ("H" with "[//] [//]"). }
+        - iIntros (e s).
+          iApply step_fupd_fupdN_S.
+          iMod ("H" with "[//]") as "H"; iModIntro.
+          iDestruct "H" as "[%R' [%ε1' [%ε2' (%Hsum' & %Hlift' & Hwand')]]]".
+          rewrite -(dret_id_left' (fun _ : () => (exec (S n) _)) tt).
+          iApply (step_fupdN_mono _ _ _ ⌜(ub_lift _ _ (ε1' + ε2')) ⌝).
+          { iIntros "%H'"; iPureIntro. eapply UB_mon_grading; eauto. }
+          iApply (ub_lift_dbind').
+          * iPureIntro; apply cond_nonneg.
+          * iPureIntro; apply cond_nonneg.
+          * iPureIntro.
+            apply total_ub_lift_implies_ub_lift in Hlift'.
+            eapply Hlift'.
+          * iIntros (? Hcont).
+            replace tt with a; [| by destruct a].
+            iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
+            rewrite (dret_id_left').
+            iApply step_fupd_fupdN_S.
+            iMod ("Hwand'" with "[//]"); iModIntro; iFrame. }
       iInduction (language.get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  - iDestruct "H" as "[%R [%ε1 [%ε2 (%Hsum & %Hlift & Hwand)]]]".
-    iApply step_fupdN_mono. { apply pure_mono. eapply UB_mon_grading, Hsum. }
-    rewrite -(dret_id_left' (fun _ : () => (exec (S n) (e1, σ1))) tt).
-    iApply ub_lift_dbind'.
-    + iPureIntro; apply cond_nonneg.
-    + iPureIntro; apply cond_nonneg.
-    + iPureIntro.
-      apply total_ub_lift_implies_ub_lift in Hlift.
-      eapply Hlift.
-    + iIntros (? Hcont).
-      replace tt with a; [| by destruct a].
-      do 2 rewrite Nat.iter_succ.
-      iSpecialize ("Hwand" with "[]"); [iPureIntro; eauto|].
-      rewrite (dret_id_left').
-      iMod ("Hwand" with "[//]") as "H".
-      iFrame.
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
@@ -238,7 +260,17 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod ec_alloc as (?) "[? ?]".
+  (* Handle the trivial 1 <= ε case *)
+  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro; iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /ub_lift; intros.
+    eapply Rle_trans; [eapply prob_le_1|done]. }
+  iMod (ec_alloc with "[//]") as (?) "[? ?]".
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN.
   iFrame.
