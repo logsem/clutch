@@ -48,8 +48,8 @@ Section adequacy.
 
   Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
-    exec_ub e σ (λ ε' '(e2, σ2),
-        |={∅}▷=>^(S n) ⌜ub_lift (exec n (e2, σ2)) φ ε'⌝) ε
+    exec_ub e σ ε (λ ε' '(e2, σ2),
+        |={∅}▷=>^(S n) ⌜ub_lift (exec n (e2, σ2)) φ ε'⌝)
     ⊢ |={∅}▷=>^(S n) ⌜ub_lift (exec (S n) (e, σ)) φ ε⌝.
   Proof.
     iIntros (Hv) "Hexec".

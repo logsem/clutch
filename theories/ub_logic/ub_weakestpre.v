@@ -138,10 +138,10 @@ Section exec_ub.
     Qed.
 
   Definition exec_ub' Z := bi_least_fixpoint (exec_ub_pre Z).
-  Definition exec_ub e σ Z ε := exec_ub' Z (ε, (e, σ)).
+  Definition exec_ub e σ ε Z := exec_ub' Z (ε, (e, σ)).
 
-  Lemma exec_ub_unfold e1 σ1 Z ε :
-    exec_ub e1 σ1 Z ε ≡
+  Lemma exec_ub_unfold (e1 : exprO Λ) (σ1 : stateO Λ) Z (ε : NNRO) :
+    exec_ub e1 σ1 ε Z ≡
       ((∃ R (ε1 ε2 : nonnegreal),
            ⌜reducible (e1, σ1)⌝ ∗
            ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
@@ -156,24 +156,24 @@ Section exec_ub.
         (∃ R (ε1 ε2 : nonnegreal),
             ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
             ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε2 )) ∨
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 ε2 Z )) ∨
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
           ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))) ∨
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 (ε2 (e1, σ2)) Z)) ∨
        (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
                   ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
-                  (⌜ R tt ⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2)))%I.
+                  (⌜ R tt ⌝ ={∅}=∗ exec_ub e1 σ1 ε2 Z)))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
 
 
-  Lemma exec_ub_mono_grading e1 σ1 (Z : nonnegreal -> cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
+  Lemma exec_ub_mono_grading e σ (Z : nonnegreal -> cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
     ⌜(ε <= ε')%R⌝ -∗
-    exec_ub e1 σ1 Z ε -∗ exec_ub e1 σ1 Z ε'.
+    exec_ub e σ ε Z -∗ exec_ub e σ ε' Z.
   Proof.
     iIntros "Hleq H_ub". iRevert "Hleq".
     rewrite /exec_ub /exec_ub'.
@@ -236,7 +236,7 @@ Section exec_ub.
   Lemma exec_ub_strong_mono e1 σ1 (Z1 Z2 : nonnegreal -> cfg Λ → iProp Σ) (ε ε' : nonnegreal) :
     ⌜(ε <= ε')%R⌝ -∗
     (∀ e2 σ2 ε'', (⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 ε'' (e2, σ2) -∗ Z2 ε'' (e2, σ2))) -∗
-    exec_ub e1 σ1 Z1 ε -∗ exec_ub e1 σ1 Z2 ε'.
+    exec_ub e1 σ1 ε Z1 -∗ exec_ub e1 σ1 ε' Z2.
   Proof.
     iIntros "%Hleq HZ H_ub".
     iApply exec_ub_mono_grading; auto.
@@ -305,22 +305,22 @@ Section exec_ub.
   Qed.
 
   Lemma exec_ub_mono (Z1 Z2 : nonnegreal -> cfg Λ → iProp Σ) e1 σ1 (ε1 ε2 : nonnegreal) :
-    ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ exec_ub e1 σ1 Z1 ε1 -∗ exec_ub e1 σ1 Z2 ε2.
+    ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ exec_ub e1 σ1 ε1 Z1 -∗ exec_ub e1 σ1 ε2 Z2.
   Proof.
     iIntros "%Hleq HZ". iApply exec_ub_strong_mono; auto.
     iIntros (???) "[_ ?]". by iApply "HZ".
   Qed.
 
   Lemma exec_ub_mono_pred (Z1 Z2 : nonnegreal -> cfg Λ → iProp Σ) e1 σ1 (ε : nonnegreal) :
-    (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ exec_ub e1 σ1 Z1 ε -∗ exec_ub e1 σ1 Z2 ε.
+    (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ exec_ub e1 σ1 ε Z1 -∗ exec_ub e1 σ1 ε Z2.
   Proof.
     iIntros "HZ". iApply exec_ub_strong_mono; auto.
     iIntros (???) "[_ ?]". by iApply "HZ".
   Qed.
 
   Lemma exec_ub_strengthen e1 σ1 (Z : nonnegreal -> cfg Λ → iProp Σ) (ε : nonnegreal) :
-    exec_ub e1 σ1 Z ε -∗
-    exec_ub e1 σ1 (λ ε' '(e2, σ2), ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z ε' (e2, σ2)) ε.
+    exec_ub e1 σ1 ε Z -∗
+    exec_ub e1 σ1 ε (λ ε' '(e2, σ2), ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z ε' (e2, σ2)).
   Proof.
     iApply exec_ub_strong_mono; [iPureIntro; lra | ].
     iIntros (???) "[[% ?] ?]". iSplit; [|done]. by iExists _.
@@ -328,7 +328,7 @@ Section exec_ub.
 
   Lemma exec_ub_bind K `{!LanguageCtx K} e1 σ1 (Z : nonnegreal -> cfg Λ → iProp Σ) (ε : nonnegreal) :
     to_val e1 = None →
-    exec_ub e1 σ1 (λ ε' '(e2, σ2), Z ε' (K e2, σ2)) ε -∗ exec_ub (K e1) σ1 Z ε.
+    exec_ub e1 σ1 ε (λ ε' '(e2, σ2), Z ε' (K e2, σ2)) -∗ exec_ub (K e1) σ1 ε Z.
   Proof.
     iIntros (Hv) "Hub".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|].
@@ -537,7 +537,7 @@ Section exec_ub.
   Lemma exec_ub_prim_step e1 σ1 Z (ε : nonnegreal) :
     (∃ R (ε1 ε2 : nonnegreal), ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
           ∀ ρ2 , ⌜R ρ2⌝ ={∅}=∗ Z ε2 ρ2)
-    ⊢ exec_ub e1 σ1 Z ε.
+    ⊢ exec_ub e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & % & % & H)".
     rewrite {1}exec_ub_unfold.
@@ -555,7 +555,7 @@ Section exec_ub.
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
-    ⊢ exec_ub e1 σ1 Z ε.
+    ⊢ exec_ub e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & % & % & % & H)".
     rewrite {1}exec_ub_unfold.
@@ -574,7 +574,7 @@ Section exec_ub.
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R nnreal_zero⌝ ∗
             ∀ ρ2, ⌜ R ρ2 ⌝ ={∅}=∗ Z (ε2 ρ2) ρ2 )
-    ⊢ exec_ub e1 σ1 Z ε.
+    ⊢ exec_ub e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & %Hε & % & H)".
     rewrite {1}exec_ub_unfold.
@@ -593,8 +593,8 @@ Section exec_ub.
   Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
     (∃ R, ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
-          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z ε')
-    ⊢ exec_ub e1 σ1 Z (ε + ε').
+          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 ε' Z)
+    ⊢ exec_ub e1 σ1 (ε + ε') Z.
   Proof.
     iIntros (?) "H".
     iDestruct "H" as (?) "(% & H)".
@@ -618,8 +618,8 @@ Section exec_ub.
         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
         ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
         ⌜ub_lift (state_step σ1 α) R nnreal_zero⌝ ∗
-        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 Z (ε2 (e1, σ2)))
-      ⊢ exec_ub e1 σ1 Z ε)%I.
+        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 (ε2 (e1, σ2)) Z)
+      ⊢ exec_ub e1 σ1 ε Z)%I.
   Proof.
     iIntros (?) "(% & % & % & %Hε & % & H)".
     rewrite {1}exec_ub_unfold.
@@ -635,8 +635,8 @@ Section exec_ub.
   Lemma exec_ub_stutter_step e1 σ1 Z (ε : nonnegreal) :
     (∃ R (ε1 ε2 : nonnegreal), ⌜(ε1 + ε2 = ε)%R ⌝ ∗
                   ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
-                  (⌜ R tt⌝ ={∅}=∗ exec_ub e1 σ1 Z ε2))
-    ⊢ exec_ub e1 σ1 Z ε.
+                  (⌜ R tt⌝ ={∅}=∗ exec_ub e1 σ1 ε2 Z))
+    ⊢ exec_ub e1 σ1 ε Z.
   Proof.
     iIntros "[%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
     rewrite (exec_ub_unfold _ _ _ ε).
@@ -649,8 +649,8 @@ Section exec_ub.
 
   Lemma exec_ub_strong_ind (Ψ : nonnegreal → expr Λ → state Λ →  iProp Σ) (Z : nonnegreal → cfg Λ → iProp Σ) :
     (∀ n e σ ε, Proper (dist n) (Ψ ε e σ)) →
-    ⊢ (□ (∀ e σ ε, exec_ub_pre Z (λ '(ε, (e, σ)), Ψ ε e σ ∧ exec_ub e σ Z ε)%I (ε, (e, σ)) -∗ Ψ ε e σ) →
-       ∀ e σ ε, exec_ub e σ Z ε -∗ Ψ ε e σ)%I.
+    ⊢ (□ (∀ e σ ε, exec_ub_pre Z (λ '(ε, (e, σ)), Ψ ε e σ ∧ exec_ub e σ ε Z)%I (ε, (e, σ)) -∗ Ψ ε e σ) →
+       ∀ e σ ε, exec_ub e σ ε Z -∗ Ψ ε e σ)%I.
   Proof.
     iIntros (HΨ). iIntros "#IH" (e σ ε) "H".
     set (Ψ' := (λ '(ε, (e, σ)), Ψ ε e σ):
@@ -667,10 +667,10 @@ Section exec_ub.
 
 (*
   Lemma exec_ub_reducible e σ Z1 Z2 ε1 ε2 :
-    (exec_ub e σ Z1 ε1)  ={∅}=∗ ⌜irreducible e σ⌝ -∗ (exec_ub e σ Z2 ε2).
+    (exec_ub e σ ε1 Z1)  ={∅}=∗ ⌜irreducible e σ⌝ -∗ (exec_ub e σ ε2 Z2).
   Proof.
     rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, |={∅}=> ⌜irreducible x.2.1 x.2.2⌝ -∗ (exec_ub x.2.1 x.2.2 Z2 ε2))%I : prodO NNRO cfgO → iPropI Σ).
+    set (Φ := (λ x, |={∅}=> ⌜irreducible x.2.1 x.2.2⌝ -∗ (exec_ub x.2.1 x.2.2 ε2 Z2))%I : prodO NNRO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ
@@ -684,7 +684,7 @@ Section exec_ub.
       exfalso.
       pose proof (not_reducible (e1, σ1)) as (H3 & H4).
       by apply H4.
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible (e1, σ1)⌝ -∗ exec_ub e1 σ1 Z2 ε2)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible (e1, σ1)⌝ -∗ exec_ub e1 σ1 ε2 Z2)%I  with "H") as "H".
       { intros.
         iIntros.
         iModIntro.
@@ -698,7 +698,7 @@ Section exec_ub.
 
 (*
   Lemma exec_ub_irreducible e σ Z ε :
-    ⌜irreducible e σ⌝ ⊢ exec_ub e σ Z ε.
+    ⌜irreducible e σ⌝ ⊢ exec_ub e σ ε Z.
   Proof.
     iIntros "H".
     rewrite {1}exec_ub_unfold.
@@ -712,7 +712,7 @@ Section exec_ub.
   (* This lemma might not be true anymore *)
   (*
   Lemma exec_ub_reducible e σ Z ε :
-    exec_ub e σ Z ε ={∅}=∗ ⌜reducible e σ⌝.
+    exec_ub e σ ε Z ={∅}=∗ ⌜reducible e σ⌝.
   Proof.
     rewrite /exec_ub /exec_ub'.
     set (Φ := (λ x, |={∅}=> ⌜reducible x.2.1 x.2.2⌝)%I : prodO RO cfgO → iPropI Σ).
@@ -777,10 +777,10 @@ Definition ub_wp_pre `{!irisGS Λ Σ}
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
   | Some v => |={E}=> Φ v
-  | None => ∀ σ1 ε,
-      state_interp σ1 ∗ err_interp ε ={E,∅}=∗
-      exec_ub e1 σ1 (λ ε2 '(e2, σ2),
-        ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ) ε
+  | None => ∀ σ1 ε1,
+      state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
+      exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+        ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive (ub_wp_pre).

@@ -18,11 +18,11 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 Lemma wp_lift_step_fupd_exec_ub E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1 ε,
-    state_interp σ1 ∗ err_interp ε
+  (∀ σ1 ε1,
+    state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
-    exec_ub e1 σ1 (λ ε2 '(e2, σ2),
-      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}) ε)
+    exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+      ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   by rewrite ub_wp_unfold /ub_wp_pre =>->.
