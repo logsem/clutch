@@ -298,6 +298,6 @@ Section faulty_allocator.
   Qed.
 
 
-
+End faulty_allocator.
 
 
