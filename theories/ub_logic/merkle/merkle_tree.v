@@ -20,6 +20,7 @@ Section merkle_tree.
   Variables height:nat.
   Variables val_bit_size':nat.
   Variables max_hash_size : nat.
+  Hypothesis max_hash_size_pos: (0<max_hash_size)%nat.
   Definition val_bit_size : nat := S val_bit_size'.
   Definition val_size_for_hash:nat := (2^val_bit_size)-1.
   (* Variable (Hineq: (max_hash_size <= val_size_for_hash)%nat). *)
@@ -50,11 +51,8 @@ Section merkle_tree.
     h < 2^val_bit_size ->
     m!!((root_hash_value l)*2^val_bit_size + root_hash_value r)%nat=Some (Z.of_nat h) ->
     tree_valid (S n) (Branch h l r) m.
-    
 
-  Definition map_valid (m:gmap nat Z) : Prop := coll_free m.
   
-
   Inductive tree_leaf_value_match: merkle_tree -> nat -> list (bool*nat) -> Prop:=
   | tree_value_match_lf h lf: tree_leaf_value_match (Leaf h lf) lf []
   | tree_leaf_value_match_left h l r xs v rhash:
@@ -140,6 +138,21 @@ Section merkle_tree.
   (*   - wp_pures. iApply "HΦ". by iPureIntro. *)
   (* Qed. *)
 
+  Lemma hash_bound_manipulation finalhash:
+    (0 ≤ finalhash)%Z -> (finalhash ≤ val_size_for_hash)%Z ->
+    (0 ≤ finalhash < 2 ^ val_bit_size)%Z.
+  Proof.
+    clear.
+    intros H K.
+    apply Zle_lt_succ in K. split; first done.
+    eapply Z.lt_stepr; try done.
+    rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
+    rewrite -Nat2Z.inj_pow. f_equal.
+    rewrite /val_size_for_hash.
+    assert (1<=2 ^val_bit_size); last lia. clear.
+    induction val_bit_size; simpl; lia.
+  Qed.
+
   Lemma tree_valid_superset n m m' tree:
     tree_valid n tree m -> m ⊆ m' -> tree_valid n tree m'.
   Proof.
@@ -203,28 +216,26 @@ Section merkle_tree.
   (*This lemma is here to ensure that the return value lies within a bound 
     This lemma is eventually used in the case where the proof is incorrect.
    *)
-  Lemma wp_compute_hash_from_leaf_size (n:nat) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_size (n:nat) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid n tree m⌝ ∗
-        hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+        coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
         ⌜possible_proof tree proof⌝ ∗
-        ⌜map_valid m⌝ ∗
         ⌜ size m + (S n) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S n) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+        € (nnreal_nat (S n) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
      }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
           ∃ m', ⌜m ⊆ m'⌝ ∗
-                hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
-                ⌜map_valid m'⌝ ∗
+                coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
                 ⌜size (m') <= size m + (S n)⌝ ∗
                 ⌜(0 <= retv < 2^val_bit_size)%Z⌝
       }}}.
   Proof.
-    iIntros (Φ) "(%Htvalid & H & %Hproof & %Hposs & %Hmvalid & %Hmsize &Herr) HΦ".
+    iIntros (Φ) "(%Htvalid & H & %Hproof & %Hposs & %Hmsize &Herr) HΦ".
     iInduction tree as [hash leaf|hash tree1 Htree1 tree2 Htree2] "IH"
                          forall (n v m proof lproof Φ
-                              Htvalid Hproof Hposs Hmsize Hmvalid).
+                              Htvalid Hproof Hposs Hmsize).
     - rewrite /compute_hash_from_leaf. wp_pures. rewrite -/compute_hash_from_leaf.
       wp_apply (wp_list_head); first done.
       iIntros (?) "[[->->]|(%&%&%&%)]"; last first.
@@ -232,24 +243,15 @@ Section merkle_tree.
       wp_pures.
       inversion Htvalid; subst.
       wp_apply (wp_insert_amortized with "[$H Herr]"); try lia.
-      + iSplit; try done. iApply ec_spend_irrel; last done.
+      + iApply ec_spend_irrel; last done.
         simpl. lra.
-      + iIntros (retv) "(%m' & H & %Hmvalid' & %Hfound & %Hmsize' & %Hmsubset)".
+      + iIntros (retv) "(%m' & H & %Hfound & %Hmsize' & %Hmsubset)".        
         iApply ("HΦ" with "[H]").
-        iExists _; repeat iSplit; try done.
+        iExists _; do 2 (iSplit; try done).
+        iSplit.
         * iPureIntro; lia.
-        * rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-          iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done.
-          lia.
-        * rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-          iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-          rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-          apply Zle_lt_succ in K.
-          eapply Z.lt_stepr; try done.
-          rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-          rewrite -Nat2Z.inj_pow. f_equal.
-          assert (1<=2 ^val_bit_size); last lia. clear.
-          induction val_bit_size; simpl; lia.
+        * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+          iPureIntro. by apply hash_bound_manipulation.
     - rewrite /compute_hash_from_leaf. wp_pures. rewrite -/compute_hash_from_leaf.
       wp_apply wp_list_head; first done.
       iIntros (?) "[[->->]|(%head & %lproof' & -> & ->)]".
@@ -258,14 +260,14 @@ Section merkle_tree.
       iIntros (proof') "%Hproof'".
       wp_pures. 
       inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n0) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (€ ((nnreal_nat (S n0) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
       wp_pures.
       inversion Hposs; subst; wp_pures; try done.
-      + wp_apply ("IH" with "[][][][][][$H][$Herr]"); try done.
+      + wp_apply ("IH" with "[][][][][$H][$Herr]"); try done.
         { iPureIntro; lia. }
         iIntros (lefthash') "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hlefthashsize')".
         wp_pures.
@@ -276,28 +278,17 @@ Section merkle_tree.
         } 
         wp_apply (wp_insert_amortized with "[$H $Herr']").
         * lia.
-        * by iPureIntro.
-        * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
+        * iIntros (finalhash) "(%m'' & H  & %Hmfound'' & %Hmsize'' & %Hmsubset')".
           iApply "HΦ".
-          iExists m''. repeat iSplit.
-          -- iPureIntro; etrans; exact.
-          -- done.
-          -- by iPureIntro.
+          iExists m''.
+          iSplit; try (iPureIntro; etrans; exact).
+          do 2 (iSplit; try done).
           -- iPureIntro; lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-             rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-             apply Zle_lt_succ in K.
-             eapply Z.lt_stepr; try done.
-             rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-             rewrite -Nat2Z.inj_pow. f_equal.
-             assert (1<=2 ^val_bit_size); last lia. clear.
-             induction val_bit_size; simpl; lia.        
-      + wp_apply ("IH1" with "[][][][][][$H][$Herr]"); try done.
+          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+             iPureIntro. by apply hash_bound_manipulation.   
+      + wp_apply ("IH1" with "[][][][][$H][$Herr]"); try done.
         { iPureIntro; lia. }
-        iIntros (lefthash') "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hlefthashsize')".
+        iIntros (lefthash') "(%m' & %Hmsubset & H & %Hmsize' & %Hlefthashsize')".
         wp_pures.
         replace (_*_+_)%Z with (Z.of_nat (hash0 * 2 ^ val_bit_size + Z.to_nat lefthash')); last first.
         { rewrite Nat2Z.inj_add. f_equal; last lia. rewrite Nat2Z.inj_mul. f_equal.
@@ -305,52 +296,43 @@ Section merkle_tree.
         }
         wp_apply (wp_insert_amortized with "[$H $Herr']").
         * lia.
-        * by iPureIntro.
-        * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
+        * iIntros (finalhash) "(%m'' & H & %Hmfound'' & %Hmsize'' & %Hmsubset')".
           iApply "HΦ".
-          iExists m''. repeat iSplit.
-          -- iPureIntro; etrans; exact.
-          -- done.
-          -- by iPureIntro.
+          iExists m''. iSplit; first (iPureIntro; etrans; exact).
+          do 2 (iSplit; try done).
           -- iPureIntro; lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-             rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-             apply Zle_lt_succ in K.
-             eapply Z.lt_stepr; try done.
-             rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-             rewrite -Nat2Z.inj_pow. f_equal.
-             assert (1<=2 ^val_bit_size); last lia. clear.
-             induction val_bit_size; simpl; lia.        
+          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+             iPureIntro. by apply hash_bound_manipulation.
+             Unshelve.
+             all: done.
   Qed.
   
   (* The case where everything is correct *)
-  Lemma wp_compute_hash_from_leaf_correct (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_correct (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
-        hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+        coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
         ⌜correct_proof tree proof⌝ ∗
-        ⌜tree_leaf_value_match tree v proof⌝ ∗
-        ⌜map_valid m⌝ }}}
+        ⌜tree_leaf_value_match tree v proof⌝
+     }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
-          hashfun_amortized (val_size_for_hash) max_hash_size f m ∗
+          coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m ∗
           ⌜retv = root_hash_value tree⌝
       }}}.
   Proof.
-    iIntros (Φ) "(%Htvalid & H & %Hlist & %Hcorrect & %Hvmatch & %Hmvalid) HΦ".
+    iIntros (Φ) "(%Htvalid & H & %Hlist & %Hcorrect & %Hvmatch) HΦ".
     iInduction tree as [hash leaf|hash tree1 Htree1 tree2 Htree2] "IH"
                          forall (height m proof lproof Φ
-                              Htvalid Hlist Hcorrect Hvmatch Hmvalid).
+                              Htvalid Hlist Hcorrect Hvmatch).
     - rewrite /compute_hash_from_leaf. wp_pures. rewrite -/compute_hash_from_leaf.
       wp_apply wp_list_head; first done.
       iIntros (?) "[[-> ->]|%]"; last first.
       { inversion Hcorrect; subst. destruct H as [?[?[??]]].
         inversion H. }
       wp_pures. inversion Htvalid; inversion Hvmatch; subst.
-      wp_apply (wp_hashfun_prev_amortized with "[$]").
+      wp_apply (wp_coll_free_hashfun_prev_amortized with "[$]").
+      + done.
       + done.
       + iIntros "H". iApply "HΦ"; iFrame.
         done.
@@ -363,85 +345,84 @@ Section merkle_tree.
       iIntros (tail) "%Htail".
       inversion Hcorrect; wp_pures.
       + inversion Htvalid. inversion Hvmatch; subst; last done.
-        wp_apply ("IH" with "[][][][][][$]"); try done.
+        wp_apply ("IH" with "[][][][][$]"); try done.
         iIntros (lhash) "[H ->]".
         wp_pures.
         replace (_*_+_)%Z with (Z.of_nat (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2)); last first.
         { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul. f_equal.
           apply Z2Nat.inj_pow.
         }
-        wp_apply (wp_hashfun_prev_amortized with "H").
+        wp_apply (wp_coll_free_hashfun_prev_amortized with "H").
+        * done.
         * done.
         * iIntros "H". iApply "HΦ".
           iFrame. done.
       + inversion Htvalid. inversion Hvmatch; subst; first done.
-        wp_apply ("IH1" with "[][][][][][$]"); try done.
+        wp_apply ("IH1" with "[][][][][$]"); try done.
         iIntros (rhash) "[H ->]".
         wp_pures.
         replace (_*_+_)%Z with (Z.of_nat (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2)); last first.
         { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul. f_equal.
           apply Z2Nat.inj_pow.
         }
-        wp_apply (wp_hashfun_prev_amortized with "H").
+        wp_apply (wp_coll_free_hashfun_prev_amortized with "H").
+        * done.
         * done.
         * iIntros "H". iApply "HΦ".
           iFrame. done.
   Qed.
 
   (*The case where the leaf is incorrect*)
-  Lemma wp_compute_hash_from_leaf_incorrect (tree:merkle_tree) (m:gmap nat Z) (v v':nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_incorrect (tree:merkle_tree) (m:gmap nat Z) (v v':nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
-        hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+        coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
         ⌜possible_proof tree proof⌝ ∗
         ⌜tree_leaf_value_match tree v proof⌝ ∗
         ⌜v ≠ v'⌝ ∗
-        ⌜map_valid m⌝ ∗
         ⌜ size m + (S height) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
      }}}
       compute_hash_from_leaf f lproof (#v') @ E
       {{{ (retv:Z), RET #retv;
           ∃ m', ⌜m ⊆ m'⌝ ∗
-                hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
-                ⌜map_valid m'⌝ ∗
+                coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
                 ⌜size (m') <= size m + (S height)⌝ ∗
                 ⌜retv ≠ root_hash_value tree⌝ ∗
                 ⌜(0 <= retv < 2^val_bit_size)%Z⌝
       }}}.
   Proof.
-    iIntros (Φ) "(%Htvalid & H & %Hlist & %Hpossible & %Hvmatch & %Hneq & %Hmvalid & %Hmsize & Herr) HΦ".
+    iIntros (Φ) "(%Htvalid & H & %Hlist & %Hpossible & %Hvmatch & %Hneq & %Hmsize & Herr) HΦ".
     iInduction tree as [|] "IH"
-                         forall (height m proof lproof Φ Htvalid Hlist Hpossible Hvmatch Hmvalid Hmsize).
+                         forall (height m proof lproof Φ Htvalid Hlist Hpossible Hvmatch Hmsize).
     - inversion Htvalid; subst. rewrite /compute_hash_from_leaf. wp_pures.
       rewrite -/compute_hash_from_leaf. inversion Hvmatch; subst.
       wp_apply wp_list_head; first done.
       iIntros (?) "[[_ ->]|(%&%&%&%)]"; last done.
       wp_pures.
       wp_apply (wp_insert_amortized with "[$H Herr]"); try lia.
-      + iSplit; try done. iApply ec_spend_irrel; last done.
+      + iApply ec_spend_irrel; last done.
         simpl. lra.
-      + iIntros (hash_value') "(%m' & H & %Hvalid' & %Hmfound & %Hmsize' & %Hmsubset)".
+      + iIntros (hash_value') "(%m' & H & %Hmfound & %Hmsize' & %Hmsubset)".
         iApply "HΦ".
         iExists _.
-        repeat iSplit; try done.
+        iSplit; first done.
+        do 3 (try iSplit; try done).
         * iPureIntro; lia.
         * simpl.
           inversion Htvalid; subst.
+          iAssert (⌜coll_free m'⌝)%I with "[H]" as "%".
+          { by iApply coll_free_hashfun_amortized_implies_coll_free. }
           iPureIntro. intro; subst. apply Hneq. eapply coll_free_lemma; try done.
           by erewrite lookup_weaken.
-        * rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-          iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done.
-          lia.
-        * rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-          iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-          rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-          apply Zle_lt_succ in K.
+        * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+          apply Zle_lt_succ in K. iPureIntro; split; first done.
           eapply Z.lt_stepr; try done.
           rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
           rewrite -Nat2Z.inj_pow. f_equal.
+          rewrite /val_size_for_hash.
           assert (1<=2 ^val_bit_size); last lia. clear.
-          induction val_bit_size; simpl; lia.
+          induction val_bit_size; simpl; lia.      
     - rewrite /compute_hash_from_leaf. wp_pures. rewrite -/compute_hash_from_leaf.
       wp_apply wp_list_head; first done.
       iIntros (?) "[[->->]|(%head & %lproof' & -> & ->)]".
@@ -450,15 +431,15 @@ Section merkle_tree.
       iIntros (proof') "%Hproof'".
       wp_pures. 
       inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
       inversion Hpossible; inversion Hvmatch; inversion Htvalid; subst; wp_pures; try done.
-      + wp_apply ("IH" with "[][][][][][][$H][$Herr]"); try done.
+      + wp_apply ("IH" with "[][][][][][$H][$Herr]"); try done.
         { iPureIntro; lia. }
-        iIntros (lefthash') "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hlefthashneq & %Hlefthashsize')".
+        iIntros (lefthash') "(%m' & %Hmsubset & H & %Hmsize' & %Hlefthashneq & %Hlefthashsize')".
         wp_pures.
         replace (_*_+_)%Z with (Z.of_nat (Z.to_nat lefthash' * 2 ^ val_bit_size + hash)); last first.
         { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul.
@@ -467,13 +448,13 @@ Section merkle_tree.
         } 
         wp_apply (wp_insert_amortized with "[$H $Herr']").
         * lia.
-        * by iPureIntro.
-        * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
+        * iIntros (finalhash) "(%m'' & H & %Hmfound'' & %Hmsize'' & %Hmsubset')".
           iApply "HΦ".
-          iExists m''. repeat iSplit.
-          -- iPureIntro; etrans; exact.
-          -- done.
-          -- by iPureIntro.
+          iExists m''.
+          iSplit; first (iPureIntro; etrans; exact).
+          iAssert (⌜coll_free m''⌝)%I with "[H]" as "%".
+          { by iApply coll_free_hashfun_amortized_implies_coll_free. }
+          do 3 (try iSplit; try done).
           -- iPureIntro; lia.
           -- iPureIntro. simpl.
              intro; subst. apply Hlefthashneq.
@@ -486,20 +467,13 @@ Section merkle_tree.
              epose proof (Nat.mul_split_l _ _ _ _ _ _ _ helper) as [Hsplit _].
              lia.
              Unshelve.
+             ++ done.
+             ++ done.
              ++ by inversion H22.
              ++ by inversion Hpossible. 
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-             rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-             apply Zle_lt_succ in K.
-             eapply Z.lt_stepr; try done.
-             rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-             rewrite -Nat2Z.inj_pow. f_equal.
-             assert (1<=2 ^val_bit_size); last lia. clear.
-             induction val_bit_size; simpl; lia.        
-      + wp_apply ("IH1" with "[][][][][][][$H][$Herr]"); try done.
+          --  iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+              iPureIntro. by apply hash_bound_manipulation.    
+      + wp_apply ("IH1" with "[][][][][][$H][$Herr]"); try done.
         { iPureIntro; lia. }
         iIntros (righthash') "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hrighthashneq & %Hrighthashsize')".
         wp_pures.
@@ -509,13 +483,13 @@ Section merkle_tree.
         } 
         wp_apply (wp_insert_amortized with "[$H $Herr']").
         * lia.
-        * by iPureIntro.
-        * iIntros (finalhash) "(%m'' & H & %Hmvalid'' & %Hmfound'' & %Hmsize'' & %Hmsubset')".
+        * iIntros (finalhash) "(%m'' & H & %Hmfound'' & %Hmsize'' & %Hmsubset')".
           iApply "HΦ".
-          iExists m''. repeat iSplit.
-          -- iPureIntro; etrans; exact.
-          -- done.
-          -- by iPureIntro.
+          iExists m''.
+          iSplit; first (iPureIntro; etrans; exact).
+          iAssert (⌜coll_free m''⌝)%I with "[H]" as "%".
+          { by iApply coll_free_hashfun_amortized_implies_coll_free. }
+          do 3 (try iSplit; try done).
           -- iPureIntro; lia.
           -- iPureIntro. simpl.
              intro; subst. apply Hrighthashneq.
@@ -529,48 +503,36 @@ Section merkle_tree.
              lia.
              Unshelve.
              ++ by inversion H22.
-             ++ destruct Hrighthashsize' as [Hrighthashsize Hrighthashsize'].
-                rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
+             ++ rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
                 replace (Z.of_nat 2) with 2%Z by lia.
                 rewrite Z2Nat.id; lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-          -- rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-             iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-             rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-             apply Zle_lt_succ in K.
-             eapply Z.lt_stepr; try done.
-             rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-             rewrite -Nat2Z.inj_pow. f_equal.
-             assert (1<=2 ^val_bit_size); last lia. clear.
-             induction val_bit_size; simpl; lia. 
+          -- iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+             iPureIntro. by apply hash_bound_manipulation.     
   Qed.
 
   (*The case where the leaf is correct but the proof is not *)
-  Lemma wp_compute_hash_from_leaf_incorrect_proof (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_incorrect_proof (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid height tree m⌝ ∗
-        hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+        coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
         ⌜possible_proof tree proof⌝ ∗
         ⌜incorrect_proof tree proof ⌝ ∗
         ⌜tree_leaf_value_match tree v proof⌝ ∗
-        ⌜map_valid m⌝ ∗
         ⌜ size m + (S height) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR 
+        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
      }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
           ∃ m', ⌜m ⊆ m'⌝ ∗
-                hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
-                ⌜map_valid m'⌝ ∗
+                coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
                 ⌜size (m') <= size m + (S height)⌝ ∗
                 ⌜retv ≠ root_hash_value tree⌝ ∗
                 ⌜(0 <= retv < 2^val_bit_size)%Z⌝
       }}}.
   Proof.
-    iIntros (Φ) "(%Htvalid & H & %Hlist & %Hposs & %Hincorrect & %Hvmatch & %Hmvalid & %Hmsize & Herr) HΦ".
+    iIntros (Φ) "(%Htvalid & H & %Hlist & %Hposs & %Hincorrect & %Hvmatch & %Hmsize & Herr) HΦ".
     iInduction tree as [|] "IH"
-                         forall (height m proof lproof Φ Htvalid Hlist Hposs Hincorrect Hvmatch Hmvalid Hmsize).
+                         forall (height m proof lproof Φ Htvalid Hlist Hposs Hincorrect Hvmatch Hmsize).
     - inversion Hincorrect.
     - rewrite /compute_hash_from_leaf. wp_pures.
       rewrite -/compute_hash_from_leaf.
@@ -580,8 +542,8 @@ Section merkle_tree.
       wp_pures. wp_apply wp_list_tail; first done.
       iIntros (proof') "%Hproof'".
       wp_pures. inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -598,10 +560,12 @@ Section merkle_tree.
           }
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
           -- lia.
-          -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
+          -- iIntros (retv) "(%m'' & H & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
-             iExists m''. repeat iSplit; try done.
-             ++ iPureIntro; etrans; exact.
+             iAssert (⌜coll_free m''⌝)%I with "[H]" as "%".
+             { by iApply coll_free_hashfun_amortized_implies_coll_free. }
+             iExists m''. iSplit; first (iPureIntro; etrans; exact).
+             do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
              ++ iPureIntro. simpl. intros ->. 
                 inversion H30; subst.
@@ -613,23 +577,14 @@ Section merkle_tree.
                 }
                 epose proof (Nat.mul_split_l _ _ _ _ _ _ _ helper) as [Hsplit Hsplit']; subst. done.
                 Unshelve.
+                all: try done.
                 ** by inversion H22.
-                ** by inversion Hposs. 
-             ++ rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-             ++  rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                 iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-                 rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-                 apply Zle_lt_succ in K.
-                 eapply Z.lt_stepr; try done.
-                 rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-                 rewrite -Nat2Z.inj_pow. f_equal.
-                 assert (1<=2 ^val_bit_size); last lia. clear.
-                 induction val_bit_size; simpl; lia. 
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+                iPureIntro. by apply hash_bound_manipulation.
       + (*incorrect happens above*)
-        wp_apply ("IH" with "[][][][][][][][$H][$Herr]"); try done.
+        wp_apply ("IH" with "[][][][][][][$H][$Herr]"); try done.
         * iPureIntro; lia.
-        * iIntros (lefthash) "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hlefthashneq & %Hlefthashsize)".
+        * iIntros (lefthash) "(%m' & %Hmsubset & H & %Hmsize' & %Hlefthashneq & %Hlefthashsize)".
           wp_pures.
           replace (_*_+_)%Z with (Z.of_nat (Z.to_nat lefthash * 2 ^ val_bit_size + hash)); last first.
           { rewrite Nat2Z.inj_add. f_equal. rewrite Nat2Z.inj_mul.
@@ -638,10 +593,12 @@ Section merkle_tree.
           }
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
           -- lia.
-          -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
+          -- iIntros (retv) "(%m'' & H & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
-             iExists m''. repeat iSplit; try done.
-             ++ iPureIntro; etrans; exact.
+             iAssert (⌜coll_free m''⌝)%I with "[H]" as "%".
+             { by iApply coll_free_hashfun_amortized_implies_coll_free. }
+             iExists m''. iSplit; first (iPureIntro; etrans; exact).
+             do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
              ++ iPureIntro. simpl. intros ->. apply Hlefthashneq.
                 inversion H30; subst.
@@ -656,21 +613,12 @@ Section merkle_tree.
                 Unshelve.
                 ** by inversion H22.
                 ** by inversion Hposs. 
-             ++ rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-             ++  rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                 iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-                 rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-                 apply Zle_lt_succ in K.
-                 eapply Z.lt_stepr; try done.
-                 rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-                 rewrite -Nat2Z.inj_pow. f_equal.
-                 assert (1<=2 ^val_bit_size); last lia. clear.
-                 induction val_bit_size; simpl; lia. 
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+                iPureIntro. by apply hash_bound_manipulation.
       + (*left neq guess left *)
         wp_apply (wp_compute_hash_from_leaf_size with "[$H $Herr]").
         * repeat iSplit; last first; iPureIntro; try done. lia.
-        * iIntros (righthash) "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hrighthashsize)".
+        * iIntros (righthash) "(%m' & %Hmsubset & H & %Hmsize' & %Hrighthashsize)".
           wp_pures.
           replace (_*_+_)%Z with (Z.of_nat (hash * 2 ^ val_bit_size + Z.to_nat righthash )); last first.
           { rewrite Nat2Z.inj_add. f_equal; last lia. rewrite Nat2Z.inj_mul. f_equal.
@@ -678,10 +626,12 @@ Section merkle_tree.
           }
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
           -- lia.
-          -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
+          -- iIntros (retv) "(%m'' & H & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
-             iExists m''. repeat iSplit; try done.
-             ++ iPureIntro; etrans; exact.
+             iAssert (⌜coll_free m''⌝)%I with "[H]" as "%".
+             { by iApply coll_free_hashfun_amortized_implies_coll_free. }
+             iExists m''. iSplit; first (iPureIntro; etrans; exact).
+             do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
              ++ iPureIntro. simpl. intros ->. 
                 inversion H30; subst.
@@ -698,21 +648,12 @@ Section merkle_tree.
                    rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
                    replace (Z.of_nat 2) with 2%Z by lia.
                    rewrite Z2Nat.id; lia.
-             ++ rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-             ++  rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                 iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-                 rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-                 apply Zle_lt_succ in K.
-                 eapply Z.lt_stepr; try done.
-                 rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-                 rewrite -Nat2Z.inj_pow. f_equal.
-                 assert (1<=2 ^val_bit_size); last lia. clear.
-                 induction val_bit_size; simpl; lia. 
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+                iPureIntro. by apply hash_bound_manipulation.
       + (*incorrect happens above *)
-        wp_apply ("IH1" with "[][][][][][][][$H][$Herr]"); try done.
+        wp_apply ("IH1" with "[][][][][][][$H][$Herr]"); try done.
         * iPureIntro; lia.
-        * iIntros (righthash) "(%m' & %Hmsubset & H & %Hmvalid' & %Hmsize' & %Hrighthashneq & %Hrighthashsize)".
+        * iIntros (righthash) "(%m' & %Hmsubset & H & %Hmsize' & %Hrighthashneq & %Hrighthashsize)".
           wp_pures.
           replace (_*_+_)%Z with (Z.of_nat (hash * 2 ^ val_bit_size + Z.to_nat righthash)); last first.
           { rewrite Nat2Z.inj_add. f_equal; last lia. rewrite Nat2Z.inj_mul. f_equal.
@@ -720,10 +661,12 @@ Section merkle_tree.
           } 
           wp_apply (wp_insert_amortized with "[$H $Herr']"); try done.
           -- lia.
-          -- iIntros (retv) "(%m'' & H & %Hmvalid'' & %Hmfound & %Hsize'' & %Hmsubset')".
+          -- iIntros (retv) "(%m'' & H & %Hmfound & %Hsize'' & %Hmsubset')".
              iApply "HΦ".
-             iExists m''. repeat iSplit; try done.
-             ++ iPureIntro; etrans; exact.
+             iAssert (⌜coll_free m''⌝)%I with "[H]" as "%".
+             { by iApply coll_free_hashfun_amortized_implies_coll_free. }
+             iExists m''. iSplit; first (iPureIntro; etrans; exact).
+             do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
              ++ iPureIntro. simpl. intros ->. apply Hrighthashneq.
                 inversion H30; subst.
@@ -741,20 +684,21 @@ Section merkle_tree.
                    rewrite Nat2Z.inj_lt. rewrite Z2Nat.inj_pow.
                    replace (Z.of_nat 2) with 2%Z by lia.
                    rewrite Z2Nat.id; lia.
-             ++ rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. lia.
-             ++  rewrite /hashfun_amortized. iDestruct "H" as "(%&%&%&%&%Hforall&H)".
-                 iPureIntro. eapply map_Forall_lookup_1 in Hforall; last done. 
-                 rewrite /val_size_for_hash in Hforall. destruct Hforall as [? K].
-                 apply Zle_lt_succ in K.
-                 eapply Z.lt_stepr; try done.
-                 rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-                 rewrite -Nat2Z.inj_pow. f_equal.
-                 assert (1<=2 ^val_bit_size); last lia. clear.
-                 induction val_bit_size; simpl; lia. 
+             ++ iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
+                iPureIntro. by apply hash_bound_manipulation.
   Qed.
 
+  Definition is_possible_proof_list proof lproof tree :=
+    is_list proof lproof /\ possible_proof tree proof.
+
+  Definition tree_leaf_proof_match tree proof v :=
+    correct_proof tree proof /\ tree_leaf_value_match tree v proof.
+
   (** checker*)
+
+  Definition incorrect_proof_or_leaf tree proof v :=
+    incorrect_proof tree proof \/ (∃ v', tree_leaf_value_match tree v' proof /\ v ≠ v').
+  
   Definition merkle_tree_decider_program : val :=
     λ: "correct_root_hash" "lhmf",
       (λ: "lproof" "lleaf",
@@ -765,46 +709,40 @@ Section merkle_tree.
     (∀ lproof proof v m',
              {{{
                   ⌜tree_valid height tree m'⌝ ∗
-                  hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
-                  ⌜is_list proof lproof⌝ ∗
-                  ⌜possible_proof tree proof ⌝∗
-                  ⌜map_valid m'⌝ ∗
+                  coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
+                  ⌜is_possible_proof_list proof lproof tree ⌝∗
                   ⌜ size m' + (S height) <= max_hash_size⌝ ∗
-                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR
+                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
                    
             }}}
               checker lproof (#v)
               {{{ (b:bool), RET #b;
                   if b then
-                    ⌜correct_proof tree proof⌝ ∗
-                    ⌜tree_leaf_value_match tree v proof⌝ ∗
-                    hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
-                    € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size)%NNR
+                    ⌜tree_leaf_proof_match tree proof v⌝∗
+                    coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
+                    € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
                   else
-                    ⌜incorrect_proof tree proof \/
-                      (∃ v', tree_leaf_value_match tree v' proof /\ v ≠ v')⌝ ∗
+                    ⌜incorrect_proof_or_leaf tree proof v⌝ ∗
                     ∃ m'', ⌜m' ⊆ m''⌝ ∗
-                        hashfun_amortized (val_size_for_hash) max_hash_size f m'' ∗
-                        ⌜map_valid m''⌝ ∗
+                        coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m'' ∗
                         ⌜size (m'') <= size m' + (S height)⌝ 
           }}} )%I.
 
   Lemma merkle_tree_decider_program_spec tree (m:gmap nat Z) f:
     {{{ ⌜tree_valid height tree m⌝ ∗
-        hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
-        ⌜map_valid m⌝ 
+        coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m 
     }}} merkle_tree_decider_program #(root_hash_value tree) f
     {{{
           (checker:val), RET checker;
-          hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
+          coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
           decider_program_helper_spec checker tree f
     }}}.
   Proof.
-    iIntros (Φ) "(%Htvalid & H & %Hmvalid) IH".
+    iIntros (Φ) "(%Htvalid & H) IH".
     rewrite /merkle_tree_decider_program.
     wp_pures. iModIntro.
     iApply "IH". iFrame.
-    iIntros (?????) "!> (%&H&%&%&%&%&Herr) HΦ".
+    iIntros (?????) "!> (%&H&[%%]&%&Herr) HΦ".
     wp_pures.
     epose proof (possible_proof_implies_exists_leaf tree proof _) as [v' ?].
     destruct (decide (v=v')).
@@ -826,8 +764,8 @@ Section merkle_tree.
           { intros K'; inversion K'; by subst. }
           iModIntro; iApply "HΦ".
           repeat iSplit.
-          -- iPureIntro. naive_solver.
-          -- iExists _; by repeat iSplit.
+          -- iPureIntro. left. naive_solver.
+          -- iExists _. by iFrame.
     - wp_apply (wp_compute_hash_from_leaf_incorrect with "[$H $Herr]").
       + repeat iSplit; done.
       + iIntros (?) "(%&%&H&%&%&%&%)".
@@ -836,10 +774,141 @@ Section merkle_tree.
         iModIntro. iApply "HΦ".
         repeat iSplit.
         * iPureIntro. right. eexists _; naive_solver.
-        * iExists _; by repeat iSplit.
+        * iExists _. iFrame. by repeat iSplit.
           Unshelve.
           all: done.
   Qed.
+
+
+
+
+  (** Useful predicates **)
+  
+
+  Inductive proof_idx_relate : nat -> list (bool*nat) -> nat -> Prop :=
+  | proof_idx_relate_lf: proof_idx_relate 0 [] 0
+  | proof_idx_relate_left idx n rhash proof:
+    proof_idx_relate n proof idx ->
+    idx < 2^n -> 
+    proof_idx_relate (S n) ((true, rhash)::proof) idx
+  | proof_idx_relate_right idx n lhash proof:
+      proof_idx_relate n proof (idx - 2^n) ->
+      2^n <= idx ->
+      proof_idx_relate (S n) ((false, lhash)::proof) idx
+  .
+
+  Lemma proof_idx_relate_implies_possible_proof tree proof h idx m:
+    tree_valid h tree m ->
+    proof_idx_relate h proof idx ->
+    Forall (λ x : bool * nat, x.2 < 2 ^ val_bit_size) proof ->
+    possible_proof tree proof.
+  Proof.
+    revert tree proof idx.
+    induction h as [|h IHheight]; intros tree proof idx Htvalid Hrelate Hforall.
+    - inversion Hrelate; inversion Htvalid; subst. constructor.
+    - inversion Htvalid; inversion Hrelate; subst.
+      + constructor.
+        * eapply IHheight; try done. by eapply Forall_inv_tail.
+        * by apply Forall_inv in Hforall.
+      + constructor.
+        * eapply IHheight; try done. by eapply Forall_inv_tail.
+        * by apply Forall_inv in Hforall.
+  Qed.
+
+  
+  Inductive tree_leaf_list: nat -> merkle_tree -> list nat -> Prop :=
+  | tree_leaf_list_lf h lf: tree_leaf_list 0 (Leaf h lf) (lf::[])
+  | tree_leaf_list_br n a alist b blist h:
+    tree_leaf_list n a alist ->
+    tree_leaf_list n b blist ->
+    tree_leaf_list (S n) (Branch h a b) (alist ++ blist).
+
+  Definition tree_valid_with_leaf_list height tree list m:=
+    tree_leaf_list height tree list /\ tree_valid height tree m.
+
+  Lemma tree_valid_with_leaf_list_implies_tree_leaf_list h tree list m:
+    tree_valid_with_leaf_list h tree list m -> tree_leaf_list h tree list.
+  Proof.
+    by intros [].
+  Qed.
+
+  Lemma tree_valid_with_leaf_list_implies_tree_valid h tree list m:
+    tree_valid_with_leaf_list h tree list m -> tree_valid h tree m.
+  Proof.
+    by intros [].
+  Qed.
+
+  Lemma tree_valid_with_leaf_list_br h treea l1 (m:gmap nat Z) treeb l2 hash:
+    hash < 2 ^ val_bit_size ->
+    m !! (root_hash_value treea * 2 ^ val_bit_size + root_hash_value treeb) = Some (Z.of_nat hash)-> 
+    tree_valid_with_leaf_list h treea l1 m -> tree_valid_with_leaf_list h treeb l2 m ->
+    tree_valid_with_leaf_list (S h) (Branch hash treea treeb) (l1++l2) m.
+  Proof.
+    clear.
+    intros ? ?[??] [??]. split; by constructor.
+  Qed.
+  
+  Lemma tree_valid_with_leaf_list_superset m m' h tree l:
+    m⊆m' -> tree_valid_with_leaf_list h tree l m -> tree_valid_with_leaf_list h tree l m'.
+  Proof.
+    intros ? [??]. split; first done.
+    by eapply tree_valid_superset.
+  Qed.
+    
+
+  Lemma tree_valid_with_leaf_list_length n tree lis m:
+    tree_valid_with_leaf_list n tree lis m -> length lis = 2^n.
+  Proof.
+    clear.
+    intros [Hlist _]. revert Hlist.
+    revert tree lis.
+    induction n; intros tree lis Hlist.
+    - inversion Hlist. by simpl.
+    - inversion Hlist; subst. rewrite app_length. simpl. erewrite !IHn; try done.
+      lia.
+  Qed.
+  
+  Lemma tree_valid_with_leaf_list_implies_lookup_some lis tree h proof idx leafv m:
+    tree_valid_with_leaf_list h tree lis m ->
+    proof_idx_relate h proof idx ->
+    (tree_leaf_value_match tree leafv proof <->
+    lis !! idx = Some leafv). 
+  Proof.
+    clear.
+    revert lis tree proof idx leafv.
+    induction h as [|h IHheight]; intros lis tree proof idx leafv [Hlist Hvalid] Hrelate.
+    - split.
+      + intros Hmatch. inversion Hrelate; inversion Hmatch; subst; try done.
+        by inversion Hlist; subst.
+      + intros Hfound. inversion Hrelate; inversion Hlist; subst; try done.
+        simpl in Hfound. inversion Hfound.
+        constructor.
+    - split.
+      + intros Hmatch. inversion Hrelate; subst.
+        * inversion Hrelate; inversion Hmatch; inversion Hlist; inversion Hvalid; subst. inversion H15; inversion H22; subst.
+          assert (length alist = 2^h).
+          { eapply tree_valid_with_leaf_list_length; split; try done. }
+          rewrite lookup_app_l; last lia.
+          rewrite -IHheight; try done. 
+        * inversion Hrelate; inversion Hmatch; inversion Hlist; inversion Hvalid; subst. inversion H15; inversion H22; subst.
+          assert (length alist = 2^h) as K.
+          { by eapply tree_valid_with_leaf_list_length. }
+          rewrite lookup_app_r; last lia.
+          rewrite K.
+          by rewrite -IHheight.
+      + intros Hfound.
+        pose proof (tree_valid_with_leaf_list_length) as Hlen.
+        inversion Hrelate; inversion Hlist; inversion Hvalid; subst.
+        * constructor. inversion H14; subst.
+          rewrite IHheight; [|done|done].
+          erewrite <-lookup_app_l; first done.
+          by erewrite Hlen.
+        * constructor. inversion H14; subst.
+          rewrite IHheight; [|done|done].
+          erewrite <-Hlen; first erewrite <-lookup_app_r; try done.
+          by erewrite Hlen.
+  Qed.
+
   
 End merkle_tree.
 
