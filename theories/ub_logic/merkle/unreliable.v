@@ -100,13 +100,12 @@ Section unreliable_storage.
       let, ("hash", "l") := tree_builder_helper "lhmf" "height" "list" in 
       ("l", merkle_tree_decider_program val_bit_size' "hash" "lhmf").
   
-
+  Definition is_valid_list list vlist height max_size :=
+    length list = 2^height /\ Forall (λ x, x < max_size) list /\ is_list list vlist.
 
   Lemma tree_builder_helper_spec (list:list nat) (vlist: val) (height:nat) (m:gmap nat Z) (f:val):
     size (m) + 2^(S height) - 1 <= max_hash_size ->
-    length list = 2^height ->
-    Forall (λ x, x < 2^(2*val_bit_size)) list ->
-    is_list list vlist ->
+    is_valid_list list vlist height (2^(2*val_bit_size))->
     {{{ coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
         € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
@@ -116,12 +115,11 @@ Section unreliable_storage.
             ⌜m ⊆ m'⌝ ∗
             ⌜size (m') <= size (m) + 2^(S height) - 1⌝ ∗
             coll_free_hashfun_amortized val_size_for_hash max_hash_size f m' ∗
-            ⌜tree_leaf_list height tree list⌝ ∗
-            ⌜tree_valid val_bit_size' height tree m'⌝ ∗
+            ⌜tree_valid_with_leaf_list val_bit_size' height tree list m'⌝∗
             ⌜root_hash_value tree = hash ⌝
       }}}.
   Proof.
-    iIntros (Hmsize Hlength Hforall Hislist Φ) "(H&Herr) HΦ".
+    iIntros (Hmsize (Hlength&Hforall&Hislist) Φ) "(H&Herr) HΦ".
     iInduction height as [|height] "IH" forall (list vlist m Hmsize Hlength Hforall Hislist Φ).
     - rewrite /tree_builder_helper. wp_pures.
       assert (∃ x:nat, list = x::[]) as [x ->].
@@ -197,7 +195,7 @@ Section unreliable_storage.
       + assert (2^S height <= 2^ S (S height)); try lia.
         simpl. lia.
       + by apply Forall_app in Hforall as [Hforall1 Hforall2].
-      + iIntros (hasha la) "(%m' & %treea & %&%&H&%&%&%)".
+      + iIntros (hasha la) "(%m' & %treea & %&%&H&%&%)".
         wp_pures.
         replace (Z.of_nat (S height) - 1)%Z with (Z.of_nat height); last lia.
         wp_apply ("IH"$! l2 with "[][][][][$H][$Herr']"); try iPureIntro; try done.
@@ -207,7 +205,7 @@ Section unreliable_storage.
           { simpl. lia. }
           rewrite app_length in Hlength. lia.
         * rewrite Forall_app in Hforall. set_solver.
-        * iIntros (hashb lb) "(%m'' & %treeb & %&%&H&%&%&%)".
+        * iIntros (hashb lb) "(%m'' & %treeb & %&%&H&%&%)".
           wp_pures.
           wp_apply pow_spec; first done.
           iIntros (?) "->".
@@ -245,7 +243,7 @@ Section unreliable_storage.
              wp_pures.
              iModIntro. iApply "HΦ".
              iExists m''', (Branch (Z.to_nat hash) treea treeb).
-             repeat (try iSplit; try done).
+             do 4 (try iSplit; try done).
              ++ iPureIntro. by do 3 (etrans; last exact).
              ++ iPureIntro. replace (_+_-_) with (size m + 2 ^ S height + 2^ S height - 1); last by (simpl;lia).
                 trans (size m' + 2^S height); last lia.
@@ -254,26 +252,27 @@ Section unreliable_storage.
                 clear.
                 remember (S height) as x; clear. 
                 induction x; simpl; lia.
-             ++ iPureIntro. by constructor.
-             ++ iPureIntro. constructor.
-                --- eapply tree_valid_superset; [done|..]. 
-                    by do 2 (etrans; last exact).
-                --- eapply tree_valid_superset; [done|..].
+             ++ iPureIntro. apply tree_valid_with_leaf_list_br; last first.
+                --- by eapply tree_valid_with_leaf_list_superset; [done|..]. 
+                --- eapply tree_valid_with_leaf_list_superset; [..|done].
                     by etrans; last exact.
+                --- rewrite Z2Nat.id; last lia.
+                    rewrite -Hfound. f_equal. subst. simpl. lia.
                 --- rewrite Z2Nat.inj_lt in Hb; try lia.
                     eapply Nat.lt_stepr; first exact.
                     rewrite Znat.Z2Nat.inj_pow; try lia. rewrite Nat2Z.id.
                     f_equal.
-                --- rewrite Z2Nat.id; last lia.
-                    rewrite -Hfound. f_equal. subst. simpl. lia.
                     Unshelve. all: done.
   Qed.
 
+  Definition is_acceptable_list height list vlist:=
+    length list = 2^height /\
+    Forall (λ x, x < 2^(2*val_bit_size)) list /\
+    is_list list vlist .
+
   Lemma tree_builder_spec (list:list nat) (vlist: val) (height:nat):
     2^(S height) - 1  <= max_hash_size ->
-    length list = 2^height ->
-    Forall (λ x, x < 2^(2*val_bit_size)) list ->
-    is_list list vlist ->
+    is_acceptable_list height list vlist ->
     {{{ 
           € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
@@ -281,28 +280,27 @@ Section unreliable_storage.
       {{{ (l:nat) (checker:val), RET (#l, checker);
           ∃ (m:gmap nat Z) (tree:merkle_tree) (f:val),
             coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
-            ⌜tree_valid val_bit_size' height tree m⌝ ∗
             ⌜size (m) <= 2^(S height) - 1⌝ ∗
-            ⌜tree_leaf_list height tree list⌝ ∗
+            ⌜tree_valid_with_leaf_list val_bit_size' height tree list m⌝ ∗
             decider_program_helper_spec height val_bit_size' max_hash_size max_hash_size_pos checker tree f
       }}}.
   Proof.
-    iIntros (Hmsize Hlistsize Hforall Hislist Φ) "Herr HΦ".
+    iIntros (Hmsize (Hlistsize&Hforall&Hislist) Φ) "Herr HΦ".
     rewrite /tree_builder.
     wp_pures.
     wp_apply (wp_init_hash_amortized _ max_hash_size); [done|done|].
     iIntros (f) "H". iMod "H".
     wp_pures.
-    wp_apply (tree_builder_helper_spec with "[$H $Herr]"); [done|done|done|done|..].
-    iIntros (hash l) "(%m'&%tree&%&%&H&%&%&%Hhash)".
+    wp_apply (tree_builder_helper_spec with "[$H $Herr]"); [done|done|..].
+    iIntros (hash l) "(%m'&%tree&%&%&H&%&%Hhash)".
     wp_pures. rewrite <-Hhash.
     wp_apply (merkle_tree_decider_program_spec with "[$H]").
-    - done. 
+    - iPureIntro. by eapply tree_valid_with_leaf_list_implies_tree_valid.
     - iIntros (checker) "[H #Hchecker]".
       wp_pures.
       iApply "HΦ".
       iModIntro.
-      iExists _,_,_. iFrame. by repeat iSplit. 
+      iExists _,_,_. iFrame. by do 2 (iSplit; first done).
   Qed.
   
   (** looking up the tree *)
@@ -443,8 +441,7 @@ Section unreliable_storage.
   Lemma tree_lookup_spec (ltree:nat) (height:nat) (idx:nat) (checker:val) (lis:list nat) f tree m:
     idx < 2^height ->
     {{{ decider_program_helper_spec height val_bit_size' max_hash_size max_hash_size_pos checker tree f ∗
-        ⌜tree_leaf_list height tree lis⌝ ∗
-        ⌜tree_valid val_bit_size' height tree m⌝ ∗
+        ⌜tree_valid_with_leaf_list val_bit_size' height tree lis m⌝ ∗
         coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
         ⌜size (m) + S height <= max_hash_size⌝ ∗
         € ((nnreal_nat (S height)) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR              
@@ -454,7 +451,7 @@ Section unreliable_storage.
           ⌜∀ x:nat, v=SOMEV #x -> lis!!idx = Some x⌝
       }}}.
   Proof.
-    iIntros (Hidx Φ) "(#Hdecider & %Htreelist & %Htvalid & H & %Hmsize & Herr) HΦ".
+    iIntros (Hidx Φ) "(#Hdecider & %Htvalid & H & %Hmsize & Herr) HΦ".
     rewrite /tree_lookup.
     wp_pures.
     wp_apply tree_lookup_helper_spec; [done|done|].
@@ -469,15 +466,18 @@ Section unreliable_storage.
     { wp_pures. iModIntro. iApply "HΦ". iPureIntro. naive_solver. }
     wp_pures.
     wp_apply ("Hdecider" with "[$H $Herr]").
-    - repeat iSplit; try done. iPureIntro. by eapply proof_idx_relate_implies_possible_proof.
+    - iSplit.
+      + iPureIntro. by eapply tree_valid_with_leaf_list_implies_tree_valid.
+      + iSplit; try done. iSplit; iPureIntro; first done. eapply proof_idx_relate_implies_possible_proof; try done. by eapply tree_valid_with_leaf_list_implies_tree_valid.
     - iIntros ([]) "Hb"; last first.
       { wp_pures. iApply "HΦ". iPureIntro. naive_solver. }
-      iDestruct "Hb" as "(%Hcorrect & %Hmatch & H & Herr)".
+      iDestruct "Hb" as "(%Hcorrect & H & Herr)".
       wp_pures.
       iApply "HΦ". iPureIntro.
       intros x Hx.
       inversion Hx as [Hx1]; apply Nat2Z.inj in Hx1; subst.
-      by eapply tree_leaf_list_implies_lookup_some.
+      eapply tree_valid_with_leaf_list_implies_lookup_some; try done.
+      by destruct Hcorrect.
   Qed.
 
   
