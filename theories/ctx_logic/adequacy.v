@@ -240,6 +240,3 @@ Proof.
   eapply (refRcoupl_mass_eq _ _ (λ v v', φ v v')).
   by eapply wp_refRcoupl.
 Qed.
-  
-  
-  
