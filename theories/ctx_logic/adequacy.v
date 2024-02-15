@@ -9,7 +9,7 @@ From clutch.bi Require Import weakestpre.
 From clutch.prob_lang Require Import erasure.
 From clutch.common Require Export language.
 From clutch.ctx_logic Require Import weakestpre primitive_laws spec_ra.
-From clutch.prob Require Import distribution. 
+From clutch.prob Require Import distribution.
 
 Section adequacy.
   Context `{!clutchGS Σ}.
@@ -51,7 +51,7 @@ Section adequacy.
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
     iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | [H | [H | H]]]]] %Hv".
-    - rewrite exec_Sn_not_final; [|eauto].   
+    - rewrite exec_Sn_not_final; [|eauto].
       rewrite lim_exec_step.
       destruct (to_val e1') eqn:Hv'.
       + destruct (decide (prim_step e1 σ1 = dzero)) as [Hs|].
@@ -61,7 +61,7 @@ Section adequacy.
           apply refRcoupl_dzero.
         * assert (prim_step e1' σ1' = dzero) as Hz.
           { apply (is_final_dzero (e1', σ1')). eauto. }
-          simpl in *. rewrite Hz in Hcpl.           
+          simpl in *. rewrite Hz in Hcpl.
           by apply Rcoupl_dzero_r_inv in Hcpl.
       + rewrite step_or_final_no_final; [|eauto].
         iApply (refRcoupl_dbind' _ _ _ _ R).
@@ -236,8 +236,7 @@ Corollary wp_refRcoupl_mass Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) 
   SeriesC (lim_exec (e, σ)) <= SeriesC (lim_exec (e', σ')).
 Proof.
   intros Hwp.
-  epose proof (@lim_exec_leq_mass (lang_markov prob_lang)) as Hleq. simpl in Hleq.
-  apply Hleq. intros.
-  eapply (refRcoupl_mass_eq _ _ (λ v v', φ v v')).
+  apply: lim_exec_leq_mass => n.
+  eapply refRcoupl_mass_eq.
   by eapply wp_refRcoupl.
 Qed.
