@@ -60,19 +60,19 @@ Qed.
 
 (** Termination proof, using a ranking supermartingale *)
 #[global] Program Instance rw_rsm :
-  rsm (λ b : mstate random_walk, if b then 2 else 0) 1. 
-Next Obligation. simpl. real_solver. Qed. 
+  rsm (λ b : mstate random_walk, if b then 2 else 0) 1.
+Next Obligation. simpl. real_solver. Qed.
 Next Obligation. lra. Qed.
 Next Obligation.
-  simpl; intros [] Hf=>/=. 
+  simpl; intros [] Hf=>/=.
   - apply fair_coin_mass.
-  - destruct Hf. eauto.  
+  - destruct Hf. eauto.
 Qed.
 Next Obligation. intros [] ?; rewrite /is_final//=. lra. Qed.
 Next Obligation.
   intros a Hf.
   apply (ex_seriesC_le _ (λ a', step a a' * 2)); [|by apply ex_seriesC_scal_r].
-  intros []; real_solver. 
+  intros []; real_solver.
 Qed.
 Next Obligation.
  intros [] Hf.
@@ -85,19 +85,58 @@ Lemma random_wal_terminates_alt :
   SeriesC (lim_exec true) = 1.
 Proof. eapply rsm_term_limexec. Qed.
 
+(** Pure loop  *)
+Definition coin_flips : expr :=
+  while flip do #() end.
 
-(** Program  *)
-Definition prog_random_walk : expr :=
+Section coin_flips.
+  Context `{!tprG random_walk Σ}.
+
+  Lemma rwp_coin_flips :
+    ⟨⟨⟨ specF true ⟩⟩⟩ coin_flips ⟨⟨⟨ RET #(); specF false ⟩⟩⟩.
+  Proof.
+    rewrite /coin_flips.
+    iIntros (Φ) "Ha HΦ".
+    wp_pure _.
+    iLöb as "IH".
+    wp_pures; rewrite -/flip.
+    wp_apply (rwp_couple_flip _ (=) with "Ha").
+    { simpl. apply Rcoupl_eq. }
+    iIntros (b a2) "[Ha <-]".
+    destruct b.
+    - wp_if. wp_seq. wp_apply ("IH" with "Ha HΦ").
+    - wp_if. by iApply "HΦ".
+  Qed.
+
+End coin_flips.
+
+Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
+Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
+
+Theorem coin_flips_terminates :
+  almost_surely_terminates (coin_flips, σ₀).
+Proof.
+  eapply Rle_antisym; [done|].
+  transitivity (SeriesC (lim_exec true)).
+  { by rewrite random_walk_terminates. }
+  eapply (rwp_soundness_mass (tprΣ random_walk)).
+  iIntros (?) "Ha".
+  wp_apply (rwp_coin_flips with "Ha"); eauto.
+Qed.
+
+
+(** Stateful variation  *)
+Definition coin_flips_state : expr :=
   let: "c" := ref #true in
   while !"c" do "c" <- flip end.
 
 Section random_walk.
   Context `{!tprG random_walk Σ}.
 
-  Lemma random_walk_ref :
-    ⟨⟨⟨ specF true ⟩⟩⟩ prog_random_walk ⟨⟨⟨ RET #(); specF false ⟩⟩⟩.
+  Lemma rwp_coin_flips_state :
+    ⟨⟨⟨ specF true ⟩⟩⟩ coin_flips_state ⟨⟨⟨ RET #(); specF false ⟩⟩⟩.
   Proof.
-    rewrite /prog_random_walk.
+    rewrite /coin_flips_state.
     iIntros (Φ) "Ha HΦ".
     wp_alloc l as "Hl".
     do 3 wp_pure _.
@@ -116,16 +155,13 @@ Section random_walk.
 
 End random_walk.
 
-Notation σ₀ := {| heap := ∅; tapes := ∅ |}.
-Notation almost_surely_terminates ρ := (SeriesC (lim_exec ρ) = 1%R).
-
-Theorem prog_random_walk_terminates :
-  almost_surely_terminates (prog_random_walk, σ₀).
+Theorem coin_flips_state_terminates :
+  almost_surely_terminates (coin_flips_state, σ₀).
 Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec true)).
   { by rewrite random_walk_terminates. }
   eapply (rwp_soundness_mass (tprΣ random_walk)).
   iIntros (?) "Ha".
-  wp_apply (random_walk_ref with "Ha"); eauto.
+  wp_apply (rwp_coin_flips_state with "Ha"); eauto.
 Qed.
