@@ -1,6 +1,7 @@
 (** * Error credit proof that an unbounded integer walk returns to the origin *)
 From clutch.ub_logic Require Export ub_clutch ub_rules.
 From clutch Require Export examples.approximate_samplers.approx_sampler_lib.
+From clutch Require Export examples.approximate_samplers.approx_higherorder_incremental.
 From Coquelicot Require Import Series.
 Require Import Lra.
 
@@ -105,8 +106,8 @@ Section integer_walk.
   (* sampler either gives us progress or amplifies our error *)
   Lemma wp_sampler_amp εᵢ εₐ l p i kwf E :
     ⊢ I εᵢ εₐ l kwf (S p) ∗ € (AX εᵢ εₐ kwf (S i)) -∗
-      WP (int_walk_sampler #l) @ E {{ fun _ => ((I εᵢ εₐ l kwf p ∗ € (AX εᵢ εₐ kwf (S i))) ∨
-                                     (I εᵢ εₐ l kwf (S (S p)) ∗ € (AX εᵢ εₐ kwf i)))}}.
+      WP (int_walk_sampler #l) @ E [{ fun _ => ((I εᵢ εₐ l kwf p ∗ € (AX εᵢ εₐ kwf (S i))) ∨
+                                     (I εᵢ εₐ l kwf (S (S p)) ∗ € (AX εᵢ εₐ kwf i)))}].
   Proof.
     iIntros "([%z (Hl & HcrIC & %Hz & HcrAC)] & HcrAX)".
     rewrite /int_walk_sampler.
@@ -131,7 +132,7 @@ Section integer_walk.
       excluded by virtue of the (S p) in the amp spec.
 
      *)
-    wp_apply (wp_couple_rand_adv_comp1 _ _ _
+    wp_apply (twp_couple_rand_adv_comp1 _ _ _
                 ((IC εᵢ (S p)) + (AC εᵢ εₐ (L εᵢ - S p) (I_obligation_1 εᵢ (S p)) kwf))%NNR
                 (integer_walk_distr εᵢ εₐ (S p) kwf) with "[HcrAC HcrIC]").
     { (* Series mean *)
@@ -220,33 +221,38 @@ Section integer_walk.
         (AX εᵢ εₐ kwf)
         (L εᵢ)
         B
-        E.
+        E
+        (fun _ => ⌜True ⌝).
   Proof.
     iSplit.
     - (* Spending rules *)
       iIntros "[Hcr | [%z (Hl & _ & %Hz & _)]]".
       + (* Credit spending rule *)
-        wp_apply (wp_ec_spend _ _ _ nnreal_one); simpl; [lra|eauto|].
+        wp_apply (twp_ec_spend _ _ _ nnreal_one); simpl; [lra|eauto|].
         iApply (ec_spend_le_irrel with "Hcr"); simpl.
         rewrite Rmult_0_l Rminus_0_r.
         apply Rmax_r.
       + (* Progress spending rule *)
         rewrite /int_walk_sampler; wp_pures.
-        wp_bind (rand _)%E; wp_apply wp_rand; eauto.
+        wp_bind (rand _)%E; wp_apply twp_rand; eauto.
         iIntros (n) "_"; wp_pures.
         rewrite /int_walk_checker.
         (* the rest of the symbolic execution doesn't change depeding on the value.  *)
         case_bool_decide; repeat (try wp_pures; try wp_load; try wp_store).
         * (* l ↦ -3 *)
-          iModIntro. iPureIntro. f_equal. f_equal.
+          iModIntro. iPureIntro.
+          split; eauto.
+          f_equal. f_equal.
           apply bool_decide_eq_true_2. lia.
         * (* l ↦ -1 *)
-          iModIntro. iPureIntro. f_equal. f_equal.
+          iModIntro. iPureIntro.
+          split; eauto.
+          f_equal. f_equal.
           apply bool_decide_eq_true_2. lia.
     - iModIntro.
       iIntros (i p) "(%Hpwf&%Hb&HcrAX&HI)".
       wp_pure.
-      wp_apply (ub_wp_wand with "[HcrAX HI]"); first iApply (wp_sampler_amp with "[$]").
+      wp_apply (ub_twp_wand with "[HcrAX HI]"); first iApply (wp_sampler_amp with "[$]").
       iIntros (s) "[(HI&HAX)|(HI&HAX)]".
       + (* progress *)
         iLeft; iFrame.

@@ -6,16 +6,19 @@ Require Import Lra.
 Set Default Proof Using "Type*".
 
 Section samplers.
+  (* Placeholder stuck expression *)
+  Definition error : expr := (#42 #42)%E.
+
   (* higher order boundeded rejection sampler *)
   Definition gen_bounded_rejection_sampler :=
     (λ: "depth" "sampler" "checker",
         let: "do_sample" :=
           (rec: "f" "tries_left" :=
               if: ("tries_left" - #1) < #0
-                then NONE
+                then error
                 else let: "next_sample" := ("sampler" #()) in
                      if: ("checker" "next_sample")
-                        then SOME "next_sample"
+                        then "next_sample"
                         else "f" ("tries_left" - #1))
         in "do_sample" "depth")%E.
 
@@ -27,7 +30,7 @@ Section samplers.
           (rec: "f" "_" :=
              let: "next_sample" := ("sampler" #()) in
               if: ("checker" "next_sample")
-                  then SOME "next_sample"
+                  then "next_sample"
                   else "f" #())
         in "do_sample" #())%E.
 End samplers.
@@ -84,15 +87,11 @@ Section finSeries.
   Qed.
 End finSeries.
 
-
-
-
-
 Section accounting.
   Local Open Scope R.
 
+  (* Amplification factor for rejecting n of m possible outcomes *)
   Definition err_factor n m : nonnegreal := (nnreal_div (nnreal_nat (m - n)%nat) (nnreal_nat m%nat)).
-
 
   Lemma err_factor_lt1 n m : (0 < n)%nat -> (n < m)%nat -> err_factor n m < 1.
   Proof.
@@ -117,7 +116,7 @@ Section accounting.
   Qed.
 
 
-  (* closed form for the error in the bounded sampler, with a given number of tries remaining *)
+  (* Combined factor after a series of``depth`` amplification *)
   Program Definition bdd_cf_error n m depth (Hnm : (n < m)%nat) := mknonnegreal ((err_factor n m) ^ depth) _.
   Next Obligation.
     intros.
@@ -128,7 +127,7 @@ Section accounting.
   Qed.
 
 
-  (* distribution of error mass ε₁ for a given sample:
+  (* Error credit distribution for a basic ``rand`` rejection sampler.
       - zero error given to cases which are inbounds
       - uniform error to the recursive case *)
   Definition bdd_cf_sampling_error n m ε₁ : (fin m) -> nonnegreal
@@ -138,7 +137,6 @@ Section accounting.
             else (nnreal_div ε₁ (err_factor n m)).
 
 
-  (* simplify amplified errors *)
   Lemma simplify_amp_err (n m d': nat) (s : fin m) Hnm :
     (s <? n)%nat = false ->
     bdd_cf_sampling_error n m (bdd_cf_error n m (S d') Hnm) s = (bdd_cf_error n m d' Hnm).
@@ -167,7 +165,7 @@ Section accounting.
   Qed.
 
 
-  (* error distribution is bounded above for each possible sample *)
+  (* Error distribution upper bound *)
   Lemma sample_err_wf n m d (s : fin m) Hnm :
     (0 < n)%nat ->
     bdd_cf_sampling_error n m (bdd_cf_error n m (S d) Hnm) s <= 1.
@@ -189,7 +187,7 @@ Section accounting.
   Qed.
 
 
-  (* mean of error distribution is preserved *)
+  (* Mean of error distribution is preserved *)
   Lemma sample_err_mean n' m' (Hnm : (n' < m')%nat) 𝜀₁ :
     SeriesC (λ s : fin (S m'), (1 / S m') * bdd_cf_sampling_error (S n') (S m') 𝜀₁ s) = 𝜀₁.
   Proof.
@@ -238,118 +236,21 @@ Section accounting.
   Qed.
 
 
-End accounting.
+  Program Definition generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) : nonnegreal
+    := (𝜀final * (mknonnegreal (r ^ depth) _))%NNR.
+  Next Obligation. intros. apply pow_le. by destruct r. Qed.
 
+  Lemma final_generic_geometric_error (r 𝜀final : nonnegreal) : (generic_geometric_error r 𝜀final 0%nat) = 𝜀final.
+  Proof. apply nnreal_ext; by rewrite /generic_geometric_error /= Rmult_1_r. Qed.
 
-
-
-Section incremental_spec.
-  Local Open Scope R.
-  Context `{!ub_clutchGS Σ}.
-
-  (* Ψ : state
-     ξ : error
-     L : progress bound
-   *)
-  Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L iL E : iProp Σ :=
-    ( (* Either 0 credit or 0 progress => we will sample a value which the checker accepts
-         Allowed to consume (or invalidate Ψ) in this process *)
-      ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E {{ fun s => WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}}}) ∗
-      (* Given any amount of credit and progress, we can get a sample such that... *)
-     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ ⌜((S i) < iL)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
-            WP sampler #() @ E {{ fun s =>
-                   (*...we're done by chance alone, or... *)
-                  (WP checker (Val s) @ E {{fun v => ⌜v = #true⌝}}) ∨
-                   (*... we make prgress, and can run the checker on the sample without losing progress, or *)
-                  (€ (ξ (S i)) ∗ Ψ p ∗ (Ψ p -∗ WP checker (Val s) @ E {{fun v => Ψ p ∗ ∃ b: bool, ⌜v = #b⌝}})) ∨
-                   (*... we lose progress & amplify error, and can run the checker on the sample without losing progress. *)
-                  (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ∗ (Ψ p' -∗ WP checker (Val s) @ E {{fun v => Ψ p' ∗ ∃ b: bool, ⌜v = #b⌝}}))}}))%I.
-
-
-  Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i iL p :
-    ⊢ ⌜(p <= L)%nat ⌝ ∗
-      ⌜(i < iL)%nat ⌝ ∗
-    incr_sampling_scheme_spec sampler checker Ψ ξ L iL E ∗
-    € (ξ i) ∗
-    Ψ p -∗
-    WP (gen_rejection_sampler sampler checker) @ E {{ fun v => ∃ v', ⌜ v = SOMEV v' ⌝}}.
+  Lemma simpl_generic_geometric_error (r 𝜀final : nonnegreal) (depth : nat) :
+    (not (eq (nonneg r) 0)) ->
+    (nnreal_div (generic_geometric_error r 𝜀final (S depth)) r)%NNR = (generic_geometric_error r 𝜀final  depth).
   Proof.
-    rewrite /incr_sampling_scheme_spec.
-    iIntros "(%Hl&%Hil&(Hfinal&#Hamp)&Hcr&HΨ)".
-    rewrite /gen_rejection_sampler.
-    do 7 wp_pure.
-    iRevert (Hl).
-    iInduction i as [|i'] "IHerror" forall (p).
-    - (* base case for error credits *)
-      iIntros "%Hl".
-      wp_pures.
-      wp_bind (sampler _).
-      wp_apply (ub_wp_wand with "[Hfinal Hcr]"); first (iApply "Hfinal"; iFrame).
-      iIntros (s) "Hcheck"; wp_pures.
-      wp_apply (ub_wp_wand with "Hcheck").
-      iIntros (v) "->"; wp_pures.
-      eauto.
-    - (* inductive case for error credits *)
-      iIntros "%Hl".
-      iInduction p as [|p'] "IHp".
-      + (* base case for progress measure *)
-        wp_pures.
-        wp_bind (sampler _).
-        wp_apply (ub_wp_wand with "[Hfinal HΨ]"); first (iApply "Hfinal"; iFrame).
-        iIntros (s) "Hcheck"; wp_pures.
-        wp_apply (ub_wp_wand with "Hcheck").
-        iIntros (v) "->"; wp_pures.
-        eauto.
-      + (* Inductive case for progress measure *)
-        wp_pures.
-        wp_bind (sampler _).
-        wp_apply (ub_wp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
-        iIntros (s) "[Hluck | [(Hcr&HΨ&Hcheck)|[%p'' (%Hp''&Hcr&HΨ&Hcheck)]]]".
-        * (* luck *)
-          wp_pures.
-          wp_bind (checker _).
-          wp_apply (ub_wp_wand with "Hluck").
-          iIntros (?) "->".
-          wp_pures.
-          eauto.
-        * (* progress *)
-          wp_pures.
-          wp_bind (checker _).
-          wp_apply (ub_wp_wand with "[Hcheck HΨ]"); first (iApply ("Hcheck" with "[$]")).
-          iIntros (r) "(HΨ&[%b ->])".
-          destruct b as [|].
-          -- (* lucky: checker accepts *)
-             wp_pures. eauto.
-          -- (* not lucky: checker rejects *)
-             wp_pure. iApply ("IHp" with "[] Hfinal Hcr HΨ").
-             iPureIntro. lia.
-        * (* amplification *)
-          wp_pures.
-          wp_bind (checker _).
-          wp_apply (ub_wp_wand with "[Hcheck HΨ]"); first (iApply ("Hcheck" with "[$]")).
-          iIntros (r) "(HΨ&[%b ->])".
-          destruct b as [|].
-          -- (* lucky: checker accepts *)
-             wp_pures. eauto.
-          -- (* not lucky: checker rejects *)
-             assert (HiL' : (i' < iL)%nat) by lia.
-             wp_pure. iApply ("IHerror" $! HiL' with "Hfinal Hcr HΨ"). eauto.
-    Qed.
-
-
-End incremental_spec.
-
-
-Section remove_me.
-
-  Local Open Scope R.
-  Context `{!ub_clutchGS Σ}.
-
-  Lemma wp_ec_spend e E Φ ε :
-    (1 <= ε.(nonneg))%R →
-    (to_val e = None) ->
-    € ε -∗ WP e @ E {{ Φ }}.
-  Proof. Admitted.
-
-
-End remove_me.
+    intros.
+    rewrite /generic_geometric_error /nnreal_div /nnreal_mult.
+    apply  nnreal_ext; simpl.
+    rewrite Rmult_assoc;  apply Rmult_eq_compat_l.
+    rewrite -Rmult_comm -Rmult_assoc Rinv_l; [lra|auto].
+  Qed.
+End accounting.
