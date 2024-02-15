@@ -229,3 +229,17 @@ Proof.
   iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
 Qed.
+
+Corollary wp_refRcoupl_mass Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) φ :
+  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
+  SeriesC (lim_exec (e, σ)) <= SeriesC (lim_exec (e', σ')).
+Proof.
+  intros Hwp.
+  epose proof (@lim_exec_leq_mass (lang_markov prob_lang)) as Hleq. simpl in Hleq.
+  apply Hleq. intros.
+  eapply (refRcoupl_mass_eq _ _ (λ v v', φ v v')).
+  by eapply wp_refRcoupl.
+Qed.
+  
+  
+  
