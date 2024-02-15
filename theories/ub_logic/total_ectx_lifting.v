@@ -85,6 +85,7 @@ Lemma twp_lift_pure_det_head_step {E Φ} e1 e2 s :
   (|={E}=> WP e2 @ s; E [{ Φ }]) ⊢ WP e1 @ s; E [{ Φ }].
 Proof using Hinh.
   intros. erewrite !(twp_lift_pure_det_step e1 e2); eauto.
+  intros. by apply head_prim_reducible.
 Qed.
 
 Lemma twp_lift_pure_det_head_step' {E Φ} e1 e2 s :

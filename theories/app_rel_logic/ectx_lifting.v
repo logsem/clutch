@@ -88,6 +88,7 @@ Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 :
   (|={E}[E']▷=> WP e2 @ E {{ Φ }}) ⊢ WP e1 @ E {{ Φ }}.
 Proof using Hinh.
   intros. erewrite !(wp_lift_pure_det_step e1 e2); eauto.
+  intros. by apply head_prim_reducible.
 Qed.
 
 Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 :
