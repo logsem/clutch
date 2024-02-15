@@ -234,12 +234,12 @@ Section adequacy.
 End adequacy.
 
 Class app_clutchGpreS Σ := App_ClutchGpreS {
-  app_clutchGpreS_iris  :> invGpreS Σ;
-  app_clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  app_clutchGpreS_tapes :> ghost_mapG Σ loc tape;
-  app_clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
-  app_clutchGpreS_prog  :> inG Σ (authR progUR);
-  app_clutchGpreS_err   :> ecGpreS Σ;
+  app_clutchGpreS_iris  :: invGpreS Σ;
+  app_clutchGpreS_heap  :: ghost_mapG Σ loc val;
+  app_clutchGpreS_tapes :: ghost_mapG Σ loc tape;
+  app_clutchGpreS_cfg   :: inG Σ (authUR cfgUR);
+  app_clutchGpreS_prog  :: inG Σ (authR progUR);
+  app_clutchGpreS_err   :: ecGpreS Σ;
 }.
 
 Definition app_clutchΣ : gFunctors :=
@@ -256,6 +256,7 @@ Theorem wp_aRcoupl Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε
   ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
+  eapply pure_soundness.
   eapply (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".

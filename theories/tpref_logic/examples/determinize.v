@@ -156,8 +156,8 @@ Section determinize_flip_spec.
     wp_pures.
     wp_apply (rwp_couple_flip with "Hspec").
     { eapply flip_couple. }
-    iIntros (? [b |]) "[Hspec %]"; [|done]; subst.
-    destruct b; wp_pures.
+    iIntros (? [bb |]) "[Hspec %]"; [|done]; subst.
+    destruct bb; wp_pures.
     - iModIntro. iApply "HΨ2". iFrame. eauto.
     - iModIntro. iApply "HΨ2". iFrame. iRight.
       iExists _. iSplit; [done|]. iPureIntro.

@@ -545,31 +545,35 @@ Section sample_wide.
       * symmetry; apply Z.compare_lt_iff.
         rewrite ?Z.shiftl_mul_pow2; try lia.
         inversion Hwf1.
-        efeed pose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
-        efeed pose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
-        unshelve (epose proof (digit_list_to_Z_lower_bound w bs1 _)); eauto.
-        unshelve (epose proof (digit_list_to_Z_lower_bound w bs2 _)); eauto.
+        opose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
+        opose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
+        unshelve opose proof (digit_list_to_Z_lower_bound w bs1 _); eauto.
+        unshelve opose proof (digit_list_to_Z_lower_bound w bs2 _); eauto.
         subst.
         rewrite -Hlen' in Hub2.
         remember (length bs1 * S w)%Z as k.
         assert (0 ≤ k)%Z by lia.
         eapply (Z.lt_le_trans _ ((b1 + 1) * 2 ^ k + 0)%Z).
-        { ring_simplify. lia. }
+        { ring_simplify.
+          rewrite (@Z.sub_lt_mono_r _ _ (b1 * 2 ^ k)).
+          ring_simplify. auto. }
         { apply Z.add_le_mono; last by lia.
           apply Z.mul_le_mono_nonneg_r; lia. }
       * symmetry; apply Z.compare_gt_iff.
         rewrite ?Z.shiftl_mul_pow2; try lia.
         inversion Hwf1.
-        efeed pose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
-        efeed pose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
-        unshelve (epose proof (digit_list_to_Z_lower_bound w bs1 _)); eauto.
-        unshelve (epose proof (digit_list_to_Z_lower_bound w bs2 _)); eauto.
+        opose proof (digit_list_to_Z_upper_bound w bs1) as Hub1; eauto.
+        opose proof (digit_list_to_Z_upper_bound w bs2) as Hub2; eauto.
+        opose proof (digit_list_to_Z_lower_bound w bs1 _); eauto.
+        opose proof (digit_list_to_Z_lower_bound w bs2 _); eauto.
         subst.
         rewrite -Hlen' in Hub2.
         remember (length bs1 * S w)%Z as k.
         assert (0 ≤ k)%Z by lia.
         eapply (Z.lt_le_trans _ ((b2 + 1) * 2 ^ k + 0)%Z).
-        { ring_simplify. lia. }
+        { ring_simplify.
+          rewrite (@Z.sub_lt_mono_r _ _ (b2 * 2 ^ k)).
+          ring_simplify. auto. }
         { apply Z.add_le_mono; last by lia.
           apply Z.mul_le_mono_nonneg_r; lia. }
   Qed.

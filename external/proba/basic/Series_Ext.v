@@ -2,7 +2,10 @@
 From discprob.basic Require Import base order bigop_ext.
 Require Import Reals Fourier Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
-From mathcomp Require Import ssreflect ssrbool ssrfun eqtype ssrnat seq div choice fintype.
+Set Warnings "-hiding-delimiting-key,-overwriting-delimiting-key".
+From mathcomp Require Import ssrnat.
+Set Warnings "hiding-delimiting-key,overwriting-delimiting-key".
+From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq div choice fintype.
 Require Import ClassicalEpsilon.
 
 Lemma Rbar_le_fin x y: 0 <= y → Rbar_le x (Finite y) → Rle (real x) y.

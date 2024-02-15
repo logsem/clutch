@@ -54,10 +54,11 @@ Section fupd_plainly_derived.
     (P ⊢ Q) → (|={Eo}[Ei]▷=> P) ⊢ (|={Eo}[Ei]▷=> Q).
   Proof. intros HPQ. by apply fupd_mono, later_mono, fupd_mono. Qed.
 
-  Lemma step_fupd_except_0 E1 E2 (P : PROP) : (|={E1}[E2]▷=> ◇ P) ={E1}[E2]▷=∗ P.
+  Lemma step_fupd_except_0 E1 E2 (P : PROP) : (|={E1}[E2]▷=> ◇ P) ⊢ |={E1}[E2]▷=> P.
   Proof. rewrite fupd_except_0 //. Qed.
 
-  Lemma step_fupdN_except_0 E1 E2 (P : PROP) n : (|={E1}[E2]▷=>^(S n) ◇ P) ={E1}[E2]▷=∗^(S n) P.
+  Lemma step_fupdN_except_0 E1 E2 (P : PROP) n :
+    (|={E1}[E2]▷=>^(S n) ◇ P) ⊢ |={E1}[E2]▷=>^(S n) P.
   Proof.
     induction n as [|n IH]; [apply step_fupd_except_0|].
     replace (S (S n)) with (1 + S n)%nat by lia.

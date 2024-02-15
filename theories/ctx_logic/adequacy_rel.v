@@ -4,8 +4,8 @@ From clutch.ctx_logic Require Import weakestpre model adequacy.
 From clutch.prob_lang Require Import lang.
 
 Class clutchRGpreS Σ := ClutchRGPreS {
-  clutchRGpreS_clutch :> clutchGpreS Σ;
-  prelorelGpreS_na_inv  :> na_invG Σ;
+  clutchRGpreS_clutch :: clutchGpreS Σ;
+  prelorelGpreS_na_inv  :: na_invG Σ;
 }.
 
 Definition clutchRΣ : gFunctors := #[clutchΣ; na_invΣ].

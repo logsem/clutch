@@ -9,7 +9,10 @@
 From discprob.basic Require Import base order bigop_ext nify sval.
 From discprob.prob Require Import countable.
 Require Import Reals Fourier Lia Psatz ClassicalEpsilon.
-From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq bigop fintype ssrnat choice.
+Set Warnings "-hiding-delimiting-key,-overwriting-delimiting-key".
+From mathcomp Require Import ssrnat.
+Set Warnings "hiding-delimiting-key,overwriting-delimiting-key".
+From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq bigop fintype choice.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
 
 Lemma sum_n_m_filter (a: nat → R) (P: pred nat) n m:

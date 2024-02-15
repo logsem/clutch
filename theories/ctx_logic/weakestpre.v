@@ -19,7 +19,7 @@ Local Open Scope R.
     and provide predicates describing valid states via [state_interp] and valid
     specification configurations via [spec_interp]. *)
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
-  iris_invGS :> invGS_gen HasNoLc Σ;
+  iris_invGS :: invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
   spec_interp : cfg Λ → iProp Σ;
 }.
@@ -496,13 +496,11 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[] []]. rewrite /exec_coupl_pre.
   do 10 f_equiv.
-  (* If this proof breaks with iris > 4.0.0, check the changelog for
-  dist_later. Using f_contractive_fin instead of f_contractive might work. *)
-  { f_equiv. do 2 case_match. f_contractive. do 3 f_equiv.
+  { f_equiv. do 2 case_match. f_contractive_fin. do 3 f_equiv.
     rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ. }
-  { case_match. f_contractive. do 3 f_equiv.
+  { case_match. f_contractive_fin. do 3 f_equiv.
     rewrite IH; [done|lia|]. intros ?. eapply dist_S, HΦ. }
-  { do 9 f_equiv. f_contractive. do 3 f_equiv. rewrite IH; [done|lia|].
+  { do 9 f_equiv. f_contractive_fin. do 3 f_equiv. rewrite IH; [done|lia|].
     intros ?. eapply dist_S, HΦ. }
 Qed.
 Global Instance wp_proper E e s :

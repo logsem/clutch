@@ -188,7 +188,10 @@ Section refines.
   Proof.
     rewrite refines_soundness_laterN.
     rewrite bi.except_0_into_later.
-    eapply (uPred.soundness _ (S (S n))).
+    intros ?.
+    eapply uPred.pure_soundness.
+    eapply (uPred.laterN_soundness _ (S (S n))).
+    done.
   Qed.
 
 End refines.

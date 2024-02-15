@@ -1,10 +1,8 @@
 From clutch Require Import clutch.
 
-From mathcomp Require ssrnat.
-Set Warnings "-notation-overridden,-ambiguous-paths".
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
   fintype seq ssrbool ssrnat zmodp.
-Set Warnings "notation-overridden,ambiguous-paths".
 
 From clutch.prelude Require Import mc_stdlib.
 From clutch.examples.crypto Require Import valgroup.
@@ -106,7 +104,7 @@ Section Zpx.
   Qed.
 
   Fact is_spec_mult_p (x y : vgG) K :
-    refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g.
+    refines_right K (vmult x y) ⊢ |={⊤}=> refines_right K (x * y)%g.
   Proof.
     iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p. tp_pures => /=.
     by rewrite -Nat2Z.inj_mul -ssrnat.multE rem_modn.
@@ -133,7 +131,7 @@ Section Zpx.
   Qed.
 
   Fact is_spec_exp' (b : vgG) (x : nat) K :
-    refines_right K (vexp' vunit_p vmult_p b #x) ={⊤}=∗ refines_right K (b ^+ x)%g.
+    refines_right K (vexp' vunit_p vmult_p b #x) ⊢ |={⊤}=> refines_right K (b ^+ x)%g.
   Proof.
     unfold vexp, vexp'. iIntros "hlog".
     tp_pure. tp_pure.
@@ -171,7 +169,7 @@ Section Zpx.
     rewrite rem_modn // /vgval_p. rewrite Zpx_small. rewrite order_inv. done.
   Qed.
 
-  Fact is_spec_inv_p (x : vgG) K : refines_right K x^-1 ={⊤}=∗ refines_right K (x^-1)%g.
+  Fact is_spec_inv_p (x : vgG) K : refines_right K x^-1 ⊢ |={⊤}=> refines_right K (x^-1)%g.
   Proof.
     iIntros "hlog" => /=. rewrite /vinv_p {2}/vgval_p. tp_pures => /=.
     tp_bind (vexp' _ _ _ _)%E.
@@ -180,7 +178,7 @@ Section Zpx.
     rewrite rem_modn //. rewrite Zpx_small order_inv /=. iAssumption.
   Qed.
 
-  Fact τG_subtype_p v1 v2 Δ : ⊢ lrel_G v1 v2 -∗ interp τG Δ v1 v2.
+  Fact τG_subtype_p v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2.
   Proof. iIntros ((w&->&->)). iExists _. eauto. Qed.
 
   Definition cg_p : clutch_group (cg := cgs_p).

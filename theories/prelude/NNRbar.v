@@ -386,7 +386,7 @@ Qed.
 
 Lemma NNRbar_not_le_lt (x y : NNRbar) :
   ~ NNRbar_le x y -> NNRbar_lt y x.
-  destruct x ; destruct y ; simpl ; intuition.
+  destruct x ; destruct y ; simpl ; intuition. by apply Rnot_le_lt.
 Qed.
 
 Lemma NNRbar_lt_not_le (x y : NNRbar) :
@@ -550,7 +550,7 @@ Lemma NNRbar_le_antisym (x y : NNRbar) :
   NNRbar_le x y -> NNRbar_le y x -> x = y.
 Proof.
   destruct x ; destruct y ; simpl ; intuition.
-  assert (nonneg n = nonneg n0) as H1; intuition.
+  assert (nonneg n = nonneg n0) as H1. 1: by apply Rle_antisym.
   assert (n = n0) as ->; auto.
   apply nnreal_ext; auto.
 Qed.
@@ -628,7 +628,7 @@ Proof.
   rewrite /nnreal_plus.
   apply nnreal_ext.
   rewrite /nonneg /=.
-  intuition.
+  destruct n. apply Rplus_0_r.
 Qed.
 
 Lemma NNRbar_plus_0_l (x : NNRbar) : NNRbar_plus (Finite nnreal_zero) x = x.
@@ -638,7 +638,7 @@ Proof.
   rewrite /nnreal_plus.
   apply nnreal_ext.
   rewrite /nonneg /=.
-  intuition.
+  destruct n. apply Rplus_0_l.
 Qed.
 
 (*

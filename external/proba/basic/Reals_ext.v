@@ -321,9 +321,10 @@ Proof.
     exfalso. apply is_sup_seq_lub in His.
     destruct His as (Hub&?).
     destruct (Hunbounded (r+1)) as (n&Hle).
-    feed pose proof (Hub (xn n)) as Hle'.
-    { exists n. auto. }
-    rewrite //= in Hle'. nra.
+    pose proof (Hub (xn n)) as Hle'.
+    assert (xn n ≤ r) as Hle''.
+    { apply Hle'. exists n. auto. }
+    rewrite //= in Hle''. nra.
 Qed.
 
 

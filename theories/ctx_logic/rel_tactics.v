@@ -174,12 +174,12 @@ Tactic Notation "rel_pure_l" open_constr(ef) "in" open_constr(Kf) :=
       unify e' ef;
       eapply (tac_rel_pure_l K e');
       [reflexivity                  (** e = fill K e1 *)
-      |iSolveTC                     (** PureExec ϕ n e1 e2 *)
+      |tc_solve                     (** PureExec ϕ n e1 e2 *)
       | .. ]);
       [try solve_vals_compare_safe                (** φ *)
       |first [left; reflexivity
              | right; reflexivity]                  (** (m = n) ∨ (m = 0) *)
-      |iSolveTC                                     (** IntoLaters *)
+      |tc_solve                                     (** IntoLaters *)
       |simpl; reflexivity           (** eres = fill K e2 *)
       |rel_finish                   (** new goal *)]
   || fail "rel_pure_l: cannot find the reduct".
@@ -194,7 +194,7 @@ Tactic Notation "rel_pure_r" open_constr(ef) "in" open_constr(Kf) :=
       unify e' ef;
       eapply (tac_rel_pure_r K e');
       [reflexivity                  (** e = fill K e1 *)
-      |iSolveTC                     (** PureExec ϕ n e1 e2 *)
+      |tc_solve                     (** PureExec ϕ n e1 e2 *)
       |..]);
       [try solve_vals_compare_safe                (** φ *)
       |solve_ndisj        || fail 1 "rel_pure_r: cannot solve ↑specN ⊆ ?"
@@ -261,7 +261,7 @@ Tactic Notation "rel_load_l" open_constr(ef) "in" open_constr(Kf) :=
        eapply (tac_rel_load_l_simp K); first reflexivity)
     |fail 1 "rel_load_l: cannot find 'Load'"];
   (* the remaining goals are from tac_lel_load_l (except for the first one, which has already been solved by this point) *)
-  [iSolveTC             (** IntoLaters *)
+  [tc_solve             (** IntoLaters *)
   |solve_mapsto ()
   |reflexivity       (** eres = fill K v *)
   |rel_finish  (** new goal *)].
@@ -341,11 +341,11 @@ Tactic Notation "rel_store_l" open_constr(ef) "in" open_constr(Kf) :=
        unify e' ef ;
        eapply (tac_rel_store_l_simpl K);
        [reflexivity (** e = fill K (#l <- e') *)
-       |iSolveTC    (** e' is a value *)
+       |tc_solve    (** e' is a value *)
        |idtac..])
     |fail 1 "rel_store_l: cannot find 'Store'"];
   (* the remaining goals are from tac_rel_store_l (except for the first one, which has already been solved by this point) *)
-  [iSolveTC        (** IntoLaters *)
+  [tc_solve        (** IntoLaters *)
   |solve_mapsto ()
   |reduction.pm_reflexivity || fail "rel_store_l: this should not happen O-:"
   |reflexivity
@@ -363,7 +363,7 @@ Tactic Notation "rel_store_r" open_constr(ef) "in" open_constr(Kf) :=
        unify K Kf ;
        unify e' ef ;
        eapply (tac_rel_store_r K);
-       [reflexivity|iSolveTC|idtac..])
+       [reflexivity|tc_solve|idtac..])
     |fail 1 "rel_store_r: cannot find 'Store'"];
   (* the remaining goals are from tac_rel_store_r (except for the first one, which has already been solved by this point) *)
   [solve_ndisj || fail "rel_store_r: cannot prove 'nclose specN ⊆ ?'"
@@ -398,10 +398,10 @@ Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) "at" open_co
        unify e' ef ;
        eapply (tac_rel_alloc_l_simpl K);
        [reflexivity (** e = fill K (Alloc e') *)
-       |iSolveTC    (** e' is a value *)
+       |tc_solve    (** e' is a value *)
        |idtac..])
     |fail 1 "rel_alloc_l: cannot find 'Alloc'"];
-  [iSolveTC        (** IntoLaters *)
+  [tc_solve        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
 Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) :=
   rel_pures_l ; rel_alloc_l l as H at _ in _.
@@ -424,7 +424,7 @@ Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) "at" open_co
        unify e' ef ;
        eapply (tac_rel_alloc_r K);
        [reflexivity  (** t = K'[alloc t'] *)
-       |iSolveTC     (** t' is a value *)
+       |tc_solve     (** t' is a value *)
        |idtac..])
     |fail 1 "rel_alloc_r: cannot find 'Alloc'"];
   [solve_ndisj || fail "rel_alloc_r: cannot prove 'nclose specN ⊆ ?'"
@@ -456,11 +456,11 @@ Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) "at" ope
        unify K Kf ;
        unify e' ef ;
        eapply (tac_rel_alloctape_l_simpl K);
-       [iSolveTC (** TCEq N (Z.to_nat z) → *)
+       [tc_solve (** TCEq N (Z.to_nat z) → *)
        |reflexivity (** e = fill K (Alloc e') *)
        |idtac..])
     |fail 1 "rel_alloctape_l: cannot find 'AllocTape'"];
-  [iSolveTC        (** IntoLaters *)
+  [tc_solve        (** IntoLaters *)
   |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
 Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
   rel_pures_l ; rel_alloctape_l l as H at _ in _.
@@ -479,7 +479,7 @@ Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" ope
        unify K Kf ;
        unify e' ef ;
        eapply (tac_rel_alloctape_r K);
-       [iSolveTC
+       [tc_solve
        |reflexivity  (** t = K'[alloc t'] *)
        |idtac..])
     |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
@@ -540,7 +540,7 @@ Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(kf) :=
        eapply (tac_rel_rand_l K); [|reflexivity|..])
     |fail 1 "rel_rand_l: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
-  [iSolveTC
+  [tc_solve
   |solve_mapsto ()
   |reduction.pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
   |reflexivity
@@ -559,7 +559,7 @@ Tactic Notation "rel_rand_r" open_constr(ef) "in" open_constr(kf) :=
        eapply (tac_rel_rand_r K); [|reflexivity|..])
     |fail 1 "rel_rand_r: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
-  [iSolveTC
+  [tc_solve
   |solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
   |reduction.pm_reflexivity || fail "rel_rand_r: this should not happen O-:"

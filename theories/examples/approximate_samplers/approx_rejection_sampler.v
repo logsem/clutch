@@ -113,7 +113,7 @@ Section basic.
         * iApply "HΦ"; iModIntro; iPureIntro; eexists _. split; [auto|lia].
         * exfalso.
           rewrite List.Forall_forall in Hsample''.
-          specialize Hsample'' with sample''.
+          specialize Hsample'' with (fin_to_nat sample'').
           apply Hsample''; last reflexivity.
           rewrite in_seq.
           split; first lia.

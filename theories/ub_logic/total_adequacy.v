@@ -504,7 +504,7 @@ Theorem twp_total_ub_lift Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : 
   total_ub_lift (lim_exec (e, σ)) φ ε.
 Proof.
   intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
   iIntros "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".

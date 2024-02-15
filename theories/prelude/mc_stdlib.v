@@ -1,9 +1,10 @@
 From Coq Require Import ZArith.
 From clutch.prelude Require Import base.
 
-Set Warnings "-notation-overridden,-ambiguous-paths".
-From mathcomp Require Import fintype ssrbool ssrnat zmodp.
-Set Warnings "notation-overridden,ambiguous-paths".
+Set Warnings "-hiding-delimiting-key,-overwriting-delimiting-key".
+From mathcomp Require Import ssrnat.
+Set Warnings "hiding-delimiting-key,overwriting-delimiting-key".
+From mathcomp Require Import fintype ssrbool zmodp.
 
 Fact rem_modn (x p : nat) (_ : p <> 0) :
   (Z.rem (Z.of_nat x) (Z.of_nat p))%Z = Z.of_nat (div.modn x p).

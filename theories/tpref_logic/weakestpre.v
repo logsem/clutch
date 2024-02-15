@@ -15,7 +15,7 @@ Import uPred.
 Local Open Scope R.
 
 Class tprwpG (Λ : language) (Σ : gFunctors) := IrisG {
-  iris_invGS :> invGS_gen HasNoLc Σ;
+  iris_invGS :: invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
 }.
 Global Opaque iris_invGS.
@@ -824,7 +824,7 @@ Proof.
     rewrite -(dret_id_right (dret _)).
     eapply refRcoupl_dbind; [|done].
     intros ? [] ? =>/=. apply refRcoupl_dret. eauto. }
-  iIntros (?? (e2 & -> &?)).
+  iIntros (?? (? & -> &?)).
   iMod ("H" with "[//]") as "($ & $ & H)".
   iModIntro.
   by iApply rwp_bind.

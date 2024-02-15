@@ -20,7 +20,7 @@ Section rules.
     P →
     PureExec P n e e' →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K e ={E}=∗ spec_ctx ∗ ⤇ fill K e'.
+    spec_ctx ∗ ⤇ fill K e ⊢ |={E}=> spec_ctx ∗ ⤇ fill K e'.
   Proof.
     iIntros (HP Hex ?) "[#Hspec Hj]". iFrame "Hspec".
     iInv specN as (ρ e0 σ0 m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -37,7 +37,7 @@ Section rules.
   Lemma step_alloc E K e v :
     IntoVal e v →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (ref e) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#l) ∗ l ↦ₛ v.
+    spec_ctx ∗ ⤇ fill K (ref e) ⊢ |={E}=> ∃ l, spec_ctx ∗ ⤇ fill K (#l) ∗ l ↦ₛ v.
   Proof.
     iIntros (<-?) "[#Hinv Hj]". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -60,7 +60,7 @@ Section rules.
   Lemma step_load E K l q v:
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
-    ={E}=∗ spec_ctx ∗ ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v.
+    ⊢ |={E}=> spec_ctx ∗ ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v.
   Proof.
     iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -78,7 +78,7 @@ Section rules.
     IntoVal e v →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
-    ={E}=∗ spec_ctx ∗ ⤇ fill K #() ∗ l ↦ₛ v.
+    ⊢ |={E}=> spec_ctx ∗ ⤇ fill K #() ∗ l ↦ₛ v.
   Proof.
     iIntros (<-?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -97,7 +97,7 @@ Section rules.
   Lemma step_alloctape E K N z :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (alloc #z) ={E}=∗ ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (N; []).
+    spec_ctx ∗ ⤇ fill K (alloc #z) ⊢ |={E}=> ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (N; []).
   Proof.
     iIntros (-> ?) "[#Hinv Hj]". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -120,7 +120,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
     spec_ctx ∗ ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
-    ={E}=∗ spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (N; ns).
+    ⊢ |={E}=> spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (N; ns).
   Proof.
     iIntros (-> ?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
     iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -271,7 +271,7 @@ Section rules.
   Lemma refines_right_alloctape E K N z :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    refines_right K (alloc #z) ={E}=∗ ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (N; []).
+    refines_right K (alloc #z) ⊢ |={E}=> ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (N; []).
   Proof.
     iIntros (??) "(?&?)".
     iMod (step_alloctape with "[$]") as (l) "(?&?)"; [done|].
@@ -281,10 +281,10 @@ Section rules.
   Lemma refines_right_rand E K l N z n ns :
     TCEq N (Z.to_nat z) →
     nclose specN ⊆ E →
-    l ↪ₛ (N; n :: ns) -∗
-    refines_right K (rand(#lbl:l) #z) ={E}=∗ refines_right K #n ∗ l ↪ₛ (N; ns).
+    l ↪ₛ (N; n :: ns) ∗
+    refines_right K (rand(#lbl:l) #z) ⊢ |={E}=> refines_right K #n ∗ l ↪ₛ (N; ns).
   Proof.
-    iIntros (??) "? (?&?)".
+    iIntros (??) "(?&?&?)".
     iMod (step_rand with "[$]") as "(?&?&?)"; [done|].
     iModIntro; iFrame.
   Qed.

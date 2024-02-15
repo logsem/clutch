@@ -548,7 +548,7 @@ Section higherorder_walkSAT.
         * eapply Rlt_le, Rgt_lt, archimed.
       + rewrite -{2}(Rmult_1_r (pos _)) -Rmult_minus_distr_l.
         apply Rgt_not_eq, Rlt_gt, Rmult_lt_0_compat; [apply cond_pos|].
-        apply Rlt_Rminus, lt_1_k.
+        apply Rlt_0_minus, lt_1_k.
     - apply le_IZR.
       apply Rge_le, Rgt_ge.
       eapply Rgt_trans.
@@ -556,7 +556,7 @@ Section higherorder_walkSAT.
       + apply Rlt_gt, Rinv_0_lt_compat.
         rewrite -{2}(Rmult_1_r (pos _)) -Rmult_minus_distr_l.
         apply Rmult_lt_0_compat; [apply cond_pos|].
-        apply Rlt_Rminus, lt_1_k.
+        apply Rlt_0_minus, lt_1_k.
   Qed.
 
 

@@ -104,14 +104,14 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure (fill K' e) (K++K') e' j);
-      [by rewrite ?fill_app | iSolveTC | ..])
+      [by rewrite ?fill_app | tc_solve | ..])
   | |- context[environments.Esnoc _ ?H (refines_right ?j ?e)] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure e K e' j);
-      [by rewrite ?fill_app | iSolveTC | ..])
+      [by rewrite ?fill_app | tc_solve | ..])
   end;
-  [iSolveTC || fail "tp_pure: cannot eliminate modality in the goal"
+  [tc_solve || fail "tp_pure: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_pure: cannot prove 'nclose specN ⊆ ?'"
   (* |iAssumptionCore || fail "tp_pure: cannot find spec_ctx" (* spec_ctx *) *)
   |iAssumptionCore || fail "tp_pure: cannot find the RHS" (* TODO fix error message *)
@@ -181,11 +181,11 @@ Qed.
 Tactic Notation "tp_store" :=
   iStartProof;
   eapply tac_tp_store;
-  [iSolveTC || fail "tp_store: cannot eliminate modality in the goal"
+  [tc_solve || fail "tp_store: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_store: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_store: cannot find the RHS"
   |tp_bind_helper
-  |iSolveTC || fail "tp_store: cannot convert the argument to a value"
+  |tc_solve || fail "tp_store: cannot convert the argument to a value"
   |simpl; reflexivity || fail "tp_store: this should not happen"
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
@@ -225,7 +225,7 @@ Qed.
 Tactic Notation "tp_load" :=
   iStartProof;
   eapply tac_tp_load;
-  [iSolveTC || fail "tp_load: cannot eliminate modality in the goal"
+  [tc_solve || fail "tp_load: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_load: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_load: cannot find the RHS"
   |tp_bind_helper
@@ -275,11 +275,11 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
         | (iIntros H; tp_normalise) || fail 1 "tp_alloc:" H "not correct intro pattern" ] in
   iStartProof;
   eapply tac_tp_alloc;
-  [iSolveTC || fail "tp_alloc: cannot eliminate modality in the goal"
+  [tc_solve || fail "tp_alloc: cannot eliminate modality in the goal"
   |solve_ndisj || fail "tp_alloc: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_alloc: cannot find the RHS"
   |tp_bind_helper
-  |iSolveTC || fail "tp_alloc: expressions is not a value"
+  |tc_solve || fail "tp_alloc: expressions is not a value"
   |finish ()
 (* new goal *)].
 
@@ -329,8 +329,8 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
         | (iIntros H; tp_normalise) || fail 1 "tp_alloctape:" H "not correct intro pattern" ] in
   iStartProof;
   eapply (tac_tp_alloctape);
-  [iSolveTC || fail "tp_alloctape: cannot eliminate modality in the goal"
-  |iSolveTC || fail "tp_alloctape: cannnot convert bound to a natural number" 
+  [tc_solve || fail "tp_alloctape: cannot eliminate modality in the goal"
+  |tc_solve || fail "tp_alloctape: cannnot convert bound to a natural number"
   |solve_ndisj || fail "tp_alloctape: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_alloctape: cannot find the RHS"
   |tp_bind_helper
@@ -376,8 +376,8 @@ Qed.
 Tactic Notation "tp_rand" :=
   iStartProof;
   eapply tac_tp_rand;
-  [iSolveTC || fail "tp_rand: cannot eliminate modality in the goal"
-  |iSolveTC || fail "tp_rand: cannot convert bound to a natural number"
+  [tc_solve || fail "tp_rand: cannot eliminate modality in the goal"
+  |tc_solve || fail "tp_rand: cannot convert bound to a natural number"
   |solve_ndisj || fail "tp_rand: cannot prove 'nclose specN ⊆ ?'"
   |iAssumptionCore || fail "tp_rand: cannot find the RHS"
   |tp_bind_helper

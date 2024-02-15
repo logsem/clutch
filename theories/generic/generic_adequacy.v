@@ -172,9 +172,9 @@ End adequacy.
 
 
 Class clutchGpreS Σ := ClutchGpreS {
-  clutchGpreS_iris  :> invGpreS Σ;
-  clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  clutchGpreS_tapes :> ghost_mapG Σ loc tape;
+  clutchGpreS_iris  :: invGpreS Σ;
+  clutchGpreS_heap  :: ghost_mapG Σ loc val;
+  clutchGpreS_tapes :: ghost_mapG Σ loc tape;
 }.
 
 Definition clutchΣ : gFunctors :=
@@ -190,7 +190,7 @@ Theorem wp_mlift Σ `{clutchGpreS Σ} (M : mlift) (e : expr prob_lang) (σ : sta
   M.(mlift_funct) (exec n (e, σ)) φ.
 Proof.
   intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ n 0).
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".

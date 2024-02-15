@@ -23,9 +23,9 @@ Class val_group :=
 
 (* Both of the below seem necessary since there is a subtle difference in the
    domain type DOM, despite the two being convertible. *)
-#[nonuniform] Coercion vgval_as {vg : val_group}
+#[warning="-uniform-inheritance"] Coercion vgval_as {vg : val_group}
   (x : FinGroup.arg_sort (FinGroup.base vgG)) : cval := vgval x.
-#[nonuniform] Coercion vgval_s {vg : val_group}
+#[warning="-uniform-inheritance"] Coercion vgval_s {vg : val_group}
   (x : FinGroup.sort (FinGroup.base vgG)) : cval := vgval x.
 
 Class clutch_group_struct :=
@@ -58,14 +58,14 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
   Clutch_group
     { int_of_vg_lrel_G : ⊢ (lrel_G → lrel_int)%lrel int_of_vg int_of_vg
     ; vg_of_int_lrel_G : ⊢ (lrel_int → (() + lrel_G))%lrel vg_of_int vg_of_int
-    ; τG_subtype v1 v2 Δ : ⊢ lrel_G v1 v2 -∗ interp τG Δ v1 v2
+    ; τG_subtype v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2
     ; is_unit : vunit = 1
     ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
-      refines_right K (vinv x) ={⊤}=∗ refines_right K (x^-1)
+      refines_right K (vinv x) ⊢ |={⊤}=> refines_right K (x^-1)
     ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
-      refines_right K (vmult x y) ={⊤}=∗ refines_right K (x * y)%g
+      refines_right K (vmult x y) ⊢ |={⊤}=> refines_right K (x * y)%g
     }.
 
 Definition vexp_typed `{!clutch_group_struct} :
@@ -158,7 +158,7 @@ Proof.
 Qed.
 
 Fact is_spec_exp (b : vgG) (x : nat) K :
-  refines_right K (vexp b #x) ={⊤}=∗ refines_right K (b ^+ x)%g.
+  refines_right K (vexp b #x) ⊢ |={⊤}=> refines_right K (b ^+ x)%g.
 Proof.
   unfold vexp, vexp'. iIntros "hlog".
   tp_pure. tp_pure.

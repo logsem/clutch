@@ -16,10 +16,9 @@ Proof.
   intros x.
   specialize (pos_INR_nat_of_P (countable.encode x)).
   destruct HC => //=.
-  rewrite /countable.decode/countable.encode/encode_nat.
-  rewrite Nat.succ_pred.
-  { rewrite Pos2Nat.id decode_encode //=. }
-  { lia. }
+  rewrite /countable.decode/countable.encode.
+  rewrite decode_encode_nat.
+  intros. reflexivity.
 Defined.
 
 Definition StdppCountEqMixin {T : Type} `{EqDecision T}:

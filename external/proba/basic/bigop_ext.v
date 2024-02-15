@@ -436,7 +436,9 @@ Proof.
     [ rewrite Nat.max_l // | rewrite Nat.max_r //].
 Qed.
 
+Set Warnings "-hiding-delimiting-key".
 From mathcomp Require Import ssrnat.
+Set Warnings "hiding-delimiting-key".
 
 Lemma sum_index_ordinal_P_aux {A} (f: A → R) (l: seq A) r P P':
   (∀ i, (i < size l)%nat → P i = P' (nth r l i)) →
