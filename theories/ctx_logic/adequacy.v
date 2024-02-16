@@ -9,7 +9,8 @@ From clutch.bi Require Import weakestpre.
 From clutch.prob_lang Require Import erasure.
 From clutch.common Require Export language.
 From clutch.ctx_logic Require Import weakestpre primitive_laws spec_ra.
-From clutch.prob Require Import distribution. 
+From clutch.prob Require Import distribution.
+Import uPred.
 
 Section adequacy.
   Context `{!clutchGS Σ}.
@@ -51,7 +52,7 @@ Section adequacy.
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
     iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | [H | [H | H]]]]] %Hv".
-    - rewrite exec_Sn_not_final; [|eauto].   
+    - rewrite exec_Sn_not_final; [|eauto].
       rewrite lim_exec_step.
       destruct (to_val e1') eqn:Hv'.
       + destruct (decide (prim_step e1 σ1 = dzero)) as [Hs|].
@@ -61,7 +62,7 @@ Section adequacy.
           apply refRcoupl_dzero.
         * assert (prim_step e1' σ1' = dzero) as Hz.
           { apply (is_final_dzero (e1', σ1')). eauto. }
-          simpl in *. rewrite Hz in Hcpl.           
+          simpl in *. rewrite Hz in Hcpl.
           by apply Rcoupl_dzero_r_inv in Hcpl.
       + rewrite step_or_final_no_final; [|eauto].
         iApply (refRcoupl_dbind' _ _ _ _ R).
@@ -191,11 +192,11 @@ Section adequacy.
 End adequacy.
 
 Class clutchGpreS Σ := ClutchGpreS {
-  clutchGpreS_iris  :> invGpreS Σ;
-  clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  clutchGpreS_tapes :> ghost_mapG Σ loc tape;
-  clutchGpreS_cfg   :> inG Σ (authUR cfgUR);
-  clutchGpreS_prog  :> inG Σ (authR progUR);
+  clutchGpreS_iris  :: invGpreS Σ;
+  clutchGpreS_heap  :: ghost_mapG Σ loc val;
+  clutchGpreS_tapes :: ghost_mapG Σ loc tape;
+  clutchGpreS_cfg   :: inG Σ (authUR cfgUR);
+  clutchGpreS_prog  :: inG Σ (authR progUR);
 }.
 
 Definition clutchΣ : gFunctors :=
@@ -212,7 +213,7 @@ Theorem wp_refRcoupl Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
   refRcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ.
 Proof.
   intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ n 0).
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
@@ -229,4 +230,14 @@ Proof.
   iApply wp_refRcoupl_step_fupdN.
   iFrame. iFrame "Hctx".
   by iApply (Hwp with "[Hctx] [Hprog_frag]").
+Qed.
+
+Corollary wp_refRcoupl_mass Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) φ :
+  (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
+  SeriesC (lim_exec (e, σ)) <= SeriesC (lim_exec (e', σ')).
+Proof.
+  intros Hwp.
+  apply: lim_exec_leq_mass => n.
+  eapply refRcoupl_mass_eq.
+  by eapply wp_refRcoupl.
 Qed.

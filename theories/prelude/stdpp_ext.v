@@ -29,8 +29,8 @@ Section base.
   Qed.
 
   Class Bij {A B} (f : A → B) := {
-    bij_inj :> Inj (=) (=) f;
-    bij_surj :> Surj (=) f;
+    bij_inj :: Inj (=) (=) f;
+    bij_surj :: Surj (=) f;
   }.
 
   Global Existing Instance bij_inj.
@@ -306,7 +306,9 @@ Section finite.
   Lemma encode_inv_nat_finite n :
     encode_inv_nat n = enum A !! n.
   Proof.
-    unfold encode_inv_nat. simpl.
+    unfold encode_inv_nat.
+    (* TODO this assert used to be computed by simpl before 8.18. *)
+    assert ((decode_nat n) = (enum A !! pred (Pos.to_nat (Pos.of_nat (S n))))) as -> by reflexivity.
     rewrite Nat2Pos.id; [|done].
     destruct (decide (n < card A)%nat) as [Hlt | Hnlt%not_lt]; simpl.
     - destruct (encode_inv_decode n Hlt) as (? & Hdec & Henc).

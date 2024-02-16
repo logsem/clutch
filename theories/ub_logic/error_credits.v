@@ -147,7 +147,7 @@ End NNR.
 
 (** The ghost state for error credits *)
 Class ecGpreS (Σ : gFunctors) := EcGpreS {
-  ecGpreS_inG :> inG Σ (authR realUR)
+  ecGpreS_inG :: inG Σ (authR realUR)
 }.
 
 Class ecGS (Σ : gFunctors) := EcGS {
@@ -301,6 +301,12 @@ Section error_credit_theory.
     IntoSep (€ (nnreal_plus ε1 ε2)) (€ ε1) (€ ε2) | 0.
   Proof.
     by rewrite /IntoSep ec_split.
+  Qed.
+
+  Global Instance combine_sep_as_ec_add ε1 ε2 :
+    CombineSepAs (€ ε1) (€ ε2) (€ (nnreal_plus ε1 ε2)) | 0.
+  Proof.
+    by rewrite /CombineSepAs ec_split.
   Qed.
 
 End error_credit_theory.

@@ -238,10 +238,10 @@ End adequacy.
 
 
 Class ub_clutchGpreS Σ := UB_ClutchGpreS {
-  ub_clutchGpreS_iris  :> invGpreS Σ;
-  ub_clutchGpreS_heap  :> ghost_mapG Σ loc val;
-  ub_clutchGpreS_tapes :> ghost_mapG Σ loc tape;
-  ub_clutchGpreS_err   :> ecGpreS Σ;
+  ub_clutchGpreS_iris  :: invGpreS Σ;
+  ub_clutchGpreS_heap  :: ghost_mapG Σ loc val;
+  ub_clutchGpreS_tapes :: ghost_mapG Σ loc tape;
+  ub_clutchGpreS_err   :: ecGpreS Σ;
 }.
 
 Definition ub_clutchΣ : gFunctors :=
@@ -256,7 +256,7 @@ Theorem wp_union_bound Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) n (ε : n
   ub_lift (exec n (e, σ)) φ ε.
 Proof.
   intros Hwp.
-  eapply (step_fupdN_soundness_no_lc _ n 0).
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".

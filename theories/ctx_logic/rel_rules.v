@@ -37,8 +37,8 @@ Section rules.
 
   Lemma refines_wp_l E K e1 t A :
     (WP e1 {{ v,
-        REL fill K (of_val v) << t @ E : A }})%I -∗
-    REL fill K e1 << t @ E : A.
+        REL fill K (of_val v) << t @ E : A }})%I
+    ⊢ REL fill K e1 << t @ E : A.
   Proof.
     rewrite refines_eq /refines_def.
     iIntros "He" (K') "Hs Hnais /=".
@@ -53,8 +53,8 @@ Section rules.
     (∀ K', refines_right K' t ={⊤, E'}=∗
              WP e1 @ E' {{ v,
               |={E', ⊤}=> ∃ t', refines_right K' t' ∗
-              REL fill K (of_val v) << t' @ E : A }})%I -∗
-   REL fill K e1 << t @ E : A.
+              REL fill K (of_val v) << t' @ E : A }})%I
+   ⊢ REL fill K e1 << t @ E : A.
   Proof.
     rewrite refines_eq /refines_def.
     iIntros "Hlog" (K') "Hs Hnais /=".
@@ -90,8 +90,8 @@ Section rules.
   (* A helper lemma for proving the stateful reductions for the RHS below *)
   Lemma refines_step_r E K' e1 e2 A :
     (∀ k, refines_right k e2 ={⊤}=∗
-         ∃ v, refines_right k (of_val v) ∗ REL e1 << fill K' (of_val v) @ E : A) -∗
-    REL e1 << fill K' e2 @ E : A.
+         ∃ v, refines_right k (of_val v) ∗ REL e1 << fill K' (of_val v) @ E : A)
+    ⊢ REL e1 << fill K' e2 @ E : A.
   Proof.
     rewrite refines_eq /refines_def /=.
     iIntros "He" (K'') "Hs Hnais /=".
@@ -108,7 +108,7 @@ Section rules.
      freshly generated. If e2' is known, this variant can be used instead *)
   Lemma refines_steps_r E e1 e2 e2' A K' :
     (∀ K, (refines_right K e2 ={⊤}=∗ refines_right K e2'))
-    -∗ (|={⊤}=> REL e1 << ectxi_language.fill K' e2' @ E : A)
+    ⊢ (|={⊤}=> REL e1 << ectxi_language.fill K' e2' @ E : A)
     -∗ REL e1 << ectxi_language.fill K' e2 @ E : A.
   Proof.
     iIntros "upd >Hlog".
@@ -123,7 +123,7 @@ Section rules.
   Lemma refines_alloc_r E K e v t A :
     IntoVal e v →
     (∀ l : loc, l ↦ₛ v -∗ REL t << fill K (of_val #l) @ E : A)%I
-    -∗ REL t << fill K (ref e) @ E : A.
+    ⊢ REL t << fill K (ref e) @ E : A.
   Proof.
     rewrite /IntoVal. intros <-.
     iIntros "Hlog". simpl.
@@ -134,7 +134,7 @@ Section rules.
   Qed.
 
   Lemma refines_load_r E K l q v t A :
-    l ↦ₛ{q} v -∗
+    l ↦ₛ{q} v ⊢
     (l ↦ₛ{q} v -∗ REL t << fill K (of_val v) @ E : A)
     -∗ REL t << (fill K !#l) @ E : A.
   Proof.
@@ -147,9 +147,9 @@ Section rules.
 
   Lemma refines_store_r E K l e e' v v' A :
     IntoVal e' v' →
-    l ↦ₛ v -∗
-    (l ↦ₛ v' -∗ REL e << fill K (of_val #()) @ E : A) -∗
-    REL e << fill K (#l <- e') @ E : A.
+    l ↦ₛ v ⊢
+    (l ↦ₛ v' -∗ REL e << fill K (of_val #()) @ E : A)
+    -∗ REL e << fill K (#l <- e') @ E : A.
   Proof.
     rewrite /IntoVal. iIntros (<-) "Hl Hlog".
     iApply refines_step_r.
@@ -161,7 +161,7 @@ Section rules.
   Lemma refines_alloctape_r E K N z t A :
     TCEq N (Z.to_nat z) →
     (∀ α : loc, α ↪ₛ (N; []) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
-    -∗ REL t << fill K (alloc #z) @ E : A.
+    ⊢ REL t << fill K (alloc #z) @ E : A.
   Proof.
     iIntros (->) "Hlog".
     iApply refines_step_r.
@@ -173,7 +173,7 @@ Section rules.
   Lemma refines_randT_r E K α N z n ns t A :
     TCEq N (Z.to_nat z) →
     α ↪ₛ (N; n :: ns)
-    -∗ (α ↪ₛ (N; ns) -∗ REL t << fill K (of_val #n) @ E : A)
+    ⊢ (α ↪ₛ (N; ns) -∗ REL t << fill K (of_val #n) @ E : A)
     -∗ REL t << (fill K (rand(#lbl:α) #z)) @ E : A.
   Proof.
     iIntros (->) "Hα Hlog".
@@ -224,7 +224,7 @@ Section rules.
   (** This rule is useful for proving that functions refine each other *)
   Lemma refines_arrow_val (v v' : val) A A' :
     □(∀ v1 v2, A v1 v2 -∗
-      REL App v (of_val v1) << App v' (of_val v2) : A') -∗
+      REL App v (of_val v1) << App v' (of_val v2) : A') ⊢
     REL (of_val v) << (of_val v') : (A → A')%lrel.
   Proof.
     iIntros "#H".
@@ -242,7 +242,7 @@ Section rules.
     IntoVal e v →
     (▷ (∀ l : loc, l ↦ v -∗
            REL fill K (of_val #l) << t @ E : A))
-    -∗ REL fill K (ref e) << t @ E : A.
+    ⊢ REL fill K (ref e) << t @ E : A.
   Proof.
     iIntros (<-) "Hlog".
     iApply refines_wp_l.
@@ -253,7 +253,7 @@ Section rules.
     (∃ v',
       ▷(l ↦{q} v') ∗
       ▷(l ↦{q} v' -∗ (REL fill K (of_val v') << t @ E : A)))
-    -∗ REL fill K (! #l) << t @ E : A.
+    ⊢ REL fill K (! #l) << t @ E : A.
   Proof.
     iIntros "[%v' [Hl Hlog]]".
     iApply refines_wp_l.
@@ -264,7 +264,7 @@ Section rules.
     IntoVal e v' →
     (∃ v, ▷ l ↦ v ∗
       ▷(l ↦ v' -∗ REL fill K (of_val #()) << t @ E : A))
-    -∗ REL fill K (#l <- e) << t @ E : A.
+    ⊢ REL fill K (#l <- e) << t @ E : A.
   Proof.
     iIntros (<-) "[%v [Hl Hlog]]".
     iApply refines_wp_l.
@@ -274,7 +274,7 @@ Section rules.
   Lemma refines_alloctape_l K E N z t A :
     TCEq N (Z.to_nat z) →
     (▷ (∀ α : loc, α ↪ (N; []) -∗ REL fill K (of_val #lbl:α) << t @ E : A))%I
-    -∗ REL fill K (alloc #z) << t @ E : A.
+    ⊢ REL fill K (alloc #z) << t @ E : A.
   Proof.
     iIntros (->) "Hlog".
     iApply refines_wp_l.
@@ -285,7 +285,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     (▷ α ↪ (N; n :: ns) ∗
      ▷ (α ↪ (N; ns) -∗ REL fill K (of_val #n) << t @ E : A))
-    -∗ REL fill K (rand(#lbl:α) #z) << t @ E : A.
+    ⊢ REL fill K (rand(#lbl:α) #z) << t @ E : A.
   Proof.
     iIntros (->) "[Hα Hlog]".
     iApply refines_wp_l.
@@ -323,7 +323,7 @@ Section rules.
   Qed.
 
   Lemma refines_wand E e1 e2 A A' :
-    (REL e1 << e2 @ E : A) -∗
+    (REL e1 << e2 @ E : A) ⊢
     (∀ v1 v2, A v1 v2 ={⊤}=∗ A' v1 v2) -∗
     REL e1 << e2 @ E : A'.
   Proof.
@@ -335,7 +335,7 @@ Section rules.
 
   Lemma refines_arrow (v v' : val) A A' :
     □ (∀ v1 v2 : val, □(REL of_val v1 << of_val v2 : A) -∗
-      REL App v (of_val v1) << App v' (of_val v2) : A') -∗
+      REL App v (of_val v1) << App v' (of_val v2) : A') ⊢
     REL (of_val v) << (of_val v') : (A → A')%lrel.
   Proof.
     iIntros "#H".

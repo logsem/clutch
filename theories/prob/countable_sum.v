@@ -338,6 +338,7 @@ Section series_nat.
     destruct n eqn:Hn; simpl; auto.
     rewrite decide_False //=; [ | lia].
     rewrite Nat2Pos.inj_succ //
+              positive_N_nat
               Pos.pred_succ
               Nat2Pos.id //
               option_guard_True //

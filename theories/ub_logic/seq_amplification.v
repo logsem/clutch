@@ -137,7 +137,7 @@ Section seq_ampl.
     rewrite fR_closed_2.
     apply Rcomplements.Rle_minus_l.
     rewrite -{1}(Rplus_0_r 1%R); apply Rplus_le_compat_l.
-    apply Rcomplements.Rdiv_le_0_compat; [apply -> Rcomplements.Rminus_le_0 | apply Rlt_Rminus ].
+    apply Rcomplements.Rdiv_le_0_compat; [apply -> Rcomplements.Rminus_le_0 | apply Rlt_0_minus ].
     - apply pow_R1_Rle.
       pose (pos_INR N1).
       rewrite S_INR.

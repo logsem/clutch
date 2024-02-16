@@ -619,7 +619,7 @@ Definition test_prp: val :=
      iMod (ec_zero).
      wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero); first done.
      { lra. }
-     { rewrite Rminus_eq_0 /Rdiv Rmult_0_l /=//. }
+     { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
 
      iFrame.
      iIntros "!>" (n2 m2 ->) "HK".
@@ -639,7 +639,7 @@ Definition test_prp: val :=
      { pose proof (fin_to_nat_lt m2); lia. }
      { intros; apply lookup_empty. }
      { rewrite fmap_length seq_length.
-       rewrite Rminus_eq_0 /Rdiv Rmult_0_l /=//.
+       rewrite Rminus_diag /Rdiv Rmult_0_l /=//.
      }
 
      iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".

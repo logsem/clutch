@@ -1299,7 +1299,7 @@ Proof.
   iInduction i as [|i'] "IH" forall (suffix_remaining).
   - iIntros "Hwp"; iApply "Hwp".
     iRight. iSplitL "Htape".
-    + rewrite take_0 -app_nil_end. iFrame.
+    + rewrite take_0. rewrite app_nil_r. iFrame.
     + iApply ec_spend_irrel; last iFrame.
       rewrite /εR /fR /pos_to_nn /=; lra.
   - iIntros "Hwand".
@@ -1345,7 +1345,7 @@ Proof.
   iInduction i as [|i'] "IH" forall (suffix_remaining).
   - iIntros "Hwp"; iApply "Hwp".
     iRight. iSplitL "Htape".
-    + rewrite take_0 -app_nil_end. iFrame.
+    + rewrite take_0 app_nil_r. iFrame.
     + iApply ec_spend_irrel; last iFrame.
       rewrite /εR /fR /pos_to_nn /=; lra.
   - iIntros "Hwand".
@@ -1385,7 +1385,7 @@ Lemma twp_presample_amplify N z e E α Φ (ε : posreal) L (kwf: kwf N L) prefix
 Proof.
   iIntros (? ? Hl) "(Hcr & Htape & Hwp)".
   destruct suffix as [|s0 sr].
-  - iApply "Hwp". iLeft. rewrite -app_nil_end. iFrame.
+  - iApply "Hwp". iLeft. rewrite app_nil_r. iFrame.
   - remember (s0 :: sr) as suffix.
     assert (Hl_pos : (0 < L)%nat).
     { rewrite Hl Heqsuffix cons_length. lia. }
@@ -1408,7 +1408,7 @@ Lemma wp_presample_amplify N z e E α Φ (ε : posreal) L (kwf: kwf N L) prefix 
 Proof.
   iIntros (? ? Hl) "(Hcr & Htape & Hwp)".
   destruct suffix as [|s0 sr].
-  - iApply "Hwp". iLeft. rewrite -app_nil_end. iFrame.
+  - iApply "Hwp". iLeft. rewrite app_nil_r. iFrame.
   - remember (s0 :: sr) as suffix'.
     assert (Hl_pos : (0 < L)%nat).
     { rewrite Hl Heqsuffix' cons_length. lia. }
@@ -1667,10 +1667,10 @@ Proof.
   intros Hblocksize junk.
   rewrite /block_pad.
   rewrite repeat_length.
-  rewrite -PeanoNat.Nat.add_mod_idemp_l; [|lia].
-  rewrite -PeanoNat.Nat.add_mod; [|lia].
-  rewrite -PeanoNat.Nat.add_mod_idemp_l; [|lia].
-  rewrite -Nat.le_add_sub; [apply Nat.mod_same; lia|].
+  rewrite -Nat.Div0.add_mod_idemp_l.
+  rewrite -Nat.Div0.add_mod.
+  rewrite -Nat.Div0.add_mod_idemp_l.
+  rewrite -Nat.le_add_sub; [apply Nat.Div0.mod_same|].
   apply Nat.lt_le_incl.
   apply Nat.mod_bound_pos; [apply Nat.le_0_l | done].
 Qed.

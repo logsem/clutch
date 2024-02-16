@@ -20,15 +20,15 @@ Definition cfgUR : ucmra := optionUR (exclR cfgO).
 (** The CMRA for the spec [cfg]. *)
 Class specGS Σ := CfgSG {
   (* the instances we need for [spec_interp] *)
-  specGS_interp_inG :> inG Σ (authUR cfgUR);
+  specGS_interp_inG :: inG Σ (authUR cfgUR);
   specGS_interp_name : gname;
 
   (* the instances we need for [spec_ctx] *)
-  specGS_prog_inG :> inG Σ (authR progUR);
+  specGS_prog_inG :: inG Σ (authR progUR);
   specGS_prog_name : gname;
 
-  specGS_heap :> ghost_mapG Σ loc val;
-  specGS_tapes :> ghost_mapG Σ loc tape;
+  specGS_heap :: ghost_mapG Σ loc val;
+  specGS_tapes :: ghost_mapG Σ loc tape;
   specGS_heap_name : gname;
   specGS_tapes_name : gname;
 }.

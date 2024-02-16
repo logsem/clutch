@@ -5,9 +5,7 @@ From clutch.examples.crypto Require Import valgroup.
 From clutch.examples.crypto Require ElGamal_bijection.
 
 From mathcomp Require ssrnat.
-Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require Import zmodp finset ssrbool fingroup.fingroup solvable.cyclic.
-Set Warnings "notation-overridden,ambiguous-paths".
 
 Set Default Proof Using "Type*".
 

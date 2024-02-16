@@ -78,17 +78,16 @@ Section coll_free_hash.
       k1 = k2.
 
 
-  Search gmap.
-  Search gset_elements.
-
+  (* 
   Definition is_prf (m : gmap nat nat) size :=
     coll_free m /\
     (forall x, x ∈ map_img m -> x <= size).
+  *)
 
   Lemma coll_free_insert (m : gmap nat nat) (n : nat) (z : nat) :
     m !! n = None ->
     coll_free m ->
-    Forall (λ x, z ≠ snd x) (gmap_to_list m) ->
+    Forall (λ x, z ≠ snd x) (map_to_list m) ->
     coll_free (<[ n := z ]>m).
   Proof.
     intros Hnone Hcoll HForall.
@@ -149,7 +148,7 @@ Section coll_free_hash.
       ⌜ f = compute_cf_hash_specialized #hm #vs #s #r⌝ ∗
       map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
       ⌜ sval < rval ⌝ ∗
-      ⌜ sval = (length (gmap_to_list m)) ⌝ ∗
+      ⌜ sval = (length (map_to_list m)) ⌝ ∗
       (* The current reserve plus the amortized cost times the number of insertions
          until the next resize is enough to pay for all the error *)
       ⌜(ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
@@ -512,7 +511,7 @@ Section coll_free_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_load. wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (gmap_to_list m))); auto.
+    wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (map_to_list m))); auto.
     rewrite map_length -Hlen.
     iPoseProof (cf_update_potential _ _ _ _ _ _
                  with "[Herr2 //] [Htot_err //] [Herr //]")
@@ -610,7 +609,8 @@ Section coll_free_hash.
     rewrite lookup_fmap Hlookup. wp_pures.
     wp_load. wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (gmap_to_list m))); auto.
+    wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (map_to_list m))); auto.
+
     rewrite map_length -Hlen.
     iPoseProof (cf_update_potential_resize vsval sval rval _ _ Hvspos
                  with "[Herr2 //] [//] [] [Herr //]")

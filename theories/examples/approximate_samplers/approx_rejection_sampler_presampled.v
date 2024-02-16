@@ -20,21 +20,21 @@ Section presampled_flip2.
         gen_rejection_sampler
         (λ: "_", Pair (rand("α")#1) (rand("α") #1))
         (λ: "sample", (((Fst "sample") = #1) && ((Snd "sample") = #1)))
-        @ E {{ v, ∃ v', ⌜ v = SOMEV v' ⌝ }}.
+        @ E [{ v, ⌜ v = (#1%Z, #1%Z)%V ⌝ }].
   Proof.
     iIntros (?) "Hcr".
     wp_bind (alloc _)%I.
-    wp_apply (wp_alloc_tape); auto.
+    wp_apply (twp_alloc_tape); auto.
     iIntros (α) "Hα".
     rewrite Z2Nat.inj_succ; try lia.
-    wp_apply (presample_planner_aligned _ _ _ _ _ _ _ _ [1%fin; 1%fin]); auto; [apply H|].
+    wp_apply (twp_presample_planner_aligned _ _ _ _ _ _ _ _ [1%fin; 1%fin]); auto; [apply H|].
     iFrame.
     iIntros "[%junk Hα] /=".
     pose flip2_junk_inv k s : iProp Σ := (∃ j, α ↪ (S (Z.to_nat 0); j ++ s) ∗ ⌜length j = (2 * k)%nat ⌝)%I.
     iAssert (flip2_junk_inv _ _ _ (length (junk ++ block_pad (Z.to_nat 0) 2 junk) `div` 2) _) with "[Hα]" as "Hinv".
     { rewrite /flip2_junk_inv app_assoc.
       iExists _; iFrame; iPureIntro.
-      apply Nat.div_exact; [lia|].
+      apply Nat.Div0.div_exact.
       rewrite app_length.
       apply (blocks_aligned (Z.to_nat 0%nat) 2%nat).
       lia.
@@ -45,23 +45,24 @@ Section presampled_flip2.
       iDestruct "Hinv" as "[%j (Hα & %Hl)] /=".
       rewrite (nil_length_inv _ Hl) /=.
       wp_pures.
-      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
-      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
+      wp_bind (Rand _ _); wp_apply (twp_rand_tape with "Hα"); iIntros "Hα".
+      wp_bind (Rand _ _); wp_apply (twp_rand_tape with "Hα"); iIntros "Hα".
       wp_pures.
-      iModIntro; iExists _; iPureIntro. done.
+      iModIntro; eauto.
     - rewrite /flip2_junk_inv.
       iDestruct "Hinv" as "[%j (Hα & %Hl)] /=".
       rewrite Nat.mul_succ_r Nat.add_comm /= in Hl.
       destruct j as [| s0 j0]. { simpl in Hl. exfalso; lia. }
       destruct j0 as [| s1 j']. { simpl in Hl. exfalso; lia. }
       wp_pures.
-      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
-      wp_bind (Rand _ _); wp_apply (wp_rand_tape with "Hα"); iIntros "Hα".
+      wp_bind (Rand _ _); wp_apply (twp_rand_tape with "Hα"); iIntros "Hα".
+      wp_bind (Rand _ _); wp_apply (twp_rand_tape with "Hα"); iIntros "Hα".
       iSpecialize ("IH" with "[Hα]").
       { iExists _; iFrame; iPureIntro. do 2 rewrite cons_length in Hl. congruence. }
       wp_pures.
       case_bool_decide; [wp_pures; case_bool_decide|].
-      + wp_pures; iModIntro; iExists _; auto.
+      + wp_pures. iModIntro; iPureIntro.
+        rewrite H0 H1. done.
       + wp_pure. iApply "IH".
       + do 2 wp_pure; iApply "IH".
   Qed.
