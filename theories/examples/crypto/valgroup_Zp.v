@@ -1,8 +1,6 @@
 From clutch Require Import clutch.
 
-Set Warnings "-hiding-delimiting-key,-overwriting-delimiting-key".
-From mathcomp Require Import ssrnat.
-Set Warnings "hiding-delimiting-key,overwriting-delimiting-key".
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import fingroup solvable.cyclic eqtype fintype ssrbool zmodp.
 
 From clutch.prelude Require Import mc_stdlib.

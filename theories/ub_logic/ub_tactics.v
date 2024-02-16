@@ -524,7 +524,6 @@ Proof.
   apply bi.wand_elim_l.
 Qed.
 
-Local Set Warnings "-cast-in-pattern".
 Tactic Notation "rel_rand_l" :=
   let solve_mapsto _ := 
     let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in

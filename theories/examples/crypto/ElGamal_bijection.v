@@ -1,10 +1,7 @@
 (* We prove that the translation `(λ x, (x + k) mod n) : fin n → fin n` is a
    bijection on `fin n`. This fact is used in the ElGamal security proof. *)
 
-Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require Import all_ssreflect ssrnat zmodp fingroup.
-Set Warnings "notation-overridden,ambiguous-paths".
-
 From stdpp Require fin.
 From clutch.prelude Require Import zmodp_fin stdpp_ext.
 

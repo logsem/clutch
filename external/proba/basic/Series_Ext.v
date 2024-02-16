@@ -2,9 +2,7 @@
 From discprob.basic Require Import base order bigop_ext.
 Require Import Reals Fourier Psatz.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
-Set Warnings "-hiding-delimiting-key,-overwriting-delimiting-key".
-From mathcomp Require Import ssrnat.
-Set Warnings "hiding-delimiting-key,overwriting-delimiting-key".
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype seq div choice fintype.
 Require Import ClassicalEpsilon.
 

@@ -528,7 +528,6 @@ Proof.
   apply bi.wand_elim_l.
 Qed.
 
-Local Set Warnings "-cast-in-pattern".
 Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(kf) :=
   let solve_mapsto _ :=
     let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in

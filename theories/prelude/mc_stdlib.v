@@ -1,9 +1,7 @@
 From Coq Require Import ZArith.
 From clutch.prelude Require Import base.
 
-Set Warnings "-hiding-delimiting-key,-overwriting-delimiting-key".
-From mathcomp Require Import ssrnat.
-Set Warnings "hiding-delimiting-key,overwriting-delimiting-key".
+#[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import fintype ssrbool zmodp.
 
 Fact rem_modn (x p : nat) (_ : p <> 0) :

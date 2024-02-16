@@ -4,12 +4,10 @@ From clutch.ctx_logic Require Import weakestpre model spec_ra.
 From clutch.typing Require Import types.
 From clutch Require Import clutch.
 
-Set Warnings "-notation-overridden,-ambiguous-paths".
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq
   ssrbool ssreflect zmodp.
 From mathcomp Require ssralg.
 Import fingroup.
-Set Warnings "notation-overridden,ambiguous-paths".
 Set Bullet Behavior "Strict Subproofs".
 
 Local Open Scope group_scope.
