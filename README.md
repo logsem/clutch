@@ -5,20 +5,20 @@ The logic is built using the [Iris](https://iris-project.org) program logic fram
 
 ## Preprint
 
-A preprint describing this work is available on arXiv.
+A paper describing the development was published at POPL 24 and available under an open access policy.
 
-> Gregersen, S.O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L., 2023. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. [arXiv preprint arXiv:2301.10061](https://arxiv.org/abs/2301.10061).
+> Gregersen, S. O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L. 2024. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. Proc. ACM Program. Lang. 8, POPL, Article 26 (January 2024), 32 pages. [https://doi.org/10.1145/3632868](https://dl.acm.org/doi/10.1145/3632868)
 
-[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to the Coq formalization.
+[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to the Coq formalization. The commit tag `popl24` contains a snapshot of the development that is consistent with the paper.
 
 ## Building the development
 
 The project is known to compile with
 
-- [Coq](https://coq.inria.fr/) 8.16.1
-- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.8.0
+- [Coq](https://coq.inria.fr/) 8.18
+- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.9.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.3.1
-- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.0.0
+- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.1.0
 - [Autosubst](https://github.com/coq-community/autosubst) 1.8
 - [Mathcomp-solvable](https://github.com/math-comp/math-comp) 1.17.0
 
