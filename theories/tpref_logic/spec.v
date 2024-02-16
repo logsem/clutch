@@ -68,14 +68,14 @@ Definition specUR (δ : markov) : ucmra := optionUR (exclR (leibnizO (mstate δ)
 Definition authUR_spec (δ : markov) : ucmra := authUR (specUR δ).
 
 Class specPreG (δ : markov) (Σ : gFunctors) := SpecPreG {
-  specG_pre_authUR :> inG Σ (authUR_spec δ);
+  specG_pre_authUR :: inG Σ (authUR_spec δ);
 }.
 Definition specΣ (δ : markov) : gFunctors := GFunctor (authUR_spec δ).
 Global Instance subG_tprGPreS {δ Σ} : subG (specΣ δ) Σ → specPreG δ Σ.
 Proof. solve_inG. Qed.
 
 Class specG (δ : markov) (Σ : gFunctors) := SpecG {
-  specG_authUR :> inG Σ (authUR_spec δ);
+  specG_authUR :: inG Σ (authUR_spec δ);
   specG_gname : gname;
 }.
 

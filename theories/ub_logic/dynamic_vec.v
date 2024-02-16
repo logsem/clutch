@@ -252,7 +252,7 @@ Section faulty_allocator.
       rewrite cons_middle app_assoc insert_app_l.
       - rewrite -(Nat.add_0_r sval) Hlen1 /=.
         rewrite insert_app_r /=.
-        rewrite -app_nil_end. iFrame.
+        rewrite app_nil_r. iFrame.
       - rewrite app_length /=.
         lia.
     }

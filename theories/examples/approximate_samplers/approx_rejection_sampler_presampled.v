@@ -34,7 +34,7 @@ Section presampled_flip2.
     iAssert (flip2_junk_inv _ _ _ (length (junk ++ block_pad (Z.to_nat 0) 2 junk) `div` 2) _) with "[Hα]" as "Hinv".
     { rewrite /flip2_junk_inv app_assoc.
       iExists _; iFrame; iPureIntro.
-      apply Nat.div_exact; [lia|].
+      apply Nat.Div0.div_exact.
       rewrite app_length.
       apply (blocks_aligned (Z.to_nat 0%nat) 2%nat).
       lia.

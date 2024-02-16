@@ -23,7 +23,7 @@ Lemma exec_random_walk n :
   SeriesC (exec n true) = 1 - (1/2)^n.
 Proof.
   induction n.
-  { rewrite Rminus_eq_0 /= dzero_mass //. }
+  { rewrite Rminus_diag /= dzero_mass //. }
   rewrite exec_Sn_not_final; [|by eapply to_final_None].
   rewrite /markov.step /=.
   rewrite fair_coin_dbind_mass.
@@ -40,7 +40,7 @@ Proof.
   - simpl. setoid_rewrite exec_random_walk.
     intros ϵ. split.
     + intros n. trans 1.
-      * apply Rminus_gt_0_lt.
+      * apply Rlt_0_minus.
         assert (1 - (1 - (1 / 2) ^ n) = (1 / 2) ^ n) as -> by lra.
         apply pow_lt. lra.
       * rewrite -{1}(Rplus_0_r 1).

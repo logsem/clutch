@@ -92,18 +92,18 @@ Section specs.
   (** * Tape allocation  *)
   Lemma refines_allocB_tape_l K E t A :
     (▷ (∀ α : loc, α ↪B [] -∗ REL fill K (of_val #lbl:α) << t @ E : A))%I
-    -∗ REL fill K allocB << t @ E : A.
+    ⊢ REL fill K allocB << t @ E : A.
   Proof. iIntros "?". by iApply refines_alloctape_l. Qed.
 
   Lemma refines_allocB_tape_r E K t A :
     (∀ α : loc, α ↪ₛB [] -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
-    -∗ REL t << fill K allocB @ E : A.
+    ⊢ REL t << fill K allocB @ E : A.
   Proof. iIntros "?". by iApply refines_alloctape_r. Qed.
 
   (** * Unlabelled flip *)
   Lemma refines_flip_l E K t A :
      ▷ (∀ (b : bool), REL fill K (of_val #b) << t @ E : A)
-    -∗ REL fill K flip << t @ E : A.
+    ⊢ REL fill K flip << t @ E : A.
   Proof.
     iIntros "Hlog".
     iApply refines_wp_l.
@@ -117,7 +117,7 @@ Section specs.
   Lemma refines_flipL_l E K α b bs t A :
     (▷ α ↪B (b :: bs) ∗
      ▷ (α ↪B bs -∗ REL fill K (of_val #b) << t @ E : A))
-    -∗ REL fill K (flipL #lbl:α) << t @ E : A.
+    ⊢ REL fill K (flipL #lbl:α) << t @ E : A.
   Proof.
     iIntros "[Hα Hlog]".
     iApply refines_wp_l.
@@ -126,7 +126,7 @@ Section specs.
 
   Lemma refines_flipL_r E K α b bs t A :
     α ↪ₛB (b :: bs)
-    -∗ (α ↪ₛB bs -∗ REL t << fill K (of_val #b) @ E : A)
+    ⊢ (α ↪ₛB bs -∗ REL t << fill K (of_val #b) @ E : A)
     -∗ REL t << (fill K (flipL #lbl:α)) @ E : A.
   Proof.
     iIntros "Hα Hlog".
@@ -410,7 +410,7 @@ Tactic Notation "rel_allocBtape_l" ident(l) "as" constr(H) :=
        [reflexivity (** e = fill K (Alloc e') *)
        |idtac..])
     |fail 1 "rel_allocBtape_l: cannot find 'allocB'"];
-  [iSolveTC        (** IntoLaters *)
+  [tc_solve        (** IntoLaters *)
   |iIntros (l) H; rel_finish  (** new goal *)].
 
 Lemma tac_rel_allocBtape_r `{!clutchRGS Σ} K' ℶ E e t A :

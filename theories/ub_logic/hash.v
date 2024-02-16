@@ -111,7 +111,7 @@ Section simple_bit_hash.
   Lemma coll_free_insert (m : gmap nat Z) (n : nat) (z : Z) :
     m !! n = None ->
     coll_free m ->
-    Forall (λ x, z ≠ snd x) (gmap_to_list m) ->
+    Forall (λ x, z ≠ snd x) (map_to_list m) ->
     coll_free (<[ n := z ]>m).
   Proof.
     intros Hnone Hcoll HForall.
@@ -186,7 +186,7 @@ Section simple_bit_hash.
 
   Lemma wp_insert_no_coll E f m (n : nat) :
     m !! n = None →
-    {{{ coll_free_hashfun f m ∗ € (nnreal_div (nnreal_nat (length (gmap_to_list m))) (nnreal_nat(val_size+1))) 
+    {{{ coll_free_hashfun f m ∗ € (nnreal_div (nnreal_nat (length (map_to_list m))) (nnreal_nat(val_size+1)))
     }}}
       f #n @ E
     {{{ (v : Z), RET #v; coll_free_hashfun f (<[ n := v ]>m) }}}.
@@ -199,7 +199,7 @@ Section simple_bit_hash.
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_list_int _ val_size (map (λ p, snd p) (gmap_to_list m))); auto.
+    wp_apply (wp_rand_err_list_int _ val_size (map (λ p, snd p) (map_to_list m))); auto.
     rewrite map_length.
     iFrame.
     iIntros "%x %HForall".
@@ -377,7 +377,6 @@ Section amortized_hash.
       by apply le_INR.
   Qed.
   
-
   Lemma wp_insert_new_amortized E f m (n : nat) :
     m !! n = None →
     (size m < max_hash_size)%nat ->
@@ -435,7 +434,7 @@ Section amortized_hash.
         rewrite -Rmult_plus_distr_l.
         f_equal.
     - wp_apply (wp_insert_no_coll with "[H Hε]"); [done|..].
-      + iFrame. done. 
+      + rewrite map_to_list_length. iFrame. done.
       + iIntros (v) "[H %]".
         iApply "HΦ".
         iSplitL; last done.

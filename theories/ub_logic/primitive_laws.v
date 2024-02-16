@@ -17,7 +17,7 @@ Class ub_clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the error *)
-  ub_clutchGS_error :> ecGS Σ;
+  ub_clutchGS_error :: ecGS Σ;
 }.
 
 

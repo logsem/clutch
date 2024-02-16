@@ -12,7 +12,7 @@ From iris.bi Require Export weakestpre.
 Import uPred.
 
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
-  iris_invGS :> invGS_gen HasNoLc Σ;
+  iris_invGS :: invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
 }.
 Global Opaque iris_invGS.
@@ -383,7 +383,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? []. rewrite /exec_mlift_pre.
   do 9 f_equiv.
-  f_contractive.
+  f_contractive_fin.
   do 2 f_equiv. rewrite IH; [done|lia|].
   intros ?. eapply dist_S, HΦ.
 Qed.

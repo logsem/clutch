@@ -29,20 +29,20 @@ Class GwpTacticsHeap Σ A (laters : bool) (gwp : A → coPset → expr → (val 
   wptac_mapsto_array : loc → dfrac → (list val) → iProp Σ;
 
   wptac_wp_alloc E v a :
-    ∀ Φ, True -∗ (▷^(if laters then 1 else 0) (∀ l, (wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitLoc l))%V)) -∗
+    ∀ Φ, ⊢ True -∗ (▷^(if laters then 1 else 0) (∀ l, (wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitLoc l))%V)) -∗
           gwp a E (Alloc (Val v)) Φ;
 
     wptac_wp_allocN E v n a :
     (0 < n)%Z →
-    ∀ Φ, True -∗ (▷^(if laters then 1 else 0) (∀ l, (wptac_mapsto_array l (DfracOwn 1) (replicate (Z.to_nat n) v)) -∗ Φ (LitV (LitLoc l))%V)) -∗
+    ∀ Φ, ⊢ True -∗ (▷^(if laters then 1 else 0) (∀ l, (wptac_mapsto_array l (DfracOwn 1) (replicate (Z.to_nat n) v)) -∗ Φ (LitV (LitLoc l))%V)) -∗
          gwp a E (AllocN (Val $ LitV $ LitInt $ n) (Val v)) Φ ;
 
     wptac_wp_load E v l dq a :
-    ∀ Φ, (▷ wptac_mapsto l dq v) -∗ (▷^(if laters then 1 else 0) ((wptac_mapsto l dq v) -∗ Φ v%V)) -∗
+    ∀ Φ, ⊢ (▷ wptac_mapsto l dq v) -∗ (▷^(if laters then 1 else 0) ((wptac_mapsto l dq v) -∗ Φ v%V)) -∗
          gwp a E (Load (Val $ LitV $ LitLoc l)) Φ;
 
     wptac_wp_store E v v' l a :
-    ∀ Φ, (▷ wptac_mapsto l (DfracOwn 1) v') -∗ (▷^(if laters then 1 else 0) ((wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitUnit))%V)) -∗
+    ∀ Φ, ⊢ (▷ wptac_mapsto l (DfracOwn 1) v') -∗ (▷^(if laters then 1 else 0) ((wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitUnit))%V)) -∗
          gwp a E (Store (Val $ LitV $ LitLoc l) (Val v)) Φ;
 
   }.
@@ -159,9 +159,9 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
       reshape_expr e ltac:(fun K e' =>
         unify e' efoc;
         eapply (tac_wp_pure_later _ _ _ _ K e');
-        [iSolveTC                       (* PureExec *)
+        [tc_solve                       (* PureExec *)
         |try solve_vals_compare_safe    (* The pure condition for PureExec -- handles trivial goals, including [vals_compare_safe] *)
-        |iSolveTC                       (* IntoLaters *)
+        |tc_solve                       (* IntoLaters *)
         |wp_finish                      (* new goal *)
         ])
     || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
@@ -170,9 +170,9 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
     reshape_expr e ltac:(fun K e' =>
       unify e' efoc;
       eapply (tac_wp_pure_later _ _ _ _ K e');
-      [iSolveTC                       (* PureExec *)
+      [tc_solve                       (* PureExec *)
       |try solve_vals_compare_safe    (* The pure condition for PureExec -- handles trivial goals, including [vals_compare_safe] *)
-      |iSolveTC                       (* IntoLaters *)
+      |tc_solve                       (* IntoLaters *)
       |wp_finish                      (* new goal *)
       ])
     || fail "Hello! wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
@@ -295,7 +295,7 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
   Proof.
     rewrite envs_entails_unseal=> ? HΔ.
     rewrite -wptac_wp_bind.
-    eapply bi.wand_apply; first exact: wptac_wp_alloc.
+    eapply bi.wand_apply. 1: apply bi.wand_entails, wptac_wp_alloc.
     rewrite left_id into_laterN_env_sound.
     apply bi.laterN_mono, bi.forall_intro=> l.
     specialize (HΔ l).
@@ -319,7 +319,7 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
   Proof.
     rewrite envs_entails_unseal=> ? ? HΔ.
     rewrite -wptac_wp_bind.
-    eapply bi.wand_apply; first exact: wptac_wp_allocN.
+    eapply bi.wand_apply; first apply bi.wand_entails, wptac_wp_allocN => //.
     rewrite left_id into_laterN_env_sound.
     apply bi.laterN_mono, bi.forall_intro=> l.
     specialize (HΔ l).
@@ -338,7 +338,7 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
     envs_entails Δ (WP fill K (Load (Val $ LitV $ LitLoc l)) @ a; E {{ Φ }}).
   Proof.
     rewrite envs_entails_unseal=> ?? Hi.
-    rewrite -wptac_wp_bind. eapply bi.wand_apply; [exact: wptac_wp_load|].
+    rewrite -wptac_wp_bind. eapply bi.wand_apply; [apply bi.wand_entails, wptac_wp_load => //|].
     rewrite into_laterN_env_sound.
     destruct laters.
     - rewrite -bi.later_sep.
@@ -364,7 +364,7 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
   Proof.
     rewrite envs_entails_unseal=> ?? Hcnt.
     destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
-    rewrite -wptac_wp_bind. eapply bi.wand_apply; [by eapply wptac_wp_store|].
+    rewrite -wptac_wp_bind. eapply bi.wand_apply; [by eapply bi.wand_entails, wptac_wp_store|].
     rewrite into_laterN_env_sound.
     destruct laters.
     - rewrite -bi.later_sep envs_simple_replace_sound //; simpl.
@@ -400,14 +400,14 @@ lazymatch goal with
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloc _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [iSolveTC
+        [tc_solve
         |finish ()]
     in
     let process_array _ :=
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_allocN _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [idtac| iSolveTC
+        [idtac| tc_solve
          |finish ()]
     in (process_single ()) || (process_array ())
 | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
@@ -415,14 +415,14 @@ lazymatch goal with
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloc _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [iSolveTC
+        [tc_solve
         |finish ()]
     in
     let process_array _ :=
         first
           [reshape_expr e ltac:(fun K e' => eapply (tac_wp_allocN _ _ _ Htmp K))
           |fail 1 "wp_alloc: cannot find 'Alloc' in" e];
-        [idtac| iSolveTC
+        [idtac| tc_solve
          |finish ()]
     in (process_single ()) || (process_array ())
   | _ => fail "wp_alloc: not a 'wp'"
@@ -442,14 +442,14 @@ Tactic Notation "wp_load" :=
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ K))
       |fail 1 "wp_load: cannot find 'Load' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_wptac_mapsto ()
     |wp_finish]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_load _ _ _ _ K))
       |fail 1 "wp_load: cannot find 'Load' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_wptac_mapsto ()
     |wp_finish]
   | _ => fail "wp_load: not a 'wp'"
@@ -465,14 +465,14 @@ Tactic Notation "wp_store" :=
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_store _ _ _ _ K))
       |fail 1 "wp_store: cannot find 'Store' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_wptac_mapsto ()
     |pm_reduce; first [wp_seq|wp_finish]]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_store _ _ _ _ K))
       |fail 1 "wp_store: cannot find 'Store' in" e];
-    [iSolveTC
+    [tc_solve
     |solve_wptac_mapsto ()
     |pm_reduce; first [wp_seq|wp_finish]]
   | _ => fail "wp_store: not a 'wp'"

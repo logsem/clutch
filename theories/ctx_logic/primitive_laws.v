@@ -18,7 +18,7 @@ Class clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  clutchGS_spec :> specGS Σ;
+  clutchGS_spec :: specGS Σ;
 }.
 
 Definition heap_auth `{clutchGS Σ} :=

@@ -18,9 +18,9 @@ Class app_clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  clutchGS_spec :> specGS Σ;
+  clutchGS_spec :: specGS Σ;
   (* CMRA and ghost name for the error *)
-  clutchGS_error :> ecGS Σ;
+  clutchGS_error :: ecGS Σ;
 }.
 
 Definition heap_auth `{app_clutchGS Σ} :=

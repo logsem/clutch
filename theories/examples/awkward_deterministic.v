@@ -5,7 +5,7 @@ From clutch Require Export clutch.
 Set Default Proof Using "Type*".
 
 Definition oneshotR := csumR (exclR unitR) (agreeR unitR).
-Class oneshotG Σ := { oneshot_inG :> inG Σ oneshotR }.
+Class oneshotG Σ := { oneshot_inG :: inG Σ oneshotR }.
 Definition oneshotΣ : gFunctors := #[GFunctor oneshotR].
 Global Instance subG_oneshotΣ {Σ} : subG oneshotΣ Σ → oneshotG Σ.
 Proof. solve_inG. Qed.
@@ -46,7 +46,7 @@ Section proofs.
   Definition shot γ `{oneshotG Σ} := own γ (Cinr (to_agree ())).
   Lemma new_pending `{oneshotG Σ} : ⊢ |==> ∃ γ, pending γ.
   Proof. by apply own_alloc. Qed.
-  Lemma shoot γ `{oneshotG Σ} : pending γ ==∗ shot γ.
+  Lemma shoot γ `{oneshotG Σ} : pending γ ⊢ |==> shot γ.
   Proof.
     apply own_update.
     intros n [f |]; simpl; eauto.

@@ -58,7 +58,7 @@ Section keyed_hash.
     rewrite ?Nat.shiftr_div_pow2 ?Nat.shiftl_mul_pow2.
     intros Hv.
     specialize (pow2_nonzero MAX_VALS_POW) => ?.
-    rewrite Nat.add_comm Nat.mod_add; last lia.
+    rewrite Nat.add_comm Nat.Div0.mod_add.
     rewrite Nat.mod_small; lia.
   Qed.
 
@@ -89,10 +89,10 @@ Section keyed_hash.
    x `div` k = (x - x `mod` k) `div` k.
   Proof.
     intros Hlt.
-    rewrite Nat.mod_eq; last by lia.
+    rewrite Nat.Div0.mod_eq.
     replace (x - (x - k * x `div` k)) with (k * x `div` k); last first.
     { remember (x `div` k) as y. cut (k * y <= x); try lia.
-      rewrite Heqy. apply Nat.mul_div_le; lia. }
+      rewrite Heqy. apply Nat.Div0.mul_div_le; lia. }
     rewrite Nat.mul_comm Nat.div_mul; lia.
   Qed.
 
