@@ -31,6 +31,15 @@ Definition array_clone : val :=
     array_copy_to "dst" "src" "n";;
     "dst".
 
+(* Not very efficient, but OK for the purpose of
+   writing specifications *)
+Definition array_resize : val :=
+   λ: "src" "n" "m",
+    let: "dst" := AllocN ( "n" + "m" ) #() in
+    array_copy_to "dst" "src" "n";;
+    "dst".
+
+
 (* [array_init_loop src i n f] initializes elements
    [i], [i+1], ..., [n] of the array [src] to
    [f #i], [f #(i+1)], ..., [f #n] *)
@@ -85,6 +94,31 @@ Section proof.
       iApply "HΦ"; by iFrame.
   Qed.
 
+
+  Lemma wp_array_resize E l dq vl (n m : nat) :
+    Z.of_nat (length vl) = n →
+    (0 < n)%nat →
+    (0 < m)%nat →
+    {{{ l ↦∗{dq} vl }}}
+      array_resize #l #n #m @ E
+      {{{ l', RET #l'; l' ↦∗ (vl ++ (replicate m #())) ∗ l ↦∗{dq} vl }}}.
+  Proof.
+    iIntros (Hvl Hn Hm HΦ) "Hvl HΦ".
+    rewrite /array_resize.
+    wp_pures.
+    wp_alloc dst as "Hdst"; first by lia. simpl.
+    rewrite Z2Nat.inj_add; try lia.
+    rewrite !Nat2Z.id.
+    rewrite replicate_add.
+    iPoseProof (array_app dst with "Hdst") as "[Hdst1 Hdst2]".
+    wp_smart_apply (wp_array_copy_to with "[$Hdst1 $Hvl]"); auto.
+    - rewrite replicate_length; lia.
+    - iIntros "[Hdst Hl]".
+      wp_pures.
+      iApply "HΦ". iFrame.
+      iApply array_app. iFrame.
+      by rewrite replicate_length Hvl.
+  Qed.
 
 
   Section array_init.

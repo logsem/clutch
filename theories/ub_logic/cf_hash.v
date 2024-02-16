@@ -1,4 +1,5 @@
 From clutch.ub_logic Require Export ub_clutch hash lib.map.
+From stdpp Require Import fin_maps.
 Import Hierarchy.
 
 Section coll_free_hash.
@@ -65,16 +66,26 @@ Section coll_free_hash.
       compute_cf_hash "hm" "vs" "s" "r".
 
 
+
+
   (* A hash function is collision free if the partial map it
      implements is an injective function *)
-  Definition coll_free (m : gmap nat Z) :=
+  Definition coll_free (m : gmap nat nat) :=
     forall k1 k2,
       is_Some (m !! k1) ->
       is_Some (m !! k2) ->
       m !!! k1 = m !!! k2 ->
       k1 = k2.
 
-  Lemma coll_free_insert (m : gmap nat Z) (n : nat) (z : Z) :
+
+  Search gmap.
+  Search gset_elements.
+
+  Definition is_prf (m : gmap nat nat) size :=
+    coll_free m /\
+    (forall x, x ∈ map_img m -> x <= size).
+
+  Lemma coll_free_insert (m : gmap nat nat) (n : nat) (z : nat) :
     m !! n = None ->
     coll_free m ->
     Forall (λ x, z ≠ snd x) (gmap_to_list m) ->
@@ -91,7 +102,7 @@ Section coll_free_hash.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
-      eapply (Forall_iff (uncurry ((λ (k : nat) (v : Z), z ≠ v)))) in HForall; last first.
+      eapply (Forall_iff (uncurry ((λ (k : nat) (v : nat), z ≠ v)))) in HForall; last first.
       { intros (?&?); eauto. }
       eapply map_Forall_to_list in HForall.
       rewrite /map_Forall in HForall.
@@ -103,7 +114,7 @@ Section coll_free_hash.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.
-        eapply (Forall_iff (uncurry ((λ (k : nat) (v : Z), z ≠ v)))) in HForall; last first.
+        eapply (Forall_iff (uncurry ((λ (k : nat) (v : nat), z ≠ v)))) in HForall; last first.
         { intros (?&?); eauto. }
         eapply map_Forall_to_list in HForall.
         rewrite /map_Forall in HForall.
@@ -126,8 +137,8 @@ Section coll_free_hash.
      for the totalerror
   *)
 
-  Definition cf_hashfun f m (vsval sval rval : nat) ε: iProp Σ :=
-    ∃ (hm vs s r : loc),
+  Definition cf_hashfun_raw f m (vsval sval rval : nat) : iProp Σ :=
+    ∃ (hm vs s r : loc) (ε : nonnegreal),
       (* The reserve of error credits *)
       € ε ∗
       vs ↦ #vsval ∗ s ↦ #sval ∗ r ↦ #rval ∗
@@ -136,14 +147,18 @@ Section coll_free_hash.
          is kept constant *)
       ⌜ (rval / vsval = init_r/ init_val_size)%R ⌝ ∗
       ⌜ f = compute_cf_hash_specialized #hm #vs #s #r⌝ ∗
-      map_list hm ((λ b, LitV (LitInt b)) <$> m) ∗
+      map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
       ⌜ sval < rval ⌝ ∗
       ⌜ sval = (length (gmap_to_list m)) ⌝ ∗
       (* The current reserve plus the amortized cost times the number of insertions
          until the next resize is enough to pay for all the error *)
-      ⌜(ε + (rval - sval)*( 3 * init_r)/(4 * init_val_size) >=
+      ⌜(ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval-1) )%R ⌝ ∗
       ⌜ coll_free m ⌝.
+
+  Definition cf_hashfun f m : iProp Σ :=
+    ∃ (vsval sval rval : nat),
+      cf_hashfun_raw f m vsval sval rval.
 
 
   Lemma sum_n_m_le_cond (a b : nat → R) (n m : nat) :
@@ -477,19 +492,18 @@ Section coll_free_hash.
      then we return a collision free hash, with enough credits in the reserve to pay
      for future insertions *)
 
-  Lemma wp_insert_no_coll E f m (vsval sval rval: nat) ε (n : nat) :
+  Lemma wp_insert_no_coll E f m (vsval sval rval: nat) (n : nat) :
     m !! n = None →
     0 < vsval ->
     (sval + 1 < rval)%nat ->
-    {{{ cf_hashfun f m vsval sval rval ε ∗
+    {{{ cf_hashfun_raw f m vsval sval rval ∗
           € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       f #n @ E
-    {{{ (v : Z), RET #v;
-        ∃ ε',
-          cf_hashfun f (<[ n := v ]>m) vsval (sval+1) rval ε' }}}.
+    {{{ (v : nat), RET #v;
+          cf_hashfun_raw f (<[ n := v ]>m) vsval (sval+1) rval }}}.
   Proof.
     iIntros (Hlookup Hvsval_pos Hineq Φ) "(Hhash & Herr) HΦ".
-    iDestruct "Hhash" as (hm vs s r)
+    iDestruct "Hhash" as (hm vs s r ε)
                            "(Herr2 & Hvs & Hs & Hr & %Hvspos & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & %Hcf)".
     rewrite /compute_cf_hash_specialized.
     wp_pures.
@@ -498,7 +512,7 @@ Section coll_free_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_load. wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_list_int _ (vsval - 1) (map (λ p, snd p) (gmap_to_list m))); auto.
+    wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (gmap_to_list m))); auto.
     rewrite map_length -Hlen.
     iPoseProof (cf_update_potential _ _ _ _ _ _
                  with "[Herr2 //] [Htot_err //] [Herr //]")
@@ -534,9 +548,8 @@ Section coll_free_hash.
     wp_pures.
     iModIntro.
     iApply "HΦ".
-    iExists ε'.
-    rewrite /cf_hashfun.
-    iExists hm, vs, s, r.
+    rewrite /cf_hashfun_raw.
+    iExists hm, vs, s, r, ε'.
     (* Is there a way to avoid having to apply this coercion? *)
     assert (#(sval + 1)%nat = #(sval + 1)) as Hsval.
     {
@@ -568,7 +581,7 @@ Section coll_free_hash.
                 rewrite plus_INR /= //.
              ++ iPureIntro.
                 apply coll_free_insert; auto.
-                apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
+                apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
  Qed.
 
 
@@ -577,18 +590,18 @@ Section coll_free_hash.
      and we get € (3 * init_r) / (4 * init_val_size) then we return a collision free hash
      with updated sizes and threshold, and an empty credit reserve  *)
 
-  Lemma wp_insert_no_coll_resize E f m (vsval sval rval: nat) ε (n : nat) :
+  Lemma wp_insert_no_coll_resize E f m (vsval sval rval: nat) (n : nat) :
     m !! n = None →
     0 < vsval ->
     (sval + 1 = rval)%nat ->
-    {{{ cf_hashfun f m vsval sval rval ε ∗
+    {{{ cf_hashfun_raw f m vsval sval rval ∗
           € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       f #n @ E
-    {{{ (v : Z), RET #v;
-          cf_hashfun f (<[ n := v ]>m) (Nat.mul 2 vsval) rval (Nat.mul 2 rval) nnreal_zero }}}.
+    {{{ (v : nat), RET #v;
+          cf_hashfun_raw f (<[ n := v ]>m) (Nat.mul 2 vsval) rval (Nat.mul 2 rval) }}}.
   Proof.
     iIntros (Hlookup Hvsval_pos Heq Φ) "(Hhash & Herr) HΦ".
-    iDestruct "Hhash" as (hm vs s r)
+    iDestruct "Hhash" as (hm vs s r ε)
                            "(Herr2 & Hvs & Hs & Hr & %Hvspos & %Hratio & -> & Hmap & %Hlsr & %Hlen & %Htot_err & %Hcf)".
     rewrite /compute_cf_hash_specialized.
     wp_pures.
@@ -597,7 +610,7 @@ Section coll_free_hash.
     rewrite lookup_fmap Hlookup. wp_pures.
     wp_load. wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_list_int _ (vsval - 1) (map (λ p, snd p) (gmap_to_list m))); auto.
+    wp_apply (wp_rand_err_list_nat _ (vsval - 1) (map (λ p, snd p) (gmap_to_list m))); auto.
     rewrite map_length -Hlen.
     iPoseProof (cf_update_potential_resize vsval sval rval _ _ Hvspos
                  with "[Herr2 //] [//] [] [Herr //]")
@@ -646,8 +659,8 @@ Section coll_free_hash.
     wp_store.
     iModIntro.
     iApply "HΦ".
-    rewrite /cf_hashfun.
-    iExists hm, vs, s, r.
+    rewrite /cf_hashfun_raw.
+    iExists hm, vs, s, r, nnreal_zero.
     (* Is there a way to avoid having to apply this coercion? *)
     assert (#(sval + 1)%nat = #(sval + 1)) as Hsval.
     {
@@ -720,7 +733,88 @@ Section coll_free_hash.
                 lra.
              ++ iPureIntro.
                 apply coll_free_insert; auto.
-                apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
- Qed.
+                apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+  Qed.
+
+
+  Lemma wp_lookup_no_coll E f m (vsval sval rval: nat) (n : nat) x :
+    m !! n = Some x →
+    {{{ cf_hashfun_raw f m vsval sval rval }}}
+      f #n @ E
+      {{{ (v : nat), RET #v; ⌜ v = x ⌝ ∗ cf_hashfun_raw f m vsval sval rval }}}.
+  Proof.
+    iIntros (Hlookup Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (hm vs s r ε)
+                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & %Hcf)".
+    rewrite /compute_cf_hash_specialized.
+    wp_pures.
+    wp_apply (wp_get with "[$]").
+    iIntros (vret) "(Hhash&->)".
+    rewrite lookup_fmap Hlookup. wp_pures.
+    iModIntro.
+    iApply "HΦ".
+    rewrite /cf_hashfun_raw.
+    iSplit; auto.
+    iExists hm, vs, s, r, ε.
+    iFrame.
+    iSplit; auto.
+  Qed.
+
+
+  Lemma wp_hf_lookup_none E f m (n : nat) :
+    m !! n = None →
+    {{{ cf_hashfun f m ∗
+          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size)))}}}
+      f #n @ E
+      {{{ (v : nat), RET #v; cf_hashfun f (<[ n := v ]>m)  }}}.
+  Proof.
+    iIntros (Hlookup Φ) "[Hhash Herr] HΦ".
+    iDestruct "Hhash" as (vsval sval rval) "Hhash".
+    iDestruct "Hhash" as (hm vs s r ε)
+                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & %Hcf)".
+    assert ((sval + 1 < rval)%nat \/ (sval + 1 = rval)%nat) as [Hleq | Heq].
+    {
+      apply INR_lt in Hlsr.
+      inversion Hlsr.
+      - right. lia.
+      - left. lia.
+    }
+    - wp_apply (wp_insert_no_coll with "[-HΦ]"); eauto.
+      + iFrame.
+        iExists _,_,_,_,_. by iFrame.
+      + iIntros (v) "Hhash".
+        iApply "HΦ".
+        rewrite /cf_hashfun.
+        iExists _,_,_. done.
+    - wp_apply (wp_insert_no_coll_resize with "[-HΦ]"); eauto.
+      + iFrame.
+        iExists _,_,_,_,_. by iFrame.
+      + iIntros (v) "Hhash".
+        iApply "HΦ".
+        rewrite /cf_hashfun.
+        iExists _,_,_. done.
+  Qed.
+
+
+  Lemma wp_hf_lookup_some E f m (n : nat) x :
+    m !! n = Some x →
+    {{{ cf_hashfun f m }}}
+      f #n @ E
+      {{{ (v : nat), RET #v; ⌜v = x⌝ ∗ cf_hashfun f m  }}}.
+  Proof.
+    iIntros (Hlookup Φ) "Hhash HΦ".
+    iDestruct "Hhash" as (vsval sval rval) "Hhash".
+    iDestruct "Hhash" as (hm vs s r ε)
+                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & %Hcf)".
+    wp_apply (wp_lookup_no_coll with "[-HΦ]"); eauto.
+      + iExists _,_,_,_,_. by iFrame.
+      + iIntros (v) "[? Hhash]".
+        iApply "HΦ". iFrame.
+        rewrite /cf_hashfun.
+        iExists _,_,_. done.
+  Qed.
+
+
+
 
 End coll_free_hash.
