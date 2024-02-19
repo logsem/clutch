@@ -77,12 +77,9 @@ Section coll_free_hash.
       m !!! k1 = m !!! k2 ->
       k1 = k2.
 
-
-  (* 
-  Definition is_prf (m : gmap nat nat) size :=
+  Definition is_bounded_prf (m : gmap nat nat) (size : nat) :=
     coll_free m /\
-    (forall x, x ∈ map_img m -> x <= size).
-  *)
+    (forall x : nat, (elem_of x (@map_img _ _ _ _ (gset nat) _ _ _ m)) -> x < size).
 
   Lemma coll_free_insert (m : gmap nat nat) (n : nat) (z : nat) :
     m !! n = None ->
@@ -153,12 +150,21 @@ Section coll_free_hash.
          until the next resize is enough to pay for all the error *)
       ⌜(ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval-1) )%R ⌝ ∗
-      ⌜ coll_free m ⌝.
+      ⌜ is_bounded_prf m vsval ⌝.
+
+  Lemma cf_hashfun_bounded_prf f m vsval sval rval :
+    cf_hashfun_raw f m vsval sval rval -∗ ⌜ is_bounded_prf m vsval ⌝ ∗ cf_hashfun_raw f m vsval sval rval.
+  Proof.
+    iIntros "Hhash".
+    iDestruct "Hhash" as (hm vs s r ε)
+                           "(?&?&?&?&?&?&?&?&?&?&?&?)"; auto.
+    iSplit; auto.
+    rewrite /cf_hashfun_raw. iExists _,_,_,_,_. iFrame.
+  Qed.
 
   Definition cf_hashfun f m : iProp Σ :=
     ∃ (vsval sval rval : nat),
       cf_hashfun_raw f m vsval sval rval.
-
 
   Lemma sum_n_m_le_cond (a b : nat → R) (n m : nat) :
     (n <= m)%nat ->
@@ -491,6 +497,7 @@ Section coll_free_hash.
      then we return a collision free hash, with enough credits in the reserve to pay
      for future insertions *)
 
+
   Lemma wp_insert_no_coll E f m (vsval sval rval: nat) (n : nat) :
     m !! n = None →
     0 < vsval ->
@@ -499,11 +506,12 @@ Section coll_free_hash.
           € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       f #n @ E
     {{{ (v : nat), RET #v;
+        ⌜ v < vsval ⌝ ∗ ⌜ v ∉ (@map_img _ _ _ _ (gset nat) _ _ _ m) ⌝ ∗
           cf_hashfun_raw f (<[ n := v ]>m) vsval (sval+1) rval }}}.
   Proof.
     iIntros (Hlookup Hvsval_pos Hineq Φ) "(Hhash & Herr) HΦ".
     iDestruct "Hhash" as (hm vs s r ε)
-                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & %Hcf)".
+                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & (%Hcf & %Himg))".
     rewrite /compute_cf_hash_specialized.
     wp_pures.
     wp_apply (wp_get with "[$]").
@@ -547,6 +555,27 @@ Section coll_free_hash.
     wp_pures.
     iModIntro.
     iApply "HΦ".
+    iSplit.
+    {
+      iPureIntro.
+      eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
+      { apply lt_INR. apply fin_to_nat_lt. }
+      right.
+      f_equal.
+      destruct vsval; [simpl in Hvsval_pos; lra |].
+      rewrite Z2Nat.inj_sub; last by lia.
+      rewrite Nat2Z.id /=. lia.
+    }
+    iSplit.
+    {
+      iPureIntro.
+      intro Hx.
+      apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+      apply elem_of_map_img_1 in Hx as (i & Hi).
+      apply elem_of_map_to_list in Hi.
+      eapply Forall_forall in HForall; eauto.
+      done.
+    }
     rewrite /cf_hashfun_raw.
     iExists hm, vs, s, r, ε'.
     (* Is there a way to avoid having to apply this coercion? *)
@@ -579,8 +608,29 @@ Section coll_free_hash.
              ++ iPureIntro.
                 rewrite plus_INR /= //.
              ++ iPureIntro.
-                apply coll_free_insert; auto.
-                apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+                split.
+                ** apply coll_free_insert; auto.
+                   apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+                ** intros y Hy.
+                   assert (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))) = vsval) as Hfin.
+                   {
+                     destruct vsval; [simpl in Hvsval_pos; lra |].
+                     rewrite Z2Nat.inj_sub; last by lia.
+                     rewrite Nat2Z.id /=. lia.
+                   }
+                   apply elem_of_map_img_1 in Hy as (i & Hi).
+                   destruct (decide(n = i)) as [-> | Hneq].
+                   --- rewrite lookup_insert in Hi. inversion Hi.
+                       eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
+                       { apply lt_INR. apply fin_to_nat_lt. }
+                       right. f_equal.
+                       destruct vsval; [simpl in Hvsval_pos; lra |].
+                       rewrite Z2Nat.inj_sub; last by lia.
+                       rewrite Nat2Z.id /=. lia.
+
+                   --- rewrite lookup_insert_ne in Hi; auto.
+                       apply Himg.
+                       eapply elem_of_map_img_2; eauto.
  Qed.
 
 
@@ -597,11 +647,12 @@ Section coll_free_hash.
           € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       f #n @ E
     {{{ (v : nat), RET #v;
+        ⌜ v < vsval ⌝ ∗ ⌜ v ∉ (@map_img _ _ _ _ (gset nat) _ _ _ m) ⌝ ∗
           cf_hashfun_raw f (<[ n := v ]>m) (Nat.mul 2 vsval) rval (Nat.mul 2 rval) }}}.
   Proof.
     iIntros (Hlookup Hvsval_pos Heq Φ) "(Hhash & Herr) HΦ".
     iDestruct "Hhash" as (hm vs s r ε)
-                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & %Hratio & -> & Hmap & %Hlsr & %Hlen & %Htot_err & %Hcf)".
+                           "(Herr2 & Hvs & Hs & Hr & %Hvspos & %Hratio & -> & Hmap & %Hlsr & %Hlen & %Htot_err & (%Hcf & %Himg))".
     rewrite /compute_cf_hash_specialized.
     wp_pures.
     wp_apply (wp_get with "[$]").
@@ -659,6 +710,27 @@ Section coll_free_hash.
     wp_store.
     iModIntro.
     iApply "HΦ".
+    iSplit.
+    {
+      iPureIntro.
+      eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
+      { apply lt_INR. apply fin_to_nat_lt. }
+      right.
+      f_equal.
+      destruct vsval; [simpl in Hvsval_pos; lra |].
+      rewrite Z2Nat.inj_sub; last by lia.
+      rewrite Nat2Z.id /=. lia.
+    }
+    iSplit.
+    {
+      iPureIntro.
+      intro Hx.
+      apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+      apply elem_of_map_img_1 in Hx as (i & Hi).
+      apply elem_of_map_to_list in Hi.
+      eapply Forall_forall in HForall; eauto.
+      done.
+    }
     rewrite /cf_hashfun_raw.
     iExists hm, vs, s, r, nnreal_zero.
     (* Is there a way to avoid having to apply this coercion? *)
@@ -732,8 +804,32 @@ Section coll_free_hash.
                 do 4 rewrite plus_INR /=.
                 lra.
              ++ iPureIntro.
-                apply coll_free_insert; auto.
-                apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+                split.
+                ** apply coll_free_insert; auto.
+                   apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
+                ** intros y Hy.
+                   assert (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))) = vsval) as Hfin.
+                   {
+                     destruct vsval; [simpl in Hvsval_pos; lra |].
+                     rewrite Z2Nat.inj_sub; last by lia.
+                     rewrite Nat2Z.id /=. lia.
+                   }
+                   apply elem_of_map_img_1 in Hy as (i & Hi).
+                   destruct (decide(n = i)) as [-> | Hneq].
+                   --- rewrite lookup_insert in Hi. inversion Hi.
+                       eapply (Rlt_le_trans _ (S (Z.to_nat (Z.sub (Z.of_nat vsval) (Zpos xH))))); eauto.
+                       { apply lt_INR. apply fin_to_nat_lt. }
+                       transitivity vsval.
+                       { right. f_equal.
+                       destruct vsval; [simpl in Hvsval_pos; lra |].
+                       rewrite Z2Nat.inj_sub; last by lia.
+                       rewrite Nat2Z.id /=. lia. }
+                       rewrite mult_INR /=. lra.
+                   --- rewrite lookup_insert_ne in Hi; auto.
+                       transitivity vsval.
+                       { apply Himg.
+                         eapply elem_of_map_img_2; eauto. }
+                       rewrite mult_INR /= //. lra.
   Qed.
 
 
@@ -782,14 +878,14 @@ Section coll_free_hash.
     - wp_apply (wp_insert_no_coll with "[-HΦ]"); eauto.
       + iFrame.
         iExists _,_,_,_,_. by iFrame.
-      + iIntros (v) "Hhash".
+      + iIntros (v) "(?&?&Hhash)".
         iApply "HΦ".
         rewrite /cf_hashfun.
         iExists _,_,_. done.
     - wp_apply (wp_insert_no_coll_resize with "[-HΦ]"); eauto.
       + iFrame.
         iExists _,_,_,_,_. by iFrame.
-      + iIntros (v) "Hhash".
+      + iIntros (v) "(?&?&Hhash)".
         iApply "HΦ".
         rewrite /cf_hashfun.
         iExists _,_,_. done.
