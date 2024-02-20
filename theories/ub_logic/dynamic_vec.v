@@ -16,28 +16,39 @@ Section faulty_allocator.
     forall (n : nat) l (vs : list val),
       (0 < n)%Z →
       {{{ € (nnreal_mult (nnreal_nat n) ε) ∗ ▷ l ↦∗ vs }}} f (Val $ LitV $ LitInt $ n) #l
-      {{{ RET #();
-          l ↦∗ (vs ++ (replicate (Z.to_nat n) #())) }}}.
+      {{{ l', RET #l';
+          l' ↦∗ (vs ++ (replicate (Z.to_nat n) #())) }}}.
 
   Definition store_spec (f : val) :=
     forall (l : loc) (off : nat) (vs : list val) (v : val),
       is_Some (vs !! off) →
-      {{{ € ε ∗ ▷ l ↦∗ vs }}} f #l #off v {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
+      {{{ € ε ∗ l ↦∗ vs }}} f #l #off v {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
 
   Definition load_spec (f : val) :=
     forall (l : loc) (off : nat) (vs : list val) (v : val),
     vs !! off = Some v →
-  {{{ € ε ∗ ▷ l ↦∗ vs }}} f #l {{{ RET v; l ↦∗ vs }}}.
+  {{{ € ε ∗ l ↦∗ vs }}} f #l {{{ RET v; l ↦∗ vs }}}.
+
+
+  (** Inspired by the Time Credits queue *)
+  Notation "'letvec:' ( lfst , len , rlim ) := e1 'in' e2" :=
+    (let: "__x" := e1%E in
+     let: lfst := Fst (Fst "__x") in
+     let: len := Snd (Fst "__x") in
+     let: rlim := Snd "__x" in
+     e2%E)%E
+      (at level 200, lfst, len, rlim at level 1, e1, e2 at level 200)
+      : expr_scope.
+
 
   Definition vec_push_back (ext str: val) : val :=
-    λ: "s" "r" "l" "v",
-      str "l" !"s" "v" ;;
-      "s" <- !"s"+#1 ;;
-      if: !"s" = !"r" then
-        "r" <- #2 * !"r";;
-        ext !"s" "l";;
-        #()
-      else #().
+    λ: "vec" "v",
+      letvec: ( "l", "s", "r" ) := "vec" in
+      str "l" "s" "v" ;;
+      if: "s" + #1 = "r" then
+        let: "l'" := ext "r" "l" in
+        ( "l'", "s" + #1, #2 * "r" )
+      else ( "l", "s" + #1, "r" ).
 
   Definition vec_push_back_sp (ext str : val) s r : val :=
     λ: "l" "v",
@@ -50,251 +61,213 @@ Section faulty_allocator.
       else #().
 
 
-  Definition vec_spec vs pb ext str (sval rval : nat) : iProp Σ :=
-    ∃ (l s r : loc) xs p,
+  Definition vec_spec (vec : val) (vs : list val) : iProp Σ :=
+    ∃ (l : loc) (sval rval : nat) xs p,
+      ⌜ vec = ( #l, #sval, #rval )%V ⌝ ∗
       (* The potential of error credits *)
       € p ∗
-      s ↦ #sval ∗ r ↦ #rval ∗
       l ↦∗ (vs ++ xs) ∗
       ⌜ sval < rval ⌝ ∗
       ⌜ sval = (length vs) ⌝ ∗
       ⌜ rval = (length (vs ++ xs)) ⌝ ∗
-                 ⌜ pb = vec_push_back ext str #s #r #l⌝ ∗
-                          (* The current potential plus the expected potential
-                             is equal to the length
-                             of the vector times the error cost of allocation.
-                             This ensures we can resize "for free".
-                           *)
-                          ⌜ (nonneg p + (2 * length xs * ε) = rval * ε)%R ⌝.
+       (* The current potential plus the expected potential
+         is equal to the length
+         of the vector times the error cost of allocation.
+         This ensures we can resize "for free".
+       *)
+      ⌜ (nonneg p + (2 * length xs * ε) = rval * ε)%R ⌝.
 
 
-  Lemma wp_push_back pb vs ext str (vsval sval rval: nat) (v : val) :
+  Lemma wp_push_back vs ext str (vec v : val) :
     extend_spec ext ->
     store_spec str ->
-    (sval + 1 < rval)%nat ->
-    {{{ vec_spec vs pb ext str sval rval ∗ € (nnreal_mult (nnreal_nat 3) ε) }}}
-      pb v
-      {{{ RET #(); vec_spec (vs ++ (cons v nil)) pb ext str (sval+1) rval }}}.
+    {{{ vec_spec vec vs ∗ € (nnreal_mult (nnreal_nat 3) ε) }}}
+      vec_push_back ext str vec v
+    {{{ vec', RET vec' ; vec_spec vec' (vs ++ (cons v nil)) }}}.
   Proof.
     rewrite /extend_spec /store_spec.
-    iIntros (Hext Hstr Hineq Φ) "(Hvec & Herr) HΦ".
-    iDestruct "Hvec" as (l s r xs p)
-                          "(Herr2 & Hs & Hr & Hl & %Hleq & %Hlen1 & %Hlen2 & -> & %Hpot)".
+    iIntros (Hext Hstr Φ) "(Hvec & Herr) HΦ".
+    iDestruct "Hvec" as (l sval rval xs p) "(-> &Herr2 & Hl & %Hleq & %Hlen1 & %Hlen2 & %Hpot)".
     rewrite /vec_push_back.
-    assert ((nnreal_nat 3 * ε = ε + (nnreal_nat 2) * ε)%NNR) as Hrw.
+    assert ((nnreal_nat 3 * ε = ε + (nnreal_nat 2) * ε)%NNR) as ->.
     {
       apply nnreal_ext. simpl.
       lra.
     }
-    rewrite Hrw.
-    iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)".
-    wp_pures.
-    wp_load.
-    wp_pures.
-    wp_bind (str _ _ _).
-    wp_apply (Hstr with "[$Herr3 Hl //]").
-    { apply lookup_lt_is_Some_2.
-      rewrite -Hlen2.
-      by apply INR_lt.
-    }
-    iIntros.
-    wp_pures.
-    wp_load.
-    wp_store.
-    wp_load.
-    wp_load.
-    wp_pure.
-    rewrite bool_decide_eq_false_2; last first.
+    assert ((sval + 1 < rval)%nat \/ (sval + 1 = rval)%nat) as [Hno | Hyes].
     {
-      intro H.
-      inversion H.
-      lia.
+      apply INR_lt in Hleq.
+      inversion Hleq.
+      - right. lia.
+      - left. lia.
     }
-    wp_pures.
-    iModIntro.
-    iApply "HΦ".
-    rewrite /vec_spec.
-    iExists l, s, r.
-    destruct xs as [| x xs].
-    {
-      rewrite app_length /= in Hlen2.
-      lia.
-    }
-    iExists xs, (nnreal_plus p (nnreal_mult (nnreal_nat 2) ε)).
-    assert (#(sval + 1)%nat = #(sval + 1)) as Hsval.
-    {
-      do 2 f_equal. lia.
-    }
-    rewrite Hsval.
-    iFrame.
-    iSplitL "Herr2 Herr4".
-    { iApply ec_split. iFrame. }
-    iSplit.
-    {
-      rewrite cons_middle app_assoc insert_app_l.
-      - rewrite -(Nat.add_0_r sval) Hlen1.
-        rewrite insert_app_r //.
-      - rewrite app_length /=.
+    (* Case: No resizing *)
+    - wp_pures.
+      iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)".
+      wp_bind (str _ _ _).
+      wp_apply (Hstr with "[$Herr3 Hl //]").
+      { apply lookup_lt_is_Some_2.
+        rewrite -Hlen2.
+        by apply INR_lt.
+      }
+      iIntros "Hl".
+      wp_pures.
+      rewrite bool_decide_eq_false_2; last first.
+      {
+        intro H.
+        inversion H.
         lia.
-    }
-    iSplit.
-    {
+      }
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      rewrite /vec_spec.
+      iExists l, (sval + 1)%nat, rval.
+      destruct xs as [| x xs].
+      {
+        rewrite app_length /= in Hlen2.
+        lia.
+      }
+      iExists xs, (nnreal_plus p (nnreal_mult (nnreal_nat 2) ε)).
+      assert (#(sval + 1)%nat = #(sval + 1)) as Hsval.
+      {
+        do 2 f_equal. lia.
+      }
+      rewrite Hsval.
+      iSplit; auto.
+      iSplitL "Herr2 Herr4".
+      { iApply ec_split. iFrame. }
+      iSplit.
+      {
+        rewrite cons_middle app_assoc insert_app_l.
+        - rewrite -(Nat.add_0_r sval) Hlen1.
+          rewrite insert_app_r //.
+        - rewrite app_length /=.
+          lia.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        by apply lt_INR in Hno.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        rewrite app_length Hlen1 /= //.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        rewrite Hlen2.
+        do 3 rewrite app_length /=.
+        lia.
+      }
       iPureIntro.
-      by apply lt_INR in Hineq.
-    }
-    iSplit.
-    {
-      iPureIntro.
-      rewrite app_length Hlen1 /= //.
-    }
-    iSplit.
-    {
-      iPureIntro.
-      rewrite Hlen2.
-      do 3 rewrite app_length /=.
-      lia.
-    }
-    iSplit.
-    { done. }
-    iPureIntro.
-    simpl.
-    rewrite -Hpot cons_length S_INR.
-    rewrite Rmult_plus_distr_r Rmult_1_l.
-    rewrite Rplus_assoc.
-    rewrite Rmult_plus_distr_r Rmult_1_l.
-    rewrite Rmult_plus_distr_l Rmult_1_r /=.
-    lra.
-  Qed.
-
-  Lemma wp_push_back_resize pb vs ext str (vsval sval rval: nat) (v : val) :
-    extend_spec ext ->
-    store_spec str ->
-    (sval + 1 = rval)%nat ->
-    {{{ vec_spec vs pb ext str sval rval ∗ € (nnreal_mult (nnreal_nat 3) ε) }}}
-      pb v
-      {{{ RET #(); vec_spec (vs ++ (cons v nil)) pb ext str (sval+1) (2*rval) }}}.
-  Proof.
-    rewrite /extend_spec /store_spec.
-    iIntros (Hext Hstr Heq Φ) "(Hvec & Herr) HΦ".
-    iDestruct "Hvec" as (l s r xs p)
-                          "(Herr2 & Hs & Hr & Hl & %Hleq & %Hlen1 & %Hlen2 & -> & %Hpot)".
-    rewrite /vec_push_back.
-    assert ((nnreal_nat 3 * ε = ε + (nnreal_nat 2) * ε)%NNR) as Hrw.
-    {
-      apply nnreal_ext. simpl.
+      simpl.
+      rewrite -Hpot cons_length S_INR.
+      rewrite Rmult_plus_distr_r Rmult_1_l.
+      rewrite Rplus_assoc.
+      rewrite Rmult_plus_distr_r Rmult_1_l.
+      rewrite Rmult_plus_distr_l Rmult_1_r /=.
       lra.
-    }
-    assert (length xs = 1%nat) as Hxs.
-    {
-      rewrite app_length -Hlen1 -Heq in Hlen2. lia.
-    }
-    rewrite Hrw.
-    iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)".
-    wp_pures.
-    wp_load.
-    wp_pures.
-    wp_bind (str _ _ _).
-    wp_apply (Hstr with "[$Herr3 Hl //]").
-    { apply lookup_lt_is_Some_2.
-      apply INR_lt.
-      rewrite -Hlen2 //.
-    }
-    iIntros "Hl".
-    wp_pures.
-    wp_load.
-    wp_store.
-    wp_load.
-    wp_load.
-    wp_pure.
-    assert (#(sval + 1)%nat = #(sval + 1)) as Hsval.
-    {
-      do 2 f_equal. lia.
-    }
-    rewrite bool_decide_eq_true_2; last first.
-    {
-      do 2 f_equal; lia.
-    }
-    wp_pures.
-    wp_load.
-    wp_store.
-    wp_load.
-    wp_bind (ext _ _)%E.
-    rewrite -Hsval.
-    wp_apply (Hext (Init.Nat.add sval (S O)) l with "[Herr2 Herr4 Hl]").
-    { simpl; lia. }
-    { iFrame.
-      replace (nnreal_nat (sval + 1) * ε)%NNR with
-        (nnreal_plus p (nnreal_nat 2 * ε))%NNR.
-      - iApply ec_split; iFrame.
-      - apply nnreal_ext. simpl.
-        rewrite Heq -Hpot Hxs.
-        simpl. lra.
-    }
-    iIntros "Hl".
-    wp_pures.
-    iApply "HΦ".
-    iMod (ec_zero).
-    iModIntro.
-    rewrite /vec_spec.
-    iExists l, s, r.
-    rewrite Hsval.
-    iExists (replicate (Z.to_nat (sval + 1)%nat) #()), (nnreal_zero).
-    iFrame.
-    iSplitL "Hr".
-    {
-      assert (#(2 * rval)%nat = #(2 * rval)) as ->; try iFrame.
-      do 2 f_equal. lia.
-    }
-    iSplitL "Hl".
-    {
-      destruct xs as [| x xs]; [simpl in Hxs; done |].
-      destruct xs as [| x' xs]; [ | simpl in Hxs; done].
-      rewrite cons_middle app_assoc insert_app_l.
-      - rewrite -(Nat.add_0_r sval) Hlen1 /=.
-        rewrite insert_app_r /=.
-        rewrite app_nil_r. iFrame.
-      - rewrite app_length /=.
-        lia.
-    }
-    iSplit.
-    {
+    (* Case : Resizing *)
+    - wp_pures.
+      iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)".
+      wp_bind (str _ _ _).
+      wp_apply (Hstr with "[$Herr3 Hl //]").
+      { apply lookup_lt_is_Some_2.
+        apply INR_lt.
+        rewrite -Hlen2 //.
+      }
+      iIntros "Hl".
+      wp_pures.
+      assert (#(sval + 1)%nat = #(sval + 1)) as Hsval.
+      {
+        do 2 f_equal. lia.
+      }
+      assert (length xs = 1%nat) as Hxs.
+      {
+        rewrite app_length -Hlen1 in Hlen2. lia.
+      }
+      rewrite bool_decide_eq_true_2; last first.
+      {
+        do 2 f_equal; lia.
+      }
+      wp_pures.
+      wp_bind (ext _ _)%E.
+      wp_apply (Hext rval l with "[Herr2 Herr4 Hl]").
+      { simpl; lia. }
+      {
+        iFrame.
+        replace (nnreal_nat rval * ε)%NNR with
+          (nnreal_plus p (nnreal_nat 2 * ε))%NNR.
+        - iApply ec_split; iFrame.
+        - apply nnreal_ext. simpl.
+          rewrite -Hpot Hxs.
+          simpl. lra.
+      }
+      iIntros (l') "Hl'".
+      wp_pures.
+      iApply "HΦ".
+      iMod (ec_zero).
+      iModIntro.
+      rewrite /vec_spec.
+      iExists l', (sval + 1)%nat, (2*rval)%nat.
+      rewrite Hsval.
+      iExists (replicate (Z.to_nat (sval + 1)%nat) #()), (nnreal_zero).
+      iFrame.
+      iSplit.
+      {
+        assert (#(2 * rval)%nat = #(2 * rval)) as ->; auto.
+        do 2 f_equal. lia.
+      }
+      iSplitL "Hl'".
+      {
+        destruct xs as [| x xs]; [simpl in Hxs; done |].
+        destruct xs as [| x' xs]; [ | simpl in Hxs; done].
+        rewrite cons_middle app_assoc insert_app_l.
+        - rewrite Hyes.
+          rewrite -(Nat.add_0_r sval) Hlen1 /=.
+          rewrite insert_app_r /=.
+          rewrite app_nil_r.
+          iFrame.
+        - rewrite app_length /=.
+          lia.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        rewrite Hyes mult_INR /=.
+        assert (0 < rval); [ | lra].
+        eapply Rle_lt_trans; eauto.
+        apply pos_INR.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        rewrite app_length /=.
+        apply INR_eq.
+        do 2 rewrite plus_INR.
+        rewrite Hlen1. lra.
+      }
+      iSplit.
+      {
+        iPureIntro.
+        do 2 rewrite app_length /=.
+        rewrite -Hyes.
+        rewrite replicate_length /=.
+        rewrite -Hlen1.
+        apply INR_eq.
+        rewrite Nat2Z.id.
+        do 6 rewrite plus_INR /=.
+        lra.
+      }
       iPureIntro.
-      rewrite Heq mult_INR /=.
-      assert (0 < rval); [ | lra].
-      eapply Rle_lt_trans; eauto.
-      apply pos_INR.
-    }
-    iSplit.
-    {
-      iPureIntro.
-      rewrite app_length /=.
-      apply INR_eq.
-      do 2 rewrite plus_INR.
-      rewrite Hlen1. lra.
-    }
-    iSplit.
-    {
-      iPureIntro.
-      do 2 rewrite app_length /=.
-      rewrite -Heq.
-      rewrite replicate_length /=.
-      rewrite -Hlen1.
-      apply INR_eq.
+      simpl.
+      rewrite Hyes replicate_length /=.
       rewrite Nat2Z.id.
-      do 6 rewrite plus_INR /=.
+      do 2 rewrite plus_INR /=.
       lra.
-    }
-    iSplit.
-    {
-      iPureIntro.
-      done.
-    }
-    iPureIntro.
-    simpl.
-    rewrite Heq replicate_length /=.
-    rewrite Nat2Z.id.
-    do 2 rewrite plus_INR /=.
-    lra.
   Qed.
 
 
