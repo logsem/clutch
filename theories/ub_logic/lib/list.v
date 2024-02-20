@@ -498,6 +498,28 @@ Section list_specs.
     by iFrame.
   Qed.
 
+  Corollary wp_list_iter_err `{!Inject B val} (l : list A) (fv lv : val)
+    (P : A -> iProp Σ) (Q : A -> iProp Σ) (err : A -> nonnegreal) E :
+    {{{ (∀ (x : A),
+          {{{ P x ∗ € (err x)}}}
+            fv (inject x) @ E
+          {{{ fr, RET fr; Q x }}}) ∗
+        ⌜is_list l lv⌝ ∗
+        [∗ list] x∈l, (P x ∗ € (err x))
+    }}}
+      list_iter fv lv @ E
+      {{{ rv, RET rv; [∗ list] x ∈ l, Q x
+      }}}.
+  Proof.
+    iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
+    iApply (wp_list_iter_idx (λ _ a, P a ∗ € (err a))%I (λ _ a, Q a) ⌜True⌝%I _ l
+        with "[] [HP] [HΦ]") ; try iFrame.
+    - iIntros (i a φ) "!> (_&P_a&err_a) Hφ".
+      iApply ("Hf" with "[$P_a $err_a]"). iIntros "!>" (?) "Qa". iApply "Hφ" ; iFrame.
+    - easy.
+    - iIntros "!> [_ ?]". by iApply "HΦ".
+  Qed.
+
   Lemma wp_list_iteri_loop
         (k : nat) (l : list A) (fv lv : val)
         (P : iProp Σ) (Φ Ψ : nat -> A -> iProp Σ) E :
