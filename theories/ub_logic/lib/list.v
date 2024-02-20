@@ -520,6 +520,38 @@ Section list_specs.
     - iIntros "!> [_ ?]". by iApply "HΦ".
   Qed.
 
+  Corollary wp_list_iter_err_constant `{!Inject B val} (l : list A) (fv lv : val)
+    (P : A -> iProp Σ) (Q : A -> iProp Σ) (err : nonnegreal) E :
+    {{{ (∀ (x : A),
+          {{{ P x ∗ € err}}}
+            fv (inject x) @ E
+          {{{ fr, RET fr; Q x }}}) ∗
+        ⌜is_list l lv⌝ ∗
+        ([∗ list] x∈l, (P x)) ∗
+         € (err * nnreal_nat (length l))%NNR
+    }}}
+      list_iter fv lv @ E
+      {{{ rv, RET rv; [∗ list] x ∈ l, Q x
+      }}}.
+  Proof.
+    iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
+    iAssert (([∗ list] x ∈ l, P x ∗ € err))%I with "[HP]" as "HP".
+    { clear Hil. iInduction (l) as [| h t] "IH"; first done.
+      rewrite !big_sepL_cons. simpl.
+      iDestruct "HP" as "[[HP HP'] Herr]".
+      iFrame.
+      iAssert (€ err ∗ € (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
+      { iApply ec_split.
+        assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%NNR as ->.
+        - apply nnreal_ext. simpl. case_match; destruct err; simpl; lra.
+        - done.
+      }
+      iFrame. iApply "IH"; iFrame.
+    }
+    wp_apply (wp_list_iter_err _ _ _ _ _ (λ _, err) with "[$HP]"); try done.
+    by iSplit. 
+  Qed.
+
   Lemma wp_list_iteri_loop
         (k : nat) (l : list A) (fv lv : val)
         (P : iProp Σ) (Φ Ψ : nat -> A -> iProp Σ) E :
