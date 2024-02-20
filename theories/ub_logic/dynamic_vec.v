@@ -50,16 +50,6 @@ Section faulty_allocator.
         ( "l'", "s" + #1, #2 * "r" )
       else ( "l", "s" + #1, "r" ).
 
-  Definition vec_push_back_sp (ext str : val) s r : val :=
-    λ: "l" "v",
-      str "l" !s "v" ;;
-      s <- !s+#1 ;;
-      if: !s = !r then
-        r <- #2 * !r;;
-        ext !s "l" ;;
-        #()
-      else #().
-
 
   Definition vec_spec (vec : val) (vs : list val) : iProp Σ :=
     ∃ (l : loc) (sval rval : nat) xs p,

@@ -19,21 +19,39 @@ Section coll_free_hashmap.
   Variable init_val_size : nat.
   Variable init_r : nat.
 
+  Notation "'lethashmap:' ( l , hm , vsval , sval , rval ) := e1 'in' e2" :=
+    (let: "__x" := e1%E in
+     let: l := Fst (Fst (Fst (Fst "__x"))) in
+     let: hm := Snd (Fst (Fst (Fst "__x"))) in
+     let: vsval := Snd (Fst (Fst "__x")) in
+     let: sval := Snd (Fst "__x") in
+     let: rval := Snd "__x" in
+     e2%E)%E
+      (at level 200, l, hm, vsval, sval, rval at level 1, e1, e2 at level 200)
+      : expr_scope.
+
+  Notation "'letpair:' ( f , s ) := e1 'in' e2" :=
+    (let: "__x" := e1%E in
+     let: f := Fst "__x" in
+     let: s := Snd "__x" in
+     e2%E)%E
+      (at level 200, f, s at level 1, e1, e2 at level 200)
+      : expr_scope.
 
   Definition insert_elem : val :=
-    λ: "l" "hf" "s" "r" "val_size" "v",
-      let: "off" := "hf" "v" in
+    λ: "hm" "v",
+      lethashmap: ("l", "hf", "val_size", "s", "r") := "hm" in
+      let: "hres" := compute_cf_hash "hf" "v" in
+      let: "off" := Fst ("hres") in
+      let: "hf'" := Snd ("hres") in
       let: "w" := !("l" +ₗ "off") in
       if: "w" = #() then
         ("l" +ₗ "off") <- "v" ;;
-        "s" <- !"s" + #1 ;;
-         if: !"s" = !"r" then
-           let: "l'" := array_resize "l" !"val_size" !"val_size" in
-           "r" <- #2 * !"r";;
-           "val_size" <- #2 * !"val_size";;
-           "l'"
-         else "l"
-      else "l".
+        if: "s" + #1 = "r" then
+          let: "l'" := array_resize "l" "val_size" "val_size" in
+           ("l'", "hf'", #2 * "val_size", "s" + #1, #2 * "r")
+        else ("l", "hf'", "val_size", "s" + #1, "r")
+      else ("l", "hf'", "val_size", "s", "r").
 
 
   Definition filter_units (vs : list val) :=
@@ -72,15 +90,14 @@ Section coll_free_hashmap.
 
 
 
-  Definition cf_hashmap_raw (l : loc) (ns : gset nat) f (vs s r : loc) : iProp Σ :=
-    ∃ (vsval sval rval : nat) (m : gmap nat nat) (img : list val),
-      (* The reserve of error credits *)
-        vs ↦ #vsval ∗ s ↦ #sval ∗ r ↦ #rval ∗
+  Definition cf_hashmap_raw (f : val) (ns : gset nat) : iProp Σ :=
+    ∃ (l : loc) (hf : val) (vsval sval rval : nat) (m : gmap nat nat) (img : list val),
+        ⌜ f = (#l, hf, #vsval, #sval, #rval)%V ⌝ ∗
         l ↦∗ img ∗
         ⌜ 0 < vsval ⌝ ∗
         ⌜ sval < rval ⌝ ∗
         ⌜ length img = vsval ⌝ ∗
-      (cf_hashfun_raw init_val_size init_r f m vsval sval rval ) ∗
+      (cf_hashfun_raw init_val_size init_r hf m vsval sval rval ) ∗
       ⌜ (filter_units img) ≡ₚ (λ b, LitV (LitInt (Z.of_nat b))) <$> (elements ns) ⌝ ∗
       ⌜ forall (i v : nat), m !! v = Some i <-> img !! i = Some #v ⌝ ∗
       ⌜ forall (i : nat), (i < vsval) ->
@@ -89,16 +106,16 @@ Section coll_free_hashmap.
       ⌜ dom m = ns ⌝.
 
 
-  Lemma wp_hm_insert E l ns f (vs s r : loc) (n : nat) :
-    {{{ cf_hashmap_raw l ns f vs s r ∗
+  Lemma wp_hm_insert E hm ns (n : nat) :
+    {{{ cf_hashmap_raw hm ns ∗
           € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
-      insert_elem #l f #s #r #vs #n  @ E
-    {{{ l', RET #l';
-          cf_hashmap_raw l' (ns ∪ {[n]}) f vs s r }}}.
+      insert_elem hm #n  @ E
+    {{{ hm', RET hm';
+          cf_hashmap_raw hm' (ns ∪ {[n]}) }}}.
   Proof.
     iIntros (Φ) "(Htable & Herr) HΦ".
-    iDestruct "Htable" as (vsval sval rval m img)
-                            " (Hvs & Hs & Hr & Hl & %Hvspos & %Hineq & %Hlen & Hhash & %Hperm & %HimgN & %HimgU & %Hdom)".
+    iDestruct "Htable" as (l f vsval sval rval m img)
+                            "(-> & Hl & %Hvspos & %Hineq & %Hlen & Hhash & %Hperm & %HimgN & %HimgU & %Hdom)".
     (*
     iDestruct "Hhash" as (hm vs' s' r' ε)
                            "(Herr2 & Hvs' & Hs' & Hr' & %Hvspos' & Hratio & -> & Hmap & %Hlsr & %Hlen & Htot_err & %Hcf)".
@@ -111,7 +128,7 @@ Section coll_free_hashmap.
     wp_pures.
     destruct (m !! n) as [v |] eqn:Hlu.
     - wp_apply (wp_lookup_no_coll with "[Hhash]"); eauto.
-      iIntros (?) "(-> & Hhf)".
+      iIntros (? hf) "(-> & Hhf)".
       wp_pures.
       wp_apply (wp_load_offset with "[Hl //]").
       { by apply HimgN.  }
@@ -120,14 +137,15 @@ Section coll_free_hashmap.
       iApply "HΦ".
       iModIntro.
       rewrite /cf_hashmap_raw.
-      iExists vsval, sval, rval, m, img.
+      iExists l, hf, vsval, sval, rval, m, img.
       rewrite /cf_hashfun_raw.
-      iDestruct "Hhf" as (?????) "(?&?&?&?&?&?&?&?&?&?&?& %Hprf)".
+      iDestruct "Hhf" as (??) "(?&?&?&?&?&?&?&?& %Hprf)".
       iFrame.
       (* TODO: Notation *)
+      iSplit; auto.
       iSplitL "Hl"; [done| ].
       iSplit; [done|].
-      iSplit; [iExists _,_,_,_,_; by iFrame |].
+      iSplit; [iExists _,_; by iFrame |].
       iPureIntro.
       destruct Hprf as (Hcf & Himg). split.
       + assert ((ns ∪ {[n]}) = ns) as ->; auto.
@@ -146,7 +164,7 @@ Section coll_free_hashmap.
         - left. lia.
       }
       + wp_apply (wp_insert_no_coll _ _ _ _ _ vsval sval rval with "[$Hhash $Herr]"); eauto.
-        iIntros (k) "(%Hklt & %Hkimg & Hhash)".
+        iIntros (k hf) "(%Hklt & %Hkimg & Hhash)".
         wp_pures.
         wp_apply (wp_load_offset with "[Hl //]"); auto.
         iIntros "Hl".
@@ -158,11 +176,6 @@ Section coll_free_hashmap.
         }
         iIntros "Hl".
         wp_pures.
-        wp_load.
-        wp_store.
-        wp_load.
-        wp_load.
-        wp_pures.
         rewrite bool_decide_eq_false_2; last first.
         {
           intro H.
@@ -173,18 +186,24 @@ Section coll_free_hashmap.
         iApply "HΦ".
         iModIntro.
         rewrite /cf_hashmap_raw.
-        iExists _, (sval + 1)%nat, _, _, (<[k:=#n]> img).
+        iExists l, hf, _, (sval + 1)%nat, _ , _, (<[k:=#n]> img).
         rewrite /cf_hashfun_raw.
-        iDestruct "Hhash" as (?????) "(?&?&?&?&?&?&?&?&?&?&?& %Hprf)".
+        iDestruct "Hhash" as (??) "(?&?&?&?&?&?&?&?& %Hprf)".
         iFrame.
-        iSplitL "Hs"; [by rewrite Hsval |].
+        iSplit.
+        {
+          iPureIntro.
+          f_equal.
+          f_equal.
+          auto.
+        }
         iSplitL "Hl"; [done | ].
         iSplit.
         { iPureIntro.
           rewrite insert_length //.
         }
         iSplit.
-        { iExists _,_,_,_,_.
+        { iExists _,_.
           iFrame.
           iSplit; [ done |].
           iSplit; [| done].
@@ -256,7 +275,7 @@ Section coll_free_hashmap.
 
       + iPoseProof (cf_hashfun_bounded_prf with "[Hhash //]") as "(%Hprf_pre & Hhash)".
         wp_apply (wp_insert_no_coll_resize _ _ _ _ _ vsval sval rval with "[$Hhash $Herr]"); eauto.
-        iIntros (k) "(%Hklt & %Hkimg & Hhash)".
+        iIntros (k hf) "(%Hklt & %Hkimg & Hhash)".
         wp_pures.
         wp_apply (wp_load_offset with "[Hl //]"); auto.
         iIntros "Hl".
@@ -268,28 +287,16 @@ Section coll_free_hashmap.
         }
         iIntros "Hl".
         wp_pures.
-        wp_load.
-        wp_store.
-        wp_load.
-        wp_load.
-        wp_pures.
         rewrite bool_decide_eq_true_2; last first.
         { do 2 f_equal. lia. }
         wp_pures.
-        wp_load.
-        wp_load.
         wp_bind (array_resize _ _ _).
-        rewrite -Hsval.
         wp_apply (wp_array_resize _ l _ (<[k:=#n]> img) _ _ with "[Hl]"); auto; try lia.
         { rewrite insert_length. lia. }
         { by apply INR_lt. }
         { by apply INR_lt. }
         iIntros (l') "(Hl & Hl')".
         wp_pures.
-        wp_load.
-        wp_store.
-        wp_load.
-        wp_store.
         iApply "HΦ".
         iModIntro.
         replace (#(2 * rval)) with (#(2 * rval)%nat); last first.
@@ -297,10 +304,14 @@ Section coll_free_hashmap.
         replace (#(2 * vsval)) with (#(2 * vsval)%nat); last first.
         { do 2 f_equal. lia. }
         rewrite /cf_hashmap_raw.
-        iExists (2 * vsval)%nat, (sval + 1)%nat, (2 * rval)%nat, _,(<[k:=#n]> img ++ replicate (vsval) #()).
+        iExists l', hf, (2 * vsval)%nat, (sval + 1)%nat, (2 * rval)%nat, _,(<[k:=#n]> img ++ replicate (vsval) #()).
         rewrite /cf_hashfun_raw.
-        iDestruct "Hhash" as (?????) "(?&?&?&?&?&?&?&?&?&?&?& %Hprf)".
+        iDestruct "Hhash" as (??) "(?&?&?&?&?&?&?&?& %Hprf)".
         iFrame.
+        iSplit.
+        {
+          iPureIntro. do 2 f_equal. auto.
+        }
         iSplit.
         {
           iPureIntro.
@@ -315,7 +326,7 @@ Section coll_free_hashmap.
         }
         iSplit.
         {
-          iExists _,_,s0,_,_.
+          iExists _,_.
           rewrite Heq.
           iFrame.
           iSplit.
