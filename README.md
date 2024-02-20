@@ -5,7 +5,7 @@ The logic is built using the [Iris](https://iris-project.org) program logic fram
 
 ## Preprint
 
-A paper describing the development was published at POPL 24 and available under an open access policy.
+A paper describing the development was published at POPL 24 and available under open access policy.
 
 > Gregersen, S. O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L. 2024. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. Proc. ACM Program. Lang. 8, POPL, Article 26 (January 2024), 32 pages. [https://doi.org/10.1145/3632868](https://dl.acm.org/doi/10.1145/3632868)
 
