@@ -8,11 +8,6 @@ Section incremental_spec.
   Local Open Scope R.
   Context `{!ub_clutchGS Σ}.
 
-  (* Ψ : state
-     ξ : error
-     L : progress bound
-   *)
-
   Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L iL E Θ : iProp Σ :=
     ( (* Either 0 credit or 0 progress => we will sample a value which the checker accepts
          Allowed to consume (or invalidate Ψ) in this process *)
@@ -23,9 +18,9 @@ Section incremental_spec.
                    (*...we're done by chance alone, or... *)
                   (WP checker (Val s) @ E [{fun v => ⌜v = #true⌝ ∗ (Θ s)}]) ∨
                    (*... we make prgress, and can run the checker on the sample without losing progress, or *)
-                  (€ (ξ (S i)) ∗ Ψ p ∗ (Ψ p -∗ WP checker (Val s) @ E [{fun v => Ψ p ∗ (⌜v = #false⌝ ∨ (⌜v = #true⌝ ∗ Θ s))}])) ∨
+                  (€ (ξ (S i)) ∗ WP checker (Val s) @ E [{fun v => ((⌜v = #false⌝ ∗ Ψ p) ∨ (⌜v = #true⌝ ∗ Θ s))}]) ∨
                    (*... we lose progress & amplify error, and can run the checker on the sample without losing progress. *)
-                  (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ Ψ p' ∗ (Ψ p' -∗ WP checker (Val s) @ E [{fun v => Ψ p' ∗ (⌜v = #false⌝ ∨ (⌜v = #true⌝ ∗ Θ s))}]))}]))%I.
+                  (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ WP checker (Val s) @ E [{fun v => ((⌜v = #false⌝ ∗ Ψ p') ∨ (⌜v = #true⌝ ∗ Θ s))}])}]))%I.
 
 
   Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i iL p Θ :
@@ -66,7 +61,7 @@ Section incremental_spec.
         wp_pures.
         wp_bind (sampler _).
         wp_apply (ub_twp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
-        iIntros (s) "[Hluck | [(Hcr&HΨ&Hcheck)|[%p'' (%Hp''&Hcr&HΨ&Hcheck)]]]".
+        iIntros (s) "[Hluck | [(Hcr & Hcheck)| (%p'' & %Hp'' & Hcr & Hcheck)]]".
         * (* luck *)
           wp_pures.
           wp_bind (checker _).
@@ -77,8 +72,8 @@ Section incremental_spec.
         * (* progress *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_twp_wand with "[Hcheck HΨ]"); first (iApply ("Hcheck" with "[$]")).
-          iIntros (r) "(HΨ&[-> | (-> & A)])".
+          wp_apply (ub_twp_wand with "Hcheck").
+          iIntros (r) "[(-> & HΨ) | (-> & HΘ)]".
           -- (* not lucky: checker rejects *)
              wp_pure. iApply ("IHp" with "[] Hfinal Hcr HΨ").
              iPureIntro. lia.
@@ -87,8 +82,8 @@ Section incremental_spec.
         * (* amplification *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_twp_wand with "[Hcheck HΨ]"); first (iApply ("Hcheck" with "[$]")).
-          iIntros (r) "(HΨ&[-> | (-> & A)])".
+          wp_apply (ub_twp_wand with "Hcheck").
+          iIntros (r) "[(-> & HΨ) | (-> & HΘ)]".
           -- (* not lucky: checker rejects *)
              assert (HiL' : (i' < iL)%nat) by lia.
              wp_pure. iApply ("IHerror" $! HiL' with "Hfinal Hcr HΨ"). eauto.
