@@ -13,7 +13,7 @@ Section incremental_spec.
          Allowed to consume (or invalidate Ψ) in this process *)
       ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E [{ fun s => WP checker (Val s) @ E [{fun v => ⌜v = #true⌝ ∗ Θ s }] }]) ∗
       (* Given any amount of credit and progress, we can get a sample such that... *)
-     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ ⌜((S i) < iL)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
+     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ ⌜(i <= iL)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
             WP sampler #() @ E [{ fun s =>
                    (*...we're done by chance alone, or... *)
                   (WP checker (Val s) @ E [{fun v => ⌜v = #true⌝ ∗ (Θ s)}]) ∨
@@ -60,7 +60,8 @@ Section incremental_spec.
       + (* Inductive case for progress measure *)
         wp_pures.
         wp_bind (sampler _).
-        wp_apply (ub_twp_wand with "[Hamp Hcr HΨ]"); first (iApply "Hamp"; iFrame; eauto).
+        wp_apply (ub_twp_wand with "[Hamp Hcr HΨ]").
+        {  iApply "Hamp". iFrame; eauto. iPureIntro; split; try lia. }
         iIntros (s) "[Hluck | [(Hcr & Hcheck)| (%p'' & %Hp'' & Hcr & Hcheck)]]".
         * (* luck *)
           wp_pures.

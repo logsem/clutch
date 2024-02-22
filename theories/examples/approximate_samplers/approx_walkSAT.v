@@ -39,18 +39,18 @@ Section higherorder_walkSAT.
 
   (* init_asn' spec *)
   Lemma init_asn'_inv (M: nat) E :
-    (⊢ WP (mk_init_asn' #M) @ E {{ fun v' => ∃ m, ⌜ inv_asn' m v' /\ length m = M ⌝}})%I.
+    (⊢ WP (mk_init_asn' #M) @ E [{ fun v' => ∃ m, ⌜ inv_asn' m v' /\ length m = M ⌝}])%I.
   Proof using N HN.
     iInduction M as [|M'] "IH".
     - rewrite /mk_init_asn'; wp_pures.
       iModIntro; iExists []; iPureIntro; split; [constructor | by simpl].
     - rewrite /mk_init_asn'.
       do 3 wp_pure.
-      wp_bind (rand _)%E; wp_apply wp_rand; eauto; iIntros (b) "%Hb".
+      wp_bind (rand _)%E; wp_apply twp_rand; eauto; iIntros (b) "%Hb".
       do 4 wp_pure.
       replace #(S M' - 1)%Z with #M'; [| do 2 f_equal; lia].
       wp_bind (RecV _ _ _ _).
-      wp_apply (ub_wp_wand  with "IH").
+      wp_apply (ub_twp_wand  with "IH").
       iIntros (asn') "[%m' (%Hm'_inv' & %Hm'_len)]".
       wp_pures.
       iModIntro; iExists ((bool_decide (#b = #1)) :: m').
@@ -902,7 +902,7 @@ Section higherorder_walkSAT.
 
 
   Lemma walksat_sampling_scheme f solution ε (l : loc) HiL E :
-    (⊢ ⌜forall w : nat, (w < HiL)%nat -> (0 <= 1 - w * εExcess ε)%R ⌝ -∗ (* FIXME: Define HiL in terms of ε*)
+    (⊢ (* ⌜forall w : nat, (w < HiL)%nat -> (0 <= 1 - w * εExcess ε)%R ⌝ -∗ (* FIXME: Define HiL in terms of ε *) *)
        ⌜formula_SAT solution f = true ⌝ -∗
        ⌜length solution = N ⌝ -∗
        ⌜(length f > 0)%nat ⌝ -∗
@@ -916,7 +916,7 @@ Section higherorder_walkSAT.
           E
           (fun _ => ∃ a asn, l ↦ asn ∗ ⌜inv_asn a asn ⌝ ∗ ⌜formula_SAT a f ⌝ ))%I.
   Proof.
-    iIntros "%HHil %Hsolution %Hsl %Hnontrivial".
+    iIntros "%Hsolution %Hsl %Hnontrivial".
     rewrite /incr_sampling_scheme_spec.
     iSplit.
     - iIntros "[Hcr | [%asn [%m (Hl & Hcr & %Hinv & %Hp)]]]".
@@ -999,12 +999,21 @@ Section higherorder_walkSAT.
           iAssert (€ (εProgress ε i)) with "[Hε Hexcess]" as "Hε".
           { iAssert (€ (εProgress ε (S i) + pos_to_nn (εExcess ε))%NNR) with "[Hε Hexcess]" as "Hε".
             { iApply ec_split; iFrame. }
-            iApply ec_spend_irrel; [|iFrame].
+            iApply ec_spend_le_irrel; [|iFrame].
             Opaque INR.
             rewrite /εProgress /=.
-            rewrite /εExcess /= in HHil.
-            do 2 (rewrite Rmax_right; [|apply HHil; lia]).
-            rewrite S_INR. lra.
+            rewrite {1}/Rmax.
+            rewrite S_INR.
+            remember (Rle_dec 0 (1 - i * (ε * k 2 N εExcess_obligation_1 - ε))) as D.
+            destruct D.
+            - rewrite /Rmax.
+              remember (Rle_dec 0 (1 - (i + 1) * (ε * k 2 N εExcess_obligation_1 - ε))) as D2; destruct D2; lra.
+            - rewrite -{1}(Rplus_0_r 0%R).
+              apply Rplus_le_compat; [apply Rmax_l|].
+              apply Rle_0_le_minus.
+              rewrite -{1}(Rmult_1_r (pos ε)).
+              apply Rlt_le.
+              apply Rmult_lt_compat_l; [apply cond_pos| apply lt_1_k].
           }
           iFrame.
           wp_pures.
@@ -1027,4 +1036,141 @@ Section higherorder_walkSAT.
             lia.
           }
     Qed.
+
+
+  Definition WalkSAT f : expr :=
+    (let: "a" := mk_init_asn #() in
+     let: "l" := ref "a" in
+     let: "_" := (gen_rejection_sampler (λ: "_", (sampler f) "l") (λ: "_", (checker f) "l")) in
+     "l")%E.
+
+  Lemma initial_credit (ε : nonnegreal) Hpos : ⊢ € ε -∗ € (εInv (mkposreal (nonneg ε) Hpos) N).
+  Proof.
+    iIntros.
+    rewrite /εInv.
+    iApply ec_spend_irrel; last iFrame.
+    rewrite /= fR_closed_2 /=.
+    rewrite Nat.sub_diag pow_O Rminus_diag Rdiv_0_l.
+    lra.
+  Qed.
+
+
+  Lemma walksat_spec_fpos f solution E (ε: nonnegreal) :
+    ⊢ (⌜formula_SAT solution f = true ⌝ -∗
+       ⌜length solution = N ⌝ -∗
+       ⌜(length f > 0)%nat ⌝ -∗
+       ⌜(0 < ε)%R⌝ -∗
+       € ε -∗
+      WP (WalkSAT f) @ E [{ fun v => ∃ (l : loc) a asn , ⌜v = #l ⌝ ∗ (l ↦ asn) ∗ ⌜inv_asn a asn ⌝ ∗ ⌜formula_SAT a f ⌝ }])%I.
+  Proof.
+    iIntros "%HF %Hlens %Hlenf %Hε Hcr".
+    rewrite /WalkSAT /mk_init_asn.
+    wp_pures.
+    wp_bind (mk_init_asn' #N).
+    wp_apply (ub_twp_wand with "[]"); first wp_apply (init_asn'_inv N E).
+    iIntros (v) "[%m %Hinv]".
+    destruct Hinv as [Hinv Hmn].
+    do 2 wp_pure.
+    wp_bind (Alloc _).
+    wp_apply twp_alloc; [done|].
+    iIntros (l) "Hl".
+    wp_pure.
+    wp_pure.
+    wp_bind (_ (Rec BAnon "_" (checker _ _)))%E.
+    wp_apply (ub_twp_wand with "[Hcr Hl]").
+    { wp_pure.
+      wp_pure.
+      pose e1 := (1 / (εExcess (mkposreal (nonneg ε) Hε))).
+      assert (He1 : (0 <= e1)%R).
+      { rewrite /e1.
+        eapply Rlt_le.
+        apply Rdiv_lt_0_compat; first lra.
+        rewrite /εExcess /=.
+        apply -> Rcomplements.Rminus_lt_0.
+        rewrite -{1}(Rmult_1_r (nonneg ε)).
+        simpl in Hε.
+        apply Rmult_lt_compat_l; [done|].
+        apply lt_1_k.
+      }
+      edestruct (Rcomplements.nfloor_ex e1 He1) as [Le [HLe_lo Hle_hi]].
+      assert (Hpos_exc: ((ε * k 2 N εExcess_obligation_1 - ε) > 0)%R).
+      { simpl in *.
+        apply Rlt_gt, Rlt_0_minus.
+        rewrite /= -{1}(Rmult_1_r (nonneg ε)).
+        apply Rmult_lt_compat_l; [done| apply lt_1_k].
+      }
+      iMod ec_zero as "He_init".
+      iApply (ho_incremental_ubdd_approx_safe _ _ _ _ _ _ _ (Le + 2) with "[Hcr Hl He_init]").
+      iSplit; [|iSplit; [|iSplitR; [|iSplitR "Hcr Hl"]]].
+      3: { iApply walksat_sampling_scheme; eauto. }
+      4: {
+        rewrite /iProgress.
+        iExists _, _.
+        iFrame.
+        iSplitL. { iApply initial_credit. iApply ec_spend_irrel; [eauto|iFrame]. }
+        iSplit; iPureIntro.
+        { rewrite /inv_asn; eauto. }
+        { rewrite -Hlens. apply worst_progress_bound. lia. }
+      }
+      1: iPureIntro; lia.
+      2: { iApply ec_spend_irrel; last iFrame.
+           simpl; symmetry; apply Rmax_left.
+           apply Rle_minus.
+           rewrite (Rinv_l_sym (ε * k 2 N εExcess_obligation_1 - ε)); last lra.
+           eapply Rmult_le_compat_r.
+           { apply Rlt_le, Rgt_lt. done. }
+           simpl in *.
+           eapply Rle_trans; last first.
+           { eapply Rlt_le.
+             rewrite -S_INR in Hle_hi.
+             eapply Hle_hi. }
+           clear.
+           rewrite /e1.
+           simpl.
+           lra.
+      }
+      1: { iPureIntro. lia. }
+    }
+    iIntros (r) "[% [% (? & % & %)]]".
+    wp_pures.
+    iModIntro.
+    iExists _, _, _.
+    iFrame.
+    iPureIntro; eauto.
+
+    Unshelve.
+    - done.
+  Qed.
+
+  (* Handles f = [] separately *)
+  Lemma walksat_spec f solution E (ε: nonnegreal) :
+    ⊢ (⌜formula_SAT solution f = true ⌝ -∗
+       ⌜length solution = N ⌝ -∗
+       ⌜(0 < ε)%R⌝ -∗
+       € ε -∗
+      WP (WalkSAT f) @ E [{ fun v => ∃ (l : loc) a asn , ⌜v = #l ⌝ ∗ (l ↦ asn) ∗ ⌜inv_asn a asn ⌝ ∗ ⌜formula_SAT a f ⌝ }])%I.
+  Proof.
+    iIntros "% % % ?".
+    destruct (length f) as [|] eqn:Hf; last first.
+    - iApply walksat_spec_fpos; eauto. iPureIntro; lia.
+    - rewrite (nil_length_inv f); [|eauto].
+      rewrite /WalkSAT /mk_init_asn.
+      wp_pures.
+      wp_bind (mk_init_asn' #N).
+      wp_apply (ub_twp_wand with "[]"); first wp_apply (init_asn'_inv N E).
+      iIntros (v) "[%m [% %]]".
+      wp_pures.
+      wp_bind (Alloc _).
+      wp_apply twp_alloc; [done|].
+      iIntros (l) "Hl".
+      wp_pures.
+      iModIntro.
+      iExists _, _, _.
+      iFrame.
+      iPureIntro.
+      rewrite /inv_asn.
+      split; [|split]; eauto.
+  Qed.
+
+
 End higherorder_walkSAT.
