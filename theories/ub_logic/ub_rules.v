@@ -4,8 +4,8 @@ From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.prob_lang Require Import notation tactics metatheory.
 From clutch.prob_lang Require Export lang.
-From clutch.ub_logic Require Export lifting ectx_lifting primitive_laws proofmode seq_amplification.
-From clutch.ub_logic Require Export total_lifting total_ectx_lifting total_primitive_laws.
+From clutch.ub_logic Require Export lifting ectx_lifting primitive_laws seq_amplification.
+From clutch.ub_logic Require Export total_lifting total_ectx_lifting total_primitive_laws proofmode.
 
 Section metatheory.
 
@@ -726,6 +726,38 @@ Qed.
 
 
 (** * Approximate Lifting *)
+
+Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
+  (∀ σ, ⌜SeriesC (λ v, lim_exec (e, σ) v * nonneg (ε2 v))%R = nonneg ε1⌝) -∗
+  WP e @ s; E {{ v, € (ε2 v) -∗ WP K (of_val v) @ s; E {{ Φ }} }} -∗ € ε1 -∗ WP K e @ s; E {{ Φ }}.
+  Proof.
+    iIntros "Haverage Hwp Herr".
+    iLöb as "IH" forall (e K Hctx E ε1 ε2 Φ) "Herr Haverage Hwp".    
+    rewrite ub_wp_unfold /ub_wp_pre.
+    destruct (to_val e) as [v|] eqn:He.
+    { apply of_to_val in He as <-. simpl. iMod "Hwp". iApply "Hwp".
+      admit.
+    }
+    case_match; first simplify_eq/=.
+    rewrite ub_wp_unfold /ub_wp_pre language.fill_not_val /=;[|done].
+    iIntros (σ1 ε) "[Hσ Hε]".
+    iMod ("Hwp" $! σ1 with "[$Hσ $Hε]") as "H".
+    iModIntro.
+    iApply exec_ub_bind; [done|].
+    iApply exec_ub_adv_comp'.
+    iApply (exec_ub_mono with "[] [Herr Haverage] H").
+    - iPureIntro; lra.
+    - iIntros (? [e2 σ2]) "H".
+      iModIntro.
+      iMod "H" as "(Hσ & Hρ & H)".
+      iModIntro.
+      iFrame.
+      iApply ("IH" with "[//][$][Haverage][$]"). |..].
+    subst.
+    
+    
+
+        
 Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
   𝜎.(tapes) !! 𝛼 = Some (N; ns) →
   ub_lift
