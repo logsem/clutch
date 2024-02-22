@@ -30,20 +30,10 @@ Section faulty_allocator.
   {{{ € ε ∗ l ↦∗ vs }}} f #l {{{ RET v; l ↦∗ vs }}}.
 
 
-  (** Inspired by the Time Credits queue *)
-  Notation "'letvec:' ( lfst , len , rlim ) := e1 'in' e2" :=
-    (let: "__x" := e1%E in
-     let: lfst := Fst (Fst "__x") in
-     let: len := Snd (Fst "__x") in
-     let: rlim := Snd "__x" in
-     e2%E)%E
-      (at level 200, lfst, len, rlim at level 1, e1, e2 at level 200)
-      : expr_scope.
-
 
   Definition vec_push_back (ext str: val) : val :=
     λ: "vec" "v",
-      letvec: ( "l", "s", "r" ) := "vec" in
+      let, ( "l", "s", "r" ) := "vec" in
       str "l" "s" "v" ;;
       if: "s" + #1 = "r" then
         let: "l'" := ext "r" "l" in

@@ -66,7 +66,12 @@ Notation "'let,' ( x1 , ( x2 , x3 ) ) := e1 'in' e2" :=
 
 Notation "'let,' ( x1 , x2 , x3 , x4 ) := e1 'in' e2" :=
   ((Lam x1%E (Lam x2 (Lam x3 (Lam x4 (Lam x1%E e2 (Fst (Fst (Fst x1)))) (Snd x1)) (Snd (Fst x1))) (Snd (Fst (Fst x1))))) e1%E)
-  (at level 100, x1, x2, x3 at level 1, e1, e2 at level 200) : expr_scope.  
+    (at level 100, x1, x2, x3, x4 at level 1, e1, e2 at level 200) : expr_scope.
+
+Notation "'let,' ( x1 , x2 , x3 , x4 , x5 ) := e1 'in' e2" :=
+  ((Lam x1%E (Lam x2 (Lam x3 (Lam x4 (Lam x5 (Lam x1%E e2 (Fst (Fst (Fst (Fst x1))))) (Snd x1)) (Snd (Fst x1))) (Snd (Fst (Fst x1))))
+      (Snd (Fst (Fst (Fst x1)))))) e1%E)
+  (at level 100, x1, x2, x3, x4, x5 at level 1, e1, e2 at level 200) : expr_scope.
 
 (*
 Using the '[hv' ']' printing box, we make sure that when the notation for match

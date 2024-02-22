@@ -23,19 +23,10 @@ Section coll_free_hash.
   Variable init_val_size : nat.
   Variable init_r : nat.
 
-  Notation "'lethash:' ( hm , vsval , sval , rval ) := e1 'in' e2" :=
-    (let: "__x" := e1%E in
-     let: hm := Fst (Fst (Fst "__x")) in
-     let: vsval := Snd (Fst (Fst "__x")) in
-     let: sval := Snd (Fst "__x") in
-     let: rval := Snd "__x" in
-     e2%E)%E
-      (at level 200, hm, vsval, sval, rval at level 1, e1, e2 at level 200)
-      : expr_scope.
 
   Definition compute_cf_hash : val :=
     λ: "hf" "v",
-      lethash: ("hm" , "vsval", "sval", "rval" ) := "hf" in
+      let, ("hm" , "vsval", "sval", "rval" ) := "hf" in
       match: get "hm" "v" with
       | SOME "b" => ("b", "hf")
       | NONE =>

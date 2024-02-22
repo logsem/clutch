@@ -19,31 +19,11 @@ Section coll_free_hashmap.
   Variable init_val_size : nat.
   Variable init_r : nat.
 
-  Notation "'lethashmap:' ( l , hm , vsval , sval , rval ) := e1 'in' e2" :=
-    (let: "__x" := e1%E in
-     let: l := Fst (Fst (Fst (Fst "__x"))) in
-     let: hm := Snd (Fst (Fst (Fst "__x"))) in
-     let: vsval := Snd (Fst (Fst "__x")) in
-     let: sval := Snd (Fst "__x") in
-     let: rval := Snd "__x" in
-     e2%E)%E
-      (at level 200, l, hm, vsval, sval, rval at level 1, e1, e2 at level 200)
-      : expr_scope.
-
-  Notation "'letpair:' ( f , s ) := e1 'in' e2" :=
-    (let: "__x" := e1%E in
-     let: f := Fst "__x" in
-     let: s := Snd "__x" in
-     e2%E)%E
-      (at level 200, f, s at level 1, e1, e2 at level 200)
-      : expr_scope.
 
   Definition insert_elem : val :=
     λ: "hm" "v",
-      lethashmap: ("l", "hf", "val_size", "s", "r") := "hm" in
-      let: "hres" := compute_cf_hash "hf" "v" in
-      let: "off" := Fst ("hres") in
-      let: "hf'" := Snd ("hres") in
+      let, ("l", "hf", "val_size", "s", "r") := "hm" in
+      let, ("off", "hf'") := compute_cf_hash "hf" "v" in
       let: "w" := !("l" +ₗ "off") in
       if: "w" = #() then
         ("l" +ₗ "off") <- "v" ;;
@@ -103,6 +83,8 @@ Section coll_free_hashmap.
       ⌜ forall (i : nat), (i < vsval) ->
                     i ∉ (@map_img _ _ _ _ (gset nat) _ _ _ m) ->
                     img !! i = Some #() ⌝ ∗
+      (* We should be able to infer this from the rest, but it is useful to have it
+         for proofs *)
       ⌜ dom m = ns ⌝.
 
 
