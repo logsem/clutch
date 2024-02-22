@@ -725,14 +725,40 @@ Proof.
 Qed.
 
 
-(** * Approximate Lifting *)
+(** A few comments about the wp_bind_adv lemma
+    1. One need to reformulate the SeriesC condition. 
+       The one I have is not correct.
+    2. What induction should we use? iLöb? Structural induction on e?
+    3. Not sure whether we have sufficient lemmas to prove what we want 
+*)
+(** Here below I try structural induction on e, hoping to use the rand adv composition rule
+    for the rand expression
+ *)
+(* Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ: *)
+(*   (⌜∀ σ, SeriesC (λ v, lim_exec (e, σ) v * nonneg (ε2 v))%R = nonneg ε1⌝) -∗ *)
+(*   WP e @ s; E {{ v, € (ε2 v) -∗ WP K (of_val v) @ s; E {{ Φ }} }} -∗ € ε1 -∗ WP K e @ s; E {{ Φ }}. *)
+(*   Proof. *)
+(*     iIntros "%Haverage Hwp Herr". *)
+(*     iInduction e as [] "IH" forall (E ε1 ε2 Φ Haverage) "Herr Hwp". *)
+(*     - wp_apply ub_wp_bind. wp_apply (ub_wp_wand with "[$]"). *)
+(*       iIntros (?) "H". simpl. wp_apply "H". admit. *)
+(*     - admit. *)
+(*     - wp_pures. admit. *)
+(*     - admit. *)
+(*     -  *)
 
 Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
-  (∀ σ, ⌜SeriesC (λ v, lim_exec (e, σ) v * nonneg (ε2 v))%R = nonneg ε1⌝) -∗
+  (⌜∀ σ, SeriesC (λ v, lim_exec (e, σ) v * nonneg (ε2 v))%R = nonneg ε1⌝) -∗
   WP e @ s; E {{ v, € (ε2 v) -∗ WP K (of_val v) @ s; E {{ Φ }} }} -∗ € ε1 -∗ WP K e @ s; E {{ Φ }}.
   Proof.
-    iIntros "Haverage Hwp Herr".
-    iLöb as "IH" forall (e K Hctx E ε1 ε2 Φ) "Herr Haverage Hwp".    
+    (** Here I attempt to use iLöb*)
+    iIntros "%Haverage Hwp Herr".
+    iLöb as "IH" forall (e E ε1 ε2 Φ Haverage) "Herr Hwp".
+    (* destruct e eqn:He. *)
+    (* - wp_apply ub_wp_bind. wp_apply (ub_wp_wand with "[$]"). *)
+    (*   iIntros (?) "H". simpl. wp_apply "H". admit. *)
+    (* - admit. *)
+    (* -  *)
     rewrite ub_wp_unfold /ub_wp_pre.
     destruct (to_val e) as [v|] eqn:He.
     { apply of_to_val in He as <-. simpl. iMod "Hwp". iApply "Hwp".
@@ -744,19 +770,84 @@ Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
     iMod ("Hwp" $! σ1 with "[$Hσ $Hε]") as "H".
     iModIntro.
     iApply exec_ub_bind; [done|].
-    iApply exec_ub_adv_comp'.
-    iApply (exec_ub_mono with "[] [Herr Haverage] H").
-    - iPureIntro; lra.
-    - iIntros (? [e2 σ2]) "H".
-      iModIntro.
-      iMod "H" as "(Hσ & Hρ & H)".
-      iModIntro.
-      iFrame.
-      iApply ("IH" with "[//][$][Haverage][$]"). |..].
-    subst.
+
+    (* { specialize (Haverage σ1). *)
+    (*   rewrite (lim_exec_step) in Haverage. *)
+    (*   rewrite /dbind/pmf/dbind_pmf in Haverage. *)
+    (*   setoid_rewrite <-SeriesC_scal_r in Haverage. *)
+    (*   setoid_rewrite Rmult_assoc in Haverage. *)
+    (*   pose proof(fubini_pos_seriesC (λ '(v, x), (step_or_final (e, σ1) x * (lim_exec x v * ε2 v))%R)). *)
+    (*   simpl in H0. admit. *)
+    (* } *)
+
+  (** Trying many ways*)
+    (** Here I get stuck. Perhaps induction on exec_ub help? 
+        Note that exec_ub_mono should not work*)
+    iPoseProof (exec_ub_strong_ind (λ ε e σ1, exec_ub e σ1 ε
+    (λ (ε' : nonnegreal) '(e2, σ2),
+       ▷ (|={∅,E}=> (heap_auth 1 (heap σ2) ∗ tapes_auth 1 (tapes σ2)) ∗ ec_supply ε' ∗
+            WP K e2 @ s; E {{ v, Φ v }}))))%I as "K".
+    iApply ("K" with "[][$H]").
+    iModIntro. iIntros (???) "[H|[H|[H|H]]]".
+    - iDestruct "H" as "(%&%&%&%&%&%&H)".
+      iApply exec_ub_adv_comp.
+      iExists _, _, _.
+      repeat iSplit; try done.
+      + admit.
+      + iPureIntro. admit.
+      + iIntros (???). iMod ("H"$!  _ _ H3) as "H".
+        iModIntro. iApply exec_stutter_free. iModIntro. iMod "H".
+        iModIntro. iFrame.
+        
     
+        (* (**) *)
+
+     (** Attempt on exec_ub_adv_comp. This should not work since I should take H into account*)
+    (* iApply exec_ub_adv_comp. *)
+    (* specialize (Haverage σ1). *)
+    (* iExists (λ s, language.prim_step e σ1 s > 0)%R, _, _. *)
+    (* iSplit; [admit|]. *)
+    (* iSplit; [admit|]. *)
+    (* iSplit; [admit|]. *)
+    (* iSplit; [admit|]. *)
+    (* iIntros (???). *)
+    (* iModIntro. *)
+    (* iApply exec_stutter_free. *)
+    (* iModIntro. *)
+
+
+        (** Neither strong mono or mono works*)
+    (* iApply (exec_ub_strong_mono with "[//][Herr Haverage][$]"). *)
+    (* iIntros (???) "[[%%]Hwp]". *)
+    (* iModIntro. iMod "Hwp" as "(Hσ & Hρ & H)". *)
+    (* iModIntro. iFrame. *)
+    (* iApply ub_wp_bind. iApply (ub_wp_wand with "[$]"). *)
+    (* iIntros. *)
+    (* iApply ("IH" with "[//][$][Haverage]"). *)
+    (* - admit. *)
+    (* - wp_pures. done. *)
+    
+    (* iApply exec_ub_adv_comp'. *)
+    (* iExists (λ _, True), ε2. *)
+
+
+    (* (*  *) *)
+    (* iApply (exec_ub_mono with "[] [Herr] H"). *)
+    (* - iPureIntro; lra. *)
+    (* - iIntros (? [e2 σ2]) "H". *)
+    (*   iModIntro. *)
+    (*   iMod "H" as "(Hσ & Hρ & H)". *)
+    (*   iModIntro. *)
+    (*   iFrame. *)
+    (*   wp_apply ub_wp_bind. wp_apply (ub_wp_wand with "[$]"). *)
+    (*   iIntros (?) "H". wp_apply ("IH" with "[][$]"); last first. *)
+    (*   + wp_pures. done. *)
+        (*   +  *)
+        Abort.
     
 
+
+(** * Approximate Lifting *)
         
 Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
   𝜎.(tapes) !! 𝛼 = Some (N; ns) →
