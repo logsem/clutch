@@ -1,6 +1,6 @@
 (** * Termination with probability 1 of the WalkSAT algorithm *)
 From clutch.ub_logic Require Export ub_clutch ub_rules.
-From clutch Require Export examples.approximate_samplers.approx_sampler_lib.
+From clutch.ub_logic Require Export ub_clutch ub_rules adequacy total_adequacy.
 From clutch Require Export examples.approximate_samplers.approx_higherorder_incremental.
 From Coquelicot Require Import Series.
 Require Import Lra.
@@ -1174,3 +1174,44 @@ Section higherorder_walkSAT.
 
 
 End higherorder_walkSAT.
+
+Lemma walksat_termination_limit Σ `{ub_clutchGpreS Σ} (N : nat) (HN : (0 < N)%nat) (σ : state) (f : formula N) (solution : list bool) :
+  (formula_SAT N solution f = true) ->
+  length solution = N ->
+  (SeriesC (lim_exec (WalkSAT N f, σ)) = 1)%R.
+Proof.
+  intros.
+  destruct (pmf_SeriesC (lim_exec (WalkSAT N f, σ))); last done.
+  assert (HR : (1 - nnreal_zero <= SeriesC (lim_exec (WalkSAT N f, σ)))%R).
+  { eapply (twp_mass_lim_exec_limit _ _ _ _ (fun _ => True)).
+    intros.
+    iStartProof.
+    iIntros "Hcr".
+    wp_apply (ub_twp_wand with "[Hcr]").
+    { iApply walksat_spec; eauto. }
+    iIntros (?) "?"; done. }
+  simpl in *.
+  rewrite Rminus_0_r in HR.
+  lra.
+Qed.
+
+(*
+Lemma walksat_limit Σ `{ub_clutchGpreS Σ} (N : nat) (HN : (0 < N)%nat) (σ : state) (f : formula N) (solution : list bool) :
+  (formula_SAT N solution f = true) ->
+  length solution = N ->
+  total_ub_lift (lim_exec (WalkSAT N f, σ))
+    (fun _ => True) (* Best we can do is prove it terminates? *)
+    nnreal_zero.
+Proof.
+  intros.
+  eapply twp_total_ub_lift_limit; first eapply H.
+  intros.
+  iStartProof.
+  iIntros "Hcr".
+  wp_apply (ub_twp_wand with "[Hcr]").
+  { iApply walksat_spec; eauto. }
+  iIntros (v) "HR".
+  (* HR is unused... is there any proposition more interesting that ⊤ we *)
+  done.
+Qed.
+*)
