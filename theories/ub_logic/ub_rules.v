@@ -665,6 +665,7 @@ Proof.
   { apply Rnot_lt_ge, Rge_le in Hdec.
     iApply exec_stutter_spend.
     iPureIntro.
+    simpl.
     lra.
   }
   replace (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R with (nonneg (ε3 + (ε2 (nat_to_fin l)))%NNR); [|by simpl].
@@ -783,8 +784,8 @@ Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
   (** Trying many ways*)
     (** Here I get stuck. Perhaps induction on exec_ub help? 
         Note that exec_ub_mono should not work*)
-    iPoseProof (exec_ub_strong_ind (λ ε e σ1, exec_ub e σ1 ε
-    (λ (ε' : nonnegreal) '(e2, σ2),
+    iPoseProof (exec_ub_strong_ind (λ e σ1 ε, exec_ub e σ1 ε
+    (λ '(e2, σ2) (ε' : nonnegreal),
        ▷ (|={∅,E}=> (heap_auth 1 (heap σ2) ∗ tapes_auth 1 (tapes σ2)) ∗ ec_supply ε' ∗
             WP K e2 @ s; E {{ v, Φ v }}))))%I as "K".
     iApply ("K" with "[][$H]").
@@ -1094,7 +1095,7 @@ Proof.
   { apply Rnot_lt_ge, Rge_le in Hdec.
     iApply exec_stutter_spend.
     iPureIntro.
-    lra.
+    simpl ; lra.
   }
   replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl].
   iApply exec_stutter_free.
@@ -1271,7 +1272,7 @@ Proof.
   { apply Rnot_lt_ge, Rge_le in Hdec.
     iApply exec_stutter_spend.
     iPureIntro.
-    lra.
+    simpl ; lra.
   }
   iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
   iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".

@@ -21,7 +21,7 @@ Lemma wp_lift_step_fupd_exec_ub E Φ e1 s :
   (∀ σ1 ε1,
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
-    exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+    exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
       ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.

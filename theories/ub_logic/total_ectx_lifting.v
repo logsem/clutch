@@ -19,7 +19,7 @@ Lemma twp_lift_head_step_exec_ub {E Φ} e1 s :
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+    exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
       |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
   ⊢ WP e1 @ s; E [{ Φ }].
 Proof.

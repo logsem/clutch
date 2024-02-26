@@ -11,7 +11,7 @@ Definition ub_twp_pre `{!irisGS Λ Σ}
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 ε1,
       state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
-      exec_ub e1 σ1 ε1 (λ ε2 '(e2, σ2),
+      exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
         |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
@@ -25,7 +25,7 @@ Proof.
   case_match; first done.
   iIntros (σ ε) "He". iMod ("Hwp" with "He") as "Hwp".
   iModIntro. iApply (exec_ub_mono_pred with "[][$Hwp]").
-  iIntros (ε' [e' s]) "He".
+  iIntros ([e' s] ε') "He".
   iApply (fupd_wand_l with "[H He]").
   iFrame. iIntros "[?[??]]". iFrame.
   by iApply "H".
@@ -168,7 +168,7 @@ Section ub_twp.
     iMod ("IH" with "[$Hs $He]") as "IH".
     iModIntro.
     iApply (exec_ub_mono_pred with "[Hclose HΦ] IH").
-    iIntros (ε [e' s]) "H".
+    iIntros ([e' s] ε) "H".
     iMod "H". iMod "Hclose". iModIntro.
     iDestruct "H" as "[Hs[He Hk]]".
     iFrame. by iApply "Hk".
@@ -219,7 +219,7 @@ Section ub_twp.
     iModIntro.
     iApply exec_ub_bind; [done|].
     iApply (exec_ub_mono with "[][HΦ][$]"); first done.
-    iIntros (ε [e' σ]) "H".
+    iIntros ([e' σ] ε) "H".
     iMod "H". iModIntro. iDestruct "H" as "[?[?K]]".
     iFrame. by iApply "K".
   Qed.
@@ -248,7 +248,7 @@ Section ub_twp.
     iIntros (σ1 ε) "[Hσ Hε]". iMod ("H" with "[$Hσ $Hε]") as "H".
     iIntros "!>".
     iApply exec_ub_mono_pred; last iFrame.
-    iIntros (ε' [e' s']).
+    iIntros ([e' s'] ε').
     iIntros "H". iNext. iMod "H" as "[?[?H]]".
     iModIntro. iFrame. iApply "IH". done.
   Qed.
