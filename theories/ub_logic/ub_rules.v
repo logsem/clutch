@@ -763,7 +763,16 @@ Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
     rewrite ub_wp_unfold /ub_wp_pre.
     destruct (to_val e) as [v|] eqn:He.
     { apply of_to_val in He as <-. simpl. iMod "Hwp". iApply "Hwp".
-      admit.
+      assert (ε2 v = ε1) as ->; last done.
+      apply nnreal_ext.
+      erewrite <-Haverage.
+      erewrite SeriesC_ext; last first.
+      - intros. erewrite lim_exec_final; last done. reflexivity.
+      - erewrite SeriesC_ext; first by erewrite SeriesC_singleton.
+        intros. simpl. instantiate (1 := v).
+        case_bool_decide; first subst.
+        + rewrite dret_1_1; [lra|done].
+        + rewrite dret_0; [lra|done].
     }
     case_match; first simplify_eq/=.
     rewrite ub_wp_unfold /ub_wp_pre language.fill_not_val /=;[|done].
