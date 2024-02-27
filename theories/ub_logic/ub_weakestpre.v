@@ -113,12 +113,6 @@ Section exec_ub.
   Definition exec_ub_pre (Z : cfg Λ → nonnegreal → iProp Σ) (Φ : cfg Λ * nonnegreal → iProp Σ) :=
     (λ (x : cfg Λ * nonnegreal),
       let '((e1, σ1), ε) := x in
-      (* [prim_step] *)
-      (* (∃ R (ε1 ε2 : nonnegreal), *)
-      (*     ⌜reducible (e1, σ1)⌝ ∗ *)
-      (*     ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ *)
-      (*     ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗ *)
-      (*       ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ Z (e2, σ2) ε2) ∨ *)
       (* [prim_step] with adv composition *)
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
@@ -126,13 +120,6 @@ Section exec_ub.
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))) ∨
-      (* [state_step]  *)
-      (* ([∨ list] α ∈ get_active σ1, *)
-      (* (* We allow an explicit weakening of the grading, but maybe it is not needed *) *)
-      (*   (∃ R (ε1 ε2 : nonnegreal), *)
-      (*       ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ *)
-      (*       ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗ *)
-      (*         ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ ((e1, σ2), ε2))) ∨ *)
       (* [state_step] with adv composition*)
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
@@ -183,22 +170,12 @@ Section exec_ub.
 
   Lemma exec_ub_unfold (e1 : exprO Λ) (σ1 : stateO Λ) Z (ε : NNRO) :
     exec_ub e1 σ1 ε Z ≡
-      ((* (∃ R (ε1 ε2 : nonnegreal), *)
-       (*     ⌜reducible (e1, σ1)⌝ ∗ *)
-       (*     ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ *)
-       (*     ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗ *)
-       (*      ∀ e2 σ2, ⌜ R (e2, σ2)⌝ ={∅}=∗ Z (e2, σ2) ε2) ∨ *)
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
           ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))) ∨
-      (* ([∨ list] α ∈ get_active σ1, *)
-      (*   (∃ R (ε1 ε2 : nonnegreal), *)
-      (*       ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ *)
-      (*       ⌜ ub_lift (state_step σ1 α) R ε1 ⌝ ∗ *)
-      (*         ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 ε2 Z )) ∨ *)
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
