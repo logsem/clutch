@@ -72,16 +72,7 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/exec_ub_pre.
-    iIntros "[ (%R & %ε1 & %ε2 & %Hred & % & %Hlift & H)| [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| [H | H]]] %Hv".
-    - iApply step_fupdN_mono.
-      { apply pure_mono.
-        eapply UB_mon_grading. eauto. }
-      rewrite exec_Sn_not_final; [|eauto].
-      iApply ub_lift_dbind'.
-      1,2 : iPureIntro; apply cond_nonneg.
-      + done.
-      + iIntros ([] ?).
-        by iMod ("H"  with "[//]").
+    iIntros " [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
         eapply UB_mon_grading; eauto. }
@@ -110,28 +101,6 @@ Section adequacy.
           iApply step_fupd_fupdN_S.
           iFrame.
     - rewrite exec_Sn_not_final; [|eauto].
-      iDestruct (big_orL_mono _ (λ _ _,
-                     |={∅}▷=>^(S n)
-                       ⌜ub_lift (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
-                  with "H") as "H".
-      { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hleq & %Hlift & H)".
-        replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
-        rewrite -exec_Sn_not_final; [|eauto].
-        iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 , R2 σ2 → ub_lift (exec (S n) (e1, σ2)) φ ε2 ⌝)%I).
-        - iIntros (?). iPureIntro.
-          rewrite /= /get_active in Hα.
-          apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-          apply (UB_mon_grading _ _ (ε1 + ε2)) => //.
-          erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
-          eapply ub_lift_dbind; eauto; [apply cond_nonneg | ].
-          apply cond_nonneg.
-        - iIntros (??). by iMod ("H" with "[//] [//]"). }
-      iInduction (language.get_active σ1) as [| α] "IH"; [done|].
-      rewrite big_orL_cons.
-      iDestruct "H" as "[H | Ht]"; [done|].
-      by iApply "IH".
-   - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
                        ⌜ub_lift (prim_step e1 σ1 ≫= exec n) φ ε''⌝)%I
@@ -282,10 +251,8 @@ Lemma ub_lift_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ :
   (forall n, ub_lift (exec n (e, σ)) φ ε ) ->
   ub_lift (lim_exec (e, σ)) φ ε .
 Proof.
-  intros Hn P HP.
+  intros Hn.
   apply lim_exec_continuous_prob; auto.
-  intro n.
-  apply Hn; auto.
 Qed.
 
 Theorem wp_union_bound_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :

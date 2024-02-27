@@ -798,16 +798,13 @@ Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
        ▷ (|={∅,E}=> (heap_auth 1 (heap σ2) ∗ tapes_auth 1 (tapes σ2)) ∗ ec_supply ε' ∗
             WP K e2 @ s; E {{ v, Φ v }}))))%I as "K".
     iApply ("K" with "[][$H]").
-    iModIntro. iIntros (???) "[H|[H|[H|H]]]".
-    - iDestruct "H" as "(%&%&%&%&%&%&H)".
+    iModIntro. iIntros (???) "[H|H]".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&H)".
       iApply exec_ub_adv_comp.
       iExists _, _, _.
       repeat iSplit; try done.
-      + admit.
-      + iPureIntro. admit.
-      + iIntros (???). iMod ("H"$!  _ _ H3) as "H".
-        iModIntro. iApply exec_stutter_free. iModIntro. iMod "H".
-        iModIntro. iFrame.
+      + iIntros (???). iMod ("H"$!  _ _ H4) as "H".
+        iModIntro. iApply exec_stutter_free. iModIntro.
         
     
         (* (**) *)
@@ -866,23 +863,21 @@ Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
     (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
     nnreal_zero.
 Proof.
-  rewrite /ub_lift. intros Htapes P Hp.
+  rewrite /ub_lift. intros Htapes.
   apply Req_le_sym; simpl.
   rewrite /prob SeriesC_0; auto.
   intros 𝜎'.
-  remember (negb (P 𝜎')) as K; destruct K; auto.
+  case_bool_decide; auto.
   rewrite /state_step.
   case_bool_decide.
-  2: { exfalso. apply H. by apply elem_of_dom. }
+  2: { exfalso. apply H0. by apply elem_of_dom. }
   intros.
   replace (lookup_total 𝛼 (tapes 𝜎)) with (N; ns).
   2: { rewrite (lookup_total_correct _ _ (existT N ns)); auto.  }
   apply dmap_unif_zero.
   intros n Hcont.
-  apply diff_true_false.
-  rewrite -(Hp 𝜎'); [| by exists n].
-  replace false with (negb true) by auto.
-  by rewrite HeqK negb_involutive.
+  apply H.
+  naive_solver.
 Qed.
 
 (** adapted from wp_couple_tapes in the relational logic *)

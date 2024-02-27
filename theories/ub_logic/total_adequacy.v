@@ -106,7 +106,8 @@ Proof.
   }
   rewrite /ub_lift in Hub.
   assert (prob (prim_step e σ) (∽(λ ρ, bool_decide(R ρ)))%P <= ε1).
-  { apply Hub. intros. by apply bool_decide_eq_true_2. }
+  { etrans; last exact. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
+    intros; repeat case_bool_decide; try done. simpl. done. }
   etrans.
   2: { apply Rplus_le_compat_r. exact. }
   rewrite /prob. simpl.
@@ -265,7 +266,8 @@ Proof.
   }
   rewrite /ub_lift in Hub.
   assert (prob (state_step σ l) (∽(λ ρ, bool_decide(R ρ)))%P <= ε1).
-  { apply Hub. intros. by apply bool_decide_eq_true_2. }
+  { etrans; last exact. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
+    intros; repeat case_bool_decide; try done. simpl. done. }
   etrans.
   2: { apply Rplus_le_compat_r. exact. }
   rewrite /prob. simpl.
@@ -341,50 +343,20 @@ Section adequacy.
     - iMod "H" as "%".
       iApply fupd_mask_intro; first done. iIntros "_".
       iPureIntro.
-      intros P HP. rewrite /prob.
+      rewrite /total_ub_lift/prob.
       etrans.
       2:{ eapply SeriesC_ge_elem; last apply ex_seriesC_filter_bool_pos; try done.
-          intros. destruct (P x); try lra. apply pmf_pos. }
+          intros. case_bool_decide; try lra. apply pmf_pos. }
       erewrite (lim_exec_term 0).
       { simpl. rewrite H. rewrite dret_1_1; last done. destruct ε. simpl.
-        rewrite HP; try lra. done. }
+        case_bool_decide; try lra. done. }
       simpl. rewrite H. by rewrite dret_mass.
     - iSpecialize ("H" $! σ ε with "[$]").
       iMod "H".
       iRevert (H).
       iApply (exec_ub_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
-      iDestruct "H" as "[H|[H|[H|H]]]".
-      + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hineq & %Hub & H)".
-        rewrite lim_exec_step step_or_final_no_final.
-        2: { by apply reducible_not_final. }
-        rewrite {2}/total_ub_lift.
-        iIntros (P HP).
-        setoid_rewrite prob_dbind.
-        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - ε2 <=  prob (lim_exec e) P⌝)%I).
-        {
-          iIntros (HR). iPureIntro.
-          eapply (twp_step_fupd_total_ub_lift_prim_step _ _ _ _ (λ _, ε2)); try done.
-          - exists ε. intros. trans (ε1 + ε2); last lra. destruct ε1, ε2. simpl. lra.
-          - rewrite SeriesC_scal_r. etrans; last exact Hineq.
-            pose proof (pmf_SeriesC (prim_step e σ)).
-            cut (SeriesC (prim_step e σ) * ε2 <= ε2).
-            + intros; lra.
-            + rewrite <-Rmult_1_l. apply Rmult_le_compat_r.
-              * apply cond_nonneg.
-              * exact.
-        }
-        iAssert (∀ (e2 : language.expr prob_lang) (s2: language.state prob_lang),
-          ⌜R (e2, s2)⌝ ={∅}=∗
-          |={∅}=> ⌜total_ub_lift (lim_exec (e2, s2)) φ ε2⌝)%I with "[H]" as "H".
-        { iIntros (e2 s2) "%Hρ2". iMod ("H" $! e2 s2 Hρ2) as "H".
-          iMod "H" as "(?&?&H)".
-          iMod ("H" with "[$][$]"). iModIntro. iModIntro. done.
-        }
-        iIntros ([e2 s2] HR). iMod ("H" $! e2 s2 (HR)) as "H".
-        iMod "H" as "%".
-        iPureIntro.
-        by apply H.
+      iDestruct "H" as "[H|H]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
         rewrite lim_exec_step step_or_final_no_final.
         2: { by apply reducible_not_final. }
@@ -410,9 +382,8 @@ Section adequacy.
             iMod ("Hwand" with "[$] [$]"); eauto.
         }
         rewrite {2}/total_ub_lift.
-        iIntros (P HP).
         setoid_rewrite prob_dbind.
-        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) P⌝)%I).
+        iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) (λ x, bool_decide(φ x))⌝)%I).
         {
           iIntros (HR). iPureIntro.
           by eapply twp_step_fupd_total_ub_lift_prim_step.
@@ -422,40 +393,6 @@ Section adequacy.
         iMod "H" as "%".
         iPureIntro.
         by apply H.
-      + remember (language.get_active σ) as l.
-        assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
-        clear Heql.
-        iInduction (l) as [| l] "IH".
-        { rewrite big_orL_nil //. }
-        rewrite !big_orL_cons.
-        iDestruct "H" as "[H|H]".
-        2:{ iApply "IH"; try done. iPureIntro. set_solver. }
-        iDestruct "H" as "(%R & %ε1 & %ε2 & %Hineq & %Hub & H)".
-        iAssert (∀ σ2 : language.state prob_lang,
-                   ⌜R σ2⌝ ={∅}=∗ ⌜total_ub_lift (lim_exec (e, σ2)) φ ε2⌝)%I with "[H]" as "H".
-        { iIntros. iMod ("H" $! σ2 (H)) as "H". iDestruct "H" as "[H _]". iApply "H". done. }
-        rewrite {2}/total_ub_lift.
-        iIntros (P HP).
-        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 <= prob (lim_exec (e, s)) P⌝)%I).
-        {
-          iIntros. iPureIntro.
-          rewrite (erasure.lim_exec_eq_erasure [l]); last set_solver.
-          simpl.
-          rewrite prob_dbind.
-          erewrite SeriesC_ext; last by rewrite dret_id_right.
-          eapply (twp_step_fupd_total_ub_lift_state_step _ _ _ _ _ (λ _, ε2)); try done.
-          + set_solver.
-          + exists ε. intros. trans (ε1 + ε2); last lra. destruct ε1, ε2. simpl. lra.
-          + rewrite SeriesC_scal_r. etrans; last exact Hineq.
-              pose proof (pmf_SeriesC (language.state_step σ l)).
-              cut (SeriesC (language.state_step σ l) * ε2 <= ε2).
-              -- intros; lra.
-              -- rewrite <-Rmult_1_l. apply Rmult_le_compat_r.
-                 ++ apply cond_nonneg.
-                 ++ exact.
-        }
-        iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
-        iPureIntro. by apply H.
       + remember (language.get_active σ) as l.
         assert (l ⊆ language.get_active σ) as Hsubseteq by set_solver.
         clear Heql.
@@ -482,13 +419,12 @@ Section adequacy.
             iApply ("H" with "[//]").
         }
         rewrite {2}/total_ub_lift.
-        iIntros (P HP).
-        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= prob (lim_exec (e, s)) P⌝)%I).
+        iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= prob (lim_exec (e, s)) (λ x, bool_decide (φ x))⌝)%I).
         {
           iIntros. iPureIntro.
           rewrite (erasure.lim_exec_eq_erasure [l]); last set_solver.
           simpl.
-          rewrite prob_dbind.
+          rewrite /total_ub_lift prob_dbind.
           erewrite SeriesC_ext; last by rewrite dret_id_right.
           eapply twp_step_fupd_total_ub_lift_state_step; try done.
           set_solver.

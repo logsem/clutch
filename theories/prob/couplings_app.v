@@ -801,28 +801,28 @@ Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) 
   ub_lift μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.
-  rewrite /ub_lift /prob.
-  intros Hub f g Hf Hg Hfg.
-  epose proof (Hub (λ a, bool_decide (f a <= g tt)) _) as Haux.
-  etransitivity; last first.
-  - eapply Rplus_le_compat_l; apply Haux.
-  - rewrite (SeriesC_split_pred _ (λ a, bool_decide (f a <= g tt))).
-    + apply Rplus_le_compat.
-      * rewrite (SeriesC_ext  (λ b : (), dret () b * g b) (λ b : (), g tt)); last first.
-        { intro n; destruct n. rewrite dret_1_1; auto. lra. }
-        rewrite SeriesC_finite_mass /= Rmult_1_l.
-        admit.
-      * apply SeriesC_le.
-        ** intro n; specialize (Hf n). real_solver.
-        ** apply (ex_seriesC_le _ μ1); auto.
-           intro n; specialize (Hf n). real_solver.
-   + intro n; specialize (Hf n). real_solver.
-   + apply (ex_seriesC_le _ μ1); auto.
-     intro n; specialize (Hf n). real_solver.
-  Unshelve.
-  intros a Pa; simpl.
-  apply bool_decide_eq_true_2.
-  by apply Hfg.
+  (* rewrite /ub_lift /prob. *)
+  (* intros Hub f g Hf Hg Hfg. *)
+  (* (* epose proof (Hub (λ a, bool_decide (f a <= g tt)) _) as Haux. *) *)
+  (* etransitivity; last first. *)
+  (* - eapply Rplus_le_compat_l; done.  *)
+  (* - rewrite (SeriesC_split_pred _ (λ a, bool_decide (f a <= g tt))). *)
+  (*   + apply Rplus_le_compat. *)
+  (*     * rewrite (SeriesC_ext  (λ b : (), dret () b * g b) (λ b : (), g tt)); last first. *)
+  (*       { intro n; destruct n. rewrite dret_1_1; auto. lra. } *)
+  (*       rewrite SeriesC_finite_mass /= Rmult_1_l. *)
+  (*       admit. *)
+  (*     * apply SeriesC_le. *)
+  (*       ** intro n; specialize (Hf n). real_solver. *)
+  (*       ** apply (ex_seriesC_le _ μ1); auto. *)
+  (*          intro n; specialize (Hf n). real_solver. *)
+  (*  + intro n; specialize (Hf n). real_solver. *)
+  (*  + apply (ex_seriesC_le _ μ1); auto. *)
+  (*    intro n; specialize (Hf n). real_solver. *)
+  (* Unshelve. *)
+  (* intros a Pa; simpl. *)
+  (* apply bool_decide_eq_true_2. *)
+  (* by apply Hfg. *)
 Admitted.
 
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
@@ -833,15 +833,15 @@ Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
   set (P' := λ a, @bool_decide (P a) (make_decision (P a))).
   set (f' := λ a, if @bool_decide (P a) (make_decision (P a)) then f a else 0).
-  epose proof (Hub P' _) as Haux.
-  Unshelve.
-  2:{
-    intros a Ha; rewrite /P'.
-    case_bool_decide; auto.
-  }
-  rewrite /prob in Haux.
+  (* epose proof (Hub P' _) as Haux. *)
+  (* Unshelve. *)
+  (* 2:{ *)
+  (*   intros a Ha; rewrite /P'. *)
+  (*   case_bool_decide; auto. *)
+  (* } *)
+  (* rewrite /prob in Haux. *)
   rewrite -Rplus_assoc.
-  eapply Rle_trans; [ | apply Rplus_le_compat_l, Haux].
+  eapply Rle_trans; [ | by apply Rplus_le_compat_l].
   eapply Rle_trans; last first.
   - eapply Rplus_le_compat_r.
     eapply (Hcpl f' g); auto.
