@@ -170,7 +170,7 @@ Section exec_ub.
 
   Lemma exec_ub_unfold (e1 : exprO Λ) (σ1 : stateO Λ) Z (ε : NNRO) :
     exec_ub e1 σ1 ε Z ≡
-      (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
+      ((∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
