@@ -38,6 +38,6 @@ clean:
 	rm -f .coqdeps.d
 
 zip:
-	git archive -o coq-clutch.zip main
+	git archive --prefix=eris-icfp24/ -o eris-icfp24.zip eris-icfp24
 
 .PHONY: clean zip
