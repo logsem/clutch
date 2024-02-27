@@ -728,7 +728,8 @@ Qed.
 
 Lemma ub_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
-  (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.Proof.
+  (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
+Proof.
   rewrite !ub_wp_unfold /ub_wp_pre. iIntros (-> ?) "HR H".
   iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
   iMod ("H" with "[$Hσ $Hε]") as "H".
