@@ -39,17 +39,17 @@ Section merkle_tree.
     end.
 
 
-  Inductive tree_valid: nat -> merkle_tree -> gmap nat Z -> Prop :=
+  Inductive tree_valid: nat -> merkle_tree -> gmap nat nat -> Prop :=
   |tree_valid_lf (h l:nat) m:
     h < 2^val_bit_size ->
     l < 2^leaf_bit_size ->
-    m!!l%nat = Some (Z.of_nat h) ->
+    m!!l%nat = Some (h) ->
     tree_valid 0 (Leaf h l) m
   |tree_valid_br n (h:nat) l r m:
     tree_valid n l m ->
     tree_valid n r m ->
     h < 2^val_bit_size ->
-    m!!((root_hash_value l)*2^val_bit_size + root_hash_value r)%nat=Some (Z.of_nat h) ->
+    m!!((root_hash_value l)*2^val_bit_size + root_hash_value r)%nat=Some (h) ->
     tree_valid (S n) (Branch h l r) m.
 
   
@@ -139,18 +139,17 @@ Section merkle_tree.
   (* Qed. *)
 
   Lemma hash_bound_manipulation finalhash:
-    (0 ≤ finalhash)%Z -> (finalhash ≤ val_size_for_hash)%Z ->
+    (0 ≤ finalhash) -> (finalhash ≤ val_size_for_hash) ->
     (0 ≤ finalhash < 2 ^ val_bit_size)%Z.
   Proof.
     clear.
-    intros H K.
-    apply Zle_lt_succ in K. split; first done.
-    eapply Z.lt_stepr; try done.
-    rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-    rewrite -Nat2Z.inj_pow. f_equal.
-    rewrite /val_size_for_hash.
-    assert (1<=2 ^val_bit_size); last lia. clear.
-    induction val_bit_size; simpl; lia.
+    intros. split; try lia.
+    rewrite /val_size_for_hash in H0.
+    replace 2%Z with (Z.of_nat 2); last lia.
+    rewrite -Z2Nat.inj_pow. apply inj_lt.
+    assert (0<2^val_bit_size); try lia.
+    clear.
+    induction val_bit_size; simpl; try lia.
   Qed.
 
   Lemma tree_valid_superset n m m' tree:
@@ -216,7 +215,7 @@ Section merkle_tree.
   (*This lemma is here to ensure that the return value lies within a bound 
     This lemma is eventually used in the case where the proof is incorrect.
    *)
-  Local Lemma wp_compute_hash_from_leaf_size (n:nat) (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_size (n:nat) (tree:merkle_tree) (m:gmap nat nat) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid n tree m⌝ ∗
         coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
@@ -308,7 +307,7 @@ Section merkle_tree.
   Qed.
   
   (* The case where everything is correct *)
-  Local Lemma wp_compute_hash_from_leaf_correct (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_correct (tree:merkle_tree) (m:gmap nat nat) (v:nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
         coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
@@ -373,7 +372,7 @@ Section merkle_tree.
   Qed.
 
   (*The case where the leaf is incorrect*)
-  Local Lemma wp_compute_hash_from_leaf_incorrect (tree:merkle_tree) (m:gmap nat Z) (v v':nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_incorrect (tree:merkle_tree) (m:gmap nat nat) (v v':nat) (proof:list (bool*nat)) lproof f E:
      {{{ ⌜tree_valid height tree m⌝ ∗
         coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
@@ -414,15 +413,9 @@ Section merkle_tree.
           iAssert (⌜coll_free m'⌝)%I with "[H]" as "%".
           { by iApply coll_free_hashfun_amortized_implies_coll_free. }
           iPureIntro. intro; subst. apply Hneq. eapply coll_free_lemma; try done.
-          by erewrite lookup_weaken.
+          erewrite lookup_weaken; try exact. apply Nat2Z.inj in H0. by subst.
         * iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %K]"; first done.
-          apply Zle_lt_succ in K. iPureIntro; split; first done.
-          eapply Z.lt_stepr; try done.
-          rewrite -Nat2Z.inj_succ. replace (2)%Z with (Z.of_nat 2) by lia.
-          rewrite -Nat2Z.inj_pow. f_equal.
-          rewrite /val_size_for_hash.
-          assert (1<=2 ^val_bit_size); last lia. clear.
-          induction val_bit_size; simpl; lia.      
+          iPureIntro. apply hash_bound_manipulation; done.
     - rewrite /compute_hash_from_leaf. wp_pures. rewrite -/compute_hash_from_leaf.
       wp_apply wp_list_head; first done.
       iIntros (?) "[[->->]|(%head & %lproof' & -> & ->)]".
@@ -461,6 +454,7 @@ Section merkle_tree.
              assert (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2 =
                      Z.to_nat lefthash' * 2 ^ val_bit_size + hash) as helper.
              { eapply (coll_free_lemma m''); try done.
+               assert (finalhash=hash_value) as ->. { by apply Nat2Z.inj. }
                eapply lookup_weaken; first done.
                etrans; exact.
              }
@@ -496,6 +490,7 @@ Section merkle_tree.
              assert (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2 =
                      hash * 2 ^ val_bit_size + Z.to_nat righthash') as helper.
              { eapply (coll_free_lemma m''); try done.
+               assert (finalhash=hash_value) as ->. { by apply Nat2Z.inj. }
                eapply lookup_weaken; first done.
                etrans; exact.
              }
@@ -511,7 +506,7 @@ Section merkle_tree.
   Qed.
 
   (*The case where the leaf is correct but the proof is not *)
-  Local Lemma wp_compute_hash_from_leaf_incorrect_proof (tree:merkle_tree) (m:gmap nat Z) (v:nat) (proof:list (bool*nat)) lproof f E:
+  Local Lemma wp_compute_hash_from_leaf_incorrect_proof (tree:merkle_tree) (m:gmap nat nat) (v:nat) (proof:list (bool*nat)) lproof f E:
     {{{ ⌜tree_valid height tree m⌝ ∗
         coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m ∗
         ⌜is_list proof lproof⌝ ∗
@@ -567,7 +562,8 @@ Section merkle_tree.
              iExists m''. iSplit; first (iPureIntro; etrans; exact).
              do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
-             ++ iPureIntro. simpl. intros ->. 
+             ++ iPureIntro. simpl. intro.
+                assert (retv=hash_value) as ->. { by apply Nat2Z.inj. } 
                 inversion H30; subst.
                 assert (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2 =
                         Z.to_nat lefthash * 2 ^ val_bit_size + hash) as helper.
@@ -600,7 +596,9 @@ Section merkle_tree.
              iExists m''. iSplit; first (iPureIntro; etrans; exact).
              do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
-             ++ iPureIntro. simpl. intros ->. apply Hlefthashneq.
+             ++ iPureIntro. simpl. intro. 
+                assert (retv=hash_value) as ->. { by apply Nat2Z.inj. }
+                apply Hlefthashneq.
                 inversion H30; subst.
                 assert (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2 =
                         Z.to_nat lefthash * 2 ^ val_bit_size + root_hash_value tree2) as helper.
@@ -633,7 +631,8 @@ Section merkle_tree.
              iExists m''. iSplit; first (iPureIntro; etrans; exact).
              do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
-             ++ iPureIntro. simpl. intros ->. 
+             ++ iPureIntro. simpl. intro. 
+                assert (retv=hash_value) as ->. { by apply Nat2Z.inj. }
                 inversion H30; subst.
                 assert (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2 =
                         hash * 2 ^ val_bit_size + Z.to_nat righthash) as helper.
@@ -668,7 +667,8 @@ Section merkle_tree.
              iExists m''. iSplit; first (iPureIntro; etrans; exact).
              do 3 (try iSplit; try done).
              ++ iPureIntro; lia.
-             ++ iPureIntro. simpl. intros ->. apply Hrighthashneq.
+             ++ iPureIntro. simpl. intro.
+                assert (retv=hash_value) as ->. { by apply Nat2Z.inj. } apply Hrighthashneq.
                 inversion H30; subst.
                 assert (root_hash_value tree1 * 2 ^ val_bit_size + root_hash_value tree2 =
                         root_hash_value tree1 * 2 ^ val_bit_size + Z.to_nat righthash) as helper.
@@ -728,7 +728,7 @@ Section merkle_tree.
                         ⌜size (m'') <= size m' + (S height)⌝ 
           }}} )%I.
 
-  Lemma merkle_tree_decider_program_spec tree (m:gmap nat Z) f:
+  Lemma merkle_tree_decider_program_spec tree (m:gmap nat nat) f:
     {{{ ⌜tree_valid height tree m⌝ ∗
         coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m 
     }}} merkle_tree_decider_program #(root_hash_value tree) f
@@ -838,9 +838,9 @@ Section merkle_tree.
     by intros [].
   Qed.
 
-  Lemma tree_valid_with_leaf_list_br h treea l1 (m:gmap nat Z) treeb l2 hash:
+  Lemma tree_valid_with_leaf_list_br h treea l1 (m:gmap nat nat) treeb l2 hash:
     hash < 2 ^ val_bit_size ->
-    m !! (root_hash_value treea * 2 ^ val_bit_size + root_hash_value treeb) = Some (Z.of_nat hash)-> 
+    m !! (root_hash_value treea * 2 ^ val_bit_size + root_hash_value treeb) = Some (hash)-> 
     tree_valid_with_leaf_list h treea l1 m -> tree_valid_with_leaf_list h treeb l2 m ->
     tree_valid_with_leaf_list (S h) (Branch hash treea treeb) (l1++l2) m.
   Proof.

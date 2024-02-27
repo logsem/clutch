@@ -103,7 +103,7 @@ Section unreliable_storage.
   Definition is_valid_list list vlist height max_size :=
     length list = 2^height /\ Forall (λ x, x < max_size) list /\ is_list list vlist.
 
-  Lemma tree_builder_helper_spec (list:list nat) (vlist: val) (height:nat) (m:gmap nat Z) (f:val):
+  Lemma tree_builder_helper_spec (list:list nat) (vlist: val) (height:nat) (m:gmap nat nat) (f:val):
     size (m) + 2^(S height) - 1 <= max_hash_size ->
     is_valid_list list vlist height (2^(2*val_bit_size))->
     {{{ coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
@@ -111,7 +111,7 @@ Section unreliable_storage.
     }}}
       tree_builder_helper f #height vlist 
       {{{ (hash:nat) (l:nat), RET (#hash, #l);
-          ∃ (m':gmap nat Z) (tree:merkle_tree),
+          ∃ (m':gmap nat nat) (tree:merkle_tree),
             ⌜m ⊆ m'⌝ ∗
             ⌜size (m') <= size (m) + 2^(S height) - 1⌝ ∗
             coll_free_hashfun_amortized val_size_for_hash max_hash_size f m' ∗
@@ -144,7 +144,7 @@ Section unreliable_storage.
         { iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %T]"; first done.
           iPureIntro. by apply hash_bound_manipulation.
         }
-        replace (hash) with (Z.of_nat $ Z.to_nat hash); last lia.
+        (* replace (hash) with (Z.of_nat $ Z.to_nat hash); last lia. *)
         wp_apply unreliable_write_spec; first done.
         iIntros "_".
         wp_pures.
@@ -165,8 +165,8 @@ Section unreliable_storage.
              eapply Nat.lt_stepr; first done. f_equal. 
              rewrite Nat2Z.id. done.
           -- apply Forall_inv in Hforall. done.
-          -- rewrite Z2Nat.id; last lia. done.
-        * done.
+          -- rewrite Nat2Z.id; done. 
+        * rewrite Nat2Z.id. done. 
     - rewrite /tree_builder_helper. wp_pures. rewrite -/tree_builder_helper.
       replace (_-_)%Z with (Z.of_nat (height)); last lia.
       wp_apply pow_spec; first done.
@@ -229,7 +229,7 @@ Section unreliable_storage.
              { iPoseProof (coll_free_hashfun_amortized_implies_bounded_range with "[$H][//]") as "[% %T]"; first done.
                iPureIntro. by apply hash_bound_manipulation.
              }
-             replace (hash) with (Z.of_nat (Z.to_nat hash)); last lia.
+             (* replace (hash) with (Z.of_nat (Z.to_nat hash)); last lia. *)
              wp_apply unreliable_write_spec; first done.
              iIntros "_".
              wp_pures.
@@ -256,13 +256,14 @@ Section unreliable_storage.
                 --- by eapply tree_valid_with_leaf_list_superset; [done|..]. 
                 --- eapply tree_valid_with_leaf_list_superset; [..|done].
                     by etrans; last exact.
-                --- rewrite Z2Nat.id; last lia.
+                --- rewrite Nat2Z.id.
                     rewrite -Hfound. f_equal. subst. simpl. lia.
                 --- rewrite Z2Nat.inj_lt in Hb; try lia.
                     eapply Nat.lt_stepr; first exact.
                     rewrite Znat.Z2Nat.inj_pow; try lia. rewrite Nat2Z.id.
                     f_equal.
                     Unshelve. all: done.
+             ++ by rewrite Nat2Z.id.
   Qed.
 
   Definition is_acceptable_list height list vlist:=
@@ -278,7 +279,7 @@ Section unreliable_storage.
     }}}
       tree_builder vlist #height
       {{{ (l:nat) (checker:val), RET (#l, checker);
-          ∃ (m:gmap nat Z) (tree:merkle_tree) (f:val),
+          ∃ (m:gmap nat nat) (tree:merkle_tree) (f:val),
             coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
             ⌜size (m) <= 2^(S height) - 1⌝ ∗
             ⌜tree_valid_with_leaf_list val_bit_size' height tree list m⌝ ∗

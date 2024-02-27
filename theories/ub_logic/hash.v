@@ -40,12 +40,14 @@ Section simple_bit_hash.
       let: "hm" := init_hash_state #() in
       compute_hash "hm".
 
+  (* A hash function is collision free if the partial map it
+     implements is an injective function *)
   Definition coll_free (m : gmap nat nat) :=
     forall k1 k2,
-      is_Some (m !! k1) ->
-      is_Some (m !! k2) ->
-      m !!! k1 = m !!! k2 ->
-      k1 = k2.
+    is_Some (m !! k1) ->
+    is_Some (m !! k2) ->
+    m !!! k1 = m !!! k2 ->
+    k1 = k2.
 
   Definition hashfun f m : iProp Σ :=
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
@@ -108,7 +110,7 @@ Section simple_bit_hash.
       by apply lookup_empty_Some in H.
   Qed.
 
-  Lemma coll_free_insert (m : gmap nat Z) (n : nat) (z : Z) :
+  Lemma coll_free_insert (m : gmap nat nat) (n : nat) (z : nat) :
     m !! n = None ->
     coll_free m ->
     Forall (λ x, z ≠ snd x) (map_to_list m) ->
@@ -125,7 +127,7 @@ Section simple_bit_hash.
       rewrite lookup_total_insert_ne // in Heq.
       apply lookup_lookup_total in Hk2.
       rewrite -Heq in Hk2.
-      eapply (Forall_iff (uncurry ((λ (k : nat) (v : Z), z ≠ v)))) in HForall; last first.
+      eapply (Forall_iff (uncurry ((λ (k : nat) (v : nat), z ≠ v)))) in HForall; last first.
       { intros (?&?); eauto. }
       eapply map_Forall_to_list in HForall.
       rewrite /map_Forall in HForall.
@@ -137,7 +139,7 @@ Section simple_bit_hash.
         rewrite lookup_total_insert_ne // in Heq.
         apply lookup_lookup_total in Hk1.
         rewrite Heq in Hk1.
-        eapply (Forall_iff (uncurry ((λ (k : nat) (v : Z), z ≠ v)))) in HForall; last first.
+        eapply (Forall_iff (uncurry ((λ (k : nat) (v : nat), z ≠ v)))) in HForall; last first.
         { intros (?&?); eauto. }
         eapply map_Forall_to_list in HForall.
         rewrite /map_Forall in HForall.
@@ -150,7 +152,7 @@ Section simple_bit_hash.
   Qed.
 
 
-  Lemma wp_hashfun_prev E f m (n : nat) (b : Z) :
+  Lemma wp_hashfun_prev E f m (n : nat) (b : nat) :
     m !! n = Some b →
     {{{ hashfun f m }}}
       f #n @ E
@@ -166,7 +168,7 @@ Section simple_bit_hash.
     iExists _. eauto.
   Qed.
 
-  Lemma wp_coll_free_hashfun_prev E f m (n : nat) (b : Z) :
+  Lemma wp_coll_free_hashfun_prev E f m (n : nat) (b : nat) :
     m !! n = Some b →
     {{{ coll_free_hashfun f m }}}
       f #n @ E
@@ -189,7 +191,7 @@ Section simple_bit_hash.
     {{{ coll_free_hashfun f m ∗ € (nnreal_div (nnreal_nat (length (map_to_list m))) (nnreal_nat(val_size+1)))
     }}}
       f #n @ E
-    {{{ (v : Z), RET #v; coll_free_hashfun f (<[ n := v ]>m) }}}.
+    {{{ (v : nat), RET #v; coll_free_hashfun f (<[ n := v ]>m) }}}.
   Proof.
     iIntros (Hlookup Φ) "([Hhash %Hcoll_free] & Herr) HΦ".
     iDestruct "Hhash" as (hm ->) "[H %Hbound]".
@@ -199,9 +201,8 @@ Section simple_bit_hash.
     iIntros (vret) "(Hhash&->)".
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
-    wp_apply (wp_rand_err_list_int _ val_size (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length.
-    iFrame.
+    wp_apply (wp_rand_err_list_nat _ val_size (map (λ p, snd p) (map_to_list m))); auto.
+    rewrite map_length. iFrame.
     iIntros "%x %HForall".
     wp_pures.
     wp_apply (wp_set with "Hhash").
@@ -223,7 +224,7 @@ Section simple_bit_hash.
           lia. 
     - iPureIntro.
       apply coll_free_insert; auto.
-      apply (Forall_map (λ p : nat * Z, p.2)) in HForall; auto.
+      apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
   Qed.
 
   
@@ -269,14 +270,14 @@ Section amortized_hash.
   Qed.
 
   Lemma hashfun_amortized_implies_bounded_range f m idx x:
-    hashfun_amortized f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%Z⌝.
+    hashfun_amortized f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
   Proof.
     iIntros "H %".
     iApply (hashfun_implies_bounded_range with "[H]"); [by iDestruct "H" as "(%&%&H&H')"|done].
   Qed.
 
   Lemma coll_free_hashfun_amortized_implies_bounded_range f m idx x:
-    coll_free_hashfun_amortized f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%Z⌝.
+    coll_free_hashfun_amortized f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
   Proof.
     iIntros "(H&%) %".
     by iApply (hashfun_amortized_implies_bounded_range with "[$]").
@@ -311,7 +312,7 @@ Section amortized_hash.
     by iIntros "(%&%&?&?)". 
   Qed.
   
-  Lemma wp_hashfun_prev_amortized E f m (n : nat) (b : Z) :
+  Lemma wp_hashfun_prev_amortized E f m (n : nat) (b : nat) :
     m !! n = Some b →
     {{{ hashfun_amortized f m }}}
       f #n @ E
@@ -323,7 +324,7 @@ Section amortized_hash.
     iExists _, _. iFrame. naive_solver.
   Qed.
 
-  Lemma wp_coll_free_hashfun_prev_amortized E f m (n : nat) (b : Z) :
+  Lemma wp_coll_free_hashfun_prev_amortized E f m (n : nat) (b : nat) :
     m !! n = Some b →
     {{{ coll_free_hashfun_amortized f m }}}
       f #n @ E
@@ -382,12 +383,12 @@ Section amortized_hash.
     (size m < max_hash_size)%nat ->
     {{{ coll_free_hashfun_amortized f m ∗ € amortized_error }}}
       f #n @ E
-      {{{ (v : Z), RET #v; coll_free_hashfun_amortized f (<[ n := v ]>m) }}}.
+      {{{ (v : nat), RET #v; coll_free_hashfun_amortized f (<[ n := v ]>m) }}}.
   Proof.
     iIntros (Hlookup Hsize Φ) "([Hhash %Hcoll_free] & Herr) HΦ".
     iDestruct "Hhash" as (k ε) "(H&->&%H0&Herr')".
     iAssert (€ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗
-             € (mknonnegreal (((max_hash_size-1) * size (<[n:=0%Z]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%Z]> m) - 1)) / (val_size + 1)) _ )
+             € (mknonnegreal (((max_hash_size-1) * size (<[n:=0%nat]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%nat]> m) - 1)) / (val_size + 1)) _ )
             )%I with "[Herr Herr']" as "[Hε Herr]".
     - iApply ec_split. 
       iCombine "Herr Herr'" as "H".
@@ -452,7 +453,7 @@ Section amortized_hash.
     (size m < max_hash_size)%nat ->
     {{{ coll_free_hashfun_amortized f m ∗ € amortized_error }}}
       f #n @ E
-      {{{ (v : Z), RET #v; ∃ m', coll_free_hashfun_amortized f m' ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= S $ size(m))%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
+      {{{ (v : nat), RET #v; ∃ m', coll_free_hashfun_amortized f m' ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= S $ size(m))%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
   Proof.
     iIntros (Hsize Φ) "[[Hh %Hc]Herr] HΦ".
     destruct (m!!n) eqn:Heq.

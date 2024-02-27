@@ -66,14 +66,7 @@ Section coll_free_hash.
 
 
 
-  (* A hash function is collision free if the partial map it
-     implements is an injective function *)
-  Definition coll_free (m : gmap nat nat) :=
-    forall k1 k2,
-      is_Some (m !! k1) ->
-      is_Some (m !! k2) ->
-      m !!! k1 = m !!! k2 ->
-      k1 = k2.
+  
 
   Definition is_bounded_prf (m : gmap nat nat) (size : nat) :=
     coll_free m /\
