@@ -19,8 +19,8 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 4.14.1
-opam switch link clutch .
+opam switch create eris 4.14.1
+opam switch link eris .
 ```
 3. Add the Coq and Iris `opam` repositories.
 ```
@@ -28,7 +28,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
-4. Install the right version of the dependencies as specified in the `clutch.opam` file.
+4. Install the right version of the dependencies as specified in the `eris.opam` file.
 ```
 opam install . --deps-only
 ```
