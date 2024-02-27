@@ -589,111 +589,6 @@ Section exec_ub.
     iModIntro. iIntros ([[??]?]) "H". by iApply "IH".
   Qed. 
 
-
-(*
-  Lemma exec_ub_reducible e σ Z1 Z2 ε1 ε2 :
-    (exec_ub e σ ε1 Z1)  ={∅}=∗ ⌜irreducible e σ⌝ -∗ (exec_ub e σ ε2 Z2).
-  Proof.
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, |={∅}=> ⌜irreducible x.2.1 x.2.2⌝ -∗ (exec_ub x.2.1 x.2.2 ε2 Z2))%I : prodO NNRO cfgO → iPropI Σ).
-    assert (NonExpansive Φ).
-    { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
-    iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ
-                 with "[]") as "H"; last first.
-    { done. }
-    iIntros "!>" ((ε' & [e1 σ1])). rewrite /exec_ub_pre.
-    iIntros "[(% & % & % & H) | H] /="; auto;
-    rewrite /Φ/=.
-    - iModIntro.
-      iIntros.
-      exfalso.
-      pose proof (not_reducible (e1, σ1)) as (H3 & H4).
-      by apply H4.
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible (e1, σ1)⌝ -∗ exec_ub e1 σ1 ε2 Z2)%I  with "H") as "H".
-      { intros.
-        iIntros.
-        iModIntro.
-        iIntros.
-        rewrite exec_ub_unfold.
-        iRight.
-        iApply (big_orL_elem_of _ _ y).
-        - eapply elem_of_list_lookup_2; eauto.
-        -
-*)
-
-(*
-  Lemma exec_ub_irreducible e σ Z ε :
-    ⌜irreducible e σ⌝ ⊢ exec_ub e σ ε Z.
-  Proof.
-    iIntros "H".
-    rewrite {1}exec_ub_unfold.
-    iRight.
-    iInduction (get_active σ) as [| l] "IH".
-    { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq & %Hub & H)) | Ht]".
-*)
-
-  (* This lemma might not be true anymore *)
-  (*
-  Lemma exec_ub_reducible e σ Z ε :
-    exec_ub e σ ε Z ={∅}=∗ ⌜reducible e σ⌝.
-  Proof.
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, |={∅}=> ⌜reducible x.2.1 x.2.2⌝)%I : prodO RO cfgO → iPropI Σ).
-    assert (NonExpansive Φ).
-    { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
-    iPoseProof (least_fixpoint_iter (exec_ub_pre Z) Φ
-                 with "[]") as "H"; last first.
-    { done. }
-    iIntros "!>" ((ε' & [e1 σ1])). rewrite /exec_ub_pre.
-    iIntros "[(% & % & % & H) | H] /="; auto.
-    rewrite /Φ/=.
-    Search "big_orL".
-    iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
-      { iIntros (? α' ?%elem_of_list_lookup_2) "(%R2 & %ε1 & %ε2 & %Hleq & %Hub & H)".
-        eapply ub_lift_pos_R in Hub.
-        eapply Rcoupl_inhabited_l in Hcpl as (σ2 & [] & ? & ? & ?); last first.
-        { rewrite state_step_mass //. lra. }
-        iApply (pure_impl_1 (reducible e1 σ2)).
-        { iPureIntro. by eapply state_step_reducible. }
-        by iMod ("H" with "[//]"). }
-      iInduction (get_active σ1) as [| α] "IH"; [done|].
-      rewrite big_orL_cons.
-      iDestruct "H" as "[? | H]"; [done|].
-      by iApply "IH".
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
-      { iIntros (? [α1 α2] [? ?]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %Hcpl & H)".
-        eapply Rcoupl_pos_R in Hcpl.
-        eapply Rcoupl_inhabited_l in Hcpl as (σ2 &?&?& Hs &?); last first.
-        { rewrite state_step_mass //. lra. }
-        iApply (pure_impl_1 (reducible e1 σ2)).
-        { iPureIntro. by eapply state_step_reducible. }
-        by iMod ("H" with "[//]"). }
-      iInduction (list_prod (get_active σ1) (get_active σ1')) as [| [α α']] "IH"; [done|].
-      rewrite big_orL_cons.
-      iDestruct "H" as "[? | H]"; [done|].
-      by iApply "IH".
-  Qed.
-  *)
-
-  (*
-  Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z :
-    exec n (e1', σ1') (e2', σ2') = 1 →
-    exec_coupl e1 σ1 e2' σ2' Z -∗
-    exec_coupl e1 σ1 e1' σ1' Z.
-  Proof.
-    iIntros (Hexec%pmf_1_eq_dret) "Hcpl".
-    iApply exec_coupl_exec_r.
-    iExists _, n. iSplit.
-    { iPureIntro. apply Rcoupl_pos_R, Rcoupl_trivial.
-      - apply dret_mass.
-      - rewrite Hexec; apply dret_mass. }
-    iIntros (e2'' σ2'' (_ & _ & H)).
-    rewrite Hexec in H. by apply dret_pos in H as [= -> ->].
-  Qed.
-  *)
-
 End exec_ub.
 
 (** * The weakest precondition  *)
@@ -831,44 +726,9 @@ Proof.
 Qed.
 
 
-(* Fixable?
-Lemma ub_wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
-  (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
-Proof.
-  iIntros "H". rewrite !ub_wp_unfold /ub_wp_pre.
-  destruct (to_val e) as [v|] eqn:He.
-  { by iDestruct "H" as ">>> $". }
-  iIntros (σ1 ε) "[Hσ Hε]". iMod "H".
-  iMod ("H" with "[$]") as "H".
-  iModIntro.
-  iDestruct (exec_ub_strengthen with "H") as "H".
-  iApply (exec_ub_mono_pred with "[] H").
-  iIntros (? [e2 σ2]) "[[% %Hstep] H]".
-  iModIntro.
-  iMod "H" as "(Hσ & Hρ & H)".
-  rewrite !ub_wp_unfold /ub_wp_pre.
-  destruct (to_val e2) as [v2|] eqn:He2.
-  - iDestruct "H" as ">> $". by iFrame.
-  - iMod ("H" with "[$]") as "H".
-    pose proof (atomic σ e2 σ2 Hstep) as H3.
-    case_match.
-    + rewrite /is_Some in H3.
-      destruct H3.
-      simplify_eq.
-    + apply not_reducible in H3.
-      (* so... we could get this back if we did a case match on
-         the exec_ub in H. We would need to exclude the two state step cases somehow. *)
-      rewrite {1}exec_ub_unfold.
-      iDestruct "H" as "[[% [% [% (%Hred&_)]]]|[[% [% [% (%Hred&_)]]]|[H|H]]]".
-      1,2: by destruct H3.
-      (* ??? *)
-Admitted.
-*)
-
 Lemma ub_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
-  (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
-Proof.
+  (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.Proof.
   rewrite !ub_wp_unfold /ub_wp_pre. iIntros (-> ?) "HR H".
   iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
   iMod ("H" with "[$Hσ $Hε]") as "H".
@@ -903,21 +763,6 @@ Proof.
     iFrame "Hσ Hρ". by iApply "IH".
 Qed.
 
-(* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
-(*   WP K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }}. *)
-(* Proof. *)
-(*   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre /=. *)
-(*   destruct (to_val e) as [v|] eqn:He. *)
-(*   { apply of_to_val in He as <-. by rewrite !wp_unfold /wp_pre. } *)
-(*   rewrite fill_not_val //. *)
-(*   iIntros (σ1 ns κ κs nt) "Hσ". iMod ("H" with "[$]") as "[% H]". *)
-(*   iModIntro; iSplit. *)
-(*   { destruct s; eauto using reducible_fill_inv. } *)
-(*   iIntros (e2 σ2 efs Hstep) "Hcred". *)
-(*   iMod ("H" $! _ _ _ with "[] Hcred") as "H"; first eauto using fill_step. *)
-(*   iIntros "!> !>". iMod "H". iModIntro. iApply (step_fupdN_wand with "H"). *)
-(*   iIntros "H". iMod "H" as "($ & H & $)". iModIntro. by iApply "IH". *)
-(* Qed. *)
 
 (** * Derived rules *)
 Lemma ub_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.

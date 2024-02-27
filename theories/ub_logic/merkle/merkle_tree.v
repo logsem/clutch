@@ -102,12 +102,6 @@ Section merkle_tree.
     incorrect_proof (Branch h ltree rtree) ((false, root_hash_value ltree)::prooflist).
     
 
-  (* Definition root_hash_value_program : val := *)
-  (*   λ: "ltree", *)
-  (*     match: "ltree" with *)
-  (*     | InjL "x" => Fst "x" *)
-  (*     | InjR "x" => let, ("a", "b", "c") := "x" in "a" *)
-  (*     end. *)
 
   Definition compute_hash_from_leaf : val :=
     rec: "compute_hash_from_leaf" "lhmf" "lproof" "lleaf" := 
@@ -126,17 +120,6 @@ Section merkle_tree.
         end.
 
   (** Lemmas *)
-  (* Lemma wp_root_hash_value_program n lt tree E: *)
-  (*   {{{ ⌜tree_relate n lt tree⌝ }}} *)
-  (*   root_hash_value_program lt @ E *)
-  (*   {{{ (retv:Z), RET #retv; ⌜retv = root_hash_value tree⌝}}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "%H HΦ". *)
-  (*   rewrite /root_hash_value_program. wp_pures. *)
-  (*   inversion H. *)
-  (*   - wp_pures. iApply "HΦ". by iPureIntro. *)
-  (*   - wp_pures. iApply "HΦ". by iPureIntro. *)
-  (* Qed. *)
 
   Lemma hash_bound_manipulation finalhash:
     (0 ≤ finalhash) -> (finalhash ≤ val_size_for_hash) ->

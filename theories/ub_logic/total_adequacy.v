@@ -126,42 +126,6 @@ Proof.
     apply K. apply Hred.
 Qed.
 
-(* same as above but expressed in terms of a total_ub_lift
-Lemma twp_step_fupd_total_ub_lift_prim_step' (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R:
-  reducible e σ ->
-  (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
-  ε1 + SeriesC (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> ub_lift (prim_step e σ) R ε1 ->
-  (∀ P,
-     (∀ e, R e → 1 - ε2 e <= prob (lim_exec e) P) ->
-     total_ub_lift (step (e, σ) ≫= lim_exec) P ε ).
-Proof.
-  rewrite /total_ub_lift. intros.
-  epose (twp_step_fupd_total_ub_lift_prim_step _ _ _ _ _ _ P _ _ _ _ _) as Hs; eauto.
-  rewrite prob_dbind.
-  etrans; [eapply Hs|].
-  eapply SeriesC_le.
-  2: { admit. }
-  intros ?; split.
-  + apply Rmult_le_pos; [apply pmf_pos |apply prob_ge_0].
-  + apply Rmult_le_compat_l; [apply pmf_pos|].
-    rewrite /prob.
-    eapply SeriesC_le.
-    2: {admit. }
-    intros n'.
-    remember (P n') as k.
-    destruct k; simpl.
-    * split; [apply pmf_pos|].
-      rewrite H4; [lra|].
-      rewrite -Heqk; eauto.
-    * split; [lra|].
-      destruct (P0 n'); [apply pmf_pos|lra].
-  Unshelve.
-  7: { eauto. }
-  4: { eauto. }
-  2: { eauto. }
-  eauto.
-Admitted.
-*)
 
 Lemma twp_step_fupd_total_ub_lift_state_step (e : language.expr prob_lang) σ l (ε ε1:nonnegreal) (ε2: _ -> nonnegreal) R P:
   l ∈ language.get_active σ -> 
@@ -290,24 +254,6 @@ Qed.
 Section adequacy.
   Context `{!ub_clutchGS Σ}.
 
-  (*
-
-  Lemma ub_lift_dbind' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜ub_lift μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (f a) T ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
-  Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto. }
-    iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
-  Qed.
-
-*)
 
   Lemma total_ub_lift_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε':
