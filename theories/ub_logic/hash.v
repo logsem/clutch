@@ -40,7 +40,7 @@ Section simple_bit_hash.
       let: "hm" := init_hash_state #() in
       compute_hash "hm".
 
-  Definition coll_free (m : gmap nat Z) :=
+  Definition coll_free (m : gmap nat nat) :=
     forall k1 k2,
       is_Some (m !! k1) ->
       is_Some (m !! k2) ->
@@ -49,8 +49,8 @@ Section simple_bit_hash.
 
   Definition hashfun f m : iProp Σ :=
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
-                  map_list hm ((λ b, LitV (LitInt b)) <$> m) ∗
-                  ⌜map_Forall (λ ind i, (0<= i <=val_size)%Z) m⌝ 
+                  map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
+                  ⌜map_Forall (λ ind i, (0<= i <=val_size)%nat) m⌝ 
   .
 
   Definition coll_free_hashfun f m: iProp Σ :=
@@ -77,7 +77,7 @@ Section simple_bit_hash.
   Qed.
 
   Lemma hashfun_implies_bounded_range f m idx x:
-    hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%Z⌝.
+    hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
   Proof.
     iIntros "(%&%&H&%K) %".
     iPureIntro.
@@ -85,7 +85,7 @@ Section simple_bit_hash.
   Qed.
 
   Lemma coll_free_hashfun_implies_bounded_range f m idx x:
-    coll_free_hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%Z⌝.
+    coll_free_hashfun f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
   Proof.
     iIntros "(H&%) %".
     by iApply (hashfun_implies_bounded_range with "[$]").
