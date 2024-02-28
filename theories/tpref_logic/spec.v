@@ -5,8 +5,8 @@ From iris.proofmode Require Import base tactics classes.
 From iris.algebra Require Import excl auth.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob Require Export couplings distribution markov.
+From caliper.prelude Require Import stdpp_ext iris_ext.
+From caliper.prob Require Export couplings distribution markov.
 
 Set Default Proof Using "Type".
 

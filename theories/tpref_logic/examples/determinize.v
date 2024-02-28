@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import lang notation.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
-From clutch.prob Require Import distribution markov.
-From clutch.tpref_logic.examples Require Import flip.
+From caliper.prob_lang Require Import lang notation.
+From caliper.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
+From caliper.prob Require Import distribution markov.
+From caliper.tpref_logic.examples Require Import flip.
 #[local] Open Scope R.
 
 Definition determinize : val :=
@@ -31,13 +31,6 @@ Section backedge_markov.
   Qed.
 
   Canonical Structure backedge_markov : markov := Markov _ _ model_mixin.
-
-  Lemma backedge_markov_terminates :
-    SeriesC (lim_exec (δ := δ) initial) = 1 →
-    (∃ s a, ¬ has_backedge s ∧ to_final s = Some a → lim_exec (δ := δ) initial a > 0) →
-    SeriesC (lim_exec (δ := backedge_markov) initial) = 1.
-  Proof. Admitted.
-
 End backedge_markov.
 
 Section determinize_spec.
@@ -190,7 +183,7 @@ Section determinize_spec.
 
 End determinize_spec.
 
-From clutch.tpref_logic.examples Require Import coin_random_walk.
+From caliper.tpref_logic.examples Require Import coin_random_walk.
 
 Section determinize_flip_spec.
   (** We pick the simple coin-flipping model from the [coin_random_walk.v] *)

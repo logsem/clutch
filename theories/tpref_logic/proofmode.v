@@ -1,6 +1,6 @@
-From clutch.prob_lang Require Import lang notation class_instances tactics.
-From clutch.prob_lang Require Export wp_tactics.
-From clutch.tpref_logic Require Import weakestpre primitive_laws derived_laws.
+From caliper.prob_lang Require Import lang notation class_instances tactics.
+From caliper.prob_lang Require Export wp_tactics.
+From caliper.tpref_logic Require Import weakestpre primitive_laws derived_laws.
 From iris.prelude Require Import options.
 
 

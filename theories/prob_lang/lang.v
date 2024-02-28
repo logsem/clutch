@@ -2,10 +2,10 @@ From Coq Require Import Reals Psatz.
 From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
-From clutch.prelude Require Export stdpp_ext.
-From clutch.prob Require Export distribution.
-From clutch.common Require Export language ectx_language ectxi_language.
-From clutch.prob_lang Require Export locations.
+From caliper.prelude Require Export stdpp_ext.
+From caliper.prob Require Export distribution.
+From caliper.common Require Export language ectx_language ectxi_language.
+From caliper.prob_lang Require Export locations.
 From iris.prelude Require Import options.
 
 Delimit Scope expr_scope with E.
@@ -612,51 +612,6 @@ Proof.
      IHn /=.
     rewrite map_union_empty replicate_length //.
 Qed.
-
-
-(*
-Lemma state_upd_tapes_N_S n l v σ :
-  state_upd_heap_N l (S n) v σ = state_upd_heap_N (l +ₗ 1) n v (state_upd_heap <[l:= v]> σ).
-Proof.
-  rewrite /state_upd_heap_N /= /state_upd_heap.
-  f_equiv.
-  revert l.
-  induction n; intro l.
-  - simpl.
-    rewrite map_empty_union map_union_empty.
-    rewrite -insert_union_l map_empty_union //.
-  - simpl.
-    rewrite -map_union_assoc IHn.
-    do 2 rewrite insert_union_singleton_l.
-    rewrite (map_union_assoc (heap_array (l +ₗ 1 +ₗ 1) (replicate n v)) {[l +ₗ 1 := v]}).
-    rewrite (map_union_comm (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
-    2:{
-      apply heap_array_map_disjoint.
-      intros.
-      apply lookup_singleton_ne.
-      destruct l; rewrite /loc_add/=.
-      admit.
-    }
-    rewrite -(map_union_assoc ({[l +ₗ 1 := v]}) (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))
-                ({[l := v]} ∪ heap σ)).
-    rewrite (map_union_assoc (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
-    rewrite (map_union_comm (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
-    2:{
-      apply heap_array_map_disjoint.
-      intros.
-      apply lookup_singleton_ne.
-      destruct l; rewrite /loc_add/=.
-      admit.
-    }
-    do 4 rewrite (map_union_assoc).
-    do 2 f_equiv.
-    apply map_union_comm.
-    apply map_disjoint_dom_2.
-    do 2 rewrite dom_singleton_L.
-    admit.
-Admitted.
-*)
-
 
 #[local] Open Scope R.
 

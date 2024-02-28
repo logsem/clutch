@@ -1,6 +1,6 @@
-From clutch.prob Require Import distribution markov.
-From clutch.prob_lang Require Import lang notation.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
+From caliper.prob Require Import distribution markov.
+From caliper.prob_lang Require Import lang notation.
+From caliper.tpref_logic Require Import weakestpre spec primitive_laws proofmode.
 
 
 From iris.proofmode Require Import proofmode.

@@ -4,11 +4,11 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.bi Require Export weakestpre.
-From clutch.prob Require Export couplings distribution markov.
-From clutch.common Require Export language.
-From clutch.tpref_logic Require Export spec.
+From caliper.prelude Require Import stdpp_ext iris_ext.
+From caliper.bi Require Export weakestpre.
+From caliper.prob Require Export couplings distribution markov.
+From caliper.common Require Export language.
+From caliper.tpref_logic Require Export spec.
 
 Import uPred.
 

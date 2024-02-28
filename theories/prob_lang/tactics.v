@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import fin_maps.
 From iris.proofmode Require Import environments proofmode.
-From clutch.prob Require Import distribution.
-From clutch.common Require Import ectx_language.
-From clutch.prob_lang Require Import lang.
+From caliper.prob Require Import distribution.
+From caliper.common Require Import ectx_language.
+From caliper.prob_lang Require Import lang.
 From iris.prelude Require Import options.
 Import prob_lang.
 

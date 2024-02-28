@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite gmap.
-From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
+From caliper.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 Set Default Proof Using "Type*".
 Import Hierarchy.
 
@@ -884,22 +884,6 @@ Section finite.
     apply SeriesC_le ; [done|].
     apply ex_seriesC_finite.
   Qed.
-
-(*
-
-  We might need the results below to reason about uniform distributions
-
-  Definition extend_fin_to_R {n : nat} (f: fin n -> R) : (nat->R) :=
-   fun x =>
-     match le_lt_dec n x with
-       | left _ => 0%R
-       | right h => f (nat_to_fin h)
-     end.
-
-  Lemma SeriesC_fin_sum {n : nat} (f : fin (S n) -> R) :
-    SeriesC f = sum_n (extend_fin_to_R f) n.
-  Admitted.
-*)
 
 
 End finite.

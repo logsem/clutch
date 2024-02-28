@@ -38,6 +38,6 @@ clean:
 	rm -f .coqdeps.d
 
 zip:
-	git archive -o coq-clutch.zip main
+	git archive -o coq-caliper.zip icfp24-tpref
 
 .PHONY: clean zip

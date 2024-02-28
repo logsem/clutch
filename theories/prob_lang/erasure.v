@@ -1,10 +1,10 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.common Require Import language ectx_language.
-From clutch.prob_lang Require Import locations notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app markov.
+From caliper.prelude Require Import stdpp_ext.
+From caliper.common Require Import language ectx_language.
+From caliper.prob_lang Require Import locations notation lang metatheory.
+From caliper.prob Require Import couplings markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -409,30 +409,6 @@ Proof.
   by eapply Rcoupl_refRcoupl.
 Qed.
 
-Lemma ARcoupl_erasure e1 σ1 e1' σ1' α α' R Φ ε ε' m bs bs':
-  0 <= ε ->
-  0 <= ε' ->
-  σ1.(tapes) !! α = Some bs →
-  σ1'.(tapes) !! α' = Some bs' →
-  ARcoupl (state_step σ1 α) (state_step σ1' α') R ε →
-  (∀ σ2 σ2', R σ2 σ2' →
-             ARcoupl (exec m (e1, σ2))
-               (lim_exec (e1', σ2')) Φ  ε' ) →
-  ARcoupl (exec m (e1, σ1))
-    (lim_exec (e1', σ1')) Φ (ε + ε').
-Proof.
-  intros Hε Hε' Hα Hα' HR Hcont.
-  rewrite -(Rplus_0_l (ε + ε')).
-  eapply ARcoupl_eq_trans_l; try lra.
-  - eapply ARcoupl_from_eq_Rcoupl; try lra; eauto.
-    eapply prim_coupl_step_prim; eauto.
-  - rewrite -(Rplus_0_r (ε + ε')).
-    eapply ARcoupl_eq_trans_r; auto; try lra; last first.
-    + eapply ARcoupl_from_eq_Rcoupl; try lra; eauto.
-      eapply Rcoupl_eq_sym, limprim_coupl_step_limprim; eauto.
-    + apply (ARcoupl_dbind _ _ _ _ R); auto.
-Qed.
-
 Lemma refRcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ m bs':
   to_val e1 = None →
   σ1'.(tapes) !! α' = Some bs' →
@@ -446,26 +422,6 @@ Proof.
   - eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros [] ??. by apply Hcont.
   - apply Rcoupl_eq_sym. by eapply limprim_coupl_step_limprim.
-Qed.
-
-
-Lemma ARcoupl_erasure_r (e1 : expr) σ1 e1' σ1' α' R Φ ε ε' m bs':
-  0 <= ε ->
-  0 <= ε' ->
-  to_val e1 = None →
-  σ1'.(tapes) !! α' = Some bs' →
-  ARcoupl (prim_step e1 σ1) (state_step σ1' α') R ε →
-  (∀ e2 σ2 σ2', R (e2, σ2) σ2' → ARcoupl (exec m (e2, σ2)) (lim_exec (e1', σ2')) Φ ε' ) →
-  ARcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) Φ (ε + ε').
-Proof.
-  intros Hε Hε' He1 Hα' HR Hcont.
-  rewrite exec_Sn_not_final; [|eauto].
-  rewrite -(Rplus_0_r (ε + ε')).
-  eapply (ARcoupl_eq_trans_r _ (state_step σ1' α' ≫= (λ σ2', lim_exec (e1', σ2')))); try lra.
-  - eapply ARcoupl_dbind; try lra; auto; [| apply HR].
-    intros [] ??. by apply Hcont.
-  - eapply ARcoupl_from_eq_Rcoupl; [lra | ].
-    apply Rcoupl_eq_sym. by eapply limprim_coupl_step_limprim.
 Qed.
 
 Lemma refRcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ m bs :
@@ -484,38 +440,4 @@ Proof.
     rewrite step_or_final_no_final; [|eauto].
     eapply refRcoupl_dbind; [|by apply Rcoupl_refRcoupl].
     intros ? [] ?. by apply Hcont.
-Qed.
-
-Lemma ARcoupl_erasure_l (e1 e1' : expr) σ1 σ1' α R Φ ε ε' m bs :
-  0 <= ε ->
-  0 <= ε' ->
-  σ1.(tapes) !! α = Some bs →
-  ARcoupl (state_step σ1 α) (prim_step e1' σ1') R ε →
-  (∀ σ2 e2' σ2', R σ2 (e2', σ2') → ARcoupl (exec m (e1, σ2)) (lim_exec (e2', σ2')) Φ ε') →
-  ARcoupl (exec m (e1, σ1)) (lim_exec (e1', σ1')) Φ (ε + ε').
-Proof.
-  intros Hε Hε' Hα HR Hcont.
-  destruct (to_val e1') eqn:Hval.
-  - assert (prim_step e1' σ1' = dzero) as Hz.
-    { by eapply (is_final_dzero (e1', σ1')), to_final_Some_2. }
-    rewrite Hz in HR.
-    rewrite -(Rplus_0_l (ε + ε')).
-    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
-    + apply ARcoupl_from_eq_Rcoupl; [lra |].
-      by eapply prim_coupl_step_prim.
-    + rewrite lim_exec_step.
-      rewrite step_or_final_is_final; [|eauto].
-      eapply ARcoupl_dbind; [lra|lra| | ]; last first.
-      * rewrite -(Rplus_0_r ε).
-        eapply ARcoupl_eq_trans_r; [lra|lra| | apply ARcoupl_dzero; lra ].
-        eauto.
-      * intros ? [] ?. by apply Hcont.
-  - rewrite -(Rplus_0_l (ε + ε')).
-    eapply (ARcoupl_eq_trans_l _ (state_step σ1 α ≫= (λ σ2, exec m (e1, σ2)))); [lra| lra | | ].
-    + apply ARcoupl_from_eq_Rcoupl; [lra |].
-      by eapply prim_coupl_step_prim.
-    + rewrite lim_exec_step.
-      rewrite step_or_final_no_final; [|eauto].
-      eapply ARcoupl_dbind; [lra|lra| | apply HR].
-      intros ? [] ?. by apply Hcont.
 Qed.
