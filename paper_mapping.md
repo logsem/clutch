@@ -69,7 +69,7 @@ Our contributions of the Eris logic can mostly be found in the folder [theories/
 [theories/ub_logic/merkle/unreliable.v]: theories/ub_logic/merkle/unreliable.v
 [theories/ub_logic/total_adequacy.v]: theories/ub_logic/total_adequacy.v
 [theories/examples/approximate_samplers/approx_walkSAT.v]: theories/examples/approximate_samplers/approx_walkSAT.v
-[theories/examples/approximate_samplers/approx_higherorder_rejection_sampler.v](theories/examples/approximate_samplers/approx_higherorder_rejection_sampler.v)
+[theories/examples/approximate_samplers/approx_higherorder_rejection_sampler.v]: theories/examples/approximate_samplers/approx_higherorder_rejection_sampler.v
 
 
 
