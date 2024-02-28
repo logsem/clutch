@@ -47,11 +47,14 @@ Section exec_ub.
   Implicit Types ε : nonnegreal.
   Implicit Types Z : cfg Λ → nonnegreal → iProp Σ.
 
+
+
   Definition exec_stutter (P : nonnegreal -> iProp Σ) ε : iProp Σ :=
     (∃ R (ε1 ε2 : nonnegreal),
                   ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
                   ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
-                  (⌜ R tt ⌝ ={∅}=∗ P ε2))%I.
+                  (⌜ R tt ⌝ -∗ P ε2))%I.
+
 
   (* Stutter can pretty much only be used in one of two ways becasue of the (dret tt) *)
   (* The first allows us to obtain an exec_stutter for free if we can prove Φ *)
@@ -85,6 +88,47 @@ Section exec_ub.
     iIntros "?"; eauto.
   Qed.
 
+
+  Definition exec_stutter_1 (P : nonnegreal -> iProp Σ) ε : iProp Σ := (⌜(1 <= ε)%R ⌝ ∨ (P ε))%I.
+  Lemma exec_stutter_compat P ε : ⊢ (exec_stutter_1 P ε → exec_stutter P ε).
+  Proof.
+    rewrite /exec_stutter_1.
+    iIntros "[%H|H]".
+    - iApply exec_stutter_spend; done.
+    - iApply exec_stutter_free; done.
+  Qed.
+
+  Lemma exec_stutter_compat_1 P ε :
+    ⊢ (∀ ε ε' : nonnegreal, ⌜(ε <= ε')%R⌝ -∗ (P ε -∗ P ε'))
+        -∗ (exec_stutter P ε -∗ exec_stutter_1 P ε).
+  Proof.
+    rewrite /exec_stutter /exec_stutter_1.
+    iIntros "Hmono [% [% [% (% & % & H)]]]".
+    destruct (Rle_decision 1%R (nonneg ε)%R) as [Hdec|Hdec].
+    { iLeft; iPureIntro. lra. }
+    iRight.
+    rewrite /total_ub_lift in H0.
+    remember (λ a : (), @bool_decide (R2 a) (make_decision (R2 a))) as X.
+    destruct (X ()) as [|] eqn:HX; simpl in *.
+    - iApply ("Hmono" $!  ε2).
+      { iPureIntro; simpl.
+        eapply Rle_trans; [|eapply H].
+        destruct ε2; destruct ε1; simpl; lra. }
+      iApply "H".
+      iPureIntro.
+      rewrite HeqX in HX.
+      apply bool_decide_eq_true_1 in HX.
+      done.
+    - exfalso.
+      rewrite /not in Hdec; apply Hdec.
+      rewrite /prob /dret SeriesC_finite_foldr /enum /= in H0.
+      rewrite Rplus_0_r /pmf /dret_pmf HX /= in H0.
+      assert (H' : (1 <= nonneg ε1)%R); first lra.
+      eapply Rle_trans; last eapply H.
+      eapply Rle_trans; first eapply H'.
+      destruct ε1; destruct ε2; simpl; lra.
+  Qed.
+  
   Lemma exec_stutter_mono_grading P ε ε' :
     ⌜(ε <= ε')%R⌝ -∗
     exec_stutter P ε -∗ exec_stutter P ε'.
@@ -105,8 +149,10 @@ Section exec_ub.
     iSplitR; [iPureIntro; simpl; lra|].
     iSplitR; [eauto|].
     iIntros.
-    iMod ("HΨ" with "[//]"); iModIntro.
-    by iApply "Hwand".
+    iApply "Hwand".
+    iApply "HΨ".
+    iPureIntro.
+    done.
   Qed.
 
 
@@ -610,7 +656,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [[e' σ'] ε']. rewrite /exec_ub_pre.
   do 17 f_equiv.
-  { rewrite /exec_stutter. do 10 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
+  { rewrite /exec_stutter. do 9 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
 Qed.
 
 
@@ -649,7 +695,7 @@ Proof.
   intros ? [[]?]. rewrite /exec_ub_pre.
   do 16 f_equiv.
   rewrite /exec_stutter.
-  do 11 f_equiv. f_contractive_fin.
+  do 10 f_equiv. f_contractive_fin.
   rewrite IH; [done|lia|].
   intros ?. eapply dist_S, HΦ. 
 Qed.
@@ -668,7 +714,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /exec_ub_pre.
   do 16 f_equiv.
-  rewrite /exec_stutter. do 11 f_equiv. f_contractive. do 6 f_equiv. 
+  rewrite /exec_stutter. do 10 f_equiv. f_contractive. do 6 f_equiv.
 Qed.
 
 Lemma ub_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
