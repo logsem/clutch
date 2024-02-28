@@ -1,6 +1,8 @@
 # Eris
 
-This is the artifact of the Eris logic, highlighted in the ICFP 2024 submission "Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs"."
+This is the artifact of the Eris logic, highlighted in the ICFP 2024 submission "Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs".
+[This table](paper_mapping.md) maps definitions, rules and theorems from the paper to the Coq formalization.
+
 The logic is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
 
 This project is built on top of the [Clutch](https://dl.acm.org/doi/10.1145/3632868) project. 
