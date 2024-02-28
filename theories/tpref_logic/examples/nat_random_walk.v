@@ -151,6 +151,20 @@ Section myrec_spec.
     by iApply ("IH" with "HP").
   Qed.
 
+  Lemma wp_myrec' (P : val → iProp Σ) (Q : val → iProp Σ) (F v1 : val) E :
+    (∀ (f v2 : val),
+        ⟨⟨⟨ (∀ (v3 : val), ▷ ⟨⟨⟨ P v3 ⟩⟩⟩ f v3 @ E ⟨⟨⟨ u, RET u; Q u ⟩⟩⟩) ∗
+            P v2 ⟩⟩⟩
+          F f v2 @ E
+        ⟨⟨⟨ u, RET u; Q u  ⟩⟩⟩) ⊢
+    ⟨⟨⟨ P v1 ⟩⟩⟩
+      myrec F v1 @ E
+    ⟨⟨⟨ u, RET u; Q u ⟩⟩⟩.
+  Proof.
+    iApply (wp_myrec P (λ v _, Q v)).
+  Qed.
+
+
 End myrec_spec.
 
 (** A random walk on the natural numbers  *)
@@ -179,8 +193,8 @@ Section nat_rw_prog_spec.
     ⟨⟨⟨ m, RET #(); specF m ⟩⟩⟩.
   Proof.
     iIntros (Ψ) "HP HΨ".
-    wp_apply (wp_myrec (λ v, ∃ n : nat, specF n ∗ ⌜v = #n⌝)%I
-                       (λ v _, ∃ m : nat, specF m ∗ ⌜v = #()⌝)%I
+    wp_apply (wp_myrec' (λ v, ∃ n : nat, specF n ∗ ⌜v = #n⌝)%I
+                        (λ v, ∃ m : nat, specF m ∗ ⌜v = #()⌝)%I
                with "[] [HP]"); [|eauto|]; last first.
     { iIntros (?) "(% & ? & ->)". by iApply "HΨ". }
     iIntros (f w Ψ2) "!# [IH (%m & Hspec & ->)] HΨ2".

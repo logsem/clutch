@@ -85,6 +85,13 @@ Lemma random_wal_terminates_alt :
   SeriesC (lim_exec true) = 1.
 Proof. eapply rsm_term_limexec. Qed.
 
+(* Using a different while-notation to make the proof look like in the
+   paper—here the function is already a value (which blocks substitution). *)
+
+#[local] Notation "'while' e1 'do' e2 'end'" :=
+  ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #()))%V #())%E
+    (e1, e2 at level 200) : expr_scope.
+
 (** Pure loop  *)
 Definition coin_flips : expr :=
   while flip do #() end.
@@ -95,10 +102,8 @@ Section coin_flips.
   Lemma rwp_coin_flips :
     ⟨⟨⟨ specF true ⟩⟩⟩ coin_flips ⟨⟨⟨ RET #(); specF false ⟩⟩⟩.
   Proof.
-    rewrite /coin_flips.
-    iIntros (Φ) "Ha HΦ".
-    wp_pure _.
     iLöb as "IH".
+    iIntros (Φ) "Ha HΦ".
     wp_pures; rewrite -/flip.
     wp_apply (rwp_couple_flip _ (=) with "Ha").
     { simpl. apply Rcoupl_eq. }
@@ -124,6 +129,9 @@ Proof.
   wp_apply (rwp_coin_flips with "Ha"); eauto.
 Qed.
 
+#[local] Notation "'while' e1 'do' e2 'end'" :=
+  ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #())) #())%E
+    (e1, e2 at level 200) : expr_scope.
 
 (** Stateful variation  *)
 Definition coin_flips_state : expr :=
