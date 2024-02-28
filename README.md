@@ -39,6 +39,9 @@ opam install . --deps-only
 You should now be able to build the development by using `make -j N` where `N` is the number of cores available on your machine.
 
 
+--------------------------------------------------------------------------------------
+
+
 ## Reference from the paper to the code
 
 Our contributions of the Eris logic can mostly be found in the folder [theories/ub_logic/](theories/ub_logic/).
