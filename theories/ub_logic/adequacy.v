@@ -100,6 +100,8 @@ Section adequacy.
           rewrite (dret_id_left').
           iApply step_fupd_fupdN_S.
           iFrame.
+          iModIntro.
+          eauto.
     - rewrite exec_Sn_not_final; [|eauto].
       iDestruct (big_orL_mono _ (λ _ _,
                      |={∅}▷=>^(S n)
@@ -138,7 +140,8 @@ Section adequacy.
             iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
             rewrite (dret_id_left').
             iApply step_fupd_fupdN_S.
-            iMod ("Hwand'" with "[//]"); iModIntro; iFrame. }
+            iMod ("Hwand'" with "[//]"); iModIntro; iFrame.
+            iModIntro; eauto. }
       iInduction (language.get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].

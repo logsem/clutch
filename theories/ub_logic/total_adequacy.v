@@ -378,7 +378,7 @@ Section adequacy.
           * iPureIntro. apply cond_nonneg.
           * iPureIntro. eapply Htotal_ub.
           * iIntros ([] ?).
-            iMod ("H" with "[]") as ">(Hσ&Herr&Hwand)". { iPureIntro; auto. }
+            iMod ("H" with "[]") as "(Hσ&Herr&Hwand)". { iPureIntro; auto. }
             iMod ("Hwand" with "[$] [$]"); eauto.
         }
         rewrite {2}/total_ub_lift.
@@ -415,7 +415,8 @@ Section adequacy.
           - iPureIntro; apply cond_nonneg.
           - iPureIntro; eapply Hub'.
           - iIntros. destruct a.
-            iMod ("H" with "[//]") as "[H _]".
+            iSpecialize ("H" with "[//]").
+            iDestruct "H" as "[H _]".
             iApply ("H" with "[//]").
         }
         rewrite {2}/total_ub_lift.
