@@ -47,6 +47,7 @@ Our contributions of the Eris logic can mostly be found in the folder [theories/
 |   | Definition | Graded lifting modality, execUpTo      | [theories/ub_logic/ub_weakestpre.v]                                             | `exec_ub_pre`              |                                                                                          |
 |   | Rule       | $\text{\scriptsize UPTO-PRIM}$         | [theories/ub_logic/ub_weakestpre.v]                                             | `exec_ub_prim_step`        |                                                                                          |
 |   | Rule       | $\text{\scriptsize UPTO-EXP}$          | [theories/ub_logic/ub_weakestpre.v]                                             | `exec_ub_adv_comp`         |                                                                                          |
+|   | Theorem    | Limit WP adequacy                      | [theories/ub_logic/adequacy.v]                                                  | `wp_union_bound_lim`       |                                                                                          |
 	
 	
 	

@@ -12,6 +12,20 @@ Module counter_example.
   Axiom proph : proph_id → list (val * val) → iProp Σ.
   Axiom LitProphecy : proph_id → base_lit.
 
+  Lemma wp_new_proph s E :
+    {{{ True }}}
+      NewProph #() @ s; E
+    {{{ pvs p, RET (LitV (LitProphecy p)); proph p pvs }}}.
+  Proof.
+  Admitted.
+
+  Lemma wp_resolve_proph s E (p : proph_id) (pvs : list (val * val)) v :
+    {{{ proph p pvs }}}
+      ResolveProph (Val $ LitV $ LitProphecy p) (Val v) @ s; E
+    {{{ pvs', RET (LitV LitUnit); ⌜pvs = (LitV LitUnit, v)::pvs'⌝ ∗ proph p pvs' }}}.
+  Proof.
+  Admitted.
+
   Definition bad : expr :=
     let: "p" := NewProph #() in
     let: "x" := (rand #99) in
