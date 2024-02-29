@@ -303,57 +303,6 @@ Fixpoint max_seq (f : nat -> nat) n :=
   | S m => max (f (S m)) (max_seq f m)
   end.
 
-Lemma sum_max_seq (f : nat -> R) h n `{Bij nat nat h}:
-  (forall n, 0 <= f n) ->
-  (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
-Admitted.
-(*
-    intro.
-    apply partial_sum_mon.
-    intro; induction n.
-    - rewrite sum_O /max_seq.
-      destruct (h 0%nat).
-      + rewrite sum_O; lra.
-      + rewrite sum_Sn.
-        etrans; [ | apply Rplus_le_compat_r, partial_sum_pos; auto].
-        lra.
-   - rewrite sum_Sn.
-     unfold max_seq.
-     fold max_seq.
-     etrans; [ apply Rplus_le_compat_r, IHn | ].
-     apply Nat.max_case.
- *)
-
-Lemma is_series_bijection (f : nat -> R) h v `{Bij nat nat h} :
-  (forall n, 0 <= f n) ->
-  is_series f v ->
-  is_series (λ n, f (h n)) v.
-Proof.
-  intros Hpos Hf.
-  unfold is_series.
-  rewrite /is_series.
-  apply sup_is_lim; auto.
-  apply lim_is_sup in Hf; auto.
-  intro eps; split.
-  - assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
-    {
-      intro; eapply sum_max_seq; eauto.
-    (*
-        induction n.
-        - rewrite sum_O/=.
-          apply partial_sum_elem; auto.
-        - rewrite sum_Sn/=.
-          destruct (Nat.le_dec (h (S n)) (max_seq h n)) as [H1 | H2].
-          + pose proof (PeanoNat.Nat.max_r_iff (h (S n)) (max_seq h n)) as [? ->]; auto.
-            apply (Rle_trans _ (sum_n (λ n0 : nat, f n0) (max_seq h n) + f (h (S n))));
-              [apply Rplus_le_compat_r; auto | ].
-            admit.
-          + admit.
-     *)
-    }
-    intro n.
-    eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
-Abort.
 
 Lemma fubini_fin_sum (h : nat * nat → R) n m:
   sum_n (λ a, sum_n (λ b, h (a, b)) n ) m

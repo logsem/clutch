@@ -167,12 +167,6 @@ Proof.
 Qed.
 
 
-Lemma fresh_loc_offset_none σ (z : Z) :
-  (0 ≤ z)%Z →
-  heap σ !! ((fresh_loc (heap σ)) +ₗ z) = None.
-Admitted.
-
-
 
 (* The stepping relation preserves closedness *)
 Lemma head_step_is_closed e1 σ1 e2 σ2 :

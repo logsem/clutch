@@ -202,46 +202,4 @@ Definition baz : expr :=
       else "baz" #() ).
 
 
-Lemma wp_baz E :
-  € (nnreal_inv (nnreal_nat 2)) -∗ WP baz #() @ E {{ v, ⌜v = #0⌝ }}.
-Proof.
-  iIntros "Herr".
-  wp_pure.
-  iLöb as "IH".
-  wp_pures.
-  set f:= (λ n : fin 3,
-              if bool_decide (n = 0%fin)
-                then nnreal_zero
-                else if bool_decide (n = 1%fin) then nnreal_one
-                                            else nnreal_inv((nnreal_nat 2))).
-  unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
-  {
-    exists 1; intro n.
-    rewrite /f.
-    case_bool_decide.
-    - simpl; lra.
-    - case_bool_decide; simpl; lra.
-  }
-  {
-    admit.
-  }
-  iIntros (n) "Hεcont".
-  wp_pures.
-  case_bool_decide.
-  - destruct (decide (n = 0%fin)) as [->|].
-    + wp_pures. done.
-    + assert (n = 1%fin) as ->.
-      {
-        admit.
-      }
-      rewrite /f/=.
-      (* Should be allowed to prove this for free with €1 *)
-      admit.
-  - assert (n = 2%fin) as ->; [admit|].
-    wp_pure.
-    iApply "IH".
-    rewrite /f/=.
-    done.
-Admitted.
-
 
