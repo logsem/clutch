@@ -567,10 +567,66 @@ Lemma ARcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
   ARcoupl (dunif N) (dunif N) (λ n m, m = f n) 0.
 Proof.
   intros g h Hg Hh Hgh.
-  (* This proog requires a lemma for rearranging the SeriesC:
-     SeriesC (λ a : fin N, dunif N a * g a) = SeriesC (λ a : fin N, dunif N (f a) * g (f a))
-  *)
-Admitted.
+  rewrite !SeriesC_finite_foldr.
+  rewrite Rplus_0_r.
+  assert (exists l : list (fin N),
+             foldr (Rplus ∘ (λ a : fin N, dunif N a * g a)) 0 (enum (fin N))
+             <= foldr (Rplus ∘ (λ b : fin N, if bool_decide (b ∈ l) then dunif N b * h b else 0)) 0 (enum (fin N))) as [l H1]; last first.
+  - etrans; first exact. remember (enum (fin N)) as n eqn:Heqn. clear Heqn H1.
+    induction n.
+    + done.
+    + simpl. case_bool_decide; try lra.
+      assert (0<=dunif N a * h a); last lra.
+      apply Rmult_le_pos; [done|apply Hh].
+  - remember (enum (fin N)) as n eqn:Heqn. rewrite {2}Heqn.
+    assert (NoDup n) as Hnd.
+    { subst. apply NoDup_enum. }
+    clear Heqn.
+    cut (
+    foldr (Rplus ∘ (λ a : fin N, dunif N a * g a)) 0 n <=
+    foldr (Rplus ∘ (λ b : fin N, if bool_decide (b ∈ f<$>n) then dunif N b * h b else 0)) 0
+      (enum (fin N))).
+    { intros. eexists _. done. }
+    revert Hnd.
+    induction n.
+    + intros. clear. simpl. induction (fin_enum N); first done. simpl. lra.
+    + intros Hnd. rewrite NoDup_cons in Hnd. destruct Hnd as [Hnd1 Hnd2].
+      specialize (IHn Hnd2).
+      simpl.
+      trans (foldr (Rplus ∘ (λ b : fin N, if bool_decide (b = f a) then dunif N b * h b else 0)) 0
+               (fin_enum N) + foldr (Rplus ∘ (λ b : fin N, if bool_decide (b ∈ f<$>n) then dunif N b * h b else 0)) 0 (fin_enum N)).
+      * apply Rplus_le_compat; last done.
+        trans (dunif N (f a) * h (f a)).
+        { apply Rmult_le_compat; naive_solver. }
+        clear IHn Hnd1 Hnd2.
+        assert (f a ∈ fin_enum N).
+        { replace (fin_enum _) with (enum (fin N)); last done.
+          apply elem_of_enum.
+        }
+        apply elem_of_list_split in H0.
+        destruct H0 as [?[? ->]].
+        induction x.
+        -- simpl. case_bool_decide; last done.
+           apply Rle_plus_l; first lra.
+           induction x0; simpl; first lra.
+           case_bool_decide; try lra.
+           apply Rplus_le_le_0_compat; last lra.
+           apply Rmult_le_pos; naive_solver.
+        -- simpl. assert (0<=if (bool_decide (a0 = f a)) then dunif N a0 * h a0 else 0); last lra.
+           case_bool_decide; last lra.
+           apply Rmult_le_pos; naive_solver.
+      * induction (fin_enum N); first (simpl; lra).
+        simpl.
+        repeat case_bool_decide; subst.
+        -- apply elem_of_list_fmap_2_inj in H1; first done. by destruct H. 
+        -- set_solver.
+        -- lra.
+        -- set_solver.
+        -- lra.
+        -- set_solver.
+        -- set_solver.
+        -- lra.
+Qed.
 
 Lemma ARcoupl_dunif_leq (N M : nat):
   (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((M-N)/N).
