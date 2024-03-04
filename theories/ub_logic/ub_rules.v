@@ -780,6 +780,17 @@ Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
     iMod ("Hwp" $! σ1 with "[$Hσ $Hε]") as "H".
     iModIntro.
     iApply exec_ub_bind; [done|].
+    iApply exec_ub_adv_comp.
+    iExists _, _, _.
+    repeat iSplit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - iIntros. iModIntro.
+      iApply exec_stutter_free. iModIntro.
+      admit.
+      
 
     (* { specialize (Haverage σ1). *)
     (*   rewrite (lim_exec_step) in Haverage. *)
@@ -790,21 +801,21 @@ Lemma wp_bind_adv e `{Hctx:!LanguageCtx K} s E ε1 ε2 Φ:
     (*   simpl in H0. admit. *)
     (* } *)
 
-  (** Trying many ways*)
-    (** Here I get stuck. Perhaps induction on exec_ub help? 
-        Note that exec_ub_mono should not work*)
-    iPoseProof (exec_ub_strong_ind (λ e σ1 ε, exec_ub e σ1 ε
-    (λ '(e2, σ2) (ε' : nonnegreal),
-       ▷ (|={∅,E}=> (heap_auth 1 (heap σ2) ∗ tapes_auth 1 (tapes σ2)) ∗ ec_supply ε' ∗
-            WP K e2 @ s; E {{ v, Φ v }}))))%I as "K".
-    iApply ("K" with "[][$H]").
-    iModIntro. iIntros (???) "[H|H]".
-    - iDestruct "H" as "(%&%&%&%&%&%&%&H)".
-      iApply exec_ub_adv_comp.
-      iExists _, _, _.
-      repeat iSplit; try done.
-      + iIntros (???). iMod ("H"$!  _ _ H4) as "H".
-        iModIntro. iApply exec_stutter_free. iModIntro.
+  (* (** Trying many ways*) *)
+  (*   (** Here I get stuck. Perhaps induction on exec_ub help?  *)
+  (*       Note that exec_ub_mono should not work*) *)
+  (*   iPoseProof (exec_ub_strong_ind (λ e σ1 ε, exec_ub e σ1 ε *)
+  (*   (λ '(e2, σ2) (ε' : nonnegreal), *)
+  (*      ▷ (|={∅,E}=> (heap_auth 1 (heap σ2) ∗ tapes_auth 1 (tapes σ2)) ∗ ec_supply ε' ∗ *)
+  (*           WP K e2 @ s; E {{ v, Φ v }}))))%I as "K". *)
+  (*   iApply ("K" with "[][$H]"). *)
+  (*   iModIntro. iIntros (???) "[H|H]". *)
+  (*   - iDestruct "H" as "(%&%&%&%&%&%&%&H)". *)
+  (*     iApply exec_ub_adv_comp. *)
+  (*     iExists _, _, _. *)
+  (*     repeat iSplit; try done. *)
+  (*     + iIntros (???). iMod ("H"$!  _ _ H4) as "H". *)
+  (*       iModIntro. iApply exec_stutter_free. iModIntro. *)
         
     
         (* (**) *)

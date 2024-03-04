@@ -772,7 +772,13 @@ Proof.
     rewrite (Rmult_assoc (N-M)) Rinv_l; [ | lra].
     rewrite Rmult_1_r Rplus_comm.
     assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
-    { admit. }
+    { erewrite (SeriesC_split_pred _ (λ x, fin_to_nat x <? M)%nat); [|naive_solver|apply ex_seriesC_finite].
+      apply Rplus_le_compat.
+      - admit.
+      - trans (SeriesC (λ a : fin (N-M), 1)); last first.
+        + rewrite SeriesC_finite_mass fin_card Rmult_1_r minus_INR; try lra. apply INR_le. naive_solver.
+        + admit.
+    }
     apply (Rle_trans _ (SeriesC g + (N - M))); auto.
     (* { (*?!*) *)
     (*   admit. } *)
@@ -794,7 +800,13 @@ Proof.
     rewrite (Rmult_assoc (N-M)) Rinv_l; [ | lra].
     rewrite Rmult_1_r Rplus_comm.
     assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
-    { admit. }
+    { erewrite (SeriesC_split_pred _ (λ x, (bool_decide (∃ y, x= h y)))); [|naive_solver|apply ex_seriesC_finite].
+      apply Rplus_le_compat.
+      - admit.
+      - trans (SeriesC (λ a : fin (N-M), 1)); last first.
+        + rewrite SeriesC_finite_mass fin_card Rmult_1_r minus_INR; try lra. apply INR_le. naive_solver.
+        + admit.
+    }
     apply (Rle_trans _ (SeriesC g + (N - M))); auto.
     (* { (*?!*) *)
     (*   admit. } *)
