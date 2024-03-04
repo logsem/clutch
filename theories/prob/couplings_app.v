@@ -671,9 +671,29 @@ Proof.
             rewrite (Rmult_assoc).
             apply Rmult_le_compat_l; [lra | ].
             rewrite Rinv_mult; nra.
-    * (* There should be an external lemma for this last bit *)
-      admit.
-Admitted.
+    * assert (∀ x:fin N, fin_to_nat x < M)%nat as Hineq.
+      { intros. pose proof (fin_to_nat_lt x). cut (N<=M)%nat; first lia. apply INR_le; naive_solver. }
+      etrans; last eapply (SeriesC_le_inj _ (λ x:fin N, Some (Fin.of_nat_lt (Hineq x)))).
+      -- apply SeriesC_le.
+         ++ intros n; simpl. split; first apply Rmult_le_pos; auto.
+            ** naive_solver.
+            ** case_bool_decide as H; last first.
+               { rewrite fin_to_nat_to_fin in H. exfalso. apply H. apply lt_INR, fin_to_nat_lt. }
+               apply Rmult_le_compat; auto.
+               { naive_solver. }
+               { rewrite /pmf. simpl. lra. }
+               apply Hfg. by rewrite fin_to_nat_to_fin.
+         ++ apply ex_seriesC_finite.
+      -- intros. case_bool_decide; try lra.
+         apply Rmult_le_pos; last naive_solver.
+         apply Rdiv_le_0_compat; [lra|naive_solver].
+      -- intros ??? H1 H2. inversion H1; inversion H2; subst.
+         cut (fin_to_nat (nat_to_fin (Hineq n2)) = fin_to_nat (nat_to_fin (Hineq n1))); last by rewrite H3.
+         rewrite !fin_to_nat_to_fin.
+         intros; by apply fin_to_nat_inj.
+      -- apply ex_seriesC_finite.
+Qed.
+
 
 
 Lemma ARcoupl_dunif_leq_inj (N M : nat) h `{Inj (fin N) (fin M) (=) (=) h}:
@@ -683,8 +703,8 @@ Proof.
   eapply Rle_trans; last first.
   - rewrite -(Rmult_1_l ((M - N) / N)).
     rewrite (Rinv_r_sym (card (fin M))); [ | rewrite fin_card; lra].
-    rewrite -SeriesC_finite_mass fin_card -SeriesC_scal_r -SeriesC_plus.
-    + eapply (SeriesC_filter_leq _ (λ n : fin M, (n < N))); [ | apply ex_seriesC_finite].
+    rewrite -SeriesC_finite_mass fin_card -SeriesC_scal_r -SeriesC_plus. 
+    + eapply (SeriesC_filter_leq _ (λ n : fin M, bool_decide (∃ x, n = h x))); [ | apply ex_seriesC_finite].
       intro; apply Rplus_le_le_0_compat; apply Rmult_le_pos; auto.
       * apply Hg.
       * left. apply Rinv_0_lt_compat; lra.
@@ -694,13 +714,13 @@ Proof.
     + apply ex_seriesC_finite.
   - simpl.
     eapply Rle_trans; last first.
-    * eapply (SeriesC_le (λ n : fin M, (if bool_decide (n < N) then (1/N) * g n else 0))) ; [ | apply ex_seriesC_finite].
+    * eapply (SeriesC_le (λ n : fin M, (if bool_decide (∃ x, n = h x) then (1/N) * g n else 0))) ; [ | apply ex_seriesC_finite].
       intro; split.
       -- case_bool_decide; [ | lra].
          apply Rmult_le_pos; [ | apply Hg].
          apply Rmult_le_pos; [ lra | ].
          left; apply Rinv_0_lt_compat, Hleq.
-      -- case_bool_decide; try lra.
+      -- repeat case_bool_decide; try done.
          rewrite /pmf/= Rplus_comm.
          apply Rle_minus_l.
          rewrite -Rmult_minus_distr_r.
@@ -718,10 +738,24 @@ Proof.
             rewrite (Rmult_comm (/M)).
             rewrite (Rmult_assoc).
             apply Rmult_le_compat_l; [lra | ].
-            rewrite Rinv_mult; nra.
-    * (* There should be an external lemma for this last bit *)
-      admit.
-Admitted.
+            rewrite Rinv_mult; lra.
+    * etrans; last eapply (SeriesC_le_inj _ (λ x:fin N, Some (h x))).
+      -- apply SeriesC_le.
+         ++ intros n; simpl. split; first apply Rmult_le_pos; auto.
+            ** naive_solver.
+            ** case_bool_decide as H1; last first.
+               { exfalso. apply H1. naive_solver. }
+               apply Rmult_le_compat; auto.
+               { naive_solver. }
+               { rewrite /pmf. simpl. lra. }
+         ++ apply ex_seriesC_finite.
+      -- intros. case_bool_decide; try lra.
+         apply Rmult_le_pos; last naive_solver.
+         apply Rdiv_le_0_compat; [lra|naive_solver].
+      -- intros ??? H1 H2. inversion H1; inversion H2; subst.
+         by apply H.
+      -- apply ex_seriesC_finite.
+Qed.
 
 (* Note the asymmetry on the error wrt to the previous lemma *)
 Lemma ARcoupl_dunif_leq_rev (N M : nat) :
