@@ -663,8 +663,15 @@ Lemma SeriesC_filter_finite_1 (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
   SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
 Proof.
   intros Hinj Hineq Hf Hg Hfg.
-  rewrite {1}/SeriesC Series_real_sup; last first.
-  { intros n. apply countable_sum_ge_0. intros. case_bool_decide; try lra. naive_solver. }
+  rewrite {1}/SeriesC /countable_sum. apply series_bounded.
+  { intros n. rewrite /from_option. case_match; last lra. case_bool_decide; naive_solver. }
+  2:{ apply ex_series_eventually0. exists N. intros.
+      destruct encode_inv_nat eqn:H'; last by simpl.
+      exfalso. eassert (encode_inv_nat n = None).
+      { eapply encode_inv_decode_ge. erewrite fin_card. exact. }
+      naive_solver. 
+  }
+  intros n.
 Admitted.
 
 Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
@@ -672,8 +679,15 @@ Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
   SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= (N-M)%nat.
 Proof.
   intros Hinj Hineq Hf.
-  rewrite {1}/SeriesC Series_real_sup; last first.
-  { intros n. apply countable_sum_ge_0. intros. case_bool_decide; try lra. naive_solver. }
+  rewrite {1}/SeriesC /countable_sum. apply series_bounded.
+  { intros n. rewrite /from_option. case_match; last lra. case_bool_decide; naive_solver. }
+  2:{ apply ex_series_eventually0. exists N. intros.
+      destruct encode_inv_nat eqn:H'; last by simpl.
+      exfalso. eassert (encode_inv_nat n = None).
+      { eapply encode_inv_decode_ge. erewrite fin_card. exact. }
+      naive_solver. 
+  }
+  intros n.
 Admitted.
 
 Lemma SeriesC_Series_nat (f : nat → R)  :
