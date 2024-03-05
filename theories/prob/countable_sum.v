@@ -666,7 +666,7 @@ Admitted.
 
 Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
   Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) ->
-  SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= SeriesC (λ _:fin (N-M)%nat, 1).
+  SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= (N-M)%nat.
 Proof.
 Admitted.
 

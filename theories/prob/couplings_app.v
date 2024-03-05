@@ -801,9 +801,10 @@ Proof.
       - trans (SeriesC (λ a : fin (N-M), 1)); last first.
         + rewrite SeriesC_finite_mass fin_card Rmult_1_r minus_INR; try lra. apply INR_le. naive_solver.
         + erewrite (SeriesC_ext _ (λ a : fin N, if bool_decide (∃y: fin M, a = h y) then 0 else f a)).
-          * apply SeriesC_filter_finite_2; try done.
-            destruct Hleq. split; [apply INR_lt|by apply INR_le].
-            by simpl.
+          * etrans; first apply SeriesC_filter_finite_2; try done.
+            -- destruct Hleq. split; [apply INR_lt|by apply INR_le].
+               by simpl.
+            -- rewrite SeriesC_finite_mass. rewrite fin_card. lra.
           * intros n. destruct (n<?M) eqn:H1; case_bool_decide as H2; try done.
             -- exfalso. apply H2. rewrite /h. rewrite Nat.ltb_lt in H1. exists (nat_to_fin H1).
                apply fin_to_nat_inj. by repeat rewrite fin_to_nat_to_fin.
@@ -844,9 +845,10 @@ Proof.
         by simpl.
       - trans (SeriesC (λ a : fin (N-M), 1)); last first.
         + rewrite SeriesC_finite_mass fin_card Rmult_1_r minus_INR; try lra. apply INR_le. naive_solver.
-        + apply SeriesC_filter_finite_2; try done.
-          destruct Hleq. split; [apply INR_lt|by apply INR_le].
-          by simpl.
+        + etrans; first apply SeriesC_filter_finite_2; try done.
+          * destruct Hleq. split; [apply INR_lt|by apply INR_le].
+            by simpl.
+          * rewrite SeriesC_finite_mass. rewrite fin_card. lra.
     }
     apply (Rle_trans _ (SeriesC g + (N - M))); auto.
     rewrite Rplus_comm.
