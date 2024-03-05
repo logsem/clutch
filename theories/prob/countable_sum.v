@@ -655,12 +655,20 @@ Section filter.
     by case_bool_decide.
   Qed.
 
-  Lemma SeriesC_filter_finite f (l:list A):
-    SeriesC (λ a, if bool_decide (a ∈ l) then f a else 0) =
-    SeriesC (λ x:fin(length l), f (Vector.of_list l !!! x)).
-  Admitted.
-  
 End filter.
+
+Lemma SeriesC_filter_finite_1 (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
+  Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) -> (∀ b: fin M, 0 <= g b <= 1) ->
+  (∀ (a : fin N) (b : fin M), a = h b → f a <= g b) ->
+  SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
+Proof.
+Admitted.
+
+Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
+  Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) ->
+  SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= SeriesC (λ _:fin (N-M)%nat, 1).
+Proof.
+Admitted.
 
 Lemma SeriesC_Series_nat (f : nat → R)  :
   SeriesC f = Series f.
