@@ -662,12 +662,18 @@ Lemma SeriesC_filter_finite_1 (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
   (∀ (a : fin N) (b : fin M), a = h b → f a <= g b) ->
   SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
 Proof.
+  intros Hinj Hineq Hf Hg Hfg.
+  rewrite {1}/SeriesC Series_real_sup; last first.
+  { intros n. apply countable_sum_ge_0. intros. case_bool_decide; try lra. naive_solver. }
 Admitted.
 
 Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
   Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) ->
   SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= (N-M)%nat.
 Proof.
+  intros Hinj Hineq Hf.
+  rewrite {1}/SeriesC Series_real_sup; last first.
+  { intros n. apply countable_sum_ge_0. intros. case_bool_decide; try lra. naive_solver. }
 Admitted.
 
 Lemma SeriesC_Series_nat (f : nat → R)  :
