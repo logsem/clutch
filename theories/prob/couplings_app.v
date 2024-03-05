@@ -773,11 +773,37 @@ Proof.
     rewrite Rmult_1_r Rplus_comm.
     assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
     { erewrite (SeriesC_split_pred _ (λ x, fin_to_nat x <? M)%nat); [|naive_solver|apply ex_seriesC_finite].
+      assert (∀ m: fin M, fin_to_nat m < N)%nat as Hineq.
+      { intros. pose proof (fin_to_nat_lt m). assert (M<=N)%nat; try lia.
+        apply INR_le. naive_solver.
+      }
+      set (λ x: fin M, nat_to_fin (Hineq x))as h.
+      assert (Inj eq eq h) as Hinj.
+      { rewrite /h. intros ???.
+        assert (fin_to_nat $ nat_to_fin (Hineq x) = fin_to_nat $ nat_to_fin (Hineq y)) as H1.
+        { rewrite H. done. }
+        repeat rewrite fin_to_nat_to_fin in H1.
+        by apply fin_to_nat_inj.
+      }
       apply Rplus_le_compat.
-      - admit.
+      - erewrite (SeriesC_ext _ (λ a : fin N, if bool_decide (∃y: fin M, a = h y) then f a else 0)).
+        + admit.
+        + intros n. destruct (n<?M) eqn:H1; case_bool_decide as H2; try done.
+          * exfalso. apply H2. rewrite /h. rewrite Nat.ltb_lt in H1. exists (nat_to_fin H1).
+            apply fin_to_nat_inj. by repeat rewrite fin_to_nat_to_fin.
+          * exfalso. rewrite PeanoNat.Nat.ltb_ge in H1. apply Nat.le_ngt in H1.
+            apply H1. destruct H2. subst. pose proof (fin_to_nat_lt x). rewrite /h.
+            by rewrite fin_to_nat_to_fin.
       - trans (SeriesC (λ a : fin (N-M), 1)); last first.
         + rewrite SeriesC_finite_mass fin_card Rmult_1_r minus_INR; try lra. apply INR_le. naive_solver.
-        + admit.
+        + erewrite (SeriesC_ext _ (λ a : fin N, if bool_decide (∃y: fin M, a = h y) then 0 else f a)).
+          * admit.
+          * intros n. destruct (n<?M) eqn:H1; case_bool_decide as H2; try done.
+            -- exfalso. apply H2. rewrite /h. rewrite Nat.ltb_lt in H1. exists (nat_to_fin H1).
+               apply fin_to_nat_inj. by repeat rewrite fin_to_nat_to_fin.
+            -- exfalso. rewrite PeanoNat.Nat.ltb_ge in H1. apply Nat.le_ngt in H1.
+               apply H1. destruct H2. subst. pose proof (fin_to_nat_lt x). rewrite /h.
+               by rewrite fin_to_nat_to_fin.
     }
     apply (Rle_trans _ (SeriesC g + (N - M))); auto.
     rewrite Rplus_comm.
