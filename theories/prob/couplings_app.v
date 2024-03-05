@@ -780,10 +780,15 @@ Proof.
         + admit.
     }
     apply (Rle_trans _ (SeriesC g + (N - M))); auto.
-    (* { (*?!*) *)
-    (*   admit. } *)
     rewrite Rplus_comm.
     apply Rplus_le_compat_l.
+    assert (0<=SeriesC g) as Hpos.
+    { apply SeriesC_ge_0'. naive_solver. }
+    rewrite Rmult_comm (Rmult_comm (/M)).
+    rewrite -Rdiv_def Rmult_div_assoc.
+    rewrite -Rle_div_r; last lra.
+    rewrite Rmult_comm.
+    apply Rmult_le_compat_r; lra.
 Admitted.
 
 Lemma ARcoupl_dunif_leq_rev_inj (N M : nat) h `{Inj (fin M) (fin N) (=) (=) h}:
@@ -812,6 +817,13 @@ Proof.
     (*   admit. } *)
     rewrite Rplus_comm.
     apply Rplus_le_compat_l.
+    assert (0<=SeriesC g) as Hpos.
+    { apply SeriesC_ge_0'. naive_solver. }
+    rewrite Rmult_comm (Rmult_comm (/M)).
+    rewrite -Rdiv_def Rmult_div_assoc.
+    rewrite -Rle_div_r; last lra.
+    rewrite Rmult_comm.
+    apply Rmult_le_compat_r; lra.
 Admitted.
 
 Lemma ARcoupl_dunif_no_coll_l `{Countable A} (v : A) (N : nat) (x : fin N) :
