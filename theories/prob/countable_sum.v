@@ -1808,51 +1808,109 @@ End inj.
 
 Section Inj_finite.
 
-  Lemma SeriesC_filter_finite_1 (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
+  Lemma SeriesC_filter_finite_1 `{Countable A} (M:nat) (f:A -> R) (g: fin M -> R) h:
+    Inj eq eq h -> (0 < M)%nat -> (∀ a: A, 0 <= f a <= 1) -> (∀ b: fin M, 0 <= g b <= 1) ->
+    (∀ (a : A) (b : fin M), a = h b → f a <= g b) ->
+    SeriesC (λ a : A, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
+  Proof.
+    intros Hinj Hineq Hf Hg Hfg.
+    rewrite {1}/SeriesC. apply series_bounded. 
+    { intros. apply countable_sum_ge_0. intros; case_bool_decide; naive_solver. }
+    2:{ eapply ex_seriesC_ex_series_inv, ex_seriesC_ext; last eapply ex_seriesC_list.
+        instantiate (2:= h <$> enum (fin M)).
+        intros. case_bool_decide as H1; case_bool_decide as H2; try done.
+        - exfalso.
+          apply H2. destruct H1. subst. apply elem_of_list_fmap_1, elem_of_enum.
+        - exfalso. apply H1. rewrite elem_of_list_fmap in H2. destruct H2 as [y[??]].
+          naive_solver.           
+    }
+    intros n.
+    cut (∃ l', NoDup l' /\ (∀ y, y ∈ l' <-> (∃ x, x = h y /\ (encode_nat x <= n)%nat)) /\
+               sum_n (countable_sum (λ a : A, if bool_decide (∃ y : fin M, a = h y) then f a else 0)) n <= SeriesC (λ x, if bool_decide (x ∈ l') then g x else 0)
+        ).
+    { intros [?[?[??]]]. etrans; first exact. apply SeriesC_filter_leq; last apply ex_seriesC_finite.
+      intros; naive_solver.
+    }
+    induction n.
+    - rewrite sum_O /countable_sum. destruct (encode_inv_nat _) eqn:H1; simpl.
+      + case_bool_decide as H2.
+        * destruct H2 as [y?].
+          exists [y].
+          repeat split.
+          -- repeat constructor. set_solver.
+          -- intros. exists a. split; first set_solver.
+             apply encode_inv_Some_nat in H1. lia.
+          -- intros [?[??]].
+             subst. assert (encode_nat (h y0) = 0%nat) by lia.
+             apply encode_inv_Some_nat in H1. rewrite -H1 in H0.
+             apply encode_nat_inj in H0. apply Hinj in H0. set_solver.
+          -- subst. erewrite SeriesC_ext.
+             { erewrite SeriesC_singleton_dependent. by apply Hfg. }
+             intros. repeat case_bool_decide; set_solver.
+        * exists []. repeat split.
+          -- constructor.
+          -- set_solver.
+          -- intros [? [??]]. exfalso. apply H2. apply encode_inv_Some_nat in H1.
+             assert (encode_nat x = 0%nat) by lia. rewrite -H1 in H4. apply encode_nat_inj in H4; subst.
+             naive_solver.
+          -- apply SeriesC_ge_0'. intros. case_bool_decide; naive_solver.
+      + exists []. repeat split.
+        -- constructor.
+        -- set_solver.
+        -- intros [?[??]]. assert (encode_nat x = 0%nat) by lia. rewrite -H3 in H1.
+           by rewrite encode_inv_encode_nat in H1.
+        -- apply SeriesC_ge_0'. intros. case_bool_decide; naive_solver.
+    - destruct IHn as [l'[Hnd[H1 H2]]].
+      rewrite sum_Sn /countable_sum. destruct (encode_inv_nat _) eqn:H3; simpl.
+      + case_bool_decide as H4.
+        * destruct H4 as [y?].
+          exists (y::l'). repeat split.
+          -- constructor; last done. move /H1. intros [?[??]]. subst.
+             apply encode_inv_Some_nat in H3. lia.
+          -- move /elem_of_cons. intros [->|?].
+             ++ exists a. split; first done. apply encode_inv_Some_nat in H3. lia.
+             ++ subst. rewrite H1 in H4. naive_solver.
+          -- intros [?[??]]. subst.
+             rewrite Nat.le_succ_r in H5. destruct H5.
+             ++ apply elem_of_list_further. rewrite H1.
+                eexists _; by split.
+             ++ apply encode_inv_Some_nat in H3. rewrite -H3 in H0. apply encode_nat_inj in H0.
+                apply Hinj in H0. set_solver.
+          -- rewrite (SeriesC_ext _ (λ x : fin M, (if bool_decide (x ∈ l') then g x else 0)+if bool_decide (x = y) then g x else 0)).
+             ++ rewrite SeriesC_plus; try apply ex_seriesC_finite.
+                apply Rplus_le_compat; first done.
+                rewrite SeriesC_singleton_dependent.
+                by apply Hfg.
+             ++ intros n'. repeat case_bool_decide; try done; try lra; subst.
+                ** rewrite H1 in H5. destruct H5 as [?[??]]. subst.
+                   apply encode_inv_Some_nat in H3. lia.
+                ** set_solver.
+                ** set_solver.
+                ** set_solver.
+                ** set_solver.
+        * exists l'. repeat split; try done.
+          -- intros. naive_solver.
+          -- intros [?[??]]. rewrite H1. subst. eexists _; split; first done.
+             rewrite Nat.le_succ_r in H5. destruct H5; try lia.
+             exfalso. apply H4. apply encode_inv_Some_nat in H3. rewrite -H3 in H0.
+             apply encode_nat_inj in H0. naive_solver.
+          -- rewrite plus_zero_r. done.
+      + exists l'. repeat split; try done.
+        * intros. naive_solver.
+        * elim. intros ?[??]. subst. rewrite H1. eexists _; split; first done.
+          rewrite Nat.le_succ_r in H4. destruct H4; first done.
+          rewrite -H0 in H3. by rewrite encode_inv_encode_nat in H3.
+        * by rewrite plus_zero_r.
+  Qed.
+
+  Lemma SeriesC_filter_finite_1' (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
     Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) -> (∀ b: fin M, 0 <= g b <= 1) ->
     (∀ (a : fin N) (b : fin M), a = h b → f a <= g b) ->
     SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
   Proof.
     intros Hinj Hineq Hf Hg Hfg.
-    rewrite SeriesC_finite_foldr.
-    remember (enum (fin N)) as l eqn:Heql.
-    assert (NoDup l) as Hnd.
-    { subst. apply NoDup_enum. }
-    cut (∃ l', NoDup l' /\ (∀ y, y ∈ l' <-> (∃ x, x = h y /\ x ∈ l)) /\
-               foldr (Rplus ∘ (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0)) 0 l <= SeriesC (λ x, if bool_decide (x ∈ l') then g x else 0)
-        ).
-    { intros [?[?[??]]]. etrans; first exact. apply SeriesC_filter_leq; last apply ex_seriesC_finite.
-      intros; naive_solver.
-    }
-    clear Heql.
-    revert Hnd. induction l.
-    - intros.  exists [].  repeat split.
-      + constructor.
-      + intros. set_solver.
-      + intros [?[??]]. set_solver.
-      + simpl. rewrite SeriesC_finite_mass. lra.
-    - move => /list.NoDup_cons [Ha Hl].
-      specialize (IHl Hl).
-      destruct IHl as [l' [Hl' [H1 H2]]]. simpl. case_bool_decide as H.
-      + destruct H as [y H]. exists (y::l'). repeat split.
-        * constructor; last done.
-          intro Hy. apply Ha. rewrite H1 in Hy. subst. destruct Hy as [?[??]]. by subst.
-        * rewrite elem_of_cons. intros [|]; subst.
-          -- eexists _; split; first done. set_solver.
-          -- rewrite H1 in H0. destruct H0 as [?[??]]. eexists _; split; first done. subst. set_solver.
-        * intros [x[H3 H4]]. subst. rewrite elem_of_cons in H4. destruct H4 as [H4|H4].
-          -- apply Hinj in H4. subst. set_solver.
-          -- apply elem_of_list_further. rewrite H1. eexists _; by split.
-        * rewrite (SeriesC_ext _ (λ x : fin M, (if bool_decide (x = y) then g x else 0)+if bool_decide (x ∈ l') then g x else 0)).
-          -- rewrite SeriesC_plus; try apply ex_seriesC_finite.
-             apply Rplus_le_compat; last done.
-             rewrite SeriesC_singleton_dependent.
-             by apply Hfg.
-          -- intros n. repeat case_bool_decide; try done; try lra; set_solver.
-      + exists l'. repeat split; first done.
-        * set_solver.
-        * set_solver.
-        * lra.
+    apply SeriesC_filter_finite_1; try done.
+    lia.
   Qed.
 
   Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
@@ -1870,7 +1928,7 @@ Section Inj_finite.
       + rewrite SeriesC_finite_mass fin_card. lra.
     - replace (INR M) with (SeriesC (λ _:fin M, 1)); last (rewrite SeriesC_finite_mass fin_card; lra).
       apply Rle_antisym.
-      + apply SeriesC_filter_finite_1; try done; intros; lra.
+      + apply SeriesC_filter_finite_1'; try done; intros; lra.
       + etrans; last first.
         * eapply SeriesC_le_inj; last apply ex_seriesC_finite.
           -- intros. case_bool_decide; lra.

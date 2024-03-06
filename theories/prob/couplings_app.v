@@ -789,7 +789,7 @@ Proof.
       { intros. apply Hfg. rewrite H. rewrite /h. by rewrite fin_to_nat_to_fin. }
       apply Rplus_le_compat.
       - erewrite (SeriesC_ext _ (λ a : fin N, if bool_decide (∃y: fin M, a = h y) then f a else 0)).
-        + apply SeriesC_filter_finite_1; try done.
+        + apply SeriesC_filter_finite_1'; try done.
           destruct Hleq. split; [apply INR_lt|by apply INR_le].
           by simpl.
         + intros n. destruct (n<?M) eqn:H1; case_bool_decide as H2; try done.
@@ -840,7 +840,7 @@ Proof.
     assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
     { erewrite (SeriesC_split_pred _ (λ x, (bool_decide (∃ y, x= h y)))); [|naive_solver|apply ex_seriesC_finite].
       apply Rplus_le_compat.
-      - apply SeriesC_filter_finite_1; try done.
+      - apply SeriesC_filter_finite_1'; try done.
         destruct Hleq. split; [apply INR_lt|by apply INR_le].
         by simpl.
       - trans (SeriesC (λ a : fin (N-M), 1)); last first.
