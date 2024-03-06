@@ -626,7 +626,7 @@ Definition test_prp: val :=
 
    do 5 tp_pure.
    do 3 wp_pure.
-   iInduction n as [|m] "IH".
+   iInduction n as [|m] "IH" forall (Φ ε Hε) "Herr HΦ Hf HK Hg".
    - wp_pures.
      tp_pures.
      iModIntro.
@@ -661,7 +661,7 @@ Definition test_prp: val :=
                 with "[$]"); first done.
      { apply lookup_empty. }
      { pose proof (fin_to_nat_lt m2); lia. }
-     { intros; apply lookup_empty. }
+     { intros; apply lookup_empty. } 
      { rewrite fmap_length seq_length.
        rewrite Rminus_diag /Rdiv Rmult_0_l /=//.
      }
@@ -674,7 +674,21 @@ Definition test_prp: val :=
      {
        do 3 f_equal. lia.
      }
-     iApply "IH".
+     iAssert (€ _ ∗ € (mknonnegreal (m/S val_size)%R _))%I with "[Herr]" as "[Herr1 Herr2]".
+     { iApply ec_split. replace (_+_)%NNR with ε; first done.
+       apply nnreal_ext. rewrite -Hε. rewrite seq_S fold_left_app. 
+       rewrite plus_INR Rdiv_plus_distr. apply Rplus_eq_compat_r.
+       instantiate (1 := mknonnegreal _ _). done.
+       Unshelve.
+       - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+         apply pos_INR_S.
+       - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
+         apply pos_INR_S.
+     }
+     iApply ("IH" with "[][Herr1][HΦ][Hf][HK]"); try done.
+     + iPureIntro. by simpl. 
+     + admit.
+     + admit.
  Abort.
 
 End prf_prp.
