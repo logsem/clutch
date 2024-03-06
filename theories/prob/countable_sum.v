@@ -1814,16 +1814,46 @@ Section Inj_finite.
     SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
   Proof.
     intros Hinj Hineq Hf Hg Hfg.
-    rewrite {1}/SeriesC /countable_sum. apply series_bounded.
-    { intros n. rewrite /from_option. case_match; last lra. case_bool_decide; naive_solver. }
-    2:{ apply ex_series_eventually0. exists N. intros.
-        destruct encode_inv_nat eqn:H'; last by simpl.
-        exfalso. eassert (encode_inv_nat n = None).
-        { eapply encode_inv_decode_ge. erewrite fin_card. exact. }
-        naive_solver. 
+    rewrite SeriesC_finite_foldr.
+    remember (enum (fin N)) as l eqn:Heql.
+    assert (NoDup l) as Hnd.
+    { subst. apply NoDup_enum. }
+    cut (∃ l', NoDup l' /\ (∀ y, y ∈ l' <-> (∃ x, x = h y /\ x ∈ l)) /\
+               foldr (Rplus ∘ (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0)) 0 l <= SeriesC (λ x, if bool_decide (x ∈ l') then g x else 0)
+        ).
+    { intros [?[?[??]]]. etrans; first exact. apply SeriesC_filter_leq; last apply ex_seriesC_finite.
+      intros; naive_solver.
     }
-    intros n.
-  Admitted.
+    clear Heql.
+    revert Hnd. induction l.
+    - intros.  exists [].  repeat split.
+      + constructor.
+      + intros. set_solver.
+      + intros [?[??]]. set_solver.
+      + simpl. rewrite SeriesC_finite_mass. lra.
+    - move => /list.NoDup_cons [Ha Hl].
+      specialize (IHl Hl).
+      destruct IHl as [l' [Hl' [H1 H2]]]. simpl. case_bool_decide as H.
+      + destruct H as [y H]. exists (y::l'). repeat split.
+        * constructor; last done.
+          intro Hy. apply Ha. rewrite H1 in Hy. subst. destruct Hy as [?[??]]. by subst.
+        * rewrite elem_of_cons. intros [|]; subst.
+          -- eexists _; split; first done. set_solver.
+          -- rewrite H1 in H0. destruct H0 as [?[??]]. eexists _; split; first done. subst. set_solver.
+        * intros [x[H3 H4]]. subst. rewrite elem_of_cons in H4. destruct H4 as [H4|H4].
+          -- apply Hinj in H4. subst. set_solver.
+          -- apply elem_of_list_further. rewrite H1. eexists _; by split.
+        * rewrite (SeriesC_ext _ (λ x : fin M, (if bool_decide (x = y) then g x else 0)+if bool_decide (x ∈ l') then g x else 0)).
+          -- rewrite SeriesC_plus; try apply ex_seriesC_finite.
+             apply Rplus_le_compat; last done.
+             rewrite SeriesC_singleton_dependent.
+             by apply Hfg.
+          -- intros n. repeat case_bool_decide; try done; try lra; set_solver.
+      + exists l'. repeat split; first done.
+        * set_solver.
+        * set_solver.
+        * lra.
+  Qed.
 
   Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
     Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) ->
