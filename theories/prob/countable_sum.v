@@ -657,39 +657,6 @@ Section filter.
 
 End filter.
 
-Lemma SeriesC_filter_finite_1 (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
-  Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) -> (∀ b: fin M, 0 <= g b <= 1) ->
-  (∀ (a : fin N) (b : fin M), a = h b → f a <= g b) ->
-  SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
-Proof.
-  intros Hinj Hineq Hf Hg Hfg.
-  rewrite {1}/SeriesC /countable_sum. apply series_bounded.
-  { intros n. rewrite /from_option. case_match; last lra. case_bool_decide; naive_solver. }
-  2:{ apply ex_series_eventually0. exists N. intros.
-      destruct encode_inv_nat eqn:H'; last by simpl.
-      exfalso. eassert (encode_inv_nat n = None).
-      { eapply encode_inv_decode_ge. erewrite fin_card. exact. }
-      naive_solver. 
-  }
-  intros n.
-Admitted.
-
-Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
-  Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) ->
-  SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= (N-M)%nat.
-Proof.
-  intros Hinj Hineq Hf.
-  rewrite {1}/SeriesC /countable_sum. apply series_bounded.
-  { intros n. rewrite /from_option. case_match; last lra. case_bool_decide; naive_solver. }
-  2:{ apply ex_series_eventually0. exists N. intros.
-      destruct encode_inv_nat eqn:H'; last by simpl.
-      exfalso. eassert (encode_inv_nat n = None).
-      { eapply encode_inv_decode_ge. erewrite fin_card. exact. }
-      naive_solver. 
-  }
-  intros n.
-Admitted.
-
 Lemma SeriesC_Series_nat (f : nat → R)  :
   SeriesC f = Series f.
 Proof.
@@ -936,6 +903,8 @@ Section finite.
 
 
 End finite.
+
+
 
 (** Results about positive (non-negative) series *)
 Section positive.
@@ -1832,5 +1801,56 @@ Section inj.
                 by rewrite plus_zero_r.
   Qed.
 
+  
 
 End inj.
+
+
+Section Inj_finite.
+
+  Lemma SeriesC_filter_finite_1 (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
+    Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) -> (∀ b: fin M, 0 <= g b <= 1) ->
+    (∀ (a : fin N) (b : fin M), a = h b → f a <= g b) ->
+    SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
+  Proof.
+    intros Hinj Hineq Hf Hg Hfg.
+    rewrite {1}/SeriesC /countable_sum. apply series_bounded.
+    { intros n. rewrite /from_option. case_match; last lra. case_bool_decide; naive_solver. }
+    2:{ apply ex_series_eventually0. exists N. intros.
+        destruct encode_inv_nat eqn:H'; last by simpl.
+        exfalso. eassert (encode_inv_nat n = None).
+        { eapply encode_inv_decode_ge. erewrite fin_card. exact. }
+        naive_solver. 
+    }
+    intros n.
+  Admitted.
+
+  Lemma SeriesC_filter_finite_2 (N M:nat) (f:fin N -> R) h:
+    Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) ->
+    SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 0 else f a) <= (N-M)%nat.
+  Proof.
+    intros Hinj Hineq Hf. rewrite minus_INR; last naive_solver.
+    rewrite Rcomplements.Rle_minus_r.
+    replace (INR M) with (SeriesC (λ a : fin N, if bool_decide (∃ y : fin M, a = h y) then 1 else 0)).
+    - rewrite -SeriesC_plus; try apply ex_seriesC_finite.
+      trans (SeriesC (λ _:fin N, 1)).
+      + apply SeriesC_le; last apply ex_seriesC_finite.
+        intros n; case_bool_decide; try lra.
+        rewrite Rplus_0_r; naive_solver.
+      + rewrite SeriesC_finite_mass fin_card. lra.
+    - replace (INR M) with (SeriesC (λ _:fin M, 1)); last (rewrite SeriesC_finite_mass fin_card; lra).
+      apply Rle_antisym.
+      + apply SeriesC_filter_finite_1; try done; intros; lra.
+      + etrans; last first.
+        * eapply SeriesC_le_inj; last apply ex_seriesC_finite.
+          -- intros. case_bool_decide; lra.
+          -- intros ???. instantiate (2 := (λ x, (Some (h x)))). simpl.
+             intros H1 H2. rewrite -H1 in H2. inversion H2. by apply Hinj.
+        * apply SeriesC_le; last apply ex_seriesC_finite.
+          intros n. split; first lra.
+          simpl. case_bool_decide; first done.
+          exfalso; naive_solver.
+  Qed.
+  
+End Inj_finite.
+
