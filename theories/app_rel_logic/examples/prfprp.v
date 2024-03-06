@@ -369,8 +369,32 @@ Section prf_prp.
     (forall n', val_size < n' -> m !! n' = None) ->
     ((snd <$> (map_to_list m)) ++ sr) ≡ₚ (Z.of_nat) <$> (seq 0 (S val_size)) →
     (exists vl, length sr = (S vl)).
- Admitted.
-
+ Proof.
+   intros Hineq Hm Hm' Hp.
+   cut (length sr ≠ 0).
+   { destruct sr; first done.
+     intros. eexists _. done.
+   }
+   move => /nil_length_inv. intros ->. rewrite app_nil_r in Hp.
+   apply Permutation_length in Hp.
+   rewrite !fmap_length seq_length in Hp.
+   cut (length (map_to_list m) <= val_size); first lia.
+   clear Hp. rewrite map_to_list_length.
+   replace (val_size) with (size (gset_to_gmap (0)%Z (set_seq 0 (S val_size) ∖ {[n]}))); last first.
+   { rewrite -size_dom dom_gset_to_gmap size_difference.
+     - rewrite size_set_seq size_singleton. lia.
+     - rewrite singleton_subseteq_l elem_of_set_seq. lia.
+   }
+   apply dom_subseteq_size. rewrite dom_gset_to_gmap. intros x Hx.
+   rewrite elem_of_difference. split.
+   - rewrite elem_of_set_seq; split; first lia.
+     rewrite Nat.add_0_l Nat.lt_nge.
+     intro. assert (val_size < x) as H' by lia.
+     specialize (Hm' _ H').
+     by apply not_elem_of_dom_2 in Hx.
+   - apply not_elem_of_singleton_2. intros ->.
+     by apply not_elem_of_dom_2 in Hm.
+ Qed.
 
 
 
