@@ -951,29 +951,45 @@ Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) 
   ub_lift μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.
-  (* rewrite /ub_lift /prob. *)
-  (* intros Hub f g Hf Hg Hfg. *)
-  (* (* epose proof (Hub (λ a, bool_decide (f a <= g tt)) _) as Haux. *) *)
-  (* etransitivity; last first. *)
-  (* - eapply Rplus_le_compat_l; done.  *)
-  (* - rewrite (SeriesC_split_pred _ (λ a, bool_decide (f a <= g tt))). *)
-  (*   + apply Rplus_le_compat. *)
-  (*     * rewrite (SeriesC_ext  (λ b : (), dret () b * g b) (λ b : (), g tt)); last first. *)
-  (*       { intro n; destruct n. rewrite dret_1_1; auto. lra. } *)
-  (*       rewrite SeriesC_finite_mass /= Rmult_1_l. *)
-  (*       admit. *)
-  (*     * apply SeriesC_le. *)
-  (*       ** intro n; specialize (Hf n). real_solver. *)
-  (*       ** apply (ex_seriesC_le _ μ1); auto. *)
-  (*          intro n; specialize (Hf n). real_solver. *)
-  (*  + intro n; specialize (Hf n). real_solver. *)
-  (*  + apply (ex_seriesC_le _ μ1); auto. *)
-  (*    intro n; specialize (Hf n). real_solver. *)
-  (* Unshelve. *)
-  (* intros a Pa; simpl. *)
-  (* apply bool_decide_eq_true_2. *)
-  (* by apply Hfg. *)
-Admitted.
+  rewrite /ub_lift /prob.
+  intros Hub f g Hf Hg Hfg.
+  rewrite SeriesC_finite_foldr; simpl.
+  rewrite dret_1_1; last done.
+  rewrite Rmult_1_l Rplus_0_r.
+  eremember ((λ a:A, negb (bool_decide (P a)))) as q. Unshelve.
+  2:{ apply make_decision. }
+  rewrite (SeriesC_split_pred _ q). 
+  - rewrite Rplus_comm.
+    apply Rplus_le_compat.
+    + trans (SeriesC (λ a : A, if q a then 0 else μ1 a * g ())).
+      * apply SeriesC_le; first subst.
+        -- intros. case_bool_decide; simpl; try lra.
+           split.
+           ++ apply Rmult_le_pos; naive_solver.
+           ++ apply Rmult_le_compat_l; auto.
+        -- eapply (ex_seriesC_ext (λ a : A, if bool_decide (P a) then μ1 a * g () else 0)); last eapply ex_seriesC_filter_pos.
+           ++ intros. subst. repeat case_bool_decide; done.
+           ++ intros; apply Rmult_le_pos; naive_solver.
+           ++ apply ex_seriesC_scal_r. done.
+      * trans (SeriesC (λ a, μ1 a * g ())).
+        -- apply SeriesC_le; last by apply ex_seriesC_scal_r.
+           intros. subst. case_bool_decide; simpl; split; try lra.
+           all: apply Rmult_le_pos; naive_solver.
+        -- rewrite SeriesC_scal_r. etrans; first apply Rmult_le_compat_r; auto.
+           ++ naive_solver.
+           ++ lra.
+    + etrans; last exact.
+      apply SeriesC_le.
+      * subst. intros. case_bool_decide; simpl; try lra.
+        split.
+        -- apply Rmult_le_pos; naive_solver.
+        -- rewrite <- Rmult_1_r. apply Rmult_le_compat; naive_solver.
+      * apply ex_seriesC_filter_bool_pos; auto.
+  - intros. apply Rmult_le_pos; naive_solver.
+  - apply pmf_ex_seriesC_mult_fn. naive_solver.
+    Unshelve.
+    intros. apply make_decision.
+Qed.
 
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
