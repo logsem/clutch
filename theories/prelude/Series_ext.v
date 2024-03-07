@@ -296,6 +296,127 @@ Proof.
   intro; apply Rbar_mult_comm.
 Qed.
 
+Lemma sum_n_inj `{Inj nat nat eq eq h} (f : nat -> R) n m :
+  (forall n, 0 <= f n) ->
+  (forall x : nat, x <= n -> h x <= m)%nat -> 
+  (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) m).
+Proof.
+  intros Hf Hh.
+  pose proof make_decision.
+  trans (sum_n (λ n0 : nat, if bool_decide (∃ x, n0 = h x /\ x<=n)%nat then f n0 else 0) m); last first.
+  { apply sum_n_le. intros. case_bool_decide; try lra. naive_solver. }
+  revert m Hh.
+  induction n.
+  - intros. rewrite sum_O. etrans; last eapply partial_sum_mon.
+    + etrans; last apply partial_sum_elem.
+      * case_bool_decide as H0; first done.
+        exfalso. apply H0. naive_solver.
+      * intros. case_bool_decide; naive_solver.
+    + intros. case_bool_decide; naive_solver.
+    + naive_solver.
+  - intros. rewrite sum_Sn.
+    replace (sum_n _ m) with (sum_n (λ n0 : nat, if bool_decide (∃ x : nat, n0 = h x ∧ x ≤ n) then f n0 else 0) m + sum_n (λ n0 : nat, if bool_decide (n0 = h (S n)) then f n0 else 0) m).
+    + apply Rplus_le_compat; first naive_solver.
+      etrans; last eapply partial_sum_mon; first (etrans; last apply partial_sum_elem).
+      * by case_bool_decide.
+      * intros; case_bool_decide; naive_solver.
+      * intros; case_bool_decide; naive_solver.
+      * naive_solver.
+    + clear IHn.
+      remember m as k. rewrite Heqk in Hh. clear Heqk.
+      induction k. 
+      * rewrite !sum_O. repeat case_bool_decide; try lra.
+        -- destruct H0 as [?[??]].
+           rewrite H1 in H0. apply H in H0. subst. lia.
+        -- exfalso. apply H2. naive_solver.
+        -- exfalso. apply H2. naive_solver.
+        -- exfalso. naive_solver.
+        -- exfalso. apply H0. destruct H2 as [?[??]].
+           exists x. split; try done. rewrite Nat.le_succ_r in H3. destruct H3; try lia.
+           subst. done.
+      * rewrite !sum_Sn.
+        assert (∀ x y, plus x y = x+ y) as K by done.
+        rewrite !K.
+        replace (_+_+_) with (
+            (sum_n (λ n0 : nat, if bool_decide (∃ x : nat, n0 = h x ∧ x ≤ n) then f n0 else 0) k +
+              (sum_n (λ n0 : nat, if bool_decide (n0 = h (S n)) then f n0 else 0) k) +
+              ((if bool_decide (∃ x : nat, S k = h x ∧ x ≤ n) then f (S k) else 0) +
+                 (if bool_decide (S k = h (S n)) then f (S k) else 0)))
+          ) by lra.
+        rewrite IHk.
+        apply Rplus_eq_compat_l. clear IHk.
+        repeat case_bool_decide; try lra.
+        -- destruct H0 as [?[??]]. rewrite H0 in H1. apply H in H1. subst. lia.
+        -- exfalso. apply H2. naive_solver.
+        -- exfalso. apply H2. naive_solver.
+        -- exfalso. naive_solver.
+        -- exfalso. apply H0. destruct H2 as [?[??]]. rewrite Nat.le_succ_r in H3. destruct H3; naive_solver.
+Qed.
+
+Lemma sum_n_bij_le_some_index h f n:
+  Bij h ->
+  (∀ n : nat, 0 <= f n) -> 
+  ∃ k : nat, sum_n f n <= sum_n (λ n0 : nat, f (h n0)) k.
+Proof.
+  intros. destruct H.
+  cut (∃ k : nat, sum_n f n <= sum_n (λ n0 : nat, if h n0 <=? n then f (h n0) else 0) k).
+  { elim. intros. eexists _. etrans; first exact. apply sum_n_le.
+    intros. destruct (_<=?_); naive_solver.
+  }
+  induction n.
+  - pose proof bij_surj 0%nat as [x?].
+    exists x. rewrite sum_O. etrans; last apply partial_sum_elem; try done.
+    + by rewrite H.
+    + intros. destruct (_<=?_); naive_solver.
+  - destruct IHn as [??].
+    pose proof (bij_surj (S n)) as [??].
+    rewrite sum_Sn.
+    replace (plus _ _) with (sum_n f n + f (S n)) by done.
+    pose proof (Nat.le_gt_cases x0 x) as [|].
+    + eexists x. etrans; first apply Rplus_le_compat; first exact.
+      * instantiate (1:= sum_n (λ n0 : nat, if h n0 =? S n then f (h n0) else 0) x).
+        etrans; last eapply (partial_sum_mon _ x0); try done.
+        -- etrans; last eapply partial_sum_elem; first rewrite H1 Nat.eqb_refl; first done.
+           intros. destruct (_=?_); naive_solver.
+        -- intros; destruct (_=?_) ; naive_solver.
+      * clear H2. clear H. induction x.
+        -- rewrite !sum_O. destruct (_<=?_) eqn:K; destruct (_<=?_) eqn:K'; destruct (_=?_) eqn:K''; try done.
+           ++ apply leb_complete in K'. apply Nat.eqb_eq in K''. lia.
+           ++ replace (_<=?_) with true; first lra.
+              symmetry. apply leb_correct. apply leb_complete in K'. lia.
+           ++ apply leb_complete_conv in K'. apply Nat.eqb_eq in K''. rewrite -H1 in K''.
+              apply bij_inj in K''. subst. rewrite H1. replace (_<=?_) with true; try lra.
+              symmetry. apply leb_correct. lia.
+           ++ replace (_<=?_) with false; first lra.
+              symmetry. apply leb_correct_conv.
+              apply leb_complete_conv in K'. apply Nat.eqb_neq in K''. lia.
+        -- rewrite !sum_Sn.
+           assert (∀ x y, plus x y = x+y) as K.
+           { intros. done. }
+           rewrite !K.
+           replace (_+_+_) with ((sum_n (λ n0 : nat, if h n0 <=? n then f (h n0) else 0) x +
+                                   (sum_n (λ n0 : nat, if h n0 =? S n then f (h n0) else 0) x) +
+                                   ((if h (S x) <=? n then f (h (S x)) else 0) +
+                                      (if h (S x) =? S n then f (h (S x)) else 0)))) by lra.
+           apply Rplus_le_compat; first done.
+           repeat case_match; try lra.
+           ++ apply leb_complete in H. apply Nat.eqb_eq in H2. lia.
+           ++ apply Nat.eqb_eq in H2. apply leb_complete_conv in H3. lia.
+           ++ apply leb_complete in H. apply leb_complete_conv in H3. lia.
+           ++ apply Nat.eqb_eq in H2. apply leb_complete_conv in H3. lia.
+           ++ etrans; last apply H0. lra.
+    + exists x0. assert (∃ x', S x' = x0) as [??].
+      { destruct x0; try naive_solver. lia. }
+      subst.
+      rewrite sum_Sn.
+      apply Rplus_le_compat.
+      * etrans; first exact. etrans; first eapply sum_n_le; last eapply partial_sum_mon; try lia.
+        -- intros. repeat case_match; try done.
+           apply leb_complete in H3. apply leb_complete_conv in H4. lia.
+        -- intros. case_match; done.
+      * rewrite H1. case_match; try done. apply leb_complete_conv in H3. lia.
+Qed.
+
 
 Fixpoint max_seq (f : nat -> nat) n :=
   match n with
@@ -306,23 +427,17 @@ Fixpoint max_seq (f : nat -> nat) n :=
 Lemma sum_max_seq (f : nat -> R) h n `{Bij nat nat h}:
   (forall n, 0 <= f n) ->
   (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
-Admitted.
-(*
-    intro.
-    apply partial_sum_mon.
-    intro; induction n.
-    - rewrite sum_O /max_seq.
-      destruct (h 0%nat).
-      + rewrite sum_O; lra.
-      + rewrite sum_Sn.
-        etrans; [ | apply Rplus_le_compat_r, partial_sum_pos; auto].
-        lra.
-   - rewrite sum_Sn.
-     unfold max_seq.
-     fold max_seq.
-     etrans; [ apply Rplus_le_compat_r, IHn | ].
-     apply Nat.max_case.
- *)
+Proof.
+  intros.
+  apply sum_n_inj; first done.
+  clear.
+  induction n; simpl; intros.
+  - assert (x=0%nat); try lia. by subst.
+  - rewrite Nat.le_succ_r in H. destruct H.
+    + etrans; first by apply IHn.
+      apply Nat.le_max_r.
+    + subst. apply Nat.le_max_l.
+Qed.
 
 Lemma is_series_bijection (f : nat -> R) h v `{Bij nat nat h} :
   (forall n, 0 <= f n) ->
@@ -338,22 +453,20 @@ Proof.
   - assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
     {
       intro; eapply sum_max_seq; eauto.
-    (*
-        induction n.
-        - rewrite sum_O/=.
-          apply partial_sum_elem; auto.
-        - rewrite sum_Sn/=.
-          destruct (Nat.le_dec (h (S n)) (max_seq h n)) as [H1 | H2].
-          + pose proof (PeanoNat.Nat.max_r_iff (h (S n)) (max_seq h n)) as [? ->]; auto.
-            apply (Rle_trans _ (sum_n (λ n0 : nat, f n0) (max_seq h n) + f (h (S n))));
-              [apply Rplus_le_compat_r; auto | ].
-            admit.
-          + admit.
-     *)
     }
     intro n.
     eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
-Abort.
+  - apply Classical_Pred_Type.not_all_not_ex.
+    intro H1.
+    apply (upper_bound_ge_sup' _ (v-eps)) in Hf.
+    { assert (0<eps); try lra. apply cond_pos. }
+    intros. assert (∀ n : nat, (sum_n (λ n0 : nat, f (h n0)) n) <= v-eps).
+    { intros. apply Rnot_lt_le. apply H1. }
+    cut (∃ k, sum_n f n <=  sum_n (λ n0 : nat, f (h n0)) k).
+    { elim. intros. etrans; first exact. done. }
+    apply sum_n_bij_le_some_index; naive_solver.
+Qed.
+
 
 Lemma fubini_fin_sum (h : nat * nat → R) n m:
   sum_n (λ a, sum_n (λ b, h (a, b)) n ) m
