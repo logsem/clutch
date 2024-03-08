@@ -223,7 +223,7 @@ Proof.
     - case_bool_decide; simpl; lra.
   }
   {
-    admit.
+    rewrite SeriesC_finite_foldr. simpl. lra.
   }
   iIntros (n) "Hεcont".
   wp_pures.
@@ -231,17 +231,24 @@ Proof.
   - destruct (decide (n = 0%fin)) as [->|].
     + wp_pures. done.
     + assert (n = 1%fin) as ->.
-      {
-        admit.
+      { inv_fin n; first done.
+        intros i. inv_fin i; first done.
+        intros i. inv_fin i; first done.
+        intros i. inv_fin i.
       }
       rewrite /f/=.
-      (* Should be allowed to prove this for free with €1 *)
-      admit.
-  - assert (n = 2%fin) as ->; [admit|].
+      iExFalso.
+      iApply (ec_spend with "[$]"). done.
+  - assert (n = 2%fin) as ->; [|].
+    { inv_fin n; first done.
+      repeat (intros i; inv_fin i; first done).
+      intros i; inv_fin i.
+    }
     wp_pure.
     iApply "IH".
     rewrite /f/=.
     done.
-Admitted.
+Qed.
+
 
 
