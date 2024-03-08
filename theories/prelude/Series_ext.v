@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
-From stdpp Require Export countable.
+From stdpp Require Export countable sets.
 From clutch.prelude Require Import base Coquelicot_ext stdpp_ext classical.
 From discprob.prob Require Import double.
 Set Default Proof Using "Type*".
@@ -296,6 +296,20 @@ Proof.
   intro; apply Rbar_mult_comm.
 Qed.
 
+Lemma sum_n_plus f g n:
+  sum_n f n + sum_n g n = sum_n (λ x, f x + g x) n.
+Proof.
+  induction n.
+  - by rewrite !sum_O.
+  - rewrite !sum_Sn.
+    replace (plus _ _ + plus _ _) with ((sum_n f n + sum_n g n)+(f (S n) + g (S n))); last first.
+    { assert (forall x y, plus x y = x + y).
+      - intros. done.
+      - rewrite !H. lra.
+    }
+    rewrite IHn. done.
+Qed.
+
 Lemma sum_n_inj `{Inj nat nat eq eq h} (f : nat -> R) n m :
   (forall n, 0 <= f n) ->
   (forall x : nat, x <= n -> h x <= m)%nat -> 
@@ -324,99 +338,89 @@ Proof.
       * naive_solver.
     + clear IHn.
       remember m as k. rewrite Heqk in Hh. clear Heqk.
-      induction k. 
-      * rewrite !sum_O. repeat case_bool_decide; try lra.
-        -- destruct H0 as [?[??]].
-           rewrite H1 in H0. apply H in H0. subst. lia.
-        -- exfalso. apply H2. naive_solver.
-        -- exfalso. apply H2. naive_solver.
-        -- exfalso. naive_solver.
-        -- exfalso. apply H0. destruct H2 as [?[??]].
-           exists x. split; try done. rewrite Nat.le_succ_r in H3. destruct H3; try lia.
-           subst. done.
-      * rewrite !sum_Sn.
-        assert (∀ x y, plus x y = x+ y) as K by done.
-        rewrite !K.
-        replace (_+_+_) with (
-            (sum_n (λ n0 : nat, if bool_decide (∃ x : nat, n0 = h x ∧ x ≤ n) then f n0 else 0) k +
-              (sum_n (λ n0 : nat, if bool_decide (n0 = h (S n)) then f n0 else 0) k) +
-              ((if bool_decide (∃ x : nat, S k = h x ∧ x ≤ n) then f (S k) else 0) +
-                 (if bool_decide (S k = h (S n)) then f (S k) else 0)))
-          ) by lra.
-        rewrite IHk.
-        apply Rplus_eq_compat_l. clear IHk.
-        repeat case_bool_decide; try lra.
-        -- destruct H0 as [?[??]]. rewrite H0 in H1. apply H in H1. subst. lia.
-        -- exfalso. apply H2. naive_solver.
-        -- exfalso. apply H2. naive_solver.
-        -- exfalso. naive_solver.
-        -- exfalso. apply H0. destruct H2 as [?[??]]. rewrite Nat.le_succ_r in H3. destruct H3; naive_solver.
+      rewrite sum_n_plus. f_equal. apply functional_extensionality_dep.
+      intros x.
+      repeat case_bool_decide; try done; try lra.
+      * subst. destruct H0 as [?[??]]; destruct H2 as [?[??]].
+        rewrite H0 in H2. apply H in H0. subst. lia.
+      * exfalso. naive_solver.
+      * exfalso. naive_solver.
+      * exfalso. naive_solver.
+      * exfalso. apply H0. destruct H2 as [?[??]]. subst.
+        rewrite Nat.le_succ_r in H3. naive_solver.
 Qed.
 
-Lemma sum_n_bij_le_some_index h f n:
-  Bij h ->
+Lemma sum_n_surj_le_some_index h f n:
+  Surj eq h ->
   (∀ n : nat, 0 <= f n) -> 
   ∃ k : nat, sum_n f n <= sum_n (λ n0 : nat, f (h n0)) k.
 Proof.
-  intros. destruct H.
-  cut (∃ k : nat, sum_n f n <= sum_n (λ n0 : nat, if h n0 <=? n then f (h n0) else 0) k).
-  { elim. intros. eexists _. etrans; first exact. apply sum_n_le.
-    intros. destruct (_<=?_); naive_solver.
+  intros.
+  cut (∃ k : nat, ∃ l, NoDup l /\
+                     (forall x, x∈l -> h x <= n)%nat /\
+                     sum_n f n <= sum_n (λ n0 : nat, if bool_decide (n0 ∈ l /\ h n0 <= n)%nat  then f (h n0) else 0) k).
+  { elim. intros. destruct H1 as [?[?[??]]]. eexists _.  etrans; first exact. apply sum_n_le.
+    intros. case_bool_decide; naive_solver.
   }
   induction n.
-  - pose proof bij_surj 0%nat as [x?].
-    exists x. rewrite sum_O. etrans; last apply partial_sum_elem; try done.
-    + by rewrite H.
-    + intros. destruct (_<=?_); naive_solver.
-  - destruct IHn as [??].
-    pose proof (bij_surj (S n)) as [??].
-    rewrite sum_Sn.
-    replace (plus _ _) with (sum_n f n + f (S n)) by done.
+  - pose proof (H 0%nat) as [??].
+    exists x, (x::[]).
+    split; first constructor.
+    + apply not_elem_of_nil.
+    + constructor. 
+    + split.
+      * intros. assert (x0=x) as -> by set_solver. rewrite H1. lia. 
+      * etrans; last apply partial_sum_elem.
+        -- rewrite sum_O.  case_bool_decide; try done; first by rewrite H1.
+           exfalso. apply H2. rewrite H1. split; set_solver.
+        --  intros. case_bool_decide; naive_solver.
+  - destruct IHn as [x[l[Hl [Hcond IHn]]]].
+    pose proof (H (S n)) as [x0?].
     pose proof (Nat.le_gt_cases x0 x) as [|].
-    + eexists x. etrans; first apply Rplus_le_compat; first exact.
-      * instantiate (1:= sum_n (λ n0 : nat, if h n0 =? S n then f (h n0) else 0) x).
-        etrans; last eapply (partial_sum_mon _ x0); try done.
-        -- etrans; last eapply partial_sum_elem; first rewrite H1 Nat.eqb_refl; first done.
-           intros. destruct (_=?_); naive_solver.
-        -- intros; destruct (_=?_) ; naive_solver.
-      * clear H2. clear H. induction x.
-        -- rewrite !sum_O. destruct (_<=?_) eqn:K; destruct (_<=?_) eqn:K'; destruct (_=?_) eqn:K''; try done.
-           ++ apply leb_complete in K'. apply Nat.eqb_eq in K''. lia.
-           ++ replace (_<=?_) with true; first lra.
-              symmetry. apply leb_correct. apply leb_complete in K'. lia.
-           ++ apply leb_complete_conv in K'. apply Nat.eqb_eq in K''. rewrite -H1 in K''.
-              apply bij_inj in K''. subst. rewrite H1. replace (_<=?_) with true; try lra.
-              symmetry. apply leb_correct. lia.
-           ++ replace (_<=?_) with false; first lra.
-              symmetry. apply leb_correct_conv.
-              apply leb_complete_conv in K'. apply Nat.eqb_neq in K''. lia.
-        -- rewrite !sum_Sn.
-           assert (∀ x y, plus x y = x+y) as K.
-           { intros. done. }
-           rewrite !K.
-           replace (_+_+_) with ((sum_n (λ n0 : nat, if h n0 <=? n then f (h n0) else 0) x +
-                                   (sum_n (λ n0 : nat, if h n0 =? S n then f (h n0) else 0) x) +
-                                   ((if h (S x) <=? n then f (h (S x)) else 0) +
-                                      (if h (S x) =? S n then f (h (S x)) else 0)))) by lra.
-           apply Rplus_le_compat; first done.
-           repeat case_match; try lra.
-           ++ apply leb_complete in H. apply Nat.eqb_eq in H2. lia.
-           ++ apply Nat.eqb_eq in H2. apply leb_complete_conv in H3. lia.
-           ++ apply leb_complete in H. apply leb_complete_conv in H3. lia.
-           ++ apply Nat.eqb_eq in H2. apply leb_complete_conv in H3. lia.
-           ++ etrans; last apply H0. lra.
-    + exists x0. assert (∃ x', S x' = x0) as [??].
-      { destruct x0; try naive_solver. lia. }
-      subst.
-      rewrite sum_Sn.
-      apply Rplus_le_compat.
-      * etrans; first exact. etrans; first eapply sum_n_le; last eapply partial_sum_mon; try lia.
-        -- intros. repeat case_match; try done.
-           apply leb_complete in H3. apply leb_complete_conv in H4. lia.
-        -- intros. case_match; done.
-      * rewrite H1. case_match; try done. apply leb_complete_conv in H3. lia.
+    + exists x, (x0::l). repeat split.
+      * constructor; last done.
+        intro. apply Hcond in H3.
+        rewrite H1 in H3. lia.
+      * set_unfold; try naive_solver.
+        intros ?[|]; try naive_solver.
+        subst. lia.
+      * rewrite sum_Sn. etrans; first apply Rplus_le_compat.
+        -- exact.
+        -- instantiate (1:= sum_n (λ n', if bool_decide (n'=x0) then f (h n') else 0) (x)).
+           etrans; last apply partial_sum_mon; last exact.
+           ++ etrans; last apply partial_sum_elem.
+              ** case_bool_decide; subst.
+                 --- rewrite H1. done.
+                 --- done.
+              ** intros. case_bool_decide; naive_solver.
+           ++ intros; case_bool_decide; naive_solver.
+        -- rewrite sum_n_plus. apply sum_n_le.
+           intros; repeat case_bool_decide; try lra.
+           ++ subst. rewrite H1 in H3. lia.
+           ++ subst. exfalso. set_solver.
+           ++ exfalso. set_solver.
+           ++ subst. exfalso. apply H5. rewrite H1. set_unfold. naive_solver.
+           ++ etrans; last apply H0. lra. 
+    + exists x0, (x0::l).
+      repeat split.
+      * constructor; last done.
+        intro. apply Hcond in H3.
+        rewrite H1 in H3. lia.
+      * intros. rewrite elem_of_cons in H3. destruct H3; last naive_solver.
+         subst. lia.
+      * assert (∃ x', x0 = S x') as [?->].
+         { destruct x0; last naive_solver. lia. }
+         rewrite !sum_Sn. apply Rplus_le_compat.
+         -- etrans; first exact.
+            etrans; last eapply sum_n_le.
+            ++ apply partial_sum_mon; last lia.
+               intros. case_bool_decide; naive_solver.
+            ++ intros. repeat case_bool_decide; try done.
+               exfalso. set_unfold. naive_solver.
+         -- case_bool_decide; first by rewrite H1.
+            set_unfold; exfalso; apply H3. split; first naive_solver.
+            lia.
 Qed.
-
 
 Fixpoint max_seq (f : nat -> nat) n :=
   match n with
@@ -464,7 +468,7 @@ Proof.
     { intros. apply Rnot_lt_le. apply H1. }
     cut (∃ k, sum_n f n <=  sum_n (λ n0 : nat, f (h n0)) k).
     { elim. intros. etrans; first exact. done. }
-    apply sum_n_bij_le_some_index; naive_solver.
+    apply sum_n_surj_le_some_index; destruct H; naive_solver.
 Qed.
 
 
@@ -865,92 +869,7 @@ Proof.
   - exists y. intros x0[?[??]]. assert (x0=x-x1) as -> by lra. naive_solver.
   - eexists (x-1), 1. lra.
 Qed.
-  (* intros H. *)
-  (* assert (forall seq,(∃ b, ∀ n, 0 <= - seq n <= b) -> (∀ n, (x+seq n) <= y)-> x+ Sup_seq (seq) <= y) as H_limit. *)
-  (* { intros ? H0 H1. *)
-  (*   rewrite Rplus_comm. *)
-  (*   rewrite -Rcomplements.Rle_minus_r. *)
-  (*   rewrite <- rbar_le_rle. *)
-  (*   rewrite rbar_finite_real_eq. *)
-  (*   + apply upper_bound_ge_sup. *)
-  (*     intros. *)
-  (*     pose proof (H1 n). rewrite rbar_le_rle. lra. *)
-  (*   + destruct H0 as [b H0]. *)
-  (*     apply (is_finite_bounded (-b) 0). *)
-  (*     -- eapply (Sup_seq_minor_le _ _ 0). destruct (H0 0%nat). apply Ropp_le_contravar in H3. *)
-  (*        rewrite Ropp_involutive in H3. apply H3. *)
-  (*     -- apply upper_bound_ge_sup. intros n. destruct (H0 n). apply Ropp_le_contravar in H2. *)
-  (*        rewrite Ropp_involutive in H2. rewrite Ropp_0 in H2. done. *)
-  (* } *)
-  (* replace x with (x + Sup_seq (λ m,(λ n,-1%R/INR (S n)) m)). *)
-  (* - apply H_limit. *)
-  (*   { exists 1. *)
-  (*     intros; split. *)
-  (*     -- rewrite Ropp_div. rewrite Ropp_involutive. *)
-  (*        apply Rcomplements.Rdiv_le_0_compat; try lra. *)
-  (*        rewrite S_INR. pose proof (pos_INR n). *)
-  (*        lra. *)
-  (*     -- rewrite Ropp_div. rewrite Ropp_involutive. *)
-  (*        rewrite Rcomplements.Rle_div_l; [|apply Rlt_gt]. *)
-  (*        ++ assert (1<=INR(S n)); try lra. *)
-  (*           rewrite S_INR. *)
-  (*           pose proof (pos_INR n). *)
-  (*           lra. *)
-  (*        ++ rewrite S_INR. *)
-  (*           pose proof (pos_INR n). *)
-  (*           lra.  *)
-  (*   } *)
-  (*   intros. rewrite Ropp_div.  apply H. *)
-  (*   apply Rlt_gt. *)
-  (*   apply Rdiv_lt_0_compat; first lra. *)
-  (*   rewrite S_INR. pose proof (pos_INR n); lra. *)
-  (* - assert (Sup_seq (λ x : nat, - (1)%R / INR (S x))=0) as Hswap; last first. *)
-  (*   + rewrite Hswap. erewrite<- eq_rbar_finite; [|done]. lra. *)
-  (*   + apply is_sup_seq_unique. rewrite /is_sup_seq. *)
-  (*     intros err. *)
-  (*     split. *)
-  (*     -- intros n. *)
-  (*        eapply (Rbar_le_lt_trans _ (Rbar.Finite 0)); last first. *)
-  (*        ++ rewrite Rplus_0_l. apply (cond_pos err).   *)
-  (*        ++ apply Rge_le. rewrite Ropp_div. apply Ropp_0_le_ge_contravar. *)
-  (*           apply Rcomplements.Rdiv_le_0_compat; try lra. *)
-  (*           rewrite S_INR. pose proof (pos_INR n); lra. *)
-  (*     -- pose (r := 1/err -1). *)
-  (*        assert (exists n, r<INR n) as [n Hr]; last first. *)
-  (*        ++ eexists n. *)
-  (*           erewrite Ropp_div. replace (_-_) with (- (pos err)) by lra. *)
-  (*           apply Ropp_lt_contravar. *)
-  (*           rewrite Rcomplements.Rlt_div_l. *)
-  (*           2:{ rewrite S_INR. pose proof pos_INR. apply Rlt_gt. *)
-  (*               eapply Rle_lt_trans; [eapply H0|]. *)
-  (*               apply Rlt_n_Sn. *)
-  (*           } *)
-  (*           rewrite S_INR. *)
-  (*           rewrite Rmult_comm. *)
-  (*           rewrite <-Rcomplements.Rlt_div_l. *)
-  (*           2:{ pose proof (cond_pos err); lra. } *)
-  (*           rewrite <- Rcomplements.Rlt_minus_l. *)
-  (*           rewrite -/r. done. *)
-  (*        ++ pose proof (Rgt_or_ge 0 r). *)
-  (*           destruct H0. *)
-  (*           --- exists 0%nat. eapply Rlt_le_trans; last apply pos_INR. *)
-  (*               lra. *)
-  (*           --- exists (Z.to_nat (up r)). *)
-  (*               pose proof (archimed r) as [? ?]. *)
-  (*               rewrite INR_IZR_INZ. *)
-  (*               rewrite ZifyInst.of_nat_to_nat_eq. *)
-  (*               rewrite /Z.max. *)
-  (*               case_match. *)
-  (*               { rewrite Z.compare_eq_iff in H3. *)
-  (*                 exfalso. rewrite -H3 in H1. lra. *)
-  (*               } *)
-  (*               2: { rewrite Z.compare_gt_iff in H3. exfalso. *)
-  (*                    assert (IZR (up r) >= 0) by lra. *)
-  (*                    apply IZR_lt in H3. lra.  *)
-  (*               } *)
-  (*               lra. *)
 
-        
 
 (** Monotone convergence theorem  *)
 Lemma mon_sup_succ (h : nat → R) :
