@@ -34,12 +34,11 @@ Section adequacy.
 
   Lemma exec_coupl_erasure (e1 : expr) (σ1 : state) (e1' : expr) (σ1' : state) (n : nat) φ (ε : nonnegreal) :
     to_val e1 = None →
-    reducible (e1, σ1) ->
     exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε',
         |={∅}▷=>^(S n) ⌜ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) ε
     ⊢ |={∅}▷=>^(S n) ⌜ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) φ ε⌝.
   Proof.
-    iIntros (Hv Hred) "Hexec".
+    iIntros (Hv) "Hexec".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /exec_coupl /exec_coupl'.
     set (Φ := (λ '(((e1, σ1),(e1', σ1')),ε'),
@@ -216,7 +215,7 @@ Section adequacy.
         apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
         by apply ARcoupl_dret.
       + rewrite wp_unfold /wp_pre /= Heq.
-        iMod ("Hwp" with "[$]") as "(%Hred & Hcpl)".
+        iMod ("Hwp" with "[$]") as "Hcpl".
         iModIntro.
         assert ((prim_step e σ) = (step (e, σ))) as h => //. rewrite h. clear h.
         rewrite -exec_Sn_not_final ; [|auto].

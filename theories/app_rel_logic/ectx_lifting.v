@@ -26,9 +26,7 @@ Lemma wp_lift_head_step_fupd_couple {E Φ} e1 :
 Proof.
   iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done |].
   iIntros (σ1 e1' σ1' ε) "Hσ".
-  iMod ("H" with "Hσ") as "[% H]"; iModIntro.
-  iSplit; [|done].
-  iPureIntro. by apply head_prim_reducible.
+  iMod ("H" with "Hσ") as "[% H]"; iModIntro. done.
 Qed.
 
 Lemma wp_lift_head_step {E Φ} e1 :

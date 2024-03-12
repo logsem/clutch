@@ -317,29 +317,28 @@ Qed.
     exists μ; split; [split | ]; auto.
   Qed.
   Definition Rcoupl_impl μ1 μ2 R S H RC := Rcoupl_weaken μ1 μ2 R S RC H.
+*)
 
-  Lemma Rcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R :
-    Rcoupl μ1 μ2 R →
-    SeriesC μ1 > 0 →
-    ∃ a b, R a b.
-  Proof.
-    intros [μ [Hcpl HR]] Hz.
-    assert (SeriesC μ > 0) as Hsup by by erewrite isCoupl_mass_l.
-    apply SeriesC_gtz_ex in Hsup as [[a b] Hμ]; [|done].
-    eauto.
-  Qed.
+  (* Lemma ARcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R ε: *)
+  (*   ARcoupl μ1 μ2 R ε→ *)
+  (*   SeriesC μ1 > 0 → *)
+  (*   ∃ a b, R a b. *)
+  (* Proof. *)
+  (*   rewrite /ARcoupl. *)
+  (*   intros Ha Hz. *)
+  (* Admitted. *)
 
-  Lemma Rcoupl_inhabited_r (μ1 : distr A) (μ2 : distr B) R :
-    Rcoupl μ1 μ2 R →
-    SeriesC μ2 > 0 →
-    ∃ a b, R a b.
-  Proof.
-    intros [μ [Hcpl HR]] Hz.
-    assert (SeriesC μ > 0) as Hsup by by erewrite isCoupl_mass_r.
-    apply SeriesC_gtz_ex in Hsup as [[a b] Hμ]; [|done].
-    eauto.
-  Qed.
- *)
+  (* Lemma Rcoupl_inhabited_r (μ1 : distr A) (μ2 : distr B) R : *)
+  (*   Rcoupl μ1 μ2 R → *)
+  (*   SeriesC μ2 > 0 → *)
+  (*   ∃ a b, R a b. *)
+  (* Proof. *)
+  (*   intros [μ [Hcpl HR]] Hz. *)
+  (*   assert (SeriesC μ > 0) as Hsup by by erewrite isCoupl_mass_r. *)
+  (*   apply SeriesC_gtz_ex in Hsup as [[a b] Hμ]; [|done]. *)
+  (*   eauto. *)
+  (* Qed. *)
+ 
 
 End couplings_theory.
 
