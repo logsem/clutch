@@ -461,42 +461,6 @@ Section exec_coupl.
     iIntros (e2'' σ2'' (_ & _ & H)).
     rewrite Hexec in H. by apply dret_pos in H as [= -> ->].
   Qed.
-
-
-  (* probably not true *)
-  (* Lemma exec_coupl_reducible e1 σ1 e2 σ2 Z ε: *)
-  (*   exec_coupl e1 σ1 e2 σ2 Z ε ={∅}=∗ ⌜reducible (e1, σ1)⌝. *)
-  (* Proof. *)
-  (*   iIntros "H". *)
-  (*   set (Φ := (λ x, |={∅}=> ⌜reducible (x.1.1.1, x.1.1.2)⌝)%I *)
-  (*          : prodO (prodO cfgO cfgO) NNRO → iPropI Σ). *)
-  (*   iPoseProof (least_fixpoint_ind (exec_coupl_pre Z) Φ) as "IH". rewrite /exec_coupl/exec_coupl'. *)
-  (*   iApply ("IH" with "[][$]"). *)
-  (*   iModIntro. iIntros (([[e1' σ1'][e2' σ2']]&?)). rewrite /Φ. simpl. *)
-  (*   iIntros "[H|[H|[H|[H|[H|H]]]]]". *)
-  (*   - iDestruct "H" as "(%&%&%&%&%&H)". done. *)
-  (*   - iDestruct "H" as "(%&%&%&%&%&H)". done. *)
-  (*   - iDestruct "H" as "(%&%&%&%&%&%Hcpl&H)". *)
-  (*     eapply ARcoupl_pos_R in Hcpl. admit. *)
-  (*   - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1', σ1')⌝)%I  with "H") as "H". *)
-  (*     { iIntros (? α' ?%elem_of_list_lookup_2) "(% & % & % & %& % & H)". eauto. } *)
-  (*     iInduction (get_active σ2') as [| α'] "IH'"; [done|]. *)
-  (*     rewrite big_orL_cons. *)
-  (*     iDestruct "H" as "[H | H]";  [done|]. *)
-  (*     by iApply "IH'". *)
-  (*   - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1', σ1')⌝)%I  with "H") as "H". *)
-  (*     { iIntros (? α' ?%elem_of_list_lookup_2) "(% & % & % & %& % & H)". eauto. admit. } *)
-  (*     iInduction (get_active σ1') as [| α'] "IH'"; [done|]. *)
-  (*     rewrite big_orL_cons. *)
-  (*     iDestruct "H" as "[H | H]";  [done|]. *)
-  (*     by iApply "IH'". *)
-  (*   - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1', σ1')⌝)%I  with "H") as "H". *)
-  (*     { iIntros (? α' ?%elem_of_list_lookup_2) "(% & % & % & %& % & H)". eauto. admit. } *)
-  (*     iInduction (list_prod (get_active σ1') (get_active σ2')) as [| α'] "IH'"; [done|]. *)
-  (*     rewrite big_orL_cons. *)
-  (*     iDestruct "H" as "[H | H]";  [done|]. *)
-  (*     by iApply "IH'". *)
-  (* Admitted. *)
     
   
 End exec_coupl.
