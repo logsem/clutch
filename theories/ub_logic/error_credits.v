@@ -281,6 +281,17 @@ Section error_credit_theory.
     lra.
   Qed.
 
+
+  Lemma ec_spend_le_irrel ε1 ε2 : (ε2.(nonneg) <= ε1.(nonneg))%R → € ε1 -∗ € ε2.
+  Proof. iIntros (?) "?". iApply ec_weaken; done. Qed.
+
+
+  Lemma ec_spend_irrel ε1 ε2 : (ε1.(nonneg) = ε2.(nonneg)) → € ε1 -∗ € ε2.
+  Proof.
+    iIntros (?) "?".
+    replace ε1 with ε2; [iFrame|by apply nnreal_ext].
+  Qed.
+  
   Global Instance ec_timeless ε : Timeless (€ ε).
   Proof.
     rewrite ec_unseal /ec_def. apply _.
