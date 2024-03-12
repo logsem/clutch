@@ -39,7 +39,6 @@ Section rules.
     iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR ; [done|].
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     (* split ε_now into ε + (ε_now - ε) *)
@@ -78,7 +77,7 @@ Section rules.
     iSpecialize ("Hwp" $! n m nm with "[$Hα $Hαₛ]").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _)
-           with "[$Hh1 $Hauth2 $Ht1 $Hε2]") as "[Hred Hwp]".
+           with "[$Hh1 $Hauth2 $Ht1 $Hε2]") as "Hwp".
     iModIntro. done.
   Qed.
 
@@ -105,7 +104,6 @@ Section rules.
     iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR ; [done|].
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     (* split ε_now into ε + (ε_now - ε) *)
@@ -144,7 +142,7 @@ Section rules.
     iSpecialize ("Hwp" $! n m nm with "[$Hα $Hαₛ]").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _)
-           with "[$Hh1 $Hauth2 $Ht1 $Hε2]") as "[Hred Hwp]".
+           with "[$Hh1 $Hauth2 $Ht1 $Hε2]") as "Hwp".
     iModIntro. done.
   Qed.
 
@@ -163,8 +161,6 @@ Section rules.
     iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
@@ -223,8 +219,6 @@ Section rules.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
@@ -290,11 +284,6 @@ Section rules.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit.
-    { iPureIntro. apply head_prim_reducible.
-      eexists (Val #0%fin, σ1).
-      apply head_step_support_equiv_rel.
-      by eapply (RandNoTapeS _ _ 0%fin). }
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
