@@ -574,7 +574,7 @@ Section prf_prp.
       by rewrite Permutation_app_comm.
  Qed.
 
-
+ 
 Definition test_prf: val :=
   λ: "n",
     let: "f" := init_hash #() in
@@ -584,20 +584,108 @@ Definition test_prf: val :=
      else let: "x" := rand #val_size in
           "f" "x";;
           "aux" "f" ("i" - #1)) in
-    "aux" "f" "n".
+      "aux" "f" "n".
 
 
 Definition test_prp: val :=
   λ: "n",
     let: "f" := init_prp #() in
-  letrec: "aux" "f" "i" :=
+    letrec: "aux" "f" "i" :=
     (if: "i" ≤ #0
      then  "f"
      else let: "x" := rand #val_size in
           "f" "x";;
           "aux" "f" ("i" - #1)) in
-    "aux" "f" "n".
+      "aux" "f" "n".
 
+
+
+Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list Z) (ε : nonnegreal):
+  (0<=k<=n)%nat -> 
+  ↑specN ⊆ E →
+  length l = ((S val_size) - (n-k))%nat ->
+  l⊆(Z.of_nat <$> seq 0 (S val_size)) ->
+  (forall x, x∈ dom m -> Z.of_nat x ∈ l -> False) ->
+  (INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R = ε ->
+  {{{ € ε ∗
+      hashfun f m ∗
+      refines_right K
+        ((rec: "aux" "f" "i" :=
+            if: "i" ≤ #0 then "f"
+            else let: "x" := rand #val_size in "f" "x";; "aux" "f" ("i" - #1))%V g #k) ∗
+      is_sprp g m l }}}
+    (rec: "aux" "f" "i" :=
+       if: "i" ≤ #0 then "f" else let: "x" := rand #val_size in "f" "x";; "aux" "f" ("i" - #1))%V f
+    #k
+    @ E
+    {{{ f, RET f;
+        ∃ g m l, refines_right K (of_val g) ∗ hashfun f m∗
+                 is_sprp g m l }}}.
+Proof.
+  iInduction k as [|k'] "IH" forall (m l ε).
+   - iIntros (Hn Hname Hlen Hsubseteq Hdom Hε Φ) "(Hε & Hf & HK & Hg) HΦ".
+     tp_pures. wp_pures.
+     iModIntro.
+     iApply "HΦ".
+     iExists _,_,_. iFrame.
+
+   - (* wp_pures. *)
+     (* wp_bind (rand _)%E. *)
+
+     (* tp_pures. *)
+     (* tp_bind (rand _)%E. *)
+     (* iEval (rewrite refines_right_bind) in "HK". *)
+
+     (* iMod (ec_zero). *)
+     (* wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero); first done. *)
+     (* { lra. } *)
+     (* { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. } *)
+
+     (* iFrame. *)
+     (* iIntros "!>" (n2 m2 ->) "HK". *)
+     (* iEval (rewrite -refines_right_bind /=) in "HK". *)
+
+     (* wp_pures. *)
+     (* wp_pures. *)
+     (* tp_pures. *)
+     (* wp_bind (f _). *)
+     (* tp_bind (g _). *)
+     (* iEval (rewrite refines_right_bind) in "HK". *)
+
+     (* iMod (ec_zero). *)
+     (* wp_apply (wp_prf_prp_couple_eq_err _ _ _ ∅ _ ((Z.of_nat) <$> (seq 0 (S val_size))) m2 nnreal_zero *)
+     (*            with "[$]"); first done. *)
+     (* { apply lookup_empty. } *)
+     (* { pose proof (fin_to_nat_lt m2); lia. } *)
+     (* { intros; apply lookup_empty. }  *)
+     (* { rewrite fmap_length seq_length. *)
+     (*   rewrite Rminus_diag /Rdiv Rmult_0_l /=//. *)
+     (* } *)
+
+     (* iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))". *)
+     (* iEval (rewrite -refines_right_bind /=) in "HK". *)
+     (* do 3 wp_pure. *)
+     (* do 3 tp_pure. *)
+     (* assert (#(S m - 1) = #m) as ->. *)
+     (* { *)
+     (*   do 3 f_equal. lia. *)
+     (* } *)
+     (* iAssert (€ _ ∗ € (mknonnegreal (m/S val_size)%R _))%I with "[Herr]" as "[Herr1 Herr2]". *)
+     (* { iApply ec_split. replace (_+_)%NNR with ε; first done. *)
+     (*   apply nnreal_ext. rewrite -Hε. rewrite seq_S fold_left_app.  *)
+     (*   rewrite plus_INR Rdiv_plus_distr. apply Rplus_eq_compat_r. *)
+     (*   instantiate (1 := mknonnegreal _ _). done. *)
+     (*   Unshelve. *)
+     (*   - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
+     (*     apply pos_INR_S. *)
+     (*   - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
+     (*     apply pos_INR_S. *)
+     (* } *)
+     (* iApply ("IH" with "[][Herr1][HΦ][Hf][HK]"); try done. *)
+     (* + iPureIntro. by simpl.  *)
+     (* + admit. *)
+     (* + admit. *)
+ Admitted.
 
  Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
@@ -626,69 +714,12 @@ Definition test_prp: val :=
 
    do 5 tp_pure.
    do 3 wp_pure.
-   iInduction n as [|m] "IH" forall (Φ ε Hε) "Herr HΦ Hf HK Hg".
-   - wp_pures.
-     tp_pures.
-     iModIntro.
-     iApply "HΦ".
-     iExists _,_,_. iFrame.
-
-   - wp_pures.
-     wp_bind (rand _)%E.
-
-     tp_pures.
-     tp_bind (rand _)%E.
-     iEval (rewrite refines_right_bind) in "HK".
-
-     iMod (ec_zero).
-     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero); first done.
-     { lra. }
-     { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
-
-     iFrame.
-     iIntros "!>" (n2 m2 ->) "HK".
-     iEval (rewrite -refines_right_bind /=) in "HK".
-
-     wp_pures.
-     wp_pures.
-     tp_pures.
-     wp_bind (f _).
-     tp_bind (g _).
-     iEval (rewrite refines_right_bind) in "HK".
-
-     iMod (ec_zero).
-     wp_apply (wp_prf_prp_couple_eq_err _ _ _ ∅ _ ((Z.of_nat) <$> (seq 0 (S val_size))) m2 nnreal_zero
-                with "[$]"); first done.
-     { apply lookup_empty. }
-     { pose proof (fin_to_nat_lt m2); lia. }
-     { intros; apply lookup_empty. } 
-     { rewrite fmap_length seq_length.
-       rewrite Rminus_diag /Rdiv Rmult_0_l /=//.
-     }
-
-     iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
-     iEval (rewrite -refines_right_bind /=) in "HK".
-     do 3 wp_pure.
-     do 3 tp_pure.
-     assert (#(S m - 1) = #m) as ->.
-     {
-       do 3 f_equal. lia.
-     }
-     iAssert (€ _ ∗ € (mknonnegreal (m/S val_size)%R _))%I with "[Herr]" as "[Herr1 Herr2]".
-     { iApply ec_split. replace (_+_)%NNR with ε; first done.
-       apply nnreal_ext. rewrite -Hε. rewrite seq_S fold_left_app. 
-       rewrite plus_INR Rdiv_plus_distr. apply Rplus_eq_compat_r.
-       instantiate (1 := mknonnegreal _ _). done.
-       Unshelve.
-       - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
-         apply pos_INR_S.
-       - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR.
-         apply pos_INR_S.
-     }
-     iApply ("IH" with "[][Herr1][HΦ][Hf][HK]"); try done.
-     + iPureIntro. by simpl. 
-     + admit.
-     + admit.
- Abort.
+   wp_apply (wp_prf_prp_test_err_ind with "[$Herr $Hf $HK $Hg]"); [|done| |done|..|done].
+   - split; first lia. done.
+   - rewrite fmap_length seq_length. lia.
+   - intros. done.
+   - replace (_-_) with 0; try lia. done.
+ Qed.
+   
 
 End prf_prp.
