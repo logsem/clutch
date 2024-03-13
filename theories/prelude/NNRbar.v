@@ -155,20 +155,23 @@ Definition NNRbar_to_real (x : NNRbar) :=
     | Finite x => x.(nonneg)
     | _ => 0
   end.
+Definition nnreal (x : NNRbar) :=
+  match x with
+    | Finite x => x
+    | _ => nnreal_zero
+  end.
 Coercion Finite : nonnegreal >-> NNRbar.
 Coercion NNRbar_to_real : NNRbar >-> R.
 
-(*Definition is_finite (x : NNRbar) := Finite (real x) = x.
-Lemma is_finite_correct (x : Rbar) :
-  is_finite x <-> exists y : R, x = Finite y.
+Definition is_finite (x : NNRbar) := Finite (nnreal x) = x.
+Lemma is_finite_correct (x : NNRbar) :
+  is_finite x <-> exists y : nonnegreal, x = Finite y.
 Proof.
-  rewrite /is_finite ;
+  rewrite /is_finite.
   case: x => /= ; split => // H.
-  by exists r.
-  by case: H.
+  by eexists.
   by case: H.
 Qed.
-*)
 
 (** ** Order *)
 
@@ -593,6 +596,13 @@ Qed.
 *)
 
 (** *** NNRbar_plus *)
+
+Lemma NNRbar_plus_finite :
+  forall (x y : NNRbar), is_finite (NNRbar_plus x y) -> is_finite x /\ is_finite y.
+Proof.
+  rewrite /is_finite. intros. destruct x as [x|], y as [y|] => //.
+Qed.
+
 
 Lemma NNRbar_plus_comm :
   forall x y, NNRbar_plus x y = NNRbar_plus y x.
