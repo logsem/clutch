@@ -322,25 +322,25 @@ Section prf_prp.
   Qed.
 
 
-  Lemma wp_prp_prev E f m r (n : nat) (b : Z) :
+  Lemma spec_prp_prev E (f:val) m r (n : nat) (b : Z) K:
     m !! n = Some b →
-    {{{ is_prp f m r }}}
-      f #n @ E
-    {{{ RET #b; is_prp f m r }}}.
+    ↑specN ⊆ E →
+    refines_right K (f #n) ∗ is_sprp f m r ={E}=∗
+    refines_right K (#b) ∗ is_sprp f m r .
   Proof.
-    iIntros (Hlookup Φ) "Hprp HΦ".
+    iIntros (Hlookup Hspec) "[HK Hprp]".
     iDestruct "Hprp" as (lm lr) "(-> & Hlm & Hlr)".
     rewrite /query_prp_specialized.
-    wp_pures.
-    wp_apply (wp_get with "[$]").
-    iIntros (res) "(Hmap&->)".
-    rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ".
-    iExists lm,lr.
-    iSplit.
-    {
-      rewrite /query_prp_specialized //.
-    }
-    iFrame.
+    tp_pures.
+    tp_bind (get _ _)%E.
+    iEval (rewrite refines_right_bind) in "HK".
+    iMod (spec_get with "[$][$]") as "[HK Hm]"; first done.
+    iEval (rewrite -refines_right_bind /=) in "HK".
+    rewrite lookup_fmap Hlookup /=.
+    tp_pures.
+    iModIntro. iFrame.
+    iExists lm, lr.
+    iFrame. done.
   Qed.
 
  Lemma seq_to_seqZ (l : nat) :
@@ -404,7 +404,13 @@ Section prf_prp.
      f #n @ E
      {{{ RET #k;
          refines_right K (of_val #k) ∗ hashfun f m ∗ is_sprp sf m sr }}}.
-   Admitted.
+ Proof.
+   iIntros (Hspec Hsome Hrange Φ) "(HK&Hf&Hg) HΦ".
+   iMod (spec_prp_prev with "[$]") as "[HK Hg]"; [done|done|].
+   wp_apply (wp_hashfun_prev with "[$]"); first done.
+   iIntros "Hf".
+   iApply "HΦ"; iFrame.
+ Qed.
 
  Lemma wp_prf_prp_couple_eq_err E K (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
@@ -712,14 +718,15 @@ Proof.
        * simpl. rewrite Rdiv_def. f_equal. rewrite minus_INR; last lia.
          rewrite Rdiv_def. apply Rmult_le_compat_r; first pose proof pos_INR_S val_size as H0.
          { rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra. done. }
-         
-         admit.
-         (* erewrite Hlen. replace (_-INR _)%R with (INR (n- S k')). *)
-         (* { rewrite minus_INR; [lra|lia]. } *)
-         (* rewrite (minus_INR (S _)); last lia. *)
-         (* rewrite Rminus_def. rewrite Ropp_minus_distr Rplus_minus_assoc Rplus_comm. *)
-         (* rewrite <-Rplus_minus_assoc. replace (_-_)%R with 0%R; try lra. *)
-         (* symmetry. apply Rcomplements.Rminus_eq_0. *)
+         rewrite Rcomplements.Rle_minus_l.
+         trans (INR n - INR (S k') + INR (S val_size - (n - S k')))%R; last first.
+         { apply Rplus_le_compat_l. apply le_INR. lia. }
+         rewrite minus_INR; last lia.
+         assert (0<=INR n - INR (S k') - INR (n-S k'))%R; last first.
+         { replace (match val_size with | _ => _  end) with (INR (S val_size)); last by simpl.
+           lra. }
+         rewrite minus_INR; last lia.
+         lra. 
        * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
          iEval (rewrite -refines_right_bind /=) in "HK".
          do 3 wp_pure.
@@ -734,9 +741,8 @@ Proof.
          -- iPureIntro.
             apply le_S_n.
             replace (S (S _ - _)) with (S val_size - (n - S k')) by lia.
-            admit.
-            (* rewrite -Hlen. rewrite Hperm. *)
-            (* rewrite !app_length cons_length. lia. *)
+            trans (length l); try done.
+            subst. rewrite !app_length cons_length. lia.
          -- iPureIntro. subst. apply NoDup_app. apply NoDup_app in HNoDup.
             destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup. set_solver.
          -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
@@ -770,7 +776,7 @@ Proof.
                       apply pos_INR.
                ** apply pos_INR_S.
             ++ apply gset_semi_set.
-Admitted.
+Qed.
 
   Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
