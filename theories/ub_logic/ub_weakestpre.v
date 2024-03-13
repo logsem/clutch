@@ -88,47 +88,6 @@ Section exec_ub.
     iIntros "?"; eauto.
   Qed.
 
-
-  Definition exec_stutter_1 (P : nonnegreal -> iProp Σ) ε : iProp Σ := (⌜(1 <= ε)%R ⌝ ∨ (P ε))%I.
-  Lemma exec_stutter_compat P ε : ⊢ (exec_stutter_1 P ε → exec_stutter P ε).
-  Proof.
-    rewrite /exec_stutter_1.
-    iIntros "[%H|H]".
-    - iApply exec_stutter_spend; done.
-    - iApply exec_stutter_free; done.
-  Qed.
-
-  Lemma exec_stutter_compat_1 P ε :
-    ⊢ (∀ ε ε' : nonnegreal, ⌜(ε <= ε')%R⌝ -∗ (P ε -∗ P ε'))
-        -∗ (exec_stutter P ε -∗ exec_stutter_1 P ε).
-  Proof.
-    rewrite /exec_stutter /exec_stutter_1.
-    iIntros "Hmono [% [% [% (% & % & H)]]]".
-    destruct (Rle_decision 1%R (nonneg ε)%R) as [Hdec|Hdec].
-    { iLeft; iPureIntro. lra. }
-    iRight.
-    rewrite /total_ub_lift in H0.
-    remember (λ a : (), @bool_decide (R2 a) (make_decision (R2 a))) as X.
-    destruct (X ()) as [|] eqn:HX; simpl in *.
-    - iApply ("Hmono" $!  ε2).
-      { iPureIntro; simpl.
-        eapply Rle_trans; [|eapply H].
-        destruct ε2; destruct ε1; simpl; lra. }
-      iApply "H".
-      iPureIntro.
-      rewrite HeqX in HX.
-      apply bool_decide_eq_true_1 in HX.
-      done.
-    - exfalso.
-      rewrite /not in Hdec; apply Hdec.
-      rewrite /prob /dret SeriesC_finite_foldr /enum /= in H0.
-      rewrite Rplus_0_r /pmf /dret_pmf HX /= in H0.
-      assert (H' : (1 <= nonneg ε1)%R); first lra.
-      eapply Rle_trans; last eapply H.
-      eapply Rle_trans; first eapply H'.
-      destruct ε1; destruct ε2; simpl; lra.
-  Qed.
-  
   Lemma exec_stutter_mono_grading P ε ε' :
     ⌜(ε <= ε')%R⌝ -∗
     exec_stutter P ε -∗ exec_stutter P ε'.
