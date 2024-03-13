@@ -396,14 +396,23 @@ Section prf_prp.
      by apply not_elem_of_dom_2 in Hm.
  Qed.
 
-
+ Lemma wp_prf_prp_couple_eq_Some E K (k:Z) (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) :
+   ↑specN ⊆ E →
+   m !! n = Some k →
+   n <= val_size ->
+   {{{ refines_right K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr}}}
+     f #n @ E
+     {{{ RET #k;
+         refines_right K (of_val #k) ∗ hashfun f m ∗ is_sprp sf m sr }}}.
+   Admitted.
 
  Lemma wp_prf_prp_couple_eq_err E K (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
     m !! n = None →
     n <= val_size ->
     (∀ n' : nat, val_size < n' → m !! n' = None) ->
-    ((S val_size - (length sr)) / S val_size)%R = ε ->
+    length sr <= S val_size ->
+    (((S val_size - (length sr)) / S val_size)%R <= ε)%R ->
     {{{ refines_right K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr ∗ € ε }}}
       f #n @ E
     {{{ (z: Z), RET #z;
@@ -412,7 +421,7 @@ Section prf_prp.
                 ⌜ sr = l1 ++ z :: l2 ⌝ ∗
           is_sprp sf (<[n := z]>m) (l1 ++ l2) }}}.
  Proof.
-    iIntros (Hspec Hnone Hrange Hdom Hε Φ) "(HK & Hprf & Hprp & Herr) HΦ".
+    iIntros (Hspec Hnone Hrange Hdom Hineq Hε Φ) "(HK & Hprf & Hprp & Herr) HΦ".
     iDestruct "Hprf" as (hm ->) "Hm".
     iDestruct "Hprp" as (lsm lsr) "(-> & Hsm & Hlsr & %Hperm)".
     rewrite /compute_hash_specialized.
@@ -467,6 +476,8 @@ Section prf_prp.
     tp_bind (rand _)%E.
     iEval (rewrite refines_right_bind) in "HK".
     set f := (λ n : nat, if (n <=? vl) then Z.to_nat (nth n sr 0) else n + val_size).
+    iDestruct (ec_spend_le_irrel with "[$]") as "Hε".
+    { instantiate (1:= mknonnegreal _ _). exact.  }
     wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl).
     {
       intros x Hx.
@@ -507,7 +518,7 @@ Section prf_prp.
       apply le_INR.
       lia.
     }
-    { rewrite -Hvl. apply Hε. }
+    { rewrite -Hvl. instantiate (1:= mknonnegreal _ _). done. }
     iFrame.
     iIntros "!>" (x) "HK".
     iEval (rewrite -refines_right_bind /=) in "HK".
@@ -572,6 +583,11 @@ Section prf_prp.
       simpl.
       apply perm_skip.
       by rewrite Permutation_app_comm.
+      Unshelve.
+      apply Rcomplements.Rdiv_le_0_compat.
+      + rewrite <- minus_INR; last lia.
+        apply pos_INR.
+      + apply pos_INR_S.
  Qed.
 
  
@@ -603,10 +619,12 @@ Definition test_prp: val :=
 Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list Z) (ε : nonnegreal):
   (0<=k<=n)%nat -> 
   ↑specN ⊆ E →
-  length l = ((S val_size) - (n-k))%nat ->
+  ((S val_size) - (n-k))%nat <= length l->
+  NoDup l ->
   l⊆(Z.of_nat <$> seq 0 (S val_size)) ->
-  (forall x, x∈ dom m -> Z.of_nat x ∈ l -> False) ->
-  (INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R = ε ->
+  (forall x:Z, x∈ ((map_img m):gset _) -> x ∈ l -> False) ->
+  (dom m ⊆ set_seq 0 (S val_size))->
+  ((INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R <= ε)%R ->
   {{{ € ε ∗
       hashfun f m ∗
       refines_right K
@@ -623,69 +641,138 @@ Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list
                  is_sprp g m l }}}.
 Proof.
   iInduction k as [|k'] "IH" forall (m l ε).
-   - iIntros (Hn Hname Hlen Hsubseteq Hdom Hε Φ) "(Hε & Hf & HK & Hg) HΦ".
+   - iIntros (Hn Hname Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ) "(Hε & Hf & HK & Hg) HΦ".
      tp_pures. wp_pures.
      iModIntro.
      iApply "HΦ".
      iExists _,_,_. iFrame.
 
-   - iIntros (Hn Hname Hlen Hsubseteq Hdom Hε Φ) "(Hε & Hf & HK & Hg) HΦ".
+   - iIntros (Hn Hname Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ) "(Hε & Hf & HK & Hg) HΦ".
      wp_pures.
      wp_bind (rand _)%E.
 
      tp_pures.
      tp_bind (rand _)%E.
      iEval (rewrite refines_right_bind) in "HK".
+     iMod (ec_zero).
+     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero); first done.
+     { lra. }
+     { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
+
+     iFrame.
+     iIntros "!>" (n2 m2 ->) "HK".
+     iEval (rewrite -refines_right_bind /=) in "HK".
+
+     wp_pures.
+     wp_pures.
+     tp_pures.
+     wp_bind (f _).
+     tp_bind (g _).
+     iEval (rewrite refines_right_bind) in "HK".
+     iAssert (€ _ ∗ € _)%I with "[Hε]" as "[Hε Hε']".
+     { iApply ec_split. iApply ec_weaken; last done.
+       etrans; last exact. rewrite <-cons_seq. rewrite fold_symmetric; try (intros; lia).
+       simpl. rewrite plus_INR Rdiv_plus_distr. apply Req_le.
+       f_equal; by instantiate (1:= mknonnegreal _ _).
+     }
+     iAssert (⌜(n-S k')<S val_size⌝)%I with "[Hε]" as "%".
+     { pose proof Nat.lt_ge_cases (n-S k') (S val_size) as [|]; first done.
+       iExFalso. iApply ec_spend; last done. simpl. 
+       apply Rcomplements.Rle_div_r.
+       - pose proof pos_INR_S val_size. apply Rlt_gt. exact.
+       - rewrite Rmult_1_l. replace (_)%R with (INR (S val_size)); last by simpl. apply le_INR. lia. }
+     destruct (m!!fin_to_nat m2) eqn:Hm'.
+     + wp_apply (wp_prf_prp_couple_eq_Some with "[$]"); try done.
+       * apply elem_of_dom_2 in Hm'.
+         eapply elem_of_weaken in Hm'; last done.
+         rewrite elem_of_set_seq in Hm'. lia.
+       * iIntros "(HK & Hf & Hg)".
+         do 3 wp_pure.
+         iEval (rewrite -refines_right_bind /=) in "HK".
+         do 3 tp_pure.
+         replace (Z.of_nat _ - 1)%Z with (Z.of_nat k')%Z; last lia.
+         iApply ("IH" with "[][][][][][][][][$]"); try done.
+         -- iPureIntro. lia.
+         -- iPureIntro. lia.
+         -- simpl. iPureIntro. apply Req_le. rewrite fold_symmetric; try (intros; lia).
+            replace (S _)  with (n-k'); first done. lia.
+     + wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ m2
+                  with "[$Hε $Hg $Hf $HK]"); [done|done|pose proof(fin_to_nat_lt m2); lia|..].
+       * intros. apply not_elem_of_dom_1. intro.
+         eassert (n' ∈ (set_seq 0 (S val_size))).
+         { eapply elem_of_weaken; exact. }
+         rewrite elem_of_set_seq in H2. lia.
+       * pose proof list_pigeonhole _ _ Hsubseteq as H0.
+         pose proof Nat.lt_ge_cases  (S val_size) (length l) as [H1|H1]; try lia.
+         rewrite fmap_length seq_length in H0.
+         specialize (H0 H1).
+         destruct H0 as (?&?&?&?&?&?).
+         eapply NoDup_lookup in HNoDup; [|exact H2|exact H3].
+         subst. lia.
+       * simpl. rewrite Rdiv_def. f_equal. rewrite minus_INR; last lia.
+         rewrite Rdiv_def. apply Rmult_le_compat_r; first pose proof pos_INR_S val_size as H0.
+         { rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra. done. }
+         
+         admit.
+         (* erewrite Hlen. replace (_-INR _)%R with (INR (n- S k')). *)
+         (* { rewrite minus_INR; [lra|lia]. } *)
+         (* rewrite (minus_INR (S _)); last lia. *)
+         (* rewrite Rminus_def. rewrite Ropp_minus_distr Rplus_minus_assoc Rplus_comm. *)
+         (* rewrite <-Rplus_minus_assoc. replace (_-_)%R with 0%R; try lra. *)
+         (* symmetry. apply Rcomplements.Rminus_eq_0. *)
+       * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
+         iEval (rewrite -refines_right_bind /=) in "HK".
+         do 3 wp_pure.
+         do 3 tp_pure.
+         assert (#(S k' - 1) = #k') as ->.
+         {
+           do 3 f_equal. lia.
+         }
+         iApply ("IH" with "[][][][][][][][][$Hε' $Hf $HK $Hg][HΦ]").
+         -- iPureIntro; lia.
+         -- done.
+         -- iPureIntro.
+            apply le_S_n.
+            replace (S (S _ - _)) with (S val_size - (n - S k')) by lia.
+            admit.
+            (* rewrite -Hlen. rewrite Hperm. *)
+            (* rewrite !app_length cons_length. lia. *)
+         -- iPureIntro. subst. apply NoDup_app. apply NoDup_app in HNoDup.
+            destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup. set_solver.
+         -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
+         -- iPureIntro. intro. subst. rewrite map_img_insert_notin; last done.
+            rewrite elem_of_union elem_of_app. intros [|] [|]; subst.
+            ++ set_unfold. subst. apply NoDup_app in HNoDup. set_solver. 
+            ++ set_unfold. subst. apply NoDup_app in HNoDup.
+               destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup.
+               set_solver.
+            ++ eapply Hdom; set_solver.
+            ++ eapply Hdom; set_solver.
+         -- iPureIntro. intros. subst.
+            rewrite dom_insert_L.
+            apply union_least; last done.
+            rewrite singleton_subseteq_l.
+            rewrite elem_of_set_seq.
+            pose proof (fin_to_nat_lt m2).
+            lia.
+         -- simpl. rewrite Rdiv_def. iPureIntro. repeat f_equal. rewrite fold_symmetric; try (intros; lia).
+            apply Req_le. replace (S _)  with (n-k'); first done. lia.
+         -- iModIntro; done.
+            Unshelve.
+            ++ apply Rcomplements.Rdiv_le_0_compat.
+               ** apply pos_INR.
+               ** apply pos_INR_S.
+            ++ apply Rcomplements.Rdiv_le_0_compat.
+               ** clear. remember (seq _ _) as l. clear Heql.
+                  induction l.
+                  --- simpl. done.
+                  --- simpl. rewrite plus_INR. apply Rplus_le_le_0_compat; last done.
+                      apply pos_INR.
+               ** apply pos_INR_S.
+            ++ apply gset_semi_set.
 Admitted.
- (*     iMod (ec_zero). *)
- (*     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero); first done. *)
- (*     { lra. } *)
- (*     { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. } *)
 
- (*     iFrame. *)
- (*     iIntros "!>" (n2 m2 ->) "HK". *)
- (*     iEval (rewrite -refines_right_bind /=) in "HK". *)
-
- (*     wp_pures. *)
- (*     wp_pures. *)
- (*     tp_pures. *)
- (*     wp_bind (f _). *)
- (*     tp_bind (g _). *)
- (*     iEval (rewrite refines_right_bind) in "HK". *)
- (*     wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ m2  *)
- (*                with "[$]"); first done. *)
- (*     { apply lookup_empty. } *)
- (*     { pose proof (fin_to_nat_lt m2); lia. } *)
- (*     { intros; apply lookup_empty. } *)
- (*     { rewrite fmap_length seq_length. *)
- (*       rewrite Rminus_diag /Rdiv Rmult_0_l /=//. *)
- (*     } *)
-
- (*     iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))". *)
- (*     iEval (rewrite -refines_right_bind /=) in "HK". *)
- (*     do 3 wp_pure. *)
- (*     do 3 tp_pure. *)
- (*     assert (#(S m - 1) = #m) as ->. *)
- (*     { *)
- (*       do 3 f_equal. lia. *)
- (*     } *)
- (*     iAssert (€ _ ∗ € (mknonnegreal (m/S val_size)%R _))%I with "[Herr]" as "[Herr1 Herr2]". *)
- (*     { iApply ec_split. replace (_+_)%NNR with ε; first done. *)
- (*       apply nnreal_ext. rewrite -Hε. rewrite seq_S fold_left_app. *)
- (*       rewrite plus_INR Rdiv_plus_distr. apply Rplus_eq_compat_r. *)
- (*       instantiate (1 := mknonnegreal _ _). done. *)
- (*       Unshelve. *)
- (*       - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
- (*         apply pos_INR_S. *)
- (*       - apply Rcomplements.Rdiv_le_0_compat; first apply pos_INR. *)
- (*         apply pos_INR_S. *)
- (*     } *)
- (*     iApply ("IH" with "[][Herr1][HΦ][Hf][HK]"); try done. *)
- (*     + iPureIntro. by simpl. *)
- (*     + admit. *)
- (*     + admit. *)
-
- Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
+  Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
     ↑specN ⊆ E →
     (INR(fold_left (Nat.add) (seq 0 n) 0%nat) / INR (S val_size))%R = ε ->
     {{{ refines_right K (test_prp #n) ∗ € ε }}}
@@ -712,11 +799,14 @@ Admitted.
 
    do 5 tp_pure.
    do 3 wp_pure.
-   wp_apply (wp_prf_prp_test_err_ind with "[$Herr $Hf $HK $Hg]"); [|done| |done|..|done].
+   wp_apply (wp_prf_prp_test_err_ind with "[$Herr $Hf $HK $Hg]"); [|done|..|done].
    - split; first lia. done.
    - rewrite fmap_length seq_length. lia.
-   - intros. done.
-   - replace (_-_) with 0; try lia. done.
+   - intros. apply NoDup_fmap_2; last apply NoDup_seq. apply Nat2Z.inj'.
+   - intros; set_solver.
+   - set_solver.
+   - set_solver.
+   - replace (_-_) with 0; try lia. rewrite <-Hε. done.
  Qed.
    
 
