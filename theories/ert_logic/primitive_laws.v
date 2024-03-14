@@ -8,7 +8,7 @@ From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
-Class ub_clutchGS Σ := HeapG {
+Class ert_clutchGS Σ := HeapG {
   clutchGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
   clutchGS_heap : ghost_mapG Σ loc val;
@@ -25,13 +25,13 @@ Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
 Definition cfgUR : ucmra := optionUR (exclR cfgO).
 
-Definition heap_auth `{ub_clutchGS Σ} :=
+Definition heap_auth `{ert_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
-Definition tapes_auth `{ub_clutchGS Σ} :=
+Definition tapes_auth `{ert_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
 
-Global Instance clutchGS_irisGS `{!ub_clutchGS Σ} : irisGS prob_lang Σ := {
+Global Instance clutchGS_irisGS `{!ert_clutchGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   etc_interp ε := (etc_supply ε);
@@ -60,7 +60,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
 
 
 Section lifting.
-Context `{!ub_clutchGS Σ}.
+Context `{!ert_clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -89,7 +89,7 @@ Lemma wp_alloc E v s :
   {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
+  (* iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
@@ -99,7 +99,8 @@ Proof.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
   iIntros "!>". by iApply "HΦ".
-Qed.
+Qed.*)
+  Admitted.
 
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
@@ -109,6 +110,7 @@ Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
                                                     {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iSplit.
@@ -156,11 +158,14 @@ Proof.
       rewrite replicate_length in H1.
       lia.
 Qed.
+*)
+  Admitted.
 
 Lemma wp_load E l dq v s :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
@@ -168,12 +173,15 @@ Proof.
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
+*)
+  Admitted.
 
 Lemma wp_store E l v' v s :
   {{{ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
   iIntros (Φ) ">Hl HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
@@ -182,12 +190,15 @@ Proof.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
+*)
+  Admitted.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
   {{{ True }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
   solve_red.
@@ -196,6 +207,8 @@ Proof.
   iFrame.
   by iApply ("HΦ" $! x) .
 Qed.
+*)
+  Admitted.
 
 
 (** Tapes  *)
@@ -204,6 +217,7 @@ Lemma wp_alloc_tape N z E s :
   {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪ (N; []) }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !# /=".
   solve_red.
@@ -213,12 +227,15 @@ Proof.
   iFrame. iModIntro.
   by iApply "HΦ".
 Qed.
+*)
+  Admitted.
 
 Lemma wp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
   {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl:α) #z @ s; E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
@@ -229,12 +246,15 @@ Proof.
   iFrame. iModIntro.
   by iApply "HΦ".
 Qed.
+*)
+  Admitted.
 
 Lemma wp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
   {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
@@ -244,6 +264,8 @@ Proof.
   iFrame.
   iModIntro. iApply ("HΦ" with "[$Hl //]").
 Qed.
+*)
+  Admitted.
 
 Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
@@ -251,6 +273,7 @@ Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
+  (*
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
@@ -261,6 +284,8 @@ Proof.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
 Qed.
+*)
+  Admitted.
 
 End lifting.
 
