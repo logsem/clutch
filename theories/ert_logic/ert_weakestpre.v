@@ -23,7 +23,7 @@ Local Open Scope NNR_scope.
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :: invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
-  etc_interp : NNRbar → iProp Σ;
+  etc_interp : nonnegreal → iProp Σ;
 }.
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
@@ -44,8 +44,8 @@ Qed.
 Section ERM.
   Context `{!irisGS Λ Σ}.
 
-  Implicit Types x : NNRbar.
-  Implicit Types Z : cfg Λ → NNRbar → iProp Σ.
+  Implicit Types x : nonnegreal.
+  Implicit Types Z : cfg Λ → nonnegreal → iProp Σ.
 
 
 
@@ -89,7 +89,7 @@ Section ERM.
      Qed. *)
 
 
-  Definition exec_stutter (P : NNRbar -> iProp Σ) x : iProp Σ := (⌜ x = p_infty ⌝ ∨ (P x))%I.
+  (* Definition exec_stutter (P : NNRbar -> iProp Σ) x : iProp Σ := (⌜ x = p_infty ⌝ ∨ (P x))%I. *)
   (* Lemma exec_stutter_compat P ε : ⊢ (exec_stutter_1 P ε → exec_stutter P ε).
      Proof.
        rewrite /exec_stutter_1.
@@ -129,47 +129,47 @@ Section ERM.
          destruct ε1; destruct ε2; simpl; lra.
      Qed. *)
 
-  Lemma exec_stutter_mono_grading P x x' :
-    ⌜(NNRbar_le x x')⌝ -∗
-    exec_stutter P x -∗ exec_stutter P x'.
-  Proof.
-  (*   iIntros "% [%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
-       iExists R, ε1, ε2.
-       iSplitR; [ iPureIntro; lra |].
-       iSplitR; [ done |].
-       iIntros; iApply "HΦ"; done.
-     Qed. *)
-  Admitted.
+  (* Lemma exec_stutter_mono_grading P x x' :
+       ⌜(NNRbar_le x x')⌝ -∗
+       exec_stutter P x -∗ exec_stutter P x'.
+     Proof.
+     (*   iIntros "% [%R [%ε1 [%ε2 (%Hsum & %Hlift & HΦ)]]]".
+          iExists R, ε1, ε2.
+          iSplitR; [ iPureIntro; lra |].
+          iSplitR; [ done |].
+          iIntros; iApply "HΦ"; done.
+        Qed. *)
+     Admitted.
 
-  Lemma exec_stutter_mono_pred P Q x :
-    (∀ x', P x' -∗ Q x') -∗
-    exec_stutter P x -∗ exec_stutter Q x.
-  Proof.
-  (*   iIntros "Hwand [%R [%ε1 [%ε2 (%Hsum & %Hlift & HΨ)]]]".
-       iExists R, ε1, ε2.
-       iSplitR; [iPureIntro; simpl; lra|].
-       iSplitR; [eauto|].
-       iIntros.
-       iApply "Hwand".
-       iApply "HΨ".
-       iPureIntro.
-       done.
-     Qed. *)
-  Admitted.
+     Lemma exec_stutter_mono_pred P Q x :
+       (∀ x', P x' -∗ Q x') -∗
+       exec_stutter P x -∗ exec_stutter Q x.
+     Proof.
+     (*   iIntros "Hwand [%R [%ε1 [%ε2 (%Hsum & %Hlift & HΨ)]]]".
+          iExists R, ε1, ε2.
+          iSplitR; [iPureIntro; simpl; lra|].
+          iSplitR; [eauto|].
+          iIntros.
+          iApply "Hwand".
+          iApply "HΨ".
+          iPureIntro.
+          done.
+        Qed. *)
+     Admitted. *)
 
 
-  Definition ERM_pre (Z : cfg Λ → NNRbar → iProp Σ) (Φ : cfg Λ * NNRbar → iProp Σ) :=
-    (λ (ρx : cfg Λ * NNRbar),
+  Definition ERM_pre (Z : cfg Λ → nonnegreal → iProp Σ) (Φ : cfg Λ * nonnegreal → iProp Σ) :=
+    (λ (ρx : cfg Λ * nonnegreal),
       let '((e1, σ1), x) := ρx in
       (* [prim_step] with adv composition *)
-      (∃ (X2 : cfg Λ -> NNRbar),
+      (∃ (X2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
-          (* ⌜ exists r, forall ρ, (x2 ρ <= r)%R ⌝ ∗ *)
+          ⌜ exists r, forall ρ, (X2 ρ <= r)%R ⌝ ∗
           ⌜ (1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * X2(ρ)) <= x)%R ⌝ ∗
-            ∀ e2 σ2, ⌜ (prim_step e1 σ1 (e2, σ2) > 0)%R ⌝ ={∅}=∗ exec_stutter (fun x' => Z (e2, σ2) x') (X2 (e2, σ2))) (* ∨
+            ∀ e2 σ2, ⌜ (prim_step e1 σ1 (e2, σ2) > 0)%R ⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))) (* ∨
          (* [state_step] with adv composition*)
          ([∨ list] α ∈ get_active σ1,
-           (∃ R (x1 : NNRbar) (x2 : cfg Λ -> NNRbar),
+           (∃ R (x1 : nonnegreal) (x2 : cfg Λ -> nonnegreal),
              ⌜ exists r, forall ρ, (x2 ρ <= r)%R ⌝ ∗
              ⌜ (x1 + SeriesC (λ σ2, (state_step σ1 α σ2) * x2 (e1, σ2)) <= x)%R ⌝ ∗
              ⌜ub_lift (state_step σ1 α) R x1⌝ ∗
@@ -178,7 +178,7 @@ Section ERM.
 
 
   (* TODO: Define this globally, it appears in error credits too *)
-  Canonical Structure NNRbarO := leibnizO NNRbar.
+  Canonical Structure nonnegrealO := leibnizO nonnegreal.
 
   Local Instance exec_state_ub_pre_NonExpansive Z Φ :
     NonExpansive (ERM_pre Z Φ).
@@ -217,21 +217,18 @@ Section ERM.
   Definition ERM' Z := bi_least_fixpoint (ERM_pre Z).
   Definition ERM e σ x Z := ERM' Z ((e, σ), x).
 
-  Definition sup f :=
-               (Lim_seq.Lim_seq (Hierarchy.sum_n (λ a, Rbar_of_NNRbar (countable_sum f a)))).
-
-  Lemma ERM_unfold (e1 : exprO Λ) (σ1 : stateO Λ) Z (x : NNRbarO) :
+  Lemma ERM_unfold (e1 : exprO Λ) (σ1 : stateO Λ) Z (x : nonnegrealO) :
     ERM e1 σ1 x Z ≡
       (
       (* [prim_step] with adv composition *)
-      (∃ (X2 : cfg Λ -> NNRbar),
+      (∃ (X2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
-          (* ⌜ exists r, forall ρ, (x2 ρ <= r)%R ⌝ ∗ *)
+          ⌜ exists r, forall ρ, (X2 ρ <= r)%R ⌝ ∗
           ⌜ (1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * X2(ρ)) <= x)%R ⌝ ∗
-            ∀ e2 σ2, ⌜ (prim_step e1 σ1 (e2, σ2) > 0)%R ⌝ ={∅}=∗ exec_stutter (fun x' => Z (e2, σ2) x') (X2 (e2, σ2))) (* ∨
+            ∀ e2 σ2, ⌜ (prim_step e1 σ1 (e2, σ2) > 0)%R ⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))) (* ∨
          (* [state_step] with adv composition*)
          ([∨ list] α ∈ get_active σ1,
-           (∃ R (x1 : NNRbar) (x2 : cfg Λ -> NNRbar),
+           (∃ R (x1 : nonnegreal) (x2 : cfg Λ -> nonnegreal),
              ⌜ exists r, forall ρ, (x2 ρ <= r)%R ⌝ ∗
              ⌜ (x1 + SeriesC (λ σ2, (state_step σ1 α σ2) * x2 (e1, σ2)) <= x)%R ⌝ ∗
              ⌜ub_lift (state_step σ1 α) R x1⌝ ∗
@@ -256,144 +253,145 @@ Section ERM.
   Local Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
   
   Lemma ERM_mono_grading e σ Z x x' :
-    ⌜(NNRbar_le x x')⌝ -∗
+    ⌜(x <= x')%R⌝ -∗
     ERM e σ x Z -∗ ERM e σ x' Z.
   Proof.
     iIntros "Hleq H_ub". iRevert "Hleq".
     rewrite /ERM /ERM'.
-    set (Φ := (λ ρx : prodO cfgO NNRbarO, ∀ (x'' : NNRbar), ((⌜(NNRbar_le ρx.2 x'' )⌝ -∗ (bi_least_fixpoint (ERM_pre Z) (ρx.1, x'')))))%I : prodO cfgO NNRbarO → iPropI Σ).
+    set (Φ := (λ ρx : prodO cfgO nonnegrealO, ∀ (x'' : nonnegreal), ((⌜(ρx.2 <= x'' )%R⌝ -∗ (bi_least_fixpoint (ERM_pre Z) (ρx.1, x'')))))%I : prodO cfgO nonnegrealO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n ((?&?)&?) ((?&?)&?) [ [[=] [=]] [=]]. by simplify_eq. }
     iPoseProof (least_fixpoint_ind (ERM_pre Z) Φ with "[]") as "H"; last first.
     { iApply ("H" with "H_ub"). }
     iIntros "!#" ([[? σ'] x'']). rewrite /ERM_pre.
-    iIntros "(% & % & % & H) %x3 %Hleq' /="; simpl in Hleq'.
+    iIntros "(% & % & % & % & H) %x3 %Hleq' /="; simpl in Hleq'.
     (* iIntros "[ (% & % & % & % & % & % & % & H) | H] %x3 %Hleq' /="; simpl in Hleq'. *)
     - rewrite least_fixpoint_unfold.
       (* iLeft. *)
       iExists _.
-      iSplit; try done ; iSplit ; try done.
-      iPureIntro. etrans. ; done.
-    - rewrite least_fixpoint_unfold.
-      iRight.
-      iInduction (get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %x1 & %x2 & (%Hleq2 & %Hub & %Hlift & H )) | Ht]".
-      + iLeft.
-        iExists R2. iExists x1. iExists x2.
-        iSplit; [auto|].
-        iSplit; [ iPureIntro; lra | ].
-        iSplit; [ done | ].
-        iIntros.
-        rewrite /ERM_pre.
-        iClear "IH".
-        iMod ("H" with "[//]").
-        iModIntro.
-        iApply (exec_stutter_mono_pred); [|eauto].
-        iIntros (?) "[_ ?]".
-        iFrame.
-      + iRight. by iApply ("IH" with "Ht").
+      repeat (iSplit; try done).
+      iPureIntro. etrans. 2: exact Hleq'. done.
+    (* - rewrite least_fixpoint_unfold.
+         iRight.
+         iInduction (get_active σ') as [| l] "IH".
+         { rewrite big_orL_nil //. }
+         rewrite 2!big_orL_cons.
+         iDestruct "H" as "[(%R2 & %x1 & %x2 & (%Hleq2 & %Hub & %Hlift & H )) | Ht]".
+         + iLeft.
+           iExists R2. iExists x1. iExists x2.
+           iSplit; [auto|].
+           iSplit; [ iPureIntro; lra | ].
+           iSplit; [ done | ].
+           iIntros.
+           rewrite /ERM_pre.
+           iClear "IH".
+           iMod ("H" with "[//]").
+           iModIntro.
+           iApply (exec_stutter_mono_pred); [|eauto].
+           iIntros (?) "[_ ?]".
+           iFrame.
+         + iRight. by iApply ("IH" with "Ht"). *)
   Qed.
 
-  Lemma ERM_strong_mono e1 σ1 Z1 Z2 ε ε' :
-    ⌜(ε <= ε')%R⌝ -∗
-    (∀ e2 σ2 ε'', (⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) ε'' -∗ Z2 (e2, σ2) ε'')) -∗
-    ERM e1 σ1 ε Z1 -∗ ERM e1 σ1 ε' Z2.
+  Lemma ERM_strong_mono e1 σ1 Z1 Z2 x x' :
+    ⌜(x <= x')%R⌝ -∗
+    (∀ e2 σ2 x'', (⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) x'' -∗ Z2 (e2, σ2) x'')) -∗
+    ERM e1 σ1 x Z1 -∗ ERM e1 σ1 x' Z2.
   Proof.
     iIntros "%Hleq HZ H_ub".
     iApply ERM_mono_grading; auto.
     iRevert "HZ".
     rewrite /ERM /ERM'.
-    set (Φ := (λ x,(∀ e2 σ2 ε'', ⌜∃ σ, (prim_step x.1.1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) ε'' -∗ Z2 (e2, σ2) ε'') -∗
-                  (bi_least_fixpoint (ERM_pre Z2) x ))%I : prodO cfgO NNRO → iPropI Σ).
+    set (Φ := (λ ρx, (∀ e2 σ2 x'', ⌜∃ σ, (prim_step ρx.1.1 σ (e2, σ2) > 0)%R⌝ ∗ Z1 (e2, σ2) x'' -∗ Z2 (e2, σ2) x'') -∗
+                  (bi_least_fixpoint (ERM_pre Z2) ρx ))%I : prodO cfgO nonnegrealO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter (ERM_pre Z1) Φ with "[]") as "H"; last first.
     { by iApply ("H" with "H_ub"). }
-    iIntros "!#" ([[? σ'] ε'']). rewrite /ERM_pre.
-    iIntros "[ (% & % & % & % & % & % & % & H) | H] HZ /=".
+    iIntros "!#" ([[? σ'] x'']). rewrite /ERM_pre.
+    (* iIntros "[ (% & % & % & % & % & % & % & H) | H] HZ /=". *)
+    iIntros "(% & % & % & % & H) HZ /=".
     - rewrite least_fixpoint_unfold.
-      iLeft.
-      iExists _,_,_.
+      (* iLeft. *)
+      iExists _.
       iSplit; [done|].
       iSplit; [done|].
       iSplit; [done|].
-      iSplit.
-      { iPureIntro.
-        by apply ub_lift_pos_R. }
-      iIntros (? ? (?&?)). iMod ("H" with "[//]").
+      (* iSplit. *)
+      (* { iPureIntro.
+           by apply ub_lift_pos_R. } *)
+      iIntros (? ? ?). iMod ("H" with "[//]").
       iModIntro.
-      iApply (exec_stutter_mono_pred with "[HZ]"); [|eauto].
+      (* iApply (exec_stutter_mono_pred with "[HZ]"); [|eauto]. *)
       simpl.
-      iIntros (?) "?".
+      (* iIntros (?) "?". *)
       iApply "HZ". eauto.
-    - rewrite least_fixpoint_unfold.
-      iRight.
-      iInduction (get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & % & H)) | Ht]".
-      + iLeft. iExists R2. iExists ε1. iExists ε2.
-        iSplit; [auto | ].
-        iSplit; [iPureIntro; lra | ].
-        iSplit; [done | ].
-        iIntros.
-        iMod ("H" with "[//]") as "H".
-        iModIntro.
-        iApply (exec_stutter_mono_pred with "[HZ]"); [|eauto].
-        iIntros (?) "H".
-        rewrite /Φ.
-        iApply "H".
-        iFrame.
-      + iRight. by iApply ("IH" with "Ht").
+    (* - rewrite least_fixpoint_unfold.
+         iRight.
+         iInduction (get_active σ') as [| l] "IH".
+         { rewrite big_orL_nil //. }
+         rewrite 2!big_orL_cons.
+         iDestruct "H" as "[(%R2 & %x1 & %x2 & (% & % & % & H)) | Ht]".
+         + iLeft. iExists R2. iExists x1. iExists x2.
+           iSplit; [auto | ].
+           iSplit; [iPureIntro; lra | ].
+           iSplit; [done | ].
+           iIntros.
+           iMod ("H" with "[//]") as "H".
+           iModIntro.
+           iApply (exec_stutter_mono_pred with "[HZ]"); [|eauto].
+           iIntros (?) "H".
+           rewrite /Φ.
+           iApply "H".
+           iFrame.
+         + iRight. by iApply ("IH" with "Ht"). *)
   Qed.
 
-  Lemma ERM_mono Z1 Z2 e1 σ1 ε1 ε2 :
-    ⌜(ε1 <= ε2)%R⌝ -∗ (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ ERM e1 σ1 ε1 Z1 -∗ ERM e1 σ1 ε2 Z2.
+  Lemma ERM_mono Z1 Z2 e1 σ1 x1 x2 :
+    ⌜(x1 <= x2)%R⌝ -∗ (∀ ρ x, Z1 ρ x -∗ Z2 ρ x) -∗ ERM e1 σ1 x1 Z1 -∗ ERM e1 σ1 x2 Z2.
   Proof.
     iIntros "%Hleq HZ". iApply ERM_strong_mono; auto.
     iIntros (???) "[_ ?]". by iApply "HZ".
   Qed.
 
-  Lemma exec_ub_mono_pred Z1 Z2 e1 σ1 ε :
-    (∀ ρ ε, Z1 ρ ε -∗ Z2 ρ ε) -∗ exec_ub e1 σ1 ε Z1 -∗ exec_ub e1 σ1 ε Z2.
+  Lemma ERM_mono_pred Z1 Z2 e1 σ1 x :
+    (∀ ρ x, Z1 ρ x -∗ Z2 ρ x) -∗ ERM e1 σ1 x Z1 -∗ ERM e1 σ1 x Z2.
   Proof.
-    iIntros "HZ". iApply exec_ub_strong_mono; auto.
+    iIntros "HZ". iApply ERM_strong_mono; auto.
     iIntros (???) "[_ ?]". by iApply "HZ".
   Qed.
 
-  Lemma exec_ub_strengthen e1 σ1 Z ε :
-    exec_ub e1 σ1 ε Z -∗
-    exec_ub e1 σ1 ε (λ '(e2, σ2) ε', ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z (e2, σ2) ε').
+  Lemma ERM_strengthen e1 σ1 Z ε :
+    ERM e1 σ1 ε Z -∗
+    ERM e1 σ1 ε (λ '(e2, σ2) ε', ⌜∃ σ, (prim_step e1 σ (e2, σ2) > 0)%R⌝ ∧ Z (e2, σ2) ε').
   Proof.
-    iApply exec_ub_strong_mono; [iPureIntro; lra | ].
+    iApply ERM_strong_mono; [iPureIntro; lra | ].
     iIntros (???) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
 
 
-  Lemma exec_ub_bind K `{!LanguageCtx K} e1 σ1 Z ε :
+  Lemma ERM_bind K `{!LanguageCtx K} e1 σ1 Z ε :
     to_val e1 = None →
-    exec_ub e1 σ1 ε (λ '(e2, σ2) ε', Z (K e2, σ2) ε') -∗ exec_ub (K e1) σ1 ε Z.
+    ERM e1 σ1 ε (λ '(e2, σ2) ε', Z (K e2, σ2) ε') -∗ ERM (K e1) σ1 ε Z.
   Proof.
     iIntros (Hv) "Hub".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|].
     iRevert "H".
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, ⌜to_val x.1.1 = None⌝ -∗
-                     bi_least_fixpoint (exec_ub_pre Z) ((K x.1.1, x.1.2), x.2))%I
-           : prodO cfgO NNRO → iPropI Σ).
+    rewrite /ERM /ERM'.
+    set (Φ := (λ ρx, ⌜to_val ρx.1.1 = None⌝ -∗
+                     bi_least_fixpoint (ERM_pre Z) ((K ρx.1.1, ρx.1.2), ρx.2))%I
+           : prodO cfgO nonnegrealO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter
-                  (exec_ub_pre (λ '(e2, σ2) ε', Z (K e2, σ2) ε')) Φ
+                  (ERM_pre (λ '(e2, σ2) ε', Z (K e2, σ2) ε')) Φ
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), _) with "Hub [//]"). }
-    iIntros "!#" ([[? σ'] ε']). rewrite /exec_ub_pre.
-    iIntros " [ (% & % & % & % & (%r & %Hr) & % & % & H) | H ] %Hv'".
+    iIntros "!#" ([[? σ'] ε']). rewrite /ERM_pre.
+    iIntros " (% & (%r & %Hr) & % & % & H) %Hv'".
     - rewrite least_fixpoint_unfold.
-      iLeft. simpl.
+      simpl.
       destruct (partial_inv_fun K) as (Kinv & HKinv).
       assert (forall e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
       assert (forall e e', Kinv e = None -> K e' ≠ e) as HKinv2; [intros; by apply HKinv |].
@@ -402,17 +400,18 @@ Section ERM.
         destruct (Kinv (K e)) eqn:H3.
         - apply HKinv1 in H3. f_equal. by apply fill_inj.
         - eapply (HKinv2 _ e) in H3. done. }
-      set (ε3 := (λ '(e,σ), from_option (λ e', ε2 (e',σ)) nnreal_zero (Kinv e))).
-      assert (forall e2 σ2, ε3 (K e2, σ2) = ε2 (e2, σ2)) as Haux.
+      set (x3 := (λ '(e,σ), from_option (λ e', X2 (e',σ)) nnreal_zero (Kinv e))).
+      assert (forall e2 σ2, x3 (K e2, σ2) = X2 (e2, σ2)) as Haux.
       {
         intros e2 σ2.
-        rewrite /ε3 HKinv3 //.
+        rewrite /x3 HKinv3 //.
       }
-      iExists (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_,ε3.
-      iSplit; [iPureIntro; by apply reducible_fill|].
+      iExists (* (λ '(e2, σ2), ∃ e2', e2 = K e2' ∧ R2 (e2', σ2)),_, *)
+        x3.
+      iSplit. { iPureIntro. apply reducible_fill. simpl. }
       iSplit.
       {
-        iPureIntro. exists r. intros (e&σ). rewrite /ε3.
+        iPureIntro. exists r. intros (e&σ). rewrite /x3.
         destruct (Kinv e); simpl; try real_solver.
         etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
       }
@@ -431,7 +430,7 @@ Section ERM.
       + iPureIntro.
         etrans; [ | apply H1].
         apply Rplus_le_compat_l.
-        transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * ε3 (K e, σ))%R)).
+        transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * x3 (K e, σ))%R)).
         * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
           ** apply SeriesC_le.
              *** intros (e & σ); simpl; split.
@@ -446,7 +445,7 @@ Section ERM.
                             --  apply Rnot_gt_le in Hngt.
                                 assert (prim_step (K o) σ' (e, σ) = 0); [by apply Rle_antisym | ].
                                 lra.
-            *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * ε3 (e, σ))%R)).
+            *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * x3 (e, σ))%R)).
                 **** intros (e & σ); simpl; split.
                      ***** destruct (Kinv e); simpl; try lra.
                            apply Rmult_le_pos; auto.
@@ -458,7 +457,7 @@ Section ERM.
                      intros (e&σ); split.
                      ***** apply Rmult_le_pos; auto.
                            apply cond_nonneg.
-                     ***** rewrite /ε3. destruct (Kinv e); simpl; try real_solver.
+                     ***** rewrite /x3. destruct (Kinv e); simpl; try real_solver.
                            apply Rmult_le_compat_l; auto.
                            etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
          ** intros [].
@@ -473,7 +472,7 @@ Section ERM.
             *** intros (e&σ); split.
                 **** apply Rmult_le_pos; auto.
                      apply cond_nonneg.
-                **** rewrite /ε3 HKinv3 /=. real_solver.
+                **** rewrite /x3 HKinv3 /=. real_solver.
             *** apply (ex_seriesC_ext (λ ρ, ((prim_step o σ' ρ) * r)%R)); auto.
                 **** intros []. apply Rmult_eq_compat_r. by apply fill_step_prob.
                 **** by apply ex_seriesC_scal_r.
@@ -500,16 +499,16 @@ Section ERM.
       iInduction (get_active σ') as [| l ls] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hub & %Hleq & %Hlift & H)) | Ht]".
-      + set (ε3 := (λ '(e,σ), from_option (λ e', ε2 (e',σ)) nnreal_zero (Kinv e))).
-        assert (forall e2 σ2, ε3 (K e2, σ2) = ε2 (e2, σ2)) as Haux.
-        { intros e2 σ2. rewrite /ε3 HKinv3 //. }
+      iDestruct "H" as "[(%R2 & %x1 & %x2 & (%Hub & %Hleq & %Hlift & H)) | Ht]".
+      + set (x3 := (λ '(e,σ), from_option (λ e', x2 (e',σ)) nnreal_zero (Kinv e))).
+        assert (forall e2 σ2, x3 (K e2, σ2) = x2 (e2, σ2)) as Haux.
+        { intros e2 σ2. rewrite /x3 HKinv3 //. }
         iLeft.
-        iExists R2,_,ε3.
+        iExists R2,_,x3.
         iSplit.
         { iPureIntro.
           destruct Hub as [r Hr]; exists r.
-          intros (e&σ). rewrite /ε3.
+          intros (e&σ). rewrite /x3.
           destruct (Kinv e); simpl; try real_solver.
           etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg.
         }
@@ -522,7 +521,7 @@ Section ERM.
           { destruct Hub as [r Hr].
             apply (ex_seriesC_le _ (λ ρ, (state_step σ' l ρ * r)%R)).
             - intros; split.
-              + apply Rmult_le_pos; [apply pmf_pos | by destruct (ε2 _ )].
+              + apply Rmult_le_pos; [apply pmf_pos | by destruct (x2 _ )].
               + apply Rmult_le_compat_l; auto; apply pmf_pos.
             - apply ex_seriesC_scal_r.
               apply pmf_ex_seriesC.
@@ -536,7 +535,7 @@ Section ERM.
           iSpecialize ("H" $! σ).
           iIntros "Hr"; iSpecialize ("H" with "Hr").
           iMod "H"; iModIntro.
-          rewrite /ε3 HKinv3 /=.
+          rewrite /x3 HKinv3 /=.
           simpl.
           iClear "IH".
           iApply (exec_stutter_mono_pred with "[]"); [|eauto].
@@ -547,13 +546,13 @@ Section ERM.
   Qed.
 
 
-  Lemma exec_ub_prim_step e1 σ1 Z ε :
+  Lemma ERM_prim_step e1 σ1 Z ε :
     (∃ R ε1 ε2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
           ∀ e2 σ2 , ⌜R (e2, σ2)⌝ ={∅}=∗ Z (e2, σ2) ε2)
-    ⊢ exec_ub e1 σ1 ε Z.
+    ⊢ ERM e1 σ1 ε Z.
   Proof.
     iIntros "(%R&%ε1&%ε2&%&%&%&H)".
-    rewrite exec_ub_unfold.
+    rewrite ERM_unfold.
     iLeft.
     iExists R, ε1, (λ _, ε2).
     repeat iSplit; try done.
@@ -563,16 +562,16 @@ Section ERM.
   Qed. 
 
 
-  Lemma exec_ub_adv_comp e1 σ1 Z (ε : nonnegreal) :
+  Lemma ERM_adv_comp e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2)))
-    ⊢ exec_ub e1 σ1 ε Z.
+    ⊢ ERM e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & % & % & % & H)".
-    rewrite {1}exec_ub_unfold.
+    rewrite {1}ERM_unfold.
     iLeft.
     iExists _,_,_.
     iSplit; [done|].
@@ -582,16 +581,16 @@ Section ERM.
   Qed.
 
 
-  Lemma exec_ub_adv_comp' e1 σ1 Z (ε : nonnegreal) :
+  Lemma ERM_adv_comp' e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R nnreal_zero⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2)⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2)))
-    ⊢ exec_ub e1 σ1 ε Z.
+    ⊢ ERM e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & %Hε & % & H)".
-    rewrite {1}exec_ub_unfold.
+    rewrite {1}ERM_unfold.
     iLeft.
     iExists _,nnreal_zero,_.
     iSplit; [done|].
@@ -604,14 +603,14 @@ Section ERM.
   Qed.
 
   (* TODO: Maybe allow weakening of the grading *)
-  Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
+  Lemma ERM_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
     (∃ R, ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
-          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 ε' Z)
-    ⊢ exec_ub e1 σ1 (ε + ε') Z.
+          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ ERM e1 σ2 ε' Z)
+    ⊢ ERM e1 σ1 (ε + ε') Z.
   Proof.
     iIntros (?) "(%&%&H)".
-    rewrite exec_ub_unfold. iRight.
+    rewrite ERM_unfold. iRight.
     iApply big_orL_elem_of; first done.
     iExists R2, ε, (λ _, ε').
     repeat iSplit; try done.
@@ -623,17 +622,17 @@ Section ERM.
 
 
   (* for state steps that consume zero error *)
-  Lemma exec_ub_state_adv_comp' α e1 σ1 Z (ε : nonnegreal) :
+  Lemma ERM_state_adv_comp' α e1 σ1 Z (ε : nonnegreal) :
     (α ∈ get_active σ1 ->
      (∃ R (ε2 : cfg Λ -> nonnegreal),
         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
         ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
         ⌜ub_lift (state_step σ1 α) R nnreal_zero⌝ ∗
-        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => exec_ub e1 σ2 ε' Z) (ε2 (e1, σ2)))
-      ⊢ exec_ub e1 σ1 ε Z)%I.
+        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => ERM e1 σ2 ε' Z) (ε2 (e1, σ2)))
+      ⊢ ERM e1 σ1 ε Z)%I.
   Proof.
     iIntros (?) "(% & % & % & %Hε & % & H)".
-    rewrite {1}exec_ub_unfold.
+    rewrite {1}ERM_unfold.
     iRight.
     iApply big_orL_elem_of; eauto.
     iExists _,nnreal_zero,_.
@@ -643,36 +642,36 @@ Section ERM.
     iSplit; [done|done].
   Qed.
 
-  Lemma exec_ub_strong_ind (Ψ : expr Λ → state Λ → nonnegreal → iProp Σ) Z :
+  Lemma ERM_strong_ind (Ψ : expr Λ → state Λ → nonnegreal → iProp Σ) Z :
     (∀ n e σ ε, Proper (dist n) (Ψ e σ ε)) →
-    ⊢ (□ (∀ e σ ε, exec_ub_pre Z (λ '((e, σ), ε), Ψ e σ ε ∧ exec_ub e σ ε Z)%I ((e, σ), ε) -∗ Ψ e σ ε) →
-       ∀ e σ ε, exec_ub e σ ε Z -∗ Ψ e σ ε)%I.
+    ⊢ (□ (∀ e σ ε, ERM_pre Z (λ '((e, σ), ε), Ψ e σ ε ∧ ERM e σ ε Z)%I ((e, σ), ε) -∗ Ψ e σ ε) →
+       ∀ e σ ε, ERM e σ ε Z -∗ Ψ e σ ε)%I.
   Proof.
     iIntros (HΨ). iIntros "#IH" (e σ ε) "H".
     set (Ψ' := (λ '((e, σ), ε), Ψ e σ ε):
-           (prodO (prodO (exprO Λ) (stateO Λ)) NNRO) → iProp Σ).
+           (prodO (prodO (exprO Λ) (stateO Λ)) nonnegrealO) → iProp Σ).
     assert (NonExpansive Ψ').
     { intros n [[e1 σ1]?] [[e2 σ2]?]
         [[?%leibniz_equiv ?%leibniz_equiv]?%leibniz_equiv].
       simplify_eq/=. f_equiv. }
-    rewrite /exec_ub/exec_ub'.
+    rewrite /ERM/ERM'.
     iApply (least_fixpoint_ind _ Ψ' with "[] H").
     iModIntro. iIntros ([[??]?]) "H". by iApply "IH".
   Qed. 
 
 
 (*
-  Lemma exec_ub_reducible e σ Z1 Z2 ε1 ε2 :
-    (exec_ub e σ ε1 Z1)  ={∅}=∗ ⌜irreducible e σ⌝ -∗ (exec_ub e σ ε2 Z2).
+  Lemma ERM_reducible e σ Z1 Z2 ε1 ε2 :
+    (ERM e σ ε1 Z1)  ={∅}=∗ ⌜irreducible e σ⌝ -∗ (ERM e σ ε2 Z2).
   Proof.
-    rewrite /exec_ub /exec_ub'.
-    set (Φ := (λ x, |={∅}=> ⌜irreducible x.2.1 x.2.2⌝ -∗ (exec_ub x.2.1 x.2.2 ε2 Z2))%I : prodO NNRO cfgO → iPropI Σ).
+    rewrite /ERM /ERM'.
+    set (Φ := (λ x, |={∅}=> ⌜irreducible x.2.1 x.2.2⌝ -∗ (ERM x.2.1 x.2.2 ε2 Z2))%I : prodO nonnegrealO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
-    iPoseProof (least_fixpoint_iter (exec_ub_pre Z1) Φ
+    iPoseProof (least_fixpoint_iter (ERM_pre Z1) Φ
                  with "[]") as "H"; last first.
     { done. }
-    iIntros "!>" ((ε' & [e1 σ1])). rewrite /exec_ub_pre.
+    iIntros "!>" ((ε' & [e1 σ1])). rewrite /ERM_pre.
     iIntros "[(% & % & % & H) | H] /="; auto;
     rewrite /Φ/=.
     - iModIntro.
@@ -680,12 +679,12 @@ Section ERM.
       exfalso.
       pose proof (not_reducible (e1, σ1)) as (H3 & H4).
       by apply H4.
-    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible (e1, σ1)⌝ -∗ exec_ub e1 σ1 ε2 Z2)%I  with "H") as "H".
+    - iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜irreducible (e1, σ1)⌝ -∗ ERM e1 σ1 ε2 Z2)%I  with "H") as "H".
       { intros.
         iIntros.
         iModIntro.
         iIntros.
-        rewrite exec_ub_unfold.
+        rewrite ERM_unfold.
         iRight.
         iApply (big_orL_elem_of _ _ y).
         - eapply elem_of_list_lookup_2; eauto.
@@ -693,11 +692,11 @@ Section ERM.
 *)
 
 (*
-  Lemma exec_ub_irreducible e σ Z ε :
-    ⌜irreducible e σ⌝ ⊢ exec_ub e σ ε Z.
+  Lemma ERM_irreducible e σ Z ε :
+    ⌜irreducible e σ⌝ ⊢ ERM e σ ε Z.
   Proof.
     iIntros "H".
-    rewrite {1}exec_ub_unfold.
+    rewrite {1}ERM_unfold.
     iRight.
     iInduction (get_active σ) as [| l] "IH".
     { rewrite big_orL_nil //. }
@@ -707,17 +706,17 @@ Section ERM.
 
   (* This lemma might not be true anymore *)
   (*
-  Lemma exec_ub_reducible e σ Z ε :
-    exec_ub e σ ε Z ={∅}=∗ ⌜reducible e σ⌝.
+  Lemma ERM_reducible e σ Z ε :
+    ERM e σ ε Z ={∅}=∗ ⌜reducible e σ⌝.
   Proof.
-    rewrite /exec_ub /exec_ub'.
+    rewrite /ERM /ERM'.
     set (Φ := (λ x, |={∅}=> ⌜reducible x.2.1 x.2.2⌝)%I : prodO RO cfgO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros n (?&(?&?)) (?&(?&?)) [[=] [[=] [=]]]. by simplify_eq. }
-    iPoseProof (least_fixpoint_iter (exec_ub_pre Z) Φ
+    iPoseProof (least_fixpoint_iter (ERM_pre Z) Φ
                  with "[]") as "H"; last first.
     { done. }
-    iIntros "!>" ((ε' & [e1 σ1])). rewrite /exec_ub_pre.
+    iIntros "!>" ((ε' & [e1 σ1])). rewrite /ERM_pre.
     iIntros "[(% & % & % & H) | H] /="; auto.
     rewrite /Φ/=.
     Search "big_orL".
@@ -765,7 +764,7 @@ Section ERM.
   Qed.
   *)
 
-End exec_ub.
+End ERM.
 
 (** * The weakest precondition  *)
 Definition ub_wp_pre `{!irisGS Λ Σ}
@@ -775,7 +774,7 @@ Definition ub_wp_pre `{!irisGS Λ Σ}
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 ε1,
       state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
-      exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
+      ERM e1 σ1 ε1 (λ '(e2, σ2) ε2,
         ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
@@ -784,7 +783,7 @@ Proof.
   rewrite /ub_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
   do 7 (f_equiv).
   apply least_fixpoint_ne_outer; [|done].
-  intros Ψ [[e' σ'] ε']. rewrite /exec_ub_pre.
+  intros Ψ [[e' σ'] ε']. rewrite /ERM_pre.
   do 17 f_equiv.
   { rewrite /exec_stutter. do 9 f_equiv. f_contractive. do 3 f_equiv. apply Hwp. }
 Qed.
@@ -822,7 +821,7 @@ Proof.
   rewrite !ub_wp_unfold /ub_wp_pre /=.
   do 7 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [[]?]. rewrite /exec_ub_pre.
+  intros ? [[]?]. rewrite /ERM_pre.
   do 16 f_equiv.
   rewrite /exec_stutter.
   do 10 f_equiv. f_contractive_fin.
@@ -842,7 +841,7 @@ Proof.
   intros He Φ Ψ HΦ. rewrite !ub_wp_unfold /ub_wp_pre He /=.
   do 6 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
-  intros ? [[]?]. rewrite /exec_ub_pre.
+  intros ? [[]?]. rewrite /ERM_pre.
   do 16 f_equiv.
   rewrite /exec_stutter. do 10 f_equiv. f_contractive. do 6 f_equiv.
 Qed.
@@ -861,7 +860,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
   iMod ("H" with "[$]") as "H".
-  iApply (exec_ub_mono_pred with "[Hclose HΦ] H").
+  iApply (ERM_mono_pred with "[Hclose HΦ] H").
   iIntros ([e2 σ2]?) "H".
   iModIntro.
   iMod "H" as "(?&?& Hwp)". iFrame.
@@ -888,7 +887,7 @@ Proof.
   iSpecialize ("H" $! σ1 ε1).
   iMod ("H" with "[Hσ Hε]") as "H"; [iFrame|].
   iMod "H"; iModIntro.
-  iApply (exec_ub_strong_mono with "[] [] H"); [done|].
+  iApply (ERM_strong_mono with "[] [] H"); [done|].
   iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H)".
   iNext.
   iMod "H" as "(Hσ&Hε&Hwp)".
@@ -912,8 +911,8 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]". iMod "H".
   iMod ("H" with "[$]") as "H".
   iModIntro.
-  iDestruct (exec_ub_strengthen with "H") as "H".
-  iApply (exec_ub_mono_pred with "[] H").
+  iDestruct (ERM_strengthen with "H") as "H".
+  iApply (ERM_mono_pred with "[] H").
   iIntros (? [e2 σ2]) "[[% %Hstep] H]".
   iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
@@ -928,8 +927,8 @@ Proof.
       simplify_eq.
     + apply not_reducible in H3.
       (* so... we could get this back if we did a case match on
-         the exec_ub in H. We would need to exclude the two state step cases somehow. *)
-      rewrite {1}exec_ub_unfold.
+         the ERM in H. We would need to exclude the two state step cases somehow. *)
+      rewrite {1}ERM_unfold.
       iDestruct "H" as "[[% [% [% (%Hred&_)]]]|[[% [% [% (%Hred&_)]]]|[H|H]]]".
       1,2: by destruct H3.
       (* ??? *)
@@ -944,7 +943,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
-  iApply (exec_ub_mono_pred with "[HR] H").
+  iApply (ERM_mono_pred with "[HR] H").
   iIntros ([e2 σ2] ?) "H".
   iModIntro.
   iMod "H" as "(Hσ & Hρ & H)".
@@ -964,8 +963,8 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
-  iApply exec_ub_bind; [done |].
-  iApply (exec_ub_mono with "[] [] H").
+  iApply ERM_bind; [done |].
+  iApply (ERM_mono with "[] [] H").
   - iPureIntro; lra.
   - iIntros ([e2 σ2] ?) "H".
     iModIntro.
