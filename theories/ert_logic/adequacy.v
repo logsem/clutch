@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Export language.
-From clutch.ert_logic Require Import (* expected_time_credits *) ert_weakestpre (* primitive_laws *).
+From clutch.ert_logic Require Import expected_time_credits ert_weakestpre primitive_laws.
 From clutch.prob Require Import distribution.
 Import uPred.
 
@@ -23,12 +23,12 @@ Fixpoint ERT k (eσ : lang.cfg) : distr prob_lang.val :=
 
 
 Section adequacy.
-  Context `{!ub_clutchGS Σ}.
+  Context `{!ert_clutchGS Σ}.
 
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
 
-
+(*
   Lemma ub_lift_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
@@ -58,7 +58,6 @@ Section adequacy.
     iIntros (???) "/=".
     iMod ("H" with "[//]"); auto.
   Qed.
-
 
   Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
@@ -216,10 +215,11 @@ Section adequacy.
          }
         by iApply (exec_ub_erasure with "H").
   Qed.
+*)
 
 End adequacy.
 
-
+(*
 Class ub_clutchGpreS Σ := UB_ClutchGpreS {
   ub_clutchGpreS_iris  :: invGpreS Σ;
   ub_clutchGpreS_heap  :: ghost_mapG Σ loc val;
@@ -298,3 +298,4 @@ Proof.
   iApply H'; try iFrame.
   simpl. destruct ε; simpl in H1; simpl; lra.
 Qed.
+*)
