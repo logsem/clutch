@@ -3,7 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.etc_logic Require Export expected_time_credits ert_weakestpre ectx_lifting.
+From clutch.ert_logic Require Export expected_time_credits ert_weakestpre (* ectx_lifting *).
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
@@ -16,8 +16,8 @@ Class ub_clutchGS Σ := HeapG {
   (* ghost names for the state *)
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
-  (* CMRA and ghost name for the error *)
-  ub_clutchGS_error :: ecGS Σ;
+  (* CMRA and ghost name for the ERT *)
+  ert_clutchGS_etc :: etcGS Σ;
 }.
 
 
@@ -34,7 +34,7 @@ Definition tapes_auth `{ub_clutchGS Σ} :=
 Global Instance clutchGS_irisGS `{!ub_clutchGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  err_interp ε := (ec_supply ε);
+  etc_interp ε := (etc_supply ε);
 }.
 
 (** Heap *)
