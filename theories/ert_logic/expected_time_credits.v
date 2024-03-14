@@ -14,44 +14,43 @@ Import uPred.
 
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
-  Canonical Structure nonnegrealO : ofe := leibnizO nonnegreal.
+  Canonical Structure NNRO : ofe := leibnizO nonnegreal.
 
-  Local Instance nonnegreal_valid_instance : Valid (nonnegreal)  := (λ _, True).
-  Local Instance nonnegreal_validN_instance : ValidN (nonnegreal) := (λ _ _, True).
-  Local Instance nonnegreal_pcore_instance : PCore (nonnegreal) := λ _, Some (nnreal_zero).
-  Local Instance nonnegreal_op_instance : Op (nonnegreal) := λ x y, nnreal_plus x y.
-  Local Instance nonnegreal_equiv : Equiv nonnegreal := λ x y, x = y.
+  Local Instance NNR_valid_instance : Valid (nonnegreal)  := (λ _, True).
+  Local Instance NNR_validN_instance : ValidN (nonnegreal) := (λ _ _, True).
+  Local Instance NNR_pcore_instance : PCore (nonnegreal) := λ _, Some (nnreal_zero).
+  Local Instance NNR_op_instance : Op (nonnegreal) := λ x y, nnreal_plus x y.
+  Local Instance NNR_equiv : Equiv nonnegreal := λ x y, x = y.
 
-  Definition nonnegreal_op (x y : nonnegreal) : x ⋅ y = nnreal_plus x y := eq_refl.
+  Definition NNR_op (x y : nonnegreal) : x ⋅ y = nnreal_plus x y := eq_refl.
 
   Lemma Rle_0_le_minus (x y : R) : (x <= y)%R -> (0 <= y - x)%R.
   Proof.
     lra.
   Qed.
 
-  (* Lemma R_included (x y : nonnegreal) : x ≼ y ↔ (x <= y)%R.
-     Proof.
-       split; intros H.
-       - destruct x as [x|], y as [y|].
-         + rewrite /included in H.
-           destruct n, n0. simpl in H. simpl.
-           simpl.
-         rewrite /included in H.
-         destruct H as ((z & Hz) & H).
-         rewrite R_op /nnreal_plus in H.
-         simplify_eq.
-         lra.
-       - rewrite /included.
-         destruct x as (x & Hx).
-         destruct y as (y & Hy).
-         simpl in H.
-         eexists ({| nonneg := y - x ; cond_nonneg := Rle_0_le_minus x y H |}).
-         rewrite R_op/=.
-         rewrite /equiv/R_equiv/=.
-         apply nnreal_ext.
-         simpl.
-         lra.
-     Qed. *)
+  Lemma NNR_included (x y : nonnegreal) : x ≼ y ↔ (x <= y)%R.
+  Proof.
+    split; intros.
+    - destruct x.
+      destruct y.
+      simpl.
+      rewrite /included in H.
+      destruct H as ((z & Hz) & H).
+      rewrite NNR_op /nnreal_plus in H.
+      simplify_eq.
+      lra.
+    - rewrite /included.
+      destruct x as (x & Hx).
+      destruct y as (y & Hy).
+      simpl in H.
+      eexists ({| nonneg := y - x ; cond_nonneg := Rle_0_le_minus x y H |}).
+      rewrite NNR_op/=.
+      rewrite /equiv/NNR_equiv/=.
+      apply nnreal_ext.
+      simpl.
+      lra.
+  Qed.
 
 
   (*
@@ -70,49 +69,49 @@ Section NNR.
     apply nnreal_ext. simpl. lra.
     Qed.
 
-  Lemma nonnegreal_ra_mixin : RAMixin nonnegreal.
+  Lemma NNR_ra_mixin : RAMixin nonnegreal.
   Proof.
     apply ra_total_mixin; try by eauto.
     - solve_proper.
    - intros ? ? ?.
-      rewrite /equiv/nonnegreal_equiv.
+      rewrite /equiv/NNR_equiv.
       apply nnreal_ext; simpl; lra.
     - intros ? ?.
-      rewrite /equiv/nonnegreal_equiv.
+      rewrite /equiv/NNR_equiv.
       apply nnreal_ext; simpl; lra.
     - intros ?.
-      rewrite /equiv/nonnegreal_equiv.
+      rewrite /equiv/NNR_equiv.
       apply nnreal_ext; simpl; lra.
     - intros ? ? ?.
       rewrite /core. simpl. rewrite /included.
-      eexists _.  rewrite /equiv/nonnegreal_equiv.
+      eexists _.  rewrite /equiv/NNR_equiv.
       apply nnreal_ext; simpl. instantiate (1:=nnreal_zero). simpl. lra.
   Qed.
 
   (* Massive hack to override Coq reals *)
   Definition id {A} := (λ (a : A), a).
 
-  Canonical Structure nonnegrealR : cmra := discreteR nonnegreal nonnegreal_ra_mixin.
+  Canonical Structure nonnegrealR : cmra := discreteR nonnegreal NNR_ra_mixin.
 
-  Global Instance nonnegreal_cmra_discrete : CmraDiscrete nonnegrealR.
+  Global Instance NNR_cmra_discrete : CmraDiscrete nonnegrealR.
   Proof. apply discrete_cmra_discrete. Qed.
 
-  Local Instance nonnegreal_unit_instance : Unit nonnegreal := Finite nnreal_zero.
-  Lemma nonnegreal_ucmra_mixin : @UcmraMixin nonnegreal _ _ _ _ _ nonnegreal_unit_instance.
+  Local Instance NNR_unit_instance : Unit nonnegreal := Finite nnreal_zero.
+  Lemma NNR_ucmra_mixin : @UcmraMixin nonnegreal _ _ _ _ _ NNR_unit_instance.
   Proof. split.
          - rewrite /valid.
-           rewrite /nonnegreal_valid_instance/nonnegreal_unit_instance/ε. done.
+           rewrite /NNR_valid_instance/NNR_unit_instance/ε. done.
          - rewrite /LeftId.
            intro.
-           rewrite /equiv/nonnegreal_equiv/op/nonnegreal_op_instance/=.
+           rewrite /equiv/NNR_equiv/op/NNR_op_instance/=.
            destruct x => //. f_equal.
            apply nnreal_ext; simpl; lra.
-         - rewrite /pcore/nonnegreal_pcore_instance; auto.
+         - rewrite /pcore/NNR_pcore_instance; auto.
   Qed.
 
-  Canonical Structure nonnegrealUR : ucmra := Ucmra nonnegreal nonnegreal_ucmra_mixin.
+  Canonical Structure nonnegrealUR : ucmra := Ucmra nonnegreal NNR_ucmra_mixin.
 
-  Lemma nonnegreal_add_cancel_l : ∀ x y z : nonnegreal, nnreal_plus z x = nnreal_plus z y ↔ x = y.
+  Lemma NNR_add_cancel_l : ∀ x y z : nonnegreal, nnreal_plus z x = nnreal_plus z y ↔ x = y.
   Proof.
     intros ? ? ?; split; intro H.
     - apply nnreal_ext.
@@ -123,11 +122,11 @@ Section NNR.
   Qed.
 
 
-  (* Global Instance nonnegreal_cancelable (x : nonnegreal) : Cancelable x.
-     Proof. by intros ???? ?%nonnegreal_add_cancel_l. Qed. *)
+  (* Global Instance NNR_cancelable (x : nonnegreal) : Cancelable x.
+     Proof. by intros ???? ?%NNR_add_cancel_l. Qed. *)
 
   (* FIXME: unused (it should factor out the proof in ec_credit_supply) *)
-  Lemma nonnegreal_local_update (x y x' y' : nonnegreal) :
+  Lemma NNR_local_update (x y x' y' : nonnegreal) :
     (y' <= y)%R -> nnreal_plus x y' = nnreal_plus x' y → (x,y) ~l~> (x',y').
   Proof.
     intros ??; apply (local_update_unital_discrete x y x' y') => z H1 H2.
@@ -213,11 +212,11 @@ Section error_credit_theory.
     iDestruct (own_valid_2 with "H1 H2") as "%Hop".
     iPureIntro. eapply auth_both_valid_discrete in Hop as [Hlt ?].
     rewrite /included in Hlt. rewrite /op/cmra_op/ucmra_op in Hlt ; simpl in Hlt.
-    destruct Hlt as [z Hz]. simplify_eq. rewrite /ucmra_op. simpl. rewrite /nonnegreal_op_instance.
-    rewrite /ucmra_op. simpl in H. rewrite /nonnegreal_op_instance in H.
+    destruct Hlt as [z Hz]. simplify_eq. rewrite /ucmra_op. simpl. rewrite /NNR_op_instance.
+    rewrite /ucmra_op. simpl in H. rewrite /NNR_op_instance in H.
     rewrite /valid/cmra_valid in H ; simpl in H.
-    rewrite /ucmra_valid/nonnegreal_valid_instance in H ; simpl in H.
-    rewrite /nonnegreal_valid_instance in H ; simpl in H.
+    rewrite /ucmra_valid/NNR_valid_instance in H ; simpl in H.
+    rewrite /NNR_valid_instance in H ; simpl in H.
     destruct z. simpl. lra.
   Qed.
 
@@ -228,7 +227,7 @@ Section error_credit_theory.
     rewrite etc_supply_unseal /etc_supply_def.
     iIntros "H1 H2".
     iMod (own_update_2 with "H1 H2") as "Hown".
-    { eapply auth_update. eapply (nonnegreal_local_update _ _ x2 nnreal_zero).
+    { eapply auth_update. eapply (NNR_local_update _ _ x2 nnreal_zero).
       1: destruct x1 => // ; apply cond_nonneg.
       apply nnreal_ext. simpl. lra.
     }
@@ -246,17 +245,9 @@ Section error_credit_theory.
     apply (local_update_unital_discrete _ _ _ _) => z H1 H2.
     split.
     - compute. done.
-    -
-      (* compute. apply nnreal_ext. simpl. *)
-      (* destruct z as [z|] => //. *)
-  (*     compute in H2.
-         simpl in H2.
-         rewrite Rplus_comm.
-         apply Rplus_eq_compat_l.
-         rewrite H2 /=.
-         lra.
-     Qed. *)
-  Admitted.
+    - compute. apply nnreal_ext. simpl. destruct x1, x2, z. compute in H2.
+      inversion H2. lra.
+  Qed.
 
 
   Lemma etc_split_supply x1 x2 :
@@ -274,17 +265,14 @@ Section error_credit_theory.
      (x2 <= x1)%R → ⧖ x1 -∗ ⧖ x2.
   Proof.
     intros H.
-  (*   set diff := nonnegreal_minus (x1 - x2) (Rle_0_le_minus x2 x1 H).
+    set diff := mknonnegreal (x1 - x2) (Rle_0_le_minus x2 x1 H).
+    assert (x1 = nnreal_plus x2 diff) as H2.
+    { apply nnreal_ext; simpl; lra. }
+    rewrite H2.
+    rewrite etc_split. iIntros "[$ _]".
+  Qed.
 
-       set diff := mknonnegreal (x1 - x2) (Rle_0_le_minus x2 x1 H).
-       assert (x1 = nnreal_plus x2 diff) as H2.
-       { apply nnreal_ext; simpl; lra. }
-       rewrite H2.
-       rewrite etc_split. iIntros "[$ _]".
-     Qed. *)
-  Admitted.
-
-  (* Lemma etc_spend (x : nonnegreal) : (nonnegreal_le p_infty x) -> ⧖ x -∗ False. *)
+  (* Lemma etc_spend (x : nonnegreal) : (NNR_le p_infty x) -> ⧖ x -∗ False. *)
   (* Proof. *)
   (*   iIntros (Hge1) "Hx". *)
   (*   rewrite etc_unseal /etc_def. *)
@@ -294,15 +282,15 @@ Section error_credit_theory.
   (* Qed. *)
 
 
-  (* Lemma etc_spend_le_irrel x1 x2 : (x2.(nonneg) <= x1.(nonneg))%R → ⧖ x1 -∗ ⧖ x2.
-     Proof. iIntros (?) "?". iApply etc_weaken; done. Qed.
+  Lemma etc_spend_le_irrel x1 x2 : (x2.(nonneg) <= x1.(nonneg))%R → ⧖ x1 -∗ ⧖ x2.
+  Proof. iIntros (?) "?". iApply etc_weaken; done. Qed.
 
 
-     Lemma etc_spend_irrel x1 x2 : (x1.(nonneg) = x2.(nonneg)) → ⧖ x1 -∗ ⧖ x2.
-     Proof.
-       iIntros (?) "?".
-       replace x1 with x2; [iFrame|by apply nnreal_ext].
-     Qed. *)
+  Lemma etc_spend_irrel x1 x2 : (x1.(nonneg) = x2.(nonneg)) → ⧖ x1 -∗ ⧖ x2.
+  Proof.
+    iIntros (?) "?".
+    replace x1 with x2; [iFrame|by apply nnreal_ext].
+  Qed.
 
   Global Instance etc_timeless x : Timeless (⧖ x).
   Proof.
