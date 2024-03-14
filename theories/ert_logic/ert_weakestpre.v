@@ -371,9 +371,9 @@ Section ERM.
 
 
 
-  Lemma ERM_bind K `{!LanguageCtx K} e1 σ1 Z ε :
+  Lemma ERM_bind K `{!LanguageCtx K} e1 σ1 Z x :
     to_val e1 = None →
-    ERM e1 σ1 ε (λ '(e2, σ2) ε', Z (K e2, σ2) ε') -∗ ERM (K e1) σ1 ε Z.
+    ERM e1 σ1 x (λ '(e2, σ2) x', Z (K e2, σ2) x') -∗ ERM (K e1) σ1 x Z.
   Proof.
     iIntros (Hv) "Hub".
     iAssert (⌜to_val e1 = None⌝)%I as "-#H"; [done|].
@@ -385,10 +385,10 @@ Section ERM.
     assert (NonExpansive Φ).
     { intros n ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
     iPoseProof (least_fixpoint_iter
-                  (ERM_pre (λ '(e2, σ2) ε', Z (K e2, σ2) ε')) Φ
+                  (ERM_pre (λ '(e2, σ2) x', Z (K e2, σ2) x')) Φ
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), _) with "Hub [//]"). }
-    iIntros "!#" ([[? σ'] ε']). rewrite /ERM_pre.
+    iIntros "!#" ([[? σ'] x']). rewrite /ERM_pre.
     iIntros " (% & % & (%r & %Hr) & % & H) %Hv'".
     - rewrite least_fixpoint_unfold.
       simpl.
@@ -482,13 +482,15 @@ Section ERM.
           f_equal; auto.
           symmetry; by apply fill_step_prob.
       + iIntros (? ? ?).
-        (* assert (∃ e2' : expr Λ, e2 = K e2'). 1: eexists _ ; admit. *)
-        (* destruct H3. *)
-        (* rewrite H3 in H2. *)
-        (* rewrite H3. *)
-        (* opose proof fill_step.
-           opose proof fill_step_inv. *)
-        admit.
+        (* should follow from H0 and H2. *)
+        opose proof (fill_step_inv _ _ _ _ _ H2). 1: easy.
+        destruct H3 as [xx [Hxx xxprim]].
+        rewrite Hxx.
+        rewrite Haux.
+        iMod ("H" with "[]").
+        2: done.
+        iPureIntro.
+        done.
         (* iMod ("H" with "[//]").
            by rewrite Haux. *)
        Unshelve. auto.
@@ -550,8 +552,7 @@ Section ERM.
              iApply "H".
              by simpl in Hv'.
          + iRight. by iApply ("IH" with "Ht"). *)
-  (* Qed. *)
-  Admitted.
+  Qed.
 
   Lemma ERM_prim_step e1 σ1 Z x :
     (∃ x2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (1 + x2 <= x)%R ⌝ ∗
