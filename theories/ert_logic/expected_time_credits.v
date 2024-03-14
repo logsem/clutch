@@ -14,7 +14,7 @@ Import uPred.
 
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
-  Canonical Structure nonnegrealO : ofe := leibnizO NNRbar.
+  Canonical Structure NNRbarO : ofe := leibnizO NNRbar.
 
   Local Instance NNRbar_valid_instance : Valid (NNRbar)  := is_finite.
   Local Instance NNRbar_validN_instance : ValidN (NNRbar) := λ _ , is_finite.
