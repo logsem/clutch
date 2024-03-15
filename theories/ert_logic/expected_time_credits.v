@@ -272,6 +272,16 @@ Section error_credit_theory.
     rewrite etc_split. iIntros "[$ _]".
   Qed.
 
+  Lemma etc_nat_big_sepS n :
+    ⧖ (nnreal_nat n) ⊢ [∗ set] _ ∈ set_seq 0 n, ⧖ nnreal_one.
+  Proof.
+    induction n; [eauto|].
+    rewrite nnreal_nat_Sn' etc_split.
+    rewrite set_seq_S_end_union_L.
+    rewrite big_sepS_union; [|apply set_seq_S_end_disjoint].
+    rewrite big_sepS_singleton IHn //.
+  Qed.
+
   (* Lemma etc_spend (x : nonnegreal) : (NNR_le p_infty x) -> ⧖ x -∗ False. *)
   (* Proof. *)
   (*   iIntros (Hge1) "Hx". *)
@@ -292,7 +302,7 @@ Section error_credit_theory.
     replace x1 with x2; [iFrame|by apply nnreal_ext].
   Qed.
 
-  
+
   Lemma etc_supply_irrel x1 x2 : (x1.(nonneg) = x2.(nonneg)) → etc_supply x1 -∗ etc_supply x2.
   Proof.
     iIntros (?) "?".
@@ -335,8 +345,8 @@ Proof.
   rewrite etc_unseal /etc_def etc_supply_unseal /etc_supply_def.
   iMod (own_alloc (● x ⋅ ◯ x)) as (γEC) "[H● H◯]".
   - apply auth_both_valid_2.
-    + done. 
-    + done. 
+    + done.
+    + done.
   - pose (C := EtcGS _ _ γEC).
     iModIntro. iExists C. iFrame.
 Qed.

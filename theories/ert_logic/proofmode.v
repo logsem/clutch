@@ -123,8 +123,12 @@ Tactic Notation "wp_inj" := wp_pure (InjL _) || wp_pure (InjR _).
 Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 
+(** Takes [⧖ (nnreal_nat (S n))] to [⧖ nnreal_one] and [⧖ (nnreal_nat n)] *)
+Tactic Notation "iChip" constr(H) "as" constr(pat) :=
+  rewrite 1!nnreal_nat_Sn'; iDestruct H as pat.
+
 Section tests.
-  Context `{!ertwpG prob_lang Σ}.
+  Context `{!ert_clutchGS Σ}.
 
   #[local] Lemma test_wp_pure n :
     {{{ ⧖ (nnreal_nat (S n)) }}} #2 + #2 {{{ RET #4; ⧖ (nnreal_nat n) }}}.
@@ -156,6 +160,21 @@ Section tests.
     iIntros (?) "Hx Hp".
     wp_pures.
     by iApply "Hp".
+  Qed.
+
+  #[local] Lemma test_wp_apply :
+    {{{ ⧖ (nnreal_nat 4) }}} let: "x" := ref #42 in !"x" {{{ RET #42; True }}}.
+  Proof.
+    iIntros (?) "Hc H".
+    wp_bind (ref _)%E.
+    iChip "Hc" as "[H1 Hc]".
+    wp_apply (wp_alloc with "H1").
+    iIntros (?) "Hl".
+    wp_pures.
+    iChip "Hc" as "[H1 Hc]".
+    wp_apply (wp_load with "[$Hl $H1]").
+    iIntros "_".
+    by iApply "H".
   Qed.
 
 End tests.
