@@ -1,4 +1,4 @@
-From iris.proofmode Require Import coq_tactics reduction spec_patterns.
+From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns.
 From iris.proofmode Require Export tactics.
 
 From clutch.prob_lang Require Import lang notation class_instances tactics.
@@ -123,9 +123,44 @@ Tactic Notation "wp_inj" := wp_pure (InjL _) || wp_pure (InjR _).
 Tactic Notation "wp_pair" := wp_pure (Pair _ _).
 Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 
-(** Takes [⧖ (nnreal_nat (S n))] to [⧖ nnreal_one] and [⧖ (nnreal_nat n)] *)
-Tactic Notation "iChip" constr(H) "as" constr(pat) :=
-  rewrite 1!nnreal_nat_Sn'; iDestruct H as pat.
+Lemma tac_chip `{!ertwpG prob_lang Σ} i j Δ1 Δ2 Δ3 n P :
+  envs_lookup i Δ1 = Some (false, ⧖ (nnreal_nat (S n))) →
+  envs_simple_replace i false (Esnoc Enil i (⧖ (nnreal_nat n))) Δ1 = Some Δ2 →
+  envs_app false (Esnoc Enil j ((⧖ nnreal_one))) Δ2 = Some Δ3 →
+  envs_entails Δ3 P →
+  envs_entails Δ1 P.
+Proof.
+  rewrite envs_entails_unseal =>/= ??? Hcnt.
+  rewrite envs_simple_replace_singleton_sound //.
+  rewrite etc_nat_Sn /=.
+  rewrite envs_app_singleton_sound //.
+  rewrite Hcnt.
+  iIntros "[[H1 Hc] HP]".
+  iApply ("HP" with "Hc H1").
+Qed.
+
+(** Takes [H1 : ⧖ (nnreal_nat (S n))] to [H2 : ⧖ nnreal_one] and [H1 : ⧖ (nnreal_nat n)] *)
+Tactic Notation "iChip" constr(H1) "as" constr(H2) :=
+  eapply (tac_chip H1 H2);
+  [iAssumptionCore || fail "iChip: cannot find credit '⧖ ?'"
+  |done|done|].
+
+Tactic Notation "iChip" constr(H1) :=
+  let Htmp := iFresh in
+  eapply (tac_chip H1 Htmp);
+  [iAssumptionCore || fail "iChip: cannot find credit '⧖ ?'"
+  |done|done|].
+
+Tactic Notation "iChip" :=
+  let Htmp := iFresh in
+  eapply (tac_chip _ Htmp);
+  [iAssumptionCore || fail "iChip: cannot find credit '⧖ ?'"
+  |done|done|].
+
+(** Some very primitive heap tactics  *)
+Tactic Notation "wp_alloc" := iChip; wp_apply (wp_alloc with "[$]").
+Tactic Notation "wp_load" := iChip; wp_apply (wp_load with "[$]").
+Tactic Notation "wp_store" := iChip; wp_apply (wp_store with "[$]").
 
 Section tests.
   Context `{!ert_clutchGS Σ}.
@@ -163,17 +198,35 @@ Section tests.
   Qed.
 
   #[local] Lemma test_wp_apply :
-    {{{ ⧖ (nnreal_nat 4) }}} let: "x" := ref #42 in !"x" {{{ RET #42; True }}}.
+    {{{ ⧖ (nnreal_nat 7) }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
   Proof.
     iIntros (?) "Hc H".
-    wp_bind (ref _)%E.
-    iChip "Hc" as "[H1 Hc]".
-    wp_apply (wp_alloc with "H1").
+    (* first variant *)
+    iChip "Hc" as "H1".
+    wp_apply (wp_alloc with "[$]").
     iIntros (?) "Hl".
     wp_pures.
-    iChip "Hc" as "[H1 Hc]".
-    wp_apply (wp_load with "[$Hl $H1]").
+    (* second variant *)
+    iChip "Hc".
+    wp_apply (wp_store with "[$]").
+    iIntros "Hl".
+    wp_pures.
+    (* third variant *)
+    iChip.
+    wp_apply (wp_load with "[$]").
     iIntros "_".
+    by iApply "H".
+  Qed.
+
+  #[local] Lemma test_wp_heap :
+    {{{ ⧖ (nnreal_nat 7) }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
+  Proof.
+    iIntros (?) "Hc H".
+    wp_alloc; iIntros (?) "Hl".
+    wp_pures.
+    wp_store; iIntros "Hl".
+    wp_pures.
+    wp_load; iIntros "Hl".
     by iApply "H".
   Qed.
 
