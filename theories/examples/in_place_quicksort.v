@@ -1,0 +1,98 @@
+From stdpp Require Import sorting.
+From clutch.lib Require Import utils.
+From clutch.ub_logic Require Import ub_clutch lib.list.
+Set Default Proof Using "Type*".
+
+Section in_place_quicksort.
+
+  Import list.
+
+  Local Notation sorted := (StronglySorted Nat.le).
+
+  Context `{!ub_clutchGS Σ}.
+
+  Definition swap :=
+    (λ: "arr" "a" "b",
+        let: "tmp" := !("arr" +ₗ "a") in
+        "a" <- !("arr" +ₗ "b") ;;
+        "b" <- "tmp")%V.
+
+  Definition swapped `{T: Type} `{!Inhabited T} (a b : nat) A : list T
+    := <[a := (A !!! b)]> $ <[b := (A !!! a)]> A.
+
+  Lemma swap_spec arr (A : list val) (a b : nat) :
+    ⊢ {{{ (arr ↦∗ A) ∗ ⌜(a < (length A))%nat⌝ ∗ ⌜(b < (length A))%nat⌝ }}}
+        swap #arr #a #b
+      {{{ v, RET v; ((arr ↦∗ (swapped a b A)))}}}.
+  Proof. Admitted.
+
+  Definition prefix_parted_l (A : list nat) (len_left pivot_v: nat) : Prop
+    := Forall (fun v => (v <= pivot_v)%nat) (take len_left A).
+
+  Definition prefix_parted_r (A : list nat) (len_left next pivot_v: nat) : Prop
+    := Forall (fun v => (v > pivot_v)%nat) (drop len_left (take next A)).
+
+  Definition prefix_sorted (A : list nat) (len_left next pivot_v: nat) : Prop
+    := prefix_parted_l A len_left pivot_v /\ prefix_parted_r A len_left next pivot_v.
+
+  Definition in_place_pivot
+    := (λ: "arr" "len" "pivot",
+          (* Swap pivot with the last element *)
+          swap "arr" "pivot" ("len" - #1) ;;
+          let: "pivot_v" := !("arr" +ₗ ("len" - #1)) in
+
+          let: "len_left" := ref #0 in
+          (* rec inv.
+                len_left < next <= len - 1
+                for all 0 <= i < len_left, (arr[i] <= pivot)
+                for all len_left <= i < next, (arr[i] > pivot)
+                ⇒ if (next = len - 1), array is of the form [less than pivot, greater than pivot, pivot]
+          *)
+          (rec: "swap_next" "next" :=
+             if: ("next" = ("len" - #1))
+                then #()
+                else (
+                    if: (!("arr" +ₗ "next") ≤ "pivot_v")
+                      then
+                        (* next belongs in the left list *)
+                        swap "arr" "next" "len_left" ;;
+                        "len_left" <- !("len_left" + #1) ;;
+                        "swap_next" ("next" + #1)
+                      else
+                        "swap_next" ("next" + #1)))
+          #0 ;;
+
+          (* Swap pivot back into the right spot*)
+          swap "arr" !("len_left") ("len" - #1) ;;
+          "len_left")%V.
+
+  Definition pivot_correct (A : list nat) pivot len_left : Prop :=
+    prefix_parted_l A len_left (A !!! pivot) /\
+    prefix_parted_r A (S len_left) (length A) (A !!! pivot).
+
+  Definition refl_values A : list val := fmap (fun (n: nat) => #n) A.
+
+  Definition quicksort :=
+    (rec: "quicksort" "arr" "len" :=
+       if: ("len" = #0)%E
+        then "arr"
+        else
+          let: "pivot" := rand "len" in
+          let: "len_left" := in_place_pivot "arr" "pivot" in
+          let: "left" := "arr" in
+          let: "right" := (#1 + "len_left") in
+          let: "len_right" := ("len" - "right" + #1) in
+          "quicksort" "left" "len_left" ;;
+          "quicksort" "right" "len_right")%V.
+
+  Search "sort" (list nat).
+
+  Lemma quicksort_spec arr (A : list nat) :
+    ⊢ {{{ (arr ↦∗ (refl_values A)) }}}
+        quicksort #arr #(length A)
+      {{{ v, RET v; ∃ A1, ((arr ↦∗ refl_values A1 ∗ ⌜(sorted A1)⌝))}}}.
+  Proof. Admitted.
+
+
+
+End in_place_quicksort.
