@@ -9,11 +9,10 @@ Set Default Proof Using "Type*".
 
 (** A basic set of requirements for a weakest precondition *)
 Class GwpTacticsBase (Σ : gFunctors) (A : Type) `{!invGS_gen hlc Σ} (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ)  := {
-
     wptac_wp_value E Φ v a : Φ v ⊢ gwp a E (of_val v) Φ;
     wptac_wp_fupd E Φ e a : gwp a E e (λ v, |={E}=> Φ v) ⊢ gwp a E e Φ;
     wptac_wp_bind K `{!LanguageCtx K} E e Φ a :
-    gwp a E e (λ v, gwp a E (K (of_val v)) Φ ) ⊢ gwp a E (K e) Φ ;
+      gwp a E e (λ v, gwp a E (K (of_val v)) Φ ) ⊢ gwp a E (K e) Φ ;
 }.
 
 Class GwpTacticsPure Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ) := {
@@ -28,37 +27,37 @@ Class GwpTacticsHeap Σ A (laters : bool) (gwp : A → coPset → expr → (val 
   wptac_mapsto : loc → dfrac → val → iProp Σ;
   wptac_mapsto_array : loc → dfrac → (list val) → iProp Σ;
 
-  wptac_wp_alloc E v a :
-    ∀ Φ, ⊢ True -∗ (▷^(if laters then 1 else 0) (∀ l, (wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitLoc l))%V)) -∗
-          gwp a E (Alloc (Val v)) Φ;
+  wptac_wp_alloc E v a Φ :
+    True -∗
+    (▷?laters (∀ l, (wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitLoc l))%V)) -∗
+    gwp a E (Alloc (Val v)) Φ;
 
-    wptac_wp_allocN E v n a :
+  wptac_wp_allocN E v n a Φ :
     (0 < n)%Z →
-    ∀ Φ, ⊢ True -∗ (▷^(if laters then 1 else 0) (∀ l, (wptac_mapsto_array l (DfracOwn 1) (replicate (Z.to_nat n) v)) -∗ Φ (LitV (LitLoc l))%V)) -∗
-         gwp a E (AllocN (Val $ LitV $ LitInt $ n) (Val v)) Φ ;
+    True -∗
+    (▷?laters (∀ l, (wptac_mapsto_array l (DfracOwn 1) (replicate (Z.to_nat n) v)) -∗
+                     Φ (LitV (LitLoc l))%V)) -∗
+    gwp a E (AllocN (Val $ LitV $ LitInt $ n) (Val v)) Φ;
 
-    wptac_wp_load E v l dq a :
-    ∀ Φ, ⊢ (▷ wptac_mapsto l dq v) -∗ (▷^(if laters then 1 else 0) ((wptac_mapsto l dq v) -∗ Φ v%V)) -∗
-         gwp a E (Load (Val $ LitV $ LitLoc l)) Φ;
+  wptac_wp_load E v l dq a Φ :
+    (▷ wptac_mapsto l dq v) -∗
+    (▷?laters ((wptac_mapsto l dq v) -∗ Φ v%V)) -∗
+    gwp a E (Load (Val $ LitV $ LitLoc l)) Φ;
 
-    wptac_wp_store E v v' l a :
-    ∀ Φ, ⊢ (▷ wptac_mapsto l (DfracOwn 1) v') -∗ (▷^(if laters then 1 else 0) ((wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitUnit))%V)) -∗
-         gwp a E (Store (Val $ LitV $ LitLoc l) (Val v)) Φ;
-
-  }.
-
+  wptac_wp_store E v v' l a Φ :
+    (▷ wptac_mapsto l (DfracOwn 1) v') -∗
+    (▷?laters ((wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitUnit))%V)) -∗
+    gwp a E (Store (Val $ LitV $ LitLoc l) (Val v)) Φ;
+}.
 
 Section wp_tactics.
-
   Context `{GwpTacticsBase Σ A hlc gwp}.
 
-Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
-
-(** Notations with binder. *)
-Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+     format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
   Lemma tac_wp_expr_eval Δ a E Φ e e' :
     (∀ (e'':=e'), e = e'') →
@@ -94,7 +93,7 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
 
 End wp_tactics.
 
-
+(* TODO: find a better way so that we do not need to have a case for both [wp] and [twp]... *)
 Tactic Notation "wp_expr_eval" tactic3(t) :=
   iStartProof;
   lazymatch goal with
@@ -295,7 +294,8 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
   Proof.
     rewrite envs_entails_unseal=> ? HΔ.
     rewrite -wptac_wp_bind.
-    eapply bi.wand_apply. 1: apply bi.wand_entails, wptac_wp_alloc.
+    eapply bi.wand_apply.
+    { apply bi.wand_entails, wptac_wp_alloc. }
     rewrite left_id into_laterN_env_sound.
     apply bi.laterN_mono, bi.forall_intro=> l.
     specialize (HΔ l).
@@ -319,7 +319,8 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
   Proof.
     rewrite envs_entails_unseal=> ? ? HΔ.
     rewrite -wptac_wp_bind.
-    eapply bi.wand_apply; first apply bi.wand_entails, wptac_wp_allocN => //.
+    eapply bi.wand_apply.
+    { by apply bi.wand_entails, wptac_wp_allocN. }
     rewrite left_id into_laterN_env_sound.
     apply bi.laterN_mono, bi.forall_intro=> l.
     specialize (HΔ l).
@@ -330,7 +331,6 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
     rewrite bi.wand_elim_r //.
   Qed.
 
-
   Lemma tac_wp_load Δ Δ' E i K b l dq v Φ a :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
     envs_lookup i Δ' = Some (b, wptac_mapsto l dq v) →
@@ -338,7 +338,9 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
     envs_entails Δ (WP fill K (Load (Val $ LitV $ LitLoc l)) @ a; E {{ Φ }}).
   Proof.
     rewrite envs_entails_unseal=> ?? Hi.
-    rewrite -wptac_wp_bind. eapply bi.wand_apply; [apply bi.wand_entails, wptac_wp_load => //|].
+    rewrite -wptac_wp_bind.
+    eapply bi.wand_apply.
+    { apply bi.wand_entails, wptac_wp_load. }
     rewrite into_laterN_env_sound.
     destruct laters.
     - rewrite -bi.later_sep.
@@ -364,7 +366,8 @@ Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
   Proof.
     rewrite envs_entails_unseal=> ?? Hcnt.
     destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
-    rewrite -wptac_wp_bind. eapply bi.wand_apply; [by eapply bi.wand_entails, wptac_wp_store|].
+    rewrite -wptac_wp_bind. eapply bi.wand_apply.
+    { eapply bi.wand_entails, wptac_wp_store. }
     rewrite into_laterN_env_sound.
     destruct laters.
     - rewrite -bi.later_sep envs_simple_replace_sound //; simpl.
@@ -477,6 +480,3 @@ Tactic Notation "wp_store" :=
     |pm_reduce; first [wp_seq|wp_finish]]
   | _ => fail "wp_store: not a 'wp'"
   end.
-
-
-
