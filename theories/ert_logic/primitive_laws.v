@@ -3,7 +3,7 @@
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre (* ectx_lifting *) problang_wp.
+From clutch.ert_logic Require Export expected_time_credits ert_weakestpre ectx_lifting problang_wp.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
@@ -36,21 +36,29 @@ Qed.
 (** Heap *)
 
 Lemma wp_alloc E v s :
-  {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+  {{{ ⧖ nnreal_one }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
-  iIntros (Φ) "_ HΦ".
-  (* iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
+  iIntros (Φ) "Hx HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1 x1) "[[Hh Ht] H] !#".
   solve_red.
+  iDestruct (etc_supply_bound with "[$][$]") as "%".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
+  iExists (mknonnegreal (x1-1)%R _).
+  iDestruct (etc_decrease_supply with "[H][$]") as "H"; first shelve.
+  iMod "H".
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
-  iIntros "!>". by iApply "HΦ".
-Qed.*)
-  Admitted.
+  iIntros "!>". iSplit.
+  { iPureIntro. simpl. lra. }
+  by iApply "HΦ".
+  Unshelve.
+  - destruct x1. simpl. simpl in H. lra.
+  - iApply etc_supply_irrel; last done. simpl. lra.
+Qed. 
 
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →

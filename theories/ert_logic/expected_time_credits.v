@@ -292,6 +292,13 @@ Section error_credit_theory.
     replace x1 with x2; [iFrame|by apply nnreal_ext].
   Qed.
 
+  
+  Lemma etc_supply_irrel x1 x2 : (x1.(nonneg) = x2.(nonneg)) → etc_supply x1 -∗ etc_supply x2.
+  Proof.
+    iIntros (?) "?".
+    replace x1 with x2; [iFrame|by apply nnreal_ext].
+  Qed.
+
   Global Instance etc_timeless x : Timeless (⧖ x).
   Proof.
     rewrite etc_unseal /etc_def. apply _.
