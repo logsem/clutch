@@ -282,6 +282,10 @@ Section error_credit_theory.
     rewrite big_sepS_singleton IHn //.
   Qed.
 
+  Lemma etc_nat_Sn n :
+    ⧖ (nnreal_nat (S n)) ⊣⊢ ⧖ nnreal_one ∗ ⧖ (nnreal_nat n).
+  Proof. rewrite nnreal_nat_Sn' etc_split //. Qed. 
+
   (* Lemma etc_spend (x : nonnegreal) : (NNR_le p_infty x) -> ⧖ x -∗ False. *)
   (* Proof. *)
   (*   iIntros (Hge1) "Hx". *)
