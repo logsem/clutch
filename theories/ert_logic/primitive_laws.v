@@ -9,7 +9,7 @@ From clutch.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
 
-Section lifting.
+Section primitive_laws.
 Context `{!ert_clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
@@ -40,57 +40,44 @@ Lemma wp_alloc E v s :
 Proof.
   iIntros (Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1 x1) "[[Hh Ht] H] !#".
+  iIntros (σ1) "[Hh Ht] !#".
   solve_red.
-  iDestruct (etc_supply_bound with "[$][$]") as "%".
+  iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iExists (mknonnegreal (x1-1)%R _).
-  iDestruct (etc_decrease_supply with "[H][$]") as "H"; first shelve.
-  iMod "H".
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame.
   rewrite map_union_empty -insert_union_singleton_l.
   iFrame.
-  iIntros "!>". iSplit.
-  { iPureIntro. simpl. lra. }
+  iIntros "!>".
   by iApply "HΦ".
-  Unshelve.
-  - destruct x1. simpl. simpl in H. lra.
-  - iApply etc_supply_irrel; last done. simpl. lra.
-Qed. 
+Qed.
 
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
   {{{ ⧖ nnreal_one }}}
-    AllocN (Val $ LitV $ LitInt $ z) (Val v) @ s; E
-                                                    {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
+    AllocN #z v @ s; E
+  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1 x1) "[[Hh Ht] H] !#".
+  iIntros (σ1) "[Hh Ht] !#".
   iSplit.
   { iPureIntro.
     rewrite /head_reducible.
     eexists.
     apply head_step_support_equiv_rel.
     econstructor; eauto.
-    lia.
-  }
-  iDestruct (etc_supply_bound with "[$][$]") as "%Hbound".
+    lia. }
+  iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iExists (mknonnegreal (x1-1)%R _).
-  iDestruct (etc_decrease_supply with "[H][$]") as "H"; first shelve.
-  iMod "H".
   iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
   iIntros "!>". iFrame.
-  iSplit.
-  { iPureIntro. simpl. lra. }
   iApply "HΦ".
-  iInduction (H) as [ | ?] "IH" forall (σ1).
+  iInduction H as [ | ?] "IH" forall (σ1).
   - simpl.
-    iSplit; auto.
+    iSplit; [|done].
     rewrite map_union_empty.
     rewrite loc_add_0.
     by rewrite big_sepM_singleton.
@@ -99,22 +86,16 @@ Proof.
     iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
     iApply big_sepL_app.
     iSplitL "H1".
-    + iApply "IH".
-      { iPureIntro. lia. }
-      iApply "H1".
-    + simpl. iSplit; auto.
+    + iApply "IH"; [|done]. iPureIntro; lia.
+    + simpl. iSplit; [|done].
       by rewrite big_sepM_singleton.
-        Unshelve.
-        { destruct x1. simpl in *. lra. }
-        { simpl. iApply etc_supply_irrel; last done. simpl. lra. }
-        
-      {
-        apply heap_array_map_disjoint.
+      (* TODO: this is nasty... Find a better solution *)
+      Unshelve.
+      { apply heap_array_map_disjoint.
         intros.
         apply not_elem_of_dom_1.
-        by apply fresh_loc_offset_is_fresh.
-      }
-      apply heap_array_map_disjoint.
+        by apply fresh_loc_offset_is_fresh. }
+      { apply heap_array_map_disjoint.
       intros.
       apply not_elem_of_dom_1.
       rewrite dom_singleton.
@@ -122,50 +103,39 @@ Proof.
       intros H2.
       apply loc_add_inj in H2.
       rewrite replicate_length in H1.
-      lia.
+      lia. }
 Qed.
 
 Lemma wp_load E l dq v s :
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
+  {{{ ⧖ nnreal_one ∗ ▷ l ↦{dq} v }}}
+    Load (Val $ LitV $ LitLoc l) @ s; E
+  {{{ RET v; l ↦{dq} v }}}.
 Proof.
-  iIntros (Φ) "[H1 >Hl] HΦ".
+  iIntros (Φ) "[Hx >Hl] HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1 x1) "[[Hh Ht]Hx] !#".
-  iDestruct (etc_supply_bound with "[$][$]") as "%Hbound".
+  iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
+  iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iExists (mknonnegreal (x1-1)%R _).
-  iDestruct (etc_decrease_supply with "[Hx][$]") as "H"; first shelve.
-  iMod "H".
-  iFrame. iModIntro. iSplitR.
-  { iPureIntro. simpl. lra. }
+  iFrame. iModIntro.
   iApply "HΦ"; done.
-  Unshelve.
-  - destruct x1. simpl in *. lra.
-  - iApply etc_supply_irrel; last done. simpl. lra.
 Qed.
 
 Lemma wp_store E l v' v s :
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦ v' }}} Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
+  {{{ ⧖ nnreal_one ∗ ▷ l ↦ v' }}}
+    Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
   iIntros (Φ) "[Hx >Hl] HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1 x1) "[[Hh Ht]H] !#".
-  iDestruct (etc_supply_bound with "[$][$]") as "%Hbound".
+  iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
+  iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iExists (mknonnegreal (x1-1)%R _).
-  iDestruct (etc_decrease_supply with "[H][$]") as "H"; first shelve.
-  iMod "H".
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
-  iFrame. iModIntro. iSplitR; last by iApply "HΦ".
-  simpl. iPureIntro; lra.
-  Unshelve.
-  - destruct x1. simpl in *. lra.
-  - iApply etc_supply_irrel; last done. simpl. lra.
+  iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
@@ -174,22 +144,13 @@ Lemma wp_rand (N : nat) (z : Z) E s :
 Proof.
   iIntros (-> Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1 x1) "[Hσ Hx1] !#".
-  iDestruct (etc_supply_bound with "[$][$]") as "%Hbound".
+  iIntros (σ1) "Hσ !#".
   solve_red.
+  iFrame "Hx".
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
-  iExists (mknonnegreal (x1-1)%R _).
-  iDestruct (etc_decrease_supply with "[Hx1][$]") as "H"; first shelve.
-  iMod "H".
-  iFrame. iModIntro.
-  iSplitR; last by iApply ("HΦ" $! x).
-  iPureIntro; simpl; lra.
-  Unshelve.
-  - destruct x1. simpl in *. lra.
-  - iApply etc_supply_irrel; last done. simpl. lra.
+  iFrame. iModIntro. by iApply "HΦ".
 Qed.
-
 
 (** TODO tapes *)
 (** Tapes  *)
@@ -209,7 +170,6 @@ Qed.
   by iApply "HΦ".
 Qed.
 *)
-  Admitted.
 
 (* Lemma wp_rand_tape N α n ns z E s : *)
 (*   TCEq N (Z.to_nat z) → *)
@@ -228,7 +188,6 @@ Qed.
   by iApply "HΦ".
 Qed.
 *)
-  Admitted.
 
 (* Lemma wp_rand_tape_empty N z α E s : *)
 (*   TCEq N (Z.to_nat z) → *)
@@ -246,7 +205,6 @@ Qed.
   iModIntro. iApply ("HΦ" with "[$Hl //]").
 Qed.
 *)
-  Admitted.
 
 (* Lemma wp_rand_tape_wrong_bound N M z α E ns s : *)
 (*   TCEq N (Z.to_nat z) → *)
@@ -266,8 +224,7 @@ Qed.
   iApply ("HΦ" with "[$Hl //]").
 Qed.
 *)
-  Admitted.
 
-End lifting.
+End primitive_laws.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
