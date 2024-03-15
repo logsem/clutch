@@ -135,7 +135,8 @@ Section adequacy.
        simpl. iIntros (?). iPureIntro.
        apply Rplus_le_compat_l.
        apply SeriesC_le.
-       2:{ admit. }
+       2:{ apply pmf_ex_seriesC_mult_fn. exists r. split; last naive_solver.
+           apply cond_nonneg. }
        intros [e2 σ2].
        split.
        + apply Rmult_le_pos.
@@ -163,7 +164,7 @@ Section adequacy.
            exfalso.
            opose proof (pmf_pos (prim_step e1 σ1) (e2, σ2)).
            lra.
-  Admitted.
+  Qed.
 
 
   (*       iApply (step_fupdN_mono _ _ _ ⌜(ERT _ _ <= (1 + r)) ⌝).
