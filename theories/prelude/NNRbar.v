@@ -38,106 +38,113 @@ Open Scope R_scope.
 
 (* Operations for nonnegreals *)
 
-
+(* TODO: move into its own file *)
 Section nnreals.
 
+  Implicit Type (x y : nonnegreal).
 
-Implicit Type (x y : nonnegreal).
-
-Program Definition nnreal_plus x y : nonnegreal :=
-  mknonnegreal (x + y) _.
-Next Obligation.
-  destruct x as [x Hx].
-  destruct y as [y Hy].
-  apply Rplus_le_le_0_compat; auto.
-Qed.
-
-
-Program Definition nnreal_mult x y : nonnegreal :=
-  mknonnegreal (x * y) _.
-Next Obligation.
-  destruct x as [x Hx].
-  destruct y as [y Hy].
-  apply Rmult_le_pos; auto.
-Qed.
-
-Program Definition nnreal_minus x y (_ : (nonneg y <= nonneg x)) : nonnegreal :=
-  mknonnegreal (x - y) _.
-Next Obligation.
-  intros x y Hxy.
-  destruct x as [x Hx].
-  destruct y as [y Hy].
-  apply Rge_le, Rge_minus, Rle_ge; auto.
-Qed.
-
-Program Definition nnreal_inv x : nonnegreal :=
-  mknonnegreal (/x) _.
-Next Obligation.
-  destruct x as [x Hx].
-  destruct Hx as [Hlt | Heq].
-  + left; apply Rinv_0_lt_compat; auto.
-  + right; simpl; rewrite <- Heq; rewrite Rinv_0; auto.
-Qed.
-
-Program Definition nnreal_div x y : nonnegreal :=
-  nnreal_mult x (nnreal_inv y).
-
-Definition nnreal_zero : nonnegreal := mknonnegreal 0 (Rle_refl 0).
-Definition nnreal_one : nonnegreal := mknonnegreal 1 (Rle_0_1).
-
-Program Definition nnreal_nat (n : nat) : nonnegreal :=
-  mknonnegreal (INR n) _.
-Next Obligation.
-  intro.
-  apply pos_INR.
-Qed.
+  Program Definition nnreal_plus x y : nonnegreal :=
+    mknonnegreal (x + y) _.
+  Next Obligation.
+    destruct x as [x Hx].
+    destruct y as [y Hy].
+    apply Rplus_le_le_0_compat; auto.
+  Qed.
 
 
-Program Definition nnreal_half : nonnegreal := mknonnegreal (/2) _.
-Next Obligation.
-  left. apply pos_half_prf.
-Qed.
+  Program Definition nnreal_mult x y : nonnegreal :=
+    mknonnegreal (x * y) _.
+  Next Obligation.
+    destruct x as [x Hx].
+    destruct y as [y Hy].
+    apply Rmult_le_pos; auto.
+  Qed.
 
-Definition pos_to_nn (p : posreal) : nonnegreal := mknonnegreal p.(pos) (Rlt_le 0 p.(pos) p.(cond_pos)).
+  Program Definition nnreal_minus x y (_ : (nonneg y <= nonneg x)) : nonnegreal :=
+    mknonnegreal (x - y) _.
+  Next Obligation.
+    intros x y Hxy.
+    destruct x as [x Hx].
+    destruct y as [y Hy].
+    apply Rge_le, Rge_minus, Rle_ge; auto.
+  Qed.
 
-(* Uses proof irrelevance *)
-Lemma nnreal_ext x y : x.(nonneg) = y.(nonneg) -> x = y.
-Proof.
-  destruct x as [x Hx], y as [y Hy] =>/=.
-  intros ->.
-  f_equal; auto.
-  apply proof_irrelevance.
-Qed.
+  Program Definition nnreal_inv x : nonnegreal :=
+    mknonnegreal (/x) _.
+  Next Obligation.
+    destruct x as [x Hx].
+    destruct Hx as [Hlt | Heq].
+    + left; apply Rinv_0_lt_compat; auto.
+    + right; simpl; rewrite <- Heq; rewrite Rinv_0; auto.
+  Qed.
 
-Lemma nnreal_le_0 x : x <= 0 -> x = nnreal_zero.
-Proof.
-  destruct x as (x & Hxnn).
-  simpl.
-  intro Hxle.
-  pose proof (Rle_antisym 0 x Hxnn Hxle) as Heq.
-  rewrite /nnreal_zero.
-  apply nnreal_ext; auto.
-Qed.
+  Program Definition nnreal_div x y : nonnegreal :=
+    nnreal_mult x (nnreal_inv y).
 
+  Definition nnreal_zero : nonnegreal := mknonnegreal 0 (Rle_refl 0).
+  Definition nnreal_one : nonnegreal := mknonnegreal 1 (Rle_0_1).
 
-Lemma nnreal_plus_comm (x y :nonnegreal) :
-  nnreal_plus x y = nnreal_plus y x.
-Proof.
-  apply nnreal_ext.
-  apply Rplus_comm.
-Qed.
+  Program Definition nnreal_nat (n : nat) : nonnegreal :=
+    mknonnegreal (INR n) _.
+  Next Obligation.
+    intro.
+    apply pos_INR.
+  Qed.
 
-(* TODO: Make these notations work *)
+  Program Definition nnreal_half : nonnegreal := mknonnegreal (/2) _.
+  Next Obligation.
+    left. apply pos_half_prf.
+  Qed.
 
-
+  Definition pos_to_nn (p : posreal) : nonnegreal := mknonnegreal p.(pos) (Rlt_le 0 p.(pos) p.(cond_pos)).
 End nnreals.
-
 
 Declare Scope NNR_scope.
 Delimit Scope NNR_scope with NNR.
 
 Infix "+" := nnreal_plus : NNR_scope.
 Infix "*" := nnreal_mult : NNR_scope.
+
+Section nnreals_theory.
+  Implicit Type (x y : nonnegreal).
+
+  Lemma nnreal_ext x y : x.(nonneg) = y.(nonneg) -> x = y.
+  Proof.
+    destruct x as [x Hx], y as [y Hy] =>/=.
+    intros ->.
+    f_equal; auto.
+    apply proof_irrelevance.
+  Qed.
+
+  Lemma nnreal_le_0 x : x <= 0 -> x = nnreal_zero.
+  Proof.
+    destruct x as (x & Hxnn).
+    simpl.
+    intro Hxle.
+    pose proof (Rle_antisym 0 x Hxnn Hxle) as Heq.
+    rewrite /nnreal_zero.
+    apply nnreal_ext; auto.
+  Qed.
+
+  Lemma nnreal_plus_comm (x y :nonnegreal) :
+    nnreal_plus x y = nnreal_plus y x.
+  Proof.
+    apply nnreal_ext.
+    apply Rplus_comm.
+  Qed.
+
+  Lemma nnreal_nat_plus (n m : nat) :
+    (nnreal_nat n + nnreal_nat m)%NNR = nnreal_nat (n + m).
+  Proof. apply nnreal_ext => /=. rewrite plus_INR //. Qed.
+
+  Lemma nnreal_nat_Sn n :
+    nnreal_nat (S n) = (nnreal_nat 1 + nnreal_nat n)%NNR.
+  Proof.
+    replace (S n) with (1 + n)%nat by done.
+    rewrite -nnreal_nat_plus //.
+  Qed.
+
+End nnreals_theory.
 
 (** * Definitions *)
 
