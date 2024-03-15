@@ -11,13 +11,14 @@ From clutch.ert_logic Require Import expected_time_credits ert_weakestpre probla
 From clutch.prob Require Import distribution.
 Import uPred.
 
-Fixpoint ERT k (eσ : lang.cfg) : R :=
+ (* `{!LanguageCostfun cost} *)
+Fixpoint ERT k (cost : expr -> nonnegreal) (eσ : lang.cfg) : R :=
   match k with
   | O => 0
   | S n =>
       match to_val eσ.1 with
       | Some v => nnreal_zero
-      | None => 1 + SeriesC (λ ρ, prim_step eσ.1 eσ.2 ρ * ERT n ρ)
+      | None => (cost eσ) + SeriesC (λ ρ, (prim_step eσ.1 eσ.2 ρ) * (ERT n ρ))
       end
   end.
 
