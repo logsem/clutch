@@ -39,7 +39,7 @@ Section ERM.
       (∃ (X2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜∃ r, ∀ ρ, (X2 ρ <= r)%R⌝ ∗
-          ⌜(1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
+          ⌜((cost e1) + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
             ∀ e2 σ2, ⌜ (prim_step e1 σ1 (e2, σ2) > 0)%R ⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))) (* ∨
          (* [state_step] with adv composition*)
          ([∨ list] α ∈ get_active σ1,
@@ -98,7 +98,7 @@ Section ERM.
       (∃ (X2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜∃ r, ∀ ρ, (X2 ρ <= r)%R⌝ ∗
-          ⌜(1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
+          ⌜((cost e1) + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
             ∀ e2 σ2, ⌜ (prim_step e1 σ1 (e2, σ2) > 0)%R ⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))) (* ∨
          (* [state_step] with adv composition*)
          ([∨ list] α ∈ get_active σ1,
@@ -184,7 +184,7 @@ Section ERM.
     iIntros (???) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
-  Lemma ERM_bind K `{!LanguageCtx K} e1 σ1 Z x :
+  Lemma ERM_bind K `{!LanguageCtx K} `{!LanguageCostfun cost} e1 σ1 Z x :
     to_val e1 = None →
     ERM e1 σ1 x (λ '(e2, σ2) x', Z (K e2, σ2) x') -∗ ERM (K e1) σ1 x Z.
   Proof.
@@ -241,6 +241,7 @@ Section ERM.
           } *)
       + iPureIntro.
         etrans; [ | apply H1].
+        rewrite costfun_fill.
         apply Rplus_le_compat_l.
         transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * x3 (K e, σ))%R)).
         * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
@@ -367,7 +368,7 @@ Section ERM.
   Qed.
 
   Lemma ERM_prim_step e1 σ1 Z x :
-    (∃ x2, ⌜reducible (e1, σ1)⌝ ∗ ⌜(1 + x2 <= x)%R⌝ ∗
+    (∃ x2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (cost e1 + x2 <= x)%R ⌝ ∗
           ∀ e2 σ2 , ⌜prim_step e1 σ1 (e2, σ2) > 0⌝%R ={∅}=∗ Z (e2, σ2) x2)
     ⊢ ERM e1 σ1 x Z.
   Proof.
@@ -384,7 +385,7 @@ Section ERM.
       (∃ (x2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜∃ r, ∀ ρ, (x2 ρ <= r)%R⌝ ∗
-          ⌜(1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * x2(ρ)) <= x)%R⌝ ∗
+          ⌜((cost e1) + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * x2(ρ)) <= x)%R⌝ ∗
            ∀ e2 σ2, ⌜ prim_step e1 σ1 (e2, σ2) > 0 ⌝%R ={∅}=∗ Z (e2, σ2) (x2 (e2, σ2)))
     ⊢ ERM e1 σ1 x Z.
   Proof.
@@ -714,7 +715,7 @@ Proof.
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
-Lemma ert_wp_bind K `{!LanguageCtx K} s E e Φ :
+Lemma ert_wp_bind K `{!LanguageCtx K} `{!LanguageCostfun cost} s E e Φ :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite ert_wp_unfold /ert_wp_pre.
