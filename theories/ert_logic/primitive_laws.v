@@ -187,7 +187,7 @@ Qed.
   iFrame. iModIntro.
   by iApply "HΦ".
 Qed.
-*)
+   *)
 
 (* Lemma wp_rand_tape_empty N z α E s : *)
 (*   TCEq N (Z.to_nat z) → *)

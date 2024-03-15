@@ -1903,6 +1903,29 @@ Section Inj_finite.
         * by rewrite plus_zero_r.
   Qed.
 
+  Lemma SeriesC_filter_finite_1_bounds `{Countable A} (M:nat) (f:A -> R) (g: fin M -> R) h r:
+    Inj eq eq h -> (0 < M)%nat -> (0<r)-> (∀ a: A, 0 <= f a <= r) -> (∀ b: fin M, 0 <= g b <= r) ->
+    (∀ (a : A) (b : fin M), a = h b → f a <= g b) ->
+    SeriesC (λ a : A, if bool_decide (∃ y : fin M, a = h y) then f a else 0) <= SeriesC g.
+  Proof.
+    intros Hinj Hm Hr Hf Hg Hfg.
+    apply (Rmult_le_reg_r (/r)).
+    { rewrite -Rdiv_1_l. apply Rdiv_lt_0_compat; lra. }
+    rewrite -!SeriesC_scal_r.
+    erewrite (SeriesC_ext _ (λ x : A, (if bool_decide (∃ y : fin M, x = h y) then (λ x, f x / r) x else 0))); last first.
+    { intros. case_bool_decide; lra. }
+    apply SeriesC_filter_finite_1; try done.
+    - intros; split.
+      + apply Rcomplements.Rdiv_le_0_compat; try lra. naive_solver.
+      + rewrite Rcomplements.Rle_div_l; last naive_solver. rewrite Rmult_1_l. naive_solver.
+    - intros; split.
+      + apply Rcomplements.Rdiv_le_0_compat; try lra. naive_solver.
+      + rewrite Rcomplements.Rle_div_l; last naive_solver. rewrite Rmult_1_l. naive_solver.
+    - intros. rewrite Rdiv_def. apply Rmult_le_compat_r; last naive_solver.
+      rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra.
+  Qed.
+    
+
   Lemma SeriesC_filter_finite_1' (N M:nat) (f:fin N -> R) (g: fin M -> R) h:
     Inj eq eq h -> (0 < M <= N)%nat -> (∀ a: fin N, 0 <= f a <= 1) -> (∀ b: fin M, 0 <= g b <= 1) ->
     (∀ (a : fin N) (b : fin M), a = h b → f a <= g b) ->
