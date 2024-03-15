@@ -26,8 +26,6 @@ Lemma wp_lift_step_fupd_ERM E Φ e1 s :
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof. by rewrite ert_wp_unfold /ert_wp_pre =>->. Qed.
 
-
-(* TODO: What should this actually say?? *)
 Lemma wp_lift_step_fupd E Φ e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E,∅}=∗
