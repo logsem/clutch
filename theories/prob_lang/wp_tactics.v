@@ -274,13 +274,13 @@ Section heap_tactics.
   Context `{GwpTacticsBase Σ A hlc gwp, !GwpTacticsHeap Σ A laters gwp}.
 
 
-Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
-  (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
 
-(** Notations with binder. *)
-Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
-  (at level 20, e, Q at level 200,
-   format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+  (** Notations with binder. *)
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+     format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
   Lemma tac_wp_alloc Δ Δ' E j K v Φ a :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
