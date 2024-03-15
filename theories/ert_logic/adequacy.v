@@ -17,17 +17,14 @@ Fixpoint ERT k (eσ : lang.cfg) : R :=
   | S n =>
       match to_val eσ.1 with
       | Some v => nnreal_zero
-      | None => 1 + SeriesC (λ ρ, (prim_step eσ.1 eσ.2 ρ) * (ERT n ρ))
+      | None => 1 + SeriesC (λ ρ, prim_step eσ.1 eσ.2 ρ * ERT n ρ)
       end
   end.
 
 Lemma ERT_Sn n e σ :
-  to_val e = None ->
-  ERT (S n) (e, σ) = 1 + SeriesC (λ ρ : cfg, ((step (e, σ) ρ) * (ERT n ρ))%R).
-Proof.
-  simpl. by intros ->.
-Qed.
-
+  to_val e = None →
+  ERT (S n) (e, σ) = 1 + SeriesC (λ ρ, step (e, σ) ρ * ERT n ρ)%R.
+Proof. simpl. by intros ->. Qed.
 
 Section adequacy.
   Context `{!ert_clutchGS Σ}.
@@ -83,17 +80,12 @@ Section adequacy.
        iMod ("H" with "[//]"); auto.
      Qed. *)
 
-
-
   Lemma ERM_erasure (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
     to_val e = None →
     ERM e σ x
           (λ '(e2, σ2) (x' : nonnegreal),
              |={∅}▷=>^(S n) ⌜ERT n (e2, σ2) <= x'⌝)
     ⊢ |={∅}▷=>^(S n) ⌜ERT (S n) (e, σ) <= x⌝.
-    (* exec_ub e σ ε (λ '(e2, σ2) ε',
-           |={∅}▷=>^(S n) ⌜ub_lift (exec n (e2, σ2)) φ ε'⌝)
-       ⊢ |={∅}▷=>^(S n) ⌜ub_lift (exec (S n) (e, σ)) φ ε⌝. *)
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
@@ -166,77 +158,8 @@ Section adequacy.
            lra.
   Qed.
 
-
-  (*       iApply (step_fupdN_mono _ _ _ ⌜(ERT _ _ <= (1 + r)) ⌝).
-           iApply fupd_mask_intro; [set_solver|]; iIntros.
-
-           iMod ("H" $! e s with "[]") as "H";  [iPureIntro; eauto| iModIntro ].
-           iDestruct "H" as "[%R' [%x1' [%x2' (%Hsum' & %Hlift' & Hwand')]]]".
-           rewrite -(dret_id_left' (fun _ : () => (exec n (e, s))) tt).
-           iApply (step_fupdN_mono _ _ _ ⌜(ub_lift _ _ (x1' + x2')) ⌝).
-           { iIntros "%H'"; iPureIntro. eapply UB_mon_grading; eauto. }
-           iApply (ub_lift_dbind').
-           * iPureIntro; apply cond_nonneg.
-           * iPureIntro; apply cond_nonneg.
-           * iPureIntro.
-             apply total_ub_lift_implies_ub_lift in Hlift'.
-             eapply Hlift'.
-           * iIntros (? Hcont).
-             replace tt with a; [| by destruct a].
-             iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
-             rewrite (dret_id_left').
-             iApply step_fupd_fupdN_S.
-             iFrame.
-             iModIntro.
-             eauto.
-       - rewrite exec_Sn_not_final; [|eauto].
-         iDestruct (big_orL_mono _ (λ _ _,
-                        |={∅}▷=>^(S n)
-                          ⌜ub_lift (prim_step e1 σ1 ≫= exec n) φ x''⌝)%I
-                     with "H") as "H".
-         { iIntros (i α Hα%elem_of_list_lookup_2) "(% & %x1 & %x2 & %Hx'' & %Hleq & %Hlift & H)".
-           replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
-           rewrite -exec_Sn_not_final; [|eauto].
-           iApply (step_fupdN_mono _ _ _
-                     (⌜∀ σ2 , R2 σ2 → ub_lift (exec (S n) (e1, σ2)) φ (x2 (e1, σ2))⌝)%I).
-           - iIntros (?). iPureIntro.
-             rewrite /= /get_active in Hα.
-             apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-             erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim _ _ _ _ _ Hα)); eauto.
-             apply (UB_mon_grading _ _
-                      (x1 + (SeriesC (λ ρ : language.state prob_lang, language.state_step σ1 α ρ * x2 (e1, ρ))))) => //.
-             eapply ub_lift_dbind_adv; eauto; [by destruct x1|].
-             destruct Hx'' as [r Hr]; exists r.
-             intros a.
-             split; [by destruct (x2 _) | by apply Hr].
-           - iIntros (e s).
-             iApply step_fupd_fupdN_S.
-             iMod ("H" with "[//]") as "H"; iModIntro.
-             iDestruct "H" as "[%R' [%x1' [%x2' (%Hsum' & %Hlift' & Hwand')]]]".
-             rewrite -(dret_id_left' (fun _ : () => (exec (S n) _)) tt).
-             iApply (step_fupdN_mono _ _ _ ⌜(ub_lift _ _ (x1' + x2')) ⌝).
-             { iIntros "%H'"; iPureIntro. eapply UB_mon_grading; eauto. }
-             iApply (ub_lift_dbind').
-             * iPureIntro; apply cond_nonneg.
-             * iPureIntro; apply cond_nonneg.
-             * iPureIntro.
-               apply total_ub_lift_implies_ub_lift in Hlift'.
-               eapply Hlift'.
-             * iIntros (? Hcont).
-               replace tt with a; [| by destruct a].
-               iSpecialize ("Hwand'" with "[]"); [iPureIntro; eauto|].
-               rewrite (dret_id_left').
-               iApply step_fupd_fupdN_S.
-               iMod ("Hwand'" with "[//]"); iModIntro; iFrame.
-               iModIntro; eauto. }
-         iInduction (language.get_active σ1) as [| α] "IH"; [done|].
-         rewrite big_orL_cons.
-         iDestruct "H" as "[H | Ht]"; [done|].
-         by iApply "IH".
-     Qed. *)
-
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (x : nonnegreal) n φ  :
-    state_interp σ ∗ etc_interp (x) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+    state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ERT n (e, σ) <= x⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ x); iIntros "((Hσh & Hσt) & Hx & Hwp)".
@@ -253,10 +176,10 @@ Section adequacy.
         iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
-          (ERM_mono _ (λ '(e2, σ2) x', |={∅}▷=>^(S n)
-             ⌜ERT n (e2, σ2) <= x'⌝)%I
-            with "[%] [] Hlift") as "H".
-        { apply Rle_refl. }
+          (ERM_mono _
+             (λ '(e2, σ2) x', |={∅}▷=>^(S n) ⌜ERT n (e2, σ2) <= x'⌝)%I
+            with "[] Hlift") as "H".
+        { reflexivity. }
         { iIntros ([] ?) "H !> !>".
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
           iMod ("IH" with "[$]") as "H".
@@ -266,9 +189,7 @@ Section adequacy.
         by iApply (ERM_erasure with "H").
   Qed.
 
-
 End adequacy.
-
 
 Class ert_clutchGpreS Σ := ERT_ClutchGpreS {
   ert_clutchGpreS_iris  :: invGpreS Σ;
@@ -293,16 +214,6 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  (* Handle the trivial 1 <= ε case *)
-  (* destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
-     { iClear "Hh Ht".
-       iApply (fupd_mask_intro); [eauto|].
-       iIntros "_".
-       iApply step_fupdN_intro; [eauto|].
-       iApply laterN_intro; iPureIntro.
-       apply not_Rlt, Rge_le in Hcr.
-       rewrite /ub_lift; intros.
-       eapply Rle_trans; [eapply prob_le_1|done]. } *)
   iMod (etc_alloc) as (?) "[??]".
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN.
@@ -310,43 +221,3 @@ Proof.
   iApply Hwp.
   done.
 Qed.
-
-(*
-Lemma ub_lift_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (forall n, ub_lift (exec n (e, σ)) φ ε ) ->
-  ub_lift (lim_exec (e, σ)) φ ε .
-Proof.
-  intros Hn.
-  apply lim_exec_continuous_prob; auto.
-Qed.
-
-Theorem wp_union_bound_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{ub_clutchGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  ub_lift (lim_exec (e, σ)) φ ε.
-Proof.
-  intros.
-  apply ub_lift_closed_lim.
-  intro n.
-  apply (wp_union_bound Σ); auto.
-Qed.
-
-Theorem wp_union_bound_epsilon_lim Σ `{ub_clutchGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{ub_clutchGS Σ} (ε':nonnegreal), ε<ε' -> ⊢ € ε' -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  ub_lift (lim_exec (e, σ)) φ ε.
-Proof.
-  intros H'.
-  apply ub_lift_epsilon_limit.
-  { destruct ε. simpl. lra. }
-  intros ε0 H1.
-  assert (0<=ε0) as Hε0.
-  { trans ε; try lra. by destruct ε. }
-  pose (mknonnegreal ε0 Hε0) as NNRε0.
-  assert (ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
-  { by simpl. }
-  rewrite Heq.
-  eapply wp_union_bound_lim; first done.
-  intros. iIntros "He".
-  iApply H'; try iFrame.
-  simpl. destruct ε; simpl in H1; simpl; lra.
-Qed.
-*)

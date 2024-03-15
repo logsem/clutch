@@ -17,9 +17,8 @@ Class ert_clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* CMRA and ghost name for the ERT *)
-  ert_clutchGS_etc :: etcGS Σ;
+  ert_clutchGS_etc : etcGS Σ;
 }.
-
 
 Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
@@ -30,11 +29,11 @@ Definition heap_auth `{ert_clutchGS Σ} :=
 Definition tapes_auth `{ert_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
+Global Instance clutchGS_irisGS `{!ert_clutchGS Σ} : ertwpG prob_lang Σ := {
+  ertwpG_invGS := clutchGS_invG;
+  ertwpG_etcGS := ert_clutchGS_etc;
 
-Global Instance clutchGS_irisGS `{!ert_clutchGS Σ} : irisGS prob_lang Σ := {
-  iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  etc_interp ε := (etc_supply ε);
 }.
 
 (** Heap *)
