@@ -131,8 +131,6 @@ Section tests.
   Proof.
     iIntros (?) "Hx Hp".
     wp_pure.
-    Undo.
-    wp_binop.
     by iApply "Hp".
   Qed.
 
