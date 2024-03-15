@@ -186,4 +186,72 @@ Section metatheory.
   Qed.
 
 
+  (** Can be strengthed, but it works for now*)
+  Local Lemma mean_constraint (N : nat) ε1 (ε2 : fin (S N) -> nonnegreal) :
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) ->
+  (exists r, (0 <= r)%R /\ ∀ n,(ε2 n <= r)%R).
+  Proof.
+    intros Hsum.
+    exists (nnreal_nat (S N) * ε1)%NNR.
+    split. { apply Rmult_le_pos; apply cond_nonneg. }
+    intros n.
+    Opaque nnreal_nat.
+    rewrite /= -Hsum.
+    rewrite SeriesC_scal_l -Rmult_assoc -(Rmult_1_l (nonneg (ε2 _))).
+    apply Rmult_le_compat; try lra.
+    - by apply cond_nonneg.
+    - rewrite /Rdiv Rmult_1_l.
+      rewrite /= Rinv_r; try lra.
+      Transparent nnreal_nat.
+      rewrite /nnreal_nat.
+      replace (nonneg {| nonneg := INR (S N); cond_nonneg := _ |}) with (INR (S N)); [| by simpl ].
+      by apply not_0_INR.
+    - replace (nonneg (ε2 _)) with (NNRbar_to_real (NNRbar.Finite (ε2 n))); last first.
+      { simpl. done. }
+      rewrite -(SeriesC_singleton_dependent _ ε2).
+      apply SeriesC_le.
+      + intros n'.
+        assert (H : (0 <= (nonneg (ε2 n')))%R) by apply cond_nonneg.
+        rewrite /nnreal_zero /=.
+        case_bool_decide; try lra.
+      + apply ex_seriesC_finite.
+  Qed.
+  
+  Lemma wp_couple_rand_adv_comp' (N : nat) z E (x1 : nonnegreal) (x2 : fin (S N) -> nonnegreal) :
+    TCEq N (Z.to_nat z) →
+    1 + SeriesC (λ n, (1 / (S N)) * x2 n)%R = (nonneg x1) →
+    {{{ ⧖ x1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n) }}}.
+  Proof.
+    intros. eapply wp_couple_rand_adv_comp; try done.
+    epose proof (mean_constraint _ _ _ _) as [x[H1 H2]].
+    exists (mknonnegreal x H1). done.
+    Unshelve.
+    2: { eapply Rplus_eq_reg_l. erewrite H0.
+         instantiate (1:=mknonnegreal (nonneg x1 - 1) _).
+         simpl. lra. }
+    Unshelve.
+    rewrite <- H0. assert (0<=SeriesC (λ n, 1/S N * x2 n)); last lra.
+    apply SeriesC_ge_0'. intros. apply Rmult_le_pos; last apply cond_nonneg.
+    apply Rcomplements.Rdiv_le_0_compat; first lra.
+    apply pos_INR_S.
+  Qed.
+
+  Lemma wp_couple_rand_condstant (N : nat) z E (x : nonnegreal) :
+    TCEq N (Z.to_nat z) →
+    {{{ ⧖ (x+nnreal_one)%NNR }}} rand #z @ E {{{ n, RET #n; ⧖ (x) }}}.
+  Proof.
+    intros ->.
+    iIntros(Φ) "H HΦ".
+    iApply (wp_couple_rand_adv_comp' with "H"); last first.
+    - iModIntro. iIntros (n) "H". iApply "HΦ". done.
+    - simpl. rewrite Rplus_comm. apply Rplus_eq_compat_r.
+      rewrite SeriesC_finite_mass fin_card.
+      rewrite Rdiv_1_l -Rmult_assoc -Rdiv_def.
+      replace (_/_) with 1; first real_solver.
+      rewrite Rdiv_diag; first real_solver.
+      intro H. assert (S (Z.to_nat z)= 0%nat); last done.
+      apply INR_eq. done.
+  Qed.
+     
+
 End metatheory.
