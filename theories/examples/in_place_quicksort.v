@@ -72,13 +72,24 @@ Section in_place_quicksort.
 
   Definition refl_values A : list val := fmap (fun (n: nat) => #n) A.
 
+
+  Lemma in_place_pivot_spec (A : list nat) arr (pivot : nat) :
+    ⊢ (arr ↦∗ (refl_values A)) -∗
+      WP (in_place_pivot #arr #(length A) #pivot)
+        {{λ len_left_v, ∃ R (len_left : nat),
+              arr ↦∗ (refl_values R) ∗
+              ⌜len_left_v = #len_left⌝ ∗
+              ⌜pivot_correct R pivot len_left⌝ }}.
+  Proof. Admitted.
+
+
   Definition quicksort :=
     (rec: "quicksort" "arr" "len" :=
        if: ("len" = #0)%E
-        then "arr"
+        then #()
         else
           let: "pivot" := rand "len" in
-          let: "len_left" := in_place_pivot "arr" "pivot" in
+          let: "len_left" := in_place_pivot "arr" "len" "pivot" in
           let: "left" := "arr" in
           let: "right" := (#1 + "len_left") in
           let: "len_right" := ("len" - "right" + #1) in
@@ -91,8 +102,47 @@ Section in_place_quicksort.
     ⊢ {{{ (arr ↦∗ (refl_values A)) }}}
         quicksort #arr #(length A)
       {{{ v, RET v; ∃ A1, ((arr ↦∗ refl_values A1 ∗ ⌜(sorted A1)⌝))}}}.
-  Proof. Admitted.
+  Proof.
+    iIntros (Φ).
+    iLöb as "IH" forall (A arr).
+    iIntros "!> Harr HΦ".
+    rewrite /quicksort.
+    wp_pures.
+    case_bool_decide as Hdec.
+    - (* Base case *)
+      wp_pures.
+      iApply "HΦ"; iModIntro; iExists _; iFrame.
+      iPureIntro.
+      inversion Hdec as [Hdec1].
+      rewrite -Nat2Z.inj_0 in Hdec1.
+      apply Nat2Z.inj in Hdec1.
+      rewrite (nil_length_inv A); eauto.
+      apply SSorted_nil.
+    - (* Inductive case *)
+      wp_pures.
 
+      (* CREDIT ACCOUNTING: Advanced composition on the rank of (rand #(length A)) in A *)
+      wp_apply wp_rand; eauto.
+      iIntros (s) "_".
+
+      (* Step through the in-place pivot *)
+      (* this is a total mess *)
+      wp_pures.
+      wp_bind (in_place_pivot _ _ _)%E.
+      iApply (ub_wp_mono ); last first.
+      { iApply ub_wp_frame_r; iSplitL; last iApply "IH".
+        iApply ub_wp_frame_r; iSplitR "HΦ"; last iApply "HΦ".
+        wp_apply (in_place_pivot_spec with "Harr"). }
+      iIntros (len_left) "[[[%R [%len_left_nat [Harr [-> %Hcorrect]]]] HΦ] IH]".
+
+      (* Prepare inductive calls *)
+      do 11 wp_pure.
+
+      (* Need to split Harr into (three) parts now *)
+      (* I'll also need to split up HΦ into two parts *)
+
+
+  Admitted.
 
 
 End in_place_quicksort.
