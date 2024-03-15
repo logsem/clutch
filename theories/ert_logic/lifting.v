@@ -32,7 +32,7 @@ Qed.
 (* TODO: What should this actually say?? *)
 Lemma wp_lift_step_fupd E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1 x1, state_interp σ1 ∗ etc_interp x1
+  (∀ σ1 (x1:nonnegreal), state_interp σ1 ∗ etc_interp x1
      ={E,∅}=∗
     ⌜reducible (e1, σ1)⌝ ∗
      ∀ e2 σ2,
