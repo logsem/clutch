@@ -43,7 +43,7 @@ Section metatheory.
     - iPureIntro. eexists (x3+r).
       intros (e&σ); simpl. apply Rplus_le_compat_l.
       repeat case_match; simpl; try apply cond_nonneg. naive_solver.
-    - iPureIntro. destruct x1 as [x1 x1cond]. simpl in *.
+    - iPureIntro. destruct x1 as [x1 x1cond]. 
       trans (1 + x3 +
            SeriesC
              (λ n : fin (S (Z.to_nat z)),
@@ -51,7 +51,7 @@ Section metatheory.
                     | 0%nat => 1
                     | S _ => Z.to_nat z + 1
                   end * x2 n)); last first.
-      { rewrite -Hbound. apply Req_le_sym. rewrite Rplus_assoc (Rplus_comm (SeriesC _) x3) -Rplus_assoc. done. }
+      { simpl in *. rewrite -Hbound. apply Req_le_sym. rewrite Rplus_assoc (Rplus_comm (SeriesC _) x3) -Rplus_assoc. done. }
       rewrite Rplus_assoc. apply Rplus_le_compat_l.
       erewrite SeriesC_ext; last first.
       { intros. rewrite Rmult_plus_distr_l. done. }
@@ -66,7 +66,7 @@ Section metatheory.
         { assert (r=nnreal_zero) as ->.
           - apply nnreal_ext. simpl. apply Rle_antisym; try done. apply cond_nonneg.
           - assert (∀ n, x2 n = nnreal_zero) as K.
-            { intros. apply nnreal_ext. simpl. apply Rle_antisym; try done. apply cond_nonneg.}
+            { intros. apply nnreal_ext. simpl in *. apply Rle_antisym; try done. apply cond_nonneg. }
             rewrite SeriesC_0.
             + apply SeriesC_ge_0'. intros. rewrite K. simpl. lra.
             + intros. repeat case_match; try rewrite K; simpl; lra.
@@ -100,7 +100,26 @@ Section metatheory.
                 exists r. pose proof cond_nonneg r. intros. repeat case_match; simpl; try lra.
                 all: split; try apply Hr.
                 all: apply cond_nonneg.
-          -- admit.
+          -- intros [e σ]. split.
+             { repeat case_match; try real_solver.
+               all: pose proof cond_nonneg; real_solver.
+             }
+             destruct (bool_decide (∃ y, (e, σ) = h y)) eqn :H'.
+             ++ rewrite bool_decide_eq_true in H'. destruct H' as [y H'].
+                rewrite /h in H'. inversion H'. subst. rewrite /foo'.
+                apply Req_le_sym. repeat f_equal.
+                case_bool_decide; last done.
+                case_bool_decide; last lia.
+                repeat case_match; done.
+             ++ rewrite bool_decide_eq_false in H'.
+                repeat case_match; simpl; try real_solver.
+                exfalso. apply H'.
+                subst. 
+                exists (nat_to_fin l0).
+                rewrite /h. repeat f_equal.
+                ** rewrite fin_to_nat_to_fin. rewrite Z2Nat.id; first done.
+                   by rewrite bool_decide_eq_true in H4.
+                ** by rewrite bool_decide_eq_true in H3.
         * rewrite /h. intros ???K. inversion K. apply Nat2Z.inj' in H1.
           by apply fin_to_nat_inj.
         * lia.
@@ -110,10 +129,8 @@ Section metatheory.
           all: try apply Rmult_le_pos.
           all: try apply cond_nonneg.
           all: auto.
-          -- rewrite <-Rmult_1_l. apply Rmult_le_compat; auto.
-             apply cond_nonneg.
-          -- rewrite <-Rmult_1_l. apply Rmult_le_compat; auto.
-             apply cond_nonneg.
+          simpl in *. rewrite <-Rmult_1_l. apply Rmult_le_compat; auto.
+          apply cond_nonneg.
         * simpl. intros. case_match.
           -- replace (1/1) with 1 by lra.
              rewrite Rmult_1_l. split; [apply cond_nonneg|apply Hr].
@@ -137,7 +154,11 @@ Section metatheory.
           { exfalso. apply n. rewrite Nat2Z.id. apply fin_to_nat_lt. }
           apply Rmult_le_compat; auto.
           -- apply cond_nonneg.
-          -- admit.
+          -- rewrite head_prim_step_eq. simpl.
+             erewrite dmap_unif_nonzero; last done.
+             ** simpl. real_solver.
+             ** intros ???. inversion H2. apply Nat2Z.inj in H4.
+                apply fin_to_nat_inj. done.
           -- replace (nat_to_fin l) with b; first done.
              apply fin_to_nat_inj. rewrite fin_to_nat_to_fin.
              rewrite Nat2Z.id. done. 
@@ -162,7 +183,7 @@ Section metatheory.
         assert (nat_to_fin l = n) as ->; last done.
         apply fin_to_nat_inj. rewrite fin_to_nat_to_fin. lia.
       + iApply ert_wp_value. by iApply "HΦ".
-  Admitted.
+  Qed.
 
 
 End metatheory.
