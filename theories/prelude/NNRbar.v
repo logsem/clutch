@@ -133,16 +133,24 @@ Section nnreals_theory.
     apply Rplus_comm.
   Qed.
 
+  Lemma nnreal_nat_1 :
+    nnreal_nat 1 = nnreal_one.
+  Proof. by apply nnreal_ext=>/=. Qed.
+
   Lemma nnreal_nat_plus (n m : nat) :
-    (nnreal_nat n + nnreal_nat m)%NNR = nnreal_nat (n + m).
+    nnreal_nat (n + m) = (nnreal_nat n + nnreal_nat m)%NNR.
   Proof. apply nnreal_ext => /=. rewrite plus_INR //. Qed.
 
   Lemma nnreal_nat_Sn n :
     nnreal_nat (S n) = (nnreal_nat 1 + nnreal_nat n)%NNR.
   Proof.
     replace (S n) with (1 + n)%nat by done.
-    rewrite -nnreal_nat_plus //.
+    rewrite nnreal_nat_plus //.
   Qed.
+
+  Lemma nnreal_nat_Sn' n :
+    nnreal_nat (S n) = (nnreal_one + nnreal_nat n)%NNR.
+  Proof. rewrite nnreal_nat_Sn nnreal_nat_1 //. Qed.
 
 End nnreals_theory.
 
