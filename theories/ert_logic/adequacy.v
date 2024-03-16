@@ -221,3 +221,80 @@ Proof.
   iApply Hwp.
   done.
 Qed.
+
+(** Finite expected mean => Almost sure termination *)
+
+Theorem mass_le_1_implies_growing_ert e σ (n:nat) ε:
+  0<ε<=1->
+  SeriesC(λ x, lim_exec (e, σ) x) = 1 - ε ->
+  (n*ε)%R <= ERT n (e, σ).
+Proof.
+  intros Hε Hlim.
+  assert (SeriesC (λ x, exec n (e,σ) x) <= 1 - ε) as Hexec.
+  { rewrite -Hlim. apply SeriesC_le; last auto.
+    intros; split; auto.
+    rewrite /lim_exec/lim_distr{2}/pmf.
+    apply rbar_le_finite; first apply is_finite_Sup_seq_exec.
+    etrans; last first.
+    - apply sup_is_upper_bound.
+    - done.
+  }
+  clear Hlim.
+  induction n.
+  - simpl.
+    lra.
+  - replace (S n * ε) with (ε + n * ε); last first.
+    { rewrite S_INR. lra. } 
+    trans (ε + ERT n (e, σ)).
+    { apply Rplus_le_compat_l. apply IHn.
+      etrans; last apply Hexec. apply SeriesC_le; auto.
+      intros; split; auto.
+      apply exec_mono.
+    }
+Admitted.
+
+Theorem finite_ert_implies_ast r e σ:
+  (∀ n, ERT n (e, σ) <= r) ->
+  SeriesC(λ x, lim_exec (e, σ) x) = 1.
+Proof.
+  intros H.
+  epose proof pmf_SeriesC (lim_exec (e, σ)).
+  pose proof Rle_or_lt 1 (SeriesC(λ x, lim_exec (e, σ) x)) as [|].
+  { by apply Rle_antisym. }
+  exfalso.
+  set (ε := 1 - SeriesC (lim_exec (e, σ)) ).
+  assert (0<ε<=1) as Hε.
+  { epose proof pmf_SeriesC_ge_0 (lim_exec(e, σ)).
+    split; rewrite /ε.
+    - rewrite -Rcomplements.Rminus_lt_0. done.
+    - rewrite Rcomplements.Rle_minus_l.
+      assert (1=1+0) as K by lra.
+      rewrite {1}K.
+      apply Rplus_le_compat_l. done.
+  }
+  assert (∃ n:nat, r<n*ε) as [n?].
+  { exists (S(Z.to_nat (up(r/ε)))).
+    rewrite -Rcomplements.Rlt_div_l; last lra.
+    rewrite S_INR.
+    rewrite -{1}(Rplus_0_r (r/ε)).
+    apply Rplus_le_lt_compat; try lra.
+    admit.
+  }
+  epose proof mass_le_1_implies_growing_ert e σ n ε Hε _.
+  specialize (H n).
+  eapply Rle_not_gt; first exact H.
+  apply Rlt_gt.
+  eapply Rlt_le_trans; exact.
+  Unshelve.
+  rewrite /ε. rewrite Rminus_def. rewrite Ropp_minus_distr.
+  rewrite Rplus_minus. done.
+Admitted.
+  
+Theorem wp_ast Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
+  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  SeriesC(λ x, lim_exec (e, σ) x) = 1.
+Proof.
+  intros. eapply finite_ert_implies_ast with x.
+  intros n. by eapply wp_ERT.
+Qed.
+  
