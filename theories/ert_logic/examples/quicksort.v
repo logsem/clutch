@@ -230,6 +230,8 @@ Proof.
   rewrite Rmult_assoc.
   rewrite Rinv_l; last admit.
   lra.
+  Transparent seq.
+  Transparent INR.
 Admitted.
 
 
@@ -237,35 +239,37 @@ Admitted.
 Lemma tc_quicksort_bound_closed n :
   ((nnreal_div (tc_quicksort n) (nnreal_nat (n + 1)%nat))
     <= (foldr nnreal_plus (tc_quicksort 0%nat) $
-        map (fun i => nnreal_div (tc_pivot ((fin_to_nat i) + 1)%nat) (nnreal_nat ((fin_to_nat i) + 2)%nat)) $
-        fin_enum n))%R.
+        map (fun i => nnreal_div (tc_pivot (i + 1)%nat) (nnreal_nat (i + 2)%nat)) $
+        seq 0%nat n))%R.
 Proof.
   induction n as [|n' IH]; [simpl; lra|].
   etrans; first eapply tc_quicksort_bound_ind.
   etrans; first eapply Rplus_le_compat_l, IH.
   apply Req_le.
-
-  (* Deeply annoying *)
-  rewrite fin_enum_snoc_rec.
-  rewrite map_app.
-  rewrite foldr_snoc.
   Opaque INR.
-  simpl.
-  replace (nat_to_fin (Nat.lt_succ_diag_r n') + 1) with (S n'); last first.
-  { rewrite fin_to_nat_to_fin; lia. }
-  replace (nat_to_fin (Nat.lt_succ_diag_r n') + 2) with (S n' + 1); last first.
-  { rewrite fin_to_nat_to_fin; lia. }
-  (* Big mess but true *)
-Admitted.
-
-
-
-
+  replace
+    (foldr nnreal_plus (tc_quicksort 0)
+     (map (λ i : nat, (nnreal_div (tc_pivot (i + 1)) (nnreal_nat (i + 2)))) (seq 0 (S n'))))
+    with
+    ((nnreal_div (tc_pivot (n' + 1)) (nnreal_nat (n' + 2))) +
+      (foldr nnreal_plus (tc_quicksort 0)
+     (map (λ i : nat, (nnreal_div (tc_pivot (i + 1)) (nnreal_nat (i + 2)))) (seq 0 n'))))%NNR;
+    last first.
+  { rewrite seq_S map_app /=.
+    rewrite foldr_snoc /=.
+     rewrite foldr_comm_acc; [done|].
+     intros.
+     rewrite nnreal_plus_comm nnreal_plus_assoc.
+     do 2 rewrite -nnreal_plus_assoc.
+     f_equal.
+     apply nnreal_plus_comm.
+  }
+  apply Rplus_eq_compat_r.
+  do 3 f_equal; try lia.
+Qed.
 
 (* Established bound: C(n)/(n+1) <= C(0) + sum_{i=1}^n (m(n)/(n+1))
   Good enough to get n log n when m(n) is linear *)
-
-
 
 
 
