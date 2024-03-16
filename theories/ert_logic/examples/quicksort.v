@@ -72,11 +72,6 @@ Definition quicksort :=
         "arr")%V.
 
 
-Compute (fin_to_nat (4 : fin 5)%fin).
-Compute (fin_enum 4).
-
-Check fin_to_nat_lt.
-
 Definition tc_base : nonnegreal. Admitted.
 
 (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
@@ -90,21 +85,21 @@ Program Fixpoint tc_quicksort (len : nat) {measure len} : nonnegreal
             (foldr nnreal_plus nnreal_zero $ map (fun n => (tc_quicksort (fin_to_nat n))) $ fin_enum len)%NNR
             (nnreal_nat len)
      end.
-Next Obligation. intros. apply fin_to_nat_lt. Qed.
+Next Obligation. intros. apply fin_to_nat_lt. (* This is the reason I need the haunted fin_enum *) Qed.
 Next Obligation. apply Wf.measure_wf, lt_wf. Qed.
 
 (* Exhausting unfolding lemmas, provable. *)
 Lemma tc_quicksort_0 : tc_quicksort 0%nat = tc_base.
 Proof. Admitted.
 
-(* Combined unfolding lemma *)
+(* Eliminate the hauntedness *)
 Lemma tc_quicksort_unfold n :
   (1 <= n)%nat ->
   tc_quicksort n =
           nnreal_plus (tc_pivot n) $
           nnreal_mult (nnreal_nat 2) $
           nnreal_div
-            (foldr nnreal_plus nnreal_zero $ map (fun i => ((tc_quicksort (fin_to_nat i)))%NNR) $ fin_enum n)%NNR
+            (foldr nnreal_plus nnreal_zero $ map (fun i => ((tc_quicksort i))%NNR) $ seq 0%nat n)%NNR
             (nnreal_nat n).
 Proof. Admitted.
 
@@ -113,14 +108,175 @@ Lemma tc_quicksort_bound_ind n' :
      (nnreal_div (tc_pivot (S n')) (nnreal_nat (S n' + 1)) +
       nnreal_div (tc_quicksort n') (nnreal_nat (n' + 1)%nat))%NNR)%R.
 Proof.
-  induction n' as [|n'' IH].
-  - rewrite tc_quicksort_unfold; last lia.
-    rewrite /= tc_quicksort_0; lra.
-  -
+  Opaque INR.
+  (* Match notations with my paper derivation (for now) *)
+  remember (S n') as n.
+  remember tc_quicksort as C.
+  remember tc_pivot as m.
+  simpl.
+  (* Goal: C(n)/(n+1) <= m(n)/(n+1) + C(n-1)/n *)
+
+  (* Suffices: C(n)/(n+1) <= m(n)/(n+1) - m(n-1)(n-1)/n(n+1) + C(n-1)/n *)
+  etrans; last first.
+  { eapply Rplus_le_compat_l.
+    rewrite -(Rplus_0_l (_ * _)%R).
+    eapply Rplus_le_compat_r.
+    assert (Hinst: (-((m n')*(n-1) / n / (n + 1)) <= 0)%R) by admit.
+    eapply Hinst.
+  }
+
+  (* Should be equal *)
+  apply Req_le.
+
+  (* Multiply by n+1 and simplify *)
+  (* Suffices: C(n) <= m(n) - m(n-1)(n-1)/n + C(n-1)(n+1)/n *)
+  eapply (Rmult_eq_reg_r (INR (n + 1))); last admit.
+  rewrite Rmult_assoc Rinv_l; last admit.
+  rewrite Rmult_1_r.
+  do 2 rewrite Rmult_plus_distr_r.
+  rewrite Rmult_assoc Rinv_l; last admit.
+  rewrite Rmult_1_r.
+  rewrite Ropp_mult_distr_l_reverse.
+  replace (((((m n') * (n - 1)) / n) / (n + 1)) * ((n + 1)%nat))%R
+    with (((((m n') * (n - 1)) / n)))%R; last first.
+  { do 3 rewrite -Rmult_div_assoc.
+    rewrite Rmult_assoc.
+    apply Rmult_eq_compat_l.
+    simpl.
+    admit.  (* doable *)
+  }
+
+  (* Proof is different when n' = 0*)
+  destruct n' as [| n'1].
+  { simplify_eq.
+    rewrite tc_quicksort_unfold; last lia.
+    Transparent INR.
+    simpl.
+    rewrite tc_quicksort_0.
+    lra.
+    Opaque INR.
+  }
+
+  (* Proof should follow but unfolding C *)
+  rewrite Heqn HeqC.
+  rewrite tc_quicksort_unfold; last lia.
+  (* rewrite tc_quicksort_unfold; last lia. *)
+  Opaque seq.
+  rewrite -Heqm -HeqC -Heqn /=.
+  apply Rplus_eq_compat_l.
+  replace (nonneg (foldr nnreal_plus nnreal_zero (map (λ i : nat, C i) (seq 0 n))))
+    with (C (S n'1) + (nonneg (foldr nnreal_plus nnreal_zero (map (λ i : nat, C i) (seq 0 (S n'1))))))%R; last first.
+  { simpl. admit. }
+  simpl.
+
+  (* Simplify *)
+  rewrite Rmult_plus_distr_r Rmult_plus_distr_l.
+  rewrite Rmult_plus_distr_r Rmult_plus_distr_l.
+  rewrite /= Rmult_1_l.
+  replace (nonneg (m (S n'1)) * INR n + nonneg (m (S n'1)) * - (1))%R
+      with (nonneg (m (S n'1)) * (INR n - 1))%R by lra.
+  rewrite Heqn.
+  (* All terms have an INR (S (S n'1)) denominator *)
+  apply (Rmult_eq_reg_r (INR (S (S n'1)))); last admit.
+  rewrite -Rmult_plus_distr_r.
+  rewrite (Rmult_plus_distr_r _ _ (INR _)%R).
+  rewrite Rmult_assoc Rinv_l; last admit.
+  rewrite Rmult_1_r.
+  do 2 rewrite Rmult_assoc.
+  rewrite Rmult_assoc Rinv_l; last admit.
+  rewrite Rmult_1_r.
+  rewrite Rmult_plus_distr_r.
+  rewrite -Ropp_mult_distr_l.
+  replace (nonneg (m (S n'1)) * (INR (S (S n'1)) - 1) / INR (S (S n'1)) * INR (S (S n'1)))%R
+      with (nonneg (m (S n'1)) * (INR (S (S n'1)) - 1))%R; last first.
+  { rewrite Rmult_assoc.
+    rewrite Rinv_l; last admit.
+    lra.
+  }
+
+  rewrite Rmult_assoc.
+  rewrite (Rmult_comm (/ _) _).
+  rewrite Rmult_assoc.
+  rewrite (Nat.add_1_r n'1).
+  rewrite Rinv_l; last admit.
+  rewrite Rmult_1_r.
+  rewrite (Nat.add_1_r).
+  rewrite (S_INR (S (S _))).
+  rewrite Rmult_plus_distr_l Rmult_1_r.
+  rewrite -Rplus_assoc (Rplus_comm _ (nonneg _)).
+  rewrite Rplus_assoc.
+  apply Rplus_eq_compat_l.
+
+  apply (Rplus_eq_reg_r (-C (S n'1))).
+  rewrite Rplus_comm Rplus_assoc.
+  rewrite -Rplus_assoc Rplus_opp_l Rplus_0_l.
+  simpl.
+  replace (nonneg (C (S n'1)) * INR (S (S n'1)) + - nonneg (C (S n'1)))%R
+    with (nonneg (C (S n'1)) * (INR (S (S n'1)) - 1))%R; last first.
+  { rewrite /= (S_INR (S n'1)). lra. }
+  rewrite Ropp_mult_distr_l.
+  rewrite -Rmult_plus_distr_r.
+
+  (* Unfold C (S n'1)*)
+  rewrite HeqC tc_quicksort_unfold; last lia.
+  rewrite -HeqC -Heqm /=.
+  remember (foldr nnreal_plus nnreal_zero (map (λ i : nat, C i) (seq 0 (S n'1)))) as Tsum.
+  rewrite -Rplus_assoc.
+  rewrite Rplus_opp_l Rplus_0_l.
+  rewrite (S_INR (S n'1)).
+  rewrite Rplus_minus_r.
+  rewrite Rmult_assoc.
+  Set Printing Parentheses.
+  rewrite Rmult_assoc.
+  rewrite Rinv_l; last admit.
+  lra.
 Admitted.
 
 
-(** Total mess *)
+
+Lemma tc_quicksort_bound_closed n :
+  ((nnreal_div (tc_quicksort n) (nnreal_nat (n + 1)%nat))
+    <= (foldr nnreal_plus (tc_quicksort 0%nat) $
+        map (fun i => nnreal_div (tc_pivot ((fin_to_nat i) + 1)%nat) (nnreal_nat ((fin_to_nat i) + 2)%nat)) $
+        fin_enum n))%R.
+Proof.
+  induction n as [|n' IH]; [simpl; lra|].
+  etrans; first eapply tc_quicksort_bound_ind.
+  etrans; first eapply Rplus_le_compat_l, IH.
+  apply Req_le.
+
+  (* Deeply annoying *)
+  rewrite fin_enum_snoc_rec.
+  rewrite map_app.
+  rewrite foldr_snoc.
+  Opaque INR.
+  simpl.
+  replace (nat_to_fin (Nat.lt_succ_diag_r n') + 1) with (S n'); last first.
+  { rewrite fin_to_nat_to_fin; lia. }
+  replace (nat_to_fin (Nat.lt_succ_diag_r n') + 2) with (S n' + 1); last first.
+  { rewrite fin_to_nat_to_fin; lia. }
+  (* Big mess but true *)
+Admitted.
+
+
+
+
+
+(* Established bound: C(n)/(n+1) <= C(0) + sum_{i=1}^n (m(n)/(n+1))
+  Good enough to get n log n when m(n) is linear *)
+
+
+
+
+
+
+
+
+
+
+
+
+(** Total mess, possibly not needed, but maybe needed for tc_quicksort_unfold *)
 
 
 (* Source of many deeply annoying lemmas involving fin_enum *)
@@ -181,30 +337,3 @@ Qed.
 
 
 
-Lemma tc_quicksort_bound_closed n :
-  ((nnreal_div (tc_quicksort n) (nnreal_nat (n + 1)%nat))
-    <= (foldr nnreal_plus (tc_quicksort 0%nat) $
-        map (fun i => nnreal_div (tc_pivot ((fin_to_nat i) + 1)%nat) (nnreal_nat ((fin_to_nat i) + 2)%nat)) $
-        fin_enum n))%R.
-Proof.
-  induction n as [|n' IH]; [simpl; lra|].
-  etrans; first eapply tc_quicksort_bound_ind.
-  etrans; first eapply Rplus_le_compat_l, IH.
-  apply Req_le.
-
-  (* Deeply annoying *)
-  rewrite fin_enum_snoc_rec.
-  rewrite map_app.
-  rewrite foldr_snoc.
-  Opaque INR.
-  simpl.
-  replace (nat_to_fin (Nat.lt_succ_diag_r n') + 1) with (S n'); last first.
-  { rewrite fin_to_nat_to_fin; lia. }
-  replace (nat_to_fin (Nat.lt_succ_diag_r n') + 2) with (S n' + 1); last first.
-  { rewrite fin_to_nat_to_fin; lia. }
-  (* Big mess but true *)
-Admitted.
-
-(* Established bound: C(n)/(n+1) <= C(0) + sum_{i=1}^n (m(n)/(n+1))
-
-  Good enough to get n log n when m(n) is linear *)
