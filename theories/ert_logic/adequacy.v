@@ -251,6 +251,7 @@ Proof.
       intros; split; auto.
       apply exec_mono.
     }
+    simpl.
 Admitted.
 
 Theorem finite_ert_implies_ast r e σ:
@@ -278,7 +279,18 @@ Proof.
     rewrite S_INR.
     rewrite -{1}(Rplus_0_r (r/ε)).
     apply Rplus_le_lt_compat; try lra.
-    admit.
+    trans (IZR (up(r/ε))).
+    - pose proof archimed (r/ε) as [? _].
+      apply Rgt_lt in H2.
+      lra.
+    - rewrite INR_IZR_INZ. rewrite Z2Nat.id; try done.
+      apply le_IZR.
+      pose proof archimed (r/ε) as [? _].
+      apply Rgt_lt in H2.
+      apply Rlt_le.
+      eapply Rle_lt_trans; last exact.
+      apply Rcomplements.Rdiv_le_0_compat; last naive_solver.
+      trans (ERT 0 (e,σ)); done.
   }
   epose proof mass_le_1_implies_growing_ert e σ n ε Hε _.
   specialize (H n).
@@ -288,7 +300,7 @@ Proof.
   Unshelve.
   rewrite /ε. rewrite Rminus_def. rewrite Ropp_minus_distr.
   rewrite Rplus_minus. done.
-Admitted.
+Qed.
   
 Theorem wp_ast Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
