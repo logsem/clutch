@@ -43,6 +43,14 @@ Next Obligation.
     apply pos_INR_S.
 Qed.
 
+Lemma nnreal_harmonic_sum_S (n:nat): nnreal_harmonic_sum (S n) = (nnreal_harmonic_sum n + nnreal_inv (nnreal_nat $ S n))%NNR.
+Proof.
+  apply nnreal_ext. simpl.
+  rewrite {1}/harmonic_sum. rewrite sum_n_Sm; last lia.
+  apply Rplus_eq_compat_l. done.
+Qed.
+                          
+
 Local Lemma coupon_etc_credit_split p coupon:
   (p≠0)%nat -> (coupon ≠ 0)%nat -> (p<coupon)%nat -> p/coupon + (coupon-p)/coupon * (1 + (coupon/p)) = (coupon/p).
 Proof.
@@ -95,16 +103,20 @@ Section proofs.
     (length lis = S coupon')%nat ->
     (size true_set = S coupon' - n)%nat ->
     (∀ n:nat, (n<S coupon')%nat -> lis !! n = Some (#true) <-> n∈true_set) -> 
-    {{{ ⧖ (tc_end + nnreal_nat(n) * tc_mid * nnreal_harmonic_sum n)%NNR ∗
+    {{{ ⧖ (tc_end + tc_mid * nnreal_nat(n) * nnreal_harmonic_sum n)%NNR ∗
           l ↦∗ lis
     }}}
       coupon_helper coupon' #l #(n) @ E
       {{{RET #(); True}}}.
   Proof.
+    iIntros (Hn Hlis Hset Hrel Φ) "[Hx Hl] HΦ".
+    iLöb as "IH" forall (true_set n lis Hn Hlis Hset Hrel Φ) "Hx Hl HΦ".
+    destruct n as [| n]; first lia.
+    rewrite /coupon_helper.
   Admitted.
 
   Lemma wp_coupon_collection (coupon':nat) E:
-    {{{ ⧖ (tc_start+tc_end + nnreal_nat(S coupon') * tc_mid * nnreal_harmonic_sum (S coupon'))%NNR }}}
+    {{{ ⧖ (tc_start+tc_end + tc_mid * nnreal_nat(S coupon') * nnreal_harmonic_sum (S coupon'))%NNR }}}
       coupon_collection coupon' #()@E
       {{{RET #(); True}}}.
   Proof.
