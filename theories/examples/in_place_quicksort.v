@@ -133,14 +133,12 @@ Section in_place_quicksort.
       { iApply ub_wp_frame_r; iSplitL; last iApply "IH".
         iApply ub_wp_frame_r; iSplitR "HΦ"; last iApply "HΦ".
         wp_apply (in_place_pivot_spec with "Harr"). }
-      iIntros (len_left) "[[[%R [%len_left_nat [Harr [-> %Hcorrect]]]] HΦ] IH]".
+      iIntros (len_left) "[[[%R [%len_left_nat [Harr [-> %Hcorrect]]]] HΦ] #IH]".
 
       (* Prepare inductive calls *)
       do 11 wp_pure.
 
       (* Need to split Harr into (three) parts now *)
-      (* I'll also need to split up HΦ into two parts *)
-
 
   Admitted.
 
