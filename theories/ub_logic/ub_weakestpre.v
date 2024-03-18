@@ -419,7 +419,7 @@ Section exec_ub.
                             -- epose proof (fill_step_inv _ _ _ _ _ Hgt) as (e2' & (H3&?)).
                                by destruct (HKinv2 e e2' He).
                             --  apply Rnot_gt_le in Hngt.
-                                assert (prim_step (K o) σ' (e, σ) = 0); [by apply Rle_antisym | ].
+                                assert (prim_step (K o) σ' (e, σ) = 0%R); [by apply Rle_antisym | ].
                                 lra.
             *** apply (ex_seriesC_le _ (λ '(e, σ), (prim_step (K o) σ' (e, σ) * ε3 (e, σ))%R)).
                 **** intros (e & σ); simpl; split.

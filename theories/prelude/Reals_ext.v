@@ -121,6 +121,9 @@ Lemma Req_minus_r (x y z : R):
   x + z = y → x = y - z.
 Proof. intros; lra. Qed.
 
+Lemma Rle_0_le_minus (x y : R) : (x <= y)%R -> (0 <= y - x)%R.
+Proof. lra. Qed.
+
 Ltac real_solver :=
     by repeat
          match goal with

@@ -12,7 +12,7 @@ From clutch.prob Require Import distribution.
 Import uPred.
 
 Section ERT.
-  Context `{!@Costfun prob_lang}.
+  Context `{!Costfun prob_lang}.
 
   Fixpoint ERT k (eσ : cfg) : R :=
     match k with
@@ -91,9 +91,7 @@ Section adequacy.
             2: {
               etrans. 1: eauto.
               rewrite -{1}(Rplus_0_l (SeriesC (λ ρ : expr * state, prim_step e2 σ2 ρ * ERT n ρ))).
-              apply Rplus_le_compat_r.
-              apply cond_nonneg.
-            }
+              apply Rplus_le_compat_r. apply cost_nonneg. }
             apply SeriesC_ge_0'.
             intros.
             apply Rmult_le_pos.

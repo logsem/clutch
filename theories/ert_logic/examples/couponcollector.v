@@ -1,6 +1,6 @@
 (** * Exact time credit accounting for Coupon collecting *)
 From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
-  derived_laws.
+  derived_laws cost_models.
 From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Coq Require Export Reals Psatz.
@@ -75,26 +75,11 @@ Qed.
 
   
 Section proofs.
-  #[local] Definition cost1 (e : language.expr prob_lang) :=
-  match decomp e with
-  | (_, Rand _ _) => nnreal_one
-  | _ => nnreal_zero
-  end.
-  
-  #[local] Instance Cost1 : Costfun prob_lang.
-  Proof.
-    unshelve econstructor.
-    - exact cost1.
-    - eexists nnreal_one; intros. simpl. rewrite /cost1.
-      repeat case_match; simpl; lra. 
-    - intros. rewrite /cost1.
-  Admitted.
-
   Context `{!ert_clutchGS Σ Cost1}.
 
-  Notation tc_end:= (nnreal_nat 6).
-  Notation tc_mid:=(nnreal_nat 999).
-  Notation tc_start := (nnreal_nat 5).
+  Notation tc_end:= 6.
+  Notation tc_mid:= 999.
+  Notation tc_start := 5.
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 
     {{{ ⧖ (tc_end) }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
@@ -110,7 +95,7 @@ Section proofs.
     (length lis = S coupon')%nat ->
     (size true_set = S coupon' - n)%nat ->
     (∀ n:nat, (n<S coupon')%nat -> lis !! n = Some (#true) <-> n∈true_set) -> 
-    {{{ ⧖ (tc_end + tc_mid * nnreal_nat(n) * nnreal_harmonic_sum n)%NNR ∗
+    {{{ ⧖ (tc_end + tc_mid * n * nnreal_harmonic_sum n)%NNR ∗
           l ↦∗ lis
     }}}
       coupon_helper coupon' #l #(n) @ E
@@ -123,21 +108,26 @@ Section proofs.
   Admitted.
 
   Lemma wp_coupon_collection (coupon':nat) E:
-    {{{ ⧖ (tc_start+tc_end + tc_mid * nnreal_nat(S coupon') * nnreal_harmonic_sum (S coupon'))%NNR }}}
+    {{{ ⧖ (tc_start+tc_end + tc_mid * (S coupon') * nnreal_harmonic_sum (S coupon'))%NNR }}}
       coupon_collection coupon' #()@E
       {{{RET #(); True}}}.
   Proof.
     iIntros (Φ) "Hx HΦ".
     rewrite /coupon_collection.
-    rewrite -nnreal_plus_assoc (nnreal_plus_comm tc_start).
-    iDestruct "Hx" as "[Hx1 Hx2]".
-    wp_pures.
-    iChip.
-    wp_apply (wp_allocN with "[$]"); first (lia).
+    pose proof (cond_nonneg (nnreal_harmonic_sum (S coupon'))).
+    assert (0 <= S coupon') by eapply pos_INR.
+    rewrite Rplus_assoc. 
+    rewrite etc_split; [|lra|]; last first.
+    { eapply Rplus_le_le_0_compat; real_solver. }
+    iDestruct "Hx" as "[Hx1 Hx2]".    
+    wp_pure with "Hx1". 
+    wp_pure with "Hx1". 
+    iChip "Hx1"; wp_apply (wp_allocN with "[$]"); [lia|].
     iIntros (l) "Hl".
-    wp_pure. iChip. wp_pure.
+    wp_pure with "Hx1".
+    wp_pure with "Hx1".
     rewrite -/(coupon_helper _).
-    wp_apply (wp_coupon_helper_ind with "[$Hx1 $Hl]"); try done.
+    wp_apply (wp_coupon_helper_ind with "[$Hx2 $Hl] [$]").
     - lia.
     - rewrite replicate_length. by rewrite Nat2Z.id. 
     - replace (_-_)%nat with 0%nat by lia. instantiate (1:= ∅).

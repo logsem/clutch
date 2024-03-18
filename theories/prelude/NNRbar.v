@@ -102,6 +102,9 @@ End nnreals.
 Declare Scope NNR_scope.
 Delimit Scope NNR_scope with NNR.
 
+Notation "0" := nnreal_zero : NNR_scope.
+Notation "1" := nnreal_one : NNR_scope.
+
 Infix "+" := nnreal_plus : NNR_scope.
 Infix "*" := nnreal_mult : NNR_scope.
 
@@ -133,6 +136,23 @@ Section nnreals_theory.
     apply Rplus_comm.
   Qed.
 
+  Lemma nnreal_plus_assoc (x y z : nonnegreal) :
+    nnreal_plus x (nnreal_plus y z) = nnreal_plus (nnreal_plus x y) z.
+  Proof.
+    destruct x, y, z; simpl => //.
+    apply nnreal_ext =>/=.
+    rewrite Rplus_assoc //.
+  Qed.
+
+  Lemma NNR_add_cancel_l x y z :
+    nnreal_plus z x = nnreal_plus z y <-> x = y.
+  Proof.
+    split; intros [=].
+    - apply nnreal_ext => /=.
+      by eapply (Rplus_eq_reg_l z).
+    - by subst. 
+  Qed.  
+  
   Lemma nnreal_nat_1 :
     nnreal_nat 1 = nnreal_one.
   Proof. by apply nnreal_ext=>/=. Qed.
