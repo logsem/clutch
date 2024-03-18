@@ -1,24 +1,24 @@
 (** * Exact time credit accounting for Quicksort *)
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre.
-From clutch.lib Require Export array.
+From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode.
 From Coq Require Export Reals Psatz.
 Require Import Lra.
 
-From stdpp Require Import sorting.
+(* From stdpp Require Import sorting.
 From clutch.lib Require Import utils.
 Set Default Proof Using "Type*".
-Import list.
+Import list. *)
 
-From clutch.examples Require Import quicksort.
+(* From clutch.examples Require Import quicksort. *)
 
 Require Coq.Program.Tactics.
 Require Coq.Program.Wf.
 
-From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns.
+(* From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns. *)
 From iris.proofmode Require Export tactics.
 
-From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws.
-From iris.prelude Require Import options.
+(* From iris.prelude Require Import options. *)
+
+
 
 
 Section accounting.
@@ -335,67 +335,11 @@ Section accounting.
 
   (* TODO: Bound above by Riemann sum for 1/n integral *)
 
-  Require Import Coquelicot.RInt_gen.
-  Require Import Coquelicot.RInt_analysis.
-
-
-
-
-
 End accounting.
 
 
 Section cost.
   (** Cost fucntion for Quicksort: number of comparisons *)
-
-   (* err-- do I need to change this? I think no *)
-   Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
-    let noval (e' : expr) :=
-      match e' with Val _ => Some $ f e | _ => at_redex f e' end in
-    match e with
-    | App e1 e2      =>
-        match e2 with
-        | (Val v)    => noval e1
-        | _          => at_redex f e2
-        end
-    | UnOp op e      => noval e
-    | BinOp op e1 e2 =>
-        match e2 with
-        | Val v      => noval e1
-        | _          => at_redex f e2
-        end
-    | If e0 e1 e2    => noval e0
-    | Pair e1 e2     =>
-        match e2 with
-        | Val v      => noval e1
-        | _          => at_redex f e2
-        end
-    | Fst e          => noval e
-    | Snd e          => noval e
-    | InjL e         => noval e
-    | InjR e         => noval e
-    | Case e0 e1 e2  => noval e0
-    | AllocN e1 e2        =>
-        match e2 with
-        | Val v      => noval e1
-        | _          => at_redex f e2
-        end
-
-    | Load e         => noval e
-    | Store e1 e2    =>
-        match e2 with
-        | Val v      => noval e1
-        | _          => at_redex f e2
-        end
-    | AllocTape e    => noval e
-    | Rand e1 e2     =>
-        match e2 with
-        | Val v      => noval e1
-        | _          => at_redex f e2
-        end
-    | _              => None
-    end.
-
 
   Definition cmp_cost_fn (e : expr) :=
     match e with
@@ -404,29 +348,42 @@ Section cost.
     | _ => nnreal_zero
     end.
 
-  Let cmp_cost (e : expr) := nnreal_one.
-        (* match at_redex cmp_cost_fn e with None => nnreal_zero | Some r => r end.*)
 
-  #[local] Instance CostCmp : Costfun prob_lang.
-  Proof. Admitted.
+  Program Definition CostCmp : Costfun prob_lang := (Build_Costfun cmp_cost_fn _ _ _).
+  Next Obligation.
+    eexists 1.
+    intros; simpl.
+    rewrite /cmp_cost_fn.
+    destruct e; simpl; try lra.
+    destruct op; simpl; try lra.
+  Qed.
+  Next Obligation.
+    intros; simpl.
+    rewrite /cmp_cost_fn.
+    destruct e; simpl; try lra.
+    destruct op; simpl; try lra.
+  Qed.
+  Next Obligation. Admitted.
 
+  Context `{!ert_clutchGS Σ CostCmp}.
 
-
-  Context `{!ert_clutchGS Σ Cost1}.
-
-  (* Not working yet
-
-  Lemma wp_cmp_test : {{{ ⧖ nnreal_one }}}  ((#1) < #2)%E  {{{ v, RET #v; ⌜ True ⌝ }}}.
+  #[local] Lemma test_wp_pure :
+       {{{ ⧖ (nnreal_nat 1) }}} (if: (#0 < #1) then #() else #() ) {{{ RET #(); ⧖ (nnreal_nat 0) }}}.
   Proof.
-    iIntros (Φ) "H HΦ".
+    Set Printing Coercions.
+    iIntros (x) "Hx Hp".
     wp_pure.
+    wp_pure.
+    iModIntro.
+    iApply "Hp".
+    simpl in *.
+    Unset Printing Coercions.
   Abort.
-*)
-
-
 End cost.
 
 Section program.
+
+
   Context `{!ert_clutchGS Σ CostCmp }.
   (** Verifing the number of comparisons done by a (not in place) version of quicksort *)
   (* One thing that's super annoying: we have to copy the functional correctness proofs
