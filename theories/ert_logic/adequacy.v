@@ -11,75 +11,31 @@ From clutch.ert_logic Require Import expected_time_credits ert_weakestpre probla
 From clutch.prob Require Import distribution.
 Import uPred.
 
- (* `{!LanguageCostfun cost} *)
-Fixpoint ERT k (cost : expr -> nonnegreal) (eσ : lang.cfg) : R :=
-  match k with
-  | O => 0
-  | S n =>
-      match to_val eσ.1 with
-      | Some v => nnreal_zero
-      | None => (cost eσ) + SeriesC (λ ρ, (prim_step eσ.1 eσ.2 ρ) * (ERT n ρ))
-      end
-  end.
+Section ERT.
+  Context `{!@Costfun prob_lang}.
 
-Lemma ERT_Sn n e σ :
-  to_val e = None →
-  ERT (S n) (e, σ) = 1 + SeriesC (λ ρ, step (e, σ) ρ * ERT n ρ)%R.
-Proof. simpl. by intros ->. Qed.
+  Fixpoint ERT k (eσ : cfg) : R :=
+    match k with
+    | O => 0
+    | S n =>
+        match to_val eσ.1 with
+        | Some v => nnreal_zero
+        | None => (cost eσ.1) + SeriesC (λ ρ, (prim_step eσ.1 eσ.2 ρ) * (ERT n ρ))
+        end
+    end.
+
+  Lemma ERT_Sn n e σ :
+    to_val e = None →
+    ERT (S n) (e, σ) = (cost e) + SeriesC (λ ρ, step (e, σ) ρ * ERT n ρ)%R.
+  Proof. simpl. by intros ->. Qed.
+End ERT.
 
 Section adequacy.
+  Context (cost : Costfun prob_lang).
   Context `{!ert_clutchGS Σ}.
 
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
-
-(*
-  Lemma ub_lift_dbind' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜ub_lift μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (f a) T ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
-  Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto. }
-    iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
-  Qed.
-*)
-
-
-  (* Lemma foo (e1 : expr) (σ1 : state) (n : nat) (x2 : (language.cfg prob_lang) -> nonnegreal)
-     (r : R)
-     (Hr : ∀ ρ : language.cfg prob_lang, x2 ρ <= r)
-     (Hv : to_val e1 = None)
-     :
-     ((∀ (e2 : expr) (σ2 : state),
-          ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗
-          |={∅}▷=> |={∅}▷=>^n ⌜ERT n (e2, σ2) <= x2 (e2, σ2)⌝)
-      ⊢
-        |={∅}▷=>^(S n)
-          ⌜1 + SeriesC (λ ρ : cfg, (prim_step e1 σ1 ρ * ERT n ρ)%R) <=
-             1 + SeriesC (λ ρ : cfg, (prim_step e1 σ1 ρ * x2 ρ)%R)⌝)%I. *)
-
-
-
-  (* Lemma ub_lift_dbind_adv' `{Countable A, Countable A'}
-       (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-       ⌜ 0 <= ε ⌝ -∗
-       ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
-       ⌜ub_lift μ R ε⌝ -∗
-       (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (f a) T (ε' a)⌝) -∗
-       |={∅}▷=>^(S n) ⌜ub_lift (dbind f μ) T (ε + SeriesC (λ a : A, (μ a * ε' a)%R))⌝ : iProp Σ.
-     Proof.
-       iIntros (???) "H".
-       iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (f a) T (ε' a))⌝)).
-       { iIntros (?). iPureIntro. eapply ub_lift_dbind_adv; eauto. }
-       iIntros (???) "/=".
-       iMod ("H" with "[//]"); auto.
-     Qed. *)
 
   Lemma ERM_erasure (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
     to_val e = None →
@@ -105,19 +61,13 @@ Section adequacy.
     }
     clear.
     iIntros "!#" ([[e1 σ1] x'']). rewrite /Φ/F/ERM_pre.
-    (* iIntros " [ (%R & %x1 & %x2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv". *)
-    iIntros " (%x2 & %Hred & (%r & %Hr) & % & H) %Hv".
+    iIntros " (%x2 & %Hred & (%r & %Hr) & %Hx'' & H) %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
-        intros ψ. etrans. 2: apply H.
+        intros ψ. etrans. 2: apply Hx''.
         exact ψ. }
-      clear H x''.
+      clear Hx'' x''.
       rewrite ERT_Sn => //.
-      (* iApply ub_lift_dbind_adv'.
-         + iPureIntro; apply cond_nonneg.
-         + iPureIntro. exists r. split; auto. apply cond_nonneg.
-         + done.
-         + iIntros ([] ?). *)
         simpl. fold cfg.
         iApply step_fupd_fupdN_S.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
@@ -126,6 +76,7 @@ Section adequacy.
        2: { iIntros (???) "/=".
             iMod ("H" with "[//]"); auto. }
        simpl. iIntros (?). iPureIntro.
+
        apply Rplus_le_compat_l.
        apply SeriesC_le.
        2:{ apply pmf_ex_seriesC_mult_fn. exists r. split; last naive_solver.
@@ -141,7 +92,8 @@ Section adequacy.
             2: {
               etrans. 1: eauto.
               rewrite -{1}(Rplus_0_l (SeriesC (λ ρ : expr * state, prim_step e2 σ2 ρ * ERT n ρ))).
-              apply Rplus_le_compat_r. lra.
+              apply Rplus_le_compat_r.
+              apply cond_nonneg.
             }
             apply SeriesC_ge_0'.
             intros.
@@ -199,12 +151,15 @@ Class ert_clutchGpreS Σ := ERT_ClutchGpreS {
   ert_clutchGpreS_etc   :: etcGpreS Σ;
 }.
 
-Definition ert_clutchΣ : gFunctors :=
+Definition ert_clutchΣ (cost : Costfun prob_lang) : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authR (nonnegrealUR))].
-Global Instance subG_ert_clutchGPreS {Σ} : subG ert_clutchΣ Σ → ert_clutchGpreS Σ.
+Global Instance subG_ert_clutchGPreS (cost : Costfun prob_lang) {Σ} : subG (ert_clutchΣ cost) Σ → ert_clutchGpreS Σ.
 Proof. solve_inG. Qed.
+
+Section wp_ERT.
+  Context (cost : Costfun prob_lang).
 
 Theorem wp_ERT Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) n (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
@@ -217,7 +172,7 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN.
+  iApply (wp_refRcoupl_step_fupdN cost).
   iFrame.
   iApply Hwp.
   done.
@@ -259,7 +214,7 @@ Theorem finite_ert_implies_ast r e σ:
   (∀ n, ERT n (e, σ) <= r) ->
   SeriesC(λ x, lim_exec (e, σ) x) = 1.
 Proof.
-  intros H.
+  intros Hfin.
   epose proof pmf_SeriesC (lim_exec (e, σ)).
   pose proof Rle_or_lt 1 (SeriesC(λ x, lim_exec (e, σ) x)) as [|].
   { by apply Rle_antisym. }
@@ -281,21 +236,21 @@ Proof.
     rewrite -{1}(Rplus_0_r (r/ε)).
     apply Rplus_le_lt_compat; try lra.
     trans (IZR (up(r/ε))).
-    - pose proof archimed (r/ε) as [? _].
-      apply Rgt_lt in H2.
+    - pose proof archimed (r/ε) as [a_r_ε _].
+      apply Rgt_lt in a_r_ε.
       lra.
     - rewrite INR_IZR_INZ. rewrite Z2Nat.id; try done.
       apply le_IZR.
-      pose proof archimed (r/ε) as [? _].
-      apply Rgt_lt in H2.
+      pose proof archimed (r/ε) as [a_r_ε _].
+      apply Rgt_lt in a_r_ε.
       apply Rlt_le.
       eapply Rle_lt_trans; last exact.
       apply Rcomplements.Rdiv_le_0_compat; last naive_solver.
       trans (ERT 0 (e,σ)); done.
   }
   epose proof mass_le_1_implies_growing_ert e σ n ε Hε _.
-  specialize (H n).
-  eapply Rle_not_gt; first exact H.
+  specialize (Hfin n).
+  eapply Rle_not_gt; first exact Hfin.
   apply Rlt_gt.
   eapply Rlt_le_trans; exact.
   Unshelve.
@@ -306,8 +261,20 @@ Qed.
 Theorem wp_ast Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC(λ x, lim_exec (e, σ) x) = 1.
-Proof.
+Proof using cost.
   intros. eapply finite_ert_implies_ast with x.
   intros n. by eapply wp_ERT.
 Qed.
-  
+
+End wp_ERT.
+
+Definition cost1 {Λ} (e : language.expr Λ) := nnreal_one.
+Instance Cost1 {Λ} : @Costfun Λ.
+Proof.
+  unshelve econstructor.
+  - exact cost1.
+  - eexists nnreal_one ; by intuition auto.
+  - auto.
+Qed.
+
+Check (wp_ERT Cost1).
