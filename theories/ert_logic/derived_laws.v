@@ -179,7 +179,6 @@ Proof.
   iApply "HΦ". iApply "Hl2". iApply "Hl1".
 Qed.
 
-
 Lemma wp_store_offset_vec E x l sz (off : fin sz) (vs : vec val sz) v s :
   TCEq x (cost (#(l +ₗ off) <- v)%E) →
   {{{ ⧖ x ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ vinsert off v vs }}}.
@@ -188,8 +187,6 @@ Proof.
   setoid_rewrite vec_to_list_insert. apply wp_store_offset => //.
   eexists. by apply vlookup_lookup.
 Qed.
-
-
 
 End lifting.
 

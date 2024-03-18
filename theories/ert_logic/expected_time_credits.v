@@ -1,7 +1,3 @@
-(** This file implements error credits, following the ideas from
-    the implementation of later credits
- *)
-
 From Coq Require Import Reals RIneq Psatz.
 From clutch.prelude Require Export base classical Reals_ext NNRbar.
 From iris.prelude Require Import options.
@@ -11,6 +7,7 @@ From iris.base_logic.lib Require Import iprop own.
 
 Import uPred.
 
+(* TODO: move to [algebra/NNR.v] *)
 
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
@@ -23,11 +20,6 @@ Section NNR.
   Local Instance NNR_equiv : Equiv nonnegreal := λ x y, x = y.
 
   Definition NNR_op (x y : nonnegreal) : x ⋅ y = nnreal_plus x y := eq_refl.
-
-  Lemma Rle_0_le_minus (x y : R) : (x <= y)%R -> (0 <= y - x)%R.
-  Proof.
-    lra.
-  Qed.
 
   Lemma NNR_included (x y : nonnegreal) : x ≼ y ↔ (x <= y)%R.
   Proof.
@@ -52,23 +44,6 @@ Section NNR.
       lra.
   Qed.
 
-
-  (*
-  Local Instance RR_valid_instance : Valid (R)  := λ _ , True.
-  Local Instance RR_validN_instance : ValidN (R) := λ _ _, True.
-  Local Instance RR_pcore_instance : PCore (R) := λ _, Some 0%R.
-  Local Instance RR_op_instance : Op (nonnegreal) := λ x y, Rplus x y.
-  Local Instance RR_equiv : Equiv R := λ x y, x = y.
-  Lemma RR_ra_mixin : RAMixin R.
-  *)
-
-  Lemma nnreal_plus_assoc (x y z : nonnegreal) :
-    nnreal_plus x (nnreal_plus y z) = nnreal_plus (nnreal_plus x y) z.
-  Proof.
-    destruct x, y, z ; simpl => //.
-    apply nnreal_ext. simpl. lra.
-    Qed.
-
   Lemma NNR_ra_mixin : RAMixin nonnegreal.
   Proof.
     apply ra_total_mixin; try by eauto.
@@ -88,7 +63,7 @@ Section NNR.
       apply nnreal_ext; simpl. instantiate (1:=nnreal_zero). simpl. lra.
   Qed.
 
-  (* Massive hack to override Coq reals *)
+  (* Massive hack to override Coq reals's [id : R → R] *)
   Definition id {A} := (λ (a : A), a).
 
   Canonical Structure nonnegrealR : cmra := discreteR nonnegreal NNR_ra_mixin.
@@ -97,35 +72,22 @@ Section NNR.
   Proof. apply discrete_cmra_discrete. Qed.
 
   Local Instance NNR_unit_instance : Unit nonnegreal := Finite nnreal_zero.
-  Lemma NNR_ucmra_mixin : @UcmraMixin nonnegreal _ _ _ _ _ NNR_unit_instance.
-  Proof. split.
-         - rewrite /valid.
-           rewrite /NNR_valid_instance/NNR_unit_instance/ε. done.
-         - rewrite /LeftId.
-           intro.
-           rewrite /equiv/NNR_equiv/op/NNR_op_instance/=.
-           destruct x => //. f_equal.
-           apply nnreal_ext; simpl; lra.
-         - rewrite /pcore/NNR_pcore_instance; auto.
+
+  Lemma NNR_ucmra_mixin : UcmraMixin nonnegreal.
+  Proof.
+    split.
+    - rewrite /valid.
+      rewrite /NNR_valid_instance/NNR_unit_instance/ε. done.
+    - rewrite /LeftId.
+      intro.
+      rewrite /equiv/NNR_equiv/op/NNR_op_instance/=.
+      destruct x => //. f_equal.
+      apply nnreal_ext; simpl; lra.
+    - rewrite /pcore/NNR_pcore_instance; auto.
   Qed.
 
   Canonical Structure nonnegrealUR : ucmra := Ucmra nonnegreal NNR_ucmra_mixin.
 
-  Lemma NNR_add_cancel_l : ∀ x y z : nonnegreal, nnreal_plus z x = nnreal_plus z y ↔ x = y.
-  Proof.
-    intros ? ? ?; split; intro H.
-    - apply nnreal_ext.
-      rewrite /nnreal_plus in H.
-      simplify_eq.
-      lra.
-    - simplify_eq; auto.
-  Qed.
-
-
-  (* Global Instance NNR_cancelable (x : nonnegreal) : Cancelable x.
-     Proof. by intros ???? ?%NNR_add_cancel_l. Qed. *)
-
-  (* FIXME: unused (it should factor out the proof in ec_credit_supply) *)
   Lemma NNR_local_update (x y x' y' : nonnegreal) :
     (y' <= y)%R -> nnreal_plus x y' = nnreal_plus x' y → (x,y) ~l~> (x',y').
   Proof.
@@ -138,14 +100,7 @@ Section NNR.
       apply nnreal_ext; simpl in *; lra.
   Qed.
 
-  (* This one has a higher precendence than [is_op_op] so we get a [+] instead
-     of an [⋅].
-  Global Instance nat_is_op (n1 n2 : nat) : IsOp (n1 + n2) n1 n2.
-  Proof. done. Qed.
-  *)
 End NNR.
-
-
 
 (** The ghost state for expected time credits *)
 Class etcGpreS (Σ : gFunctors) := EtcGpreS {
@@ -164,20 +119,8 @@ Definition etcΣ := #[GFunctor (authR (nonnegrealUR))].
 Global Instance subG_etcΣ {Σ} : subG etcΣ Σ → etcGpreS Σ.
 Proof. solve_inG. Qed.
 
-
-(** The user-facing error resource, denoting ownership of [ε] error credits. *)
-Local Definition etc_def `{!etcGS Σ} (x : nonnegreal) : iProp Σ := own etcGS_name (◯ x).
-Local Definition etc_aux : seal (@etc_def). Proof. by eexists. Qed.
-Definition ec := etc_aux.(unseal).
-Local Definition etc_unseal :
-  @ec = @etc_def := etc_aux.(seal_eq).
-Global Arguments ec {Σ _} x.
-
-Notation "'⧖'  x" := (ec x) (at level 1).
-
-(** The internal authoritative part of the credit ghost state,
-  tracking how many credits are available in total.
-  Users should not directly interface with this. *)
+(** The internal authoritative part of the credit ghost state, tracking how many credits are
+  available in total.  Users should not directly interface with this. *)
 Local Definition etc_supply_def `{!etcGS Σ} (x : nonnegreal) : iProp Σ := own etcGS_name (● x).
 Local Definition etc_supply_aux : seal (@etc_supply_def). Proof. by eexists. Qed.
 Definition etc_supply := etc_supply_aux.(unseal).
@@ -185,173 +128,183 @@ Local Definition etc_supply_unseal :
   @etc_supply = @etc_supply_def := etc_supply_aux.(seal_eq).
 Global Arguments etc_supply {Σ _} x.
 
+(** The user-facing error resource, denoting ownership of [x] credits. *)
+Local Definition etc_def `{!etcGS Σ} (x : nonnegreal) : iProp Σ := own etcGS_name (◯ x).
+Local Definition etc_aux : seal (@etc_def). Proof. by eexists. Qed.
+Definition ec := etc_aux.(unseal).
+Local Definition etc_unseal :
+  @ec = @etc_def := etc_aux.(seal_eq).
+Global Arguments ec {Σ _} x.
 
-Section error_credit_theory.
+Notation "'⧖'  r" := (∃ (x : nonnegreal), ⌜x.(nonneg) = r%R⌝ ∗ ec x)%I
+  (at level 1).
+
+Section etc_credit_theory.
   Context `{!etcGS Σ}.
   Implicit Types (P Q : iProp Σ).
+  Implicit Types (r : R).
+  Implicit Types (x : nonnegreal).
 
-  (** Later credit rules *)
-  Lemma etc_split x1 x2 :
-    ⧖ (nnreal_plus x1 x2) ⊣⊢ ⧖ x1 ∗ ⧖ x2.
+  Open Scope R.
+
+  (** Credit rules *)
+  Lemma etc_split (r1 r2 : R) :
+    0 <= r1 →
+    0 <= r2 →
+    ⧖ (r1 + r2) ⊢ ⧖ r1 ∗ ⧖ r2.
   Proof.
+    iIntros (Hx1 Hx2) "(%x & %Hx & Hx)".
     rewrite etc_unseal /etc_def.
-    rewrite -own_op auth_frag_op //=.
+    set (x1' := mknonnegreal _ Hx1).
+    set (x2' := mknonnegreal _ Hx2).
+    assert (x = (x1' + x2')%NNR) as -> by apply nnreal_ext => //=.
+    rewrite auth_frag_op own_op.
+    iDestruct (own_op with "Hx") as "[Hx1 Hx2]".
+    iSplitL "Hx1"; by iExists _; iFrame.
   Qed.
 
-  Lemma etc_zero : ⊢ |==> ⧖ nnreal_zero.
+  Lemma etc_split_le (r1 r2 : R) :
+    0 <= r1 <= r2 →
+    ⧖ r2 ⊢ ⧖ r1 ∗ ⧖ (r2 - r1).
   Proof.
-    rewrite etc_unseal /etc_def. iApply own_unit.
+    iIntros (?).
+    assert (r2 = (r1 + (r2 - r1))) as Hr2 by lra.
+    rewrite {1}Hr2.
+    apply etc_split; lra. 
+  Qed. 
+
+  Lemma etc_combine (r1 r2 : R) :
+    ⧖ r1 ∗ ⧖ r2 ⊢ ⧖ (r1 + r2).
+  Proof.
+    iIntros "[(%x1 & <- & Hr1) (%x2 & <- & Hr2)]".
+    rewrite etc_unseal /etc_def.
+    iExists (x1 + x2)%NNR.
+    iSplit; [done|].
+    rewrite auth_frag_op own_op.
+    iFrame.
   Qed.
 
-  Lemma etc_supply_bound x1 x2 :
-    etc_supply x2 -∗ ⧖ x1 -∗ ⌜(x1 <= x2)%R⌝.
+  Lemma etc_zero : ⊢ |==> ⧖ 0.
   Proof.
     rewrite etc_unseal /etc_def.
-    rewrite etc_supply_unseal /etc_supply_def.
-    iIntros "H1 H2".
+    iExists nnreal_zero.
+    iMod own_unit as "H".
+    iModIntro. iSplit; done.
+  Qed.
+
+  Lemma etc_supply_bound (r1 : R) (x2 : nonnegreal) :
+    etc_supply x2 -∗ ⧖ r1 -∗ ⌜r1 <= x2⌝.
+  Proof.
+    rewrite etc_unseal /etc_def etc_supply_unseal /etc_supply_def.
+    iIntros "H1 (%r & <- & H2)".
     iDestruct (own_valid_2 with "H1 H2") as "%Hop".
-    iPureIntro. eapply auth_both_valid_discrete in Hop as [Hlt ?].
-    rewrite /included in Hlt. rewrite /op/cmra_op/ucmra_op in Hlt ; simpl in Hlt.
-    destruct Hlt as [z Hz]. simplify_eq. rewrite /ucmra_op. simpl. rewrite /NNR_op_instance.
-    rewrite /ucmra_op. simpl in H. rewrite /NNR_op_instance in H.
-    rewrite /valid/cmra_valid in H ; simpl in H.
-    rewrite /ucmra_valid/NNR_valid_instance in H ; simpl in H.
-    rewrite /NNR_valid_instance in H ; simpl in H.
-    destruct z. simpl. lra.
+    by eapply auth_both_valid_discrete in Hop as [Hlt%NNR_included ?].
   Qed.
 
-  Lemma etc_decrease_supply x1 x2 :
-    etc_supply (nnreal_plus x1 x2) -∗ ⧖ x1 -∗ |==> etc_supply x2.
+  Lemma etc_supply_bound' r1 x2 :
+    etc_supply x2 -∗ ⧖ r1 -∗ ∃ x1 x3, ⌜x2 = (x1 + x3)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝.
   Proof.
-    rewrite etc_unseal /etc_def.
-    rewrite etc_supply_unseal /etc_supply_def.
-    iIntros "H1 H2".
-    iMod (own_update_2 with "H1 H2") as "Hown".
-    { eapply auth_update. eapply (NNR_local_update _ _ x2 nnreal_zero).
-      1: destruct x1 => // ; apply cond_nonneg.
-      apply nnreal_ext. simpl. lra.
-    }
-    by iDestruct "Hown" as "[Hm _]".
+    iIntros "Hx2 Hr1".
+    iDestruct (etc_supply_bound with "Hx2 Hr1") as %Hb.
+    iDestruct "Hr1" as (x1) "[<- Hx1]".
+    set (x3 := nnreal_minus x2 x1 Hb).
+    iExists _, x3. iSplit; [|done].
+    iPureIntro. apply nnreal_ext=>/=; lra.
   Qed.
 
-  Lemma etc_increase_supply (x1 x2 : nonnegreal) :
-    etc_supply x1 -∗ |==> etc_supply (nnreal_plus x1 x2) ∗ ⧖ x2.
+  (** The statement of this lemma is a bit convoluted, because only implicitly (by validity and
+      unfolding) can we conclude that [0 <= r1 <= x2] so thus that [x2 - r1] is nonnegative *)
+  Lemma etc_supply_decrease (r1 : R) (x2 : nonnegreal) :
+    etc_supply x2 -∗ ⧖ r1 -∗ |==> ∃ x1 x3, ⌜(x2 = x3 + x1)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝ ∗ etc_supply x3.
   Proof.
-    rewrite etc_unseal /etc_def.
-    rewrite etc_supply_unseal /etc_supply_def.
-    iIntros "H".
-    iMod (own_update with "H") as "[$ $]"; [|done].
-    eapply (auth_update_alloc _ ). (* (x1 + x2)%NNR x2%NNR). *)
-    apply (local_update_unital_discrete _ _ _ _) => z H1 H2.
-    split.
-    - compute. done.
-    - compute. apply nnreal_ext. simpl. destruct x1, x2, z. compute in H2.
-      inversion H2. lra.
+    iIntros "Hx2 Hr1".
+    iDestruct (etc_supply_bound' with "Hx2 Hr1") as %(x1 & x3 & -> & <-).
+    iDestruct "Hr1" as (x1') "[% Hx1]".
+    rewrite etc_unseal /etc_def etc_supply_unseal /etc_supply_def.
+    iMod (own_update_2 with "Hx2 Hx1") as "Hown".
+    { eapply (auth_update_dealloc _ _ x3), NNR_local_update.
+      - apply cond_nonneg.
+      - apply nnreal_ext =>/=. lra. }
+    iModIntro.
+    iExists _, _. iFrame. iSplit; [|done].
+    iPureIntro. apply nnreal_ext=>/=; lra.
   Qed.
 
-
-  Lemma etc_split_supply x1 x2 :
-    etc_supply x2 -∗ ⧖ x1 -∗ ∃ x3, ⌜x2 = (nnreal_plus x1 x3)⌝.
+  Lemma etc_supply_decrease_1 (x1 : nonnegreal) :
+    etc_supply x1 -∗ ⧖ 1 -∗ |==> ∃ x2, ⌜(x1 = x2 + 1)%NNR⌝ ∗ etc_supply x2.
   Proof.
-    rewrite etc_unseal /etc_def.
-    rewrite etc_supply_unseal /etc_supply_def.
-    iIntros "H1 H2".
-    iDestruct (own_valid_2 with "H1 H2") as "%Hop".
-    iPureIntro. eapply auth_both_valid_discrete in Hop as [Hlt _].
-    done.
+    iIntros "Hx2 Hc".
+    iMod (etc_supply_decrease with "Hx2 Hc") as (?? -> ?) "Hx".
+    iModIntro. iExists _. iFrame. iPureIntro.
+    apply nnreal_ext=>/=. lra.
   Qed.
 
-  Lemma etc_weaken {x1 : nonnegreal} (x2 : nonnegreal) :
-     (x2 <= x1)%R → ⧖ x1 -∗ ⧖ x2.
+  Lemma etc_supply_increase (x1 : nonnegreal) (r2 : R) :
+    0 <= r2 →
+    etc_supply x1 -∗ |==> ∃ x2, etc_supply (x1 + x2)%NNR ∗ ⌜x2.(nonneg) = r2⌝ ∗ ⧖ r2.
   Proof.
-    intros H.
-    set diff := mknonnegreal (x1 - x2) (Rle_0_le_minus x2 x1 H).
-    assert (x1 = nnreal_plus x2 diff) as H2.
-    { apply nnreal_ext; simpl; lra. }
-    rewrite H2.
-    rewrite etc_split. iIntros "[$ _]".
+    rewrite etc_unseal /etc_def etc_supply_unseal /etc_supply_def.
+    iIntros (Hr2) "H".
+    set (x2 := mknonnegreal _ Hr2).
+    iExists x2.
+    iMod (own_update with "H") as "[$ ?]".
+    { apply (auth_update_alloc _ (x1 + x2)%NNR x2).
+      apply (local_update_unital_discrete _ _ _ _) => z H1 H2.
+      split; [done|]. simplify_eq.
+      rewrite nnreal_plus_comm left_id //. }
+    iModIntro. iSplit; [done|].
+    iExists _. by iFrame.
   Qed.
 
-  Lemma etc_nat_big_sepS n :
-    ⧖ (nnreal_nat n) ⊢ [∗ set] _ ∈ set_seq 0 n, ⧖ (nnreal_nat 1).
+  Lemma etc_weaken (r1 r2 : R) :
+     0 <= r2 <= r1 → ⧖ r1 -∗ ⧖ r2.
   Proof.
-    induction n; [eauto|].
-    rewrite nnreal_nat_Sn' etc_split.
-    replace nnreal_one with (nnreal_nat 1); last by apply nnreal_ext.
-    rewrite set_seq_S_end_union_L.
-    rewrite big_sepS_union; [|apply set_seq_S_end_disjoint].
-    rewrite big_sepS_singleton IHn //.
+    iIntros (?) "Hr1".
+    assert (r1 = (r1 - r2) + r2) as -> by lra.
+    iDestruct (etc_split with "Hr1") as "[? $]"; lra.
   Qed.
 
-  Lemma etc_nat_Sn n :
-    ⧖ (nnreal_nat (S n)) ⊣⊢ ⧖ nnreal_one ∗ ⧖ (nnreal_nat n).
-  Proof. rewrite nnreal_nat_Sn' etc_split //. Qed. 
+  Lemma etc_nat_Sn (n : nat) :
+    ⧖ (S n) ⊣⊢ ⧖ 1 ∗ ⧖ n.
+  Proof.
+    assert (INR (S n) = 1 + n)%R as ->.
+    { rewrite -Nat.add_1_l plus_INR S_INR INR_0. lra. }
+    iSplit.
+    - iApply etc_split; [lra|].
+      replace 0 with (INR 0); [|done]. eapply le_INR. lia.
+    - iApply etc_combine.
+  Qed.
 
-  (* Lemma etc_spend (x : nonnegreal) : (NNR_le p_infty x) -> ⧖ x -∗ False. *)
-  (* Proof. *)
-  (*   iIntros (Hge1) "Hx". *)
-  (*   rewrite etc_unseal /etc_def. *)
-  (*   iAssert (✓ (◯ x))%I with "[Hx]" as "%Hx" ; [by iApply own_valid|]. *)
-  (*   apply auth_frag_valid_1 in Hx. *)
-  (*   exfalso; destruct x; compute in * => //. *)
-  (* Qed. *)
-
-
-  Lemma etc_spend_le_irrel x1 x2 : (x2.(nonneg) <= x1.(nonneg))%R → ⧖ x1 -∗ ⧖ x2.
-  Proof. iIntros (?) "?". iApply etc_weaken; done. Qed.
-
-
-  Lemma etc_spend_irrel x1 x2 : (x1.(nonneg) = x2.(nonneg)) → ⧖ x1 -∗ ⧖ x2.
+  Lemma etc_supply_irrel x1 x2 :
+    (x1.(nonneg) = x2.(nonneg)) → etc_supply x1 -∗ etc_supply x2.
   Proof.
     iIntros (?) "?".
     replace x1 with x2; [iFrame|by apply nnreal_ext].
   Qed.
 
+  Global Instance etc_timeless r : Timeless (⧖ r).
+  Proof. rewrite etc_unseal /etc_def. apply _. Qed.
 
-  Lemma etc_supply_irrel x1 x2 : (x1.(nonneg) = x2.(nonneg)) → etc_supply x1 -∗ etc_supply x2.
-  Proof.
-    iIntros (?) "?".
-    replace x1 with x2; [iFrame|by apply nnreal_ext].
-  Qed.
+  Global Instance from_sep_etc_combine r1 r2 :
+    FromSep (⧖ (r1 + r2)) (⧖ r1) (⧖ r2) | 0.
+  Proof. rewrite /FromSep etc_combine //. Qed.
 
-  Global Instance etc_timeless x : Timeless (⧖ x).
-  Proof.
-    rewrite etc_unseal /etc_def. apply _.
-  Qed.
+  Global Instance into_sep_etc_add r1 r2 :
+    0 <= r1 → 0 <= r2 →
+    IntoSep (⧖ (r1 + r2)) (⧖ r1) (⧖ r2) | 0.
+  Proof. rewrite /IntoSep. apply etc_split. Qed.
 
-  Global Instance etc_0_persistent : Persistent (⧖ nnreal_zero).
-  Proof.
-    rewrite etc_unseal /etc_def. apply _.
-  Qed.
+  Global Instance combine_sep_as_etc_add r1 r2 :
+    CombineSepAs (⧖ r1) (⧖ r2) (⧖ (r1 + r2)) | 0.
+  Proof. rewrite /CombineSepAs etc_combine //. Qed.
 
-  Global Instance from_sep_etc_add x1 x2 :
-    FromSep (⧖ (nnreal_plus x1 x2)) (⧖ x1) (⧖ x2) | 0.
-  Proof.
-    by rewrite /FromSep etc_split.
-  Qed.
-
-  Global Instance into_sep_etc_add x1 x2 :
-    IntoSep (⧖ (nnreal_plus x1 x2)) (⧖ x1) (⧖ x2) | 0.
-  Proof.
-    by rewrite /IntoSep etc_split.
-  Qed.
-
-  Global Instance combine_sep_as_etc_add x1 x2 :
-    CombineSepAs (⧖ x1) (⧖ x2) (⧖ (nnreal_plus x1 x2)) | 0.
-  Proof.
-    by rewrite /CombineSepAs etc_split.
-  Qed.
-
-End error_credit_theory.
+End etc_credit_theory.
 
 Lemma etc_alloc `{!etcGpreS Σ} (x : nonnegreal) :
   ⊢|==> ∃ _ : etcGS Σ, etc_supply x ∗ ⧖ x.
 Proof.
   rewrite etc_unseal /etc_def etc_supply_unseal /etc_supply_def.
   iMod (own_alloc (● x ⋅ ◯ x)) as (γEC) "[H● H◯]".
-  - apply auth_both_valid_2.
-    + done.
-    + done.
-  - pose (C := EtcGS _ _ γEC).
-    iModIntro. iExists C. iFrame.
+  - by apply auth_both_valid_2.
+  - iExists (EtcGS _ _ γEC). iModIntro. iFrame. iExists _. by iFrame.
 Qed.

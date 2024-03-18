@@ -40,16 +40,18 @@ Proof.
   iApply wp_lift_step_fupd_ERM; [done|].
   iIntros (σ1 x1) "[Hσ Hx]".
   iMod ("H" with "[$]") as "(%Hs & Hc & H)".
-  iDestruct (etc_split_supply with "Hx Hc") as %[x2 ->].
-  iModIntro.
+  iMod (etc_supply_decrease with "Hx Hc") as (x2 x3 -> Hx2) "Hx".
   iApply (ERM_prim_step e1 σ1).
-  iExists x2.
+  iModIntro.
+  iExists x3.
   iSplit; [done|].
+  iSplit; [iPureIntro; apply cond_nonneg|].
+  rewrite Rplus_comm /= Hx2.
   iSplit; [done|].
   iIntros (e2 σ2 ?).
-  iMod (etc_decrease_supply with "Hx Hc") as "$".
   iMod ("H" with "[//]") as "H".
-  by iIntros "!> !>".
+  iIntros "!> !>".
+  by iFrame.
 Qed.
 
 (** Derived lifting lemmas. *)
@@ -143,26 +145,21 @@ Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} E E' e1 e2 φ Φ s :
   ⧖ (cost e1) ∗
   (|={E}[E']▷=>^1 WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (Hexec Hφ) "[Hc Hwp]". specialize (Hexec Hφ).
-(*   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; [done|].
-     iApply wp_lift_pure_det_step.
-     - done.
-     - intros σ1 e2' σ2 Hpstep.
-       by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
-     - assert (nnreal_nat (S n) = (nnreal_nat n + (nnreal_nat 1))%NNR) as ->.
-       { apply nnreal_ext =>/=. destruct n; [|done].
-         rewrite INR_0 //. lra. }
-       iDestruct (etc_split with "Hc") as "[Hc $]".
-       iApply (step_fupd_wand with "Hwp").
-       by iApply "IH".
-   Qed. *)
-Admitted.
+  iIntros (Hexec Hφ) "[Hc Hwp]".
+  specialize (Hexec Hφ).
+  apply nsteps_once_inv in Hexec as [? ?].
+  iApply wp_lift_pure_det_step.
+  - done.
+  - intros σ1 e2' σ2 Hpstep.
+    by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
+  - iFrame.
+Qed.
 
 Lemma wp_pure_step_later `{!Inhabited (state Λ)} E e1 e2 φ Φ s :
   PureExec φ 1 e1 e2 →
   φ →
   ⧖ (cost e1) ∗
-  ▷^1 WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
+  ▷ WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (??) "[Hc Hwp]".
   iApply (wp_pure_step_fupd with "[$Hc Hwp]"); [done|].
