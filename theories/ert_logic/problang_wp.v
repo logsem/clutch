@@ -29,7 +29,7 @@ Definition heap_auth `{ert_clutchGS Σ} :=
 Definition tapes_auth `{ert_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
-Global Instance clutchGS_irisGS `{!ert_clutchGS Σ} : ertwpG prob_lang Σ := {
+Global Instance clutchGS_irisGS `{!ert_clutchGS Σ} (cost : Costfun prob_lang) : ertwpG prob_lang Σ := {
   ertwpG_invGS := clutchGS_invG;
   ertwpG_etcGS := ert_clutchGS_etc;
 
