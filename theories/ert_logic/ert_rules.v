@@ -208,6 +208,7 @@ Section metatheory.
       by apply not_0_INR.
     - replace (nonneg (ε2 _)) with (NNRbar_to_real (NNRbar.Finite (ε2 n))); last first.
       { simpl. done. }
+      simpl.
       rewrite -(SeriesC_singleton_dependent _ ε2).
       apply SeriesC_le.
       + intros n'.
