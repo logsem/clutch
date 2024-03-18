@@ -96,16 +96,13 @@ Section in_place_quicksort.
           "quicksort" "left" "len_left" ;;
           "quicksort" "right" "len_right")%V.
 
-  Search "sort" (list nat).
-
   Lemma quicksort_spec arr (A : list nat) :
     ⊢ {{{ (arr ↦∗ (refl_values A)) }}}
         quicksort #arr #(length A)
       {{{ v, RET v; ∃ A1, ((arr ↦∗ refl_values A1 ∗ ⌜(sorted A1)⌝))}}}.
   Proof.
-    iIntros (Φ).
     iLöb as "IH" forall (A arr).
-    iIntros "!> Harr HΦ".
+    iIntros (Φ) "!> Harr HΦ".
     rewrite /quicksort.
     wp_pures.
     case_bool_decide as Hdec.
@@ -129,7 +126,7 @@ Section in_place_quicksort.
       (* this is a total mess *)
       wp_pures.
       wp_bind (in_place_pivot _ _ _)%E.
-      iApply (ub_wp_mono ); last first.
+      iApply (ub_wp_mono); last first.
       { iApply ub_wp_frame_r; iSplitL; last iApply "IH".
         iApply ub_wp_frame_r; iSplitR "HΦ"; last iApply "HΦ".
         wp_apply (in_place_pivot_spec with "Harr"). }
@@ -138,7 +135,37 @@ Section in_place_quicksort.
       (* Prepare inductive calls *)
       do 11 wp_pure.
 
-      (* Need to split Harr into (three) parts now *)
+      (* Manually split the permission to Harr *)
+      assert (Hspec_improvement : exists RL RR vp, R = RL ++ ([vp] ++ RR) /\ (length RL = len_left_nat)%R) by admit.
+      destruct (Hspec_improvement) as [RL [RR [vp [-> HRLL]]]].
+      iAssert (arr ↦∗ (refl_values RL) ∗
+               (arr +ₗ (length RL)) ↦∗ (refl_values [vp]) ∗
+               (arr +ₗ (length RL + 1)) ↦∗ (refl_values RR))%I
+        with "[Harr]" as "(HarrL & HarrP & HarrR)".
+      {
+        admit.
+      }
+      wp_bind (((RecV _ _ _) _) _)%E.
+      iApply (ub_wp_mono with "[HarrL HarrP HarrR]"); last first.
+      { iSpecialize ("IH" $! (take len_left_nat A) arr).
+        replace (length (take len_left_nat A)) with len_left_nat; last first.
+        { (* Probably doable *) admit. }
+        iApply ("IH" with "[HarrL]"); last iFrame.
+        {  (* idk *) admit. }
+        iNext.
+        iIntros (?) "H".
+        iAssert ((∃ A1 : list nat, arr ↦∗ refl_values A1 ∗ ⌜sorted A1⌝) ∗ ((arr +ₗ (length RL + 1)) ↦∗ refl_values RR) ∗  ((arr +ₗ length RL) ↦∗ refl_values [vp]))%I with "[$]" as "X".
+        iApply "X".
+      }
+
+      iIntros (v) "(A & HarrP & HarrR)".
+      do 2 wp_pure.
+
+
+      wp_bind (((RecV _ _ _) _) _)%E.
+      iApply (ub_wp_mono with "[A HarrP HarrR]"); last first.
+      { admit.
+      }
 
   Admitted.
 
