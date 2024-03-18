@@ -10,8 +10,7 @@ From iris.prelude Require Import options.
 
 
 Section primitive_laws.
-Context (cost : Costfun prob_lang).
-Context `{!ert_clutchGS Σ}.
+Context `{!ert_clutchGS Σ F}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
