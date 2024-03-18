@@ -67,7 +67,16 @@ Proof.
 Qed.
 
 Section proofs.
-  Context `{!ert_clutchGS Σ}.
+  #[local] Definition cost1 {Λ} (e : language.expr Λ) := (nnreal_nat 1).
+  #[local] Instance Cost1 {Λ} : Costfun Λ.
+  Proof.
+    unshelve econstructor.
+    - exact cost1.
+    - eexists nnreal_one ; by intuition auto.
+    - auto.
+  Defined.
+
+  Context `{!ert_clutchGS Σ Cost1}.
 
   Notation tc_end:= (nnreal_nat 6).
   Notation tc_mid:=(nnreal_nat 999).

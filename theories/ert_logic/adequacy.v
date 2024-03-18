@@ -31,8 +31,7 @@ Section ERT.
 End ERT.
 
 Section adequacy.
-  Context (cost : Costfun prob_lang).
-  Context `{!ert_clutchGS Σ}.
+  Context `{!ert_clutchGS Σ f_cost}.
 
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
@@ -171,8 +170,8 @@ Proof.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply (wp_refRcoupl_step_fupdN cost).
+  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  iApply (wp_refRcoupl_step_fupdN).
   iFrame.
   iApply Hwp.
   done.

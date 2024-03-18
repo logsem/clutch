@@ -15,7 +15,7 @@ From iris.prelude Require Import options.
 with lists of values. *)
 
 
-Definition array `{!ert_clutchGS Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
+Definition array `{!ert_clutchGS Σ F} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) ↦{dq} v.
 
 (*
@@ -35,8 +35,7 @@ lead to overlapping instances. *)
 
 Section lifting.
 
-  Context `{cost : !Costfun prob_lang}.
-  Context `{!ert_clutchGS Σ}.
+  Context `{!ert_clutchGS Σ F}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ Ψ : val → iProp Σ.
   Implicit Types σ : state.

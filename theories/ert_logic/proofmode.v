@@ -164,8 +164,6 @@ Tactic Notation "wp_load" := iChip; wp_apply (wp_load with "[$]").
 Tactic Notation "wp_store" := iChip; wp_apply (wp_store with "[$]").
 
 Section tests.
-  Context `{!ert_clutchGS Σ}.
-
   #[local] Definition cost1 {Λ} (e : language.expr Λ) := (nnreal_nat 1).
   #[local] Instance Cost1 {Λ} : Costfun Λ.
   Proof.
@@ -174,6 +172,8 @@ Section tests.
     - eexists nnreal_one ; by intuition auto.
     - auto.
   Defined.
+
+  Context `{!ert_clutchGS Σ Cost1}.
 
 
   #[local] Lemma test_wp_pure n :

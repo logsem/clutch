@@ -8,7 +8,7 @@ From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Export tactics lang notation.
 From iris.prelude Require Import options.
 
-Class ert_clutchGS Σ := HeapG {
+Class ert_clutchGS Σ (cost : Costfun prob_lang) := HeapG {
   clutchGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
   clutchGS_heap : ghost_mapG Σ loc val;
@@ -29,12 +29,12 @@ Definition heap_auth `{ert_clutchGS Σ} :=
 Definition tapes_auth `{ert_clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
-Global Instance clutchGS_irisGS (cost : Costfun prob_lang) `{!ert_clutchGS Σ} : ertwpG prob_lang Σ := {
+Global Instance clutchGS_irisGS `{!ert_clutchGS Σ F} : ertwpG prob_lang Σ := {
   ertwpG_invGS := clutchGS_invG;
   ertwpG_etcGS := ert_clutchGS_etc;
 
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  costfun := cost
+  costfun := F
 }.
 
 (** Heap *)
