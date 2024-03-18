@@ -35,6 +35,7 @@ lead to overlapping instances. *)
 
 Section lifting.
 
+  Context `{cost : !Costfun prob_lang}.
   Context `{!ert_clutchGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ Ψ : val → iProp Σ.
@@ -111,28 +112,29 @@ Proof.
   setoid_rewrite <-loc_add_assoc. iApply "IH". done.
 Qed.
 
-Lemma wp_allocN E v n s :
+Lemma wp_allocN E x v (n : Z) s :
+  TCEq x (cost (AllocN (Val $ LitV $ LitInt $ n) (Val v))) →
   (0 < n)%Z →
-  {{{ ⧖ (nnreal_nat 1) }}} AllocN (Val $ LitV $ LitInt $ n) (Val v) @ s; E
+  {{{ ⧖ x }}} AllocN (Val $ LitV $ LitInt $ n) (Val v) @ s; E
   {{{ l, RET LitV (LitLoc l);
           l ↦∗ replicate (Z.to_nat n) v }}}.
   Proof.
-    iIntros (? Φ) "Hx HΦ".
-    iApply (wp_allocN_seq with "[$]"); auto; try lia.
+    iIntros (? ? Φ) "Hx HΦ".
+    iApply (wp_allocN_seq with "[$Hx]") ; auto; try lia.
     iModIntro.
     iIntros (l) "Hlm".
     iApply "HΦ".
     by iApply pointsto_seq_array.
   Qed.
 
-
-  Lemma wp_allocN_vec E v n s :
+  Lemma wp_allocN_vec E x v (n : Z) s :
+    TCEq x (cost (AllocN #n v)) →
     (0 < n)%Z →
-    {{{ ⧖ (nnreal_nat 1) }}}
+    {{{ ⧖ x }}}
       AllocN #n v @ s; E
                           {{{ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v  }}}.
   Proof.
-    iIntros (? Φ) "Hx HΦ".
+    iIntros (-> ? Φ) "Hx HΦ".
     iApply (wp_allocN with "[$] [HΦ]"); try lia.
     iModIntro.
     iIntros (l) "Hl".
@@ -143,11 +145,12 @@ Lemma wp_allocN E v n s :
 (** * Rules for accessing array elements *)
 
 
-Lemma wp_load_offset E l dq off vs v s :
+Lemma wp_load_offset E x l dq off vs v s :
+  TCEq x (cost (! #(l +ₗ off))%E) →
   vs !! off = Some v →
-  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET v; l ↦∗{dq} vs }}}.
+  {{{ ⧖ x ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET v; l ↦∗{dq} vs }}}.
 Proof.
-  iIntros (Hlookup Φ) "[Hx >Hl] HΦ".
+  iIntros (-> Hlookup Φ) "[Hx >Hl] HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
   iApply (wp_load with "[$]").
   iModIntro.
@@ -158,16 +161,18 @@ Proof.
   iApply "Hl1".
 Qed.
 
-Lemma wp_load_offset_vec E l dq sz (off : fin sz) (vs : vec val sz) s :
-  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET vs !!! off; l ↦∗{dq} vs }}}.
-  Proof. apply wp_load_offset. by apply vlookup_lookup. Qed.
+Lemma wp_load_offset_vec E x l dq sz (off : fin sz) (vs : vec val sz) s :
+  TCEq x (cost (! #(l +ₗ off))%E) →
+  {{{ ⧖ x ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET vs !!! off; l ↦∗{dq} vs }}}.
+  Proof. intros -> ; apply wp_load_offset => //. by apply vlookup_lookup. Qed.
 
 
-Lemma wp_store_offset E l off vs v s :
+Lemma wp_store_offset E x l off vs v s :
+  TCEq x (cost (#(l +ₗ off) <- v)%E) →
   is_Some (vs !! off) →
-  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
+  {{{ ⧖ x ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
 Proof.
-  iIntros ([w Hlookup] Φ) "[Hx >Hl] HΦ".
+  iIntros (-> [w Hlookup] Φ) "[Hx >Hl] HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
   iApply (wp_store with "[$]").
   iModIntro.
@@ -176,10 +181,12 @@ Proof.
 Qed.
 
 
-Lemma wp_store_offset_vec E l sz (off : fin sz) (vs : vec val sz) v s :
-  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ vinsert off v vs }}}.
+Lemma wp_store_offset_vec E x l sz (off : fin sz) (vs : vec val sz) v s :
+  TCEq x (cost (#(l +ₗ off) <- v)%E) →
+  {{{ ⧖ x ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ vinsert off v vs }}}.
 Proof.
-  setoid_rewrite vec_to_list_insert. apply wp_store_offset.
+  intros ->.
+  setoid_rewrite vec_to_list_insert. apply wp_store_offset => //.
   eexists. by apply vlookup_lookup.
 Qed.
 
