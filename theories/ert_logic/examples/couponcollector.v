@@ -1,5 +1,6 @@
 (** * Exact time credit accounting for Coupon collecting *)
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode.
+From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+  derived_laws.
 From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Coq Require Export Reals Psatz.
@@ -15,21 +16,33 @@ Section Coupon.
 
   Definition coupon_helper : expr :=
     rec: "coupon_helper" "a" "cnt" :=
-      if: "cnt" = #coupon then #() else
+      if: "cnt" = #0 then #() else
         let: "k" := rand (#coupon') in
         (if: ! ("a" +ₗ "k") 
         then "coupon_helper" "a" "cnt"
          else ("a" +ₗ "k") <- #true ;;
-             "coupon_helper" "a" ("cnt"+#1)).
+             "coupon_helper" "a" ("cnt"-#1)).
 
   Definition coupon_collection : expr :=
     λ: "n",
       let: "a" := AllocN #coupon #false in
-      let: "cnt" := ref #0 in
+      let: "cnt" := ref #coupon in
       coupon_helper "a" "cnt".
 End Coupon.
 
-Definition harmonic_sum:= sum_n_m (λ x, /INR x).
+Definition harmonic_sum:= sum_n_m (λ x, /INR x) 1.
+Program Definition nnreal_harmonic_sum (n:nat) : nonnegreal := mknonnegreal (harmonic_sum n) _.
+Next Obligation.
+  intros.
+  rewrite /harmonic_sum.
+  induction n.
+  - rewrite sum_n_m_zero; try done. lia.
+  - rewrite sum_n_Sm; last lia.
+    replace (plus _ _) with (sum_n_m (λ x, /INR x) 1 n + /(S n))by done.
+    apply Rplus_le_le_0_compat; try done.
+    rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra.
+    apply pos_INR_S.
+Qed.
 
 Local Lemma coupon_etc_credit_split p coupon:
   (p≠0)%nat -> (coupon ≠ 0)%nat -> (p<coupon)%nat -> p/coupon + (coupon-p)/coupon * (1 + (coupon/p)) = (coupon/p).
@@ -53,7 +66,6 @@ Proof.
     by apply not_INR.
 Qed.
 
-
 Section proofs.
   Context `{!ert_clutchGS Σ}.
 
@@ -61,20 +73,22 @@ Section proofs.
   Notation tc_mid:=(nnreal_nat 9999999999999).
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 
-    {{{ ⧖ (tc_end) }}} coupon_helper coupon' #l #(S coupon') @ E {{{ RET #(); True}}}.
+    {{{ ⧖ (tc_end) }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
   Proof.
     iIntros (Φ) "Hx HΦ".
-    wp_pures.
-    case_bool_decide; last first.
-    { exfalso. apply H. f_equal. }
     wp_pures.
     iApply "HΦ".
     done.
   Qed.
 
-  Local Lemma wp_coupon_helper_ind (coupon':nat) (l:loc) (n:nat) E:
-    (n<S coupon')%nat -> 
-    {{{ ⧖ (tc_end + )%NNR}}}
-    
+  Local Lemma wp_coupon_helper_ind (coupon':nat) (l:loc) (lis:list val) (n:nat) E:
+    (0<n<= S coupon')%nat -> 
+    {{{ ⧖ (tc_end + nnreal_nat(n) * tc_mid * nnreal_harmonic_sum n)%NNR ∗
+          l ↦∗ lis
+    }}}
+      coupon_helper coupon' #l #(n) @ E
+      {{{RET #(); True}}}.
+  Proof.
+  Abort.
   
 End proofs.
