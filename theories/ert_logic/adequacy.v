@@ -267,14 +267,3 @@ Proof using cost.
 Qed.
 
 End wp_ERT.
-
-Definition cost1 {Λ} (e : language.expr Λ) := nnreal_one.
-Instance Cost1 {Λ} : @Costfun Λ.
-Proof.
-  unshelve econstructor.
-  - exact cost1.
-  - eexists nnreal_one ; by intuition auto.
-  - auto.
-Qed.
-
-Check (wp_ERT Cost1).

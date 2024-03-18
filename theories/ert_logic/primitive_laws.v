@@ -10,6 +10,7 @@ From iris.prelude Require Import options.
 
 
 Section primitive_laws.
+Context (cost : Costfun prob_lang).
 Context `{!ert_clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
@@ -35,10 +36,11 @@ Qed.
 
 (** Heap *)
 
-Lemma wp_alloc E v s :
-  {{{ ⧖ (nnreal_nat 1) }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+Lemma wp_alloc E x v s :
+  TCEq x (cost (Alloc (Val v))) →
+  {{{ ⧖ x }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
-  iIntros (Φ) "Hx HΦ".
+  iIntros (-> Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
@@ -53,14 +55,15 @@ Proof.
   by iApply "HΦ".
 Qed.
 
-Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
+Lemma wp_allocN_seq x (N : nat) (z : Z) E v s:
+  TCEq x (cost (AllocN #z v)) ->
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
-  {{{ ⧖ (nnreal_nat 1) }}}
+  {{{ ⧖ x }}}
     AllocN #z v @ s; E
   {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
-  iIntros (-> Hn Φ) "Hx HΦ".
+  iIntros (-> -> Hn Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iSplit.
@@ -106,12 +109,13 @@ Proof.
       lia. }
 Qed.
 
-Lemma wp_load E l dq v s :
-  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦{dq} v }}}
+Lemma wp_load E x l dq v s :
+  TCEq x (cost (Load (Val $ LitV $ LitLoc l))) →
+  {{{ ⧖ x ∗ ▷ l ↦{dq} v }}}
     Load (Val $ LitV $ LitLoc l) @ s; E
   {{{ RET v; l ↦{dq} v }}}.
 Proof.
-  iIntros (Φ) "[Hx >Hl] HΦ".
+  iIntros (-> Φ) "[Hx >Hl] HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
@@ -122,12 +126,13 @@ Proof.
   iApply "HΦ"; done.
 Qed.
 
-Lemma wp_store E l v' v s :
-  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦ v' }}}
+Lemma wp_store E x l v' v s :
+  TCEq x (cost (Store (Val $ LitV (LitLoc l)) (Val v))) →
+  {{{ ⧖ x ∗ ▷ l ↦ v' }}}
     Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
-  iIntros (Φ) "[Hx >Hl] HΦ".
+  iIntros (-> Φ) "[Hx >Hl] HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
@@ -138,11 +143,12 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
-Lemma wp_rand (N : nat) (z : Z) E s :
+Lemma wp_rand x (N : nat) (z : Z) E s :
+  TCEq x (cost (rand #z)%E) →
   TCEq N (Z.to_nat z) →
-  {{{ ⧖ (nnreal_nat 1) }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
+  {{{ ⧖ x }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
-  iIntros (-> Φ) "Hx HΦ".
+  iIntros (-> -> Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
   solve_red.
