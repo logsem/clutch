@@ -15,17 +15,17 @@ Next Obligation. intros. by apply ert_wp_bind. Qed.
 Section proofmode.
   Context `{!ertwpG prob_lang Σ}.
 
-  Lemma tac_wp_pure_later Δ1 Δ2 Δ3 E i K e1 e2 φ n Φ a (x1 x2 : nonnegreal) :
-    PureExec φ n e1 e2 →
+  Lemma tac_wp_pure_later Δ1 Δ2 Δ3 E i K e1 e2 φ Φ a (x1 x2 : nonnegreal) :
+    PureExec φ 1 e1 e2 →
     φ →
     envs_lookup i Δ1 = Some (false, ⧖ x1) →
     (* We need [n] credits, but they cannot be under [n] laters. The credit resource is of course
        timeless, but that does not mean that [▷^n ⧖ x1 ⊢ ◇ ⧖ x1] in general since of course [▷^n P]
        for isn't timeless for all [n]! So we find the credit resource in Δ1 first, *before* removing
        laters *)
-    x1 = (nnreal_nat n + x2)%NNR →
+    x1 = ((cost e1) + x2)%NNR →
     envs_delete false i false Δ1 = Δ2 →
-    MaybeIntoLaterNEnvs n Δ2 Δ3 →
+    MaybeIntoLaterNEnvs 1 Δ2 Δ3 →
     match envs_app false (Esnoc Enil i (⧖ x2)) Δ3 with
     | Some Δ4 => envs_entails Δ4 (WP (fill K e2) @ a; E {{ Φ }})
     | None => False
@@ -42,7 +42,7 @@ Section proofmode.
     iIntros "/= [[Hn Hx2] HΔ4]".
     pose proof @pure_exec_fill.
     iApply wp_pure_step_later; [done|].
-    iFrame. iModIntro.
+    rewrite cost_fill. iFrame. iModIntro.
     iApply Hcnt.
     by iApply "HΔ4".
   Qed.
@@ -166,6 +166,16 @@ Tactic Notation "wp_store" := iChip; wp_apply (wp_store with "[$]").
 Section tests.
   Context `{!ert_clutchGS Σ}.
 
+  #[local] Definition cost1 {Λ} (e : language.expr Λ) := (nnreal_nat 1).
+  #[local] Instance Cost1 {Λ} : Costfun Λ.
+  Proof.
+    unshelve econstructor.
+    - exact cost1.
+    - eexists nnreal_one ; by intuition auto.
+    - auto.
+  Defined.
+
+
   #[local] Lemma test_wp_pure n :
     {{{ ⧖ (nnreal_nat (S n)) }}} #2 + #2 {{{ RET #4; ⧖ (nnreal_nat n) }}}.
   Proof.
@@ -198,23 +208,30 @@ Section tests.
     by iApply "Hp".
   Qed.
 
+  Hint Extern 0 (TCEq nnreal_one _) => rewrite nnreal_nat_1 : typeclass_instances.
+
   #[local] Lemma test_wp_apply :
     {{{ ⧖ (nnreal_nat 7) }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
   Proof.
     iIntros (?) "Hc H".
     (* first variant *)
     iChip "Hc" as "H1".
-    wp_apply (wp_alloc with "[$]").
+    wp_apply (wp_alloc with "[H1]") => //.
+    { rewrite /Cost1/cost1 => /=.
+      by rewrite -nnreal_nat_1.
+    }
     iIntros (?) "Hl".
     wp_pures.
     (* second variant *)
     iChip "Hc".
+    rewrite -nnreal_nat_1.
     wp_apply (wp_store with "[$]").
     iIntros "Hl".
     wp_pures.
     (* third variant *)
     iChip.
     wp_apply (wp_load with "[$]").
+    1: rewrite /Cost1/cost1/= ; apply _.
     iIntros "_".
     by iApply "H".
   Qed.
@@ -223,11 +240,14 @@ Section tests.
     {{{ ⧖ (nnreal_nat 7) }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
   Proof.
     iIntros (?) "Hc H".
-    wp_alloc; iIntros (?) "Hl".
+    wp_alloc ; [rewrite /Cost1/cost1/= ; apply _|]
+    ; iIntros (?) "Hl".
     wp_pures.
-    wp_store; iIntros "Hl".
+    wp_store ; [rewrite /Cost1/cost1/= ; apply _|]
+    ; iIntros "Hl".
     wp_pures.
-    wp_load; iIntros "Hl".
+    wp_load ; [rewrite /Cost1/cost1/= ; apply _|]
+    ; iIntros "Hl".
     by iApply "H".
   Qed.
 

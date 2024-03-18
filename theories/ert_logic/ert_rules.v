@@ -7,16 +7,17 @@ From clutch.prob_lang Require Export lang.
 From clutch.ert_logic Require Export lifting ectx_lifting primitive_laws.
 
 Section metatheory.
-  Context `{!ert_clutchGS Σ}.
+  Context `{!ertwpG prob_lang Σ}.
   Local Open Scope R.
 
-  Lemma wp_couple_rand_adv_comp (N : nat) z E (x1 : nonnegreal) (x2 : fin (S N) -> nonnegreal) :
+  Lemma wp_couple_rand_adv_comp x (N : nat) (z : Z) E (x1 : nonnegreal) (x2 : fin (S N) -> nonnegreal) :
+    TCEq x (cost (rand #z)%E) ->
     TCEq N (Z.to_nat z) →
     (exists r:nonnegreal, ∀ n, (x2 n <= r)%R) →
-    1 + SeriesC (λ n, (1 / (S N)) * x2 n)%R = (nonneg x1) →
+    x + SeriesC (λ n, (1 / (S N)) * x2 n)%R = (nonneg x1) →
     {{{ ⧖ x1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n) }}}.
   Proof.
-    iIntros (-> [r Hr] Hbound Φ) "Hx HΦ".
+    iIntros (-> -> [r Hr] Hbound Φ) "Hx HΦ".
     iApply wp_lift_step_fupd_ERM; first done.
     iIntros (σ1 x) "[Hσ Hetc]".
     iApply fupd_mask_intro; [set_solver|].
@@ -44,7 +45,7 @@ Section metatheory.
       intros (e&σ); simpl. apply Rplus_le_compat_l.
       repeat case_match; simpl; try apply cond_nonneg. naive_solver.
     - iPureIntro. destruct x1 as [x1 x1cond]. 
-      trans (1 + x3 +
+      trans ((cost (rand #z)) + x3 +
            SeriesC
              (λ n : fin (S (Z.to_nat z)),
                 1 / match Z.to_nat z with
@@ -218,17 +219,18 @@ Section metatheory.
       + apply ex_seriesC_finite.
   Qed.
   
-  Lemma wp_couple_rand_adv_comp' (N : nat) z E (x1 : nonnegreal) (x2 : fin (S N) -> nonnegreal) :
+  Lemma wp_couple_rand_adv_comp' x (N : nat) (z : Z) E (x1 : nonnegreal) (x2 : fin (S N) -> nonnegreal) :
+    TCEq x (cost (rand #z)) →
     TCEq N (Z.to_nat z) →
-    1 + SeriesC (λ n, (1 / (S N)) * x2 n)%R = (nonneg x1) →
+    x + SeriesC (λ n, (1 / (S N)) * x2 n)%R = (nonneg x1) →
     {{{ ⧖ x1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n) }}}.
   Proof.
-    intros. eapply wp_couple_rand_adv_comp; try done.
-    epose proof (mean_constraint _ _ _ _) as [x[H1 H2]].
-    exists (mknonnegreal x H1). done.
+    intros ->. intros. eapply wp_couple_rand_adv_comp; try done.
+    epose proof (mean_constraint _ _ _ _) as [xx[H1 H2]].
+    exists (mknonnegreal xx H1). done.
     Unshelve.
     2: { eapply Rplus_eq_reg_l. erewrite H0.
-         instantiate (1:=mknonnegreal (nonneg x1 - 1) _).
+         instantiate (1:=mknonnegreal (nonneg x1 - (costfun (rand #z)%E)) _).
          simpl. lra. }
     Unshelve.
     rewrite <- H0. assert (0<=SeriesC (λ n, 1/S N * x2 n)); last lra.
@@ -237,15 +239,19 @@ Section metatheory.
     apply pos_INR_S.
   Qed.
 
-  Lemma wp_couple_rand_constant (N : nat) z E (x : nonnegreal) :
+  Lemma wp_couple_rand_constant x (N : nat) (z : Z) E (x1 : nonnegreal) :
+    TCEq x (cost (rand #z)) →
     TCEq N (Z.to_nat z) →
-    {{{ ⧖ (x+(nnreal_nat 1))%NNR }}} rand #z @ E {{{ n, RET #n; ⧖ (x) }}}.
+    {{{ ⧖ (x+x1)%NNR }}} rand #z @ E {{{ n, RET #n; ⧖ (x1) }}}.
   Proof.
-    intros ->.
+    intros -> ->.
     iIntros(Φ) "H HΦ".
     iApply (wp_couple_rand_adv_comp' with "H"); last first.
     - iModIntro. iIntros (n) "H". iApply "HΦ". done.
-    - simpl. rewrite Rplus_comm. apply Rplus_eq_compat_r.
+    - simpl.
+      rewrite {1}Rplus_comm.
+      rewrite (Rplus_comm _ (nonneg x1)).
+      apply Rplus_eq_compat_r.
       rewrite SeriesC_finite_mass fin_card.
       rewrite Rdiv_1_l -Rmult_assoc -Rdiv_def.
       replace (_/_) with 1; first real_solver.
