@@ -110,6 +110,109 @@ Section adequacy.
            lra.
   Qed.
 
+
+  Lemma ERM_erasure_alt (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
+    to_val e = None →
+    ERM e σ x
+          (λ '(e2, σ2) (x' : nonnegreal),
+            |={∅}▷=>^(S n) ⌜n <= x' + n * SeriesC (exec n (e2, σ2))⌝)
+          ⊢ |={∅}▷=>^(S n) ⌜S n <= x + (S n) * SeriesC (exec (S n) (e, σ))⌝.
+  Proof.
+    iIntros (Hv) "Hexec".
+    iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
+    rewrite /ERM /ERM'.
+    set (Φ := (λ '((e1, σ1), x''),
+                (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
+                ⌜S n  <= x'' + (S n) * SeriesC (λ ρ, exec (S n) (e1, σ1) ρ)⌝)%I) :
+           prodO cfgO NNRO → iPropI Σ).
+    assert (NonExpansive Φ).
+    { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
+    set (F := (ERM_pre (λ '(e2, σ2) x',
+                   |={∅}▷=>^(S n) ⌜n <= x' + n * SeriesC (λ ρ, exec n (e2, σ2) ρ)⌝)%I)).
+    iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
+    { iIntros "Hfix %".
+      by iMod ("H" $! ((_, _)) with "Hfix [//]").
+    }
+    clear.
+    iIntros "!#" ([[e1 σ1] x'']). rewrite /Φ/F/ERM_pre.
+    (* iIntros " [ (%R & %x1 & %x2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv". *)
+    iIntros " (%x2 & %Hred & (%r & %Hr) & % & H) %Hv".
+    iApply step_fupdN_mono.
+    { apply pure_mono.
+      intros ψ. etrans.
+      2: apply Rplus_le_compat_r, H.
+      exact ψ. }
+    clear H x''.
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → n <= x2 (e2, σ2) + n * SeriesC (exec n (e2, σ2)))⌝)).
+    2: { iIntros (???) "/=".
+         iMod ("H" with "[//]"); auto. }
+    iIntros (H). iPureIntro.
+    rewrite S_INR (Rplus_comm n) Rplus_assoc.
+    apply Rplus_le_compat_l.
+    rewrite exec_Sn dbind_mass.
+    rewrite -SeriesC_scal_l -SeriesC_plus /=.
+    - transitivity (SeriesC (λ x : expr * state, prim_step e1 σ1 x * x2 x + n * (step_or_final (e1, σ1) x * SeriesC (exec n x))));
+        last first.
+      {
+       apply SeriesC_le.
+       + intros (e2 & σ2); split.
+         * apply Rplus_le_le_0_compat.
+           ** apply Rmult_le_pos; auto.
+              apply cond_nonneg.
+           ** apply Rmult_le_pos; [apply pos_INR | real_solver].
+         * apply Rplus_le_compat_l.
+           apply Rmult_le_compat_r; real_solver.
+       + apply ex_seriesC_plus.
+         * apply (ex_seriesC_le _ (λ x : expr * state, prim_step e1 σ1 x * r)).
+           ** intro n0. pose proof (cond_nonneg (x2 n0)). split; real_solver.
+           ** apply ex_seriesC_scal_r; auto.
+         * apply ex_seriesC_scal_l.
+           apply (ex_seriesC_le _ (λ x : expr * state, (step_or_final (e1, σ1) x) * 1)).
+           ** intro. split; real_solver.
+           ** apply ex_seriesC_scal_r; auto.
+      }
+      transitivity (SeriesC (λ x : expr * state, prim_step e1 σ1 x * (x2 x + n * SeriesC (exec n x)))); last first.
+      { right.
+        apply SeriesC_ext.
+        intros (e2 & σ2).
+        assert ((prim_step e1 σ1) = (step (e1, σ1))) as -> => //.
+        assert ((step_or_final (e1, σ1)) = (step (e1, σ1))) as -> => //.
+        - rewrite /step_or_final.
+          rewrite to_final_None_1; auto.
+        - rewrite Rmult_plus_distr_l.
+          f_equal.
+          rewrite -Rmult_assoc.
+          rewrite (Rmult_comm _ n).
+          rewrite Rmult_assoc //.
+      }
+      transitivity (SeriesC (λ x : expr * state, prim_step e1 σ1 x * n)); last first.
+      {
+        apply SeriesC_le.
+        - intros (e2 & σ2); split.
+          + apply Rmult_le_pos; auto.
+            apply pos_INR.
+          + destruct (decide (prim_step e1 σ1 (e2, σ2) > 0)) eqn:Haux.
+            * apply Rmult_le_compat_l; auto.
+            * assert (prim_step e1 σ1 (e2, σ2) = 0) as ->.
+              ** pose proof (pmf_pos (prim_step e1 σ1) (e2, σ2)). lra.
+              ** do 2 rewrite Rmult_0_l //.
+        - eapply ex_seriesC_ext; [ intros; by rewrite Rmult_plus_distr_l | ].
+          eapply ex_seriesC_plus.
+          * apply (ex_seriesC_le _ (λ x : expr * state, prim_step e1 σ1 x * r)).
+            ** intro n0. pose proof (cond_nonneg (x2 n0)). split; real_solver.
+            ** apply ex_seriesC_scal_r; auto.
+          * apply (ex_seriesC_le _ (λ x : expr * state, prim_step e1 σ1 x * n)).
+            ** intros. pose proof (pos_INR n). real_solver.
+            ** apply ex_seriesC_scal_r; auto.
+       }
+       rewrite SeriesC_scal_r.
+       rewrite <- (Rmult_1_l n) at 1.
+       right.
+       f_equal.
+   Admitted.
+
+
+
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (x : nonnegreal) n φ  :
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ERT n (e, σ) <= x⌝.
@@ -139,6 +242,40 @@ Section adequacy.
         assert ((prim_step e σ) = (step (e, σ))) as -> => //.
         rewrite -ERT_Sn => //.
         by iApply (ERM_erasure with "H").
+  Qed.
+
+
+  Theorem wp_refRcoupl_step_fupdN_alt (e : expr) (σ : state) (x : nonnegreal) n φ  :
+    state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
+      |={⊤,∅}=> |={∅}▷=>^n ⌜n <= x + n * SeriesC (exec n (e, σ))⌝.
+  Proof.
+    iInduction n as [|n] "IH" forall (e σ x); iIntros "((Hσh & Hσt) & Hx & Hwp)".
+    - simpl.
+      iApply fupd_mask_intro; [set_solver|]; iIntros.
+      iPureIntro. rewrite Rmult_0_l Rplus_0_r. apply cond_nonneg.
+    - destruct (to_val e) eqn:Heq.
+      + iSimpl.
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iApply step_fupdN_intro; [done|]. do 4 iModIntro.
+        iPureIntro.
+        rewrite Heq dret_mass Rmult_1_r.
+        rewrite <- Rplus_0_l at 1.
+        apply Rplus_le_compat_r.
+        apply cond_nonneg.
+      + rewrite ert_wp_unfold /ert_wp_pre.
+        assert (language.to_val e = None) as ->; auto.
+        iMod ("Hwp" with "[$]") as "Hlift".
+        iModIntro.
+        iPoseProof
+          (ERM_mono _
+             (λ '(e2, σ2) x', |={∅}▷=>^(S n) ⌜n <= x' + n * SeriesC (exec n (e2, σ2)) ⌝)%I
+            with "[] Hlift") as "H".
+        { reflexivity. }
+        { iIntros ([] ?) "H !> !>".
+          iMod "H" as "(Hstate & Herr_auth & Hwp)".
+          iMod ("IH" with "[$]") as "H".
+          iModIntro. done. }
+        by iApply (ERM_erasure_alt).
   Qed.
 
 End adequacy.
@@ -177,7 +314,52 @@ Proof.
   done.
 Qed.
 
+
+Theorem wp_ERT_alt Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  n <= x + n * SeriesC (exec n (e, σ)).
+Proof.
+  intros Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (etc_alloc) as (?) "[??]".
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
+  iApply wp_refRcoupl_step_fupdN_alt.
+  iFrame.
+  iApply Hwp.
+  done.
+Qed.
+
 (** Finite expected mean => Almost sure termination *)
+
+Theorem ERT_implies_AST e σ (x : nonnegreal) :
+  (forall (n : nat), n <= x + n * SeriesC (exec n (e, σ))) ->
+  SeriesC (lim_exec (e, σ)) = 1.
+Proof.
+  intro H.
+  destruct x as (r & Hr); simpl in H.
+  rewrite lim_exec_Sup_seq.
+  apply eq_rbar_finite'.
+  apply Lim_seq.is_sup_seq_unique.
+  intro eps; split.
+  - intro n; simpl.
+    apply (Rle_lt_trans _ 1); auto.
+    destruct eps; simpl.
+    lra.
+  - simpl.
+    assert (exists m:nat, 1 - eps < 1 - (r / (m + 1))) as (m & Hm); last first.
+    + exists (m + 1)%nat.
+      eapply Rlt_le_trans; [apply Hm |].
+      specialize (H (m+1)%nat).
+      (* Should follow from H *)
+      admit.
+    + (* Pick m to be the ceil of r/eps *)
+      admit.
+ Admitted.
+
+
 
 Theorem mass_le_1_implies_growing_ert e σ (n:nat) ε:
   0<ε<=1->
