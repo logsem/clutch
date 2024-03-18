@@ -217,21 +217,16 @@ Section tests.
     (* first variant *)
     iChip "Hc" as "H1".
     wp_apply (wp_alloc with "[H1]") => //.
-    { rewrite /Cost1/cost1 => /=.
-      by rewrite -nnreal_nat_1.
-    }
     iIntros (?) "Hl".
     wp_pures.
     (* second variant *)
     iChip "Hc".
-    rewrite -nnreal_nat_1.
     wp_apply (wp_store with "[$]").
     iIntros "Hl".
     wp_pures.
     (* third variant *)
     iChip.
     wp_apply (wp_load with "[$]").
-    1: rewrite /Cost1/cost1/= ; apply _.
     iIntros "_".
     by iApply "H".
   Qed.
@@ -240,14 +235,11 @@ Section tests.
     {{{ ⧖ (nnreal_nat 7) }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
   Proof.
     iIntros (?) "Hc H".
-    wp_alloc ; [rewrite /Cost1/cost1/= ; apply _|]
-    ; iIntros (?) "Hl".
+    wp_alloc ; iIntros (?) "Hl".
     wp_pures.
-    wp_store ; [rewrite /Cost1/cost1/= ; apply _|]
-    ; iIntros "Hl".
+    wp_store ; iIntros "Hl".
     wp_pures.
-    wp_load ; [rewrite /Cost1/cost1/= ; apply _|]
-    ; iIntros "Hl".
+    wp_load ; iIntros "Hl".
     by iApply "H".
   Qed.
 
