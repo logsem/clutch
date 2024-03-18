@@ -35,7 +35,7 @@ Lemma wp_lift_head_step {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    ⧖ nnreal_one ∗
+    ⧖ (nnreal_nat 1) ∗
     ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={∅,E}=∗ state_interp σ2 ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -50,7 +50,7 @@ Lemma wp_lift_atomic_head_step_fupd {E1 E2 Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E1}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    ⧖ nnreal_one ∗
+    ⧖ (nnreal_nat 1) ∗
     ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E1}[E2]▷=∗ state_interp σ2 ∗ from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E1 {{ Φ }}.
 Proof.
@@ -66,7 +66,7 @@ Lemma wp_lift_atomic_head_step {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1, state_interp σ1 ={E}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    ⧖ nnreal_one ∗
+    ⧖ (nnreal_nat 1) ∗
     ▷ ∀ e2 σ2, ⌜head_step e1 σ1 (e2, σ2) > 0⌝ ={E}=∗ state_interp σ2 ∗ from_option Φ False (to_val e2))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -82,7 +82,7 @@ Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   to_val e1 = None →
   (∀ σ1, head_reducible e1 σ1) →
   (∀ σ1 e2' σ2, head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
-  ⧖ nnreal_one ∗
+  ⧖ (nnreal_nat 1) ∗
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. erewrite !(wp_lift_pure_det_step e1 e2); eauto.
@@ -92,7 +92,7 @@ Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 s :
   to_val e1 = None →
   (∀ σ1, head_reducible e1 σ1) →
   (∀ σ1 e2' σ2, head_step e1 σ1 (e2', σ2) > 0 → σ2 = σ1 ∧ e2' = e2) →
-  ⧖ nnreal_one ∗
+  ⧖ (nnreal_nat 1) ∗
   ▷ WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. rewrite -[(WP e1 @ _; _ {{ _ }})%I]wp_lift_pure_det_head_step //.

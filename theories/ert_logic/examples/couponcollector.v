@@ -24,7 +24,7 @@ Section Coupon.
              "coupon_helper" "a" ("cnt"-#1)).
 
   Definition coupon_collection : expr :=
-    λ: "n",
+    λ: "x", 
       let: "a" := AllocN #coupon #false in
       let: "cnt" := ref #coupon in
       coupon_helper "a" "cnt".
@@ -70,7 +70,8 @@ Section proofs.
   Context `{!ert_clutchGS Σ}.
 
   Notation tc_end:= (nnreal_nat 6).
-  Notation tc_mid:=(nnreal_nat 9999999999999).
+  Notation tc_mid:=(nnreal_nat 999).
+  Notation tc_start := (nnreal_nat 999).
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 
     {{{ ⧖ (tc_end) }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
@@ -81,14 +82,31 @@ Section proofs.
     done.
   Qed.
 
-  Local Lemma wp_coupon_helper_ind (coupon':nat) (l:loc) (lis:list val) (n:nat) E:
-    (0<n<= S coupon')%nat -> 
+  Local Lemma wp_coupon_helper_ind (coupon':nat) (l:loc) (lis:list val) (true_set: gset nat) (n:nat) E:
+    (0<n<= S coupon')%nat ->
+    (length lis = S coupon')%nat ->
+    (size true_set = S coupon' - n)%nat ->
+    (∀ n:nat, (n<S coupon')%nat -> lis !! n = Some (#true) <-> n∈true_set) -> 
     {{{ ⧖ (tc_end + nnreal_nat(n) * tc_mid * nnreal_harmonic_sum n)%NNR ∗
           l ↦∗ lis
     }}}
       coupon_helper coupon' #l #(n) @ E
       {{{RET #(); True}}}.
   Proof.
+  Abort.
+
+  Lemma wp_coupon_collection (coupon':nat) E:
+    {{{ ⧖ (tc_start+tc_end + nnreal_nat(S coupon') * tc_mid * nnreal_harmonic_sum (S coupon'))%NNR }}}
+      coupon_collection coupon' #()@E
+      {{{RET #(); True}}}.
+  Proof.
+    iIntros (Φ) "Hx HΦ".
+    rewrite /coupon_collection.
+    rewrite -nnreal_plus_assoc (nnreal_plus_comm tc_start).
+    iDestruct "Hx" as "[Hx1 Hx2]".
+    wp_pures.
+    iChip.
+    wp_apply (wp_allocN with "[$]"); first (rewrite /coupon; lia).
   Abort.
   
 End proofs.

@@ -126,7 +126,7 @@ Tactic Notation "wp_closure" := wp_pure (Rec _ _ _).
 Lemma tac_chip `{!ertwpG prob_lang Σ} i j Δ1 Δ2 Δ3 n P :
   envs_lookup i Δ1 = Some (false, ⧖ (nnreal_nat (S n))) →
   envs_simple_replace i false (Esnoc Enil i (⧖ (nnreal_nat n))) Δ1 = Some Δ2 →
-  envs_app false (Esnoc Enil j ((⧖ nnreal_one))) Δ2 = Some Δ3 →
+  envs_app false (Esnoc Enil j ((⧖ (nnreal_nat 1)))) Δ2 = Some Δ3 →
   envs_entails Δ3 P →
   envs_entails Δ1 P.
 Proof.
@@ -136,6 +136,7 @@ Proof.
   rewrite envs_app_singleton_sound //.
   rewrite Hcnt.
   iIntros "[[H1 Hc] HP]".
+  replace (nnreal_one) with (nnreal_nat 1); last by apply nnreal_ext.
   iApply ("HP" with "Hc H1").
 Qed.
 

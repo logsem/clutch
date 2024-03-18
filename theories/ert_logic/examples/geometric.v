@@ -15,10 +15,10 @@ Definition geo
 
 (* Defining these as paramaters until we decide what counts as a tick *)
 
-Definition tc_val := nnreal_one.
-Definition tc_recurse := nnreal_one.
-Definition tc_sample := nnreal_one.
-Definition tc_if := nnreal_one.
+Definition tc_val := (nnreal_nat 1).
+Definition tc_recurse := (nnreal_nat 1).
+Definition tc_sample := (nnreal_nat 1).
+Definition tc_if := (nnreal_nat 1).
 
 Definition tc_spec : nonnegreal := ((nnreal_nat 2) * tc_if + tc_val + tc_recurse)%NNR.
 

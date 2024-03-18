@@ -36,7 +36,7 @@ Qed.
 (** Heap *)
 
 Lemma wp_alloc E v s :
-  {{{ ⧖ nnreal_one }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+  {{{ ⧖ (nnreal_nat 1) }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
   iIntros (Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -56,7 +56,7 @@ Qed.
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
-  {{{ ⧖ nnreal_one }}}
+  {{{ ⧖ (nnreal_nat 1) }}}
     AllocN #z v @ s; E
   {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
@@ -107,7 +107,7 @@ Proof.
 Qed.
 
 Lemma wp_load E l dq v s :
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦{dq} v }}}
+  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦{dq} v }}}
     Load (Val $ LitV $ LitLoc l) @ s; E
   {{{ RET v; l ↦{dq} v }}}.
 Proof.
@@ -123,7 +123,7 @@ Proof.
 Qed.
 
 Lemma wp_store E l v' v s :
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦ v' }}}
+  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦ v' }}}
     Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
   {{{ RET LitV LitUnit; l ↦ v }}}.
 Proof.
@@ -140,7 +140,7 @@ Qed.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
-  {{{ ⧖ nnreal_one }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
+  {{{ ⧖ (nnreal_nat 1) }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
   iIntros (-> Φ) "Hx HΦ".
   iApply wp_lift_atomic_head_step; [done|].
