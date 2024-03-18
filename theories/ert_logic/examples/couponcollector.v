@@ -73,15 +73,22 @@ Proof.
     by apply not_INR.
 Qed.
 
+  
 Section proofs.
-  #[local] Definition cost1 {Λ} (e : language.expr Λ) := (nnreal_nat 1).
-  #[local] Instance Cost1 {Λ} : Costfun Λ.
+  #[local] Definition cost1 (e : language.expr prob_lang) :=
+  match decomp e with
+  | (_, Rand _ _) => nnreal_one
+  | _ => nnreal_zero
+  end.
+  
+  #[local] Instance Cost1 : Costfun prob_lang.
   Proof.
     unshelve econstructor.
     - exact cost1.
-    - eexists nnreal_one ; by intuition auto.
-    - auto.
-  Defined.
+    - eexists nnreal_one; intros. simpl. rewrite /cost1.
+      repeat case_match; simpl; lra. 
+    - intros. rewrite /cost1.
+  Admitted.
 
   Context `{!ert_clutchGS Σ Cost1}.
 
