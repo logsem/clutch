@@ -113,7 +113,7 @@ Qed.
 
 Lemma wp_allocN E v n s :
   (0 < n)%Z →
-  {{{ ⧖ (nnreal_one) }}} AllocN (Val $ LitV $ LitInt $ n) (Val v) @ s; E
+  {{{ ⧖ (nnreal_nat 1) }}} AllocN (Val $ LitV $ LitInt $ n) (Val v) @ s; E
   {{{ l, RET LitV (LitLoc l);
           l ↦∗ replicate (Z.to_nat n) v }}}.
   Proof.
@@ -128,7 +128,7 @@ Lemma wp_allocN E v n s :
 
   Lemma wp_allocN_vec E v n s :
     (0 < n)%Z →
-    {{{ ⧖ nnreal_one }}}
+    {{{ ⧖ (nnreal_nat 1) }}}
       AllocN #n v @ s; E
                           {{{ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v  }}}.
   Proof.
@@ -145,7 +145,7 @@ Lemma wp_allocN E v n s :
 
 Lemma wp_load_offset E l dq off vs v s :
   vs !! off = Some v →
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET v; l ↦∗{dq} vs }}}.
+  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET v; l ↦∗{dq} vs }}}.
 Proof.
   iIntros (Hlookup Φ) "[Hx >Hl] HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
@@ -159,13 +159,13 @@ Proof.
 Qed.
 
 Lemma wp_load_offset_vec E l dq sz (off : fin sz) (vs : vec val sz) s :
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET vs !!! off; l ↦∗{dq} vs }}}.
+  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET vs !!! off; l ↦∗{dq} vs }}}.
   Proof. apply wp_load_offset. by apply vlookup_lookup. Qed.
 
 
 Lemma wp_store_offset E l off vs v s :
   is_Some (vs !! off) →
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
+  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
 Proof.
   iIntros ([w Hlookup] Φ) "[Hx >Hl] HΦ".
   iDestruct (update_array l _ _ _ _ Hlookup with "Hl") as "[Hl1 Hl2]".
@@ -177,7 +177,7 @@ Qed.
 
 
 Lemma wp_store_offset_vec E l sz (off : fin sz) (vs : vec val sz) v s :
-  {{{ ⧖ nnreal_one ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ vinsert off v vs }}}.
+  {{{ ⧖ (nnreal_nat 1) ∗ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ vinsert off v vs }}}.
 Proof.
   setoid_rewrite vec_to_list_insert. apply wp_store_offset.
   eexists. by apply vlookup_lookup.

@@ -239,7 +239,7 @@ Section metatheory.
 
   Lemma wp_couple_rand_constant (N : nat) z E (x : nonnegreal) :
     TCEq N (Z.to_nat z) →
-    {{{ ⧖ (x+nnreal_one)%NNR }}} rand #z @ E {{{ n, RET #n; ⧖ (x) }}}.
+    {{{ ⧖ (x+(nnreal_nat 1))%NNR }}} rand #z @ E {{{ n, RET #n; ⧖ (x) }}}.
   Proof.
     intros ->.
     iIntros(Φ) "H HΦ".

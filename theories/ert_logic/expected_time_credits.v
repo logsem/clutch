@@ -273,10 +273,11 @@ Section error_credit_theory.
   Qed.
 
   Lemma etc_nat_big_sepS n :
-    ⧖ (nnreal_nat n) ⊢ [∗ set] _ ∈ set_seq 0 n, ⧖ nnreal_one.
+    ⧖ (nnreal_nat n) ⊢ [∗ set] _ ∈ set_seq 0 n, ⧖ (nnreal_nat 1).
   Proof.
     induction n; [eauto|].
     rewrite nnreal_nat_Sn' etc_split.
+    replace nnreal_one with (nnreal_nat 1); last by apply nnreal_ext.
     rewrite set_seq_S_end_union_L.
     rewrite big_sepS_union; [|apply set_seq_S_end_disjoint].
     rewrite big_sepS_singleton IHn //.
