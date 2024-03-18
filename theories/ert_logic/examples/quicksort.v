@@ -8,6 +8,7 @@ Require Import Lra.
 Require Coq.Program.Tactics.
 Require Coq.Program.Wf.
 
+(*
 Definition swap :=
   (λ: "arr" "a" "b",
       let: "tmp" := !("arr" +ₗ "a") in
@@ -46,16 +47,17 @@ Definition in_place_pivot
         swap "arr" !("len_left") ("len" - #1) ;;
         "len_left")%V.
 
-
+*)
 (* let: "pivot_v" := !("arr" +ₗ "pivot") in *)
 
-
+(*
 Definition tc_pivot : nat -> nonnegreal.
 Admitted.
+*)
 
 (* Tighter bounding argument necessitates the pivot take time An+B *)
 Definition tc_pivot_lin (A B n : nat) : nonnegreal := nnreal_nat (A*n+B)%nat.
-
+(*
 
 Check ⧖ (tc_pivot _) -∗ (WP in_place_pivot #() @ _ {{ fun _ => ⌜True ⌝ }})%I.
 
@@ -74,7 +76,7 @@ Definition quicksort :=
         "quicksort" "left" "len_left" ;;
         "quicksort" "right" "len_right" ;;
         "arr")%V.
-
+*)
 
 Definition tc_base : nonnegreal. Admitted.
 
@@ -94,7 +96,13 @@ Next Obligation. apply Wf.measure_wf, lt_wf. Qed.
 
 (* Exhausting unfolding lemmas, provable. *)
 Lemma tc_quicksort_0 A B : tc_quicksort A B 0%nat = tc_base.
-Proof. Admitted.
+Proof.
+    rewrite /tc_quicksort.
+    rewrite /tc_quicksort_func /=.
+    rewrite Wf.WfExtensionality.fix_sub_eq_ext.
+    apply nnreal_ext; simpl.
+    lra.
+Qed.
 
 (* Eliminate the hauntedness *)
 Lemma tc_quicksort_unfold A B n :
@@ -105,7 +113,31 @@ Lemma tc_quicksort_unfold A B n :
           nnreal_div
             (foldr nnreal_plus nnreal_zero $ map (fun i => ((tc_quicksort A B i))%NNR) $ seq 0%nat n)%NNR
             (nnreal_nat n).
-Proof. Admitted.
+Proof.
+  intros.
+  Opaque INR.
+  induction n as [|n' IH]; [lia|].
+  destruct n'.
+  - (* n' = 0 (n = 1) *)
+    simpl.
+    rewrite /tc_quicksort.
+    rewrite /tc_quicksort_func /=.
+    rewrite Wf.WfExtensionality.fix_sub_eq_ext.
+    apply nnreal_ext; simpl.
+    lra.
+  - (* n' > 0 (n > 1) *)
+    Opaque seq.
+    rewrite {1}/tc_quicksort.
+    rewrite /tc_quicksort_func /=.
+    rewrite Wf.WfExtensionality.fix_sub_eq_ext.
+    apply nnreal_ext; simpl.
+    apply Rplus_eq_compat_l, Rmult_eq_compat_l.
+    simpl.
+    (* Still Haunted *)
+
+    Transparent seq.
+    Transparent INR.
+Admitted.
 
 
 Lemma tc_quicksort_bound_ind n' A B (HAB : (B <= A)%nat) :
@@ -113,6 +145,7 @@ Lemma tc_quicksort_bound_ind n' A B (HAB : (B <= A)%nat) :
      (nnreal_div (nnreal_nat (2* A)%nat) (nnreal_nat (S n' + 1)%nat) +
       nnreal_div (tc_quicksort A B n') (nnreal_nat (n' + 1)%nat))%NNR)%R.
 Proof.
+  Opaque INR.
   remember (S n') as n.
   remember (tc_quicksort A B) as C.
   simpl.
@@ -123,7 +156,15 @@ Proof.
     rewrite -(Rplus_0_l (_ * _)%R).
     eapply Rplus_le_compat_r.
     assert (Hinst: (((B - A) / (n * (n+1)) <= 0)%R)).
-    { apply Rcomplements.Rle_div_l; admit. (* Both true *)
+    { apply Rcomplements.Rle_div_l.
+      - apply Rlt_gt.
+        rewrite Heqn.
+        pose P := (pos_INR n').
+        rewrite S_INR.
+        apply Rmult_lt_0_compat;lra.
+      - rewrite Rmult_0_l.
+        apply Rle_minus, le_INR.
+        lia.
     }
     eapply Hinst.
   }
@@ -137,28 +178,49 @@ Proof.
     rewrite tc_quicksort_unfold /=; [|lia].
     rewrite tc_quicksort_0 /=.
     rewrite Rinv_1 Rmult_1_r Rmult_1_l Rmult_1_r Rplus_0_r.
-    replace ((A + (A + 0))%nat * / (1 + 1))%R with (INR A) by admit.
+    replace ((A + (A + 0))%nat * / (1 + 1))%R with (INR A); last first.
+    { rewrite Nat.add_0_r.
+      rewrite -{2}(Nat.mul_1_r A) -{3}(Nat.mul_1_r A).
+      rewrite -Nat.mul_add_distr_l.
+      rewrite mult_INR plus_INR INR_1.
+      lra.
+    }
     rewrite Nat.mul_1_r.
     rewrite Rmult_plus_distr_r.
-    replace ((1 + 1) * nonneg tc_base * / (1 + 1))%R with (nonneg tc_base) by admit.
-    rewrite -Rplus_assoc.
-    apply Rplus_eq_compat_r.
-    rewrite plus_INR.
+    replace ((1 + 1) * nonneg tc_base * / (1 + 1))%R with (nonneg tc_base).
+    { repeat rewrite plus_INR.
+      rewrite INR_0 Rplus_0_r.
+      do 2 rewrite Rmult_plus_distr_r.
+      do 2 rewrite Rplus_assoc.
+      apply Rplus_eq_compat_l.
+      rewrite -S_INR.
+      rewrite (Rmult_comm (INR 2)) Rmult_assoc.
+      rewrite Rinv_r; [|rewrite S_INR S_INR INR_0; lra].
+      lra.
+    }
     lra.
   }
 
   (* Get rid of some n+1 denominators *)
-  eapply (Rmult_eq_reg_r (INR (n + 1))); last admit.
-  rewrite Rmult_assoc Rinv_l; last admit.
+  eapply (Rmult_eq_reg_r (INR (n + 1))); last first.
+  { rewrite Nat.add_1_r S_INR. pose P:= (pos_INR n); lra. }
+  rewrite Rmult_assoc Rinv_l; last first.
+  { rewrite Nat.add_1_r S_INR. pose P:= (pos_INR n); lra. }
   rewrite Rmult_1_r.
   do 2 rewrite Rmult_plus_distr_r.
-  rewrite Rmult_assoc Rinv_l; last admit.
+  rewrite Rmult_assoc Rinv_l; last first.
+  { rewrite Nat.add_1_r S_INR. pose P:= (pos_INR n); lra. }
   rewrite Rmult_1_r.
   rewrite Rdiv_mult_distr.
   Set Printing Parentheses.
   replace (((((INR B) - (INR A)) / (INR n)) / ((INR n) + 1)) * (INR (n + 1)))%R
      with ((((INR B - INR A)) / (INR n)))%R; last first.
-  { (* True *) admit. }
+  { rewrite (Rdiv_def _ (_ + _)%R).
+    rewrite Rmult_assoc.
+    rewrite Nat.add_1_r S_INR.
+    rewrite Rinv_l; last (pose P := (pos_INR n); lra).
+    lra.
+  }
 
   (* Unfold C *)
   Opaque INR.
@@ -188,26 +250,27 @@ Proof.
   }
   remember (foldr nnreal_plus nnreal_zero (map (λ i : nat, (C i)) (seq 0 (S n'')))) as SR.
 
+  Set Printing Coercions.
   (* Remove n denominators *)
   replace (S (n'' + 1)) with n by lia.
-  apply (Rmult_eq_reg_r (INR n));  last admit.
+  apply (Rmult_eq_reg_r (INR n)); last (apply not_0_INR; lia).
   rewrite Rmult_plus_distr_r.
   rewrite Rmult_plus_distr_r.
   rewrite Rmult_assoc.
   rewrite Rmult_assoc.
-  rewrite Rinv_l; last admit.
+  rewrite Rinv_l; last (apply not_0_INR; lia).
   rewrite Rmult_1_r.
   rewrite Rmult_assoc.
   rewrite (Rmult_comm (/ (INR n))).
   rewrite -Rmult_assoc.
   rewrite Rmult_plus_distr_r.
   rewrite Rmult_assoc.
-  rewrite Rinv_l; last admit.
+  rewrite Rinv_l; last (apply not_0_INR; lia).
   rewrite Rmult_1_r.
   replace (((INR B - INR A) / (INR n)) * (INR n))%R with (INR B - INR A)%R; last first.
   { rewrite Rdiv_def.
     rewrite Rmult_assoc.
-    rewrite Rinv_l; last admit.
+    rewrite Rinv_l; last (apply not_0_INR; lia).
     lra.
   }
 
@@ -230,7 +293,12 @@ Proof.
   rewrite Ropp_mult_distr_l_reverse Ropp_mult_distr_r.
   rewrite Rmult_comm.
   rewrite -Rmult_plus_distr_r.
-  replace ((- (INR (n + 1))) + (INR 2))%R with (-(S n''))%R; last admit.
+  replace ((- (INR (n + 1))) + (INR 2))%R with (-(S n''))%R; last first.
+  { rewrite S_INR.
+    rewrite Nat.add_1_r S_INR.
+    rewrite Heqn S_INR S_INR S_INR S_INR INR_0.
+    lra.
+  }
 
   (* Unfold C *)
   rewrite HeqC.
@@ -241,7 +309,15 @@ Proof.
   rewrite Rmult_plus_distr_l.
   replace ((- (INR (S n''))) * ((INR 2) * ((nonneg SR) * (/ (INR (S n''))))))%R
      with ((- (INR 2) * ((nonneg SR))))%R; last first.
-  { admit. }
+  { rewrite -Ropp_mult_distr_l.
+    rewrite -Ropp_mult_distr_l.
+    f_equal.
+    rewrite (Rmult_comm (INR (S n''))).
+    rewrite Rmult_assoc.
+    rewrite Rmult_assoc.
+    rewrite Rinv_l; [|apply not_0_INR; lia].
+    lra.
+  }
   rewrite Rplus_assoc.
   replace (((- (INR 2)) * (nonneg SR)) + ((INR 2) * (nonneg SR)))%R with (0)%R by lra.
   rewrite Rplus_0_r.
@@ -279,11 +355,9 @@ Proof.
   apply Rplus_eq_compat_l.
 
   (* Expand the remaining (S (S n'')) terms *)
-  replace (INR (S (S n'')))%R with (1 + INR (S n''))%R by admit.
-  replace ((INR (A + (A + 0))))%R with (INR A + INR A)%R by admit.
-  replace ((INR ((A * (S (S n''))) + B)))%R with ((INR A) * (INR (S n'')) + (INR A) + (INR B))%R by admit.
+  repeat (rewrite S_INR || rewrite plus_INR || rewrite INR_0 || rewrite mult_INR).
   lra.
-Admitted.
+Qed.
 
 Lemma tc_quicksort_bound_closed A B n (HAB : (B <= A)%nat):
   ((nnreal_div (tc_quicksort A B n) (nnreal_nat (n + 1)%nat))
