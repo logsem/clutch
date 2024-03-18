@@ -12,7 +12,7 @@ Set Default Proof Using "Type*".
 
 Section Coupon.
   Variables coupon':nat.
-  Definition coupon:= S coupon'.
+  Notation coupon:= (S coupon').
 
   Definition coupon_helper : expr :=
     rec: "coupon_helper" "a" "cnt" :=
@@ -26,8 +26,7 @@ Section Coupon.
   Definition coupon_collection : expr :=
     λ: "x", 
       let: "a" := AllocN #coupon #false in
-      let: "cnt" := ref #coupon in
-      coupon_helper "a" "cnt".
+      coupon_helper "a" #coupon.
 End Coupon.
 
 Definition harmonic_sum:= sum_n_m (λ x, /INR x) 1.
@@ -80,7 +79,7 @@ Section proofs.
 
   Notation tc_end:= (nnreal_nat 6).
   Notation tc_mid:=(nnreal_nat 999).
-  Notation tc_start := (nnreal_nat 999).
+  Notation tc_start := (nnreal_nat 5).
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 
     {{{ ⧖ (tc_end) }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
@@ -102,7 +101,7 @@ Section proofs.
       coupon_helper coupon' #l #(n) @ E
       {{{RET #(); True}}}.
   Proof.
-  Abort.
+  Admitted.
 
   Lemma wp_coupon_collection (coupon':nat) E:
     {{{ ⧖ (tc_start+tc_end + nnreal_nat(S coupon') * tc_mid * nnreal_harmonic_sum (S coupon'))%NNR }}}
@@ -115,7 +114,17 @@ Section proofs.
     iDestruct "Hx" as "[Hx1 Hx2]".
     wp_pures.
     iChip.
-    wp_apply (wp_allocN with "[$]"); first (rewrite /coupon; lia).
-  Abort.
+    wp_apply (wp_allocN with "[$]"); first (lia).
+    iIntros (l) "Hl".
+    wp_pure. iChip. wp_pure.
+    rewrite -/(coupon_helper _).
+    wp_apply (wp_coupon_helper_ind with "[$Hx1 $Hl]"); try done.
+    - lia.
+    - rewrite replicate_length. by rewrite Nat2Z.id. 
+    - replace (_-_)%nat with 0%nat by lia. instantiate (1:= ∅).
+      done.
+    - intros. split; last set_solver.
+      move => /lookup_replicate [??]. done.
+  Qed.
   
 End proofs.
