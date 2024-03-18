@@ -237,7 +237,7 @@ Section metatheory.
     apply pos_INR_S.
   Qed.
 
-  Lemma wp_couple_rand_condstant (N : nat) z E (x : nonnegreal) :
+  Lemma wp_couple_rand_constant (N : nat) z E (x : nonnegreal) :
     TCEq N (Z.to_nat z) →
     {{{ ⧖ (x+nnreal_one)%NNR }}} rand #z @ E {{{ n, RET #n; ⧖ (x) }}}.
   Proof.
