@@ -15,11 +15,23 @@ Import uPred.
 
 Local Open Scope NNR_scope.
 
+Section Costfun.
+  Context {Λ : language}.
+  Class Costfun :=
+    { cost : expr Λ -> nonnegreal
+    ; cost_bounded : ∃ r, ∀ e, (cost e <= r)%R
+    ; cost_fill : ∀ `{@LanguageCtx Λ K} (e : expr Λ), cost (K e) = cost e
+    }.
+  Coercion cost : Costfun >-> Funclass.
+End Costfun.
+Arguments Costfun Λ : clear implicits.
+
 Class ertwpG (Λ : language) (Σ : gFunctors) := ErtwpG {
   ertwpG_invGS :: invGS_gen HasNoLc Σ;
   ertwpG_etcGS :: etcGS Σ;
 
   state_interp : state Λ → iProp Σ;
+  costfun :: Costfun Λ;
 }.
 Global Opaque ertwpG_invGS.
 Global Opaque ertwpG_etcGS.
@@ -184,7 +196,7 @@ Section ERM.
     iIntros (???) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
-  Lemma ERM_bind K `{!LanguageCtx K} `{!LanguageCostfun cost} e1 σ1 Z x :
+  Lemma ERM_bind K `{!LanguageCtx K} e1 σ1 Z x :
     to_val e1 = None →
     ERM e1 σ1 x (λ '(e2, σ2) x', Z (K e2, σ2) x') -∗ ERM (K e1) σ1 x Z.
   Proof.
@@ -241,7 +253,7 @@ Section ERM.
           } *)
       + iPureIntro.
         etrans; [ | apply H1].
-        rewrite costfun_fill.
+        rewrite cost_fill.
         apply Rplus_le_compat_l.
         transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * x3 (K e, σ))%R)).
         * etrans; [ | eapply (SeriesC_le_inj _ (λ '(e,σ), (Kinv e ≫= (λ e', Some (e',σ)))))].
@@ -715,7 +727,7 @@ Proof.
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
-Lemma ert_wp_bind K `{!LanguageCtx K} `{!LanguageCostfun cost} s E e Φ :
+Lemma ert_wp_bind K `{!LanguageCtx K} s E e Φ :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite ert_wp_unfold /ert_wp_pre.
