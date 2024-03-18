@@ -285,186 +285,36 @@ Proof.
   lra.
 Admitted.
 
-
-
-
-
-
-
-(** Too loose *)
-(*
-Lemma tc_quicksort_bound_ind n' :
-  (nnreal_div (tc_quicksort (S n')) (nnreal_nat (S n' +  1)%nat) <=
-     (nnreal_div (tc_pivot (S n')) (nnreal_nat (S n' + 1)) +
-      nnreal_div (tc_quicksort n') (nnreal_nat (n' + 1)%nat))%NNR)%R.
+Lemma tc_quicksort_bound_closed A B n (HAB : (B <= A)%nat):
+  ((nnreal_div (tc_quicksort A B n) (nnreal_nat (n + 1)%nat))
+    <= (foldr nnreal_plus (tc_quicksort A B 0%nat) $
+        map (fun i => nnreal_div (nnreal_nat (2*A)%nat) (nnreal_nat (i + 1)%nat)) $
+        seq 1%nat n))%R.
 Proof.
-  Opaque INR.
-  (* Match notations with my paper derivation (for now) *)
-  remember (S n') as n.
-  remember tc_quicksort as C.
-  remember tc_pivot as m.
-  simpl.
-  (* Goal: C(n)/(n+1) <= m(n)/(n+1) + C(n-1)/n *)
-
-  (* Suffices: C(n)/(n+1) <= m(n)/(n+1) - m(n-1)(n-1)/n(n+1) + C(n-1)/n *)
-  etrans; last first.
-  { eapply Rplus_le_compat_l.
-    rewrite -(Rplus_0_l (_ * _)%R).
-    eapply Rplus_le_compat_r.
-    assert (Hinst: (-((m n')*(n-1) / n / (n + 1)) <= 0)%R) by admit.
-    eapply Hinst.
-  }
-
-  (* Should be equal *)
-  apply Req_le.
-
-  (* Multiply by n+1 and simplify *)
-  (* Suffices: C(n) <= m(n) - m(n-1)(n-1)/n + C(n-1)(n+1)/n *)
-  eapply (Rmult_eq_reg_r (INR (n + 1))); last admit.
-  rewrite Rmult_assoc Rinv_l; last admit.
-  rewrite Rmult_1_r.
-  do 2 rewrite Rmult_plus_distr_r.
-  rewrite Rmult_assoc Rinv_l; last admit.
-  rewrite Rmult_1_r.
-  rewrite Ropp_mult_distr_l_reverse.
-  replace (((((m n') * (n - 1)) / n) / (n + 1)) * ((n + 1)%nat))%R
-    with (((((m n') * (n - 1)) / n)))%R; last first.
-  { do 3 rewrite -Rmult_div_assoc.
-    rewrite Rmult_assoc.
-    apply Rmult_eq_compat_l.
-    simpl.
-    admit.  (* doable *)
-  }
-
-  (* Proof is different when n' = 0*)
-  destruct n' as [| n'1].
-  { simplify_eq.
-    rewrite tc_quicksort_unfold; last lia.
-    Transparent INR.
-    simpl.
-    rewrite tc_quicksort_0.
-    lra.
-    Opaque INR.
-  }
-
-  (* Proof should follow but unfolding C *)
-  rewrite Heqn HeqC.
-  rewrite tc_quicksort_unfold; last lia.
-  (* rewrite tc_quicksort_unfold; last lia. *)
   Opaque seq.
-  rewrite -Heqm -HeqC -Heqn /=.
-  apply Rplus_eq_compat_l.
-  replace (nonneg (foldr nnreal_plus nnreal_zero (map (λ i : nat, C i) (seq 0 n))))
-    with (C (S n'1) + (nonneg (foldr nnreal_plus nnreal_zero (map (λ i : nat, C i) (seq 0 (S n'1))))))%R; last first.
-  { simpl. admit. }
   simpl.
-
-  (* Simplify *)
-  rewrite Rmult_plus_distr_r Rmult_plus_distr_l.
-  rewrite Rmult_plus_distr_r Rmult_plus_distr_l.
-  rewrite /= Rmult_1_l.
-  replace (nonneg (m (S n'1)) * INR n + nonneg (m (S n'1)) * - (1))%R
-      with (nonneg (m (S n'1)) * (INR n - 1))%R by lra.
-  rewrite Heqn.
-  (* All terms have an INR (S (S n'1)) denominator *)
-  apply (Rmult_eq_reg_r (INR (S (S n'1)))); last admit.
-  rewrite -Rmult_plus_distr_r.
-  rewrite (Rmult_plus_distr_r _ _ (INR _)%R).
-  rewrite Rmult_assoc Rinv_l; last admit.
-  rewrite Rmult_1_r.
-  do 2 rewrite Rmult_assoc.
-  rewrite Rmult_assoc Rinv_l; last admit.
-  rewrite Rmult_1_r.
-  rewrite Rmult_plus_distr_r.
-  rewrite -Ropp_mult_distr_l.
-  replace (nonneg (m (S n'1)) * (INR (S (S n'1)) - 1) / INR (S (S n'1)) * INR (S (S n'1)))%R
-      with (nonneg (m (S n'1)) * (INR (S (S n'1)) - 1))%R; last first.
-  { rewrite Rmult_assoc.
-    rewrite Rinv_l; last admit.
-    lra.
+  induction n as [|n' IH].
+  { Transparent seq. simpl. rewrite INR_1. lra. Opaque seq. }
+  etrans; first eapply tc_quicksort_bound_ind; first eauto.
+  rewrite seq_S map_app foldr_snoc /=.
+  rewrite foldr_comm_acc; last first.
+  { intros; simpl.
+    rewrite nnreal_plus_comm nnreal_plus_assoc.
+    do 2 rewrite -nnreal_plus_assoc.
+    rewrite (nnreal_plus_comm x _).
+    done.
   }
-
-  rewrite Rmult_assoc.
-  rewrite (Rmult_comm (/ _) _).
-  rewrite Rmult_assoc.
-  rewrite (Nat.add_1_r n'1).
-  rewrite Rinv_l; last admit.
-  rewrite Rmult_1_r.
-  rewrite (Nat.add_1_r).
-  rewrite (S_INR (S (S _))).
-  rewrite Rmult_plus_distr_l Rmult_1_r.
-  rewrite -Rplus_assoc (Rplus_comm _ (nonneg _)).
-  rewrite Rplus_assoc.
-  apply Rplus_eq_compat_l.
-
-  apply (Rplus_eq_reg_r (-C (S n'1))).
-  rewrite Rplus_comm Rplus_assoc.
-  rewrite -Rplus_assoc Rplus_opp_l Rplus_0_l.
   simpl.
-  replace (nonneg (C (S n'1)) * INR (S (S n'1)) + - nonneg (C (S n'1)))%R
-    with (nonneg (C (S n'1)) * (INR (S (S n'1)) - 1))%R; last first.
-  { rewrite /= (S_INR (S n'1)). lra. }
-  rewrite Ropp_mult_distr_l.
-  rewrite -Rmult_plus_distr_r.
-
-  (* Unfold C (S n'1)*)
-  rewrite HeqC tc_quicksort_unfold; last lia.
-  rewrite -HeqC -Heqm /=.
-  remember (foldr nnreal_plus nnreal_zero (map (λ i : nat, C i) (seq 0 (S n'1)))) as Tsum.
-  rewrite -Rplus_assoc.
-  rewrite Rplus_opp_l Rplus_0_l.
-  rewrite (S_INR (S n'1)).
-  rewrite Rplus_minus_r.
-  rewrite Rmult_assoc.
-  Set Printing Parentheses.
-  rewrite Rmult_assoc.
-  rewrite Rinv_l; last admit.
-  lra.
-  Transparent seq.
-  Transparent INR.
-Admitted.
-
-
-
-Lemma tc_quicksort_bound_closed n :
-  ((nnreal_div (tc_quicksort n) (nnreal_nat (n + 1)%nat))
-    <= (foldr nnreal_plus (tc_quicksort 0%nat) $
-        map (fun i => nnreal_div (tc_pivot (i + 1)%nat) (nnreal_nat (i + 2)%nat)) $
-        seq 0%nat n))%R.
-Proof.
-  induction n as [|n' IH]; [simpl; lra|].
-  etrans; first eapply tc_quicksort_bound_ind.
-  etrans; first eapply Rplus_le_compat_l, IH.
-  apply Req_le.
-  Opaque INR.
-  replace
-    (foldr nnreal_plus (tc_quicksort 0)
-     (map (λ i : nat, (nnreal_div (tc_pivot (i + 1)) (nnreal_nat (i + 2)))) (seq 0 (S n'))))
-    with
-    ((nnreal_div (tc_pivot (n' + 1)) (nnreal_nat (n' + 2))) +
-      (foldr nnreal_plus (tc_quicksort 0)
-     (map (λ i : nat, (nnreal_div (tc_pivot (i + 1)) (nnreal_nat (i + 2)))) (seq 0 n'))))%NNR;
-    last first.
-  { rewrite seq_S map_app /=.
-    rewrite foldr_snoc /=.
-     rewrite foldr_comm_acc; [done|].
-     intros.
-     rewrite nnreal_plus_comm nnreal_plus_assoc.
-     do 2 rewrite -nnreal_plus_assoc.
-     f_equal.
-     apply nnreal_plus_comm.
-  }
-  apply Rplus_eq_compat_r.
-  do 3 f_equal; try lia.
+  apply Rplus_le_compat_l, IH.
 Qed.
 
-(* Established bound: C(n)/(n+1) <= C(0) + sum_{i=1}^n (m(n)/(n+1))
-  Good enough to get n log n when m(n) is linear *)
-
-*)
 
 
 
+
+
+
+(*
 
 
 
@@ -528,4 +378,4 @@ Proof.
 Qed.
 
 
-
+*)
