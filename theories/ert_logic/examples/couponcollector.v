@@ -1,6 +1,6 @@
 (** * Exact time credit accounting for Coupon collecting *)
 From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
-  derived_laws cost_models.
+  derived_laws cost_models ert_rules.
 From clutch.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Coq Require Export Reals Psatz.
@@ -14,7 +14,7 @@ Section Coupon.
   Variables coupon':nat.
   Notation coupon:= (S coupon').
 
-  Definition coupon_helper : expr :=
+  Definition coupon_helper : val :=
     rec: "coupon_helper" "a" "cnt" :=
       if: "cnt" = #0 then #() else
         let: "k" := rand (#coupon') in
@@ -30,9 +30,9 @@ Section Coupon.
 End Coupon.
 
 Definition harmonic_sum:= sum_n_m (λ x, /INR x) 1.
-Program Definition nnreal_harmonic_sum (n:nat) : nonnegreal := mknonnegreal (harmonic_sum n) _.
-Next Obligation.
-  intros.
+
+Lemma harmonic_sum_pos (n:nat): 0<= harmonic_sum n.
+Proof.
   rewrite /harmonic_sum.
   induction n.
   - rewrite sum_n_m_zero; try done. lia.
@@ -43,9 +43,13 @@ Next Obligation.
     apply pos_INR_S.
 Qed.
 
-Lemma nnreal_harmonic_sum_S (n:nat): nnreal_harmonic_sum (S n) = (nnreal_harmonic_sum n + nnreal_inv (nnreal_nat $ S n))%NNR.
+Local Hint Resolve harmonic_sum_pos : core.
+Local Hint Resolve pos_INR : core.
+Local Hint Resolve pos_INR_S: core.
+
+
+Lemma harmonic_sum_S (n:nat): harmonic_sum (S n) = (harmonic_sum n + / (S n)).
 Proof.
-  apply nnreal_ext. simpl.
   rewrite {1}/harmonic_sum. rewrite sum_n_Sm; last lia.
   apply Rplus_eq_compat_l. done.
 Qed.
@@ -73,67 +77,187 @@ Proof.
     by apply not_INR.
 Qed.
 
+
+
+Local Lemma etc_coupon_split  (n c:nat)(true_set:gset (fin c))(lis:list val):
+  (0 < S n <= c)%nat ->
+  size true_set = (c - S n)%nat ->
+  (∀ n, lis !! fin_to_nat n = Some #true ↔ n ∈ true_set ) ->
+  (∀ n, lis !! fin_to_nat n = Some #false ↔ n ∉ true_set) ->
+  SeriesC
+    (λ n0 : fin (c),
+       1 / c * (if bool_decide (n0 ∈ true_set) then c / S n else 0)) +
+    1 = c * / S n.
+Proof.
+  intros Hleq Hs H1 H2.
+  erewrite (SeriesC_ext _ (λ x, /(S n) * if bool_decide (x ∈ true_set) then 1 else 0)); last first.
+  { intros. case_bool_decide; try lra. rewrite -Rmult_div_swap Rmult_1_l.
+    rewrite !Rdiv_def. rewrite Rmult_comm -Rmult_assoc (Rmult_comm (/c)) Rinv_r; first apply Rmult_comm.
+    replace 0 with (INR 0); last by simpl.
+    apply not_INR. lia.
+  }
+  replace (SeriesC _) with ((c- S n)/S n).
+  { replace 1 with (S n/(S n)).
+    - rewrite -Rdiv_plus_distr -Rdiv_def.
+      f_equal. lra.
+    - apply Rdiv_diag. replace 0 with (INR 0); last by simpl. apply not_INR.
+      lia.
+  }
+  rewrite SeriesC_scal_l.
+  rewrite Rdiv_def Rmult_comm. f_equal.
+  rewrite -minus_INR; last lia.
+  rewrite -Hs.
+  erewrite (SeriesC_ext _ (λ x, if bool_decide (x∈elements true_set) then 1 else 0)); last first.
+  { intros n'. case_bool_decide as H3; case_bool_decide as H4; try lra; exfalso.
+    - rewrite elem_of_elements in H4. naive_solver.
+    - rewrite elem_of_elements in H4. naive_solver. }
+  rewrite SeriesC_list; first done.
+  apply NoDup_elements.
+Qed.
+
   
 Section proofs.
-  Context `{!ert_clutchGS Σ Cost1}.
+  Context `{!ert_clutchGS Σ Costrand}.
 
-  Notation tc_end:= 6.
-  Notation tc_mid:= 999.
-  Notation tc_start := 5.
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 
-    {{{ ⧖ (tc_end) }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
+    {{{ True }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
   Proof.
     iIntros (Φ) "Hx HΦ".
+    iMod etc_zero.
+    rewrite /coupon_helper.
     wp_pures.
     iApply "HΦ".
     done.
   Qed.
 
-  Local Lemma wp_coupon_helper_ind (coupon':nat) (l:loc) (lis:list val) (true_set: gset nat) (n:nat) E:
+  Local Lemma wp_coupon_helper_ind (coupon':nat) (l:loc) (lis:list val) (true_set: gset (fin (S coupon'))) (n:nat) E:
     (0<n<= S coupon')%nat ->
     (length lis = S coupon')%nat ->
     (size true_set = S coupon' - n)%nat ->
-    (∀ n:nat, (n<S coupon')%nat -> lis !! n = Some (#true) <-> n∈true_set) -> 
-    {{{ ⧖ (tc_end + tc_mid * n * nnreal_harmonic_sum n)%NNR ∗
+    (∀ n,  lis !! (fin_to_nat n) = Some (#true) <-> n∈true_set) ->
+    (∀ n,  lis !!(fin_to_nat n) = Some (#false) <-> n∉true_set) -> 
+    {{{ ⧖ ((S coupon') * harmonic_sum n) ∗
           l ↦∗ lis
     }}}
       coupon_helper coupon' #l #(n) @ E
       {{{RET #(); True}}}.
   Proof.
-    iIntros (Hn Hlis Hset Hrel Φ) "[Hx Hl] HΦ".
-    iLöb as "IH" forall (true_set n lis Hn Hlis Hset Hrel Φ) "Hx Hl HΦ".
+    iIntros (Hn Hlis Hset Hrel Hrel' Φ) "[Hx Hl] HΦ".
+    iLöb as "IH" forall (true_set n lis Hn Hlis Hset Hrel Hrel' Φ) "Hx Hl HΦ".
     destruct n as [| n]; first lia.
     rewrite /coupon_helper.
-  Admitted.
+    iMod etc_zero.
+    wp_pures. simpl.
+    rewrite -/(INR (S _)).
+    rewrite harmonic_sum_S Rmult_plus_distr_l.
+    iDestruct (etc_split with "Hx") as "[Hx1 Hx2]".
+    { apply Rmult_le_pos; auto. }
+    { apply Rle_mult_inv_pos; auto.  }
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
+                (λ x:(fin (S coupon')), if (bool_decide (x∈true_set))
+                          then (S coupon') / (S n)
+                          else 0) with "[$Hx2]").
+    - intros; case_bool_decide; last lra. apply Rcomplements.Rdiv_le_0_compat; auto.
+    - rewrite Rplus_comm. replace (costfun _) with 1; last by simpl.
+      erewrite etc_coupon_split; done.
+    - iIntros (c). case_bool_decide.
+      + (** got an old coupon*)
+        iIntros "Hx".
+        iMod etc_zero.
+        wp_pures.
+        iMod etc_zero as "Hz".
+        wp_apply (wp_load_offset with "[$Hz $Hl]"); subst.
+        * erewrite Hrel; first done. 
+        * iIntros "Hl".
+          simpl. wp_pure. iMod etc_zero as "K".
+          wp_apply ("IH" with "[][][][][][Hx1 Hx][Hl]"); try done.
+          rewrite harmonic_sum_S Rmult_plus_distr_l.
+          iApply etc_combine; iFrame. 
+      + (** Got a new coupon*)
+        iIntros "_".
+        iMod etc_zero.
+        wp_pures.
+        iMod etc_zero as "Hz". subst.
+        wp_apply (wp_load_offset with "[$Hz $Hl]").
+        * erewrite Hrel'; auto. 
+        * iIntros "Hl".
+          wp_pures.
+          wp_apply (wp_store_offset with "[$]").
+          { simpl. rewrite TCEq_eq. lra. }
+          { replace (lis!!_) with (Some #false); first done.
+            symmetry. erewrite Hrel'; auto.
+          }
+          iIntros "Hl".
+          iMod etc_zero.
+          do 3 wp_pure.
+          replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last lia.
+          destruct n.
+          -- (** collected all coupons *)
+            wp_apply (wp_coupon_helper_end); auto.
+          -- iApply ("IH" with "[][][][][][$Hx1][$Hl]").
+             ++ iPureIntro; lia.
+             ++ iPureIntro. by rewrite insert_length.
+             ++ iPureIntro. instantiate (1:= true_set ∪ {[c]}).
+                rewrite size_union.
+                { rewrite size_singleton. lia. }
+                set_solver.
+             ++ iPureIntro. intros x.
+                rewrite list_lookup_insert_Some. split.
+                ** intros [[H'[??]]|].
+                   --- apply fin_to_nat_inj in H'. set_solver.
+                   --- apply elem_of_union_l.
+                       naive_solver.
+                ** rewrite elem_of_union.
+                   intros [?|?].
+                   --- right. split; last naive_solver.
+                       intro. subst. naive_solver.
+                   --- left. split; first set_solver. 
+                       split; first done.
+                       pose proof fin_to_nat_lt x. lia.
+             ++ iPureIntro. intros x.
+                rewrite list_lookup_insert_Some. split.
+                ** intros [[?[??]]|[H1 H2]]; first done.
+                   erewrite Hrel' in H2; first set_solver. 
+                ** intros. right. split; first set_solver.
+                   erewrite Hrel'; first set_solver.
+             ++ done.
+  Qed.
 
+  
   Lemma wp_coupon_collection (coupon':nat) E:
-    {{{ ⧖ (tc_start+tc_end + tc_mid * (S coupon') * nnreal_harmonic_sum (S coupon'))%NNR }}}
+    {{{ ⧖ (S coupon' * harmonic_sum (S coupon')) }}}
       coupon_collection coupon' #()@E
       {{{RET #(); True}}}.
   Proof.
     iIntros (Φ) "Hx HΦ".
     rewrite /coupon_collection.
-    pose proof (cond_nonneg (nnreal_harmonic_sum (S coupon'))).
-    assert (0 <= S coupon') by eapply pos_INR.
-    rewrite Rplus_assoc. 
-    rewrite etc_split; [|lra|]; last first.
-    { eapply Rplus_le_le_0_compat; real_solver. }
-    iDestruct "Hx" as "[Hx1 Hx2]".    
-    wp_pure with "Hx1". 
-    wp_pure with "Hx1". 
-    iChip "Hx1"; wp_apply (wp_allocN with "[$]"); [lia|].
+    (* pose proof (cond_nonneg (nnreal_harmonic_sum (S coupon'))). *)
+    (* assert (0 <= S coupon') by eapply pos_INR. *)
+    (* rewrite Rplus_assoc.  *)
+    (* rewrite etc_split; [|lra|]; last first. *)
+    (* { eapply Rplus_le_le_0_compat; real_solver. } *)
+    (* iDestruct "Hx" as "[Hx1 Hx2]".     *)
+    iMod etc_zero.
+    wp_pures.
+    wp_apply (wp_allocN with "[$]"); [|lia|].
+    { simpl. replace (0 - 0 - 0) with 0; [tc_solve|lra]. }
     iIntros (l) "Hl".
-    wp_pure with "Hx1".
-    wp_pure with "Hx1".
-    rewrite -/(coupon_helper _).
-    wp_apply (wp_coupon_helper_ind with "[$Hx2 $Hl] [$]").
+    iMod etc_zero.
+    wp_pure. wp_pure.
+    rewrite -/(coupon_helper _). 
+    rewrite -/(INR (S coupon')).
+    wp_apply (wp_coupon_helper_ind with "[$Hx $Hl][$]").
     - lia.
     - rewrite replicate_length. by rewrite Nat2Z.id. 
     - replace (_-_)%nat with 0%nat by lia. instantiate (1:= ∅).
       done.
     - intros. split; last set_solver.
       move => /lookup_replicate [??]. done.
+    - intros. split; first set_solver.
+      intros _.
+      rewrite lookup_replicate_2; auto.
+      pose proof fin_to_nat_lt n. lia.
   Qed.
   
 End proofs.
