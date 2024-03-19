@@ -16,7 +16,7 @@ Section metatheory.
     (∀ n, 0 <= x2 n) →
     (∃ r, ∀ n, x2 n <= r) →
     x + SeriesC (λ n, 1 / S N * x2 n) = r1 →
-    {{{ ⧖ r1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n) }}}.
+    {{{ ⧖ r1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n)}}}.
   Proof.
     iIntros (-> -> Hnneg [r Hr] Hbound Φ) "Hx HΦ".
     iApply wp_lift_step_fupd_ERM; first done.
@@ -207,7 +207,7 @@ Section metatheory.
     TCEq r1 (cost (rand #z)) →
     TCEq N (Z.to_nat z) →
     0 <= r2 →
-    {{{ ⧖ (r1 + r2) }}} rand #z @ E {{{ n, RET #n; ⧖ r2 }}}.
+    {{{ ⧖ (r1 + r2) }}} rand #z @ E {{{ (n:fin (S N)), RET #n; ⧖ r2 }}}.
   Proof.
     iIntros (-> -> ? Φ) "H HΦ".
     iApply (wp_couple_rand_adv_comp' with "H"); last first.

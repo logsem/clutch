@@ -264,6 +264,12 @@ Section etc_credit_theory.
     iDestruct (etc_split with "Hr1") as "[? $]"; lra.
   Qed.
 
+  Lemma etc_irrel (r1 r2:R) :
+    r1=r2 → ⧖ r1 -∗ ⧖ r2.
+  Proof.
+    iIntros (->) "Hr1". done.
+  Qed.
+
   Lemma etc_nat_Sn (n : nat) :
     ⧖ (S n) ⊣⊢ ⧖ 1 ∗ ⧖ n.
   Proof.
