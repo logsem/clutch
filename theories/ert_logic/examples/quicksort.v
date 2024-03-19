@@ -38,31 +38,157 @@ Section accounting.
   Definition tc_base : nonnegreal. Admitted.
 
   (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
-  Program Fixpoint tc_quicksort (A B len : nat) {measure len} : nonnegreal
-      := match len with
-        | 0%nat => tc_base
-        | (S len1)%nat =>
-            nnreal_plus (tc_pivot_lin A B len) $
-            nnreal_mult (nnreal_nat 2) $
-            nnreal_div
-              (foldr nnreal_plus nnreal_zero $ map (fun n => (tc_quicksort A B (fin_to_nat n))) $ fin_enum len)%NNR
-              (nnreal_nat len)
-       end.
-  Next Obligation. intros. apply fin_to_nat_lt. (* This is the reason I need the haunted fin_enum *) Qed.
-  Next Obligation. apply Wf.measure_wf, lt_wf. Qed.
+  Definition tc_quicksort (A B len : nat) : nonnegreal.
+  refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => nonnegreal)
+          (fun len qf_rec =>
+           match len with
+               0%nat   => tc_base
+             | (S n) => ((tc_pivot_lin A B len) + (nnreal_nat 2) *
+                                                   (nnreal_div
+                                                    (foldr nnreal_plus nnreal_zero $
+                                                    map (fun n => (qf_rec (fin_to_nat n) _)) $
+                                                    fin_enum len)
+                                                  (nnreal_nat len)))%NNR
+           end) len).
+  Proof. rewrite /Wf.MR. apply fin_to_nat_lt. Defined.
 
-  (* Exhausting unfolding lemmas, provable. *)
-  Lemma tc_quicksort_0 A B : tc_quicksort A B 0%nat = tc_base.
+  (* Inline? Get something working first. *)
+  Lemma easy_fix_eq:
+    ∀ (A : Type) (R : A → A → Prop) (Rwf : well_founded R) (P : A → Type)
+      (F : ∀ x : A, (∀ y : A, R y x → P y) → P x),
+      ∀ x : A, Fix Rwf P F x = F x (λ (y : A) (_ : R y x), Fix Rwf P F y).
   Proof.
-      rewrite /tc_quicksort.
-      rewrite /tc_quicksort_func /=.
-      rewrite Wf.WfExtensionality.fix_sub_eq_ext.
-      apply nnreal_ext; simpl.
-      lra.
+    intros. apply Init.Wf.Fix_eq.
+    intros. assert (f = g) as ->; last done.
+    apply functional_extensionality_dep => ?.
+    apply functional_extensionality_dep => ?. done.
   Qed.
 
-  (* Eliminate the hauntedness *)
-  Lemma tc_quicksort_unfold A B n :
+  Lemma tc_quicksort_aux A B len :
+    tc_quicksort A B len =
+      match len with
+        0%nat   => tc_base
+      | (S _) => ((tc_pivot_lin A B len)
+                  + (nnreal_nat 2) *
+                      (nnreal_div
+                       (foldr nnreal_plus nnreal_zero $
+                        map (fun n => tc_quicksort A B (fin_to_nat n)) $
+                        (fin_enum len) )
+                       (nnreal_nat len)))%NNR
+      end.
+  Proof. rewrite /tc_quicksort easy_fix_eq; done. Qed.
+
+
+   (* Source of many deeply annoying lemmas involving fin_enum *)
+   Fixpoint fin_inj_incr (n : nat) (i : fin n) : (fin (S n)) :=
+     match i with
+       0%fin => 0%fin
+     | (FS _ i) => FS (fin_inj_incr _ i)
+     end.
+
+   Lemma fin_inj_incr_to_nat (n : nat) (i : fin n) : fin_to_nat i = fin_to_nat (fin_inj_incr n i).
+   Proof.
+     induction i as [|i' IH]; [done|].
+     simpl. f_equal. done.
+   Qed.
+
+   (* Proof irrelevance for fin *)
+   Lemma fin_irrel (n : nat) (x y: fin n) : (fin_to_nat x = fin_to_nat y) -> (x = y).
+   Proof. Admitted.
+
+   Lemma fmap_compat `{A: Type} `{B: Type} f : list_fmap A B f = (fmap f).
+   Proof.
+    apply functional_extensionality.
+    intros.
+    induction x; simpl; done.
+   Qed.
+
+   Lemma fin_inj_FS_comm (n : nat) (l : list (fin n)) :
+     FS <$> (fin_inj_incr _ <$> l) = fin_inj_incr _ <$> (FS <$> l).
+   Proof.
+     induction l; [done|].
+     simpl in *.
+     f_equal.
+     f_equal.
+     - apply functional_extensionality.
+       intros.
+       apply fin_irrel.
+   Admitted.
+
+   (* Allows us to pull off the last element of a fin_enum, leaving a smaller fin_enum *)
+   Lemma fin_enum_snoc_rec (n : nat) :
+     (fin_enum (S n)) = (fin_inj_incr n <$> fin_enum n) ++ [(nat_to_fin (Nat.lt_succ_diag_r n) : fin (S n))%fin].
+   Proof.
+     induction n as [|n' IH]; [done|].
+     rewrite {1}/fin_enum.
+     rewrite {1}/fin_enum in IH.
+     rewrite IH.
+     rewrite fmap_app app_comm_cons.
+     f_equal; last first.
+     - simpl.
+       do 3 f_equal.
+       apply proof_irrelevance.
+     - rewrite /fin_enum /=.
+       f_equal.
+       rewrite fmap_compat.
+       rewrite fin_inj_FS_comm.
+       done.
+   Qed.
+
+
+  (* Non-haunted version with seq instead of fin_enum *)
+  (* An alternative to proving all of that fin_enum stuff might be to just define the seq version
+     directly in the refine using a dependent pattern match. *)
+  (* OTOH the fin_enum stuff comes up all of the time, so maybe we want it anyways? *)
+  Lemma tc_quicksort_unfold A B len :
+    tc_quicksort A B len =
+      match len with
+        0%nat   => tc_base
+      | (S _) => ((tc_pivot_lin A B len)
+                  + (nnreal_nat 2) *
+                      (nnreal_div
+                       (foldr nnreal_plus nnreal_zero $
+                        map (fun n => tc_quicksort A B n) $
+                        seq 0%nat len)
+                       (nnreal_nat len)))%NNR
+      end.
+  Proof.
+    rewrite tc_quicksort_aux.
+    destruct len; [done|].
+    do 3 f_equal.
+    generalize (S len); intros N; clear.
+    induction N as [|N' IH]; [done|].
+    Opaque seq fin_enum.
+    rewrite seq_S map_app foldr_snoc /=.
+    rewrite fin_enum_snoc_rec map_app foldr_snoc /=.
+    rewrite foldr_comm_acc; last first.
+    { intros; simpl.
+      rewrite nnreal_plus_comm nnreal_plus_assoc.
+      do 2 rewrite -nnreal_plus_assoc.
+      rewrite (nnreal_plus_comm x _).
+      done.
+    }
+    rewrite foldr_comm_acc; last first.
+    { intros; simpl.
+      rewrite nnreal_plus_comm nnreal_plus_assoc.
+      do 2 rewrite -nnreal_plus_assoc.
+      rewrite (nnreal_plus_comm x _).
+      done.
+    }
+    rewrite -IH.
+    f_equal.
+    + by rewrite fin_to_nat_to_fin.
+    + rewrite map_map.
+      do 2 f_equal.
+      apply functional_extensionality; intros; simpl.
+      by rewrite -fin_inj_incr_to_nat.
+    Transparent seq fin_enum.
+  Qed.
+
+  Lemma tc_quicksort_0 A B : tc_quicksort A B 0%nat = tc_base.
+  Proof. rewrite tc_quicksort_unfold. done. Qed.
+
+  Lemma tc_quicksort_S A B n :
     (1 <= n)%nat ->
     tc_quicksort A B n =
             nnreal_plus (tc_pivot_lin A B n) $
@@ -70,32 +196,7 @@ Section accounting.
             nnreal_div
               (foldr nnreal_plus nnreal_zero $ map (fun i => ((tc_quicksort A B i))%NNR) $ seq 0%nat n)%NNR
               (nnreal_nat n).
-  Proof.
-    intros.
-    Opaque INR.
-    induction n as [|n' IH]; [lia|].
-    destruct n'.
-    - (* n' = 0 (n = 1) *)
-      simpl.
-      rewrite /tc_quicksort.
-      rewrite /tc_quicksort_func /=.
-      rewrite Wf.WfExtensionality.fix_sub_eq_ext.
-      apply nnreal_ext; simpl.
-      lra.
-    - (* n' > 0 (n > 1) *)
-      Opaque seq.
-      rewrite {1}/tc_quicksort.
-      rewrite /tc_quicksort_func /=.
-      rewrite Wf.WfExtensionality.fix_sub_eq_ext.
-      apply nnreal_ext; simpl.
-      apply Rplus_eq_compat_l, Rmult_eq_compat_l.
-      simpl.
-      (* Still Haunted *)
-
-      Transparent seq.
-      Transparent INR.
-  Admitted.
-
+  Proof. intros. rewrite tc_quicksort_unfold. destruct n; [lia|]. done. Qed.
 
   Lemma tc_quicksort_bound_ind n' A B (HAB : (B <= A)%nat) :
     (nnreal_div (tc_quicksort A B (S n')) (nnreal_nat (S n' +  1)%nat) <=
@@ -132,7 +233,6 @@ Section accounting.
     (* n'=0, separate proof *)
     destruct n' as [|n''].
     { simplify_eq; simpl.
-      rewrite tc_quicksort_unfold /=; [|lia].
       rewrite tc_quicksort_0 /=.
       rewrite Rinv_1 Rmult_1_r Rmult_1_l Rmult_1_r Rplus_0_r.
       replace ((A + (A + 0))%nat * / (1 + 1))%R with (INR A); last first.
@@ -181,7 +281,7 @@ Section accounting.
     (* Unfold C *)
     Opaque INR.
     rewrite HeqC Heqn.
-    rewrite tc_quicksort_unfold; last lia.
+    rewrite tc_quicksort_S; last lia.
     rewrite -Heqn -HeqC.
     Opaque seq.
     simpl.
@@ -257,7 +357,7 @@ Section accounting.
 
     (* Unfold C *)
     rewrite HeqC.
-    rewrite tc_quicksort_unfold; last lia.
+    rewrite tc_quicksort_S; last lia.
     rewrite -HeqC -HeqSR /=.
 
     (* Cancel the sums *)
@@ -337,7 +437,33 @@ Section accounting.
     apply Rplus_le_compat_l, IH.
   Qed.
 
-  (* TODO: Bound above by Riemann sum for 1/n integral *)
+
+  (* Proof sketch for getting the classic bound without integration.
+
+    Goal:     C(n)       <= (C(0)+ 3A) (n+1) log n
+    Suffices: C(n)       <= C(0) (n+1) + 3A (n+1) log n
+              C(n)/(n+1) <= C(0) + 3A log n
+    Suffices:
+             C(0) + sum_{i=1}^n (2A)/(i+1) <= C(0) + 3A log n
+             sum_{i=1}^n (2A)/(i+1)        <= 3A log n
+
+    By induction on n for n >= e.
+    Base case:
+          sum_{i=1}^i (2A)/(i+1) = 2A + A = 3A = 3A log e <= 3A log n
+
+    Inductive case:
+        Suffices:
+          (sum_{i=1}^{i+1} (2A)/(i+1) - sum_{i=1}^i (2A)/(i+1)) <= (3A log (n+1)) - (3A log n)
+          (2A)/(n+2) <= 3A log ((n+1)/n)
+        Suffices:
+          (3A)/(n+1) <= 3A log ((n+1)/n)
+          1/(n+1) <= log ((n+1)/n)
+          1 <= (n+1) log ((n+1)/n)
+          e <= ((n+1)/n)^(n+1) = (1+1/n)^(n+1)
+      The RHS decreases and has limit e.
+   *)
+
+
 
 End accounting.
 
@@ -383,10 +509,14 @@ Section cost.
     simpl in *.
     Unset Printing Coercions.
   Abort.
+
+
 End cost.
 
 Section list.
   Context `{!ert_clutchGS Σ CostCmp }.
+
+
 
   Definition list_nil := NONE.
 
@@ -699,6 +829,7 @@ Section list.
       | [] => v = NONEV
       | a::l' => ∃ lv, v = SOMEV ((inject a), lv) ∧ is_list l' lv
     end.
+
   (*
 
     Lemma is_list_inject xs v :
@@ -761,22 +892,36 @@ Section list.
       - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
         wp_match. wp_proj. by iApply "HΦ".
     Qed.
+   *)
 
+    (* ⧖ 0 *)
     Lemma wp_list_length E l lv :
-      {{{ ⌜is_list l lv⌝ }}}
+      {{{ ⧖ (nnreal_zero) ∗
+          ⌜is_list l lv⌝ }}}
         list_length lv @ E
       {{{ v, RET #v; ⌜v = length l⌝ }}}.
     Proof.
-      iIntros (Φ) "Ha HΦ".
+      iIntros (Φ) "(Htc & Ha) HΦ".
       iInduction l as [|a l'] "IH" forall (lv Φ);
-      iDestruct "Ha" as %Ha; simpl in Ha; subst; wp_rec.
-      - wp_match. iApply ("HΦ" $! 0%nat); done.
-      - destruct Ha as [lv' [Hlv Hlcoh]]; subst.
-        wp_match. wp_proj. wp_bind (list_length _).
-        iApply ("IH" $! _ _ Hlcoh). iNext. iIntros; simpl.
-        wp_op. iSpecialize ("HΦ" $! (1 + v)%nat).
-        rewrite Nat2Z.inj_add. iApply "HΦ"; by auto.
-    Qed.
+      iDestruct "Ha" as %Ha; simpl in Ha; subst; wp_pures.
+      - wp_rec.
+        wp_match. iApply ("HΦ" $! 0%nat); done.
+      - wp_rec.
+        simpl.
+        destruct Ha as [lv' [Hlv Hlcoh]]; subst.
+        wp_match; simpl.
+        wp_proj. wp_bind (list_length _); simpl.
+        iApply ("IH" $! _ _ with "[Htc]"); eauto.
+        { iApply (etc_weaken with "Htc"); lra. }
+        iNext. iIntros.
+        (* Why can't wp_op find the binop? *)
+        Fail wp_op.
+        (* iSpecialize ("HΦ" $! (1 + v)%nat).
+        rewrite Nat2Z.inj_add. iApply "HΦ"; by auto. *)
+    Admitted.
+
+
+    (*
 
     Lemma wp_list_iter_invariant' Φ1 Φ2 (Ψ: list A -> iProp Σ) P E l lv handler
            lrest:
@@ -1777,7 +1922,7 @@ Section program.
         list_append "les" (list_cons "p" "gts").
 
 
-
+  (* Necessary *)
   Lemma wp_remove_nth_unsafe {A} [_ : Inject A val] E (l : list A) (lv : val) (i : nat) :
     {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
       list_remove_nth_unsafe lv #i @ E
@@ -1788,9 +1933,10 @@ Section program.
           v = ((inject e), lv')%V ∧
           is_list (l1 ++ l2) lv' ⌝ }}}.
   Proof.
-    (*
     iIntros (φ (llv & il)) "hφ".
-    rewrite /list_remove_nth_unsafe. wp_pures.
+    rewrite /list_remove_nth_unsafe.
+    (*
+    wp_pures.
     wp_apply wp_remove_nth => //.
     iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
     iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
@@ -1804,6 +1950,7 @@ Section program.
     destruct (f a) => /= ; rewrite -?Permutation_middle -IHl //.
   Qed.
 
+  (* Maybe I can weaken the sorting requirement on the results *)
   Lemma Partition (xs : list Z) l (e : Z) e' :
     e' = Val #e ->
     {{{ ⌜is_list xs l⌝ }}}
@@ -1816,10 +1963,10 @@ Section program.
                    ∧ ⌜ ∀ x, In x xsgt → (e < x)%Z ⌝
     }}}.
   Proof.
-    (*
     iIntros (-> φ Lxs) "hφ".
     rewrite /partition. subst.
     wp_pures.
+    (*
     wp_bind (list_filter _ _).
     iApply (wp_list_filter _ (λ x, bool_decide (e < x)%Z)).
     { iSplit => //. iIntros (x ψ) "_ !> hψ".
@@ -1851,12 +1998,12 @@ Section program.
 
   Local Notation sorted := (StronglySorted Z.le).
 
+  (* Can I delete this lemma? *)
   Fact sorted_append pre post p :
     sorted pre → sorted post →
     (∀ x, In x pre → (x <= p)%Z) → (∀ x, In x post → (p < x)%Z) →
     sorted (pre ++ p :: post).
   Proof.
-    (*
     intros Spre Spost ppre ppost.
     induction pre => /=.
     - apply SSorted_cons, List.Forall_forall => // ; intros.
@@ -1875,17 +2022,17 @@ Section program.
         intros z hz.
         destruct (in_inv hz) as [-> | zpost] => //.
         apply Z.lt_le_incl, ppost => //.
-     *)
-  Admitted.
+  Qed.
 
-  Lemma qs_sorted : ∀ (xs : list Z) (l : val),
+  (* Removed sorted requirements *)
+  Lemma qs_time_bound : ∀ (xs : list Z) (l : val),
     {{{ ⌜is_list xs l⌝ }}}
       qs l
-    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ∧ sorted xs' ⌝ }}}.
+    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
-    (*
     iLöb as "Hqs". iIntros (xs l φ hl) "hφ".
     rewrite {2}/qs... rewrite -/qs.
+    (*
     wp_bind (list_length _). iApply (wp_list_length $! hl).
     iIntros "!>" (n) "->"...
     case_bool_decide as hn...
@@ -1926,68 +2073,3 @@ End program.
 
 
 
-(*
-
-
-
-(** Total mess, possibly not needed, but maybe needed for tc_quicksort_unfold *)
-
-
-(* Source of many deeply annoying lemmas involving fin_enum *)
-Fixpoint fin_inj_incr (n : nat) (i : fin n) : (fin (S n)) :=
-  match i with
-    0%fin => 0%fin
-  | (FS _ i) => FS (fin_inj_incr _ i)
-  end.
-
-Lemma fin_inj_incr_to_nat (n : nat) (i : fin n) : fin_to_nat i = fin_to_nat (fin_inj_incr n i).
-Proof.
-  induction i as [|i' IH]; [done|].
-  simpl. f_equal. done.
-Qed.
-
-(* Proof irrelevance for fin *)
-Lemma fin_irrel (n : nat) (x y: fin n) : (fin_to_nat x = fin_to_nat y) -> (x = y).
-Proof. Admitted.
-
-Lemma fmap_compat `{A: Type} `{B: Type} f : list_fmap A B f = (fmap f).
-Proof.
- apply functional_extensionality.
- intros.
- induction x; simpl; done.
-Qed.
-
-Lemma fin_inj_FS_comm (n : nat) (l : list (fin n)) :
-  FS <$> (fin_inj_incr _ <$> l) = fin_inj_incr _ <$> (FS <$> l).
-Proof.
-  induction l; [done|].
-  simpl in *.
-  f_equal.
-  f_equal.
-  - apply functional_extensionality.
-    intros.
-    apply fin_irrel.
-Admitted.
-
-
-Lemma fin_enum_snoc_rec (n : nat) :
-  (fin_enum (S n)) = (fin_inj_incr n <$> fin_enum n) ++ [(nat_to_fin (Nat.lt_succ_diag_r n) : fin (S n))%fin].
-Proof.
-  induction n as [|n' IH]; [done|].
-  rewrite {1}/fin_enum.
-  rewrite {1}/fin_enum in IH.
-  rewrite IH.
-  rewrite fmap_app app_comm_cons.
-  f_equal; last first.
-  - simpl.
-    do 3 f_equal.
-    apply proof_irrelevance.
-  - rewrite /fin_enum /=.
-    f_equal.
-    rewrite fmap_compat.
-    rewrite fin_inj_FS_comm.
-    done.
-Qed.
-
-
-*)
