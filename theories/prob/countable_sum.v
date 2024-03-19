@@ -499,6 +499,26 @@ Section filter.
     - subst. set_solver.
   Qed.
 
+  Lemma SeriesC_list (l:list A):
+    NoDup l -> SeriesC (λ (a : A), if bool_decide(a ∈ l) then 1 else 0) = length l.
+  Proof.
+    induction l as [|a l IHl].
+    - intros. simpl. apply SeriesC_0; naive_solver.
+    - intro Hnd. replace (INR $ length _) with (length l+1); last by rewrite S_INR.
+      rewrite <-IHl; last by inversion Hnd.
+      erewrite <-(SeriesC_singleton _ 1) at 1.
+      erewrite <-SeriesC_plus; last first.
+      { apply ex_seriesC_singleton. }
+      { apply ex_seriesC_list. }
+      apply SeriesC_ext.
+      intros. instantiate (1 := a).
+      rewrite NoDup_cons in Hnd.
+      destruct Hnd as [H1 H2].
+      repeat case_bool_decide; try lra; set_solver.
+  Qed.
+    
+    
+
   Lemma ex_seriesC_finite_from_option (l : list A) (f : B -> R) (g : A -> option B):
     (∀ a : A, is_Some (g a) <-> a ∈ l) ->
     ex_seriesC (λ (a : A), from_option f 0%R (g a)).

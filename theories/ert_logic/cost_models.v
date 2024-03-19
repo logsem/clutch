@@ -67,6 +67,20 @@ Section tests.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
 
+  Definition cost_rand (e : expr) :=
+    match e with
+    | Rand _ _ => nnreal_one
+    | _ => nnreal_zero
+    end.
+
+  Program Definition Costrand : Costfun prob_lang :=
+    Build_Costfun (λ e, match at_redex cost_rand e with None => nnreal_zero | Some r => r end) _ _ _.
+  Next Obligation.
+  Admitted.
+  Next Obligation.
+  Admitted.
+  Next Obligation. Admitted.
+
   Context `{!ert_clutchGS Σ Costapp}.
 
 
