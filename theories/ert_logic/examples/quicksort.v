@@ -1,5 +1,5 @@
 (** * Exact time credit accounting for Quicksort *)
-From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode.
+From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
 From Coq Require Export Reals Psatz.
 Require Import Lra.
 
@@ -35,7 +35,8 @@ Section accounting.
   (* Tighter bounding argument necessitates the pivot take time An+B *)
   Definition tc_pivot_lin (A B n : nat) : nonnegreal := nnreal_nat (A*n+B)%nat.
 
-  Definition tc_base : nonnegreal. Admitted.
+  Definition tc_base : nonnegreal := (nnreal_nat 1).
+  Opaque tc_base.
 
   (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
   Definition tc_quicksort (A B len : nat) : nonnegreal.
@@ -462,6 +463,67 @@ Section accounting.
           e <= ((n+1)/n)^(n+1) = (1+1/n)^(n+1)
       The RHS decreases and has limit e.
    *)
+
+
+
+  (* TODO for advanded composotion *)
+  (* [x] Need to define a Prop to represent unique lists*)
+  (* [x] Need to define rank within a list *)
+  (* [ ] Need to show that summing over __ is the same as summing over rank <$> __ *)
+  (* [ ] Need to show that mean of sum (without rank) is preserved *)
+
+  Local Notation sorted := (StronglySorted Z.le).
+
+  Definition list_dups (l : list Z) (x : Z) : nat := length (List.filter (fun v => (v =? x)%Z) l).
+
+  Definition list_unique (l : list Z) : Prop := Forall (fun x => list_dups l x = 1%nat) l.
+
+  (*
+    Definition pre_rank_lower (l : list Z) (x : Z) : fin (S (length l))
+    := nat_to_fin (Arith_prebase.le_lt_n_Sm _ _ (filter_length_le (fun v => (v <? x)%Z) l)). *)
+
+
+  #[local] Definition fin_transport_lemma (A B : nat) : (0 < B)%nat -> (A < B)%nat -> (A < (S (B - 1)))%nat.
+  Proof. intros. lia. Qed.
+
+
+  Definition rank_lower (l : list Z) (x : Z) (Hx : x ∈ l) (HL : (0 < length l)%nat) : fin (S (length l - 1)%nat).
+    refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
+  Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined.
+
+  Definition index_to_rank (l : list Z) (index : fin (S (length l - 1)%nat)) (HL : (0 < length l)%nat ) : fin (S (length l - 1))%nat.
+    refine (rank_lower l (l !!! fin_to_nat index) _ HL).
+  Proof. apply elem_of_list_lookup_total_2.
+         assert (fin_to_nat index < (S (length l - 1)%nat)) by apply fin_to_nat_lt.
+         lia.
+  Defined.
+
+  (* Is this the most expedient way to prove this?
+  Definition foldr_rank_rw (L : list Z) (f: (fin (S (length L - 1)%nat)) -> R -> R) (HL : (0 < length L)%nat) :
+    (foldr f 0%R (fin_enum (length L)) = foldr f 0%R (index_to_rank L <$> fin_enum (length L))).
+    refine (@foldr_permutation _ _ (=) _ _ _ _ _ _ _ _).
+  Proof.
+    - intros. admit.
+    - admit.
+  Admitted.
+ *)
+
+  (* The thing we're going to plug into advanced composition *)
+  (* So that when we sample a value of rank i, we have enough credit for the left and right sublists by Lob induction *)
+  Definition tc_distr A B xs (index : fin (S (length xs - 1)%nat)) (HL : (0 < length xs)%nat) : R
+    := (tc_quicksort A B (fin_to_nat (index_to_rank xs index HL)) + tc_quicksort A B (S (length xs) - 1 - (index_to_rank xs index HL)))%R.
+
+  (* Advanced composition side condition: Series combine and become two folds, this should be equal to the credit we have beforehand *)
+  (* FIXME: Change all above to be reals, and remove the map nonneg *)
+  Lemma tc_distr_equiv A B (xs : list Z) (HL : (0 < length xs)%nat)
+    : (SeriesC (fun s : fin (S (length xs - 1)%nat) => 1 / (S (length xs - 1)%nat) * (tc_distr A B xs s HL)))%R =
+        (2 * (foldr Rplus 0%R $ map nonneg $ map (fun i => (tc_quicksort A B (fin_to_nat i))) $ (fin_enum (length xs))) / (length xs))%R.
+  Proof. Admitted.
+
+
+  (* This involves several steps-- need to get rid of index_to_rank (bijection lemma), and list reversal (bijection lemma) *)
+
+
 
 
 
@@ -896,8 +958,7 @@ Section list.
 
     (* ⧖ 0 *)
     Lemma wp_list_length E l lv :
-      {{{ ⧖ (nnreal_zero) ∗
-          ⌜is_list l lv⌝ }}}
+      {{{ ⧖ 0%R ∗ ⌜is_list l lv⌝ }}}
         list_length lv @ E
       {{{ v, RET #v; ⌜v = length l⌝ }}}.
     Proof.
@@ -1282,9 +1343,9 @@ Section list.
     Qed.
     *)
 
-
+    *)
     Lemma wp_remove_nth E (l : list A) lv (i : nat) :
-      {{{ ⌜is_list l lv /\ i < length l⌝ }}}
+      {{{ ⧖ 0%R ∗ ⌜is_list l lv /\ i < length l⌝ }}}
         list_remove_nth lv #i @ E
       {{{ v, RET v; ∃ e lv' l1 l2,
                   ⌜l = l1 ++ e :: l2 ∧
@@ -1292,20 +1353,20 @@ Section list.
                   v = SOMEV ((inject e), lv') ∧
                   is_list (l1 ++ l2) lv'⌝ }}}.
     Proof.
-      iIntros (Φ) "Ha Hφ".
+      iIntros (Φ) "(Hcr & Ha) Hφ".
       iInduction l as [|a l'] "IH" forall (i lv Φ);
-        iDestruct "Ha" as "(%Hl & %Hi)"; simpl in Hl; subst; wp_rec; wp_let.
+        iDestruct "Ha" as "(%Hl & %Hi)"; simpl in Hl; subst; wp_rec; wp_let; simpl.
       - inversion Hi.
       - destruct Hl as [lv' [Hlv Hlcoh]]; subst.
-        wp_match. wp_pures. case_bool_decide; wp_pures.
+        wp_match. wp_pures. case_bool_decide; wp_pures; simpl.
         + iApply "Hφ".
           iExists a, (inject l'), [], l'.
           destruct i; auto.
           iPureIntro; split; auto.
           split; auto.
           split.
-          * by apply is_list_inject in Hlcoh as ->.
-          * by apply is_list_inject.
+          * admit. (* by apply is_list_inject in Hlcoh as ->. *)
+          * admit. (* by apply is_list_inject.*)
         + destruct i; first done.
           assert ((S i - 1)%Z = i) as -> by lia.
           assert (is_list l' lv' /\ i < length l') as Haux.
@@ -1313,9 +1374,12 @@ Section list.
             inversion Hi; auto. lia.
           }
           wp_bind (list_remove_nth _ _).
-          iApply ("IH" $! i lv' _  Haux).
+          repeat rewrite Rminus_0_r.
+          iApply ("IH" $! i lv' _  with "Hcr"); [eauto|].
+          iAssert (⧖ 0%R) as "Hcr"; first admit.
           iNext. iIntros (v (e & v' & l1 & l2 & (-> & Hlen & -> & Hil))); simpl.
-          wp_pures.
+
+          (* wp_pures.
           wp_bind (list_cons _ _). iApply wp_list_cons; [done|].
           iIntros "!>" (v Hcons).
           wp_pures.
@@ -1327,8 +1391,10 @@ Section list.
           split.
           * by apply is_list_inject in Hcons as ->.
           * by apply is_list_inject.
-    Qed.
+          *)
+    Admitted.
 
+    (*
 
     Lemma wp_remove_nth_total E (l : list A) lv (i : nat) :
       {{{ ⌜is_list l lv /\ i < length l⌝ }}}
@@ -1924,7 +1990,7 @@ Section program.
 
   (* Necessary *)
   Lemma wp_remove_nth_unsafe {A} [_ : Inject A val] E (l : list A) (lv : val) (i : nat) :
-    {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
+    {{{ ⧖ 0%R ∗ ⌜ is_list l lv /\ i < length l ⌝ }}}
       list_remove_nth_unsafe lv #i @ E
     {{{ v, RET v;
         ∃ e lv' l1 l2,
@@ -1933,14 +1999,13 @@ Section program.
           v = ((inject e), lv')%V ∧
           is_list (l1 ++ l2) lv' ⌝ }}}.
   Proof.
-    iIntros (φ (llv & il)) "hφ".
+    iIntros (φ) "(Hcr & %llv & %Hi) hφ".
     rewrite /list_remove_nth_unsafe.
-    (*
     wp_pures.
     wp_apply wp_remove_nth => //.
+    { iSplit; first admit. eauto. }
     iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
     iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
-    *)
   Admitted.
 
   Lemma filter_split_perm {A} (l : list A) f :
@@ -1964,8 +2029,9 @@ Section program.
     }}}.
   Proof.
     iIntros (-> φ Lxs) "hφ".
-    rewrite /partition. subst.
-    wp_pures.
+    rewrite /partition.
+    iAssert (⧖ 0%R) as "Hcr"; first admit.
+    wp_pures. (* Not stepping anything *)
     (*
     wp_bind (list_filter _ _).
     iApply (wp_list_filter _ (λ x, bool_decide (e < x)%Z)).
@@ -2024,21 +2090,69 @@ Section program.
         apply Z.lt_le_incl, ppost => //.
   Qed.
 
+  Definition qsA := 3%nat.
+  Definition qsB := 1%nat.
+  Definition qsC := tc_quicksort qsA qsB.
+
+
+
+
+
+
+
+
   (* Removed sorted requirements *)
   Lemma qs_time_bound : ∀ (xs : list Z) (l : val),
-    {{{ ⌜is_list xs l⌝ }}}
+    {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ }}}
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
-    iLöb as "Hqs". iIntros (xs l φ hl) "hφ".
-    rewrite {2}/qs... rewrite -/qs.
-    (*
-    wp_bind (list_length _). iApply (wp_list_length $! hl).
+    assert (Hnonneg : forall i, (0 <= qsC i)%R). { intros; apply cond_nonneg. }
+    iLöb as "Hqs". iIntros (xs l φ) "(Hcr & %hl) hφ".
+    rewrite {2}/qs...
+    wp_rec; first admit.
+    rewrite -/qs.
+    wp_bind (list_length _).
+    iAssert (⧖ (qsC (length xs)) ∗ ⧖ 0%R)%I with "[Hcr]" as "(Hcr & Hfree)".
+    { iApply etc_split; [apply cond_nonneg; lra | lra |].
+      iApply (etc_weaken with "[$]").
+      simpl. admit.
+    }
+    iApply (wp_list_length with "[Hfree]").
+    { iFrame; eauto. }
     iIntros "!>" (n) "->"...
-    case_bool_decide as hn...
-    (* an empty or singleton list is already sorted. *)
-    { iApply "hφ". iExists xs. iPureIntro. intuition auto.
-      destruct xs => //. 1: constructor. destruct xs => //. simpl in hn. lia. }
+    repeat (wp_pure; eauto; rewrite Rminus_0_r).
+    (* Start spending qsC *)
+    rewrite /qsC.
+    destruct xs as [|xs'].
+    { (* Empty list *)
+      simpl. wp_pures. iApply "hφ". iExists _. iPureIntro. eauto.
+    }
+    simpl length.
+    rewrite tc_quicksort_unfold.
+    iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs))) ∗
+             ⧖ (nnreal_mult (nnreal_nat 2) $ nnreal_div (foldr nnreal_plus nnreal_zero (map (λ n : nat, tc_quicksort qsA qsB n) (seq 0 (S (length xs)))))
+               (nnreal_nat (S (length xs)))))%I with "[Hcr]" as "(HcrP & Hcr)".
+    { admit. }
+    rewrite /tc_pivot_lin. rewrite {2}/qsA {2}/qsB.
+    wp_pure with "HcrP"; first admit.
+    rewrite bool_decide_false; last admit.
+
+    (* Probably an easier way to do this *)
+    remember (length xs + S (length xs + S (length xs + 0)) + 1)%nat as X; destruct X; first lia.
+    rewrite HeqX; clear HeqX X.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    replace #(LitInt (Z.of_nat (S (length xs)) - 1)) with #(length xs); last (repeat f_equal; lia).
+
+    (* Do advanced composotion with Hcr *)
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
+                 (fun i => (tc_quicksort qsA qsB _ + tc_quicksort qsA qsB _)%R) with "[$]").
+
+
+    (*
+
+
     (* pick a pivot index at random *)
     wp_apply wp_rand => //. iIntros (ip) "_"...
     (* pop the pivot from xs *)
