@@ -15,17 +15,18 @@ Import uPred.
 
 #[local] Open Scope R_scope.
 
-Section Costfun.
-  Context {Λ : language}.
-  Class Costfun :=
-    { cost : expr Λ → R;
-      cost_bounded : ∃ r, ∀ e, cost e <= r;
-      cost_nonneg e : 0 <= cost e;
-      cost_fill `{@LanguageCtx Λ K} (e : expr Λ) : cost (K e) = cost e
-    }.
-  Coercion cost : Costfun >-> Funclass.
-End Costfun.
+Class Costfun {Λ} := {
+  cost : expr Λ → R;
+  cost_bounded : ∃ r, ∀ e, cost e <= r;
+  cost_nonneg e : 0 <= cost e;
+  }.
+
 Arguments Costfun Λ : clear implicits.
+
+Class CostLanguageCtx {Λ} (cf : Costfun Λ) (K : expr Λ → expr Λ) := {
+  cost_languagectx :: LanguageCtx (Λ := Λ) K;
+  cost_fill e : cost (K e) = cost e;
+}.
 
 Class ertwpG (Λ : language) (Σ : gFunctors) := ErtwpG {
   ertwpG_invGS :: invGS_gen HasNoLc Σ;
@@ -173,7 +174,7 @@ Section ERM.
     iIntros (???) "[[% ?] ?]". iSplit; [|done]. by iExists _.
   Qed.
 
-  Lemma ERM_bind K `{!LanguageCtx K} e1 σ1 Z x :
+  Lemma ERM_bind `{!CostLanguageCtx costfun K} e1 σ1 Z x :
     to_val e1 = None →
     ERM e1 σ1 x (λ '(e2, σ2) x', Z (K e2, σ2) x') -∗ ERM (K e1) σ1 x Z.
   Proof.
@@ -259,7 +260,8 @@ Section ERM.
              ++ rewrite /x3 HKinv3 /=. real_solver.
           -- apply (ex_seriesC_ext (λ ρ, ((prim_step o σ' ρ) * r)%R));
                [|by apply ex_seriesC_scal_r].
-             intros []. apply Rmult_eq_compat_r. by apply fill_step_prob.
+             intros []. apply Rmult_eq_compat_r.
+             rewrite fill_step_prob //.
       + iIntros (? ? ?).
         opose proof (fill_step_inv _ _ _ _ _ H2); [done|].
         destruct H3 as [xx [Hxx xxprim]].
@@ -279,7 +281,6 @@ Section ERM.
     - iExists x2. done.
     - iPureIntro. rewrite SeriesC_scal_r. rewrite prim_step_mass; last done. lra.
   Qed.
-
 
   Lemma ERM_adv_comp e1 σ1 Z x :
     (∃ (X2 : cfg Λ → nonnegreal),
@@ -464,7 +465,7 @@ Proof.
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
-Lemma ert_wp_bind K `{!LanguageCtx K} s E e Φ :
+Lemma ert_wp_bind K `{!CostLanguageCtx costfun K} s E e Φ :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite ert_wp_unfold /ert_wp_pre.
