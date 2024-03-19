@@ -61,11 +61,40 @@ Section tests.
     | _ => nnreal_zero
     end.
 
+  Lemma costfun_bounds (b:R) (f:_->nonnegreal) e (x:nonnegreal):
+    (∀ e, f e <= b)%R ->
+    at_redex f e = Some x -> (x <= b)%R.
+  Proof.
+    intros Hbound Har.
+    revert x Har. induction e; simpl; intros; try done; repeat case_match; naive_solver.
+  Qed.
+
+  Lemma costfun_pos (f:_->nonnegreal) e (x:nonnegreal):
+    (∀ e, 0 <= f e)%R ->
+    at_redex f e = Some x -> (0<=x)%R.
+  Proof.
+    intros Hbound Har.
+    revert x Har. induction e; simpl; intros; try done; repeat case_match; naive_solver.
+  Qed.
+
+  Lemma costfun_fill (K:expr -> expr) `{LanguageCtx _ K} (f:_->nonnegreal) e b:
+    at_redex f e = Some b -> at_redex f (K e) = Some b.
+  Proof.
+  Admitted.
+
   Program Definition Costapp : Costfun prob_lang :=
     Build_Costfun (λ e, match at_redex cost_app e with None => nnreal_zero | Some r => r end) _ _ _.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
+  Next Obligation.
+    exists nnreal_one. intros. simpl. case_match.
+    - eapply costfun_bounds; last done. intros. rewrite /cost_app. case_match; simpl; lra.
+    - lra.
+  Qed.
+  Next Obligation.
+    intros. simpl. case_match.
+    - eapply costfun_pos; last done. intros; rewrite /cost_app. case_match; simpl; lra.
+    - lra.
+  Qed.
+  Next Obligation. intros K HK. simpl. intros. Admitted.
 
   Definition cost_rand (e : expr) :=
     match e with
@@ -76,9 +105,15 @@ Section tests.
   Program Definition Costrand : Costfun prob_lang :=
     Build_Costfun (λ e, match at_redex cost_rand e with None => nnreal_zero | Some r => r end) _ _ _.
   Next Obligation.
-  Admitted.
+    exists nnreal_one. intros. simpl. case_match.
+    - eapply costfun_bounds; last done. intros. rewrite /cost_rand. case_match; simpl; lra.
+    - lra.
+  Qed.
   Next Obligation.
-  Admitted.
+    intros. simpl. case_match.
+    - eapply costfun_pos; last done. intros; rewrite /cost_rand. case_match; simpl; lra.
+    - lra.
+  Qed.
   Next Obligation. Admitted.
 
   Context `{!ert_clutchGS Σ Costapp}.
