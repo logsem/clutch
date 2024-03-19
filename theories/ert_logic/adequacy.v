@@ -111,12 +111,13 @@ Section adequacy.
 
   Lemma ERM_erasure_alt (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
     to_val e = None →
+    (forall e, costfun e = nnreal_one) ->
     ERM e σ x
           (λ '(e2, σ2) (x' : nonnegreal),
             |={∅}▷=>^(S n) ⌜n <= x' + n * SeriesC (exec n (e2, σ2))⌝)
           ⊢ |={∅}▷=>^(S n) ⌜S n <= x + (S n) * SeriesC (exec (S n) (e, σ))⌝.
   Proof.
-    iIntros (Hv) "Hexec".
+    iIntros (Hv Hcost) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /ERM /ERM'.
     set (Φ := (λ '((e1, σ1), x''),
@@ -131,21 +132,22 @@ Section adequacy.
     { iIntros "Hfix %".
       by iMod ("H" $! ((_, _)) with "Hfix [//]").
     }
-    clear.
+    clear e σ x Hv.
     iIntros "!#" ([[e1 σ1] x'']). rewrite /Φ/F/ERM_pre.
     (* iIntros " [ (%R & %x1 & %x2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv". *)
-    iIntros " (%x2 & %Hred & (%r & %Hr) & % & H) %Hv".
+    iIntros " (%x2 & %Hred & (%r & %Hr) & %H0 & H) %Hv".
     iApply step_fupdN_mono.
     { apply pure_mono.
       intros ψ. etrans.
-      2: apply Rplus_le_compat_r, H.
+      2: apply Rplus_le_compat_r, H0.
       exact ψ. }
-    clear H x''.
+    clear H H0 x''.
     iApply (step_fupdN_mono _ _ _ (⌜(∀ e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → n <= x2 (e2, σ2) + n * SeriesC (exec n (e2, σ2)))⌝)).
     2: { iIntros (???) "/=".
          iMod ("H" with "[//]"); auto. }
     iIntros (H). iPureIntro.
     rewrite S_INR (Rplus_comm n) Rplus_assoc.
+    rewrite Hcost.
     apply Rplus_le_compat_l.
     rewrite exec_Sn dbind_mass.
     rewrite -SeriesC_scal_l -SeriesC_plus /=.
@@ -207,7 +209,20 @@ Section adequacy.
        rewrite <- (Rmult_1_l n) at 1.
        right.
        f_equal.
-   Admitted.
+       symmetry.
+       clear - Hred.
+       destruct Hred as ( (e2 & σ2) & Hρ).
+       destruct (prim_step_iff e1 e2 σ1 σ2) as (Haux & ?).
+       apply prim_step_mass; eauto.
+    - apply (ex_seriesC_le _ (λ ρ : expr * state, prim_step e1 σ1 ρ * r)).
+      + intro ρ'.
+        pose proof (pmf_pos (prim_step e1 σ1) ρ').
+        pose proof (cond_nonneg (x2 ρ')). real_solver.
+      + apply ex_seriesC_scal_r; auto.
+   - apply ex_seriesC_scal_l.
+     apply (ex_seriesC_le _ (λ x : expr * state, step_or_final (e1, σ1) x * 1)); [ | apply ex_seriesC_scal_r; auto ].
+     real_solver.
+   Qed.
 
 
 
@@ -244,9 +259,11 @@ Section adequacy.
 
 
   Theorem wp_refRcoupl_step_fupdN_alt (e : expr) (σ : state) (x : nonnegreal) n φ  :
+    (forall e, costfun e = nnreal_one) ->
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
       |={⊤,∅}=> |={∅}▷=>^n ⌜n <= x + n * SeriesC (exec n (e, σ))⌝.
   Proof.
+    intro Hcost.
     iInduction n as [|n] "IH" forall (e σ x); iIntros "((Hσh & Hσt) & Hx & Hwp)".
     - simpl.
       iApply fupd_mask_intro; [set_solver|]; iIntros.
@@ -314,17 +331,18 @@ Qed.
 
 
 Theorem wp_ERT_alt Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+  (forall e, cost e = nnreal_one) ->
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   n <= x + n * SeriesC (exec n (e, σ)).
 Proof.
-  intros Hwp.
+  intros Hcost Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN_alt.
+  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  iApply wp_refRcoupl_step_fupdN_alt; auto.
   iFrame.
   iApply Hwp.
   done.
@@ -352,10 +370,28 @@ Proof.
       eapply Rlt_le_trans; [apply Hm |].
       specialize (H (m+1)%nat).
       (* Should follow from H *)
-      admit.
+      rewrite plus_INR /= in H.
+      pose proof (pos_INR m).
+      apply (Rmult_le_reg_l (m+1)); [lra |].
+      rewrite Rmult_minus_distr_l Rmult_1_r.
+      replace ((m + 1) * (r / (m + 1))) with r; first by lra.
+      rewrite /Rdiv.
+      rewrite Rmult_comm Rmult_assoc.
+      rewrite Rinv_l; lra.
     + (* Pick m to be the ceil of r/eps *)
-      admit.
- Admitted.
+      destruct eps as (eps & Heps); simpl.
+      assert (exists m : nat, (m + 1) > r / eps) as (m & Hm).
+      {
+        destruct (INR_unbounded (r / eps)) as (k & Hk).
+        exists k; lra.
+      }
+      exists m.
+      apply Rgt_lt in Hm.
+      assert (r / (m + 1) < eps); last by lra.
+      apply Rcomplements.Rlt_div_l in Hm; last by lra.
+      apply Rcomplements.Rlt_div_l; last by lra.
+      pose proof (pos_INR m). lra.
+Qed.
 
 
 
