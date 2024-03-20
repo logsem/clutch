@@ -117,7 +117,7 @@ Qed.
 
   
 Section proofs.
-  Context `{!ert_clutchGS Σ Costrand}.
+  Context `{!ert_clutchGS Σ CostRand}.
 
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 
@@ -159,7 +159,7 @@ Section proofs.
                           then (S coupon') / (S n)
                           else 0) with "[$Hx2]").
     - intros; case_bool_decide; last lra. apply Rcomplements.Rdiv_le_0_compat; auto.
-    - rewrite Rplus_comm. replace (costfun _) with 1; last by simpl.
+    - rewrite Rplus_comm. replace (cost _) with 1; last by simpl.
       erewrite etc_coupon_split; done.
     - iIntros (c). case_bool_decide.
       + (** got an old coupon*)

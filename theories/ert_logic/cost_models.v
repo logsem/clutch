@@ -102,12 +102,12 @@ Next Obligation.
   exists 1. intros. simpl. case_match.
   - eapply at_redex_bounds; [|done]. intros. rewrite /cost_app. case_match; lra.
   - lra.
-Qed.
+Defined.
 Next Obligation.
   intros. simpl. case_match.
   - eapply at_redex_pos; [|done]. intros; rewrite /cost_app. case_match; lra.
   - done.
-Qed.
+Defined.
 
 Instance CostLanguageCtx_CostApp_prob_lang (K : ectx prob_ectx_lang)  :
   CostLanguageCtx CostApp (fill K).
@@ -125,7 +125,7 @@ Proof.
     + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
     + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
     + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
-Qed.
+Defined.
 
 (** Cost model for [rand] *)
 Definition cost_rand (e : expr) : R :=
@@ -140,12 +140,12 @@ Next Obligation.
   exists 1. intros. simpl. case_match.
   - eapply at_redex_bounds; [|done]. intros. rewrite /cost_rand. case_match; lra.
   - lra.
-Qed.
+Defined.
 Next Obligation.
   intros. simpl. case_match.
   - eapply at_redex_pos; [|done]. intros; rewrite /cost_rand. case_match; lra.
   - done.
-Qed.
+Defined.
 
 Instance CostLanguageCtx_CostRand_prob_lang (K : ectx prob_ectx_lang)  :
   CostLanguageCtx CostRand (fill K).
@@ -163,4 +163,4 @@ Proof.
     + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
     + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
     + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
-Qed.
+Defined.
