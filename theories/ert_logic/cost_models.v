@@ -82,6 +82,13 @@ Proof.
   destruct Ki => /= He; rewrite IHK //=; by case_match.
 Qed.
 
+Lemma at_redex_fill_None (f:expr->R) e a:
+  to_val e = None -> at_redex f e = None -> at_redex f (fill_item a e) = None.
+Proof.
+  revert a; induction e; simpl; intros Hv Har; try done.
+  all: by destruct Hv.
+Qed.
+
 (** Cost model for [App]  *)
 Definition cost_app (e : expr) : R :=
   match e with
@@ -106,15 +113,19 @@ Instance CostLanguageCtx_CostApp_prob_lang (K : ectx prob_ectx_lang)  :
   CostLanguageCtx CostApp (fill K).
 Proof.
   constructor; [apply _|].
-
-  (* Hmm... now the statement is at least not false ... *)
-
   intros e Hv => /=.
   destruct (at_redex _ e) eqn:He.
   { by erewrite at_redex_fill. }
-  case_match; [|done].
-
-Admitted.
+  revert e Hv He. induction K; simpl.
+  - intros. case_match; [done|lra].
+  - intros.
+    destruct (to_val (fill_item a e)) eqn :H1;
+      destruct (at_redex cost_app (fill_item a e)) eqn :H2; last first.
+    + specialize (IHK _ H1 H2). done.
+    + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
+    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+Qed.
 
 (** Cost model for [rand] *)
 Definition cost_rand (e : expr) : R :=
@@ -140,12 +151,16 @@ Instance CostLanguageCtx_CostRand_prob_lang (K : ectx prob_ectx_lang)  :
   CostLanguageCtx CostRand (fill K).
 Proof.
   constructor; [apply _|].
-  intros e => /=.
+  intros e Hv => /=.
   destruct (at_redex _ e) eqn:He.
   { by erewrite at_redex_fill. }
-  case_match; [|done].
-  simpl in H.
-
-  (* this does not seem right? *)
-
-Admitted.
+  revert e Hv He. induction K; simpl.
+  - intros. case_match; [done|lra].
+  - intros.
+    destruct (to_val (fill_item a e)) eqn :H1;
+      destruct (at_redex cost_rand (fill_item a e)) eqn :H2; last first.
+    + specialize (IHK _ H1 H2). done.
+    + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
+    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+Qed.
