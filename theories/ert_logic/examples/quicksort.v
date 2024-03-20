@@ -411,14 +411,6 @@ Section accounting.
       The RHS decreases and has limit e.
    *)
 
-
-
-  (* TODO for advanded composotion *)
-  (* [x] Need to define a Prop to represent unique lists*)
-  (* [x] Need to define rank within a list *)
-  (* [ ] Need to show that summing over __ is the same as summing over rank <$> __ *)
-  (* [ ] Need to show that mean of sum (without rank) is preserved *)
-
   Local Notation sorted := (StronglySorted Z.le).
 
   Definition list_dups (l : list Z) (x : Z) : nat := length (List.filter (fun v => (v =? x)%Z) l).
@@ -662,6 +654,9 @@ Section accounting.
         rewrite fin_enum_snoc_rec.
         rewrite foldr_app.
         simpl.
+
+
+
       admit. }
     replace (S (Z.to_nat (S (length xs') - 1)))%nat with (S (length xs')) by lia.
     remember (x0 :: xs') as X.
