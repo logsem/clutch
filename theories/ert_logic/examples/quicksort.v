@@ -76,11 +76,7 @@ Section accounting.
    Proof. Admitted.
 
    Lemma fmap_compat `{A: Type} `{B: Type} f : list_fmap A B f = (fmap f).
-   Proof.
-    apply functional_extensionality.
-    intros.
-    induction x; simpl; done.
-   Qed.
+   Proof. rewrite /fmap. done. Qed.
 
    Lemma fin_inj_FS_comm (n : nat) (l : list (fin n)) :
      FS <$> (fin_inj_incr _ <$> l) = fin_inj_incr _ <$> (FS <$> l).
@@ -268,7 +264,6 @@ Section accounting.
     rewrite Rmult_assoc.
     rewrite Rinv_l; last (apply not_0_INR; lia).
     rewrite Rmult_1_r.
-    Set Printing Coercions.
     rewrite (Rmult_comm (/ (INR n))).
     rewrite -Rmult_assoc.
     rewrite Rmult_plus_distr_r.
@@ -383,6 +378,7 @@ Section accounting.
     rewrite seq_S map_app foldr_snoc /=.
     rewrite foldr_comm_acc; last (intros; simpl; lra).
     apply Rplus_le_compat_l, IH.
+    Transparent seq.
   Qed.
 
 
@@ -433,10 +429,62 @@ Section accounting.
   #[local] Definition fin_transport_lemma (A B : nat) : (0 < B)%nat -> (A < B)%nat -> (A < (S (B - 1)))%nat.
   Proof. intros. lia. Qed.
 
-
   Definition rank_lower (l : list Z) (x : Z) (Hx : x ∈ l) (HL : (0 < length l)%nat) : fin (S (length l - 1)%nat).
     refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
   Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined.
+
+  Definition rank_lower_nat (l : list Z) (x : Z) : nat
+    := length (List.filter (fun v => (v <? x)%Z) l).
+
+  Definition index_to_rank_nat (l : list Z) (index : nat) : nat
+    := rank_lower_nat l (l !!! index).
+
+  Definition reverse_order (l : list nat) (i : nat) : nat := (length l - 1 - i)%nat.
+
+  Lemma reverse_perm N : (seq 0%nat N) ≡ₚ (reverse_order (seq 0%nat N) <$> (seq 0%nat N)).
+  Proof.
+    induction N as [|N' IH].
+    - simpl. constructor.
+    - rewrite /reverse_order seq_length.
+      rewrite /reverse_order seq_length in IH.
+      rewrite -{3}Nat.add_1_l {2}seq_app seq_S.
+      simpl; do 2 rewrite Nat.sub_0_r.
+      symmetry.
+      rewrite -Permutation_cons_append.
+      constructor.
+      symmetry.
+      apply (Permutation_trans IH).
+  Admitted.
+
+(*
+  Definition inj_list (f : nat -> nat) (A: list nat) : Prop := Forall (fun a0 => Forall (fun a1 => (f a0 = f a1) -> (a0 = a1)) A) A.
+  Definition surj_list (f : nat -> nat) (A B: list nat) : Prop := Forall (fun b => Exists (fun a => f a = b) A) B.
+  Definition bij_list f A B : Prop := inj_list f A /\ surj_list f A B.
+  Definition perm_list f A B : Prop := inj_list f A /\ surj_list f A B.
+*)
+
+  (* Easily generalizable if useful *)
+  Lemma fold_R_fin_bij N :
+    ∀ f g, Bij g ->
+    (foldr Rplus 0%R $ map f $ fin_enum N) = (foldr Rplus 0%R $ map f $ map g $ fin_enum N).
+  Proof.
+    (* Idea: split off the last term of the LHS by induction. Have to show that we
+          can commute out a term from the RHS (should be easy) and then redefine a
+          new bijection g' so that we can apply the IH. *)
+    (* This makes me feel like we should just use a list bijection on seq... *)
+  Abort.
+
+
+  Lemma fold_R_fin_perm L f (g : nat -> nat) :
+    (L ≡ₚ (g <$> L)) ->
+    (foldr Rplus 0%R $ map f $ L) = (foldr Rplus 0%R $ map f $ map g $ L).
+  Proof.
+    Search foldr Permutation.
+    Locate foldr_permutation.
+  Admitted.
+
+
+  (*
 
   Definition index_to_rank (l : list Z) (HL : (0 < length l)%nat ) (index : fin (S (length l - 1)%nat)) : fin (S (length l - 1))%nat.
     refine (rank_lower l (l !!! fin_to_nat index) _ HL).
@@ -475,20 +523,23 @@ Section accounting.
       lia.
   Qed.
 
+*)
+
+
+
   (* The thing we're going to plug into advanced composition *)
   (* IN THEORY: this quantity of time credit should be good enough to finish the recursive calls, plus whatever extra stuff we
      have lying around from the pivot term *)
-  Definition tc_distr A B xs (index : fin (S (length xs - 1)%nat)) (HL : (0 < length xs)%nat) : R
-    := (tc_quicksort A B (fin_to_nat (index_to_rank xs HL index)) +
-        tc_quicksort A B (reverse_order _ (fin_transport_lemma _ _ HL HL) (index_to_rank xs HL index)))%R.
+  Definition tc_distr A B xs (index : fin (S (length xs - 1)%nat)) : R
+    := (tc_quicksort A B (index_to_rank_nat xs (fin_to_nat index)) +
+        tc_quicksort A B (reverse_order (seq 0%nat (length xs)) (index_to_rank_nat xs (fin_to_nat index))))%R.
 
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
   (* FIXME: Change all above to be reals, and remove the map nonneg *)
   Lemma tc_distr_equiv A B (xs : list Z) (HL : (0 < length xs)%nat)
-    : (SeriesC (fun s : fin (S (length xs - 1)%nat) => 1 / (S (length xs - 1)%nat) * (tc_distr A B xs s HL)))%R =
+    : (SeriesC (fun s : fin (S (length xs - 1)%nat) => 1 / (S (length xs - 1)%nat) * (tc_distr A B xs s)))%R =
         (2 * (foldr Rplus 0%R $ map (fun i => (tc_quicksort A B i)) $ (seq 0%nat (length xs)%nat)) / (length xs))%R.
-  Proof. Admitted.
-
+  Proof.
   (* This will take several steps. Two of the steps involve a series (or fold) being invariant under a bijection:
       - one bijection eliminates the index_to_rank from tc_quicksort
       - another bijection
@@ -497,24 +548,9 @@ Section accounting.
       - A SeriesC over fin type       (form of adv comp)
       - A fold over fin_enum
       - A fold over seq               (form of tc_quicksort def)
-    We can do the bijection steps at any of them.
+    We can do the bijection steps at any of them-- Lemmas above seem easiest to prove in the last form.
    *)
-
-  (* Probably easiest to use bijections over fin types? Otherwise I have to roll my own equivalent. *)
-
-  (* Easily generalizable if useful *)
-  Lemma fold_R_fin_bij N :
-    ∀ f g,  Bij g ->
-    (foldr Rplus 0%R $ map f $ fin_enum N) = (foldr Rplus 0%R $ map f $ map g $ fin_enum N).
-  Proof.
-    Set Printing Coercions.
-    (* *)
-    (* Idea: split off the last term of the LHS by induction. Have to show that we
-          can commute out a term from the RHS (should be easy) and then redefine a
-          new bijection g' so that we can apply the IH. *)
-
   Admitted.
-
 
 End accounting.
 
@@ -2127,8 +2163,12 @@ Section program.
     replace #(LitInt (Z.of_nat (S (length xs)) - 1)) with #(length xs); last (repeat f_equal; lia).
 
     (* Do advanced composotion with Hcr *)
-    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
-                 (fun i => (tc_quicksort qsA qsB _ + tc_quicksort qsA qsB _)%R) with "[$]").
+    Check (tc_distr qsA qsB xs).
+    wp_apply (wp_couple_rand_adv_comp' _ _ (length xs) _ _ (tc_distr qsA qsB xs)).
+
+
+
+
 
 
     (*
