@@ -611,35 +611,37 @@ Section cost.
 
   Definition cmp_cost_fn (e : expr) :=
     match e with
-    | BinOp LeOp _ _ => nnreal_one
-    | BinOp LtOp _ _ => nnreal_one
-    | _ => nnreal_zero
+    | BinOp LeOp _ _ => 1
+    | BinOp LtOp _ _ => 1
+    | _ => 0
     end.
 
 
-  Program Definition CostCmp : Costfun prob_lang := (Build_Costfun _ cmp_cost_fn _).
+
+  Program Definition CostCmp : Costfun prob_lang :=
+    (Build_Costfun _ (at_redex_cost cmp_cost_fn) _).
   Next Obligation.
     intros; simpl.
+    eapply at_redex_cost_nonneg.
+    intros e'.
     rewrite /cmp_cost_fn.
-    destruct e; simpl; try lra.
+    destruct e'; simpl; try lra.
     destruct op; simpl; try lra.
   Qed.
 
   Context `{!ert_clutchGS Σ CostCmp}.
 
   #[local] Lemma test_wp_pure :
-       {{{ ⧖ (nnreal_nat 1) }}} (if: (#0 < #1) then #() else #() ) {{{ RET #(); ⧖ (nnreal_nat 0) }}}.
+       {{{ ⧖ 1 }}} (if: (#0 < #1) then #() else #() ) {{{ RET #(); ⧖ 0 }}}.
   Proof.
     Set Printing Coercions.
     iIntros (x) "Hx Hp".
     wp_pure.
     wp_pure.
     iModIntro.
-    iApply "Hp".
-    simpl in *.
-    Unset Printing Coercions.
-  Abort.
-
+    assert (1 - 1 = 0)%R as -> by lra.
+    by iApply "Hp".
+  Qed.
 
 End cost.
 
@@ -1041,8 +1043,8 @@ Section list.
         wp_match; simpl.
         wp_proj. wp_bind (list_length _); simpl.
         iApply ("IH" $! _ _ with "[Htc]"); eauto.
-        { iApply (etc_weaken with "Htc"); lra. }
-        iNext. iIntros.
+        (* { iApply (etc_weaken with "Htc"); lra. } *)
+        (* iNext. iIntros. *)
         (* Why can't wp_op find the binop? *)
         Fail wp_op.
         (* iSpecialize ("HΦ" $! (1 + v)%nat).
@@ -2178,7 +2180,6 @@ Section program.
     assert (Hnonneg : forall i, (0 <= qsC i)%R) by admit.
     iLöb as "Hqs". iIntros (xs l φ) "(Hcr & %hl) hφ".
     rewrite {2}/qs...
-    wp_rec; first admit.
     rewrite -/qs.
     wp_bind (list_length _).
     iAssert (⧖ (qsC (length xs)) ∗ ⧖ 0%R)%I with "[Hcr]" as "(Hcr & Hfree)".
@@ -2195,7 +2196,8 @@ Section program.
     destruct xs as [|x0 xs'] eqn:Hxs.
     { (* Empty list *)
       rewrite tc_quicksort_unfold /= /tc_base.
-      simpl. wp_pures. iApply "hφ". iExists _. iPureIntro. eauto.
+      simpl.
+      wp_pures. iApply "hφ". iExists _. iPureIntro. eauto.
     }
     rewrite tc_quicksort_unfold.
     iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs'))) ∗

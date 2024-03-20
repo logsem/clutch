@@ -6,26 +6,14 @@ From iris.prelude Require Import options.
 
 #[local] Definition rwp' `{!tprG δ Σ} := (rwp' _ _ _ _ _).
 
-(*
-#[local] Program Instance rwp' `{!spec δ Σ} `{!tprwpG prob_lang Σ} : Gwp (iProp Σ) (expr) (val ) () .
-Next Obligation.
-  intros δ Σ s lang.
-  pose proof (rwp') as [wp ?]; [exact lang | exact s |].
-  apply wp.
-Defined.
-Next Obligation.
-  intros δ Σ s lang.
-  pose proof (rwp') as [wp u]; [exact lang | exact s |].
-  exact u.
-Defined.
-*)
-
-
 #[global] Program Instance rel_logic_wptactics_base `{!tprG δ Σ} :
   @GwpTacticsBase Σ unit _ _ wp.
 Next Obligation. intros. by apply rwp_value. Qed.
 Next Obligation. intros. by apply rwp_fupd. Qed.
-Next Obligation. intros. by apply rwp_bind, _. Qed.
+
+#[global] Program Instance rel_logic_wptactics_bind `{!tprG δ Σ} :
+  @GwpTacticsBind Σ unit _ _ wp.
+Next Obligation. intros. by apply rwp_bind. Qed.
 
 #[global] Program Instance rel_logic_wptactics_pure `{!tprG δ Σ} :
   @GwpTacticsPure Σ unit false wp.

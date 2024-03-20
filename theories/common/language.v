@@ -259,6 +259,19 @@ Section language.
     PureExec φ n (K e1) (K e2).
   Proof. rewrite /PureExec; eauto using pure_step_nsteps_ctx. Qed.
 
+  Lemma PureExec_reducible σ1 φ n e1 e2 :
+    φ → PureExec φ (S n) e1 e2 → reducible (e1, σ1).
+  Proof. move => Hφ /(_ Hφ). inversion_clear 1. apply H. Qed.
+
+  Lemma PureExec_not_val `{Inhabited (language.state Λ)} φ n e1 e2 :
+    φ → PureExec φ (S n) e1 e2 → to_val e1 = None.
+  Proof.
+    intros Hφ Hex.
+    destruct (PureExec_reducible inhabitant _ _ _ _ Hφ Hex) => /=.
+    simpl in *.
+    by eapply val_stuck.
+  Qed.     
+  
   (* This is a family of frequent assumptions for PureExec *)
   Class IntoVal (e : expr Λ) (v : val Λ) :=
     into_val : of_val v = e.

@@ -184,7 +184,6 @@ Section proofs.
         * iIntros "Hl".
           wp_pures.
           wp_apply (wp_store_offset with "[$]").
-          { simpl. rewrite TCEq_eq. lra. }
           { replace (lis!!_) with (Some #false); first done.
             symmetry. erewrite Hrel'; auto.
           }
@@ -240,8 +239,7 @@ Section proofs.
     (* iDestruct "Hx" as "[Hx1 Hx2]".     *)
     iMod etc_zero.
     wp_pures.
-    wp_apply (wp_allocN with "[$]"); [|lia|].
-    { simpl. replace (0 - 0 - 0) with 0; [tc_solve|lra]. }
+    wp_apply (wp_allocN with "[$]"); [lia|].
     iIntros (l) "Hl".
     iMod etc_zero.
     wp_pure. wp_pure.

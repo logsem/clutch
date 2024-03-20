@@ -36,7 +36,8 @@ Section proof1.
     - iIntros (n1) "Hx". case_match eqn: H1.
       + (* zero for first flip *)
         wp_pures.
-        wp_apply (wp_couple_rand_constant with "[$]").
+        rewrite -(Rplus_0_r 1).
+        wp_apply (wp_couple_rand_constant _ 0 with "[$]").
         { simpl. lra. }
         iIntros (n2) "Hx".
         wp_pures.
@@ -321,7 +322,6 @@ Section proof2.
     wp_apply (wp_load with "[$Hcnt $Hz]").
     iIntros "Hcnt". wp_pures.
     wp_apply (wp_store with "[$]").
-    { simpl. apply TCEq_eq. lra. }
     iIntros "Hcnt".
     iMod etc_zero. wp_pures.
     iMod etc_zero as "Hz".

@@ -6,16 +6,85 @@ From clutch.prob_lang Require Export wp_tactics.
 
 From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws cost_models.
 From iris.prelude Require Import options.
+Set Default Proof Using "Type*".
 
 #[global] Program Instance rel_logic_wptactics_base `{!ertwpG prob_lang Σ} : @GwpTacticsBase Σ unit _ _ wp.
 Next Obligation. intros. by apply ert_wp_value. Qed.
 Next Obligation. intros. by apply ert_wp_fupd. Qed.
-Next Obligation. Admitted. (* intros. by apply ert_wp_bind. Qed. *)
+
+(** Like in [wp_tactics], but using a [CostLanguageCtx] *)
+Class EwpTacticsBind (Σ : gFunctors) (A : Type) (c : Costfun prob_lang) `{!invGS_gen hlc Σ} (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ)  := {
+    wptac_wp_bind K `{!CostLanguageCtx c K} E e Φ a :
+      gwp a E e (λ v, gwp a E (K (of_val v)) Φ ) ⊢ gwp a E (K e) Φ ;
+}.
+
+Section wp_bind_tactics.
+  Context `{EwpTacticsBind Σ A hlc gwp}.
+
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+     format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+  Lemma tac_wp_bind K `{!CostLanguageCtx (Λ := prob_lang) c (fill K)} Δ E Φ e f a :
+    f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
+    envs_entails Δ (WP e @ a; E {{ v, WP f (Val v) @ a; E {{ Φ }} }})%I →
+    envs_entails Δ (WP fill K e @ a; E {{ Φ }}).
+  Proof. rewrite envs_entails_unseal=> -> ->. by apply: wptac_wp_bind. Qed.
+End wp_bind_tactics.
+
+Ltac wp_bind_core K :=
+  lazymatch eval hnf in K with
+  | [] => idtac
+  | _ => eapply (tac_wp_bind K); [simpl; reflexivity|reduction.pm_prettify]
+  end.
+
+Tactic Notation "wp_bind" open_constr(efoc) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first [ reshape_expr e ltac:(fun K e' => unify e' efoc; wp_bind_core K)
+          | fail 1 "wp_bind: cannot find" efoc "in" e ]
+  end.
+
+(** The tactic [wp_apply_core lem tac_suc tac_fail] evaluates [lem] to a
+    hypothesis [H] that can be applied, and then runs [wp_bind_core K; tac_suc H]
+    for every possible evaluation context [K].
+
+    - The tactic [tac_suc] should do [iApplyHyp H] to actually apply the hypothesis,
+      but can perform other operations in addition (see [wp_apply] and [awp_apply]
+      below).
+    - The tactic [tac_fail cont] is called when [tac_suc H] fails for all evaluation
+      contexts [K], and can perform further operations before invoking [cont] to
+      try again.
+
+    TC resolution of [lem] premises happens *after* [tac_suc H] got executed. *)
+
+Ltac wp_apply_core lem tac_suc tac_fail := first
+  [iPoseProofCore lem as false (fun H =>
+     lazymatch goal with
+     | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+         reshape_expr e ltac:(fun K e' => wp_bind_core K; tac_suc H)
+     end)
+  |tac_fail ltac:(fun _ => wp_apply_core lem tac_suc tac_fail)
+  |let P := type of lem in
+   fail "wp_apply: cannot apply" lem ":" P ].
+
+Tactic Notation "wp_apply" open_constr(lem) :=
+  wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
+                    ltac:(fun cont => fail).
+Tactic Notation "wp_smart_apply" open_constr(lem) :=
+  wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
+                    ltac:(fun cont => wp_pure _; []; cont ()).
+
+#[global] Program Instance ert_wptactics_bind `{!ertwpG prob_lang Σ} : @EwpTacticsBind Σ unit costfun _ _ wp.
+Next Obligation. intros. by apply ert_wp_bind. Qed.
 
 Section proofmode.
   Context `{!ertwpG prob_lang Σ}.
 
-  Lemma tac_wp_pure_later Δ1 Δ2 Δ3 E i K e1 e2 φ Φ a r1  :
+  Lemma tac_wp_pure_cost Δ1 Δ2 Δ3 E i K `{!CostLanguageCtx costfun (fill K)} e1 e2 φ Φ a r1 :
     PureExec φ 1 e1 e2 →
     φ →
     MaybeIntoLaterNEnvs 1 Δ1 Δ2 →
@@ -33,30 +102,68 @@ Section proofmode.
     iIntros "[>[? ?] HΔ3]".
     pose proof @pure_exec_fill.
     iApply wp_pure_step_later; [done|].
-    erewrite cost_fill.
-    - iFrame. iModIntro.
-      iApply Hcnt.
-      iApply "HΔ3".
-      iFrame.
-    - 
-  Admitted.
+    assert (to_val e1 = None).
+    { eapply PureExec_not_val; [apply Hφ|done]. }
+    erewrite cost_fill; [|done].
+    iFrame. iModIntro.
+    iApply Hcnt.
+    iApply ("HΔ3" with "[$]").
+  Qed.
+
+  Lemma tac_wp_pure_no_cost Δ1 Δ2 E K `{!CostLanguageCtx costfun (fill K)} e1 e2 φ Φ a :
+    PureExec φ 1 e1 e2 →
+    φ →
+    cost e1 = 0%R →
+    MaybeIntoLaterNEnvs 1 Δ1 Δ2 →
+    envs_entails Δ2 (WP (fill K e2) @ a; E {{ Φ }}) →
+    envs_entails Δ1 (WP (fill K e1) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ? Hφ Hcost ? HΔ'. rewrite into_laterN_env_sound /=.
+    pose proof @pure_exec_fill.
+    rewrite HΔ'.
+    iIntros "He2".
+    iMod etc_zero as "Hz".
+    iApply wp_pure_step_later; [done|].
+    assert (to_val e1 = None).
+    { eapply PureExec_not_val; [apply Hφ|done]. }
+    rewrite cost_fill // Hcost.
+    iFrame.
+  Qed.
 
 End proofmode.
 
-Tactic Notation "wp_pure" open_constr(efoc) :=
-  let solve_credit _ :=
-    iAssumptionCore || fail "wp_pure: cannot find credit '⧖ ?'" in
-  (* let decompose_credit := *)
-  (*   (* Tactics trying to solve the goal that says we have enough credits.  The current tactic works *)
-  (*      when the credit has the shape [⧖ (nnreal_nat (S n))]. Other patterns could probably be useful. *) *)
-  (*   (rewrite {1}[nnreal_nat _]/= {1}nnreal_nat_Sn) in *)
+(** Pure reduction w/o cost  *)
+Tactic Notation "wp_pure_no_cost" open_constr(efoc) :=
   iStartProof;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       let e := eval simpl in e in
       reshape_expr e ltac:(fun K e' =>
         unify e' efoc;
-        eapply (tac_wp_pure_later _ _ _ _ _ K e');
+        eapply (tac_wp_pure_no_cost _ _ _ K e');
+        [tc_solve                       (* PureExec *)
+        |try solve_vals_compare_safe    (* The pure condition for PureExec -- handles trivial goals, including [vals_compare_safe] *)
+        |(reflexivity || fail "wp_pure_no_cost: could not prove that cost of " e " is 0")
+        |tc_solve                       (* IntoLaters *)
+        |pm_reduce; wp_finish           (* new goal *)
+      ])
+    || fail "wp_pure_no_cost: cannot find" efoc "in" e "or" efoc "is not a redex"
+  end.
+
+Tactic Notation "wp_pure_no_cost" :=
+  wp_pure_no_cost _.
+
+(** Pure reduction w/potential cost  *)
+Tactic Notation "wp_pure_cost" open_constr(efoc) :=
+  let solve_credit _ :=
+    iAssumptionCore || fail "wp_pure_cost: cannot find credit '⧖ ?'" in
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+      let e := eval simpl in e in
+      reshape_expr e ltac:(fun K e' =>
+        unify e' efoc;
+        eapply (tac_wp_pure_cost _ _ _ _ _ K e');
         [(* [PureExec φ] *)
           tc_solve
         | (* φ *)
@@ -68,31 +175,25 @@ Tactic Notation "wp_pure" open_constr(efoc) :=
         | (* enough credits *)
           simpl; try lra
         | (* new environment *)
-          done
+          simpl; done
         | (* new goal *)
           pm_reduce; wp_finish; rewrite [⧖ _]/=
         ])
-    || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
+    || fail "wp_pure_cost: cannot find" efoc "in" e "or" efoc "is not a redex"
   end.
 
-Tactic Notation "wp_pure" :=
-  wp_pure _.
+Tactic Notation "wp_pure_cost" :=
+  wp_pure_cost _.
 
-Ltac wp_pures :=
-  iStartProof;
-  first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
-          progress repeat (wp_pure _; [])
-        | wp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
-    ].
-
-Tactic Notation "wp_pure" open_constr(efoc) "with" open_constr(credit) :=
+(** Pure reduction w/cost and specific credit assumption  *)
+Tactic Notation "wp_pure_cost" open_constr(efoc) "with" open_constr(credit) :=
   iStartProof;
   lazymatch goal with
   | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
       let e := eval simpl in e in
       reshape_expr e ltac:(fun K e' =>
         unify e' efoc;
-        eapply (tac_wp_pure_later _ _ _ _ credit K e');
+        eapply (tac_wp_pure_cost _ _ _ _ credit K e');
         [(* [PureExec φ] *)
           tc_solve
         | (* φ *)
@@ -100,7 +201,7 @@ Tactic Notation "wp_pure" open_constr(efoc) "with" open_constr(credit) :=
         | (* MaybeIntoLaterNEnvs *)
           tc_solve
         | (* credit resource *)
-          (done || fail "wp_pure: cannot find rcedit " credit)
+          (done || fail "wp_pure_cost: cannot find rcedit " credit)
         | (* enough credits -- postpone *)
           simpl; try lra
         | (* new environment *)
@@ -108,11 +209,44 @@ Tactic Notation "wp_pure" open_constr(efoc) "with" open_constr(credit) :=
         | (* new goal *)
           pm_reduce; wp_finish; rewrite [⧖ _]/=
         ])
-    || fail "wp_pure: cannot find" efoc "in" e "or" efoc "is not a redex"
+    || fail "wp_pure_cost: cannot find" efoc "in" e "or" efoc "is not a redex"
   end.
 
+Tactic Notation "wp_pure_cost" "with" open_constr(credit) :=
+  wp_pure_cost _ with credit.
+
+(** Applies [tac1] if the head redex has *no* cost and [tac2] if it *does*   *)
+Tactic Notation "wp_has_cost" open_constr(efoc) "with" tactic3(tac1) "," tactic3(tac2) :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+      let e := eval simpl in e in
+        reshape_expr e ltac:(fun K e' =>
+                               unify e' efoc;
+                               lazymatch eval hnf in (cost e') with
+                               | R0 => tac1
+                               | _ => tac2
+                               end)
+        || fail "wp_has_cost: cannot find" efoc "in" e "or" efoc "is not a redex"
+  end.
+
+Tactic Notation "wp_pure" open_constr(efoc) :=
+  wp_has_cost efoc with wp_pure_no_cost, wp_pure_cost.
+
+Tactic Notation "wp_pure" :=
+  wp_pure _.
+
+Tactic Notation "wp_pure" open_constr(efoc) "with" open_constr(credit) :=
+  wp_pure_cost efoc with credit.
 Tactic Notation "wp_pure" "with" open_constr(credit) :=
-  wp_pure _ with credit.
+  wp_pure_cost with credit.
+
+Ltac wp_pures :=
+  iStartProof;
+  first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
+          progress repeat (wp_pure _; [])
+        | wp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
+    ].
 
 (** Unlike [wp_pures], the tactics [wp_rec] and [wp_lam] should also reduce
     lambdas/recs that are hidden behind a definition, i.e. they should use
@@ -189,7 +323,7 @@ Tactic Notation "wp_alloc" := iChip; wp_apply (wp_alloc with "[$]").
 Tactic Notation "wp_load" := iChip; wp_apply (wp_load with "[$]").
 Tactic Notation "wp_store" := iChip; wp_apply (wp_store with "[$]").
 
-Section tests.  
+Section tests.
   Context `{!ert_clutchGS Σ Cost1}.
 
   #[local] Lemma test_wp_pure (r : R) :
@@ -213,11 +347,11 @@ Section tests.
   #[local] Lemma test_multiple r :
     {{{ ⧖ 2 ∗ ⧖ r }}} #2 + #2 + #2 {{{ RET #6; ⧖ r }}}.
   Proof.
-    iIntros (?) "[Hc Hr] H".    
-    wp_pure with "Hc".
-    wp_pure with "Hc".
+    iIntros (?) "[Hc Hr] H".
+    wp_pure_cost with "Hc".
+    wp_pure_cost with "Hc".
     by iApply "H".
-  Qed.   
+  Qed.
 
   #[local] Lemma test_wp_pures r:
     (0 <= r)%R →
@@ -244,7 +378,8 @@ Section tests.
     iIntros (?) "Hc H".
     (* first variant *)
     iChip "Hc" as "H1".
-    wp_apply (wp_alloc with "[H1]") => //.
+    wp_bind (ref #42)%E.
+    wp_apply (wp_alloc with "[$]").
     iIntros (?) "Hl".
     wp_pures.
     (* second variant *)
@@ -272,3 +407,26 @@ Section tests.
   Qed.
 
 End tests.
+
+
+Section testsapp.
+  Context `{!ert_clutchGS Σ CostApp}.
+
+  #[local] Lemma test_app_wp_pure (r : R) :
+    {{{ ⧖ r }}} #2 + #2 {{{ RET #4; ⧖ r }}}.
+  Proof.
+    iIntros (?) "Hx Hp".
+    wp_pure.
+    by iApply "Hp".
+  Qed.
+
+  #[local] Lemma test_app_wp_pure_app (r : R) :
+    {{{ ⧖ 1 }}} #2 + (λ: "x", "x") #2 {{{ RET #4; ⧖ 0 }}}.
+  Proof.
+    iIntros (?) "Hx Hp".
+    wp_pures.
+    assert (1 - 1 = 0)%R as -> by lra.
+    by iApply "Hp".
+  Qed.
+
+End testsapp.
