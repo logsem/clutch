@@ -25,7 +25,7 @@ Defined.
   @GwpTacticsBase Σ unit _ _ wp.
 Next Obligation. intros. by apply rwp_value. Qed.
 Next Obligation. intros. by apply rwp_fupd. Qed.
-Next Obligation. intros. by apply rwp_bind. Qed.
+Next Obligation. intros. by apply rwp_bind, _. Qed.
 
 #[global] Program Instance rel_logic_wptactics_pure `{!tprG δ Σ} :
   @GwpTacticsPure Σ unit false wp.
