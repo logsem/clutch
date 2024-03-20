@@ -27,8 +27,9 @@ Section proofs.
   Proof.
     iIntros (Φ) "Hx HΦ".
     iLöb as "IH" forall (Φ) "Hx HΦ".
-    rewrite /geo. 
-    wp_pures. simpl. replace (2-1) with 1; last (simpl;lra).
+    rewrite /geo.
+    wp_pures.                     
+    replace (2-1) with 1 by lra.
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
                 (λ x, if (bool_decide (# (fin_to_nat x) = # 0))
                           then 0
@@ -36,11 +37,11 @@ Section proofs.
     - intros; case_bool_decide; lra.
     - simpl. rewrite SeriesC_finite_foldr.
       simpl. lra.
-    - iIntros (n) "Hx". wp_pure.
-      { case_bool_decide; lra. }
+    - iIntros (n) "Hx".
+      wp_pure.
       case_bool_decide; simpl; wp_pure.
       + iModIntro. iApply "HΦ". done.
-      + replace (2-_-_) with 2; last (simpl;lra). iApply ("IH" with "[$]"). done.
+      + iApply ("IH" with "[$]"). done.
   Qed.
       
 End proofs.
@@ -140,12 +141,11 @@ Section generalized.
     - intros; case_bool_decide; lra.
     - simpl. rewrite Rplus_0_l. apply tc_split. 
     - iIntros (v) "Hx". wp_pure.
-      { case_bool_decide; lra. }
       case_bool_decide as H1; case_bool_decide as H2; wp_pure.
       + iModIntro. iApply "HΦ". done.
       + exfalso. apply INR_lt in H1. lia.
       + exfalso. apply H1. apply lt_INR. lia.
-      + replace (tc -_-_) with tc; last (simpl;lra). iApply ("IH" with "[$]"). done.
+      + iApply ("IH" with "[$]"). done.
   Qed.
 
 End generalized.

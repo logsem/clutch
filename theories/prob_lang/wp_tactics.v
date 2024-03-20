@@ -11,9 +11,12 @@ Set Default Proof Using "Type*".
 Class GwpTacticsBase (Σ : gFunctors) (A : Type) `{!invGS_gen hlc Σ} (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ)  := {
     wptac_wp_value E Φ v a : Φ v ⊢ gwp a E (of_val v) Φ;
     wptac_wp_fupd E Φ e a : gwp a E e (λ v, |={E}=> Φ v) ⊢ gwp a E e Φ;
-    wptac_wp_bind K E e Φ a :
-      gwp a E e (λ v, gwp a E (fill K (of_val v)) Φ ) ⊢ gwp a E (fill K e) Φ ;
-}.
+  }.
+
+Class GwpTacticsBind (Σ : gFunctors) (A : Type) `{!invGS_gen hlc Σ} (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ)  := {
+    wptac_wp_bind K `{!LanguageCtx K} E e Φ a :
+      gwp a E e (λ v, gwp a E (K (of_val v)) Φ ) ⊢ gwp a E (K e) Φ
+}. 
 
 Class GwpTacticsPure Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ) := {
   wptac_wp_pure_step E e1 e2 φ n Φ a :
@@ -85,13 +88,23 @@ Section wp_tactics.
     envs_entails Δ (|={E}=> Φ v) → envs_entails Δ (WP (of_val v) @ a; E {{ Φ }}).
   Proof. rewrite envs_entails_unseal=> ->. by rewrite -wptac_wp_fupd -wptac_wp_value. Qed.
 
+End wp_tactics.
+
+Section wp_bind_tactics.
+  Context `{GwpTacticsBind Σ A hlc gwp}.
+
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+     format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.  
+  
   Lemma tac_wp_bind K Δ E Φ e f a :
     f = (λ e, fill K e) → (* as an eta expanded hypothesis so that we can `simpl` it *)
     envs_entails Δ (WP e @ a; E {{ v, WP f (Val v) @ a; E {{ Φ }} }})%I →
     envs_entails Δ (WP fill K e @ a; E {{ Φ }}).
   Proof. rewrite envs_entails_unseal=> -> ->. by apply: wptac_wp_bind. Qed.
-
-End wp_tactics.
+End wp_bind_tactics.   
 
 (* TODO: find a better way so that we do not need to have a case for both [wp] and [twp]... *)
 Tactic Notation "wp_expr_eval" tactic3(t) :=
@@ -270,9 +283,7 @@ Tactic Notation "wp_smart_apply" open_constr(lem) :=
                     ltac:(fun cont => wp_pure _; []; cont ()).
 
 Section heap_tactics.
-
-  Context `{GwpTacticsBase Σ A hlc gwp, !GwpTacticsHeap Σ A laters gwp}.
-
+  Context `{GwpTacticsBase Σ A hlc gwp, GwpTacticsBind Σ A hlc gwp, !GwpTacticsHeap Σ A laters gwp}.
 
   Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
     (at level 20, e, Φ at level 200, only parsing) : bi_scope.
