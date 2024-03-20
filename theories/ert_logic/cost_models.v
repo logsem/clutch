@@ -1,14 +1,7 @@
 From clutch.ert_logic Require Import ert_weakestpre problang_wp.
+#[local] Open Scope R.
 
-(** Cost model for where all steps have cost [1]  *)
-Program Definition Cost1 {Λ} : Costfun Λ := (Build_Costfun _ (λ _, 1) _).
-Next Obligation. intros; simpl. lra. Qed.
-
-Instance CostLanguageCtx_Cost1_prob_lang (K : ectx prob_ectx_lang)  :
-  CostLanguageCtx Cost1 (fill K).
-Proof. constructor; [apply _|done]. Qed.
-
-(** Utility function  *)
+(** Utility functions *)
 Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
   let noval (e' : expr) :=
     match e' with Val _ => Some $ f e | _ => at_redex f e' end in
@@ -57,8 +50,8 @@ Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
   end.
 
 Lemma at_redex_pos (f : expr → R) e (x : R):
-  (∀ e, 0 <= f e)%R →
-  at_redex f e = Some x -> (0 <= x)%R.
+  (∀ e, 0 <= f e) →
+  at_redex f e = Some x -> 0 <= x.
 Proof.
   intros Hbound Har.
   revert x Har. induction e; simpl; intros; try done; repeat case_match; naive_solver.
@@ -86,7 +79,49 @@ Proof.
   + by eapply IHK.
 Qed.
 
-(** Cost model for [App]  *)
+(** Combinator for building cost functions at redex position *)
+Definition at_redex_cost f e := default 0%R (at_redex f e).
+Arguments at_redex_cost /.
+
+Lemma at_redex_cost_fill K (f : expr → R) (e : expr) :
+  to_val e = None → at_redex_cost f (fill K e) = at_redex_cost f e.
+Proof.
+  intros Hv => /=.
+  destruct (at_redex f e) eqn:He.
+  { by erewrite at_redex_fill. }
+  by erewrite at_redex_fill_None.
+Qed.
+
+Lemma at_redex_cost_nonneg (f : expr → R) :
+  (∀ e, 0 <= f e) → (∀ e, 0 <= at_redex_cost f e).
+Proof.
+  intros Hf e => /=.
+  destruct (at_redex f e) eqn:He; [|done].
+  by eapply at_redex_pos.
+Qed.
+
+Instance CostLanguageCtx_at_redex_Cost C f K :
+  TCEq C.(cost) (at_redex_cost f) →
+  CostLanguageCtx C (fill K).
+Proof.
+  intros Hc.
+  constructor; [apply _|].
+  intros.
+  rewrite Hc.
+  by eapply at_redex_cost_fill.
+Qed.
+
+(** * Cost models *)
+
+(** Cost [1] for all steps  *)
+Program Definition Cost1 {Λ} : Costfun Λ := Build_Costfun _ (λ _, 1) _.
+Next Obligation. intros; simpl. lra. Qed.
+
+Instance CostLanguageCtx_Cost1_prob_lang (K : ectx prob_ectx_lang)  :
+  CostLanguageCtx Cost1 (fill K).
+Proof. constructor; [apply _|done]. Qed.
+
+(** Cost [1] model for [App]  *)
 Definition cost_app (e : expr) : R :=
   match e with
   | App _ _ => 1
@@ -94,24 +129,10 @@ Definition cost_app (e : expr) : R :=
   end.
 
 Program Definition CostApp : Costfun prob_lang :=
-  Build_Costfun _ (λ e, match at_redex cost_app e with None => 0 | Some r => r end) _.
-Next Obligation.
-  intros. simpl. case_match.
-  - eapply at_redex_pos; [|done]. intros; rewrite /cost_app. case_match; lra.
-  - done.
-Qed.
+  Build_Costfun _ (at_redex_cost cost_app) _.
+Next Obligation. eapply at_redex_cost_nonneg. intros [] => /=; lra. Qed.
 
-Instance CostLanguageCtx_CostApp_prob_lang (K : ectx prob_ectx_lang)  :
-  CostLanguageCtx CostApp (fill K).
-Proof.
-  constructor; [apply _|].
-  intros e Hv => /=.
-  destruct (at_redex _ e) eqn:He.
-  { by erewrite at_redex_fill. }
-  by erewrite at_redex_fill_None.
-Qed.
-
-(** Cost model for [rand] *)
+(** Cost [1] model for [rand] *)
 Definition cost_rand (e : expr) : R :=
   match e with
   | Rand _ _ => 1
@@ -119,23 +140,8 @@ Definition cost_rand (e : expr) : R :=
   end.
 
 Program Definition CostRand : Costfun prob_lang :=
-  Build_Costfun _ (λ e, match at_redex cost_rand e with None => nnreal_zero | Some r => r end) _.
-Next Obligation.
-  intros. simpl. case_match.
-  - eapply at_redex_pos; [|done]. intros; rewrite /cost_rand. case_match; lra.
-  - done.
-Qed.
-
-Instance CostLanguageCtx_CostRand_prob_lang (K : ectx prob_ectx_lang)  :
-  CostLanguageCtx CostRand (fill K).
-Proof.
-  constructor; [apply _|].
-  intros e Hv => /=.
-  destruct (at_redex _ e) eqn:He.
-  { by erewrite at_redex_fill. }
-  by erewrite at_redex_fill_None.
-Qed.
-
+  Build_Costfun _ (at_redex_cost cost_rand) _.
+Next Obligation. eapply at_redex_cost_nonneg. intros [] => /=; lra. Qed.
 
 (** Entropy cost model for [rand] *)
 Definition cost_entropy base (e : expr) : R :=
@@ -145,10 +151,11 @@ Definition cost_entropy base (e : expr) : R :=
   end.
 
 Program Definition CostEntropy base (_ : (1 < base)%R) : Costfun prob_lang :=
-  Build_Costfun _ (λ e, match at_redex (cost_entropy base) e with None => nnreal_zero | Some r => r end) _.
+  Build_Costfun _ (at_redex_cost (cost_entropy base)) _.
 Next Obligation.
-  intros. simpl. case_match => //.
-  eapply at_redex_pos; [|done]. intros; rewrite /cost_entropy. case_match; try lra.
+  intros ???.
+  apply at_redex_cost_nonneg => e'.
+  rewrite /cost_entropy.
   repeat (case_match ; try lra). simplify_eq.
   assert (1 <= (S (Z.abs_nat n)))%R.
   { rewrite -INR_1. apply le_INR. lia. }
@@ -166,16 +173,6 @@ Next Obligation.
     apply ln_increasing ; lra.
   }
   apply Rcomplements.Rdiv_le_0_compat.
-  1: by apply ln_0_le.
-  by apply ln_0_lt.
-Qed.
-
-Instance CostLanguageCtx_CostEntropy_prob_lang base (b1 : (1 < base)%R) (K : ectx prob_ectx_lang)  :
-  CostLanguageCtx (CostEntropy base b1) (fill K).
-Proof.
-  constructor; [apply _|].
-  intros e Hv => /=.
-  destruct (at_redex _ e) eqn:He.
-  { by erewrite at_redex_fill. }
-  by erewrite at_redex_fill_None.
+  - by apply ln_0_le.
+  - by apply ln_0_lt.
 Qed.
