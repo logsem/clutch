@@ -304,11 +304,7 @@ Tactic Notation "iChip" constr(H1) "as" constr(H2) :=
 
 Tactic Notation "iChip" constr(H1) :=
   let Htmp := iFresh in
-  eapply (tac_chip H1 Htmp);
-  [iAssumptionCore || fail "iChip: cannot find credit '⧖ ?'"
-  | (* [1 <= r] *)
-    simpl; try lra
-  |done|done|].
+  iChip H1 as Htmp.  
 
 Tactic Notation "iChip" :=
   let Htmp := iFresh in
@@ -319,9 +315,49 @@ Tactic Notation "iChip" :=
   |done|done|].
 
 (** Some very primitive heap tactics  *)
-Tactic Notation "wp_alloc" := iChip; wp_apply (wp_alloc with "[$]").
-Tactic Notation "wp_load" := iChip; wp_apply (wp_load with "[$]").
-Tactic Notation "wp_store" := iChip; wp_apply (wp_store with "[$]").
+Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
+  let Htmp := iFresh in
+  iPoseProof wp_alloc as Htmp;
+  simpl;
+  (rewrite bool_decide_eq_true_2 //; []
+   || rewrite bool_decide_eq_false_2 //; []);
+  lazymatch eval hnf in (cost (ref #42)) with
+  | R0 => idtac
+  | _ => iChip
+  end;
+  wp_apply (Htmp with "[$]");
+  iClear Htmp;
+  iIntros (l) H.
+Tactic Notation "wp_alloc" ident(l) :=
+  wp_alloc l as "?".
+Tactic Notation "wp_alloc" :=
+  let l := fresh in wp_alloc l as "?".
+
+Tactic Notation "wp_store" :=
+  let Htmp := iFresh in
+  iPoseProof wp_store as Htmp;
+  simpl;
+  (rewrite bool_decide_eq_true_2 //; []
+   || rewrite bool_decide_eq_false_2 //; []);
+  lazymatch eval hnf in (cost (#1 <- #42)%E) with
+  | R0 => idtac
+  | _ => iChip
+  end;
+  wp_apply (Htmp with "[$]");
+  iClear Htmp.
+
+Tactic Notation "wp_load" :=
+  let Htmp := iFresh in
+  iPoseProof wp_load as Htmp;
+  simpl;
+  (rewrite bool_decide_eq_true_2 //; []
+   || rewrite bool_decide_eq_false_2 //; []);
+  lazymatch eval hnf in (cost (! #1)%E) with
+  | R0 => idtac
+  | _ => iChip
+  end;
+  wp_apply (Htmp with "[$]");
+  iClear Htmp.
 
 Section tests.
   Context `{!ert_clutchGS Σ Cost1}.
@@ -372,37 +408,15 @@ Section tests.
     by iApply "Hp".
   Qed.
 
-  #[local] Lemma test_wp_apply :
-    {{{ ⧖ 7 }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
-  Proof.
-    iIntros (?) "Hc H".
-    (* first variant *)
-    iChip "Hc" as "H1".
-    wp_bind (ref #42)%E.
-    wp_apply (wp_alloc with "[$]").
-    iIntros (?) "Hl".
-    wp_pures.
-    (* second variant *)
-    iChip "Hc".
-    wp_apply (wp_store with "[$]").
-    iIntros "Hl".
-    wp_pures.
-    (* third variant *)
-    iChip.
-    wp_apply (wp_load with "[$]").
-    iIntros "_".
-    by iApply "H".
-  Qed.
-
   #[local] Lemma test_wp_heap :
     {{{ ⧖ 7 }}} let: "x" := ref #42 in "x" <- #43;; !"x" {{{ RET #43; True }}}.
   Proof.
     iIntros (?) "Hc H".
-    wp_alloc ; iIntros (?) "Hl".
+    wp_alloc l.
     wp_pures.
-    wp_store ; iIntros "Hl".
+    wp_store; iIntros "Hl".
     wp_pures.
-    wp_load ; iIntros "Hl".
+    wp_load; iIntros "Hl".
     by iApply "H".
   Qed.
 
@@ -429,4 +443,17 @@ Section testsapp.
     by iApply "Hp".
   Qed.
 
+  #[local] Lemma test_app_wp_heap (r : R) :
+    {{{ ⧖ 3 }}} let: "x" := ref #42 in "x" <- #43;; !"x" + (λ: "x", "x") #2 {{{ RET #45; ⧖ 0 }}}.
+  Proof.
+    iIntros (?) "Hx Hp".
+    wp_alloc l as "Hl".
+    wp_pures.
+    wp_store; iIntros "Hl".
+    wp_pures.
+    wp_load; iIntros "Hl".
+    wp_pures.
+    assert (3 - 1 - 1 - 1 = 0)%R as -> by lra.
+    by iApply "Hp".
+  Qed. 
 End testsapp.
