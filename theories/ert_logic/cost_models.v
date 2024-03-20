@@ -19,7 +19,7 @@ Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
       | (Val v)    => noval e1
       | _          => at_redex f e2
       end
-  | UnOp op e      => noval e
+  | UnOp op e1      => noval e1
   | BinOp op e1 e2 =>
       match e2 with
       | Val v      => noval e1
@@ -106,13 +106,13 @@ Instance CostLanguageCtx_CostApp_prob_lang (K : ectx prob_ectx_lang)  :
   CostLanguageCtx CostApp (fill K).
 Proof.
   constructor; [apply _|].
-  intros e => /=.
+
+  (* Hmm... now the statement is at least not false ... *)
+
+  intros e Hv => /=.
   destruct (at_redex _ e) eqn:He.
   { by erewrite at_redex_fill. }
   case_match; [|done].
-  simpl in H.
-
-  (* this does not seem right? *)
 
 Admitted.
 

@@ -25,7 +25,7 @@ Arguments Costfun Λ : clear implicits.
 
 Class CostLanguageCtx {Λ} (cf : Costfun Λ) (K : expr Λ → expr Λ) := {
   cost_languagectx :: LanguageCtx (Λ := Λ) K;
-  cost_fill e : cost (K e) = cost e;
+  cost_fill e : to_val e = None → cost (K e) = cost e;
 }.
 
 Class ertwpG (Λ : language) (Σ : gFunctors) := ErtwpG {
@@ -217,7 +217,7 @@ Section ERM.
       + iPureIntro.
         (* TODO: factor this out into some lemma(s)... *)
         etrans; [| apply H1].
-        rewrite cost_fill.
+        rewrite cost_fill //.
         apply Rplus_le_compat_l.
         transitivity (SeriesC (λ '(e,σ), (prim_step (K o) σ' (K e, σ) * x3 (K e, σ))%R));
           last first.
