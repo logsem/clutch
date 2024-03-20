@@ -479,8 +479,8 @@ Section accounting.
     (L ≡ₚ (g <$> L)) ->
     (foldr Rplus 0%R $ map f $ L) = (foldr Rplus 0%R $ map f $ map g $ L).
   Proof.
-    Search foldr Permutation.
-    Locate foldr_permutation.
+    (* Search foldr Permutation.
+    Locate foldr_permutation. *)
   Admitted.
 
 
@@ -526,30 +526,81 @@ Section accounting.
 *)
 
 
+  Definition tc_distr_nats A B x0 xs (index : nat) : R
+    := ((tc_quicksort A B ∘ (index_to_rank_nat (x0 :: xs))) index +
+        (tc_quicksort A B ∘ (reverse_order (seq 0%nat (length (x0 :: xs)))) ∘ (index_to_rank_nat (x0 :: xs))) index)%R.
 
   (* The thing we're going to plug into advanced composition *)
-  (* IN THEORY: this quantity of time credit should be good enough to finish the recursive calls, plus whatever extra stuff we
-     have lying around from the pivot term *)
-  Definition tc_distr A B xs (index : fin (S (length xs - 1)%nat)) : R
-    := (tc_quicksort A B (index_to_rank_nat xs (fin_to_nat index)) +
-        tc_quicksort A B (reverse_order (seq 0%nat (length xs)) (index_to_rank_nat xs (fin_to_nat index))))%R.
+  Definition tc_distr A B x0 xs (index:  fin (S (Z.to_nat (length (x0 :: xs) - 1)))) : R
+    := (tc_distr_nats A B x0 xs ∘ fin_to_nat) index.
+
+  Lemma foldr_reduction_1 f X :
+     (foldr (Rplus ∘ f ∘ index_to_rank_nat X) 0 (seq 0 (length X)))%R
+   = (foldr (Rplus ∘ f ) 0 (seq 0 (length X)))%R.
+  Proof. Admitted.
+
+  Lemma foldr_reduction_2 f (X : list Z) :
+     (foldr (Rplus ∘ f ∘ reverse_order (seq 0 (length X))) 0%R (seq 0 (length X)))%R
+   = (foldr (Rplus ∘ f) 0%R (seq 0 (length X)))%R.
+  Proof. Admitted.
+
 
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
-  (* FIXME: Change all above to be reals, and remove the map nonneg *)
-  Lemma tc_distr_equiv A B (xs : list Z) (HL : (0 < length xs)%nat)
-    : (SeriesC (fun s : fin (S (length xs - 1)%nat) => 1 / (S (length xs - 1)%nat) * (tc_distr A B xs s)))%R =
-        (2 * (foldr Rplus 0%R $ map (fun i => (tc_quicksort A B i)) $ (seq 0%nat (length xs)%nat)) / (length xs))%R.
+  Lemma tc_distr_equiv A B x0 xs':
+  (SeriesC (λ n : fin (S (Z.to_nat (length (x0 :: xs') - 1))),
+             1 / S (Z.to_nat (length (x0 :: xs') - 1)) * tc_distr A B x0 xs' n))%R =
+        (2 * foldr Rplus 0 (map (λ n : nat, tc_quicksort A B n) (seq 0 (S (length xs')))) / S (length xs'))%R.
   Proof.
-  (* This will take several steps. Two of the steps involve a series (or fold) being invariant under a bijection:
-      - one bijection eliminates the index_to_rank from tc_quicksort
-      - another bijection
+    (* 1. Simplify everything that we can, and get rid of the / (S length xs') terms *)
+    Opaque seq.
+    apply (Rmult_eq_reg_r (S (length xs'))); last admit.
+    (* Cancel on the RHS *)
+    repeat rewrite Rdiv_def.
+    rewrite Rmult_assoc Rinv_l; last admit.
+    rewrite Rmult_1_r.
+    (* Cancel on the LHS *)
+    rewrite Rmult_comm.
+    rewrite SeriesC_scal_l.
+    rewrite -Rmult_assoc Rmult_1_l.
+    simpl length.
+    replace ((S (length xs')) * (/ (S (Z.to_nat ((S (length xs')) - 1)))))%R with 1%R; last first.
+    { rewrite Nat2Z.inj_succ.
+      replace (Z.to_nat ((Z.succ (Z.of_nat (length xs'))) - 1)) with (length xs') by lia.
+      rewrite Rinv_r; first lra.
+      admit.
+    }
+    rewrite Rmult_1_l.
 
-    The proof will convert through three forms:
-      - A SeriesC over fin type       (form of adv comp)
-      - A fold over fin_enum
-      - A fold over seq               (form of tc_quicksort def)
-    We can do the bijection steps at any of them-- Lemmas above seem easiest to prove in the last form.
-   *)
+    (* 2. Convert the series into a foldr, simpl *)
+    rewrite SeriesC_finite_foldr.
+    rewrite /tc_distr.
+    replace (foldr
+               (Rplus ∘ (λ index, (tc_distr_nats A B x0 xs' ∘ fin_to_nat) index))
+               0%R (enum (fin (S (Z.to_nat (S (length xs') - 1))))))%R
+       with (foldr
+               (Rplus ∘ (tc_distr_nats A B x0 xs'))
+               0%R (seq 0%nat (S (Z.to_nat (S (length xs') - 1)))))%R;
+      last first.
+    { admit. }
+    replace (S (Z.to_nat (S (length xs') - 1)))%nat with (S (length xs')) by lia.
+    remember (x0 :: xs') as X.
+    replace (S (length xs')) with (length X); last (rewrite HeqX; simpl length; done).
+
+    (* 3. Split the distr series into two sums *)
+    replace (foldr (Rplus ∘ tc_distr_nats A B x0 xs') 0%R (seq 0 (length X)))%R
+       with (foldr (Rplus ∘ tc_quicksort A B ∘ (index_to_rank_nat X)) 0%R (seq 0%nat (length X)) +
+             foldr (Rplus ∘ tc_quicksort A B ∘ (reverse_order (seq 0 (length X))) ∘ (index_to_rank_nat X)) 0%R (seq 0%nat (length X)))%R;
+
+      last first.
+    { admit. }
+
+    (* 4. Rewrite the reversed sum and combine to eliminate the factor of 2 *)
+    do 2 rewrite foldr_reduction_1.
+    rewrite foldr_reduction_2.
+
+    (* 5. Combine *)
+    do 2 rewrite -foldr_fmap.
+    lra.
   Admitted.
 
 End accounting.
@@ -2141,35 +2192,32 @@ Section program.
     repeat (wp_pure; eauto; rewrite Rminus_0_r).
     (* Start spending qsC *)
     rewrite /qsC.
-    destruct xs as [|xs'].
+    destruct xs as [|x0 xs'] eqn:Hxs.
     { (* Empty list *)
       rewrite tc_quicksort_unfold /= /tc_base.
       simpl. wp_pures. iApply "hφ". iExists _. iPureIntro. eauto.
     }
-    simpl length.
     rewrite tc_quicksort_unfold.
-    iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs))) ∗
-             ⧖ (2 * (foldr Rplus 0%R (map (λ n : nat, tc_quicksort qsA qsB n) (seq 0 (S (length xs))))) / (S (length xs))))%I with "[Hcr]" as "(HcrP & Hcr)".
+    iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs'))) ∗
+             ⧖ (2 * (foldr Rplus 0%R (map (λ n : nat, tc_quicksort qsA qsB n) (seq 0 (S (length xs'))))) / (S (length xs'))))%I with "[Hcr]" as "(HcrP & Hcr)".
     { admit. }
     rewrite /tc_pivot_lin. rewrite {2}/qsA {2}/qsB.
     wp_pure with "HcrP"; first admit.
     rewrite bool_decide_false; last admit.
 
     (* Probably an easier way to do this *)
-    remember (length xs + S (length xs + S (length xs + 0)) + 1)%nat as X; destruct X; first lia.
+    remember (length xs' + S (length xs' + S (length xs' + 0)) + 1)%nat as X; destruct X; first lia.
     rewrite HeqX; clear HeqX X.
     wp_pure with "HcrP"; first admit.
     wp_pure with "HcrP"; first admit.
-    replace #(LitInt (Z.of_nat (S (length xs)) - 1)) with #(length xs); last (repeat f_equal; lia).
-
-    (* Do advanced composotion with Hcr *)
-    Check (tc_distr qsA qsB xs).
-    wp_apply (wp_couple_rand_adv_comp' _ _ (length xs) _ _ (tc_distr qsA qsB xs)).
 
 
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr qsA qsB x0 xs') with "[$]").
+    { (* Should be easy *) admit. }
+    { rewrite tc_distr_equiv. simpl cost. lra. }
 
-
-
+  (* Now tc_distr should have the right amount of credit to apply the IH
+       on the left and right lists separately. *)
 
     (*
 
