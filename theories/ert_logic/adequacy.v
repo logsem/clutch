@@ -111,7 +111,7 @@ Section adequacy.
 
   Lemma ERM_erasure_alt (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
     to_val e = None →
-    (forall e, costfun e = nnreal_one) ->
+    (forall e, cost e = nnreal_one) ->
     ERM e σ x
           (λ '(e2, σ2) (x' : nonnegreal),
             |={∅}▷=>^(S n) ⌜n <= x' + n * SeriesC (exec n (e2, σ2))⌝)
@@ -259,7 +259,7 @@ Section adequacy.
 
 
   Theorem wp_refRcoupl_step_fupdN_alt (e : expr) (σ : state) (x : nonnegreal) n φ  :
-    (forall e, costfun e = nnreal_one) ->
+    (forall e, cost e = nnreal_one) ->
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
       |={⊤,∅}=> |={∅}▷=>^n ⌜n <= x + n * SeriesC (exec n (e, σ))⌝.
   Proof.
@@ -310,7 +310,7 @@ Global Instance subG_ert_clutchGPreS (cost : Costfun prob_lang) {Σ} : subG (ert
 Proof. solve_inG. Qed.
 
 Section wp_ERT.
-  Context (cost : Costfun prob_lang).
+  Context (costfun : Costfun prob_lang).
 
 Theorem wp_ERT Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) n (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
@@ -331,7 +331,7 @@ Qed.
 
 
 Theorem wp_ERT_alt Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (forall e, cost e = nnreal_one) ->
+  (forall e : language.expr prob_lang, cost e = nnreal_one) ->
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   n <= x + n * SeriesC (exec n (e, σ)).
 Proof.
@@ -476,7 +476,7 @@ Qed.
 Theorem wp_ast Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC(λ x, lim_exec (e, σ) x) = 1.
-Proof using cost.
+Proof using costfun.
   intros. eapply finite_ert_implies_ast with x.
   intros n. by eapply wp_ERT.
 Qed.
