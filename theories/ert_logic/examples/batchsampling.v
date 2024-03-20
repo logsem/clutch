@@ -73,7 +73,7 @@ Definition coin_tosser :=
 
 Definition amortized_sample_helper :=
   (rec: "g" "_" :=
-     let: "v" := coin_tosser #0 #8 in
+     let: "v" := coin_tosser #(0%nat) #(8%nat) in
      if: "v" < #243 then "v"
      else ("g" #()))%V.
 
@@ -82,8 +82,8 @@ Definition amortized_sample:=
      let: "num" := !"lcnt" in
      (if: "num" = #0
       then
-        "mem" <- amortized_sample_helper #();;
-       "num" <- #5
+        "lmem" <- amortized_sample_helper #();;
+        "lcnt" <- #5
         (** sample 5*)
       else #()) ;;
      let: "mem" :=!"lmem" in
@@ -99,8 +99,8 @@ Definition amortized_sample_specialized (cnt mem:loc):=
      let: "num" := !#cnt in
      (if: "num" = #0
       then
-        "mem" <- amortized_sample_helper #();;
-       "num" <- #5
+        #mem <- amortized_sample_helper #();;
+        #cnt <- #5
         (** sample 5*)
       else #()) ;;
      let: "mem" :=!#mem in
@@ -119,6 +119,9 @@ Definition amortized_sample_creator :=
 Notation tc_total := (8*256/243).
 Notation tc_each := (tc_total/5).
 
+Local Lemma tc_each_better: tc_each < 8/3.
+Proof. lra. Qed.
+
 Section proof2.
   Context `{!ert_clutchGS Σ CostRand}.
   
@@ -129,8 +132,48 @@ Section proof2.
         lmem ↦ #mem ∗ ⌜(mem < 3 ^ cnt)%nat⌝ ∗
         ⧖ ((4-cnt) * tc_each)
     )%I.
-                                                                                 
 
+  Local Definition compute_num (l:nat) (r:nat) (bound:nat):nat :=
+    if (bound <=? l)%nat then (r-l)%nat
+    else if (r<=? bound)%nat then (0)%nat
+         else (r-bound)%nat.
+                        
+
+  Lemma wp_coin_tosser (current remaining:nat) E:
+    (current + 2^remaining <= 256)%nat -> (remaining <= 8)%nat -> 
+    {{{ ⧖ ((remaining) + (tc_total*(compute_num (current) (current + 2^remaining) (243)%nat)/2^remaining)) }}}
+      coin_tosser #current #remaining@E
+      {{{ (n:nat), RET #n;
+          ⌜(current <= n < current + 2^ remaining)%nat⌝ ∗
+          (if (n<?243)%nat then True else ⧖ tc_total) }}}.
+  Proof.
+  Admitted.
+                                                                                 
+  Lemma wp_amortized_sample_helper E:
+    {{{ ⧖ tc_total }}}
+      amortized_sample_helper #()@E
+      {{{ (n:nat), RET #n; ⌜(n<243)%nat⌝ }}}.
+  Proof.
+    iIntros (Φ) "Hx HΦ".
+    rewrite /amortized_sample_helper.
+    iLöb as "IH" forall (Φ) "Hx HΦ".
+    wp_pures. simpl.
+    wp_apply (wp_coin_tosser with "[Hx]").
+    - simpl. lia.
+    - lia.
+    - iApply etc_irrel; last done. simpl. lra.
+    - iIntros (n) "(%&Hx)".
+      iMod etc_zero. wp_pures. case_match.
+      + case_bool_decide; last first.
+        { exfalso. rewrite Nat.ltb_lt in H0. lia. }
+        wp_pures. iModIntro. iApply "HΦ". iPureIntro; lia.
+      + case_bool_decide.
+        { exfalso. rewrite Nat.ltb_ge in H0. lia. }
+        wp_pure. iApply ("IH" with "[$]").
+        done.
+  Qed.
+  
+  
   Lemma wp_amortized_sample_continuation cnt mem (lmem lcnt:loc) E:
     (0<cnt<=5)%nat -> (mem<3^cnt)%nat ->
     {{{ ⧖ ((5 - cnt) * tc_each) ∗ lcnt ↦ #cnt ∗ lmem ↦ #mem }}}
@@ -191,7 +234,26 @@ Section proof2.
     simpl.
     case_bool_decide.
     - (** The complicated case where we have to do the batch sampling*)
-      wp_pures. admit.
+      wp_pures. wp_apply (wp_amortized_sample_helper with "[Hx Hx']").
+      + iDestruct (etc_combine with "[$]") as "Hx". iApply etc_irrel; last done.
+        replace cnt with 0%nat; simpl; try lra.
+        by destruct cnt.
+      + iIntros (v) "%Hv".
+        iMod etc_zero as "Hz".
+        wp_apply (wp_store with "[$Hmem $Hz]").
+        iIntros "Hmem".
+        wp_pures.
+        iMod etc_zero as "Hz".
+        wp_apply (wp_store with "[$Hcnt $Hz]").
+        iIntros "Hcnt".
+        wp_pures.
+        iMod etc_zero as "Hz".
+        replace 5%Z with (Z.of_nat 5)%nat; last done.
+        wp_apply (wp_amortized_sample_continuation with "[$Hcnt $Hmem Hz]").
+        { lia. }
+        { simpl. lia. }
+        { iApply etc_irrel; last done. simpl. lra. }
+        iIntros (x) "[%?]". iApply "HΦ". iSplit; first done. done.
     - wp_pures.
       iApply (wp_amortized_sample_continuation with "[$Hcnt $Hmem Hx Hx']").
       + destruct cnt; try lia. done.
@@ -199,7 +261,7 @@ Section proof2.
       + iDestruct (etc_combine with "[$]") as "Hx". iApply etc_irrel; last done.
         lra.
       + iModIntro. iIntros (n) "[% H]". iApply "HΦ". iSplit; done.
-  Admitted.
+  Qed.
 
 
   Lemma wp_amortized_sample_creator E:
@@ -228,3 +290,4 @@ Section proof2.
     
 End proof2. 
   
+
