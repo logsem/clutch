@@ -224,7 +224,7 @@ Section proof2.
   Proof.
     iIntros (Hineq1 Hineq2 Φ) "Hx HΦ".
     rewrite /coin_tosser. iLöb as "IH" forall (current remaining Hineq1 Hineq2 Φ) "Hx HΦ".
-    iMod etc_zero. wp_pures.
+    wp_pures.
     case_bool_decide.
     - wp_pures. iModIntro. iApply "HΦ". replace remaining with 0%nat; last first.
       { destruct remaining; done. }
@@ -257,7 +257,7 @@ Section proof2.
       * simpl. f_equal. rewrite SeriesC_finite_foldr. simpl.
         eapply compute_num_split_lemma; done.
       * iIntros (n) "Hx".
-        iMod etc_zero. do 2 wp_pure.
+        do 2 wp_pure.
         replace 2%Z with (Z.of_nat 2) by lia.
         rewrite <-Nat2Z.inj_mul.
         rewrite <-Nat2Z.inj_add.
@@ -295,7 +295,7 @@ Section proof2.
     - lia.
     - iApply etc_irrel; last done. simpl. lra.
     - iIntros (n) "(%&Hx)".
-      iMod etc_zero. wp_pures. case_match.
+      wp_pures. case_match.
       + case_bool_decide; last first.
         { exfalso. rewrite Nat.ltb_lt in H0. lia. }
         wp_pures. iModIntro. iApply "HΦ". iPureIntro; lia.
@@ -315,17 +315,19 @@ Section proof2.
     {{{ (n:Z), RET #n; ⌜(0<=n<3)%Z⌝ ∗ amortized_sample_inv (amortized_sample_specialized lcnt lmem) }}}.
   Proof.
     iIntros (Hineq1 Hineq2 Φ) "(Hx & Hcnt & Hmem) HΦ".
-    iMod etc_zero as "Hz".
-    wp_apply (wp_load with "[$Hz $Hmem]").
-    iIntros "Hmem". iMod etc_zero. wp_pures. simpl.
-    iMod etc_zero as "Hz".
-    wp_apply (wp_load with "[$Hcnt $Hz]").
+    wp_apply (wp_load with "[$Hmem]").
+    { rewrite bool_decide_eq_true_2 //. }
+    iIntros "Hmem".
+    wp_pures. 
+    wp_apply (wp_load with "[$Hcnt]").
+    { rewrite bool_decide_eq_true_2 //. }
     iIntros "Hcnt". wp_pures.
-    wp_apply (wp_store with "[$]").
+    wp_apply (wp_store with "[$Hcnt]").
+    { rewrite bool_decide_eq_true_2 //. }
     iIntros "Hcnt".
-    iMod etc_zero. wp_pures.
-    iMod etc_zero as "Hz".
-    wp_apply (wp_store with "[$Hmem $Hz]").
+    wp_pures.    
+    wp_apply (wp_store with "[$Hmem]").
+    { rewrite bool_decide_eq_true_2 //. }
     iIntros "Hmem". wp_pures.
     iModIntro. iApply "HΦ".
     repeat iSplit.
@@ -357,11 +359,11 @@ Section proof2.
     iIntros (Φ) "[Hx Hinv] HΦ".
     iDestruct "Hinv" as "(%lcnt & %lmem & %cnt & %mem & -> & Hcnt & % & Hmem & % & Hx')".
     rewrite /amortized_sample_specialized.
-    iMod etc_zero as "?".
     wp_pures.
-    iMod etc_zero as "Hz".
-    wp_apply (wp_load with "[$Hz $Hcnt]").
-    iIntros "Hcnt". wp_pures.
+    wp_apply (wp_load with "[$Hcnt]").
+    { rewrite bool_decide_eq_true_2 //. }
+    iIntros "Hcnt".
+    wp_pures.
     simpl.
     case_bool_decide.
     - (** The complicated case where we have to do the batch sampling*)
@@ -370,12 +372,12 @@ Section proof2.
         replace cnt with 0%nat; simpl; try lra.
         by destruct cnt.
       + iIntros (v) "%Hv".
-        iMod etc_zero as "Hz".
-        wp_apply (wp_store with "[$Hmem $Hz]").
+        wp_apply (wp_store with "[$Hmem]").
+        { rewrite bool_decide_eq_true_2 //. }
         iIntros "Hmem".
         wp_pures.
-        iMod etc_zero as "Hz".
-        wp_apply (wp_store with "[$Hcnt $Hz]").
+        wp_apply (wp_store with "[$Hcnt]").
+        { rewrite bool_decide_eq_true_2 //. }
         iIntros "Hcnt".
         wp_pures.
         iMod etc_zero as "Hz".
@@ -383,7 +385,7 @@ Section proof2.
         wp_apply (wp_amortized_sample_continuation with "[$Hcnt $Hmem Hz]").
         { lia. }
         { simpl. lia. }
-        { iApply etc_irrel; last done. simpl. lra. }
+        { simpl. iApply etc_irrel; last done. simpl. lra. }
         iIntros (x) "[%?]". iApply "HΦ". iSplit; first done. done.
     - wp_pures.
       iApply (wp_amortized_sample_continuation with "[$Hcnt $Hmem Hx Hx']").
@@ -403,12 +405,8 @@ Section proof2.
     iIntros (Φ) "Hx HΦ".
     rewrite /amortized_sample_creator.
     wp_pures. rewrite /amortized_sample.
-    iMod etc_zero as "Hz".
-    wp_apply (wp_alloc with "[$Hz]").
-    iMod etc_zero as "Hz".
-    iIntros (lmem) "Hlmem".
-    wp_apply (wp_alloc with "[$Hz]").
-    iIntros (lcnt) "Hlcnt".
+    wp_alloc lmem as "Hlmem".
+    wp_alloc lcnt as "Hlcnt".
     wp_pures. iModIntro. iApply "HΦ".
     rewrite /amortized_sample_inv.
     iExists lcnt, lmem, 0%nat, 0%nat.

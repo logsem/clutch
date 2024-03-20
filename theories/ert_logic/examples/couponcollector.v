@@ -124,7 +124,6 @@ Section proofs.
     {{{ True }}} coupon_helper coupon' #l #(0) @ E {{{ RET #(); True}}}.
   Proof.
     iIntros (Φ) "Hx HΦ".
-    iMod etc_zero.
     rewrite /coupon_helper.
     wp_pures.
     iApply "HΦ".
@@ -147,7 +146,6 @@ Section proofs.
     iLöb as "IH" forall (true_set n lis Hn Hlis Hset Hrel Hrel' Φ) "Hx Hl HΦ".
     destruct n as [| n]; first lia.
     rewrite /coupon_helper.
-    iMod etc_zero.
     wp_pures. simpl.
     rewrite -/(INR (S _)).
     rewrite harmonic_sum_S Rmult_plus_distr_l.
@@ -164,31 +162,29 @@ Section proofs.
     - iIntros (c). case_bool_decide.
       + (** got an old coupon*)
         iIntros "Hx".
-        iMod etc_zero.
         wp_pures.
-        iMod etc_zero as "Hz".
-        wp_apply (wp_load_offset with "[$Hz $Hl]"); subst.
-        * erewrite Hrel; first done. 
+        wp_apply (wp_load_offset with "[$Hl]"); subst.        
+        * erewrite Hrel; first done.
+        * rewrite bool_decide_eq_true_2 //.
         * iIntros "Hl".
-          simpl. wp_pure. iMod etc_zero as "K".
+          simpl. wp_pure. 
           wp_apply ("IH" with "[][][][][][Hx1 Hx][Hl]"); try done.
           rewrite harmonic_sum_S Rmult_plus_distr_l.
           iApply etc_combine; iFrame. 
       + (** Got a new coupon*)
         iIntros "_".
-        iMod etc_zero.
         wp_pures.
-        iMod etc_zero as "Hz". subst.
-        wp_apply (wp_load_offset with "[$Hz $Hl]").
-        * erewrite Hrel'; auto. 
+        wp_apply (wp_load_offset with "[$Hl]").
+        * erewrite Hrel'; auto.
+        * rewrite bool_decide_eq_true_2 //.
         * iIntros "Hl".
           wp_pures.
-          wp_apply (wp_store_offset with "[$]").
+          wp_apply (wp_store_offset with "[$Hl]").
           { replace (lis!!_) with (Some #false); first done.
             symmetry. erewrite Hrel'; auto.
           }
+          { rewrite bool_decide_eq_true_2 //. }
           iIntros "Hl".
-          iMod etc_zero.
           do 3 wp_pure.
           replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last lia.
           destruct n.
@@ -237,11 +233,10 @@ Section proofs.
     (* rewrite etc_split; [|lra|]; last first. *)
     (* { eapply Rplus_le_le_0_compat; real_solver. } *)
     (* iDestruct "Hx" as "[Hx1 Hx2]".     *)
-    iMod etc_zero.
     wp_pures.
-    wp_apply (wp_allocN with "[$]"); [lia|].
+    wp_apply (wp_allocN ); [lia| |].
+    { rewrite bool_decide_eq_true_2 //. }
     iIntros (l) "Hl".
-    iMod etc_zero.
     wp_pure. wp_pure.
     rewrite -/(coupon_helper _). 
     rewrite -/(INR (S coupon')).

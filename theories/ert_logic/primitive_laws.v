@@ -17,32 +17,24 @@ Implicit Types σ : state.
 Implicit Types v : val.
 Implicit Types l : loc.
 
-(** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
-(* induction directly, but this demonstrates that we can state the expected *)
-(* reasoning principle for recursive functions, without any visible ▷. *)
-(*
-Lemma wp_rec_löb E f x e Φ Ψ :
-  □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
-     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
-  ∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}.
-Proof.
-  iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ".
-  iApply lifting.wp_pure_step_later; first done.
-  iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ".
-  iApply ("IH" with "HΨ").
-Qed.
-*)
+#[global] Instance Req_decision (r1 r2 : R) : Decision (r1 = r2).
+Proof. destruct (Rle_dec r1 r2); destruct (Rle_dec r2 r1);
+ [left | right | right |]; lra. Defined. 
 
 (** Heap *)
-
 Lemma wp_alloc E x v s :
-  TCEq x (cost (Alloc (Val v))) →
-  {{{ ⧖ x }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
+  TCEq x (cost (ref v)) →
+  {{{ if bool_decide (cost (ref v) = 0%R) then True else ⧖ x }}}
+    ref v @ s; E
+  {{{ l, RET #l; l ↦ v }}}.
 Proof.
   iIntros (-> Φ) "Hx HΦ".
+  iMod etc_zero as "Hz".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   solve_red.
+  iAssert ((⧖ (cost _))%I) with "[Hz Hx]" as "Hx".
+  { case_bool_decide as Hz; [|done]. rewrite Hz //. }
   iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert (fresh_loc σ1.(heap)) v) with "Hh") as "[? Hl]".
@@ -58,11 +50,12 @@ Lemma wp_allocN_seq x (N : nat) (z : Z) E v s:
   TCEq x (cost (AllocN #z v)) ->
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
-  {{{ ⧖ x }}}
+  {{{ if bool_decide (cost (AllocN #z v) = 0%R) then True else ⧖ x }}}
     AllocN #z v @ s; E
-  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
+  {{{ l, RET #l; [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> -> Hn Φ) "Hx HΦ".
+  iMod etc_zero as "Hz".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iSplit.
@@ -72,6 +65,8 @@ Proof.
     apply head_step_support_equiv_rel.
     econstructor; eauto.
     lia. }
+  iAssert (⧖ (cost _))%I with "[Hz Hx]" as "Hx".
+  { case_bool_decide as Hz; [|done]. rewrite Hz //. }
   iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
@@ -109,16 +104,19 @@ Proof.
 Qed.
 
 Lemma wp_load E x l dq v s :
-  TCEq x (cost (Load (Val $ LitV $ LitLoc l))) →
-  {{{ ⧖ x ∗ ▷ l ↦{dq} v }}}
-    Load (Val $ LitV $ LitLoc l) @ s; E
+  TCEq x (cost (! #l)) →
+  {{{ (if bool_decide (cost (! #l) = 0%R) then True else ⧖ x) ∗ ▷ l ↦{dq} v }}}
+    ! #l @ s; E
   {{{ RET v; l ↦{dq} v }}}.
 Proof.
   iIntros (-> Φ) "[Hx >Hl] HΦ".
+  iMod etc_zero as "Hz".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
+  iAssert (⧖ (cost _)%I) with "[Hz Hx]" as "Hx".
+  { case_bool_decide as Hz; [|done]. rewrite Hz //. }
   iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iFrame. iModIntro.
@@ -126,16 +124,19 @@ Proof.
 Qed.
 
 Lemma wp_store E x l v' v s :
-  TCEq x (cost (Store (Val $ LitV (LitLoc l)) (Val v))) →
-  {{{ ⧖ x ∗ ▷ l ↦ v' }}}
-    Store (Val $ LitV (LitLoc l)) (Val v) @ s; E
-  {{{ RET LitV LitUnit; l ↦ v }}}.
+  TCEq x (cost (#l <- v)) →
+  {{{ (if bool_decide (cost (#l <- v) = 0%R) then True else ⧖ x) ∗ ▷ l ↦ v' }}}
+    #l <- v @ s; E
+  {{{ RET #(); l ↦ v }}}.
 Proof.
   iIntros (-> Φ) "[Hx >Hl] HΦ".
+  iMod etc_zero as "Hz".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "[Hh Ht] !#".
   iDestruct (ghost_map_lookup with "Hh Hl") as %?.
   solve_red.
+  iAssert (⧖ (cost _))%I with "[Hz Hx]" as "Hx".
+  { case_bool_decide as Hz; [|done]. rewrite Hz //. }
   iFrame "Hx".
   iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
   iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
@@ -145,12 +146,17 @@ Qed.
 Lemma wp_rand x (N : nat) (z : Z) E s :
   TCEq x (cost (rand #z)%E) →
   TCEq N (Z.to_nat z) →
-  {{{ ⧖ x }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
+  {{{ if bool_decide (cost (rand #z) = 0%R) then True else ⧖ x }}}
+    rand #z @ s; E
+  {{{ (n : fin (S N)), RET #n; True }}}.
 Proof.
   iIntros (-> -> Φ) "Hx HΦ".
+  iMod etc_zero as "Hz".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "Hσ !#".
   solve_red.
+  iAssert (⧖ (cost _))%I with "[Hz Hx]" as "Hx".
+  { case_bool_decide as Hz; [|done]. rewrite Hz //. }
   iFrame "Hx".
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
