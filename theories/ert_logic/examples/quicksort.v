@@ -2222,6 +2222,8 @@ Section program.
     (* pick a pivot index at random *)
     iIntros (ip) "Hcr"...
     (* pop the pivot from xs *)
+
+    (*
     wp_pure with "HcrP"; first admit.
     wp_pure with "HcrP"; first admit.
     wp_apply (wp_remove_nth_unsafe _ xs l ip with "[]").
@@ -2274,6 +2276,7 @@ Section program.
     - clear -Sles Sgts ple pgt Ples Pgts. apply sorted_append => // ; intros.
       + apply ple. eapply Permutation_in => //.
       + apply pgt. eapply Permutation_in => //.
+     *)
      *)
   Admitted.
 
