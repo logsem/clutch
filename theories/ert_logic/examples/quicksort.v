@@ -1,55 +1,36 @@
 (** * Exact time credit accounting for Quicksort *)
 From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
+From clutch.lib Require Import utils.
+From iris.proofmode Require Export tactics.
 From Coq Require Export Reals Psatz.
-Require Import Lra.
-
 From stdpp Require Import sorting.
-From clutch.lib Require Import utils.
-Set Default Proof Using "Type*".
-
-(* From stdpp Require Import sorting.
-From clutch.lib Require Import utils.
-Set Default Proof Using "Type*".
-Import list. *)
-
-(* From clutch.examples Require Import quicksort. *)
-
 Require Coq.Program.Tactics.
 Require Coq.Program.Wf.
 
-(* From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns. *)
-From iris.proofmode Require Export tactics.
-
-(* From iris.prelude Require Import options. *)
-
+Set Default Proof Using "Type*".
+Require Import Lra.
 
 
 
 Section accounting.
-  (** Defines the Quicksort recurrence relation and bounds it above by (??) *)
-  (* atm: bounded above by a series *)
-  (* Could go "all the way" and bound it above by n log n *)
-
-
+  (** Defines the Quicksort recurrence relation, an O(n log n) upper bound, and the advanced composition lemma *)
 
   (* Tighter bounding argument necessitates the pivot take time An+B *)
-  Definition tc_pivot_lin (A B n : nat) : nonnegreal := nnreal_nat (A*n+B)%nat.
+  Definition tc_pivot_lin (A B n : nat) : R := INR (A*n+B)%nat.
 
-  Definition tc_base : nonnegreal := (nnreal_nat 1).
+  Definition tc_base : R := 1%R.
   Opaque tc_base.
 
   (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
-  Definition tc_quicksort (A B len : nat) : nonnegreal.
-  refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => nonnegreal)
+  Definition tc_quicksort (A B len : nat) : R.
+  refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => R)
           (fun len qf_rec =>
            match len with
                0%nat   => tc_base
-             | (S n) => ((tc_pivot_lin A B len) + (nnreal_nat 2) *
-                                                   (nnreal_div
-                                                    (foldr nnreal_plus nnreal_zero $
-                                                    map (fun n => (qf_rec (fin_to_nat n) _)) $
-                                                    fin_enum len)
-                                                  (nnreal_nat len)))%NNR
+             | (S n) => ((tc_pivot_lin A B len) +
+                          2 * (foldr Rplus 0%R $
+                                map (fun n => (qf_rec (fin_to_nat n) _)) $
+                                fin_enum len) / len )%R
            end) len).
   Proof. rewrite /Wf.MR. apply fin_to_nat_lt. Defined.
 
@@ -70,12 +51,9 @@ Section accounting.
       match len with
         0%nat   => tc_base
       | (S _) => ((tc_pivot_lin A B len)
-                  + (nnreal_nat 2) *
-                      (nnreal_div
-                       (foldr nnreal_plus nnreal_zero $
+                  + 2 * (foldr Rplus 0%R $
                         map (fun n => tc_quicksort A B (fin_to_nat n)) $
-                        (fin_enum len) )
-                       (nnreal_nat len)))%NNR
+                        (fin_enum len) ) / len)%R
       end.
   Proof. rewrite /tc_quicksort easy_fix_eq; done. Qed.
 
@@ -146,12 +124,9 @@ Section accounting.
       match len with
         0%nat   => tc_base
       | (S _) => ((tc_pivot_lin A B len)
-                  + (nnreal_nat 2) *
-                      (nnreal_div
-                       (foldr nnreal_plus nnreal_zero $
+                  + 2 * (foldr Rplus 0%R $
                         map (fun n => tc_quicksort A B n) $
-                        seq 0%nat len)
-                       (nnreal_nat len)))%NNR
+                        seq 0%nat len) / len)%R
       end.
   Proof.
     rewrite tc_quicksort_aux.
@@ -162,20 +137,8 @@ Section accounting.
     Opaque seq fin_enum.
     rewrite seq_S map_app foldr_snoc /=.
     rewrite fin_enum_snoc_rec map_app foldr_snoc /=.
-    rewrite foldr_comm_acc; last first.
-    { intros; simpl.
-      rewrite nnreal_plus_comm nnreal_plus_assoc.
-      do 2 rewrite -nnreal_plus_assoc.
-      rewrite (nnreal_plus_comm x _).
-      done.
-    }
-    rewrite foldr_comm_acc; last first.
-    { intros; simpl.
-      rewrite nnreal_plus_comm nnreal_plus_assoc.
-      do 2 rewrite -nnreal_plus_assoc.
-      rewrite (nnreal_plus_comm x _).
-      done.
-    }
+    rewrite foldr_comm_acc; last (intros; simpl; lra).
+    rewrite foldr_comm_acc; last (intros; simpl; lra).
     rewrite -IH.
     f_equal.
     + by rewrite fin_to_nat_to_fin.
@@ -192,21 +155,16 @@ Section accounting.
   Lemma tc_quicksort_S A B n :
     (1 <= n)%nat ->
     tc_quicksort A B n =
-            nnreal_plus (tc_pivot_lin A B n) $
-            nnreal_mult (nnreal_nat 2) $
-            nnreal_div
-              (foldr nnreal_plus nnreal_zero $ map (fun i => ((tc_quicksort A B i))%NNR) $ seq 0%nat n)%NNR
-              (nnreal_nat n).
+            ((tc_pivot_lin A B n) + 2 * (foldr Rplus 0 $ map (fun i => ((tc_quicksort A B i))%NNR) $ seq 0%nat n)%NNR /n)%R.
   Proof. intros. rewrite tc_quicksort_unfold. destruct n; [lia|]. done. Qed.
 
   Lemma tc_quicksort_bound_ind n' A B (HAB : (B <= A)%nat) :
-    (nnreal_div (tc_quicksort A B (S n')) (nnreal_nat (S n' +  1)%nat) <=
-       (nnreal_div (nnreal_nat (2* A)%nat) (nnreal_nat (S n' + 1)%nat) +
-        nnreal_div (tc_quicksort A B n') (nnreal_nat (n' + 1)%nat))%NNR)%R.
+    ((tc_quicksort A B (S n')) / (S n' + 1)%nat  <= (2* A)%nat / (S n' + 1)%nat + (tc_quicksort A B n') / (n' + 1)%nat )%R.
   Proof.
     Opaque INR.
     remember (S n') as n.
     remember (tc_quicksort A B) as C.
+    repeat rewrite Rdiv_def.
     simpl.
 
     etrans; last first.
@@ -235,27 +193,24 @@ Section accounting.
     destruct n' as [|n''].
     { simplify_eq; simpl.
       rewrite tc_quicksort_0 /=.
-      rewrite Rinv_1 Rmult_1_r Rmult_1_l Rmult_1_r Rplus_0_r.
-      replace ((A + (A + 0))%nat * / (1 + 1))%R with (INR A); last first.
+      rewrite Rinv_1 Rmult_1_r Rmult_1_l.
+      replace ((A + (A + 0))%nat * / (INR 2))%R with (INR A); last first.
       { rewrite Nat.add_0_r.
         rewrite -{2}(Nat.mul_1_r A) -{3}(Nat.mul_1_r A).
         rewrite -Nat.mul_add_distr_l.
         rewrite mult_INR plus_INR INR_1.
         lra.
       }
+      rewrite Rdiv_def.
+      rewrite tc_quicksort_unfold /tc_pivot_lin.
+      simpl.
       rewrite Nat.mul_1_r.
+      rewrite INR_1 Rdiv_1_r Rplus_0_r.
+      rewrite tc_quicksort_0.
       rewrite Rmult_plus_distr_r.
-      replace ((1 + 1) * nonneg tc_base * / (1 + 1))%R with (nonneg tc_base).
-      { repeat rewrite plus_INR.
-        rewrite INR_0 Rplus_0_r.
-        do 2 rewrite Rmult_plus_distr_r.
-        do 2 rewrite Rplus_assoc.
-        apply Rplus_eq_compat_l.
-        rewrite -S_INR.
-        rewrite (Rmult_comm (INR 2)) Rmult_assoc.
-        rewrite Rinv_r; [|rewrite S_INR S_INR INR_0; lra].
-        lra.
-      }
+      rewrite plus_INR.
+      repeat rewrite S_INR.
+      repeat rewrite INR_0.
       lra.
     }
 
@@ -289,8 +244,8 @@ Section accounting.
     Transparent seq.
 
     (* Pull out one term from the series *)
-    replace (foldr nnreal_plus nnreal_zero (map (λ i : nat, (C i)) (seq 0 n)))
-       with (C (S n'') + (foldr nnreal_plus nnreal_zero (map (λ i : nat, (C i)) (seq 0 (S n'')))))%NNR;
+    replace (foldr Rplus 0%R (map (λ i : nat, (C i)) (seq 0 n)))
+       with (C (S n'') + (foldr Rplus 0%R (map (λ i : nat, (C i)) (seq 0 (S n'')))))%R;
       last first.
     { rewrite Heqn.
       Opaque seq.
@@ -299,13 +254,10 @@ Section accounting.
       rewrite foldr_snoc.
       rewrite foldr_comm_acc; [done|].
       intros; simpl.
-      rewrite nnreal_plus_comm nnreal_plus_assoc.
-      do 2 rewrite -nnreal_plus_assoc.
-      rewrite (nnreal_plus_comm x _).
-      done.
+      lra.
       Transparent seq.
     }
-    remember (foldr nnreal_plus nnreal_zero (map (λ i : nat, (C i)) (seq 0 (S n'')))) as SR.
+    remember (foldr Rplus 0%R (map (λ i : nat, (C i)) (seq 0 (S n'')))) as SR.
 
     (* Remove n denominators *)
     replace (S (n'' + 1)) with n by lia.
@@ -316,7 +268,7 @@ Section accounting.
     rewrite Rmult_assoc.
     rewrite Rinv_l; last (apply not_0_INR; lia).
     rewrite Rmult_1_r.
-    rewrite Rmult_assoc.
+    Set Printing Coercions.
     rewrite (Rmult_comm (/ (INR n))).
     rewrite -Rmult_assoc.
     rewrite Rmult_plus_distr_r.
@@ -335,11 +287,11 @@ Section accounting.
     rewrite -Rplus_assoc.
     rewrite Rplus_opp_l Rplus_0_l.
     rewrite -Rplus_assoc.
-    apply (Rplus_eq_reg_r (- (nonneg (C (S n''))) * (INR (n + 1)))%R).
+    apply (Rplus_eq_reg_r (- (C (S n'')) * (INR (n + 1)))%R).
     rewrite Rplus_assoc.
     rewrite Rplus_assoc.
     rewrite Rplus_assoc.
-    replace (((nonneg (C (S n''))) * (INR (n + 1))) + ((- (nonneg (C (S n'')))) * (INR (n + 1))))%R
+    replace (((C (S n'')) * (INR (n + 1))) + ((- (C (S n''))) * (INR (n + 1))))%R
         with (0)%R by lra.
     rewrite Rplus_0_r.
     simpl.
@@ -349,11 +301,10 @@ Section accounting.
     rewrite Ropp_mult_distr_l_reverse Ropp_mult_distr_r.
     rewrite Rmult_comm.
     rewrite -Rmult_plus_distr_r.
-    replace ((- (INR (n + 1))) + (INR 2))%R with (-(S n''))%R; last first.
+    replace ((- (INR (n + 1))) + 2)%R with (-(S n''))%R; last first.
     { rewrite S_INR.
       rewrite Nat.add_1_r S_INR.
-      rewrite Heqn S_INR S_INR S_INR S_INR INR_0.
-      lra.
+      rewrite Heqn S_INR S_INR. lra.
     }
 
     (* Unfold C *)
@@ -363,8 +314,9 @@ Section accounting.
 
     (* Cancel the sums *)
     rewrite Rmult_plus_distr_l.
-    replace ((- (INR (S n''))) * ((INR 2) * ((nonneg SR) * (/ (INR (S n''))))))%R
-       with ((- (INR 2) * ((nonneg SR))))%R; last first.
+
+    replace ((- (INR (S n''))) * ((2 * SR) / (INR (S n''))))%R
+       with ((- (INR 2) * (SR)))%R; last first.
     { rewrite -Ropp_mult_distr_l.
       rewrite -Ropp_mult_distr_l.
       f_equal.
@@ -372,16 +324,18 @@ Section accounting.
       rewrite Rmult_assoc.
       rewrite Rmult_assoc.
       rewrite Rinv_l; [|apply not_0_INR; lia].
+      repeat rewrite S_INR.
+      rewrite INR_0.
       lra.
     }
     rewrite Rplus_assoc.
-    replace (((- (INR 2)) * (nonneg SR)) + ((INR 2) * (nonneg SR)))%R with (0)%R by lra.
+    replace (- INR 2 * SR + 2 * SR)%R with 0%R; last first.
+    { repeat rewrite S_INR. rewrite INR_0. lra. }
     rewrite Rplus_0_r.
 
     (* Simplify out negatives*)
     apply Ropp_eq_reg.
     rewrite Ropp_plus_distr Ropp_involutive.
-
 
     (* Expand binomial to eliminate n^2 term *)
     rewrite Heqn /=.
@@ -416,9 +370,9 @@ Section accounting.
   Qed.
 
   Lemma tc_quicksort_bound_closed A B n (HAB : (B <= A)%nat):
-    ((nnreal_div (tc_quicksort A B n) (nnreal_nat (n + 1)%nat))
-      <= (foldr nnreal_plus (tc_quicksort A B 0%nat) $
-          map (fun i => nnreal_div (nnreal_nat (2*A)%nat) (nnreal_nat (i + 1)%nat)) $
+    (((tc_quicksort A B n) / (n + 1)%nat)
+      <= (foldr Rplus (tc_quicksort A B 0%nat) $
+          map (fun i => ((2*A)%nat / (i + 1)%nat)) $
           seq 1%nat n))%R.
   Proof.
     Opaque seq.
@@ -427,14 +381,7 @@ Section accounting.
     { Transparent seq. simpl. rewrite INR_1. lra. Opaque seq. }
     etrans; first eapply tc_quicksort_bound_ind; first eauto.
     rewrite seq_S map_app foldr_snoc /=.
-    rewrite foldr_comm_acc; last first.
-    { intros; simpl.
-      rewrite nnreal_plus_comm nnreal_plus_assoc.
-      do 2 rewrite -nnreal_plus_assoc.
-      rewrite (nnreal_plus_comm x _).
-      done.
-    }
-    simpl.
+    rewrite foldr_comm_acc; last (intros; simpl; lra).
     apply Rplus_le_compat_l, IH.
   Qed.
 
@@ -491,40 +438,82 @@ Section accounting.
     refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
   Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined.
 
-  Definition index_to_rank (l : list Z) (index : fin (S (length l - 1)%nat)) (HL : (0 < length l)%nat ) : fin (S (length l - 1))%nat.
+  Definition index_to_rank (l : list Z) (HL : (0 < length l)%nat ) (index : fin (S (length l - 1)%nat)) : fin (S (length l - 1))%nat.
     refine (rank_lower l (l !!! fin_to_nat index) _ HL).
   Proof. apply elem_of_list_lookup_total_2.
          assert (fin_to_nat index < (S (length l - 1)%nat)) by apply fin_to_nat_lt.
          lia.
   Defined.
 
-  (* Is this the most expedient way to prove this?
-  Definition foldr_rank_rw (L : list Z) (f: (fin (S (length L - 1)%nat)) -> R -> R) (HL : (0 < length L)%nat) :
-    (foldr f 0%R (fin_enum (length L)) = foldr f 0%R (index_to_rank L <$> fin_enum (length L))).
-    refine (@foldr_permutation _ _ (=) _ _ _ _ _ _ _ _).
+  Lemma index_to_rank_bij (l : list Z) HL : (list_unique l) -> Bij (index_to_rank l HL).
+  Proof. Admitted.
+
+  #[local] Lemma reverse_lemma (n m : nat) (H : (0 < n)%nat) : (n - 1 - m < n)%nat.
+  Proof. intros. lia. Qed.
+
+  Definition reverse_order N (H : (0 < N)%nat) (s : fin N) : fin N.
+    refine (nat_to_fin (reverse_lemma N (fin_to_nat s) H)).
+  Defined.
+
+  Lemma reverse_order_bij N H : Bij (reverse_order N H).
   Proof.
-    - intros. admit.
-    - admit.
-  Admitted.
- *)
+    split.
+    - rewrite /Inj; intros x y ?.
+      apply fin_irrel.
+      assert (HR : fin_to_nat (reverse_order N H x) = fin_to_nat (reverse_order N H y)); [f_equal; done|].
+      rewrite /reverse_order in HR.
+      do 2 rewrite fin_to_nat_to_fin in HR.
+      pose P1 := fin_to_nat_lt x.
+      pose P2 := fin_to_nat_lt y.
+      lia.
+    - rewrite /Surj. intros y.
+      eexists (reverse_order N H y).
+      rewrite /reverse_order.
+      apply fin_irrel.
+      do 2 rewrite fin_to_nat_to_fin.
+      pose P1 := fin_to_nat_lt y.
+      lia.
+  Qed.
 
   (* The thing we're going to plug into advanced composition *)
-  (* So that when we sample a value of rank i, we have enough credit for the left and right sublists by Lob induction *)
+  (* IN THEORY: this quantity of time credit should be good enough to finish the recursive calls, plus whatever extra stuff we
+     have lying around from the pivot term *)
   Definition tc_distr A B xs (index : fin (S (length xs - 1)%nat)) (HL : (0 < length xs)%nat) : R
-    := (tc_quicksort A B (fin_to_nat (index_to_rank xs index HL)) + tc_quicksort A B (S (length xs) - 1 - (index_to_rank xs index HL)))%R.
+    := (tc_quicksort A B (fin_to_nat (index_to_rank xs HL index)) +
+        tc_quicksort A B (reverse_order _ (fin_transport_lemma _ _ HL HL) (index_to_rank xs HL index)))%R.
 
-  (* Advanced composition side condition: Series combine and become two folds, this should be equal to the credit we have beforehand *)
+  (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
   (* FIXME: Change all above to be reals, and remove the map nonneg *)
   Lemma tc_distr_equiv A B (xs : list Z) (HL : (0 < length xs)%nat)
     : (SeriesC (fun s : fin (S (length xs - 1)%nat) => 1 / (S (length xs - 1)%nat) * (tc_distr A B xs s HL)))%R =
-        (2 * (foldr Rplus 0%R $ map nonneg $ map (fun i => (tc_quicksort A B (fin_to_nat i))) $ (fin_enum (length xs))) / (length xs))%R.
+        (2 * (foldr Rplus 0%R $ map (fun i => (tc_quicksort A B i)) $ (seq 0%nat (length xs)%nat)) / (length xs))%R.
   Proof. Admitted.
 
+  (* This will take several steps. Two of the steps involve a series (or fold) being invariant under a bijection:
+      - one bijection eliminates the index_to_rank from tc_quicksort
+      - another bijection
 
-  (* This involves several steps-- need to get rid of index_to_rank (bijection lemma), and list reversal (bijection lemma) *)
+    The proof will convert through three forms:
+      - A SeriesC over fin type       (form of adv comp)
+      - A fold over fin_enum
+      - A fold over seq               (form of tc_quicksort def)
+    We can do the bijection steps at any of them.
+   *)
 
+  (* Probably easiest to use bijections over fin types? Otherwise I have to roll my own equivalent. *)
 
+  (* Easily generalizable if useful *)
+  Lemma fold_R_fin_bij N :
+    ∀ f g,  Bij g ->
+    (foldr Rplus 0%R $ map f $ fin_enum N) = (foldr Rplus 0%R $ map f $ map g $ fin_enum N).
+  Proof.
+    Set Printing Coercions.
+    (* *)
+    (* Idea: split off the last term of the LHS by induction. Have to show that we
+          can commute out a term from the RHS (should be easy) and then redefine a
+          new bijection g' so that we can apply the IH. *)
 
+  Admitted.
 
 
 End accounting.
@@ -2107,14 +2096,14 @@ Section program.
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
-    assert (Hnonneg : forall i, (0 <= qsC i)%R). { intros; apply cond_nonneg. }
+    assert (Hnonneg : forall i, (0 <= qsC i)%R) by admit.
     iLöb as "Hqs". iIntros (xs l φ) "(Hcr & %hl) hφ".
     rewrite {2}/qs...
     wp_rec; first admit.
     rewrite -/qs.
     wp_bind (list_length _).
     iAssert (⧖ (qsC (length xs)) ∗ ⧖ 0%R)%I with "[Hcr]" as "(Hcr & Hfree)".
-    { iApply etc_split; [apply cond_nonneg; lra | lra |].
+    { iApply etc_split; [admit | lra |].
       iApply (etc_weaken with "[$]").
       simpl. admit.
     }
@@ -2126,13 +2115,13 @@ Section program.
     rewrite /qsC.
     destruct xs as [|xs'].
     { (* Empty list *)
+      rewrite tc_quicksort_unfold /= /tc_base.
       simpl. wp_pures. iApply "hφ". iExists _. iPureIntro. eauto.
     }
     simpl length.
     rewrite tc_quicksort_unfold.
     iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs))) ∗
-             ⧖ (nnreal_mult (nnreal_nat 2) $ nnreal_div (foldr nnreal_plus nnreal_zero (map (λ n : nat, tc_quicksort qsA qsB n) (seq 0 (S (length xs)))))
-               (nnreal_nat (S (length xs)))))%I with "[Hcr]" as "(HcrP & Hcr)".
+             ⧖ (2 * (foldr Rplus 0%R (map (λ n : nat, tc_quicksort qsA qsB n) (seq 0 (S (length xs))))) / (S (length xs))))%I with "[Hcr]" as "(HcrP & Hcr)".
     { admit. }
     rewrite /tc_pivot_lin. rewrite {2}/qsA {2}/qsB.
     wp_pure with "HcrP"; first admit.
@@ -2184,6 +2173,3 @@ Section program.
   Admitted.
 
 End program.
-
-
-
