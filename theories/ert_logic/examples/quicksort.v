@@ -364,6 +364,10 @@ Section accounting.
     lra.
   Qed.
 
+  (* Prove this by strong induction now *)
+  Lemma tc_quicksort_nonneg A B n : (0 <= tc_quicksort A B n)%R.
+  Proof. Admitted.
+
   Lemma tc_quicksort_bound_closed A B n (HAB : (B <= A)%nat):
     (((tc_quicksort A B n) / (n + 1)%nat)
       <= (foldr Rplus (tc_quicksort A B 0%nat) $
@@ -533,6 +537,9 @@ Section accounting.
   (* The thing we're going to plug into advanced composition *)
   Definition tc_distr A B x0 xs (index:  fin (S (Z.to_nat (length (x0 :: xs) - 1)))) : R
     := (tc_distr_nats A B x0 xs ∘ fin_to_nat) index.
+
+  Lemma tc_distr_nonneg A B x0 xs' n : (0 <= tc_distr A B x0 xs' n)%R.
+  Proof. rewrite /tc_distr /tc_distr_nats /=. apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg. Qed.
 
   Lemma foldr_reduction_1 f X :
      (foldr (Rplus ∘ f ∘ index_to_rank_nat X) 0 (seq 0 (length X)))%R
@@ -2165,12 +2172,6 @@ Section program.
   Definition qsC := tc_quicksort qsA qsB.
 
 
-
-
-
-
-
-
   (* Removed sorted requirements *)
   Lemma qs_time_bound : ∀ (xs : list Z) (l : val),
     {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ }}}
@@ -2215,28 +2216,50 @@ Section program.
 
 
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr qsA qsB x0 xs') with "[$]").
-    { (* Should be easy *) admit. }
+    { intros. apply tc_distr_nonneg. }
     { rewrite tc_distr_equiv. simpl cost. lra. }
 
-  (* Now tc_distr should have the right amount of credit to apply the IH
-       on the left and right lists separately. *)
-
-    (*
-
-
     (* pick a pivot index at random *)
-    wp_apply wp_rand => //. iIntros (ip) "_"...
+    iIntros (ip) "Hcr"...
     (* pop the pivot from xs *)
-    wp_apply (wp_remove_nth_unsafe _ xs l ip).
-    { iPureIntro. split => //. apply (Nat.lt_le_trans _ _ _ (fin_to_nat_lt ip)).
-      destruct xs => /= ; simpl in hn ; lia. }
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_apply (wp_remove_nth_unsafe _ xs l ip with "[]").
+    { iSplit; first admit. (* ⧖ 0 *)
+      iPureIntro. split => //; [by simplify_eq|].
+      apply (Nat.lt_le_trans _ _ _ (fin_to_nat_lt ip)).
+      simplify_eq; simpl length.
+      destruct xs' => /=; simpl in *; lia. }
+
     iIntros (pr_opt (p & r & pre & post & hpart & hpos & hpr & hr)).
     rewrite hpr. repeat (wp_pure ; unfold partition ; progress fold partition).
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
     (* partition xs \ p into smaller and larger elements *)
     wp_apply Partition => //.
     iIntros (le gt (xsle & xsgt & (hle & hgt & hperm) & ple & pgt))...
+
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+    wp_pure with "HcrP"; first admit.
+
+
     (* sort xs_gt *)
-    wp_apply "Hqs" => //. iIntros (gts (xs_gt_s & Lgts & Pgts & Sgts)).
+    wp_apply "Hqs" => //.
+
+    (*
+    iIntros (gts (xs_gt_s & Lgts & Pgts & Sgts)).
     (* sort xs_le *)
     wp_apply "Hqs" => //. iIntros (les (xs_le_s & Lles & Ples & Sles))...
     (* re-assemble the sorted results *)
