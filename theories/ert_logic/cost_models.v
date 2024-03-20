@@ -153,3 +153,55 @@ Proof.
     + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
     + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
 Qed.
+
+
+(** Entropy cost model for [rand] *)
+Definition cost_entropy base (e : expr) : R :=
+  match e with
+  | Rand (Val (LitV (LitInt N))) _ => Rlog base (S (Z.abs_nat N))
+  | _ => 0
+  end.
+
+Program Definition CostEntropy base (_ : (1 < base)%R) : Costfun prob_lang :=
+  Build_Costfun _ (λ e, match at_redex (cost_entropy base) e with None => nnreal_zero | Some r => r end) _.
+Next Obligation.
+  intros. simpl. case_match => //.
+  eapply at_redex_pos; [|done]. intros; rewrite /cost_entropy. case_match; try lra.
+  repeat (case_match ; try lra). simplify_eq.
+  assert (1 <= (S (Z.abs_nat n)))%R.
+  { rewrite -INR_1. apply le_INR. lia. }
+  rewrite /Rlog.
+  assert (∀ x, 1 <= x -> 0 <= ln x)%R as ln_0_le.
+  {
+    clear. intros.
+    rewrite -ln_1.
+    apply Rcomplements.ln_le ; lra.
+  }
+  assert (∀ x, 1 < x -> 0 < ln x)%R as ln_0_lt.
+  {
+    clear. intros.
+    rewrite -ln_1.
+    apply ln_increasing ; lra.
+  }
+  apply Rcomplements.Rdiv_le_0_compat.
+  1: by apply ln_0_le.
+  by apply ln_0_lt.
+Qed.
+
+Instance CostLanguageCtx_CostEntropy_prob_lang base (b1 : (1 < base)%R) (K : ectx prob_ectx_lang)  :
+  CostLanguageCtx (CostEntropy base b1) (fill K).
+Proof.
+  constructor; [apply _|].
+  intros e Hv => /=.
+  destruct (at_redex _ e) eqn:He.
+  { by erewrite at_redex_fill. }
+  revert e Hv He. induction K; simpl.
+  - intros. case_match; [done|lra].
+  - intros.
+    destruct (to_val (fill_item a e)) eqn :H1;
+      destruct (at_redex (cost_entropy base) (fill_item a e)) eqn :H2; last first.
+    + specialize (IHK _ H1 H2). done.
+    + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
+    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+Qed.
