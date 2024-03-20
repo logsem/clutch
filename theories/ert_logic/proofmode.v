@@ -8,7 +8,7 @@ From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primiti
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 
-#[global] Program Instance rel_logic_wptactics_base `{!ertwpG prob_lang Σ} : @GwpTacticsBase Σ unit _ _ wp.
+#[global] Program Instance rel_logic_wptactics_base `{!ertwpG prob_lang Σ} : GwpTacticsBase Σ unit wp.
 Next Obligation. intros. by apply ert_wp_value. Qed.
 Next Obligation. intros. by apply ert_wp_fupd. Qed.
 
@@ -48,19 +48,6 @@ Tactic Notation "wp_bind" open_constr(efoc) :=
           | fail 1 "wp_bind: cannot find" efoc "in" e ]
   end.
 
-(** The tactic [wp_apply_core lem tac_suc tac_fail] evaluates [lem] to a
-    hypothesis [H] that can be applied, and then runs [wp_bind_core K; tac_suc H]
-    for every possible evaluation context [K].
-
-    - The tactic [tac_suc] should do [iApplyHyp H] to actually apply the hypothesis,
-      but can perform other operations in addition (see [wp_apply] and [awp_apply]
-      below).
-    - The tactic [tac_fail cont] is called when [tac_suc H] fails for all evaluation
-      contexts [K], and can perform further operations before invoking [cont] to
-      try again.
-
-    TC resolution of [lem] premises happens *after* [tac_suc H] got executed. *)
-
 Ltac wp_apply_core lem tac_suc tac_fail := first
   [iPoseProofCore lem as false (fun H =>
      lazymatch goal with
@@ -78,7 +65,8 @@ Tactic Notation "wp_smart_apply" open_constr(lem) :=
   wp_apply_core lem ltac:(fun H => iApplyHyp H; try iNext; try wp_expr_simpl)
                     ltac:(fun cont => wp_pure _; []; cont ()).
 
-#[global] Program Instance ert_wptactics_bind `{!ertwpG prob_lang Σ} : @EwpTacticsBind Σ unit costfun _ _ wp.
+#[global] Program Instance ert_wptactics_bind `{!ertwpG prob_lang Σ} :
+  EwpTacticsBind Σ () costfun wp.
 Next Obligation. intros. by apply ert_wp_bind. Qed.
 
 Section proofmode.
