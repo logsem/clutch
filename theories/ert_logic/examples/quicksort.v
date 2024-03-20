@@ -530,7 +530,7 @@ Section cost.
     end.
 
 
-  Program Definition CostCmp : Costfun prob_lang := (Build_Costfun cmp_cost_fn _ _ _).
+  Program Definition CostCmp : Costfun prob_lang := (Build_Costfun _ cmp_cost_fn _ _).
   Next Obligation.
     eexists 1.
     intros; simpl.
@@ -544,7 +544,7 @@ Section cost.
     destruct e; simpl; try lra.
     destruct op; simpl; try lra.
   Qed.
-  Next Obligation. Admitted.
+  (* Next Obligation. Admitted. *)
 
   Context `{!ert_clutchGS Σ CostCmp}.
 
