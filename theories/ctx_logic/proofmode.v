@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 #[global] Program Instance rel_logic_wptactics_base `{!clutchGS Σ} : @GwpTacticsBase Σ unit _ _ wp.
 Next Obligation. intros. by apply wp_value. Qed.
 Next Obligation. intros. by apply wp_fupd. Qed.
-Next Obligation. intros. by apply wp_bind. Qed.
+Next Obligation. intros. by apply wp_bind, _. Qed.
 
 #[global] Program Instance rel_logic_wptactics_pure `{!clutchGS Σ} : @GwpTacticsPure Σ unit true wp.
 Next Obligation. intros. by eapply lifting.wp_pure_step_later. Qed.

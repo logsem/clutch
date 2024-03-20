@@ -11,8 +11,8 @@ Set Default Proof Using "Type*".
 Class GwpTacticsBase (Σ : gFunctors) (A : Type) `{!invGS_gen hlc Σ} (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ)  := {
     wptac_wp_value E Φ v a : Φ v ⊢ gwp a E (of_val v) Φ;
     wptac_wp_fupd E Φ e a : gwp a E e (λ v, |={E}=> Φ v) ⊢ gwp a E e Φ;
-    wptac_wp_bind K `{!LanguageCtx K} E e Φ a :
-      gwp a E e (λ v, gwp a E (K (of_val v)) Φ ) ⊢ gwp a E (K e) Φ ;
+    wptac_wp_bind K E e Φ a :
+      gwp a E e (λ v, gwp a E (fill K (of_val v)) Φ ) ⊢ gwp a E (fill K e) Φ ;
 }.
 
 Class GwpTacticsPure Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ) := {

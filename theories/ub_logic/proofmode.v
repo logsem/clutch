@@ -27,7 +27,7 @@ Defined.
 #[global] Program Instance rel_logic_wptactics_base `{!ub_clutchGS Σ} : @GwpTacticsBase Σ unit _ _ wp.
 Next Obligation. intros. by apply ub_wp_value. Qed.
 Next Obligation. intros. by apply ub_wp_fupd. Qed.
-Next Obligation. intros. by apply ub_wp_bind. Qed.
+Next Obligation. intros. by apply ub_wp_bind, _. Qed.
 
 #[global] Program Instance rel_logic_wptactics_pure `{!ub_clutchGS Σ} : @GwpTacticsPure Σ unit true wp.
 Next Obligation. intros. by eapply lifting.wp_pure_step_later. Qed.
@@ -57,7 +57,7 @@ Defined.
 #[global] Program Instance rel_logic_twptactics_base `{!ub_clutchGS Σ} : @GwpTacticsBase Σ unit _ _ twp.
 Next Obligation. intros. by apply ub_twp_value. Qed.
 Next Obligation. intros. by apply ub_twp_fupd. Qed.
-Next Obligation. intros. by apply ub_twp_bind. Qed.
+Next Obligation. intros. by apply ub_twp_bind, _. Qed.
 
 #[global] Program Instance rel_logic_twptactics_pure `{!ub_clutchGS Σ} : @GwpTacticsPure Σ unit false twp.
 Next Obligation. intros. by eapply total_lifting.twp_pure_step_fupd. Qed.
