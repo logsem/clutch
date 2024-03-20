@@ -445,6 +445,9 @@ Section accounting.
 
   Definition reverse_order (l : list nat) (i : nat) : nat := (length l - 1 - i)%nat.
 
+  Lemma equal_perm (A B : list nat) : (A = B) -> (A ≡ₚ B).
+  Proof. intros; simplify_eq; eauto. Qed.
+
   Lemma reverse_perm N : (seq 0%nat N) ≡ₚ (reverse_order (seq 0%nat N) <$> (seq 0%nat N)).
   Proof.
     induction N as [|N' IH].
@@ -458,34 +461,60 @@ Section accounting.
       constructor.
       symmetry.
       apply (Permutation_trans IH).
+      apply equal_perm.
+      clear IH.
+      induction N' as [|N'' IH].
+      + by simpl.
+      + do 2 rewrite seq_S.
+        rewrite fmap_compat fmap_app fmap_app.
+        simpl.
+        rewrite Nat.sub_0_r.
+        f_equal.
+
+        (* Super annoying, maybe a better way to do this?
+        Search (_ <$> (seq _ _)).
+        replace (λ i : nat, S N'' - i) with ((λ i : nat, N'' - i) ∘ S).
+        replace (λ i : nat, N'' - i) with ((λ i : nat, N'' - 1 - i) ∘ S); last first.
+        { apply functional_extensionality.
+          simpl; intros.
+
+        }
+        Search (fmap _ _ = fmap _ _) (_ ∘ _).
+        Search (_ - 0)%nat.
+        rewrite fmap_compat in IH.
+        rewrite -IH.
+        *)
   Admitted.
 
-(*
+
+  Lemma index_to_rank_nat_perm l : (list_unique l) -> (seq 0%nat (length l)) ≡ₚ (map (index_to_rank_nat l) (seq 0%nat (length l))).
+  Proof.
+    intros.
+    (* Honestly not even sure how to go about this. *)
+  Admitted.
+
+
+
+
+  (*
   Definition inj_list (f : nat -> nat) (A: list nat) : Prop := Forall (fun a0 => Forall (fun a1 => (f a0 = f a1) -> (a0 = a1)) A) A.
   Definition surj_list (f : nat -> nat) (A B: list nat) : Prop := Forall (fun b => Exists (fun a => f a = b) A) B.
   Definition bij_list f A B : Prop := inj_list f A /\ surj_list f A B.
-  Definition perm_list f A B : Prop := inj_list f A /\ surj_list f A B.
-*)
+  Definition perm_list f A : Prop := inj_list f A /\ surj_list f A A.
 
-  (* Easily generalizable if useful *)
-  Lemma fold_R_fin_bij N :
-    ∀ f g, Bij g ->
-    (foldr Rplus 0%R $ map f $ fin_enum N) = (foldr Rplus 0%R $ map f $ map g $ fin_enum N).
+  *)
+
+  Lemma fold_R_fin_perm f :
+    forall (g : nat -> nat) (L : list nat),
+      (L ≡ₚ (map g L) -> (foldr (Rplus ∘ f) 0%R $ L) = (foldr (Rplus ∘ f) 0%R $ map g $ L)).
   Proof.
-    (* Idea: split off the last term of the LHS by induction. Have to show that we
-          can commute out a term from the RHS (should be easy) and then redefine a
-          new bijection g' so that we can apply the IH. *)
-    (* This makes me feel like we should just use a list bijection on seq... *)
-  Abort.
+    intros g L Hp.
+    eapply (foldr_permutation (=) (Rplus ∘ f) 0%R L (map g L) _ Hp).
+    Unshelve.
+    intros; simpl; lra.
+  Qed.
 
 
-  Lemma fold_R_fin_perm L f (g : nat -> nat) :
-    (L ≡ₚ (g <$> L)) ->
-    (foldr Rplus 0%R $ map f $ L) = (foldr Rplus 0%R $ map f $ map g $ L).
-  Proof.
-    (* Search foldr Permutation.
-    Locate foldr_permutation. *)
-  Admitted.
 
 
   (*
@@ -541,29 +570,50 @@ Section accounting.
   Lemma tc_distr_nonneg A B x0 xs' n : (0 <= tc_distr A B x0 xs' n)%R.
   Proof. rewrite /tc_distr /tc_distr_nats /=. apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg. Qed.
 
-  Lemma foldr_reduction_1 f X :
+  Lemma foldr_reduction_1 f X : (list_unique X) ->
      (foldr (Rplus ∘ f ∘ index_to_rank_nat X) 0 (seq 0 (length X)))%R
    = (foldr (Rplus ∘ f ) 0 (seq 0 (length X)))%R.
-  Proof. Admitted.
+  Proof.
+    intros.
+    rewrite (fold_R_fin_perm _ (index_to_rank_nat X)).
+    - (* generalize me *)
+      remember (seq 0 (length X)) as L.
+      clear HeqL.
+      remember (index_to_rank_nat X) as g.
+      induction L as [|L0 L' IH].
+      + simpl; done.
+      + simpl. f_equal. apply IH.
+    - apply index_to_rank_nat_perm. done.
+  Qed.
 
   Lemma foldr_reduction_2 f (X : list Z) :
      (foldr (Rplus ∘ f ∘ reverse_order (seq 0 (length X))) 0%R (seq 0 (length X)))%R
    = (foldr (Rplus ∘ f) 0%R (seq 0 (length X)))%R.
-  Proof. Admitted.
+  Proof.
+    intros.
+    rewrite (fold_R_fin_perm _ (reverse_order (seq 0 (length X)))).
+    - (* generalize me *)
+      remember (seq 0 (length X)) as L; clear HeqL.
+      remember (reverse_order L) as g; clear Heqg.
+      induction L as [|L0 L' IH].
+      + simpl; done.
+      + simpl. f_equal. apply IH.
+    - apply reverse_perm.
+  Qed.
 
 
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
-  Lemma tc_distr_equiv A B x0 xs':
+  Lemma tc_distr_equiv A B x0 xs' (HU : (list_unique (x0 :: xs'))) :
   (SeriesC (λ n : fin (S (Z.to_nat (length (x0 :: xs') - 1))),
              1 / S (Z.to_nat (length (x0 :: xs') - 1)) * tc_distr A B x0 xs' n))%R =
         (2 * foldr Rplus 0 (map (λ n : nat, tc_quicksort A B n) (seq 0 (S (length xs')))) / S (length xs'))%R.
   Proof.
     (* 1. Simplify everything that we can, and get rid of the / (S length xs') terms *)
     Opaque seq.
-    apply (Rmult_eq_reg_r (S (length xs'))); last admit.
+    apply (Rmult_eq_reg_r (S (length xs'))); last (rewrite S_INR; pose P := (pos_INR (length xs')); lra).
     (* Cancel on the RHS *)
     repeat rewrite Rdiv_def.
-    rewrite Rmult_assoc Rinv_l; last admit.
+    rewrite Rmult_assoc Rinv_l; last (rewrite S_INR; pose P := (pos_INR (length xs')); lra).
     rewrite Rmult_1_r.
     (* Cancel on the LHS *)
     rewrite Rmult_comm.
@@ -574,7 +624,7 @@ Section accounting.
     { rewrite Nat2Z.inj_succ.
       replace (Z.to_nat ((Z.succ (Z.of_nat (length xs'))) - 1)) with (length xs') by lia.
       rewrite Rinv_r; first lra.
-      admit.
+      rewrite S_INR; pose P := (pos_INR (length xs')); lra.
     }
     rewrite Rmult_1_l.
 
@@ -588,7 +638,31 @@ Section accounting.
                (Rplus ∘ (tc_distr_nats A B x0 xs'))
                0%R (seq 0%nat (S (Z.to_nat (S (length xs') - 1)))))%R;
       last first.
-    { admit. }
+    { (* Generalize me *)
+      clear.
+      remember (tc_distr_nats A B x0 xs') as g.
+      remember (S (Z.to_nat (S (length xs') - 1))) as L.
+      clear.
+      induction L.
+      - Transparent seq. simpl. Opaque seq. done.
+      - rewrite seq_S.
+        rewrite foldr_app.
+        Opaque enum. simpl. Transparent enum.
+        replace (foldr (Rplus ∘ g) (g L + 0)%R (seq 0 L))%R with (g L + foldr (Rplus ∘ g) (0)%R (seq 0 L))%R; last first.
+        { (* whatever *)
+          remember (seq 0 L) as LL; clear.
+          Transparent seq.
+          induction LL as [|LL0 LL' IH].
+          - simpl. done.
+          - simpl. rewrite -IH. lra.
+          Opaque seq.
+        }
+        rewrite IHL.
+        rewrite /enum /fin_finite.
+        rewrite fin_enum_snoc_rec.
+        rewrite foldr_app.
+        simpl.
+      admit. }
     replace (S (Z.to_nat (S (length xs') - 1)))%nat with (S (length xs')) by lia.
     remember (x0 :: xs') as X.
     replace (S (length xs')) with (length X); last (rewrite HeqX; simpl length; done).
@@ -602,12 +676,14 @@ Section accounting.
     { admit. }
 
     (* 4. Rewrite the reversed sum and combine to eliminate the factor of 2 *)
-    do 2 rewrite foldr_reduction_1.
+    do 2 rewrite (foldr_reduction_1 _ _ HU).
     rewrite foldr_reduction_2.
 
     (* 5. Combine *)
     do 2 rewrite -foldr_fmap.
     lra.
+
+    Transparent seq.
   Admitted.
 
 End accounting.
@@ -641,7 +717,6 @@ Section cost.
   #[local] Lemma test_wp_pure :
        {{{ ⧖ 1 }}} (if: (#0 < #1) then #() else #() ) {{{ RET #(); ⧖ 0 }}}.
   Proof.
-    Set Printing Coercions.
     iIntros (x) "Hx Hp".
     wp_pure.
     wp_pure.
@@ -2174,12 +2249,12 @@ Section program.
 
   (* Removed sorted requirements *)
   Lemma qs_time_bound : ∀ (xs : list Z) (l : val),
-    {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ }}}
+    {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜list_unique xs ⌝ }}}
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
     assert (Hnonneg : forall i, (0 <= qsC i)%R) by admit.
-    iLöb as "Hqs". iIntros (xs l φ) "(Hcr & %hl) hφ".
+    iLöb as "Hqs". iIntros (xs l φ) "(Hcr & %hl & %HU) hφ".
     rewrite {2}/qs...
     rewrite -/qs.
     wp_bind (list_length _).
@@ -2217,7 +2292,7 @@ Section program.
 
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr qsA qsB x0 xs') with "[$]").
     { intros. apply tc_distr_nonneg. }
-    { rewrite tc_distr_equiv. simpl cost. lra. }
+    { rewrite tc_distr_equiv; last eauto. simpl cost. lra. }
 
     (* pick a pivot index at random *)
     iIntros (ip) "Hcr"...
