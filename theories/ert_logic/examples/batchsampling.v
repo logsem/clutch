@@ -17,7 +17,7 @@ Definition sample
         else ("g" #()))%V.
 
 Section proof1.
-  Context `{!ert_clutchGS Σ Costrand}.
+  Context `{!ert_clutchGS Σ CostRand}.
   Lemma wp_geo E:
     {{{ ⧖ (8/3) }}}
       sample #()@E
