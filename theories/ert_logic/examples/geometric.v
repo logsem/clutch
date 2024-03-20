@@ -19,7 +19,7 @@ Definition geo
           else ("g" #()))%V.
 
 Section proofs.
-  Context `{!ert_clutchGS Σ Costapp}.
+  Context `{!ert_clutchGS Σ CostApp}.
   Lemma wp_geo E:
     {{{ ⧖ (2) }}}
       geo #()@E
@@ -117,7 +117,7 @@ Section generalized.
     apply SeriesC_geo'.
   Qed.
 
-  Context `{!ert_clutchGS Σ Costapp}.
+  Context `{!ert_clutchGS Σ CostApp}.
   
   Lemma wp_geo' E:
     {{{ ⧖ tc }}}
