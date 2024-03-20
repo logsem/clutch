@@ -1,8 +1,7 @@
 From clutch.ert_logic Require Import ert_weakestpre problang_wp.
 
 (** Cost model for where all steps have cost [1]  *)
-Program Definition Cost1 {Λ} : Costfun Λ := (Build_Costfun _ (λ _, 1) _ _).
-Next Obligation. by eexists 1. Qed.
+Program Definition Cost1 {Λ} : Costfun Λ := (Build_Costfun _ (λ _, 1) _).
 Next Obligation. intros; simpl. lra. Qed.
 
 Instance CostLanguageCtx_Cost1_prob_lang (K : ectx prob_ectx_lang)  :
@@ -97,12 +96,7 @@ Definition cost_app (e : expr) : R :=
   end.
 
 Program Definition CostApp : Costfun prob_lang :=
-  Build_Costfun _ (λ e, match at_redex cost_app e with None => 0 | Some r => r end) _ _.
-Next Obligation.
-  exists 1. intros. simpl. case_match.
-  - eapply at_redex_bounds; [|done]. intros. rewrite /cost_app. case_match; lra.
-  - lra.
-Qed.
+  Build_Costfun _ (λ e, match at_redex cost_app e with None => 0 | Some r => r end) _.
 Next Obligation.
   intros. simpl. case_match.
   - eapply at_redex_pos; [|done]. intros; rewrite /cost_app. case_match; lra.
@@ -135,12 +129,7 @@ Definition cost_rand (e : expr) : R :=
   end.
 
 Program Definition CostRand : Costfun prob_lang :=
-  Build_Costfun _ (λ e, match at_redex cost_rand e with None => nnreal_zero | Some r => r end) _ _.
-Next Obligation.
-  exists 1. intros. simpl. case_match.
-  - eapply at_redex_bounds; [|done]. intros. rewrite /cost_rand. case_match; lra.
-  - lra.
-Qed.
+  Build_Costfun _ (λ e, match at_redex cost_rand e with None => nnreal_zero | Some r => r end) _.
 Next Obligation.
   intros. simpl. case_match.
   - eapply at_redex_pos; [|done]. intros; rewrite /cost_rand. case_match; lra.

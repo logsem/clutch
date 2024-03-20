@@ -17,7 +17,6 @@ Import uPred.
 
 Class Costfun {Λ} := {
   cost : expr Λ → R;
-  cost_bounded : ∃ r, ∀ e, cost e <= r;
   cost_nonneg e : 0 <= cost e;
   }.
 
