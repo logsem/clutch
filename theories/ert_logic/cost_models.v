@@ -56,16 +56,6 @@ Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
   | _              => None
   end.
 
-Lemma at_redex_bounds (b : R) (f: expr → R) e (x : R):
-  (∀ e, f e <= b)%R →
-  at_redex f e = Some x → (x <= b)%R.
-Proof.
-  intros Hbound Har.
-  revert x Har.
-  induction e; simpl; intros; try done;
-    repeat case_match; naive_solver.
-Qed.
-
 Lemma at_redex_pos (f : expr → R) e (x : R):
   (∀ e, 0 <= f e)%R →
   at_redex f e = Some x -> (0 <= x)%R.
@@ -81,11 +71,19 @@ Proof.
   destruct Ki => /= He; rewrite IHK //=; by case_match.
 Qed.
 
-Lemma at_redex_fill_None (f:expr->R) e a:
-  to_val e = None -> at_redex f e = None -> at_redex f (fill_item a e) = None.
+Lemma at_redex_fill_item_None (f : expr → R) e Ki :
+  to_val e = None → at_redex f e = None → at_redex f (fill_item Ki e) = None.
+Proof. by destruct Ki, e. Qed.
+
+Lemma at_redex_fill_None (f : expr → R) e K :
+  to_val e = None → at_redex f e = None → at_redex f (fill K e) = None.
 Proof.
-  revert a; induction e; simpl; intros Hv Har; try done.
-  all: by destruct Hv.
+  induction K as [|Ki K IHK] in e |-* => /= ? ?; [done|].
+  destruct (to_val (fill_item Ki e)) eqn: H1.
+  { by erewrite fill_item_not_val in H1. }
+  destruct  (at_redex f (fill_item Ki e)) eqn: H2.
+  + by erewrite at_redex_fill_item_None in H2.
+  + by eapply IHK.
 Qed.
 
 (** Cost model for [App]  *)
@@ -110,15 +108,7 @@ Proof.
   intros e Hv => /=.
   destruct (at_redex _ e) eqn:He.
   { by erewrite at_redex_fill. }
-  revert e Hv He. induction K; simpl.
-  - intros. case_match; [done|lra].
-  - intros.
-    destruct (to_val (fill_item a e)) eqn :H1;
-      destruct (at_redex cost_app (fill_item a e)) eqn :H2; last first.
-    + specialize (IHK _ H1 H2). done.
-    + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
-    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
-    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+  by erewrite at_redex_fill_None.
 Qed.
 
 (** Cost model for [rand] *)
@@ -143,15 +133,7 @@ Proof.
   intros e Hv => /=.
   destruct (at_redex _ e) eqn:He.
   { by erewrite at_redex_fill. }
-  revert e Hv He. induction K; simpl.
-  - intros. case_match; [done|lra].
-  - intros.
-    destruct (to_val (fill_item a e)) eqn :H1;
-      destruct (at_redex cost_rand (fill_item a e)) eqn :H2; last first.
-    + specialize (IHK _ H1 H2). done.
-    + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
-    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
-    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+  by erewrite at_redex_fill_None.
 Qed.
 
 
@@ -195,13 +177,5 @@ Proof.
   intros e Hv => /=.
   destruct (at_redex _ e) eqn:He.
   { by erewrite at_redex_fill. }
-  revert e Hv He. induction K; simpl.
-  - intros. case_match; [done|lra].
-  - intros.
-    destruct (to_val (fill_item a e)) eqn :H1;
-      destruct (at_redex (cost_entropy base) (fill_item a e)) eqn :H2; last first.
-    + specialize (IHK _ H1 H2). done.
-    + epose proof at_redex_fill_None _ _ _ Hv He. erewrite H2 in H. done.
-    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
-    + apply mk_is_Some in H1. apply fill_item_val in H1. rewrite Hv in H1. inversion H1. done.
+  by erewrite at_redex_fill_None.
 Qed.
