@@ -1,6 +1,10 @@
 SRC_DIRS := 'theories'
 EXT_DIRS := 'external'
-VFILES := $(shell find $(EXT_DIRS) $(SRC_DIRS) -name '*.v' -a '!' -name '*'.\#'*')
+ALL_VFILES := $(shell find $(EXT_DIRS) $(SRC_DIRS) -name '*.v' -a '!' -name '*'.\#'*')
+
+BUILD_DIRS := $(SRC_DIRS)
+VFILES := $(shell find $(BUILD_DIRS) -name '*.v' -a '!' -name '*'.\#'*')
+
 COQC := coqc
 Q:=@
 
@@ -9,9 +13,9 @@ COQPROJECT_ARGS := $(shell sed -E -e '/^\#/d' -e 's/-arg ([^ ]*)/\1/g' _CoqProje
 
 all: $(VFILES:.v=.vo)
 
-.coqdeps.d: $(VFILES) _CoqProject
+.coqdeps.d: $(ALL_VFILES) _CoqProject
 	@echo "COQDEP $@"
-	$(Q)coqdep -vos -f _CoqProject $(VFILES) > $@
+	$(Q)coqdep -vos -f _CoqProject $(ALL_VFILES) > $@
 
 # do not try to build dependencies if cleaning or just building _CoqProject
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
