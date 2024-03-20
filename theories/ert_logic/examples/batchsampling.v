@@ -66,6 +66,9 @@ Section proof1.
   Qed.  
 End proof1.
 
+Local Hint Resolve pos_INR : core.
+Local Hint Resolve pos_INR_S: core.
+
 Definition coin_tosser :=
   (rec: "g" "current" "rem" :=
      if: "rem" = #0 then "current"
@@ -140,13 +143,69 @@ Section proof2.
                         
 
   Lemma wp_coin_tosser (current remaining:nat) E:
-    (current + 2^remaining <= 256)%nat -> (remaining <= 8)%nat -> 
+    (current*2^remaining + 2^remaining <= 256)%nat -> (remaining <= 8)%nat -> 
     {{{ ⧖ ((remaining) + (tc_total*(compute_num (current) (current + 2^remaining) (243)%nat)/2^remaining)) }}}
       coin_tosser #current #remaining@E
       {{{ (n:nat), RET #n;
-          ⌜(current <= n < current + 2^ remaining)%nat⌝ ∗
+          ⌜(current*2^remaining <= n < current*2^remaining + 2^ remaining)%nat⌝ ∗
           (if (n<?243)%nat then True else ⧖ tc_total) }}}.
   Proof.
+    iIntros (Hineq1 Hineq2 Φ) "Hx HΦ".
+    rewrite /coin_tosser. iLöb as "IH" forall (current remaining Hineq1 Hineq2 Φ) "Hx HΦ".
+    iMod etc_zero. wp_pures.
+    case_bool_decide.
+    - wp_pures. iModIntro. iApply "HΦ". replace remaining with 0%nat; last first.
+      { destruct remaining; done. }
+      iSplit.
+      + iPureIntro. simpl. lia.
+      + case_match eqn: H0; first done.
+        iApply (etc_irrel with "[$Hx]").
+        simpl. replace (_ / _) with tc_total; first lra.
+        rewrite -Rmult_div_assoc. replace (compute_num _ _ _)%nat with 1%nat; first (simpl; lra).
+        rewrite /compute_num. rewrite Nat.leb_antisym. rewrite H0. simpl. lia.
+    - wp_pures. wp_bind (rand _)%E.
+      destruct remaining as [|remaining]; first done.
+      replace (Z.of_nat (S remaining) - 1%Z)%Z with (Z.of_nat remaining); last lia.
+      rewrite S_INR.
+      rewrite Rplus_assoc.
+      iDestruct (etc_split with "[$Hx]") as "[Hx1 Hx2]".
+      { auto. }
+      { apply Rplus_le_le_0_compat; try lra.
+        repeat apply Rmult_le_pos; try real_solver.
+        apply Rlt_le, Rinv_0_lt_compat.
+        apply pow_lt. lra.
+      }
+      set (current' := (λ x:fin (2%nat), current*2+fin_to_nat x)%nat).
+      set (f:= λ x: fin (2%nat), tc_total * (compute_num (current' x) (current' x + (2^remaining)) 243)%nat/(2^remaining)).
+      wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ f with "[$Hx2]").
+      * intros n. rewrite /f.
+        repeat apply Rmult_le_pos; try real_solver.
+        apply Rlt_le, Rinv_0_lt_compat.
+        apply pow_lt. lra.
+      * simpl. f_equal. rewrite SeriesC_finite_foldr. simpl. admit.
+      * iIntros (n) "Hx".
+        iMod etc_zero. do 2 wp_pure.
+        replace 2%Z with (Z.of_nat 2) by lia.
+        rewrite <-Nat2Z.inj_mul.
+        rewrite <-Nat2Z.inj_add.
+        wp_apply ("IH" with "[][][Hx1 Hx]").
+        -- iPureIntro. pose proof fin_to_nat_lt n.
+           trans ((current * 2 + 1) * 2 ^ remaining + 2 ^ remaining)%nat.
+           ++ apply Plus.plus_le_compat_r_stt, Nat.mul_le_mono_r.
+              lia.
+           ++ etrans; last exact. simpl. lia.
+        -- iPureIntro. lia.
+        -- iApply etc_combine; iFrame.
+        -- iIntros (n') "[[%Ha %Hb] H]". iApply "HΦ". iFrame. iPureIntro.
+           pose proof fin_to_nat_lt n.
+           split.
+           ++ etrans; last exact. simpl. lia.
+           ++ eapply NPeano.Nat.lt_le_trans; first exact. simpl.
+              assert ((current * 2 + fin_to_nat n) * 2 ^ remaining + 2 ^ remaining<=
+                        (current * 2 * 2 ^ remaining + 2^remaining + 2 ^ remaining))%nat; simpl; try lia.
+              assert ((current * 2 + fin_to_nat n) * 2 ^ remaining + 2 ^ remaining<=
+                        (current * 2 + 1) * 2 ^ remaining + 2 ^ remaining)%nat; simpl; try lia.
+              apply Plus.plus_le_compat_r_stt. apply Nat.mul_le_mono_r. lia.
   Admitted.
                                                                                  
   Lemma wp_amortized_sample_helper E:
