@@ -654,10 +654,32 @@ Section accounting.
         rewrite fin_enum_snoc_rec.
         rewrite foldr_app.
         simpl.
+        rewrite fin_to_nat_to_fin.
 
+        replace (foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index))) (g L + 0)%R (fin_inj_incr L <$> fin_enum L))%R
+          with (g L + foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index))) 0%R (fin_inj_incr L <$> fin_enum L))%R;
+          last first.
+        { (* whatever *)
+          remember (fin_inj_incr _ <$> _ ) as LL; clear.
+          induction LL as [|LL0 LL' IH].
+          - simpl. done.
+          - simpl. rewrite -IH. lra.
+        }
+        f_equal.
+        replace (foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index))) 0%R (fin_inj_incr L <$> fin_enum L))%R
+           with (foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index)) ∘ fin_inj_incr L ) 0%R (fin_enum L))%R;
+          last first.
+        { remember (fin_enum _) as LL.
+          clear.
+          induction LL as [|LL0 LL' IH].
+          - simpl. done.
+          - simpl. rewrite -IH. lra.
+        }
+        apply foldr_ext; eauto.
+        intros; simpl.
+        by rewrite fin_inj_incr_to_nat.
+    }
 
-
-      admit. }
     replace (S (Z.to_nat (S (length xs') - 1)))%nat with (S (length xs')) by lia.
     remember (x0 :: xs') as X.
     replace (S (length xs')) with (length X); last (rewrite HeqX; simpl length; done).
@@ -668,7 +690,32 @@ Section accounting.
              foldr (Rplus ∘ tc_quicksort A B ∘ (reverse_order (seq 0 (length X))) ∘ (index_to_rank_nat X)) 0%R (seq 0%nat (length X)))%R;
 
       last first.
-    { admit. }
+    { rewrite /tc_distr_nats.
+      rewrite -HeqX.
+      remember (Rplus ∘ tc_quicksort A B ∘ index_to_rank_nat X) as f.
+      remember (Rplus ∘ tc_quicksort A B ∘ reverse_order (seq 0 (length X)) ∘ index_to_rank_nat X) as g.
+      replace (compose Rplus _) with  (fun i => (fun r => f i 0 + g i 0 + r)%R); last first.
+      { (* There's probably a better way *)
+        apply functional_extensionality.
+        intros; simpl.
+        apply functional_extensionality.
+        rewrite Heqf Heqg /=.
+        intros; simpl.
+        rewrite Rplus_comm.
+        lra.
+      }
+
+      assert (Hf : forall i r, (f i r = r + f i 0)%R) by (intros; rewrite Heqf /=; lra).
+      assert (Hg : forall i r, (g i r = r + g i 0)%R) by (intros; rewrite Heqg /=; lra).
+      remember (seq 0 (length X)) as LL.
+      clear Heqg Heqf HU HeqLL.
+
+      induction LL as [|LL0 LL' IH].
+      - simpl; lra.
+      - simpl. rewrite -IH; eauto.
+        rewrite Hf Hg.
+        lra.
+    }
 
     (* 4. Rewrite the reversed sum and combine to eliminate the factor of 2 *)
     do 2 rewrite (foldr_reduction_1 _ _ HU).
@@ -679,7 +726,7 @@ Section accounting.
     lra.
 
     Transparent seq.
-  Admitted.
+  Qed.
 
 End accounting.
 
