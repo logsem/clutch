@@ -58,7 +58,11 @@ Section lib.
      f_equal.
      - apply functional_extensionality.
        intros.
+       Set Printing Coercions.
        apply fin_irrel.
+       admit.
+     -
+
    Admitted.
 
    (* Allows us to pull off the last element of a fin_enum, leaving a smaller fin_enum *)
@@ -110,7 +114,7 @@ Section sorting.
     refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
   Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined. *)
 
-  Definition rank `{A : Type} `{L : list A} (f : sorting_function A L) : A -> nat := fun x => length (List.filter (fun y => f x y) L).
+  Definition rank `{A : Type} `{L : list A} (f : sorting_function A L) : A -> nat := fun x => (length (List.filter (fun y => f x y) L) - 1).
 
    Definition index_to_rank `{A : Type} `{Hinhabited : Inhabited A} `{L : list A} (f : sorting_function A L) (index : nat) : nat
     := @rank _ _ f (L !!! index).
@@ -142,24 +146,20 @@ Section sorting.
     - simpl. constructor.
     - rewrite /reverse_order seq_length.
       rewrite /reverse_order seq_length in IH.
-      rewrite {1}index_space_cons.
-      rewrite {1}index_space_snoc fmap_app /=.
+      rewrite {2}index_space_cons fmap_cons.
+      rewrite {1}index_space_snoc.
       rewrite -Permutation_cons_append.
-      rewrite /= Nat.sub_0_r Nat.sub_diag.
+      replace (S N' - 1 - 0) with N' by lia.
       constructor.
-
-      (*
-
-      rewrite -fmap_S_seq.
-      rewrite fmap_compat.
+      rewrite {1}IH.
+      apply equal_perm.
       rewrite -list_fmap_compose.
       apply list_fmap_ext.
       intros ? ? H.
       rewrite lookup_seq in H.
       destruct H as [H1 H2].
       simpl. lia.
-       *)
-  Admitted.
+  Qed.
 
   Lemma index_to_rank_nat_perm `{A : Type} `{Hinhabited : Inhabited A} {L : list A} (f : sorting_function A L) :
      (index_space (length L)) ≡ₚ ((index_to_rank f) <$> (index_space (length L))).
@@ -167,41 +167,43 @@ Section sorting.
     intros.
     destruct (length L) as [|L0 L1] eqn:lenl.
     { simpl. constructor. }
-
-    (*
-
     symmetry.
     apply nat_bijection_Permutation.
     - rewrite /FinFun.bFun.
       intros.
-      rewrite /index_to_rank_nat /rank_lower_nat.
-      remember (λ v : Z, (v <? l !!! x)%Z) as f.
+      rewrite /index_to_rank /rank.
+      remember (λ y : A, sort_func A L f (L !!! x) y) as f1.
       rewrite -lenl.
-      destruct (Lt.le_lt_or_eq_stt _ _ (filter_length_le f l)) as [ ? | HB ]; first done.
-      exfalso.
-      assert (HK : forallb f l = false); last (pose P := (filter_length_forallb _ _ HB); eauto).
-      rewrite Heqf.
-      rewrite -(take_drop x l).
-      rewrite forallb_app.
-      apply andb_false_intro2.
-      rewrite lookup_total_app_r; last apply firstn_le_length.
-      rewrite take_length_le; last lia.
-      rewrite Nat.sub_diag.
-
-      destruct (drop x l) as [| d0 ? ] eqn:Hd.
-      { assert (HK : (0 < length (drop x l))%nat) by (rewrite drop_length; lia).
+      rewrite <- Nat.le_succ_l.
+      replace (S _) with (length (List.filter f1 L)); first apply filter_length_le.
+      assert (Hpos : (0 < length (List.filter f1 L))%nat); last lia.
+      (* This is true becasue x (L !!! x) ∈ L*)
+      rewrite Heqf1.
+      (* Bound below by the filter after dropping x elemenets *)
+      rewrite -{3}(take_drop x L).
+      rewrite List.filter_app app_length.
+      apply PeanoNat.Nat.add_pos_r.
+      (* Bound below by the first element *)
+      destruct (drop x L) as [| d0 ? ] eqn:Hd.
+      { assert (HK : (0 < length (drop x L))%nat) by (rewrite drop_length; lia).
         exfalso.
         rewrite Hd in HK.
         simpl in *. lia.
       }
+      replace (d0 :: l) with ([d0] ++ l); last by simpl.
+      rewrite List.filter_app app_length.
+      apply PeanoNat.Nat.add_pos_l.
       simpl.
-      apply andb_false_intro1.
-      apply Z.ltb_irrefl.
+      rewrite -{2}(take_drop x L) Hd.
+      rewrite lookup_total_app_r; last apply firstn_le_length.
+      rewrite take_length_le; last (simplify_eq; lia).
+      rewrite Nat.sub_diag.
+      rewrite /= sort_reflexive /=.
+      lia.
     - rewrite /FinFun.Injective.
       intros ? ? HRk.
       (* Uses uniqueness, probably need to prove an aux. lemma *)
-      rewrite /index_to_rank_nat /rank_lower_nat in HRk.
-     *)
+      rewrite /index_to_rank /rank in HRk.
   Admitted.
 
 
@@ -591,7 +593,7 @@ Section qs_adv_cmp.
          match L with
          | [] => tc_base
          | _ => ((tc_quicksort CA CB ∘ (index_to_rank f)) index +
-                 (tc_quicksort CA CB ∘ (index_to_rank f) ∘ reverse_order (index_space (length L))) index)%R
+                 (tc_quicksort CA CB ∘ reverse_order (index_space (length L)) ∘ (index_to_rank f)) index)%R
          end.
 
   (* Distribution, in a form which typechecks with advanced composition *)
@@ -599,112 +601,108 @@ Section qs_adv_cmp.
     := (tc_distr_def f CA CB) ∘ fin_to_nat.
 
 
-  Lemma tc_distr_nonneg L f CA CB i : (0 <= tc_distr L f CA CB i)%R.
-  Proof. (* rewrite /tc_distr /tc_distr_nats /=. apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg. *) Admitted.
-
-(* FIXME: redo me when you fix tc_distr_equiv
-
-
-  Lemma foldr_reduction_1 f X : (list_unique X) ->
-     (foldr (Rplus ∘ f ∘ index_to_rank_nat X) 0 (seq 0 (length X)))%R
-   = (foldr (Rplus ∘ f ) 0 (seq 0 (length X)))%R.
+  Lemma tc_distr_nonneg L f CA CB i : (0 < length L)%nat -> (0 <= tc_distr L f CA CB i)%R.
   Proof.
     intros.
-    rewrite (fold_R_fin_perm _ (index_to_rank_nat X)).
-    - (* generalize me *)
-      remember (seq 0 (length X)) as L.
-      clear HeqL.
-      remember (index_to_rank_nat X) as g.
-      induction L as [|L0 L' IH].
-      + simpl; done.
-      + simpl. f_equal. apply IH.
-    - apply index_to_rank_nat_perm. done.
+    rewrite /tc_distr /tc_distr_def /=.
+    destruct L; first (simpl in *; lia).
+    apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg.
   Qed.
 
-  Lemma foldr_reduction_2 f (X : list Z) :
-     (foldr (Rplus ∘ f ∘ reverse_order (seq 0 (length X))) 0%R (seq 0 (length X)))%R
-   = (foldr (Rplus ∘ f) 0%R (seq 0 (length X)))%R.
+
+  Lemma foldr_reduction_1 (L : list A) g (f : sorting_function A L)  :
+     (foldr (Rplus ∘ g ∘ index_to_rank f) 0 (index_space (length L)))%R
+   = (foldr (Rplus ∘ g) 0 (index_space (length L)))%R.
   Proof.
     intros.
-    rewrite (fold_R_fin_perm _ (reverse_order (seq 0 (length X)))).
+    rewrite (fold_R_fin_perm _ (index_to_rank f)).
     - (* generalize me *)
-      remember (seq 0 (length X)) as L; clear HeqL.
-      remember (reverse_order L) as g; clear Heqg.
-      induction L as [|L0 L' IH].
+      remember (index_space (length L)) as LL.
+      clear HeqLL.
+      remember (index_to_rank f) as g1.
+      induction LL as [|L0 L' IH].
+      + simpl; lra.
+      + simpl. f_equal. apply IH.
+    - apply index_to_rank_nat_perm.
+  Qed.
+
+  Lemma foldr_reduction_2 (L : list A) g (f : sorting_function A L) :
+     (foldr (Rplus ∘ g ∘ reverse_order (index_space (length L))) 0%R (index_space (length L)))%R
+   = (foldr (Rplus ∘ g) 0%R (index_space (length L)))%R.
+  Proof.
+    intros.
+    rewrite (fold_R_fin_perm _ (reverse_order (index_space (length L)))).
+    - (* generalize me *)
+      remember (index_space (length L)) as LL; clear HeqLL.
+      remember (reverse_order LL) as g1; clear Heqg1.
+      induction LL as [|L0 L' IH].
       + simpl; done.
       + simpl. f_equal. apply IH.
     - apply reverse_perm.
   Qed.
 
-*)
-
 
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
   Lemma tc_distr_equiv L f CA CB :
+  (0 < length L)%nat ->
   (SeriesC (λ n : fin (S (Z.to_nat (length L - 1))), 1 / S (Z.to_nat (length L - 1)) * tc_distr L f CA CB n))%R =
         (2 * foldr Rplus 0 (map (λ n : nat, tc_quicksort CA CB n) (index_space (length L))) / (length L))%R.
   Proof.
-
-    (*
+    intros Hlength.
+    assert (Hlength_nz : INR (length L) ≠ 0%R).
+    { symmetry. apply Rlt_not_eq. rewrite -INR_0. by apply lt_INR. }
 
     (* 1. Simplify everything that we can, and get rid of the / (S length xs') terms *)
-    Opaque seq.
-    apply (Rmult_eq_reg_r (S (length xs'))); last (rewrite S_INR; pose P := (pos_INR (length xs')); lra).
+    apply (Rmult_eq_reg_r (length L)); last done.
+
     (* Cancel on the RHS *)
     repeat rewrite Rdiv_def.
-    rewrite Rmult_assoc Rinv_l; last (rewrite S_INR; pose P := (pos_INR (length xs')); lra).
+    rewrite Rmult_assoc Rinv_l; last done.
     rewrite Rmult_1_r.
     (* Cancel on the LHS *)
     rewrite Rmult_comm.
     rewrite SeriesC_scal_l.
     rewrite -Rmult_assoc Rmult_1_l.
     simpl length.
-    replace ((S (length xs')) * (/ (S (Z.to_nat ((S (length xs')) - 1)))))%R with 1%R; last first.
-    { rewrite Nat2Z.inj_succ.
-      replace (Z.to_nat ((Z.succ (Z.of_nat (length xs'))) - 1)) with (length xs') by lia.
-      rewrite Rinv_r; first lra.
-      rewrite S_INR; pose P := (pos_INR (length xs')); lra.
+
+    replace ((length L) * (/ (S (Z.to_nat (Z.of_nat (length L) - 1)))))%R with 1%R; last first.
+    { replace (S (Z.to_nat (Z.of_nat (length L) - 1))) with (length L) by lia.
+      rewrite Rinv_r; done.
     }
     rewrite Rmult_1_l.
+
 
     (* 2. Convert the series into a foldr, simpl *)
     rewrite SeriesC_finite_foldr.
     rewrite /tc_distr.
-    replace (foldr
-               (Rplus ∘ (λ index, (tc_distr_nats A B x0 xs' ∘ fin_to_nat) index))
-               0%R (enum (fin (S (Z.to_nat (S (length xs') - 1))))))%R
-       with (foldr
-               (Rplus ∘ (tc_distr_nats A B x0 xs'))
-               0%R (seq 0%nat (S (Z.to_nat (S (length xs') - 1)))))%R;
+    replace (foldr (Rplus ∘ (tc_distr_def f CA CB ∘ fin_to_nat)) 0%R (enum (fin (S (Z.to_nat (Z.of_nat (length L) - 1))))))
+      with  (foldr (Rplus ∘ tc_distr_def f CA CB) 0%R (index_space (length L)));
       last first.
-    { (* Generalize me *)
+    { remember (tc_distr_def _ _ _) as g.
+      remember (S (Z.to_nat (Z.of_nat (length L) - 1))) as l.
+      replace (length L) with l; last (simplify_eq; lia).
       clear.
-      remember (tc_distr_nats A B x0 xs') as g.
-      remember (S (Z.to_nat (S (length xs') - 1))) as L.
-      clear.
-      induction L.
-      - Transparent seq. simpl. Opaque seq. done.
-      - rewrite seq_S.
+      induction l.
+      - simpl. done.
+      - rewrite index_space_snoc.
         rewrite foldr_app.
         Opaque enum. simpl. Transparent enum.
-        replace (foldr (Rplus ∘ g) (g L + 0)%R (seq 0 L))%R with (g L + foldr (Rplus ∘ g) (0)%R (seq 0 L))%R; last first.
+        replace (foldr (Rplus ∘ g) (g l + 0)%R (index_space l))%R with (g l + foldr (Rplus ∘ g) (0)%R (index_space l))%R; last first.
         { (* whatever *)
-          remember (seq 0 L) as LL; clear.
-          Transparent seq.
+          remember (index_space l) as LL; clear.
           induction LL as [|LL0 LL' IH].
           - simpl. done.
           - simpl. rewrite -IH. lra.
-          Opaque seq.
         }
-        rewrite IHL.
+        rewrite IHl.
         rewrite /enum /fin_finite.
         rewrite fin_enum_snoc_rec.
         rewrite foldr_app.
         simpl.
         rewrite fin_to_nat_to_fin.
 
-        replace (foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index))) (g L + 0)%R (fin_inj_incr L <$> fin_enum L))%R
-          with (g L + foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index))) 0%R (fin_inj_incr L <$> fin_enum L))%R;
+        replace (foldr (Rplus ∘ (λ index : fin (S l), g (fin_to_nat index))) (g l + 0)%R (fin_inj_incr l <$> fin_enum l))%R
+          with (g l + foldr (Rplus ∘ (λ index : fin (S l), g (fin_to_nat index))) 0%R (fin_inj_incr l <$> fin_enum l))%R;
           last first.
         { (* whatever *)
           remember (fin_inj_incr _ <$> _ ) as LL; clear.
@@ -713,8 +711,8 @@ Section qs_adv_cmp.
           - simpl. rewrite -IH. lra.
         }
         f_equal.
-        replace (foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index))) 0%R (fin_inj_incr L <$> fin_enum L))%R
-           with (foldr (Rplus ∘ (λ index : fin (S L), g (fin_to_nat index)) ∘ fin_inj_incr L ) 0%R (fin_enum L))%R;
+        replace (foldr (Rplus ∘ (λ index : fin (S l), g (fin_to_nat index))) 0%R (fin_inj_incr l <$> fin_enum l))%R
+           with (foldr (Rplus ∘ (λ index : fin (S l), g (fin_to_nat index)) ∘ fin_inj_incr l ) 0%R (fin_enum l))%R;
           last first.
         { remember (fin_enum _) as LL.
           clear.
@@ -727,46 +725,42 @@ Section qs_adv_cmp.
         by rewrite fin_inj_incr_to_nat.
     }
 
-    replace (S (Z.to_nat (S (length xs') - 1)))%nat with (S (length xs')) by lia.
-    remember (x0 :: xs') as X.
-    replace (S (length xs')) with (length X); last (rewrite HeqX; simpl length; done).
-
     (* 3. Split the distr series into two sums *)
-    replace (foldr (Rplus ∘ tc_distr_nats A B x0 xs') 0%R (seq 0 (length X)))%R
-       with (foldr (Rplus ∘ tc_quicksort A B ∘ (index_to_rank_nat X)) 0%R (seq 0%nat (length X)) +
-             foldr (Rplus ∘ tc_quicksort A B ∘ (reverse_order (seq 0 (length X))) ∘ (index_to_rank_nat X)) 0%R (seq 0%nat (length X)))%R;
+    replace (foldr (Rplus ∘ tc_distr_def f CA CB) 0%R (index_space (length L)))
+       with (foldr (Rplus ∘ tc_quicksort CA CB ∘ (index_to_rank f)) 0%R (index_space (length L)) +
+             foldr (Rplus ∘ tc_quicksort CA CB ∘ (reverse_order (index_space (length L))) ∘ (index_to_rank f)) 0%R (index_space (length L)))%R;
 
       last first.
-    { rewrite /tc_distr_nats.
-      rewrite -HeqX.
-      remember (Rplus ∘ tc_quicksort A B ∘ index_to_rank_nat X) as f.
-      remember (Rplus ∘ tc_quicksort A B ∘ reverse_order (seq 0 (length X)) ∘ index_to_rank_nat X) as g.
-      replace (compose Rplus _) with  (fun i => (fun r => f i 0 + g i 0 + r)%R); last first.
+    { rewrite /tc_distr_def.
+      remember (Rplus ∘ tc_quicksort CA CB ∘ index_to_rank f) as f1.
+      remember (Rplus ∘ tc_quicksort CA CB ∘ reverse_order (index_space (length L)) ∘ index_to_rank f) as f2.
+      replace (compose Rplus _) with  (fun i => (fun r => f1 i 0 + f2 i 0 + r)%R); last first.
       { (* There's probably a better way *)
         apply functional_extensionality.
         intros; simpl.
         apply functional_extensionality.
-        rewrite Heqf Heqg /=.
+        rewrite Heqf1 Heqf2 /=.
         intros; simpl.
         rewrite Rplus_comm.
+        destruct L; first simplify_eq.
         lra.
       }
 
-      assert (Hf : forall i r, (f i r = r + f i 0)%R) by (intros; rewrite Heqf /=; lra).
-      assert (Hg : forall i r, (g i r = r + g i 0)%R) by (intros; rewrite Heqg /=; lra).
-      remember (seq 0 (length X)) as LL.
-      clear Heqg Heqf HU HeqLL.
+      assert (Hf1 : forall i r, (f1 i r = r + f1 i 0)%R) by (intros; rewrite Heqf1 /=; lra).
+      assert (Hf2 : forall i r, (f2 i r = r + f2 i 0)%R) by (intros; rewrite Heqf2 /=; lra).
+      remember (index_space (length L)) as LL.
+      clear Heqf1 Heqf2 HeqLL.
 
       induction LL as [|LL0 LL' IH].
       - simpl; lra.
       - simpl. rewrite -IH; eauto.
-        rewrite Hf Hg.
+        rewrite Hf1 Hf2.
         lra.
     }
 
     (* 4. Rewrite the reversed sum and combine to eliminate the factor of 2 *)
-    do 2 rewrite (foldr_reduction_1 _ _ HU).
-    rewrite foldr_reduction_2.
+    do 2 rewrite (foldr_reduction_1 _ _ f).
+    rewrite (foldr_reduction_2 _ _ f).
 
     (* 5. Combine *)
     do 2 rewrite -foldr_fmap.
@@ -775,8 +769,6 @@ Section qs_adv_cmp.
     Transparent seq.
   Qed.
 
-    *)
-    Admitted.
 
 End qs_adv_cmp.
 
@@ -820,7 +812,7 @@ End cost.
 
 Section list.
   (** Ported list library to count comparisons *)
-  Context `{!ert_clutchGS Σ CostCmp }.
+  Context `{!ert_clutchGS Σ CostTick }.
 
 
 
@@ -2203,7 +2195,7 @@ End list.
 
 
 Section program.
-  Context `{!ert_clutchGS Σ CostCmp }.
+  Context `{!ert_clutchGS Σ CostTick}.
   Context `[!Inject A val].
   Context `{Inhabited A}.
 
@@ -2250,10 +2242,10 @@ Section program.
     iIntros (φ) "(Hcr & %llv & %Hi) hφ".
     rewrite /list_remove_nth_unsafe.
     wp_pures.
-    wp_apply wp_remove_nth => //.
+    (* wp_apply wp_remove_nth => //.
     { iSplit; first admit. eauto. }
     iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
-    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
+    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto. *)
   Admitted.
 
   (* Maybe I can weaken the sorting requirement on the results *)
@@ -2352,6 +2344,7 @@ Section program.
       iApply (etc_weaken with "[$]").
       simpl. admit.
     }
+    (*
     iApply (wp_list_length with "[Hfree]").
     { iFrame; eauto. }
     iIntros "!>" (n) "->"...
@@ -2442,6 +2435,7 @@ Section program.
     - clear -Sles Sgts ple pgt Ples Pgts. apply sorted_append => // ; intros.
       + apply ple. eapply Permutation_in => //.
       + apply pgt. eapply Permutation_in => //.
+     *)
      *)
      *)
   Admitted.
