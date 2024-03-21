@@ -159,7 +159,6 @@ Section rules.
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR ; [done|].
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
@@ -192,7 +191,6 @@ Section rules.
     replace (nnreal_plus nnreal_zero ε) with (ε)
       by by apply nnreal_ext => /= ; lra.
     iModIntro.
-    iDestruct "Hwp" as "[hred Hwp]".
     done.
   Qed.
 
@@ -214,7 +212,6 @@ Section rules.
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR; [done|].
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
@@ -248,7 +245,6 @@ Section rules.
     replace (nnreal_plus nnreal_zero ε) with (ε)
       by by apply nnreal_ext => /= ; lra.
     iModIntro.
-    iDestruct "Hwp" as "[hred Hwp]".
     done.
   Qed.
 
@@ -271,7 +267,6 @@ Section rules.
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
     iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplitR; [done|].
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
     iApply exec_coupl_det_r; [done|].
@@ -306,7 +301,6 @@ Section rules.
     replace (nnreal_plus nnreal_zero ε) with (ε)
       by by apply nnreal_ext => /= ; lra.
     iModIntro.
-    iDestruct "Hwp" as "[hred Hwp]".
     done.
   Qed.
 

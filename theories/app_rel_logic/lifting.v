@@ -21,7 +21,6 @@ Lemma wp_lift_step_fupd_couple E Φ e1 :
   (∀ σ1 e1' σ1' ε,
     state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε
     ={E,∅}=∗
-    ⌜reducible (e1, σ1)⌝ ∗
     (exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε2,
       ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ WP e2 @ E {{ Φ }}) ε))
   ⊢ WP e1 @ E {{ Φ }}.
@@ -43,7 +42,6 @@ Proof.
   iApply wp_lift_step_fupd_couple; [done|].
   iIntros (σ1 e1' σ1' ε) "[Hσ [Hρ Hε]]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iSplit; [done|].
   replace (ε) with ((nnreal_zero + ε)%NNR) at 2; last first.
   {
     rewrite /nnreal_plus/=.
