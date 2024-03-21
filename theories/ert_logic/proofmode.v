@@ -163,7 +163,7 @@ Tactic Notation "wp_pure_cost" open_constr(efoc) :=
         | (* enough credits *)
           simpl; try lra
         | (* new environment *)
-          simpl; done
+          rewrite [⧖ _]/=; done
         | (* new goal *)
           pm_reduce; wp_finish; rewrite [⧖ _]/=
         ])
@@ -193,7 +193,7 @@ Tactic Notation "wp_pure_cost" open_constr(efoc) "with" open_constr(credit) :=
         | (* enough credits -- postpone *)
           simpl; try lra
         | (* new environment *)
-          done
+          rewrite [⧖ _]/=; done
         | (* new goal *)
           pm_reduce; wp_finish; rewrite [⧖ _]/=
         ])
@@ -233,6 +233,13 @@ Ltac wp_pures :=
   iStartProof;
   first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
           progress repeat (wp_pure _; [])
+        | wp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
+    ].
+
+Tactic Notation "wp_pures" "with" open_constr(credit) :=
+  iStartProof;
+  first [ (* The `;[]` makes sure that no side-condition magically spawns. *)
+          progress repeat (wp_pure _ with credit; [])
         | wp_finish (* In case wp_pure never ran, make sure we do the usual cleanup. *)
     ].
 
