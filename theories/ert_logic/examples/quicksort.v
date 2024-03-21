@@ -455,34 +455,55 @@ Section accounting.
       apply (Permutation_trans IH).
       apply equal_perm.
       clear IH.
-      induction N' as [|N'' IH].
-      + by simpl.
-      + do 2 rewrite seq_S.
-        rewrite fmap_compat fmap_app fmap_app.
-        simpl.
-        rewrite Nat.sub_0_r.
-        f_equal.
 
-        (* Super annoying, maybe a better way to do this?
-        Search (_ <$> (seq _ _)).
-        replace (λ i : nat, S N'' - i) with ((λ i : nat, N'' - i) ∘ S).
-        replace (λ i : nat, N'' - i) with ((λ i : nat, N'' - 1 - i) ∘ S); last first.
-        { apply functional_extensionality.
-          simpl; intros.
-
-        }
-        Search (fmap _ _ = fmap _ _) (_ ∘ _).
-        Search (_ - 0)%nat.
-        rewrite fmap_compat in IH.
-        rewrite -IH.
-        *)
-  Admitted.
-
+      rewrite -fmap_S_seq.
+      rewrite fmap_compat.
+      rewrite -list_fmap_compose.
+      apply list_fmap_ext.
+      intros ? ? H.
+      rewrite lookup_seq in H.
+      destruct H as [H1 H2].
+      simpl. lia.
+  Qed.
 
   Lemma index_to_rank_nat_perm l : (list_unique l) -> (seq 0%nat (length l)) ≡ₚ (map (index_to_rank_nat l) (seq 0%nat (length l))).
   Proof.
     intros.
-    (* Honestly not even sure how to go about this. *)
+    destruct (length l) as [|L] eqn:lenl.
+    { (* Different proof for [] *)
+      simpl. constructor.
+    }
+    symmetry.
+    apply nat_bijection_Permutation.
+    - rewrite /FinFun.bFun.
+      intros.
+      rewrite /index_to_rank_nat /rank_lower_nat.
+      remember (λ v : Z, (v <? l !!! x)%Z) as f.
+      rewrite -lenl.
+      destruct (Lt.le_lt_or_eq_stt _ _ (filter_length_le f l)) as [ ? | HB ]; first done.
+      exfalso.
+      assert (HK : forallb f l = false); last (pose P := (filter_length_forallb _ _ HB); eauto).
+      rewrite Heqf.
+      rewrite -(take_drop x l).
+      rewrite forallb_app.
+      apply andb_false_intro2.
+      rewrite lookup_total_app_r; last apply firstn_le_length.
+      rewrite take_length_le; last lia.
+      rewrite Nat.sub_diag.
+
+      destruct (drop x l) as [| d0 ? ] eqn:Hd.
+      { assert (HK : (0 < length (drop x l))%nat) by (rewrite drop_length; lia).
+        exfalso.
+        rewrite Hd in HK.
+        simpl in *. lia.
+      }
+      simpl.
+      apply andb_false_intro1.
+      apply Z.ltb_irrefl.
+    - rewrite /FinFun.Injective.
+      intros ? ? HRk.
+      (* Uses uniqueness, probably need to prove an aux. lemma *)
+      rewrite /index_to_rank_nat /rank_lower_nat in HRk.
   Admitted.
 
 
