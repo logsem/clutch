@@ -93,10 +93,7 @@ End lib.
 Section sorting.
   (** Definitions related to specifying a sorting function *)
 
-  (* Search StronglySorted. *)
-
-  (* Local Notation sorted := (StronglySorted Z.le). *)
-
+  (* sorting_function makes it easy(tm) to prove the lemmas we need *)
   Record sorting_function (A : Type) (L : list A)
     := { sort_func :> A -> A -> bool ;
          sort_reflexive : forall a, sort_func a a = true ;
@@ -104,6 +101,9 @@ Section sorting.
          (* Could be a better definition here *)
          sort_unique : Forall (fun x => length (List.filter (fun y => sort_func x y && sort_func y x) L) = 1%nat) L ;
     }.
+
+  (* sharpening a sorting function gives one that is irreflexive *)
+  Definition sharpen `{A : Type} (f : A -> A -> bool) : (A -> A -> bool) := (fun x y => negb (f x y || f y x)).
 
 
   (* TODO: Define sorting functions for restrictions (cons, snoc, app) *)
@@ -2210,6 +2210,7 @@ Section program.
     | SOME "v" => "v"
     end.
 
+  (* TODO: Paramaterize by cmp *)
   Definition partition : expr :=
     let: "negb" := λ:"b", if: "b" then #false else #true in
     λ:"l" "e",
@@ -2217,6 +2218,7 @@ Section program.
       (list_filter (λ:"x", "negb" ("f" "x") ) "l",
         list_filter "f" "l").
 
+  (* TODO: Paramaterize by cmp *)
   Definition qs : val :=
     rec: "qs" "l" :=
       let: "n" := list_length "l" in
@@ -2247,6 +2249,11 @@ Section program.
     iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
     iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto. *)
   Admitted.
+
+
+
+  Definition cmp_spec (xs : list A) (f : sorting_function A xs) c (k : R) : iProp Σ
+    := ∀ (a1 a2 : A), {{{ ⧖ k }}} c (inject a1) (inject a2) {{{ v, RET #v; ⌜v = (sharpen f) a1 a2⌝  }}}.
 
   (* Maybe I can weaken the sorting requirement on the results *)
   Lemma Partition (xs : list A) (f : sorting_function A xs) l (e : A) e' :
@@ -2323,17 +2330,15 @@ Section program.
         apply Z.lt_le_incl, ppost => //.
   Qed.
 
-  Definition qsA := 3%nat.
-  Definition qsB := 1%nat.
-  Definition qsC := tc_quicksort qsA qsB.
 
 
-  (* Removed sorted requirements *)
-  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (f : sorting_function A xs),
-    {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ }}}
+  (* Removes sorted requirements, do we want those??? *)
+  Lemma qs_time_bound qsA qsB : ∀ (xs : list A) (l : val) (f : sorting_function A xs),
+    {{{ ⧖ (tc_quicksort qsA qsB (length xs)) ∗ ⌜is_list xs l⌝ }}}
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
+    (*
     assert (Hnonneg : forall i, (0 <= qsC i)%R) by admit.
     iLöb as "Hqs". iIntros (xs l f φ) "(Hcr & %hl) hφ".
     rewrite {2}/qs...
@@ -2344,6 +2349,7 @@ Section program.
       iApply (etc_weaken with "[$]").
       simpl. admit.
     }
+     *)
     (*
     iApply (wp_list_length with "[Hfree]").
     { iFrame; eauto. }
