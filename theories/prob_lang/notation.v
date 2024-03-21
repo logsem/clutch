@@ -117,11 +117,12 @@ Notation "- e" := (UnOp MinusUnOp e%E) : expr_scope.
 
 Notation alloc := AllocTape.
 
-
 Notation "'rand(' α ) e" := (Rand e%E α%E) (at level 70, right associativity, format "'rand(' α )  e") : expr_scope.
 Notation "'rand' e" := (Rand e%E (Val $ LitV LitUnit)) (at level 70) : expr_scope.
 
 Notation "'#lbl:' α" := (# (LitLbl α)) (at level 8, format "#lbl: α").
+
+Notation tick := Tick. 
   
 Notation "e1 + e2" := (BinOp PlusOp e1%E e2%E) : expr_scope.
 Notation "e1 +ₗ e2" := (BinOp OffsetOp e1%E e2%E) : expr_scope.

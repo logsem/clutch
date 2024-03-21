@@ -292,7 +292,7 @@ Tactic Notation "iChip" constr(H1) "as" constr(H2) :=
 
 Tactic Notation "iChip" constr(H1) :=
   let Htmp := iFresh in
-  iChip H1 as Htmp.  
+  iChip H1 as Htmp.
 
 Tactic Notation "iChip" :=
   let Htmp := iFresh in
@@ -410,7 +410,6 @@ Section tests.
 
 End tests.
 
-
 Section testsapp.
   Context `{!ert_clutchGS Σ CostApp}.
 
@@ -443,5 +442,20 @@ Section testsapp.
     wp_pures.
     assert (3 - 1 - 1 - 1 = 0)%R as -> by lra.
     by iApply "Hp".
-  Qed. 
+  Qed.
+
 End testsapp.
+
+Section testtick.
+  Context `{!ert_clutchGS Σ CostTick}.
+
+  #[local] Lemma test_tick_wp_pure (r : R) :
+    {{{ ⧖ 2 }}} tick #1;; #2 + #2;; tick #1 {{{ RET #(); ⧖ 0 }}}.
+  Proof.
+    iIntros (?) "Hx Hp".
+    wp_pures.
+    assert (2 - 1 - 1 = 0)%R as -> by lra.
+    by iApply "Hp".
+  Qed.
+
+End testtick.

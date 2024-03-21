@@ -31,6 +31,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | If e0 e1 e2 | Case e0 e1 e2 =>
      is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
   | AllocTape e => is_closed_expr X e
+  | Tick e => is_closed_expr X e
   end
 with is_closed_val (v : val) : bool :=
   match v with
@@ -61,6 +62,7 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst_map vs e1) (subst_map vs e2)
   | AllocTape e => AllocTape (subst_map vs e)
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
+  | Tick e => Tick (subst_map vs e)
   end.
 
 (* Properties *)
@@ -867,7 +869,9 @@ Inductive det_head_step_rel : expr → state → expr → state → Prop :=
 | StoreDS l v w σ :
   σ.(heap) !! l = Some v →
   det_head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
-    (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ).
+    (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
+| TickDS z σ :
+  det_head_step_rel (Tick (Val $ LitV $ LitInt z)) σ (Val $ LitV $ LitUnit) σ.
 
 Inductive det_head_step_pred : expr → state → Prop :=
 | RecDSP f x e σ :
@@ -908,7 +912,9 @@ Inductive det_head_step_pred : expr → state → Prop :=
   det_head_step_pred (Load (Val $ LitV $ LitLoc l)) σ
 | StoreDSP l v w σ :
   σ.(heap) !! l = Some v →
-  det_head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ.
+  det_head_step_pred (Store (Val $ LitV $ LitLoc l) (Val w)) σ
+| TickDSP z σ :
+  det_head_step_pred (Tick (Val $ LitV $ LitInt z)) σ.
 
 Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
   match e1 with
@@ -930,6 +936,7 @@ Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
       bool_decide (is_Some (σ1.(heap) !! l))
   | Store (Val (LitV (LitLoc l))) (Val w) =>
       bool_decide (is_Some (σ1.(heap) !! l))
+  | Tick (Val (LitV (LitInt z))) => true
   | _ => false
   end.
 
