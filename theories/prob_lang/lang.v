@@ -50,6 +50,8 @@ Inductive expr :=
   (* Probabilistic choice *)
   | AllocTape (e : expr)
   | Rand (e1 e2 : expr)
+  (* No-op operator used for cost *)
+  | Tick (e : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -184,6 +186,7 @@ Proof.
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | Tick e, Tick e' => cast_if (decide (e = e'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -260,6 +263,7 @@ Proof.
      | Store e1 e2 => GenNode 14 [go e1; go e2]
      | AllocTape e => GenNode 15 [go e]
      | Rand e1 e2 => GenNode 16 [go e1; go e2]
+     | Tick e => GenNode 17 [go e]
      end
    with gov v :=
      match v with
@@ -292,6 +296,7 @@ Proof.
      | GenNode 14 [e1; e2] => Store (go e1) (go e2)
      | GenNode 15 [e] => AllocTape (go e)
      | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
+     | GenNode 17 [e] => Tick (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -306,7 +311,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -349,7 +354,8 @@ Inductive ectx_item :=
   | StoreRCtx (e1 : expr)
   | AllocTapeCtx
   | RandLCtx (v2 : val)
-  | RandRCtx (e1 : expr).
+  | RandRCtx (e1 : expr)
+  | TickCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -374,8 +380,8 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | AllocTapeCtx => AllocTape e
   | RandLCtx v2 => Rand e (Val v2)
   | RandRCtx e1 => Rand e1 e
+  | TickCtx => Tick e
   end.
-
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
   let noval (e : expr) (ei : ectx_item) :=
@@ -421,6 +427,7 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       | Val v      => noval e1 (RandLCtx v)
       | _          => Some (RandRCtx e1, e2)
       end
+  | Tick e         => noval e TickCtx
   | _              => None
   end.
 
@@ -446,6 +453,7 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | AllocTape e => AllocTape (subst x v e)
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
+  | Tick e => Tick (subst x v e)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -525,13 +533,11 @@ Lemma state_upd_tapes_twice σ l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
 Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
 
-
 Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
   match vs with
   | [] => ∅
   | v :: vs' => {[l := v]} ∪ heap_array (l +ₗ 1) vs'
   end.
-
 
 Lemma heap_array_singleton l v : heap_array l [v] = {[l := v]}.
 Proof. by rewrite /heap_array right_id. Qed.
@@ -550,7 +556,6 @@ Proof.
       Z.add_comm
       loc_add_assoc //.
 Qed.
-
 
 Lemma heap_array_lookup l vs v k :
   heap_array l vs !! k = Some v ↔
@@ -612,51 +617,6 @@ Proof.
      IHn /=.
     rewrite map_union_empty replicate_length //.
 Qed.
-
-
-(*
-Lemma state_upd_tapes_N_S n l v σ :
-  state_upd_heap_N l (S n) v σ = state_upd_heap_N (l +ₗ 1) n v (state_upd_heap <[l:= v]> σ).
-Proof.
-  rewrite /state_upd_heap_N /= /state_upd_heap.
-  f_equiv.
-  revert l.
-  induction n; intro l.
-  - simpl.
-    rewrite map_empty_union map_union_empty.
-    rewrite -insert_union_l map_empty_union //.
-  - simpl.
-    rewrite -map_union_assoc IHn.
-    do 2 rewrite insert_union_singleton_l.
-    rewrite (map_union_assoc (heap_array (l +ₗ 1 +ₗ 1) (replicate n v)) {[l +ₗ 1 := v]}).
-    rewrite (map_union_comm (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
-    2:{
-      apply heap_array_map_disjoint.
-      intros.
-      apply lookup_singleton_ne.
-      destruct l; rewrite /loc_add/=.
-      admit.
-    }
-    rewrite -(map_union_assoc ({[l +ₗ 1 := v]}) (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))
-                ({[l := v]} ∪ heap σ)).
-    rewrite (map_union_assoc (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
-    rewrite (map_union_comm (heap_array (l +ₗ 1 +ₗ 1) (replicate n v))).
-    2:{
-      apply heap_array_map_disjoint.
-      intros.
-      apply lookup_singleton_ne.
-      destruct l; rewrite /loc_add/=.
-      admit.
-    }
-    do 4 rewrite (map_union_assoc).
-    do 2 f_equiv.
-    apply map_union_comm.
-    apply map_disjoint_dom_2.
-    do 2 rewrite dom_singleton_L.
-    admit.
-Admitted.
-*)
-
 
 #[local] Open Scope R.
 
@@ -736,6 +696,7 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
             dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
       | None => dzero
       end
+  | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
   | _ => dzero
   end.
 
@@ -830,7 +791,9 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((M; ms) : tape) →
   N ≠ M →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ.
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+| TickS σ z :
+  head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
@@ -920,7 +883,7 @@ Proof.
   intros Hdom.
   rewrite /state_step bool_decide_eq_true_2 //=.
   case_match.
-  rewrite dmap_mass dunif_mass //. 
+  rewrite dmap_mass dunif_mass //.
 Qed.
 
 Lemma head_step_mass e σ :
@@ -956,6 +919,7 @@ Fixpoint height (e : expr) : nat :=
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e
   | Rand e1 e2 => 1 + height e1 + height e2
+  | Tick e => 1 + height e
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
@@ -1005,7 +969,7 @@ Proof.
   { rewrite /= dret_mass //. }
   rewrite foldlM_cons.
   rewrite dbind_det //.
-  - apply state_step_get_active_mass. set_solver. 
+  - apply state_step_get_active_mass. set_solver.
   - intros σ' Hσ'. apply IH.
     apply state_step_support_equiv_rel in Hσ'.
     inversion Hσ'; simplify_eq.

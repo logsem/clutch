@@ -26,6 +26,7 @@ Definition subst_map_ctx_item (es : stringmap val) (K : ectx_item) :=
   | AllocTapeCtx => AllocTapeCtx
   | RandLCtx v2 => RandLCtx v2
   | RandRCtx e1 => RandRCtx (subst_map es e1)
+  | TickCtx => TickCtx
   end.
 
 Definition subst_map_ctx (es : stringmap val) (K : list ectx_item) :=

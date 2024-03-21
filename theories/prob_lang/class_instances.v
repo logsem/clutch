@@ -56,6 +56,9 @@ Section atomic.
   Proof. solve_atomic. Qed.
   Global Instance alloc_tape_atomic s z : Atomic s (AllocTape (Val (LitV (LitInt z)))).
   Proof. solve_atomic. Qed.
+
+  Global Instance tick_atomic s z : Atomic s (Tick (Val (LitV (LitInt z)))).
+  Proof. solve_atomic. Qed.
 End atomic.
 
 (** * Instances of the [PureExec] class *)
@@ -150,10 +153,8 @@ Section pure_exec.
   Global Instance pure_case_inr v e1 e2 :
     PureExec True 1 (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
   Proof. solve_pure_exec. Qed.
-End pure_exec.
 
-(* (** * Instances of the [reducible] class *) *)
-(* Global Instance reducible_rand_no_tape (z : Z) σ : reducible (rand #z) σ. *)
-(* Proof. *)
-(*   eapply head_prim_reducible ; eauto with head_step. *)
-(* Qed. *)
+  Global Instance pure_tick (z : Z) :
+    PureExec True 1 (Tick #z) #().
+  Proof. solve_pure_exec. Qed.
+End pure_exec.

@@ -46,6 +46,7 @@ Fixpoint at_redex {A} (f : expr → A) (e : expr) : option A :=
       | Val v      => noval e1
       | _          => at_redex f e2
       end
+  | Tick e         => noval e
   | _              => None
   end.
 
@@ -113,7 +114,7 @@ Qed.
 
 (** * Cost models *)
 
-(** Cost [1] for all steps  *)
+(** ** Cost [1] for all steps  *)
 Program Definition Cost1 {Λ} : Costfun Λ := Build_Costfun _ (λ _, 1) _.
 Next Obligation. intros; simpl. lra. Qed.
 
@@ -132,7 +133,7 @@ Program Definition CostApp : Costfun prob_lang :=
   Build_Costfun _ (at_redex_cost cost_app) _.
 Next Obligation. eapply at_redex_cost_nonneg. intros [] => /=; lra. Qed.
 
-(** Cost [1] model for [rand] *)
+(** ** Cost [1] model for [rand] *)
 Definition cost_rand (e : expr) : R :=
   match e with
   | Rand _ _ => 1
@@ -143,7 +144,7 @@ Program Definition CostRand : Costfun prob_lang :=
   Build_Costfun _ (at_redex_cost cost_rand) _.
 Next Obligation. eapply at_redex_cost_nonneg. intros [] => /=; lra. Qed.
 
-(** Entropy cost model for [rand] *)
+(** ** Entropy cost model for [rand] *)
 Definition cost_entropy base (e : expr) : R :=
   match e with
   | Rand (Val (LitV (LitInt N))) _ => Rlog base (S (Z.abs_nat N))
@@ -175,4 +176,20 @@ Next Obligation.
   apply Rcomplements.Rdiv_le_0_compat.
   - by apply ln_0_le.
   - by apply ln_0_lt.
+Qed.
+
+(** ** Cost [n] for [tick n]  *)
+Definition cost_tick (e : expr) : R :=
+  match e with
+  | tick (Val (LitV (LitInt z))) => Z.to_nat z
+  | _ => 0
+  end.
+
+Program Definition CostTick : Costfun prob_lang :=
+  Build_Costfun _ (at_redex_cost cost_tick) _.
+Next Obligation.
+  eapply at_redex_cost_nonneg.
+  intros [] => /=; try lra.
+  repeat (case_match; try lra).
+  apply pos_INR.
 Qed.
