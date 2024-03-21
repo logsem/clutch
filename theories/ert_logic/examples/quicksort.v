@@ -98,7 +98,7 @@ Section sorting.
          sort_reflexive : forall a, sort_func a a = true ;
          sort_trans : forall a b c, sort_func a b = true /\ sort_func b c = true -> sort_func a c = true ;
          (* Could be a better definition here *)
-         sort_unique : Forall (fun x => length (List.filter (fun y => sort_func x y) L) = 1%nat) L ;
+         sort_unique : Forall (fun x => length (List.filter (fun y => sort_func x y && sort_func y x) L) = 1%nat) L ;
     }.
 
 
