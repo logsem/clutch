@@ -449,13 +449,13 @@ End testsapp.
 Section testtick.
   Context `{!ert_clutchGS Σ CostTick}.
 
-  #[local] Lemma test_tick_wp_pure (r : R) :
-    {{{ ⧖ 2 }}} tick #1;; #2 + #2;; tick #1 {{{ RET #(); ⧖ 0 }}}.
+  #[local] Lemma test_tick_wp_pure :
+    {{{ ⧖ 5 }}} tick #1;; #2 + #2;; tick #4 {{{ RET #(); ⧖ 0 }}}.
   Proof.
     iIntros (?) "Hx Hp".
     wp_pures.
-    assert (2 - 1 - 1 = 0)%R as -> by lra.
-    by iApply "Hp".
+    iApply "Hp".
+    iApply (etc_irrel with "Hx"); lra.
   Qed.
 
 End testtick.
