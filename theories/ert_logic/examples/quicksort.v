@@ -11,30 +11,9 @@ Set Default Proof Using "Type*".
 Require Import Lra.
 
 
+Section lib.
+  (** Lemmas: Move or eliminate *)
 
-Section accounting.
-  (** Defines the Quicksort recurrence relation, an O(n log n) upper bound, and the advanced composition lemma *)
-
-  (* Tighter bounding argument necessitates the pivot take time An+B *)
-  Definition tc_pivot_lin (A B n : nat) : R := INR (A*n+B)%nat.
-
-  Definition tc_base : R := 1%R.
-  Opaque tc_base.
-
-  (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
-  Definition tc_quicksort (A B len : nat) : R.
-  refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => R)
-          (fun len qf_rec =>
-           match len with
-               0%nat   => tc_base
-             | (S n) => ((tc_pivot_lin A B len) +
-                          2 * (foldr Rplus 0%R $
-                                map (fun n => (qf_rec (fin_to_nat n) _)) $
-                                fin_enum len) / len )%R
-           end) len).
-  Proof. rewrite /Wf.MR. apply fin_to_nat_lt. Defined.
-
-  (* Inline? Get something working first. *)
   Lemma easy_fix_eq:
     ∀ (A : Type) (R : A → A → Prop) (Rwf : well_founded R) (P : A → Type)
       (F : ∀ x : A, (∀ y : A, R y x → P y) → P x),
@@ -46,19 +25,11 @@ Section accounting.
     apply functional_extensionality_dep => ?. done.
   Qed.
 
-  Lemma tc_quicksort_aux A B len :
-    tc_quicksort A B len =
-      match len with
-        0%nat   => tc_base
-      | (S _) => ((tc_pivot_lin A B len)
-                  + 2 * (foldr Rplus 0%R $
-                        map (fun n => tc_quicksort A B (fin_to_nat n)) $
-                        (fin_enum len) ) / len)%R
-      end.
-  Proof. rewrite /tc_quicksort easy_fix_eq; done. Qed.
 
+  #[local] Definition fin_transport_lemma (A B : nat) : (0 < B)%nat -> (A < B)%nat -> (A < (S (B - 1)))%nat.
+  Proof. intros. lia. Qed.
 
-   (* Source of many deeply annoying lemmas involving fin_enum *)
+   (* Source of many deeply annoying lemmas involving fin_enum: can't directly pull off the last element *)
    Fixpoint fin_inj_incr (n : nat) (i : fin n) : (fin (S n)) :=
      match i with
        0%fin => 0%fin
@@ -111,10 +82,194 @@ Section accounting.
    Qed.
 
 
+End lib.
+
+
+
+Section sorting.
+  (** Definitions related to specifying a sorting function *)
+
+  (* Search StronglySorted. *)
+
+  (* Local Notation sorted := (StronglySorted Z.le). *)
+
+  Record sorting_function (A : Type) (L : list A)
+    := { sort_func :> A -> A -> bool ;
+         sort_reflexive : forall a, sort_func a a = true ;
+         sort_trans : forall a b c, sort_func a b = true /\ sort_func b c = true -> sort_func a c = true ;
+         (* Could be a better definition here *)
+         sort_unique : Forall (fun x => length (List.filter (fun y => sort_func x y) L) = 1%nat) L ;
+    }.
+
+
+  (* TODO: Define sorting functions for restrictions (cons, snoc, app) *)
+  (* TODO: Define pushforward sorting functions *)
+
+
+  (* Definition rank_lower (l : list Z) (x : Z) (Hx : x ∈ l) (HL : (0 < length l)%nat) : fin (S (length l - 1)%nat).
+    refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
+  Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined. *)
+
+  Definition rank `{A : Type} `{L : list A} (f : sorting_function A L) : A -> nat := fun x => length (List.filter (fun y => f x y) L).
+
+   Definition index_to_rank `{A : Type} `{Hinhabited : Inhabited A} `{L : list A} (f : sorting_function A L) (index : nat) : nat
+    := @rank _ _ f (L !!! index).
+
+
+  (** Permutations over the index space *)
+
+  (* Separate definition so it stops getting unfolded *)
+  Definition index_space N : list nat := (seq 0%nat N).
+
+  Lemma index_space_snoc N : (index_space (S N)) = (index_space N) ++ [N].
+  Proof. by rewrite /index_space seq_S /=. Qed.
+
+  Lemma index_space_cons N : (index_space (S N)) = 0 :: (fmap S (index_space N)).
+  Proof. by rewrite /index_space /= fmap_S_seq. Qed.
+
+  Opaque index_space.
+
+
+
+  Lemma equal_perm `{T : Type} (A B : list T) : (A = B) -> (A ≡ₚ B).
+  Proof. intros; simplify_eq; eauto. Qed.
+
+  Definition reverse_order `{T : Type} (L : list T) (i : nat) : nat := (length L - 1 - i)%nat.
+
+  Lemma reverse_perm N : (index_space N) ≡ₚ (reverse_order (index_space N) <$> (index_space N)).
+  Proof.
+    induction N as [|N' IH].
+    - simpl. constructor.
+    - rewrite /reverse_order seq_length.
+      rewrite /reverse_order seq_length in IH.
+      rewrite {1}index_space_cons.
+      rewrite {1}index_space_snoc fmap_app /=.
+      rewrite -Permutation_cons_append.
+      rewrite /= Nat.sub_0_r Nat.sub_diag.
+      constructor.
+
+      (*
+
+      rewrite -fmap_S_seq.
+      rewrite fmap_compat.
+      rewrite -list_fmap_compose.
+      apply list_fmap_ext.
+      intros ? ? H.
+      rewrite lookup_seq in H.
+      destruct H as [H1 H2].
+      simpl. lia.
+       *)
+  Admitted.
+
+  Lemma index_to_rank_nat_perm `{A : Type} `{Hinhabited : Inhabited A} {L : list A} (f : sorting_function A L) :
+     (index_space (length L)) ≡ₚ ((index_to_rank f) <$> (index_space (length L))).
+  Proof.
+    intros.
+    destruct (length L) as [|L0 L1] eqn:lenl.
+    { simpl. constructor. }
+
+    (*
+
+    symmetry.
+    apply nat_bijection_Permutation.
+    - rewrite /FinFun.bFun.
+      intros.
+      rewrite /index_to_rank_nat /rank_lower_nat.
+      remember (λ v : Z, (v <? l !!! x)%Z) as f.
+      rewrite -lenl.
+      destruct (Lt.le_lt_or_eq_stt _ _ (filter_length_le f l)) as [ ? | HB ]; first done.
+      exfalso.
+      assert (HK : forallb f l = false); last (pose P := (filter_length_forallb _ _ HB); eauto).
+      rewrite Heqf.
+      rewrite -(take_drop x l).
+      rewrite forallb_app.
+      apply andb_false_intro2.
+      rewrite lookup_total_app_r; last apply firstn_le_length.
+      rewrite take_length_le; last lia.
+      rewrite Nat.sub_diag.
+
+      destruct (drop x l) as [| d0 ? ] eqn:Hd.
+      { assert (HK : (0 < length (drop x l))%nat) by (rewrite drop_length; lia).
+        exfalso.
+        rewrite Hd in HK.
+        simpl in *. lia.
+      }
+      simpl.
+      apply andb_false_intro1.
+      apply Z.ltb_irrefl.
+    - rewrite /FinFun.Injective.
+      intros ? ? HRk.
+      (* Uses uniqueness, probably need to prove an aux. lemma *)
+      rewrite /index_to_rank_nat /rank_lower_nat in HRk.
+     *)
+  Admitted.
+
+
+  Lemma filter_split_perm `{A: Type} (l : list A) f :
+    l ≡ₚ List.filter f l ++ List.filter (fun x=>negb (f x)) l.
+  Proof.
+    induction l as [|a l IHl] => // /=.
+    destruct (f a) => /= ; rewrite -?Permutation_middle -IHl //.
+  Qed.
+
+  (** Lemmas for simplifying using permutations *)
+
+  Lemma fold_R_fin_perm f :
+    forall (g : nat -> nat) (L : list nat),
+      (L ≡ₚ (map g L) -> (foldr (Rplus ∘ f) 0%R $ L) = (foldr (Rplus ∘ f) 0%R $ map g $ L)).
+  Proof.
+    intros g L Hp.
+    eapply (foldr_permutation (=) (Rplus ∘ f) 0%R L (map g L) _ Hp).
+    Unshelve.
+    intros; simpl; lra.
+  Qed.
+
+
+
+End sorting.
+
+
+
+
+
+Section qs_time.
+  (** Defines the Quicksort recurrence relation *)
+
+  (* Tight bounding argument necessitates the pivot take time An+B *)
+  Definition tc_pivot_lin (A B n : nat) : R := INR (A*n+B)%nat.
+
+  Definition tc_base : R := 1%R.
+  Opaque tc_base.
+
+  (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
+  Definition tc_quicksort (A B len : nat) : R.
+  refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => R)
+          (fun len qf_rec =>
+           match len with
+               0%nat   => tc_base
+             | (S n) => ((tc_pivot_lin A B len) +
+                          2 * (foldr Rplus 0%R $
+                                map (fun n => (qf_rec (fin_to_nat n) _)) $
+                                fin_enum len) / len )%R
+           end) len).
+  Proof. rewrite /Wf.MR. apply fin_to_nat_lt. Defined.
+
+
+  Lemma tc_quicksort_aux A B len :
+    tc_quicksort A B len =
+      match len with
+        0%nat   => tc_base
+      | (S _) => ((tc_pivot_lin A B len)
+                  + 2 * (foldr Rplus 0%R $
+                        map (fun n => tc_quicksort A B (fin_to_nat n)) $
+                        (fin_enum len) ) / len)%R
+      end.
+  Proof. rewrite /tc_quicksort easy_fix_eq; done. Qed.
+
+
   (* Non-haunted version with seq instead of fin_enum *)
   (* An alternative to proving all of that fin_enum stuff might be to just define the seq version
      directly in the refine using a dependent pattern match. *)
-  (* OTOH the fin_enum stuff comes up all of the time, so maybe we want it anyways? *)
   Lemma tc_quicksort_unfold A B len :
     tc_quicksort A B len =
       match len with
@@ -145,14 +300,26 @@ Section accounting.
     Transparent seq fin_enum.
   Qed.
 
+  (* Only ever use the unfold lemma *)
+  Opaque tc_quicksort.
+
   Lemma tc_quicksort_0 A B : tc_quicksort A B 0%nat = tc_base.
   Proof. rewrite tc_quicksort_unfold. done. Qed.
 
   Lemma tc_quicksort_S A B n :
     (1 <= n)%nat ->
-    tc_quicksort A B n =
-            ((tc_pivot_lin A B n) + 2 * (foldr Rplus 0 $ map (fun i => ((tc_quicksort A B i))%NNR) $ seq 0%nat n)%NNR /n)%R.
+    tc_quicksort A B n = ((tc_pivot_lin A B n) + 2 * (foldr Rplus 0 $ map (fun i => ((tc_quicksort A B i))%NNR) $ seq 0%nat n)%NNR /n)%R.
   Proof. intros. rewrite tc_quicksort_unfold. destruct n; [lia|]. done. Qed.
+
+  (* Prove this by strong induction now *)
+  Lemma tc_quicksort_nonneg A B n : (0 <= tc_quicksort A B n)%R.
+  Proof. Admitted.
+
+End qs_time.
+
+
+Section qs_bound.
+  (** Upper bound on the tc_quicksort recurrence *)
 
   Lemma tc_quicksort_bound_ind n' A B (HAB : (B <= A)%nat) :
     ((tc_quicksort A B (S n')) / (S n' + 1)%nat  <= (2* A)%nat / (S n' + 1)%nat + (tc_quicksort A B n') / (n' + 1)%nat )%R.
@@ -364,9 +531,6 @@ Section accounting.
     lra.
   Qed.
 
-  (* Prove this by strong induction now *)
-  Lemma tc_quicksort_nonneg A B n : (0 <= tc_quicksort A B n)%R.
-  Proof. Admitted.
 
   Lemma tc_quicksort_bound_closed A B n (HAB : (B <= A)%nat):
     (((tc_quicksort A B n) / (n + 1)%nat)
@@ -411,177 +575,35 @@ Section accounting.
       The RHS decreases and has limit e.
    *)
 
-  Local Notation sorted := (StronglySorted Z.le).
-
-  Definition list_dups (l : list Z) (x : Z) : nat := length (List.filter (fun v => (v =? x)%Z) l).
-
-  Definition list_unique (l : list Z) : Prop := Forall (fun x => list_dups l x = 1%nat) l.
-
-  (*
-    Definition pre_rank_lower (l : list Z) (x : Z) : fin (S (length l))
-    := nat_to_fin (Arith_prebase.le_lt_n_Sm _ _ (filter_length_le (fun v => (v <? x)%Z) l)). *)
+End qs_bound.
 
 
-  #[local] Definition fin_transport_lemma (A B : nat) : (0 < B)%nat -> (A < B)%nat -> (A < (S (B - 1)))%nat.
-  Proof. intros. lia. Qed.
+Section qs_adv_cmp.
+  (** Advanced composition for quicksort *)
 
-  Definition rank_lower (l : list Z) (x : Z) (Hx : x ∈ l) (HL : (0 < length l)%nat) : fin (S (length l - 1)%nat).
-    refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
-  Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined.
-
-  Definition rank_lower_nat (l : list Z) (x : Z) : nat
-    := length (List.filter (fun v => (v <? x)%Z) l).
-
-  Definition index_to_rank_nat (l : list Z) (index : nat) : nat
-    := rank_lower_nat l (l !!! index).
-
-  Definition reverse_order (l : list nat) (i : nat) : nat := (length l - 1 - i)%nat.
-
-  Lemma equal_perm (A B : list nat) : (A = B) -> (A ≡ₚ B).
-  Proof. intros; simplify_eq; eauto. Qed.
-
-  Lemma reverse_perm N : (seq 0%nat N) ≡ₚ (reverse_order (seq 0%nat N) <$> (seq 0%nat N)).
-  Proof.
-    induction N as [|N' IH].
-    - simpl. constructor.
-    - rewrite /reverse_order seq_length.
-      rewrite /reverse_order seq_length in IH.
-      rewrite -{3}Nat.add_1_l {2}seq_app seq_S.
-      simpl; do 2 rewrite Nat.sub_0_r.
-      symmetry.
-      rewrite -Permutation_cons_append.
-      constructor.
-      symmetry.
-      apply (Permutation_trans IH).
-      apply equal_perm.
-      clear IH.
-
-      rewrite -fmap_S_seq.
-      rewrite fmap_compat.
-      rewrite -list_fmap_compose.
-      apply list_fmap_ext.
-      intros ? ? H.
-      rewrite lookup_seq in H.
-      destruct H as [H1 H2].
-      simpl. lia.
-  Qed.
-
-  Lemma index_to_rank_nat_perm l : (list_unique l) -> (seq 0%nat (length l)) ≡ₚ (map (index_to_rank_nat l) (seq 0%nat (length l))).
-  Proof.
-    intros.
-    destruct (length l) as [|L] eqn:lenl.
-    { (* Different proof for [] *)
-      simpl. constructor.
-    }
-    symmetry.
-    apply nat_bijection_Permutation.
-    - rewrite /FinFun.bFun.
-      intros.
-      rewrite /index_to_rank_nat /rank_lower_nat.
-      remember (λ v : Z, (v <? l !!! x)%Z) as f.
-      rewrite -lenl.
-      destruct (Lt.le_lt_or_eq_stt _ _ (filter_length_le f l)) as [ ? | HB ]; first done.
-      exfalso.
-      assert (HK : forallb f l = false); last (pose P := (filter_length_forallb _ _ HB); eauto).
-      rewrite Heqf.
-      rewrite -(take_drop x l).
-      rewrite forallb_app.
-      apply andb_false_intro2.
-      rewrite lookup_total_app_r; last apply firstn_le_length.
-      rewrite take_length_le; last lia.
-      rewrite Nat.sub_diag.
-
-      destruct (drop x l) as [| d0 ? ] eqn:Hd.
-      { assert (HK : (0 < length (drop x l))%nat) by (rewrite drop_length; lia).
-        exfalso.
-        rewrite Hd in HK.
-        simpl in *. lia.
-      }
-      simpl.
-      apply andb_false_intro1.
-      apply Z.ltb_irrefl.
-    - rewrite /FinFun.Injective.
-      intros ? ? HRk.
-      (* Uses uniqueness, probably need to prove an aux. lemma *)
-      rewrite /index_to_rank_nat /rank_lower_nat in HRk.
-  Admitted.
+  Context `[!Inject A val].
+  Context `{Inhabited A}.
 
 
+  (* Distribution, in a form which is easy to work with *)
+  Definition tc_distr_def `{L : list A} (f : sorting_function A L) (CA CB : nat) : nat -> R
+    := fun index =>
+         match L with
+         | [] => tc_base
+         | _ => ((tc_quicksort CA CB ∘ (index_to_rank f)) index +
+                 (tc_quicksort CA CB ∘ (index_to_rank f) ∘ reverse_order (index_space (length L))) index)%R
+         end.
+
+  (* Distribution, in a form which typechecks with advanced composition *)
+  Definition tc_distr (L : list A) (f : sorting_function A L) CA CB : (fin (S (Z.to_nat (length L - 1)))) -> R
+    := (tc_distr_def f CA CB) ∘ fin_to_nat.
 
 
-  (*
-  Definition inj_list (f : nat -> nat) (A: list nat) : Prop := Forall (fun a0 => Forall (fun a1 => (f a0 = f a1) -> (a0 = a1)) A) A.
-  Definition surj_list (f : nat -> nat) (A B: list nat) : Prop := Forall (fun b => Exists (fun a => f a = b) A) B.
-  Definition bij_list f A B : Prop := inj_list f A /\ surj_list f A B.
-  Definition perm_list f A : Prop := inj_list f A /\ surj_list f A A.
+  Lemma tc_distr_nonneg L f CA CB i : (0 <= tc_distr L f CA CB i)%R.
+  Proof. (* rewrite /tc_distr /tc_distr_nats /=. apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg. *) Admitted.
 
-  *)
+(* FIXME: redo me when you fix tc_distr_equiv
 
-  Lemma fold_R_fin_perm f :
-    forall (g : nat -> nat) (L : list nat),
-      (L ≡ₚ (map g L) -> (foldr (Rplus ∘ f) 0%R $ L) = (foldr (Rplus ∘ f) 0%R $ map g $ L)).
-  Proof.
-    intros g L Hp.
-    eapply (foldr_permutation (=) (Rplus ∘ f) 0%R L (map g L) _ Hp).
-    Unshelve.
-    intros; simpl; lra.
-  Qed.
-
-
-
-
-  (*
-
-  Definition index_to_rank (l : list Z) (HL : (0 < length l)%nat ) (index : fin (S (length l - 1)%nat)) : fin (S (length l - 1))%nat.
-    refine (rank_lower l (l !!! fin_to_nat index) _ HL).
-  Proof. apply elem_of_list_lookup_total_2.
-         assert (fin_to_nat index < (S (length l - 1)%nat)) by apply fin_to_nat_lt.
-         lia.
-  Defined.
-
-  Lemma index_to_rank_bij (l : list Z) HL : (list_unique l) -> Bij (index_to_rank l HL).
-  Proof. Admitted.
-
-  #[local] Lemma reverse_lemma (n m : nat) (H : (0 < n)%nat) : (n - 1 - m < n)%nat.
-  Proof. intros. lia. Qed.
-
-  Definition reverse_order N (H : (0 < N)%nat) (s : fin N) : fin N.
-    refine (nat_to_fin (reverse_lemma N (fin_to_nat s) H)).
-  Defined.
-
-  Lemma reverse_order_bij N H : Bij (reverse_order N H).
-  Proof.
-    split.
-    - rewrite /Inj; intros x y ?.
-      apply fin_irrel.
-      assert (HR : fin_to_nat (reverse_order N H x) = fin_to_nat (reverse_order N H y)); [f_equal; done|].
-      rewrite /reverse_order in HR.
-      do 2 rewrite fin_to_nat_to_fin in HR.
-      pose P1 := fin_to_nat_lt x.
-      pose P2 := fin_to_nat_lt y.
-      lia.
-    - rewrite /Surj. intros y.
-      eexists (reverse_order N H y).
-      rewrite /reverse_order.
-      apply fin_irrel.
-      do 2 rewrite fin_to_nat_to_fin.
-      pose P1 := fin_to_nat_lt y.
-      lia.
-  Qed.
-
-*)
-
-
-  Definition tc_distr_nats A B x0 xs (index : nat) : R
-    := ((tc_quicksort A B ∘ (index_to_rank_nat (x0 :: xs))) index +
-        (tc_quicksort A B ∘ (reverse_order (seq 0%nat (length (x0 :: xs)))) ∘ (index_to_rank_nat (x0 :: xs))) index)%R.
-
-  (* The thing we're going to plug into advanced composition *)
-  Definition tc_distr A B x0 xs (index:  fin (S (Z.to_nat (length (x0 :: xs) - 1)))) : R
-    := (tc_distr_nats A B x0 xs ∘ fin_to_nat) index.
-
-  Lemma tc_distr_nonneg A B x0 xs' n : (0 <= tc_distr A B x0 xs' n)%R.
-  Proof. rewrite /tc_distr /tc_distr_nats /=. apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg. Qed.
 
   Lemma foldr_reduction_1 f X : (list_unique X) ->
      (foldr (Rplus ∘ f ∘ index_to_rank_nat X) 0 (seq 0 (length X)))%R
@@ -614,13 +636,17 @@ Section accounting.
     - apply reverse_perm.
   Qed.
 
+*)
+
 
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
-  Lemma tc_distr_equiv A B x0 xs' (HU : (list_unique (x0 :: xs'))) :
-  (SeriesC (λ n : fin (S (Z.to_nat (length (x0 :: xs') - 1))),
-             1 / S (Z.to_nat (length (x0 :: xs') - 1)) * tc_distr A B x0 xs' n))%R =
-        (2 * foldr Rplus 0 (map (λ n : nat, tc_quicksort A B n) (seq 0 (S (length xs')))) / S (length xs'))%R.
+  Lemma tc_distr_equiv L f CA CB :
+  (SeriesC (λ n : fin (S (Z.to_nat (length L - 1))), 1 / S (Z.to_nat (length L - 1)) * tc_distr L f CA CB n))%R =
+        (2 * foldr Rplus 0 (map (λ n : nat, tc_quicksort CA CB n) (index_space (length L))) / (length L))%R.
   Proof.
+
+    (*
+
     (* 1. Simplify everything that we can, and get rid of the / (S length xs') terms *)
     Opaque seq.
     apply (Rmult_eq_reg_r (S (length xs'))); last (rewrite S_INR; pose P := (pos_INR (length xs')); lra).
@@ -749,8 +775,10 @@ Section accounting.
     Transparent seq.
   Qed.
 
-End accounting.
+    *)
+    Admitted.
 
+End qs_adv_cmp.
 
 Section cost.
   (** Cost fucntion for Quicksort: number of comparisons *)
@@ -761,8 +789,6 @@ Section cost.
     | BinOp LtOp _ _ => 1
     | _ => 0
     end.
-
-
 
   Program Definition CostCmp : Costfun prob_lang :=
     (Build_Costfun _ (at_redex_cost cmp_cost_fn) _).
@@ -790,7 +816,10 @@ Section cost.
 
 End cost.
 
+
+
 Section list.
+  (** Ported list library to count comparisons *)
   Context `{!ert_clutchGS Σ CostCmp }.
 
 
@@ -2175,6 +2204,10 @@ End list.
 
 Section program.
   Context `{!ert_clutchGS Σ CostCmp }.
+  Context `[!Inject A val].
+  Context `{Inhabited A}.
+
+
   (** Verifing the number of comparisons done by quicksort *)
   (* Proofs augmented from examples/quicksort.v *)
 
@@ -2204,7 +2237,7 @@ Section program.
 
 
   (* Necessary *)
-  Lemma wp_remove_nth_unsafe {A} [_ : Inject A val] E (l : list A) (lv : val) (i : nat) :
+  Lemma wp_remove_nth_unsafe E (l : list A) (lv : val) (i : nat) :
     {{{ ⧖ 0%R ∗ ⌜ is_list l lv /\ i < length l ⌝ }}}
       list_remove_nth_unsafe lv #i @ E
     {{{ v, RET v;
@@ -2223,30 +2256,23 @@ Section program.
     iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
   Admitted.
 
-  Lemma filter_split_perm {A} (l : list A) f :
-    l ≡ₚ List.filter f l ++ List.filter (fun x=>negb (f x)) l.
-  Proof.
-    induction l as [|a l IHl] => // /=.
-    destruct (f a) => /= ; rewrite -?Permutation_middle -IHl //.
-  Qed.
-
   (* Maybe I can weaken the sorting requirement on the results *)
-  Lemma Partition (xs : list Z) l (e : Z) e' :
-    e' = Val #e ->
+  Lemma Partition (xs : list A) (f : sorting_function A xs) l (e : A) e' :
+    e' = inject e ->
     {{{ ⌜is_list xs l⌝ }}}
       partition l e'
     {{{ le gt, RET (le, gt);
-        ∃ xsle xsgt : list Z,
+        ∃ xsle xsgt : list A,
           ⌜is_list xsle le ∧ is_list xsgt gt
           ∧ app xsle xsgt ≡ₚ xs ⌝
-          ∧ ⌜ ∀ x, In x xsle → (x ≤ e)%Z ⌝
-                   ∧ ⌜ ∀ x, In x xsgt → (e < x)%Z ⌝
+          ∧ ⌜ ∀ x, In x xsle → (f x e) ⌝
+                   ∧ ⌜ ∀ x, In x xsgt → (f e x)%Z ⌝
     }}}.
   Proof.
     iIntros (-> φ Lxs) "hφ".
     rewrite /partition.
     iAssert (⧖ 0%R) as "Hcr"; first admit.
-    wp_pures. (* Not stepping anything *)
+    wp_pures.
     (*
     wp_bind (list_filter _ _).
     iApply (wp_list_filter _ (λ x, bool_decide (e < x)%Z)).
@@ -2279,7 +2305,7 @@ Section program.
 
   Local Notation sorted := (StronglySorted Z.le).
 
-  (* Can I delete this lemma? *)
+  (* Can I delete this lemma? We don't care about functional correctness. *)
   Fact sorted_append pre post p :
     sorted pre → sorted post →
     (∀ x, In x pre → (x <= p)%Z) → (∀ x, In x post → (p < x)%Z) →
@@ -2311,13 +2337,13 @@ Section program.
 
 
   (* Removed sorted requirements *)
-  Lemma qs_time_bound : ∀ (xs : list Z) (l : val),
-    {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜list_unique xs ⌝ }}}
+  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (f : sorting_function A xs),
+    {{{ ⧖ (qsC (length xs)) ∗ ⌜is_list xs l⌝ }}}
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
     assert (Hnonneg : forall i, (0 <= qsC i)%R) by admit.
-    iLöb as "Hqs". iIntros (xs l φ) "(Hcr & %hl & %HU) hφ".
+    iLöb as "Hqs". iIntros (xs l f φ) "(Hcr & %hl) hφ".
     rewrite {2}/qs...
     rewrite -/qs.
     wp_bind (list_length _).
@@ -2340,7 +2366,7 @@ Section program.
     }
     rewrite tc_quicksort_unfold.
     iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs'))) ∗
-             ⧖ (2 * (foldr Rplus 0%R (map (λ n : nat, tc_quicksort qsA qsB n) (seq 0 (S (length xs'))))) / (S (length xs'))))%I with "[Hcr]" as "(HcrP & Hcr)".
+             ⧖ (2 * (foldr Rplus 0%R (map (λ n : nat, tc_quicksort qsA qsB n) (index_space (S (length xs'))))) / (S (length xs'))))%I with "[Hcr]" as "(HcrP & Hcr)".
     { admit. }
     rewrite /tc_pivot_lin. rewrite {2}/qsA {2}/qsB.
     wp_pure with "HcrP"; first admit.
@@ -2353,9 +2379,11 @@ Section program.
     wp_pure with "HcrP"; first admit.
 
 
-    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr qsA qsB x0 xs') with "[$]").
-    { intros. apply tc_distr_nonneg. }
-    { rewrite tc_distr_equiv; last eauto. simpl cost. lra. }
+
+
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ f qsA qsB) with "[$]").
+    { intros. apply tc_distr_nonneg. eauto. }
+    { rewrite tc_distr_equiv; last eauto. simpl cost. rewrite cons_length. lra. }
 
     (* pick a pivot index at random *)
     iIntros (ip) "Hcr"...
