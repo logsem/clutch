@@ -149,8 +149,11 @@ Ltac real_solver :=
          (* = *)
          | H : ?r1 + ?r = ?r2 + ?r |- _ =>
              (apply Rplus_eq_reg_r in H; subst)
+         | H : ?r + ?r1 = ?r + ?r2 |- _ =>
+             (apply Rplus_eq_reg_l in H; subst)
          | H : ?a = ?a * ?b |- _ =>
              (rewrite -{1}(Rmult_1_r a) in H; apply Rmult_eq_reg_l in H)
+         | |- _/_ = 1 => apply Rdiv_diag_eq
 
          (* simplifications *)
          | |- context[?a * (?b * ?c)] => rewrite -Rmult_assoc
