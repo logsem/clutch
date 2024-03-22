@@ -4,14 +4,6 @@ From clutch.ert_logic Require Export expected_time_credits ert_weakestpre probla
 From iris.proofmode Require Export proofmode.
 Set Default Proof Using "Type*".
 
-(* TODO: move *)
-Lemma Rmult_pos_nat r (n : nat) :
-  (0 <= r)%R →
-  (0 <= r * n)%R.
-Proof. intros. eapply Rmult_le_pos; [done|]. apply pos_INR. Qed.
-
-Hint Resolve Rmult_pos_nat : real.
-
 #[local] Notation "'while' e1 'do' e2 'end'" :=
   ((rec: "loop" <> := (if: e1 then e2 ;; "loop" #() else #()))%V #())%E
     (e1, e2 at level 200) : expr_scope.

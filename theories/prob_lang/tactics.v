@@ -35,6 +35,7 @@ Ltac reshape_expr e tac :=
   | AllocTape ?e => go (AllocTapeCtx :: K) e
   | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
   | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
+  | Tick ?e => go (TickCtx :: K) e
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.
