@@ -58,7 +58,6 @@ Section lib.
      f_equal.
      - apply functional_extensionality.
        intros.
-       Set Printing Coercions.
        apply fin_irrel.
        admit.
      -
@@ -101,10 +100,6 @@ Section sorting.
          (* Could be a better definition here *)
          sort_unique : Forall (fun x => length (List.filter (fun y => sort_func x y && sort_func y x) L) = 1%nat) L ;
     }.
-
-  (* sharpening a sorting function gives one that is irreflexive *)
-  Definition sharpen `{A : Type} (f : A -> A -> bool) : (A -> A -> bool) := (fun x y => negb (f x y || f y x)).
-
 
   (* TODO: Define sorting functions for restrictions (cons, snoc, app) *)
   (* TODO: Define pushforward sorting functions *)
@@ -1119,7 +1114,7 @@ Section list.
   *)
 
   Section list_specs.
-    Context `{!ert_clutchGS Σ CostCmp }.
+    Context `{!ert_clutchGS Σ CostTick}.
     Context `[!Inject A val].
 
     Fixpoint is_list (l : list A) (v : val) :=
@@ -1195,13 +1190,12 @@ Section list.
     Qed.
    *)
 
-    (* ⧖ 0 *)
     Lemma wp_list_length E l lv :
-      {{{ ⧖ 0%R ∗ ⌜is_list l lv⌝ }}}
+      {{{ ⌜is_list l lv⌝ }}}
         list_length lv @ E
       {{{ v, RET #v; ⌜v = length l⌝ }}}.
     Proof.
-      iIntros (Φ) "(Htc & Ha) HΦ".
+      iIntros (Φ) "Ha HΦ".
       iInduction l as [|a l'] "IH" forall (lv Φ);
       iDestruct "Ha" as %Ha; simpl in Ha; subst; wp_pures.
       - wp_rec.
@@ -1211,7 +1205,7 @@ Section list.
         destruct Ha as [lv' [Hlv Hlcoh]]; subst.
         wp_match; simpl.
         wp_proj. wp_bind (list_length _); simpl.
-        iApply ("IH" $! _ _ with "[Htc]"); eauto.
+        iApply ("IH"); eauto.
         iNext.
         iIntros.
         wp_op.
@@ -1584,7 +1578,7 @@ Section list.
 
     *)
     Lemma wp_remove_nth E (l : list A) lv (i : nat) :
-      {{{ ⧖ 0%R ∗ ⌜is_list l lv /\ i < length l⌝ }}}
+      {{{ ⌜is_list l lv /\ i < length l⌝ }}}
         list_remove_nth lv #i @ E
       {{{ v, RET v; ∃ e lv' l1 l2,
                   ⌜l = l1 ++ e :: l2 ∧
@@ -1592,7 +1586,7 @@ Section list.
                   v = SOMEV ((inject e), lv') ∧
                   is_list (l1 ++ l2) lv'⌝ }}}.
     Proof.
-      iIntros (Φ) "(Hcr & Ha) Hφ".
+      iIntros (Φ) "Ha Hφ".
       iInduction l as [|a l'] "IH" forall (i lv Φ);
         iDestruct "Ha" as "(%Hl & %Hi)"; simpl in Hl; subst; wp_rec; wp_let; simpl.
       - inversion Hi.
@@ -1617,8 +1611,7 @@ Section list.
           }
           wp_bind (list_remove_nth _ _).
           repeat rewrite Rminus_0_r.
-          iApply ("IH" $! i lv' _  with "Hcr"); [eauto|].
-          iAssert (⧖ 0%R) as "Hcr"; first admit.
+          iApply ("IH" $! i lv' _ ); [eauto|].
           iNext. iIntros (v (e & v' & l1 & l2 & (-> & Hlen & -> & Hil))); simpl.
 
           (* wp_pures.
@@ -1748,6 +1741,7 @@ Section list.
       iIntros (??) "H". rewrite /list_rev. wp_pures.
       by iApply (wp_list_rev_aux _ _ _ NONEV []).
     Qed.
+    *)
 
     Lemma wp_list_append E l lM r rM :
       {{{ ⌜is_list lM l⌝ ∗ ⌜is_list rM r⌝}}}
@@ -1765,6 +1759,7 @@ Section list.
         by wp_apply wp_list_cons.
     Qed.
 
+    (*
     Lemma wp_list_forall Φ Ψ E (l : list A) lv (fv : val) :
       (∀ (a : A),
           {{{ True }}}
@@ -1815,16 +1810,14 @@ Section list.
     Lemma is_list_snoc lM x : ∃ lv, is_list (lM ++ [x]) lv.
     Proof. induction lM; naive_solver eauto. Qed.
     *)
-    Lemma wp_list_filter (l : list A) (P : A -> bool) (f lv : val) E :
-      {{{ (∀ (x : A),
-              {{{ True }}}
-                f (inject x) @ E
-              {{{ w, RET w; ⌜w = inject (P x)⌝ }}} ) ∗
-          ⌜is_list l lv⌝ }}}
+    Lemma wp_list_filter (l : list A) (P : A -> bool) (f lv : val) E k (Hk : (0 <= k)%R):
+      {{{ (∀ (x : A), {{{ ⧖ k }}} f (inject x) @ E {{{ w, RET w; ⌜w = inject (P x)⌝ }}} ) ∗
+          ⌜is_list l lv⌝ ∗
+          ⧖ (k * length l) }}}
          list_filter f lv @ E
        {{{ rv, RET rv; ⌜is_list (List.filter P l) rv⌝ }}}.
     Proof.
-      iIntros (Φ) "[#Hf %Hil] HΦ".
+      iIntros (Φ) "(#Hf & %Hil & H⧖) HΦ".
       iInduction l as [ | h t] "IH" forall (lv Hil Φ); simpl in Hil.
       - subst.
         rewrite /list_filter; wp_pures.
@@ -1833,9 +1826,15 @@ Section list.
         rewrite /list_filter.
         do 7 (wp_pure _).
         fold list_filter.
-        wp_apply ("IH" $! lv'); [done |].
+        iAssert (⧖ k ∗ ⧖ (k * length t))%I with "[H⧖]" as "(H⧖ & H⧖IH)".
+        { rewrite cons_length S_INR Rmult_plus_distr_l Rmult_1_r Rplus_comm.
+          iApply etc_split; eauto.
+          apply Rmult_le_pos; auto.
+          apply pos_INR.
+        }
+        wp_apply ("IH" with "[//] H⧖IH").
         iIntros (rv) "%Hilp"; wp_pures.
-        wp_apply "Hf"; [done |].
+        wp_apply ("Hf" with "[$]").
         iIntros (w) "->".
         destruct (P h) eqn:HP; wp_pures.
         + wp_apply wp_list_cons; [by eauto |].
@@ -2218,27 +2217,27 @@ Section program.
 
   (* TODO: Paramaterize by cmp *)
   Definition partition : expr :=
-    let: "negb" := λ:"b", if: "b" then #false else #true in
+    λ: "cmp",
     λ:"l" "e",
-      let: "f" := (λ:"x", "e" < "x") in
-      (list_filter (λ:"x", "negb" ("f" "x") ) "l",
+      let: "f" := (λ:"x", "cmp" "e" "x") in
+      (list_filter (λ:"x", ~ ("f" "x") ) "l",
         list_filter "f" "l").
 
   (* TODO: Paramaterize by cmp *)
   Definition qs : val :=
+    λ: "cmp",
     rec: "qs" "l" :=
       let: "n" := list_length "l" in
       if: "n" < #1 then "l" else
         let: "ip" := rand ("n" - #1) in
         let, ("p", "r") := list_remove_nth_unsafe "l" "ip" in
-        let, ("le", "gt") := partition "r" "p" in
+        let, ("le", "gt") := partition "cmp" "r" "p" in
         let, ("les", "gts") := ("qs" "le", "qs" "gt") in
         list_append "les" (list_cons "p" "gts").
 
 
-  (* Necessary *)
   Lemma wp_remove_nth_unsafe E (l : list A) (lv : val) (i : nat) :
-    {{{ ⧖ 0%R ∗ ⌜ is_list l lv /\ i < length l ⌝ }}}
+    {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
       list_remove_nth_unsafe lv #i @ E
     {{{ v, RET v;
         ∃ e lv' l1 l2,
@@ -2247,32 +2246,26 @@ Section program.
           v = ((inject e), lv')%V ∧
           is_list (l1 ++ l2) lv' ⌝ }}}.
   Proof.
-    iIntros (φ) "(Hcr & %llv & %Hi) hφ".
+    iIntros (φ) "(%llv & %Hi) hφ".
     rewrite /list_remove_nth_unsafe.
     wp_pures.
-    Check wp_remove_nth.
-    wp_bind (App (App _ _) _).
-    Fail iApply (wp_remove_nth with "[]").
-    Fail wp_apply (wp_remove_nth with "[]").
-    Fail wp_apply wp_remove_nth => //.
-
-    (* Why doesn't this work? *)
-    (*
-    { iSplit; first admit. eauto. }
+    wp_apply wp_remove_nth => //.
     iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
-    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto. *)
-  Admitted.
+    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
+  Qed.
 
 
+  Definition cmp_spec (xs : list A) (f : sorting_function A xs) (c : val) (k : nat) : iProp Σ
+    := ∀ (a1 a2 : A), {{{ ⧖ k }}} (c (inject a1) (inject a2)) {{{ v, RET #v; ⌜v = (f a1 a2)⌝ }}}.
 
-  Definition cmp_spec (xs : list A) (f : sorting_function A xs) c (k : R) : iProp Σ
-    := ∀ (a1 a2 : A), {{{ ⧖ k }}} c (inject a1) (inject a2) {{{ v, RET #v; ⌜v = (sharpen f) a1 a2⌝  }}}.
+
+  Definition part_cr k (xs : list A) : nat := (2 * k * length xs)%nat.
 
   (* Maybe I can weaken the sorting requirement on the results *)
-  Lemma Partition (xs : list A) (f : sorting_function A xs) l (e : A) e' :
+  Lemma Partition (xs : list A) (f : sorting_function A xs) l (e : A) e' k cmp :
     e' = inject e ->
-    {{{ ⌜is_list xs l⌝ }}}
-      partition l e'
+    {{{ ⧖ (part_cr k xs) ∗ (cmp_spec xs f cmp k) ∗ ⌜is_list xs l⌝ }}}
+      partition cmp l e'
     {{{ le gt, RET (le, gt);
         ∃ xsle xsgt : list A,
           ⌜is_list xsle le ∧ is_list xsgt gt
@@ -2281,26 +2274,49 @@ Section program.
           ∧ ⌜ ∀ x, In x xsgt → (f e x)%Z ⌝
     }}}.
   Proof.
-    iIntros (-> φ Lxs) "hφ".
+    iIntros (-> φ) "(H⧖ & #Hcmp & %Lxs) hφ".
     rewrite /partition.
-    iAssert (⧖ 0%R) as "Hcr"; first admit.
     wp_pures.
     wp_bind (list_filter _ _).
-    (* iApply (wp_list_filter _ (λ x, _)). *)
-    (* wp_apply wp_list_filter. *)
 
+    iAssert (⧖ (k * length xs) ∗ ⧖ (k * length xs))%I with "[H⧖]" as "[H⧖L H⧖R]".
+    { iApply etc_split; try (apply Rmult_le_pos; auto; apply pos_INR).
+      iApply etc_irrel; last iFrame.
+      rewrite /part_cr.
+      repeat rewrite mult_INR.
+      repeat rewrite S_INR.
+      rewrite INR_0. lra.
+    }
+
+    wp_apply ((wp_list_filter xs) with "[H⧖L]").
+    2: { iSplitR => //; iFrame; last done.
+      iIntros (x ψ) "!> H⧖ Hψ".
+      wp_pures.
+      wp_apply ("Hcmp" with "H⧖").
+      iIntros (v ->); iApply "Hψ"; eauto.
+    }
+    { apply pos_INR. }
+
+    iIntros (gt egt).
+    wp_pures.
+
+    wp_apply ((wp_list_filter xs) with "[H⧖R]").
+    2: { iSplitR => //; iFrame; last done.
+      iIntros (x ψ) "!> H⧖ Hψ".
+      wp_pures.
+      wp_apply ("Hcmp" with "H⧖").
+      iIntros (v ->); wp_pure.
+      iApply "Hψ"; eauto.
+    }
+    { apply pos_INR. }
+
+    iIntros (le ele).
+
+    wp_pures. iApply "hφ". iPureIntro.
+
+    (* Close! Probably need a lemma about f and x not/∈ xs *)
 
   (*
-    { iSplit => //. iIntros (x ψ) "_ !> hψ".
-      simpl. wp_pures. iApply "hψ". eauto. }
-    iIntros "!>" (gt egt). wp_pures.
-    wp_bind (list_filter _ _).
-    iApply (wp_list_filter _ (λ x, negb $ bool_decide (e < x)%Z)).
-    { iSplit => //. iIntros (x ψ) "_ !> hψ".
-      simpl. wp_pures.
-      case_bool_decide ; wp_pures ; by iApply "hψ". }
-    iIntros "!>" (le ele).
-    wp_pures. iApply "hφ". iPureIntro.
     set (xs_gt := (List.filter (λ x : Z, bool_decide (e < x)%Z) xs)) in *.
     set (xs_le := (List.filter (λ x : Z, negb $ bool_decide (e < x)%Z) xs)) in *.
     exists xs_le, xs_gt. intuition auto.
@@ -2349,117 +2365,179 @@ Section program.
 
 
   (* Removes sorted requirements, do we want those??? *)
-  Lemma qs_time_bound qsA qsB : ∀ (xs : list A) (l : val) (f : sorting_function A xs),
-    {{{ ⧖ (tc_quicksort qsA qsB (length xs)) ∗ ⌜is_list xs l⌝ }}}
-      qs l
+  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (f : sorting_function A xs) cmp k,
+    {{{ ⧖ (tc_quicksort (2 * k) 0 (length xs)) ∗ (cmp_spec xs f cmp k) ∗ ⌜is_list xs l⌝ }}}
+      qs cmp l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
-    assert (Hnonneg : forall i, (0 <= tc_quicksort qsA qsB i)%R) by admit.
-    iLöb as "Hqs". iIntros (xs l f φ) "(Hcr & %hl) hφ".
-    rewrite {2}/qs...
-    rewrite -/qs.
+    assert (Hnonneg : forall i A B, (0 <= tc_quicksort A B i)%R) by admit.
+    rewrite /qs.
+    iIntros (xs l f cmp k Φ) "HA1 HA2".
+    do 2 wp_pure.
+    iRevert "HA1 HA2".
+    iLöb as "Hqs" forall (xs l f k Φ).
+    iIntros "(H⧖ & #Hcmp & %hl) hφ".
+
+    wp_pure.
     wp_bind (list_length _).
-    iAssert (⧖ (tc_quicksort qsA qsB (length xs)) ∗ ⧖ 0%R)%I with "[Hcr]" as "(Hcr & Hfree)".
-    { iApply etc_split; [admit | lra |].
-      iApply (etc_weaken with "[$]").
-      simpl. admit.
+    wp_apply wp_list_length; [eauto|].
+    iIntros (n) "->".
+    wp_pures.
+
+    (* Base case *)
+    case_bool_decide.
+    { wp_pures; iModIntro. iApply "hφ".
+      destruct xs; last (simpl in *; lia).
+      iExists []; eauto.
     }
-    Fail iApply (wp_list_length with "[Hfree]").
 
-
-  (*
-
-    { iFrame; eauto. }
-    iIntros "!>" (n) "->"...
-    repeat (wp_pure; eauto; rewrite Rminus_0_r).
-    (* Start spending qsC *)
-    rewrite /qsC.
-    destruct xs as [|x0 xs'] eqn:Hxs.
-    { (* Empty list *)
-      rewrite tc_quicksort_unfold /= /tc_base.
-      simpl.
-      wp_pures. iApply "hφ". iExists _. iPureIntro. eauto.
-    }
+    (* Pick a pivot index at random, using advanced composition on the (2 * ...) term*)
+    wp_pures.
     rewrite tc_quicksort_unfold.
-    iAssert (⧖ (tc_pivot_lin qsA qsB (S (length xs'))) ∗
-             ⧖ (2 * (foldr Rplus 0%R (map (λ n : nat, tc_quicksort qsA qsB n) (index_space (S (length xs'))))) / (S (length xs'))))%I with "[Hcr]" as "(HcrP & Hcr)".
-    { admit. }
-    rewrite /tc_pivot_lin. rewrite {2}/qsA {2}/qsB.
-    wp_pure with "HcrP"; first admit.
-    rewrite bool_decide_false; last admit.
+    iAssert (⧖ (tc_pivot_lin (2*k) 0 (length xs)) ∗
+             ⧖ (2 * foldr Rplus 0 (map (λ n0 : nat, tc_quicksort (2 * k) 0 n0) (seq 0 (length xs))) / length xs))%I
+            with "[H⧖]" as "[H⧖lin H⧖Amp]".
+    { destruct xs as [|? ?]; first (simpl in *; lia).
+      simpl.
+      iApply etc_split; [| | iFrame]; admit.
+    }
 
-    (* Probably an easier way to do this *)
-    remember (length xs' + S (length xs' + S (length xs' + 0)) + 1)%nat as X; destruct X; first lia.
-    rewrite HeqX; clear HeqX X.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ f (2*k) 0) with "[$]").
+    { intros. apply tc_distr_nonneg; admit. }
+    { simpl.
+      rewrite tc_distr_equiv; last admit.
+      by rewrite Rplus_0_l. }
 
+    iIntros (ip) "H⧖"...
 
-
-
-    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ f qsA qsB) with "[$]").
-    { intros. apply tc_distr_nonneg. eauto. }
-    { rewrite tc_distr_equiv; last eauto. simpl cost. rewrite cons_length. lra. }
-
-    (* pick a pivot index at random *)
-    iIntros (ip) "Hcr"...
     (* pop the pivot from xs *)
-
-    (*
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
     wp_apply (wp_remove_nth_unsafe _ xs l ip with "[]").
-    { iSplit; first admit. (* ⧖ 0 *)
-      iPureIntro. split => //; [by simplify_eq|].
+    { iSplit; eauto.
+      iPureIntro.
       apply (Nat.lt_le_trans _ _ _ (fin_to_nat_lt ip)).
       simplify_eq; simpl length.
-      destruct xs' => /=; simpl in *; lia. }
+      destruct xs => /=; simpl in *; lia. }
 
-    iIntros (pr_opt (p & r & pre & post & hpart & hpos & hpr & hr)).
-    rewrite hpr. repeat (wp_pure ; unfold partition ; progress fold partition).
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    (* partition xs \ p into smaller and larger elements *)
-    wp_apply Partition => //.
-    iIntros (le gt (xsle & xsgt & (hle & hgt & hperm) & ple & pgt))...
+    iIntros (v) "[%xp [%ap [%xsL [%xsR (%Hxs & %Hip & -> & %Hap )]]]]".
+    wp_pures.
+    iAssert (⧖ (tc_quicksort (2 * k) 0 (index_to_rank f ip)) ∗
+             ⧖ (tc_quicksort (2 * k) 0 (reverse_order (index_space (length xs)) (index_to_rank f ip))))%I
+     with "[H⧖]" as "[H⧖L H⧖R]".
+    { iApply etc_split; [admit|admit|].
+      rewrite /tc_distr /tc_distr_def /=.
+      destruct xs; first (simpl in *; lia).
+      iFrame.
+    }
+    wp_pures.
 
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
-    wp_pure with "HcrP"; first admit.
+    iAssert (⧖ (k * (length xs)) ∗ ⧖ (k * (length xs)))%I with "[H⧖lin]" as "[H⧖Filt1 H⧖Filt2]".
+    { rewrite /tc_pivot_lin.
+      iApply etc_split; [admit|admit|].
+      iApply etc_irrel; last iFrame.
+      rewrite Nat.add_0_r.
+      repeat rewrite mult_INR.
+      repeat rewrite S_INR.
+      rewrite INR_0. lra.
+    }
 
+
+    wp_apply ((wp_list_filter (xsL ++ xsR) _ _ _ _ k ) with "[H⧖Filt1]"); first apply pos_INR.
+    { iSplitR => //.
+      - iIntros (x ψ) "!> H⧖ Hψ".
+        wp_pures.
+        wp_apply ("Hcmp" with "H⧖").
+        iIntros (v ->); iApply "Hψ"; eauto.
+      - iSplitR; first eauto.
+        iApply (etc_weaken with "[$]").
+        split; first admit.
+        admit.
+    }
+    iIntros (rv) "%Hrv".
+    wp_pures.
+
+    wp_apply ((wp_list_filter (xsL ++ xsR) _ _ _ _ k) with "[H⧖Filt2]"); first apply pos_INR.
+    { iSplitR => //.
+      - iIntros (x ψ) "!> H⧖ Hψ".
+        wp_pures.
+        wp_apply ("Hcmp" with "H⧖").
+        iIntros (v ->). wp_pures. iApply "Hψ".
+        eauto.
+      - iSplitR; first eauto.
+        iApply (etc_weaken with "[$]").
+        split; admit.
+    }
+    iIntros (lv) "%Hlv".
+    do 9 wp_pure.
 
     (* sort xs_gt *)
-    wp_apply "Hqs" => //.
+    wp_apply ("Hqs" with "[H⧖L]").
+    { iClear "Hqs".
+      iSplitL; [|iSplit]; last eauto.
+      { iApply etc_irrel; [|iFrame].
+        f_equal.
+        rewrite /index_to_rank /rank.
+        rewrite {3}Hxs.
+        rewrite lookup_total_app_r; last lia.
+        rewrite Hip Nat.sub_diag.
+        simpl.
+        rewrite {2}Hxs.
+        replace (xp :: xsR) with ([xp] ++ xsR); last done.
+        repeat rewrite List.filter_app.
+        repeat rewrite app_length.
+        rewrite /=.
+        rewrite sort_reflexive.
+        simpl length.
+        rewrite (Nat.add_comm 1 _) Nat.add_assoc Nat.add_sub.
+        f_equal.
+      }
+      (* General lemma: We can always restrict a comparison function along any sublist *)
+      admit.
+    }
+    iIntros (lL) "[%lLv (%hlL & %hlLperm)]".
 
-    (*
-    iIntros (gts (xs_gt_s & Lgts & Pgts & Sgts)).
-    (* sort xs_le *)
-    wp_apply "Hqs" => //. iIntros (les (xs_le_s & Lles & Ples & Sles))...
-    (* re-assemble the sorted results *)
-    replace (#p) with (inject p) by auto.
+    wp_apply ("Hqs" with "[H⧖R]").
+    { iClear "Hqs".
+      iSplitL; [|iSplit]; last eauto.
+      { iApply etc_irrel; [|iFrame].
+        f_equal.
+        rewrite /reverse_order /index_space seq_length.
+        rewrite /index_to_rank /rank.
+        rewrite {4}Hxs.
+        rewrite lookup_total_app_r; last lia.
+        rewrite Hip Nat.sub_diag.
+        simpl.
+        rewrite {3}Hxs.
+        replace (xp :: xsR) with ([xp] ++ xsR); last done.
+        repeat rewrite List.filter_app.
+        repeat rewrite app_length.
+        rewrite /=.
+        rewrite sort_reflexive.
+        simpl length.
+        rewrite (Nat.add_comm 1 _) Nat.add_assoc Nat.add_sub.
+        admit.
+      }
+      (* General lemma: We can always restrict a comparison function along any sublist *)
+      admit.
+    }
+    iIntros (lR) "[%lRv (%hlR & %hlRperm)]".
+    wp_pures.
+
+
+    iClear "Hqs".
     wp_apply wp_list_cons => //. iIntros (p_xs_gt_s h_p_xs_gt).
     iApply wp_list_append => //. iIntros "!>" (xs_le_p_gt_s L).
     iApply "hφ".
-    iExists (xs_le_s ++ p :: xs_gt_s). iPureIntro. repeat split => //.
+
+    (* Just proving the postcondition now, but maybe I can weaken it instead? *)
+
+    (*
+    iExists (xsL ++ xp :: xsR). iPureIntro. repeat split => //.
     - clear -Ples Pgts hperm hpart.
       rewrite Pgts Ples. rewrite -Permutation_middle.
       rewrite hperm. rewrite Permutation_middle. rewrite -hpart. done.
     - clear -Sles Sgts ple pgt Ples Pgts. apply sorted_append => // ; intros.
       + apply ple. eapply Permutation_in => //.
       + apply pgt. eapply Permutation_in => //.
-     *)
-     *)
      *)
   Admitted.
 
