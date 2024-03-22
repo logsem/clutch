@@ -42,9 +42,7 @@ Section lib.
      simpl. f_equal. done.
    Qed.
 
-   (* Proof irrelevance for fin *)
-   Lemma fin_irrel (n : nat) (x y: fin n) : (fin_to_nat x = fin_to_nat y) -> (x = y).
-   Proof. Admitted.
+
 
    Lemma fmap_compat `{A: Type} `{B: Type} f : list_fmap A B f = (fmap f).
    Proof. rewrite /fmap. done. Qed.
@@ -52,17 +50,12 @@ Section lib.
    Lemma fin_inj_FS_comm (n : nat) (l : list (fin n)) :
      FS <$> (fin_inj_incr _ <$> l) = fin_inj_incr _ <$> (FS <$> l).
    Proof.
-     induction l; [done|].
-     simpl in *.
-     f_equal.
-     f_equal.
-     - apply functional_extensionality.
-       intros.
-       apply fin_irrel.
-       admit.
-     -
-
-   Admitted.
+     (* Fmapping this over a list only matters for giving us funext *)
+     rewrite -list_fmap_compose.
+     rewrite -list_fmap_compose.
+     apply Forall_fmap_ext, Forall_true.
+     eauto.
+    Qed.
 
    (* Allows us to pull off the last element of a fin_enum, leaving a smaller fin_enum *)
    Lemma fin_enum_snoc_rec (n : nat) :
@@ -83,8 +76,6 @@ Section lib.
        rewrite fin_inj_FS_comm.
        done.
    Qed.
-
-
 End lib.
 
 
@@ -178,6 +169,14 @@ Section sorting.
     destruct (length L) as [|L0 L1] eqn:lenl.
     { simpl. constructor. }
     symmetry.
+
+    Search Permutation.
+    (* The tricky things:
+        - Need to quantify over f
+        - index_space (seq (S p)) can be decomposed into A ++ [b] ++ (S <$> C)
+            where A ++ C has a permutation to seq p
+     *)
+
     apply nat_bijection_Permutation.
     - rewrite /FinFun.bFun.
       intros.
@@ -210,10 +209,22 @@ Section sorting.
       rewrite Nat.sub_diag.
       rewrite /= sort_reflexive /=.
       lia.
-    - rewrite /FinFun.Injective.
-      intros ? ? HRk.
-      (* Uses uniqueness, probably need to prove an aux. lemma *)
-      rewrite /index_to_rank /rank in HRk.
+    -
+
+
+
+      rewrite /FinFun.Injective.
+      (* I think this is only true for indices less than (length L)? *)
+      (* Could I prove it for an extension and then restrict it? Or do I need
+         to use something other than nat_bijection_permutation?
+
+         Might not even be too bad to generalzie the proof from the standard library?  *)
+
+
+      rewrite /index_to_rank /rank.
+      destruct f as [f f_refl f_trans f_inj]; simpl.
+      intros x y Hrk.
+
   Admitted.
 
 
