@@ -97,13 +97,28 @@ Section sorting.
     := { sort_func :> A -> A -> bool ;
          sort_reflexive : forall a, sort_func a a = true ;
          sort_trans : forall a b c, sort_func a b = true /\ sort_func b c = true -> sort_func a c = true ;
-         (* Could be a better definition here *)
-         sort_unique : Forall (fun x => length (List.filter (fun y => sort_func x y && sort_func y x) L) = 1%nat) L ;
+         sort_inj : Forall (fun x => (Forall (fun y => (sort_func x y = true) /\ (sort_func y x = true) -> (x = y)) L)) L
     }.
 
   (* TODO: Define sorting functions for restrictions (cons, snoc, app) *)
   (* TODO: Define pushforward sorting functions *)
 
+
+  Definition sorting_function_retract A L1 L2 :
+    (incl L1 L2) -> sorting_function A L2 -> sorting_function A L1.
+  Proof.
+    intros Hincl f.
+    destruct f as [f H1 H2 H3].
+    eapply (Build_sorting_function _ _ f); eauto.
+
+    apply List.Forall_forall.
+    intros x Hx.
+    eapply List.Forall_forall in H3; last eauto.
+    apply List.Forall_forall.
+    intros y Hy.
+    eapply List.Forall_forall in H3; last eauto.
+    done.
+  Defined.
 
   (* Definition rank_lower (l : list Z) (x : Z) (Hx : x ∈ l) (HL : (0 < length l)%nat) : fin (S (length l - 1)%nat).
     refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
@@ -868,8 +883,6 @@ Section list.
         let: "t" := Snd "p" in
         "h" :: "list_append" "t" "r"
     end.
-(*
-
   Fixpoint inject_list `{!Inject A val} (xs : list A) :=
     match xs with
     | [] => NONEV
@@ -886,7 +899,6 @@ Section list.
       f_equal; [by apply (inj _)|].
       by apply IH.
   Qed.
-  *)
 
   Section list_specs.
     Context `{!ert_clutchGS Σ CostTick}.
@@ -899,7 +911,6 @@ Section list.
     end.
 
 
-    (*
     Lemma is_list_inject xs v :
       is_list xs v ↔ v = (inject xs).
     Proof.
@@ -909,7 +920,6 @@ Section list.
         do 2 f_equal. by apply IH.
       - intros ->. eexists. split; [done|]. by apply IH.
     Qed.
-     *)
 
     Lemma wp_list_nil E :
       {{{ True }}}
@@ -926,44 +936,6 @@ Section list.
       iApply "HΦ". iPureIntro; by eexists.
     Qed.
 
-    (*
-
-    Lemma wp_list_singleton E a :
-      {{{ True }}}
-        list_cons (inject a) list_nil @ E
-      {{{ v, RET v; ⌜is_list [a] v⌝ }}}.
-    Proof.
-      iIntros (Φ) "_ HΦ". wp_pures.
-      wp_apply (wp_list_cons _ []); [done|].
-      iIntros (v' Hv').
-      by iApply "HΦ".
-    Qed.
-
-    Lemma wp_list_head E lv l :
-      {{{ ⌜is_list l lv⌝ }}}
-        list_head lv @ E
-      {{{ v, RET v;
-          ⌜(l = [] ∧ v = NONEV) ∨ (∃ a l', l = a :: l' ∧ v = SOMEV (inject a))⌝ }}}.
-    Proof.
-      iIntros (Φ a) "HΦ".
-      wp_lam. destruct l; simpl in *; subst.
-      - wp_pures. iApply "HΦ". iPureIntro. by left.
-      - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
-        wp_pures. iApply "HΦ". iPureIntro. right. eauto.
-    Qed.
-
-    Lemma wp_list_tail E lv l :
-      {{{ ⌜is_list l lv⌝ }}}
-        list_tail lv @ E
-      {{{ v, RET v; ⌜is_list (tail l) v⌝}}}.
-    Proof.
-      iIntros (Φ a) "HΦ".
-      wp_lam. destruct l; simpl in *; subst.
-      - wp_match. wp_inj. by iApply "HΦ".
-      - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
-        wp_match. wp_proj. by iApply "HΦ".
-    Qed.
-   *)
 
     Lemma wp_list_length E l lv :
       {{{ ⌜is_list l lv⌝ }}}
@@ -989,43 +961,6 @@ Section list.
         eauto.
     Qed.
 
-
-    (*
-
-    Lemma wp_list_nth E (i: nat) l lv  :
-     {{{ ⌜is_list l lv⌝ }}}
-        list_nth (Val lv) #i @ E
-      {{{ v, RET v; (⌜v = NONEV⌝ ∧ ⌜length l <= i⌝) ∨
-                ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝ }}}.
-    Proof.
-      iIntros (Φ) "Ha HΦ".
-      iInduction l as [|a l'] "IH" forall (i lv Φ);
-      iDestruct "Ha" as %Ha; simpl in Ha; subst; wp_rec; wp_let.
-      - wp_match. wp_pures.
-        iApply ("HΦ" $! (InjLV #())). iLeft. simpl. eauto with lia.
-      - destruct Ha as [lv' [Hlv Hlcoh]]; subst.
-        wp_match. wp_pures. case_bool_decide; wp_pures.
-        + iApply "HΦ". iRight. simpl. iExists a. by destruct i.
-        + destruct i; first done.
-          assert ((S i - 1)%Z = i) as -> by lia.
-          iApply ("IH" $! i lv' _  Hlcoh).
-          iNext. iIntros (v [ (Hv & Hs) | Hps]); simpl.
-          * iApply "HΦ"; try eauto with lia.
-          * iApply "HΦ"; try eauto with lia.
-    Qed.
-
-    Lemma wp_list_nth_some E (i: nat) l lv  :
-      {{{  ⌜is_list l lv ∧ i < length l⌝  }}}
-        list_nth (Val lv) #i @ E
-      {{{ v, RET v; ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝ }}}.
-    Proof.
-      iIntros (Φ (Hcoh & Hi)) "HΦ".
-      iApply (wp_list_nth $! Hcoh).
-      iIntros (v [H | H]); first eauto with lia.
-      by iApply "HΦ".
-    Qed.
-
-    *)
     Lemma wp_remove_nth E (l : list A) lv (i : nat) :
       {{{ ⌜is_list l lv /\ i < length l⌝ }}}
         list_remove_nth lv #i @ E
@@ -1047,11 +982,8 @@ Section list.
           iPureIntro; split; auto.
           split; auto.
           split.
-          *
-            admit. (* by apply is_list_inject in Hlcoh as ->. *)
-          *
-
-            admit. (* by apply is_list_inject.*)
+          * by apply is_list_inject in Hlcoh as ->.
+          * by apply is_list_inject.
         + destruct i; first done.
           assert ((S i - 1)%Z = i) as -> by lia.
           assert (is_list l' lv' /\ i < length l') as Haux.
@@ -1062,8 +994,7 @@ Section list.
           repeat rewrite Rminus_0_r.
           iApply ("IH" $! i lv' _ ); [eauto|].
           iNext. iIntros (v (e & v' & l1 & l2 & (-> & Hlen & -> & Hil))); simpl.
-
-          (* wp_pures.
+          wp_pures.
           wp_bind (list_cons _ _). iApply wp_list_cons; [done|].
           iIntros "!>" (v Hcons).
           wp_pures.
@@ -1075,8 +1006,7 @@ Section list.
           split.
           * by apply is_list_inject in Hcons as ->.
           * by apply is_list_inject.
-          *)
-    Admitted.
+    Qed.
 
     Lemma wp_list_append E l lM r rM :
       {{{ ⌜is_list lM l⌝ ∗ ⌜is_list rM r⌝}}}
@@ -1228,13 +1158,12 @@ Section program.
 
 
 
-  (* Removes sorted requirements, do we want those??? *)
+  (* Remove everything but the time bound computation *)
   Lemma qs_time_bound : ∀ (xs : list A) (l : val) (f : sorting_function A xs) cmp k,
     {{{ ⧖ (tc_quicksort (2 * k) 0 (length xs)) ∗ (cmp_spec xs f cmp k) ∗ ⌜is_list xs l⌝ }}}
       qs cmp l
-    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
+    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ⌝ }}}.
   Proof with wp_pures.
-    assert (Hnonneg : forall i A B, (0 <= tc_quicksort A B i)%R) by admit.
     rewrite /qs.
     iIntros (xs l f cmp k Φ) "HA1 HA2".
     do 2 wp_pure.
@@ -1250,10 +1179,7 @@ Section program.
 
     (* Base case *)
     case_bool_decide.
-    { wp_pures; iModIntro. iApply "hφ".
-      destruct xs; last (simpl in *; lia).
-      iExists []; eauto.
-    }
+    { wp_pures; iModIntro. iApply "hφ". destruct xs; [eauto |simpl in *; lia]. }
 
     (* Pick a pivot index at random, using advanced composition on the (2 * ...) term*)
     wp_pures.
@@ -1262,15 +1188,26 @@ Section program.
              ⧖ (2 * foldr Rplus 0 (map (λ n0 : nat, tc_quicksort (2 * k) 0 n0) (seq 0 (length xs))) / length xs))%I
             with "[H⧖]" as "[H⧖lin H⧖Amp]".
     { destruct xs as [|? ?]; first (simpl in *; lia).
-      simpl.
-      iApply etc_split; [| | iFrame]; admit.
+
+      iApply etc_split.
+      - rewrite /tc_pivot_lin Nat.add_0_r. apply pos_INR.
+      - apply Rcomplements.Rdiv_le_0_compat; last (rewrite -INR_0; apply lt_INR; simpl; lia).
+        apply Rmult_le_pos; try lra.
+        (* augh *)
+        remember (length (a :: xs)) as W.
+        clear.
+        induction W as [|W' IHW]; [simpl; lra|].
+        rewrite seq_S /=.
+        rewrite map_app foldr_app /=.
+        rewrite foldr_comm_acc; last (intros; simpl; lra).
+        apply Rplus_le_le_0_compat; [apply tc_quicksort_nonneg|].
+        by simpl in IHW.
+      - iFrame.
     }
 
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ f (2*k) 0) with "[$]").
-    { intros. apply tc_distr_nonneg; admit. }
-    { simpl.
-      rewrite tc_distr_equiv; last admit.
-      by rewrite Rplus_0_l. }
+    { intros. apply tc_distr_nonneg; eauto. lia. }
+    { rewrite /= tc_distr_equiv; [by rewrite Rplus_0_l | lia]. }
 
     iIntros (ip) "H⧖"...
 
@@ -1287,21 +1224,25 @@ Section program.
     iAssert (⧖ (tc_quicksort (2 * k) 0 (index_to_rank f ip)) ∗
              ⧖ (tc_quicksort (2 * k) 0 (reverse_order (index_space (length xs)) (index_to_rank f ip))))%I
      with "[H⧖]" as "[H⧖L H⧖R]".
-    { iApply etc_split; [admit|admit|].
-      rewrite /tc_distr /tc_distr_def /=.
-      destruct xs; first (simpl in *; lia).
-      iFrame.
+    { iApply etc_split.
+      - apply tc_quicksort_nonneg.
+      - apply tc_quicksort_nonneg.
+      - rewrite /tc_distr /tc_distr_def /=.
+        destruct xs; first (simpl in *; lia).
+        iFrame.
     }
     wp_pures.
 
     iAssert (⧖ (k * (length xs)) ∗ ⧖ (k * (length xs)))%I with "[H⧖lin]" as "[H⧖Filt1 H⧖Filt2]".
     { rewrite /tc_pivot_lin.
-      iApply etc_split; [admit|admit|].
-      iApply etc_irrel; last iFrame.
-      rewrite Nat.add_0_r.
-      repeat rewrite mult_INR.
-      repeat rewrite S_INR.
-      rewrite INR_0. lra.
+      iApply etc_split.
+      - apply Rmult_le_pos; apply pos_INR.
+      - apply Rmult_le_pos; apply pos_INR.
+      - iApply etc_irrel; last iFrame.
+        rewrite Nat.add_0_r.
+        repeat rewrite mult_INR.
+        repeat rewrite S_INR.
+        rewrite INR_0. lra.
     }
 
 
@@ -1313,8 +1254,13 @@ Section program.
         iIntros (v ->); iApply "Hψ"; eauto.
       - iSplitR; first eauto.
         iApply (etc_weaken with "[$]").
-        split; first admit.
-        admit.
+        split.
+        + apply Rmult_le_pos; apply pos_INR.
+        + apply Rmult_le_compat_l; [apply pos_INR|].
+          rewrite Hxs.
+          apply le_INR.
+          do 2 rewrite app_length.
+          simpl. lia.
     }
     iIntros (rv) "%Hrv".
     wp_pures.
@@ -1328,7 +1274,13 @@ Section program.
         eauto.
       - iSplitR; first eauto.
         iApply (etc_weaken with "[$]").
-        split; admit.
+        split.
+        + apply Rmult_le_pos; apply pos_INR.
+        + apply Rmult_le_compat_l; [apply pos_INR|].
+          rewrite Hxs.
+          apply le_INR.
+          do 2 rewrite app_length.
+          simpl. lia.
     }
     iIntros (lv) "%Hlv".
     do 9 wp_pure.
@@ -1354,55 +1306,83 @@ Section program.
         rewrite (Nat.add_comm 1 _) Nat.add_assoc Nat.add_sub.
         f_equal.
       }
-      (* General lemma: We can always restrict a comparison function along any sublist *)
-      admit.
+
+      rewrite /cmp_spec.
+      iIntros (? ? ?) "!> ? H".
+      wp_apply ("Hcmp" with "[$]").
+      iIntros (?) "->"; iApply "H"; iPureIntro.
+      Unshelve.
+      2: { eapply sorting_function_retract; last eapply f.
+           eapply incl_tran; first eapply incl_filter.
+           rewrite Hxs.
+           eapply incl_app_app; first apply incl_refl.
+           apply incl_tl; apply incl_refl.
+      }
+      rewrite /sorting_function_retract /=.
+      destruct f; simpl; done.
     }
-    iIntros (lL) "[%lLv (%hlL & %hlLperm)]".
+    iIntros (lL) "[% %]".
 
     wp_apply ("Hqs" with "[H⧖R]").
     { iClear "Hqs".
       iSplitL; [|iSplit]; last eauto.
       { iApply etc_irrel; [|iFrame].
         f_equal.
+
         rewrite /reverse_order /index_space seq_length.
         rewrite /index_to_rank /rank.
         rewrite {4}Hxs.
         rewrite lookup_total_app_r; last lia.
         rewrite Hip Nat.sub_diag.
         simpl.
-        rewrite {3}Hxs.
-        replace (xp :: xsR) with ([xp] ++ xsR); last done.
-        repeat rewrite List.filter_app.
-        repeat rewrite app_length.
-        rewrite /=.
-        rewrite sort_reflexive.
-        simpl length.
-        rewrite (Nat.add_comm 1 _) Nat.add_assoc Nat.add_sub.
-        admit.
+
+        rewrite -(PeanoNat.Nat.sub_succ (_ - 1) (_ - 1)).
+        rewrite -Nat.add_1_l -Nat.le_add_sub; last first.
+        { rewrite Hxs app_length /=; lia. }
+        rewrite -Nat.add_1_l -Nat.le_add_sub; last first.
+        { rewrite {2}Hxs List.filter_app app_length /=.
+          rewrite sort_reflexive /=.
+          lia.
+        }
+
+        replace (length (List.filter (∽ f xp)%P (xsL ++ xsR)))
+            with (length (List.filter (∽ f xp)%P xs));
+          last first.
+        { rewrite {2}Hxs.
+          rewrite List.filter_app app_length /=.
+          rewrite sort_reflexive /=.
+          rewrite List.filter_app app_length /=.
+          done.
+        }
+        rewrite -(List.filter_length (f xp)).
+
+        replace (length (List.filter (λ y : A, f xp y) xs))
+          with  (length (List.filter (f xp) xs)) by f_equal.
+        lia.
       }
-      (* General lemma: We can always restrict a comparison function along any sublist *)
-      admit.
+      rewrite /cmp_spec.
+      iIntros (? ? ?) "!> ? H".
+      wp_apply ("Hcmp" with "[$]").
+      iIntros (?) "->"; iApply "H"; iPureIntro.
+      Unshelve.
+      2: { eapply sorting_function_retract; last eapply f.
+           eapply incl_tran; first eapply incl_filter.
+           rewrite Hxs.
+           eapply incl_app_app; first apply incl_refl.
+           apply incl_tl; apply incl_refl.
+      }
+      simpl.
+      rewrite /sorting_function_retract /=.
+      destruct f; simpl; done.
     }
-    iIntros (lR) "[%lRv (%hlR & %hlRperm)]".
+    iIntros (lR) "[% %]".
     wp_pures.
 
-
     iClear "Hqs".
-    wp_apply wp_list_cons => //. iIntros (p_xs_gt_s h_p_xs_gt).
+    wp_apply wp_list_cons => //; first eauto. iIntros (p_xs_gt_s h_p_xs_gt).
     iApply wp_list_append => //. iIntros "!>" (xs_le_p_gt_s L).
     iApply "hφ".
-
-    (* Just proving the postcondition now, but maybe I can weaken it instead? *)
-
-    (*
-    iExists (xsL ++ xp :: xsR). iPureIntro. repeat split => //.
-    - clear -Ples Pgts hperm hpart.
-      rewrite Pgts Ples. rewrite -Permutation_middle.
-      rewrite hperm. rewrite Permutation_middle. rewrite -hpart. done.
-    - clear -Sles Sgts ple pgt Ples Pgts. apply sorted_append => // ; intros.
-      + apply ple. eapply Permutation_in => //.
-      + apply pgt. eapply Permutation_in => //.
-     *)
-  Admitted.
+    eauto.
+  Qed.
 
 End program.
