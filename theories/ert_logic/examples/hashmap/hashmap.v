@@ -97,7 +97,7 @@ Section simple_bit_hash.
   Qed.
 
 
-  Lemma wp_insert_no_coll E f m (n : nat) :
+  Lemma wp_insert E f m (n : nat) :
     m !! n = None →
     {{{ hashfun f m 
     }}}
