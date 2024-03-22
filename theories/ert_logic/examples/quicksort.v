@@ -1128,8 +1128,8 @@ Section list.
       | a::l' => ∃ lv, v = SOMEV ((inject a), lv) ∧ is_list l' lv
     end.
 
-  (*
 
+    (*
     Lemma is_list_inject xs v :
       is_list xs v ↔ v = (inject xs).
     Proof.
@@ -1139,6 +1139,7 @@ Section list.
         do 2 f_equal. by apply IH.
       - intros ->. eexists. split; [done|]. by apply IH.
     Qed.
+     *)
 
     Lemma wp_list_nil E :
       {{{ True }}}
@@ -1154,6 +1155,8 @@ Section list.
       iIntros (Φ) "% HΦ". wp_lam. wp_pures.
       iApply "HΦ". iPureIntro; by eexists.
     Qed.
+
+    (*
 
     Lemma wp_list_singleton E a :
       {{{ True }}}
@@ -1209,13 +1212,13 @@ Section list.
         wp_match; simpl.
         wp_proj. wp_bind (list_length _); simpl.
         iApply ("IH" $! _ _ with "[Htc]"); eauto.
-        (* { iApply (etc_weaken with "Htc"); lra. } *)
-        (* iNext. iIntros. *)
-        (* Why can't wp_op find the binop? *)
-        Fail wp_op.
-        (* iSpecialize ("HΦ" $! (1 + v)%nat).
-        rewrite Nat2Z.inj_add. iApply "HΦ"; by auto. *)
-    Admitted.
+        iNext.
+        iIntros.
+        wp_op.
+        rewrite Z.add_1_l -Nat2Z.inj_succ.
+        iApply "HΦ".
+        eauto.
+    Qed.
 
 
     (*
@@ -1601,8 +1604,11 @@ Section list.
           iPureIntro; split; auto.
           split; auto.
           split.
-          * admit. (* by apply is_list_inject in Hlcoh as ->. *)
-          * admit. (* by apply is_list_inject.*)
+          *
+            admit. (* by apply is_list_inject in Hlcoh as ->. *)
+          *
+
+            admit. (* by apply is_list_inject.*)
         + destruct i; first done.
           assert ((S i - 1)%Z = i) as -> by lia.
           assert (is_list l' lv' /\ i < length l') as Haux.
@@ -1808,7 +1814,7 @@ Section list.
 
     Lemma is_list_snoc lM x : ∃ lv, is_list (lM ++ [x]) lv.
     Proof. induction lM; naive_solver eauto. Qed.
-
+    *)
     Lemma wp_list_filter (l : list A) (P : A -> bool) (f lv : val) E :
       {{{ (∀ (x : A),
               {{{ True }}}
@@ -1840,7 +1846,7 @@ Section list.
         + iApply "HΦ"; iPureIntro.
           simpl. rewrite HP. done.
     Qed.
-
+    (*
 
     Lemma wp_list_split E (n:nat) (lv:val) l:
       {{{ ⌜is_list l lv⌝ ∗ ⌜n<=length l⌝ }}}
@@ -2244,7 +2250,14 @@ Section program.
     iIntros (φ) "(Hcr & %llv & %Hi) hφ".
     rewrite /list_remove_nth_unsafe.
     wp_pures.
-    (* wp_apply wp_remove_nth => //.
+    Check wp_remove_nth.
+    wp_bind (App (App _ _) _).
+    Fail iApply (wp_remove_nth with "[]").
+    Fail wp_apply (wp_remove_nth with "[]").
+    Fail wp_apply wp_remove_nth => //.
+
+    (* Why doesn't this work? *)
+    (*
     { iSplit; first admit. eauto. }
     iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
     iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto. *)
@@ -2265,16 +2278,19 @@ Section program.
           ⌜is_list xsle le ∧ is_list xsgt gt
           ∧ app xsle xsgt ≡ₚ xs ⌝
           ∧ ⌜ ∀ x, In x xsle → (f x e) ⌝
-                   ∧ ⌜ ∀ x, In x xsgt → (f e x)%Z ⌝
+          ∧ ⌜ ∀ x, In x xsgt → (f e x)%Z ⌝
     }}}.
   Proof.
     iIntros (-> φ Lxs) "hφ".
     rewrite /partition.
     iAssert (⧖ 0%R) as "Hcr"; first admit.
     wp_pures.
-    (*
     wp_bind (list_filter _ _).
-    iApply (wp_list_filter _ (λ x, bool_decide (e < x)%Z)).
+    (* iApply (wp_list_filter _ (λ x, _)). *)
+    (* wp_apply wp_list_filter. *)
+
+
+  (*
     { iSplit => //. iIntros (x ψ) "_ !> hψ".
       simpl. wp_pures. iApply "hψ". eauto. }
     iIntros "!>" (gt egt). wp_pures.
@@ -2338,20 +2354,21 @@ Section program.
       qs l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ⌝ }}}.
   Proof with wp_pures.
-    (*
-    assert (Hnonneg : forall i, (0 <= qsC i)%R) by admit.
+    assert (Hnonneg : forall i, (0 <= tc_quicksort qsA qsB i)%R) by admit.
     iLöb as "Hqs". iIntros (xs l f φ) "(Hcr & %hl) hφ".
     rewrite {2}/qs...
     rewrite -/qs.
     wp_bind (list_length _).
-    iAssert (⧖ (qsC (length xs)) ∗ ⧖ 0%R)%I with "[Hcr]" as "(Hcr & Hfree)".
+    iAssert (⧖ (tc_quicksort qsA qsB (length xs)) ∗ ⧖ 0%R)%I with "[Hcr]" as "(Hcr & Hfree)".
     { iApply etc_split; [admit | lra |].
       iApply (etc_weaken with "[$]").
       simpl. admit.
     }
-     *)
-    (*
-    iApply (wp_list_length with "[Hfree]").
+    Fail iApply (wp_list_length with "[Hfree]").
+
+
+  (*
+
     { iFrame; eauto. }
     iIntros "!>" (n) "->"...
     repeat (wp_pure; eauto; rewrite Rminus_0_r).
