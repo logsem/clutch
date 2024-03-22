@@ -126,6 +126,13 @@ Notation tc_each := (tc_total/5).
 Local Lemma tc_each_better: tc_each < 8/3.
 Proof. lra. Qed.
 
+Local Ltac slam :=
+  repeat match goal with
+    | [H: (_<=?_)%nat = true |- _] => apply Nat.leb_le in H
+    | [H: (_<=?_)%nat = false |- _] => apply Nat.leb_gt in H
+    | _ => lia
+    end.
+
 Section proof2.
   Context `{!ert_clutchGS Σ CostRand}.
   
@@ -152,66 +159,35 @@ Section proof2.
              compute_num (current * (2 ^ remaining + (2 ^ remaining + 0))) ((current * (2 ^ remaining + (2 ^ remaining + 0))) + (2 ^ remaining + (2 ^ remaining + 0))) 243 /
                (2 * 2 ^ remaining).
   Proof.
-    Admitted.
-    (* intros Hcurrent' Hf. *)
-  (*   rewrite Hf. *)
-  (*   cut (1 / (1 + 1) * *)
-  (* (compute_num (current' 0%fin) (current' 0%fin + 2 ^ remaining) 243 / 2 ^ remaining) + *)
-  (* (1 / (1 + 1) * *)
-  (*  (compute_num (current' 1%fin) (current' 1%fin + 2 ^ remaining) 243 / 2 ^ remaining) + 0) = *)
-  
-  (* compute_num (current * (2 ^ remaining + (2 ^ remaining + 0))) *)
-  (*   (current * (2 ^ remaining + (2 ^ remaining + 0)) + (2 ^ remaining + (2 ^ remaining + 0))) 243 / *)
-  (* (2 * 2 ^ remaining)); first lra. *)
-  (*   rewrite /compute_num. *)
-  (*   destruct (243 <=? current * (2 ^ remaining + (2 ^ remaining + 0)))%nat eqn:H1. *)
-  (*   - assert ((243 <=? current' 0%fin)%nat = true) as K1. *)
-  (*     { rewrite Nat.leb_le. rewrite Nat.leb_le in H1. *)
-  (*       subst. lia. *)
-  (*     } *)
-  (*     assert ((243 <=? current' 1%fin)%nat = true) as K2. *)
-  (*     { rewrite Nat.leb_le. rewrite Nat.leb_le in H1. *)
-  (*       subst. lia. } *)
-  (*     rewrite K1 K2. subst. simpl. *)
-  (*     trans (1%R). *)
-  (*     + replace (_+_) with (1/2 + 1/2); try lra. *)
-  (*       replace ((current * 2 + 0 + 2 ^ remaining - (current * 2 + 0))%nat / 2 ^ remaining) with 1; last first. *)
-  (*       { symmetry. apply Rdiv_diag_eq. *)
-  (*         - apply pow_nonzero. lra. *)
-  (*         - replace (current * 2 + 0 + 2 ^ remaining - (current * 2 + 0))%nat with *)
-  (*             (2^remaining)%nat; last lia. *)
-  (*           rewrite pow_INR. done. *)
-  (*       } *)
-  (*       replace ((current * 2 + 1 + 2 ^ remaining - (current * 2 + 1))%nat / 2 ^ remaining) with 1; first lra. *)
-  (*       symmetry. apply Rdiv_diag_eq. *)
-  (*         * apply pow_nonzero. lra. *)
-  (*         * replace (current * 2 + 1 + 2 ^ remaining - (current * 2 + 1))%nat with *)
-  (*             (2^remaining)%nat; last lia. *)
-  (*           rewrite pow_INR. done. *)
-  (*     + symmetry. apply Rdiv_diag_eq. *)
-  (*         * apply Rmult_integral_contrapositive; split; try lra. apply pow_nonzero. lra. *)
-  (*         * replace (current + (2 ^ remaining + (2 ^ remaining + 0)) - current)%nat with *)
-  (*             (2 * 2 ^ remaining)%nat; last lia. *)
-  (*           rewrite mult_INR. *)
-  (*           rewrite pow_INR. done. *)
-  (*   - rewrite Nat.leb_gt in H1. *)
-  (*     destruct (current + (2 ^ remaining + (2 ^ remaining + 0)) <=? 243)%nat eqn:H2. *)
-  (*     + rewrite Nat.leb_le in H2. *)
-  (*       assert ((243 <=? current' 0%fin)%nat = false) as K1. *)
-  (*       { rewrite Nat.leb_gt. admit. } *)
-  (*       assert ((243 <=? current' 1%fin)%nat = false) as K2. *)
-  (*       { admit. } *)
-  (*       rewrite K1 K2. *)
-  (*       assert (current' 0%fin + 2 ^ remaining <=? 243 = true)%nat as K3. *)
-  (*       { admit. } *)
-  (*       assert (current' 1%fin + 2 ^ remaining <=? 243 = true)%nat as K4. *)
-  (*       { admit. } *)
-  (*       rewrite K3 K4. simpl. lra. *)
-  (*     + rewrite Nat.leb_gt in H2. *)
-  (*       assert ((243 <=? current' 0%fin)%nat = false) as K1. *)
-  (*       { admit. } *)
-  (*       rewrite K1. *)
-  (* Admitted. *)
+    (** cleanup *)
+    intros -> ->; simpl.
+    replace (1+1) with 2 by lra.
+    replace 2 with (INR 2) by done.
+    rewrite -pow_INR.
+    remember (2^remaining)%nat as r eqn:Heqr.
+    replace (r+(r+0))%nat with (2*r)%nat by lia.
+    rewrite !Nat.add_0_r.
+    cut (1 / INR 2 * (INR (compute_num (current * 2 * r) (current * 2 * r + r) 243) / INR r) +
+           (1 / INR 2 *
+              (INR (compute_num ((current * 2 + 1) * r) ((current * 2 + 1) * r + r) 243) / INR r)) =
+         INR (compute_num (current * (2 * r)) (current * (2 * r) + 2 * r) 243) / (INR 2 * INR r)); first lra.
+    rewrite !Rdiv_def Rinv_mult !Rmult_1_l.
+    rewrite -(Rmult_assoc _ (/INR 2) (/INR r)).
+    rewrite (Rmult_comm _ (/INR 2)).
+    rewrite -Rmult_plus_distr_l.
+    rewrite Rmult_assoc.
+    apply Rmult_eq_compat_l.
+    rewrite -Rmult_plus_distr_r.
+    apply Rmult_eq_compat_r.
+    (** unfold compute_num*)
+    rewrite /compute_num.
+    repeat case_match; simpl; slam.
+    - rewrite -plus_INR; f_equal. lia. 
+    - rewrite Rplus_0_l; f_equal. lia. 
+    - lra.
+    - rewrite Rplus_0_l; f_equal. lia. 
+    - rewrite -plus_INR; f_equal. lia.
+  Qed.
 
            
   Lemma wp_coin_tosser (current remaining:nat) E:
@@ -279,7 +255,7 @@ Section proof2.
               assert ((current * 2 + fin_to_nat n) * 2 ^ remaining + 2 ^ remaining<=
                         (current * 2 + 1) * 2 ^ remaining + 2 ^ remaining)%nat; simpl; try lia.
               apply Plus.plus_le_compat_r_stt. apply Nat.mul_le_mono_r. lia.
-  Admitted.
+  Qed.
 
   Lemma wp_amortized_sample_helper E:
     {{{ ⧖ tc_total }}}
