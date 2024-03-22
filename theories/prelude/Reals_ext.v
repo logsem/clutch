@@ -124,6 +124,13 @@ Proof. intros; lra. Qed.
 Lemma Rle_0_le_minus (x y : R) : (x <= y)%R -> (0 <= y - x)%R.
 Proof. lra. Qed.
 
+Lemma Rmult_pos_nat_r r (n : nat) :
+  (0 <= r)%R →
+  (0 <= r * n)%R.
+Proof. intros. eapply Rmult_le_pos; [done|]. apply pos_INR. Qed.
+
+Hint Resolve Rmult_pos_nat_r : real.
+
 Ltac real_solver :=
     by repeat
          match goal with
