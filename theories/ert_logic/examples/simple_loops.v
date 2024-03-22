@@ -59,7 +59,7 @@ Section loop1.
       - assert (0 <= 21 * n)%R; [|lra]. eauto with real.
       - assert (0 <= 21 * (n + 1))%R; [|lra].
         eapply Rmult_le_pos; eauto with real. }
-    { rewrite [cost _]/= !S_INR SeriesC_finite_foldr /=. lra.}
+    { rewrite [cost _]/= !S_INR SeriesC_finite_foldr /=. lra. }
     iIntros (b) "Hc".
     inv_fin b; [|intros b].
     - rewrite bool_decide_eq_true_2 //.
