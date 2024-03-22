@@ -93,3 +93,60 @@ Section loop1.
   Qed.
 
 End loop1.
+
+Definition loop1_tick (l : loc) : expr :=
+  while (#0 < !#l) do
+    tick #1;;
+    if: rand #1 = #0 then
+      #l <- !#l - #1
+    else #()
+  end.
+
+Section loop1_tick.
+  Context `{!ert_clutchGS Σ CostTick}.
+
+  (** In expectation, we need two iterations to decrement [l], see e.g. [geom.v] *)
+  Lemma wp_loop1_tick (l : loc) (n : nat) :
+    {{{ ⧖ (2 * n) ∗ l ↦ #n }}}
+      loop1_tick l
+    {{{ RET #(); True }}}.
+  Proof.
+    iLöb as "IH" forall (n).
+    iIntros (Ψ) "[Hc Hl] HΨ".
+    rewrite {2}/loop1_tick.
+    wp_pures.
+    wp_load; iIntros "Hl".
+    wp_pure.
+    case_bool_decide as Hlt;
+      wp_pure; last first.
+    { by iApply "HΨ". }
+    destruct n.
+    { rewrite Nat2Z.inj_0 // in Hlt. }
+    rewrite S_INR.
+    assert (0 <= n)%R by eauto with real.
+    wp_pures.
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
+                (λ x, if bool_decide (x = 0%fin)
+                      then 2 * n
+                      else 2 * (n + 1))%R with "[$Hc]").
+    { intros x. case_bool_decide; [eauto with real|].
+      assert (0 <= n + 1)%R by eauto with real. lra. }
+    { rewrite [cost _]/= !S_INR SeriesC_finite_foldr /=. lra. }
+    iIntros (b) "Hc".
+    inv_fin b; [|intros b].
+    - rewrite bool_decide_eq_true_2 //.
+      wp_pures.
+      wp_load; iIntros "Hl".
+      wp_pure.
+      wp_store; iIntros "Hl".
+      do 2 wp_pure.
+      replace #(S n - 1) with #n by (do 3 f_equal; lia).
+      wp_apply ("IH" with "[$Hl $Hc] HΨ").
+    - rewrite bool_decide_false //.
+      do 4 wp_pure.
+      rewrite -Nat.add_1_r.
+      wp_apply ("IH" with "[$Hl Hc] HΨ").
+      rewrite plus_INR INR_1 //.
+  Qed.
+
+End loop1_tick.
