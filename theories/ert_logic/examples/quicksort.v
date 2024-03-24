@@ -126,48 +126,6 @@ Section sorting.
   Definition rank `{A : Type} f (T : sorting_function A f) (L : list A) (x : A) : nat
     := (length (List.filter (fun y => (strict_computable f) x y) L)).
 
-  (* Now that the sorting function definition doesn't depend on the list the rewrite stuff
-     should be easier. This is slightly weaker, since the total order needs to be over the entire
-     type rather than just over a list.
-   *)
-
-
-  (*
-  Record sorting_function (A : Type) (L : list A)
-    := { sort_func :> A -> A -> bool ;
-         sort_reflexive : forall a, sort_func a a = true ;
-         sort_trans : forall a b c, sort_func a b = true /\ sort_func b c = true -> sort_func a c = true ;
-         sort_inj : Forall (fun x => (Forall (fun y => (sort_func x y = true) /\ (sort_func y x = true) -> (x = y)) L)) L
-    }.
-
-  (* TODO: Define sorting functions for restrictions (cons, snoc, app) *)
-  (* TODO: Define pushforward sorting functions *)
-
-
-  Definition sorting_function_retract A L1 L2 :
-    (incl L1 L2) -> sorting_function A L2 -> sorting_function A L1.
-  Proof.
-    intros Hincl f.
-    destruct f as [f H1 H2 H3].
-    eapply (Build_sorting_function _ _ f); eauto.
-
-    apply List.Forall_forall.
-    intros x Hx.
-    eapply List.Forall_forall in H3; last eauto.
-    apply List.Forall_forall.
-    intros y Hy.
-    eapply List.Forall_forall in H3; last eauto.
-    done.
-  Defined.
-
-  (* Definition rank_lower (l : list Z) (x : Z) (Hx : x ∈ l) (HL : (0 < length l)%nat) : fin (S (length l - 1)%nat).
-    refine (nat_to_fin (fin_transport_lemma _ _ HL (filter_length_lt (fun v => (v <? x)%Z) l x Hx _))).
-  Proof. apply Is_true_false_2, Z.ltb_irrefl. Defined. *)
-
-  Definition rank `{A : Type} `{L : list A} (f : sorting_function A L) : A -> nat := fun x => (length (List.filter (fun y => f x y) L) - 1).
-
-   *)
-
    Definition index_to_rank `{A : Type} `{Hinhabited : Inhabited A} (L : list A) f (Hsf : sorting_function A f) : nat -> nat
     := (rank _ Hsf L) ∘ (fun index => L !!! index).
 
@@ -218,23 +176,6 @@ Section sorting.
   Qed.
 
    (** Index to list permutation on index_space *)
-
-  (*
-  (* Use in_split on the results of this lemma in the permutation proof, and then NoDup_remove to resture NoDup-ness *)
-  Lemma index_to_rank_maximum `{A: Type} `{Hih : Inhabited A} f Hsf :
-     forall L, exists i, (In i (index_space (length L))) /\ (@index_to_rank _ Hih L f Hsf i = (length L) - 1).
-  Proof.
-    Search TotalOrder.
-    (* Do a lemma about the existence of a maximum element of a list wrt a total order *)
-    (* The definition of  maximum should make this easy to prove *)
-  Admitted.
-
-
-  (* FIXME: Inline me *)
-  Definition FInd (A : Type) (Hinhabited : Inhabited A) (f : A -> A -> bool) (HSF : sorting_function A f) (l : list A) : Prop
-      := (List.NoDup l → index_space (length l) ≡ₚ index_to_rank l f HSF <$> index_space (length l)).
-
-*)
 
   Definition ext_id f N : nat -> nat := fun n => if (Nat.leb N n) then n else f n.
 
@@ -379,6 +320,10 @@ Section qs_time.
   Definition tc_pivot_lin (A B n : nat) : R := INR (A*n+B)%nat.
 
   Definition tc_base : R := 1%R.
+
+  Lemma tc_base_nonneg : (0%R <= tc_base)%R.
+  Proof. rewrite /tc_base. lra. Qed.
+
   Opaque tc_base.
 
   (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
@@ -453,7 +398,25 @@ Section qs_time.
 
   (* Prove this by strong induction now *)
   Lemma tc_quicksort_nonneg A B n : (0 <= tc_quicksort A B n)%R.
-  Proof. Admitted.
+  Proof.
+    induction n as [ n' IH ] using (well_founded_induction lt_wf).
+    rewrite tc_quicksort_unfold.
+    destruct n' as [|n']; [apply tc_base_nonneg |].
+    apply Rplus_le_le_0_compat; [rewrite /tc_pivot_lin; apply pos_INR | ].
+    apply Rmult_le_pos; [| apply Rlt_le, Rinv_0_lt_compat, pos_INR_S].
+    apply Rmult_le_pos; [lra|].
+    induction n' as [|n'' IH'].
+    - rewrite /= tc_quicksort_0 Rplus_0_r.
+      apply tc_base_nonneg.
+    - rewrite seq_S.
+      Opaque seq.
+      rewrite map_app foldr_snoc /=.
+      rewrite foldr_comm_acc; last (intros; simpl; lra).
+      apply Rplus_le_le_0_compat.
+      * apply IH; lia.
+      * apply IH'. intros. apply IH. lia.
+      Transparent seq.
+  Qed.
 
 End qs_time.
 
