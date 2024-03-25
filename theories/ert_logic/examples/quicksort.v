@@ -100,7 +100,7 @@ Section sorting.
 
   Record sorting_function (A : Type) (f : A -> A -> bool) :=
     { sort_order: PartialOrder (computable_relation f) ;
-      sort_trich : Trichotomy (computable_relation f) ;
+      sort_trich : Trichotomy (computable_relation (strict_computable f)) ;
     }.
 
 
@@ -200,27 +200,6 @@ Section sorting.
 
    (** Index to list permutation on index_space *)
 
-  Definition ext_id f N : nat -> nat := fun n => if (Nat.leb N n) then n else f n.
-
-  Lemma suffices_to_prove_ext N f :
-    ((index_space N) ≡ₚ ((ext_id f N) <$> (index_space N))) ->
-    ((index_space N) ≡ₚ f <$> (index_space N)).
-  Proof.
-    intros.
-    rewrite {1}H.
-    apply equal_perm.
-    apply list_fmap_ext.
-    intros i x H1.
-    rewrite /ext_id.
-    replace (N <=? x) with false; [done|].
-    rewrite index_space_unfold in H1.
-    apply lookup_seq in H1.
-    symmetry.
-    apply leb_correct_conv. lia.
-  Qed.
-
-
-
   Lemma rank_lemma `{A : Type} `{Hinhabited : Inhabited A} (L : list A) x f `{HSF : sorting_function A f} :
     (x < length L) ->
     length (List.filter (λ y : A, strict_computable f (L !!! x) y) L) < length L.
@@ -248,52 +227,135 @@ Section sorting.
     destruct (f l l) as [|]; simpl; lia.
   Qed.
 
-  (* "uniqueness" attampt *)
-  Lemma index_to_rank_nat_perm_uq `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
-    List.NoDup L ->
-    (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
+  Lemma lookup_nth_conv `{A : Type} `{HIH : Inhabited A} (L : list A) (x : nat) :
+    (lookup_total x L) = nth x L (@inhabitant _ HIH).
   Proof.
-    intros Hunique.
-    apply Permutation.NoDup_Permutation.
-    - admit.
-    - admit.
-    - intros x.
-      split.
-      + intros Hx.
-        admit.
-      + intros Hx.
-        apply in_map_iff in Hx.
-        destruct Hx as [x' [H1 H2]].
+    induction L as [|L0 L' IH] using rev_ind.
+    - rewrite lookup_total_nil. destruct x; by simpl.
+    - destruct (lt_eq_lt_dec x (length L')) as [[Hdex | Hdec] | Hdec].
+      + (* In range for IH*)
+        rewrite app_nth1; [|done].
+        rewrite lookup_total_app_l; [|done].
+        done.
+      + (* In range for direct computation *)
+        rewrite list_lookup_total_middle; [|done].
+        rewrite Hdec.
+        rewrite nth_middle.
+        done.
+      + (* Out of range *)
+        rewrite nth_overflow; [|rewrite app_length /=; lia].
+        replace (L' ++ [L0]) with (take x (L' ++ [L0])).
+        { apply lookup_total_take_ge; lia. }
+        apply firstn_all2.
+        rewrite app_length /=.  lia.
+  Qed.
+
+  Lemma total_order_rank_lemma `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} :
+    (forall (L : list A) a b,
+       In a L ->
+       In b L ->
+       length (List.filter (λ y : A, strict_computable f a y) L) = length (List.filter (λ y : A, strict_computable f b y) L) ->
+       a = b).
+  Proof.
+    (* For any two elements in the list, either they are equal, or one is bigger than the other*)
+    (* If one is bigger than the other, then they are not equal. *)
+    (* If they are not equal, the list equals (L1 ++ [a] ++ L2 ++ [b] ++ L3) *)
+    destruct HSF as [[[Hr Ht] Ha] Hi].
+    intros L a b Hia Hib Hlen.
+
+
+    assert (Hlen1 : (List.filter (fun y : A => strict_computable f a y) L) =
+                    (List.filter (fun y : A => strict_computable f b y) L)).
+    { (* I think this is true, becasue the only way for the two functions to disagree on a value x
+         is if a < x < b or b < x < a.
+         And in either case, this means one strict_computable implies the other.
+       *)
+      admit.
+    }
+
+    (* Clearly that lemma is enough *)
+    assert (Hok : (∀ x : A, In x L → (λ y : A, strict_computable f a y) x = (λ y : A, strict_computable f b y) x)).
+    { apply filter_ext_in_iff. done. }
+    simpl in Hok.
+    assert (Ha1 : strict_computable f a a = strict_computable f b a); first by apply Hok.
+    assert (Ha2 : strict_computable f a b = strict_computable f b b); first by apply Hok.
+    rewrite /AntiSymm /computable_relation in Ha.
+    rewrite /strict_computable in Ha1 Ha2.
+    rewrite /Reflexive /computable_relation in Hr.
+    (* assert (Hsimpl1: forall z, eqb z true = z). { intros z; destruct z; simpl; done. } *)
+    rewrite Hr /= in Ha1, Ha2.
+
+    rewrite /Trichotomy in Hi.
+    destruct (Hi a b) as [Hdec | [Hdec | Hdec]].
+    - rewrite /computable_relation /strict_computable in Hdec.
+      apply andb_true_iff in Hdec; destruct Hdec as [Hdec1 Hdec2]; apply eqb_prop in Hdec1, Hdec2.
+      rewrite Hdec1 in Ha1 Ha2.
+      rewrite Hdec2 in Ha1 Ha2.
+      simpl in *.
+      destruct (f b b); simpl in Ha2; discriminate.
+    - done.
+    - rewrite /computable_relation /strict_computable in Hdec.
+      apply andb_true_iff in Hdec; destruct Hdec as [Hdec1 Hdec2]; apply eqb_prop in Hdec1, Hdec2.
+      rewrite Hdec1 in Ha1 Ha2.
+      rewrite Hdec2 in Ha1 Ha2.
+      simpl in *.
+      destruct (f b b); simpl in Ha2; discriminate.
+
+
+    (*
+
+    assert (Hex : exists L0 L1 L2, L = L0 ++ [a] ++ L1 ++ [b] ++ L2 \/ L = L0 ++ [b] ++ L1 ++ [a] ++ L2).
+    { destruct (in_split a L Hia) as [L1' [L2' ->]].
+      destruct (in_app_or _ _ _ Hib) as [Hib1 | Hib1].
+      + destruct (in_split _ _ Hib1) as [L0 [L1 ->]].
+        eexists L0, L1, L2'.
+        right. rewrite -app_assoc /=. done.
+      + destruct (in_inv Hib1) as [? | Hib2]; [exfalso; auto|].
+        destruct (in_split _ _ Hib2) as [L1 [L2 ->]].
+        eexists L1', L1, L2.
+        left. simpl. done.
+    }
+
+    destruct Hex as [L0 [L1 [L2 [-> | ->]]]].
+    - repeat rewrite List.filter_app in Hlen.
+      repeat rewrite app_length in Hlen.
+      rewrite Nat.add_cancel_l in Hlen.
+      Search (?x + _ = ?x + _).
+
+      Search length app.
+     *)
   Admitted.
 
 
-  Search Permutation nat.
-
-  Lemma index_to_rank_nat_occ `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
-    List.NoDup L ->
-    (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
-  Proof.
-    intros.
-    apply <- (Permutation_count_occ Nat.eq_dec).
-    intros x.
-
-    rewrite index_space_unfold /=.
-    Search count_occ map.
 
 
-    (* For the RHS *)
-    Check NoDup_count_occ'.
-  Abort.
+   (*
+    Search length List.filter.
+    intro L.
+    induction L as [|L0 L' IH] using rev_ind.
+    - intros. exfalso. pose K := in_nil; auto.
+    - intros a b Ha Hb Hleneq.
+      do 2 rewrite List.filter_app app_length /= in Hleneq.
+      apply in_app_or in Ha.
+      apply in_app_or in Hb.
+      destruct Ha as [Ha|Ha]; destruct Hb as [Hb|Hb].
+      + apply IH; auto.
+        assert (Hcmpeq : strict_computable f a L0 = strict_computable f b L0).
+        {  admit. }
+        rewrite Hcmpeq /= in Hleneq.
+        apply Nat.add_cancel_r in Hleneq.
+        lia.
 
 
-  Lemma index_to_rank_nat_inj `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
-    List.NoDup L ->
-    (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
-  Proof.
-    intros H.
-    apply Permutation_inj.
-    split; first by rewrite map_length.
-  Abort.
+
+        admit.
+      + admit.
+      +
+
+  Qed.
+*)
+
+
 
 
 
@@ -343,55 +405,16 @@ Section sorting.
         apply -> leb_iff_conv in HeqKx.
         apply -> leb_iff_conv in HeqKy.
         rewrite /index_to_rank /rank /= in Hinj.
-        assert (Hin_x: In (L !!! x) L) by admit.
-        assert (Hin_y: In (L !!! y) L) by admit.
-
-        (* Ultimately we want to use trichotomy? *)
-        destruct (Nat.eq_decidable x y) as [? | Hdec]; [done|].
-        exfalso.
-
-        Check (ext_in_filter _ _ _ _ Hinj).
-
-
-        (*
-
-        destruct (f (L !!! x) (L !!! y)) as [|] eqn:HD1.
-        * destruct (f (L !!! y) (L !!! x)) as [|] eqn:HD2.
-          -- assert (Hcf : strict_computable f (L !!! x) (L !!! y) = false).
-             { rewrite /strict_computable. rewrite HD1 HD2 /=. done. }
-
-
-        Search List.NoDup In.
-
-        Search (_ ≠ _)%nat (_ < _)%nat.
-
-        destruct (@ListDec.NoDup_list_decidable A L H (L !!! x) (L !!! y) Hin_x Hin_y) as [Hd | Hd].
-
-
-        { Search List.NoDup In.
-
-          admit. }
-        *
-
-
-        (* I think all three of thse are true, but I also think I'm getting lost in the weeds *)
-        destruct HSF as [? Htri].
-        rewrite /Trichotomy in Htri.
-        rewrite /computable_relation in Htri.
-        rewrite /strict_computable /computable_relation in Hinj.
-        destruct (Htri (L !!! x) (L !!! y)) as [Z | [Z | Z]].
-        * simpl in Hinj.
-
-
-
-          admit.
-        * Search List.NoDup In.
-
-
-
-        * admit.
-*)
-  Admitted.
+        assert (Hlook: (L !!! x) = (L !!! y)).
+        { eapply (total_order_rank_lemma f L _).
+          - apply elem_of_list_In, elem_of_list_lookup_total_2; done.
+          - apply elem_of_list_In, elem_of_list_lookup_total_2; done.
+          - done.
+        }
+        do 2 rewrite lookup_nth_conv in Hlook.
+        eapply (NoDup_nth L); eauto.
+    Unshelve. auto.
+  Qed.
 
   Lemma filter_split_perm `{A: Type} (l : list A) f :
     l ≡ₚ List.filter f l ++ List.filter (fun x=>negb (f x)) l.
