@@ -116,6 +116,34 @@ Section sorting.
     destruct (f a b), (f b a); auto.
   Qed.
 
+  Lemma strict_irrefl `{A : Type} (a : A) f :
+    (strict_computable f a a = false).
+  Proof. rewrite /strict_computable. destruct (f a a); auto. Qed.
+
+  (* This should let me simplify in a bunch of places later down *)
+  Lemma strict_dec_simpl `{A : Type} f (SF : sorting_function A f) (a b : A) :
+    (a = b) \/ (strict_computable f a b = f a b).
+  Proof.
+    destruct SF as [[? AS] HTri].
+    assert (SF1 : sorting_function A f); first (constructor; try done).
+    rewrite /Trichotomy in HTri.
+    specialize HTri with a b.
+    destruct HTri as [HDec | [HDec | HDec]].
+    - right. apply strict_agreement; first done.
+      rewrite /not; intros  Hc.
+      rewrite Hc in HDec.
+      rewrite /computable_relation /strict_computable in HDec.
+      destruct (f b b); auto.
+    - left; done.
+    - right. apply strict_agreement; first done.
+      rewrite /not; intros  Hc.
+      rewrite Hc in HDec.
+      rewrite /computable_relation /strict_computable in HDec.
+      destruct (f b b); auto.
+  Qed.
+
+
+
 (*
   Lemma strict_to_loose `{A : Type} (x : A) xs f (SF : sorting_function A f) :
     In x L -> (length (List.filter (λ y : A, strict_computable f x y) xs) + 1) = (length (List.filter (λ y : A, strict_computable f x y) xs) + 1)
@@ -200,6 +228,25 @@ Section sorting.
 
    (** Index to list permutation on index_space *)
 
+  Definition ext_id f N : nat -> nat := fun n => if (Nat.leb N n) then n else f n.
+
+  Lemma suffices_to_prove_ext N f :
+    ((index_space N) ≡ₚ ((ext_id f N) <$> (index_space N))) ->
+    ((index_space N) ≡ₚ f <$> (index_space N)).
+  Proof.
+    intros.
+    rewrite {1}H.
+    apply equal_perm.
+    apply list_fmap_ext.
+    intros i x H1.
+    rewrite /ext_id.
+    replace (N <=? x) with false; [done|].
+    rewrite index_space_unfold in H1.
+    apply lookup_seq in H1.
+    symmetry.
+    apply leb_correct_conv. lia.
+  Qed.
+
   Lemma rank_lemma `{A : Type} `{Hinhabited : Inhabited A} (L : list A) x f `{HSF : sorting_function A f} :
     (x < length L) ->
     length (List.filter (λ y : A, strict_computable f (L !!! x) y) L) < length L.
@@ -250,26 +297,40 @@ Section sorting.
         rewrite app_length /=.  lia.
   Qed.
 
+
   Lemma total_order_rank_lemma `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} :
     (forall (L : list A) a b,
+       List.NoDup L ->
        In a L ->
        In b L ->
        length (List.filter (λ y : A, strict_computable f a y) L) = length (List.filter (λ y : A, strict_computable f b y) L) ->
        a = b).
   Proof.
+
+    assert (HSF' : sorting_function A f); first done.
     (* For any two elements in the list, either they are equal, or one is bigger than the other*)
     (* If one is bigger than the other, then they are not equal. *)
     (* If they are not equal, the list equals (L1 ++ [a] ++ L2 ++ [b] ++ L3) *)
     destruct HSF as [[[Hr Ht] Ha] Hi].
-    intros L a b Hia Hib Hlen.
+    intros L a b HU Hia Hib Hlen.
 
 
     assert (Hlen1 : (List.filter (fun y : A => strict_computable f a y) L) =
                     (List.filter (fun y : A => strict_computable f b y) L)).
     { (* I think this is true, becasue the only way for the two functions to disagree on a value x
          is if a < x < b or b < x < a.
-         And in either case, this means one strict_computable implies the other.
-       *)
+         And in either case, this means one strict_computable implies the other. *)
+
+      (* So we can prove this by showing that it agrees at every element in L *)
+      (* err- if so we can simplify this proof a lot *)
+      apply filter_ext_in.
+      intros x Hx.
+
+      (* We can use the strict_agreement lmma to simplify whenever the arguments differ *)
+      (* Better yet, we can use strict_dec_simpl *)
+      induction L as [|L0 L1 IH]. { apply in_nil in Hia. done. }
+      simpl in Hlen.
+
       admit.
     }
 
@@ -327,8 +388,6 @@ Section sorting.
   Admitted.
 
 
-
-
    (*
     Search length List.filter.
     intro L.
@@ -363,9 +422,7 @@ Section sorting.
     List.NoDup L ->
     (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
   Proof.
-
    (* "extension"  attempt*)
-
     intros.
     eapply suffices_to_prove_ext.
     rewrite index_space_unfold.
@@ -407,6 +464,7 @@ Section sorting.
         rewrite /index_to_rank /rank /= in Hinj.
         assert (Hlook: (L !!! x) = (L !!! y)).
         { eapply (total_order_rank_lemma f L _).
+          - done.
           - apply elem_of_list_In, elem_of_list_lookup_total_2; done.
           - apply elem_of_list_In, elem_of_list_lookup_total_2; done.
           - done.
