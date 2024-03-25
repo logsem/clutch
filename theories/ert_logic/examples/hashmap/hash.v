@@ -1,4 +1,4 @@
-(** * Hashmap *)
+(** * Hash *)
 From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From clutch.prob_lang Require Import notation tactics metatheory lang.
