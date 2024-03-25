@@ -34,10 +34,10 @@ Section list_code.
           SOME "p"
     end.
 
-  Lemma wp_insert_new (l : val) (x:nat) (xs : list nat) :
+  Lemma wp_insert_new (l : val) (x:nat) (xs : list nat) E:
     x∉xs -> 
     {{{isList l xs ∗ ⧖ (length xs) }}}
-      insert l #x
+      insert l #x @E
       {{{l, RET l; isList l (xs ++ x::[])}}}.
   Proof.
     revert xs l.
@@ -72,10 +72,10 @@ Section list_code.
         apply pos_INR.
   Qed.
 
-  Lemma wp_insert_old (l : val) (x:nat) (xs : list nat) :
+  Lemma wp_insert_old (l : val) (x:nat) (xs : list nat) E:
     x∈xs -> 
     {{{isList l xs ∗ ⧖ (length xs) }}}
-      insert l #x
+      insert l #x@E
       {{{l, RET l; isList l (xs)}}}.
   Proof.
     revert xs l.
@@ -107,9 +107,9 @@ Section list_code.
         apply pos_INR.
   Qed.
 
-  Lemma wp_insert_general (l : val) (x:nat) (xs : list nat) :
+  Lemma wp_insert_general (l : val) (x:nat) (xs : list nat) E:
     {{{isList l xs ∗ ⧖ (length xs) }}}
-      insert l #x
+      insert l #x @E
       {{{l, RET l; ∃ xs', isList l (xs') ∗ ⌜length xs<=length xs'<=1+length xs⌝}}}.
   Proof.
     pose proof ExcludedMiddle (x∈xs) as [|].
@@ -135,10 +135,10 @@ Section list_code.
           "lookup" "t" "x"
     end.
 
-  Lemma wp_lookup_notin (l : val) (x:nat) (xs : list nat) :
+  Lemma wp_lookup_notin (l : val) (x:nat) (xs : list nat) E:
     x∉xs -> 
     {{{isList l xs ∗ ⧖ (length xs) }}}
-      lookup l #x
+      lookup l #x@E
       {{{ RET #false; isList l (xs)}}}.
   Proof.
     revert xs l.
@@ -169,10 +169,10 @@ Section list_code.
         apply pos_INR.
   Qed.
 
-  Lemma wp_lookup_in (l : val) (x:nat) (xs : list nat) :
+  Lemma wp_lookup_in (l : val) (x:nat) (xs : list nat) E:
     x∈xs -> 
     {{{isList l xs ∗ ⧖ (length xs) }}}
-      lookup l #x
+      lookup l #x @E
       {{{ RET #true; isList l (xs)}}}.
   Proof.
     revert xs l.
@@ -200,9 +200,9 @@ Section list_code.
         apply pos_INR.
   Qed.
 
-  Lemma wp_lookup_general (l : val) (x:nat) (xs : list nat) :
+  Lemma wp_lookup_general (l : val) (x:nat) (xs : list nat) E:
     {{{isList l xs ∗ ⧖ (length xs) }}}
-      lookup l #x
+      lookup l #x @ E
       {{{(b:bool), RET #b; isList l (xs) ∗ ⌜if b then x∈ xs else x∉ xs⌝}}}.
   Proof.
     pose proof ExcludedMiddle (x∈xs) as [|].
