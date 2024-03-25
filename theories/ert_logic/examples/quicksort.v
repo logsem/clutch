@@ -90,6 +90,7 @@ Section sorting.
   Definition strict_computable `{A : Type} (f : A -> A -> bool) : (A -> A -> bool)
     := (fun a1 a2 => (eqb (f a1 a2) true) && (eqb (f a2 a1) false)).
 
+
   (* Instead of using TotalOrder, we roll our own, so that it doesn't insert another "strict"
      We want the strictness to be baked into the function itself so that we can use it to compute,
      and so that we don't need to prove
@@ -101,6 +102,28 @@ Section sorting.
     { sort_order: PartialOrder (computable_relation f) ;
       sort_trich : Trichotomy (computable_relation f) ;
     }.
+
+
+  Lemma strict_agreement `{A : Type} (a b : A) f (SF : sorting_function A f) :
+    (a ≠ b) -> (strict_computable f a b = f a b).
+  Proof.
+    intros.
+    rewrite /strict_computable.
+    destruct SF as [[? AS] ?].
+    rewrite /AntiSymm in AS.
+    rewrite /computable_relation in AS.
+    specialize AS with a b.
+    destruct (f a b), (f b a); auto.
+  Qed.
+
+(*
+  Lemma strict_to_loose `{A : Type} (x : A) xs f (SF : sorting_function A f) :
+    In x L -> (length (List.filter (λ y : A, strict_computable f x y) xs) + 1) = (length (List.filter (λ y : A, strict_computable f x y) xs) + 1)
+*)
+
+
+
+
 
   (*
   Lemma computable_partial_total A f : (PartialOrder (computable_relation A f)) -> (TotalOrder (computable_relation A f)).
@@ -225,12 +248,62 @@ Section sorting.
     destruct (f l l) as [|]; simpl; lia.
   Qed.
 
+  (* "uniqueness" attampt *)
+  Lemma index_to_rank_nat_perm_uq `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
+    List.NoDup L ->
+    (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
+  Proof.
+    intros Hunique.
+    apply Permutation.NoDup_Permutation.
+    - admit.
+    - admit.
+    - intros x.
+      split.
+      + intros Hx.
+        admit.
+      + intros Hx.
+        apply in_map_iff in Hx.
+        destruct Hx as [x' [H1 H2]].
+  Admitted.
+
+
+  Search Permutation nat.
+
+  Lemma index_to_rank_nat_occ `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
+    List.NoDup L ->
+    (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
+  Proof.
+    intros.
+    apply <- (Permutation_count_occ Nat.eq_dec).
+    intros x.
+
+    rewrite index_space_unfold /=.
+    Search count_occ map.
+
+
+    (* For the RHS *)
+    Check NoDup_count_occ'.
+  Abort.
+
+
+  Lemma index_to_rank_nat_inj `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
+    List.NoDup L ->
+    (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
+  Proof.
+    intros H.
+    apply Permutation_inj.
+    split; first by rewrite map_length.
+  Abort.
+
 
 
   Lemma index_to_rank_nat_perm `{A : Type} `{Hinhabited : Inhabited A} f `{HSF : sorting_function A f} (L : list A) :
     List.NoDup L ->
     (index_space (length L)) ≡ₚ ((index_to_rank L f HSF) <$> (index_space (length L))).
   Proof.
+
+   (* "extension"  attempt*)
+
     intros.
     eapply suffices_to_prove_ext.
     rewrite index_space_unfold.
@@ -277,15 +350,47 @@ Section sorting.
         destruct (Nat.eq_decidable x y) as [? | Hdec]; [done|].
         exfalso.
 
+        Check (ext_in_filter _ _ _ _ Hinj).
+
+
+        (*
+
+        destruct (f (L !!! x) (L !!! y)) as [|] eqn:HD1.
+        * destruct (f (L !!! y) (L !!! x)) as [|] eqn:HD2.
+          -- assert (Hcf : strict_computable f (L !!! x) (L !!! y) = false).
+             { rewrite /strict_computable. rewrite HD1 HD2 /=. done. }
+
+
+        Search List.NoDup In.
+
+        Search (_ ≠ _)%nat (_ < _)%nat.
+
+        destruct (@ListDec.NoDup_list_decidable A L H (L !!! x) (L !!! y) Hin_x Hin_y) as [Hd | Hd].
+
+
+        { Search List.NoDup In.
+
+          admit. }
+        *
+
+
         (* I think all three of thse are true, but I also think I'm getting lost in the weeds *)
         destruct HSF as [? Htri].
         rewrite /Trichotomy in Htri.
         rewrite /computable_relation in Htri.
         rewrite /strict_computable /computable_relation in Hinj.
         destruct (Htri (L !!! x) (L !!! y)) as [Z | [Z | Z]].
+        * simpl in Hinj.
+
+
+
+          admit.
+        * Search List.NoDup In.
+
+
+
         * admit.
-        * admit.
-        * admit.
+*)
   Admitted.
 
   Lemma filter_split_perm `{A: Type} (l : list A) f :
@@ -1416,15 +1521,13 @@ Section program.
           apply not_in_cons in HninL; destruct HninL as [? ?].
           rewrite /=.
           rewrite IHxsL'; [|done].
-          replace (strict_computable f xp x0) with (f xp x0); [done|].
-          admit.
+          rewrite strict_agreement; done.
         + clear Hxs Hip Hap Hrv Hlv.
           induction xsR as [|x0 xsR']; [simpl; done|].
           apply not_in_cons in HninR; destruct HninR as [? ?].
           rewrite /=.
           rewrite IHxsR'; [|done].
-          replace (strict_computable f xp x0) with (f xp x0); [done|].
-          admit.
+          rewrite strict_agreement; done.
       - rewrite /cmp_spec.
         iIntros (? ? ?) "!> ? H".
         wp_apply ("Hcmp" with "[$]").
@@ -1452,6 +1555,83 @@ Section program.
         rewrite Hip Nat.sub_diag.
         simpl.
 
+        replace (length (List.filter (λ y : A, strict_computable f xp y) xs))
+           with (((length (List.filter (f xp) xs)) - 1)%nat); last first.
+        {  rewrite -(take_drop ip xs).
+          do 2 rewrite List.filter_app.
+          do 2 rewrite app_length.
+          rewrite -Nat.add_sub_assoc; last first.
+          { rewrite {2}Hxs.
+            rewrite skipn_app Hip Nat.sub_diag drop_0.
+            rewrite -Hip drop_all /=.
+            replace (f xp xp) with true; last first.
+            { destruct SF as [[[Hrefl ?] ?] ?].
+              symmetry.
+              apply Hrefl.
+            }
+            simpl. lia.
+          }
+          f_equal.
+          - f_equal.
+            apply filter_ext_in_iff.
+            intros x Hin.
+            symmetry.
+            apply strict_agreement; [done|].
+
+            rewrite Hxs in hnd.
+            destruct (NoDup_remove _ _ _ hnd) as [? hndL].
+            rewrite /not; intros.
+            apply hndL.
+            apply in_app_iff; left.
+            rewrite {2}Hxs in Hin.
+            rewrite take_app_le in Hin; last by rewrite -Hip.
+            rewrite -Hip firstn_all in Hin.
+            rewrite H3; done.
+
+          - rewrite {2}Hxs {3}Hxs.
+            rewrite skipn_app.
+            rewrite -{1}Hip -{2}Hip drop_all.
+            rewrite Hip Nat.sub_diag drop_0.
+            simpl.
+
+            replace (f xp xp) with true; last first.
+            { destruct SF as [[[Hrefl ?] ?] ?].
+              symmetry.
+              apply Hrefl.
+            }
+            simpl.
+
+            replace (strict_computable f xp xp) with false; last first.
+            { rewrite /strict_computable.
+              destruct (f _ _); auto.
+            }
+            rewrite Nat.sub_0_r.
+            f_equal.
+            apply filter_ext_in_iff.
+            intros x Hin.
+            symmetry.
+            apply strict_agreement; [done|].
+            (* By uniqueness *)
+
+
+            rewrite Hxs in hnd.
+            destruct (NoDup_remove _ _ _ hnd) as [? hndL].
+            rewrite /not; intros.
+            apply hndL.
+            apply in_app_iff; right.
+            by rewrite H3.
+        }
+
+        rewrite -(PeanoNat.Nat.sub_succ (_ - 1) (_ - 1)).
+        rewrite -Nat.add_1_l -Nat.le_add_sub; last first.
+        { rewrite Hxs app_length /=; lia. }
+        rewrite -Nat.add_1_l -Nat.le_add_sub; last first.
+        { rewrite {1}Hxs List.filter_app app_length /=.
+          replace (f xp xp) with true; first (simpl; lia).
+          destruct SF as [[[HRefl ?] ?] ?].
+          by rewrite HRefl.
+        }
+
         replace (length (List.filter (∽ f xp)%P (xsL ++ xsR)))
             with (length (List.filter (∽ f xp)%P xs)); last first.
         { rewrite {1}Hxs.
@@ -1465,17 +1645,8 @@ Section program.
           rewrite List.filter_app app_length /=.
           done.
         }
-
-        rewrite /strict_computable.
         rewrite -(List.filter_length (f xp)).
-        rewrite Nat.add_comm.
-        rewrite -Nat.sub_add_distr.
-        replace (length (List.filter (f xp) xs))
-          with (1 + (length (List.filter (λ y : A, ((eqb (f xp y) true) && (eqb (f y xp) false))) xs))); [lia|].
-
-        (* True by strictness and uniqueness *)
-        admit.
-
+        lia.
       - rewrite /cmp_spec.
         iIntros (? ? ?) "!> ? H".
         wp_apply ("Hcmp" with "[$]").
@@ -1495,6 +1666,6 @@ Section program.
     iApply wp_list_append => //. iIntros "!>" (xs_le_p_gt_s L).
     iApply "hφ".
     eauto.
-  Admitted.
+  Qed.
 
 End program.
