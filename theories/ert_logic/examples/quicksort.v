@@ -1,5 +1,6 @@
 (** * Exact time credit accounting for Quicksort *)
 From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
+From clutch.ert_logic Require Import min_heap_spec.
 From clutch.lib Require Import utils.
 From iris.proofmode Require Export tactics.
 From Coq Require Export Reals Psatz.
@@ -1161,10 +1162,6 @@ Section program.
   Qed.
 
 
-  Definition cmp_spec (xs : list A) (f : A -> A -> bool) (c : val) (k : nat) : iProp Σ
-    := ∀ (a1 a2 : A), {{{ ⧖ k }}} (c (inject a1) (inject a2)) {{{ v, RET #v; ⌜v = (f a1 a2)⌝ }}}.
-
-
   Definition part_cr k (xs : list A) : nat := (2 * k * length xs)%nat.
 
   Local Notation sorted := (StronglySorted Z.le).
@@ -1195,19 +1192,21 @@ Section program.
         apply Z.lt_le_incl, ppost => //.
   Qed.
 
+  (* Need to update all the derivations to use R instead of nat for the constants :(
+
+      Change 2*k -> 2 * (cmp_cost cmp)
+
+   *)
+
 
   (*
-
-  (* FIXME: Change cmp_spec and to use Simon's new spec *)
-
-  (* Remove everything but the time bound computation *)
-  Lemma qs_time_bound : ∀ (xs : list A) (l : val) f (SF : sorting_function A f) cmp k,
-    {{{ ⧖ (tc_quicksort (2 * k) 0 (length xs)) ∗ (cmp_spec xs f cmp k) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
+  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A),
+    {{{ ⧖ (tc_quicksort (2 * k) 0 (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
       qs cmp l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ⌝ }}}.
   Proof with wp_pures.
     rewrite /qs.
-    iIntros (xs l f SF cmp k Φ) "HA1 hφ".
+    iIntros (xs l cmp k Φ) "HA1 hφ".
     do 2 wp_pure.
     iLöb as "Hqs" forall (xs l f SF k Φ).
     iDestruct "HA1" as "(H⧖ & #Hcmp & %hl & %hnd)".
@@ -1510,6 +1509,5 @@ Section program.
     iApply "hφ".
     eauto.
   Qed.
-
    *)
 End program.

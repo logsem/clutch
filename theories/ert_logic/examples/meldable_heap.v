@@ -1,5 +1,6 @@
 (** * Meldable Heaps *)
 From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
+From clutch.ert_logic Require Import min_heap_spec.
 From clutch.lib Require Import utils.
 From iris.proofmode Require Export tactics.
 From Coq Require Export Reals Psatz.
@@ -85,44 +86,53 @@ Section heaps.
       | Heap_node (v : A) (l r : BinaryTree) :
           IsHeap l -> IsHeap r -> HeapOrdered v l -> HeapOrdered v r -> IsHeap (Node v l r).
 
-  (** Heap operations *)
-
-  (* Due to randomization, we will not be able to (or even want to) specify that the implementation
-     produces a particular heap.
-
-     Instead, we will only specify that it produces _some_ heap, and that heap has some properties
-     with respect to the total order.  *)
-
-
-  (* PROPERTY 1: First element of tree_to_list is always less than or equal to all subsequent elements *)
-
-  (* SPEC (remove): if tree_to_list h = (a :: as), then tree_to_list (pop h) = as *)
-
-  (* SPEC (insert): [x] ++ (tree_to_list h) ≡ₚ tree_to_list (insert x h)*)
-
-  (* SPEC (merge): (tree_to_list h1) ++ (tree_to_list h2) ≡ₚ (tree_to_list (merge h1 h2)) *)
-
-
-
-
 End heaps.
 
 
-Section cmp.
+Section program.
+  Context `{A : Type}.
   Context `{!ert_clutchGS Σ CostTick}.
-
-  Context (A : Type).
   Context `[!Inject A val].
 
-  Definition computable_relation (f : A -> A -> bool) : relation A
-    := (fun a1 a2 => f a1 a2 = true).
+  Definition is_min_heap (cmp : comparator A) (L : list A) (v : val) : iProp Σ
+    := ∃ (l : loc) (v' : val) (b : BinaryTree A),
+            ⌜ v = #l ⌝ ∗                  (* v is a location *)
+            l ↦ (inject b) ∗               (* ... that points to a value-level representation of b *)
+            ⌜IsHeap A (cmp_rel cmp) b ⌝ ∗ (* ... where b is a heap with respect to cmp *)
+            ⌜L = tree_to_list A b ⌝       (* ... and b's elements are L *).
 
-  Definition cmp_spec (xs : list A) (c : val) (k : nat) (f : A -> A -> bool) : iProp Σ
-    := ∀ (a1 a2 : A), {{{ ⧖ k }}} (c (inject a1) (inject a2)) {{{ v, RET #v; ⌜v = f a1 a2⌝ }}}.
+  Definition meld_heap_new : val := (λ: "_", ref NONEV)%V.
 
-End cmp.
+  (* Takes two values (not references!) and melds them *)
+  Definition meld_heap_meld (c : comparator A) : val
+    :=  (rec: "meld" "h1" "h2" :=
+          if: ("h1" = NONEV) then "h2" else
+          if: ("h2" = NONEV) then "h1" else
+
+          let: "h'" := if: ("cmp" (Fst "h1") (Fst "h2")) then ("h1", "h2") else ("h2", "h1") in
+          let: "h_min" := (Fst "h'") in
+          let: "h_max" := (Snd "h'") in
+          (* Now (Fst h_min) <= (Fst h_max), so h_max should get melded into a child of h_min *)
+
+          if: (rand #1 = #0)
+            then (* Meld into the left branch of h_min *)
+              let: "melded" := ("meld" (Fst (Snd "h_min")) "h_max") in
+              (Fst "h_min", ("melded", (Snd (Snd "h_max"))))
+            else
+              let: "melded" := ("meld" (Snd (Snd "h_min")) "h_max") in
+              (Fst "h_min", (Fst (Snd "h_max"), "melded")))%V.
 
 
-Section program.
+  Definition meld_heap_insert (c : comparator A) : val
+    := (λ: "ref_h" "v",
+          "ref_h" <- (meld_heap_meld c (!"ref_h") (SOME ("v", (NONEV, NONEV)))) ;;
+          "ref_h")%V.
+
+  Definition meld_heap_remove (c : comparator A) : val
+    := (λ: "ref_h",
+          if: (!"ref_h" = NONEV) then #() else
+          ("ref_h" <- (meld_heap_meld c (Fst (Snd !"ref_h")) (Snd (Snd !"ref_h")) ;;
+          #() (* ??? *) )))%V.
+
 
 End program.
