@@ -6,7 +6,8 @@ Record comparator Σ c `{!ert_clutchGS Σ c} := Comparator {
   cmp :> val;
   cmp_key : Type;
   cmp_rel : relation cmp_key;
-  cmp_R_dec x y :: Decision (cmp_rel x y);
+  cmp_rel_dec x y :: Decision (cmp_rel x y);
+  cmpmp_rel_total :: TotalOrder cmp_rel;
 
   cmp_has_key : cmp_key → val → iProp Σ;
 
@@ -47,6 +48,6 @@ Record min_heap Σ c `{!ert_clutchGS Σ c} := MinHeap {
     {{{ w, RET w;
         (⌜w = #()⌝ ∗ ⌜l = []⌝ ∗ is_min_heap c [] v) ∨
         (∃ k l',
-            c.(cmp_has_key) k w ∗ ⌜k ∈ l⌝ ∗
-            ⌜l ≡ₚ k :: l'⌝ ∗ ⌜Forall (c.(cmp_rel) k) l⌝ ∗ is_min_heap c l' v) }}};
+            ⌜k ∈ l⌝ ∗ ⌜l ≡ₚ k :: l'⌝ ∗ c.(cmp_has_key) k w ∗
+            ⌜Forall (c.(cmp_rel) k) l⌝ ∗ is_min_heap c l' v) }}};
 }.
