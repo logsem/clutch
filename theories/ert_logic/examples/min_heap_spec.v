@@ -23,7 +23,7 @@ Arguments cmp_cost {_ _}.
 Arguments cmp_has_key {_ _} _ {_ _}.
 Arguments wp_cmp {_ _ _ _ _ _}.
 
-Class min_heap `(cmp : comparator K c) := MinHeap {
+Class min_heap {K c} (cmp : comparator K c) := MinHeap {
   heap_new : val;
   heap_insert : val;
   heap_remove : val;
@@ -47,8 +47,18 @@ Class min_heap `(cmp : comparator K c) := MinHeap {
     {{{ is_min_heap l v ∗ ⧖ (heap_remove_cost (length l)) }}}
       heap_remove v
     {{{ w, RET w;
-        (⌜w = #()⌝ ∗ ⌜l = []⌝ ∗ is_min_heap [] v) ∨
-        (∃ k l',
-            ⌜l ≡ₚ k :: l'⌝ ∗ cmp.(cmp_has_key) k w ∗
+        (⌜w = NONEV⌝ ∗ ⌜l = []⌝ ∗ is_min_heap [] v) ∨
+        (∃ k u l',
+            ⌜w = SOMEV u⌝ ∗ ⌜l ≡ₚ k :: l'⌝ ∗ cmp.(cmp_has_key) k u ∗
             ⌜Forall (cmp.(cmp_rel) k) l⌝ ∗ is_min_heap l' v) }}};
 }.
+
+Arguments heap_new {_ _ _ _}.
+Arguments heap_insert {_ _ _ _}.
+Arguments heap_remove {_ _ _ _}.
+Arguments heap_insert_cost {_ _ _ _}.
+Arguments heap_remove_cost {_ _ _ _}.
+Arguments is_min_heap {_ _ _ _}.
+Arguments wp_heap_new {_ _ _ _}.
+Arguments wp_heap_insert {_ _ _ _}.
+Arguments wp_heap_remove {_ _ _ _}.
