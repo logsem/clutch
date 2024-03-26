@@ -68,8 +68,8 @@ Section hashmap.
     {{{ ishashmap hm m1 m2 ∗
           ⧖ (1+ (hashmap_size m2/(S val_size))%R) }}}
       insert_elem hm #n  @ E
-      {{{ (off:nat), RET #off;
-          ishashmap hm (<[n:=off]>m1) (<[off:=(m2!!!off)++n::[]]>m2) }}}.
+      {{{ (off:fin (S val_size)), RET #off;
+          ishashmap hm (<[n:=fin_to_nat off]>m1) (<[fin_to_nat off:=(m2!!!fin_to_nat off)++n::[]]>m2) }}}.
   Proof.
     iIntros (Hnotin Φ) "[(%&%&->&H1&H2&%) Hx] HΦ".
     rewrite /insert_elem.
@@ -165,10 +165,10 @@ Section hashmap.
   Lemma wp_hm_lookup_new E hm m1 m2 (n : nat) :
     n∉dom m1 -> 
     {{{ ishashmap hm m1 m2 ∗
-          ⧖ (1+ (hashmap_size m2/(S val_size))%R) }}}
+        ⧖ (1+ (hashmap_size m2/(S val_size))%R) }}}
       lookup_elem hm #n  @ E
       {{{ RET #false;
-         ∃ off, ishashmap hm (<[n:=off]>m1) m2 }}}.
+          ∃ (off:fin(S val_size)), ishashmap hm (<[n:=fin_to_nat off]>m1) m2 }}}.
   Proof.
     iIntros (Hnotin Φ) "[(%&%&->&H1&H2&%) Hx] HΦ".
     rewrite /lookup_elem.
@@ -218,5 +218,77 @@ Section hashmap.
   Qed.
   
   
+
+
+  (** Amortized version *)
+  Variable MAXSIZE:nat.
+  Definition amortized_tc:=((MAXSIZE-1)/2/(S val_size))%R.
+  Definition isamortizedhashmap hm m1 m2 n:=
+    (ishashmap hm m1 m2 ∗
+     ⌜INR n=hashmap_size m2⌝ ∗
+     ⌜n<=MAXSIZE⌝ ∗
+     ⧖ (n*(amortized_tc-(n-1)/2/(S val_size)))
+    )%I.
+
   
+  Local Lemma amortized_tc_split (s:nat):
+    s < MAXSIZE ->
+    (INR s * (amortized_tc - (INR s - 1) / 2 / INR (S val_size)) + (1 + amortized_tc))%R =
+    (1 + INR s / INR (S val_size) + INR (S s) * (amortized_tc - INR s / 2 / INR (S val_size)))%R.
+  Proof.
+    intros Hineq.
+    rewrite (S_INR s).
+    cut ( (s * (- (s - 1) / 2 / S val_size))%R =
+          (s / S val_size - (s + 1) * (s / 2 / S val_size))%R); first lra.
+    cut ((s * (- (s - 1) / S val_size))%R = (2*s / S val_size - (s + 1) * (s  / S val_size))%R); first lra.
+    replace (s * (- (s - 1) / S val_size))%R with ((s*(1-s) / S val_size))%R; last lra.
+    replace ((2 * s / S val_size - (s + 1) * (s / S val_size))%R) with ((2 * s - (s + 1) * s) / S val_size)%R; last lra.
+    apply Rdiv_eq_compat_r. lra.
+  Qed.
+  
+  Lemma wp_amortized_hm_insert_new E hm m1 m2 s (n : nat) :
+    n∉dom m1 ->
+    s<MAXSIZE->
+    {{{ isamortizedhashmap hm m1 m2 s∗
+          ⧖ (1+ (amortized_tc)%R) }}}
+      insert_elem hm #n  @ E
+      {{{ (off:fin(S val_size)), RET #off;
+          isamortizedhashmap hm (<[n:=fin_to_nat off]>m1) (<[fin_to_nat off:=(m2!!!fin_to_nat off)++n::[]]>m2) (S s) }}}.
+  Proof.
+    iIntros (Hnotin Hsize Φ) "[H Hx1] HΦ".
+    iDestruct "H" as "(H&%H&%&Hx2)".
+    iAssert (⧖ (1+ (hashmap_size m2/(S val_size))%R)∗⧖ ((S s) * (amortized_tc - (s) / 2 / S val_size)))%I with "[Hx1 Hx2]" as "[Hx1 Hx2]".
+    { iDestruct (etc_combine with "[$]") as "Hx".
+      iApply etc_split.
+      - apply Rplus_le_le_0_compat; first lra. apply Rcomplements.Rdiv_le_0_compat; auto.
+        apply SeriesC_ge_0'. intros. auto.
+      - apply Rmult_le_pos; auto. apply Rle_0_le_minus.
+        rewrite /amortized_tc. rewrite !Rdiv_def. repeat apply Rmult_le_compat_r.
+        + rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra. auto.
+        + lra.
+        + rewrite Rcomplements.Rle_minus_r. rewrite -S_INR. apply le_INR. lia.
+      - iApply etc_irrel; last done. rewrite -H. apply amortized_tc_split. done.
+    }
+    iApply (wp_hm_insert_new with "[$]"); first done.
+    iModIntro. iIntros. iApply "HΦ". rewrite /isamortizedhashmap. iFrame.
+    repeat iSplit.
+    - iPureIntro. rewrite S_INR. erewrite <-(SeriesC_singleton' off 1%R).
+      rewrite H. rewrite /hashmap_size. rewrite -SeriesC_plus; try apply ex_seriesC_finite.
+      apply SeriesC_ext. intros.
+      case_match eqn: H1; case_bool_decide as H2; subst.
+      + rewrite lookup_insert. rewrite app_length. simpl. erewrite lookup_total_correct; last done.
+        rewrite plus_INR. done.
+      + rewrite lookup_insert_ne; last first.
+        { intros K. apply fin_to_nat_inj in K. done. }
+        rewrite H1. lra.
+      + rewrite lookup_insert. rewrite app_length. simpl. erewrite lookup_total_correct_2; last done.
+        rewrite plus_INR. done.
+      + rewrite lookup_insert_ne; last first.
+        { intros K. apply fin_to_nat_inj in K. done. }
+        rewrite H1. lra.
+    - iPureIntro; lia.
+    - replace (S _ - 1)%R with (INR s); first done.
+      rewrite S_INR. lra.
+  Qed.
+                                                                                                           
 End hashmap.
