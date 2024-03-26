@@ -94,7 +94,8 @@ Section program.
   Context `{!ert_clutchGS Σ CostTick}.
   Context `[!Inject A val].
 
-  Definition is_min_heap (cmp : comparator A) (L : list A) (v : val) : iProp Σ
+
+  Definition is_min_heap (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
     := ∃ (l : loc) (v' : val) (b : BinaryTree A),
             ⌜ v = #l ⌝ ∗                  (* v is a location *)
             l ↦ (inject b) ∗               (* ... that points to a value-level representation of b *)
@@ -104,7 +105,7 @@ Section program.
   Definition meld_heap_new : val := (λ: "_", ref NONEV)%V.
 
   (* Takes two values (not references!) and melds them *)
-  Definition meld_heap_meld (c : comparator A) : val
+  Definition meld_heap_meld (c : comparator A CostTick) : val
     :=  (rec: "meld" "h1" "h2" :=
           if: ("h1" = NONEV) then "h2" else
           if: ("h2" = NONEV) then "h1" else
@@ -123,12 +124,12 @@ Section program.
               (Fst "h_min", (Fst (Snd "h_max"), "melded")))%V.
 
 
-  Definition meld_heap_insert (c : comparator A) : val
+  Definition meld_heap_insert (c : comparator A CostTick) : val
     := (λ: "ref_h" "v",
           "ref_h" <- (meld_heap_meld c (!"ref_h") (SOME ("v", (NONEV, NONEV)))) ;;
           "ref_h")%V.
 
-  Definition meld_heap_remove (c : comparator A) : val
+  Definition meld_heap_remove (c : comparator A CostTick) : val
     := (λ: "ref_h",
           if: (!"ref_h" = NONEV) then #() else
           ("ref_h" <- (meld_heap_meld c (Fst (Snd !"ref_h")) (Snd (Snd !"ref_h")) ;;
