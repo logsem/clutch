@@ -6,7 +6,7 @@ Record comparator Σ c `{!ert_clutchGS Σ c} := Comparator {
   cmp :> val;
   cmp_key : Type;
   cmp_rel : relation cmp_key;
-  cmp_rel_dec x y :: Decision (cmp_rel x y);
+  cmp_rel_dec :: RelDecision cmp_rel;
   cmpmp_rel_total :: TotalOrder cmp_rel;
 
   cmp_has_key : cmp_key → val → iProp Σ;
