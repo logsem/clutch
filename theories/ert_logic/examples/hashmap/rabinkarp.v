@@ -17,11 +17,13 @@ Section rabin_karp.
   Context`{!ert_clutchGS Σ CostTick}.
 
   Variable string_to_nat: val.
-  Definition wp_string_to_nat: Prop :=
-    ∀ (v:val),
+  Variable string_to_nat_specialized: val->nat.
+  Axiom wp_string_to_nat:
+    ∀ (v:val) E,
     {{{ True }}}
-      string_to_nat v
-      {{{ (n:nat), RET #n; True}}}.
+      string_to_nat v @ E
+      {{{ (n:nat), RET #n; ⌜n=string_to_nat_specialized v⌝}}}.
+  Hypothesis (string_to_nat_inj: Inj (=) (=) string_to_nat_specialized).
 
   Definition rk_helper : val :=
     (rec: "helper" "s" "p" "hf" "lp" "hp" "idx":=
@@ -41,7 +43,7 @@ Section rabin_karp.
   Definition rk : val :=
     λ: "s" "p" "hf",
       let: "lp" := list_length "p" in
-      let: "hp" := "hf" "p" in
+      let: "hp" := "hf" (string_to_nat "p") in
       match: rk_helper "s" "p" "hf" "lp" "hp" #0
       with
       | SOME "x" => "x"
@@ -55,6 +57,26 @@ Section rabin_karp.
   Hypothesis (Hineq:p_len <= s_len).
   Definition val_size := s_len * s_len.
 
-  
+  Lemma wp_rk pv sv f E:
+    is_list p pv -> is_list s sv -> 
+    {{{ ⧖ (2*s_len) ∗ hashfun val_size f ∅ }}}
+      rk sv pv f@E
+      {{{ (z:Z), RET #z; ∃ m, hashfun val_size f m ∗ if bool_decide (z=-1)%Z then True else ⌜p=take p_len (drop (Z.to_nat z) s)⌝}}}.
+  Proof.
+    iIntros (Hp Hs Φ) "[Hx Hhf] HΦ".
+    rewrite /rk.
+    wp_pures.
+    wp_apply wp_list_length; first done.
+    iIntros (?) "->".
+    replace (length _) with p_len; last done.
+    wp_pures.
+    wp_apply wp_string_to_nat; first done.
+    iIntros (?) "->".
+    wp_apply (wp_insert with "[$Hhf]").
+    { set_solver. }
+    iIntros (hp) "Hhf".
+    wp_pures.
+  Admitted.
+      
   
 End rabin_karp.
