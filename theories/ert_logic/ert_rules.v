@@ -10,12 +10,12 @@ Section metatheory.
   Context `{!ertwpG prob_lang Σ}.
   Local Open Scope R.
 
-  Lemma wp_couple_rand_adv_comp x (N : nat) (z : Z) E (r1 : R) (x2 : fin (S N) → R) :
+  Lemma wp_couple_rand_adv_comp_strong x (N : nat) (z : Z) E (r1 : R) (x2 : fin (S N) → R) :
     TCEq x (cost (rand #z)%E) ->
     TCEq N (Z.to_nat z) →
     (∀ n, 0 <= x2 n) →
     (∃ r, ∀ n, x2 n <= r) →
-    x + SeriesC (λ n, 1 / S N * x2 n) = r1 →
+    x + SeriesC (λ n, 1 / S N * x2 n) <= r1 →
     {{{ ⧖ r1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n)}}}.
   Proof.
     iIntros (-> -> Hnneg [r Hr] Hbound Φ) "Hx HΦ".
@@ -58,8 +58,7 @@ Section metatheory.
                     | 0%nat => 1
                     | S _ => Z.to_nat z + 1
                   end * x2 n)); last first.
-      { simpl in *. rewrite H0 -Hbound. apply Req_le_sym.
-        rewrite Rplus_assoc (Rplus_comm (SeriesC _) x3) -Rplus_assoc. done. }
+      { simpl in *. rewrite H0. etrans; last apply Rplus_le_compat_r; [|exact]. lra. }
       rewrite Rplus_assoc. apply Rplus_le_compat_l.
       erewrite SeriesC_ext; last first.
       { intros. rewrite Rmult_plus_distr_l. done. }
@@ -186,9 +185,35 @@ Section metatheory.
         { pose proof fin_to_nat_lt n. lia. }
         assert (nat_to_fin l = n) as ->.
         { apply fin_to_nat_inj. rewrite fin_to_nat_to_fin. lia. }
-        rewrite H4. simplify_eq. apply Rplus_eq_compat_r. lra.
+        simpl. rewrite H3. apply Rplus_eq_compat_r. simplify_eq. lra.
       + iApply ert_wp_value. by iApply "HΦ".
   Qed.
+
+  Lemma wp_couple_rand_adv_comp x (N : nat) (z : Z) E (r1 : R) (x2 : fin (S N) → R) :
+    TCEq x (cost (rand #z)%E) ->
+    TCEq N (Z.to_nat z) →
+    (∀ n, 0 <= x2 n) →
+    (∃ r, ∀ n, x2 n <= r) →
+    x + SeriesC (λ n, 1 / S N * x2 n) = r1 →
+    {{{ ⧖ r1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n)}}}.
+  Proof.
+    iIntros (-> -> Hnneg [r Hr] Hbound Φ) "Hx HΦ".
+    iApply (wp_couple_rand_adv_comp_strong with "[$]"); naive_solver.
+  Qed.
+
+  Lemma wp_couple_rand_adv_comp_strong' x (N : nat) (z : Z) E (x1 : R) (x2 : fin (S N) → R) :
+    TCEq x (cost (rand #z)) →
+    TCEq N (Z.to_nat z) →
+    (∀ n, 0 <= x2 n) →
+    x + SeriesC (λ n, (1 / (S N)) * x2 n)%R <= x1 →
+    {{{ ⧖ x1 }}} rand #z @ E {{{ n, RET #n; ⧖ (x2 n) }}}.
+  Proof.
+    intros -> ? Hnneg. eapply wp_couple_rand_adv_comp_strong; try done.
+    exists (SeriesC x2).
+    intros ?. eapply SeriesC_ge_elem; [done|].
+    eapply ex_seriesC_finite.
+  Qed.
+    
 
   Lemma wp_couple_rand_adv_comp' x (N : nat) (z : Z) E (x1 : R) (x2 : fin (S N) → R) :
     TCEq x (cost (rand #z)) →
