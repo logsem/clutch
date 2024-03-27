@@ -281,6 +281,19 @@ Section etc_credit_theory.
     - iApply etc_combine.
   Qed.
 
+  Lemma etc_split_list {A} (xs : list A) (r : R) :
+    0 <= r →
+    ⧖ (length xs * r) ⊢ [∗ list] _ ∈ xs, ⧖ r.
+  Proof.
+    iIntros (?) "Hxs".
+    iInduction xs as [|x xs] "IH"; [auto|].
+    assert (length (x :: xs) * r = r + length xs * r)%R as ->.
+    { rewrite cons_length S_INR. lra. }
+    iDestruct (etc_split with "Hxs") as "[$ Hr]"; [done| |].
+    { assert (0 <= length xs)%R by eauto with real. real_solver. }
+    by iApply "IH".
+  Qed.   
+
   Lemma etc_supply_irrel x1 x2 :
     (x1.(nonneg) = x2.(nonneg)) → etc_supply x1 -∗ etc_supply x2.
   Proof.
