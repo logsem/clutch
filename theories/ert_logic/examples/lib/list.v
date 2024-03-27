@@ -1181,4 +1181,67 @@ Section list_specs_extra.
       by apply is_list_inject.
   Qed.
 
+  Lemma wp_list_suf E (n:nat) l lv:
+    {{{ ⌜is_list l lv⌝ }}}
+      list_suf #n lv @ E
+      {{{ v, RET v; ⌜is_list (drop n l) v⌝ }}}.
+  Proof.
+   iIntros (Φ) "%Hl HΦ".
+   iInduction l as [|a l'] "IH" forall (n lv Hl Φ) "HΦ".
+   - rewrite /list_suf.
+     inversion Hl; subst.
+     wp_pures. case_bool_decide; wp_pures.
+     all: (iModIntro; iApply "HΦ"; simpl; rewrite drop_nil; iPureIntro; constructor).
+   - inversion Hl as [? [-> Hl']]. rewrite /list_suf.
+     wp_pures. case_bool_decide; wp_pure.
+     + iModIntro. iApply "HΦ".
+       iPureIntro. replace n with 0; last first.
+       { inversion H. lia. }
+       simpl. naive_solver.
+     + rewrite -/list_suf.
+       wp_pures.
+       replace (n-1)%Z with (Z.of_nat (n-1)); last first.
+       { assert (n≠0); [naive_solver|lia]. 
+       }
+       iApply "IH"; try done.
+       iModIntro. iIntros. iApply "HΦ".
+       iPureIntro.
+       replace (drop _ (_::_)) with (drop (n-1) l'); first done.
+       erewrite <-skipn_cons. f_equal.
+       assert (n≠0); [naive_solver|lia].
+  Qed.
+
+
+  
+  Lemma wp_list_inf_ofs E (n ofs:nat) l lv:
+    {{{ ⌜is_list l lv⌝ }}}
+      list_inf_ofs #n #ofs lv @ E
+      {{{ v, RET v; ⌜is_list (take ofs (drop n l)) v⌝ }}}.
+  Proof.
+    iIntros (Φ) "%Hl HΦ".
+    rewrite /list_inf_ofs.
+    wp_pures; case_bool_decide; wp_pures.
+    - iModIntro. iApply "HΦ". iPureIntro. assert (ofs = 0) as -> by lia.
+      rewrite take_0. constructor.
+    - wp_apply wp_list_suf; first done.
+      iIntros (v) "%". wp_apply wp_list_sub; first done.
+      done.
+  Qed.
+
+
+  
+  Lemma wp_list_inf E (i j:nat) l lv:
+    i<=j->
+    {{{ ⌜is_list l lv⌝ }}}
+      list_inf #i #j lv @ E
+      {{{ v, RET v; ⌜is_list (take (j-i+1) (drop i l)) v⌝ }}}.
+  Proof.
+    iIntros (Hineq Φ) "%Hl HΦ".
+    rewrite /list_inf.
+    wp_pures.
+    replace (_-_+1)%Z with (Z.of_nat (j-i+1)) by lia.
+    wp_apply wp_list_inf_ofs; first done.
+    done.
+  Qed.
+  
 End list_specs_extra.
