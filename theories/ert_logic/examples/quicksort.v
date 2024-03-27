@@ -1201,13 +1201,6 @@ Section program.
         apply Z.lt_le_incl, ppost => //.
   Qed.
 
-  (* Need to update all the derivations to use R instead of nat for the constants :(
-
-      Change 2*k -> 2 * (cmp_cost cmp)
-
-   *)
-
-
   Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A CostTick) (Hcmp_nonneg : (0 <=cmp_cost cmp)%R),
     {{{ ⧖ (tc_quicksort (2 * (cmp_cost cmp)) 0 (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
       qs cmp l

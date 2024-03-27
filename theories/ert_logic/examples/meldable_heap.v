@@ -95,12 +95,20 @@ Section program.
   Context `[!Inject A val].
 
 
-  Definition is_min_heap (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
-    := ∃ (l : loc) (v' : val) (b : BinaryTree A),
-            ⌜ v = #l ⌝ ∗                  (* v is a location *)
-            l ↦ (inject b) ∗               (* ... that points to a value-level representation of b *)
+
+  Definition is_meld_heap_val (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
+    := ∃ (b : BinaryTree A),
+            ⌜v = (inject b) ⌝ ∗           (* v is an injection of a binary tree b *)
             ⌜IsHeap A (cmp_rel cmp) b ⌝ ∗ (* ... where b is a heap with respect to cmp *)
             ⌜L = tree_to_list A b ⌝       (* ... and b's elements are L *).
+
+  Definition is_meld_heap_ref (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
+    := ∃ (l : loc) (v' : val),
+            ⌜ v = #l ⌝ ∗                  (* v is a location *)
+            l ↦ v' ∗                       (* ... which points to a value *)
+            is_meld_heap_val cmp L v'       (* ... which is a meld heap *).
+
+
 
   Definition meld_heap_new : val := (λ: "_", ref NONEV)%V.
 
@@ -110,7 +118,7 @@ Section program.
           if: ("h1" = NONEV) then "h2" else
           if: ("h2" = NONEV) then "h1" else
 
-          let: "h'" := if: ("cmp" (Fst "h1") (Fst "h2")) then ("h1", "h2") else ("h2", "h1") in
+          let: "h'" := if: (c (Fst "h1") (Fst "h2")) then ("h1", "h2") else ("h2", "h1") in
           let: "h_min" := (Fst "h'") in
           let: "h_max" := (Snd "h'") in
           (* Now (Fst h_min) <= (Fst h_max), so h_max should get melded into a child of h_min *)
@@ -136,4 +144,89 @@ Section program.
           #() (* ??? *) )))%V.
 
 
+  Lemma spec_meld_heap_new cmp : {{{ True }}} meld_heap_new #() {{{ v, RET v; (is_meld_heap_ref cmp) [] v }}}.
+  Proof.
+    iIntros (Φ _) "HΦ".
+    rewrite /meld_heap_new.
+    wp_pures.
+    wp_alloc.
+    iApply "HΦ".
+    rewrite /is_meld_heap_ref.
+    iExists _, _; iFrame.
+    rewrite /is_meld_heap_val.
+    iPureIntro.
+    split; auto.
+    exists (Nil A).
+    simpl.
+    do 2 (split; auto).
+    constructor.
+  Qed.
+
+  Definition tc_meld (n : nat) : R := ln n.
+
+  Lemma spec_meld_heap_meld cmp h1 h2 (L1 L2 : list A) :
+      {{{ (is_meld_heap_val cmp L1 h1) ∗
+          (is_meld_heap_val cmp L2 h2) ∗
+          ⧖ (tc_meld (length L1) + tc_meld (length L2))
+      }}}
+        (meld_heap_meld cmp h1 h2)%E
+      {{{ v, RET v;
+          ∃ L, is_meld_heap_val cmp L v ∗ ⌜L ≡ₚ L1 ++ L2 ⌝
+      }}}.
+  Proof.
+    iLöb as "IH" forall (h1 h2 L1 L2).
+    iIntros (Φ) "((%b1 & -> & %Hb1 & ->) & (%b2 & -> & %Hb2 & ->) & H⧖) HΦ".
+    rewrite {2}/meld_heap_meld.
+    wp_pure.
+    remember (rec: "meld" "h1" "h2" := _)%V as Vrec.
+    wp_pures.
+    case_bool_decide.
+    { wp_pures.
+      iModIntro; iApply "HΦ".
+      iExists (tree_to_list A b2).
+      iPureIntro.
+      split.
+      - eexists b2. auto.
+      - by replace (tree_to_list A b1) with ([] : list A) by admit.
+    }
+    wp_pures.
+    case_bool_decide.
+    { wp_pures.
+      iModIntro; iApply "HΦ".
+      iExists (tree_to_list A b1).
+      iPureIntro.
+      split.
+      - eexists b1. auto.
+      - replace (tree_to_list A b2) with ([] : list A) by admit.
+        by rewrite app_nil_r.
+    }
+    wp_pures.
+    wp_bind (cmp _ _).
+
+    (* Need to apply wp_cmp... how?? *)
+  Admitted.
+
+
 End program.
+
+
+Section interface.
+
+
+  Context `{A : Type}.
+  Context `[!Inject A val].
+
+  (* How to properly quantify over Σ? *)
+  Program Definition meld_heap_spec cmp : (@min_heap A CostTick cmp)
+    := {| heap_new := meld_heap_new ;
+          heap_insert := meld_heap_insert cmp ;
+          heap_remove := meld_heap_remove cmp ;
+       |}.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+
+End interface.
