@@ -16,14 +16,19 @@ Section rabin_karp.
 
   Context`{!ert_clutchGS Σ CostTick}.
 
-  Variable ascii_size:nat.
+  Variable string_to_nat: val.
+  Definition wp_string_to_nat: Prop :=
+    ∀ (v:val),
+    {{{ True }}}
+      string_to_nat v
+      {{{ (n:nat), RET #n; True}}}.
 
   Definition rk_helper : val :=
     (rec: "helper" "s" "p" "hf" "lp" "hp" "idx":=
        if: "idx" < list_length "s" - "lp" + #1
        then
          let: "w":= list_inf "idx" ("idx"+"lp") "s" in
-         let: "h":= "hf" "w" in
+         let: "h":= "hf" (string_to_nat "w") in
          tick #1 ;;
          if: "h" = "hp"
          then if: (tick "lp";; "w" = "p")
@@ -43,6 +48,13 @@ Section rabin_karp.
       | NONE => #(-1)
       end
   .
+
+  Variables p s:list nat.
+  Definition p_len := length p.
+  Definition s_len:= length s.
+  Hypothesis (Hineq:p_len <= s_len).
+  Definition val_size := s_len * s_len.
+
   
   
 End rabin_karp.
