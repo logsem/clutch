@@ -15,7 +15,7 @@ Section race.
        if: (!#h ≤ !#t) then
          #t <- !#t + #1 ;;
          (if: rand #1 = #0 
-         then #h <- !#h + rand #9 
+         then #h <- !#h + rand #10 
           else #());;
          tick #1;;
          "race" #()
@@ -82,11 +82,12 @@ Section race.
     - wp_pures. case_bool_decide as H2; last first.
       { exfalso. rewrite H1 in H2. naive_solver. }
       wp_pures. rewrite -/race.
-      wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (λ x, (2 / 3 * (tn + 10 - (hn + fin_to_nat x))%nat+1)) with "[$Hx]").
+      wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _ _ (λ x, (2 / 3 * (tn + 10 - (hn + fin_to_nat x))%nat+1)) with "[$Hx]").
       { intros n'. pose proof fin_to_nat_lt n'.
         pose proof pos_INR (tn + 10 - (hn + fin_to_nat n')). lra.
       }
-      { admit. }
+      { simpl. rewrite SeriesC_finite_foldr; simpl.
+        rewrite !minus_INR; try lia. rewrite !plus_INR. simpl. lra. }
       iIntros (x) "Hx".
       wp_apply (wp_load with "[$Hh]").
       { simpl. case_bool_decide; done. }
@@ -107,11 +108,7 @@ Section race.
       + wp_apply ("IH" with "[][Hx][$][$][$]").
         * iPureIntro. lia.
         * iApply etc_irrel; last done.
-          cut ((INR tn + 10 - (INR hn + INR (fin_to_nat x))) =
-               INR (tn + 1 + 9 - (hn + fin_to_nat x))); first lra.
-          replace 10 with (INR 10); last (simpl; lra).
-          rewrite -!plus_INR. rewrite-minus_INR; last lia.
-          f_equal. lia.
+          rewrite !minus_INR; try lia. rewrite !plus_INR. simpl. lra. 
     - wp_pures. case_bool_decide as H2.
       { exfalso. inversion H2 as [H4]. lia. }
       rewrite -/race.
@@ -126,7 +123,7 @@ Section race.
       + iPureIntro; lia.
       + iApply etc_irrel; last done. lra.
       + done.
-  Admitted.
+  Qed.
     
   
 End race.
