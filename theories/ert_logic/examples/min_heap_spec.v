@@ -6,7 +6,7 @@ Record comparator (K : Type) (c : Costfun prob_lang) := Comparator {
   cmp :> val;
   cmp_rel : relation K;
   cmp_rel_dec :: RelDecision cmp_rel;
-  cmp_rel_total :: TotalOrder cmp_rel;
+  cmp_rel_total :: PreOrder cmp_rel;
 
   cmp_cost : R;
 
@@ -31,9 +31,18 @@ Class min_heap {K c} (cmp : comparator K c) := MinHeap {
   heap_insert_cost : nat → R;
   heap_remove_cost : nat → R;
 
-  is_min_heap `{!ert_clutchGS Σ c} (l : list K) (v : val) : iProp Σ;
+  heap_insert_cost_nonneg n : (0 <= heap_insert_cost n)%R;
+  heap_remove_cost_nonneg n : (0 <= heap_remove_cost n)%R;
+  heap_insert_cost_mono n m :
+    n ≤ m → (heap_insert_cost n <= heap_insert_cost m)%R;
+  heap_remove_cost_mono n m :
+    n ≤ m → (heap_insert_cost n <= heap_insert_cost m)%R;
 
-  wp_heap_new `{!ert_clutchGS Σ c} :
+  is_min_heap `{!ert_clutchGS Σ c} (l : list K) (v : val) : iProp Σ;
+  is_min_heap_proper `{!ert_clutchGS Σ c} ::
+    Proper ((≡ₚ) ==> (=) ==> (≡)) is_min_heap;
+
+    wp_heap_new `{!ert_clutchGS Σ c} :
     {{{ True }}}
       heap_new #()
     {{{ v, RET v; is_min_heap [] v }}};
@@ -41,7 +50,7 @@ Class min_heap {K c} (cmp : comparator K c) := MinHeap {
   wp_heap_insert `{!ert_clutchGS Σ c} l k v w :
     {{{ is_min_heap l v ∗ cmp.(cmp_has_key) k w ∗ ⧖ (heap_insert_cost (length l)) }}}
       heap_insert v w
-    {{{ v l', RET v; is_min_heap l' v ∗ ⌜l' ≡ₚ k :: l⌝ }}};
+    {{{ l', RET #(); is_min_heap l' v ∗ ⌜l' ≡ₚ k :: l⌝ }}};
 
   wp_heap_remove `{!ert_clutchGS Σ c} l v :
     {{{ is_min_heap l v ∗ ⧖ (heap_remove_cost (length l)) }}}
@@ -58,7 +67,7 @@ Arguments heap_insert {_ _ _ _}.
 Arguments heap_remove {_ _ _ _}.
 Arguments heap_insert_cost {_ _ _ _}.
 Arguments heap_remove_cost {_ _ _ _}.
-Arguments is_min_heap {_ _ _ _}.
-Arguments wp_heap_new {_ _ _ _}.
-Arguments wp_heap_insert {_ _ _ _}.
-Arguments wp_heap_remove {_ _ _ _}.
+Arguments is_min_heap {_ _ _ _ _ _}.
+Arguments wp_heap_new {_ _ _ _ _ _}.
+Arguments wp_heap_insert {_ _ _ _ _ _}.
+Arguments wp_heap_remove {_ _ _ _ _ _}.
