@@ -43,6 +43,7 @@ Section rabin_karp.
   Definition rk : val :=
     λ: "s" "p" "hf",
       let: "lp" := list_length "p" in
+      tick #1;;
       let: "hp" := "hf" (string_to_nat "p") in
       match: rk_helper "s" "p" "hf" "lp" "hp" #0
       with
@@ -59,7 +60,7 @@ Section rabin_karp.
 
   Lemma wp_rk pv sv f E:
     is_list p pv -> is_list s sv -> 
-    {{{ ⧖ (2*s_len) ∗ hashfun val_size f ∅ }}}
+    {{{ ⧖ (1+2*s_len) ∗ hashfun val_size f ∅ }}}
       rk sv pv f@E
       {{{ (z:Z), RET #z; ∃ m, hashfun val_size f m ∗ if bool_decide (z=-1)%Z then True else ⌜p=take p_len (drop (Z.to_nat z) s)⌝}}}.
   Proof.
@@ -70,6 +71,9 @@ Section rabin_karp.
     iIntros (?) "->".
     replace (length _) with p_len; last done.
     wp_pures.
+    wp_pure.
+    { pose proof pos_INR s_len. lra. } wp_pures.
+    replace (_+_-_)%R with (2*s_len)%R; last lra.
     wp_apply wp_string_to_nat; first done.
     iIntros (?) "->".
     wp_apply (wp_insert with "[$Hhf]").
