@@ -17,7 +17,20 @@ Definition sample
         else ("g" #()))%V.
 
 Section proof1.
-  Context `{!ert_clutchGS Σ CostRand}.
+  Program Definition CostEntropy_2 := CostEntropy 2 _.
+  Next Obligation.
+    lra.
+  Defined.
+  
+  Context `{!ert_clutchGS Σ CostEntropy_2}.
+
+  Local Lemma rand_1_cost: cost(rand#1)= 1.
+  Proof.
+    simpl. replace (1+1) with 2; try lra.
+    replace 1 with (INR 1) by done.
+    erewrite <-Rlog_pow; first f_equal; lra.
+  Qed.
+  
   Lemma wp_geo E:
     {{{ ⧖ (8/3) }}}
       sample #()@E
@@ -32,13 +45,15 @@ Section proof1.
     wp_apply (wp_couple_rand_adv_comp _ _ _ _ _ (λ x, if (fin_to_nat x =? 0)%nat then 1 else 7/3) with "[$]").
     - intros. case_match; lra.
     - exists (7/3). intros. case_match; lra.
-    - simpl. rewrite SeriesC_finite_foldr. simpl. lra.
+    - rewrite rand_1_cost.
+      simpl. rewrite SeriesC_finite_foldr. simpl. lra.
     - iIntros (n1) "Hx". case_match eqn: H1.
       + (* zero for first flip *)
         wp_pures.
         rewrite -(Rplus_0_r 1).
         wp_apply (wp_couple_rand_constant _ 0 with "[$]").
-        { simpl. lra. }
+        { rewrite rand_1_cost. done. }
+        { done. }
         iIntros (n2) "Hx".
         wp_pures.
         case_bool_decide as H2; last first.
@@ -51,7 +66,7 @@ Section proof1.
         wp_apply (wp_couple_rand_adv_comp _ _ _ _ _ (λ x, if (fin_to_nat x =? 0)%nat then 0 else 8/3) with "[$]").
         * intros. case_match; simpl; lra.
         * exists (8/3). intros; case_match; simpl; lra.
-        * simpl. rewrite SeriesC_finite_foldr. simpl. lra.
+        * rewrite rand_1_cost. simpl. rewrite SeriesC_finite_foldr. simpl. lra.
         * iIntros (n2) "Hx". case_match eqn:K.
           { wp_pures. case_bool_decide as K'.
             - wp_pures. iModIntro. iApply "HΦ".
