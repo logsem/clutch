@@ -230,6 +230,7 @@ Section sorting.
       apply Permutation_app.
       + (* Rank is unchanged by adding an element which is greater *)
         (* Possible I got the order wrong? *)
+        (*
         apply equal_perm, list_fmap_ext.
         intros i x Hlookup.
         assert (HR: R x L0).
@@ -242,16 +243,35 @@ Section sorting.
         replace (bool_decide (strict R x L0)) with false; first (simpl; lia).
         symmetry.
         apply bool_decide_eq_false_2.
+
+        destruct TotalOrder0 as [[[H1 H2] H3] H4].
+        rewrite /not; intros HK.
+
+        Search AntiSymm strict.
+        apply strict_spec_alt in HK.
+
+
+        rewrite /Trichotomy in H4.
+        specialize H4 with x L0.
+        destruct H4 as [?|[?|?]].
+        * (*??*) admit.
+        * rewrite H4 /strict /not. intros [? ?]. auto.
+        *
+
+
+
         rewrite /not.
         rewrite /strict.
         rewrite /not.
         intros [_ HCont].
-        apply HCont.
+        apply HCont; clear Hcont.
+
         (* err... Is this true? *)
 
         admit.
       + (* Rank of greatest element is the sum of all prior elements *)
         admit.
+        *)
   Admitted.
 
 
@@ -293,7 +313,15 @@ Section qs_time.
   (** Defines the Quicksort recurrence relation *)
 
   (* Tight bounding argument necessitates the pivot take time An+B *)
-  Definition tc_pivot_lin (A B n : nat) : R := INR (A*n+B)%nat.
+  Definition tc_pivot_lin (A B : R) (n : nat) : R := (A*n+B)%R.
+
+  Definition tc_pivot_lin_nonneg A B n : (0 <= A)%R -> (0 <= B)%R -> (0 <= tc_pivot_lin A B n)%R.
+  Proof.
+    intros. rewrite /tc_pivot_lin.
+    apply Rplus_le_le_0_compat; try lra.
+    apply Rmult_pos_nat_r; done.
+  Qed.
+
 
   Definition tc_base : R := 1%R.
 
@@ -305,7 +333,7 @@ Section qs_time.
 
 
   (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
-  Definition tc_quicksort (A B len : nat) : R.
+  Definition tc_quicksort (A B : R) (len : nat) : R.
   refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => R)
           (fun len qf_rec =>
            match len with
@@ -377,12 +405,15 @@ Section qs_time.
   Proof. intros. rewrite tc_quicksort_unfold. destruct n; [lia|]. done. Qed.
 
   (* Prove this by strong induction now *)
-  Lemma tc_quicksort_nonneg A B n : (0 <= tc_quicksort A B n)%R.
+  Lemma tc_quicksort_nonneg A B n :
+    (0 <= A)%R -> (0 <= B)%R ->
+    (0 <= tc_quicksort A B n)%R.
   Proof.
+    intros HA HB.
     induction n as [ n' IH ] using (well_founded_induction lt_wf).
     rewrite tc_quicksort_unfold.
     destruct n' as [|n']; [apply tc_base_nonneg |].
-    apply Rplus_le_le_0_compat; [rewrite /tc_pivot_lin; apply pos_INR | ].
+    apply Rplus_le_le_0_compat; [apply tc_pivot_lin_nonneg; try done | ].
     apply Rmult_le_pos; [| apply Rlt_le, Rinv_0_lt_compat, pos_INR_S].
     apply Rmult_le_pos; [lra|].
     induction n' as [|n'' IH'].
@@ -404,8 +435,8 @@ End qs_time.
 Section qs_bound.
   (** Upper bound on the tc_quicksort recurrence *)
 
-  Lemma tc_quicksort_bound_ind n' A B (HAB : (B <= A)%nat) :
-    ((tc_quicksort A B (S n')) / (S n' + 1)%nat  <= (2* A)%nat / (S n' + 1)%nat + (tc_quicksort A B n') / (n' + 1)%nat )%R.
+  Lemma tc_quicksort_bound_ind n' (A B : R) (HAB : ( 0 <= B <= A)%R) :
+    ((tc_quicksort A B (S n')) / (S n' + 1)%nat  <= (2* A) / (S n' + 1)%nat + (tc_quicksort A B n') / (n' + 1)%nat )%R.
   Proof.
     Opaque INR.
     remember (S n') as n.
@@ -426,8 +457,7 @@ Section qs_bound.
           rewrite S_INR.
           apply Rmult_lt_0_compat;lra.
         - rewrite Rmult_0_l.
-          apply Rle_minus, le_INR.
-          lia.
+          apply Rle_minus. lra.
       }
       eapply Hinst.
     }
@@ -440,21 +470,14 @@ Section qs_bound.
     { simplify_eq; simpl.
       rewrite tc_quicksort_0 /=.
       rewrite Rinv_1 Rmult_1_r Rmult_1_l.
-      replace ((A + (A + 0))%nat * / (INR 2))%R with (INR A); last first.
-      { rewrite Nat.add_0_r.
-        rewrite -{2}(Nat.mul_1_r A) -{3}(Nat.mul_1_r A).
-        rewrite -Nat.mul_add_distr_l.
-        rewrite mult_INR plus_INR INR_1.
-        lra.
-      }
+      replace (2 * A * / (INR 2))%R with A; last first.
+      { repeat rewrite S_INR. rewrite INR_0. lra.  }
       rewrite Rdiv_def.
       rewrite tc_quicksort_unfold /tc_pivot_lin.
       simpl.
-      rewrite Nat.mul_1_r.
       rewrite INR_1 Rdiv_1_r Rplus_0_r.
       rewrite tc_quicksort_0.
       rewrite Rmult_plus_distr_r.
-      rewrite plus_INR.
       repeat rewrite S_INR.
       repeat rewrite INR_0.
       lra.
@@ -471,8 +494,8 @@ Section qs_bound.
     { rewrite Nat.add_1_r S_INR. pose P:= (pos_INR n); lra. }
     rewrite Rmult_1_r.
     rewrite Rdiv_mult_distr.
-    replace (((((INR B) - (INR A)) / (INR n)) / ((INR n) + 1)) * (INR (n + 1)))%R
-       with ((((INR B - INR A)) / (INR n)))%R; last first.
+    replace ((B - A) / INR n / (INR n + 1) * INR (n + 1))%R
+       with ((B - A) / INR n)%R; last first.
     { rewrite (Rdiv_def _ (_ + _)%R).
       rewrite Rmult_assoc.
       rewrite Nat.add_1_r S_INR.
@@ -510,25 +533,26 @@ Section qs_bound.
     apply (Rmult_eq_reg_r (INR n)); last (apply not_0_INR; lia).
     rewrite Rmult_plus_distr_r.
     rewrite Rmult_plus_distr_r.
-    rewrite Rmult_assoc.
+    rewrite Rdiv_def.
     rewrite Rmult_assoc.
     rewrite Rinv_l; last (apply not_0_INR; lia).
     rewrite Rmult_1_r.
-    rewrite (Rmult_comm (/ (INR n))).
+    rewrite Rmult_assoc.
+    rewrite Rmult_assoc.
+    rewrite (Rmult_comm (/ n)).
     rewrite -Rmult_assoc.
     rewrite Rmult_plus_distr_r.
     rewrite Rmult_assoc.
+    rewrite Rmult_assoc.
+    rewrite Rmult_assoc.
     rewrite Rinv_l; last (apply not_0_INR; lia).
     rewrite Rmult_1_r.
-    replace (((INR B - INR A) / (INR n)) * (INR n))%R with (INR B - INR A)%R; last first.
-    { rewrite Rdiv_def.
-      rewrite Rmult_assoc.
-      rewrite Rinv_l; last (apply not_0_INR; lia).
-      lra.
-    }
+    rewrite Rmult_assoc.
+    rewrite Rinv_l; last (apply not_0_INR; lia).
+    rewrite Rmult_1_r.
 
     (* Collect C (S n'') on the left *)
-    apply (Rplus_eq_reg_l (- ((INR ((A * n) + B)) * (INR n)))%R).
+    apply (Rplus_eq_reg_l (- (tc_pivot_lin A B n * (INR n)))%R).
     rewrite -Rplus_assoc.
     rewrite Rplus_opp_l Rplus_0_l.
     rewrite -Rplus_assoc.
@@ -584,30 +608,13 @@ Section qs_bound.
 
     (* Expand binomial to eliminate n^2 term *)
     rewrite Heqn /=.
-    replace ((INR ((A * (S (S n''))) + B)) * (INR (S (S n''))))%R
-      with  (((INR ((A * (S (S n''))) + B)) * INR (S n'')) + (INR ((A * (S (S n''))) + B)))%R; last first.
+    rewrite /tc_pivot_lin.
+    replace (((A * (INR (S (S n'')))) + B) * (INR (S (S n''))))%R
+      with (((A * (INR (S (S n''))) * (INR (S (S n'')))) + B * (INR (S (S n'')))))%R; last first.
     { rewrite (S_INR (S n'')).
       rewrite Rmult_plus_distr_l.
-      by rewrite Rmult_1_r.
+      lra.
     }
-    replace ((INR ((A * (S (S n''))) + B)) * (INR (S n'')))%R
-       with ((INR ((A * (S n'')) + B)) * (INR (S n'')) + (INR A) * (INR (S n'')))%R; last first.
-    { symmetry.
-      rewrite -{1}Nat.add_1_r.
-      rewrite Nat.mul_add_distr_l.
-      rewrite Nat.mul_1_r.
-      rewrite -Nat.add_assoc (Nat.add_comm A _) Nat.add_assoc.
-      rewrite plus_INR.
-      rewrite Rmult_plus_distr_r.
-      done.
-    }
-    rewrite Ropp_mult_distr_l.
-    rewrite Ropp_involutive.
-    rewrite Rmult_comm.
-    rewrite -{1}(Rplus_0_r (_ * _)%R).
-    rewrite Rplus_assoc.
-    rewrite Rplus_assoc.
-    apply Rplus_eq_compat_l.
 
     (* Expand the remaining (S (S n'')) terms *)
     repeat (rewrite S_INR || rewrite plus_INR || rewrite INR_0 || rewrite mult_INR).
@@ -615,10 +622,10 @@ Section qs_bound.
   Qed.
 
 
-  Lemma tc_quicksort_bound_closed A B n (HAB : (B <= A)%nat):
+  Lemma tc_quicksort_bound_closed A B n (HAB : (0 <= B <= A)%R):
     (((tc_quicksort A B n) / (n + 1)%nat)
       <= (foldr Rplus (tc_quicksort A B 0%nat) $
-          map (fun i => ((2*A)%nat / (i + 1)%nat)) $
+          map (fun i => (2*A / (i + 1)%nat)%R) $
           seq 1%nat n))%R.
   Proof.
     Opaque seq.
@@ -669,7 +676,7 @@ Section qs_adv_cmp.
 
 
   (* Distribution, in a form which is easy to work with *)
-  Definition tc_distr_def (L : list A) (CA CB : nat) : nat -> R
+  Definition tc_distr_def (L : list A) (CA CB : R) : nat -> R
     := fun index =>
          match L with
          | [] => tc_base
@@ -682,12 +689,12 @@ Section qs_adv_cmp.
     := (tc_distr_def L CA CB) ∘ fin_to_nat.
 
 
-  Lemma tc_distr_nonneg L CA CB i : (0 < length L)%nat -> (0 <= tc_distr L CA CB i)%R.
+  Lemma tc_distr_nonneg L CA CB i : (0 < length L)%nat -> (0 <= CA)%R -> (0 <= CB)%R -> (0 <= tc_distr L CA CB i)%R.
   Proof.
     intros.
     rewrite /tc_distr /tc_distr_def /=.
     destruct L; first (simpl in *; lia).
-    apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg.
+    apply Rplus_le_le_0_compat; apply tc_quicksort_nonneg; done.
   Qed.
 
 
@@ -727,11 +734,13 @@ Section qs_adv_cmp.
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
   Lemma tc_distr_equiv L CA CB :
   (0 < length L)%nat ->
+  (0 <= CA)%R ->
+  (0 <= CB)%R ->
   (List.NoDup L) ->
   (SeriesC (λ n : fin (S (Z.to_nat (length L - 1))), 1 / S (Z.to_nat (length L - 1)) * tc_distr L CA CB n))%R =
         (2 * foldr Rplus 0 (map (λ n : nat, tc_quicksort CA CB n) (index_space (length L))) / (length L))%R.
   Proof.
-    intros Hlength Hunique.
+    intros Hlength ? ? Hunique.
     assert (Hlength_nz : INR (length L) ≠ 0%R).
     { symmetry. apply Rlt_not_eq. rewrite -INR_0. by apply lt_INR. }
 
@@ -1199,17 +1208,16 @@ Section program.
    *)
 
 
-  (*
-  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A),
-    {{{ ⧖ (tc_quicksort (2 * k) 0 (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
+  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A CostTick) (Hcmp_nonneg : (0 <=cmp_cost cmp)%R),
+    {{{ ⧖ (tc_quicksort (2 * (cmp_cost cmp)) 0 (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
       qs cmp l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ⌝ }}}.
   Proof with wp_pures.
     rewrite /qs.
-    iIntros (xs l cmp k Φ) "HA1 hφ".
+    iIntros (xs l cmp Hcmp Φ) "HA1 hφ".
     do 2 wp_pure.
-    iLöb as "Hqs" forall (xs l f SF k Φ).
-    iDestruct "HA1" as "(H⧖ & #Hcmp & %hl & %hnd)".
+    iLöb as "Hqs" forall (xs l Φ).
+    iDestruct "HA1" as "(H⧖ & %hl & %hnd)".
 
     wp_pure.
     wp_bind (list_length _).
@@ -1224,30 +1232,29 @@ Section program.
     (* Pick a pivot index at random, using advanced composition on the (2 * ...) term*)
     wp_pures.
     rewrite tc_quicksort_unfold.
-    iAssert (⧖ (tc_pivot_lin (2*k) 0 (length xs)) ∗
-             ⧖ (2 * foldr Rplus 0 (map (λ n0 : nat, tc_quicksort (2 * k) 0 n0) (seq 0 (length xs))) / length xs))%I
+    iAssert (⧖ (tc_pivot_lin (2*(cmp_cost cmp)) 0 (length xs)) ∗
+             ⧖ (2 * foldr Rplus 0 (map (λ n0 : nat, tc_quicksort (2 * (cmp_cost cmp)) 0 n0) (seq 0 (length xs))) / length xs))%I
             with "[H⧖]" as "[H⧖lin H⧖Amp]".
     { destruct xs as [|? ?]; first (simpl in *; lia).
-
       iApply etc_split.
-      - rewrite /tc_pivot_lin Nat.add_0_r. apply pos_INR.
+      - apply tc_pivot_lin_nonneg; try lra.
       - apply Rcomplements.Rdiv_le_0_compat; last (rewrite -INR_0; apply lt_INR; simpl; lia).
         apply Rmult_le_pos; try lra.
         (* augh *)
         remember (length (a :: xs)) as W.
-        clear.
+        clear HeqW H0.
         induction W as [|W' IHW]; [simpl; lra|].
         rewrite seq_S /=.
         rewrite map_app foldr_app /=.
         rewrite foldr_comm_acc; last (intros; simpl; lra).
-        apply Rplus_le_le_0_compat; [apply tc_quicksort_nonneg|].
-        by simpl in IHW.
+        apply Rplus_le_le_0_compat; [apply tc_quicksort_nonneg|]; try lra.
       - iFrame.
     }
 
-    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr xs f SF (2*k) 0) with "[$]").
-    { intros. apply tc_distr_nonneg; eauto. lia. }
-    { rewrite /= tc_distr_equiv; [by rewrite Rplus_0_l | lia | done ]. }
+    wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ xs (2 * cmp_cost cmp) 0%R) with "[$]").
+    { intros. apply tc_distr_nonneg; try lia; try lra; eauto; eapply cmp_rel_total. }
+    { rewrite /= tc_distr_equiv; try lra; try lia; try done.
+      rewrite Rplus_0_l. rewrite index_space_unfold. done. }
 
     iIntros (ip) "H⧖"...
 
@@ -1261,42 +1268,41 @@ Section program.
 
     iIntros (v) "[%xp [%ap [%xsL [%xsR (%Hxs & %Hip & -> & %Hap )]]]]".
     wp_pures.
-    iAssert (⧖ (tc_quicksort (2 * k) 0 (index_to_rank xs f SF ip)) ∗
-             ⧖ (tc_quicksort (2 * k) 0 (reverse_order (index_space (length xs)) (index_to_rank xs f SF ip))))%I
+    iAssert (⧖ (tc_quicksort (2 * (cmp_cost cmp)) 0 (index_to_rank (cmp_rel cmp) xs ip)) ∗
+             ⧖ (tc_quicksort (2 * (cmp_cost cmp)) 0 (reverse_order (index_space (length xs)) (index_to_rank (cmp_rel cmp) xs ip))))%I
      with "[H⧖]" as "[H⧖L H⧖R]".
     { iApply etc_split.
-      - apply tc_quicksort_nonneg.
-      - apply tc_quicksort_nonneg.
+      - apply tc_quicksort_nonneg; try lra.
+      - apply tc_quicksort_nonneg; try lra.
       - rewrite /tc_distr /tc_distr_def /=.
         destruct xs; first (simpl in *; lia).
         iFrame.
     }
     wp_pures.
 
-    iAssert (⧖ (k * (length xs)) ∗ ⧖ (k * (length xs)))%I with "[H⧖lin]" as "[H⧖Filt1 H⧖Filt2]".
+    iAssert (⧖ ((cmp_cost cmp) * (length xs)) ∗ ⧖ ((cmp_cost cmp) * (length xs)))%I with "[H⧖lin]" as "[H⧖Filt1 H⧖Filt2]".
     { rewrite /tc_pivot_lin.
       iApply etc_split.
-      - apply Rmult_le_pos; apply pos_INR.
-      - apply Rmult_le_pos; apply pos_INR.
+      - apply Rmult_le_pos; try lra; apply pos_INR.
+      - apply Rmult_le_pos; try lra; apply pos_INR.
       - iApply etc_irrel; last iFrame.
-        rewrite Nat.add_0_r.
-        repeat rewrite mult_INR.
-        repeat rewrite S_INR.
-        rewrite INR_0. lra.
+        rewrite Rplus_0_r.
+        lra.
     }
 
-
-    wp_apply ((wp_list_filter (xsL ++ xsR) _ _ _ _ k ) with "[H⧖Filt1]"); first apply pos_INR.
+    (* x and xp might be flipped here *)
+    wp_apply ((wp_list_filter (xsL ++ xsR) (fun x => bool_decide (cmp_rel cmp xp x)) _ _ _ (cmp_cost cmp) ) with "[H⧖Filt1]"); first lra.
     { iSplitR => //.
       - iIntros (x ψ) "!> H⧖ Hψ".
         wp_pures.
-        wp_apply ("Hcmp" with "H⧖").
-        iIntros (v ->); iApply "Hψ"; eauto.
+        admit.
+        (* wp_apply ((wp_cmp cmp) with "[H⧖]").
+        iIntros (v ->); iApply "Hψ"; eauto. *)
       - iSplitR; first eauto.
         iApply (etc_weaken with "[$]").
         split.
-        + apply Rmult_le_pos; apply pos_INR.
-        + apply Rmult_le_compat_l; [apply pos_INR|].
+        + apply Rmult_le_pos; try lra; apply pos_INR.
+        + apply Rmult_le_compat_l; try lra.
           rewrite Hxs.
           apply le_INR.
           do 2 rewrite app_length.
@@ -1305,18 +1311,21 @@ Section program.
     iIntros (rv) "%Hrv".
     wp_pures.
 
-    wp_apply ((wp_list_filter (xsL ++ xsR) _ _ _ _ k) with "[H⧖Filt2]"); first apply pos_INR.
+    wp_apply ((wp_list_filter (xsL ++ xsR) (fun x => negb $ bool_decide (cmp_rel cmp xp x)) _ _ _ (cmp_cost cmp)) with "[H⧖Filt2]"); first lra.
     { iSplitR => //.
       - iIntros (x ψ) "!> H⧖ Hψ".
         wp_pures.
-        wp_apply ("Hcmp" with "H⧖").
+        wp_bind (cmp _ _)%E.
+        Fail iApply (wp_cmp cmp (inject xp) (inject x) with "[]").
+        admit.
+        (* wp_apply ("Hcmp" with "H⧖").
         iIntros (v ->). wp_pures. iApply "Hψ".
-        eauto.
+        eauto. *)
       - iSplitR; first eauto.
         iApply (etc_weaken with "[$]").
         split.
-        + apply Rmult_le_pos; apply pos_INR.
-        + apply Rmult_le_compat_l; [apply pos_INR|].
+        + apply Rmult_le_pos; try lra; apply pos_INR.
+        + apply Rmult_le_compat_l; try lra.
           rewrite Hxs.
           apply le_INR.
           do 2 rewrite app_length.
@@ -1326,179 +1335,139 @@ Section program.
     do 8 wp_pure.
     wp_pure.
 
-    wp_apply ("Hqs" $! (List.filter (f xp) (xsL ++ xsR)) rv f SF k with "[H⧖L]").
+    wp_apply ("Hqs" $! (List.filter _ (xsL ++ xsR)) rv with "[H⧖L]").
     { iClear "Hqs".
       iSplitL; [|iSplit].
+      3: { iPureIntro.
+           apply List.NoDup_filter.
+           eapply NoDup_remove_1.
+           rewrite Hxs in hnd.
+           eauto.
+      }
+      2: { iPureIntro. eapply Hrv. }
+
       - iApply etc_irrel; [|iFrame].
         f_equal.
         rewrite /index_to_rank /rank /=.
-        rewrite {2}Hxs.
-        rewrite lookup_total_app_r; last lia.
-        rewrite Hip Nat.sub_diag.
-        simpl.
-        rewrite {1}Hxs.
-        replace (xp :: xsR) with ([xp] ++ xsR); last done.
-        repeat rewrite List.filter_app.
-        repeat rewrite app_length.
-        rewrite /=.
-        replace (strict_computable f xp xp) with false; last first.
-        { rewrite /strict_computable. destruct (f xp xp); by simpl. }
-        simpl length.
-        rewrite Nat.add_0_l.
-        (* True because xp is not in xsL or xsR *)
-        assert (HninL : ¬ (In xp xsL)).
-        { replace xs with ((xsL ++ [xp]) ++ xsR) in hnd; last by rewrite Hxs -app_assoc /=.
-          apply NoDup_app_remove_r in hnd.
-          apply NoDup_cons_iff.
-          eapply (Permutation_NoDup _ hnd). Unshelve.
-          symmetry.
-          apply Permutation_cons_append. }
-        assert (HninR: ¬ (In xp xsR)).
-        { rewrite Hxs in hnd.
-          apply NoDup_cons_iff.
-          eapply NoDup_app_remove_l; eauto. }
-        f_equal; f_equal.
-        + clear Hxs Hip Hap Hrv Hlv.
-          induction xsL as [|x0 xsL']; [simpl; done|].
-          apply not_in_cons in HninL; destruct HninL as [? ?].
-          rewrite /=.
-          rewrite IHxsL'; [|done].
-          rewrite strict_agreement; done.
-        + clear Hxs Hip Hap Hrv Hlv.
-          induction xsR as [|x0 xsR']; [simpl; done|].
-          apply not_in_cons in HninR; destruct HninR as [? ?].
-          rewrite /=.
-          rewrite IHxsR'; [|done].
-          rewrite strict_agreement; done.
-      - rewrite /cmp_spec.
-        iIntros (? ? ?) "!> ? H".
-        wp_apply ("Hcmp" with "[$]").
-        iIntros (?) "->"; iApply "H"; iPureIntro.
-        done.
-      - iPureIntro; split; [done|].
-        apply List.NoDup_filter.
-        eapply NoDup_remove_1.
-        rewrite Hxs in hnd.
-        eauto.
+        rewrite {13}Hxs.
+        do 2 rewrite List.filter_app app_length /=.
+        replace(@bool_decide _ _) with false; last first.
+        { symmetry; apply bool_decide_eq_false_2.
+          replace (@lookup_total _ _ _ _ _ _) with xp; last first.
+          { symmetry. rewrite {2}Hxs. by apply list_lookup_total_middle. }
+          intros Hcont.
+          apply strict_ne in Hcont.
+          auto.
+        }
+        do 2 f_equal.
+        + apply filter_ext_in.
+          intros a Ha.
+          apply bool_decide_ext.
+          rewrite {2}Hxs.
+          rewrite list_lookup_total_middle; last done.
+          rewrite strict_spec_alt.
+
+          assert (xp ≠ a).
+          { rewrite Hxs in hnd.
+            apply NoDup_remove_2 in hnd.
+            rewrite /not; intros.
+            simplify_eq.
+            apply hnd.
+            apply in_or_app; auto.
+          }
+          split; [by intros [? ?] | by intros].
+        + apply filter_ext_in.
+          intros a Ha.
+          apply bool_decide_ext.
+          rewrite {2}Hxs.
+          rewrite list_lookup_total_middle; last done.
+          rewrite strict_spec_alt.
+
+          assert (xp ≠ a).
+          { rewrite Hxs in hnd.
+            apply NoDup_remove_2 in hnd.
+            rewrite /not; intros.
+            simplify_eq.
+            apply hnd.
+            apply in_or_app; auto.
+          }
+          split; [by intros [? ?] | by intros].
     }
     iIntros (lL) "[% %]".
 
-    wp_apply ("Hqs" $! (List.filter (∽ f xp)%P (xsL ++ xsR)) lv f SF k with "[H⧖R]").
+    wp_apply ("Hqs" $! (List.filter (fun x => negb (bool_decide (cmp_rel cmp xp x))) (xsL ++ xsR)) lv with "[H⧖R]").
     { iClear "Hqs".
-
       iSplitL; [|iSplit].
-      - iApply etc_irrel; [|iFrame].
-        f_equal.
+      3: { iPureIntro.
+           apply List.NoDup_filter.
+           eapply NoDup_remove_1.
+           rewrite Hxs in hnd.
+           eauto.
+      }
+      2: { iPureIntro. done. }
 
-        rewrite /reverse_order /index_space seq_length.
-        rewrite /index_to_rank /rank /=.
-        rewrite {3}Hxs.
-        rewrite lookup_total_app_r; last lia.
-        rewrite Hip Nat.sub_diag.
-        simpl.
+      iApply etc_irrel; [|iFrame].
+      f_equal.
+      rewrite /reverse_order /index_space seq_length.
+      rewrite /index_to_rank /rank /=.
+      rewrite {14}Hxs.
 
-        replace (length (List.filter (λ y : A, strict_computable f xp y) xs))
-           with (((length (List.filter (f xp) xs)) - 1)%nat); last first.
-        {  rewrite -(take_drop ip xs).
-          do 2 rewrite List.filter_app.
-          do 2 rewrite app_length.
-          rewrite -Nat.add_sub_assoc; last first.
-          { rewrite {2}Hxs.
-            rewrite skipn_app Hip Nat.sub_diag drop_0.
-            rewrite -Hip drop_all /=.
-            replace (f xp xp) with true; last first.
-            { destruct SF as [[[Hrefl ?] ?] ?].
-              symmetry.
-              apply Hrefl.
-            }
-            simpl. lia.
-          }
-          f_equal.
-          - f_equal.
-            apply filter_ext_in_iff.
-            intros x Hin.
-            symmetry.
-            apply strict_agreement; [done|].
+      (* TODO Causes Coq error, report me *)
+      (* rewrite -{1}(List.filter_length  (λ y : A, bool_decide (strict (cmp_rel cmp) (xs !!! ip) y))). *)
 
-            rewrite Hxs in hnd.
-            destruct (NoDup_remove _ _ _ hnd) as [? hndL].
+      apply Nat.add_sub_eq_l.
+      replace (length (List.filter (fun y : A => (@bool_decide (strict (cmp_rel cmp) _ y) _)) _))
+         with (length (List.filter (λ x : A, (bool_decide (cmp_rel cmp xp x))) (xsL ++ xsR))); last first.
+      { do 2 rewrite List.filter_app app_length /=.
+        replace(@bool_decide _ _) with false; last first.
+        { symmetry; apply bool_decide_eq_false_2.
+          replace (@lookup_total _ _ _ _ _ _) with xp; last first.
+          { symmetry. rewrite {2}Hxs. by apply list_lookup_total_middle. }
+          intros Hcont.
+          apply strict_ne in Hcont.
+          auto.
+        }
+
+
+        do 2 f_equal.
+        + apply filter_ext_in.
+          intros a Ha.
+          apply bool_decide_ext.
+          rewrite {2}Hxs.
+          rewrite list_lookup_total_middle; last done.
+          rewrite strict_spec_alt.
+
+          assert (xp ≠ a).
+          { rewrite Hxs in hnd.
+            apply NoDup_remove_2 in hnd.
             rewrite /not; intros.
-            apply hndL.
-            apply in_app_iff; left.
-            rewrite {2}Hxs in Hin.
-            rewrite take_app_le in Hin; last by rewrite -Hip.
-            rewrite -Hip firstn_all in Hin.
-            rewrite H3; done.
-
-          - rewrite {2}Hxs {3}Hxs.
-            rewrite skipn_app.
-            rewrite -{1}Hip -{2}Hip drop_all.
-            rewrite Hip Nat.sub_diag drop_0.
-            simpl.
-
-            replace (f xp xp) with true; last first.
-            { destruct SF as [[[Hrefl ?] ?] ?].
-              symmetry.
-              apply Hrefl.
-            }
-            simpl.
-
-            replace (strict_computable f xp xp) with false; last first.
-            { rewrite /strict_computable.
-              destruct (f _ _); auto.
-            }
-            rewrite Nat.sub_0_r.
-            f_equal.
-            apply filter_ext_in_iff.
-            intros x Hin.
-            symmetry.
-            apply strict_agreement; [done|].
-            (* By uniqueness *)
-
-
-            rewrite Hxs in hnd.
-            destruct (NoDup_remove _ _ _ hnd) as [? hndL].
-            rewrite /not; intros.
-            apply hndL.
-            apply in_app_iff; right.
-            by rewrite H3.
-        }
-
-        rewrite -(PeanoNat.Nat.sub_succ (_ - 1) (_ - 1)).
-        rewrite -Nat.add_1_l -Nat.le_add_sub; last first.
-        { rewrite Hxs app_length /=; lia. }
-        rewrite -Nat.add_1_l -Nat.le_add_sub; last first.
-        { rewrite {1}Hxs List.filter_app app_length /=.
-          replace (f xp xp) with true; first (simpl; lia).
-          destruct SF as [[[HRefl ?] ?] ?].
-          by rewrite HRefl.
-        }
-
-        replace (length (List.filter (∽ f xp)%P (xsL ++ xsR)))
-            with (length (List.filter (∽ f xp)%P xs)); last first.
-        { rewrite {1}Hxs.
-          rewrite List.filter_app app_length /=.
-          replace (f xp xp) with true; last first.
-          { destruct SF as [[[Hrefl ?] ?] ?].
-            symmetry.
-            apply Hrefl.
+            simplify_eq.
+            apply hnd.
+            apply in_or_app; auto.
           }
-          simpl.
-          rewrite List.filter_app app_length /=.
-          done.
-        }
-        rewrite -(List.filter_length (f xp)).
-        lia.
-      - rewrite /cmp_spec.
-        iIntros (? ? ?) "!> ? H".
-        wp_apply ("Hcmp" with "[$]").
-        iIntros (?) "->"; iApply "H"; iPureIntro.
-        done.
-      - iPureIntro; split; [done|].
-        apply List.NoDup_filter.
-        eapply NoDup_remove_1.
-        rewrite Hxs in hnd.
-        eauto.
+          split; [by intros | by intros [? ?] ].
+        + apply filter_ext_in.
+          intros a Ha.
+          apply bool_decide_ext.
+          rewrite {2}Hxs.
+          rewrite list_lookup_total_middle; last done.
+          rewrite strict_spec_alt.
+
+          assert (xp ≠ a).
+          { rewrite Hxs in hnd.
+            apply NoDup_remove_2 in hnd.
+            rewrite /not; intros.
+            simplify_eq.
+            apply hnd.
+            apply in_or_app; auto.
+          }
+          split; [by intros | by intros [? ?] ].
+      }
+
+      rewrite List.filter_length.
+      rewrite Hxs.
+      repeat rewrite app_length /=.
+      lia.
     }
     iIntros (lR) "[% %]".
     wp_pures.
@@ -1508,6 +1477,6 @@ Section program.
     iApply wp_list_append => //. iIntros "!>" (xs_le_p_gt_s L).
     iApply "hφ".
     eauto.
-  Qed.
-   *)
+  Admitted.
+
 End program.
