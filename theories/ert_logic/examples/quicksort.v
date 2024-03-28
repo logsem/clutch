@@ -86,7 +86,7 @@ Section sorting.
 
   Context {A} (R : relation A) `{∀ x y, Decision (R x y)} `{!TotalOrder R} `{Inhabited A}.
 
-  Definition rank (L : list A) (x : A) : nat := (length (List.filter (fun y => bool_decide (strict R x y)) L)).
+  Definition rank (L : list A) (x : A) : nat := (length (List.filter (fun y => bool_decide (strict R y x)) L)).
 
 
   Lemma perm_filter `{S : Type} L1 L2 (f : S -> bool) : (L1 ≡ₚ L2) -> (List.filter f L1) ≡ₚ (List.filter f L2).
@@ -221,58 +221,69 @@ Section sorting.
     { apply Sorted_StronglySorted; last apply HS. by destruct TotalOrder0 as [[[? ?] ?] ?]. }
     clear HS.
 
+    apply equal_perm.
+
     induction L as [|L0 L' IH] using rev_ind.
     - rewrite /= index_space_emp. done.
     - rewrite app_length /= Nat.add_1_r index_space_snoc.
       rewrite IH; [ | eapply NoDup_app_remove_r, HU |eapply StronglySorted_app_inv_l, HS'].
       clear IH.
       rewrite fmap_app.
-      apply Permutation_app.
-      + (* Rank is unchanged by adding an element which is greater *)
-        (* Possible I got the order wrong? *)
-        (*
-        apply equal_perm, list_fmap_ext.
-        intros i x Hlookup.
-        assert (HR: R x L0).
-        { eapply elem_of_StronglySorted_app; first eapply HS'.
-          - eapply elem_of_list_lookup_2, Hlookup.
-          - apply elem_of_list_here.
-        }
+      f_equal.
+      + apply list_fmap_ext.
+        intros i x Hi.
         rewrite /rank.
-        rewrite List.filter_app app_length /=.
-        replace (bool_decide (strict R x L0)) with false; first (simpl; lia).
-        symmetry.
-        apply bool_decide_eq_false_2.
+        rewrite List.filter_app app_length.
+        simpl.
+        rewrite bool_decide_false; [rewrite /=; lia| ].
+        assert (R x L0).
+        { eapply elem_of_StronglySorted_app; eauto.
+          - eapply elem_of_list_lookup_2. eauto.
+          - by apply elem_of_list_singleton.
+        }
+        intros Hcont.
+        apply strict_spec_alt in Hcont.
+        assert (HT : Trichotomy (strict R)); first by destruct TotalOrder0.
+        assert (HO : PartialOrder R); first by destruct TotalOrder0.
+        destruct HO as [[HRef Htrans] Has].
+        destruct Hcont as [ ? ? ].
+        rewrite /AntiSymm in Has.
+        auto.
 
-        destruct TotalOrder0 as [[[H1 H2] H3] H4].
-        rewrite /not; intros HK.
+      + simpl; f_equal.
+        induction L' as [|L'0 L's IH].
+        * rewrite /rank /=.
+          rewrite bool_decide_false; [by simpl|].
+          intros [ ? ? ]. auto.
+        * simpl.
+          rewrite IH.
+          2: {
+            rewrite -app_comm_cons in HU.
+            apply NoDup_cons_iff in HU.
+            by destruct HU.
+          }
+          2: {
+            rewrite -app_comm_cons in HS'.
+            apply StronglySorted_inv in HS'.
+            by destruct HS'.
+          }
+          replace (L'0 :: L's ++ [L0]) with ([L'0] ++ (L's ++ [L0])); last by simpl.
+          rewrite /rank.
+          symmetry.
+          rewrite List.filter_app app_length.
+          replace ( length (List.filter (λ y : A, bool_decide (strict R y L0)) [L'0]) ) with 1; [lia|].
+          simpl.
+          rewrite bool_decide_true; [done|].
 
-        Search AntiSymm strict.
-        apply strict_spec_alt in HK.
-
-
-        rewrite /Trichotomy in H4.
-        specialize H4 with x L0.
-        destruct H4 as [?|[?|?]].
-        * (*??*) admit.
-        * rewrite H4 /strict /not. intros [? ?]. auto.
-        *
-
-
-
-        rewrite /not.
-        rewrite /strict.
-        rewrite /not.
-        intros [_ HCont].
-        apply HCont; clear Hcont.
-
-        (* err... Is this true? *)
-
-        admit.
-      + (* Rank of greatest element is the sum of all prior elements *)
-        admit.
-        *)
-  Admitted.
+          apply strict_spec_alt.
+          split.
+          -- eapply elem_of_StronglySorted_app; first eapply HS'; apply elem_of_list_here.
+          -- rewrite /not.
+             intros ->.
+             apply NoDup_remove in HU.
+             destruct HU  as [? Hcont].
+             apply Hcont, in_eq.
+  Qed.
 
 
   Lemma index_to_rank_nat_perm (L : list A) :
@@ -1289,7 +1300,13 @@ Section program.
     { iSplitR => //.
       - iIntros (x ψ) "!> H⧖ Hψ".
         wp_pures.
-        admit.
+        wp_apply (@wp_cmp _ _ cmp Σ ert_clutchGS0 xp x (inject xp) (inject x) with "[H⧖]").
+        { iFrame.
+          (* cmp_has_key *)
+          admit.
+        }
+        iIntros.
+        iApply "Hψ"; eauto.
         (* wp_apply ((wp_cmp cmp) with "[H⧖]").
         iIntros (v ->); iApply "Hψ"; eauto. *)
       - iSplitR; first eauto.
@@ -1309,12 +1326,15 @@ Section program.
     { iSplitR => //.
       - iIntros (x ψ) "!> H⧖ Hψ".
         wp_pures.
-        wp_bind (cmp _ _)%E.
-        Fail iApply (wp_cmp cmp (inject xp) (inject x) with "[]").
-        admit.
-        (* wp_apply ("Hcmp" with "H⧖").
-        iIntros (v ->). wp_pures. iApply "Hψ".
-        eauto. *)
+
+        wp_apply (@wp_cmp _ _ cmp Σ ert_clutchGS0 xp x (inject xp) (inject x) with "[H⧖]").
+        { iFrame.
+          (* cmp_has_key *)
+          admit.
+        }
+        iIntros.
+        wp_pures.
+        iApply "Hψ"; eauto.
       - iSplitR; first eauto.
         iApply (etc_weaken with "[$]").
         split.
@@ -1329,7 +1349,9 @@ Section program.
     do 8 wp_pure.
     wp_pure.
 
-    wp_apply ("Hqs" $! (List.filter _ (xsL ++ xsR)) rv with "[H⧖L]").
+
+
+    wp_apply ("Hqs" $! (List.filter _ (xsL ++ xsR)) rv with "[H⧖R]").
     { iClear "Hqs".
       iSplitL; [|iSplit].
       3: { iPureIntro.
@@ -1339,6 +1361,107 @@ Section program.
            eauto.
       }
       2: { iPureIntro. eapply Hrv. }
+
+      iApply etc_irrel; [|iFrame].
+      f_equal.
+      rewrite /reverse_order /index_space seq_length.
+      rewrite /index_to_rank /rank /=.
+      rewrite {14}Hxs.
+
+      (* TODO Causes Coq error, report me *)
+      (* rewrite -{1}(List.filter_length  (λ y : A, bool_decide (strict (cmp_rel cmp) (xs !!! ip) y))). *)
+
+      apply Nat.add_sub_eq_l.
+      replace (length (@List.filter A (fun y : A => @bool_decide (strict (cmp_rel cmp) y _) _) _))
+         with (length (List.filter (∽ (λ x : A, (bool_decide (cmp_rel cmp  xp x))))%P (xsL ++ xsR))); last first.
+      { do 2 rewrite List.filter_app app_length /=.
+        replace(@bool_decide _ _) with false; last first.
+        { symmetry; apply bool_decide_eq_false_2.
+          replace (@lookup_total _ _ _ _ _ _) with xp; last first.
+          { symmetry. rewrite {2}Hxs. by apply list_lookup_total_middle. }
+          intros Hcont.
+          apply strict_ne in Hcont.
+          auto.
+        }
+
+        destruct Htotal as [[[Hrefl Htrans] Hanti] Htrich].
+
+
+        do 2 f_equal.
+        + apply filter_ext_in.
+          intros a Ha.
+          rewrite -bool_decide_not.
+          apply bool_decide_ext.
+          rewrite {2}Hxs.
+          rewrite list_lookup_total_middle; last done.
+          rewrite strict_spec_alt.
+
+          assert (xp ≠ a).
+          { rewrite Hxs in hnd.
+            apply NoDup_remove_2 in hnd.
+            rewrite /not; intros.
+            simplify_eq.
+            apply hnd.
+            apply in_or_app; auto.
+          }
+
+
+          split.
+          - intros.
+            split; auto.
+            destruct (Htrich a xp) as [? | [? | ?] ].
+            * by apply strict_include.
+            * simplify_eq.
+            * exfalso; apply H2. by apply strict_include.
+          - intros [ ? ? ] ?.
+            apply H3, Hanti; auto.
+
+        + apply filter_ext_in.
+          intros a Ha.
+          rewrite -bool_decide_not.
+          apply bool_decide_ext.
+          rewrite {2}Hxs.
+          rewrite list_lookup_total_middle; last done.
+          rewrite strict_spec_alt.
+
+          assert (xp ≠ a).
+          { rewrite Hxs in hnd.
+            apply NoDup_remove_2 in hnd.
+            rewrite /not; intros.
+            simplify_eq.
+            apply hnd.
+            apply in_or_app; auto.
+          }
+
+          split.
+          - intros.
+            split; auto.
+            destruct (Htrich a xp) as [? | [? | ?] ].
+            * by apply strict_include.
+            * simplify_eq.
+            * exfalso; apply H2. by apply strict_include.
+          - intros [ ? ? ] ?.
+            apply H3, Hanti; auto.
+      }
+
+      rewrite Nat.add_comm.
+      rewrite (List.filter_length (λ x : A, bool_decide (cmp_rel cmp xp x))).
+      rewrite Hxs.
+      repeat rewrite app_length /=.
+      lia.
+    }
+    iIntros (lR) "[% %]".
+
+    wp_apply ("Hqs" $! (List.filter (fun x => negb (bool_decide (cmp_rel cmp xp x))) (xsL ++ xsR)) lv with "[H⧖L]").
+    { iClear "Hqs".
+      iSplitL; [|iSplit].
+      3: { iPureIntro.
+           apply List.NoDup_filter.
+           eapply NoDup_remove_1.
+           rewrite Hxs in hnd.
+           eauto.
+      }
+      2: { iPureIntro. done. }
 
       - iApply etc_irrel; [|iFrame].
         f_equal.
@@ -1353,9 +1476,15 @@ Section program.
           apply strict_ne in Hcont.
           auto.
         }
+
+
+        destruct Htotal as [[[Hrefl Htrans] Hanti] Htrich].
+
         do 2 f_equal.
         + apply filter_ext_in.
           intros a Ha.
+          rewrite -bool_decide_not.
+
           apply bool_decide_ext.
           rewrite {2}Hxs.
           rewrite list_lookup_total_middle; last done.
@@ -1369,9 +1498,26 @@ Section program.
             apply hnd.
             apply in_or_app; auto.
           }
-          split; [by intros [? ?] | by intros].
+
+
+          split.
+          * intros [ ? ? ] ?.
+            apply H4, Hanti; auto.
+          * intros.
+            split; auto.
+            destruct (Htrich a xp) as [? | [? | ?] ].
+            -- by apply strict_include.
+            -- simplify_eq.
+            -- destruct H4 as [? ?].
+               exfalso. by apply H3.
+
+
+
         + apply filter_ext_in.
           intros a Ha.
+
+          rewrite -bool_decide_not.
+
           apply bool_decide_ext.
           rewrite {2}Hxs.
           rewrite list_lookup_total_middle; last done.
@@ -1385,85 +1531,21 @@ Section program.
             apply hnd.
             apply in_or_app; auto.
           }
-          split; [by intros [? ?] | by intros].
+
+
+          split.
+          * intros [ ? ? ] ?.
+            apply H4, Hanti; auto.
+          * intros.
+            split; auto.
+            destruct (Htrich a xp) as [? | [? | ?] ].
+            -- by apply strict_include.
+            -- simplify_eq.
+            -- destruct H4 as [? ?].
+               exfalso. by apply H3.
+
     }
     iIntros (lL) "[% %]".
-
-    wp_apply ("Hqs" $! (List.filter (fun x => negb (bool_decide (cmp_rel cmp xp x))) (xsL ++ xsR)) lv with "[H⧖R]").
-    { iClear "Hqs".
-      iSplitL; [|iSplit].
-      3: { iPureIntro.
-           apply List.NoDup_filter.
-           eapply NoDup_remove_1.
-           rewrite Hxs in hnd.
-           eauto.
-      }
-      2: { iPureIntro. done. }
-
-      iApply etc_irrel; [|iFrame].
-      f_equal.
-      rewrite /reverse_order /index_space seq_length.
-      rewrite /index_to_rank /rank /=.
-      rewrite {14}Hxs.
-
-      (* TODO Causes Coq error, report me *)
-      (* rewrite -{1}(List.filter_length  (λ y : A, bool_decide (strict (cmp_rel cmp) (xs !!! ip) y))). *)
-
-      apply Nat.add_sub_eq_l.
-      replace (length (List.filter (fun y : A => (@bool_decide (strict (cmp_rel cmp) _ y) _)) _))
-         with (length (List.filter (λ x : A, (bool_decide (cmp_rel cmp xp x))) (xsL ++ xsR))); last first.
-      { do 2 rewrite List.filter_app app_length /=.
-        replace(@bool_decide _ _) with false; last first.
-        { symmetry; apply bool_decide_eq_false_2.
-          replace (@lookup_total _ _ _ _ _ _) with xp; last first.
-          { symmetry. rewrite {2}Hxs. by apply list_lookup_total_middle. }
-          intros Hcont.
-          apply strict_ne in Hcont.
-          auto.
-        }
-
-
-        do 2 f_equal.
-        + apply filter_ext_in.
-          intros a Ha.
-          apply bool_decide_ext.
-          rewrite {2}Hxs.
-          rewrite list_lookup_total_middle; last done.
-          rewrite strict_spec_alt.
-
-          assert (xp ≠ a).
-          { rewrite Hxs in hnd.
-            apply NoDup_remove_2 in hnd.
-            rewrite /not; intros.
-            simplify_eq.
-            apply hnd.
-            apply in_or_app; auto.
-          }
-          split; [by intros | by intros [? ?] ].
-        + apply filter_ext_in.
-          intros a Ha.
-          apply bool_decide_ext.
-          rewrite {2}Hxs.
-          rewrite list_lookup_total_middle; last done.
-          rewrite strict_spec_alt.
-
-          assert (xp ≠ a).
-          { rewrite Hxs in hnd.
-            apply NoDup_remove_2 in hnd.
-            rewrite /not; intros.
-            simplify_eq.
-            apply hnd.
-            apply in_or_app; auto.
-          }
-          split; [by intros | by intros [? ?] ].
-      }
-
-      rewrite List.filter_length.
-      rewrite Hxs.
-      repeat rewrite app_length /=.
-      lia.
-    }
-    iIntros (lR) "[% %]".
     wp_pures.
 
     iClear "Hqs".
