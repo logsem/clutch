@@ -23,8 +23,7 @@ Section hashmap.
       let: "off" := "hf" "v" in
       let: "w" := !("l" +ₗ "off") in
       tick #1;;
-      ("l" +ₗ "off") <- insert "w" "v";;
-      "off"
+      ("l" +ₗ "off") <- insert "w" "v"
   .
 
   Definition lookup_elem: val :=
@@ -68,7 +67,8 @@ Section hashmap.
     {{{ ishashmap hm m1 m2 ∗
           ⧖ (1+ (hashmap_size m2/(S val_size))%R) }}}
       insert_elem hm #n  @ E
-      {{{ (off:fin (S val_size)), RET #off;
+      {{{ RET #();
+          ∃ (off:fin(S val_size)),
           ishashmap hm (<[n:=fin_to_nat off]>m1) (<[fin_to_nat off:=(m2!!!fin_to_nat off)++n::[]]>m2) }}}.
   Proof.
     iIntros (Hnotin Φ) "[(%&%&->&H1&H2&%) Hx] HΦ".
@@ -107,9 +107,8 @@ Section hashmap.
     { done. }
     { simpl. case_bool_decide; done. }
     iIntros "Ha".
-    wp_pures.
-    iModIntro. iApply "HΦ".
-    iExists _, _. iSplit; first done. iFrame.
+    iApply "HΦ".
+    iExists _, _, _. iSplit; first done. iFrame.
     iSplit; last first.
     { iPureIntro. intros k v1 l1 Hm2 Hl1.
       rewrite lookup_insert_Some in Hm2. destruct Hm2 as [[-> Hm2] | [Hv Hm2]]; subst.
@@ -252,7 +251,7 @@ Section hashmap.
     {{{ isamortizedhashmap hm m1 m2 s∗
           ⧖ (1+ (amortized_tc)%R) }}}
       insert_elem hm #n  @ E
-      {{{ (off:fin(S val_size)), RET #off;
+      {{{ RET #(); ∃ off:fin(S val_size),
           isamortizedhashmap hm (<[n:=fin_to_nat off]>m1) (<[fin_to_nat off:=(m2!!!fin_to_nat off)++n::[]]>m2) (S s) }}}.
   Proof.
     iIntros (Hnotin Hsize Φ) "[H Hx1] HΦ".
@@ -270,7 +269,7 @@ Section hashmap.
       - iApply etc_irrel; last done. rewrite -H. apply amortized_tc_split. done.
     }
     iApply (wp_hm_insert_new with "[$]"); first done.
-    iModIntro. iIntros. iApply "HΦ". rewrite /isamortizedhashmap. iFrame.
+    iModIntro. iIntros "(% & ?)". iApply "HΦ". rewrite /isamortizedhashmap. iExists _. iFrame.
     repeat iSplit.
     - iPureIntro. rewrite S_INR. erewrite <-(SeriesC_singleton' off 1%R).
       rewrite H. rewrite /hashmap_size. rewrite -SeriesC_plus; try apply ex_seriesC_finite.
