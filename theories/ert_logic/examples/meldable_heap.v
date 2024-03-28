@@ -147,6 +147,18 @@ Section program.
   Lemma ln_0 : (ln 0%R = 0%R).
   Proof. compute. destruct (Rlt_dec R0 R0); auto. exfalso. lra. Qed.
 
+  Lemma ln_nonneg (n : nat) : (0 <= ln n)%R.
+  Proof.
+    destruct n as [|n]; [ rewrite ln_0; lra | ].
+    destruct n as [|n]; [ rewrite ln_1; lra | ].
+    apply Rlt_le.
+    apply exp_lt_inv.
+    rewrite exp_0.
+    pose P := (pos_INR n).
+    rewrite exp_ln; rewrite ?S_INR; lra.
+  Qed.
+
+
   Definition tc_meld (k : R) (n : nat)  := (2 * k * (1 + Rlog 2 n))%R.
 
   Lemma tc_meld_1 (k : R) : (tc_meld k 1 = 2 * k)%R.
@@ -400,6 +412,27 @@ Section program.
   Definition meld_heap_remove_cost (cmp : comparator A CostTick) N : R
     := (2 * tc_meld (cmp_cost cmp) N)%R.
 
+  Lemma tc_meld_nonneg (cmp : comparator A CostTick) n : (0 <= (tc_meld (cmp_cost cmp) n))%R.
+  Proof.
+    rewrite /tc_meld.
+    apply Rmult_le_pos; first admit.
+  Admitted.
+
+  Lemma tc_meld_mono (cmp : comparator A CostTick) m n : (m <= n)%nat -> (tc_meld (cmp_cost cmp) m <= tc_meld (cmp_cost cmp) n)%R.
+  Proof.
+    intros.
+    rewrite /tc_meld.
+    apply Rmult_le_compat_l; first admit.
+    apply Rplus_le_compat_l.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_compat_r.
+    { apply Rlt_le, Rinv_0_lt_compat. pose P := ln_lt_2. lra. }
+    destruct m.
+    - rewrite /= ln_0. apply ln_nonneg.
+    - apply Rcomplements.ln_le.
+      + apply pos_INR_S.
+      + by apply le_INR.
+  Admitted.
 
 
 End program.
@@ -421,16 +454,26 @@ Section interface.
        |}.
   Next Obligation.
     (* meld_heap_insert_cost is nonnegative *)
+    intros.
+    rewrite /meld_heap_insert_cost /=.
   Admitted.
   Next Obligation.
     (* meld_heap_remove_cost is nonnegative *)
   Admitted.
   Next Obligation.
     (* meld_heap_insert_cost is monotone*)
-  Admitted.
+    intros.
+    rewrite /meld_heap_insert_cost /=.
+    rewrite ?Rplus_assoc; apply Rplus_le_compat_l, Rplus_le_compat_r.
+    by apply tc_meld_mono.
+  Qed.
   Next Obligation.
     (* meld_heap_remove_cost is monotone *)
-  Admitted.
+    intros.
+    rewrite /meld_heap_remove_cost.
+    apply Rmult_le_compat_l; try lra.
+    by apply tc_meld_mono.
+  Qed.
   Next Obligation.
     (* is_meld_heap respects permutations *)
   Admitted.
