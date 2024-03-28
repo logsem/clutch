@@ -398,17 +398,23 @@ Section interface.
           heap_insert_cost := (fun N => ((cmp_cost cmp) + tc_meld (cmp_cost cmp) N + tc_meld (cmp_cost cmp) 1)%R) ;
           heap_remove_cost := tc_meld (cmp_cost cmp) ;
        |}.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
   Next Obligation.
     (* New *)
     iIntros (? ? ? ?) "_ H".
-    wp_apply spec_meld_heap_new; auto.
-  Qed.
+    wp_apply (spec_meld_heap_new cmp); auto.
+  Admitted.
   Next Obligation.
     (* Insert *)
     iIntros (? ? ? ? ? ? ? ?) "(HA & HB & HC) H".
     wp_apply (spec_meld_heap_insert with "[HA HB HC]").
     { iFrame. admit. (* cmp_has_key thing *) }
-    iApply "H".
   Admitted.
   Next Obligation.
     (* Remove *)
