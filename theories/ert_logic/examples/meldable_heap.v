@@ -115,10 +115,12 @@ Section program.
           if: (rand #1 = #0)
             then (* Meld into the left branch of h_min *)
               let: "melded" := ("meld" (Fst (Snd "h_min")) "h_max") in
-              (Fst "h_min", ("melded", (Snd (Snd "h_max"))))
-            else
+              (Fst "h_min",
+                 ("melded", (Snd (Snd "h_max"))))
+            else (* Meld into the right branch of h_min *)
               let: "melded" := ("meld" (Snd (Snd "h_min")) "h_max") in
-              (Fst "h_min", (Fst (Snd "h_max"), "melded"))
+              (Fst "h_min",
+                 (Fst (Snd "h_max"), "melded"))
 
           end
           end
@@ -174,19 +176,76 @@ Section program.
     lia.
   Qed.
 
-  Definition tc_meld (k : R) (n : nat)  := (2 * k * (1 + Rlog 2 n))%R.
+  Definition tc_meld (k : R) (n : nat) := if (n =? 0)%nat then 0%R else (2 * k * (1 + Rlog 2 n))%R.
 
   Lemma tc_meld_1 (k : R) : (tc_meld k 1 = 2 * k)%R.
-  Proof. rewrite /tc_meld /Rlog ln_1. lra. Qed.
+  Proof. rewrite /tc_meld /Rlog ln_1 /=. lra. Qed.
+
+  Lemma tc_meld_0 (k : R) : (tc_meld k 0 = 0)%R.
+  Proof. rewrite /tc_meld /=. lra. Qed.
+
+
+  (* Edge case for tc_meld *)
+  Lemma tc_meld_ind_L (k : R) (a : nat) :
+      (0 < a) -> (0 <= k)%R -> (k + (tc_meld k a + tc_meld k 0) / 2 <= tc_meld k (1 + a + 0))%R.
+  Proof.
+    intros ? Hk.
+    (* destruct Hk as [ Hk | <- ]; last (rewrite /tc_meld; lra ). *)
+    rewrite tc_meld_0.
+    rewrite /tc_meld.
+    replace (a =? 0)%nat with false; last (destruct a; simpl; lia).
+    replace (1 + a + 0 =? 0)%nat with false; last (destruct a; simpl; lia).
+    rewrite ?Rdiv_def.
+    rewrite Rplus_0_r.
+    replace ( 2 * k * (1 + Rlog 2 a) * / 2 )%R with (k * (1 + Rlog 2 a) )%R by lra.
+    replace (2 * k * (1 + Rlog 2 (1 + a + 0)%nat))%R with (2 * k + 2 * k * Rlog 2 (1 + a + 0)%nat)%R by lra.
+    rewrite Rmult_plus_distr_l Rmult_1_r.
+    replace ( k + (k + k * Rlog 2 a))%R with (2*k + k * Rlog 2 a)%R by lra.
+    apply Rplus_le_compat_l.
+    rewrite (Rmult_comm 2 k) Rmult_assoc.
+    apply Rmult_le_compat_l; [lra|].
+    (* True *)
+  Admitted.
+
+
+  (* Edge case for tc_meld *)
+  Lemma tc_meld_ind_R (k : R) (b : nat) :
+      (0 < b) -> (0 <= k)%R -> (k + (tc_meld k 0 + tc_meld k b) / 2 <= tc_meld k (1 + 0 + b))%R.
+  Proof. Admitted.
+
+  (* Edge case for tc_meld *)
+  Lemma tc_meld_ind_LR (k : R) :
+      (0 <= k)%R -> (k + (tc_meld k 0 + tc_meld k 0) / 2 <= tc_meld k (1 + 0 + 0))%R.
+  Proof.
+    intros.
+    rewrite ?tc_meld_0.
+    rewrite ?Nat.add_0_r tc_meld_1.
+    lra.
+  Qed.
 
   (* Inductive bound for tc_meld *)
   (* We will only apply advanced composition in the case that both a and b have size at at least 1 *)
-  Lemma tc_meld_ind (k : R) (a b : nat) :
-      (0 < a) -> (0 < b) -> (0 < k)%R -> (tc_meld k (1 + a + b) >= k + (tc_meld k a + tc_meld k b) / 2)%R.
+  Lemma tc_meld_ind' (k : R) (a b : nat) :
+      (0 < k)%R -> (k + (tc_meld k a + tc_meld k b) / 2 <= tc_meld k (1 + a + b))%R.
   Proof.
-    intros Ha Hb Hk.
-    apply Rle_ge.
+    intros Hk.
+    destruct a as [|a']; destruct b as [|b'].
+    { (* a = b = 0 *) apply tc_meld_ind_LR; lra.  }
+    { (* a = 0 *) apply tc_meld_ind_R; [lia|lra]. }
+    { (* b = 0 *) apply tc_meld_ind_L; [lia|lra]. }
+
     rewrite /tc_meld.
+
+    (* Simplify edge cases from tc_meld *)
+    remember (S a') as a.
+    remember (S b') as b.
+    assert (Ha : (0 < a)%nat) by lia.
+    assert (Hb : (0 < b)%nat) by lia.
+    replace (a =? 0)%nat with false; last (destruct a; simpl; lia).
+    replace (b =? 0)%nat with false; last (destruct b; simpl; lia).
+    replace (1 + a + b =? 0) with false; last first.
+    { symmetry. apply PeanoNat.Nat.eqb_neq. lia. }
+    clear Heqa Heqb a' b'.
 
     (* Divide by k and cancel the 2 factors *)
     apply (Rmult_le_reg_r (/ k)%R); first by apply Rinv_0_lt_compat.
@@ -280,6 +339,56 @@ Section program.
 
   Qed.
 
+  (* Final version of the inductive bound *)
+  Lemma tc_meld_ind (k : R) (a b : nat) :
+      (0 <= k)%R -> (k + (tc_meld k a + tc_meld k b) / 2 <= tc_meld k (1 + a + b))%R.
+  Proof.
+    intros Hk.
+    destruct Hk; last first.
+    - simplify_eq.
+      rewrite /tc_meld.
+      destruct (a =? 0), (b =? 0), (1 + a + b =? 0); lra.
+    - by apply tc_meld_ind'.
+  Qed.
+
+
+  Lemma tc_meld_nonneg (cmp : comparator A CostTick) n : (0 <= (tc_meld (cmp_cost cmp) n))%R.
+  Proof.
+    rewrite /tc_meld.
+    pose P := (cmp_nonneg _ _ cmp).
+    destruct (n =? 0); try lra.
+    apply Rmult_le_pos; try lra.
+    apply Rplus_le_le_0_compat; try lra.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_pos; [apply ln_nonneg|].
+    pose Q := ln_lt_2.
+    apply Rlt_le.
+    apply Rinv_0_lt_compat.
+    lra.
+  Qed.
+
+  Lemma tc_meld_mono (cmp : comparator A CostTick) m n : (m <= n)%nat -> (tc_meld (cmp_cost cmp) m <= tc_meld (cmp_cost cmp) n)%R.
+  Proof.
+    intros.
+    rewrite /tc_meld.
+    Opaque INR.
+    destruct m as [|m']; destruct n as [|n'].
+    { simpl; lra. }
+    { simpl. admit. }
+    { exfalso. lia. }
+
+    apply Rmult_le_compat_l.
+    {  pose P := (cmp_nonneg _ _ cmp). lra. }
+    apply Rplus_le_compat_l.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_compat_r.
+    { apply Rlt_le, Rinv_0_lt_compat. pose P := ln_lt_2. lra. }
+    apply Rcomplements.ln_le.
+      - apply pos_INR_S.
+      - by apply le_INR.
+    Transparent INR.
+  Admitted.
+
 
 
   Lemma spec_meld_heap_new cmp : {{{ True }}} meld_heap_new #() {{{ v, RET v; (is_meld_heap_ref cmp) [] v }}}.
@@ -300,6 +409,8 @@ Section program.
     constructor.
   Qed.
 
+  Definition tc_meld_distr (cmp : comparator A _) (LL LR : list A) (b : bool) : R :=
+    if b then tc_meld (cmp_cost cmp) (length LR) else tc_meld (cmp_cost cmp) (length LL).
 
   Lemma spec_meld_heap_meld cmp h1 h2 (L1 L2 : list A) :
       {{{ (is_meld_heap_val cmp L1 h1) ∗
@@ -364,20 +475,70 @@ Section program.
       as "(H⧖cmp & H⧖b1 & H⧖b2)".
     { admit. }
 
-
-    wp_bind (cmp _ _).
-
-    wp_apply ((@wp_cmp _ _ cmp _ _ b1K b2K) with "[H⧖cmp HB1v HB2v]").
-    { (* What is cmp_has_key? *)
-      admit. }
+    wp_apply ((@wp_cmp _ _ cmp _ _ b1K b2K) with "[H⧖cmp HB1v HB2v]"); iFrame.
     iIntros "(HB1v & HB2v)".
 
-    (* Proof is going to be pretty similar down both branches *)
     case_bool_decide.
-    - wp_pures.
+    - (* Minimum is heap 1, maximum is heap 2 *)
+      wp_pures.
 
-      (* Advanced composition step *)
+      (* Apply advanced composition on the branch of the minimum heap *)
+      wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _
+                  (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b1K b1BL b1BR))))
+                  ((tc_meld_distr cmp (tree_to_list A b1BL) (tree_to_list A b1BR)) ∘ fin_to_bool) with "H⧖b1").
+      { intros. simpl. destruct (fin_to_bool _); simpl; apply tc_meld_nonneg. }
+      { rewrite /= Rplus_0_l.
+        rewrite SeriesC_fin2.
+        simpl.
+        rewrite app_length -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
+        pose P := (cmp_nonneg _ _ cmp).
+        etrans; last eapply tc_meld_ind; [lra|done].
+      }
 
+      iIntros (s) "H⧖".
+      wp_pures.
+      case_bool_decide.
+      + inversion H0.
+        wp_pures.
+        rewrite HeqVrec.
+        wp_apply ("IH" with "[]"); admit.
+      + assert (Z.of_nat(fin_to_nat s) = 1)%Z by admit.
+        wp_pures.
+        rewrite HeqVrec.
+        wp_apply ("IH" with "[]"); admit.
+
+
+
+    (* !! COPY PROOF TO BELOW !! *)
+
+
+    - (* Minimum is heap 2, maximum is heap 1 *)
+      wp_pures.
+
+      (* Apply advanced composition on the branch of the minimum heap *)
+      wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _
+                  (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b2K b2BL b2BR))))
+                  ((tc_meld_distr cmp (tree_to_list A b2BL) (tree_to_list A b2BR)) ∘ fin_to_bool) with "H⧖b2").
+      { intros. simpl. destruct (fin_to_bool _); simpl; apply tc_meld_nonneg. }
+      { rewrite /= Rplus_0_l.
+        rewrite SeriesC_fin2.
+        simpl.
+        rewrite app_length -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
+        pose P := (cmp_nonneg _ _ cmp).
+        etrans; last eapply tc_meld_ind; [lra|done].
+      }
+
+      iIntros (s) "H⧖".
+      wp_pures.
+      case_bool_decide.
+      + inversion H0.
+        wp_pures.
+        rewrite HeqVrec.
+        wp_apply ("IH" with "[]"); admit.
+      + assert (Z.of_nat(fin_to_nat s) = 1)%Z by admit.
+        wp_pures.
+        rewrite HeqVrec.
+        wp_apply ("IH" with "[]"); admit.
   Admitted.
 
 
@@ -427,36 +588,6 @@ Section program.
   Definition meld_heap_remove_cost (cmp : comparator A CostTick) N : R
     := (2 * tc_meld (cmp_cost cmp) N)%R.
 
-  Lemma tc_meld_nonneg (cmp : comparator A CostTick) n : (0 <= (tc_meld (cmp_cost cmp) n))%R.
-  Proof.
-    rewrite /tc_meld.
-    pose P := (cmp_nonneg _ _ cmp).
-    apply Rmult_le_pos; try lra.
-    apply Rplus_le_le_0_compat; try lra.
-    rewrite /Rlog Rdiv_def.
-    apply Rmult_le_pos; [apply ln_nonneg|].
-    pose Q := ln_lt_2.
-    apply Rlt_le.
-    apply Rinv_0_lt_compat.
-    lra.
-  Qed.
-
-  Lemma tc_meld_mono (cmp : comparator A CostTick) m n : (m <= n)%nat -> (tc_meld (cmp_cost cmp) m <= tc_meld (cmp_cost cmp) n)%R.
-  Proof.
-    intros.
-    rewrite /tc_meld.
-    apply Rmult_le_compat_l.
-    {  pose P := (cmp_nonneg _ _ cmp). lra. }
-    apply Rplus_le_compat_l.
-    rewrite /Rlog Rdiv_def.
-    apply Rmult_le_compat_r.
-    { apply Rlt_le, Rinv_0_lt_compat. pose P := ln_lt_2. lra. }
-    destruct m.
-    - rewrite /= ln_0. apply ln_nonneg.
-    - apply Rcomplements.ln_le.
-      + apply pos_INR_S.
-      + by apply le_INR.
-  Qed.
 
 End program.
 
