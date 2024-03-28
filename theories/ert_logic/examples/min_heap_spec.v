@@ -10,6 +10,8 @@ Record comparator (K : Type) (c : Costfun prob_lang) := Comparator {
 
   cmp_cost : R;
 
+  cmp_nonneg : (0 <= cmp_cost)%R ;
+
   cmp_has_key `{!ert_clutchGS Σ c} : K → val → iProp Σ;
 
   wp_cmp `{!ert_clutchGS Σ c} k1 k2 v1 v2 :
