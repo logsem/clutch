@@ -74,6 +74,7 @@ Program Definition Z_list_comparator : comparator (list Z) CostTick :=
      cmp_has_key _ _ := is_Z_list;
      wp_cmp := _;
   |}.
+Next Obligation. lra. Qed.
 Next Obligation.
   iIntros (???????) "(Hzs1 & Hzs2 & _) H".
   by wp_apply (wp_cmp_Z_list with "[$Hzs1 $Hzs2]").
