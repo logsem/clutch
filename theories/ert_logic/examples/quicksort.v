@@ -1201,13 +1201,14 @@ Section program.
         apply Z.lt_le_incl, ppost => //.
   Qed.
 
-  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A CostTick) (Hcmp_nonneg : (0 <=cmp_cost cmp)%R),
+  Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A CostTick) (Hcmp_nonneg : (0 <=cmp_cost cmp)%R)
+                          (Htotal : TotalOrder (cmp_rel cmp)),
     {{{ ⧖ (tc_quicksort (2 * (cmp_cost cmp)) 0 (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
       qs cmp l
     {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ⌝ }}}.
   Proof with wp_pures.
     rewrite /qs.
-    iIntros (xs l cmp Hcmp Φ) "HA1 hφ".
+    iIntros (xs l cmp Hcmp Htotal Φ) "HA1 hφ".
     do 2 wp_pure.
     iLöb as "Hqs" forall (xs l Φ).
     iDestruct "HA1" as "(H⧖ & %hl & %hnd)".
@@ -1245,7 +1246,7 @@ Section program.
     }
 
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ (tc_distr _ xs (2 * cmp_cost cmp) 0%R) with "[$]").
-    { intros. apply tc_distr_nonneg; try lia; try lra; eauto; eapply cmp_rel_total. }
+    { intros. apply tc_distr_nonneg; try lia; try lra; eauto. }
     { rewrite /= tc_distr_equiv; try lra; try lia; try done.
       rewrite Rplus_0_l. rewrite index_space_unfold. done. }
 
