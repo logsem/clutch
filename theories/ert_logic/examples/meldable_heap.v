@@ -12,11 +12,6 @@ Set Default Proof Using "Type*".
 Require Import Lra.
 
 
-Section program.
-
-End program.
-
-
 Section heaps.
 
   (** Binary trees *)
@@ -38,37 +33,6 @@ Section heaps.
         | Nil => []
         | (Node x l r) => [x] ++ (tree_to_list l) ++ (tree_to_list r)
        end.
-
-
-  (** Injections of Binary trees to val *)
-  Fixpoint inject_binarytree `{!Inject A val} (b : BinaryTree) : val
-    := match b with
-        | Nil => NONEV
-        | Node x l r => SOMEV (PairV (inject x) (PairV (inject_binarytree l) (inject_binarytree r)))
-       end.
-
-  Global Program Instance Inject_binarytree `{!Inject A val} : Inject BinaryTree val :=
-    {| inject := inject_binarytree |}.
-  Next Obligation. Admitted.
-
-
-  Fixpoint is_binarytree `{!Inject A val} (b : BinaryTree) (v : val) :=
-      match b with
-      | Nil => v = NONEV
-      | Node x l r => ∃ vl vr, v = SOMEV ((inject x), (vl, vr)) ∧ is_binarytree l vl /\ is_binarytree r vr
-    end.
-
-  Lemma is_binarytree_inject `{!Inject A val} b v :
-      is_binarytree b v ↔ v = (inject b).
-  Proof. Admitted.
-  (*
-      revert v.
-      induction xs as [|x xs IH]; [done|]. split.
-      - destruct 1 as (? & -> & ?). simpl.
-        do 2 f_equal. by apply IH.
-      - intros ->. eexists. split; [done|]. by apply IH.
-    Qed.
-   *)
 
   (** Heaps: Heap-ordered binary trees *)
 
@@ -92,22 +56,42 @@ End heaps.
 Section program.
   Context `{A : Type}.
   Context `{!ert_clutchGS Σ CostTick}.
-  Context `[!Inject A val].
 
+
+  (** Lifts a representation predicate into binary trees *)
+  Fixpoint repr_binarytree (cmp : comparator A CostTick) (b : BinaryTree A) (v : val) : iProp Σ
+    := match b with
+        | Nil =>
+            ⌜ v = NONEV ⌝
+        | Node x l r =>
+            ∃ vv vl vr, ⌜v = SOMEV (PairV vv (PairV vl vr)) ⌝ ∗
+                        cmp_has_key cmp x vv ∗
+                        repr_binarytree cmp l vl ∗
+                        repr_binarytree cmp r vr
+       end.
 
 
   Definition is_meld_heap_val (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
     := ∃ (b : BinaryTree A),
-            ⌜v = (inject b) ⌝ ∗           (* v is an injection of a binary tree b *)
-            ⌜IsHeap A (cmp_rel cmp) b ⌝ ∗ (* ... where b is a heap with respect to cmp *)
-            ⌜L = tree_to_list A b ⌝       (* ... and b's elements are L *).
+            repr_binarytree cmp b v ∗         (* v is a representation of a binary tree b *)
+            ⌜IsHeap A (cmp_rel cmp) b ⌝ ∗   (* ... where b is a heap with respect to cmp *)
+            ⌜L ≡ₚ tree_to_list A b ⌝        (* ... and b's elements are L *).
+
+  Lemma is_meld_heap_val_perm cmp (L1 L2 : list A) v :
+      ⊢ ⌜L1 ≡ₚ L2 ⌝ -∗ (is_meld_heap_val cmp L1 v) -∗ (is_meld_heap_val cmp L2 v).
+  Proof.
+    rewrite /is_meld_heap_val.
+    iIntros "%H [% ?]".
+    rewrite H.
+    iExists _.
+    iFrame.
+  Qed.
 
   Definition is_meld_heap_ref (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
     := ∃ (l : loc) (v' : val),
             ⌜ v = #l ⌝ ∗                  (* v is a location *)
             l ↦ v' ∗                       (* ... which points to a value *)
             is_meld_heap_val cmp L v'       (* ... which is a meld heap *).
-
 
 
   Definition meld_heap_new : val := (λ: "_", ref NONEV)%V.
@@ -144,13 +128,17 @@ Section program.
   Definition meld_heap_insert (c : comparator A CostTick) : val
     := (λ: "ref_h" "v",
           "ref_h" <- (meld_heap_meld c (!"ref_h") (SOME ("v", (NONEV, NONEV)))) ;;
-          "ref_h")%V.
+          #())%V.
+
 
   Definition meld_heap_remove (c : comparator A CostTick) : val
     := (λ: "ref_h",
-          if: (!"ref_h" = NONEV) then #() else
-          ("ref_h" <- (meld_heap_meld c (Fst (Snd !"ref_h")) (Snd (Snd !"ref_h")) ;;
-          #() (* ??? *) )))%V.
+          match: (!"ref_h") with
+            | NONE => NONEV
+            | SOME "hv" =>
+                "ref_h" <- (meld_heap_meld c (Fst (Snd "hv")) (Snd (Snd "hv"))) ;;
+                SOME (Fst "hv")
+          end)%V.
 
 
   (** Time credit accounting *)
@@ -276,12 +264,12 @@ Section program.
     iApply "HΦ".
     rewrite /is_meld_heap_ref.
     iExists _, _; iFrame.
+    iSplit; eauto.
     rewrite /is_meld_heap_val.
+    iExists (Nil A).
     iPureIntro.
     split; auto.
-    exists (Nil A).
-    simpl.
-    do 2 (split; auto).
+    simpl; split; auto.
     constructor.
   Qed.
 
@@ -297,47 +285,70 @@ Section program.
       }}}.
   Proof.
     iLöb as "IH" forall (h1 h2 L1 L2).
-    iIntros (Φ) "((%b1 & -> & %Hb1 & ->) & (%b2 & -> & %Hb2 & ->) & H⧖) HΦ".
+    iIntros (Φ) "((%b1 & HBb1 & %HHb1 & %HLb1) & (%b2 & HBb2 & %HHb2 & %HLb2 ) & H⧖) HΦ".
     rewrite {2}/meld_heap_meld.
     wp_pure.
     remember (rec: "meld" _ _ := _)%V as Vrec.
     wp_pures.
 
-    destruct b1 as [| b1V b1L b1R ].
-    { wp_pures.
+    destruct b1 as [| b1K b1BL b1BR ].
+    { rewrite {1}/repr_binarytree.
+      iDestruct "HBb1" as "->".
+      wp_pures.
       iModIntro; iApply "HΦ".
       iExists (tree_to_list A b2).
-      iPureIntro.
-      split; [eexists b2; auto | by rewrite /=].
+      iSplitL.
+      - rewrite /is_meld_heap_val.
+        iExists _; iFrame.
+        iPureIntro.
+        split; auto.
+      - rewrite HLb1 HLb2 /=. auto.
     }
+    rewrite {1}/repr_binarytree -/repr_binarytree.
+    iDestruct "HBb1" as "(%b1v & %b1vl & %b1vr & -> & HB1v & HRb1L & HRb1R)".
     wp_pures.
 
-    destruct b2 as [| b2V b2L b2R ].
-    { wp_pures.
+    destruct b2 as [| b2K b2BL b2BR ].
+    { rewrite {2}/repr_binarytree.
+      iDestruct "HBb2" as "->".
+      wp_pures.
       iModIntro; iApply "HΦ".
-      iExists (tree_to_list A (Node A b1V b1L b1R)).
-      iPureIntro.
-      split; [eexists (Node A b1V b1L b1R); auto | by rewrite app_nil_r /=].
+      iExists _.
+      iSplitL; last first.
+      - rewrite HLb2 HLb1 /=. auto.
+      - rewrite /is_meld_heap_val.
+        iExists (Node A b1K b1BL b1BR).
+        iSplitL "HB1v HRb1L HRb1R".
+        { simpl. iExists _, _, _; iFrame; auto. }
+        iPureIntro.
+        simpl; split; auto.
+        rewrite app_nil_r.
+        simplify_eq.
+        done.
     }
+    rewrite {3}/repr_binarytree -/repr_binarytree.
+    iDestruct "HBb2" as "(%b2v & %b2vl & %b2vr & -> & HB2v & HRb2L & HRb2R)".
     wp_pures.
-    wp_bind (cmp _ _).
 
     iAssert ( ⧖ (cmp_cost cmp) ∗
-              ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b1V b1L b1R)))) ∗
-              ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b2V b2L b2R)))))%I
+              ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b1K b1BL b1BR)))) ∗
+              ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b2K b2BL b2BR)))))%I
       with "[H⧖]"
       as "(H⧖cmp & H⧖b1 & H⧖b2)".
     { admit. }
 
-    wp_apply ((@wp_cmp _ _ cmp _ _ b1V b2V) with "[H⧖cmp]").
+
+    wp_bind (cmp _ _).
+
+    wp_apply ((@wp_cmp _ _ cmp _ _ b1K b2K) with "[H⧖cmp HB1v HB2v]").
     { (* What is cmp_has_key? *)
       admit. }
-
-    iIntros "(HcmpB1V & HcmpH2V)".
+    iIntros "(HB1v & HB2v)".
 
     (* Proof is going to be pretty similar down both branches *)
     case_bool_decide.
     - wp_pures.
+
       (* Advanced composition step *)
 
   Admitted.
@@ -346,30 +357,32 @@ Section program.
 
 
 
-  Lemma spec_meld_heap_insert cmp h w (l : list A) k :
-      {{{ is_meld_heap_ref cmp l h
-          ∗ ⌜w = inject k ⌝
-          ∗ ⧖ (cmp_cost cmp + tc_meld (cmp_cost cmp) (length l) + tc_meld (cmp_cost cmp) 1 ) }}}
-        meld_heap_insert cmp h w
-      {{{ v0 l', RET v0; is_meld_heap_ref cmp l' v0 ∗ ⌜l' ≡ₚ k :: l⌝ }}}.
+  Lemma spec_meld_heap_insert cmp ref_h w (l : list A) k :
+      {{{ is_meld_heap_ref cmp l ref_h ∗
+          (cmp_has_key cmp k w) ∗
+          ⧖ (cmp_cost cmp + tc_meld (cmp_cost cmp) (length l) + tc_meld (cmp_cost cmp) 1 ) }}}
+        meld_heap_insert cmp ref_h w
+      {{{ l', RET #(); is_meld_heap_ref cmp l' ref_h ∗ ⌜l' ≡ₚ k :: l⌝ }}}.
   Proof.
     rewrite /is_meld_heap_ref.
-    iIntros (Φ) "([%l' [%v' (-> & Hl' & %Hmeld_heap)]] & -> & H⧖) HΦ".
+    iIntros (Φ) "((%ℓ & %h & -> & Hℓ & Hh) & Hw & H⧖) HΦ".
     rewrite /meld_heap_insert.
     wp_pures.
     wp_load.
-    iIntros "Hl'".
-    wp_apply ((spec_meld_heap_meld cmp _ _ l [k]) with "[H⧖]").
-    { iSplitR; [|iSplitR]; last iFrame; auto.
-      iPureIntro.
-      exists (Node A k (Nil A) (Nil A)); simpl.
-      split; auto.
-      split; auto.
-      repeat constructor.
+    iIntros "Hℓ".
+    wp_apply ((spec_meld_heap_meld cmp _ _ l [k]) with "[H⧖ Hh Hw]").
+    { iFrame.
+      rewrite /is_meld_heap_val /=.
+      iExists (Node A k (Nil A) (Nil A)).
+      iSplitL.
+      - rewrite /repr_binarytree. iExists _, _, _; eauto.
+      - iPureIntro.
+        simpl; split; eauto.
+        repeat constructor.
     }
-    iIntros (?) "[% (? & %)]".
+    iIntros (h') "[%l' (Hh' & %Hl')]".
     wp_store.
-    iIntros "?".
+    iIntros "Hℓ".
     wp_pures.
     iModIntro.
     iApply "HΦ".
@@ -378,23 +391,23 @@ Section program.
     iFrame.
     iSplit; eauto.
     (* Needs is_meld_heap_val to only be up to permutation, but otherweise done. *)
-  Admitted.
-
+    iApply (is_meld_heap_val_perm with "[] Hh'").
+    iPureIntro.
+    by rewrite Permutation_cons_append.
+  Qed.
 
 End program.
 
 
 Section interface.
 
-
   Context `{A : Type}.
-  Context `[!Inject A val].
 
   Program Definition meld_heap_spec cmp : (@min_heap A CostTick cmp)
     := {| heap_new := meld_heap_new ;
           heap_insert := meld_heap_insert cmp ;
           heap_remove := meld_heap_remove cmp ;
-          is_min_heap := (fun Σ _ L v => @is_meld_heap_ref A Σ _ _ cmp L v) ; (* What is that unused argument ??? *)
+          is_min_heap := (fun Σ q L v => @is_meld_heap_ref A Σ q cmp L v) ;
           heap_insert_cost := (fun N => ((cmp_cost cmp) + tc_meld (cmp_cost cmp) N + tc_meld (cmp_cost cmp) 1)%R) ;
           heap_remove_cost := tc_meld (cmp_cost cmp) ;
        |}.
@@ -403,19 +416,14 @@ Section interface.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
   Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
   Next Obligation.
-    (* New *)
+    (* New heap *)
     iIntros (? ? ? ?) "_ H".
     wp_apply (spec_meld_heap_new cmp); auto.
-  Admitted.
+  Qed.
   Next Obligation.
-    (* Insert *)
-    iIntros (? ? ? ? ? ? ? ?) "(HA & HB & HC) H".
-    wp_apply (spec_meld_heap_insert with "[HA HB HC]").
-    { iFrame. admit. (* cmp_has_key thing *) }
-  Admitted.
+    iIntros (? ? ? ? ? ? ? ?) "H ?". wp_apply (spec_meld_heap_insert with "H"); iFrame.
+  Qed.
   Next Obligation.
     (* Remove *)
 
