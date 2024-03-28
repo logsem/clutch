@@ -36,7 +36,7 @@ Class min_heap {K c} (cmp : comparator K c) := MinHeap {
   heap_insert_cost_mono n m :
     n ≤ m → (heap_insert_cost n <= heap_insert_cost m)%R;
   heap_remove_cost_mono n m :
-    n ≤ m → (heap_insert_cost n <= heap_insert_cost m)%R;
+    n ≤ m → (heap_remove_cost n <= heap_remove_cost m)%R;
 
   is_min_heap `{!ert_clutchGS Σ c} (l : list K) (v : val) : iProp Σ;
   is_min_heap_proper `{!ert_clutchGS Σ c} ::
