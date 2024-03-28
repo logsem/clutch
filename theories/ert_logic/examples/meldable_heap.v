@@ -114,9 +114,14 @@ Section program.
 
   (* Takes two values (not references!) and melds them *)
   Definition meld_heap_meld (c : comparator A CostTick) : val
-    :=  (rec: "meld" "h1" "h2" :=
-          if: ("h1" = NONEV) then "h2" else
-          if: ("h2" = NONEV) then "h1" else
+    :=  (rec: "meld" "mh1" "mh2" :=
+          match: "mh1" with
+           | NONE => "mh2"
+           | SOME "h1" =>
+
+          match: "mh2" with
+           | NONE => "mh1"
+           | SOME "h2" =>
 
           let: "h'" := if: (c (Fst "h1") (Fst "h2")) then ("h1", "h2") else ("h2", "h1") in
           let: "h_min" := (Fst "h'") in
@@ -129,7 +134,11 @@ Section program.
               (Fst "h_min", ("melded", (Snd (Snd "h_max"))))
             else
               let: "melded" := ("meld" (Snd (Snd "h_min")) "h_max") in
-              (Fst "h_min", (Fst (Snd "h_max"), "melded")))%V.
+              (Fst "h_min", (Fst (Snd "h_max"), "melded"))
+
+          end
+          end
+        )%V.
 
 
   Definition meld_heap_insert (c : comparator A CostTick) : val
@@ -291,36 +300,84 @@ Section program.
     iIntros (Φ) "((%b1 & -> & %Hb1 & ->) & (%b2 & -> & %Hb2 & ->) & H⧖) HΦ".
     rewrite {2}/meld_heap_meld.
     wp_pure.
-    remember (rec: "meld" "h1" "h2" := _)%V as Vrec.
+    remember (rec: "meld" _ _ := _)%V as Vrec.
     wp_pures.
-    case_bool_decide.
+
+    destruct b1 as [| b1V b1L b1R ].
     { wp_pures.
       iModIntro; iApply "HΦ".
       iExists (tree_to_list A b2).
       iPureIntro.
-      split.
-      - eexists b2. auto.
-      - by replace (tree_to_list A b1) with ([] : list A) by admit.
+      split; [eexists b2; auto | by rewrite /=].
     }
     wp_pures.
-    case_bool_decide.
+
+    destruct b2 as [| b2V b2L b2R ].
     { wp_pures.
       iModIntro; iApply "HΦ".
-      iExists (tree_to_list A b1).
+      iExists (tree_to_list A (Node A b1V b1L b1R)).
       iPureIntro.
-      split.
-      - eexists b1. auto.
-      - replace (tree_to_list A b2) with ([] : list A) by admit.
-        by rewrite app_nil_r.
+      split; [eexists (Node A b1V b1L b1R); auto | by rewrite app_nil_r /=].
     }
     wp_pures.
     wp_bind (cmp _ _).
-    wp_pures.
 
-    (* need to destruct the binary tree *)
-    wp_pures.
+    iAssert ( ⧖ (cmp_cost cmp) ∗
+              ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b1V b1L b1R)))) ∗
+              ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b2V b2L b2R)))))%I
+      with "[H⧖]"
+      as "(H⧖cmp & H⧖b1 & H⧖b2)".
+    { admit. }
 
-    Fail wp_apply ((@wp_cmp A CostTick cmp Σ ert_clutchGS0 _ _ _ _ ) with "[]").
+    wp_apply ((@wp_cmp _ _ cmp _ _ b1V b2V) with "[H⧖cmp]").
+    { (* What is cmp_has_key? *)
+      admit. }
+
+    iIntros "(HcmpB1V & HcmpH2V)".
+
+    (* Proof is going to be pretty similar down both branches *)
+    case_bool_decide.
+    - wp_pures.
+      (* Advanced composition step *)
+
+  Admitted.
+
+
+
+
+
+  Lemma spec_meld_heap_insert cmp h w (l : list A) k :
+      {{{ is_meld_heap_ref cmp l h
+          ∗ ⌜w = inject k ⌝
+          ∗ ⧖ (cmp_cost cmp + tc_meld (cmp_cost cmp) (length l) + tc_meld (cmp_cost cmp) 1 ) }}}
+        meld_heap_insert cmp h w
+      {{{ v0 l', RET v0; is_meld_heap_ref cmp l' v0 ∗ ⌜l' ≡ₚ k :: l⌝ }}}.
+  Proof.
+    rewrite /is_meld_heap_ref.
+    iIntros (Φ) "([%l' [%v' (-> & Hl' & %Hmeld_heap)]] & -> & H⧖) HΦ".
+    rewrite /meld_heap_insert.
+    wp_pures.
+    wp_load.
+    iIntros "Hl'".
+    wp_apply ((spec_meld_heap_meld cmp _ _ l [k]) with "[H⧖]").
+    { iSplitR; [|iSplitR]; last iFrame; auto.
+      iPureIntro.
+      exists (Node A k (Nil A) (Nil A)); simpl.
+      split; auto.
+      split; auto.
+      repeat constructor.
+    }
+    iIntros (?) "[% (? & %)]".
+    wp_store.
+    iIntros "?".
+    wp_pures.
+    iModIntro.
+    iApply "HΦ".
+    iSplitL; [| iPureIntro; eauto].
+    iExists _, _.
+    iFrame.
+    iSplit; eauto.
+    (* Needs is_meld_heap_val to only be up to permutation, but otherweise done. *)
   Admitted.
 
 
@@ -333,17 +390,29 @@ Section interface.
   Context `{A : Type}.
   Context `[!Inject A val].
 
-  (* How to properly quantify over Σ? *)
   Program Definition meld_heap_spec cmp : (@min_heap A CostTick cmp)
     := {| heap_new := meld_heap_new ;
           heap_insert := meld_heap_insert cmp ;
           heap_remove := meld_heap_remove cmp ;
+          is_min_heap := (fun Σ _ L v => @is_meld_heap_ref A Σ _ _ cmp L v) ; (* What is that unused argument ??? *)
+          heap_insert_cost := (fun N => ((cmp_cost cmp) + tc_meld (cmp_cost cmp) N + tc_meld (cmp_cost cmp) 1)%R) ;
+          heap_remove_cost := tc_meld (cmp_cost cmp) ;
        |}.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
+  Next Obligation.
+    (* New *)
+    iIntros (? ? ? ?) "_ H".
+    wp_apply spec_meld_heap_new; auto.
+  Qed.
+  Next Obligation.
+    (* Insert *)
+    iIntros (? ? ? ? ? ? ? ?) "(HA & HB & HC) H".
+    wp_apply (spec_meld_heap_insert with "[HA HB HC]").
+    { iFrame. admit. (* cmp_has_key thing *) }
+    iApply "H".
+  Admitted.
+  Next Obligation.
+    (* Remove *)
+
+  Admitted.
 
 End interface.
