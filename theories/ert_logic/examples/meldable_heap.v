@@ -354,13 +354,13 @@ Section program.
   Admitted.
 
 
-
-
+  Definition meld_heap_insert_cost (cmp : comparator A CostTick) N : R
+    := ((cmp_cost cmp) + tc_meld (cmp_cost cmp) N + tc_meld (cmp_cost cmp) 1)%R.
 
   Lemma spec_meld_heap_insert cmp ref_h w (l : list A) k :
       {{{ is_meld_heap_ref cmp l ref_h ∗
           (cmp_has_key cmp k w) ∗
-          ⧖ (cmp_cost cmp + tc_meld (cmp_cost cmp) (length l) + tc_meld (cmp_cost cmp) 1 ) }}}
+          ⧖ (meld_heap_insert_cost cmp (length l)) }}}
         meld_heap_insert cmp ref_h w
       {{{ l', RET #(); is_meld_heap_ref cmp l' ref_h ∗ ⌜l' ≡ₚ k :: l⌝ }}}.
   Proof.
@@ -396,6 +396,12 @@ Section program.
     by rewrite Permutation_cons_append.
   Qed.
 
+
+  Definition meld_heap_remove_cost (cmp : comparator A CostTick) N : R
+    := (2 * tc_meld (cmp_cost cmp) N)%R.
+
+
+
 End program.
 
 
@@ -403,26 +409,40 @@ Section interface.
 
   Context `{A : Type}.
 
+
+
   Program Definition meld_heap_spec cmp : (@min_heap A CostTick cmp)
     := {| heap_new := meld_heap_new ;
           heap_insert := meld_heap_insert cmp ;
           heap_remove := meld_heap_remove cmp ;
           is_min_heap := (fun Σ q L v => @is_meld_heap_ref A Σ q cmp L v) ;
-          heap_insert_cost := (fun N => ((cmp_cost cmp) + tc_meld (cmp_cost cmp) N + tc_meld (cmp_cost cmp) 1)%R) ;
-          heap_remove_cost := tc_meld (cmp_cost cmp) ;
+          heap_insert_cost := meld_heap_insert_cost cmp ;
+          heap_remove_cost := meld_heap_remove_cost cmp ;
        |}.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
-  Next Obligation. Admitted.
+  Next Obligation.
+    (* meld_heap_insert_cost is nonnegative *)
+  Admitted.
+  Next Obligation.
+    (* meld_heap_remove_cost is nonnegative *)
+  Admitted.
+  Next Obligation.
+    (* meld_heap_insert_cost is monotone*)
+  Admitted.
+  Next Obligation.
+    (* meld_heap_remove_cost is monotone *)
+  Admitted.
+  Next Obligation.
+    (* is_meld_heap respects permutations *)
+  Admitted.
   Next Obligation.
     (* New heap *)
     iIntros (? ? ? ?) "_ H".
     wp_apply (spec_meld_heap_new cmp); auto.
   Qed.
   Next Obligation.
-    iIntros (? ? ? ? ? ? ? ?) "H ?". wp_apply (spec_meld_heap_insert with "H"); iFrame.
+    (* Insert *)
+    iIntros (? ? ? ? ? ? ? ?) "H ?".
+    wp_apply (spec_meld_heap_insert with "H"); iFrame.
   Qed.
   Next Obligation.
     (* Remove *)
