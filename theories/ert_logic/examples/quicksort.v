@@ -1184,18 +1184,18 @@ Section program.
 
   Definition part_cr k (xs : list A) : nat := (2 * k * length xs)%nat.
 
-  Local Notation sorted := (StronglySorted Z.le).
 
-  (* Can I delete this lemma? We don't care about functional correctness. *)
-  Fact sorted_append pre post p :
-    sorted pre → sorted post →
-    (∀ x, In x pre → (x <= p)%Z) → (∀ x, In x post → (p < x)%Z) →
-    sorted (pre ++ p :: post).
+  Definition sorted (cmp : comparator A CostTick) := (StronglySorted (cmp_rel cmp)).
+
+  Fact sorted_append cmp pre post p :
+    sorted cmp pre → sorted cmp post →
+    (∀ x, In x pre → (cmp_rel cmp x p)) →
+    (∀ x, In x post → (cmp_rel cmp p x)) →
+    sorted cmp (pre ++ p :: post).
   Proof.
     intros Spre Spost ppre ppost.
     induction pre => /=.
     - apply SSorted_cons, List.Forall_forall => // ; intros.
-      by apply Z.lt_le_incl, ppost.
     - apply SSorted_cons, List.Forall_forall => // ; [| clear IHpre].
       { apply IHpre.
         * apply StronglySorted_inv in Spre. by destruct Spre.
@@ -1204,19 +1204,22 @@ Section program.
       destruct (in_app_or _ _ _ xppp) as [x_pre | x_post] ; clear xppp.
       + apply StronglySorted_inv in Spre. destruct Spre.
         by apply (List.Forall_forall _ pre).
-      + assert (a ≤ p)%Z as ap by (apply ppre ; constructor => //).
-        assert (∀ z, In z (p::post) -> (p ≤ z)%Z) as ppost' ; last first.
-        { etrans => //. apply ppost' => //. }
-        intros z hz.
-        destruct (in_inv hz) as [-> | zpost] => //.
-        apply Z.lt_le_incl, ppost => //.
+      + apply in_inv in x_post.
+        destruct x_post.
+        { rewrite -H0. apply ppre, in_eq. }
+        specialize ppre with a.
+        destruct (cmp_rel_total _ _ cmp) as [? Htr].
+        rewrite /Transitive in Htr.
+        eapply Htr.
+        *  eapply ppre, in_eq.
+        * eapply ppost; auto.
   Qed.
 
   Lemma qs_time_bound : ∀ (xs : list A) (l : val) (cmp : comparator A CostTick) (Hcmp_nonneg : (0 <=cmp_cost cmp)%R)
                           (Htotal : TotalOrder (cmp_rel cmp)),
     {{{ ⧖ (tc_quicksort (2 * (cmp_cost cmp)) 0 (length xs)) ∗ ⌜is_list xs l⌝ ∗ ⌜List.NoDup xs ⌝}}}
       qs cmp l
-    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ⌝ }}}.
+    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ∧ sorted cmp xs' ⌝ }}}.
   Proof with wp_pures.
     rewrite /qs.
     iIntros (xs l cmp Hcmp Htotal Φ) "HA1 hφ".
@@ -1232,7 +1235,11 @@ Section program.
 
     (* Base case *)
     case_bool_decide.
-    { wp_pures; iModIntro. iApply "hφ". destruct xs; [eauto |simpl in *; lia]. }
+    { wp_pures; iModIntro. iApply "hφ". destruct xs; [ |simpl in *; lia].
+      iPureIntro. exists []; split; auto.
+      split; auto.
+      constructor.
+    }
 
     (* Pick a pivot index at random, using advanced composition on the (2 * ...) term*)
     wp_pures.
@@ -1450,7 +1457,7 @@ Section program.
       repeat rewrite app_length /=.
       lia.
     }
-    iIntros (lR) "[% %]".
+    iIntros (lR) "(% & % & % & %)".
 
     wp_apply ("Hqs" $! (List.filter (fun x => negb (bool_decide (cmp_rel cmp xp x))) (xsL ++ xsR)) lv with "[H⧖L]").
     { iClear "Hqs".
@@ -1508,9 +1515,8 @@ Section program.
             destruct (Htrich a xp) as [? | [? | ?] ].
             -- by apply strict_include.
             -- simplify_eq.
-            -- destruct H4 as [? ?].
-               exfalso. by apply H3.
-
+            -- exfalso. apply H5.
+               by apply strict_include.
 
 
         + apply filter_ext_in.
@@ -1541,11 +1547,10 @@ Section program.
             destruct (Htrich a xp) as [? | [? | ?] ].
             -- by apply strict_include.
             -- simplify_eq.
-            -- destruct H4 as [? ?].
-               exfalso. by apply H3.
+            -- exfalso. apply H5. by apply strict_include.
 
     }
-    iIntros (lL) "[% %]".
+    iIntros (lL) "(% & % & % & %)".
     wp_pures.
 
     iClear "Hqs".
