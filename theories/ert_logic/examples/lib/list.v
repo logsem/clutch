@@ -389,12 +389,12 @@ Section list_specs.
   Lemma wp_list_iter_invariant' Φ1 Φ2 (Ψ: list A -> iProp Σ) P E l lv handler
          lrest:
     (∀ (a : A) l',
-        {{{ ⌜∃ b, lrest ++ l = l' ++ a :: b⌝ ∗ P ∗ Ψ l' ∗ Φ1 a }}}
+        {{{ ⌜∃ b, lrest ++ l = l' ++ a :: b⌝ ∗ P ∗ Ψ l' ∗ Φ1 (length l') a }}}
           (Val handler) (inject a) @ E
-        {{{v, RET v; P ∗ Ψ (l' ++ [a]) ∗ Φ2 a }}}) -∗
-    {{{ ⌜is_list l lv⌝ ∗ P ∗ Ψ lrest ∗ [∗ list] a∈l, Φ1 a}}}
+        {{{v, RET v; P ∗ Ψ (l' ++ [a]) ∗ Φ2 (length l') a }}}) -∗
+    {{{ ⌜is_list l lv⌝ ∗ P ∗ Ψ lrest ∗ [∗ list] i ↦ a ∈ l, Φ1 (length lrest + i) a}}}
       list_iter (Val handler) lv @ E
-    {{{ RET #(); P ∗ Ψ (lrest++l) ∗ [∗ list] a∈l, Φ2 a }}}.
+    {{{ RET #(); P ∗ Ψ (lrest++l) ∗ [∗ list] i ↦ a ∈ l, Φ2 (length lrest + i) a }}}.
   Proof.
     rewrite /list_iter.
     iInduction l as [|a l'] "IH" forall (lv lrest);
@@ -406,6 +406,7 @@ Section list_specs.
       destruct Ha as [lv' [Hlv Hlcoh]]; subst.
       wp_pures.
       iDestruct (big_sepL_cons with "HΦ") as "[Ha Hl']".
+      rewrite Nat.add_0_r.
       wp_apply ("Helem" with "[HP Hl Ha]"); iFrame; eauto.
       iIntros (v) "(HP & Ha & HΦ)". simpl. wp_seq.
       iApply ("IH" $! lv' (lrest ++ [a]) with "[] [$HP Ha Hl']"); eauto.
@@ -413,19 +414,29 @@ Section list_specs.
         wp_apply ("Helem" with "[HP Hlrest' HΦ]"); iFrame.
         iPureIntro. destruct Hin' as [b Hin']. exists b.
         by rewrite -app_assoc in Hin'. }
-      { iSplit; eauto. iFrame. }
-      iNext. iIntros "(HP & Hl)". iApply "Hk". iFrame.
-        by rewrite -app_assoc /=.
+      { iSplit; eauto. iFrame.
+        rewrite app_length /=.
+        iApply (big_sepL_impl with "Hl'").
+        iIntros "!#" (???) "Hl".
+        rewrite -Nat.add_1_l Nat.add_assoc //. }
+      iNext. iIntros "(HP & Hl & Hlp)". iApply "Hk". iFrame.
+      rewrite -app_assoc /= Nat.add_0_r app_length /=.
+      iFrame.
+      iApply (big_sepL_impl with "Hlp").
+      iIntros "!#" (???) "Hl".
+      rewrite -Nat.add_assoc.
+      replace (1 + k) with (S k) by lia.
+      done.
   Qed.
 
   Lemma wp_list_iter_invariant Φ1 Φ2 (Ψ: list A -> iProp Σ) P E l lv handler :
     (∀ (a : A) l',
-        {{{ ⌜∃ b, l = l' ++ a :: b⌝ ∗ P ∗ Ψ l' ∗ Φ1 a }}}
+        {{{ ⌜∃ b, l = l' ++ a :: b⌝ ∗ P ∗ Ψ l' ∗ Φ1 (length l') a }}}
           (Val handler) (Val (inject a)) @ E
-        {{{v, RET v; P ∗ Ψ (l' ++ [a]) ∗ Φ2 a }}}) -∗
-    {{{ ⌜is_list l lv⌝ ∗ P ∗ Ψ [] ∗ [∗ list] a∈l, Φ1 a}}}
+        {{{v, RET v; P ∗ Ψ (l' ++ [a]) ∗ Φ2 (length l') a }}}) -∗
+    {{{ ⌜is_list l lv⌝ ∗ P ∗ Ψ [] ∗ [∗ list] i ↦ a ∈l, Φ1 i a}}}
       list_iter (Val handler) lv @ E
-    {{{ RET #(); P ∗ Ψ l ∗ [∗ list] a∈l, Φ2 a}}}.
+    {{{ RET #(); P ∗ Ψ l ∗ [∗ list] i ↦ a ∈ l, Φ2 i a}}}.
   Proof.
     replace l with ([]++l); last by apply app_nil_l.
     iApply wp_list_iter_invariant'.
@@ -1201,7 +1212,7 @@ Section list_specs_extra.
      + rewrite -/list_suf.
        wp_pures.
        replace (n-1)%Z with (Z.of_nat (n-1)); last first.
-       { assert (n≠0); [naive_solver|lia]. 
+       { assert (n≠0); [naive_solver|lia].
        }
        iApply "IH"; try done.
        iModIntro. iIntros. iApply "HΦ".
@@ -1212,7 +1223,7 @@ Section list_specs_extra.
   Qed.
 
 
-  
+
   Lemma wp_list_inf_ofs E (n ofs:nat) l lv:
     {{{ ⌜is_list l lv⌝ }}}
       list_inf_ofs #n #ofs lv @ E
@@ -1229,7 +1240,7 @@ Section list_specs_extra.
   Qed.
 
 
-  
+
   Lemma wp_list_inf E (i j:nat) l lv:
     i<=j->
     {{{ ⌜is_list l lv⌝ }}}
@@ -1243,5 +1254,5 @@ Section list_specs_extra.
     wp_apply wp_list_inf_ofs; first done.
     done.
   Qed.
-  
+
 End list_specs_extra.

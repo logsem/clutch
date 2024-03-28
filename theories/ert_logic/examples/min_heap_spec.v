@@ -44,7 +44,7 @@ Class min_heap {K c} (cmp : comparator K c) := MinHeap {
   is_min_heap_proper `{!ert_clutchGS Σ c} ::
     Proper ((≡ₚ) ==> (=) ==> (≡)) is_min_heap;
 
-    wp_heap_new `{!ert_clutchGS Σ c} :
+  wp_heap_new `{!ert_clutchGS Σ c} :
     {{{ True }}}
       heap_new #()
     {{{ v, RET v; is_min_heap [] v }}};
