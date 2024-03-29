@@ -138,6 +138,90 @@ Section program.
        end.
 
 
+  (* If x is heap ordered with respect to a node, it is heap ordered with respect to it's left child *)
+  Lemma heap_ordered_strong_L (cmp : comparator A CostTick)  :
+      ∀ x k h1 h2,
+          (IsHeap A (cmp_rel cmp) (Node A k h1 h2)) ->
+          (cmp_rel cmp x k) ->
+          (HeapOrdered A (cmp_rel cmp) x h1).
+  Proof.
+    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+    intros x k h1 h2.
+    generalize dependent k.
+    generalize dependent h2.
+    induction h1 as [|k' l' IHl' r' IHr'].
+    - intros. by simpl.
+    - intros h' k.
+      simpl in *.
+      intros ? ?.
+      inversion H.
+      simplify_eq; simpl in *.
+      eapply (Htrans _ k); eauto.
+  Qed.
+
+  Lemma heap_ordered_strong_R (cmp : comparator A CostTick)  :
+      ∀ x k h1 h2,
+          (IsHeap A (cmp_rel cmp) (Node A k h1 h2)) ->
+          (cmp_rel cmp x k) ->
+          (HeapOrdered A (cmp_rel cmp) x h2).
+  Proof.
+    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+    intros x k h1 h2.
+    generalize dependent k.
+    generalize dependent h1.
+    induction h2 as [|k' l' IHl' r' IHr'].
+    - intros. by simpl.
+    - intros h' k.
+      simpl in *.
+      intros ? ?.
+      inversion H.
+      simplify_eq; simpl in *.
+      eapply (Htrans _ k); eauto.
+  Qed.
+
+
+  (* Now we can prove that, if x is less than the root of a heap, it is less than all elements of the heap *)
+  Lemma heap_ordered_strong_elems (cmp : comparator A CostTick) :
+      forall x h, (IsHeap A (cmp_rel cmp) h) ->
+             (HeapOrdered A (cmp_rel cmp) x h) ->
+             (forall x', In x' (tree_to_list _ h) -> (cmp_rel cmp x x')).
+  Proof.
+    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+    intros x.
+    induction h.
+    - simpl. intros. done.
+    - intros Hhp Hx x' Hx'.
+      simpl in Hx.
+      (* x' is either equal to the root, in the left branch, or in the right branch *)
+      simpl in Hx'.
+      destruct Hx' as [-> | Hx']; last (apply in_app_or in Hx'; destruct Hx' as [Hx' | Hx']).
+      + done.
+      + inversion Hhp; simplify_eq.
+        apply IHh1; try auto.
+        eapply heap_ordered_strong_L; eauto.
+      + inversion Hhp; simplify_eq.
+        apply IHh2; try auto.
+        eapply heap_ordered_strong_R; eauto.
+  Qed.
+
+
+  (* If x is less than all elements in a heap, x is heap orderd with repsect to that heap *)
+  Lemma heap_ordered_conv_elems (cmp : comparator A CostTick) h :
+      forall x, (forall x', In x' (tree_to_list _ h) -> cmp_rel cmp x x') ->
+           (HeapOrdered A (cmp_rel cmp) x h).
+  Proof.
+    intros.
+    destruct h; first done.
+    simpl.
+    apply H.
+    simpl.
+    left; done.
+  Qed.
+
+
+
+
+
   Definition is_meld_heap_val (cmp : comparator A CostTick) (L : list A) (v : val) : iProp Σ
     := ∃ (b : BinaryTree A),
             repr_binarytree cmp b v ∗         (* v is a representation of a binary tree b *)
@@ -161,23 +245,6 @@ Section program.
             is_meld_heap_val cmp L v'       (* ... which is a meld heap *).
 
 
-  (* To finish off the correctness proof, I need to relate
-     comparisons to the root node of a binary tree to comparisons
-     against all elements.
-
-    Somthing like the below should be true.
-
-   *)
-
-  Lemma elems_is_heap_ordered (cmp : comparator A CostTick) k h :
-      (forall x, In x (tree_to_list A h) -> (cmp_rel cmp k x)) ->
-      (HeapOrdered A (cmp_rel cmp) k h).
-  Proof. Abort.
-
-  Lemma heap_root_is_least (cmp : comparator A CostTick) k h1 h2 :
-      (IsHeap A (cmp_rel cmp) (Node A k h1 h2)) ->
-      forall x, (In x (tree_to_list A (Node A k h1 h2))) -> cmp_rel cmp k x.
-  Proof. Abort.
 
 
   Definition meld_heap_new : val := (λ: "_", ref NONEV)%V.
@@ -500,6 +567,9 @@ Section program.
           ∃ L, is_meld_heap_val cmp L v ∗ ⌜L ≡ₚ L1 ++ L2 ⌝
       }}}.
   Proof.
+    assert (Hanti : AntiSymm eq (cmp_rel cmp)) by admit.
+    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+
     iLöb as "IH" forall (h1 h2 L1 L2).
     iIntros (Φ) "((%b1 & HBb1 & %HHb1 & %HLb1) & (%b2 & HBb2 & %HHb2 & %HLb2 ) & H⧖) HΦ".
     rewrite {2}/meld_heap_meld.
@@ -614,20 +684,22 @@ Section program.
           simpl; split; eauto.
 
 
+          (* Prove that the resulting value is a heap *)
           clear HeqVrec.
-          simplify_eq.
-          inversion HHb1; simplify_eq.
-          constructor; eauto.
-          (*
-          apply (elems_is_heap_ordered).
-          intros x Hx.
-          rewrite -HL' HL HLb2 in Hx.
-          apply in_app_or in Hx; destruct Hx as [Hx | Hx].
-          --
-          --
-           *)
+          constructor; try done.
+          -- inversion HHb1. done.
+          -- apply heap_ordered_conv_elems.
+             intros x' Hx'.
+             rewrite -HL' HL HLb2 in Hx'.
+             apply in_app_or in Hx'; destruct Hx'.
+             --- inversion HHb1; simplify_eq.
+                 eapply (heap_ordered_strong_elems _ _ b1BL); auto.
+             --- eapply Htrans; first eauto.
+                 apply (heap_ordered_strong_elems _ _ (Node A b2K b2BL b2BR)); auto.
+                 inversion HHb2; simplify_eq.
+                 apply Hrefl.
+          -- inversion HHb1. done.
 
-          admit.
         * iPureIntro; eauto.
           rewrite -HL' HL HLb1 /=.
           rewrite -?app_assoc.
@@ -728,7 +800,27 @@ Section program.
           iSplitL. { iExists _, _, _; iFrame; eauto. }
           iPureIntro.
           simpl; split; eauto.
-          admit.
+
+
+          (* Prove that the resulting value is a heap *)
+          clear HeqVrec.
+          assert (cmp_rel cmp b2K b1K).
+          { rewrite /AntiSymm in Hanti. admit. }
+
+          constructor; try done.
+          -- inversion HHb2. done.
+          -- apply heap_ordered_conv_elems.
+             intros x' Hx'.
+             rewrite -HL' HL HLb1 in Hx'.
+             apply in_app_or in Hx'; destruct Hx'.
+             --- inversion HHb2; simplify_eq.
+                 eapply (heap_ordered_strong_elems _ _ b2BL); auto.
+             --- eapply Htrans; eauto.
+                 apply (heap_ordered_strong_elems _ _ (Node A b1K b1BL b1BR)); auto.
+                 inversion HHb1; simplify_eq.
+                 apply Hrefl.
+          -- inversion HHb2. done.
+
         * iPureIntro; eauto.
           rewrite -HL' HL HLb2 /=.
           rewrite (Permutation_app_comm L1) -?app_assoc /=.
