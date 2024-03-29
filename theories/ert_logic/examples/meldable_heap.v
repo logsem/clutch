@@ -771,7 +771,7 @@ Section program.
 
 
   Definition meld_heap_remove_cost (cmp : comparator A CostTick) N : R
-    := (2 * tc_meld (cmp_cost cmp) N)%R.
+    := (cmp_cost cmp + 2 * tc_meld (cmp_cost cmp) N)%R.
 
 
   Lemma spec_meld_heap_remove (cmp : comparator A CostTick) ref_h l :
@@ -782,7 +782,59 @@ Section program.
            ∨ (∃ (k : A) (u : val) (l' : list A), ⌜w = InjRV u⌝ ∗ ⌜l ≡ₚ k :: l'⌝ ∗ cmp_has_key cmp k u ∗
                 ⌜Forall (cmp_rel cmp k) l⌝ ∗ is_meld_heap_ref cmp l' ref_h)
       }}}.
-Proof. Admitted.
+  Proof.
+    iIntros (Φ) "((%ℓ & %h & -> & Hℓ & (%b & Hb & %Hh & %Hl)) & H⧖) HΦ".
+    rewrite /meld_heap_remove.
+    wp_pures.
+    wp_load; iIntros "Hℓ".
+    destruct b; simpl.
+    - iDestruct "Hb" as "->".
+      wp_pures.
+      iModIntro.
+      iApply "HΦ".
+      iLeft.
+      simpl in *.
+      iSplit; eauto.
+      iSplit; first (apply Permutation_nil_r in Hl; eauto).
+      rewrite /is_meld_heap_ref.
+      iExists _, _.
+      iFrame.
+      iSplit; eauto.
+      rewrite /is_meld_heap_val.
+      iExists (Nil A).
+      simpl.
+      iSplit; eauto.
+    - iDestruct "Hb" as "(%vv & %vl & %vr & -> & Hvv & Hvl & Hvr )".
+      wp_pures.
+      simpl in Hl.
+      wp_apply ((spec_meld_heap_meld cmp _ _ (tree_to_list A b1) (tree_to_list A b2)) with "[H⧖ Hvl Hvr]").
+      { inversion Hh.
+        iSplitL "Hvl". { rewrite /is_meld_heap_val. iExists b1; iFrame. iPureIntro. eauto. }
+        iSplitL "Hvr". { rewrite /is_meld_heap_val. iExists b2; iFrame. iPureIntro. eauto. }
+        rewrite /meld_heap_remove_cost /=.
+        iApply (etc_weaken with "H⧖").
+        split; first admit.
+        (* Easiest to use mono, probably *)
+        admit.
+      }
+      iIntros (h') "(%L & (%b & Hb & %Hb_heap & %HL) & %HL')".
+      wp_store.
+      iIntros "Hℓ".
+      wp_pures.
+      iModIntro; iApply "HΦ".
+      iRight.
+      iExists _, _, L.
+      iFrame.
+      iSplit; eauto.
+      iSplit. { iPureIntro. rewrite Hl HL'. done. }
+      rewrite /is_meld_heap_ref.
+      iSplit.
+      + (* Use one of those lemmas which relate the head of a heap to the body *)
+        admit.
+      + iExists _, _; iFrame.
+        rewrite /is_meld_heap_val.
+        iSplit; eauto.
+  Admitted.
 
 
 
