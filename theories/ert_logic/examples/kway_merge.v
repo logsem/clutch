@@ -1,4 +1,3 @@
-From Coquelicot Require Import Hierarchy.
 From stdpp Require Import sorting.
 From iris.proofmode Require Export proofmode.
 From clutch.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
@@ -111,8 +110,8 @@ Section kway_merge.
       | SOME "zs" =>
           match: list_head "zs" with
           | NONE => "repeat_remove" "h" "out"
-          | SOME "h" =>
-              "out" <- list_cons "h" !"out";;
+          | SOME "z" =>
+              "out" <- list_cons "z" !"out";;
               heap_insert "h" (list_tail "zs");;
               "repeat_remove" "h" "out"
           end
@@ -165,6 +164,13 @@ Section kway_merge_spec.
     rewrite /repeat_remove_cost.
   Admitted.
 
+  Global Instance repeat_remove_cost_proper :
+    Proper ((≡ₚ) ==> (=)) repeat_remove_cost.
+  Proof.
+    rewrite /repeat_remove_cost.
+    by intros ?? ->%Permutation_length.
+  Qed.
+
   Lemma repeat_remove_cost_length zss1 zss2 :
     length zss1 = length zss2 →
     repeat_remove_cost zss1 = repeat_remove_cost zss2.
@@ -191,19 +197,24 @@ Section kway_merge_spec.
 
   Local Hint Resolve repeat_remove_cost_nonneg : core.
 
+  (* TODO: move *)
+  Lemma Permutation_app_concat {A} (xs : list A) xss yss :
+    xs :: xss ≡ₚ yss → xs ++ concat xss ≡ₚ concat yss.
+  Proof. by intros <-. Qed.
+
   Local Lemma wp_repeat_remove_aux (zss : list (list Z)) zs0 h out :
     Forall (Sorted Z.le) zss →
     Sorted (flip Z.le) zs0 →
-    (∀ z, z ∈ zs0 → Forall (Z.le z) (concat zss)) →
+    Forall (λ z, Forall (Z.le z) (concat zss)) zs0 →
     {{{ ⧖ (repeat_remove_cost zss) ∗ is_min_heap zss h ∗ out ↦ inject zs0 }}}
       repeat_remove h #out
     {{{ zs', RET #();
         is_min_heap [] h ∗ out ↦ inject (zs0 ++ zs') ∗
-          (* TODO: the permutation is not true if [zs'] contains empty lists! *)
         ⌜zs' ≡ₚ concat zss⌝ ∗ ⌜Sorted (flip Z.le) (zs0 ++ zs')⌝}}}.
   Proof.
     iIntros (Hzss Hzs0 Hle Ψ) "(Hc & Hh & Hout) HΨ".
-    iInduction (zss) as [] "IH" using list_length_ind forall (zs0 Hle Hzss Hzs0).
+    (* iInduction (zss) as [] "IH" using list_length_ind forall (zs0 Hle Hzss Hzs0). *)
+    iLöb as "IH" forall (zss zs0 Hle Hzss Hzs0).
     destruct zss.
     - wp_rec; wp_pures.
       wp_apply (wp_heap_remove with "[$Hh Hc]").
@@ -216,24 +227,55 @@ Section kway_merge_spec.
     - wp_rec; wp_pures.
       iDestruct (repeat_remove_cost_cons with "Hc") as "(Hr & Hi & Hzss)".
       wp_apply (wp_heap_remove with "[$Hh $Hr]").
-      iIntros (w) "[(_ & % & _) | (%zs' & %u & %zss' & -> & %Hp & [%Hu %] & %Hs & Hh)]";
+      iIntros (w) "[(_ & % & _) | (%zs' & %u & %zss' & -> & %Hp & [%Hu %Hus] & %Hs & Hh)]";
         simplify_eq/=.
       wp_pures.
+
+      (** A bunch of facts we'll in both cases below *)
+      rewrite Hp !Forall_cons in Hs, Hzss.
+      rewrite -concat_cons in Hle.
+      setoid_rewrite Hp in Hle; simpl in Hle.
+      destruct Hs as [? ?], Hzss as [? ?].
+      assert (length zss = length zss') as Hlen.
+      { by apply Permutation_length in Hp as [=]. }
+      rewrite (repeat_remove_cost_length _ zss') //.
+
       wp_apply (wp_list_head with "[//]").
       iIntros (w) "[[-> ->] | (% & % & -> & ->)]".
       + wp_pures.
-        assert (length zss = length zss').
-        { by apply Permutation_length in Hp as [=]. }
-        rewrite (repeat_remove_cost_length _ zss') //.
-        wp_apply ("IH" with "[] [] [] [] Hzss Hh Hout").
-        { iPureIntro. lia. }
-        { admit. }
-        { admit. }
-        { done. }
+        wp_apply ("IH" with "[//] [//] [//] Hzss Hh Hout").
+        (* { iPureIntro. lia. } *)
         iIntros (?) "(? & ?& %Heqp & %)".
         iApply "HΨ". iFrame. iSplit; [|done].
         iPureIntro.
-        rewrite Heqp.
+        rewrite Heqp -concat_cons Hp //.
+      + wp_pures.
+        wp_load; iIntros "Hout".
+        wp_apply (wp_list_cons a zs0).
+        { rewrite is_list_inject //. }
+        iIntros (r Hr).
+        wp_store; iIntros "Hout".
+        wp_pures.
+        wp_apply (wp_list_tail _ _ (a :: l') with "[//]").
+        simpl.
+        iIntros (w Hw).
+        rewrite Hlen.
+        wp_apply (wp_heap_insert with "[$Hh $Hi]").
+        { iSplit; [done|]. by apply Sorted_inv in Hus as [? ?]. }
+        iIntros (zss'') "[Hh %Hzss']".
+        wp_pures.
+        eassert (r = inject (_ :: zs0)) as -> by by apply is_list_inject.
+        wp_apply ("IH" with "[] [] [] [Hzss] Hh Hout").
+        { iPureIntro. apply Forall_cons; split.
+          - admit.
+          - eapply Forall_impl; [done|].
+            intros z => /=.
+            rewrite -concat_cons -Hzss' Forall_cons.
+            by intros []. }
+        { admit. }
+        { admit. }
+        { setoid_rewrite Hzss'. (* we need some more credits *)
+
   Admitted.
 
   Lemma wp_repeat_remove h out (zss : list (list Z)) :
@@ -260,7 +302,6 @@ Section kway_merge_spec.
     iInduction xs as [|x xs] "IH" using rev_ind; [auto|].
     rewrite app_length /=.
     rewrite Nat.add_1_r sum_seq_S.
-    rewrite /Hierarchy.plus /=.
     rewrite etc_split; [|auto..].
     rewrite big_sepL_snoc.
     iIntros "[? $]".
