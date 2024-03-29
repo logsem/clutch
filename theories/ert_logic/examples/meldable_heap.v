@@ -736,7 +736,24 @@ Section program.
           iSplitL. { iExists _, _, _; iFrame; eauto. }
           iPureIntro.
           simpl; split; eauto.
-          admit.
+
+
+          (* Prove that the resulting value is a heap *)
+          clear HeqVrec.
+          inversion HHb1.
+          constructor; try done.
+          apply heap_ordered_conv_elems.
+          intros x' Hx'.
+          simplify_eq.
+          rewrite -HL' HL HLb2 in Hx'.
+          apply in_app_or in Hx'; destruct Hx'.
+          -- inversion HHb1; simplify_eq.
+              eapply (heap_ordered_strong_elems _ _ b1BR); auto.
+          -- eapply Htrans; first eauto.
+             apply (heap_ordered_strong_elems _ _ (Node A b2K b2BL b2BR)); auto.
+             inversion HHb2; simplify_eq.
+             apply Hrefl.
+
         * iPureIntro; eauto.
           rewrite -HL' HL HLb1 /=.
           rewrite -?app_assoc.
@@ -804,7 +821,17 @@ Section program.
           (* Prove that the resulting value is a heap *)
           clear HeqVrec.
           assert (cmp_rel cmp b2K b1K).
-          { rewrite /AntiSymm in Hanti. admit. }
+          {
+            (* err... can you do this with just antisymetry? or do we need totality too? *)
+            (* What if if B2K and B1K are not comparable? *)
+            rewrite /AntiSymm in Hanti.
+
+            destruct ((cmp_rel_dec _ _ cmp) b1K b2K).
+            - exfalso. by apply H.
+            - (* Decidability doesn't even help, we wstill have this roblematic case *)
+
+            rewrite /AntiSymm in Hanti.
+            admit. }
 
           constructor; try done.
           -- inversion HHb2. done.
@@ -858,7 +885,27 @@ Section program.
           iSplitL. { iExists _, _, _; iFrame; eauto. }
           iPureIntro.
           simpl; split; eauto.
-          admit.
+
+
+          assert (cmp_rel cmp b2K b1K).
+          { (*See above*) admit. }
+
+          (* Prove that the resulting value is a heap *)
+          clear HeqVrec.
+          inversion HHb2.
+          constructor; try done.
+          apply heap_ordered_conv_elems.
+          intros x' Hx'.
+          simplify_eq.
+          rewrite -HL' HL HLb1 in Hx'.
+          apply in_app_or in Hx'; destruct Hx'.
+          -- inversion HHb2; simplify_eq.
+              eapply (heap_ordered_strong_elems _ _ b2BR); auto.
+          -- eapply Htrans; first eauto.
+             apply (heap_ordered_strong_elems _ _ (Node A b1K b1BL b1BR)); auto.
+             inversion HHb1; simplify_eq.
+             apply Hrefl.
+
         * iPureIntro; eauto.
           rewrite -HL' HL HLb2 /=.
           rewrite -?app_assoc.
