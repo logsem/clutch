@@ -94,6 +94,25 @@ Section program.
             is_meld_heap_val cmp L v'       (* ... which is a meld heap *).
 
 
+  (* To finish off the correctness proof, I need to relate
+     comparisons to the root node of a binary tree to comparisons
+     against all elements.
+
+    Somthing like the below should be true.
+
+   *)
+
+  Lemma elems_is_heap_ordered (cmp : comparator A CostTick) k h :
+      (forall x, In x (tree_to_list A h) -> (cmp_rel cmp k x)) ->
+      (HeapOrdered A (cmp_rel cmp) k h).
+  Proof. Abort.
+
+  Lemma heap_root_is_least (cmp : comparator A CostTick) k h1 h2 :
+      (IsHeap A (cmp_rel cmp) (Node A k h1 h2)) ->
+      forall x, (In x (tree_to_list A (Node A k h1 h2))) -> cmp_rel cmp k x.
+  Proof. Abort.
+
+
   Definition meld_heap_new : val := (λ: "_", ref NONEV)%V.
 
   (* Takes two values (not references!) and melds them *)
@@ -114,13 +133,11 @@ Section program.
 
           if: (rand #1 = #0)
             then (* Meld into the left branch of h_min *)
-              let: "melded" := ("meld" (Fst (Snd "h_min")) "h_max") in
-              (Fst "h_min",
-                 ("melded", (Snd (Snd "h_max"))))
+              let: "melded" := ("meld" (Fst (Snd "h_min")) (SOME "h_max")) in
+              SOME (Fst "h_min", ("melded", (Snd (Snd "h_min"))))
             else (* Meld into the right branch of h_min *)
-              let: "melded" := ("meld" (Snd (Snd "h_min")) "h_max") in
-              (Fst "h_min",
-                 (Fst (Snd "h_max"), "melded"))
+              let: "melded" := ("meld" (Snd (Snd "h_min")) (SOME "h_max")) in
+              SOME (Fst "h_min",(Fst (Snd "h_min"), "melded"))
 
           end
           end
@@ -410,7 +427,9 @@ Section program.
   Qed.
 
   Definition tc_meld_distr (cmp : comparator A _) (LL LR : list A) (b : bool) : R :=
-    if b then tc_meld (cmp_cost cmp) (length LR) else tc_meld (cmp_cost cmp) (length LL).
+    if b
+      then (cmp_cost cmp + tc_meld (cmp_cost cmp) (length LR))%R
+      else (cmp_cost cmp + tc_meld (cmp_cost cmp) (length LL))%R.
 
   Lemma spec_meld_heap_meld cmp h1 h2 (L1 L2 : list A) :
       {{{ (is_meld_heap_val cmp L1 h1) ∗
@@ -486,31 +505,115 @@ Section program.
       wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _
                   (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b1K b1BL b1BR))))
                   ((tc_meld_distr cmp (tree_to_list A b1BL) (tree_to_list A b1BR)) ∘ fin_to_bool) with "H⧖b1").
-      { intros. simpl. destruct (fin_to_bool _); simpl; apply tc_meld_nonneg. }
+      { intros. simpl.
+        destruct (fin_to_bool _); simpl;
+          apply Rplus_le_le_0_compat; try apply cmp_nonneg; try apply tc_meld_nonneg.
+      }
       { rewrite /= Rplus_0_l.
         rewrite SeriesC_fin2.
         simpl.
         rewrite app_length -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
         pose P := (cmp_nonneg _ _ cmp).
-        etrans; last eapply tc_meld_ind; [lra|done].
+        etrans; last eapply tc_meld_ind; [|done].
+        lra.
       }
 
       iIntros (s) "H⧖".
       wp_pures.
       case_bool_decide.
+
+
       + inversion H0.
         wp_pures.
+
         rewrite HeqVrec.
-        wp_apply ("IH" with "[]"); admit.
+        wp_apply ("IH" with "[HRb1L H⧖ H⧖b2 HB2v HRb2L HRb2R]").
+        { iSplitL "HRb1L".
+          { iExists _; iFrame. inversion HHb1; auto. }
+          iSplitL "HB2v HRb2L HRb2R".
+          { rewrite {4}/is_meld_heap_val.
+            iExists _; iFrame.
+            iSplitL; auto; simpl.
+            iExists _, _, _; iFrame. eauto.
+          }
+          simpl.
+          replace (fin_to_bool s) with false by admit.
+          simpl.
+          iApply etc_combine; iFrame.
+          iApply (etc_irrel with "H⧖b2").
+          by rewrite HLb2.
+        }
+        iClear "IH".
+
+        iIntros (v) "(%L & (%hR & HhRR & %HhR & %HL') & %HL)".
+        wp_pures.
+        iModIntro; iApply "HΦ".
+        iExists _.
+        iSplitL.
+        * rewrite /is_meld_heap_val.
+          iExists (Node A b1K hR b1BR).
+          iSplitL. { iExists _, _, _; iFrame; eauto. }
+          iPureIntro.
+          simpl; split; eauto.
+
+
+          clear HeqVrec.
+          simplify_eq.
+          inversion HHb1; simplify_eq.
+          constructor; eauto.
+          (*
+          apply (elems_is_heap_ordered).
+          intros x Hx.
+          rewrite -HL' HL HLb2 in Hx.
+          apply in_app_or in Hx; destruct Hx as [Hx | Hx].
+          --
+          --
+           *)
+
+          admit.
+        * iPureIntro; eauto.
+          rewrite -HL' HL HLb1 /=.
+          rewrite -?app_assoc.
+          apply perm_skip, Permutation_app_head, Permutation_app_comm.
+
+
       + assert (Z.of_nat(fin_to_nat s) = 1)%Z by admit.
         wp_pures.
+
         rewrite HeqVrec.
-        wp_apply ("IH" with "[]"); admit.
+        wp_apply ("IH" with "[HRb1R H⧖ H⧖b2 HB2v HRb2L HRb2R]").
+        { iSplitL "HRb1R".
+          { iExists _; iFrame. inversion HHb1; auto. }
+          iSplitL "HB2v HRb2L HRb2R".
+          { rewrite {4}/is_meld_heap_val.
+            iExists _; iFrame.
+            iSplitL; auto; simpl.
+            iExists _, _, _; iFrame. eauto.
+          }
+          simpl.
+          replace (fin_to_bool s) with true by admit.
+          simpl.
+          iApply etc_combine; iFrame.
+          iApply (etc_irrel with "H⧖b2").
+          by rewrite HLb2.
+        }
+        iClear "IH".
 
-
-
-    (* !! COPY PROOF TO BELOW !! *)
-
+        iIntros (v) "(%L & (%hR & HhRR & %HhR & %HL') & %HL)".
+        wp_pures.
+        iModIntro; iApply "HΦ".
+        iExists _.
+        iSplitL.
+        * rewrite /is_meld_heap_val.
+          iExists (Node A b1K b1BL hR).
+          iSplitL. { iExists _, _, _; iFrame; eauto. }
+          iPureIntro.
+          simpl; split; eauto.
+          admit.
+        * iPureIntro; eauto.
+          rewrite -HL' HL HLb1 /=.
+          rewrite -?app_assoc.
+          reflexivity.
 
     - (* Minimum is heap 2, maximum is heap 1 *)
       wp_pures.
@@ -519,26 +622,108 @@ Section program.
       wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _
                   (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b2K b2BL b2BR))))
                   ((tc_meld_distr cmp (tree_to_list A b2BL) (tree_to_list A b2BR)) ∘ fin_to_bool) with "H⧖b2").
-      { intros. simpl. destruct (fin_to_bool _); simpl; apply tc_meld_nonneg. }
+      { intros. simpl.
+        destruct (fin_to_bool _); simpl;
+          apply Rplus_le_le_0_compat; try apply cmp_nonneg; try apply tc_meld_nonneg.
+      }
       { rewrite /= Rplus_0_l.
         rewrite SeriesC_fin2.
         simpl.
         rewrite app_length -(Nat.add_1_l (length _ + length _)) Nat.add_assoc.
         pose P := (cmp_nonneg _ _ cmp).
-        etrans; last eapply tc_meld_ind; [lra|done].
+        etrans; last eapply tc_meld_ind; [|done].
+        lra.
       }
+
 
       iIntros (s) "H⧖".
       wp_pures.
       case_bool_decide.
+
+
       + inversion H0.
         wp_pures.
+
         rewrite HeqVrec.
-        wp_apply ("IH" with "[]"); admit.
+        wp_apply ("IH" with "[HRb2L H⧖ H⧖b1 HB1v HRb1L HRb1R]").
+        { iSplitL "HRb2L".
+          { iExists _; iFrame. inversion HHb2; auto. }
+          iSplitL "HB1v HRb1L HRb1R".
+          { rewrite {4}/is_meld_heap_val.
+            iExists (Node A b1K b1BL b1BR); iFrame.
+            iSplitL.
+            { simpl; iExists _, _, _; iFrame. eauto. }
+            eauto.
+          }
+          simpl.
+          replace (fin_to_bool s) with false by admit.
+          simpl.
+          iApply etc_combine; iFrame.
+          iApply (etc_irrel with "H⧖b1").
+          by rewrite HLb1.
+        }
+        iClear "IH".
+
+        iIntros (v) "(%L & (%hR & HhRR & %HhR & %HL') & %HL)".
+        wp_pures.
+        iModIntro; iApply "HΦ".
+        iExists _.
+        iSplitL.
+        * rewrite /is_meld_heap_val.
+          iExists (Node A b2K hR b2BR).
+          iSplitL. { iExists _, _, _; iFrame; eauto. }
+          iPureIntro.
+          simpl; split; eauto.
+          admit.
+        * iPureIntro; eauto.
+          rewrite -HL' HL HLb2 /=.
+          rewrite (Permutation_app_comm L1) -?app_assoc /=.
+          apply perm_skip.
+          rewrite -?app_assoc.
+          apply Permutation_app_head, Permutation_app_comm.
+
       + assert (Z.of_nat(fin_to_nat s) = 1)%Z by admit.
         wp_pures.
+
         rewrite HeqVrec.
-        wp_apply ("IH" with "[]"); admit.
+        wp_apply ("IH" with "[HRb2R H⧖ H⧖b1 HB1v HRb1L HRb1R]").
+        { iSplitL "HRb2R".
+          { iExists _; iFrame. inversion HHb2; auto. }
+          iSplitL "HB1v HRb1L HRb1R".
+          { rewrite {4}/is_meld_heap_val.
+            iExists (Node  A b1K b1BL b1BR); iFrame.
+            iSplitL; auto; simpl.
+            iExists _, _, _; iFrame. eauto.
+          }
+          simpl.
+          replace (fin_to_bool s) with true by admit.
+          simpl.
+          iApply etc_combine; iFrame.
+          iApply (etc_irrel with "H⧖b1").
+          by rewrite HLb1.
+        }
+
+        iClear "IH".
+
+        iIntros (v) "(%L & (%hR & HhRR & %HhR & %HL') & %HL)".
+        wp_pures.
+        iModIntro; iApply "HΦ".
+        iExists _.
+        iSplitL.
+        * rewrite /is_meld_heap_val.
+          iExists (Node A b2K b2BL hR).
+          iSplitL. { iExists _, _, _; iFrame; eauto. }
+          iPureIntro.
+          simpl; split; eauto.
+          admit.
+        * iPureIntro; eauto.
+          rewrite -HL' HL HLb2 /=.
+          rewrite -?app_assoc.
+          rewrite (Permutation_app_comm L1) /=.
+          apply perm_skip.
+          rewrite -?app_assoc.
+          apply Permutation_app_head.
+          reflexivity.
   Admitted.
 
 
@@ -587,6 +772,20 @@ Section program.
 
   Definition meld_heap_remove_cost (cmp : comparator A CostTick) N : R
     := (2 * tc_meld (cmp_cost cmp) N)%R.
+
+
+  Lemma spec_meld_heap_remove (cmp : comparator A CostTick) ref_h l :
+      {{{ is_meld_heap_ref cmp l ref_h ∗ ⧖ (meld_heap_remove_cost cmp (length l)) }}}
+          meld_heap_remove cmp ref_h
+      {{{ w, RET w;
+            ⌜w = InjLV #()⌝ ∗ ⌜l = []⌝ ∗ is_meld_heap_ref cmp [] ref_h
+           ∨ (∃ (k : A) (u : val) (l' : list A), ⌜w = InjRV u⌝ ∗ ⌜l ≡ₚ k :: l'⌝ ∗ cmp_has_key cmp k u ∗
+                ⌜Forall (cmp_rel cmp k) l⌝ ∗ is_meld_heap_ref cmp l' ref_h)
+      }}}.
+Proof. Admitted.
+
+
+
 
 
 End program.
@@ -652,7 +851,12 @@ Section interface.
   Qed.
   Next Obligation.
     (* Remove *)
+    iIntros (? ? ? ? ? ? ) "H ?".
+    wp_apply (spec_meld_heap_remove with "H"); iFrame.
+  Qed.
 
-  Admitted.
+
+
+
 
 End interface.
