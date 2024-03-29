@@ -20,6 +20,64 @@ Section lib.
   Lemma fin2_subst_neq0 (s : fin 2) : ((Z.of_nat (fin_to_nat s)) ≠ 0%Z ) -> (fin_to_bool s = true).
   Proof. intros. rewrite -fin_to_nat_to_bool_inv nat_to_bool_neq_0; auto. lia. Qed.
 
+  (* Coq uses a fake version of log, which will be nice for handling edge cases in our derivation *)
+  Lemma ln_0 : (ln 0%R = 0%R).
+  Proof. compute. destruct (Rlt_dec R0 R0); auto. exfalso. lra. Qed.
+
+  Lemma ln_pos (n : nat) : (1 < n)%nat -> (0 < ln n)%R.
+  Proof.
+    intros.
+    apply exp_lt_inv.
+    rewrite exp_0.
+    pose P := (pos_INR n).
+    rewrite exp_ln; [apply lt_1_INR; lia | apply lt_0_INR; lia].
+  Qed.
+
+  Lemma ln_nonneg (n : nat) : (0 <= ln n)%R.
+  Proof.
+    destruct n as [|n]; [ rewrite ln_0; lra | ].
+    destruct n as [|n]; [ rewrite ln_1; lra | ].
+    apply Rlt_le, ln_pos. lia.
+  Qed.
+
+
+  Lemma Rlog_pos (b : R) (v : nat) : (1 < b)%R -> (0 <= Rlog b v)%R.
+  Proof.
+    intros.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_pos; [apply ln_nonneg | ].
+    apply Rlt_le, Rinv_0_lt_compat.
+    rewrite -(ln_exp 0) exp_0.
+    apply ln_increasing; lra.
+  Qed.
+
+  Lemma Rlog_nonneg_nats (b v : nat) : (0 <= Rlog b v)%R.
+  Proof.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_pos; [apply ln_nonneg | ].
+    destruct b; [rewrite /= ln_0 Rinv_0; lra |].
+    destruct b; [rewrite /= ln_1 Rinv_0; lra |].
+    apply Rlt_le, Rinv_0_lt_compat.
+    apply ln_pos.
+    lia.
+  Qed.
+
+
+  Lemma Rlog_increasing x y b : (1 < b)%R -> (0 < x < y)%R -> (Rlog b x < Rlog b y)%R.
+  Proof.
+    intros.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_lt_compat_r.
+    { apply Rinv_0_lt_compat.
+      rewrite -(ln_exp 0) exp_0.
+      apply ln_increasing; lra.
+    }
+    apply ln_increasing; lra.
+  Qed.
+
+End lib.
+
+
 
 Section heaps.
 
@@ -171,37 +229,6 @@ Section program.
 
   (** Time credit accounting *)
 
-  (* Coq uses a fake version of log, which will be nice for handling edge cases in our derivation *)
-  Lemma ln_0 : (ln 0%R = 0%R).
-  Proof. compute. destruct (Rlt_dec R0 R0); auto. exfalso. lra. Qed.
-
-  Lemma ln_pos (n : nat) : (1 < n)%nat -> (0 < ln n)%R.
-  Proof.
-    intros.
-    apply exp_lt_inv.
-    rewrite exp_0.
-    pose P := (pos_INR n).
-    rewrite exp_ln; [apply lt_1_INR; lia | apply lt_0_INR; lia].
-  Qed.
-
-  Lemma ln_nonneg (n : nat) : (0 <= ln n)%R.
-  Proof.
-    destruct n as [|n]; [ rewrite ln_0; lra | ].
-    destruct n as [|n]; [ rewrite ln_1; lra | ].
-    apply Rlt_le, ln_pos. lia.
-  Qed.
-
-  Lemma Rlog_nonneg (b v : nat) : (0 <= Rlog b v)%R.
-  Proof.
-    rewrite /Rlog Rdiv_def.
-    apply Rmult_le_pos; [apply ln_nonneg | ].
-    destruct b; [rewrite /= ln_0 Rinv_0; lra |].
-    destruct b; [rewrite /= ln_1 Rinv_0; lra |].
-    apply Rlt_le, Rinv_0_lt_compat.
-    apply ln_pos.
-    lia.
-  Qed.
-
   Definition tc_meld (k : R) (n : nat) := if (n =? 0)%nat then 0%R else (2 * k * (1 + Rlog 2 n))%R.
 
   Lemma tc_meld_1 (k : R) : (tc_meld k 1 = 2 * k)%R.
@@ -216,7 +243,6 @@ Section program.
       (0 < a) -> (0 <= k)%R -> (k + (tc_meld k a + tc_meld k 0) / 2 <= tc_meld k (1 + a + 0))%R.
   Proof.
     intros ? Hk.
-    (* destruct Hk as [ Hk | <- ]; last (rewrite /tc_meld; lra ). *)
     rewrite tc_meld_0.
     rewrite /tc_meld.
     replace (a =? 0)%nat with false; last (destruct a; simpl; lia).
@@ -230,14 +256,31 @@ Section program.
     apply Rplus_le_compat_l.
     rewrite (Rmult_comm 2 k) Rmult_assoc.
     apply Rmult_le_compat_l; [lra|].
-    (* True *)
-  Admitted.
+    replace (2 * Rlog 2 (1 + a + 0)%nat)%R with (Rlog 2 ((1 + a + 0)%nat * (1 + a + 0)%nat))%R; last first.
+    { rewrite /Rlog ?Rdiv_def -Rmult_assoc.
+      apply Rdiv_eq_compat_r.
+      replace 2%R with (1 + 1)%R; last (simpl; lra).
+      rewrite Rmult_plus_distr_r ?Rmult_1_l.
+      by rewrite ln_mult; try (apply lt_0_INR; lia).
+    }
+    apply Rlt_le, Rlog_increasing; try lra.
+    split.
+    - apply lt_0_INR; lia.
+    - rewrite -mult_INR.
+      apply lt_INR.
+      lia.
+  Qed.
 
 
   (* Edge case for tc_meld *)
   Lemma tc_meld_ind_R (k : R) (b : nat) :
       (0 < b) -> (0 <= k)%R -> (k + (tc_meld k 0 + tc_meld k b) / 2 <= tc_meld k (1 + 0 + b))%R.
-  Proof. Admitted.
+  Proof.
+    intros.
+    rewrite (Rplus_comm (tc_meld _ _)).
+    replace (1 + 0 + b)%nat with (1 + b + 0)%nat by lia.
+    apply tc_meld_ind_L; auto.
+  Qed.
 
   (* Edge case for tc_meld *)
   Lemma tc_meld_ind_LR (k : R) :
@@ -400,7 +443,10 @@ Section program.
     Opaque INR.
     destruct m as [|m']; destruct n as [|n'].
     { simpl; lra. }
-    { simpl. admit. }
+    { simpl.
+      pose (P := Rlog_pos 2 (S n')).
+      pose (Q := cmp_nonneg _ _ cmp).
+      apply Rmult_le_pos; try lra. }
     { exfalso. lia. }
 
     apply Rmult_le_compat_l.
@@ -413,7 +459,7 @@ Section program.
       - apply pos_INR_S.
       - by apply le_INR.
     Transparent INR.
-  Admitted.
+  Qed.
 
 
 
@@ -819,9 +865,18 @@ Section program.
         iSplitL "Hvr". { rewrite /is_meld_heap_val. iExists b2; iFrame. iPureIntro. eauto. }
         rewrite /meld_heap_remove_cost /=.
         iApply (etc_weaken with "H⧖").
-        split; first admit.
-        (* Easiest to use mono, probably *)
-        admit.
+        split.
+        - pose P1 := (tc_meld_nonneg cmp (length (tree_to_list A b1))).
+          pose P2 := (tc_meld_nonneg cmp (length (tree_to_list A b2))).
+          pose Q := (cmp_nonneg _ _ cmp).
+          lra.
+        - rewrite ?Rplus_assoc.
+          apply Rplus_le_compat_l.
+          replace 2%R with (1 + 1)%R by lra.
+          rewrite Rmult_plus_distr_r ?Rmult_1_l.
+          apply Rplus_le_compat; apply tc_meld_mono.
+          + rewrite Hl /= app_length. lia.
+          + rewrite Hl /= app_length. lia.
       }
       iIntros (h') "(%L & (%b & Hb & %Hb_heap & %HL) & %HL')".
       wp_store.
@@ -841,10 +896,6 @@ Section program.
         rewrite /is_meld_heap_val.
         iSplit; eauto.
   Admitted.
-
-
-
-
 
 End program.
 
@@ -920,4 +971,3 @@ Section interface.
 
 
 End interface.
-a
