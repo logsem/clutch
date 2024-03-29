@@ -1208,7 +1208,7 @@ Section program.
         destruct x_post.
         { rewrite -H0. apply ppre, in_eq. }
         specialize ppre with a.
-        destruct (cmp_rel_total _ _ cmp) as [? Htr].
+        destruct (cmp_rel_total _ _ cmp) as [[? Htr] ?].
         rewrite /Transitive in Htr.
         eapply Htr.
         *  eapply ppre, in_eq.

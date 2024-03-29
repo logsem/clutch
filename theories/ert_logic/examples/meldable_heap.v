@@ -145,7 +145,7 @@ Section program.
           (cmp_rel cmp x k) ->
           (HeapOrdered A (cmp_rel cmp) x h1).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+    destruct (cmp_rel_total _ _ cmp) as [[Hrefl Htrans] Hanti].
     intros x k h1 h2.
     generalize dependent k.
     generalize dependent h2.
@@ -165,7 +165,7 @@ Section program.
           (cmp_rel cmp x k) ->
           (HeapOrdered A (cmp_rel cmp) x h2).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+    destruct (cmp_rel_total _ _ cmp) as [[Hrefl Htrans] Hanti].
     intros x k h1 h2.
     generalize dependent k.
     generalize dependent h1.
@@ -567,8 +567,7 @@ Section program.
           ∃ L, is_meld_heap_val cmp L v ∗ ⌜L ≡ₚ L1 ++ L2 ⌝
       }}}.
   Proof.
-    assert (Hanti : AntiSymm eq (cmp_rel cmp)) by admit.
-    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
+    destruct (cmp_rel_total _ _ cmp) as [[Hrefl Htrans] Hanti].
 
     iLöb as "IH" forall (h1 h2 L1 L2).
     iIntros (Φ) "((%b1 & HBb1 & %HHb1 & %HLb1) & (%b2 & HBb2 & %HHb2 & %HLb2 ) & H⧖) HΦ".
