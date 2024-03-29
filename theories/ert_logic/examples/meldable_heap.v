@@ -104,7 +104,6 @@ Section heaps.
   (** Heaps: Heap-ordered binary trees *)
 
   Context (R : relation A).
-  Context (HTo : TotalOrder R).
 
   Definition HeapOrdered (v : A) (next : BinaryTree) : Prop
     := match next with
@@ -145,7 +144,7 @@ Section program.
           (cmp_rel cmp x k) ->
           (HeapOrdered A (cmp_rel cmp) x h1).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [[Hrefl Htrans] Hanti].
+    destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
     intros x k h1 h2.
     generalize dependent k.
     generalize dependent h2.
@@ -165,7 +164,7 @@ Section program.
           (cmp_rel cmp x k) ->
           (HeapOrdered A (cmp_rel cmp) x h2).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [[Hrefl Htrans] Hanti].
+    destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
     intros x k h1 h2.
     generalize dependent k.
     generalize dependent h1.
@@ -567,7 +566,7 @@ Section program.
           ∃ L, is_meld_heap_val cmp L v ∗ ⌜L ≡ₚ L1 ++ L2 ⌝
       }}}.
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [[Hrefl Htrans] Hanti].
+    destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
 
     iLöb as "IH" forall (h1 h2 L1 L2).
     iIntros (Φ) "((%b1 & HBb1 & %HHb1 & %HLb1) & (%b2 & HBb2 & %HHb2 & %HLb2 ) & H⧖) HΦ".
@@ -620,7 +619,19 @@ Section program.
               ⧖ (tc_meld (cmp_cost cmp) (length (tree_to_list A (Node A b2K b2BL b2BR)))))%I
       with "[H⧖]"
       as "(H⧖cmp & H⧖b1 & H⧖b2)".
-    { admit. }
+    { iClear "IH".
+       rewrite Rplus_assoc.
+       iDestruct (etc_split with "H⧖") as "[? H⧖']".
+       { apply cmp_nonneg. }
+       { apply Rplus_le_le_0_compat; apply tc_meld_nonneg. }
+       iFrame.
+       iDestruct (etc_split with "H⧖'") as "[H⧖1 H⧖2]".
+       { apply tc_meld_nonneg. }
+       { apply tc_meld_nonneg. }
+       iSplitL "H⧖1".
+       { iApply (etc_weaken with "[$]"). split; [apply tc_meld_nonneg| rewrite HLb1; lra]. }
+       { iApply (etc_weaken with "[$]"). split; [apply tc_meld_nonneg| rewrite HLb2; lra]. }
+    }
 
     wp_apply ((@wp_cmp _ _ cmp _ _ b1K b2K) with "[H⧖cmp HB1v HB2v]"); iFrame.
     iIntros "(HB1v & HB2v)".
@@ -1029,7 +1040,13 @@ Section program.
       rewrite /is_meld_heap_ref.
       iSplit.
       + (* Use one of those lemmas which relate the head of a heap to the body *)
-        admit.
+        iPureIntro.
+        rewrite Hl.
+        replace (v :: tree_to_list A b1 ++ tree_to_list A b2) with (tree_to_list _ (Node A v b1 b2)); last by simpl.
+        apply List.Forall_forall, heap_ordered_strong_elems; auto.
+        simpl.
+        inversion Hh.
+        done.
       + iExists _, _; iFrame.
         rewrite /is_meld_heap_val.
         iSplit; eauto.
