@@ -6,7 +6,7 @@ Record comparator (K : Type) (c : Costfun prob_lang) := Comparator {
   cmp :> val;
   cmp_rel : relation K;
   cmp_rel_dec :: RelDecision cmp_rel;
-  cmp_rel_total :: PartialOrder cmp_rel;
+  cmp_rel_total :: TotalOrder cmp_rel;
 
   cmp_cost : R;
 
