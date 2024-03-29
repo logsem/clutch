@@ -567,6 +567,8 @@ Section program.
       }}}.
   Proof.
     destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
+    assert (Htot : Total (cmp_rel cmp)).
+    {  apply trichotomy_total. }
 
     iLöb as "IH" forall (h1 h2 L1 L2).
     iIntros (Φ) "((%b1 & HBb1 & %HHb1 & %HLb1) & (%b2 & HBb2 & %HHb2 & %HLb2 ) & H⧖) HΦ".
@@ -831,18 +833,7 @@ Section program.
 
           (* Prove that the resulting value is a heap *)
           clear HeqVrec.
-          assert (cmp_rel cmp b2K b1K).
-          {
-            (* err... can you do this with just antisymetry? or do we need totality too? *)
-            (* What if if B2K and B1K are not comparable? *)
-            rewrite /AntiSymm in Hanti.
-
-            destruct ((cmp_rel_dec _ _ cmp) b1K b2K).
-            - exfalso. by apply H.
-            - (* Decidability doesn't even help, we wstill have this roblematic case *)
-
-            rewrite /AntiSymm in Hanti.
-            admit. }
+          assert (cmp_rel cmp b2K b1K) by (destruct (Htot b2K b1K); done).
 
           constructor; try done.
           -- inversion HHb2. done.
@@ -898,8 +889,7 @@ Section program.
           simpl; split; eauto.
 
 
-          assert (cmp_rel cmp b2K b1K).
-          { (*See above*) admit. }
+          assert (cmp_rel cmp b2K b1K) by (destruct (Htot b2K b1K); done).
 
           (* Prove that the resulting value is a heap *)
           clear HeqVrec.
@@ -925,7 +915,7 @@ Section program.
           rewrite -?app_assoc.
           apply Permutation_app_head.
           reflexivity.
-  Admitted.
+  Qed.
 
 
   Definition meld_heap_insert_cost (cmp : comparator A CostTick) N : R
@@ -1050,7 +1040,7 @@ Section program.
       + iExists _, _; iFrame.
         rewrite /is_meld_heap_val.
         iSplit; eauto.
-  Admitted.
+  Qed.
 
 End program.
 
@@ -1103,8 +1093,18 @@ Section interface.
   Qed.
   Next Obligation.
     (* is_meld_heap respects permutations *)
-    intros.
-  Admitted.
+    intros ? ? ? ? ? Hequiv ? ? -> .
+    rewrite /is_meld_heap_ref.
+    iStartProof; iSplit.
+    - iIntros "(% & % & ? & ? & ? )".
+      iExists _, _.
+      iFrame.
+      iApply is_meld_heap_val_perm; eauto.
+    - iIntros "(% & % & ? & ? & ? )".
+      iExists _, _.
+      iFrame.
+      iApply is_meld_heap_val_perm; eauto.
+  Qed.
   Next Obligation.
     (* New heap *)
     iIntros (? ? ? ?) "_ H".
@@ -1120,9 +1120,5 @@ Section interface.
     iIntros (? ? ? ? ? ? ) "H ?".
     wp_apply (spec_meld_heap_remove with "H"); iFrame.
   Qed.
-
-
-
-
 
 End interface.
