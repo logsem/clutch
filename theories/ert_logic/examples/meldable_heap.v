@@ -11,6 +11,15 @@ Require Coq.Program.Wf.
 Set Default Proof Using "Type*".
 Require Import Lra.
 
+Section lib.
+
+
+  Lemma fin2_subst_0 (s : fin 2) : (Z.of_nat (fin_to_nat s) = 0%Z) -> (fin_to_bool s = false).
+  Proof. intros. rewrite -fin_to_nat_to_bool_inv -nat_to_bool_eq_0. f_equal. lia. Qed.
+
+  Lemma fin2_subst_neq0 (s : fin 2) : ((Z.of_nat (fin_to_nat s)) ≠ 0%Z ) -> (fin_to_bool s = true).
+  Proof. intros. rewrite -fin_to_nat_to_bool_inv nat_to_bool_neq_0; auto. lia. Qed.
+
 
 Section heaps.
 
@@ -426,6 +435,10 @@ Section program.
     constructor.
   Qed.
 
+
+
+
+
   Definition tc_meld_distr (cmp : comparator A _) (LL LR : list A) (b : bool) : R :=
     if b
       then (cmp_cost cmp + tc_meld (cmp_cost cmp) (length LR))%R
@@ -536,9 +549,7 @@ Section program.
             iSplitL; auto; simpl.
             iExists _, _, _; iFrame. eauto.
           }
-          simpl.
-          replace (fin_to_bool s) with false by admit.
-          simpl.
+          rewrite /= fin2_subst_0 /=; last auto.
           iApply etc_combine; iFrame.
           iApply (etc_irrel with "H⧖b2").
           by rewrite HLb2.
@@ -577,8 +588,7 @@ Section program.
           apply perm_skip, Permutation_app_head, Permutation_app_comm.
 
 
-      + assert (Z.of_nat(fin_to_nat s) = 1)%Z by admit.
-        wp_pures.
+      + wp_pures.
 
         rewrite HeqVrec.
         wp_apply ("IH" with "[HRb1R H⧖ H⧖b2 HB2v HRb2L HRb2R]").
@@ -590,8 +600,8 @@ Section program.
             iSplitL; auto; simpl.
             iExists _, _, _; iFrame. eauto.
           }
-          simpl.
-          replace (fin_to_bool s) with true by admit.
+          rewrite /= fin2_subst_neq0; last first.
+          { rewrite /not; intros HRW. rewrite HRW in H0. auto. }
           simpl.
           iApply etc_combine; iFrame.
           iApply (etc_irrel with "H⧖b2").
@@ -655,9 +665,7 @@ Section program.
             { simpl; iExists _, _, _; iFrame. eauto. }
             eauto.
           }
-          simpl.
-          replace (fin_to_bool s) with false by admit.
-          simpl.
+          rewrite /= fin2_subst_0 /=; last auto.
           iApply etc_combine; iFrame.
           iApply (etc_irrel with "H⧖b1").
           by rewrite HLb1.
@@ -682,8 +690,7 @@ Section program.
           rewrite -?app_assoc.
           apply Permutation_app_head, Permutation_app_comm.
 
-      + assert (Z.of_nat(fin_to_nat s) = 1)%Z by admit.
-        wp_pures.
+      + wp_pures.
 
         rewrite HeqVrec.
         wp_apply ("IH" with "[HRb2R H⧖ H⧖b1 HB1v HRb1L HRb1R]").
@@ -695,9 +702,8 @@ Section program.
             iSplitL; auto; simpl.
             iExists _, _, _; iFrame. eauto.
           }
-          simpl.
-          replace (fin_to_bool s) with true by admit.
-          simpl.
+          rewrite /= fin2_subst_neq0; last first.
+          { rewrite /not; intros HRW. rewrite HRW in H0. auto. }
           iApply etc_combine; iFrame.
           iApply (etc_irrel with "H⧖b1").
           by rewrite HLb1.
@@ -871,6 +877,7 @@ Section interface.
     intros.
     rewrite /meld_heap_remove_cost.
     pose P := (tc_meld_nonneg cmp n).
+    pose Q := (cmp_nonneg _ _ cmp).
     lra.
   Qed.
   Next Obligation.
@@ -884,6 +891,7 @@ Section interface.
     (* meld_heap_remove_cost is monotone *)
     intros.
     rewrite /meld_heap_remove_cost.
+    apply Rplus_le_compat_l.
     apply Rmult_le_compat_l; try lra.
     by apply tc_meld_mono.
   Qed.
@@ -912,3 +920,4 @@ Section interface.
 
 
 End interface.
+a
