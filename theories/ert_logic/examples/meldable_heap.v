@@ -144,7 +144,6 @@ Section program.
           (cmp_rel cmp x k) ->
           (HeapOrdered A (cmp_rel cmp) x h1).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
     intros x k h1 h2.
     generalize dependent k.
     generalize dependent h2.
@@ -155,7 +154,7 @@ Section program.
       intros ? ?.
       inversion H.
       simplify_eq; simpl in *.
-      eapply (Htrans _ k); eauto.
+      by etrans.
   Qed.
 
   Lemma heap_ordered_strong_R (cmp : comparator A CostTick)  :
@@ -164,7 +163,6 @@ Section program.
           (cmp_rel cmp x k) ->
           (HeapOrdered A (cmp_rel cmp) x h2).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
     intros x k h1 h2.
     generalize dependent k.
     generalize dependent h1.
@@ -175,7 +173,7 @@ Section program.
       intros ? ?.
       inversion H.
       simplify_eq; simpl in *.
-      eapply (Htrans _ k); eauto.
+      by etrans.
   Qed.
 
 
@@ -185,7 +183,6 @@ Section program.
              (HeapOrdered A (cmp_rel cmp) x h) ->
              (forall x', In x' (tree_to_list _ h) -> (cmp_rel cmp x x')).
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [Hrefl Htrans].
     intros x.
     induction h.
     - simpl. intros. done.
@@ -566,10 +563,6 @@ Section program.
           ∃ L, is_meld_heap_val cmp L v ∗ ⌜L ≡ₚ L1 ++ L2 ⌝
       }}}.
   Proof.
-    destruct (cmp_rel_total _ _ cmp) as [[[Hrefl Htrans] Hanti] Htotal].
-    assert (Htot : Total (cmp_rel cmp)).
-    {  apply trichotomy_total. }
-
     iLöb as "IH" forall (h1 h2 L1 L2).
     iIntros (Φ) "((%b1 & HBb1 & %HHb1 & %HLb1) & (%b2 & HBb2 & %HHb2 & %HLb2 ) & H⧖) HΦ".
     rewrite {2}/meld_heap_meld.
@@ -706,10 +699,10 @@ Section program.
              apply in_app_or in Hx'; destruct Hx'.
              --- inversion HHb1; simplify_eq.
                  eapply (heap_ordered_strong_elems _ _ b1BL); auto.
-             --- eapply Htrans; first eauto.
+             --- etrans; [done|].
                  apply (heap_ordered_strong_elems _ _ (Node A b2K b2BL b2BR)); auto.
                  inversion HHb2; simplify_eq.
-                 apply Hrefl.
+                 simpl. reflexivity.
           -- inversion HHb1. done.
 
         * iPureIntro; eauto.
@@ -762,10 +755,10 @@ Section program.
           apply in_app_or in Hx'; destruct Hx'.
           -- inversion HHb1; simplify_eq.
               eapply (heap_ordered_strong_elems _ _ b1BR); auto.
-          -- eapply Htrans; first eauto.
+          -- etrans; [done|].
              apply (heap_ordered_strong_elems _ _ (Node A b2K b2BL b2BR)); auto.
-             inversion HHb2; simplify_eq.
-             apply Hrefl.
+             inversion HHb2; simplify_eq => /=.
+             reflexivity.
 
         * iPureIntro; eauto.
           rewrite -HL' HL HLb1 /=.
@@ -833,7 +826,8 @@ Section program.
 
           (* Prove that the resulting value is a heap *)
           clear HeqVrec.
-          assert (cmp_rel cmp b2K b1K) by (destruct (Htot b2K b1K); done).
+
+          assert (cmp_rel cmp b2K b1K) by (destruct (total (cmp_rel cmp) b2K b1K); done).
 
           constructor; try done.
           -- inversion HHb2. done.
@@ -843,10 +837,10 @@ Section program.
              apply in_app_or in Hx'; destruct Hx'.
              --- inversion HHb2; simplify_eq.
                  eapply (heap_ordered_strong_elems _ _ b2BL); auto.
-             --- eapply Htrans; eauto.
+             --- etrans; [done|].
                  apply (heap_ordered_strong_elems _ _ (Node A b1K b1BL b1BR)); auto.
-                 inversion HHb1; simplify_eq.
-                 apply Hrefl.
+                 inversion HHb1; simplify_eq => /=.
+                 reflexivity.
           -- inversion HHb2. done.
 
         * iPureIntro; eauto.
@@ -889,7 +883,7 @@ Section program.
           simpl; split; eauto.
 
 
-          assert (cmp_rel cmp b2K b1K) by (destruct (Htot b2K b1K); done).
+          assert (cmp_rel cmp b2K b1K) by (destruct (total (cmp_rel cmp) b2K b1K); done).
 
           (* Prove that the resulting value is a heap *)
           clear HeqVrec.
@@ -902,10 +896,10 @@ Section program.
           apply in_app_or in Hx'; destruct Hx'.
           -- inversion HHb2; simplify_eq.
               eapply (heap_ordered_strong_elems _ _ b2BR); auto.
-          -- eapply Htrans; first eauto.
+          -- etrans; [done|].
              apply (heap_ordered_strong_elems _ _ (Node A b1K b1BL b1BR)); auto.
-             inversion HHb1; simplify_eq.
-             apply Hrefl.
+             inversion HHb1; simplify_eq => /=.
+             reflexivity.
 
         * iPureIntro; eauto.
           rewrite -HL' HL HLb2 /=.
