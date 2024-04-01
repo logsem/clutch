@@ -358,6 +358,28 @@ Section list_specs.
       wp_pures. iApply "HΦ". iPureIntro. right. eauto.
   Qed.
 
+  Lemma wp_list_head_nil E lv :
+    {{{ ⌜is_list [] lv⌝ }}}
+      list_head lv @ E
+    {{{ RET NONEV; True }}}.
+  Proof.
+    iIntros (Φ a) "HΦ".
+    wp_apply (wp_list_head _ _ [] with "[//]").
+    iIntros (v) "[[_ ->] | (% & % & % & _)]"; simplify_eq.
+    by iApply "HΦ".
+  Qed.
+
+  Lemma wp_list_head_cons E lv a l :
+    {{{ ⌜is_list (a :: l) lv⌝ }}}
+      list_head lv @ E
+    {{{ RET (SOMEV (inject a)); True }}}.
+  Proof.
+    iIntros (Φ Hl) "HΦ".
+    wp_apply (wp_list_head _ _ (a :: l) with "[//]").
+    iIntros (v) "[[% ->] | (% & % & % & ->)]"; simplify_eq.
+    by iApply "HΦ".
+  Qed.
+
   Lemma wp_list_tail E lv l :
     {{{ ⌜is_list l lv⌝ }}}
       list_tail lv @ E
@@ -906,8 +928,7 @@ Section list_specs.
   Lemma wp_list_is_empty l v E :
     {{{ ⌜is_list l v⌝ }}}
       list_is_empty v @ E
-    {{{ v, RET #v;
-        ⌜v = match l with [] => true | _ => false end⌝ }}}.
+    {{{ RET #(match l with [] => true | _ => false end); True }}}.
   Proof.
     iIntros (Φ Hl) "HΦ". wp_rec. destruct l.
     - rewrite Hl. wp_pures. by iApply "HΦ".
