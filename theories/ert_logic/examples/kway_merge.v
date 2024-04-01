@@ -5,23 +5,6 @@ From clutch.ert_logic Require Export problang_wp proofmode derived_laws ert_rule
 From clutch.ert_logic.examples Require Import lib.list min_heap_spec.
 Set Default Proof Using "Type*".
 
-(* Section list_length_ind. *)
-(*   Variable A : Type. *)
-(*   Variable P : list A -> Prop. *)
-
-(*   Hypothesis H : ∀ xs, (∀ l, length l < length xs → P l) → P xs. *)
-
-(*   Theorem list_length_ind : ∀ xs, P xs. *)
-(*   Proof. *)
-(*     assert (∀ xs l : list A, length l ≤ length xs → P l) as H_ind. *)
-(*     { induction xs; intros l Hlen; apply H; intros l0 H0. *)
-(*       - destruct l, l0; simpl in *; lia. *)
-(*       - apply IHxs. simpl in Hlen. lia. } *)
-(*     intros xs. *)
-(*     by eapply H_ind. *)
-(*   Qed. *)
-(* End list_length_ind. *)
-
 Open Scope R.
 
 (** * A [≤] head comparator for lists of intergers *)
@@ -49,6 +32,7 @@ Proof. intros [] [] => /=; firstorder. lia. Qed.
 
 Definition cmp_Z_list : val :=
   λ: "zs1" "zs2",
+    tick #1;;
     let: "h1" := list_head "zs1" in
     match: "h1" with
     | NONE => #true
@@ -66,11 +50,11 @@ Section Z_comparator_spec.
   Definition is_Z_list (zs : list Z) (v : val) : iProp Σ := ⌜is_list zs v⌝ ∗ ⌜Sorted Z.le zs⌝.
 
   Lemma wp_cmp_Z_list zs1 zs2 v1 v2 :
-    {{{ is_Z_list zs1 v1 ∗ is_Z_list zs2 v2 }}}
+    {{{ is_Z_list zs1 v1 ∗ is_Z_list zs2 v2 ∗ ⧖ 1 }}}
       cmp_Z_list v1 v2
     {{{ RET #(bool_decide (list_Z_le zs1 zs2)); is_Z_list zs1 v1 ∗ is_Z_list zs2 v2 }}}.
   Proof.
-    iIntros (?) "[[%Hzs1 %] [%Hzs2 %]] H".
+    iIntros (?) "([%Hzs1 %] & [%Hzs2 %] & Hc) H".
     wp_rec. wp_pures.
     wp_apply (wp_list_head _ _ zs1 with "[//]").
     iIntros (v) "[[-> ->] | (%z1 & %zs1' & -> & ->)]".
@@ -93,14 +77,14 @@ End Z_comparator_spec.
 Program Definition Z_list_comparator : comparator (list Z) CostTick :=
   {| cmp := cmp_Z_list;
      cmp_rel := list_Z_le;
-     cmp_cost := 0;
+     cmp_cost := 1;
      cmp_has_key _ _ := is_Z_list;
      wp_cmp := _;
   |}.
 Next Obligation. lra. Qed.
 Next Obligation.
-  iIntros (???????) "(Hzs1 & Hzs2 & _) H".
-  by wp_apply (wp_cmp_Z_list with "[$Hzs1 $Hzs2]").
+  iIntros (???????) "(Hzs1 & Hzs2 & Hc) H".
+  by wp_apply (wp_cmp_Z_list with "[$Hzs1 $Hzs2 $Hc]").
 Qed.
 
 Section kway_merge.
@@ -176,17 +160,6 @@ Section kway_merge_spec.
   Proof.
     destruct xs; [done|].
     intros _. eexists. by left.
-  Qed.
-
-  Lemma length_concat_inv {A} (xss : list (list A)) :
-    length (concat xss) ≠ 0%nat → ∃ x xs, xs ∈ xss ∧ x ∈ xs.
-  Proof.
-    induction xss as [|xs xss]; [done|].
-    rewrite concat_cons app_length.
-    destruct xs as [|x xs] => /=.
-    - intros Hlen; destruct (IHxss Hlen) as (?&?&?&?).
-      do 2 eexists. by split; [right|].
-    - intros _. do 2 eexists. by split; left.
   Qed.
 
   Lemma length_pos {A} (xs : list A) :
@@ -329,38 +302,36 @@ Section kway_merge_spec.
           rewrite Hp in Hzss Hs.
           setoid_rewrite Hp in Hle; clear Hlen Hp zss.
           setoid_rewrite Hp'; clear Hp' zss''.
-          simpl in Hs.
           apply Forall_cons in Hs as [_ Hs].
           apply Forall_cons.
           split.
           - rewrite concat_cons. apply Forall_app.
-            apply Forall_cons in Hzss as [? ?].
-            eapply Sorted_extends in H; [|intros ?????; by etrans].
+            apply Forall_cons in Hzss as [Hzss' Hzss'S].
+            eapply Sorted_extends in Hzss'; [|intros ?????; by etrans].
             split; [done|].
-            apply Forall_concat.
-            apply Forall_forall.
+            apply Forall_concat, Forall_forall.
             intros ys Hys.
             rewrite Forall_forall in Hs.
-            pose proof (Hs _ Hys).
             destruct ys; [done|].
-            rewrite Forall_cons. split; [done|].
-            rewrite Forall_forall in H0.
-            specialize (H0 _ Hys).
-            eapply Sorted_extends in H0; [|intros ?????; by etrans].
-            simpl in H1.
+            rewrite Forall_cons.
+            pose proof (Hs _ Hys).
+            split; [done|].
+            rewrite Forall_forall in Hzss'S.
+            specialize (Hzss'S _ Hys).
+            eapply Sorted_extends in Hzss'S; [|intros ?????; by etrans].
+            simpl in Hzss'.
             specialize (Hs _ Hys).
             simpl in Hs.
             eapply Forall_impl; [done|].
             intros ??. by etrans.
           - rewrite /= -concat_cons in Hle.
             setoid_rewrite Forall_cons in Hle.
-            eapply Forall_impl; [done|]. by intros ? [] . }
+            eapply Forall_impl; [done|]. by intros ? []. }
         { iApply (etc_irrel with "Hrest").
           rewrite Hp Hp'.
           rewrite /repeat_remove_cost.
           rewrite !concat_cons !app_length !cons_length.
           rewrite !plus_INR !S_INR.
-          rewrite !Rmult_plus_distr_r !Rmult_1_l.
           remember (heap_remove_cost (S (length zss'))) as R.
           remember (heap_insert_cost (S (length zss'))) as I.
           lra. }
@@ -438,4 +409,43 @@ Section kway_merge_spec.
     by apply Sorted_reverse in Hsorted.
   Qed.
 
+  Lemma merge_cost_alt zss :
+    let k := length zss in
+    let n := length (concat zss) in
+    merge_cost zss = (2 * k + n) * heap_insert_cost k +
+                     (k + n) * heap_remove_cost k +
+                     heap_remove_cost 0.
+  Proof. rewrite /merge_cost /repeat_remove_cost. lra. Qed.
+
 End kway_merge_spec.
+
+From clutch.ert_logic.examples Require Import meldable_heap.
+
+Section kway_merge_meldable_heap.
+  Context `{!ert_clutchGS Σ CostTick}.
+
+  Definition heap := meld_heap_spec Z_list_comparator.
+  Definition meldable_merge := @kway_merge.merge _ _ _ heap.
+
+  Variable (zss : list (list Z)).
+
+  Notation k := (length zss).
+  Notation n := (length (concat zss)).
+
+  Lemma wp_meldable_merge (v : val) :
+    is_list zss v →
+    Forall (Sorted Z.le) zss →
+    {{{ ⧖ ((4 * k + 3 * n) * tc_meld 1 k + 7 * k + 4 * n + 1) }}}
+      meldable_merge v
+    {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat zss⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
+  Proof.
+    iIntros (???) "Hcost H".
+    iApply (wp_merge with "[Hcost]"); [done|done| |done].
+    iApply (etc_irrel with "Hcost").
+    rewrite merge_cost_alt.
+    rewrite /heap_insert_cost /heap_remove_cost /=.
+    rewrite /meld_heap_insert_cost /meld_heap_remove_cost /=.
+    rewrite !tc_meld_1 !tc_meld_0. lra.
+  Qed.
+
+End kway_merge_meldable_heap.
