@@ -36,7 +36,7 @@ Section ERT.
   Lemma ERT_nonneg k eσ: 0<=ERT k eσ.
   Proof.
     revert eσ.
-    induction k; simpl; intros; first lra.
+    induction k; simpl; intros []; first lra.
     case_match; first lra.
     apply Rplus_le_le_0_compat.
     - apply cost_nonneg.
