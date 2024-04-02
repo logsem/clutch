@@ -392,4 +392,14 @@ Proof.
       apply Rcomplements.Rlt_div_l; last by lra.
       pose proof (pos_INR m). lra.
 Qed.
+
+Theorem wp_ERT_alt' Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+  (forall e : language.expr prob_lang, cost e = nnreal_one) ->
+  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  SeriesC (lim_exec (e, σ)) = 1.
+Proof.
+  intros. eapply ERT_implies_AST.
+  intros. eapply wp_ERT_alt; done.
+Qed.
+  
 End wp_ERT.
