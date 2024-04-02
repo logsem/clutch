@@ -10,6 +10,8 @@ From clutch.common Require Export language.
 From clutch.ert_logic Require Import expected_time_credits ert_weakestpre problang_wp.
 From clutch.prob Require Import distribution.
 Import uPred.
+
+From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 Set Default Proof Using "Type*".
 
 Section ERT.
@@ -30,6 +32,32 @@ Section ERT.
     to_val e = None →
     ERT (S n) (e, σ) = cost e + SeriesC (λ ρ, step (e, σ) ρ * ERT n ρ)%R.
   Proof. simpl. by intros ->. Qed.
+
+  Lemma ERT_nonneg k eσ: 0<=ERT k eσ.
+  Proof.
+    revert eσ.
+    induction k; simpl; intros; first lra.
+    case_match; first lra.
+    apply Rplus_le_le_0_compat.
+    - apply cost_nonneg.
+    - apply SeriesC_ge_0'. intros. apply Rmult_le_pos; last done.
+      auto.
+  Qed.
+
+  Definition lim_ERT (eσ:cfg) : Rbar:= Sup_seq (λ n, ERT n eσ).
+
+  Lemma lim_ERT_bounded eσ k:
+    (∀ n, ERT n eσ <= k) -> lim_ERT eσ <= k.
+  Proof.
+    intros Hbound.
+    rewrite /lim_ERT.
+    apply Rbar_le_fin.
+    - etrans; last eapply Hbound. apply ERT_nonneg.
+    - apply upper_bound_ge_sup. done.
+      Unshelve.
+      exact 0%nat.
+  Qed.
+  
 End ERT.
 
 Section adequacy.
@@ -405,6 +433,14 @@ Proof.
   done.
 Qed.
 
+Theorem wp_ERT_lim Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
+  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  lim_ERT (e, σ) <= x.
+Proof.
+  intros Hwp.
+  apply lim_ERT_bounded. intros.
+  by eapply wp_ERT.
+Qed.
 
 Theorem wp_ERT_alt Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
