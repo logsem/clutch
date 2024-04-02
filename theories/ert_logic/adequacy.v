@@ -15,19 +15,20 @@ Set Default Proof Using "Type*".
 Section ERT.
   Context `{!Costfun prob_lang}.
 
-  Fixpoint ERT k (eσ : cfg) : R :=
+  Fixpoint ERT k (ρ : cfg) : R :=
+    let '(e, σ) := ρ in
     match k with
     | O => 0
     | S n =>
-        match to_val eσ.1 with
-        | Some v => nnreal_zero
-        | None => (cost eσ.1) + SeriesC (λ ρ, (prim_step eσ.1 eσ.2 ρ) * (ERT n ρ))
+        match to_val e with
+        | Some v => 0
+        | None => cost e + SeriesC (λ ρ, prim_step e σ ρ * ERT n ρ)
         end
     end.
 
   Lemma ERT_Sn n e σ :
     to_val e = None →
-    ERT (S n) (e, σ) = (cost e) + SeriesC (λ ρ, step (e, σ) ρ * ERT n ρ)%R.
+    ERT (S n) (e, σ) = cost e + SeriesC (λ ρ, step (e, σ) ρ * ERT n ρ)%R.
   Proof. simpl. by intros ->. Qed.
 End ERT.
 
@@ -37,7 +38,7 @@ Section adequacy.
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
 
-  Lemma ERM_erasure (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
+  Lemma ERM_erasure (e : expr) (σ : state) (n : nat) (x : nonnegreal) :
     to_val e = None →
     ERM e σ x
           (λ '(e2, σ2) (x' : nonnegreal),
@@ -112,7 +113,7 @@ Section adequacy.
 
   Lemma ERM_erasure_alt (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
     to_val e = None →
-    (forall e, cost e = nnreal_one) ->
+    (∀ e, cost e = 1) →
     ERM e σ x
           (λ '(e2, σ2) (x' : nonnegreal),
             |={∅}▷=>^(S n) ⌜n <= x' + n * SeriesC (exec n (e2, σ2))⌝)
@@ -225,27 +226,24 @@ Section adequacy.
      real_solver.
    Qed.
 
-
-
-
   Lemma ERM_erasure_correct (e : expr) (σ : state) (n : nat)  φ  (x : nonnegreal) :
     to_val e = None →
     ERM e σ x
           (λ '(e2, σ2) (x' : nonnegreal),
-            |={∅}▷=>^(S n) ⌜∀ v, exec n (e2,σ2) v > 0 -> φ v⌝)
-    ⊢ |={∅}▷=>^(S n) ⌜∀ v, exec (S n) (e,σ) v > 0 -> φ v⌝.
+            |={∅}▷=>^(S n) ⌜∀ v, exec n (e2,σ2) v > 0 → φ v⌝)
+    ⊢ |={∅}▷=>^(S n) ⌜∀ v, exec (S n) (e,σ) v > 0 → φ v⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
     rewrite /ERM /ERM'.
     set (Φ := (λ '((e1, σ1), x''),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
-                 ⌜∀ v, exec (S n) (e1,σ1) v > 0 -> φ v⌝)%I) :
+                 ⌜∀ v, exec (S n) (e1,σ1) v > 0 → φ v⌝)%I) :
            prodO cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
     set (F := (ERM_pre (λ '(e2, σ2) x',
-                   |={∅}▷=>^(S n) ⌜∀ v, exec n (e2,σ2) v > 0 -> φ v⌝)%I)).
+                   |={∅}▷=>^(S n) ⌜∀ v, exec n (e2,σ2) v > 0 → φ v⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       by iMod ("H" $! ((_, _)) with "Hfix [//]").
@@ -253,14 +251,14 @@ Section adequacy.
     clear.
     iIntros "!#" ([[e1 σ1] x'']). rewrite /Φ/F/ERM_pre.
     iIntros " (%x2 & %Hred & (%r & %Hr) & %Hx'' & H) %Hv".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → ∀ v, exec n (e2, σ2) v> 0 -> φ v)⌝)).
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ e2 σ2, prim_step e1 σ1 (e2, σ2) > 0 → ∀ v, exec n (e2, σ2) v> 0 → φ v)⌝)).
     2:{ iIntros (???). iMod ("H" with "[//]"); auto. }
     iPureIntro. simpl. rewrite Hv.
     intros H v Hexec. rewrite dbind_pos in Hexec.
     destruct Hexec as [[e σ] [Hexec Hprimstep]].
     naive_solver.
   Qed.
-        
+
   Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (x : nonnegreal) n φ  :
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ERT n (e, σ) <= x⌝.
@@ -292,9 +290,8 @@ Section adequacy.
         by iApply (ERM_erasure with "H").
   Qed.
 
-
   Theorem wp_refRcoupl_step_fupdN_alt (e : expr) (σ : state) (x : nonnegreal) n φ  :
-    (forall e, cost e = nnreal_one) ->
+    (∀ e, cost e = 1) →
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
       |={⊤,∅}=> |={∅}▷=>^n ⌜n <= x + n * SeriesC (exec n (e, σ))⌝.
   Proof.
@@ -330,7 +327,7 @@ Section adequacy.
 
   Theorem wp_refRcoupl_step_fupdN_correct (e : expr) (σ : state) (x : nonnegreal) n φ  :
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
-      |={⊤,∅}=> |={∅}▷=>^n ⌜∀ v, exec n (e,σ) v > 0 -> φ v⌝.
+      |={⊤,∅}=> |={∅}▷=>^n ⌜∀ v, exec n (e,σ) v > 0 → φ v⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ x); iIntros "((Hσh & Hσt) & Hx & Hwp)".
     - simpl.
@@ -361,7 +358,7 @@ Section adequacy.
              (λ '(e2, σ2) x', |={∅}▷=>^(S n) ⌜∀ v : val, exec n (e2,σ2) v > 0 → φ v⌝)%I
             with "[] Hlift") as "H".
         { reflexivity. }
-        { simpl. iIntros ([] ?) "H !> !>". 
+        { simpl. iIntros ([] ?) "H !> !>".
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
           iMod ("IH" with "[$]") as "H".
           iModIntro. done. }
@@ -389,7 +386,7 @@ Global Instance subG_ert_clutchGPreS (cost : Costfun prob_lang) {Σ} : subG (ert
 Proof. solve_inG. Qed.
 
 Section wp_ERT.
-  Context (costfun : Costfun prob_lang).
+Context (costfun : Costfun prob_lang).
 
 Theorem wp_ERT Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) n (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
@@ -410,7 +407,7 @@ Qed.
 
 
 Theorem wp_ERT_alt Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (forall e : language.expr prob_lang, cost e = nnreal_one) ->
+  (∀ e, cost e = 1) →
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   n <= x + n * SeriesC (exec n (e, σ)).
 Proof.
@@ -430,7 +427,7 @@ Qed.
 (** Finite expected mean => Almost sure termination *)
 
 Theorem ERT_implies_AST e σ (x : nonnegreal) :
-  (forall (n : nat), n <= x + n * SeriesC (exec n (e, σ))) ->
+  (∀ (n : nat), n <= x + n * SeriesC (exec n (e, σ))) →
   SeriesC (lim_exec (e, σ)) = 1.
 Proof.
   intro H.
@@ -473,7 +470,7 @@ Proof.
 Qed.
 
 Theorem wp_ERT_alt' Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (forall e : language.expr prob_lang, cost e = nnreal_one) ->
+  (∀ e, cost e = 1) →
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC (lim_exec (e, σ)) = 1.
 Proof.
@@ -484,47 +481,33 @@ Qed.
 (** wp correct*)
 Theorem wp_correct Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  forall v, exec n (e, σ) v > 0 -> φ v.
-  Proof using costfun.
-    intros Hwp.
-    eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
-    iIntros (Hinv) "_".
-    iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
-    iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-    iMod (etc_alloc) as (?) "[??]".
-    set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
-    iApply wp_refRcoupl_step_fupdN_correct; auto.
-    iFrame.
-    iApply Hwp.
-    done.
-  Qed.
+  ∀ v, exec n (e, σ) v > 0 → φ v.
+Proof using costfun.
+  intros Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  iMod (etc_alloc) as (?) "[??]".
+  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  iApply wp_refRcoupl_step_fupdN_correct; auto.
+  iFrame.
+  iApply Hwp.
+  done.
+Qed.
 
-Local Lemma exec_lim_exec_pos (e : expr) (σ : state) (φ:_->Prop) :
-  (forall v n, exec n (e, σ) v > 0 -> φ v)->
-  forall v, lim_exec (e, σ) v > 0 -> φ v.
-  Proof.
-    intros H v Hlim.
-    assert (lim_exec (e, σ) v > 0 -> exists n, exec n (e, σ) v >0) as H'.
-    { clear.
-      intros.
-      apply Classical_Pred_Type.not_all_not_ex.
-      intros H'.
-      assert (lim_exec (e, σ) v<=0).
-        - apply lim_exec_leq. intros. apply Rnot_gt_le. naive_solver.
-        - intros. lra.
-    } 
-    apply H' in Hlim.
-    destruct Hlim as [??]. naive_solver.
-  Qed.
-    
+Local Lemma exec_lim_exec_pos (e : expr) (σ : state) (φ : val → Prop) :
+  (∀ v n, exec n (e, σ) v > 0 → φ v) →
+  ∀ v, lim_exec (e, σ) v > 0 → φ v.
+Proof. intros H v [n Hexec]%lim_exec_pos. naive_solver. Qed.
+
 Theorem wp_correct_lim Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  forall v, lim_exec (e, σ) v > 0 -> φ v.
-  Proof using costfun.
-    intros H'. apply exec_lim_exec_pos.
-    intros. 
-    eapply wp_correct; done.
-  Qed.
-    
-  
+  ∀ v, lim_exec (e, σ) v > 0 → φ v.
+Proof using costfun.
+  intros H'. apply exec_lim_exec_pos.
+  intros.
+  eapply wp_correct; done.
+Qed.
+
 End wp_ERT.
