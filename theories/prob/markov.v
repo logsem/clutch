@@ -111,7 +111,7 @@ Section reducible.
     rewrite /stuck /not_stuck -not_reducible.
     destruct (decide (is_final a)); naive_solver.
   Qed.
-  
+
   Lemma irreducible_dzero a :
     irreducible a → step a = dzero.
   Proof.
@@ -126,11 +126,11 @@ Section reducible.
 
   Lemma reducible_not_stuck a :
     reducible a → not_stuck a.
-  Proof. intros. by right. Qed. 
+  Proof. intros. by right. Qed.
 
   Lemma mass_pos_reducible a :
     SeriesC (step a) > 0 → reducible a.
-  Proof. by intros ?%SeriesC_gtz_ex. Qed. 
+  Proof. by intros ?%SeriesC_gtz_ex. Qed.
 
 End reducible.
 
@@ -583,6 +583,17 @@ Section markov.
       + apply exec_mono'. apply INR_le. by left.
     - apply rbar_le_finite; [apply is_finite_Sup_seq_exec|].
       apply (sup_is_upper_bound (λ m, exec m a b) n).
+  Qed.
+
+  Lemma lim_exec_pos a b :
+    lim_exec a b > 0 → ∃ n, exec n a b > 0.
+  Proof.
+    intros.
+    apply Classical_Pred_Type.not_all_not_ex.
+    intros H'.
+    assert (lim_exec a b <= 0); [|lra].
+    apply lim_exec_leq => n.
+    by apply Rnot_gt_le.
   Qed.
 
   Lemma lim_exec_continuous_prob a ϕ r :
