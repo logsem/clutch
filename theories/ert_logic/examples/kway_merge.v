@@ -99,7 +99,9 @@ Section kway_merge.
           | NONE => "repeat_remove" "h" "out"
           | SOME "z" =>
               "out" <- list_cons "z" !"out";;
-              heap_insert "h" (list_tail "zs") ;;
+              let: "tl" := list_tail "zs" in
+              let: "empty" := list_is_empty "tl" in
+              (if: ~ "empty" then heap_insert "h" "tl" else #());;
               "repeat_remove" "h" "out"
           end
       end.
@@ -107,7 +109,9 @@ Section kway_merge.
   Definition merge : val :=
     λ: "zss",
       let: "h" := heap_new #() in
-      list_iter (λ: "zs", heap_insert "h" "zs") "zss";;
+      list_iter (λ: "zs",
+          let: "empty" := list_is_empty "zs" in
+          if: ~ "empty" then heap_insert "h" "zs" else #()) "zss";;
       let: "out" := ref list_nil in
       repeat_remove "h" "out";;
       list_rev !"out".
@@ -125,8 +129,6 @@ Section kway_merge_spec.
   Definition repeat_remove_cost (zss : list (list Z)) : R :=
     length (concat zss) * heap_remove_cost (length zss) +
     length (concat zss) * heap_insert_cost (length zss) +
-    length zss * heap_remove_cost (length zss) +
-    length zss * heap_insert_cost (length zss) +
     heap_remove_cost 0.
 
   Lemma repeat_remove_cost_nonneg zss :
@@ -169,9 +171,21 @@ Section kway_merge_spec.
     rewrite cons_length S_INR. lra.
   Qed.
 
+  Lemma list_list_non_empty {A} (zss : list (list A)) :
+    length zss ≠ 0%nat →
+    Forall (λ zs, length zs ≠ 0%nat) zss →
+    length (concat zss) ≠ 0%nat.
+  Proof.
+    intros [zs [zss' Hzss]%elem_of_Permutation]%length_inv_not_zero.
+    setoid_rewrite Hzss.
+    intros [[z [zs' Hzs]%elem_of_Permutation]%length_inv_not_zero _]%Forall_cons.
+    rewrite /= Hzs /=. lia.
+  Qed.
+
   Local Hint Resolve length_pos : real.
 
   Lemma etc_repeat_remove_cost_split zss :
+    Forall (λ zs, length zs ≠ 0%nat) zss →
     length zss ≠ 0%nat →
     ⧖ (repeat_remove_cost zss) ⊢
       ⧖ (heap_remove_cost (length zss)) ∗
@@ -180,34 +194,25 @@ Section kway_merge_spec.
            - heap_remove_cost (length zss)
            - heap_insert_cost (length zss)).
   Proof.
-    intros [zs [zss' Hzs]%elem_of_Permutation]%length_inv_not_zero.
-    setoid_rewrite Hzs.
+    intros Hzs Hzss.
     rewrite /repeat_remove_cost.
-    do 4 (rewrite etc_split; eauto 10 with real).
+    destruct (length (concat zss)) eqn:Heq.
+    { pose proof (list_list_non_empty _ Hzss Hzs). lia. }
+    do 2 (rewrite etc_split; eauto 10 with real).
     rewrite -!bi.sep_assoc.
-    iIntros "(Hr & Hi & Hrnils & Hinils & H0)".
-    rewrite concat_cons app_length cons_length.
-    rewrite plus_INR S_INR !Rmult_plus_distr_r !Rmult_1_l.
-    iDestruct (etc_split with "Hr") as "[Hr1 Hr2]"; auto with real.
-    iDestruct (etc_split with "Hi") as "[Hi1 Hi2]"; auto with real.
-    (* if [zs] is empty, we pay with "Hnils", if not we pay with "Hr1" and "Hi1" *)
-    destruct zs.
-    - iDestruct (etc_split with "Hrnils") as "[Hrnils $]"; auto with real.
-      iDestruct (etc_split with "Hinils") as "[Hinils $]"; auto with real.
-      iClear "Hr1 Hi1".
-      iCombine "Hr2 Hi2 Hrnils Hinils H0" as "H".
-      iApply (etc_irrel with "H").
-      simpl. lra.
-    - rewrite cons_length S_INR !Rmult_plus_distr_r !Rmult_1_l.
-      iDestruct (etc_split with "Hr1") as "[Hr1 $]"; auto with real.
-      iDestruct (etc_split with "Hi1") as "[Hi1 $]"; auto with real.
-      iCombine "Hr1 Hr2 Hi1 Hi2 Hrnils Hinils H0" as "H".
-      iApply (etc_irrel with "H"). lra.
+    iIntros "(Hr & Hi & H0)".
+    rewrite S_INR !Rmult_plus_distr_r !Rmult_1_l.
+    iDestruct (etc_split with "Hr") as "[Hr $]"; auto with real.
+    iDestruct (etc_split with "Hi") as "[Hi $]"; auto with real.
+    iCombine "Hr Hi H0" as "H".
+    iApply (etc_irrel with "H").
+    lra.
   Qed.
 
   Local Lemma wp_repeat_remove_aux (zss : list (list Z)) zs0 h out :
     Forall (Sorted Z.le) zss →
     Sorted (flip Z.le) zs0 →
+    Forall (λ zs, length zs ≠ 0%nat) zss →
     Forall (λ z, Forall (Z.le z) (concat zss)) zs0 →
     {{{ ⧖ (repeat_remove_cost zss) ∗ is_min_heap zss h ∗ out ↦ inject zs0 }}}
       repeat_remove h #out
@@ -215,8 +220,8 @@ Section kway_merge_spec.
           is_min_heap [] h ∗ out ↦ inject (zs' ++ zs0) ∗
           ⌜zs' ≡ₚ concat zss⌝ ∗ ⌜Sorted (flip Z.le) (zs' ++ zs0)⌝}}}.
   Proof.
-    iIntros (Hzss Hzs0 Hle Ψ) "(Hc & Hh & Hout) HΨ".
-    iLöb as "IH" forall (zss zs0 Hzss Hzs0 Hle Ψ) "Hc Hh Hout HΨ".
+    iIntros (Hzss Hzs0 Hne Hle Ψ) "(Hc & Hh & Hout) HΨ".
+    iLöb as "IH" forall (zss zs0 Hzss Hzs0 Hne Hle Ψ) "Hc Hh Hout HΨ".
     wp_rec; wp_pures.
     destruct (length zss) eqn:Hlen.
     - rewrite repeat_remove_cost_nil //.
@@ -226,27 +231,73 @@ Section kway_merge_spec.
       { rewrite Hp /= in Hlen. lia. }
       wp_pures.
       iApply ("HΨ" $! []). rewrite app_nil_l /=. by iFrame.
-    - iDestruct (etc_repeat_remove_cost_split with "Hc") as "(Hr & Hi & Hrest)"; [lia|].
+    - iDestruct (etc_repeat_remove_cost_split with "Hc") as "(Hr & Hi & Hrest)"; [done|lia|].
       wp_apply (wp_heap_remove with "[$Hh $Hr]").
       iIntros (w) "[(_ & % & _) | (%zs' & %u & %zss' & -> & %Hp & [%Hu %HuS] & %Hs & Hh)]";
         simplify_eq.
       wp_pures.
       wp_apply (wp_list_head with "[//]").
       iIntros (w) "[[-> ->] | (%z & %zs'' & -> & ->)]".
-      + wp_pures.
-        wp_apply ("IH" $! zss' zs0 with "[] [//] [] [Hrest] Hh Hout").
+      { rewrite Hp Forall_cons in Hne. by destruct Hne. }
+      wp_pures.
+      wp_load; iIntros "Hout".
+      wp_apply (wp_list_cons z zs0).
+      { rewrite is_list_inject //. }
+      iIntros (r Hr).
+      wp_store; iIntros "Hout".
+      wp_pures.
+      wp_apply (wp_list_tail _ _ (z :: zs'') with "[//]"); simpl.
+      iIntros (w Hw).
+      wp_pures.
+      wp_apply (wp_list_is_empty with "[//]"); iIntros "_".
+      wp_pures.
+      destruct zs'' as [|z'' zs'']; wp_pures.
+      + apply is_list_inject in Hr as ->.
+        wp_apply ("IH" $! zss' (z :: zs0) with "[] [] [] [] [Hrest] Hh Hout").
         { iPureIntro. rewrite Hp Forall_cons in Hzss. by destruct Hzss. }
-        { iPureIntro. eapply Forall_impl; [exact Hle|].
-          intros z => /=. rewrite Hp concat_cons app_nil_l //. }
+        { iPureIntro.  constructor; [done|].
+          (* TODO: extract to a separate lemma *)
+          destruct zs0; [done|]. constructor.
+          rewrite Forall_cons in Hle; destruct Hle as [Hle _].
+          setoid_rewrite Hp in Hle.
+          setoid_rewrite Forall_concat in Hle.
+          rewrite Forall_cons in Hle; destruct Hle as [Hle _].
+          rewrite Forall_cons in Hle. by destruct Hle. }
+        { iPureIntro. rewrite Hp Forall_cons in Hne. by destruct Hne. }
+        { iPureIntro.
+          (* TODO: extract to a separate lemma *)
+          rewrite Hp in Hzss Hs.
+          setoid_rewrite Hp in Hle; clear Hlen Hp zss Hne.
+          apply Forall_cons in Hs as [_ Hs].
+          apply Forall_cons.
+          split.
+          - apply Forall_cons in Hzss as [Hzss' Hzss'S].
+            eapply Sorted_extends in Hzss'; [|intros ?????; by etrans].
+            apply Forall_concat, Forall_forall.
+            intros ys Hys.
+            rewrite Forall_forall in Hs.
+            destruct ys; [done|].
+            rewrite Forall_cons.
+            pose proof (Hs _ Hys).
+            split; [done|].
+            rewrite Forall_forall in Hzss'S.
+            specialize (Hzss'S _ Hys).
+            eapply Sorted_extends in Hzss'S; [|intros ?????; by etrans].
+            simpl in Hzss'.
+            specialize (Hs _ Hys).
+            simpl in Hs.
+            eapply Forall_impl; [done|].
+            intros ??. by etrans.
+          - setoid_rewrite Forall_cons in Hle.
+            eapply Forall_impl; [done|]. by intros ? []. }
         { iApply (etc_weaken with "Hrest").
           split; [auto with real|].
           rewrite Hp cons_length.
           rewrite {2}/repeat_remove_cost.
-          rewrite concat_cons cons_length app_length nil_length.
-
-          rewrite Nat.add_0_l.
-          rewrite !S_INR !Rmult_plus_distr_r 2!Rmult_1_l.
+          rewrite concat_cons app_length !cons_length nil_length.
+          rewrite plus_INR !Rmult_plus_distr_r !Rmult_1_l.
           rewrite /repeat_remove_cost.
+
           assert (heap_remove_cost (length zss') <= heap_remove_cost (S (length zss'))).
           { apply heap_remove_cost_mono. lia. }
           assert (heap_insert_cost (length zss') <= heap_insert_cost (S (length zss'))).
@@ -259,24 +310,17 @@ Section kway_merge_spec.
 
           transitivity
             (length (concat zss') * RS +
-             length (concat zss') * IS +
-               length zss' * RS +
-               length zss' * IS + heap_remove_cost 0); [|lra].
-
+             length (concat zss') * IS + heap_remove_cost 0); [|lra].
           eauto 10 with real. }
         iIntros (zs') "(Hh & Hout & %Hp' & %Hs')".
-        iApply ("HΨ" with "[$Hh $Hout]"). iSplit; [|done].
-        iPureIntro. rewrite Hp' Hp //.
-      + wp_pures.
-        wp_load; iIntros "Hout".
-        wp_apply (wp_list_cons z zs0).
-        { rewrite is_list_inject //. }
-        iIntros (r Hr).
-        wp_store; iIntros "Hout".
-        wp_pures.
-        wp_apply (wp_list_tail _ _ (z :: zs'') with "[//]"); simpl.
-        iIntros (w Hw).
-        wp_apply (wp_heap_insert _ zs'' with "[$Hh Hi]").
+        assert ((zs' ++ z :: zs0) = (zs' ++ [z]) ++ zs0) as ->.
+        { rewrite -app_assoc //. }
+        iApply ("HΨ" with "[$Hh $Hout]").
+        rewrite -app_assoc.
+        iSplit; [|done].
+        iPureIntro. rewrite Hp' Hp Permutation_app_comm //.
+      + remember (z'' :: zs'') as zs'.
+        wp_apply (wp_heap_insert _ zs' with "[$Hh Hi]").
         { iSplit.
           * iSplit; [done|]. by inversion HuS.
           * iApply (etc_weaken with "Hi"). split; [auto with real|].
@@ -284,7 +328,7 @@ Section kway_merge_spec.
         iIntros (zss'') "(Hh & %Hp')".
         wp_pures.
         apply is_list_inject in Hr as ->.
-        wp_apply ("IH" $! _ (z :: zs0) with "[] [] [] [Hrest] Hh Hout").
+        wp_apply ("IH" $! _ (z :: zs0) with "[] [] [] [] [Hrest] Hh Hout").
         { iPureIntro.
           rewrite Hp' Forall_cons.
           inversion HuS; subst.
@@ -299,13 +343,17 @@ Section kway_merge_spec.
           rewrite Forall_cons in Hle; destruct Hle as [Hle _].
           rewrite Forall_cons in Hle. by destruct Hle. }
         { iPureIntro.
+          rewrite Hp Forall_cons in Hne. destruct Hne.
+          rewrite Hp' Forall_cons. split; [|done].
+          rewrite Heqzs' //. }
+        { iPureIntro.
           rewrite Hp in Hzss Hs.
-          setoid_rewrite Hp in Hle; clear Hlen Hp zss.
+          setoid_rewrite Hp in Hle; clear Hlen Hne Hp zss.
           setoid_rewrite Hp'; clear Hp' zss''.
           apply Forall_cons in Hs as [_ Hs].
           apply Forall_cons.
           split.
-          - rewrite concat_cons. apply Forall_app.
+          * rewrite concat_cons. apply Forall_app.
             apply Forall_cons in Hzss as [Hzss' Hzss'S].
             eapply Sorted_extends in Hzss'; [|intros ?????; by etrans].
             split; [done|].
@@ -324,7 +372,7 @@ Section kway_merge_spec.
             simpl in Hs.
             eapply Forall_impl; [done|].
             intros ??. by etrans.
-          - rewrite /= -concat_cons in Hle.
+          * rewrite /= -concat_cons in Hle.
             setoid_rewrite Forall_cons in Hle.
             eapply Forall_impl; [done|]. by intros ? []. }
         { iApply (etc_irrel with "Hrest").
@@ -335,40 +383,50 @@ Section kway_merge_spec.
           remember (heap_remove_cost (S (length zss'))) as R.
           remember (heap_insert_cost (S (length zss'))) as I.
           lra. }
-        iIntros (zs') "(Hh & Hout & %Hp'' & %HS)".
-        assert ((zs' ++ z :: zs0) = (zs' ++ [z]) ++ zs0) as ->.
-        { rewrite -app_assoc //. }
-        iApply "HΨ".
-        iFrame.
-        rewrite -app_assoc /=.
-        iSplit; [|done].
-        iPureIntro.
-        rewrite Hp Hp'' Hp'.
-        rewrite Permutation_app_comm //.
+      iIntros (zs''') "(Hh & Hout & %Hp'' & %HS)".
+      assert ((zs''' ++ z :: zs0) = (zs''' ++ [z]) ++ zs0) as ->.
+      { rewrite -app_assoc //. }
+      iApply "HΨ".
+      iFrame.
+      rewrite -app_assoc /=.
+      iSplit; [|done].
+      iPureIntro.
+      rewrite Hp Hp'' Hp'.
+      rewrite Permutation_app_comm //.
   Qed.
 
   Lemma wp_repeat_remove h out (zss : list (list Z)) :
     Forall (Sorted Z.le) zss →
+    Forall (λ zs, length zs ≠ 0%nat) zss →
     {{{ ⧖ (repeat_remove_cost zss) ∗ is_min_heap zss h ∗ out ↦ NONEV }}}
       repeat_remove h #out
     {{{ zs, RET #();
         is_min_heap [] h ∗ out ↦ inject zs ∗
         ⌜zs ≡ₚ concat zss⌝ ∗ ⌜Sorted (flip Z.le) zs⌝}}}.
   Proof.
-    iIntros (??) "(?&?&?) H".
-    wp_apply (wp_repeat_remove_aux _ [] with "[$]"); [done|done|done|].
+    iIntros (???) "(?&?&?) H".
+    wp_apply (wp_repeat_remove_aux _ [] with "[$]"); [done|done|done|done|].
     iIntros (?). rewrite app_nil_r //.
   Qed.
 
   Definition merge_cost (zss : list (list Z)) : R :=
     length zss * heap_insert_cost (length zss) + repeat_remove_cost zss.
 
+  Lemma concat_filter_nempty (zss : list (list Z)) :
+    concat (filter ([] ≠.) zss) = concat zss.
+  Proof.
+    induction zss as [|zs zss]; [done|].
+    rewrite filter_cons.
+    destruct zs => /=; [done|].
+    rewrite IHzss //.
+  Qed.
+
   Lemma wp_merge (v : val) (zss : list (list Z)) :
     is_list zss v →
     Forall (Sorted Z.le) zss →
     {{{ ⧖ (merge_cost zss) }}}
       merge v
-    {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat zss⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
+    {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat (filter ([] ≠.) zss)⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
   Proof.
     iIntros (Hv Hzss Ψ) "Hc HΨ".
     rewrite /merge_cost.
@@ -378,24 +436,51 @@ Section kway_merge_spec.
     iIntros (h) "Hh"; wp_pures.
     rewrite etc_split_list; [|auto with real].
     wp_apply (wp_list_iter_invariant (λ _ _, ⧖ (heap_insert_cost (length zss))) (λ _ _, True)
-                (λ l, is_min_heap l h) True with "[] [$Hh $Hinit //]")%I.
-    { iIntros (l l' Ψ') "!# ([% ->] & _ & Hh & Hc) HΨ'".
+                (λ zss', is_min_heap (filter (([] ≠.)) zss') h) True
+               with "[] [$Hh $Hinit //]")%I.
+    { iIntros (zs zss' Ψ') "!# ([% ->] & _ & Hh & Hc) HΨ'".
       wp_pures.
-      wp_apply (wp_heap_insert _ l with "[$Hh Hc]").
-      { rewrite /= /is_Z_list is_list_inject.
-        iSplit.
-        - iSplit; [done|]. by apply Forall_app in Hzss as [_ [? ?]%Forall_cons].
-        - iApply (etc_weaken with "Hc"). split; [auto with real|].
-          apply heap_insert_cost_mono. rewrite app_length. lia. }
-      iIntros (zss') "[Hh ->]".
-      iApply "HΨ'".
-      rewrite Permutation_cons_append.
-      iFrame. }
+      wp_apply (wp_list_is_empty zs); [|iIntros "_"].
+      { rewrite is_list_inject //. }
+      destruct zs as [|z zs'] eqn:Hzs; wp_pures.
+      - iApply "HΨ'". iModIntro.
+        rewrite filter_app filter_cons_False ?filter_nil; [|auto].
+        rewrite app_nil_r. by iFrame.
+      - wp_apply (wp_heap_insert _ (z :: zs') with "[$Hh Hc]").
+        { rewrite /= /is_Z_list is_list_inject.
+          iSplit.
+          - iSplit; [done|]. by apply Forall_app in Hzss as [_ [? ?]%Forall_cons].
+          - iApply (etc_weaken with "Hc"). split; [auto with real|].
+            apply heap_insert_cost_mono.
+            etrans; [apply filter_length|].
+            rewrite app_length. lia. }
+        iIntros (zss'') "[Hh ->]".
+        iApply "HΨ'".
+        rewrite Permutation_cons_append.
+        rewrite right_id left_id.
+        rewrite filter_app filter_cons /= filter_nil //. }
     iIntros "(_ & Hh & _)".
     wp_pures.
     wp_alloc out as "Hout".
     wp_pures.
-    wp_apply (wp_repeat_remove with "[$Hc $Hh $Hout]"); [done|].
+    wp_apply (wp_repeat_remove with "[Hc $Hh $Hout]"); [ | | |].
+    { apply Forall_forall => zs Hzs.
+      apply list_filter_subseteq in Hzs.
+      by eapply Forall_forall in Hzss. }
+    { apply Forall_forall => zs Hz.
+      rewrite elem_of_list_filter in Hz.
+      by destruct Hz, zs. }
+    { iApply (etc_weaken with "Hc").
+      split; [apply repeat_remove_cost_nonneg|].
+      rewrite /repeat_remove_cost /= .
+      rewrite concat_filter_nempty.
+      assert (heap_remove_cost (length (filter (λ y : list Z, [] ≠ y) zss))
+              <= heap_remove_cost (length zss)).
+      { apply heap_remove_cost_mono. apply filter_length. }
+      assert (heap_insert_cost (length (filter (λ y : list Z, [] ≠ y) zss))
+              <= heap_insert_cost (length zss)).
+      { apply heap_insert_cost_mono. apply filter_length. }
+      eauto with real. }
     iIntros (zs) "(Hh & Hout & %Hp & %Hsorted)".
     wp_pures.
     wp_load; iIntros "Hout".
@@ -412,8 +497,8 @@ Section kway_merge_spec.
   Lemma merge_cost_alt zss :
     let k := length zss in
     let n := length (concat zss) in
-    merge_cost zss = (2 * k + n) * heap_insert_cost k +
-                     (k + n) * heap_remove_cost k +
+    merge_cost zss = (k + n) * heap_insert_cost k +
+                     n * heap_remove_cost k +
                      heap_remove_cost 0.
   Proof. rewrite /merge_cost /repeat_remove_cost. lra. Qed.
 
@@ -435,17 +520,19 @@ Section kway_merge_meldable_heap.
   Lemma wp_meldable_merge (v : val) :
     is_list zss v →
     Forall (Sorted Z.le) zss →
-    {{{ ⧖ ((4 * k + 3 * n) * tc_meld 1 k + 7 * k + 4 * n + 1) }}}
+    {{{ ⧖ ((k + 3 * n) * tc_meld 1 k + 3 * k + 4 * n + 1) }}}
       meldable_merge v
     {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat zss⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
   Proof.
     iIntros (???) "Hcost H".
-    iApply (wp_merge with "[Hcost]"); [done|done| |done].
-    iApply (etc_irrel with "Hcost").
-    rewrite merge_cost_alt.
-    rewrite /heap_insert_cost /heap_remove_cost /=.
-    rewrite /meld_heap_insert_cost /meld_heap_remove_cost /=.
-    rewrite !tc_meld_1 !tc_meld_0. lra.
+    iApply (wp_merge with "[Hcost]"); [done|done| |].
+    { iApply (etc_irrel with "Hcost").
+      rewrite merge_cost_alt.
+      rewrite /merge_cost /repeat_remove_cost.
+      rewrite /heap_insert_cost /heap_remove_cost /=.
+      rewrite /meld_heap_insert_cost /meld_heap_remove_cost /=.
+      rewrite tc_meld_0 tc_meld_1. lra. }
+    rewrite concat_filter_nempty //.
   Qed.
 
 End kway_merge_meldable_heap.
