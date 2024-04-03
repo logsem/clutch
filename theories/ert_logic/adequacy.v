@@ -139,7 +139,7 @@ Section adequacy.
   Qed.
 
 
-  Lemma ERM_erasure_alt (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
+  Lemma ERM_erasure_ast (e : expr) (σ : state) (n : nat) (* φ *) (x : nonnegreal) :
     to_val e = None →
     (∀ e, cost e = 1) →
     ERM e σ x
@@ -318,7 +318,7 @@ Section adequacy.
         by iApply (ERM_erasure with "H").
   Qed.
 
-  Theorem wp_refRcoupl_step_fupdN_alt (e : expr) (σ : state) (x : nonnegreal) n φ  :
+  Theorem wp_refRcoupl_step_fupdN_ast (e : expr) (σ : state) (x : nonnegreal) n φ  :
     (∀ e, cost e = 1) →
     state_interp σ ∗ etc_supply x ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
       |={⊤,∅}=> |={∅}▷=>^n ⌜n <= x + n * SeriesC (exec n (e, σ))⌝.
@@ -350,7 +350,7 @@ Section adequacy.
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
           iMod ("IH" with "[$]") as "H".
           iModIntro. done. }
-        by iApply (ERM_erasure_alt).
+        by iApply (ERM_erasure_ast).
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN_correct (e : expr) (σ : state) (x : nonnegreal) n φ  :
@@ -442,7 +442,7 @@ Proof.
   by eapply wp_ERT.
 Qed.
 
-Theorem wp_ERT_alt Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+Theorem wp_ERT_ast Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   n <= x + n * SeriesC (exec n (e, σ)).
@@ -454,7 +454,7 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
   set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN_alt; auto.
+  iApply wp_refRcoupl_step_fupdN_ast; auto.
   iFrame.
   iApply Hwp.
   done.
@@ -505,13 +505,13 @@ Proof.
       pose proof (pos_INR m). lra.
 Qed.
 
-Theorem wp_ERT_alt' Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+Theorem wp_ERT_ast' Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
   (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC (lim_exec (e, σ)) = 1.
 Proof.
   intros. eapply ERT_implies_AST.
-  intros. eapply wp_ERT_alt; done.
+  intros. eapply wp_ERT_ast; done.
 Qed.
 
 (** wp correct*)
