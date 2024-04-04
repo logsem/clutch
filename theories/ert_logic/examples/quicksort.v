@@ -1918,6 +1918,24 @@ Section qs_adv_cmp_ent.
   Context {A} (f : relation A) `{∀ x y, Decision (f x y)} `{!TotalOrder f} `{Inhabited A}.
   Context `[!Inject A val].
 
+    (* FIXME duplicated to fix typeclass inference *)
+    Lemma foldr_reduction_2' (L : list A) g :
+      (foldr (Rplus ∘ g ∘ reverse_order (index_space (length L))) 0%R (index_space (length L)))%R
+      = (foldr (Rplus ∘ g) 0%R (index_space (length L)))%R.
+    Proof.
+      intros.
+      rewrite (fold_R_fin_perm _ (reverse_order (index_space (length L)))).
+      - (* generalize me *)
+        remember (index_space (length L)) as LL; clear HeqLL.
+        remember (reverse_order LL) as g1; clear Heqg1.
+        induction LL as [|L0 L' IH].
+        + simpl; done.
+        + simpl. f_equal. apply IH.
+      - apply reverse_perm.
+    Qed.
+
+
+
   Definition ec_distr_def (L : list A) (CA : R) : nat -> R
     := fun index =>
          match L with
@@ -1947,38 +1965,26 @@ Section qs_adv_cmp_ent.
   (SeriesC (λ n : fin (S (Z.to_nat (length L - 1))), 1 / S (Z.to_nat (length L - 1)) * ec_distr L CA n)
       <= 2 * foldr Rplus 0 (map (λ n : nat, ec_quicksort CA n) (index_space (length L))) / (length L))%R.
   Proof.
-    (*
-    intros Hlength ? ? Hunique.
+    intros Hlength ? Hunique.
     assert (Hlength_nz : INR (length L) ≠ 0%R).
     { symmetry. apply Rlt_not_eq. rewrite -INR_0. by apply lt_INR. }
 
-    (* 1. Simplify everything that we can, and get rid of the / (S length xs') terms *)
-    apply (Rmult_eq_reg_r (length L)); last done.
+    Set Printing Coercions.
 
-    (* Cancel on the RHS *)
-    repeat rewrite Rdiv_def.
-    rewrite Rmult_assoc Rinv_l; last done.
-    rewrite Rmult_1_r.
-    (* Cancel on the LHS *)
-    rewrite Rmult_comm.
+    (* 1. Simplify the division *)
     rewrite SeriesC_scal_l.
-    rewrite -Rmult_assoc Rmult_1_l.
-    simpl length.
-
-    replace ((length L) * (/ (S (Z.to_nat (Z.of_nat (length L) - 1)))))%R with 1%R; last first.
-    { replace (S (Z.to_nat (Z.of_nat (length L) - 1))) with (length L) by lia.
-      rewrite Rinv_r; done.
-    }
-    rewrite Rmult_1_l.
-
+    rewrite ?Rdiv_def.
+    rewrite Rmult_comm Rmult_1_l.
+    replace (INR _) with (INR (length L)); last (f_equal; lia).
+    apply Rmult_le_compat_r; first (by apply Rlt_le, Rinv_0_lt_compat, lt_0_INR).
 
     (* 2. Convert the series into a foldr, simpl *)
     rewrite SeriesC_finite_foldr.
-    rewrite /tc_distr.
-    replace (foldr (Rplus ∘ (tc_distr_def L CA CB ∘ fin_to_nat)) 0%R (enum (fin (S (Z.to_nat (Z.of_nat (length L) - 1))))))
-      with  (foldr (Rplus ∘ tc_distr_def L CA CB) 0%R (index_space (length L)));
+    rewrite /ec_distr.
+    replace (foldr (Rplus ∘ (ec_distr_def L CA ∘ fin_to_nat)) 0%R (enum (fin (S (Z.to_nat (Z.of_nat (length L) - 1))))))
+      with (foldr (Rplus ∘ ec_distr_def L CA) 0%R (index_space (length L)));
       last first.
-    { remember (tc_distr_def _ _ _) as g.
+    { remember (ec_distr_def _ _) as g.
       remember (S (Z.to_nat (Z.of_nat (length L) - 1))) as l.
       replace (length L) with l; last (simplify_eq; lia).
       clear.
@@ -2026,17 +2032,17 @@ Section qs_adv_cmp_ent.
     }
 
     (* 3. Split the distr series into two sums *)
-    replace (foldr (Rplus ∘ tc_distr_def L CA CB) 0%R (index_space (length L)))
-       with (foldr (Rplus ∘ tc_quicksort CA CB ∘ (index_to_rank f L)) 0%R (index_space (length L)) +
-             foldr (Rplus ∘ tc_quicksort CA CB ∘ (reverse_order (index_space (length L))) ∘ (index_to_rank f L)) 0%R (index_space (length L)))%R;
+    replace (foldr (Rplus ∘ ec_distr_def L CA) 0%R (index_space (length L)))
+       with (foldr (Rplus ∘ ec_quicksort CA ∘ (index_to_rank f L)) 0%R (index_space (length L)) +
+             foldr (Rplus ∘ ec_quicksort CA ∘ (reverse_order (index_space (length L))) ∘ (index_to_rank f L)) 0%R (index_space (length L)))%R;
       last first.
-    { rewrite /tc_distr_def.
+    { rewrite /ec_distr_def.
       destruct L as [|L' LS]; first (simpl in *; lra).
       remember (L' :: LS) as L.
       clear HeqL L' LS.
 
-      remember (Rplus ∘ tc_quicksort CA CB ∘ index_to_rank f L) as f1.
-      remember (Rplus ∘ tc_quicksort CA CB ∘ reverse_order (index_space (length L)) ∘ index_to_rank f L) as f2.
+      remember (Rplus ∘ ec_quicksort CA ∘ index_to_rank f L) as f1.
+      remember (Rplus ∘ ec_quicksort CA ∘ reverse_order (index_space (length L)) ∘ index_to_rank f L) as f2.
       replace (compose Rplus _) with  (fun i => (fun r => f1 i 0 + f2 i 0 + r)%R); last first.
       { (* There's probably a better way *)
         apply functional_extensionality.
@@ -2064,16 +2070,38 @@ Section qs_adv_cmp_ent.
     (* 4. Rewrite the reversed sum and combine to eliminate the factor of 2 *)
     rewrite (foldr_reduction_1); [|done].
     rewrite (foldr_reduction_1); [|done].
-    rewrite (foldr_reduction_2).
+    rewrite (foldr_reduction_2').
+    do do
 
-    (* 5. Combine *)
-    do 2 rewrite -foldr_fmap.
+
+    (*
+    rewrite (fold_R_fin_perm _ (reverse_order (index_space (length L)))).
+    - (* generalize me *)
+      remember (index_space (length L)) as LL; clear HeqLL.
+      remember (reverse_order LL) as g1; clear Heqg1.
+      induction LL as [|L0 L' IH].
+      + simpl. lra.
+      + simpl. f_equal.
+        rewrite Rmult_plus_distr_l.
+        rewrite Rplus_assoc.
+        rewrite (Rplus_comm _ (ec_quicksort _ _ + _)).
+        rewrite -Rplus_assoc -Rplus_assoc.
+        rewrite -(Rmult_1_l (ec_quicksort _ _)).
+        rewrite -Rmult_plus_distr_r.
+        rewrite Rplus_diag Rmult_1_r.
+        rewrite Rplus_assoc.
+        Search (?x + _ <= ?x + _)%R.
+        apply Rplus_le_compat_l.
+
     lra.
+        (* apply IH. *) admit.
+    - apply reverse_perm.
+     *)
+
+
 
     Transparent seq.
   Qed.
-     *)
-  Admitted.
 
 End qs_adv_cmp_ent.
 
@@ -2110,30 +2138,8 @@ Section program_ent.
     { wp_pures; iModIntro. iApply "hφ". destruct xs; [ |simpl in *; lia].
       iExists []. auto. }
 
-    (* Pick a pivot index at random, using advanced composition on the (2 * ...) term*)
     wp_pures.
     rewrite ec_quicksort_unfold.
-    (*
-    iAssert (⧖ (Rlog 2 (length xs)) ∗
-             ⧖ (2 * foldr Rplus 0 (map (λ n0 : nat, ec_quicksort 1 n0) (seq 0 (length xs))) / length xs))%I
-            with "[H⧖]" as "[H⧖log H⧖Amp]".
-    { destruct xs as [|? ?]; first (simpl in *; lia).
-      iApply etc_split.
-      - apply Rlog_pos; lra.
-      - apply Rcomplements.Rdiv_le_0_compat; last (rewrite -INR_0; apply lt_INR; simpl; lia).
-        apply Rmult_le_pos; try lra.
-        (* augh *)
-        remember (length (a :: xs)) as W.
-        clear HeqW H0 H1.
-        induction W as [|W' IHW]; [simpl; lra|].
-        rewrite seq_S /=.
-        rewrite map_app foldr_app /=.
-        rewrite foldr_comm_acc; last (intros; simpl; lra).
-        apply Rplus_le_le_0_compat; [apply ec_quicksort_nonneg|]; try lra.
-      - iFrame.
-    }
-    *)
-
 
     remember (Rlog 2 _ + _)%R as K.
     wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _ K (ec_distr f xs 1%R) with "[H⧖]").
