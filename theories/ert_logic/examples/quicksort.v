@@ -1594,3 +1594,159 @@ Section program.
 
 
 End program.
+
+
+Section log_lib.
+  (** Lemmas related to log *)
+  (* Taken from meldable_heaps.v; move to a common place? *)
+
+  Lemma ln_0 : (ln 0%R = 0%R).
+  Proof. compute. destruct (Rlt_dec R0 R0); auto. exfalso. lra. Qed.
+
+  Lemma ln_pos (n : nat) : (1 < n)%nat -> (0 < ln n)%R.
+  Proof.
+    intros.
+    apply exp_lt_inv.
+    rewrite exp_0.
+    pose P := (pos_INR n).
+    rewrite exp_ln; [apply lt_1_INR; lia | apply lt_0_INR; lia].
+  Qed.
+
+  Lemma ln_nonneg (n : nat) : (0 <= ln n)%R.
+  Proof.
+    destruct n as [|n]; [ rewrite ln_0; lra | ].
+    destruct n as [|n]; [ rewrite ln_1; lra | ].
+    apply Rlt_le, ln_pos. lia.
+  Qed.
+
+
+  Lemma Rlog_pos (b : R) (v : nat) : (1 < b)%R -> (0 <= Rlog b v)%R.
+  Proof.
+    intros.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_pos; [apply ln_nonneg | ].
+    apply Rlt_le, Rinv_0_lt_compat.
+    rewrite -(ln_exp 0) exp_0.
+    apply ln_increasing; lra.
+  Qed.
+
+  Lemma Rlog_nonneg_nats (b v : nat) : (0 <= Rlog b v)%R.
+  Proof.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_le_pos; [apply ln_nonneg | ].
+    destruct b; [rewrite /= ln_0 Rinv_0; lra |].
+    destruct b; [rewrite /= ln_1 Rinv_0; lra |].
+    apply Rlt_le, Rinv_0_lt_compat.
+    apply ln_pos.
+    lia.
+  Qed.
+
+
+  Lemma Rlog_increasing x y b : (1 < b)%R -> (0 < x < y)%R -> (Rlog b x < Rlog b y)%R.
+  Proof.
+    intros.
+    rewrite /Rlog Rdiv_def.
+    apply Rmult_lt_compat_r.
+    { apply Rinv_0_lt_compat.
+      rewrite -(ln_exp 0) exp_0.
+      apply ln_increasing; lra.
+    }
+    apply ln_increasing; lra.
+  Qed.
+End log_lib.
+
+
+Section qs_ent.
+  (** Defines the recurrence relation for Quicksort entropy *)
+
+  (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
+  Definition ec_quicksort (A : R) (len : nat) : R.
+  refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => R)
+          (fun len qf_rec =>
+           match len with
+               0%nat   => 0%R
+             | (S n) => ((Rlog 2 len) +
+                          2 * (foldr Rplus 0%R $
+                                map (fun n => (qf_rec (fin_to_nat n) _)) $
+                                fin_enum len) / len )%R
+           end) len).
+  Proof. rewrite /Wf.MR. apply fin_to_nat_lt. Defined.
+
+
+  Lemma ec_quicksort_aux A len :
+    ec_quicksort A len =
+      match len with
+        0%nat   => 0%R
+      | (S _) => ((Rlog 2 len)
+                  + 2 * (foldr Rplus 0%R $
+                        map (fun n => ec_quicksort A (fin_to_nat n)) $
+                        (fin_enum len) ) / len)%R
+      end.
+  Proof. rewrite /ec_quicksort easy_fix_eq. done. Qed.
+
+  Lemma ec_quicksort_unfold A len :
+    ec_quicksort A len =
+      match len with
+        0%nat   => 0%R
+      | (S _) => ((Rlog 2 len)
+                  + 2 * (foldr Rplus 0%R $
+                        map (fun n => ec_quicksort A n) $
+                        seq 0%nat len) / len)%R
+      end.
+  Proof.
+    rewrite ec_quicksort_aux.
+    destruct len; [done|].
+    do 3 f_equal.
+    generalize (S len); intros N; clear.
+    induction N as [|N' IH]; [done|].
+    Opaque seq fin_enum.
+    rewrite seq_S map_app foldr_snoc /=.
+    rewrite fin_enum_snoc_rec map_app foldr_snoc /=.
+    rewrite foldr_comm_acc; last (intros; simpl; lra).
+    rewrite foldr_comm_acc; last (intros; simpl; lra).
+    rewrite -IH.
+    f_equal.
+    + by rewrite fin_to_nat_to_fin.
+    + rewrite map_map.
+      do 2 f_equal.
+      apply functional_extensionality; intros; simpl.
+      by rewrite -fin_inj_incr_to_nat.
+    Transparent seq fin_enum.
+  Qed.
+
+  Opaque ec_quicksort.
+
+
+
+  Lemma ec_quicksort_0 A : ec_quicksort A 0%nat = 0%R.
+  Proof. rewrite ec_quicksort_unfold. done. Qed.
+
+  Lemma ec_quicksort_S A n :
+    (1 <= n)%nat ->
+    ec_quicksort A n = ((Rlog 2 n) + 2 * (foldr Rplus 0 $ map (fun i => ((ec_quicksort A i))%NNR) $ seq 0%nat n)%NNR /n)%R.
+  Proof. intros. rewrite ec_quicksort_unfold. destruct n; [lia|]. done. Qed.
+
+  Lemma ec_quicksort_nonneg A n :
+    (0 <= A)%R ->
+    (0 <= ec_quicksort A n)%R.
+  Proof.
+    intros HA.
+    induction n as [ n' IH ] using (well_founded_induction lt_wf).
+    rewrite ec_quicksort_unfold.
+    destruct n' as [|n']; [lra|].
+    apply Rplus_le_le_0_compat; [ apply Rlog_pos; lra | ].
+    apply Rmult_le_pos; [| apply Rlt_le, Rinv_0_lt_compat, pos_INR_S].
+    apply Rmult_le_pos; [lra|].
+    induction n' as [|n'' IH'].
+    - rewrite /= ec_quicksort_0 Rplus_0_r. lra.
+    - rewrite seq_S.
+      Opaque seq.
+      rewrite map_app foldr_snoc /=.
+      rewrite foldr_comm_acc; last (intros; simpl; lra).
+      apply Rplus_le_le_0_compat.
+      * apply IH; lia.
+      * apply IH'. intros. apply IH. lia.
+      Transparent seq.
+  Qed.
+
+End qs_ent.
