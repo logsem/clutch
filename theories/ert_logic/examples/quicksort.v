@@ -2091,7 +2091,7 @@ Section program_ent.
         ⌜ List.NoDup xs ⌝ ∗
         (∀ (x y : A), {{{ ⌜ True ⌝  }}} cmp (inject x) (inject y)  {{{ w, RET w; ⌜w = inject (bool_decide (f x y))⌝  }}} ) }}}
       qs cmp l
-    {{{ v, RET v; ⌜ True ⌝ }}}.
+    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ⌝ }}}.
   Proof with wp_pures.
     rewrite /qs.
     iIntros (xs l cmp Φ) "HA1 hφ".
@@ -2107,7 +2107,8 @@ Section program_ent.
 
     (* Base case *)
     case_bool_decide.
-    { wp_pures; iModIntro. iApply "hφ". destruct xs; [ |simpl in *; lia]. done. }
+    { wp_pures; iModIntro. iApply "hφ". destruct xs; [ |simpl in *; lia].
+      iExists []. auto. }
 
     (* Pick a pivot index at random, using advanced composition on the (2 * ...) term*)
     wp_pures.
@@ -2143,7 +2144,6 @@ Section program_ent.
       apply Rplus_le_compat.
       - apply Req_le.
         f_equal.
-        Set Printing Coercions.
         assert (Hxs_len : 1 <= length xs).
         { destruct (length xs); last lia.
           exfalso; apply H1.
@@ -2164,9 +2164,8 @@ Section program_ent.
     iIntros (ip) "H⧖"...
     clear HeqK K.
 
-    (*
     (* pop the pivot from xs *)
-    wp_apply (wp_remove_nth_unsafe _ xs l ip with "[]").
+    wp_apply (wp_remove_nth_unsafe_ent _ xs l ip with "[]").
     { iSplit; eauto.
       iPureIntro.
       apply (Nat.lt_le_trans _ _ _ (fin_to_nat_lt ip)).
@@ -2175,64 +2174,37 @@ Section program_ent.
 
     iIntros (v) "[%xp [%ap [%xsL [%xsR (%Hxs & %Hip & -> & %Hap )]]]]".
     wp_pures.
-    iAssert (⧖ (tc_quicksort (2 * k) 0 (index_to_rank f xs ip)) ∗
-             ⧖ (tc_quicksort (2 * k) 0 (reverse_order (index_space (length xs)) (index_to_rank f xs ip))))%I
+    iAssert (⧖ (ec_quicksort 1%R (index_to_rank f xs ip)) ∗
+             ⧖ (ec_quicksort 1%R (reverse_order (index_space (length xs)) (index_to_rank f xs ip))))%I
      with "[H⧖]" as "[H⧖L H⧖R]".
     { iApply etc_split.
-      - apply tc_quicksort_nonneg; try lra.
-      - apply tc_quicksort_nonneg; try lra.
-      - rewrite /tc_distr /tc_distr_def /=.
+      - apply ec_quicksort_nonneg; try lra.
+      - apply ec_quicksort_nonneg; try lra.
+      - rewrite /ec_distr /ec_distr_def /=.
         destruct xs; first (simpl in *; lia).
         iFrame.
     }
     wp_pures.
 
-    iAssert (⧖ (k * (length xs)) ∗ ⧖ (k * (length xs)))%I with "[H⧖lin]" as "[H⧖Filt1 H⧖Filt2]".
-    { rewrite /tc_pivot_lin.
-      iApply etc_split.
-      - apply Rmult_le_pos; try lra; apply pos_INR.
-      - apply Rmult_le_pos; try lra; apply pos_INR.
-      - iApply etc_irrel; last iFrame.
-        rewrite Rplus_0_r.
-        lra.
-    }
-
     (* x and xp might be flipped here *)
-    wp_apply ((wp_list_filter (xsL ++ xsR) (fun x => bool_decide (f xp x)) _ _ _ k ) with "[H⧖Filt1]"); first lra.
+    wp_apply ((wp_list_filter_ent (xsL ++ xsR) (fun x => bool_decide (f xp x)) _ _ _ 1%R) with "[]"); first lra.
     { iSplitR => //.
-      - iIntros (x ψ) "!> H⧖ Hψ".
-        wp_pures. by wp_apply ("Hcmp_spec" with "H⧖").
-      - iSplitR; first eauto.
-        iApply (etc_weaken with "[$]").
-        split.
-        + apply Rmult_le_pos; try lra; apply pos_INR.
-        + apply Rmult_le_compat_l; try lra.
-          rewrite Hxs.
-          apply le_INR.
-          do 2 rewrite app_length.
-          simpl. lia.
+      iIntros (x ψ) "!> H⧖ Hψ".
+      wp_pures.
+      by wp_apply ("Hcmp_spec" with "H⧖").
     }
     iIntros (rv) "%Hrv".
     wp_pures.
 
-    wp_apply ((wp_list_filter (xsL ++ xsR) (fun x => negb $ bool_decide (f xp x)) _ _ _ k) with "[H⧖Filt2]"); first lra.
-    { iSplitR.
-      - iIntros (x ψ) "!> H⧖ Hψ".
-        do 2 wp_pure.
-        wp_apply ("Hcmp_spec" with "H⧖").
-        iIntros (?) "->".
-        wp_pures.
-        iModIntro; iApply "Hψ".
-        iPureIntro; eauto.
-      - iSplitR; first eauto.
-        iApply (etc_weaken with "[$]").
-        split.
-        + apply Rmult_le_pos; try lra; apply pos_INR.
-        + apply Rmult_le_compat_l; try lra.
-          rewrite Hxs.
-          apply le_INR.
-          do 2 rewrite app_length.
-          simpl. lia.
+    wp_apply ((wp_list_filter_ent (xsL ++ xsR) (fun x => negb $ bool_decide (f xp x)) _ _ _ 1%R) with "[]"); first lra.
+    { iSplitR; last auto.
+      iIntros (x ψ) "!> H⧖ Hψ".
+      do 2 wp_pure.
+      wp_apply ("Hcmp_spec" with "H⧖").
+      iIntros (?) "->".
+      wp_pures.
+      iModIntro; iApply "Hψ".
+      iPureIntro; eauto.
     }
     iIntros (lv) "%Hlv".
     do 9 wp_pure.
@@ -2255,8 +2227,6 @@ Section program_ent.
       rewrite /index_to_rank /rank /=.
       rewrite {14}Hxs.
 
-      (* TODO Causes Coq error, report me *)
-      (* rewrite -{1}(List.filter_length  (λ y : A, bool_decide (strict (cmp_rel cmp) (xs !!! ip) y))). *)
 
       apply Nat.add_sub_eq_l.
       replace (length (@List.filter A (fun y : A => @bool_decide (strict f y _) _) _))
@@ -2338,7 +2308,7 @@ Section program_ent.
       repeat rewrite app_length /=.
       lia.
     }
-    iIntros (lR) "(% & % & % & %)".
+    iIntros (lR) "(% & %)".
 
     wp_apply ("Hqs" $! (List.filter (fun x => negb (bool_decide (f xp x))) (xsL ++ xsR)) lv with "[H⧖L]").
     { iClear "Hqs".
@@ -2398,7 +2368,7 @@ Section program_ent.
             destruct (Htrich a xp) as [? | [? | ?] ].
             -- by apply strict_include.
             -- simplify_eq.
-            -- exfalso. apply H6.
+            -- exfalso. apply H4.
                by apply strict_include.
 
 
@@ -2430,55 +2400,20 @@ Section program_ent.
             destruct (Htrich a xp) as [? | [? | ?] ].
             -- by apply strict_include.
             -- simplify_eq.
-            -- exfalso. apply H6. by apply strict_include.
+            -- exfalso. apply H4. by apply strict_include.
 
     }
-    iIntros (lL) "(% & % & % & %)".
+    iIntros (lL) "(% & %)".
     wp_pures.
 
     iClear "Hqs".
-    wp_apply wp_list_cons => //; first eauto. iIntros (p_xs_gt_s h_p_xs_gt).
-    iApply wp_list_append => //. iIntros "!>" (xs_le_p_gt_s L).
+    wp_apply wp_list_cons_ent => //; iIntros (p_xs_gt_s h_p_xs_gt).
+    iApply wp_list_append_ent => //. iIntros "!>" (xs_le_p_gt_s L).
     iApply "hφ".
     iExists _.
     iPureIntro.
-    split; eauto.
-    split.
-    - simplify_eq.
-      rewrite Permutation_app_comm (Permutation_app_comm xsL).
-      simpl.
-      constructor.
-      rewrite H3 H6.
-      symmetry.
-      rewrite Permutation_app_comm.
-      remember (xsL ++ xsR) as LL.
-      clear.
-      induction LL as [|L0 LL' IH].
-      + simpl. constructor.
-      + simpl.
-        destruct (bool_decide (f xp L0)); simpl.
-        * rewrite -IH. done.
-        * rewrite Permutation_app_comm /=.
-          constructor.
-          rewrite Permutation_app_comm.
-          done.
-    - apply sorted_append; eauto.
-      + intros.
-        rewrite H6 in H8.
-        apply filter_In in H8.
-        destruct H8 as [? Hdec].
-        apply negb_true_iff, bool_decide_eq_false_1 in Hdec.
-        assert (HT : Total f) by apply trichotomy_total.
-        destruct (HT x xp); eauto.
-        exfalso; by apply Hdec.
-      + intros.
-        rewrite H3 in H8.
-        apply filter_In in H8.
-        destruct H8 as [? Hdec].
-        by apply bool_decide_eq_true_1 in Hdec.
+    eauto.
   Qed.
-  *)
-  Admitted.
 
 
 End program_ent.
