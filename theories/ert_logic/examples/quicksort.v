@@ -1969,8 +1969,6 @@ Section qs_adv_cmp_ent.
     assert (Hlength_nz : INR (length L) ≠ 0%R).
     { symmetry. apply Rlt_not_eq. rewrite -INR_0. by apply lt_INR. }
 
-    Set Printing Coercions.
-
     (* 1. Simplify the division *)
     rewrite SeriesC_scal_l.
     rewrite ?Rdiv_def.
@@ -2071,35 +2069,10 @@ Section qs_adv_cmp_ent.
     rewrite (foldr_reduction_1); [|done].
     rewrite (foldr_reduction_1); [|done].
     rewrite (foldr_reduction_2').
-    do do
 
-
-    (*
-    rewrite (fold_R_fin_perm _ (reverse_order (index_space (length L)))).
-    - (* generalize me *)
-      remember (index_space (length L)) as LL; clear HeqLL.
-      remember (reverse_order LL) as g1; clear Heqg1.
-      induction LL as [|L0 L' IH].
-      + simpl. lra.
-      + simpl. f_equal.
-        rewrite Rmult_plus_distr_l.
-        rewrite Rplus_assoc.
-        rewrite (Rplus_comm _ (ec_quicksort _ _ + _)).
-        rewrite -Rplus_assoc -Rplus_assoc.
-        rewrite -(Rmult_1_l (ec_quicksort _ _)).
-        rewrite -Rmult_plus_distr_r.
-        rewrite Rplus_diag Rmult_1_r.
-        rewrite Rplus_assoc.
-        Search (?x + _ <= ?x + _)%R.
-        apply Rplus_le_compat_l.
-
+    (* 5. Combine *)
+    do 2 rewrite -foldr_fmap.
     lra.
-        (* apply IH. *) admit.
-    - apply reverse_perm.
-     *)
-
-
-
     Transparent seq.
   Qed.
 
