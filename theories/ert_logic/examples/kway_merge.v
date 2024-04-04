@@ -426,7 +426,7 @@ Section kway_merge_spec.
     Forall (Sorted Z.le) zss →
     {{{ ⧖ (merge_cost zss) }}}
       merge v
-    {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat (filter ([] ≠.) zss)⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
+    {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat zss⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
   Proof.
     iIntros (Hv Hzss Ψ) "Hc HΨ".
     rewrite /merge_cost.
@@ -490,7 +490,7 @@ Section kway_merge_spec.
     iApply "HΨ".
     iFrame "%".
     iSplit; iPureIntro.
-    { rewrite reverse_Permutation //. }
+    { rewrite reverse_Permutation -concat_filter_nempty //. }
     by apply Sorted_reverse in Hsorted.
   Qed.
 
@@ -525,14 +525,13 @@ Section kway_merge_meldable_heap.
     {{{ v zs, RET v; ⌜is_list zs v⌝ ∗ ⌜zs ≡ₚ concat zss⌝ ∗ ⌜Sorted Z.le zs⌝ }}}.
   Proof.
     iIntros (???) "Hcost H".
-    iApply (wp_merge with "[Hcost]"); [done|done| |].
-    { iApply (etc_irrel with "Hcost").
-      rewrite merge_cost_alt.
-      rewrite /merge_cost /repeat_remove_cost.
-      rewrite /heap_insert_cost /heap_remove_cost /=.
-      rewrite /meld_heap_insert_cost /meld_heap_remove_cost /=.
-      rewrite tc_meld_0 tc_meld_1. lra. }
-    rewrite concat_filter_nempty //.
+    iApply (wp_merge with "[Hcost]"); [done|done| |done].
+    iApply (etc_irrel with "Hcost").
+    rewrite merge_cost_alt.
+    rewrite /merge_cost /repeat_remove_cost.
+    rewrite /heap_insert_cost /heap_remove_cost /=.
+    rewrite /meld_heap_insert_cost /meld_heap_remove_cost /=.
+    rewrite tc_meld_0 tc_meld_1. lra.
   Qed.
 
 End kway_merge_meldable_heap.
