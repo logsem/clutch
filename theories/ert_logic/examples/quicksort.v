@@ -941,6 +941,33 @@ Section list.
         let: "t" := Snd "p" in
         "h" :: "list_append" "t" "r"
     end.
+
+
+  Definition list_remove_nth_unsafe : val :=
+    λ:"l" "n",
+    match: list_remove_nth "l" "n" with
+    | NONE => #()
+    | SOME "v" => "v"
+    end.
+
+  Definition partition : expr :=
+    λ: "cmp",
+    λ:"l" "e",
+      let: "f" := (λ:"x", "cmp" "e" "x") in
+      (list_filter (λ:"x", ~ ("f" "x") ) "l",
+        list_filter "f" "l").
+
+  Definition qs : val :=
+    λ: "cmp",
+    rec: "qs" "l" :=
+      let: "n" := list_length "l" in
+      if: "n" < #1 then "l" else
+        let: "ip" := rand ("n" - #1) in
+        let, ("p", "r") := list_remove_nth_unsafe "l" "ip" in
+        let, ("le", "gt") := partition "cmp" "r" "p" in
+        let, ("les", "gts") := ("qs" "le", "qs" "gt") in
+        list_append "les" (list_cons "p" "gts").
+
   Fixpoint inject_list `{!Inject A val} (xs : list A) :=
     match xs with
     | [] => NONEV
@@ -1119,10 +1146,65 @@ Section list.
           simpl. rewrite HP. done.
     Qed.
 
+
+    Lemma wp_remove_nth_unsafe E (l : list A) (lv : val) (i : nat) :
+      {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
+        list_remove_nth_unsafe lv #i @ E
+      {{{ v, RET v;
+          ∃ e lv' l1 l2,
+            ⌜ l = l1 ++ e :: l2 ∧
+            length l1 = i /\
+            v = ((inject e), lv')%V ∧
+            is_list (l1 ++ l2) lv' ⌝ }}}.
+    Proof.
+      iIntros (φ) "(%llv & %Hi) hφ".
+      rewrite /list_remove_nth_unsafe.
+      wp_pures.
+      wp_apply wp_remove_nth => //.
+      iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
+      iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
+    Qed.
+
   End list_specs.
+
+  Section sorting.
+    Context `[!Inject A val].
+    Context `{Inhabited A}.
+    Context (f : relation A) `{∀ x y, Decision (f x y)} `{!TotalOrder f}.
+
+    Local Definition sorted := (StronglySorted f).
+
+    Fact sorted_append pre post p :
+      sorted pre → sorted post →
+      (∀ x, In x pre → (f x p)) →
+      (∀ x, In x post → (f p x)) →
+      sorted (pre ++ p :: post).
+    Proof.
+      intros Spre Spost ppre ppost.
+      induction pre => /=.
+      - apply SSorted_cons, List.Forall_forall => // ; intros.
+      - apply SSorted_cons, List.Forall_forall => // ; [| clear IHpre].
+        { apply IHpre.
+          * apply StronglySorted_inv in Spre. by destruct Spre.
+          * intros. apply ppre. set_solver. }
+        intros x xppp.
+        destruct (in_app_or _ _ _ xppp) as [x_pre | x_post] ; clear xppp.
+        + apply StronglySorted_inv in Spre. destruct Spre.
+          by apply (List.Forall_forall _ pre).
+        + apply in_inv in x_post.
+          destruct x_post.
+          { rewrite -H1. apply ppre, in_eq. }
+          specialize ppre with a.
+          assert (HTO : TotalOrder f) by auto.
+          destruct (HTO) as [[[? Htr] ?] ? ].
+          rewrite /Transitive in Htr.
+          eapply Htr.
+          *  eapply ppre, in_eq.
+          * eapply ppost; auto.
+    Qed.
+
+  End sorting.
 End list.
-
-
 
 Section program.
   Context `{!ert_clutchGS Σ CostTick}.
@@ -1130,94 +1212,10 @@ Section program.
   Context `{Inhabited A}.
   Context (f : relation A) `{∀ x y, Decision (f x y)} `{!TotalOrder f}.
 
-
   (** Verifing the number of comparisons done by quicksort *)
   (* Proofs augmented from examples/quicksort.v *)
 
-  Definition list_remove_nth_unsafe : val :=
-    λ:"l" "n",
-    match: list_remove_nth "l" "n" with
-    | NONE => #()
-    | SOME "v" => "v"
-    end.
-
-  (* TODO: Paramaterize by cmp *)
-  Definition partition : expr :=
-    λ: "cmp",
-    λ:"l" "e",
-      let: "f" := (λ:"x", "cmp" "e" "x") in
-      (list_filter (λ:"x", ~ ("f" "x") ) "l",
-        list_filter "f" "l").
-
-  (* TODO: Paramaterize by cmp *)
-  Definition qs : val :=
-    λ: "cmp",
-    rec: "qs" "l" :=
-      let: "n" := list_length "l" in
-      if: "n" < #1 then "l" else
-        let: "ip" := rand ("n" - #1) in
-        let, ("p", "r") := list_remove_nth_unsafe "l" "ip" in
-        let, ("le", "gt") := partition "cmp" "r" "p" in
-        let, ("les", "gts") := ("qs" "le", "qs" "gt") in
-        list_append "les" (list_cons "p" "gts").
-
-
-  Lemma wp_remove_nth_unsafe E (l : list A) (lv : val) (i : nat) :
-    {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
-      list_remove_nth_unsafe lv #i @ E
-    {{{ v, RET v;
-        ∃ e lv' l1 l2,
-          ⌜ l = l1 ++ e :: l2 ∧
-          length l1 = i /\
-          v = ((inject e), lv')%V ∧
-          is_list (l1 ++ l2) lv' ⌝ }}}.
-  Proof.
-    iIntros (φ) "(%llv & %Hi) hφ".
-    rewrite /list_remove_nth_unsafe.
-    wp_pures.
-    wp_apply wp_remove_nth => //.
-    iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
-    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
-  Qed.
-
-
   Definition part_cr k (xs : list A) : nat := (2 * k * length xs)%nat.
-
-
-  Definition sorted := (StronglySorted f).
-
-  Fact sorted_append pre post p :
-    sorted pre → sorted post →
-    (∀ x, In x pre → (f x p)) →
-    (∀ x, In x post → (f p x)) →
-    sorted (pre ++ p :: post).
-  Proof.
-    intros Spre Spost ppre ppost.
-    induction pre => /=.
-    - apply SSorted_cons, List.Forall_forall => // ; intros.
-    - apply SSorted_cons, List.Forall_forall => // ; [| clear IHpre].
-      { apply IHpre.
-        * apply StronglySorted_inv in Spre. by destruct Spre.
-        * intros. apply ppre. set_solver. }
-      intros x xppp.
-      destruct (in_app_or _ _ _ xppp) as [x_pre | x_post] ; clear xppp.
-      + apply StronglySorted_inv in Spre. destruct Spre.
-        by apply (List.Forall_forall _ pre).
-      + apply in_inv in x_post.
-        destruct x_post.
-        { rewrite -H1. apply ppre, in_eq. }
-        specialize ppre with a.
-        assert (HTO : TotalOrder f) by auto.
-        destruct (HTO) as [[[? Htr] ?] ? ].
-        rewrite /Transitive in Htr.
-        eapply Htr.
-        *  eapply ppre, in_eq.
-        * eapply ppost; auto.
-  Qed.
-
-
-
-
 
   Lemma qs_time_bound :
     ∀ (xs : list A) (l : val)
@@ -1227,7 +1225,7 @@ Section program.
         ⌜List.NoDup xs ⌝ ∗
         (∀ (x y : A), {{{ ⧖ k }}} cmp (inject x) (inject y)  {{{ w, RET w; ⌜w = inject (bool_decide (f x y))⌝  }}} ) }}}
       qs cmp l
-    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ∧ sorted xs' ⌝ }}}.
+    {{{ v, RET v; ∃ xs', ⌜ is_list xs' v ∧ xs' ≡ₚ xs ∧ sorted f xs' ⌝ }}}.
   Proof with wp_pures.
     rewrite /qs.
     iIntros (xs l cmp k Hcmp_nonneg Φ) "HA1 hφ".
@@ -1894,4 +1892,22 @@ Section ent_list.
           simpl. rewrite HP. done.
     Qed.
 
+
+  Lemma wp_remove_nth_unsafe_ent E (l : list A) (lv : val) (i : nat) :
+    {{{ ⌜ is_list l lv /\ i < length l ⌝ }}}
+      list_remove_nth_unsafe lv #i @ E
+    {{{ v, RET v;
+        ∃ e lv' l1 l2,
+          ⌜ l = l1 ++ e :: l2 ∧
+          length l1 = i /\
+          v = ((inject e), lv')%V ∧
+          is_list (l1 ++ l2) lv' ⌝ }}}.
+  Proof.
+    iIntros (φ) "(%llv & %Hi) hφ".
+    rewrite /list_remove_nth_unsafe.
+    wp_pures.
+    wp_apply wp_remove_nth_ent => //.
+    iIntros (?(?&?&?&?&?&?&?&?)) ; subst. wp_pures.
+    iApply "hφ". iModIntro. iExists _,_,_,_. intuition eauto.
+  Qed.
 End ent_list.
