@@ -881,7 +881,6 @@ End qs_adv_cmp.
 
 Section list.
   (** Ported list library to count comparisons *)
-  Context `{!ert_clutchGS Σ CostTick }.
 
   Definition list_nil := NONE.
 
@@ -959,26 +958,27 @@ Section list.
       by apply IH.
   Qed.
 
-  Section list_specs.
-    Context `{!ert_clutchGS Σ CostTick}.
-    Context `[!Inject A val].
 
-    Fixpoint is_list (l : list A) (v : val) :=
-      match l with
+  Context `[!Inject A val].
+
+  Fixpoint is_list (l : list A) (v : val) :=
+    match l with
       | [] => v = NONEV
       | a::l' => ∃ lv, v = SOMEV ((inject a), lv) ∧ is_list l' lv
     end.
 
+  Lemma is_list_inject xs v :
+    is_list xs v ↔ v = (inject xs).
+  Proof.
+    revert v.
+    induction xs as [|x xs IH]; [done|]. split.
+    - destruct 1 as (? & -> & ?). simpl.
+      do 2 f_equal. by apply IH.
+    - intros ->. eexists. split; [done|]. by apply IH.
+  Qed.
 
-    Lemma is_list_inject xs v :
-      is_list xs v ↔ v = (inject xs).
-    Proof.
-      revert v.
-      induction xs as [|x xs IH]; [done|]. split.
-      - destruct 1 as (? & -> & ?). simpl.
-        do 2 f_equal. by apply IH.
-      - intros ->. eexists. split; [done|]. by apply IH.
-    Qed.
+  Section list_specs.
+    Context `{!ert_clutchGS Σ CostTick}.
 
     Lemma wp_list_nil E :
       {{{ True }}}
@@ -994,7 +994,6 @@ Section list.
       iIntros (Φ) "% HΦ". wp_lam. wp_pures.
       iApply "HΦ". iPureIntro; by eexists.
     Qed.
-
 
     Lemma wp_list_length E l lv :
       {{{ ⌜is_list l lv⌝ }}}
@@ -1750,3 +1749,149 @@ Section qs_ent.
   Qed.
 
 End qs_ent.
+
+Section ent_list.
+    (** Entropy calculations for list helper functions *)
+    (* None of these are interesting, they should all consume 0 entropy *)
+
+    Program Definition CostEntropy_2 := CostEntropy 2 _.
+    Next Obligation. lra. Defined.
+
+    Context `{!ert_clutchGS Σ CostEntropy_2}.
+    Context `[!Inject A val].
+
+    Lemma wp_list_nil_ent E :
+      {{{ True }}}
+        list_nil @ E
+      {{{ v, RET v; ⌜is_list [] v⌝}}}.
+    Proof. iIntros (Φ) "_ HΦ". unfold list_nil. wp_pure. by iApply "HΦ". Qed.
+
+    Lemma wp_list_cons_ent a l lv E :
+      {{{ ⌜is_list l lv⌝ }}}
+        list_cons (inject a) lv @ E
+      {{{ v, RET v; ⌜is_list (a::l) v⌝}}}.
+    Proof.
+      iIntros (Φ) "% HΦ". wp_lam. wp_pures.
+      iApply "HΦ". iPureIntro; by eexists.
+    Qed.
+
+    Lemma wp_list_length_ent E l lv :
+      {{{ ⌜is_list l lv⌝ }}}
+        list_length lv @ E
+      {{{ v, RET #v; ⌜v = length l⌝ }}}.
+    Proof.
+      iIntros (Φ) "Ha HΦ".
+      iInduction l as [|a l'] "IH" forall (lv Φ);
+      iDestruct "Ha" as %Ha; simpl in Ha; subst; wp_pures.
+      - wp_rec.
+        wp_match. iApply ("HΦ" $! 0%nat); done.
+      - wp_rec.
+        simpl.
+        destruct Ha as [lv' [Hlv Hlcoh]]; subst.
+        wp_match; simpl.
+        wp_proj. wp_bind (list_length _); simpl.
+        iApply ("IH"); eauto.
+        iNext.
+        iIntros.
+        wp_op.
+        rewrite Z.add_1_l -Nat2Z.inj_succ.
+        iApply "HΦ".
+        eauto.
+    Qed.
+
+    Lemma wp_remove_nth_ent E (l : list A) lv (i : nat) :
+      {{{ ⌜is_list l lv /\ i < length l⌝ }}}
+        list_remove_nth lv #i @ E
+      {{{ v, RET v; ∃ e lv' l1 l2,
+                  ⌜l = l1 ++ e :: l2 ∧
+                   length l1 = i /\
+                  v = SOMEV ((inject e), lv') ∧
+                  is_list (l1 ++ l2) lv'⌝ }}}.
+    Proof.
+      iIntros (Φ) "Ha Hφ".
+      iInduction l as [|a l'] "IH" forall (i lv Φ);
+        iDestruct "Ha" as "(%Hl & %Hi)"; simpl in Hl; subst; wp_rec; wp_let; simpl.
+      - inversion Hi.
+      - destruct Hl as [lv' [Hlv Hlcoh]]; subst.
+        wp_match. wp_pures. case_bool_decide; wp_pures; simpl.
+        + iApply "Hφ".
+          iExists a, (inject l'), [], l'.
+          destruct i; auto.
+          iPureIntro; split; auto.
+          split; auto.
+          split.
+          * by apply is_list_inject in Hlcoh as ->.
+          * by apply is_list_inject.
+        + destruct i; first done.
+          assert ((S i - 1)%Z = i) as -> by lia.
+          assert (is_list l' lv' /\ i < length l') as Haux.
+          { split; auto.
+            inversion Hi; auto. lia.
+          }
+          wp_bind (list_remove_nth _ _).
+          repeat rewrite Rminus_0_r.
+          iApply ("IH" $! i lv' _ ); [eauto|].
+          iNext. iIntros (v (e & v' & l1 & l2 & (-> & Hlen & -> & Hil))); simpl.
+          wp_pures.
+          wp_bind (list_cons _ _). iApply wp_list_cons_ent; [done|].
+          iIntros "!>" (v Hcons).
+          wp_pures.
+          iApply "Hφ".
+          iExists e, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
+          iPureIntro.
+          split; auto.
+          split; [rewrite cons_length Hlen // |].
+          split.
+          * by apply is_list_inject in Hcons as ->.
+          * by apply is_list_inject.
+    Qed.
+
+    Lemma wp_list_append_ent E l lM r rM :
+      {{{ ⌜is_list lM l⌝ ∗ ⌜is_list rM r⌝}}}
+        list_append (Val l) (Val r) @ E
+      {{{ v, RET v; ⌜is_list (lM ++ rM) v⌝ }}}.
+    Proof.
+      iIntros (Φ) "[%Hl %Hr] HΦ". rewrite /list_append.
+      iInduction lM as [|a lM] "IH" forall (l r Hl Hr Φ).
+      - simpl in Hl; subst. wp_pures. by iApply "HΦ".
+      - destruct Hl as [l' [Hl'eq Hl']]; subst.
+        do 12 wp_pure _.
+        wp_bind (((rec: "list_append" _ _:= _)%V _ _)).
+        iApply "IH"; [done..|].
+        iIntros "!>" (v Hv).
+        by wp_apply wp_list_cons_ent.
+    Qed.
+
+
+    (* Since we eventually want to obtain a O(n) bound, we will
+       only consider comparison functions which consume zero entropy. *)
+    Lemma wp_list_filter_ent (l : list A) (P : A -> bool) (f lv : val) E k (Hk : (0 <= k)%R):
+      {{{ (∀ (x : A), {{{ ⌜ True ⌝  }}} f (inject x) @ E {{{ w, RET w; ⌜w = inject (P x)⌝ }}} ) ∗
+          ⌜is_list l lv⌝ }}}
+         list_filter f lv @ E
+       {{{ rv, RET rv; ⌜is_list (List.filter P l) rv⌝ }}}.
+    Proof.
+      iIntros (Φ) "(#Hf & %Hil) HΦ".
+      iInduction l as [ | h t] "IH" forall (lv Hil Φ); simpl in Hil.
+      - subst.
+        rewrite /list_filter; wp_pures.
+        iApply "HΦ"; done.
+      - destruct Hil as (lv' & -> & Hil).
+        rewrite /list_filter.
+        do 7 (wp_pure _).
+        fold list_filter.
+        wp_apply ("IH" with "[//]").
+        iIntros (rv) "%Hilp"; wp_pures.
+        wp_apply ("Hf" with "[$]").
+        iIntros (w) "->".
+        destruct (P h) eqn:HP; wp_pures.
+        + wp_apply wp_list_cons_ent; [by eauto |].
+          iIntros (v) "%Hil'".
+          iApply "HΦ"; iPureIntro.
+          simpl; rewrite HP; simpl.
+          simpl in Hil'; done.
+        + iApply "HΦ"; iPureIntro.
+          simpl. rewrite HP. done.
+    Qed.
+
+End ent_list.
