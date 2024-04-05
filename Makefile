@@ -38,6 +38,6 @@ clean:
 	rm -f .coqdeps.d
 
 zip:
-	git archive -o coq-clutch.zip main
+	git archive -o coq-clutch.zip HEAD
 
 .PHONY: clean zip
