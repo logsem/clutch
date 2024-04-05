@@ -1657,7 +1657,7 @@ Section qs_ent.
   (** Defines the recurrence relation for Quicksort entropy *)
 
   (* tc_quicksort(len) = (1/len) + 2 * sum(i=0 to len-1)(tc_quicksort i) *)
-  Definition ec_quicksort (A : R) (len : nat) : R.
+  Definition ec_quicksort  (len : nat) : R.
   refine (@Fix nat _ (Wf.measure_wf lt_wf (fun x => x)) (fun _ => R)
           (fun len qf_rec =>
            match len with
@@ -1670,24 +1670,24 @@ Section qs_ent.
   Proof. rewrite /Wf.MR. apply fin_to_nat_lt. Defined.
 
 
-  Lemma ec_quicksort_aux A len :
-    ec_quicksort A len =
+  Lemma ec_quicksort_aux len :
+    ec_quicksort len =
       match len with
         0%nat   => 0%R
       | (S _) => ((Rlog 2 len)
                   + 2 * (foldr Rplus 0%R $
-                        map (fun n => ec_quicksort A (fin_to_nat n)) $
+                        map (fun n => ec_quicksort (fin_to_nat n)) $
                         (fin_enum len) ) / len)%R
       end.
   Proof. rewrite /ec_quicksort easy_fix_eq. done. Qed.
 
-  Lemma ec_quicksort_unfold A len :
-    ec_quicksort A len =
+  Lemma ec_quicksort_unfold len :
+    ec_quicksort len =
       match len with
         0%nat   => 0%R
       | (S _) => ((Rlog 2 len)
                   + 2 * (foldr Rplus 0%R $
-                        map (fun n => ec_quicksort A n) $
+                        map (fun n => ec_quicksort n) $
                         seq 0%nat len) / len)%R
       end.
   Proof.
@@ -1715,19 +1715,17 @@ Section qs_ent.
 
 
 
-  Lemma ec_quicksort_0 A : ec_quicksort A 0%nat = 0%R.
+  Lemma ec_quicksort_0 : ec_quicksort 0%nat = 0%R.
   Proof. rewrite ec_quicksort_unfold. done. Qed.
 
-  Lemma ec_quicksort_S A n :
+  Lemma ec_quicksort_S n :
     (1 <= n)%nat ->
-    ec_quicksort A n = ((Rlog 2 n) + 2 * (foldr Rplus 0 $ map (fun i => ((ec_quicksort A i))%NNR) $ seq 0%nat n)%NNR /n)%R.
+    ec_quicksort n = ((Rlog 2 n) + 2 * (foldr Rplus 0 $ map (fun i => ((ec_quicksort i))%NNR) $ seq 0%nat n)%NNR /n)%R.
   Proof. intros. rewrite ec_quicksort_unfold. destruct n; [lia|]. done. Qed.
 
-  Lemma ec_quicksort_nonneg A n :
-    (0 <= A)%R ->
-    (0 <= ec_quicksort A n)%R.
+  Lemma ec_quicksort_nonneg n :
+    (0 <= ec_quicksort n)%R.
   Proof.
-    intros HA.
     induction n as [ n' IH ] using (well_founded_induction lt_wf).
     rewrite ec_quicksort_unfold.
     destruct n' as [|n']; [lra|].
@@ -1936,20 +1934,20 @@ Section qs_adv_cmp_ent.
 
 
 
-  Definition ec_distr_def (L : list A) (CA : R) : nat -> R
+  Definition ec_distr_def (L : list A) : nat -> R
     := fun index =>
          match L with
          | [] => 0%R
-         | _ => ((ec_quicksort CA ∘ (index_to_rank f L)) index +
-                 (ec_quicksort CA ∘ reverse_order (index_space (length L)) ∘ (index_to_rank f L)) index)%R
+         | _ => ((ec_quicksort ∘ (index_to_rank f L)) index +
+                 (ec_quicksort ∘ reverse_order (index_space (length L)) ∘ (index_to_rank f L)) index)%R
          end.
 
   (* Distribution, in a form which typechecks with advanced composition *)
-  Definition ec_distr (L : list A) CA : (fin (S (Z.to_nat (length L - 1)))) -> R
-    := (ec_distr_def L CA) ∘ fin_to_nat.
+  Definition ec_distr (L : list A) : (fin (S (Z.to_nat (length L - 1)))) -> R
+    := (ec_distr_def L) ∘ fin_to_nat.
 
 
-  Lemma ec_distr_nonneg L CA i : (0 < length L)%nat -> (0 <= CA)%R -> (0 <= ec_distr L CA i)%R.
+  Lemma ec_distr_nonneg L i : (0 < length L)%nat -> (0 <= ec_distr L i)%R.
   Proof.
     intros.
     rewrite /tc_distr /tc_distr_def /=.
@@ -1958,14 +1956,13 @@ Section qs_adv_cmp_ent.
   Qed.
 
   (* Advanced composition side condition: Turn the junk we get from the advanced composition rule back into the credit definition we have before *)
-  Lemma ec_distr_equiv L CA :
+  Lemma ec_distr_equiv L :
   (0 < length L)%nat ->
-  (0 <= CA)%R ->
   (List.NoDup L) ->
-  (SeriesC (λ n : fin (S (Z.to_nat (length L - 1))), 1 / S (Z.to_nat (length L - 1)) * ec_distr L CA n)
-      <= 2 * foldr Rplus 0 (map (λ n : nat, ec_quicksort CA n) (index_space (length L))) / (length L))%R.
+  (SeriesC (λ n : fin (S (Z.to_nat (length L - 1))), 1 / S (Z.to_nat (length L - 1)) * ec_distr L n)
+      <= 2 * foldr Rplus 0 (map (λ n : nat, ec_quicksort n) (index_space (length L))) / (length L))%R.
   Proof.
-    intros Hlength ? Hunique.
+    intros Hlength Hunique.
     assert (Hlength_nz : INR (length L) ≠ 0%R).
     { symmetry. apply Rlt_not_eq. rewrite -INR_0. by apply lt_INR. }
 
@@ -1979,10 +1976,10 @@ Section qs_adv_cmp_ent.
     (* 2. Convert the series into a foldr, simpl *)
     rewrite SeriesC_finite_foldr.
     rewrite /ec_distr.
-    replace (foldr (Rplus ∘ (ec_distr_def L CA ∘ fin_to_nat)) 0%R (enum (fin (S (Z.to_nat (Z.of_nat (length L) - 1))))))
-      with (foldr (Rplus ∘ ec_distr_def L CA) 0%R (index_space (length L)));
+    replace (foldr (Rplus ∘ (ec_distr_def L ∘ fin_to_nat)) 0%R (enum (fin (S (Z.to_nat (Z.of_nat (length L) - 1))))))
+      with (foldr (Rplus ∘ ec_distr_def L ) 0%R (index_space (length L)));
       last first.
-    { remember (ec_distr_def _ _) as g.
+    { remember (ec_distr_def _) as g.
       remember (S (Z.to_nat (Z.of_nat (length L) - 1))) as l.
       replace (length L) with l; last (simplify_eq; lia).
       clear.
@@ -2030,17 +2027,17 @@ Section qs_adv_cmp_ent.
     }
 
     (* 3. Split the distr series into two sums *)
-    replace (foldr (Rplus ∘ ec_distr_def L CA) 0%R (index_space (length L)))
-       with (foldr (Rplus ∘ ec_quicksort CA ∘ (index_to_rank f L)) 0%R (index_space (length L)) +
-             foldr (Rplus ∘ ec_quicksort CA ∘ (reverse_order (index_space (length L))) ∘ (index_to_rank f L)) 0%R (index_space (length L)))%R;
+    replace (foldr (Rplus ∘ ec_distr_def L) 0%R (index_space (length L)))
+       with (foldr (Rplus ∘ ec_quicksort ∘ (index_to_rank f L)) 0%R (index_space (length L)) +
+             foldr (Rplus ∘ ec_quicksort ∘ (reverse_order (index_space (length L))) ∘ (index_to_rank f L)) 0%R (index_space (length L)))%R;
       last first.
     { rewrite /ec_distr_def.
       destruct L as [|L' LS]; first (simpl in *; lra).
       remember (L' :: LS) as L.
       clear HeqL L' LS.
 
-      remember (Rplus ∘ ec_quicksort CA ∘ index_to_rank f L) as f1.
-      remember (Rplus ∘ ec_quicksort CA ∘ reverse_order (index_space (length L)) ∘ index_to_rank f L) as f2.
+      remember (Rplus ∘ ec_quicksort ∘ index_to_rank f L) as f1.
+      remember (Rplus ∘ ec_quicksort ∘ reverse_order (index_space (length L)) ∘ index_to_rank f L) as f2.
       replace (compose Rplus _) with  (fun i => (fun r => f1 i 0 + f2 i 0 + r)%R); last first.
       { (* There's probably a better way *)
         apply functional_extensionality.
@@ -2087,7 +2084,7 @@ Section program_ent.
   (** Verifing the expected entropy of quicksort *)
 
   Lemma qs_ent_bound : ∀ (xs : list A) (l : val) (cmp : val),
-    {{{ ⧖ (ec_quicksort 1%R (length xs)) ∗
+    {{{ ⧖ (ec_quicksort (length xs)) ∗
         ⌜ is_list xs l ⌝ ∗
         ⌜ List.NoDup xs ⌝ ∗
         (∀ (x y : A), {{{ ⌜ True ⌝  }}} cmp (inject x) (inject y)  {{{ w, RET w; ⌜w = inject (bool_decide (f x y))⌝  }}} ) }}}
@@ -2115,7 +2112,7 @@ Section program_ent.
     rewrite ec_quicksort_unfold.
 
     remember (Rlog 2 _ + _)%R as K.
-    wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _ K (ec_distr f xs 1%R) with "[H⧖]").
+    wp_apply (wp_couple_rand_adv_comp_strong' _ _ _ _ K (ec_distr f xs) with "[H⧖]").
     { intros. apply ec_distr_nonneg; try lia; try lra; eauto. }
     { Opaque INR.
       rewrite /= HeqK.
@@ -2153,8 +2150,8 @@ Section program_ent.
 
     iIntros (v) "[%xp [%ap [%xsL [%xsR (%Hxs & %Hip & -> & %Hap )]]]]".
     wp_pures.
-    iAssert (⧖ (ec_quicksort 1%R (index_to_rank f xs ip)) ∗
-             ⧖ (ec_quicksort 1%R (reverse_order (index_space (length xs)) (index_to_rank f xs ip))))%I
+    iAssert (⧖ (ec_quicksort (index_to_rank f xs ip)) ∗
+             ⧖ (ec_quicksort (reverse_order (index_space (length xs)) (index_to_rank f xs ip))))%I
      with "[H⧖]" as "[H⧖L H⧖R]".
     { iApply etc_split.
       - apply ec_quicksort_nonneg; try lra.
@@ -2393,6 +2390,5 @@ Section program_ent.
     iPureIntro.
     eauto.
   Qed.
-
 
 End program_ent.
