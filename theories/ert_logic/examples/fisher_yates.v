@@ -1,9 +1,9 @@
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
-From clutch.lib Require Import utils.
-From clutch.ert_logic.examples Require Export meldable_heap.
+From tachis.lib Require Import utils.
+From tachis.ert_logic.examples Require Export meldable_heap.
 Set Default Proof Using "Type*".
 
 (** Entropy of Fisher Yates shuffle *)
@@ -12,7 +12,7 @@ Next Obligation.
   lra.
 Defined.
 Section lib.
-  Context`{!ert_clutchGS Σ CostEntropy_2}.
+  Context`{!ert_tachisGS Σ CostEntropy_2}.
   Context `[!Inject A val].
 
   Fixpoint is_list (l : list A) (v : val) :=
@@ -223,7 +223,7 @@ End lib.
 
 
 Section fisher_yates.
-  Context`{!ert_clutchGS Σ CostEntropy_2}.
+  Context`{!ert_tachisGS Σ CostEntropy_2}.
   Context `[!Inject A val].
 
   Local Lemma Rlog_mult: ∀ x y : R, (0 < x)%R → (0 < y)%R → Rlog 2 (x * y) = (Rlog 2 x + Rlog 2 y)%R.

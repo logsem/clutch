@@ -4,12 +4,12 @@ From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
 
-From clutch.bi Require Export weakestpre.
-From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
-From clutch.prob Require Export couplings distribution.
-From clutch.common Require Export language.
+From tachis.bi Require Export weakestpre.
+From tachis.prelude Require Import stdpp_ext iris_ext NNRbar.
+From tachis.prob Require Export couplings distribution.
+From tachis.common Require Export language.
 
-From clutch.ert_logic Require Export expected_time_credits.
+From tachis.ert_logic Require Export expected_time_credits.
 
 Import uPred.
 

@@ -1,7 +1,7 @@
 From stdpp Require Import namespaces.
-From clutch.prob_lang Require Export lang notation tactics.
+From tachis.prob_lang Require Export lang notation tactics.
 From iris.proofmode Require Export proofmode.
-From clutch.ert_logic Require Export
+From tachis.ert_logic Require Export
   primitive_laws derived_laws proofmode ert_rules cost_models.
 Set Default Proof Using "Type*".
 
@@ -27,7 +27,7 @@ Section map.
   Definition init_list : val :=
     λ:<>, ref NONE.
 
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   (* Impl *)
   Fixpoint assoc_list (l : loc) (vs : list (nat * val)) : iProp Σ :=

@@ -3,14 +3,14 @@
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre ectx_lifting problang_wp.
-From clutch.prob_lang Require Export class_instances.
-From clutch.prob_lang Require Import tactics lang notation.
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre ectx_lifting problang_wp.
+From tachis.prob_lang Require Export class_instances.
+From tachis.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
 
 Section primitive_laws.
-Context `{!ert_clutchGS Σ F}.
+Context `{!ert_tachisGS Σ F}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.

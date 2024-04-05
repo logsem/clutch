@@ -1,20 +1,20 @@
 (** * Hashmap *)
 From stdpp Require Export list_numbers.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
-From clutch.prob_lang Require Import notation tactics metatheory lang.
+From tachis.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Coq Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
 Require Import Lra.
-From clutch.ert_logic.examples.hashmap Require Export map hash linkedlist.
+From tachis.ert_logic.examples.hashmap Require Export map hash linkedlist.
 
 Set Default Proof Using "Type*".
 Local Hint Resolve pos_INR:core.
 Local Hint Resolve pos_INR_S:core.
 
 Section hashmap.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   Variable val_size : nat.
   Definition insert_elem: val :=

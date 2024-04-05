@@ -1,10 +1,10 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns.
 From iris.proofmode Require Export tactics.
 
-From clutch.prob_lang Require Import lang notation class_instances tactics.
-From clutch.prob_lang Require Export wp_tactics.
+From tachis.prob_lang Require Import lang notation class_instances tactics.
+From tachis.prob_lang Require Export wp_tactics.
 
-From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws cost_models.
+From tachis.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws cost_models.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 
@@ -355,7 +355,7 @@ Tactic Notation "wp_load" :=
   iClear Htmp.
 
 Section tests.
-  Context `{!ert_clutchGS Σ Cost1}.
+  Context `{!ert_tachisGS Σ Cost1}.
 
   #[local] Lemma test_wp_pure (r : R) :
     (0 <= r)%R →
@@ -418,7 +418,7 @@ Section tests.
 End tests.
 
 Section testsapp.
-  Context `{!ert_clutchGS Σ CostApp}.
+  Context `{!ert_tachisGS Σ CostApp}.
 
   #[local] Lemma test_app_wp_pure (r : R) :
     {{{ ⧖ r }}} #2 + #2 {{{ RET #4; ⧖ r }}}.
@@ -454,7 +454,7 @@ Section testsapp.
 End testsapp.
 
 Section testtick.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   #[local] Lemma test_tick_wp_pure :
     {{{ ⧖ 5 }}} tick #1;; #2 + #2;; tick #4 {{{ RET #(); ⧖ 0 }}}.

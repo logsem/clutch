@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Lim_seq Rbar Rcomplements.
 From stdpp Require Export countable sets.
-From clutch.prelude Require Import base Coquelicot_ext stdpp_ext classical.
+From tachis.prelude Require Import base Coquelicot_ext stdpp_ext classical.
 From discprob.prob Require Import double.
 Set Default Proof Using "Type*".
 Import Hierarchy.

@@ -7,15 +7,15 @@ For utility functions on arrays (e.g., freeing/copying an array), see
 From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import tactics lang notation.
-From clutch.ert_logic Require Export primitive_laws.
+From tachis.prob_lang Require Import tactics lang notation.
+From tachis.ert_logic Require Export primitive_laws.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works
 with lists of values. *)
 
 
-Definition array `{!ert_clutchGS Σ F} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
+Definition array `{!ert_tachisGS Σ F} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) ↦{dq} v.
 
 (*
@@ -35,7 +35,7 @@ lead to overlapping instances. *)
 
 Section lifting.
 
-Context `{!ert_clutchGS Σ F}.
+Context `{!ert_tachisGS Σ F}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.

@@ -1,7 +1,7 @@
 (** * Batch Sampling *)
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
-From clutch.prob_lang Require Import notation tactics metatheory lang.
+From tachis.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Coq Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
@@ -22,7 +22,7 @@ Section proof1.
     lra.
   Defined.
   
-  Context `{!ert_clutchGS Σ CostEntropy_2}.
+  Context `{!ert_tachisGS Σ CostEntropy_2}.
 
   Local Lemma rand_1_cost: cost(rand#1)= 1.
   Proof.
@@ -149,7 +149,7 @@ Local Ltac slam :=
     end.
 
 Section proof2.
-  Context `{!ert_clutchGS Σ CostRand}.
+  Context `{!ert_tachisGS Σ CostRand}.
   
   Definition amortized_sample_inv (f:val):=
     (∃ lcnt lmem (cnt mem:nat),

@@ -1,6 +1,6 @@
 From stdpp Require Import base stringmap fin_sets fin_map_dom.
-From clutch.common Require Export ectx_language ectxi_language.
-From clutch.prob_lang Require Export lang metatheory.
+From tachis.common Require Export ectx_language ectxi_language.
+From tachis.prob_lang Require Export lang metatheory.
 
 (** Substitution in the contexts *)
 Definition subst_map_ctx_item (es : stringmap val) (K : ectx_item) :=

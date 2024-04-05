@@ -42,6 +42,6 @@ clean:
 	rm -f .coqdeps.d
 
 zip:
-	git archive -o coq-clutch.zip main
+	git archive -o coq-tachis.zip HEAD
 
 .PHONY: clean zip

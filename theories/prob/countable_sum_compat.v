@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
+From tachis.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 From discprob.basic Require sval base Reals_ext Series_Ext stdpp_ext.
 From discprob.prob Require countable rearrange.
 
@@ -88,7 +88,7 @@ Qed.
 End Countable_countType.
 
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
-From clutch.prob Require Import countable_sum.
+From tachis.prob Require Import countable_sum.
 
 Notation dcountable_sum := discprob.prob.countable.countable_sum.
 

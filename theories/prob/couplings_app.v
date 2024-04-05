@@ -2,8 +2,8 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
-From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
-From clutch.prob Require Export countable_sum distribution couplings union_bounds.
+From tachis.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
+From tachis.prob Require Export countable_sum distribution couplings union_bounds.
 
 Open Scope R.
 

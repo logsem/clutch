@@ -1,7 +1,7 @@
 (** * Meldable Heaps *)
-From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
-From clutch.ert_logic Require Import min_heap_spec.
-From clutch.lib Require Import utils.
+From tachis.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
+From tachis.ert_logic Require Import min_heap_spec.
+From tachis.lib Require Import utils.
 From iris.proofmode Require Export tactics.
 From Coq Require Export Reals Psatz.
 From stdpp Require Import sorting.
@@ -121,7 +121,7 @@ End heaps.
 
 Section program.
   Context `{A : Type}.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
 
   (** Lifts a representation predicate into binary trees *)

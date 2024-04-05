@@ -1,8 +1,8 @@
 From Coquelicot Require Import Hierarchy.
 From stdpp Require Import sorting.
 From iris.proofmode Require Export proofmode.
-From clutch.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
-From clutch.ert_logic.examples Require Import lib.list min_heap_spec.
+From tachis.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
+From tachis.ert_logic.examples Require Import lib.list min_heap_spec.
 Set Default Proof Using "Type*".
 
 Open Scope R.
@@ -45,7 +45,7 @@ Definition cmp_Z_list : val :=
     end.
 
 Section Z_comparator_spec.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   Definition is_Z_list (zs : list Z) (v : val) : iProp Σ := ⌜is_list zs v⌝ ∗ ⌜Sorted Z.le zs⌝.
 
@@ -119,7 +119,7 @@ Section kway_merge.
 End kway_merge.
 
 Section kway_merge_spec.
-  Context `{!ert_clutchGS Σ CostTick} `{!min_heap Z_list_comparator}.
+  Context `{!ert_tachisGS Σ CostTick} `{!min_heap Z_list_comparator}.
 
   Local Hint Resolve heap_insert_cost_nonneg : real.
   Local Hint Resolve heap_remove_cost_nonneg : real.
@@ -504,10 +504,10 @@ Section kway_merge_spec.
 
 End kway_merge_spec.
 
-From clutch.ert_logic.examples Require Import meldable_heap.
+From tachis.ert_logic.examples Require Import meldable_heap.
 
 Section kway_merge_meldable_heap.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   Definition heap := meld_heap_spec Z_list_comparator.
   Definition meldable_merge := @kway_merge.merge _ _ _ heap.

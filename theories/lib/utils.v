@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation.
-From clutch.prelude Require Import base.
+From tachis.prob_lang Require Import lang notation.
+From tachis.prelude Require Import base.
 Set Default Proof Using "Type*".
 
 Section inject.

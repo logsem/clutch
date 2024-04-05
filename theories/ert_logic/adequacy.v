@@ -4,11 +4,11 @@ From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob_lang Require Import erasure notation.
-From clutch.common Require Export language.
-From clutch.ert_logic Require Import expected_time_credits ert_weakestpre problang_wp.
-From clutch.prob Require Import distribution.
+From tachis.prelude Require Import stdpp_ext iris_ext.
+From tachis.prob_lang Require Import erasure notation.
+From tachis.common Require Export language.
+From tachis.ert_logic Require Import expected_time_credits ert_weakestpre problang_wp.
+From tachis.prob Require Import distribution.
 Import uPred.
 
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
@@ -61,7 +61,7 @@ Section ERT.
 End ERT.
 
 Section adequacy.
-  Context `{!ert_clutchGS Σ f_cost}.
+  Context `{!ert_tachisGS Σ f_cost}.
 
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
@@ -399,25 +399,25 @@ Section adequacy.
 
 End adequacy.
 
-Class ert_clutchGpreS Σ := ERT_ClutchGpreS {
-  ert_clutchGpreS_iris  :: invGpreS Σ;
-  ert_clutchGpreS_heap  :: ghost_mapG Σ loc val;
-  ert_clutchGpreS_tapes :: ghost_mapG Σ loc tape;
-  ert_clutchGpreS_etc   :: etcGpreS Σ;
+Class ert_tachisGpreS Σ := ERT_TachisGpreS {
+  ert_tachisGpreS_iris  :: invGpreS Σ;
+  ert_tachisGpreS_heap  :: ghost_mapG Σ loc val;
+  ert_tachisGpreS_tapes :: ghost_mapG Σ loc tape;
+  ert_tachisGpreS_etc   :: etcGpreS Σ;
 }.
 
-Definition ert_clutchΣ (cost : Costfun prob_lang) : gFunctors :=
+Definition ert_tachisΣ (cost : Costfun prob_lang) : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authR (nonnegrealUR))].
-Global Instance subG_ert_clutchGPreS (cost : Costfun prob_lang) {Σ} : subG (ert_clutchΣ cost) Σ → ert_clutchGpreS Σ.
+Global Instance subG_ert_tachisGPreS (cost : Costfun prob_lang) {Σ} : subG (ert_tachisΣ cost) Σ → ert_tachisGpreS Σ.
 Proof. solve_inG. Qed.
 
 Section wp_ERT.
 Context (costfun : Costfun prob_lang).
 
-Theorem wp_ERT Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) n (x : nonnegreal) φ :
-  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+Theorem wp_ERT Σ `{ert_tachisGpreS Σ} (e : expr) (σ : state) n (x : nonnegreal) φ :
+  (∀ `{ert_tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ERT n (e, σ) <= x.
 Proof.
   intros Hwp.
@@ -426,15 +426,15 @@ Proof.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
   iApply (wp_refRcoupl_step_fupdN).
   iFrame.
   iApply Hwp.
   done.
 Qed.
 
-Theorem wp_ERT_lim Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
-  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+Theorem wp_ERT_lim Σ `{ert_tachisGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
+  (∀ `{ert_tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   lim_ERT (e, σ) <= x.
 Proof.
   intros Hwp.
@@ -442,9 +442,9 @@ Proof.
   by eapply wp_ERT.
 Qed.
 
-Theorem wp_ERT_ast Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+Theorem wp_ERT_ast Σ `{ert_tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
-  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{ert_tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   n <= x + n * SeriesC (exec n (e, σ)).
 Proof.
   intros Hcost Hwp.
@@ -453,7 +453,7 @@ Proof.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN_ast; auto.
   iFrame.
   iApply Hwp.
@@ -505,9 +505,9 @@ Proof.
       pose proof (pos_INR m). lra.
 Qed.
 
-Theorem wp_ERT_ast' Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+Theorem wp_ERT_ast' Σ `{ert_tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
-  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{ert_tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC (lim_exec (e, σ)) = 1.
 Proof.
   intros. eapply ERT_implies_AST.
@@ -515,8 +515,8 @@ Proof.
 Qed.
 
 (** wp correct*)
-Theorem wp_correct Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+Theorem wp_correct Σ `{ert_tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+  (∀ `{ert_tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ∀ v, exec n (e, σ) v > 0 → φ v.
 Proof using costfun.
   intros Hwp.
@@ -525,7 +525,7 @@ Proof using costfun.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN_correct; auto.
   iFrame.
   iApply Hwp.
@@ -537,8 +537,8 @@ Local Lemma exec_lim_exec_pos (e : expr) (σ : state) (φ : val → Prop) :
   ∀ v, lim_exec (e, σ) v > 0 → φ v.
 Proof. intros H v [n Hexec]%lim_exec_pos. naive_solver. Qed.
 
-Theorem wp_correct_lim Σ `{ert_clutchGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (∀ `{ert_clutchGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+Theorem wp_correct_lim Σ `{ert_tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
+  (∀ `{ert_tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ∀ v, lim_exec (e, σ) v > 0 → φ v.
 Proof using costfun.
   intros H'. apply exec_lim_exec_pos.

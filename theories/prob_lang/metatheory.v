@@ -1,11 +1,11 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap.
-From clutch.prelude Require Import stdpp_ext NNRbar.
-From clutch.prob Require Import distribution couplings couplings_app.
-From clutch.common Require Import ectx_language.
-From clutch.prob_lang Require Import locations tactics notation.
-From clutch.prob_lang Require Export lang.
-From clutch.prob Require Import distribution couplings.
+From tachis.prelude Require Import stdpp_ext NNRbar.
+From tachis.prob Require Import distribution couplings couplings_app.
+From tachis.common Require Import ectx_language.
+From tachis.prob_lang Require Import locations tactics notation.
+From tachis.prob_lang Require Export lang.
+From tachis.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 (* This file contains some metatheory about the [prob_lang] language *)

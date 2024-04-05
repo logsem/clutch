@@ -1,10 +1,3 @@
-(* The Export'ed settings in this file are somewhat opinionated. A user loading
-   Clutch might not want these. We should therefore be careful to
-   only Require Import, and not Require Export this file. This unfortunately
-   means that every single one of our files has to Require Import these
-   settings. Currently we do not follow this practice, but if Clutch is
-   released more widely we should. *)
-
 Global Set Default Proof Using "Type".
 #[export] Set Suggest Proof Using. (* also warns about forgotten [Proof.] *)
 

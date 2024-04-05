@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
 Set Default Proof Using "Type*".
@@ -18,7 +18,7 @@ Definition loop1 (l : loc) : expr :=
   end.
 
 Section loop1.
-  Context `{!ert_clutchGS Σ Cost1}.
+  Context `{!ert_tachisGS Σ Cost1}.
 
   Lemma wp_loop1 (l : loc) (n : nat) :
     {{{ ⧖ (4 + 21 * n) ∗ l ↦ #n }}}
@@ -95,7 +95,7 @@ Definition loop1_tick (l : loc) : expr :=
   end.
 
 Section loop1_tick.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   (** In expectation, we need two iterations to decrement [l], see e.g. [geom.v] *)
   Lemma wp_loop1_tick (l : loc) (n : nat) :

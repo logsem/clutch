@@ -1,8 +1,8 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
-From clutch.common Require Import ectx_language.
-From clutch.ert_logic Require Import ert_weakestpre lifting.
-From clutch.prelude Require Import NNRbar.
+From tachis.common Require Import ectx_language.
+From tachis.ert_logic Require Import ert_weakestpre lifting.
+From tachis.prelude Require Import NNRbar.
 From iris.prelude Require Import options.
 
 Local Open Scope R.

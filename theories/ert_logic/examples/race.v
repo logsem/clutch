@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
 Set Default Proof Using "Type*".
@@ -7,7 +7,7 @@ Set Default Proof Using "Type*".
 (** Race example in Ngo et al. 2017*)
 Local Open Scope R_scope.
 Section race.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
   Variable (h t:loc).
   
   Definition race :=

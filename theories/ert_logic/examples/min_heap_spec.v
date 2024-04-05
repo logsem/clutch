@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation.
-From clutch.ert_logic Require Export problang_wp.
+From tachis.prob_lang Require Import lang notation.
+From tachis.ert_logic Require Export problang_wp.
 Set Default Proof Using "Type*".
 
 Record comparator (K : Type) (c : Costfun prob_lang) := Comparator {
@@ -13,9 +13,9 @@ Record comparator (K : Type) (c : Costfun prob_lang) := Comparator {
 
   cmp_nonneg : (0 <= cmp_cost)%R ;
 
-  cmp_has_key `{!ert_clutchGS Σ c} : K → val → iProp Σ;
+  cmp_has_key `{!ert_tachisGS Σ c} : K → val → iProp Σ;
 
-  wp_cmp `{!ert_clutchGS Σ c} k1 k2 v1 v2 :
+  wp_cmp `{!ert_tachisGS Σ c} k1 k2 v1 v2 :
     {{{ cmp_has_key k1 v1 ∗ cmp_has_key k2 v2 ∗ ⧖ cmp_cost }}}
       cmp v1 v2
     {{{ RET #(bool_decide (cmp_rel k1 k2)); cmp_has_key k1 v1 ∗ cmp_has_key k2 v2 }}};
@@ -41,21 +41,21 @@ Class min_heap {K c} (cmp : comparator K c) := MinHeap {
   heap_remove_cost_mono n m :
     n ≤ m → (heap_remove_cost n <= heap_remove_cost m)%R;
 
-  is_min_heap `{!ert_clutchGS Σ c} (l : list K) (v : val) : iProp Σ;
-  is_min_heap_proper `{!ert_clutchGS Σ c} ::
+  is_min_heap `{!ert_tachisGS Σ c} (l : list K) (v : val) : iProp Σ;
+  is_min_heap_proper `{!ert_tachisGS Σ c} ::
     Proper ((≡ₚ) ==> (=) ==> (≡)) is_min_heap;
 
-  wp_heap_new `{!ert_clutchGS Σ c} :
+  wp_heap_new `{!ert_tachisGS Σ c} :
     {{{ True }}}
       heap_new #()
     {{{ v, RET v; is_min_heap [] v }}};
 
-  wp_heap_insert `{!ert_clutchGS Σ c} l k v w :
+  wp_heap_insert `{!ert_tachisGS Σ c} l k v w :
     {{{ is_min_heap l v ∗ cmp.(cmp_has_key) k w ∗ ⧖ (heap_insert_cost (length l)) }}}
       heap_insert v w
     {{{ l', RET #(); is_min_heap l' v ∗ ⌜l' ≡ₚ k :: l⌝ }}};
 
-  wp_heap_remove `{!ert_clutchGS Σ c} l v :
+  wp_heap_remove `{!ert_tachisGS Σ c} l v :
     {{{ is_min_heap l v ∗ ⧖ (heap_remove_cost (length l)) }}}
       heap_remove v
     {{{ w, RET w;

@@ -1,5 +1,5 @@
 opam-version: "2.0"
-name: "coq-clutch"
+name: "coq-tachis"
 synopsis: "A higher-order probabilistic relational separation logic"
 maintainer: "Simon Oddershede Gregersen <gregersen@cs.au.dk>"
 authors: "Simon Oddershede Gregersen,
@@ -8,9 +8,9 @@ authors: "Simon Oddershede Gregersen,
           Joseph Tassarotti,
           Lars Birkedal"
 license: "MIT"
-homepage: "https://github.com/logsem/clutch"
-dev-repo: "git+https://github.com:logsem/clutch.git"
-bug-reports: "https://github.com/logsem/clutch/issues"
+homepage: "https://github.com/logsem/tachis"
+dev-repo: "git+https://github.com:logsem/tachis.git"
+bug-reports: "https://github.com/logsem/tachis/issues"
 build: [make "-j%{jobs}%"]
 install: []
 depends: [
@@ -18,7 +18,5 @@ depends: [
   "coq-coquelicot" { (>= "3.2.0" & <= "3.4.0") }
   "coq-iris" { (= "4.1.0") | (= "dev") }
   "coq-stdpp" { (= "1.9.0") | (= "dev") }
-  "coq-autosubst" { (= "1.8") | (= "dev") }
   "coq-mathcomp-ssreflect" { (= "1.17.0") }
-  "coq-mathcomp-solvable" { (= "1.17.0") }
 ]

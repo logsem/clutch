@@ -1,7 +1,7 @@
 (** * Exact time credit accounting for Coupon collecting *)
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
-From clutch.prob_lang Require Import notation tactics metatheory lang.
+From tachis.prob_lang Require Import notation tactics metatheory lang.
 From iris.proofmode Require Export proofmode.
 From Coq Require Export Reals Psatz.
 From Coquelicot Require Export Hierarchy.
@@ -117,7 +117,7 @@ Qed.
 
   
 Section proofs.
-  Context `{!ert_clutchGS Σ CostRand}.
+  Context `{!ert_tachisGS Σ CostRand}.
 
 
   Local Lemma wp_coupon_helper_end (coupon':nat) (l:loc) E: 

@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
 Set Default Proof Using "Type*".
@@ -17,7 +17,7 @@ Section op.
     [[ tick (! #l) ]] [1/2] [[ #l <- #0 ]];;
     #l <- !#l + #1.
 
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
 
   (** The ERT is fairly easy to determine as [n / 2] *)
   Lemma wp_op_ert (n : nat) :

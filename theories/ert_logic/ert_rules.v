@@ -1,10 +1,10 @@
 (** * ERT rules  *)
 From stdpp Require Import namespaces finite.
 From iris.proofmode Require Import proofmode.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.prob_lang Require Import notation tactics metatheory.
-From clutch.prob_lang Require Export lang.
-From clutch.ert_logic Require Export lifting ectx_lifting primitive_laws.
+From tachis.prelude Require Import stdpp_ext.
+From tachis.prob_lang Require Import notation tactics metatheory.
+From tachis.prob_lang Require Export lang.
+From tachis.ert_logic Require Export lifting ectx_lifting primitive_laws.
 
 Section metatheory.
   Context `{!ertwpG prob_lang Σ}.

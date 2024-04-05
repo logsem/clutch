@@ -1,6 +1,6 @@
 (** * Simple Geometric Example *)
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
 From Coquelicot Require Export Hierarchy.
@@ -19,7 +19,7 @@ Definition geo
           else ("g" #()))%V.
 
 Section proofs.
-  Context `{!ert_clutchGS Σ CostApp}.
+  Context `{!ert_tachisGS Σ CostApp}.
   Lemma wp_geo E:
     {{{ ⧖ (2) }}}
       geo #()@E
@@ -118,7 +118,7 @@ Section generalized.
     apply SeriesC_geo'.
   Qed.
 
-  Context `{!ert_clutchGS Σ CostApp}.
+  Context `{!ert_tachisGS Σ CostApp}.
   
   Lemma wp_geo' E:
     {{{ ⧖ tc }}}

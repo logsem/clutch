@@ -1,5 +1,5 @@
-From clutch.lib Require Export utils.
-From clutch.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
+From tachis.lib Require Export utils.
+From tachis.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
 From iris.proofmode Require Import proofmode.
 
 (** * Functional list in the [CostTick] cost model *)
@@ -300,7 +300,7 @@ Next Obligation.
 Qed.
 
 Section list_specs.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
   Context `[!Inject A val].
 
   Fixpoint is_list (l : list A) (v : val) :=
@@ -986,7 +986,7 @@ Global Arguments wp_list_nil {_ _ _} _ {_}.
    access to the type parameter in e.g. is_list, since they operate on more than one
    list type. *)
 Section list_specs_extra.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
   Context `[!Inject A val].
 
   Lemma wp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :

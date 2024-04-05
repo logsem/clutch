@@ -1,15 +1,4 @@
-# Clutch
-
-A higher-order probabilistic relational separation logic with support for asynchronous probabilistic couplings. 
-The logic is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
-
-## Preprint
-
-A paper describing the development was published at POPL 24 and available under open access policy.
-
-> Gregersen, S. O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L. 2024. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. Proc. ACM Program. Lang. 8, POPL, Article 26 (January 2024), 32 pages. [https://doi.org/10.1145/3632868](https://dl.acm.org/doi/10.1145/3632868)
-
-[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to the Coq formalization. The commit tag `popl24` contains a snapshot of the development that is consistent with the paper.
+# Tachis
 
 ## Building the development
 
@@ -19,16 +8,14 @@ The project is known to compile with
 - [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.9.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.3.1
 - [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.1.0
-- [Autosubst](https://github.com/coq-community/autosubst) 1.8
-- [Mathcomp-solvable](https://github.com/math-comp/math-comp) 1.17.0
 
 The recommended way to install the dependencies is through [opam](https://opam.ocaml.org/doc/Install.html).
 
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 4.14.1
-opam switch link clutch .
+opam switch create tachis 4.14.1
+opam switch link tachis .
 ```
 3. Add the Coq and Iris `opam` repositories.
 ```
@@ -36,7 +23,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
-4. Install the right version of the dependencies as specified in the `clutch.opam` file.
+4. Install the right version of the dependencies as specified in the `tachis.opam` file.
 ```
 opam install . --deps-only
 ```
@@ -45,7 +32,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. The following list is produced when executing the command `Print Assumptions eager_lazy_equiv.` in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. The following list is produced when executing the command `Print Assumptions`.
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}

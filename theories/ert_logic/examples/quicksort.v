@@ -1,6 +1,6 @@
 (** * Exact time credit accounting for Quicksort *)
-From clutch.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
-From clutch.lib Require Import utils.
+From tachis.ert_logic Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
+From tachis.lib Require Import utils.
 From iris.proofmode Require Export tactics.
 From Coq Require Export Reals Psatz.
 From stdpp Require Import sorting.
@@ -981,7 +981,7 @@ Section list.
   Qed.
 
   Section list_specs.
-    Context `{!ert_clutchGS Σ CostTick}.
+    Context `{!ert_tachisGS Σ CostTick}.
 
     Lemma wp_list_nil E :
       {{{ True }}}
@@ -1183,7 +1183,7 @@ Section list.
 End list.
 
 Section program.
-  Context `{!ert_clutchGS Σ CostTick}.
+  Context `{!ert_tachisGS Σ CostTick}.
   Context `[!Inject A val].
   Context `{Inhabited A}.
   Context (f : relation A) `{∀ x y, Decision (f x y)} `{!TotalOrder f}.
@@ -1661,7 +1661,7 @@ Section ent_list.
     Program Definition CostEntropy_2 := CostEntropy 2 _.
     Next Obligation. lra. Defined.
 
-    Context `{!ert_clutchGS Σ CostEntropy_2}.
+    Context `{!ert_tachisGS Σ CostEntropy_2}.
     Context `[!Inject A val].
 
     Lemma wp_list_nil_ent E :
@@ -1944,7 +1944,7 @@ Section qs_adv_cmp_ent.
 End qs_adv_cmp_ent.
 
 Section program_ent.
-  Context `{!ert_clutchGS Σ CostEntropy_2}.
+  Context `{!ert_tachisGS Σ CostEntropy_2}.
   Context `[!Inject A val].
   Context `{Inhabited A}.
   Context (f : relation A) `{∀ x y, Decision (f x y)} `{!TotalOrder f}.

@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite gmap.
-From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
+From tachis.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical.
 Set Default Proof Using "Type*".
 Import Hierarchy.
 
