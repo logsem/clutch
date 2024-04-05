@@ -52,14 +52,7 @@ Section lib.
             | NONE => NONE
             end.
   
-  Lemma wp_list_cons a l lv E :
-    {{{ ⌜is_list l lv⌝ }}}
-      list_cons (inject a) lv @ E
-      {{{ v, RET v; ⌜is_list (a::l) v⌝}}}.
-  Proof.
-    iIntros (Φ) "% HΦ". wp_lam. wp_pures.
-    iApply "HΦ". iPureIntro; by eexists.
-  Qed.
+  
   
   Definition list_update : val :=
     rec: "list_update" "l" "i" "v" :=
@@ -79,8 +72,34 @@ Section lib.
       | NONE => #0
       end.
 
+  Definition list_swap: val :=
+    λ: "l" "i" "j", 
+      let: "temp" := (match: list_nth "l" "j" with
+                      |SOME "x" => "x"
+                      |NONE => #()
+                      end
+                     )  
+      in
+      let: "l'" := list_update "l" "j"
+                     (match: list_nth "l" "i" with
+                      |SOME "x" => "x"
+                      |NONE => #()
+                      end
+                     )  in
+      list_update "l'" "i" "temp".
+    
+
   (** spec*)
 
+  Lemma wp_list_cons a l lv E :
+    {{{ ⌜is_list l lv⌝ }}}
+      list_cons (inject a) lv @ E
+      {{{ v, RET v; ⌜is_list (a::l) v⌝}}}.
+  Proof.
+    iIntros (Φ) "% HΦ". wp_lam. wp_pures.
+    iApply "HΦ". iPureIntro; by eexists.
+  Qed.
+  
   Lemma wp_list_nth E (i: nat) l lv  :
     {{{ ⌜is_list l lv⌝ }}}
       list_nth (Val lv) #i @ E
@@ -171,6 +190,34 @@ Section lib.
       wp_op. iSpecialize ("HΦ" $! (1 + v)%nat).
       rewrite Nat2Z.inj_add. iApply "HΦ"; by auto.
   Qed.
+
+  Lemma wp_list_swap E l lv i j:
+    {{{ ⌜is_list l lv⌝ ∗ ⌜i<length l⌝ ∗ ⌜j<length l⌝ }}}
+      list_swap lv #i #j@E
+      {{{ lv', RET lv'; ∃ x y, ⌜l!!i= Some x⌝ ∗ ⌜l!!j=Some y⌝ ∗
+                               ⌜is_list (<[i:=y]>(<[j:=x]>l)) lv'⌝ }}}.
+  Proof.
+    iIntros (Φ) "(%&%&%) HΦ".
+    rewrite /list_swap.
+    wp_pures.
+    wp_apply wp_list_nth_some.
+    { iPureIntro. split; first done. lia. }
+    iIntros (?) "(%&->&%)".
+    wp_pures.
+    wp_apply wp_list_nth_some.
+    { iPureIntro. done. }
+    iIntros (?) "(%&->&%H')".
+    wp_pures.
+    wp_apply wp_list_update.
+    { iPureIntro. split; first done. lia. }
+    iIntros (lv' ?). wp_pures.
+    wp_apply wp_list_update.
+    { iPureIntro. split; first done. rewrite insert_length. lia. }
+    iIntros (lv'' ?).
+    iApply "HΦ".
+    iExists _, _.
+    by repeat iSplit.
+  Qed.
   
 End lib.
 
@@ -198,20 +245,8 @@ Section fisher_yates.
                  if: "i" ≤ #0
                  then "l"
                  else let: "j" := rand ("i") in
-                      let: "temp" := (match: list_nth "l" "j" with
-                                      |SOME "x" => "x"
-                                      |NONE => #()
-                                      end
-                                     )  
-                      in
-                      let: "l'" := list_update "l" "j"
-                                     (match: list_nth "l" "i" with
-                                      |SOME "x" => "x"
-                                      |NONE => #()
-                                      end
-                                     )  in
-                      let: "l''" := list_update "l'" "i" "temp" in
-                      "loop" "l''" ("i"-#1)
+                      let: "l'" := list_swap "l" "i" "j" in
+                      "loop" "l'" ("i"-#1)
               ).
 
   Definition fisher_yates: val:=
@@ -240,21 +275,11 @@ Section fisher_yates.
     }
     iIntros (?) "_".
     wp_pures.
-    wp_apply wp_list_nth_some.
-    { iPureIntro. split; first done. pose proof fin_to_nat_lt n. lia. }
-    iIntros (?) "(%&->&%)".
-    wp_pures.
-    wp_apply wp_list_nth_some.
-    { iPureIntro. done. }
-    iIntros (?) "(%&->&%H')".
-    wp_pures.
-    wp_apply wp_list_update.
-    { iPureIntro. split; first done. pose proof fin_to_nat_lt n. lia. }
-    iIntros (lv' ?). wp_pures.
     rewrite -/fisher_yates_loop.
-    wp_apply wp_list_update.
-    { iPureIntro. split; first done. rewrite insert_length. lia. }
-    iIntros (lv'' ?).
+    wp_apply wp_list_swap.
+    { repeat iSplit; try done. iPureIntro.
+      pose proof fin_to_nat_lt n. lia. }
+    iIntros (lv') "(%&%&%H1&%H2&%)".
     wp_pures.
     replace (_-_)%Z with (Z.of_nat i'); last lia.
     wp_apply ("IH" with "[][][Hx2]").
@@ -272,10 +297,10 @@ Section fisher_yates.
                    else x
         ).
       split.
-      + intros x y. repeat case_bool_decide; simpl; naive_solver.
+      + intros ??. repeat case_bool_decide; simpl; naive_solver.
       + intros. repeat case_bool_decide; subst.
         * destruct (decide (fin_to_nat n=S i')) as [Heq|Heq].
-          -- rewrite Heq in H. rewrite Heq. rewrite list_lookup_insert; first naive_solver.
+          -- rewrite Heq in H2. rewrite Heq. rewrite list_lookup_insert; first naive_solver.
              rewrite !insert_length. lia.
           -- rewrite list_lookup_insert_ne; last done. rewrite list_lookup_insert; first naive_solver.
              pose proof fin_to_nat_lt n. lia.
