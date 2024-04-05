@@ -52,10 +52,8 @@ Section ERT.
     intros Hbound.
     rewrite /lim_ERT.
     apply Rbar_le_fin.
-    - etrans; last eapply Hbound. apply ERT_nonneg.
+    - etrans; last eapply (Hbound 0%nat). apply ERT_nonneg.
     - apply upper_bound_ge_sup. done.
-      Unshelve.
-      exact 0%nat.
   Qed.
   
 End ERT.
@@ -301,20 +299,21 @@ Section adequacy.
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
         iPureIntro.
         apply cond_nonneg.
-      + rewrite ert_wp_unfold /ert_wp_pre /= Heq.
+      + rename n into m.
+        assert ((prim_step e σ) = (step (e, σ))) as -> => //.
+        rewrite -ERT_Sn => //.
+        rewrite ert_wp_unfold /ert_wp_pre /= Heq -ERT_Sn => //.
         iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
           (ERM_mono _
-             (λ '(e2, σ2) x', |={∅}▷=>^(S n) ⌜ERT n (e2, σ2) <= x'⌝)%I
-            with "[] Hlift") as "H".
-        { reflexivity. }
+             (λ '(e2, σ2) x', |={∅}▷=>^(S m) ⌜ERT m (e2, σ2) <= x'⌝)%I
+             _ _ _ x
+            with "[] Hlift") as "H" ; first reflexivity.
         { iIntros ([] ?) "H !> !>".
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
           iMod ("IH" with "[$]") as "H".
           iModIntro. done. }
-        assert ((prim_step e σ) = (step (e, σ))) as -> => //.
-        rewrite -ERT_Sn => //.
         by iApply (ERM_erasure with "H").
   Qed.
 
