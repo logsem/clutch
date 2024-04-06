@@ -1,16 +1,9 @@
 opam-version: "2.0"
 name: "coq-tachis"
 synopsis: "A higher-order probabilistic relational separation logic"
-maintainer: "Simon Oddershede Gregersen <gregersen@cs.au.dk>"
-authors: "Simon Oddershede Gregersen,
-          Alejandro Aguirre,
-          Philipp G. Haselwarter,
-          Joseph Tassarotti,
-          Lars Birkedal"
+maintainer: "anonymous"
+authors: "anonymous"
 license: "MIT"
-homepage: "https://github.com/logsem/tachis"
-dev-repo: "git+https://github.com:logsem/tachis.git"
-bug-reports: "https://github.com/logsem/tachis/issues"
 build: [make "-j%{jobs}%"]
 install: []
 depends: [
