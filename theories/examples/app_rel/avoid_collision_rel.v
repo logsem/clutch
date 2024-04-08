@@ -69,7 +69,7 @@ Section wp_refinement.
         by auto.
       eapply ectxi_lang_ctx_item.
     }
-    iApply (wp_rand_avoid t with "hs ε") ; auto.
+    iApply (wp_rand_avoid_l t with "hs ε") ; auto.
     { rewrite TCEq_eq. apply nnreal_ext. rewrite -Nε. real_solver. }
     iNext. iIntros (x) "%xt". simpl.
 
