@@ -148,7 +148,7 @@ Section rules.
     iModIntro. done.
   Qed.
 
-  Lemma wp_rand_avoid {N : nat} (t : fin (S N)) (z : Z) ε E :
+  Lemma wp_rand_avoid_l {N : nat} (t : fin (S N)) (z : Z) ε E :
     TCEq N (Z.to_nat z) →
     TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
     nclose specN ⊆ E →
@@ -202,8 +202,12 @@ Section rules.
     iMod "hclose". done.
   Qed.
 
-  (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
-  Lemma wp_couple_rand_rand_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
+  (** Food for thought: No equivalent rand_avoid_r ??*)
+
+  (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under inj *)
+  Lemma wp_couple_rand_rand_inj (N M : nat)  (f:nat -> nat) z w K E Φ (ε : nonnegreal) :
+    (forall n, n < S N -> f n < S M) ->
+    (forall n1 n2, n1 < S N -> n2 < S N -> f n1 = f n2 -> n1 = n2) ->
     TCEq N (Z.to_nat z) →
     TCEq M (Z.to_nat w) →
     nclose specN ⊆ E →
@@ -211,11 +215,12 @@ Section rules.
     (((S M - S N) / S M) = ε)%R →
     refines_right K (rand #w) ∗
     € ε ∗
-    ▷ (∀ (n : fin (S N)) (m : fin (S M)),
-        ⌜(fin_to_nat n = m)⌝ →
-        refines_right K #m  -∗ WP (Val #n) @ E {{ Φ }})
+    ▷ (∀ (n : fin (S N)), 
+        refines_right K #(f n)  -∗ WP (Val #n) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
+    iIntros (Hdom Hinj).
+    set g := (λ m : fin (S N), Fin.of_nat_lt (Hdom m (fin_to_nat_lt m))).
     iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
@@ -232,9 +237,8 @@ Section rules.
     iApply exec_coupl_det_r; [done|].
     iApply exec_coupl_prim_steps.
     iExists (λ '(e2, σ2) '(e2', σ2'),
-        ∃ (n : fin _) (m : fin _),
-        (fin_to_nat n = m) ∧
-          (e2, σ2) = (Val #n, σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
+        ∃ (n : fin _),
+        (e2, σ2) = (Val #(n), σ1) ∧ (e2', σ2') = (fill K #(g n), σ0')).
     iSplit.
     { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
@@ -245,14 +249,15 @@ Section rules.
       { apply nnreal_ext; simpl; lra. }
       eapply ARcoupl_dbind.
       1,2:apply cond_nonneg.
-      2:eapply ARcoupl_rand_rand; eauto.
-      intros [] [] (b & ? & ? & [=] & [=])=>/=.
+      2:eapply (ARcoupl_rand_rand_inj _ _ g); eauto.
+      simpl.
+      intros [] [] (b & ? & ?).
       apply ARcoupl_dret.
-      simplify_eq. eauto. }
-    iIntros ([] [] (b & b' & Hbb' & [= -> ->] & [= -> ->])).
+      simplify_eq. simpl. eauto. } 
+    iIntros ([] [] (b & b' & Hbb')).
     simplify_eq.
-    iMod (spec_interp_update (fill K #b', σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
-    iMod (spec_prog_update (fill K #b')  with "Hauth Hr") as "[Hauth Hr]".
+    iMod (spec_interp_update (fill K #(g b), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    iMod (spec_prog_update (fill K #(g b))  with "Hauth Hr") as "[Hauth Hr]".
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
@@ -262,7 +267,53 @@ Section rules.
       iFrame. rewrite pexec_O dret_1_1 //. }
     iModIntro. iFrame.
     iApply "Hwp"; eauto.
-    iSplit; done.
+    iSplit; try done.
+    rewrite /g. by rewrite fin_to_nat_to_fin.
+    Unshelve.
+    intros m1 m2 Heq.
+    assert (fin_to_nat (g m1) = f (fin_to_nat m1)) as H1.
+    {
+      rewrite /g fin_to_nat_to_fin //.
+    }
+    assert (fin_to_nat (g m2) = f (fin_to_nat m2)) as H2.
+    {
+      rewrite /g fin_to_nat_to_fin //.
+    }
+    apply fin_to_nat_inj.
+    apply Hinj.
+    - apply fin_to_nat_lt.
+    - apply fin_to_nat_lt.
+    - rewrite -H1.
+      rewrite -H2.
+      by f_equal.
+  Qed.
+  
+
+  (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
+  Lemma wp_couple_rand_rand_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
+    TCEq N (Z.to_nat z) →
+    TCEq M (Z.to_nat w) →
+    nclose specN ⊆ E →
+    (N <= M)%R ->
+    (((S M - S N) / S M) = ε)%R →
+    refines_right K (rand #w) ∗
+    € ε ∗
+    ▷ (∀ (n : fin (S N)) (m : fin (S M)),
+        ⌜(fin_to_nat n = m)⌝ →
+        refines_right K #m  -∗ WP (Val #n) @ E {{ Φ }})
+    ⊢ WP rand #z @ E {{ Φ }}.
+  Proof.
+    iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
+    iApply wp_couple_rand_rand_inj; [| |done|done|done|..].
+    - instantiate (1:=(λ x,x)). apply INR_le in HNM. intros. lia.
+    - intros; lia.
+    - iFrame. iSplitR; first done.
+      assert (∀ x:fin (S(Z.to_nat z)), x<S(Z.to_nat w)) as T.
+      { apply INR_le in HNM. intros. pose proof fin_to_nat_lt x. lia. }
+      iModIntro. iIntros. iApply ("Hwp" $! n (nat_to_fin (T n))).
+      + iPureIntro.
+        by rewrite fin_to_nat_to_fin.
+      + rewrite fin_to_nat_to_fin. iFrame.
   Qed.
 
 
@@ -359,5 +410,32 @@ Section rules.
 
 
 
+
+
+  (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
+  Lemma wp_couple_rand_rand_rev_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
+    TCEq N (Z.to_nat z) →
+    TCEq M (Z.to_nat w) →
+    nclose specN ⊆ E →
+    (M <= N)%R ->
+    (((S N - S M) / S N) = ε)%R →
+    refines_right K (rand #w) ∗
+    € ε ∗
+    ▷ (∀ (n : fin (S N)) (m : fin (S M)),
+        ⌜(fin_to_nat n = m)⌝ →
+        refines_right K #m  -∗ WP (Val #n) @ E {{ Φ }})
+    ⊢ WP rand #z @ E {{ Φ }}.
+  Proof.
+    iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
+    iApply wp_couple_rand_rand_rev_inj; [| |done|done|done|..].
+    - instantiate (1:=(λ x,x)). apply INR_le in HNM. intros. lia.
+    - intros; lia.
+    - iFrame. iSplitR; first done.
+      assert (∀ x:fin (S(Z.to_nat w)), x<S(Z.to_nat z)) as T.
+      { apply INR_le in HNM. intros. pose proof fin_to_nat_lt x. lia. }
+      iModIntro. iIntros. replace (fin_to_nat m) with (fin_to_nat (nat_to_fin (T m))).
+      + iApply "Hwp"; by rewrite fin_to_nat_to_fin.
+      + by rewrite fin_to_nat_to_fin.
+  Qed.
 
 End rules.
