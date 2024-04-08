@@ -628,202 +628,89 @@ Proof.
         -- lra.
 Qed.
 
-Lemma ARcoupl_dunif_leq (N M : nat):
-  (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((M-N)/N).
+Lemma ARcoupl_dunif_leq_inj (N M : nat) h `{Inj (fin N) (fin M) (=) (=) h}:
+  (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, m = h n) ((M-N)/M).
 Proof.
-  intros Hleq f g Hf Hg Hfg.
-  eapply Rle_trans; last first.
-  - rewrite -(Rmult_1_l ((M - N) / N)).
-    rewrite (Rinv_r_sym (card (fin M))); [ | rewrite fin_card; lra].
-    rewrite -SeriesC_finite_mass fin_card -SeriesC_scal_r -SeriesC_plus.
-    + eapply (SeriesC_filter_leq _ (λ n : fin M, (n < N))); [ | apply ex_seriesC_finite].
-      intro; apply Rplus_le_le_0_compat; apply Rmult_le_pos; auto.
-      * apply Hg.
-      * left. apply Rinv_0_lt_compat; lra.
-      * apply Rmult_le_pos; [lra | ].
-        left. apply Rinv_0_lt_compat; lra.
-    + apply ex_seriesC_finite.
-    + apply ex_seriesC_finite.
-  - simpl.
-    eapply Rle_trans; last first.
-    * eapply (SeriesC_le (λ n : fin M, (if bool_decide (n < N) then (1/N) * g n else 0))) ; [ | apply ex_seriesC_finite].
-      intro; split.
-      -- case_bool_decide; [ | lra].
-         apply Rmult_le_pos; [ | apply Hg].
-         apply Rmult_le_pos; [ lra | ].
-         left; apply Rinv_0_lt_compat, Hleq.
-      -- case_bool_decide; try lra.
-         rewrite /pmf/= Rplus_comm.
-         apply Rle_minus_l.
-         rewrite -Rmult_minus_distr_r.
-         apply (Rle_trans _ (1 / N - / M)).
-         ++ rewrite <- Rmult_1_r.
-            apply Rmult_le_compat_l; [ | apply Hg ].
-            apply Rle_minus_r.
-            rewrite Rplus_0_l /Rdiv Rmult_1_l.
-            apply Rinv_le_contravar; apply Hleq.
-         ++ replace (/ M) with (1 / M) by nra.
-            rewrite Rdiv_minus; try lra.
-            do 3 rewrite /Rdiv.
-            do 3 rewrite Rmult_1_l.
-            rewrite (Rmult_comm N).
-            rewrite (Rmult_comm (/M)).
-            rewrite (Rmult_assoc).
-            apply Rmult_le_compat_l; [lra | ].
-            rewrite Rinv_mult; nra.
-    * assert (∀ x:fin N, fin_to_nat x < M)%nat as Hineq.
-      { intros. pose proof (fin_to_nat_lt x). cut (N<=M)%nat; first lia. apply INR_le; naive_solver. }
-      etrans; last eapply (SeriesC_le_inj _ (λ x:fin N, Some (Fin.of_nat_lt (Hineq x)))).
-      -- apply SeriesC_le.
-         ++ intros n; simpl. split; first apply Rmult_le_pos; auto.
-            ** naive_solver.
-            ** case_bool_decide as H; last first.
-               { rewrite fin_to_nat_to_fin in H. exfalso. apply H. apply lt_INR, fin_to_nat_lt. }
-               apply Rmult_le_compat; auto.
-               { naive_solver. }
-               { rewrite /pmf. simpl. lra. }
-               apply Hfg. by rewrite fin_to_nat_to_fin.
-         ++ apply ex_seriesC_finite.
-      -- intros. case_bool_decide; try lra.
-         apply Rmult_le_pos; last naive_solver.
-         apply Rdiv_le_0_compat; [lra|naive_solver].
-      -- intros ??? H1 H2. inversion H1; inversion H2; subst.
-         cut (fin_to_nat (nat_to_fin (Hineq n2)) = fin_to_nat (nat_to_fin (Hineq n1))); last by rewrite H3.
-         rewrite !fin_to_nat_to_fin.
-         intros; by apply fin_to_nat_inj.
-      -- apply ex_seriesC_finite.
+  intros Hleq f g Hg Hf Hfg.
+  etrans; last first.
+  { apply Rplus_le_compat_r.
+    eapply (SeriesC_filter_leq _ (λ b, ∃ a, b = h a)).
+    - intros. rewrite dunif_pmf. apply Rmult_le_pos.
+      + rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; lra.
+      + naive_solver.
+    - apply ex_seriesC_finite.
+  }
+  simpl.
+  etrans; last first.
+  { apply Rplus_le_compat_r.
+    pose (hsome := λ x, Some (h x)).
+    eapply (SeriesC_le_inj _ hsome).
+    - intros. case_bool_decide; last lra.
+      intros. rewrite dunif_pmf. apply Rmult_le_pos.
+      + rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; lra.
+      + naive_solver.
+    - rewrite /hsome. naive_solver.
+    - apply ex_seriesC_finite.
+  } simpl.
+  etrans; last first.
+  { apply Rplus_le_compat_l.
+    instantiate (1:= SeriesC (λ x: fin N, (M-N)/(M*N))).
+    rewrite SeriesC_finite_mass fin_card Rmult_div_assoc.
+    rewrite (Rmult_comm N (M-N)). rewrite !Rdiv_def Rmult_assoc.
+    apply Rmult_le_compat_l; first lra.
+    rewrite -(Rdiv_1_l M). rewrite -Rdiv_def- Rle_div_r; last lra.
+    apply Req_le_sym. rewrite Rdiv_mult_distr !Rdiv_def.
+    rewrite (Rmult_assoc N) (Rmult_comm (/ M)) -Rmult_assoc.
+    rewrite Rmult_inv_r; last lra.
+    rewrite Rmult_1_l. rewrite Rmult_comm Rmult_inv_r; lra.
+  }
+  rewrite -SeriesC_plus; [|apply ex_seriesC_finite|apply ex_seriesC_finite].
+  apply SeriesC_le; last apply ex_seriesC_finite.
+  intros. case_bool_decide; last first.
+  { exfalso. naive_solver. }
+  split.
+  - intros. rewrite dunif_pmf. apply Rmult_le_pos.
+    + rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; lra.
+    + naive_solver.
+  - intros. rewrite !dunif_pmf.
+    etrans.
+    { apply Rmult_le_compat_l.
+      - rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; lra.
+      - apply Hfg. reflexivity.
+    }
+    cut ((/ N - / M)* g (h n) <=  (M - N) / (M * N)); first lra.
+    trans ((/ N - / M)*1).
+    + apply Rmult_le_compat_l; last naive_solver.
+      rewrite -Rminus_le_0. apply Rinv_le_contravar; lra.
+    + rewrite Rmult_1_r.
+      cut (/ N - / M <= M / (M * N) - N/ (M*N)); first lra.
+      cut (/N = M/(M*N)/\ /M=N/(M*N)); first lra.
+      split.
+      * rewrite -Rdiv_1_l. erewrite <-Rdiv_mult_l_l.
+        -- f_equal. lra.
+        -- lra.
+      * rewrite -Rdiv_1_l. erewrite <-Rdiv_mult_l_r.
+        -- f_equal. lra.
+        -- lra.
 Qed.
 
-
-
-Lemma ARcoupl_dunif_leq_inj (N M : nat) h `{Inj (fin N) (fin M) (=) (=) h}:
-  (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, m = h n) ((M-N)/N).
+Lemma ARcoupl_dunif_leq (N M : nat):
+  (0 < N <= M) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((M-N)/M).
 Proof.
   intros Hleq f g Hf Hg Hfg.
-  eapply Rle_trans; last first.
-  - rewrite -(Rmult_1_l ((M - N) / N)).
-    rewrite (Rinv_r_sym (card (fin M))); [ | rewrite fin_card; lra].
-    rewrite -SeriesC_finite_mass fin_card -SeriesC_scal_r -SeriesC_plus. 
-    + eapply (SeriesC_filter_leq _ (λ n : fin M, bool_decide (∃ x, n = h x))); [ | apply ex_seriesC_finite].
-      intro; apply Rplus_le_le_0_compat; apply Rmult_le_pos; auto.
-      * apply Hg.
-      * left. apply Rinv_0_lt_compat; lra.
-      * apply Rmult_le_pos; [lra | ].
-        left. apply Rinv_0_lt_compat; lra.
-    + apply ex_seriesC_finite.
-    + apply ex_seriesC_finite.
-  - simpl.
-    eapply Rle_trans; last first.
-    * eapply (SeriesC_le (λ n : fin M, (if bool_decide (∃ x, n = h x) then (1/N) * g n else 0))) ; [ | apply ex_seriesC_finite].
-      intro; split.
-      -- case_bool_decide; [ | lra].
-         apply Rmult_le_pos; [ | apply Hg].
-         apply Rmult_le_pos; [ lra | ].
-         left; apply Rinv_0_lt_compat, Hleq.
-      -- repeat case_bool_decide; try done.
-         rewrite /pmf/= Rplus_comm.
-         apply Rle_minus_l.
-         rewrite -Rmult_minus_distr_r.
-         apply (Rle_trans _ (1 / N - / M)).
-         ++ rewrite <- Rmult_1_r.
-            apply Rmult_le_compat_l; [ | apply Hg ].
-            apply Rle_minus_r.
-            rewrite Rplus_0_l /Rdiv Rmult_1_l.
-            apply Rinv_le_contravar; apply Hleq.
-         ++ replace (/ M) with (1 / M) by nra.
-            rewrite Rdiv_minus; try lra.
-            do 3 rewrite /Rdiv.
-            do 3 rewrite Rmult_1_l.
-            rewrite (Rmult_comm N).
-            rewrite (Rmult_comm (/M)).
-            rewrite (Rmult_assoc).
-            apply Rmult_le_compat_l; [lra | ].
-            rewrite Rinv_mult; lra.
-    * etrans; last eapply (SeriesC_le_inj _ (λ x:fin N, Some (h x))).
-      -- apply SeriesC_le.
-         ++ intros n; simpl. split; first apply Rmult_le_pos; auto.
-            ** naive_solver.
-            ** case_bool_decide as H1; last first.
-               { exfalso. apply H1. naive_solver. }
-               apply Rmult_le_compat; auto.
-               { naive_solver. }
-               { rewrite /pmf. simpl. lra. }
-         ++ apply ex_seriesC_finite.
-      -- intros. case_bool_decide; try lra.
-         apply Rmult_le_pos; last naive_solver.
-         apply Rdiv_le_0_compat; [lra|naive_solver].
-      -- intros ??? H1 H2. inversion H1; inversion H2; subst.
-         by apply H.
-      -- apply ex_seriesC_finite.
+  assert (∀ x:fin N, (fin_to_nat x < M)%nat) as Hineq.
+  { intros x. pose proof fin_to_nat_lt x. destruct Hleq as [? H1].
+    apply INR_le in H1. lia. }
+  eapply (ARcoupl_dunif_leq_inj _ _ (λ x:fin N, nat_to_fin (Hineq x))); try done.
+  intros. apply Hfg.
+  subst. by rewrite fin_to_nat_to_fin.
+  Unshelve.
+  intros ?? H. apply (f_equal fin_to_nat) in H.
+  rewrite !fin_to_nat_to_fin in H.
+  by apply fin_to_nat_inj.
 Qed.
 
 (* Note the asymmetry on the error wrt to the previous lemma *)
-Lemma ARcoupl_dunif_leq_rev (N M : nat) :
-  (0 < M <= N) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((N-M)/N).
-Proof.
-  intros Hleq f g Hf Hg Hfg.
-  rewrite /pmf/=.
-  do 2 rewrite SeriesC_scal_l.
-  rewrite Rmult_comm.
-  apply Rle_div_r.
-  - apply Rlt_gt.
-    apply Rinv_0_lt_compat; lra.
-  - rewrite /Rdiv Rinv_inv Rmult_plus_distr_r.
-    rewrite (Rmult_assoc (N-M)) Rinv_l; [ | lra].
-    rewrite Rmult_1_r Rplus_comm.
-    assert (SeriesC f <= SeriesC g + (N - M)) as Haux.
-    { erewrite (SeriesC_split_pred _ (λ x, fin_to_nat x <? M)%nat); [|naive_solver|apply ex_seriesC_finite].
-      assert (∀ m: fin M, fin_to_nat m < N)%nat as Hineq.
-      { intros. pose proof (fin_to_nat_lt m). assert (M<=N)%nat; try lia.
-        apply INR_le. naive_solver.
-      }
-      set (λ x: fin M, nat_to_fin (Hineq x))as h.
-      assert (Inj eq eq h) as Hinj.
-      { rewrite /h. intros ???.
-        assert (fin_to_nat $ nat_to_fin (Hineq x) = fin_to_nat $ nat_to_fin (Hineq y)) as H1.
-        { rewrite H. done. }
-        repeat rewrite fin_to_nat_to_fin in H1.
-        by apply fin_to_nat_inj.
-      }
-      assert (∀(a : fin N) (b : fin M), a = h b → f a <= g b) as Hfg'.
-      { intros. apply Hfg. rewrite H. rewrite /h. by rewrite fin_to_nat_to_fin. }
-      apply Rplus_le_compat.
-      - erewrite (SeriesC_ext _ (λ a : fin N, if bool_decide (∃y: fin M, a = h y) then f a else 0)).
-        + apply SeriesC_filter_finite_1'; try done.
-          destruct Hleq. split; [apply INR_lt|by apply INR_le].
-          by simpl.
-        + intros n. destruct (n<?M) eqn:H1; case_bool_decide as H2; try done.
-          * exfalso. apply H2. rewrite /h. rewrite Nat.ltb_lt in H1. exists (nat_to_fin H1).
-            apply fin_to_nat_inj. by repeat rewrite fin_to_nat_to_fin.
-          * exfalso. rewrite PeanoNat.Nat.ltb_ge in H1. apply Nat.le_ngt in H1.
-            apply H1. destruct H2. subst. pose proof (fin_to_nat_lt x). rewrite /h.
-            by rewrite fin_to_nat_to_fin.
-      - trans (SeriesC (λ a : fin (N-M), 1)); last first.
-        + rewrite SeriesC_finite_mass fin_card Rmult_1_r minus_INR; try lra. apply INR_le. naive_solver.
-        + erewrite (SeriesC_ext _ (λ a : fin N, if bool_decide (∃y: fin M, a = h y) then 0 else f a)).
-          * etrans; first apply SeriesC_filter_finite_2; try done.
-            -- destruct Hleq. split; [apply INR_lt|by apply INR_le].
-               by simpl.
-            -- rewrite SeriesC_finite_mass. rewrite fin_card. lra.
-          * intros n. destruct (n<?M) eqn:H1; case_bool_decide as H2; try done.
-            -- exfalso. apply H2. rewrite /h. rewrite Nat.ltb_lt in H1. exists (nat_to_fin H1).
-               apply fin_to_nat_inj. by repeat rewrite fin_to_nat_to_fin.
-            -- exfalso. rewrite PeanoNat.Nat.ltb_ge in H1. apply Nat.le_ngt in H1.
-               apply H1. destruct H2. subst. pose proof (fin_to_nat_lt x). rewrite /h.
-               by rewrite fin_to_nat_to_fin.
-    }
-    apply (Rle_trans _ (SeriesC g + (N - M))); auto.
-    rewrite Rplus_comm.
-    apply Rplus_le_compat_l.
-    assert (0<=SeriesC g) as Hpos.
-    { apply SeriesC_ge_0'. naive_solver. }
-    rewrite Rmult_comm (Rmult_comm (/M)).
-    rewrite -Rdiv_def Rmult_div_assoc.
-    rewrite -Rle_div_r; last lra.
-    rewrite Rmult_comm.
-    apply Rmult_le_compat_r; lra.
-Qed.
-
 Lemma ARcoupl_dunif_leq_rev_inj (N M : nat) h `{Inj (fin M) (fin N) (=) (=) h}:
   (0 < M <= N) -> ARcoupl (dunif N) (dunif M) (λ n m, n = h m) ((N-M)/N).
 Proof.
@@ -833,7 +720,7 @@ Proof.
   rewrite Rmult_comm.
   apply Rle_div_r.
   - apply Rlt_gt.
-    apply Rinv_0_lt_compat; lra.
+    apply Rinv_0_lt_compat; lra. 
   - rewrite /Rdiv Rinv_inv Rmult_plus_distr_r.
     rewrite (Rmult_assoc (N-M)) Rinv_l; [ | lra].
     rewrite Rmult_1_r Rplus_comm.
@@ -861,6 +748,23 @@ Proof.
     rewrite Rmult_comm.
     apply Rmult_le_compat_r; lra.
 Qed.
+
+Lemma ARcoupl_dunif_leq_rev (N M : nat) :
+  (0 < M <= N) -> ARcoupl (dunif N) (dunif M) (λ n m, fin_to_nat n = m) ((N-M)/N).
+Proof.
+  intros Hleq f g Hf Hg Hfg.
+  assert (∀ x:fin M, (fin_to_nat x < N)%nat) as Hineq.
+  { intros x. pose proof fin_to_nat_lt x. destruct Hleq as [? H1].
+    apply INR_le in H1. lia. }
+  eapply (ARcoupl_dunif_leq_rev_inj _ _ (λ x:fin M, nat_to_fin (Hineq x))); try done.
+  intros. apply Hfg.
+  subst. by rewrite fin_to_nat_to_fin.
+  Unshelve.
+  intros ?? H. apply (f_equal fin_to_nat) in H.
+  rewrite !fin_to_nat_to_fin in H.
+  by apply fin_to_nat_inj.
+Qed.
+  
 
 Lemma ARcoupl_dunif_no_coll_l `{Countable A} (v : A) (N : nat) (x : fin N) :
   (0 < N ) -> ARcoupl (dunif N) (dret v) (λ m n, m ≠ x ∧ n = v) (1/N).

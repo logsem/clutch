@@ -503,7 +503,7 @@ Qed.
 (** * Approximate rand(N) ~ rand(M) coupling, N <= M *)
 Lemma ARcoupl_rand_rand (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
   (N <= M)%R ->
-  (((S M - S N) / S N) = ε)%R →
+  (((S M - S N) / S M) = ε)%R →
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
@@ -534,7 +534,7 @@ Qed.
 (** * Approximate rand(N) ~ rand(M) coupling, N <= M, along an injection *)
 Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
   (N <= M)%R ->
-  (((S M - S N) / S N) = ε)%R →
+  (((S M - S N) / S M) = ε)%R →
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
@@ -628,7 +628,7 @@ Qed.
 (** * Approximate state_step(α, N) ~ state_step(α', N) coupling *)
 Lemma ARcoupl_state_state (N M : nat) σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
   (N <= M)%R ->
-  (((S M - S N) / S N) = ε)%R →
+  (((S M - S N) / S M) = ε)%R →
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
   ARcoupl

@@ -21,7 +21,7 @@ Section rules.
     (∀ σ1, reducible (e, σ1)) →
     nclose specN ⊆ E →
     (N <= M)%R →
-    (((S M - S N) / S N) = ε)%R →
+    (((S M - S N) / S M) = ε)%R →
     spec_ctx ∗
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     € ε ∗
@@ -208,7 +208,7 @@ Section rules.
     TCEq M (Z.to_nat w) →
     nclose specN ⊆ E →
     (N <= M)%R ->
-    (((S M - S N) / S N) = ε)%R →
+    (((S M - S N) / S M) = ε)%R →
     refines_right K (rand #w) ∗
     € ε ∗
     ▷ (∀ (n : fin (S N)) (m : fin (S M)),
