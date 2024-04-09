@@ -202,7 +202,71 @@ Section rules.
     iMod "hclose". done.
   Qed.
 
-  (** Food for thought: No equivalent rand_avoid_r ??*)
+  Lemma wp_couple_avoid_r {N : nat} (t : fin (S N)) (z : Z) K e ε E Φ:
+    to_val e = None →
+    (∀ σ1, reducible (e, σ1)) →
+    TCEq N (Z.to_nat z) →
+    TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
+    nclose specN ⊆ E →
+    refines_right K (rand #z) ∗
+    € ε ∗
+    (∀ (n : fin (S N)),
+       refines_right K #n -∗ ⌜n≠t⌝-∗
+        WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Htv Hred Nz Nε Hspec) "([#Hinv  HK] & Hε & Hwp)". 
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (spec_prog_auth_frag_agree with "Hauth HK") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iSplit; first done.
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
+    set (ε' := nnreal_minus ε_now ε Hle ).
+    replace ε_now with (nnreal_plus ε ε'); last first.
+    1: apply nnreal_ext ; simpl ; lra.
+    iApply exec_coupl_exec_r.
+    iExists (λ ρ2 ρₛ,
+             ∃ n : fin (S N), ρ2 = (e ,σ1) ∧ ρₛ = (fill K #n, σ0') ∧ n ≠ t), 1.
+    iSplit.
+    - rewrite pexec_1 step_or_final_no_final /=.
+      + rewrite fill_dmap //.
+        rewrite -(dmap_id (dret _)). iPureIntro.
+        rewrite /dmap /=. 
+        replace ε with (nnreal_plus ε nnreal_zero); last first.
+        { apply nnreal_ext; simpl; lra. }
+        eapply ARcoupl_dbind; last first.
+        * apply (wp_couple_rand_no_coll_r _ _ _ _ t); eauto.
+          -- apply lt_0_INR. lia.
+          -- rewrite Nε. simpl.  rewrite Nz. lra.
+          -- rewrite Nz. done.
+        * intros [] [] (b & ? & ?).
+          apply ARcoupl_dret.
+          simplify_eq. simpl. naive_solver.
+        * simpl; lra.
+        * apply cond_nonneg.
+      + by apply to_final_None_2, fill_not_val.
+    - iIntros (??) "(% &_&[%He %])". simplify_eq.
+      iMod (spec_interp_update (fill K #(n), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+      iMod (spec_prog_update (fill K #(n))  with "Hauth HK") as "[Hauth HK]".
+      iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
+      iMod "Hclose'" as "_".
+      iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+      { iModIntro. rewrite /spec_inv.
+        iExists _, _, _, 0. simpl.
+        iFrame. rewrite pexec_O dret_1_1 //. }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
+      iSpecialize ("Hwp" $! n with "[HK][]").
+      { iSplit; by iFrame. }
+      { done. }
+      rewrite !wp_unfold /wp_pre /=.
+      iFrame. rewrite Htv. iMod ("Hwp" with "[$]") as "(%&?)".
+      iModIntro. iFrame.
+  Qed.
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under inj *)
   Lemma wp_couple_rand_rand_inj (N M : nat)  (f:nat -> nat) z w K E Φ (ε : nonnegreal) :
