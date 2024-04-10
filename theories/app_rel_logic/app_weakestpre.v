@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings_app distribution.
-From clutch.common Require Export language.
+From clutch.common Require Export language spec_update.
 
 Import uPred.
 
@@ -21,7 +21,6 @@ Local Open Scope R.
 Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
   iris_invGS :: invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
-  spec_interp : cfg Λ → iProp Σ;
   err_interp : nonnegreal → iProp Σ;
 }.
 Global Opaque iris_invGS.
@@ -29,7 +28,7 @@ Global Arguments IrisG {Λ Σ}.
 
 (** * The coupling modality [exec_coupl]  *)
 Section exec_coupl.
-  Context `{!irisGS Λ Σ}.
+  Context `{!spec (lang_markov Λ) Σ}`{!irisGS Λ Σ}.
 
   Definition exec_coupl_pre (Z : cfg Λ → cfg Λ → nonnegreal -> iProp Σ) (Φ : (cfg Λ * cfg Λ) * nonnegreal  → iProp Σ) :=
     (λ (x : (cfg Λ * cfg Λ) * nonnegreal),
@@ -466,7 +465,7 @@ Section exec_coupl.
 End exec_coupl.
 
 (** * The weakest precondition  *)
-Definition wp_pre `{!irisGS Λ Σ}
+Definition wp_pre `{spec (lang_markov Λ) Σ}`{!irisGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
@@ -477,7 +476,7 @@ Definition wp_pre `{!irisGS Λ Σ}
         ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ wp E e2 Φ) ε
 end%I.
 
-Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive wp_pre.
+Local Instance wp_pre_contractive `{spec (lang_markov Λ) Σ} `{!irisGS Λ Σ} : Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
   do 11 f_equiv.
@@ -490,17 +489,17 @@ Proof.
 Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+Local Definition wp_def `{spec (lang_markov Λ) Σ} `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!irisGS Λ Σ} : wp = (@wp_def Λ Σ _).(wp).
+Local Lemma wp_unseal `{spec (lang_markov Λ) Σ} `{!irisGS Λ Σ} : wp = (@wp_def Λ Σ _ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!irisGS Λ Σ}.
+Context `{!spec (lang_markov Λ) Σ}`{!irisGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -581,6 +580,20 @@ Qed.
 Lemma wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
 Proof. iIntros "H". iApply (wp_strong_mono E with "H"); auto. Qed.
 
+Lemma wp_spec_steps n P E e Φ s :
+  TCEq (to_val e) None →
+  (P -∗ WP e @ s; E {{ Φ }}) ∗ spec_update n E P ⊢ WP e @ s; E {{ Φ }}.
+Proof.
+  rewrite wp_unfold/wp_pre.
+  iIntros (->) "[Hwp Hupd]". iIntros (σ1 e1' σ1' ε) "(Hσ1 & Hspec & Hε)".
+  iMod ("Hupd" with "Hspec") as "/= (%ρ' & %H & Hspec & HP)".
+  destruct ρ'.
+  iSpecialize ("Hwp" with "HP [$]").
+  iMod "Hwp". iModIntro.
+  iApply (exec_coupl_det_r n with "[$]").
+  by apply stepN_pexec_det.
+Qed.
+  
 Lemma wp_atomic s E1 E2 e Φ `{!Atomic StronglyAtomic e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
@@ -731,7 +744,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!irisGS Λ Σ}.
+  Context `{!spec (lang_markov Λ) Σ} `{!irisGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
   Implicit Types v : val Λ.

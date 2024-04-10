@@ -1495,6 +1495,19 @@ Section iterM.
       rewrite IH //.
   Qed.
 
+  Lemma iterM_mono (f g: A-> distr A) n a a':
+    (∀ a a', f a a'<= g a a') -> iterM n f a a' <= iterM n g a a'.
+  Proof.
+    revert a a'. induction n; intros a a' Ha; simpl.
+    - lra.
+    - rewrite /dbind/pmf/dbind_pmf. apply SeriesC_le; last first.
+      { apply pmf_ex_seriesC_mult_fn. exists 1. naive_solver. }
+      intros. real_solver.
+  Qed.
+      
+    
+   
+
 End iterM.
 
 (** * Coins  *)
