@@ -7,7 +7,7 @@ From clutch.app_rel_logic Require Import app_weakestpre.
 
 
 Section lifting.
-Context `{!irisGS Λ Σ}.
+Context `{!spec (lang_markov Λ) Σ} `{!irisGS Λ Σ}.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
