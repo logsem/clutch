@@ -580,13 +580,13 @@ Qed.
 Lemma wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
 Proof. iIntros "H". iApply (wp_strong_mono E with "H"); auto. Qed.
 
-Lemma wp_spec_steps n P E e Φ s :
+Lemma wp_spec_steps P E e Φ s :
   TCEq (to_val e) None →
-  (P -∗ WP e @ s; E {{ Φ }}) ∗ spec_update n E P ⊢ WP e @ s; E {{ Φ }}.
+  (P -∗ WP e @ s; E {{ Φ }}) ∗ spec_update E P ⊢ WP e @ s; E {{ Φ }}.
 Proof.
   rewrite wp_unfold/wp_pre.
   iIntros (->) "[Hwp Hupd]". iIntros (σ1 e1' σ1' ε) "(Hσ1 & Hspec & Hε)".
-  iMod ("Hupd" with "Hspec") as "/= (%ρ' & %H & Hspec & HP)".
+  iMod ("Hupd" with "Hspec") as "/= (%ρ' & %n & %H &Hspec & HP)".
   destruct ρ'.
   iSpecialize ("Hwp" with "HP [$]").
   iMod "Hwp". iModIntro.

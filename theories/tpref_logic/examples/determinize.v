@@ -52,7 +52,7 @@ Section determinize_spec.
 
   Lemma spec_backedge s E :
     has_backedge s →
-    specF (s : mstate model) -∗ spec_update 1 E (specF (initial : mstate model)).
+    specF (s : mstate model) -∗ spec_updateN 1 E (specF (initial : mstate model)).
   Proof.
     iIntros (Hedge) "Hspec"; iIntros (s') "Hs".
     iDestruct (spec_auth_agree with "Hs Hspec") as %->.
