@@ -145,7 +145,7 @@ Section lazy_real.
 
   Lemma spec_restart E b1 b2 N :
     b1 ≠ b2 →
-    specF (b1, b2, S N) -∗ spec_update 1 E (specF (true, true, N)).
+    specF (b1, b2, S N) -∗ spec_updateN 1 E (specF (true, true, N)).
   Proof.
     iIntros (?) "Hspec". iIntros (s) "Hs".
     iDestruct (spec_auth_agree with "Hs Hspec") as %->.

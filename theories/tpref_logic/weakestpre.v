@@ -745,10 +745,10 @@ Qed.
 
 Lemma rwp_spec_steps n P E e Φ a :
   TCEq (to_val e) None →
-  (P -∗ RSWP e at n @ a; E ⟨⟨ Φ ⟩⟩) ∗ spec_update n E P ⊢ WP e @ a; E {{ Φ }}.
+  (P -∗ RSWP e at n @ a; E ⟨⟨ Φ ⟩⟩) ∗ spec_updateN n E P ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rswp_unfold rwp_unfold /rwp_pre /rswp_step.
-  iIntros (->) "[Hswp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_update.
+  iIntros (->) "[Hswp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_updateN.
   iMod ("Hspec" with "Ha") as (a' Ha) "(Hsource_interp & HP)".
   iMod ("Hswp" with "HP [$]") as "Hswp".
   iModIntro.
@@ -762,10 +762,10 @@ Qed.
 
 Lemma rwp_spec_steps' n P E e Φ a :
   TCEq (to_val e) None →
-  (P -∗ ▷^n WP e @ a; E {{ Φ }}) ∗ spec_update n E P ⊢ WP e @ a; E {{ Φ }}.
+  (P -∗ ▷^n WP e @ a; E {{ Φ }}) ∗ spec_updateN n E P ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite rwp_unfold /rwp_pre.
-  iIntros (->) "[Hrwp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_update.
+  iIntros (->) "[Hrwp Hspec]". iIntros (σ1 m) "[Hσ1 Ha]". rewrite /spec_updateN.
   iMod ("Hspec" with "Ha") as (a' Ha) "(Hsource_interp & HP)".
   iSpecialize ("Hrwp" with "HP").
   iApply fupd_mono.

@@ -23,13 +23,25 @@ Section spec_update.
   Context `{spec δ Σ} `{invGS_gen hlc Σ}.
   Implicit Types a : mstate δ.
 
-  Definition spec_update (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
+  Definition spec_updateN (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+  
+  Definition spec_update (E : coPset) (P : iProp Σ) : iProp Σ :=
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
-  Lemma spec_update_bind n m E P Q :
-    spec_update n E P ∗ (P -∗ spec_update m E Q) ⊢ spec_update (n + m) E Q.
+  Lemma spec_updateN_implies_spec_update n E P:
+    spec_updateN n E P -∗ spec_update E P.
   Proof.
-    rewrite /spec_update. iIntros "[P PQ]" (a) "Ha".
+    rewrite /spec_updateN/spec_update.
+    iIntros "H % Ha".
+    iMod ("H" with "[$]") as "[%?]". iModIntro.
+    iExists _, _. done.
+  Qed.
+  
+  Lemma spec_updateN_bind n m E P Q :
+    spec_updateN n E P ∗ (P -∗ spec_updateN m E Q) ⊢ spec_updateN (n + m) E Q.
+  Proof.
+    rewrite /spec_updateN. iIntros "[P PQ]" (a) "Ha".
     iMod ("P" $! a with "Ha") as (b Hab) "[Hb P]".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c Hbc) "[Hc Q]".
@@ -38,8 +50,20 @@ Section spec_update.
     by iFrame.
   Qed.
 
-  Lemma spec_update_mono_fupd n E P Q :
-    spec_update n E P ∗ (P ={E}=∗ Q) ⊢ spec_update n E Q.
+  Lemma spec_update_bind E P Q :
+    spec_update E P ∗ (P -∗ spec_update E Q) ⊢ spec_update E Q.
+  Proof.
+    rewrite /spec_update. iIntros "[P PQ]" (a) "Ha".
+    iMod ("P" $! a with "Ha") as (b n Hab) "[Hb P]".
+    iSpecialize ("PQ" with "P").
+    iMod ("PQ" $! b with "Hb") as (c m Hbc) "[Hc Q]".
+    iModIntro. iExists _, _. iFrame. 
+    assert (stepN (n + m) a c = 1) by by eapply stepN_det_trans.
+    by iFrame.
+  Qed.
+
+  Lemma spec_updateN_mono_fupd n E P Q :
+    spec_updateN n E P ∗ (P ={E}=∗ Q) ⊢ spec_updateN n E Q.
   Proof.
     iIntros "[HP PQ]". iIntros (a) "Hsrc".
     iMod ("HP" with "Hsrc") as (b Hstep) "[Hsrc P]".
@@ -47,20 +71,47 @@ Section spec_update.
     iExists b. by iFrame.
   Qed.
 
-  Lemma spec_update_mono n E P Q :
-    spec_update n E P ∗ (P -∗ Q) ⊢ spec_update n E Q.
+  Lemma spec_update_mono_fupd E P Q :
+    spec_update E P ∗ (P ={E}=∗ Q) ⊢ spec_update E Q.
   Proof.
+    rewrite /spec_update.
+    iIntros "[HP PQ]". iIntros (a) "Hsrc".
+    iMod ("HP" with "Hsrc") as (b n Hstep) "[Hsrc P]".
+    iMod ("PQ" with "P"). iFrame. iModIntro.
+    iExists b, _. by iFrame.
+  Qed.
+
+  Lemma spec_updateN_mono n E P Q :
+    spec_updateN n E P ∗ (P -∗ Q) ⊢ spec_updateN n E Q.
+  Proof.
+    iIntros "[Hupd HPQ]". iApply (spec_updateN_mono_fupd with "[$Hupd HPQ]").
+    iIntros "P". iModIntro. by iApply "HPQ".
+  Qed.
+
+  Lemma spec_update_mono E P Q :
+    spec_update E P ∗ (P -∗ Q) ⊢ spec_update E Q.
+  Proof.
+    rewrite /spec_update.
     iIntros "[Hupd HPQ]". iApply (spec_update_mono_fupd with "[$Hupd HPQ]").
     iIntros "P". iModIntro. by iApply "HPQ".
   Qed.
 
-  Lemma fupd_spec_update n E P :
-    (|={E}=> spec_update n E P) ⊢ spec_update n E P.
+  Lemma fupd_spec_updateN n E P :
+    (|={E}=> spec_updateN n E P) ⊢ spec_updateN n E P.
   Proof.
-    iIntros "H". rewrite /spec_update. iIntros (e) "Hsrc".
+    iIntros "H". rewrite /spec_updateN. iIntros (e) "Hsrc".
     iMod "H". by iApply "H".
   Qed.
 
+  Lemma fupd_spec_update E P :
+    (|={E}=> spec_update E P) ⊢ spec_update E P.
+  Proof.
+    rewrite /spec_update.
+    iIntros "H". rewrite /spec_updateN. iIntros (e) "Hsrc".
+    iMod "H". by iApply "H".
+  Qed.
+
+  
 End spec_update.
 
 (** The authoritative spec tracking algebra  *)

@@ -306,7 +306,7 @@ Section nested_ho_spec.
 
   Lemma spec_restart m E :
     is_final m →
-    specF (inner m) -∗ spec_update 1 E (specF initial).
+    specF (inner m) -∗ spec_updateN 1 E (specF initial).
   Proof.
     iIntros ([mf Hm]) "Hspec". iIntros (s) "Hs".
     iDestruct (spec_auth_agree with "Hs Hspec") as %->.
