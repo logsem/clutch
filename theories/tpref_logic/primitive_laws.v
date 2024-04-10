@@ -2,7 +2,7 @@ From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import fancy_updates.
 From iris.base_logic.lib Require Export ghost_map.
 
-From clutch.tpref_logic Require Import weakestpre spec ectx_lifting.
+From clutch.tpref_logic Require Import weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
 From clutch.prob Require Import distribution.
