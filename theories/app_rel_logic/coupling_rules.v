@@ -218,7 +218,6 @@ Section rules.
     iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
     iDestruct (spec_prog_auth_frag_agree with "Hauth HK") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iSplit; first done.
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
     iApply exec_coupl_det_r; [done|].
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
@@ -260,7 +259,7 @@ Section rules.
       { iSplit; by iFrame. }
       { done. }
       rewrite !wp_unfold /wp_pre /=.
-      iFrame. rewrite Htv. iMod ("Hwp" with "[$]") as "(%&?)".
+      iFrame. rewrite Htv. iMod ("Hwp" with "[$]").
       iModIntro. iFrame.
   Qed.
 
