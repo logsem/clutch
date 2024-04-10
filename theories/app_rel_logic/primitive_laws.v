@@ -32,9 +32,11 @@ Definition tapes_auth `{app_clutchGS Σ} :=
 Global Instance clutchGS_irisGS `{!app_clutchGS Σ} : irisGS prob_lang Σ := {
   iris_invGS := clutchGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  spec_interp ρ := (spec_interp_auth ρ)%I ;
   err_interp ε := (ec_supply ε);
-}.
+  }.
+
+Global Instance clutchGS_Spec `{!app_clutchGS Σ} : spec (lang_markov prob_lang) Σ :=
+  spec_auth_spec.
 
 (** Heap *)
 Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_heap clutchGS_heap_name l dq v)
