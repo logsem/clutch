@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
 From iris.base_logic.lib Require Import na_invariants.
 From clutch.prob_lang Require Import lang notation.
-From clutch.tpref_logic Require Import seq_weakestpre spec primitive_laws proofmode adequacy.
+From clutch.tpref_logic Require Import seq_weakestpre primitive_laws proofmode adequacy.
 From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples.lib Require Import list.
 Set Default Proof Using "Type*".

@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From clutch.prob_lang Require Import lang notation.
-From clutch.tpref_logic Require Import weakestpre spec primitive_laws proofmode adequacy.
+From clutch.tpref_logic Require Import weakestpre primitive_laws proofmode adequacy.
 From clutch.prob Require Import distribution markov.
 From clutch.tpref_logic.examples Require Import flip.
 #[local] Open Scope R.

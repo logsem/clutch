@@ -8,7 +8,7 @@ From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.tpref_logic Require Import weakestpre spec ectx_lifting primitive_laws.
+From clutch.tpref_logic Require Import weakestpre ectx_lifting primitive_laws.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works
