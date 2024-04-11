@@ -111,7 +111,7 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
       [by rewrite ?fill_app | tc_solve | ..])
   end;
   [tc_solve || fail "tp_pure: cannot eliminate modality in the goal"
-  |solve_ndisj || fail "tp_pure: cannot prove 'nclose specN ⊆ ?'"
+  (* |solve_ndisj || fail "tp_pure: cannot prove 'nclose specN ⊆ ?'" *)
   (* |iAssumptionCore || fail "tp_pure: cannot find spec_ctx" (* spec_ctx *) *)
   |iAssumptionCore || fail "tp_pure: cannot find the RHS" (* TODO fix error message *)
   |try (exact I || reflexivity) (* ψ *)
@@ -147,41 +147,37 @@ Lemma tac_tp_store `{app_clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e (l : loc) e' e2 v'
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
-  nclose specN ⊆ E1 →
-  envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
+  envs_lookup_delete false i1 Δ1 = Some (false, ⤇ fill k e, Δ2)%I →
   e = fill K' (Store (# l) e') →
   IntoVal e' v →
   (* re-compose the expression and the evaluation context *)
   e2 = fill K' #() →
   envs_lookup i2 Δ2 = Some (false, l ↦ₛ v')%I →
   match envs_simple_replace i2 false
-     (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↦ₛ v)) Δ2 with
+     ( (Esnoc Enil i1 (spec_update E1 (⤇ fill k e2∗ l ↦ₛ v))) ) Δ2 with
   | None => False
   | Some Δ3 => envs_entails Δ3 Q
   end →
   envs_entails Δ1 Q.
 Proof.
   rewrite /IntoVal.
-  rewrite envs_entails_unseal. intros ??? -> <- -> ? HQ.
+  rewrite envs_entails_unseal. intros ?? -> <- -> ? HQ.
   rewrite envs_lookup_delete_sound //; simpl.
   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
-  rewrite !assoc -(assoc _ spec_ctx).
+  rewrite !assoc.
   rewrite -fill_app step_store // /= fill_app.
-  rewrite -[Q]elim_modal //.
-  apply bi.sep_mono_r.
-  apply bi.wand_intro_l.
-  rewrite (comm _ _ (l ↦ₛ v)%I). simpl.
-  rewrite assoc. rewrite (comm _ spec_ctx (l ↦ₛ _)%I).
-  by rewrite bi.wand_elim_r.
+  iIntros "[H1 H2]".
+  iApply HQ.
+  iApply ("H2" with "[$]").
 Qed.
 
 Tactic Notation "tp_store" :=
   iStartProof;
   eapply tac_tp_store;
   [tc_solve || fail "tp_store: cannot eliminate modality in the goal"
-  |solve_ndisj || fail "tp_store: cannot prove 'nclose specN ⊆ ?'"
+  (* |solve_ndisj || fail "tp_store: cannot prove 'nclose specN ⊆ ?'" *)
   |iAssumptionCore || fail "tp_store: cannot find the RHS"
   |tp_bind_helper
   |tc_solve || fail "tp_store: cannot convert the argument to a value"
@@ -191,41 +187,34 @@ Tactic Notation "tp_store" :=
 
 Lemma tac_tp_load `{app_clutchGS Σ} k Δ1 Δ2 E1 i1 i2 K' e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (|={E1}=> P) P Q Q) →
-  nclose specN ⊆ E1 →
-  envs_lookup_delete false i1 Δ1 = Some (false, refines_right k e, Δ2)%I →
+  envs_lookup_delete false i1 Δ1 = Some (false, ⤇ fill k e, Δ2)%I →
   e = fill K' (Load #l) →
   envs_lookup i2 Δ2 = Some (false, l ↦ₛ{q} v)%I →
   e2 = fill K' (of_val v) →
   match envs_simple_replace i2 false
-    (Esnoc (Esnoc Enil i1 (refines_right k e2)) i2 (l ↦ₛ{q} v)%I) Δ2 with
+    (Esnoc Enil i1 (spec_update E1 (⤇ fill k e2∗(l ↦ₛ{q} v))%I) ) Δ2 with
   | Some Δ3 => envs_entails Δ3 Q
   | None    => False
   end →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros ??? -> ? -> HQ.
+  rewrite envs_entails_unseal. intros ?? -> ? -> HQ.
   rewrite envs_lookup_delete_sound //; simpl.
   destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
   rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
-  rewrite /refines_right.
   rewrite right_id.
-  rewrite assoc. rewrite -(assoc _ spec_ctx).
-  rewrite -fill_app step_load /= // fill_app.
-  rewrite -[Q]elim_modal //.
-  apply bi.sep_mono_r.
-  apply bi.wand_intro_l.
-  rewrite (comm _ _ (l ↦ₛ{q} v)%I).
   rewrite assoc.
-  rewrite (comm _ _ (l ↦ₛ{q} v)%I).
-  rewrite -assoc.
-  rewrite HQ. by apply bi.wand_elim_r.
+  rewrite -fill_app step_load /= // fill_app.
+  iIntros "[H1 H2]".
+  iApply HQ.
+  iApply ("H2" with "[$]").
 Qed.
 
 Tactic Notation "tp_load" :=
   iStartProof;
   eapply tac_tp_load;
   [tc_solve || fail "tp_load: cannot eliminate modality in the goal"
-  |solve_ndisj || fail "tp_load: cannot prove 'nclose specN ⊆ ?'"
+  (* |solve_ndisj || fail "tp_load: cannot prove 'nclose specN ⊆ ?'" *)
   |iAssumptionCore || fail "tp_load: cannot find the RHS"
   |tp_bind_helper
   |iAssumptionCore || fail "tp_load: cannot find '? ↦ₛ ?'"
