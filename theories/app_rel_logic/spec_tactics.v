@@ -77,13 +77,13 @@ Lemma tac_tp_pure `{app_clutchGS Σ} e K' e1 k e2 Δ1 E1 i1 e' ϕ ψ Q n :
   ϕ →
   (* we will call simpl on this goal thus re-composing the expression again *)
   e' = fill K' e2 →
-  match envs_simple_replace i1 false (Esnoc Enil i1 (⤇ fill k e')) Δ1 with
+  match envs_simple_replace i1 false (Esnoc Enil i1 (spec_update E1 (⤇ fill k e'))) Δ1 with
   | Some Δ2 => envs_entails Δ2 Q
   | None => False
   end →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros -> Hpure ? HΔ1 Hψ Hϕ -> ?.
+  rewrite envs_entails_unseal. intros -> Hpure ? HΔ1 Hψ Hϕ -> H1.
   destruct (envs_simple_replace _ _ _ _) as [Δ2|] eqn:HΔ2; try done.
   rewrite (envs_simple_replace_sound Δ1 Δ2 i1) //; simpl.
   rewrite right_id.
@@ -91,22 +91,20 @@ Proof.
   rewrite -!fill_app.
   rewrite step_pure //.
   rewrite -[Q]elim_modal // /=.
-  apply bi.sep_mono.
-  { iIntros "K". iModIntro. iApply "K". }
-  apply bi.wand_intro_l.
-  Admitted.
-(*   rewrite bi.wand_elim_r. *)
-(* Qed. *)
+  apply bi.sep_mono; last first.
+  { iIntros "K H". iSpecialize ("K" with "H"). iApply H1. done. }
+  iIntros. by iModIntro.
+Qed.
 
 Tactic Notation "tp_pure_at" open_constr(ef) :=
   iStartProof;
   lazymatch goal with
-  | |- context[environments.Esnoc _ ?H (refines_right ?j (fill ?K' ?e))] =>
+  | |- context[environments.Esnoc _ ?H (⤇ fill ?j (fill ?K' ?e))] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure (fill K' e) (K++K') e' j);
       [by rewrite ?fill_app | tc_solve | ..])
-  | |- context[environments.Esnoc _ ?H (refines_right ?j ?e)] =>
+  | |- context[environments.Esnoc _ ?H (⤇ fill ?j ?e)] =>
     reshape_expr e ltac:(fun K e' =>
       unify e' ef;
       eapply (tac_tp_pure e K e' j);
