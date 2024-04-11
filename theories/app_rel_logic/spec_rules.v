@@ -198,20 +198,19 @@ Section rules.
     ((α ↪ₛ (N; []) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> He Hred HE) "(#Hinv & Hj & Hα & Hwp)".
+    iIntros (-> He Hred) "(Hj & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iDestruct "Hauth2" as "(HK& Hheap& Htapes)".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     (* Do a (trivially) coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
+    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ1')), 1.
     iSplit.
     { iPureIntro.
       rewrite pexec_1.
@@ -225,15 +224,15 @@ Section rules.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
       apply ARcoupl_dret=>/=. eauto. }
     iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (spec_interp_update _ _ _ (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
+    { iFrame. }
     simplify_map_eq.
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
-    iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, _, 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
+    iSpecialize ("Hwp" with "[$Hα Hspec0]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
     replace (nnreal_plus nnreal_zero ε) with (ε)
@@ -248,25 +247,24 @@ Section rules.
     N ≠ M →
     to_val e = None →
     (∀ σ1, reducible (e, σ1)) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
-    ((α ↪ₛ (M; ns) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
+    ((α ↪ₛ (M; ns) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> Hneq He Hred HE) "(#Hinv & Hj & Hα & Hwp)".
+    iIntros (-> Hneq He Hred) "(Hj & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    (* iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iDestruct "Hauth2" as "(HK& Hheap& Htapes)".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     (* Do a (trivially) coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ0')), 1.
+    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ1')), 1.
     iSplit.
     { iPureIntro.
       rewrite pexec_1.
@@ -281,15 +279,15 @@ Section rules.
       apply ARcoupl_dret=>/=. eauto.
     }
     iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (spec_interp_update _ _ _ (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
+    { iFrame. }
     simplify_map_eq.
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
-    iSpecialize ("Hwp" with "[$Hα $Hinv Hj]"); [eauto|].
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, _, 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
+    iSpecialize ("Hwp" with "[$Hα Hspec0]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
     replace (nnreal_plus nnreal_zero ε) with (ε)
@@ -299,29 +297,29 @@ Section rules.
   Qed.
 
   (** * Corollaries about [refines_right]  *)
-  Lemma refines_right_alloctape E K N z :
-    TCEq N (Z.to_nat z) →
-    nclose specN ⊆ E →
-    refines_right K (alloc #z) ⊢ |={E}=> ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (N; []).
-  Proof.
-    iIntros (??) "(?&?)".
-    iMod (step_alloctape with "[$]") as (l) "(?&?)"; [done|].
-    iExists _; by iFrame.
-  Qed.
+  (* Lemma refines_right_alloctape E K N z : *)
+  (*   TCEq N (Z.to_nat z) → *)
+  (*   nclose specN ⊆ E → *)
+  (*   refines_right K (alloc #z) ⊢ |={E}=> ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (N; []). *)
+  (* Proof. *)
+  (*   iIntros (??) "(?&?)". *)
+  (*   iMod (step_alloctape with "[$]") as (l) "(?&?)"; [done|]. *)
+  (*   iExists _; by iFrame. *)
+  (* Qed. *)
 
-  Lemma refines_right_rand E K l N z n ns :
-    TCEq N (Z.to_nat z) →
-    nclose specN ⊆ E →
-    l ↪ₛ (N; n :: ns) ∗
-    refines_right K (rand(#lbl:l) #z ) ⊢ |={E}=> refines_right K #n ∗ l ↪ₛ (N; ns).
-  Proof.
-    iIntros (??) "(?&?&?)".
-    iMod (step_rand with "[$]") as "(?&?&?)"; [done|].
-    iModIntro; iFrame.
-  Qed.
+  (* Lemma refines_right_rand E K l N z n ns : *)
+  (*   TCEq N (Z.to_nat z) → *)
+  (*   nclose specN ⊆ E → *)
+  (*   l ↪ₛ (N; n :: ns) ∗ *)
+  (*   refines_right K (rand(#lbl:l) #z ) ⊢ |={E}=> refines_right K #n ∗ l ↪ₛ (N; ns). *)
+  (* Proof. *)
+  (*   iIntros (??) "(?&?&?)". *)
+  (*   iMod (step_rand with "[$]") as "(?&?&?)"; [done|]. *)
+  (*   iModIntro; iFrame. *)
+  (* Qed. *)
 
-  Lemma refines_right_bind K' K e :
-    refines_right K' (fill K e) ≡ refines_right (K ++ K') e.
-  Proof. rewrite /refines_right /=. by rewrite fill_app. Qed.
+  (* Lemma refines_right_bind K' K e : *)
+  (*   refines_right K' (fill K e) ≡ refines_right (K ++ K') e. *)
+  (* Proof. rewrite /refines_right /=. by rewrite fill_app. Qed. *)
 
 End rules.
