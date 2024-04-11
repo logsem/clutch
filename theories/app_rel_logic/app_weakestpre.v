@@ -460,8 +460,8 @@ Section exec_coupl.
     iIntros (e2'' σ2'' (_ & _ & H)).
     rewrite Hexec in H. by apply dret_pos in H as [= -> ->].
   Qed.
-    
-  
+
+
 End exec_coupl.
 
 (** * The weakest precondition  *)
@@ -593,7 +593,7 @@ Proof.
   iApply (exec_coupl_det_r n with "[$]").
   done.
 Qed.
-  
+
 Lemma wp_atomic s E1 E2 e Φ `{!Atomic StronglyAtomic e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
@@ -806,4 +806,22 @@ Section proofmode_classes.
     iApply (wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
+
+  Global Instance elim_modal_spec_update P E e Ψ :
+    TCEq (to_val e) None →
+    ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
+  Proof.
+    iIntros (??) "[HP Hcnt]".
+    iApply (wp_spec_steps with "[$]").
+  Qed.
+
+  Global Instance elim_modal_spec_updateN P E n e Ψ :
+    TCEq (to_val e) None →
+    ElimModal True false false (spec_updateN n E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
+  Proof.
+    iIntros (??) "[HP Hcnt]".
+    iDestruct (spec_updateN_implies_spec_update with "HP") as "HP".
+    iApply (wp_spec_steps with "[$]").
+  Qed.
+
 End proofmode_classes.

@@ -25,7 +25,7 @@ Section spec_update.
 
   Definition spec_updateN (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
-  
+
   Definition spec_update (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜pexec n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
@@ -56,9 +56,27 @@ Section spec_update.
     rewrite /spec_updateN/spec_update.
     iIntros "H % Ha".
     iMod ("H" with "[$]") as "(%&%&?&?)". iModIntro.
-    iExists _, _. iFrame. iPureIntro. by apply stepN_pexec_det. 
+    iExists _, _. iFrame. iPureIntro. by apply stepN_pexec_det.
   Qed.
-  
+
+  Lemma spec_updateN_ret E P :
+    P ⊢ spec_updateN 0 E P.
+  Proof.
+    iIntros "HP" (a) "Ha !#".
+    iExists _.
+    rewrite stepN_O dret_1_1 //.
+    by iFrame.
+  Qed.
+
+  Lemma spec_update_ret E P :
+    P ⊢ spec_update E P.
+  Proof.
+    iIntros "HP" (a) "Ha !#".
+    iExists a, O.
+    rewrite pexec_O dret_1_1 //.
+    by iFrame.
+  Qed.
+
   Lemma spec_updateN_bind n m E P Q :
     spec_updateN n E P ∗ (P -∗ spec_updateN m E Q) ⊢ spec_updateN (n + m) E Q.
   Proof.
@@ -78,7 +96,7 @@ Section spec_update.
     iMod ("P" $! a with "Ha") as (b n Hab) "[Hb P]".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c m Hbc) "[Hc Q]".
-    iModIntro. iExists _, _. iFrame. 
+    iModIntro. iExists _, _. iFrame.
     assert (pexec (n + m) a c = 1); last by iFrame.
     rewrite pexec_plus. by erewrite pexec_det_steps.
   Qed.
@@ -132,7 +150,22 @@ Section spec_update.
     iMod "H". by iApply "H".
   Qed.
 
-  
+  Global Instance from_modal_spec_update P E :
+    FromModal True modality_id (spec_update E P) (spec_update E P) P.
+  Proof. iIntros (_) "HP /=". by iApply spec_update_ret. Qed.
+
+  Global Instance elim_modal_spec_update P Q E :
+    ElimModal True false false (spec_update E P) P (spec_update E Q) (spec_update E Q).
+  Proof. iIntros (?) "[HP Hcnt]". iApply (spec_update_bind with "[$]"). Qed.
+
+  Global Instance from_modal_spec_updateN P E :
+    FromModal True modality_id (spec_update E P) (spec_updateN 0 E P) P.
+  Proof. iIntros (_) "HP /=". by iApply spec_updateN_ret. Qed.
+
+  Global Instance elim_modal_spec_updateN n m P Q E :
+    ElimModal True false false (spec_updateN n E P) P (spec_updateN (n + m) E Q) (spec_updateN m E Q).
+  Proof. iIntros (?) "[HP Hcnt]". iApply (spec_updateN_bind with "[$]"). Qed.
+
 End spec_update.
 
 (** The authoritative spec tracking algebra  *)
