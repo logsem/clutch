@@ -17,127 +17,127 @@ Section rules.
   Implicit Types l : loc.
 
   (** Pure reductions *)
-  Lemma step_pure E K e e' (P : Prop) n :
+  Lemma step_pure E K e e' (P : Prop) n:
     P →
     PureExec P n e e' →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K e ⊢ |={E}=> spec_ctx ∗ ⤇ fill K e'.
+    ⤇ fill K e ⊢ spec_update E (⤇ fill K e').
   Proof.
-    iIntros (HP Hex ?) "[#Hspec Hj]". iFrame "Hspec".
-    iInv specN as (ρ e0 σ0 m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iMod (spec_prog_update (fill K e') with "Hauth Hj") as "[Hauth Hj]".
-    iFrame "Hj". iApply "Hclose". iNext.
-    iExists _, _, _, (m + n).
-    iFrame.
-    iPureIntro.
-    by eapply (exec_PureExec_ctx (fill K) P).
+    iIntros (HP Hex) "HK". 
+    rewrite /spec_update.
+    iIntros ([??]) "Hs".
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iMod (spec_interp_update _ _ _ (fill K e') with "[$][$]") as "[HK Hs]".
+    iModIntro. iExists _, n. iFrame. iPureIntro.
+    epose proof (exec_PureExec_ctx (fill K) P 0%nat _ _ _ _ s HP Hex _). done.
+    Unshelve.
+    rewrite pexec_O. by apply dret_1_1.
   Qed.
-
+    
   (** Alloc, load, and store *)
   Lemma step_alloc E K e v :
     IntoVal e v →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (ref e) ⊢ |={E}=> ∃ l, spec_ctx ∗ ⤇ fill K (#l) ∗ l ↦ₛ v.
+    ⤇ fill K (ref e) ⊢ spec_update E (∃ l,  ⤇ fill K (#l) ∗ l ↦ₛ v).
   Proof.
-    iIntros (<-?) "[#Hinv Hj]". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iIntros (<-) "HK". rewrite /spec_update.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
     set (l := fresh_loc σ.(heap)).
-    iMod (spec_prog_update (fill K #l) with "Hauth Hj") as "[Hauth Hj]".
-    iMod (ghost_map_insert l v with "Hheap") as "[Hheap Hl]".
+    iMod (spec_interp_update _ _ _ (fill K #l) with "[$][$]") as "[HK Hs]".
+    iDestruct "HK" as "(HK&Hheap&Htapes)".
+    iMod (ghost_map_insert l v with "[$]") as "[Hheap Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
-    iExists l. iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. rewrite /spec_inv.
-    iExists _, _, (state_upd_heap <[l:=v]> σ), _.
-    iFrame. iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |done].
-    subst l.
-    solve_step.
-    rewrite state_upd_heap_singleton.
-    solve_distr.
+    iModIntro. iExists (fill K #l, state_upd_heap <[l:=v]> σ), 1.
+    iFrame.
+    iSplit; last first.
+    { iExists _. iFrame. }
+    iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |]; last first.
+    { simpl. rewrite pexec_O. by apply dret_1_1. }
+    subst l. solve_step. apply dret_1_1.
+    rewrite state_upd_heap_singleton. done. 
   Qed.
 
   Lemma step_load E K l q v:
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
-    ⊢ |={E}=> spec_ctx ∗ ⤇ fill K (of_val v) ∗ l ↦ₛ{q} v.
+    ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
+    ⊢ spec_update E (⤇ fill K (of_val v) ∗ l ↦ₛ{q} v).
   Proof.
-    iIntros (?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iMod (spec_prog_update (fill K v) with "Hauth Hj") as "[Hauth Hj]".
+    iIntros "[HK Hl]". rewrite /spec_update.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iMod (spec_interp_update _ _ _ (fill K v) with "[$][$]") as "[Hauth Hj]".
+    iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
-    iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists _, _, _, _.
-    iFrame. iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |done].
+    iModIntro. iExists _, _. iFrame.
+    iPureIntro. 
+    eapply exec_det_step_ctx; [apply _| |]; last first.
+    { simpl. erewrite pexec_O. by apply dret_1_1. }
     solve_step.
-  Qed.
+    Qed. 
 
   Lemma step_store E K l v' e v:
     IntoVal e v →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
-    ⊢ |={E}=> spec_ctx ∗ ⤇ fill K #() ∗ l ↦ₛ v.
+    ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
+    ⊢ spec_update E (⤇ fill K #() ∗ l ↦ₛ v).
   Proof.
-    iIntros (<-?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iMod (spec_prog_update (fill K #()) with "Hauth Hj") as "[Hauth Hj]".
+    iIntros (<-) "[HK Hl]". rewrite /spec_update.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iMod (spec_interp_update _ _ _ (fill K #()) with "[$][$]") as "[Hauth Hj]".
+    iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
     iMod (ghost_map_update v with "Hheap Hl") as "[Hheap Hl]".
-    iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists _, _, (state_upd_heap <[l:=v]> σ), _.
-    iFrame. iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |done].
+    iModIntro. iExists (fill K #(), state_upd_heap <[l:=v]> σ), _.
+    iFrame.
+    iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |]; last first.
+    { simpl. erewrite pexec_O. by apply dret_1_1. }
     solve_step.
   Qed.
 
   (** AllocTape and Rand (non-empty tape)  *)
   Lemma step_alloctape E K N z :
     TCEq N (Z.to_nat z) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (alloc #z) ⊢ |={E}=> ∃ l, spec_ctx ∗ ⤇ fill K (#lbl: l) ∗ l ↪ₛ (N; []).
+    ⤇ fill K (alloc #z) ⊢ spec_update E (∃ l, ⤇ fill K (#lbl: l) ∗ l ↪ₛ (N; [])).
   Proof.
-    iIntros (-> ?) "[#Hinv Hj]". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iMod (spec_prog_update (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "Hauth Hj") as "[Hauth Hj]".
+    iIntros (->) "HK". rewrite /spec_update.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iMod (spec_interp_update _ _ _(fill K #(LitLbl (fresh_loc σ.(tapes)))) with "[$] [$]") as "[Hauth Hj]".
+    iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iMod (ghost_map_insert (fresh_loc σ.(tapes)) ((_; []) : tape) with "Htapes") as "[Htapes Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
-    iExists (fresh_loc σ.(tapes)).
-    iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro.
-    iExists _, _, (state_upd_tapes <[fresh_loc σ.(tapes):=_]> σ), _.
-    iFrame. iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |done].
-    (* TODO: fix tactic *)
-    solve_step.
-    by apply dret_1_1.
+    iModIntro. iExists (fill K #lbl:(fresh_loc (tapes σ)), (state_upd_tapes <[fresh_loc σ.(tapes):=_]> σ)), 1.
+    iFrame.
+    iSplit; last first.
+    { iExists _. iFrame. }
+    iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |]; last first.
+    { simpl. rewrite pexec_O. by apply dret_1_1. }
+    solve_step. apply dret_1_1. done. 
   Qed.
+
 
   Lemma step_rand E K l N z n ns :
     TCEq N (Z.to_nat z) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
-    ⊢ |={E}=> spec_ctx ∗ ⤇ fill K #n ∗ l ↪ₛ (N; ns).
+    ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
+    ⊢ spec_update E (⤇ fill K #n ∗ l ↪ₛ (N; ns)).
   Proof.
-    iIntros (-> ?) "(#Hinv & Hj & Hl)". iFrame "Hinv".
-    iInv specN as (ρ e σ m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
-    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
+    iIntros (->) "[HK Hl]".
+    rewrite /spec_update.
+    iIntros ([? σ]) "Hs".
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
+    iMod (spec_interp_update _ _ _(fill K #n) with "[$] [$]") as "[Hauth Hj]".
+    iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Htapes Hl") as %?.
     iMod (ghost_map_update ((_; ns) : tape) with "Htapes Hl") as "[Htapes Hl]".
-    iFrame. iMod ("Hclose" with "[-]"); [|done].
-    iModIntro. iExists _, _, (state_upd_tapes <[l:=_]> σ), _.
-    iFrame. iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |done].
-    (* TODO: fix tactic *)
-    solve_step.
-    rewrite bool_decide_eq_true_2 //.
-    by apply dret_1_1.
-  Qed.
+    iModIntro. iExists (fill K #n, (state_upd_tapes <[l:=_]> σ)), 1.
+    iFrame.
+    iPureIntro.
+    eapply exec_det_step_ctx; [apply _| |]; last first.
+    { simpl. rewrite pexec_O. by apply dret_1_1. }
+    solve_step. case_bool_decide; last lia. apply dret_1_1. done. 
+  Qed.    
+    
 
 
   (* TODO: Can we get this as a lifting of the corresponding exact relational rule? *)
@@ -147,23 +147,19 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (∀ σ1, reducible (e, σ1)) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand #z) ∗
+    ⤇ fill K (rand #z) ∗
     (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> He Hred HE) "(#Hinv & Hj & Hwp)".
+    iIntros (-> He Hred) "( Hj & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hj") as %->.
+    iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
-    iApply exec_coupl_det_r; [done|].
     iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ n : fin (S (Z.to_nat z)), (e2', σ2') = (fill K #n, σ0')), 1.
+    iExists (λ _ '(e2', σ2'), ∃ n : fin (S (Z.to_nat z)), (e2', σ2') = (fill K #n, σ1')), 1.
     iSplit.
     { iPureIntro.
       rewrite pexec_1.
@@ -177,15 +173,14 @@ Section rules.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
       apply ARcoupl_dret => /=. eauto. }
     iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_interp_update (fill K #n, σ0') with "Hauth2 Hspec0") as "[Hspec Hspec0]".
-    iMod (spec_prog_update (fill K #n) with "Hauth Hj") as "[Hauth Hj]".
+    iMod (spec_interp_update _ _ _ (fill K #n) with "Hauth2 Hj") as "[Hspec Hspec0]".
     simpl.                      (*     simplify_map_eq. *)
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
-    iSpecialize ("Hwp" with "Hj").
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, _, 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
+    iSpecialize ("Hwp" with "Hspec0").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
     replace (nnreal_plus nnreal_zero ε) with (ε)
@@ -199,9 +194,8 @@ Section rules.
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (∀ σ1, reducible (e, σ1)) →
-    nclose specN ⊆ E →
-    spec_ctx ∗ ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
-    ((α ↪ₛ (N; []) ∗ spec_ctx ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
+    ((α ↪ₛ (N; []) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (-> He Hred HE) "(#Hinv & Hj & Hα & Hwp)".
