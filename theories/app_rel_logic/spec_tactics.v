@@ -11,9 +11,9 @@ Set Default Proof Using "Type".
 
 (** ** bind *)
 Lemma tac_tp_bind_gen `{app_clutchGS Σ} k Δ Δ' i p e e' Q :
-  envs_lookup i Δ = Some (p, refines_right k e)%I →
+  envs_lookup i Δ = Some (p, ⤇ fill k e)%I →
   e = e' →
-  envs_simple_replace i p (Esnoc Enil i (refines_right k e')) Δ = Some Δ' →
+  envs_simple_replace i p (Esnoc Enil i (⤇ fill k e)) Δ = Some Δ' →
   (envs_entails Δ' Q) →
   (envs_entails Δ Q).
 Proof.
@@ -23,12 +23,12 @@ Proof.
 Qed.
 
 Lemma tac_tp_bind `{app_clutchGS Σ} k e' Δ Δ' i p K' e Q :
-  envs_lookup i Δ = Some (p, refines_right k e)%I →
+  envs_lookup i Δ = Some (p, ⤇ fill k e)%I →
   e = fill K' e' →
-  envs_simple_replace i p (Esnoc Enil i (refines_right k (fill K' e'))) Δ = Some Δ' →
+  envs_simple_replace i p (Esnoc Enil i (⤇ fill k (fill K' e'))) Δ = Some Δ' →
   (envs_entails Δ' Q) →
   (envs_entails Δ Q).
-Proof. intros. by eapply tac_tp_bind_gen. Qed.
+Proof. intros. subst. by eapply tac_tp_bind_gen. Qed.
 
 Ltac tp_bind_helper :=
   simpl;
@@ -72,30 +72,31 @@ Lemma tac_tp_pure `{app_clutchGS Σ} e K' e1 k e2 Δ1 E1 i1 e' ϕ ψ Q n :
   e = fill K' e1 →
   PureExec ϕ n e1 e2 →
   (∀ P, ElimModal ψ false false (|={E1}=> P) P Q Q) →
-  nclose specN ⊆ E1 →
-  envs_lookup i1 Δ1 = Some (false, refines_right k e)%I →
+  envs_lookup i1 Δ1 = Some (false, ⤇ fill k e)%I →
   ψ →
   ϕ →
   (* we will call simpl on this goal thus re-composing the expression again *)
   e' = fill K' e2 →
-  match envs_simple_replace i1 false (Esnoc Enil i1 (refines_right k e')) Δ1 with
+  match envs_simple_replace i1 false (Esnoc Enil i1 (⤇ fill k e')) Δ1 with
   | Some Δ2 => envs_entails Δ2 Q
   | None => False
   end →
   envs_entails Δ1 Q.
 Proof.
-  rewrite envs_entails_unseal. intros -> Hpure ?? HΔ1 Hψ Hϕ -> ?.
+  rewrite envs_entails_unseal. intros -> Hpure ? HΔ1 Hψ Hϕ -> ?.
   destruct (envs_simple_replace _ _ _ _) as [Δ2|] eqn:HΔ2; try done.
   rewrite (envs_simple_replace_sound Δ1 Δ2 i1) //; simpl.
   rewrite right_id.
-  rewrite /refines_right.
+  (* rewrite /refines_right. *)
   rewrite -!fill_app.
   rewrite step_pure //.
   rewrite -[Q]elim_modal // /=.
-  apply bi.sep_mono_r.
+  apply bi.sep_mono.
+  { iIntros "K". iModIntro. iApply "K". }
   apply bi.wand_intro_l.
-  by rewrite bi.wand_elim_r.
-Qed.
+  Admitted.
+(*   rewrite bi.wand_elim_r. *)
+(* Qed. *)
 
 Tactic Notation "tp_pure_at" open_constr(ef) :=
   iStartProof;

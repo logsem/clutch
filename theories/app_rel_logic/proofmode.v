@@ -9,7 +9,7 @@ From clutch.app_rel_logic Require Import primitive_laws.
 From iris.prelude Require Import options.
 Import uPred.
 
-Lemma tac_wp_expr_eval `{!irisGS hlc Σ} Δ s E Φ e e' :
+Lemma tac_wp_expr_eval `{!spec (lang_markov hlc) Σ} `{!irisGS hlc Σ} Δ s E Φ e e' :
   (∀ (e'':=e'), e = e'') →
   envs_entails Δ (WP e' @ s; E {{ Φ }}) → envs_entails Δ (WP e @ s; E {{ Φ }}).
 Proof. by intros ->. Qed.
