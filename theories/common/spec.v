@@ -29,27 +29,6 @@ Section spec_update.
   Definition spec_update (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜pexec n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
-  
-  Lemma spec_updateN_create E P:
-    P -∗ spec_updateN 0%nat E P.
-  Proof.
-    iIntros "HP %a Hspec".
-    iModIntro.
-    iExists a. iFrame.
-    iPureIntro.
-    rewrite stepN_O. by apply dret_1_1.
-  Qed.
-  
-  Lemma spec_update_create E P:
-    P -∗ spec_update E P.
-  Proof.
-    iIntros "HP %a Hspec".
-    iModIntro.
-    iExists a, 0%nat. iFrame.
-    iPureIntro.
-    rewrite pexec_O. by apply dret_1_1.
-  Qed.
-
   Lemma spec_updateN_implies_spec_update n E P:
     spec_updateN n E P -∗ spec_update E P.
   Proof.
