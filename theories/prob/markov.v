@@ -253,15 +253,17 @@ Section markov.
     pexec n a1 ≫= pexec m = pexec m a2.
   Proof. intros ->%pmf_1_eq_dret. rewrite dret_id_left //. Qed.
 
-  Lemma stepN_pexec_det n x y: stepN n x y = 1 -> pexec n x y = 1.
+  Lemma stepN_pexec_det n x y:
+    stepN n x y = 1 → pexec n x y = 1.
   Proof.
-    rewrite /stepN/pexec.
-    intros H. epose proof iterM_mono step step_or_final n x y as H0.
-    apply Rle_antisym.
-    - auto.
-    - rewrite -H. apply H0. intros a a'.
-      rewrite /step_or_final. case_match; last done.
-      rewrite to_final_is_final; auto.
+    rewrite /stepN /pexec.
+    intros H.
+    apply Rle_antisym; [done|].
+    rewrite -H.
+    apply iterM_mono => a a'.
+    destruct (decide (is_final a)).
+    - rewrite to_final_is_final //.
+    - rewrite step_or_final_no_final //.
   Qed.
 
   (** * Stratified evaluation to a final state *)

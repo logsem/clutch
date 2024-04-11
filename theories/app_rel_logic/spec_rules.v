@@ -22,17 +22,16 @@ Section rules.
     PureExec P n e e' →
     ⤇ fill K e ⊢ spec_update E (⤇ fill K e').
   Proof.
-    iIntros (HP Hex) "HK". 
+    iIntros (HP Hex) "HK".
     rewrite /spec_update.
     iIntros ([??]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
     iMod (spec_interp_update _ _ _ (fill K e') with "[$][$]") as "[HK Hs]".
     iModIntro. iExists _, n. iFrame. iPureIntro.
-    epose proof (exec_PureExec_ctx (fill K) P 0%nat _ _ _ _ s HP Hex _). done.
-    Unshelve.
-    rewrite pexec_O. by apply dret_1_1.
+    eapply (stepN_PureExec_ctx  (fill K) P 0); [done|done|].
+    rewrite dret_1_1 //.
   Qed.
-    
+
   (** Alloc, load, and store *)
   Lemma step_alloc E K e v :
     IntoVal e v →
@@ -51,10 +50,11 @@ Section rules.
     iSplit; last first.
     { iExists _. iFrame. }
     iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |]; last first.
-    { simpl. rewrite pexec_O. by apply dret_1_1. }
-    subst l. solve_step. apply dret_1_1.
-    rewrite state_upd_heap_singleton. done. 
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
+    solve_step.
+    apply dret_1_1.
+    rewrite state_upd_heap_singleton //.
   Qed.
 
   Lemma step_load E K l q v:
@@ -67,12 +67,12 @@ Section rules.
     iMod (spec_interp_update _ _ _ (fill K v) with "[$][$]") as "[Hauth Hj]".
     iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
-    iModIntro. iExists _, _. iFrame.
-    iPureIntro. 
-    eapply exec_det_step_ctx; [apply _| |]; last first.
-    { simpl. erewrite pexec_O. by apply dret_1_1. }
+    iModIntro. iExists _, 1. iFrame.
+    iPureIntro.
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
     solve_step.
-    Qed. 
+  Qed.
 
   Lemma step_store E K l v' e v:
     IntoVal e v →
@@ -86,11 +86,10 @@ Section rules.
     iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
     iMod (ghost_map_update v with "Hheap Hl") as "[Hheap Hl]".
-    iModIntro. iExists (fill K #(), state_upd_heap <[l:=v]> σ), _.
-    iFrame.
-    iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |]; last first.
-    { simpl. erewrite pexec_O. by apply dret_1_1. }
+    iModIntro. iExists (fill K #(), state_upd_heap <[l:=v]> σ), 1.
+    iFrame. iPureIntro.
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
     solve_step.
   Qed.
 
@@ -111,11 +110,10 @@ Section rules.
     iSplit; last first.
     { iExists _. iFrame. }
     iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |]; last first.
-    { simpl. rewrite pexec_O. by apply dret_1_1. }
-    solve_step. apply dret_1_1. done. 
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
+    solve_step. by apply dret_1_1.
   Qed.
-
 
   Lemma step_rand E K l N z n ns :
     TCEq N (Z.to_nat z) →
@@ -133,25 +131,20 @@ Section rules.
     iModIntro. iExists (fill K #n, (state_upd_tapes <[l:=_]> σ)), 1.
     iFrame.
     iPureIntro.
-    eapply exec_det_step_ctx; [apply _| |]; last first.
-    { simpl. rewrite pexec_O. by apply dret_1_1. }
-    solve_step. case_bool_decide; last lia. apply dret_1_1. done. 
-  Qed.    
-    
-
-
-  (* TODO: Can we get this as a lifting of the corresponding exact relational rule? *)
+    eapply stepN_det_step_ctx; [apply _| |]; last first.
+    { by apply dret_1_1. }
+    solve_step. case_bool_decide; [|lia]. by apply dret_1_1.
+  Qed.
 
   (** RHS [rand] *)
   Lemma wp_rand_r N z E e K Φ :
     TCEq N (Z.to_nat z) →
     to_val e = None →
-    (∀ σ1, reducible (e, σ1)) →
     ⤇ fill K (rand #z) ∗
     (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> He Hred) "( Hj & Hwp)".
+    iIntros (-> He) "( Hj & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
@@ -176,10 +169,6 @@ Section rules.
     iMod (spec_interp_update _ _ _ (fill K #n) with "Hauth2 Hj") as "[Hspec Hspec0]".
     simpl.                      (*     simplify_map_eq. *)
     iMod "Hclose'" as "_".
-    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
-    (* { iModIntro. rewrite /spec_inv. *)
-    (*   iExists _, _, _, 0. simpl. *)
-    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     iSpecialize ("Hwp" with "Hspec0").
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
@@ -193,12 +182,11 @@ Section rules.
   Lemma wp_rand_empty_r N z E e K α Φ :
     TCEq N (Z.to_nat z) →
     to_val e = None →
-    (∀ σ1, reducible (e, σ1)) →
     ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
     ((α ↪ₛ (N; []) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> He Hred) "(Hj & Hα & Hwp)".
+    iIntros (-> He) "(Hj & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
@@ -207,7 +195,6 @@ Section rules.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
-    (* iApply exec_coupl_det_r; [done|]. *)
     (* Do a (trivially) coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ1')), 1.
@@ -228,10 +215,6 @@ Section rules.
     { iFrame. }
     simplify_map_eq.
     iMod "Hclose'" as "_".
-    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
-    (* { iModIntro. rewrite /spec_inv. *)
-    (*   iExists _, _, _, 0. simpl. *)
-    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     iSpecialize ("Hwp" with "[$Hα Hspec0]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
@@ -246,22 +229,19 @@ Section rules.
     TCEq N (Z.to_nat z) →
     N ≠ M →
     to_val e = None →
-    (∀ σ1, reducible (e, σ1)) →
     ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
     ((α ↪ₛ (M; ns) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (-> Hneq He Hred) "(Hj & Hα & Hwp)".
+    iIntros (-> Hneq He) "(Hj & Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    (* iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
     iDestruct "Hauth2" as "(HK& Hheap& Htapes)".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (nnreal_plus nnreal_zero ε)
       by by apply nnreal_ext => /=; lra.
-    (* iApply exec_coupl_det_r; [done|]. *)
     (* Do a (trivially) coupled [prim_step] on the right *)
     iApply (exec_coupl_exec_r).
     iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ1')), 1.
@@ -283,10 +263,6 @@ Section rules.
     { iFrame. }
     simplify_map_eq.
     iMod "Hclose'" as "_".
-    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
-    (* { iModIntro. rewrite /spec_inv. *)
-    (*   iExists _, _, _, 0. simpl. *)
-    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     iSpecialize ("Hwp" with "[$Hα Hspec0]"); [eauto|].
     rewrite !wp_unfold /wp_pre /= He.
     iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
@@ -295,31 +271,5 @@ Section rules.
     iModIntro.
     done.
   Qed.
-
-  (** * Corollaries about [refines_right]  *)
-  (* Lemma refines_right_alloctape E K N z : *)
-  (*   TCEq N (Z.to_nat z) → *)
-  (*   nclose specN ⊆ E → *)
-  (*   refines_right K (alloc #z) ⊢ |={E}=> ∃ l, refines_right K (#lbl: l) ∗ l ↪ₛ (N; []). *)
-  (* Proof. *)
-  (*   iIntros (??) "(?&?)". *)
-  (*   iMod (step_alloctape with "[$]") as (l) "(?&?)"; [done|]. *)
-  (*   iExists _; by iFrame. *)
-  (* Qed. *)
-
-  (* Lemma refines_right_rand E K l N z n ns : *)
-  (*   TCEq N (Z.to_nat z) → *)
-  (*   nclose specN ⊆ E → *)
-  (*   l ↪ₛ (N; n :: ns) ∗ *)
-  (*   refines_right K (rand(#lbl:l) #z ) ⊢ |={E}=> refines_right K #n ∗ l ↪ₛ (N; ns). *)
-  (* Proof. *)
-  (*   iIntros (??) "(?&?&?)". *)
-  (*   iMod (step_rand with "[$]") as "(?&?&?)"; [done|]. *)
-  (*   iModIntro; iFrame. *)
-  (* Qed. *)
-
-  (* Lemma refines_right_bind K' K e : *)
-  (*   refines_right K' (fill K e) ≡ refines_right (K ++ K') e. *)
-  (* Proof. rewrite /refines_right /=. by rewrite fill_app. Qed. *)
 
 End rules.

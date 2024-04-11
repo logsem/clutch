@@ -508,7 +508,7 @@ Section monadic.
 
   Lemma dbind_assoc' `{Countable B'} (f : A → distr B) (g : B → distr B') (μ : distr A) :
     μ ≫= (λ a, f a ≫= g) = (μ ≫= f) ≫= g.
-  Proof. rewrite dbind_assoc //. Qed. 
+  Proof. rewrite dbind_assoc //. Qed.
 
   Lemma dbind_comm `{Countable B'} (f : A → B → distr B') (μ1 : distr A) (μ2 : distr B):
     (a ← μ1 ; b ← μ2; f a b) = (b ← μ2; a ← μ1; f a b).
@@ -903,7 +903,7 @@ Section subset_distribution.
   Next Obligation.
     move=> μ. rewrite /ssd_pmf.
     eapply (ex_seriesC_le _ μ); try done.
-    move=> n. split; by (destruct (P n)). 
+    move=> n. split; by (destruct (P n)).
   Qed.
   Next Obligation.
     move=> μ.
@@ -911,25 +911,25 @@ Section subset_distribution.
     - eapply (SeriesC_le _ μ); try done. rewrite /ssd_pmf.
       split; by (destruct (P n)).
     - done.
-  Qed. 
-  
+  Qed.
+
 End subset_distribution.
 
 
 Declare Scope predicate_scope.
 Delimit Scope predicate_scope with P.
 Notation "∽ K " := (λ a, negb (K a)) (at level 70, right associativity) : predicate_scope.
-  
+
 Section subset_distribution_lemmas.
   Context `{Countable A}.
   Implicit Type P : A -> bool.
   Implicit Types μ : distr A.
-  
+
   Lemma ssd_ret_pos P μ (a : A) : ssd P μ a > 0 -> P a.
   Proof.
     rewrite /ssd /ssd_pmf /pmf. move=> H0.
     destruct (P a); [done|lra].
-  Qed. 
+  Qed.
 
   Lemma ssd_sum P μ (a : A) : μ a = ssd P μ a + ssd (∽ P)%P μ a.
   Proof.
@@ -941,9 +941,9 @@ Section subset_distribution_lemmas.
   Proof.
     move=> H0.
     apply distr_ext. move=> a. destruct (P a) eqn:H'.
-    - by rewrite /ssd{1}/pmf/ssd_pmf H'. 
-    - rewrite /ssd{1}/pmf/ssd_pmf H'. rewrite H0; [done|by rewrite H']. 
-  Qed. 
+    - by rewrite /ssd{1}/pmf/ssd_pmf H'.
+    - rewrite /ssd{1}/pmf/ssd_pmf H'. rewrite H0; [done|by rewrite H'].
+  Qed.
 
 End subset_distribution_lemmas.
 
@@ -970,7 +970,7 @@ Section bind_lemmas.
     f_equal. apply functional_extensionality_dep => a.
     replace (_*_+_*_) with ((μ1 a + μ2 a) * ν a b); last real_solver.
     by rewrite -H1.
-  Qed. 
+  Qed.
 
   Lemma ssd_bind_split_sum μ ν P :
     ∀ b, (μ ≫= λ a', ν a') b = (ssd P μ ≫= λ a', ν a') b + (ssd (∽ P)%P μ ≫= λ a', ν a')b.
@@ -978,7 +978,7 @@ Section bind_lemmas.
     move=> b.
     erewrite <-bind_split_sum; first done.
     intros. apply ssd_sum.
-  Qed. 
+  Qed.
 
 
   (** *strengthen following lemma? *)
@@ -992,7 +992,7 @@ Section bind_lemmas.
     destruct (P a) eqn:H'.
     - apply H1 in H'. rewrite H'. real_solver.
     - rewrite /ssd /pmf /ssd_pmf H'. real_solver.
-  Qed. 
+  Qed.
 
   Lemma ssd_fix_value μ (v : A):
     SeriesC (ssd (λ a, bool_decide (a = v)) μ) = μ v.
@@ -1002,7 +1002,7 @@ Section bind_lemmas.
     apply functional_extensionality_dep => a.
     rewrite /ssd/pmf/ssd_pmf/pmf. case_bool_decide; eauto.
     by rewrite H1.
-  Qed. 
+  Qed.
 
 
   Lemma ssd_chain μ (P Q: A -> bool):
@@ -1011,8 +1011,8 @@ Section bind_lemmas.
     apply distr_ext => a.
     rewrite /ssd/pmf/ssd_pmf/pmf.
     destruct (P a) eqn:H1; destruct (Q a) eqn:H2; eauto.
-  Qed. 
-    
+  Qed.
+
 End bind_lemmas.
 
 
@@ -1495,18 +1495,16 @@ Section iterM.
       rewrite IH //.
   Qed.
 
-  Lemma iterM_mono (f g: A-> distr A) n a a':
-    (∀ a a', f a a'<= g a a') -> iterM n f a a' <= iterM n g a a'.
+  Lemma iterM_mono (f g : A → distr A) n a a':
+    (∀ a a', f a a'<= g a a') → iterM n f a a' <= iterM n g a a'.
   Proof.
-    revert a a'. induction n; intros a a' Ha; simpl.
+    revert a a'.
+    induction n; intros a a' Ha; simpl.
     - lra.
     - rewrite /dbind/pmf/dbind_pmf. apply SeriesC_le; last first.
       { apply pmf_ex_seriesC_mult_fn. exists 1. naive_solver. }
       intros. real_solver.
   Qed.
-      
-    
-   
 
 End iterM.
 
@@ -1833,7 +1831,7 @@ Definition dswap `{Countable A, Countable B} (μ : distr (A * B)) : distr (B * A
 
 Lemma dswap_pos `{Countable A, Countable B} (μ : distr (A * B)) a b :
   (dswap μ (b, a) > 0 → μ (a, b) > 0)%R.
-Proof. by intros ([] & [= <- <-] & ?)%dmap_pos. Qed. 
+Proof. by intros ([] & [= <- <-] & ?)%dmap_pos. Qed.
 
 (** * Marginals  *)
 Definition lmarg `{Countable A, Countable B} (μ : distr (A * B)) : distr A :=
