@@ -27,15 +27,15 @@ Section spec_update.
     (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
   
   Definition spec_update (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜pexec n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
   Lemma spec_updateN_implies_spec_update n E P:
     spec_updateN n E P -∗ spec_update E P.
   Proof.
     rewrite /spec_updateN/spec_update.
     iIntros "H % Ha".
-    iMod ("H" with "[$]") as "[%?]". iModIntro.
-    iExists _, _. done.
+    iMod ("H" with "[$]") as "(%&%&?&?)". iModIntro.
+    iExists _, _. iFrame. iPureIntro. by apply stepN_pexec_det. 
   Qed.
   
   Lemma spec_updateN_bind n m E P Q :
@@ -58,8 +58,8 @@ Section spec_update.
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c m Hbc) "[Hc Q]".
     iModIntro. iExists _, _. iFrame. 
-    assert (stepN (n + m) a c = 1) by by eapply stepN_det_trans.
-    by iFrame.
+    assert (pexec (n + m) a c = 1); last by iFrame.
+    rewrite pexec_plus. by erewrite pexec_det_steps.
   Qed.
 
   Lemma spec_updateN_mono_fupd n E P Q :

@@ -591,7 +591,7 @@ Proof.
   iSpecialize ("Hwp" with "HP [$]").
   iMod "Hwp". iModIntro.
   iApply (exec_coupl_det_r n with "[$]").
-  by apply stepN_pexec_det.
+  done.
 Qed.
   
 Lemma wp_atomic s E1 E2 e Φ `{!Atomic StronglyAtomic e} :
