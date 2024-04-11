@@ -27,7 +27,7 @@ Section spec_update.
     (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
   Definition spec_update (E : coPset) (P : iProp Σ) : iProp Σ :=
-    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜pexec n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+    (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
 
   Lemma spec_updateN_implies_spec_update n E P:
     spec_updateN n E P -∗ spec_update E P.
@@ -35,7 +35,7 @@ Section spec_update.
     rewrite /spec_updateN/spec_update.
     iIntros "H % Ha".
     iMod ("H" with "[$]") as "(%&%&?&?)". iModIntro.
-    iExists _, _. iFrame. iPureIntro. by apply stepN_pexec_det.
+    iExists _, _. iFrame. by iPureIntro.
   Qed.
 
   Lemma spec_updateN_ret E P :
@@ -52,7 +52,7 @@ Section spec_update.
   Proof.
     iIntros "HP" (a) "Ha !#".
     iExists a, O.
-    rewrite pexec_O dret_1_1 //.
+    rewrite stepN_O dret_1_1 //.
     by iFrame.
   Qed.
 
@@ -64,7 +64,7 @@ Section spec_update.
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c Hbc) "[Hc Q]".
     iModIntro. iExists _.
-    assert (stepN (n + m) a c = 1) by by eapply stepN_det_trans.
+    erewrite stepN_det_trans; [|done|done].
     by iFrame.
   Qed.
 
@@ -75,9 +75,8 @@ Section spec_update.
     iMod ("P" $! a with "Ha") as (b n Hab) "[Hb P]".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c m Hbc) "[Hc Q]".
-    iModIntro. iExists _, _. iFrame.
-    assert (pexec (n + m) a c = 1); last by iFrame.
-    rewrite pexec_plus. by erewrite pexec_det_steps.
+    iModIntro. iExists _, (n + m)%nat. iFrame.
+    by erewrite stepN_det_trans.
   Qed.
 
   Lemma spec_updateN_mono_fupd n E P Q :
