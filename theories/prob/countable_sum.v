@@ -905,9 +905,11 @@ Section finite.
     apply ex_seriesC_finite.
   Qed.
 
-(*
 
-  We might need the results below to reason about uniform distributions
+End finite.
+
+
+(* We might need the results below to reason about uniform distributions *)
 
   Definition extend_fin_to_R {n : nat} (f: fin n -> R) : (nat->R) :=
    fun x =>
@@ -916,14 +918,52 @@ Section finite.
        | right h => f (nat_to_fin h)
      end.
 
+  Local Lemma foldr_ext_strong {A B} (f1 f2 : B → A → A) x1 l1 :
+  (∀ b a, b∈ l1 -> f1 b a = f2 b a) → foldr f1 x1 l1 = foldr f2 x1 l1.
+  Proof. revert x1.
+         induction l1.
+         - naive_solver.
+         - intros. simpl. rewrite IHl1.
+           + rewrite H; [done|set_solver].
+           + intros. set_unfold. naive_solver.
+  Qed.
+
   Lemma SeriesC_fin_sum {n : nat} (f : fin (S n) -> R) :
     SeriesC f = sum_n (extend_fin_to_R f) n.
-  Admitted.
-*)
-
-
-End finite.
-
+  Proof.
+    rewrite SeriesC_finite_foldr.
+    rewrite <- seq_enum_fin.
+    revert f. induction n.
+    - naive_solver.
+    - intros. rewrite sum_n_shift'. rewrite Rplus_comm.
+      rewrite -cons_seq fmap_cons foldr_cons. 
+      assert (forall x y, (Rplus ∘ f) x y = f x + y) as -> by naive_solver.
+      f_equal. rewrite -fmap_S_seq -list_fmap_compose.
+      replace (foldr (Rplus ∘ f) 0
+    ((λ x : nat, match le_lt_dec (S (S n)) x with
+                 | left _ => 0%fin
+                 | right h => nat_to_fin h
+               end) ∘ S <$> seq 0 (S n))) with 
+        (foldr (Rplus ∘ (λ x, f (FS x))) 0
+           ((λ x : nat, match le_lt_dec (S n) x with
+                 | left _ => 0%fin
+                 | right h => nat_to_fin h
+                      end)  <$> seq 0 (S n))).
+      + rewrite IHn.
+        apply sum_n_ext_loc.
+        clear.
+        intros x Hx.
+        rewrite /extend_fin_to_R.
+        repeat case_match; try lia.
+        f_equal. apply fin_to_nat_inj.
+        simpl. by rewrite !fin_to_nat_to_fin.
+      + clear.
+        rewrite !foldr_fmap. apply foldr_ext_strong.
+        intros b a. rewrite elem_of_seq.
+        intros Hb. simpl. repeat case_match; try lia.
+        * do 3 f_equal.
+        * do 3 f_equal. apply fin_to_nat_inj. simpl. by rewrite !fin_to_nat_to_fin.
+  Qed.
 
 
 (** Results about positive (non-negative) series *)
