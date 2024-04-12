@@ -895,29 +895,29 @@ Proof.
 Qed.
 
 
-Lemma ARcoupl_to_UB `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
-  ARcoupl μ1 (dret tt) (λ a _, P a) ε -> ub_lift μ1 P ε.
+Lemma ARcoupl_to_UB `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (ε : R) :
+  ARcoupl μ1 μ2 (λ a _, P a) ε -> ub_lift μ1 P ε.
 Proof.
   rewrite /ARcoupl/ub_lift/prob.
-  setoid_rewrite SeriesC_finite_foldr. simpl. rewrite dret_1_1; last done.
-  setoid_rewrite Rmult_1_l. setoid_rewrite Rplus_0_r.
   intros Har.
   eset (λ a:A, if bool_decide (P a) then 0 else 1) as f.
-  eset (λ b:(), 0) as g.
+  eset (λ b:B, 0) as g.
   specialize (Har f g).
-  assert ((g ()+ε)= ε) as K; first (rewrite /g; lra).
-  rewrite K in Har.
-  etrans; last apply Har.
-  - apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn.
-    + intros. rewrite /f. repeat case_bool_decide; try done; simpl; split; try lra.
-      done.
-    + exists 1. rewrite /f. intros; case_match; lra.
-  - intros. rewrite /f. case_match; lra.
-  - rewrite /g. intros; lra.
-  - intros. rewrite /f/g. case_match; first done.
-    apply bool_decide_eq_false in H2. done.
-    Unshelve.
-    apply make_decision.
+  replace (ε) with (SeriesC (λ b, μ2 b * g b) + ε).
+  { etrans; last apply Har.
+    - apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn.
+      + intros. rewrite /f. repeat case_bool_decide; try done; simpl; split; try lra.
+        done.
+      + exists 1. rewrite /f. intros; case_match; lra.
+    - intros. rewrite /f. case_match; lra.
+    - rewrite /g. intros; lra.
+    - intros. rewrite /f/g. case_match; first done.
+      apply bool_decide_eq_false in H2. done.
+      Unshelve.
+      apply make_decision.
+  }
+  rewrite /g.
+  rewrite SeriesC_scal_r. lra.
 Qed.
 
 Lemma up_to_bad `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
