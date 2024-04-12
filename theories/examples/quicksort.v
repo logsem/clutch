@@ -4,7 +4,7 @@
 
 From stdpp Require Import sorting.
 From clutch.lib Require Import utils.
-From clutch.ub_logic Require Import ub_clutch lib.list.
+From clutch.ub_logic Require Import ub_clutch list.
 Set Default Proof Using "Type*".
 
 Section quicksort.

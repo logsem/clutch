@@ -71,7 +71,7 @@ End log_lib.
 
 
 
-Section lib.
+Section qs_lib.
   (** Lemmas: Move or eliminate *)
 
   Lemma easy_fix_eq:
@@ -144,7 +144,7 @@ Section lib.
     - simpl; lra.
     - rewrite /= IH. lra.
   Qed.
-End lib.
+End qs_lib.
 
 
 

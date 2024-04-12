@@ -2,7 +2,7 @@ From Coquelicot Require Import Hierarchy.
 From stdpp Require Import sorting.
 From iris.proofmode Require Export proofmode.
 From clutch.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
-From clutch.ert_logic.examples Require Import lib.list min_heap_spec.
+From clutch.ert_logic.examples Require Import list min_heap_spec.
 Set Default Proof Using "Type*".
 
 Open Scope R.

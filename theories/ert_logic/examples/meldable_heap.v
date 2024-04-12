@@ -11,8 +11,7 @@ Require Coq.Program.Wf.
 Set Default Proof Using "Type*".
 Require Import Lra.
 
-Section lib.
-
+Section mh_lib.
 
   Lemma fin2_subst_0 (s : fin 2) : (Z.of_nat (fin_to_nat s) = 0%Z) -> (fin_to_bool s = false).
   Proof. intros. rewrite -fin_to_nat_to_bool_inv -nat_to_bool_eq_0. f_equal. lia. Qed.
@@ -75,7 +74,7 @@ Section lib.
     apply ln_increasing; lra.
   Qed.
 
-End lib.
+End mh_lib.
 
 
 

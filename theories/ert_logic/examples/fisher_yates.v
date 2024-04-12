@@ -11,7 +11,7 @@ Program Definition CostEntropy_2 := CostEntropy 2 _.
 Next Obligation.
   lra.
 Defined.
-Section lib.
+Section fy_lib.
   Context`{!ert_clutchGS Σ CostEntropy_2}.
   Context `[!Inject A val].
 
@@ -219,7 +219,7 @@ Section lib.
     by repeat iSplit.
   Qed.
   
-End lib.
+End fy_lib.
 
 
 Section fisher_yates.

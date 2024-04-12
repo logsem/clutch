@@ -6,8 +6,12 @@ From discprob.prob Require countable rearrange.
 From mathcomp Require Import bigop fintype choice.
 From mathcomp Require Import eqtype.
 
-Section Countable_countType.
+(* Is anything in this file ever used? *)
 
+(*
+
+
+Section Countable_countType.
 Lemma Countable_to_pcancel {T: Type} `{EqDecision T} (HC: Countable T):
     ssrfun.pcancel (λ x : T, (@encode_nat _ _ HC x))
                    (λ x, @decode_nat _ _ HC x).
@@ -203,3 +207,4 @@ Proof.
     rewrite //=. apply sval.sval_inj_pi; auto. }
   { intros (?&?) => //=.  }
 Qed.
+*)
