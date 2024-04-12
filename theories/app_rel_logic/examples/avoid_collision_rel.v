@@ -56,7 +56,7 @@ Section wp_refinement.
     (TCEq (1 / (S N)) ε)%R →
     TCEq N (Z.to_nat z) →
     (€ ε ∗
-       ⤇ fill [] (of_val #false))
+       ⤇ #false) 
       ⊢ WP
       (let: "x" := rand #z in "x" = #t)
       {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}.
@@ -98,7 +98,7 @@ Section wp_refinement.
     (0 < S N)%R →
     (TCEq (1 / S N) ε)%R →
     TCEq N (Z.to_nat z) →
-    (⊢ ⤇ (fill [] (of_val #false))
+    (⊢ ⤇ #false
      -∗ € ε
      -∗ WP (let: "x" := rand #z in "x" = #t)
         {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}).
