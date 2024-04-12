@@ -1319,9 +1319,7 @@ Section list_specs_extra.
       assert (#(n + 1) = #(Z.of_nat (S n))) as ->.
       { do 3 f_equal. lia. }
       tp_bind (list_seq _ _).
-      (* iEval (rewrite ⤇ fill_bind) in "Hspec". *)
       iMod ("IHm" $! (S n) with "[$Hspec]") as (v) "(Hspec & %Hlist)".
-      (* iEval (rewrite -⤇ fill_bind) in "Hspec". *)
       simpl.
       assert (#n = (inject n)) as -> by done.
       iMod (spec_list_cons $! Hlist with "Hspec") as (v') "(Hspec & %Hlist')".

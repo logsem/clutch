@@ -358,9 +358,7 @@ Section map.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
     tp_load. tp_pures.
     tp_bind (cons_list _ _).
-    (* iEval (rewrite ⤇ fill_bind) in "Hr". *)
     iMod (spec_cons_list with "[$] [$]") as (?)"(Hr&Halloc)".
-    (* iEval (rewrite -⤇ fill_bind /=) in "Hr". *)
     tp_store. iModIntro.
     iFrame. iExists _, _. iFrame. rewrite list_to_map_cons Heq //.
   Qed.

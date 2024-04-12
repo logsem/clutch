@@ -446,9 +446,7 @@ Section prf_prp.
 
     (* spec get *)
     tp_bind (get _ _).
-    (* iEval (rewrite ⤇ fill_bind) in "HK". *)
     iMod (spec_get with "[$] [$]") as "(HK&Hsm)".
-    (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
     rewrite lookup_fmap Hnone /=.
     tp_pures.
 
@@ -462,9 +460,7 @@ Section prf_prp.
 
     tp_load.
     tp_bind (list_length _).
-    (* iEval (rewrite ⤇ fill_bind) in "HK". *)
     iMod (spec_list_length with "[% //] HK") as (len) "(HK&->)".
-    (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
     rewrite Hvl. simpl.
     tp_pure.
     tp_pure.
@@ -475,7 +471,6 @@ Section prf_prp.
     }
 
     tp_bind (rand _)%E.
-    (* iEval (rewrite ⤇ fill_bind) in "HK". *)
     set f := (λ n : nat, if (n <=? vl) then Z.to_nat (nth n sr 0) else n + val_size).
     iDestruct (ec_spend_le_irrel with "[$]") as "Hε".
     { instantiate (1:= mknonnegreal _ _). exact.  }
@@ -521,7 +516,6 @@ Section prf_prp.
     { rewrite -Hvl. instantiate (1:= mknonnegreal _ _). done. }
     iFrame.
     iIntros "!>" (x) "HK".
-    (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
     simpl. 
     wp_pures.
     tp_pures.
@@ -535,7 +529,6 @@ Section prf_prp.
       iPureIntro; split; auto.
       lia.
     }
-    (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
     tp_pures.
 
 
@@ -550,9 +543,7 @@ Section prf_prp.
     wp_pures.
     simpl. tp_pures.
     tp_bind (set _ _ _).
-    (* iEval (rewrite ⤇ fill_bind) in "HK". *)
     iMod (spec_set with "[$] [$]") as "(HK&Hsm)".
-    (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
     simpl. 
     tp_pures.
     tp_store.
@@ -652,7 +643,6 @@ Proof.
 
      tp_pures.
      tp_bind (rand _)%E.
-     (* iEval (rewrite ⤇ fill_bind) in "HK". *)
      iMod (ec_zero).
      wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero).
      { lra. }
@@ -660,14 +650,12 @@ Proof.
 
      iFrame.
      iIntros "!>" (n2 m2 ->) "HK".
-     (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
      simpl.
      wp_pures.
      wp_pures.
      tp_pures.
      wp_bind (f _).
      tp_bind (g _).
-     (* iEval (rewrite ⤇ fill_bind) in "HK". *)
      iAssert (€ _ ∗ € _)%I with "[Hε]" as "[Hε Hε']".
      { iApply ec_split. iApply ec_weaken; last done.
        etrans; last exact. rewrite <-cons_seq. rewrite fold_symmetric; try (intros; lia).
@@ -721,7 +709,6 @@ Proof.
          rewrite minus_INR; last lia.
          lra. 
        * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
-         (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
          do 3 wp_pure.
          simpl.
          do 3 tp_pure.
@@ -792,9 +779,7 @@ Qed.
    rewrite /test_prp.
    tp_pure.
    tp_bind (init_prp _).
-   (* iEval (rewrite ⤇ fill_bind) in "HK". *)
    iMod (spec_init_prp with "HK") as (g) "(HK & Hg)".
-   (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
    iSimpl in "HK".
    do 5 tp_pure.
    do 3 wp_pure.

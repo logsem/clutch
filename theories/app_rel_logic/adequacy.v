@@ -187,9 +187,7 @@ Section adequacy.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
-        (* iInv specN as (ρ e0 σ0 n) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_". *)
         iDestruct (spec_interp_auth_frag_agree_expr with "HspecI_auth Hspec_frag") as %->.
-        (* iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->. *)
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         erewrite lim_exec_det_final; last first.
         { erewrite pexec_O. by eapply dret_1_1. }
@@ -206,9 +204,7 @@ Section adequacy.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
-        (* iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_". *)
         iDestruct (spec_interp_auth_frag_agree_expr with "HspecI_auth Hspec_frag") as %->.
-        (* iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->. *)
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
         iPureIntro.
@@ -269,8 +265,6 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (ghost_map_alloc σ'.(heap)) as "[%γHs [Hh_spec _]]".
   iMod (ghost_map_alloc σ'.(tapes)) as "[%γTs [Ht_spec _]]".
-  (* iMod (own_alloc ((● (Excl' (e', σ'))) ⋅ (◯ (Excl' (e', σ'))))) as "(%γsi & Hsi_auth & Hsi_frag)". *)
-  (* { by apply auth_both_valid_discrete. } *)
   iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
 
@@ -332,9 +326,6 @@ Proof.
   iMod (ec_alloc with "[]") as (?) "[? ?]"; first eauto.
   set (HspecGS := CfgSG Σ _ γp _ _ γHs γTs).
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
-  (* iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx". *)
-  (* { iModIntro. iExists _, _, _, O. iFrame. rewrite pexec_O dret_1_1 //. *)
-  (* } *)
   iApply wp_ARcoupl_step_fupdN.
   iFrame. (* iFrame "Hctx". *)
   by iApply (Hwp with " [Hprog_frag]").
