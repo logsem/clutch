@@ -337,12 +337,11 @@ Section list_specs.
   Qed.
 
   Lemma spec_list_cons E K (a : A) (l : list A) lv :
-    ↑specN ⊆ E →
     ⌜ is_list l lv ⌝ -∗
-    refines_right K (list_cons (inject a) lv) ={E}=∗
-    ∃ v, refines_right K (of_val v) ∗ ⌜is_list (a :: l) v⌝.
+    ⤇ fill K (list_cons (inject a) lv) -∗
+    spec_update E (∃ v, ⤇ fill K (of_val v) ∗ ⌜is_list (a :: l) v⌝).
   Proof.
-    iIntros (?) "%Hlist Hspec".
+    iIntros "%Hlist Hspec".
     tp_lam. tp_pures.
     iModIntro.
     iExists _.
@@ -403,12 +402,10 @@ Section list_specs.
   Qed.
 
   Lemma spec_list_length K E l lv :
-    ↑specN ⊆ E →
     ⌜ is_list l lv ⌝ -∗
-    refines_right K (list_length lv) ={E}=∗
-    ∃ v, refines_right K (of_val v) ∗ ⌜v = inject (length l)⌝.
+    ⤇ fill K (list_length lv) -∗
+    spec_update E (∃ v, ⤇ fill K (of_val v) ∗ ⌜v = inject (length l)⌝).
   Proof.
-    iIntros (?).
     iInduction l as [| a l'] "IH" forall (lv K);
     iIntros "%Hlist Hspec".
     - rewrite /list_length.
@@ -424,9 +421,9 @@ Section list_specs.
       fold inject_list.
       do 3 tp_pure.
       tp_bind (list_length _).
-      iEval (rewrite refines_right_bind) in "Hspec".
+      (* iEval (rewrite ⤇ fill_bind) in "Hspec". *)
       iMod ("IH" $! _ _ _ with "Hspec") as (v) "[Hspec %Hv]".
-      iEval (rewrite -refines_right_bind) in "Hspec".
+      (* iEval (rewrite -⤇ fill_bind) in "Hspec". *)
       simpl.
       rewrite Hv.
       tp_op.
@@ -792,17 +789,17 @@ Section list_specs.
 
 
   Lemma spec_remove_nth E K (l : list A) lv (i : nat) :
-    ↑specN ⊆ E →
     (⌜is_list l lv /\ i < length l⌝ ) -∗
-      refines_right K (list_remove_nth lv #i) ={E}=∗
-    ∃ v, refines_right K (of_val v) ∗
+    ⤇ fill K (list_remove_nth lv #i) -∗
+    spec_update E
+    (∃ v, ⤇ fill K (of_val v) ∗
      ∃ e lv' l1 l2,
             (⌜l = l1 ++ e :: l2 ∧
              length l1 = i /\
             v = SOMEV ((inject e), lv') ∧
-            is_list (l1 ++ l2) lv'⌝).
+            is_list (l1 ++ l2) lv'⌝)).
   Proof.
-    iIntros (?) "Hl Hspec".
+    iIntros "Hl Hspec".
     iInduction l as [|a l'] "IH" forall (i lv K);
       iDestruct "Hl" as "(%Hl & %Hi)"; simpl in Hl; subst.
     - inversion Hi.
@@ -831,18 +828,19 @@ Section list_specs.
           inversion Hi; auto. lia.
         }
         tp_bind (list_remove_nth _ _).
-        iEval (rewrite refines_right_bind) in "Hspec".
+        (* iEval (rewrite ⤇ fill_bind) in "Hspec". *)
         iMod ("IH" $! _ _ _ with "Haux Hspec") as (v) "(Hspec & (%e & %v' & %l1 & %l2 & (-> & %Hlen & -> & %Hil)))".
-        iEval (rewrite -refines_right_bind /=) in "Hspec".
+        (* iEval (rewrite -⤇ fill_bind /=) in "Hspec". *) simpl.
         tp_pures.
         tp_bind (list_cons _ _).
-        iEval (rewrite refines_right_bind ) in "Hspec".
-        iMod (spec_list_cons $! Hil with "Hspec") as (v'') "(Hspec & %Hv'')"; first done.
-        iEval (rewrite -refines_right_bind /=) in "Hspec".
+        (* iEval (rewrite ⤇ fill_bind ) in "Hspec". *)
+        iMod (spec_list_cons $! Hil with "Hspec") as (v'') "(Hspec & %Hv'')".
+        (* iEval (rewrite -⤇ fill_bind /=) in "Hspec". *)
+        simpl.
         tp_pures.
         iModIntro.
         iExists _.
-        iFrame.
+        iFrame. 
         iExists _, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iSplit.
         { iPureIntro; auto. }
@@ -1300,10 +1298,9 @@ Section list_specs_extra.
 
   
   Lemma spec_list_seq E K (n m : nat) :
-    ↑specN ⊆ E →
-    refines_right K (list_seq #n #m) ={E}=∗ ∃ v, (refines_right K (of_val v) ∗ ⌜is_list (seq n m) v⌝).
+    ⤇ fill K (list_seq #n #m) -∗ spec_update E (∃ v, (⤇ fill K (of_val v) ∗ ⌜is_list (seq n m) v⌝)).
   Proof.
-    iIntros (?) "Hspec".
+    iIntros "Hspec".
     iInduction m as [ | p] "IHm" forall (n K).
     - rewrite /list_seq.
       tp_pures.
@@ -1322,12 +1319,12 @@ Section list_specs_extra.
       assert (#(n + 1) = #(Z.of_nat (S n))) as ->.
       { do 3 f_equal. lia. }
       tp_bind (list_seq _ _).
-      iEval (rewrite refines_right_bind) in "Hspec".
+      (* iEval (rewrite ⤇ fill_bind) in "Hspec". *)
       iMod ("IHm" $! (S n) with "[$Hspec]") as (v) "(Hspec & %Hlist)".
-      iEval (rewrite -refines_right_bind) in "Hspec".
+      (* iEval (rewrite -⤇ fill_bind) in "Hspec". *)
       simpl.
       assert (#n = (inject n)) as -> by done.
-      iMod (spec_list_cons $! Hlist with "Hspec") as (v') "(Hspec & %Hlist')"; [done | ].
+      iMod (spec_list_cons $! Hlist with "Hspec") as (v') "(Hspec & %Hlist')".
       iModIntro.
       iExists _. iFrame.
       iPureIntro.
