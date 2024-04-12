@@ -56,12 +56,12 @@ Section wp_refinement.
     (TCEq (1 / (S N)) ε)%R →
     TCEq N (Z.to_nat z) →
     (€ ε ∗
-       refines_right [] (of_val #false))
+       ⤇ fill [] (of_val #false))
       ⊢ WP
       (let: "x" := rand #z in "x" = #t)
       {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
-    iIntros (? Nε Nz) "(ε & #hs & hj)".
+    iIntros (? Nε Nz) "(ε & hj)".
     iApply wp_bind.
     {
       replace (App (λ: (BNamed "x"), Var "x" = Val #(LitInt (Z.of_nat (fin_to_nat t)))))
@@ -69,7 +69,7 @@ Section wp_refinement.
         by auto.
       eapply ectxi_lang_ctx_item.
     }
-    iApply (wp_rand_avoid_l t with "hs ε") ; auto.
+    iApply (wp_rand_avoid_l t with "ε") ; auto.
     { rewrite TCEq_eq. apply nnreal_ext. rewrite -Nε. real_solver. }
     iNext. iIntros (x) "%xt". simpl.
 
@@ -98,13 +98,12 @@ Section wp_refinement.
     (0 < S N)%R →
     (TCEq (1 / S N) ε)%R →
     TCEq N (Z.to_nat z) →
-    (⊢ spec_ctx
-     -∗ ⤇ (fill [] (of_val #false))
+    (⊢ ⤇ (fill [] (of_val #false))
      -∗ € ε
      -∗ WP (let: "x" := rand #z in "x" = #t)
         {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}).
   Proof.
-    iIntros. iApply ref_no_coll_l ; eauto. iFrame. done.
+    iIntros. iApply ref_no_coll_l ; eauto. iFrame. 
   Qed.
 
 End wp_refinement.
