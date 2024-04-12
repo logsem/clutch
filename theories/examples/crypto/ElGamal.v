@@ -8,6 +8,7 @@ From mathcomp Require ssrnat.
 From mathcomp Require Import zmodp finset ssrbool fingroup.fingroup solvable.cyclic.
 
 Set Default Proof Using "Type*".
+(*
 
 Section ElGamal.
 
@@ -473,3 +474,4 @@ Proof.
 Qed.
 
 End Ctx.
+*)

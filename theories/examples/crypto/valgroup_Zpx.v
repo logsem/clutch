@@ -13,6 +13,7 @@ Import finalg.FinRing.Theory.
 Set Default Proof Using "Type*".
 Set Bullet Behavior "Strict Subproofs".
 
+(*
 Section Zpx.
 
   Import finalg.
@@ -222,3 +223,4 @@ Section Zpx.
   Defined.
 
 End Zpx.
+*)

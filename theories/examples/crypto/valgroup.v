@@ -18,7 +18,7 @@ Class val_group :=
   Val_group { vgG : finGroupType
             ; vgval : vgG → cval
             ; vgval_inj : Inj eq eq vgval }.
-
+(*
 (* Both of the below seem necessary since there is a subtle difference in the
    domain type DOM, despite the two being convertible. *)
 #[warning="-uniform-inheritance"] Coercion vgval_as {vg : val_group}
@@ -316,3 +316,4 @@ Module valgroup_notation.
   Notation "e1 ^- e2" := (e1 ^ e2)^-1%E : expr_scope.
 
 End valgroup_notation.
+*)

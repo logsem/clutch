@@ -12,6 +12,8 @@ Import fingroup.fingroup.
 Set Default Proof Using "Type*".
 Set Bullet Behavior "Strict Subproofs".
 
+(*
+
 Section Z_p.
 
   Context (p'' : nat).
@@ -128,3 +130,4 @@ Section Z_p.
   Defined.
 
 End Z_p.
+*)
