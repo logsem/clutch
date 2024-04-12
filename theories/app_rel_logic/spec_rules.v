@@ -26,7 +26,7 @@ Section rules.
     rewrite /spec_update.
     iIntros ([??]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
-    iMod (spec_interp_update _ _ _ (fill K e') with "[$][$]") as "[HK Hs]".
+    iMod (spec_interp_update_expr _ _ _ (fill K e') with "[$][$]") as "[HK Hs]".
     iModIntro. iExists _, n. iFrame. iPureIntro.
     eapply (stepN_PureExec_ctx  (fill K) P 0); [done|done|].
     rewrite dret_1_1 //.
@@ -41,7 +41,7 @@ Section rules.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
     set (l := fresh_loc σ.(heap)).
-    iMod (spec_interp_update _ _ _ (fill K #l) with "[$][$]") as "[HK Hs]".
+    iMod (spec_interp_update_expr _ _ _ (fill K #l) with "[$][$]") as "[HK Hs]".
     iDestruct "HK" as "(HK&Hheap&Htapes)".
     iMod (ghost_map_insert l v with "[$]") as "[Hheap Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
@@ -64,7 +64,7 @@ Section rules.
     iIntros "[HK Hl]". rewrite /spec_update.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
-    iMod (spec_interp_update _ _ _ (fill K v) with "[$][$]") as "[Hauth Hj]".
+    iMod (spec_interp_update_expr _ _ _ (fill K v) with "[$][$]") as "[Hauth Hj]".
     iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
     iModIntro. iExists _, 1. iFrame.
@@ -82,7 +82,7 @@ Section rules.
     iIntros (<-) "[HK Hl]". rewrite /spec_update.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
-    iMod (spec_interp_update _ _ _ (fill K #()) with "[$][$]") as "[Hauth Hj]".
+    iMod (spec_interp_update_expr _ _ _ (fill K #()) with "[$][$]") as "[Hauth Hj]".
     iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Hheap Hl") as %?.
     iMod (ghost_map_update v with "Hheap Hl") as "[Hheap Hl]".
@@ -101,7 +101,7 @@ Section rules.
     iIntros (->) "HK". rewrite /spec_update.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
-    iMod (spec_interp_update _ _ _(fill K #(LitLbl (fresh_loc σ.(tapes)))) with "[$] [$]") as "[Hauth Hj]".
+    iMod (spec_interp_update_expr _ _ _(fill K #(LitLbl (fresh_loc σ.(tapes)))) with "[$] [$]") as "[Hauth Hj]".
     iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iMod (ghost_map_insert (fresh_loc σ.(tapes)) ((_; []) : tape) with "Htapes") as "[Htapes Hl]".
     { apply not_elem_of_dom, fresh_loc_is_fresh. }
@@ -124,7 +124,7 @@ Section rules.
     rewrite /spec_update.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_interp_auth_frag_agree_expr with "[$][$]") as "->".
-    iMod (spec_interp_update _ _ _(fill K #n) with "[$] [$]") as "[Hauth Hj]".
+    iMod (spec_interp_update_expr _ _ _(fill K #n) with "[$] [$]") as "[Hauth Hj]".
     iDestruct "Hauth" as "(HK&Hheap&Htapes)".
     iDestruct (ghost_map_lookup with "Htapes Hl") as %?.
     iMod (ghost_map_update ((_; ns) : tape) with "Htapes Hl") as "[Htapes Hl]".
@@ -166,7 +166,7 @@ Section rules.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
       apply ARcoupl_dret => /=. eauto. }
     iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_interp_update _ _ _ (fill K #n) with "Hauth2 Hj") as "[Hspec Hspec0]".
+    iMod (spec_interp_update_expr _ _ _ (fill K #n) with "Hauth2 Hj") as "[Hspec Hspec0]".
     simpl.                      (*     simplify_map_eq. *)
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" with "Hspec0").
@@ -211,7 +211,7 @@ Section rules.
       intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
       apply ARcoupl_dret=>/=. eauto. }
     iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_interp_update _ _ _ (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
+    iMod (spec_interp_update_expr _ _ _ (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
     { iFrame. }
     simplify_map_eq.
     iMod "Hclose'" as "_".
@@ -259,7 +259,7 @@ Section rules.
       apply ARcoupl_dret=>/=. eauto.
     }
     iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_interp_update _ _ _ (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
+    iMod (spec_interp_update_expr _ _ _ (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
     { iFrame. }
     simplify_map_eq.
     iMod "Hclose'" as "_".

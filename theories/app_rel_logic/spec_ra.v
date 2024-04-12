@@ -51,6 +51,11 @@ Section resources.
   Definition spec_prog_frag (e : expr) : iProp Σ :=
     own specGS_prog_name (◯ (Excl' e : progUR)).
 
+  Definition spec_heap_frag (l : loc) v dq: iProp Σ := 
+    (@ghost_map_elem _ _ _ _ _ specGS_heap specGS_heap_name l dq v).
+
+  Definition spec_tapes_frag (l : loc) v dq: iProp Σ := 
+    (@ghost_map_elem _ _ _ _ _ specGS_tapes specGS_tapes_name l dq v).
   
   (* Definition spec_interp_frag (ρ : cfg) : iProp Σ := *)
   (*   own specGS_interp_name (◯ (Excl' ρ : cfgUR)). *)
@@ -65,7 +70,7 @@ Section resources.
     by apply leibniz_equiv in Hexcl.
   Qed.
 
-  Lemma spec_interp_update e1 σ1 e2 e3 :
+  Lemma spec_interp_update_expr e1 σ1 e2 e3 :
     spec_interp_auth (e1, σ1) -∗ spec_prog_frag e2 ==∗ spec_interp_auth (e3, σ1) ∗ spec_prog_frag e3.
   Proof.
     iIntros "Ha Hf".
@@ -75,6 +80,38 @@ Section resources.
     { by eapply auth_update, option_local_update,
         (exclusive_local_update _ (Excl e3)). }
     by iFrame.
+  Qed.
+
+  Lemma spec_interp_auth_frag_lookup_heap e1 σ1 l v dq:
+    spec_interp_auth (e1, σ1) -∗ spec_heap_frag l v dq -∗ ⌜σ1.(heap)!!l=Some v⌝.
+  Proof.
+    iIntros "(_&H&_) H'/=".
+    iApply (ghost_map_lookup with "H H'").
+  Qed.
+
+  Lemma spec_interp_auth_frag_lookup_tapes e1 σ1 l v dq:
+    spec_interp_auth (e1, σ1) -∗ spec_tapes_frag l v dq -∗ ⌜σ1.(tapes)!!l=Some v⌝.
+  Proof.
+    iIntros "(_&_&H) H'/=".
+    iApply (ghost_map_lookup with "H H'").
+  Qed.
+
+  Lemma spec_interp_auth_frag_update_heap e1 σ1 l v w:
+    spec_interp_auth (e1, σ1) -∗ spec_heap_frag l v (DfracOwn 1) ==∗
+    spec_interp_auth (e1, state_upd_heap <[l:=w]> σ1) ∗ spec_heap_frag l w (DfracOwn 1).
+  Proof.
+    iIntros "(?&H&?) H'/=". destruct σ1.
+    iMod (ghost_map_update with "H H'") as "?". simpl.
+    iModIntro. iFrame. simpl. iFrame.
+  Qed.
+
+  Lemma spec_interp_auth_frag_update_tapes e1 σ1 l v w:
+    spec_interp_auth (e1, σ1) -∗ spec_tapes_frag l v (DfracOwn 1) ==∗
+    spec_interp_auth (e1, state_upd_tapes <[l:=w]> σ1) ∗ spec_tapes_frag l w (DfracOwn 1).
+  Proof.
+    iIntros "(?&?&H) H'/=". destruct σ1.
+    iMod (ghost_map_update with "H H'") as "?". simpl.
+    iModIntro. iFrame. simpl. iFrame.
   Qed.
 
   Definition spec_auth_spec : spec _ _ := Spec spec_interp_auth.

@@ -19,10 +19,8 @@ Section rules.
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
     (∀ σ1, reducible (e, σ1)) →
-    nclose specN ⊆ E →
     (N <= M)%R →
     (((S M - S N) / S M) = ε)%R →
-    spec_ctx ∗
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     € ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
@@ -31,16 +29,17 @@ Section rules.
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (He Hred ? NMpos NMε) "(#Hinv & >Hα & >Hαₛ & Hε & Hwp)".
+    iIntros (He Hred NMpos NMε) "(>Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?.
+    (* iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    (* iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-. *)
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     (* split ε_now into ε + (ε_now - ε) *)
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
@@ -58,36 +57,34 @@ Section rules.
     }
     iIntros (σ2 σ2' (n & m & nm & ? & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> σ0'))
-           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    (* iMod (spec_interp_update (e1', (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> σ1')) *)
+    (*        with "Hauth2 Hspec0") as "[Hauth2 Hspec0]". *)
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
-    iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
     simplify_map_eq.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Htapes Hαₛ") as "[Htapes Hαₛ]".
+    iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
     (* Update Hε2 *)
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants *)
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, (state_upd_tapes _ _), 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" $! n m nm with "[$Hα $Hαₛ]").
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _)
-           with "[$Hh1 $Hauth2 $Ht1 $Hε2]") as "Hwp".
-    iModIntro. done.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _) _ (state_upd_tapes _ _)
+           with "[$Hh1 $Ht1 $Hε2 $HK $Hh2 Ht2]") as "Hwp"; done.
   Qed.
+    
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
     (∀ σ1, reducible (e, σ1)) →
-    nclose specN ⊆ E →
     (M <= N)%R →
     (((S N - S M) / S N) = ε)%R →
-    spec_ctx ∗
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     € ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
@@ -96,16 +93,17 @@ Section rules.
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (He Hred ? NMpos NMε) "(#Hinv & >Hα & >Hαₛ & Hε & Hwp)".
+    iIntros (He Hred NMpos NMε) "( >Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?.
+    (* iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    (* iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hspec0") as %<-. *)
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     (* split ε_now into ε + (ε_now - ε) *)
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
@@ -123,46 +121,44 @@ Section rules.
     }
     iIntros (σ2 σ2' (n & m & nm & ? & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> σ0'))
-           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    (* iMod (spec_interp_update _ _ _ (e1', (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> σ1')) *)
+    (*        with "Hauth2 Hspec0") as "[Hauth2 Hspec0]". *)
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
-    iDestruct (ghost_map_lookup with "Htapes Hαₛ") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
     simplify_map_eq.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
-    iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Htapes Hαₛ") as "[Htapes Hαₛ]".
+    iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
     (* Update Hε2 *)
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants *)
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, (state_upd_tapes _ _), 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, (state_upd_tapes _ _), 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" $! n m nm with "[$Hα $Hαₛ]").
     rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _)
-           with "[$Hh1 $Hauth2 $Ht1 $Hε2]") as "Hwp".
-    iModIntro. done.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _) _ (state_upd_tapes _ _)
+           with "[$Hh1 $Ht1 $Hε2 $HK $Hh2 Ht2]") as "Hwp"; done.
   Qed.
 
   Lemma wp_rand_avoid_l {N : nat} (t : fin (S N)) (z : Z) ε E :
     TCEq N (Z.to_nat z) →
-    TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
-    nclose specN ⊆ E →
-    spec_ctx ⊢
+    TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) ->
+    ⊢
     {{{ € ε }}}
       rand #z @ E
       {{{ (n : fin (S N)), RET #n; ⌜ n ≠ t ⌝ }}}.
   Proof.
-    iIntros (Nz Nε ?) "#Hinv %Φ !> Hε Hwp".
+    iIntros (Nz Nε) "%Φ !> Hε Hwp".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    (* iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    (* iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-. *)
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
@@ -180,17 +176,17 @@ Section rules.
     }
     iIntros (? (n & -> & nt & ?)).
     (* Update our resources *)
-    iMod (spec_interp_update (e0', σ0')
-           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    (* iMod (spec_interp_update (e0', σ0') *)
+    (*        with "Hauth2 Hspec0") as "[Hauth2 Hspec0]". *)
     simplify_map_eq.
     (* Update Hε2 *)
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     (* Close the [spec_ctx] invariant again, so the assumption can access all invariants *)
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, _, 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
     iSpecialize ("Hwp" $! n with "[]"). 1: easy.
     rewrite !wp_unfold /wp_pre /=.
@@ -203,30 +199,29 @@ Section rules.
     (∀ σ1, reducible (e, σ1)) →
     TCEq N (Z.to_nat z) →
     TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
-    nclose specN ⊆ E →
-    refines_right K (rand #z) ∗
+    ⤇ fill K (rand #z) ∗
     € ε ∗
     (∀ (n : fin (S N)),
-       refines_right K #n -∗ ⌜n≠t⌝-∗
+       ⤇ fill K #n -∗ ⌜n≠t⌝-∗
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Htv Hred Nz Nε Hspec) "([#Hinv  HK] & Hε & Hwp)". 
+    iIntros (Htv Hred Nz Nε) "(HK & Hε & Hwp)". 
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
-    iDestruct (spec_prog_auth_frag_agree with "Hauth HK") as %->.
+    (* iInv specN as (ρ' e0' σ0' n_spec_steps) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 HK") as "->".
+    (* iDestruct (spec_prog_auth_frag_agree with "Hauth HK") as %->. *)
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     (* Get up to speed with the spec resource (tracked in spec_ctx) *)
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
     1: apply nnreal_ext ; simpl ; lra.
     iApply exec_coupl_exec_r.
     iExists (λ ρ2 ρₛ,
-             ∃ n : fin (S N), ρ2 = (e ,σ1) ∧ ρₛ = (fill K #n, σ0') ∧ n ≠ t), 1.
+             ∃ n : fin (S N), ρ2 = (e ,σ1) ∧ ρₛ = (fill K #n, σ1') ∧ n ≠ t), 1.
     iSplit.
     - rewrite pexec_1 step_or_final_no_final /=.
       + rewrite fill_dmap //.
@@ -246,17 +241,16 @@ Section rules.
         * apply cond_nonneg.
       + by apply to_final_None_2, fill_not_val.
     - iIntros (??) "(% &_&[%He %])". simplify_eq.
-      iMod (spec_interp_update (fill K #(n), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
-      iMod (spec_prog_update (fill K #(n))  with "Hauth HK") as "[Hauth HK]".
+      iMod (spec_interp_update_expr _ _ _ (fill K #(n)) with "Hauth2 HK") as "[Hauth2 HK]".
+      (* iMod (spec_prog_update (fill K #(n))  with "Hauth HK") as "[Hauth HK]". *)
       iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
       iMod "Hclose'" as "_".
-      iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-      { iModIntro. rewrite /spec_inv.
-        iExists _, _, _, 0. simpl.
-        iFrame. rewrite pexec_O dret_1_1 //. }
+      (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+      (* { iModIntro. rewrite /spec_inv. *)
+      (*   iExists _, _, _, 0. simpl. *)
+      (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
-      iSpecialize ("Hwp" $! n with "[HK][]").
-      { iSplit; by iFrame. }
+      iSpecialize ("Hwp" $! n with "[$HK][]").
       { done. }
       rewrite !wp_unfold /wp_pre /=.
       iFrame. rewrite Htv. iMod ("Hwp" with "[$]").
@@ -269,33 +263,32 @@ Section rules.
     (forall n1 n2, n1 < S N -> n2 < S N -> f n1 = f n2 -> n1 = n2) ->
     TCEq N (Z.to_nat z) →
     TCEq M (Z.to_nat w) →
-    nclose specN ⊆ E →
     (N <= M)%R ->
     (((S M - S N) / S M) = ε)%R →
-    refines_right K (rand #w) ∗
+    ⤇ fill K (rand #w) ∗
     € ε ∗
     ▷ (∀ (n : fin (S N)), 
-        refines_right K #(f n)  -∗ WP (Val #n) @ E {{ Φ }})
+        ⤇ fill K #(f n)  -∗ WP (Val #n) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (Hdom Hinj).
     set g := (λ m : fin (S N), Fin.of_nat_lt (Hdom m (fin_to_nat_lt m))).
-    iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
+    iIntros (-> -> HNM Hε) "( Hr  & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    (* iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    (* iDestruct (spec_prog_auth_frag_agree_expr with "Hauth Hr") as %->. *)
+    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
     { apply nnreal_ext; simpl; lra. }
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     iApply exec_coupl_prim_steps.
     iExists (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _),
-        (e2, σ2) = (Val #(n), σ1) ∧ (e2', σ2') = (fill K #(g n), σ0')).
+        (e2, σ2) = (Val #(n), σ1) ∧ (e2', σ2') = (fill K #(g n), σ1')).
     iSplit.
     { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
@@ -313,18 +306,17 @@ Section rules.
       simplify_eq. simpl. eauto. } 
     iIntros ([] [] (b & b' & Hbb')).
     simplify_eq.
-    iMod (spec_interp_update (fill K #(g b), σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
-    iMod (spec_prog_update (fill K #(g b))  with "Hauth Hr") as "[Hauth Hr]".
+    iMod (spec_interp_update_expr _ _ _  (fill K #(g b)) with "Hauth2 Hr") as "[Hauth2 Hspec0]".
+    (* iMod (spec_prog_update (fill K #(g b))  with "Hauth Hr") as "[Hauth Hr]". *)
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, _, 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     iModIntro. iFrame.
-    iApply "Hwp"; eauto.
-    iSplit; try done.
+    iApply "Hwp"; eauto.    
     rewrite /g. by rewrite fin_to_nat_to_fin.
     Unshelve.
     intros m1 m2 Heq.
@@ -350,21 +342,20 @@ Section rules.
   Lemma wp_couple_rand_rand_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
     TCEq N (Z.to_nat z) →
     TCEq M (Z.to_nat w) →
-    nclose specN ⊆ E →
     (N <= M)%R ->
     (((S M - S N) / S M) = ε)%R →
-    refines_right K (rand #w) ∗
+    ⤇ fill K (rand #w) ∗
     € ε ∗
     ▷ (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
-        refines_right K #m  -∗ WP (Val #n) @ E {{ Φ }})
+        ⤇ fill K #m  -∗ WP (Val #n) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
-    iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
-    iApply wp_couple_rand_rand_inj; [| |done|done|done|..].
+    iIntros (-> ->  HNM Hε) "(Hr & Hε & Hwp)".
+    iApply wp_couple_rand_rand_inj; [| |done|done|..].
     - instantiate (1:=(λ x,x)). apply INR_le in HNM. intros. lia.
     - intros; lia.
-    - iFrame. iSplitR; first done.
+    - iFrame. 
       assert (∀ x:fin (S(Z.to_nat z)), x<S(Z.to_nat w)) as T.
       { apply INR_le in HNM. intros. pose proof fin_to_nat_lt x. lia. }
       iModIntro. iIntros. iApply ("Hwp" $! n (nat_to_fin (T n))).
@@ -380,33 +371,32 @@ Section rules.
     (forall n1 n2, n1 < S M -> n2 < S M -> f n1 = f n2 -> n1 = n2) ->
     TCEq N (Z.to_nat z) →
     TCEq M (Z.to_nat w) →
-    nclose specN ⊆ E →
     (M <= N)%R ->
     (((S N - S M) / S N) = ε)%R →
-    refines_right K (rand #w) ∗
+    ⤇ fill K (rand #w) ∗
     € ε ∗
     ▷ (∀ (m : fin (S M)),
-        refines_right K #m  -∗ WP (Val #(f m)) @ E {{ Φ }})
+        ⤇ fill K #m  -∗ WP (Val #(f m)) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
     iIntros (Hdom Hinj).
     set g := (λ m : fin (S M), Fin.of_nat_lt (Hdom m (fin_to_nat_lt m))).
-    iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
+    iIntros (-> -> HNM Hε) "(Hr & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
-    iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->.
-    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    (* iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose". *)
+    (* iDestruct (spec_prog_auth_frag_agree with "Hauth Hr") as %->. *)
+    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hr") as %-> .
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
     { apply nnreal_ext; simpl; lra. }
-    iApply exec_coupl_det_r; [done|].
+    (* iApply exec_coupl_det_r; [done|]. *)
     iApply exec_coupl_prim_steps.
     iExists (λ '(e2, σ2) '(e2', σ2'),
         ∃ (m : fin _),
-        (e2, σ2) = (Val #(g m), σ1) ∧ (e2', σ2') = (fill K #m, σ0')).
+        (e2, σ2) = (Val #(g m), σ1) ∧ (e2', σ2') = (fill K #m, σ1')).
     iSplit.
     { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
@@ -423,15 +413,15 @@ Section rules.
       simplify_eq. eauto. }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
     simplify_eq.
-    iMod (spec_interp_update (fill K #b, σ0') with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
-    iMod (spec_prog_update (fill K #b)  with "Hauth Hr") as "[Hauth Hr]".
+    iMod (spec_interp_update_expr _ _ _ (fill K #b) with "Hauth2 Hr") as "[Hauth2 Hspec0]".
+    (* iMod (spec_prog_update (fill K #b)  with "Hauth Hr") as "[Hauth Hr]". *)
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
-    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
-    { iModIntro. rewrite /spec_inv.
-      iExists _, _, _, 0. simpl.
-      iFrame. rewrite pexec_O dret_1_1 //. }
+    (* iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_". *)
+    (* { iModIntro. rewrite /spec_inv. *)
+    (*   iExists _, _, _, 0. simpl. *)
+    (*   iFrame. rewrite pexec_O dret_1_1 //. } *)
     iModIntro. iFrame.
     assert (#(g b) = #(f b)) as ->.
     {
@@ -439,7 +429,6 @@ Section rules.
       rewrite /g fin_to_nat_to_fin //.
     }
     iApply "Hwp"; eauto.
-    iSplit; done.
     Unshelve.
     (* TODO: Is there a cleaner way? *)
     intros m1 m2 Heq.
@@ -468,21 +457,20 @@ Section rules.
   Lemma wp_couple_rand_rand_rev_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
     TCEq N (Z.to_nat z) →
     TCEq M (Z.to_nat w) →
-    nclose specN ⊆ E →
     (M <= N)%R ->
     (((S N - S M) / S N) = ε)%R →
-    refines_right K (rand #w) ∗
+    ⤇ fill K (rand #w) ∗
     € ε ∗
     ▷ (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
-        refines_right K #m  -∗ WP (Val #n) @ E {{ Φ }})
+        ⤇ fill K #m  -∗ WP (Val #n) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
-    iIntros (-> -> ? HNM Hε) "([#Hinv Hr ] & Hε & Hwp)".
-    iApply wp_couple_rand_rand_rev_inj; [| |done|done|done|..].
+    iIntros (-> -> HNM Hε) "(Hr & Hε & Hwp)".
+    iApply wp_couple_rand_rand_rev_inj; [| |done|done|..].
     - instantiate (1:=(λ x,x)). apply INR_le in HNM. intros. lia.
     - intros; lia.
-    - iFrame. iSplitR; first done.
+    - iFrame.
       assert (∀ x:fin (S(Z.to_nat w)), x<S(Z.to_nat z)) as T.
       { apply INR_le in HNM. intros. pose proof fin_to_nat_lt x. lia. }
       iModIntro. iIntros. replace (fin_to_nat m) with (fin_to_nat (nat_to_fin (T m))).
