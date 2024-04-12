@@ -14,7 +14,7 @@ From clutch.prob_lang Require Import locations lang.
    fragmental view that lives in [spec_ctx]; from here we will give meaning to
    the usual [spec] resource and points-to connectivs *)
 Definition progUR : ucmra := optionUR (exclR exprO).
-(* Definition cfgO : ofe := prodO exprO stateO. *)
+Definition cfgO : ofe := prodO exprO stateO.
 (* Definition cfgUR : ucmra := optionUR (exclR cfgO). *)
 
 (** The CMRA for the spec [cfg]. *)

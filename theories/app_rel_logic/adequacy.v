@@ -178,20 +178,22 @@ Section adequacy.
 
 
   Theorem wp_ARcoupl_step_fupdN (e e' : expr) (σ σ' : state) n φ (ε : nonnegreal) :
-    state_interp σ ∗ spec_interp (e', σ') ∗ spec_ctx ∗ err_interp ε ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
+    state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε⌝.
   Proof.
-    iInduction n as [|n] "IH" forall (e σ e' σ' ε); iIntros "([Hh Ht] & HspecI_auth & #Hctx & Herr & Hwp)".
+    iInduction n as [|n] "IH" forall (e σ e' σ' ε); iIntros "([Hh Ht] & HspecI_auth & Herr & Hwp)".
     - rewrite /exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
-        iInv specN as (ρ e0 σ0 n) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
-        iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
-        iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
+        (* iInv specN as (ρ e0 σ0 n) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_". *)
+        iDestruct (spec_interp_auth_frag_agree_expr with "HspecI_auth Hspec_frag") as %->.
+        (* iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->. *)
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-        erewrite lim_exec_det_final ; last first ; eauto.
+        erewrite lim_exec_det_final; last first.
+        { erewrite pexec_O. by eapply dret_1_1. }
+        { done. }
         iPureIntro.
         rewrite /dmap.
         apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
@@ -204,14 +206,16 @@ Section adequacy.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
-        iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_".
-        iDestruct (spec_interp_auth_frag_agree with "HspecI_auth HspecI_frag") as %<-.
-        iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->.
+        (* iInv specN as (ξ ρ e0 σ0) ">(HspecI_frag & %Hexec & Hspec_auth & Hstate)" "_". *)
+        iDestruct (spec_interp_auth_frag_agree_expr with "HspecI_auth Hspec_frag") as %->.
+        (* iDestruct (spec_prog_auth_frag_agree with "Hspec_auth Hspec_frag") as %->. *)
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
         iPureIntro.
         rewrite exec_unfold dret_id_left /=.
-        erewrite lim_exec_det_final; do 2 eauto.
+        erewrite lim_exec_det_final; last first.
+        { erewrite pexec_O. by eapply dret_1_1. }
+        { done. }
         apply (ARcoupl_mon_grading _ _ _ 0); [apply cond_nonneg | ].
         by apply ARcoupl_dret.
       + rewrite wp_unfold /wp_pre /= Heq.
@@ -232,26 +236,29 @@ Section adequacy.
 
 End adequacy.
 
-Class app_clutchGpreS Σ := App_ClutchGpreS {
-  app_clutchGpreS_iris  :: invGpreS Σ;
-  app_clutchGpreS_heap  :: ghost_mapG Σ loc val;
-  app_clutchGpreS_tapes :: ghost_mapG Σ loc tape;
-  app_clutchGpreS_cfg   :: inG Σ (authUR cfgUR);
-  app_clutchGpreS_prog  :: inG Σ (authR progUR);
-  app_clutchGpreS_err   :: ecGpreS Σ;
-}.
+Class app_clutchGpreS Σ :=
+  App_ClutchGpreS{
+      app_clutchGpreS_iris  :: invGpreS Σ;
+      app_clutchGpreS_heap  :: ghost_mapG Σ loc val;
+      app_clutchGpreS_tapes :: ghost_mapG Σ loc tape;
+      app_clutchGpreS_spec_heap  :: ghost_mapG Σ loc val;
+      app_clutchGpreS_spec_tapes :: ghost_mapG Σ loc tape;
+      app_clutchGpreS_spec_prog :: inG Σ (authR progUR);
+      app_clutchGpreS_prog  :: inG Σ (authR progUR);
+      app_clutchGpreS_err   :: ecGpreS Σ;
+    }.
 
 Definition app_clutchΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
-    GFunctor (authUR cfgUR);
+    (* GFunctor (authUR cfgUR); *)
     GFunctor (authUR progUR);
     GFunctor (authR (realUR))].
 Global Instance subG_app_clutchGPreS {Σ} : subG app_clutchΣ Σ → app_clutchGpreS Σ.
 Proof. solve_inG. Qed.
 
 Theorem wp_aRcoupl Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
-  (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  (∀ `{app_clutchGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -262,8 +269,8 @@ Proof.
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (ghost_map_alloc σ'.(heap)) as "[%γHs [Hh_spec _]]".
   iMod (ghost_map_alloc σ'.(tapes)) as "[%γTs [Ht_spec _]]".
-  iMod (own_alloc ((● (Excl' (e', σ'))) ⋅ (◯ (Excl' (e', σ'))))) as "(%γsi & Hsi_auth & Hsi_frag)".
-  { by apply auth_both_valid_discrete. }
+  (* iMod (own_alloc ((● (Excl' (e', σ'))) ⋅ (◯ (Excl' (e', σ'))))) as "(%γsi & Hsi_auth & Hsi_frag)". *)
+  (* { by apply auth_both_valid_discrete. } *)
   iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
   { by apply auth_both_valid_discrete. }
 
@@ -323,18 +330,18 @@ Proof.
         * apply pmf_ex_seriesC.
   }
   iMod (ec_alloc with "[]") as (?) "[? ?]"; first eauto.
-  set (HspecGS := CfgSG Σ _ γsi _ γp _ _ γHs γTs).
+  set (HspecGS := CfgSG Σ _ γp _ _ γHs γTs).
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
-  iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx".
-  { iModIntro. iExists _, _, _, O. iFrame. rewrite pexec_O dret_1_1 //.
-  }
+  (* iMod (inv_alloc specN ⊤ spec_inv with "[Hsi_frag Hprog_auth Hh_spec Ht_spec]") as "#Hctx". *)
+  (* { iModIntro. iExists _, _, _, O. iFrame. rewrite pexec_O dret_1_1 //. *)
+  (* } *)
   iApply wp_ARcoupl_step_fupdN.
-  iFrame. iFrame "Hctx".
-  by iApply (Hwp with "[Hctx] [Hprog_frag]").
+  iFrame. (* iFrame "Hctx". *)
+  by iApply (Hwp with " [Hprog_frag]").
 Qed.
 
 Theorem wp_aRcoupl_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{app_clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  (∀ `{app_clutchGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -395,7 +402,7 @@ Proof.
 Qed.
 
 Theorem wp_ARcoupl_epsilon_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{app_clutchGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ spec_ctx -∗ ⤇ e' -∗ € ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  (∀ `{app_clutchGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ ⤇ e' -∗ € ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros H'.
