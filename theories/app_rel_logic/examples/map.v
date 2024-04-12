@@ -59,10 +59,9 @@ Section map.
   Qed.
 
   Lemma spec_init_list E K :
-    ↑specN ⊆ E →
-    refines_right K (init_list #()) ={E}=∗ ∃ (l: loc), refines_right K (#l) ∗ assoc_slist l [].
+    ⤇ fill K (init_list #()) ={E}=∗ ∃ (l: loc), ⤇ fill K (#l) ∗ assoc_slist l [].
   Proof.
-    iIntros (?) "H".
+    iIntros "H".
     rewrite /init_list.
     tp_pures.
     tp_alloc as l "Hl".
@@ -82,8 +81,8 @@ Section map.
   Lemma spec_cons_list E K l vs (k : nat) v :
     ↑specN ⊆ E →
     assoc_slist l vs -∗
-    refines_right K (cons_list #l (#k, v)%V) ={E}=∗
-    ∃ (l: loc), refines_right K (#l) ∗ assoc_slist l ((k, v) :: vs).
+    ⤇ fill K (cons_list #l (#k, v)%V) ={E}=∗
+    ∃ (l: loc), ⤇ fill K (#l) ∗ assoc_slist l ((k, v) :: vs).
   Proof.
     iIntros (?) "H Hr".
     rewrite /cons_list.
@@ -166,8 +165,8 @@ Section map.
   Lemma spec_find_list E K l vs (k : nat):
     ↑specN ⊆ E →
     assoc_slist l vs -∗
-    refines_right K (find_list #l #k) ={E}=∗
-    refines_right K (opt_to_val (find_list_gallina vs k)) ∗ assoc_slist l vs.
+    ⤇ fill K (find_list #l #k) ={E}=∗
+    ⤇ fill K (opt_to_val (find_list_gallina vs k)) ∗ assoc_slist l vs.
   Proof.
     iIntros (?) "H Hr".
     rewrite /find_list. iInduction vs as [|(k', v') vs] "IH" forall (l).
@@ -186,8 +185,8 @@ Section map.
   Lemma spec_find_list_Z E K l vs (z : Z):
     ↑specN ⊆ E →
     assoc_slist l vs -∗
-    refines_right K (find_list #l #z) ={E}=∗
-    refines_right K (if bool_decide (z < 0)%Z then
+    ⤇ fill K (find_list #l #z) ={E}=∗
+    ⤇ fill K (if bool_decide (z < 0)%Z then
                        opt_to_val None
                      else opt_to_val (find_list_gallina vs (Z.to_nat z))) ∗ assoc_slist l vs.
   Proof.
@@ -250,15 +249,15 @@ Section map.
 
   Lemma spec_init_map E K :
     ↑specN ⊆ E →
-    refines_right K (init_map #()) ={E}=∗ ∃ (l: loc), refines_right K (#l) ∗ map_slist l ∅.
+    ⤇ fill K (init_map #()) ={E}=∗ ∃ (l: loc), ⤇ fill K (#l) ∗ map_slist l ∅.
   Proof.
     iIntros (?) "H".
     rewrite /init_map.
     tp_pures.
     tp_bind (init_list #()).
-    rewrite refines_right_bind.
+    rewrite ⤇ fill_bind.
     iMod (spec_init_list with "[$]") as (l) "(HK&Halloc)"; first done.
-    iEval (rewrite -refines_right_bind /=) in "HK".
+    iEval (rewrite -⤇ fill_bind /=) in "HK".
     tp_alloc as lm "Hl".
     iExists _. iFrame. iExists _, _; iFrame; auto.
   Qed.
@@ -311,7 +310,7 @@ Section map.
   Lemma spec_get E K lm m (n : nat) :
     ↑specN ⊆ E →
     map_slist lm m -∗
-    refines_right K (get #lm #n) ={E}=∗ refines_right K (opt_to_val (m !! n)) ∗ map_slist lm m.
+    ⤇ fill K (get #lm #n) ={E}=∗ ⤇ fill K (opt_to_val (m !! n)) ∗ map_slist lm m.
   Proof.
     iIntros (?) "Hm Hr".
     rewrite /get.
@@ -326,8 +325,8 @@ Section map.
   Lemma spec_get_Z E K lm m (z : Z) :
     ↑specN ⊆ E →
     map_slist lm m -∗
-    refines_right K (get #lm #z) ={E}=∗
-    refines_right K (if bool_decide (z < 0)%Z then
+    ⤇ fill K (get #lm #z) ={E}=∗
+    ⤇ fill K (if bool_decide (z < 0)%Z then
                        opt_to_val None
                      else opt_to_val (m !! Z.to_nat z)) ∗ map_slist lm m.
   Proof.
@@ -357,7 +356,7 @@ Section map.
   Lemma spec_set E K lm m (n : nat) (v: val) :
     ↑specN ⊆ E →
     map_slist lm m -∗
-    refines_right K (set #lm #n v) ={E}=∗ refines_right K #() ∗ map_slist lm (<[n := v]>m).
+    ⤇ fill K (set #lm #n v) ={E}=∗ ⤇ fill K #() ∗ map_slist lm (<[n := v]>m).
   Proof.
     iIntros (?) "Hm Hr".
     rewrite /set.
@@ -365,9 +364,9 @@ Section map.
     iDestruct "Hm" as (ll vs) "(Hll&%Heq&Hassoc)".
     tp_load. tp_pures.
     tp_bind (cons_list _ _).
-    iEval (rewrite refines_right_bind) in "Hr".
+    iEval (rewrite ⤇ fill_bind) in "Hr".
     iMod (spec_cons_list with "[$] [$]") as (?)"(Hr&Halloc)"; first done.
-    iEval (rewrite -refines_right_bind /=) in "Hr".
+    iEval (rewrite -⤇ fill_bind /=) in "Hr".
     tp_store.
     iFrame. iExists _, _. iFrame. rewrite list_to_map_cons Heq //.
   Qed.
