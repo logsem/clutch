@@ -277,20 +277,15 @@ Section prf_prp.
     rewrite /init_prp_state.
     tp_pures.
     tp_bind (init_map _).
-    (* iEval (rewrite ⤇ fill_bind) in "Hspec". *)
     iMod (spec_init_map with "[$]") as (l) "(Hspec&Hm)"; auto.
-    (* iEval (rewrite -⤇ fill_bind /=) in "Hspec". *)
     rewrite /query_prp/=.
     tp_pures.
     tp_bind (list_seq _ _).
-    (* iEval (rewrite ⤇ fill_bind) in "Hspec". *)
-    (* TODO: Instantiate this properly *)
     iMod (spec_list_seq with "[Hspec]") as (v) "(Hspec & %Hv)".
     Unshelve.
     4: { exact 0. }
     4: { exact (S val_size). }
     { done. }
-    (* iEval (rewrite -⤇ fill_bind /=) in "Hspec". *)
     simpl; tp_pures.
     tp_alloc as ls "Hls".
     tp_pures.
@@ -330,9 +325,7 @@ Section prf_prp.
     rewrite /query_prp_specialized.
     tp_pures.
     tp_bind (get _ _)%E.
-    (* iEval (rewrite ⤇ fill_bind) in "HK". *)
     iMod (spec_get with "[$][$]") as "[HK Hm]".
-    (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
     rewrite lookup_fmap Hlookup /=.
     tp_pures.
     iModIntro. iFrame.
@@ -522,7 +515,6 @@ Section prf_prp.
     pose proof (fin_to_nat_lt x). 
     tp_load.
     tp_bind (list_remove_nth _ _).
-    (* iEval (rewrite ⤇ fill_bind) in "HK". *)
     unshelve iMod (spec_remove_nth _ _ sr _ with "[#] HK")
       as (v) "(HK & (%e & %v' & %l1 & %l2 & (%Hsr & %Hlen & -> & %Hil)))".
     {
@@ -675,7 +667,6 @@ Proof.
          rewrite elem_of_set_seq in Hm'. lia.
        * iIntros "(HK & Hf & Hg)".
          do 3 wp_pure. simpl.
-         (* iEval (rewrite -⤇ fill_bind /=) in "HK". *)
          do 3 tp_pure.
          replace (Z.of_nat _ - 1)%Z with (Z.of_nat k')%Z; last lia.
          iApply ("IH" with "[][][][][][][][$]"); try done.
