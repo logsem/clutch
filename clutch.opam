@@ -19,7 +19,7 @@ depends: [
   "coq-iris" { (= "4.1.0") | (= "dev") }
   "coq-stdpp" { (= "1.9.0") | (= "dev") }
   "coq-autosubst" { (= "1.8") | (= "dev") }
-  "coq-mathcomp-ssreflect" { (= "1.17.0") }
-  "coq-mathcomp-solvable" { (= "1.17.0") }
-  "coq-mathcomp-analysis" { (= "0.7.0") }
+  "coq-mathcomp-ssreflect" { (= "2.2.0") }
+  "coq-mathcomp-solvable" { (= "2.2.0") }
+  "coq-mathcomp-analysis" { (= "1.1.0") }
 ]
