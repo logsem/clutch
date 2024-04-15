@@ -158,7 +158,7 @@ Section rules.
     iMod "hclose". done.
   Qed.
 
-  Lemma wp_couple_avoid_r {N : nat} (t : fin (S N)) (z : Z) K e ε E Φ:
+  Lemma wp_rand_avoid_r {N : nat} (t : fin (S N)) (z : Z) K e ε E Φ:
     to_val e = None →
     (∀ σ1, reducible (e, σ1)) →
     TCEq N (Z.to_nat z) →
