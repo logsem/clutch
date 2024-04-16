@@ -420,6 +420,32 @@ Proof.
   by iApply twp_rand_err_list_int.
 Qed.
 
+Lemma wp_rand_err_filter (N : nat) (z : Z) (P : nat -> bool) E Φ :
+  TCEq N (Z.to_nat z) →
+  € (nnreal_div (nnreal_nat (length (List.filter P (seq 0 (S N))))) (nnreal_nat(N+1))) ∗
+    (∀ x : fin (S N), ⌜ P x = false ⌝ -∗ Φ #x)
+    ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros (?) "[H1 H2]".
+  iApply ub_twp_ub_wp'.
+  iApply (twp_rand_err_list_nat _ _ (List.filter P (seq 0 (S N)))).
+  iFrame.
+  iIntros (x) "%H0".
+  iApply "H2".
+  iPureIntro.
+  edestruct (List.Forall_forall) as (H1 & H2).
+  specialize (H1 H0).
+  destruct (P x) eqn:HPx ; auto.
+  exfalso.
+  apply (H1 x); auto.
+  apply filter_In; split; auto.
+  apply in_seq.
+  simpl.
+  split; auto with arith.
+  apply fin_to_nat_lt.
+Qed.
+
+
 (* FIXME: where should this go (if anywhere?) *)
 Lemma match_nonneg_coercions (n : nonnegreal) : NNRbar_to_real (NNRbar.Finite n) = nonneg n.
 Proof. by simpl. Qed.
