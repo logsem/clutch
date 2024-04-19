@@ -11,11 +11,48 @@ Section miller_rabin_code.
 
   Context `{!ub_clutchGS Σ}.
 
+  (*
+    The Miller-Rabin test is a probabilistic test for primality, that
+    always returns true for prime numbers, and it returns false for
+    composite numbers with probability at least 1/2.
+
+    It relies on two properties:
+    - Fermat's little theorem: for every prime p, and every (0 < x < p),
+      x ^ (p - 1) = 1 mod p
+
+    - For every prime p, the equation
+       x ^ 2 = 1 mod p
+      only has solutions {1, p-1} in (0 < x < p)
+
+    The algorithm receives an input m to test for primality, we assume
+    w.l.o.g that m is odd. Therefore, m - 1 = 2^t * u for some t, u
+    with u odd. Miller-Rabin's test samples x s.t. (0 < x < p), and
+    computes the sequence (modulo m):
+
+     x ^ u , x ^ (2 * u), x ^ (2^2 * u), ..., x ^ (2^(t-1) * u)
+
+    checking if any of the two conditions above is violated. For this
+    it is enough to check that x ^ u ≠ 1 mod m, and that, for all 0 ≤ k < t,
+    x ^ (2^k * u) ≠ m - 1 (mod m). In that case, we say x is a Miller-Rabin witness,
+    and m must be composite. Conversely, if m is prime, we know that
+    x ^ (2^t * u) = 1 mod m, so either the entire sequence is constantly 1,
+    including x ^ u, or one of the elemets is m - 1.
+
+    A known result states that, for every composite m, at least half of
+    the elements in (0 < x < m-1) are Miller-Rabin witnesses. This is due to
+    the fact that there is a proper subgroup G of the group of multiplicative
+    inverses (Z_m)^* containing all Miller-Rabin non-witnesses, so their
+    cardinality is at most |(Z_m)^*|/2.
+
+  *)
+
+
+
   Notation "e1 || e2" := (BinOp OrOp e1%E e2%E) : expr_scope.
 
   (*
      Takes an integer n and returns a pair
-     u, t with t is maximal s.t. n = (2^t) u
+     u, t with n = (2^t) u, and u odd
   *)
 
   Definition power_two_decomp :=
@@ -27,14 +64,8 @@ Section miller_rabin_code.
         ("u", "t" + #1))%V.
 
 
-(*
-  Definition fast_mod_exp :=
-    (rec: "g" "b" "e" "m" "acc" :=
-      if: "e" = #0 then "acc"
-      else
-        if: "e" `rem` #2 = #0
-        then "g" ( ("b" * "b") `rem` "m") ("e" `quot` #2) "acc"
-        else "g" ( ("b" * "b") `rem` "m") ( ("e" - #1) `quot` #2) ( ("b" * "acc") `rem` "m"))%V.
+ (*
+     Computes b^e mod m using repeated squaring
  *)
 
 
@@ -48,6 +79,14 @@ Section miller_rabin_code.
         else ("b" * "r") `rem` "m")%V.
 
 
+  (*
+      Auxiliary function for a Miller-Rabin round.
+      Computes the sequence (modulo m):
+      y , y^2, ..., y^(t-1)
+
+      and returns true iff any element is m-1
+  *)
+
   Definition MR_round_aux : val :=
     (rec: "g" "y" "m" "t" :=
        if: "t" = #0 then #false
@@ -57,9 +96,8 @@ Section miller_rabin_code.
 
 
   (*
-    Testing a witness 1 < x < m
-    where m-1 can be decomposed
-    as 2^t u
+    Testing a potential witness 1 < x < m
+    where m-1 can be decomposed as 2^t u
   *)
 
   Definition MR_round : val :=
@@ -69,6 +107,12 @@ Section miller_rabin_code.
       if: "y" = #1 then #true
       else
         MR_round_aux "y" "m" "t")%V.
+
+
+  (*
+    The main function for the Miller-Rabin
+    test where only 1 iteration is performed
+  *)
 
   Definition MR_main : val :=
     (λ: "m",
@@ -801,6 +845,12 @@ Section miller_rabin_code.
 
 
   Variable (num_iter : nat).
+
+
+  (*
+    The main function for the Miller-Rabin test,
+    where num_iter iterations are performed
+  *)
 
   Definition MR_main_looped : val :=
     (λ: "m",
