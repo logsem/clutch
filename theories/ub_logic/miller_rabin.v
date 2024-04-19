@@ -79,6 +79,7 @@ Section miller_rabin_code.
 
 
 
+
   Definition is_MR_nonwitness (t u x : Z) : bool :=
     ( x^u `mod` (2^t * u + 1) =? 1 `mod` (2^t * u + 1))%Z ||
       (List.existsb (λ i:nat,
@@ -153,6 +154,38 @@ Section miller_rabin_code.
         rewrite Hi2.
         f_equal. lia.
       * rewrite seq_length. lia.
+  Qed.
+
+
+  Lemma is_MR_nonwitness_true (m t u x : Z) :
+    (0 <= t)%Z ->
+    (1 <= u)%Z ->
+    (m = 2^t * u + 1)%Z ->
+    (Z.Odd u) ->
+    (1 <= x < m )%Z ->
+    (is_MR_nonwitness t u x = true) ->
+    MR_nonwitness m t u x.
+  Proof.
+    rewrite /is_MR_nonwitness.
+    rewrite /MR_nonwitness.
+    intros Ht Hu Heq Hodd Hm Hwit.
+    apply orb_true_elim in Hwit as [Hwit1 | Hwit2].
+    - left.
+      apply Z.eqb_eq in Hwit1.
+      rewrite /MR_witness.
+      split; auto.
+      split; auto.
+      split; auto.
+      rewrite Heq //.
+    - right.
+      apply existsb_exists in Hwit2 as [i [Hi1 Hi2]].
+      exists i; split.
+      + apply in_seq in Hi1. lia.
+      + rewrite Heq.
+        apply Z.eqb_eq in Hi2.
+        rewrite Hi2.
+        f_equal.
+        lia.
   Qed.
 
 
@@ -579,6 +612,131 @@ Section miller_rabin_code.
   Qed.
 
 
+  Lemma MR_round_composite_error_amplify (m t u : Z) (ε : nonnegreal) E :
+    {{{ ⌜(1 < m)%Z /\ (0 <= t)%Z /\
+          (m = 2^t * u + 1 /\ 0 <= u /\ Z.Odd u )%Z /\ ¬ Znumtheory.prime m ⌝ ∗
+       € ε }}}
+      MR_round #m #t #u @ E
+      {{{ (b : bool) , RET #b;
+          ⌜ (b = false) ⌝ ∨ ( € (nnreal_mult (nnreal_nat 2) ε) ) }}}.
+  Proof.
+    iIntros (Φ) "((%Hm & %Ht & (%Heq & (%Hpos & %Hodd)) & %Hcomp )& Herr) HΦ".
+    wp_rec.
+    wp_pures.
+    wp_bind (rand _)%E.
+    wp_apply (wp_rand_err_filter_adv _ _ (λ x, is_MR_nonwitness t u (1 + x)) ε (nnreal_mult (nnreal_nat 2) ε)); eauto.
+    {
+      replace (S (Z.to_nat (m - 2))) with (Z.to_nat (m-1)); last first.
+      {
+        rewrite -Z2Nat.inj_succ; last by lia.
+        f_equal. lia.
+      }
+      simpl.
+      rewrite Rmult_assoc Rmult_comm Rmult_assoc.
+      apply Rmult_le_compat_l; [apply cond_nonneg| ].
+      pose proof (MR_witness_card m) as Haux.
+      apply Rcomplements.Rle_div_r; [lra |].
+      etrans; eauto.
+      rewrite Z2Nat.inj_sub; last by lia.
+      replace (1+1) with 2 by lra.
+      rewrite /Rdiv.
+      apply Rmult_le_compat_r; [lra |].
+      replace ((Z.to_nat m - Z.to_nat 2)%nat + 1) with (IZR m - 1); [rewrite minus_IZR; lra |].
+      rewrite INR_IZR_INZ.
+      rewrite -plus_IZR.
+      rewrite -minus_IZR.
+      f_equal. lia.
+    }
+    iFrame.
+    iIntros (x) "[%Hcont1 | Hcont2]".
+    - wp_pures.
+      wp_bind (fast_mod_exp _ _ _).
+    wp_apply (fast_mod_exp_correct); auto.
+    {
+      iPureIntro.
+      split; lia.
+    }
+    iIntros (y) "[% <-]".
+    wp_pures.
+    apply (is_MR_nonwitness_false m t u) in Hcont1; auto; try lia.
+    2:{
+      pose proof (fin_to_nat_lt x).
+      split; lia.
+    }
+    case_bool_decide.
+    + wp_pures.
+      iApply "HΦ". exfalso.
+      rewrite /MR_witness in Hcont1.
+      destruct Hcont1 as (?&?&?&Hx1&Hx2).
+      apply Hx1.
+      assert ((1 + x)^u `mod` m = 1)%Z as ->.
+      {
+        inversion H0.
+        rewrite H5. auto.
+      }
+      rewrite Zmod_1_l; auto.
+    + wp_pures.
+      wp_apply MR_round_aux_correct_wit.
+      2:{ iIntros. iApply "HΦ". iLeft. done. }
+      iPureIntro.
+      split; [lia |].
+      split; [lia |].
+      split; [lia |].
+      split; auto.
+      intro.
+      apply H0.
+      do 2 f_equal. done.
+
+    - iAssert (∀ b:bool, Φ #b)%I with "[HΦ Hcont2]" as "HΦ".
+      {
+        iIntros (b).
+        iApply "HΦ".
+        iRight.
+      iApply ec_weaken; last by iFrame.
+
+      replace (S (Z.to_nat (m - 2))) with (Z.to_nat (m-1)); last first.
+      {
+        rewrite -Z2Nat.inj_succ; last by lia.
+        f_equal. lia.
+      }
+      simpl. lra.
+     }
+      wp_pures.
+      wp_bind (fast_mod_exp _ _ _).
+      wp_apply (fast_mod_exp_correct); auto.
+      {
+        iPureIntro.
+        split; lia.
+      }
+      iIntros (y) "[% <-]".
+      wp_pures.
+      case_bool_decide.
+      + wp_pures. auto.
+      + wp_pures.
+        destruct (is_MR_nonwitness t u (1 + x)) eqn:Hwit.
+        * wp_apply MR_round_aux_correct_nonwit; auto.
+          iPureIntro.
+          split; [lia |].
+          split; [lia |].
+          split; [lia |].
+          split.
+          ** intro. apply H0. do 2 f_equal. done.
+          ** apply is_MR_nonwitness_true; auto; try lia.
+             pose proof (fin_to_nat_lt x).
+             split; lia.
+        * wp_apply MR_round_aux_correct_wit; auto.
+          iPureIntro.
+          split; [lia |].
+          split; [lia |].
+          split; [lia |].
+          split.
+          ** intro. apply H0. do 2 f_equal. done.
+          ** apply is_MR_nonwitness_false; auto; try lia.
+             pose proof (fin_to_nat_lt x).
+             split; lia.
+  Qed.
+
+
   Lemma MR_main_correct_prime (m : Z) E :
     {{{ ⌜ Znumtheory.prime m ⌝ }}}
       MR_main #m @ E
@@ -640,6 +798,119 @@ Section miller_rabin_code.
     split; auto.
     lia.
   Qed.
+
+
+  Variable (num_iter : nat).
+
+  Definition MR_main_looped : val :=
+    (λ: "m",
+      if: "m" ≤ #1 then #false
+      else
+        let, ("u", "t") := power_two_decomp ("m" - #1) in
+        letrec: "g" "k" := (
+          if: "k" = #0 then #true
+          else
+            let: "r" := MR_round "m" "t" "u" in
+            if: "r" then "g" ("k" - #1) else #false) in
+       "g" #num_iter )%V.
+
+Lemma MR_main_looped_correct_prime (m : Z) E :
+    {{{ ⌜ Znumtheory.prime m ⌝ }}}
+      MR_main_looped #m @ E
+      {{{ (b : bool) , RET #b;
+          ⌜ (b = true) ⌝ }}}.
+  Proof.
+    iIntros (Φ Hprime) "HΦ".
+    assert (1 < m)%Z as Hm.
+    {
+      destruct Hprime; auto.
+    }
+    wp_rec.
+    wp_pures.
+    case_bool_decide; first by lia.
+    wp_pures.
+    wp_bind (power_two_decomp _).
+    wp_apply (power_two_decomp_correct).
+    { iPureIntro; lia. }
+    iIntros (u t) "(%Heq & %Ht & %Hodd)".
+    do 11 wp_pure.
+    iInduction num_iter as [|k] "IH".
+    - wp_pures.
+      iApply "HΦ"; done.
+    - wp_pures.
+      wp_bind (MR_round _ _ _).
+      wp_apply MR_round_correct_prime; auto.
+      * iPureIntro.
+        split; auto.
+        split; auto.
+        split; auto.
+        split; first by lia.
+        split; auto; lia.
+      * iIntros (b) "->".
+        do 4 wp_pure.
+        replace #(S k - 1) with #k; last first.
+        {
+          do 2 f_equal. lia.
+        }
+        by iApply "IH".
+  Qed.
+
+
+  Lemma MR_main_looped_composite_error (m : Z) E :
+    {{{ ⌜ ¬ Znumtheory.prime m ⌝ ∗
+          € (nnreal_div (nnreal_nat 1) (nnreal_nat (2^num_iter)))
+    }}}
+      MR_main_looped #m @ E
+      {{{ (b : bool) , RET #b;
+          ⌜ (b = false) ⌝ }}}.
+  Proof.
+    iIntros (Φ) "[%Hcomp Herr] HΦ".
+    wp_rec.
+    wp_pures.
+    case_bool_decide.
+    {
+      wp_pures.
+      by iApply "HΦ".
+    }
+    wp_pures.
+    wp_bind (power_two_decomp _).
+    wp_apply (power_two_decomp_correct).
+    { iPureIntro; lia. }
+    iIntros (u t) "(%Heq & %Ht & %Hodd)".
+    do 11 wp_pure.
+    iInduction num_iter as [|k] "IH".
+    - iExFalso.
+      iApply ec_spend; auto.
+      simpl. lra.
+    - wp_pures.
+      wp_bind (MR_round _ _ _).
+      wp_apply (MR_round_composite_error_amplify with "[$Herr]"); auto.
+      + iPureIntro.
+        split; first by lia.
+        split; auto.
+        split; auto.
+        split; first by lia.
+        split; auto.
+        lia.
+      + iIntros ([]) "Hpost".
+        * do 4 wp_pure.
+          replace #(S k - 1) with #k; last first.
+          {
+            do 2 f_equal; lia.
+          }
+          iApply ("IH" with "[Hpost]"); auto.
+          iDestruct "Hpost" as "[% |Herr]"; [done |].
+          iApply (ec_spend_irrel with "[$Herr]").
+          simpl.
+          rewrite Nat.add_0_r.
+          replace (2 ^ k + 2 ^ k)%nat with (2 * 2^k)%nat by lia.
+          do 2 rewrite Rmult_1_l.
+          rewrite mult_INR pow_INR /=.
+          rewrite Rinv_mult. lra.
+        * wp_pures. iApply "HΦ"; auto.
+  Qed.
+
+
 
 End miller_rabin_code.
 
