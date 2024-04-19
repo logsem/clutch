@@ -850,6 +850,12 @@ Section miller_rabin_code.
     where num_iter iterations are performed
   *)
 
+
+  (*
+    The main function for the Miller-Rabin test,
+    where num_iter iterations are performed
+  *)
+
   Definition MR_main_looped : val :=
     (λ: "m",
       if: "m" ≤ #1 then #false
