@@ -3,7 +3,7 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.ctx_logic Require Import lifting ectx_lifting.
-From clutch.prob_lang Require Import lang notation tactics metatheory.
+From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
 From clutch.ctx_logic Require Export primitive_laws spec_ra spec_rules.
 
 (* TODO: can we factor out a clever lemma to avoid duplication in all the
@@ -517,5 +517,72 @@ Section rules.
     iApply wp_value.
     iApply ("Hwp" with "[$]").
   Qed.
+
+  (** * Planner coupling rule *)
+  Lemma wp_couple_tapes_planner N M (f:fin (S N) -> fin (S M)) `{Inj _ _ (=) (=) f} E e α αₛ ns nsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ▷ α ↪ (N; ns) ∗
+    (∀ (n : fin (S N)) (junk : list (fin(S M))), αₛ ↪ₛ (M; nsₛ ++ junk ++ [f n]) ∗
+                                                 α ↪ (N; ns ++ [n]) ∗
+                                                 ⌜ Forall (λ y, ∀ x, f x ≠ y) junk ⌝
+                           -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (He ?) "(#Hinv & >Hαs & >Hα & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
+    iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
+    iDestruct (spec_interp_auth_frag_agree with "Hauth2 Hspec0") as %<-.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    (* Get up to speed with the spec resource (tracked in spec_ctx) *)
+    iApply exec_coupl_det_r; [done|].
+    (* Do a coupled [state_step] on both sides  *)
+    iApply (exec_coupl_big_state_steps).
+    epose proof Rcoupl_rej_samp_state N M f σ1 σ0' α αₛ _ _ _ _ as (s&Hs1&Hs2&Hcoupl).
+    iExists _, _, _.
+    iSplit.
+    { iPureIntro.
+      eapply Hcoupl. }
+    repeat iSplit.
+    { iPureIntro. by eapply state_step_erasable. }
+    { iPureIntro. apply rej_samp_state_erasable. }
+    iIntros (σ2 σ2' (n & junk & Hjunk & -> & ->)).
+    (* Update our resources *)
+    iMod (spec_interp_update (e0', (state_upd_tapes <[αₛ:=(M; nsₛ ++ junk ++[f n]) : tape]> σ0'))
+           with "Hauth2 Hspec0") as "[Hauth2 Hspec0]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Htapes Hαs") as %?%lookup_total_correct.
+    simplify_map_eq.
+    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod (ghost_map_update ((M; nsₛ ++ junk ++[f n]) : tape) with "Htapes Hαs") as "[Htapes Hαs]".
+    (* Close the [spec_ctx] invariant again, so the assumption can access all invariants  *)
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[Hauth Hheap Hspec0 Htapes]") as "_".
+    { iModIntro. rewrite /spec_inv.
+      iExists _, _, (state_upd_tapes _ _), 0. simpl.
+      iFrame. rewrite pexec_O dret_1_1 //; iSplit; auto. }
+    (* Our [WP] assumption with the updated resources now suffices to prove the goal *)
+    iSpecialize ("Hwp" with "[$Hα $Hαs //]").
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _) with "[$Hh1 $Hauth2 Ht1]") as "Hwp"; auto.
+    Unshelve.
+    all:done.
+  Qed.
+  
+  Lemma wp_couple_tapes_planner' N M (f:fin (S M) -> fin (S N)) `{Inj _ _ (=) (=) f} E e α αₛ ns nsₛ Φ :
+    to_val e = None →
+    nclose specN ⊆ E →
+    spec_ctx ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ▷ α ↪ (N; ns) ∗
+    (∀ (m : fin (S M)) (junk : list (fin(S N))), αₛ ↪ₛ (M; nsₛ ++ [m]) ∗
+                                                 α ↪ (N; ns ++ junk ++ [f m]) ∗
+                                                 ⌜ Forall (λ y, ∀ x, f x ≠ y) junk ⌝
+                           -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    (** Same as above *)
+  Admitted.
 
 End rules.

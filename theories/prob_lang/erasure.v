@@ -4,7 +4,7 @@ From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import language ectx_language erasable.
 From clutch.prob_lang Require Import locations notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app markov distribution_bar.
+From clutch.prob Require Import couplings couplings_app markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -306,6 +306,18 @@ Proof.
   by eapply prim_coupl_upd_tapes_dom.
 Qed.
 
+Lemma state_step_erasable σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  erasable (state_step σ1 α) σ1.
+Proof.
+  intros. rewrite /erasable.
+  intros.
+  symmetry.
+  apply Rcoupl_eq_elim.
+  by eapply prim_coupl_step_prim.
+Qed.
+  
+
 Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v:
   σ1.(tapes) !! α = Some bs →
   (lim_exec (e1, σ1)) v =
@@ -522,10 +534,16 @@ Qed.
 
 
 Lemma refRcoupl_erasure_erasable (e1 e1' : expr) σ1 σ1' μ1 μ2 R Φ n :
-  Rcoupl (μ1 σ1) (μ2 σ1') R ->
-  erasable μ1 ->
-  erasable μ2 ->
+  Rcoupl (μ1) (μ2) R ->
+  erasable μ1 σ1->
+  erasable μ2 σ1'->
   (∀ σ2 σ2' : language.state prob_lang, R σ2 σ2' → refRcoupl (exec (S n) (e1, σ2)) (lim_exec (e1', σ2')) Φ) ->
   refRcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) Φ.
 Proof.
-Admitted.
+  rewrite {1}/erasable.
+  intros Hcoupl Hμ1 Hμ2 Hcont.
+  rewrite -Hμ1.
+  erewrite <-erasable_lim_exec; last exact Hμ2.
+  eapply refRcoupl_dbind; try done.
+  by apply Rcoupl_refRcoupl.
+Qed.

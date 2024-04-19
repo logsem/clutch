@@ -3,7 +3,7 @@ From stdpp Require Import functions gmap stringmap.
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
-From clutch.prob_lang Require Import locations tactics notation.
+From clutch.prob_lang Require Import locations tactics notation rejection_sampler_distribution.
 From clutch.prob_lang Require Export lang.
 From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
@@ -825,6 +825,36 @@ Proof.
   rewrite /state_upd_tapes insert_commute //.
 Qed.
 
+
+(** rej_samp_state_distr ~ state_step*)
+Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys :
+  σ1.(tapes) !! α1 = Some (N; xs) →
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  ∃ s Hsize Hsubset,
+  Rcoupl
+    (state_step σ1 α1)
+    (rej_samp_state_distr N s σ2 α2 Hsize Hsubset)
+    (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
+        Forall (λ y, forall x, f x ≠ y) junk /\
+        σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := (M; ys ++ junk ++ [f n])]> σ2).
+Proof.
+Admitted.
+
+(** state_step ~ rej_samp *)
+Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys :
+  σ1.(tapes) !! α1 = Some (N; xs) →
+  σ2.(tapes) !! α2 = Some (M; ys) →
+  ∃ s Hsize Hsubset,
+  Rcoupl
+    (rej_samp_state_distr N s σ1 α1 Hsize Hsubset)
+    (state_step σ2 α2)
+    (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
+        Forall (λ y, forall x, f x ≠ y) junk  /\
+        σ1' = state_upd_tapes <[α1 := (N; xs ++ junk++ [f n])]> σ1 ∧
+        σ2' = state_upd_tapes <[α2 := (M; ys ++ [n])]> σ2).
+Proof.
+Admitted.
 
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
