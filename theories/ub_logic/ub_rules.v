@@ -290,12 +290,13 @@ Proof.
 Qed.
 
 
-Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
-  TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
-  (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
-  ⊢ WP rand #z @ E [{ Φ }].
-Proof.
+
+  Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
+    TCEq N (Z.to_nat z) →
+    € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
+      (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
+      ⊢ WP rand #z @ E [{ Φ }].
+  Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_exec_ub; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
@@ -420,11 +421,13 @@ Proof.
   by iApply twp_rand_err_list_int.
 Qed.
 
-Lemma wp_rand_err_filter (N : nat) (z : Z) (P : nat -> bool) E Φ :
-  TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length (List.filter P (seq 0 (S N))))) (nnreal_nat(N+1))) ∗
-    (∀ x : fin (S N), ⌜ P x = false ⌝ -∗ Φ #x)
-    ⊢ WP rand #z @ E {{ Φ }}.
+
+
+  Lemma wp_rand_err_filter (N : nat) (z : Z) (P : nat -> bool) E Φ :
+    TCEq N (Z.to_nat z) →
+    € (nnreal_div (nnreal_nat (length (List.filter P (seq 0 (S N))))) (nnreal_nat(N+1))) ∗
+      (∀ x : fin (S N), ⌜ P x = false ⌝ -∗ Φ #x)
+      ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (?) "[H1 H2]".
   iApply ub_twp_ub_wp'.
@@ -749,6 +752,173 @@ Proof.
     + apply H2.
     + eexists _; eapply H4.
   - apply H2.
+Qed.
+
+
+Lemma twp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  (ε1 * (length ns) <= ε0 * (N + 1))%R ->
+  € ε0 ∗
+    (∀ x : fin (S N),
+        (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨ € ε1) -∗ Φ #x)
+    ⊢ WP rand #z @ E [{ Φ }].
+Proof.
+  iIntros (HN Hleq) "[Herr Hwp]".
+  set (ε2 := (λ x : fin (S N), if bool_decide (Exists (λ m : nat, (fin_to_nat x) =  m) ns) then ε1 else nnreal_zero)).
+  wp_apply (twp_couple_rand_adv_comp1 _ _ _ (mknonnegreal (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) _) ε2 with "[Herr]").
+  Unshelve.
+  4: {
+    apply SeriesC_ge_0.
+    - intro. apply Rmult_le_pos.
+      + apply Rmult_le_pos; [lra |].
+        left. apply Rinv_0_lt_compat.
+        pose proof (pos_INR N).
+        lra.
+      + apply cond_nonneg.
+    - apply ex_seriesC_finite.
+  }
+  - rewrite S_INR //.
+  - iApply ec_weaken; auto.
+    simpl.
+    rewrite SeriesC_scal_l /ε2.
+    rewrite (SeriesC_ext _ (λ x : fin (S N),
+                   ε1 * (if bool_decide (Exists (λ m : nat, fin_to_nat x = m) ns) then 1 else 0))%R); last first.
+    {
+      intro n.
+      case_bool_decide; simpl; lra.
+    }
+    rewrite SeriesC_scal_l.
+    rewrite /Rdiv Rmult_1_l.
+    rewrite Rmult_comm.
+    rewrite -Rdiv_def.
+    pose proof (pos_INR N).
+    apply Rcomplements.Rle_div_l; [lra |].
+    assert (SeriesC (λ x : fin (S N), if bool_decide (Exists (λ m : nat, fin_to_nat x = m) ns) then 1 else 0) <= length ns)%R as Haux.
+    {
+      induction ns as [?|?].
+      - erewrite SeriesC_ext; last first.
+         + intros.
+             erewrite bool_decide_ext; [ | apply Exists_nil ].
+             done.
+         + simpl.
+             setoid_rewrite bool_decide_False.
+             rewrite SeriesC_0 ; auto.
+             lra.
+      - erewrite SeriesC_ext; last first.
+         + intros.
+             erewrite bool_decide_ext; [ | apply Exists_cons ].
+             done.
+         + etrans.
+             * right. symmetry.
+                  eapply is_seriesC_filter_union.
+                  2: { apply SeriesC_correct, ex_seriesC_finite. }
+                  intro; simpl; lra.
+             * rewrite cons_length S_INR /=.
+                  assert (SeriesC (λ n : fin (S N), if bool_decide (fin_to_nat n = a) then 1 else 0) <= 1)%R as Haux2.
+                  {
+                    destruct (decide (a < S N)).
+                    - rewrite SeriesC_singleton_inj; [lra |].
+                      exists (nat_to_fin l).
+                      rewrite fin_to_nat_to_fin //.
+                    - transitivity 0%R; [ | lra].
+                      right.
+                      apply SeriesC_0.
+                      intro.
+                      case_bool_decide; auto.
+                      simplify_eq.
+                      exfalso. apply n.
+                      apply fin_to_nat_lt.
+                  }
+                  rewrite (Rplus_comm _ 1).
+                  rewrite -Rplus_minus_assoc.
+                  apply Rplus_le_compat; [apply Haux2 |].
+                  etrans; last first.
+                  ** apply IHns.
+                     etrans; eauto.
+                     apply Rmult_le_compat_l; [apply cond_nonneg |].
+                     rewrite cons_length S_INR; lra.
+                  **
+                  apply Rcomplements.Rle_minus_l.
+                  rewrite <- (Rplus_0_r) at 1.
+                  apply Rplus_le_compat; [ apply Rle_refl |].
+                  apply SeriesC_ge_0; [ | apply ex_seriesC_finite ].
+                  intros; real_solver.
+    }
+    etrans; eauto.
+    apply Rmult_le_compat_l; auto.
+    apply cond_nonneg.
+  - iIntros (n) "Herrn".
+    rewrite /ε2.
+    case_bool_decide.
+    + iApply "Hwp".
+      iRight.
+      iFrame.
+    + iApply "Hwp".
+      iLeft.
+      iPureIntro.
+      apply not_Exists_Forall; auto.
+      (* Can we avoid this? *)
+      Unshelve.
+      all:intro; apply make_decision.
+Qed.
+
+
+
+
+Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  (ε1 * (length ns) <= ε0 * (N + 1))%R ->
+  € ε0 ∗
+    (∀ x : fin (S N),
+        (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨  € ε1 ) -∗ Φ #x)
+    ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros (HN HK) "[Herr Hwp]".
+  iApply ub_twp_ub_wp'.
+  wp_apply twp_rand_err_list_adv; eauto.
+  iFrame.
+Qed.
+
+Lemma twp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
+  € ε0 ∗
+  (∀ x : fin (S N), ((⌜ P x = false⌝) ∨ € ε1 ) -∗ Φ #x)
+    ⊢ WP rand #z @ E [{ Φ }].
+Proof.
+  iIntros (? HK) "[H1 Hwp]".
+  iApply (twp_rand_err_list_adv _ _ (List.filter P (seq 0 (S N))) ε0 ε1); auto.
+  iFrame.
+  iIntros (x) "[%Hfor|Herr]".
+  - iApply "Hwp".
+    iLeft.
+    iPureIntro.
+    edestruct (List.Forall_forall) as (H1 & H2).
+    specialize (H1 Hfor).
+    destruct (P x) eqn:HPx ; auto.
+    exfalso.
+    apply (H1 x); auto.
+    apply filter_In; split; auto.
+    apply in_seq.
+    simpl.
+    split; auto with arith.
+    apply fin_to_nat_lt.
+  - iApply "Hwp".
+    iRight. iFrame.
+Qed.
+
+
+Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
+  € ε0 ∗
+  (∀ x : fin (S N), (⌜ P x = false⌝ ∨ € ε1) -∗ Φ #x)
+    ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros (? HK) "[H1 Hwp]".
+  iApply ub_twp_ub_wp'.
+  wp_apply twp_rand_err_filter_adv; eauto.
+  iFrame.
 Qed.
 
 
