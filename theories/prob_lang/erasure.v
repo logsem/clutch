@@ -2,9 +2,9 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.common Require Import language ectx_language.
+From clutch.common Require Import language ectx_language erasable.
 From clutch.prob_lang Require Import locations notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app markov.
+From clutch.prob Require Import couplings couplings_app markov distribution_bar.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
@@ -519,3 +519,13 @@ Proof.
       eapply ARcoupl_dbind; [lra|lra| | apply HR].
       intros ? [] ?. by apply Hcont.
 Qed.
+
+
+Lemma refRcoupl_erasure_erasable (e1 e1' : expr) σ1 σ1' μ1 μ2 R Φ n :
+  Rcoupl (μ1 σ1) (μ2 σ1') R ->
+  erasable μ1 ->
+  erasable μ2 ->
+  (∀ σ2 σ2' : language.state prob_lang, R σ2 σ2' → refRcoupl (exec (S n) (e1, σ2)) (lim_exec (e1', σ2')) Φ) ->
+  refRcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) Φ.
+Proof.
+Admitted.

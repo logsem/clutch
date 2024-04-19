@@ -202,6 +202,15 @@ Section language.
   Lemma state_step_reducible e σ σ' α :
     state_step σ α σ' > 0 → reducible (e, σ) ↔ reducible (e, σ').
   Proof. apply state_step_not_stuck. Qed.
+  Lemma state_step_iterM_reducible e σ σ' α n:
+    iterM n (λ σ, state_step σ α) σ σ'> 0 → reducible (e, σ) ↔ reducible (e, σ').
+  Proof.
+    revert σ σ'.
+    induction n.
+    - intros σ σ'. rewrite iterM_O. by intros ->%dret_pos.
+    - intros σ σ'. rewrite iterM_Sn. rewrite dbind_pos. elim.
+      intros x [??]. pose proof state_step_reducible. naive_solver.
+  Qed.
 
   Lemma irreducible_fill `{!@LanguageCtx Λ K} e σ :
     to_val e = None → irreducible (e, σ) → irreducible (K e, σ).
