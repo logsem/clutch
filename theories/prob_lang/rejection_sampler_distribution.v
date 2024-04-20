@@ -26,8 +26,8 @@ Section rejection_sampler_distr.
      let: (N2; ns') := (σ'.(tapes)!!!α) in
      if (bool_decide (N=N1 /\ N1=N2 /\ prefix (fin_to_nat <$> ns) (fin_to_nat <$> ns')))
      then rej_samp_distr_f N s (fin_to_nat <$> (drop (length ns) ns'))
-     else 0
-    else 0.
+     else dret σ σ'
+    else dret σ σ'.
 
   Program Definition rej_samp_state_distr
     (N : nat) (s:gset nat) σ α
