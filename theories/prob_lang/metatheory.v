@@ -856,6 +856,20 @@ Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 �
 Proof.
 Admitted.
 
+Lemma Rcoupl_state_1_3 σ1 σ2 α1 α2 (xs:list(fin (2))) (ys:list(fin (4))):
+  σ1.(tapes) !! α1 = Some (1%nat; xs) ->
+  σ2.(tapes) !! α2 = Some (3%nat; ys) ->
+  Rcoupl
+      (state_step σ1 α1 ≫= (λ σ1', state_step σ1' α1))
+      (state_step σ2 α2)
+      (λ σ1' σ2', ∃ (x y:fin 2) (z:fin 4),
+          σ1' = state_upd_tapes <[α1 := (1%nat; xs ++ [x;y])]> σ1 ∧
+          σ2' = state_upd_tapes <[α2 := (3%nat; ys ++ [z])]> σ2 /\
+          (2*fin_to_nat x + fin_to_nat y = fin_to_nat z)%nat
+      ).
+Proof.
+Admitted.
+
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
 | RecDS f x e σ :

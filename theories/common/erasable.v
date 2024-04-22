@@ -7,6 +7,18 @@ Section erasable.
   Definition erasable {Λ: language} (μ: distr (state Λ)) σ:=
     (∀ e m, μ ≫= (λ σ', exec m (e, σ'))= exec m (e, σ)).
 
+  Definition erasable_dbind `(μ1:distr(state Λ)) (μ2: (state Λ) -> distr(state Λ)) σ:
+    (erasable μ1 σ) -> (∀ σ', μ1 σ' > 0 -> erasable (μ2 σ') σ') -> erasable (μ1 ≫= μ2) σ.
+  Proof.
+    intros H1 H2.
+    rewrite /erasable.
+    intros. rewrite -dbind_assoc'.
+    rewrite -H1. apply dbind_eq; last naive_solver.
+    intros. 
+    intros. apply H2.
+    done.
+  Qed.
+
   Lemma erasable_lim_exec {Λ: language} (μ: distr (state Λ)) σ :
     erasable μ σ->
     (∀ e, μ ≫= (λ σ', lim_exec (e, σ'))= lim_exec (e, σ)).
