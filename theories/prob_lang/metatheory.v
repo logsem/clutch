@@ -1,5 +1,5 @@
 From Coq Require Import Reals Psatz.
-From stdpp Require Import functions gmap stringmap.
+From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
@@ -830,14 +830,15 @@ Qed.
 Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys :
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
-  ∃ s Hsize Hsubset,
-  Rcoupl
-    (state_step σ1 α1)
-    (rej_samp_state_distr N s σ2 α2 Hsize Hsubset)
-    (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
-        Forall (λ y, forall x, f x ≠ y) junk /\
-        σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
-        σ2' = state_upd_tapes <[α2 := (M; ys ++ junk ++ [f n])]> σ2).
+  let f_img := (list_to_set (fin_to_nat∘f<$>fin_enum (S N))) in 
+  ∃ Hsize Hsubset,
+    Rcoupl
+      (state_step σ1 α1)
+      (rej_samp_state_distr N f_img σ2 α2 Hsize Hsubset)
+      (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
+          Forall (λ y, forall x, f x ≠ y) junk /\
+          σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
+          σ2' = state_upd_tapes <[α2 := (M; ys ++ junk ++ [f n])]> σ2).
 Proof.
 Admitted.
 
@@ -845,14 +846,15 @@ Admitted.
 Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys :
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
-  ∃ s Hsize Hsubset,
-  Rcoupl
-    (rej_samp_state_distr N s σ1 α1 Hsize Hsubset)
-    (state_step σ2 α2)
-    (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
-        Forall (λ y, forall x, f x ≠ y) junk  /\
-        σ1' = state_upd_tapes <[α1 := (N; xs ++ junk++ [f n])]> σ1 ∧
-        σ2' = state_upd_tapes <[α2 := (M; ys ++ [n])]> σ2).
+  let f_img := (list_to_set (fin_to_nat∘f<$>fin_enum (S M))) in 
+  ∃ Hsize Hsubset,
+    Rcoupl
+      (rej_samp_state_distr N f_img σ1 α1 Hsize Hsubset)
+      (state_step σ2 α2)
+      (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
+          Forall (λ y, forall x, f x ≠ y) junk  /\
+          σ1' = state_upd_tapes <[α1 := (N; xs ++ junk++ [f n])]> σ1 ∧
+          σ2' = state_upd_tapes <[α2 := (M; ys ++ [n])]> σ2).
 Proof.
 Admitted.
 
