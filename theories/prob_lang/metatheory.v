@@ -827,14 +827,13 @@ Qed.
 
 
 (** rej_samp_state_distr ~ state_step*)
-Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys :
-  σ1.(tapes) !! α1 = Some (N; xs) →
-  σ2.(tapes) !! α2 = Some (M; ys) →
-  let f_img := (list_to_set (fin_to_nat∘f<$>fin_enum (S N))) in 
-  ∃ Hsize Hsubset,
+Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys
+  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
+  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
+  let f_img := (list_to_set (f<$>fin_enum (S N))) in 
     Rcoupl
       (state_step σ1 α1)
-      (rej_samp_state_distr N f_img σ2 α2 Hsize Hsubset)
+      (rej_samp_state_distr M σ2 α2 f_img ys Hfound2)
       (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
           Forall (λ y, forall x, f x ≠ y) junk /\
           σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
@@ -843,13 +842,12 @@ Proof.
 Admitted.
 
 (** state_step ~ rej_samp *)
-Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys :
-  σ1.(tapes) !! α1 = Some (N; xs) →
-  σ2.(tapes) !! α2 = Some (M; ys) →
-  let f_img := (list_to_set (fin_to_nat∘f<$>fin_enum (S M))) in 
-  ∃ Hsize Hsubset,
+Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys 
+  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
+  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
+  let f_img := (list_to_set (f<$>fin_enum (S M))) in 
     Rcoupl
-      (rej_samp_state_distr N f_img σ1 α1 Hsize Hsubset)
+      (rej_samp_state_distr N σ1 α1 f_img xs Hfound1)
       (state_step σ2 α2)
       (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
           Forall (λ y, forall x, f x ≠ y) junk  /\

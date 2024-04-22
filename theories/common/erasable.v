@@ -61,10 +61,8 @@ Section erasable.
 End erasable.
 
 Section erasable_functions.
-  Lemma rej_samp_state_erasable α (N:nat) s σ 
-    (Hsize: size s < N)
-    (Hsubset: ∀ x : nat, x ∈ s → x < N): 
-    erasable (rej_samp_state_distr N s σ α Hsize Hsubset) σ.
+  Lemma rej_samp_state_erasable N σ α s (ns:list(fin(S N))) (Hfound: σ.(tapes)!!α = Some (N;ns)):
+    erasable (rej_samp_state_distr N σ α s ns Hfound) σ.
   Proof.
     rewrite /erasable.
     intros e m.

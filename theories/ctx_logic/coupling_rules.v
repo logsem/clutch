@@ -541,7 +541,7 @@ Section rules.
     iApply exec_coupl_det_r; [done|].
     (* Do a coupled [state_step] on both sides  *)
     iApply (exec_coupl_big_state_steps).
-    epose proof Rcoupl_rej_samp_state N M f σ1 σ0' α αₛ _ _ _ _ as (s&Hs1&Hs2&Hcoupl).
+    epose proof Rcoupl_rej_samp_state N M f σ1 σ0' α αₛ _ _ _ _ as Hcoupl.
     iExists _, _, _.
     iSplit.
     { iPureIntro.
