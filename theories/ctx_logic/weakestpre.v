@@ -56,8 +56,9 @@ Section exec_coupl.
       ([∨ list] αs ∈ list_prod (get_active σ1) (get_active σ1'),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
               (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ ((e1, σ2), (e1', σ2'))))) ∨
-    (* erasurble *)
-        (∃ R μ1 μ2, ⌜Rcoupl (μ1) (μ2) R⌝ ∗
+    (* erasable *)
+        (∃ R μ1 μ2, ⌜reducible (e1, σ1)⌝ ∗
+                    ⌜Rcoupl (μ1) (μ2) R⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
               (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ ((e1, σ2), (e1', σ2')))) 
@@ -108,7 +109,7 @@ Section exec_coupl.
         iIntros. iApply "Hwand". by iApply "HZ".
       + iRight. by iApply "IH".
     - do 6 iRight.
-      iDestruct "Hl" as "(%&%&%&%&%&%&H)".
+      iDestruct "Hl" as "(%&%&%&%&%&%&%&H)".
       iExists _, _, _. repeat (iSplit; [done|]).
       iIntros. iMod ("H" with "[//]").
       iModIntro. iApply "Hwand". done.
@@ -137,7 +138,8 @@ Section exec_coupl.
       ([∨ list] αs ∈ list_prod (get_active σ1) (get_active σ1'),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
               (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))) ∨
-         (∃ R μ1 μ2, ⌜Rcoupl (μ1) (μ2) R⌝ ∗
+         (∃ R μ1 μ2, ⌜reducible (e1, σ1)⌝ ∗
+                     ⌜Rcoupl (μ1) (μ2) R⌝ ∗
                      ⌜erasable μ1 σ1⌝ ∗
                      ⌜erasable μ2 σ1'⌝ ∗
                      (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))
@@ -211,8 +213,9 @@ Section exec_coupl.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
       do 6 iRight. 
-      iDestruct "H" as "(%&%&%&%&%&%&H)".
+      iDestruct "H" as "(%&%&%&%&%&%&%&H)".
       iExists _, _, _.
+      iSplit; first done.
       iSplit.
       { iPureIntro. by apply Rcoupl_pos_R. }
       repeat (iSplit; [done|]).
@@ -327,8 +330,11 @@ Section exec_coupl.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold /=.
       do 6 iRight.
-      iDestruct "H" as "(%&%&%&%&%&%&H)".
-      iExists _, _, _. repeat (iSplit; [done|]).
+      iDestruct "H" as "(%&%&%&%&%&%&%&H)".
+      iExists _, _, _.
+      iSplit.
+      { iPureIntro. by apply reducible_fill. }
+      repeat (iSplit; [done|]).
       iIntros. iMod ("H" with "[//]") as "H". iModIntro.
       by iApply "H".
   Qed.
@@ -405,8 +411,8 @@ Section exec_coupl.
   Qed.
 
   Lemma exec_coupl_big_state_steps e1 σ1 e1' σ1' Z :
-    (∃ R μ1 μ2, ⌜Rcoupl (μ1) (μ2) R⌝ ∗
-                (* for exec_coupl_reducible *)
+    (∃ R μ1 μ2, ⌜reducible (e1, σ1)⌝ ∗
+                ⌜Rcoupl (μ1) (μ2) R⌝ ∗
                 ⌜erasable μ1 σ1⌝ ∗
                 ⌜erasable μ2 σ1'⌝ ∗
           (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))
@@ -465,12 +471,9 @@ Section exec_coupl.
       rewrite big_orL_cons.
       iDestruct "H" as "[? | H]"; [done|].
       by iApply "IH".
-    - iDestruct "H" as "(%&%&%&%&%&%&H)".
-      (** Add extra constraint? state_steppable? To discuss*)
-      admit.
-  Admitted.
+    - by iDestruct "H" as "(%&%&%&%&%&%&%&H)".
+  Qed.
   
-
   Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z :
     pexec n (e1', σ1') (e2', σ2') = 1 →
     exec_coupl e1 σ1 e2' σ2' Z -∗

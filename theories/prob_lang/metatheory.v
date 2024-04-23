@@ -856,18 +856,88 @@ Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 �
 Proof.
 Admitted.
 
-Lemma Rcoupl_state_1_3 σ1 σ2 α1 α2 (xs:list(fin (2))) (ys:list(fin (4))):
-  σ1.(tapes) !! α1 = Some (1%nat; xs) ->
-  σ2.(tapes) !! α2 = Some (3%nat; ys) ->
+Lemma Rcoupl_state_1_3 σ σₛ α1 α2 αₛ (xs ys:list(fin (2))) (zs:list(fin (4))):
+  α1 ≠ α2 -> 
+  σ.(tapes) !! α1 = Some (1%nat; xs) ->
+  σ.(tapes) !! α2 = Some (1%nat; ys) ->
+  σₛ.(tapes) !! αₛ = Some (3%nat; zs) ->
   Rcoupl
-      (state_step σ1 α1 ≫= (λ σ1', state_step σ1' α1))
-      (state_step σ2 α2)
+      (state_step σ α1 ≫= (λ σ1', state_step σ1' α2))
+      (state_step σₛ αₛ)
       (λ σ1' σ2', ∃ (x y:fin 2) (z:fin 4),
-          σ1' = state_upd_tapes <[α1 := (1%nat; xs ++ [x;y])]> σ1 ∧
-          σ2' = state_upd_tapes <[α2 := (3%nat; ys ++ [z])]> σ2 /\
+          σ1' = state_upd_tapes <[α2 := (1%nat; ys ++ [y])]> (state_upd_tapes <[α1 := (1%nat; xs ++ [x])]> σ) ∧
+          σ2' = state_upd_tapes <[αₛ := (3%nat; zs ++ [z])]> σₛ /\
           (2*fin_to_nat x + fin_to_nat y = fin_to_nat z)%nat
       ).
 Proof.
+  intros Hneq H1 H2 H3.
+  rewrite /state_step.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ H1).
+  rewrite (lookup_total_correct _ _ _ H3).
+  erewrite (dbind_eq _ (λ σ, dmap
+    (λ n : fin 2,
+       state_upd_tapes <[α2:=(1%nat; ys ++ [n])]> σ)
+    (dunifP 1))); last first.
+  - done.
+  - intros [??] H.
+    rewrite dmap_pos in H. destruct H as (?&->&H).
+    rewrite bool_decide_eq_true_2; last first.
+    { eapply elem_of_dom_2. by rewrite /state_upd_tapes/=lookup_insert_ne. }
+    rewrite lookup_total_insert_ne; last done.
+    rewrite (lookup_total_correct _ _ _ H2).
+    done.
+  - pose (witness:=dmap (λ n: fin 4, ( match fin_to_nat n with
+                           | 0%nat =>state_upd_tapes <[α2:=(1%nat; ys ++ [0%fin])]>
+                                      (state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ)
+                           | 1%nat =>state_upd_tapes <[α2:=(1%nat; ys ++ [1%fin])]>
+                                      (state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ)
+                           | 2%nat =>state_upd_tapes <[α2:=(1%nat; ys ++ [0%fin])]>
+                                      (state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ)
+                           | 3%nat => state_upd_tapes <[α2:=(1%nat; ys ++ [1%fin])]>
+                                   (state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ)
+                           | _ => σ
+                           end 
+                           ,state_upd_tapes <[αₛ:=(3%nat; zs ++ [n])]> σₛ)
+                      )(dunifP 3)).
+    exists witness.
+    split; last first.
+    + intros [??].
+      rewrite /witness dmap_pos.
+      intros [?[??]].
+      repeat (inv_fin x => x); simpl in *; simplify_eq => _; naive_solver.
+    + rewrite /witness. split.
+      -- rewrite /lmarg dmap_comp.
+         erewrite dmap_eq; last first.
+         ** done.
+         ** intros ??. simpl. done.
+         ** apply distr_ext. intros s.
+            rewrite {1}/dmap{1}/dbind/dbind_pmf{1}/pmf.
+            admit.
+            (* destruct (decide (∃ x y, s = state_upd_tapes <[α2:=(1%nat; ys ++ [y])]> (state_upd_tapes <[α1:=(1%nat; xs ++ [x])]> σ))) as [K|?]. *)
+            (* --- (** pos*) destruct K as (?&?&->). *)
+            (*     trans (/ 4). *)
+            (*     +++ rewrite SeriesC_finite_foldr. simpl. *)
+            (*         inv_fin x; inv_fin x0. *)
+            (*         all: repeat (intros x; inv_fin x). *)
+            (*         all: try inv_fin x. *)
+            (*         all: try inv_fin x0. *)
+            (*         all: admit. *)
+            (*     +++ repeat (inv_fin x; last intros x); try inv_fin x. *)
+            (*         all: repeat (inv_fin x0; last intros x0); try inv_fin x0. *)
+            (*         all: admit. *)
+            (* --- (** zero *) trans 0. *)
+            (*     +++ rewrite SeriesC_finite_foldr. simpl. *)
+            (*         repeat rewrite dret_0; try lra. *)
+            (*         all: try naive_solver. *)
+            (*     +++ symmetry. rewrite /dbind/dbind_pmf/pmf. apply SeriesC_0. *)
+            (*         intros [??]. simpl. rewrite /dbind_pmf !SeriesC_finite_foldr. *)
+            (*         simpl. *)
+            (*         rewrite /dret/dret_pmf/pmf/=. repeat case_bool_decide; simpl; try lra. *)
+            (*         all: exfalso; simplify_eq. *)
+            (*         all: admit. *)
+      -- rewrite /rmarg dmap_comp.
+         f_equal.
 Admitted.
 
 (** Some useful lemmas to reason about language properties  *)
