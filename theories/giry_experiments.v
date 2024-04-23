@@ -133,7 +133,7 @@ Section giry.
   (* I'm not sure if this actually contains -∞? The flag in BInfty determines
      +∞ vs -∞, unlike for BSide which determines [ or ]. So I assume it's excluded? *)
 
-  (* There _is_ a topology on ereal *)
+  (* A third option, it turns out there _is_ a topology on ereal! *)
   Check ereal_nbhs.
   Print ereal_nbhs.
   (* This set system corresponds to the family (x-𝛿, x+𝛿), or (𝛿, ∞), or (-∞, 𝛿)
@@ -141,31 +141,68 @@ Section giry.
 
   Definition ereal_borel_subbase : set (set \bar R) := [set N | exists x, ereal_nbhs x N].
 
+  Definition ereal_borel_sets := (smallest (sigma_algebra [set: \bar R]) ereal_borel_subbase).
+
+  Definition borel_sigma_algebra : sigma_algebra [set: \bar R] ereal_borel_sets
+    := smallest_sigma_algebra [set: \bar R] ereal_borel_subbase.
 
 
-  HB.about salgebraType.
 
 
-  HB.about salgebraType.
+  (** 2. Define the type (actually, the _set_) of measures on T? *)
+
+  Definition measure_T_type : Type := @measure d T R.
+
+  Definition measures_on_T : set (measure T R) := [set: measure_T_type].
 
 
-  HB.about measurableType.
-  (* bigcupT_measurable, and *)
-  (* Measurable inherits from: *)
-  HB.about SemiRingOfSets.
-  (* measurable                     :  set (set T)*)
-  (* semi_measurableD               := ??? *)
-  (* measurableI                    := measurable is closed under setI (binary intersection) *)
-  (* measurable0                    := set0 is measurable *)
+  (** 3. Define the preimage (pullback? coindiced?) sigma algebra from "evaluation functions" *)
 
-  HB.about RingOfSets.
-  (* measruableU                    := measurable is clsoed under setU (binary union) *)
+  Definition preimage_class_of_measures (S : set T) : set (set (measure_T_type)) :=
+          @preimage_class
+            measure_T_type            (* Domain type *)
+            (\bar R)                  (* Range type *)
+            measures_on_T             (* Domain set *)
+            (fun 𝜇 => 𝜇 S)              (* Evaluation function *)      (* ????????? !!!!!!!!! *)
+            ereal_borel_sets          (* Range sets*).
 
-  HB.about AlgebraOfSets.
-  (* measruableT                    := ???*)
+
+    (* This is highly confusing. Why am I allowed to give the measure an arbitrary set? *)
+    (* What does this application actually do???? *)
+    Check fun u : measure_T_type => fun S : set T => u _.
+
+    (* OK... looks like they make you define a "measure" on every subset, but only prove
+       the measure axioms for measurable sets. Fine. *)
+
+  (* Define the infinite union of these classes across all measurable sets in T *)
+    Definition giry_subbase : set (set (measure_T_type))
+      := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
+
+
+
+  (* Giry sigma algebra: Genreated by all preimage classes: *)
+
+  Definition giry_measurable_sets := (smallest (sigma_algebra measures_on_T) giry_subbase).
+
+  Definition giry_sigma_algebra : sigma_algebra measures_on_T giry_measurable_sets
+    := smallest_sigma_algebra measures_on_T giry_subbase.
+
+
 
 
 End giry.
+
+
+
+
+
+
+
+
+
+
+
+
 (* Things we probably care about:
 
 
