@@ -912,6 +912,7 @@ Proof.
          ** done.
          ** intros ??. simpl. done.
          ** apply distr_ext. intros s.
+            (** prove left marginal of witness is correct *)
             rewrite {1}/dmap{1}/dbind/dbind_pmf{1}/pmf.
             admit.
             (* destruct (decide (∃ x y, s = state_upd_tapes <[α2:=(1%nat; ys ++ [y])]> (state_upd_tapes <[α1:=(1%nat; xs ++ [x])]> σ))) as [K|?]. *)
