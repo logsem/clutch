@@ -1,15 +1,21 @@
 # Clutch
 
-A higher-order probabilistic relational separation logic with support for asynchronous probabilistic couplings. 
-The logic is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
+This repository contains the formal development of multiple higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
+All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
 
-## Preprint
+## Publications
 
-A paper describing the development was published at POPL 24 and available under open access policy.
+[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2404.14223)<br>
+*Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
+arXiv:2404.14223
 
-> Gregersen, S. O., Aguirre, A., Haselwarter, P. G., Tassarotti, J. and Birkedal, L. 2024. Asynchronous Probabilistic Couplings in Higher-Order Separation Logic. Proc. ACM Program. Lang. 8, POPL, Article 26 (January 2024), 32 pages. [https://doi.org/10.1145/3632868](https://dl.acm.org/doi/10.1145/3632868)
+[**Almost-Sure Termination by Guarded Refinement**](https://arxiv.org/abs/2404.08494) <br>
+*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Jospeh Tassarotti, Lars Birkedal*<br>
+arXiv:2404.08494
 
-[This table](paper_mapping.md) maps definitions, concepts, and results found in the paper to the Coq formalization. The commit tag `popl24` contains a snapshot of the development that is consistent with the paper.
+[**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
+*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Jospeh Tassarotti, Lars Birkedal*<br>
+In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 ## Building the development
 
@@ -45,7 +51,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. The following list is produced when executing the command `Print Assumptions eager_lazy_equiv.` in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions eager_lazy_equiv.` in [`theories/examples/lazy_eager_coin.v`](theories/examples/lazy_eager_coin.v):
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
