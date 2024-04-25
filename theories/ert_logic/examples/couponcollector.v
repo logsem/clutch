@@ -111,7 +111,7 @@ Proof.
   { intros n'. case_bool_decide as H3; case_bool_decide as H4; try lra; exfalso.
     - rewrite elem_of_elements in H4. naive_solver.
     - rewrite elem_of_elements in H4. naive_solver. }
-  rewrite SeriesC_list; first done.
+  rewrite SeriesC_list_1; first done.
   apply NoDup_elements.
 Qed.
 

@@ -51,7 +51,7 @@ Section adequacy.
     { iIntros "Hfix %". by iMod ("H" $! ((_, _), (_, _)) with "Hfix [//]"). }
     clear.
     iIntros "!#" ([[e1 σ1] [e1' σ1']]). rewrite /exec_coupl_pre.
-    iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | [H | [H | H]]]]] %Hv".
+    iIntros "[(%R & % & %Hcpl & H) | [(%R & % & %Hcpl & H) | [(%R & %m & %Hcpl & H) | [H | [H | [H | H]]]]]] %Hv".
     - rewrite exec_Sn_not_final; [|eauto].
       rewrite lim_exec_step.
       destruct (to_val e1') eqn:Hv'.
@@ -137,6 +137,14 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&H)".
+      iApply (step_fupdN_mono _ _ _
+                (⌜∀ σ2 σ2', R2 σ2 σ2' → refRcoupl (exec (S n) (e1, σ2))
+                                          (lim_exec (e1', σ2')) φ⌝)%I).
+      + iPureIntro.
+        intros ?.
+        by eapply refRcoupl_erasure_erasable.
+      + iIntros (???). by iMod ("H" with "[//] [//]").
   Qed.
 
   Theorem wp_refRcoupl_step_fupdN (e e' : expr) (σ σ' : state) n φ :

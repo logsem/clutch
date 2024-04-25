@@ -68,5 +68,17 @@ Section fin.
   Qed.
 
   Ltac fin_solver := 
-     by repeat first [apply fin_to_nat_inj|simpl|lia].
+    by repeat first [apply fin_to_nat_inj|simpl|lia].
+
+  Program Definition fin_cast {N:nat} (M:nat) {_:0<M} (x:fin N): (fin M).
+  Proof.
+    destruct (decide (N<=M)%nat) as [K|K].
+    - replace (M) with (N+ (M-N)) by lia.
+      exact (Fin.L _ x).
+    - destruct (decide (fin_to_nat x < M)) as [G|G].
+      + exact (nat_to_fin G).
+      + assert (M-1<M) as Hineq by lia.
+        exact (nat_to_fin Hineq).
+  Qed.
+
 End fin.

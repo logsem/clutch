@@ -533,6 +533,27 @@ Lemma state_upd_tapes_twice σ l n xs ys :
   state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
 Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
 
+Lemma state_upd_tapes_same σ σ' l n xs ys :
+  state_upd_tapes <[l:=(n; ys)]> σ = state_upd_tapes <[l:=(n; xs)]> σ' -> xs = ys.
+Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
+       rewrite map_eq_iff in H.
+       specialize (H l).
+       rewrite !lookup_insert in H.
+       by simplify_eq.
+Qed.
+
+
+Lemma state_upd_tapes_same' σ σ' l n xs (x y : fin (S n)) :
+  state_upd_tapes <[l:=(n; xs++[x])]> σ = state_upd_tapes <[l:=(n; xs++[y])]> σ' -> x = y.
+Proof. intros H. apply state_upd_tapes_same in H.
+       by simplify_eq.
+Qed.
+
+Lemma state_upd_tapes_neq' σ σ' l n xs (x y : fin (S n)) :
+  x≠y -> state_upd_tapes <[l:=(n; xs++[x])]> σ ≠ state_upd_tapes <[l:=(n; xs++[y])]> σ'.
+Proof. move => H /state_upd_tapes_same ?. simplify_eq.
+Qed.
+
 Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
   match vs with
   | [] => ∅

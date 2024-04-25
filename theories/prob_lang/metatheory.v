@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
-From stdpp Require Import functions gmap stringmap.
+From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
-From clutch.prob_lang Require Import locations tactics notation.
+From clutch.prob_lang Require Import locations tactics notation rejection_sampler_distribution.
 From clutch.prob_lang Require Export lang.
 From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
@@ -825,6 +825,159 @@ Proof.
   rewrite /state_upd_tapes insert_commute //.
 Qed.
 
+
+(** rej_samp_state_distr ~ state_step*)
+Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys
+  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
+  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
+  let f_img := (list_to_set (f<$>fin_enum (S N))) in 
+    Rcoupl
+      (state_step σ1 α1)
+      (rej_samp_state_distr M σ2 α2 f_img ys Hfound2)
+      (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
+          Forall (λ y, forall x, f x ≠ y) junk /\
+          σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
+          σ2' = state_upd_tapes <[α2 := (M; ys ++ junk ++ [f n])]> σ2).
+Proof.
+Admitted.
+
+(** state_step ~ rej_samp *)
+Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys 
+  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
+  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
+  let f_img := (list_to_set (f<$>fin_enum (S M))) in 
+    Rcoupl
+      (rej_samp_state_distr N σ1 α1 f_img xs Hfound1)
+      (state_step σ2 α2)
+      (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
+          Forall (λ y, forall x, f x ≠ y) junk  /\
+          σ1' = state_upd_tapes <[α1 := (N; xs ++ junk++ [f n])]> σ1 ∧
+          σ2' = state_upd_tapes <[α2 := (M; ys ++ [n])]> σ2).
+Proof.
+Admitted.
+
+Lemma Rcoupl_state_1_3 σ σₛ α1 α2 αₛ (xs ys:list(fin (2))) (zs:list(fin (4))):
+  α1 ≠ α2 -> 
+  σ.(tapes) !! α1 = Some (1%nat; xs) ->
+  σ.(tapes) !! α2 = Some (1%nat; ys) ->
+  σₛ.(tapes) !! αₛ = Some (3%nat; zs) ->
+  Rcoupl
+      (state_step σ α1 ≫= (λ σ1', state_step σ1' α2))
+      (state_step σₛ αₛ)
+      (λ σ1' σ2', ∃ (x y:fin 2) (z:fin 4),
+          σ1' = state_upd_tapes <[α2 := (1%nat; ys ++ [y])]> (state_upd_tapes <[α1 := (1%nat; xs ++ [x])]> σ) ∧
+          σ2' = state_upd_tapes <[αₛ := (3%nat; zs ++ [z])]> σₛ /\
+          (2*fin_to_nat x + fin_to_nat y = fin_to_nat z)%nat
+      ).
+Proof.
+  intros Hneq H1 H2 H3.
+  rewrite /state_step.
+  do 2 (rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2]).
+  rewrite (lookup_total_correct _ _ _ H1).
+  rewrite (lookup_total_correct _ _ _ H3).
+  erewrite (dbind_eq _ (λ σ, dmap
+    (λ n : fin 2,
+       state_upd_tapes <[α2:=(1%nat; ys ++ [n])]> σ)
+    (dunifP 1))); last first.
+  - done.
+  - intros [??] H.
+    rewrite dmap_pos in H. destruct H as (?&->&H).
+    rewrite bool_decide_eq_true_2; last first.
+    { eapply elem_of_dom_2. by rewrite /state_upd_tapes/=lookup_insert_ne. }
+    rewrite lookup_total_insert_ne; last done.
+    rewrite (lookup_total_correct _ _ _ H2).
+    done.
+  - pose (witness:=dmap (λ n: fin 4, ( match fin_to_nat n with
+                           | 0%nat =>state_upd_tapes <[α2:=(1%nat; ys ++ [0%fin])]>
+                                      (state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ)
+                           | 1%nat =>state_upd_tapes <[α2:=(1%nat; ys ++ [1%fin])]>
+                                      (state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ)
+                           | 2%nat =>state_upd_tapes <[α2:=(1%nat; ys ++ [0%fin])]>
+                                      (state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ)
+                           | 3%nat => state_upd_tapes <[α2:=(1%nat; ys ++ [1%fin])]>
+                                   (state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ)
+                           | _ => σ
+                           end 
+                           ,state_upd_tapes <[αₛ:=(3%nat; zs ++ [n])]> σₛ)
+                      )(dunifP 3)).
+    exists witness.
+    split; last first.
+    + intros [??].
+      rewrite /witness dmap_pos.
+      intros [?[??]].
+      repeat (inv_fin x => x); simpl in *; simplify_eq => _; naive_solver.
+    + rewrite /witness. split.
+      -- rewrite /lmarg dmap_comp.
+         erewrite dmap_eq; last first.
+         ** done.
+         ** intros ??. simpl. done.
+         ** apply distr_ext. intros s.
+            (** prove left marginal of witness is correct *)
+            rewrite {1}/dmap{1}/dbind/dbind_pmf{1}/pmf.
+            etrans; last first.
+            { (** simplify the RHS *)
+              rewrite /dmap/dbind/dbind_pmf/pmf/=.
+              erewrite (SeriesC_ext _ (λ a,
+                                         if (bool_decide (a ∈ [state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ; state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ]))
+                                              then 
+                                         SeriesC (λ a0 : fin 2, / (1 + 1) * dret_pmf (state_upd_tapes <[α1:=(1%nat; xs ++ [a0])]> σ) a) *
+                                           SeriesC (λ a0 : fin 2, / (1 + 1) * dret_pmf (state_upd_tapes <[α2:=(1%nat; ys ++ [a0])]> a) s)
+                                         else 0)); first rewrite SeriesC_list/=.
+              - by rewrite !SeriesC_finite_foldr/dret_pmf/=. 
+              - repeat constructor; last (set_unfold; naive_solver).
+                rewrite elem_of_list_singleton. move /state_upd_tapes_same'. done.
+              - intros [??].
+                case_bool_decide; first done.
+                apply Rmult_eq_0_compat_r.
+                set_unfold.
+                rewrite SeriesC_finite_foldr/dret_pmf/=.
+                repeat case_bool_decide; try lra; naive_solver. 
+            }
+            pose proof state_upd_tapes_same' as K1.
+            pose proof state_upd_tapes_neq' as K2.
+            case_bool_decide; last done.
+            rewrite (bool_decide_eq_false_2 (state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ =
+                                             state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ)); last first.
+            { apply K2. done. }
+            rewrite (bool_decide_eq_false_2 (state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ =
+                                             state_upd_tapes <[α1:=(1%nat; xs ++ [0%fin])]> σ)); last first.
+            { apply K2. done. }
+            rewrite (bool_decide_eq_true_2 (state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ =
+                                            state_upd_tapes <[α1:=(1%nat; xs ++ [1%fin])]> σ)); last done.
+            rewrite !Rmult_0_r.
+            rewrite SeriesC_finite_foldr/dunifP /dunif/pmf /=/dret_pmf.
+            case_bool_decide.
+            { repeat rewrite bool_decide_eq_false_2.
+              - lra.
+              - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
+                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+              - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
+                specialize (K α1). rewrite lookup_insert_ne in K; last done.
+                rewrite (lookup_insert_ne (<[_:=_]> _ )) in K; last done.
+                rewrite !lookup_insert in K. simplify_eq.
+              - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
+                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+            }
+            case_bool_decide.
+            { repeat rewrite bool_decide_eq_false_2.
+              - lra.
+              - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
+                specialize (K α1). rewrite lookup_insert_ne in K; last done.
+                rewrite (lookup_insert_ne (<[_:=_]> _ )) in K; last done.
+                rewrite !lookup_insert in K. simplify_eq.
+              - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
+                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+            }
+            case_bool_decide.
+            { repeat rewrite bool_decide_eq_false_2.
+              - lra.
+              - subst. intro K. simplify_eq. rewrite map_eq_iff in K.
+                specialize (K α2). rewrite !lookup_insert in K. simplify_eq.
+            }
+            lra.
+      -- rewrite /rmarg dmap_comp.
+         f_equal.
+Qed.
 
 (** Some useful lemmas to reason about language properties  *)
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=

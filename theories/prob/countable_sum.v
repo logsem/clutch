@@ -499,24 +499,36 @@ Section filter.
     - subst. set_solver.
   Qed.
 
-  Lemma SeriesC_list (l:list A):
-    NoDup l -> SeriesC (λ (a : A), if bool_decide(a ∈ l) then 1 else 0) = length l.
+  Lemma SeriesC_list (l:list A) f:
+    NoDup l -> SeriesC (λ (a : A), if bool_decide(a ∈ l) then f a else 0) =
+    foldr (Rplus ∘ f) 0%R l.
   Proof.
     induction l as [|a l IHl].
     - intros. simpl. apply SeriesC_0; naive_solver.
-    - intro Hnd. replace (INR $ length _) with (length l+1); last by rewrite S_INR.
-      rewrite <-IHl; last by inversion Hnd.
-      erewrite <-(SeriesC_singleton _ 1) at 1.
+    - intro Hnd. simpl. rewrite -IHl; last first.
+      { inversion Hnd. done. }
+      erewrite <-(SeriesC_singleton_dependent _ ) at 1.
       erewrite <-SeriesC_plus; last first.
-      { apply ex_seriesC_singleton. }
-      { apply ex_seriesC_list. }
+      { apply ex_seriesC_list. } 
+      { apply ex_seriesC_singleton_dependent. }
       apply SeriesC_ext.
-      intros. instantiate (1 := a).
+      intros.
       rewrite NoDup_cons in Hnd.
       destruct Hnd as [H1 H2].
       repeat case_bool_decide; try lra; set_solver.
-  Qed.
-    
+    Qed.
+  
+  
+  Lemma SeriesC_list_1 (l:list A):
+    NoDup l -> SeriesC (λ (a : A), if bool_decide(a ∈ l) then 1 else 0) = length l.
+  Proof.
+    intros.
+    rewrite SeriesC_list; last done.
+    clear.
+    induction l; first (simpl;lra).
+    simpl. rewrite -/(INR (S _)). rewrite S_INR.
+    rewrite IHl. lra.
+  Qed. 
     
 
   Lemma ex_seriesC_finite_from_option (l : list A) (f : B -> R) (g : A -> option B):

@@ -3,11 +3,10 @@ From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates.
 From iris.bi Require Export fixpoint big_op.
 From iris.prelude Require Import options.
-
+From clutch.prob Require Export couplings distribution markov.
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.bi Require Import weakestpre.
-From clutch.prob Require Export couplings distribution markov.
-From clutch.common Require Export language.
+From clutch.common Require Export language erasable.
 
 Import uPred.
 
@@ -56,7 +55,13 @@ Section exec_coupl.
       (* [state_step] on both sides - a case for all combinations of 'active' indicies on both sides *)
       ([∨ list] αs ∈ list_prod (get_active σ1) (get_active σ1'),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
-              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ ((e1, σ2), (e1', σ2')))))
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ ((e1, σ2), (e1', σ2'))))) ∨
+    (* erasable *)
+        (∃ R μ1 μ2, ⌜reducible (e1, σ1)⌝ ∗
+                    ⌜Rcoupl (μ1) (μ2) R⌝ ∗
+                    ⌜erasable μ1 σ1⌝ ∗
+                    ⌜erasable μ2 σ1'⌝ ∗
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ ((e1, σ2), (e1', σ2')))) 
     )%I.
 
   Local Instance exec_state_coupl_pre_NonExpansive Z Φ :
@@ -73,7 +78,7 @@ Section exec_coupl.
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
     rewrite /exec_coupl_pre.
     iIntros (((e1 & σ1) & (e1' & σ1'))) "Hexec".
-    iDestruct "Hexec" as "[H | [H | [(% & % & % & HZ) | [Hl | [Hl | Hl]]]]]".
+    iDestruct "Hexec" as "[H | [H | [(% & % & % & HZ) | [Hl | [Hl | [Hl | Hl]]]]]]".
     - by iLeft.
     - by iRight; iLeft.
     - iRight; iRight; iLeft.
@@ -95,7 +100,7 @@ Section exec_coupl.
       + iLeft. iExists _. iSplit; [done|].
         iIntros. iApply "Hwand". by iApply "HZ".
       + iRight. by iApply "IH".
-    - iRight; iRight; iRight; iRight; iRight.
+    - iRight; iRight; iRight; iRight; iRight; iLeft.
       iInduction (list_prod (get_active σ1) (get_active σ1')) as [| l] "IH" forall "Hl".
       { rewrite big_orL_nil //. }
       rewrite !big_orL_cons.
@@ -103,6 +108,11 @@ Section exec_coupl.
       + iLeft. iExists _. iSplit; [done|].
         iIntros. iApply "Hwand". by iApply "HZ".
       + iRight. by iApply "IH".
+    - do 6 iRight.
+      iDestruct "Hl" as "(%&%&%&%&%&%&%&H)".
+      iExists _, _, _. repeat (iSplit; [done|]).
+      iIntros. iMod ("H" with "[//]").
+      iModIntro. iApply "Hwand". done.
   Qed.
 
   Definition exec_coupl' Z := bi_least_fixpoint (exec_coupl_pre Z).
@@ -127,8 +137,14 @@ Section exec_coupl.
               ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ2 e2' σ2' Z)) ∨
       ([∨ list] αs ∈ list_prod (get_active σ1) (get_active σ1'),
         (∃ R, ⌜Rcoupl (state_step σ1 αs.1) (state_step σ1' αs.2) R⌝ ∗
-              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))))%I.
-  Proof. rewrite /exec_coupl/exec_coupl' least_fixpoint_unfold //. Qed.
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))) ∨
+         (∃ R μ1 μ2, ⌜reducible (e1, σ1)⌝ ∗
+                     ⌜Rcoupl (μ1) (μ2) R⌝ ∗
+                     ⌜erasable μ1 σ1⌝ ∗
+                     ⌜erasable μ2 σ1'⌝ ∗
+                     (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))
+      )%I.
+  Proof. rewrite /exec_coupl/exec_coupl' least_fixpoint_unfold//. Qed.
   
   #[local] Definition cfgO := (prodO (exprO Λ) (stateO Λ)).
 
@@ -146,7 +162,7 @@ Section exec_coupl.
     iPoseProof (least_fixpoint_iter (exec_coupl_pre Z1) Φ with "[]") as "H"; last first.
     { iIntros "HZ". by iApply ("H" with "Hcpl"). }
     iIntros "!#" ([[? σ] [? σ']]). rewrite /exec_coupl_pre.
-    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & % & H) | [H | [H | H]]]]] HZ".
+    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & % & H) | [H | [H | [H | H]]]]]] HZ".
     - rewrite least_fixpoint_unfold.
       iLeft. iExists _.
       iSplit; [done|].
@@ -187,7 +203,7 @@ Section exec_coupl.
         iIntros. by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold.
-      do 5 iRight.
+      do 5 iRight; iLeft.
       iInduction (list_prod (get_active σ) (get_active σ')) as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
@@ -195,6 +211,17 @@ Section exec_coupl.
       + iLeft. iExists _. iSplit; [done|].
         iIntros. by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
+    - rewrite least_fixpoint_unfold.
+      do 6 iRight. 
+      iDestruct "H" as "(%&%&%&%&%&%&%&H)".
+      iExists _, _, _.
+      iSplit; first done.
+      iSplit.
+      { iPureIntro. by apply Rcoupl_pos_R. }
+      repeat (iSplit; [done|]).
+      iIntros (??(?&?&?)).
+      iApply ("H" with "[//]"). simpl.
+      iFrame. 
   Qed.
 
   Lemma exec_coupl_mono (Z1 Z2 : cfg Λ → cfg Λ → iProp Σ) e1 σ1 e1' σ1' :
@@ -230,7 +257,7 @@ Section exec_coupl.
                  with "[]") as "H"; last first.
     { iIntros (?). iApply ("H" $! ((_, _), (_, _)) with "Hcpl [//]"). }
     iIntros "!#" ([[? σ] [? σ']]). rewrite {1}/exec_coupl_pre.
-    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & %n & % & H) | [H | [H | H]]]]] %Hv'".
+    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & %n & % & H) | [H | [H | [H | H]]]]]] %Hv'".
     - rewrite least_fixpoint_unfold.
       iLeft. iExists (λ '(e2, σ2) ρ', ∃ e2', e2 = K e2' ∧ R2 (e2', σ2) ρ').
       rewrite fill_dmap //=.
@@ -292,7 +319,7 @@ Section exec_coupl.
         iIntros. by iApply ("H" with "[//]").
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold /=.
-      do 5 iRight.
+      do 5 iRight; iLeft.
       iInduction (list_prod (get_active σ) (get_active σ')) as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
@@ -301,6 +328,15 @@ Section exec_coupl.
         iIntros. iMod ("H" with "[//]") as "H".
         iModIntro. by iApply "H".
       + iRight. by iApply ("IH" with "Ht").
+    - rewrite least_fixpoint_unfold /=.
+      do 6 iRight.
+      iDestruct "H" as "(%&%&%&%&%&%&%&H)".
+      iExists _, _, _.
+      iSplit.
+      { iPureIntro. by apply reducible_fill. }
+      repeat (iSplit; [done|]).
+      iIntros. iMod ("H" with "[//]") as "H". iModIntro.
+      by iApply "H".
   Qed.
 
   Lemma exec_coupl_prim_steps e1 σ1 e1' σ1' Z :
@@ -370,8 +406,22 @@ Section exec_coupl.
   Proof.
     iIntros (?) "H".
     rewrite {1}exec_coupl_unfold.
-    do 5 iRight.
+    do 5 iRight; iLeft.
     by iApply big_orL_elem_of.
+  Qed.
+
+  Lemma exec_coupl_big_state_steps e1 σ1 e1' σ1' Z :
+    (∃ R μ1 μ2, ⌜reducible (e1, σ1)⌝ ∗
+                ⌜Rcoupl (μ1) (μ2) R⌝ ∗
+                ⌜erasable μ1 σ1⌝ ∗
+                ⌜erasable μ2 σ1'⌝ ∗
+          (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z))
+    ⊢ exec_coupl e1 σ1 e1' σ1' Z.
+  Proof.
+    iIntros "H".
+    rewrite {1}exec_coupl_unfold.
+    do 6 iRight.
+    done.
   Qed.
 
   Lemma exec_coupl_reducible e e' σ σ' Z :
@@ -385,8 +435,8 @@ Section exec_coupl.
                  with "[]") as "H"; last first.
     { done. }
     iIntros "!>" (([e1 σ1] & [e1' σ1'])). rewrite /exec_coupl_pre.
-    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & %Hcpl & H) | [H | [H | H]]]]] /=";
-      [done|done| | | |].
+    iIntros "[(% & % & % & H) | [(% & % & % & H) | [(% & % & %Hcpl & H) | [H | [H | [H|H]]]]]] /=";
+      [done|done|..].
     - eapply Rcoupl_pos_R in Hcpl.
       eapply Rcoupl_inhabited_l in Hcpl as ([] & [] & ? & [= -> ->]%dret_pos & ?); last first.
       { rewrite dret_mass; lra. }
@@ -421,8 +471,9 @@ Section exec_coupl.
       rewrite big_orL_cons.
       iDestruct "H" as "[? | H]"; [done|].
       by iApply "IH".
+    - by iDestruct "H" as "(%&%&%&%&%&%&%&H)".
   Qed.
-
+  
   Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z :
     pexec n (e1', σ1') (e2', σ2') = 1 →
     exec_coupl e1 σ1 e2' σ2' Z -∗
