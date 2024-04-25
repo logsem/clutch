@@ -521,8 +521,8 @@ Section rules.
   (** * Planner coupling rule *)
   Lemma wp_couple_tapes_planner N M (f:fin (S N) -> fin (S M)) `{Inj _ _ (=) (=) f} E e α αₛ ns nsₛ Φ :
     to_val e = None →
-    (** need a reducible constraint!*) 
     nclose specN ⊆ E →
+    (∀ σ1, state_interp σ1 ={E}=∗ ⌜reducible (e, σ1)⌝ ∗ state_interp σ1) ∗
     spec_ctx ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ▷ α ↪ (N; ns) ∗
     (∀ (n : fin (S N)) (junk : list (fin(S M))), αₛ ↪ₛ (M; nsₛ ++ junk ++ [f n]) ∗
                                                  α ↪ (N; ns ++ [n]) ∗
@@ -530,7 +530,7 @@ Section rules.
                            -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (He ?) "(#Hinv & >Hαs & >Hα & Hwp)".
+    iIntros (He ?) "(Hred & #Hinv & >Hαs & >Hα & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1') "[[Hh1 Ht1] Hauth2]".
     iInv specN as (ρ' e0' σ0' m) ">(Hspec0 & %Hexec & Hauth & Hheap & Htapes)" "Hclose".
@@ -577,8 +577,8 @@ Section rules.
   
   Lemma wp_couple_tapes_planner' N M (f:fin (S M) -> fin (S N)) `{Inj _ _ (=) (=) f} E e α αₛ ns nsₛ Φ :
     to_val e = None →
-    (** need a reducible constraint *) 
     nclose specN ⊆ E →
+    (∀ σ1, state_interp σ1 ={E}=∗ ⌜reducible (e, σ1)⌝ ∗ state_interp σ1) ∗
     spec_ctx ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ▷ α ↪ (N; ns) ∗
     (∀ (m : fin (S M)) (junk : list (fin(S N))), αₛ ↪ₛ (M; nsₛ ++ [m]) ∗
                                                  α ↪ (N; ns ++ junk ++ [f m]) ∗
