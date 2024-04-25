@@ -578,7 +578,7 @@ Section qs_bound.
     Opaque seq. simpl. Transparent seq.
 
     (* Pull out one term from the series *)
-    replace (foldr Rplus 0%R (map (λ i : nat, (C i)) (seq 0 n)))
+    replace (foldr Rplus (N.to_nat 0) (map (λ i : nat, (C i)) (seq 0 n)))
        with (C (S n'') + (foldr Rplus 0%R (map (λ i : nat, (C i)) (seq 0 (S n'')))))%R;
       last first.
     { rewrite Heqn.
