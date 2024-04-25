@@ -149,32 +149,42 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-    - rewrite exec_Sn_not_final; [|eauto].
-      iDestruct (big_orL_mono _ (λ _ _,
-                     |={∅}▷=>^(S n)
-                       ⌜ARcoupl (prim_step e1 σ1 ≫= exec n)
-                                  (lim_exec (e1', σ1')) φ ε''⌝)%I
-                  with "H") as "H".
-      { iIntros (i [α1 α2] [Hα1 Hα2]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %ε1 & %ε2 & %Hleq & %Hcpl & H)".
-        replace (prim_step e1 σ1) with (step (e1, σ1)) => //.
-        rewrite -exec_Sn_not_final; [|eauto].
-        iApply (step_fupdN_mono _ _ _
-                  (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec (S n) (e1, σ2))
-                                                    (lim_exec (e1', σ2')) φ ε2⌝)%I).
-        - iIntros (?). iPureIntro.
-          rewrite /= /get_active in Hα1, Hα2.
-          apply elem_of_elements, elem_of_dom in Hα1 as [], Hα2 as [].
-          eapply ARcoupl_mon_grading; eauto.
-          eapply ARcoupl_erasure; eauto.
-          + apply cond_nonneg.
-          + apply cond_nonneg.
-        - iIntros (???). by iMod ("H" with "[//] [//]"). }
-      iInduction (list_prod (language.get_active σ1) (language.get_active σ1'))
-        as [| [α α']] "IH"; [done|].
-      rewrite big_orL_cons.
-      iDestruct "H" as "[H | Ht]"; [done|].
-      by iApply "IH".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
+      iApply (step_fupdN_mono _ _ _
+                (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec (S n) (e1, σ2))
+                                          (lim_exec (e1', σ2')) φ ε2⌝)%I).
+      + iPureIntro.
+        intros ?.
+        eapply ARcoupl_erasure_erasable; [| | exact| ..]; try done.
+        all: apply cond_nonneg.
+      + iIntros (???). rewrite /Φ.
+        by iMod ("H" with "[//] [//]").
   Qed.
+      (* rewrite exec_Sn_not_final; [|eauto]. *)
+      (* iDestruct (big_orL_mono _ (λ _ _, *)
+      (*                |={∅}▷=>^(S n) *)
+      (*                  ⌜ARcoupl (prim_step e1 σ1 ≫= exec n) *)
+      (*                             (lim_exec (e1', σ1')) φ ε''⌝)%I *)
+      (*             with "H") as "H". *)
+      (* { iIntros (i [α1 α2] [Hα1 Hα2]%elem_of_list_lookup_2%elem_of_list_prod_1) "(% & %ε1 & %ε2 & %Hleq & %Hcpl & H)". *)
+      (*   replace (prim_step e1 σ1) with (step (e1, σ1)) => //. *)
+      (*   rewrite -exec_Sn_not_final; [|eauto]. *)
+      (*   iApply (step_fupdN_mono _ _ _ *)
+      (*             (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec (S n) (e1, σ2)) *)
+      (*                                               (lim_exec (e1', σ2')) φ ε2⌝)%I). *)
+      (*   - iIntros (?). iPureIntro. *)
+      (*     rewrite /= /get_active in Hα1, Hα2. *)
+      (*     apply elem_of_elements, elem_of_dom in Hα1 as [], Hα2 as []. *)
+      (*     eapply ARcoupl_mon_grading; eauto. *)
+      (*     eapply ARcoupl_erasure; eauto. *)
+      (*     + apply cond_nonneg. *)
+      (*     + apply cond_nonneg. *)
+      (*   - iIntros (???). by iMod ("H" with "[//] [//]"). } *)
+      (* iInduction (list_prod (language.get_active σ1) (language.get_active σ1')) *)
+      (*   as [| [α α']] "IH"; [done|]. *)
+      (* rewrite big_orL_cons. *)
+      (* iDestruct "H" as "[H | Ht]"; [done|]. *)
+      (* by iApply "IH". *)
 
 
   Theorem wp_ARcoupl_step_fupdN (e e' : expr) (σ σ' : state) n φ (ε : nonnegreal) :

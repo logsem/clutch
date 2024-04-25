@@ -3,7 +3,7 @@ From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.app_rel_logic Require Import lifting ectx_lifting.
-From clutch.prob_lang Require Import lang notation tactics metatheory.
+From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
 From clutch.app_rel_logic Require Export primitive_laws spec_rules.
 
 Section rules.
@@ -15,6 +15,28 @@ Section rules.
   Implicit Types v : val.
   Implicit Types l : loc.
   Implicit Types ε : nonnegreal.
+
+  (** Copied from weakest_pre since this only holds for problang
+      since state steps are erasable only in problang atm
+*)
+  Lemma exec_coupl_state_steps α α' e1 σ1 e1' σ1' Z (ε ε' : nonnegreal) :
+    (α, α') ∈ list_prod (get_active σ1) (get_active σ1') →
+    (∃ R, ⌜ARcoupl (state_step σ1 α) (state_step σ1' α') R ε⌝ ∗
+          (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z ε'))
+    ⊢ exec_coupl e1 σ1 e1' σ1' Z (nnreal_plus ε ε').
+  Proof.
+    iIntros (?) "(%&[% H])".
+    iApply exec_coupl_big_state_steps.
+    iExists R2, (state_step σ1 α), (state_step σ1' α').
+    apply elem_of_list_prod_1 in H. destruct H as [H1 H2].
+    rewrite /get_active in H1. rewrite elem_of_elements in H1.
+    rewrite elem_of_dom in H1. destruct H1.
+    rewrite /get_active in H2. rewrite elem_of_elements in H2.
+    rewrite elem_of_dom in H2. destruct H2.
+    repeat iSplit; try done.
+    - iPureIntro. by eapply state_step_erasable. 
+    - iPureIntro. by eapply state_step_erasable.
+  Qed.
 
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
