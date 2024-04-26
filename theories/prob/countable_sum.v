@@ -443,6 +443,7 @@ Section filter.
     intros. apply is_seriesC_unique, is_seriesC_singleton_inj; auto.
   Qed.
 
+
   Lemma SeriesC_ge_elem  (f : A → R) (a : A) :
     (∀ x, 0 <= f x) →
     ex_seriesC f →
@@ -1749,6 +1750,8 @@ Section inj.
 
     (* A lemma about rearranging SeriesC along an injective function *)
 
+  (** TODO: Find a better name *)
+
   Lemma SeriesC_le_inj (f : B -> R) (h : A -> option B) :
     (∀ n, 0 <= f n) →
     (forall n1 n2 m, h n1 = Some m -> h n2 = Some m -> n1 = n2) ->
@@ -1861,7 +1864,16 @@ Section inj.
                 by rewrite plus_zero_r.
   Qed.
 
-  
+
+  Lemma ex_seriesC_inj (h : B -> R) (f : A -> B) `{Inj A B (=) (=) f} :
+    (forall b, 0 <= h b) ->
+    ex_seriesC h ->
+    ex_seriesC (h ∘ f).
+  Proof.
+    intros Hpos Hex.
+    apply ex_seriesC_ex_series.
+    apply ex_seriesC_ex_series_inv in Hex.
+  Admitted.
 
 End inj.
 

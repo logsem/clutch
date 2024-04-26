@@ -428,7 +428,7 @@ Fixpoint max_seq (f : nat -> nat) n :=
   | S m => max (f (S m)) (max_seq f m)
   end.
 
-Lemma sum_max_seq (f : nat -> R) h n `{Bij nat nat h}:
+Lemma sum_max_seq (f : nat -> R) h n `{Inj nat nat eq eq h}:
   (forall n, 0 <= f n) ->
   (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
 Proof.
@@ -457,6 +457,7 @@ Proof.
   - assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
     {
       intro; eapply sum_max_seq; eauto.
+      apply bij_inj.
     }
     intro n.
     eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
@@ -470,6 +471,8 @@ Proof.
     { elim. intros. etrans; first exact. done. }
     apply sum_n_surj_le_some_index; destruct H; naive_solver.
 Qed.
+
+
 
 
 Lemma fubini_fin_sum (h : nat * nat → R) n m:
@@ -547,6 +550,26 @@ Proof.
       apply upper_bound_ge_sup.
       intro n; auto.
       specialize (Hl n); auto.
+Qed.
+
+
+Lemma ex_series_inj (f : nat -> R) h `{Inj nat nat eq eq h} :
+  (forall n, 0 <= f n) ->
+  ex_series f ->
+  ex_series (λ n, f (h n)).
+Proof.
+  intros Hpos [l Hl].
+  apply ex_pos_bounded_series; auto.
+  exists l.
+  apply lim_is_sup in Hl; auto.
+  assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
+  {
+      intro; eapply sum_max_seq; eauto.
+  }
+  intro n.
+  etrans; eauto.
+  apply (is_sup_seq_major _ _ (max_seq h n)) in Hl.
+  auto.
 Qed.
 
 Lemma double_sup_diag (h : nat * nat → R) :
