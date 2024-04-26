@@ -845,8 +845,6 @@ Section miller_rabin_code.
 
 
   Variable (num_iter : nat).
-
-
   (*
     The main function for the Miller-Rabin test,
     where num_iter iterations are performed
