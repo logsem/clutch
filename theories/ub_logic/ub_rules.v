@@ -795,7 +795,7 @@ Proof.
     apply Rcomplements.Rle_div_l; [lra |].
     assert (SeriesC (λ x : fin (S N), if bool_decide (Exists (λ m : nat, fin_to_nat x = m) ns) then 1 else 0) <= length ns)%R as Haux.
     {
-      induction ns as [?|?].
+      induction ns as [|?].
       - erewrite SeriesC_ext; last first.
          + intros.
              erewrite bool_decide_ext; [ | apply Exists_nil ].
