@@ -146,9 +146,31 @@ Section giry.
   Proof using d. rewrite -setC0. apply measurableC, measurable0. Qed.
 
 
+  (* Now let's put some measure on this space (something simple like Dirac of some fixed measure or something) *)
 
 
+  Definition 𝜇_target : giryType. Admitted.
 
+  Definition giry_ret_𝜇
+    := @dirac
+          (sigma_display giry_subbase)
+          (salgebraType giry_subbase)
+          (𝜇_target : giryType)
+          R.
+  Check giry_ret_𝜇.
+
+
+  Example int_zero_over_dirac : (\int[giry_ret_𝜇]_x cst 0%:E x)%E = 0%:E.
+  Proof using d. apply integral0. Qed.
+
+  Example int_one_over_dirac : (\int[giry_ret_𝜇]_x cst 1%:E x)%E = 1%:E.
+  Proof using d.
+    rewrite integral_cst /=.
+    - by rewrite diracT mul1e.
+    - rewrite -setC0.
+      apply (@measurableC _ (salgebraType giry_subbase)).
+      apply measurable0.
+  Qed.
 
 End giry.
 
@@ -167,7 +189,7 @@ End giry.
 
 
 Section simple.
-  (* Formalize some simple constructions for measures, measurable functions. *)
+  (* Excercise: Formalize some simple constructions for measures, measurable functions. *)
 
   (* Formalize the trivial sigma algebra on a subspace of the set of all elements of a type *)
 
@@ -238,77 +260,3 @@ Section simple.
 End simple.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-(* Things we probably care about:
-
-
-    - isSubProbability
-        subdistributions
-
- *)
-
-
-
-(* Dirac measure *)
-
-HB.about dirac.
-
-Check (semi_sigma_additive _).
-Check (dirac _).
-
-HB.about Measurable.sort.
-
-(* Measure.v contains the pufhforward measure (is that what we want? or is it pullback?) *)
-
-
-(* Measureable functions *)
-
-Check measurable_fun.
-
-(* Only depends on sigma algebra, not on measure *)
-(* comap: maybe in measure.v? *)
-
-HB.about MeasurableFun.
-
-
-(* Real numbers *)
-HB.about realType.
-
-(* Extended real numbers *)
-Print extended.
-
-Check ereal_sup.
-Check supremum.
-Search eseries.
-
-(* Measure *)
-HB.about semiRingOfSetsType.
-HB.about measurableI.  (* It seems like the isMeasurable factory is what I want to use, since I'm not defining it by CET *)
-HB.about isMeasurable.
-(* Something about HB.Builders ... what does that do? *)
-
-
-(* Generated sigma algebra: Actually this is what I want to implement comap, comap is generated *)
-
-Search smallest.
-
-HB.about isMeasurable.Build.
-
-(* HB.instance Definition _ := isMeasurable.Build _ _. *)
-
-HB.about salgebraType. (* Generated sigma algebra? *)
