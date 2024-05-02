@@ -88,6 +88,8 @@ End rgenopens.
 
 
 
+
+
 (** My Giry attempt *)
 
 Section giry.
@@ -136,6 +138,9 @@ Section giry.
   (* A third option, it turns out there _is_ a topology on ereal! *)
   Check ereal_nbhs.
   Print ereal_nbhs.
+
+  Search (\bar R).
+
   (* This set system corresponds to the family (x-𝛿, x+𝛿), or (𝛿, ∞), or (-∞, 𝛿)
      We want the "union" (not really, since no uncountable unions) for all x ∈ \bar R. *)
 
@@ -146,15 +151,21 @@ Section giry.
   Definition borel_sigma_algebra : sigma_algebra [set: \bar R] ereal_borel_sets
     := smallest_sigma_algebra [set: \bar R] ereal_borel_subbase.
 
-
+  (* Err... there is already a measurable type?
+     This is a function (set (set R)) -> (set (set \bar R)), use this to lift? Are we already using it to lift? *)
+  Check emeasurable.
 
 
   (** 2. Define the type (actually, the _set_) of measures on T? *)
 
-  Definition measure_T_type : Type := @measure d T R.
+  HB.instance Definition _ := @isPointed.Build (@measure d T R) mzero.
 
-  Definition measures_on_T : set (measure T R) := [set: measure_T_type].
 
+  Check setT.
+
+  (*
+
+  Definition zero_T_measure : measure_T_type := @mzero d T R.
 
   (** 3. Define the preimage (pullback? coindiced?) sigma algebra from "evaluation functions" *)
 
@@ -166,31 +177,236 @@ Section giry.
             (fun 𝜇 => 𝜇 S)              (* Evaluation function *)      (* ????????? !!!!!!!!! *)
             ereal_borel_sets          (* Range sets*).
 
-
-    (* This is highly confusing. Why am I allowed to give the measure an arbitrary set? *)
-    (* What does this application actually do???? *)
-    Check fun u : measure_T_type => fun S : set T => u _.
-
-    (* OK... looks like they make you define a "measure" on every subset, but only prove
-       the measure axioms for measurable sets. Fine. *)
-
   (* Define the infinite union of these classes across all measurable sets in T *)
     Definition giry_subbase : set (set (measure_T_type))
       := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
 
+  Check (@measurable_g_measurableTypeE _).
+
+    
+  Check measurable (set0 : set measures_on_T).
 
 
+
+
+    
   (* Giry sigma algebra: Genreated by all preimage classes: *)
 
-  Definition giry_measurable_sets := (smallest (sigma_algebra measures_on_T) giry_subbase).
+  Definition giry_measurable_sets := <<s giry_subbase>>.
+  Check giry_measurable_sets .
 
-  Definition giry_sigma_algebra : sigma_algebra measures_on_T giry_measurable_sets
-    := smallest_sigma_algebra measures_on_T giry_subbase.
+  (*
+  Check (giry_subbase.-sigma).-measurable. *)
+
+  Unset Printing Notations.
+  Check (salgebraType giry_subbase).    (* Type *)
+
+
+
+  (* What is generated from Measure? Can we try applying it to either G or the salgebraType G*)
+  (* The things we care about most probably come from the isMeasurable factory *)
+  HB.about measurableType.
+  Check @measurable.
+  Check @bigcupT_measurable.
+  Fail Check @measurable_bigcup.  (* isMeasurable factory field, but nowhere in the real hierarachy *)
+  Check @isMeasurable.measurable_bigcup. (* Synthesized *)
+  Check @measurable0.
+  Check @measurableC. (* Directly declared lemma *)
+  Check @isMeasurable.measurableC. (* Synthesized function from isMeasurable *)
+
+  Locate measurable.
+
+
+  (* EXAMPLE: Can we prove that the empty set is measurable? *)
+  Check (measurable_g_measurableTypeE). (* G.-sigma.-measurability is the same as G *)
+
+
+  (* We can build a measure without plugging it into HB.instnace. Let's do that first. *)
+  (* Err.. actually we want the opposite. We want to declare a measurable instance for measure_T_type
+     without actually doing any work (getting everything from the generated algebra) *)
+
+
+  Definition giry_display {T1 : Type} : measure_display.
+  Proof. exact. Qed.
+
+  (* OKAY! It's complaining now. I think it wants me to make this type pointed.
+     Let's do that, and then hope it changes *)
+
+  HB.about Pointed.
+  HB.about isPointed.Build.
+
+
+
+
+
+(*
+    Error:
+    Definition illtyped: In environment
+    d : measure_display
+    T : Measurable.type d
+    R : Real.type
+    The term "id_phant" has type
+    "forall _ : phantom Type (salgebraType giry_subbase),
+    phantom Type (salgebraType giry_subbase)" while it is expected to have type
+    "structures.unify Type Type (salgebraType giry_subbase) ?t
+    (is_not_canonically_a Pointed.type)". *)
+
+  (* Check (@isMeasurable.Build _ (salgebraType giry_subbase) _ _ _ _).
+       (giry_display)
+       (salgebraType giry_subbase)
+       <<s giry_subbase>>
+       (@sigma_algebra0 _ setT giry_subbase)
+       (@sigma_algebraC)
+       (@sigma_algebra_bigcup _ setT giry_subbase)). *)
+
+
+
+  HB.instance Definition _ := @isPointed.Build (salgebraType giry_subbase) mzero.
+
+  Search salgebraType.
+
+
+  Definition gsm (X : set (set measure_T_type)) := (measurable : set (set (salgebraType X))).
+
+
+  Check @gsm.
+
+  (* HB.instance Definition _ :=
+    (@isMeasurable.Build
+       (giry_display)
+       (salgebraType giry_subbase)
+       <<s giry_subbase>>
+       (@sigma_algebra0 _ setT giry_subbase)
+       (@sigma_algebraC)
+       (@sigma_algebra_bigcup _ setT giry_subbase)). *)
+
+  (* EXAMPLE: *)
+
+  (* We need a measurableType on measure_T_type for this! *)
+  Print SemiRingOfSets.type.
+
+
+  Check @measure.measurable (sigma_display giry_subbase) _ set0.
+
+
+  Definition zms : set (measure_T_type) := set0.
+
+
+  Fail Check measure.measurable zms.
+
+  (* I need a canonical SemiRingOfSets instance for the giry space *)
+
+  Check measure.measurable (set0 : set _).
+
+  Search SemiRingOfSets.type salgebraType.
+
+  (* SemiRingOfSets.type (sigma_display giry_subbase) *)
+
+  Check measure.
+
+
+  (* Lemma giry_set0_measurable : (giry_subbase.-sigma).-measurable set0. *)
+
+
+
+*)
 
 
 
 
 End giry.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Section simple.
+  (* Formalize some simple constructions for measures, measurable functions. *)
+
+  (* Formalize the trivial sigma algebra on a subspace of the set of all elements of a type *)
+
+  Definition MyTrivAlgebraType {T} (Sp : set T) := T.
+
+  Definition MyTrivDisplay {T} : (set T) -> measure_display.
+  Proof. exact. Qed.
+
+  Section MyTrivAlgebraInstance.
+    Variables (T : pointedType) (Sp : set T).
+
+    Set Default Proof Using "Type*".
+
+    Fail HB.about MyTrivAlgebraType.
+    Fail HB.about T.
+    (* So this needs MyTrivAlgebraType to be a pointedType (makes sense) *)
+    HB.instance Definition _ := Pointed.on (MyTrivAlgebraType Sp).
+    HB.about MyTrivAlgebraType. (* Now it has choice, pointed, and equality *)
+
+    Definition MyTrivAlgebraMeasurable : set (set T) := setU [set set0] [set Sp].
+
+    Lemma MyTrivAlgebra0 : MyTrivAlgebraMeasurable set0.
+    Proof. rewrite /MyTrivAlgebraMeasurable /=. by left. Qed.
+
+    Lemma MyTrivAlgebraC : forall (A : set T),
+      MyTrivAlgebraMeasurable A -> MyTrivAlgebraMeasurable (~` A)%classic.
+    Proof.
+      move=> A.
+      case=>->.
+      (* This is wrong! The compliments will take it over [set: T] not Sp.  *)
+      (* I'm going to admit it for now, to see if this type is what the HierarchyBuilder
+         wants. If so, I need to change the type, if not, I need to change the lemma. *)
+    Admitted.
+
+    Lemma MyTrivAlgebra_bigcup :
+        forall F : sequence (set T),
+        (forall i : nat, MyTrivAlgebraMeasurable (F i)) ->
+        MyTrivAlgebraMeasurable (\bigcup_i F i)%classic.
+    Proof.
+      move=> F HF.
+      Locate bigcup_measurable.
+      (* Uhh... I should be able to do induction over this? How do they do it in mathcomp analysis *)
+    Admitted.
+
+
+
+    HB.about isMeasurable.Build.
+
+    HB.instance Definition _ :=
+      @isMeasurable.Build
+        (MyTrivDisplay Sp)
+        (MyTrivAlgebraType Sp)
+        MyTrivAlgebraMeasurable
+        MyTrivAlgebra0
+        MyTrivAlgebraC
+        MyTrivAlgebra_bigcup.
+
+    (* Nice! *)
+
+
+    HB.about isMeasurable.
+
+
+  End MyTrivAlgebraInstance.
+
+
+
+
+End simple.
+
+
+
+
+
+
 
 
 
