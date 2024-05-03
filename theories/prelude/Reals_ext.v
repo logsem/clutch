@@ -131,9 +131,58 @@ Proof. intros. eapply Rmult_le_pos; [done|]. apply pos_INR. Qed.
 
 Hint Resolve Rmult_pos_nat_r : real.
 
-Ltac real_solver :=
-    by repeat
-         match goal with
+Lemma Rplus_le_0_compat : (forall x y, 0 <= x -> y <= y+x)%R.
+Proof. intros. rewrite -{1}(Rplus_0_r y). by apply Rplus_le_compat. Qed.
+
+Hint Resolve Rplus_le_0_compat : real.
+
+Lemma Rminus_le_0_compat : (forall x y, 0 <= y -> x - y <= x)%R.
+Proof. intros ; lra. Qed.
+
+Hint Resolve Rminus_le_0_compat : real.
+
+From Ltac2 Require Import Ltac2.
+
+Ltac2 split_le_le _ :=
+  let rename_prod old prod :=
+    let extract_prod_name t :=
+      match Constr.Unsafe.kind t with
+      | Constr.Unsafe.Prod b t => Constr.Binder.name b
+      | _ => None
+      end in
+    let name := extract_prod_name old in
+    match Constr.Unsafe.kind prod with
+    | Constr.Unsafe.Prod x_dom cod =>
+        let dom := Constr.Binder.type x_dom in
+        let b := Constr.Binder.make name dom in
+        Constr.Unsafe.make (Constr.Unsafe.Prod b cod)
+    | _ => prod
+    end in
+  let f h suf :=
+    let s := String.concat (Ident.to_string h) [""; suf] in
+    match Ident.of_string s with
+    | None => Fresh.in_goal h
+    | Some id => Fresh.in_goal id
+    end
+  in
+  lazy_match! goal with
+  | [ h : (forall z : ?dom, (?l <= @?x z <= ?u)%R)
+      |- _ ] =>
+      let hh := Control.hyp h in
+      let t := Constr.type hh in
+      let h_l := rename_prod t constr:(forall z : $dom, Rle $l ($x z)) in
+      let h_u := rename_prod t constr:(forall z : $dom, Rle ($x z) $u) in
+      let i_l := f h "_l" in
+      let i_u := f h "_u" in
+      assert $h_l as $i_l by apply $hh ;
+      assert $h_u as $i_u by apply $hh ;
+      clear $h
+  end
+  ; ltac1:(intuition idtac).
+
+(* real_simpl should be save to use, i.e., it should make no "regrettable" choices. *)
+Ltac real_simpl :=
+  match goal with
          | |- _ <= _ <= _ => split
 
          (* arithmetic patterns *)
@@ -147,6 +196,9 @@ Ltac real_solver :=
          | |- ?a * ?b <= ?c * ?b => apply Rmult_le_compat_r
          | |- ?a * ?b <= ?c * ?d => apply Rmult_le_compat
          | |- ?a * ?b * ?c <= ?b => rewrite -{2}(Rmult_1_r b)
+
+         | |- ?x <= ?x + ?y => apply Rplus_le_0_compat
+         | |- ?x - ?y <= ?x => apply Rminus_le_0_compat
 
          (* < *)
          | |- 0 < _ * _ => apply Rmult_gt_0_compat
@@ -166,12 +218,23 @@ Ltac real_solver :=
          | |- context[?a * (?b * ?c)] => rewrite -Rmult_assoc
          | |- context[_ > _] => rewrite /Rgt
          | H : context[_ > _] |- _ => rewrite /Rgt in H
+         | H : _ <= _ <= _ |-  _  => destruct H
+         | H : forall _, _ <= _ <= _ |- _ => progress repeat ltac2:(split_le_le ())
+         | |- _ >= _ => apply Rle_ge
 
          (* general solving patterns *)
-         | H : _ <= _ <= _ |-  _  => destruct H
          | |- ∀ _, _ => intros
-         | |- context [@bool_decide ?P ?dec] =>
-             destruct_decide (@bool_decide_reflect P dec); simplify_eq
-         | |- context [ match ?x with _ => _ end ] => destruct x eqn:Hd
          | _ => done || lra || eauto
          end.
+
+Ltac real_solver_partial :=
+  match goal with
+  | |- context [@bool_decide ?P ?dec] =>
+      destruct_decide (@bool_decide_reflect P dec); simplify_eq
+  | |- context [ match ?x with _ => _ end ] => destruct x eqn:Hd
+  | _ => real_simpl
+  end.
+
+(* real_solver_partial may make bad choices, so we require real_solver to close
+   the goal with "by". *)
+Ltac real_solver := by repeat real_solver_partial.
