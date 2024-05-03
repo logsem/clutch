@@ -2037,3 +2037,11 @@ Section Inj_finite.
   
 End Inj_finite.
 
+
+Ltac series_solver_partial :=
+  match goal with
+  | |- 0 <= SeriesC _ => apply SeriesC_ge_0'
+  | |- SeriesC _ = SeriesC _ => apply SeriesC_ext
+  end.
+
+Ltac series := repeat (series_solver_partial || real_solver_partial).
