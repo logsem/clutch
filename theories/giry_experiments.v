@@ -265,10 +265,77 @@ Section giry.
 
 
   (* AFTER LUNCH: try it. Plug a measure into the thing they use to restrict to negatives and see if you get 0 *)
+  (* See how integrability is used... if it's just for lemmas then that's probably OK. *)
+  (* If this "negative is always zero" thing turns out, then we can use the "unsafe" integral w/ no consequence *)
+  (* See which lemmas are used in the proof of Fubini *)
 
+  HB.about measure.
+
+
+  Check funeneg.
+
+  Check forall (mu : measure T R), mu _ = _.
+
+  (*
+      Definition integral mu D f (g := f \_ D) :=
+      nnintegral mu (g ^\+) - nnintegral mu (g ^\-).
+
+    So I think the strategy is to prove lemmas about funeneg and the opposite, then show that
+    we can use nnintegral instead of integral for measures
+
+    This is the notion of measurability that we want? Actually wait... what are we doing again?
+  *)
+
+
+  (* Work backwards instead... lean uses Measurable.ofMeasurable to define the join. Do we have the
+     same thing? *)
 
 
 End giry.
+
+
+(* """modified""" from pushforward *)
+Section pullback.
+
+  Local Open Scope classical_set_scope.
+
+  Definition pullback d1 d2 (T1 : measurableType d1) (T2 : measurableType d2)
+    (R : realFieldType) (m : set T2 -> \bar R) (f : T1 -> T2)
+    of measurable_fun setT f := fun A => m (f @` A).
+  Arguments pullback {d1 d2 T1 T2 R} m {f}.
+
+
+  Section pullback_measure.
+    Local Open Scope ereal_scope.
+    Context d d' (T1 : measurableType d) (T2 : measurableType d') (R : realFieldType).
+
+
+    Variables (m : measure T2 R) (f : T1 -> T2).
+    Hypothesis mf : measurable_fun setT f.      (* If we can prove that ... is measurable, we should be able to pull
+                                                   the measure on \bar R back to a measure on the Giry sigma algebra *)
+
+    Let pullback0: pullback m mf set0 = 0.
+    Proof. by rewrite /pullback image_set0 measure0. Qed.
+
+    Let pullback_ge0 A : 0 <= pullback m mf A.
+    Proof. apply: measure_ge0. Qed.
+
+    Let pullback_sigma_additive : semi_sigma_additive (pullback m mf).
+    Proof. Admitted.
+
+    HB.instance Definition _ :=
+      isMeasure.Build _ _ _
+          (pullback m mf)
+          pullback0
+          pullback_ge0
+          pullback_sigma_additive.
+
+  End pullback_measure.
+End pullback.
+
+
+
+
 
 
 
