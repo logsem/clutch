@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
-From clutch.prelude Require Import stdpp_ext NNRbar.
+From clutch.prelude Require Import stdpp_ext NNRbar fin.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation rejection_sampler_distribution.
@@ -260,6 +260,16 @@ Lemma subst_map_is_closed_empty e vs : is_closed_expr ∅ e → subst_map vs e =
 Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed.
 
 Local Open Scope R.
+
+
+Lemma ARcoupl_state_step_dunifP σ α N ns:
+  tapes σ !! α = Some (N; ns) ->
+  ARcoupl (state_step σ α) (dunifP N)
+    (
+     λ σ' n,  σ' = state_upd_tapes <[α := (N; ns ++ [n])]> σ
+    ) 0.
+Proof.
+Admitted.
 
 (** * rand(N) ~ rand(N) coupling *)
 Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
@@ -979,7 +989,86 @@ Proof.
          f_equal.
 Qed.
 
+
+Lemma Rcoupl_fragmented_rand_rand_leq (N M: nat) σ σₛ ms ns α αₛ:
+  (M<=N)%R ->
+  σ.(tapes) !! α = Some (N%nat; ns) ->
+  σₛ.(tapes) !! αₛ = Some (M%nat; ms) ->
+  ARcoupl
+    (state_step σ α)
+    (dunifP N≫= λ x, if bool_decide (fin_to_nat x <=M) then state_step σₛ αₛ else dret σₛ)
+    (λ σ1' σ2', ∃ (n : fin (S N)),
+        if (bool_decide (fin_to_nat n<=M))
+        then ∃ (m : fin (S M)),
+        σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
+        σ2' = state_upd_tapes <[αₛ := (M; ms ++ [m])]> σₛ /\
+        fin_to_nat n = fin_to_nat m
+        else
+        σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
+        σ2' =  σₛ
+    )
+    0%NNR.
+Proof.
+  intros Hineq Hσ Hσₛ. rewrite <-(dret_id_right (state_step _ _)).
+  replace (0)%NNR with (0+0)%NNR; last first.
+  { apply nnreal_ext. simpl. lra. }
+  erewrite (distr_ext (dunifP _ ≫= _)
+              (MkDistr (dunifP N ≫= (λ x : fin (S N),
+                 match lt_dec (fin_to_nat x) (S M) with
+                 | left Hproof =>
+                     dret (state_upd_tapes <[αₛ:=(M; ms ++ [nat_to_fin Hproof])]> σₛ)
+                 | _ => 
+                     dret σₛ
+                 end)) _ _ _) ); last first.
+  { intros σ'. simpl. rewrite /pmf/=.
+    rewrite /dbind_pmf. rewrite /dunifP. setoid_rewrite dunif_pmf.
+    rewrite !SeriesC_scal_l. apply Rmult_eq_compat_l.
+    erewrite (SeriesC_ext _
+                (λ x : fin (S N), (if bool_decide (x <= M) then state_step σₛ αₛ σ' else 0) +
+                                    (if bool_decide (x <= M) then 0 else dret σₛ σ') 
+             )); last first.
+    { intros. case_bool_decide; lra. }
+    trans (SeriesC
+                (λ x : fin (S N),
+                   match lt_dec x (S M) with
+                   | left Hproof => dret (state_upd_tapes <[αₛ:=(M; ms ++ [nat_to_fin Hproof])]> σₛ) σ'
+                   | right _ => 0
+                   end +
+                      match lt_dec x (S M) with
+                   | left Hproof => 0
+                   | right _ => dret σₛ σ'
+                   end
+                )
+             ); last first.
+    { apply SeriesC_ext. intros. case_match; lra. }.
+    rewrite !SeriesC_plus; last first.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+  }
+    eapply ARcoupl_dbind; simpl; [lra|lra|..]; last first.
+  { by apply ARcoupl_state_step_dunifP. }
+  simpl.
+  intros σ' n ->.
+  case_match eqn:Heqn.
+  - apply ARcoupl_dret.
+    exists n.
+    rewrite bool_decide_eq_true_2; last first.
+    { apply le_INR. lia. }
+    eexists _. split; first done. split; first done.
+    rewrite fin_to_nat_to_fin. done.
+  - apply ARcoupl_dret.
+    exists n.
+    rewrite bool_decide_eq_false_2; last first.
+    { move => /INR_le. lia. }
+    naive_solver.
+Admitted.
+
+
 (** Some useful lemmas to reason about language properties  *)
+
 Inductive det_head_step_rel : expr → state → expr → state → Prop :=
 | RecDS f x e σ :
   det_head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ

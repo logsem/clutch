@@ -70,9 +70,36 @@ Section erasable.
           apply SeriesC_le; last auto.
           intros. real_solver.
   Qed.
+
+  Lemma erasable_dbind_predicate  {Λ: language} `{Countable A} (μ : distr _) μ1 μ2 (σ: state Λ) (f:A -> bool):
+    SeriesC μ = 1 -> 
+    erasable μ1 σ ->
+    erasable μ2 σ -> 
+    erasable (dbind (λ x, if f x then μ1 else μ2) μ) σ.
+  Proof.
+    rewrite /erasable.
+    intros Hsum H1 H2.
+    intros e m. rewrite -dbind_assoc'.
+    rewrite {1}/dbind/dbind_pmf/=.
+    apply distr_ext. intros v. rewrite {1}/pmf/=.
+    erewrite (SeriesC_ext _ (λ a : A, μ a * exec m (e, σ) v)).
+    { rewrite SeriesC_scal_r. rewrite Hsum. apply Rmult_1_l. }
+    intros. case_match.
+    - by rewrite H1.
+    - by rewrite H2.
+  Qed.
+
 End erasable.
 
 Section erasable_functions.
+  Lemma dret_erasable {Λ : language}:
+    ∀ (σ : state Λ), erasable (dret σ) σ.
+  Proof.
+    intros.
+    rewrite /erasable.
+    intros. rewrite dret_id_left'. done.
+  Qed.
+  
   Lemma rej_samp_state_erasable N σ α s (ns:list(fin(S N))) (Hfound: σ.(tapes)!!α = Some (N;ns)):
     erasable (rej_samp_state_distr N σ α s ns Hfound) σ.
   Proof.
