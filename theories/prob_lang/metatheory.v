@@ -1040,7 +1040,7 @@ Proof.
                   end
              )
           ); last first.
-    { apply SeriesC_ext. intros. case_match; lra. }.
+    { apply SeriesC_ext. intros. case_match; lra. }
     rewrite !SeriesC_plus; last first.
     all: try apply ex_seriesC_finite.
     etrans; first eapply Rplus_eq_compat_l; last apply Rplus_eq_compat_r.
