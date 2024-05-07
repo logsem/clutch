@@ -283,6 +283,9 @@ Section giry.
   End giry_measurable_characterization.
 
 
+
+
+
   (** Expectations in the Giry monad *)
 
   Definition giryM_integrate {d} {T : measurableType d} (f : T -> \bar R) (_ : measurable_fun setT f)
@@ -356,6 +359,9 @@ Section giry.
   End giryM_join_laws.
 
 
+
+
+
   (** Monadic bind *)
 
   Definition girym_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
@@ -375,7 +381,9 @@ Section giry.
 
 
 
-  (** BELOW IS NOT CLEANED *)
+
+
+
 
 
 
@@ -429,85 +437,4 @@ Section giry.
   *)
 
 End giry.
-
-
-
-
-
-
-
-
-
-
-Section simple.
-  (* Excercise: Formalize some simple constructions for measures, measurable functions. *)
-
-  (* Formalize the trivial sigma algebra on a subspace of the set of all elements of a type *)
-
-  Definition MyTrivAlgebraType {T} (Sp : set T) := T.
-
-  Definition MyTrivDisplay {T} : (set T) -> measure_display.
-  Proof. exact. Qed.
-
-  Section MyTrivAlgebraInstance.
-    Variables (T : pointedType) (Sp : set T).
-
-
-    Fail HB.about MyTrivAlgebraType.
-    Fail HB.about T.
-    (* So this needs MyTrivAlgebraType to be a pointedType (makes sense) *)
-    HB.instance Definition _ := Pointed.on (MyTrivAlgebraType Sp).
-    HB.about MyTrivAlgebraType. (* Now it has choice, pointed, and equality *)
-
-    Definition MyTrivAlgebraMeasurable : set (set T) := setU [set set0] [set Sp].
-
-    Lemma MyTrivAlgebra0 : MyTrivAlgebraMeasurable set0.
-    Proof. rewrite /MyTrivAlgebraMeasurable /=. by left. Qed.
-
-    Lemma MyTrivAlgebraC : forall (A : set T),
-      MyTrivAlgebraMeasurable A -> MyTrivAlgebraMeasurable (~` A)%classic.
-    Proof.
-      move=> A.
-      case=>->.
-      (* This is wrong! The compliments will take it over [set: T] not Sp.  *)
-      (* I'm going to admit it for now, to see if this type is what the HierarchyBuilder
-         wants. If so, I need to change the type, if not, I need to change the lemma. *)
-    Admitted.
-
-    Lemma MyTrivAlgebra_bigcup :
-        forall F : sequence (set T),
-        (forall i : nat, MyTrivAlgebraMeasurable (F i)) ->
-        MyTrivAlgebraMeasurable (\bigcup_i F i)%classic.
-    Proof.
-      move=> F HF.
-      Locate bigcup_measurable.
-      (* Uhh... I should be able to do induction over this? How do they do it in mathcomp analysis *)
-    Admitted.
-
-
-
-    HB.about isMeasurable.Build.
-
-    HB.instance Definition _ :=
-      @isMeasurable.Build
-        (MyTrivDisplay Sp)
-        (MyTrivAlgebraType Sp)
-        MyTrivAlgebraMeasurable
-        MyTrivAlgebra0
-        MyTrivAlgebraC
-        MyTrivAlgebra_bigcup.
-
-    (* Nice! *)
-
-
-    HB.about isMeasurable.
-
-
-  End MyTrivAlgebraInstance.
-
-
-
-
-End simple.
-
 
