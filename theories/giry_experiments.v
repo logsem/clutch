@@ -73,9 +73,10 @@ End stolen_giry_monad_attempt.
 
 Reserved Notation "T .-giry" (at level 1, format "T .-giry").
 Reserved Notation "T .-giry.-measurable"
- (at level 2, format "G .-giry.-measurable").
-
-
+ (at level 2, format "T .-giry.-measurable").
+Reserved Notation "T .-distrM" (at level 1, format "T .-distrM").
+Reserved Notation "T .-distrM.-measurable"
+ (at level 2, format "T .-distrM.-measurable").
 
 
 
@@ -325,6 +326,7 @@ Section giry.
   Definition giryM_join {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
     := (fun S => \int[m]_μ (μ S))%E.
 
+
   Section giryM_join_measure.
 
     (* For the proofs,
@@ -360,11 +362,9 @@ Section giry.
 
 
 
-
-
   (** Monadic bind *)
 
-  Definition girym_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+  Definition giryM_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
                        (f : T1 -> giryM T2) (m : giryM T1) (mf : measurable_fun setT f) : giryM T2
     := giryM_join (giryM_map m mf).
 
@@ -378,6 +378,128 @@ Section giry.
 
 
 
+
+
+
+
+
+  (** Monad of subdistributions over a measurable type *)
+
+  (* We need to insturment Hierarchy Builder with enough extra information so that we can _give_ it
+     distr's and _get back_ distr's too. *)
+  Definition distr {d} (T : measurableType d) := @subprobability d T R.
+
+  (* Every distr is a giryType... *)
+
+  Fail Check giryM (distr _).
+
+  Section distr_measurable_type.
+    Context {d} {T : measurableType d}.
+
+
+    (** Promote mzero to a subdistribution *)
+    Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
+    Proof. Admitted.
+    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
+
+    (* #[log] *)
+    HB.instance Definition _ := gen_eqMixin (distr T).
+    (* #[log] *)
+    HB.instance Definition _ := gen_choiceMixin (distr T).
+    (* #[log] *)
+    HB.instance Definition _ := isPointed.Build (distr T) (@mzero d T R).
+
+    (* HB.instance Definition _ := Measurable.clone _ (distr T) (giryM T). *)
+
+    (* I expect this experiement to give me a forgetful inheritance error if I finish this experiment *)
+
+
+    (*
+    Definition distr_meas : set (set (@distr d T)).
+    Admitted.
+
+    Definition distr_meas0 : distr_meas set0.
+    Admitted.
+
+    Definition distr_measC X :
+      distr_meas X -> distr_meas (~` X).
+    Admitted.
+
+    Definition distr_measU (F : (set (@distr d T))^nat) : (forall i, distr_meas (F i)) -> distr_meas (\bigcup_i F i).
+    Admitted.
+
+    HB.instance Definition _ :=
+      @isMeasurable.Build
+        default_measure_display
+        (@distr d T)
+        distr_meas
+        distr_meas0
+        distr_measC
+        distr_measU.
+     *)
+    (* Uhh.... okay?? So if I can get away with using a restricted version of the measurable sets
+       from giryM then distr would be measurable?? *)
+  End distr_measurable_type.
+
+
+  Check giryM (distr _).
+  Check distr (distr _).
+
+
+  Section inheritance_tests.
+    Context {d0 d1} {T0 : measurableType d0} {T1 : measurableType d1}.
+    Variable (m : giryM T0).
+
+    Variable (f : T0 -> distr T1).
+    Variable (mf : measurable_fun [set: T0] (fun x : T0 => f x)).
+
+    Check @giryM_bind d0 d1 T0 T1.
+    Check @giryM_bind d0 d1 T0 T1 f.
+    (*                            ^ Expecting giryM, give it distrM, all is OK. *)
+    Fail Check (@giryM_bind d0 d1 T0 T1 f m _ : distr _).
+    (* It knows a giryM_bind gives us a giryM, but not a distrM (yet) *)
+
+
+    Definition distrM_ret {d} {T : measurableType d} : T -> distr T := giryM_ret.
+
+
+
+
+    Variables (m' : distr (distr T0)).
+    (* So how do we say that each is a subdistribution? *)
+    Lemma giryM_join_setT : ((giryM_join m') setT <= 1)%E.
+    Proof. Admitted.
+    HB.instance Definition _ := isSubProbability.Build _ _ _ (giryM_join m') giryM_join_setT.
+
+
+
+
+
+
+
+
+
+
+  Notation "T .-distrM" := (@giryM_display _ T) : measure_display_scope.
+  Notation "T .-distrM.-measurable" :=
+    (measurable : set (set (distrM T))) : classical_set_scope.
+
+
+  (* Computationally these are all identical to the plain Giry monad. All that changes is that we must
+     carry around additional proofs. For that reason, we will alias the *)
+
+
+
+
+
+
+
+
+
+  Section join_sp_test.
+    Context {d} {T : measurableType d}.
+
+  End join_sp_test.
 
 
 
