@@ -387,124 +387,152 @@ Section giry.
 
   (* We need to insturment Hierarchy Builder with enough extra information so that we can _give_ it
      distr's and _get back_ distr's too. *)
-  Definition distr {d} (T : measurableType d) := @subprobability d T R.
+  Definition distrType {d} (T : measurableType d) := @subprobability d T R.
 
-  (* Every distr is a giryType... *)
+  (* This gives me hope-- everying that is a distry also checks as a giryType *)
+  Check (fun x : (distrType _) => (x : giryType _)).
 
-  Fail Check giryM (distr _).
 
-  Section distr_measurable_type.
+
+
+
+  (* Like giryType, distrType is not measurable :< *)
+  Fail Check giryM (distrType _).
+  Fail Check giryM (giryType _).
+
+  (* So, we make a type whose points are distrType, and which is measurable *)
+  (* giryM did this by constructing a sigma algebra, we will not do all that work again.
+     Instead, hopefully, we will define an alias to distrType (like salgebraType), and then
+     prove that it is measurable by using giryM's measurability *)
+
+  Definition distrM {d} (T : measurableType d) : Type := distrType T.
+
+  Section distrM_measurable.
     Context {d} {T : measurableType d}.
+    Local Open Scope classical_set_scope.
+
+    (* Horrifying trick *)
+    Definition lower_distr (x : distrType T) : giryType T := x.
+    Fail Definition lower_set_distr (x : set (distrType T)) : set (giryType T) := x.
+    Definition lower_set_distr (x : set (distrType T)) : set (giryType T) := [set (lower_distr z) | z in x].
+    (* Definition lower_lower_set_distr (x : set (set (distrType T))) : set (set (giryType T)) := [set (lower_set_distr z) | z in x]. *)
 
 
-    (** Promote mzero to a subdistribution *)
+
+    Definition distrM_meas : set (set (distrM T))
+      := ([set x | giry_measurable (lower_set_distr x)] : set (set (distrM T))).
+
+    (* These should be provable by computung the identity function lower_distr *)
+    Lemma distrM_meas0 : distrM_meas set0.
+    Proof.
+      rewrite /distrM_meas/lower_set_distr/lower_distr/=.
+      rewrite image_set0.
+      (* Can do this directly (by applying generated sigma algebra lemmas) but can we also get it from giry more directly?? *)
+    Admitted.
+
+    Lemma distrM_measC X :
+      distrM_meas X -> distrM_meas (~` X).
+    Proof.
+      rewrite /distrM_meas/lower_set_distr/lower_distr/=/giry_measurable.
+      intro H.
+      apply sigma_algebraC in H.
+    Admitted.
+
+    Lemma distrM_measU (F : (set (@distrM d T))^nat) : (forall i, distrM_meas (F i)) -> distrM_meas (\bigcup_i F i).
+    Admitted.
+
+
+
+
+    Fail Check (mzero : distrType T).
     Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
     Proof. Admitted.
     HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
+    Check (mzero : distrType T).
+    Check (mzero : distrM T). (* FIXME: Could I be doing all of this on distrType? Probably. *)
 
     (* #[log] *)
-    HB.instance Definition _ := gen_eqMixin (distr T).
+    HB.instance Definition _ := gen_eqMixin (distrM T).
     (* #[log] *)
-    HB.instance Definition _ := gen_choiceMixin (distr T).
+    HB.instance Definition _ := gen_choiceMixin (distrM T).
     (* #[log] *)
-    HB.instance Definition _ := isPointed.Build (distr T) (@mzero d T R).
-
-    (* HB.instance Definition _ := Measurable.clone _ (distr T) (giryM T). *)
-
-    (* I expect this experiement to give me a forgetful inheritance error if I finish this experiment *)
-
-
-    (*
-    Definition distr_meas : set (set (@distr d T)).
-    Admitted.
-
-    Definition distr_meas0 : distr_meas set0.
-    Admitted.
-
-    Definition distr_measC X :
-      distr_meas X -> distr_meas (~` X).
-    Admitted.
-
-    Definition distr_measU (F : (set (@distr d T))^nat) : (forall i, distr_meas (F i)) -> distr_meas (\bigcup_i F i).
-    Admitted.
+    HB.instance Definition _ := isPointed.Build (distrM T) (@mzero d T R).
 
     HB.instance Definition _ :=
       @isMeasurable.Build
         default_measure_display
-        (@distr d T)
-        distr_meas
-        distr_meas0
-        distr_measC
-        distr_measU.
-     *)
-    (* Uhh.... okay?? So if I can get away with using a restricted version of the measurable sets
-       from giryM then distr would be measurable?? *)
-  End distr_measurable_type.
+        (@distrM d T)
+        distrM_meas
+        distrM_meas0
+        distrM_measC
+        distrM_measU.
+
+    (* I can feel that the types are in pain *)
+    (* If there isn't a better way, I can go back and try to fill in the gaps here (though it will be a mess) *)
+
+  End distrM_measurable.
+
+  Check fun (T : _) => distrM (distrM T).
+  Check fun (T : _) => distrType (distrM T).
+  (* See, the analogy to giryType and giryM breaks down here, so barring HB issues, I should just say distrM := subProbability. See above FIXME*)
 
 
-  Check giryM (distr _).
-  Check distr (distr _).
+  (* Now distributions are measurable types, so cab be *)
+  Check (fun x : (distrType _) => (x : giryType _)).
+  Check (fun x : (distrM _) => (x : giryType _)).
+  Check (fun x : (distrM _) => (x : giryM _)).
+
+  (* After this point, all that's left is to prove the subdistribution mixin for all the monad operations which don't have it already. *)
+
+
+  Check giryM (distrM _).
+  Check distrM (distrM _).
+
+
+  (** AN ALTERNATIVE: Just give up and use subdistributions right from the start. You lose a general formalization of the giry monad
+      for measure spaces, which is sad, but we wouldn't use it anywas. *)
+  (** I think that the reason that this problem is so hard is because HB doesn't understand that the "is-a" relationship
+      from the type hierarchy translates to "subsets" in this case (as in, every subdistribution is a measure, so the preimage classes
+      for subdistributions are subsets of the preimage classes for measures, likewise generated sets, likewise closure properties. *)
+  (** I don't expect that to be expressible. *)
 
 
   Section inheritance_tests.
     Context {d0 d1} {T0 : measurableType d0} {T1 : measurableType d1}.
     Variable (m : giryM T0).
 
-    Variable (f : T0 -> distr T1).
+    Variable (f : T0 -> distrM T1).
     Variable (mf : measurable_fun [set: T0] (fun x : T0 => f x)).
 
     Check @giryM_bind d0 d1 T0 T1.
     Check @giryM_bind d0 d1 T0 T1 f.
     (*                            ^ Expecting giryM, give it distrM, all is OK. *)
-    Fail Check (@giryM_bind d0 d1 T0 T1 f m _ : distr _).
+    Check (@giryM_bind d0 d1 T0 T1 f m _ : giryM _).
+    Fail Check (@giryM_bind d0 d1 T0 T1 f m _ : distrM _).
     (* It knows a giryM_bind gives us a giryM, but not a distrM (yet) *)
 
 
-    Definition distrM_ret {d} {T : measurableType d} : T -> distr T := giryM_ret.
+
+    (* This one it can figure out, since HB has been proveided a Measure_isSubProbability instance for dirac *)
+    Definition distrM_ret {d} {T : measurableType d} : T -> distrM T := giryM_ret.
 
 
 
 
-    Variables (m' : distr (distr T0)).
-    (* So how do we say that each is a subdistribution? *)
-    Lemma giryM_join_setT : ((giryM_join m') setT <= 1)%E.
+    Variables (m' : distrM (distrM T0)).
+
+    (* oof, this doesn't work anymore
+       More evidence towards "just give up already"
+
+    Lemma giryM_join_setT : ((@giryM_join _ _ m' setT) <= 1)%E.
     Proof. Admitted.
     HB.instance Definition _ := isSubProbability.Build _ _ _ (giryM_join m') giryM_join_setT.
+     *)
 
 
 
 
-
-
-
-
-
-
-  Notation "T .-distrM" := (@giryM_display _ T) : measure_display_scope.
-  Notation "T .-distrM.-measurable" :=
-    (measurable : set (set (distrM T))) : classical_set_scope.
-
-
-  (* Computationally these are all identical to the plain Giry monad. All that changes is that we must
-     carry around additional proofs. For that reason, we will alias the *)
-
-
-
-
-
-
-
-
-
-  Section join_sp_test.
-    Context {d} {T : measurableType d}.
-
-  End join_sp_test.
-
-
-
-
-
+  End inheritance_tests.
 
 
 
