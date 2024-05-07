@@ -71,6 +71,12 @@ End stolen_giry_monad_attempt.
 
 
 
+Reserved Notation "T .-giry" (at level 1, format "T .-giry").
+Reserved Notation "T .-giry.-measurable"
+ (at level 2, format "G .-giry.-measurable").
+
+
+
 
 
 (** modifiedfrom pushforward *)
@@ -121,151 +127,255 @@ End pullback.
 (** My Giry attempt *)
 
 Section giry.
-  Context d (T : measurableType d) (R : realType).
+  Context (R : realType).
   Local Open Scope classical_set_scope.
 
-  (* Generic definitions for the type of measures on T *)
-
-  Definition giry_display : measure_display.
-  Proof using d. exact. Qed.
-
-  Definition giryType := @measure d T R.
-
-  #[log]
-  HB.instance Definition _ := gen_eqMixin giryType.
-  #[log]
-  HB.instance Definition _ := gen_choiceMixin giryType.
-  #[log]
-  HB.instance Definition _ := isPointed.Build giryType mzero.
-
-  Definition ereal_borel_sets : set (set \bar R) := <<s [set N | exists x, ereal_nbhs x N]>>.
-
-  (* Definition borel_sigma_algebra : sigma_algebra [set: \bar R] ereal_borel_sets
-    := smallest_sigma_algebra [set: \bar R] ereal_borel_subbase. *)
-
-  (* Err... there is already a measurable type?
-     This is a function (set (set R)) -> (set (set \bar R)), use this to lift? Are we already using it to lift?
-     Check emeasurable.
+  (*
+      (giryType T)            Type of points in the giry sigma algebra on T, namely, measures on T
+      (giryM T)               Measurable space on giryType (measures)
+                                - An element of this type is a measure on T
+      (T.-giry)               Display for the giry sigma algebra on T
+      (T.-giry.-measurable)   Measurability in the giry sigma algebra on T
    *)
 
-  Definition preimage_class_of_measures (S : set T) : set (set giryType) :=
-          @preimage_class
-            giryType
-            (\bar R)                  (* Range type *)
-            setT                      (* Domain set *)
-            (fun 𝜇 => 𝜇 S)              (* Evaluation function *)
-            ereal_borel_sets          (* Range sets*).
 
-  Definition giry_subbase : set (set giryType)
-    := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
-
-  Definition giry_measurable : set (set giryType) := <<s giry_subbase>>.
-
-  #[log]
-  HB.instance Definition _ := Pointed.on (salgebraType giry_subbase).
+  (* FIXME: There has to be a standard version in the lirbaray, see below *)
+  Definition ereal_borel_sets : set (set \bar R) := <<s [set N | exists x, ereal_nbhs x N]>>.
 
 
-  Check (salgebraType giry_subbase).      (* Type of generated sigma algebra? *)
-  Check (sigma_display giry_subbase).     (* Display of generated sigma algebra? *)
-  Check (salgebraType giry_subbase : measurableType (sigma_display giry_subbase)).
-  (* The salgebraType is measurable (finally)*)
+  (** Construction of the Giry sigma algebra *)
 
-  Check (measurable : set (set (salgebraType giry_subbase))) .
-  Check (giry_subbase.-sigma.-measurable set0).
+  Definition giry_display {d} {T : measurableType d} : measure_display.
+  Proof using R. exact. Qed.
 
-  Example test_meas_0 : (giry_subbase.-sigma.-measurable set0).
-  Proof using d.
-    (* HB.about SemiRingOfSets. *)
-    (* Unset Printing Notations. *)
-    (* Locate measurable0. *)
-    (* Works (this is a very good sign) *)
-    (* apply isMeasurable.measurable0. *)
-    apply measurable0.
-  Qed.
+  (* Alias for underlying type we will build a giry sigma algebra on *)
+  Definition giryType {d} (T : measurableType d) : Type := @measure d T R.
 
-  Example test_meas_top : (giry_subbase.-sigma.-measurable (setT : set giryType)).
-  Proof using d. rewrite -setC0. apply measurableC, measurable0. Qed.
+  (* Define the measurable sets of a giry sigma algebra *)
+  Section giry_space.
+    Variable (d : measure_display) (T : measurableType d).
+
+    (* #[log] *)
+    HB.instance Definition _ := gen_eqMixin (giryType T).
+    (* #[log] *)
+    HB.instance Definition _ := gen_choiceMixin (giryType T).
+    (* #[log] *)
+    HB.instance Definition _ := isPointed.Build (giryType T) mzero.
+
+    Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
+      @preimage_class (giryType T)
+        (\bar R)                  (* Range type *)
+        setT                      (* Domain set *)
+        (fun 𝜇 => 𝜇 S)              (* Evaluation function *)
+        ereal_borel_sets          (* Range sets*).
+
+    Definition giry_subbase : set (set (giryType T))
+      := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
+
+    Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
+
+    #[log]
+    HB.instance Definition _ := Pointed.on (salgebraType giry_subbase).
+  End giry_space.
+
+  (* Measurable type for giryM aliases *)
+  Definition giryM_display {d} {T} := sigma_display (@giry_subbase d T).
+  Definition giryM {d} (T : measurableType d) : measurableType giryM_display
+    := salgebraType (@giry_subbase _ T).
+
+  Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
+  Notation "T .-giry.-measurable" :=
+    (measurable : set (set (giryM T))) : classical_set_scope.
 
 
-  (* Now let's put some measure on this space (something simple like Dirac of some fixed measure or something) *)
+  Section giry_space_example.
+    Context {d : measure_display} (T : measurableType d).
+
+    (* Example: Measuring sets in the Giry space *)
+    Example test_giry_measures_0 : T.-giry.-measurable (set0 : set (giryM T)).
+    Proof using d. simpl. apply measurable0. Qed.
+
+    Example test_giry_measures_T : T.-giry.-measurable [set: giryM T].
+    Proof using d.
+      simpl.
+      Fail apply measurableT.
+    Abort.
+
+    (* giryM is also a measurable type, so can be nested. *)
+    Example test_giry_measures_0' : (giryM T).-giry.-measurable (set0 : set (giryM (giryM T))).
+    Proof using d. simpl. apply measurable0. Qed.
+
+  End giry_space_example.
 
 
-  Definition μ_target : giryType. Admitted.
+  (** Basic examples *)
 
-  Definition giry_ret_μ
-    := @dirac
-          (sigma_display giry_subbase)
-          (salgebraType giry_subbase)
-          (μ_target : giryType)
-          R.
-  Check giry_ret_μ.
+  Section giry_integral_example.
+    Context {d : measure_display} (T : measurableType d).
+
+    Variable (μ_target : giryM T).  (* Some point in the space of measures on T*)
+
+    (* The dirac measure using that point *)
+    Example giry_ret_μ : giryM (giryM T) := @dirac _ _ μ_target _.
+
+    Example int_zero_over_dirac : (\int[giry_ret_μ]_x cst 0%:E x)%E = 0%:E.
+    Proof using d. apply integral0. Qed.
+
+    Example int_one_over_dirac : (\int[giry_ret_μ]_x cst 1%:E x)%E = 1%:E.
+    Proof using d.
+      rewrite integral_cst /=.
+      - by rewrite diracT mul1e.
+      - rewrite -setC0.
+        apply (@measurableC _ (giryM _)).
+        apply measurable0.
+    Qed.
+
+  End giry_integral_example.
 
 
-  Example int_zero_over_dirac : (\int[giry_ret_μ]_x cst 0%:E x)%E = 0%:E.
-  Proof using d. apply integral0. Qed.
 
-  Example int_one_over_dirac : (\int[giry_ret_μ]_x cst 1%:E x)%E = 1%:E.
-  Proof using d.
-    rewrite integral_cst /=.
-    - by rewrite diracT mul1e.
-    - rewrite -setC0.
-      apply (@measurableC _ (salgebraType giry_subbase)).
-      apply measurable0.
-  Qed.
 
-  (** Evaluation functions are measurable *)
+  (** Monadic return *)
+  Definition giryM_ret {d} {T : measurableType d} : T -> giryM T
+    := fun t0 => @dirac _ T t0 _.
 
-  (* Ok now we can do some giry-specfic stuff. For one, every evaluation function should be measurable. *)
-  Lemma giry_eval_meas (s : set T) :
-    measurable s -> @measurable_fun _ _ (salgebraType giry_subbase) _ setT (fun μ => μ s).
+  Section giry_ret_laws.
+    (* TODO: Port laws from prob here *)
+    Context {d} {T : measurableType d}.
+
+    Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret.
+    Proof. Admitted.
+
+
+  End giry_ret_laws.
+
+
+
+  (** Characterizing measurable functions in terms of evaluation functions *)
+
+  Definition giryM_Peval {d} {T : measurableType d} : set T -> giryM T -> \bar R
+    := fun s => (fun μ => μ s).
+
+  (* Evaluation functions are measurable *)
+  Lemma giryM_Peval_measurable {d} {T : measurableType d} (S : set T) :
+    d.-measurable S -> @measurable_fun _ _ (giryM T) _ setT (giryM_Peval S).
+  (*                                                 ^
+                                                    What is this field?? *)
   Proof.
     intro Hmeas_s.
     rewrite /measurable_fun /=.
     intros Hmeas_T U Hmeas_U.
-
-    (* Expand 'measurable to figure out what measurability in \bar R means, then use that to
-       redefine the Giry sigma algebra, then use the preimage class + subset-generated lemmas
-       to conclude. *)
+    (* What is 'measurable???'*)
   Admitted.
 
+  Section giry_measurable_characterization.
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+    Variable (f : T1 -> giryM T2).
 
-  (** Definition of join *)
-
-  (* This might be the place where we need to show that the nonneg thing about the integrals *)
-
-  (* Okay so looks like the whole pullback think is useless now (lol) since we can't define a pointwise function *)
-  (* The pullback stuff is still a good way template for how to define a measure though *)
-
-  Definition giry_join (m : measure (salgebraType giry_subbase) R) := (fun (A : set T) => (\int[m]_μ (μ A))%E).
-
-  Section giry_join_measure.
-
-    (* I don't know if there's any way to reuse the measurability of evaluation functions to do this *)
-    (* However this is at least An Template *)
-
-    Variables (m : measure (salgebraType giry_subbase) R).
-
-    Definition giry_join0 : giry_join m set0 = 0%E.
+    Lemma measurable_evals_imply_measurable :
+      (forall S : set T2, d2.-measurable S -> @measurable_fun _ _ T1 (\bar R) setT (fun μ => (f μ) S)).
     Proof. Admitted.
 
-    Definition giry_ge0 A : (0 <= giry_join m A)%E.
+    Lemma giry_measurable_fun_char :
+      (forall S : set T2, d2.-measurable S <-> @measurable_fun _ _ T1 (\bar R) setT (fun μ => (f μ) S)).
     Proof. Admitted.
 
-    Definition giry_semi_additive : semi_sigma_additive (giry_join m).
+  End giry_measurable_characterization.
+
+
+  (** Expectations in the Giry monad *)
+
+  Definition giryM_integrate {d} {T : measurableType d} (f : T -> \bar R) (_ : measurable_fun setT f)
+      : giryM T -> \bar R
+    := fun μ => (\int[μ]_x (f x))%E.
+
+  Section giryM_integrate_laws.
+    (* TODO: Port laws from prob here *)
+    Context {d} {T : measurableType d} (f : T -> \bar R) (Hf : measurable_fun setT f).
+
+    (* Taking expectaiton is measurable *)
+    Lemma giry_meas_integrate : @measurable_fun _ _ (giryM T) _ setT (giryM_integrate Hf).
+    Proof. Admitted.
+
+  End giryM_integrate_laws.
+
+
+
+
+
+  (** Mapping in the Giry monad *)
+
+  Definition giryM_map {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+                       (f : T1 -> T2) (m : giryM T1) (mf : measurable_fun setT f) : giryM T2
+    := pushforward m mf.
+
+
+  Section giry_map_laws.
+    (* TODO: Port laws from prob here *)
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+  End giry_map_laws.
+
+
+
+  (** Monadic join *)
+
+  Definition giryM_join {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
+    := (fun S => \int[m]_μ (μ S))%E.
+
+  Section giryM_join_measure.
+
+    (* For the proofs,
+        I don't know if there's any way to reuse the measurability of evaluation functions to do this. *)
+    Context {d} {T : measurableType d}.
+    Variables (m : giryM (giryM T)).
+
+    Definition giryM_join0 : giryM_join m set0 = 0%E.
+    Proof. Admitted.
+
+    Definition giryM_join_ge0 A : (0 <= giryM_join m A)%E.
+    Proof. Admitted.
+
+    Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join m).
     Proof. Admitted.
 
 
     HB.instance Definition _
       := isMeasure.Build _ _ _
-           (giry_join m)
-           giry_join0
-           giry_ge0
-           giry_semi_additive.
+           (giryM_join m)
+           giryM_join0
+           giryM_join_ge0
+           giryM_join_semi_additive.
 
-  End giry_join_measure.
+  End giryM_join_measure.
 
 
 
+  Section giryM_join_laws.
+    (* TODO: Port laws from prob here *)
+    Context {d} {T : measurableType d}.
+  End giryM_join_laws.
+
+
+  (** Monadic bind *)
+
+  Definition girym_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+                       (f : T1 -> giryM T2) (m : giryM T1) (mf : measurable_fun setT f) : giryM T2
+    := giryM_join (giryM_map m mf).
+
+  Section giryM_bind_laws.
+    (* TODO: Port laws from prob here *)
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+  End giryM_bind_laws.
+
+
+
+
+
+
+
+
+
+  (** BELOW IS NOT CLEANED *)
 
 
 
@@ -307,7 +417,7 @@ Section giry.
 
   Check funeneg.
 
-  Check forall (mu : measure T R), mu _ = _.
+  (* Check forall (mu : measure T R), mu _ = _. *)
   (*
       Definition integral mu D f (g := f \_ D) :=
       nnintegral mu (g ^\+) - nnintegral mu (g ^\-).
