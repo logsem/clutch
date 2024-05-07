@@ -181,4 +181,78 @@ Section basic.
     Unshelve. by lia.
   Qed.
 
+
+  (** Alternative proof using the induction principle on error amplification *)
+  Theorem ubdd_cf_safety_rec (n' m' : nat) (ε : nonnegreal) E :
+    (n' < m')%nat ->
+    (0 < ε) ->
+    € ε -∗
+      WP ubdd_rejection_sampler n' m' #() @ E [{ v, ⌜exists v' : nat, v = SOMEV #v' /\ (v' <= n')%nat⌝ }].
+  Proof.
+    iIntros (Hnm Hpos) "Hcr".
+    set (k := (m' + 1)/(m' - n')).
+    assert (0 <= k) as Hk.
+    { rewrite /k.
+      left.
+      apply Rdiv_lt_0_compat.
+      - pose proof (pos_INR m').
+        lra.
+      - apply lt_INR in Hnm.
+        lra.
+    }
+    rewrite /ubdd_rejection_sampler.
+    do 4 wp_pure.
+    wp_apply (error_amp_ind _ (mknonnegreal k Hk)).
+    4: by iFrame.
+    - auto.
+    - simpl.
+      rewrite /k.
+      apply Rcomplements.Rlt_div_r.
+      + apply lt_INR in Hnm; lra.
+      + rewrite Rmult_1_l.
+        pose proof (pos_INR n').
+        lra.
+    - iModIntro.
+      iIntros (ε') "#Hrec Herr".
+      wp_rec.
+      wp_bind (rand _)%E.
+      wp_apply (twp_rand_err_filter_above _ n' _ ε' ((mknonnegreal k Hk) * ε')%NNR); last first.
+      + iFrame.
+        iIntros (x) "[%Hleq | Herr]".
+        * wp_pures.
+          rewrite bool_decide_eq_true_2; last first.
+          {
+            lia.
+          }
+          wp_pures.
+          iModIntro.
+          iPureIntro.
+          exists x.
+          split; auto.
+        * wp_pures.
+          case_bool_decide.
+          ** wp_pures.
+             iModIntro.
+             iPureIntro.
+             exists x.
+             split; auto.
+             lia.
+          ** wp_pure.
+             wp_apply ("Hrec"); auto.
+      + simpl.
+        rewrite /k.
+        right.
+        rewrite Rmult_comm.
+        rewrite -Rmult_assoc.
+        rewrite Rmult_comm.
+        f_equal.
+        rewrite -Rmult_assoc.
+        rewrite (Rmult_comm (m' - n')).
+        rewrite Rmult_inv_r_id_l; auto.
+        apply lt_INR in Hnm.
+        lra.
+     + lia.
+  Qed.
+
+
 End basic.

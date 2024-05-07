@@ -908,6 +908,112 @@ Proof.
 Qed.
 
 
+(* Two lemmas about lists. Could be moved, but not sure where to *)
+Lemma length_filter_seq_below (N M : nat):
+  (M <= N) ->
+  length (List.filter (λ x : nat, bool_decide (x ≤ M)) (seq 0 (S N))) = (M + 1).
+Proof.
+  intro HMN.
+  induction HMN.
+  - rewrite forallb_filter_id.
+    + rewrite seq_length. lia.
+    + apply Is_true_eq_true.
+      apply forallb_True.
+      apply Forall_seq.
+      intros.
+      rewrite bool_decide_eq_true_2; auto.
+      lia.
+  - rewrite seq_S List.filter_app.
+    rewrite app_length IHHMN.
+    simpl.
+    rewrite bool_decide_eq_false_2 /=; first by lia.
+    intro H.
+    lia.
+Qed.
+
+
+Lemma length_filter_seq_above (N M : nat):
+  (M <= N) ->
+  length (List.filter (λ x : nat, bool_decide (M < x)) (seq 0 (S N))) = (N - M).
+Proof.
+  intro HMN.
+  induction HMN.
+  - replace (length (List.filter (λ x : nat, bool_decide (M < x)) (seq 0 (S M))))
+      with
+      ((S M) - length (List.filter (λ x : nat, bool_decide (x <= M)) (seq 0 (S M)))).
+    + rewrite forallb_filter_id.
+      * rewrite seq_length. lia.
+      * apply Is_true_eq_true.
+        apply forallb_True.
+        apply Forall_seq.
+        intros.
+        rewrite bool_decide_eq_true_2; auto.
+        lia.
+    + replace (S M) with (length (seq 0 (S M))) at 1;
+        last by rewrite seq_length; auto.
+      rewrite -(List.filter_length (λ x, bool_decide (x <= M))).
+      rewrite Nat.add_sub'.
+      f_equal.
+      apply filter_ext.
+      intro a.
+      case_bool_decide; case_bool_decide; auto; lia.
+  - rewrite seq_S List.filter_app.
+    rewrite app_length IHHMN.
+    simpl.
+    rewrite bool_decide_eq_true_2 /=; first by lia.
+    lia.
+Qed.
+
+
+Lemma twp_rand_err_filter_below (N : nat) (M : nat) (z : Z) (ε0 ε1 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  (M <= N) ->
+  (ε1 * (M + 1) <= ε0 * (N + 1))%R ->
+  € ε0 ∗
+    (∀ x : fin (S N), ((⌜ M < x ⌝) ∨ € ε1 ) -∗ Φ #x)
+    ⊢ WP rand #z @ E [{ Φ }].
+Proof.
+  iIntros (? HMN HK) "[H1 Hwp]".
+  iApply (twp_rand_err_filter_adv _ _ (λ x, bool_decide (x <= M))).
+  - rewrite length_filter_seq_below; auto.
+    rewrite plus_INR /=.
+    done.
+  - iFrame.
+    iIntros (x) "[%H1 | H2]".
+    + iApply "Hwp".
+      iLeft.
+      iPureIntro.
+      apply bool_decide_eq_false_1 in H1.
+      lia.
+    + iApply "Hwp".
+      iRight. done.
+Qed.
+
+
+Lemma twp_rand_err_filter_above (N : nat) (M : nat) (z : Z) (ε0 ε1 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  (M <= N) ->
+  (ε1 * (N - M) <= ε0 * (N + 1))%R ->
+  € ε0 ∗
+    (∀ x : fin (S N), ((⌜ x <= M ⌝) ∨ € ε1 ) -∗ Φ #x)
+    ⊢ WP rand #z @ E [{ Φ }].
+Proof.
+  iIntros (? HMN HK) "[H1 Hwp]".
+  iApply (twp_rand_err_filter_adv _ _ (λ x, bool_decide (M < x))).
+  - rewrite length_filter_seq_above; auto.
+    rewrite minus_INR /= //.
+  - iFrame.
+    iIntros (x) "[%H1 | H2]".
+    + iApply "Hwp".
+      iLeft.
+      iPureIntro.
+      apply bool_decide_eq_false_1 in H1.
+      lia.
+    + iApply "Hwp".
+      iRight. done.
+Qed.
+
+
 Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
@@ -948,7 +1054,9 @@ Lemma wp_bind_err_exp e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp �
     iIntros (v) "[Hε HQ]".
     iApply ("H2" with "[$]"). done.
   Qed.    
-  
+
+
+
 
 
 (** * Approximate Lifting *)
@@ -1947,6 +2055,116 @@ Proof.
         rewrite HS /=. lia.
     + rewrite HS.
       iFrame.
+Qed.
+
+
+Lemma twp_rec_total E (ε k : nonnegreal) e Φ Ψ :
+  to_val e = None ->
+  (0 < ε)%R ->
+  (1 < k)%R ->
+  □ ( ∀ ε', □ (Ψ -∗ € (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
+     Ψ -∗ € ε' -∗ WP e @ E [{ Φ }]) -∗
+  Ψ -∗ € ε -∗ WP e @ E [{ Φ }].
+Proof.
+  iIntros (Hnval Hpos Hgt1).
+  assert (exists n, 1 <= ε * k^n)%R as [n Hn].
+  {
+    simpl in Hgt1.
+    pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H1.
+
+  rewrite /Lim_seq.is_lim_seq
+          /Hierarchy.filterlim
+          /Hierarchy.filter_le
+          /Hierarchy.eventually
+          /Hierarchy.filtermap
+          /= in H1.
+  destruct (H1 (fun r : R => (/ ε <= r)%R)); simpl.
+  - exists (/ε)%R; intros; by apply Rlt_le.
+  - exists x.
+    apply (Rmult_le_reg_l (/ ε)%R).
+    + apply Rinv_0_lt_compat, Hpos.
+    + rewrite -Rmult_assoc Rinv_l; last by lra.
+      rewrite Rmult_1_l Rmult_1_r.
+      by apply H.
+  }
+  revert Hgt1.
+  iInduction n as [|m] "IH" forall (ε Hpos Hn).
+  - iIntros (Hgt1) "#Hrec HΨ Herr" .
+    wp_apply twp_ec_spend; auto.
+    simpl in Hn.
+    lra.
+  - iIntros (Hgt1) "#Hrec HΨ Herr" .
+    iApply ("Hrec" with "[] HΨ Herr").
+    iModIntro.
+    iIntros "HΨ Herr".
+    iApply ("IH" with "[] [] [%] [] HΨ [$Herr]").
+    + iPureIntro.
+      simpl.
+      simpl in Hpos.
+      simpl in Hgt1.
+      apply Rmult_lt_0_compat; try lra.
+    + iPureIntro.
+      simpl.
+      simpl in Hn.
+      lra.
+    + auto.
+    + iModIntro.
+      done.
+Qed.
+
+
+Lemma error_amp_ind (ε k : nonnegreal) P :
+  (0 < ε)%R ->
+  (1 < k)%R ->
+  □ ( ∀ ε', □ (€ (k * ε')%NNR -∗ P) -∗
+     € ε' -∗ P) -∗
+  € ε -∗ P.
+Proof.
+  iIntros (Hpos Hgt1).
+  assert (exists n, 1 <= ε * k^n)%R as [n Hn].
+  {
+    simpl in Hgt1.
+    pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H1.
+
+  rewrite /Lim_seq.is_lim_seq
+          /Hierarchy.filterlim
+          /Hierarchy.filter_le
+          /Hierarchy.eventually
+          /Hierarchy.filtermap
+          /= in H1.
+  destruct (H1 (fun r : R => (/ ε <= r)%R)); simpl.
+  - exists (/ε)%R; intros; by apply Rlt_le.
+  - exists x.
+    apply (Rmult_le_reg_l (/ ε)%R).
+    + apply Rinv_0_lt_compat, Hpos.
+    + rewrite -Rmult_assoc Rinv_l; last by lra.
+      rewrite Rmult_1_l Rmult_1_r.
+      by apply H.
+  }
+  revert Hgt1.
+  iInduction n as [|m] "IH" forall (ε Hpos Hn).
+  - iIntros (Hgt1) "#Hrec Herr".
+    iExFalso.
+    iApply ec_spend; auto.
+    simpl in Hn.
+    lra.
+  - iIntros (Hgt1) "#Hrec Herr" .
+    iApply ("Hrec" with "[] Herr").
+    iModIntro.
+    iIntros "Herr".
+    iApply ("IH" with "[] [] [%] [] [$Herr]").
+    + iPureIntro.
+      simpl.
+      simpl in Hpos.
+      simpl in Hgt1.
+      apply Rmult_lt_0_compat; try lra.
+    + iPureIntro.
+      simpl.
+      simpl in Hn.
+      lra.
+    + auto.
+    + iModIntro.
+      done.
 Qed.
 
 End rules.
