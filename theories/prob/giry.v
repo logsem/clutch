@@ -1,8 +1,9 @@
 (** Measures and probabilitiy from mathcomp-analysis *)
 
-From mathcomp Require Import all_ssreflect ssralg ssrnum ssrint interval finmap.
+From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
-From mathcomp.analysis Require Import ereal reals lebesgue_measure measure lebesgue_integral.
+From mathcomp Require Import cardinality fsbigop.
+From mathcomp.analysis Require Import reals ereal signed topology normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 Set Implicit Arguments.
@@ -24,6 +25,8 @@ Unset Printing Implicit Defensive.
         giryM_bind
 
 *)
+
+
 
 
 Reserved Notation "T .-giry" (at level 1, format "T .-giry").
