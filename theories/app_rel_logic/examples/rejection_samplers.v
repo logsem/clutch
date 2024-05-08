@@ -24,11 +24,11 @@ Section rejection_sampler.
   Definition simpl_sampler_prog: val :=
     λ: "_", rand #M.
 
-  
+
   Definition simpl_sampler_prog_annotated: expr :=
     let: "α" := alloc #M in
     λ: "_", rand("α") #M.
-  
+
   Lemma wp_rejection_simpl:
     ⤇ simpl_sampler_prog_annotated #() -∗
     € (0%NNR) -∗ WP rejection_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
@@ -51,8 +51,11 @@ Section rejection_sampler.
       iIntros "Hα".
       wp_pures.
       rewrite bool_decide_eq_true_2; last lia.
-      (** *why doesnt tp_rand. work?????? *)
-      admit.
+      tp_rand.
+      wp_pures.
+      iModIntro.
+      iExists _. iFrame.
+      rewrite fin_to_nat_to_fin //.
     - iIntros "[Hα Hαₛ]".
       simpl.
       wp_apply (wp_rand_tape with "[$]").
@@ -61,8 +64,7 @@ Section rejection_sampler.
       rewrite bool_decide_eq_false_2; last lia.
       wp_pure.
       wp_apply ("IH" with "[$][$][$][$]").
-  Admitted.
-  
+  Qed.
 
 End rejection_sampler.
 
@@ -100,4 +102,3 @@ Proof.
   eapply wp_aRcoupl_lim; first done.
   iIntros. wp_apply (wp_rejection_simpl with "[$]"). done.
   Admitted.
-

@@ -341,12 +341,14 @@ Tactic Notation "tp_rand" :=
   iStartProof;
   eapply tac_tp_rand;
   [tc_solve || fail "tp_rand: cannot eliminate modality in the goal"
-  |tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  | (* postpone solving [TCEq ...] until after the tape has been unified *)
   |iAssumptionCore || fail "tp_rand: cannot find the RHS"
   |tp_bind_helper
   |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
   |simpl; reflexivity || fail "tp_rand: this should not happen"
-  |pm_reduce (* new goal *)].
+  |pm_reduce (* new goal *)];
+  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  |].
 
 (** Some simple tests *)
 Section tests.
