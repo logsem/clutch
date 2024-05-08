@@ -989,11 +989,11 @@ Proof.
          f_equal.
 Qed.
 
-Lemma ARcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
+Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
   (M<=N)%R ->
   σ.(tapes) !! α = Some (N%nat; ns) ->
   σₛ.(tapes) !! αₛ = Some (M%nat; ms) ->
-  ARcoupl
+  Rcoupl
     (state_step σ α)
     (dunifP N≫= λ x, if bool_decide (∃ m, f m = x) then state_step σₛ αₛ else dret σₛ)
     (λ σ1' σ2', ∃ (n : fin (S N)),
@@ -1005,10 +1005,9 @@ Lemma ARcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (H
         else
           σ1' = state_upd_tapes <[α := (N; ns ++ [n])]> σ ∧
           σ2' =  σₛ
-    )
-    0%NNR.
+    ).
 Proof.
-  intros Hineq Hσ Hσₛ. rewrite <-(dret_id_right (state_step _ _)).
+  intros Hineq Hσ Hσₛ. (* rewrite <-(dret_id_right (state_step _ _)). *)
   replace (0)%NNR with (0+0)%NNR; last first.
   { apply nnreal_ext. simpl. lra. }
   erewrite (distr_ext (dunifP _ ≫= _)
@@ -1128,23 +1127,24 @@ Proof.
         intros ->. apply H.
         naive_solver.
   }
-  eapply ARcoupl_dbind; simpl; [lra|lra|..]; last first.
-  { by apply ARcoupl_state_step_dunifP. }
-  simpl.
-  intros σ' n ->.
+  erewrite state_step_unfold; last done.
+  rewrite /dmap. 
+  eapply Rcoupl_dbind; last apply Rcoupl_eq.
+  intros ??->.
   case_match eqn:Heqn.
-  - apply ARcoupl_dret.
-    exists n.
-    rewrite bool_decide_eq_true_2; last done.
-    destruct e as [m <-] eqn:He.
-    eexists _. split; first done. split; first done.
-    pose proof epsilon_correct (λ m0 : fin (S M), f m0 = f m) as H. simpl in H.
-    by rewrite H.
-  - apply ARcoupl_dret.
-    exists n.
-    rewrite bool_decide_eq_false_2; last done.
+  - destruct e as [m He].
+    replace (epsilon _) with m; last first.
+    { pose proof epsilon_correct (λ m0 : fin (S M), f m0 = b) as H.
+      simpl in H. apply Hinj. rewrite H. done.
+    }
+    apply Rcoupl_dret.
+    exists b.
+    rewrite bool_decide_eq_true_2; last naive_solver.
     naive_solver.
+  - apply Rcoupl_dret.
+    exists b. rewrite bool_decide_eq_false_2; naive_solver.
 Qed.
+
 
 (** Some useful lemmas to reason about language properties  *)
 

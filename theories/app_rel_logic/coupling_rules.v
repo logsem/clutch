@@ -468,7 +468,7 @@ Section rules.
     iApply exec_coupl_big_state_steps.
     iExists _, _, _.
     repeat iSplit.
-    - iPureIntro. apply ARcoupl_fragmented_rand_rand_inj.
+    - iPureIntro. apply ARcoupl_exact. apply Rcoupl_fragmented_rand_rand_inj.
       all: exact.
     - iPureIntro. by eapply state_step_erasable.
     - iPureIntro. apply erasable_dbind_predicate.

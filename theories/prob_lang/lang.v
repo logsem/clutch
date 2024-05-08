@@ -727,6 +727,17 @@ Definition state_step (σ1 : state) (α : loc) : distr state :=
     dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
   else dzero.
 
+Lemma state_step_unfold σ α N ns:
+  tapes σ !! α = Some (N; ns) ->
+  state_step σ α = dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ) (dunifP N).
+Proof.
+  intros H.
+  rewrite /state_step.
+  rewrite bool_decide_eq_true_2; last first.
+  { by apply elem_of_dom. }
+  by rewrite (lookup_total_correct (tapes σ) α (N; ns)); last done.
+Qed.
+
 (** Basic properties about the language *)
 Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
 Proof. induction Ki; intros ???; simplify_eq/=; auto with f_equal. Qed.
