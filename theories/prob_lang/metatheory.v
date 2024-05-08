@@ -989,7 +989,7 @@ Proof.
          f_equal.
 Qed.
 
-Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
+Lemma ARcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
   (M<=N)%R ->
   σ.(tapes) !! α = Some (N%nat; ns) ->
   σₛ.(tapes) !! αₛ = Some (M%nat; ms) ->
@@ -1043,7 +1043,7 @@ Proof.
                   end
              )
           ); last first.
-    { apply SeriesC_ext. intros. case_match; lra. }.
+    { apply SeriesC_ext. intros. case_match; lra. }
     rewrite !SeriesC_plus; last first.
     all: try apply ex_seriesC_finite.
     etrans; first eapply Rplus_eq_compat_l; last apply Rplus_eq_compat_r.
