@@ -440,7 +440,7 @@ Section rules.
       + by rewrite fin_to_nat_to_fin.
   Qed.
 
-  (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
+  (** * fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
   Lemma wp_couple_fragmented_rand_rand_inj  (M N:nat) (f:fin(S M) -> fin (S N)) (Hinj: Inj (=) (=) f) ns nsₛ α αₛ e E Φ:
     (M<=N)%R ->
     to_val e = None ->
@@ -503,7 +503,7 @@ Section rules.
         apply nnreal_ext; simpl; lra.
     Qed.
 
-  (** fragmented state rand N ~ state rand M, N>=M, under equality*)
+  (** * fragmented state rand N ~ state rand M, N>=M, under equality*)
   Lemma wp_couple_fragmented_rand_rand_leq (M N:nat) ns nsₛ α αₛ e E Φ:
     (M<=N)%R ->
     to_val e = None ->
@@ -549,5 +549,69 @@ Section rules.
       exfalso. apply H1. exists (nat_to_fin l). rewrite /f.
       apply fin_to_nat_inj. by rewrite !fin_to_nat_to_fin.
   Qed.
+
+  (** * fragmented state rand N ~ state rand M, M>=N, under injective function from N to M*)
+  Lemma wp_couple_fragmented_rand_rand_inj_rev  (M N:nat) (f:fin(S N) -> fin (S M)) (Hinj: Inj (=) (=) f) ns nsₛ α αₛ e E Φ:
+    (N<=M)%R ->
+    to_val e = None ->
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
+    (∀ (m : fin (S M)),
+       if bool_decide(∃ n, f n = m) then
+         ∀ n,
+       α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f n = m⌝ -∗
+       WP e @ E {{ Φ }}
+     else 
+       α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) -∗
+       WP e @ E {{ Φ }}
+    )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hineq Hval) "(>Hα & >Hαₛ & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    simplify_map_eq.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε_now) with (0+ε_now)%NNR; last (apply nnreal_ext; simpl; lra).
+    iApply exec_coupl_big_state_steps.
+    iExists _, _, _.
+    repeat iSplit.
+    - iPureIntro. apply ARcoupl_exact. apply Rcoupl_swap, Rcoupl_fragmented_rand_rand_inj.
+      all: exact.
+    - iPureIntro. apply erasable_dbind_predicate.
+      + apply dunifP_mass.
+      + by eapply state_step_erasable.
+      + apply dret_erasable.
+    - iPureIntro. by eapply state_step_erasable.
+    - simpl. iIntros (??[m H']).
+      case_bool_decide as H1.
+      * destruct H' as (n&?&?&?).
+        destruct H1 as [n' <-].
+        assert (n' = n) as -> by (by apply Hinj).
+        iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+        iMod (ghost_map_update ((M; nsₛ ++ [f n]) : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
+        iMod "Hclose'" as "_".
+        iSpecialize ("Hwp" $! (f n)).
+        rewrite bool_decide_eq_true_2; last naive_solver.
+        iSpecialize ("Hwp" $! (n)).
+        rewrite !wp_unfold/wp_pre/=Hval.
+        iDestruct ("Hwp" with "[$Hα $Hαₛ]") as "Hwp"; first done.
+        iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _) _ (state_upd_tapes <[αₛ:=(M; nsₛ ++ [f n]) : tape]> _) with "[$]"). subst.
+        iModIntro. replace (0+_)%NNR with ε_now; first iFrame.
+        apply nnreal_ext; simpl; lra.
+      * destruct H' as [??]. simplify_eq.
+        iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
+        iMod "Hclose'" as "_".
+        iSpecialize ("Hwp" $! m).
+        rewrite bool_decide_eq_false_2; last done.
+        rewrite !wp_unfold/wp_pre/=Hval.
+        iDestruct ("Hwp" with "[$]") as "Hwp".
+        iMod ("Hwp" $! _ _ (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> _) with "[$]").
+        iModIntro. replace (0+_)%NNR with ε_now; first iFrame.
+        apply nnreal_ext; simpl; lra.
+  Qed.
+  
   
 End rules.
