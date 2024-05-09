@@ -28,7 +28,6 @@ Unset Printing Implicit Defensive.
 
 
 
-
 Reserved Notation "T .-giry" (at level 1, format "T .-giry").
 Reserved Notation "T .-giry.-measurable"
  (at level 2, format "T .-giry.-measurable").
