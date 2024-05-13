@@ -1873,6 +1873,7 @@ Section inj.
                 by rewrite plus_zero_r.
   Qed.
 
+  (*
   Lemma ex_seriesC_inj (h : B -> R) (f : A -> B) `{Inj A B (=) (=) f} :
     (forall b, 0 <= h b) ->
     ex_seriesC h ->
@@ -1884,6 +1885,7 @@ Section inj.
     rewrite /countable_sum.
     rewrite /countable_sum in Hex.
   Admitted.
+  *)
 
 
 
