@@ -589,6 +589,14 @@ Qed.
   Qed.
 
   (* Depend on both *)
+  (** This statement atm is not sound.
+      Counter example: 
+      Suppose μ1 and μ2 are rand 1s, and S is (=), ε1 is 1/2
+      With this statement, we can assign E2 to be λ a b, if a = b then 1 else 0
+      Meaning, that for the branches where the two rands return the same value,
+      we somehow bumped up the errors from 1/2 to 1, which should not be possible 
+      in the normal case
+   *)
   Lemma ARcoupl_dbind_adv (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
     ε1 ε2 (E2 : A → B → ℝ) :
