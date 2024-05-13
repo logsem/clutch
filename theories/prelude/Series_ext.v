@@ -350,6 +350,51 @@ Proof.
         rewrite Nat.le_succ_r in H3. naive_solver.
 Qed.
 
+
+Lemma sum_n_pseudo_inj (h : nat -> nat)(f : nat -> R) n m :
+  (forall n, 0 <= f n) ->
+  (forall x y, h x = h y -> f (h x) ≠ 0 -> x = y) ->
+  (forall x : nat, x <= n -> h x <= m)%nat -> 
+  (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) m).
+Proof.
+  intros Hf H Hh.
+  pose proof make_decision.
+  trans (sum_n (λ n0 : nat, if bool_decide (∃ x, n0 = h x /\ x<=n)%nat then f n0 else 0) m); last first.
+  { apply sum_n_le. intros. case_bool_decide; try lra. naive_solver. }
+  revert m Hh.
+  induction n.
+  - intros. rewrite sum_O. etrans; last eapply partial_sum_mon.
+    + etrans; last apply partial_sum_elem.
+      * case_bool_decide as H0; first done.
+        exfalso. apply H0. naive_solver.
+      * intros. case_bool_decide; naive_solver.
+    + intros. case_bool_decide; naive_solver.
+    + naive_solver.
+  - intros. rewrite sum_Sn.
+    replace (sum_n _ m) with (sum_n (λ n0 : nat, if bool_decide (∃ x : nat, n0 = h x ∧ x ≤ n) then f n0 else 0) m + sum_n (λ n0 : nat, if bool_decide (n0 = h (S n)) then f n0 else 0) m).
+    + apply Rplus_le_compat; first naive_solver.
+      etrans; last eapply partial_sum_mon; first (etrans; last apply partial_sum_elem).
+      * by case_bool_decide.
+      * intros; case_bool_decide; naive_solver.
+      * intros; case_bool_decide; naive_solver.
+      * naive_solver.
+    + clear IHn.
+      remember m as k. rewrite Heqk in Hh. clear Heqk.
+      rewrite sum_n_plus. f_equal. apply functional_extensionality_dep.
+      intros x.
+      repeat case_bool_decide; try done; try lra.
+      * subst. destruct H0 as [?[??]]; destruct H2 as [?[??]].
+        rewrite H0 in H2.
+        destruct (decide (f (h (S n)) = 0)); first by lra.
+        apply H in H0; auto. subst. lia.
+      * exfalso. naive_solver.
+      * exfalso. naive_solver.
+      * exfalso. naive_solver.
+      * exfalso. apply H0. destruct H2 as [?[??]]. subst.
+        rewrite Nat.le_succ_r in H3. naive_solver.
+Qed.
+
+
 Lemma sum_n_surj_le_some_index h f n:
   Surj eq h ->
   (∀ n : nat, 0 <= f n) -> 
@@ -428,7 +473,7 @@ Fixpoint max_seq (f : nat -> nat) n :=
   | S m => max (f (S m)) (max_seq f m)
   end.
 
-Lemma sum_max_seq (f : nat -> R) h n `{Bij nat nat h}:
+Lemma sum_max_seq (f : nat -> R) h n `{Inj nat nat eq eq h}:
   (forall n, 0 <= f n) ->
   (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
 Proof.
@@ -442,6 +487,26 @@ Proof.
       apply Nat.le_max_r.
     + subst. apply Nat.le_max_l.
 Qed.
+
+
+Lemma sum_max_seq_pseudo_inj (f : nat -> R) (h : nat -> nat) n:
+  (forall n, 0 <= f n) ->
+  (forall x y, h x = h y -> f (h x) ≠ 0 -> x = y) ->
+  (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n)).
+Proof.
+  intros Hpos H.
+  apply sum_n_pseudo_inj.
+  1,2: done.
+  clear.
+  induction n; simpl; intros.
+  - assert (x=0%nat); try lia. by subst.
+  - rewrite Nat.le_succ_r in H. destruct H.
+    + etrans; first by apply IHn.
+      apply Nat.le_max_r.
+    + subst. apply Nat.le_max_l.
+Qed.
+
+
 
 Lemma is_series_bijection (f : nat -> R) h v `{Bij nat nat h} :
   (forall n, 0 <= f n) ->
@@ -457,6 +522,7 @@ Proof.
   - assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
     {
       intro; eapply sum_max_seq; eauto.
+      apply bij_inj.
     }
     intro n.
     eapply Rbar_le_lt_trans; [apply rbar_le_rle, Haux | apply Hf ].
@@ -547,6 +613,46 @@ Proof.
       apply upper_bound_ge_sup.
       intro n; auto.
       specialize (Hl n); auto.
+Qed.
+
+Lemma ex_series_inj (f : nat -> R) h `{Inj nat nat eq eq h} :
+  (forall n, 0 <= f n) ->
+  ex_series f ->
+  ex_series (λ n, f (h n)).
+Proof.
+  intros Hpos [l Hl].
+  apply ex_pos_bounded_series; auto.
+  exists l.
+  apply lim_is_sup in Hl; auto.
+  assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
+  {
+    intro; eapply sum_max_seq; eauto.
+  }
+  intro n.
+  etrans; eauto.
+  apply (is_sup_seq_major _ _ (max_seq h n)) in Hl.
+  auto.
+Qed.
+
+
+Lemma ex_series_pseudo_inj (f : nat -> R) (h: nat -> nat) :
+  (forall n, 0 <= f n) ->
+  (forall x y, h x = h y -> f (h x) ≠ 0 -> x = y) ->
+  ex_series f ->
+  ex_series (λ n, f (h n)).
+Proof.
+  intros Hpos H [l Hl].
+  apply ex_pos_bounded_series; auto.
+  exists l.
+  apply lim_is_sup in Hl; auto.
+  assert (forall n, (sum_n (λ n0 : nat, f (h n0)) n) <= (sum_n (λ n0 : nat, f n0) (max_seq h n))) as Haux.
+  {
+    intro; eapply sum_max_seq_pseudo_inj; eauto.
+  }
+  intro n.
+  etrans; eauto.
+  apply (is_sup_seq_major _ _ (max_seq h n)) in Hl.
+  auto.
 Qed.
 
 Lemma double_sup_diag (h : nat * nat → R) :
