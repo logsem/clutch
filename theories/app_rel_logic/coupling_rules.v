@@ -613,5 +613,76 @@ Section rules.
         apply nnreal_ext; simpl; lra.
   Qed.
   
+  (** couplings between prim step and state steps*)
+  Lemma wp_couple_tape_rand N f `{Bij (fin (S N)) (fin (S N)) f} K E α z ns Φ e :
+    TCEq N (Z.to_nat z) →
+    to_val e = None →
+    ▷ α ↪ (N; ns) ∗ ⤇ fill K  (rand #z) ∗
+    (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ ⤇ fill K  #(f n) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (-> He) "(>Hα & Hj & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hj") as %-> .
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0+ε)%NNR by (apply nnreal_ext; simpl; lra).
+    iApply (exec_coupl_state_prim α).
+    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
+    iExists
+      (λ σ2 '(e2', σ2'),
+        ∃ n, σ2 = state_upd_tapes <[α := (_; ns ++ [n]) : tape]> σ1
+             ∧ (e2', σ2') = (fill K #(f n), σ1')).
+    iSplit.
+    { iPureIntro.
+      apply ARcoupl_exact.
+      rewrite /= -(dret_id_right (state_step _ _)) fill_dmap //.
+      eapply Rcoupl_dbind => /=; last first.
+      { eapply Rcoupl_pos_R. by eapply Rcoupl_state_rand. }
+      intros σ2 (e2' & σ2') ((b & -> & ->) & ? & ?).
+      apply Rcoupl_dret=>/=. eauto. }
+    iIntros (σ2 e2' σ2' (b & -> & [= -> ->])).
+    iMod (spec_interp_update_expr _ _ _ (fill K #(f b)) with "Hauth2 Hj") as "[Hauth2 Hspec0]".
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iMod (ghost_map_update ((_; ns ++ [b]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+    iMod "Hclose'" as "_".
+    iSpecialize ("Hwp" with "[$]").
+    rewrite !wp_unfold /wp_pre /= He.
+    iMod ("Hwp" $! (state_upd_tapes <[α:=(_; ns ++ [b]) : tape]> σ1)
+           with "[$Hh1 $Hauth2 $Ht1 $Herr]") as "Hwp".
+    replace (_+_)%NNR with (ε) by (apply nnreal_ext; simpl; lra).
+    done.
+  Qed.
+
+  (** * rand(unit, N) ~ state_step(α', N) coupling *)
+  Lemma wp_couple_rand_tape N f `{Bij (fin (S N)) (fin (S N)) f} z E α ns Φ :
+    TCEq N (Z.to_nat z) →
+    ▷ α ↪ₛ (N; ns) ∗
+    ▷ (∀ n : fin (S N), α ↪ₛ (N; ns ++ [f n]) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
+  Proof.
+    iIntros (->) "(>Hαs & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
+    iDestruct (spec_interp_auth_frag_lookup_tapes with "Hauth2 Hαs") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
+    iApply (exec_coupl_prim_state α).
+    { rewrite /= /get_active. apply elem_of_elements, elem_of_dom; eauto. }
+    iExists _. iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
+    iSplit.
+    { iPureIntro. apply ARcoupl_exact. by eapply (Rcoupl_rand_state _ f). }
+    iIntros (e2 σ2 σ2' (b & [=-> ->] & ->)).
+    iMod (spec_interp_auth_frag_update_tapes _ _ _ _ ((_; ns ++ [f b]) : tape) with "Hauth2 Hαs") as "[Htapes Hαs]".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iSpecialize ("Hwp" $! b with "[$Hαs]").
+    iFrame.
+    iModIntro.
+    by iApply wp_value.
+  Qed.
+
   
 End rules.
