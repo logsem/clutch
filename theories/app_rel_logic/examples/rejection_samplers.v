@@ -82,11 +82,19 @@ Proof.
     rewrite /rejection_sampler_prog_annotated.
     rewrite /rejection_sampler_prog.
     tp_alloctape as α "Hα".
-    do 2 tp_pure.
+    do 3 tp_pure. 
     iLöb as "IH" forall "Hspec Hα Herr".
     wp_pures. tp_pures.
-    (* need couple tapes and state steps urgh*)
-    admit.
+    wp_apply (wp_couple_rand_tape with "[$Hα Herr Hspec]").
+    iIntros "!> %n Hα". simpl.
+    tp_bind (rand(_) _)%E.
+    iMod (step_rand with "[$]") as "[Hspec Hα]".
+    simpl.
+    tp_pures. wp_pures.
+    case_bool_decide.
+    - tp_pures. wp_pures.
+      iModIntro. iExists _. iFrame. done.
+    - tp_pure. wp_pure. iApply ("IH" with "[$][$][$]").
   }
   replace 0%NNR with (0+0)%NNR by (apply nnreal_ext; simpl; lra).
   eapply (ARcoupl_eq_trans_r _ (lim_exec(@simpl_sampler_prog_annotated M #(), σ))); [done|done|..]; last first.
@@ -97,8 +105,15 @@ Proof.
     wp_apply (wp_alloc_tape); first done.
     iIntros (α) "Hα".
     tp_pures. wp_pures.
-    (* need couple tapes and state steps*)
-    admit. }
+    tp_bind (rand (_))%E.
+    wp_apply (wp_couple_tape_rand with "[$Hα $Hspec Herr]"); [done|].
+    iIntros (x) "[Hα Hspec]".
+    simpl.
+    wp_apply (wp_rand_tape with "[$]").
+    iIntros. iExists _. iFrame. done.
+  }
   eapply wp_aRcoupl_lim; first done.
   iIntros. wp_apply (wp_rejection_simpl with "[$]"). done.
-  Admitted.
+  Unshelve.
+  done.
+Qed.
