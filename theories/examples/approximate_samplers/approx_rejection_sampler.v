@@ -202,9 +202,7 @@ Section basic.
     }
     rewrite /ubdd_rejection_sampler.
     do 4 wp_pure.
-    wp_apply (error_amp_ind _ (mknonnegreal k Hk)).
-    4: by iFrame.
-    - auto.
+    wp_apply (ec_ind_amp _ (mknonnegreal k Hk) with "[] Hcr"); auto.
     - simpl.
       rewrite /k.
       apply Rcomplements.Rlt_div_r.
@@ -242,13 +240,13 @@ Section basic.
       + simpl.
         rewrite /k.
         right.
-        rewrite Rmult_comm.
-        rewrite -Rmult_assoc.
-        rewrite Rmult_comm.
+        rewrite Rmult_comm
+          -Rmult_assoc
+          Rmult_comm.
         f_equal.
-        rewrite -Rmult_assoc.
-        rewrite (Rmult_comm (m' - n')).
-        rewrite Rmult_inv_r_id_l; auto.
+        rewrite -Rmult_assoc
+          (Rmult_comm (m' - n'))
+          Rmult_inv_r_id_l //.
         apply lt_INR in Hnm.
         lra.
      + lia.

@@ -2066,53 +2066,18 @@ Lemma twp_rec_total E (ε k : nonnegreal) e Φ Ψ :
      Ψ -∗ € ε' -∗ WP e @ E [{ Φ }]) -∗
   Ψ -∗ € ε -∗ WP e @ E [{ Φ }].
 Proof.
-  iIntros (Hnval Hpos Hgt1).
-  assert (exists n, 1 <= ε * k^n)%R as [n Hn].
-  {
-    simpl in Hgt1.
-    pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H1.
-
-  rewrite /Lim_seq.is_lim_seq
-          /Hierarchy.filterlim
-          /Hierarchy.filter_le
-          /Hierarchy.eventually
-          /Hierarchy.filtermap
-          /= in H1.
-  destruct (H1 (fun r : R => (/ ε <= r)%R)); simpl.
-  - exists (/ε)%R; intros; by apply Rlt_le.
-  - exists x.
-    apply (Rmult_le_reg_l (/ ε)%R).
-    + apply Rinv_0_lt_compat, Hpos.
-    + rewrite -Rmult_assoc Rinv_l; last by lra.
-      rewrite Rmult_1_l Rmult_1_r.
-      by apply H.
-  }
-  revert Hgt1.
-  iInduction n as [|m] "IH" forall (ε Hpos Hn).
-  - iIntros (Hgt1) "#Hrec HΨ Herr" .
-    wp_apply twp_ec_spend; auto.
-    simpl in Hn.
-    lra.
-  - iIntros (Hgt1) "#Hrec HΨ Herr" .
-    iApply ("Hrec" with "[] HΨ Herr").
-    iModIntro.
-    iIntros "HΨ Herr".
-    iApply ("IH" with "[] [] [%] [] HΨ [$Herr]").
-    + iPureIntro.
-      simpl.
-      simpl in Hpos.
-      simpl in Hgt1.
-      apply Rmult_lt_0_compat; try lra.
-    + iPureIntro.
-      simpl.
-      simpl in Hn.
-      lra.
-    + auto.
-    + iModIntro.
-      done.
+  iIntros (Hnval Hpos Hgt1) "#Hrec HΨ Herr".
+  iRevert "HΨ".
+  iApply (ec_ind_amp _ k with "[Hrec] Herr"); auto.
+  iModIntro.
+  iIntros (ε') "#HWP Herr HΨ".
+  iApply ("Hrec" with "[HWP] [$HΨ] [$Herr]").
+  iModIntro.
+  iIntros "HΨ Herr".
+  iApply ("HWP" with "Herr HΨ").
 Qed.
 
-
+(*
 Lemma error_amp_ind (ε k : nonnegreal) P :
   (0 < ε)%R ->
   (1 < k)%R ->
@@ -2166,5 +2131,6 @@ Proof.
     + iModIntro.
       done.
 Qed.
+*)
 
 End rules.

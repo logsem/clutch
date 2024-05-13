@@ -3,6 +3,7 @@
  *)
 
 From Coq Require Import Reals RIneq Psatz.
+From Coquelicot Require Import Lim_seq.
 From clutch.prelude Require Export base classical Reals_ext NNRbar.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import tactics.
@@ -188,7 +189,7 @@ Section error_credit_theory.
   Context `{!ecGS Σ}.
   Implicit Types (P Q : iProp Σ).
 
-  (** Later credit rules *)
+  (** Error credit rules *)
   Lemma ec_split ε1 ε2 :
     € (nnreal_plus ε1 ε2) ⊣⊢ € ε1 ∗ € ε2.
   Proof.
@@ -320,6 +321,54 @@ Section error_credit_theory.
     by rewrite /CombineSepAs ec_split.
   Qed.
 
+
+Lemma ec_ind_amp (ε k : nonnegreal) P :
+  (0 < ε)%R ->
+  (1 < k)%R ->
+  □ ( ∀ ε', □ (€ (k * ε')%NNR -∗ P) -∗
+                                       € ε' -∗ P) -∗
+  € ε -∗ P.
+Proof.
+  iIntros (Hpos Hgt1).
+  assert (exists n, 1 <= ε * k^n)%R as [n Hn].
+  {
+    simpl in Hgt1.
+    pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H1.
+
+  rewrite /Lim_seq.is_lim_seq
+          /Hierarchy.filterlim
+          /Hierarchy.filter_le
+          /Hierarchy.eventually
+          /Hierarchy.filtermap
+          /= in H1.
+  destruct (H1 (fun r : R => (/ ε <= r)%R)); simpl.
+  - exists (/ε)%R; intros; by apply Rlt_le.
+  - exists x.
+    apply (Rmult_le_reg_l (/ ε)%R).
+    + apply Rinv_0_lt_compat, Hpos.
+    + rewrite -Rmult_assoc Rinv_l; last by lra.
+      rewrite Rmult_1_l Rmult_1_r.
+      by apply H.
+  }
+  revert Hgt1.
+  iInduction n as [|m] "IH" forall (ε Hpos Hn).
+  - iIntros (Hgt1) "#Hrec Herr".
+    iExFalso.
+    iApply ec_spend; auto.
+    simpl in Hn.
+    lra.
+  - iIntros (Hgt1) "#Hrec Herr" .
+    iApply ("Hrec" with "[] Herr").
+    iModIntro.
+    iIntros "Herr".
+    iApply ("IH" with "[] [] [%] [] [$Herr]"); try done.
+    + iPureIntro.
+      apply Rmult_lt_0_compat; lra.
+    + iPureIntro.
+      etrans; eauto.
+      simpl. lra.
+Qed.
+
 End error_credit_theory.
 
 Lemma ec_alloc `{!ecGpreS Σ} (n : nonnegreal) :
@@ -334,3 +383,5 @@ Proof.
   - pose (C := EcGS _ _ γEC).
     iModIntro. iExists C. iFrame.
 Qed.
+
+
