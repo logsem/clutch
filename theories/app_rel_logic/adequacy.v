@@ -152,7 +152,7 @@ Section adequacy.
     - iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
       iApply (step_fupdN_mono _ _ _
                 (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec (S n) (e1, σ2))
-                                          (lim_exec (e1', σ2')) φ ε2⌝)%I).
+                                          (lim_exec (e1', σ2')) φ (E2 σ2')⌝)%I).
       + iPureIntro.
         intros ?.
         eapply ARcoupl_erasure_erasable; [| | exact| ..]; try done.

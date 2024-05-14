@@ -565,6 +565,26 @@ Proof.
   eapply ARcoupl_mon_grading; first exact.
   eapply ARcoupl_dbind; try done.
 Qed.
+
+
+Lemma ARcoupl_erasure_erasable_adv_RHS (e1 e1' : expr) ε ε1 ε2 σ1 σ1' μ1 μ2 (E2 : _ -> R) R Φ n :
+  0 <= ε1 ->
+  0 <= ε2 ->
+  ε1 + ε2 <= ε ->
+  ARcoupl (μ1) (μ2) R ε1 ->
+  SeriesC (λ b, μ2 b * E2 b) = ε2 -> 
+  erasable μ1 σ1->
+  erasable μ2 σ1'->
+  (∀ σ2 σ2' : language.state prob_lang, R σ2 σ2' → ARcoupl (exec (S n) (e1, σ2)) (lim_exec (e1', σ2')) Φ (E2 σ2')) ->
+  ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) Φ ε.
+Proof.
+  rewrite {1}/erasable.
+  intros H1 H2 Hineq Hcoupl Hsum Hμ1 Hμ2 Hcont.
+  rewrite -Hμ1.
+  erewrite <-erasable_lim_exec; last exact.
+  eapply ARcoupl_mon_grading; first exact.
+  eapply (ARcoupl_dbind_adv_rhs _ _ _ _ _ _ _ _ E2); try done.
+Admitted.
 (*   rewrite {1}/erasable. *)
 (*   intros Hcoupl Hμ1 Hμ2 Hcont. *)
 (*   rewrite -Hμ1. *)

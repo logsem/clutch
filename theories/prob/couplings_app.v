@@ -39,6 +39,20 @@ End couplings.
 Section couplings_theory.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
 
+  Lemma ARcoupl_1 (μ1 : distr A) (μ2 : distr B) R ε:
+    (1 <= ε) -> ARcoupl μ1 μ2 R ε.
+  Proof.
+    rewrite /ARcoupl.
+    intros Hε f g Hf Hg Hfg.
+    trans 1.
+    - trans (SeriesC μ1); last auto.
+      apply SeriesC_le; last auto.
+      real_solver.
+    - replace 1 with (0+1); last lra.
+      apply Rplus_le_compat; last lra.
+      apply SeriesC_ge_0'; real_solver.
+  Qed.
+
   Lemma ARcoupl_mon_grading (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε1 ε2 :
     (ε1 <= ε2) ->
     ARcoupl μ1 μ2 R ε1 ->
@@ -64,6 +78,12 @@ Section couplings_theory.
     }
     rewrite Rplus_0_r. auto.
   Qed.
+
+End couplings_theory.
+(** have to start new section so one can use ARcoupl_mon_grading above of a different type *)
+
+Section couplings_theory'.
+  Context `{Countable A, Countable B, Countable A', Countable B'}.
 
 
   (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
@@ -399,8 +419,37 @@ Qed.
     by apply Rmax_l.
   Qed.
 
+  Lemma ARcoupl_dbind_adv_lhs' (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    ε1 ε2 (E2 : A → ℝ) :
+    (Rle 0 ε1) → (∃ n, ∀ a, 0 <= (E2 a) <= n) →
+    (SeriesC (λ a, μ1 a * (E2 a)) <= ε2) →
+      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+  Proof.
+    intros Hε1 HE2 Hsum Hfg Hcoupl.
+    pose (E2' x:= Rmin 1 (E2 x)).
+    eapply (ARcoupl_mon_grading _ _ _ (ε1 + SeriesC (λ a, μ1 a * (E2' a)))).
+    { apply Rplus_le_compat_l; etrans; last exact. apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn.
+      - intros. rewrite /E2'. split.
+        + apply Rmult_le_pos; try done. apply Rmin_glb; [lra|naive_solver].
+        + apply Rmult_le_compat_l; first done. apply Rmin_r.
+      - naive_solver.
+    }
+    eapply (ARcoupl_dbind_adv_lhs _ _ _ _ _ _ _ _ E2'); try done. 
+    - intros a; split.
+      + apply Rmin_glb; [lra|naive_solver].
+      + apply Rmin_l.
+    - intros a b Hs. specialize (Hfg a b Hs).
+      rewrite /E2'. 
+      rewrite /Rmin.
+      case_match.
+      + apply ARcoupl_1; done.
+      + eapply ARcoupl_mon_grading; done.
+  Qed.
+  
 
   (* Depend on RHS *)
+
   Lemma ARcoupl_dbind_adv_rhs (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
     ε1 ε2 (E2 : B → ℝ) :
@@ -588,6 +637,34 @@ Qed.
       + apply HE2.
   Qed.
 
+  Lemma ARcoupl_dbind_adv_rhs' (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
+    ε1 ε2 (E2 : B → ℝ) :
+    (Rle 0 ε1) → (∃ n, ∀ b, 0 <= (E2 b) <= n) →
+    (SeriesC (λ b, μ2 b * (E2 b)) <= ε2) →
+      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+  Proof.
+    intros Hε1 HE2 Hsum Hfg Hcoupl.
+    pose (E2' x:= Rmin 1 (E2 x)).
+    eapply (ARcoupl_mon_grading _ _ _ (ε1 + SeriesC (λ a, μ2 a * (E2' a)))).
+    { apply Rplus_le_compat_l; etrans; last exact. apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn.
+      - intros. rewrite /E2'. split.
+        + apply Rmult_le_pos; try done. apply Rmin_glb; [lra|naive_solver].
+        + apply Rmult_le_compat_l; first done. apply Rmin_r.
+      - naive_solver.
+    }
+    eapply (ARcoupl_dbind_adv_rhs _ _ _ _ _ _ _ _ E2'); try done. 
+    - intros a; split.
+      + apply Rmin_glb; [lra|naive_solver].
+      + apply Rmin_l.
+    - intros a b Hs. specialize (Hfg a b Hs).
+      rewrite /E2'. 
+      rewrite /Rmin.
+      case_match.
+      + apply ARcoupl_1; done.
+      + eapply ARcoupl_mon_grading; done.
+  Qed.
+
   (* Depend on both *)
   (** This statement atm is not sound.
       Counter example: 
@@ -694,7 +771,7 @@ Qed.
   (* Qed. *)
 
 
-End couplings_theory.
+End couplings_theory'.
 
 (* TODO: cleanup *)
 Section ARcoupl.

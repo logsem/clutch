@@ -56,12 +56,14 @@ Section exec_coupl.
            ⌜ARcoupl (state_step σ1 α) (prim_step e1' σ1') R ε1⌝ ∗
               ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ Φ (((e1, σ2), (e2', σ2')), ε2))) ∨
         (* big state step on both sides *)
-        (∃ R μ1 μ2 (ε1 ε2 : nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
+        (∃ R μ1 μ2 (ε1 ε2 : nonnegreal) (E2: state Λ -> nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
                     ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
                     ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
+                    ⌜ ∀ b, (0 <= E2 b <= 1)%R ⌝ ∗
+                    ⌜ (SeriesC (λ b, μ2 b * E2 b) <= ε2)%R ⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
-              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ (((e1, σ2), (e1', σ2')), ε2))) 
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ (((e1, σ2), (e1', σ2')), E2 σ2'))) 
     )%I.
 
   (* TODO: Define this globally, it appears in error credits too *)
@@ -107,8 +109,8 @@ Section exec_coupl.
         iIntros. iApply "Hwand". by iApply "HZ".
       + iRight. by iApply "IH".
     - iRight; iRight; iRight; iRight; iRight.
-      iDestruct "Hl" as "(%&%&%&%&%&%&%&%&%&H)".
-      iExists _, _, _, _, _. repeat iSplit; try done.
+      iDestruct "Hl" as "(%&%&%&%&%&%&%&%&%&%&%&%&H)".
+      iExists _, _, _, _, _, _. repeat iSplit; try done.
       iIntros. iApply "Hwand". iApply ("H" with "[//]").
   Qed.
 
@@ -137,13 +139,14 @@ Section exec_coupl.
            ⌜ARcoupl (state_step σ1 α) (prim_step e1' σ1') R ε1⌝ ∗
               ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ exec_coupl e1 σ2 e2' σ2' Z ε2)) ∨
       (* big state step *)
-      
-        (∃ R μ1 μ2 (ε1 ε2 : nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
+        (∃ R μ1 μ2 (ε1 ε2 : nonnegreal) (E2 : state Λ -> nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
                     ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
                     ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
+                    ⌜ ∀ b, (0 <= E2 b <= 1)%R ⌝ ∗
+                    ⌜ (SeriesC (λ b, μ2 b * E2 b) <= ε2)%R ⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
-              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z ε2)) 
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z (E2 σ2'))) 
     )%I.
   Proof. rewrite /exec_coupl/exec_coupl' least_fixpoint_unfold //. Qed.
 
@@ -215,8 +218,8 @@ Section exec_coupl.
     - rewrite least_fixpoint_unfold.
       do 5 iRight.
       simpl.
-      iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
-      iExists _, _, _, _, _.
+      iDestruct "H" as "(%&%&%&%&%&%&%&%&%&%&%&%&H)".
+      iExists _, _, _, _, _, _.
       repeat iSplit; try done.
       iIntros. by iApply ("H" with "[//]").
   Qed.
@@ -340,8 +343,8 @@ Section exec_coupl.
       + iRight. by iApply ("IH" with "Ht").
     - rewrite least_fixpoint_unfold /=.
       do 5 iRight.
-      iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
-      iExists _, _, _, _, _.
+      iDestruct "H" as "(%&%&%&%&%&%&%&%&%&%&%&%&H)".
+      iExists _, _, _, _, _, _.
       repeat (iSplit; [done|]).
       iIntros. iMod ("H" with "[//]") as "H". iModIntro.
       by iApply "H".
@@ -420,6 +423,24 @@ Section exec_coupl.
   Qed.
 
   
+  Lemma exec_coupl_big_state_steps_adv_RHS e1 σ1 e1' σ1' Z (ε1 ε2 : nonnegreal):
+    (∃ R μ1 μ2 (E2 : state Λ -> nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
+                ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
+                ⌜ ∀ b, (0 <= E2 b <= 1)%R ⌝ ∗
+                ⌜(SeriesC (λ b, μ2 b * (E2 b)) <= ε2)%R⌝ ∗
+                ⌜erasable μ1 σ1⌝ ∗
+                ⌜erasable μ2 σ1'⌝ ∗
+          (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z (E2 σ2')))
+    ⊢ exec_coupl e1 σ1 e1' σ1' Z (nnreal_plus ε1 ε2).
+  Proof.
+    iIntros "H".
+    rewrite {1}exec_coupl_unfold.
+    do 5 iRight.
+    iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
+    iExists _, _, _, _, _, _.
+    repeat iSplit; simpl; try done.
+  Qed.
+  
   Lemma exec_coupl_big_state_steps e1 σ1 e1' σ1' Z (ε1 ε2 : nonnegreal):
     (∃ R μ1 μ2, (* ⌜reducible (e1, σ1)⌝ ∗ *)
                 ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
@@ -429,12 +450,14 @@ Section exec_coupl.
     ⊢ exec_coupl e1 σ1 e1' σ1' Z (nnreal_plus ε1 ε2).
   Proof.
     iIntros "H".
-    rewrite {1}exec_coupl_unfold.
-    do 5 iRight.
     iDestruct "H" as "(%&%&%&%&%&%&H)".
-    iExists _, _, _, _, _.
+    iApply exec_coupl_big_state_steps_adv_RHS.
+    iExists _, _, _, _.
     repeat iSplit; try done.
-    done.
+    iPureIntro. rewrite SeriesC_scal_r.
+    assert (SeriesC μ2 <= 1) by done.
+    replace (nonneg ε2)%R with (1*nonneg ε2)%R at 2 by lra.
+    apply Rmult_le_compat_r; auto. apply cond_nonneg.
   Qed.
 
   (** Not true. Only holds in Problang. One needs to prove that state_steps are erasable.
