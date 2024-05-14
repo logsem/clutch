@@ -149,14 +149,13 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%&H)".
+    - iDestruct "H" as "(%&%&%&%&%&%&%&%&%&%&%&%&H)".
       iApply (step_fupdN_mono _ _ _
                 (⌜∀ σ2 σ2', R2 σ2 σ2' → ARcoupl (exec (S n) (e1, σ2))
                                           (lim_exec (e1', σ2')) φ (E2 σ2')⌝)%I).
       + iPureIntro.
         intros ?.
-        eapply ARcoupl_erasure_erasable; [| | exact| ..]; try done.
-        all: apply cond_nonneg.
+        eapply (ARcoupl_erasure_erasable_adv_rhs _ _ _ _ _ _ _ _ _ E2); [apply cond_nonneg|apply cond_nonneg| exact|..]; done.
       + iIntros (???). rewrite /Φ.
         by iMod ("H" with "[//] [//]").
   Qed.

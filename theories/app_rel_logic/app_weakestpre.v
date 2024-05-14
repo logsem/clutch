@@ -59,7 +59,7 @@ Section exec_coupl.
         (∃ R μ1 μ2 (ε1 ε2 : nonnegreal) (E2: state Λ -> nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
                     ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
                     ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
-                    ⌜ ∀ b, (0 <= E2 b <= 1)%R ⌝ ∗
+                    ⌜ ∃ n, ∀ b, (0 <= E2 b <= n)%R ⌝ ∗
                     ⌜ (SeriesC (λ b, μ2 b * E2 b) <= ε2)%R ⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
@@ -142,7 +142,7 @@ Section exec_coupl.
         (∃ R μ1 μ2 (ε1 ε2 : nonnegreal) (E2 : state Λ -> nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
                     ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗
                     ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
-                    ⌜ ∀ b, (0 <= E2 b <= 1)%R ⌝ ∗
+                    ⌜∃ n, ∀ b, (0 <= E2 b <= n)%R ⌝ ∗
                     ⌜ (SeriesC (λ b, μ2 b * E2 b) <= ε2)%R ⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
@@ -426,7 +426,7 @@ Section exec_coupl.
   Lemma exec_coupl_big_state_steps_adv_RHS e1 σ1 e1' σ1' Z (ε1 ε2 : nonnegreal):
     (∃ R μ1 μ2 (E2 : state Λ -> nonnegreal), (* ⌜reducible (e1, σ1)⌝ ∗ *)
                 ⌜ARcoupl (μ1) (μ2) R ε1⌝ ∗
-                ⌜ ∀ b, (0 <= E2 b <= 1)%R ⌝ ∗
+                ⌜∃ n, ∀ b, (0 <= E2 b <= n)%R ⌝ ∗
                 ⌜(SeriesC (λ b, μ2 b * (E2 b)) <= ε2)%R⌝ ∗
                 ⌜erasable μ1 σ1⌝ ∗
                 ⌜erasable μ2 σ1'⌝ ∗
@@ -454,6 +454,8 @@ Section exec_coupl.
     iApply exec_coupl_big_state_steps_adv_RHS.
     iExists _, _, _, _.
     repeat iSplit; try done.
+    { iPureIntro. eexists; intros _. split; [apply cond_nonneg|naive_solver]. }
+    simpl.
     iPureIntro. rewrite SeriesC_scal_r.
     assert (SeriesC μ2 <= 1) by done.
     replace (nonneg ε2)%R with (1*nonneg ε2)%R at 2 by lra.
