@@ -39,7 +39,7 @@ End couplings.
 Section couplings_theory.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
 
-  Lemma ARcoupl_1 (μ1 : distr A) (μ2 : distr B) R ε:
+  Lemma ARcoupl_1 (μ1 : distr A') (μ2 : distr B') R ε:
     (1 <= ε) -> ARcoupl μ1 μ2 R ε.
   Proof.
     rewrite /ARcoupl.
@@ -53,7 +53,7 @@ Section couplings_theory.
       apply SeriesC_ge_0'; real_solver.
   Qed.
 
-  Lemma ARcoupl_mon_grading (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε1 ε2 :
+  Lemma ARcoupl_mon_grading (μ1 : distr A') (μ2 : distr B') (R : A' → B' → Prop) ε1 ε2 :
     (ε1 <= ε2) ->
     ARcoupl μ1 μ2 R ε1 ->
     ARcoupl μ1 μ2 R ε2.
@@ -78,12 +78,6 @@ Section couplings_theory.
     }
     rewrite Rplus_0_r. auto.
   Qed.
-
-End couplings_theory.
-(** have to start new section so one can use ARcoupl_mon_grading above of a different type *)
-
-Section couplings_theory'.
-  Context `{Countable A, Countable B, Countable A', Countable B'}.
 
 
   (* The hypothesis (0 ≤ ε1) is not really needed, I just kept it for symmetry *)
@@ -771,7 +765,7 @@ Qed.
   (* Qed. *)
 
 
-End couplings_theory'.
+End couplings_theory.
 
 (* TODO: cleanup *)
 Section ARcoupl.
