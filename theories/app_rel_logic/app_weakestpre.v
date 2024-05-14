@@ -627,7 +627,8 @@ Proof.
   iMod "Hwp". iModIntro.
   iApply (exec_coupl_det_r n with "[$]").
   by apply stepN_pexec_det.
-Qed.
+Qed. 
+
 
 Lemma wp_atomic s E1 E2 e Φ `{!Atomic StronglyAtomic e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.

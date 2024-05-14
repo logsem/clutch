@@ -1503,3 +1503,38 @@ Proof.
   pose proof (elem_fresh_ne _ _ _ H).
   by rewrite lookup_insert_ne.
 Qed.
+
+Lemma prim_step_empty_tape σ α (z:Z) K N :
+  (tapes σ) !! α = Some (N; []) -> prim_step (fill K (rand(#lbl:α) #z)) σ = prim_step (fill K (rand #z)) σ.
+Proof.
+  intros H.
+  rewrite !fill_dmap; [|done|done].
+  rewrite /dmap.
+  f_equal.
+  simpl. apply distr_ext; intros [e s].
+  erewrite !head_prim_step_eq; simpl; last first.
+  (** type classes dont work? *)
+  { destruct (decide (Z.to_nat z=N)) as [<-|?] eqn:Heqn.
+    all: eexists (_, σ); eapply head_step_support_equiv_rel;
+      eapply head_step_support_eq; simpl; last first.
+    - rewrite H. rewrite bool_decide_eq_true_2; last lia.
+      eapply dmap_unif_nonzero; last done.
+      intros ???. simplify_eq. done.
+    - apply Rinv_pos. pose proof pos_INR_S (Z.to_nat z). lra.
+    - rewrite H. case_bool_decide as H0; first lia.
+      eapply dmap_unif_nonzero; last done.
+      intros ???. by simplify_eq.
+    - apply Rinv_pos. pose proof pos_INR_S (Z.to_nat z). lra.
+  }
+  { eexists (_, σ); eapply head_step_support_equiv_rel;
+      eapply head_step_support_eq; simpl; last first.
+    - eapply dmap_unif_nonzero; last done.
+      intros ???. simplify_eq. done.
+    - apply Rinv_pos. pose proof pos_INR_S (Z.to_nat z). lra.
+  } rewrite H.
+  case_bool_decide; last done.
+  subst. done.
+  Unshelve.
+  all: exact (0%fin).
+Qed.
+  

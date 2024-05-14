@@ -684,5 +684,52 @@ Section rules.
     by iApply wp_value.
   Qed.
 
-  
+  (** This lemma is special because we directly use prim step prim step case. 
+      we need this if LHS is just a simple rand, and it reduces to a value immediately
+   *)
+  Lemma wp_couple_rand_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
+    TCEq N (Z.to_nat z) →
+    α ↪ₛ (N; []) ∗  ⤇ fill K (rand(#lbl:α) #z) ∗
+    ▷ (∀ n : fin (S N), α ↪ₛ (N; []) ∗  ⤇ fill K #(f n) -∗ Φ #n)
+    ⊢ WP rand #z @ E {{ Φ }}.
+  Proof.
+    iIntros (->) "(Hα & Hspec & Hwp)".
+    iMod ec_zero as "Hε".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hspec") as %-> .
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
+    iApply exec_coupl_prim_steps.
+    iExists (λ '(e2, σ2) '(e2', σ2'),
+               ∃ (m : fin _),
+                 (e2, σ2) = (Val #(m), σ1) ∧ (e2', σ2') = (fill K #(f m), σ1')).
+    iSplit.
+    { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
+    iSplit.
+    { simpl.  
+      iDestruct (spec_interp_auth_frag_lookup_tapes with "Hauth2 Hα") as %H0. 
+      erewrite prim_step_empty_tape; last done.
+      iPureIntro. simpl.
+      rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
+      rewrite /dmap /=.
+      replace (0)%R with (0+0)%R by lra.
+      eapply ARcoupl_dbind; [done|done|..]; last first.
+      - replace 0%R with (nonneg 0%NNR); last by simpl.
+        apply (ARcoupl_rand_rand_inj _ _ f); try done.
+        rewrite Rminus_diag. rewrite Rdiv_0_l. by simpl.
+      - simpl. intros a b [? [-> ->]]. apply ARcoupl_dret. simpl.
+        naive_solver.
+    }
+    iIntros ([] [] (b & [= -> ->] & [= -> ->])).
+    simplify_eq.
+    iMod (spec_interp_update_expr _ _ _ (fill K #(f b)) with "Hauth2 Hspec") as "[Hauth2 Hspec0]".
+    do 2 iModIntro.
+    iMod "Hclose'" as "_".
+    iModIntro. iFrame.
+    iApply wp_value.
+    iApply "Hwp"; eauto. iFrame.
+  Qed.
+
+      
 End rules.
