@@ -142,13 +142,17 @@ Section markov.
   (** * Strict partial evaluation  *)
   Definition stepN (n : nat) a : distr (mstate δ) := iterM n step a.
 
-  Lemma stepN_O a :
-    stepN 0 a = dret a.
+  Lemma stepN_O :
+    stepN 0 = dret.
   Proof. done. Qed.
 
   Lemma stepN_Sn a n :
     stepN (S n) a = step a ≫= stepN n.
   Proof. done. Qed.
+
+  Lemma stepN_1 a :
+    stepN 1 a = step a.
+  Proof. rewrite stepN_Sn stepN_O dret_id_right //. Qed. 
 
   Lemma stepN_plus a (n m : nat) :
     stepN (n + m) a = stepN n a ≫= stepN m.
