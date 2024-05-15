@@ -157,7 +157,10 @@ Section adequacy.
         intros ?.
         eapply (ARcoupl_erasure_erasable_adv_rhs _ _ _ _ _ _ _ _ _ E2); [apply cond_nonneg|apply cond_nonneg| exact|..]; done.
       + iIntros (???). rewrite /Φ.
-        by iMod ("H" with "[//] [//]").
+        iDestruct ("H" with "[//] ") as ">[%Hineq|H]".
+        * iModIntro. iApply step_fupdN_intro; try done.
+          iPureIntro. apply ARcoupl_1; done.
+        * iMod ("H" with "[//]"). iModIntro. done.
   Qed.
 
 

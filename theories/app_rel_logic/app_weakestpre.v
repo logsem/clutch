@@ -26,6 +26,33 @@ Class irisGS (Λ : language) (Σ : gFunctors) := IrisG {
 Global Opaque iris_invGS.
 Global Arguments IrisG {Λ Σ}.
 
+Section exec_stutter.
+  Context `{!spec (lang_markov Λ) Σ}`{!irisGS Λ Σ}.
+  
+  Definition exec_stutter (Z : nonnegreal -> iProp Σ) (ε:nonnegreal) : iProp Σ :=
+    (⌜(1<=ε)%R⌝ ∨ Z ε)%I.
+
+  Lemma exec_stutter_spend Z (ε:nonnegreal):
+    ⌜(1<=ε)%R⌝ -∗ exec_stutter Z ε.
+  Proof.
+    iIntros. iLeft. done.
+  Qed.
+
+  Lemma exec_stutter_free Z (ε:nonnegreal):
+    Z ε -∗ exec_stutter Z  ε.
+  Proof.
+    iIntros. iRight. done.
+  Qed.
+
+  Lemma exec_stutter_monotone Z1 Z2 ε:
+    (Z1 ε -∗ Z2 ε) -∗ exec_stutter Z1 ε -∗ exec_stutter Z2 ε.
+  Proof.
+    iIntros "H1 [%H2|H2]".
+    - iApply exec_stutter_spend. done.
+    - iApply exec_stutter_free. iApply "H1". done.
+  Qed.
+End exec_stutter.
+
 (** * The coupling modality [exec_coupl]  *)
 Section exec_coupl.
   Context `{!spec (lang_markov Λ) Σ}`{!irisGS Λ Σ}.
@@ -63,7 +90,7 @@ Section exec_coupl.
                     ⌜ (SeriesC (λ b, μ2 b * E2 b) <= ε2)%R ⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
-              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Φ (((e1, σ2), (e1', σ2')), E2 σ2'))) 
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_stutter (λ ε', Φ (((e1, σ2), (e1', σ2')), ε')) (E2 σ2'))) 
     )%I.
 
   (* TODO: Define this globally, it appears in error credits too *)
@@ -111,7 +138,8 @@ Section exec_coupl.
     - iRight; iRight; iRight; iRight; iRight.
       iDestruct "Hl" as "(%&%&%&%&%&%&%&%&%&%&%&%&H)".
       iExists _, _, _, _, _, _. repeat iSplit; try done.
-      iIntros. iApply "Hwand". iApply ("H" with "[//]").
+      iIntros. iApply exec_stutter_monotone; last iApply ("H" with "[//]").
+      simpl. iApply "Hwand".
   Qed.
 
   Definition exec_coupl' Z := bi_least_fixpoint (exec_coupl_pre Z).
@@ -146,7 +174,7 @@ Section exec_coupl.
                     ⌜ (SeriesC (λ b, μ2 b * E2 b) <= ε2)%R ⌝ ∗
                     ⌜erasable μ1 σ1⌝ ∗
                     ⌜erasable μ2 σ1'⌝ ∗
-              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z (E2 σ2'))) 
+              (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_stutter (λ ε', exec_coupl e1 σ2 e1' σ2' Z ε') (E2 σ2'))) 
     )%I.
   Proof. rewrite /exec_coupl/exec_coupl' least_fixpoint_unfold //. Qed.
 
@@ -221,7 +249,9 @@ Section exec_coupl.
       iDestruct "H" as "(%&%&%&%&%&%&%&%&%&%&%&%&H)".
       iExists _, _, _, _, _, _.
       repeat iSplit; try done.
-      iIntros. by iApply ("H" with "[//]").
+      iIntros. iApply (exec_stutter_monotone with "[HZ]"); last by iApply ("H" with "[//]").
+      simpl.
+      iIntros "IH". by iApply "IH".
   Qed.
 
   Lemma exec_coupl_mono (Z1 Z2 : cfg Λ → cfg Λ → nonnegreal -> iProp Σ) e1 σ1 e1' σ1' ε :
@@ -347,6 +377,8 @@ Section exec_coupl.
       iExists _, _, _, _, _, _.
       repeat (iSplit; [done|]).
       iIntros. iMod ("H" with "[//]") as "H". iModIntro.
+      iApply (exec_stutter_monotone with "[][$]").
+      iIntros "H".
       by iApply "H".
   Qed.
 
@@ -430,7 +462,7 @@ Section exec_coupl.
                 ⌜(SeriesC (λ b, μ2 b * (E2 b)) <= ε2)%R⌝ ∗
                 ⌜erasable μ1 σ1⌝ ∗
                 ⌜erasable μ2 σ1'⌝ ∗
-          (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z (E2 σ2')))
+          (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_stutter (λ ε', exec_coupl e1 σ2 e1' σ2' Z ε') (E2 σ2')))
     ⊢ exec_coupl e1 σ1 e1' σ1' Z (nnreal_plus ε1 ε2).
   Proof.
     iIntros "H".
@@ -453,13 +485,14 @@ Section exec_coupl.
     iDestruct "H" as "(%&%&%&%&%&%&H)".
     iApply exec_coupl_big_state_steps_adv_RHS.
     iExists _, _, _, _.
-    repeat iSplit; try done.
-    { iPureIntro. eexists; intros _. split; [apply cond_nonneg|naive_solver]. }
-    simpl.
-    iPureIntro. rewrite SeriesC_scal_r.
-    assert (SeriesC μ2 <= 1) by done.
-    replace (nonneg ε2)%R with (1*nonneg ε2)%R at 2 by lra.
-    apply Rmult_le_compat_r; auto. apply cond_nonneg.
+    repeat iSplit; try done; last first.
+    { iIntros. iMod ("H" with "[//]"). iModIntro. iApply exec_stutter_free. done. }
+    - simpl.
+      iPureIntro. rewrite SeriesC_scal_r.
+      assert (SeriesC μ2 <= 1) by done.
+      replace (nonneg ε2)%R with (1*nonneg ε2)%R at 2 by lra.
+      apply Rmult_le_compat_r; auto. apply cond_nonneg.
+    - iPureIntro. eexists; intros _. split; [apply cond_nonneg|naive_solver]. 
   Qed.
 
   (** Not true. Only holds in Problang. One needs to prove that state_steps are erasable.
