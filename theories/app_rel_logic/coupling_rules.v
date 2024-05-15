@@ -666,8 +666,28 @@ Section rules.
                      else 0
                   )%R); last first.
       { intros n.
-        (** do a case split on whether n is a possible transition first and reject the zero cases*)
-        admit. }
+        case_bool_decide as H1; last first.
+        { apply Rmult_eq_0_compat_r.  rewrite /dmap/dbind/dbind_pmf/pmf/=.
+          apply SeriesC_0. intros. apply Rmult_eq_0_compat_l.
+          rewrite /dret_pmf. case_bool_decide; last lra.
+          subst. exfalso. apply H1. erewrite elem_of_list_fmap.
+          exists x; split; first done. replace (fin_enum (S M)) with (enum (fin (S M))) by done.
+          apply elem_of_enum.
+        }
+        rewrite elem_of_list_fmap in H1. destruct H1 as [y [-> ?]].
+        apply Rmult_eq_compat_r. rewrite /dmap/dbind/dbind_pmf/pmf/=.
+        rewrite SeriesC_scal_l.
+        replace (SeriesC _) with 1%R; first lra.
+        symmetry.
+        rewrite /dret_pmf.
+        erewrite (SeriesC_ext _ (λ x, if bool_decide (x = y) then 1 else 0))%R;
+          first apply SeriesC_singleton.
+        intros.
+        case_bool_decide as H2.
+        - apply state_upd_tapes_same in H2. simplify_eq.
+          case_bool_decide; done.
+        - case_bool_decide; last done.
+          subst. done. }
       trans (SeriesC (λ x, if bool_decide (∃ y, f y = x) then / S M * ε_now1 else / S M * ε_now2))%R.
     (** here i simplify the seriesc*)
       + set (h σ := match (ClassicalEpsilon.excluded_middle_informative
