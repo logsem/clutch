@@ -666,7 +666,7 @@ Section rules.
                      else 0
                   )%R); last first.
       { (** should be ok*) admit. }
-      trans (SeriesC (λ x, if bool_decide (∃ y, f y = x) then ε_now1 else ε_now2)).
+      trans (SeriesC (λ x, if bool_decide (∃ y, f y = x) then / S M * ε_now1 else / S M * ε_now2))%R.
     (** here i simplify the seriesc*)
       + set (h σ := match (ClassicalEpsilon.excluded_middle_informative
                              (∃ x, σ = state_upd_tapes <[αₛ:=(M; nsₛ ++ [x])]> σ1')
@@ -677,20 +677,46 @@ Section rules.
             ).
         etrans; last eapply (SeriesC_le_inj _ h).
         * apply Req_le_sym. apply SeriesC_ext. (** should be ok *) admit.
-        * intros. case_bool_decide; apply cond_nonneg.
+        * intros. case_bool_decide; apply Rmult_le_pos; try apply cond_nonneg.
+          all: rewrite <-Rdiv_1_l; apply Rcomplements.Rdiv_le_0_compat; try lra.
+          all: apply pos_INR_S.
         * intros n1 n2 m. rewrite /h. case_match eqn:H1; case_match eqn:H2; try done.
           intros.
           pose proof epsilon_correct _ e0.
           pose proof epsilon_correct _ e1. simpl in *. simplify_eq.
           rewrite H5 H6. by repeat f_equal.
         * apply ex_seriesC_finite.
-      + erewrite (SeriesC_ext _
-                    (λ x : fin (S M), (if bool_decide (x ∈ f<$> fin_enum (S N)) then ε_now1 else 0%R) +
-                                      if bool_decide (x∈ elements (list_to_set(fin_enum (S M)) ∖ list_to_set (f<$>fin_enum (S N)))) then ε_now2 else 0%R 
+      + eset (diff:=elements (((list_to_set (enum (fin(S M)))):gset _ )∖ ((list_to_set(f<$>enum (fin(S N)))):gset _))). 
+        erewrite (SeriesC_ext _
+                    (λ x : fin (S M), (if bool_decide (x ∈ f<$> enum (fin(S N))) then / S M * ε_now1 else 0%R) +
+                                      if bool_decide (x ∈ diff ) then / S M * ε_now2 else 0%R 
                  ))%R; last first.
         { (** annoying lemma again *) admit. }
         rewrite SeriesC_plus; try apply ex_seriesC_finite.
-        admit.
+        rewrite !SeriesC_list_2; last first.
+        { apply NoDup_fmap_2; [done|apply NoDup_enum]. }
+        { rewrite /diff. eapply NoDup_elements. }
+        rewrite fmap_length. rewrite fin.length_enum_fin.
+        rewrite /diff. 
+        replace (length _) with (S M - S N); last first.
+        { erewrite <-size_list_to_set; last apply NoDup_elements.
+          erewrite list_to_set_elements.
+          rewrite size_difference.
+          - rewrite !size_list_to_set; [|apply NoDup_fmap; [auto|apply NoDup_enum]|apply NoDup_enum]; auto.
+            rewrite fmap_length.
+            rewrite !fin.length_enum_fin. done.
+          - intros ??. apply elem_of_list_to_set. apply elem_of_enum.
+        }
+        rewrite /ε_now1 /ε_now2. simpl. rewrite -/(INR (S N)) -/(INR (S M)). rewrite !S_INR.
+        rewrite !Rmult_assoc.
+        rewrite minus_INR; last (apply INR_le; lra).
+        cut ((N+1)/ (M + 1) * ε_now - (N+1)/(M+1) *ε+ 
+               (M-N)/ (M + 1) * ε_now + ((N + 1)/(M+1) * ((M-N)/ (M - N))) * ε <= ε_now)%R; first lra.
+        rewrite Rdiv_diag; last lra.
+        cut ((N + 1) / (M + 1) * ε_now+ (M - N) / (M + 1) * ε_now <= ε_now)%R; first lra.
+        cut ((M + 1) / (M + 1) * ε_now <= ε_now)%R; first lra.
+        rewrite Rdiv_diag; first lra.
+        pose proof pos_INR M. lra.
     - iPureIntro. apply erasable_dbind_predicate.
       + apply dunifP_mass.
       + by eapply state_step_erasable.
