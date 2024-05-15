@@ -662,10 +662,12 @@ Section rules.
       erewrite (SeriesC_ext _
                   (λ b : state,
                      if bool_decide (b ∈ (λ x, state_upd_tapes <[αₛ:=(M; nsₛ ++ [x])]> σ1') <$> (fin_enum (S M)))
-                     then dmap (λ n : fin (S M), state_upd_tapes <[αₛ:=(M; nsₛ ++ [n])]> σ1') (dunifP M) b * E2 b
+                     then /(S M) * E2 b
                      else 0
                   )%R); last first.
-      { (** should be ok*) admit. }
+      { intros n.
+        (** do a case split on whether n is a possible transition first and reject the zero cases*)
+        admit. }
       trans (SeriesC (λ x, if bool_decide (∃ y, f y = x) then / S M * ε_now1 else / S M * ε_now2))%R.
     (** here i simplify the seriesc*)
       + set (h σ := match (ClassicalEpsilon.excluded_middle_informative
@@ -676,7 +678,31 @@ Section rules.
                     end
             ).
         etrans; last eapply (SeriesC_le_inj _ h).
-        * apply Req_le_sym. apply SeriesC_ext. (** should be ok *) admit.
+        * apply Req_le_sym. apply SeriesC_ext. (** should be ok *)
+          intros s. rewrite /h. case_match eqn:Heqn; last first.
+          { rewrite bool_decide_eq_false_2; first (simpl;lra).
+            erewrite elem_of_list_fmap.
+            intros [? [->?]]. apply n.
+            naive_solver.
+          }
+          pose proof epsilon_correct _ e0 as H'. 
+          rewrite bool_decide_eq_true_2; last first.
+          { destruct e0 as [x ?]. subst. rewrite elem_of_list_fmap.
+            eexists _. split; first done.
+            replace (fin_enum _) with (enum (fin (S M))) by done.
+            apply elem_of_enum. }
+          rewrite !S_INR.
+          rewrite /E2.
+          simpl in *. subst.
+          case_bool_decide as H1.
+          -- rewrite bool_decide_eq_true_2.
+             { rewrite /ε_now1. simpl; lra. }
+             destruct H1 as [y ?]. exists y. rewrite H1. done. 
+          -- rewrite bool_decide_eq_false_2.
+             { rewrite /ε_now2; simpl; lra. }
+             intros [x H2].
+             apply H1. rewrite H' in H2. apply state_upd_tapes_same in H2. simplify_eq.
+             naive_solver.
         * intros. case_bool_decide; apply Rmult_le_pos; try apply cond_nonneg.
           all: rewrite <-Rdiv_1_l; apply Rcomplements.Rdiv_le_0_compat; try lra.
           all: apply pos_INR_S.
@@ -691,7 +717,24 @@ Section rules.
                     (λ x : fin (S M), (if bool_decide (x ∈ f<$> enum (fin(S N))) then / S M * ε_now1 else 0%R) +
                                       if bool_decide (x ∈ diff ) then / S M * ε_now2 else 0%R 
                  ))%R; last first.
-        { (** annoying lemma again *) admit. }
+        { (** annoying lemma again *)
+          intros n. rewrite /diff.
+          case_bool_decide as H1.
+          - destruct H1 as [? H1]. rewrite bool_decide_eq_true_2; last first.
+            + subst. apply elem_of_list_fmap_1. apply elem_of_enum.
+            + subst. rewrite bool_decide_eq_false_2; first lra.
+              rewrite elem_of_elements.
+              rewrite not_elem_of_difference; right.
+              rewrite elem_of_list_to_set. apply elem_of_list_fmap_1; apply elem_of_enum.
+          - rewrite bool_decide_eq_false_2; last first.
+            { rewrite elem_of_list_fmap. intros [?[??]].
+              subst. apply H1. naive_solver. }
+            rewrite bool_decide_eq_true_2; first lra.
+            rewrite elem_of_elements. rewrite elem_of_difference.
+            split; rewrite elem_of_list_to_set; first apply elem_of_enum.
+            rewrite elem_of_list_fmap. intros [?[??]].
+            subst. apply H1. naive_solver.
+        }
         rewrite SeriesC_plus; try apply ex_seriesC_finite.
         rewrite !SeriesC_list_2; last first.
         { apply NoDup_fmap_2; [done|apply NoDup_enum]. }
