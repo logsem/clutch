@@ -528,6 +528,17 @@ Section filter.
     induction l; first (simpl;lra).
     simpl. rewrite -/(INR (S _)). rewrite S_INR.
     rewrite IHl. lra.
+  Qed.
+
+  Lemma SeriesC_list_2 (l:list A) r:
+    NoDup l -> SeriesC (λ (a : A), if bool_decide(a ∈ l) then r else 0) = r * length l.
+  Proof.
+    intros.
+    rewrite SeriesC_list; last done.
+    clear.
+    induction l; first (simpl;lra).
+    simpl. rewrite -/(INR (S _)). rewrite S_INR.
+    rewrite IHl. lra.
   Qed. 
     
 

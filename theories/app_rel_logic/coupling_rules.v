@@ -636,7 +636,7 @@ Section rules.
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
-    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %H.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "[$][$]") as "%Hle".
@@ -658,7 +658,39 @@ Section rules.
       intros. rewrite /E2. case_bool_decide; split; try apply cond_nonneg.
       + apply Rmax_l.
       + apply Rmax_r.
-    - iPureIntro. simpl. admit.
+    - iPureIntro. simpl in H. simpl. erewrite state_step_unfold; last done.
+      erewrite (SeriesC_ext _
+                  (λ b : state,
+                     if bool_decide (b ∈ (λ x, state_upd_tapes <[αₛ:=(M; nsₛ ++ [x])]> σ1') <$> (fin_enum (S M)))
+                     then dmap (λ n : fin (S M), state_upd_tapes <[αₛ:=(M; nsₛ ++ [n])]> σ1') (dunifP M) b * E2 b
+                     else 0
+                  )%R); last first.
+      { (** should be ok*) admit. }
+      trans (SeriesC (λ x, if bool_decide (∃ y, f y = x) then ε_now1 else ε_now2)).
+    (** here i simplify the seriesc*)
+      + set (h σ := match (ClassicalEpsilon.excluded_middle_informative
+                             (∃ x, σ = state_upd_tapes <[αₛ:=(M; nsₛ ++ [x])]> σ1')
+                          ) with
+                    | left Hproof => Some (epsilon Hproof)
+                    | _ => None 
+                    end
+            ).
+        etrans; last eapply (SeriesC_le_inj _ h).
+        * apply Req_le_sym. apply SeriesC_ext. (** should be ok *) admit.
+        * intros. case_bool_decide; apply cond_nonneg.
+        * intros n1 n2 m. rewrite /h. case_match eqn:H1; case_match eqn:H2; try done.
+          intros.
+          pose proof epsilon_correct _ e0.
+          pose proof epsilon_correct _ e1. simpl in *. simplify_eq.
+          rewrite H5 H6. by repeat f_equal.
+        * apply ex_seriesC_finite.
+      + erewrite (SeriesC_ext _
+                    (λ x : fin (S M), (if bool_decide (x ∈ f<$> fin_enum (S N)) then ε_now1 else 0%R) +
+                                      if bool_decide (x∈ elements (list_to_set(fin_enum (S M)) ∖ list_to_set (f<$>fin_enum (S N)))) then ε_now2 else 0%R 
+                 ))%R; last first.
+        { (** annoying lemma again *) admit. }
+        rewrite SeriesC_plus; try apply ex_seriesC_finite.
+        admit.
     - iPureIntro. apply erasable_dbind_predicate.
       + apply dunifP_mass.
       + by eapply state_step_erasable.
@@ -720,7 +752,7 @@ Section rules.
   Admitted.
 
   Lemma wp_couple_fragmented_rand_rand_leq_rev'  (M N:nat)  ns nsₛ α αₛ e E Φ ε:
-    (N<=M)%R ->
+    (N<M)%R ->
     to_val e = None ->
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ € ε ∗
     (∀ (m : fin (S M)),
@@ -739,7 +771,7 @@ Section rules.
   Proof.
     iIntros (Hineq Hval) "(>Hα & >Hαₛ & Hε & Hwp)".
     assert (∀ x : fin(S N), fin_to_nat x < S M)%nat as H.
-    { intros. pose proof fin_to_nat_lt x. apply INR_le in Hineq. lia. }
+    { intros. pose proof fin_to_nat_lt x. apply INR_lt in Hineq. lia. }
     pose (f := λ x, (nat_to_fin (H x))).
     assert (Inj (eq) (eq) f) as Hinj.
     { rewrite /f. intros ?? H0. apply (f_equal fin_to_nat) in H0. rewrite !fin_to_nat_to_fin in H0.
