@@ -838,7 +838,10 @@ Section rules.
         rewrite !wp_unfold/wp_pre/=Hval.
         iMod ("Hwp" $! _ _ (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> _) with "[$]").
         iModIntro. iApply exec_stutter_free. rewrite /ε_now2. done.
-  Admitted.
+        Unshelve.
+        -- apply make_decision.
+        -- apply gset_fin_set.
+  Qed.
 
   Lemma wp_couple_fragmented_rand_rand_leq_rev'  (M N:nat)  ns nsₛ α αₛ e E Φ ε:
     (N<M)%R ->
