@@ -211,7 +211,7 @@ Section basic.
         pose proof (pos_INR n').
         lra.
     - iModIntro.
-      iIntros (ε') "#Hrec Herr".
+      iIntros (ε') "% #Hrec Herr".
       wp_rec.
       wp_bind (rand _)%E.
       wp_apply (twp_rand_err_filter_above _ n' _ ε' ((mknonnegreal k Hk) * ε')%NNR); last first.
