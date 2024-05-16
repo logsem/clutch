@@ -325,7 +325,7 @@ Section error_credit_theory.
 Lemma ec_ind_amp (ε k : nonnegreal) P :
   (0 < ε)%R ->
   (1 < k)%R ->
-  □ ( ∀ ε', □ (€ (k * ε')%NNR -∗ P) -∗
+  □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (€ (k * ε')%NNR -∗ P) -∗
                                        € ε' -∗ P) -∗
   € ε -∗ P.
 Proof.
@@ -358,7 +358,7 @@ Proof.
     simpl in Hn.
     lra.
   - iIntros (Hgt1) "#Hrec Herr" .
-    iApply ("Hrec" with "[] Herr").
+    iApply ("Hrec" with "[//][] Herr").
     iModIntro.
     iIntros "Herr".
     iApply ("IH" with "[] [] [%] [] [$Herr]"); try done.

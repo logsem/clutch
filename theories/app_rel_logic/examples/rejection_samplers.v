@@ -92,9 +92,9 @@ Section rejection_sampler.
     ⤇ (rec: "f" "_" := let: "x" := rand(#lbl:αₛ) #N in if: "x" ≤ #M then "x" else "f" #())%V #() -∗
     € ε -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
     ( ∀ (ε':nonnegreal), ⌜(nonneg ε' = (S N / (S N - S M)) * ε)%R⌝ -∗
-      ⤇ (rec: "f" "_" := let: "x" := rand(#lbl:αₛ) #N in if: "x" ≤ #M then "x" else "f" #())%V #() -∗
-      € ε' -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
-      WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}
+                         ⤇ (rec: "f" "_" := let: "x" := rand(#lbl:αₛ) #N in if: "x" ≤ #M then "x" else "f" #())%V #() -∗
+                         € ε' -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
+                         WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}
     ) -∗ WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
     iIntros (Hpos) "Hspec Hε Hα Hαₛ IH".
@@ -119,8 +119,8 @@ Section rejection_sampler.
       iApply ("IH" $! ε' with "[][$][$][$][$]"). done.
   Qed.
   
-  Lemma wp_simpl_rejection_ind (ε:nonnegreal) (n:nat):
-    (nonneg ε = / (Rpower (S N / (S N - S M)) n))%R -> ⤇ rejection_sampler_prog_annotated #() -∗
+  Lemma wp_simpl_rejection (ε:nonnegreal):
+    (0%NNR < ε)%R -> ⤇ rejection_sampler_prog_annotated #() -∗
     € ε -∗ WP simpl_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
     iIntros (Hpos) "Hspec Hε".
@@ -130,81 +130,22 @@ Section rejection_sampler.
     tp_alloctape as αₛ "Hαₛ".
     do 3 tp_pure.
     wp_pures. rewrite Nat2Z.id.
-    iInduction n as [|n'] "IH" forall (ε Hpos).
-    { iDestruct (ec_spend with "[$]") as "?"; last done.
-      rewrite Hpos. rewrite Rpower_O; last done. lra. 
-    }
-    wp_apply (wp_simpl_rejection_ind_aux with "[$][$][$][$]").
-    { simpl. rewrite Hpos. apply Rinv_0_lt_compat. rewrite /Rpower.
-      apply exp_pos.
-    }
-    iIntros (ε') "%Heq Hspec Hε' Hα Hαₛ".
-    wp_apply ("IH" with "[][$Hspec][$Hε'][$][$]").
-    iPureIntro. rewrite Heq. rewrite Hpos.
-    rewrite (S_INR n'). rewrite Rpower_plus.
-    rewrite Rpower_1; last auto.
-    rewrite Rinv_mult.
-    rewrite (Rmult_comm (/ _)). rewrite <-(Rmult_assoc _ (/ (S N / (S N - S M)))). rewrite Rinv_r; first lra.
-    pose proof NMpos. lra.
+    iRevert "Hα Hαₛ Hspec".
+    pose proof ec_ind_amp as H.
+    iApply H; [| | |iFrame]; last first.
+    - iModIntro. iIntros (??) "#IH ????". iApply (wp_simpl_rejection_ind_aux with "[$][$][$][$]").
+      + done.
+      + iIntros (? H1) "? Hε ? ?". iApply ("IH" with "[Hε][$][$][$]").
+        iApply ec_spend_irrel; last done.
+        instantiate (1 := mknonnegreal _ _).
+        simpl. done.
+    - done.
+    - done.
+      Unshelve.
+      apply Rcomplements.Rdiv_le_0_compat.
+      + apply pos_INR.
+      + apply Rlt_0_minus. rewrite !S_INR. lra.
   Qed.
-
-
-Lemma wp_simpl_rejection (ε:nonnegreal):
-    (0%NNR < ε)%R -> ⤇ rejection_sampler_prog_annotated #() -∗
-    € ε -∗ WP simpl_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
-Proof.
-  iIntros (Hpos) "Hspec Hε".
-  destruct (Rlt_or_le (nonneg ε) 1); last first.
-  { iDestruct (ec_spend with "[$]") as "H"; done. }
-  set (up (- (Rlog (S N / (S N - S M)) ε)%R)) as n.
-  assert (0 > Rlog (S N / (S N - S M)) (nonneg ε)).
-  { rewrite /Rlog.
-    apply Rlt_gt.
-    apply Rdiv_neg_pos;
-      replace 0 with (ln 1) by apply ln_1.
-    - apply ln_increasing; done.
-    - apply Rlt_gt. apply ln_increasing; first lra.
-      apply NM1. }
-  assert (0<=/(Rpower (S N / (S N - S M)) (IZR n))) as Hpos'.
-  { rewrite /n. rewrite -Rdiv_1_l.
-    apply Rcomplements.Rdiv_le_0_compat; first lra.
-    trans 1; first lra.
-    replace 1 with (Rpower (S N / (S N - S M)) 0); last (apply Rpower_O; auto).
-    apply Rpower_lt; first done.
-    trans (- Rlog (S N / (S N - S M)) (nonneg ε)); last first.
-    { pose proof archimed (- Rlog (S N / (S N - S M)) (nonneg ε)) as [? _].
-      lra.
-    }
-    apply Ropp_0_gt_lt_contravar.
-    rewrite /Rlog.
-    done.
-  } 
-  assert (0<=n)%Z as Hn.
-  { rewrite /n. cut (0< up (- Rlog (S N / (S N - S M)) (nonneg ε)))%Z; try lia.
-    pose proof archimed (- Rlog (S N / (S N - S M)) (nonneg ε)) as [? _].
-    apply lt_IZR.
-    trans (- Rlog (S N / (S N - S M)) (nonneg ε)); lra.
-  }
-  iDestruct (ec_spend_le_irrel _ (mknonnegreal _ Hpos') with "[$]") as "Hε".
-  { rewrite /n.
-    trans (/ Rpower (S N / (S N - S M)) (- Rlog (S N / (S N - S M)) ε)).
-    - apply Rinv_le_contravar.
-      + rewrite /Rpower. apply exp_pos. 
-      + apply Rle_Rpower; first (pose proof NM1; lra).
-        pose proof archimed (-Rlog (S N / (S N - S M)) ε) as [? _].
-        lra. 
-    - rewrite Rpower_Ropp.
-      rewrite Rinv_inv. rewrite Rpower_Rlog; try (auto||lra).
-      pose proof NM1; lra.
-  }
-  simpl.
-  wp_apply (wp_simpl_rejection_ind with "[$][$]").
-  simpl. repeat f_equal.
-  instantiate (1 := Z.to_nat n).
-  rewrite INR_IZR_INZ.
-  f_equal.
-  rewrite Z2Nat.id; lia.
-Qed.
 
 End rejection_sampler.
 
