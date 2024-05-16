@@ -41,6 +41,7 @@ Section discrete_space.
 
   Check <<discr cfg>>.
 
+
   Section discrete_space_mapout.
     Context {d2} {T1 : pointedType} {T2 : measurableType d2}.
     Variable (f : <<discr T1>> -> T2).
@@ -50,7 +51,6 @@ Section discrete_space.
 
   End discrete_space_mapout.
 End discrete_space.
-
 
 
 
@@ -66,6 +66,10 @@ Section discrete_space_cfg.
 
   (* Is there some way to copy the sigma algebra from (discrType cfg) to cfg? *)
   Check ((discrType cfg) : measurableType _).
+  Check (giryM _ (discrType cfg)).
+
+
+
   Fail Check (cfg : measurableType _).
 
   Check (fun x : cfg => (x : discrType cfg)).
@@ -86,6 +90,7 @@ Section discrete_space_cfg.
   HB.instance Definition _:= @isMeasurable.Build default_measure_display cfg cfg_meas
                                cfg_meas0 cfg_measC cfg_measU.
    *)
+
 End discrete_space_cfg.
 
 
@@ -118,6 +123,10 @@ Section unif_fin_space.
 
   Check (unifM : subprobability _ _).
   Check (unifM : giryType R (discrType ('I_(S m)))).
+
+  Check (discrType ('I_(S m)) : measurableType _). (* Okay so this works *)
+  Check (unifM : giryM R (discrType ('I_(S m)))). (* And this works too.... what does wrong withcfg? *)
+
 End unif_fin_space.
 
 (* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
@@ -139,8 +148,10 @@ Section meas_semantics.
 
   Check fun f => @giryM_map R _ _ _ _ _ (unifM (Z.to_nat _)) (discr_mapout_measurable f setT).
 
+  Check (giryM _ (giryM _ (discrType cfg))).
+  Check (giryM _ (discrType cfg)).
 
-  Definition head_stepM (e1 : expr) (σ1 : state) : giryType R (discrType cfg) :=
+  Definition head_stepM (e1 : expr) (σ1 : state) : giryM R (discrType cfg) :=
     match e1 with
     | Rec f x e =>
         giryM_ret R ((Val $ RecV f x e, σ1) : discrType cfg)
@@ -166,9 +177,8 @@ Section meas_semantics.
         giryM_ret R ((e1 , σ1) : discrType cfg)
     | If (Val (LitV (LitBool false))) e1 e2 =>
         giryM_ret R ((e2 , σ1) : discrType cfg)
-(*
     | Fst (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v1, σ1) : cfg) *)     (* Syntax error? what the hell? *)
+        giryM_ret R ((Val v1 , σ1) : discrType cfg) (* Syntax error when I remove the space between v1 and , *)
     | Snd (Val (PairV v1 v2)) =>
         giryM_ret R ((Val v2, σ1) : discrType cfg)
     | Case (Val (InjLV v)) e1 e2 =>
@@ -224,9 +234,38 @@ Section meas_semantics.
     end.
 
 
+  (** * Monadic itereration  *)
+  Section giry_iterM.
+
+    Context {d} {T : measurableType d}.
+
+    (* Strangely enough, the fixpoint hangs my coq server when I admit the last obligation *)
+    Local Definition unsound_meas_obligation d1 d2 T1 T2 f: @measurable_fun d1 d2 T1 T2 setT f.
+    Proof. Admitted.
+
+    Fixpoint giry_iterM (n : nat) (f : T -> (giryM R T)) (mf : measurable_fun setT f) (a : T) : giryM R T
+      := match n with
+           O => giryM_ret R a
+         | (S n) =>
+             let next : T -> giryM R T := giry_iterM n f mf in
+             let next_mf : measurable_fun _ next := unsound_meas_obligation _ _ _ _ _ in
+             giryM_bind (f a) next_mf
+         end.
+
+  End giry_iterM.
+
+
+
+
+
+
 
   (** NEXT: *)
   (* Connect the steps together with bind to get exec_n and exec *)
+  (* Port state_step (easy) *)
+
+
+
 
 
   (* Change sigma algebra on expression to be generated from discrete sets on some parts, borel space on others *)
