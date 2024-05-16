@@ -257,9 +257,9 @@ Definition wp_pre `{!irisGS Λ Σ}
   (∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') -∗
       match to_val e1 with
-      | Some v => |={E}=>
+      | Some v => |={E, ∅}=>
           spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
-              |={E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ Φ v)
+              |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ Φ v)
       | None => |={E, ∅}=>
           spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
               prog_coupl e1 σ2 e2' σ2' (λ e3 σ3 e3' σ3',
@@ -324,7 +324,9 @@ Proof.
   rewrite wp_unfold /wp_pre to_of_val.
   iIntros "H" (???) "(?&?)".
   iApply spec_coupl_trivial.
-  iMod "H". by iFrame.  
+  iMod "H". iFrame.
+  iApply fupd_mask_subseteq.
+  set_solver. 
 Qed.
 
 Lemma wp_strong_mono E1 E2 e Φ Ψ s :
@@ -338,26 +340,27 @@ Proof.
   rewrite !wp_unfold /wp_pre /=.
   iIntros (σ1 e1' σ1') "[Hσ Hs]".
   iSpecialize ("H" with "[$]").
-  destruct (to_val e) as [v|] eqn:?.
-  { iApply fupd_mask_mono; [done|].
-    iMod "H"; iModIntro.
-    iApply (spec_coupl_mono with "[HΦ] H").
-    iIntros (σ2 e2' σ2') "H".
-    iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
-    iMod "H" as "(? & ? & H)".
-    iMod "Hclose".
-    iApply ("HΦ" with "[$]"). }
-  iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
-  iMod "H"; iModIntro.
-  iApply (spec_coupl_mono with "[HΦ Hclose] H").
-  iIntros (σ2 e2' σ2') "H".
-  iApply (prog_coupl_mono with "[HΦ Hclose] H").
-  iIntros (e2 σ3 e3' σ3') "H !>".
-  iMod "H" as "($ & $ & H)".    
-  iMod "Hclose".
-  iModIntro.
-  by iApply ("IH" with "[] H").
-Qed.
+
+  Admitted. 
+(*   destruct (to_val e) as [v|] eqn:?. *)
+(*   { iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].  *)
+(*     iMod "H"; iModIntro. *)
+(*     iApply (spec_coupl_mono with "[HΦ Hclose] H"). *)
+(*     iIntros (σ2 e2' σ2') "H". *)
+(*     iDestruct "H" as "($ & $ & H)". *)
+(*     iMod "Hclose". *)
+(*     iApply ("HΦ" with "[$]"). } *)
+(*   iMod (fupd_mask_subseteq E1) as "Hclose"; [done|]. *)
+(*   iMod "H"; iModIntro. *)
+(*   iApply (spec_coupl_mono with "[HΦ Hclose] H"). *)
+(*   iIntros (σ2 e2' σ2') "H". *)
+(*   iApply (prog_coupl_mono with "[HΦ Hclose] H"). *)
+(*   iIntros (e2 σ3 e3' σ3') "H !>". *)
+(*   iMod "H" as "($ & $ & H)".     *)
+(*   iMod "Hclose". *)
+(*   iModIntro. *)
+(*   by iApply ("IH" with "[] H"). *)
+(* Qed. *)
 
 Lemma fupd_wp E e Φ s: (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
@@ -381,12 +384,35 @@ Proof.
   iIntros (σ1 e1' σ1') "[Hσ Hs]".
   iSpecialize ("H" with "[$]").
   destruct (to_val e) as [v|] eqn:?.
-  - iMod "H" as "> (%&%&%&%&%&%&%&H)". 
-    iExists _, _, _, _. iFrame "%".
+  - iDestruct "H" as ">> H". iModIntro.
+    iApply (spec_coupl_mono with "[] H").
+    iIntros (???) "> ($ & $ & $)".
+  - iDestruct "H" as ">> H". iModIntro.
+    iApply (spec_coupl_mono with "[] H").
+    iIntros (???) "H".
+    iDestruct (prog_coupl_strengthen with "H") as "H".
+    iApply (prog_coupl_mono with "[] H").
+    iIntros (????) "[[% %Hstep] H]".
+    iModIntro.
+    iMod "H" as "(Hσ & Hρ & H)".
+    rewrite !wp_unfold /wp_pre.
+    destruct (to_val e2) as [v2|] eqn:He2.
+    + iMod ("H" with "[$]") as "H".
+      (** "Usually", we're done here, because the post condition holds unconditionally ...  *)
 
-    (** We're stuck here since we cannot introduce the universal...  *)
-    Fail iIntros (????).
-
+      admit. (* iDestruct "H" as ">> $". by iFrame. *)
+    (* + iMod ("H" with "[$]") as "H". *)
+    (*   iMod (prog_coupl_reducible with "H") as %[ρ Hr]. *)
+    (*   destruct a. *)
+    (*   * pose proof (atomic _ _ _ Hstep) as [? Hval]. *)
+    (*     apply val_stuck in Hr. simplify_eq. *)
+    (*   * rewrite (atomic (a := WeaklyAtomic) _ _ _ Hstep ρ) in Hr. lra.     *)
+    
+    (* iDestruct (prog_coupl_reducible with "H") as %[ρ Hr]. *)
+    (* destruct a. *)
+    (* * pose proof (atomic _ _ _ Hstep) as [? Hval]. *)
+    (*   apply val_stuck in Hr. simplify_eq. *)
+    (* * rewrite (atomic (a := WeaklyAtomic) _ _ _ Hstep ρ) in Hr. lra. *)
 
 
 
