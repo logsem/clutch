@@ -2062,7 +2062,7 @@ Lemma twp_rec_total E (ε k : nonnegreal) e Φ Ψ :
   to_val e = None ->
   (0 < ε)%R ->
   (1 < k)%R ->
-  □ ( ∀ ε', □ (Ψ -∗ € (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
+  □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (Ψ -∗ € (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
      Ψ -∗ € ε' -∗ WP e @ E [{ Φ }]) -∗
   Ψ -∗ € ε -∗ WP e @ E [{ Φ }].
 Proof.
@@ -2070,8 +2070,8 @@ Proof.
   iRevert "HΨ".
   iApply (ec_ind_amp _ k with "[Hrec] Herr"); auto.
   iModIntro.
-  iIntros (ε') "#HWP Herr HΨ".
-  iApply ("Hrec" with "[HWP] [$HΨ] [$Herr]").
+  iIntros (ε') "%Hε' #HWP Herr HΨ".
+  iApply ("Hrec" with "[//] [HWP] [$HΨ] [$Herr]").
   iModIntro.
   iIntros "HΨ Herr".
   iApply ("HWP" with "Herr HΨ").
