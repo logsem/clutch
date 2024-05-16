@@ -10,17 +10,16 @@ From clutch.prob Require Export couplings distribution markov.
 
 Set Default Proof Using "Type".
 
-(** A [spec] is a Markov chain together with an interpretation in the logic  *)
-Class spec (δ : markov) (Σ : gFunctors) := Spec {
+Class spec_updateGS (δ : markov) (Σ : gFunctors) := Spec_updateGS {
   spec_interp : mstate δ → iProp Σ;
 }.
-Global Arguments Spec {_ _}.
+Global Arguments Spec_updateGS {_ _}.
 
 Canonical Structure mstateO δ := leibnizO (mstate δ).
 
 (** An "update"-modality for deterministic spec steps  *)
 Section spec_update.
-  Context `{spec δ Σ} `{invGS_gen hlc Σ}.
+  Context `{spec_updateGS δ Σ, invGS_gen hasLc Σ}.
   Implicit Types a : mstate δ.
 
   Definition spec_updateN (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
@@ -146,64 +145,64 @@ Section spec_update.
 
 End spec_update.
 
-(** The authoritative spec tracking algebra  *)
-Definition specUR (δ : markov) : ucmra := optionUR (exclR (leibnizO (mstate δ))).
-Definition authUR_spec (δ : markov) : ucmra := authUR (specUR δ).
+(* (** The authoritative spec tracking algebra  *) *)
+(* Definition specUR (δ : markov) : ucmra := optionUR (exclR (leibnizO (mstate δ))). *)
+(* Definition authUR_spec (δ : markov) : ucmra := authUR (specUR δ). *)
 
-Class specPreG (δ : markov) (Σ : gFunctors) := SpecPreG {
-  specG_pre_authUR :: inG Σ (authUR_spec δ);
-}.
-Definition specΣ (δ : markov) : gFunctors := GFunctor (authUR_spec δ).
-Global Instance subG_tprGPreS {δ Σ} : subG (specΣ δ) Σ → specPreG δ Σ.
-Proof. solve_inG. Qed.
+(* Class specPreG (δ : markov) (Σ : gFunctors) := SpecPreG { *)
+(*   specG_pre_authUR :: inG Σ (authUR_spec δ); *)
+(* }. *)
+(* Definition specΣ (δ : markov) : gFunctors := GFunctor (authUR_spec δ). *)
+(* Global Instance subG_tprGPreS {δ Σ} : subG (specΣ δ) Σ → specPreG δ Σ. *)
+(* Proof. solve_inG. Qed. *)
 
-Class specG (δ : markov) (Σ : gFunctors) := SpecG {
-  specG_authUR :: inG Σ (authUR_spec δ);
-  specG_gname : gname;
-}.
+(* Class specG (δ : markov) (Σ : gFunctors) := SpecG { *)
+(*   specG_authUR :: inG Σ (authUR_spec δ); *)
+(*   specG_gname : gname; *)
+(* }. *)
 
-Section spec_auth.
-  Context `{specG δ Σ}.
-  Implicit Types a : mstate δ.
+(* Section spec_auth. *)
+(*   Context `{specG δ Σ}. *)
+(*   Implicit Types a : mstate δ. *)
 
-  Definition specA a : iProp Σ :=
-    own specG_gname (● (Excl' a : specUR _)).
-  Definition specF a : iProp Σ :=
-    own specG_gname (◯ (Excl' a : specUR _)).
+(*   Definition specA a : iProp Σ := *)
+(*     own specG_gname (● (Excl' a : specUR _)). *)
+(*   Definition specF a : iProp Σ := *)
+(*     own specG_gname (◯ (Excl' a : specUR _)). *)
 
-  Lemma spec_auth_agree a a' :
-    specA a -∗ specF a' -∗ ⌜a = a'⌝.
-  Proof.
-    iIntros "Ha Hf".
-    iDestruct (own_valid_2 with "Ha Hf") as
-      %[Hexcl ?]%auth_both_valid_discrete.
-    rewrite Excl_included in Hexcl.
-    by apply leibniz_equiv in Hexcl.
-  Qed.
+(*   Lemma spec_auth_agree a a' : *)
+(*     specA a -∗ specF a' -∗ ⌜a = a'⌝. *)
+(*   Proof. *)
+(*     iIntros "Ha Hf". *)
+(*     iDestruct (own_valid_2 with "Ha Hf") as *)
+(*       %[Hexcl ?]%auth_both_valid_discrete. *)
+(*     rewrite Excl_included in Hexcl. *)
+(*     by apply leibniz_equiv in Hexcl. *)
+(*   Qed. *)
 
-  Lemma spec_auth_update a'' a a' :
-    specA a -∗ specF a' ==∗ specA a'' ∗ specF a''.
-  Proof.
-    iIntros "Ha Hf".
-    iDestruct (spec_auth_agree with "Ha Hf") as %->.
-    iMod (own_update_2 with "Ha Hf") as "[Ha Hf]".
-    { eapply auth_update .
-      eapply (@option_local_update _ _ _ (Excl a'' : exclR (leibnizO (mstate δ)))).
-      by eapply exclusive_local_update. }
-    by iFrame.
-  Qed.
+(*   Lemma spec_auth_update a'' a a' : *)
+(*     specA a -∗ specF a' ==∗ specA a'' ∗ specF a''. *)
+(*   Proof. *)
+(*     iIntros "Ha Hf". *)
+(*     iDestruct (spec_auth_agree with "Ha Hf") as %->. *)
+(*     iMod (own_update_2 with "Ha Hf") as "[Ha Hf]". *)
+(*     { eapply auth_update . *)
+(*       eapply (@option_local_update _ _ _ (Excl a'' : exclR (leibnizO (mstate δ)))). *)
+(*       by eapply exclusive_local_update. } *)
+(*     by iFrame. *)
+(*   Qed. *)
 
-End spec_auth.
+(* End spec_auth. *)
 
-Lemma spec_auth_alloc {δ Σ} a `{!specPreG δ Σ} :
-  ⊢ |==> ∃ (_ : specG δ Σ), specA a ∗ specF a.
-Proof.
-  iMod (own_alloc ((● (Excl' a : specUR _)) ⋅ (◯ (Excl' a : specUR _))))
-    as "(%γspec & Hauth & Hfrag)".
-  { by apply auth_both_valid_discrete. }
-  set (HspecG := SpecG δ Σ _ γspec).
-  iModIntro. iExists HspecG. iFrame.
-Qed.
+(* Lemma spec_auth_alloc {δ Σ} a `{!specPreG δ Σ} : *)
+(*   ⊢ |==> ∃ (_ : specG δ Σ), specA a ∗ specF a. *)
+(* Proof. *)
+(*   iMod (own_alloc ((● (Excl' a : specUR _)) ⋅ (◯ (Excl' a : specUR _)))) *)
+(*     as "(%γspec & Hauth & Hfrag)". *)
+(*   { by apply auth_both_valid_discrete. } *)
+(*   set (HspecG := SpecG δ Σ _ γspec). *)
+(*   iModIntro. iExists HspecG. iFrame. *)
+(* Qed. *)
 
-(** A Markov chain gives us an instance *)
-Definition spec_auth_spec {δ Σ} `{specG δ Σ} : spec δ Σ := Spec specA.
+(* (** A Markov chain gives us an instance *) *)
+(* Definition spec_auth_spec {δ Σ} `{spec_updateGS δ Σ} : spec δ Σ := Spec specA. *)

@@ -199,23 +199,6 @@ Section adequacy.
 
 End adequacy.
 
-Class clutchGpreS Σ := ClutchGpreS {
-  clutchGpreS_iris  :: invGpreS Σ;
-  clutchGpreS_heap  :: ghost_mapG Σ loc val;
-  clutchGpreS_tapes :: ghost_mapG Σ loc tape;
-  clutchGpreS_cfg   :: inG Σ (authUR cfgUR);
-  clutchGpreS_prog  :: inG Σ (authR progUR);
-}.
-
-Definition clutchΣ : gFunctors :=
-  #[invΣ;
-    ghost_mapΣ loc val;
-    ghost_mapΣ loc tape;
-    GFunctor (authUR cfgUR);
-    GFunctor (authUR progUR)].
-Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
-Proof. solve_inG. Qed.
-
 Theorem wp_refRcoupl Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) n φ :
   (∀ `{clutchGS Σ}, ⊢ spec_ctx -∗ ⤇ e' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
   refRcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ.
