@@ -263,14 +263,15 @@ Definition wp_pre `{!irisGS Λ Σ}
       | None => |={E, ∅}=>
           spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
               prog_coupl e1 σ2 e2' σ2' (λ e3 σ3 e3' σ3',
-                  ▷ |={∅, E}=> state_interp σ3 ∗ spec_interp (e3', σ3') ∗ wp E e3 Φ))
+                  spec_coupl σ3 e3' σ3' (λ σ4 e4' σ4',                  
+                  ▷ |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ wp E e3 Φ)))
       end)%I.
 
 Local Instance wp_pre_contractive `{!irisGS Λ Σ} : Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
   rewrite /spec_coupl /prog_coupl.
-  do 45 f_equiv. f_contractive. do 3 f_equiv. apply Hwp.
+  do 63 f_equiv. f_contractive. do 3 f_equiv. apply Hwp.
 Qed.
 
 Local Definition wp_def `{!irisGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
@@ -301,7 +302,7 @@ Global Instance wp_ne E e n s :
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
   rewrite !wp_unfold /wp_pre /spec_coupl /prog_coupl /=.
-  do 45 f_equiv.
+  do 63 f_equiv.
   f_contractive_fin.
   do 3 f_equiv. rewrite IH; [done|lia|].
   intros ?. apply dist_S, HΦ.
@@ -316,7 +317,7 @@ Global Instance wp_contractive E e n s :
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   intros He Φ Ψ HΦ. rewrite !wp_unfold /wp_pre He /spec_coupl /prog_coupl /=.
-  do 44 f_equiv. f_contractive. by do 4 f_equiv.
+  do 62 f_equiv. f_contractive. by do 4 f_equiv.
 Qed.
 
 Lemma wp_value_fupd' E Φ v s : (|={E}=> Φ v) ⊢ WP of_val v @ s; E {{ Φ }}.
@@ -393,14 +394,21 @@ Proof.
     iDestruct (prog_coupl_strengthen with "H") as "H".
     iApply (prog_coupl_mono with "[] H").
     iIntros (????) "[[% %Hstep] H]".
-    iModIntro.
+    iApply (spec_coupl_mono with "[] H").
+    iIntros (???) "H".
+    iModIntro. 
     iMod "H" as "(Hσ & Hρ & H)".
     rewrite !wp_unfold /wp_pre.
     destruct (to_val e2) as [v2|] eqn:He2.
     + iMod ("H" with "[$]") as "H".
       (** "Usually", we're done here, because the post condition holds unconditionally ...  *)
+      
 
-      admit. (* iDestruct "H" as ">> $". by iFrame. *)
+      
+      admit.
+    + iMod ("H" with "[$]") as "H".
+
+      (* iDestruct "H" as ">> $". by iFrame. *)
     (* + iMod ("H" with "[$]") as "H". *)
     (*   iMod (prog_coupl_reducible with "H") as %[ρ Hr]. *)
     (*   destruct a. *)
