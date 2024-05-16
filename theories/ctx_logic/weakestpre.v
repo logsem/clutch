@@ -394,7 +394,7 @@ Proof.
   by iIntros (???) "($ & $ & > $)". 
 Qed.
 
-Lemma wp_atomic E1 E2 e Φ `{!Atomic a e} s :
+Lemma wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} s :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
 Proof.
   iIntros "H". rewrite !wp_unfold /wp_pre.
@@ -409,60 +409,24 @@ Proof.
     iIntros (???) "H".
     iDestruct (prog_coupl_strengthen with "H") as "H".
     iApply (prog_coupl_mono with "[] H").
-    iIntros (????) "[[% %Hstep] H]".
-    iNext.
+    iIntros (????) "[[% %Hstep] H] !>".
     iApply (spec_coupl_mono_trans_fupd with "[] H").
     iIntros (???) "H".
     iMod "H" as "(Hσ & Hρ & H)".
     rewrite !wp_unfold /wp_pre.
     destruct (to_val e2) as [v2|] eqn:He2.
-    + iMod ("H" with "[$]") as "H".
-      iModIntro.
+    + iMod ("H" with "[$]") as "H". iModIntro.
       iApply (spec_coupl_mono with "[] H").
-      iIntros (???) ">($&$&>H)".
-
-      
-
-      
-      admit.
-    + iMod ("H" with "[$]") as "H".
-
-      (* iDestruct "H" as ">> $". by iFrame. *)
-    (* + iMod ("H" with "[$]") as "H". *)
-    (*   iMod (prog_coupl_reducible with "H") as %[ρ Hr]. *)
-    (*   destruct a. *)
-    (*   * pose proof (atomic _ _ _ Hstep) as [? Hval]. *)
-    (*     apply val_stuck in Hr. simplify_eq. *)
-    (*   * rewrite (atomic (a := WeaklyAtomic) _ _ _ Hstep ρ) in Hr. lra.     *)
-    
-    (* iDestruct (prog_coupl_reducible with "H") as %[ρ Hr]. *)
-    (* destruct a. *)
-    (* * pose proof (atomic _ _ _ Hstep) as [? Hval]. *)
-    (*   apply val_stuck in Hr. simplify_eq. *)
-    (* * rewrite (atomic (a := WeaklyAtomic) _ _ _ Hstep ρ) in Hr. lra. *)
-
-
-
-  (* destruct (to_val e) as [v|] eqn:He. *)
-  (* { by iDestruct "H" as ">>> $". } *)
-  (* iIntros (σ1 e1' σ1') "[Hσ Hs]". iMod "H". *)
-  (* iMod ("H" with "[$]") as "H". *)
-  (* iModIntro. *)
-  (* iDestruct (exec_coupl_strengthen with "H") as "H". *)
-  (* iApply (exec_coupl_mono with "[] H"). *)
-  (* iIntros ([e2 σ2] [e2' σ2']) "[[% %Hstep] H]". *)
-  (* iModIntro. *)
-  (* iMod "H" as "(Hσ & Hρ & H)". *)
-  (* rewrite !wp_unfold /wp_pre. *)
-  (* destruct (to_val e2) as [v2|] eqn:He2. *)
-  (* + iDestruct "H" as ">> $". by iFrame. *)
-  (* + iMod ("H" with "[$]") as "H". *)
-  (*   iMod (exec_coupl_reducible with "H") as %[ρ Hr]. *)
-  (*   destruct a. *)
-  (*   * pose proof (atomic _ _ _ Hstep) as [? Hval]. *)
-  (*     apply val_stuck in Hr. simplify_eq. *)
-  (*   * rewrite (atomic (a := WeaklyAtomic) _ _ _ Hstep ρ) in Hr. lra. *)
-Admitted. 
+      iIntros (???) "> ($ & $ & >H) !>".
+      rewrite -(of_to_val e2 v2) //.
+      by iApply wp_value_fupd'.
+    + iMod ("H" with "[$]") as "H". iModIntro. 
+      iApply (spec_coupl_mono with "[] H").
+      iIntros (???) "H".
+      iDestruct (prog_coupl_reducible with "H") as %[ρ Hr].
+      pose proof (atomic _ _ _ Hstep) as [? Hval].
+      apply val_stuck in Hr. simplify_eq.
+Qed. 
 
 Lemma wp_step_fupd E1 E2 e P Φ s :
   TCEq (to_val e) None → E2 ⊆ E1 →
