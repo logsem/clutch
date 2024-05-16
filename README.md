@@ -10,11 +10,11 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 arXiv:2404.14223
 
 [**Almost-Sure Termination by Guarded Refinement**](https://arxiv.org/abs/2404.08494) <br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Jospeh Tassarotti, Lars Birkedal*<br>
+*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
 arXiv:2404.08494
 
 [**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Jospeh Tassarotti, Lars Birkedal*<br>
+*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
 In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 ## Building the development
