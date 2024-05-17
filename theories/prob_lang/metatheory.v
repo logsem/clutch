@@ -1010,6 +1010,7 @@ Lemma Rcoupl_state_state_mult N M σ σₛ α αₛ xs zs
           f (x, y) = z
       ).
 Proof.
+  set (μ:= dret (state_upd_tapes <[α := (N; xs)]> σ)).
 Admitted.
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
@@ -1032,7 +1033,9 @@ Proof.
     assert (M=0)%nat as -> by lia.
     erewrite state_step_unfold; last done.
     (** HUH? *)
-    (* exists (dret (σ, state_upd_tapes <[αₛ:=(0%nat; zs++[0%fin])]> σₛ)). *)
+    (* exists (dret (σ, state_upd_tapes <[α := (0%nat; zs++[0%fin])]> σₛ)). *)
+    set (σₛ':= (state_upd_tapes <[α := (0%nat; zs++[0%fin])]> σₛ)).  
+    exists (dret (σ, σₛ')).
     admit.
   }
 Admitted.
