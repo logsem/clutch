@@ -423,6 +423,12 @@ Section monadic.
 
   Context `{Countable B}.
 
+  Lemma dbind_unfold_pmf μ1 (μ2 : A -> distr B) (b : B):
+    (μ1 ≫= μ2) b = SeriesC (λ a : A, μ1 a * μ2 a b).
+  Proof.
+    done.
+  Qed.
+  
   Lemma dret_id_left_pmf (f : A → distr B) (a : A) (b : B) :
     (a' ← dret a; f a') b = f a b.
   Proof.
@@ -1303,7 +1309,13 @@ Section dmap.
   Proof. rewrite /dmap dret_id_right //. Qed.
 
   Context `{Countable B}.
-
+  
+  Lemma dmap_unfold_pmf (f: A -> B) μ (b:B):
+    dmap f μ b = SeriesC (λ a : A, μ a * (if bool_decide (b = f a) then 1 else 0)).
+  Proof.
+    done.
+  Qed.
+  
   Lemma dmap_dret_pmf (f : A → B) (a : A) (b : B) :
     dmap f (dret a) b = dret (f a) b.
   Proof. rewrite /dmap dret_id_left_pmf //. Qed.

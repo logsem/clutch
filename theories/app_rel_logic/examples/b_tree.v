@@ -9,9 +9,10 @@ Section b_tree.
   Context {depth : nat}.
   Local Definition min_child_num := S min_child_num'.
   (** For this example, intermediate nodes do not store keys themselves
-      If the depth is 0, the node is a leaf, storing a single value
+      If the depth is 0, the node is a leaf, storing a single key value
       otherwise, if the depth is S n, it has stores a list of k children, each pointing to a tree of depth n
       where k varies from min_child_num to 2* min_child_num inclusive
+      (We force min_child_num to be at least 1 for simplicity)
    *)
 
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
@@ -24,7 +25,7 @@ Section b_tree.
       then walk down that branch. If the number exceeds the total number of children, repeat from the root
    *)
 
-  (** The intuition is that we assume we are sampling from a "full"tree that has max children,
+  (** The intuition is that we assume we are sampling from a "full" tree that has max children,
       but repeat if the child does not exist
    *)
   
