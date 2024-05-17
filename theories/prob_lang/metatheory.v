@@ -1034,10 +1034,30 @@ Proof.
     erewrite state_step_unfold; last done.
     (** HUH? *)
     (* exists (dret (σ, state_upd_tapes <[α := (0%nat; zs++[0%fin])]> σₛ)). *)
-    set (σₛ':= (state_upd_tapes <[α := (0%nat; zs++[0%fin])]> σₛ)).  
-    exists (dret (σ, σₛ')).
-    admit.
+    set (σₛ':= (state_upd_tapes <[αₛ := (0%nat; zs++[0%fin])]> σₛ)).  
+    exists (dprod (dret σ) (dret σₛ')).
+    split.
+    - split.
+      + rewrite lmarg_dprod; first auto.
+        apply dret_mass.
+      + rewrite rmarg_dprod; last apply dret_mass.
+        apply distr_ext; intros.
+        rewrite /dmap/dbind/dbind_pmf{2}/pmf/=.
+        rewrite SeriesC_finite_foldr; simpl.
+        rewrite /dunifP dunif_pmf. rewrite /σₛ'.
+        replace (/ INR 1) with 1; simpl; lra.
+    - intros [??]. rewrite dprod_pos. intros [H1 H2].
+      apply dret_pos in H1, H2.
+      subst.
+      simpl.
+      eexists Vector.nil, _.
+      split.
+      { rewrite app_nil_r. by rewrite state_upd_tapes_no_change. }
+      split; first naive_solver.
+      inv_fin (f [# ]); first done.
+      intros i; inv_fin i.
   }
+  intros N M xs zs f Hinj HNM Ht1 Ht2.
 Admitted.
 
 Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
