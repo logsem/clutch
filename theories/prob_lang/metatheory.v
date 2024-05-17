@@ -269,7 +269,14 @@ Lemma ARcoupl_state_step_dunifP σ α N ns:
      λ σ' n,  σ' = state_upd_tapes <[α := (N; ns ++ [n])]> σ
     ) 0.
 Proof.
-Admitted.
+  intros H.
+  erewrite state_step_unfold; last done.
+  rewrite -{2}(dmap_id (dunifP N)).
+  apply ARcoupl_map; first lra.
+  apply ARcoupl_refRcoupl.
+  eapply refRcoupl_mono; last apply refRcoupl_eq_refl.
+  intros ??->. done.
+Qed.
 
 (** * rand(N) ~ rand(N) coupling *)
 Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
