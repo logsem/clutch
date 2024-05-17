@@ -26,8 +26,6 @@ Unset Printing Implicit Defensive.
 
 *)
 
-
-
 Reserved Notation "T .-giry" (at level 1, format "T .-giry").
 Reserved Notation "T .-giry.-measurable"
  (at level 2, format "T .-giry.-measurable").
@@ -132,7 +130,6 @@ Section giry.
 
 
 
-
   (** ********** 4. Monad return  *)
 
   Definition giryM_ret {d} {T : measurableType d} : T -> giryM T
@@ -144,7 +141,7 @@ Section giry.
 
     (* Return is a measurable function *)
     Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret.
-    Proof. Admitted.
+    Proof. move=>_/=. Admitted.
 
   End giry_ret_laws.
 
@@ -231,7 +228,7 @@ Section giry.
 
   (** ********** 8. Monad join *)
 
-  Definition giryM_join {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
+  Definition giryM_join_aux {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
     := (fun S => \int[m]_μ (μ S))%E.
 
   Section giryM_join_definition.
@@ -241,32 +238,47 @@ Section giry.
     Context {d} {T : measurableType d}.
     Variables (m : giryM (giryM T)).
 
-    Definition giryM_join0 : giryM_join m set0 = 0%E.
+    Definition giryM_join0 : giryM_join_aux m set0 = 0%E.
     Proof. Admitted.
 
-    Definition giryM_join_ge0 A : (0 <= giryM_join m A)%E.
+    Definition giryM_join_ge0 A : (0 <= giryM_join_aux m A)%E.
     Proof. Admitted.
 
-    Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join m).
+    Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join_aux m).
     Proof. Admitted.
 
     HB.instance Definition _
       := isMeasure.Build _ _ _
-           (giryM_join m)
+           (giryM_join_aux m)
            giryM_join0
            giryM_join_ge0
            giryM_join_semi_additive.
 
-    Lemma giryM_join_setT : (giryM_join m setT <= 1)%E.
+    Lemma giryM_join_setT : (giryM_join_aux m setT <= 1)%E.
     Proof. (* Does this need any additional assumptions? *) Admitted.
 
-    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (giryM_join m) giryM_join_setT.
+    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (giryM_join_aux m) giryM_join_setT.
 
   End giryM_join_definition.
+
+  Definition giryM_join {d} {T : measurableType d} (m : giryM (giryM T)) : giryM T := giryM_join_aux m.
+
+  Lemma giryM_def {d} {T : measurableType d} (m : giryM (giryM T)) (S : set T) :
+    giryM_join m S = (\int[m]_μ (μ S))%E.
+  Proof using R. by rewrite /giryM_join/=/giryM_join_aux. Qed.
+
+  (* FIXME: seal giryM_join so we never use the aux version (it confuses the type inference) *)
 
   Section giryM_join_laws.
     (* TODO: Port laws from prob here *)
     Context {d} {T : measurableType d}.
+
+    Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
+    Proof. Admitted.
+
+    Lemma giryM_join_measurable : measurable_fun setT (@giryM_join d T).
+    Proof. Admitted.
+
   End giryM_join_laws.
 
 
@@ -276,12 +288,27 @@ Section giry.
   (** ********** 8. Monad bind *)
 
   Definition giryM_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-                       (f : T1 -> giryM T2) (m : giryM T1) (mf : measurable_fun setT f) : giryM T2
+                        {f : T1 -> giryM T2} (m : giryM T1) (mf : measurable_fun setT f) : giryM T2
     := giryM_join (giryM_map m mf).
 
   Section giryM_bind_laws.
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+    Context {f : T1 -> giryM T2} (mf : measurable_fun setT f).
+
+    Lemma giryM_bind_0_l : giryM_bind mzero mf = mzero.
+    Proof. Admitted.
+
+    (* FIXME: make it so that I don't have to annotate giryM T2 here? *)
+    Lemma giryM_bind_0_r (μ : giryM T1) : giryM_bind μ (measurable_cst (mzero : giryM T2)) = mzero.
+    Proof. Admitted.
+
+    Lemma giryM_bind_measurable : measurable_fun setT (giryM_bind^~ mf).
+    Proof. Admitted.
+
+
+
+
   End giryM_bind_laws.
 
 End giry.
