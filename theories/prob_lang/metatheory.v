@@ -996,6 +996,47 @@ Proof.
          f_equal.
 Qed.
 
+Lemma Rcoupl_state_state_mult N M σ σₛ α αₛ xs zs
+  (f:(fin (S N) * fin (S N)) -> fin (S M)) (Hinj: Inj (=) (=) f):
+  (S N * S N = S M)%nat->
+  σ.(tapes) !! α = Some (N%nat; xs) ->
+  σₛ.(tapes) !! αₛ = Some (M%nat; zs) ->
+  Rcoupl
+      (state_step σ α ≫= (λ σ1', state_step σ1' α))
+      (state_step σₛ αₛ)
+      (λ σ1' σ2', ∃ (x y:fin (S N)) (z:fin (S M)),
+          σ1' = state_upd_tapes <[α := (N%nat; xs ++ [x;y])]> σ ∧
+          σ2' = state_upd_tapes <[αₛ := (M%nat; zs ++ [z])]> σₛ /\
+          f (x, y) = z
+      ).
+Proof.
+Admitted.
+
+Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
+  (f:(vec (fin (S N)) p) -> fin (S M)) (Hinj: Inj (=) (=) f):
+  (S N ^ p = S M)%nat->
+  σ.(tapes) !! α = Some (N%nat; xs) ->
+  σₛ.(tapes) !! αₛ = Some (M%nat; zs) ->
+  Rcoupl
+    (iterM p (λ σ1', state_step σ1' α) σ)
+    (state_step σₛ αₛ)
+    (λ σ1' σ2', ∃ (xs':vec (fin (S N)) p) (z:fin (S M)),
+        σ1' = state_upd_tapes <[α := (N%nat; xs ++ vec_to_list xs')]> σ ∧
+        σ2' = state_upd_tapes <[αₛ := (M%nat; zs ++ [z])]> σₛ /\
+        f xs' = z
+    ).
+Proof.
+  revert N M xs zs f Hinj.
+  induction p as [|p' IH]; simpl.
+  { intros N M xs zs f Hinj HNM Ht1 Ht2.
+    assert (M=0)%nat as -> by lia.
+    erewrite state_step_unfold; last done.
+    (** HUH? *)
+    (* exists (dret (σ, state_upd_tapes <[αₛ:=(0%nat; zs++[0%fin])]> σₛ)). *)
+    admit.
+  }
+Admitted.
+
 Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
   (M<=N)%R ->
   σ.(tapes) !! α = Some (N%nat; ns) ->
