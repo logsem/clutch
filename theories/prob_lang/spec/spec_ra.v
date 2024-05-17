@@ -124,7 +124,7 @@ Section theory.
     by iFrame.
   Qed.
 
-  Lemma spec_auth_update_heap e1 σ1 l v w:
+  Lemma spec_auth_update_heap w e1 σ1 l v :
     spec_auth (e1, σ1) -∗ l ↦ₛ{#1} v ==∗
     spec_auth (e1, state_upd_heap <[l:=w]> σ1) ∗ l ↦ₛ{#1} w.
   Proof.
@@ -135,11 +135,11 @@ Section theory.
 
   (** Tapes *)
 
-  Lemma spec_auth_lookup_tape e1 σ1 l v dq:
+  Lemma spec_auth_lookup_tape e1 σ1 l v dq :
     spec_auth (e1, σ1) -∗ l ↪ₛ{dq} v -∗ ⌜σ1.(tapes) !! l = Some v⌝.
   Proof. iIntros "(_&_&H) H'/=". iApply (ghost_map_lookup with "H H'"). Qed.
 
-  Lemma spec_auth_update_tape e1 σ1 l v w:
+  Lemma spec_auth_update_tape w e1 σ1 l v :
     spec_auth (e1, σ1) -∗ l ↪ₛ{#1} v ==∗
     spec_auth (e1, state_upd_tapes <[l:=w]> σ1) ∗ l ↪ₛ{#1} w.
   Proof.

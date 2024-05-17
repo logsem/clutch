@@ -91,18 +91,19 @@ Section exec_coupl.
     ⊢ spec_coupl σ1 e1' σ1' Z.
   Proof. iIntros "H". rewrite spec_coupl_unfold. by iRight. Qed.
 
-  Lemma spec_coupl_steps σ1 e1' σ1' Z :
-    (∃ (R : state Λ → cfg Λ → Prop) (n : nat),
-        ⌜Rcoupl (dret σ1) (stepN n (e1', σ1')) R⌝ ∗
+  Lemma spec_coupl_erasable_steps σ1 e1' σ1' Z :
+    (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)),
+        ⌜Rcoupl μ1 (stepN n (e1', σ1')) R⌝ ∗
+        ⌜erasable μ1 σ1⌝ ∗
         ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ Z σ2 e2' σ2')
     ⊢ spec_coupl σ1 e1' σ1' Z.
   Proof.
-    iIntros "(%R & %n & %Hcpl & H)".
+    iIntros "(%R & %n & %μ1 & %Hcpl & %Hμ1 & H)".
     iApply spec_coupl_rec.
-    iExists R, n, (dret σ1), (dret σ1').
+    iExists R, n, μ1, (dret σ1').
     rewrite dret_id_left.
-    iSplit; [done|].
-    do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
+    iFrame "%".
+    iSplit; [iPureIntro; apply dret_erasable|].
     iIntros (σ2 e2' σ2' HR) "!>".
     iApply spec_coupl_base.
     iExists _, (dret σ2), (dret σ2').
@@ -111,6 +112,19 @@ Section exec_coupl.
     do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
     iIntros (σ3 σ3' (_ & ->%dret_pos & ->%dret_pos)).
     by iApply "H".
+  Qed.
+
+  Lemma spec_coupl_steps σ1 e1' σ1' Z :
+    (∃ (R : state Λ → cfg Λ → Prop) (n : nat),
+        ⌜Rcoupl (dret σ1) (stepN n (e1', σ1')) R⌝ ∗
+        ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ Z σ2 e2' σ2')
+    ⊢ spec_coupl σ1 e1' σ1' Z.
+  Proof.
+    iIntros "(%R & %n & %Hcpl & H)".
+    iApply spec_coupl_erasable_steps.
+    iExists R, n, (dret σ1).
+    iFrame "%"; iFrame.
+    iPureIntro; apply dret_erasable.
   Qed.
 
   Lemma spec_coupl_ind (Ψ : state Λ → expr Λ → state Λ → iProp Σ) (Z : state Λ → expr Λ → state Λ → iPropI Σ) :
@@ -200,7 +214,7 @@ Section exec_coupl.
   (** TODO: change to [refRcoupl] rather than [Rcoupl] *)
 
   Lemma prog_coupl_strong_mono e1 σ1 e1' σ1' Z1 Z2 :
-    (∀ e2 σ2 e2' σ2', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗  Z1 e2 σ2 e2' σ2' -∗ Z2 e2 σ2 e2' σ2') -∗
+    (∀ e2 σ2 e2' σ2', ⌜∃ σ, prim_step e1 σ (e2, σ2) > 0⌝ ∗ Z1 e2 σ2 e2' σ2' -∗ Z2 e2 σ2 e2' σ2') -∗
     prog_coupl e1 σ1 e1' σ1' Z1 -∗ prog_coupl e1 σ1 e1' σ1' Z2.
   Proof.
     iIntros "Hm (%R & %n & %μ1'& %Hred & %Hcpl & %Hμ1' & Hcnt) /=".
@@ -670,14 +684,14 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  Global Instance elim_modal_spec_update P E e Ψ :
+  #[global] Instance elim_modal_spec_update P E e Ψ :
     ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
   Proof.
     iIntros (?) "[HP Hcnt]".
     iApply (wp_spec_steps with "[$]").
   Qed.
 
-  Global Instance elim_modal_spec_updateN P E n e Ψ :
+  #[global] Instance elim_modal_spec_updateN P E n e Ψ :
     ElimModal True false false (spec_updateN n E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
   Proof.
     iIntros (?) "[HP Hcnt]".

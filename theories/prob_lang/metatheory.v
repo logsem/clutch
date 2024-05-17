@@ -448,12 +448,12 @@ Proof.
   apply Rcoupl_dret. eauto.
 Qed.
 
-Lemma Rcoupl_rand_r N z (ρ1 : cfg) σ1' :
+Lemma Rcoupl_rand_r `{Countable A} N z (a : A) σ1' :
   N = Z.to_nat z →
   Rcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand #z) σ1')
-    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
+    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ?.
   assert (head_reducible (rand #z) σ1') as hr by solve_red.
@@ -466,13 +466,13 @@ Proof.
 Qed.
 
 (** * e1 ~ rand(α', N) coupling for α' ↪ₛ (N, []) *)
-Lemma Rcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
+Lemma Rcoupl_rand_empty_r `{Countable A} N z (a : A) σ1' α' :
   N = Z.to_nat z →
   tapes σ1' !! α' = Some (N; []) →
   Rcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand(#lbl:α') #z) σ1')
-    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
+    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ??.
   assert (head_reducible (rand(#lbl:α') #z) σ1') as hr by solve_red.
@@ -484,14 +484,14 @@ Proof.
     inv_head_step; eauto.
 Qed.
 
-Lemma Rcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
+Lemma Rcoupl_rand_wrong_r `{Countable A} N M z (a : A) ns σ1' α' :
   N = Z.to_nat z →
   N ≠ M →
   tapes σ1' !! α' = Some (M; ns) →
   Rcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand(#lbl:α') #z) σ1')
-    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')).
+    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')).
 Proof.
   intros ???.
   assert (head_reducible (rand(#lbl:α') #z) σ1') as hr by solve_red.
@@ -698,39 +698,39 @@ Proof.
   simpl in nm. eauto.
 Qed.
 
-Lemma ARcoupl_rand_r N z (ρ1 : cfg) σ1' :
+Lemma ARcoupl_rand_r `{Countable A} (a : A) N z σ1' :
   N = Z.to_nat z →
   ARcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand #z) σ1')
-    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
 Proof.
   intros ?.
   apply ARcoupl_exact.
   by apply Rcoupl_rand_r.
 Qed.
 
-Lemma ARcoupl_rand_empty_r N z (ρ1 : cfg) σ1' α' :
+Lemma ARcoupl_rand_empty_r `{Countable A} N z (a : A) σ1' α' :
   N = Z.to_nat z →
   tapes σ1' !! α' = Some (N; []) →
   ARcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand(#lbl:α') #z) σ1')
-    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
 Proof.
   intros ??.
   apply ARcoupl_exact.
   by apply Rcoupl_rand_empty_r.
 Qed.
 
-Lemma ARcoupl_rand_wrong_r N M z ns (ρ1 : cfg) σ1' α' :
+Lemma ARcoupl_rand_wrong_r `{Countable A} N M z ns (a : A) σ1' α' :
   N = Z.to_nat z →
   N ≠ M →
   tapes σ1' !! α' = Some (M; ns) →
   ARcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand(#lbl:α') #z) σ1')
-    (λ ρ2 ρ2', ∃ (n : fin (S N)), ρ2 = ρ1 ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
+    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
 Proof.
   intros ???.
   apply ARcoupl_exact.
