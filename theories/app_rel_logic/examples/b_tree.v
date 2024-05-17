@@ -31,6 +31,14 @@ Section b_tree.
 End b_tree.
 
 Section proofs.
+  (** To prove that the optimzed algorithm refines the naive one
+      we show that for each "run", the depth number of (2*min_child_num) state step samples can be coupled
+      with a single (2*min_child_num)^depth state step sample
+      and that can be sampled with a single (total number of children) state step via a fragmental coupling 
+      and appeal to Löb induction.
+
+      The other direction is the same, except one would need to amplify errors and use a continuity argument to close the proof 
+   *)
 
 End proofs.
 
