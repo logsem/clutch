@@ -242,22 +242,20 @@ Section rules.
     iIntros (σ1 e1' σ1') "[Hσ Hs] /=".
     iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iApply prog_coupl_prim_steps.
     iExists (λ '(e2, σ2) '(e2', σ2'),
               ∃ (n : fin _), (e2, σ2) = (Val #n, σ1) ∧
-                             (e2', σ2') = (fill K #(f n), σ1')),
-      1, (dret σ1').
+                             (e2', σ2') = (fill K #(f n), σ1')).
     iSplit; [iPureIntro|].
     { eapply head_prim_reducible; eauto with head_step. }
     iSplit; [iPureIntro|].
-    { rewrite dret_id_left stepN_1 /= fill_dmap //.
+    { rewrite /= fill_dmap //.
       rewrite /= -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_dmap.
       eapply Rcoupl_mono; [by apply (Rcoupl_rand_rand _ f)|].
       intros [] [] (b & [=] & [=])=>/=.
       simplify_eq. eauto. }
-    iSplit; [iPureIntro|].
-    { by eapply dret_erasable. }
-    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
+    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!>".
     iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
     iMod "Hclose" as "_".
     iFrame.
@@ -312,24 +310,22 @@ Section rules.
     iDestruct (spec_auth_lookup_tape with "Hs Hαs") as %?.
     iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iApply prog_coupl_prim_steps.
     iExists
       (λ ρ2 ρ2',
         ∃ (n : fin _), ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')).
-    iExists 1, (dret σ1').
     iSplit; [iPureIntro|].
     { eapply head_prim_reducible; eauto with head_step. }
     iSplit; [iPureIntro|].
-    { rewrite /= dret_id_left stepN_1 /= fill_dmap //.
+    { rewrite /= fill_dmap //.
       rewrite -(dret_id_right (prim_step _ _)) /=.
       apply Rcoupl_dmap.
       eapply Rcoupl_mono; [by eapply (Rcoupl_rand_lbl_rand_lbl_wrong _ _ f)|].
       intros [] [] (b & [=] & [=])=>/=.
       simplify_eq. eauto. }
-    iSplit; [iPureIntro|].
-    { by eapply dret_erasable. }
-    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])).
+    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!>".
     iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
-    iFrame. iIntros "!>!>".
+    iFrame.
     iMod "Hclose" as "_".
     iApply wp_value.
     by iApply ("Hwp" with "[$]").
