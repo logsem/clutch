@@ -3,8 +3,9 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed topology normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import reals ereal signed topology normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -30,8 +31,29 @@ Reserved Notation "T .-giry" (at level 1, format "T .-giry").
 Reserved Notation "T .-giry.-measurable"
  (at level 2, format "T .-giry.-measurable").
 
+
+
+(** ********** 0. Define HB structure for measurable functions *)
+(* This is very close to isMeasurableFun, but the codomain is not a realType. *)
+(* Odd that they don't have this in the Hierarchy already? *)
+(* The reason we want this is to avoid carrying around measurability requirements everywhere *)
+
+
+HB.mixin Record isMeasurableMap d1 d2 (T1 : measurableType d1) (T2 : measurableType d2)
+  (f : T1 -> T2) := {
+  measurable_mapP : measurable_fun setT f
+}.
+
+#[short(type=measurable_map)]
+HB.structure Definition MeasurableMap {d1} {d2} T1 T2 :=
+  {f of @isMeasurableMap d1 d2 T1 T2 f}.
+
+
+(* FIXME: Builder for measurableFun to RealType? Or does this go automatically?  *)
+
+
 Section giry.
-  Context (R : realType).
+  Context (R : realType). (* FIXME: rather annoying to not infer this from context *)
   Local Open Scope classical_set_scope.
 
   (* FIXME: Are these the same? Or is 'measurable derived from the Lebesgue measure? Would that be an issue? *)
@@ -69,8 +91,6 @@ Section giry.
     Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
 
   End giry_space.
-
-
 
 
 
@@ -130,50 +150,116 @@ Section giry.
 
 
 
+  (* FIXME: Expose alias to measurable function, not giryM_ret *)
+  (* ie. giryM_ret_def, giryM_ret_aux, and giryM_ret *)
+
+  (* TODO: Can this link into the STDPP monad interface? What do we do in probability already? *)
+  (* Seems that the answer is no, this would cement that (eg. map only works with measurable functions). *)
+
   (** ********** 4. Monad return  *)
 
-  Definition giryM_ret {d} {T : measurableType d} : T -> giryM T
-    := fun t0 => @dirac _ T t0 _.
+  Section giry_ret.
+    (* FIXME: Seal the version it doesn't know is measurable *)
+    Context {d} {T : measurableType d}.
+
+    Local Definition giryM_ret_def : T -> giryM T := fun t0 => @dirac _ T t0 _.
+
+    Local Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret_def.
+    Proof. move=>_/=. Admitted.
+
+    HB.instance Definition _ :=
+      isMeasurableMap.Build _ _ T (giryM T) giryM_ret_def giry_ret_measurable.
+
+  End giry_ret.
+
+  (* FIXME: This is the interface that should be used *)
+  Definition giryM_ret {d} {T : measurableType d} : measurable_map T (giryM T) := giryM_ret_def.
+  Lemma giryM_ret_aux {d} {T : measurableType d} (t : T) : giryM_ret t = dirac t.
+  Proof using R. auto. Qed.
+
+  (* CHECK: Arguments to infer seem good *)
+  Check giryM_ret _.
+  (* TODO: Make some notation *)
 
   Section giry_ret_laws.
     (* TODO: Port laws from prob here *)
     Context {d} {T : measurableType d}.
-
-    (* Return is a measurable function *)
-    Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret.
-    Proof. move=>_/=. Admitted.
-
   End giry_ret_laws.
 
 
 
 
 
-  (** ********** 5. Measurability of (T₁ -> giryM T₂) functions *)
+  (** ********** 5. Measurability of evaluation maps *)
 
-  Definition giryM_Peval {d} {T : measurableType d} : set T -> giryM T -> \bar R
-    := fun s => (fun μ => μ s).
+  Section giryM_eval.
+    Context {d} {T : measurableType d}.
 
-  (* Evaluation functions are measurable *)
-  Lemma giryM_Peval_measurable {d} {T : measurableType d} (S : set T) :
-    d.-measurable S -> @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_Peval S).
-  Proof.
-    intro Hmeas_s.
-    rewrite /measurable_fun /=.
-    intros Hmeas_T U Hmeas_U.
-  Admitted.
+    Local Definition giryM_eval_def (S : set T) (HS : d.-measurable S) : giryM T -> \bar R := (fun μ => μ S).
+
+    (* Evaluation functions are measurable maps *)
+    Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_eval_def HS).
+    Proof.
+      intro Hmeas_s.
+      rewrite /measurable_fun /=.
+      intros Hmeas_T U Hmeas_U.
+    Admitted.
+
+    HB.instance Definition _ (S : set T) (HS : d.-measurable S) :=
+      isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
+
+  End giryM_eval.
+
+  (* FIXME: This is the interface that should be used (seal the other?) *)
+
+  Definition giryM_eval {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) : measurable_map (giryM T) (\bar R)
+    := (giryM_eval_def HS).
+  Lemma giryM_eval_aux {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) :
+    forall μ, giryM_eval HS μ = μ S.
+  Proof using R. done. Qed.
+
+
+
+
+  (** ********** 6. Measurability of (T₁ -> giryM T₂) functions *)
+
+
+
+  (* FIXME: move *)
+  Definition measurable_evaluations {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2) : Prop
+    := forall (S : set T2), d2.-measurable S -> measurable_fun setT (f ^~ S).
+
 
   Section giry_measurable_characterization.
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
     Variable (f : T1 -> giryM T2).
 
-    Lemma measurable_evals_imply_measurable :
-      (forall S : set T2, d2.-measurable S -> @measurable_fun _ _ T1 (\bar R) setT (fun μ => (f μ) S)).
+    Check (f ^~ _ : T1 -> \bar R).
+
+    Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
     Proof. Admitted.
 
-    Lemma giry_measurable_fun_char :
-      (forall S : set T2, d2.-measurable S <-> @measurable_fun _ _ T1 (\bar R) setT (fun μ => (f μ) S)).
-    Proof. Admitted.
+    (* Probably want to use measurable_evaluations as a builder for measuable_fun now, so I can
+       instansiate THAT and get the measurable fun hierarchy bit automatically (by this lemma) *)
+
+    (* I don't think we ever care about measruable_evaluations as a class (still useful as a lemma
+       so I won't add a mixin + factory going the other direction )*)
+
+    (* FIXME: Needs to be done outside of a section. Uncomment below (it works) and reorganize. *)
+
+
+(*
+HB.factory Record GiryMeasurableEvals {R : realType} {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM R T2) := { meas_evaluationsP : measurable_evaluations f }.
+
+HB.builders Context R d1 d2 T1 T2 f of @GiryMeasurableEvals R d1 d2 T1 T2 f.
+  Lemma measurable_subproof: measurable_fun setT f.
+  Proof. apply measurable_evals_iff_measurable, meas_evaluationsP. Qed.
+
+  HB.instance Definition _ :=
+      isMeasurableMap.Build _ _ T1 (giryM R T2) f measurable_subproof.
+
+HB.end.
+*)
 
   End giry_measurable_characterization.
 
@@ -181,21 +267,36 @@ Section giry.
 
 
 
+
   (** ********** 6. Expectations over the Giry Monad *)
 
-  Definition giryM_integrate {d} {T : measurableType d} (f : T -> \bar R) (_ : measurable_fun setT f)
-      : giryM T -> \bar R
-    := fun μ => (\int[μ]_x (f x))%E.
+
 
   Section giryM_integrate_laws.
     (* TODO: Port laws from prob here *)
-    Context {d} {T : measurableType d} (f : T -> \bar R) (Hf : measurable_fun setT f).
+    Context {d} {T : measurableType d}.
+
+    (* FIXME: Not sure if measurable_map is the right type to use here *)
+    Definition giryM_integrate_def (f : measurable_map T (\bar R)) : giryM T -> \bar R
+      := fun μ => (\int[μ]_x (f x))%E.
 
     (* Taking expectaiton is measurable *)
-    Lemma giry_meas_integrate : @measurable_fun _ _ (giryM T) _ setT (giryM_integrate Hf).
+    Lemma giry_meas_integrate f : @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_integrate_def f).
     Proof. Admitted.
 
+    HB.instance Definition _ (f : measurable_map T (\bar R)) :=
+      isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_integrate_def f) (giry_meas_integrate f).
+
   End giryM_integrate_laws.
+
+
+  (* FIXME: Seal above definitions *)
+  Definition giryM_integrate {d} {T : measurableType d} (f : measurable_map T (\bar R)) : measurable_map (giryM T) (\bar R)
+    := (giryM_integrate_def f).
+  Lemma giryM_integrate_aux {d} {T : measurableType d} (f : measurable_map T (\bar R)) :
+    forall μ, (giryM_integrate f μ = \int[μ]_x (f x))%E.
+  Proof using R. done. Qed.
+
 
 
 
@@ -205,17 +306,31 @@ Section giry.
 
   Section giryM_map_definition.
     Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-    Variables (f : T1 -> T2) (m : giryM T1) (mf : measurable_fun setT f).
 
-
-    Lemma pushforward_setT : (pushforward m mf setT <= 1)%E.
+    Lemma pushforward_setT (f : measurable_map T1 T2) (m : giryM T1) : (pushforward m (@measurable_mapP _ _ _ _ f) setT <= 1)%E.
     Proof. (* Does this need any additional assumptions? *) Admitted.
 
-    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (pushforward m mf) pushforward_setT.
+    HB.instance Definition _ (f : measurable_map T1 T2) (m : giryM T1) := Measure_isSubProbability.Build _ _ _ (pushforward m (@measurable_mapP _ _ _ _ f)) (pushforward_setT f m).
 
-    Definition giryM_map : giryM T2 := pushforward m mf.
+    Definition giryM_map_def (f : measurable_map T1 T2) (m : giryM T1) : giryM T2 := pushforward m (@measurable_mapP _ _ _ _ f).
+
+    Lemma giryM_map_def_is_measurable (f : measurable_map T1 T2) : @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map_def f).
+    Proof. Admitted.
+
+    HB.instance Definition _ (f : measurable_map T1 T2) :=
+      isMeasurableMap.Build _ _ (giryM T1) (giryM T2) (giryM_map_def f) (giryM_map_def_is_measurable f).
 
   End giryM_map_definition.
+
+
+  (* FIXME: Seal above definitions *)
+  Definition giryM_map {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
+      measurable_map (giryM T1) (giryM T2)
+    := giryM_map_def f.
+  Lemma giryM_map_aux {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
+    forall μ, giryM_map f μ = pushforward μ  (@measurable_mapP _ _ _ _ f).
+  Proof using R. done. Qed.
+
 
   Section giry_map_laws.
     (* TODO: Port laws from prob here *)
@@ -226,48 +341,64 @@ Section giry.
 
 
 
+
+
   (** ********** 8. Monad join *)
 
-  Definition giryM_join_aux {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
-    := (fun S => \int[m]_μ (μ S))%E.
 
   Section giryM_join_definition.
+    Context {d} {T : measurableType d}.
+
+    Definition giryM_join_def {d} {T : measurableType d} (m : giryM (giryM T)) : (set T -> \bar R)
+      := (fun S => \int[m]_μ (μ S))%E.
 
     (* For the proofs,
         I don't know if there's any way to reuse the measurability of evaluation functions to do this. *)
-    Context {d} {T : measurableType d}.
-    Variables (m : giryM (giryM T)).
 
-    Definition giryM_join0 : giryM_join_aux m set0 = 0%E.
+    Section giryM_join_measure_def.
+      Context (m : giryM (giryM T)).
+
+      Definition giryM_join0 : giryM_join_def m set0 = 0%E.
+      Proof. Admitted.
+
+      Definition giryM_join_ge0 A : (0 <= giryM_join_def m A)%E.
+      Proof. Admitted.
+
+      Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join_def m).
+      Proof. Admitted.
+
+      HB.instance Definition _
+        := isMeasure.Build _ _ _
+             (giryM_join_def m)
+             giryM_join0
+             giryM_join_ge0
+             giryM_join_semi_additive.
+
+      Lemma giryM_join_setT : (giryM_join_def m setT <= 1)%E.
+      Proof. (* Does this need any additional assumptions? *) Admitted.
+
+      HB.instance Definition _ :=  Measure_isSubProbability.Build _ _ _ (giryM_join_def m) giryM_join_setT.
+
+    End giryM_join_measure_def.
+
+    Definition giryM_join_def' : giryM (giryM T) -> (giryM T) := giryM_join_def.
+
+    Lemma giryM_join_def'_measurable : @measurable_fun _ _ (giryM (giryM T)) (giryM T) setT giryM_join_def'.
     Proof. Admitted.
 
-    Definition giryM_join_ge0 A : (0 <= giryM_join_aux m A)%E.
-    Proof. Admitted.
-
-    Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join_aux m).
-    Proof. Admitted.
-
-    HB.instance Definition _
-      := isMeasure.Build _ _ _
-           (giryM_join_aux m)
-           giryM_join0
-           giryM_join_ge0
-           giryM_join_semi_additive.
-
-    Lemma giryM_join_setT : (giryM_join_aux m setT <= 1)%E.
-    Proof. (* Does this need any additional assumptions? *) Admitted.
-
-    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (giryM_join_aux m) giryM_join_setT.
+    HB.instance Definition _ :=
+      isMeasurableMap.Build _ _ (giryM (giryM T)) (giryM T) giryM_join_def' giryM_join_def'_measurable.
 
   End giryM_join_definition.
 
-  Definition giryM_join {d} {T : measurableType d} (m : giryM (giryM T)) : giryM T := giryM_join_aux m.
 
-  Lemma giryM_def {d} {T : measurableType d} (m : giryM (giryM T)) (S : set T) :
-    giryM_join m S = (\int[m]_μ (μ S))%E.
-  Proof using R. by rewrite /giryM_join/=/giryM_join_aux. Qed.
+  (* FIXME: Seal above defs *)
+  Definition giryM_join {d} {T : measurableType d} : measurable_map (giryM (giryM T)) (giryM T) := giryM_join_def'.
+  Lemma giryM_join_aux {d} {T : measurableType d} (m : giryM (giryM T)) :
+    forall S, (giryM_join m S = \int[m]_μ (μ S))%E.
+  Proof using R. done. Qed.
 
-  (* FIXME: seal giryM_join so we never use the aux version (it confuses the type inference) *)
+
 
   Section giryM_join_laws.
     (* TODO: Port laws from prob here *)
@@ -276,26 +407,69 @@ Section giry.
     Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
     Proof. Admitted.
 
-    Lemma giryM_join_measurable : measurable_fun setT (@giryM_join d T).
+    (* FIXME: measurable_fun usage *)
+    Lemma giryM_join_integrate (m : giryM (giryM T)) (f : T -> \bar R) (mf : measurable_fun setT f) :
+      (\int[giryM_join m]_x (f x) = \int[m]_μ (\int[μ]_x f x))%E.
     Proof. Admitted.
+
+
+    (* join_map_map *)
+    (* join_map_join *)
+    (* join_map_dirac *)
+    (* join_dirac *)
 
   End giryM_join_laws.
 
 
+  (** ********** ?. Composition of Measurable Maps (move up) *)
 
+  (* FIXME: What is Coq's default composition operator? Make an instance for that. *)
+
+  Section MeasurableMap_cmp.
+    Context {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
+
+    Definition Mcmp_def (f : measurable_map T2 T3) (g : measurable_map T1 T2) : T1 -> T3
+      := fun x => f (g (x)).
+
+    Lemma Mcmp_def_measurable (f : measurable_map T2 T3) (g : measurable_map T1 T2) :
+      @measurable_fun _ _ T1 T3 setT (Mcmp_def f g).
+    Proof. Admitted.
+
+    HB.instance Definition _ (f : measurable_map T2 T3) (g : measurable_map T1 T2) :=
+      isMeasurableMap.Build _ _ T1 T3 (Mcmp_def f g) (Mcmp_def_measurable f g).
+
+  End MeasurableMap_cmp.
+
+  Definition Mcmp {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    (f : measurable_map T2 T3) (g : measurable_map T1 T2) : measurable_map T1 T3
+    := Mcmp_def f g.
+
+  (* TODO: Mcmp_aux / seal *)
 
 
   (** ********** 8. Monad bind *)
 
+(*
   Definition giryM_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-                        {f : T1 -> giryM T2} (m : giryM T1) (mf : measurable_fun setT f) : giryM T2
-    := giryM_join (giryM_map m mf).
+                        (f : measurable_map T1 (giryM T2)) (m : giryM T1) : giryM T2
+    := giryM_join (giryM_map f m).
+*)
+
+  Definition giryM_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+                        (f : measurable_map T1 (giryM T2)) : measurable_map (giryM T1) (giryM T2)
+    := Mcmp giryM_join (giryM_map f).
+
+  (* No need to prove measurability! *)
+
 
   Section giryM_bind_laws.
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
     Context {f : T1 -> giryM T2} (mf : measurable_fun setT f).
 
+
+    (* FIXME: Make a measurable_map instance for mzero and cst *)
+    (*
     Lemma giryM_bind_0_l : giryM_bind mzero mf = mzero.
     Proof. Admitted.
 
@@ -306,8 +480,32 @@ Section giry.
     Lemma giryM_bind_measurable : measurable_fun setT (giryM_bind^~ mf).
     Proof. Admitted.
 
+    Lemma giryM_bind_eval (m : giryM T1) (s : set T2) (HS : measurable s) :
+      (giryM_bind m mf s = \int[m]_x f x s)%E.
+    Proof. Admitted.
+
+    Lemma giryM_bind_integrate (m : giryM T1) (g : T2 -> \bar R) (mg : measurable_fun setT g) :
+      (\int[giryM_bind m mf]_x g x = \int[m]_a (\int[f a]_x g x))%E.
+    Proof. Admitted.
 
 
+    (* This is a mess ... put it into a fresh namespace *)
+    Lemma giryM_bind_bind {d3} {T3 : measurableType d3} (g : T2 -> giryM T3) (mg : measurable_fun setT g) (m : giryM T1) : True.
+    Proof. Admitted.
+
+    Lemma giryM_bind_ret_l t : giryM_bind (giryM_ret t) mf = f t.
+    Proof. Admitted.
+
+
+    Lemma giryM_bind_ret_r (m : giryM T1) : giryM_bind m (giry_ret_measurable : measurable_fun _ _) = m.
+    Proof. Admitted.
+
+
+     *)
+
+    (* Other monad laws? *)
+
+    (* join_eq_bind *)
 
   End giryM_bind_laws.
 
