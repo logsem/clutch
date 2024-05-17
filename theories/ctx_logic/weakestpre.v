@@ -231,7 +231,7 @@ Section exec_coupl.
     iApply prog_coupl_strong_mono. iIntros (????) "[$ $]".
   Qed.
 
-  Lemma prog_coupl_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_ctx_bind K `{!LanguageCtx K} e1 σ1 e1' σ1' Z :
     to_val e1 = None →
     prog_coupl e1 σ1 e1' σ1' (λ e2 σ2 e2' σ2', Z (K e2) σ2 e2' σ2') -∗ prog_coupl (K e1) σ1 e1' σ1' Z.
   Proof.
@@ -506,7 +506,7 @@ Proof.
   rewrite fill_not_val /=; [|done].
   iModIntro.
   iApply spec_coupl_ret.
-  iApply prog_coupl_bind; [done|].
+  iApply prog_coupl_ctx_bind; [done|].
   iApply (prog_coupl_mono with "[] H").
   iIntros (e3 σ3 e3' σ3') "H !>".
   iApply (spec_coupl_mono with "[] H").
@@ -517,11 +517,10 @@ Proof.
 Qed.
 
 Lemma wp_spec_steps P E e Φ a :
-  TCEq (to_val e) None →
   (P -∗ WP e @ a; E {{ Φ }}) ∗ spec_update E P ⊢ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite wp_unfold /wp_pre.
-  iIntros (->) "[H Hspec]".
+  iIntros "[H Hspec]".
   iIntros (σ1 e1' σ1') "[Hσ Hs]". rewrite /spec_update.
   iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n ?%pmf_1_eq_dret) "(Hs & HP)".
@@ -670,4 +669,20 @@ Section proofmode_classes.
     iApply (wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
+
+  Global Instance elim_modal_spec_update P E e Ψ :
+    ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
+  Proof.
+    iIntros (?) "[HP Hcnt]".
+    iApply (wp_spec_steps with "[$]").
+  Qed.
+
+  Global Instance elim_modal_spec_updateN P E n e Ψ :
+    ElimModal True false false (spec_updateN n E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
+  Proof.
+    iIntros (?) "[HP Hcnt]".
+    iDestruct (spec_updateN_implies_spec_update with "HP") as "HP".
+    iApply (wp_spec_steps with "[$]").
+  Qed.
+
 End proofmode_classes.

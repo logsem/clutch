@@ -15,7 +15,6 @@ Implicit Types Φ : val Λ → iProp Σ.
 #[local] Open Scope R.
 
 Lemma wp_lift_step_couple E Φ e1 s :
-  to_val e1 = None →
   (∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') ={E, ∅}=∗
       spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
@@ -27,18 +26,17 @@ Lemma wp_lift_step_couple E Φ e1 s :
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ WP e3 @ s; E {{ Φ }}))
         end))
   ⊢ WP e1 @ s; E {{ Φ }}.
-Proof. by rewrite wp_unfold /wp_pre=>->. Qed.
+Proof. rewrite wp_unfold /wp_pre //. Qed.
 
 Lemma wp_lift_step_spec_couple E Φ e1 s :
-  to_val e1 = None →
   (∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') ={E, ∅}=∗
       spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
         |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ WP e1 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (Hv) "H".
-  iApply wp_lift_step_couple; [done|].
+  iIntros "H".
+  iApply wp_lift_step_couple.
   iIntros (???) "Hs".
   iMod ("H" with "[$]") as "H".
   iModIntro.
@@ -58,7 +56,7 @@ Lemma wp_lift_step_prog_couple E Φ e1 s :
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hv) "H".
-  iApply wp_lift_step_couple; [done|].
+  iApply wp_lift_step_couple.
   iIntros (???) "Hs".
   iMod ("H" with "[$]") as "H".
   iApply spec_coupl_ret.
