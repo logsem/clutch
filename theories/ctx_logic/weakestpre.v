@@ -38,7 +38,7 @@ Section exec_coupl.
         ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
         ∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Z σ2 e1' σ2') ∨
      (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ)),
-        ⌜Rcoupl μ1 (σ2 ← μ1'; stepN n (e1', σ2)) R⌝ ∗
+        ⌜Rcoupl μ1 (σ2 ← μ1'; pexec n (e1', σ2)) R⌝ ∗
         ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
         ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ Φ (σ2, (e2', σ2'))))%I.
 
@@ -70,7 +70,7 @@ Section exec_coupl.
            ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
            ∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ Z σ2 e1' σ2') ∨
        (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ)),
-           ⌜Rcoupl μ1 (σ2 ← μ1'; stepN n (e1', σ2)) R⌝ ∗
+           ⌜Rcoupl μ1 (σ2 ← μ1'; pexec n (e1', σ2)) R⌝ ∗
            ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
            ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ spec_coupl σ2 e2' σ2' Z))%I.
   Proof. rewrite /spec_coupl /spec_coupl' least_fixpoint_unfold //. Qed.
@@ -85,7 +85,7 @@ Section exec_coupl.
 
   Lemma spec_coupl_rec σ1 e1' σ1' Z :
     (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ)),
-           ⌜Rcoupl μ1 (σ2 ← μ1'; stepN n (e1', σ2)) R⌝ ∗
+           ⌜Rcoupl μ1 (σ2 ← μ1'; pexec n (e1', σ2)) R⌝ ∗
            ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
            ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ spec_coupl σ2 e2' σ2' Z)
     ⊢ spec_coupl σ1 e1' σ1' Z.
@@ -93,7 +93,7 @@ Section exec_coupl.
 
   Lemma spec_coupl_erasable_steps σ1 e1' σ1' Z :
     (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)),
-        ⌜Rcoupl μ1 (stepN n (e1', σ1')) R⌝ ∗
+        ⌜Rcoupl μ1 (pexec n (e1', σ1')) R⌝ ∗
         ⌜erasable μ1 σ1⌝ ∗
         ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ Z σ2 e2' σ2')
     ⊢ spec_coupl σ1 e1' σ1' Z.
@@ -116,7 +116,7 @@ Section exec_coupl.
 
   Lemma spec_coupl_steps σ1 e1' σ1' Z :
     (∃ (R : state Λ → cfg Λ → Prop) (n : nat),
-        ⌜Rcoupl (dret σ1) (stepN n (e1', σ1')) R⌝ ∗
+        ⌜Rcoupl (dret σ1) (pexec n (e1', σ1')) R⌝ ∗
         ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={∅}=∗ Z σ2 e2' σ2')
     ⊢ spec_coupl σ1 e1' σ1' Z.
   Proof.
@@ -175,7 +175,7 @@ Section exec_coupl.
       iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e1' = e2'), 0%nat, μ1, μ1'.
       iFrame "%".
       iSplit; [iPureIntro|].
-      { rewrite stepN_O -(dret_id_right μ1).
+      { setoid_rewrite pexec_O.  rewrite -(dret_id_right μ1).
         eapply Rcoupl_dbind; [|done]. intros ???.
         by apply Rcoupl_dret. }
       iIntros (??? [? <-]).
@@ -205,7 +205,7 @@ Section exec_coupl.
   Definition prog_coupl e1 σ1 e1' σ1' (Z : expr Λ → state Λ → expr Λ → state Λ → iProp Σ) :=
     (∃ (R : cfg Λ → cfg Λ → Prop) (n : nat) (μ1' : distr (state Λ)),
         ⌜reducible (e1, σ1)⌝ ∗
-        ⌜Rcoupl (prim_step e1 σ1) (σ2 ← μ1'; stepN n (e1', σ2)) R⌝ ∗
+        ⌜Rcoupl (prim_step e1 σ1) (σ2 ← μ1'; pexec n (e1', σ2)) R⌝ ∗
         ⌜erasable μ1' σ1'⌝ ∗
         ∀ e2 σ2 e2' σ2', ⌜R (e2, σ2) (e2', σ2')⌝ ={∅}=∗ Z e2 σ2 e2' σ2')%I.
 
@@ -272,7 +272,13 @@ Section exec_coupl.
   Proof.
     iIntros "(%R & %Hred & %Hcpl & Hcnt)".
     iExists R, 1%nat, (dret σ1').
-    rewrite dret_id_left stepN_1 /=.
+    rewrite dret_id_left pexec_1 /=.
+    assert (reducible (e1', σ1')).
+    { apply Rcoupl_mass_eq in Hcpl.
+      apply reducible_mass_pos in Hred.
+      apply mass_pos_reducible.
+      rewrite -Hcpl //. }
+    rewrite step_or_final_no_final; [|by apply reducible_not_final].
     iFrame "%".
     iSplit; [iPureIntro; apply dret_erasable|].
     iIntros (e2 σ2 e2' σ2' HR).
@@ -287,7 +293,7 @@ Section exec_coupl.
   Proof.
     iIntros "(%R & %Hred & %Hcpl & Hcnt)".
     iExists _, 0%nat, (dret σ1').
-    rewrite dret_id_left stepN_O.
+    rewrite dret_id_left pexec_O.
     iSplit; [done|].
     iSplit; [iPureIntro; by eapply Rcoupl_pos_R|].
     iSplit; [iPureIntro; apply dret_erasable|].
@@ -537,14 +543,14 @@ Proof.
   iIntros "[H Hspec]".
   iIntros (σ1 e1' σ1') "[Hσ Hs]". rewrite /spec_update.
   iMod ("Hspec" with "Hs")
-    as ([e2' σ2'] n ?%pmf_1_eq_dret) "(Hs & HP)".
+    as ([e2' σ2'] n Hstep%stepN_pexec_det%pmf_1_eq_dret) "(Hs & HP)".
   iSpecialize ("H" with "HP").
   iMod ("H" with "[$]") as "H".
   iModIntro.
   iApply spec_coupl_rec.
   iExists _, n, (dret σ1), (dret σ1').
   iSplit; [iPureIntro|].
-  { rewrite dret_id_left H.
+  { rewrite dret_id_left Hstep.
     apply Rcoupl_pos_R, Rcoupl_trivial; solve_distr_mass. }
   do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
   by iIntros (σ3 e3' σ3' (_ & ->%dret_pos & [= -> ->]%dret_pos)).

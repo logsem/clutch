@@ -82,7 +82,8 @@ Proof.
   iExists _, 0%nat, (dret σ1').
   iSplit; [done|].
   iSplit; [iPureIntro|].
-  { rewrite stepN_O dret_id_left.
+  { setoid_rewrite pexec_O.
+    rewrite dret_id_left.
     eapply Rcoupl_pos_R, Rcoupl_trivial.
     - apply prim_step_mass. eauto.
     - apply dret_mass. }

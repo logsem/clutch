@@ -282,8 +282,10 @@ Proof.
   iApply spec_coupl_steps.
   iExists (λ σ2 '(e2', σ2'), ∃ n : fin (S _), σ2 = σ1 ∧ (e2', σ2') = (fill K #n, σ1')), 1.
   iSplit; [iPureIntro|].
-  { rewrite stepN_1 /=.
-    rewrite -(dret_id_right (dret σ1)) fill_dmap //=.
+  { rewrite pexec_1 step_or_final_no_final; last first.
+    { apply reducible_not_final. solve_red. }
+    rewrite -(dret_id_right (dret σ1)).
+    rewrite /= fill_dmap //.
     eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_r].
     intros [e2 σ2] (e2' & σ2') (? & -> & [= -> ->]).
     apply Rcoupl_dret=>/=. eauto. }
@@ -310,8 +312,10 @@ Proof.
   iApply spec_coupl_steps.
   iExists (λ σ2 '(e2', σ2'), ∃ n : fin (S _), σ2 = σ1 ∧ (e2', σ2') = (fill K #n, σ1')), 1.
   iSplit; [iPureIntro|].
-  { rewrite stepN_1 /=.
-    rewrite -(dret_id_right (dret σ1)) fill_dmap //=.
+  { rewrite pexec_1 step_or_final_no_final; last first.
+    { apply reducible_not_final. solve_red. }
+    rewrite -(dret_id_right (dret σ1)).
+    rewrite /= fill_dmap //.
     eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_empty_r].
     intros [e2 σ2] (e2' & σ2') (? & -> & [= -> ->]).
     apply Rcoupl_dret=>/=. eauto. }
@@ -339,8 +343,10 @@ Proof.
   iApply spec_coupl_steps.
   iExists (λ σ2 '(e2', σ2'), ∃ n : fin (S _), σ2 = σ1 ∧ (e2', σ2') = (fill K #n, σ1')), 1.
   iSplit; [iPureIntro|].
-  { rewrite stepN_1 /=.
-    rewrite -(dret_id_right (dret σ1)) fill_dmap //=.
+  { rewrite pexec_1 step_or_final_no_final; last first.
+    { apply reducible_not_final. solve_red. }
+    rewrite -(dret_id_right (dret σ1)).
+    rewrite /= fill_dmap //.
     eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_wrong_r].
     intros [e2 σ2] (e2' & σ2') (? & -> & [= -> ->]).
     apply Rcoupl_dret=>/=. eauto. }

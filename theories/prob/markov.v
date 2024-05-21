@@ -132,6 +132,14 @@ Section reducible.
     SeriesC (step a) > 0 → reducible a.
   Proof. by intros ?%SeriesC_gtz_ex. Qed.
 
+  Lemma reducible_mass_pos a :
+    reducible a → SeriesC (step a) > 0.
+  Proof.
+    intros [a' Ha].
+    eapply Rlt_le_trans; [done|].
+    apply pmf_le_SeriesC.
+  Qed. 
+
 End reducible.
 
 Section markov.

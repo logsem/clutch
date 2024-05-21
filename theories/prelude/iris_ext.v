@@ -80,6 +80,18 @@ Section fupd_plainly_derived.
     apply step_fupd_intro. done.
   Qed.
 
+  Lemma fupd_step_fupdN_plain_forall E {A} (Φ : A → PROP) `{!∀ x, Plain (Φ x)} n :
+    (|={E}=> |={E}▷=>^n ∀ x, Φ x) ⊣⊢ (∀ x, |={E}=> |={E}▷=>^n Φ x).
+  Proof .
+    intros. apply (anti_symm _).
+    { apply forall_intro=> x. eapply fupd_mono, step_fupdN_mono. eauto. }
+    destruct n.
+    { rewrite fupd_plain_forall //. }
+    rewrite step_fupdN_plain_forall -fupd_intro.
+    apply forall_mono => a.
+    by iIntros "> H".
+  Qed.
+
   Global Instance step_fupdN_ne k E1 E2:
     NonExpansive (λ P : PROP, |={E2}[E1]▷=>^k P)%I.
   Proof.
@@ -147,6 +159,15 @@ Section class_instance_updates.
   Proof.
     rewrite /FromForall=>? ?.
     rewrite -step_fupdN_plain_forall. by apply step_fupdN_mono.
+  Qed.
+
+  Global Instance from_forall_fupd_step_fupdN
+    `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP} E {A} P (Φ : A → PROP) name n :
+    FromForall P Φ name → (∀ x, Plain (Φ x)) →
+    FromForall (|={E}=> |={E}▷=>^n P) (λ a, |={E}=> |={E}▷=>^n (Φ a))%I name.
+  Proof.
+    rewrite /FromForall=>? ?.
+    rewrite -fupd_step_fupdN_plain_forall. by apply fupd_mono, step_fupdN_mono.
   Qed.
 End class_instance_updates.
 

@@ -78,7 +78,9 @@ Ltac solve_red :=
       iSplitR ; [ by (iPureIntro ; solve_red) | ]
   | |- (environments.envs_entails _ ( _ ∗ ⌜ _ ⌝)) =>
       iSplitL ; [ by (iPureIntro ; solve_red) | ]
-  | |- (reducible _ _) =>
+  | |- reducible ((fill _ _), _) =>
+      apply reducible_fill ; solve_red
+  | |- reducible _ =>
       apply head_prim_reducible ; solve_red
   | |- (head_reducible _ _) =>
       by eauto with head_step

@@ -113,9 +113,10 @@ Section rules.
     iExists (λ σ2 '(e2', σ2'),
         ∃ n, σ2 = state_upd_tapes <[α := (_; ns ++ [n]) : tape]> σ1
              ∧ (e2', σ2') = (fill K #(f n), σ1')), 1, (state_step σ1 α).
-    rewrite stepN_1 /=.
     iSplit; [iPureIntro|].
-    { rewrite /= -(dret_id_right (state_step _ _)) fill_dmap //.
+    { rewrite pexec_1 step_or_final_no_final; last first.
+      { apply reducible_not_final. solve_red. }
+      rewrite -(dret_id_right (state_step _ _)) /= fill_dmap //.
       eapply Rcoupl_dbind => /=; last first.
       { eapply Rcoupl_pos_R. by eapply Rcoupl_state_rand. }
       intros σ2 (e2' & σ2') ((b & -> & ->) & ? & ?).
@@ -154,11 +155,11 @@ Section rules.
                 ρ2 = (Val #n, σ1) ∧
                 ρ2' = (e1', state_upd_tapes <[α := (N; ns ++ [f n]) : tape]> σ1')),
       0, (state_step σ1' α).
-    rewrite stepN_O /=.
+    setoid_rewrite pexec_O.
     iSplit; [iPureIntro|].
     { eapply head_prim_reducible; eauto with head_step. }
     iSplit; [iPureIntro|].
-    { rewrite -(dret_id_right (prim_step _ _)) /=.
+    { rewrite /= -(dret_id_right (prim_step _ _)) /=.
       eapply Rcoupl_dbind; last first.
       { eapply (Rcoupl_rand_state _ f) => //. rewrite Hz //. }
       intros [] ? (?& [= -> ->] & ->).

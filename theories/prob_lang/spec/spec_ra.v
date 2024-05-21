@@ -11,7 +11,7 @@ Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
 
 (** The CMRA for the spec [cfg]. *)
-Class specGS Σ := SpecSG {
+Class specGS Σ := SpecGS {
   specGS_prog_inG :: inG Σ (authR progUR);
   specGS_prog_name : gname;
 
@@ -159,3 +159,15 @@ Section theory.
   Qed.
 
 End theory.
+
+Lemma spec_ra_init e σ `{specGpreS Σ} :
+  ⊢ |==> ∃ _ : specGS Σ,
+      spec_auth (e, σ) ∗ ⤇ e ∗ ([∗ map] l ↦ v ∈ σ.(heap), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ σ.(tapes), α ↪ₛ t).
+Proof.
+  iMod (own_alloc ((● (Excl' e)) ⋅ (◯ (Excl' e)))) as "(%γp & Hprog_auth & Hprog_frag)".
+  { by apply auth_both_valid_discrete. }
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh Hls]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht Hαs]]".
+  iExists (SpecGS _ _ γp _ _ γH γT).
+  by iFrame.
+Qed.
