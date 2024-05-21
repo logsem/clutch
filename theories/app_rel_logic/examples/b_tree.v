@@ -37,6 +37,8 @@ Section proofs.
       with a single (2*min_child_num)^depth state step sample
       and that can be sampled with a single (total number of children) state step via a fragmental coupling 
       and appeal to Löb induction.
+      To be more precise, one needs to find an injective function, from the total number of children to the single (2*min_child_num)^depth set
+      The function is the one that maps i, to the index of the i-th children if the tree is full
 
       The other direction is the same, except one would need to amplify errors and use a continuity argument to close the proof 
    *)

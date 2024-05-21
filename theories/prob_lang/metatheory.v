@@ -842,37 +842,6 @@ Proof.
   rewrite /state_upd_tapes insert_commute //.
 Qed.
 
-
-(** rej_samp_state_distr ~ state_step*)
-Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys
-  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
-  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
-  let f_img := (list_to_set (f<$>fin_enum (S N))) in 
-    Rcoupl
-      (state_step σ1 α1)
-      (rej_samp_state_distr M σ2 α2 f_img ys Hfound2)
-      (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
-          Forall (λ y, forall x, f x ≠ y) junk /\
-          σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
-          σ2' = state_upd_tapes <[α2 := (M; ys ++ junk ++ [f n])]> σ2).
-Proof.
-Admitted.
-
-(** state_step ~ rej_samp *)
-Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys 
-  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
-  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
-  let f_img := (list_to_set (f<$>fin_enum (S M))) in 
-    Rcoupl
-      (rej_samp_state_distr N σ1 α1 f_img xs Hfound1)
-      (state_step σ2 α2)
-      (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
-          Forall (λ y, forall x, f x ≠ y) junk  /\
-          σ1' = state_upd_tapes <[α1 := (N; xs ++ junk++ [f n])]> σ1 ∧
-          σ2' = state_upd_tapes <[α2 := (M; ys ++ [n])]> σ2).
-Proof.
-Admitted.
-
 Lemma Rcoupl_state_1_3 σ σₛ α1 α2 αₛ (xs ys:list(fin (2))) (zs:list(fin (4))):
   α1 ≠ α2 -> 
   σ.(tapes) !! α1 = Some (1%nat; xs) ->
@@ -1032,8 +1001,6 @@ Proof.
   { intros N M xs zs f Hinj HNM Ht1 Ht2.
     assert (M=0)%nat as -> by lia.
     erewrite state_step_unfold; last done.
-    (** HUH? *)
-    (* exists (dret (σ, state_upd_tapes <[α := (0%nat; zs++[0%fin])]> σₛ)). *)
     set (σₛ':= (state_upd_tapes <[αₛ := (0%nat; zs++[0%fin])]> σₛ)).  
     exists (dprod (dret σ) (dret σₛ')).
     split.
