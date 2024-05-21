@@ -412,7 +412,7 @@ Section filter.
     SeriesC (λ n, if bool_decide (n = a) then v else 0) = v.
   Proof. apply is_series_unique, is_seriesC_singleton. Qed.
 
-  Lemma SeriesC_subset f g {_:∀ a, Decision (g a)}:
+  Lemma SeriesC_subset g f {_:∀ a, Decision (g a)}:
     (∀ (a:A), (¬ g a) -> f a = 0)-> 
     SeriesC f = SeriesC (λ a, if bool_decide (g a) then f a else 0).
   Proof.
