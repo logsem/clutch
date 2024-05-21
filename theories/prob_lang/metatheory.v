@@ -1016,9 +1016,88 @@ Proof.
   { intros. apply dret_id_right. }
   apply distr_ext. intros σ'. rewrite dmap_unfold_pmf.
   replace (p'+1)%nat with (S p') by lia.
-  destruct (decide (∃ v: vec (fin(S N)) (S p'), σ' = state_upd_tapes <[α:=(N; xs ++ v)]> σ)).
-  - (* σ' is reachable *) admit.
-  - (* σ' is not reachable, i.e. both sides are zero *) admit.
+  destruct (decide (∃ v: vec (fin(S N)) (S p'), σ' = state_upd_tapes <[α:=(N; xs ++ v)]> σ)) as [K|K].
+  - (* σ' is reachable *)
+    destruct K as [v ->].
+    rewrite (SeriesC_subset (λ a, a = v)); last first.
+    { intros a Ha.
+      rewrite bool_decide_eq_false_2; first lra.
+      move => /state_upd_tapes_same. intros L. simplify_eq.
+      apply vec_to_list_inj2 in L. done.
+    }
+    rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last done.
+    rewrite dunifv_pmf. rewrite Rmult_1_r.
+    remember (/ (S N ^ S p')%nat) as val eqn:Hval.
+    rewrite /dbind/dbind_pmf{1}/pmf/=.
+    rewrite (SeriesC_subset (λ a, a = state_upd_tapes <[α := (N; xs ++ Vector.shiftout v)]> σ)).
+    + rewrite SeriesC_singleton_dependent. erewrite state_step_unfold; last first.
+      { simpl. rewrite lookup_insert. done. }
+      rewrite !dmap_unfold_pmf.
+      rewrite (SeriesC_subset (λ a, a = Vector.shiftout v)); last first.
+      { intros. rewrite bool_decide_eq_false_2; first lra.
+        move => /state_upd_tapes_same. intros L. simplify_eq. apply vec_to_list_inj2 in L. done.
+      }
+      rewrite SeriesC_singleton_dependent.
+      rewrite bool_decide_eq_true_2; last done.
+      rewrite dunifv_pmf.
+      rewrite (SeriesC_subset (λ a, a = Vector.last v)); last first.
+      { intros a H. rewrite bool_decide_eq_false_2; first lra.
+        rewrite state_upd_tapes_twice. move => /state_upd_tapes_same.
+        rewrite <-app_assoc. intros K.
+        simplify_eq. apply H.
+        replace ([a]) with (vec_to_list (list_to_vec [a])) in K; last by simpl.
+        rewrite <-vec_to_list_app in K.
+        (** urgh need to prove that last element of vec is indeed last element*)
+        admit. 
+      }
+      rewrite SeriesC_singleton_dependent.
+      rewrite /dunifP dunif_pmf. rewrite bool_decide_eq_true_2; last rewrite state_upd_tapes_twice.
+      * rewrite Hval.
+        cut ( / INR (S N ^ p') * (/ INR (S N)) = / INR (S N ^ S p')); first lra.
+        rewrite -Rinv_mult.
+        f_equal. rewrite -mult_INR. f_equal. simpl. lia.
+      * rewrite -app_assoc. repeat f_equal.
+        (** urgh again *)
+        admit.
+    + (* prove that σ' is not an intermediate step*)
+      intros σ'.
+      admit.
+  - (* σ' is not reachable, i.e. both sides are zero *)
+    rewrite SeriesC_0; last first.
+    { intros. rewrite bool_decide_eq_false_2; first lra.
+      naive_solver.
+    }
+    rewrite /dbind/dbind_pmf{1}/pmf/=.
+    apply SeriesC_0.
+    intros σ''.
+    rewrite /dmap/dbind/dbind_pmf{1}/pmf/=.
+    setoid_rewrite dunifv_pmf. rewrite SeriesC_scal_l.
+    cut (SeriesC (λ x : vec (fin (S N)) p', dret (state_upd_tapes <[α:=(N; xs ++ x)]> σ) σ'') *
+           state_step σ'' α σ' = 0).
+    { rewrite Rmult_assoc. intros ->. lra. }
+    assert (SeriesC (λ x : vec (fin (S N)) p', dret (state_upd_tapes <[α:=(N; xs ++ x)]> σ) σ'') *
+              state_step σ'' α σ' >= 0) as [H|H]; last auto.
+    { apply Rle_ge. apply Rmult_le_pos; auto. apply SeriesC_ge_0'.
+      intros. auto. 
+    }
+    apply Rmult_pos_cases in H as [[H1 H2]|[? H]]; last first.
+    { pose proof pmf_pos (state_step σ'' α) σ'. lra. }
+    epose proof SeriesC_gtz_ex _ _ H1. simpl in *.
+    destruct H as [v H]. apply dret_pos in H; subst.
+    erewrite state_step_unfold in H2; last first.
+    { simpl. rewrite lookup_insert. done. }
+    exfalso.
+    apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst.
+    setoid_rewrite state_upd_tapes_twice.
+    rewrite -app_assoc.
+    set (v':=(Vector.of_list (v++[x]))).
+    replace (S p') with (length (v++[x])).
+    + exists v'. repeat f_equal. rewrite /v'. rewrite vec_to_list_to_vec. done.
+    + rewrite app_length.
+      rewrite vec_to_list_length. simpl. lia.
+      Unshelve.
+      simpl.
+      auto.
 Admitted.
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
