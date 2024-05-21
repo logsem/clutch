@@ -989,6 +989,36 @@ Lemma iterM_state_step_unfold σ (N p:nat) α xs :
   dmap (λ v, state_upd_tapes <[α := (N%nat; xs ++ vec_to_list v)]> σ)
     (dunifv N p).
 Proof.
+  revert σ N α xs.
+  induction p as [|p' IH].
+  { (* base case *)
+    intros. simpl.
+    apply distr_ext.
+    intros. rewrite /dret/dret_pmf{1}/pmf/=.
+    rewrite dmap_unfold_pmf.
+    rewrite SeriesC_finite_foldr; simpl.
+    case_bool_decide.
+    - rewrite bool_decide_eq_true_2.
+      + rewrite dunifv_pmf. simpl. lra.
+      + rewrite state_upd_tapes_no_change; try done.
+        rewrite app_nil_r. done.
+    - rewrite bool_decide_eq_false_2.
+      + rewrite dunifv_pmf. simpl. lra.
+      + rewrite state_upd_tapes_no_change; try done.
+        rewrite app_nil_r. done.
+  } 
+  (* inductive case *)
+  intros σ N α xs Ht.
+  replace (S p') with (p'+1)%nat; last lia.
+  rewrite iterM_plus; simpl.
+  erewrite IH; last done.
+  erewrite dbind_ext_right; last first.
+  { intros. apply dret_id_right. }
+  apply distr_ext. intros σ'. rewrite dmap_unfold_pmf.
+  replace (p'+1)%nat with (S p') by lia.
+  destruct (decide (∃ v: vec (fin(S N)) (S p'), σ' = state_upd_tapes <[α:=(N; xs ++ v)]> σ)).
+  - (* σ' is reachable *) admit.
+  - (* σ' is not reachable, i.e. both sides are zero *) admit.
 Admitted.
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
