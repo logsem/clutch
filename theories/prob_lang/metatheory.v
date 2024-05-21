@@ -1048,7 +1048,12 @@ Proof.
         replace ([a]) with (vec_to_list (list_to_vec [a])) in K; last by simpl.
         rewrite <-vec_to_list_app in K.
         (** urgh need to prove that last element of vec is indeed last element*)
-        admit. 
+        set (zero := 0%fin:(fin (S N))).
+        erewrite (Vector.to_list_last _ _ _ zero). 
+        eapply (f_equal (λ x, List.last x zero)) in K.
+        rewrite vec_to_list_app in K.
+        rewrite last_last in K. rewrite K. f_equal.
+        admit.
       }
       rewrite SeriesC_singleton_dependent.
       rewrite /dunifP dunif_pmf. rewrite bool_decide_eq_true_2; last rewrite state_upd_tapes_twice.
@@ -1057,10 +1062,30 @@ Proof.
         rewrite -Rinv_mult.
         f_equal. rewrite -mult_INR. f_equal. simpl. lia.
       * rewrite -app_assoc. repeat f_equal.
+        set (zero := 0%fin:(fin (S N))).
+        erewrite (Vector.to_list_last _ _ _ zero). 
         (** urgh again *)
         admit.
     + (* prove that σ' is not an intermediate step*)
       intros σ'.
+      intros Hσ.
+      assert (dmap (λ v0 : vec (fin (S N)) p', state_upd_tapes <[α:=(N; xs ++ v0)]> σ) (dunifv N p') σ' *  state_step σ' α (state_upd_tapes <[α:=(N; xs ++ v)]> σ) >= 0) as [H|H]; last done.
+      { apply Rle_ge. apply Rmult_le_pos; auto. }
+      exfalso.
+      apply Rmult_pos_cases in H as [[H1 H2]|[? H]]; last first.
+      { pose proof pmf_pos (state_step σ' α)  (state_upd_tapes <[α:=(N; xs ++ v)]> σ). lra. }
+      rewrite dmap_pos in H1.
+      destruct H1 as [v' [-> H1]].
+      apply Hσ. repeat f_equal.
+      erewrite state_step_unfold in H2; last first.
+      { simpl. apply lookup_insert. }
+      apply dmap_pos in H2.
+      destruct H2 as [a [H2?]].
+      rewrite state_upd_tapes_twice in H2.
+      apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq.
+      replace ([a]) with (vec_to_list (list_to_vec [a])) in H2; last by simpl.
+      rewrite <-vec_to_list_app in H2.
+      apply vec_to_list_inj2.
       admit.
   - (* σ' is not reachable, i.e. both sides are zero *)
     rewrite SeriesC_0; last first.
