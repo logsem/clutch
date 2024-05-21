@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
-From clutch.prelude Require Import stdpp_ext NNRbar fin.
+From clutch.prelude Require Import stdpp_ext NNRbar fin vec.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation.
@@ -1053,7 +1053,7 @@ Proof.
         eapply (f_equal (λ x, List.last x zero)) in K.
         rewrite vec_to_list_app in K.
         rewrite last_last in K. rewrite K. f_equal.
-        admit.
+        apply vec_to_list_VectorDef_to_list.
       }
       rewrite SeriesC_singleton_dependent.
       rewrite /dunifP dunif_pmf. rewrite bool_decide_eq_true_2; last rewrite state_upd_tapes_twice.
@@ -1063,9 +1063,8 @@ Proof.
         f_equal. rewrite -mult_INR. f_equal. simpl. lia.
       * rewrite -app_assoc. repeat f_equal.
         set (zero := 0%fin:(fin (S N))).
-        erewrite (Vector.to_list_last _ _ _ zero). 
-        (** urgh again *)
-        admit.
+        erewrite (Vector.to_list_last _ _ _ zero).
+        apply vec_eta.
     + (* prove that σ' is not an intermediate step*)
       intros σ'.
       intros Hσ.
@@ -1086,7 +1085,7 @@ Proof.
       replace ([a]) with (vec_to_list (list_to_vec [a])) in H2; last by simpl.
       rewrite <-vec_to_list_app in H2.
       apply vec_to_list_inj2.
-      admit.
+      by eapply vec_shiftout.
   - (* σ' is not reachable, i.e. both sides are zero *)
     rewrite SeriesC_0; last first.
     { intros. rewrite bool_decide_eq_false_2; first lra.
@@ -1123,7 +1122,7 @@ Proof.
       Unshelve.
       simpl.
       auto.
-Admitted.
+Qed.
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
   (f:(vec (fin (S N)) p) -> fin (S M)) (Hinj: Inj (=) (=) f):
