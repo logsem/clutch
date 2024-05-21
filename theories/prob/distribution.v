@@ -2199,6 +2199,56 @@ Section uniform.
 
 End uniform.
 
+(** Uniform for vectors *)
+Section uniform_vectors.
+  Program Definition dunifv (N p: nat): distr (vec (fin (S N)) p) := MkDistr (λ _, /(S N^p)%nat) _ _ _.
+  Next Obligation.
+    intros. simpl.
+    rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; first lra.
+    replace 0 with (INR 0) by done.
+    apply lt_INR.
+    apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
+    apply Nat.pow_le_mono_r; lia.
+  Qed.
+  Next Obligation.
+    intros.
+    apply ex_seriesC_finite.
+  Qed.
+  Next Obligation.
+    intros N p.
+    rewrite SeriesC_finite_mass.
+    rewrite vec_card fin_card.
+    rewrite Rinv_r; first lra.
+    replace 0 with (INR 0); last by simpl.
+    intro H. apply INR_eq in H.
+    rewrite Nat.pow_eq_0_iff in H. lia.
+  Qed.
+  
+  Lemma dunifv_pmf N p v:
+    dunifv N p v= / (S N^p)%nat.
+  Proof. done. Qed.
+
+  Lemma dunifv_mass N p:
+    SeriesC (dunifv N p) = 1.
+  Proof.
+    rewrite SeriesC_finite_mass.
+    rewrite vec_card fin_card Rinv_r//.
+    apply not_0_INR.
+    intro H. rewrite Nat.pow_eq_0_iff in H.
+    lia.
+  Qed.
+
+  Lemma dunifv_pos N p v:
+    dunifv N p v > 0.
+  Proof.
+    rewrite dunifv_pmf /=. apply Rinv_pos.
+    apply Rlt_gt.
+    apply lt_0_INR.
+    apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
+    apply Nat.pow_le_mono_r; lia.
+  Qed.
+End uniform_vectors.
+
 Ltac inv_distr :=
   repeat
     match goal with
