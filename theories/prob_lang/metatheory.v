@@ -965,6 +965,7 @@ Proof.
          f_equal.
 Qed.
 
+(** Probably can be deleted*)
 Lemma Rcoupl_state_state_mult N M σ σₛ α αₛ xs zs
   (f:(fin (S N) * fin (S N)) -> fin (S M)) (Hinj: Inj (=) (=) f):
   (S N * S N = S M)%nat->
@@ -981,6 +982,7 @@ Lemma Rcoupl_state_state_mult N M σ σₛ α αₛ xs zs
 Proof.
   set (μ:= dret (state_upd_tapes <[α := (N; xs)]> σ)).
 Admitted.
+       
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
   (f:(vec (fin (S N)) p) -> fin (S M)) (Hinj: Inj (=) (=) f):

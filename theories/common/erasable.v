@@ -1,5 +1,4 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import rejection_sampler_distribution.
 From clutch.common Require Import language.
 From clutch.prob Require Export couplings distribution markov.
 
