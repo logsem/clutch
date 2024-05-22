@@ -5,8 +5,8 @@ From iris.proofmode Require Import
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import language ectxi_language.
 From clutch.prob_lang Require Import locations class_instances notation tactics lang.
+From clutch.prob_lang.spec Require Export spec_tactics.
 From clutch.ctx_logic Require Import primitive_laws model rel_rules proofmode.
-From clutch.ctx_logic Require Export spec_tactics.
 
 (** * General-purpose tactics *)
 Lemma tac_rel_bind_l `{!clutchRGS Σ} e' K ℶ E e t A :
@@ -158,12 +158,11 @@ Lemma tac_rel_pure_r `{!clutchRGS Σ} K e1 ℶ E (e e2 eres : expr) ϕ n t A :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   ϕ →
-  nclose specN ⊆ E →
   eres = fill K e2 →
   envs_entails ℶ (REL t << eres @ E : A) →
   envs_entails ℶ (REL t << e @ E : A).
 Proof.
-  intros Hfill Hpure Hϕ ?? Hp. subst.
+  intros Hfill Hpure Hϕ ? Hp. subst.
   rewrite -refines_pure_r //.
 Qed.
 
@@ -197,7 +196,6 @@ Tactic Notation "rel_pure_r" open_constr(ef) "in" open_constr(Kf) :=
       |tc_solve                     (** PureExec ϕ n e1 e2 *)
       |..]);
       [try solve_vals_compare_safe                (** φ *)
-      |solve_ndisj        || fail 1 "rel_pure_r: cannot solve ↑specN ⊆ ?"
       |simpl; reflexivity           (** eres = fill K e2 *)
       |rel_finish                   (** new goal *)]
   || fail "rel_pure_r: cannot find the reduct".
@@ -236,13 +234,12 @@ Qed.
 
 Lemma tac_rel_load_r `{!clutchRGS Σ} K ℶ1 E i1 p (l : loc) q e t tres A v :
   t = fill K (Load (# l)) →
-  nclose specN ⊆ E →
   envs_lookup i1 ℶ1 = Some (p, l ↦ₛ{q} v)%I →
   tres = fill K (of_val v) →
   envs_entails ℶ1 (refines E e tres A) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
-  rewrite envs_entails_unseal. iIntros (-> ?? -> Hg) "Henvs".
+  rewrite envs_entails_unseal. iIntros (-> ? -> Hg) "Henvs".
   iDestruct (envs_lookup_split with "Henvs") as "[Hl Henvs]"; first done.
   rewrite Hg. destruct p; simpl.
   - iDestruct "Hl" as "#Hl". iApply (refines_load_r with "Hl").
@@ -285,8 +282,7 @@ Tactic Notation "rel_load_r" open_constr(ef) "in" open_constr(Kf) :=
        eapply (tac_rel_load_r K); first reflexivity)
     |fail 1 "rel_load_r: cannot find 'Load'"];
   (* the remaining goals are from tac_rel_load_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_load_r: cannot prove 'nclose specN ⊆ ?'"
-  |solve_mapsto ()
+  [solve_mapsto ()
   |reflexivity
   |rel_finish  (** new goal *)].
 Tactic Notation "rel_load_r" := rel_pures_r ; rel_load_r _ in _.
@@ -315,14 +311,13 @@ Qed.
 Lemma tac_rel_store_r `{!clutchRGS Σ} K ℶ1 ℶ2 i1 E (l : loc) v e' v' e t eres A :
   e = fill K (Store (# l) e') →
   IntoVal e' v' →
-  nclose specN ⊆ E →
   envs_lookup i1 ℶ1 = Some (false, l ↦ₛ v)%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (l ↦ₛ v')) ℶ1 = Some ℶ2 →
   eres = fill K #() →
   envs_entails ℶ2 (refines E t eres A) →
   envs_entails ℶ1 (refines E t e A).
 Proof.
-  rewrite envs_entails_unseal. intros ?????? Hg.
+  rewrite envs_entails_unseal. intros ????? Hg.
   subst e eres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
@@ -366,8 +361,7 @@ Tactic Notation "rel_store_r" open_constr(ef) "in" open_constr(Kf) :=
        [reflexivity|tc_solve|idtac..])
     |fail 1 "rel_store_r: cannot find 'Store'"];
   (* the remaining goals are from tac_rel_store_r (except for the first one, which has already been solved by this point) *)
-  [solve_ndisj || fail "rel_store_r: cannot prove 'nclose specN ⊆ ?'"
-  |solve_mapsto ()
+  [solve_mapsto ()
   |reduction.pm_reflexivity || fail "rel_store_r: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
@@ -409,11 +403,10 @@ Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) :=
 Lemma tac_rel_alloc_r `{!clutchRGS Σ} K' ℶ E t' v' e t A :
   t = fill K' (Alloc t') →
   IntoVal t' v' →
-  nclose specN ⊆ E →
   envs_entails ℶ (∀ l, l ↦ₛ v' -∗ refines E e (fill K' #l) A) →
   envs_entails ℶ (refines E e t A).
 Proof.
-  intros ????. subst t.
+  intros ???. subst t.
   rewrite -refines_alloc_r //.
 Qed.
 
@@ -427,8 +420,7 @@ Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) "at" open_co
        |tc_solve     (** t' is a value *)
        |idtac..])
     |fail 1 "rel_alloc_r: cannot find 'Alloc'"];
-  [solve_ndisj || fail "rel_alloc_r: cannot prove 'nclose specN ⊆ ?'"
-  |iIntros (l) H; rel_finish  (** new goal *)].
+  (iIntros (l) H; rel_finish  (** new goal *)).
 Tactic Notation "rel_alloc_r" simple_intropattern(l) "as" constr(H) :=
   rel_pures_r ; rel_alloc_r l as H at _ in _.
 
@@ -468,10 +460,9 @@ Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
 Lemma tac_rel_alloctape_r `{!clutchRGS Σ} K' ℶ E e N z t A :
   TCEq N (Z.to_nat z) →
   t = fill K' (AllocTape #z) →
-  nclose specN ⊆ E →
   envs_entails ℶ (∀ α, α ↪ₛ (N; []) -∗ refines E e (fill K' #lbl:α) A) →
   envs_entails ℶ (refines E e t A).
-Proof. intros -> ???. subst t. rewrite -refines_alloctape_r //. Qed.
+Proof. intros -> ??. subst t. rewrite -refines_alloctape_r //. Qed.
 
 Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
   first
@@ -483,8 +474,7 @@ Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" ope
        |reflexivity  (** t = K'[alloc t'] *)
        |idtac..])
     |fail 1 "rel_alloctape_r: cannot find 'AllocTape'"];
-  [solve_ndisj || fail "rel_alloctape_r: cannot prove 'nclose specN ⊆ ?'"
-  |iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)].
+  (iIntros (l) H; rewrite ?Nat2Z.id; rel_finish  (** new goal *)).
 Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
   rel_pures_r ; rel_alloctape_r l as H at _ in _.
 
@@ -511,7 +501,6 @@ Qed.
 Lemma tac_rel_rand_r `{!clutchRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tres A :
   TCEq N (Z.to_nat z) →
   t = fill K (rand(#lbl:α) #z) →
-  nclose specN ⊆ E →
   envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (N; n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (N; ns))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #n) →
@@ -519,7 +508,7 @@ Lemma tac_rel_rand_r `{!clutchRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t t
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal.
-  intros -> ????? Hg.
+  intros -> ???? Hg.
   subst t tres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
@@ -539,8 +528,7 @@ Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(kf) :=
        eapply (tac_rel_rand_l K); [|reflexivity|..])
     |fail 1 "rel_rand_l: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
-  [tc_solve
-  |solve_mapsto ()
+  [solve_mapsto ()
   |reduction.pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].

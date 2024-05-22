@@ -18,7 +18,7 @@ Class clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* spec resources *)
-  clutchGS_spec :: specGS Σ;
+  #[global] clutchGS_spec :: specGS Σ;
 }.
 
 Class clutchGpreS Σ := ClutchGpreS {

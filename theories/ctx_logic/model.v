@@ -4,7 +4,8 @@ From iris.proofmode Require Import proofmode.
 From clutch.common Require Import language ectxi_language.
 From clutch.prelude Require Import properness.
 From clutch.prob_lang Require Import locations notation lang.
-From clutch.ctx_logic Require Import weakestpre spec_ra primitive_laws.
+From clutch.prob_lang.spec Require Import spec_rules.
+From clutch.ctx_logic Require Import weakestpre primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".
 
@@ -74,11 +75,11 @@ Section semtypes.
 
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
-    (∀ K, refines_right K e' -∗
+    (∀ K, ⤇ fill K e' -∗
           na_ownP E -∗
-          WP e {{ v, ∃ v', refines_right K (of_val v')
-                               ∗ na_ownP ⊤
-                               ∗ A v v' }})%I.
+          WP e {{ v, ∃ v', ⤇ fill K (of_val v')
+                             ∗ na_ownP ⊤
+                             ∗ A v v' }})%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
   Definition refines := unseal refines_aux.
@@ -342,10 +343,10 @@ Section monadic.
     REL fill K e << fill K' e' @ E : A'.
   Proof.
     iIntros "Hm Hf".
-    rewrite refines_eq /refines_def /refines_right.
-    iIntros (K'') "(#Hs & Hj) Hnais /=".
+    rewrite refines_eq /refines_def.
+    iIntros (K'') "Hj Hnais /=".
     rewrite -fill_app.
-    iSpecialize ("Hm" $! (K' ++ K'') with "[$Hs $Hj] Hnais").
+    iSpecialize ("Hm" $! (K' ++ K'') with "Hj Hnais").
     iApply wp_bind.
     iApply (wp_wand with "Hm").
     iIntros (v). iDestruct 1 as (v') "[Hj [Hnais HA]]".

@@ -537,10 +537,10 @@ Proof.
 Qed.
 
 Lemma wp_spec_steps P E e Φ a :
-  (P -∗ WP e @ a; E {{ Φ }}) ∗ spec_update E P ⊢ WP e @ a; E {{ Φ }}.
+  spec_update E P -∗ (P -∗ WP e @ a; E {{ Φ }}) -∗ WP e @ a; E {{ Φ }}.
 Proof.
   rewrite wp_unfold /wp_pre.
-  iIntros "[H Hspec]".
+  iIntros "Hspec H".
   iIntros (σ1 e1' σ1') "[Hσ Hs]". rewrite /spec_update.
   iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n Hstep%stepN_pexec_det%pmf_1_eq_dret) "(Hs & HP)".
@@ -694,7 +694,7 @@ Section proofmode_classes.
     ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
   Proof.
     iIntros (?) "[HP Hcnt]".
-    iApply (wp_spec_steps with "[$]").
+    iApply (wp_spec_steps with "[$] [$]").
   Qed.
 
   #[global] Instance elim_modal_spec_updateN P E n e Ψ :
@@ -702,7 +702,7 @@ Section proofmode_classes.
   Proof.
     iIntros (?) "[HP Hcnt]".
     iDestruct (spec_updateN_implies_spec_update with "HP") as "HP".
-    iApply (wp_spec_steps with "[$]").
+    iApply (wp_spec_steps with "[$] [$]").
   Qed.
 
 End proofmode_classes.
