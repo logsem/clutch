@@ -1,10 +1,10 @@
 From clutch.app_rel_logic Require Import adequacy.
-From clutch.app_rel_logic Require Export app_clutch.
+From clutch.app_rel_logic Require Export paris.
 Set Default Proof Using "Type*".
 Open Scope R.
 
 Section rejection_sampler.
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
   Context {N M:nat}.
   (** Changing from M<=N to M<N, because we want to reject the case where N=M 
       otherwise, the maths gets ugly
@@ -154,8 +154,8 @@ Lemma ARcoupl_rejection_sampler_simpl (N M:nat) (Hineq : M<N) σ:
   ARcoupl (lim_exec (@rejection_sampler_prog N M #(), σ))
     (lim_exec (@simpl_sampler_prog M #(), σ)) eq 0%NNR.
 Proof.
-  assert (app_clutchGpreS app_clutchΣ).
-  { apply subG_app_clutchGPreS. eapply subG_refl. }
+  assert (parisGpreS parisΣ).
+  { apply subG_parisGPreS. eapply subG_refl. }
   replace 0%NNR with (0+0)%NNR by (apply nnreal_ext; simpl; lra).
   eapply (ARcoupl_eq_trans_l _ (lim_exec(@rejection_sampler_prog_annotated N M #(), σ))); [done|done|..].
   { eapply wp_aRcoupl_lim; first done.
@@ -169,6 +169,8 @@ Proof.
     wp_apply (wp_couple_rand_tape with "[$Hα Herr Hspec]").
     iIntros "!> %n Hα". simpl.
     tp_bind (rand(_) _)%E.
+    (* TODO: why is this instance not be infered??? *)
+    pose proof elim_modal_spec_update_wp.
     iMod (step_rand with "[$]") as "[Hspec Hα]".
     simpl.
     tp_pures. wp_pures.
@@ -205,8 +207,8 @@ Lemma ARcoupl_simpl_rejection_sampler (N M:nat) (Hineq : M<N) σ:
     (lim_exec (@rejection_sampler_prog N M #(), σ))
     eq 0%NNR.
 Proof.
-  assert (app_clutchGpreS app_clutchΣ).
-  { apply subG_app_clutchGPreS. eapply subG_refl. }
+  assert (parisGpreS parisΣ).
+  { apply subG_parisGPreS. eapply subG_refl. }
   replace 0%NNR with (0+0)%NNR by (apply nnreal_ext; simpl; lra).
   eapply (ARcoupl_eq_trans_r _ (lim_exec(@rejection_sampler_prog_annotated N M #(), σ))); [done|done|..]; last first.
   { (* rejection sampler annotated <= rejection sampler *)

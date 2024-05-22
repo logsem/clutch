@@ -12,14 +12,14 @@ Definition cfgO : ofe := prodO exprO stateO.
 
 (** The CMRA for the spec [cfg]. *)
 Class specGS Σ := SpecGS {
-  specGS_prog_inG :: inG Σ (authR progUR);
+  #[local] specGS_prog_inG :: inG Σ (authR progUR);
   specGS_prog_name : gname;
 
-  specGS_heap :: ghost_mapG Σ loc val;
-  specGS_tapes :: ghost_mapG Σ loc tape;
+  #[local] specGS_heap :: ghost_mapG Σ loc val;
+  #[local] specGS_tapes :: ghost_mapG Σ loc tape;
 
   specGS_heap_name : gname;
-  specGS_tapes_name : gname;
+  specGS_tapes_name : gname;                      
 }.
 
 Class specGpreS Σ := SpecGPreS {
@@ -32,7 +32,7 @@ Definition specΣ : gFunctors :=
   #[ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authUR progUR)].
-Global Instance subG_clutchGPreS {Σ} : subG specΣ Σ → specGpreS Σ.
+#[global] Instance subG_clutchGPreS {Σ} : subG specΣ Σ → specGpreS Σ.
 Proof. solve_inG. Qed.
 
 Section resources.

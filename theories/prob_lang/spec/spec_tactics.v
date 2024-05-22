@@ -2,13 +2,13 @@
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
 From clutch.common Require Import language ectx_language ectxi_language.
+From clutch.base_logic Require Export spec_update.
 From clutch.prob_lang Require Import locations notation tactics metatheory lang class_instances.
 From clutch.prob_lang.spec Require Export spec_rules.
-From clutch.ctx_logic Require Import weakestpre lifting primitive_laws.
 Set Default Proof Using "Type".
 
 (** ** bind *)
-Lemma tac_tp_bind_gen `{clutchGS Σ} Δ Δ' i p e e' Q :
+Lemma tac_tp_bind_gen `{!specGS Σ} Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ e')) Δ = Some Δ' →
@@ -20,7 +20,7 @@ Proof.
   destruct p; rewrite /= ?right_id; by rewrite bi.wand_elim_r.
 Qed.
 
-Lemma tac_tp_bind `{clutchGS Σ} e' Δ Δ' i p K' e Q :
+Lemma tac_tp_bind `{specGS Σ} e' Δ Δ' i p K' e Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = fill K' e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ fill K' e')) Δ = Some Δ' →
@@ -62,18 +62,13 @@ Tactic Notation "tp_bind" open_constr(efoc) :=
     |reflexivity
     |(* new goal *)].
 
-Lemma tac_tp_pure `{clutchGS Σ} e K e1 e2 Δ1 E1 i1 e' ϕ ψ Q n :
-  (* we have those premises first, because we will be trying to solve them
-     with backtracking using reashape_expr; see the accompanying Ltac.
-     the first premise decomposes the expression, the second one checks
-     that we can make a pure step *)
+Lemma tac_tp_pure `{specGS Σ, invGS_gen hasLc Σ} e K e1 e2 Δ1 i1 e' ϕ ψ E1 Q n :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   (∀ P, ElimModal ψ false false (spec_update E1 P) P Q Q) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   ψ →
   ϕ →
-  (* we will call simpl on this goal thus re-composing the expression again *)
   e' = fill K e2 →
   match envs_simple_replace i1 false (Esnoc Enil i1 (⤇ e')) Δ1 with
   | Some Δ2 => envs_entails Δ2 Q
@@ -137,7 +132,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{clutchGS Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
@@ -180,7 +175,7 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_load `{clutchGS Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
+Lemma tac_tp_load `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
   e = fill K (Load #l) →
@@ -217,7 +212,7 @@ Tactic Notation "tp_load" :=
   |simpl; reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_alloc `{clutchGS Σ} Δ1 E1 i1 K e e' v Q :
+Lemma tac_tp_alloc `{specGS Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e e' v Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   e = fill K (ref e') →
@@ -261,7 +256,7 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{clutchGS Σ} Δ1 E1 i1 K e N z Q :
+Lemma tac_tp_alloctape `{specGS Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
@@ -305,7 +300,7 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_rand `{clutchGS Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
+Lemma tac_tp_rand `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
@@ -349,7 +344,7 @@ Tactic Notation "tp_rand" :=
 
 (** Some simple tests *)
 Section tests.
-  Context `{clutchGS Σ}.
+  Context `{specGS Σ, invGS_gen hasLc Σ}.
 
   Local Lemma test_tp_pures E :
     ⤇ (#2 + #2 + #2) ⊢ spec_update E (⤇ #6).
@@ -384,18 +379,27 @@ Section tests.
     done.
   Qed.
 
-  Local Lemma test_wp_tp_pures :
-    {{{ ⤇ (#2 + #2 + #2)%E }}} #3 + #3 {{{ RET #6; ⤇ #6 }}}.
-  Proof.
-    iIntros (Ψ) "Hs HΨ".
-    tp_pures.
-    iApply wp_pure_step_later; [done|].
-    iIntros "!> /=".
-    iApply wp_value.
-    by iApply "HΨ".
-  Qed.
-
 End tests.
+
+(* From clutch.ctx_logic Require Import primitive_laws proofmode. *)
+
+(* Section clutch_test. *)
+(*   Context `{!clutchGS Σ}. *)
+
+(*   Local Lemma test_wp_tp_pures E : *)
+(*     {{{ ⤇ (#2 + #2 + #2)%E }}} #3 + #3 @ E {{{ RET #6; ⤇ #6 }}}. *)
+(*   Proof. *)
+(*     iIntros (Ψ) "Hs HΨ". *)
+(*     tp_pures. *)
+(*     wp_pures.  *)
+(*     by iApply "HΨ". *)
+(*   Qed. *)
+(* End clutch_test.  *)
+
+
+
+
+
 (* *)
 (* (**************************) *)
 (* (* tp_apply *) *)

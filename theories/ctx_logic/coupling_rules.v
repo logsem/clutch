@@ -219,7 +219,7 @@ Section rules.
     iApply (wp_couple_rand_tape with "Hα").
     iIntros "!>" (n) "Hα /=".
     (* TODO: why is this instance not be infered??? *)
-    pose proof elim_modal_spec_update.
+    pose proof elim_modal_spec_update_wp.
     iMod (step_rand with "[$Hr $Hα]") as "[? ?]".
     iApply wp_value.
     by iApply ("HΨ" with "[$]").
@@ -281,8 +281,8 @@ Section rules.
     iIntros (??) "(>Hα & >Hαs & Hr) HΨ".
     iApply wp_couple_tapes. iFrame.
     iIntros (n) "(Hαs & Hα) /=".
-    (* TODO: infer *)
-    pose proof elim_modal_spec_update.
+    (* TODO: why is this not inferred? *)
+    pose proof elim_modal_spec_update_wp.
     iMod (step_rand with "[$Hr $Hαs]") as "[? ?]".
     iApply (wp_rand_tape with "Hα").
     iIntros "!> Hα".

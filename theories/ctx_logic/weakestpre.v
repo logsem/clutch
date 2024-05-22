@@ -14,8 +14,8 @@ Import uPred.
 Local Open Scope R.
 
 Class clutchWpGS (Λ : language) (Σ : gFunctors) := ClutchWpGS {
-  clutchWpGS_invGS :: invGS_gen HasNoLc Σ;
-  clutchWpGS_spec_updateGS :: spec_updateGS (lang_markov Λ) Σ;
+  #[global] clutchWpGS_invGS :: invGS_gen HasNoLc Σ;
+  #[global] clutchWpGS_spec_updateGS :: spec_updateGS (lang_markov Λ) Σ;
 
   state_interp : state Λ → iProp Σ;
 }.
@@ -536,15 +536,18 @@ Proof.
   by iApply "IH".
 Qed.
 
-Lemma wp_spec_steps P E e Φ a :
-  spec_update E P -∗ (P -∗ WP e @ a; E {{ Φ }}) -∗ WP e @ a; E {{ Φ }}.
+Lemma wp_spec_steps P E1 E2 e Φ a :
+  E1 ⊆ E2 →
+  spec_update E1 P -∗ (P -∗ WP e @ a; E2 {{ Φ }}) -∗ WP e @ a; E2 {{ Φ }}.
 Proof.
   rewrite wp_unfold /wp_pre.
-  iIntros "Hspec H".
+  iIntros (HE) "Hspec H".
   iIntros (σ1 e1' σ1') "[Hσ Hs]". rewrite /spec_update.
-  iMod ("Hspec" with "Hs")
+  iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
+    iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n Hstep%stepN_pexec_det%pmf_1_eq_dret) "(Hs & HP)".
-  iSpecialize ("H" with "HP").
+    iSpecialize ("H" with "HP").
+  iMod "Hclose" as "_".
   iMod ("H" with "[$]") as "H".
   iModIntro.
   iApply spec_coupl_rec.
@@ -690,19 +693,18 @@ Section proofmode_classes.
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  #[global] Instance elim_modal_spec_update P E e Ψ :
+  #[global] Instance elim_modal_spec_update_wp P E e Ψ :
     ElimModal True false false (spec_update E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
   Proof.
-    iIntros (?) "[HP Hcnt]".
-    iApply (wp_spec_steps with "[$] [$]").
+    iIntros (?) "[HP Hcnt]". by iApply (wp_spec_steps with "[$] [$]").
   Qed.
 
-  #[global] Instance elim_modal_spec_updateN P E n e Ψ :
+  #[global] Instance elim_modal_spec_updateN_wp P E n e Ψ :
     ElimModal True false false (spec_updateN n E P) P (WP e @ E {{ Ψ }}) (WP e @ E {{ Ψ }}).
   Proof.
     iIntros (?) "[HP Hcnt]".
     iDestruct (spec_updateN_implies_spec_update with "HP") as "HP".
-    iApply (wp_spec_steps with "[$] [$]").
+    by iApply (wp_spec_steps with "[$] [$]").
   Qed.
 
 End proofmode_classes.

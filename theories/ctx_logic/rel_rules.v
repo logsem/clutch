@@ -93,7 +93,7 @@ Section rules.
     rewrite -fill_app.
     iSpecialize ("He" with "Hs").
     (* TODO: why is this instance not be infered??? *)
-    pose proof elim_modal_spec_update.
+    pose proof elim_modal_spec_update_wp.
     iMod "He" as (v) "[Hs He]".
     rewrite fill_app.
     iSpecialize ("He" with "Hs Hnais").

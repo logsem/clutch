@@ -1,11 +1,11 @@
-From clutch.app_rel_logic Require Export app_clutch map list.
+From clutch.app_rel_logic Require Export paris map list.
 Set Default Proof Using "Type*".
 
 Section prf_prp.
 
   (* This is the same as the simple hash *)
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
 
   Variable val_size : nat.
 

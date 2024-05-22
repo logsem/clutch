@@ -19,7 +19,7 @@ Canonical Structure mstateO δ := leibnizO (mstate δ).
 
 (** An "update"-modality for deterministic spec steps  *)
 Section spec_update.
-  Context `{spec_updateGS δ Σ, invGS_gen hasLc Σ}.
+  Context `{spec_updateGS δ Σ, invGS_gen hl Σ}.
   Implicit Types a : mstate δ.
 
   Definition spec_updateN (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
@@ -55,11 +55,14 @@ Section spec_update.
     by iFrame.
   Qed.
 
-  Lemma spec_updateN_bind n m E P Q :
-    spec_updateN n E P ∗ (P -∗ spec_updateN m E Q) ⊢ spec_updateN (n + m) E Q.
+  Lemma spec_updateN_bind n m E1 E2 P Q :
+    E1 ⊆ E2 →
+    spec_updateN n E1 P ∗ (P -∗ spec_updateN m E2 Q) ⊢ spec_updateN (n + m) E2 Q.
   Proof.
-    rewrite /spec_updateN. iIntros "[P PQ]" (a) "Ha".
+    rewrite /spec_updateN. iIntros (?) "[P PQ] %a Ha".
+    iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
     iMod ("P" $! a with "Ha") as (b Hab) "[Hb P]".
+    iMod "Hclose" as "_".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c Hbc) "[Hc Q]".
     iModIntro. iExists _.
@@ -67,11 +70,14 @@ Section spec_update.
     by iFrame.
   Qed.
 
-  Lemma spec_update_bind E P Q :
-    spec_update E P ∗ (P -∗ spec_update E Q) ⊢ spec_update E Q.
+  Lemma spec_update_bind E1 E2 P Q :
+    E1 ⊆ E2 →
+    spec_update E1 P ∗ (P -∗ spec_update E2 Q) ⊢ spec_update E2 Q.
   Proof.
-    rewrite /spec_update. iIntros "[P PQ]" (a) "Ha".
+    rewrite /spec_update. iIntros (HE) "[P PQ] %a Ha".
+    iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
     iMod ("P" $! a with "Ha") as (b n Hab) "[Hb P]".
+    iMod "Hclose" as "_".
     iSpecialize ("PQ" with "P").
     iMod ("PQ" $! b with "Hb") as (c m Hbc) "[Hc Q]".
     iModIntro. iExists _, (n + m)%nat. iFrame.
@@ -127,21 +133,21 @@ Section spec_update.
     iMod "H". by iApply "H".
   Qed.
 
-  Global Instance from_modal_spec_update P E :
+  Global Instance from_modal_spec_update_spec_update P E :
     FromModal True modality_id (spec_update E P) (spec_update E P) P.
   Proof. iIntros (_) "HP /=". by iApply spec_update_ret. Qed.
 
-  Global Instance elim_modal_spec_update P Q E :
+  Global Instance elim_modal_spec_update_spec_update P Q E :
     ElimModal True false false (spec_update E P) P (spec_update E Q) (spec_update E Q).
-  Proof. iIntros (?) "[HP Hcnt]". iApply (spec_update_bind with "[$]"). Qed.
+  Proof. iIntros (?) "[HP Hcnt]". by iApply (spec_update_bind with "[$]"). Qed.
 
-  Global Instance from_modal_spec_updateN P E :
+  Global Instance from_modal_spec_updateN_spec_updateN P E :
     FromModal True modality_id (spec_update E P) (spec_updateN 0 E P) P.
   Proof. iIntros (_) "HP /=". by iApply spec_updateN_ret. Qed.
 
-  Global Instance elim_modal_spec_updateN n m P Q E :
+  Global Instance elim_modal_spec_updateN_spec_updateN n m P Q E :
     ElimModal True false false (spec_updateN n E P) P (spec_updateN (n + m) E Q) (spec_updateN m E Q).
-  Proof. iIntros (?) "[HP Hcnt]". iApply (spec_updateN_bind with "[$]"). Qed.
+  Proof. iIntros (?) "[HP Hcnt]". by iApply (spec_updateN_bind with "[$]"). Qed.
 
 End spec_update.
 

@@ -6,7 +6,7 @@ From clutch.base_logic Require Import spec_update.
 From clutch.prob_lang Require Import lang notation tactics metatheory exec_lang.
 From clutch.prob_lang.spec Require Export spec_ra.
 
-#[export] Instance spec_rules_spec_updateGS `{!specGS Σ} :
+#[global] Instance spec_rules_spec_updateGS `{!specGS Σ} :
   spec_updateGS (lang_markov prob_lang) Σ := Spec_updateGS spec_auth.
 
 Section rules.
