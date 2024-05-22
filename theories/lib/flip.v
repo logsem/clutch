@@ -64,27 +64,26 @@ Section specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma refines_right_allocB_tape E K :
-    nclose specN ⊆ E →
-    refines_right K allocB ={E}=∗ ∃ α, refines_right K (#lbl: α) ∗ α ↪ₛB [].
+  Lemma spec_allocB_tape E K :
+    ⤇ fill K allocB -∗ spec_update E (∃ α, ⤇ fill K (#lbl: α) ∗ α ↪ₛB []).
   Proof.
-    iIntros (?) "(?&?)".
-    iMod (step_alloctape with "[$]") as (α) "(?&?&?)"; [done|].
+    iIntros "?".
+    tp_alloctape as α "Hα".
     iModIntro; iExists α; iFrame.
   Qed.
 
-  Lemma refines_right_flipL E K α (b : bool) bs :
+  Lemma spec_flipL E K α (b : bool) bs :
     nclose specN ⊆ E →
     α ↪ₛB (b :: bs) -∗
-    refines_right K (flipL #lbl:α) ={E}=∗ refines_right K #(LitBool b) ∗ α ↪ₛB bs.
+    ⤇ fill K (flipL #lbl:α) ={E}=∗ ⤇ fill K #(LitBool b) ∗ α ↪ₛB bs.
   Proof.
     iIntros (?) "Hα Hr". rewrite /flip/flipL.
     tp_pures.
     tp_bind (rand(_) _)%E.
-    rewrite refines_right_bind.
+    rewrite ⤇ fill_bind.
     iDestruct "Hr" as "[#Hinv Hr]".
     iMod (step_rand with "[$]") as "(_ & Hj & Hl) /="; [done|].
-    iMod (refines_right_int_to_bool with "[$Hinv $Hj]") as "Hr"; [done|].
+    iMod (⤇ fill_int_to_bool with "[$Hinv $Hj]") as "Hr"; [done|].
     rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv.
     by iFrame "Hr Hl".
   Qed.
@@ -132,7 +131,7 @@ Section specs.
     iIntros "Hα Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk".
-    iMod (refines_right_flipL with "[$] [$]") as "[? ?]"; [done|].
+    iMod (spec_flipL with "[$] [$]") as "[? ?]"; [done|].
     iModIntro; iExists _; iFrame. iApply ("Hlog" with "[$]").
   Qed.
 
@@ -160,7 +159,7 @@ Section specs.
     iIntros (n) "Hα".
     rel_apply_r refines_step_r.
     iIntros (K') "Hr".
-    iMod (refines_right_int_to_bool with "[$]"); [done|].
+    iMod (spec_int_to_bool with "[$]"); [done|].
     iModIntro; iExists _; iFrame.
     by iApply "H".
   Qed.
@@ -176,19 +175,19 @@ Section specs.
   (** flip ~ flip  *)
   Lemma wp_couple_flip_flip f `{Bij bool bool f} K E Φ :
     nclose specN ⊆ E →
-    refines_right K flip ∗
-    ▷ (∀ b : bool, refines_right K #(f b) -∗ Φ #b)
+    ⤇ fill K flip ∗
+    ▷ (∀ b : bool, ⤇ fill K #(f b) -∗ Φ #b)
     ⊢ WP flip @ E {{ Φ }}.
   Proof.
     iIntros (?) "(Hr & HΦ)". rewrite /flip/flipL.
     wp_pures. tp_pures.
     wp_bind (rand(_) _)%E.
     tp_bind (rand(_) _)%E.
-    rewrite refines_right_bind.
+    rewrite ⤇ fill_bind.
     iApply (wp_couple_rand_rand 1 (fn_bool_to_fin f)); [done|].
     iFrame.
     iIntros "!>" (n) "Hr".
-    iMod (refines_right_int_to_bool with "[$]"); [done|].
+    iMod (⤇ fill_int_to_bool with "[$]"); [done|].
     wp_apply wp_int_to_bool; [done|].
     iIntros "_ /=".
     iApply "HΦ".
@@ -204,11 +203,11 @@ Section specs.
     rewrite refines_eq /refines_def.
     iIntros (?) "Hcnt %? ? /=".
     wp_apply wp_bind.
-    rewrite refines_right_bind.
+    rewrite ⤇ fill_bind.
     wp_apply (wp_couple_flip_flip f); [solve_ndisj|].
     iFrame.
     iIntros "!>" (b) "Hr".
-    rewrite -refines_right_bind.
+    rewrite -⤇ fill_bind.
     wp_apply ("Hcnt" with "[$] [$]").
   Qed.
 
@@ -279,17 +278,17 @@ Section specs.
   Lemma wp_couple_tape_flip f `{Bij bool bool f} K E α bs Φ e :
     to_val e = None →
     nclose specN ⊆ E →
-    ▷ α ↪B bs ∗ refines_right K flip ∗
-    (∀ b : bool, α ↪B (bs ++ [b]) ∗ refines_right K #(f b) -∗ WP e @ E {{ Φ }})
+    ▷ α ↪B bs ∗ ⤇ fill K flip ∗
+    (∀ b : bool, α ↪B (bs ++ [b]) ∗ ⤇ fill K #(f b) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (??) "(Hα & Hr & Hcnt)". rewrite /flip/flipL.
     tp_pures. tp_bind (rand(_) _)%E.
-    rewrite refines_right_bind.
+    rewrite ⤇ fill_bind.
     iApply (wp_couple_tape_rand 1 (fn_bool_to_fin f) _ _ _ 1); [done|solve_ndisj|iFrame].
     iIntros (n) "[Hα Hr]".
-    rewrite -refines_right_bind /=.
-    iMod (refines_right_int_to_bool with "[$]") as "Hr"; [done|].
+    rewrite -⤇ fill_bind /=.
+    iMod (⤇ fill_int_to_bool with "[$]") as "Hr"; [done|].
     wp_apply ("Hcnt" with "[-]").
     rewrite Z_to_bool_of_nat !bool_to_fin_to_nat_inv.
     iFrame.
@@ -314,7 +313,7 @@ Section specs.
     iSpecialize ("Hcnt" with "Hα").
     rel_apply_r refines_step_r.
     iIntros (K'') "Hr".
-    iMod (refines_right_int_to_bool with "[$]"); [done|].
+    iMod (⤇ fill_int_to_bool with "[$]"); [done|].
     iModIntro; iExists _; iFrame.
     rewrite Z_to_bool_of_nat bool_to_fin_to_nat_inv //.
   Qed.
