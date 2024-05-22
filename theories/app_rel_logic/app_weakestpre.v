@@ -816,7 +816,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!spec (lang_markov Λ) Σ} `{!parisWpGS Λ Σ}.
+  Context `{!parisWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
   Implicit Types v : val Λ.
