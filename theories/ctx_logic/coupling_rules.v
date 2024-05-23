@@ -213,15 +213,10 @@ Section rules.
     {{{ (n : fin (S N)), RET #n; α ↪ₛ (N; []) ∗ ⤇ fill K #(f n) }}}.
   Proof.
     iIntros (? Ψ) "(Hα & Hr) HΨ".
-    (* A hack to have a WP left after applying the coupling rule.  *)
-    replace (rand #z)%E with (fill empty_ectx (rand #z)); [|done].
-    iApply wp_bind.
+    iApply wp_spec_update.
     iApply (wp_couple_rand_tape with "Hα").
     iIntros "!>" (n) "Hα /=".
-    (* TODO: why is this instance not be infered??? *)
-    pose proof elim_modal_spec_update_wp.
     iMod (step_rand with "[$Hr $Hα]") as "[? ?]".
-    iApply wp_value.
     by iApply ("HΨ" with "[$]").
   Qed.
   Lemma wp_couple_rand_rand_lbl_eq N z K E α :

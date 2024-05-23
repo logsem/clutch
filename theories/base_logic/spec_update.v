@@ -220,6 +220,16 @@ Section spec_update.
     iApply HP. iFrame.
   Qed.
 
+  Global Instance elim_modal_fupd_wp p E P Q :
+    ElimModal True p false (|={E}=> P) P (spec_update E Q) (spec_update E Q).
+  Proof.
+    rewrite /ElimModal bi.intuitionistically_if_elim => _.
+    iIntros "[Hu Hw]".
+    iApply fupd_spec_update.
+    iMod "Hu".
+    iApply ("Hw" with "Hu").
+  Qed.
+
   Global Instance from_exist_spec_update {B} P E (Φ : B → iProp Σ) :
     FromExist P Φ → FromExist (spec_update E P) (λ b, spec_update E (Φ b))%I.
   Proof.
@@ -234,7 +244,7 @@ Section spec_update.
     rewrite /IntoForall=>HP.
     iIntros "> H" (b) "!>".
     iApply (HP with "H").
-  Qed.   
+  Qed.
 
   Global Instance from_assumption_spec_update p E P Q :
     FromAssumption p P Q → KnownRFromAssumption p P (spec_update E Q).

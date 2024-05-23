@@ -315,16 +315,12 @@ Section rng.
     case_bool_decide.
     - tp_pures.
       tp_bind flip.
-      iApply wp_fupd.
-      (* TODO: hack — [we should probably remove [try wp_value_head] from [wp_finish] *)
-      replace (g #())%E with (fill empty_ectx (g #())); [|done].
-      iApply wp_bind.      
+      iApply wp_spec_update.
       wp_apply (wp_hash_rng_flip with "[$HK $Hhash]"); [lia|].
       iIntros (b) "(Hhash&HK) /=".
       tp_pures.
       tp_store.
       tp_pures.
-      wp_value_head.
       iApply "HΦ".
       iFrame. iModIntro.
       iExists _.

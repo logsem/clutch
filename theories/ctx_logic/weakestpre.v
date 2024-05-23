@@ -581,27 +581,37 @@ Proof.
 Qed.
 
 Lemma wp_spec_update E e Φ s :
-  WP e @ s; E {{ v, spec_update ∅ (Φ v) }} ⊢ WP e @ s; E {{ Φ }}.
+  WP e @ s; E {{ v, spec_update E (Φ v) }} ⊢ WP e @ s; E {{ Φ }}.
 Proof.
   iIntros "Hwp".
-  iApply (wp_strong_mono with "Hwp"); [done|].
-  iIntros (????) "(? & Hs & H)".
-  rewrite spec_update_unseal.
-  iApply fupd_spec_coupl.
-  iMod ("H" with "Hs")
-    as ([e2' σ2'] n Hstep%stepN_pexec_det%pmf_1_eq_dret) "(Hs & HP)".
-  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-  iApply spec_coupl_rec.
-  iExists _, n, (dret σ1), (dret σ1').
-  iSplit; [iPureIntro|].
-  { rewrite dret_id_left Hstep.
-    apply Rcoupl_pos_R, Rcoupl_trivial; solve_distr_mass. }
-  do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
-  iIntros (σ4 e4' σ4' (_ & ->%dret_pos & [= -> ->]%dret_pos)).
+  iLöb as "IH" forall (e E Φ s).
+  rewrite !wp_unfold /wp_pre.
+  iIntros (σ1 e1' σ1') "[Hσ Hs]".
+  iMod ("Hwp" with "[$]") as "Hwp".
   iModIntro.
+  iApply (spec_coupl_bind with "[] Hwp"); [done|].
+  iIntros (???) "H".
+  destruct (to_val e).
+  { iApply fupd_spec_coupl.
+    iMod "H" as "(?&?& Hupd)".
+    rewrite spec_update_unseal.
+    iMod ("Hupd" with "[$]")
+      as ([e3' σ3'] n Hstep%stepN_pexec_det%pmf_1_eq_dret) "(Hs & Hwp)".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iApply spec_coupl_steps.
+    iExists _, n.
+    iSplit; [iPureIntro|].
+    { rewrite Hstep. apply Rcoupl_pos_R, Rcoupl_trivial; solve_distr_mass. }
+    iIntros (σ3 e4' σ4' (_ & ->%dret_pos & [= -> ->]%dret_pos)) "!>".
+    iMod "Hclose".
+    by iFrame. }
   iApply spec_coupl_ret.
-  by iFrame.
-Qed.
+  iApply (prog_coupl_mono with "[] H").
+  iIntros (e2 σ3 e3' σ3') "H !>".
+  iApply (spec_coupl_mono with "[] H"); [done|].
+  iIntros (σ4 e4' σ4') "> ($ & $ & H)".
+  iApply ("IH" with "H").
+Qed. 
 
 (** * Derived rules *)
 Lemma wp_mono E e Φ Ψ s : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
