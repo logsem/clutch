@@ -411,9 +411,9 @@ Ltac2 rel_couple_TU bij tapes tm k name :=
 
   match bij with
   | None =>
-      ltac1:(tpsf kf |- rel_apply (refines_couple_TU _ _ kf with tpsf) ; [reflexivity|] ) tpsf kf
+      ltac1:(tpsf kf |- rel_apply (refines_couple_TU _ _ kf with tpsf) ) tpsf kf
   | Some bij =>
-      ltac1:(bij tpsf kf |- rel_apply (refines_couple_TU _ bij kf with tpsf) ; [reflexivity|] ) bij tpsf kf
+      ltac1:(bij tpsf kf |- rel_apply (refines_couple_TU _ bij kf with tpsf) ) bij tpsf kf
   end
   ;
   rel_named_l name (fun () => ltac1:(tapes |- iIntros (?) tapes) (Ltac1.of_constr tapes))

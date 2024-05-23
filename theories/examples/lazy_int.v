@@ -148,14 +148,13 @@ Section lazy_int.
   Qed.
 
   Lemma spec_get_chunk α l (z: Z) (zs: list Z) K E :
-    ↑specN ⊆ E →
     spec_chunk_and_tape_list α l (z :: zs) -∗
-    refines_right K (get_chunk #lbl:α #l) ={E}=∗
-    ∃ l' : loc, refines_right K (of_val (#z, #l')) ∗
+    ⤇ fill K (get_chunk #lbl:α #l) -∗ spec_update E (
+    ∃ l' : loc, ⤇ fill K (of_val (#z, #l')) ∗
           spec_chunk_and_tape_list α l' zs ∗
-          (spec_chunk_and_tape_list α l' zs -∗ spec_chunk_and_tape_list α l (z :: zs)).
+          (spec_chunk_and_tape_list α l' zs -∗ spec_chunk_and_tape_list α l (z :: zs))).
   Proof.
-    iIntros (?) "Htape HK".
+    iIntros "Htape HK".
     rewrite /get_chunk.
     iDestruct "Htape" as (zs1 zs2 Heq) "(Hchunks&Htape)".
     destruct zs1 as [| z' zs1'].
@@ -164,9 +163,7 @@ Section lazy_int.
       tp_load. tp_pures.
       rewrite /= in Heq. rewrite -?Heq.
       tp_bind (sample_int _ _)%E.
-      rewrite refines_right_bind.
-      iMod (spec_sample_int with "[$] [$]") as "(HK&Htape)"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_sample_int with "[$] [$]") as "(HK&Htape) /=".
       tp_pures.
       tp_alloc as l' "Hl'". tp_pures.
       tp_store. tp_pures. iModIntro. iExists _. iFrame "HK". iSplitL "Htape Hl'".
@@ -206,11 +203,10 @@ Section lazy_int.
   Qed.
 
   Lemma spec_cmpZ (z1 z2 : Z) E K :
-    ↑specN ⊆ E →
-    refines_right K (cmpZ #z1 #z2) ={E}=∗
-    refines_right K (of_val #(comparison2z (Z.compare z1 z2))).
+    ⤇ fill K (cmpZ #z1 #z2) -∗ spec_update E (
+    ⤇ fill K (of_val #(comparison2z (Z.compare z1 z2)))).
   Proof.
-    iIntros (?) "HK".
+    iIntros "HK".
     rewrite /cmpZ.
     destruct (Z.compare_spec z1 z2).
     - tp_pures; case_bool_decide; try lia.
@@ -271,18 +267,17 @@ Section lazy_int.
   Qed.
 
   Lemma spec_cmp_list n α1 α2 (l1 l2 : loc) zs1 zs2 E K :
-    ↑specN ⊆ E →
     n = length zs1 →
     n = length zs2 →
-    refines_right K (cmp_list #n #lbl:α1 #l1 #lbl:α2 #l2) -∗
+    ⤇ fill K (cmp_list #n #lbl:α1 #l1 #lbl:α2 #l2) -∗
     spec_chunk_and_tape_list α1 l1 zs1 -∗
-    spec_chunk_and_tape_list α2 l2 zs2 ={E}=∗
-    ∃ z : Z, refines_right K (of_val #z) ∗
+    spec_chunk_and_tape_list α2 l2 zs2 -∗ spec_update E (
+    ∃ z : Z, ⤇ fill K (of_val #z) ∗
              ⌜ z = comparison2z (digit_list_cmp zs1 zs2) ⌝ ∗
-             spec_chunk_and_tape_list α1 l1 zs1 ∗ spec_chunk_and_tape_list α2 l2 zs2.
+             spec_chunk_and_tape_list α1 l1 zs1 ∗ spec_chunk_and_tape_list α2 l2 zs2).
   Proof.
     rewrite /cmp_list.
-    iIntros (HE Hlen1 Hlen2) "HK Hzs1 Hzs2".
+    iIntros (Hlen1 Hlen2) "HK Hzs1 Hzs2".
     iInduction n as [| n] "IH" forall (zs1 zs2 Hlen1 Hlen2 l1 l2).
     - destruct zs1; last by (simpl in Hlen1; inversion Hlen1).
       destruct zs2; last by (simpl in Hlen2; inversion Hlen2).
@@ -292,19 +287,13 @@ Section lazy_int.
       destruct zs2 as [| z2 zs2]; first by (simpl in Hlen2; inversion Hlen2).
       tp_pures; first solve_vals_compare_safe.
       tp_bind (get_chunk _ _)%E.
-      rewrite refines_right_bind.
-      iMod (spec_get_chunk with "Hzs1 [$]") as (l1') "(HK&Hzs1'&Hclo1)"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_get_chunk with "Hzs1 [$]") as (l1') "(HK&Hzs1'&Hclo1) /=".
       tp_pures.
       tp_bind (get_chunk _ _)%E.
-      rewrite refines_right_bind.
-      iMod (spec_get_chunk with "Hzs2 [$]") as (l2') "(HK&Hzs2'&Hclo2)"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_get_chunk with "Hzs2 [$]") as (l2') "(HK&Hzs2'&Hclo2) /=".
       tp_pures.
       tp_bind (cmpZ _ _).
-      rewrite refines_right_bind.
-      iMod (spec_cmpZ with "[$]") as "HK"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_cmpZ with "[$]") as "HK /=".
       tp_pures; first solve_vals_compare_safe.
       case_bool_decide as Hcase.
       { assert (z1 ?= z2 = Eq)%Z as Hzcmp.
@@ -340,12 +329,11 @@ Section lazy_int.
                       spec_chunk_and_tape_list α l zs.
 
   Lemma wp_sample_lazy_eager_couple K E :
-    ↑ specN ⊆ E →
-    {{{ refines_right K (sample_eager_int #()) }}}
+    {{{ ⤇ fill K (sample_eager_int #()) }}}
       sample_lazy_int #() @ E
-    {{{ v, RET v; ∃ z, lazy_int z v ∗ refines_right K (of_val #z) }}}.
+    {{{ v, RET v; ∃ z, lazy_int z v ∗ ⤇ fill K (of_val #z) }}}.
   Proof.
-    iIntros (? Φ) "HK HΦ".
+    iIntros (Φ) "HK HΦ".
     rewrite /sample_lazy_int.
     wp_pures.
     wp_alloc l as "Hl".
@@ -358,10 +346,6 @@ Section lazy_int.
     tp_alloctape as αₛ "Hαₛ".
     tp_pures.
     iApply (wp_couple_int_tapesN_eq PRED_CHUNK_BITS _ _ NUM_CHUNKS).
-    { eauto. }
-    { eauto. }
-    iSplit.
-    { iDestruct "HK" as "($&_)". }
     iSplitL "Hαₛ".
     { iApply spec_int_tape_intro. iFrame. }
     iSplitL "Hα".
@@ -385,12 +369,11 @@ Section lazy_int.
   Qed.
 
   Lemma wp_sample_eager_lazy_couple K E :
-    ↑ specN ⊆ E →
-    {{{ refines_right K (sample_lazy_int #()) }}}
+    {{{ ⤇ fill K (sample_lazy_int #()) }}}
       sample_eager_int #() @ E
-    {{{ (z : Z), RET #z; ∃ v, spec_lazy_int z v ∗ refines_right K (of_val v) }}}.
+    {{{ (z : Z), RET #z; ∃ v, spec_lazy_int z v ∗ ⤇ fill K (of_val v) }}}.
   Proof.
-    iIntros (? Φ) "HK HΦ".
+    iIntros (Φ) "HK HΦ".
     rewrite /sample_lazy_int.
     rewrite /sample_eager_int.
 
@@ -403,10 +386,6 @@ Section lazy_int.
     wp_apply (wp_alloc_tape with "[//]"). iIntros (α) "Hα".
     wp_pures.
     iApply (wp_couple_int_tapesN_eq PRED_CHUNK_BITS _ _ NUM_CHUNKS).
-    { eauto. }
-    { eauto. }
-    iSplit.
-    { iDestruct "HK" as "($&_)". }
     iSplitL "Hαₛ".
     { iApply spec_int_tape_intro. iFrame. }
     iSplitL "Hα".
@@ -528,15 +507,14 @@ Section lazy_int.
   Qed.
 
   Lemma spec_cmp_lazy_int z1 z2 v1 v2 K E :
-    ↑specN ⊆ E →
-    refines_right K (cmp_lazy_int (v1, v2)%V) -∗
+    ⤇ fill K (cmp_lazy_int (v1, v2)%V) -∗
     spec_lazy_int z1 v1 -∗
-    spec_lazy_int z2 v2 ={E}=∗
-    ∃ zret: Z, refines_right K (of_val #zret) ∗
+    spec_lazy_int z2 v2 -∗ spec_update E (
+    ∃ zret: Z, ⤇ fill K (of_val #zret) ∗
         ⌜ zret = (comparison2z (Z.compare z1 z2)) ⌝ ∗
-        spec_lazy_int z1 v1 ∗ spec_lazy_int z2 v2.
+        spec_lazy_int z1 v1 ∗ spec_lazy_int z2 v2).
   Proof.
-    iIntros (?) "HK Hv1 Hv2".
+    iIntros "HK Hv1 Hv2".
     rewrite /cmp_lazy_int. tp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
     iDestruct "Hv2" as (α2 l2 zs2 -> Hz2 Hlen2 Hwf2) "H2".
@@ -574,14 +552,13 @@ Section lazy_int.
   Qed.
 
   Lemma spec_cmp_lazy_int_cmp_clutch z1 v1 E K :
-    ↑specN ⊆ E →
-    refines_right K (cmp_lazy_int (v1, v1)%V) -∗
-    spec_lazy_int z1 v1 ={E}=∗
-    ∃ zret: Z, refines_right K (of_val #zret) ∗
+    ⤇ fill K (cmp_lazy_int (v1, v1)%V) -∗
+    spec_lazy_int z1 v1 -∗ spec_update E (
+    ∃ zret: Z, ⤇ fill K (of_val #zret) ∗
         ⌜ zret = (comparison2z (Z.compare z1 z1)) ⌝ ∗
-        spec_lazy_int z1 v1.
+        spec_lazy_int z1 v1).
   Proof.
-    iIntros (?) "HK Hv1".
+    iIntros "HK Hv1".
     rewrite /cmp_lazy_int. tp_pures.
     iDestruct "Hv1" as (α1 l1 zs1 -> Hz1 Hlen1 Hwf1) "H1".
     tp_pures; first solve_vals_compare_safe.
@@ -591,67 +568,63 @@ Section lazy_int.
   Qed.
 
   Lemma wp_cmp_lazy_eager_refine z1 z2 v1 v2 K E :
-    ↑ specN ⊆ E →
-    {{{ ▷ lazy_int z1 v1 ∗ ▷ lazy_int z2 v2 ∗ refines_right K (cmp_eager_int (#z1, #z2)%V) }}}
+    {{{ ▷ lazy_int z1 v1 ∗ ▷ lazy_int z2 v2 ∗ ⤇ fill K (cmp_eager_int (#z1, #z2)%V) }}}
       cmp_lazy_int (v1, v2)%V @ E
     {{{ zret, RET #zret ;
         ⌜ zret = (comparison2z (Z.compare z1 z2)) ⌝ ∗
-        lazy_int z1 v1 ∗ lazy_int z2 v2 ∗ refines_right K (of_val #zret) }}}.
+        lazy_int z1 v1 ∗ lazy_int z2 v2 ∗ ⤇ fill K (of_val #zret) }}}.
   Proof.
-    iIntros (HE Φ) "(Hv1&Hv2&HK) HΦ".
+    iIntros (Φ) "(Hv1&Hv2&HK) HΦ".
     rewrite /cmp_eager_int.
     tp_pures.
-    iMod (spec_cmpZ with "[$]") as "HK"; first done.
+    iMod (spec_cmpZ with "[$]") as "HK".
     wp_apply (wp_cmp_lazy_int with "[$Hv1 $Hv2]").
     iIntros (zret) "(%Hret&H1&H2)".
     iApply "HΦ". iFrame; eauto. rewrite Hret. eauto.
   Qed.
 
   Lemma wp_cmp_eager_lazy_refine z1 z2 v1 v2 K E :
-    ↑ specN ⊆ E →
-    {{{ ▷ spec_lazy_int z1 v1 ∗ ▷ spec_lazy_int z2 v2 ∗ refines_right K (cmp_lazy_int (v1, v2)%V) }}}
+    {{{ ▷ spec_lazy_int z1 v1 ∗ ▷ spec_lazy_int z2 v2 ∗ ⤇ fill K (cmp_lazy_int (v1, v2)%V) }}}
       cmp_eager_int (#z1, #z2)%V @ E
     {{{ zret, RET #zret ;
         ⌜ zret = (comparison2z (Z.compare z1 z2)) ⌝ ∗
-        spec_lazy_int z1 v1 ∗ spec_lazy_int z2 v2 ∗ refines_right K (of_val #zret) }}}.
+        spec_lazy_int z1 v1 ∗ spec_lazy_int z2 v2 ∗ ⤇ fill K (of_val #zret) }}}.
   Proof.
-    iIntros (HE Φ) "(Hv1&Hv2&HK) HΦ".
+    iIntros (Φ) "(Hv1&Hv2&HK) HΦ".
     rewrite /cmp_eager_int.
     wp_pures.
-    iMod (spec_cmp_lazy_int with "HK [$] [$]") as (zret) "(HK&%Heq&Hv1&Hv2)"; first done.
+    iMod (spec_cmp_lazy_int with "HK [$] [$]") as (zret) "(HK&%Heq&Hv1&Hv2)".
     wp_apply (wp_cmpZ with "[//]"). iIntros "_".
     iApply "HΦ". iFrame; eauto. rewrite Heq. eauto.
   Qed.
 
   Lemma wp_cmp_lazy_eager_refine_cmp_clutch z1 v1 K E :
-    ↑ specN ⊆ E →
-    {{{ ▷ lazy_int z1 v1 ∗ refines_right K (cmp_eager_int (#z1, #z1)%V) }}}
+    {{{ ▷ lazy_int z1 v1 ∗ ⤇ fill K (cmp_eager_int (#z1, #z1)%V) }}}
       cmp_lazy_int (v1, v1)%V @ E
     {{{ zret, RET #zret ;
         ⌜ zret = (comparison2z (Z.compare z1 z1)) ⌝ ∗
-        lazy_int z1 v1 ∗ refines_right K (of_val #zret) }}}.
+        lazy_int z1 v1 ∗ ⤇ fill K (of_val #zret) }}}.
   Proof.
-    iIntros (HE Φ) "(Hv1&HK) HΦ".
+    iIntros (Φ) "(Hv1&HK) HΦ".
     rewrite /cmp_eager_int.
     tp_pures.
-    iMod (spec_cmpZ with "[$]") as "HK"; first done.
+    iMod (spec_cmpZ with "[$]") as "HK".
     wp_apply (wp_cmp_lazy_int_cmp_clutch with "[$Hv1]").
     iIntros (zret) "(%Hret&H1)".
     iApply "HΦ". iFrame; eauto. rewrite Hret. eauto.
   Qed.
 
   Lemma wp_cmp_eager_lazy_refine_cmp_clutch z1 v1 K E :
-    ↑ specN ⊆ E →
-    {{{ ▷ spec_lazy_int z1 v1 ∗ refines_right K (cmp_lazy_int (v1, v1)%V) }}}
+    {{{ ▷ spec_lazy_int z1 v1 ∗ ⤇ fill K (cmp_lazy_int (v1, v1)%V) }}}
       cmp_eager_int (#z1, #z1)%V @ E
     {{{ zret, RET #zret ;
         ⌜ zret = (comparison2z (Z.compare z1 z1)) ⌝ ∗
-        spec_lazy_int z1 v1 ∗ refines_right K (of_val #zret) }}}.
+        spec_lazy_int z1 v1 ∗ ⤇ fill K (of_val #zret) }}}.
   Proof.
-    iIntros (HE Φ) "(Hv1&HK) HΦ".
+    iIntros (Φ) "(Hv1&HK) HΦ".
     rewrite /cmp_eager_int.
     wp_pures.
-    iMod (spec_cmp_lazy_int_cmp_clutch with "[$] [$]") as (?) "(HK&%Hret&Hv1)"; first done.
+    iMod (spec_cmp_lazy_int_cmp_clutch with "[$] [$]") as (?) "(HK&%Hret&Hv1)".
     wp_apply (wp_cmpZ with "[//]").
     iIntros "_".
     iApply "HΦ". iFrame; eauto. rewrite Hret. iFrame "HK". eauto.
@@ -685,7 +658,7 @@ Section lazy_int.
     - iIntros (v1 v2 (->&->)) "!>".
       rewrite refines_eq. iIntros (K) "HK Hown".
       iApply wp_fupd.
-      wp_apply (wp_sample_lazy_eager_couple with "HK"); first done.
+      wp_apply (wp_sample_lazy_eager_couple with "HK").
       iIntros (?) "H".
       iDestruct "H" as (z) "(Hlazy&HK)".
       iMod (na_inv_alloc clutchRGS_nais _ (lrootN.@(v, z)) (lazy_int z v) with "Hlazy") as "#Hinv".
@@ -733,7 +706,7 @@ Section lazy_int.
     - iIntros (v1 v2 (->&->)) "!>".
       rewrite refines_eq. iIntros (K) "HK Hown".
       iApply wp_fupd.
-      wp_apply (wp_sample_eager_lazy_couple with "HK"); first done.
+      wp_apply (wp_sample_eager_lazy_couple with "HK").
       iIntros (?) "H".
       iDestruct "H" as (v) "(Hlazy&HK)".
       iMod (na_inv_alloc clutchRGS_nais _ (lrootN.@(v, z)) (spec_lazy_int z v) with "Hlazy") as "#Hinv".

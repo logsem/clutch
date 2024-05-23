@@ -29,10 +29,10 @@ Section counterexample_annotation.
     ⊢ REL flip << flip_ors  : lrel_bool.
   Proof.
     iIntros (refines_tape_unsound) "[Hα1 Hα2]". rewrite /flip_ors.
-    rel_apply (refines_couple_tape_flip _ _ α1); [done|iFrame].
+    rel_apply (refines_couple_tape_flip _ _ α1); iFrame.
     iIntros (b1) "Hα1 /=".
     rel_pures_r.
-    rel_apply (refines_couple_tape_flip _ _ α2); [done|iFrame].
+    rel_apply (refines_couple_tape_flip _ _ α2); iFrame.
     iIntros (b2) "Hα2 /=".
     rel_pures_r.
     destruct b1; rel_pures_r.
@@ -115,7 +115,7 @@ Section counterexample_prophecies.
     - (** The prophecy was [true], and we do an identity coupling with the
           [flip] of [x]. This guarantees that the result of [x && true] on the
           left agrees with the result of the [flip] on the right. *)
-      wp_apply wp_couple_flip_flip; [done|].
+      wp_apply wp_couple_flip_flip.
       iFrame "Hr". iIntros "/= !>" (b) "Hr".
       wp_pures.
       wp_apply wp_flip; [done|]; iIntros (b2) "_". wp_pures.
@@ -128,7 +128,7 @@ Section counterexample_prophecies.
           false = false]. By coupling [y] (that we know will be [false]) with
           the [flip] on the right, we ensure that the right is also [false]. *)
       wp_apply wp_flip; [done|]; iIntros (b1) "_". wp_pures.
-      wp_apply wp_couple_flip_flip; [done|]. iFrame.
+      wp_apply wp_couple_flip_flip. iFrame.
       iIntros "/= !>" (b2) "Hr". wp_pures.
       wp_apply (wp_resolve_proph with "Hp").
       iIntros (?) "[% Hp]". simplify_eq. wp_pures.

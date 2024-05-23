@@ -478,17 +478,17 @@ Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" ope
 Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
   rel_pures_r ; rel_alloctape_r l as H at _ in _.
 
-Lemma tac_rel_rand_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) N z n ns e t tres A E :
-  TCEq N (Z.to_nat z) →
+Lemma tac_rel_rand_l `{!clutchRGS Σ} K ℶ1 ℶ2 i1 (α : loc) N (z : Z) n ns e t tres A E :
   t = fill K (rand(#lbl:α) #z) →
   envs_lookup i1 ℶ1 = Some (false, α ↪ (N; n::ns))%I →
+  TCEq N (Z.to_nat z) →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (N; ns))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #n) →
   envs_entails ℶ2 (refines E tres e A) →
   envs_entails ℶ1 (refines E t e A).
 Proof.
   rewrite envs_entails_unseal.
-  intros -> ???? Hg.
+  intros ?? -> ?? Hg.
   subst t tres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
@@ -517,18 +517,18 @@ Proof.
   apply bi.wand_elim_l.
 Qed.
 
-Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(kf) :=
+Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
     let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
     iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
+       unify K Kf ;
        unify e' ef ;
-       unify K kf ;
-       eapply (tac_rel_rand_l K); [|reflexivity|..])
+       eapply (tac_rel_rand_l K); [reflexivity|idtac..])  
     |fail 1 "rel_rand_l: cannot find 'Rand'"];
-  (* the remaining goals are from tac_rel_rand_l (except for the first one, which has already been solved by this point) *)
   [solve_mapsto ()
+  |tc_solve
   |reduction.pm_reflexivity || fail "rel_rand_l: this should not happen O-:"
   |reflexivity
   |rel_finish  (** new goal *)].
@@ -547,7 +547,6 @@ Tactic Notation "rel_rand_r" open_constr(ef) "in" open_constr(kf) :=
     |fail 1 "rel_rand_r: cannot find 'Rand'"];
   (* the remaining goals are from tac_rel_rand_r (except for the first one, which has already been solved by this point) *)
   [tc_solve
-  |solve_ndisj || fail "rel_rand_r: cannot prove 'nclose specN ⊆ ?'"
   |solve_mapsto ()
   |reduction.pm_reflexivity || fail "rel_rand_r: this should not happen O-:"
   |reflexivity

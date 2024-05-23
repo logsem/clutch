@@ -179,6 +179,67 @@ Section spec_update.
     iApply HR; iFrame.
   Qed.
 
+  Global Instance from_pure_bupd b E P φ :
+    FromPure b P φ → FromPure b (spec_update E P) φ.
+  Proof.
+    rewrite /FromPure=> HP.
+    iIntros "H !>".
+    by iApply HP.
+  Qed.
+
+  Global Instance into_wand_spec_update p q E R P Q :
+    IntoWand false false R P Q → IntoWand p q (spec_update E R) (spec_update E P) (spec_update E Q).
+  Proof.
+    rewrite /IntoWand /= => HR.
+    rewrite !bi.intuitionistically_if_elim.
+    iIntros ">HR >HP !>". iApply (HR with "HR HP").
+  Qed.
+
+  Global Instance into_wand_bupd_persistent p q E R P Q :
+    IntoWand false q R P Q → IntoWand p q (spec_update E R) P (spec_update E Q).
+  Proof.
+    rewrite /IntoWand /= => HR. rewrite bi.intuitionistically_if_elim.
+    iIntros ">HR HP !>".
+    iApply (HR with "HR HP").
+  Qed.
+
+  Global Instance into_wand_bupd_args p q E R P Q :
+    IntoWand p false R P Q → IntoWand' p q R (spec_update E P) (spec_update E Q).
+  Proof.
+    rewrite /IntoWand' /IntoWand /= => ->.
+    rewrite bi.intuitionistically_if_elim.
+    iIntros "Hw HP".
+    iApply spec_update_mono; iFrame.
+  Qed.
+
+  Global Instance from_sep_bupd E P Q1 Q2 :
+    FromSep P Q1 Q2 → FromSep (spec_update E P) (spec_update E Q1) (spec_update E Q2).
+  Proof.
+    rewrite /FromSep=> HP.
+    iIntros "[>HQ1 >HQ2] !>".
+    iApply HP. iFrame.
+  Qed.
+
+  Global Instance from_exist_spec_update {B} P E (Φ : B → iProp Σ) :
+    FromExist P Φ → FromExist (spec_update E P) (λ b, spec_update E (Φ b))%I.
+  Proof.
+    rewrite /FromExist => HP.
+    iIntros "[%x >Hx] !>".
+    iApply HP. eauto.
+  Qed.
+
+  Global Instance into_forall_spec_update {B} P E (Φ : B → iProp Σ) :
+    IntoForall P Φ → IntoForall (spec_update E P) (λ b, spec_update E (Φ b))%I.
+  Proof.
+    rewrite /IntoForall=>HP.
+    iIntros "> H" (b) "!>".
+    iApply (HP with "H").
+  Qed.   
+
+  Global Instance from_assumption_spec_update p E P Q :
+    FromAssumption p P Q → KnownRFromAssumption p P (spec_update E Q).
+  Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply spec_update_ret. Qed.
+
   Global Instance from_modal_spec_updateN_spec_updateN P E :
     FromModal True modality_id (spec_update E P) (spec_updateN 0 E P) P.
   Proof. iIntros (_) "HP /=". by iApply spec_updateN_ret. Qed.
@@ -197,5 +258,9 @@ Section spec_update.
     iIntros "[? ?]".
     iApply HR; iFrame.
   Qed.
+
+  Global Instance from_assumption_spec_updateN p E P Q :
+    FromAssumption p P Q → KnownRFromAssumption p P (spec_updateN 0 E Q).
+  Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply spec_updateN_ret. Qed.
 
 End spec_update.

@@ -1,5 +1,5 @@
 From stdpp Require Import countable.
-From clutch Require Export clutch. 
+From clutch Require Export clutch.
 From clutch.examples Require Export hash.
 
 Set Default Proof Using "Type*".
@@ -419,20 +419,18 @@ Section keyed_hash.
   Qed.
 
   Lemma spec_init_keyed_hash E K :
-    ↑specN ⊆ E →
-    refines_right K (init_keyed_hash #()) ={E}=∗
-    ∃ f γ, refines_right K (of_val f) ∗ skeyed_hash_auth γ f ∗
-           [∗ set] k ∈ fin_to_set (fin_key_space), khashfun_own γ k ∅.
+    ⤇ fill K (init_keyed_hash #()) -∗ spec_update E (
+    ∃ f γ, ⤇ fill K (of_val f) ∗ skeyed_hash_auth γ f ∗
+           [∗ set] k ∈ fin_to_set (fin_key_space), khashfun_own γ k ∅).
   Proof.
-    iIntros (?) "HK".
+    iIntros "HK".
     rewrite /init_keyed_hash.
     tp_pures.
     tp_bind (init_hash _).
-    rewrite refines_right_bind.
-    iMod (spec_init_hash with "[$]") as (f0) "(HK&Hf0)"; first done.
-    rewrite -refines_right_bind /=.
+    iMod (spec_init_hash with "[$]") as (f0) "(HK&Hf0) /=".
     tp_pures.
     set (m := gset_to_gmap None (fin_to_set (fin_hash_dom_space)) : gmap _ (option bool)).
+    iApply fupd_spec_update.
     iMod (ghost_map_alloc m) as (γ) "(Hauth&Hfrags)".
     iExists _, γ. iFrame "HK".
     iSplitL "Hf0 Hauth".
@@ -638,13 +636,12 @@ Section keyed_hash.
 
   Lemma spec_khashfun_prev E K f m k (v : nat) γ (b : bool) :
     m !! v = Some b →
-    ↑specN ⊆ E →
     skeyed_hash_auth γ f -∗
     khashfun_own γ k m -∗
-    refines_right K (f #k #v) ={E}=∗
-    refines_right K (of_val #b) ∗ skeyed_hash_auth γ f ∗ khashfun_own γ k m.
+    ⤇ fill K (f #k #v) -∗ spec_update E (
+    ⤇ fill K (of_val #b) ∗ skeyed_hash_auth γ f ∗ khashfun_own γ k m).
   Proof.
-    iIntros (Hlookup ?) "Hauth Hown HK".
+    iIntros (Hlookup) "Hauth Hown HK".
     iDestruct "Hauth" as (??? (Heq1&Hdom1&Hdom2)) "(Hauth&H)".
     rewrite Heq1. rewrite /enc. tp_pures.
     iAssert (⌜ v < S MAX_VALS ⌝)%I as "%Hmax'".
@@ -661,7 +658,6 @@ Section keyed_hash.
     eapply ghost_phys_dom_rev in Hlook; last by (split; eauto).
     iMod (spec_hashfun_prev with "H HK") as "(HK&H)".
     { rewrite Hlook. rewrite ?fin_to_nat_to_fin //. }
-    { done. }
     iFrame.
     iModIntro.
     iSplitL "Hauth H".
@@ -680,5 +676,3 @@ Section keyed_hash.
   Abort.
 
 End keyed_hash.
-
-
