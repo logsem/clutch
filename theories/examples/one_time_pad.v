@@ -34,7 +34,7 @@ Section logical_ref.
   Proof. intros [] [] => //. Qed.
 
   Lemma xor_tp E (b1 b2 : bool) :
-    ↑specN ⊆ E → ⊢ ∀ K, refines_right K (xor #b1 #b2) ={E}=∗ refines_right K (#(xor_sem b1 b2)).
+    ⊢ ∀ K, ⤇ fill K (xor #b1 #b2) -∗ spec_update E (⤇ fill K (#(xor_sem b1 b2))).
   Proof.
     destruct b1, b2 ; iIntros ; tp_pures ; iModIntro ; done.
   Qed.
@@ -80,8 +80,8 @@ Section logical_ref.
     iIntros "!>" (k).
     rel_pures_r.
     foldxor.
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|].
-    rewrite cancel.
+    rel_apply_r (refines_steps_r $! (xor_tp _ _ _ )). 
+    rewrite cancel. 
     rel_values.
   Qed.
 
@@ -147,7 +147,7 @@ Section logical_ref.
     do 6 rel_pure_l.
     rel_pures_r.
     foldxor.
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|].
+    rel_apply_r (refines_steps_r $! (xor_tp _ _ _)).
     iModIntro.
     iApply refines_pair.
     2: rel_values.

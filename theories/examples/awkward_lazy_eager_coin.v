@@ -91,7 +91,7 @@ Section logical_ref.
     rewrite /lazy_with_tape /eager.
     rel_allocBtape_l α as "Hα". rel_pures_l.
     rel_bind_r (flipL _)%E.
-    iApply (refines_couple_tape_flip with "[$Hα]"); [solve_ndisj|done|].
+    iApply (refines_couple_tape_flip with "[$Hα]").
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.

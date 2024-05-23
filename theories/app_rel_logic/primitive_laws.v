@@ -5,41 +5,55 @@ From iris.base_logic.lib Require Export ghost_map.
 From clutch.app_rel_logic Require Export app_weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
-From clutch.app_rel_logic Require Import spec_ra.
+From clutch.prob_lang.spec Require Export spec_ra spec_rules.
 From iris.prelude Require Import options.
 From clutch.ub_logic Require Export error_credits.
 
-Class app_clutchGS Σ := HeapG {
-  clutchGS_invG : invGS_gen HasNoLc Σ;
+Class parisGS Σ := HeapG {
+  parisGS_invG : invGS_gen HasNoLc Σ;
   (* CMRA for the state *)
-  clutchGS_heap : ghost_mapG Σ loc val;
-  clutchGS_tapes : ghost_mapG Σ loc tape;
+  parisGS_heap : ghost_mapG Σ loc val;
+  parisGS_tapes : ghost_mapG Σ loc tape;
   (* ghost names for the state *)
-  clutchGS_heap_name : gname;
-  clutchGS_tapes_name : gname;
+  parisGS_heap_name : gname;
+  parisGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  clutchGS_spec :: specGS Σ;
+  parisGS_spec :: specGS Σ;
   (* CMRA and ghost name for the error *)
-  clutchGS_error :: ecGS Σ;
+  parisGS_error :: ecGS Σ;
 }.
 
-Definition heap_auth `{app_clutchGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
-Definition tapes_auth `{app_clutchGS Σ} :=
-  @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
+Class parisGpreS Σ := ParisGpreS {
+  parisGpreS_iris  :: invGpreS Σ;
+  parisGpreS_heap  :: ghost_mapG Σ loc val;
+  parisGpreS_tapes :: ghost_mapG Σ loc tape;
+  parisGpreS_spcec :: specGpreS Σ;
+  parisGpreS_err   :: ecGpreS Σ;
+}.
 
+Definition parisΣ : gFunctors :=
+  #[invΣ;
+    ghost_mapΣ loc val;
+    ghost_mapΣ loc tape;
+    specΣ;
+    ecΣ].  
+Global Instance subG_parisGPreS {Σ} : subG parisΣ Σ → parisGpreS Σ.
+Proof. solve_inG. Qed.
 
-Global Instance clutchGS_irisGS `{!app_clutchGS Σ} : irisGS prob_lang Σ := {
-  iris_invGS := clutchGS_invG;
+Definition heap_auth `{parisGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ parisGS_heap parisGS_heap_name.
+Definition tapes_auth `{parisGS Σ} :=
+  @ghost_map_auth _ _ _ _ _ parisGS_tapes parisGS_tapes_name.
+
+Global Instance parisGS_irisGS `{!parisGS Σ} : parisWpGS prob_lang Σ := {
+  parisWpGS_invGS := parisGS_invG;
+  parisWpGS_spec_updateGS := _;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   err_interp ε := (ec_supply ε);
   }.
 
-Global Instance clutchGS_Spec `{!app_clutchGS Σ} : spec (lang_markov prob_lang) Σ :=
-  spec_auth_spec.
-
 (** Heap *)
-Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ clutchGS_heap clutchGS_heap_name l dq v)
+Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ parisGS_heap parisGS_heap_name l dq v)
   (at level 20, format "l  ↦{ dq }  v") : bi_scope.
 Notation "l ↦□ v" := (l ↦{ DfracDiscarded } v)%I
   (at level 20, format "l  ↦□  v") : bi_scope.
@@ -49,7 +63,7 @@ Notation "l ↦ v" := (l ↦{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦  v") : bi_scope.
 
 (** Tapes *)
-Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ tape _ _ clutchGS_tapes clutchGS_tapes_name l dq v)
+Notation "l ↪{ dq } v" := (@ghost_map_elem _ _ tape _ _ parisGS_tapes parisGS_tapes_name l dq v)
   (at level 20, format "l  ↪{ dq }  v") : bi_scope.
 Notation "l ↪□ v" := (l ↪{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪□  v") : bi_scope.
@@ -59,7 +73,7 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 Section lifting.
-Context `{!app_clutchGS Σ}.
+Context `{!parisGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.
@@ -100,13 +114,12 @@ Proof.
   iIntros "!>". by iApply "HΦ".
 Qed.
 
-
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s :
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
   {{{ True }}}
     AllocN (Val $ LitV $ LitInt $ z) (Val v) @ s; E
-                                                    {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
+  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -322,3 +335,9 @@ Qed.
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
+
+(** [tc_solve] does not realize that the [spec_updateGS] instances are the same but the [apply:]
+    tactic does... *)
+#[global] Hint Extern 0
+  (ElimModal _ _ _ (spec_update _ _) _ (WP _ @ _ {{ _ }}) (WP _ @ _ {{ _ }})) =>
+  apply: elim_modal_spec_update_wp : typeclass_instances.

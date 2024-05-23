@@ -90,7 +90,7 @@ Section logical_ref.
     iIntros (? ? (N & -> & ->)).
     rel_pures_l. rel_pures_r.
     rel_alloctape_l α as "Hα". rel_pures_l.
-    rel_apply_r (refines_couple_tape_rand with "[$Hα]"); [done|].
+    rel_apply_r (refines_couple_tape_rand with "[$Hα]").
     iIntros (n) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l.

@@ -1,5 +1,5 @@
 From clutch.lib Require Import utils.
-From clutch Require Import app_clutch.
+From clutch Require Import paris.
 
 From clutch.app_rel_logic.examples Require Export map.
 Set Default Proof Using "Type*".
@@ -302,7 +302,7 @@ Qed.
 
 Section list_specs.
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
   Context `[!Inject A val].
 
   Fixpoint is_list (l : list A) (v : val) :=
@@ -1069,7 +1069,7 @@ Global Arguments wp_list_nil {_ _ _} _ {_}.
    list type. *)
 Section list_specs_extra.
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
   Context `[!Inject A val].
 
   Lemma wp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :

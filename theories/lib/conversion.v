@@ -24,15 +24,13 @@ Section specs.
     wp_pures. destruct b; case_bool_decide as Heq; try congruence; wp_pures; by iApply "HΦ".
   Qed.
 
-  Lemma refines_right_bool_to_int E K (b : bool) :
-    ↑specN ⊆ E →
-    refines_right K (bool_to_int #b) ={E}=∗
-    refines_right K (of_val #(Z.b2z b)).
+  Lemma spec_bool_to_int E K (b : bool) :
+    ⤇ fill K (bool_to_int #b) -∗ spec_update E (⤇ fill K (of_val #(Z.b2z b))).
   Proof.
     rewrite /bool_to_int.
-    iIntros (?) "HK".
+    iIntros "HK".
     tp_pures; [solve_vals_compare_safe|].
-    destruct b; case_bool_decide as Heq; try congruence; tp_pures; eauto.
+    destruct b; case_bool_decide as Heq; try congruence; tp_pures; by iModIntro.
   Qed.
 
   Lemma wp_int_to_bool (z : Z) E :    
@@ -49,17 +47,15 @@ Section specs.
       by iApply "HΦ".
   Qed.
 
-  Lemma refines_right_int_to_bool E K (z : Z) :
-    ↑specN ⊆ E →
-    refines_right K (int_to_bool #z) ={E}=∗
-    refines_right K (of_val #(Z_to_bool z)).
+  Lemma spec_int_to_bool E K (z : Z) :    
+    ⤇ fill K (int_to_bool #z) -∗ spec_update E (⤇ fill K (of_val #(Z_to_bool z))).
   Proof. 
     rewrite /int_to_bool.
-    iIntros (?) "HK".
+    iIntros "HK".
     tp_pures; [solve_vals_compare_safe|].
     case_bool_decide as Heq; simplify_eq; tp_pures. 
-    - by iApply "HK".
-    - by rewrite Z_to_bool_neq_0; [|by intros ->].
+    - by iModIntro. 
+    - iModIntro. by rewrite Z_to_bool_neq_0; [|by intros ->].
   Qed.
   
 End specs.       

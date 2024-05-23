@@ -1,4 +1,4 @@
-From clutch Require Export clutch lib.flip. 
+From clutch Require Export clutch lib.flip.
 From clutch.examples Require Export keyed_hash hash rng.
 
 Set Default Proof Using "Type*".
@@ -79,7 +79,7 @@ Section rng.
 
   Context `{!clutchRGS Σ}.
 
-  
+
 
   (* TODO: it would be better to wrap this ghost_mapG with keyed_mapG *)
   Context {GHOST_MAP: ghost_mapG Σ (fin_hash_dom_space MAX_RNGS_POW MAX_SAMPLES_POW) (option bool)}.
@@ -144,24 +144,23 @@ Section rng.
   Qed.
 
   Lemma spec_init_rng_gen E K :
-    ↑specN ⊆ E →
-    refines_right K (init_rng_gen #()) ={E}=∗
-    ∃ f, refines_right K (of_val f) ∗ shash_rng_gen 0 f.
+    ⤇ fill K (init_rng_gen #()) -∗ spec_update E (
+    ∃ f, ⤇ fill K (of_val f) ∗ shash_rng_gen 0 f).
   Proof.
-    iIntros (?) "HK".
+    iIntros "HK".
     rewrite /init_rng_gen.
     tp_pures.
     tp_bind (init_keyed_hash _ _ _).
-    rewrite refines_right_bind.
-    iMod (spec_init_keyed_hash with "[$]") as (h γ) "(HK&Hauth&Hks)"; first done.
-    rewrite -refines_right_bind /=.
+    iMod (spec_init_keyed_hash with "[$]") as (h γ) "(HK&Hauth&Hks) /=".
     tp_pures.
     tp_alloc as key_cntr "Hkc".
     tp_pures.
+    iApply fupd_spec_update.
     iAssert (|={E}=> is_skeyed_hash γ h)%I with "[Hauth]" as ">#His_keyed".
     { iApply na_inv_alloc. iNext. eauto. }
     iModIntro. iExists _. iFrame "HK".
     iExists _, _, _. iFrame "# ∗".
+    iModIntro.
     iSplit; first by eauto.
     iApply (big_sepS_mono with "Hks").
     iIntros (x Helem) "$"; auto.
@@ -208,13 +207,12 @@ Section rng.
   Qed.
 
   Lemma spec_run_rng_gen k f K E  :
-    ↑specN ⊆ E →
     k <= MAX_RNGS →
     shash_rng_gen k f -∗
-    refines_right K (f #()) ={E}=∗
-    ∃ g, refines_right K (of_val (SOMEV g)) ∗ shash_rng_gen (S k) f ∗ shash_rng 0 g.
+    ⤇ fill K (f #()) -∗ spec_update E (
+    ∃ g, ⤇ fill K (of_val (SOMEV g)) ∗ shash_rng_gen (S k) f ∗ shash_rng 0 g).
   Proof.
-    iIntros (HE Hle) "Hgen HK".
+    iIntros (Hle) "Hgen HK".
     iDestruct "Hgen" as (h kcntr γ) "(->&#His&Hknctr&Hks)".
     iEval (rewrite /hash_rng_gen_specialized) in "HK".
     tp_pures.
@@ -267,13 +265,12 @@ Section rng.
   Qed.
 
   Lemma spec_run_rng_gen_out_of_range k f K E  :
-    ↑specN ⊆ E →
     MAX_RNGS < k →
     shash_rng_gen k f -∗
-    refines_right K (f #()) ={E}=∗
-    refines_right K (of_val NONEV) ∗ shash_rng_gen k f.
+    ⤇ fill K (f #()) -∗ spec_update E (
+    ⤇ fill K (of_val NONEV) ∗ shash_rng_gen k f).
   Proof.
-    iIntros (HE Hlt) "Hgen HK".
+    iIntros (Hlt) "Hgen HK".
     iDestruct "Hgen" as (h kcntr γ) "(->&#His&Hknctr&Hks)".
 
     iEval (rewrite /hash_rng_gen_specialized) in "HK". tp_pures.
@@ -291,14 +288,13 @@ Section rng.
   (* Notice this is almost identical to the version in rng.v, except we need the token
      to open the invariant for the keyed hash *)
   Lemma wp_hash_rng_flip n g K E :
-    ↑specN ⊆ E →
     ↑khashN ⊆ E →
     n ≤ MAX_SAMPLES →
-    {{{ ▷ hash_rng n g ∗ refines_right K flip%E ∗ na_own clutchRGS_nais (↑khashN) }}}
+    {{{ ▷ hash_rng n g ∗ ⤇ fill K flip%E ∗ na_own clutchRGS_nais (↑khashN) }}}
       g #() @ E
-    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ refines_right K #b ∗ na_own clutchRGS_nais (↑khashN) }}}.
+    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ ⤇ fill K #b ∗ na_own clutchRGS_nais (↑khashN) }}}.
   Proof.
-    iIntros (HN1 HN2 Hle Φ) "(Hhash&HK&Htok) HΦ".
+    iIntros (HN2 Hle Φ) "(Hhash&HK&Htok) HΦ".
     rewrite /hash_rng.
     iDestruct "Hhash" as (h k c m γ) "(>->&>%Hdom&Hhash&#Hkeyed_hash&Hc)".
     rewrite /hash_rng_specialized. wp_pures.
@@ -309,7 +305,7 @@ Section rng.
     iMod (na_inv_acc with "[$] [$]") as "(>H&Htok&Hclo)"; auto.
     iDestruct (khashfun_own_couplable _ _ _ _ _ m n with "[$] [$]") as "Hcoup"; auto.
     { apply not_elem_of_dom. auto. }
-    iApply (hash.impl_couplable_elim with "[-]"); [done | done |].
+    iApply (hash.impl_couplable_elim with "[-]").
     iFrame "Hcoup HK". iIntros (b) ">(Hauth&Hhash) HK".
     wp_apply (wp_khashfun_prev with "[$]").
     { rewrite lookup_insert //. }
@@ -329,37 +325,39 @@ Section rng.
   Existing Instance timeless_skeyed_hash_auth.
 
   Lemma spec_hash_rng_flip_couplable n g K E :
-    ↑specN ⊆ E →
     ↑khashN ⊆ E →
     n ≤ MAX_SAMPLES →
     shash_rng n g -∗
     na_own clutchRGS_nais (↑khashN) -∗
-    refines_right K (g #()) ={E}=∗
-    spec_couplable (λ b, |={E}=> refines_right K #b ∗ shash_rng (S n) g ∗ na_own clutchRGS_nais (↑khashN)).
+    ⤇ fill K (g #()) -∗ spec_update E (
+    spec_couplable (λ b,  spec_update E (⤇ fill K #b ∗ shash_rng (S n) g ∗ na_own clutchRGS_nais (↑khashN)))).
   Proof.
-    iIntros (HN1 HN2 Hle) "Hhash Htok HK".
+    iIntros (HN2 Hle) "Hhash Htok HK".
     iDestruct "Hhash" as (h k c m γ) "(->&%Hdom&Hhash&#Hkeyed_hash&Hc)".
     rewrite /hash_rng_specialized. tp_pures.
     tp_load. tp_pures.
     case_bool_decide; last by lia.
     rewrite /is_skeyed_hash.
     tp_pures.
+    iApply fupd_spec_update.
     iMod (na_inv_acc with "[$] [$]") as "(>H&Htok&Hclo)"; auto.
     iDestruct (khashfun_own_spec_couplable _ _ _ _ _ m n with "[$] [$]") as "Hcoup"; auto.
     { apply not_elem_of_dom. auto. }
-    iModIntro.
+    iIntros "!> !>".
     iApply (spec_couplable_wand with "Hcoup").
-    iIntros (b) ">(Hauth&Hhash)".
+    iIntros (b) "H".
+    iApply fupd_spec_update.
+    iMod "H" as "(Hauth&Hhash)".
+    iModIntro.
     tp_bind (h #k #n).
-    rewrite refines_right_bind.
-    iMod (spec_khashfun_prev with "[$] [$] [$]") as "(HK&Hauth&Hhash)".
+    iMod (spec_khashfun_prev with "[$] [$] [$]") as "(HK&Hauth&Hhash) /=".
     { rewrite lookup_insert //. }
-    { done. }
-    rewrite -refines_right_bind/=.
     tp_pures.
     tp_store.
     tp_pures.
-    iMod ("Hclo" with "[$]") as "Htok". iModIntro.
+    iApply fupd_spec_update.
+    iMod ("Hclo" with "[$]") as "Htok".
+    do 2 iModIntro.
     iFrame. iExists _, _, _, _, _. iFrame.
     iSplit; first done.
     iSplit.
@@ -390,13 +388,12 @@ Section rng.
   Qed.
 
   Lemma spec_hash_rng_flip_out_of_range n g K E :
-    ↑specN ⊆ E →
     MAX_SAMPLES < n →
     shash_rng n g -∗
-    refines_right K (g #()) ={E}=∗
-    refines_right K #false ∗ shash_rng (S n) g.
+    ⤇ fill K (g #()) -∗ spec_update E (
+    ⤇ fill K #false ∗ shash_rng (S n) g).
   Proof.
-    iIntros (HE Hlt) "Hhash HK".
+    iIntros (Hlt) "Hhash HK".
     iDestruct "Hhash" as (h k c m γ) "(->&%Hdom&Hhash&#Hkeyed_hash&Hc)".
     rewrite /hash_rng_specialized. tp_pures.
     tp_load. tp_pures.
@@ -452,10 +449,9 @@ Section rng.
   Qed.
 
   Lemma spec_init_bounded_rng_gen E K :
-    ↑specN ⊆ E →
-    refines_right K (init_bounded_rng_gen #()) ={E}=∗ ∃ f, refines_right K (of_val f) ∗ sbounded_rng_gen O f.
+    ⤇ fill K (init_bounded_rng_gen #()) -∗ spec_update E (∃ f, ⤇ fill K (of_val f) ∗ sbounded_rng_gen O f).
   Proof.
-    iIntros (?) "Hspec".
+    iIntros "Hspec".
     rewrite /init_bounded_rng_gen.
     tp_pures.
     tp_alloc as c "Hc".
@@ -484,15 +480,14 @@ Section rng.
   Qed.
 
   Lemma spec_run_bounded_rng_gen k f E K :
-    ↑specN ⊆ E →
     k <= MAX_RNGS →
     sbounded_rng_gen k f -∗
-    refines_right K (f #()) ={E}=∗
-    ∃ g, refines_right K (of_val (SOMEV g)) ∗
+    ⤇ fill K (f #()) -∗ spec_update E (
+    ∃ g, ⤇ fill K (of_val (SOMEV g)) ∗
          sbounded_rng_gen (S k) f ∗
-         sbounded_rng MAX_SAMPLES O g.
+         sbounded_rng MAX_SAMPLES O g).
   Proof.
-    iIntros (? Hle) "Hgen Hspec".
+    iIntros (Hle) "Hgen Hspec".
     iDestruct "Hgen" as (c ->) "Hc".
     rewrite /bounded_rng_gen_specialized.
     tp_pures.
@@ -503,9 +498,7 @@ Section rng.
     tp_store.
     tp_pures.
     tp_bind (init_bounded_rng _ _).
-    rewrite refines_right_bind.
-    iMod (spec_init_bounded_rng with "[$]") as (g) "(HK&Hrng)"; auto.
-    rewrite -refines_right_bind /=.
+    iMod (spec_init_bounded_rng with "[$]") as (g) "(HK&Hrng) /="; auto.
     tp_pures.
     iModIntro. iExists _. iFrame. iExists c.
     assert (Z.of_nat k + 1 = Z.of_nat (S k))%Z as -> by lia. auto.
@@ -528,14 +521,12 @@ Section rng.
   Qed.
 
   Lemma spec_run_bounded_rng_gen_out_of_range k f E K :
-    ↑specN ⊆ E →
     MAX_RNGS < k →
     sbounded_rng_gen k f -∗
-    refines_right K (f #()) ={E}=∗
-         refines_right K (of_val NONEV) ∗
-         sbounded_rng_gen k f.
+    ⤇ fill K (f #()) -∗
+   spec_update E (⤇ fill K (of_val NONEV) ∗ sbounded_rng_gen k f).
   Proof.
-    iIntros (? Hle) "Hgen Hspec".
+    iIntros (Hle) "Hgen Hspec".
     iDestruct "Hgen" as (c ->) "Hc".
     rewrite /bounded_rng_gen_specialized.
     tp_pures.
@@ -549,14 +540,13 @@ Section rng.
 
   Lemma wp_hash_rng_flip_refine n g sg K E :
     ↑khashN ⊆ E →
-    ↑specN ⊆ E →
-    {{{ ▷ hash_rng n g ∗ sbounded_rng MAX_SAMPLES n sg ∗ refines_right K (sg #()) ∗
+    {{{ ▷ hash_rng n g ∗ sbounded_rng MAX_SAMPLES n sg ∗ ⤇ fill K (sg #()) ∗
           na_own clutchRGS_nais (↑khashN) }}}
       g #() @ E
-    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ sbounded_rng MAX_SAMPLES (S n) sg ∗ refines_right K #b ∗
+    {{{ (b : bool), RET #b; hash_rng (S n) g ∗ sbounded_rng MAX_SAMPLES (S n) sg ∗ ⤇ fill K #b ∗
           na_own clutchRGS_nais (↑khashN) }}}.
   Proof.
-    iIntros (HN1 HN2 Φ) "(Hhash&Hbrng&HK&Htok) HΦ".
+    iIntros (HN2 Φ) "(Hhash&Hbrng&HK&Htok) HΦ".
     iDestruct "Hbrng" as (sc ->) "Hsc".
     rewrite /bounded_rng_specialized.
     tp_pures.
@@ -565,12 +555,10 @@ Section rng.
     case_bool_decide.
     - tp_pures.
       tp_bind flip%E.
-      rewrite refines_right_bind.
-      iApply wp_fupd.
+      iApply wp_spec_update.
       wp_apply (wp_hash_rng_flip with "[$HK $Hhash $Htok]"); auto.
       { lia. }
-      iIntros (b) "(Hhash&HK&Htok)".
-      rewrite -refines_right_bind /=.
+      iIntros (b) "(Hhash&HK&Htok) /=".
       tp_pures.
       tp_store.
       tp_pures.
@@ -593,25 +581,22 @@ Section rng.
   Qed.
 
   Lemma wp_bounded_rng_flip_refine n g sg K E :
-    ↑specN ⊆ E →
     ↑khashN ⊆ E →
-    {{{ bounded_rng MAX_SAMPLES n g ∗ ▷ shash_rng n sg ∗ refines_right K (sg #()) ∗
+    {{{ bounded_rng MAX_SAMPLES n g ∗ ▷ shash_rng n sg ∗ ⤇ fill K (sg #()) ∗
           na_own clutchRGS_nais (↑khashN)}}}
       g #() @ E
-    {{{ (b : bool), RET #b; bounded_rng MAX_SAMPLES (S n) g ∗ shash_rng (S n) sg ∗ refines_right K #b ∗
+    {{{ (b : bool), RET #b; bounded_rng MAX_SAMPLES (S n) g ∗ shash_rng (S n) sg ∗ ⤇ fill K #b ∗
           na_own clutchRGS_nais (↑khashN)}}}.
   Proof.
-    iIntros (HN1 HN2 Φ) "(Hbrng&Hhash&HK&Htok) HΦ".
+    iIntros (HN2 Φ) "(Hbrng&Hhash&HK&Htok) HΦ".
     iDestruct "Hbrng" as (sc ->) "Hsc".
     rewrite /bounded_rng_specialized.
     wp_pures. wp_load. wp_pures.
     case_bool_decide.
     - wp_pures.
-      iAssert (spec_ctx) with "[-]" as "#Hspec_ctx".
-      { iDestruct "HK" as "($&_)". }
       iMod (spec_hash_rng_flip_couplable with "Hhash Htok HK") as "Hspec"; auto.
       { lia. }
-      wp_apply (spec_couplable_elim with "[$Hspec $Hspec_ctx Hsc HΦ]"); auto.
+      wp_apply (spec_couplable_elim with "[$Hspec Hsc HΦ]"); auto.
       iIntros (b) ">(HK&Hhash)".
       wp_pures. wp_store.
       iModIntro. iApply "HΦ".
@@ -637,21 +622,26 @@ Section rng.
     rel_arrow_val.
     iIntros (??) "(->&->)".
     rewrite refines_eq. iIntros (K) "HK Hown".
-    iApply wp_fupd.
+    iApply wp_spec_update.
+
+
     wp_apply (wp_init_rng_gen with "[//]").
     iIntros (g) "Hhash_gen".
-    iMod (spec_init_bounded_rng_gen with "[$]") as (f) "(HK&Hbounded_gen)"; first done.
+    iMod (spec_init_bounded_rng_gen with "[$]") as (f) "(HK&Hbounded_gen)".
     set (P := (∃ n, hash_rng_gen n g ∗ sbounded_rng_gen n f)%I).
+    iApply fupd_spec_update.
     iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
     { iNext. iExists O. iFrame. }
-    iModIntro. iExists _. iFrame.
+    iModIntro. iExists _. iFrame. iModIntro.
     iIntros (v1 v2) "!> (->&->)".
     clear K.
     rewrite /P.
     iApply (refines_na_inv with "[$Hinv]") ; auto ; iIntros "[HP Hclose]".
     rewrite refines_eq. iIntros (K) "HK Hown".
     iDestruct "HP" as (m) "(Hg&>Hsf)".
-    iApply wp_fupd.
+    iApply wp_spec_update.
+
+
     destruct (decide (m <= MAX_RNGS)) as [Hl|]; last first.
     { wp_apply (wp_run_rng_gen_out_of_range with "[$]"); first lia.
       iIntros "Hg".
@@ -690,7 +680,7 @@ Section rng.
     iDestruct "HP" as (m) "(Hf&>Hsf)".
     iApply wp_fupd.
     iDestruct (na_own_acc (↑khashN) with "Hown") as "(Hown&Hclose')"; first solve_ndisj.
-    wp_apply (wp_hash_rng_flip_refine with "[$Hf $Hsf $HK $Hown]"); [done | done |].
+    wp_apply (wp_hash_rng_flip_refine with "[$Hf $Hsf $HK $Hown]"); [done |].
     iIntros (b) "(Hhash&Hbounded&HK&Hown)".
     iDestruct ("Hclose'" with "[$]") as "Hown".
     iMod ("Hclose" with "[-HK]").
@@ -705,10 +695,10 @@ Section rng.
     rel_arrow_val.
     iIntros (??) "(->&->)".
     rewrite refines_eq. iIntros (K) "HK Hown".
-    iApply wp_fupd.
+    iApply wp_spec_update.
     wp_apply (wp_init_bounded_rng_gen with "[//]").
     iIntros (g) "Hbounded_gen".
-    iMod (spec_init_rng_gen with "[$]") as (f) "(HK&Hhash_gen)"; first done.
+    iMod (spec_init_rng_gen with "[$]") as (f) "(HK&Hhash_gen)".
     set (P := (∃ n, shash_rng_gen n f ∗ bounded_rng_gen n g)%I).
     iMod (na_inv_alloc clutchRGS_nais _ rngN P with "[Hhash_gen Hbounded_gen]") as "#Hinv".
     { iNext. iExists O. iFrame. }
@@ -719,7 +709,7 @@ Section rng.
     iApply (refines_na_inv with "[$Hinv]") ; auto ; iIntros "[HP Hclose]".
     rewrite refines_eq. iIntros (K) "HK Hown".
     iDestruct "HP" as (m) "(Hsf&>Hg)".
-    iApply wp_fupd.
+    iApply wp_spec_update.
     destruct (decide (m <= MAX_RNGS)) as [Hl|]; last first.
     { wp_apply (wp_run_bounded_rng_gen_out_of_range with "[$]"); first lia.
       iIntros "Hg".
@@ -756,9 +746,9 @@ Section rng.
     iApply (refines_na_inv with "[$Hinv_rng]") ; auto ; iIntros "[HP Hclose]".
     rewrite refines_eq. iIntros (K) "HK Hown".
     iDestruct "HP" as (m) "(Hf&>Hsf)".
-    iApply wp_fupd.
+    iApply wp_spec_update.
     iDestruct (na_own_acc (↑khashN) with "Hown") as "(Hown&Hclose')"; first solve_ndisj.
-    wp_apply (wp_bounded_rng_flip_refine with "[$Hf $Hsf $HK $Hown]"); [done | done |].
+    wp_apply (wp_bounded_rng_flip_refine with "[$Hf $Hsf $HK $Hown]"); [done|].
     iIntros (b) "(Hhash&Hbounded&HK&Hown)".
     iDestruct ("Hclose'" with "[$]") as "Hown".
     iMod ("Hclose" with "[-HK]").

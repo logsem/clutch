@@ -2,6 +2,7 @@ From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import fancy_updates.
 From iris.base_logic.lib Require Export ghost_map.
 
+From clutch.base_logic Require Export spec_markov.
 From clutch.tpref_logic Require Import weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation.
@@ -42,8 +43,10 @@ Definition heap_auth `{tprG δ Σ} :=
 Definition tapes_auth `{tprG δ Σ} :=
   @ghost_map_auth _ _ _ _ _ tprG_tapes tprG_tapes_name.
 
-#[export] Instance tprG_tprwpG `{tprG δ Σ} : tprwpG prob_lang Σ := {
-  iris_invGS := tprG_invG;
+#[export] Instance tprG_tprwpG `{tprG δ Σ} : tprwpG δ prob_lang Σ := {
+  tprwpG_invGS := tprG_invG;
+  tprwpG_spec_updateGS := spec_auth_spec_update;
+
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
 }.
 
@@ -67,8 +70,6 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
-#[export] Existing Instance spec_auth_spec.
-
 Section rwp.
   Context `{!tprG δ Σ}.
 
@@ -89,61 +90,61 @@ Section rwp.
     iIntros "!>". by iApply "HΦ".
   Qed.
 
-Lemma rswp_allocN_seq (N : nat) (z : Z) k E v a:
-  TCEq N (Z.to_nat z) →
-  (0 < N)%Z →
-  ⟨⟨⟨  True ⟩⟩⟩
-    AllocN (Val $ LitV $ LitInt $ z) (Val v) at k @ a; E
-                                                    ⟨⟨⟨  l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v ⟩⟩⟩.
-Proof.
-  iIntros (-> Hn Φ) "_ HΦ".
-  iApply rswp_lift_atomic_head_step.
-  iIntros (σ1) "[Hh Ht] !# !>".
-  iSplit.
-  { iPureIntro.
-    rewrite /head_reducible.
-    eexists.
-    apply head_step_support_equiv_rel.
-    econstructor; eauto.
-    lia.
-  }
-  iIntros (e2 σ2 Hs); inv_head_step.
-  iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
-  iIntros "!>". iFrame.
-  iApply "HΦ".
-  iInduction (H0) as [ | ?] "IH" forall (σ1).
-  - simpl.
-    iSplit; auto.
-    rewrite map_union_empty.
-    rewrite loc_add_0.
-    by rewrite big_sepM_singleton.
-  - rewrite seq_S.
-    rewrite heap_array_replicate_S_end.
-    iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
-    iApply big_sepL_app.
-    iSplitL "H1".
-    + iApply "IH".
-      { iPureIntro. lia. }
-      iApply "H1".
-    + simpl. iSplit; auto.
+  Lemma rswp_allocN_seq (N : nat) (z : Z) k E v a:
+    TCEq N (Z.to_nat z) →
+    (0 < N)%Z →
+    ⟨⟨⟨  True ⟩⟩⟩
+      AllocN (Val $ LitV $ LitInt $ z) (Val v) at k @ a; E
+    ⟨⟨⟨ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v ⟩⟩⟩.
+  Proof.
+    iIntros (-> Hn Φ) "_ HΦ".
+    iApply rswp_lift_atomic_head_step.
+    iIntros (σ1) "[Hh Ht] !# !>".
+    iSplit.
+    { iPureIntro.
+      rewrite /head_reducible.
+      eexists.
+      apply head_step_support_equiv_rel.
+      econstructor; eauto.
+      lia.
+    }
+    iIntros (e2 σ2 Hs); inv_head_step.
+    iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
+    iIntros "!>". iFrame.
+    iApply "HΦ".
+    iInduction (H0) as [ | ?] "IH" forall (σ1).
+    - simpl.
+      iSplit; auto.
+      rewrite map_union_empty.
+      rewrite loc_add_0.
       by rewrite big_sepM_singleton.
-      Unshelve.
-      {
+    - rewrite seq_S.
+      rewrite heap_array_replicate_S_end.
+      iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
+      iApply big_sepL_app.
+      iSplitL "H1".
+      + iApply "IH".
+        { iPureIntro. lia. }
+        iApply "H1".
+      + simpl. iSplit; auto.
+        by rewrite big_sepM_singleton.
+        Unshelve.
+        {
+          apply heap_array_map_disjoint.
+          intros.
+          apply not_elem_of_dom_1.
+          by apply fresh_loc_offset_is_fresh.
+        }
         apply heap_array_map_disjoint.
         intros.
         apply not_elem_of_dom_1.
-        by apply fresh_loc_offset_is_fresh.
-      }
-      apply heap_array_map_disjoint.
-      intros.
-      apply not_elem_of_dom_1.
-      rewrite dom_singleton.
-      apply not_elem_of_singleton_2.
-      intros H2.
-      apply loc_add_inj in H2.
-      rewrite replicate_length in H1.
-      lia.
-Qed.
+        rewrite dom_singleton.
+        apply not_elem_of_singleton_2.
+        intros H2.
+        apply loc_add_inj in H2.
+        rewrite replicate_length in H1.
+        lia.
+  Qed.
 
   Lemma rswp_load k E l q v a :
     ⟨⟨⟨ ▷ l ↦{q} v ⟩⟩⟩ ! #l at k @ a; E ⟨⟨⟨ RET v; l ↦{q} v ⟩⟩⟩.
@@ -457,3 +458,5 @@ Section coupl.
 End coupl.
 
 #[export] Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
+(** [tc_solve] does not realize that the [spec_updateGS] instances are the same but the [apply:]
+    tactic does... *)

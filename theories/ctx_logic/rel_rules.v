@@ -4,8 +4,9 @@ From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
 From clutch.common Require Import language ectx_language ectxi_language.
 From clutch.prob_lang Require Import locations notation lang.
-From clutch.ctx_logic Require Import ectx_lifting weakestpre spec_ra model.
-From clutch.ctx_logic Require Export proofmode primitive_laws spec_rules spec_tactics coupling_rules.
+From clutch.prob_lang.spec Require Import spec_rules spec_tactics.
+From clutch.ctx_logic Require Import ectx_lifting weakestpre model.
+From clutch.ctx_logic Require Export proofmode primitive_laws coupling_rules.
 
 Section rules.
   Context `{!clutchRGS Σ}.
@@ -31,7 +32,7 @@ Section rules.
     intros Hpure Hϕ.
     rewrite refines_eq /refines_def.
     iIntros "IH" (j) "Hs Hnais".
-    wp_pures. 
+    wp_pures.
     iApply ("IH" with "Hs Hnais").
   Qed.
 
@@ -49,10 +50,10 @@ Section rules.
   Qed.
 
   Lemma refines_atomic_l (E E' : coPset) K e1 t A
-    (Hatomic : Atomic WeaklyAtomic e1) :
-    (∀ K', refines_right K' t ={⊤, E'}=∗
+    (Hatomic : Atomic StronglyAtomic e1) :
+    (∀ K', ⤇ fill K' t ={⊤, E'}=∗
              WP e1 @ E' {{ v,
-              |={E', ⊤}=> ∃ t', refines_right K' t' ∗
+              |={E', ⊤}=> ∃ t', ⤇ fill K' t' ∗
               REL fill K (of_val v) << t' @ E : A }})%I
    ⊢ REL fill K e1 << t @ E : A.
   Proof.
@@ -68,8 +69,7 @@ Section rules.
 
   (** ** Forward reductions on the RHS *)
 
-  Lemma refines_pure_r E K' e e' t A n
-    (Hspec : nclose specN ⊆ E) ϕ :
+  Lemma refines_pure_r E K' e e' t A n ϕ :
     PureExec ϕ n e e' →
     ϕ →
     (REL t << fill K' e' @ E : A)
@@ -81,23 +81,21 @@ Section rules.
     iApply ("Hlog" with "Hj Hnais").
   Qed.
 
-  Lemma refines_right_bind K' K e :
-    refines_right K' (fill K e) ≡ refines_right (K ++ K') e.
-  Proof. rewrite /refines_right /=. by rewrite fill_app. Qed.
-
-  Definition refines_right_bind' := refines_right_bind.
-
   (* A helper lemma for proving the stateful reductions for the RHS below *)
   Lemma refines_step_r E K' e1 e2 A :
-    (∀ k, refines_right k e2 ={⊤}=∗
-         ∃ v, refines_right k (of_val v) ∗ REL e1 << fill K' (of_val v) @ E : A)
+    (∀ k, ⤇ fill k e2 -∗
+         spec_update ⊤ (∃ v, ⤇ fill k (of_val v) ∗
+                             REL e1 << fill K' (of_val v) @ E : A))
     ⊢ REL e1 << fill K' e2 @ E : A.
   Proof.
     rewrite refines_eq /refines_def /=.
     iIntros "He" (K'') "Hs Hnais /=".
-    rewrite refines_right_bind /=.
-    iMod ("He" with "Hs") as (v) "[Hs He]".
-    rewrite -refines_right_bind'.
+    rewrite -fill_app.
+    iSpecialize ("He" with "Hs").
+    (* TODO: why is this instance not be infered??? *)
+    pose proof elim_modal_spec_update_wp.
+    iMod "He" as (v) "[Hs He]".
+    rewrite fill_app.
     iSpecialize ("He" with "Hs Hnais").
     by iApply "He".
   Qed.
@@ -107,16 +105,17 @@ Section rules.
      quantifies v, which is important e.g. in refines_alloc_r, where v is
      freshly generated. If e2' is known, this variant can be used instead *)
   Lemma refines_steps_r E e1 e2 e2' A K' :
-    (∀ K, (refines_right K e2 ={⊤}=∗ refines_right K e2'))
-    ⊢ (|={⊤}=> REL e1 << ectxi_language.fill K' e2' @ E : A)
-    -∗ REL e1 << ectxi_language.fill K' e2 @ E : A.
+    (∀ K, (⤇ fill K e2 -∗ spec_update ⊤ (⤇ fill K e2')))
+    ⊢ (|={⊤}=> REL e1 << fill K' e2' @ E : A)
+    -∗ REL e1 << fill K' e2 @ E : A.
   Proof.
     iIntros "upd >Hlog".
     rewrite refines_eq /refines_def.
     iIntros (?) "??".
-    rewrite refines_right_bind.
-    iDestruct ("upd" with "[$]") as ">?".
-    rewrite -refines_right_bind.
+    rewrite -fill_app.
+    (* Here the instance is inferred perfectly fine?!?! *)
+    iMod ("upd" with "[$]") as "?".
+    rewrite fill_app.
     iApply ("Hlog" with "[$][$]").
   Qed.
 
@@ -127,7 +126,7 @@ Section rules.
   Proof.
     rewrite /IntoVal. intros <-.
     iIntros "Hlog". simpl.
-    iApply refines_step_r ; simpl.
+    iApply refines_step_r; simpl.
     iIntros (K') "HK'".
     tp_alloc as l "Hl".
     iModIntro. iExists _. iFrame. by iApply "Hlog".
@@ -186,39 +185,37 @@ Section rules.
 
   Lemma refines_randT_empty_r K E α A N z e :
     TCEq N (Z.to_nat z) →
-    to_val e = None →
     ▷ α ↪ₛ (N; []) ∗
       (∀ n : fin (S N), α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
     ⊢ REL e << fill K (rand(#lbl:α) #z) @ E : A.
   Proof.
-    iIntros (-> ev) "[>Hα H]".
+    iIntros (->) "[>Hα H]".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_rand_empty_r; [done|done|].
+    iIntros (K2) "Hspec Hnais /=".
+    wp_apply wp_rand_empty_r.
     rewrite -fill_app.
-    iFrame "Hα Hspec Hs".
-    iIntros "(Hα & _ & %n & Hb)".
+    iFrame "Hα Hspec".
+    iIntros (n) "[Hα Hspec]".
     rewrite /= fill_app.
-    iSpecialize ("H" with "Hα [$Hs $Hb] Hnais").
+    iSpecialize ("H" with "Hα Hspec Hnais").
     wp_apply (wp_mono with "H").
-    iIntros (?) "[% ([? ?] & ? & ?)]".
+    iIntros (?) "[% (? & ? & ?)]".
     iExists _. iFrame.
   Qed.
   Definition refines_rand_empty_r := refines_randT_empty_r.
 
   Lemma refines_randU_r E K e (N : nat) (z : Z) A :
     TCEq N (Z.to_nat z) →
-    to_val e = None →
     (∀ (n : fin (S N)), REL e << fill K (Val #n) @ E : A)
       ⊢ REL e << fill K (rand #z) @ E : A.
   Proof.
-    iIntros (??) "H".
+    iIntros (?) "H".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    iIntros (K2) "Hspec Hnais /=".
     rewrite -fill_app. wp_apply (wp_rand_r _ _ _ _ (K++K2)) => //.
-    iSplitR ; [easy|iFrame].
+    iFrame.
     iIntros (n) "Hspec" => /=. rewrite fill_app.
-    iApply ("H" with "[$Hs $Hspec] Hnais").
+    iApply ("H" with "Hspec Hnais").
   Qed.
 
   (** This rule is useful for proving that functions refine each other *)
@@ -301,11 +298,11 @@ Section rules.
   Proof.
     iIntros (->) "[>Hα H]".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    iIntros (K2) "Hspec Hnais /=".
     wp_apply wp_bind.
     wp_apply (wp_rand_tape_empty with "Hα").
     iIntros (n) "Hα /=".
-    iApply ("H" with "Hα [$Hs $Hspec] Hnais").
+    iApply ("H" with "Hα Hspec Hnais").
   Qed.
   Definition refines_rand_empty_l := refines_randT_empty_l.
 
@@ -316,10 +313,10 @@ Section rules.
   Proof.
     iIntros (?) "H".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    iIntros (K2) "Hspec Hnais /=".
     wp_apply wp_bind. wp_apply wp_rand => //.
     iIntros (n) "_" => /=.
-    iApply ("H" with "[$Hs $Hspec] Hnais").
+    iApply ("H" with "Hspec Hnais").
   Qed.
 
   Lemma refines_wand E e1 e2 A A' :
@@ -346,43 +343,40 @@ Section rules.
   Qed.
 
   Lemma refines_couple_TT N f `{Bij (fin (S N)) (fin (S N)) f} E e1 e2 A α αₛ ns nsₛ :
-    to_val e1 = None →
     (▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (N; nsₛ) ∗
        (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (N; nsₛ ++ [f n])
        -∗ REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
-    iIntros (e1ev) "(Hα & Hαs & Hlog)".
+    iIntros "(Hα & Hαs & Hlog)".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs He2] Hnais /=".
-    wp_apply wp_couple_tapes; [done|done|].
+    iIntros (K2) "He2 Hnais /=".
+    wp_apply wp_couple_tapes.
     iFrame "Hα Hαs".
-    iSplit; [done|].
     iIntros (b) "[Hα Hαs]".
-    iApply ("Hlog" with "[$Hα $Hαs] [$Hs $He2] Hnais").
+    iApply ("Hlog" with "[$Hα $Hαs] He2 Hnais").
   Qed.
   Definition refines_couple_tapes := refines_couple_TT.
 
   Lemma refines_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' E α A z ns e :
     TCEq N (Z.to_nat z) →
-    to_val e = None →
     ▷ α ↪ (N; ns) ∗
       (∀ (n : fin (S N)), α ↪ (N; ns ++ [n]) -∗ REL e << fill K' (Val #(f n)) @ E : A)
     ⊢ REL e << fill K' (rand #z) @ E : A.
   Proof.
-    iIntros (-> ?) "[>Hα Hcnt]".
+    iIntros (->) "[>Hα Hcnt]".
     rewrite {2}refines_eq {1}/refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_couple_tape_rand; [done|done|].
+    iIntros (K2) "Hspec Hnais /=".
+    wp_apply wp_couple_tape_rand.
     rewrite -fill_app.
     (* [iFrame] is too aggressive.... *)
-    iFrame "Hs Hα Hspec".
-    iIntros (n) "[Hα [_ Hspec]]".
+    iFrame "Hα Hspec".
+    iIntros (n) "[Hα Hspec]".
     rewrite fill_app.
-    rewrite refines_eq /refines_def /refines_right.
-    iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
+    rewrite refines_eq /refines_def.
+    iSpecialize ("Hcnt" with "Hα Hspec Hnais").
     wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]". iExists _. iFrame.
+    iIntros (v) "[% (?&?&?)]". iExists _. iFrame.
   Qed.
   Definition refines_couple_tape_rand := refines_couple_TU.
 
@@ -394,14 +388,13 @@ Section rules.
   Proof.
     iIntros (->) "[Hα Hcnt]".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    iIntros (K2) "Hspec Hnais /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_rand_tape; [done|].
-    iFrame "Hs Hα".
-    iIntros "!>" (b) "Hα".
-    iSpecialize ("Hcnt" with "Hα [$Hs $Hspec] Hnais").
+    wp_apply (wp_couple_rand_tape with "Hα").
+    iIntros (b) "Hα".
+    iSpecialize ("Hcnt" with "Hα Hspec Hnais").
     wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
+    iIntros (v) "[% (?&?&?)]".
     iExists _. iFrame.
   Qed.
   Definition refines_couple_rand_tape := refines_couple_UT.
@@ -414,7 +407,6 @@ Section rules.
   Proof.
     iIntros (->) "(>α & H)".
     iApply refines_couple_tape_rand.
-    { rewrite fill_not_val //. }
     iFrame => /=. iIntros (n) "Hα".
     iApply refines_rand_l.
     iFrame. iModIntro. iApply "H".
@@ -444,16 +436,15 @@ Section rules.
   Proof.
     iIntros (->) "Hcnt".
     rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
+    iIntros (K2) "Hspec Hnais /=".
     wp_apply wp_bind.
-    wp_apply wp_couple_rand_rand; [done|].
     rewrite -fill_app.
-    iFrame "Hs Hspec".
-    iIntros "!>" (n) "[_ Hspec]".
+    wp_apply (wp_couple_rand_rand with "Hspec").
+    iIntros (n) "Hspec".
     rewrite fill_app.
-    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
+    iSpecialize ("Hcnt" with "Hspec Hnais").
     wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
+    iIntros (v) "[% (?&?&?)]".
     iExists _. iFrame.
   Qed.
 

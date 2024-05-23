@@ -35,7 +35,7 @@ Section proofs.
     : (() → ()) → lrel_sum lrel_unit lrel_bool.
   Proof with try rel_pures_l ; try rel_pures_r.
     rel_allocBtape_l α as "α".
-    rel_apply_r (refines_couple_tape_flip with "[$α]"); [done|].
+    rel_apply_r (refines_couple_tape_flip with "[$α]").
     iIntros (b) "Hα /="...
     rel_alloc_r x as "Hx"...
     rel_alloc_l cl as "Hcl"...
@@ -178,7 +178,7 @@ Section proofs.
     iIntros "(>(%not_necessarily_b & xb ) & Hclose)".
     unfold xor ; rel_load_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ by iExists _ |].
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _)) ; iModIntro.
     (* We do not know this, in fact it may well be false (i.e. read this as `assert False`). *)
     assert (b = not_necessarily_b) as <- by admit.
     rewrite /b'. rewrite cancel.
@@ -218,7 +218,7 @@ Section proofs.
     iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
     unfold xor ; rel_load_r ; rel_load_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _)) ; iModIntro.
     rel_apply_l (refines_wp_l).
     wp_apply wp_mono.
     2: wp_apply xor_wp.
@@ -255,7 +255,7 @@ Section proofs.
     rel_flipL_l ; rel_flipL_r...
     unfold xor ; rel_load_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp  _ _ _)) ; iModIntro.
     rewrite cancel.
     rel_values.
   Qed.
@@ -318,7 +318,7 @@ Section proofs.
     iIntros "(>(%not_necessarily_b & %not_necessarily_b' & xb & xb' & <-) & Hclose)".
     unfold xor ; rel_load_r ; rel_load_l...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb xb'" ; [ iExists _, _ ; iFrame ; done |].
-    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _ _)) ; [easy|iModIntro].
+    unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _)) ; iModIntro.
     rel_apply_l (refines_wp_l).
     wp_apply wp_mono.
     2: wp_apply xor_wp.

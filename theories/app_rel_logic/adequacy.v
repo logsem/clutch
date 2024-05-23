@@ -8,14 +8,12 @@ From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
 From clutch.ub_logic Require Import error_credits.
-From clutch.app_rel_logic Require Import spec_ra.
 From clutch.app_rel_logic Require Import app_weakestpre primitive_laws.
 From clutch.prob Require Import distribution couplings_app.
 Import uPred.
 
 Section adequacy.
-  Context `{!app_clutchGS Σ}.
-
+  Context `{!parisGS Σ}.
 
   Lemma ARcoupl_dbind' `{Countable A, Countable A', Countable B, Countable B'}
     (f : A → distr A') (g : B → distr B') (μ1 : distr A) (μ2 : distr B) (R : A → B -> Prop) (T : A' → B' -> Prop) ε ε' n :
@@ -174,7 +172,7 @@ Section adequacy.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
-        iDestruct (spec_interp_auth_frag_agree_expr with "HspecI_auth Hspec_frag") as %->.
+        iDestruct (spec_auth_prog_agree with "HspecI_auth Hspec_frag") as %->.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         erewrite lim_exec_det_final; last first.
         { erewrite pexec_O. by eapply dret_1_1. }
@@ -191,7 +189,7 @@ Section adequacy.
       + apply of_to_val in Heq as <-.
         rewrite wp_value_fupd.
         iMod "Hwp" as (v') "[Hspec_frag %]".
-        iDestruct (spec_interp_auth_frag_agree_expr with "HspecI_auth Hspec_frag") as %->.
+        iDestruct (spec_auth_prog_agree with "HspecI_auth Hspec_frag") as %->.
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
         iPureIntro.
@@ -219,29 +217,8 @@ Section adequacy.
 
 End adequacy.
 
-Class app_clutchGpreS Σ :=
-  App_ClutchGpreS{
-      app_clutchGpreS_iris  :: invGpreS Σ;
-      app_clutchGpreS_heap  :: ghost_mapG Σ loc val;
-      app_clutchGpreS_tapes :: ghost_mapG Σ loc tape;
-      app_clutchGpreS_spec_heap  :: ghost_mapG Σ loc val;
-      app_clutchGpreS_spec_tapes :: ghost_mapG Σ loc tape;
-      app_clutchGpreS_spec_prog :: inG Σ (authR progUR);
-      app_clutchGpreS_prog  :: inG Σ (authR progUR);
-      app_clutchGpreS_err   :: ecGpreS Σ;
-    }.
-
-Definition app_clutchΣ : gFunctors :=
-  #[invΣ; ghost_mapΣ loc val;
-    ghost_mapΣ loc tape;
-    (* GFunctor (authUR cfgUR); *)
-    GFunctor (authUR progUR);
-    GFunctor (authR (realUR))].
-Global Instance subG_app_clutchGPreS {Σ} : subG app_clutchΣ Σ → app_clutchGpreS Σ.
-Proof. solve_inG. Qed.
-
-Theorem wp_aRcoupl Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
-  (∀ `{app_clutchGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+Theorem wp_aRcoupl Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
+  (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -250,12 +227,7 @@ Proof.
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  iMod (ghost_map_alloc σ'.(heap)) as "[%γHs [Hh_spec _]]".
-  iMod (ghost_map_alloc σ'.(tapes)) as "[%γTs [Ht_spec _]]".
-  iMod (own_alloc ((● (Excl' e')) ⋅ (◯ (Excl' e')))) as "(%γp & Hprog_auth & Hprog_frag)".
-  { by apply auth_both_valid_discrete. }
-
-
+  iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
   destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
     iApply (fupd_mask_intro); [eauto|].
@@ -310,16 +282,15 @@ Proof.
               --- destruct (H1 n'); lra.
         * apply pmf_ex_seriesC.
   }
-  iMod (ec_alloc with "[]") as (?) "[? ?]"; first eauto.
-  set (HspecGS := CfgSG Σ _ γp _ _ γHs γTs).
+  iMod (ec_alloc with "[]") as (?) "[? He]"; first eauto.
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
   iApply wp_ARcoupl_step_fupdN.
   iFrame. (* iFrame "Hctx". *)
-  by iApply (Hwp with " [Hprog_frag]").
+  by iApply (Hwp with "[Hj] [He]").
 Qed.
 
-Theorem wp_aRcoupl_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{app_clutchGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+Theorem wp_aRcoupl_lim Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
+  (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -379,8 +350,8 @@ Proof.
     intro; simpl. auto.
 Qed.
 
-Theorem wp_ARcoupl_epsilon_lim Σ `{app_clutchGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{app_clutchGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ ⤇ e' -∗ € ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+Theorem wp_ARcoupl_epsilon_lim Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
+  (∀ `{parisGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ ⤇ e' -∗ € ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros H'.
@@ -396,4 +367,4 @@ Proof.
   intros. iIntros "Hctx".
   iApply (H' with "[$Hctx]").
   lra.
-Qed. 
+Qed.

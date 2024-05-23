@@ -1,6 +1,6 @@
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import na_invariants.
-From clutch.ctx_logic Require Import weakestpre model adequacy.
+From clutch.ctx_logic Require Import weakestpre model primitive_laws adequacy.
 From clutch.prob_lang Require Import lang.
 
 Class clutchRGpreS Σ := ClutchRGPreS {
@@ -21,14 +21,14 @@ Proof.
   intros HA Hlog.
   apply (wp_refRcoupl Σ); auto.
   intros ?.
-  iIntros "#Hctx He'".
+  iIntros "He'".
   iMod na_alloc as "[%γ Htok]".
   set (HclutchR := ClutchRGS Σ _ _ γ).
   iPoseProof (Hlog _) as "Hlog".
   rewrite refines_eq /refines_def.
-  iSpecialize ("Hlog" $! []  with "[$Hctx $He'] Htok").
+  iSpecialize ("Hlog" $! []  with "He' Htok").
   iApply (wp_mono with "Hlog").
   iIntros (?) "H /=".
-  iDestruct "H" as (?) "([? ? ] & ? & ?) /=".
+  iDestruct "H" as (?) "(? & ? & ?) /=".
   iExists _. iFrame. by iApply HA.
 Qed.

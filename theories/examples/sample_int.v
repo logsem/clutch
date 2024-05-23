@@ -189,33 +189,26 @@ Section int.
   Qed.
 
   Lemma spec_sample_int_aux E K α z n bs :
-    ↑specN ⊆ E →
     (0 ≤ z)%Z →
     α ↪ₛB (Z_to_bool_list z n ++ bs) -∗
-    refines_right K (sample_int_aux (#lbl:α) #n) ={E}=∗ ∃ z', ⌜ z' = Z.land z (Z.ones n) ⌝ ∗
-    refines_right K (of_val #z') ∗ α ↪ₛB bs.
+    ⤇ fill K (sample_int_aux (#lbl:α) #n) -∗
+    spec_update E (∃ z', ⌜ z' = Z.land z (Z.ones n) ⌝ ∗ ⤇ fill K (of_val #z') ∗ α ↪ₛB bs).
   Proof.
-    intros HE Hle.
+    intros Hle.
     iInduction n as [| n'] "IH" forall (K); rewrite /sample_int_aux; iIntros "Hα HK".
     - tp_pures; first solve_vals_compare_safe. rewrite Z.land_ones //= Z.mod_1_r //.
-      iExists _; eauto with iFrame.
+      iExists _. by iFrame.
     - tp_pures; first solve_vals_compare_safe. simpl.
       tp_bind (flipL _ )%E.
-      rewrite refines_right_bind.
-      iMod (refines_right_flipL with "Hα HK") as "[HK Hα]"; [solve_ndisj|].
-      rewrite -refines_right_bind /=.
+      iMod (spec_flipL with "Hα HK") as "[HK Hα] /=".
       tp_bind (bool_to_int _).
-      rewrite refines_right_bind.
-      iMod (refines_right_bool_to_int with "[$]") as "HK"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_bool_to_int with "[$]") as "HK /=".
       tp_pure. tp_pure.
       tp_pure.
       rewrite -/sample_int_aux.
       tp_bind (sample_int_aux _ _).
       replace (Z.of_nat (S n') - 1)%Z with (Z.of_nat n'); last by lia.
-      rewrite refines_right_bind.
-      iMod ("IH" with "[$] [$]") as (z' Heqz') "(HK&Hα)".
-      rewrite -refines_right_bind /=.
+      iMod ("IH" with "[$] [$]") as (z' Heqz') "(HK&Hα) /=".
       tp_pures.
       iModIntro. iFrame.
       iExists _. iFrame.
@@ -260,17 +253,16 @@ Section int.
   Qed.
 
   Lemma spec_sample_int E K α z zs :
-    ↑specN ⊆ E →
     spec_int_tape α (z :: zs) -∗
-    refines_right K (sample_int (#lbl:α)) ={E}=∗ refines_right K (of_val #z) ∗ spec_int_tape α zs.
+    ⤇ fill K (sample_int (#lbl:α)) -∗ spec_update E (⤇ fill K (of_val #z) ∗ spec_int_tape α zs).
   Proof.
-    iIntros (HE) "Htape HK".
+    iIntros "Htape HK".
     rewrite /sample_int.
     tp_pures.
     iDestruct "Htape" as "(%Hforall&Htape)".
     rewrite flat_map_cons.
     inversion Hforall.
-    iMod (spec_sample_int_aux with "Htape HK") as (z' Heq) "(HK&Hα)"; first done.
+    iMod (spec_sample_int_aux with "Htape HK") as (z' Heq) "(HK&Hα) /=".
     { lia. }
     rewrite Zland_ones_small in Heq; last auto.
     rewrite Heq.
@@ -278,18 +270,16 @@ Section int.
   Qed.
 
   Lemma wp_couple_int_tapes_eq E e α αₛ zs zsₛ Φ:
-    to_val e = None →
-    nclose specN ⊆ E →
-    spec_ctx ∗ spec_int_tape αₛ zsₛ ∗ int_tape α zs ∗
+    spec_int_tape αₛ zsₛ ∗ int_tape α zs ∗
     ((∃ z: Z, (⌜ 0 ≤ z ≤ MAX_INT ⌝%Z ∗ spec_int_tape αₛ (zsₛ ++ [z]) ∗ int_tape α (zs ++ [z])))
               -∗ WP e @ E {{ Φ }}) -∗
     WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hnv HN) "(#Hctx&Hαₛ&Hα&Hwp)".
+    iIntros "(Hαₛ&Hα&Hwp)".
     iDestruct "Hα" as (?) "Hα".
     iDestruct "Hαₛ" as (?) "Hαₛ".
     iApply (wp_couple_bool_tapeN_tapeN_eq (NUM_BITS)); try done.
-    iFrame "Hα Hαₛ Hctx".
+    iFrame "Hα Hαₛ".
     iIntros (bs) "(%Hlen&Hαₛ&Hα)".
     iApply "Hwp".
 
@@ -319,20 +309,17 @@ Section int.
   Qed.
 
   Lemma wp_couple_int_tapesN_eq E e n α αₛ zs zsₛ Φ:
-    to_val e = None →
-    nclose specN ⊆ E →
-    spec_ctx ∗ spec_int_tape αₛ zsₛ ∗ int_tape α zs ∗
+    spec_int_tape αₛ zsₛ ∗ int_tape α zs ∗
     ((∃ zsnew: list Z,
          (⌜ Forall (λ z, 0 ≤ z ≤ MAX_INT) zsnew ⌝%Z ∗ ⌜ length zsnew = n ⌝ ∗
           spec_int_tape αₛ (zsₛ ++ zsnew) ∗ int_tape α (zs ++ zsnew)))
           -∗ WP e @ E {{ Φ }}) -∗
     WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hnv HE).
     iInduction n as [| n] "IH" forall (zsₛ zs).
-    { iIntros "(H1&H2&H3&Hwp)". iApply "Hwp". iExists []. rewrite ?app_nil_r; iFrame.
+    { iIntros "(H2&H3&Hwp)". iApply "Hwp". iExists []. rewrite ?app_nil_r; iFrame.
       iPureIntro; eauto. }
-    iIntros "(#H1&H2&H3&Hwp)".
+    iIntros "(H2&H3&Hwp)".
     iApply "IH". iFrame "#∗".
     iDestruct 1 as (zsnew Hforall Hlen) "(Hαₛ&Hα)".
     iApply wp_couple_int_tapes_eq; auto. iFrame "#∗".
@@ -638,14 +625,12 @@ Section sample_wide.
   Qed.
 
   Lemma spec_sample_wide_aux K E (α : loc) n zs1 zs2 :
-    ↑specN ⊆ E →
     (length zs1 = n) →
     spec_int_tape PRED_NUM_DIGIT_BITS α (zs1 ++ zs2) -∗
-    refines_right K (sample_wide_aux (#lbl:α) #n) ={E}=∗
-    ∃ z : Z, refines_right K (of_val #z) ∗ ⌜ z = digit_list_to_Z PRED_NUM_DIGIT_BITS zs1 ⌝ ∗
-             spec_int_tape PRED_NUM_DIGIT_BITS α zs2.
+    ⤇ fill K (sample_wide_aux (#lbl:α) #n) -∗ spec_update E (
+    ∃ z : Z, ⤇ fill K (of_val #z) ∗ ⌜ z = digit_list_to_Z PRED_NUM_DIGIT_BITS zs1 ⌝ ∗
+             spec_int_tape PRED_NUM_DIGIT_BITS α zs2).
   Proof.
-    iIntros (HE).
     rewrite /sample_wide_aux.
     iInduction n as [| n] "IH" forall (K zs1); iIntros (Hlength) "Hα HK".
     - tp_pures; first solve_vals_compare_safe.
@@ -655,17 +640,13 @@ Section sample_wide.
       destruct zs1 as [| z1 zs1]; first by inversion Hlength.
       iEval (simpl) in "Hα".
       tp_bind (sample_int _ _)%E.
-      rewrite refines_right_bind.
-      iMod (spec_sample_int with "[$] [$]") as "(HK&Hα)"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_sample_int with "[$] [$]") as "(HK&Hα) /=".
       tp_pure. tp_pure. tp_pure.
       replace (Z.of_nat (S n) - 1)%Z with (Z.of_nat n); last by lia.
       inversion Hlength. subst.
       rewrite -/sample_wide_aux.
       tp_bind (sample_wide_aux _ _).
-      rewrite refines_right_bind.
-      iMod ("IH" with "[//] Hα HK") as (z') "(HK&%Heq&Hα)".
-      rewrite -refines_right_bind/=.
+      iMod ("IH" with "[//] Hα HK") as (z') "(HK&%Heq&Hα) /=".
       tp_pures.
       replace (S (length zs1) - 1)%Z with (length zs1 : Z) by lia.
       iModIntro. iExists _. iFrame. rewrite /=/NUM_DIGIT_BITS Heq //.
@@ -685,15 +666,14 @@ Section sample_wide.
   Qed.
 
   Lemma spec_sample_wide_int K E (α : loc) zs1 zs2 :
-    ↑specN ⊆ E →
     (length zs1 = NUM_DIGITS) →
     spec_int_tape PRED_NUM_DIGIT_BITS α (zs1 ++ zs2) -∗
-    refines_right K (sample_wide_int (#lbl:α)) ={E}=∗
-    ∃ z : Z, refines_right K (of_val #z) ∗ ⌜ z = digit_list_to_Z PRED_NUM_DIGIT_BITS zs1 ⌝ ∗
-             spec_int_tape PRED_NUM_DIGIT_BITS α zs2.
+    ⤇ fill K (sample_wide_int (#lbl:α)) -∗ spec_update E (
+    ∃ z : Z, ⤇ fill K (of_val #z) ∗ ⌜ z = digit_list_to_Z PRED_NUM_DIGIT_BITS zs1 ⌝ ∗
+             spec_int_tape PRED_NUM_DIGIT_BITS α zs2).
   Proof.
     rewrite /sample_wide_int.
-    iIntros (? Hlen) "Hα HK".
+    iIntros (Hlen) "Hα HK".
     tp_pures.
     iMod (spec_sample_wide_aux with "Hα HK"); auto.
   Qed.
