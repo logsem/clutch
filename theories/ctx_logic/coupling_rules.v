@@ -27,7 +27,7 @@ Section rules.
     iDestruct (ghost_map_lookup with "Ht Hα") as %?.
     iDestruct (spec_auth_lookup_tape with "Hs Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iApply spec_coupl_base.
+    iApply spec_coupl_erasables.
     iExists _, (state_step σ1 α), (state_step σ1' αₛ).
     iSplit; [iPureIntro|].
     { by eapply Rcoupl_pos_R, (Rcoupl_state_state _ f). }
@@ -53,7 +53,7 @@ Section rules.
     iDestruct (ghost_map_lookup with "Ht Hα") as %?.
     iDestruct (spec_auth_lookup_tape with "Hs Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iApply spec_coupl_base.
+    iApply spec_coupl_erasables.
     iExists _, (state_step σ1 α), (state_step σ1' αₛ).
     iSplit; [iPureIntro|].
     { by eapply Rcoupl_pos_R, (Rcoupl_state_step_gen _ _ R). }
@@ -487,7 +487,7 @@ Section rules.
     iDestruct (ghost_map_elem_ne with "Hα1 Hα2") as %?.
     iDestruct (spec_auth_lookup_tape with "Hs Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iApply spec_coupl_base.
+    iApply spec_coupl_erasables.
     iExists _, _, _.
     iSplit; [iPureIntro|].
     { by eapply Rcoupl_state_1_3. }

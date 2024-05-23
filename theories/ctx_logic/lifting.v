@@ -17,12 +17,12 @@ Implicit Types Φ : val Λ → iProp Σ.
 Lemma wp_lift_step_couple E Φ e1 s :
   (∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') ={E, ∅}=∗
-      spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
+      spec_coupl ∅ σ1 e1' σ1' (λ σ2 e2' σ2',
         match to_val e1 with
         | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ Φ v
         | None =>
             prog_coupl e1 σ2 e2' σ2' (λ e3 σ3 e3' σ3',
-                ▷ spec_coupl σ3 e3' σ3' (λ σ4 e4' σ4',
+                ▷ spec_coupl ∅ σ3 e3' σ3' (λ σ4 e4' σ4',
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ WP e3 @ s; E {{ Φ }}))
         end))
   ⊢ WP e1 @ s; E {{ Φ }}.
@@ -31,7 +31,7 @@ Proof. rewrite wp_unfold /wp_pre //. Qed.
 Lemma wp_lift_step_spec_couple E Φ e1 s :
   (∀ σ1 e1' σ1',
       state_interp σ1 ∗ spec_interp (e1', σ1') ={E, ∅}=∗
-      spec_coupl σ1 e1' σ1' (λ σ2 e2' σ2',
+      spec_coupl ∅ σ1 e1' σ1' (λ σ2 e2' σ2',
         |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ WP e1 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
@@ -40,8 +40,9 @@ Proof.
   iIntros (???) "Hs".
   iMod ("H" with "[$]") as "H".
   iModIntro.
-  iApply (spec_coupl_bind with "[] H").
+  iApply (spec_coupl_bind with "[] H"); [done|].
   iIntros (???) "H".
+  iApply fupd_spec_coupl.
   iMod "H" as "(?&?&H)".
   rewrite wp_unfold /wp_pre.
   iApply ("H" with "[$]").

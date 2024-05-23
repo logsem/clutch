@@ -29,21 +29,15 @@ Section adequacy.
   Qed.
 
   Lemma wp_adequacy_spec_coupl n m e1 σ1 e1' σ1' Z φ :
-    spec_coupl σ1 e1' σ1' Z -∗
+    spec_coupl ∅ σ1 e1' σ1' Z -∗
     (∀ σ2 e2' σ2', Z σ2 e2' σ2' ={∅}=∗ |={∅}▷=>^n ⌜exec m (e1, σ2) ≾ lim_exec (e2', σ2') : φ⌝) -∗
     |={∅}=> |={∅}▷=>^n ⌜exec m (e1, σ1) ≾ lim_exec (e1', σ1') : φ⌝.
   Proof.
     iRevert (σ1 e1' σ1').
     iApply spec_coupl_ind.
     iIntros "!>" (σ1 e1' σ1')
-      "[(%R & %μ1 & %μ1' & %Hcpl & %Hμ1 & %Hμ1' & H)
-       |(%R & %p & %μ1 & %μ1' & % & %Hμ1 & %Hμ1' & H)] HZ".
-    - iEval (rewrite -Hμ1 -(erasable_lim_exec μ1') //).
-      iApply refRcoupl_step_fupdN_dbind; [iPureIntro|].
-      { by eapply Rcoupl_refRcoupl. }
-      iIntros  (σ2 σ2' HR).
-      iMod ("H" with "[//]").
-      by iMod ("HZ" with "[$]").
+      "[H |(%R & %p & %μ1 & %μ1' & % & %Hμ1 & %Hμ1' & H)] HZ".
+    - by iMod ("HZ" with "[$]").
     - iEval (rewrite -Hμ1 -(erasable_pexec_lim_exec μ1' p) //).
       iApply refRcoupl_step_fupdN_dbind; [iPureIntro|].
       { by eapply Rcoupl_refRcoupl. }
