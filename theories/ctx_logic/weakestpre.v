@@ -542,7 +542,7 @@ Lemma wp_spec_steps P E1 E2 e Φ a :
 Proof.
   rewrite wp_unfold /wp_pre.
   iIntros (HE) "Hspec H".
-  iIntros (σ1 e1' σ1') "[Hσ Hs]". rewrite /spec_update.
+  iIntros (σ1 e1' σ1') "[Hσ Hs]". rewrite spec_update_unseal.
   iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
     iMod ("Hspec" with "Hs")
     as ([e2' σ2'] n Hstep%stepN_pexec_det%pmf_1_eq_dret) "(Hs & HP)".

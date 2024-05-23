@@ -32,12 +32,6 @@ Section backedge_markov.
 
   Canonical Structure backedge_markov : markov := Markov _ _ model_mixin.
 
-  Lemma backedge_markov_terminates :
-    SeriesC (lim_exec (δ := δ) initial) = 1 →
-    (∃ s a, ¬ has_backedge s ∧ to_final s = Some a → lim_exec (δ := δ) initial a > 0) →
-    SeriesC (lim_exec (δ := backedge_markov) initial) = 1.
-  Proof. Admitted.
-
 End backedge_markov.
 
 Section determinize_spec.
@@ -54,6 +48,7 @@ Section determinize_spec.
     has_backedge s →
     specF (s : mstate model) -∗ spec_updateN 1 E (specF (initial : mstate model)).
   Proof.
+    rewrite spec_updateN_unseal.
     iIntros (Hedge) "Hspec"; iIntros (s') "Hs".
     iDestruct (spec_auth_agree with "Hs Hspec") as %->.
     iExists initial.

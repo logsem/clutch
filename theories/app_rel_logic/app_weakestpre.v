@@ -657,6 +657,7 @@ Lemma wp_spec_steps P E e Φ s :
 Proof.
   rewrite wp_unfold/wp_pre.
   iIntros (->) "Hupd Hwp". iIntros (σ1 e1' σ1' ε) "(Hσ1 & Hspec & Hε)".
+  rewrite spec_update_unseal. 
   iMod ("Hupd" with "Hspec") as "/= (%ρ' & %n & %H &Hspec & HP)".
   destruct ρ'.
   iSpecialize ("Hwp" with "HP [$]").
@@ -664,7 +665,6 @@ Proof.
   iApply (exec_coupl_det_r n with "[$]").
   by apply stepN_pexec_det.
 Qed.
-
 
 Lemma wp_atomic s E1 E2 e Φ `{!Atomic StronglyAtomic e} :
   (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.

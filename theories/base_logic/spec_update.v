@@ -20,16 +20,24 @@ Section spec_update.
   Context `{spec_updateGS δ Σ, invGS_gen hl Σ}.
   Implicit Types a : mstate δ.
 
-  Definition spec_updateN (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
+  Definition spec_updateN_def (n : nat) (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a', ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+  Local Definition spec_updateN_aux : seal (@spec_updateN_def). Proof. by eexists. Qed.
+  Definition spec_updateN := spec_updateN_aux.(unseal).
+  Lemma spec_updateN_unseal : spec_updateN = spec_updateN_def.
+  Proof. rewrite -spec_updateN_aux.(seal_eq) //. Qed.
 
-  Definition spec_update (E : coPset) (P : iProp Σ) : iProp Σ :=
+  Definition spec_update_def (E : coPset) (P : iProp Σ) : iProp Σ :=
     (∀ a, spec_interp a -∗ |={E}=> ∃ a' n, ⌜stepN n a a' = 1⌝ ∗ spec_interp a' ∗ P)%I.
+  Local Definition spec_update_aux : seal (@spec_update_def). Proof. by eexists. Qed.
+  Definition spec_update := spec_update_aux.(unseal).
+  Lemma spec_update_unseal : spec_update = spec_update_def.
+  Proof. rewrite -spec_update_aux.(seal_eq) //. Qed.
 
   Lemma spec_updateN_implies_spec_update n E P:
     spec_updateN n E P -∗ spec_update E P.
   Proof.
-    rewrite /spec_updateN/spec_update.
+    rewrite spec_updateN_unseal spec_update_unseal.
     iIntros "H % Ha".
     iMod ("H" with "[$]") as "(%&%&?&?)". iModIntro.
     iExists _, _. iFrame. by iPureIntro.
@@ -38,6 +46,7 @@ Section spec_update.
   Lemma spec_updateN_ret E P :
     P ⊢ spec_updateN 0 E P.
   Proof.
+    rewrite spec_updateN_unseal.
     iIntros "HP" (a) "Ha !#".
     iExists _.
     rewrite stepN_O dret_1_1 //.
@@ -47,6 +56,7 @@ Section spec_update.
   Lemma spec_update_ret E P :
     P ⊢ spec_update E P.
   Proof.
+    rewrite spec_update_unseal.
     iIntros "HP" (a) "Ha !#".
     iExists a, O.
     rewrite stepN_O dret_1_1 //.
@@ -57,7 +67,7 @@ Section spec_update.
     E1 ⊆ E2 →
     spec_updateN n E1 P ∗ (P -∗ spec_updateN m E2 Q) ⊢ spec_updateN (n + m) E2 Q.
   Proof.
-    rewrite /spec_updateN. iIntros (?) "[P PQ] %a Ha".
+    rewrite spec_updateN_unseal. iIntros (?) "[P PQ] %a Ha".
     iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
     iMod ("P" $! a with "Ha") as (b Hab) "[Hb P]".
     iMod "Hclose" as "_".
@@ -72,7 +82,7 @@ Section spec_update.
     E1 ⊆ E2 →
     spec_update E1 P ∗ (P -∗ spec_update E2 Q) ⊢ spec_update E2 Q.
   Proof.
-    rewrite /spec_update. iIntros (HE) "[P PQ] %a Ha".
+    rewrite spec_update_unseal. iIntros (HE) "[P PQ] %a Ha".
     iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
     iMod ("P" $! a with "Ha") as (b n Hab) "[Hb P]".
     iMod "Hclose" as "_".
@@ -85,7 +95,8 @@ Section spec_update.
   Lemma spec_updateN_mono_fupd n E P Q :
     spec_updateN n E P ∗ (P ={E}=∗ Q) ⊢ spec_updateN n E Q.
   Proof.
-    iIntros "[HP PQ]". iIntros (a) "Hsrc".
+    rewrite spec_updateN_unseal.
+    iIntros "[HP PQ] %a Hsrc".
     iMod ("HP" with "Hsrc") as (b Hstep) "[Hsrc P]".
     iMod ("PQ" with "P"). iFrame. iModIntro.
     iExists b. by iFrame.
@@ -94,8 +105,8 @@ Section spec_update.
   Lemma spec_update_mono_fupd E P Q :
     spec_update E P ∗ (P ={E}=∗ Q) ⊢ spec_update E Q.
   Proof.
-    rewrite /spec_update.
-    iIntros "[HP PQ]". iIntros (a) "Hsrc".
+    rewrite spec_update_unseal.
+    iIntros "[HP PQ] %a Hsrc".
     iMod ("HP" with "Hsrc") as (b n Hstep) "[Hsrc P]".
     iMod ("PQ" with "P"). iFrame. iModIntro.
     iExists b, _. by iFrame.
@@ -111,24 +122,42 @@ Section spec_update.
   Lemma spec_update_mono E P Q :
     spec_update E P ∗ (P -∗ Q) ⊢ spec_update E Q.
   Proof.
-    rewrite /spec_update.
-    iIntros "[Hupd HPQ]". iApply (spec_update_mono_fupd with "[$Hupd HPQ]").
+    iIntros "[Hupd HPQ]".
+    iApply (spec_update_mono_fupd with "[$Hupd HPQ]").
     iIntros "P". iModIntro. by iApply "HPQ".
   Qed.
 
   Lemma fupd_spec_updateN n E P :
     (|={E}=> spec_updateN n E P) ⊢ spec_updateN n E P.
   Proof.
-    iIntros "H". rewrite /spec_updateN. iIntros (e) "Hsrc".
-    iMod "H". by iApply "H".
+    rewrite spec_updateN_unseal.
+    iIntros "H %e Hsrc".
+    iMod "H".
+    by iApply "H".
   Qed.
 
   Lemma fupd_spec_update E P :
     (|={E}=> spec_update E P) ⊢ spec_update E P.
   Proof.
-    rewrite /spec_update.
-    iIntros "H". rewrite /spec_updateN. iIntros (e) "Hsrc".
+    rewrite spec_update_unseal.
+    iIntros "H %e Hsrc".
     iMod "H". by iApply "H".
+  Qed.
+
+  Lemma spec_updateN_frame_l R n E P :
+    R ∗ spec_updateN n E P ⊢ spec_updateN n E (P ∗ R).
+  Proof.
+    iIntros "[HR H]".
+    iApply spec_updateN_mono.
+    iFrame; eauto.
+  Qed.
+
+  Lemma spec_update_frame_l R E P :
+    R ∗ spec_update E P ⊢ spec_update E (P ∗ R).
+  Proof.
+    iIntros "[HR H]".
+    iApply spec_update_mono.
+    iFrame; eauto.
   Qed.
 
   Global Instance from_modal_spec_update_spec_update P E :
@@ -139,6 +168,17 @@ Section spec_update.
     ElimModal True false false (spec_update E P) P (spec_update E Q) (spec_update E Q).
   Proof. iIntros (?) "[HP Hcnt]". by iApply (spec_update_bind with "[$]"). Qed.
 
+  Global Instance frame_spec_update p E R P Q:
+    Frame p R P Q → Frame p R (spec_update E P) (spec_update E Q).
+  Proof.
+    rewrite /Frame=> HR.
+    rewrite spec_update_frame_l.
+    iIntros "H".
+    iApply spec_update_mono; iFrame.
+    iIntros "[? ?]".
+    iApply HR; iFrame.
+  Qed.
+
   Global Instance from_modal_spec_updateN_spec_updateN P E :
     FromModal True modality_id (spec_update E P) (spec_updateN 0 E P) P.
   Proof. iIntros (_) "HP /=". by iApply spec_updateN_ret. Qed.
@@ -146,5 +186,16 @@ Section spec_update.
   Global Instance elim_modal_spec_updateN_spec_updateN n m P Q E :
     ElimModal True false false (spec_updateN n E P) P (spec_updateN (n + m) E Q) (spec_updateN m E Q).
   Proof. iIntros (?) "[HP Hcnt]". by iApply (spec_updateN_bind with "[$]"). Qed.
+
+  Global Instance frame_spec_updateN p E n R P Q:
+    Frame p R P Q → Frame p R (spec_updateN n E P) (spec_updateN n E Q).
+  Proof.
+    rewrite /Frame=> HR.
+    rewrite spec_updateN_frame_l.
+    iIntros "H".
+    iApply spec_updateN_mono; iFrame.
+    iIntros "[? ?]".
+    iApply HR; iFrame.
+  Qed.
 
 End spec_update.

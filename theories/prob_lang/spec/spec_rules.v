@@ -24,7 +24,7 @@ Section rules.
     PureExec P n e e' →
     ⤇ fill K e ⊢ spec_update E (⤇ fill K e').
   Proof.
-    iIntros (HP Hex) "HK". rewrite /spec_update.
+    iIntros (HP Hex) "HK". rewrite spec_update_unseal.
     iIntros ([??]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$] [$]") as "->".
     iMod (spec_update_prog (fill K e') with "[$][$]") as "[HK Hs]".
@@ -38,7 +38,7 @@ Section rules.
     IntoVal e v →
     ⤇ fill K (ref e) ⊢ spec_update E (∃ l, ⤇ fill K (#l) ∗ l ↦ₛ v).
   Proof.
-    iIntros (<-) "HK". rewrite /spec_update.
+    iIntros (<-) "HK". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$] [$]") as "->".
     iMod (spec_auth_heap_alloc with "Hs") as "[Hs Hl]".
@@ -59,7 +59,7 @@ Section rules.
     ⤇ fill K (!#l) ∗ l ↦ₛ{q} v
     ⊢ spec_update E (⤇ fill K (of_val v) ∗ l ↦ₛ{q} v).
   Proof.
-    iIntros "[HK Hl]". rewrite /spec_update.
+    iIntros "[HK Hl]". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$] [$]") as "->".
     iMod (spec_update_prog (fill K v) with "[$][$]") as "[Hauth Hj]".
@@ -76,7 +76,7 @@ Section rules.
     ⤇ fill K (#l <- e) ∗ l ↦ₛ v'
     ⊢ spec_update E (⤇ fill K #() ∗ l ↦ₛ v).
   Proof.
-    iIntros (<-) "[HK Hl]". rewrite /spec_update.
+    iIntros (<-) "[HK Hl]". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
     iMod (spec_update_prog  (fill K #()) with "[$][$]") as "[Hauth Hj]".
@@ -94,7 +94,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     ⤇ fill K (alloc #z) ⊢ spec_update E (∃ l, ⤇ fill K (#lbl:l) ∗ l ↪ₛ (N; [])).
   Proof.
-    iIntros (->) "HK". rewrite /spec_update.
+    iIntros (->) "HK". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
     iMod (spec_update_prog (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "[$] [$]") as "[Hauth Hj]".
@@ -114,7 +114,7 @@ Section rules.
     ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
     ⊢ spec_update E (⤇ fill K #n ∗ l ↪ₛ (N; ns)).
   Proof.
-    iIntros (->) "[HK Hl]". rewrite /spec_update.
+    iIntros (->) "[HK Hl]". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
     iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
     iMod (spec_update_prog (fill K #n) with "[$] [$]") as "[Hauth Hj]".
