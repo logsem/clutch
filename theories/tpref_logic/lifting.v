@@ -5,7 +5,7 @@ From clutch.tpref_logic Require Export weakestpre.
 Set Default Proof Using "Type".
 
 Section lifting.
-Context `{spec δ Σ} `{!tprwpG Λ Σ}.
+Context `{!tprwpG δ Λ Σ}.
 
 (** * RWP *)
 Lemma rwp_lift_step_fupd_coupl E Φ e1 a :

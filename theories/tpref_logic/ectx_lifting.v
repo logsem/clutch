@@ -6,7 +6,7 @@ From clutch.tpref_logic Require Export weakestpre lifting.
 Set Default Proof Using "Type".
 
 Section rwp.
-Context {Λ : ectxLanguage} `{spec δ Σ} `{!tprwpG Λ Σ}.
+Context {Λ : ectxLanguage} `{!tprwpG δ Λ Σ}.
 
 Implicit Types P Q : iProp Σ.
 Implicit Types a : mstate δ.
