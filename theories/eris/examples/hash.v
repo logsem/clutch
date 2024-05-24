@@ -297,8 +297,8 @@ Section amortized_hash.
     iModIntro.
     iSplit; last by iApply coll_free_hashfun_implies_coll_free.
     iDestruct "H" as "[??]".
-    iFrame.
     iExists 0%nat, nnreal_zero.
+    iFrame. 
     repeat (iSplit; [done|]). iFrame.
     iPureIntro.
     simpl.
@@ -457,7 +457,7 @@ Section amortized_hash.
   Proof.
     iIntros (Hsize Φ) "[[Hh %Hc]Herr] HΦ".
     destruct (m!!n) eqn:Heq.
-    - wp_apply (wp_hashfun_prev_amortized with "[$]"); first done.
+    - wp_apply (wp_hashfun_prev_amortized with "[$Hh]"); first done.
       iIntros. iApply "HΦ".
       iExists _; iFrame.
       repeat iSplit; try done. iPureIntro; lia.

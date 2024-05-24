@@ -77,9 +77,8 @@ Module simple_bit_hash.
     tp_bind (init_map _).
     iMod (spec_init_map with "[$]") as (l) "(Hspec&Hm)".
     rewrite /compute_hash /=.
-    tp_pures.
-    iModIntro. iExists _.  iFrame. 
-    iExists _. iSplit; first done. rewrite fmap_empty. iFrame.
+    tp_pures. 
+    iModIntro. iExists _.  by iFrame.
   Qed.
 
   Lemma wp_hashfun_prev E f m (n : nat) (b : bool) :
@@ -110,7 +109,7 @@ Module simple_bit_hash.
     tp_bind (get _ _).
     iMod (spec_get with "[$] [$]") as "(HK&Hm) /=".
     rewrite lookup_fmap Hlookup /=.
-    tp_pures. iFrame. iModIntro. iExists _. eauto.
+    tp_pures. by iFrame. 
   Qed.
 
   Lemma wp_hashfun_couple_eq E K (f : val) (m : gmap nat bool) (sf: val) (sm : gmap nat bool) (n : nat) :
@@ -460,7 +459,7 @@ Section tape_bit_hash.
     tp_pures.
     rewrite /compute_hash. tp_pures.
     iModIntro. iExists _.
-    iFrame "# ∗".
+    iFrame "HK".
     iExists lvm, ltm, ∅, tm.
     rewrite ?fmap_empty. iFrame. iSplit.
     { iPureIntro. intros. rewrite -Hdom; lia. }
@@ -585,7 +584,7 @@ Section tape_bit_hash.
       assert (b = b') by congruence; subst.
       rewrite Heq2. tp_pures.
       iModIntro.
-      iFrame.
+      iFrame "HK".
       iExists _, _, vm, tm. iFrame.
       iSplit; first done.
       iSplit; first done.
@@ -611,7 +610,7 @@ Section tape_bit_hash.
       iMod (spec_set with "Hvm_all HK") as "(HK&Hvm_all) /=".
       tp_pures.
 
-      iFrame.
+      iFrame "HK".
       iModIntro. iExists _, _, (<[n:=b']>vm), tm.
       iFrame.
       iSplit; first done.
@@ -648,7 +647,7 @@ Section tape_bit_hash.
       tp_bind (get _ _).
       iMod (spec_get_Z with "Htm HK") as "(HK&Htm) /=".
       rewrite bool_decide_true //.
-      tp_pures. iFrame. iModIntro. iExists _, _, _, _. iFrame. auto. }
+      tp_pures. iFrame. iModIntro. auto. }
     assert (tm !! Z.to_nat z = None) as Htm_none.
     { apply not_elem_of_dom_1. rewrite -Hdom1. lia. }
     assert (vm !! Z.to_nat z = None) as ->.
@@ -657,8 +656,7 @@ Section tape_bit_hash.
     tp_bind (get _ _).
     iMod (spec_get_Z with "Htm HK") as "(HK&Htm) /=".
     rewrite bool_decide_false //. rewrite lookup_fmap Htm_none.
-    tp_pures. iFrame.
-    iModIntro. iExists _, _, _, _. iFrame. auto.
+    tp_pures. by iFrame.
   Qed.
 
   Definition impl_couplable (P : bool → iProp Σ) : iProp Σ :=
@@ -942,8 +940,7 @@ Section eager_hash.
     iModIntro. iApply "HΦ".
     iExists _, _.
     replace (S max - 1) with max by lia.
-    iFrame.
-    iExists _. iFrame. iPureIntro; split; eauto.
+    iFrame. iPureIntro; split; eauto.
     intros. rewrite -Hdom. lia.
   Qed.
 
@@ -1071,7 +1068,7 @@ Section eager_hash.
     tp_bind (get _ _).
     iMod (spec_get with "[$] [$]") as "(HK&Hm) /=".
     rewrite lookup_fmap Hlookup /=.
-    tp_pures. iFrame. iModIntro. iExists _. eauto.
+    tp_pures. by iFrame. 
   Qed.
 
   Lemma wp_eager_hashfun_out_of_range E f m (max : nat) (z : Z) :
@@ -1108,7 +1105,7 @@ Section eager_hash.
     iMod (spec_get_Z with "[$] [$]") as "(HK&Hm) /=".
     rewrite lookup_fmap.
     case_bool_decide.
-    { tp_pures. iFrame. iModIntro. iExists _. iFrame. auto. }
+    { tp_pures. by iFrame. }
     assert (m !! Z.to_nat z = None) as ->.
     { apply not_elem_of_dom_1. rewrite -Hdom. lia. }
     tp_pures. iFrame "HK".
@@ -1159,7 +1156,7 @@ Section eager_hash.
       wp_apply (wp_eager_hashfun_out_of_range with "[$]"); first done.
       iIntros "Hf".
       iMod ("Hclose" with "[-HK]").
-      { iFrame. iNext. iExists _. iFrame. }
+      { iFrame. }
       iExists _. iFrame. iExists _. auto.
     - assert (z = Z.to_nat z) as -> by lia.
       iDestruct (eager_hashfun_dom with "[$]") as (b) "%Hb"; first eassumption.
@@ -1168,7 +1165,7 @@ Section eager_hash.
       wp_apply (wp_eager_hashfun_prev with "[$]"); try eassumption.
       iIntros "Hf".
       iMod ("Hclose" with "[-HK]").
-      { iFrame. iNext. iExists _. iFrame. }
+      { iFrame. }
       iExists _. iFrame. iExists _. auto.
   Qed.
 
@@ -1200,7 +1197,7 @@ Section eager_hash.
       wp_apply (wp_hashfun_out_of_range with "[$]"); first done.
       iIntros "Hf".
       iMod ("Hclose" with "[-HK]").
-      { iFrame. iNext. iExists _. iFrame. }
+      { iFrame. }
       iExists _. iFrame. iExists _. auto.
     - assert (z = Z.to_nat z) as -> by lia.
       iDestruct (eager_shashfun_dom with "[$]") as (b) "%Hb"; first eassumption.
@@ -1209,8 +1206,9 @@ Section eager_hash.
       wp_apply (wp_hashfun_prev with "[$]"); try eassumption.
       iIntros "Hf".
       iMod ("Hclose" with "[-HK]").
-      { iFrame. iNext. iExists _. iFrame. }
+      { iFrame. }
       iExists _. iFrame. iExists _. auto.
   Qed.
 
 End eager_hash.
+

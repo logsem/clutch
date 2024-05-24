@@ -22,15 +22,13 @@ Proof.
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply (wp_couple_rand_lbl_rand_eq with "[$Hα1 $Hr]").
     iIntros "!>" (n) "[Hα Hr]".
-    iModIntro. iFrame. iExists _. iFrame "Hr".
-    rel_values.
+    iModIntro. iFrame. rel_values.
   - iApply (refines_atomic_l _ _ []).
     iIntros (?) "Hr !>".
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply (wp_couple_rand_lbl_rand_wrong with "[$Hα1 $Hr]"); [done|]. 
     iIntros "!>" (m) "[Hα1 Hr] !>".
-    iFrame. iExists _. iFrame "Hr".
-    rel_values.
+    iFrame. rel_values.
 Qed.
 
 Lemma rand_erasure_r (x : string) (N : nat) :
@@ -51,15 +49,13 @@ Proof.
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply (wp_couple_rand_rand_lbl_eq with "[$Hα2 $Hr]").
     iIntros "!>" (b) "[Hα2 Hr]".
-    iModIntro. iFrame. iExists _. iFrame.
-    rel_values.
+    iModIntro. iFrame. rel_values.
   - iApply (refines_atomic_l _ _ []).
     iIntros (?) "Hr !>".
     iInv (logN.@(α1, α2)) as "[>Hα1 >Hα2]".
     iApply (wp_couple_rand_rand_lbl_wrong with "[$Hα2 $Hr]"); [done|].
     iIntros "!>" (m) "[Hα2 Hr] !>".
-    iFrame. iExists _. iFrame "Hr".
-    rel_values.
+    iFrame. rel_values.
 Qed.
 
 Lemma rand_erasure_ctx (x : string) (N : nat) :

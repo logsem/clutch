@@ -165,8 +165,8 @@ Proof.
                     | Ordinal k Hle =>
                       Ordinal (proj2 (SSR_leq _ _) (le_n_S _ _ (Hup _ (proj1 (SSR_leq k m') Hle))))
                   end).
-    eapply (sum_reidx_map (Finite.enum (ordinal_finType m'.+1))
-                          (Finite.enum (ordinal_finType N.+1))
+    eapply (sum_reidx_map (Finite.enum (ordinal m'.+1))
+                          (Finite.enum (ordinal N.+1))
                           (λ x, true) _ σ').
     * intros (x&Hlex) ? => //=.
     * intros (m0&?); split; auto. apply (introT (exCP _)).
@@ -358,8 +358,8 @@ Proof.
                     | Ordinal k Hle =>
                       Ordinal (proj2 (SSR_leq _ _) (le_n_S _ _ (Hup _ (proj1 (SSR_leq k m') Hle))))
                   end).
-    eapply (sum_reidx_map (Finite.enum (ordinal_finType m'.+1))
-                          (Finite.enum (ordinal_finType N.+1))
+    eapply (sum_reidx_map (Finite.enum (ordinal m'.+1))
+                          (Finite.enum (ordinal N.+1))
                           _ _ σ').
     * intros (x&Hlex) ? => //=.
     * intros (m0&?); split; auto. apply /andP; split; auto. apply (introT (exCP _)).
@@ -607,16 +607,16 @@ Lemma countable_series_oapp' {X: countType}
 Proof.
   intros His.
   set (a' := λ n, match n with | O => 0 | S n' => countable_sum a n' end).
-  set (σ' := λ n, match @pickle_inv (option_countType X) n with
+  set (σ' := λ n, match @pickle_inv (option X) n with
                   | Some (Some x) =>
                     S (pickle x)
                   | _ => O
                   end).
   edestruct (series_rearrange_covering a' σ') as (Habs&?).
   { intros n n'. rewrite /σ'/a'/countable_sum/oapp//=.
-    destruct (@pickle_inv (option_countType X) n) as [[s|]|] eqn:Heqs.
+    destruct (@pickle_inv (option X) n) as [[s|]|] eqn:Heqs.
     * rewrite pickleK_inv.
-      destruct (@pickle_inv (option_countType X) n') as [[s'|]|] eqn:Heqs'.
+      destruct (@pickle_inv (option X) n') as [[s'|]|] eqn:Heqs'.
       ** intros ? HeqS. inversion HeqS as [Heq]. apply pickle_inj in Heq.
          subst. eapply pickle_inv_some_inj; eauto; congruence.
       ** intros Hneq0 Hpickle. inversion Hpickle.
@@ -643,19 +643,19 @@ Proof.
   split.
   * eapply is_series_ext; last eapply Habs.
     intros n. rewrite /a'/countable_sum/σ'//=.
-    destruct (@pickle_inv (option_countType X) n) as [[s|]|] eqn:Heqs.
-    ** rewrite pickleK_inv //=.
-    ** rewrite //= Rabs_R0 //=.
-    ** rewrite //= Rabs_R0 //=.
+    destruct (@pickle_inv (option X) n) as [[s|]|] eqn:Heqs.
+    ** rewrite pickleK_inv Heqs //=.  
+    ** rewrite Heqs //= Rabs_R0 //=.
+    ** rewrite Heqs //= Rabs_R0 //=.
   * assert (Series a' = Series (countable_sum a)) as Heq.
     { rewrite /a'. by eapply Series_incr_1_aux. }
     rewrite -Heq.
     eapply is_series_ext; last eassumption.
     intros n. rewrite /a'/countable_sum/σ'//=.
-    destruct (@pickle_inv (option_countType X) n) as [[s|]|] eqn:Heqs.
-    ** rewrite pickleK_inv //=.
-    ** rewrite //=.
-    ** rewrite //=.
+    destruct (@pickle_inv (option X) n) as [[s|]|] eqn:Heqs.
+    ** rewrite Heqs pickleK_inv //=.
+    ** rewrite Heqs //=.
+    ** rewrite Heqs //=.
 Qed.
 
 Lemma countable_Series_oapp' {X: countType}

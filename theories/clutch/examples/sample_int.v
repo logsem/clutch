@@ -211,9 +211,8 @@ Section int.
       iMod ("IH" with "[$] [$]") as (z' Heqz') "(HK&Hα) /=".
       tp_pures.
       iModIntro. iFrame.
-      iExists _. iFrame.
-      replace (S n' - 1)%Z with (n' : Z) by lia.
       iPureIntro.
+      replace (S n' - 1)%Z with (n' : Z) by lia.
       rewrite Heqz'.
       apply Z_to_bool_list_helper.
   Qed.

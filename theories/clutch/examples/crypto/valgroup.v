@@ -22,9 +22,9 @@ Class val_group :=
 (* Both of the below seem necessary since there is a subtle difference in the
    domain type DOM, despite the two being convertible. *)
 #[warning="-uniform-inheritance"] Coercion vgval_as {vg : val_group}
-  (x : FinGroup.arg_sort (FinGroup.base vgG)) : cval := vgval x.
+  (x : FinGroup.sort vgG) : cval := vgval x.
 #[warning="-uniform-inheritance"] Coercion vgval_s {vg : val_group}
-  (x : FinGroup.sort (FinGroup.base vgG)) : cval := vgval x.
+  (x : BaseFinGroup.sort vgG) : cval := vgval x.
 
 Class clutch_group_struct :=
   Clutch_group_struct

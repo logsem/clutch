@@ -11,7 +11,7 @@ Program Definition CostEntropy_2 := CostEntropy 2 _.
 Next Obligation.
   lra.
 Defined.
-Section lib.
+Section lib_code.
   Context`{!tachisGS Σ CostEntropy_2}.
   Context `[!Inject A val].
 
@@ -219,7 +219,7 @@ Section lib.
     by repeat iSplit.
   Qed.
   
-End lib.
+End lib_code.
 
 
 Section fisher_yates.

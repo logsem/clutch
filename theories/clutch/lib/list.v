@@ -108,7 +108,7 @@ Section list.
     rewrite /cons_list.
     tp_pures.
     tp_alloc as l' "Hl".
-    iModIntro. iExists _. iFrame. iExists _; iFrame. 
+    iModIntro. iExists _. iFrame. 
   Qed.
 
   Lemma wp_in_list_true E l vs (v: val) :
@@ -148,13 +148,11 @@ Section list.
     - tp_pures. iDestruct "H" as (?) "(Hl&Hassoc)".
       tp_load. inversion Hcompare; subst. tp_pures; first solve_vals_compare_safe.
       case_bool_decide as Hcase.
-      { tp_pures. inversion Hcase.
-        iFrame. simpl. iModIntro. iExists _. by iFrame. }
+      { tp_pures. inversion Hcase. by iFrame. }
       { tp_pure.
         inversion Hin; subst; try congruence; [].
         iMod ("IH" with "[//] [//] [$] [$]") as "(?&?)".
-        iEval simpl.
-        iFrame. iModIntro. iExists _; by iFrame. }
+        iEval simpl. by iFrame. }
   Qed.
 
   Definition opt_to_val (ov: option val) :=
@@ -255,8 +253,7 @@ Section list.
         { exfalso. apply Hcase. f_equal. }
         replace ((Z.of_nat (S k) - 1))%Z with (Z.of_nat k) by lia; last first.
         iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
-        iEval simpl.
-        iFrame. iModIntro. iExists _; iFrame. }
+        iEval simpl. by iFrame. }
   Qed.
 
   Lemma spec_get_list_idx_Z E K l vs (z : Z):
@@ -285,13 +282,12 @@ Section list.
         simpl. destruct vs.
         * simpl. tp_load. tp_store. iModIntro. by iFrame.
         * simpl. iDestruct "Hassoc" as (?) "(?&?)". tp_load. tp_store.
-          iFrame. iModIntro. iExists _; by iFrame. }
+          by iFrame. }
       { tp_pure. tp_pure. destruct k.
         { exfalso. apply Hcase. f_equal. }
         replace ((Z.of_nat (S k) - 1))%Z with (Z.of_nat k) by lia; last first.
         iMod ("IH" with "[$] [$]") as "(?&?)".
-        iEval simpl. iModIntro. 
-        iFrame. iExists _; by iFrame. }
+        iEval simpl. iModIntro. by iFrame. }
   Qed.
 
   Lemma spec_del_list_idx_Z E K l vs (z : Z):

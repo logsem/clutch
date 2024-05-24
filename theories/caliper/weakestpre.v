@@ -345,7 +345,7 @@ Class Rswp (PROP EXPR VAL A : Type) := {
   rswp : nat → A → coPset → EXPR → (VAL → PROP) → PROP;
   rswp_default : A
 }.
-Global Arguments rswp {_ _ _ _ _} _ _ _%E _%I.
+Global Arguments rswp {_ _ _ _ _} _ _ %_E %_I.
 Global Instance: Params (@rswp) 9 := {}.
 Global Arguments rswp_default : simpl never.
 

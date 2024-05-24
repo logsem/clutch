@@ -255,8 +255,7 @@ Section proof2.
         wp_apply ("IH" with "[][][Hx1 Hx]").
         -- iPureIntro. pose proof fin_to_nat_lt n.
            trans ((current * 2 + 1) * 2 ^ remaining + 2 ^ remaining)%nat.
-           ++ apply Plus.plus_le_compat_r_stt, Nat.mul_le_mono_r.
-              lia.
+           ++ apply Nat.add_le_mono_r, Nat.mul_le_mono_r. lia.
            ++ etrans; last exact. simpl. lia.
         -- iPureIntro. lia.
         -- iApply etc_combine; iFrame.
@@ -264,12 +263,12 @@ Section proof2.
            pose proof fin_to_nat_lt n.
            split.
            ++ etrans; last exact. simpl. lia.
-           ++ eapply NPeano.Nat.lt_le_trans; first exact. simpl.
+           ++ eapply Nat.lt_le_trans; first exact. simpl.
               assert ((current * 2 + fin_to_nat n) * 2 ^ remaining + 2 ^ remaining<=
                         (current * 2 * 2 ^ remaining + 2^remaining + 2 ^ remaining))%nat; simpl; try lia.
               assert ((current * 2 + fin_to_nat n) * 2 ^ remaining + 2 ^ remaining<=
                         (current * 2 + 1) * 2 ^ remaining + 2 ^ remaining)%nat; simpl; try lia.
-              apply Plus.plus_le_compat_r_stt. apply Nat.mul_le_mono_r. lia.
+              apply Nat.add_le_mono_r, Nat.mul_le_mono_r. lia.
   Qed.
 
   Lemma wp_amortized_sample_helper E:

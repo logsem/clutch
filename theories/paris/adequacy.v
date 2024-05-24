@@ -282,10 +282,10 @@ Proof.
               --- destruct (H1 n'); lra.
         * apply pmf_ex_seriesC.
   }
-  iMod (ec_alloc with "[]") as (?) "[? He]"; first eauto.
+  iMod (ec_alloc with "[]") as (?) "[HE He]"; first eauto.
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS _).
   iApply wp_ARcoupl_step_fupdN.
-  iFrame. (* iFrame "Hctx". *)
+  iFrame "Hh Ht Hs HE". 
   by iApply (Hwp with "[Hj] [He]").
 Qed.
 

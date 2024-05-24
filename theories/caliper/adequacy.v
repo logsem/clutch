@@ -59,13 +59,13 @@ Section refines.
     iIntros ([a (e1 & σ1)]) ">[[%v %Hv] | [(% & % & % & H) | [(% & % & % & % & H) |
                                           [(% & % & % & H)| (% & % & % & % & % & H)]]]] !>".
     - iLeft. eauto.
-    - iRight; iLeft. iFrame "%". iExists _. iFrame "%".
+    - iRight; iLeft. iFrame "%". 
       iIntros (??). iApply "Hw". by iApply "H".
-    - iRight; iRight; iLeft. iFrame "%". iExists _. iFrame "%".
+    - iRight; iRight; iLeft. iFrame "%". 
       iIntros (???). iApply "Hw". by iApply "H".
-    - iRight; iRight; iRight; iLeft. iFrame "%". iExists _. iFrame "%".
+    - iRight; iRight; iRight; iLeft. iFrame "%". 
       iIntros (??). iApply "Hw". by iApply "H".
-    - iRight; iRight; iRight; iRight. iFrame "%". iExists _, _. iFrame "%".
+    - iRight; iRight; iRight; iRight. iFrame "%". 
       iIntros (???). iApply "Hw". by iApply "H".
   Qed.
 
@@ -228,7 +228,6 @@ Proof.
   iDestruct "H" as "[(%R & % & % & H) | [(% & %R & %Hcpl & H) |
                     [(% & %R & % & % & H) | (% & % & % & %Hαs & %Hcpl & H)]]]".
   - iRight; iLeft. iFrame "%".
-    iExists _. iFrame "%".
     iIntros ([? ?] HR).
     iDestruct ("H" $! _ HR) as "H".
     iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
@@ -244,7 +243,6 @@ Proof.
     iDestruct ("Hfupd" with "H Hω") as ">>[Hω [H _]]".
     by iApply "H".
   - iRight; iRight; iLeft. iFrame "%".
-    iExists _. iFrame "%".
     iIntros ([? ?] ? HR).
     iDestruct ("H" $! _ _ HR) as "H".
     iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
@@ -252,8 +250,7 @@ Proof.
     iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
     iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".
     by iApply "H".
-  - iRight; iRight; iRight; iRight.
-    iFrame "%". iExists _, _. iFrame "%".
+  - iRight; iRight; iRight; iRight. iFrame "%". 
     iIntros (?? HR).
     iDestruct ("H" $! _ _ HR) as "H".
     iDestruct ("Hfupd" with "H Hω") as ">>[Hω H]".

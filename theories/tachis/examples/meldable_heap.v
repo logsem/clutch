@@ -11,7 +11,7 @@ Require Coq.Program.Wf.
 Set Default Proof Using "Type*".
 Require Import Lra.
 
-Section lib.
+Section log.
 
 
   Lemma fin2_subst_0 (s : fin 2) : (Z.of_nat (fin_to_nat s) = 0%Z) -> (fin_to_bool s = false).
@@ -75,7 +75,7 @@ Section lib.
     apply ln_increasing; lra.
   Qed.
 
-End lib.
+End log.
 
 
 
@@ -800,11 +800,7 @@ Section program.
           { iExists _; iFrame. inversion HHb2; auto. }
           iSplitL "HB1v HRb1L HRb1R".
           { rewrite {4}/is_meld_heap_val.
-            iExists (Node A b1K b1BL b1BR); iFrame.
-            iSplitL.
-            { simpl; iExists _, _, _; iFrame. eauto. }
-            eauto.
-          }
+            iExists (Node A b1K b1BL b1BR); iFrame. eauto. }
           rewrite /= fin2_subst_0 /=; last auto.
           iApply etc_combine; iFrame.
           iApply (etc_irrel with "H⧖b1").
@@ -858,9 +854,7 @@ Section program.
           { iExists _; iFrame. inversion HHb2; auto. }
           iSplitL "HB1v HRb1L HRb1R".
           { rewrite {4}/is_meld_heap_val.
-            iExists (Node  A b1K b1BL b1BR); iFrame.
-            iSplitL; auto; simpl.
-            iExists _, _, _; iFrame. eauto.
+            iExists (Node  A b1K b1BL b1BR); iFrame. auto. 
           }
           rewrite /= fin2_subst_neq0; last first.
           { rewrite /not; intros HRW. rewrite HRW in H0. auto. }
@@ -1031,9 +1025,7 @@ Section program.
         simpl.
         inversion Hh.
         done.
-      + iExists _, _; iFrame.
-        rewrite /is_meld_heap_val.
-        iSplit; eauto.
+      + auto.
   Qed.
 
 End program.

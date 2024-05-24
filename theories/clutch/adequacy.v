@@ -109,7 +109,7 @@ Proof.
   iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
   set (HclutchGS := HeapG Σ _ _ _ γH γT HspecGS).
   iApply wp_refRcoupl_step_fupdN.
-  iFrame. by iApply (Hwp with "[Hj]").
+  iFrame "Hh Ht Hs". by iApply (Hwp with "[Hj]").
 Qed.
 
 Corollary wp_refRcoupl_mass Σ `{clutchGpreS Σ} (e e' : expr) (σ σ' : state) φ :
