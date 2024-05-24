@@ -362,7 +362,7 @@ Section adequacy.
   
   Theorem wp_safety_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
-    |={⊤,∅}=> |={∅}▷=>^n ⌜SeriesC (exec.exec n (e, σ)) >= 1 - ε⌝.
+    |={⊤,∅}=> |={∅}▷=>^n ⌜SeriesC (pexec n (e, σ)) >= 1 - ε⌝.
   Proof.
     iInduction n as [|n] "IH" forall (e σ ε); iIntros "((Hσh & Hσt) & Hε & Hwp)".
     - rewrite /=.
@@ -519,7 +519,7 @@ Qed.
 
 Theorem wp_safety Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
   (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  SeriesC (exec.exec n (e, σ)) >= 1 - ε.
+  SeriesC (pexec n (e, σ)) >= 1 - ε.
 Proof.
   intros Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).

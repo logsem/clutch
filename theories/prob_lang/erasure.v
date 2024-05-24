@@ -285,6 +285,24 @@ Proof.
       * by eapply ind_case_dzero.
 Qed.
 
+Lemma pexec_coupl_step_pexec m e1 σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl
+    (pexec m (e1, σ1))
+    (state_step σ1 α ≫= (λ σ2, pexec m (e1, σ2)))
+    (λ '(e, σ) '(e', σ'),
+       e = e' /\ σ = σ'
+    ) \/
+    Rcoupl
+    (pexec m (e1, σ1))
+    (state_step σ1 α ≫= (λ σ2, pexec m (e1, σ2)))
+    (λ '(e, σ) '(e', σ'),
+       e = e' /\ state_step σ α σ' > 0
+    )
+.
+Proof.
+Admitted.
+
 Lemma prim_coupl_step_prim m e1 σ1 α bs :
   σ1.(tapes) !! α = Some bs →
   Rcoupl
@@ -293,17 +311,17 @@ Lemma prim_coupl_step_prim m e1 σ1 α bs :
     eq.
 Proof.
   intros Hα.
-  rewrite /state_step.
-  rewrite bool_decide_eq_true_2; last first.
-  { apply elem_of_dom; auto. }
-  simpl.
-  rewrite (lookup_total_correct (tapes σ1) α bs); auto.
-  destruct bs; simpl.
-  rewrite /dmap.
-  rewrite -dbind_assoc.
-  erewrite dbind_ext_right; last first.
-  { intro. rewrite dret_id_left; auto. }
-  by eapply prim_coupl_upd_tapes_dom.
+  epose proof pexec_coupl_step_pexec _ _ _ _ _ Hα as [H|H].
+  - setoid_rewrite exec_pexec_relate.
+    rewrite dbind_assoc'.
+    eapply Rcoupl_dbind; last done.
+    simpl. intros [][] [-> ->].
+    apply Rcoupl_eq.
+  - setoid_rewrite exec_pexec_relate.
+    rewrite dbind_assoc'.
+    eapply Rcoupl_dbind; last done.
+    simpl. intros [][] [-> ?].
+    apply Rcoupl_eq.
 Qed.
 
 Lemma state_step_erasable σ1 α bs :
