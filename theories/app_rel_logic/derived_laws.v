@@ -9,14 +9,13 @@ From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import tactics lang notation.
 From clutch.app_rel_logic Require Export primitive_laws.
-From clutch.app_rel_logic Require Import spec_ra.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works
 with lists of values. *)
 
 
-Definition array `{!app_clutchGS Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
+Definition array `{!parisGS Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) ↦{dq} v.
 
 (*
@@ -36,7 +35,7 @@ lead to overlapping instances. *)
 
 Section lifting.
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ Ψ : val → iProp Σ.
   Implicit Types σ : state.

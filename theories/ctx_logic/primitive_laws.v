@@ -1,12 +1,12 @@
-(** This file proves the basic laws of the ProbLang weakest precondition by
-    applying the lifting lemmas. *)
+(** This file proves the basic laws of the Clutch weakest precondition for ProbLang by applying the
+    lifting lemmas. *)
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export ghost_map.
 From clutch.ctx_logic Require Export weakestpre.
-From clutch.ctx_logic Require Import ectx_lifting.
+From clutch.ctx_logic Require Import lifting ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
-From clutch.prob_lang Require Import tactics lang notation.
-From clutch.ctx_logic Require Import spec_ra.
+From clutch.prob_lang.spec Require Export spec_ra spec_rules.
+From clutch.prob_lang Require Import tactics lang notation metatheory.
 From iris.prelude Require Import options.
 
 Class clutchGS Σ := HeapG {
@@ -17,20 +17,34 @@ Class clutchGS Σ := HeapG {
   (* ghost names for the state *)
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
-  (* CMRA and ghost name for the spec *)
+  (* spec resources *)
   clutchGS_spec :: specGS Σ;
 }.
+
+Class clutchGpreS Σ := ClutchGpreS {
+  clutchGpreS_iris  :: invGpreS Σ;
+  clutchGpreS_heap  :: ghost_mapG Σ loc val;
+  clutchGpreS_tapes :: ghost_mapG Σ loc tape;
+  clutchGpreS_spec  :: specGpreS Σ;
+}.
+
+Definition clutchΣ : gFunctors :=
+  #[invΣ;
+    ghost_mapΣ loc val;
+    ghost_mapΣ loc tape;
+    specΣ].
+Global Instance subG_clutchGPreS {Σ} : subG clutchΣ Σ → clutchGpreS Σ.
+Proof. solve_inG. Qed.
 
 Definition heap_auth `{clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_heap clutchGS_heap_name.
 Definition tapes_auth `{clutchGS Σ} :=
   @ghost_map_auth _ _ _ _ _ clutchGS_tapes clutchGS_tapes_name.
 
-
-Global Instance clutchGS_irisGS `{!clutchGS Σ} : irisGS prob_lang Σ := {
-  iris_invGS := clutchGS_invG;
+#[global] Instance clutchGS_clutchWpGS `{!clutchGS Σ} : clutchWpGS prob_lang Σ := {
+  clutchWpGS_invGS := clutchGS_invG;
+  clutchWpGS_spec_updateGS := spec_rules_spec_updateGS;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  spec_interp ρ := (spec_interp_auth ρ)%I ;
 }.
 
 (** Heap *)
@@ -53,7 +67,7 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
-Section lifting.
+Section primitive_laws.
 Context `{!clutchGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
@@ -93,13 +107,12 @@ Proof.
   iIntros "!>". by iApply "HΦ".
 Qed.
 
-
 Lemma wp_allocN_seq (N : nat) (z : Z) E v s:
   TCEq N (Z.to_nat z) →
   (0 < N)%Z →
   {{{ True }}}
     AllocN (Val $ LitV $ LitInt $ z) (Val v) @ s; E
-                                                    {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
+  {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
 Proof.
   iIntros (-> Hn Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -149,7 +162,6 @@ Proof.
       rewrite replicate_length in H1.
       lia.
 Qed.
-
 
 Lemma wp_load E l dq v s :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
@@ -209,7 +221,7 @@ Qed.
 
 Lemma wp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl: α) #z @ s; E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
+  {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl: α) #z @ s; E {{{ RET #n; α ↪ (N; ns) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -225,7 +237,7 @@ Qed.
 
 Lemma wp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
+  {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #n; α ↪ (N; []) }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -241,7 +253,7 @@ Qed.
 Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
+  {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #n; α ↪ (M; ns) }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -253,8 +265,104 @@ Proof.
   iFrame.
   iModIntro.
   iApply ("HΦ" with "[$Hl //]").
-Qed.  
+Qed.
 
-End lifting.
+(** Spec probabilistic [rand] *)
+Lemma wp_rand_r N z E e K Φ :
+  TCEq N (Z.to_nat z) →
+  ⤇ fill K (rand #z) ∗
+  (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->) "(Hj & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1') "[Hσ Hs]".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_steps.
+  iExists (λ σ2 '(e2', σ2'), ∃ n : fin (S _), σ2 = σ1 ∧ (e2', σ2') = (fill K #n, σ1')), 1.
+  iSplit; [iPureIntro|].
+  { rewrite pexec_1 step_or_final_no_final; last first.
+    { apply reducible_not_final. solve_red. }
+    rewrite -(dret_id_right (dret σ1)).
+    rewrite /= fill_dmap //.
+    eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_r].
+    intros [e2 σ2] (e2' & σ2') (? & -> & [= -> ->]).
+    apply Rcoupl_dret=>/=. eauto. }
+  iIntros (σ2 e2' σ2' (n & -> & [= -> ->])).
+  iMod (spec_update_prog (fill K #n) with "Hs Hj") as "[$ Hj]".
+  iFrame. iModIntro.
+  iMod "Hclose" as "_"; iModIntro.
+  by iApply "Hwp".
+Qed.
 
-Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances. 
+(** RHS [rand(α)] with empty tape  *)
+Lemma wp_rand_empty_r N z E e K α Φ :
+  TCEq N (Z.to_nat z) →
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
+  (∀ n : fin (S N), (α ↪ₛ (N; []) ∗ ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1') "[Hσ Hs]".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_steps.
+  iExists (λ σ2 '(e2', σ2'), ∃ n : fin (S _), σ2 = σ1 ∧ (e2', σ2') = (fill K #n, σ1')), 1.
+  iSplit; [iPureIntro|].
+  { rewrite pexec_1 step_or_final_no_final; last first.
+    { apply reducible_not_final. solve_red. }
+    rewrite -(dret_id_right (dret σ1)).
+    rewrite /= fill_dmap //.
+    eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_empty_r].
+    intros [e2 σ2] (e2' & σ2') (? & -> & [= -> ->]).
+    apply Rcoupl_dret=>/=. eauto. }
+  iIntros (σ2 e2' σ2' (n & -> & [= -> ->])).
+  iMod (spec_update_prog (fill K #n) with "Hs Hj") as "[$ Hj]".
+  iFrame. iModIntro.
+  iMod "Hclose" as "_"; iModIntro.
+  by iApply ("Hwp" with "[$]").
+Qed.
+
+(** RHS [rand(α)] with wrong tape  *)
+Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
+  (∀ (n : fin (S N)), (α ↪ₛ (M; ns) ∗ ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (-> ?) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1') "[Hσ Hs]".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_steps.
+  iExists (λ σ2 '(e2', σ2'), ∃ n : fin (S _), σ2 = σ1 ∧ (e2', σ2') = (fill K #n, σ1')), 1.
+  iSplit; [iPureIntro|].
+  { rewrite pexec_1 step_or_final_no_final; last first.
+    { apply reducible_not_final. solve_red. }
+    rewrite -(dret_id_right (dret σ1)).
+    rewrite /= fill_dmap //.
+    eapply Rcoupl_dbind => /=; [|by eapply Rcoupl_rand_wrong_r].
+    intros [e2 σ2] (e2' & σ2') (? & -> & [= -> ->]).
+    apply Rcoupl_dret=>/=. eauto. }
+  iIntros (σ2 e2' σ2' (n & -> & [= -> ->])).
+  iMod (spec_update_prog (fill K #n) with "Hs Hj") as "[$ Hj]".
+  iFrame. iModIntro.
+  iMod "Hclose" as "_"; iModIntro.
+  by iApply ("Hwp" with "[$]").
+Qed.
+
+End primitive_laws.
+
+#[global] Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
+
+(** [tc_solve] does not realize that the [spec_updateGS] instances are the same but the [apply:]
+    tactic does... *)
+#[global] Hint Extern 0
+  (ElimModal _ _ _ (spec_update _ _) _ (WP _ @ _ {{ _ }}) (WP _ @ _ {{ _ }})) =>
+  apply: elim_modal_spec_update_wp : typeclass_instances.

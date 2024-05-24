@@ -4,10 +4,10 @@ From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.app_rel_logic Require Import lifting ectx_lifting.
 From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
-From clutch.app_rel_logic Require Export primitive_laws spec_rules.
+From clutch.app_rel_logic Require Export primitive_laws.
 
 Section rules.
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val → iProp Σ.
   Implicit Types σ : state.
@@ -34,7 +34,7 @@ Section rules.
     rewrite /get_active in H2. rewrite elem_of_elements in H2.
     rewrite elem_of_dom in H2. destruct H2.
     repeat iSplit; try done.
-    - iPureIntro. by eapply state_step_erasable. 
+    - iPureIntro. by eapply state_step_erasable.
     - iPureIntro. by eapply state_step_erasable.
   Qed.
 
@@ -87,7 +87,7 @@ Section rules.
     iMod ("Hwp" $! (state_upd_tapes <[α:=(N; ns ++ [n]) : tape]> _) _ (state_upd_tapes _ _)
            with "[$Hh1 $Ht1 $Hε2 $HK $Hh2 Ht2]") as "Hwp"; done.
   Qed.
-    
+
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
@@ -192,10 +192,10 @@ Section rules.
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Htv Hred Nz Nε) "(HK & Hε & Hwp)". 
+    iIntros (Htv Hred Nz Nε) "(HK & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 HK") as "->".
+    iDestruct (spec_auth_prog_agree with "Hauth2 HK") as "->".
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
@@ -208,7 +208,7 @@ Section rules.
     - rewrite pexec_1 step_or_final_no_final /=.
       + rewrite fill_dmap //.
         rewrite -(dmap_id (dret _)). iPureIntro.
-        rewrite /dmap /=. 
+        rewrite /dmap /=.
         replace ε with (nnreal_plus ε nnreal_zero); last first.
         { apply nnreal_ext; simpl; lra. }
         eapply ARcoupl_dbind; last first.
@@ -223,7 +223,7 @@ Section rules.
         * apply cond_nonneg.
       + by apply to_final_None_2, fill_not_val.
     - iIntros (??) "(% &_&[%He %])". simplify_eq.
-      iMod (spec_interp_update_expr _ _ _ (fill K #(n)) with "Hauth2 HK") as "[Hauth2 HK]".
+      iMod (spec_update_prog (fill K #(n)) with "Hauth2 HK") as "[Hauth2 HK]".
       iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
       iMod "Hclose'" as "_".
       iSpecialize ("Hwp" $! n with "[$HK][]").
@@ -243,7 +243,7 @@ Section rules.
     (((S M - S N) / S M) = ε)%R →
     ⤇ fill K (rand #w) ∗
     € ε ∗
-    ▷ (∀ (n : fin (S N)), 
+    ▷ (∀ (n : fin (S N)),
         ⤇ fill K #(f n)  -∗ WP (Val #n) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
   Proof.
@@ -252,7 +252,7 @@ Section rules.
     iIntros (-> -> HNM Hε) "( Hr  & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hr") as %->.
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %->.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
@@ -277,15 +277,15 @@ Section rules.
       simpl.
       intros [] [] (b & ? & ?).
       apply ARcoupl_dret.
-      simplify_eq. simpl. eauto. } 
+      simplify_eq. simpl. eauto. }
     iIntros ([] [] (b & b' & Hbb')).
     simplify_eq.
-    iMod (spec_interp_update_expr _ _ _  (fill K #(g b)) with "Hauth2 Hr") as "[Hauth2 Hspec0]".
+    iMod (spec_update_prog (fill K #(g b)) with "Hauth2 Hr") as "[Hauth2 Hspec0]".
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iModIntro. iFrame.
-    iApply "Hwp"; eauto.    
+    iApply "Hwp"; eauto.
     rewrite /g. by rewrite fin_to_nat_to_fin.
     Unshelve.
     intros m1 m2 Heq.
@@ -305,7 +305,7 @@ Section rules.
       rewrite -H2.
       by f_equal.
   Qed.
-  
+
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
   Lemma wp_couple_rand_rand_leq (N M : nat) z w K E Φ (ε : nonnegreal) :
@@ -324,7 +324,7 @@ Section rules.
     iApply wp_couple_rand_rand_inj; [| |done|done|..].
     - instantiate (1:=(λ x,x)). apply INR_le in HNM. intros. lia.
     - intros; lia.
-    - iFrame. 
+    - iFrame.
       assert (∀ x:fin (S(Z.to_nat z)), x<S(Z.to_nat w)) as T.
       { apply INR_le in HNM. intros. pose proof fin_to_nat_lt x. lia. }
       iModIntro. iIntros. iApply ("Hwp" $! n (nat_to_fin (T n))).
@@ -353,7 +353,7 @@ Section rules.
     iIntros (-> -> HNM Hε) "(Hr & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hr") as %-> .
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hr") as %-> .
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε2 Hε") as %Hle.
     set (ε' := nnreal_minus ε_now ε Hle ).
@@ -380,7 +380,7 @@ Section rules.
       simplify_eq. eauto. }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
     simplify_eq.
-    iMod (spec_interp_update_expr _ _ _ (fill K #b) with "Hauth2 Hr") as "[Hauth2 Hspec0]".
+    iMod (spec_update_prog (fill K #b) with "Hauth2 Hr") as "[Hauth2 Hspec0]".
     iMod (ec_decrease_supply with "Hε2 Hε") as "Hε2".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
@@ -410,9 +410,6 @@ Section rules.
       rewrite -H2.
       by f_equal.
   Qed.
-
-
-
 
 
   (** * rand(unit, N) ~ rand(unit, M) coupling, N <= M, under equality *)
@@ -450,7 +447,7 @@ Section rules.
          ∀ m,
        α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f m = n⌝ -∗
        WP e @ E {{ Φ }}
-     else 
+     else
        α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ) -∗
        WP e @ E {{ Φ }}
     )
@@ -513,7 +510,7 @@ Section rules.
        | left Hproof =>
            α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [nat_to_fin Hproof]) -∗
            WP e @ E {{ Φ }}
-       | _ => 
+       | _ =>
            α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ) -∗
            WP e @ E {{ Φ }}
        end
@@ -560,7 +557,7 @@ Section rules.
          ∀ n,
        α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f n = m⌝ -∗
        WP e @ E {{ Φ }}
-     else 
+     else
        α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) -∗
        WP e @ E {{ Φ }}
     )
@@ -626,7 +623,7 @@ Section rules.
        WP e @ E {{ Φ }}
      else
        ∀ (ε':nonnegreal),
-       ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗ 
+       ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
        α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) ∗ € ε' -∗
        WP e @ E {{ Φ }}
     )
@@ -653,7 +650,7 @@ Section rules.
     repeat iSplit.
     - iPureIntro. apply ARcoupl_exact. apply Rcoupl_swap, Rcoupl_fragmented_rand_rand_inj.
       all: try exact.
-      lra. 
+      lra.
     - iPureIntro. exists (Rmax ε_now1 ε_now2).
       intros. rewrite /E2. case_bool_decide; split; try apply cond_nonneg.
       + apply Rmax_l.
@@ -694,7 +691,7 @@ Section rules.
                              (∃ x, σ = state_upd_tapes <[αₛ:=(M; nsₛ ++ [x])]> σ1')
                           ) with
                     | left Hproof => Some (epsilon Hproof)
-                    | _ => None 
+                    | _ => None
                     end
             ).
         etrans; last eapply (SeriesC_le_inj _ h).
@@ -705,7 +702,7 @@ Section rules.
             intros [? [->?]]. apply n.
             naive_solver.
           }
-          pose proof epsilon_correct _ e0 as H'. 
+          pose proof epsilon_correct _ e0 as H'.
           rewrite bool_decide_eq_true_2; last first.
           { destruct e0 as [x ?]. subst. rewrite elem_of_list_fmap.
             eexists _. split; first done.
@@ -717,7 +714,7 @@ Section rules.
           case_bool_decide as H1.
           -- rewrite bool_decide_eq_true_2.
              { rewrite /ε_now1. simpl; lra. }
-             destruct H1 as [y ?]. exists y. rewrite H1. done. 
+             destruct H1 as [y ?]. exists y. rewrite H1. done.
           -- rewrite bool_decide_eq_false_2.
              { rewrite /ε_now2; simpl; lra. }
              intros [x H2].
@@ -732,10 +729,10 @@ Section rules.
           pose proof epsilon_correct _ e1. simpl in *. simplify_eq.
           rewrite H5 H6. by repeat f_equal.
         * apply ex_seriesC_finite.
-      + eset (diff:=elements (((list_to_set (enum (fin(S M)))):gset _ )∖ ((list_to_set(f<$>enum (fin(S N)))):gset _))). 
+      + eset (diff:=elements (((list_to_set (enum (fin(S M)))):gset _ )∖ ((list_to_set(f<$>enum (fin(S N)))):gset _))).
         erewrite (SeriesC_ext _
                     (λ x : fin (S M), (if bool_decide (x ∈ f<$> enum (fin(S N))) then / S M * ε_now1 else 0%R) +
-                                      if bool_decide (x ∈ diff ) then / S M * ε_now2 else 0%R 
+                                      if bool_decide (x ∈ diff ) then / S M * ε_now2 else 0%R
                  ))%R; last first.
         { (** annoying lemma again *)
           intros n. rewrite /diff.
@@ -760,7 +757,7 @@ Section rules.
         { apply NoDup_fmap_2; [done|apply NoDup_enum]. }
         { rewrite /diff. eapply NoDup_elements. }
         rewrite fmap_length. rewrite fin.length_enum_fin.
-        rewrite /diff. 
+        rewrite /diff.
         replace (length _) with (S M - S N); last first.
         { erewrite <-size_list_to_set; last apply NoDup_elements.
           erewrite list_to_set_elements.
@@ -773,7 +770,7 @@ Section rules.
         rewrite /ε_now1 /ε_now2. simpl. rewrite -/(INR (S N)) -/(INR (S M)). rewrite !S_INR.
         rewrite !Rmult_assoc.
         rewrite minus_INR; last (apply INR_le; lra).
-        cut ((N+1)/ (M + 1) * ε_now - (N+1)/(M+1) *ε+ 
+        cut ((N+1)/ (M + 1) * ε_now - (N+1)/(M+1) *ε+
                (M-N)/ (M + 1) * ε_now + ((N + 1)/(M+1) * ((M-N)/ (M - N))) * ε <= ε_now)%R; first lra.
         rewrite Rdiv_diag; last lra.
         cut ((N + 1) / (M + 1) * ε_now+ (M - N) / (M + 1) * ε_now <= ε_now)%R; first lra.
@@ -852,9 +849,9 @@ Section rules.
        | left Hproof =>
            α ↪ (N; ns ++ [nat_to_fin Hproof]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m])  -∗
            WP e @ E {{ Φ }}
-       | _ => 
+       | _ =>
            ∀ (ε':nonnegreal),
-       ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗ 
+       ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
        α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) ∗ € ε' -∗
        WP e @ E {{ Φ }}
      end
@@ -890,7 +887,7 @@ Section rules.
       exfalso. apply H1. exists (nat_to_fin l). rewrite /f.
       apply fin_to_nat_inj. by rewrite !fin_to_nat_to_fin.
   Qed.
-  
+
   (** couplings between prim step and state steps*)
   Lemma wp_couple_tape_rand N f `{Bij (fin (S N)) (fin (S N)) f} K E α z ns Φ e :
     TCEq N (Z.to_nat z) →
@@ -903,7 +900,7 @@ Section rules.
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
-    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hj") as %-> .
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hj") as %-> .
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (0+ε)%NNR by (apply nnreal_ext; simpl; lra).
     iApply (exec_coupl_state_prim α).
@@ -921,7 +918,7 @@ Section rules.
       intros σ2 (e2' & σ2') ((b & -> & ->) & ? & ?).
       apply Rcoupl_dret=>/=. eauto. }
     iIntros (σ2 e2' σ2' (b & -> & [= -> ->])).
-    iMod (spec_interp_update_expr _ _ _ (fill K #(f b)) with "Hauth2 Hj") as "[Hauth2 Hspec0]".
+    iMod (spec_update_prog (fill K #(f b)) with "Hauth2 Hj") as "[Hauth2 Hspec0]".
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iMod (ghost_map_update ((_; ns ++ [b]) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
     iMod "Hclose'" as "_".
@@ -943,7 +940,7 @@ Section rules.
     iIntros (->) "(>Hαs & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iDestruct (spec_interp_auth_frag_lookup_tapes with "Hauth2 Hαs") as %?.
+    iDestruct (spec_auth_lookup_tape with "Hauth2 Hαs") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
     iApply (exec_coupl_prim_state α).
@@ -953,7 +950,7 @@ Section rules.
     iSplit.
     { iPureIntro. apply ARcoupl_exact. by eapply (Rcoupl_rand_state _ f). }
     iIntros (e2 σ2 σ2' (b & [=-> ->] & ->)).
-    iMod (spec_interp_auth_frag_update_tapes _ _ _ _ ((_; ns ++ [f b]) : tape) with "Hauth2 Hαs") as "[Htapes Hαs]".
+    iMod (spec_auth_update_tape (_; ns ++ [f b]) with "Hauth2 Hαs") as "[Htapes Hαs]".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! b with "[$Hαs]").
@@ -962,7 +959,7 @@ Section rules.
     by iApply wp_value.
   Qed.
 
-  (** This lemma is special because we directly use prim step prim step case. 
+  (** This lemma is special because we directly use prim step prim step case.
       we need this if LHS is just a simple rand, and it reduces to a value immediately
    *)
   Lemma wp_couple_rand_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α Φ :
@@ -975,7 +972,7 @@ Section rules.
     iMod ec_zero as "Hε".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε) "((Hh1 & Ht1) & Hauth2 & Hε2)".
-    iDestruct (spec_interp_auth_frag_agree_expr with "Hauth2 Hspec") as %-> .
+    iDestruct (spec_auth_prog_agree with "Hauth2 Hspec") as %-> .
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace (ε) with (0+ε)%NNR at 2 by (apply nnreal_ext; simpl; lra).
     iApply exec_coupl_prim_steps.
@@ -985,8 +982,8 @@ Section rules.
     iSplit.
     { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
     iSplit.
-    { simpl.  
-      iDestruct (spec_interp_auth_frag_lookup_tapes with "Hauth2 Hα") as %H0. 
+    { simpl.
+      iDestruct (spec_auth_lookup_tape with "Hauth2 Hα") as %H0.
       erewrite prim_step_empty_tape; last done.
       iPureIntro. simpl.
       rewrite fill_dmap // -(dret_id_right (prim_step _ _)) /=.
@@ -1001,7 +998,7 @@ Section rules.
     }
     iIntros ([] [] (b & [= -> ->] & [= -> ->])).
     simplify_eq.
-    iMod (spec_interp_update_expr _ _ _ (fill K #(f b)) with "Hauth2 Hspec") as "[Hauth2 Hspec0]".
+    iMod (spec_update_prog (fill K #(f b)) with "Hauth2 Hspec") as "[Hauth2 Hspec0]".
     do 2 iModIntro.
     iMod "Hclose'" as "_".
     iModIntro. iFrame.
@@ -1009,5 +1006,5 @@ Section rules.
     iApply "Hwp"; eauto. iFrame.
   Qed.
 
-      
+
 End rules.

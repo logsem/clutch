@@ -3,7 +3,6 @@ From clutch.prob_lang Require Export wp_tactics.
 From clutch.ctx_logic Require Import primitive_laws derived_laws.
 From iris.prelude Require Import options.
 
-
 #[global] Program Instance rel_logic_wptactics_base `{!clutchGS Σ} : GwpTacticsBase Σ unit wp.
 Next Obligation. intros. by apply wp_value. Qed.
 Next Obligation. intros. by apply wp_fupd. Qed.

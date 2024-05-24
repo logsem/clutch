@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 Local Open Scope R.
 
 Section wp.
-Context {Λ : ectxLanguage} `{!irisGS Λ Σ} {Hinh : Inhabited (state Λ)}.
+Context {Λ : ectxLanguage} `{!clutchWpGS Λ Σ} {Hinh : Inhabited (state Λ)}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -15,19 +15,18 @@ Implicit Types e : expr Λ.
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
 
-Lemma wp_lift_head_step_fupd_couple {E Φ} e1 s :
+Lemma wp_lift_head_step_prog_couple {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1 e1' σ1',
     state_interp σ1 ∗ spec_interp (e1', σ1') ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2'),
+    prog_coupl e1 σ1 e1' σ1' (λ e2 σ2 e2' σ2',
       ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_couple; [done|].
+  iIntros (?) "H". iApply wp_lift_step_prog_couple; [done|].
   iIntros (σ1 e1' σ1') "Hσ".
-  iMod ("H" with "Hσ") as "[% H]"; iModIntro.
-  done.
+  by iMod ("H" with "Hσ") as "[% H]".
 Qed.
 
 Lemma wp_lift_head_step {E Φ} e1 s :
@@ -38,7 +37,7 @@ Lemma wp_lift_head_step {E Φ} e1 s :
       state_interp σ2 ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (?) "Hσ".
+  iIntros (?) "H". iApply wp_lift_step_later; [done|]. iIntros (?) "Hσ".
   iMod ("H" with "Hσ") as "[% H]"; iModIntro.
   iSplit.
   { iPureIntro. by apply head_prim_reducible. }
@@ -87,7 +86,6 @@ Lemma wp_lift_pure_det_head_step {E E' Φ} e1 e2 s :
   (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
 Proof using Hinh.
   intros. erewrite !(wp_lift_pure_det_step e1 e2); eauto.
-  all: intros. all: by apply head_prim_reducible.
 Qed.
 
 Lemma wp_lift_pure_det_head_step' {E Φ} e1 e2 s :

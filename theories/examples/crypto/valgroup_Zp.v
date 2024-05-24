@@ -81,10 +81,11 @@ Section Z_p.
     by rewrite rem_modn.
   Qed.
 
-  Fact is_spec_inv_p (x : vgG) K : refines_right K (vinv x) ⊢ |={⊤}=> refines_right K x^-1.
+  Fact is_spec_inv_p (x : vgG) K : ⤇ fill K (vinv x) ⊢ spec_update ⊤ (⤇ fill K x^-1).
   Proof.
     iIntros => /=. unfold vinv_p, vgval_p. tp_pures => /=.
     rewrite /Zp_trunc -(Nat2Z.inj_sub _ _ (leq_zmodp _ _)) => /=.
+    iModIntro. 
     by rewrite rem_modn.
   Qed.
 
@@ -95,9 +96,10 @@ Section Z_p.
   Qed.
 
   Fact is_spec_mult_p (x y : vgG) K :
-    refines_right K (vmult x y) ⊢ |={⊤}=> refines_right K (x * y)%g.
+    ⤇ fill K (vmult x y) ⊢ spec_update ⊤ (⤇ fill K (x * y)%g).
   Proof.
     iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p. tp_pures => /=.
+    iModIntro. 
     by rewrite -Nat2Z.inj_add -ssrnat.plusE rem_modn.
   Qed.
 

@@ -84,7 +84,7 @@ Section logical_ref.
     rel_allocBtape_l α as "Hα".
     rel_pures_l.
     rel_bind_r flip.
-    iApply (refines_couple_tape_flip with "[$Hα]"); [solve_ndisj|done|].
+    iApply (refines_couple_tape_flip with "[$Hα]").
     iIntros (b) "Hα /=".
     rel_pures_r.
     rel_alloc_l l as "Hl". rel_pures_l. 
@@ -166,7 +166,7 @@ Section logical_ref.
       rel_load_r. rel_pures_r.
       rel_bind_l (flipL _)%E.
       rel_bind_r flip.
-      iApply (refines_couple_flipL_flip with "[-$Hα]"); [solve_ndisj|].
+      iApply (refines_couple_flipL_flip with "[-$Hα]").
       iIntros "!>" (b) "Hα /=".
       rel_pures_l. rel_store_l. rel_pures_l.
       rel_pures_r. rel_store_r. rel_pures_r.

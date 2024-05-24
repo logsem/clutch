@@ -308,6 +308,7 @@ Section nested_ho_spec.
     is_final m →
     specF (inner m) -∗ spec_updateN 1 E (specF initial).
   Proof.
+    rewrite spec_updateN_unseal.
     iIntros ([mf Hm]) "Hspec". iIntros (s) "Hs".
     iDestruct (spec_auth_agree with "Hs Hspec") as %->.
     iExists initial.

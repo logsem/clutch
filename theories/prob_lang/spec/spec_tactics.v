@@ -1,17 +1,14 @@
 (** Tactics for updating the specification program. *)
 From iris.base_logic.lib Require Import invariants.
-From iris.proofmode Require Import
-     coq_tactics ltac_tactics
-     reduction.
+From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
 From clutch.common Require Import language ectx_language ectxi_language.
-From clutch.prob_lang Require Import locations notation tactics metatheory lang
-  class_instances.
-From clutch.app_rel_logic Require Import spec_ra spec_rules lifting.
+From clutch.base_logic Require Export spec_update.
+From clutch.prob_lang Require Import locations notation tactics metatheory lang class_instances.
+From clutch.prob_lang.spec Require Export spec_rules.
 Set Default Proof Using "Type".
 
-
 (** ** bind *)
-Lemma tac_tp_bind_gen `{app_clutchGS Σ} Δ Δ' i p e e' Q :
+Lemma tac_tp_bind_gen `{!specGS Σ} Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ e')) Δ = Some Δ' →
@@ -23,7 +20,7 @@ Proof.
   destruct p; rewrite /= ?right_id; by rewrite bi.wand_elim_r.
 Qed.
 
-Lemma tac_tp_bind `{app_clutchGS Σ} e' Δ Δ' i p K' e Q :
+Lemma tac_tp_bind `{specGS Σ} e' Δ Δ' i p K' e Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = fill K' e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ fill K' e')) Δ = Some Δ' →
@@ -65,18 +62,13 @@ Tactic Notation "tp_bind" open_constr(efoc) :=
     |reflexivity
     |(* new goal *)].
 
-Lemma tac_tp_pure `{app_clutchGS Σ} e K e1 e2 Δ1 E1 i1 e' ϕ ψ Q n :
-  (* we have those premises first, because we will be trying to solve them
-     with backtracking using reashape_expr; see the accompanying Ltac.
-     the first premise decomposes the expression, the second one checks
-     that we can make a pure step *)
+Lemma tac_tp_pure `{specGS Σ, invGS_gen hasLc Σ} e K e1 e2 Δ1 i1 e' ϕ ψ E1 Q n :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   (∀ P, ElimModal ψ false false (spec_update E1 P) P Q Q) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   ψ →
   ϕ →
-  (* we will call simpl on this goal thus re-composing the expression again *)
   e' = fill K e2 →
   match envs_simple_replace i1 false (Esnoc Enil i1 (⤇ e')) Δ1 with
   | Some Δ2 => envs_entails Δ2 Q
@@ -140,7 +132,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{app_clutchGS Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
@@ -183,7 +175,7 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_load `{app_clutchGS Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
+Lemma tac_tp_load `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
   e = fill K (Load #l) →
@@ -220,7 +212,7 @@ Tactic Notation "tp_load" :=
   |simpl; reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_alloc `{app_clutchGS Σ} Δ1 E1 i1 K e e' v Q :
+Lemma tac_tp_alloc `{specGS Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e e' v Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   e = fill K (ref e') →
@@ -264,7 +256,7 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{app_clutchGS Σ} Δ1 E1 i1 K e N z Q :
+Lemma tac_tp_alloctape `{specGS Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
@@ -308,7 +300,7 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_rand `{app_clutchGS Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
+Lemma tac_tp_rand `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
@@ -352,7 +344,7 @@ Tactic Notation "tp_rand" :=
 
 (** Some simple tests *)
 Section tests.
-  Context `{app_clutchGS Σ}.
+  Context `{specGS Σ, invGS_gen hasLc Σ}.
 
   Local Lemma test_tp_pures E :
     ⤇ (#2 + #2 + #2) ⊢ spec_update E (⤇ #6).
@@ -387,94 +379,19 @@ Section tests.
     done.
   Qed.
 
-  Local Lemma test_wp_tp_pures :
-    {{{ ⤇ (#2 + #2 + #2)%E }}} #3 + #3 {{{ RET #6; ⤇ #6 }}}.
-  Proof.
-    iIntros (Ψ) "Hs HΨ".
-    tp_pures.
-    iApply wp_pure_step_later; [done|].
-    iIntros "!> /=".
-    iApply wp_value.
-    by iApply "HΨ".
-  Qed.
-
 End tests.
-(* *)
-(* (**************************) *)
-(* (* tp_apply *) *)
 
-(* Fixpoint print_sel (ss : list sel_pat) (s : string) := *)
-(*   match ss with *)
-(*   | nil => s *)
-(*   | SelPure :: ss' => (String "%" (String " " (print_sel ss' s))) *)
-(*   | SelPersistent :: ss' =>  (String "#" (print_sel ss' s)) *)
-(*   | SelSpatial :: ss' => (* no clue :( *) (print_sel ss' s) *)
-(*   | SelIdent (INamed n) :: ss' => append n (String " " (print_sel ss' s)) *)
-(*   | SelIdent (IAnon _) :: ss' => String "?" (String " " (print_sel ss' s)) *)
-(*   (* wat to do with the index? *) *)
-(*   end. *)
+(* From clutch.ctx_logic Require Import primitive_laws proofmode. *)
 
-(* Ltac print_sel ss := *)
-(*   lazymatch type of ss with *)
-(*   | list sel_pat => eval vm_compute in (print_sel ss "") *)
-(*   | string => ss *)
-(*   end. *)
+(* Section clutch_test. *)
+(*   Context `{!clutchGS Σ}. *)
 
-(* Definition appP (ss : option (list sel_pat)) (Hj Hs : string) := *)
-(*   match ss with *)
-(*   | Some ss' => cons (SelIdent Hs) (app ss' [SelIdent Hj]) *)
-(*   | None => cons (SelIdent Hs) [SelIdent Hj] *)
-(*   end. *)
-
-(* Definition add_elim_pat (pat : string) (Hj : string) := *)
-(*   match pat with *)
-(*   | EmptyString => Hj *)
-(*   | _ => append (String "[" (append Hj (String " " pat))) "]" *)
-(*   end. *)
-
-(* Tactic Notation "tp_apply" constr(j) open_constr(lem) "with" constr(Hs) "as" constr(Hr) := *)
-(*   iStartProof; *)
-(*   let rec find Γ j := *)
-(*     match Γ with *)
-(*     | Esnoc ?Γ (IAnon _) ?P => *)
-(*       find Γ j *)
-(*     | Esnoc ?Γ (INamed ?Hj) ?P => *)
-(*       lazymatch P with *)
-(*       | (j ⤇ _)%I => Hj *)
-(*       | _ => find Γ j *)
-(*       end *)
-(*     | Enil => fail 2 "tp_apply: cannot find " j " ⤇ _ " *)
-(*     | _ => fail 2 "tp_apply: unknown error in find" *)
-(*     end in *)
-(*   let rec findSpec Γp Γs := *)
-(*     match Γp with *)
-(*     | Esnoc ?Γ (IAnon _) _ => findSpec Γ Γs *)
-(*     | Esnoc ?Γ (INamed ?Hspec) ?P => *)
-(*       lazymatch P with *)
-(*       | (spec_ctx _)%I => Hspec *)
-(*       | _ => findSpec Γ Γs *)
-(*       end *)
-(*     | Enil => *)
-(*       match Γs with *)
-(*       | Enil => fail 2 "tp_apply: cannot find spec_ctx _" *)
-(*       | _ => findSpec Γs Enil *)
-(*       end *)
-(*     | _ => fail 2 "tp_apply: unknown error in findSpec" *)
-(*     end in *)
-(*   match goal with *)
-(*   | |- envs_entails (Envs ?Γp ?Γs) ?Q => *)
-(*     let Hj := (find Γs j) in *)
-(*     let Hspec := findSpec Γp Γs in *)
-(*     let pat := eval vm_compute in (appP (sel_pat.parse Hs) Hj Hspec) in *)
-(*     let pats := print_sel pat in *)
-(*     let elim_pats := eval vm_compute in (add_elim_pat Hr Hj) in *)
-(*     iMod (lem with pats) as elim_pats; first try by solve_ndisj *)
-(*   | _ => fail "tp_apply: cannot parse the context" *)
-(*   end. *)
-
-(* Tactic Notation "tp_apply" constr(j) open_constr(lem) "with" constr(Hs) := tp_apply j lem with Hs as "". *)
-
-(* Tactic Notation "tp_apply" constr(j) open_constr(lem) "as" constr(Hr) := tp_apply j lem with "" as Hr. *)
-
-(* Tactic Notation "tp_apply" constr(j) open_constr(lem) := tp_apply j lem with "" as "". *)
-(* *)
+(*   Local Lemma test_wp_tp_pures E : *)
+(*     {{{ ⤇ (#2 + #2 + #2)%E }}} #3 + #3 @ E {{{ RET #6; ⤇ #6 }}}. *)
+(*   Proof. *)
+(*     iIntros (Ψ) "Hs HΨ". *)
+(*     tp_pures. *)
+(*     wp_pures.  *)
+(*     by iApply "HΨ". *)
+(*   Qed. *)
+(* End clutch_test.  *)

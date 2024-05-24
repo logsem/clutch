@@ -4,12 +4,12 @@ From iris.proofmode Require Import proofmode.
 From clutch.common Require Import language ectxi_language.
 From clutch.prelude Require Import properness.
 From clutch.prob_lang Require Import locations notation lang.
-From clutch.app_rel_logic Require Import app_weakestpre spec_ra primitive_laws.
+From clutch.app_rel_logic Require Import app_weakestpre primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".
 
-Class app_clutchRGS Σ := AppClutchRGS {
-    clutchRGS_clutchGS :: app_clutchGS Σ;
+Class parisRGS Σ := AppClutchRGS {
+    clutchRGS_clutchGS :: parisGS Σ;
     clutchRGS_na_invG :: na_invG Σ;
     clutchRGS_nais : na_inv_pool_name;
 }.
@@ -59,12 +59,12 @@ Arguments lrelC : clear implicits.
 
 Canonical Structure ectx_itemO := leibnizO ectx_item.
 
-Definition na_ownP `{!app_clutchRGS Σ} := na_own clutchRGS_nais.
-Definition na_invP `{!app_clutchRGS Σ} := na_inv clutchRGS_nais.
-Definition na_closeP `{!app_clutchRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
+Definition na_ownP `{!parisRGS Σ} := na_own clutchRGS_nais.
+Definition na_invP `{!parisRGS Σ} := na_inv clutchRGS_nais.
+Definition na_closeP `{!parisRGS Σ} P N E := (▷ P ∗ na_ownP (E ∖ ↑N) ={⊤}=∗ na_ownP E)%I.
 
 Section semtypes.
-  Context `{!app_clutchRGS Σ}.
+  Context `{!parisRGS Σ}.
 
   Implicit Types e : expr.
   Implicit Types E : coPset.
@@ -175,7 +175,7 @@ Notation "∀ A1 .. An , C" :=
   (lrel_forall (λ A1, .. (lrel_forall (λ An, C%lrel)) ..)) : lrel_scope.
 
 Section semtypes_properties.
-  Context `{!app_clutchRGS Σ}.
+  Context `{!parisRGS Σ}.
 
   (* The reference type relation is functional and injective.
      Thanks to Amin. *)
@@ -258,7 +258,7 @@ Notation "'REL' e1 '<<' t ':' A" :=
 
 (** Properties of the relational interpretation *)
 Section related_facts.
-  Context `{!app_clutchRGS Σ}.
+  Context `{!parisRGS Σ}.
   Implicit Types e : expr.
 
   Lemma fupd_refines E e t A :
@@ -332,7 +332,7 @@ Section related_facts.
 End related_facts.
 
 Section monadic.
-  Context `{!app_clutchRGS Σ}.
+  Context `{!parisRGS Σ}.
   Implicit Types e : expr.
 
   Lemma refines_bind K K' E A A' e e' :

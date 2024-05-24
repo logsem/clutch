@@ -630,15 +630,14 @@ Qed.
  Qed. 
   
   Lemma step_cnt_map_helper E K lm m n s start:
-    ↑specN ⊆ E →
     start <= n ->
     map_set_relate m s ->
     map_slist lm m -∗ ⌜s∩set_seq 0 n = s⌝ -∗
-    refines_right K (cnt_map_helper #lm #start #n) ={E}=∗
-    ∃ z: Z, refines_right K (#z) ∗ map_slist lm m ∗ ⌜z=size (s∩(set_seq start (n-start)))⌝ ∗
-         ⌜s∩set_seq 0 n = s⌝.
+    ⤇ fill K (cnt_map_helper #lm #start #n) -∗ spec_update E 
+    (∃ z: Z, ⤇ fill K (#z) ∗ map_slist lm m ∗ ⌜z=size (s∩(set_seq start (n-start)))⌝ ∗
+         ⌜s∩set_seq 0 n = s⌝).
   Proof.
-    iIntros (Hspec H Hms) "Hlm %Hs Hrr".
+    iIntros (H Hms) "Hlm %Hs Hrr".
     tp_pure.
     iRevert (H).
     iInduction start as [] "IH" using (reverse_nat_ind n) forall (K).
@@ -659,20 +658,16 @@ Qed.
       { inversion H0. lia. }
       tp_pures.
       tp_bind (get _ _).
-      rewrite refines_right_bind.
-      iMod (spec_get with "[$Hlm][$Hrr]") as "[Hrr Hlm]"; first done.
-      rewrite -refines_right_bind /=.
+      iMod (spec_get with "[$Hlm][$Hrr]") as "[Hrr Hlm] /=".
       destruct  (m !! start) eqn:Hd.
       + do 3 tp_pure. replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia.
         iPoseProof ("IH" with "Hlm") as "IH'".
         tp_bind (App _ _)%E.
-        rewrite refines_right_bind.
         iPoseProof ("IH'" with "Hrr") as "IH'".
         iAssert (⌜S start <= n⌝)%I as "T".
         { iPureIntro. lia. }
-        iMod ("IH'" with "[$T]") as "H".
+        iMod ("IH'" with "[$T]") as "H /=".
         iDestruct "H" as "(%z & Hrr & Hlm & %Hsize & _)".
-        rewrite -refines_right_bind => /=.
         tp_pures.
         iModIntro.
         iExists _. iFrame. iSplit; try done.
@@ -708,14 +703,12 @@ Qed.
                    split; try lia.
       + do 3 tp_pure.
         tp_bind (App _ _)%E.
-        rewrite refines_right_bind.
         replace (Z.of_nat start + 1)%Z with (Z.of_nat (S start)) by lia.
         iPoseProof ("IH" with "[$Hlm][$Hrr]") as "IH'".
         iAssert (⌜S start <= n⌝)%I as "T".
         { iPureIntro. lia. }
-        iMod ("IH'" with "[$T]") as "H".
+        iMod ("IH'" with "[$T]") as "H /=".
         iDestruct "H" as "(%z & Hrr & Hlm & %Hsize & _)".
-        rewrite -refines_right_bind => /=.
         tp_pures.
         iModIntro.
         iExists _. iFrame. iSplit; try done.
@@ -918,7 +911,7 @@ Qed.
       rel_apply_r (refines_step_r _ _ _ (cnt_map_helper _ _ _)).
       iIntros (K) "Hrr".
       replace 0%Z with (Z.of_nat 0%nat) by lia.
-      iMod (step_cnt_map_helper with "[$Hml][][$Hrr]") as "Hrr";[done|lia|done|done|..].
+      iMod (step_cnt_map_helper with "[$Hml][][$Hrr]") as "Hrr";[lia|done|done|..].
       iDestruct "Hrr" as "(%v & Hrr & Hlm & %Hv & %Hs)".
       iModIntro. iExists (#v). iFrame. subst.
       replace (size (_∩_)) with n.
@@ -929,7 +922,7 @@ Qed.
     - rel_apply_r (refines_step_r _ _ _ (cnt_map_helper _ _ _)).
       iIntros (K) "Hrr".
       replace 0%Z with (Z.of_nat 0) by lia.
-      iMod (step_cnt_map_helper with "[$Hml][][$Hrr]") as "Hrr"; [done|lia|done|done|].
+      iMod (step_cnt_map_helper with "[$Hml][][$Hrr]") as "Hrr"; [lia|done|done|].
       iDestruct "Hrr" as "(%v & Hrr & Hlm & %Hv & %Hs)".
       iModIntro. iExists (#v).
       iFrame.
@@ -951,7 +944,7 @@ Qed.
       rel_pures_l. rel_pures_r.
       rel_apply_r (refines_step_r _ _ _ (set _ _ _)).
       iIntros (K') "Hrr".
-      iMod (spec_set with "[$Hlm][$Hrr]") as "[Hrr Hlm]"; first done.
+      iMod (spec_set with "[$Hlm][$Hrr]") as "[Hrr Hlm] /=".
       iModIntro. iExists _; iFrame.
       do 2 rel_pure_r.
       case_bool_decide.

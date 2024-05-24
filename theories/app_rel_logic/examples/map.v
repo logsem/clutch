@@ -1,4 +1,4 @@
-From clutch.app_rel_logic Require Export app_clutch.
+From clutch.app_rel_logic Require Export paris.
 From clutch.lib Require Export utils.
 
 Set Default Proof Using "Type*".
@@ -24,7 +24,7 @@ Section map.
   Definition init_list : val :=
     λ:<>, ref NONE.
 
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
 
 
   (* Impl *)

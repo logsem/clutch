@@ -104,9 +104,10 @@ Section Zpx.
   Qed.
 
   Fact is_spec_mult_p (x y : vgG) K :
-    refines_right K (vmult x y) ⊢ |={⊤}=> refines_right K (x * y)%g.
+    ⤇ fill K (vmult x y) ⊢ spec_update ⊤ (⤇ fill K (x * y)%g).
   Proof.
     iIntros. rewrite /vmult /cgs_p /vmult_p /= /vgval_p. tp_pures => /=.
+    iModIntro.
     by rewrite -Nat2Z.inj_mul -ssrnat.multE rem_modn.
   Qed.
 
@@ -131,20 +132,18 @@ Section Zpx.
   Qed.
 
   Fact is_spec_exp' (b : vgG) (x : nat) K :
-    refines_right K (vexp' vunit_p vmult_p b #x) ⊢ |={⊤}=> refines_right K (b ^+ x)%g.
+    ⤇ fill K (vexp' vunit_p vmult_p b #x) ⊢ spec_update ⊤ (⤇ fill K (b ^+ x)%g).
   Proof.
     unfold vexp, vexp'. iIntros "hlog".
     tp_pure. tp_pure.
     iInduction x as [|x] "IH" forall (K).
-    - tp_pures.
+    - tp_pures. iModIntro.
       iApply ("hlog").
     - do 4 tp_pure.
       tp_bind ((rec: _ _ := _)%V _).
       replace (S x - 1)%Z with (Z.of_nat x) by lia.
-      rewrite refines_right_bind.
       iSpecialize ("IH" with "hlog").
-      iMod "IH" as "IH".
-      rewrite -refines_right_bind => /=.
+      iMod "IH" as "IH /=".
       tp_pures.
       rewrite is_spec_mult_p.
       by rewrite expgS.
@@ -169,13 +168,15 @@ Section Zpx.
     rewrite rem_modn // /vgval_p. rewrite Zpx_small. rewrite order_inv. done.
   Qed.
 
-  Fact is_spec_inv_p (x : vgG) K : refines_right K x^-1 ⊢ |={⊤}=> refines_right K (x^-1)%g.
+  Fact is_spec_inv_p (x : vgG) K :
+    ⤇ fill K x^-1 ⊢ spec_update ⊤ (⤇ fill K (x^-1)%g).
   Proof.
     iIntros "hlog" => /=. rewrite /vinv_p {2}/vgval_p. tp_pures => /=.
     tp_bind (vexp' _ _ _ _)%E.
-    rewrite refines_right_bind. iMod (is_spec_exp' with "hlog") as "hlog".
-    rewrite -refines_right_bind /=. tp_pures.
-    rewrite rem_modn //. rewrite Zpx_small order_inv /=. iAssumption.
+    iMod (is_spec_exp' with "hlog") as "hlog /=".
+    tp_pures.
+    rewrite rem_modn //. rewrite Zpx_small order_inv /=.
+    iModIntro. iAssumption.
   Qed.
 
   Fact τG_subtype_p v1 v2 Δ : lrel_G v1 v2 ⊢ interp τG Δ v1 v2.

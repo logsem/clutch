@@ -4,7 +4,6 @@ From iris.bi Require Import bi derived_laws_later.
 From iris.bi.lib Require Export fixpoint.
 From iris.base_logic Require Import derived.
 From iris.base_logic.lib Require Import fancy_updates ghost_map.
-From clutch.common Require Import spec.
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import lang metatheory erasure.
 From clutch.tpref_logic Require Import weakestpre primitive_laws.

@@ -1,6 +1,6 @@
 From clutch.prelude Require Import base.
 From clutch.prob_lang Require Import notation lang.
-From clutch.ctx_logic Require Import weakestpre model spec_ra.
+From clutch.ctx_logic Require Import weakestpre model.
 From clutch.typing Require Import types.
 From clutch Require Import clutch.
 
@@ -60,10 +60,10 @@ Class clutch_group `{clutchRGS Σ} {vg : val_group} {cg : clutch_group_struct} :
     ; is_unit : vunit = 1
     ; is_inv (x : vgG) : ⊢ WP vinv x {{ λ (v : cval), ⌜v = x^-1⌝ }}
     ; is_spec_inv (x : vgG) K :
-      refines_right K (vinv x) ⊢ |={⊤}=> refines_right K (x^-1)
+      ⤇ fill K (vinv x) ⊢ spec_update ⊤ (⤇ fill K (x^-1))
     ; is_mult (x y : vgG) : ⊢ WP vmult x y {{ λ (v : cval), ⌜v = (x * y)%g⌝ }}
     ; is_spec_mult (x y : vgG) K :
-      refines_right K (vmult x y) ⊢ |={⊤}=> refines_right K (x * y)%g
+      ⤇ fill K (vmult x y) ⊢ spec_update ⊤ (⤇ fill K (x * y)%g)
     }.
 
 Definition vexp_typed `{!clutch_group_struct} :
@@ -156,20 +156,18 @@ Proof.
 Qed.
 
 Fact is_spec_exp (b : vgG) (x : nat) K :
-  refines_right K (vexp b #x) ⊢ |={⊤}=> refines_right K (b ^+ x)%g.
+  ⤇ fill K (vexp b #x) ⊢ spec_update ⊤ (⤇ fill K (b ^+ x)%g).
 Proof.
   unfold vexp, vexp'. iIntros "hlog".
   tp_pure. tp_pure.
   iInduction x as [|x] "IH" forall (K).
   - tp_pures. rewrite is_unit.
-    iApply ("hlog").
+    by iModIntro.  
   - do 4 tp_pure.
     tp_bind ((rec: _ _ := _)%V _).
     replace (S x - 1)%Z with (Z.of_nat x) by lia.
-    rewrite refines_right_bind.
     iSpecialize ("IH" with "hlog").
-    iMod "IH" as "IH".
-    rewrite -refines_right_bind => /=.
+    iMod "IH" as "IH /=".
     tp_pures.
     rewrite is_spec_mult.
     by rewrite expgS.

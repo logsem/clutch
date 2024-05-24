@@ -1,8 +1,7 @@
 (** Compataibility rules *)
 From stdpp Require Import namespaces.
 From clutch.prob_lang Require Import notation lang.
-From clutch.ctx_logic Require Import
-  primitive_laws  proofmode spec_rules spec_tactics model rel_tactics rel_rules.
+From clutch.ctx_logic Require Import primitive_laws proofmode model rel_tactics rel_rules.
 
 Section compatibility.
   Context `{!clutchRGS Σ}.
@@ -91,6 +90,8 @@ Section compatibility.
     rel_rec_l. rel_rec_r. iApply "H".
   Qed.
 
+Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
+
   Lemma refines_store e1 e2 e1' e2' A :
     (REL e1 << e1' : ref A) -∗
     (REL e2 << e2' : A) -∗
@@ -106,8 +107,8 @@ Section compatibility.
     iIntros (K') "Hr".
     iInv (logN .@ (l,l')) as (v v') "[Hv1 [>Hv2 #Hv]]" "Hclose".
     iModIntro.
-    wp_store.
     tp_store.
+    wp_store.
     iMod ("Hclose" with "[Hv1 Hv2 IH2]") as "_".
     { iNext; iExists _, _; simpl; iFrame. }
     iModIntro. iExists _. iFrame.
@@ -127,8 +128,8 @@ Section compatibility.
     iIntros (K') "Hr".
     iInv (logN .@ (l,l')) as (w w') "[Hw1 [>Hw2 #Hw]]" "Hclose"; simpl.
     iModIntro.
-    wp_load.
     tp_load.
+    wp_load.
     iMod ("Hclose" with "[Hw1 Hw2]") as "_".
     { iNext. iExists w,w'; by iFrame. }
     iModIntro. iExists _. iFrame.
@@ -150,14 +151,14 @@ Section compatibility.
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
     destruct (decide (N = M)); simplify_eq.
-    - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr Hclose]"); [solve_ndisj|].
+    - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr]").
       iIntros "!>" (N) "(Hα & Hαs & Hr)".
       iMod ("Hclose" with "[$Hα $Hαs]") as "_".
       iModIntro.
       iExists _. iFrame "Hr".
       rel_values.
     - iApply (wp_couple_rand_lbl_rand_lbl_wrong
-               with "[$Hα $Hα' $Hr Hclose]"); [done|solve_ndisj|].
+               with "[$Hα $Hα' $Hr]"); [done|].
       iIntros "!>" (m) "(Hα & Hα' & Hr)".
       iMod ("Hclose" with "[$Hα $Hα']") as "_".
       iModIntro.

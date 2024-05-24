@@ -9,50 +9,30 @@ From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import tactics lang notation.
 From clutch.ctx_logic Require Export primitive_laws.
-From clutch.ctx_logic Require Import spec_ra.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works
 with lists of values. *)
-
-
 Definition array `{!clutchGS Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) ↦{dq} v.
-
-(*
-Notation "l ↦∗{ dq } vs" := (array l dq vs)
-  (at level 20, dq custom dfrac at level 1, format "l  ↦∗{ dq } vs") : bi_scope.
-*)
 
 Notation "l ↦∗{ dq } vs" := (array l dq vs)
   (at level 20, format "l  ↦∗{ dq }  vs") : bi_scope.
 
 Notation "l ↦∗ v" := (l ↦∗{ DfracOwn 1 } v)%I
-                      (at level 20, format "l  ↦∗  v") : bi_scope.
+  (at level 20, format "l  ↦∗  v") : bi_scope.
 
-(** We have [FromSep] and [IntoSep] instances to split the fraction (via the
-[AsFractional] instance below), but not for splitting the list, as that would
-lead to overlapping instances. *)
+Section derived_laws.
+Context `{!clutchGS Σ}.
+Implicit Types P Q : iProp Σ.
+Implicit Types Φ Ψ : val → iProp Σ.
+Implicit Types σ : state.
+Implicit Types v : val.
+Implicit Types l : loc.
+Implicit Types vs : list val.
+Implicit Types sz off : nat.
 
-Section lifting.
-
-  Context `{!clutchGS Σ}.
-  Implicit Types P Q : iProp Σ.
-  Implicit Types Φ Ψ : val → iProp Σ.
-  Implicit Types σ : state.
-  Implicit Types v : val.
-  Implicit Types l : loc.
-  Implicit Types vs : list val.
-  Implicit Types sz off : nat.
-
-  (*
 Global Instance array_timeless l q vs : Timeless (array l q vs) := _.
-
-Global Instance array_fractional l vs : Fractional (λ q, l ↦∗{#q} vs)%I := _.
-Global Instance array_as_fractional l q vs :
-  AsFractional (l ↦∗{#q} vs) (λ q, l ↦∗{#q} vs)%I q.
-Proof. split; done || apply _. Qed.
-*)
 
 Lemma array_nil l dq : l ↦∗{dq} [] ⊣⊢ emp.
 Proof. by rewrite /array. Qed.
@@ -114,36 +94,32 @@ Qed.
 
 Lemma wp_allocN s E v n :
   (0 < n)%Z →
-  {{{ True }}} AllocN (Val $ LitV $ LitInt $ n) (Val v) @ s; E
-  {{{ l, RET LitV (LitLoc l);
-          l ↦∗ replicate (Z.to_nat n) v }}}.
-  Proof.
-    iIntros (? Φ) "_ HΦ".
-    iApply wp_allocN_seq; auto; try lia.
-    iModIntro.
-    iIntros (l) "Hlm".
-    iApply "HΦ".
-    by iApply pointsto_seq_array.
-  Qed.
+  {{{ True }}}
+    AllocN (Val $ LitV $ LitInt $ n) (Val v) @ s; E
+  {{{ l, RET LitV (LitLoc l); l ↦∗ replicate (Z.to_nat n) v }}}.
+Proof.
+  iIntros (? Φ) "_ HΦ".
+  iApply wp_allocN_seq; auto; try lia.
+  iModIntro.
+  iIntros (l) "Hlm".
+  iApply "HΦ".
+  by iApply pointsto_seq_array.
+Qed.
 
-
-  Lemma wp_allocN_vec s E v n :
-    (0 < n)%Z →
-    {{{ True }}}
-      AllocN #n v @ s ; E
-                          {{{ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v  }}}.
-  Proof.
-    iIntros (? Φ) "_ HΦ".
-    iApply (wp_allocN with "[//] [HΦ]"); try lia.
-    iModIntro.
-    iIntros (l) "Hl".
-    iApply "HΦ". by rewrite vec_to_list_replicate.
-  Qed.
-
+Lemma wp_allocN_vec s E v n :
+  (0 < n)%Z →
+  {{{ True }}}
+    AllocN #n v @ s ; E
+  {{{ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v  }}}.
+Proof.
+  iIntros (? Φ) "_ HΦ".
+  iApply (wp_allocN with "[//] [HΦ]"); try lia.
+  iModIntro.
+  iIntros (l) "Hl".
+  iApply "HΦ". by rewrite vec_to_list_replicate.
+Qed.
 
 (** * Rules for accessing array elements *)
-
-
 Lemma wp_load_offset s E l dq off vs v :
   vs !! off = Some v →
   {{{ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET v; l ↦∗{dq} vs }}}.
@@ -161,8 +137,7 @@ Qed.
 
 Lemma wp_load_offset_vec s E l dq sz (off : fin sz) (vs : vec val sz) :
   {{{ ▷ l ↦∗{dq} vs }}} ! #(l +ₗ off) @ s; E {{{ RET vs !!! off; l ↦∗{dq} vs }}}.
-  Proof. apply wp_load_offset. by apply vlookup_lookup. Qed.
-
+Proof. apply wp_load_offset. by apply vlookup_lookup. Qed.
 
 Lemma wp_store_offset s E l off vs v :
   is_Some (vs !! off) →
@@ -176,7 +151,6 @@ Proof.
   iApply "HΦ". iApply "Hl2". iApply "Hl1".
 Qed.
 
-
 Lemma wp_store_offset_vec s E l sz (off : fin sz) (vs : vec val sz) v :
   {{{ ▷ l ↦∗ vs }}} #(l +ₗ off) <- v @ s; E {{{ RET #(); l ↦∗ vinsert off v vs }}}.
 Proof.
@@ -184,8 +158,6 @@ Proof.
   eexists. by apply vlookup_lookup.
 Qed.
 
-
-
-End lifting.
+End derived_laws.
 
 Global Typeclasses Opaque array.

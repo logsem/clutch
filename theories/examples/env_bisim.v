@@ -69,7 +69,7 @@ Section proofs.
     rel_alloc_l x as "x". rel_alloc_r y as "y".
     rel_pures_l. rel_pures_r.
     rel_allocBtape_l α as "α".
-    rel_apply_r (refines_couple_tape_flip with "[$α x y]"); [done|].
+    rel_apply_r (refines_couple_tape_flip with "[$α x y]").
     iIntros (b) "α /=".
     rel_pures_l. rel_pures_r.
     set (P := ((α ↪B [b] ∗ x ↦ #0 ∗ y ↦ₛ #0) ∨ (α ↪B [] ∗ x ↦ #1 ∗ y ↦ₛ #1))%I).
@@ -223,7 +223,7 @@ Section proofs.
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_l.
-        rel_apply_r refines_flipL_empty_r; [done|]. 
+        rel_apply_r refines_flipL_empty_r.
         iFrame. iIntros (b) "α". rel_pures_l.
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
@@ -244,7 +244,7 @@ Section proofs.
         iSplitL; [|rel_values].
         iRight. iModIntro. iFrame.
       + rel_load_l.
-        rel_apply_r refines_flipL_empty_r; [done|].
+        rel_apply_r refines_flipL_empty_r.
         iFrame. iIntros (b) "α". rel_pures_l.
         destruct b.
         (* Both cases are proven in *exactly* the same way. *)
@@ -273,7 +273,7 @@ Section proofs.
     iIntros "[[(α & x & y) | (α & x & y)] Hclose]".
     all: rel_pures_l ; rel_pures_r.
     + rel_bind_l (flipL _). rel_bind_r flip.
-      rel_apply_l refines_couple_flipL_flip; [solve_ndisj|].
+      rel_apply_l refines_couple_flipL_flip.
       iFrame ; iIntros "!>" (b) "α".
       destruct b ;
         rel_pures_l ; rel_pures_r ; rel_load_l ; rel_load_r ; rel_pures_l ; rel_pures_r ;
@@ -282,7 +282,7 @@ Section proofs.
       all: iSplitL; [|rel_values] ;
         iRight ; iModIntro ; iFrame.
     + rel_bind_l (flipL _). rel_bind_r flip.
-      rel_apply_l refines_couple_flipL_flip; [solve_ndisj|].
+      rel_apply_l refines_couple_flipL_flip.
       iFrame ; iIntros "!>" (b) "α".
       destruct b ;
         rel_pures_l ; rel_pures_r ; rel_load_l ; rel_load_r ; rel_pures_l ; rel_pures_r ;
