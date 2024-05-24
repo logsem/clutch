@@ -36,9 +36,10 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 opam switch create clutch 4.14.1
 opam switch link clutch .
 ```
-3. Add the Coq `opam` repository.
+3. Add the Coq and Iris `opam` repositories.
 ```
 opam repo add coq-released https://coq.inria.fr/opam/released
+opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
 4. Install the right version of the dependencies as specified in the `clutch.opam` file.
