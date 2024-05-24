@@ -381,7 +381,7 @@ Section tests.
 
 End tests.
 
-(* From clutch.ctx_logic Require Import primitive_laws proofmode. *)
+(* From clutch.clutch Require Import primitive_laws proofmode. *)
 
 (* Section clutch_test. *)
 (*   Context `{!clutchGS Σ}. *)
