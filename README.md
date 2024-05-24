@@ -21,10 +21,10 @@ In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 The project is known to compile with
 
-- [Coq](https://coq.inria.fr/) 8.18
-- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.9.0
+- [Coq](https://coq.inria.fr/) 8.19.1
+- [std++](https://gitlab.mpi-sws.org/iris/stdpp) 1.10.0
+- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.2.0
 - [Coquelicot](https://gitlab.inria.fr/coquelicot/coquelicot/) 3.3.1
-- [Iris](https://gitlab.mpi-sws.org/iris/iris/) 4.1.0
 - [Autosubst](https://github.com/coq-community/autosubst) 1.8
 - [Mathcomp-solvable](https://github.com/math-comp/math-comp) 1.17.0
 
