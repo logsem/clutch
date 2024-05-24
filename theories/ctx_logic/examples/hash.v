@@ -1,4 +1,5 @@
-From clutch Require Export clutch lib.map lib.flip.
+From clutch Require Export clutch.
+From clutch.ctx_logic.lib Require Import map flip.
 Set Default Proof Using "Type*".
 
 Module simple_bit_hash.

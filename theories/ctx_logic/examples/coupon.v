@@ -1,6 +1,6 @@
 (* A case study of coupon collection *)
 From clutch Require Export clutch.
-From clutch.lib Require Export map.
+From clutch.ctx_logic.lib Require Export map.
 From stdpp Require Export fin_maps fin_sets finite. 
 
 

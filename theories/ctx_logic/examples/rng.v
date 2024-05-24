@@ -1,5 +1,5 @@
 From clutch Require Export clutch lib.flip.
-From clutch.examples Require Export hash.
+From clutch.ctx_logic.examples Require Export hash.
 
 Set Default Proof Using "Type*".
 

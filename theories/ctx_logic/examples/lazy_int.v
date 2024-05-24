@@ -1,5 +1,5 @@
 From clutch Require Export clutch lib.flip.
-From clutch.examples Require Export sample_int.
+From clutch.ctx_logic.examples Require Export sample_int.
 
 Section lazy_int.
 

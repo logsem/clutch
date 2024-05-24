@@ -1,4 +1,4 @@
-From clutch.lib Require Import utils.
+From clutch.common Require Import inject.
 From clutch Require Import paris.
 
 From clutch.app_rel_logic.examples Require Export map.

@@ -1,4 +1,4 @@
-From clutch.lib Require Export utils.
+From clutch.common Require Export inject.
 From clutch.ert_logic Require Export problang_wp proofmode derived_laws ert_rules cost_models.
 From iris.proofmode Require Import proofmode.
 

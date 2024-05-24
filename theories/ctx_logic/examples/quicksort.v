@@ -3,7 +3,7 @@
    theorem. *)
 
 From stdpp Require Import sorting.
-From clutch.lib Require Import utils.
+From clutch.common Require Import inject.
 From clutch.ub_logic Require Import ub_clutch lib.list.
 Set Default Proof Using "Type*".
 

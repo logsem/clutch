@@ -1,5 +1,5 @@
 From clutch Require Export clutch lib.flip.
-From clutch.examples Require Export keyed_hash hash rng.
+From clutch.ctx_logic.examples Require Export keyed_hash hash rng.
 
 Set Default Proof Using "Type*".
 
