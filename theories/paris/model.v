@@ -19,7 +19,7 @@ Record lrel Σ := LRel {
   lrel_car :> val → val → iProp Σ;
   lrel_persistent v1 v2 : Persistent (lrel_car v1 v2)
 }.
-Arguments LRel {_} _%I {_}.
+Arguments LRel {_} _ {_}.
 Arguments lrel_car {_} _ _ _ : simpl never.
 Declare Scope lrel_scope.
 Bind Scope lrel_scope with lrel.
@@ -46,7 +46,7 @@ Section lrel_ofe.
       apply bi.limit_preserving_Persistent.
       intros n P Q HPQ. apply (HPQ w1 w2).
   Qed.
-
+  
   Global Instance lrel_inhabited : Inhabited (lrel Σ) := populate (LRel inhabitant).
 
   Global Instance lrel_car_ne n : Proper (dist n ==> (=) ==> (=) ==> dist n) lrel_car.

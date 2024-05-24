@@ -607,7 +607,7 @@ Section lazy_real.
     { iExists _, _. by iFrame. }
     iSplitL "Hl2".
     { iExists _, _. by iFrame. }
-    iFrame. iExists _, _. eauto with lia.
+    iFrame. eauto with lia.
   Qed.
 
 End lazy_real.

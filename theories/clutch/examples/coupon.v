@@ -577,7 +577,6 @@ Qed.
     rewrite -/coupon_helper -/spec_coupon_helper.
     iApply (coupon_collection_refines_spec_helper with "[Hcnt' Hm Hcnt]"); [done|].
     rewrite /coupon_collection_inv. iExists 0, ∅. iFrame.
-    iExists _. iFrame.
     iSplit.
     - iPureIntro. intros. split; intros; [by rewrite elem_of_empty in H0|]. 
       destruct H0 as [? H']. rewrite lookup_empty in H'.

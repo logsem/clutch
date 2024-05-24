@@ -89,7 +89,7 @@ Section task_loop_spec.
     destruct n.
     - wp_apply (wp_queue_take_0 with "Hq").
       iIntros "Hq". wp_pures.
-      iModIntro. iFrame. iExists _. iFrame.
+      iModIntro. iFrame. 
     - wp_apply (wp_queue_take_Sn with "Hq").
       iIntros (f) "[Hq Hf]".
       wp_pures.

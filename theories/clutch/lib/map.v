@@ -86,7 +86,7 @@ Lemma spec_init_list E K :
     rewrite /cons_list.
     tp_pures.
     tp_alloc as l' "Hl".
-    iModIntro. iExists _. iFrame. iExists _; iFrame.
+    by iFrame. 
   Qed.
 
   Fixpoint find_list_gallina (vs: list (nat * val)) (k: nat) :=
@@ -175,7 +175,7 @@ Lemma spec_init_list E K :
         iModIntro. iFrame "Hr". iExists _; iFrame; eauto. }
       { tp_pure. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
         iEval simpl. rewrite bool_decide_false //; last by congruence.
-        iModIntro. iFrame. iExists _; iFrame. }
+        iModIntro. iFrame. }
   Qed.
 
   Lemma spec_find_list_Z E K l vs (z : Z):
@@ -196,15 +196,15 @@ Lemma spec_init_list E K :
         tp_pures. simpl. inversion Hbool. subst.
         rewrite bool_decide_false //; last by lia.
         rewrite bool_decide_true //; last by lia.
-        iModIntro. iFrame. iExists _; iFrame; eauto. }
+        iModIntro. iFrame. }
       { tp_pure. iMod ("IH" with "[$Hassoc] [$]") as "(?&?)".
         apply bool_decide_eq_false_1 in Hbool.
         iEval (simpl).
         case_bool_decide.
-        { iModIntro. iFrame. iExists _. by iFrame. }
+        { iModIntro. iFrame. }
         rewrite (bool_decide_false (k' = _)); last first.
         { intros Heq. apply Hbool. rewrite Heq. f_equal. rewrite Z2Nat.id; auto. lia. }
-        iFrame. iModIntro. iExists _; iFrame. }
+        by iFrame. }
   Qed.
 
   Definition init_map : val :=
@@ -251,7 +251,7 @@ Lemma spec_init_list E K :
     tp_bind (init_list #()).
     iMod (spec_init_list with "[$]") as (l) "(HK&Halloc) /=".
     tp_alloc as lm "Hl".
-    iModIntro. iExists _. iFrame. iExists _, []; iFrame; auto.
+    iModIntro. iExists _. iFrame. iExists []; auto with iFrame.
   Qed.
 
   Lemma find_list_gallina_map_lookup vs (m : gmap nat val) n :
@@ -311,8 +311,7 @@ Lemma spec_init_list E K :
     tp_load.
     iMod (spec_find_list with "[$] [$]") as "(HK&Halloc)".
     rewrite (find_list_gallina_map_lookup vs m) //.
-    iModIntro. iFrame.
-    iExists _ ,_. iFrame. eauto.
+    iModIntro. by iFrame.
   Qed.
 
   Lemma spec_get_Z E K lm m (z : Z) :
@@ -329,7 +328,7 @@ Lemma spec_init_list E K :
     tp_load.
     iMod (spec_find_list_Z with "[$] [$]") as "(HK&Halloc)".
     rewrite (find_list_gallina_map_lookup vs m) //.
-    iModIntro. iFrame. iExists _ ,_. iFrame. eauto.
+    iModIntro. by iFrame. 
   Qed.
 
   Lemma wp_set E lm m (n: nat) (v: val) :
@@ -359,7 +358,7 @@ Lemma spec_init_list E K :
     iMod (spec_cons_list with "[$] [$]") as (?)"(Hr&Halloc)".
     tp_store.
     iModIntro. iFrame.
-    iExists _, _. iFrame. rewrite list_to_map_cons Heq //.
+    rewrite list_to_map_cons Heq //.
   Qed.
 
 End map.

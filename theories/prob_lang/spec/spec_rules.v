@@ -100,9 +100,6 @@ Section rules.
     iMod (spec_update_prog (fill K #(LitLbl (fresh_loc σ.(tapes)))) with "[$] [$]") as "[Hauth Hj]".
     iMod (spec_auth_tape_alloc with "Hauth") as "[Hauth Hl]".
     iModIntro. iExists _, 1. iFrame.
-    iFrame.
-    iSplit; last first.
-    { iExists _. iFrame. }
     iPureIntro.
     eapply stepN_det_step_ctx; [apply _| |]; last first.
     { by apply dret_1_1. }

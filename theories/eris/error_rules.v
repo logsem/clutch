@@ -1597,7 +1597,7 @@ Proof.
   induction n as [|n' IH].
   - intros h ? ?. exists h; by simpl.
   - intros h H HL.
-    rewrite cons_length in HL; apply Arith_prebase.lt_S_n in HL.
+    rewrite cons_length in HL. apply PeanoNat.lt_S_n in HL.
     destruct H as [|h' H']; [simpl in HL; lia|].
     replace ((h :: h' :: H') !! S n') with ((h' :: H') !! n'); last by simpl.
     by apply IH.

@@ -146,7 +146,7 @@ Section op.
     iAssert π with "[Hl Hm]" as "Hπ".
     { iExists m. iFrame. }
     wp_apply (wp_repeat_n (λ n, π ∗ ⧖ n)%I
-               with "[] [$Hn $Hπ]"); last first; clear.
+               with "[] [$Hπ $Hn]"); last first; clear.
     { iIntros. by iApply "HΨ". }
     iIntros (m Ψ) "!# [Hπ Hm] HΨ".
     iDestruct (etc_nat_Sn with "Hm") as "[H1 Hm]".

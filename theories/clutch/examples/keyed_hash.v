@@ -116,8 +116,8 @@ Section keyed_hash.
     rewrite ?Nat.shiftr_div_pow2 ?Nat.shiftl_mul_pow2.
     specialize (pow2_nonzero MAX_VALS_POW) => Hnz.
     remember (2 ^ MAX_VALS_POW) as z.
-    cut (k1 * z < k2 * z); first by lia.
-    apply Mult.mult_lt_compat_r_stt; auto.
+    cut (k1 * z < k2 * z); first by lia.    
+    apply Nat.mul_lt_mono_pos_r; auto.
   Qed.
 
   Lemma enc_gallina_mono2 k1 k2 v1 v2:
@@ -658,7 +658,7 @@ Section keyed_hash.
     eapply ghost_phys_dom_rev in Hlook; last by (split; eauto).
     iMod (spec_hashfun_prev with "H HK") as "(HK&H)".
     { rewrite Hlook. rewrite ?fin_to_nat_to_fin //. }
-    iFrame.
+    iFrame "HK".
     iModIntro.
     iSplitL "Hauth H".
     { iExists _, _, _. iFrame. eauto. }

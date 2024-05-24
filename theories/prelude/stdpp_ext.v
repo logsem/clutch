@@ -164,7 +164,7 @@ Section countable.
   (* a right partial inverse to encode  *)
   Definition encode_inv (p : positive) : option A :=
     a ← decode p;
-    guard (encode a = p);
+    guard (encode a = p);;
     mret a.
 
   Lemma encode_inv_encode a :
@@ -172,7 +172,7 @@ Section countable.
   Proof.
     unfold encode_inv.
     rewrite decode_encode. simpl.
-    case_option_guard; done.
+    case_guard; done.
   Qed.
 
   Lemma encode_encode_inv (p : positive) :
@@ -180,7 +180,7 @@ Section countable.
   Proof.
     unfold encode_inv.
     destruct (decode _); try done; simpl.
-    case_option_guard; done.
+    case_guard; done.
   Qed.
 
   Lemma encode_inv_Some n a :
@@ -204,7 +204,7 @@ Section countable.
   (* a right partial inverse to encode_nat  *)
   Definition encode_inv_nat (n : nat) : option A :=
     a ← decode_nat n;
-    guard (encode_nat a = n);
+    guard (encode_nat a = n);;
     mret a.
 
   Lemma encode_inv_encode_nat a :
@@ -212,7 +212,7 @@ Section countable.
   Proof.
     unfold encode_inv_nat.
     rewrite decode_encode_nat; simpl.
-    case_option_guard; done.
+    case_guard; done.
   Qed.
 
   Lemma encode_encode_inv_nat (n : nat) :
@@ -220,7 +220,7 @@ Section countable.
   Proof.
     unfold encode_inv_nat.
     destruct (decode_nat _); try done; simpl.
-    by case_option_guard.
+    by case_guard.
   Qed.
 
   Lemma encode_inv_Some_nat n a :
@@ -284,7 +284,7 @@ Section finite.
   Proof.
     intros Hge. unfold encode_inv_nat.
     destruct (decode_nat i) eqn:Hd; [|done]; simpl.
-    case_option_guard; [|done].
+    case_guard; [|done].
     pose proof (encode_lt_card a). lia.
   Qed.
 

@@ -18,7 +18,7 @@ Section Z_p.
   Notation p := (S (S p'')).
 
   #[local] Definition cval := prob_lang.val.
-  Definition z_p : finGroupType := [finGroupType of 'Z_p].
+  Definition z_p : finGroupType := FinGroup.clone _ 'Z_p.
 
   Definition vgval_p (n : z_p) : cval := #n.
   Fact vgval_inj_p : Inj eq eq vgval_p.

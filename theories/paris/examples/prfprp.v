@@ -255,10 +255,8 @@ Section prf_prp.
     }
     rewrite fmap_empty.
     iFrame.
-    iSplitL "Hls".
+    iSplit.
     {
-      iExists _.
-      iFrame.
       iPureIntro.
       apply is_list_inject.
       apply is_list_inject in Hv as ->.
@@ -293,18 +291,15 @@ Section prf_prp.
     iExists _.
     iFrame.
     rewrite /is_sprp.
-    iExists l, ls.
     iSplit.
     {
       iPureIntro.
       rewrite /query_prp_specialized //.
     }
-    rewrite fmap_empty.
+    (* rewrite fmap_empty. *)
     iFrame.
-    iSplitL "Hls".
+    iSplit.
     {
-      iExists _.
-      iFrame.
       iPureIntro.
       apply is_list_inject.
       apply is_list_inject in Hv as ->.
@@ -328,9 +323,7 @@ Section prf_prp.
     iMod (spec_get with "[$][$]") as "[HK Hm]".
     rewrite lookup_fmap Hlookup /=.
     tp_pures.
-    iModIntro. iFrame.
-    iExists lm, lr.
-    iFrame. done.
+    iModIntro. by iFrame.
   Qed.
 
  Lemma seq_to_seqZ (l : nat) :
@@ -548,29 +541,27 @@ Section prf_prp.
     { iExists _. iSplit; first auto. rewrite fmap_insert //. }
     iExists _, _. iSplit; first auto.
     rewrite /is_sprp.
-    iExists _,_.
+    iExists _.
     iSplit; first auto.
     rewrite fmap_insert.
-    iFrame.
-    iSplitL "Hlsr".
-    - iExists _ ; auto.
-    - iPureIntro.
-      etrans; [ | apply Hperm ].
-      rewrite Hsr.
-      rewrite map_to_list_insert; auto.
-      replace (((n, e) :: map_to_list m).*2) with (e :: (map_to_list m).*2); [ | auto].
-      rewrite Permutation_app_rot.
-      rewrite (Permutation_app_rot ((map_to_list m).*2) l1 (e :: l2)).
-      apply Permutation_app_head.
-      rewrite Permutation_app_comm.
-      simpl.
-      apply perm_skip.
-      by rewrite Permutation_app_comm.
-      Unshelve.
-      apply Rcomplements.Rdiv_le_0_compat.
-      + rewrite <- minus_INR; last lia.
-        apply pos_INR.
-      + apply pos_INR_S.
+    iFrame "%∗".
+    iPureIntro.
+    etrans; [ | apply Hperm ].
+    rewrite Hsr.
+    rewrite map_to_list_insert; auto.
+    replace (((n, e) :: map_to_list m).*2) with (e :: (map_to_list m).*2); [ | auto].
+    rewrite Permutation_app_rot.
+    rewrite (Permutation_app_rot ((map_to_list m).*2) l1 (e :: l2)).
+    apply Permutation_app_head.
+    rewrite Permutation_app_comm.
+    simpl.
+    apply perm_skip.
+    by rewrite Permutation_app_comm.
+    Unshelve.
+    apply Rcomplements.Rdiv_le_0_compat.
+    - rewrite <- minus_INR; last lia.
+      apply pos_INR.
+    - apply pos_INR_S.
  Qed.
 
  

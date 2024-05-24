@@ -21,7 +21,7 @@ Section Zpx.
   Notation p := (S (S p'')).
 
   #[local] Definition cval := prob_lang.val.
-  Definition Zpx : finGroupType := [finGroupType of {unit 'Z_p}].
+  Definition Zpx : finGroupType := FinGroup.clone _ {unit 'Z_p}.
 
   Definition vgval_p (n : Zpx) : cval := #(Z.of_nat (nat_of_ord (FinRing.uval n))).
 
