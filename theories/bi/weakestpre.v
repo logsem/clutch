@@ -15,7 +15,7 @@ Class Wp (PROP EXPR VAL A : Type) := {
   wp_default : A
 }.
 
-Global Arguments wp {_ _ _ _ _} _ _ _%E _%I.
+Global Arguments wp {_ _ _ _ _} _ _ %_E %_I.
 Global Instance: Params (@wp) 9 := {}.
 Global Arguments wp_default : simpl never.
 
@@ -23,7 +23,7 @@ Class Twp (PROP EXPR VAL A : Type) := {
     twp : A → coPset → EXPR → (VAL → PROP) → PROP;
     twp_default : A
     }.
-Global Arguments twp {_ _ _ _ _} _ _ _%E _%I.
+Global Arguments twp {_ _ _ _ _} _ _ %_E %_I.
 Global Instance: Params (@twp) 9 := {}.
 Global Arguments twp_default : simpl never.
 

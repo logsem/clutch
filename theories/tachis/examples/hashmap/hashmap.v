@@ -108,7 +108,7 @@ Section hashmap.
     { simpl. case_bool_decide; done. }
     iIntros "Ha".
     iApply "HΦ".
-    iExists _, _, _. iSplit; first done. iFrame.
+    iExists _, _, _. iSplit; first done. iFrame "H1".
     iSplit; last first.
     { iPureIntro. intros k v1 l1 Hm2 Hl1.
       rewrite lookup_insert_Some in Hm2. destruct Hm2 as [[-> Hm2] | [Hv Hm2]]; subst.
@@ -126,7 +126,8 @@ Section hashmap.
         + naive_solver.
     }
     iExists _, _.
-    iFrame. iSplit; first done.
+    iSplit; first done.
+    iFrame "Ha". 
     iSplit.
     { iPureIntro. rewrite insert_length. done. } 
     rewrite (seq_split (fin_to_nat v') (S _)); last first.
@@ -200,7 +201,7 @@ Section hashmap.
     wp_apply (wp_lookup_notin with "[K Hx]"); [|rewrite H2; iFrame|].
     { intros ?. exfalso. apply not_elem_of_dom_1 in Hnotin. naive_solver. }
     iIntros "Hl". iApply "HΦ".
-    iExists _, _, _. iSplit; first done. iFrame.
+    iExists _, _, _. iSplit; first done. iFrame "H1".
     iSplit; last first.
     { iPureIntro. intros k v1 l1 Hm2 Hl1. rewrite lookup_insert_Some.
       destruct (decide (n=v1)).
@@ -208,12 +209,12 @@ Section hashmap.
         rewrite elem_of_dom. done. }
       naive_solver.
     }
-    iExists _, _. iSplit; first done. iSplitL "Ha"; first done.
+    iExists _, _. iSplit; first done. iFrame "Ha".
     iSplit; first done.
     rewrite (seq_split (fin_to_nat v') (S _)); last first.
     { split; auto; lia. }
     rewrite big_sepL_app big_sepL_cons. iFrame.
-    iExists _, _. iFrame. iPureIntro. by split.
+    iPureIntro. by split.
   Qed.
   
   
@@ -268,7 +269,7 @@ Section hashmap.
         + rewrite Rcomplements.Rle_minus_r. rewrite -S_INR. apply le_INR. lia.
       - iApply etc_irrel; last done. rewrite -H. apply amortized_tc_split. done.
     }
-    iApply (wp_hm_insert_new with "[$]"); first done.
+    iApply (wp_hm_insert_new with "[$H $Hx1]"); [done|].
     iModIntro. iIntros "(% & ?)". iApply "HΦ". rewrite /isamortizedhashmap. iExists _. iFrame.
     repeat iSplit.
     - iPureIntro. rewrite S_INR. erewrite <-(SeriesC_singleton' off 1%R).

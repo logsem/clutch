@@ -2,6 +2,8 @@ Require Export RelationClasses Morphisms.
 From discprob.basic Require Import base.
 From mathcomp Require Import ssreflect ssrbool eqtype.
 From Coquelicot Require Import Hierarchy.
+From HB Require Import structures.
+
 
 Require Import Reals.
 Global Instance Rge_Transitive: Transitive Rge.
@@ -44,8 +46,7 @@ Proof. intros ???. auto with *. Qed.
 Definition R_eqP : Equality.axiom (fun x y: R => Req_EM_T x y).
 Proof. move => x y. apply sumboolP. Qed.
 
-Canonical R_eqMixin := EqMixin R_eqP.
-Canonical R_eqType := Eval hnf in EqType R R_eqMixin.
+HB.instance Definition _ := hasDecEq.Build _ R_eqP.
 
 Require Import Psatz.
 Global Instance Rlt_plus_proper: Proper (Rlt ==> Rlt ==> Rlt) Rplus.

@@ -838,14 +838,14 @@ Section coll_free_hash.
       - left. lia.
     }
     - wp_apply (wp_insert_no_coll with "[-HΦ]"); eauto.
-      + iFrame.
+      + iSplitR "Herr"; [|done]. 
         iExists _,_. by iFrame.
       + iIntros (v f') "(?&?&Hhash)".
         iApply "HΦ".
         rewrite /cf_hashfun.
         iExists _,_,_. done.
     - wp_apply (wp_insert_no_coll_resize with "[-HΦ]"); eauto.
-      + iFrame.
+      + iSplitR "Herr"; [|done]. 
         iExists _,_. by iFrame.
       + iIntros (v f') "(?&?&Hhash)".
         iApply "HΦ".
@@ -868,8 +868,6 @@ Section coll_free_hash.
       + iExists _,_. by iFrame.
       + iIntros (v f') "[? Hhash]".
         iApply "HΦ". iFrame.
-        rewrite /cf_hashfun.
-        iExists _,_,_. done.
   Qed.
 
 

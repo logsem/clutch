@@ -325,5 +325,5 @@ Proof.
   rewrite etc_unseal /etc_def etc_supply_unseal /etc_supply_def.
   iMod (own_alloc (● x ⋅ ◯ x)) as (γEC) "[H● H◯]".
   - by apply auth_both_valid_2.
-  - iExists (EtcGS _ _ γEC). iModIntro. iFrame. iExists _. by iFrame.
+  - iExists (EtcGS _ _ γEC). iModIntro. by iFrame. 
 Qed.

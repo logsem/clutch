@@ -210,9 +210,7 @@ Section spec.
     rewrite /set_right; wp_load; wp_pures; wp_store.
     rewrite /set_left; wp_load; wp_pures; wp_store; wp_pures.
     iApply "HΨ".
-    iModIntro. simpl. iExists _, _, _, _, _. iFrame.
-    iSplit; [done|].
-    iExists _, _, _, _, _. by iFrame.
+    iModIntro. simpl. iFrame. auto. 
   Qed.
 
   Lemma wp_rotate_left v t E :
@@ -237,9 +235,7 @@ Section spec.
     rewrite /set_left; wp_load; wp_pures; wp_store.
     rewrite /set_right; wp_load; wp_pures; wp_store; wp_pures.
     iApply "HΨ".
-    iModIntro. simpl. iExists _, _, _, _, _. iFrame.
-    iSplit; [done|].
-    iExists _, _, _, _, _. by iFrame.
+    iModIntro. simpl. iExists _, _, _, _, _. iFrame. auto. 
   Qed.
 
   Lemma wp_insert v t E (z : Z) N :
@@ -266,9 +262,7 @@ Section spec.
 
       case_bool_decide; wp_pures.
       { iApply ("HΨ" $! _ l t1). iModIntro. iFrame.
-        iSplitL.
-        { iExists _, _, _, _, _. iSplit; [done|]. by iFrame. }
-        simpl. iSplit; iPureIntro; lia. }
+        iSplit; auto with lia. }
       simpl in Hheight.
 
       case_bool_decide; wp_pures.
@@ -285,22 +279,24 @@ Section spec.
         wp_pures.
         case_bool_decide; wp_pures.
         * wp_apply (wp_rotate_right _ (node _ (node _  _ _) _) with "[-HΨ Hcmps]").
-          { simpl. iExists _, _, _, _, _.
-            iSplit; [done|]. iFrame "Hℓ". iFrame.
-            iExists  _, _, _, _, _.
-            iFrame "Hℓy". by iFrame. }
+          { simpl. 
+            iFrame "Hℓ Hz2".
+            iSplit; [done|].
+            iFrame "Hℓy Hz1".
+            by iFrame. }
           iIntros (w) "Hw".
           iApply "HΨ". iFrame.
           simpl in *.
           iSplit; iPureIntro; lia.
-        * iApply ("HΨ" $! _ (node _ l1 r1) t1). iFrame.
-          iModIntro. iSplit.
+        * iApply ("HΨ" $! _ (node _ l1 r1) t1).
+          iFrame "Hcmps".
+          iModIntro. iSplitL.
           { iExists _, _, _, _, _. rewrite -/is_treap.
-            iSplit; [done|]. iFrame.
+            iSplit; [done|]. iFrame "Hℓ Hz2 Hr".
             iExists _, _, _, _, _.
             iSplit; [done|]. iFrame. }
           simpl in *.
-          iSplit; iPureIntro; try lia.
+          iSplit; iPureIntro; lia.
       + wp_apply ("IH1" $! _ N with "[] [$]").
         { iPureIntro. lia. }
         iIntros (k1 l1 r1 M vl') "(Hvl' & % & Hcmps & %)".
@@ -315,19 +311,15 @@ Section spec.
         case_bool_decide; wp_pures.
         * wp_apply (wp_rotate_left _ (node _ _ (node _ _ _)) with "[-HΨ Hcmps]").
           { simpl. iExists _, _, _, _, _.
-            iSplit; [done|]. iFrame "Hℓ". iFrame.
+            iSplit; [done|]. iFrame "Hℓ Hz2 Hl".
             iExists _, _, _, _, _.
-            iFrame "Hℓy". by iFrame. }
+            iSplit; [done|]. iFrame "Hℓy". iFrame. }
           iIntros (w) "Hw".
           iApply "HΨ". iFrame.
           simpl in *.
           iSplit; iPureIntro; lia.
         * iApply ("HΨ" $! _ l (node _ l1 r1)). iFrame.
-          iModIntro. iSplit.
-          { iExists _, _, _, _, _; rewrite -/is_treap.
-            iSplit; [done|]. iFrame.
-            iExists _, _, _, _, _.
-            iSplit; [done|]. iFrame. }
+          iModIntro. iSplit; [auto|].
           simpl in *.
           iSplit; iPureIntro; try lia.
   Qed.
@@ -380,10 +372,7 @@ Section runner_spec.
     wp_apply (wp_insert with "[$]"); [done|].
     iIntros (?????) "(Ht & % & Hcmps & %)".
     wp_store. iModIntro.
-    iApply "H".
-    iFrame.
-    iSplit; [|done].
-    iExists _. iFrame.
+    iApply "H". iFrame. auto. 
   Qed.
 
   Lemma wp_runner :

@@ -98,8 +98,7 @@ Section spec_update.
     rewrite spec_updateN_unseal.
     iIntros "[HP PQ] %a Hsrc".
     iMod ("HP" with "Hsrc") as (b Hstep) "[Hsrc P]".
-    iMod ("PQ" with "P"). iFrame. iModIntro.
-    iExists b. by iFrame.
+    iMod ("PQ" with "P"). by iFrame. 
   Qed.
 
   Lemma spec_update_mono_fupd E P Q :
@@ -108,8 +107,7 @@ Section spec_update.
     rewrite spec_update_unseal.
     iIntros "[HP PQ] %a Hsrc".
     iMod ("HP" with "Hsrc") as (b n Hstep) "[Hsrc P]".
-    iMod ("PQ" with "P"). iFrame. iModIntro.
-    iExists b, _. by iFrame.
+    iMod ("PQ" with "P"). iFrame. eauto. 
   Qed.
 
   Lemma spec_updateN_mono n E P Q :

@@ -967,7 +967,7 @@ Section higherorder_walkSAT.
         iIntros (s) "[%asn' [%m' (Hl & %Hinv' & [(%Hp' & A)|Hamp])]]".
         * (* makes progress *)
           iRight; iLeft.
-          iFrame.
+          iFrame "Hε".
           wp_pures.
           iApply (ub_twp_wand with "[Hl]").
           { iApply wp_check; iFrame. iPureIntro. eauto. }
@@ -987,7 +987,6 @@ Section higherorder_walkSAT.
           }
         * (* amplifies *)
           iRight; iRight.
-          iFrame.
           (* Revert back to iProgress N *)
           iExists N.
           iSplitR; eauto.
@@ -1015,16 +1014,13 @@ Section higherorder_walkSAT.
               apply Rlt_le.
               apply Rmult_lt_compat_l; [apply cond_pos| apply lt_1_k].
           }
-          iFrame.
+          iFrame "Hε".
           wp_pures.
           wp_apply (ub_twp_wand with "[Hl]").
           { iApply wp_check; [|iFrame]. iPureIntro; eauto. }
           iIntros (?) "[? ->]".
-          iFrame.
           destruct (formula_SAT m' f) as [|] eqn:Hast'.
-          { iRight. iSplitR; [eauto|].
-            iExists _, _. iFrame.
-            iSplit; iPureIntro; eauto. }
+          { iRight. iSplitR; [eauto|]. iFrame. eauto. }
           { iLeft.
             iSplitR; [eauto|].
             iExists _, _.

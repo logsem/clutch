@@ -1,6 +1,7 @@
 From discprob.basic Require Import base nify order seq_ext.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype choice fintype bigop seq.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
+From HB Require Import structures.
 Require Import Reals Psatz Lia.
 
 (* Coquelicot defines some of its own algebraic hierarchy and
@@ -31,10 +32,10 @@ Proof. intros ?. nra. Qed.
 Lemma Rmult_right_zero: right_zero 0 Rmult.
 Proof. intros ?. nra. Qed.
 
-Canonical Rplus_monoid := Law Rplus_associative Rplus_left_id Rplus_right_id.
-Canonical Rplus_comoid := ComLaw Rplus_commutative.
-Canonical Rplus_addoid := AddLaw Rplus_left_distributive Rplus_right_distributive.
-Canonical Rmult_muloid := MulLaw Rmult_left_zero Rmult_right_zero.
+HB.instance Definition _ := isLaw.Build _ _ Rplus Rplus_associative Rplus_left_id Rplus_right_id.
+HB.instance Definition _ := isCommutativeLaw.Build _ Rplus Rplus_commutative.
+HB.instance Definition _ := isAddLaw.Build _ Rmult Rplus Rplus_left_distributive Rplus_right_distributive.
+HB.instance Definition _ := isMulLaw.Build _ _ Rmult Rmult_left_zero Rmult_right_zero.
 
 End RAddLaw.
 
@@ -527,19 +528,6 @@ Proof.
   rewrite -(big_map _ (λ x, true) (λ x, \big[Rplus/0]_(i <- _ ) F (x, i))).
   rewrite -big_Rplus_allpair.
   f_equal. apply (allpairs_comp sval sval l1 l2).
-Qed.
-
-
-Lemma big1_In: ∀ (R : Type) (idx : R) (op : Monoid.law idx) (I : Type) (l : list I)
-         (P : pred I) (F : I → R) (Heq0: ∀ i : I, P i → List.In i l → F i = idx),
-                                   \big[op/idx]_(i <- l | P i) F i = idx.
-Proof.
-  intros. induction l as [| a l] => //=.
-  * rewrite big_nil.  auto.
-  * rewrite big_cons IHl => //=.
-    ** specialize (Heq0 a). destruct (P a); auto. rewrite Heq0 //=; destruct op => //=.
-       by left.
-    ** intros. eapply Heq0; auto; by right.
 Qed.
 
 Lemma eq_bigr_In: ∀ (R : Type) (idx : R) (op : Monoid.law idx) (I : Type) (l : list I)

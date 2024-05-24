@@ -354,7 +354,7 @@ Section lazy_int.
     iMod (spec_sample_wide_int _ _ _ _ _ _ [] with "[Hspec_tape] [$]") as (z) "(HK&%Hz&_)"; auto.
     { eauto. }
     { rewrite app_nil_l app_nil_r. iFrame. }
-    wp_pures. iApply "HΦ". iExists _. iFrame.
+    wp_pures. iApply "HΦ". iExists _. iFrame "HK".
     iModIntro. iExists _, _, _.
     iSplit; first eauto.
     iSplit; first eauto.
@@ -395,7 +395,7 @@ Section lazy_int.
     wp_apply (wp_sample_wide_int _ _ _ _ _ [] with "[Htape]"); eauto.
     { rewrite app_nil_l app_nil_r. iFrame. }
     iIntros (z) "(%Hz&_)"; auto.
-    iApply "HΦ". iExists _. iFrame.
+    iApply "HΦ". iExists _. iFrame "HK".
     iExists _, _, _.
     iSplit; first eauto.
     iSplit; first eauto.
@@ -528,7 +528,7 @@ Section lazy_int.
       rewrite Hz1 Hz2.
       eapply digit_list_cmp_spec; eauto.
       lia. }
-    iModIntro; iExists _; iFrame.
+    iModIntro; iExists _; iFrame "HK".
     iSplit; first eauto.
     iSplitL "H1".
     { iExists _, _, _. iFrame. eauto. }

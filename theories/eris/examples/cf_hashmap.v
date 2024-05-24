@@ -127,7 +127,7 @@ Section coll_free_hashmap.
       iSplit; auto.
       iSplitL "Hl"; [done| ].
       iSplit; [done|].
-      iSplit; [iExists _,_; by iFrame |].
+      iSplit; [done|].
       iPureIntro.
       destruct Hprf as (Hcf & Himg). split.
       + assert ((ns ∪ {[n]}) = ns) as ->; auto.
@@ -185,9 +185,7 @@ Section coll_free_hashmap.
           rewrite insert_length //.
         }
         iSplit.
-        { iExists _,_.
-          iFrame.
-          iSplit; [ done |].
+        { iSplit; [ done |].
           iSplit; [| done].
           iPureIntro.
           by apply lt_INR.
@@ -308,7 +306,6 @@ Section coll_free_hashmap.
         }
         iSplit.
         {
-          iExists _,_.
           rewrite Heq.
           iFrame.
           iSplit.

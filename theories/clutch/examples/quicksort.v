@@ -4,7 +4,8 @@
 
 From stdpp Require Import sorting.
 From clutch.common Require Import inject.
-From clutch.eris Require Import eris lib.list.
+From clutch.eris Require Import eris.
+From clutch.eris.lib Require Import list.
 Set Default Proof Using "Type*".
 
 Section quicksort.

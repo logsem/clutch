@@ -312,7 +312,7 @@ Section rng.
     { rewrite lookup_insert //. }
     iIntros "(Hauth&Hhash)". wp_pures.
     wp_store. iMod ("Hclo" with "[$]") as "Htok". iModIntro. iApply "HΦ".
-    iFrame. iExists _, _, _, _, _. iFrame.
+    iFrame "#∗". iExists _. 
     iSplit; first done.
     iSplit.
     { iPureIntro. intros x. rewrite dom_insert_L.
@@ -359,7 +359,7 @@ Section rng.
     iApply fupd_spec_update.
     iMod ("Hclo" with "[$]") as "Htok".
     do 2 iModIntro.
-    iFrame. iExists _, _, _, _, _. iFrame.
+    iFrame. iExists _, _. 
     iSplit; first done.
     iSplit.
     { iPureIntro. intros x. rewrite dom_insert_L.
@@ -457,7 +457,7 @@ Section rng.
     tp_pures.
     tp_alloc as c "Hc".
     tp_pures.
-    iModIntro. iExists _. iFrame. iExists c. eauto.
+    iModIntro. iExists _. iFrame. eauto. 
   Qed.
 
   Lemma wp_run_bounded_rng_gen k f E :
@@ -535,8 +535,7 @@ Section rng.
     tp_pures.
     case_bool_decide; try lia; [].
     tp_pures.
-    iFrame.
-    iModIntro. iExists _. iFrame. eauto.
+    by iFrame.
   Qed.
 
   Lemma wp_hash_rng_flip_refine n g sg K E :
@@ -659,7 +658,7 @@ Section rng.
     iIntros (hrng) "(Hg&Hrng)".
     iMod (spec_run_bounded_rng_gen with "Hsf HK") as (srng) "(HK&Hsf&Hsrng)"; auto.
     iMod ("Hclose" with "[Hg Hsf Hown]") as "Hown".
-    { iFrame. iNext. iExists _; iFrame. }
+    { iFrame. }
 
 
     (* finally we show a refinement between the generated rngs *)
@@ -685,7 +684,7 @@ Section rng.
     iIntros (b) "(Hhash&Hbounded&HK&Hown)".
     iDestruct ("Hclose'" with "[$]") as "Hown".
     iMod ("Hclose" with "[-HK]").
-    { iFrame. iExists _. iFrame. }
+    { iFrame. }
     iExists _. iFrame. eauto.
   Qed.
 
@@ -727,7 +726,7 @@ Section rng.
     iIntros (rng) "(Hg&Hrng)".
     iMod (spec_run_rng_gen with "Hsf HK") as (srng) "(HK&Hsf&Hsrng)"; auto.
     iMod ("Hclose" with "[Hg Hsf Hown]") as "Hown".
-    { iFrame. iNext. iExists _; iFrame. }
+    { iFrame. }
 
 
     (* finally we show a refinement between the generated rngs *)
@@ -753,7 +752,7 @@ Section rng.
     iIntros (b) "(Hhash&Hbounded&HK&Hown)".
     iDestruct ("Hclose'" with "[$]") as "Hown".
     iMod ("Hclose" with "[-HK]").
-    { iFrame. iExists _. iFrame. }
+    { iFrame. }
     iExists _. iFrame. eauto.
   Qed.
 

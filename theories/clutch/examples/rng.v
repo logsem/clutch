@@ -142,7 +142,7 @@ Section rng.
     { rewrite lookup_insert //. }
     iIntros "Hhash". wp_pures.
     wp_store. iModIntro. iApply "HΦ".
-    iFrame. iExists _, _, _. iFrame.
+    iFrame. iExists _. 
     iSplit; first done.
     iSplit.
     { iPureIntro. intros x. rewrite dom_insert_L.
@@ -215,7 +215,7 @@ Section rng.
     { lia. }
     iIntros "Hhash". wp_pures.
     wp_store. iModIntro. iApply "HΦ".
-    iFrame. iExists _, _, _. iFrame.
+    iFrame. iExists  _. iFrame.
     iSplit; first done.
     iSplit.
     { iPureIntro. intros. apply Hdom. lia. }
@@ -299,7 +299,7 @@ Section rng.
     tp_pures.
     tp_alloc as c "Hc".
     tp_pures.
-    iModIntro. iExists _. iFrame. iExists c. eauto.
+    iModIntro. iExists _. iFrame. eauto.
   Qed.
 
   Lemma wp_hash_rng_flip_refine n g sg K E :
@@ -400,7 +400,7 @@ Section rng.
     wp_apply (wp_hash_rng_flip_refine with "[$]").
     iIntros (b) "(Hhash&Hbounded&HK)".
     iMod ("Hclose" with "[-HK]").
-    { iFrame. iExists _. iFrame. }
+    { iFrame. }
     iExists _. iFrame. eauto.
   Qed.
 
@@ -431,7 +431,7 @@ Section rng.
     wp_apply (wp_bounded_rng_flip_refine with "[$]").
     iIntros (b) "(Hhash&Hbounded&HK)".
     iMod ("Hclose" with "[-HK]").
-    { iFrame. iExists _. iFrame. }
+    { iFrame. }
     iExists _. iFrame. eauto.
   Qed.
 

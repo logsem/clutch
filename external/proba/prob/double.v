@@ -747,7 +747,7 @@ Section double_swap.
 Variable (a : nat * nat → R).
 Variable (DS: double_summable a).
 
-Definition σ := λ x, match @pickle_inv [countType of nat * nat] x with
+Definition σ := λ x, match @pickle_inv (Countable.clone (nat * nat)%type _) x with
             | Some (m, n) => (S m, S n)
             | None => (O, O)
             end.
@@ -814,8 +814,8 @@ Lemma σ_inj:
   ∀ n n' : nat, a' (σ n) ≠ 0 → σ n = σ n' → n = n'.
 Proof.
   intros n n'. rewrite /σ.
-  specialize (@pickle_invK [countType of nat * nat] n).
-  specialize (@pickle_invK [countType of nat * nat] n').
+  specialize (@pickle_invK (Countable.clone (nat * nat)%type _) n).
+  specialize (@pickle_invK (Countable.clone (nat * nat)%type _) n').
   destruct (pickle_inv) as [(?&?)|] => //=;
   destruct (pickle_inv) as [(?&?)|] => //=;
   intros <- ? ?. inversion 1. subst => //=.
@@ -834,7 +834,7 @@ Qed.
 Lemma is_series_a'_σ_columns:
   is_series (λ k : nat, Series (λ j : nat, a' (j, k))) (Series (a' \o σ)).
 Proof.
-  set (σflip := λ x, match @pickle_inv [countType of nat * nat] x with
+  set (σflip := λ x, match @pickle_inv (Countable.clone (nat * nat)%type _) x with
                  | Some (m, n) => pickle (n, m)
                  | None =>  x
                  end).
@@ -844,8 +844,8 @@ Proof.
   cut (Series (a' \o σ) = Series ((a' \o flip) \o σ)).
   { intros ->. eapply series_double_covering => //=.
     - intros n n'. rewrite /σ.
-      specialize (@pickle_invK [countType of nat * nat] n).
-      specialize (@pickle_invK [countType of nat * nat] n').
+      specialize (@pickle_invK (Countable.clone (nat * nat)%type _) n).
+      specialize (@pickle_invK (Countable.clone (nat * nat)%type _) n').
     destruct (pickle_inv) as [(?&?)|] => //=;
     destruct (pickle_inv) as [(?&?)|] => //=;
     intros <- ? ?. inversion 1. subst => //=.
@@ -858,20 +858,20 @@ Proof.
   {
     apply Series_ext => n. rewrite //=.
     rewrite /σflip/σ/a'.
-    case_eq (@pickle_inv [countType of (nat * nat)] n).
+    case_eq (@pickle_inv (Countable.clone (nat * nat)%type _) n).
     - intros (?&?) => //=. by rewrite pickleK_inv.
     - intros Hnone => //=.
       rewrite Hnone. done.
   }
   apply Series_rearrange_covering.
   - intros n n'. rewrite /σ/σflip/a' => //=.
-    case_eq (@pickle_inv [countType of (nat * nat)] n).
+    case_eq (@pickle_inv (Countable.clone (nat * nat)%type _) n).
     * intros (?&?) Heq. rewrite Heq => //=.
       rewrite pickleK_inv.
-      case_eq (@pickle_inv [countType of (nat * nat)] n').
+      case_eq (@pickle_inv (Countable.clone (nat * nat)%type _) n').
       ** intros (?&?) Heq'. rewrite Heq' => //=.
          intros ? Heqp.
-         apply (f_equal (@pickle_inv [countType of (nat * nat)])) in Heqp.
+         apply (f_equal (@pickle_inv (Countable.clone (nat * nat)%type _))) in Heqp.
          rewrite ?pickleK_inv in Heqp.
          inversion Heqp; subst.
          rewrite -Heq' in Heq.
@@ -879,11 +879,11 @@ Proof.
       ** intros Hnone. rewrite Hnone => ? Hfalse. rewrite -Hfalse in Hnone.
          rewrite pickleK_inv in Hnone. congruence.
     * intros Hnone. rewrite ?Hnone.
-      case_eq (@pickle_inv [countType of (nat * nat)] n').
+      case_eq (@pickle_inv (Countable.clone (nat * nat)%type _) n').
       ** intros (?&?) Heq'. rewrite Heq' => //=.
       ** intros Hnone'. by rewrite Hnone' => ?? //=.
   - intros n. rewrite //=. rewrite /σ.
-    case_eq (@pickle_inv [countType of (nat * nat)] n).
+    case_eq (@pickle_inv (Countable.clone (nat * nat)%type _) n).
     * intros (m', n') Hinv ?. exists (pickle (n', m')).
       rewrite /σflip pickleK_inv.
       apply pickle_inv_some_inv; auto.

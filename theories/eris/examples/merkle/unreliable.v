@@ -1,5 +1,7 @@
 From clutch.common Require Import inject.
-From clutch.eris Require Export eris lib.map hash lib.list merkle.merkle_tree.
+From clutch.eris.lib Require Export map list.
+From clutch.eris.examples Require Import hash.
+From clutch.eris.examples.merkle Require Import merkle_tree.
 Import Hierarchy.
 Set Default Proof Using "Type*".
 Open Scope nat.

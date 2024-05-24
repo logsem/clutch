@@ -2,7 +2,7 @@ From discprob.basic Require Import base Series_Ext.
 Require Import Reals Fourier Lia Psatz.
 From mathcomp Require Import ssreflect ssrbool ssrfun eqtype choice fintype bigop.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy Markov.
-
+From HB Require Import structures.
 (*
 
    The ssreflect library defines a notion of countable types, which
@@ -129,15 +129,9 @@ Proof.
   apply bool_irrelevance.
 Qed.
 
-Definition img_choiceMixin {A: countType} {B: eqType} (f: A → B) :=
-  PcanChoiceMixin (pickle_imgK f).
-Canonical img_choiceType {A: countType} {B: eqType} {f: A → B} :=
-  Eval hnf in ChoiceType (imgT f) (@img_choiceMixin A B f).
+HB.instance Definition foo {A: countType} {B: eqType} (f: A → B) : isCountable _ :=
+  PCanIsCountable (pickle_imgK f).
 
-Definition img_countMixin {A: countType} {B: eqType} (f: A → B) :=
-  PcanCountMixin (pickle_imgK f).
-Canonical img_countType {A: countType} {B: eqType} (f: A → B) :=
-  Eval hnf in CountType (imgT f) (@img_countMixin A B f).
 
 (* Some facts about series over countable types *)
 
