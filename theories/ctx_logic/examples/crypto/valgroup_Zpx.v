@@ -5,7 +5,7 @@ From mathcomp Require Import fingroup solvable.cyclic choice eqtype finset
   fintype seq ssrbool ssrnat zmodp.
 
 From clutch.prelude Require Import mc_stdlib.
-From clutch.examples.crypto Require Import valgroup.
+From clutch.ctx_logic.examples.crypto Require Import valgroup.
 
 Local Open Scope group_scope.
 Import fingroup.fingroup.

@@ -1,6 +1,6 @@
 From stdpp Require Import countable.
 From clutch Require Export clutch.
-From clutch.examples Require Export hash.
+From clutch.ctx_logic.examples Require Export hash.
 
 Set Default Proof Using "Type*".
 

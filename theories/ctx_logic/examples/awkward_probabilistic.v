@@ -14,7 +14,7 @@ equivalence by adding a guard that returns `NONE` after the first invocation.
 *)
 
 From clutch Require Export clutch lib.flip. 
-From clutch.examples Require Export one_time_pad.
+From clutch.ctx_logic.examples Require Export one_time_pad.
 
 Set Default Proof Using "Type*".
 

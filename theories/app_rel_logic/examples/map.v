@@ -1,5 +1,5 @@
 From clutch.app_rel_logic Require Export paris.
-From clutch.lib Require Export utils.
+From clutch.common Require Export inject.
 
 Set Default Proof Using "Type*".
 

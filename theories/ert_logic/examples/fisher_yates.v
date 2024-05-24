@@ -2,7 +2,7 @@ From clutch.prob_lang Require Import lang notation tactics metatheory.
 From clutch.ert_logic Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
-From clutch.lib Require Import utils.
+From clutch.common Require Import inject.
 From clutch.ert_logic.examples Require Export meldable_heap.
 Set Default Proof Using "Type*".
 
