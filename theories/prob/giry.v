@@ -3,7 +3,7 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
-From mathcomp.analysis Require Import reals ereal signed topology normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
 
@@ -83,12 +83,13 @@ Section giry.
         (\bar R)                  (* Range type *)
         setT                      (* Domain set *)
         (fun μ => μ S)              (* Evaluation function *)
-        ereal_meas_sets           (* Range sets*).
+        ereal_borel_sets           (* Range sets*).
 
     Definition giry_subbase : set (set (giryType T))
       := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
 
     Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
+
 
   End giry_space.
 
@@ -97,13 +98,13 @@ Section giry.
   Definition giryM_display {d} {T} := sigma_display (@giry_subbase d T).
 
   Definition giryM {d} (T : measurableType d) : measurableType giryM_display
-    := salgebraType (@giry_subbase _ T).
+    := [the measurableType _ of salgebraType (@giry_subbase _ T)].
 
   Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
   Notation "T .-giry.-measurable" := (measurable : set (set (giryM T))) : classical_set_scope.
 
 
-
+  Check measurability.
 
   (** ********** 2. Test: Examples of measuring sets *)
   Section giry_space_example.
@@ -150,6 +151,52 @@ Section giry.
 
 
 
+  (** ********** 6. Measurability of (T₁ -> giryM T₂) functions *)
+
+
+
+  (* FIXME: move *)
+  Definition measurable_evaluations {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2) : Prop
+    := forall (S : set T2), d2.-measurable S -> measurable_fun setT (f ^~ S).
+
+
+  Section giry_measurable_characterization.
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+    Variable (f : T1 -> giryM T2).
+
+    Check (f ^~ _ : T1 -> \bar R).
+
+    Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
+    Proof. Admitted.
+
+    (* Probably want to use measurable_evaluations as a builder for measuable_fun now, so I can
+       instansiate THAT and get the measurable fun hierarchy bit automatically (by this lemma) *)
+
+    (* I don't think we ever care about measruable_evaluations as a class (still useful as a lemma
+       so I won't add a mixin + factory going the other direction )*)
+
+    (* FIXME: Needs to be done outside of a section. Uncomment below (it works) and reorganize. *)
+
+
+(*
+HB.factory Record GiryMeasurableEvals {R : realType} {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM R T2) := { meas_evaluationsP : measurable_evaluations f }.
+
+HB.builders Context R d1 d2 T1 T2 f of @GiryMeasurableEvals R d1 d2 T1 T2 f.
+  Lemma measurable_subproof: measurable_fun setT f.
+  Proof. apply measurable_evals_iff_measurable, meas_evaluationsP. Qed.
+
+  HB.instance Definition _ :=
+      isMeasurableMap.Build _ _ T1 (giryM R T2) f measurable_subproof.
+
+HB.end.
+*)
+
+  End giry_measurable_characterization.
+
+
+
+
+
   (* FIXME: Expose alias to measurable function, not giryM_ret *)
   (* ie. giryM_ret_def, giryM_ret_aux, and giryM_ret *)
 
@@ -165,7 +212,92 @@ Section giry.
     Local Definition giryM_ret_def : T -> giryM T := fun t0 => @dirac _ T t0 _.
 
     Local Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret_def.
-    Proof. move=>_/=. Admitted.
+    Proof.
+      (* rewrite /measurable_fun. intros H Y HY. *)
+      (* The preimage is the set [s | giryM_ret s ∈ Y] *)
+      (* In principle this could be any subset of T, somehow the measurability of
+         Y has to eliminate this possibility. *)
+
+
+      (* Enough to work in a subbasis *)
+      apply (@measurability _ _ _ _ _ giryM_ret_def (@giry_subbase _ T)); first by simpl.
+      rewrite /subset; intros X HX.
+      rewrite /preimage_class/= in HX.
+      rewrite /salgebraType in HX.
+      destruct HX as [Z HZ <-].
+      rewrite setTI.
+
+      rewrite /giry_subbase/= in HZ.
+      destruct HZ as [S [HS HSZ]].
+      rewrite /preimage_class_of_measures/= in HSZ.
+
+      (* Z is a set of subprobability distributions on T.
+         S is a set of T
+         S is measurable in T.
+         Z is measurable in (giryM T).
+
+        giry_subbase Z tells me very little about Z
+         measurable_measure (mathlib) characterizes measurable functions into the monad by their
+         evaluations. So unfolding down one more layer is (probably) necessary using this line.
+
+        Consequence: Probaby best to try applying the lemma you declared and then immediately forgot about.
+
+       *)
+      simpl in *.
+      rewrite /preimage_class/= in HSZ.
+      destruct HSZ as [SR HSBorel <-].
+      rewrite setTI.
+
+      (* SR is a borel set in (\bar R).
+         ( ... ^~ S @^-1` SR) is the set of all subprobabilility measures which evaluate S to something in SR
+         (giryM_ret_def @^-1 ... SR ) is the set of all elements of T whose dirac measure
+            evaluates S to something in SR.
+
+          For any (t : T), t ∈ S <-> dirac t S = 1
+          (0 ∈ SR) / (t ∈ S) :        Says nothing
+          (0 ∈ SR) / (t not ∈ S) :    t ∈ (... @^-1 ...)
+          (1 ∈ SR) / (t ∈ S) :        t ∈ (... @^-1 ...)
+          (1 ∈ SR) / (t not ∈ S) :    Says nothing
+
+          Neither -> t not∈ (... @^-1 ...).
+
+          Can I peel back one level of unfolding and eliminate the explicit R borel set reasoning?
+            (see above for answer)
+       *)
+
+
+      rewrite /ereal_borel_sets/= in HSBorel.
+
+      (* Check sigma_algebra_preimage_classE. *)
+      simpl.
+      rewrite /measurable/=.
+    Restart.
+      (* Attempt 2 *)
+
+      apply measurable_evals_iff_measurable.
+      rewrite /measurable_evaluations.
+      intros S SMeas.
+      (* Now we're proving a T → \bar R function is measurable... better. *)
+      (* This should be easy to characterize since S is measurable. Just depends on
+         if 0 or 1 is in the real set. *)
+
+      rewrite /measurable_fun/= .
+      intros ? Y HY.
+      (* NOTE: Since its using 'measurable, it seems that Borel or Lebesgue doesn't matter here. (assuming qed)*)
+      remember (fun x : T => (\d_x)%R S) as f.
+      rewrite <- (preimage_range f).
+      rewrite -preimage_setI.
+
+      (* Probably silly to work in this order *)
+      replace (range f) with ([set 0%:E; 1%:E] : set \bar R) by admit.
+      (* Split it into (f @^-1 ({1} & Y)) U (f^-1 ({0} & Y))
+          Then I can simplify each thing easier (maybe). *)
+      rewrite setIUl.
+      rewrite preimage_setU.
+      do 2 rewrite set1I.
+
+      (* Now we're looking decent. Figure out how to use LEM and complete. *)
+    Admitted.
 
     HB.instance Definition _ :=
       isMeasurableMap.Build _ _ T (giryM T) giryM_ret_def giry_ret_measurable.
@@ -220,48 +352,6 @@ Section giry.
 
 
 
-
-  (** ********** 6. Measurability of (T₁ -> giryM T₂) functions *)
-
-
-
-  (* FIXME: move *)
-  Definition measurable_evaluations {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2) : Prop
-    := forall (S : set T2), d2.-measurable S -> measurable_fun setT (f ^~ S).
-
-
-  Section giry_measurable_characterization.
-    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-    Variable (f : T1 -> giryM T2).
-
-    Check (f ^~ _ : T1 -> \bar R).
-
-    Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
-    Proof. Admitted.
-
-    (* Probably want to use measurable_evaluations as a builder for measuable_fun now, so I can
-       instansiate THAT and get the measurable fun hierarchy bit automatically (by this lemma) *)
-
-    (* I don't think we ever care about measruable_evaluations as a class (still useful as a lemma
-       so I won't add a mixin + factory going the other direction )*)
-
-    (* FIXME: Needs to be done outside of a section. Uncomment below (it works) and reorganize. *)
-
-
-(*
-HB.factory Record GiryMeasurableEvals {R : realType} {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM R T2) := { meas_evaluationsP : measurable_evaluations f }.
-
-HB.builders Context R d1 d2 T1 T2 f of @GiryMeasurableEvals R d1 d2 T1 T2 f.
-  Lemma measurable_subproof: measurable_fun setT f.
-  Proof. apply measurable_evals_iff_measurable, meas_evaluationsP. Qed.
-
-  HB.instance Definition _ :=
-      isMeasurableMap.Build _ _ T1 (giryM R T2) f measurable_subproof.
-
-HB.end.
-*)
-
-  End giry_measurable_characterization.
 
 
 
