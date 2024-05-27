@@ -3,7 +3,7 @@ From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import metatheory lang.
 From clutch.prelude Require Import asubst properness.
 From clutch.clutch Require Import primitive_laws model.
-From clutch.prob_lang.typing Require Export types.
+From clutch.prob_lang.typing Require Export types contextual_refinement.
 
 (** * Interpretation of types *)
 Section semtypes.
@@ -290,3 +290,6 @@ Notation "〈 Δ ';' Γ 〉 ⊨ e '≤log≤' e' : τ" :=
   (at level 100, Δ at next level, Γ at next level, e, e' at next level,
    τ at level 200,
    format "'[hv' 〈 Δ ';'  Γ 〉  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  :  τ ']'").
+
+
+
