@@ -1,10 +1,10 @@
-From clutch.app_rel_logic Require Import adequacy.
-From clutch.app_rel_logic Require Export app_clutch.
+From clutch.paris Require Import adequacy.
+From clutch Require Import paris.
 Set Default Proof Using "Type*".
 Open Scope R.
 
 Section b_tree.
-  Context `{!app_clutchGS Σ}.
+  Context `{!parisGS Σ}.
   Context {min_child_num' : nat}.
   Context {depth : nat}.
   Local Definition min_child_num := S min_child_num'.
