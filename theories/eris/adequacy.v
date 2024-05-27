@@ -399,9 +399,9 @@ Section adequacy.
                    etrans; last eapply (SeriesC_singleton' (of_val v, σ)).
                    apply SeriesC_ext.
                    intros. case_bool_decide; subst; simpl.
-                   --- rewrite IHn. rewrite prim_step_or_val_is_val; last done.
-                       rewrite dret_1_1; [lra|done].
-                   --- rewrite prim_step_or_val_is_val; last done.
+                   --- rewrite IHn. rewrite step_or_final_is_final; first rewrite dret_1_1; [lra|done|].
+                       rewrite /is_final. simpl. done.
+                   --- simpl. rewrite step_or_final_is_final; last by rewrite /is_final. 
                        rewrite dret_0; last done. lra.
              ++ rewrite dret_0; last done. lra.
           -- apply SeriesC_0.
@@ -416,7 +416,7 @@ Section adequacy.
                 apply SeriesC_0.
                 intros. destruct (decide (x = (of_val v, σ))).
                 ** subst. rewrite IHn; try done. lra.
-                ** rewrite prim_step_or_val_is_val; last done.
+                ** rewrite step_or_final_is_final; last by rewrite /is_final. 
                    rewrite dret_0; last done.
                    lra.
         * rewrite SeriesC_singleton. lra.
