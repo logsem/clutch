@@ -550,16 +550,24 @@ Proof.
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
   iApply wp_safety_fupdN. iFrame.
   iApply Hwp. done.
+Qed.
+
+Global Instance decision_is_final_reducible (ρ : cfg):
+  Decision (is_final ρ \/ reducible ρ).
+Proof.
+  apply or_dec.
+  - apply _.
+  - apply make_decision.
 Qed. 
 
 Lemma pexec_safety_relate (e:expr) σ n:
-  prob (pexec n (e, σ)) (λ ρ, @bool_decide (is_final ρ \/ reducible ρ) (make_decision _)) =
+  probp (pexec n (e, σ)) (λ ρ, (is_final ρ \/ reducible ρ)) =
   SeriesC (pexec (S n) (e, σ)).
 Proof.
   revert e σ.
   induction n; intros e σ.
   - simpl. rewrite pexec_O. rewrite pexec_1.
-    rewrite /prob. rewrite /step_or_final.
+    rewrite /probp. rewrite /step_or_final.
     erewrite (SeriesC_ext _ (λ x, if bool_decide (is_final (e, σ) \/ reducible (e, σ)) then dret (e, σ) x else 0)); last first.
     { intros. destruct (decide (n=(e,σ))).
       - subst. done. 
@@ -605,7 +613,7 @@ Qed.
 
 Corollary wp_safety' Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
   (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  prob (pexec n (e, σ)) (λ ρ, @bool_decide (is_final ρ \/ reducible ρ) (make_decision _)) >= 1 - ε.
+  probp (pexec n (e, σ)) (λ ρ, (is_final ρ \/ reducible ρ)) >= 1 - ε.
 Proof.
   eintros H'%wp_safety; last done.
   etrans; last exact.
