@@ -62,6 +62,8 @@ Section giry.
 
   (* FIXME: Are these the same? Or is 'measurable derived from the Lebesgue measure? Would that be an issue? *)
   (* 'measurable breaks when I remove the import to lebesgue_measure *)
+  Definition ereal_borel_subbase : set (set \bar R) := [set N | exists x, ereal_nbhs x N].
+
   Definition ereal_borel_sets : set (set \bar R) := <<s [set N | exists x, ereal_nbhs x N]>>.
   Definition ereal_meas_sets : set (set \bar R) := 'measurable.
 
@@ -107,6 +109,11 @@ Section giry.
   Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
   Notation "T .-giry.-measurable" := (measurable : set (set (giryM T))) : classical_set_scope.
 
+
+
+  Definition borelER_display := sigma_display ereal_borel_subbase.
+  Definition borelER : measurableType borelER_display
+    := [the measurableType _ of salgebraType ereal_borel_subbase].
 
   Check measurability.
 
@@ -154,30 +161,56 @@ Section giry.
   End giry_integral_example.
 
 
-  (** ********** 5. Measurability of evaluation maps *)
 
+
+
+  (** ********** 5. Measurability of evaluation maps *)
   Section giryM_eval.
     Context {d} {T : measurableType d}.
 
-    Local Definition giryM_eval_def (S : set T) (HS : d.-measurable S) : giryM T -> \bar R := (fun μ => μ S).
+    Local Definition giryM_eval_def (S : set T) (HS : d.-measurable S) : giryM T -> borelER := (fun μ => μ S).
+
+    Check measurable_fun.
+
+
 
     (* Evaluation functions are measurable maps *)
-    Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_eval_def HS).
+
+    (* FIXME: do we actually use Borel \bar R anywhere here? *)
+
+    (* Yes, first line, to apply the comap lemma. Maybe a more general comap lemma can avoid this. *)
+
+    Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) borelER setT (giryM_eval_def HS).
     Proof.
-      intro Hmeas_s.
-      rewrite /measurable_fun /=.
-      intros Hmeas_T U Hmeas_U.
-      simpl in *. (* You're lost *)
-    Admitted.
+      apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
+
+      rewrite /T.-giry.-measurable/=.
+      rewrite {2}/giry_subbase/=.
+      apply  (@subset_trans _ (giry_subbase (T:=T))); last by apply sub_gen_smallest.
+      rewrite /subset/=.
+      intros X.
+      rewrite /preimage_class/=.
+      intros [Y HY <-].
+      rewrite {1}/giry_subbase/=.
+      exists S, HS.
+      rewrite /preimage_class_of_measures/preimage_class/=.
+      exists Y.
+      { apply sub_gen_smallest.
+        rewrite /ereal_borel_subbase/= in HY.
+        done. }
+      done.
+    Qed.
+
+
 
     HB.instance Definition _ (S : set T) (HS : d.-measurable S) :=
-      isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
+      isMeasurableMap.Build _ _ (giryM T) borelER (giryM_eval_def HS) (giryM_eval_def_measurable HS).
 
   End giryM_eval.
 
   (* FIXME: This is the interface that should be used (seal the other?) *)
 
-  Definition giryM_eval {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) : measurable_map (giryM T) (\bar R)
+  Definition giryM_eval {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) : measurable_map (giryM T) borelER
     := (giryM_eval_def HS).
   Lemma giryM_eval_aux {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) :
     forall μ, giryM_eval HS μ = μ S.
@@ -188,18 +221,17 @@ Section giry.
 
   (** ********** 6. Measurability of (T₁ -> giryM T₂) functions *)
 
-
-
   (* FIXME: move *)
   Definition measurable_evaluations {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2) : Prop
-    := forall (S : set T2), d2.-measurable S -> measurable_fun setT (f ^~ S).
+    := forall (S : set T2), d2.-measurable S -> (@measurable_fun _ _ _ borelER setT (f ^~ S)).
+
 
 
   Section giry_measurable_characterization.
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
     Variable (f : T1 -> giryM T2).
 
-    Check (f ^~ _ : T1 -> \bar R).
+    Check (f ^~ _ : T1 -> borelER).
 
     Lemma measurable_evals_if_measurable : measurable_fun setT f -> measurable_evaluations f.
     Proof.
@@ -207,7 +239,8 @@ Section giry.
       rewrite /measurable_evaluations.
       intros S HS.
       replace (fun x : T1 => f x S) with ((@^~ S) \o f); last by apply functional_extensionality.
-      apply (@measurable_comp _ _ _ _ _ _ setT (@^~ S : giryM T2 -> \bar R)); auto.
+
+      apply (@measurable_comp _ _ _ _ _ _ setT (@^~ S : giryM T2 -> borelER)); auto.
       { apply subsetT. }
       apply (@giryM_eval_def_measurable _ _ _ HS).
     Qed.
