@@ -322,6 +322,31 @@ Section markov.
       by setoid_rewrite IHn1.
   Qed.
 
+  Lemma exec_pexec_relate a n:
+    exec n a = pexec n a ≫=
+                 (λ e, match to_final e with
+                             | Some b => dret b
+                             | _ => dzero
+                       end).
+  Proof.
+    revert a.
+    induction n; intros a.
+    - simpl. rewrite pexec_O.
+      rewrite dret_id_left'.
+      done.
+    - simpl. rewrite pexec_Sn.
+      rewrite -dbind_assoc'.
+      case_match eqn:H.
+      + rewrite step_or_final_is_final; last by eapply to_final_Some_2.
+        rewrite dret_id_left'.
+        rewrite pexec_is_final; last by eapply to_final_Some_2.
+        rewrite dret_id_left'. rewrite H. done.
+      + rewrite step_or_final_no_final; last by eapply to_final_None_2.
+        apply dbind_ext_right. done.
+  Qed.
+  
+        
+
   Lemma exec_mono a n v :
     exec n a v <= exec (S n) a v.
   Proof.
