@@ -6,6 +6,8 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
+Import Coq.Logic.FunctionalExtensionality.
+
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -25,6 +27,8 @@ Unset Printing Implicit Defensive.
         giryM_join
         giryM_bind
 
+
+    CITE: Mathlib
 *)
 
 Reserved Notation "T .-giry" (at level 1, format "T .-giry").
@@ -150,6 +154,37 @@ Section giry.
   End giry_integral_example.
 
 
+  (** ********** 5. Measurability of evaluation maps *)
+
+  Section giryM_eval.
+    Context {d} {T : measurableType d}.
+
+    Local Definition giryM_eval_def (S : set T) (HS : d.-measurable S) : giryM T -> \bar R := (fun μ => μ S).
+
+    (* Evaluation functions are measurable maps *)
+    Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_eval_def HS).
+    Proof.
+      intro Hmeas_s.
+      rewrite /measurable_fun /=.
+      intros Hmeas_T U Hmeas_U.
+      simpl in *. (* You're lost *)
+    Admitted.
+
+    HB.instance Definition _ (S : set T) (HS : d.-measurable S) :=
+      isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
+
+  End giryM_eval.
+
+  (* FIXME: This is the interface that should be used (seal the other?) *)
+
+  Definition giryM_eval {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) : measurable_map (giryM T) (\bar R)
+    := (giryM_eval_def HS).
+  Lemma giryM_eval_aux {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) :
+    forall μ, giryM_eval HS μ = μ S.
+  Proof using R. done. Qed.
+
+
+
 
   (** ********** 6. Measurability of (T₁ -> giryM T₂) functions *)
 
@@ -166,8 +201,22 @@ Section giry.
 
     Check (f ^~ _ : T1 -> \bar R).
 
-    Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
+    Lemma measurable_evals_if_measurable : measurable_fun setT f -> measurable_evaluations f.
+    Proof.
+      intros Hm.
+      rewrite /measurable_evaluations.
+      intros S HS.
+      replace (fun x : T1 => f x S) with ((@^~ S) \o f); last by apply functional_extensionality.
+      apply (@measurable_comp _ _ _ _ _ _ setT (@^~ S : giryM T2 -> \bar R)); auto.
+      { apply subsetT. }
+      apply (@giryM_eval_def_measurable _ _ _ HS).
+    Qed.
+
+    Lemma measurable_if_measurable_evals : measurable_evaluations f -> measurable_fun setT f.
     Proof. Admitted.
+
+    Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
+    Proof. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
 
     (* Probably want to use measurable_evaluations as a builder for measuable_fun now, so I can
        instansiate THAT and get the measurable fun hierarchy bit automatically (by this lemma) *)
@@ -322,33 +371,6 @@ HB.end.
 
 
 
-  (** ********** 5. Measurability of evaluation maps *)
-
-  Section giryM_eval.
-    Context {d} {T : measurableType d}.
-
-    Local Definition giryM_eval_def (S : set T) (HS : d.-measurable S) : giryM T -> \bar R := (fun μ => μ S).
-
-    (* Evaluation functions are measurable maps *)
-    Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_eval_def HS).
-    Proof.
-      intro Hmeas_s.
-      rewrite /measurable_fun /=.
-      intros Hmeas_T U Hmeas_U.
-    Admitted.
-
-    HB.instance Definition _ (S : set T) (HS : d.-measurable S) :=
-      isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
-
-  End giryM_eval.
-
-  (* FIXME: This is the interface that should be used (seal the other?) *)
-
-  Definition giryM_eval {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) : measurable_map (giryM T) (\bar R)
-    := (giryM_eval_def HS).
-  Lemma giryM_eval_aux {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) :
-    forall μ, giryM_eval HS μ = μ S.
-  Proof using R. done. Qed.
 
 
 
