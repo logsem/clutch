@@ -287,19 +287,10 @@ Qed.
 
 Lemma pexec_coupl_step_pexec m e1 σ1 α bs :
   σ1.(tapes) !! α = Some bs →
-  Rcoupl
-    (pexec m (e1, σ1))
-    (state_step σ1 α ≫= (λ σ2, pexec m (e1, σ2)))
-    (λ '(e, σ) '(e', σ'),
-       e = e' /\ σ = σ'
-    ) \/
-    Rcoupl
-    (pexec m (e1, σ1))
-    (state_step σ1 α ≫= (λ σ2, pexec m (e1, σ2)))
-    (λ '(e, σ) '(e', σ'),
-       e = e' /\ state_step σ α σ' > 0
-    )
-.
+   Rcoupl
+    (dmap (λ ρ, ρ.1) (pexec m (e1, σ1)))
+    (dmap (λ ρ, ρ.1) (state_step σ1 α ≫= (λ σ2, pexec m (e1, σ2))))
+    eq.
 Proof.
 Admitted.
 
@@ -311,17 +302,25 @@ Lemma prim_coupl_step_prim m e1 σ1 α bs :
     eq.
 Proof.
   intros Hα.
-  epose proof pexec_coupl_step_pexec _ _ _ _ _ Hα as [H|H].
-  - setoid_rewrite exec_pexec_relate.
-    rewrite dbind_assoc'.
-    eapply Rcoupl_dbind; last done.
-    simpl. intros [][] [-> ->].
-    apply Rcoupl_eq.
-  - setoid_rewrite exec_pexec_relate.
-    rewrite dbind_assoc'.
-    eapply Rcoupl_dbind; last done.
-    simpl. intros [][] [-> ?].
-    apply Rcoupl_eq.
+  epose proof pexec_coupl_step_pexec _ _ _ _ _ Hα as H.
+  setoid_rewrite exec_pexec_relate.
+  simpl.
+  erewrite (distr_ext _ (dmap (λ ρ, ρ.1) (pexec m (e1, σ1)) ≫=
+                           λ e, match to_val e with | Some b => dret b | None => dzero end)); last first.
+  { intros. rewrite /dmap.
+    rewrite -dbind_assoc. simpl.
+    apply dbind_pmf_ext; try done.
+    intros. rewrite dret_id_left. done. 
+  }
+  erewrite (distr_ext (state_step _ _ ≫= _) _).
+  - eapply Rcoupl_dbind; last exact.
+    intros. subst. apply Rcoupl_eq.
+  - intros. rewrite /dmap.
+    rewrite -!dbind_assoc. simpl.
+    apply dbind_pmf_ext; try done.
+    intros. apply dbind_pmf_ext; try done.
+    intros.
+    rewrite dret_id_left. done.
 Qed.
 
 Lemma state_step_erasable σ1 α bs :
