@@ -290,7 +290,16 @@ Section adequacy.
           intros H.
           assert (SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) =
                   SeriesC (state_step σ1 α ≫= λ σ1', iterM (S n) prim_step_or_val (e1, σ1'))) as ->.
-          { admit. }
+          { erewrite (SeriesC_ext _ (pexec (S n) (e1, σ1))); last first.
+            { rewrite /pexec. done. }
+            erewrite (SeriesC_ext (_≫=_) (_≫=λ σ1', pexec (S n) (e1, σ1'))); last first.
+            { rewrite /pexec. done. }
+            rewrite -!(dmap_mass _ (λ x, x.1)).
+            eapply Rcoupl_mass_eq.
+            rewrite /=/get_active elem_of_elements elem_of_dom in Hα.
+            destruct Hα as [??]. 
+            by eapply pexec_coupl_step_pexec.
+          }
           simpl. apply Rle_ge.
           setoid_rewrite prim_step_or_val_no_val; last done.
           simpl. simpl in *.
@@ -358,7 +367,7 @@ Section adequacy.
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
-  Admitted.
+  Qed.
   
   Theorem wp_safety_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
@@ -542,3 +551,63 @@ Proof.
   iApply wp_safety_fupdN. iFrame.
   iApply Hwp. done.
 Qed. 
+
+Lemma pexec_safety_relate (e:expr) σ n:
+  prob (pexec n (e, σ)) (λ ρ, @bool_decide (is_final ρ \/ reducible ρ) (make_decision _)) =
+  SeriesC (pexec (S n) (e, σ)).
+Proof.
+  revert e σ.
+  induction n; intros e σ.
+  - simpl. rewrite pexec_O. rewrite pexec_1.
+    rewrite /prob. rewrite /step_or_final.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (is_final (e, σ) \/ reducible (e, σ)) then dret (e, σ) x else 0)); last first.
+    { intros. destruct (decide (n=(e,σ))).
+      - subst. done. 
+      - rewrite dret_0; last done. by repeat case_match. 
+    }
+    case_bool_decide as H.
+    + rewrite dret_mass. case_match; first by rewrite dret_mass.
+      simpl. erewrite mixin_prim_step_mass; auto.
+      * apply: ectx_lang_mixin.
+      * destruct H; auto.
+        exfalso.
+        destruct H. naive_solver.
+    + rewrite SeriesC_0; last done.
+      case_match; first exfalso.
+      * apply H. naive_solver.
+      * symmetry. apply SeriesC_0.
+        intros x. assert (0<=step (e, σ) x) as [|] by auto; auto.
+        exfalso. apply H. right. rewrite /reducible. naive_solver.
+  - rewrite /prob in IHn. rewrite /prob.
+    rewrite (pexec_Sn_r _ (S n)).
+    rewrite dbind_mass.
+    apply SeriesC_ext.
+    intros [].
+    case_bool_decide as H.
+    + replace (SeriesC _) with 1; first lra.
+      symmetry.
+      destruct H.
+      * rewrite /step_or_final. case_match; first apply dret_mass.
+        exfalso. destruct H. naive_solver.
+      * rewrite /step_or_final. case_match; first apply dret_mass.
+        simpl. erewrite mixin_prim_step_mass; auto.
+        apply: ectx_lang_mixin.
+    + replace (SeriesC _) with 0; first lra.
+      symmetry.
+      rewrite /step_or_final.
+      case_match.
+      * exfalso. naive_solver.
+      * apply SeriesC_0.
+        intros x. eassert (0<= step _ x) as [|<-] by auto; auto.
+        exfalso. apply H. right. rewrite /reducible. naive_solver.
+Qed. 
+
+
+Corollary wp_safety' Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
+  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  prob (pexec n (e, σ)) (λ ρ, @bool_decide (is_final ρ \/ reducible ρ) (make_decision _)) >= 1 - ε.
+Proof.
+  eintros H'%wp_safety; last done.
+  etrans; last exact.
+  by erewrite pexec_safety_relate.
+Qed.

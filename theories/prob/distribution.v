@@ -1303,6 +1303,7 @@ Section dmap.
   Proof. rewrite /dmap dret_id_right //. Qed.
 
   Context `{Countable B}.
+  Context `{Countable X}.
 
   Lemma dmap_dret_pmf (f : A → B) (a : A) (b : B) :
     dmap f (dret a) b = dret (f a) b.
@@ -1312,11 +1313,11 @@ Section dmap.
     dmap f (dret a) = dret (f a) .
   Proof. apply distr_ext, dmap_dret_pmf. Qed.
 
-  Lemma dmap_dbind_pmf (f : A → B) (g : A → distr A) (μ : distr A) (b : B) :
-    dmap f (dbind g μ) b = dbind (λ a, dmap f (g a)) μ b.
+  Lemma dmap_dbind_pmf (f : B → X) (g : A → distr B) (μ : distr A) (x : X) :
+    dmap f (dbind g μ) x = dbind (λ a, dmap f (g a)) μ x.
   Proof. rewrite /dmap dbind_assoc_pmf //. Qed.
 
-  Lemma dmap_dbind (f : A → B) (g : A → distr A) (μ : distr A) :
+  Lemma dmap_dbind (f : B → X) (g : A → distr B) (μ : distr A) :
     dmap f (dbind g μ) = dbind (λ a, dmap f (g a)) μ.
   Proof. apply distr_ext, dmap_dbind_pmf. Qed.
 
