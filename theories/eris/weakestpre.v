@@ -96,7 +96,7 @@ Section exec_ub.
     { iLeft; iPureIntro. lra. }
     iRight.
     rewrite /total_ub_lift in H0.
-    remember (λ a : (), @bool_decide (R2 a) (make_decision (R2 a))) as X.
+    remember (λ a : (), bool_decide (R2 a)) as X.
     destruct (X ()) as [|] eqn:HX; simpl in *.
     - iApply ("Hmono" $!  ε2).
       { iPureIntro; simpl.

@@ -232,7 +232,7 @@ Section adequacy.
         rewrite distr_double_swap. setoid_rewrite SeriesC_scal_l.
         trans (1 - SeriesC
             (λ a : language.expr prob_lang * language.state prob_lang,
-               if Datatypes.negb (@bool_decide (R a) (make_decision _)) then language.prim_step e1 σ1 a else 0) - SeriesC
+               if Datatypes.negb (bool_decide (R a)) then language.prim_step e1 σ1 a else 0) - SeriesC
                             (λ ρ : language.expr prob_lang * language.state prob_lang, language.prim_step e1 σ1 ρ * ε2 ρ)).
           { simpl. simpl in *. lra. }
           simpl. simpl in *.
@@ -247,23 +247,22 @@ Section adequacy.
           { apply pmf_ex_seriesC_mult_fn. exists r. intros a. pose proof cond_nonneg (ε2 a). naive_solver. }
           eassert (ex_seriesC (λ a : expr * state, if Datatypes.negb (bool_decide (R a)) then prim_step e1 σ1 a else 0)).
           { apply ex_seriesC_filter_bool_pos; auto. }
-          rewrite -!SeriesC_plus; last first; auto.
-          { exact. }
+          rewrite -!SeriesC_plus; auto; last first.          
           { apply ex_seriesC_plus; auto. }
           apply SeriesC_le; last first.
           { repeat apply ex_seriesC_plus; auto. }
           intros x; split; first auto.
           case_bool_decide; simpl.
-        - rewrite -Rmult_plus_distr_l.
-          cut (prim_step e1 σ1 x *1 <= prim_step e1 σ1 x * (SeriesC (iterM n prim_step_or_val x) + ε2 x)).
-          { rewrite Rmult_1_r. rewrite Rplus_0_r. intros; done. }
-          apply Rmult_le_compat_l; auto.
-          rewrite -Rcomplements.Rle_minus_l.
-          apply Rge_le. naive_solver.
-        - apply Rle_plus_r; first done.
-          apply Rplus_le_le_0_compat; first real_solver.
-          apply Rmult_le_pos; auto.
-          apply cond_nonneg.
+          + rewrite -Rmult_plus_distr_l.
+            cut (prim_step e1 σ1 x *1 <= prim_step e1 σ1 x * (SeriesC (iterM n prim_step_or_val x) + ε2 x)).
+            { rewrite Rmult_1_r. rewrite Rplus_0_r. intros; done. }
+            apply Rmult_le_compat_l; auto.
+            rewrite -Rcomplements.Rle_minus_l.
+            apply Rge_le. naive_solver.
+          + apply Rle_plus_r; first done.
+            apply Rplus_le_le_0_compat; first real_solver.
+            apply Rmult_le_pos; auto.
+            apply cond_nonneg.
       }
       iIntros ([e s] ?).
       iMod ("H" with "[//]") as "H".
@@ -308,7 +307,7 @@ Section adequacy.
           rewrite distr_double_swap. setoid_rewrite SeriesC_scal_l.
           trans (1 - SeriesC
                        (λ a ,
-                          if Datatypes.negb (@bool_decide (R2 a) (make_decision _)) then language.state_step σ1 α a else 0) - SeriesC
+                          if Datatypes.negb (bool_decide (R2 a)) then language.state_step σ1 α a else 0) - SeriesC
                                                                                                                                (λ σ2 , language.state_step σ1 α σ2 * ε2 (e1, σ2))).
           { simpl. simpl in *. rewrite -Rminus_plus_distr.
             rewrite !Rminus_def. apply Rplus_le_compat_l.
@@ -326,8 +325,7 @@ Section adequacy.
           { apply pmf_ex_seriesC_mult_fn. destruct Hε''. epose proof cond_nonneg. naive_solver. }
           eassert (ex_seriesC (λ a : state, if Datatypes.negb (bool_decide (R2 a)) then state_step σ1 α a else 0)).
           { apply ex_seriesC_filter_bool_pos; auto. }
-          rewrite -!SeriesC_plus; last first; auto.
-          { exact. }
+          rewrite -!SeriesC_plus; auto; last first. 
           { apply ex_seriesC_plus; auto. }
           apply SeriesC_le; last first.
           { repeat apply ex_seriesC_plus; auto. }
@@ -552,23 +550,16 @@ Proof.
   iApply Hwp. done.
 Qed.
 
-Global Instance decision_is_final_reducible (ρ : cfg):
-  Decision (is_final ρ \/ reducible ρ).
-Proof.
-  apply or_dec.
-  - apply _.
-  - apply make_decision.
-Qed. 
-
 Lemma pexec_safety_relate (e:expr) σ n:
-  probp (pexec n (e, σ)) (λ ρ, (is_final ρ \/ reducible ρ)) =
+  probp (pexec n (e, σ)) (λ ρ, (is_final ρ ∨ reducible ρ)) =
   SeriesC (pexec (S n) (e, σ)).
 Proof.
   revert e σ.
   induction n; intros e σ.
   - simpl. rewrite pexec_O. rewrite pexec_1.
     rewrite /probp. rewrite /step_or_final.
-    erewrite (SeriesC_ext _ (λ x, if bool_decide (is_final (e, σ) \/ reducible (e, σ)) then dret (e, σ) x else 0)); last first.
+    erewrite (SeriesC_ext _ (λ x, if bool_decide (is_final (e, σ) ∨ reducible (e, σ))
+                                  then dret (e, σ) x else 0)); last first.
     { intros. destruct (decide (n=(e,σ))).
       - subst. done. 
       - rewrite dret_0; last done. by repeat case_match. 
@@ -609,7 +600,6 @@ Proof.
         intros x. eassert (0<= step _ x) as [|<-] by auto; auto.
         exfalso. apply H. right. rewrite /reducible. naive_solver.
 Qed. 
-
 
 Corollary wp_safety' Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
   (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →

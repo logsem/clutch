@@ -39,8 +39,6 @@ Proof.
   erewrite SeriesC_ext; last first.
   { intros n. by rewrite <-Rmult_plus_distr_l. }
   simpl in Hub, H, R. simpl.
-  assert (forall ρ, Decision (R ρ)) as Hdec.
-  { intros. apply make_decision. }
   rewrite (SeriesC_ext _
              (λ ρ, (if bool_decide(R ρ) then prim_step e σ ρ * (ε2 ρ + prob (lim_exec ρ) P) else 0)+
                      if bool_decide (~R ρ) then prim_step e σ ρ * (ε2 ρ + prob (lim_exec ρ) P) else 0
@@ -162,8 +160,6 @@ Proof.
   erewrite SeriesC_ext; last first.
   { intros n. by rewrite <-Rmult_plus_distr_l. }
   simpl in Hub, H, R. simpl.
-  assert (forall ρ, Decision (R ρ)) as Hdec.
-  { intros. apply make_decision. }
   rewrite (SeriesC_ext _
              (λ ρ, (if bool_decide(R ρ) then state_step σ l ρ * (ε2 (e, ρ) + prob (lim_exec (e, ρ)) P) else 0)+
                      if bool_decide (~R ρ) then state_step σ l ρ * (ε2 (e, ρ) + prob (lim_exec (e, ρ)) P) else 0

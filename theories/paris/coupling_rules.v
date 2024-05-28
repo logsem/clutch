@@ -836,7 +836,6 @@ Section rules.
         iMod ("Hwp" $! _ _ (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> _) with "[$]").
         iModIntro. iApply exec_stutter_free. rewrite /ε_now2. done.
         Unshelve.
-        -- apply make_decision.
         -- apply gset_fin_set.
   Qed.
 
