@@ -3,6 +3,7 @@ From stdpp Require Import namespaces.
 From clutch.prob_lang Require Import notation lang.
 From clutch.paris Require Import primitive_laws proofmode model rel_tactics app_rel_rules.
 
+(*
 Section compatibility.
   Context `{!parisRGS Σ}.
   Implicit Types e : expr.
@@ -183,3 +184,4 @@ Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
   Qed.
 
 End compatibility.
+*)
