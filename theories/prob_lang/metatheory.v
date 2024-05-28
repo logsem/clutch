@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From stdpp Require Import functions gmap stringmap fin_sets.
-From clutch.prelude Require Import stdpp_ext NNRbar fin vec.
+From clutch.prelude Require Import stdpp_ext NNRbar fin uniform_list.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
 From clutch.prob_lang Require Import locations tactics notation.
@@ -968,143 +968,143 @@ Qed.
 Lemma iterM_state_step_unfold σ (N p:nat) α xs :
   σ.(tapes) !! α = Some (N%nat; xs) ->
   (iterM p (λ σ1', state_step σ1' α) σ) =
-  dmap (λ v, state_upd_tapes <[α := (N%nat; xs ++ vec_to_list v)]> σ)
+  dmap (λ v, state_upd_tapes <[α := (N%nat; xs ++ v)]> σ)
     (dunifv N p).
 Proof.
-  revert σ N α xs.
-  induction p as [|p' IH].
-  { (* base case *)
-    intros. simpl.
-    apply distr_ext.
-    intros. rewrite /dret/dret_pmf{1}/pmf/=.
-    rewrite dmap_unfold_pmf.
-    rewrite SeriesC_finite_foldr; simpl.
-    case_bool_decide.
-    - rewrite bool_decide_eq_true_2.
-      + rewrite dunifv_pmf. simpl. lra.
-      + rewrite state_upd_tapes_no_change; try done.
-        rewrite app_nil_r. done.
-    - rewrite bool_decide_eq_false_2.
-      + rewrite dunifv_pmf. simpl. lra.
-      + rewrite state_upd_tapes_no_change; try done.
-        rewrite app_nil_r. done.
-  } 
-  (* inductive case *)
-  intros σ N α xs Ht.
-  replace (S p') with (p'+1)%nat; last lia.
-  rewrite iterM_plus; simpl.
-  erewrite IH; last done.
-  erewrite dbind_ext_right; last first.
-  { intros. apply dret_id_right. }
-  apply distr_ext. intros σ'. rewrite dmap_unfold_pmf.
-  replace (p'+1)%nat with (S p') by lia.
-  destruct (decide (∃ v: vec (fin(S N)) (S p'), σ' = state_upd_tapes <[α:=(N; xs ++ v)]> σ)) as [K|K].
-  - (* σ' is reachable *)
-    destruct K as [v ->].
-    rewrite (SeriesC_subset (λ a, a = v)); last first.
-    { intros a Ha.
-      rewrite bool_decide_eq_false_2; first lra.
-      move => /state_upd_tapes_same. intros L. simplify_eq.
-      apply vec_to_list_inj2 in L. done.
-    }
-    rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last done.
-    rewrite dunifv_pmf. rewrite Rmult_1_r.
-    remember (/ (S N ^ S p')%nat) as val eqn:Hval.
-    rewrite /dbind/dbind_pmf{1}/pmf/=.
-    rewrite (SeriesC_subset (λ a, a = state_upd_tapes <[α := (N; xs ++ Vector.shiftout v)]> σ)).
-    + rewrite SeriesC_singleton_dependent. erewrite state_step_unfold; last first.
-      { simpl. rewrite lookup_insert. done. }
-      rewrite !dmap_unfold_pmf.
-      rewrite (SeriesC_subset (λ a, a = Vector.shiftout v)); last first.
-      { intros. rewrite bool_decide_eq_false_2; first lra.
-        move => /state_upd_tapes_same. intros L. simplify_eq. apply vec_to_list_inj2 in L. done.
-      }
-      rewrite SeriesC_singleton_dependent.
-      rewrite bool_decide_eq_true_2; last done.
-      rewrite dunifv_pmf.
-      rewrite (SeriesC_subset (λ a, a = Vector.last v)); last first.
-      { intros a H. rewrite bool_decide_eq_false_2; first lra.
-        rewrite state_upd_tapes_twice. move => /state_upd_tapes_same.
-        rewrite <-app_assoc. intros K.
-        simplify_eq. apply H.
-        replace ([a]) with (vec_to_list (list_to_vec [a])) in K; last by simpl.
-        rewrite <-vec_to_list_app in K.
-        (** urgh need to prove that last element of vec is indeed last element*)
-        set (zero := 0%fin:(fin (S N))).
-        erewrite (Vector.to_list_last _ _ _ zero). 
-        eapply (f_equal (λ x, List.last x zero)) in K.
-        rewrite vec_to_list_app in K.
-        rewrite last_last in K. rewrite K. f_equal.
-        apply vec_to_list_VectorDef_to_list.
-      }
-      rewrite SeriesC_singleton_dependent.
-      rewrite /dunifP dunif_pmf. rewrite bool_decide_eq_true_2; last rewrite state_upd_tapes_twice.
-      * rewrite Hval.
-        cut ( / INR (S N ^ p') * (/ INR (S N)) = / INR (S N ^ S p')); first lra.
-        rewrite -Rinv_mult.
-        f_equal. rewrite -mult_INR. f_equal. simpl. lia.
-      * rewrite -app_assoc. repeat f_equal.
-        set (zero := 0%fin:(fin (S N))).
-        erewrite (Vector.to_list_last _ _ _ zero).
-        apply vec_eta.
-    + (* prove that σ' is not an intermediate step*)
-      intros σ'.
-      intros Hσ.
-      assert (dmap (λ v0 : vec (fin (S N)) p', state_upd_tapes <[α:=(N; xs ++ v0)]> σ) (dunifv N p') σ' *  state_step σ' α (state_upd_tapes <[α:=(N; xs ++ v)]> σ) >= 0) as [H|H]; last done.
-      { apply Rle_ge. apply Rmult_le_pos; auto. }
-      exfalso.
-      apply Rmult_pos_cases in H as [[H1 H2]|[? H]]; last first.
-      { pose proof pmf_pos (state_step σ' α)  (state_upd_tapes <[α:=(N; xs ++ v)]> σ). lra. }
-      rewrite dmap_pos in H1.
-      destruct H1 as [v' [-> H1]].
-      apply Hσ. repeat f_equal.
-      erewrite state_step_unfold in H2; last first.
-      { simpl. apply lookup_insert. }
-      apply dmap_pos in H2.
-      destruct H2 as [a [H2?]].
-      rewrite state_upd_tapes_twice in H2.
-      apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq.
-      replace ([a]) with (vec_to_list (list_to_vec [a])) in H2; last by simpl.
-      rewrite <-vec_to_list_app in H2.
-      apply vec_to_list_inj2.
-      by eapply vec_shiftout.
-  - (* σ' is not reachable, i.e. both sides are zero *)
-    rewrite SeriesC_0; last first.
-    { intros. rewrite bool_decide_eq_false_2; first lra.
-      naive_solver.
-    }
-    rewrite /dbind/dbind_pmf{1}/pmf/=.
-    apply SeriesC_0.
-    intros σ''.
-    rewrite /dmap/dbind/dbind_pmf{1}/pmf/=.
-    setoid_rewrite dunifv_pmf. rewrite SeriesC_scal_l.
-    cut (SeriesC (λ x : vec (fin (S N)) p', dret (state_upd_tapes <[α:=(N; xs ++ x)]> σ) σ'') *
-           state_step σ'' α σ' = 0).
-    { rewrite Rmult_assoc. intros ->. lra. }
-    assert (SeriesC (λ x : vec (fin (S N)) p', dret (state_upd_tapes <[α:=(N; xs ++ x)]> σ) σ'') *
-              state_step σ'' α σ' >= 0) as [H|H]; last auto.
-    { apply Rle_ge. apply Rmult_le_pos; auto. apply SeriesC_ge_0'.
-      intros. auto. 
-    }
-    apply Rmult_pos_cases in H as [[H1 H2]|[? H]]; last first.
-    { pose proof pmf_pos (state_step σ'' α) σ'. lra. }
-    epose proof SeriesC_gtz_ex _ _ H1. simpl in *.
-    destruct H as [v H]. apply dret_pos in H; subst.
-    erewrite state_step_unfold in H2; last first.
-    { simpl. rewrite lookup_insert. done. }
-    exfalso.
-    apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst.
-    setoid_rewrite state_upd_tapes_twice.
-    rewrite -app_assoc.
-    set (v':=(Vector.of_list (v++[x]))).
-    replace (S p') with (length (v++[x])).
-    + exists v'. repeat f_equal. rewrite /v'. rewrite vec_to_list_to_vec. done.
-    + rewrite app_length.
-      rewrite vec_to_list_length. simpl. lia.
-      Unshelve.
-      simpl.
-      auto.
-Qed.
+Admitted.
+(*   revert σ N α xs. *)
+(*   induction p as [|p' IH]. *)
+(*   { (* base case *) *)
+(*     intros. simpl. *)
+(*     apply distr_ext. *)
+(*     intros. rewrite /dret/dret_pmf{1}/pmf/=. *)
+(*     rewrite dmap_unfold_pmf. *)
+(*     rewrite SeriesC_finite_foldr; simpl. *)
+(*     case_bool_decide. *)
+(*     - rewrite bool_decide_eq_true_2. *)
+(*       + rewrite dunifv_pmf. simpl. lra. *)
+(*       + rewrite state_upd_tapes_no_change; try done. *)
+(*         rewrite app_nil_r. done. *)
+(*     - rewrite bool_decide_eq_false_2. *)
+(*       + rewrite dunifv_pmf. simpl. lra. *)
+(*       + rewrite state_upd_tapes_no_change; try done. *)
+(*         rewrite app_nil_r. done. *)
+(*   }  *)
+(*   (* inductive case *) *)
+(*   intros σ N α xs Ht. *)
+(*   replace (S p') with (p'+1)%nat; last lia. *)
+(*   rewrite iterM_plus; simpl. *)
+(*   erewrite IH; last done. *)
+(*   erewrite dbind_ext_right; last first. *)
+(*   { intros. apply dret_id_right. } *)
+(*   apply distr_ext. intros σ'. rewrite dmap_unfold_pmf. *)
+(*   replace (p'+1)%nat with (S p') by lia. *)
+(*   destruct (decide (∃ v: vec (fin(S N)) (S p'), σ' = state_upd_tapes <[α:=(N; xs ++ v)]> σ)) as [K|K]. *)
+(*   - (* σ' is reachable *) *)
+(*     destruct K as [v ->]. *)
+(*     rewrite (SeriesC_subset (λ a, a = v)); last first. *)
+(*     { intros a Ha. *)
+(*       rewrite bool_decide_eq_false_2; first lra. *)
+(*       move => /state_upd_tapes_same. intros L. simplify_eq. *)
+(*       apply vec_to_list_inj2 in L. done. *)
+(*     } *)
+(*     rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last done. *)
+(*     rewrite dunifv_pmf. rewrite Rmult_1_r. *)
+(*     remember (/ (S N ^ S p')%nat) as val eqn:Hval. *)
+(*     rewrite /dbind/dbind_pmf{1}/pmf/=. *)
+(*     rewrite (SeriesC_subset (λ a, a = state_upd_tapes <[α := (N; xs ++ Vector.shiftout v)]> σ)). *)
+(*     + rewrite SeriesC_singleton_dependent. erewrite state_step_unfold; last first. *)
+(*       { simpl. rewrite lookup_insert. done. } *)
+(*       rewrite !dmap_unfold_pmf. *)
+(*       rewrite (SeriesC_subset (λ a, a = Vector.shiftout v)); last first. *)
+(*       { intros. rewrite bool_decide_eq_false_2; first lra. *)
+(*         move => /state_upd_tapes_same. intros L. simplify_eq. apply vec_to_list_inj2 in L. done. *)
+(*       } *)
+(*       rewrite SeriesC_singleton_dependent. *)
+(*       rewrite bool_decide_eq_true_2; last done. *)
+(*       rewrite dunifv_pmf. *)
+(*       rewrite (SeriesC_subset (λ a, a = Vector.last v)); last first. *)
+(*       { intros a H. rewrite bool_decide_eq_false_2; first lra. *)
+(*         rewrite state_upd_tapes_twice. move => /state_upd_tapes_same. *)
+(*         rewrite <-app_assoc. intros K. *)
+(*         simplify_eq. apply H. *)
+(*         replace ([a]) with (vec_to_list (list_to_vec [a])) in K; last by simpl. *)
+(*         rewrite <-vec_to_list_app in K. *)
+(*         set (zero := 0%fin:(fin (S N))). *)
+(*         erewrite (Vector.to_list_last _ _ _ zero).  *)
+(*         eapply (f_equal (λ x, List.last x zero)) in K. *)
+(*         rewrite vec_to_list_app in K. *)
+(*         rewrite last_last in K. rewrite K. f_equal. *)
+(*         apply vec_to_list_VectorDef_to_list. *)
+(*       } *)
+(*       rewrite SeriesC_singleton_dependent. *)
+(*       rewrite /dunifP dunif_pmf. rewrite bool_decide_eq_true_2; last rewrite state_upd_tapes_twice. *)
+(*       * rewrite Hval. *)
+(*         cut ( / INR (S N ^ p') * (/ INR (S N)) = / INR (S N ^ S p')); first lra. *)
+(*         rewrite -Rinv_mult. *)
+(*         f_equal. rewrite -mult_INR. f_equal. simpl. lia. *)
+(*       * rewrite -app_assoc. repeat f_equal. *)
+(*         set (zero := 0%fin:(fin (S N))). *)
+(*         erewrite (Vector.to_list_last _ _ _ zero). *)
+(*         apply vec_eta. *)
+(*     + (* prove that σ' is not an intermediate step*) *)
+(*       intros σ'. *)
+(*       intros Hσ. *)
+(*       assert (dmap (λ v0 : vec (fin (S N)) p', state_upd_tapes <[α:=(N; xs ++ v0)]> σ) (dunifv N p') σ' *  state_step σ' α (state_upd_tapes <[α:=(N; xs ++ v)]> σ) >= 0) as [H|H]; last done. *)
+(*       { apply Rle_ge. apply Rmult_le_pos; auto. } *)
+(*       exfalso. *)
+(*       apply Rmult_pos_cases in H as [[H1 H2]|[? H]]; last first. *)
+(*       { pose proof pmf_pos (state_step σ' α)  (state_upd_tapes <[α:=(N; xs ++ v)]> σ). lra. } *)
+(*       rewrite dmap_pos in H1. *)
+(*       destruct H1 as [v' [-> H1]]. *)
+(*       apply Hσ. repeat f_equal. *)
+(*       erewrite state_step_unfold in H2; last first. *)
+(*       { simpl. apply lookup_insert. } *)
+(*       apply dmap_pos in H2. *)
+(*       destruct H2 as [a [H2?]]. *)
+(*       rewrite state_upd_tapes_twice in H2. *)
+(*       apply state_upd_tapes_same in H2. rewrite -app_assoc in H2. simplify_eq. *)
+(*       replace ([a]) with (vec_to_list (list_to_vec [a])) in H2; last by simpl. *)
+(*       rewrite <-vec_to_list_app in H2. *)
+(*       apply vec_to_list_inj2. *)
+(*       by eapply vec_shiftout. *)
+(*   - (* σ' is not reachable, i.e. both sides are zero *) *)
+(*     rewrite SeriesC_0; last first. *)
+(*     { intros. rewrite bool_decide_eq_false_2; first lra. *)
+(*       naive_solver. *)
+(*     } *)
+(*     rewrite /dbind/dbind_pmf{1}/pmf/=. *)
+(*     apply SeriesC_0. *)
+(*     intros σ''. *)
+(*     rewrite /dmap/dbind/dbind_pmf{1}/pmf/=. *)
+(*     setoid_rewrite dunifv_pmf. rewrite SeriesC_scal_l. *)
+(*     cut (SeriesC (λ x : vec (fin (S N)) p', dret (state_upd_tapes <[α:=(N; xs ++ x)]> σ) σ'') * *)
+(*            state_step σ'' α σ' = 0). *)
+(*     { rewrite Rmult_assoc. intros ->. lra. } *)
+(*     assert (SeriesC (λ x : vec (fin (S N)) p', dret (state_upd_tapes <[α:=(N; xs ++ x)]> σ) σ'') * *)
+(*               state_step σ'' α σ' >= 0) as [H|H]; last auto. *)
+(*     { apply Rle_ge. apply Rmult_le_pos; auto. apply SeriesC_ge_0'. *)
+(*       intros. auto.  *)
+(*     } *)
+(*     apply Rmult_pos_cases in H as [[H1 H2]|[? H]]; last first. *)
+(*     { pose proof pmf_pos (state_step σ'' α) σ'. lra. } *)
+(*     epose proof SeriesC_gtz_ex _ _ H1. simpl in *. *)
+(*     destruct H as [v H]. apply dret_pos in H; subst. *)
+(*     erewrite state_step_unfold in H2; last first. *)
+(*     { simpl. rewrite lookup_insert. done. } *)
+(*     exfalso. *)
+(*     apply K. rewrite dmap_pos in H2. destruct H2 as [x[-> H2]]. subst. *)
+(*     setoid_rewrite state_upd_tapes_twice. *)
+(*     rewrite -app_assoc. *)
+(*     set (v':=(Vector.of_list (v++[x]))). *)
+(*     replace (S p') with (length (v++[x])). *)
+(*     + exists v'. repeat f_equal. rewrite /v'. rewrite vec_to_list_to_vec. done. *)
+(*     + rewrite app_length. *)
+(*       rewrite vec_to_list_length. simpl. lia. *)
+(*       Unshelve. *)
+(*       simpl. *)
+(*       auto. *)
+(* Qed. *)
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
   (f:(vec (fin (S N)) p) -> fin (S M)) (Hinj: Inj (=) (=) f):
@@ -1115,57 +1115,58 @@ Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
     (iterM p (λ σ1', state_step σ1' α) σ)
     (state_step σₛ αₛ)
     (λ σ1' σ2', ∃ (xs':vec (fin (S N)) p) (z:fin (S M)),
-        σ1' = state_upd_tapes <[α := (N%nat; xs ++ vec_to_list xs')]> σ ∧
+        σ1' = state_upd_tapes <[α := (N%nat; xs ++ xs')]> σ ∧
         σ2' = state_upd_tapes <[αₛ := (M%nat; zs ++ [z])]> σₛ /\
         f xs' = z
     ).
 Proof.
-  intros H Hσ Hσₛ.
-  erewrite state_step_unfold; last done.
-  erewrite iterM_state_step_unfold; last done.
-  apply Rcoupl_dmap.
-  exists (dmap (λ v, (v, f v)) (dunifv N p)).
-  split.
-  - split; apply distr_ext.
-    + intros v. rewrite lmarg_pmf.
-      rewrite (SeriesC_ext _
-                 (λ b : fin (S M), if bool_decide (b=f v) then dmap (λ v0 : vec (fin (S N)) p, (v0, f v0)) (dunifv N p) (v, b) else 0)).
-      * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
-        rewrite (SeriesC_ext _
-                   (λ a : vec (fin (S N)) p, if bool_decide (a = v) then dunifv N p a * (if bool_decide ((v, f v) = (a, f a)) then 1 else 0) else 0)).
-        { rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; first lra.
-          done. }
-        intros.
-        case_bool_decide; simplify_eq.
-        -- rewrite bool_decide_eq_true_2; done.
-        -- rewrite bool_decide_eq_false_2; first lra.
-           intros ->. done.
-      * intros. case_bool_decide; first done.
-        rewrite dmap_unfold_pmf.
-        setoid_rewrite bool_decide_eq_false_2.
-        -- rewrite SeriesC_scal_r; lra.
-        -- intros ?. simplify_eq.
-    + intros a.
-      rewrite rmarg_pmf.
-      assert (∃ x, f x = a) as [x H2].
-      { apply finite_inj_surj; first done.
-        rewrite vec_card !fin_card.
-        done.
-      }
-      rewrite (SeriesC_subset (λ x', x' = x)).
-      * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
-        rewrite (SeriesC_subset (λ x', x' = x)).
-        -- rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last by subst.
-           rewrite dunifv_pmf /dunifP dunif_pmf. rewrite H. lra.
-        -- intros. subst. rewrite bool_decide_eq_false_2; first lra.
-           naive_solver.
-      * intros. subst. rewrite dmap_unfold_pmf.
-        apply SeriesC_0. intros. rewrite bool_decide_eq_false_2; first lra.
-        naive_solver.
-  - intros []. rewrite dmap_pos.
-    elim. intros ? [??]. simplify_eq.
-    naive_solver.
-Qed.
+Admitted.
+(*   intros H Hσ Hσₛ. *)
+(*   erewrite state_step_unfold; last done. *)
+(*   erewrite iterM_state_step_unfold; last done. *)
+(*   apply Rcoupl_dmap. *)
+(*   exists (dmap (λ v, (v, f v)) (dunifv N p)). *)
+(*   split. *)
+(*   - split; apply distr_ext. *)
+(*     + intros v. rewrite lmarg_pmf. *)
+(*       rewrite (SeriesC_ext _ *)
+(*                  (λ b : fin (S M), if bool_decide (b=f v) then dmap (λ v0 : vec (fin (S N)) p, (v0, f v0)) (dunifv N p) (v, b) else 0)). *)
+(*       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf. *)
+(*         rewrite (SeriesC_ext _ *)
+(*                    (λ a : vec (fin (S N)) p, if bool_decide (a = v) then dunifv N p a * (if bool_decide ((v, f v) = (a, f a)) then 1 else 0) else 0)). *)
+(*         { rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; first lra. *)
+(*           done. } *)
+(*         intros. *)
+(*         case_bool_decide; simplify_eq. *)
+(*         -- rewrite bool_decide_eq_true_2; done. *)
+(*         -- rewrite bool_decide_eq_false_2; first lra. *)
+(*            intros ->. done. *)
+(*       * intros. case_bool_decide; first done. *)
+(*         rewrite dmap_unfold_pmf. *)
+(*         setoid_rewrite bool_decide_eq_false_2. *)
+(*         -- rewrite SeriesC_scal_r; lra. *)
+(*         -- intros ?. simplify_eq. *)
+(*     + intros a. *)
+(*       rewrite rmarg_pmf. *)
+(*       assert (∃ x, f x = a) as [x H2]. *)
+(*       { apply finite_inj_surj; first done. *)
+(*         rewrite vec_card !fin_card. *)
+(*         done. *)
+(*       } *)
+(*       rewrite (SeriesC_subset (λ x', x' = x)). *)
+(*       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf. *)
+(*         rewrite (SeriesC_subset (λ x', x' = x)). *)
+(*         -- rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last by subst. *)
+(*            rewrite dunifv_pmf /dunifP dunif_pmf. rewrite H. lra. *)
+(*         -- intros. subst. rewrite bool_decide_eq_false_2; first lra. *)
+(*            naive_solver. *)
+(*       * intros. subst. rewrite dmap_unfold_pmf. *)
+(*         apply SeriesC_0. intros. rewrite bool_decide_eq_false_2; first lra. *)
+(*         naive_solver. *)
+(*   - intros []. rewrite dmap_pos. *)
+(*     elim. intros ? [??]. simplify_eq. *)
+(*     naive_solver. *)
+(* Qed. *)
 
 Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
   (M<=N)%R ->

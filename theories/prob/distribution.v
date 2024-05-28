@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
-From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical.
+From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical uniform_list.
 From clutch.prob Require Export countable_sum.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
@@ -2201,11 +2201,13 @@ Section uniform.
 
 End uniform.
 
-(** Uniform for vectors *)
-Section uniform_vectors.
-  Program Definition dunifv (N p: nat): distr (vec (fin (S N)) p) := MkDistr (λ _, /(S N^p)%nat) _ _ _.
+(** Uniform lists *)
+Section uniform_lists.
+  Program Definition dunifv (N p: nat): distr (list (fin (S N))) :=
+    MkDistr (λ x, if (bool_decide (length x = p)) then /(S N^p)%nat else 0) _ _ _.
   Next Obligation.
     intros. simpl.
+    case_bool_decide; last done.
     rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; first lra.
     replace 0 with (INR 0) by done.
     apply lt_INR.
@@ -2214,42 +2216,57 @@ Section uniform_vectors.
   Qed.
   Next Obligation.
     intros.
-    apply ex_seriesC_finite.
+    eapply ex_seriesC_ext; last apply ex_seriesC_list.
+    simpl. intros. erewrite bool_decide_ext; first done.
+    by erewrite elem_of_enum_uniform_list.
   Qed.
   Next Obligation.
     intros N p.
-    rewrite SeriesC_finite_mass.
-    rewrite vec_card fin_card.
-    rewrite Rinv_r; first lra.
-    replace 0 with (INR 0); last by simpl.
-    intro H. apply INR_eq in H.
-    rewrite Nat.pow_eq_0_iff in H. lia.
+    erewrite SeriesC_ext. 
+    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
+      rewrite enum_uniform_list_length.
+      erewrite Rinv_l; first done.
+      apply not_0_INR.
+      apply Nat.pow_nonzero.
+      lia.
+    - intros. erewrite bool_decide_ext; first done.
+      by erewrite elem_of_enum_uniform_list.
   Qed.
   
   Lemma dunifv_pmf N p v:
-    dunifv N p v= / (S N^p)%nat.
+    dunifv N p v= if (bool_decide (length v = p)) then / (S N^p)%nat else 0.
   Proof. done. Qed.
 
   Lemma dunifv_mass N p:
     SeriesC (dunifv N p) = 1.
   Proof.
-    rewrite SeriesC_finite_mass.
-    rewrite vec_card fin_card Rinv_r//.
-    apply not_0_INR.
-    intro H. rewrite Nat.pow_eq_0_iff in H.
-    lia.
-  Qed.
+    erewrite SeriesC_ext.
+    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
+      rewrite enum_uniform_list_length.
+      erewrite Rinv_l; first done.
+      apply not_0_INR.
+      apply Nat.pow_nonzero. lia.
+    - intros.
+      rewrite /dunifv_pmf.
+      erewrite bool_decide_ext; first done.
+      by erewrite elem_of_enum_uniform_list.
+  Qed. 
 
   Lemma dunifv_pos N p v:
+    length v = p-> 
     dunifv N p v > 0.
   Proof.
-    rewrite dunifv_pmf /=. apply Rinv_pos.
+    rewrite dunifv_pmf /=.
+    intros. 
+    rewrite bool_decide_eq_true_2; last done.
+    apply Rinv_pos.
     apply Rlt_gt.
     apply lt_0_INR.
     apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
     apply Nat.pow_le_mono_r; lia.
   Qed.
-End uniform_vectors.
+  
+End uniform_lists.
 
 Ltac inv_distr :=
   repeat
