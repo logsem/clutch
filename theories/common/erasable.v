@@ -1,5 +1,4 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import rejection_sampler_distribution.
 From clutch.common Require Import language.
 From clutch.prob Require Export couplings distribution markov.
 
@@ -121,12 +120,5 @@ Section erasable_functions.
     rewrite /erasable.
     intros. rewrite dret_id_left'. done.
   Qed.
-
-  Lemma rej_samp_state_erasable N σ α s (ns:list(fin(S N))) (Hfound: σ.(tapes)!!α = Some (N;ns)):
-    erasable (rej_samp_state_distr N σ α s ns Hfound) σ.
-  Proof.
-    rewrite /erasable.
-    intros e m.
-    apply distr_ext_pmf.
-  Admitted.
+  
 End erasable_functions.

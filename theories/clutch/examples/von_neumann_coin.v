@@ -69,10 +69,7 @@ Section proofs.
     rel_apply refines_flip_l.
     iIntros "!>" (b').
     rel_pures_l.
-    case_bool_decide ; rel_pures_l.
-    - admit.
-    - rel_values.
-  Abort.
+  Abort. 
 
   (* We can prove the refinement in case we diverge instead. *)
   Goal ⊢ REL (vnc_div t2) << (λ:<>, flip) : lrel_unit → lrel_bool.

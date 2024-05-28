@@ -179,10 +179,7 @@ Section proofs.
     unfold xor ; rel_load_r...
     iApply (refines_na_close with "[-$Hclose]") ; iSplitL "xb" ; [ by iExists _ |].
     unshelve rel_apply_r (refines_steps_r $! (xor_tp _ _ _)) ; iModIntro.
-    (* We do not know this, in fact it may well be false (i.e. read this as `assert False`). *)
-    assert (b = not_necessarily_b) as <- by admit.
-    rewrite /b'. rewrite cancel.
-    rel_values.
+    (* We do not know this, in fact it may well be false (i.e. read this as `assert False`). *) 
   Abort.
 
   (* Instead of directly trying to link the flip in call_flip with the one in

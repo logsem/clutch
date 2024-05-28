@@ -150,20 +150,19 @@ Section miller_rabin_code.
   (* These two lemmas need some group theory, but should
      be available in standard textbooks, e.g Cormen et al *)
 
-  Lemma MR_witness_card (m t u : Z) :
+  Axiom MR_witness_card :
+    ∀ (m t u : Z),
     ¬ Znumtheory.prime m ->
     (m = 2^t * u + 1)%Z ->
     Z.Odd u ->
-    length (List.filter (λ x : nat, is_MR_nonwitness t u (1 + x)) (seq 0 (Z.to_nat (m - 1)))) <= (IZR(m-1)) / 2.
-  Admitted.
+    length (List.filter (λ x : nat, is_MR_nonwitness t u (1 + x)) (seq 0 (Z.to_nat (m - 1)))) <= (IZR(m-1)) / 2.      
 
-  Lemma fermat_little (p t u x : Z) :
+  Axiom fermat_little : ∀ (p t u x : Z),
     Znumtheory.prime p ->
     (p = 2^t * u + 1)%Z ->
     Z.Odd u ->
     (0 <= x < p)%Z ->
     MR_nonwitness p t u x.
-  Admitted.
 
   Lemma is_MR_nonwitness_false (m t u x : Z) :
     (0 <= t)%Z ->

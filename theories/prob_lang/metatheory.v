@@ -3,7 +3,7 @@ From stdpp Require Import functions gmap stringmap fin_sets.
 From clutch.prelude Require Import stdpp_ext NNRbar fin.
 From clutch.prob Require Import distribution couplings couplings_app.
 From clutch.common Require Import ectx_language.
-From clutch.prob_lang Require Import locations tactics notation rejection_sampler_distribution.
+From clutch.prob_lang Require Import locations tactics notation.
 From clutch.prob_lang Require Export lang.
 From clutch.prob Require Import distribution couplings.
 From iris.prelude Require Import options.
@@ -168,33 +168,6 @@ Proof.
     intros [? ?]; apply elem_of_map_to_list.
 Qed.
 
-
-Lemma fresh_loc_offset_none σ (z : Z) :
-  (0 ≤ z)%Z →
-  heap σ !! ((fresh_loc (heap σ)) +ₗ z) = None.
-Admitted.
-
-
-
-(* The stepping relation preserves closedness *)
-Lemma head_step_is_closed e1 σ1 e2 σ2 :
-  is_closed_expr ∅ e1 →
-  map_Forall (λ _ v, is_closed_val v) σ1.(heap) →
-  head_step_rel e1 σ1 e2 σ2 →
-  is_closed_expr ∅ e2 ∧
-  map_Forall (λ _ v, is_closed_val v) σ2.(heap).
-Proof.
-  intros Cl1 Clσ1 STEP.
-  induction STEP; simpl in *; split_and!;
-    try apply map_Forall_insert_2; try by naive_solver.
-  - subst. repeat apply is_closed_subst'; naive_solver.
-  - unfold un_op_eval in *. repeat case_match; naive_solver.
-  - eapply bin_op_eval_closed; eauto; naive_solver.
-  - simplify_eq. apply heap_closed_alloc; try done; try lia.
-    intros.
-    by apply fresh_loc_offset_none.
-Qed.
-
 Lemma subst_map_empty e : subst_map ∅ e = e.
 Proof.
   assert (∀ x, binder_delete x (∅:gmap _ val) = ∅) as Hdel.
@@ -261,15 +234,6 @@ Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed
 
 Local Open Scope R.
 
-
-Lemma ARcoupl_state_step_dunifP σ α N ns:
-  tapes σ !! α = Some (N; ns) ->
-  ARcoupl (state_step σ α) (dunifP N)
-    (
-     λ σ' n,  σ' = state_upd_tapes <[α := (N; ns ++ [n])]> σ
-    ) 0.
-Proof.
-Admitted.
 
 (** * rand(N) ~ rand(N) coupling *)
 Lemma Rcoupl_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z σ1 σ1' :
@@ -834,37 +798,6 @@ Proof.
   eapply Rcoupl_dret.
   rewrite /state_upd_tapes insert_commute //.
 Qed.
-
-
-(** rej_samp_state_distr ~ state_step*)
-Lemma Rcoupl_rej_samp_state N M f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} σ1 σ2 α1 α2 xs ys
-  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
-  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
-  let f_img := (list_to_set (f<$>fin_enum (S N))) in 
-    Rcoupl
-      (state_step σ1 α1)
-      (rej_samp_state_distr M σ2 α2 f_img ys Hfound2)
-      (λ σ1' σ2', ∃ (n : fin (S N)) (junk : list (fin (S M))),
-          Forall (λ y, forall x, f x ≠ y) junk /\
-          σ1' = state_upd_tapes <[α1 := (N; xs ++ [n])]> σ1 ∧
-          σ2' = state_upd_tapes <[α2 := (M; ys ++ junk ++ [f n])]> σ2).
-Proof.
-Admitted.
-
-(** state_step ~ rej_samp *)
-Lemma Rcoupl_state_rej_samp N M f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} σ1 σ2 α1 α2 xs ys 
-  (Hfound1: σ1.(tapes) !! α1 = Some (N; xs))
-  (Hfound2: σ2.(tapes) !! α2 = Some (M; ys)):
-  let f_img := (list_to_set (f<$>fin_enum (S M))) in 
-    Rcoupl
-      (rej_samp_state_distr N σ1 α1 f_img xs Hfound1)
-      (state_step σ2 α2)
-      (λ σ1' σ2', ∃ (n : fin (S M)) (junk : list (fin (S N))),
-          Forall (λ y, forall x, f x ≠ y) junk  /\
-          σ1' = state_upd_tapes <[α1 := (N; xs ++ junk++ [f n])]> σ1 ∧
-          σ2' = state_upd_tapes <[α2 := (M; ys ++ [n])]> σ2).
-Proof.
-Admitted.
 
 Lemma Rcoupl_state_1_3 σ σₛ α1 α2 αₛ (xs ys:list(fin (2))) (zs:list(fin (4))):
   α1 ≠ α2 -> 
