@@ -965,24 +965,6 @@ Proof.
          f_equal.
 Qed.
 
-(** Probably can be deleted*)
-Lemma Rcoupl_state_state_mult N M σ σₛ α αₛ xs zs
-  (f:(fin (S N) * fin (S N)) -> fin (S M)) (Hinj: Inj (=) (=) f):
-  (S N * S N = S M)%nat->
-  σ.(tapes) !! α = Some (N%nat; xs) ->
-  σₛ.(tapes) !! αₛ = Some (M%nat; zs) ->
-  Rcoupl
-      (state_step σ α ≫= (λ σ1', state_step σ1' α))
-      (state_step σₛ αₛ)
-      (λ σ1' σ2', ∃ (x y:fin (S N)) (z:fin (S M)),
-          σ1' = state_upd_tapes <[α := (N%nat; xs ++ [x;y])]> σ ∧
-          σ2' = state_upd_tapes <[αₛ := (M%nat; zs ++ [z])]> σₛ /\
-          f (x, y) = z
-      ).
-Proof.
-  set (μ:= dret (state_upd_tapes <[α := (N; xs)]> σ)).
-Admitted.
-
 Lemma iterM_state_step_unfold σ (N p:nat) α xs :
   σ.(tapes) !! α = Some (N%nat; xs) ->
   (iterM p (λ σ1', state_step σ1' α) σ) =
