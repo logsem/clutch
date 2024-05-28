@@ -97,7 +97,7 @@ Section task_loop_spec.
       { eapply Rcoupl_reducible_l in Hcpl as [? ?]; [|eauto using (dunifP_pos _ 0%fin)].
         eexists ((_ + _)%nat). apply dbind_pos. eexists. split; [|done].
         rewrite dret_1_1 //. lra. }
-      (* Notice how the model step in the preceding line introduces a later in the goal. *)
+      (** Notice how the model step in the preceding line introduces a later in the goal. *)
       { iIntros (σ Hσ).
         rewrite /state_step /=.
         rewrite bool_decide_eq_true_2; [|by eapply elem_of_dom_2].
@@ -107,7 +107,7 @@ Section task_loop_spec.
         apply refRcoupl_dret; eauto. }
       rewrite {2}/task_spec /tc_opaque.
       iIntros "!>" (m ? ->) "Hspec Hα /=".
-      (* Notice how the above line strips a later from the goal and the Loeb induction hyptothesis. *)
+      (** Notice how the above line strips a later from the goal and the Loeb induction hyptothesis. *)
       iSpecialize ("Hf" with "Hq Hα Hna").
       wp_apply (rwp_wand with "Hf").
       iIntros (v) "(Hna & Hq & Hα)".
