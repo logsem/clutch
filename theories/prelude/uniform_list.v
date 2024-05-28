@@ -89,5 +89,5 @@ Section uniform_list.
         * intros ????? ?%elem_of_list_ret ?%elem_of_list_ret. by simplify_eq.
         * intros. rewrite /mret/list_ret. apply NoDup_singleton.
   Qed.  
-  
+
 End uniform_list.

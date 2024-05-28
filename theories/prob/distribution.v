@@ -2253,17 +2253,21 @@ Section uniform_lists.
   Qed. 
 
   Lemma dunifv_pos N p v:
-    length v = p-> 
+    length v = p <-> 
     dunifv N p v > 0.
   Proof.
-    rewrite dunifv_pmf /=.
-    intros. 
-    rewrite bool_decide_eq_true_2; last done.
-    apply Rinv_pos.
-    apply Rlt_gt.
-    apply lt_0_INR.
-    apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
-    apply Nat.pow_le_mono_r; lia.
+    split.
+    - rewrite dunifv_pmf /=.
+      intros. 
+      rewrite bool_decide_eq_true_2; last done.
+      apply Rinv_pos.
+      apply Rlt_gt.
+      apply lt_0_INR.
+      apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
+      apply Nat.pow_le_mono_r; lia.
+    - rewrite /dunifv/pmf/=.
+      case_bool_decide; last lra.
+      done.
   Qed.
   
 End uniform_lists.

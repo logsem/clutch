@@ -1107,66 +1107,84 @@ Admitted.
 (* Qed. *)
 
 Lemma Rcoupl_state_state_exp N p M σ σₛ α αₛ xs zs
-  (f:(vec (fin (S N)) p) -> fin (S M)) (Hinj: Inj (=) (=) f):
+  (f:(list (fin (S N))) -> fin (S M))
+  (Hinj: forall l1 l2, length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2):
   (S N ^ p = S M)%nat->
   σ.(tapes) !! α = Some (N%nat; xs) ->
   σₛ.(tapes) !! αₛ = Some (M%nat; zs) ->
   Rcoupl
     (iterM p (λ σ1', state_step σ1' α) σ)
     (state_step σₛ αₛ)
-    (λ σ1' σ2', ∃ (xs':vec (fin (S N)) p) (z:fin (S M)),
+    (λ σ1' σ2', ∃ (xs':list(fin (S N))) (z:fin (S M)),
+        length xs' = p /\
         σ1' = state_upd_tapes <[α := (N%nat; xs ++ xs')]> σ ∧
         σ2' = state_upd_tapes <[αₛ := (M%nat; zs ++ [z])]> σₛ /\
         f xs' = z
     ).
 Proof.
-Admitted.
-(*   intros H Hσ Hσₛ. *)
-(*   erewrite state_step_unfold; last done. *)
-(*   erewrite iterM_state_step_unfold; last done. *)
-(*   apply Rcoupl_dmap. *)
-(*   exists (dmap (λ v, (v, f v)) (dunifv N p)). *)
-(*   split. *)
-(*   - split; apply distr_ext. *)
-(*     + intros v. rewrite lmarg_pmf. *)
-(*       rewrite (SeriesC_ext _ *)
-(*                  (λ b : fin (S M), if bool_decide (b=f v) then dmap (λ v0 : vec (fin (S N)) p, (v0, f v0)) (dunifv N p) (v, b) else 0)). *)
-(*       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf. *)
-(*         rewrite (SeriesC_ext _ *)
-(*                    (λ a : vec (fin (S N)) p, if bool_decide (a = v) then dunifv N p a * (if bool_decide ((v, f v) = (a, f a)) then 1 else 0) else 0)). *)
-(*         { rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; first lra. *)
-(*           done. } *)
-(*         intros. *)
-(*         case_bool_decide; simplify_eq. *)
-(*         -- rewrite bool_decide_eq_true_2; done. *)
-(*         -- rewrite bool_decide_eq_false_2; first lra. *)
-(*            intros ->. done. *)
-(*       * intros. case_bool_decide; first done. *)
-(*         rewrite dmap_unfold_pmf. *)
-(*         setoid_rewrite bool_decide_eq_false_2. *)
-(*         -- rewrite SeriesC_scal_r; lra. *)
-(*         -- intros ?. simplify_eq. *)
-(*     + intros a. *)
-(*       rewrite rmarg_pmf. *)
-(*       assert (∃ x, f x = a) as [x H2]. *)
-(*       { apply finite_inj_surj; first done. *)
-(*         rewrite vec_card !fin_card. *)
-(*         done. *)
-(*       } *)
-(*       rewrite (SeriesC_subset (λ x', x' = x)). *)
-(*       * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf. *)
-(*         rewrite (SeriesC_subset (λ x', x' = x)). *)
-(*         -- rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last by subst. *)
-(*            rewrite dunifv_pmf /dunifP dunif_pmf. rewrite H. lra. *)
-(*         -- intros. subst. rewrite bool_decide_eq_false_2; first lra. *)
-(*            naive_solver. *)
-(*       * intros. subst. rewrite dmap_unfold_pmf. *)
-(*         apply SeriesC_0. intros. rewrite bool_decide_eq_false_2; first lra. *)
-(*         naive_solver. *)
-(*   - intros []. rewrite dmap_pos. *)
-(*     elim. intros ? [??]. simplify_eq. *)
-(*     naive_solver. *)
-(* Qed. *)
+  intros H Hσ Hσₛ.
+  erewrite state_step_unfold; last done.
+  erewrite iterM_state_step_unfold; last done.
+  apply Rcoupl_dmap.
+  exists (dmap (λ v, (v, f v)) (dunifv N p)).
+  split.
+  - split; apply distr_ext.
+    + intros v. rewrite lmarg_pmf.
+      rewrite (SeriesC_ext _
+                 (λ b : fin (S M), if bool_decide (b=f v) then dmap (λ v0, (v0, f v0)) (dunifv N p) (v, b) else 0)).
+      * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
+        rewrite (SeriesC_ext _
+                   (λ a, if bool_decide (a = v) then dunifv N p a * (if bool_decide ((v, f v) = (a, f a)) then 1 else 0) else 0)).
+        { rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; first lra.
+          done. }
+        intros.
+        case_bool_decide; simplify_eq.
+        -- rewrite bool_decide_eq_true_2; done.
+        -- rewrite bool_decide_eq_false_2; first lra.
+           intros ->. done.
+      * intros. case_bool_decide; first done.
+        rewrite dmap_unfold_pmf.
+        setoid_rewrite bool_decide_eq_false_2.
+        -- rewrite SeriesC_scal_r; lra.
+        -- intros ?. simplify_eq.
+    + intros a.
+      rewrite rmarg_pmf.
+      assert (∃ x, length x = p /\ f x = a) as [x [H1 H2]].
+      {
+        assert (Surj eq (λ x:vec(fin(S N)) p, f (vec_to_list x)) ) as K. 
+        - apply finite_inj_surj; last first. 
+          + rewrite vec_card !fin_card.
+            done.
+          + intros v1 v2 Hf.
+            apply vec_to_list_inj2.
+            apply Hinj; last done.
+            * by rewrite vec_to_list_length.
+            * by rewrite vec_to_list_length.
+        - pose proof K a as [v K'].
+          subst.
+          exists (vec_to_list v). split; last done.
+          apply vec_to_list_length.
+      }
+      rewrite (SeriesC_subset (λ x', x' = x)).
+      * rewrite SeriesC_singleton_dependent. rewrite dmap_unfold_pmf.
+        rewrite (SeriesC_subset (λ x', x' = x)).
+        -- rewrite SeriesC_singleton_dependent. rewrite bool_decide_eq_true_2; last by subst.
+           rewrite dunifv_pmf /dunifP dunif_pmf.
+           rewrite bool_decide_eq_true_2; last done. rewrite H. lra.
+        -- intros. subst. rewrite bool_decide_eq_false_2; first lra.
+           naive_solver.
+      * intros ? H0. subst. rewrite dmap_unfold_pmf.
+        apply SeriesC_0. intros x0.
+        assert (0<=dunifv N (length x) x0) as [H1|<-] by auto; last lra.
+        apply Rlt_gt in H1. rewrite <-dunifv_pos in H1.
+        rewrite bool_decide_eq_false_2; first lra.
+        intros ?. simplify_eq.
+        apply H0. by apply Hinj. 
+  - intros []. rewrite dmap_pos.
+    intros [?[? Hpos]]. simplify_eq.
+    rewrite -dunifv_pos in Hpos.
+    naive_solver.
+Qed.
 
 Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
   (M<=N)%R ->
