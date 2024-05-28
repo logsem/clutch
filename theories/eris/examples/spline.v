@@ -99,12 +99,21 @@ Section escaping_spline.
     iIntros (Hpos) "Herr".
     assert (exists k : nat, nnreal_div (nnreal_nat n) (nnreal_nat (S n + k)) <= ε ) as [k Hk].
     { rewrite -Nat.add_1_r /=.
-      admit.
+      destruct (Rle_exists_nat n ε) as [t Ht]; auto.
+      - apply pos_INR.
+      - exists t.
+        pose proof (pos_INR n).
+        pose proof (pos_INR t).
+        left.
+        eapply Rle_lt_trans; eauto.
+        do 2 rewrite plus_INR; simpl.
+        apply Rmult_le_compat_l; [lra|].
+        apply Rinv_le_contravar; lra.
     }
     iApply (spline_AST_aux k with "[Herr]").
     iApply (ec_weaken with "Herr").
     etrans; done.
-  Admitted.
+  Qed.
 
 
-End basic.
+End escaping_spline.
