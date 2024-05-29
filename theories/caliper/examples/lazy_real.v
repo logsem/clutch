@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import lang notation metatheory.
-From clutch.caliper Require Import weakestpre primitive_laws proofmode adequacy.
-From clutch.prob Require Import distribution markov.
-From clutch.caliper.examples Require Import flip.
+From self.prob_lang Require Import lang notation metatheory.
+From self.caliper Require Import weakestpre primitive_laws proofmode adequacy.
+From self.prob Require Import distribution markov.
+From self.caliper.examples Require Import flip.
 Set Default Proof Using "Type*".
 #[local] Open Scope R.
 

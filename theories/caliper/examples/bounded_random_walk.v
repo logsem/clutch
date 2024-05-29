@@ -1,8 +1,8 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import lang notation metatheory.
-From clutch.caliper Require Import weakestpre primitive_laws proofmode.
-From clutch.prob Require Import distribution markov.
-From clutch.caliper.examples Require Import flip.
+From self.prob_lang Require Import lang notation metatheory.
+From self.caliper Require Import weakestpre primitive_laws proofmode.
+From self.prob Require Import distribution markov.
+From self.caliper.examples Require Import flip.
 #[local] Open Scope R.
 
 Section brw.

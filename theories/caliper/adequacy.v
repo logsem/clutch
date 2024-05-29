@@ -4,10 +4,10 @@ From iris.bi Require Import bi derived_laws_later.
 From iris.bi.lib Require Export fixpoint.
 From iris.base_logic Require Import derived.
 From iris.base_logic.lib Require Import fancy_updates ghost_map.
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob_lang Require Import lang metatheory erasure.
-From clutch.caliper Require Import weakestpre primitive_laws.
-From clutch.prob Require Import couplings distribution markov.
+From self.prelude Require Import stdpp_ext iris_ext.
+From self.prob_lang Require Import lang metatheory erasure.
+From self.caliper Require Import weakestpre primitive_laws.
+From self.prob Require Import couplings distribution markov.
 
 Section refines.
   Context {Σ : gFunctors} {δ : markov}.

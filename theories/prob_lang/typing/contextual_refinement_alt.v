@@ -1,9 +1,9 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
-From clutch.common Require Import language ectx_language exec.
-From clutch.prob_lang Require Import lang notation metatheory.
-From clutch.prob_lang.typing Require Import types contextual_refinement.
-From clutch.prob Require Import distribution.
+From self.common Require Import language ectx_language exec.
+From self.prob_lang Require Import lang notation metatheory.
+From self.prob_lang.typing Require Import types contextual_refinement.
+From self.prob Require Import distribution.
 
 (** Alternative formulation of contextual refinement without restricting to
     contexts of the ground type but only observing termination through their

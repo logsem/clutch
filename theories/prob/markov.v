@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
-From clutch.prob Require Import distribution couplings.
+From self.prob Require Import distribution couplings.
 Set Default Proof Using "Type*".
 
 (** * Markov Chains *)

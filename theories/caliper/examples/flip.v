@@ -1,6 +1,6 @@
-From clutch.prob Require Import distribution markov.
-From clutch.prob_lang Require Import lang notation.
-From clutch.caliper Require Import weakestpre primitive_laws derived_laws proofmode.
+From self.prob Require Import distribution markov.
+From self.prob_lang Require Import lang notation.
+From self.caliper Require Import weakestpre primitive_laws derived_laws proofmode.
 
 Section coupl.
   Context `{!caliperG δ Σ}.

@@ -1,6 +1,6 @@
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export na_invariants.
-From clutch.caliper Require Export weakestpre.
+From self.caliper Require Export weakestpre.
 
 
 Class seqG (Σ: gFunctors) := {

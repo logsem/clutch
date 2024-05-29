@@ -1,7 +1,7 @@
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import lang notation.
-From clutch.caliper Require Import primitive_laws proofmode adequacy.
-From clutch.caliper.examples Require Import lazy_real.
+From self.prob_lang Require Import lang notation.
+From self.caliper Require Import primitive_laws proofmode adequacy.
+From self.caliper.examples Require Import lazy_real.
 
 (** A [treap] is a Binary Search Tree (BST) with two attributes at each node,
     [key] and [priority]. The [priority] attribute is a value sampled uniformly

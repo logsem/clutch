@@ -1,10 +1,10 @@
 (** Tactics for updating the specification program. *)
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import coq_tactics ltac_tactics reduction.
-From clutch.common Require Import language ectx_language ectxi_language.
-From clutch.base_logic Require Export spec_update.
-From clutch.prob_lang Require Import locations notation tactics metatheory lang class_instances.
-From clutch.prob_lang.spec Require Export spec_rules.
+From self.common Require Import language ectx_language ectxi_language.
+From self.base_logic Require Export spec_update.
+From self.prob_lang Require Import locations notation tactics metatheory lang class_instances.
+From self.prob_lang.spec Require Export spec_rules.
 Set Default Proof Using "Type".
 
 (** ** bind *)
@@ -380,18 +380,3 @@ Section tests.
   Qed.
 
 End tests.
-
-(* From clutch.clutch Require Import primitive_laws proofmode. *)
-
-(* Section clutch_test. *)
-(*   Context `{!clutchGS Σ}. *)
-
-(*   Local Lemma test_wp_tp_pures E : *)
-(*     {{{ ⤇ (#2 + #2 + #2)%E }}} #3 + #3 @ E {{{ RET #6; ⤇ #6 }}}. *)
-(*   Proof. *)
-(*     iIntros (Ψ) "Hs HΨ". *)
-(*     tp_pures. *)
-(*     wp_pures.  *)
-(*     by iApply "HΨ". *)
-(*   Qed. *)
-(* End clutch_test.  *)

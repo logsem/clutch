@@ -1,10 +1,10 @@
 (** Rules for updating the specification program. *)
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.base_logic Require Import spec_update.
-From clutch.prob_lang Require Import lang notation tactics metatheory exec_lang.
-From clutch.prob_lang.spec Require Export spec_ra.
+From self.prelude Require Import stdpp_ext.
+From self.base_logic Require Import spec_update.
+From self.prob_lang Require Import lang notation tactics metatheory exec_lang.
+From self.prob_lang.spec Require Export spec_ra.
 
 #[global] Instance spec_rules_spec_updateGS `{!specGS Σ} :
   spec_updateGS (lang_markov prob_lang) Σ := Spec_updateGS spec_auth.

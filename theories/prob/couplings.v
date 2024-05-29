@@ -3,8 +3,8 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements.
 From stdpp Require Export countable.
 
-From clutch.prelude Require Import base Coquelicot_ext Reals_ext stdpp_ext classical.
-From clutch.prob Require Export countable_sum distribution.
+From self.prelude Require Import base Coquelicot_ext Reals_ext stdpp_ext classical.
+From self.prob Require Export countable_sum distribution.
 
 #[local] Open Scope R.
 

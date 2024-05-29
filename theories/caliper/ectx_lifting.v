@@ -1,8 +1,8 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import tactics.
 
-From clutch.common Require Export ectx_language.
-From clutch.caliper Require Export weakestpre lifting.
+From self.common Require Export ectx_language.
+From self.caliper Require Export weakestpre lifting.
 Set Default Proof Using "Type".
 
 Section rwp.

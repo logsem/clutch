@@ -1,7 +1,7 @@
 From iris.proofmode Require Import tactics.
 
-From clutch.prelude Require Import iris_ext.
-From clutch.caliper Require Export weakestpre.
+From self.prelude Require Import iris_ext.
+From self.caliper Require Export weakestpre.
 Set Default Proof Using "Type".
 
 Section lifting.

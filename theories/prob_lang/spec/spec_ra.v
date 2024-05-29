@@ -4,8 +4,8 @@ From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
-From clutch.common Require Import language ectxi_language.
-From clutch.prob_lang Require Import locations lang.
+From self.common Require Import language ectxi_language.
+From self.prob_lang Require Import locations lang.
 
 Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
@@ -32,7 +32,7 @@ Definition specΣ : gFunctors :=
   #[ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authUR progUR)].
-#[global] Instance subG_clutchGPreS {Σ} : subG specΣ Σ → specGpreS Σ.
+#[global] Instance subG_selfGPreS {Σ} : subG specΣ Σ → specGpreS Σ.
 Proof. solve_inG. Qed.
 
 Section resources.

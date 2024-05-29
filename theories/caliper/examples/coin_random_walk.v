@@ -1,9 +1,9 @@
 (** Almost-sure termination of a simple random walk  *)
 From Coq Require Import Reals Psatz.
-From clutch.prob_lang Require Import lang notation.
-From clutch.caliper Require Import weakestpre primitive_laws proofmode adequacy.
-From clutch.prob Require Import distribution markov.
-From clutch.caliper.examples Require Import flip.
+From self.prob_lang Require Import lang notation.
+From self.caliper Require Import weakestpre primitive_laws proofmode adequacy.
+From self.prob Require Import distribution markov.
+From self.caliper.examples Require Import flip.
 #[local] Open Scope R.
 
 (** Model *)

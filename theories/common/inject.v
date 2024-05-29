@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation.
-From clutch.prelude Require Import base.
+From self.prob_lang Require Import lang notation.
+From self.prelude Require Import base.
 Set Default Proof Using "Type*".
 
 Section inject.

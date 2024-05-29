@@ -1,4 +1,4 @@
--Q theories clutch
+-Q theories self
 -Q external/proba discprob
 
 -arg -w -arg -notation-overridden

@@ -2,11 +2,11 @@ From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Import fancy_updates.
 From iris.base_logic.lib Require Export ghost_map.
 
-From clutch.base_logic Require Export spec_auth_markov.
-From clutch.caliper Require Import weakestpre ectx_lifting.
-From clutch.prob_lang Require Export class_instances.
-From clutch.prob_lang Require Import tactics lang notation.
-From clutch.prob Require Import distribution.
+From self.base_logic Require Export spec_auth_markov.
+From self.caliper Require Import weakestpre ectx_lifting.
+From self.prob_lang Require Export class_instances.
+From self.prob_lang Require Import tactics lang notation.
+From self.prob Require Import distribution.
 
 Class caliperGpreS δ Σ := TprGpreS {
   caliperGpre_iris  : invGpreS Σ;
