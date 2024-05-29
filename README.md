@@ -1,21 +1,6 @@
-# Clutch Project
+# Almost-Sure Termination by Guarded Refinement
 
-This repository contains the formal development of multiple higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
-All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
-
-## Publications
-
-[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2404.14223)<br>
-*Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.14223
-
-[**Almost-Sure Termination by Guarded Refinement**](https://arxiv.org/abs/2404.08494) <br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.08494
-
-[**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
+A higher-order separation logic for proving termination-preserving refinements using probabilistic couplings.
 
 ## Building the development
 
@@ -33,8 +18,8 @@ The recommended way to install the dependencies is through [opam](https://opam.o
 1. Install [opam](https://opam.ocaml.org/doc/Install.html) if not already installed (a version greater than 2.0 is required).
 2. Install a new switch and link it to the project.
 ```
-opam switch create clutch 4.14.1
-opam switch link clutch .
+opam switch create caliper 4.14.1
+opam switch link caliper .
 ```
 3. Add the Coq and Iris `opam` repositories.
 ```
@@ -42,7 +27,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
-4. Install the right version of the dependencies as specified in the `clutch.opam` file.
+4. Install the right version of the dependencies as specified in the `caliper.opam` file.
 ```
 opam install . --deps-only
 ```
@@ -51,7 +36,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions eager_lazy_equiv.` in [`theories/clutch/examples/lazy_eager_coin.v`](theories/clutch/examples/lazy_eager_coin.v):
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions coin_flips_terminates.` in [`theories/caliper/examples/coin_random_walk.v`](theories/caliper/examples/coin_random_walk.v):
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
