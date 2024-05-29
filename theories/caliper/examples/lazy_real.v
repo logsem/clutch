@@ -653,7 +653,7 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec ((true, true, 2%nat) : mstate model))).
   { by rewrite iter_two_coins_terminates. }
-  eapply (rwp_soundness_mass (δ := model) (tprΣ model)).
+  eapply (rwp_soundness_mass (δ := model) (tprΣ model) (λ _, True%I)).
   iIntros (?) "Ha".
   wp_apply (rwp_cmp_three_numbers with "[Ha]"); [|done].
   iExists _, _. eauto with lia.

@@ -124,9 +124,9 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec true)).
   { by rewrite random_walk_terminates. }
-  eapply (rwp_soundness_mass (tprΣ random_walk)).
+  eapply (rwp_soundness_mass (tprΣ random_walk) (λ _, True%I)).
   iIntros (?) "Ha".
-  wp_apply (rwp_coin_flips with "Ha"); eauto.
+  wp_apply (rwp_coin_flips with "Ha"); auto.
 Qed.
 
 #[local] Notation "'while' e1 'do' e2 'end'" :=
@@ -169,7 +169,7 @@ Proof.
   eapply Rle_antisym; [done|].
   transitivity (SeriesC (lim_exec true)).
   { by rewrite random_walk_terminates. }
-  eapply (rwp_soundness_mass (tprΣ random_walk)).
+  eapply (rwp_soundness_mass (tprΣ random_walk) (λ _, True%I)).
   iIntros (?) "Ha".
-  wp_apply (rwp_coin_flips_state with "Ha"); eauto.
+  wp_apply (rwp_coin_flips_state with "Ha"); auto. 
 Qed.

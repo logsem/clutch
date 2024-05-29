@@ -261,12 +261,12 @@ Qed.
 (** We should be able get to a left-partial coupling between [lim_exec a] and [lim_exec (e, σ)] if
     we use a less constructive notion of coupling like in [prob/couplings_app.v], but for our
     purposes this suffices. *)
-Lemma rwp_soundness `{!caliperGpreS δ Σ} e σ a n Φ :
+Lemma rwp_soundness `{!caliperGpreS δ Σ} Φ e σ a n :
   (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ Φ }}) →
   exec n a ≾ lim_exec (e, σ) : (λ _ _, True).
 Proof. intros. by eapply refines_soundness, rwp_refines. Qed.
 
-Lemma rwp_soundness_mass Σ `{!caliperGpreS δ Σ} e σ a Φ :
+Lemma rwp_soundness_mass Σ `{!caliperGpreS δ Σ} Φ e σ a :
   (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ Φ }}) →
   (SeriesC (lim_exec a) <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
