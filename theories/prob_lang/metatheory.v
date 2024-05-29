@@ -978,6 +978,12 @@ Proof.
     apply distr_ext.
     intros. rewrite /dret/dret_pmf{1}/pmf/=.
     rewrite dmap_unfold_pmf.
+
+    (** Why doesnt this work?? *)
+    (* rewrite (@SeriesC_subset _ _ _ (λ x, x= (nil:list (fin (S N)))) _ _). *)
+    (* - rewrite (SeriesC_singleton_dependent nil). *)
+    
+    
     erewrite (SeriesC_ext ).
     - erewrite (SeriesC_singleton_dependent [] (λ a0:list (fin (S N)), dunifv N 0 a0 * (if bool_decide (a = state_upd_tapes <[α:=(N; xs ++ a0)]> σ) then 1 else 0))). 
       rewrite dunifv_pmf. simpl.
