@@ -1,6 +1,6 @@
 (** * Examples related to rejection samplers with a bounded number of attempts *)
 From clutch.eris Require Export eris error_rules.
-From clutch Require Export examples.approximate_samplers.approx_sampler_lib.
+From clutch.eris Require Export examples.approximate_samplers.approx_sampler_lib.
 From Coquelicot Require Import Series.
 Require Import Lra.
 

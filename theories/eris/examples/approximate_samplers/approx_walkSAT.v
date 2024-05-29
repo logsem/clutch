@@ -1,7 +1,7 @@
 (** * Termination with probability 1 of the WalkSAT algorithm *)
 From clutch.eris Require Export eris error_rules.
 From clutch.eris Require Export eris error_rules adequacy total_adequacy.
-From clutch Require Export examples.approximate_samplers.approx_higherorder_incremental.
+From clutch.eris Require Export examples.approximate_samplers.approx_higherorder_incremental.
 From Coquelicot Require Import Series.
 Require Import Lra.
 
