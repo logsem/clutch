@@ -194,8 +194,8 @@ Section refines.
 End refines.
 
 (** ... and our relational logic implies [refines].  *)
-Lemma rwp_refines `{!caliperGpreS δ Σ} e σ a :
-  (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
+Lemma rwp_refines `{!caliperGpreS δ Σ} e σ a Φ :
+  (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ Φ }}) →
   (⊢ refines (Σ := Σ) a (e, σ)).
 Proof.
   intros Hwp.
@@ -261,16 +261,16 @@ Qed.
 (** We should be able get to a left-partial coupling between [lim_exec a] and [lim_exec (e, σ)] if
     we use a less constructive notion of coupling like in [prob/couplings_app.v], but for our
     purposes this suffices. *)
-Lemma rwp_soundness `{!caliperGpreS δ Σ} e σ a n :
-  (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
+Lemma rwp_soundness `{!caliperGpreS δ Σ} e σ a n Φ :
+  (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ Φ }}) →
   exec n a ≾ lim_exec (e, σ) : (λ _ _, True).
 Proof. intros. by eapply refines_soundness, rwp_refines. Qed.
 
-Lemma rwp_soundness_mass Σ `{!caliperGpreS δ Σ} e σ a :
-  (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
+Lemma rwp_soundness_mass Σ `{!caliperGpreS δ Σ} e σ a Φ :
+  (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ Φ }}) →
   (SeriesC (lim_exec a) <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
   intros. apply lim_exec_leq_mass => n.
   eapply (refRcoupl_mass_eq _ _ (λ _ _, True)).
-  by apply rwp_soundness.
+  by eapply rwp_soundness.
 Qed.
