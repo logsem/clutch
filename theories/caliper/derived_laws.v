@@ -212,6 +212,42 @@ Proof.
   eexists. by apply vlookup_lookup.
 Qed.
 
+Lemma rwp_spec_det (a1 a2 : mstate δ) e Φ (P : iProp Σ) :
+  to_val e = None →
+  step a1 a2 = 1 →
+  specF a1 ∗ ▷ P ∗
+  (specF a2 ∗ P -∗ WP e {{ Φ }})
+  ⊢ WP e {{ Φ }}.
+Proof.
+  iIntros (? Hs) "(Hm1 & HP & Hwp)".
+  iApply (rwp_spec_steps' 1 (specF a2)).
+  { rewrite /= H //. }
+  iSplitR "Hm1"; last first.
+  { rewrite spec_updateN_unseal /spec_updateN_def.
+    iIntros (m) "Hm".
+    iDestruct (spec_auth_agree with "Hm Hm1") as %->.
+    iMod (spec_auth_update with "Hm Hm1") as "[$ $]".
+    rewrite stepN_1 //. }
+  iIntros "Hm2 !>".
+  iApply ("Hwp" with "[$]").
+Qed.
+
+Lemma rwp_coupl_rand (N : nat) (z : Z) R (a1 : mstate δ) Φ P :
+  TCEq N (Z.to_nat z) →
+  reducible a1 →
+  refRcoupl (step a1) (dunifP N) R →
+  specF a1 ∗ ▷ P ∗
+  (∀ (a2 : mstate δ) (n : fin (S N)), ⌜R a2 n⌝ -∗ specF a2 ∗ P -∗ WP (#n : expr) {{ Φ }})
+  ⊢ WP rand #z {{ Φ }}.
+Proof.
+  iIntros (???) "(Ha1 & HP & Hwp)".
+  replace (rand #z)%E with (fill empty_ectx (rand #z)); [|done].
+  iApply rwp_bind.
+  iApply (rwp_couple with "Ha1"); [done|done|].
+  iIntros "!>" (??) "[? %] /=".
+  iApply ("Hwp" with "[//] [$]").
+Qed.
+
 End derived_laws.
 
 Global Typeclasses Opaque array.
