@@ -1,0 +1,20 @@
+opam-version: "2.0"
+name: "coq-caliper"
+synopsis: "The Caliper logic"
+maintainer: "Anonymous"
+authors: "Anonymous"
+license: "MIT"
+homepage: "https://github.com/XX"
+dev-repo: "git+https://github.com:XX/caliper.git"
+bug-reports: "https://github.com/XX/caliper/issues"
+build: [make "-j%{jobs}%"]
+install: []
+depends: [
+  "coq" { (>= "8.18" & < "8.20~") | (= "dev") }
+  "coq-iris" { (= "4.2.0") | (= "dev") }
+  "coq-stdpp" { (= "1.10.0") | (= "dev") }
+  "coq-coquelicot" { (= "3.4.1") }
+  "coq-autosubst" { (= "1.8") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (= "2.2.0") }
+  "coq-mathcomp-solvable" { (= "2.2.0") }
+]
