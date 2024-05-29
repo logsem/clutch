@@ -2,6 +2,8 @@
 
 A higher-order separation logic for proving termination-preserving refinements using probabilistic couplings.
 
+[PAPER.md](PAPER.md) provides a mapping from the paper to the Coq formalization.
+
 ## Building the development
 
 The project is known to compile with
@@ -45,4 +47,3 @@ functional_extensionality_dep : ∀ (A : Type) (B : A → Type) (f g : ∀ x : A
 constructive_indefinite_description : ∀ (A : Type) (P : A → Prop), (∃ x : A, P x) → {x : A | P x}
 classic : ∀ P : Prop, P ∨ ¬ P
 ```
-
