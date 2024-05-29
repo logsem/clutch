@@ -4,7 +4,8 @@ From clutch Require Import paris.
 Set Default Proof Using "Type*".
 Open Scope R.
 
-Section inj.
+Section stage1.
+  (** stage 1 is relating a naive exact rand, with a big rand, via a rejection sampler *)
   Fixpoint index_list {A} (l:list A):=
     match l with
     | [] => []
@@ -145,7 +146,11 @@ Section inj.
       rewrite -Hlen1; by apply index_list_range.
   Qed.
   
-End inj.
+End stage1.
+
+Section stage2.
+  (** Stage 2 is relating the big state step with many small steps, via Rcoupl_state_state_exp *)
+End stage2.
 
 Section b_tree.
   Context `{!parisGS Σ}.
