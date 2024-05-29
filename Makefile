@@ -41,7 +41,7 @@ clean:
 	$(Q)rm -f .lia.cache
 	rm -f .coqdeps.d
 
-zip:
-	git archive -o coq-caliper.zip HEAD
+tar:
+	git archive --format=tar.gz -o coq-caliper.tar.gz HEAD
 
-.PHONY: clean zip
+.PHONY: clean tar
