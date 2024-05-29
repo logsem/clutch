@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>README.html</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+
+</head>
+
+<body>
+
+<h1 id="almost-sureterminationbyguardedrefinement">Almost-Sure Termination by Guarded Refinement</h1>
+
+<p>A higher-order separation logic for proving termination-preserving refinements using probabilistic couplings.</p>
+
+<p><a href="PAPER.html">PAPER.html</a> provides a mapping from the paper to the Coq formalization.</p>
+
+<h2 id="buildingthedevelopment">Building the development</h2>
+
+<p>The project is known to compile with</p>
+
+<ul>
+<li><a href="https://coq.inria.fr/">Coq</a> 8.19.1</li>
+<li><a href="https://gitlab.mpi-sws.org/iris/stdpp">std++</a> 1.10.0</li>
+<li><a href="https://gitlab.mpi-sws.org/iris/iris/">Iris</a> 4.2.0</li>
+<li><a href="https://gitlab.inria.fr/coquelicot/coquelicot/">Coquelicot</a> 3.4.1</li>
+<li><a href="https://github.com/coq-community/autosubst">Autosubst</a> 1.8</li>
+<li><a href="https://github.com/math-comp/math-comp">Mathcomp-solvable</a> 2.2.0</li>
+</ul>
+
+<p>The recommended way to install the dependencies is through <a href="https://opam.ocaml.org/doc/Install.html">opam</a>.</p>
+
+<ol>
+<li>Install <a href="https://opam.ocaml.org/doc/Install.html">opam</a> if not already installed (a version greater than 2.0 is required).</li>
+<li>Install a new switch and link it to the project.</li>
+</ol>
+
+<pre><code>opam switch create caliper 4.14.1
+opam switch link caliper .
+</code></pre>
+
+<ol>
+<li>Add the Coq and Iris <code>opam</code> repositories.</li>
+</ol>
+
+<pre><code>opam repo add coq-released https://coq.inria.fr/opam/released
+opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
+opam update
+</code></pre>
+
+<ol>
+<li>Install the right version of the dependencies as specified in the <code>caliper.opam</code> file.</li>
+</ol>
+
+<pre><code>opam install . --deps-only
+</code></pre>
+
+<p>You should now be able to build the development by using <code>make -j N</code> where <code>N</code> is the number of cores available on your machine.</p>
+
+<h2 id="axioms">Axioms</h2>
+
+<p>The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq&#8217;s standard library. For example, the following list is produced when executing the command <code>Print Assumptions coin_flips_terminates.</code> in <a href="theories/caliper/examples/coin_random_walk.v"><code>theories/caliper/examples/coin_random_walk.v</code></a>:</p>
+
+<pre><code>ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
+ClassicalDedekindReals.sig_forall_dec : ∀ P : nat → Prop, (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}
+functional_extensionality_dep : ∀ (A : Type) (B : A → Type) (f g : ∀ x : A, B x), (∀ x : A, f x = g x) → f = g
+constructive_indefinite_description : ∀ (A : Type) (P : A → Prop), (∃ x : A, P x) → {x : A | P x}
+classic : ∀ P : Prop, P ∨ ¬ P
+</code></pre>
+
+</body>
+</html>
