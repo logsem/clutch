@@ -62,7 +62,7 @@ opam update
 
 <h2 id="axioms">Axioms</h2>
 
-<p>The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq&#8217;s standard library. For example, the following list is produced when executing the command <code>Print Assumptions coin_flips_terminates.</code> in <a href="theories/caliper/examples/coin_random_walk.v"><code>theories/caliper/examples/coin_random_walk.v</code></a>:</p>
+<p>The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq&#8217;s standard library. For example, the following list is produced when executing the command <code>Print Assumptions coin_flips_terminates.</code> in <a href="theories/caliper/examples/coin_random_walk.v">coin_random_walk.v</a>:</p>
 
 <pre><code>ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
 ClassicalDedekindReals.sig_forall_dec : ∀ P : nat → Prop, (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}

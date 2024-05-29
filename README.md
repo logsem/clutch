@@ -38,7 +38,7 @@ You should now be able to build the development by using `make -j N` where `N` i
 
 ## Axioms
 
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions coin_flips_terminates.` in [`theories/caliper/examples/coin_random_walk.v`](theories/caliper/examples/coin_random_walk.v):
+The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions coin_flips_terminates.` in [coin_random_walk.v](theories/caliper/examples/coin_random_walk.v):
 
 ```
 ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
