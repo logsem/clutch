@@ -1,6 +1,7 @@
 From clutch.paris Require Import adequacy.
 From stdpp Require Import list.
 From clutch Require Import paris.
+From clutch.paris.examples Require Import list.
 Set Default Proof Using "Type*".
 Open Scope R.
 
@@ -283,12 +284,60 @@ Section b_tree.
   Context {min_child_num' : nat}.
   Context {depth : nat}.
   Local Definition min_child_num := S min_child_num'.
+  Local Definition max_child_num := (2*min_child_num)%nat.
   (** For this example, intermediate nodes do not store keys themselves
       If the depth is 0, the node is a leaf, storing a single key value
       otherwise, if the depth is S n, it has stores a list of k children, each pointing to a tree of depth n
       where k varies from min_child_num to 2* min_child_num inclusive
       (We force min_child_num to be at least 1 for simplicity)
    *)
+
+  Local Unset Elimination Schemes.
+  Inductive abstract_b_tree: nat -> list (option val) -> Prop:=
+  | abstract_b_tree_lf v: abstract_b_tree 0%nat [Some v]
+  | abstract_b_tree_br n (l: list (list (option val))):
+    Forall (λ l', abstract_b_tree n l') l ->
+    (min_child_num <= length l <= max_child_num)%nat ->
+    abstract_b_tree (S n) 
+      (flat_map id l ++ replicate ((max_child_num-length l)*max_child_num ^ n)%nat None). 
+
+  Lemma abstract_b_tree_ind (P : nat → list (option val) → Prop):
+    (∀ v : val, P 0%nat [Some v])
+    → (∀ (n : nat) (l : list (list (option val))),
+         Forall (λ l' : list (option val), abstract_b_tree n l') l ->
+         Forall (λ l', P n l') l 
+         → (min_child_num <= length l <= max_child_num)%nat
+           → P (S n)
+               (flat_map id l ++ replicate ((max_child_num - length l) * max_child_num ^ n) None))
+    → ∀ (n : nat) (l : list (option val)), abstract_b_tree n l → P n l.
+  Proof.
+    move => ?? n l ?.
+    generalize dependent P => P.
+    generalize dependent n.
+    generalize dependent l. 
+    fix FIX 3. move => l n [ ]; first naive_solver.
+    move => ????? Hcall.
+    apply Hcall; [done| |done].
+    eapply Forall_impl; first done.
+    intros. by apply FIX.
+  Qed.
+  Local Set Elimination Schemes.
+    
+  Lemma abstract_b_tree_list_length n l:
+    abstract_b_tree n l -> length l = (max_child_num ^ n)%nat.
+  Proof.
+    intros H. induction H.
+    - by simpl.
+    - rewrite app_length.
+      erewrite flat_map_constant_length; last first.
+      { apply List.Forall_forall. eapply Forall_impl; first done.
+        simpl. done.
+      }
+      rewrite replicate_length.
+      rewrite Nat.pow_succ_r'.
+      rewrite -Nat.mul_add_distr_r.
+      rewrite -Nat.le_add_sub; lia.
+  Qed.
 
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
