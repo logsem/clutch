@@ -371,7 +371,6 @@ Section coupl.
     eauto.
   Qed.
 
-  (* TODO: generic state step coupling rule with list of tapes *)
   Lemma rwp_couple_tape N R ns α e m a E Φ :
     TCEq (to_val e) None →
     reducible m →
@@ -458,5 +457,3 @@ Section coupl.
 End coupl.
 
 #[export] Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
-(** [tc_solve] does not realize that the [spec_updateGS] instances are the same but the [apply:]
-    tactic does... *)

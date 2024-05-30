@@ -19,18 +19,16 @@ Section refines.
   Implicit Type b : mstate_ret δ.
 
   (** * A step-indexed left-partial coupling *)
-  (** A stratified plain coupling relation where steps of the model are tied to
-      the step index. This is the "simulation relation" that the relational
-      logic constructs.
+  (** A stratified plain coupling relation where steps of the model are tied to the step index. This
+      is the "simulation relation" that the relational logic constructs.
 
-      Everything looks like you'd expect, *except* the [except_0] modality [◇]
-      in the front (pun *not* intended). This is technically needed because
-      [fupd] does not interact well with [▷], i.e.,
+      Everything looks like you'd expect, *except* the [except_0] modality [◇] in the front (pun
+      *not* intended). This is technically needed because [fupd] does not interact well with [▷], on
+      its own, that is,
 
             (▷ |={E}=> P) ⊢ |={E}=> ▷ ◇ P
 
-      Philosophically, I guess this is the price we pay, for working "up to"
-      timelessness in the logic. *)
+      Philosophically, this is the price we pay, for working "up to" timelessness in the logic. *)
   Definition refines_pre (refines : mstate δ * cfg -d> iProp Σ) : mstate δ * cfg -d> iProp Σ :=
     λ '(a, (e, σ)),
       (◇ (⌜is_final (e, σ)⌝ ∨
@@ -260,9 +258,9 @@ Proof.
 Qed.
 
 (** * Soundness  *)
-(** We should be able to a left-partial coupling between [lim_exec a] and
-    [lim_exec (e, σ)] if we use a less constructive notion of coupling like in
-    [prob/couplings_app.v], but for our purposes this suffices for now. *)
+(** We should be able get to a left-partial coupling between [lim_exec a] and [lim_exec (e, σ)] if
+    we use a less constructive notion of coupling like in [prob/couplings_app.v], but for our
+    purposes this suffices. *)
 Lemma rwp_soundness `{!caliperGpreS δ Σ} e σ a n :
   (∀ `{!caliperG δ Σ}, ⊢ specF a -∗ WP e {{ _, True }}) →
   exec n a ≾ lim_exec (e, σ) : (λ _ _, True).

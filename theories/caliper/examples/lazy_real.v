@@ -7,7 +7,6 @@ Set Default Proof Using "Type*".
 #[local] Open Scope R.
 
 Section lazy_real.
-  (* Context (CHUNCK_SIZE : nat). *)
 
   Definition mstep (bs : bool * bool) :=
     let '(b1, b2) := bs in
@@ -320,7 +319,6 @@ Section lazy_real.
     destruct zs1 as [| z' zs1'].
     - wp_load. wp_pures.
       rewrite /= in Heq. rewrite -Heq.
-      (* TODO: tactic *)
       wp_apply (rwp_rand_tape with "Hα").
       iIntros "Hα".
       wp_pures. wp_alloc l' as "Hl'". wp_pures. wp_store.

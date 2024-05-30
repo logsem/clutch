@@ -80,7 +80,7 @@ Section rabin_karp.
     { set_solver. }
     iIntros (hp) "Hhf".
     wp_pures.
-  Admitted.
+  Abort. 
       
   
 End rabin_karp.

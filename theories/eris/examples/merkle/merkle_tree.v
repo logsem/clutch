@@ -746,7 +746,7 @@ Section merkle_tree.
     wp_pures.
     epose proof (possible_proof_implies_exists_leaf tree proof _) as [v' ?].
     destruct (decide (v=v')).
-    - destruct (@decide (correct_proof tree proof) (make_decision (correct_proof tree proof))) as [K|K].
+    - destruct (decide (correct_proof tree proof)) as [K|K].
       + wp_apply (wp_compute_hash_from_leaf_correct with "[$H]").
         * repeat iSplit; try done; iPureIntro.
           -- by subst.

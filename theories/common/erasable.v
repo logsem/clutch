@@ -120,4 +120,5 @@ Section erasable_functions.
     rewrite /erasable.
     intros. rewrite dret_id_left'. done.
   Qed.
+  
 End erasable_functions.

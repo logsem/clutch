@@ -396,7 +396,6 @@ Section listgen_listgen_flip_spec.
 
     wp_apply (wp_listgen with "[] [Hspec]").
 
-    (* Hmm.... *)
   Abort.
 
 End listgen_listgen_flip_spec.

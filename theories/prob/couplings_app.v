@@ -7,32 +7,16 @@ From clutch.prob Require Export countable_sum distribution couplings union_bound
 
 Open Scope R.
 
-Section relations.
-
-  Context `{Countable A, Countable B}.
-  Context (R : A -> B -> Prop) (P : A → Prop).
-  Context (dec_R : forall a b, Decision (R a b)).
-  Context (dec_P : forall a, Decision (P a)).
-
-  Global Instance rel_img_dec : forall b, Decision (exists a, P a /\ R a b).
-  Proof.
-    intro.
-    apply make_decision.
-  Defined.
-
-End relations.
-
 Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
   Context (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop).
 
-
   Definition ARcoupl (ε : R) :=
     forall (f: A → R) (g: B -> R),
-    (forall a, 0 <= f a <= 1) ->
-    (forall b, 0 <= g b <= 1) ->
-    (forall a b, S a b -> f a <= g b) ->
-    SeriesC (λ a, μ1 a * f a) <= SeriesC (λ b, μ2 b * g b) + ε.
+      (forall a, 0 <= f a <= 1) ->
+      (forall b, 0 <= g b <= 1) ->
+      (forall a b, S a b -> f a <= g b) ->
+      SeriesC (λ a, μ1 a * f a) <= SeriesC (λ b, μ2 b * g b) + ε.
 
 End couplings.
 
@@ -84,7 +68,7 @@ Section couplings_theory.
   Lemma ARcoupl_dbind (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) ε1 ε2 :
     (Rle 0 ε1) -> (Rle 0 ε2) ->
-      (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) → ARcoupl μ1 μ2 R ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S (ε1 + ε2).
+    (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) → ARcoupl μ1 μ2 R ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S (ε1 + ε2).
   Proof.
     intros Hε1 Hε2 Hcoup_fg Hcoup_R h1 h2 Hh1pos Hh2pos Hh1h2S.
     rewrite /pmf/=/dbind_pmf.
@@ -117,7 +101,7 @@ Section couplings_theory.
 
     (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
     assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h1 a)) =
-            SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
+              SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
     { setoid_rewrite <- SeriesC_scal_l. series. }
 
     (* Second step: rewrite the RHS into a RV Y on μ2. *)
@@ -160,7 +144,7 @@ Section couplings_theory.
        ALT: could use a more fine-grained max inside the sum?
      *)
     assert (SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a)) - ε2
-             <= SeriesC (λ b : A, μ1 b * (Rmax (SeriesC (λ a : A', f b a * h1 a) - ε2) 0))) as Hleq.
+            <= SeriesC (λ b : A, μ1 b * (Rmax (SeriesC (λ a : A', f b a * h1 a) - ε2) 0))) as Hleq.
     {
       (* This could be an external lemma *)
       trans (SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a)) - SeriesC (λ b, μ1 b * ε2)).
@@ -210,29 +194,29 @@ Section couplings_theory.
                          intro a'.
                          apply Rmult_le_pos; auto.
                          apply Hh1pos.
-            --- apply (ex_seriesC_le _ μ1); auto.
-                intro; split.
-                +++ apply Rmult_le_pos; auto.
-                    apply SeriesC_ge_0'; intro.
-                    apply Rmult_le_pos; auto.
-                    apply Hh1pos.
-               +++ rewrite <- Rmult_1_r.
-                   apply Rmult_le_compat_l; auto.
-                   apply (Rle_trans _ (SeriesC (f n))); auto.
-                   apply SeriesC_le; auto.
-                   intro a'; specialize (Hh1pos a'); real_solver.
-      * apply (ex_seriesC_le _ μ1); auto.
-        intro; split.
-        ++ apply Rmult_le_pos; auto.
-           apply SeriesC_ge_0'; intro.
-           apply Rmult_le_pos; auto.
-           apply Hh1pos.
-        ++ rewrite <- Rmult_1_r.
-           apply Rmult_le_compat_l; auto.
-           apply (Rle_trans _ (SeriesC (f n))); auto.
-           apply SeriesC_le; auto.
-           intro a'; specialize (Hh1pos a'); real_solver.
-     * apply ex_seriesC_scal_r; auto.
+             --- apply (ex_seriesC_le _ μ1); auto.
+                 intro; split.
+                 +++ apply Rmult_le_pos; auto.
+                     apply SeriesC_ge_0'; intro.
+                     apply Rmult_le_pos; auto.
+                     apply Hh1pos.
+                 +++ rewrite <- Rmult_1_r.
+                     apply Rmult_le_compat_l; auto.
+                     apply (Rle_trans _ (SeriesC (f n))); auto.
+                     apply SeriesC_le; auto.
+                     intro a'; specialize (Hh1pos a'); real_solver.
+        * apply (ex_seriesC_le _ μ1); auto.
+          intro; split.
+          ++ apply Rmult_le_pos; auto.
+             apply SeriesC_ge_0'; intro.
+             apply Rmult_le_pos; auto.
+             apply Hh1pos.
+          ++ rewrite <- Rmult_1_r.
+             apply Rmult_le_compat_l; auto.
+             apply (Rle_trans _ (SeriesC (f n))); auto.
+             apply SeriesC_le; auto.
+             intro a'; specialize (Hh1pos a'); real_solver.
+        * apply ex_seriesC_scal_r; auto.
     }
     eapply Rle_trans; [apply Hleq | ].
 
@@ -262,7 +246,7 @@ Section couplings_theory.
           specialize (Hh2pos b'); real_solver. }
       rewrite /ARcoupl in Hcoup_fg.
       apply Rle_minus_l, Hcoup_fg; auto.
-Qed.
+  Qed.
 
 
 
@@ -274,7 +258,7 @@ Qed.
     (Rle 0 ε1) → (∀ a, 0 <= (E2 a) <= 1) →
     (* (SeriesC (λ a, μ1 a * (E2 a)) <= ε2) → *)
     (SeriesC (λ a, μ1 a * (E2 a)) = ε2) →
-      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+    (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
   Proof.
     intros Hε1 HE2 Hε2 Hcoup_fg Hcoup_R h1 h2 Hh1pos Hh2pos Hh1h2S.
 
@@ -302,7 +286,7 @@ Qed.
 
     (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
     assert (SeriesC (λ a : A, SeriesC (λ a' : A', μ1 a * f a a' * h1 a')) =
-            SeriesC (λ a : A, μ1 a * SeriesC (λ a' : A', f a a' * h1 a')))
+              SeriesC (λ a : A, μ1 a * SeriesC (λ a' : A', f a a' * h1 a')))
       as -> by (setoid_rewrite <- SeriesC_scal_l ; series).
 
     (* Second step: rewrite the RHS into a RV Y on μ2. *)
@@ -314,7 +298,7 @@ Qed.
         - real_solver.
         - do 2 rewrite <- Rmult_1_r. real_solver. }
     2: { setoid_rewrite SeriesC_scal_r.
-        apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))).
+         apply (ex_seriesC_le _ (λ a : B', SeriesC (λ b : B, μ2 b * g b a))).
          - series.
          - apply (pmf_ex_seriesC (dbind g μ2)). }
 
@@ -418,7 +402,7 @@ Qed.
     ε1 ε2 (E2 : A → ℝ) :
     (Rle 0 ε1) → (∃ n, ∀ a, 0 <= (E2 a) <= n) →
     (SeriesC (λ a, μ1 a * (E2 a)) <= ε2) →
-      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+    (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
   Proof.
     intros Hε1 HE2 Hsum Hfg Hcoupl.
     pose (E2' x:= Rmin 1 (E2 x)).
@@ -449,7 +433,7 @@ Qed.
     ε1 ε2 (E2 : B → ℝ) :
     (Rle 0 ε1) → (∀ b, 0 <= (E2 b) <= 1) →
     (SeriesC (λ b, μ2 b * (E2 b)) = ε2) →
-      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+    (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
   Proof.
     intros Hε1 HE2 Hε2 Hcoup_fg Hcoup_R h1 h2 Hh1pos Hh2pos Hh1h2S.
     rewrite /pmf/=/dbind_pmf.
@@ -494,7 +478,7 @@ Qed.
 
     (* LHS: Pull the (μ1 b) factor out of the inner sum. *)
     assert (SeriesC (λ b : A, SeriesC (λ a : A', μ1 b * f b a * h1 a)) =
-            SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
+              SeriesC (λ b : A, μ1 b * SeriesC (λ a : A', f b a * h1 a))) as ->.
     { apply SeriesC_ext; intro.
       rewrite <- SeriesC_scal_l.
       apply SeriesC_ext; real_solver. }
@@ -636,7 +620,7 @@ Qed.
     ε1 ε2 (E2 : B → ℝ) :
     (Rle 0 ε1) → (∃ n, ∀ b, 0 <= (E2 b) <= n) →
     (SeriesC (λ b, μ2 b * (E2 b)) <= ε2) →
-      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+    (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
   Proof.
     intros Hε1 HE2 Hsum Hfg Hcoupl.
     pose (E2' x:= Rmin 1 (E2 x)).
@@ -673,7 +657,7 @@ Qed.
     ε1 ε2 (E2 : A → B → ℝ) :
     (Rle 0 ε1) → (∀ a b, Rle 0 (E2 a b)) →
     (SeriesC (λ '(a, b), μ1 a * μ2 b * (E2 a b)) <= ε2) →
-      (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
+    (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
   Proof.
   Abort.
 
@@ -710,61 +694,18 @@ Qed.
     rewrite -(SeriesC_singleton a (μ1 a)).
     rewrite -(SeriesC_singleton a (μ2 a)).
     assert (SeriesC (λ n : A, if bool_decide (n = a) then μ1 a else 0)
-           = SeriesC (λ n : A, μ1 n * (if bool_decide (n = a) then 1 else 0))) as ->.
+            = SeriesC (λ n : A, μ1 n * (if bool_decide (n = a) then 1 else 0))) as ->.
     {
       apply SeriesC_ext; real_solver.
     }
     assert (SeriesC (λ n : A, if bool_decide (n = a) then μ2 a else 0)
-           = SeriesC (λ n : A, μ2 n * (if bool_decide (n = a) then 1 else 0))) as ->.
+            = SeriesC (λ n : A, μ2 n * (if bool_decide (n = a) then 1 else 0))) as ->.
     {
       apply SeriesC_ext; real_solver.
     }
     apply Hcoupl; real_solver.
   Qed.
-
-  (*
-  Lemma Rcoupl_eq_sym (μ1 μ2: distr A) :
-    Rcoupl μ1 μ2 eq → Rcoupl μ2 μ1 eq.
-  Proof.
-    intros Hc.
-    apply Rcoupl_eq_elim in Hc as ->; auto.
-    apply Rcoupl_eq.
-  Qed.
-
-  Lemma Rcoupl_eq_trans (μ1 μ2 μ3 : distr A) :
-    Rcoupl μ1 μ2 eq → Rcoupl μ2 μ3 eq → Rcoupl μ1 μ3 eq.
-  Proof. by intros ->%Rcoupl_eq_elim ?. Qed.
-
-  Lemma Rcoupl_weaken (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
-    Rcoupl μ1 μ2 R → (∀ a b, R a b -> S a b) → Rcoupl μ1 μ2 S.
-  Proof.
-    intros [μ [[HμL HμR] HμSupp]] Hwk.
-    exists μ; split; [split | ]; auto.
-  Qed.
-  Definition Rcoupl_impl μ1 μ2 R S H RC := Rcoupl_weaken μ1 μ2 R S RC H.
-*)
-
-  (* Lemma ARcoupl_inhabited_l (μ1 : distr A) (μ2 : distr B) R ε: *)
-  (*   ARcoupl μ1 μ2 R ε→ *)
-  (*   SeriesC μ1 > 0 → *)
-  (*   ∃ a b, R a b. *)
-  (* Proof. *)
-  (*   rewrite /ARcoupl. *)
-  (*   intros Ha Hz. *)
-  (* Admitted. *)
-
-  (* Lemma Rcoupl_inhabited_r (μ1 : distr A) (μ2 : distr B) R : *)
-  (*   Rcoupl μ1 μ2 R → *)
-  (*   SeriesC μ2 > 0 → *)
-  (*   ∃ a b, R a b. *)
-  (* Proof. *)
-  (*   intros [μ [Hcpl HR]] Hz. *)
-  (*   assert (SeriesC μ > 0) as Hsup by by erewrite isCoupl_mass_r. *)
-  (*   apply SeriesC_gtz_ex in Hsup as [[a b] Hμ]; [|done]. *)
-  (*   eauto. *)
-  (* Qed. *)
-
-
+  
 End couplings_theory.
 
 (* TODO: cleanup *)
@@ -839,14 +780,14 @@ Section ARcoupl.
   Proof.
     intros Hμ1μ2 f g Hf Hg Hfg.
     assert (SeriesC (λ a : A, μ1 a * f a) =
-           SeriesC (λ a : A, μ1 a * (if bool_decide (μ1 a > 0) then f a else 0))) as ->.
+              SeriesC (λ a : A, μ1 a * (if bool_decide (μ1 a > 0) then f a else 0))) as ->.
     { apply SeriesC_ext; intro a.
       case_bool_decide; auto.
       assert (0 <= μ1 a); auto.
       assert (μ1 a = 0); nra.
     }
     assert (SeriesC (λ b : B, μ2 b * g b) =
-           SeriesC (λ b : B, μ2 b * (if bool_decide (μ2 b > 0) then g b else 1))) as ->.
+              SeriesC (λ b : B, μ2 b * (if bool_decide (μ2 b > 0) then g b else 1))) as ->.
     { apply SeriesC_ext; intro b.
       case_bool_decide; auto.
       assert (0 <= μ2 b); auto.
@@ -883,17 +824,17 @@ Proof.
 Qed.
 
 Lemma ARcoupl_dzero `{Countable A, Countable B} (μ : distr B) (R: A → B → Prop) ε :
-    (0 <= ε) ->
-    ARcoupl dzero μ R ε.
-  Proof.
-    intros Hleq f g Hf Hg HR.
-    rewrite {1}/pmf SeriesC_scal_l Rmult_0_l.
-    rewrite <- Rplus_0_l at 1.
-    apply Rplus_le_compat; auto.
-    apply SeriesC_ge_0'.
-    intro; apply Rmult_le_pos; auto.
-    apply Hg.
-  Qed.
+  (0 <= ε) ->
+  ARcoupl dzero μ R ε.
+Proof.
+  intros Hleq f g Hf Hg HR.
+  rewrite {1}/pmf SeriesC_scal_l Rmult_0_l.
+  rewrite <- Rplus_0_l at 1.
+  apply Rplus_le_compat; auto.
+  apply SeriesC_ge_0'.
+  intro; apply Rmult_le_pos; auto.
+  apply Hg.
+Qed.
 
 (*
 Lemma Rcoupl_dzero_l_inv `{Countable A, Countable B} μ2 (R : A → B → Prop) :
@@ -903,7 +844,7 @@ Proof.
   apply SeriesC_zero_dzero.
   rewrite -Hz SeriesC_0 //.
 Qed.
-*)
+ *)
 
 Lemma ARcoupl_map `{Countable A, Countable B, Countable A', Countable B'}
   (f : A → A') (g : B → B') (μ1 : distr A) (μ2 : distr B) (R : A' → B' → Prop) ε :
@@ -918,26 +859,26 @@ Proof.
 Qed.
 
 Lemma ARcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
-    (0 <= ε1) ->
-    (0 <= ε2) ->
-    ARcoupl μ1 μ2 (=) ε1 ->
-    ARcoupl μ2 μ3 R ε2 ->
-    ARcoupl μ1 μ3 R (ε1 + ε2).
+  (0 <= ε1) ->
+  (0 <= ε2) ->
+  ARcoupl μ1 μ2 (=) ε1 ->
+  ARcoupl μ2 μ3 R ε2 ->
+  ARcoupl μ1 μ3 R (ε1 + ε2).
 Proof.
   intros Hleq1 Hleq2 Heq HR f g Hf Hg Hfg.
   specialize (HR f g Hf Hg Hfg).
   eapply Rle_trans; [apply Heq | ]; auto.
   - intros ? ? ->; lra.
   - rewrite (Rplus_comm ε1) -Rplus_assoc.
-  apply Rplus_le_compat_r; auto.
+    apply Rplus_le_compat_r; auto.
 Qed.
 
 Lemma ARcoupl_eq_trans_r `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
-    (0 <= ε1) ->
-    (0 <= ε2) ->
-    ARcoupl μ1 μ2 R ε1 ->
-    ARcoupl μ2 μ3 (=) ε2 ->
-    ARcoupl μ1 μ3 R (ε1 + ε2).
+  (0 <= ε1) ->
+  (0 <= ε2) ->
+  ARcoupl μ1 μ2 R ε1 ->
+  ARcoupl μ2 μ3 (=) ε2 ->
+  ARcoupl μ1 μ3 R (ε1 + ε2).
 Proof.
   intros Hleq1 Hleq2 HR Heq f g Hf Hg Hfg.
   specialize (HR f g Hf Hg Hfg).
@@ -950,31 +891,15 @@ Qed.
 
 (* Maybe this can be generalized, but for now I only need this version *)
 Lemma ARcoupl_from_eq_Rcoupl `{Countable A} (μ1 μ2 : distr A) ε :
-    (0 <= ε) ->
-    Rcoupl μ1 μ2 (=) ->
-    ARcoupl μ1 μ2 (=) ε.
+  (0 <= ε) ->
+  Rcoupl μ1 μ2 (=) ->
+  ARcoupl μ1 μ2 (=) ε.
 Proof.
-   intros Hε Hcpl.
-   rewrite (Rcoupl_eq_elim μ1 μ2); auto.
-   apply (ARcoupl_mon_grading _ _ _ 0); auto.
-   apply ARcoupl_eq.
+  intros Hε Hcpl.
+  rewrite (Rcoupl_eq_elim μ1 μ2); auto.
+  apply (ARcoupl_mon_grading _ _ _ 0); auto.
+  apply ARcoupl_eq.
 Qed.
-
-(* I think this should be true, maybe it can be proven through Strassens theorem, but
-  I don't see how to do it directly *)
-(*
-  Lemma Rcoupl_from_mapL `{Countable A, Countable B, Countable A', Countable B'}:
-    forall (f : A → A') (μ1 : distr A) (μ2 : distr B) (R : A' → B → Prop),
-      Rcoupl (dmap f μ1) μ2 R -> Rcoupl μ1 μ2 (λ a b, R (f a) b).
-  Proof.
-    intros f μ1 μ2 R (μ & ((HμL & HμR) & HμSup)).
-    eexists (dprod μ1 μ2).
-    split; [split | ].
-
-    eexists (MkDistr (λ '(a, b), μ (f a , g b)) _ _ _).
-
-  Qed.
- *)
 
 (* TODO: move somewhere else *)
 Definition f_inv {A B} f `{Surj A B (=) f} : B → A := λ b, epsilon (surj f b).
@@ -1007,9 +932,9 @@ Proof.
     { subst. apply NoDup_enum. }
     clear Heqn.
     cut (
-    foldr (Rplus ∘ (λ a : fin N, dunif N a * g a)) 0 n <=
-    foldr (Rplus ∘ (λ b : fin N, if bool_decide (b ∈ f<$>n) then dunif N b * h b else 0)) 0
-      (enum (fin N))).
+        foldr (Rplus ∘ (λ a : fin N, dunif N a * g a)) 0 n <=
+          foldr (Rplus ∘ (λ b : fin N, if bool_decide (b ∈ f<$>n) then dunif N b * h b else 0)) 0
+            (enum (fin N))).
     { intros. eexists _. done. }
     revert Hnd.
     induction n.
@@ -1259,14 +1184,14 @@ Proof with try (by apply ex_seriesC_finite) ; auto ; try done.
   rewrite -(SeriesC_singleton x (1 / N)).
   rewrite -SeriesC_plus...
   transitivity (SeriesC (λ _ : fin N, / N * f v)).
-    + rewrite SeriesC_finite_mass SeriesC_singleton fin_card.
-      rewrite -Rmult_assoc Rinv_r ; lra.
-    + apply SeriesC_le...
-      intros ; split...
-      case_bool_decide.
-      * rewrite Rplus_0_l -(Rmult_1_r (1/N)).
-        apply Rmult_le_compat... nra.
-      * rewrite Rplus_0_r. apply Rmult_le_compat_l...
+  + rewrite SeriesC_finite_mass SeriesC_singleton fin_card.
+    rewrite -Rmult_assoc Rinv_r ; lra.
+  + apply SeriesC_le...
+    intros ; split...
+    case_bool_decide.
+    * rewrite Rplus_0_l -(Rmult_1_r (1/N)).
+      apply Rmult_le_compat... nra.
+    * rewrite Rplus_0_r. apply Rmult_le_compat_l...
 Qed.
 
 Corollary ARcoupl_dunif_no_coll_r' (N : nat) (x : fin N) :
@@ -1284,8 +1209,7 @@ Proof.
   rewrite SeriesC_finite_foldr; simpl.
   rewrite dret_1_1; last done.
   rewrite Rmult_1_l Rplus_0_r.
-  eremember ((λ a:A, negb (bool_decide (P a)))) as q. Unshelve.
-  2:{ apply make_decision. }
+  remember ((λ a:A, negb (bool_decide (P a)))) as q. 
   rewrite (SeriesC_split_pred _ q).
   - rewrite Rplus_comm.
     apply Rplus_le_compat.
@@ -1315,8 +1239,6 @@ Proof.
       * apply ex_seriesC_filter_bool_pos; auto.
   - intros. apply Rmult_le_pos; naive_solver.
   - apply pmf_ex_seriesC_mult_fn. naive_solver.
-    Unshelve.
-    intros. apply make_decision.
 Qed.
 
 
@@ -1337,10 +1259,7 @@ Proof.
     - intros. rewrite /f. case_match; lra.
     - rewrite /g. intros; lra.
     - intros. rewrite /f/g. case_match; first done.
-      apply bool_decide_eq_false in H2. done.
-      Unshelve.
-      apply make_decision.
-  }
+      apply bool_decide_eq_false in H2. done. }
   rewrite /g.
   rewrite SeriesC_scal_r. lra.
 Qed.
@@ -1351,8 +1270,8 @@ Lemma up_to_bad_lhs `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) 
   ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
-  set (P' := λ a, @bool_decide (P a) (make_decision (P a))).
-  set (f' := λ a, if @bool_decide (P a) (make_decision (P a)) then f a else 0).
+  set (P' := λ a, bool_decide (P a)).
+  set (f' := λ a, if bool_decide (P a) then f a else 0).
   (* epose proof (Hub P' _) as Haux. *)
   (* Unshelve. *)
   (* 2:{ *)
@@ -1398,8 +1317,8 @@ Lemma up_to_bad_rhs `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) 
   ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
-  set (P' := λ a, @bool_decide (P a) (make_decision (P a))).
-  set (g' := λ a, if @bool_decide (P a) (make_decision (P a)) then g a else 0).
+  set (P' := λ a, bool_decide (P a)).
+  set (g' := λ a, if bool_decide (P a) then g a else 0).
   rewrite -Rplus_assoc.
   eapply Rle_trans; [ | by apply Rplus_le_compat_l].
   clear Hub.
@@ -1408,10 +1327,10 @@ Proof.
   rewrite -SeriesC_plus.
   2,3: apply (ex_seriesC_le _ (λ b : B, μ2 b)) => // ; real_solver.
   unfold ARcoupl in Hcpl.
-  trans (SeriesC (λ b : B, μ2 b * g b + μ2 b * (if negb (@bool_decide (P b) (make_decision (P b))) then 1 else 0)) + ε) ; [|(right ; f_equal ; series)].
+  trans (SeriesC (λ b : B, μ2 b * g b + μ2 b * (if negb (bool_decide (P b)) then 1 else 0)) + ε) ; [|(right ; f_equal ; series)].
   setoid_rewrite <-Rmult_plus_distr_l.
   trans (SeriesC
-    (λ b : B, μ2 b * Rmin 1 (g b + (if negb (@bool_decide (P b) (make_decision (P b))) then 1 else 0))) + ε).
+           (λ b : B, μ2 b * Rmin 1 (g b + (if negb (bool_decide (P b)) then 1 else 0))) + ε).
   2:{ apply Rplus_le_compat_r. apply SeriesC_le.
       2:{
         eapply (ex_seriesC_le _ (λ b : B, μ2 b * (1 + 1))).
@@ -1443,223 +1362,97 @@ Proof.
 Qed.
 
 
-  Lemma ARcoupl_refRcoupl `{Countable A, Countable B}
-    μ1 μ2 (ψ : A → B → Prop) : refRcoupl μ1 μ2 ψ -> ARcoupl μ1 μ2 ψ 0.
-  Proof.
-    intros (μ&(<-&Hrm)&Hs).
-    setoid_rewrite rmarg_pmf in Hrm.
-    intros f g Hf Hg Hfg.
-    rewrite Rplus_0_r.
-    setoid_rewrite lmarg_pmf.
-    etrans; last first.
-    {
-      apply SeriesC_le.
-      - split; last first.
-        + apply Rmult_le_compat_r; [apply Hg | apply Hrm].
-        + simpl. apply Rmult_le_pos; [ | apply Hg].
-          by apply SeriesC_ge_0'.
-      - eapply ex_seriesC_le ; [ | eapply (pmf_ex_seriesC μ2)].
-        intros; split.
-        * apply Rmult_le_pos; auto. apply Hg.
-        * rewrite <- Rmult_1_r.
-          apply Rmult_le_compat_l; auto. apply Hg.
-    }
-    setoid_rewrite <- SeriesC_scal_r.
-    rewrite (fubini_pos_seriesC (λ '(a,n), Rmult (μ (a, n)) (g n))).
-    - apply SeriesC_le.
-      + intro a; split.
-        * apply SeriesC_ge_0'.
-          intro.
-          apply Rmult_le_pos; auto. apply Hf.
-        * apply SeriesC_le.
-          ** intro b; split.
-             *** apply Rmult_le_pos; auto.
-                 apply Hf.
-             *** destruct (decide ((μ(a,b) > 0)%R)) as [H3 | H4].
-                 **** apply Hs, Hfg in H3.
-                      by apply Rmult_le_compat_l.
-                 **** apply Rnot_gt_le in H4.
-                      replace (μ(a,b)) with 0%R; [ lra | by apply Rle_antisym].
-          ** eapply ex_seriesC_le; [ | eapply (ex_seriesC_lmarg μ); eauto ].
-             intros; split.
-             *** apply Rmult_le_pos; auto.
-                 apply Hg.
-             *** rewrite <- Rmult_1_r.
-                 apply Rmult_le_compat_l; auto.
-                 apply Hg.
-     + eapply ex_seriesC_le; [ | eapply (fubini_pos_ex_seriesC_prod_ex_lr μ)]; eauto.
-       * intro; simpl.
-         split.
-         ** apply SeriesC_ge_0'.
-            intro; apply Rmult_le_pos; auto.
-            apply Hg.
-         ** apply SeriesC_le.
-            *** intro; split.
-                **** apply Rmult_le_pos; auto. apply Hg.
-                **** rewrite <- Rmult_1_r.
-                     apply Rmult_le_compat_l; eauto; eapply Hg.
-            *** apply ex_seriesC_lmarg; auto.
-    - intros; apply Rmult_le_pos; auto. apply Hg.
-    - intros a.
-      eapply ex_seriesC_le; [ | unshelve eapply (ex_seriesC_lmarg μ _ a) ]; eauto.
-      intros. split.
-      + apply Rmult_le_pos; auto. apply Hg.
-      + rewrite <- Rmult_1_r. apply Rmult_le_compat_l; auto; apply Hg.
-    - eapply ex_seriesC_le; [ | eapply (fubini_pos_ex_seriesC_prod_ex_lr μ)]; eauto.
-       + intro; simpl.
-         split.
-         * apply SeriesC_ge_0'.
+Lemma ARcoupl_refRcoupl `{Countable A, Countable B}
+  μ1 μ2 (ψ : A → B → Prop) : refRcoupl μ1 μ2 ψ -> ARcoupl μ1 μ2 ψ 0.
+Proof.
+  intros (μ&(<-&Hrm)&Hs).
+  setoid_rewrite rmarg_pmf in Hrm.
+  intros f g Hf Hg Hfg.
+  rewrite Rplus_0_r.
+  setoid_rewrite lmarg_pmf.
+  etrans; last first.
+  {
+    apply SeriesC_le.
+    - split; last first.
+      + apply Rmult_le_compat_r; [apply Hg | apply Hrm].
+      + simpl. apply Rmult_le_pos; [ | apply Hg].
+        by apply SeriesC_ge_0'.
+    - eapply ex_seriesC_le ; [ | eapply (pmf_ex_seriesC μ2)].
+      intros; split.
+      * apply Rmult_le_pos; auto. apply Hg.
+      * rewrite <- Rmult_1_r.
+        apply Rmult_le_compat_l; auto. apply Hg.
+  }
+  setoid_rewrite <- SeriesC_scal_r.
+  rewrite (fubini_pos_seriesC (λ '(a,n), Rmult (μ (a, n)) (g n))).
+  - apply SeriesC_le.
+    + intro a; split.
+      * apply SeriesC_ge_0'.
+        intro.
+        apply Rmult_le_pos; auto. apply Hf.
+      * apply SeriesC_le.
+        ** intro b; split.
+           *** apply Rmult_le_pos; auto.
+               apply Hf.
+           *** destruct (decide ((μ(a,b) > 0)%R)) as [H3 | H4].
+               **** apply Hs, Hfg in H3.
+                    by apply Rmult_le_compat_l.
+               **** apply Rnot_gt_le in H4.
+                    replace (μ(a,b)) with 0%R; [ lra | by apply Rle_antisym].
+        ** eapply ex_seriesC_le; [ | eapply (ex_seriesC_lmarg μ); eauto ].
+           intros; split.
+           *** apply Rmult_le_pos; auto.
+               apply Hg.
+           *** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; auto.
+               apply Hg.
+    + eapply ex_seriesC_le; [ | eapply (fubini_pos_ex_seriesC_prod_ex_lr μ)]; eauto.
+      * intro; simpl.
+        split.
+        ** apply SeriesC_ge_0'.
            intro; apply Rmult_le_pos; auto.
            apply Hg.
-         * apply SeriesC_le.
-            ** intro; split.
-                *** apply Rmult_le_pos; auto. apply Hg.
-                *** rewrite <- Rmult_1_r.
+        ** apply SeriesC_le.
+           *** intro; split.
+               **** apply Rmult_le_pos; auto. apply Hg.
+               **** rewrite <- Rmult_1_r.
                     apply Rmult_le_compat_l; eauto; eapply Hg.
-            ** apply ex_seriesC_lmarg; auto.
-  Qed.
+           *** apply ex_seriesC_lmarg; auto.
+  - intros; apply Rmult_le_pos; auto. apply Hg.
+  - intros a.
+    eapply ex_seriesC_le; [ | unshelve eapply (ex_seriesC_lmarg μ _ a) ]; eauto.
+    intros. split.
+    + apply Rmult_le_pos; auto. apply Hg.
+    + rewrite <- Rmult_1_r. apply Rmult_le_compat_l; auto; apply Hg.
+  - eapply ex_seriesC_le; [ | eapply (fubini_pos_ex_seriesC_prod_ex_lr μ)]; eauto.
+    + intro; simpl.
+      split.
+      * apply SeriesC_ge_0'.
+        intro; apply Rmult_le_pos; auto.
+        apply Hg.
+      * apply SeriesC_le.
+        ** intro; split.
+           *** apply Rmult_le_pos; auto. apply Hg.
+           *** rewrite <- Rmult_1_r.
+               apply Rmult_le_compat_l; eauto; eapply Hg.
+        ** apply ex_seriesC_lmarg; auto.
+Qed.
 
-  Lemma ARcoupl_exact `{Countable A, Countable B}
-    μ1 μ2 (ψ : A → B → Prop) : Rcoupl μ1 μ2 ψ → ARcoupl μ1 μ2 ψ 0.
-  Proof.
-    intros ; by eapply ARcoupl_refRcoupl, Rcoupl_refRcoupl.
-  Qed.
+Lemma ARcoupl_exact `{Countable A, Countable B}
+  μ1 μ2 (ψ : A → B → Prop) : Rcoupl μ1 μ2 ψ → ARcoupl μ1 μ2 ψ 0.
+Proof.
+  intros ; by eapply ARcoupl_refRcoupl, Rcoupl_refRcoupl.
+Qed.
 
-  Lemma ARcoupl_limit `{Countable A, Countable B} μ1 μ2 ε (ψ : A -> B -> Prop):
-    (forall ε', ε' > ε -> ARcoupl μ1 μ2 ψ ε') -> ARcoupl μ1 μ2 ψ ε.
-  Proof.
-    rewrite /ARcoupl.
-    intros Hlimit. intros.
-    apply real_le_limit.
-    intros. rewrite Rle_minus_l.
-    rewrite Rplus_assoc.
-    apply Hlimit; try done.
-    lra.
-  Qed.
+Lemma ARcoupl_limit `{Countable A, Countable B} μ1 μ2 ε (ψ : A -> B -> Prop):
+  (forall ε', ε' > ε -> ARcoupl μ1 μ2 ψ ε') -> ARcoupl μ1 μ2 ψ ε.
+Proof.
+  rewrite /ARcoupl.
+  intros Hlimit. intros.
+  apply real_le_limit.
+  intros. rewrite Rle_minus_l.
+  rewrite Rplus_assoc.
+  apply Hlimit; try done.
+  lra.
+Qed.
 
-(* Lemma Rcoupl_fair_conv_comb `{Countable A, Countable B} *)
-(*   f `{Inj bool bool (=) (=) f, Surj bool bool (=) f} *)
-(*   (S : A → B → Prop) (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
-(*   (∀ a, Rcoupl (if f a then μ1 else μ2) (if a then μ1' else μ2') S) → *)
-(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
-(* Proof. *)
-(*   intros HS. rewrite /fair_conv_comb. *)
-(*   eapply Rcoupl_dbind; [|apply (Rcoupl_fair_coin f)]. *)
-(*   simpl. intros a b ->. *)
-(*   done. *)
-(* Qed. *)
-
-(* Lemma Rcoupl_fair_conv_comb_id `{Countable A, Countable B} (S : A → B → Prop) *)
-(*   (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
-(*   Rcoupl μ1 μ1' S → *)
-(*   Rcoupl μ2 μ2' S → *)
-(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
-(* Proof. *)
-(*   intros HS1 HS2. *)
-(*   eapply (Rcoupl_fair_conv_comb id). *)
-(*   intros []; (eapply Rcoupl_impl; [|done]); eauto. *)
-(* Qed. *)
-
-(* Lemma Rcoupl_fair_conv_comb_neg `{Countable A, Countable B} (S : A → B → Prop) *)
-(*   (μ1 μ2 : distr A) (μ1' μ2' : distr B) : *)
-(*   Rcoupl μ1 μ2' S → *)
-(*   Rcoupl μ2 μ1' S → *)
-(*   Rcoupl (fair_conv_comb μ1 μ2) (fair_conv_comb μ1' μ2') S. *)
-(* Proof. *)
-(*   intros HS1 HS2. *)
-(*   eapply (Rcoupl_fair_conv_comb negb). *)
-(*   intros []; (eapply Rcoupl_impl; [|done]); eauto. *)
-(* Qed. *)
-
-(* This is a lemma about convex combinations, but it is easier to prove with couplings
-     TODO: find a better place to put it in *)
-(* Lemma fair_conv_comb_dbind `{Countable A, Countable B} (μ1 μ2 : distr A) (f : A -> distr B) : *)
-(*   dbind f (fair_conv_comb μ1 μ2) = fair_conv_comb (dbind f μ1) (dbind f μ2). *)
-(* Proof. *)
-(*   rewrite /fair_conv_comb -dbind_assoc. *)
-(*   apply Rcoupl_eq_elim. *)
-(*   eapply (Rcoupl_dbind _ _ _ _ (=)); [ | apply Rcoupl_eq]. *)
-(*   intros b1 b2 ->. *)
-(*   destruct b2; apply Rcoupl_eq. *)
-(* Qed. *)
-
-(*
-Section Rcoupl_strength.
-  Context `{Countable A, Countable B, Countable D, Countable E}.
-
-  Variable (μ1 : distr A) (μ2 : distr B).
-
-  Lemma Rcoupl_strength_l (R : A → B → Prop) (d : D)  :
-    Rcoupl μ1 μ2 R →
-    Rcoupl (strength_l d μ1) μ2 (λ '(d', a) b, d' = d ∧ R a b).
-  Proof.
-    rewrite /strength_l /dmap.
-    intros Hcpl.
-    rewrite -(dret_id_right μ2).
-    eapply Rcoupl_dbind; [|done].
-    intros. by apply Rcoupl_dret.
-  Qed.
-
-  Lemma Rcoupl_strength (R : A → B → Prop) (d : D) (e : E) :
-    Rcoupl μ1 μ2 R →
-    Rcoupl (strength_l d μ1) (strength_l e μ2)
-      (λ '(d', a) '(e', b), d' = d ∧ e' = e ∧ R a b).
-  Proof.
-    rewrite /strength_l /dmap.
-    eapply Rcoupl_dbind.
-    intros. by apply Rcoupl_dret.
-  Qed.
-
-End Rcoupl_strength.
-
-Section ref_couplings_theory.
-  Context `{Countable A, Countable B}.
-
-  Lemma Rcoupl_from_leq (μ1 μ2 : distr A) :
-    (∀ a, μ1 a <= μ2 a) -> Rcoupl μ1 μ2 (=).
-  Proof.
-    intros Hleq f g Hf Hg Hfg.
-    apply SeriesC_le; last first.
-    { apply (ex_seriesC_le _ μ2); auto.
-      intro a; specialize (Hg a); real_solver.
-    }
-    intro a.
-    specialize (Hf a);
-    specialize (Hg a);
-    specialize (Hfg a).
-    real_solver.
-  Qed.
-
-  Lemma Rcoupl_eq_trans (μ1 μ2 μ3 : distr A):
-    Rcoupl μ1 μ2 (=) → Rcoupl μ2 μ3 (=) → Rcoupl μ1 μ3 (=).
-  Proof.
-    intros H12 H23 f g Hf Hg Hfg.
-    eapply (Rle_trans); [eapply H12 | eapply H23]; eauto.
-    intros ??->; lra.
-  Qed.
-
-  Lemma Rcoupl_eq_Rcoupl_unfoldl (μ1 μ2 μ3 : distr A) R :
-    Rcoupl μ1 μ2 (=) → Rcoupl μ2 μ3 R → Rcoupl μ1 μ3 R.
-  Proof.
-    intros H12 H23 f g Hf Hg Hfg.
-    apply (Rle_trans _ (SeriesC (λ a : A, μ2 a * f a))); [apply H12 | apply H23]; auto.
-    intros ??->; lra.
-  Qed.
-
-  Lemma refRcoupl_eq_refRcoupl_unfoldr (μ1 μ2 μ3 : distr A) R :
-    Rcoupl μ1 μ2 R → Rcoupl μ2 μ3 (=) → Rcoupl μ1 μ3 R.
-  Proof.
-    intros H12 H23 f g Hf Hg Hfg.
-    apply (Rle_trans _ (SeriesC (λ a : A, μ2 a * g a))); [apply H12 | apply H23]; auto.
-    intros ??->; lra.
-  Qed.
-
-  Lemma Rcoupl_weaken (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A → B → Prop):
-      (∀ a b, R a b -> S a b) → Rcoupl μ1 μ2 R → Rcoupl μ1 μ2 S.
-  Proof.
-    intros Hwk H12 f g Hf Hg Hfg.
-    apply H12; auto.
-  Qed.
-
-End ref_couplings_theory.
-*)

@@ -596,7 +596,6 @@ Proof.
   by iMod ("H" with "[$]").
 Qed.
 
-(* TODO: not just StronglyAtomic?  *)
 Lemma rwp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
   (|={E1,E2}=> WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ a; E1 {{ Φ }}.
 Proof.
@@ -793,7 +792,6 @@ Proof.
   by iMod ("H" with "[$]").
 Qed.
 
-(* TODO: not just [StronglyAtomic]? *)
 Lemma rswp_atomic k E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
   (|={E1,E2}=> RSWP e at k @ a; E2 ⟨⟨ v, |={E2,E1}=> Φ v ⟩⟩) ⊢ RSWP e at k @ a; E1 ⟨⟨ Φ ⟩⟩.
 Proof.

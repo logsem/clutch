@@ -1,9 +1,3 @@
-(** This file extends the Clutch program logic with some derived laws (not
-using the lifting lemmas) about arrays
-
-For utility functions on arrays (e.g., freeing/copying an array), see
-[lib.array].  *)
-
 From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
@@ -13,15 +7,8 @@ From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works
 with lists of values. *)
-
-
 Definition array `{!caliperG δ Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) ↦{dq} v.
-
-(*
-Notation "l ↦∗{ dq } vs" := (array l dq vs)
-  (at level 20, dq custom dfrac at level 1, format "l  ↦∗{ dq } vs") : bi_scope.
-*)
 
 Notation "l ↦∗{ dq } vs" := (array l dq vs)
   (at level 20, format "l  ↦∗{ dq }  vs") : bi_scope.
@@ -33,24 +20,14 @@ Notation "l ↦∗ v" := (l ↦∗{ DfracOwn 1 } v)%I
 [AsFractional] instance below), but not for splitting the list, as that would
 lead to overlapping instances. *)
 
-Section lifting.
-
-  Context `{!caliperG δ Σ}.
-  Implicit Types Φ Ψ : val → iProp Σ.
-  Implicit Types σ : state.
-  Implicit Types v : val.
-  Implicit Types l : loc.
-  Implicit Types vs : list val.
-  Implicit Types sz off : nat.
-
-  (*
-Global Instance array_timeless l q vs : Timeless (array l q vs) := _.
-
-Global Instance array_fractional l vs : Fractional (λ q, l ↦∗{#q} vs)%I := _.
-Global Instance array_as_fractional l q vs :
-  AsFractional (l ↦∗{#q} vs) (λ q, l ↦∗{#q} vs)%I q.
-Proof. split; done || apply _. Qed.
-*)
+Section derived_laws.
+Context `{!caliperG δ Σ}.
+Implicit Types Φ Ψ : val → iProp Σ.
+Implicit Types σ : state.
+Implicit Types v : val.
+Implicit Types l : loc.
+Implicit Types vs : list val.
+Implicit Types sz off : nat.
 
 Lemma array_nil l dq : l ↦∗{dq} [] ⊣⊢ emp.
 Proof. by rewrite /array. Qed.
@@ -116,33 +93,29 @@ Lemma rswp_allocN k E v a n:
   (0 < n)%Z →
   ⟨⟨⟨ True ⟩⟩⟩ AllocN (Val $ LitV $ LitInt $ n) (Val v) at k @ a; E
   ⟨⟨⟨ l, RET LitV (LitLoc l); l ↦∗ replicate (Z.to_nat n) v ⟩⟩⟩.
-  Proof.
-    iIntros (? Φ) "_ HΦ".
-    iApply rswp_allocN_seq; auto; try lia.
-    iModIntro.
-    iIntros (l) "Hlm".
-    iApply "HΦ".
-    by iApply pointsto_seq_array.
-  Qed.
+Proof.
+  iIntros (? Φ) "_ HΦ".
+  iApply rswp_allocN_seq; auto; try lia.
+  iModIntro.
+  iIntros (l) "Hlm".
+  iApply "HΦ".
+  by iApply pointsto_seq_array.
+Qed.
 
-
-  Lemma rswp_allocN_vec k E v a n :
-    (0 < n)%Z →
-    ⟨⟨⟨ True ⟩⟩⟩
-      AllocN #n v at k @ a; E
-                          ⟨⟨⟨ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v ⟩⟩⟩.
-  Proof.
-    iIntros (? Φ) "_ HΦ".
-    iApply (rswp_allocN with "[//] [HΦ]"); try lia.
-    iModIntro.
-    iIntros (l) "Hl".
-    iApply "HΦ". by rewrite vec_to_list_replicate.
-  Qed.
-
+Lemma rswp_allocN_vec k E v a n :
+  (0 < n)%Z →
+  ⟨⟨⟨ True ⟩⟩⟩
+    AllocN #n v at k @ a; E
+   ⟨⟨⟨ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v ⟩⟩⟩.
+Proof.
+  iIntros (? Φ) "_ HΦ".
+  iApply (rswp_allocN with "[//] [HΦ]"); try lia.
+  iModIntro.
+  iIntros (l) "Hl".
+  iApply "HΦ". by rewrite vec_to_list_replicate.
+Qed.
 
 (** * Rules for accessing array elements *)
-
-
 Lemma rswp_load_offset k E a l dq off vs v :
   vs !! off = Some v →
   ⟨⟨⟨ ▷ l ↦∗{dq} vs ⟩⟩⟩ ! #(l +ₗ off) at k @ a; E  ⟨⟨⟨ RET v; l ↦∗{dq} vs ⟩⟩⟩.
@@ -160,8 +133,7 @@ Qed.
 
 Lemma rswp_load_offset_vec k E a l dq sz (off : fin sz) (vs : vec val sz) :
   ⟨⟨⟨  ▷ l ↦∗{dq} vs ⟩⟩⟩ ! #(l +ₗ off) at k @ a; E ⟨⟨⟨ RET vs !!! off; l ↦∗{dq} vs ⟩⟩⟩.
-  Proof. apply rswp_load_offset. by apply vlookup_lookup. Qed.
-
+Proof. apply rswp_load_offset. by apply vlookup_lookup. Qed.
 
 Lemma rswp_store_offset k E a l off vs v :
   is_Some (vs !! off) →
@@ -175,14 +147,12 @@ Proof.
   iApply "HΦ". iApply "Hl2". iApply "Hl1".
 Qed.
 
-
 Lemma rswp_store_offset_vec k E a l sz (off : fin sz) (vs : vec val sz) v :
   ⟨⟨⟨ ▷ l ↦∗ vs ⟩⟩⟩ #(l +ₗ off) <- v at k @ a; E ⟨⟨⟨ RET #(); l ↦∗ vinsert off v vs ⟩⟩⟩.
 Proof.
   setoid_rewrite vec_to_list_insert. apply rswp_store_offset.
   eexists. by apply vlookup_lookup.
 Qed.
-
 
 (** RWP *)
 (** * Rules for allocation *)
@@ -191,31 +161,26 @@ Lemma rwp_allocN E v a n:
   (0 < n)%Z →
   ⟨⟨⟨ True ⟩⟩⟩ AllocN (Val $ LitV $ LitInt $ n) (Val v) @ a; E
   ⟨⟨⟨ l, RET LitV (LitLoc l); l ↦∗ replicate (Z.to_nat n) v ⟩⟩⟩.
-  Proof.
-    intros Hn.
-    iIntros (Φ) "H HΦ".
-    iApply rwp_no_step.
-    by iApply (rswp_allocN with "H HΦ").
-  Qed.
+Proof.
+  intros Hn.
+  iIntros (Φ) "H HΦ".
+  iApply rwp_no_step.
+  by iApply (rswp_allocN with "H HΦ").
+Qed.
 
-
-  Lemma rwp_allocN_vec E v a n :
-    (0 < n)%Z →
-    ⟨⟨⟨ True ⟩⟩⟩
-      AllocN #n v @ a; E
-                         ⟨⟨⟨ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v ⟩⟩⟩.
-
-  Proof.
-    intros Hn.
-    iIntros (Φ) "H HΦ".
-    iApply rwp_no_step.
-    by iApply (rswp_allocN_vec with "H HΦ").
-  Qed.
-
+Lemma rwp_allocN_vec E v a n :
+  (0 < n)%Z →
+  ⟨⟨⟨ True ⟩⟩⟩
+    AllocN #n v @ a; E
+  ⟨⟨⟨ l, RET #l; l ↦∗ vreplicate (Z.to_nat n) v ⟩⟩⟩.
+Proof.
+  intros Hn.
+  iIntros (Φ) "H HΦ".
+  iApply rwp_no_step.
+  by iApply (rswp_allocN_vec with "H HΦ").
+Qed.
 
 (** * Rules for accessing array elements *)
-
-
 Lemma rwp_load_offset E a l dq off vs v :
   vs !! off = Some v →
   ⟨⟨⟨ ▷ l ↦∗{dq} vs ⟩⟩⟩ ! #(l +ₗ off) @ a; E  ⟨⟨⟨ RET v; l ↦∗{dq} vs ⟩⟩⟩.
@@ -226,11 +191,9 @@ Proof.
     by iApply (rswp_load_offset with "H HΦ").
 Qed.
 
-
 Lemma rwp_load_offset_vec E a l dq sz (off : fin sz) (vs : vec val sz) :
   ⟨⟨⟨  ▷ l ↦∗{dq} vs ⟩⟩⟩ ! #(l +ₗ off) @ a; E ⟨⟨⟨ RET vs !!! off; l ↦∗{dq} vs ⟩⟩⟩.
-  Proof. apply rwp_load_offset. by apply vlookup_lookup. Qed.
-
+Proof. apply rwp_load_offset. by apply vlookup_lookup. Qed.
 
 Lemma rwp_store_offset E a l off vs v :
   is_Some (vs !! off) →
@@ -242,7 +205,6 @@ Proof.
     by iApply (rswp_store_offset with "H HΦ").
 Qed.
 
-
 Lemma rwp_store_offset_vec E a l sz (off : fin sz) (vs : vec val sz) v :
   ⟨⟨⟨ ▷ l ↦∗ vs ⟩⟩⟩ #(l +ₗ off) <- v @ a; E ⟨⟨⟨ RET #(); l ↦∗ vinsert off v vs ⟩⟩⟩.
 Proof.
@@ -250,6 +212,6 @@ Proof.
   eexists. by apply vlookup_lookup.
 Qed.
 
-End lifting.
+End derived_laws.
 
 Global Typeclasses Opaque array.

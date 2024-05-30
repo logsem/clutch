@@ -1894,22 +1894,6 @@ Section inj.
                 by rewrite plus_zero_r.
   Qed.
 
-  (*
-  Lemma ex_seriesC_inj (h : B -> R) (f : A -> B) `{Inj A B (=) (=) f} :
-    (forall b, 0 <= h b) ->
-    ex_seriesC h ->
-    ex_seriesC (h ∘ f).
-  Proof.
-    intros Hpos Hex.
-    apply ex_seriesC_ex_series.
-    apply ex_seriesC_ex_series_inv in Hex.
-    rewrite /countable_sum.
-    rewrite /countable_sum in Hex.
-  Admitted.
-  *)
-
-
-
 End inj.
 
 

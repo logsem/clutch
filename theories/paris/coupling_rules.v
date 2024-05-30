@@ -40,7 +40,6 @@ Section rules.
 
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
-    (∀ σ1, reducible (e, σ1)) →
     (N <= M)%R →
     (((S M - S N) / S M) = ε)%R →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
@@ -51,7 +50,7 @@ Section rules.
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (He Hred NMpos NMε) "(>Hα & >Hαₛ & Hε & Hwp)".
+    iIntros (He NMpos NMε) "(>Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
@@ -91,7 +90,6 @@ Section rules.
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     to_val e = None →
-    (∀ σ1, reducible (e, σ1)) →
     (M <= N)%R →
     (((S N - S M) / S N) = ε)%R →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
@@ -102,7 +100,7 @@ Section rules.
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (He Hred NMpos NMε) "( >Hα & >Hαₛ & Hε & Hwp)".
+    iIntros (He NMpos NMε) "( >Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
@@ -182,7 +180,6 @@ Section rules.
 
   Lemma wp_rand_avoid_r {N : nat} (t : fin (S N)) (z : Z) K e ε E Φ:
     to_val e = None →
-    (∀ σ1, reducible (e, σ1)) →
     TCEq N (Z.to_nat z) →
     TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
     ⤇ fill K (rand #z) ∗
@@ -192,7 +189,7 @@ Section rules.
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Htv Hred Nz Nε) "(HK & Hε & Hwp)".
+    iIntros (Htv Nz Nε) "(HK & Hε & Hwp)".
     iApply wp_lift_step_fupd_couple; [done|].
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct (spec_auth_prog_agree with "Hauth2 HK") as "->".
@@ -836,7 +833,6 @@ Section rules.
         iMod ("Hwp" $! _ _ (state_upd_tapes <[αₛ:=(M; nsₛ ++ [m]) : tape]> _) with "[$]").
         iModIntro. iApply exec_stutter_free. rewrite /ε_now2. done.
         Unshelve.
-        -- apply make_decision.
         -- apply gset_fin_set.
   Qed.
 

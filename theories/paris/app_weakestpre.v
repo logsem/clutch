@@ -498,23 +498,6 @@ Section exec_coupl.
     - iPureIntro. eexists; intros _. split; [apply cond_nonneg|naive_solver].
   Qed.
 
-  (** Not true. Only holds in Problang. One needs to prove that state_steps are erasable.
-      Moved to coupling rules
- *)
-  (* Lemma exec_coupl_state_steps α α' e1 σ1 e1' σ1' Z (ε ε' : nonnegreal) : *)
-  (*   (α, α') ∈ list_prod (get_active σ1) (get_active σ1') → *)
-  (*   (∃ R, ⌜ARcoupl (state_step σ1 α) (state_step σ1' α') R ε⌝ ∗ *)
-  (*         (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={∅}=∗ exec_coupl e1 σ2 e1' σ2' Z ε')) *)
-  (*   ⊢ exec_coupl e1 σ1 e1' σ1' Z (nnreal_plus ε ε'). *)
-  (* Proof. *)
-  (*   iIntros (?) "(%&[% H])". *)
-  (*   iApply exec_coupl_big_state_steps. *)
-  (*   iExists R2, (state_step σ1 α), (state_step σ1' α'). *)
-  (*   repeat iSplit; try done. *)
-  (*   - admit. *)
-  (*   - iPureIntro. *)
-  (* Abort. *)
-
   Lemma exec_coupl_det_r n e1 σ1 e1' σ1' e2' σ2' Z (ε : nonnegreal) :
     pexec n (e1', σ1') (e2', σ2') = 1 →
     exec_coupl e1 σ1 e2' σ2' Z ε -∗

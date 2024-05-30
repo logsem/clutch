@@ -96,7 +96,7 @@ Section exec_ub.
     { iLeft; iPureIntro. lra. }
     iRight.
     rewrite /total_ub_lift in H0.
-    remember (λ a : (), @bool_decide (R2 a) (make_decision (R2 a))) as X.
+    remember (λ a : (), bool_decide (R2 a)) as X.
     destruct (X ()) as [|] eqn:HX; simpl in *.
     - iApply ("Hmono" $!  ε2).
       { iPureIntro; simpl.
@@ -864,41 +864,6 @@ Proof.
     congruence. (* how do we do this "by hand"? Not obvious to me *)
 Qed.
 
-
-(* Fixable?
-Lemma ub_wp_atomic s E1 E2 e Φ `{!Atomic (stuckness_to_atomicity s) e} :
-  (|={E1,E2}=> WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ s; E1 {{ Φ }}.
-Proof.
-  iIntros "H". rewrite !ub_wp_unfold /ub_wp_pre.
-  destruct (to_val e) as [v|] eqn:He.
-  { by iDestruct "H" as ">>> $". }
-  iIntros (σ1 ε) "[Hσ Hε]". iMod "H".
-  iMod ("H" with "[$]") as "H".
-  iModIntro.
-  iDestruct (exec_ub_strengthen with "H") as "H".
-  iApply (exec_ub_mono_pred with "[] H").
-  iIntros (? [e2 σ2]) "[[% %Hstep] H]".
-  iModIntro.
-  iMod "H" as "(Hσ & Hρ & H)".
-  rewrite !ub_wp_unfold /ub_wp_pre.
-  destruct (to_val e2) as [v2|] eqn:He2.
-  - iDestruct "H" as ">> $". by iFrame.
-  - iMod ("H" with "[$]") as "H".
-    pose proof (atomic σ e2 σ2 Hstep) as H3.
-    case_match.
-    + rewrite /is_Some in H3.
-      destruct H3.
-      simplify_eq.
-    + apply not_reducible in H3.
-      (* so... we could get this back if we did a case match on
-         the exec_ub in H. We would need to exclude the two state step cases somehow. *)
-      rewrite {1}exec_ub_unfold.
-      iDestruct "H" as "[[% [% [% (%Hred&_)]]]|[[% [% [% (%Hred&_)]]]|[H|H]]]".
-      1,2: by destruct H3.
-      (* ??? *)
-Admitted.
-*)
-
 Lemma ub_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
   (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
@@ -936,22 +901,6 @@ Proof.
     iModIntro.
     iFrame "Hσ Hρ". by iApply "IH".
 Qed.
-
-(* Lemma wp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
-(*   WP K e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }}. *)
-(* Proof. *)
-(*   iIntros "H". iLöb as "IH" forall (E e Φ). rewrite !wp_unfold /wp_pre /=. *)
-(*   destruct (to_val e) as [v|] eqn:He. *)
-(*   { apply of_to_val in He as <-. by rewrite !wp_unfold /wp_pre. } *)
-(*   rewrite fill_not_val //. *)
-(*   iIntros (σ1 ns κ κs nt) "Hσ". iMod ("H" with "[$]") as "[% H]". *)
-(*   iModIntro; iSplit. *)
-(*   { destruct s; eauto using reducible_fill_inv. } *)
-(*   iIntros (e2 σ2 efs Hstep) "Hcred". *)
-(*   iMod ("H" $! _ _ _ with "[] Hcred") as "H"; first eauto using fill_step. *)
-(*   iIntros "!> !>". iMod "H". iModIntro. iApply (step_fupdN_wand with "H"). *)
-(*   iIntros "H". iMod "H" as "($ & H & $)". iModIntro. by iApply "IH". *)
-(* Qed. *)
 
 (** * Derived rules *)
 Lemma ub_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.

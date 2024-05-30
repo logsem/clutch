@@ -4,7 +4,8 @@ From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.prob_lang Require Import metatheory notation lang.
 From clutch.clutch Require Import primitive_laws model compatibility rel_rules rel_tactics.
-From clutch.prob_lang.typing Require Import types interp.
+From clutch.prob_lang.typing Require Import types.
+From clutch.clutch Require Import interp.
 
 Section fundamental.
   Context `{!clutchRGS Σ}.
@@ -573,3 +574,126 @@ Section fundamental.
   Qed.
 
 End fundamental.
+
+
+Section bin_log_related_under_typed_ctx.
+  Context `{!clutchRGS Σ}.
+
+  (* Precongruence *)
+  Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :
+    (typed_ctx K Γ τ Γ' τ') →
+    (□ ∀ Δ, (〈Δ;Γ〉 ⊨ e ≤log≤ e' : τ)) -∗
+      (∀ Δ, 〈Δ;Γ'〉 ⊨ fill_ctx K e ≤log≤ fill_ctx K e' : τ')%I.
+  Proof.
+    revert Γ τ Γ' τ' e e'.
+    induction K as [|k K]=> Γ τ Γ' τ' e e'; simpl.
+    - inversion_clear 1; trivial. iIntros "#H".
+      iIntros (Δ). by iApply "H".
+    - inversion_clear 1 as [|? ? ? ? ? ? ? ? Hx1 Hx2].
+      specialize (IHK _ _ _ _ e e' Hx2).
+      inversion Hx1; subst; simpl; iIntros "#Hrel";
+        iIntros (Δ).
+      + iApply (bin_log_related_rec with "[-]"); auto.
+        iModIntro. iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_app with "[]").
+        { iApply (IHK with "[Hrel]"); auto. }
+        by iApply fundamental.
+      + iApply (bin_log_related_app _ _ _ _ _ _ τ2 with "[]").
+        { by iApply fundamental. }
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_int_unop; eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_bool_unop; eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_int_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_int_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel"); auto.
+      + iApply bin_log_related_bool_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_bool_binop;
+          try (by iApply fundamental); eauto.
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental).
+        by iApply (IHK with "Hrel").
+      + iApply bin_log_related_unboxed_eq; try (eassumption || by iApply fundamental).
+        by iApply (IHK with "Hrel").
+      + iApply (bin_log_related_if with "[] []");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_if with "[] []");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_if with "[] []");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_pair with "[]").
+        { iApply (IHK with "[Hrel]"); auto. }
+        by iApply fundamental.
+      + iApply (bin_log_related_pair with "[]").
+        { by iApply fundamental. }
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_fst.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_snd.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_injl.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_injr.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_case with "[] []").
+        { iApply (IHK with "[Hrel]"); auto. }
+        { by iApply fundamental. }
+        by iApply fundamental.
+      + iApply (bin_log_related_case with "[] []").
+        { by iApply fundamental. }
+        { iApply (IHK with "[Hrel]"); auto. }
+        by iApply fundamental.
+      + iApply (bin_log_related_case with "[] []").
+        { by iApply fundamental. }
+        { by iApply fundamental. }
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_alloc with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_load with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_store with "[]");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_store with "[]");
+          try by iApply fundamental.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_fold with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_unfold with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_tlam with "[]").
+        iIntros (τi). iModIntro.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply (bin_log_related_tapp' with "[]").
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_unpack.
+        * iApply (IHK with "[Hrel]"); auto.
+        * iIntros (A). by iApply fundamental.
+      + iApply bin_log_related_unpack.
+        * by iApply fundamental.
+        * iIntros (A). iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_alloctape.
+        iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_unit.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_rand_tape.
+        * iApply (IHK with "[Hrel]"); auto.
+        * by iApply fundamental.
+      + iApply bin_log_related_rand_unit.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+      + iApply bin_log_related_rand_tape.
+        * by iApply fundamental.
+        * iApply (IHK with "[Hrel]"); auto.
+  Qed.
+End bin_log_related_under_typed_ctx.

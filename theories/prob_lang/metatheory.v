@@ -168,33 +168,6 @@ Proof.
     intros [? ?]; apply elem_of_map_to_list.
 Qed.
 
-
-Lemma fresh_loc_offset_none σ (z : Z) :
-  (0 ≤ z)%Z →
-  heap σ !! ((fresh_loc (heap σ)) +ₗ z) = None.
-Admitted.
-
-
-
-(* The stepping relation preserves closedness *)
-Lemma head_step_is_closed e1 σ1 e2 σ2 :
-  is_closed_expr ∅ e1 →
-  map_Forall (λ _ v, is_closed_val v) σ1.(heap) →
-  head_step_rel e1 σ1 e2 σ2 →
-  is_closed_expr ∅ e2 ∧
-  map_Forall (λ _ v, is_closed_val v) σ2.(heap).
-Proof.
-  intros Cl1 Clσ1 STEP.
-  induction STEP; simpl in *; split_and!;
-    try apply map_Forall_insert_2; try by naive_solver.
-  - subst. repeat apply is_closed_subst'; naive_solver.
-  - unfold un_op_eval in *. repeat case_match; naive_solver.
-  - eapply bin_op_eval_closed; eauto; naive_solver.
-  - simplify_eq. apply heap_closed_alloc; try done; try lia.
-    intros.
-    by apply fresh_loc_offset_none.
-Qed.
-
 Lemma subst_map_empty e : subst_map ∅ e = e.
 Proof.
   assert (∀ x, binder_delete x (∅:gmap _ val) = ∅) as Hdel.
@@ -260,7 +233,6 @@ Lemma subst_map_is_closed_empty e vs : is_closed_expr ∅ e → subst_map vs e =
 Proof. intros. apply subst_map_is_closed with (∅ : stringset); set_solver. Qed.
 
 Local Open Scope R.
-
 
 Lemma ARcoupl_state_step_dunifP σ α N ns:
   tapes σ !! α = Some (N; ns) ->

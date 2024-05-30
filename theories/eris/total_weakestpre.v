@@ -222,23 +222,6 @@ Section ub_twp.
     iMod "H". iModIntro. iDestruct "H" as "[?[?K]]".
     iFrame. by iApply "K".
   Qed.
-  
-  (* Lemma ub_twp_bind_inv K `{!LanguageCtx K} s E e Φ : *)
-  (*   WP K e @ s; E [{ Φ }] -∗ WP e @ s; E [{ v, WP K (of_val v) @ s; E [{ Φ }] }]. *)
-  (* Proof. *)
-  (*   iIntros "H". remember (K e) as e' eqn:He'. *)
-  (*   iRevert (e He'). iRevert (e' E Φ) "H". iApply ub_twp_ind; first solve_proper. *)
-  (*   iIntros "!>" (e' E1 Φ) "IH". iIntros (e ->). *)
-  (*   rewrite !ub_twp_unfold {2}/ub_twp_pre. destruct (to_val e) as [v|] eqn:He. *)
-  (*   { iModIntro. apply of_to_val in He as <-. rewrite !ub_twp_unfold. *)
-  (*     iApply (ub_twp_pre_mono with "[] IH"). by iIntros "!>" (E e Φ') "[_ ?]". } *)
-  (*   rewrite /ub_twp_pre fill_not_val //. *)
-  (*   iIntros (σ ε) "[Hσ Hε]". *)
-  (*   iMod ("IH" with "[$Hσ $Hε]") as "H". *)
-  (*   iModIntro. *)
-  (*   iApply (exec_ub_mono with "[][][H]"). *)
-  (*   { done. } *)
-  (* Admitted. *)
 
   Lemma ub_twp_ub_wp s E e Φ : WP e @ s; E [{ Φ }] -∗ WP e @ s; E {{ Φ }}.
   Proof.

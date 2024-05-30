@@ -9,22 +9,23 @@ From clutch.paris Require Import app_weakestpre primitive_laws.
 Definition logN : namespace := nroot .@ "logN".
 
 Class parisRGS Σ := ParisRGS {
-    parisRGS_parisGS :: parisGS Σ;
-    parisRGS_na_invG :: na_invG Σ;
-    parisRGS_nais : na_inv_pool_name;
-}.
+                        parisRGS_parisGS :: parisGS Σ;
+                        parisRGS_na_invG :: na_invG Σ;
+                        parisRGS_nais : na_inv_pool_name;
+                      }.
 
 (** Semantic intepretation of types *)
 Record lrel Σ := LRel {
-  lrel_car :> val → val → iProp Σ;
-  lrel_persistent v1 v2 : Persistent (lrel_car v1 v2)
-}.
+                     lrel_car :> val → val → iProp Σ;
+                     lrel_persistent v1 v2 : Persistent (lrel_car v1 v2)
+                   }.
 Arguments LRel {_} _ {_}.
 Arguments lrel_car {_} _ _ _ : simpl never.
 Declare Scope lrel_scope.
 Bind Scope lrel_scope with lrel.
 Delimit Scope lrel_scope with lrel.
 Global Existing Instance lrel_persistent.
+
 
 (* The COFE structure on semantic types *)
 Section lrel_ofe.
@@ -46,7 +47,7 @@ Section lrel_ofe.
       apply bi.limit_preserving_Persistent.
       intros n P Q HPQ. apply (HPQ w1 w2).
   Qed.
-  
+
   Global Instance lrel_inhabited : Inhabited (lrel Σ) := populate (LRel inhabitant).
 
   Global Instance lrel_car_ne n : Proper (dist n ==> (=) ==> (=) ==> dist n) lrel_car.
@@ -74,10 +75,14 @@ Section semtypes.
 
   Definition refines_def (E : coPset) (e : expr) (e' : expr) (A : lrel Σ)
     : iProp Σ :=
-    (∀ K, ⤇ fill K e' -∗
+    (∀ K ε, ⤇ fill K e' -∗
           na_ownP E -∗
-          WP e {{ v, ∃ v', ⤇ fill K (of_val v')
+          € ε -∗
+          ⌜ (0 < ε)%R ⌝ -∗
+          WP e {{ v, ∃ v' ε', ⤇ fill K (of_val v')
                                ∗ na_ownP ⊤
+                               ∗ € ε'
+                               ∗ ⌜ (0 < ε')%R ⌝
                                ∗ A v v' }})%I.
 
   Definition refines_aux : seal refines_def. Proof. by eexists. Qed.
@@ -265,8 +270,8 @@ Section related_facts.
     (|={⊤}=> refines E e t A) -∗ refines E e t A.
   Proof.
     rewrite refines_eq /refines_def.
-    iIntros "H". iIntros (j) "Hr Hna /=".
-    iMod "H" as "H". iApply ("H" with "Hr Hna").
+    iIntros "H". iIntros (j ε) "Hr Hna Herr /=".
+    iMod "H" as "H". iApply ("H" with "Hr Hna Herr").
   Qed.
 
   Global Instance elim_fupd_refines p E e t P A :
@@ -311,10 +316,10 @@ Section related_facts.
   Proof.
     iIntros (NE) "[Hinv IH]".
     rewrite refines_eq /refines_def.
-    iIntros (K) "Hs Hnais".
+    iIntros (K ε) "Hs Hnais Herr".
     iMod (na_inv_acc with "Hinv Hnais") as "(HP & Hnais & Hclose)" ; auto.
     iDestruct ("IH" with "[HP Hclose]") as "IH". 1: iFrame.
-    iApply ("IH" $! K with "Hs Hnais").
+    iApply ("IH" $! K with "Hs Hnais Herr").
   Qed.
 
   Lemma refines_na_close P E N e1 e2 A :
@@ -324,9 +329,9 @@ Section related_facts.
   Proof.
     iIntros "(HP & Hclose & IH)".
     rewrite refines_eq /refines_def.
-    iIntros (K) "Hs own_FN".
+    iIntros (K ε) "Hs own_FN Herr".
     iDestruct ("Hclose" with "[$HP $own_FN]") as "own_F".
-    iMod "own_F". iApply ("IH" with "Hs own_F").
+    iMod "own_F". iApply ("IH" with "Hs own_F Herr").
   Qed.
 
 End related_facts.
@@ -343,14 +348,14 @@ Section monadic.
   Proof.
     iIntros "Hm Hf".
     rewrite refines_eq /refines_def.
-    iIntros (K'') "Hj Hnais /=".
+    iIntros (K'' ε) "Hj Hnais Herr Hpos /=".
     rewrite -fill_app.
-    iSpecialize ("Hm" $! (K' ++ K'') with "[$Hj] Hnais").
+    iSpecialize ("Hm" $! (K' ++ K'') with "[$Hj] Hnais Herr Hpos").
     iApply wp_bind.
     iApply (wp_wand with "Hm").
-    iIntros (v). iDestruct 1 as (v') "[Hj [Hnais HA]]".
+    iIntros (v). iDestruct 1 as (v' ε') "[Hj (Hnais & Herr & Hpos & HA)]".
     rewrite fill_app.
-    iApply ("Hf" with "HA Hj Hnais").
+    iApply ("Hf" with "HA Hj Hnais Herr Hpos").
   Qed.
 
   Lemma refines_ret_na E e1 e2 v1 v2 (A : lrel Σ) :
@@ -361,9 +366,9 @@ Section monadic.
   Proof.
     rewrite /IntoVal.
     rewrite refines_eq /refines_def.
-    iIntros (<-<-) "HFA". iIntros (K) "HK Hnais /=".
+    iIntros (<-<-) "HFA". iIntros (K ε) "HK Hnais Herr Hpos /=".
     iMod ("HFA" with "Hnais") as "[HF HA]".
-    iApply wp_value. iExists _. iFrame.
+    iApply wp_value. iExists _, _. iFrame.
   Qed.
 
   Lemma refines_ret_na' E e1 e2 v1 v2 (A : lrel Σ) :
@@ -374,12 +379,12 @@ Section monadic.
   Proof.
     rewrite /IntoVal.
     rewrite refines_eq /refines_def.
-    iIntros (<-<-) "HFA". iIntros (j) "Hj Hnais /=".
+    iIntros (<-<-) "HFA". iIntros (j ε) "Hj Hnais Herr Hpos /=".
     iMod "HFA" as "[HF HA]".
     iApply wp_value. iExists _. iFrame.
     assert (E ## (⊤ ∖ E)) as H by set_solver.
     iPoseProof (na_own_union _ _ _ H with "[$HF $Hnais]") as "HL".
-    assert ((E ∪ (⊤ ∖ E)) = ⊤) as ->. 2: done.
+    assert ((E ∪ (⊤ ∖ E)) = ⊤) as ->. 2: iFrame.
     rewrite union_comm_L.
     rewrite difference_union_L.
     set_solver.
@@ -395,5 +400,6 @@ Section monadic.
     iApply refines_ret_na.
     iIntros "Hnais". iMod "HA". now iFrame.
   Qed.
+
 
 End monadic.
