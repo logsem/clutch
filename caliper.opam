@@ -14,7 +14,5 @@ depends: [
   "coq-iris" { (= "4.2.0") | (= "dev") }
   "coq-stdpp" { (= "1.10.0") | (= "dev") }
   "coq-coquelicot" { (= "3.4.1") }
-  "coq-autosubst" { (= "1.8") | (= "dev") }
   "coq-mathcomp-ssreflect" { (= "2.2.0") }
-  "coq-mathcomp-solvable" { (= "2.2.0") }
 ]
