@@ -5,6 +5,18 @@ From clutch.paris.examples Require Import list.
 Set Default Proof Using "Type*".
 Open Scope R.
 
+Section aux_lemmas.
+  Local Lemma pow_pos x y:
+    (0<x)%nat -> (0<x^y)%nat.
+  Proof.
+    intros. 
+    apply Nat.lt_le_trans with (x^0)%nat.
+    - simpl; lia.
+    - apply Nat.pow_le_mono_r; lia.
+  Qed.
+    
+End aux_lemmas.
+
 Section stage1.
   (** stage 1 is relating a naive exact rand, with a big rand, via a rejection sampler *)
   Fixpoint index_list {A} (l:list A):=
@@ -202,7 +214,7 @@ End stage1.
 
 Section stage2.
   (** Stage 2 is relating the big state step with many small steps, via Rcoupl_state_state_exp *)
-  Context{N:nat}.
+  Context {N:nat}.
 
   Fixpoint decoder_aux (l:list (fin (S N))) :=
     match l with
@@ -220,9 +232,7 @@ Section stage2.
     rewrite -/decoder_aux.
     apply Nat.lt_le_trans with (S N + S N * decoder_aux l)%nat; first lia.
     assert (1<=S N ^ length l)%nat.
-    { replace 1%nat with (S N ^ 0)%nat; last by simpl.
-      apply Nat.pow_le_mono_r; lia.
-    }
+    { pose proof pow_pos (S N) (length l). lia. }
     assert ((decoder_aux l) <= S N ^ length l - 1)%nat as H' by lia.
     trans (S N + S N * (S N ^ length l - 1))%nat.
     - apply Nat.add_le_mono_l. 
@@ -292,53 +302,75 @@ Section b_tree.
       (We force min_child_num to be at least 1 for simplicity)
    *)
 
-  Local Unset Elimination Schemes.
-  Inductive abstract_b_tree: nat -> list (option val) -> Prop:=
-  | abstract_b_tree_lf v: abstract_b_tree 0%nat [Some v]
-  | abstract_b_tree_br n (l: list (list (option val))):
-    Forall (λ l', abstract_b_tree n l') l ->
-    (min_child_num <= length l <= max_child_num)%nat ->
-    abstract_b_tree (S n) 
-      (flat_map id l ++ replicate ((max_child_num-length l)*max_child_num ^ n)%nat None). 
+  Inductive ab_tree :=
+  | Lf (v: val)
+  | Br (l:list ab_tree).
 
-  Lemma abstract_b_tree_ind (P : nat → list (option val) → Prop):
-    (∀ v : val, P 0%nat [Some v])
-    → (∀ (n : nat) (l : list (list (option val))),
-         Forall (λ l' : list (option val), abstract_b_tree n l') l ->
-         Forall (λ l', P n l') l 
+  Local Unset Elimination Schemes.
+  Inductive is_ab_b_tree : nat -> list (option val) -> ab_tree -> Prop :=
+  | is_ab_b_tree_lf v: is_ab_b_tree 0%nat [Some v] (Lf v)
+  | is_ab_b_tree_br n (l:list (list(option val) * ab_tree)) :
+    Forall (λ x, is_ab_b_tree n x.1 x.2) l ->
+    (min_child_num <= length l <= max_child_num)%nat ->
+    is_ab_b_tree (S n)
+      (flat_map id (fst <$> l) ++ replicate ((max_child_num-length l)*max_child_num ^ n)%nat None)
+      (Br (snd <$> l)).
+
+  Lemma is_ab_b_tree_ind P:
+    (∀ v : val, P 0%nat [Some v] (Lf v))
+    → (∀ (n : nat) (l : list (list (option val) * ab_tree)),
+         Forall (λ x : list (option val) * ab_tree, is_ab_b_tree n x.1 x.2) l ->
+         Forall (λ x, P n x.1 x.2) l 
          → (min_child_num <= length l <= max_child_num)%nat
            → P (S n)
-               (flat_map id l ++ replicate ((max_child_num - length l) * max_child_num ^ n) None))
-    → ∀ (n : nat) (l : list (option val)), abstract_b_tree n l → P n l.
+               (flat_map id l.*1 ++ replicate ((max_child_num - length l) * max_child_num ^ n) None)
+               (Br l.*2))
+      → ∀ (n : nat) (l : list (option val)) (a : ab_tree), is_ab_b_tree n l a → P n l a.
   Proof.
-    move => ?? n l ?.
+    move => ?? n l t ?.
     generalize dependent P => P.
     generalize dependent n.
-    generalize dependent l. 
-    fix FIX 3. move => l n [ ]; first naive_solver.
+    generalize dependent l.
+    generalize dependent t.
+    fix FIX 4. move => t l n [ ]; first naive_solver.
     move => ????? Hcall.
     apply Hcall; [done| |done].
     eapply Forall_impl; first done.
     intros. by apply FIX.
   Qed.
-  Local Set Elimination Schemes.
     
-  Lemma abstract_b_tree_list_length n l:
-    abstract_b_tree n l -> length l = (max_child_num ^ n)%nat.
+  Lemma ab_b_tree_list_length n l t:
+    is_ab_b_tree n l t-> length l = (max_child_num ^ n)%nat.
   Proof.
     intros H. induction H.
     - by simpl.
     - rewrite app_length.
       erewrite flat_map_constant_length; last first.
-      { apply List.Forall_forall. eapply Forall_impl; first done.
+      { apply List.Forall_forall. rewrite Forall_fmap. eapply Forall_impl; first done.
         simpl. done.
       }
       rewrite replicate_length.
       rewrite Nat.pow_succ_r'.
       rewrite -Nat.mul_add_distr_r.
+      rewrite fmap_length.
       rewrite -Nat.le_add_sub; lia.
   Qed.
 
+  (** might need some help *)
+  Definition succ x y: Prop := ∃ l, y = Br l /\ x ∈ l.
+  
+  Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ :=
+    match t with
+    | Lf v' => ⌜v=v'⌝
+    | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗
+                                 ⌜length tlis = length v_lis⌝ ∗
+                                 ⌜is_list loc_lis v⌝ ∗
+                                 ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+                                 ([∗ list] x ∈ combine tlis v_lis, relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A _))
+  end.
+  Next Obligation.
+  Admitted.
+  
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
 
