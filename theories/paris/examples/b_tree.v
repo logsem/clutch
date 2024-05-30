@@ -201,6 +201,81 @@ End stage1.
 
 Section stage2.
   (** Stage 2 is relating the big state step with many small steps, via Rcoupl_state_state_exp *)
+  Context{N:nat}.
+
+  Fixpoint decoder_aux (l:list (fin (S N))) :=
+    match l with
+    | [] => 0%nat
+    | x::l' => (fin_to_nat x + (S N) * decoder_aux l')%nat
+    end.
+
+  
+  Local Lemma decoder_aux_ineq l:
+    (decoder_aux l < (S N)^ (length l))%nat.
+  Proof.
+    induction l; first (simpl; lia).
+    pose proof fin_to_nat_lt a. rewrite /decoder_aux.
+    rewrite cons_length.
+    rewrite -/decoder_aux.
+    apply Nat.lt_le_trans with (S N + S N * decoder_aux l)%nat; first lia.
+    assert (1<=S N ^ length l)%nat.
+    { replace 1%nat with (S N ^ 0)%nat; last by simpl.
+      apply Nat.pow_le_mono_r; lia.
+    }
+    assert ((decoder_aux l) <= S N ^ length l - 1)%nat as H' by lia.
+    trans (S N + S N * (S N ^ length l - 1))%nat.
+    - apply Nat.add_le_mono_l. 
+      apply Nat.mul_le_mono_pos_l; lia.
+    - rewrite Nat.pow_succ_r'. 
+      cut (S N * (1+ S N ^ length l - 1) <= S N * S N ^ length l)%nat; last lia.
+      intros; etrans; last exact.
+      rewrite Nat.add_sub'.
+      rewrite Nat.mul_sub_distr_l.
+      rewrite Nat.mul_1_r.
+      rewrite -Nat.le_add_sub; first lia.
+      rewrite <-Nat.mul_1_r at 1.
+      apply Nat.mul_le_mono_l. lia.
+  Qed.
+
+  Local Lemma decoder_aux_inj l1 l2:
+    length l1 = length l2 -> decoder_aux l1 = decoder_aux l2 -> l1 = l2.
+  Proof.
+    clear.
+    revert l2; induction l1.
+    - simpl. intros. symmetry. apply nil_length_inv. done.
+    - intros l2 Hlen2 H. destruct l2; first (simpl in *; lia).
+      cut (fin_to_nat a=fin_to_nat t/\decoder_aux l1=decoder_aux l2).
+      { intros [?%fin_to_nat_inj ?].
+        f_equal; subst; last apply IHl1; try done.
+        simplify_eq. done.
+      } eapply Nat.mul_split_r.
+      + apply fin_to_nat_lt.
+      + apply fin_to_nat_lt.
+      + simpl in H. lia.
+  Qed.
+  
+  Context {M p: nat}.
+  Context {Heq : (S N ^ p = S M)%nat}.
+  Definition decoder l :=
+    match lt_dec (decoder_aux (rev l)) (S M) with
+    | left Hproof => nat_to_fin Hproof
+    | _ => 0%fin
+    end.
+  
+  Local Lemma decoder_inj l1 l2:
+    length l1 = p -> length l2 = p -> decoder l1 = decoder l2 -> l1 = l2.
+  Proof.
+    intros Hlen1 Hlen2. rewrite /decoder.
+    case_match eqn:Heq1; case_match eqn:Heq2; last first.
+    - pose proof decoder_aux_ineq (rev l1) as H. rewrite rev_length Hlen1 Heq in H. lia.
+    - pose proof decoder_aux_ineq (rev l1) as H. rewrite rev_length Hlen1 Heq in H. lia.
+    - pose proof decoder_aux_ineq (rev l2) as H. rewrite rev_length Hlen2 Heq in H. lia.
+    - intros H. apply (f_equal fin_to_nat) in H. rewrite !fin_to_nat_to_fin in H.
+      apply rev_inj.
+      apply decoder_aux_inj; last done.
+      rewrite !rev_length. trans p; done.
+  Qed.
+  
 End stage2.
 
 Section b_tree.
