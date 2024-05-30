@@ -12,6 +12,22 @@ Section stage1.
     | x::l' => (0%nat, x) :: ((prod_map S id) <$> index_list l')
     end.
 
+  Local Lemma elem_of_index_list {A} (l:list A) x b:
+    l!!x = Some b ->
+    (x, b) ∈ index_list l.
+  Proof.
+    revert x b; induction l.
+    - simpl. set_solver.
+    - intros x b Hl.
+      rewrite lookup_cons_Some in Hl. destruct Hl as [[-> ->]|[H Hl]].
+      + simpl. set_solver.
+      + simpl. apply elem_of_list_further.
+        rewrite elem_of_list_fmap.
+        exists ((x-1)%nat, b). simpl; split.
+        * f_equal. lia.
+        * apply IHl. done.
+  Qed.
+  
   Local Lemma filter_list_length l:
     length (filter (λ x : nat * bool, x.2 = true) l) =
     length (filter (λ x : nat * bool, x.2 = true) ((prod_map S id) <$> l)).
@@ -19,6 +35,15 @@ Section stage1.
     induction l; simpl; first done.
     rewrite !filter_cons; simpl.
     do 2 case_match; try done; simpl; rewrite IHl; done.
+  Qed.
+
+  Local Lemma filter_list_length' l:
+    length (filter (λ x, x = true) l) =
+    length (filter (λ x : nat * bool, x.2 = true) (index_list l)).
+  Proof.
+    induction l; first (by simpl).
+    rewrite !filter_cons; do 2 case_match; try done; simpl;
+      rewrite IHl filter_list_length; done.
   Qed.
 
   Local Lemma index_list_range {A} (x:nat * A) l:
@@ -105,7 +130,9 @@ Section stage1.
   Lemma inj_function_exists l M N:
     length l = M -> 
     length (filter (λ x, x = true) l) = N ->
-    exists f: (fin N -> fin M), Inj eq eq f /\ (forall x, l !! fin_to_nat (f x)= Some true).
+    exists f: (fin N -> fin M), Inj eq eq f /\
+                          (forall x, l !! fin_to_nat (f x)= Some true) /\
+                          (forall x, (forall y, x≠f y) -> l!!fin_to_nat (x) = Some false).
   Proof.
     intros Hlen1 Hlen2.
     pose (l' := filter (λ x, x.2 = true) (index_list l)).
@@ -121,7 +148,7 @@ Section stage1.
     }
     assert (forall (x:fin N), (l'!!!(fin_to_nat x)).1 < M)%nat as K; last first.
     - exists (λ x, nat_to_fin (K x)).
-      split.
+      split; last split.
       + (* prove injection *)
         intros x y Hf. apply (f_equal fin_to_nat) in Hf.
         rewrite !fin_to_nat_to_fin in Hf.
@@ -134,7 +161,30 @@ Section stage1.
         rewrite Forall_forall.
         rewrite /l'.
         intros x'. rewrite elem_of_list_filter.
-        intros [??]. by apply index_list_lookup_lemma. 
+        intros [??]. by apply index_list_lookup_lemma.
+      + (* prove if not in domain, it must be false *)
+        intros x Hx.
+        destruct (l!!fin_to_nat x) eqn :Heqn1; last first.
+        { apply lookup_ge_None_1 in Heqn1.
+          pose proof fin_to_nat_lt x. rewrite Hlen1 in Heqn1. lia. 
+        }
+        destruct b; last done.
+        exfalso.
+        cut ((fin_to_nat x, true) ∈ l').
+        * rewrite /l'. rewrite elem_of_list_lookup.
+          intros [i Hi].
+          cut (i<N)%nat.
+          -- intros Hproof.
+             cut (x=nat_to_fin (K (nat_to_fin Hproof))); first naive_solver.
+             apply fin_to_nat_inj. rewrite fin_to_nat_to_fin.
+             rewrite /l'.
+             rewrite fin_to_nat_to_fin.
+             apply list_lookup_total_correct in Hi.
+             by rewrite Hi.
+          -- apply lookup_lt_Some in Hi.
+             rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia.
+        * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done.
+          apply elem_of_index_list. done.
     - (* prove first projection is indeed smaller than length l, i.e. M *)
       intros x.
       apply Forall_lookup_total_1; last auto.
@@ -147,6 +197,7 @@ Section stage1.
   Qed.
   
 End stage1.
+
 
 Section stage2.
   (** Stage 2 is relating the big state step with many small steps, via Rcoupl_state_state_exp *)
