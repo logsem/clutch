@@ -478,16 +478,23 @@ Section b_tree.
       ⌜is_list loc_lis v⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis v_lis,
-        match decide (succ x.1 (Br tlis))
-        with
-        |left Hproof => relate_ab_tree_with_v x.1 x.2
-        | _ => True
-        end))%I.
+         relate_ab_tree_with_v x.1 x.2))%I.
   Proof.
     rewrite {1}/relate_ab_tree_with_v /relate_ab_tree_with_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext /=.
-    repeat f_equiv.     
-    by case_match.
+    do 8 f_equiv.
+    iSplit.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; first done.
+      exfalso.
+      assert (x.1 ∈tlis); last done.
+      rewrite elem_of_list_In.
+      eapply in_combine_l.
+      rewrite -elem_of_list_In.
+      eapply elem_of_list_lookup_2. erewrite H.
+      f_equal. apply surjective_pairing.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; done.
   Qed.
 
   
