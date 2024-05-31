@@ -352,9 +352,7 @@ Section b_tree.
   Qed.
   
   Instance ab_tree_dec: EqDecision ab_tree.
-  Proof.
-    intros ??. apply make_decision.
-  Qed.
+  Proof. solve_decision. Qed.
   
   Inductive is_ab_b_tree : nat -> list (option val) -> ab_tree -> Prop :=
   | is_ab_b_tree_lf v: is_ab_b_tree 0%nat [Some v] (Lf v)
