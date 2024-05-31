@@ -350,7 +350,12 @@ Section b_tree.
     apply Hcall.
     apply Forall_true => ?. by apply FIX.
   Qed.
-
+  
+  Instance ab_tree_dec: EqDecision ab_tree.
+  Proof.
+    clear.
+  Admitted.
+  
   Inductive is_ab_b_tree : nat -> list (option val) -> ab_tree -> Prop :=
   | is_ab_b_tree_lf v: is_ab_b_tree 0%nat [Some v] (Lf v)
   | is_ab_b_tree_br n (l:list (list(option val) * ab_tree)) :
@@ -408,6 +413,38 @@ Section b_tree.
     | Lf v => False
     | Br l => x ∈ l
     end.
+
+  Instance succ_dec x y: Decision (succ x y).
+  Proof.
+    rewrite /succ.
+    destruct y.
+    - right. naive_solver.
+    - assert (Decision (x∈l)) as [|].
+      { eapply elem_of_list_dec. }
+      + left. naive_solver.
+      + right. naive_solver.
+        Unshelve.
+        
+  Qed.
+  
+  Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ :=
+    match t with
+    | Lf v' => ⌜v=v'⌝
+    | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗
+                                 ⌜length tlis = length v_lis⌝ ∗
+                                 ⌜is_list loc_lis v⌝ ∗
+                                 ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+                                 ([∗ list] x ∈ combine tlis v_lis,
+                                    match decide (succ x.1 t) 
+                                    with
+                                    |left Hproof => 
+                                       relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A Hproof)
+                                    | _ => True
+                                    end)
+  end.
+  Next Obligation.
+    simpl; done.
+  Qed.
 
   Lemma succ_wf : well_founded succ.
   Proof.
