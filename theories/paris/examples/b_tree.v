@@ -522,13 +522,14 @@ Section b_tree.
 
   Program Fixpoint relate_ab_tree_with_ranked_v (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
     match t with
-    | Lf v' => ⌜v = InjLV v'⌝
+    | Lf v' => ⌜v = (#1%nat, InjLV v')%V⌝
     | Br tlis =>
-        ∃ v' loc_lis v_lis num_lis,
-      ⌜ v = InjRV v'⌝ ∗
+        ∃ total v' loc_lis v_lis num_lis,
+      ⌜ v = (#total, InjRV (v'))%V⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
       ⌜length tlis = length num_lis⌝ ∗
+      ⌜(total = list_sum num_lis)%nat⌝ ∗
       ⌜is_list (combine num_lis loc_lis) v'⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
@@ -542,7 +543,7 @@ Section b_tree.
   Solve Obligations with auto using succ_wf.
 
   Lemma relate_ab_tree_with_ranked_v_Lf v v' :
-    relate_ab_tree_with_ranked_v (Lf v') v ≡ ⌜v = InjLV v'⌝%I.
+    relate_ab_tree_with_ranked_v (Lf v') v ≡ ⌜v = (#1%nat, InjLV v')%V⌝%I.
   Proof.
     rewrite /relate_ab_tree_with_ranked_v /relate_ab_tree_with_ranked_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext //.  
@@ -550,11 +551,12 @@ Section b_tree.
 
   Lemma relate_ab_tree_with_ranked_v_Br v tlis :
     relate_ab_tree_with_ranked_v (Br tlis) v ≡
-      (∃ v' loc_lis v_lis num_lis,
-      ⌜ v = InjRV v' ⌝ ∗
+      (∃ total v' loc_lis v_lis num_lis,
+      ⌜ v = (#total, InjRV (v'))%V ⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
       ⌜length tlis = length num_lis⌝ ∗
+      ⌜(total = list_sum num_lis)%nat⌝ ∗
       ⌜is_list (combine num_lis loc_lis) v'⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
@@ -562,7 +564,7 @@ Section b_tree.
   Proof.
     rewrite {1}/relate_ab_tree_with_ranked_v /relate_ab_tree_with_ranked_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext /=.
-    do 15 f_equiv.
+    do 18 f_equiv.
     iSplit.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; first done.
@@ -596,22 +598,22 @@ Section b_tree.
   
   Definition naive_sampler_rec_prog: val:=
     rec: "f" "t" "num" :=
-      match: "t" with
+      match: Snd "t" with
       | InjL "v" => "v"
       | InjR "l" => naive_sampler_list_search_prog "f" "l" "num"
       end
   .
 
-  Definition naive_sampler_prog (t:val) (total_num:nat) : val :=
-    λ: "_",
-      let: "samp" := rand #total_num in
-      naive_sampler_rec_prog t "samp".
+  Definition naive_sampler_prog: val :=
+    λ: "t" "_",
+      let: "samp" := rand (Fst "t") in
+      naive_sampler_rec_prog "t" "samp".
 
-  Definition naive_sampler_annotated_prog (t:val) (total_num:nat) : val :=
-    λ: "_",
-      let: "α" := alloc #total_num in
-      let: "samp" := rand("α") #total_num in
-      naive_sampler_rec_prog t "samp".
+  Definition naive_sampler_annotated_prog : val :=
+    λ: "t" "_",
+      let: "α" := alloc (Fst "t") in
+      let: "samp" := rand("α") (Fst "t") in
+      naive_sampler_rec_prog "t" "samp".
 
   (** The intermediate algorithm for non-ranked b_tree is that at the beginning
       we sample from max_child_num^depth, and walk down the branches as if the tree is full.
@@ -640,11 +642,12 @@ Section b_tree.
       end
   .
 
-  Definition intermediate_sampler_annotated_prog (t:val) (num:nat) : val :=
+  Definition intermediate_sampler_annotated_prog : val :=
+    λ: "t",
     rec: "f" "_":=
-      let: "α" := alloc #num in
-      let: "samp" := rand("α") #num in
-      intermediate_sampler_rec_prog "f" t "samp".
+      let: "α" := alloc #(max_child_num^depth)%nat in
+      let: "samp" := rand("α") #(max_child_num^depth)%nat in
+      intermediate_sampler_rec_prog "f" "t" "samp".
 
   (** The optimized algorithm for non-ranked b-tree is at each node, sample from 2*min_child_num 
       then walk down that branch. If the number exceeds the total number of children, repeat from the root
@@ -689,9 +692,10 @@ Section b_tree.
       end
   .
 
-  Definition optimized_sampler_prog (t:val) : val :=
+  Definition optimized_sampler_prog : val :=
+    λ: "t", 
     rec: "f" "_":=
-      optimized_sampler_rec_annotated_prog "f" t.
+      optimized_sampler_rec_annotated_prog "f" "t".
 
 
 
