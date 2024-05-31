@@ -25,189 +25,216 @@ Section stage1.
     | x::l' => (0%nat, x) :: ((prod_map S id) <$> index_list l')
     end.
 
-  Local Lemma elem_of_index_list {A} (l:list A) x b:
-    l!!x = Some b ->
-    (x, b) ∈ index_list l.
-  Proof.
-    revert x b; induction l.
-    - simpl. set_solver.
-    - intros x b Hl.
-      rewrite lookup_cons_Some in Hl. destruct Hl as [[-> ->]|[H Hl]].
-      + simpl. set_solver.
-      + simpl. apply elem_of_list_further.
-        rewrite elem_of_list_fmap.
-        exists ((x-1)%nat, b). simpl; split.
-        * f_equal. lia.
-        * apply IHl. done.
-  Qed.
+  (** REVISIT THIS IN THE FUTURE *)
   
-  Local Lemma filter_list_length l:
-    length (filter (λ x : nat * bool, x.2 = true) l) =
-    length (filter (λ x : nat * bool, x.2 = true) ((prod_map S id) <$> l)).
-  Proof.
-    induction l; simpl; first done.
-    rewrite !filter_cons; simpl.
-    do 2 case_match; try done; simpl; rewrite IHl; done.
-  Qed.
+  (* Local Lemma elem_of_index_list {A} (l:list A) x b: *)
+  (*   l!!x = Some b -> *)
+  (*   (x, b) ∈ index_list l. *)
+  (* Proof. *)
+  (*   revert x b; induction l. *)
+  (*   - simpl. set_solver. *)
+  (*   - intros x b Hl. *)
+  (*     rewrite lookup_cons_Some in Hl. destruct Hl as [[-> ->]|[H Hl]]. *)
+  (*     + simpl. set_solver. *)
+  (*     + simpl. apply elem_of_list_further. *)
+  (*       rewrite elem_of_list_fmap. *)
+  (*       exists ((x-1)%nat, b). simpl; split. *)
+  (*       * f_equal. lia. *)
+  (*       * apply IHl. done. *)
+  (* Qed. *)
 
-  Local Lemma filter_list_length' l:
-    length (filter (λ x, x = true) l) =
-    length (filter (λ x : nat * bool, x.2 = true) (index_list l)).
-  Proof.
-    induction l; first (by simpl).
-    rewrite !filter_cons; do 2 case_match; try done; simpl;
-      rewrite IHl filter_list_length; done.
-  Qed.
-
-  Local Lemma index_list_range {A} (x:nat * A) l:
-    x ∈ index_list l -> (x.1 < length l)%nat.
-  Proof.
-    revert x.
-    induction l.
-    - simpl. simpl. set_solver.
-    - simpl. intros x H.
-      rewrite elem_of_cons in H.
-      destruct H as [->|H]; simpl; first lia.
-      rewrite elem_of_list_fmap in H.
-      destruct H as [y [-> Hy]]. simpl.
-      pose proof IHl _ Hy. lia.
-  Qed.
-
-  Local Lemma index_list_lookup_lemma x l:
-    x.2 = true -> x∈index_list l -> l!!x.1 = Some true.
-  Proof.
-    revert x.
-    induction l; simpl; first set_solver.
-    intros x. rewrite elem_of_cons.
-    intros H [->|H0]; simpl in *; first by subst.
-    rewrite elem_of_list_fmap in H0.
-    destruct H0 as [y [-> H0]].
-    simpl in H.
-    by apply IHl.
-  Qed.
-
-  Local Lemma filter_prod_map_lemma x (l:list (nat * bool)):
-    (x < length (filter (λ x : nat * bool, x.2 = true) l))%nat -> 
-    (filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> l) !!! x).1 =
-    S ((filter (λ x : nat * bool, x.2 = true)  l) !!! x).1.
-  Proof.
-    revert x.
-    induction l; first (simpl; lia).
-    intros x. rewrite !filter_cons.
-    case_match; case_match; try done; simpl; last first.
-    - intros. apply IHl. done.
-    - intros. destruct x; simpl; first done.
-      apply IHl; lia.
-  Qed.
-
-  Local Lemma index_list_inj x y l:
-    (x < length (filter (λ x : nat * bool, x.2 = true) (index_list l)))%nat ->
-    (y < length (filter (λ x : nat * bool, x.2 = true) (index_list l)))%nat -> 
-    (filter (λ x : nat * bool, x.2 = true) (index_list l) !!! x).1 =
-    (filter (λ x : nat * bool, x.2 = true) (index_list l) !!! y).1 ->
-    x = y.
-  Proof.
-    revert x y; induction l; simpl; first lia.
-    rewrite !filter_cons; simpl.
-    case_match; simpl; intros x y Hx Hy H'; last first.
-    - rewrite -filter_list_length in Hx, Hy.
-      apply IHl; try done.
-      rewrite !filter_prod_map_lemma in H'; lia.
-    - destruct x, y; simpl in H'; try done.
-      + exfalso.
-        cut (0%nat<(filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> index_list l) !!! y).1)%nat.
-        * rewrite -H'. lia.
-        * clear H'. apply Forall_lookup_total_1; last lia.
-          rewrite Forall_forall.
-          intros x H0. rewrite elem_of_list_filter in H0.
-          destruct H0 as [? H0].
-          rewrite elem_of_list_fmap in H0.
-          destruct H0 as [?[->?]]. simpl. lia.
-      + exfalso.
-        cut (0%nat<(filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> index_list l) !!! x).1)%nat.
-        * rewrite H'. lia.
-        * clear H'. apply Forall_lookup_total_1; last lia.
-          rewrite Forall_forall.
-          intros y H0. rewrite elem_of_list_filter in H0.
-          destruct H0 as [? H0].
-          rewrite elem_of_list_fmap in H0.
-          destruct H0 as [?[->?]]. simpl. lia.
-      + f_equal. apply IHl.
-        * rewrite filter_list_length. lia.
-        * rewrite filter_list_length. lia.
-        * rewrite !filter_prod_map_lemma in H'; first lia.
-          -- rewrite filter_list_length. lia.
-          -- rewrite filter_list_length. lia.
-  Qed.
+  (* Local Lemma index_list_index_relate x y l: *)
+  (*   filter (λ x1 : nat * bool, x1.2 = true) (index_list l) !! x = Some y -> *)
+  (*   length (filter (λ x1 : bool, x1 = true) (take (y.1) l)) = x. *)
+  (* Proof. *)
+  (*   revert x y. *)
+  (*   induction l; simpl; first done. *)
+  (*   intros x y. rewrite !filter_cons; simpl. *)
+  (*   case_match. *)
+  (*   - subst. rewrite lookup_cons_Some. *)
+  (*     intros [[-> ?]|[]]. *)
+  (*     + by subst. *)
+  (*     + simpl. *)
+  (*       admit. *)
+  (*   - intros. *)
+  (*     admit. *)
+  (* Admitted. *)
   
-  Lemma inj_function_exists l M N:
-    length l = M -> 
-    length (filter (λ x, x = true) l) = N ->
-    exists f: (fin N -> fin M), Inj eq eq f /\
-                          (forall x, l !! fin_to_nat (f x)= Some true) /\
-                          (forall x, (forall y, x≠f y) -> l!!fin_to_nat (x) = Some false).
-  Proof.
-    intros Hlen1 Hlen2.
-    pose (l' := filter (λ x, x.2 = true) (index_list l)).
-    assert (forall x:fin N, x<length l')%nat.
-    { intros x.
-      pose proof fin_to_nat_lt x.
-      replace (length l') with N; first done.
-      rewrite -Hlen2.
-      rewrite /l'.
-      clear.
-      induction l; simpl; first done.
-      rewrite !filter_cons; simpl; case_match; simpl; by rewrite IHl -filter_list_length.
-    }
-    assert (forall (x:fin N), (l'!!!(fin_to_nat x)).1 < M)%nat as K; last first.
-    - exists (λ x, nat_to_fin (K x)).
-      split; last split.
-      + (* prove injection *)
-        intros x y Hf. apply (f_equal fin_to_nat) in Hf.
-        rewrite !fin_to_nat_to_fin in Hf.
-        rewrite /l' in Hf, H.
-        apply fin_to_nat_inj.
-        by eapply index_list_inj. 
-      + (* prove domain is true *)
-        intros x. rewrite fin_to_nat_to_fin.
-        apply Forall_lookup_total_1; last auto.
-        rewrite Forall_forall.
-        rewrite /l'.
-        intros x'. rewrite elem_of_list_filter.
-        intros [??]. by apply index_list_lookup_lemma.
-      + (* prove if not in domain, it must be false *)
-        intros x Hx.
-        destruct (l!!fin_to_nat x) eqn :Heqn1; last first.
-        { apply lookup_ge_None_1 in Heqn1.
-          pose proof fin_to_nat_lt x. rewrite Hlen1 in Heqn1. lia. 
-        }
-        destruct b; last done.
-        exfalso.
-        cut ((fin_to_nat x, true) ∈ l').
-        * rewrite /l'. rewrite elem_of_list_lookup.
-          intros [i Hi].
-          cut (i<N)%nat.
-          -- intros Hproof.
-             cut (x=nat_to_fin (K (nat_to_fin Hproof))); first naive_solver.
-             apply fin_to_nat_inj. rewrite fin_to_nat_to_fin.
-             rewrite /l'.
-             rewrite fin_to_nat_to_fin.
-             apply list_lookup_total_correct in Hi.
-             by rewrite Hi.
-          -- apply lookup_lt_Some in Hi.
-             rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia.
-        * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done.
-          apply elem_of_index_list. done.
-    - (* prove first projection is indeed smaller than length l, i.e. M *)
-      intros x.
-      apply Forall_lookup_total_1; last auto.
-      rewrite Forall_forall.
-      rewrite /l'.
-      intros x' Hx'.
-      rewrite elem_of_list_filter in Hx'.
-      destruct Hx' as [? Hx'].
-      rewrite -Hlen1; by apply index_list_range.
-  Qed.
+  (* Local Lemma filter_list_length l: *)
+  (*   length (filter (λ x : nat * bool, x.2 = true) l) = *)
+  (*   length (filter (λ x : nat * bool, x.2 = true) ((prod_map S id) <$> l)). *)
+  (* Proof. *)
+  (*   induction l; simpl; first done. *)
+  (*   rewrite !filter_cons; simpl. *)
+  (*   do 2 case_match; try done; simpl; rewrite IHl; done. *)
+  (* Qed. *)
+
+  (* Local Lemma filter_list_length' l: *)
+  (*   length (filter (λ x, x = true) l) = *)
+  (*   length (filter (λ x : nat * bool, x.2 = true) (index_list l)). *)
+  (* Proof. *)
+  (*   induction l; first (by simpl). *)
+  (*   rewrite !filter_cons; do 2 case_match; try done; simpl; *)
+  (*     rewrite IHl filter_list_length; done. *)
+  (* Qed. *)
+
+  (* Local Lemma index_list_range {A} (x:nat * A) l: *)
+  (*   x ∈ index_list l -> (x.1 < length l)%nat. *)
+  (* Proof. *)
+  (*   revert x. *)
+  (*   induction l. *)
+  (*   - simpl. simpl. set_solver. *)
+  (*   - simpl. intros x H. *)
+  (*     rewrite elem_of_cons in H. *)
+  (*     destruct H as [->|H]; simpl; first lia. *)
+  (*     rewrite elem_of_list_fmap in H. *)
+  (*     destruct H as [y [-> Hy]]. simpl. *)
+  (*     pose proof IHl _ Hy. lia. *)
+  (* Qed. *)
+
+  (* Local Lemma index_list_lookup_lemma x l: *)
+  (*   x.2 = true -> x∈index_list l -> l!!x.1 = Some true. *)
+  (* Proof. *)
+  (*   revert x. *)
+  (*   induction l; simpl; first set_solver. *)
+  (*   intros x. rewrite elem_of_cons. *)
+  (*   intros H [->|H0]; simpl in *; first by subst. *)
+  (*   rewrite elem_of_list_fmap in H0. *)
+  (*   destruct H0 as [y [-> H0]]. *)
+  (*   simpl in H. *)
+  (*   by apply IHl. *)
+  (* Qed. *)
+
+  (* Local Lemma filter_prod_map_lemma x (l:list (nat * bool)): *)
+  (*   (x < length (filter (λ x : nat * bool, x.2 = true) l))%nat ->  *)
+  (*   (filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> l) !!! x).1 = *)
+  (*   S ((filter (λ x : nat * bool, x.2 = true)  l) !!! x).1. *)
+  (* Proof. *)
+  (*   revert x. *)
+  (*   induction l; first (simpl; lia). *)
+  (*   intros x. rewrite !filter_cons. *)
+  (*   case_match; case_match; try done; simpl; last first. *)
+  (*   - intros. apply IHl. done. *)
+  (*   - intros. destruct x; simpl; first done. *)
+  (*     apply IHl; lia. *)
+  (* Qed. *)
+
+  (* Local Lemma index_list_inj x y l: *)
+  (*   (x < length (filter (λ x : nat * bool, x.2 = true) (index_list l)))%nat -> *)
+  (*   (y < length (filter (λ x : nat * bool, x.2 = true) (index_list l)))%nat ->  *)
+  (*   (filter (λ x : nat * bool, x.2 = true) (index_list l) !!! x).1 = *)
+  (*   (filter (λ x : nat * bool, x.2 = true) (index_list l) !!! y).1 -> *)
+  (*   x = y. *)
+  (* Proof. *)
+  (*   revert x y; induction l; simpl; first lia. *)
+  (*   rewrite !filter_cons; simpl. *)
+  (*   case_match; simpl; intros x y Hx Hy H'; last first. *)
+  (*   - rewrite -filter_list_length in Hx, Hy. *)
+  (*     apply IHl; try done. *)
+  (*     rewrite !filter_prod_map_lemma in H'; lia. *)
+  (*   - destruct x, y; simpl in H'; try done. *)
+  (*     + exfalso. *)
+  (*       cut (0%nat<(filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> index_list l) !!! y).1)%nat. *)
+  (*       * rewrite -H'. lia. *)
+  (*       * clear H'. apply Forall_lookup_total_1; last lia. *)
+  (*         rewrite Forall_forall. *)
+  (*         intros x H0. rewrite elem_of_list_filter in H0. *)
+  (*         destruct H0 as [? H0]. *)
+  (*         rewrite elem_of_list_fmap in H0. *)
+  (*         destruct H0 as [?[->?]]. simpl. lia. *)
+  (*     + exfalso. *)
+  (*       cut (0%nat<(filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> index_list l) !!! x).1)%nat. *)
+  (*       * rewrite H'. lia. *)
+  (*       * clear H'. apply Forall_lookup_total_1; last lia. *)
+  (*         rewrite Forall_forall. *)
+  (*         intros y H0. rewrite elem_of_list_filter in H0. *)
+  (*         destruct H0 as [? H0]. *)
+  (*         rewrite elem_of_list_fmap in H0. *)
+  (*         destruct H0 as [?[->?]]. simpl. lia. *)
+  (*     + f_equal. apply IHl. *)
+  (*       * rewrite filter_list_length. lia. *)
+  (*       * rewrite filter_list_length. lia. *)
+  (*       * rewrite !filter_prod_map_lemma in H'; first lia. *)
+  (*         -- rewrite filter_list_length. lia. *)
+  (*         -- rewrite filter_list_length. lia. *)
+  (* Qed. *)
+  
+  (* Lemma inj_function_exists l M N: *)
+  (*   length l = M ->  *)
+  (*   length (filter (λ x, x = true) l) = N -> *)
+  (*   exists f: (fin N -> fin M), Inj eq eq f /\ *)
+  (*                         (forall x, l !! fin_to_nat (f x)= Some true /\ *)
+  (*                               length (filter (λ x, x = true) (take ((fin_to_nat (f x))) l)) *)
+  (*                               = (fin_to_nat x) *)
+  (*                         ) /\ *)
+  (*                         (forall x, (forall y, x≠f y) -> l!!fin_to_nat (x) = Some false). *)
+  (* Proof. *)
+  (*   intros Hlen1 Hlen2. *)
+  (*   pose (l' := filter (λ x, x.2 = true) (index_list l)). *)
+  (*   assert (forall x:fin N, x<length l')%nat. *)
+  (*   { intros x. *)
+  (*     pose proof fin_to_nat_lt x. *)
+  (*     replace (length l') with N; first done. *)
+  (*     rewrite -Hlen2. *)
+  (*     rewrite /l'. *)
+  (*     clear. *)
+  (*     induction l; simpl; first done. *)
+  (*     rewrite !filter_cons; simpl; case_match; simpl; by rewrite IHl -filter_list_length. *)
+  (*   } *)
+  (*   assert (forall (x:fin N), (l'!!!(fin_to_nat x)).1 < M)%nat as K; last first. *)
+  (*   - exists (λ x, nat_to_fin (K x)). *)
+  (*     split; last split. *)
+  (*     + (* prove injection *) *)
+  (*       intros x y Hf. apply (f_equal fin_to_nat) in Hf. *)
+  (*       rewrite !fin_to_nat_to_fin in Hf. *)
+  (*       rewrite /l' in Hf, H. *)
+  (*       apply fin_to_nat_inj. *)
+  (*       by eapply index_list_inj.  *)
+  (*     + (* prove domain is true *) *)
+  (*       intros x. rewrite fin_to_nat_to_fin. *)
+  (*       split.  *)
+  (*       * apply Forall_lookup_total_1; last auto. *)
+  (*         rewrite Forall_forall. *)
+  (*         rewrite /l'. *)
+  (*         intros x'. rewrite elem_of_list_filter. *)
+  (*         intros [??]. by apply index_list_lookup_lemma. *)
+  (*       * erewrite index_list_index_relate; first done. *)
+  (*         rewrite /l'. apply list_lookup_lookup_total_lt. *)
+  (*         rewrite -filter_list_length'. *)
+  (*         rewrite Hlen2. apply fin_to_nat_lt. *)
+  (*     + (* prove if not in domain, it must be false *) *)
+  (*       intros x Hx. *)
+  (*       destruct (l!!fin_to_nat x) eqn :Heqn1; last first. *)
+  (*       { apply lookup_ge_None_1 in Heqn1. *)
+  (*         pose proof fin_to_nat_lt x. rewrite Hlen1 in Heqn1. lia.  *)
+  (*       } *)
+  (*       destruct b; last done. *)
+  (*       exfalso. *)
+  (*       cut ((fin_to_nat x, true) ∈ l'). *)
+  (*       * rewrite /l'. rewrite elem_of_list_lookup. *)
+  (*         intros [i Hi]. *)
+  (*         cut (i<N)%nat. *)
+  (*         -- intros Hproof. *)
+  (*            cut (x=nat_to_fin (K (nat_to_fin Hproof))); first naive_solver. *)
+  (*            apply fin_to_nat_inj. rewrite fin_to_nat_to_fin. *)
+  (*            rewrite /l'. *)
+  (*            rewrite fin_to_nat_to_fin. *)
+  (*            apply list_lookup_total_correct in Hi. *)
+  (*            by rewrite Hi. *)
+  (*         -- apply lookup_lt_Some in Hi. *)
+  (*            rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia. *)
+  (*       * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done. *)
+  (*         apply elem_of_index_list. done. *)
+  (*   - (* prove first projection is indeed smaller than length l, i.e. M *) *)
+  (*     intros x. *)
+  (*     apply Forall_lookup_total_1; last auto. *)
+  (*     rewrite Forall_forall. *)
+  (*     rewrite /l'. *)
+  (*     intros x' Hx'. *)
+  (*     rewrite elem_of_list_filter in Hx'. *)
+  (*     destruct Hx' as [? Hx']. *)
+  (*     rewrite -Hlen1; by apply index_list_range. *)
+  (* Qed. *)
   
 End stage1.
 
@@ -302,11 +329,27 @@ Section b_tree.
       (We force min_child_num to be at least 1 for simplicity)
    *)
 
+  Local Unset Elimination Schemes.
   Inductive ab_tree :=
   | Lf (v: val)
   | Br (l:list ab_tree).
 
-  Local Unset Elimination Schemes.
+  Lemma ab_tree_ind P:
+    (∀ v : val, P (Lf v)) →
+    (∀ l : list ab_tree,
+       Forall (λ x, P x) l -> P (Br l)) →
+    ∀ a : ab_tree, P a.
+  Proof.
+    clear.
+    move => ?? t.
+    generalize dependent P => P.
+    generalize dependent t.
+    fix FIX 1.
+    move => [] ?? Hcall; first naive_solver.
+    apply Hcall.
+    apply Forall_true => ?. by apply FIX.
+  Qed.
+
   Inductive is_ab_b_tree : nat -> list (option val) -> ab_tree -> Prop :=
   | is_ab_b_tree_lf v: is_ab_b_tree 0%nat [Some v] (Lf v)
   | is_ab_b_tree_br n (l:list (list(option val) * ab_tree)) :
@@ -320,7 +363,7 @@ Section b_tree.
     (∀ v : val, P 0%nat [Some v] (Lf v))
     → (∀ (n : nat) (l : list (list (option val) * ab_tree)),
          Forall (λ x : list (option val) * ab_tree, is_ab_b_tree n x.1 x.2) l ->
-         Forall (λ x, P n x.1 x.2) l 
+         Forall (λ x, P n x.1 x.2) l
          → (min_child_num <= length l <= max_child_num)%nat
            → P (S n)
                (flat_map id l.*1 ++ replicate ((max_child_num - length l) * max_child_num ^ n) None)
@@ -338,11 +381,14 @@ Section b_tree.
     eapply Forall_impl; first done.
     intros. by apply FIX.
   Qed.
+
+  
+  Local Set Elimination Schemes.
     
   Lemma ab_b_tree_list_length n l t:
     is_ab_b_tree n l t-> length l = (max_child_num ^ n)%nat.
   Proof.
-    intros H. induction H.
+    clear. intros H. induction H.
     - by simpl.
     - rewrite app_length.
       erewrite flat_map_constant_length; last first.
@@ -356,7 +402,6 @@ Section b_tree.
       rewrite -Nat.le_add_sub; lia.
   Qed.
 
-  (** might need some help *)
   Definition succ x y: Prop := ∃ l, y = Br l /\ x ∈ l.
   
   Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ :=
@@ -366,9 +411,44 @@ Section b_tree.
                                  ⌜length tlis = length v_lis⌝ ∗
                                  ⌜is_list loc_lis v⌝ ∗
                                  ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
-                                 ([∗ list] x ∈ combine tlis v_lis, relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A _))
+                                 ([∗ list] x ∈ combine tlis v_lis,
+                                    match ClassicalEpsilon.excluded_middle_informative (succ x.1 t)
+                                    with
+                                    |left Hproof => 
+                                       relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A Hproof)
+                                    | _ => True
+                                    end)
   end.
   Next Obligation.
+    simpl; done.
+  Qed.
+
+  Program Definition relate_ab_tree_with_v t v := relate_ab_tree_with_v_aux t v _.
+  Next Obligation.
+    intros. induction t; apply Acc_intro.
+    - rewrite /succ. naive_solver.
+    - intros t. elim. intros ?[].
+      simplify_eq.
+      eapply Forall_forall; done.
+  Qed.
+
+  Lemma relate_ab_tree_with_v_unfold t v:
+    relate_ab_tree_with_v t v -∗ match t with
+    | Lf v' => ⌜v=v'⌝
+    | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗
+                                 ⌜length tlis = length v_lis⌝ ∗
+                                 ⌜is_list loc_lis v⌝ ∗
+                                 ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+                                 ([∗ list] x ∈ combine tlis v_lis,
+                                       relate_ab_tree_with_v x.1 x.2 
+                                 )
+  end.
+  Proof.
+    clear.
+    revert v.
+    induction t.
+    - rewrite /relate_ab_tree_with_v/relate_ab_tree_with_v_aux.
+      iSimpl. iIntros.
   Admitted.
   
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
