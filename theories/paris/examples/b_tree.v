@@ -1,3 +1,4 @@
+From Coq.Program Require Import Wf.
 From clutch.paris Require Import adequacy.
 From stdpp Require Import list.
 From clutch Require Import paris.
@@ -402,54 +403,63 @@ Section b_tree.
       rewrite -Nat.le_add_sub; lia.
   Qed.
 
-  Definition succ x y: Prop := ∃ l, y = Br l /\ x ∈ l.
-  
-  Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ :=
-    match t with
-    | Lf v' => ⌜v=v'⌝
-    | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗
-                                 ⌜length tlis = length v_lis⌝ ∗
-                                 ⌜is_list loc_lis v⌝ ∗
-                                 ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
-                                 ([∗ list] x ∈ combine tlis v_lis,
-                                    match ClassicalEpsilon.excluded_middle_informative (succ x.1 t)
-                                    with
-                                    |left Hproof => 
-                                       relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A Hproof)
-                                    | _ => True
-                                    end)
-  end.
-  Next Obligation.
-    simpl; done.
-  Qed.
+  Definition succ (x y : ab_tree) : Prop :=
+    match y with
+    | Lf v => False
+    | Br l => x ∈ l
+    end.
 
-  Program Definition relate_ab_tree_with_v t v := relate_ab_tree_with_v_aux t v _.
-  Next Obligation.
-    intros. induction t; apply Acc_intro.
-    - rewrite /succ. naive_solver.
-    - intros t. elim. intros ?[].
-      simplify_eq.
-      eapply Forall_forall; done.
-  Qed.
-
-  Lemma relate_ab_tree_with_v_unfold t v:
-    relate_ab_tree_with_v t v -∗ match t with
-    | Lf v' => ⌜v=v'⌝
-    | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗
-                                 ⌜length tlis = length v_lis⌝ ∗
-                                 ⌜is_list loc_lis v⌝ ∗
-                                 ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
-                                 ([∗ list] x ∈ combine tlis v_lis,
-                                       relate_ab_tree_with_v x.1 x.2 
-                                 )
-  end.
+  Lemma succ_wf : well_founded succ.
   Proof.
-    clear.
-    revert v.
-    induction t.
-    - rewrite /relate_ab_tree_with_v/relate_ab_tree_with_v_aux.
-      iSimpl. iIntros.
-  Admitted.
+    intros t. induction t; apply Acc_intro.
+    - rewrite /succ. done. 
+    - intros t ? => /=. by eapply Forall_forall.
+  Qed.
+
+  Program Fixpoint relate_ab_tree_with_v (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
+    match t with
+    | Lf v' => ⌜v = v'⌝
+    | Br tlis => ∃ loc_lis v_lis,
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜is_list loc_lis v⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+      ([∗ list] x ∈ combine tlis v_lis,
+        match ClassicalEpsilon.excluded_middle_informative (succ x.1 t)
+        with
+        |left Hproof => relate_ab_tree_with_v x.1 x.2
+        | _ => True
+        end)
+    end.
+  Solve Obligations with auto using succ_wf.
+
+  Lemma relate_ab_tree_with_v_Lf v v' :
+    relate_ab_tree_with_v (Lf v') v ≡ ⌜v = v'⌝%I.
+  Proof.
+    rewrite /relate_ab_tree_with_v /relate_ab_tree_with_v_func.
+    rewrite WfExtensionality.fix_sub_eq_ext //.  
+  Qed.
+
+  Lemma relate_ab_tree_with_v_Br v tlis :
+    relate_ab_tree_with_v (Br tlis) v ≡
+      (∃ loc_lis v_lis,
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜is_list loc_lis v⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+      ([∗ list] x ∈ combine tlis v_lis,
+        match ClassicalEpsilon.excluded_middle_informative (succ x.1 (Br tlis))
+        with
+        |left Hproof => relate_ab_tree_with_v x.1 x.2
+        | _ => True
+        end))%I.
+  Proof.
+    rewrite {1}/relate_ab_tree_with_v /relate_ab_tree_with_v_func.
+    rewrite WfExtensionality.fix_sub_eq_ext /=.
+    repeat f_equiv.     
+    by case_match.
+  Qed. 
+
   
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
