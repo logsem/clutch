@@ -700,7 +700,27 @@ Section b_tree.
 
 
   (** REFINEMENTS**)
-  
+
+  (** Stage 0 *)
+  Lemma naive_annotated_naive_refinement tree l treev: 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    ⤇ (naive_sampler_prog treev #()) -∗
+    € nnreal_zero -∗
+    WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+  Admitted.
+
+  Lemma annotated_naive_naive_refinement tree l treev: 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    ⤇ (naive_sampler_annotated_prog treev #()) -∗
+    € nnreal_zero -∗
+    WP (naive_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+  Admitted.
   
   (** To prove that the optimzed algorithm refines the naive one
       we show that for each "run", the depth number of (2*min_child_num) state step samples can be coupled
