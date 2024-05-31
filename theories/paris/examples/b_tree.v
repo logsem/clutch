@@ -15,6 +15,15 @@ Section aux_lemmas.
     - simpl; lia.
     - apply Nat.pow_le_mono_r; lia.
   Qed.
+
+  Lemma filter_replicate_is_nil {X} (x:X) n P {_:forall x, Decision (P x)}:
+    ¬ P x -> filter P (replicate n x) = [].
+  Proof.
+    intros. induction n; first by simpl.
+    simpl. rewrite filter_cons.
+    case_match; first done.
+    done.
+  Qed.
     
 End aux_lemmas.
 
@@ -419,26 +428,6 @@ Section b_tree.
     - right. naive_solver.
     - apply _.
   Qed.
-  
-  (* Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ := *)
-  (*   match t with *)
-  (*   | Lf v' => ⌜v=v'⌝ *)
-  (*   | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗ *)
-  (*                                ⌜length tlis = length v_lis⌝ ∗ *)
-  (*                                ⌜is_list loc_lis v⌝ ∗ *)
-  (*                                ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗ *)
-  (*                                ([∗ list] x ∈ combine tlis v_lis, *)
-  (*                                   match decide (succ x.1 t)  *)
-  (*                                   with *)
-  (*                                   |left Hproof =>  *)
-  (*                                      relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A Hproof) *)
-  (*                                   | _ => True *)
-  (*                                   end) *)
-  (* end. *)
-  (* Next Obligation. *)
-  (*   simpl; done. *)
-  (* Qed. *)
-
   Lemma succ_wf : well_founded succ.
   Proof.
     intros t. induction t; apply Acc_intro.
@@ -497,9 +486,94 @@ Section b_tree.
       iModIntro. iIntros. case_match; done.
   Qed.
 
+  Fixpoint children_num t:=
+    match t with
+    | Lf _ => 1%nat
+    | Br l => fold_right (λ x y, children_num x + y)%nat 0%nat l
+    end.
+
+  Lemma ab_tree_children_num t n l:
+    is_ab_b_tree n l t -> children_num t = length (filter (λ x, is_Some x) l).
+  Proof.
+    intros H. induction H; first done.
+    rewrite filter_app app_length.
+    replace (length (filter _(replicate _ _))) with 0%nat; last first.
+    { symmetry. rewrite length_zero_iff_nil.
+      eapply filter_replicate_is_nil. done.
+    }
+    clear H1.
+    revert H H0.
+    induction l.
+    - simpl. done.
+    - rewrite !Forall_cons.
+      intros [] [].
+      simpl. rewrite filter_app app_length.
+      rewrite H1.
+      rewrite Nat.add_0_r.
+      f_equal.
+      specialize (IHl H0 H2).
+      rewrite Nat.add_0_r in IHl. rewrite -IHl. done.
+  Qed.
+
   
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
+
+  Program Fixpoint relate_ab_tree_with_ranked_v (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
+    match t with
+    | Lf v' => ⌜v = v'⌝
+    | Br tlis => ∃ loc_lis v_lis num_lis,
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜length tlis = length num_lis⌝ ∗
+      ⌜is_list (combine num_lis loc_lis) v⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+      ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
+      ([∗ list] x ∈ combine tlis v_lis,
+        match decide (succ x.1 t)
+        with
+        |left Hproof => relate_ab_tree_with_ranked_v x.1 x.2
+        | _ => True
+        end)
+    end.
+  Solve Obligations with auto using succ_wf.
+
+  Lemma relate_ab_tree_with_ranked_v_Lf v v' :
+    relate_ab_tree_with_ranked_v (Lf v') v ≡ ⌜v = v'⌝%I.
+  Proof.
+    rewrite /relate_ab_tree_with_ranked_v /relate_ab_tree_with_ranked_v_func.
+    rewrite WfExtensionality.fix_sub_eq_ext //.  
+  Qed.
+
+  Lemma relate_ab_tree_with_ranked_v_Br v tlis :
+    relate_ab_tree_with_ranked_v (Br tlis) v ≡
+      (∃ loc_lis v_lis num_lis,
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜length tlis = length num_lis⌝ ∗
+      ⌜is_list (combine num_lis loc_lis) v⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+      ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
+      ([∗ list] x ∈ combine tlis v_lis, relate_ab_tree_with_ranked_v x.1 x.2))%I.
+  Proof.
+    rewrite {1}/relate_ab_tree_with_ranked_v /relate_ab_tree_with_ranked_v_func.
+    rewrite WfExtensionality.fix_sub_eq_ext /=.
+    do 12 f_equiv.
+    iSplit.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; first done.
+      exfalso.
+      assert (x.1 ∈tlis); last done.
+      rewrite elem_of_list_In.
+      eapply in_combine_l.
+      rewrite -elem_of_list_In.
+      eapply elem_of_list_lookup_2. erewrite H.
+      f_equal. apply surjective_pairing.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; done.
+  Qed.
+  
+  
 
   (** The naive algorithm for ranked b -tree is to sample from the sum of the total number of children, 
       and then traverse down to find that particular value *)
