@@ -419,32 +419,27 @@ Section b_tree.
     rewrite /succ.
     destruct y.
     - right. naive_solver.
-    - assert (Decision (x∈l)) as [|].
-      { eapply elem_of_list_dec. }
-      + left. naive_solver.
-      + right. naive_solver.
-        Unshelve.
-        
+    - apply _.
   Qed.
   
-  Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ :=
-    match t with
-    | Lf v' => ⌜v=v'⌝
-    | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗
-                                 ⌜length tlis = length v_lis⌝ ∗
-                                 ⌜is_list loc_lis v⌝ ∗
-                                 ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
-                                 ([∗ list] x ∈ combine tlis v_lis,
-                                    match decide (succ x.1 t) 
-                                    with
-                                    |left Hproof => 
-                                       relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A Hproof)
-                                    | _ => True
-                                    end)
-  end.
-  Next Obligation.
-    simpl; done.
-  Qed.
+  (* Program Fixpoint relate_ab_tree_with_v_aux (t:ab_tree) (v:val) (A: Acc succ t) {struct A} : iProp Σ := *)
+  (*   match t with *)
+  (*   | Lf v' => ⌜v=v'⌝ *)
+  (*   | Br tlis => ∃ loc_lis v_lis, ⌜length tlis = length loc_lis⌝ ∗ *)
+  (*                                ⌜length tlis = length v_lis⌝ ∗ *)
+  (*                                ⌜is_list loc_lis v⌝ ∗ *)
+  (*                                ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗ *)
+  (*                                ([∗ list] x ∈ combine tlis v_lis, *)
+  (*                                   match decide (succ x.1 t)  *)
+  (*                                   with *)
+  (*                                   |left Hproof =>  *)
+  (*                                      relate_ab_tree_with_v_aux x.1 x.2 (Acc_inv A Hproof) *)
+  (*                                   | _ => True *)
+  (*                                   end) *)
+  (* end. *)
+  (* Next Obligation. *)
+  (*   simpl; done. *)
+  (* Qed. *)
 
   Lemma succ_wf : well_founded succ.
   Proof.
@@ -495,7 +490,7 @@ Section b_tree.
     rewrite WfExtensionality.fix_sub_eq_ext /=.
     repeat f_equiv.     
     by case_match.
-  Qed. 
+  Qed.
 
   
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
