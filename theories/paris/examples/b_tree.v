@@ -437,11 +437,12 @@ Section b_tree.
 
   Program Fixpoint relate_ab_tree_with_v (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
     match t with
-    | Lf v' => ⌜v = v'⌝
-    | Br tlis => ∃ loc_lis v_lis,
+    | Lf v' => ⌜v = InjLV v'⌝
+    | Br tlis => ∃ v' loc_lis v_lis,
+      ⌜v = InjRV v'⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
-      ⌜is_list loc_lis v⌝ ∗
+      ⌜is_list loc_lis v'⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis v_lis,
         match decide (succ x.1 t)
@@ -453,7 +454,7 @@ Section b_tree.
   Solve Obligations with auto using succ_wf.
 
   Lemma relate_ab_tree_with_v_Lf v v' :
-    relate_ab_tree_with_v (Lf v') v ≡ ⌜v = v'⌝%I.
+    relate_ab_tree_with_v (Lf v') v ≡ ⌜v = InjLV v'⌝%I.
   Proof.
     rewrite /relate_ab_tree_with_v /relate_ab_tree_with_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext //.  
@@ -461,17 +462,18 @@ Section b_tree.
 
   Lemma relate_ab_tree_with_v_Br v tlis :
     relate_ab_tree_with_v (Br tlis) v ≡
-      (∃ loc_lis v_lis,
+      (∃ v' loc_lis v_lis,
+      ⌜v = InjRV v'⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
-      ⌜is_list loc_lis v⌝ ∗
+      ⌜is_list loc_lis v'⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis v_lis,
          relate_ab_tree_with_v x.1 x.2))%I.
   Proof.
     rewrite {1}/relate_ab_tree_with_v /relate_ab_tree_with_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext /=.
-    do 8 f_equiv.
+    do 11 f_equiv.
     iSplit.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; first done.
@@ -515,18 +517,19 @@ Section b_tree.
       rewrite Nat.add_0_r in IHl. rewrite -IHl. done.
   Qed.
 
-  
   (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
 
   Program Fixpoint relate_ab_tree_with_ranked_v (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
     match t with
-    | Lf v' => ⌜v = v'⌝
-    | Br tlis => ∃ loc_lis v_lis num_lis,
+    | Lf v' => ⌜v = InjLV v'⌝
+    | Br tlis =>
+        ∃ v' loc_lis v_lis num_lis,
+      ⌜ v = InjRV v'⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
       ⌜length tlis = length num_lis⌝ ∗
-      ⌜is_list (combine num_lis loc_lis) v⌝ ∗
+      ⌜is_list (combine num_lis loc_lis) v'⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
       ([∗ list] x ∈ combine tlis v_lis,
@@ -539,7 +542,7 @@ Section b_tree.
   Solve Obligations with auto using succ_wf.
 
   Lemma relate_ab_tree_with_ranked_v_Lf v v' :
-    relate_ab_tree_with_ranked_v (Lf v') v ≡ ⌜v = v'⌝%I.
+    relate_ab_tree_with_ranked_v (Lf v') v ≡ ⌜v = InjLV v'⌝%I.
   Proof.
     rewrite /relate_ab_tree_with_ranked_v /relate_ab_tree_with_ranked_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext //.  
@@ -547,18 +550,19 @@ Section b_tree.
 
   Lemma relate_ab_tree_with_ranked_v_Br v tlis :
     relate_ab_tree_with_ranked_v (Br tlis) v ≡
-      (∃ loc_lis v_lis num_lis,
+      (∃ v' loc_lis v_lis num_lis,
+      ⌜ v = InjRV v' ⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
       ⌜length tlis = length num_lis⌝ ∗
-      ⌜is_list (combine num_lis loc_lis) v⌝ ∗
+      ⌜is_list (combine num_lis loc_lis) v'⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
       ([∗ list] x ∈ combine tlis v_lis, relate_ab_tree_with_ranked_v x.1 x.2))%I.
   Proof.
     rewrite {1}/relate_ab_tree_with_ranked_v /relate_ab_tree_with_ranked_v_func.
     rewrite WfExtensionality.fix_sub_eq_ext /=.
-    do 12 f_equiv.
+    do 15 f_equiv.
     iSplit.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; first done.
@@ -573,10 +577,74 @@ Section b_tree.
       iModIntro. iIntros. case_match; done.
   Qed.
   
-  
-
   (** The naive algorithm for ranked b -tree is to sample from the sum of the total number of children, 
       and then traverse down to find that particular value *)
+
+  Definition naive_sampler_list_search_prog :val :=
+    λ: "cont", 
+    rec: "f" "l" "num" :=
+      match: list_head "l" with
+      | SOME "p" =>
+          let, ("child_num", "t") := "p" in
+          let: "l'" := list_tail "l" in
+          if: "num" < "child_num"
+          then "cont" "t ""child_num"
+          else "f" "l'" ("child_num" - "num")
+      | NONE => #() (* not possible *)
+      end
+  .
+  
+  Definition naive_sampler_rec_prog: val:=
+    rec: "f" "t" "num" :=
+      match: "t" with
+      | InjL "v" => "v"
+      | InjR "l" => naive_sampler_list_search_prog "f" "l" "num"
+      end
+  .
+
+  Definition naive_sampler_prog (t:val) (total_num:nat) : val :=
+    λ: "_",
+      let: "samp" := rand #total_num in
+      naive_sampler_rec_prog t "samp".
+
+  Definition naive_sampler_annotated_prog (t:val) (total_num:nat) : val :=
+    λ: "_",
+      let: "α" := alloc #total_num in
+      let: "samp" := rand("α") #total_num in
+      naive_sampler_rec_prog t "samp".
+
+  (** The intermediate algorithm for non-ranked b_tree is that at the beginning
+      we sample from max_child_num^depth, and walk down the branches as if the tree is full.
+      If we cannot find the particular node, we repeat from the start
+   *)
+
+  Definition intermediate_sampler_list_search_prog :val :=
+    λ: "main_cont" "cont", 
+    rec: "f" "l" "num" :=
+      match: list_head "l" with
+      | SOME "t" =>
+          let: "l'" := list_tail "l" in
+          if: "num" < #max_child_num
+          then "cont" "t ""child_num"
+          else "f" "l'" ("child_num" - #max_child_num)
+      | NONE => "main_cont" #()
+      end
+  .
+
+  Definition intermediate_sampler_rec_prog: val:=
+    λ: "main_cont", 
+    rec: "f" "t" "num" :=
+      match: "t" with
+      | InjL "v" => "v"
+      | InjR "l" => intermediate_sampler_list_search_prog "main_cont" "f" "l" "num"
+      end
+  .
+
+  Definition intermediate_sampler_annotated_prog (t:val) (num:nat) : val :=
+    rec: "f" "_":=
+      let: "α" := alloc #num in
+      let: "samp" := rand("α") #num in
+      intermediate_sampler_rec_prog "f" t "samp".
 
   (** The optimized algorithm for non-ranked b-tree is at each node, sample from 2*min_child_num 
       then walk down that branch. If the number exceeds the total number of children, repeat from the root
@@ -585,10 +653,51 @@ Section b_tree.
   (** The intuition is that we assume we are sampling from a "full" tree that has max children,
       but repeat if the child does not exist
    *)
-  
-End b_tree.
 
-Section proofs.
+  Definition optimized_sampler_rec_annotated_prog: val:=
+    λ: "main_cont" "α", 
+    rec: "f" "t":=
+      match: "t" with
+      | InjL "v" => "v"
+      | InjR "l" =>
+          let: "num" := rand("α") #max_child_num in
+          let: "item" := list_nth "l" "num" in
+          match: "item" with
+          | SOME "t'" => "f" "t'"
+          | NONE => "main_cont" #()
+          end
+      end
+  .
+
+  Definition optimized_sampler_annotated_prog (t:val) : val :=
+    rec: "f" "_":=
+      let: "α" := alloc #max_child_num in
+      optimized_sampler_rec_annotated_prog "f" "α" t.
+
+  Definition optimized_sampler_rec_prog: val:=
+    λ: "main_cont", 
+    rec: "f" "t":=
+      match: "t" with
+      | InjL "v" => "v"
+      | InjR "l" =>
+          let: "num" := rand #max_child_num in
+          let: "item" := list_nth "l" "num" in
+          match: "item" with
+          | SOME "t'" => "f" "t'"
+          | NONE => "main_cont" #()
+          end
+      end
+  .
+
+  Definition optimized_sampler_prog (t:val) : val :=
+    rec: "f" "_":=
+      optimized_sampler_rec_annotated_prog "f" t.
+
+
+
+  (** REFINEMENTS**)
+  
+  
   (** To prove that the optimzed algorithm refines the naive one
       we show that for each "run", the depth number of (2*min_child_num) state step samples can be coupled
       with a single (2*min_child_num)^depth state step sample
@@ -600,5 +709,7 @@ Section proofs.
       The other direction is the same, except one would need to amplify errors and use a continuity argument to close the proof 
    *)
 
-End proofs.
+  
+End b_tree.
+
 
