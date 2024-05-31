@@ -353,8 +353,8 @@ Section b_tree.
   
   Instance ab_tree_dec: EqDecision ab_tree.
   Proof.
-    clear.
-  Admitted.
+    intros ??. apply make_decision.
+  Qed.
   
   Inductive is_ab_b_tree : nat -> list (option val) -> ab_tree -> Prop :=
   | is_ab_b_tree_lf v: is_ab_b_tree 0%nat [Some v] (Lf v)
@@ -390,7 +390,7 @@ Section b_tree.
 
   
   Local Set Elimination Schemes.
-    
+  
   Lemma ab_b_tree_list_length n l t:
     is_ab_b_tree n l t-> length l = (max_child_num ^ n)%nat.
   Proof.
