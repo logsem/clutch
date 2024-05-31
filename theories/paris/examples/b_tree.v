@@ -462,7 +462,7 @@ Section b_tree.
       ⌜is_list loc_lis v⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis v_lis,
-        match ClassicalEpsilon.excluded_middle_informative (succ x.1 t)
+        match decide (succ x.1 t)
         with
         |left Hproof => relate_ab_tree_with_v x.1 x.2
         | _ => True
@@ -485,7 +485,7 @@ Section b_tree.
       ⌜is_list loc_lis v⌝ ∗
       ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
       ([∗ list] x ∈ combine tlis v_lis,
-        match ClassicalEpsilon.excluded_middle_informative (succ x.1 (Br tlis))
+        match decide (succ x.1 (Br tlis))
         with
         |left Hproof => relate_ab_tree_with_v x.1 x.2
         | _ => True
