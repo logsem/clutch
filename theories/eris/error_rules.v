@@ -216,7 +216,7 @@ Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   iApply (twp_rand_err with "[$]").
 Qed.
 
@@ -281,7 +281,7 @@ Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   iApply (twp_rand_err_nat with "[$]").
 Qed.
 
@@ -347,7 +347,7 @@ Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
     (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   by iApply (twp_rand_err_list_nat).
 Qed.
 
@@ -412,7 +412,7 @@ Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
     (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply tgl_wp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   by iApply twp_rand_err_list_int.
 Qed.
 
@@ -425,7 +425,7 @@ Lemma wp_rand_err_filter (N : nat) (z : Z) (P : nat -> bool) E Φ :
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (?) "[H1 H2]".
-  iApply tgl_wp_ub_wp'.
+  iApply tgl_wp_pgl_wp'.
   iApply (twp_rand_err_list_nat _ _ (List.filter P (seq 0 (S N)))).
   iFrame.
   iIntros (x) "%H0".
@@ -715,7 +715,7 @@ Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) 
   {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
 Proof.
   iIntros.
-  iApply (tgl_wp_ub_wp_step' with "[$]").
+  iApply (tgl_wp_pgl_wp_step' with "[$]").
   wp_apply (twp_couple_rand_adv_comp with "[$]"); try done.
   iIntros (?) "H1 H2". iModIntro.
   iApply ("H2" with "[$]").
@@ -864,7 +864,7 @@ Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegre
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (HN HK) "[Herr Hwp]".
-  iApply tgl_wp_ub_wp'.
+  iApply tgl_wp_pgl_wp'.
   wp_apply twp_rand_err_list_adv; eauto.
   iFrame.
 Qed.
@@ -1012,7 +1012,7 @@ Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonn
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (? HK) "[H1 Hwp]".
-  iApply tgl_wp_ub_wp'.
+  iApply tgl_wp_pgl_wp'.
   wp_apply twp_rand_err_filter_adv; eauto.
   iFrame.
 Qed.
@@ -1024,9 +1024,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
                                                                                               P -∗ € (ε1+ε2)%NNR -∗ WP K e @ s; E {{ Φ }}.
   Proof.
     iIntros "H1 H2 HP Hε".
-    iApply ub_wp_bind.
+    iApply pgl_wp_bind.
     iDestruct ("Hε") as "[He1 He2]".
-    iApply (ub_wp_wand with "[H1 He1 HP]").
+    iApply (pgl_wp_wand with "[H1 He1 HP]").
     { by iApply ("H1" with "[$]"). }
     iIntros (v) "HQ".
     iApply ("H2" with "[$]"). done.
@@ -1038,8 +1038,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
                                                                                                                      P -∗ € ε1 -∗ WP K e @ s; E {{ Φ }}.
   Proof.
     iIntros "H1 H2 HP Hε".
-    iApply ub_wp_bind.
-    iApply (ub_wp_wand with "[H1 Hε HP]").
+    iApply pgl_wp_bind.
+    iApply (pgl_wp_wand with "[H1 Hε HP]").
     { instantiate (1 := (λ v, € (ε2 v) ∗ Q v)%I). by iApply ("H1" with "[$]"). }
     iIntros (v) "[Hε HQ]".
     iApply ("H2" with "[$]"). done.
@@ -1132,7 +1132,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
-    rewrite !ub_wp_unfold /ub_wp_pre /= He.
+    rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
     iSpecialize ("Hwp" $! 𝜎' ε).
     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
@@ -1476,7 +1476,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
     iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
-    rewrite ub_wp_unfold /ub_wp_pre.
+    rewrite pgl_wp_unfold /pgl_wp_pre.
     remember {| heap := heap2; tapes := tapes2 |} as σ2.
     rewrite /= Hσ_red /=.
     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
@@ -1538,7 +1538,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     € ε -∗ WP e @ E {{ Φ }}.
   Proof.
     iIntros.
-    iApply tgl_wp_ub_wp'.
+    iApply tgl_wp_pgl_wp'.
     iApply twp_ec_spend; try done.
   Qed.
 

@@ -25,7 +25,7 @@ Lemma wp_lift_step_fupd_glm E Φ e1 s :
       ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  by rewrite ub_wp_unfold /ub_wp_pre =>->.
+  by rewrite pgl_wp_unfold /pgl_wp_pre =>->.
 Qed.
 
 
@@ -115,7 +115,7 @@ Proof.
   iApply fupd_mask_intro; first set_solver. iIntros "Hclose !>".
   iMod "Hclose" as "_". iMod "H" as "($ & HQ)".
   destruct (to_val e2) eqn:?; last by iExFalso.
-  iApply ub_wp_value; last done. by apply of_to_val.
+  iApply pgl_wp_value; last done. by apply of_to_val.
 Qed.
 
 Lemma wp_lift_atomic_step {E Φ} e1 s :

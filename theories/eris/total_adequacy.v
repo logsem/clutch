@@ -421,7 +421,7 @@ Proof.
   eapply wp_pgl_lim; first done.
   intros H1.
   iIntros "Hε".
-  iApply tgl_wp_ub_wp.
+  iApply tgl_wp_pgl_wp.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Hε]" as "H".
   2:{ destruct twp_default. destruct wp_default. iExact "H". }
   by iApply H0.
@@ -475,7 +475,7 @@ Theorem twp_pgl_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonne
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros. eapply wp_pgl_epsilon_lim; first done.
-  intros. iStartProof. iIntros "Herr". iApply tgl_wp_ub_wp.
+  intros. iStartProof. iIntros "Herr". iApply tgl_wp_pgl_wp.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Herr]" as "K".
   2:{ destruct twp_default. destruct wp_default. done. }
   iApply (H0 with "[$]").

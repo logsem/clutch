@@ -127,9 +127,9 @@ Section in_place_quicksort.
       (* this is a total mess *)
       wp_pures.
       wp_bind (in_place_pivot _ _ _)%E.
-      iApply (ub_wp_mono); last first.
-      { iApply ub_wp_frame_r; iSplitL; last iApply "IH".
-        iApply ub_wp_frame_r; iSplitR "HΦ"; last iApply "HΦ".
+      iApply (pgl_wp_mono); last first.
+      { iApply pgl_wp_frame_r; iSplitL; last iApply "IH".
+        iApply pgl_wp_frame_r; iSplitR "HΦ"; last iApply "HΦ".
         wp_apply (in_place_pivot_spec with "Harr"). }
       iIntros (len_left) "[[[%R [%len_left_nat [Harr [-> %Hcorrect]]]] HΦ] #IH]".
 
@@ -147,7 +147,7 @@ Section in_place_quicksort.
         admit.
       }
       wp_bind (((RecV _ _ _) _) _)%E.
-      iApply (ub_wp_mono with "[HarrL HarrP HarrR]"); last first.
+      iApply (pgl_wp_mono with "[HarrL HarrP HarrR]"); last first.
       { iSpecialize ("IH" $! (take len_left_nat A) arr).
         replace (length (take len_left_nat A)) with len_left_nat; last first.
         { (* Probably doable *) admit. }
@@ -164,7 +164,7 @@ Section in_place_quicksort.
 
 
       wp_bind (((RecV _ _ _) _) _)%E.
-      iApply (ub_wp_mono with "[A HarrP HarrR]"); last first.
+      iApply (pgl_wp_mono with "[A HarrP HarrR]"); last first.
       { admit.
       }
 

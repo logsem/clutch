@@ -626,7 +626,7 @@ Section glm.
 End glm.
 
 (** * The weakest precondition  *)
-Definition ub_wp_pre `{!erisWpGS Λ Σ}
+Definition pgl_wp_pre `{!erisWpGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
@@ -637,9 +637,9 @@ Definition ub_wp_pre `{!erisWpGS Λ Σ}
         ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
-Local Instance wp_pre_contractive `{!erisWpGS Λ Σ} : Contractive (ub_wp_pre).
+Local Instance wp_pre_contractive `{!erisWpGS Λ Σ} : Contractive (pgl_wp_pre).
 Proof.
-  rewrite /ub_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
+  rewrite /pgl_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
   do 7 (f_equiv).
   apply least_fixpoint_ne_outer; [|done].
   intros Ψ [[e' σ'] ε']. rewrite /glm_pre.
@@ -649,16 +649,16 @@ Qed.
 
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition ub_wp_def `{!erisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
-  {| wp := λ _ : (), fixpoint (ub_wp_pre); wp_default := () |}.
-Local Definition ub_wp_aux : seal (@ub_wp_def). Proof. by eexists. Qed.
-Definition ub_wp' := ub_wp_aux.(unseal).
-Global Arguments ub_wp' {Λ Σ _}.
-Global Existing Instance ub_wp'.
-Local Lemma ub_wp_unseal `{!erisWpGS Λ Σ} : wp = (@ub_wp_def Λ Σ _).(wp).
-Proof. rewrite -ub_wp_aux.(seal_eq) //. Qed.
+Local Definition pgl_wp_def `{!erisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+  {| wp := λ _ : (), fixpoint (pgl_wp_pre); wp_default := () |}.
+Local Definition pgl_wp_aux : seal (@pgl_wp_def). Proof. by eexists. Qed.
+Definition pgl_wp' := pgl_wp_aux.(unseal).
+Global Arguments pgl_wp' {Λ Σ _}.
+Global Existing Instance pgl_wp'.
+Local Lemma pgl_wp_unseal `{!erisWpGS Λ Σ} : wp = (@pgl_wp_def Λ Σ _).(wp).
+Proof. rewrite -pgl_wp_aux.(seal_eq) //. Qed.
 
-Section ub_wp.
+Section pgl_wp.
 Context `{!erisWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
@@ -669,15 +669,15 @@ Implicit Types ρ : cfg Λ.
 Implicit Types ε : R.
 
 (* Weakest pre *)
-Lemma ub_wp_unfold s E e Φ :
-  WP e @ s; E {{ Φ }} ⊣⊢ ub_wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
-Proof. rewrite ub_wp_unseal. apply (fixpoint_unfold (ub_wp_pre)). Qed.
+Lemma pgl_wp_unfold s E e Φ :
+  WP e @ s; E {{ Φ }} ⊣⊢ pgl_wp_pre (wp (PROP:=iProp Σ) s) E e Φ.
+Proof. rewrite pgl_wp_unseal. apply (fixpoint_unfold (pgl_wp_pre)). Qed.
 
-Global Instance ub_wp_ne s E e n :
+Global Instance pgl_wp_ne s E e n :
   Proper (pointwise_relation _ (dist n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
   revert e. induction (lt_wf n) as [n _ IH]=> e Φ Ψ HΦ.
-  rewrite !ub_wp_unfold /ub_wp_pre /=.
+  rewrite !pgl_wp_unfold /pgl_wp_pre /=.
   do 7 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
@@ -688,16 +688,16 @@ Proof.
   intros ?. eapply dist_S, HΦ. 
 Qed.
 
-Global Instance ub_wp_proper s E e :
+Global Instance pgl_wp_proper s E e :
   Proper (pointwise_relation _ (≡) ==> (≡)) (wp (PROP:=iProp Σ) s E e).
 Proof.
-  by intros Φ Φ' ?; apply equiv_dist=>n; apply ub_wp_ne=>v; apply equiv_dist.
+  by intros Φ Φ' ?; apply equiv_dist=>n; apply pgl_wp_ne=>v; apply equiv_dist.
 Qed.
-Global Instance ub_wp_contractive s E e n :
+Global Instance pgl_wp_contractive s E e n :
   TCEq (to_val e) None →
   Proper (pointwise_relation _ (dist_later n) ==> dist n) (wp (PROP:=iProp Σ) s E e).
 Proof.
-  intros He Φ Ψ HΦ. rewrite !ub_wp_unfold /ub_wp_pre He /=.
+  intros He Φ Ψ HΦ. rewrite !pgl_wp_unfold /pgl_wp_pre He /=.
   do 6 f_equiv.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /glm_pre.
@@ -705,15 +705,15 @@ Proof.
   rewrite /exec_stutter. do 10 f_equiv. f_contractive. do 6 f_equiv.
 Qed.
 
-Lemma ub_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
-Proof. rewrite ub_wp_unfold /ub_wp_pre to_of_val. auto. Qed.
+Lemma pgl_wp_value_fupd' s E Φ v : WP of_val v @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
+Proof. rewrite pgl_wp_unfold /pgl_wp_pre to_of_val. auto. Qed.
 
-Lemma ub_wp_strong_mono E1 E2 e Φ Ψ s :
+Lemma pgl_wp_strong_mono E1 E2 e Φ Ψ s :
   E1 ⊆ E2 →
   WP e @ s ; E1 {{ Φ }} -∗ (∀ v, Φ v ={E2}=∗ Ψ v) -∗ WP e @ s ; E2 {{ Ψ }}.
 Proof.
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
-  rewrite !ub_wp_unfold /ub_wp_pre /=.
+  rewrite !pgl_wp_unfold /pgl_wp_pre /=.
   destruct (to_val e) as [v|] eqn:?.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
   iIntros (σ1 ε) "[Hσ Hε]".
@@ -727,20 +727,20 @@ Proof.
   iApply ("IH" with "[] Hwp"); auto.
 Qed.
 
-Lemma fupd_ub_wp s E e Φ : (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
+Lemma fupd_pgl_wp s E e Φ : (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
-  rewrite ub_wp_unfold /ub_wp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
+  rewrite pgl_wp_unfold /pgl_wp_pre. iIntros "H". destruct (to_val e) as [v|] eqn:?.
   { by iMod "H". }
    iIntros (σ1 ε) "Hi". iMod "H". by iApply "H".
 Qed.
-Lemma ub_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
-Proof. iIntros "H". iApply (ub_wp_strong_mono E with "H"); auto. Qed.
+Lemma pgl_wp_fupd s E e Φ : WP e @ s; E {{ v, |={E}=> Φ v }} ⊢ WP e @ s; E {{ Φ }}.
+Proof. iIntros "H". iApply (pgl_wp_strong_mono E with "H"); auto. Qed.
 
-Lemma ub_wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
+Lemma pgl_wp_atomic E1 E2 e Φ `{!Atomic StronglyAtomic e} a :
   (|={E1,E2}=> WP e @ a; E2 {{ v, |={E2,E1}=> Φ v }}) ⊢ WP e @ a; E1 {{ Φ }}.
 Proof.
   iIntros "H".
-  rewrite !ub_wp_unfold /ub_wp_pre.
+  rewrite !pgl_wp_unfold /pgl_wp_pre.
   destruct (to_val e) as [v|] eqn:He; [by do 2 iMod "H"|].
   iIntros (σ1 ε1) "(Hσ&Hε)".
   iSpecialize ("H" $! σ1 ε1).
@@ -750,7 +750,7 @@ Proof.
   iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H)".
   iNext.
   iMod "H" as "(Hσ&Hε&Hwp)".
-  rewrite !ub_wp_unfold /ub_wp_pre.
+  rewrite !pgl_wp_unfold /pgl_wp_pre.
   destruct (to_val e2) as [?|] eqn:He2.
   + iFrame. do 2 (iMod "Hwp"). by do 2 iModIntro.
   + iMod ("Hwp" $! _ _ with "[Hσ Hε]") as "Hwp"; [iFrame|].
@@ -759,11 +759,11 @@ Proof.
     congruence. (* how do we do this "by hand"? Not obvious to me *)
 Qed.
 
-Lemma ub_wp_step_fupd s E1 E2 e P Φ :
+Lemma pgl_wp_step_fupd s E1 E2 e P Φ :
   TCEq (to_val e) None → E2 ⊆ E1 →
   (|={E1}[E2]▷=> P) -∗ WP e @ s; E2 {{ v, P ={E1}=∗ Φ v }} -∗ WP e @ s; E1 {{ Φ }}.
 Proof.
-  rewrite !ub_wp_unfold /ub_wp_pre. iIntros (-> ?) "HR H".
+  rewrite !pgl_wp_unfold /pgl_wp_pre. iIntros (-> ?) "HR H".
   iIntros (σ1 ε) "[Hσ Hε]". iMod "HR".
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
@@ -773,17 +773,17 @@ Proof.
   iMod "H" as "(Hσ & Hρ & H)".
   iMod "HR".
   iFrame "Hσ Hρ".
-  iApply (ub_wp_strong_mono E2 with "H"); [done..|].
+  iApply (pgl_wp_strong_mono E2 with "H"); [done..|].
   iIntros "!>" (v) "H". by iApply "H".
 Qed.
 
-Lemma ub_wp_bind K `{!LanguageCtx K} s E e Φ :
+Lemma pgl_wp_bind K `{!LanguageCtx K} s E e Φ :
   WP e @ s; E {{ v, WP K (of_val v) @ s; E {{ Φ }} }} ⊢ WP K e @ s; E {{ Φ }}.
 Proof.
-  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite ub_wp_unfold /ub_wp_pre.
+  iIntros "H". iLöb as "IH" forall (E e Φ). rewrite pgl_wp_unfold /pgl_wp_pre.
   destruct (to_val e) as [v|] eqn:He.
-  { apply of_to_val in He as <-. by iApply fupd_ub_wp. }
-  rewrite ub_wp_unfold /ub_wp_pre fill_not_val /=; [|done].
+  { apply of_to_val in He as <-. by iApply fupd_pgl_wp. }
+  rewrite pgl_wp_unfold /pgl_wp_pre fill_not_val /=; [|done].
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod ("H" with "[$Hσ $Hε]") as "H".
   iModIntro.
@@ -798,73 +798,73 @@ Proof.
 Qed.
 
 (** * Derived rules *)
-Lemma ub_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
+Lemma pgl_wp_mono s E e Φ Ψ : (∀ v, Φ v ⊢ Ψ v) → WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
 Proof.
-  iIntros (HΦ) "H"; iApply (ub_wp_strong_mono with "H"); auto.
+  iIntros (HΦ) "H"; iApply (pgl_wp_strong_mono with "H"); auto.
   iIntros (v) "?". by iApply HΦ.
 Qed.
-Lemma ub_wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
-Proof. iIntros (?) "H"; iApply (ub_wp_strong_mono with "H"); auto. Qed.
-Global Instance ub_wp_mono' s E e :
+Lemma pgl_wp_mask_mono s E1 E2 e Φ : E1 ⊆ E2 → WP e @ s; E1 {{ Φ }} ⊢ WP e @ s; E2 {{ Φ }}.
+Proof. iIntros (?) "H"; iApply (pgl_wp_strong_mono with "H"); auto. Qed.
+Global Instance pgl_wp_mono' s E e :
   Proper (pointwise_relation _ (⊢) ==> (⊢)) (wp (PROP:=iProp Σ) s E e).
-Proof. by intros Φ Φ' ?; apply ub_wp_mono. Qed.
-Global Instance ub_wp_flip_mono' s E e :
+Proof. by intros Φ Φ' ?; apply pgl_wp_mono. Qed.
+Global Instance pgl_wp_flip_mono' s E e :
   Proper (pointwise_relation _ (flip (⊢)) ==> (flip (⊢))) (wp (PROP:=iProp Σ) s E e).
-Proof. by intros Φ Φ' ?; apply ub_wp_mono. Qed.
+Proof. by intros Φ Φ' ?; apply pgl_wp_mono. Qed.
 
-Lemma ub_wp_value_fupd s E Φ e v : IntoVal e v → WP e @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
-Proof. intros <-. by apply ub_wp_value_fupd'. Qed.
-Lemma ub_wp_value' s E Φ v : Φ v ⊢ WP (of_val v) @ s; E {{ Φ }}.
-Proof. rewrite ub_wp_value_fupd'. auto. Qed.
-Lemma ub_wp_value s E Φ e v : IntoVal e v → Φ v ⊢ WP e @ s; E {{ Φ }}.
-Proof. intros <-. apply ub_wp_value'. Qed.
+Lemma pgl_wp_value_fupd s E Φ e v : IntoVal e v → WP e @ s; E {{ Φ }} ⊣⊢ |={E}=> Φ v.
+Proof. intros <-. by apply pgl_wp_value_fupd'. Qed.
+Lemma pgl_wp_value' s E Φ v : Φ v ⊢ WP (of_val v) @ s; E {{ Φ }}.
+Proof. rewrite pgl_wp_value_fupd'. auto. Qed.
+Lemma pgl_wp_value s E Φ e v : IntoVal e v → Φ v ⊢ WP e @ s; E {{ Φ }}.
+Proof. intros <-. apply pgl_wp_value'. Qed.
 
-Lemma ub_wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
-Proof. iIntros "[? H]". iApply (ub_wp_strong_mono with "H"); auto with iFrame. Qed.
-Lemma ub_wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
-Proof. iIntros "[H ?]". iApply (ub_wp_strong_mono with "H"); auto with iFrame. Qed.
+Lemma pgl_wp_frame_l s E e Φ R : R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
+Proof. iIntros "[? H]". iApply (pgl_wp_strong_mono with "H"); auto with iFrame. Qed.
+Lemma pgl_wp_frame_r s E e Φ R : WP e @ s; E {{ Φ }} ∗ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
+Proof. iIntros "[H ?]". iApply (pgl_wp_strong_mono with "H"); auto with iFrame. Qed.
 
-Lemma ub_wp_frame_step_l s E1 E2 e Φ R :
+Lemma pgl_wp_frame_step_l s E1 E2 e Φ R :
   TCEq (to_val e) None → E2 ⊆ E1 →
   (|={E1}[E2]▷=> R) ∗ WP e @ s; E2 {{ Φ }} ⊢ WP e @ s; E1 {{ v, R ∗ Φ v }}.
 Proof.
-  iIntros (??) "[Hu Hwp]". iApply (ub_wp_step_fupd with "Hu"); try done.
-  iApply (ub_wp_mono with "Hwp"). by iIntros (?) "$$".
+  iIntros (??) "[Hu Hwp]". iApply (pgl_wp_step_fupd with "Hu"); try done.
+  iApply (pgl_wp_mono with "Hwp"). by iIntros (?) "$$".
 Qed.
-Lemma ub_wp_frame_step_r s E1 E2 e Φ R :
+Lemma pgl_wp_frame_step_r s E1 E2 e Φ R :
   TCEq (to_val e) None → E2 ⊆ E1 →
   WP e @ s; E2 {{ Φ }} ∗ (|={E1}[E2]▷=> R) ⊢ WP e @ s; E1 {{ v, Φ v ∗ R }}.
 Proof.
   rewrite [(WP _ @ _; _ {{ _ }} ∗ _)%I]comm; setoid_rewrite (comm _ _ R).
-  apply ub_wp_frame_step_l.
+  apply pgl_wp_frame_step_l.
 Qed.
-Lemma ub_wp_frame_step_l' s E e Φ R :
+Lemma pgl_wp_frame_step_l' s E e Φ R :
   TCEq (to_val e) None → ▷ R ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ v, R ∗ Φ v }}.
-Proof. iIntros (?) "[??]". iApply (ub_wp_frame_step_l s E E); try iFrame; eauto. Qed.
-Lemma ub_wp_frame_step_r' s E e Φ R :
+Proof. iIntros (?) "[??]". iApply (pgl_wp_frame_step_l s E E); try iFrame; eauto. Qed.
+Lemma pgl_wp_frame_step_r' s E e Φ R :
   TCEq (to_val e) None → WP e @ s; E {{ Φ }} ∗ ▷ R ⊢ WP e @ s; E {{ v, Φ v ∗ R }}.
-Proof. iIntros (?) "[??]". iApply (ub_wp_frame_step_r s E E); try iFrame; eauto. Qed.
+Proof. iIntros (?) "[??]". iApply (pgl_wp_frame_step_r s E E); try iFrame; eauto. Qed.
 
-Lemma ub_wp_wand s E e Φ Ψ :
+Lemma pgl_wp_wand s E e Φ Ψ :
   WP e @ s; E {{ Φ }} -∗ (∀ v, Φ v -∗ Ψ v) -∗ WP e @ s; E {{ Ψ }}.
 Proof.
-  iIntros "Hwp H". iApply (ub_wp_strong_mono with "Hwp"); auto.
+  iIntros "Hwp H". iApply (pgl_wp_strong_mono with "Hwp"); auto.
   iIntros (?) "?". by iApply "H".
 Qed.
-Lemma ub_wp_wand_l s E e Φ Ψ :
+Lemma pgl_wp_wand_l s E e Φ Ψ :
   (∀ v, Φ v -∗ Ψ v) ∗ WP e @ s; E {{ Φ }} ⊢ WP e @ s; E {{ Ψ }}.
-Proof. iIntros "[H Hwp]". iApply (ub_wp_wand with "Hwp H"). Qed.
+Proof. iIntros "[H Hwp]". iApply (pgl_wp_wand with "Hwp H"). Qed.
 Lemma wp_wand_r s E e Φ Ψ :
   WP e @ s; E {{ Φ }} ∗ (∀ v, Φ v -∗ Ψ v) ⊢ WP e @ s; E {{ Ψ }}.
-Proof. iIntros "[Hwp H]". iApply (ub_wp_wand with "Hwp H"). Qed.
-Lemma ub_wp_frame_wand s E e Φ R :
+Proof. iIntros "[Hwp H]". iApply (pgl_wp_wand with "Hwp H"). Qed.
+Lemma pgl_wp_frame_wand s E e Φ R :
   R -∗ WP e @ s; E {{ v, R -∗ Φ v }} -∗ WP e @ s; E {{ Φ }}.
 Proof.
-  iIntros "HR HWP". iApply (ub_wp_wand with "HWP").
+  iIntros "HR HWP". iApply (pgl_wp_wand with "HWP").
   iIntros (v) "HΦ". by iApply "HΦ".
 Qed.
 
-End ub_wp.
+End pgl_wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
@@ -874,61 +874,61 @@ Section proofmode_classes.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
 
-  Global Instance frame_ub_wp p s E e R Φ Ψ :
+  Global Instance frame_pgl_wp p s E e R Φ Ψ :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
     Frame p R (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Ψ }}) | 2.
-  Proof. rewrite /Frame=> HR. rewrite ub_wp_frame_l. apply ub_wp_mono, HR. Qed.
+  Proof. rewrite /Frame=> HR. rewrite pgl_wp_frame_l. apply pgl_wp_mono, HR. Qed.
 
-  Global Instance is_except_0_ub_wp s E e Φ : IsExcept0 (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /IsExcept0 -{2}fupd_ub_wp -except_0_fupd -fupd_intro. Qed.
+  Global Instance is_except_0_pgl_wp s E e Φ : IsExcept0 (WP e @ s; E {{ Φ }}).
+  Proof. by rewrite /IsExcept0 -{2}fupd_pgl_wp -except_0_fupd -fupd_intro. Qed.
 
-  Global Instance elim_modal_bupd_ub_wp p s E e P Φ :
+  Global Instance elim_modal_bupd_pgl_wp p s E e P Φ :
     ElimModal True p false (|==> P) P (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal intuitionistically_if_elim
-      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_ub_wp.
+      (bupd_fupd E) fupd_frame_r wand_elim_r fupd_pgl_wp.
   Qed.
 
-  Global Instance elim_modal_fupd_ub_wp p s E e P Φ :
+  Global Instance elim_modal_fupd_pgl_wp p s E e P Φ :
     ElimModal True p false (|={E}=> P) P (WP e @ s; E {{ Φ }}) (WP e @ s; E {{ Φ }}).
   Proof.
     by rewrite /ElimModal intuitionistically_if_elim
-      fupd_frame_r wand_elim_r fupd_ub_wp.
+      fupd_frame_r wand_elim_r fupd_pgl_wp.
   Qed.
 
-  Global Instance elim_modal_fupd_ub_wp_atomic p s E1 E2 e P Φ :
+  Global Instance elim_modal_fupd_pgl_wp_atomic p s E1 E2 e P Φ :
     ElimModal (Atomic StronglyAtomic e) p false
             (|={E1,E2}=> P) P
             (WP e @ s; E1 {{ Φ }}) (WP e @ s; E2 {{ v, |={E2,E1}=> Φ v }})%I | 100.
   Proof.
     intros ?.
     by rewrite intuitionistically_if_elim
-      fupd_frame_r wand_elim_r ub_wp_atomic.
+      fupd_frame_r wand_elim_r pgl_wp_atomic.
   Qed.
 
-  Global Instance add_modal_fupd_ub_wp s E e P Φ :
+  Global Instance add_modal_fupd_pgl_wp s E e P Φ :
     AddModal (|={E}=> P) P (WP e @ s; E {{ Φ }}).
-  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_ub_wp. Qed.
+  Proof. by rewrite /AddModal fupd_frame_r wand_elim_r fupd_pgl_wp. Qed.
 
-  Global Instance elim_acc_ub_wp_atomic {X} E1 E2 α β γ e s Φ :
+  Global Instance elim_acc_pgl_wp_atomic {X} E1 E2 α β γ e s Φ :
     ElimAcc (X:=X) (Atomic StronglyAtomic e)
             (fupd E1 E2) (fupd E2 E1)
             α β γ (WP e @ s; E1 {{ Φ }})
             (λ x, WP e @ s; E2 {{ v, |={E2}=> β x ∗ (γ x -∗? Φ v) }})%I | 100.
   Proof.
     iIntros (?) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply (ub_wp_wand with "(Hinner Hα)").
+    iApply (pgl_wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 
-  Global Instance elim_acc_ub_wp_nonatomic {X} E α β γ e s Φ :
+  Global Instance elim_acc_pgl_wp_nonatomic {X} E α β γ e s Φ :
     ElimAcc (X:=X) True (fupd E E) (fupd E E)
             α β γ (WP e @ s; E {{ Φ }})
             (λ x, WP e @ s; E {{ v, |={E}=> β x ∗ (γ x -∗? Φ v) }})%I.
   Proof.
     iIntros (_) "Hinner >Hacc". iDestruct "Hacc" as (x) "[Hα Hclose]".
-    iApply ub_wp_fupd.
-    iApply (ub_wp_wand with "(Hinner Hα)").
+    iApply pgl_wp_fupd.
+    iApply (pgl_wp_wand with "(Hinner Hα)").
     iIntros (v) ">[Hβ HΦ]". iApply "HΦ". by iApply "Hclose".
   Qed.
 End proofmode_classes.

@@ -156,7 +156,7 @@ Section adequacy.
     - rewrite /exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
-        rewrite ub_wp_value_fupd.
+        rewrite pgl_wp_value_fupd.
         iMod "Hwp" as "%".
         iApply fupd_mask_intro; [set_solver|]; iIntros.
         iPureIntro.
@@ -170,7 +170,7 @@ Section adequacy.
     - rewrite exec_Sn /step_or_final /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
-        rewrite ub_wp_value_fupd.
+        rewrite pgl_wp_value_fupd.
         iMod "Hwp" as "%".
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
@@ -178,7 +178,7 @@ Section adequacy.
         rewrite exec_unfold dret_id_left /=.
         apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
         apply pgl_dret; auto.
-      + rewrite ub_wp_unfold /ub_wp_pre /= Heq.
+      + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
         iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
@@ -382,7 +382,7 @@ Section adequacy.
       + simpl.
         rewrite /dbind/dbind_pmf{2}/pmf/=.
         apply of_to_val in Heq as <-.
-        rewrite ub_wp_value_fupd.
+        rewrite pgl_wp_value_fupd.
         iMod "Hwp" as "%".
         iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iApply step_fupdN_intro; [done|]. do 4 iModIntro.
@@ -427,7 +427,7 @@ Section adequacy.
                    rewrite dret_0; last done.
                    lra.
         * rewrite SeriesC_singleton. lra.
-      + rewrite ub_wp_unfold /ub_wp_pre /= Heq.
+      + rewrite pgl_wp_unfold /pgl_wp_pre /= Heq.
         iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof

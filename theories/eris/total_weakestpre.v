@@ -223,10 +223,10 @@ Section tgl_wp.
     iFrame. by iApply "K".
   Qed.
 
-  Lemma tgl_wp_ub_wp s E e Φ : WP e @ s; E [{ Φ }] -∗ WP e @ s; E {{ Φ }}.
+  Lemma tgl_wp_pgl_wp s E e Φ : WP e @ s; E [{ Φ }] -∗ WP e @ s; E {{ Φ }}.
   Proof.
     iIntros "H". iLöb as "IH" forall (E e Φ).
-    rewrite ub_wp_unfold tgl_wp_unfold /ub_wp_pre /tgl_wp_pre. destruct (to_val e) as [v|]=>//=.
+    rewrite pgl_wp_unfold tgl_wp_unfold /pgl_wp_pre /tgl_wp_pre. destruct (to_val e) as [v|]=>//=.
     iIntros (σ1 ε) "[Hσ Hε]". iMod ("H" with "[$Hσ $Hε]") as "H".
     iIntros "!>".
     iApply glm_mono_pred; last iFrame.
@@ -235,29 +235,29 @@ Section tgl_wp.
     iModIntro. iFrame. iApply "IH". done.
   Qed.
 
-  Lemma tgl_wp_ub_wp' E e Φ : WP e @ E [{ Φ }] -∗ WP e @ E {{ Φ }}.
+  Lemma tgl_wp_pgl_wp' E e Φ : WP e @ E [{ Φ }] -∗ WP e @ E {{ Φ }}.
   Proof.
     iIntros "H".
-    iApply tgl_wp_ub_wp.
+    iApply tgl_wp_pgl_wp.
     by destruct wp_default, twp_default.
   Qed.
 
-  Lemma tgl_wp_ub_wp_step s E e P Φ :
+  Lemma tgl_wp_pgl_wp_step s E e P Φ :
     TCEq (to_val e) None →
     ▷ P -∗
     WP e @ s; E [{ v, P ={E}=∗ Φ v }] -∗ WP e @ s; E {{ Φ }}.
   Proof.
     iIntros (?) "HP Hwp".
-    iApply (ub_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply tgl_wp_ub_wp.
+    iApply (pgl_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply tgl_wp_pgl_wp.
   Qed.
 
-  Lemma tgl_wp_ub_wp_step' E e P Φ :
+  Lemma tgl_wp_pgl_wp_step' E e P Φ :
     TCEq (to_val e) None →
     ▷ P -∗
     WP e @ E [{ v, P ={E}=∗ Φ v }] -∗ WP e @ E {{ Φ }}.
   Proof.
     iIntros (?) "HP Hwp".
-    iApply (ub_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply tgl_wp_ub_wp'.
+    iApply (pgl_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply tgl_wp_pgl_wp'.
   Qed.
   
 
@@ -312,7 +312,7 @@ Section tgl_wp.
     WP e @ s; E [{ v, P ={E}=∗ Φ v }] -∗ WP e @ s; E {{ Φ }}.
   Proof.
     iIntros (?) "HP Hwp".
-    iApply (ub_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply tgl_wp_ub_wp.
+    iApply (pgl_wp_step_fupd _ _ E _ P with "[HP]"); [auto..|]. by iApply tgl_wp_pgl_wp.
   Qed.
   
 End tgl_wp.
