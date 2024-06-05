@@ -41,7 +41,7 @@ clean:
 	$(Q)rm -f .lia.cache
 	rm -f .coqdeps.d
 
-tar:
-	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
+zip:
+	git archive --prefix=icfp24-eris/ -o icfp24-eris.zip icfp24-eris
 
 .PHONY: clean zip
