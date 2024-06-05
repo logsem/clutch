@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>eris_paper_mapping</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 100em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h2 id="reference-from-the-paper-to-the-code">Reference from the paper
+to the code</h2>
+<p>Our contributions of the Eris logic can mostly be found in the folder
+<a href="theories/eris/">theories/eris/</a>.</p>
+<table>
+<colgroup>
+<col style="width: 1%" />
+<col style="width: 4%" />
+<col style="width: 15%" />
+<col style="width: 31%" />
+<col style="width: 11%" />
+<col style="width: 35%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>§</th>
+<th>Kind</th>
+<th>Item</th>
+<th>Coq file</th>
+<th>Name</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Example</td>
+<td>Specification of List.iter with errors</td>
+<td><a href="theories/eris/lib/list.v">theories/eris/lib/list.v</a></td>
+<td><code>wp_list_iter_err</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+HT-BIND-EXP}\)</span></td>
+<td><a
+href="theories/eris/weakestpre.v">theories/eris/weakestpre.v</a></td>
+<td><code>pgl_wp_bind</code></td>
+<td>We present a normal bind rule, which can be instantiated easily to
+include error credits</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Definition</td>
+<td>Subdistribution</td>
+<td><a
+href="theories/prob/distribution.v">theories/prob/distribution.v</a></td>
+<td><code>distr</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>Probability monad</td>
+<td><a
+href="theories/prob/distribution.v">theories/prob/distribution.v</a></td>
+<td><code>dret_id_right</code>, etc</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>Probability of predicate</td>
+<td><a
+href="theories/prob/distribution.v">theories/prob/distribution.v</a></td>
+<td><code>prob</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>Partial graded lifting</td>
+<td><a
+href="theories/prob/graded_predicate_lifting.v">theories/prob/graded_predicate_lifting.v</a></td>
+<td><code>pgl</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>Total graded lifting</td>
+<td><a
+href="theories/prob/graded_predicate_lifting.v">theories/prob/graded_predicate_lifting.v</a></td>
+<td><code>tgl</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span
+class="math inline">\(\lambda^\text{rand}_\text{ref}\)</span></td>
+<td><a
+href="theories/prob_lang/lang.v">theories/prob_lang/lang.v</a></td>
+<td>Whole file</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>step</td>
+<td><a
+href="theories/common/ectx_language.v">theories/common/ectx_language.v</a></td>
+<td><code>prim_step</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\text{exec}_n\)</span></td>
+<td><a href="theories/common/exec.v">theories/common/exec.v</a></td>
+<td><code>exec</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td><span class="math inline">\(\text{exec}\)</span></td>
+<td><a href="theories/common/exec.v">theories/common/exec.v</a></td>
+<td><code>lim_exec_val</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>Definition</td>
+<td>iProp</td>
+<td>imported from <a
+href="https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v">Iris
+upstream</a></td>
+<td><code>iProp</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Definition</td>
+<td>Ownership of error credits</td>
+<td><a
+href="theories/eris/error_credits.v">theories/eris/error_credits.v</a></td>
+<td><code>ec</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td>Splitting error credits</td>
+<td><a
+href="theories/eris/error_credits.v">theories/eris/error_credits.v</a></td>
+<td><code>ec_split</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td>Decreasing error credits</td>
+<td><a
+href="theories/eris/error_credits.v">theories/eris/error_credits.v</a></td>
+<td><code>ec_weaken</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td>Deriving False from 1 error credit</td>
+<td><a
+href="theories/eris/error_credits.v">theories/eris/error_credits.v</a></td>
+<td><code>ec_spend</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Theorem</td>
+<td>Adequacy of Eris</td>
+<td><a href="theories/eris/adequacy.v">theories/eris/adequacy.v</a></td>
+<td><code>wp_pgl_lim</code></td>
+<td>Hoare triples are defined, the theorem follows directly from the
+definition and <code>wp_pgl_lim</code></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rules</td>
+<td>Various rules of HeapLang</td>
+<td><a
+href="theories/eris/primitive_laws.v">theories/eris/primitive_laws.v</a></td>
+<td><code>wp_load</code> etc.</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+HT-RAND-ERR-LIST}\)</span></td>
+<td><a
+href="theories/eris/error_rules.v">theories/eris/error_rules.v</a></td>
+<td><code>wp_rand_err_list_nat</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+HT-BIND-SIMPL}\)</span></td>
+<td><a
+href="theories/eris/weakestpre.v">theories/eris/weakestpre.v</a></td>
+<td><code>pgl_wp_bind</code></td>
+<td>We present a normal bind rule, which can be instantiated easily to
+include error credits</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+RAND-EXP}\)</span></td>
+<td><a
+href="theories/eris/error_rules.v">theories/eris/error_rules.v</a></td>
+<td><code>wp_couple_rand_adv_comp1</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td>Synthetic example from Fig. 1</td>
+<td><a
+href="theories/eris/examples/eris_examples.v">theories/eris/examples/eris_examples.v</a></td>
+<td>Section <code>test</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td>Example</td>
+<td>Dynamic vectors under faulty allocator</td>
+<td><a
+href="theories/eris/examples/dynamic_vec.v">theories/eris/examples/dynamic_vec.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td>Non-amortized non-resizing hash</td>
+<td><a
+href="theories/eris/examples/hash.v">theories/eris/examples/hash.v</a></td>
+<td>Section <code>simple_bit_hash</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Example</td>
+<td>Amortized non-resizing hash</td>
+<td><a
+href="theories/eris/examples/hash.v">theories/eris/examples/hash.v</a></td>
+<td>Section <code>amortized_hash</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td>Amortized resizing hash</td>
+<td><a
+href="theories/eris/examples/cf_hash.v">theories/eris/examples/cf_hash.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Example</td>
+<td>Amortized resizing hash map</td>
+<td><a
+href="theories/eris/examples/cf_hashmap.v">theories/eris/examples/cf_hashmap.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td>Merkle trees</td>
+<td><a
+href="theories/eris/examples/merkle/merkle_tree.v">theories/eris/examples/merkle/merkle_tree.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Example</td>
+<td>Unreliable storage with merkle trees</td>
+<td><a
+href="theories/eris/examples/merkle/unreliable.v">theories/eris/examples/merkle/unreliable.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Theorem</td>
+<td>Total adequacy of Eris<sub>t</sub></td>
+<td><a
+href="theories/eris/total_adequacy.v">theories/eris/total_adequacy.v</a></td>
+<td><code>twp_tgl</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Theorem</td>
+<td>Almost sure termination (AST)</td>
+<td><a
+href="theories/eris/total_adequacy.v">theories/eris/total_adequacy.v</a></td>
+<td><code>twp_tgl_limit</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td>Rejection samplers</td>
+<td><a
+href="theories/eris/examples/approximate_samplers/approx_higherorder_rejection_sampler.v">theories/eris/examples/approximate_samplers/approx_higherorder_rejection_sampler.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+ALLOC-TAPE}\)</span></td>
+<td><a
+href="theories/eris/primitive_laws.v">theories/eris/primitive_laws.v</a></td>
+<td><code>wp_alloc_tape</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+LOAD-TAPE}\)</span></td>
+<td><a
+href="theories/eris/primitive_laws.v">theories/eris/primitive_laws.v</a></td>
+<td><code>wp_rand_tape</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+STORE-TAPE}\)</span></td>
+<td><a
+href="theories/eris/error_rules.v">theories/eris/error_rules.v</a></td>
+<td><code>wp_presample</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+PRESAMPLE-EXP}\)</span></td>
+<td><a
+href="theories/eris/error_rules.v">theories/eris/error_rules.v</a></td>
+<td><code>wp_presample_adv_comp</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+PRESAMPLE-PLANNER}\)</span></td>
+<td><a
+href="theories/eris/error_rules.v">theories/eris/error_rules.v</a></td>
+<td><code>presample_planner</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Example</td>
+<td>WalkSAT</td>
+<td><a
+href="theories/eris/examples/approximate_samplers/approx_walkSAT.v">theories/eris/examples/approximate_samplers/approx_walkSAT.v</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>6</td>
+<td>Definition</td>
+<td>Weakest precondition predicate</td>
+<td><a
+href="theories/eris/weakestpre.v">theories/eris/weakestpre.v</a></td>
+<td><code>pgl_wp_pre</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Definition</td>
+<td>Graded lifting modality, execUpTo</td>
+<td><a
+href="theories/eris/weakestpre.v">theories/eris/weakestpre.v</a></td>
+<td><code>glm_pre</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+UPTO-PRIM}\)</span></td>
+<td><a
+href="theories/eris/weakestpre.v">theories/eris/weakestpre.v</a></td>
+<td><code>glm_prim_step</code></td>
+<td></td>
+</tr>
+<tr class="even">
+<td></td>
+<td>Rule</td>
+<td><span class="math inline">\(\text{\scriptsize
+UPTO-EXP}\)</span></td>
+<td><a
+href="theories/eris/weakestpre.v">theories/eris/weakestpre.v</a></td>
+<td><code>glm_adv_comp</code></td>
+<td></td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>Theorem</td>
+<td>Limit WP adequacy</td>
+<td><a href="theories/eris/adequacy.v">theories/eris/adequacy.v</a></td>
+<td><code>wp_union_bound_lim</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
