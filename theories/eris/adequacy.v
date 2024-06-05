@@ -49,29 +49,29 @@ Section adequacy.
   Qed.
 
 
-  Lemma exec_ub_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
+  Lemma glm_erasure (e : expr) (σ : state) (n : nat) φ (ε : nonnegreal) :
     to_val e = None →
-    exec_ub e σ ε (λ '(e2, σ2) ε',
+    glm e σ ε (λ '(e2, σ2) ε',
         |={∅}▷=>^(S n) ⌜pgl (exec n (e2, σ2)) φ ε'⌝)
     ⊢ |={∅}▷=>^(S n) ⌜pgl (exec (S n) (e, σ)) φ ε⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
-    rewrite /exec_ub /exec_ub'.
+    rewrite /glm /glm'.
     set (Φ := (λ '((e1, σ1), ε''),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
                  ⌜pgl (exec (S n) (e1, σ1)) φ ε''⌝)%I) :
            prodO cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
-    set (F := (exec_ub_pre (λ '(e2, σ2) ε',
+    set (F := (glm_pre (λ '(e2, σ2) ε',
                    |={∅}▷=>^(S n) ⌜pgl (exec n (e2, σ2)) φ ε'⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       by iMod ("H" $! ((_, _)) with "Hfix [//]").
     }
     clear.
-    iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/exec_ub_pre.
+    iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
     iIntros " [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv".
     - iApply step_fupdN_mono.
       { apply pure_mono.
@@ -182,7 +182,7 @@ Section adequacy.
         iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
-          (exec_ub_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
+          (glm_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
              ⌜pgl (exec n (e2, σ2)) φ ε'⌝)%I
             with "[%] [] Hlift") as "H".
         { apply Rle_refl. }
@@ -193,33 +193,33 @@ Section adequacy.
         assert ((prim_step e σ) = (step (e, σ))) as h => //.
         rewrite h. clear h.
         rewrite -exec_Sn_not_final; [|eauto].
-        by iApply (exec_ub_erasure with "H").
+        by iApply (glm_erasure with "H").
   Qed.
 
   (** safety *)
-  Lemma exec_ub_erasure_safety (e : expr) (σ : state) (n : nat) (ε : nonnegreal) :
+  Lemma glm_erasure_safety (e : expr) (σ : state) (n : nat) (ε : nonnegreal) :
     to_val e = None →
-    exec_ub e σ ε (λ '(e2, σ2) ε',
+    glm e σ ε (λ '(e2, σ2) ε',
                      |={∅}▷=>^(S n) ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε'⌝)
     ⊢ |={∅}▷=>^(S n) ⌜SeriesC (iterM (S n) prim_step_or_val (e, σ)) >= 1 - ε⌝.
   Proof.
     iIntros (Hv) "Hexec".
     iAssert (⌜to_val e = None⌝)%I as "-#H"; [done|]. iRevert "Hexec H".
-    rewrite /exec_ub/exec_ub'.
+    rewrite /glm/glm'.
     set (Φ := (λ '((e1, σ1), ε''),
                 (⌜to_val e1 = None⌝ ={∅}▷=∗^(S n)
                  ⌜SeriesC (iterM (S n) prim_step_or_val (e1, σ1)) >= 1 - ε''⌝)%I) :
            prodO cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
     { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
-    set (F := (exec_ub_pre (λ '(e2, σ2) ε',
+    set (F := (glm_pre (λ '(e2, σ2) ε',
                    |={∅}▷=>^(S n) ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε'⌝)%I)).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix %".
       iMod ("H" $! ((_, _)) with "Hfix [//]"). done.
     }
     clear.
-    iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/exec_ub_pre.
+    iIntros "!#" ([[e1 σ1] ε'']). rewrite /Φ/F/glm_pre.
     iIntros " [ (%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)|H] %Hv".
     - iApply (step_fupdN_mono _ _ _ (⌜∀ ρ, R ρ -> SeriesC (iterM n prim_step_or_val ρ) >= 1 - (ε2 ρ)⌝)).
       { apply pure_mono.
@@ -431,7 +431,7 @@ Section adequacy.
         iMod ("Hwp" with "[$]") as "Hlift".
         iModIntro.
         iPoseProof
-          (exec_ub_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
+          (glm_mono _ (λ '(e2, σ2) ε', |={∅}▷=>^(S n)
              ⌜SeriesC (iterM n prim_step_or_val (e2, σ2)) >= 1 - ε'⌝)%I
             with "[%] [] Hlift") as "H".
         { apply Rle_refl. }
@@ -439,7 +439,7 @@ Section adequacy.
           iMod "H" as "(Hstate & Herr_auth & Hwp)".
           iMod ("IH" with "[$]") as "H".
           iModIntro. done. }
-        by iApply (exec_ub_erasure_safety with "H").
+        by iApply (glm_erasure_safety with "H").
   Qed.
 
 End adequacy.

@@ -294,7 +294,7 @@ Section adequacy.
     - iSpecialize ("H" $! σ ε with "[$]").
       iMod "H".
       iRevert (H).
-      iApply (exec_ub_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
+      iApply (glm_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
       iDestruct "H" as "[H|H]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".

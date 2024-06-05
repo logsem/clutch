@@ -13,17 +13,17 @@ Implicit Types e : expr Λ.
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
 
-Lemma twp_lift_head_step_exec_ub {E Φ} e1 s :
+Lemma twp_lift_head_step_glm {E Φ} e1 s :
   to_val e1 = None →
   (∀ σ1 ε1,
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
+    glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
       |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
   ⊢ WP e1 @ s; E [{ Φ }].
 Proof.
-  iIntros (?) "H". iApply twp_lift_step_fupd_exec_ub; [done|].
+  iIntros (?) "H". iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε1) "Hσε".
   iMod ("H" with "Hσε") as "[% H]"; iModIntro; auto.
 Qed.

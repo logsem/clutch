@@ -12,12 +12,12 @@ Section total_lifting.
   Implicit Types Φ : val Λ → iProp Σ.
   Local Open Scope R.
 
-  Lemma twp_lift_step_fupd_exec_ub E Φ e1 s :
+  Lemma twp_lift_step_fupd_glm E Φ e1 s :
   to_val e1 = None →
   (∀ σ1 ε1,
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
-    exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
+    glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
                       |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
   ⊢ WP e1 @ s; E [{ Φ }].
   Proof.
@@ -36,10 +36,10 @@ Section total_lifting.
   Proof.
     intros Hval.
     iIntros "H".
-    iApply twp_lift_step_fupd_exec_ub; [done|].
+    iApply twp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε1) "[Hσ Hε]".
     iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-    iApply (exec_ub_prim_step e1 σ1).
+    iApply (glm_prim_step e1 σ1).
     iExists _.
     iExists nnreal_zero.
     iExists ε1.

@@ -11,7 +11,7 @@ Definition ub_twp_pre `{!erisWpGS Λ Σ}
   | Some v => |={E}=> Φ v
   | None => ∀ σ1 ε1,
       state_interp σ1 ∗ err_interp ε1 ={E,∅}=∗
-      exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
+      glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
         |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ wp E e2 Φ)
 end%I.
 
@@ -24,7 +24,7 @@ Proof.
   iIntros (E e Φ) "Hwp". rewrite /ub_twp_pre.
   case_match; first done.
   iIntros (σ ε) "He". iMod ("Hwp" with "He") as "Hwp".
-  iModIntro. iApply (exec_ub_mono_pred with "[][$Hwp]").
+  iModIntro. iApply (glm_mono_pred with "[][$Hwp]").
   iIntros ([e' s] ε') "He".
   iApply (fupd_wand_l with "[H He]").
   iFrame. iIntros "[?[??]]". iFrame.
@@ -45,9 +45,9 @@ Proof.
   - intros wp Hwp n [[E1 e1] Φ1] [[E2 e2] Φ2]
       [[?%leibniz_equiv ?%leibniz_equiv] ?]; simplify_eq/=.
     rewrite /curry3 /ub_twp_pre. do 7 (f_equiv).
-    rewrite /exec_ub /exec_ub'.
+    rewrite /glm /glm'.
     f_equiv.
-    intros Φ e. unfold exec_ub_pre.
+    intros Φ e. unfold glm_pre.
     do 19 f_equiv.
     rewrite /exec_stutter. do 13 f_equiv. by apply pair_ne.
 Qed.
@@ -117,7 +117,7 @@ Section ub_twp.
       iIntros (σ ε) "[Hs He]".
       iMod ("H" with "[$]") as "H".
       iModIntro.
-      iApply (exec_ub_mono_pred with "[]H").
+      iApply (glm_mono_pred with "[]H").
       iIntros ([] []) "H".
       iMod "H". iModIntro. iDestruct "H" as "(?&?&H)".
       iFrame. iSplit.
@@ -144,7 +144,7 @@ Section ub_twp.
     iIntros (σ ε) "[Hs He]".
     iMod ("H" with "[$]") as "H".
     iModIntro.
-    iApply (exec_ub_mono_pred with "[]H").
+    iApply (glm_mono_pred with "[]H").
     iIntros ([] []) "H".
     iMod "H". iModIntro. iDestruct "H" as "(?&?&H)".
     iFrame. iApply "H". done.
@@ -166,7 +166,7 @@ Section ub_twp.
     iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
     iMod ("IH" with "[$Hs $He]") as "IH".
     iModIntro.
-    iApply (exec_ub_mono_pred with "[Hclose HΦ] IH").
+    iApply (glm_mono_pred with "[Hclose HΦ] IH").
     iIntros ([e' s] ε) "H".
     iMod "H". iMod "Hclose". iModIntro.
     iDestruct "H" as "[Hs[He Hk]]".
@@ -191,7 +191,7 @@ Section ub_twp.
     destruct (to_val e) as [v|] eqn:He.
     { by iDestruct "H" as ">>> $". }
     iIntros (σ1 ε) "[Hs He]". iMod "H". iMod ("H" $! σ1 ε with "[$Hs $He]") as "H".
-  iModIntro. iApply (exec_ub_strong_mono with "[][]H"); [done|].
+  iModIntro. iApply (glm_strong_mono with "[][]H"); [done|].
   iIntros (e2 σ2 ε2) "([%σ' %Hstep]&H)".
   iMod "H" as "(Hσ&Hε&Hwp)".
   rewrite !ub_twp_unfold /ub_twp_pre.
@@ -216,8 +216,8 @@ Section ub_twp.
     rewrite ub_twp_unfold /ub_twp_pre fill_not_val //.
     iIntros (σ1 ε1) "[Hσ Hε]". iMod ("IH" with "[$]") as "IH".
     iModIntro.
-    iApply exec_ub_bind; [done|].
-    iApply (exec_ub_mono with "[][HΦ][$]"); first done.
+    iApply glm_bind; [done|].
+    iApply (glm_mono with "[][HΦ][$]"); first done.
     iIntros ([e' σ] ε) "H".
     iMod "H". iModIntro. iDestruct "H" as "[?[?K]]".
     iFrame. by iApply "K".
@@ -229,7 +229,7 @@ Section ub_twp.
     rewrite ub_wp_unfold ub_twp_unfold /ub_wp_pre /ub_twp_pre. destruct (to_val e) as [v|]=>//=.
     iIntros (σ1 ε) "[Hσ Hε]". iMod ("H" with "[$Hσ $Hε]") as "H".
     iIntros "!>".
-    iApply exec_ub_mono_pred; last iFrame.
+    iApply glm_mono_pred; last iFrame.
     iIntros ([e' s'] ε').
     iIntros "H". iNext. iMod "H" as "[?[?H]]".
     iModIntro. iFrame. iApply "IH". done.

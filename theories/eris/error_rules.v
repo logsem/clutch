@@ -161,7 +161,7 @@ Lemma twp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ s :
   ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -169,7 +169,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)), _, _.
@@ -227,7 +227,7 @@ Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ s :
   ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -235,7 +235,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)),_,_.
@@ -293,7 +293,7 @@ Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -301,7 +301,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)),_,_.
@@ -358,7 +358,7 @@ Lemma twp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -366,7 +366,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)),_,_.
@@ -485,11 +485,11 @@ Lemma twp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N)
   [[{ € ε1 }]] rand #z @ E [[{ n, RET #n; € (ε2 n) }]].
 Proof.
   iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iApply exec_ub_adv_comp; simpl.
+  iApply glm_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
   rewrite Hε3.
   set (foo := (λ (ρ : expr * state),
@@ -1083,12 +1083,12 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       ⊢ WP e @ E [{ Φ }].
   Proof.
     iIntros (He) "(H𝛼&Hwp)".
-    iApply twp_lift_step_fupd_exec_ub; [done|].
+    iApply twp_lift_step_fupd_glm; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
-    iApply exec_ub_state_step.
+    iApply glm_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
@@ -1116,12 +1116,12 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He) "(>H𝛼&Hwp)".
-    iApply wp_lift_step_fupd_exec_ub; [done|].
+    iApply wp_lift_step_fupd_glm; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
-    iApply exec_ub_state_step.
+    iApply glm_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
@@ -1152,13 +1152,13 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       ⊢ WP e @ E [{ Φ }].
   Proof.
     iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)".
-    iApply twp_lift_step_fupd_exec_ub; [done|].
+    iApply twp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    iApply (exec_ub_state_adv_comp' α); simpl.
+    iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
       done. }
@@ -1328,13 +1328,13 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)".
-    iApply wp_lift_step_fupd_exec_ub; [done|].
+    iApply wp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    iApply (exec_ub_state_adv_comp' α); simpl.
+    iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
       done. }
@@ -1499,12 +1499,12 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     to_val e = None -> (forall σ, reducible (e, σ)) -> € nnreal_one ⊢ WP e @ E {{Φ}}.
   Proof.
     iIntros (H1 H2) "He".
-    iApply wp_lift_step_fupd_exec_ub; first done.
+    iApply wp_lift_step_fupd_glm; first done.
     iIntros (σ1 ε) "[Hσ Hε]".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε He ") as %Hle.
-    iApply exec_ub_prim_step.
+    iApply glm_prim_step.
     iExists (λ _, False), nnreal_one, nnreal_zero.
     iSplitR.
     { iPureIntro. eauto. }

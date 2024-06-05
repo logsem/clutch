@@ -21,11 +21,11 @@ Lemma wp_lift_head_step_fupd_couple {E Φ} e1 s :
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
     ⌜head_reducible e1 σ1⌝ ∗
-    exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
+    glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
       ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_exec_ub; [done|].
+  iIntros (?) "H". iApply wp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "Hσε".
   iMod ("H" with "Hσε") as "[% H]"; iModIntro; auto.
 Qed.
