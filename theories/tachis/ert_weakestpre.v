@@ -58,7 +58,7 @@ Section ERM.
            (∃ R (x1 : nonnegreal) (x2 : cfg Λ -> nonnegreal),
              ⌜ ∃ r, ∀ ρ, (x2 ρ <= r)%R ⌝ ∗
              ⌜ (x1 + SeriesC (λ σ2, (state_step σ1 α σ2) * x2 (e1, σ2)) <= x)%R ⌝ ∗
-             ⌜ub_lift (state_step σ1 α) R x1⌝ ∗
+             ⌜pgl (state_step σ1 α) R x1⌝ ∗
                  ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun x' => Φ ((e1, σ2), x')) (x2 (e1, σ2)))) *)
     )%I.
 
@@ -96,7 +96,7 @@ Section ERM.
            (∃ R (x1 : nonnegreal) (x2 : cfg Λ -> nonnegreal),
              ⌜ ∃ r, forall ρ, (x2 ρ <= r)%R ⌝ ∗
              ⌜ (x1 + SeriesC (λ σ2, (state_step σ1 α σ2) * x2 (e1, σ2)) <= x)%R ⌝ ∗
-             ⌜ub_lift (state_step σ1 α) R x1⌝ ∗
+             ⌜pgl (state_step σ1 α) R x1⌝ ∗
                  ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun x' => Φ ((e1, σ2), x')) (x2 (e1, σ2)))) *))
         %I.
   Proof. rewrite /ERM/ERM' least_fixpoint_unfold //. Qed.

@@ -12,9 +12,9 @@ Section metatheory.
 Local Open Scope R.
 
 (** * rand(N) no error *)
-Lemma ub_lift_rand_trivial N z σ1 :
+Lemma pgl_rand_trivial N z σ1 :
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1)) 0.
@@ -24,18 +24,18 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
-  { by apply ub_lift_trivial. }
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
+  { by apply pgl_trivial. }
   2,3: done.
   intros n ?.
-  apply ub_lift_dret.
+  apply pgl_dret.
   by exists n.
 Qed.
 
 (** * rand(N) error *)
-Lemma ub_lift_rand_err N z σ1 (m : fin (S N)):
+Lemma pgl_rand_err N z σ1 (m : fin (S N)):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         (n ≠ m)%fin /\ ρ2 = (Val #n, σ1)) (1/(N+1)).
@@ -45,10 +45,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -61,9 +61,9 @@ Proof.
 Qed.
 
 (* Same lemma holds for m an arbitrary natural *)
-Lemma ub_lift_rand_err_nat N z σ1 (m : nat):
+Lemma pgl_rand_err_nat N z σ1 (m : nat):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         (fin_to_nat n ≠ m)%fin /\ ρ2 = (Val #n, σ1)) (1/(N+1)).
@@ -73,10 +73,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err_nat. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -89,9 +89,9 @@ Proof.
 Qed.
 
 (* Generalization to lists *)
-Lemma ub_lift_rand_err_list_nat N z σ1 (ms : list nat):
+Lemma pgl_rand_err_list_nat N z σ1 (ms : list nat):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         Forall (λ m, (fin_to_nat n ≠ m)%fin) ms /\ ρ2 = (Val #n, σ1)) ((length ms)/(N+1)).
@@ -101,10 +101,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err_list_nat. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -116,9 +116,9 @@ Proof.
       lra.
 Qed.
 
-Lemma ub_lift_rand_err_list_int N z σ1 (ms : list Z):
+Lemma pgl_rand_err_list_int N z σ1 (ms : list Z):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         Forall (λ m, (Z.of_nat (fin_to_nat n) ≠ m)%fin) ms /\ ρ2 = (Val #n, σ1)) ((length ms)/(N+1)).
@@ -128,10 +128,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err_list_int. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -183,7 +183,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg ( nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
              = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -192,7 +192,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
        }
-      apply (ub_lift_rand_err (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -248,7 +248,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg (nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
              = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -257,7 +257,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
        }
-      apply (ub_lift_rand_err_nat (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err_nat (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -314,7 +314,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1)))
               = Rdiv (length ns) (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -323,7 +323,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
       }
-      apply (ub_lift_rand_err_list_nat (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err_list_nat (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -379,7 +379,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1)))
               = Rdiv (length zs) (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -388,7 +388,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
       }
-      apply (ub_lift_rand_err_list_int (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err_list_int (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -665,8 +665,8 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
-    - apply (ub_lift_rand_trivial (Z.to_nat z) z σ1); auto.
+    eapply pgl_mon_pred; last first.
+    - apply (pgl_rand_trivial (Z.to_nat z) z σ1); auto.
     - done.
   }
   iIntros (e2 σ2) "%H".
@@ -1051,14 +1051,14 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
 
   (** * Approximate Lifting *)
   
-  Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
+  Lemma pgl_state (N : nat) 𝜎 𝛼 ns :
     𝜎.(tapes) !! 𝛼 = Some (N; ns) →
-    ub_lift
+    pgl
       (state_step 𝜎 𝛼)
       (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
       nnreal_zero.
   Proof.
-    rewrite /ub_lift. intros Htapes.
+    rewrite /pgl. intros Htapes.
     apply Req_le_sym; simpl.
     rewrite /prob SeriesC_0; auto.
     intros 𝜎'.
@@ -1093,7 +1093,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
     iSplitR.
-    { iPureIntro. apply ub_lift_state, Hlookup. }
+    { iPureIntro. apply pgl_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
@@ -1126,7 +1126,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
     iSplitR.
-    { iPureIntro. apply ub_lift_state, Hlookup. }
+    { iPureIntro. apply pgl_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
@@ -1270,8 +1270,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iSplit.
     {
       iPureIntro.
-      eapply UB_mon_pred; last first.
-      - apply ub_lift_state. apply Hlookup.
+      eapply pgl_mon_pred; last first.
+      - apply pgl_state. apply Hlookup.
       - done.
     }
 
@@ -1446,8 +1446,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iSplit.
     {
       iPureIntro.
-      eapply UB_mon_pred; last first.
-      - apply ub_lift_state. apply Hlookup.
+      eapply pgl_mon_pred; last first.
+      - apply pgl_state. apply Hlookup.
       - done.
     }
 
@@ -1514,7 +1514,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       simpl. lra.
     }
     iSplitR.
-    { iPureIntro. unfold ub_lift. intros.
+    { iPureIntro. unfold pgl. intros.
       by epose proof prob_le_1 as K.
     }
     by iIntros (? Hfalse) "%".

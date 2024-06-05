@@ -54,7 +54,7 @@ Proof.
   { iPureIntro. simpl. lra. }
   iSplit.
   { iPureIntro.
-    eapply ub_lift_pos_R, ub_lift_trivial.
+    eapply pgl_pos_R, pgl_trivial.
     simpl; lra.
   }
   iIntros (e2 σ2 (?&?)).

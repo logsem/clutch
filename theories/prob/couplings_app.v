@@ -1201,10 +1201,10 @@ Proof.
 Qed.
 
 Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
-  ub_lift μ1 P ε ->
+  pgl μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.
-  rewrite /ub_lift /prob.
+  rewrite /pgl /prob.
   intros Hub f g Hf Hg Hfg.
   rewrite SeriesC_finite_foldr; simpl.
   rewrite dret_1_1; last done.
@@ -1243,9 +1243,9 @@ Qed.
 
 
 Lemma ARcoupl_to_UB `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (ε : R) :
-  ARcoupl μ1 μ2 (λ a _, P a) ε -> ub_lift μ1 P ε.
+  ARcoupl μ1 μ2 (λ a _, P a) ε -> pgl μ1 P ε.
 Proof.
-  rewrite /ARcoupl/ub_lift/prob.
+  rewrite /ARcoupl/pgl/prob.
   intros Har.
   eset (λ a:A, if bool_decide (P a) then 0 else 1) as f.
   eset (λ b:B, 0) as g.
@@ -1266,7 +1266,7 @@ Qed.
 
 Lemma up_to_bad_lhs `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
-  ub_lift μ1 P ε' ->
+  pgl μ1 P ε' ->
   ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
@@ -1313,7 +1313,7 @@ Qed.
 
 Lemma up_to_bad_rhs `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : B -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P b -> Q a b) ε ->
-  ub_lift μ2 P ε' ->
+  pgl μ2 P ε' ->
   ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.

@@ -1195,12 +1195,12 @@ Qed.
 Lemma walksat_limit Σ `{erisGpreS Σ} (N : nat) (HN : (0 < N)%nat) (σ : state) (f : formula N) (solution : list bool) :
   (formula_SAT N solution f = true) ->
   length solution = N ->
-  total_ub_lift (lim_exec (WalkSAT N f, σ))
+  tgl (lim_exec (WalkSAT N f, σ))
     (fun _ => True) (* Best we can do is prove it terminates? *)
     nnreal_zero.
 Proof.
   intros.
-  eapply twp_total_ub_lift_limit; first eapply H.
+  eapply twp_tgl_limit; first eapply H.
   intros.
   iStartProof.
   iIntros "Hcr".

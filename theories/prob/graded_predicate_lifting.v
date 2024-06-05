@@ -8,33 +8,33 @@ From clutch.prob Require Export countable_sum distribution.
 Open Scope R.
 
 (** TODO: decidablity should really just be a requirement on [f] and has to be threaded through all the
-    lemmas and definitions; nothing in [union_bounds] in itself needs classical reasoning. *)
+    lemmas and definitions; nothing in this file in itself needs classical reasoning. *)
 Existing Instance make_decision | 1000.
 
-Section union_bounds.
+Section partial_graded_lifting.
   Context `{Countable A, Countable B}.
   Context (μ1 : distr A) (μ2 : distr B) (f : A → Prop).
 
-  Definition ub_lift ε :=
+  Definition pgl ε :=
     prob μ1 (λ a, negb (bool_decide (f a))) <= ε.
 
-End union_bounds.
+End partial_graded_lifting.
 
-Section ub_theory.
+Section pgl_theory.
   Context `{Countable A, Countable B, Countable A'}.
 
-  Lemma UB_mon_grading (μ : distr A) (f : A → Prop) ε ε' :
-    ε <= ε' → ub_lift μ f ε → ub_lift μ f ε'.
+  Lemma pgl_mon_grading (μ : distr A) (f : A → Prop) ε ε' :
+    ε <= ε' → pgl μ f ε → pgl μ f ε'.
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hleq Hf.
     lra.
   Qed.
 
-  Lemma UB_mon_pred (μ : distr A) (f g : A → Prop) ε :
-    (∀ a, f a → g a) → ub_lift μ f ε → ub_lift μ g ε.
+  Lemma pgl_mon_pred (μ : distr A) (f g : A → Prop) ε :
+    (∀ a, f a → g a) → pgl μ f ε → pgl μ g ε.
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Himp Hf.
     etrans; last exact.
     apply SeriesC_le.
@@ -44,30 +44,30 @@ Section ub_theory.
     - by apply ex_seriesC_filter_bool_pos.
   Qed.
 
-  Lemma ub_nonneg_grad (μ : distr A) (f : A → Prop) ε :
-    ub_lift μ f ε → 0 <= ε.
+  Lemma pgl_nonneg_grad (μ : distr A) (f : A → Prop) ε :
+    pgl μ f ε → 0 <= ε.
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intro Hub.
     etrans; last exact.
     apply prob_ge_0.
   Qed.
 
-  Lemma ub_lift_dret (a : A) (f : A → Prop) :
-    f a → ub_lift (dret a) f 0.
+  Lemma pgl_dret (a : A) (f : A → Prop) :
+    f a → pgl (dret a) f 0.
   Proof.
     intros Hfa.
-    rewrite /ub_lift.
+    rewrite /pgl.
     rewrite prob_dret_false; [lra | ].
     rewrite /negb; auto. by case_bool_decide.
   Qed.
 
-  Lemma ub_lift_dbind (h : A → distr A')
+  Lemma pgl_dbind (h : A → distr A')
     (μ1 : distr A) (f : A → Prop) (g : A' → Prop) ε ε' :
     0 <= ε → 0 <= ε' →
-    (∀ a, f a → ub_lift (h a) g ε') → ub_lift μ1 f ε → ub_lift (dbind h μ1) g (ε + ε').
+    (∀ a, f a → pgl (h a) g ε') → pgl μ1 f ε → pgl (dbind h μ1) g (ε + ε').
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hε Hε' Hf Hμ1.
     rewrite prob_dbind.
     eassert
@@ -149,32 +149,32 @@ Section ub_theory.
         apply Rmult_le_compat_r; auto.
   Qed.
 
-  Lemma ub_lift_dbind_adv_aux (h : A → distr A')
+  Lemma pgl_dbind_adv_aux (h : A → distr A')
     (μ : distr A) (g : A' → Prop) (ε : A → R) :
     (∀ a, 0 <= ε a) →
     ex_seriesC (λ a, μ(a) * ε(a)) →
-    (∀ a, ub_lift (h a) g (ε a)) →
-    ub_lift (dbind h μ) g (SeriesC (λ a, μ(a) * ε(a))).
+    (∀ a, pgl (h a) g (ε a)) →
+    pgl (dbind h μ) g (SeriesC (λ a, μ(a) * ε(a))).
   Proof.
     intros Hε Hex Hg.
-    rewrite /ub_lift.
+    rewrite /pgl.
     rewrite prob_dbind.
-    rewrite /ub_lift in Hg.
+    rewrite /pgl in Hg.
     apply SeriesC_le; auto.
     intro n; split; [ | real_solver].
     apply Rmult_le_pos; auto.
     apply prob_ge_0.
   Qed.
 
-  Lemma ub_lift_dbind_adv (h : A → distr A')
+  Lemma pgl_dbind_adv (h : A → distr A')
     (μ : distr A) (f : A → Prop) (g : A' → Prop) (ε : R) (ε' : A → R) :
     (0 <= ε) →
     (exists r, forall a, 0 <= ε'(a) <= r) →
-    (∀ a, f a → ub_lift (h a) g (ε' a)) →
-    ub_lift μ f ε →
-    ub_lift (dbind h μ) g (ε + SeriesC (λ a, μ(a) * ε'(a))).
+    (∀ a, f a → pgl (h a) g (ε' a)) →
+    pgl μ f ε →
+    pgl (dbind h μ) g (ε + SeriesC (λ a, μ(a) * ε'(a))).
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hε (r & Hε') Hg Hf.
     assert (ex_seriesC (λ a, μ(a) * ε'(a))) as Hex.
     {
@@ -236,20 +236,20 @@ Section ub_theory.
       intros a; specialize (Hε' a); real_solver.
   Qed.
 
-  Lemma ub_lift_dzero (f : A → Prop) (ε : R) :
-    (ε >= 0) → ub_lift dzero f ε.
+  Lemma pgl_dzero (f : A → Prop) (ε : R) :
+    (ε >= 0) → pgl dzero f ε.
   Proof.
     intros Hpos.
-    rewrite /ub_lift.
+    rewrite /pgl.
     rewrite /prob.
     rewrite (SeriesC_ext _ (λ _, 0)); [rewrite SeriesC_0; auto; lra | ].
     intro n; case_bool_decide; simpl; auto.
   Qed.
 
-  Lemma ub_lift_pos_R (μ : distr A) (f : A → Prop) (ε : R) :
-    ub_lift μ f ε → ub_lift μ (λ a, f a ∧ μ a > 0) ε.
+  Lemma pgl_pos_R (μ : distr A) (f : A → Prop) (ε : R) :
+    pgl μ f ε → pgl μ (λ a, f a ∧ μ a > 0) ε.
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hμ.
     eset (Q := (λ a, orb (bool_decide (f a)) (bool_decide (μ a <= 0)))).
     apply (Rle_trans _ (prob μ (λ a : A, negb (Q a)))).
@@ -266,22 +266,22 @@ Section ub_theory.
       intros. repeat case_bool_decide; split; simpl; try lra; try done.
   Qed.
 
-  Lemma ub_lift_trivial (μ : distr A) (ε : R) :
-    (0 <= ε) → ub_lift μ (λ _, True) ε.
+  Lemma pgl_trivial (μ : distr A) (ε : R) :
+    (0 <= ε) → pgl μ (λ _, True) ε.
   Proof.
     intros Hμ.
-    rewrite /ub_lift /prob.
+    rewrite /pgl /prob.
     rewrite SeriesC_0; auto.
     intro x.
     by case_bool_decide.
   Qed.
 
-  Lemma ub_lift_and (μ : distr A) (f g : A → Prop) (ε1 ε2 : R) :
-    ub_lift μ f ε1 →
-    ub_lift μ g ε2 →
-    ub_lift μ (λ a, f a /\ g a) (ε1 + ε2).
+  Lemma pgl_and (μ : distr A) (f g : A → Prop) (ε1 ε2 : R) :
+    pgl μ f ε1 →
+    pgl μ g ε2 →
+    pgl μ (λ a, f a /\ g a) (ε1 + ε2).
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hf Hg.
     etrans; last apply Rplus_le_compat; try exact.
     rewrite -SeriesC_plus; [|apply ex_seriesC_filter_bool_pos|apply ex_seriesC_filter_bool_pos]; try done.
@@ -293,12 +293,12 @@ Section ub_theory.
     + apply ex_seriesC_plus; by apply ex_seriesC_filter_bool_pos.
   Qed.
 
-  Lemma ub_lift_ext (μ : distr A) (f g : A → Prop) ε :
+  Lemma pgl_ext (μ : distr A) (f g : A → Prop) ε :
     (∀ a, f a ↔ g a) →
-    ub_lift μ f ε →
-    ub_lift μ g ε.
+    pgl μ f ε →
+    pgl μ g ε.
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hequiv Hf.
     etrans; last exact.
     apply SeriesC_le; last by apply ex_seriesC_filter_bool_pos.
@@ -306,10 +306,10 @@ Section ub_theory.
     exfalso; naive_solver.
   Qed.
 
-  Lemma ub_lift_epsilon_limit `{Eq: EqDecision A} (μ : distr A) f ε':
-    ε'>=0 → (∀ ε, ε>ε' → ub_lift μ f ε) → ub_lift μ f ε'.
+  Lemma pgl_epsilon_limit `{Eq: EqDecision A} (μ : distr A) f ε':
+    ε'>=0 → (∀ ε, ε>ε' → pgl μ f ε) → pgl μ f ε'.
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     intros Hε' H'.
     intros. apply real_le_limit.
     intros ε Hε.
@@ -317,14 +317,14 @@ Section ub_theory.
     apply H'; first lra.
   Qed.
 
-End ub_theory.
+End pgl_theory.
 
 Section ub_instances.
 
   Lemma ub_unif_err (n : nat) (m : fin (S n)) :
-    ub_lift (dunifP n) (λ x, x <> m) (1/(n+1)).
+    pgl (dunifP n) (λ x, x <> m) (1/(n+1)).
   Proof.
-    rewrite /ub_lift /prob.
+    rewrite /pgl /prob.
     erewrite (SeriesC_split_elem _ m).
     - erewrite (SeriesC_ext _ (λ n0, if bool_decide (n0 = m) then dunifP n n0 else 0)); last first.
       + intros. simpl. repeat case_bool_decide; simpl; try lra; done.
@@ -343,9 +343,9 @@ Section ub_instances.
 
   (* More general version *)
   Lemma ub_unif_err_nat (n m : nat) :
-    ub_lift (dunifP n) (λ x, (fin_to_nat x <> m)) (1/(n+1)).
+    pgl (dunifP n) (λ x, (fin_to_nat x <> m)) (1/(n+1)).
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     rewrite /prob.
     destruct (le_lt_dec (S n) m) as [Hge | Hlt].
     - erewrite (SeriesC_ext _ (λ a, 0)); last first.
@@ -386,10 +386,10 @@ Section ub_instances.
 
   (* Lifting to ints *)
   Lemma ub_unif_err_int (n : nat) (m : Z) :
-    ub_lift (dunifP n) (λ x, (Z.of_nat (fin_to_nat x) <> m)) (1/(n+1)).
+    pgl (dunifP n) (λ x, (Z.of_nat (fin_to_nat x) <> m)) (1/(n+1)).
   Proof.
     destruct (Z.le_gt_cases 0 m) as [Hpos | Hneg].
-    - apply (ub_lift_ext _ (λ x : fin (S n), fin_to_nat x ≠ Z.to_nat m)); [ | apply ub_unif_err_nat ].
+    - apply (pgl_ext _ (λ x : fin (S n), fin_to_nat x ≠ Z.to_nat m)); [ | apply ub_unif_err_nat ].
       intro a; split; intro H.
       + zify.
         intro; simplify_eq.
@@ -399,7 +399,7 @@ Section ub_instances.
         intro; simplify_eq.
         destruct_or?;destruct_and?; [done | ].
         lia.
-    - apply (ub_lift_ext _ (λ x, True)); [ | apply ub_lift_trivial ].
+    - apply (pgl_ext _ (λ x, True)); [ | apply pgl_trivial ].
       + intro a; split; intro H; auto.
         zify; intro; simplify_eq; lia.
       + apply Rdiv_le_0_compat; [lra |].
@@ -410,11 +410,11 @@ Section ub_instances.
 
   (* Even more general version *)
   Lemma ub_unif_err_list_nat (n : nat) (l : list nat) :
-    ub_lift (dunifP n) (λ x, Forall (λ m, fin_to_nat x <> m) l) ((length l)/(n+1)).
+    pgl (dunifP n) (λ x, Forall (λ m, fin_to_nat x <> m) l) ((length l)/(n+1)).
   Proof.
     induction l.
     - simpl.
-      rewrite /ub_lift/prob.
+      rewrite /pgl/prob.
       erewrite (SeriesC_ext _ (λ a, 0)); last first.
       { intros p.
         case_bool_decide; simpl; try done.
@@ -430,18 +430,18 @@ Section ub_instances.
         rewrite S_INR Rplus_comm.
         auto.
       }
-      eapply ub_lift_ext.
+      eapply pgl_ext.
       + intro; symmetry; apply Forall_cons.
-      + apply ub_lift_and.
+      + apply pgl_and.
         * apply ub_unif_err_nat.
         * apply IHl.
   Qed.
 
 
   Lemma ub_unif_err_list_int (n : nat) (l : list Z) :
-    ub_lift (dunifP n) (λ x, Forall (λ m, Z.of_nat (fin_to_nat x) <> m) l) ((length l)/(n+1)).
+    pgl (dunifP n) (λ x, Forall (λ m, Z.of_nat (fin_to_nat x) <> m) l) ((length l)/(n+1)).
   Proof.
-    rewrite /ub_lift.
+    rewrite /pgl.
     induction l.
     - simpl.
       rewrite /prob.
@@ -460,32 +460,32 @@ Section ub_instances.
         rewrite S_INR Rplus_comm.
         auto.
       }
-      eapply ub_lift_ext.
+      eapply pgl_ext.
       + intro; symmetry; apply Forall_cons.
-      + apply ub_lift_and.
-        * eapply ub_lift_ext ; [ | eapply (ub_unif_err_int _ a) ]; auto.
+      + apply pgl_and.
+        * eapply pgl_ext ; [ | eapply (ub_unif_err_int _ a) ]; auto.
         * apply IHl.
   Qed.
 
 End ub_instances.
 
 
-Section total_union_bounds.
+Section total_graded_lifting.
   Context `{Countable A, Countable B}.
   Context (μ1 : distr A) (μ2 : distr B) (f : A → Prop).
 
-  Definition total_ub_lift ε :=
+  Definition tgl ε :=
     1-ε <= prob μ1 (λ a, (bool_decide (f a))).
 
-End total_union_bounds.
+End total_graded_lifting.
 
-Section total_ub_theory.
+Section tgl_theory.
   Context `{Countable A, Countable B, Countable A'}.
 
-  Lemma total_ub_lift_implies_ub_lift (μ : distr A) f ε:
-    total_ub_lift μ f ε → ub_lift μ f ε.
+  Lemma tgl_implies_pgl (μ : distr A) f ε:
+    tgl μ f ε → pgl μ f ε.
   Proof.
-    rewrite /total_ub_lift /ub_lift /prob.
+    rewrite /tgl /pgl /prob.
     intros Htotal.
     erewrite (SeriesC_ext _ (λ a, if bool_decide (f a) then 0 else pmf a)); last first.
     { intros. repeat case_bool_decide; simpl; done. }
@@ -499,10 +499,10 @@ Section total_ub_theory.
     - by apply Htotal.
   Qed.
 
-  Lemma total_ub_lift_implies_ub_lift_strong (μ : distr A) f ε:
-    total_ub_lift μ f ε → ub_lift μ f (ε - (1 - SeriesC μ)).
+  Lemma tgl_implies_pgl_strong (μ : distr A) f ε:
+    tgl μ f ε → pgl μ f (ε - (1 - SeriesC μ)).
   Proof.
-    rewrite /total_ub_lift /ub_lift /prob.
+    rewrite /tgl /pgl /prob.
     intros Htotal.
     erewrite (SeriesC_ext _ (λ a, if (bool_decide (f a)) then 0 else μ a)); last first.
     { intros. repeat case_bool_decide; by simpl. }
@@ -516,18 +516,18 @@ Section total_ub_theory.
     - by apply Htotal.
   Qed.
 
-  Lemma total_UB_mon_grading (μ : distr A) (f : A → Prop) ε ε' :
-    ε <= ε' → total_ub_lift μ f ε → total_ub_lift μ f ε'.
+  Lemma tgl_mon_grading (μ : distr A) (f : A → Prop) ε ε' :
+    ε <= ε' → tgl μ f ε → tgl μ f ε'.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros Hleq Hf.
     lra.
   Qed.
 
-  Lemma total_UB_mon_pred (μ : distr A) (f g : A → Prop) ε :
-    (∀ a, f a → g a) → total_ub_lift μ f ε → total_ub_lift μ g ε.
+  Lemma tgl_mon_pred (μ : distr A) (f g : A → Prop) ε :
+    (∀ a, f a → g a) → tgl μ f ε → tgl μ g ε.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros Himp Hf.
     etrans; first exact.
     rewrite /prob.
@@ -537,10 +537,10 @@ Section total_ub_theory.
     exfalso; naive_solver.
   Qed.
 
-  Lemma total_ub_nonneg_grad (μ : distr A) (f : A → Prop) ε :
-    total_ub_lift μ f ε → 0 <= ε.
+  Lemma tgl_nonneg_grad (μ : distr A) (f : A → Prop) ε :
+    tgl μ f ε → 0 <= ε.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intro Hub.
     set (P := (λ a : A, true)).
     assert (1-ε <= prob μ P).
@@ -550,33 +550,33 @@ Section total_ub_theory.
     lra.
   Qed.
 
-  Lemma totalub_lift_dret (a : A) (f : A → Prop) :
-    f a → total_ub_lift (dret a) f 0.
+  Lemma tgl_dret (a : A) (f : A → Prop) :
+    f a → tgl (dret a) f 0.
   Proof.
-    intros Hfa. rewrite /total_ub_lift.
+    intros Hfa. rewrite /tgl.
     rewrite prob_dret_true; [lra | ].
     by case_bool_decide.
   Qed.
 
-  Lemma total_ub_lift_dbind (h : A → distr A')
+  Lemma tgl_dbind (h : A → distr A')
     (μ1 : distr A) (f : A → Prop) (g : A' → Prop) ε ε' :
     0 <= ε → 0 <= ε' →
-    (∀ a, f a → total_ub_lift (h a) g ε') → total_ub_lift μ1 f ε → total_ub_lift (dbind h μ1) g (ε + ε').
+    (∀ a, f a → tgl (h a) g ε') → tgl μ1 f ε → tgl (dbind h μ1) g (ε + ε').
   Proof.
-    rewrite/total_ub_lift.
+    rewrite/tgl.
     (* Handle the (ε' > 1) case separately.
-       Can't apply total_ub_lift_ge_1 b/c A != A'
+       Can't apply tgl_ge_1 b/c A != A'
        This proof can probably be simplified? *)
     destruct (Rge_decision ε' 1).
     { intros ? ? ? ?.
-      rewrite /total_ub_lift.
+      rewrite /tgl.
       intros. trans 0.
       - lra.
       - apply prob_ge_0. }
     intros Hε Hε' Hf Hμ1.
     rewrite prob_dbind.
-    rewrite /total_ub_lift in Hf.
-    rewrite /total_ub_lift in Hμ1.
+    rewrite /tgl in Hf.
+    rewrite /tgl in Hμ1.
     eassert
       (SeriesC (λ a : A, if bool_decide (f a) then μ1 a * (1-ε') else 0) <=
          SeriesC (λ a : A, μ1 a * prob (h a) (λ a0 : A', bool_decide (g a0)))) as Haux.
@@ -608,12 +608,12 @@ Section total_ub_theory.
     intros; repeat case_bool_decide; done.
   Qed.
 
-  Lemma total_ub_lift_pos_R (μ : distr A) (f : A → Prop) (ε : R) :
-    total_ub_lift μ f ε → total_ub_lift μ (λ a, f a ∧ μ a > 0) ε.
+  Lemma tgl_pos_R (μ : distr A) (f : A → Prop) (ε : R) :
+    tgl μ f ε → tgl μ (λ a, f a ∧ μ a > 0) ε.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros Hμ.
-    rewrite /total_ub_lift in Hμ.
+    rewrite /tgl in Hμ.
     eset (Q := (λ a, orb (bool_decide (f a)) (bool_decide (μ a <= 0)))).
     apply (Rle_trans _ (prob μ Q)).
     - etrans; first exact. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
@@ -627,25 +627,25 @@ Section total_ub_theory.
         intro a; case_bool_decide; done.
   Qed.
 
-  Lemma total_ub_lift_ge_1 (μ : distr A) f ε:
+  Lemma tgl_ge_1 (μ : distr A) f ε:
     ε >= 1 →
-    total_ub_lift μ f ε.
+    tgl μ f ε.
   Proof.
     intros.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros. trans 0.
     - lra.
     - apply prob_ge_0.
   Qed.
 
-  Lemma total_ub_lift_and (μ : distr A) (f g : A → Prop) (ε1 ε2 : R) :
+  Lemma tgl_and (μ : distr A) (f g : A → Prop) (ε1 ε2 : R) :
     0 <= ε1 <= 1 → 0 <= ε2 <= 1 →
-    total_ub_lift μ f ε1 →
-    total_ub_lift μ g ε2 →
-    total_ub_lift μ (λ a, f a /\ g a) (ε1 + ε2).
+    tgl μ f ε1 →
+    tgl μ g ε2 →
+    tgl μ (λ a, f a /\ g a) (ε1 + ε2).
   Proof.
     intros Hf Hg.
-    rewrite /total_ub_lift. intros.
+    rewrite /tgl. intros.
     assert (1 - ε1 <= prob μ (λ x, bool_decide (f x))).
     { etrans; first exact. intros. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
       intros; repeat case_bool_decide; done. }
@@ -692,22 +692,22 @@ Section total_ub_theory.
       + apply ex_seriesC_scal_l. apply pmf_ex_seriesC.
   Qed.
 
-  Lemma total_ub_lift_ext (μ : distr A) (f g : A → Prop) ε :
+  Lemma tgl_ext (μ : distr A) (f g : A → Prop) ε :
     (∀ a, f a ↔ g a) →
-    total_ub_lift μ f ε →
-    total_ub_lift μ g ε.
+    tgl μ f ε →
+    tgl μ g ε.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros Hequiv Hf.
     etrans; first exact.
     apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
     intros; repeat case_bool_decide; naive_solver.
   Qed.
 
-  Lemma total_ub_lift_epsilon_limit `{Eq: EqDecision A} (μ : distr A) f ε':
-    ε'>=0 → (forall ε, ε>ε' → total_ub_lift μ f ε) → total_ub_lift μ f ε'.
+  Lemma tgl_epsilon_limit `{Eq: EqDecision A} (μ : distr A) f ε':
+    ε'>=0 → (forall ε, ε>ε' → tgl μ f ε) → tgl μ f ε'.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros Hε' H'.
     intros. apply real_le_limit.
     intros ε Hε.
@@ -716,10 +716,10 @@ Section total_ub_theory.
     etrans; last exact. lra.
   Qed.
 
-  Lemma total_ub_lift_termination_ineq (μ : distr A) f ε:
-    total_ub_lift μ f ε → 1 - ε <= SeriesC μ.
+  Lemma tgl_termination_ineq (μ : distr A) f ε:
+    tgl μ f ε → 1 - ε <= SeriesC μ.
   Proof.
-    rewrite /total_ub_lift.
+    rewrite /tgl.
     intros H2.
     trans (prob μ (λ x, bool_decide (f x))).
     - etrans; first exact. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
@@ -728,4 +728,4 @@ Section total_ub_theory.
       intros n; case_bool_decide; pose proof (pmf_pos (μ) n); lra.
   Qed.
 
-End total_ub_theory.
+End tgl_theory.

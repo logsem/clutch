@@ -40,7 +40,7 @@ Section exec_ub.
   Definition exec_stutter (P : nonnegreal -> iProp Σ) ε : iProp Σ :=
     (∃ R (ε1 ε2 : nonnegreal),
                   ⌜(ε1 + ε2 <= ε)%R ⌝ ∗
-                  ⌜total_ub_lift (dret tt) R ε1 ⌝ ∗
+                  ⌜tgl (dret tt) R ε1 ⌝ ∗
                   (⌜ R tt ⌝ -∗ P ε2))%I.
 
 
@@ -53,7 +53,7 @@ Section exec_ub.
     iSplitR; [iPureIntro; simpl; lra| ].
     iSplitR.
     { iPureIntro.
-      rewrite /total_ub_lift /=.
+      rewrite /tgl /=.
       rewrite prob_dret_true; [lra|case_bool_decide;done].
     }
     iFrame; eauto.
@@ -68,7 +68,7 @@ Section exec_ub.
     iSplitR; [iPureIntro; simpl; lra|].
     iSplitR.
     { iPureIntro.
-      rewrite /total_ub_lift /=.
+      rewrite /tgl /=.
       intros.
       eapply Rle_trans; [|eapply prob_ge_0].
       lra.
@@ -95,7 +95,7 @@ Section exec_ub.
     destruct (Rle_decision 1%R (nonneg ε)%R) as [Hdec|Hdec].
     { iLeft; iPureIntro. lra. }
     iRight.
-    rewrite /total_ub_lift in H0.
+    rewrite /tgl in H0.
     remember (λ a : (), bool_decide (R2 a)) as X.
     destruct (X ()) as [|] eqn:HX; simpl in *.
     - iApply ("Hmono" $!  ε2).
@@ -152,14 +152,14 @@ Section exec_ub.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
-          ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
+          ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))) ∨
       (* [state_step] with adv composition*)
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ σ2, (state_step σ1 α σ2) * ε2 (e1, σ2)) <= ε)%R ⌝ ∗
-          ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
+          ⌜pgl (state_step σ1 α) R ε1⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => Φ ((e1, σ2), ε')) (ε2 (e1, σ2)))))%I.
 
 
@@ -208,13 +208,13 @@ Section exec_ub.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗
-          ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
+          ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2))) ∨
       ([∨ list] α ∈ get_active σ1,
         (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
-          ⌜ub_lift (state_step σ1 α) R ε1⌝ ∗
+          ⌜pgl (state_step σ1 α) R ε1⌝ ∗
               ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => exec_ub e1 σ2 ε' Z) (ε2 (e1, σ2)))))%I.
   Proof. rewrite /exec_ub/exec_ub' least_fixpoint_unfold //. Qed.
 
@@ -284,7 +284,7 @@ Section exec_ub.
       iSplit; [done|].
       iSplit.
       { iPureIntro.
-        by apply ub_lift_pos_R. }
+        by apply pgl_pos_R. }
       iIntros (? ? (?&?)). iMod ("H" with "[//]").
       iModIntro.
       iApply (exec_stutter_mono_pred with "[HZ]"); [|eauto].
@@ -383,11 +383,11 @@ Section exec_ub.
       2:{ iPureIntro.
         rewrite <- Rplus_0_r.
         rewrite fill_dmap //=.
-        eapply (ub_lift_dbind _ _ R2).
-        - eapply ub_nonneg_grad; eauto.
+        eapply (pgl_dbind _ _ R2).
+        - eapply pgl_nonneg_grad; eauto.
         - lra.
         - intros [] ? =>/=.
-          apply ub_lift_dret.
+          apply pgl_dret.
           eauto.
         - auto.
        }
@@ -511,7 +511,7 @@ Section exec_ub.
 
 
   Lemma exec_ub_prim_step e1 σ1 Z ε :
-    (∃ R ε1 ε2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
+    (∃ R ε1 ε2, ⌜reducible (e1, σ1)⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
           ∀ e2 σ2 , ⌜R (e2, σ2)⌝ ={∅}=∗ Z (e2, σ2) ε2)
     ⊢ exec_ub e1 σ1 ε Z.
   Proof.
@@ -530,7 +530,7 @@ Section exec_ub.
       (∃ R (ε1 : nonnegreal) (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R ε1⌝ ∗
+          ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2) ⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2)))
     ⊢ exec_ub e1 σ1 ε Z.
   Proof.
@@ -549,7 +549,7 @@ Section exec_ub.
       (∃ R (ε2 : cfg Λ -> nonnegreal),
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜ub_lift (prim_step e1 σ1) R nnreal_zero⌝ ∗
+          ⌜ (SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) = ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R nnreal_zero⌝ ∗
             ∀ e2 σ2, ⌜ R (e2, σ2)⌝ ={∅}=∗ exec_stutter (fun ε' => Z (e2, σ2) ε') (ε2 (e2, σ2)))
     ⊢ exec_ub e1 σ1 ε Z.
   Proof.
@@ -569,7 +569,7 @@ Section exec_ub.
   (* TODO: Maybe allow weakening of the grading *)
   Lemma exec_ub_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
-    (∃ R, ⌜ub_lift (state_step σ1 α) R ε⌝ ∗
+    (∃ R, ⌜pgl (state_step σ1 α) R ε⌝ ∗
           ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ exec_ub e1 σ2 ε' Z)
     ⊢ exec_ub e1 σ1 (ε + ε') Z.
   Proof.
@@ -591,7 +591,7 @@ Section exec_ub.
      (∃ R (ε2 : cfg Λ -> nonnegreal),
         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
         ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 (e1, ρ)) <= ε)%R ⌝ ∗
-        ⌜ub_lift (state_step σ1 α) R nnreal_zero⌝ ∗
+        ⌜pgl (state_step σ1 α) R nnreal_zero⌝ ∗
         ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun ε' => exec_ub e1 σ2 ε' Z) (ε2 (e1, σ2)))
       ⊢ exec_ub e1 σ1 ε Z)%I.
   Proof.
@@ -686,7 +686,7 @@ Section exec_ub.
     Search "big_orL".
     iDestruct (big_orL_mono _ (λ n αs, |={∅}=> ⌜reducible (e1, σ1)⌝)%I  with "H") as "H".
       { iIntros (? α' ?%elem_of_list_lookup_2) "(%R2 & %ε1 & %ε2 & %Hleq & %Hub & H)".
-        eapply ub_lift_pos_R in Hub.
+        eapply pgl_pos_R in Hub.
         eapply Rcoupl_inhabited_l in Hcpl as (σ2 & [] & ? & ? & ?); last first.
         { rewrite state_step_mass //. lra. }
         iApply (pure_impl_1 (reducible e1 σ2)).
