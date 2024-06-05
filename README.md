@@ -1,21 +1,12 @@
-# Clutch Project
+# Eris
 
-This repository contains the formal development of multiple higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
-All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
+This is the artifact of the Eris logic, highlighted in the ICFP 2024 submission "Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs".
+[This table](eris_paper_mapping.md) maps definitions, rules and theorems from the paper to the Coq formalization.
 
-## Publications
+The logic is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
 
-[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2404.14223)<br>
-*Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.14223
+This project is built on top of the [Clutch](https://dl.acm.org/doi/10.1145/3632868) project. 
 
-[**Almost-Sure Termination by Guarded Refinement**](https://arxiv.org/abs/2404.08494) <br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.08494
-
-[**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
 
 ## Building the development
 
@@ -42,7 +33,7 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update
 ```
-4. Install the right version of the dependencies as specified in the `clutch.opam` file.
+4. Install the right version of the dependencies as specified in the `eris.opam` file.
 ```
 opam install . --deps-only
 ```
