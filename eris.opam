@@ -1,0 +1,17 @@
+opam-version: "2.0"
+name: "coq-eris"
+synopsis: "Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs"
+maintainer: "Anonymous"
+authors: "Anonymous"
+license: "MIT"
+build: [make "-j%{jobs}%"]
+install: []
+depends: [
+  "coq" { (>= "8.19" & < "8.20~") | (= "dev") }
+  "coq-iris" { (= "4.2.0") | (= "dev") }
+  "coq-stdpp" { (= "1.10.0") | (= "dev") }
+  "coq-coquelicot" { (= "3.4.1") }
+  "coq-autosubst" { (= "1.8") | (= "dev") }
+  "coq-mathcomp-ssreflect" { (= "2.2.0") }
+  "coq-mathcomp-solvable" { (= "2.2.0") }
+]
