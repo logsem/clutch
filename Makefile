@@ -42,6 +42,6 @@ clean:
 	rm -f .coqdeps.d
 
 zip:
-	git archive --prefix=icfp24-eris/ -o icfp24-eris.zip icfp24-eris
+	git archive -o coq-eris.zip HEAD
 
 .PHONY: clean zip
