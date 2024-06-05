@@ -204,13 +204,12 @@ href="https://opam.ocaml.org/doc/Install.html">opam</a>.</p>
 if not already installed (a version greater than 2.0 is required).</li>
 <li>Install a new switch and link it to the project.</li>
 </ol>
-<pre><code>opam switch create clutch 4.14.1
-opam switch link clutch .</code></pre>
+<pre><code>opam switch create eris 4.14.1
+opam switch link eris .</code></pre>
 <ol start="3" type="1">
 <li>Add the Coq and Iris <code>opam</code> repositories.</li>
 </ol>
 <pre><code>opam repo add coq-released https://coq.inria.fr/opam/released
-opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git
 opam update</code></pre>
 <ol start="4" type="1">
 <li>Install the right version of the dependencies as specified in the
