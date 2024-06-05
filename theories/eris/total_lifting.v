@@ -21,7 +21,7 @@ Section total_lifting.
                       |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E [{ Φ }]))
   ⊢ WP e1 @ s; E [{ Φ }].
   Proof.
-    by rewrite ub_twp_unfold /ub_twp_pre =>->.
+    by rewrite tgl_wp_unfold /tgl_wp_pre =>->.
   Qed.
 
   Lemma twp_lift_step_fupd E Φ e1 s :
@@ -109,7 +109,7 @@ Section total_lifting.
     iMod "Hclose" as "_". iModIntro. 
     destruct (to_val e2) eqn:?; last (simpl; by iExFalso).
     iFrame.
-    iApply ub_twp_value; last done. by apply of_to_val.
+    iApply tgl_wp_value; last done. by apply of_to_val.
   Qed.
 
   Lemma twp_lift_atomic_step {E Φ} e1 s :

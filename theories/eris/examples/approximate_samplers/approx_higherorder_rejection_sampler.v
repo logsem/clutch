@@ -70,7 +70,7 @@ Section safety.
       { iApply (ec_weaken with "Hcr"); rewrite /generic_geometric_error /=; lra. }
       iIntros (next_sample) "Hcheck_accept".
       wp_pures; wp_bind (checker next_sample)%E.
-      iApply (ub_twp_wand with "Hcheck_accept").
+      iApply (tgl_wp_wand with "Hcheck_accept").
       iIntros (?) "(#-> & ?)"; wp_pures.
       iModIntro; iFrame.
     - wp_pures.
@@ -79,11 +79,11 @@ Section safety.
       iApply ("Hamplify" $! (generic_geometric_error r εfinal (S depth')) with "Hcr").
       iIntros (next_sample) "[Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_accept").
+        iApply (tgl_wp_wand with "Hcheck_accept").
         iIntros (?) "(#-> & ?)"; wp_pures.
         iModIntro; iFrame.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_reject").
+        iApply (tgl_wp_wand with "Hcheck_reject").
         iIntros (?) "Hresult".
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").
@@ -120,11 +120,11 @@ Section safety.
       iApply ("Hamplify" $! (generic_geometric_error r nnreal_one (S depth')) with "Hcr").
       iIntros (next_sample) "[Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_accept").
+        iApply (tgl_wp_wand with "Hcheck_accept").
         iIntros (?) "(#-> & ?)"; wp_pures.
         iModIntro; iFrame.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_reject").
+        iApply (tgl_wp_wand with "Hcheck_reject").
         iIntros (?) "Hresult".
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").

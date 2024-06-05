@@ -271,14 +271,14 @@ Section adequacy.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
     iRevert (σ ε) "Hstate Herr".
-    pose proof (ub_twp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
+    pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
                                   state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H. iApply H.
     2: { destruct twp_default. done. }
     clear H e.
     iModIntro.
     iIntros (e) "H".
     iIntros (σ ε) "Hs Hec".
-    rewrite /ub_twp_pre.
+    rewrite /tgl_wp_pre.
     case_match.
     - iMod "H" as "%".
       iApply fupd_mask_intro; first done. iIntros "_".
@@ -421,7 +421,7 @@ Proof.
   eapply wp_pgl_lim; first done.
   intros H1.
   iIntros "Hε".
-  iApply ub_twp_ub_wp.
+  iApply tgl_wp_ub_wp.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Hε]" as "H".
   2:{ destruct twp_default. destruct wp_default. iExact "H". }
   by iApply H0.
@@ -475,7 +475,7 @@ Theorem twp_pgl_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonne
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros. eapply wp_pgl_epsilon_lim; first done.
-  intros. iStartProof. iIntros "Herr". iApply ub_twp_ub_wp.
+  intros. iStartProof. iIntros "Herr". iApply tgl_wp_ub_wp.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Herr]" as "K".
   2:{ destruct twp_default. destruct wp_default. done. }
   iApply (H0 with "[$]").

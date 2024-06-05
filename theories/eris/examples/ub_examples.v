@@ -52,7 +52,7 @@ Section test.
     ⊢ € (nnreal_half) -∗ WP (e' #2) @ E {{ φ }}.
   Proof.
     iIntros "Herr".
-    iApply ub_twp_ub_wp'.
+    iApply tgl_wp_ub_wp'.
     by iApply twp_e'_two.
   Qed.
 

@@ -41,9 +41,9 @@ Section incremental_spec.
       iIntros "%Hl".
       wp_pures.
       wp_bind (sampler _).
-      wp_apply (ub_twp_wand with "[Hfinal Hcr]"); first (iApply "Hfinal"; iFrame).
+      wp_apply (tgl_wp_wand with "[Hfinal Hcr]"); first (iApply "Hfinal"; iFrame).
       iIntros (s) "Hcheck"; wp_pures.
-      wp_apply (ub_twp_wand with "Hcheck").
+      wp_apply (tgl_wp_wand with "Hcheck").
       iIntros (v) "(-> & HΘ)"; wp_pures.
       eauto.
     - (* inductive case for error credits *)
@@ -52,28 +52,28 @@ Section incremental_spec.
       + (* base case for progress measure *)
         wp_pures.
         wp_bind (sampler _).
-        wp_apply (ub_twp_wand with "[Hfinal HΨ]"); first (iApply "Hfinal"; iFrame).
+        wp_apply (tgl_wp_wand with "[Hfinal HΨ]"); first (iApply "Hfinal"; iFrame).
         iIntros (s) "Hcheck"; wp_pures.
-        wp_apply (ub_twp_wand with "Hcheck").
+        wp_apply (tgl_wp_wand with "Hcheck").
         iIntros (v) "(-> & HΘ)"; wp_pures.
         eauto.
       + (* Inductive case for progress measure *)
         wp_pures.
         wp_bind (sampler _).
-        wp_apply (ub_twp_wand with "[Hamp Hcr HΨ]").
+        wp_apply (tgl_wp_wand with "[Hamp Hcr HΨ]").
         {  iApply "Hamp". iFrame; eauto. iPureIntro; split; try lia. }
         iIntros (s) "[Hluck | [(Hcr & Hcheck)| (%p'' & %Hp'' & Hcr & Hcheck)]]".
         * (* luck *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_twp_wand with "Hluck").
+          wp_apply (tgl_wp_wand with "Hluck").
           iIntros (?) "(-> & HΘ)".
           wp_pures.
           eauto.
         * (* progress *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_twp_wand with "Hcheck").
+          wp_apply (tgl_wp_wand with "Hcheck").
           iIntros (r) "[(-> & HΨ) | (-> & HΘ)]".
           -- (* not lucky: checker rejects *)
              wp_pure. iApply ("IHp" with "[] Hfinal Hcr HΨ").
@@ -83,7 +83,7 @@ Section incremental_spec.
         * (* amplification *)
           wp_pures.
           wp_bind (checker _).
-          wp_apply (ub_twp_wand with "Hcheck").
+          wp_apply (tgl_wp_wand with "Hcheck").
           iIntros (r) "[(-> & HΨ) | (-> & HΘ)]".
           -- (* not lucky: checker rejects *)
              assert (HiL' : (i' < iL)%nat) by lia.

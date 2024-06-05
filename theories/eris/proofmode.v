@@ -22,11 +22,11 @@ Next Obligation. intros. by apply wp_load. Qed.
 Next Obligation. intros. by apply wp_store. Qed.
 
 #[global] Program Instance rel_logic_twptactics_base `{!erisGS Σ} : GwpTacticsBase Σ unit twp.
-Next Obligation. intros. by apply ub_twp_value. Qed.
-Next Obligation. intros. by apply ub_twp_fupd. Qed.
+Next Obligation. intros. by apply tgl_wp_value. Qed.
+Next Obligation. intros. by apply tgl_wp_fupd. Qed.
 
 #[global] Program Instance rel_logic_twptactics_bind `{!erisGS Σ} : GwpTacticsBind Σ unit twp.
-Next Obligation. intros. by apply ub_twp_bind. Qed.
+Next Obligation. intros. by apply tgl_wp_bind. Qed.
 
 #[global] Program Instance rel_logic_twptactics_pure `{!erisGS Σ} : GwpTacticsPure Σ unit false twp.
 Next Obligation. intros. by eapply total_lifting.twp_pure_step_fupd. Qed.
