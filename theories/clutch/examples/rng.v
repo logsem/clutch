@@ -83,11 +83,6 @@ Section rng.
     Timeless (shash_rng n g).
   Proof. apply _. Qed.
 
-  (* TODO(Joe): these instances interfere in a bad way that I don't understand. *)
-  (*
-  Existing Instances timeless_hash_rng timeless_shash_rng.
-   *)
-
   Lemma wp_init_hash_rng E :
     {{{ True }}}
       init_hash_rng #() @ E
