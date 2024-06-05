@@ -460,7 +460,7 @@ Global Instance subG_erisGPreS {Σ} : subG erisΣ Σ → erisGpreS Σ.
 Proof. solve_inG. Qed.
 
 Theorem wp_pgl Σ `{erisGpreS Σ} (e : expr) (σ : state) n (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (exec n (e, σ)) φ ε.
 Proof.
   intros Hwp.
@@ -495,7 +495,7 @@ Proof.
 Qed.
 
 Theorem wp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros.
@@ -505,7 +505,7 @@ Proof.
 Qed.
 
 Theorem wp_pgl_epsilon_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ} (ε':nonnegreal), ε<ε' -> ⊢ € ε' -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{erisGS Σ} (ε':nonnegreal), ε<ε' -> ⊢ ↯ ε' -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros H'.
@@ -525,7 +525,7 @@ Proof.
 Qed.
 
 Theorem wp_safety Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC (pexec n (e, σ)) >= 1 - ε.
 Proof.
   intros Hwp.
@@ -602,7 +602,7 @@ Proof.
 Qed. 
 
 Corollary wp_safety' Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   probp (pexec n (e, σ)) (λ ρ, (is_final ρ \/ reducible ρ)) >= 1 - ε.
 Proof.
   eintros H'%wp_safety; last done.

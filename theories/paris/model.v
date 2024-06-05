@@ -77,11 +77,11 @@ Section semtypes.
     : iProp Σ :=
     (∀ K ε, ⤇ fill K e' -∗
           na_ownP E -∗
-          € ε -∗
+          ↯ ε -∗
           ⌜ (0 < ε)%R ⌝ -∗
           WP e {{ v, ∃ v' ε', ⤇ fill K (of_val v')
                                ∗ na_ownP ⊤
-                               ∗ € ε'
+                               ∗ ↯ ε'
                                ∗ ⌜ (0 < ε')%R ⌝
                                ∗ A v v' }})%I.
 

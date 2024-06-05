@@ -90,7 +90,7 @@ Section coll_free_hashmap.
 
   Lemma wp_hm_insert E hm ns (n : nat) :
     {{{ cf_hashmap_raw hm ns ∗
-          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
+          ↯ (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       insert_elem hm #n  @ E
     {{{ hm', RET hm';
           cf_hashmap_raw hm' (ns ∪ {[n]}) }}}.

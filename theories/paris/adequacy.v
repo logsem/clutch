@@ -218,7 +218,7 @@ Section adequacy.
 End adequacy.
 
 Theorem wp_aRcoupl Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) n (ε : nonnegreal) φ :
-  (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -290,7 +290,7 @@ Proof.
 Qed.
 
 Theorem wp_aRcoupl_lim Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ € ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros Hwp.
@@ -351,7 +351,7 @@ Proof.
 Qed.
 
 Theorem wp_ARcoupl_epsilon_lim Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{parisGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ ⤇ e' -∗ € ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
+  (∀ `{parisGS Σ} (ε' : nonnegreal), ε<ε' -> ⊢ ⤇ e' -∗ ↯ ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
   intros H'.

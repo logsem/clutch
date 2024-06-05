@@ -14,7 +14,7 @@ Section presampled_flip2.
 
   Lemma tapes_flip2_safe (ε : nonnegreal) E :
     0 < ε ->
-    ⊢ €ε -∗
+    ⊢ ↯ε -∗
       WP
         let: "α" := (alloc #(Z.succ 0)) in
         gen_rejection_sampler

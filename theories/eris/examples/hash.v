@@ -188,7 +188,7 @@ Section simple_bit_hash.
 
   Lemma wp_insert_no_coll E f m (n : nat) :
     m !! n = None →
-    {{{ coll_free_hashfun f m ∗ € (nnreal_div (nnreal_nat (length (map_to_list m))) (nnreal_nat(val_size+1)))
+    {{{ coll_free_hashfun f m ∗ ↯ (nnreal_div (nnreal_nat (length (map_to_list m))) (nnreal_nat(val_size+1)))
     }}}
       f #n @ E
     {{{ (v : nat), RET #v; coll_free_hashfun f (<[ n := v ]>m) }}}.
@@ -253,7 +253,7 @@ Section amortized_hash.
       hashfun val_size f m ∗
       ⌜k = size m⌝ ∗
       ⌜ (ε.(nonneg) = (((max_hash_size-1) * k)/2 - sum_n_m (λ x, INR x) 0%nat (k-1)) / (val_size + 1))%R⌝ ∗
-      € ε 
+      ↯ ε
   .
 
   Definition coll_free_hashfun_amortized f m: iProp Σ :=
@@ -381,14 +381,14 @@ Section amortized_hash.
   Lemma wp_insert_new_amortized E f m (n : nat) :
     m !! n = None →
     (size m < max_hash_size)%nat ->
-    {{{ coll_free_hashfun_amortized f m ∗ € amortized_error }}}
+    {{{ coll_free_hashfun_amortized f m ∗ ↯ amortized_error }}}
       f #n @ E
       {{{ (v : nat), RET #v; coll_free_hashfun_amortized f (<[ n := v ]>m) }}}.
   Proof.
     iIntros (Hlookup Hsize Φ) "([Hhash %Hcoll_free] & Herr) HΦ".
     iDestruct "Hhash" as (k ε) "(H&->&%H0&Herr')".
-    iAssert (€ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗
-             € (mknonnegreal (((max_hash_size-1) * size (<[n:=0%nat]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%nat]> m) - 1)) / (val_size + 1)) _ )
+    iAssert (↯ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗
+             ↯ (mknonnegreal (((max_hash_size-1) * size (<[n:=0%nat]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%nat]> m) - 1)) / (val_size + 1)) _ )
             )%I with "[Herr Herr']" as "[Hε Herr]".
     - iApply ec_split. 
       iCombine "Herr Herr'" as "H".
@@ -451,7 +451,7 @@ Section amortized_hash.
 
   Lemma wp_insert_amortized E f m (n : nat) :
     (size m < max_hash_size)%nat ->
-    {{{ coll_free_hashfun_amortized f m ∗ € amortized_error }}}
+    {{{ coll_free_hashfun_amortized f m ∗ ↯ amortized_error }}}
       f #n @ E
       {{{ (v : nat), RET #v; ∃ m', coll_free_hashfun_amortized f m' ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= S $ size(m))%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
   Proof.

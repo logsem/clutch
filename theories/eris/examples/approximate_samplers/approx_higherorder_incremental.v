@@ -11,23 +11,23 @@ Section incremental_spec.
   Definition incr_sampling_scheme_spec (sampler checker : val) (Ψ : nat -> iProp Σ) (ξ : nat -> nonnegreal) L iL E Θ : iProp Σ :=
     ( (* Either 0 credit or 0 progress => we will sample a value which the checker accepts
          Allowed to consume (or invalidate Ψ) in this process *)
-      ((€ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E [{ fun s => WP checker (Val s) @ E [{fun v => ⌜v = #true⌝ ∗ Θ s }] }]) ∗
+      ((↯ (ξ 0%nat) ∨ Ψ 0%nat) -∗ WP sampler #() @ E [{ fun s => WP checker (Val s) @ E [{fun v => ⌜v = #true⌝ ∗ Θ s }] }]) ∗
       (* Given any amount of credit and progress, we can get a sample such that... *)
-     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ ⌜(i <= iL)%nat ⌝ ∗ € (ξ (S i)) ∗ Ψ (S p)) -∗
+     □ (∀ i p, (⌜((S p) <= L)%nat ⌝ ∗ ⌜(i <= iL)%nat ⌝ ∗ ↯ (ξ (S i)) ∗ Ψ (S p)) -∗
             WP sampler #() @ E [{ fun s =>
                    (*...we're done by chance alone, or... *)
                   (WP checker (Val s) @ E [{fun v => ⌜v = #true⌝ ∗ (Θ s)}]) ∨
                    (*... we make prgress, and can run the checker on the sample without losing progress, or *)
-                  (€ (ξ (S i)) ∗ WP checker (Val s) @ E [{fun v => ((⌜v = #false⌝ ∗ Ψ p) ∨ (⌜v = #true⌝ ∗ Θ s))}]) ∨
+                  (↯ (ξ (S i)) ∗ WP checker (Val s) @ E [{fun v => ((⌜v = #false⌝ ∗ Ψ p) ∨ (⌜v = #true⌝ ∗ Θ s))}]) ∨
                    (*... we lose progress & amplify error, and can run the checker on the sample without losing progress. *)
-                  (∃ p', ⌜(p' <= L)%nat ⌝ ∗ € (ξ i) ∗ WP checker (Val s) @ E [{fun v => ((⌜v = #false⌝ ∗ Ψ p') ∨ (⌜v = #true⌝ ∗ Θ s))}])}]))%I.
+                  (∃ p', ⌜(p' <= L)%nat ⌝ ∗ ↯ (ξ i) ∗ WP checker (Val s) @ E [{fun v => ((⌜v = #false⌝ ∗ Ψ p') ∨ (⌜v = #true⌝ ∗ Θ s))}])}]))%I.
 
 
   Lemma ho_incremental_ubdd_approx_safe (sampler checker : val) Ψ ξ L E i iL p Θ :
     ⊢ ⌜(p <= L)%nat ⌝ ∗
       ⌜(i < iL)%nat ⌝ ∗
     incr_sampling_scheme_spec sampler checker Ψ ξ L iL E Θ ∗
-    € (ξ i) ∗
+    ↯ (ξ i) ∗
     Ψ p -∗
     WP (gen_rejection_sampler sampler checker) @ E [{ fun v => Θ v }].
   Proof.

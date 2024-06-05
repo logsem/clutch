@@ -523,8 +523,8 @@ Section higherorder_walkSAT.
   Program Definition εInv ε0 : nat -> nonnegreal
     := fun p => εR 2         (* amplifying against samples of (S 2) = 3 *)
                  N         (* bound on number of correct samples we need *)
-                 (N - p)   (* worst case progress is N, in which case we need €ε0. *)
-                           (* best case progress is 0, in which case we need €0 *)
+                 (N - p)   (* worst case progress is N, in which case we need ↯ε0. *)
+                           (* best case progress is 0, in which case we need ↯0 *)
                  ε0        (* starting amount of credit given to the amplifier *)
                  _.
   Next Obligation. intros. constructor; try lia. constructor; lia. Qed.
@@ -548,7 +548,7 @@ Section higherorder_walkSAT.
   (* This value is up (1/εExcess...)*)
   (* Doing this in a super annoying way because I can't find a good way to round numbers
      that works well with the INR/IZR coercions *)
-  Lemma initial_progress : ⊢ ∀ ε0, ∃ i, |==> € (εProgress ε0 i).
+  Lemma initial_progress : ⊢ ∀ ε0, ∃ i, |==> ↯ (εProgress ε0 i).
   Proof.
     iIntros (ε0).
     iExists (Z.to_nat (up _)).
@@ -592,16 +592,16 @@ Section higherorder_walkSAT.
   Lemma resample_amplify (c : clause) (target : fin 3) (m : list bool) (l: loc) ε0 p (Hp : ((S p) <= length m)%nat) (asn : val) E :
     inv_asn m asn ->
     ⊢ (l ↦ asn -∗
-       € (εInv ε0 (S p)) -∗
+       ↯ (εInv ε0 (S p)) -∗
        WP (resample_clause c #l)%E @ E
          [{ fun _ =>
               ∃ asn' m', (l ↦ asn') ∗
                          ⌜inv_asn m' asn' ⌝ ∗
                          ( (* Flips the target variable and loses some credit, or... *)
-                           ( € (εInv ε0 p) ∗
+                           ( ↯ (εInv ε0 p) ∗
                             ⌜m' = (<[(fVar_index (proj_clause_value c target)) := negb (m !!! (fVar_index (proj_clause_value c target)))]> m)⌝) ∨
                             (* ...obtains the amplified credit *)
-                            (€ (εAmplified ε0)))}])%I.
+                            (↯ (εAmplified ε0)))}])%I.
   Proof.
     iIntros (Hinv) "Hl Hε".
     Opaque update_asn.
@@ -795,11 +795,11 @@ Section higherorder_walkSAT.
        ⌜formula_SAT m f = false ⌝ -∗
        ⌜ inv_asn m asn ⌝ -∗
        l ↦ asn -∗
-       € (εInv ε (S p)) -∗
+       ↯ (εInv ε (S p)) -∗
        (WP ((Val (sampler f)) #l) @ E
           [{ λ v', ∃ asn' m', l ↦ asn' ∗ ⌜ inv_asn m' asn' ⌝ ∗
-                      ((⌜(progress_measure f m' solution < progress_measure f m solution)%nat ⌝ ∗ €(εInv ε p)) ∨
-                       (€ (εAmplified ε)) )}]))%I.
+                      ((⌜(progress_measure f m' solution < progress_measure f m solution)%nat ⌝ ∗ ↯(εInv ε p)) ∨
+                       (↯ (εAmplified ε)) )}]))%I.
     Proof.
       iIntros "%Hp %Hsol_len %Hsol %Hm %Hinv Hl Hε".
       destruct (find_progress _ _ Hm) as [f1 [f2 [c (-> & Hf1 & Hc)]]].
@@ -884,7 +884,7 @@ Section higherorder_walkSAT.
   Definition iProgress ε (l : loc) solution f : nat -> iProp Σ :=
           (fun n => ∃ asn m,
                       (l ↦ asn ∗
-                       € (εInv ε n) ∗
+                       ↯ (εInv ε n) ∗
                       ⌜ inv_asn m asn ⌝ ∗
                       ⌜(progress_measure f m solution <= n)%nat⌝))%I.
 
@@ -920,7 +920,7 @@ Section higherorder_walkSAT.
     rewrite /incr_sampling_scheme_spec.
     iSplit.
     - iIntros "[Hcr | [%asn [%m (Hl & Hcr & %Hinv & %Hp)]]]".
-      + (* € 1 case: spend *)
+      + (* ↯ 1 case: spend *)
         iApply (twp_ec_spend with "Hcr"); [|auto].
         apply final_progress.
       + (* Ψ 0 case *)
@@ -991,12 +991,12 @@ Section higherorder_walkSAT.
           iExists N.
           iSplitR; eauto.
           (* Transfer the amplfied credits between the invariants *)
-          iAssert (€ (εInv ε N) ∗ € (pos_to_nn (εExcess ε)) )%I with "[Hamp]" as "[Hinv Hexcess]".
+          iAssert (↯ (εInv ε N) ∗ ↯ (pos_to_nn (εExcess ε)) )%I with "[Hamp]" as "[Hinv Hexcess]".
           { iApply ec_split.
             iApply (ec_spend_le_irrel with "Hamp").
             apply εAmp_excess. }
-          iAssert (€ (εProgress ε i)) with "[Hε Hexcess]" as "Hε".
-          { iAssert (€ (εProgress ε (S i) + pos_to_nn (εExcess ε))%NNR) with "[Hε Hexcess]" as "Hε".
+          iAssert (↯ (εProgress ε i)) with "[Hε Hexcess]" as "Hε".
+          { iAssert (↯ (εProgress ε (S i) + pos_to_nn (εExcess ε))%NNR) with "[Hε Hexcess]" as "Hε".
             { iApply ec_split; iFrame. }
             iApply ec_spend_le_irrel; [|iFrame].
             Opaque INR.
@@ -1040,7 +1040,7 @@ Section higherorder_walkSAT.
      let: "_" := (gen_rejection_sampler (λ: "_", (sampler f) "l") (λ: "_", (checker f) "l")) in
      "l")%E.
 
-  Lemma initial_credit (ε : nonnegreal) Hpos : ⊢ € ε -∗ € (εInv (mkposreal (nonneg ε) Hpos) N).
+  Lemma initial_credit (ε : nonnegreal) Hpos : ⊢ ↯ ε -∗ ↯ (εInv (mkposreal (nonneg ε) Hpos) N).
   Proof.
     iIntros.
     rewrite /εInv.
@@ -1056,7 +1056,7 @@ Section higherorder_walkSAT.
        ⌜length solution = N ⌝ -∗
        ⌜(length f > 0)%nat ⌝ -∗
        ⌜(0 < ε)%R⌝ -∗
-       € ε -∗
+       ↯ ε -∗
       WP (WalkSAT f) @ E [{ fun v => ∃ (l : loc) a asn , ⌜v = #l ⌝ ∗ (l ↦ asn) ∗ ⌜inv_asn a asn ⌝ ∗ ⌜formula_SAT a f ⌝ }])%I.
   Proof.
     iIntros "%HF %Hlens %Hlenf %Hε Hcr".
@@ -1143,7 +1143,7 @@ Section higherorder_walkSAT.
     ⊢ (⌜formula_SAT solution f = true ⌝ -∗
        ⌜length solution = N ⌝ -∗
        ⌜(0 < ε)%R⌝ -∗
-       € ε -∗
+       ↯ ε -∗
       WP (WalkSAT f) @ E [{ fun v => ∃ (l : loc) a asn , ⌜v = #l ⌝ ∗ (l ↦ asn) ∗ ⌜inv_asn a asn ⌝ ∗ ⌜formula_SAT a f ⌝ }])%I.
   Proof.
     iIntros "% % % ?".

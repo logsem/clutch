@@ -15,19 +15,19 @@ Section faulty_allocator.
   Definition extend_spec (f : val) :=
     forall (n : nat) l (vs : list val),
       (0 < n)%Z →
-      {{{ € (nnreal_mult (nnreal_nat n) ε) ∗ ▷ l ↦∗ vs }}} f (Val $ LitV $ LitInt $ n) #l
+      {{{ ↯ (nnreal_mult (nnreal_nat n) ε) ∗ ▷ l ↦∗ vs }}} f (Val $ LitV $ LitInt $ n) #l
       {{{ l', RET #l';
           l' ↦∗ (vs ++ (replicate (Z.to_nat n) #())) }}}.
 
   Definition store_spec (f : val) :=
     forall (l : loc) (off : nat) (vs : list val) (v : val),
       is_Some (vs !! off) →
-      {{{ € ε ∗ l ↦∗ vs }}} f #l #off v {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
+      {{{ ↯ ε ∗ l ↦∗ vs }}} f #l #off v {{{ RET #(); l ↦∗ <[off:=v]> vs }}}.
 
   Definition load_spec (f : val) :=
     forall (l : loc) (off : nat) (vs : list val) (v : val),
     vs !! off = Some v →
-  {{{ € ε ∗ l ↦∗ vs }}} f #l {{{ RET v; l ↦∗ vs }}}.
+  {{{ ↯ ε ∗ l ↦∗ vs }}} f #l {{{ RET v; l ↦∗ vs }}}.
 
 
 
@@ -45,7 +45,7 @@ Section faulty_allocator.
     ∃ (l : loc) (sval rval : nat) xs p,
       ⌜ vec = ( #l, #sval, #rval )%V ⌝ ∗
       (* The potential of error credits *)
-      € p ∗
+      ↯ p ∗
       l ↦∗ (vs ++ xs) ∗
       ⌜ sval < rval ⌝ ∗
       ⌜ sval = (length vs) ⌝ ∗
@@ -61,7 +61,7 @@ Section faulty_allocator.
   Lemma wp_push_back vs ext str (vec v : val) :
     extend_spec ext ->
     store_spec str ->
-    {{{ vec_spec vec vs ∗ € (nnreal_mult (nnreal_nat 3) ε) }}}
+    {{{ vec_spec vec vs ∗ ↯ (nnreal_mult (nnreal_nat 3) ε) }}}
       vec_push_back ext str vec v
     {{{ vec', RET vec' ; vec_spec vec' (vs ++ (cons v nil)) }}}.
   Proof.

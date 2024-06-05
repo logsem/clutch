@@ -129,7 +129,7 @@ Section coll_free_hash.
       (* The current internals of the hash function *)
       ⌜ hf = (#lm, #vsval, #sval, #rval)%V ⌝ ∗
       (* The reserve of error credits *)
-      € ε ∗
+      ↯ ε ∗
       ⌜ 0 < vsval ⌝ ∗
       (* The ratio between the threshold and the size of the sample space
          is kept constant *)
@@ -397,13 +397,13 @@ Section coll_free_hash.
   Lemma cf_update_potential (vsval sval rval : nat) ε :
     (sval + 1 < rval)%nat ->
     ( 0 < vsval) ->
-      € ε -∗
+      ↯ ε -∗
       ⌜ (ε + (rval - sval)*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/vsval) sval (rval - 1))%R ⌝%I -∗
-      € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
+      ↯ (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
       ∃ (ε' : nonnegreal),
-      (€ ε' ∗
-      € (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
+      (↯ ε' ∗
+      ↯ (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
       ⌜(ε' + (rval - (sval + 1))*(3 * init_r)/(4 *init_val_size) >=
           sum_n_m (λ x, x/vsval) (sval + 1) (rval - 1))%R ⌝.
   Proof.
@@ -443,12 +443,12 @@ Section coll_free_hash.
   Lemma cf_update_potential_resize (vsval sval rval : nat) ε :
     (sval + 1 = rval)%nat ->
     ( 0 < vsval) ->
-      € ε -∗
+      ↯ ε -∗
       ⌜ (rval / vsval = init_r / init_val_size)%R ⌝ -∗
       ⌜ (ε + (3 * init_r)/(4 * init_val_size) >= ((rval - 1)/vsval))%R ⌝%I -∗
-      € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
-      (€ nnreal_zero ∗
-      € (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
+      ↯ (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) -∗
+      (↯ nnreal_zero ∗
+      ↯ (nnreal_div (nnreal_nat sval) (nnreal_nat vsval))) ∗
       ⌜((2 * rval - (sval + 1))*(3 * init_r)/(4 * init_val_size) >=
           sum_n_m (λ x, x/(2*vsval)) (sval + 1) (2*rval - 1))%R ⌝.
   Proof.
@@ -485,7 +485,7 @@ Section coll_free_hash.
 
 
   (* The spec for a non-resizing insertion.
-     If we have a collision free hash, and we get € (3 * init_r) / (4 * init_val_size)
+     If we have a collision free hash, and we get ↯ (3 * init_r) / (4 * init_val_size)
      then we return a collision free hash, with enough credits in the reserve to pay
      for future insertions *)
 
@@ -495,7 +495,7 @@ Section coll_free_hash.
     0 < vsval ->
     (sval + 1 < rval)%nat ->
     {{{ cf_hashfun_raw f m vsval sval rval ∗
-          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
+          ↯ (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       compute_cf_hash f #n @ E
     {{{ (v : nat) (f' : val), RET (#v, f')%V;
         ⌜ v < vsval ⌝ ∗ ⌜ v ∉ (@map_img _ _ _ _ (gset nat) _ _ _ m) ⌝ ∗
@@ -620,7 +620,7 @@ Section coll_free_hash.
 
   (* The spec for a resizing insertion.
      If we have a collision free hash that is one insertion away from the threshold,
-     and we get € (3 * init_r) / (4 * init_val_size) then we return a collision free hash
+     and we get ↯ (3 * init_r) / (4 * init_val_size) then we return a collision free hash
      with updated sizes and threshold, and an empty credit reserve  *)
 
   Lemma wp_insert_no_coll_resize E f m (vsval sval rval: nat) (n : nat) :
@@ -628,7 +628,7 @@ Section coll_free_hash.
     0 < vsval ->
     (sval + 1 = rval)%nat ->
     {{{ cf_hashfun_raw f m vsval sval rval ∗
-          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
+          ↯ (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size))) }}}
       compute_cf_hash f #n @ E
     {{{ (v : nat) (f' : val), RET (#v, f');
         ⌜ v < vsval ⌝ ∗ ⌜ v ∉ (@map_img _ _ _ _ (gset nat) _ _ _ m) ⌝ ∗
@@ -822,7 +822,7 @@ Section coll_free_hash.
   Lemma wp_hf_lookup_none E f m (n : nat) :
     m !! n = None →
     {{{ cf_hashfun f m ∗
-          € (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size)))}}}
+          ↯ (nnreal_div (nnreal_nat (3 * init_r)) (nnreal_nat(4 * init_val_size)))}}}
       compute_cf_hash f #n @ E
       {{{ (v : nat) (f' : val), RET (#v, f'); cf_hashfun f' (<[ n := v ]>m)  }}}.
   Proof.

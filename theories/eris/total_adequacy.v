@@ -377,7 +377,7 @@ End adequacy.
 
 
 Theorem twp_tgl Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   tgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros Hwp.
@@ -404,7 +404,7 @@ Proof.
 Qed.
 
 Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
   intros Hwp.
@@ -414,7 +414,7 @@ Qed.
 
 
 Theorem twp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros.
@@ -430,7 +430,7 @@ Qed.
 (** limit rules *)
 
 Theorem twp_tgl_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   tgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros H'. rewrite /tgl.
@@ -451,7 +451,7 @@ Proof.
 Qed.
 
 Theorem twp_mass_lim_exec_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
   intros H'.
@@ -471,7 +471,7 @@ Proof.
 Qed.
 
 Theorem twp_pgl_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  (∀ `{erisGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros. eapply wp_pgl_epsilon_lim; first done.

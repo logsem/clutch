@@ -51,7 +51,7 @@ Section rejection_sampler.
 
   Lemma wp_rejection_simpl:
     ⤇ simpl_sampler_prog_annotated #() -∗
-    € (0%NNR) -∗ WP rejection_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
+    ↯ (0%NNR) -∗ WP rejection_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
     iIntros "Hspec Herr".
     rewrite /simpl_sampler_prog_annotated /rejection_sampler_prog_annotated.
@@ -90,10 +90,10 @@ Section rejection_sampler.
   Lemma wp_simpl_rejection_ind_aux (ε:nonnegreal) α αₛ:
     (0%NNR < ε)%R ->
     ⤇ (rec: "f" "_" := let: "x" := rand(#lbl:αₛ) #N in if: "x" ≤ #M then "x" else "f" #())%V #() -∗
-    € ε -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
+    ↯ ε -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
     ( ∀ (ε':nonnegreal), ⌜(nonneg ε' = (S N / (S N - S M)) * ε)%R⌝ -∗
                          ⤇ (rec: "f" "_" := let: "x" := rand(#lbl:αₛ) #N in if: "x" ≤ #M then "x" else "f" #())%V #() -∗
-                         € ε' -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
+                         ↯ ε' -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
                          WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}
     ) -∗ WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
@@ -121,7 +121,7 @@ Section rejection_sampler.
   
   Lemma wp_simpl_rejection (ε:nonnegreal):
     (0%NNR < ε)%R -> ⤇ rejection_sampler_prog_annotated #() -∗
-    € ε -∗ WP simpl_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
+    ↯ ε -∗ WP simpl_sampler_prog_annotated #() {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
     iIntros (Hpos) "Hspec Hε".
     rewrite /simpl_sampler_prog_annotated/rejection_sampler_prog_annotated.

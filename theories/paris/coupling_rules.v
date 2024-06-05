@@ -43,7 +43,7 @@ Section rules.
     (N <= M)%R →
     (((S M - S N) / S M) = ε)%R →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
-    € ε ∗
+    ↯ ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
         α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
@@ -93,7 +93,7 @@ Section rules.
     (M <= N)%R →
     (((S N - S M) / S N) = ε)%R →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
-    € ε ∗
+    ↯ ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
         α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
@@ -142,7 +142,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) ->
     ⊢
-    {{{ € ε }}}
+    {{{ ↯ ε }}}
       rand #z @ E
       {{{ (n : fin (S N)), RET #n; ⌜ n ≠ t ⌝ }}}.
   Proof.
@@ -183,7 +183,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     TCEq ε (nnreal_div (nnreal_nat 1) (nnreal_nat (S N))) →
     ⤇ fill K (rand #z) ∗
-    € ε ∗
+    ↯ ε ∗
     (∀ (n : fin (S N)),
        ⤇ fill K #n -∗ ⌜n≠t⌝-∗
         WP e @ E {{ Φ }})
@@ -239,7 +239,7 @@ Section rules.
     (N <= M)%R ->
     (((S M - S N) / S M) = ε)%R →
     ⤇ fill K (rand #w) ∗
-    € ε ∗
+    ↯ ε ∗
     ▷ (∀ (n : fin (S N)),
         ⤇ fill K #(f n)  -∗ WP (Val #n) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
@@ -311,7 +311,7 @@ Section rules.
     (N <= M)%R ->
     (((S M - S N) / S M) = ε)%R →
     ⤇ fill K (rand #w) ∗
-    € ε ∗
+    ↯ ε ∗
     ▷ (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
         ⤇ fill K #m  -∗ WP (Val #n) @ E {{ Φ }})
@@ -340,7 +340,7 @@ Section rules.
     (M <= N)%R ->
     (((S N - S M) / S N) = ε)%R →
     ⤇ fill K (rand #w) ∗
-    € ε ∗
+    ↯ ε ∗
     ▷ (∀ (m : fin (S M)),
         ⤇ fill K #m  -∗ WP (Val #(f m)) @ E {{ Φ }})
     ⊢ WP rand #z @ E {{ Φ }}.
@@ -416,7 +416,7 @@ Section rules.
     (M <= N)%R ->
     (((S N - S M) / S N) = ε)%R →
     ⤇ fill K (rand #w) ∗
-    € ε ∗
+    ↯ ε ∗
     ▷ (∀ (n : fin (S N)) (m : fin (S M)),
         ⌜(fin_to_nat n = m)⌝ →
         ⤇ fill K #m  -∗ WP (Val #n) @ E {{ Φ }})
@@ -612,7 +612,7 @@ Section rules.
   Lemma wp_couple_fragmented_rand_rand_inj_rev'  (M N:nat) (f:fin(S N) -> fin (S M)) (Hinj: Inj (=) (=) f) ns nsₛ α αₛ e E Φ ε:
     (N<M)%R ->
     to_val e = None ->
-    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ € ε ∗
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (m : fin (S M)),
        if bool_decide(∃ n, f n = m) then
          ∀ n,
@@ -621,7 +621,7 @@ Section rules.
      else
        ∀ (ε':nonnegreal),
        ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
-       α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) ∗ € ε' -∗
+       α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) ∗ ↯ ε' -∗
        WP e @ E {{ Φ }}
     )
     ⊢ WP e @ E {{ Φ }}.
@@ -839,7 +839,7 @@ Section rules.
   Lemma wp_couple_fragmented_rand_rand_leq_rev'  (M N:nat)  ns nsₛ α αₛ e E Φ ε:
     (N<M)%R ->
     to_val e = None ->
-    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ € ε ∗
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (m : fin (S M)),
        match lt_dec (fin_to_nat m) (S N) with
        | left Hproof =>
@@ -848,7 +848,7 @@ Section rules.
        | _ =>
            ∀ (ε':nonnegreal),
        ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
-       α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) ∗ € ε' -∗
+       α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ++[m]) ∗ ↯ ε' -∗
        WP e @ E {{ Φ }}
      end
     )

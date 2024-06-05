@@ -385,7 +385,7 @@ Section rules.
     to_val e1 = None →
     (N <= M)%R →
     (((S M - S N) / S M) = ε)%R →
-    (▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ € ε ∗
+    (▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
        ⌜(fin_to_nat n = m)⌝ →
        α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m])
@@ -437,7 +437,7 @@ Section rules.
   Lemma refines_couple_TT_adv  (M N: nat) (f:fin(S N) -> fin (S M)) (Hinj: Inj (=) (=) f) E e1 e2 A α αₛ ns nsₛ ε :
     to_val e1 = None ->
     (N<M)%R ->
-    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ € ε ∗
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
       (∀ (m : fin (S M)),
           if bool_decide(∃ n, f n = m) then
             ∀ n,
@@ -446,7 +446,7 @@ Section rules.
           else
             ∀ (ε':nonnegreal),
               ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
-                α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ € ε' -∗
+                α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ↯ ε' -∗
                                                               REL e1 << e2 @ E : A
       )
       ⊢ REL e1 << e2 @ E : A.

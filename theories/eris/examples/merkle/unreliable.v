@@ -110,7 +110,7 @@ Section unreliable_storage.
     size (m) + 2^(S height) - 1 <= max_hash_size ->
     is_valid_list list vlist height (2^(2*val_bit_size))->
     {{{ coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
-        € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
+        ↯ (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
       tree_builder_helper f #height vlist 
       {{{ (hash:nat) (l:nat), RET (#hash, #l);
@@ -177,9 +177,9 @@ Section unreliable_storage.
       wp_apply wp_list_split; first (iSplit; iPureIntro; try done; rewrite Hlength).
       { apply PeanoNat.Nat.pow_le_mono_r; lia. }
       iIntros (a b) "(%l1 & %l2 &%&%&%&%)"; wp_pures.
-      iAssert (€ ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
-               € ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
-               € ((nnreal_nat (1) * amortized_error val_size_for_hash max_hash_size _)%NNR)
+      iAssert (↯ ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               ↯ ((nnreal_nat (2 ^ S height - 1) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               ↯ ((nnreal_nat (1) * amortized_error val_size_for_hash max_hash_size _)%NNR)
                  
               )%I with "[Herr]" as "[Herr [Herr' Herr'']]".
       { repeat rewrite  -ec_split. iApply ec_spend_irrel; last done.
@@ -278,7 +278,7 @@ Section unreliable_storage.
     2^(S height) - 1  <= max_hash_size ->
     is_acceptable_list height list vlist ->
     {{{ 
-          € (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
+          ↯ (nnreal_nat (2^(S height)-1) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
       tree_builder vlist #height
       {{{ (l:nat) (checker:val), RET (#l, checker);
@@ -447,7 +447,7 @@ Section unreliable_storage.
         ⌜tree_valid_with_leaf_list val_bit_size' height tree lis m⌝ ∗
         coll_free_hashfun_amortized val_size_for_hash max_hash_size f m ∗
         ⌜size (m) + S height <= max_hash_size⌝ ∗
-        € ((nnreal_nat (S height)) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR              
+        ↯ ((nnreal_nat (S height)) * amortized_error val_size_for_hash max_hash_size max_hash_size_pos)%NNR
     }}}
       tree_lookup #ltree #height #idx checker
       {{{ (v:val), RET v;

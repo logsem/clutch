@@ -32,7 +32,7 @@ Section test.
   Qed.
   
   Lemma twp_e'_two E:
-    ⊢ € (nnreal_half) -∗ WP (e' #2) @ E [{ φ }].
+    ⊢ ↯ (nnreal_half) -∗ WP (e' #2) @ E [{ φ }].
   Proof.
     iIntros "Herr".
     rewrite /e'.
@@ -49,7 +49,7 @@ Section test.
   Qed.
 
   Lemma wp_e'_two E:
-    ⊢ € (nnreal_half) -∗ WP (e' #2) @ E {{ φ }}.
+    ⊢ ↯ (nnreal_half) -∗ WP (e' #2) @ E {{ φ }}.
   Proof.
     iIntros "Herr".
     iApply tgl_wp_pgl_wp'.
@@ -57,7 +57,7 @@ Section test.
   Qed.
 
   Lemma twp_e'_three E:
-    ⊢ € (nnreal_one) -∗ WP (e' #3) @ E [{ φ }].
+    ⊢ ↯ (nnreal_one) -∗ WP (e' #3) @ E [{ φ }].
   Proof.
     iIntros "Herr".
     iExFalso.
@@ -66,7 +66,7 @@ Section test.
   Qed.
 
   Lemma wp_e'_three E:
-    ⊢ € (nnreal_half) -∗ WP (e' #3) @ E {{ φ }}.
+    ⊢ ↯ (nnreal_half) -∗ WP (e' #3) @ E {{ φ }}.
   Proof.
     iIntros "Herr".
     rewrite /e'.
@@ -85,7 +85,7 @@ Section test.
   Qed.
   
   Lemma twp_e E:
-    ⊢ € (nnreal_div (nnreal_nat 3) (nnreal_nat 8)) -∗
+    ⊢ ↯ (nnreal_div (nnreal_nat 3) (nnreal_nat 8)) -∗
     WP e @ E [{φ}].
   Proof.
     iIntros "Herr".
@@ -112,7 +112,7 @@ Section test.
   Qed.
 
   Lemma wp_e E:
-    ⊢ € (nnreal_div (nnreal_nat 1) (nnreal_nat 4)) -∗
+    ⊢ ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 4)) -∗
     WP e @ E {{φ}}.
   Proof.
     iIntros "Herr".
@@ -150,7 +150,7 @@ Definition foo N (m : nat) : expr :=
 
 
 Lemma wp_foo (N : nat) m E :
-  {{{ € (nnreal_inv(nnreal_nat(N+1))) }}}
+  {{{ ↯ (nnreal_inv(nnreal_nat(N+1))) }}}
   (foo N m) @ E
   {{{ v, RET v; ⌜ v = #true ⌝ }}}.
 Proof.
@@ -174,7 +174,7 @@ Definition bar N : expr :=
 
 
 Definition wp_bar (N : nat) E :
-  {{{ € (nnreal_inv(nnreal_nat(N+1))) }}}
+  {{{ ↯ (nnreal_inv(nnreal_nat(N+1))) }}}
   (bar N) @ E
   {{{ v, RET v; ⌜ v = #true ⌝ }}}.
 Proof.
@@ -203,7 +203,7 @@ Definition baz : expr :=
 
 
 Lemma wp_baz E :
-  € (nnreal_inv (nnreal_nat 2)) -∗ WP baz #() @ E {{ v, ⌜v = #0⌝ }}.
+  ↯ (nnreal_inv (nnreal_nat 2)) -∗ WP baz #() @ E {{ v, ⌜v = #0⌝ }}.
 Proof.
   iIntros "Herr".
   wp_pure.
