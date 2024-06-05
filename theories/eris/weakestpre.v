@@ -6,7 +6,7 @@ From iris.prelude Require Import options.
 
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
-From clutch.prob Require Export couplings distribution union_bounds.
+From clutch.prob Require Export couplings distribution graded_predicate_lifting.
 From clutch.common Require Export language.
 
 Import uPred.

@@ -2,7 +2,7 @@ From iris.proofmode Require Import base proofmode.
 From Coquelicot Require Export Lim_seq Rbar.
 From clutch.common Require Export language.
 From clutch.eris Require Import total_weakestpre adequacy primitive_laws.
-From clutch.prob Require Import distribution union_bounds.
+From clutch.prob Require Import distribution graded_predicate_lifting.
 
 Import uPred.
 
