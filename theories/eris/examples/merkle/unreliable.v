@@ -10,7 +10,7 @@ Section unreliable_storage.
   Context `{!erisGS Σ}.
   Variables unreliable_alloc_program unreliable_write_program unreliable_read_program:val.
 
-  (*We provide three axioms of the specification of the operations of the unreliable storage*)
+  (* We provide three axioms of the specification of the operations of the unreliable storage *)
   Axiom unreliable_alloc_spec :
     ∀ (m:nat),
     m>0 -> 
@@ -369,7 +369,7 @@ Section unreliable_storage.
       iIntros (?) "->".
       wp_pures.
       case_bool_decide.
-      + (*left case*)
+      + (* left case *)
         wp_pures. replace (Z.of_nat _+_)%Z with (Z.of_nat (ltree+2)) by lia.
         wp_apply unreliable_read_spec; first done.
         iIntros (?) "_".
@@ -388,7 +388,7 @@ Section unreliable_storage.
         iExists ((true, rhash)::proof).
         iSplit; first done.
         iPureIntro. constructor; [done|lia].
-      + (*right case*)
+      + (* right case *)
         wp_pures. replace (Z.of_nat _+_)%Z with (Z.of_nat (ltree+1)) by lia.
         wp_apply unreliable_read_spec; first done.
         iIntros (?) "_".
@@ -414,8 +414,7 @@ Section unreliable_storage.
   Lemma list_forall_proof_bound_checker_spec (lproof:val) (proof : list (bool*nat)):
     {{{ ⌜is_list proof lproof⌝ }}}
       list_forall proof_bound_checker lproof
-    {{{ (b:bool), RET #b; if b then ⌜Forall (λ x, snd x < 2^val_bit_size) proof⌝ else True }}}
-  .
+    {{{ (b:bool), RET #b; if b then ⌜Forall (λ x, snd x < 2^val_bit_size) proof⌝ else True }}}.
   Proof.
     iIntros (Φ) "% HΦ".
     wp_apply wp_list_forall; [|done|]; last first.

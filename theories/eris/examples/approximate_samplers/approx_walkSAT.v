@@ -1191,7 +1191,7 @@ Proof.
   lra.
 Qed.
 
-(*
+
 Lemma walksat_limit Σ `{erisGpreS Σ} (N : nat) (HN : (0 < N)%nat) (σ : state) (f : formula N) (solution : list bool) :
   (formula_SAT N solution f = true) ->
   length solution = N ->
@@ -1210,4 +1210,3 @@ Proof.
   (* HR is unused... is there any proposition more interesting that ⊤ we *)
   done.
 Qed.
-*)

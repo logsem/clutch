@@ -52,15 +52,7 @@ Section ERM.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜∃ r, ∀ ρ, X2 ρ <= r⌝ ∗
           ⌜(cost e1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
-          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))) (* ∨
-         (* [state_step] with adv composition*)
-         ([∨ list] α ∈ get_active σ1,
-           (∃ R (x1 : nonnegreal) (x2 : cfg Λ -> nonnegreal),
-             ⌜ ∃ r, ∀ ρ, (x2 ρ <= r)%R ⌝ ∗
-             ⌜ (x1 + SeriesC (λ σ2, (state_step σ1 α σ2) * x2 (e1, σ2)) <= x)%R ⌝ ∗
-             ⌜pgl (state_step σ1 α) R x1⌝ ∗
-                 ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun x' => Φ ((e1, σ2), x')) (x2 (e1, σ2)))) *)
-    )%I.
+          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))))%I.
 
   Local Instance exec_state_ub_pre_NonExpansive Z Φ :
     NonExpansive (ERM_pre Z Φ).
@@ -90,15 +82,7 @@ Section ERM.
           ⌜reducible (e1, σ1)⌝ ∗
           ⌜∃ r, ∀ ρ, (X2 ρ <= r)%R⌝ ∗
           ⌜(cost e1 + SeriesC (λ ρ, prim_step e1 σ1 ρ * X2 ρ) <= x)%R⌝ ∗
-          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))) (* ∨
-         (* [state_step] with adv composition*)
-         ([∨ list] α ∈ get_active σ1,
-           (∃ R (x1 : nonnegreal) (x2 : cfg Λ -> nonnegreal),
-             ⌜ ∃ r, forall ρ, (x2 ρ <= r)%R ⌝ ∗
-             ⌜ (x1 + SeriesC (λ σ2, (state_step σ1 α σ2) * x2 (e1, σ2)) <= x)%R ⌝ ∗
-             ⌜pgl (state_step σ1 α) R x1⌝ ∗
-                 ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ exec_stutter (fun x' => Φ ((e1, σ2), x')) (x2 (e1, σ2)))) *))
-        %I.
+          ∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z (e2, σ2) (X2 (e2, σ2))))%I.
   Proof. rewrite /ERM/ERM' least_fixpoint_unfold //. Qed.
 
   Local Definition cfgO := prodO (exprO Λ) (stateO Λ).

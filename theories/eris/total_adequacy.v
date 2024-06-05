@@ -249,25 +249,6 @@ Qed.
 Section adequacy.
   Context `{!erisGS Σ}.
 
-  (*
-
-  Lemma pgl_dbind' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜pgl (f a) T ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
-  Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply pgl_dbind; eauto. }
-    iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
-  Qed.
-
-*)
-
   Lemma tgl_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε':
     ⌜ 0 <= ε ⌝ -∗
