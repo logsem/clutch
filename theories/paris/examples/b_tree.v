@@ -697,19 +697,63 @@ Section b_tree.
     rec: "f" "_":=
       optimized_sampler_rec_annotated_prog "f" "t".
 
+  (** lemmas about fst of treev **)
+  Lemma wp_fst_ranked_tree E d tree l treev:
+    is_ab_b_tree d l tree ->
+    {{{ relate_ab_tree_with_ranked_v tree treev }}} 
+    (Fst treev)@ E {{{ v, RET v; ⌜∃ v', treev = (v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v tree treev }}}.
+  Proof.
+    iIntros "%Htree %Φ Hrelate HΦ".
+    destruct tree; inversion Htree; subst.
+    - erewrite relate_ab_tree_with_ranked_v_Lf. iDestruct "Hrelate" as "->".
+      wp_pures. iApply "HΦ". iModIntro. iSplit.
+      + iPureIntro. naive_solver.
+      + rewrite relate_ab_tree_with_ranked_v_Lf. naive_solver.
+    - erewrite relate_ab_tree_with_ranked_v_Br. iDestruct "Hrelate" as "(%&%&%&%&%&->&H)".
+      wp_pures. iApply "HΦ". iModIntro. iSplit.
+      + iPureIntro. naive_solver.
+      + rewrite relate_ab_tree_with_ranked_v_Br. iFrame. done.
+  Qed.
 
+  Lemma spec_fst_ranked_tree E K d tree l treev:
+    is_ab_b_tree d l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    ⤇ fill K (Fst treev) -∗
+    spec_update E (∃ v, ⤇ fill K (of_val v) ∗ ⌜∃ v', treev = (v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v tree treev).
+  Proof.
+    iIntros "%Htree Hrelate Hspec".
+    destruct tree.
+    - erewrite relate_ab_tree_with_ranked_v_Lf. iDestruct "Hrelate" as "->".
+      tp_pures. iModIntro. iFrame. rewrite relate_ab_tree_with_ranked_v_Lf.
+      iPureIntro. naive_solver.
+    - erewrite relate_ab_tree_with_ranked_v_Br. iDestruct "Hrelate" as "(%&%&%&%&%&->&H)".
+      tp_pures. iModIntro. iFrame. rewrite relate_ab_tree_with_ranked_v_Br. iFrame.
+      iPureIntro. naive_solver.
+  Qed.
 
   (** REFINEMENTS**)
 
   (** Stage 0 *)
-  Lemma naive_annotated_naive_refinement tree l treev: 
+  Lemma naive_annotated_naive_refinement E tree l treev: 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_ranked_v tree treev -∗
     ⤇ (naive_sampler_prog treev #()) -∗
     € nnreal_zero -∗
-    WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+    WP (naive_sampler_annotated_prog treev #()) @ E {{ v,  ⤇ (Val v)  }}
   .
   Proof.
+    iIntros (Htree) "Hrelate Hspec Hε".
+    rewrite /naive_sampler_annotated_prog /naive_sampler_prog.
+    wp_pures.
+    tp_pures.
+    tp_bind (Fst _).
+    wp_bind (Fst _)%E.
+    iApply (wp_fst_ranked_tree with "[$]"); first done.
+    iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
+    (** iMod doesnt work ?? *)
+    iDestruct (spec_fst_ranked_tree with "[$][$]") as "Hspec"; first done.
+    iApply elim_modal_spec_update_wp; first done.
+    iFrame.
   Admitted.
 
   Lemma annotated_naive_naive_refinement tree l treev: 
@@ -721,8 +765,9 @@ Section b_tree.
   .
   Proof.
   Admitted.
+    
   
-  (** To prove that the optimzed algorithm refines the naive one
+  (** To prove that the optimized algorithm refines the naive one
       we show that for each "run", the depth number of (2*min_child_num) state step samples can be coupled
       with a single (2*min_child_num)^depth state step sample
       and that can be sampled with a single (total number of children) state step via a fragmental coupling 
