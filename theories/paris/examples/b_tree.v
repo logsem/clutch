@@ -843,7 +843,7 @@ Section b_tree.
   Definition optimized_sampler_prog : val :=
     λ: "t", 
     rec: "f" "_":=
-      optimized_sampler_rec_annotated_prog "f" "t".
+      optimized_sampler_rec_prog "f" "t".
 
   (** lemmas about fst of treev **)
   Lemma wp_fst_ranked_tree E d tree l treev:
@@ -1013,6 +1013,42 @@ Section b_tree.
   (** This is a refinement between the rejection sampler one and the optimized one 
       It uses the lemma Rcoupl_state_state_exp
    *)
+  Lemma intermediate_annotated_optimized_refinement tree l treev treev' (ε:nonnegreal): 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v tree treev -∗
+    relate_ab_tree_with_v tree treev' -∗
+    ⤇ (optimized_sampler_annotated_prog treev' #()) -∗
+    € 0%NNR -∗
+    WP (intermediate_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /intermediate_sampler_annotated_prog /optimized_sampler_annotated_prog.
+    wp_pures. tp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    wp_pures.
+    tp_alloctape as α' "Hα'".
+  Admitted.
+
+  
+  Lemma annotated_optimized_intermediate_refinement tree l treev treev' (ε:nonnegreal): 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v tree treev -∗
+    relate_ab_tree_with_v tree treev' -∗
+    ⤇ (intermediate_sampler_annotated_prog treev' #()) -∗
+    € 0%NNR -∗
+    WP (optimized_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /intermediate_sampler_annotated_prog /optimized_sampler_annotated_prog.
+    wp_pures. tp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    wp_pures.
+    tp_alloctape as α' "Hα'".
+  Admitted.
 
   
   (** Stage 3*)
@@ -1031,6 +1067,29 @@ Section b_tree.
     wp_apply (wp_alloc_tape); first done.
     iIntros (α) "Hα".
     wp_pures.
+    (** löb induction*)
+    iLöb as "IH" forall (depth tree l treev treev' Htree) "Hrelate Hrelate' Hspec Hα".
+    rewrite /optimized_sampler_rec_annotated_prog /optimized_sampler_rec_prog.
+    wp_pure. tp_pure.
+    rewrite -/optimized_sampler_rec_annotated_prog -/optimized_sampler_rec_prog.
+    inversion Htree.
+    - (** we have a lf*)
+      subst. rewrite !relate_ab_tree_with_v_Lf.
+      iDestruct "Hrelate" as "->". iDestruct "Hrelate'" as "->".
+      tp_pures. wp_pures.
+      done.
+    - (** branch *)
+      subst. rewrite !relate_ab_tree_with_v_Br.
+      wp_pures; tp_pures.
+      iDestruct "Hrelate" as "(%&%&%&%&%&%&%&H1&H2)".
+      iDestruct "Hrelate'" as "(%&%&%&%&%&%&%&H3&H4)". subst.
+      wp_pures. tp_pures. tp_bind (rand _)%E.
+      wp_apply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
+      simpl. iIntros (x) "[Hα Hspec]". wp_apply (wp_rand_tape with "[$Hα]").
+      iIntros "Hα". wp_pures.
+      tp_pures.
+      wp_apply (wp_list_nth); first done.
+      iIntros (v) "[?|?]".
   Admitted.
 
   Lemma annotated_optimized_optimized_refinement tree l treev treev': 

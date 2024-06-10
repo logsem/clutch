@@ -704,6 +704,32 @@ Section list_specs.
         * iApply "HΦ"; try eauto with lia.
   Qed.
 
+  Lemma spec_list_nth E l lv (i:nat) K:
+    is_list l lv -> 
+    ⤇ fill K (list_nth (Val lv) #i) -∗ spec_update E (∃ v, (⤇ fill K (of_val v)) ∗
+                                                           ((⌜v = NONEV⌝ ∧ ⌜length l <= i⌝) ∨
+                                                              ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝)).
+  Proof.
+    iIntros "%Ha Hspec".
+    iInduction l as [|a l'] "IH" forall (i lv Ha);
+      simpl in Ha; subst; rewrite /list_nth; tp_pures; rewrite -/list_nth.
+    - iApply spec_update_ret. iFrame. iLeft. iPureIntro. split; [done|simpl; lia].
+    - destruct Ha as [lv' [Hlv Hlcoh]]; subst.
+      tp_pures; first naive_solver. case_bool_decide; tp_pures. 
+      + iApply spec_update_ret. iFrame. iRight. iPureIntro. simplify_eq.
+        replace i with 0%nat; last lia. simpl. naive_solver.
+      + destruct i; first done.
+        assert ((S i - 1)%Z = i) as -> by lia.
+        iApply spec_update_mono.
+        iSplitL.
+        -- iApply ("IH" $! i lv' _ with "[Hspec]"); done.
+        -- iIntros "(%&?&[%|[%%]])".
+           ++ iFrame. iLeft. iPureIntro. simpl. split; [naive_solver|lia].
+           ++ iFrame. iRight. iPureIntro. naive_solver.
+              Unshelve.
+              done.
+  Qed.
+
   Lemma wp_list_nth_some E (i: nat) l lv  :
     {{{  ⌜is_list l lv ∧ i < length l⌝  }}}
       list_nth (Val lv) #i @ E
