@@ -577,6 +577,59 @@ Section b_tree.
       iModIntro. iIntros. case_match; done.
   Qed.
 
+  
+  Local Lemma list_sum_foldr l l':
+    length l = length l' ->
+    (forall k x, combine l l' !!k = Some x -> children_num x.1 = x.2) ->
+    list_sum l' = foldr  (λ (x : ab_tree) (y : nat), (children_num x + y)%nat) 0%nat l.
+  Proof.
+    revert l'. induction l.
+    - intros []; by simpl.
+    - intros []; first by simpl.
+      simpl. intros. rewrite IHl; [|lia|]; last first.
+      + intros. apply H0 with (S k). by simpl.
+      + epose proof (H0 0%nat (_, _) _). simpl in *.
+        rewrite H1. done.
+        Unshelve.
+        all: cycle 1.
+        * simpl. done.
+  Qed.
+  
+  Lemma relate_ab_tree_with_ranked_v_child_num n l tree v:
+    is_ab_b_tree n l tree ->
+    relate_ab_tree_with_ranked_v tree v -∗
+    ⌜∃ v', v = (#(children_num tree), v')%V⌝.
+  Proof.
+    clear. revert n l v.
+    induction tree.
+    - intros ??? H. inversion H. subst.
+      rewrite relate_ab_tree_with_ranked_v_Lf. iPureIntro. intros.
+      subst. simpl. naive_solver.
+    - revert H. induction l.
+      + simpl. intros ???? H. inversion H. subst.
+        rewrite relate_ab_tree_with_ranked_v_Br.
+        iIntros "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2)". subst. iPureIntro.
+        rewrite (nil_length_inv num_lis); first naive_solver.
+        rewrite -H7. rewrite H1. done.
+      + rewrite Forall_cons; intros [].
+        intros ??? K. inversion K. subst.
+        rewrite relate_ab_tree_with_ranked_v_Br.
+        iIntros "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2)". subst.
+        rewrite H1 in H4 H6 H7. rewrite H1. simpl in *.
+        destruct loc_lis, v_lis, num_lis; try done. simpl.
+        iAssert (⌜n=children_num a⌝)%I as "->".
+        * rewrite H1 in H10. epose proof (H10 0%nat (_,_) _). done.
+        * iAssert (⌜list_sum num_lis =
+                   foldr (λ (x : ab_tree) (y : nat), children_num x + y)%nat 0%nat l⌝)%I as "->"; last (iPureIntro; naive_solver).
+           iPureIntro. rewrite H1 in H10.
+           apply list_sum_foldr.
+          -- simpl in *. lia.
+          -- intros. apply H10 with (S k). simpl. done.
+             Unshelve.
+             simpl. done.
+  Qed.
+
+
   Lemma relate_ab_tree_with_ranked_v_same_num tree v1 v2 v3 v4:
     relate_ab_tree_with_ranked_v tree (v1, v2) -∗
     relate_ab_tree_with_ranked_v tree (v3, v4) -∗
@@ -739,8 +792,8 @@ Section b_tree.
 
   Definition intermediate_sampler_annotated_prog : val :=
     λ: "t",
-    rec: "f" "_":=
       let: "α" := alloc #(max_child_num^depth)%nat in
+      rec: "f" "_":=
       let: "samp" := rand("α") #(max_child_num^depth)%nat in
       intermediate_sampler_rec_prog "f" "t" "samp" #depth.
 
@@ -909,7 +962,52 @@ Section b_tree.
       From LHS to RHS, we need ε>0
       From RHS to LHS, ε can be 0
    *)
-
+  
+  Lemma annotated_naive_intermediate_refinement tree l treev treev' (ε:nonnegreal):
+    (0<ε)%R -> 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    relate_ab_tree_with_v tree treev' -∗
+    ⤇ (intermediate_sampler_annotated_prog treev' #()) -∗
+    € ε -∗
+    WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+    iIntros (Hε Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /intermediate_sampler_annotated_prog /naive_sampler_annotated_prog.
+    tp_pures.
+    wp_pures.
+    iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$]") as "(%&->)"; first done.
+    wp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    wp_pures.
+    tp_alloctape as α' "Hα'".
+    tp_pures.
+  Admitted.
+  
+  Lemma intermediate_annotated_naive_refinement tree l treev treev' (ε:nonnegreal): 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v tree treev -∗
+    relate_ab_tree_with_ranked_v tree treev' -∗
+    ⤇ (naive_sampler_annotated_prog treev' #()) -∗
+    € 0%NNR -∗
+    WP (intermediate_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /intermediate_sampler_annotated_prog /naive_sampler_annotated_prog.
+    tp_pures.
+    wp_pures.
+    iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$]") as "(%&->)"; first done.
+    tp_pures.
+    wp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    wp_pures.
+    tp_alloctape as α' "Hα'".
+    tp_pures.
+  Admitted.
 
   (** Stage 2 *)
   (** This is a refinement between the rejection sampler one and the optimized one 
