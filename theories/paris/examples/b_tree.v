@@ -1,8 +1,6 @@
 From Coq.Program Require Import Wf.
-From clutch.paris Require Import adequacy.
 From stdpp Require Import list.
-From clutch Require Import paris.
-From clutch.paris.examples Require Import list.
+From clutch.paris Require Import paris list.
 Set Default Proof Using "Type*".
 Open Scope R.
 
@@ -524,7 +522,7 @@ Section b_tree.
     match t with
     | Lf v' => ⌜v = (#1%nat, InjLV v')%V⌝
     | Br tlis =>
-        ∃ total v' loc_lis v_lis num_lis,
+        ∃ (total:nat) v' loc_lis v_lis num_lis,
       ⌜ v = (#total, InjRV (v'))%V⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
@@ -551,7 +549,7 @@ Section b_tree.
 
   Lemma relate_ab_tree_with_ranked_v_Br v tlis :
     relate_ab_tree_with_ranked_v (Br tlis) v ≡
-      (∃ total v' loc_lis v_lis num_lis,
+      (∃ (total:nat) v' loc_lis v_lis num_lis,
       ⌜ v = (#total, InjRV (v'))%V ⌝ ∗
       ⌜length tlis = length loc_lis⌝ ∗
       ⌜length tlis = length v_lis⌝ ∗
@@ -578,6 +576,58 @@ Section b_tree.
     - iIntros "H". iApply (big_sepL_impl with "[$]").
       iModIntro. iIntros. case_match; done.
   Qed.
+
+  (** power *)
+  Definition pow : val :=
+    rec: "pow" "x" "y":=
+      if: "y"=#0%nat then #(1%nat) else "x" * ("pow" "x" ("y"-#1)).
+
+  Lemma wp_pow (n m:nat):
+    {{{ True }}}
+      pow #n #m
+      {{{(x:nat), RET (#x); ⌜x = (n^m)%nat⌝ }}}.
+  Proof.
+    iIntros (Φ) "_ HΦ".
+    iLöb as "IH" forall (Φ n m).
+    rewrite /pow.
+    wp_pures. rewrite -/pow.
+    case_bool_decide; wp_pures.
+    - iModIntro. iApply "HΦ".
+      simplify_eq. done.
+    - replace (Z.of_nat m - 1)%Z with (Z.of_nat (m-1)); last first.
+      + rewrite Nat2Z.inj_sub; first lia.
+        destruct m; last lia. done.
+      + wp_apply ("IH"). 
+        iIntros (x) "%".
+        wp_pures.
+        iModIntro.
+        replace (_*_)%Z with (Z.of_nat (n*x)); last first.
+        * rewrite Nat2Z.inj_mul. f_equal.
+        * iApply "HΦ". iPureIntro. subst.
+          rewrite -PeanoNat.Nat.pow_succ_r'. f_equal. 
+          destruct m; try done. lia.
+  Qed.
+
+  Lemma spec_pow (n m:nat) K E:
+    ⤇ fill K (pow #n #m) -∗ spec_update E (∃ (x:nat), ⤇ fill K #x ∗ ⌜x=(n^m)%nat⌝).
+  Proof.
+    iInduction m as [|] "IH" forall (K).
+    - iIntros. rewrite /pow. tp_pures.
+      { naive_solver. }
+      iApply spec_update_ret. iFrame.
+      done.
+    - iIntros. rewrite /pow.
+      tp_pure. rewrite -/pow.
+      tp_pures; [naive_solver|..].
+      replace (_(S m) - _)%Z with (Z.of_nat m); last lia.
+      tp_bind (pow _ _)%E.
+      iMod ("IH" with "[$]") as "[% [K ->]]".
+      simpl. tp_pures.
+      iApply spec_update_ret.
+      replace (_ * _)%Z with (Z.of_nat (n^(m+1))%nat).
+      + iFrame. iPureIntro. rewrite Nat.pow_add_r. simpl. lia.
+      + rewrite Nat.pow_add_r. simpl. lia.
+  Qed.
   
   (** The naive algorithm for ranked b -tree is to sample from the sum of the total number of children, 
       and then traverse down to find that particular value *)
@@ -590,8 +640,8 @@ Section b_tree.
           let, ("child_num", "t") := "p" in
           let: "l'" := list_tail "l" in
           if: "num" < "child_num"
-          then "cont" "t ""child_num"
-          else "f" "l'" ("child_num" - "num")
+          then "cont" "t" "num"
+          else "f" "l'" ("num" - "child_num")
       | NONE => #() (* not possible *)
       end
   .
@@ -620,25 +670,27 @@ Section b_tree.
       If we cannot find the particular node, we repeat from the start
    *)
 
+  (** need to add exponential :( )*)
+
   Definition intermediate_sampler_list_search_prog :val :=
     λ: "main_cont" "cont", 
-    rec: "f" "l" "num" :=
+    rec: "f" "l" "num" "depth":=
       match: list_head "l" with
       | SOME "t" =>
           let: "l'" := list_tail "l" in
           if: "num" < #max_child_num
-          then "cont" "t ""child_num"
-          else "f" "l'" ("child_num" - #max_child_num)
-      | NONE => "main_cont" #()
+          then "cont" "t" "num" ("depth"-#1)
+          else "f" "l'" ("num" - #max_child_num) "depth"
+      | NONE => "main_cont" #() 
       end
   .
 
   Definition intermediate_sampler_rec_prog: val:=
     λ: "main_cont", 
-    rec: "f" "t" "num" :=
+    rec: "f" "t" "num" "d":=
       match: "t" with
       | InjL "v" => "v"
-      | InjR "l" => intermediate_sampler_list_search_prog "main_cont" "f" "l" "num"
+      | InjR "l" => intermediate_sampler_list_search_prog "main_cont" "f" "l" "num" "depth"
       end
   .
 
@@ -647,7 +699,7 @@ Section b_tree.
     rec: "f" "_":=
       let: "α" := alloc #(max_child_num^depth)%nat in
       let: "samp" := rand("α") #(max_child_num^depth)%nat in
-      intermediate_sampler_rec_prog "f" "t" "samp".
+      intermediate_sampler_rec_prog "f" "t" "samp" #depth.
 
   (** The optimized algorithm for non-ranked b-tree is at each node, sample from 2*min_child_num 
       then walk down that branch. If the number exceeds the total number of children, repeat from the root
@@ -701,7 +753,7 @@ Section b_tree.
   Lemma wp_fst_ranked_tree E d tree l treev:
     is_ab_b_tree d l tree ->
     {{{ relate_ab_tree_with_ranked_v tree treev }}} 
-    (Fst treev)@ E {{{ v, RET v; ⌜∃ v', treev = (v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v tree treev }}}.
+    (Fst treev)@ E {{{ (v:nat), RET (#v); ⌜∃ v', treev = (#v, v')%V ⌝ ∗ relate_ab_tree_with_ranked_v tree treev }}}.
   Proof.
     iIntros "%Htree %Φ Hrelate HΦ".
     destruct tree; inversion Htree; subst.
@@ -734,12 +786,12 @@ Section b_tree.
   (** REFINEMENTS**)
 
   (** Stage 0 *)
-  Lemma naive_annotated_naive_refinement E tree l treev: 
+  Lemma naive_annotated_naive_refinement tree l treev: 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_ranked_v tree treev -∗
     ⤇ (naive_sampler_prog treev #()) -∗
     € nnreal_zero -∗
-    WP (naive_sampler_annotated_prog treev #()) @ E {{ v,  ⤇ (Val v)  }}
+    WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
   .
   Proof.
     iIntros (Htree) "Hrelate Hspec Hε".
@@ -750,10 +802,16 @@ Section b_tree.
     wp_bind (Fst _)%E.
     iApply (wp_fst_ranked_tree with "[$]"); first done.
     iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
-    (** iMod doesnt work ?? *)
-    iDestruct (spec_fst_ranked_tree with "[$][$]") as "Hspec"; first done.
-    iApply elim_modal_spec_update_wp; first done.
-    iFrame.
+    iMod (spec_fst_ranked_tree with "[$][$]") as "(%&Hspec&[%%]&Hrelate)"; first done.
+    simplify_eq; simpl.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    tp_bind (rand _)%E.
+    wp_pures. iApply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
+    simpl. iIntros (?) "[Hα Hspec]".
+    tp_pures.
+    wp_apply (wp_rand_tape with "[$]"). iIntros "Hα".
+    wp_pures.
   Admitted.
 
   Lemma annotated_naive_naive_refinement tree l treev: 
@@ -764,6 +822,25 @@ Section b_tree.
     WP (naive_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}
   .
   Proof.
+    iIntros (Htree) "Hrelate Hspec Hε".
+    rewrite /naive_sampler_annotated_prog /naive_sampler_prog.
+    wp_pures.
+    tp_pures.
+    tp_bind (Fst _).
+    wp_bind (Fst _)%E.
+    iApply (wp_fst_ranked_tree with "[$]"); first done.
+    iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
+    iMod (spec_fst_ranked_tree with "[$][$]") as "(%&Hspec&[%%]&Hrelate)"; first done.
+    simplify_eq; simpl.
+    tp_alloctape as α "Hα".
+    tp_pures.
+    tp_bind (rand(_) _)%E.
+    wp_apply (wp_couple_rand_tape with "[$Hα Hrelate Hspec Hε]").
+    iModIntro. iIntros (n) "Hα". simpl.
+    wp_pures. tp_bind (rand(_) _)%E.
+    (** imod doesnt work *)
+    iDestruct (step_rand with "[$Hspec $Hα]") as "Hspec".
+    iApply elim_modal_spec_update_wp; first done; iFrame.
   Admitted.
     
   
