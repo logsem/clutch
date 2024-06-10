@@ -8,7 +8,7 @@ From clutch.prob_lang.spec Require Export spec_rules.
 Set Default Proof Using "Type".
 
 (** ** bind *)
-Lemma tac_tp_bind_gen `{!specGS Σ} Δ Δ' i p e e' Q :
+Lemma tac_tp_bind_gen `{!specG_prob_lang Σ} Δ Δ' i p e e' Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ e')) Δ = Some Δ' →
@@ -20,7 +20,7 @@ Proof.
   destruct p; rewrite /= ?right_id; by rewrite bi.wand_elim_r.
 Qed.
 
-Lemma tac_tp_bind `{specGS Σ} e' Δ Δ' i p K' e Q :
+Lemma tac_tp_bind `{specG_prob_lang Σ} e' Δ Δ' i p K' e Q :
   envs_lookup i Δ = Some (p, ⤇ e)%I →
   e = fill K' e' →
   envs_simple_replace i p (Esnoc Enil i (⤇ fill K' e')) Δ = Some Δ' →
@@ -62,7 +62,7 @@ Tactic Notation "tp_bind" open_constr(efoc) :=
     |reflexivity
     |(* new goal *)].
 
-Lemma tac_tp_pure `{specGS Σ, invGS_gen hasLc Σ} e K e1 e2 Δ1 i1 e' ϕ ψ E1 Q n :
+Lemma tac_tp_pure `{specG_prob_lang Σ, invGS_gen hasLc Σ} e K e1 e2 Δ1 i1 e' ϕ ψ E1 Q n :
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   (∀ P, ElimModal ψ false false (spec_update E1 P) P Q Q) →
@@ -132,7 +132,7 @@ Tactic Notation "tp_if" := tp_pure_at (If _ _ _).
 Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
-Lemma tac_tp_store `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
+Lemma tac_tp_store `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
   (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
      Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
@@ -175,7 +175,7 @@ Tactic Notation "tp_store" :=
   |iAssumptionCore || fail "tp_store: cannot find '? ↦ₛ ?'"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_load `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
+Lemma tac_tp_load `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) v Q q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
   e = fill K (Load #l) →
@@ -212,7 +212,7 @@ Tactic Notation "tp_load" :=
   |simpl; reflexivity || fail "tp_load: this should not happen"
   |pm_reduce (* new goal *)].
 
-Lemma tac_tp_alloc `{specGS Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e e' v Q :
+Lemma tac_tp_alloc `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e e' v Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
   e = fill K (ref e') →
@@ -256,7 +256,7 @@ Tactic Notation "tp_alloc" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloc" "as" ident(j') :=
   let H := iFresh in tp_alloc as j' H.
 
-Lemma tac_tp_alloctape `{specGS Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
+Lemma tac_tp_alloctape `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
@@ -300,7 +300,7 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
-Lemma tac_tp_rand `{specGS Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
+Lemma tac_tp_rand `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
@@ -344,7 +344,7 @@ Tactic Notation "tp_rand" :=
 
 (** Some simple tests *)
 Section tests.
-  Context `{specGS Σ, invGS_gen hasLc Σ}.
+  Context `{specG_prob_lang Σ, invGS_gen hasLc Σ}.
 
   Local Lemma test_tp_pures E :
     ⤇ (#2 + #2 + #2) ⊢ spec_update E (⤇ #6).

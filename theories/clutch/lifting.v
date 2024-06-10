@@ -5,7 +5,7 @@ From iris.prelude Require Import options.
 From clutch.clutch Require Import weakestpre.
 
 Section lifting.
-Context `{!clutchWpGS Λ Σ}.
+Context `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ}.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.

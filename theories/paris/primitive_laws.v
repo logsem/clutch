@@ -18,7 +18,7 @@ Class parisGS Σ := HeapG {
   parisGS_heap_name : gname;
   parisGS_tapes_name : gname;
   (* CMRA and ghost name for the spec *)
-  parisGS_spec :: specGS Σ;
+  parisGS_spec :: specG_prob_lang Σ;
   (* CMRA and ghost name for the error *)
   parisGS_error :: ecGS Σ;
 }.
@@ -47,9 +47,8 @@ Definition tapes_auth `{parisGS Σ} :=
 
 Global Instance parisGS_irisGS `{!parisGS Σ} : parisWpGS prob_lang Σ := {
   parisWpGS_invGS := parisGS_invG;
-  parisWpGS_spec_updateGS := _;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
-  err_interp ε := (ec_supply ε);
+  err_interp := ec_supply;
   }.
 
 (** Heap *)
@@ -477,9 +476,3 @@ Qed.
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
-
-(** [tc_solve] does not realize that the [spec_updateGS] instances are the same but the [apply:]
-    tactic does... *)
-#[global] Hint Extern 0
-  (ElimModal _ _ _ (spec_update _ _) _ (WP _ @ _ {{ _ }}) (WP _ @ _ {{ _ }})) =>
-  apply: elim_modal_spec_update_wp : typeclass_instances.

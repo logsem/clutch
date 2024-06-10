@@ -255,7 +255,6 @@ Section rules.
     set (ε' := nnreal_minus ε_now ε Hle ).
     replace ε_now with (nnreal_plus ε ε'); last first.
     { apply nnreal_ext; simpl; lra. }
-    (* iApply exec_coupl_det_r; [done|]. *)
     iApply exec_coupl_prim_steps.
     iExists (λ '(e2, σ2) '(e2', σ2'),
         ∃ (n : fin _),

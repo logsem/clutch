@@ -8,7 +8,7 @@ Class seqG (Σ: gFunctors) := {
   seqG_name: gname;
 }.
 
-Definition seq `{!caliperWpG δ Λ Σ} `{!seqG Σ} E (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ :=
+Definition seq `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} `{!seqG Σ} E (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ :=
   (na_own seqG_name E -∗ WP e {{ v, na_own seqG_name E ∗ Φ v }})%I.
 
 Definition seq_inv `{!invGS_gen HasNoLc Σ} `{!seqG Σ} (N : namespace) (P : iProp Σ) := na_inv seqG_name N P.
@@ -27,7 +27,7 @@ Notation "'SEQ' e {{ v , Q } }" := (seq ⊤ e%E (λ v, Q))
   (at level 20, e, Q at level 200,
    format "'[hv' 'SEQ'  e  '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
-Lemma seq_value `{!caliperWpG δ Λ Σ} `{!seqG Σ} Φ E (v : val Λ) e `{!IntoVal e v} :
+Lemma seq_value `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} `{!seqG Σ} Φ E (v : val Λ) e `{!IntoVal e v} :
   Φ v ⊢ SEQ e @ E {{ v, Φ v }}.
 Proof. iIntros "Hv Hna". iApply rwp_value. iFrame. Qed.
 

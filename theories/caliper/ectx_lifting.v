@@ -5,8 +5,10 @@ From clutch.common Require Export ectx_language.
 From clutch.caliper Require Export weakestpre lifting.
 Set Default Proof Using "Type".
 
+#[local] Open Scope R. 
+
 Section rwp.
-Context {Λ : ectxLanguage} `{!caliperWpG δ Λ Σ}.
+Context {Λ : ectxLanguage} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}.
 
 Implicit Types P Q : iProp Σ.
 Implicit Types a : mstate δ.

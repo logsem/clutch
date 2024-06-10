@@ -19,9 +19,8 @@ Local Open Scope R.
     weakest precondition, we only need [parisWpGS] to give meaning to invariants,
     and provide predicates describing valid states via [state_interp] and valid
     specification configurations via [spec_interp]. *)
-Class parisWpGS (Λ : language) (Σ : gFunctors) := ParisWpGS {
+Class parisWpGS (Λ : language) (Σ : gFunctors) `{!spec_updateGS (lang_markov Λ) Σ} := ParisWpGS {
   #[global] parisWpGS_invGS :: invGS_gen HasNoLc Σ;
-  #[global] parisWpGS_spec_updateGS :: spec_updateGS (lang_markov Λ) Σ;
 
   state_interp : state Λ → iProp Σ;
   err_interp : nonnegreal → iProp Σ;
@@ -30,7 +29,7 @@ Global Opaque parisWpGS_invGS.
 Global Arguments ParisWpGS {Λ Σ _}.
 
 Section exec_stutter.
-  Context `{!parisWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}.
 
   Definition exec_stutter (Z : nonnegreal -> iProp Σ) (ε:nonnegreal) : iProp Σ :=
     (⌜(1<=ε)%R⌝ ∨ Z ε)%I.
@@ -58,7 +57,7 @@ End exec_stutter.
 
 (** * The coupling modality [exec_coupl]  *)
 Section exec_coupl.
-  Context `{!parisWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}.
 
   Definition exec_coupl_pre (Z : cfg Λ → cfg Λ → nonnegreal -> iProp Σ) (Φ : (cfg Λ * cfg Λ) * nonnegreal  → iProp Σ) :=
     (λ (x : (cfg Λ * cfg Λ) * nonnegreal),
@@ -519,7 +518,7 @@ Section exec_coupl.
 End exec_coupl.
 
 (** * The weakest precondition  *)
-Definition wp_pre`{!parisWpGS Λ Σ}
+Definition wp_pre`{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   match to_val e1 with
@@ -530,7 +529,7 @@ Definition wp_pre`{!parisWpGS Λ Σ}
         ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ wp E e2 Φ) ε
 end%I.
 
-Local Instance wp_pre_contractive `{!parisWpGS Λ Σ} : Contractive wp_pre.
+Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ} : Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
   do 11 f_equiv.
@@ -543,17 +542,17 @@ Proof.
 Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition wp_def `{!parisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+Local Definition wp_def `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!parisWpGS Λ Σ} : wp = (@wp_def Λ Σ _).(wp).
+Local Lemma wp_unseal `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ} : wp = (@wp_def Λ Σ _ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!parisWpGS Λ Σ}.
+Context `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -799,7 +798,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!parisWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
   Implicit Types v : val Λ.

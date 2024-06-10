@@ -90,11 +90,8 @@ Section rules.
   Proof.
     rewrite refines_eq /refines_def /=.
     iIntros "He" (K'') "Hs Hnais /=".
-    rewrite -fill_app.
-    iSpecialize ("He" with "Hs").
-    (* TODO: why is this instance not be infered??? *)
-    pose proof elim_modal_spec_update_wp.
-    iMod "He" as (v) "[Hs He]".
+    rewrite -fill_app.    
+    iMod ("He" with "Hs") as (v) "[Hs He]".
     rewrite fill_app.
     iSpecialize ("He" with "Hs Hnais").
     by iApply "He".
@@ -113,7 +110,6 @@ Section rules.
     rewrite refines_eq /refines_def.
     iIntros (?) "??".
     rewrite -fill_app.
-    (* Here the instance is inferred perfectly fine?!?! *)
     iMod ("upd" with "[$]") as "?".
     rewrite fill_app.
     iApply ("Hlog" with "[$][$]").

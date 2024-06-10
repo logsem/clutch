@@ -4,6 +4,7 @@ From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Import invariants ghost_map.
 From iris.prelude Require Import options.
 From iris.proofmode Require Import proofmode.
+From clutch.base_logic Require Export spec_update.
 From clutch.common Require Import language ectxi_language.
 From clutch.prob_lang Require Import locations lang.
 
@@ -11,15 +12,15 @@ Definition progUR : ucmra := optionUR (exclR exprO).
 Definition cfgO : ofe := prodO exprO stateO.
 
 (** The CMRA for the spec [cfg]. *)
-Class specGS Σ := SpecGS {
-  #[local] specGS_prog_inG :: inG Σ (authR progUR);
-  specGS_prog_name : gname;
+Class specG_prob_lang Σ := SpecGS {
+  #[local] specG_prob_lang_prog_inG :: inG Σ (authR progUR);
+  specG_prob_lang_prog_name : gname;
 
-  #[local] specGS_heap :: ghost_mapG Σ loc val;
-  #[local] specGS_tapes :: ghost_mapG Σ loc tape;
+  #[local] specG_prob_lang_heap :: ghost_mapG Σ loc val;
+  #[local] specG_prob_lang_tapes :: ghost_mapG Σ loc tape;
 
-  specGS_heap_name : gname;
-  specGS_tapes_name : gname;                      
+  specG_prob_lang_heap_name : gname;
+  specG_prob_lang_tapes_name : gname;                      
 }.
 
 Class specGpreS Σ := SpecGPreS {
@@ -36,13 +37,13 @@ Definition specΣ : gFunctors :=
 Proof. solve_inG. Qed.
 
 Section resources.
-  Context `{!specGS Σ}.
+  Context `{!specG_prob_lang Σ}.
   Definition spec_prog_auth e :=
-    own specGS_prog_name (● (Excl' e : progUR)).
-  Definition spec_heap_auth `{specGS Σ} :=
-    @ghost_map_auth _ _ _ _ _ specGS_heap specGS_heap_name 1.
-  Definition spec_tapes_auth `{specGS Σ} :=
-    @ghost_map_auth _ _ _ _ _ specGS_tapes specGS_tapes_name 1.
+    own specG_prob_lang_prog_name (● (Excl' e : progUR)).
+  Definition spec_heap_auth `{specG_prob_lang Σ} :=
+    @ghost_map_auth _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name 1.
+  Definition spec_tapes_auth `{specG_prob_lang Σ} :=
+    @ghost_map_auth _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name 1.
 
   Definition spec_auth (ρ : cfg) : iProp Σ :=
     spec_prog_auth (ρ.1) ∗
@@ -50,13 +51,13 @@ Section resources.
     spec_tapes_auth (ρ.2.(tapes)).
 
   Definition spec_prog_frag (e : expr) : iProp Σ :=
-    own specGS_prog_name (◯ (Excl' e : progUR)).
+    own specG_prob_lang_prog_name (◯ (Excl' e : progUR)).
 
   Definition spec_heap_frag (l : loc) v dq: iProp Σ :=
-    (@ghost_map_elem _ _ _ _ _ specGS_heap specGS_heap_name l dq v).
+    (@ghost_map_elem _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name l dq v).
 
   Definition spec_tapes_frag (l : loc) v dq: iProp Σ :=
-    (@ghost_map_elem _ _ _ _ _ specGS_tapes specGS_tapes_name l dq v).
+    (@ghost_map_elem _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name l dq v).
 End resources.
 
 
@@ -64,7 +65,7 @@ End resources.
 Notation " ⤇ e" := (spec_prog_frag e) (at level 20) : bi_scope.
 
 (** Spec heap *)
-Notation "l ↦ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specGS_heap specGS_heap_name l dq v)
+Notation "l ↦ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_prob_lang_heap specG_prob_lang_heap_name l dq v)
   (at level 20, format "l  ↦ₛ{ dq }  v") : bi_scope.
 Notation "l ↦ₛ□ v" := (l ↦ₛ{ DfracDiscarded } v)%I
   (at level 20, format "l  ↦ₛ□  v") : bi_scope.
@@ -74,7 +75,7 @@ Notation "l ↦ₛ v" := (l ↦ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↦ₛ  v") : bi_scope.
 
 (** Spec tapes *)
-Notation "l ↪ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specGS_tapes specGS_tapes_name l dq v)
+Notation "l ↪ₛ{ dq } v" := (@ghost_map_elem _ _ _ _ _ specG_prob_lang_tapes specG_prob_lang_tapes_name l dq v)
   (at level 20, format "l  ↪ₛ{ dq }  v") : bi_scope.
 Notation "l ↪ₛ□ v" := (l ↪ₛ{ DfracDiscarded } v)%I
   (at level 20, format "l  ↪ₛ□  v") : bi_scope.
@@ -84,7 +85,7 @@ Notation "l ↪ₛ v" := (l ↪ₛ{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪ₛ  v") : bi_scope.
 
 Section theory.
-  Context `{!specGS Σ}.
+  Context `{!specG_prob_lang Σ}.
 
   Lemma spec_auth_prog_agree e1 σ1 e2  :
     spec_auth (e1, σ1) -∗ ⤇ e2 -∗ ⌜e1 = e2⌝.
@@ -161,7 +162,7 @@ Section theory.
 End theory.
 
 Lemma spec_ra_init e σ `{specGpreS Σ} :
-  ⊢ |==> ∃ _ : specGS Σ,
+  ⊢ |==> ∃ _ : specG_prob_lang Σ,
       spec_auth (e, σ) ∗ ⤇ e ∗ ([∗ map] l ↦ v ∈ σ.(heap), l ↦ₛ v) ∗ ([∗ map] α ↦ t ∈ σ.(tapes), α ↪ₛ t).
 Proof.
   iMod (own_alloc ((● (Excl' e)) ⋅ (◯ (Excl' e)))) as "(%γp & Hprog_auth & Hprog_frag)".
@@ -171,3 +172,6 @@ Proof.
   iExists (SpecGS _ _ γp _ _ γH γT).
   by iFrame.
 Qed.
+
+#[global] Instance spec_rules_spec_updateGS `{!specG_prob_lang Σ} :
+  spec_updateGS (lang_markov prob_lang) Σ := Spec_updateGS spec_auth.

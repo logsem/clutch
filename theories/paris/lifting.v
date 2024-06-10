@@ -7,7 +7,7 @@ From clutch.paris Require Import app_weakestpre.
 
 
 Section lifting.
-Context `{!parisWpGS Λ Σ}.
+Context `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.

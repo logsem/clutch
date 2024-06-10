@@ -169,8 +169,6 @@ Proof.
     wp_apply (wp_couple_rand_tape with "[$Hα Herr Hspec]").
     iIntros "!> %n Hα". simpl.
     tp_bind (rand(_) _)%E.
-    (* TODO: why is this instance not be infered??? *)
-    pose proof elim_modal_spec_update_wp.
     iMod (step_rand with "[$]") as "[Hspec Hα]".
     simpl.
     tp_pures. wp_pures.
