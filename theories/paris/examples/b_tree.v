@@ -577,6 +577,49 @@ Section b_tree.
       iModIntro. iIntros. case_match; done.
   Qed.
 
+  Lemma relate_ab_tree_with_ranked_v_same_num tree v1 v2 v3 v4:
+    relate_ab_tree_with_ranked_v tree (v1, v2) -∗
+    relate_ab_tree_with_ranked_v tree (v3, v4) -∗
+    ⌜v1=v3⌝.
+  Proof.
+    revert v1 v2 v3 v4. induction tree.
+    - intros. rewrite !relate_ab_tree_with_ranked_v_Lf. iIntros (??).
+      simplify_eq. done.
+    - intros. erewrite !relate_ab_tree_with_ranked_v_Br.
+      revert v1 v2 v3 v4 H.
+      induction l. 
+      + simpl. iIntros (?????) "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2) (%&%&%&%&%&%&%&%&%&%&%&H3&%&H4)".
+        simplify_eq.
+        erewrite (nil_length_inv num_lis), (nil_length_inv num_lis0); first done.
+        all: lia.
+      + iIntros (v1 v2 v3 v4). rewrite Forall_cons. intros [].
+        iIntros "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2) (%&%&%&%&%&%&%&%&%&%&%&H3&%&H4)".
+        simplify_eq. 
+        destruct num_lis; first done. destruct num_lis0; first done.
+        destruct loc_lis; first done. destruct v_lis; first done.
+        destruct loc_lis0; first done. destruct v_lis0; first done.
+        simpl.
+        iDestruct "H1" as "[H1 H1']". iDestruct "H2" as "[H2 H2']".
+        iDestruct "H3" as "[H3 H3']". iDestruct "H4" as "[H4 H4']".
+        simpl.
+        destruct H13 as (?&?&?); destruct H6 as (?&?&?); subst.
+        iAssert (⌜#(list_sum num_lis) = #(list_sum num_lis0)⌝)%I as "%".
+        * iApply (IHl with "[H1' H2'][H3' H4']"); first done.
+          -- iFrame.
+             iExists (list_sum num_lis), _, _. iPureIntro. simpl in *. repeat split; try lia; try done.
+             intros; eapply H7 with (S k). rewrite -H1. done.
+          -- iFrame.
+             iExists _, _, _. iPureIntro. simpl in *. repeat split; try lia; try done.
+             intros. eapply H14 with (S k). rewrite -H1. done.
+        * iAssert (⌜n=n0⌝)%I as "->".
+          -- simpl in *.
+             epose proof (H7 0%nat (a, n) _) as K. simpl in K. rewrite <-K.
+             epose proof (H14 0%nat (a, n0) _) as K'. simpl in K'. by rewrite <-K'.
+          -- iPureIntro. f_equal. simplify_eq. rewrite H1. done.
+             Unshelve.
+             all: by simpl.
+  Qed.
+
   (** power *)
   Definition pow : val :=
     rec: "pow" "x" "y":=
@@ -771,7 +814,7 @@ Section b_tree.
     is_ab_b_tree d l tree ->
     relate_ab_tree_with_ranked_v tree treev -∗
     ⤇ fill K (Fst treev) -∗
-    spec_update E (∃ v, ⤇ fill K (of_val v) ∗ ⌜∃ v', treev = (v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v tree treev).
+    spec_update E (∃ (v:nat), ⤇ fill K (# v) ∗ ⌜∃ v', treev = (#v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v tree treev).
   Proof.
     iIntros "%Htree Hrelate Hspec".
     destruct tree.
@@ -783,66 +826,6 @@ Section b_tree.
       iPureIntro. naive_solver.
   Qed.
 
-  (** REFINEMENTS**)
-
-  (** Stage 0 *)
-  Lemma naive_annotated_naive_refinement tree l treev: 
-    is_ab_b_tree depth l tree ->
-    relate_ab_tree_with_ranked_v tree treev -∗
-    ⤇ (naive_sampler_prog treev #()) -∗
-    € nnreal_zero -∗
-    WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
-  .
-  Proof.
-    iIntros (Htree) "Hrelate Hspec Hε".
-    rewrite /naive_sampler_annotated_prog /naive_sampler_prog.
-    wp_pures.
-    tp_pures.
-    tp_bind (Fst _).
-    wp_bind (Fst _)%E.
-    iApply (wp_fst_ranked_tree with "[$]"); first done.
-    iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
-    iMod (spec_fst_ranked_tree with "[$][$]") as "(%&Hspec&[%%]&Hrelate)"; first done.
-    simplify_eq; simpl.
-    wp_apply (wp_alloc_tape); first done.
-    iIntros (α) "Hα".
-    tp_bind (rand _)%E.
-    wp_pures. iApply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
-    simpl. iIntros (?) "[Hα Hspec]".
-    tp_pures.
-    wp_apply (wp_rand_tape with "[$]"). iIntros "Hα".
-    wp_pures.
-  Admitted.
-
-  Lemma annotated_naive_naive_refinement tree l treev: 
-    is_ab_b_tree depth l tree ->
-    relate_ab_tree_with_ranked_v tree treev -∗
-    ⤇ (naive_sampler_annotated_prog treev #()) -∗
-    € nnreal_zero -∗
-    WP (naive_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}
-  .
-  Proof.
-    iIntros (Htree) "Hrelate Hspec Hε".
-    rewrite /naive_sampler_annotated_prog /naive_sampler_prog.
-    wp_pures.
-    tp_pures.
-    tp_bind (Fst _).
-    wp_bind (Fst _)%E.
-    iApply (wp_fst_ranked_tree with "[$]"); first done.
-    iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
-    iMod (spec_fst_ranked_tree with "[$][$]") as "(%&Hspec&[%%]&Hrelate)"; first done.
-    simplify_eq; simpl.
-    tp_alloctape as α "Hα".
-    tp_pures.
-    tp_bind (rand(_) _)%E.
-    wp_apply (wp_couple_rand_tape with "[$Hα Hrelate Hspec Hε]").
-    iModIntro. iIntros (n) "Hα". simpl.
-    wp_pures. tp_bind (rand(_) _)%E.
-    (** imod doesnt work *)
-    iDestruct (step_rand with "[$Hspec $Hα]") as "Hspec".
-    iApply elim_modal_spec_update_wp; first done; iFrame.
-  Admitted.
-    
   
   (** To prove that the optimized algorithm refines the naive one
       we show that for each "run", the depth number of (2*min_child_num) state step samples can be coupled
@@ -855,6 +838,118 @@ Section b_tree.
       The other direction is the same, except one would need to amplify errors and use a continuity argument to close the proof 
    *)
 
+  (** REFINEMENTS**)
+
+  (** Stage 0 *)
+  Lemma naive_annotated_naive_refinement tree l treev treev': 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    relate_ab_tree_with_ranked_v tree treev' -∗
+    ⤇ (naive_sampler_prog treev' #()) -∗
+    € nnreal_zero -∗
+    WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /naive_sampler_annotated_prog /naive_sampler_prog.
+    wp_pures.
+    tp_pures.
+    tp_bind (Fst _).
+    wp_bind (Fst _)%E.
+    iApply (wp_fst_ranked_tree with "[$Hrelate]"); first done.
+    iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
+    iMod (spec_fst_ranked_tree with "[$Hrelate'][$]") as "(%&Hspec&[%%]&Hrelate')"; first done.
+    simplify_eq; simpl.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    tp_bind (rand _)%E.
+    wp_pures.
+    iDestruct (relate_ab_tree_with_ranked_v_same_num with "[$][$]") as "->".
+    iApply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
+    simpl. iIntros (?) "[Hα Hspec]".
+    tp_pures.
+    wp_apply (wp_rand_tape with "[$]"). iIntros "Hα".
+    wp_pures.
+  Admitted.
+
+  Lemma annotated_naive_naive_refinement tree l treev treev': 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    relate_ab_tree_with_ranked_v tree treev' -∗
+    ⤇ (naive_sampler_annotated_prog treev' #()) -∗
+    € nnreal_zero -∗
+    WP (naive_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}
+  .
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /naive_sampler_annotated_prog /naive_sampler_prog.
+    wp_pures.
+    tp_pures.
+    tp_bind (Fst _).
+    wp_bind (Fst _)%E.
+    iApply (wp_fst_ranked_tree with "[$Hrelate]"); first done.
+    iIntros "!> %v' ([% %]&Hrelate)"; simplify_eq.
+    iMod (spec_fst_ranked_tree with "[$Hrelate'][$]") as "(%&Hspec&[%%]&Hrelate')"; first done.
+    simplify_eq; simpl.
+    iDestruct (relate_ab_tree_with_ranked_v_same_num with "[$][$]") as "->".
+    tp_alloctape as α "Hα".
+    tp_pures.
+    tp_bind (rand(_) _)%E.
+    wp_apply (wp_couple_rand_tape with "[$Hα Hrelate Hspec Hε]").
+    iModIntro. iIntros (n) "Hα". simpl.
+    wp_pures. tp_bind (rand(_) _)%E.
+    (** imod doesnt work *)
+    iDestruct (step_rand with "[$Hspec $Hα]") as "Hspec".
+    iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+    iIntros "[Hspec Hα]". tp_pures.
+  Admitted.
+
+  (** Stage 1 *)
+  (** This is a refinement between the naive annotated algo, and a rejection sampler one
+      From LHS to RHS, we need ε>0
+      From RHS to LHS, ε can be 0
+   *)
+
+
+  (** Stage 2 *)
+  (** This is a refinement between the rejection sampler one and the optimized one 
+      It uses the lemma Rcoupl_state_state_exp
+   *)
+
+  
+  (** Stage 3*)
+  Lemma optimized_annotated_optimized_refinement tree l treev treev': 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v tree treev -∗
+    relate_ab_tree_with_v tree treev' -∗
+    ⤇ (optimized_sampler_prog treev' #()) -∗
+    € nnreal_zero -∗
+    WP (optimized_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}.
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /optimized_sampler_annotated_prog /optimized_sampler_prog.
+    wp_pures.
+    tp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    wp_pures.
+  Admitted.
+
+  Lemma annotated_optimized_optimized_refinement tree l treev treev': 
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v tree treev -∗
+    relate_ab_tree_with_v tree treev' -∗
+    ⤇ (optimized_sampler_annotated_prog treev' #()) -∗
+    € nnreal_zero -∗
+    WP (optimized_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}.
+  Proof.
+    iIntros (Htree) "Hrelate Hrelate' Hspec Hε".
+    rewrite /optimized_sampler_annotated_prog /optimized_sampler_prog.
+    wp_pures.
+    tp_pures.
+    tp_alloctape as α "Hα".
+    tp_pures.
+  Admitted.
   
 End b_tree.
 
