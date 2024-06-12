@@ -32,217 +32,243 @@ Section stage1.
     | [] => []
     | x::l' => (0%nat, x) :: ((prod_map S id) <$> index_list l')
     end.
-
-  (** REVISIT THIS IN THE FUTURE *)
   
-  (* Local Lemma elem_of_index_list {A} (l:list A) x b: *)
-  (*   l!!x = Some b -> *)
-  (*   (x, b) ∈ index_list l. *)
-  (* Proof. *)
-  (*   revert x b; induction l. *)
-  (*   - simpl. set_solver. *)
-  (*   - intros x b Hl. *)
-  (*     rewrite lookup_cons_Some in Hl. destruct Hl as [[-> ->]|[H Hl]]. *)
-  (*     + simpl. set_solver. *)
-  (*     + simpl. apply elem_of_list_further. *)
-  (*       rewrite elem_of_list_fmap. *)
-  (*       exists ((x-1)%nat, b). simpl; split. *)
-  (*       * f_equal. lia. *)
-  (*       * apply IHl. done. *)
-  (* Qed. *)
+  Local Lemma elem_of_index_list {A} (l:list A) x b:
+    l!!x = Some b ->
+    (x, b) ∈ index_list l.
+  Proof.
+    revert x b; induction l.
+    - simpl. set_solver.
+    - intros x b Hl.
+      rewrite lookup_cons_Some in Hl. destruct Hl as [[-> ->]|[H Hl]].
+      + simpl. set_solver.
+      + simpl. apply elem_of_list_further.
+        rewrite elem_of_list_fmap.
+        exists ((x-1)%nat, b). simpl; split.
+        * f_equal. lia.
+        * apply IHl. done.
+  Qed.
 
-  (* Local Lemma index_list_index_relate x y l: *)
-  (*   filter (λ x1 : nat * bool, x1.2 = true) (index_list l) !! x = Some y -> *)
-  (*   length (filter (λ x1 : bool, x1 = true) (take (y.1) l)) = x. *)
-  (* Proof. *)
-  (*   revert x y. *)
-  (*   induction l; simpl; first done. *)
-  (*   intros x y. rewrite !filter_cons; simpl. *)
-  (*   case_match. *)
-  (*   - subst. rewrite lookup_cons_Some. *)
-  (*     intros [[-> ?]|[]]. *)
-  (*     + by subst. *)
-  (*     + simpl. *)
-  (*       admit. *)
-  (*   - intros. *)
-  (*     admit. *)
-  (* Admitted. *)
+  Local Lemma filter_list_length {A} l:
+    length (filter (λ x:nat*option A, is_Some x.2) l) =
+    length (filter (λ x, is_Some x.2) ((prod_map S id) <$> l)).
+  Proof.
+    induction l; simpl; first done.
+    rewrite !filter_cons; simpl.
+    do 2 case_match; try done; simpl; rewrite IHl; done.
+  Qed.
+
+  Local Lemma filter_list_length' {A} l:
+    length (filter (λ x, is_Some x ) l) =
+    length (filter (λ x : nat * option A, is_Some x.2 ) (index_list l)).
+  Proof.
+    induction l; first (by simpl).
+    rewrite !filter_cons; do 2 case_match; try done; simpl;
+      rewrite IHl filter_list_length; done.
+  Qed.
   
-  (* Local Lemma filter_list_length l: *)
-  (*   length (filter (λ x : nat * bool, x.2 = true) l) = *)
-  (*   length (filter (λ x : nat * bool, x.2 = true) ((prod_map S id) <$> l)). *)
-  (* Proof. *)
-  (*   induction l; simpl; first done. *)
-  (*   rewrite !filter_cons; simpl. *)
-  (*   do 2 case_match; try done; simpl; rewrite IHl; done. *)
-  (* Qed. *)
-
-  (* Local Lemma filter_list_length' l: *)
-  (*   length (filter (λ x, x = true) l) = *)
-  (*   length (filter (λ x : nat * bool, x.2 = true) (index_list l)). *)
-  (* Proof. *)
-  (*   induction l; first (by simpl). *)
-  (*   rewrite !filter_cons; do 2 case_match; try done; simpl; *)
-  (*     rewrite IHl filter_list_length; done. *)
-  (* Qed. *)
-
-  (* Local Lemma index_list_range {A} (x:nat * A) l: *)
-  (*   x ∈ index_list l -> (x.1 < length l)%nat. *)
-  (* Proof. *)
-  (*   revert x. *)
-  (*   induction l. *)
-  (*   - simpl. simpl. set_solver. *)
-  (*   - simpl. intros x H. *)
-  (*     rewrite elem_of_cons in H. *)
-  (*     destruct H as [->|H]; simpl; first lia. *)
-  (*     rewrite elem_of_list_fmap in H. *)
-  (*     destruct H as [y [-> Hy]]. simpl. *)
-  (*     pose proof IHl _ Hy. lia. *)
-  (* Qed. *)
-
-  (* Local Lemma index_list_lookup_lemma x l: *)
-  (*   x.2 = true -> x∈index_list l -> l!!x.1 = Some true. *)
-  (* Proof. *)
-  (*   revert x. *)
-  (*   induction l; simpl; first set_solver. *)
-  (*   intros x. rewrite elem_of_cons. *)
-  (*   intros H [->|H0]; simpl in *; first by subst. *)
-  (*   rewrite elem_of_list_fmap in H0. *)
-  (*   destruct H0 as [y [-> H0]]. *)
-  (*   simpl in H. *)
-  (*   by apply IHl. *)
-  (* Qed. *)
-
-  (* Local Lemma filter_prod_map_lemma x (l:list (nat * bool)): *)
-  (*   (x < length (filter (λ x : nat * bool, x.2 = true) l))%nat ->  *)
-  (*   (filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> l) !!! x).1 = *)
-  (*   S ((filter (λ x : nat * bool, x.2 = true)  l) !!! x).1. *)
-  (* Proof. *)
-  (*   revert x. *)
-  (*   induction l; first (simpl; lia). *)
-  (*   intros x. rewrite !filter_cons. *)
-  (*   case_match; case_match; try done; simpl; last first. *)
-  (*   - intros. apply IHl. done. *)
-  (*   - intros. destruct x; simpl; first done. *)
-  (*     apply IHl; lia. *)
-  (* Qed. *)
-
-  (* Local Lemma index_list_inj x y l: *)
-  (*   (x < length (filter (λ x : nat * bool, x.2 = true) (index_list l)))%nat -> *)
-  (*   (y < length (filter (λ x : nat * bool, x.2 = true) (index_list l)))%nat ->  *)
-  (*   (filter (λ x : nat * bool, x.2 = true) (index_list l) !!! x).1 = *)
-  (*   (filter (λ x : nat * bool, x.2 = true) (index_list l) !!! y).1 -> *)
-  (*   x = y. *)
-  (* Proof. *)
-  (*   revert x y; induction l; simpl; first lia. *)
-  (*   rewrite !filter_cons; simpl. *)
-  (*   case_match; simpl; intros x y Hx Hy H'; last first. *)
-  (*   - rewrite -filter_list_length in Hx, Hy. *)
-  (*     apply IHl; try done. *)
-  (*     rewrite !filter_prod_map_lemma in H'; lia. *)
-  (*   - destruct x, y; simpl in H'; try done. *)
-  (*     + exfalso. *)
-  (*       cut (0%nat<(filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> index_list l) !!! y).1)%nat. *)
-  (*       * rewrite -H'. lia. *)
-  (*       * clear H'. apply Forall_lookup_total_1; last lia. *)
-  (*         rewrite Forall_forall. *)
-  (*         intros x H0. rewrite elem_of_list_filter in H0. *)
-  (*         destruct H0 as [? H0]. *)
-  (*         rewrite elem_of_list_fmap in H0. *)
-  (*         destruct H0 as [?[->?]]. simpl. lia. *)
-  (*     + exfalso. *)
-  (*       cut (0%nat<(filter (λ x : nat * bool, x.2 = true) (prod_map S id <$> index_list l) !!! x).1)%nat. *)
-  (*       * rewrite H'. lia. *)
-  (*       * clear H'. apply Forall_lookup_total_1; last lia. *)
-  (*         rewrite Forall_forall. *)
-  (*         intros y H0. rewrite elem_of_list_filter in H0. *)
-  (*         destruct H0 as [? H0]. *)
-  (*         rewrite elem_of_list_fmap in H0. *)
-  (*         destruct H0 as [?[->?]]. simpl. lia. *)
-  (*     + f_equal. apply IHl. *)
-  (*       * rewrite filter_list_length. lia. *)
-  (*       * rewrite filter_list_length. lia. *)
-  (*       * rewrite !filter_prod_map_lemma in H'; first lia. *)
-  (*         -- rewrite filter_list_length. lia. *)
-  (*         -- rewrite filter_list_length. lia. *)
-  (* Qed. *)
+  Local Lemma filter_index_list_relate_aux {A} (l:list (nat*option A)):
+    filter (λ x0 : nat * option A, is_Some x0.2) (prod_map S id <$> l) =
+    prod_map S id <$> (filter (λ x0 : nat * option A, is_Some x0.2) (l)).
+  Proof.
+    remember (length l) as n.
+    revert l Heqn.
+    induction n.
+    - intros. rewrite (nil_length_inv l); last done.
+      simpl. rewrite filter_nil. done.
+    - intros. destruct l.
+      + simpl in Heqn. lia.
+      + destruct p as [? []].
+        * simpl. rewrite filter_cons_True; last done.
+          f_equal. simpl in Heqn. rewrite (IHn); last lia. done.
+        * simpl. rewrite !filter_cons_False; [|done|done].
+          f_equal. simpl in Heqn. rewrite IHn; [done|lia].
+  Qed.
   
-  (* Lemma inj_function_exists l M N: *)
-  (*   length l = M ->  *)
-  (*   length (filter (λ x, x = true) l) = N -> *)
-  (*   exists f: (fin N -> fin M), Inj eq eq f /\ *)
-  (*                         (forall x, l !! fin_to_nat (f x)= Some true /\ *)
-  (*                               length (filter (λ x, x = true) (take ((fin_to_nat (f x))) l)) *)
-  (*                               = (fin_to_nat x) *)
-  (*                         ) /\ *)
-  (*                         (forall x, (forall y, x≠f y) -> l!!fin_to_nat (x) = Some false). *)
-  (* Proof. *)
-  (*   intros Hlen1 Hlen2. *)
-  (*   pose (l' := filter (λ x, x.2 = true) (index_list l)). *)
-  (*   assert (forall x:fin N, x<length l')%nat. *)
-  (*   { intros x. *)
-  (*     pose proof fin_to_nat_lt x. *)
-  (*     replace (length l') with N; first done. *)
-  (*     rewrite -Hlen2. *)
-  (*     rewrite /l'. *)
-  (*     clear. *)
-  (*     induction l; simpl; first done. *)
-  (*     rewrite !filter_cons; simpl; case_match; simpl; by rewrite IHl -filter_list_length. *)
-  (*   } *)
-  (*   assert (forall (x:fin N), (l'!!!(fin_to_nat x)).1 < M)%nat as K; last first. *)
-  (*   - exists (λ x, nat_to_fin (K x)). *)
-  (*     split; last split. *)
-  (*     + (* prove injection *) *)
-  (*       intros x y Hf. apply (f_equal fin_to_nat) in Hf. *)
-  (*       rewrite !fin_to_nat_to_fin in Hf. *)
-  (*       rewrite /l' in Hf, H. *)
-  (*       apply fin_to_nat_inj. *)
-  (*       by eapply index_list_inj.  *)
-  (*     + (* prove domain is true *) *)
-  (*       intros x. rewrite fin_to_nat_to_fin. *)
-  (*       split.  *)
-  (*       * apply Forall_lookup_total_1; last auto. *)
-  (*         rewrite Forall_forall. *)
-  (*         rewrite /l'. *)
-  (*         intros x'. rewrite elem_of_list_filter. *)
-  (*         intros [??]. by apply index_list_lookup_lemma. *)
-  (*       * erewrite index_list_index_relate; first done. *)
-  (*         rewrite /l'. apply list_lookup_lookup_total_lt. *)
-  (*         rewrite -filter_list_length'. *)
-  (*         rewrite Hlen2. apply fin_to_nat_lt. *)
-  (*     + (* prove if not in domain, it must be false *) *)
-  (*       intros x Hx. *)
-  (*       destruct (l!!fin_to_nat x) eqn :Heqn1; last first. *)
-  (*       { apply lookup_ge_None_1 in Heqn1. *)
-  (*         pose proof fin_to_nat_lt x. rewrite Hlen1 in Heqn1. lia.  *)
-  (*       } *)
-  (*       destruct b; last done. *)
-  (*       exfalso. *)
-  (*       cut ((fin_to_nat x, true) ∈ l'). *)
-  (*       * rewrite /l'. rewrite elem_of_list_lookup. *)
-  (*         intros [i Hi]. *)
-  (*         cut (i<N)%nat. *)
-  (*         -- intros Hproof. *)
-  (*            cut (x=nat_to_fin (K (nat_to_fin Hproof))); first naive_solver. *)
-  (*            apply fin_to_nat_inj. rewrite fin_to_nat_to_fin. *)
-  (*            rewrite /l'. *)
-  (*            rewrite fin_to_nat_to_fin. *)
-  (*            apply list_lookup_total_correct in Hi. *)
-  (*            by rewrite Hi. *)
-  (*         -- apply lookup_lt_Some in Hi. *)
-  (*            rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia. *)
-  (*       * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done. *)
-  (*         apply elem_of_index_list. done. *)
-  (*   - (* prove first projection is indeed smaller than length l, i.e. M *) *)
-  (*     intros x. *)
-  (*     apply Forall_lookup_total_1; last auto. *)
-  (*     rewrite Forall_forall. *)
-  (*     rewrite /l'. *)
-  (*     intros x' Hx'. *)
-  (*     rewrite elem_of_list_filter in Hx'. *)
-  (*     destruct Hx' as [? Hx']. *)
-  (*     rewrite -Hlen1; by apply index_list_range. *)
-  (* Qed. *)
+  Local Lemma filter_index_list_relate {A} x l:
+    (x<length (filter (λ x0 : option A, is_Some x0) l))%nat -> 
+    l !! (filter (λ x0 : nat * option A, is_Some x0.2) (index_list l) !!! x).1 =
+    filter (λ x0 : option A, is_Some x0) l !! x.
+  Proof.
+    revert x.
+    induction l.
+    - simpl. lia.
+    - simpl. destruct a; simpl.
+      + intros x Hx. rewrite !filter_cons_True; [|done|done].
+        destruct x; simpl; first done.
+        rewrite -IHl; last lia.
+        replace (l!!_) with ((Some a::l)!!S((filter (λ x0 : nat * option A, is_Some x0.2) (index_list l) !!! x).1)) by done.
+        f_equal.
+        rewrite filter_index_list_relate_aux.
+        rewrite list_lookup_total_fmap; last first.
+        { rewrite -filter_list_length'. lia. }
+        done.
+      + intros x. rewrite !filter_cons_False; [|done|done]. intros Hx.
+        rewrite -IHl; last lia.
+        rewrite filter_index_list_relate_aux.
+        rewrite list_lookup_total_fmap; last first.
+        { rewrite -filter_list_length'. lia. }
+        done.
+  Qed.
+  
+
+  Local Lemma index_list_range {A} (x:nat * A) l:
+    x ∈ index_list l -> (x.1 < length l)%nat.
+  Proof.
+    revert x.
+    induction l.
+    - simpl. simpl. set_solver.
+    - simpl. intros x H.
+      rewrite elem_of_cons in H.
+      destruct H as [->|H]; simpl; first lia.
+      rewrite elem_of_list_fmap in H.
+      destruct H as [y [-> Hy]]. simpl.
+      pose proof IHl _ Hy. lia.
+  Qed.
+
+  Local Lemma index_list_lookup_lemma {A}(x:_*option A) l:
+    is_Some (x.2) -> x∈index_list l -> ∃ v, (l!!x.1) = Some (Some v).
+  Proof.
+    revert x.
+    induction l; simpl; first set_solver.
+    intros x. rewrite elem_of_cons.
+    intros [] [->|H0]; simpl in *; first naive_solver.
+    rewrite elem_of_list_fmap in H0.
+    destruct H0 as [y [-> H0]].
+    simpl in H.
+    by apply IHl.
+  Qed.
+
+  Local Lemma filter_prod_map_lemma {A} x (l:list (nat * option A)):
+    (x < length (filter (λ x, is_Some (x.2)) l))%nat ->
+    (filter (λ x, is_Some (x.2)) (prod_map S id <$> l) !!! x).1 =
+    S ((filter (λ x, is_Some (x.2))  l) !!! x).1.
+  Proof.
+    revert x.
+    induction l; first (simpl; lia).
+    intros x. rewrite !filter_cons.
+    case_match; case_match; try done; simpl; last first.
+    - intros. apply IHl. done.
+    - intros. destruct x; simpl; first done.
+      apply IHl; lia.
+  Qed.
+
+  Local Lemma index_list_inj {A} x y l:
+    (x < length (filter (λ x : nat * option A, is_Some (x.2)) (index_list l)))%nat ->
+    (y < length (filter (λ x, is_Some (x.2)) (index_list l)))%nat ->
+    (filter (λ x, is_Some (x.2)) (index_list l) !!! x).1 =
+    (filter (λ x, is_Some (x.2)) (index_list l) !!! y).1 ->
+    x = y.
+  Proof.
+    revert x y; induction l; simpl; first lia.
+    rewrite !filter_cons; simpl.
+    case_match; simpl; intros x y Hx Hy H'; last first.
+    - rewrite -filter_list_length in Hx, Hy.
+      apply IHl; try done.
+      rewrite !filter_prod_map_lemma in H'; lia.
+    - destruct x, y; simpl in H'; try done.
+      + exfalso.
+        cut (0%nat<(filter (λ x, is_Some (x.2)) (prod_map S id <$> index_list l) !!! y).1)%nat.
+        * rewrite -H'. lia.
+        * clear H'. apply Forall_lookup_total_1; last lia.
+          rewrite Forall_forall.
+          intros x H0. rewrite elem_of_list_filter in H0.
+          destruct H0 as [? H0].
+          rewrite elem_of_list_fmap in H0.
+          destruct H0 as [?[->?]]. simpl. lia.
+      + exfalso.
+        cut (0%nat<(filter (λ x, is_Some (x.2)) (prod_map S id <$> index_list l) !!! x).1)%nat.
+        * rewrite H'. lia.
+        * clear H'. apply Forall_lookup_total_1; last lia.
+          rewrite Forall_forall.
+          intros y H0. rewrite elem_of_list_filter in H0.
+          destruct H0 as [? H0].
+          rewrite elem_of_list_fmap in H0.
+          destruct H0 as [?[->?]]. simpl. lia.
+      + f_equal. apply IHl.
+        * rewrite filter_list_length. lia.
+        * rewrite filter_list_length. lia.
+        * rewrite !filter_prod_map_lemma in H'; first lia.
+          -- rewrite filter_list_length. lia.
+          -- rewrite filter_list_length. lia.
+  Qed.
+  
+  Lemma inj_function_exists {A} l M N:
+    length l = M ->
+    length (filter (λ x:option A, is_Some x) l) = N ->
+    exists f: (fin N -> fin M), Inj eq eq f /\
+                          (forall x, (∃ v, (l !! fin_to_nat (f x)) = Some (Some v))
+                                /\
+                                  l!!fin_to_nat (f x) = filter (λ x, is_Some x) l !! fin_to_nat x
+                          ) /\
+                          (forall x, (forall y, x≠f y) -> l!!fin_to_nat (x) = Some None).
+  Proof.
+    intros Hlen1 Hlen2.
+    pose (l' := filter (λ x, is_Some (x.2)) (index_list l)).
+    assert (forall x:fin N, x<length l')%nat.
+    { intros x.
+      pose proof fin_to_nat_lt x.
+      replace (length l') with N; first done.
+      rewrite -Hlen2.
+      rewrite /l'.
+      clear.
+      induction l; simpl; first done.
+      rewrite !filter_cons; simpl; case_match; simpl; by rewrite IHl -filter_list_length.
+    }
+    assert (forall (x:fin N), (l'!!!(fin_to_nat x)).1 < M)%nat as K; last first.
+    - exists (λ x, nat_to_fin (K x)).
+      split; last split.
+      + (* prove injection *)
+        intros x y Hf. apply (f_equal fin_to_nat) in Hf.
+        rewrite !fin_to_nat_to_fin in Hf.
+        rewrite /l' in Hf, H.
+        apply fin_to_nat_inj.
+        by eapply index_list_inj.
+      + (* prove domain is true *)
+        intros x. rewrite fin_to_nat_to_fin.
+        split.
+        * apply Forall_lookup_total_1; last auto.
+          rewrite Forall_forall.
+          rewrite /l'.
+          intros x'. rewrite elem_of_list_filter.
+          intros [??]. by apply index_list_lookup_lemma.
+        * rewrite /l'.
+          apply filter_index_list_relate.
+          rewrite /l' in H. specialize (H x).
+          rewrite filter_list_length'. done.
+      + (* prove if not in domain, it must be false *)
+        intros x Hx.
+        destruct (l!!fin_to_nat x) eqn :Heqn1; last first.
+        { apply lookup_ge_None_1 in Heqn1.
+          pose proof fin_to_nat_lt x. rewrite Hlen1 in Heqn1. lia.
+        }
+        destruct o as [|a]; last done.
+        exfalso.
+        cut ((fin_to_nat x, Some a) ∈ l').
+        * rewrite /l'. rewrite elem_of_list_lookup.
+          intros [i Hi].
+          cut (i<N)%nat.
+          -- intros Hproof.
+             cut (x=nat_to_fin (K (nat_to_fin Hproof))); first naive_solver.
+             apply fin_to_nat_inj. rewrite fin_to_nat_to_fin.
+             rewrite /l'.
+             rewrite fin_to_nat_to_fin.
+             apply list_lookup_total_correct in Hi.
+             by rewrite Hi.
+          -- apply lookup_lt_Some in Hi.
+             rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia.
+        * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done.
+          apply elem_of_index_list. done.
+    - (* prove first projection is indeed smaller than length l, i.e. M *)
+      intros x.
+      apply Forall_lookup_total_1; last auto.
+      rewrite Forall_forall.
+      rewrite /l'.
+      intros x' Hx'.
+      rewrite elem_of_list_filter in Hx'.
+      destruct Hx' as [? Hx'].
+      rewrite -Hlen1; by apply index_list_range.
+  Qed.
   
 End stage1.
 
@@ -330,7 +356,15 @@ Section b_tree.
   Context {depth : nat}.
   Local Definition min_child_num := S min_child_num'.
   Local Definition max_child_num := (2*min_child_num)%nat.
+
+  Local Lemma max_child_num_pos: (0<max_child_num)%nat.
+  Proof. rewrite /max_child_num /min_child_num. lia. Qed.
+  Local Lemma pow_max_child_num (n:nat): (0<max_child_num^n)%nat.
+  Proof.
+    apply pow_pos. apply max_child_num_pos.
+  Qed.
   Opaque max_child_num.
+
   (** For this example, intermediate nodes do not store keys themselves
       If the depth is 0, the node is a leaf, storing a single key value
       otherwise, if the depth is S n, it has stores a list of k children, each pointing to a tree of depth n
@@ -796,7 +830,7 @@ Section b_tree.
           let: "idx":= "num" `quot` (pow #max_child_num "depth") in
           match: list_nth "l" "idx" with
           | SOME "p" =>
-              "f" "p" ("num"-"idx"*(pow #max_child_num "depth"))
+              "f" "p" ("num"-"idx"*(pow #max_child_num "depth")) ("d"-#1)
           | NONE => NONE
           end
       end
@@ -915,6 +949,31 @@ Section b_tree.
   (** REFINEMENTS**)
 
   (** Stage 0 *)
+  
+  Lemma wp_naive_sampler_rec_prog (n:nat) l tree treev:
+    (n<length(filter(λ x, is_Some x) l))%nat ->
+    is_ab_b_tree depth l tree ->
+    {{{ relate_ab_tree_with_ranked_v tree treev }}}
+      (naive_sampler_rec_prog treev #n)
+      {{{ (v:val), RET v; ⌜Some (Some v) = filter (λ x, is_Some x) l !! n⌝ ∗
+            relate_ab_tree_with_ranked_v tree treev
+      }}}.
+  Proof.
+  Admitted.
+
+  Lemma spec_naive_sampler_rec_prog (n:nat) l tree treev E:
+    (n<length(filter(λ x, is_Some x) l))%nat ->
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_ranked_v tree treev -∗
+    ⤇ (naive_sampler_rec_prog treev #n) -∗
+    spec_update E
+      (∃ v:val, ⤇ v ∗
+            ⌜Some (Some v) = filter (λ x, is_Some x) l !! n⌝ ∗
+            relate_ab_tree_with_ranked_v tree treev)
+      .
+  Proof.
+  Admitted.
+  
   Lemma naive_annotated_naive_refinement tree l treev treev':
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
@@ -942,12 +1001,23 @@ Section b_tree.
     iIntros (α) "Hα".
     tp_bind (rand _)%E.
     wp_pures.
-    iApply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
+    iApply (wp_couple_tape_rand with "[$Hα $Hspec Hrelate Hrelate']"); first done.
     simpl. iIntros (?) "[Hα Hspec]".
     tp_pures.
     wp_apply (wp_rand_tape with "[$]"). iIntros "Hα".
     wp_pures.
-  Admitted.
+    pose proof ab_tree_children_num _ _ _ Htree.
+    iDestruct (spec_naive_sampler_rec_prog with "[$][$]") as ">(%v&Hspec&%&Hrelate')"; [|done|].
+    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
+      rewrite -H. lia. }
+    wp_apply (wp_naive_sampler_rec_prog with "[$Hrelate]"); [|done|].
+    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
+      rewrite -H. lia. }
+    iIntros (v') "[%?]".
+    replace (v) with v'; first done.
+    do 2 apply Some_inj. etrans; first exact. done.
+  Qed. 
+
 
   Lemma annotated_naive_naive_refinement tree l treev treev': 
     (0<children_num tree)%nat -> 
@@ -976,14 +1046,24 @@ Section b_tree.
     tp_alloctape as α "Hα".
     tp_pures.
     tp_bind (rand(_) _)%E.
-    wp_apply (wp_couple_rand_tape with "[$Hα Hrelate Hspec Hε]").
+    wp_apply (wp_couple_rand_tape with "[$Hα Hrelate Hspec Hε Hrelate']").
     iModIntro. iIntros (n) "Hα". simpl.
     wp_pures. tp_bind (rand(_) _)%E.
     (** imod doesnt work *)
     iDestruct (step_rand with "[$Hspec $Hα]") as "Hspec".
     iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
     iIntros "[Hspec Hα]". tp_pures.
-  Admitted.
+    pose proof ab_tree_children_num _ _ _ Htree.
+    iDestruct (spec_naive_sampler_rec_prog with "[$Hrelate'][$]") as ">(%v1&Hspec&%&Hrelate')"; [|done|].
+    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
+      rewrite -H. lia. }
+    wp_apply (wp_naive_sampler_rec_prog with "[$Hrelate]"); [|done|].
+    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
+      rewrite -H. lia. }
+    iIntros (v2) "[%?]".
+    replace (v1) with v2; first done.
+    do 2 apply Some_inj. etrans; first exact. done.
+  Qed.
 
   (** Stage 1 *)
   (** This is a refinement between the naive annotated algo, and a rejection sampler one
@@ -1013,7 +1093,87 @@ Section b_tree.
     wp_pures.
     tp_alloctape as α' "Hα'".
     do 2 tp_pure.
-    (* do error ampl  *)
+    pose proof ab_tree_children_num _ _ _ Htree.
+    assert (children_num tree <= max_child_num^depth)%nat as Hineq.
+    { pose proof ab_b_tree_list_length _ _ _ Htree as K.
+      rewrite <-K.
+      rewrite H. apply filter_length.
+    }
+    rewrite Nat.lt_eq_cases in Hineq.
+    destruct Hineq as [Hineq|Hsame].
+    - (* do error ampl  *)
+      iRevert "Hrelate Hrelate' Hspec Hα Hα'".
+      iApply (ec_ind_amp with "[][$Hε]"); [lra|..]; last first.
+      + iModIntro.
+        clear ε Hε.
+        iIntros (ε) "%Hε #IH Hε Hrelate Hrelate' Hspec Hα Hα'".
+        replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat by lia.
+        replace (Z.to_nat (Z.of_nat (max_child_num ^ depth) - 1)) with (max_child_num ^ depth - 1)%nat; last first.
+        { pose proof pow_max_child_num depth. lia. }
+        epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
+        rewrite Nat2Z.id.
+        iApply (wp_couple_fragmented_rand_rand_inj_rev' _ _ f with "[$Hα $Hα' $Hε Hspec Hrelate Hrelate']"); [|done|..].
+        { pose proof pow_max_child_num depth.
+          apply lt_INR. lia.
+        }
+        iIntros (m).
+        case_bool_decide as K.
+        * (* hit somthing on the right!*)
+          destruct K as [n <-].
+          iIntros (?) "(Hα & Hα' & %Hfsame)".
+          apply Hinj in Hfsame. subst. simpl.
+          wp_apply (wp_rand_tape with "[$]").
+          { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; first done. lia. }
+          iIntros "Hα".
+          wp_pures. tp_pures.
+          tp_bind (rand(_) _)%E.
+          iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+          iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+          iIntros "[Hspec Hα']".
+          tp_pures.
+          specialize (Hf1 n) as [[v Hvsome] Hvsame].
+          admit.
+        * (* missed! *)
+          iIntros (ε') "(%&Hα & Hα'&Hε)".
+          (** only step RHS *)
+          assert (l!!(fin_to_nat m)=Some None) as Hnone.
+          { apply Hf2. intros. intro. apply K. subst. naive_solver. }
+          tp_pures.
+          tp_bind (rand(_) _)%E.
+          iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+          iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+          iIntros "[Hspec Hα']".
+          tp_pures.
+          admit.
+      + (* prove that the factor is larger than 1*)
+        admit.
+    - (* do a normal no error fragmented sampling and reject second case since the tree is populated *)
+      tp_pures.
+      epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
+      replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat by lia.
+      rewrite !Nat2Z.id.
+      iApply (wp_couple_fragmented_rand_rand_inj_rev _ _ f with "[$Hα $Hα' Hspec Hrelate Hrelate']"); [|done|..].
+      { rewrite Hsame. done. }
+      iIntros (m).
+      case_bool_decide as K.
+      + destruct K as [n <-].
+        iIntros (?) "(Hα & Hα' & %Hfsame)".
+        apply Hinj in Hfsame. subst. simpl.
+        wp_apply (wp_rand_tape with "[$]").
+        { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; first done. lia. }
+        iIntros "Hα".
+        wp_pures. tp_pures.
+        tp_bind (rand(_) _)%E.
+        iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+        iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+        iIntros "[Hspec Hα']".
+        tp_pures.
+        specialize (Hf1 n) as [[v Hvsome] Hvsame].
+        admit.
+      + (** contradiction since RHS is populated *)
+        exfalso. apply K.
+        apply finite_inj_surj; first done.
+        rewrite !fin_card. rewrite H. lia.
   Admitted.
   
   Lemma intermediate_annotated_naive_refinement tree l treev treev': 
