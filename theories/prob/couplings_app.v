@@ -7,6 +7,8 @@ From clutch.prob Require Export countable_sum distribution couplings graded_pred
 
 Open Scope R.
 
+(* TODO(SG): cleanup this file *)
+
 Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
   Context (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop).
@@ -247,8 +249,15 @@ Section couplings_theory.
       rewrite /ARcoupl in Hcoup_fg.
       apply Rle_minus_l, Hcoup_fg; auto.
   Qed.
-
-
+  
+  Lemma ARcoupl_dbind' (ε1 ε2 ε : R) (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
+    (0 <= ε1) → (0 <= ε2) →
+    ε = ε1 + ε2 →
+    (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) →
+    ARcoupl μ1 μ2 R ε1 →
+    ARcoupl (dbind f μ1) (dbind g μ2) S ε.
+  Proof. intros ? ? ->. by eapply ARcoupl_dbind. Qed. 
 
   Local Notation ℝ := R.
   (* Depend on LHS *)
@@ -661,6 +670,20 @@ Section couplings_theory.
   Proof.
   Abort.
 
+  Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
+    (∀ b, 0 <= g b) →
+    ex_expval μ (g ∘ f) →
+    Expval (dmap f μ) g = Expval μ (g ∘ f).
+  Proof.
+    intros Hg Hex.
+    rewrite Expval_dbind; [|done|].
+    - apply SeriesC_ext => a.
+      rewrite Expval_dret //.
+    - apply ex_expval_dbind; [done| |].
+      + eapply ex_seriesC_ext; [|done].
+        intros ?. rewrite Expval_dret //.
+      + intros a. apply ex_expval_dret.
+  Qed.
 
   Lemma ARcoupl_mass_leq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε :
     ARcoupl μ1 μ2 R ε → SeriesC μ1 <= SeriesC μ2 + ε.
