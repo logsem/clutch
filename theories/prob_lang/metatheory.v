@@ -662,15 +662,15 @@ Proof.
   simpl in nm. eauto.
 Qed.
 
-Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
+Lemma ARcoupl_rand_no_coll_l `{Countable A} N (x : fin (S N)) z (σ : state) (a : A) (ε : nonnegreal) :
   (0 < S N)%R →
   ((1 / S N) = ε)%R →
   N = Z.to_nat z →
   ARcoupl
     (prim_step (rand #z) σ)
-    (dret ρₛ1)
-    (λ ρ ρₛ2, ∃ n : fin (S N),
-        ρ = (Val #n, σ) ∧ (n ≠ x) ∧ ρₛ2 = ρₛ1)
+    (dret a)
+    (λ ρ a', ∃ n : fin (S N),
+        ρ = (Val #n, σ) ∧ (n ≠ x) ∧ a' = a)
     ε.
 Proof.
   intros Npos Nε Nz.
@@ -684,15 +684,15 @@ Proof.
   exists n. auto.
 Qed.
 
-Lemma wp_couple_rand_no_coll_r N z (σₛ : state) (ρ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
+Lemma ARcoupl_rand_no_coll_r `{Countable A} N (x : fin (S N)) z (σₛ : state) (a : A) (ε : nonnegreal) :
   (0 < S N)%R →
   ((1 / S N) = ε)%R →
   N = Z.to_nat z →
   ARcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand #z) σₛ)
-    (λ ρ2 ρₛ, ∃ n : fin (S N),
-        ρ2 = ρ1 ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
+    (λ a' ρₛ, ∃ n : fin (S N),
+        a' = a ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
     ε.
 Proof.
   intros Npos Nε Nz.
@@ -706,6 +706,7 @@ Proof.
   move => ? n [-> xn]. apply ARcoupl_dret.
   exists n. auto.
 Qed.
+
 (** * state_step ~ fair_coin  *)
 Lemma state_step_fair_coin_coupl σ α bs :
   σ.(tapes) !! α = Some ((1%nat; bs) : tape) →
