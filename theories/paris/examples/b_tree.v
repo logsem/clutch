@@ -242,7 +242,7 @@ Section stage1.
         { apply lookup_ge_None_1 in Heqn1.
           pose proof fin_to_nat_lt x. rewrite Hlen1 in Heqn1. lia.
         }
-        destruct o as [|a]; last done.
+        destruct o as [|]; last done.
         exfalso.
         cut ((fin_to_nat x, Some a) ∈ l').
         * rewrite /l'. rewrite elem_of_list_lookup.
@@ -1283,6 +1283,25 @@ Section b_tree.
     iIntros (α) "Hα".
     do 2 wp_pure.
     (* iLöb *)
+    iLöb as "IH".
+    wp_pures; tp_pures.
+    tp_alloctape as α' "Hα'".
+    tp_pures.
+    set (@decoder (max_child_num - 1)%nat ((max_child_num ^ depth - 1)%nat)) as d.
+    rewrite Nat2Z.id.
+    iApply (wp_couple_exp_rev _ _ depth d with "[$Hα $Hα' Hrelate Hrelate' Hspec Hε ]").
+    - eapply decoder_inj.
+    - pose proof max_child_num_pos.
+      pose proof pow_max_child_num depth.
+      replace (S (max_child_num-_)) with max_child_num by lia.
+      lia.
+    - done.
+    - iIntros (xs m) "[% <-] Hα Hα'".
+      simpl.
+      wp_apply (wp_rand_tape with "[$]").
+      iIntros "Hα".
+      wp_pures.
+      (* do a case split on whether we hit a child *)
   Admitted.
 
   
@@ -1301,6 +1320,27 @@ Section b_tree.
     wp_pure. tp_pures.
     tp_alloctape as α' "Hα'".
     do 2 tp_pure.
+    (* iLöb *)
+    iLöb as "IH".
+    wp_pures; tp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα". wp_pures.
+    rewrite Nat2Z.id.
+    set (@decoder (max_child_num - 1)%nat ((max_child_num ^ depth - 1)%nat)) as d.
+    iApply (wp_couple_exp _ _ depth d with "[$Hα $Hα' Hrelate Hrelate' Hspec Hε ]").
+    - eapply decoder_inj.
+    - pose proof max_child_num_pos.
+      pose proof pow_max_child_num depth.
+      replace (S (max_child_num-_)) with max_child_num by lia.
+      lia.
+    - done.
+    - iIntros (xs m) "[% <-] Hα Hα'".
+      tp_bind (rand(_) _)%E.
+      iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+      iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+      iIntros "[Hspec Hα']".
+      tp_pures.
+      (* do a case split on whether we hit a child *)
   Admitted.
 
   

@@ -884,6 +884,87 @@ Section rules.
       apply fin_to_nat_inj. by rewrite !fin_to_nat_to_fin.
   Qed.
 
+  (** wp_couple_exp *)
+  Lemma wp_couple_exp (M N p:nat) 
+    (f:(list (fin (S N))) -> fin (S M))
+    (Hinj: forall (l1 l2:list _), length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e E Φ:
+    (S N ^ p = S M)%nat->
+    to_val e = None ->
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
+    (∀ (l : list (fin (S N))) (m:fin (S M)),
+       ⌜length l = p /\ f l = m⌝ -∗ 
+       α ↪ (N; ns ++ l) -∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
+       WP e @ E {{ Φ }}
+    )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Heq Hval) "(>Hα & >Hαₛ & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    simplify_map_eq.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε_now) with (0+ε_now)%NNR; last (apply nnreal_ext; simpl; lra).
+    iApply exec_coupl_big_state_steps.
+    iExists _, _, _.
+    repeat iSplit.
+    - iPureIntro. apply ARcoupl_exact. apply Rcoupl_state_state_exp.
+      all: exact.
+    - iPureIntro. eapply iterM_state_step_erasable; done.
+    - iPureIntro. by eapply state_step_erasable.
+    - iIntros (σ2 σ2') "%K".
+      destruct K as (xs' & z & Hlen & -> & -> & <-).
+      iMod (ghost_map_update ((N; ns ++ xs') : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+      iMod (ghost_map_update ((M; nsₛ ++ [f xs']) : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
+      iSpecialize ("Hwp" $! xs' (f xs') with "[][$][$]"); first done.
+      iMod "Hclose'".
+      rewrite !wp_unfold/wp_pre/=Hval.
+      iApply "Hwp". replace (0+_)%NNR with (ε_now); first iFrame.
+      apply nnreal_ext. simpl; lra.
+  Qed.
+
+  Lemma wp_couple_exp_rev (M N p:nat) 
+    (f:(list (fin (S N))) -> fin (S M))
+    (Hinj: forall (l1 l2:list _), length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e E Φ:
+    (S N ^ p = S M)%nat->
+    to_val e = None ->
+    ▷ α ↪ (M; ns) ∗ ▷ αₛ ↪ₛ (N; nsₛ) ∗
+    (∀ (l : list (fin (S N))) (m:fin (S M)),
+       ⌜length l = p /\ f l = m⌝ -∗ 
+       α ↪ (M; ns ++ [m]) -∗ αₛ ↪ₛ (N; nsₛ ++ l) -∗
+       WP e @ E {{ Φ }}
+    )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Heq Hval) "(>Hα & >Hαₛ & Hwp)".
+    iApply wp_lift_step_fupd_couple; [done|].
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    simplify_map_eq.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace (ε_now) with (0+ε_now)%NNR; last (apply nnreal_ext; simpl; lra).
+    iApply exec_coupl_big_state_steps.
+    iExists _, _, _.
+    repeat iSplit.
+    - iPureIntro. apply ARcoupl_exact. apply Rcoupl_swap. apply Rcoupl_state_state_exp.
+      all: exact.
+    - iPureIntro. by eapply state_step_erasable.
+    - iPureIntro. eapply iterM_state_step_erasable; done.
+    - iIntros (σ2 σ2') "%K".
+      destruct K as (xs' & z & Hlen & -> & -> & <-).
+      iMod (ghost_map_update ((M; ns ++ [f xs']) : tape) with "Ht1 Hα") as "[Ht1 Hα]".
+      iMod (ghost_map_update ((N; nsₛ ++ xs') : tape) with "Ht2 Hαₛ") as "[Ht2 Hαₛ]".
+      iSpecialize ("Hwp" $! xs' (f xs') with "[][$][$]"); first done.
+      iMod "Hclose'".
+      rewrite !wp_unfold/wp_pre/=Hval.
+      iApply "Hwp". replace (0+_)%NNR with (ε_now); first iFrame.
+      apply nnreal_ext. simpl; lra.
+  Qed.
+
   (** couplings between prim step and state steps*)
   Lemma wp_couple_tape_rand N f `{Bij (fin (S N)) (fin (S N)) f} K E α z ns Φ e :
     TCEq N (Z.to_nat z) →
