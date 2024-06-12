@@ -36,7 +36,7 @@ Definition parisΣ : gFunctors :=
     ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     specΣ;
-    ecΣ].  
+    ecΣ].
 Global Instance subG_parisGPreS {Σ} : subG parisΣ Σ → parisGpreS Σ.
 Proof. solve_inG. Qed.
 
@@ -79,9 +79,9 @@ Implicit Types σ : state.
 Implicit Types v : val.
 Implicit Types l : loc.
 
-(** Recursive functions: we do not use this lemma as it is easier to use Löb *)
-(* induction directly, but this demonstrates that we can state the expected *)
-(* reasoning principle for recursive functions, without any visible ▷. *)
+(** Recursive functions: we do not use this lemma as it is easier to use Löb
+    induction directly, but this demonstrates that we can state the expected
+    reasoning principle for recursive functions, without any visible ▷. *)
 
 Lemma wp_rec_löb E f x e Φ Ψ :
   □ ( □ (∀ v, Ψ v -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
@@ -94,9 +94,7 @@ Proof.
   iApply ("IH" with "HΨ").
 Qed.
 
-
 (** Heap *)
-
 Lemma wp_alloc E v s :
   {{{ True }}} Alloc (Val v) @ s; E {{{ l, RET LitV (LitLoc l); l ↦ v }}}.
 Proof.
@@ -168,64 +166,6 @@ Proof.
       rewrite replicate_length in H1.
       lia.
 Qed.
-
-(*
-Lemma wp_allocN (N : nat) (z : Z) E v:
-  TCEq N (Z.to_nat z) →
-  (0 < N)%Z →
-  {{{ True }}}
-    AllocN (Val $ LitV $ LitInt $ z) (Val v) @ E
-                                                    {{{ l, RET LitV (LitLoc l); [∗ list] i ∈ seq 0 N, (l +ₗ (i : nat)) ↦ v }}}.
-Proof.
-  iIntros (-> Hn Φ) "_ HΦ".
-  iApply wp_lift_atomic_head_step; [done|].
-  iIntros (σ1) "[Hh Ht] !#".
-  iSplit.
-  { iPureIntro.
-    rewrite /head_reducible.
-    eexists.
-    apply head_step_support_equiv_rel.
-    econstructor; eauto.
-    lia.
-  }
-  iIntros "!> /=" (e2 σ2 Hs); inv_head_step.
-  iMod ((ghost_map_insert_big _ _ with "Hh")) as "[$ Hl]".
-  iIntros "!>". iFrame.
-  iApply "HΦ".
-  iInduction (H) as [ | ?] "IH" forall (σ1).
-  - simpl.
-    iSplit; auto.
-    rewrite map_union_empty.
-    rewrite loc_add_0.
-    by rewrite big_sepM_singleton.
-  - rewrite seq_S.
-    rewrite heap_array_replicate_S_end.
-    iPoseProof (big_sepM_union _ _ _ _ with "Hl") as "[H1 H2]".
-    iApply big_sepL_app.
-    iSplitL "H1".
-    + iApply "IH".
-      { iPureIntro. lia. }
-      iApply "H1".
-    + simpl. iSplit; auto.
-      by rewrite big_sepM_singleton.
-      Unshelve.
-      {
-        apply heap_array_map_disjoint.
-        intros.
-        apply not_elem_of_dom_1.
-        by apply fresh_loc_offset_is_fresh.
-      }
-      apply heap_array_map_disjoint.
-      intros.
-      apply not_elem_of_dom_1.
-      rewrite dom_singleton.
-      apply not_elem_of_singleton_2.
-      intros H2.
-      apply loc_add_inj in H2.
-      rewrite replicate_length in H1.
-      lia.
-Qed.
-*)
 
 Lemma wp_load E l dq v s :
   {{{ ▷ l ↦{dq} v }}} Load (Val $ LitV $ LitLoc l) @ s; E {{{ RET v; l ↦{dq} v }}}.
@@ -331,147 +271,85 @@ Proof.
   iApply ("HΦ" with "[$Hl //]").
 Qed.
 
+(** spec [rand] *)
+Lemma wp_rand_r N z E e K Φ :
+  TCEq N (Z.to_nat z) →
+  ⤇ fill K (rand #z) ∗
+  (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->) "(Hj & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  iApply spec_coupl_ret.
+  iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+  iFrame. iModIntro.
+  iMod "Hclose" as "_"; iModIntro.
+  by iApply "Hwp".
+Qed.
 
+(** spec [rand(α)] with empty tape  *)
+Lemma wp_rand_empty_r N z E e K α Φ :
+  TCEq N (Z.to_nat z) →
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
+  (∀ n : fin (S N), (α ↪ₛ (N; []) ∗ ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  iApply spec_coupl_ret.
+  iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+  iFrame. iModIntro.
+  iMod "Hclose" as "_"; iModIntro.
+  iApply "Hwp".
+  iFrame.
+Qed.
 
-(** Spec probabilistic [rand] *)
-  Lemma wp_rand_r N z E e K Φ :
-    TCEq N (Z.to_nat z) →
-    to_val e = None →
-    ⤇ fill K (rand #z) ∗
-    (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
-    ⊢ WP e @ E {{ Φ }}.
-  Proof.
-    iIntros (-> He) "( Hj & Hwp)".
-    iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    replace (ε) with (nnreal_plus nnreal_zero ε)
-      by by apply nnreal_ext => /=; lra.
-    iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ n : fin (S (Z.to_nat z)), (e2', σ2') = (fill K #n, σ1')), 1.
-    iSplit.
-    { iPureIntro.
-      rewrite pexec_1.
-      replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
-                               by by apply nnreal_ext => /= ; lra.
-      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
-      rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply ARcoupl_dbind => /=.
-      1,2: simpl ; lra.
-      2: by eapply ARcoupl_rand_r.
-      intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
-      apply ARcoupl_dret => /=. eauto. }
-    iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_update_prog (fill K #n) with "Hauth2 Hj") as "[Hspec Hspec0]".
-    simpl.                      (*     simplify_map_eq. *)
-    iMod "Hclose'" as "_".
-    iSpecialize ("Hwp" with "Hspec0").
-    rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
-    replace (nnreal_plus nnreal_zero ε) with (ε)
-      by by apply nnreal_ext => /= ; lra.
-    iModIntro.
-    done.
-  Qed.
-
-
-
-  (** RHS [rand(α)] with empty tape  *)
-  Lemma wp_rand_empty_r N z E e K α Φ :
-    TCEq N (Z.to_nat z) →
-    to_val e = None →
-    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
-    ((α ↪ₛ (N; []) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
-    ⊢ WP e @ E {{ Φ }}.
-  Proof.
-    iIntros (-> He) "(Hj & Hα & Hwp)".
-    iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
-    iDestruct "Hauth2" as "(HK& Hheap& Htapes)".
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    replace (ε) with (nnreal_plus nnreal_zero ε)
-      by by apply nnreal_ext => /=; lra.
-    (* Do a (trivially) coupled [prim_step] on the right *)
-    iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ1')), 1.
-    iSplit.
-    { iPureIntro.
-      rewrite pexec_1.
-      replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
-                               by by apply nnreal_ext => /= ; lra.
-      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
-      rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply ARcoupl_dbind => /=.
-      1,2: simpl; lra.
-      2: by eapply ARcoupl_rand_empty_r.
-      intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
-      apply ARcoupl_dret=>/=. eauto. }
-    iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_update_prog (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
-    { iFrame. }
-    simplify_map_eq.
-    iMod "Hclose'" as "_".
-    iSpecialize ("Hwp" with "[$Hα Hspec0]"); [eauto|].
-    rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
-    replace (nnreal_plus nnreal_zero ε) with (ε)
-      by by apply nnreal_ext => /= ; lra.
-    iModIntro.
-    done.
-  Qed.
-
-
-    (** RHS [rand(α)] with wrong tape  *)
-  Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
-    TCEq N (Z.to_nat z) →
-    N ≠ M →
-    to_val e = None →
-    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
-    ((α ↪ₛ (M; ns) ∗ ∃ n : fin (S N), ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
-    ⊢ WP e @ E {{ Φ }}.
-  Proof.
-    iIntros (-> Hneq He) "(Hj & Hα & Hwp)".
-    iApply wp_lift_step_fupd_couple; [done|].
-    iIntros (σ1 e1' σ1' ε) "[[Hh1 Ht1] [Hauth2 Herr]]".
-    iDestruct (spec_auth_prog_agree with "[$][$]") as "->".
-    iDestruct "Hauth2" as "(HK& Hheap& Htapes)".
-    iDestruct (ghost_map_lookup with "Htapes Hα") as %Hαsome.
-    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    replace (ε) with (nnreal_plus nnreal_zero ε)
-      by by apply nnreal_ext => /=; lra.
-    (* Do a (trivially) coupled [prim_step] on the right *)
-    iApply (exec_coupl_exec_r).
-    iExists (λ _ '(e2', σ2'), ∃ n : fin (S _), (e2', σ2') = (fill K #n, σ1')), 1.
-    iSplit.
-    { iPureIntro.
-      rewrite pexec_1.
-      replace nnreal_zero with (nnreal_plus nnreal_zero nnreal_zero)
-                               by by apply nnreal_ext => /= ; lra.
-      rewrite step_or_final_no_final /=; [|by apply to_final_None_2, fill_not_val].
-      rewrite -(dret_id_right (dret _)) fill_dmap //.
-      eapply ARcoupl_dbind => /=.
-      1,2: simpl; lra.
-      2: by eapply ARcoupl_rand_wrong_r.
-      intros [e2 σ2] (e2' & σ2') (? & [= -> ->] & [= -> ->]).
-      apply ARcoupl_dret=>/=. eauto.
-    }
-    iIntros (σ2 e2' (n & [= -> ->])).
-    iMod (spec_update_prog (fill K #n) with "[HK Hheap Htapes] Hj") as "[Hspec Hspec0]".
-    { iFrame. }
-    simplify_map_eq.
-    iMod "Hclose'" as "_".
-    iSpecialize ("Hwp" with "[$Hα Hspec0]"); [eauto|].
-    rewrite !wp_unfold /wp_pre /= He.
-    iMod ("Hwp" $! _ with "[$Hh1 $Hspec $Ht1 $Herr]") as "Hwp".
-    replace (nnreal_plus nnreal_zero ε) with (ε)
-      by by apply nnreal_ext => /= ; lra.
-    iModIntro.
-    done.
-  Qed.
-
+(** spec [rand(α)] with wrong tape  *)
+Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
+  TCEq N (Z.to_nat z) →
+  N ≠ M →
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
+  (∀ (n : fin (S N)), (α ↪ₛ (M; ns) ∗ ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (-> ?) "(Hj & Hα & Hwp)".
+  iApply wp_lift_step_spec_couple.
+  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
+  iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+  iApply spec_coupl_step; [solve_red|].
+  rewrite fill_dmap //=.
+  iIntros (e2' σ2' ([? ? ]&?&Hs)%dmap_pos).
+  simplify_eq/=.
+  rewrite head_prim_step_eq // in Hs.
+  inv_head_step.
+  iApply spec_coupl_ret.
+  iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
+  iFrame. iModIntro.
+  iMod "Hclose" as "_"; iModIntro.
+  iApply "Hwp".
+  iFrame.
+Qed.
 
 End lifting.
 

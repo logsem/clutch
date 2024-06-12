@@ -662,45 +662,6 @@ Proof.
   simpl in nm. eauto.
 Qed.
 
-Lemma ARcoupl_rand_r `{Countable A} (a : A) N z σ1' :
-  N = Z.to_nat z →
-  ARcoupl
-    (dret a)
-    (prim_step (rand #z) σ1')
-    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-Proof.
-  intros ?.
-  apply ARcoupl_exact.
-  by apply Rcoupl_rand_r.
-Qed.
-
-Lemma ARcoupl_rand_empty_r `{Countable A} N z (a : A) σ1' α' :
-  N = Z.to_nat z →
-  tapes σ1' !! α' = Some (N; []) →
-  ARcoupl
-    (dret a)
-    (prim_step (rand(#lbl:α') #z) σ1')
-    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-Proof.
-  intros ??.
-  apply ARcoupl_exact.
-  by apply Rcoupl_rand_empty_r.
-Qed.
-
-Lemma ARcoupl_rand_wrong_r `{Countable A} N M z ns (a : A) σ1' α' :
-  N = Z.to_nat z →
-  N ≠ M →
-  tapes σ1' !! α' = Some (M; ns) →
-  ARcoupl
-    (dret a)
-    (prim_step (rand(#lbl:α') #z) σ1')
-    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-Proof.
-  intros ???.
-  apply ARcoupl_exact.
-  eapply Rcoupl_rand_wrong_r; eauto.
-Qed.
-
 Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
   (0 < S N)%R →
   ((1 / S N) = ε)%R →

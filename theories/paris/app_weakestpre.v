@@ -250,19 +250,47 @@ Section coupl_modalities.
     done.
   Qed.
 
-  Lemma spec_coupl_steps n ε σ1 e1' σ1' e2' σ2' Z E :
+  Lemma spec_coupl_steps n ε2 ε1 ε R E σ1 e1' σ1' Z :
+    ε = (ε1 + ε2)%NNR →
+    ARcoupl (dret σ1) (pexec n (e1', σ1')) R ε1 →
+    (∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' ε2 Z)
+    ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+  Proof.
+    iIntros (-> ?) "H".
+    iApply (spec_coupl_erasable_steps n _ _ ε1 ε2); [done| |apply dret_erasable|].
+    { by apply ARcoupl_pos_R. }
+    iIntros (??? (? & ->%dret_pos & ?)).
+    by iApply "H".
+  Qed.
+
+  Lemma spec_coupl_steps_det n ε σ1 e1' σ1' e2' σ2' Z E :
     pexec n (e1', σ1') (e2', σ2') = 1 →
     spec_coupl E σ1 e2' σ2' ε Z ⊢
     spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros (Hexec%pmf_1_eq_dret) "H".
-    iApply (spec_coupl_erasable_steps n _ _ 0%NNR ε); [| |apply dret_erasable|].
+    iApply (spec_coupl_steps n ε 0%NNR).
     { apply nnreal_ext => /=. lra. }
     { apply ARcoupl_pos_R, ARcoupl_trivial; [solve_distr_mass|].
       rewrite Hexec. solve_distr_mass. }
     rewrite Hexec.
     iIntros (??? (_ & ->%dret_pos & [=-> ->]%dret_pos)).
     done.
+  Qed.
+
+  Lemma spec_coupl_step ε E σ1 e1' σ1' Z :
+    reducible (e1', σ1') →
+    (∀ e2' σ2', ⌜prim_step e1' σ1' (e2', σ2') > 0%R⌝ ={E}=∗ spec_coupl E σ1 e2' σ2' ε Z)
+    ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+  Proof.
+    iIntros (?) "H".
+    iApply (spec_coupl_steps 1 ε 0%NNR).
+    { apply nnreal_ext => /=. lra. }
+    { rewrite pexec_1 step_or_final_no_final; [|by apply reducible_not_final].
+      apply ARcoupl_pos_R, ARcoupl_trivial; [solve_distr_mass|].
+      by apply prim_step_mass. }
+    iIntros (??? (?&->%dret_pos&?)).
+    by iApply "H".
   Qed.
 
   (** * [prog_coupl] *)
@@ -322,7 +350,7 @@ Section coupl_modalities.
     assert (∀ e, Kinv (K e) = Some e) as HKinv3.
     { intro e.
       destruct (Kinv (K e)) eqn:Heq;
-        eapply HKinv in Heq; by simplify_eq. }.
+        eapply HKinv in Heq; by simplify_eq. }
     set (X2' := (λ '(e, σ), from_option (λ e', X2 (e', σ)) 0%NNR (Kinv e))).
     assert (∀ e2 σ2, X2' (K e2, σ2) = X2 (e2, σ2)) as HX2'.
     { intros. rewrite /X2' HKinv3 //. }
@@ -351,7 +379,7 @@ Section coupl_modalities.
     by iApply "Hcnt".
   Qed.
 
-  Lemma prog_coupl_prim_steps ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_steps ε2 ε1 ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     reducible (e1, σ1) →
     reducible (e1', σ1') →
@@ -371,7 +399,7 @@ Section coupl_modalities.
     done.
   Qed.
 
-  Lemma prog_coupl_prim_step_l ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_step_l_err ε2 ε1 ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     reducible (e1, σ1) →
     ARcoupl (prim_step e1 σ1) (dret (e1', σ1')) R ε1 →
@@ -388,6 +416,21 @@ Section coupl_modalities.
     { rewrite Expval_const //. rewrite prim_step_mass //=. lra. }
     iSplit; [iPureIntro; apply dret_erasable|].
     iIntros (e2 σ2 e2' σ2' (?&?&[= -> ->]%dret_pos)).
+    by iApply "H".
+  Qed.
+
+  Lemma prog_coupl_step_l e1 σ1 e1' σ1' ε Z :
+    reducible (e1, σ1) →
+    (∀ e2 σ2, ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε)
+    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+  Proof.
+    iIntros (?) "H".
+    iApply (prog_coupl_step_l_err ε 0%NNR); [|done|..].
+    { apply nnreal_ext => /=. lra. }
+    { eapply ARcoupl_pos_R, ARcoupl_trivial.
+      - by apply prim_step_mass.
+      - apply dret_mass. }
+    iIntros (?? (_ & ? & [=]%dret_pos)).
     by iApply "H".
   Qed.
 
@@ -668,7 +711,7 @@ Proof.
   iEval (rewrite !wp_unfold /wp_pre) in "Hwp".
   iMod ("Hwp" with "[$]") as "Hwp".
   iModIntro.
-  by iApply spec_coupl_steps.
+  by iApply spec_coupl_steps_det.
 Qed.
 
 Lemma wp_spec_update E e Φ s :
@@ -689,7 +732,7 @@ Proof.
     iMod ("Hupd" with "[$]")
       as ([e3' σ3'] n Hstep%stepN_pexec_det) "(Hs & Hwp)".
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
-    iApply spec_coupl_steps; [done|].
+    iApply spec_coupl_steps_det; [done|].
     iApply spec_coupl_ret.
     iMod "Hclose".
     by iFrame. }
