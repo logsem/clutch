@@ -49,7 +49,7 @@ Global Instance parisGS_irisGS `{!parisGS Σ} : parisWpGS prob_lang Σ := {
   parisWpGS_invGS := parisGS_invG;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
   err_interp := ec_supply;
-  }.
+}.
 
 (** Heap *)
 Notation "l ↦{ dq } v" := (@ghost_map_elem _ _ _ _ _ parisGS_heap parisGS_heap_name l dq v)
