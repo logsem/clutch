@@ -357,13 +357,16 @@ Section b_tree.
   Local Definition min_child_num := S min_child_num'.
   Local Definition max_child_num := (2*min_child_num)%nat.
 
+  
+  Local Lemma min_child_num_pos: (0<min_child_num)%nat.
+  Proof. rewrite /min_child_num. lia. Qed.
   Local Lemma max_child_num_pos: (0<max_child_num)%nat.
   Proof. rewrite /max_child_num /min_child_num. lia. Qed.
   Local Lemma pow_max_child_num (n:nat): (0<max_child_num^n)%nat.
   Proof.
     apply pow_pos. apply max_child_num_pos.
   Qed.
-  Opaque max_child_num.
+  Opaque max_child_num min_child_num.
 
   (** For this example, intermediate nodes do not store keys themselves
       If the depth is 0, the node is a leaf, storing a single key value
@@ -550,7 +553,25 @@ Section b_tree.
       rewrite Nat.add_0_r in IHl. rewrite -IHl. done.
   Qed.
 
-  (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
+  Lemma children_num_pos n l t:
+    is_ab_b_tree n l t -> (0<children_num t)%nat.
+  Proof.
+    revert n l.
+    induction t.
+    - intros. simpl. lia.
+    - intros n l' Hl'. simpl.
+      inversion Hl'; subst.
+      clear Hl'.
+      revert H H1 H4.
+      induction l0.
+      + simpl. pose proof min_child_num_pos; lia.
+      + simpl. intros. apply Nat.add_pos_l.
+        rewrite !Forall_cons in H H1.
+        destruct H, H1.
+        naive_solver.
+  Qed.
+
+      (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
 
   Program Fixpoint relate_ab_tree_with_ranked_v (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
@@ -1093,7 +1114,7 @@ Section b_tree.
     wp_pures.
     tp_alloctape as α' "Hα'".
     do 2 tp_pure.
-    pose proof ab_tree_children_num _ _ _ Htree.
+    pose proof ab_tree_children_num _ _ _ Htree as H.
     assert (children_num tree <= max_child_num^depth)%nat as Hineq.
     { pose proof ab_b_tree_list_length _ _ _ Htree as K.
       rewrite <-K.
@@ -1174,6 +1195,7 @@ Section b_tree.
         exfalso. apply K.
         apply finite_inj_surj; first done.
         rewrite !fin_card. rewrite H. lia.
+        Unshelve.
   Admitted.
   
   Lemma intermediate_annotated_naive_refinement tree l treev treev': 
@@ -1199,6 +1221,45 @@ Section b_tree.
     tp_alloctape as α' "Hα'".
     tp_pures.
     (* iLöb *)
+    iLöb as "IH".
+    wp_pures.
+    replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat by lia.
+    epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
+    pose proof ab_tree_children_num _ _ _ Htree as H.
+    assert (children_num tree <= max_child_num^depth)%nat as Hineq.
+    { pose proof ab_b_tree_list_length _ _ _ Htree as K.
+      rewrite <-K.
+      rewrite H. apply filter_length.
+    }
+    iApply (wp_couple_fragmented_rand_rand_inj _ _ f with "[$Hα $Hα' Hspec Hrelate Hrelate']"); [|done|..].
+    { apply le_INR. lia. }
+    iIntros (m).
+    case_bool_decide as K.
+    - (* hit somthing on the right!*)
+      destruct K as [n <-].
+      iIntros (?) "(Hα & Hα' & %Hfsame)".
+      apply Hinj in Hfsame. subst. simpl.
+      wp_apply (wp_rand_tape with "[$]").
+      iIntros "Hα".
+      wp_pures. tp_pures.
+      tp_bind (rand(_) _)%E.
+      iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+      { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; first done. lia. }
+      iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+      iIntros "[Hspec Hα']".
+      tp_pures.
+      specialize (Hf1 n) as [[v Hvsome] Hvsame].
+      admit.
+    - (* missed! *)
+      iIntros "(Hα & Hα')".
+      (** only step LHS *)
+      assert (l!!(fin_to_nat m)=Some None) as Hnone.
+      { apply Hf2. intros. intro. apply K. subst. naive_solver. }
+      wp_apply (wp_rand_tape with "[$]").
+      iIntros "Hα".
+      wp_pures.
+      admit.
+      Unshelve.
   Admitted.
 
   (** Stage 2 *)
