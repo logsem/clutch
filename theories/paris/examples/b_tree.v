@@ -1345,6 +1345,23 @@ Section b_tree.
 
   
   (** Stage 3*)
+  Lemma optimized_annotated_optimized_refinement_aux α K tree l treev treev': 
+    is_ab_b_tree depth l tree ->
+    {{{ relate_ab_tree_with_v tree treev ∗
+        relate_ab_tree_with_v tree treev' ∗
+        ⤇ fill K (optimized_sampler_rec_prog treev') ∗
+        α ↪ ((max_child_num - 1)%nat; [])
+    }}}
+      (optimized_sampler_rec_annotated_prog #lbl:α treev)
+      {{{ (v:val), RET v; ⌜((∃ v', v= (SOMEV v')) \/ v= NONEV)⌝ ∗
+          ⤇ fill K (Val v) ∗
+              relate_ab_tree_with_v tree treev ∗
+              relate_ab_tree_with_v tree treev' ∗
+              α ↪ ((max_child_num - 1)%nat; [])
+      }}}.
+  Proof.
+  Admitted.
+  
   Lemma optimized_annotated_optimized_refinement tree l treev treev': 
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
@@ -1358,36 +1375,39 @@ Section b_tree.
     rewrite /optimized_sampler_annotated_prog /optimized_sampler_prog.
     do 2 (wp_pure; tp_pure).
     (** iLöb *)
-    (* wp_pures. *)
-    (* tp_pures. *)
-    (* wp_apply (wp_alloc_tape); first done. *)
-    (* iIntros (α) "Hα". *)
-    (* wp_pures. *)
-    (* (** löb induction*) *)
-    (* iLöb as "IH" forall (depth tree l treev treev' Htree) "Hrelate Hrelate' Hspec Hα". *)
-    (* rewrite /optimized_sampler_rec_annotated_prog /optimized_sampler_rec_prog. *)
-    (* wp_pure. tp_pure. *)
-    (* rewrite -/optimized_sampler_rec_annotated_prog -/optimized_sampler_rec_prog. *)
-    (* inversion Htree. *)
-    (* - (** we have a lf*) *)
-    (*   subst. rewrite !relate_ab_tree_with_v_Lf. *)
-    (*   iDestruct "Hrelate" as "->". iDestruct "Hrelate'" as "->". *)
-    (*   tp_pures. wp_pures. *)
-    (*   done. *)
-    (* - (** branch *) *)
-    (*   subst. rewrite !relate_ab_tree_with_v_Br. *)
-    (*   wp_pures; tp_pures. *)
-    (*   iDestruct "Hrelate" as "(%&%&%&%&%&%&%&H1&H2)". *)
-    (*   iDestruct "Hrelate'" as "(%&%&%&%&%&%&%&H3&H4)". subst. *)
-    (*   wp_pures. tp_pures. tp_bind (rand _)%E. *)
-    (*   wp_apply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done. *)
-    (*   simpl. iIntros (x) "[Hα Hspec]". wp_apply (wp_rand_tape with "[$Hα]"). *)
-    (*   iIntros "Hα". wp_pures. *)
-    (*   tp_pures. *)
-    (*   wp_apply (wp_list_nth); first done. *)
-    (*   iIntros (v) "[?|?]". *)
-  Admitted.
+    iLöb as "IH".
+    wp_pures.
+    tp_pures.
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    wp_pures.
+    tp_bind (optimized_sampler_rec_prog _).
+    wp_apply (optimized_annotated_optimized_refinement_aux with "[$Hrelate $Hspec $Hrelate' $Hα]"); first done.
+    iIntros (v) "([[% ->]|->]&Hspec & Hrelate & Hrelate' & Hα)"; simpl.
+    - tp_pures; wp_pures.
+      iModIntro. done.
+    - do 3 wp_pure. do 3 tp_pure.
+      iApply ("IH" with "[$][$][$][$]").
+  Qed.
 
+
+  Lemma annotated_optimized_optimized_refinement_aux α K tree l treev treev': 
+    is_ab_b_tree depth l tree ->
+    {{{ relate_ab_tree_with_v tree treev ∗
+        relate_ab_tree_with_v tree treev' ∗
+        ⤇ fill K (optimized_sampler_rec_annotated_prog #lbl:α treev') ∗
+        α ↪ₛ ((max_child_num - 1)%nat; [])
+    }}} 
+      (optimized_sampler_rec_prog treev)
+      {{{ (v:val), RET v; ⌜((∃ v', v= (SOMEV v')) \/ v= NONEV)⌝ ∗
+          ⤇ fill K (Val v) ∗
+              relate_ab_tree_with_v tree treev ∗
+              relate_ab_tree_with_v tree treev' ∗
+              α ↪ₛ ((max_child_num - 1)%nat; [])
+      }}}.
+  Proof.
+  Admitted.
+  
   Lemma annotated_optimized_optimized_refinement tree l treev treev': 
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
@@ -1400,7 +1420,21 @@ Section b_tree.
     iIntros (Hgt Htree) "Hrelate Hrelate' Hspec Hε".
     rewrite /optimized_sampler_annotated_prog /optimized_sampler_prog.
     do 2 (tp_pure; wp_pure).
-  Admitted.
+    (** iLöb *)
+    iLöb as "IH".
+    wp_pures.
+    tp_pures.
+    tp_alloctape as α "Hα".
+    tp_pures.
+    tp_bind (optimized_sampler_rec_annotated_prog _ _).
+    rewrite Nat2Z.id.
+    wp_apply (annotated_optimized_optimized_refinement_aux with "[$Hrelate $Hspec $Hrelate' $Hα]"); first done.
+    iIntros (v) "([[% ->]|->]&Hspec & Hrelate & Hrelate' & Hα)"; simpl.
+    - tp_pures; wp_pures.
+      iModIntro. done.
+    - do 3 wp_pure. do 3 tp_pure.
+      iApply ("IH" with "[$][$][$][$]").
+  Qed.
   
 End b_tree.
 
