@@ -49,11 +49,11 @@ Section couplings_theory.
     lra.
   Qed.
 
-  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) :
-    R a b → ARcoupl (dret a) (dret b) R 0.
+  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) r :
+    0 <= r →
+    R a b → ARcoupl (dret a) (dret b) R r.
   Proof.
-    intro HR.
-    intros f g Hf Hg Hfg.
+    intros Hr HR f g Hf Hg Hfg.
     assert (SeriesC (λ a0 : A, dret a a0 * f a0) = f a) as ->.
     { rewrite <-(SeriesC_singleton a (f a)).
       rewrite /pmf/=/dret_pmf ; series.
@@ -62,7 +62,7 @@ Section couplings_theory.
     { rewrite <-(SeriesC_singleton b (g b)).
       rewrite /pmf/=/dret_pmf ; series.
     }
-    rewrite Rplus_0_r. auto.
+    specialize (Hfg _ _ HR). lra. 
   Qed.
 
 
@@ -878,7 +878,7 @@ Proof.
   rewrite -(Rplus_0_r ε).
   eapply (ARcoupl_dbind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a')) _ ε 0); auto; [lra |].
   intros a b Hab.
-  apply (ARcoupl_dret (f a) (g b) R Hab).
+  by eapply ARcoupl_dret. 
 Qed.
 
 Lemma ARcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :

@@ -502,7 +502,7 @@ Proof.
     by eapply ARcoupl_dunif_leq, S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|].
   exists n . exists m.
   by rewrite Hnm //.
 Qed.
@@ -533,7 +533,7 @@ Proof.
     by apply S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   exists n .
   by rewrite Hnm //.
 Qed.
@@ -564,7 +564,7 @@ Proof.
     by eapply ARcoupl_dunif_leq_rev, S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   exists n . exists m.
   by rewrite Hnm //.
 Qed.
@@ -595,7 +595,7 @@ Proof.
     by eapply ARcoupl_dunif_leq_rev_inj, S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   exists m.
   by rewrite Hnm //.
 Qed.
@@ -628,7 +628,7 @@ Proof.
   { destruct ε ; done. } { simpl ; lra. }
   2: { rewrite -NMε. by apply ARcoupl_dunif_leq, S_INR_le_compat. }
   intros n m nm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|].
   simpl in nm. eauto.
 Qed.
 
@@ -658,7 +658,7 @@ Proof.
   { destruct ε ; done. } { simpl ; lra. }
   2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev, S_INR_le_compat. }
   intros n m nm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   simpl in nm. eauto.
 Qed.
 
@@ -680,7 +680,7 @@ Proof.
   replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext ; simpl ; lra).
   eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
   2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_l _ _ x Npos).
-  move => n ? [xn ->]. apply ARcoupl_dret.
+  move => n ? [xn ->]. apply ARcoupl_dret; [done|]. 
   exists n. auto.
 Qed.
 
@@ -703,7 +703,7 @@ Proof.
   replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
   eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
   2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_r _ _ x Npos).
-  move => ? n [-> xn]. apply ARcoupl_dret.
+  move => ? n [-> xn]. apply ARcoupl_dret; [done|]. 
   exists n. auto.
 Qed.
 
