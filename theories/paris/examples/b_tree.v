@@ -22,8 +22,48 @@ Section aux_lemmas.
     case_match; first done.
     done.
   Qed.
-    
+
+  Lemma nth_error_lookup {A} (l:list A) x v:
+    nth_error l x = Some v -> l!! x = Some v.
+  Proof.
+    revert x v.
+    induction l.
+    - intros ??. rewrite nth_error_nil. done.
+    - intros ??. rewrite nth_error_cons. destruct x.
+      + intros; simplify_eq. done.
+      + simpl. naive_solver.
+  Qed.
+
+  Lemma combine_lookup {A B} (l1:list A) (l2:list B) x v1 v2:
+    (combine l1 l2)!!x = Some (v1, v2) ->
+    l1 !! x = Some v1 /\ l2 !! x = Some v2.
+  Proof.
+    revert x v1 v2 l2.
+    induction l1.
+    - simpl. intros ????. rewrite lookup_nil; done.
+    - intros ????.
+      simpl. destruct l2.
+      + rewrite lookup_nil; done.
+      + destruct x.
+        * simpl. naive_solver.
+        * simpl. naive_solver.
+  Qed.
+
+  Lemma combine_length_same {A B} (l1:list A) (l2:list B):
+    length l1 = length l2 -> length (combine l1 l2) = length l1.
+  Proof.
+    intros.
+    rewrite combine_length.
+    rewrite H. rewrite Nat.min_id. done.
+  Qed.
+  
 End aux_lemmas.
+
+Local Ltac combine_lookup_slam :=
+  repeat match goal with
+    | [H: (combine _ _)!!_ = Some _ |- _] => apply combine_lookup in H as []
+    end.
+
 
 Section stage1.
   (** stage 1 is relating a naive exact rand, with a big rand, via a rejection sampler *)
@@ -524,6 +564,59 @@ Section b_tree.
       iModIntro. iIntros. case_match; done.
   Qed.
 
+  Program Fixpoint relate_ab_tree_with_v' (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
+    match t with
+    | Lf v' => ⌜v = InjLV v'⌝
+    | Br tlis => ∃ v' loc_lis v_lis,
+      ⌜v = InjRV v'⌝ ∗
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜is_list loc_lis v'⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ₛ x.2) ∗
+      ([∗ list] x ∈ combine tlis v_lis,
+        match decide (succ x.1 t)
+        with
+        |left Hproof => relate_ab_tree_with_v' x.1 x.2
+        | _ => True
+        end)
+    end.
+  Solve Obligations with auto using succ_wf.
+
+  Lemma relate_ab_tree_with_v_Lf' v v' :
+    relate_ab_tree_with_v' (Lf v') v ≡ ⌜v = InjLV v'⌝%I.
+  Proof.
+    rewrite /relate_ab_tree_with_v' /relate_ab_tree_with_v'_func.
+    rewrite WfExtensionality.fix_sub_eq_ext //.  
+  Qed.
+
+  Lemma relate_ab_tree_with_v_Br' v tlis :
+    relate_ab_tree_with_v' (Br tlis) v ≡
+      (∃ v' loc_lis v_lis,
+      ⌜v = InjRV v'⌝ ∗
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜is_list loc_lis v'⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ₛ x.2) ∗
+      ([∗ list] x ∈ combine tlis v_lis,
+         relate_ab_tree_with_v' x.1 x.2))%I.
+  Proof.
+    rewrite {1}/relate_ab_tree_with_v' /relate_ab_tree_with_v'_func.
+    rewrite WfExtensionality.fix_sub_eq_ext /=.
+    do 11 f_equiv.
+    iSplit.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; first done.
+      exfalso.
+      assert (x.1 ∈tlis); last done.
+      rewrite elem_of_list_In.
+      eapply in_combine_l.
+      rewrite -elem_of_list_In.
+      eapply elem_of_list_lookup_2. erewrite H.
+      f_equal. apply surjective_pairing.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; done.
+  Qed.
+
   Fixpoint children_num t:=
     match t with
     | Lf _ => 1%nat
@@ -633,6 +726,66 @@ Section b_tree.
       iModIntro. iIntros. case_match; done.
   Qed.
 
+  Program Fixpoint relate_ab_tree_with_ranked_v' (t:ab_tree) (v:val) {wf succ t} : iProp Σ :=
+    match t with
+    | Lf v' => ⌜v = (#1%nat, InjLV v')%V⌝
+    | Br tlis =>
+        ∃ (total:nat) v' loc_lis v_lis num_lis,
+      ⌜ v = (#total, InjRV (v'))%V⌝ ∗
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜length tlis = length num_lis⌝ ∗
+      ⌜(total = list_sum num_lis)%nat⌝ ∗
+      ⌜is_list (combine num_lis loc_lis) v'⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ₛ x.2) ∗
+      ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
+      ([∗ list] x ∈ combine tlis v_lis,
+        match decide (succ x.1 t)
+        with
+        |left Hproof => relate_ab_tree_with_ranked_v' x.1 x.2
+        | _ => True
+        end)
+    end.
+  Solve Obligations with auto using succ_wf.
+
+  Lemma relate_ab_tree_with_ranked_v_Lf' v v' :
+    relate_ab_tree_with_ranked_v' (Lf v') v ≡ ⌜v = (#1%nat, InjLV v')%V⌝%I.
+  Proof.
+    rewrite /relate_ab_tree_with_ranked_v' /relate_ab_tree_with_ranked_v'_func.
+    rewrite WfExtensionality.fix_sub_eq_ext //.  
+  Qed.
+
+  Lemma relate_ab_tree_with_ranked_v_Br' v tlis :
+    relate_ab_tree_with_ranked_v' (Br tlis) v ≡
+      (∃ (total:nat) v' loc_lis v_lis num_lis,
+      ⌜ v = (#total, InjRV (v'))%V ⌝ ∗
+      ⌜length tlis = length loc_lis⌝ ∗
+      ⌜length tlis = length v_lis⌝ ∗
+      ⌜length tlis = length num_lis⌝ ∗
+      ⌜(total = list_sum num_lis)%nat⌝ ∗
+      ⌜is_list (combine num_lis loc_lis) v'⌝ ∗
+      ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ₛ x.2) ∗
+      ([∗ list] x ∈ combine tlis num_lis, ⌜children_num x.1 = x.2⌝) ∗
+      ([∗ list] x ∈ combine tlis v_lis, relate_ab_tree_with_ranked_v' x.1 x.2))%I.
+  Proof.
+    rewrite {1}/relate_ab_tree_with_ranked_v' /relate_ab_tree_with_ranked_v'_func.
+    rewrite WfExtensionality.fix_sub_eq_ext /=.
+    do 18 f_equiv.
+    iSplit.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; first done.
+      exfalso.
+      assert (x.1 ∈tlis); last done.
+      rewrite elem_of_list_In.
+      eapply in_combine_l.
+      rewrite -elem_of_list_In.
+      eapply elem_of_list_lookup_2. erewrite H.
+      f_equal. apply surjective_pairing.
+    - iIntros "H". iApply (big_sepL_impl with "[$]").
+      iModIntro. iIntros. case_match; done.
+  Qed.
+
+
   
   Local Lemma list_sum_foldr l l':
     length l = length l' ->
@@ -685,16 +838,50 @@ Section b_tree.
              simpl. done.
   Qed.
 
+  Lemma relate_ab_tree_with_ranked_v_child_num' n l tree v:
+    is_ab_b_tree n l tree ->
+    relate_ab_tree_with_ranked_v' tree v -∗
+    ⌜∃ v', v = (#(children_num tree), v')%V⌝.
+  Proof.
+    clear. revert n l v.
+    induction tree.
+    - intros ??? H. inversion H. subst.
+      rewrite relate_ab_tree_with_ranked_v_Lf'. iPureIntro. intros.
+      subst. simpl. naive_solver.
+    - revert H. induction l.
+      + simpl. intros ???? H. inversion H. subst.
+        rewrite relate_ab_tree_with_ranked_v_Br'.
+        iIntros "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2)". subst. iPureIntro.
+        rewrite (nil_length_inv num_lis); first naive_solver.
+        rewrite -H7. rewrite H1. done.
+      + rewrite Forall_cons; intros [].
+        intros ??? K. inversion K. subst.
+        rewrite relate_ab_tree_with_ranked_v_Br'.
+        iIntros "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2)". subst.
+        rewrite H1 in H4 H6 H7. rewrite H1. simpl in *.
+        destruct loc_lis, v_lis, num_lis; try done. simpl.
+        iAssert (⌜n=children_num a⌝)%I as "->".
+        * rewrite H1 in H10. epose proof (H10 0%nat (_,_) _). done.
+        * iAssert (⌜list_sum num_lis =
+                   foldr (λ (x : ab_tree) (y : nat), children_num x + y)%nat 0%nat l⌝)%I as "->"; last (iPureIntro; naive_solver).
+           iPureIntro. rewrite H1 in H10.
+           apply list_sum_foldr.
+          -- simpl in *. lia.
+          -- intros. apply H10 with (S k). simpl. done.
+             Unshelve.
+             simpl. done.
+  Qed.
+
 
   Lemma relate_ab_tree_with_ranked_v_same_num tree v1 v2 v3 v4:
     relate_ab_tree_with_ranked_v tree (v1, v2) -∗
-    relate_ab_tree_with_ranked_v tree (v3, v4) -∗
+    relate_ab_tree_with_ranked_v' tree (v3, v4) -∗
     ⌜v1=v3⌝.
   Proof.
     revert v1 v2 v3 v4. induction tree.
-    - intros. rewrite !relate_ab_tree_with_ranked_v_Lf. iIntros (??).
+    - intros. rewrite relate_ab_tree_with_ranked_v_Lf relate_ab_tree_with_ranked_v_Lf'. iIntros (??).
       simplify_eq. done.
-    - intros. erewrite !relate_ab_tree_with_ranked_v_Br.
+    - intros. erewrite relate_ab_tree_with_ranked_v_Br, relate_ab_tree_with_ranked_v_Br'.
       revert v1 v2 v3 v4 H.
       induction l. 
       + simpl. iIntros (?????) "(%&%&%&%&%&%&%&%&%&%&%&H1&%&H2) (%&%&%&%&%&%&%&%&%&%&%&H3&%&H4)".
@@ -807,7 +994,7 @@ Section b_tree.
           let, ("prefix_sum","idx")  := naive_sampler_list_search_prog "l" "num" in
           match: list_nth "l" "idx" with
           | SOME "p" =>
-              "f" "p" ("num"-"prefix_sum")
+              "f" (!"p") ("num"-"prefix_sum")
           | NONE => #() (* not possible *)
           end
       end
@@ -851,7 +1038,7 @@ Section b_tree.
           let: "idx":= "num" `quot` (pow #max_child_num "depth") in
           match: list_nth "l" "idx" with
           | SOME "p" =>
-              "f" "p" ("num"-"idx"*(pow #max_child_num "depth")) ("d"-#1)
+              "f" (!"p") ("num"-"idx"*(pow #max_child_num "depth")) ("d"-#1)
           | NONE => NONE
           end
       end
@@ -884,7 +1071,7 @@ Section b_tree.
           let: "num" := rand("α") #(max_child_num-1) in
           let: "item" := list_nth "l" "num" in
           match: "item" with
-          | SOME "t'" => "f" "t'"
+          | SOME "t'" => "f" (!"t'")
           | NONE => NONE
           end
       end
@@ -907,7 +1094,7 @@ Section b_tree.
           let: "num" := rand #(max_child_num-1)%nat in
           let: "item" := list_nth "l" "num" in
           match: "item" with
-          | SOME "t'" => "f" "t'"
+          | SOME "t'" => "f" (!"t'")
           | NONE => NONE
           end
       end
@@ -941,17 +1128,17 @@ Section b_tree.
 
   Lemma spec_fst_ranked_tree E K d tree l treev:
     is_ab_b_tree d l tree ->
-    relate_ab_tree_with_ranked_v tree treev -∗
+    relate_ab_tree_with_ranked_v' tree treev -∗
     ⤇ fill K (Fst treev) -∗
-    spec_update E (∃ (v:nat), ⤇ fill K (# v) ∗ ⌜∃ v', treev = (#v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v tree treev).
+    spec_update E (∃ (v:nat), ⤇ fill K (# v) ∗ ⌜∃ v', treev = (#v, v')%V⌝ ∗ relate_ab_tree_with_ranked_v' tree treev).
   Proof.
     iIntros "%Htree Hrelate Hspec".
     destruct tree.
-    - erewrite relate_ab_tree_with_ranked_v_Lf. iDestruct "Hrelate" as "->".
-      tp_pures. iModIntro. iFrame. rewrite relate_ab_tree_with_ranked_v_Lf.
+    - erewrite relate_ab_tree_with_ranked_v_Lf'. iDestruct "Hrelate" as "->".
+      tp_pures. iModIntro. iFrame. rewrite relate_ab_tree_with_ranked_v_Lf'.
       iPureIntro. naive_solver.
-    - erewrite relate_ab_tree_with_ranked_v_Br. iDestruct "Hrelate" as "(%&%&%&%&%&->&H)".
-      tp_pures. iModIntro. iFrame. rewrite relate_ab_tree_with_ranked_v_Br. iFrame.
+    - erewrite relate_ab_tree_with_ranked_v_Br'. iDestruct "Hrelate" as "(%&%&%&%&%&->&H)".
+      tp_pures. iModIntro. iFrame. rewrite relate_ab_tree_with_ranked_v_Br'. iFrame.
       iPureIntro. naive_solver.
   Qed.
 
@@ -985,12 +1172,12 @@ Section b_tree.
   Lemma spec_naive_sampler_rec_prog (n:nat) l tree treev E:
     (n<length(filter(λ x, is_Some x) l))%nat ->
     is_ab_b_tree depth l tree ->
-    relate_ab_tree_with_ranked_v tree treev -∗
+    relate_ab_tree_with_ranked_v' tree treev -∗
     ⤇ (naive_sampler_rec_prog treev #n) -∗
     spec_update E
       (∃ v:val, ⤇ v ∗
             ⌜Some (Some v) = filter (λ x, is_Some x) l !! n⌝ ∗
-            relate_ab_tree_with_ranked_v tree treev)
+            relate_ab_tree_with_ranked_v' tree treev)
       .
   Proof.
   Admitted.
@@ -999,7 +1186,7 @@ Section b_tree.
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_ranked_v tree treev -∗
-    relate_ab_tree_with_ranked_v tree treev' -∗
+    relate_ab_tree_with_ranked_v' tree treev' -∗
     ⤇ (naive_sampler_prog treev' #()) -∗
     € nnreal_zero -∗
     WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
@@ -1016,7 +1203,7 @@ Section b_tree.
     iMod (spec_fst_ranked_tree with "[$Hrelate'][$]") as "(%&Hspec&[%%]&Hrelate')"; first done.
     wp_pures. simpl. tp_pures.
     iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$Hrelate]") as "(%&%)"; first done.
-    iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$Hrelate']") as "(%&%)"; first done.
+    iDestruct (relate_ab_tree_with_ranked_v_child_num' with "[$Hrelate']") as "(%&%)"; first done.
     simplify_eq; simpl. 
     wp_apply (wp_alloc_tape); first done.
     iIntros (α) "Hα".
@@ -1044,7 +1231,7 @@ Section b_tree.
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_ranked_v tree treev -∗
-    relate_ab_tree_with_ranked_v tree treev' -∗
+    relate_ab_tree_with_ranked_v' tree treev' -∗
     ⤇ (naive_sampler_annotated_prog treev' #()) -∗
     € nnreal_zero -∗
     WP (naive_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}
@@ -1097,7 +1284,7 @@ Section b_tree.
     (0<ε)%R -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_ranked_v tree treev -∗
-    relate_ab_tree_with_v tree treev' -∗
+    relate_ab_tree_with_v' tree treev' -∗
     ⤇ (intermediate_sampler_annotated_prog treev' #()) -∗
     € ε -∗
     WP (naive_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
@@ -1202,7 +1389,7 @@ Section b_tree.
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v tree treev -∗
-    relate_ab_tree_with_ranked_v tree treev' -∗
+    relate_ab_tree_with_ranked_v' tree treev' -∗
     ⤇ (naive_sampler_annotated_prog treev' #()) -∗
     € 0%NNR -∗
     WP (intermediate_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
@@ -1212,7 +1399,7 @@ Section b_tree.
     rewrite /intermediate_sampler_annotated_prog /naive_sampler_annotated_prog.
     tp_pures.
     wp_pures.
-    iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$]") as "(%&->)"; first done.
+    iDestruct (relate_ab_tree_with_ranked_v_child_num' with "[$]") as "(%&->)"; first done.
     tp_pures.
     wp_pures.
     wp_apply (wp_alloc_tape); first done.
@@ -1270,7 +1457,7 @@ Section b_tree.
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v tree treev -∗
-    relate_ab_tree_with_v tree treev' -∗
+    relate_ab_tree_with_v' tree treev' -∗
     ⤇ (optimized_sampler_annotated_prog treev' #()) -∗
     € 0%NNR -∗
     WP (intermediate_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
@@ -1309,7 +1496,7 @@ Section b_tree.
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v tree treev -∗
-    relate_ab_tree_with_v tree treev' -∗
+    relate_ab_tree_with_v' tree treev' -∗
     ⤇ (intermediate_sampler_annotated_prog treev' #()) -∗
     € 0%NNR -∗
     WP (optimized_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}
@@ -1348,7 +1535,7 @@ Section b_tree.
   Lemma optimized_annotated_optimized_refinement_aux α K tree l treev treev': 
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
-        relate_ab_tree_with_v tree treev' ∗
+        relate_ab_tree_with_v' tree treev' ∗
         ⤇ fill K (optimized_sampler_rec_prog treev') ∗
         α ↪ ((max_child_num - 1)%nat; [])
     }}}
@@ -1356,17 +1543,103 @@ Section b_tree.
       {{{ (v:val), RET v; ⌜((∃ v', v= (SOMEV v')) \/ v= NONEV)⌝ ∗
           ⤇ fill K (Val v) ∗
               relate_ab_tree_with_v tree treev ∗
-              relate_ab_tree_with_v tree treev' ∗
+              relate_ab_tree_with_v' tree treev' ∗
               α ↪ ((max_child_num - 1)%nat; [])
       }}}.
   Proof.
-  Admitted.
+    iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hα) HΦ".
+    rewrite /optimized_sampler_rec_annotated_prog/optimized_sampler_rec_prog.
+    wp_pure. wp_pure.
+    iLöb as "IH" forall (depth K tree l treev treev' Htree Φ) "Hrelate Hrelate' Hspec Hα HΦ".
+    inversion Htree; subst.
+    - (* Lf *)
+      erewrite relate_ab_tree_with_v_Lf, relate_ab_tree_with_v_Lf'.
+      iDestruct "Hrelate" as "->". 
+      iDestruct "Hrelate'" as "->".
+      tp_pures; wp_pures.
+      iApply "HΦ".
+      iModIntro. iFrame.
+      rewrite relate_ab_tree_with_v_Lf relate_ab_tree_with_v_Lf'.
+      iPureIntro. naive_solver.
+    - (* Br *)
+      erewrite relate_ab_tree_with_v_Br, relate_ab_tree_with_v_Br'.
+      iDestruct "Hrelate" as "(%&%&%&%&%&%&%&Hpt&Hrelate)".
+      iDestruct "Hrelate'" as "(%&%&%&%&%&%&%&Hpt'&Hrelate')".
+      subst.
+      wp_pures. tp_pures.
+      tp_bind (rand _)%E.
+      wp_apply (wp_couple_tape_rand with "[Hpt Hrelate Hpt' Hrelate' $Hspec $Hα HΦ]"); first done.
+      simpl. iIntros (x) "[Hα Hspec]".
+      wp_apply (wp_rand_tape with "[$]").
+      { replace (Z.to_nat (Z.of_nat max_child_num - 1)) with (max_child_num - 1)%nat by lia. done. }
+      iIntros "Hα".
+      wp_pures. tp_pures.
+      tp_bind (list_nth _ _).
+      iDestruct (spec_list_nth with "[$Hspec]") as "Hspec"; first done.
+      iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+      iIntros "(%v2&Hspec & Hvresult)".
+      wp_apply (wp_list_nth); first done.
+      iIntros (v1) "[[%%]|(%&%&%K1)]"; iDestruct "Hvresult" as "[[%%]|(%&%&%K2)]".
+      + (* both out of bounds *)
+        subst.
+        tp_pures; wp_pures.
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_v_Br relate_ab_tree_with_v_Br'.
+        iModIntro. iSplitR; first (iPureIntro; naive_solver).
+        iSplitL "Hspec"; first iFrame.
+        iSplitL "Hpt Hrelate"; iFrame; iPureIntro; naive_solver.
+      + (* contradiction *)
+        exfalso.
+        subst.
+        apply nth_error_split in K2 as (l1 & l2 & ? & ?). subst.
+        cut (length l1<length loc_lis)%nat; first lia.
+        rewrite -H2 H6. rewrite app_length. simpl. lia.
+      + (* contradiction *)
+        subst.
+        exfalso. 
+        apply nth_error_split in K1 as (l1 & l2 & ? & ?). subst.
+        cut (length l1<length loc_lis0)%nat; first lia.
+        rewrite -H6 H2. rewrite app_length. simpl. lia.
+      + subst.
+        do 5 tp_pure.
+        do 5 wp_pure.
+        apply nth_error_lookup in K1, K2.
+        epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (combine loc_lis0 v_lis0) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis0) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (l0) (fin_to_nat x) _ as [[]?].
+        iDestruct (big_sepL_lookup_acc with "[$Hpt]") as "[? Hpt]"; first done.
+        iDestruct (big_sepL_lookup_acc with "[$Hpt']") as "[? Hpt']"; first done.
+        iDestruct (big_sepL_lookup_acc with "[$Hrelate]") as "[? Hrelate]"; first done.
+        iDestruct (big_sepL_lookup_acc with "[$Hrelate']") as "[? Hrelate']"; first done.
+        combine_lookup_slam.
+        epose proof Forall_lookup_1 _ _ _ _ H H11.
+        simpl. simpl in *. simplify_eq.
+        wp_load.
+        tp_load.
+        iApply ("IH" with "[][$][$][$][$]"). 
+        * iPureIntro. 
+          rewrite list_lookup_fmap in H5. rewrite H11 in H5. simpl in *. simplify_eq. done.
+        * iIntros (?) "(%&Hspec&?&?&Hα)".
+          iSpecialize ("Hpt" with "[$]").
+          iSpecialize ("Hpt'" with "[$]").
+          iSpecialize ("Hrelate" with "[$]").
+          iSpecialize ("Hrelate'" with "[$]").
+          iApply "HΦ".
+          rewrite relate_ab_tree_with_v_Br relate_ab_tree_with_v_Br'.
+          iFrame. iPureIntro. naive_solver.
+          Unshelve.
+          all: pose proof fin_to_nat_lt x; pose proof lookup_lt_Some _ _ _ K1;
+            try rewrite combine_length_same; try done; try lia.
+          rewrite fmap_length in H2. lia.
+  Qed.
   
   Lemma optimized_annotated_optimized_refinement tree l treev treev': 
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v tree treev -∗
-    relate_ab_tree_with_v tree treev' -∗
+    relate_ab_tree_with_v' tree treev' -∗
     ⤇ (optimized_sampler_prog treev' #()) -∗
     € nnreal_zero -∗
     WP (optimized_sampler_annotated_prog treev #()) {{ v,  ⤇ (Val v)  }}.
@@ -1394,7 +1667,7 @@ Section b_tree.
   Lemma annotated_optimized_optimized_refinement_aux α K tree l treev treev': 
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
-        relate_ab_tree_with_v tree treev' ∗
+        relate_ab_tree_with_v' tree treev' ∗
         ⤇ fill K (optimized_sampler_rec_annotated_prog #lbl:α treev') ∗
         α ↪ₛ ((max_child_num - 1)%nat; [])
     }}} 
@@ -1402,17 +1675,104 @@ Section b_tree.
       {{{ (v:val), RET v; ⌜((∃ v', v= (SOMEV v')) \/ v= NONEV)⌝ ∗
           ⤇ fill K (Val v) ∗
               relate_ab_tree_with_v tree treev ∗
-              relate_ab_tree_with_v tree treev' ∗
+              relate_ab_tree_with_v' tree treev' ∗
               α ↪ₛ ((max_child_num - 1)%nat; [])
       }}}.
   Proof.
-  Admitted.
+    iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hα) HΦ".
+    rewrite /optimized_sampler_rec_annotated_prog/optimized_sampler_rec_prog.
+    do 2 tp_pure.
+    iLöb as "IH" forall (depth K tree l treev treev' Htree Φ) "Hrelate Hrelate' Hspec Hα HΦ".
+    inversion Htree; subst.
+    - (* Lf *)
+      erewrite relate_ab_tree_with_v_Lf, relate_ab_tree_with_v_Lf'.
+      iDestruct "Hrelate" as "->". 
+      iDestruct "Hrelate'" as "->".
+      tp_pures; wp_pures.
+      iApply "HΦ".
+      iModIntro. iFrame.
+      rewrite relate_ab_tree_with_v_Lf relate_ab_tree_with_v_Lf'.
+      iPureIntro. naive_solver.
+    - (* Br *)
+      erewrite relate_ab_tree_with_v_Br, relate_ab_tree_with_v_Br'.
+      iDestruct "Hrelate" as "(%&%&%&%&%&%&%&Hpt&Hrelate)".
+      iDestruct "Hrelate'" as "(%&%&%&%&%&%&%&Hpt'&Hrelate')".
+      subst.
+      wp_pures. tp_pures.
+      wp_apply (wp_couple_rand_tape with "[$Hα Hpt Hrelate Hpt' Hrelate' Hspec HΦ]").
+      simpl. iModIntro. iIntros (x) "Hα".
+      tp_bind (rand(_) _)%E.
+      iDestruct (step_rand with "[$]") as "Hspec".
+      { replace (Z.to_nat (Z.of_nat max_child_num - 1)) with (max_child_num - 1)%nat by lia. done. }
+      iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+      iIntros "[Hspec Hα]".
+      wp_pures. tp_pures.
+      tp_bind (list_nth _ _).
+      iDestruct (spec_list_nth with "[$Hspec]") as "Hspec"; first done.
+      iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
+      iIntros "(%v2&Hspec & Hvresult)".
+      wp_apply (wp_list_nth); first done.
+      iIntros (v1) "[[%%]|(%&%&%K1)]"; iDestruct "Hvresult" as "[[%%]|(%&%&%K2)]".
+      + (* both out of bounds *)
+        subst.
+        tp_pures; wp_pures.
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_v_Br relate_ab_tree_with_v_Br'.
+        iModIntro. iSplitR; first (iPureIntro; naive_solver).
+        iSplitL "Hspec"; first iFrame.
+        iSplitL "Hpt Hrelate"; iFrame; iPureIntro; naive_solver.
+      + (* contradiction *)
+        exfalso.
+        subst.
+        apply nth_error_split in K2 as (l1 & l2 & ? & ?). subst.
+        cut (length l1<length loc_lis)%nat; first lia.
+        rewrite -H2 H6. rewrite app_length. simpl. lia.
+      + (* contradiction *)
+        subst.
+        exfalso. 
+        apply nth_error_split in K1 as (l1 & l2 & ? & ?). subst.
+        cut (length l1<length loc_lis0)%nat; first lia.
+        rewrite -H6 H2. rewrite app_length. simpl. lia.
+      + subst.
+        do 5 tp_pure.
+        do 5 wp_pure.
+        apply nth_error_lookup in K1, K2.
+        epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (combine loc_lis0 v_lis0) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis0) (fin_to_nat x) _ as [[]?].
+        epose proof lookup_lt_is_Some_2 (l0) (fin_to_nat x) _ as [[]?].
+        iDestruct (big_sepL_lookup_acc with "[$Hpt]") as "[? Hpt]"; first done.
+        iDestruct (big_sepL_lookup_acc with "[$Hpt']") as "[? Hpt']"; first done.
+        iDestruct (big_sepL_lookup_acc with "[$Hrelate]") as "[? Hrelate]"; first done.
+        iDestruct (big_sepL_lookup_acc with "[$Hrelate']") as "[? Hrelate']"; first done.
+        combine_lookup_slam.
+        epose proof Forall_lookup_1 _ _ _ _ H H11.
+        simpl. simpl in *. simplify_eq.
+        wp_load.
+        tp_load.
+        iApply ("IH" with "[][$][$][$][$]"). 
+        * iPureIntro. 
+          rewrite list_lookup_fmap in H5. rewrite H11 in H5. simpl in *. simplify_eq. done.
+        * iModIntro. iIntros (?) "(%&Hspec&?&?&Hα)".
+          iSpecialize ("Hpt" with "[$]").
+          iSpecialize ("Hpt'" with "[$]").
+          iSpecialize ("Hrelate" with "[$]").
+          iSpecialize ("Hrelate'" with "[$]").
+          iApply "HΦ".
+          rewrite relate_ab_tree_with_v_Br relate_ab_tree_with_v_Br'.
+          iFrame. iPureIntro. naive_solver.
+          Unshelve.
+          all: pose proof fin_to_nat_lt x; pose proof lookup_lt_Some _ _ _ K1;
+            try rewrite combine_length_same; try done; try lia.
+          rewrite fmap_length in H2. lia.
+  Qed.
   
   Lemma annotated_optimized_optimized_refinement tree l treev treev': 
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v tree treev -∗
-    relate_ab_tree_with_v tree treev' -∗
+    relate_ab_tree_with_v' tree treev' -∗
     ⤇ (optimized_sampler_annotated_prog treev' #()) -∗
     € nnreal_zero -∗
     WP (optimized_sampler_prog treev #()) {{ v,  ⤇ (Val v)  }}.
