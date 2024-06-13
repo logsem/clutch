@@ -4,6 +4,7 @@ From clutch.paris Require Import paris list.
 Set Default Proof Using "Type*".
 Open Scope R.
 Opaque INR.
+
 Section aux_lemmas.
   Local Lemma pow_pos x y:
     (0<x)%nat -> (0<x^y)%nat.
@@ -365,7 +366,37 @@ Section stage2.
       + apply fin_to_nat_lt.
       + simpl in H. lia.
   Qed.
-  
+
+  Fixpoint decoder_aux' (l:list (fin (S N))) :=
+    match l with
+    | [] => 0%nat
+    | x::l' => ((S N)^(length l')*fin_to_nat x + decoder_aux' l')%nat
+    end.
+
+  Lemma decoder_aux_lt l:
+    (decoder_aux l < (S N)^(length l))%nat.
+  Proof.
+    induction l.
+    - simpl; lia.
+    - pose (n:=S N). rewrite -/n in IHl.
+      rewrite /decoder_aux. rewrite -/n.
+      rewrite -/decoder_aux.
+      rewrite cons_length.
+      replace (S _)%nat with (1+length l)%nat; last first.
+      { simpl. done. }
+      rewrite Nat.pow_add_r.
+      apply Nat.lt_le_trans with (n+n*decoder_aux l)%nat.
+      + apply Nat.add_lt_mono_r.
+        rewrite /n. apply fin_to_nat_lt.
+      + replace (_+_*_)%nat with (n*(S (decoder_aux l)))%nat by lia.
+        replace (_^_)%nat with n; last first.
+        { by rewrite Nat.pow_1_r. }
+        apply Nat.mul_le_mono_l.
+        apply PeanoNat.lt_n_Sm_le.
+        rewrite -Nat.succ_lt_mono.
+        done.
+  Qed.
+      
   Context {M p: nat}.
   Context {Heq : (S N ^ p = S M)%nat}.
   Definition decoder l :=
@@ -389,6 +420,77 @@ Section stage2.
   Qed.
   
 End stage2.
+
+Lemma decoder_aux_app {N} (l1 l2:list (fin (S N))):
+  (decoder_aux (l1++l2)= decoder_aux l1 + (S N)^length l1*decoder_aux l2)%nat.
+Proof.
+  revert l2.
+  induction l1.
+  - simpl. lia.
+  - intros l2; rewrite -app_comm_cons.
+    simpl. rewrite IHl1. lia.
+Qed.
+
+Lemma decoder_simpl {N M p:nat} xs:
+  length xs = p ->
+  (S N ^ p = S M)%nat ->
+  fin_to_nat (@decoder N M xs) = decoder_aux' xs.
+Proof.
+  revert M xs.
+  induction p.
+  - simpl. intros ????.
+    by rewrite (nil_length_inv xs).
+  - intros M [|x xs] H1 H2; first done.
+    simpl in H1. simplify_eq.
+    rewrite /decoder.
+    case_match eqn:Heqn; last first.
+    { pose proof decoder_aux_lt (rev (x::xs)).
+      exfalso. apply n.
+      rewrite -H2.
+      rewrite rev_length in H. simpl in H. done.
+    }
+    rewrite fin_to_nat_to_fin.
+    rewrite /decoder_aux'.
+    erewrite <-IHp; [|done|].
+    + simpl. rewrite decoder_aux_app.
+      rewrite Nat.add_comm.
+      f_equal.
+      * simpl. f_equal; last lia. rewrite rev_length. done.
+      * rewrite /decoder. case_match; first by rewrite fin_to_nat_to_fin.
+        exfalso. apply n.
+        pose proof decoder_aux_lt (rev xs).
+        instantiate (1 := (S N ^ length (rev xs)-1)%nat).
+        replace (S _) with (S N ^length (rev xs))%nat; first done.
+        cut (0<S N ^ length (rev xs))%nat; first lia.
+        apply pow_pos. lia.
+    + rewrite rev_length.
+      cut (0<S N ^ length (xs))%nat; first lia.
+      apply pow_pos. lia.
+Qed.
+
+Lemma decoder_aux'_lt N (l:list (fin (S N))):
+    (decoder_aux' l < (S N)^(length l))%nat.
+  Proof.
+    induction l.
+    - simpl; lia.
+    - pose (n:=S N). rewrite -/n in IHl.
+      rewrite /decoder_aux'. rewrite -/n.
+      rewrite -/decoder_aux'.
+      rewrite cons_length.
+      replace (S _)%nat with (1+length l)%nat; last first.
+      { simpl. done. }
+      rewrite Nat.pow_add_r.
+      apply Nat.lt_le_trans with (n^length l * a + n^ length l)%nat.
+      + by apply Nat.add_lt_mono_l.
+      + replace (_*_+_)%nat with (n^length l*(S a))%nat by lia.
+        rewrite Nat.mul_comm.
+        apply Nat.mul_le_mono_r.
+        replace (_^_)%nat with n; last first.
+        { by rewrite Nat.pow_1_r. }
+        pose proof fin_to_nat_lt a.
+        rewrite /n. lia.
+  Qed.
+    
 
 Section b_tree.
   Context `{!parisGS Σ}.
@@ -1569,11 +1671,9 @@ Section b_tree.
       It uses the lemma Rcoupl_state_state_exp
    *)
 
-  
-
   Lemma wp_optimized_sampler_rec_annotated_prog_Some xs (height:nat) l tree treev v α:
     length xs = height -> 
-    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some (Some v)->
+    l!!(decoder_aux' xs) =Some (Some v)->
     is_ab_b_tree height l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
         α ↪ ((max_child_num - 1)%nat; xs)
@@ -1587,7 +1687,7 @@ Section b_tree.
 
   Lemma spec_optimized_sampler_rec_annotated_prog_Some K (height:nat) l tree treev E v α' xs:
     length xs = height -> 
-    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some (Some v)->
+    l!! (decoder_aux' xs) =Some (Some v)->
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v' tree treev -∗
     α' ↪ₛ ((max_child_num - 1)%nat; xs) -∗
@@ -1602,7 +1702,7 @@ Section b_tree.
       
   Lemma wp_optimized_sampler_rec_annotated_prog_None xs (height:nat) l tree treev α:
     length xs = height -> 
-    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some None->
+    l!! (decoder_aux' xs) =Some None->
     is_ab_b_tree height l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
         α ↪ ((max_child_num - 1)%nat; xs)
@@ -1616,7 +1716,7 @@ Section b_tree.
 
   Lemma spec_optimized_sampler_rec_annotated_prog_None K (height:nat) l tree treev E α' xs:
     length xs = height -> 
-    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some None->
+    l!! (decoder_aux' xs) =Some None->
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v' tree treev -∗
     α' ↪ₛ ((max_child_num - 1)%nat; xs) -∗
@@ -1675,7 +1775,13 @@ Section b_tree.
       + (* we hit a child *)
         tp_bind (optimized_sampler_rec_annotated_prog _ _).
         rewrite /d in Hlookup.
-        iMod (spec_optimized_sampler_rec_annotated_prog_Some with "[$][$][$]") as "(%&Hspec&->&Hrelate')"; [done|done|done|].
+        iMod (spec_optimized_sampler_rec_annotated_prog_Some with "[$][$][$]") as "(%&Hspec&->&Hrelate')"; [done| |done|].
+        { erewrite decoder_simpl in Hlookup; [done|exact|].
+          pose proof max_child_num_pos.
+          pose proof pow_max_child_num depth.
+          replace (S _)%nat with max_child_num by lia.
+          lia.
+        }
         simpl. tp_pures.
         wp_apply (wp_intermediate_sampler_rec_prog_Some with "[$]"); [|exact|done|].
         { apply lookup_lt_is_Some_1. done. }
@@ -1684,7 +1790,13 @@ Section b_tree.
       + (* we missed a child *)
         tp_bind (optimized_sampler_rec_annotated_prog _ _).
         rewrite /d in Hlookup.
-        iMod (spec_optimized_sampler_rec_annotated_prog_None with "[$][$][$]") as "(%&Hspec&->&Hrelate')"; [done|done|done|].
+        iMod (spec_optimized_sampler_rec_annotated_prog_None with "[$][$][$]") as "(%&Hspec&->&Hrelate')"; [done| |done|].
+        { erewrite decoder_simpl in Hlookup; [done|exact|].
+          pose proof max_child_num_pos.
+          pose proof pow_max_child_num depth.
+          replace (S _)%nat with max_child_num by lia.
+          lia.
+        }
         simpl. do 3 tp_pure.
         wp_apply (wp_intermediate_sampler_rec_prog_None with "[$]"); [|exact|done|].
         { apply lookup_lt_is_Some_1. done. }
@@ -1747,7 +1859,14 @@ Section b_tree.
         { apply lookup_lt_is_Some_1. done. }
         simpl.
         tp_pures.
-        wp_apply (wp_optimized_sampler_rec_annotated_prog_Some with "[$]"); [done|exact|done|..].
+        rewrite /d in Hlookup.
+        wp_apply (wp_optimized_sampler_rec_annotated_prog_Some with "[$]"); [done| |done|..].
+        { erewrite decoder_simpl in Hlookup; [done|exact|].
+          pose proof max_child_num_pos.
+          pose proof pow_max_child_num depth.
+          replace (S _)%nat with max_child_num by lia.
+          lia.
+        }
         iIntros (?) "[-> Hrelate]".
         wp_pures.
         done.
@@ -1757,7 +1876,14 @@ Section b_tree.
         { apply lookup_lt_is_Some_1. done. }
         simpl.
         do 3 tp_pure.
-        wp_apply (wp_optimized_sampler_rec_annotated_prog_None with "[$]"); [done|exact|done|..].
+        rewrite /d in Hlookup.
+        wp_apply (wp_optimized_sampler_rec_annotated_prog_None with "[$]"); [done| |done|..].
+        { erewrite decoder_simpl in Hlookup; [done|exact|].
+          pose proof max_child_num_pos.
+          pose proof pow_max_child_num depth.
+          replace (S _)%nat with max_child_num by lia.
+          lia.
+        }
         iIntros (?) "[-> Hrelate]".
         do 3 wp_pure.
         iApply ("IH" with "[$][$][$][$][$]").
