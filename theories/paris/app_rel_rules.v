@@ -416,8 +416,54 @@ Section rules.
       done.
   Qed.
 
+  Lemma refines_get_ec E e e' A :
+    (∀ ε : nonnegreal, ↯ ε -∗ ⌜ (0 < ε)%R ⌝ -∗ REL e << e' @ E : A) ⊢
+    (REL e << e' @ E : A).
+  Proof.
+    iIntros "H".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    replace (ε) with (nnreal_div ε (nnreal_nat 2) + nnreal_div ε (nnreal_nat 2))%NNR;
+      last first.
+    { apply nnreal_ext.
+      simpl. lra.
+    }
+    iPoseProof (ec_split with "Herr") as "[Herr1 Herr2]".
+    iApply ("H" with "Herr1 [] Hfill Hown Herr2").
+    - iPureIntro. simpl. lra.
+    - iPureIntro. simpl. lra.
+  Qed.
 
-  (*
+
+  Lemma refines_ind_amp E e e' A (k : nonnegreal) :
+    (1 < k)%R ->
+    □ (∀ (ε : nonnegreal),
+          ⌜ (0 < ε)%R ⌝ -∗ (↯ ((k * ε)%NNR) -∗ (REL e << e' @ E : A))
+               -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
+      ⊢ REL e << e' @ E : A.
+  Proof.
+    intros Hk.
+    iIntros "#IH".
+    iApply refines_get_ec.
+    iIntros (ε) "Herr %Hpos".
+    iApply (ec_ind_amp _ k with "[IH] Herr"); auto.
+    iModIntro.
+    iIntros (?) "% #? Herr".
+    iApply ("IH" with "[//][$][$]").
+  Qed.
+
+
+  Definition vnc : expr :=
+    (rec: "f" <> :=
+      let: "n" := rand #7 in
+      if: "n" ≤ #5 then "n"
+      else "f" #() )%V.
+
+  Lemma foo :
+    ⊢ REL vnc << (λ:<>, rand #5) : lrel_unit -> lrel_nat.
+
+
+ (*
   TODO: Port other rules by need
 
   Lemma refines_couple_TU N f `{Bij (fin (S N)) (fin (S N)) f} K' E α A z ns e :
@@ -449,7 +495,7 @@ Section rules.
       ▷ (∀ (n : fin (S N)), α ↪ₛ (N; ns ++ [f n]) -∗ REL fill K (Val #n) << e @ E : A)
     ⊢ REL fill K (rand #z) << e @ E : A.
   Proof.
-    iIntros (->) "[Hα Hcnt]".
+    iIntros (->) "[H Hcnt]"
     rewrite refines_eq /refines_def.
     iIntros (K2) "[#Hs Hspec] Hnais /=".
     wp_apply wp_bind.
