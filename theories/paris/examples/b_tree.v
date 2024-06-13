@@ -1554,6 +1554,67 @@ Section b_tree.
   (** This is a refinement between the rejection sampler one and the optimized one 
       It uses the lemma Rcoupl_state_state_exp
    *)
+
+  
+
+  Lemma wp_optimized_sampler_rec_annotated_prog_Some xs (height:nat) l tree treev v α:
+    length xs = height -> 
+    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some (Some v)->
+    is_ab_b_tree height l tree ->
+    {{{ relate_ab_tree_with_v tree treev ∗
+        α ↪ ((max_child_num - 1)%nat; xs)
+    }}}
+      (optimized_sampler_rec_annotated_prog #lbl:α treev)
+      {{{ (v':val), RET v'; ⌜v' = SOMEV v⌝ ∗
+            relate_ab_tree_with_v tree treev 
+      }}}.
+  Proof.
+  Admitted.
+
+  Lemma spec_optimized_sampler_rec_annotated_prog_Some K (height:nat) l tree treev E v α' xs:
+    length xs = height -> 
+    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some (Some v)->
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v' tree treev -∗
+    α' ↪ₛ ((max_child_num - 1)%nat; xs) -∗
+    ⤇ fill K (optimized_sampler_rec_annotated_prog #lbl:α' treev) -∗
+    spec_update E
+      (∃ v':val, ⤇ fill K v' ∗
+            ⌜v' = SOMEV v⌝ ∗
+            relate_ab_tree_with_v' tree treev 
+      ).
+  Proof.
+  Admitted.
+      
+  Lemma wp_optimized_sampler_rec_annotated_prog_None xs (height:nat) l tree treev α:
+    length xs = height -> 
+    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some None->
+    is_ab_b_tree height l tree ->
+    {{{ relate_ab_tree_with_v tree treev ∗
+        α ↪ ((max_child_num - 1)%nat; xs)
+    }}}
+      (optimized_sampler_rec_annotated_prog #lbl:α treev)
+      {{{ (v':val), RET v'; ⌜v' = NONEV⌝ ∗
+            relate_ab_tree_with_v tree treev 
+      }}}.
+  Proof.
+  Admitted.
+
+  Lemma spec_optimized_sampler_rec_annotated_prog_None K (height:nat) l tree treev E α' xs:
+    length xs = height -> 
+    l!! fin_to_nat (@decoder _ (max_child_num^depth-1)%nat xs) =Some None->
+    is_ab_b_tree depth l tree ->
+    relate_ab_tree_with_v' tree treev -∗
+    α' ↪ₛ ((max_child_num - 1)%nat; xs) -∗
+    ⤇ fill K (optimized_sampler_rec_annotated_prog #lbl:α' treev) -∗
+    spec_update E
+      (∃ v':val, ⤇ fill K v' ∗
+            ⌜v' = NONEV⌝ ∗
+            relate_ab_tree_with_v' tree treev 
+      ).
+  Proof.
+  Admitted.  
+  
   Lemma intermediate_annotated_optimized_refinement tree l treev treev':
     (0<children_num tree)%nat -> 
     is_ab_b_tree depth l tree ->
@@ -1569,7 +1630,7 @@ Section b_tree.
     wp_pures. do 2 tp_pure.
     wp_apply (wp_alloc_tape); first done.
     iIntros (α) "Hα".
-    do 2 wp_pure.
+    do 3 wp_pure.
     (* iLöb *)
     iLöb as "IH".
     wp_pures; tp_pures.
@@ -1589,8 +1650,38 @@ Section b_tree.
       wp_apply (wp_rand_tape with "[$]").
       iIntros "Hα".
       wp_pures.
+      assert (is_Some (l!!fin_to_nat (d xs))) as [res Hlookup].
+      { apply lookup_lt_is_Some_2.
+        pose proof fin_to_nat_lt (d xs).
+        erewrite ab_b_tree_list_length; last done.
+        pose proof pow_max_child_num depth. lia.
+      }
       (* do a case split on whether we hit a child *)
-  Admitted.
+      destruct res as [res|].
+      + (* we hit a child *)
+        tp_bind (optimized_sampler_rec_annotated_prog _ _).
+        rewrite /d in Hlookup.
+        iMod (spec_optimized_sampler_rec_annotated_prog_Some with "[$][$][$]") as "(%&Hspec&->&Hrelate')"; [done|done|done|].
+        simpl. tp_pures.
+        wp_apply (wp_intermediate_sampler_rec_prog_Some with "[$]"); [|exact|done|].
+        { apply lookup_lt_is_Some_1. done. }
+        iIntros (?) "[-> Hrelate]".
+        wp_pures. done. 
+      + (* we missed a child *)
+        tp_bind (optimized_sampler_rec_annotated_prog _ _).
+        rewrite /d in Hlookup.
+        iMod (spec_optimized_sampler_rec_annotated_prog_None with "[$][$][$]") as "(%&Hspec&->&Hrelate')"; [done|done|done|].
+        simpl. do 3 tp_pure.
+        wp_apply (wp_intermediate_sampler_rec_prog_None with "[$]"); [|exact|done|].
+        { apply lookup_lt_is_Some_1. done. }
+        iIntros (?) "[-> Hrelate]".
+        do 3 wp_pure.
+        iApply ("IH" with "[$][$][$][$][$]").
+        Unshelve.
+        pose proof max_child_num_pos.
+        pose proof pow_max_child_num depth.
+        replace (S _) with max_child_num; lia.
+  Qed.
 
   
   Lemma annotated_optimized_intermediate_refinement tree l treev treev': 
@@ -1605,9 +1696,9 @@ Section b_tree.
   Proof.
     iIntros (Hgt Htree) "Hrelate Hrelate' Hspec Hε".
     rewrite /intermediate_sampler_annotated_prog /optimized_sampler_annotated_prog.
-    wp_pure. tp_pures.
+    do 2 wp_pure. tp_pures.
     tp_alloctape as α' "Hα'".
-    do 2 tp_pure.
+    do 3 tp_pure.
     (* iLöb *)
     iLöb as "IH".
     wp_pures; tp_pures.
@@ -1628,8 +1719,39 @@ Section b_tree.
       iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
       iIntros "[Hspec Hα']".
       tp_pures.
+      assert (is_Some (l!!fin_to_nat (d xs))) as [res Hlookup].
+      { apply lookup_lt_is_Some_2.
+        pose proof fin_to_nat_lt (d xs).
+        erewrite ab_b_tree_list_length; last done.
+        pose proof pow_max_child_num depth. lia.
+      }
       (* do a case split on whether we hit a child *)
-  Admitted.
+      destruct res as [res|].
+      + (* we hit a child *)
+        tp_bind (intermediate_sampler_rec_prog _ _ _)%E.
+        iMod (spec_intermediate_sampler_rec_prog_Some with "[$][$]") as "(%&Hspec&->&Hrelate')"; [|exact|done|..].
+        { apply lookup_lt_is_Some_1. done. }
+        simpl.
+        tp_pures.
+        wp_apply (wp_optimized_sampler_rec_annotated_prog_Some with "[$]"); [done|exact|done|..].
+        iIntros (?) "[-> Hrelate]".
+        wp_pures.
+        done.
+      + (* we missed a child *)
+        tp_bind (intermediate_sampler_rec_prog _ _ _)%E.
+        iMod (spec_intermediate_sampler_rec_prog_None with "[$][$]") as "(%&Hspec&->&Hrelate')"; [|exact|done|..].
+        { apply lookup_lt_is_Some_1. done. }
+        simpl.
+        do 3 tp_pure.
+        wp_apply (wp_optimized_sampler_rec_annotated_prog_None with "[$]"); [done|exact|done|..].
+        iIntros (?) "[-> Hrelate]".
+        do 3 wp_pure.
+        iApply ("IH" with "[$][$][$][$][$]").
+        Unshelve.
+        pose proof max_child_num_pos.
+        pose proof pow_max_child_num depth.
+        replace (S _) with max_child_num; lia.
+  Qed.
 
   
   (** Stage 3*)
