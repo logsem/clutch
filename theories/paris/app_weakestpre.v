@@ -39,12 +39,13 @@ Section coupl_modalities.
       let '(σ1, (e1', σ1'), ε) := x in
       ⌜1 <= ε⌝ ∨
       (Z σ1 e1' σ1' ε) ∨
-      (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
-         (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal),
-         ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) R ε1⌝ ∗
-         ⌜ε1 + Expval (σ2 ← μ1'; pexec n (e1', σ2)) X2 <= ε⌝ ∗
+      (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
+         (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+         ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
+         ⌜∀ ρ, X2 ρ <= r⌝ ∗
+         ⌜ε1 + Expval (σ2' ← μ1'; pexec n (e1', σ2')) X2 <= ε⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-         ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
+         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ Φ (σ2, (e2', σ2'), X2 (e2', σ2'))))%I.
 
   #[local] Instance spec_coupl_pre_ne Z E Φ :
     NonExpansive (spec_coupl_pre E Z Φ).
@@ -59,7 +60,7 @@ Section coupl_modalities.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
     iIntros (((σ1 & e1' & σ1') & ε))
-      "[H | [? | (% & % & % & % & % & % & % & % & % & % & H)]]".
+      "[H | [? | (% & % & % & % & % & % & % & % & % & % & % & % & H)]]".
     - iLeft. done.
     - iRight. iLeft. done.
     - iRight. iRight.
@@ -77,12 +78,13 @@ Section coupl_modalities.
     spec_coupl E σ1 e1' σ1' ε Z ≡
       (⌜1 <= ε⌝ ∨
       (Z σ1 e1' σ1' ε) ∨
-      (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
-         (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal),
-         ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) R ε1⌝ ∗
+      (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
+         (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+         ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
+         ⌜∀ ρ, X2 ρ <= r⌝ ∗
          ⌜ε1 + Expval (σ2 ← μ1'; pexec n (e1', σ2)) X2 <= ε⌝ ∗
          ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-         ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z))%I.
+         ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z))%I.
   Proof. rewrite /spec_coupl /spec_coupl' least_fixpoint_unfold //. Qed.
 
   Lemma spec_coupl_ret_err_ge_1 E σ1 e1' σ1' Z (ε : nonnegreal) :
@@ -94,12 +96,13 @@ Section coupl_modalities.
   Proof. iIntros. rewrite spec_coupl_unfold. by iRight; iLeft. Qed.
 
   Lemma spec_coupl_rec σ1 e1' σ1' E (ε : nonnegreal) Z :
-    (∃ (R : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
-       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal),
-       ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) R ε1⌝ ∗
+    (∃ (S : state Λ → cfg Λ → Prop) (n : nat) (μ1 : distr (state Λ)) (μ1' : distr (state Λ))
+       (ε1 : nonnegreal) (X2 : cfg Λ → nonnegreal) (r : R),
+       ⌜ARcoupl μ1 (σ2' ← μ1'; pexec n (e1', σ2')) S ε1⌝ ∗
+       ⌜∀ ρ, X2 ρ <= r⌝ ∗
        ⌜ε1 + Expval (σ2 ← μ1'; pexec n (e1', σ2)) X2 <= ε⌝ ∗
        ⌜erasable μ1 σ1⌝ ∗ ⌜erasable μ1' σ1'⌝ ∗
-       ∀ σ2 e2' σ2', ⌜R σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z)%I
+       ∀ σ2 e2' σ2', ⌜S σ2 (e2', σ2')⌝ ={E}=∗ spec_coupl E σ2 e2' σ2' (X2 (e2', σ2')) Z)%I
     ⊢ spec_coupl E σ1 e1' σ1' ε Z.
   Proof. iIntros "H". rewrite spec_coupl_unfold. iRight; iRight. done. Qed.
 
@@ -125,10 +128,11 @@ Section coupl_modalities.
   Proof.
     iIntros "H".
     iApply spec_coupl_rec.
-    iExists _, 0%nat, (dret σ1), (dret σ1'), 0%NNR, (λ _, ε).
+    iExists _, 0%nat, (dret σ1), (dret σ1'), 0%NNR, (λ _, ε), ε.
     rewrite dret_id_left pexec_O.
     iSplit; [iPureIntro|].
     { by apply ARcoupl_pos_R, (ARcoupl_dret _ _ (λ _ _, True)). }
+    iSplit; [done|].
     iSplit; [iPureIntro|].
     { rewrite Rplus_0_l Expval_dret //. }
     do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
@@ -145,14 +149,14 @@ Section coupl_modalities.
     iRevert (σ1 e1' σ1' ε) "Hs".
     iApply spec_coupl_ind.
     iIntros "!#" (σ e' σ' ε)
-      "[% | [? | (% & % & % & % & % & % & % & % & % & % & H)]] Hw".
+      "[% | [? | (% & % & % & % & % & % & % & % & % & % & % & % & H)]] Hw".
     - iApply spec_coupl_ret_err_ge_1. lra.
     - iApply spec_coupl_ret. by iApply "Hw".
     - iApply spec_coupl_rec.
       repeat iExists _.
       iSplit; [done|].
       iSplit; [iPureIntro; by etrans|].
-      do 2 (iSplit; [done|]).
+      do 3 (iSplit; [done|]).
       iIntros (????).
       iApply fupd_mask_mono; [done|].
       iMod ("H" with "[//]") as "[IH _]".
@@ -165,11 +169,12 @@ Section coupl_modalities.
     iIntros (Heps) "Hs".
     iApply spec_coupl_rec.
     set (ε' := nnreal_minus ε2 ε1 Heps).
-    iExists _, 0%nat, (dret σ1), (dret σ1'), ε', (λ _, ε1).
+    iExists _, 0%nat, (dret σ1), (dret σ1'), ε', (λ _, ε1), ε1.
     rewrite dret_id_left pexec_O.
     iSplit; [iPureIntro|].
     { eapply ARcoupl_pos_R, ARcoupl_mon_grading,
-        (ARcoupl_dret _ _ (λ _ _, True)) => /=; [lra|done]. }
+        (ARcoupl_dret _ _ (λ _ _, True)) => /=; [|done|done]. lra. }
+    iSplit; [done|].
     iSplit; [iPureIntro|].
     { rewrite Expval_dret /=. lra. }
     do 2 (iSplit; [iPureIntro; apply dret_erasable|]).
@@ -187,15 +192,15 @@ Section coupl_modalities.
     iRevert (σ1 e1' σ1' ε) "Hs".
     iApply spec_coupl_ind.
     iIntros "!#" (σ e' σ' ε)
-      "[% | [H | (%R & %n & %μ1 & %μ1' & %ε1' & %X2 & % & % & % & % & H)]] HZ".
+      "[% | [H | (%R & %n & %μ1 & %μ1' & %ε1' & %X2 & %r & % & % & % & % & % & H)]] HZ".
     - by iApply spec_coupl_ret_err_ge_1.
     - iApply ("HZ" with "H").
     - iApply spec_coupl_rec.
-      iExists R, n, μ1, μ1', ε1', X2.
+      iExists R, n, μ1, μ1', ε1', X2, r.
       iSplit; [done|].
       iSplit; [iPureIntro|].
       { by etrans. }
-      do 2 (iSplit; [done|]).
+      do 3 (iSplit; [done|]).
       iIntros (????).
       iMod (fupd_mask_subseteq E1) as "Hclose"; [done|].
       iMod ("H" with "[//]") as "[H _]".
@@ -203,30 +208,47 @@ Section coupl_modalities.
       by iApply "H".
   Qed.
 
+  Lemma spec_coupl_erasables_exp (X2 : _ → nonnegreal) (r : R) ε1 ε R μ1 μ1' E σ1 e1' σ1' Z :
+    ARcoupl μ1 μ1' R ε1 →
+    erasable μ1 σ1 →
+    erasable μ1' σ1' →
+    (∀ ρ, X2 ρ <= r) →
+    ε1 + Expval μ1' X2 <= ε →
+    (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={E}=∗ spec_coupl E σ2 e1' σ2' (X2 σ2') Z)
+    ⊢ spec_coupl E σ1 e1' σ1' ε Z.
+  Proof.
+    iIntros (???? Hε) "H".
+    iApply spec_coupl_rec.    
+    set X2' := (λ (ρ : cfg Λ), X2 ρ.2).
+    iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, X2', r.
+    iSplit; [iPureIntro|].
+    { rewrite -(dret_id_right μ1).
+      eapply (ARcoupl_dbind' ε1 0%NNR); [done|done|simpl; lra|..|done].
+      intros ???.
+      rewrite pexec_O.
+      by apply ARcoupl_dret. }
+    iSplit; [iPureIntro|].
+    { intros []. rewrite /X2' //. }
+    iSplit; [iPureIntro|].
+    { rewrite /X2'. setoid_rewrite pexec_O. rewrite Expval_dmap //=.
+      by eapply ex_expval_bounded=>/=. }
+    do 2 (iSplit; [done|]).
+    iIntros (??? [? ->]). rewrite /X2' /=.
+    by iApply "H".
+  Qed. 
+
   Lemma spec_coupl_erasables R μ1 μ1' ε1 ε2 ε E σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     ARcoupl μ1 μ1' R ε1 →
     erasable μ1 σ1 →
     erasable μ1' σ1' →
-    (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={E}=∗ Z σ2 e1' σ2' ε2)
+    (∀ σ2 σ2', ⌜R σ2 σ2'⌝ ={E}=∗ spec_coupl E σ2 e1' σ2' ε2 Z)
     ⊢ spec_coupl E σ1 e1' σ1' ε Z.
   Proof.
     iIntros (-> ???) "H".
-    iApply spec_coupl_rec.
-    iExists (λ σ2 '(e2', σ2'), R σ2 σ2' ∧ e2' = e1'), 0%nat, μ1, μ1', ε1, (λ _, ε2).
-    iSplit; [iPureIntro|].
-    { setoid_rewrite pexec_O. rewrite -(dret_id_right μ1).
-      eapply (ARcoupl_dbind' ε1 0); [done|done|lra| |done].
-      intros ???. by apply ARcoupl_dret. }
-    iSplit; [iPureIntro|].
-    { setoid_rewrite pexec_O.
-      rewrite Expval_const //.
-      apply Rle_plus_plus; [done|].
-      real_solver. }
-    do 2 (iSplit; [done|]).
-    iIntros (??? [? ->]).
-    iApply spec_coupl_ret.
-    by iApply "H".
+    iApply (spec_coupl_erasables_exp (λ _, ε2) ε2); [done|done|done|done| |done].
+    rewrite Expval_const //=.
+    apply Rle_plus_plus; [done|]. real_solver. 
   Qed.
 
   Lemma spec_coupl_erasable_steps n R μ1 ε1 ε2 ε E σ1 e1' σ1' Z :
@@ -238,9 +260,9 @@ Section coupl_modalities.
   Proof.
     iIntros (-> ??) "H".
     iApply spec_coupl_rec.
-    iExists R, n, μ1, (dret σ1'), ε1, (λ _, ε2).
+    iExists R, n, μ1, (dret σ1'), ε1, (λ _, ε2), ε2.
     rewrite dret_id_left.
-    iSplit; [done|].
+    do 2 (iSplit; [done|]).
     iSplit; [iPureIntro|].
     { rewrite Expval_const //.
       apply Rle_plus_plus; [done|].
@@ -363,7 +385,7 @@ Section coupl_modalities.
       rewrite -(dret_id_right (μ1' ≫= _ )) //.
       rewrite /dmap.
       eapply (ARcoupl_dbind' _ nnreal_zero); [..|done]; [done|done|simpl; lra|..].
-      intros [] ?? => /=. apply ARcoupl_dret. eauto. }
+      intros [] ?? => /=. apply ARcoupl_dret; [done|]. eauto. }
     iSplit; [iPureIntro|].
     { intros [e σ]. simpl. destruct (Kinv e) => //=. }
     iSplit; [iPureIntro|].
@@ -399,23 +421,43 @@ Section coupl_modalities.
     done.
   Qed.
 
-  Lemma prog_coupl_step_l_err ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+  Lemma prog_coupl_step_l_erasable ε2 ε1 μ1' ε R e1 σ1 e1' σ1' Z :
     ε = (ε1 + ε2)%NNR →
     reducible (e1, σ1) →
-    ARcoupl (prim_step e1 σ1) (dret (e1', σ1')) R ε1 →
-    (∀ e2 σ2, ⌜R (e2, σ2) (e1', σ1')⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε2)
+    ARcoupl (prim_step e1 σ1) μ1' R ε1 →
+    erasable μ1' σ1' →
+    (∀ e2 σ2 σ2', ⌜R (e2, σ2) σ2'⌝ ={∅}=∗ Z e2 σ2 e1' σ2' ε2)
     ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
-    iIntros (-> ? ?) "H".
-    iExists _, 0%nat, (dret σ1'), ε1, (λ _, ε2), ε2.
-    rewrite dret_id_left pexec_O.
+    iIntros (-> ? ? ?) "H".
+    iExists (λ ρ2 '(e2', σ2'), R ρ2 σ2' ∧ e2' = e1'), 0%nat, μ1', ε1, (λ _, ε2), ε2.
     iSplit; [done|].
-    iSplit; [iPureIntro; by eapply ARcoupl_pos_R|].
+    iSplit; [iPureIntro|].
+    { setoid_rewrite pexec_O.
+      rewrite -(dret_id_right (prim_step _ _)).
+      replace ε1 with (ε1 + 0)%NNR; [|apply nnreal_ext; simpl; lra].
+      eapply ARcoupl_dbind; [done|done|..|done].
+      intros ???. by apply ARcoupl_dret. }        
     iSplit; [done|].
     iSplit; [iPureIntro|].
     { rewrite Expval_const //. rewrite prim_step_mass //=. lra. }
-    iSplit; [iPureIntro; apply dret_erasable|].
-    iIntros (e2 σ2 e2' σ2' (?&?&[= -> ->]%dret_pos)).
+    iSplit; [done|].
+    iIntros (e2 σ2 e2' σ2' [? ->]).
+    by iApply "H".
+  Qed.     
+
+  Lemma prog_coupl_step_l_dret ε2 ε1 ε R e1 σ1 e1' σ1' Z :
+    ε = (ε1 + ε2)%NNR →
+    reducible (e1, σ1) →
+    ARcoupl (prim_step e1 σ1) (dret σ1') R ε1 →
+    (∀ e2 σ2, ⌜R (e2, σ2) σ1'⌝ ={∅}=∗ Z e2 σ2 e1' σ1' ε2)
+    ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
+  Proof.
+    iIntros (-> ? ?) "H".
+    iApply (prog_coupl_step_l_erasable _ _ (dret (σ1'))); [done|done|..].
+    { by apply ARcoupl_pos_R. }
+    { apply dret_erasable. }
+    iIntros (??? (?&?&->%dret_pos)).
     by iApply "H".
   Qed.
 
@@ -425,7 +467,7 @@ Section coupl_modalities.
     ⊢ prog_coupl e1 σ1 e1' σ1' ε Z.
   Proof.
     iIntros (?) "H".
-    iApply (prog_coupl_step_l_err ε 0%NNR); [|done|..].
+    iApply (prog_coupl_step_l_dret ε 0%NNR); [|done|..].
     { apply nnreal_ext => /=. lra. }
     { eapply ARcoupl_pos_R, ARcoupl_trivial.
       - by apply prim_step_mass.
