@@ -664,10 +664,24 @@ Section b_tree.
         naive_solver.
   Qed.
   
-  Local Lemma factor_gt_1 tree:
-    (children_num tree < max_child_num ^ depth)%nat -> 1<S (max_child_num ^ depth - 1) / (S (max_child_num ^ depth - 1) - S (children_num tree - 1)).
+  Local Lemma factor_gt_1 l tree:
+    is_ab_b_tree depth l tree ->
+    (children_num tree < max_child_num ^ depth)%nat ->
+    1<S (max_child_num ^ depth - 1) / (S (max_child_num ^ depth - 1) - S (children_num tree - 1)).
   Proof.
-  Admitted.
+    intros H1 H2.
+    pose proof children_num_pos _ _ _ H1.
+    pose proof pow_max_child_num depth.
+    apply Rcomplements.Rlt_div_r.
+    - apply Rlt_gt.
+      rewrite -Rcomplements.Rminus_lt_0.
+      apply lt_INR.
+      lia.
+    - rewrite Rmult_1_l.
+      cut (0<INR (S(children_num tree - 1))); first lra.
+      apply lt_0_INR.
+      lia.
+  Qed.
 
       (** Intermediate nodes of ranked b-trees store extra info, specifically for each branch it has as a child, 
       the number of leafs it has *)
@@ -1426,7 +1440,7 @@ Section b_tree.
           rewrite H0. simpl. done.
       + (* prove that the factor is larger than 1*)
         simpl.
-        by apply factor_gt_1.
+        by eapply factor_gt_1.
     - (* do a normal no error fragmented sampling and reject second case since the tree is populated *)
       tp_pures.
       epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
@@ -1464,7 +1478,7 @@ Section b_tree.
         rewrite !fin_card. rewrite H. lia.
         Unshelve.
         { trans 1; first lra.
-          apply Rlt_le. apply factor_gt_1. done.
+          apply Rlt_le. by eapply factor_gt_1. 
         }
         all: pose proof ab_b_tree_list_length _ _ _ Htree; lia.
   Qed.
