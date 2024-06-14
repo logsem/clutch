@@ -9,10 +9,6 @@ From clutch.paris Require Import ectx_lifting app_weakestpre model.
 From clutch.paris Require Export proofmode primitive_laws coupling_rules.
 From clutch.base_logic Require Export spec_update.
 
-(*
-From clutch.prob_lang Require Import locations notation tactics metatheory lang class_instances.
-*)
-
 Section rules.
   Context `{!parisRGS Σ}.
   Implicit Types A : lrel Σ.
@@ -73,23 +69,13 @@ Section rules.
   Qed.
 
   (** ** Forward reductions on the RHS *)
-
-  (*
-  Lemma refines_right_bind K' K e :
-    ⤇ fill K' (fill K e) ≡ ⤇ fill (K ++ K') e.
-  Proof. rewrite /refines_right /=. by rewrite fill_app. Qed.
-
-  Definition refines_right_bind' := refines_right_bind.
-  *)
-
   Lemma refines_pure_r E K' e e' t A n ϕ :
     PureExec ϕ n e e' →
-    TCEq (to_val t) None ->
     ϕ →
     (REL t << fill K' e' @ E : A)
       ⊢ REL t << fill K' e @ E : A.
   Proof.
-    rewrite refines_eq /refines_def => Hpure Ht Hϕ.
+    rewrite refines_eq /refines_def => Hpure Hϕ.
     iIntros "Hlog" (j ε) "Hj Hnais Herr Hpos /=".
     tp_pures ; auto.
     iApply ("Hlog" with "Hj Hnais Herr Hpos").
@@ -97,25 +83,19 @@ Section rules.
 
   (* A helper lemma for proving the stateful reductions for the RHS below *)
   Lemma refines_step_r E K' e1 e2 A :
-    TCEq (to_val e1) None ->
     (∀ k, ⤇ fill k e2 -∗
          spec_update ⊤ (∃ v, ⤇ fill k (of_val v) ∗
                              REL e1 << fill K' (of_val v) @ E : A))
     ⊢ REL e1 << fill K' e2 @ E : A.
   Proof.
-    intros He1.
     rewrite refines_eq /refines_def /=.
     iIntros "He" (K'' ε) "Hs Hnais Herr Hpos /=".
     rewrite -fill_app.
-    iSpecialize ("He" with "Hs").
-    (* TODO: why is this instance not be infered??? *)
-    pose proof elim_modal_spec_update_wp.
-    iMod "He" as (v) "[Hs He]".
+    iMod ("He" with "Hs") as (v) "[Hs He]".
     rewrite fill_app.
     iSpecialize ("He" with "Hs Hnais Herr Hpos").
     by iApply "He".
   Qed.
-
 
   (* Variant of refines_step_r that doesn't require full evaluation. *)
   (* NB: refines_step_r only requires e2 as input but existentially
@@ -135,29 +115,12 @@ Section rules.
     iApply ("Hlog" with "[$][$][$]").
   Qed.
 
-
-  Tactic Notation "my_tp_alloc" "as" ident(l) constr(H) :=
-    let finish _ :=
-      first [ intros l | fail 1 "tp_alloc:" l "not fresh"];
-      eexists; split;
-      [ reduction.pm_reflexivity
-      | (iIntros H; tp_normalise) || fail 1 "tp_alloc:" H "not correct intro pattern" ] in
-    iStartProof;
-    eapply tac_tp_alloc;
-    [tc_solve || idtac "tp_alloc: cannot eliminate modality in the goal"
-    |iAssumptionCore || fail "tp_alloc: cannot find the RHS"
-    |tp_bind_helper
-    |tc_solve || fail "tp_alloc: expressions is not a value"
-    |finish ()
-     (* new goal *)].
-
   Lemma refines_alloc_r E K e v t A :
     IntoVal e v →
-    TCEq (to_val t) None ->
     (∀ l : loc, l ↦ₛ v -∗ REL t << fill K (of_val #l) @ E : A)%I
       ⊢ REL t << fill K (ref e) @ E : A.
   Proof.
-    rewrite /IntoVal. intros <- Ht.
+    intros <-.
     iIntros "Hlog". simpl.
     iApply refines_step_r ; simpl.
     iIntros (K') "HK'".
@@ -166,12 +129,11 @@ Section rules.
   Qed.
 
   Lemma refines_load_r E K l q v t A :
-    TCEq (to_val t) None ->
     l ↦ₛ{q} v ⊢
       (l ↦ₛ{q} v -∗ REL t << fill K (of_val v) @ E : A)
     -∗ REL t << (fill K !#l) @ E : A.
   Proof.
-    iIntros (Ht) "Hl Hlog".
+    iIntros "Hl Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk".
     tp_load.
@@ -180,12 +142,11 @@ Section rules.
 
   Lemma refines_store_r E K l e e' v v' A :
     IntoVal e' v' →
-    TCEq (to_val e) None ->
     l ↦ₛ v ⊢
       (l ↦ₛ v' -∗ REL e << fill K (of_val #()) @ E : A)
     -∗ REL e << fill K (#l <- e') @ E : A.
   Proof.
-    rewrite /IntoVal. iIntros (<- He) "Hl Hlog".
+    iIntros (<-) "Hl Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk". simpl.
     tp_store. iModIntro. iExists _. iFrame.
@@ -194,11 +155,10 @@ Section rules.
 
   Lemma refines_alloctape_r E K N z t A :
     TCEq N (Z.to_nat z) →
-    TCEq (to_val t) None ->
     (∀ α : loc, α ↪ₛ (N; []) -∗ REL t << fill K (of_val #lbl:α) @ E : A)%I
     ⊢ REL t << fill K (alloc #z) @ E : A.
   Proof.
-    iIntros (-> Ht) "Hlog".
+    iIntros (->) "Hlog".
     iApply refines_step_r.
     iIntros (K') "HK'".
     tp_alloctape as α "Hα".
@@ -207,12 +167,11 @@ Section rules.
 
   Lemma refines_randT_r E K α N z n ns t A :
     TCEq N (Z.to_nat z) →
-    TCEq (to_val t) None ->
     α ↪ₛ (N; n :: ns)
     ⊢ (α ↪ₛ (N; ns) -∗ REL t << fill K (of_val #n) @ E : A)
     -∗ REL t << (fill K (rand(#lbl:α) #z)) @ E : A.
   Proof.
-    iIntros (-> Ht) "Hα Hlog".
+    iIntros (->) "Hα Hlog".
     iApply refines_step_r.
     iIntros (k) "Hk".
     tp_rand.
@@ -222,18 +181,17 @@ Section rules.
 
   Lemma refines_randT_empty_r K E α A N z e :
     TCEq N (Z.to_nat z) →
-    to_val e = None →
     ▷ α ↪ₛ (N; []) ∗
       (∀ n : fin (S N), α ↪ₛ (N; []) -∗ REL e << fill K (Val #n) @ E : A)
     ⊢ REL e << fill K (rand(#lbl:α) #z) @ E : A.
   Proof.
-    iIntros (-> ev) "[>Hα H]".
+    iIntros (->) "[>Hα H]".
     rewrite refines_eq /refines_def.
     iIntros (K2 ε) "Hspec Hnais Herr Hpos /=".
-    wp_apply wp_rand_empty_r; [done|].
+    wp_apply wp_rand_empty_r.
     rewrite -fill_app.
     iFrame "Hα Hspec".
-    iIntros "(Hα & %n & Hb)".
+    iIntros (N) "(Hα & Hb)".
     rewrite /= fill_app.
     iSpecialize ("H" with "Hα [$Hb] Hnais Herr Hpos").
     wp_apply (wp_mono with "H").
@@ -244,11 +202,10 @@ Section rules.
 
   Lemma refines_randU_r E K e (N : nat) (z : Z) A :
     TCEq N (Z.to_nat z) →
-    to_val e = None →
     (∀ (n : fin (S N)), REL e << fill K (Val #n) @ E : A)
       ⊢ REL e << fill K (rand #z) @ E : A.
   Proof.
-    iIntros (??) "H".
+    iIntros (?) "H".
     rewrite refines_eq /refines_def.
     iIntros (K2 ε) "Hspec Hnais Herr Hpos /=".
     rewrite -fill_app. wp_apply (wp_rand_r _ _ _ _ (K++K2)) => //.
@@ -382,31 +339,27 @@ Section rules.
   Qed.
 
   Lemma refines_couple_TT_err (N M : nat) E e1 e2 A α αₛ ns nsₛ (ε : nonnegreal) :
-    to_val e1 = None →
     (N <= M)%R →
     (((S M - S N) / S M) = ε)%R →
     (▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
-       ⌜(fin_to_nat n = m)⌝ →
-       α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m])
-       -∗ REL e1 << e2 @ E : A))
+        ⌜(fin_to_nat n = m)⌝ -∗ α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
+        REL e1 << e2 @ E : A))
     ⊢ REL e1 << e2 @ E : A.
   Proof.
-    iIntros (e1ev Hleq Heq) "(Hα & Hαs & Herr & Hlog)".
+    iIntros (Hleq Heq) "(Hα & Hαs & Herr & Hlog)".
     rewrite refines_eq /refines_def.
     iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
     wp_apply (wp_couple_tapes N M);
-      [done|lra|apply Heq|].
+      [done|done|].
     iFrame.
     iIntros (n m) "H [Hα Hαs]".
     iApply ("Hlog" with "[$H] [$Hα $Hαs] [$He2] Hnais Herr' Hpos").
   Qed.
   Definition refines_couple_tapes := refines_couple_TT_err.
 
-
-  Lemma refines_couple_TT_frag  (M N:nat) (f:fin(S M) -> fin (S N)) (Hinj: Inj (=) (=) f) E e1 e2 A α αₛ ns nsₛ :
-    to_val e1 = None ->
-    (M<=N)%R ->
+  Lemma refines_couple_TT_frag {M N} (f : fin(S M) → fin (S N)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ :
+    (M <= N)%R →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     (∀ (n : fin (S N)),
        if bool_decide(∃ m, f m = n) then
@@ -419,10 +372,10 @@ Section rules.
     )
     ⊢ REL e1 << e2 @ E : A.
   Proof.
-    iIntros (e1ev Hleq) "(Hα & Hαs & Hlog)".
+    iIntros (Hleq) "(Hα & Hαs & Hlog)".
     rewrite refines_eq /refines_def.
     iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
-    wp_apply wp_couple_fragmented_rand_rand_inj; [done|done|].
+    wp_apply wp_couple_fragmented_rand_rand_inj; [done|].
     iFrame.
     iIntros (n).
     iSpecialize ("Hlog" $! n).
@@ -433,31 +386,25 @@ Section rules.
       iApply ("Hlog" with "[$Hα $Hαs] [$He2] Hnais Herr' Hpos").
   Qed.
 
-
-  Lemma refines_couple_TT_adv  (M N: nat) (f:fin(S N) -> fin (S M)) (Hinj: Inj (=) (=) f) E e1 e2 A α αₛ ns nsₛ ε :
-    to_val e1 = None ->
-    (N<M)%R ->
+  Lemma refines_couple_TT_adv {M N} (f : fin(S N) → fin (S M)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ ε :
+    (N < M)%R →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
       (∀ (m : fin (S M)),
-          if bool_decide(∃ n, f n = m) then
-            ∀ n,
-              α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f n = m⌝ -∗
-                                                                          REL e1 << e2 @ E : A
+          if bool_decide (∃ n, f n = m) then
+            ∀ n, α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f n = m⌝ -∗
+                 REL e1 << e2 @ E : A
           else
             ∀ (ε':nonnegreal),
               ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
-                α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ↯ ε' -∗
-                                                              REL e1 << e2 @ E : A
-      )
+              α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ↯ ε' -∗
+              REL e1 << e2 @ E : A)
       ⊢ REL e1 << e2 @ E : A.
   Proof.
-    iIntros (e1ev Hleq) "(Hα & Hαs & Herr & Hlog)".
+    iIntros (Hleq) "(Hα & Hαs & Herr & Hlog)".
     rewrite refines_eq /refines_def.
     iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
-    wp_apply wp_couple_fragmented_rand_rand_inj_rev' ;[done|done|].
-    iSplitL "Hα"; [iFrame|].
-    iSplitL "Hαs"; [iFrame|].
-    iSplitL "Herr"; [iFrame|].
+    wp_apply wp_couple_fragmented_rand_rand_inj_rev'; [done|].
+    iFrame "Hα Hαs Herr".
     iIntros (m).
     iSpecialize ("Hlog" $! m).
     case_bool_decide.
