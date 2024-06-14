@@ -12,7 +12,6 @@ From iris.base_logic.lib Require Import iprop own.
 
 Import uPred.
 
-
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
   Canonical Structure nonnegrealO : ofe := leibnizO nonnegreal.

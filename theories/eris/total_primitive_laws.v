@@ -1,5 +1,5 @@
 From iris.proofmode Require Import proofmode.
-From clutch.eris Require Export error_credits total_weakestpre total_ectx_lifting primitive_laws.
+From clutch.eris Require Export total_weakestpre total_ectx_lifting primitive_laws.
 From clutch.prob_lang Require Import tactics lang notation.
 From clutch.prob_lang Require Export class_instances.
 

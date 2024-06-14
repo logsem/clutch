@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 From clutch.prelude Require Import stdpp_ext iris_ext.
 From clutch.prob_lang Require Import erasure notation.
 From clutch.common Require Import language.
-From clutch.eris Require Import error_credits.
+From clutch.base_logic Require Import error_credits.
 From clutch.paris Require Import app_weakestpre primitive_laws.
 From clutch.prob Require Import distribution couplings_app.
 Import uPred.
