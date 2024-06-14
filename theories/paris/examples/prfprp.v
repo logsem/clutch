@@ -460,7 +460,7 @@ Section prf_prp.
     set f := (λ n : nat, if (n <=? vl) then Z.to_nat (nth n sr 0) else n + val_size).
     iDestruct (ec_spend_le_irrel with "[$]") as "Hε".
     { instantiate (1:= mknonnegreal _ _). exact.  }
-    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl).
+    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl with "[HK Hε]").
     {
       intros x Hx.
       rewrite /f.
@@ -500,8 +500,8 @@ Section prf_prp.
       lia.
     }
     { rewrite -Hvl. instantiate (1:= mknonnegreal _ _). done. }
-    iFrame.
-    iIntros "!>" (x) "HK".
+    { iFrame. }
+    iIntros (x) "HK".
     simpl. 
     wp_pures.
     tp_pures.
@@ -626,13 +626,12 @@ Proof.
 
      tp_pures.
      tp_bind (rand _)%E.
-     iMod (ec_zero).
-     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero).
+     iMod (ec_zero) as "H0".
+     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ nnreal_zero
+              with "[$]").
      { lra. }
      { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
-
-     iFrame.
-     iIntros "!>" (n2 m2 ->) "HK".
+     iIntros (n2 m2) "[-> HK]".
      simpl.
      wp_pures.
      wp_pures.
@@ -739,7 +738,7 @@ Proof.
                       apply pos_INR.
                ** apply pos_INR_S.
             ++ apply gset_semi_set.
-Qed.
+  Qed.
 
   Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
     (INR(fold_left (Nat.add) (seq 0 n) 0%nat) / INR (S val_size))%R = ε ->

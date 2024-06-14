@@ -25,113 +25,45 @@ that lifts equality with error `1/N`, i.e.,
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prob_lang Require Import notation tactics metatheory.
-From clutch.paris Require Import adequacy coupling_rules.
+From clutch.paris Require Import adequacy coupling_rules proofmode.
 From clutch.prob_lang Require Import class_instances.
-
 
 Section wp_refinement.
   Context `{!parisGS Σ}.
-  Implicit Types P Q : iProp Σ.
-  Implicit Types Φ : val → iProp Σ.
-  Implicit Types σ : state.
-  Implicit Types e : expr.
-  Implicit Types v : val.
-  Implicit Types l : loc.
-  Implicit Types ε : nonnegreal.
 
-  (* These are copied from class_instances since we're missing a proofmode for
-  the approximate logic and have to do reductions according to the operational
-  semantics by hand. *)
-  Local Ltac solve_exec_safe := intros; subst; eexists; eapply head_step_support_equiv_rel; eauto with head_step.
-  Local Ltac solve_exec_puredet :=
-    intros; simpl;
-    (repeat case_match); simplify_eq;
-    rewrite dret_1_1 //.
-  Local Ltac solve_pure_exec :=
-    subst; intros ?; apply nsteps_once, pure_head_step_pure_step;
-    constructor; [solve_exec_safe | solve_exec_puredet].
-
-  Fact ref_no_coll_l N ε z (t : fin (S N)) :
-    (0 < S N)%R →
-    (TCEq (1 / (S N)) ε)%R →
+  Lemma wp_ref_no_coll_l N z (t : fin (S N)) :
     TCEq N (Z.to_nat z) →
-    (↯ ε ∗
-       ⤇ #false) 
-      ⊢ WP
-      (let: "x" := rand #z in "x" = #t)
-      {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}.
+    {{{ ↯ (1 / (nnreal_nat (S N)))%NNR ∗ ⤇ #false }}}
+       let: "x" := rand #z in "x" = #t
+    {{{ (b : bool), RET #b; ⤇ #b }}}.
   Proof.
-    iIntros (? Nε Nz) "(ε & hj)".
-    iApply wp_bind.
-    {
-      replace (App (λ: (BNamed "x"), Var "x" = Val #(LitInt (Z.of_nat (fin_to_nat t)))))
-        with (fill [(AppRCtx (λ: (BNamed "x"), Var "x" = Val #(LitInt (Z.of_nat (fin_to_nat t)))))])
-        by auto.
-      eapply ectxi_lang_ctx_item.
-    }
-    iApply (wp_rand_avoid_l t with "ε") ; auto.
-    { rewrite TCEq_eq. apply nnreal_ext. rewrite -Nε. real_solver. }
-    iNext. iIntros (x) "%xt". simpl.
-
-    iApply (wp_pure_step_later _ _ ((λ: "x", "x" = #t)%V #x) True) ; try easy.
-    { replace (let: "x" := #x in "x" = #t)%E with (fill [AppLCtx #x] (λ:"x", "x" = #t)%E) by auto.
-      replace ((λ: "x", "x" = #t)%V #x) with (fill [AppLCtx #x] (Val (λ: "x", "x" = #t)%V)) by auto.
-      eapply pure_exec_fill.
-      apply _. }
-    iModIntro.
-    iApply (wp_pure_step_later _ _ ((#x = #t)%E) True 1) ; try easy.
-    1: solve_pure_exec.
-    iModIntro.
-    iApply (wp_pure_step_later _ _ (Val $ LitV $ LitBool $ bool_decide (#x = #t))%E).
-    1: unfold bin_op_eval ; simpl ; auto.
-    case_bool_decide as xt'.
-    - inversion xt' as [xt''].
-      apply Nat2Z.inj' in xt''.
-      exfalso. apply xt.
-      by apply fin_to_nat_inj.
-    - iApply wp_value. iExists _. iNext. iFrame "hj". done.
-  Qed.
-
-  (* Bring the statement of the lemma into the shape that the adequacy theorem
-     expects. *)
-  Corollary ref_no_coll_l' N ε z (t : fin (S N)) :
-    (0 < S N)%R →
-    (TCEq (1 / S N) ε)%R →
-    TCEq N (Z.to_nat z) →
-    (⊢ ⤇ #false
-     -∗ ↯ ε
-     -∗ WP (let: "x" := rand #z in "x" = #t)
-        {{ v , ∃ v', ⤇ v' ∗ ⌜v = v'⌝ }}).
-  Proof.
-    iIntros. iApply ref_no_coll_l ; eauto. iFrame. 
+    iIntros (Nz Ψ) "(ε & hj) HΨ".
+    wp_bind (rand #z)%E.
+    wp_apply (wp_rand_avoid_l t with "ε").
+    iIntros (??).
+    wp_pures.
+    iApply "HΨ".
+    rewrite bool_decide_eq_false_2 //.
+    intros ?. simplify_eq.
   Qed.
 
 End wp_refinement.
 
 Section opsem_refinement.
 
-  Lemma no_coll_l Σ `{parisGpreS Σ} N (ε : nonnegreal) z (t : fin (S N)) σ σ' :
-      (0 < S N)%R →
-      ((1 / S N) = ε)%R →
-      N = Z.to_nat z →
-      ARcoupl
-        (lim_exec ((let: "x" := rand #z in "x" = #t)%E, σ))
-        (lim_exec (Val #false, σ'))
-        (λ v v' : val, v = v')
-        ε.
+  Lemma no_coll_l N (ε : nonnegreal) z (t : fin (S N)) σ σ' :
+    N = Z.to_nat z →
+    ARcoupl
+      (lim_exec ((let: "x" := rand #z in "x" = #t)%E, σ))
+      (lim_exec (Val #false, σ'))
+      (=)
+      (1 / nnreal_nat (S N))%NNR.
   Proof.
-    intros Npos Nε Nz.
-    epose proof
-      (wp_aRcoupl_lim _
-         (let: "x" := rand #z in "x" = #t)%E
-         #false σ σ' ε (λ v v', v = v')) as adequacy.
-    assert (TCEq N (Z.to_nat z)) by by rewrite Nz.
-    assert (TCEq (1 / S N)%R ε) by by rewrite Nε.
-    epose proof (fun H => @ref_no_coll_l' _ H N ε z t Npos _ _) as ref_wp.
-    simpl in ref_wp.
-    epose proof (adequacy ref_wp) as P.
-    simpl in P.
-    exact P.
+    intros ->.
+    eapply (wp_adequacy parisΣ).
+    iIntros (?) "? ?".
+    iApply (wp_ref_no_coll_l with "[$]").
+    eauto.
   Qed.
 
 End opsem_refinement.
