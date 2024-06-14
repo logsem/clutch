@@ -2428,6 +2428,67 @@ Section b_tree.
             relate_ab_tree_with_v tree treev 
       }}}.
   Proof.
+    iIntros (Hlen Hlookup Htree Φ) "[Hrelate Hα] HΦ".
+    rewrite /optimized_sampler_rec_annotated_prog.
+    do 2 wp_pure.
+    iInduction height as [|height'] "IH" forall (xs l tree treev v Hlen Hlookup Htree Φ).
+    - (* height is 0*)
+      inversion Htree. subst.
+      apply list_lookup_singleton_Some in Hlookup as [??].
+      erewrite relate_ab_tree_with_v_Lf.
+      iDestruct "Hrelate" as "->".
+      wp_pures.
+      iApply "HΦ".
+      rewrite relate_ab_tree_with_v_Lf.
+      simplify_eq. done.
+    - (* height is S height'*)
+      inversion Htree. subst.
+      erewrite relate_ab_tree_with_v_Br.
+      iDestruct "Hrelate" as "(%v' & %loc_lis & %v_lis & -> & %Hlen1 & %Hlen2 & %Hlis & H1 & H2)".
+      wp_pures.
+      destruct xs as [|x xs'].
+      { simpl in Hlen. lia. }
+      replace (Z.of_nat max_child_num - 1)%Z with (Z.of_nat (max_child_num - 1)); last first.
+      { pose proof max_child_num_pos. lia. }
+      wp_apply (wp_rand_tape with "[$]").
+      iIntros "Hα". wp_pures.
+      wp_apply (wp_list_nth); first done.
+      iIntros (?) "[[%%]|(%&%&%)]"; subst.
+      { exfalso.
+        (* contradiction *)
+        (* show that decoder aux hits the app_r *)
+        admit.
+      }
+      simpl. wp_pures.
+      apply nth_error_lookup in H2.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (fin_to_nat x) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (fin_to_nat x) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (fin_to_nat x) _ as [[]H8].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H2]") as "[? H2]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H0 H8. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      assert (a0 = a) as ->.
+      { rewrite list_lookup_fmap H8 in H3. simpl in *. by simplify_eq. }
+      wp_load.
+      iApply ("IH" with "[][][][$][$]"); [| |done|].
+      + iPureIntro. lia.
+      + erewrite <-Hlookup.
+        iPureIntro.
+        (* see the steps in intermediate and naive*)
+        admit.
+      + iIntros (?) "[-> Hrelate]".
+        iSpecialize ("H1" with "[$]").
+        iSpecialize ("H2" with "[$]").
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_v_Br.
+        iFrame.
+        iPureIntro.
+        naive_solver.
+        Unshelve.
+        all: apply lookup_lt_Some in H2.
+        all: pose proof fin_to_nat_lt x;  try rewrite combine_length_same; try lia.
+        rewrite fmap_length in Hlen1. lia.
   Admitted.
 
   Lemma spec_optimized_sampler_rec_annotated_prog_Some K (height:nat) l tree treev E v α' xs:
