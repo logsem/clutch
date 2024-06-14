@@ -373,6 +373,22 @@ Section list_specs.
       wp_pures. iApply "HΦ". iPureIntro. right. eauto.
   Qed.
 
+  
+  Lemma spec_list_head E lv l K:
+    is_list l lv -> 
+    ⤇ fill K (list_head lv) -∗
+    spec_update E
+    (∃ v, ⤇ fill K v∗
+       ⌜(l = [] ∧ v = NONEV) ∨ (∃ a l', l = a :: l' ∧ v = SOMEV (inject a))⌝ ).
+  Proof.
+    iIntros (a) "Hspec".
+    rewrite /list_head.
+    tp_pures. destruct l; simpl in *; subst.
+    - tp_pures. iApply spec_update_ret. iFrame. iPureIntro. naive_solver.
+    - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
+      tp_pures. iApply spec_update_ret. iFrame. iPureIntro. naive_solver.
+  Qed.
+
   Lemma wp_list_tail E lv l :
     {{{ ⌜is_list l lv⌝ }}}
       list_tail lv @ E
@@ -383,6 +399,20 @@ Section list_specs.
     - wp_match. wp_inj. by iApply "HΦ".
     - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
       wp_match. wp_proj. by iApply "HΦ".
+  Qed.
+
+  Lemma spec_list_tail E lv l K:
+    is_list l lv ->
+     ⤇ fill K (list_tail lv) -∗
+     spec_update E
+       (∃ (v:val), ⤇ (fill K v) ∗ ⌜is_list (tail l) v⌝).
+  Proof.
+    iIntros (a) "Hspec".
+    rewrite /list_tail.
+    tp_pures. destruct l; simpl in *; subst.
+    - tp_pures. iApply spec_update_ret. iFrame. done.
+    - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
+      tp_pures. iApply spec_update_ret. iFrame. done.
   Qed.
 
   Lemma wp_list_length E l lv :

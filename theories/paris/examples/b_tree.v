@@ -36,20 +36,27 @@ Section aux_lemmas.
   Qed.
 
   Lemma combine_lookup {A B} (l1:list A) (l2:list B) x v1 v2:
-    (combine l1 l2)!!x = Some (v1, v2) ->
+    (combine l1 l2)!!x = Some (v1, v2) <->
     l1 !! x = Some v1 /\ l2 !! x = Some v2.
   Proof.
     revert x v1 v2 l2.
     induction l1.
-    - simpl. intros ????. rewrite lookup_nil; done.
+    - simpl. intros ????. rewrite lookup_nil; split; first done.
+      rewrite lookup_nil. naive_solver.
     - intros ????.
-      simpl. destruct l2.
-      + rewrite lookup_nil; done.
-      + destruct x.
-        * simpl. naive_solver.
-        * simpl. naive_solver.
+      split.
+      + simpl. destruct l2.
+        * rewrite lookup_nil; done.
+        * destruct x.
+          -- simpl. naive_solver.
+          -- simpl. naive_solver.
+      + simpl. destruct l2.
+        * rewrite lookup_nil; naive_solver.
+        * destruct x.
+          -- naive_solver.
+          -- naive_solver.
   Qed.
-
+  
   Lemma combine_length_same {A B} (l1:list A) (l2:list B):
     length l1 = length l2 -> length (combine l1 l2) = length l1.
   Proof.
@@ -747,7 +754,21 @@ Section b_tree.
       specialize (IHl H0 H2).
       rewrite Nat.add_0_r in IHl. rewrite -IHl. done.
   Qed.
-
+  
+  Lemma ab_tree_children_num_foldr l n:
+    Forall (λ x : list (option val) * ab_tree, is_ab_b_tree n x.1 x.2) l ->
+    (foldr (λ (x : ab_tree) (y : nat), children_num x + y) 0 l.*2 =
+     length (filter (λ x : option val, is_Some x) (flat_map id l.*1)))%nat.
+  Proof.
+    induction l.
+    - simpl. done.
+    - rewrite Forall_cons. simpl.
+      intros [??].
+      rewrite IHl; last done.
+      rewrite filter_app app_length.
+      erewrite ab_tree_children_num; last done. done.
+  Qed.
+  
   Lemma children_num_pos n l t:
     is_ab_b_tree n l t -> (0<children_num t)%nat.
   Proof.
@@ -1115,7 +1136,7 @@ Section b_tree.
           let, ("prefix_sum","idx")  := naive_sampler_list_search_prog "l" "num" in
           match: list_nth "l" "idx" with
           | SOME "p" =>
-              "f" (!"p") ("num"-"prefix_sum")
+              "f" (!(Snd "p")) ("num"-"prefix_sum")
           | NONE => #() (* not possible *)
           end
       end
@@ -1278,6 +1299,90 @@ Section b_tree.
   (** REFINEMENTS**)
 
   (** Stage 0 *)
+  
+  Local Lemma flat_map_num_lis_relate l2 num_lis depth':
+    (length l2<=length num_lis)%nat->
+    Forall (λ x : list (option val) * ab_tree, is_ab_b_tree depth' x.1 x.2) l2 ->
+    (∀ (k : nat) (x : ab_tree * nat),
+         combine (l2).*2 num_lis !! k = Some x → children_num x.1 = x.2)->
+    (length (filter (λ x : option val, is_Some x) (flat_map id (l2.*1))) =
+     list_sum (take (length l2) num_lis))%nat.
+  Proof.
+    revert num_lis.
+    induction l2.
+    - done.
+    - intros num_lis. rewrite Forall_cons.
+      destruct num_lis.
+      + simpl. lia.
+      + intros ? [??] ?.
+        simpl. rewrite filter_app app_length. f_equal.
+        * replace (id _) with a.1 by done.
+          erewrite <-ab_tree_children_num; last done.
+          replace (a.2) with ((a.2), n).1; last done.
+          erewrite H2; first done.
+          simpl. instantiate (1 := 0%nat). done.
+        * erewrite <-IHl2; [done| |done|].
+          -- simpl in H. lia.
+          -- intros. eapply H2.
+             simpl. instantiate (1:=S k). simpl. done.
+  Qed.
+
+  Lemma wp_naive_sampler_list_search_prog v (n:nat) (l:list loc) num_lis:
+    (length l = length num_lis)%nat->
+    is_list (combine num_lis l) v ->
+    (n<list_sum num_lis)%nat ->
+    {{{ True }}}
+      naive_sampler_list_search_prog v #n
+      {{{ (idx prefix_sum:nat), RET (#prefix_sum, #idx)%V;
+          ⌜(prefix_sum = list_sum (take idx num_lis))%nat⌝ ∗
+          ⌜(prefix_sum<=n<list_sum (take (idx+1) num_lis))%nat⌝ ∗
+          ⌜(idx<length num_lis)%nat⌝
+      }}}.
+  Proof.
+    iInduction l as [|x l'] "IH" forall (v n num_lis); simpl.
+    - iIntros (H ? H').
+      assert (num_lis = []) as ->.
+      { apply nil_length_inv. done. }
+      simpl in H'. lia.
+    - destruct num_lis as [|n' num_lis'].
+      { iIntros. simpl in *. lia. }
+      iIntros (Hlen llis Hineq Φ) "_ HΦ".
+      rewrite /naive_sampler_list_search_prog.
+      wp_pures.
+      wp_apply (wp_list_head); first done.
+      iIntros (?) "[[%H %]|%H]".
+      { simpl in H. done. }
+      destruct H as ([??] & ? & ? & ->).
+      simpl.
+      wp_pures.
+      wp_apply (wp_list_tail); first done.
+      simpl. iIntros (??).
+      wp_pures.
+      case_bool_decide as Heqn.
+      + wp_pures.
+        iModIntro.
+        repeat replace 0%Z with (Z.of_nat 0%nat) by lia.
+        iApply "HΦ". simpl. iPureIntro.
+        repeat split; try lia.
+        replace (n'+_)%nat with n' by lia. simpl in H. simplify_eq.
+        lia.
+      + do 2 wp_pure.
+        rewrite -Nat2Z.inj_sub; last lia.
+        simpl in Hlen.
+        simpl in H, Hineq. simplify_eq.
+        wp_apply "IH"; [by simplify_eq|done|iPureIntro; lia|done|].
+        iIntros (idx' ?) "(->&%&%)".
+        wp_pures.
+        iModIntro.
+        rewrite -!Nat2Z.inj_add.
+        replace (Z.of_nat _ + 1)%Z with (Z.of_nat (S idx')) by lia.
+        iApply "HΦ".
+        iPureIntro; repeat split; try lia.
+        simpl.
+        apply Nat.lt_sub_lt_add_l.
+        lia.
+  Qed.
+  
   Lemma wp_naive_sampler_rec_prog (n:nat) l tree treev:
     (n<length(filter(λ x, is_Some x) l))%nat ->
     is_ab_b_tree depth l tree ->
@@ -1287,7 +1392,159 @@ Section b_tree.
             relate_ab_tree_with_ranked_v tree treev
       }}}.
   Proof.
-  Admitted.
+    iInduction depth as [|depth'] "IH" forall (n l tree treev).
+    - (* depth is 0*)
+      iIntros (Hlen Htree Φ) "Hrelate HΦ".
+      inversion Htree. subst.
+      erewrite relate_ab_tree_with_ranked_v_Lf.
+      iDestruct "Hrelate" as "->".
+      rewrite /naive_sampler_rec_prog.
+      wp_pures.
+      iApply "HΦ".
+      iModIntro. simpl in Hlen.
+      replace n with 0%nat by lia.
+      rewrite relate_ab_tree_with_ranked_v_Lf. done.
+    - (* depth is S depth' *)
+      iIntros (Hlen Htree Φ) "Hrelate HΦ".
+      inversion Htree. subst.
+      erewrite relate_ab_tree_with_ranked_v_Br.
+      iDestruct "Hrelate" as "(%total & %v' & %loc_lis & %v_lis & %num_lis & -> & %Hlen1 & %Hlen2 & %Hlen3 & -> & %Hlis & H1 & %H2 & H3)". simpl in *.
+      rewrite /naive_sampler_rec_prog.
+      wp_pures. rewrite -/naive_sampler_rec_prog.
+      wp_apply wp_naive_sampler_list_search_prog; [etrans; last exact; done|done| |done|].
+      { erewrite list_sum_foldr; last done; last done.
+        rewrite filter_app in Hlen. rewrite filter_replicate_is_nil in Hlen; last done.
+        erewrite ab_tree_children_num_foldr; last done.
+        rewrite app_nil_r in Hlen. done.
+      }
+      iIntros (idx prefix_sum) "(-> & %Hineq & %Hge)".
+      wp_pures.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (idx) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (idx) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 num_lis) (idx) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (idx) _ as [[]?].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H3]") as "[? H3]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H0 H5. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      wp_apply (wp_list_nth with "[//]").
+      iIntros (?) "[[% %]|(%&->&%)]"; subst.
+      { exfalso. rewrite combine_length_same in H8; last rewrite fmap_length in Hlen3, Hlen1; lia.
+      }
+      subst.
+      apply nth_error_lookup in H4.
+      destruct r.
+      apply combine_lookup in H4 as [??]. simplify_eq. simpl.
+      wp_pures. wp_load.
+      rewrite -Nat2Z.inj_sub; last lia.
+      assert (a1 = a).
+      { rewrite list_lookup_fmap in H3. rewrite H5 in H3. simpl in *. simplify_eq.
+        done. } subst.
+      iApply ("IH" with "[][][$]"); [|done|..].
+      + replace (idx + 1)%nat with (S idx) in Hineq by lia.
+        erewrite take_S_r in Hineq; last done.
+        rewrite list_sum_app in Hineq. simpl in Hineq.
+        erewrite <-ab_tree_children_num, H2; [|erewrite combine_lookup; naive_solver|].
+        * simpl. iPureIntro. lia.
+        * simpl. done.
+      + iModIntro. iIntros (?) "[% ?]".
+        iSpecialize ("H1" with "[$]").
+        iSpecialize ("H3" with "[$]").
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_ranked_v_Br. iFrame.
+        iPureIntro. split; last naive_solver.
+        rewrite filter_app filter_replicate_is_nil; last done.
+        rewrite app_nil_r.
+        rewrite H4.
+        apply elem_of_list_split_length in H5 as (l2 & l3 & -> & ->).
+        rewrite fmap_app flat_map_app filter_app fmap_cons. simpl.
+        rewrite filter_app. replace (id _) with l1 by done.
+        assert (length (filter (λ x : option val, is_Some x) (flat_map id (l2.*1))) =
+                list_sum (take (length l2) num_lis))%nat as K.
+        { eapply flat_map_num_lis_relate.
+          - rewrite -Hlen3. rewrite fmap_length app_length. lia.
+          - apply Forall_app in H0. naive_solver.
+          - intros ? []?. eapply H2.
+            rewrite combine_lookup in H5.
+            rewrite combine_lookup; split; last naive_solver.
+            rewrite fmap_app. eapply lookup_app_l_Some. naive_solver.
+        }
+        rewrite lookup_app_r; first rewrite lookup_app_l.
+        * f_equal. f_equal. done.
+        * rewrite K.
+          replace (_+1)%nat with (S (length l2)) in Hineq by lia.
+          erewrite take_S_r in Hineq; last done.
+          rewrite list_sum_app in Hineq. simpl in Hineq.
+          erewrite <-ab_tree_children_num; last done.
+          replace a with (a, n0).1; last done.
+          erewrite H2; last first.
+          { rewrite combine_lookup. split; last done.
+            rewrite fmap_app. rewrite lookup_app_r; rewrite fmap_length; last done.
+            rewrite Nat.sub_diag. simpl. done.
+          }
+          simpl. lia.
+        * rewrite K. lia.
+          Unshelve.
+          all: try rewrite combine_length_same; try lia.
+          rewrite fmap_length in Hlen3. lia.
+  Qed.
+
+  Lemma spec_naive_sampler_list_search_prog v (n:nat) (l:list loc) num_lis E K:
+    (length l = length num_lis)%nat->
+    is_list (combine num_lis l) v ->
+    (n<list_sum num_lis)%nat ->
+     ⤇ fill K (naive_sampler_list_search_prog v #n) -∗
+      spec_update E (∃ (prefix_sum idx:nat), ⤇ fill K (#prefix_sum, #idx)%V∗
+          ⌜(prefix_sum = list_sum (take idx num_lis))%nat⌝ ∗
+          ⌜(prefix_sum<=n<list_sum (take (idx+1) num_lis))%nat⌝ ∗
+          ⌜(idx<length num_lis)%nat⌝).
+  Proof.
+    iInduction l as [|x l'] "IH" forall (K v n num_lis); simpl.
+    - iIntros (H ? H').
+      assert (num_lis = []) as ->.
+      { apply nil_length_inv. done. }
+      simpl in H'. lia.
+    - destruct num_lis as [|n' num_lis'].
+      { iIntros. simpl in *. lia. }
+      iIntros (Hlen llis Hineq) "Hspec".
+      rewrite /naive_sampler_list_search_prog.
+      tp_pures.
+      tp_bind (list_head _).
+      iMod (spec_list_head with "[$]") as "(%&Hspec&[[%H %]|%H])"; first done.
+      { simpl in H. done. }
+      destruct H as ([??] & ? & ? & ->).
+      simpl.
+      tp_pures.
+      tp_bind (list_tail _).
+      iMod (spec_list_tail with "[$]") as "(%&Hspec&%)"; first done.
+      simpl.
+      tp_pures.
+      case_bool_decide as Heqn.
+      + tp_pures.
+        iApply spec_update_ret.
+        repeat replace 0%Z with (Z.of_nat 0%nat) by lia.
+        iFrame.
+        simpl. iPureIntro.
+        repeat split; try lia.
+        replace (n'+_)%nat with n' by lia. simpl in H. simplify_eq.
+        lia.
+      + do 2 tp_pure.
+        rewrite -Nat2Z.inj_sub; last lia.
+        simpl in Hlen.
+        simpl in H, Hineq. simplify_eq.
+        tp_bind ((Val _) _ _)%E.
+        iMod ("IH" with "[][][][$]") as "(%&%idx'&Hspec&->&%&%)"; [by simplify_eq|done|iPureIntro; lia|].
+        simpl.
+        tp_pures.
+        iApply spec_update_ret.
+        rewrite -!Nat2Z.inj_add.
+        replace (Z.of_nat _ + 1)%Z with (Z.of_nat (S idx')) by lia.
+        iFrame.
+        iPureIntro; repeat split; try lia.
+        simpl.
+        apply Nat.lt_sub_lt_add_l.
+        lia.
+  Qed.
 
   Lemma spec_naive_sampler_rec_prog (n:nat) l tree treev E:
     (n<length(filter(λ x, is_Some x) l))%nat ->
@@ -1296,11 +1553,109 @@ Section b_tree.
     ⤇ (naive_sampler_rec_prog treev #n) -∗
     spec_update E
       (∃ v:val, ⤇ v ∗
-            ⌜Some (Some v) = filter (λ x, is_Some x) l !! n⌝ ∗
-            relate_ab_tree_with_ranked_v' tree treev)
-      .
+                ⌜Some (Some v) = filter (λ x, is_Some x) l !! n⌝ ∗
+                relate_ab_tree_with_ranked_v' tree treev)
+  .
   Proof.
-  Admitted.
+    iInduction depth as [|depth'] "IH" forall (n l tree treev).
+    - (* depth is 0*)
+      iIntros (Hlen Htree) "Hrelate Hspec".
+      inversion Htree. subst.
+      erewrite relate_ab_tree_with_ranked_v_Lf'.
+      iDestruct "Hrelate" as "->".
+      rewrite /naive_sampler_rec_prog.
+      tp_pures.
+      iApply spec_update_ret.
+      iFrame. simpl in Hlen.
+      replace n with 0%nat by lia.
+      rewrite relate_ab_tree_with_ranked_v_Lf'. done.
+    - (* depth is S depth' *)
+      iIntros (Hlen Htree) "Hrelate Hspec".
+      inversion Htree. subst.
+      erewrite relate_ab_tree_with_ranked_v_Br'.
+      iDestruct "Hrelate" as "(%total & %v' & %loc_lis & %v_lis & %num_lis & -> & %Hlen1 & %Hlen2 & %Hlen3 & -> & %Hlis & H1 & %H2 & H3)". simpl in *.
+      rewrite /naive_sampler_rec_prog.
+      tp_pures. rewrite -/naive_sampler_rec_prog.
+      tp_bind (naive_sampler_list_search_prog _ _).
+      iMod (spec_naive_sampler_list_search_prog with "[$]")
+        as "(%prefix_sum & %idx & Hspec & -> & %Hineq & %Hge)";
+        [etrans; last exact; done|done| |].
+      { erewrite list_sum_foldr; last done; last done.
+        rewrite filter_app in Hlen. rewrite filter_replicate_is_nil in Hlen; last done.
+        erewrite ab_tree_children_num_foldr; last done.
+        rewrite app_nil_r in Hlen. done.
+      }
+      simpl.
+      tp_pures.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (idx) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (idx) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 num_lis) (idx) _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (idx) _ as [[]?].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H3]") as "[? H3]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H0 H5. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      tp_bind (list_nth _ _).
+      iMod (spec_list_nth with "[$]") as "(%&Hspec&[[% %]|(%&->&%)])"; first done.
+      { exfalso. rewrite combine_length_same in H8; last rewrite fmap_length in Hlen3, Hlen1; lia.
+      }
+      subst.
+      apply nth_error_lookup in H4.
+      destruct r.
+      apply combine_lookup in H4 as [??]. simplify_eq. simpl.
+      tp_pures. tp_load.
+      rewrite -Nat2Z.inj_sub; last lia.
+      assert (a1 = a).
+      { rewrite list_lookup_fmap in H3. rewrite H5 in H3. simpl in *. simplify_eq.
+        done. } subst.
+      iMod ("IH" with "[][][$][$]") as "(%&Hspec&%&?)"; [|done|..].
+      + replace (idx + 1)%nat with (S idx) in Hineq by lia.
+        erewrite take_S_r in Hineq; last done.
+        rewrite list_sum_app in Hineq. simpl in Hineq.
+        erewrite <-ab_tree_children_num, H2; [|erewrite combine_lookup; naive_solver|].
+        * simpl. iPureIntro. lia.
+        * simpl. done.
+      + iSpecialize ("H1" with "[$]").
+        iSpecialize ("H3" with "[$]").
+        iApply spec_update_ret.
+        iFrame.
+        rewrite relate_ab_tree_with_ranked_v_Br'. iFrame.
+        iPureIntro. split; last naive_solver.
+        rewrite filter_app filter_replicate_is_nil; last done.
+        rewrite app_nil_r.
+        rewrite H4.
+        apply elem_of_list_split_length in H5 as (l2 & l3 & -> & ->).
+        rewrite fmap_app flat_map_app filter_app fmap_cons. simpl.
+        rewrite filter_app. replace (id _) with l1 by done.
+        assert (length (filter (λ x : option val, is_Some x) (flat_map id (l2.*1))) =
+                list_sum (take (length l2) num_lis))%nat as K.
+        { eapply flat_map_num_lis_relate.
+          - rewrite -Hlen3. rewrite fmap_length app_length. lia.
+          - apply Forall_app in H0. naive_solver.
+          - intros ? []?. eapply H2.
+            rewrite combine_lookup in H5.
+            rewrite combine_lookup; split; last naive_solver.
+            rewrite fmap_app. eapply lookup_app_l_Some. naive_solver.
+        }
+        rewrite lookup_app_r; first rewrite lookup_app_l.
+        * f_equal. f_equal. done.
+        * rewrite K.
+          replace (_+1)%nat with (S (length l2)) in Hineq by lia.
+          erewrite take_S_r in Hineq; last done.
+          rewrite list_sum_app in Hineq. simpl in Hineq.
+          erewrite <-ab_tree_children_num; last done.
+          replace a with (a, n0).1; last done.
+          erewrite H2; last first.
+          { rewrite combine_lookup. split; last done.
+            rewrite fmap_app. rewrite lookup_app_r; rewrite fmap_length; last done.
+            rewrite Nat.sub_diag. simpl. done.
+          }
+          simpl. lia.
+        * rewrite K. lia.
+          Unshelve.
+          all: try rewrite combine_length_same; try lia.
+          rewrite fmap_length in Hlen3. lia.
+  Qed. 
   
   Lemma naive_annotated_naive_refinement tree l treev treev':
     (0<children_num tree)%nat -> 
