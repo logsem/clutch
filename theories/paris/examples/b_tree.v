@@ -1903,7 +1903,101 @@ Section b_tree.
             relate_ab_tree_with_v' tree treev)
       .
   Proof.
-  Admitted.
+    iInduction depth as [|depth'] "IH" forall (n l tree treev v).
+    - (* depth is 0*)
+      iIntros (Hlen Hlookup Htree) "Hrelate Hspec".
+      inversion Htree. subst.
+      rewrite /intermediate_sampler_rec_prog.
+      erewrite relate_ab_tree_with_v_Lf'.
+      iDestruct "Hrelate" as "->".
+      tp_pures.
+      iApply spec_update_ret.
+      iFrame.
+      rewrite relate_ab_tree_with_v_Lf'.
+      rewrite list_lookup_singleton_Some in Hlookup.
+      iPureIntro; naive_solver.
+    - iIntros (Hlen Hlookup Htree) "Hrelate Hspec".
+      pose proof ab_b_tree_list_length _ _ _ Htree.
+      inversion Htree. 
+      rewrite /intermediate_sampler_rec_prog.
+      erewrite relate_ab_tree_with_v_Br'.
+      iDestruct "Hrelate" as "(%v' & %loc_lis & %v_lis & -> & %Hlen1 & %Hlen2 & %Hlis & H1 & H2)".
+      tp_pures.
+      assert (S depth' - 1=depth')%Z as K1 by lia.
+      rewrite K1.
+      tp_bind (pow _ _).
+      iMod (spec_pow with "[$]") as "(%&Hspec&->)".
+      simpl.
+      tp_pures.
+      rewrite Z.quot_div_nonneg; last first.
+      { pose proof pow_max_child_num depth'.
+        pose proof max_child_num_pos. lia. }
+      { lia. }
+      rewrite -Nat2Z.inj_div.
+      assert (length (flat_map id l0.*1)= length l0 * max_child_num ^ depth')%nat as K2.
+      { erewrite ab_b_tree_list_length_forall; done. }
+      tp_bind (list_nth _ _).
+      iMod (spec_list_nth with "[$]") as "(%&Hspec&[[-> %]|(%&->&%)])"; first done.
+      { exfalso. subst.
+        rewrite lookup_app_r in Hlookup.
+        - rewrite lookup_replicate in Hlookup. naive_solver.
+        - trans (length loc_lis * (max_child_num ^ depth'))%nat.
+          + rewrite -Hlen1 fmap_length. lia. 
+          + apply div_mult; [done|apply pow_max_child_num].
+      }
+      simpl.
+      tp_pures. rewrite K1.
+      tp_bind (pow _ _).
+      iMod (spec_pow with "[$]") as "(%&Hspec&->)".
+      simpl.
+      tp_pures.
+      apply nth_error_lookup in H5.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (n `div` max_child_num ^ depth')%nat _ as [[]H8].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H2]") as "[? H2]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H1 H8. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      tp_load.
+      rewrite -Nat2Z.inj_mul -Nat2Z.inj_sub; last first.
+      { rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le. }
+      assert (a0 = a) as ->.
+      { rewrite list_lookup_fmap H8 in H7.
+        simpl in H7. simplify_eq. done. }
+      tp_bind ((Val _) _ _ _).
+      iMod ("IH" with "[][][][$][$]") as "(%&Hspec&-> &Hrelate)"; [| |done|].
+      + iPureIntro.
+        erewrite ab_b_tree_list_length; last done.
+        replace (_-_)%nat with (n`mod`(max_child_num^depth'))%nat.
+        * apply Nat.mod_upper_bound.
+          pose proof pow_max_child_num depth'. lia.
+        * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
+      + erewrite <-Hlookup.
+        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        iPureIntro.
+        rewrite fmap_app flat_map_app fmap_cons. simpl.
+        replace (id _) with l2; last done.
+        assert (length (flat_map id la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
+        { rewrite H0.
+          erewrite ab_b_tree_list_length_forall; first done.
+          apply Forall_app in H1 as [??]. done. }
+        rewrite -!app_assoc.
+        rewrite lookup_app_r; first rewrite lookup_app_l.
+        * rewrite Heq. done.
+        * rewrite Heq. erewrite ab_b_tree_list_length; last done.
+          apply rem_ineq. apply pow_max_child_num.
+        * rewrite Heq. rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le.
+      + iSpecialize ("H1" with "[$]").
+        iSpecialize ("H2" with "[$]").
+        iApply spec_update_ret.
+        iFrame.
+        rewrite relate_ab_tree_with_v_Br'. iFrame.
+        iPureIntro. naive_solver.
+        Unshelve.
+        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
+        rewrite fmap_length in Hlen1. lia.
+  Qed.
       
   Lemma wp_intermediate_sampler_rec_prog_None (n:nat) l tree treev:
     (n<length l)%nat ->
@@ -1915,7 +2009,89 @@ Section b_tree.
             relate_ab_tree_with_v tree treev
       }}}.
   Proof.
-  Admitted.
+    iInduction depth as [|depth'] "IH" forall (n l tree treev).
+    - (* depth is 0*)
+      iIntros (Hlen Hlookup Htree Φ) "Hrelate HΦ".
+      inversion Htree. subst.
+      rewrite list_lookup_singleton_Some in Hlookup. naive_solver.
+    - iIntros (Hlen Hlookup Htree Φ) "Hrelate HΦ".
+      pose proof ab_b_tree_list_length _ _ _ Htree.
+      inversion Htree. 
+      rewrite /intermediate_sampler_rec_prog.
+      erewrite relate_ab_tree_with_v_Br.
+      iDestruct "Hrelate" as "(%v' & %loc_lis & %v_lis & -> & %Hlen1 & %Hlen2 & %Hlis & H1 & H2)".
+      wp_pures.
+      assert (S depth' - 1=depth')%Z as K by lia.
+      rewrite K.
+      wp_apply (wp_pow); first done.
+      iIntros (?) "->".
+      wp_pures.
+      rewrite Z.quot_div_nonneg; last first.
+      { pose proof pow_max_child_num depth'.
+        pose proof max_child_num_pos. lia. }
+      { lia. }
+      rewrite -Nat2Z.inj_div.
+      assert (length (flat_map id l0.*1)= length l0 * max_child_num ^ depth')%nat as K'.
+      { erewrite ab_b_tree_list_length_forall; done. }
+      wp_apply (wp_list_nth); first done.
+      iIntros (?) "[[-> %]|(%&->&%)]".
+      { wp_pures.
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_v_Br.
+        iFrame. iPureIntro.
+        naive_solver.
+      }
+      simpl.
+      wp_pures. rewrite K.
+      wp_apply wp_pow; first done.
+      iIntros (?) "->". wp_pures.
+      apply nth_error_lookup in H5.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (n `div` max_child_num ^ depth')%nat _ as [[]H8].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H2]") as "[? H2]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H1 H8. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      wp_load.
+      rewrite -Nat2Z.inj_mul -Nat2Z.inj_sub; last first.
+      { rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le. }
+      assert (a0 = a) as ->.
+      { rewrite list_lookup_fmap H8 in H7.
+        simpl in H7. simplify_eq. done. }
+      iApply ("IH" with "[][][][$]"); [| |done|].
+      + iPureIntro.
+        erewrite ab_b_tree_list_length; last done.
+        replace (_-_)%nat with (n`mod`(max_child_num^depth'))%nat.
+        * apply Nat.mod_upper_bound.
+          pose proof pow_max_child_num depth'. lia.
+        * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
+      + erewrite <-Hlookup.
+        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        iPureIntro.
+        rewrite fmap_app flat_map_app fmap_cons. simpl.
+        replace (id _) with l2; last done.
+        assert (length (flat_map id la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
+        { rewrite H0.
+          erewrite ab_b_tree_list_length_forall; first done.
+          apply Forall_app in H1 as [??]. done. }
+        rewrite -!app_assoc.
+        rewrite lookup_app_r; first rewrite lookup_app_l.
+        * rewrite Heq. done.
+        * rewrite Heq. erewrite ab_b_tree_list_length; last done.
+          apply rem_ineq. apply pow_max_child_num.
+        * rewrite Heq. rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le.
+      + iModIntro.
+        iIntros (?) "[-> Hrelate]".
+        iSpecialize ("H1" with "[$]").
+        iSpecialize ("H2" with "[$]").
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_v_Br. iFrame.
+        iPureIntro. naive_solver.
+        Unshelve.
+        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
+        rewrite fmap_length in Hlen1. lia.
+  Qed.
 
   Lemma spec_intermediate_sampler_rec_prog_None K (n:nat) l tree treev E:
     (n<length l)%nat ->
@@ -1925,11 +2101,99 @@ Section b_tree.
     ⤇ fill K (intermediate_sampler_rec_prog treev #n #depth) -∗
     spec_update E
       (∃ v':val, ⤇ fill K v' ∗
-            ⌜v' = NONEV⌝ ∗
-            relate_ab_tree_with_v' tree treev)
-      .
+                 ⌜v' = NONEV⌝ ∗
+                 relate_ab_tree_with_v' tree treev)
+  .
   Proof.
-  Admitted.
+    iInduction depth as [|depth'] "IH" forall (n l tree treev).
+    - (* depth is 0*)
+      iIntros (Hlen Hlookup Htree) "Hrelate Hspec".
+      inversion Htree. subst.
+      rewrite list_lookup_singleton_Some in Hlookup. naive_solver.
+    - iIntros (Hlen Hlookup Htree) "Hrelate Hspec".
+      pose proof ab_b_tree_list_length _ _ _ Htree.
+      inversion Htree. 
+      rewrite /intermediate_sampler_rec_prog.
+      erewrite relate_ab_tree_with_v_Br'.
+      iDestruct "Hrelate" as "(%v' & %loc_lis & %v_lis & -> & %Hlen1 & %Hlen2 & %Hlis & H1 & H2)".
+      tp_pures.
+      assert (S depth' - 1=depth')%Z as K1 by lia.
+      rewrite K1.
+      tp_bind (pow _ _).
+      iMod (spec_pow with "[$]") as "(%&Hspec&->)".
+      simpl.
+      tp_pures.
+      rewrite Z.quot_div_nonneg; last first.
+      { pose proof pow_max_child_num depth'.
+        pose proof max_child_num_pos. lia. }
+      { lia. }
+      rewrite -Nat2Z.inj_div.
+      assert (length (flat_map id l0.*1)= length l0 * max_child_num ^ depth')%nat as K2.
+      { erewrite ab_b_tree_list_length_forall; done. }
+      tp_bind (list_nth _ _).
+      iMod (spec_list_nth with "[$]") as "(%&Hspec&[[-> %]|(%&->&%)])"; first done.
+      { simpl.
+        tp_pures.
+        iApply spec_update_ret.
+        iFrame.
+        erewrite relate_ab_tree_with_v_Br'.
+        iFrame.
+        iPureIntro.
+        naive_solver.
+      }
+      simpl.
+      tp_pures. rewrite K1.
+      tp_bind (pow _ _).
+      iMod (spec_pow with "[$]") as "(%&Hspec&->)".
+      simpl.
+      tp_pures.
+      apply nth_error_lookup in H5.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (n `div` max_child_num ^ depth')%nat _ as [[]H8].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H2]") as "[? H2]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H1 H8. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      tp_load.
+      rewrite -Nat2Z.inj_mul -Nat2Z.inj_sub; last first.
+      { rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le. }
+      assert (a0 = a) as ->.
+      { rewrite list_lookup_fmap H8 in H7.
+        simpl in H7. simplify_eq. done. }
+      tp_bind ((Val _) _ _ _).
+      iMod ("IH" with "[][][][$][$]") as "(%&Hspec&-> &Hrelate)"; [| |done|].
+      + iPureIntro.
+        erewrite ab_b_tree_list_length; last done.
+        replace (_-_)%nat with (n`mod`(max_child_num^depth'))%nat.
+        * apply Nat.mod_upper_bound.
+          pose proof pow_max_child_num depth'. lia.
+        * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
+      + erewrite <-Hlookup.
+        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        iPureIntro.
+        rewrite fmap_app flat_map_app fmap_cons. simpl.
+        replace (id _) with l2; last done.
+        assert (length (flat_map id la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
+        { rewrite H0.
+          erewrite ab_b_tree_list_length_forall; first done.
+          apply Forall_app in H1 as [??]. done. }
+        rewrite -!app_assoc.
+        rewrite lookup_app_r; first rewrite lookup_app_l.
+        * rewrite Heq. done.
+        * rewrite Heq. erewrite ab_b_tree_list_length; last done.
+          apply rem_ineq. apply pow_max_child_num.
+        * rewrite Heq. rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le.
+      + iSpecialize ("H1" with "[$]").
+        iSpecialize ("H2" with "[$]").
+        iApply spec_update_ret.
+        iFrame.
+        rewrite relate_ab_tree_with_v_Br'. iFrame.
+        iPureIntro. naive_solver.
+        Unshelve.
+        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
+        rewrite fmap_length in Hlen1. lia.
+  Qed.
   
   Lemma annotated_naive_intermediate_refinement tree l treev treev' (ε:nonnegreal):
     (0<children_num tree)%nat -> 
