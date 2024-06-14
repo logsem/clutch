@@ -6,6 +6,28 @@ Open Scope R.
 Opaque INR.
 
 Section aux_lemmas.
+  Local Lemma div_mult (a b c:nat):
+    (a<=b `div` c)%nat ->
+    (0<c)%nat ->
+    (a*c<=b)%nat.
+  Proof.
+    intros.
+    pose proof Nat.le_gt_cases (a*c)%nat b as [|H']; first done.
+    rewrite Nat.mul_comm in H'.
+    apply Nat.div_lt_upper_bound in H'; lia.
+  Qed.
+
+  Local Lemma rem_ineq (x n :nat):
+    (0<x)%nat->
+    (n - n`div` x * x < x)%nat.
+  Proof.
+    intros.
+    replace (_-_)%nat with (n`mod`x)%nat.
+    - apply Nat.mod_upper_bound.
+      lia.
+    - pose proof Nat.Div0.div_mod n x%nat. lia.
+  Qed.
+  
   Local Lemma pow_pos x y:
     (0<x)%nat -> (0<x^y)%nat.
   Proof.
@@ -600,6 +622,20 @@ Section b_tree.
       rewrite -Nat.le_add_sub; lia.
   Qed.
 
+  Lemma ab_b_tree_list_length_forall n l:
+    Forall (λ x, is_ab_b_tree n x.1 x.2) l ->
+    length (flat_map id l.*1) = (length l * max_child_num ^ n)%nat.
+  Proof.
+    induction l.
+    - simpl. lia.
+    - rewrite Forall_cons.
+      intros [??].
+      simpl. rewrite -IHl; last done.
+      rewrite app_length; f_equal.
+      replace (id _) with (a.1) by done.
+      erewrite ab_b_tree_list_length; done.
+  Qed.
+
   Definition succ (x y : ab_tree) : Prop :=
     match y with
     | Lf v => False
@@ -1177,10 +1213,10 @@ Section b_tree.
       match: "t" with
       | InjL "v" => SOME "v"
       | InjR "l" =>
-          let: "idx":= "num" `quot` (pow #max_child_num "depth") in
+          let: "idx":= "num" `quot` (pow #max_child_num ("d"- #1)) in
           match: list_nth "l" "idx" with
           | SOME "p" =>
-              "f" (!"p") ("num"-"idx"*(pow #max_child_num "depth")) ("d"-#1)
+              "f" (!"p") ("num"-"idx"*(pow #max_child_num ("d"- #1))) ("d"-#1)
           | NONE => NONE
           end
       end
@@ -1763,7 +1799,97 @@ Section b_tree.
             relate_ab_tree_with_v tree treev
       }}}.
   Proof.
-  Admitted.
+    iInduction depth as [|depth'] "IH" forall (n l tree treev v).
+    - (* depth is 0*)
+      iIntros (Hlen Hlookup Htree Φ) "Hrelate HΦ".
+      inversion Htree. subst.
+      rewrite /intermediate_sampler_rec_prog.
+      erewrite relate_ab_tree_with_v_Lf.
+      iDestruct "Hrelate" as "->".
+      wp_pures. iModIntro.
+      iApply "HΦ".
+      rewrite relate_ab_tree_with_v_Lf.
+      rewrite list_lookup_singleton_Some in Hlookup.
+      iPureIntro; naive_solver.
+    - iIntros (Hlen Hlookup Htree Φ) "Hrelate HΦ".
+      pose proof ab_b_tree_list_length _ _ _ Htree.
+      inversion Htree. 
+      rewrite /intermediate_sampler_rec_prog.
+      erewrite relate_ab_tree_with_v_Br.
+      iDestruct "Hrelate" as "(%v' & %loc_lis & %v_lis & -> & %Hlen1 & %Hlen2 & %Hlis & H1 & H2)".
+      wp_pures.
+      assert (S depth' - 1=depth')%Z as K by lia.
+      rewrite K.
+      wp_apply (wp_pow); first done.
+      iIntros (?) "->".
+      wp_pures.
+      rewrite Z.quot_div_nonneg; last first.
+      { pose proof pow_max_child_num depth'.
+        pose proof max_child_num_pos. lia. }
+      { lia. }
+      rewrite -Nat2Z.inj_div.
+      assert (length (flat_map id l0.*1)= length l0 * max_child_num ^ depth')%nat as K'.
+      { erewrite ab_b_tree_list_length_forall; done. }
+      wp_apply (wp_list_nth); first done.
+      iIntros (?) "[[-> %]|(%&->&%)]".
+      { exfalso. subst.
+        rewrite lookup_app_r in Hlookup.
+        - rewrite lookup_replicate in Hlookup. naive_solver.
+        - trans (length loc_lis * (max_child_num ^ depth'))%nat.
+          + rewrite -Hlen1 fmap_length. lia. 
+          + apply div_mult; [done|apply pow_max_child_num].
+      }
+      simpl.
+      wp_pures. rewrite K.
+      wp_apply wp_pow; first done.
+      iIntros (?) "->". wp_pures.
+      apply nth_error_lookup in H5.
+      epose proof lookup_lt_is_Some_2 (combine loc_lis v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (combine l0.*2 v_lis) (n `div` max_child_num ^ depth')%nat _ as [[]?].
+      epose proof lookup_lt_is_Some_2 (l0) (n `div` max_child_num ^ depth')%nat _ as [[]H8].
+      iDestruct (big_sepL_lookup_acc with "[$H1]") as "[H' H1]"; first done.
+      iDestruct (big_sepL_lookup_acc with "[$H2]") as "[? H2]"; first done.
+      epose proof Forall_lookup_1 _ _ _ _ H1 H8. 
+      combine_lookup_slam. simplify_eq. simpl in *.
+      wp_load.
+      rewrite -Nat2Z.inj_mul -Nat2Z.inj_sub; last first.
+      { rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le. }
+      assert (a0 = a) as ->.
+      { rewrite list_lookup_fmap H8 in H7.
+        simpl in H7. simplify_eq. done. }
+      iApply ("IH" with "[][][][$]"); [| |done|].
+      + iPureIntro.
+        erewrite ab_b_tree_list_length; last done.
+        replace (_-_)%nat with (n`mod`(max_child_num^depth'))%nat.
+        * apply Nat.mod_upper_bound.
+          pose proof pow_max_child_num depth'. lia.
+        * pose proof Nat.Div0.div_mod n (max_child_num^depth')%nat. lia.
+      + erewrite <-Hlookup.
+        apply elem_of_list_split_length in H8 as (la &lb& -> & ?).
+        iPureIntro.
+        rewrite fmap_app flat_map_app fmap_cons. simpl.
+        replace (id _) with l2; last done.
+        assert (length (flat_map id la.*1) = n `div` max_child_num ^ depth' * max_child_num ^ depth')%nat as Heq.
+        { rewrite H0.
+          erewrite ab_b_tree_list_length_forall; first done.
+          apply Forall_app in H1 as [??]. done. }
+        rewrite -!app_assoc.
+        rewrite lookup_app_r; first rewrite lookup_app_l.
+        * rewrite Heq. done.
+        * rewrite Heq. erewrite ab_b_tree_list_length; last done.
+          apply rem_ineq. apply pow_max_child_num.
+        * rewrite Heq. rewrite Nat.mul_comm. apply Nat.Div0.mul_div_le.
+      + iModIntro.
+        iIntros (?) "[-> Hrelate]".
+        iSpecialize ("H1" with "[$]").
+        iSpecialize ("H2" with "[$]").
+        iApply "HΦ".
+        rewrite relate_ab_tree_with_v_Br. iFrame.
+        iPureIntro. naive_solver.
+        Unshelve.
+        all: apply lookup_lt_Some in H5; try rewrite combine_length_same; try lia.
+        rewrite fmap_length in Hlen1. lia.
+  Qed.
 
   Lemma spec_intermediate_sampler_rec_prog_Some K (n:nat) l tree treev E v:
     (n<length l)%nat ->
