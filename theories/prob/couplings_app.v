@@ -406,9 +406,9 @@ Section couplings_theory.
     by apply Rmax_l.
   Qed.
 
-  Lemma ARcoupl_dbind_adv_lhs' (f : A → distr A') (g : B → distr B')
+  Lemma ARcoupl_dbind_adv_lhs' (E2 : A → ℝ) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
-    ε1 ε2 (E2 : A → ℝ) :
+    ε1 ε2 :
     (Rle 0 ε1) → (∃ n, ∀ a, 0 <= (E2 a) <= n) →
     (SeriesC (λ a, μ1 a * (E2 a)) <= ε2) →
     (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
@@ -624,9 +624,9 @@ Section couplings_theory.
       + apply HE2.
   Qed.
 
-  Lemma ARcoupl_dbind_adv_rhs' (f : A → distr A') (g : B → distr B')
+  Lemma ARcoupl_dbind_adv_rhs' (E2 : B → ℝ) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
-    ε1 ε2 (E2 : B → ℝ) :
+    ε1 ε2 :
     (Rle 0 ε1) → (∃ n, ∀ b, 0 <= (E2 b) <= n) →
     (SeriesC (λ b, μ2 b * (E2 b)) <= ε2) →
     (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
