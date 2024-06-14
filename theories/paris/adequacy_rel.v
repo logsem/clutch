@@ -6,7 +6,7 @@ From clutch.prob_lang Require Import lang.
 
 Class parisRGpreS Σ := ParisRGPreS {
   parisRGpreS_paris :: parisGpreS Σ;
-  prelorelGpreS_na_inv  :: na_invG Σ;
+  prelorelGpreS_na_inv :: na_invG Σ;
 }.
 
 Definition parisRΣ : gFunctors := #[parisΣ; na_invΣ].
@@ -17,10 +17,10 @@ Theorem refines_coupling Σ `{parisRGpreS Σ}
   (A : ∀ `{parisRGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' :
   (∀ `{parisRGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
   (∀ `{parisRGS Σ}, ⊢ REL e << e' : A) →
-  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ nnreal_zero.
+  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ 0%NNR.
 Proof.
   intros HA Hlog.
-  eapply (wp_ARcoupl_epsilon_lim Σ); auto.
+  eapply (wp_adequacy_error_lim Σ).
   intros H0 ε Hpos.
   iIntros "He' Herr".
   iMod na_alloc as "[%γ Htok]".
