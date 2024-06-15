@@ -212,7 +212,7 @@ Section error_credit_theory.
     by eapply auth_both_valid_discrete in Hop as [Hlt%nonnegreal_included ?].
   Qed.
 
-  Lemma ec_supply_bound' r1 x2 :
+  Lemma ec_supply_ec_inv r1 x2 :
     ec_supply x2 -∗ ↯ r1 -∗ ∃ x1 x3, ⌜x2 = (x1 + x3)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝.
   Proof.
     iIntros "Hx2 Hr1".
@@ -229,7 +229,7 @@ Section error_credit_theory.
     ec_supply x2 -∗ ↯ r1 -∗ |==> ∃ x1 x3, ⌜(x2 = x3 + x1)%NNR⌝ ∗ ⌜x1.(nonneg) = r1⌝ ∗ ec_supply x3.
   Proof.
     iIntros "Hx2 Hr1".
-    iDestruct (ec_supply_bound' with "Hx2 Hr1") as %(x1 & x3 & -> & <-).
+    iDestruct (ec_supply_ec_inv with "Hx2 Hr1") as %(x1 & x3 & -> & <-).
     iDestruct "Hr1" as (x1') "[% Hx1]".
     rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.
     iMod (own_update_2 with "Hx2 Hx1") as "Hown".
@@ -241,7 +241,7 @@ Section error_credit_theory.
     iPureIntro. apply nnreal_ext=>/=; lra.
   Qed.
 
-  Lemma ec_increase_supply (ε1 ε2 : nonnegreal) :
+  Lemma ec_supply_increase (ε1 ε2 : nonnegreal) :
     ε1 + ε2 < 1 →
     ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ ↯ ε2.
   Proof.
@@ -266,13 +266,7 @@ Section error_credit_theory.
     iDestruct (ec_split with "Hr1") as "[? $]"; lra.
   Qed.
 
-  Lemma ec_irrel (r1 r2 : R) :
-    r1 = r2 → ↯ r1 -∗ ↯ r2.
-  Proof.
-    iIntros (->) "Hr1". done.
-  Qed.
-
-  Lemma ec_supply_irrel x1 x2 :
+  Lemma ec_supply_eq x1 x2 :
     (x1.(nonneg) = x2.(nonneg)) → ec_supply x1 -∗ ec_supply x2.
   Proof.
     iIntros (?) "?".
@@ -294,30 +288,30 @@ Section error_credit_theory.
   Lemma ec_ind_amp (ε k : R) P :
     0 < ε →
     1 < k →
-    (∀ (ε' : R), 0 < ε' → (↯ (k * ε') -∗ P) ∗ ↯ ε' ⊢ P) →
-    (↯ ε ⊢ P).
+    (∀ (ε' : R), 0 < ε' → □ (↯ (k * ε') -∗ P) ⊢ ↯ ε' -∗ P) →
+    (⊢ ↯ ε -∗ P).
   Proof.
     iIntros (Hpos Hgt1).
     assert (∃ n, 1 <= ε * k ^ n) as [n Hn].
-    { pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H1.
-      destruct ((Lim_seq.is_lim_seq_geom_p k Hgt1) (λ r, / ε <= r)) as [n Hn] => /=.
+    { pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H.
+      destruct (H (λ r, / ε <= r)) as [n Hn] => /=.
       - exists (/ε). real_solver.
       - exists n.
         apply (Rmult_le_reg_l (/ ε)%R).
         + apply Rinv_0_lt_compat, Hpos.
         + rewrite -Rmult_assoc Rinv_l; [|lra].
           rewrite Rmult_1_l Rmult_1_r. by apply Hn. }
-  revert Hgt1.
-  iInduction n as [|m] "IH" forall (ε Hpos Hn).
-  - iIntros (Hgt1 IH) "Herr".
-    iDestruct (ec_contradict with "Herr") as %[].
-    simpl in Hn. lra.
-  - iIntros (Hgt1 IH) "Herr" .
-    iApply (IH with "[$Herr]"); [done|].
-    iIntros "Herr".
-    iApply ("IH" with "[] [] [//] [//] Herr"); iPureIntro.
-    + real_solver.
-    + etrans; [done|]. simpl. lra.
+    revert Hgt1.
+    iInduction n as [|m] "IH" forall (ε Hpos Hn).
+    - iIntros (Hgt1 IH) "Herr".
+      iDestruct (ec_contradict with "Herr") as %[].
+      simpl in Hn. lra.
+    - iIntros (Hgt1 IH) "Herr" .
+      iApply (IH with "[] Herr"); [done|].
+      iIntros "!#Herr".
+      iApply ("IH" with "[] [] [//] [//] Herr"); iPureIntro.
+      + real_solver.
+      + etrans; [done|]. simpl. lra.
   Qed.
 
   Global Instance ec_timeless r : Timeless (↯ r).

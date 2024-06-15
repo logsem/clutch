@@ -52,7 +52,7 @@ Section adequacy.
     iPureIntro. by eapply ARcoupl_dret.
   Qed.
 
-  Lemma wp_adequacy_step_fupdN (e e' : expr) (σ σ' : state) n φ ε :
+  Lemma wp_adequacy_step_fupdN ε (e e' : expr) (σ σ' : state) n φ :
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
     WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε⌝.
@@ -87,20 +87,22 @@ Section adequacy.
 
 End adequacy.
 
-Lemma wp_adequacy_exec_n Σ `{!parisGpreS Σ} (e e' : expr) (σ σ' : state) n φ ε :
+Lemma wp_adequacy_exec_n Σ `{!parisGpreS Σ} (e e' : expr) (σ σ' : state) n φ (ε : R) :
+  0 <= ε →
   (∀ `{parisGS Σ}, ⊢ ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }}) →
   ARcoupl (exec n (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
-  intros Hwp.
+  intros Heps Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod spec_ra_init as (HspecGS) "(Hs & Hj & ?)".
   destruct (decide (ε < 1)) as [? | H%Rnot_lt_le].
-  - iMod (ec_alloc with "[]") as (?) "[HE He]"; first eauto.
+  - set ε' := mknonnegreal _ Heps.
+    iMod (ec_alloc ε') as (?) "[HE He]"; [done|].
     set (HparisGS := HeapG Σ _ _ _ γH γT HspecGS _).
-    iApply wp_adequacy_step_fupdN.
+    iApply (wp_adequacy_step_fupdN ε').
     iFrame "Hh Ht Hs HE".
     by iApply (Hwp with "[Hj] [He]").
   - iApply fupd_mask_intro; [done|]; iIntros "_".
@@ -108,39 +110,42 @@ Proof.
     iPureIntro. by apply ARcoupl_1.
 Qed.
 
-Theorem wp_adequacy Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
+Theorem wp_adequacy Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :
+  0 <= ε →
   (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
-  intros Hwp.
-  apply lim_exec_ARcoupl; [apply cond_nonneg|].
+  intros ? Hwp.
+  apply lim_exec_ARcoupl; [done|].
   intros n.
   by eapply wp_adequacy_exec_n.
 Qed.
 
-Corollary wp_adequacy_error_lim Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : nonnegreal) φ :
-  (∀ `{parisGS Σ} (ε' : nonnegreal),
+Corollary wp_adequacy_error_lim Σ `{parisGpreS Σ} (e e' : expr) (σ σ' : state) (ε : R) φ :
+  0 <= ε →
+  (∀ `{parisGS Σ} (ε' : R),
       ε < ε' → ⊢ ⤇ e' -∗ ↯ ε' -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ ε.
 Proof.
-  intros Hwp.
+  intros ? Hwp.
   apply ARcoupl_limit.
   intros ε' Hineq.
   assert (0 <= ε') as Hε'.
-  { trans ε; [|lra]. apply cond_nonneg. }
+  { trans ε; [done|lra]. }
   pose (mknonnegreal ε' Hε') as NNRε'.
   assert (ε' = (NNRbar_to_real (NNRbar.Finite NNRε'))) as Heq; [done|].
   rewrite Heq.
-  eapply wp_adequacy; [done|].
+  eapply wp_adequacy; [done|done|].
   iIntros (?).
   by iApply Hwp.
 Qed.
 
-Corollary wp_adequacy_mass Σ `{!parisGpreS Σ} (e e' : expr) (σ σ' : state) φ ε :
+Corollary wp_adequacy_mass Σ `{!parisGpreS Σ} (e e' : expr) (σ σ' : state) φ (ε : R) :
+  0 <= ε →
   (∀ `{parisGS Σ}, ⊢  ⤇ e' -∗ ↯ ε -∗ WP e {{ v, ∃ v', ⤇ Val v' ∗ ⌜φ v v'⌝ }} ) →
   SeriesC (lim_exec (e, σ)) <= SeriesC (lim_exec (e', σ')) + ε.
 Proof.
-  intros Hwp.
+  intros ? Hwp.
   eapply ARcoupl_mass_leq.
   by eapply wp_adequacy.
 Qed.

@@ -33,13 +33,13 @@ Section wp_refinement.
 
   Lemma wp_ref_no_coll_l N z (t : fin (S N)) :
     TCEq N (Z.to_nat z) →
-    {{{ ↯ (1 / (nnreal_nat (S N)))%NNR ∗ ⤇ #false }}}
+    {{{ ↯ (1 / S N) ∗ ⤇ #false }}}
        let: "x" := rand #z in "x" = #t
     {{{ (b : bool), RET #b; ⤇ #b }}}.
   Proof.
     iIntros (Nz Ψ) "(ε & hj) HΨ".
     wp_bind (rand #z)%E.
-    wp_apply (wp_rand_avoid_l t with "ε").
+    wp_apply (wp_rand_avoid_l t with "ε"); [done|].
     iIntros (??).
     wp_pures.
     iApply "HΨ".
@@ -57,10 +57,11 @@ Section opsem_refinement.
       (lim_exec ((let: "x" := rand #z in "x" = #t)%E, σ))
       (lim_exec (Val #false, σ'))
       (=)
-      (1 / nnreal_nat (S N))%NNR.
+      (1 / S N).
   Proof.
     intros ->.
     eapply (wp_adequacy parisΣ).
+    { real_solver. }
     iIntros (?) "? ?".
     iApply (wp_ref_no_coll_l with "[$]").
     eauto.
