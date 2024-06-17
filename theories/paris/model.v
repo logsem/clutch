@@ -103,7 +103,12 @@ Section semtypes.
   Definition lrel_int : lrel Σ := LRel (λ w1 w2, ∃ n : Z, ⌜ w1 = #n ∧ w2 = #n ⌝)%I.
 
   Definition lrel_arr (A1 A2 : lrel Σ) : lrel Σ := LRel (λ w1 w2,
-    □ ∀ v1 v2, A1 v1 v2 -∗ refines ⊤ (App w1 v1) (App w2 v2) A2)%I.
+    ∃ (k : nonnegreal),
+    ⌜ (1 < k)%R ⌝ ∗
+    □ ∀ v1 v2 ε,
+      □( ↯(k * ε)%NNR -∗ ∀ v3 v4, (A1 v3 v4 -∗ refines ⊤ (App w1 v3) (App w2 v4) A2) ) -∗
+        ↯ ε -∗
+        A1 v1 v2 -∗ refines ⊤ (App w1 v1) (App w2 v2) A2)%I.
 
   Definition lrel_ref (A : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ l1 l2: loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
@@ -400,6 +405,5 @@ Section monadic.
     iApply refines_ret_na.
     iIntros "Hnais". iMod "HA". now iFrame.
   Qed.
-
 
 End monadic.

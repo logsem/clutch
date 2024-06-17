@@ -54,9 +54,22 @@ Section compatibility.
     REL App e1 e2 << App e1' e2' : B.
   Proof.
     iIntros "IH1 IH2".
-    rel_bind_ap e2 e2' "IH2" v v' "Hvv".
-    rel_bind_ap e1 e1' "IH1" f f' "Hff".
-    by iApply "Hff".
+    rel_bind_ap e2 e2' "IH2" v v' "#Hvv".
+    rel_bind_ap e1 e1' "IH1" f f' "#Hff".
+    iApply refines_get_ec.
+    iIntros (ε) "?%".
+    iRevert "Hvv".
+    iRevert (v v').
+    iDestruct "Hff" as (k) "(%& #Hffk)".
+    iApply ec_ind_amp; [eauto | eauto | |]; auto.
+    iModIntro.
+    iIntros (ε') "% #HI Herr".
+    iIntros (v3 v4) "#Hv3v4".
+    iApply ("Hffk" with "[] Herr Hv3v4").
+    iModIntro.
+    iIntros "Herr2".
+    iIntros (??) "#?".
+    iApply ("HI"  with "[$Herr2] []"); auto.
   Qed.
 
   Lemma refines_seq A e1 e2 e1' e2' B :
@@ -86,9 +99,15 @@ Section compatibility.
   Proof.
     iIntros "#H".
     rel_values. iModIntro.
-    iIntros (A ? ?) "_ !#".
-    rel_rec_l. rel_rec_r. iApply "H".
-  Qed.
+    iIntros (?).
+    iExists 2%NNR.
+    iSplit; [iPureIntro; simpl; lra |].
+    iModIntro.
+    iIntros (? ? ?).
+    iIntros "#? ? #?".
+    (*"_ _ !#".
+    rel_rec_l. rel_rec_r. iApply "H". *)
+  Admitted.
 
 Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
 

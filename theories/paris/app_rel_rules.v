@@ -222,10 +222,14 @@ Section rules.
   Proof.
     iIntros "#H".
     iApply refines_ret. iModIntro.
-    iModIntro. iIntros (v1 v2) "HA".
+    iExists (2%NNR).
+    iSplit; [iPureIntro; simpl; lra |].
+    iModIntro.
+    iIntros (v1 v2 ε) "#HInd Herr HA".
     iSpecialize ("H" with "HA").
     by iApply "H".
   Qed.
+
 
   (** * Some derived (symbolic execution) rules *)
 
@@ -438,7 +442,7 @@ Section rules.
   Lemma refines_ind_amp E e e' A (k : nonnegreal) :
     (1 < k)%R ->
     □ (∀ (ε : nonnegreal),
-          ⌜ (0 < ε)%R ⌝ -∗ (↯ ((k * ε)%NNR) -∗ (REL e << e' @ E : A))
+          ⌜ (0 < ε)%R ⌝ -∗ □ (↯ ((k * ε)%NNR) -∗ (REL e << e' @ E : A))
                -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
       ⊢ REL e << e' @ E : A.
   Proof.
@@ -447,10 +451,30 @@ Section rules.
     iApply refines_get_ec.
     iIntros (ε) "Herr %Hpos".
     iApply (ec_ind_amp _ k with "[IH] Herr"); auto.
-    iModIntro.
-    iIntros (?) "% #? Herr".
-    iApply ("IH" with "[//][$][$]").
   Qed.
+
+
+  (** Threading the error through recursive functions *)
+  Lemma refines_arrow_val_err (v v' : val) A A' (k : nonnegreal) :
+    (1 < k)%R ->
+    □ (∀ (ε : nonnegreal),
+        □ ( ↯ ((k * ε)%NNR) -∗ ∀ v3 v4, A v3 v4 -∗ REL App v (of_val v3) << App v' (of_val v4) : A') -∗
+        ↯ ε -∗
+          ∀ v1 v2, A v1 v2 -∗ REL App v (of_val v1) << App v' (of_val v2) : A')
+    ⊢ REL (of_val v) << (of_val v') : (A → A')%lrel.
+  Proof.
+    iIntros (Hk) "#H".
+    iApply refines_ret. iModIntro.
+    iExists (k).
+    iSplit; [done |].
+    iModIntro.
+    iIntros (v1 v2 ε) "#HInd Herr #HA".
+    iApply ("H" with "[] Herr HA").
+    iModIntro.
+    iIntros "Herr".
+    by iApply "HInd".
+  Qed.
+
 
 
   Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
