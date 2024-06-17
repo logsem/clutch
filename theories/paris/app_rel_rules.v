@@ -453,15 +453,24 @@ Section rules.
   Qed.
 
 
-  Definition vnc : expr :=
-    (rec: "f" <> :=
-      let: "n" := rand #7 in
-      if: "n" ≤ #5 then "n"
-      else "f" #() )%V.
+  Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
+    TCEq N (Z.to_nat z) →
+    ▷ (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
+    ⊢ REL fill K (rand #z) << fill K' (rand #z) @ E : A.
+  Proof.
+    iIntros (->) "Hcnt".
+    rewrite refines_eq /refines_def.
+    iIntros (K2 ε) "Hfill Hown Herr %Hpos".
+    wp_apply wp_bind.
+    rewrite -fill_app.
+    iApply (wp_couple_rand_rand with "Hfill").
+    iIntros "!>" (n) "Hspec".
+    rewrite fill_app.
+    iSpecialize ("Hcnt" with "Hspec Hown").
+    iApply ("Hcnt" with "Herr"); done.
+  Qed.
 
-  Lemma foo :
-    ⊢ REL vnc << (λ:<>, rand #5) : lrel_unit -> lrel_nat.
-
+  Definition refines_couple_rands_lr := refines_couple_UU.
 
  (*
   TODO: Port other rules by need
@@ -540,27 +549,6 @@ Section rules.
   Qed.
   Definition refines_couple_rands_r := refines_couple_UT_empty.
 
-  Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
-    TCEq N (Z.to_nat z) →
-    ▷ (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
-    ⊢ REL fill K (rand #z) << fill K' (rand #z) @ E : A.
-  Proof.
-    iIntros (->) "Hcnt".
-    rewrite refines_eq /refines_def.
-    iIntros (K2) "[#Hs Hspec] Hnais /=".
-    wp_apply wp_bind.
-    wp_apply wp_couple_rand_rand; [done|].
-    rewrite -fill_app.
-    iFrame "Hs Hspec".
-    iIntros "!>" (n) "[_ Hspec]".
-    rewrite fill_app.
-    iSpecialize ("Hcnt" with "[$Hspec $Hs] Hnais").
-    wp_apply (wp_mono with "Hcnt").
-    iIntros (v) "[% ([? ?] &?&?)]".
-    iExists _. iFrame.
-  Qed.
-
-  Definition refines_couple_rands_lr := refines_couple_UU.
 
 *)
 

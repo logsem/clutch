@@ -30,6 +30,8 @@ Section rules.
     apply ARcoupl_dret=>/=; [done|]. eauto.
   Qed.
 
+  (** TODO: This should be generalizable to injective functions [N] -> [M]
+      Then we can get the exact couplings with bijections as a corollary *)
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     (N <= M)%R →
     ((S M - S N) / S M = ε)%R →
@@ -68,6 +70,42 @@ Section rules.
     iFrame.
     iApply ("Hwp" with "[//] [$]").
   Qed.
+
+
+  Lemma wp_couple_tapes_bij N f `{Bij (fin (S N)) (fin (S N)) f} E e α αₛ ns nsₛ Φ :
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (N; nsₛ) ∗
+      (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (N; nsₛ ++ [f n])  -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros "(>Hα & >Hαₛ & Hwp)".
+    iApply wp_lift_step_spec_couple.
+    iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
+    iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    replace ε_now with (0 + ε_now)%NNR; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iApply spec_coupl_erasables; [done|..].
+    { apply ARcoupl_exact.
+      (* eauto unifies the wrong premise? *)
+      apply Rcoupl_state_state; [apply H | apply H1 | apply H0 ]. }
+    { by eapply state_step_erasable. }
+    { by eapply state_step_erasable. }
+    iIntros (σ2 σ2' (n & ? & ?)).
+    iApply spec_coupl_ret.
+    iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
+    iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
+    simplify_map_eq.
+    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
+    iMod (ghost_map_update ((N; nsₛ ++ [f n]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
+    iModIntro. iMod "Hclose'" as "_".
+    replace (0 + ε_now)%NNR with ε_now; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iFrame.
+    iApply ("Hwp" with "[$]").
+  Qed.
+
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : nonnegreal) :
     (M <= N)%R →
@@ -310,6 +348,49 @@ Section rules.
       iSpecialize ("Hwp" $! (nat_to_fin (T m)) m).
       rewrite fin_to_nat_to_fin //.
       iApply ("Hwp" with "[$Hs //]").
+  Qed.
+
+
+  (** * rand(N) ~ rand(N) coupling *)
+  (*
+    There should be an easier proof of this using wp_couple_rand_rand_inj,
+    but that uses an injective function nat -> nat as opposed to fin (S N) -> fin (S N)
+  *)
+  Lemma wp_couple_rand_rand N f `{Bij (fin (S N)) (fin (S N)) f} z K E :
+    TCEq N (Z.to_nat z) →
+    {{{ ⤇ fill K (rand #z) }}}
+      rand #z @ E
+    {{{ (n : fin (S N)), RET #n; ⤇ fill K #(f n) }}}.
+  Proof.
+    iIntros (H0 Ψ) "Hr HΨ".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+
+    replace ε with (0 + ε)%NNR; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iApply (prog_coupl_steps _ _ _
+              (λ ρ2 ρ2',
+                ∃ (n : fin _), ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')))
+    ; [done|solve_red|solve_red|..].
+    { rewrite /= fill_dmap //.
+      rewrite /= -(dret_id_right (prim_step _ _)) /=.
+      apply ARcoupl_exact.
+      eapply Rcoupl_dmap.
+      eapply Rcoupl_mono.
+      - apply (Rcoupl_rand_rand _ f).
+        by rewrite H0.
+      - intros [] [] (b & [=] & [=])=>/=.
+        simplify_eq. eauto. }
+    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!> !>".
+    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+    iMod "Hclose" as "_".
+    replace (0 + ε)%NNR with ε; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iFrame.
+    iApply wp_value.
+    by iApply "HΨ".
   Qed.
 
   (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
@@ -787,7 +868,7 @@ Section rules.
     TCEq N (Z.to_nat z) →
     {{{ α ↪ₛ (N; []) ∗ ⤇ fill K (rand(#lbl:α) #z) }}}
       rand #z @ E
-    {{{ (n : fin (S N)), RET #n; α ↪ₛ (N; []) ∗ ⤇ fill K #(f n) }}}.
+      {{{ (n : fin (S N)), RET #n; α ↪ₛ (N; []) ∗ ⤇ fill K #(f n) }}}.
   Proof.
     iIntros (-> ?) "(Hα & Hspec) Hwp".
     iApply wp_spec_update.
@@ -796,6 +877,63 @@ Section rules.
     iMod (step_rand with "[$]") as "[? ?]".
     iModIntro.
     iApply ("Hwp" with "[$]").
+  Qed.
+
+  Lemma wp_couple_rand_lbl_rand_lbl N f `{Bij (fin (S N)) (fin (S N)) f} z K E α α' :
+    TCEq N (Z.to_nat z) →
+    {{{ ▷ α ↪ (N; []) ∗ ▷ α' ↪ₛ (N; []) ∗ ⤇ fill K (rand(#lbl:α') #z) }}}
+      rand(#lbl:α) #z @ E
+    {{{ (n : fin (S N)), RET #n; α ↪ (N; []) ∗ α' ↪ₛ (N; []) ∗ ⤇ fill K #(f n) }}}.
+  Proof.
+    iIntros (??) "(>Hα & >Hαs & Hr) HΨ".
+    iMod ec_zero.
+    iApply (wp_couple_tapes_bij).
+    iFrame.
+    iIntros (n) "(Hα & Hαs) /=".
+    iMod (step_rand with "[$Hr $Hαs]") as "[? ?]".
+    iApply (wp_rand_tape with "Hα").
+    iIntros "!> Hα".
+    iApply ("HΨ" with "[$]").
+  Qed.
+
+
+  (** * rand(α, N) ~ rand(α, N) wrong bound coupling *)
+  Lemma wp_couple_rand_lbl_rand_lbl_wrong N M f `{Bij (fin (S N)) (fin (S N)) f} z K E α α' xs ys :
+    TCEq N (Z.to_nat z) →
+    N ≠ M →
+    {{{ ▷ α ↪ (M; xs) ∗ ▷ α' ↪ₛ (M; ys) ∗ ⤇ fill K (rand(#lbl:α') #z) }}}
+      rand(#lbl:α) #z @ E
+    {{{ (n : fin (S N)), RET #n; α ↪ (M; xs) ∗ α' ↪ₛ (M; ys) ∗ ⤇ fill K #(f n) }}}.
+  Proof.
+    iIntros (-> ? Ψ) "(>Hα & >Hαs & Hr) Hwp".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[[Hh Ht] [Hs Herr]]".
+    iDestruct (ghost_map_lookup with "Ht Hα") as %?.
+    iDestruct (spec_auth_lookup_tape with "Hs Hαs") as %?.
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    replace ε with (0 + ε)%NNR; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iApply (prog_coupl_steps _ _ _
+              (λ ρ2 ρ2',
+                ∃ (n : fin _), ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(f n), σ1')))
+    ; [done|solve_red|solve_red|..].
+    { rewrite /= fill_dmap //.
+      rewrite -(dret_id_right (prim_step _ _)) /=.
+      apply ARcoupl_exact.
+      apply Rcoupl_dmap.
+      eapply Rcoupl_mono; [by eapply (Rcoupl_rand_lbl_rand_lbl_wrong _ _ f)|].
+      intros [] [] (b & [=] & [=])=>/=.
+      simplify_eq. eauto. }
+    iIntros (e2 σ2 e2' σ2' (b & [= -> ->] & [= -> ->])) "!>".
+    iModIntro.
+    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+    replace (0 + ε)%NNR with ε; last first.
+    { apply nnreal_ext; simpl; lra. }
+    iFrame.
+    iMod "Hclose" as "_".
+    iApply wp_value.
+    by iApply ("Hwp" with "[$]").
   Qed.
 
 End rules.

@@ -155,7 +155,6 @@ Proof.
 Qed.
 
 Lemma tac_rel_pure_r `{!parisRGS Σ} K e1 ℶ E (e e2 eres : expr) ϕ n t A :
-  TCEq (to_val t) None ->
   e = fill K e1 →
   PureExec ϕ n e1 e2 →
   ϕ →
@@ -163,7 +162,7 @@ Lemma tac_rel_pure_r `{!parisRGS Σ} K e1 ℶ E (e e2 eres : expr) ϕ n t A :
   envs_entails ℶ (REL t << eres @ E : A) →
   envs_entails ℶ (REL t << e @ E : A).
 Proof.
-  intros Ht Hfill Hpure Hϕ ? Hp. subst.
+  intros Hfill Hpure Hϕ ? Hp. subst.
   rewrite -refines_pure_r //.
 Qed.
 
@@ -234,14 +233,13 @@ Proof.
 Qed.
 
 Lemma tac_rel_load_r `{!parisRGS Σ} K ℶ1 E i1 p (l : loc) q e t tres A v :
-  TCEq (to_val e) None ->
   t = fill K (Load (# l)) →
   envs_lookup i1 ℶ1 = Some (p, l ↦ₛ{q} v)%I →
   tres = fill K (of_val v) →
   envs_entails ℶ1 (refines E e tres A) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
-  rewrite envs_entails_unseal. iIntros (? -> ? -> Hg) "Henvs".
+  rewrite envs_entails_unseal. iIntros (-> ? -> Hg) "Henvs".
   iDestruct (envs_lookup_split with "Henvs") as "[Hl Henvs]"; first done.
   rewrite Hg. destruct p; simpl.
   - iDestruct "Hl" as "#Hl". iApply (refines_load_r with "Hl").
@@ -311,7 +309,6 @@ Proof.
 Qed.
 
 Lemma tac_rel_store_r `{!parisRGS Σ} K ℶ1 ℶ2 i1 E (l : loc) v e' v' e t eres A :
-  TCEq (to_val t) None ->
   e = fill K (Store (# l) e') →
   IntoVal e' v' →
   envs_lookup i1 ℶ1 = Some (false, l ↦ₛ v)%I →
@@ -320,7 +317,7 @@ Lemma tac_rel_store_r `{!parisRGS Σ} K ℶ1 ℶ2 i1 E (l : loc) v e' v' e t ere
   envs_entails ℶ2 (refines E t eres A) →
   envs_entails ℶ1 (refines E t e A).
 Proof.
-  rewrite envs_entails_unseal. intros ?????? Hg.
+  rewrite envs_entails_unseal. intros ????? Hg.
   subst e eres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.
@@ -404,13 +401,12 @@ Tactic Notation "rel_alloc_l" simple_intropattern(l) "as" constr(H) :=
   rel_pures_l ; rel_alloc_l l as H at _ in _.
 
 Lemma tac_rel_alloc_r `{!parisRGS Σ} K' ℶ E t' v' e t A :
-  TCEq (to_val e) None ->
   t = fill K' (Alloc t') →
   IntoVal t' v' →
   envs_entails ℶ (∀ l, l ↦ₛ v' -∗ refines E e (fill K' #l) A) →
   envs_entails ℶ (refines E e t A).
 Proof.
-  intros ????. subst t.
+  intros ???. subst t.
   rewrite -refines_alloc_r //.
 Qed.
 
@@ -463,11 +459,10 @@ Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
 
 Lemma tac_rel_alloctape_r `{!parisRGS Σ} K' ℶ E e N z t A :
   TCEq N (Z.to_nat z) →
-  TCEq (to_val e) None ->
   t = fill K' (AllocTape #z) →
   envs_entails ℶ (∀ α, α ↪ₛ (N; []) -∗ refines E e (fill K' #lbl:α) A) →
   envs_entails ℶ (refines E e t A).
-Proof. intros -> ??. subst t. rewrite -refines_alloctape_r //. Qed.
+Proof. intros -> ?. subst t. rewrite -refines_alloctape_r //. Qed.
 
 Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) "at" open_constr(ef) "in" open_constr(Kf) :=
   first
@@ -505,7 +500,6 @@ Qed.
 
 Lemma tac_rel_rand_r `{!parisRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tres A :
   TCEq N (Z.to_nat z) →
-  TCEq (to_val e) None ->
   t = fill K (rand(#lbl:α) #z) →
   envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (N; n::ns))%I →
   envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (N; ns))) ℶ1 = Some ℶ2 →
@@ -514,7 +508,7 @@ Lemma tac_rel_rand_r `{!parisRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tr
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal.
-  intros -> ????? Hg.
+  intros -> ???? Hg.
   subst t tres.
   rewrite envs_simple_replace_sound //; simpl.
   rewrite right_id.

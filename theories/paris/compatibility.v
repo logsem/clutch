@@ -3,7 +3,6 @@ From stdpp Require Import namespaces.
 From clutch.prob_lang Require Import notation lang.
 From clutch.paris Require Import primitive_laws proofmode model rel_tactics app_rel_rules.
 
-(*
 Section compatibility.
   Context `{!parisRGS Σ}.
   Implicit Types e : expr.
@@ -18,12 +17,11 @@ Section compatibility.
     iIntros (v w) (Hvs); simpl.
 
   Lemma refines_pair e1 e2 e1' e2' A B :
-    TCEq (to_val (e1, e2)) None →
     (REL e1 << e1' : A) -∗
     (REL e2 << e2' : B) -∗
     REL (e1, e2) << (e1', e2') : A * B.
   Proof.
-    iIntros (?) "IH1 IH2".
+    iIntros "IH1 IH2".
     rel_bind_ap e2 e2' "IH2" v2 v2' "Hvv2".
     rel_bind_ap e1 e1' "IH1" v1 v1' "Hvv1".
     value_case.
@@ -184,4 +182,3 @@ Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
   Qed.
 
 End compatibility.
-*)
