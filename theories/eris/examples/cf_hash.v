@@ -394,7 +394,7 @@ Section coll_free_hash.
     collision-free hash.  *)
 
 
-  Lemma cf_update_potential (vsval sval rval : nat) ε :
+  Lemma cf_update_potential (vsval sval rval : nat) (ε : nonnegreal) :
     (sval + 1 < rval)%nat ->
     ( 0 < vsval) ->
       ↯ ε -∗
@@ -420,14 +420,23 @@ Section coll_free_hash.
       }
     iExists (mknonnegreal ε' Hε'pos). simpl.
     iSplitL.
-    - iApply ec_split.
+    - iApply ec_split; [done| |].
+      { rewrite -Rdiv_def. apply Rcomplements.Rdiv_le_0_compat; [|done].
+        apply pos_INR. }
       simpl.
       iApply (ec_weaken); last first.
-      + iApply ec_split; iFrame.
-      + simpl.
+      + iCombine "Herr2 Herr1" as "H". done. 
+      + split. 
+        { rewrite -Rdiv_def. apply Rplus_le_le_0_compat; [done|]. 
+          apply Rcomplements.Rdiv_le_0_compat; [apply pos_INR|done]. }
+          
+        simpl.
         rewrite /Rdiv in Hupd.
         rewrite -(Rplus_comm ε).
         do 2 rewrite Nat.add_0_r.
+
+
+        
         etrans; eauto.
         apply Rplus_le_compat; [lra |].
         do 5 rewrite plus_INR. right.
@@ -440,7 +449,7 @@ Section coll_free_hash.
 
 
 
-  Lemma cf_update_potential_resize (vsval sval rval : nat) ε :
+  Lemma cf_update_potential_resize (vsval sval rval : nat) (ε : nonnegreal) :
     (sval + 1 = rval)%nat ->
     ( 0 < vsval) ->
       ↯ ε -∗
@@ -465,10 +474,14 @@ Section coll_free_hash.
         lra.
       }
     iSplitL.
-    - iApply ec_split.
+    - iApply ec_split; [done|apply cond_nonneg|].
+
+      
       iApply (ec_weaken); last first.
-      + iApply ec_split; iFrame.
-      + simpl.
+      + iCombine "Herr2 Herr1" as "H". done.  
+      + split. 
+        { apply Rplus_le_le_0_compat, cond_nonneg. done. }
+        simpl.
         rewrite Rplus_0_l.
         rewrite /Rdiv in Hupd.
         rewrite -(Rplus_comm ε).
@@ -518,13 +531,13 @@ Section coll_free_hash.
     Unshelve.
     2:{ auto. }
     2:{ auto. }
-    replace (nnreal_nat ((Z.to_nat (vsval - 1)) + 1)) with
-              (nnreal_nat vsval); last first.
-    { f_equal.
-      destruct vsval; [ |lia].
-      simpl in Hvsval_pos.
-      lra.
-    }
+    assert (sval / (Z.to_nat (vsval - 1) + 1) = sval / vsval)%R as ->.
+    { f_equal. 
+      destruct vsval.
+      - simpl in Hvsval_pos. lra.
+      - rewrite S_INR.
+        assert (S vsval - 1 = vsval)%Z as -> by lia.
+        rewrite Nat2Z.id //. }
     iFrame.
     iIntros "%x %HForall".
     wp_pures.
@@ -661,14 +674,16 @@ Section coll_free_hash.
       lra.
     }
     2:{ auto. }
-    replace (nnreal_nat ((Z.to_nat (vsval - 1)) + 1)) with
-              (nnreal_nat vsval); last first.
-    { f_equal.
-      destruct vsval; [ |lia].
-      simpl in Hvsval_pos.
-      lra.
-    }
+    assert (sval / (Z.to_nat (vsval - 1) + 1) = sval / vsval)%R as ->.
+    { f_equal. 
+      destruct vsval.
+      - simpl in Hvsval_pos. lra.
+      - rewrite S_INR.
+        assert (S vsval - 1 = vsval)%Z as -> by lia.
+        rewrite Nat2Z.id //. }
+
     iFrame.
+
     iIntros "%x %HForall".
     wp_pures.
     wp_apply (wp_set with "Hhash").

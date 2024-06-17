@@ -19,7 +19,9 @@ Section rules.
 
   #[local] Open Scope R.
 
-  Lemma ARcoupl_steps_ctx_bind_r `{Countable A} (μ : distr A) e1' σ1' R ε K :
+  (** helper lemma  *)
+  Lemma ARcoupl_steps_ctx_bind_r `{Countable A} (μ : distr A)
+    e1' σ1' R (ε : nonnegreal) K :
     to_val e1' = None →
     ARcoupl μ (prim_step e1' σ1') R ε →
     ARcoupl μ (prim_step (fill K e1') σ1')

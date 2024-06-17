@@ -7,7 +7,7 @@ From clutch.prob Require Import distribution graded_predicate_lifting.
 Import uPred.
 
 Lemma twp_step_fupd_tgl_prim_step (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R P:
-  reducible (e, σ) -> 
+  reducible (e, σ) ->
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
   ε1 + SeriesC
          (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> pgl (prim_step e σ) R ε1 ->
@@ -33,7 +33,7 @@ Proof.
       apply ex_seriesC_scal_r.
       apply pmf_ex_seriesC.
     -  intros. split.
-       + apply Rmult_le_pos; first done. apply cond_nonneg. 
+       + apply Rmult_le_pos; first done. apply cond_nonneg.
        + by apply Rmult_le_compat_l.
   }
   erewrite SeriesC_ext; last first.
@@ -125,7 +125,7 @@ Proof.
 Qed.
 
 Lemma twp_step_fupd_tgl_state_step (e : language.expr prob_lang) σ l (ε ε1:nonnegreal) (ε2: _ -> nonnegreal) R P:
-  l ∈ language.get_active σ -> 
+  l ∈ language.get_active σ ->
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
   ε1 + SeriesC
          (λ ρ, language.state_step σ l ρ * ε2 (e, ρ)) <= ε -> pgl (language.state_step σ l) R ε1 ->
@@ -154,7 +154,7 @@ Proof.
       apply ex_seriesC_scal_r.
       apply pmf_ex_seriesC.
     -  intros. split.
-       + apply Rmult_le_pos; first done. apply cond_nonneg. 
+       + apply Rmult_le_pos; first done. apply cond_nonneg.
        + by apply Rmult_le_compat_l.
   }
   erewrite SeriesC_ext; last first.
@@ -243,7 +243,7 @@ Proof.
     simpl. apply Req_le_sym.
     epose proof (@state_step_mass) as K. simpl in K.
     apply K. simpl in Hred. rewrite /get_active in Hred.
-    set_solver. 
+    set_solver.
 Qed.
 
 Section adequacy.
@@ -376,16 +376,17 @@ Section adequacy.
 End adequacy.
 
 
-Theorem twp_tgl Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+Theorem twp_tgl Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   tgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros Hwp.
+  intros Hε Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
   iIntros "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
-  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
     iApply (fupd_mask_intro); [eauto|].
     iIntros "_".
@@ -395,89 +396,84 @@ Proof.
     rewrite /tgl; intros.
     eapply Rle_trans; last eapply prob_ge_0.
     lra. }
-  iMod (ec_alloc with "[]") as (?) "[? ?]"; [iPureIntro; eapply Hcr|].
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[? ?]"; [by simpl|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  epose proof (twp_step_fupd_tgl e σ ε φ).
+  epose proof (twp_step_fupd_tgl e σ ε' φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
-  - iIntros "%". iApply step_fupdN_intro; first done. done.
+  - iIntros "%". done.
 Qed.
 
-Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
-  intros Hwp.
+  intros Hε Hwp.
   eapply tgl_termination_ineq.
   by eapply twp_tgl.
 Qed.
 
-
-Theorem twp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+Theorem twp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros.
-  eapply wp_pgl_lim; first done.
-  intros H1.
+  intros ? Hwp.
+  eapply (wp_pgl_lim Σ); [done|].
+  intros HGS.
   iIntros "Hε".
   iApply tgl_wp_pgl_wp.
-  iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Hε]" as "H".
-  2:{ destruct twp_default. destruct wp_default. iExact "H". }
-  by iApply H0.
+  iPoseProof (Hwp with "Hε") as "Hwp".
+  by destruct twp_default, wp_default.
 Qed.
 
 (** limit rules *)
 
-Theorem twp_tgl_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+Theorem twp_tgl_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
+  (∀ `{erisGS Σ}, (∀ ε' : R, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   tgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros H'. rewrite /tgl.
-  intros.
+  intros ? Hwp. rewrite /tgl.
   apply real_le_limit.
   intros.
   replace (1-_-_) with (1 - (ε+ε0)) by lra.
   assert (0<=ε+ε0) as Hεsum.
-  { trans ε; try lra. by destruct ε. }
-  pose (mknonnegreal (ε+ε0) Hεsum) as NNRε0.
-  assert (ε+ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
-  { by simpl. }
-  rewrite Heq.
-  eapply twp_tgl; try done.
-  intros. iIntros "He".
-  iApply H'; last done.
-  simpl. destruct ε; simpl; lra.
+  { trans ε; try lra. }
+  eapply (twp_tgl Σ); [done|].
+  iIntros (?) "He".
+  iApply (Hwp with "He").
+  lra.
 Qed.
 
-Theorem twp_mass_lim_exec_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+Theorem twp_mass_lim_exec_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
+  (∀ `{erisGS Σ}, (∀ ε' : R, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
-  intros H'.
+  intros Hε H'.
   apply real_le_limit.
   intros ε0 H1.
   replace (1-_-_) with (1- (ε+ε0)) by lra.
-  assert (0<=ε+ ε0) as Hε0.
-  { trans ε; try lra. by destruct ε. }
-  pose (mknonnegreal (ε+ε0) Hε0) as NNRε0.
-  assert (ε+ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
-  { by simpl. }
-  rewrite Heq.
-  eapply twp_mass_lim_exec; first done.
-  intros. iIntros "He".
-  iApply H'; try iFrame.
-  simpl. destruct ε; simpl in H1; simpl; lra.
+  assert (0 <= ε + ε0) as Hε0.
+  { trans ε; try lra. }
+  eapply (twp_mass_lim_exec Σ); [done|].
+  iIntros (?) "He".
+  iApply (H' with "He").
+  lra.
 Qed.
 
-Theorem twp_pgl_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+Theorem twp_pgl_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
+  (∀ `{erisGS Σ}, (∀ ε' : R, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros. eapply wp_pgl_epsilon_lim; first done.
-  intros. iStartProof. iIntros "Herr". iApply tgl_wp_pgl_wp.
-  iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Herr]" as "K".
-  2:{ destruct twp_default. destruct wp_default. done. }
-  iApply (H0 with "[$]").
-  apply Rlt_gt. done.
+  intros ? Hwp. eapply (wp_pgl_epsilon_lim Σ); [done|].
+  iIntros (???) "Herr".
+  iApply tgl_wp_pgl_wp.
+  iPoseProof (Hwp with "Herr") as "Hwp".
+  { lra. }
+  by destruct twp_default, wp_default.
 Qed.

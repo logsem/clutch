@@ -144,8 +144,8 @@ Section rejection_sampler.
     do 3 tp_pure.
     wp_pures. rewrite Nat2Z.id.
     iRevert "Hα Hαₛ Hspec".
-    iApply (ec_ind_amp _ (S N / (S N - S M)) with "Hε"); [done|real_solver|].
-    iIntros (??) "#IH ????".
+    iApply (ec_ind_amp _ (S N / (S N - S M)) with "[] Hε"); [done|real_solver|].
+    iIntros "!#" (??) "#IH ????".
     iApply (wp_simpl_rejection_ind_aux with "[$][$][$][$]"); [done|].
     iIntros (? H1) "? Hε ? ?". subst.
     by iApply ("IH" with "[Hε][$][$][$]").

@@ -43,7 +43,7 @@ Section escaping_spline.
           ** wp_pures.
              rewrite bool_decide_eq_false_2; last by lia.
              wp_pures. done.
-          ** iPoseProof (ec_spend with "Herr") as "?"; auto.
+          ** iPoseProof (ec_contradict with "Herr") as "?"; auto.
              simpl. lra.
         * rewrite -plus_n_O -Nat.add_1_r.
           simpl.
@@ -112,6 +112,10 @@ Section escaping_spline.
     }
     iApply (spline_AST_aux k with "[Herr]").
     iApply (ec_weaken with "Herr").
+    split.
+    { apply Rcomplements.Rdiv_le_0_compat.
+      - apply pos_INR.
+      - apply lt_0_INR. lia. }      
     etrans; done.
   Qed.
 

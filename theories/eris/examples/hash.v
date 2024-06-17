@@ -52,7 +52,7 @@ Section simple_bit_hash.
   Definition hashfun f m : iProp Σ :=
     ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗
                   map_list hm ((λ b, LitV (LitInt (Z.of_nat b))) <$> m) ∗
-                  ⌜map_Forall (λ ind i, (0<= i <=val_size)%nat) m⌝ 
+                  ⌜map_Forall (λ ind i, (0<= i <=val_size)%nat) m⌝
   .
 
   Definition coll_free_hashfun f m: iProp Σ :=
@@ -202,7 +202,9 @@ Section simple_bit_hash.
     rewrite lookup_fmap Hlookup /=. wp_pures.
     wp_bind (rand _)%E.
     wp_apply (wp_rand_err_list_nat _ val_size (map (λ p, snd p) (map_to_list m))); auto.
-    rewrite map_length. iFrame.
+    rewrite map_length.
+    rewrite plus_INR INR_1.
+    iFrame.
     iIntros "%x %HForall".
     wp_pures.
     wp_apply (wp_set with "Hhash").
@@ -221,13 +223,13 @@ Section simple_bit_hash.
         split.
         * lia.
         * pose proof (fin_to_nat_lt x).
-          lia. 
+          lia.
     - iPureIntro.
       apply coll_free_insert; auto.
       apply (Forall_map (λ p : nat * nat, p.2)) in HForall; auto.
   Qed.
 
-  
+
 End simple_bit_hash.
 
 
@@ -247,7 +249,7 @@ Section amortized_hash.
     assert (1 <= INR max_hash_size); try lra.
     replace 1 with (INR 1); last simpl; [by apply le_INR|done].
   Qed.
-  
+
   Definition hashfun_amortized f m : iProp Σ :=
     ∃ (k : nat) (ε : nonnegreal),
       hashfun val_size f m ∗
@@ -298,20 +300,20 @@ Section amortized_hash.
     iSplit; last by iApply coll_free_hashfun_implies_coll_free.
     iDestruct "H" as "[??]".
     iExists 0%nat, nnreal_zero.
-    iFrame. 
+    iFrame.
     repeat (iSplit; [done|]). iFrame.
     iPureIntro.
     simpl.
     replace (sum_n_m _ _ _) with 0; first lra.
-    rewrite sum_n_n. by simpl. 
+    rewrite sum_n_n. by simpl.
   Qed.
 
-  
+
   Lemma hashfun_amortized_hashfun f m: ⊢ hashfun_amortized f m -∗ hashfun val_size f m.
   Proof.
-    by iIntros "(%&%&?&?)". 
+    by iIntros "(%&%&?&?)".
   Qed.
-  
+
   Lemma wp_hashfun_prev_amortized E f m (n : nat) (b : nat) :
     m !! n = Some b →
     {{{ hashfun_amortized f m }}}
@@ -333,7 +335,7 @@ Section amortized_hash.
     iIntros (Hlookup Φ) "[H %Hcoll_free] HΦ".
     wp_apply (wp_hashfun_prev_amortized with "[$]"); [done|].
     iIntros "H". iApply "HΦ".
-    by iSplitL. 
+    by iSplitL.
   Qed.
 
 
@@ -343,8 +345,8 @@ Section amortized_hash.
   Proof.
     intros H.
     pose proof (pos_INR max_hash_size) as H1.
-    pose proof (pos_INR val_size) as H2.    
-    pose proof (pos_INR k) as H3.    
+    pose proof (pos_INR val_size) as H2.
+    pose proof (pos_INR k) as H3.
     apply Rcomplements.Rdiv_le_0_compat; last lra.
     assert (sum_n_m (λ x : nat, INR x) 0 (k - 1) = (k-1)*k/2) as ->.
     - clear.
@@ -370,14 +372,14 @@ Section amortized_hash.
           assert (k * S k + S k + S k = S k * (k+1+1)) as ->; try lra.
           assert (k+1+1 = S (S k)).
           -- rewrite !S_INR. lra.
-          -- by rewrite H. 
+          -- by rewrite H.
     - rewrite -!Rmult_minus_distr_r.
       apply Rcomplements.Rdiv_le_0_compat; try lra.
       apply Rmult_le_pos; try lra.
       assert (INR k <= INR max_hash_size); try lra.
       by apply le_INR.
   Qed.
-  
+
   Lemma wp_insert_new_amortized E f m (n : nat) :
     m !! n = None →
     (size m < max_hash_size)%nat ->
@@ -387,13 +389,21 @@ Section amortized_hash.
   Proof.
     iIntros (Hlookup Hsize Φ) "([Hhash %Hcoll_free] & Herr) HΦ".
     iDestruct "Hhash" as (k ε) "(H&->&%H0&Herr')".
-    iAssert (↯ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗
-             ↯ (mknonnegreal (((max_hash_size-1) * size (<[n:=0%nat]> m) / 2 - sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%nat]> m) - 1)) / (val_size + 1)) _ )
-            )%I with "[Herr Herr']" as "[Hε Herr]".
-    - iApply ec_split. 
+    set (ε' := (((max_hash_size-1) * size (<[n:=0%nat]> m) / 2 -
+                   sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%nat]> m) - 1)) / (val_size + 1))).
+    assert (0 <= ε') as Hε'.
+    { apply amortized_inequality.
+      rewrite map_size_insert.
+      case_match => /=; lia. }
+    set (ε'' := mknonnegreal _ Hε').
+
+    iAssert (↯ (nnreal_div (nnreal_nat (size m)) (nnreal_nat (val_size + 1))) ∗ ↯ ε'')%I
+      with "[Herr Herr']" as "[Hε Herr]".
+    - iApply ec_split; [apply cond_nonneg|apply cond_nonneg|].
       iCombine "Herr Herr'" as "H".
-      iApply (ec_spend_irrel with "[$]").
-      simpl. rewrite H0. rewrite map_size_insert_None; [|done].
+      iApply (ec_eq with "[$]").
+      rewrite /ε'' /ε'.
+      simpl. rewrite H0. rewrite map_size_insert_None //.
       remember (size m) as k.
       remember (val_size + 1) as v.
       remember (max_hash_size) as h.
@@ -408,7 +418,7 @@ Section amortized_hash.
         rewrite Rmult_1_r.
         rewrite !Hdiv.
         rewrite Rinv_mult.
-        lra. 
+        lra.
       + assert (forall k, S k - 1 = k)%nat as H' by lia.
         rewrite !H'.
         clear H'.
@@ -439,14 +449,11 @@ Section amortized_hash.
       + iIntros (v) "[H %]".
         iApply "HΦ".
         iSplitL; last done.
-        iExists _, _. iFrame.
+        iExists _, _.
+        iFrame.
         repeat (iSplitR); try done.
         iPureIntro. simpl. do 3 f_equal.
         all: by repeat rewrite map_size_insert.
-        Unshelve.
-        apply amortized_inequality.
-        rewrite map_size_insert.
-        case_match => /=; lia.
   Qed.
 
   Lemma wp_insert_amortized E f m (n : nat) :
@@ -468,5 +475,5 @@ Section amortized_hash.
       + rewrite map_size_insert. case_match; try (simpl; lia).
       + by apply insert_subseteq.
   Qed.
-  
+
 End amortized_hash.

@@ -249,7 +249,7 @@ Section error_credit_theory.
     rewrite ec_supply_unseal /ec_supply_def.
     iIntros (?) "H".
     iMod (own_update with "H") as "[$ $]"; [|done].
-    eapply auth_update_alloc. 
+    eapply auth_update_alloc.
     apply (local_update_unital_discrete _ _ _ _) => z H1 H2.
     split; [done|].
     apply nnreal_ext. simpl.
@@ -265,6 +265,10 @@ Section error_credit_theory.
     assert (r1 = (r1 - r2) + r2) as -> by lra.
     iDestruct (ec_split with "Hr1") as "[? $]"; lra.
   Qed.
+
+  Lemma ec_eq x1 x2 :
+y    x1 = x2 → ↯ x1 -∗ ↯ x2.
+  Proof. iIntros (->) "$". Qed.
 
   Lemma ec_supply_eq x1 x2 :
     (x1.(nonneg) = x2.(nonneg)) → ec_supply x1 -∗ ec_supply x2.
@@ -288,10 +292,10 @@ Section error_credit_theory.
   Lemma ec_ind_amp (ε k : R) P :
     0 < ε →
     1 < k →
-    (∀ (ε' : R), 0 < ε' → □ (↯ (k * ε') -∗ P) ⊢ ↯ ε' -∗ P) →
-    (⊢ ↯ ε -∗ P).
+    □ (∀ (ε' : R), ⌜0 < ε'⌝ -∗ □ (↯ (k * ε') -∗ P) -∗ ↯ ε' -∗ P) ⊢
+    (↯ ε -∗ P).
   Proof.
-    iIntros (Hpos Hgt1).
+    iIntros (Hpos Hgt1) "#Hamp".
     assert (∃ n, 1 <= ε * k ^ n) as [n Hn].
     { pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H.
       destruct (H (λ r, / ε <= r)) as [n Hn] => /=.
@@ -301,17 +305,17 @@ Section error_credit_theory.
         + apply Rinv_0_lt_compat, Hpos.
         + rewrite -Rmult_assoc Rinv_l; [|lra].
           rewrite Rmult_1_l Rmult_1_r. by apply Hn. }
-    revert Hgt1.
+    iRevert (Hgt1).
     iInduction n as [|m] "IH" forall (ε Hpos Hn).
-    - iIntros (Hgt1 IH) "Herr".
+    - iIntros (Hgt1) "Herr".
       iDestruct (ec_contradict with "Herr") as %[].
       simpl in Hn. lra.
-    - iIntros (Hgt1 IH) "Herr" .
-      iApply (IH with "[] Herr"); [done|].
-      iIntros "!#Herr".
-      iApply ("IH" with "[] [] [//] [//] Herr"); iPureIntro.
-      + real_solver.
-      + etrans; [done|]. simpl. lra.
+    - iIntros (Hgt1) "Herr" .
+      iApply ("Hamp" with "[//] [] Herr").
+      iIntros "!# Herr".
+      iApply ("IH" with "[] [] [//] Herr"); iPureIntro.
+      { real_solver. }
+      etrans; [done|]. simpl. lra.
   Qed.
 
   Global Instance ec_timeless r : Timeless (↯ r).

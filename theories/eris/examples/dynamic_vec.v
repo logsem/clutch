@@ -42,7 +42,7 @@ Section faulty_allocator.
 
 
   Definition vec_spec (vec : val) (vs : list val) : iProp Σ :=
-    ∃ (l : loc) (sval rval : nat) xs p,
+    ∃ (l : loc) (sval rval : nat) xs (p : nonnegreal),
       ⌜ vec = ( #l, #sval, #rval )%V ⌝ ∗
       (* The potential of error credits *)
       ↯ p ∗
@@ -83,7 +83,8 @@ Section faulty_allocator.
     }
     (* Case: No resizing *)
     - wp_pures.
-      iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)".
+      iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)"; [apply cond_nonneg..|].
+
       wp_bind (str _ _ _).
       wp_apply (Hstr with "[$Herr3 Hl //]").
       { apply lookup_lt_is_Some_2.
@@ -116,7 +117,7 @@ Section faulty_allocator.
       rewrite Hsval.
       iSplit; auto.
       iSplitL "Herr2 Herr4".
-      { iApply ec_split. iFrame. }
+      { iApply ec_combine. iFrame. }
       iSplit.
       {
         rewrite cons_middle app_assoc insert_app_l.
@@ -152,7 +153,7 @@ Section faulty_allocator.
       lra.
     (* Case : Resizing *)
     - wp_pures.
-      iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)".
+      iPoseProof (ec_split _ _ with "Herr") as "(Herr3 & Herr4)"; [apply cond_nonneg..|].
       wp_bind (str _ _ _).
       wp_apply (Hstr with "[$Herr3 Hl //]").
       { apply lookup_lt_is_Some_2.
@@ -181,7 +182,7 @@ Section faulty_allocator.
         iFrame.
         replace (nnreal_nat rval * ε)%NNR with
           (nnreal_plus p (nnreal_nat 2 * ε))%NNR.
-        - iApply ec_split; iFrame.
+        - iApply ec_combine; iFrame.
         - apply nnreal_ext. simpl.
           rewrite -Hpot Hxs.
           simpl. lra.

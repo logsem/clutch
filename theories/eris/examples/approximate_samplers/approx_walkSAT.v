@@ -659,11 +659,12 @@ Section higherorder_walkSAT.
         rewrite /εDistr_resampler /εDistr /εInv.
         rewrite bool_decide_true; eauto.
         erewrite εR_ext.
-        iApply (ec_spend_irrel with "Hcr").
+        iApply (ec_eq with "Hcr").
         f_equal.
         (* weird unification thing I guess *)
         assert (Her : forall a b c d e f g , (a = b) -> εR c d a e f = εR c d b e g).
         { intros. simplify_eq. apply εR_ext. }
+        f_equal.
         eapply Her.
         lia.
       }
@@ -707,7 +708,7 @@ Section higherorder_walkSAT.
         iSplitR.
         { iPureIntro. split; last eapply Hinv'. rewrite insert_length. by destruct Hinv. }
         iRight.
-        iApply (ec_spend_irrel with "Hcr").
+        iApply (ec_eq with "Hcr").
         rewrite /εAmplified.
         f_equal.
       }
@@ -992,14 +993,18 @@ Section higherorder_walkSAT.
           iSplitR; eauto.
           (* Transfer the amplfied credits between the invariants *)
           iAssert (↯ (εInv ε N) ∗ ↯ (pos_to_nn (εExcess ε)) )%I with "[Hamp]" as "[Hinv Hexcess]".
-          { iApply ec_split.
-            iApply (ec_spend_le_irrel with "Hamp").
+          { iApply ec_split; [apply cond_nonneg..|].
+            iApply (ec_weaken with "Hamp").
+            split.
+            { apply Rplus_le_le_0_compat; apply cond_nonneg. }
             apply εAmp_excess. }
           iAssert (↯ (εProgress ε i)) with "[Hε Hexcess]" as "Hε".
           { iAssert (↯ (εProgress ε (S i) + pos_to_nn (εExcess ε))%NNR) with "[Hε Hexcess]" as "Hε".
-            { iApply ec_split; iFrame. }
-            iApply ec_spend_le_irrel; [|iFrame].
+            { iApply ec_combine. iFrame. }
+            iApply ec_weaken; [|iFrame].
             Opaque INR.
+            split; [apply cond_nonneg|].
+
             rewrite /εProgress /=.
             rewrite {1}/Rmax.
             rewrite S_INR.
@@ -1044,7 +1049,7 @@ Section higherorder_walkSAT.
   Proof.
     iIntros.
     rewrite /εInv.
-    iApply ec_spend_irrel; last iFrame.
+    iApply ec_eq; last iFrame.
     rewrite /= fR_closed_2 /=.
     rewrite Nat.sub_diag pow_O Rminus_diag Rdiv_0_l.
     lra.
@@ -1103,13 +1108,13 @@ Section higherorder_walkSAT.
         rewrite /iProgress.
         iExists _, _.
         iFrame.
-        iSplitL. { iApply initial_credit. iApply ec_spend_irrel; [eauto|iFrame]. }
+        iSplitL. { iApply initial_credit. iApply ec_eq; [eauto|iFrame]. }
         iSplit; iPureIntro.
         { rewrite /inv_asn; eauto. }
         { rewrite -Hlens. apply worst_progress_bound. lia. }
       }
       1: iPureIntro; lia.
-      2: { iApply ec_spend_irrel; last iFrame.
+      2: { iApply ec_eq; last iFrame.
            simpl; symmetry; apply Rmax_left.
            apply Rle_minus.
            rewrite (Rinv_l_sym (ε * k 2 N εExcess_obligation_1 - ε)); last lra.
@@ -1178,13 +1183,16 @@ Lemma walksat_termination_limit Σ `{erisGpreS Σ} (N : nat) (HN : (0 < N)%nat) 
 Proof.
   intros.
   destruct (pmf_SeriesC (lim_exec (WalkSAT N f, σ))); last done.
-  assert (HR : (1 - nnreal_zero <= SeriesC (lim_exec (WalkSAT N f, σ)))%R).
-  { eapply (twp_mass_lim_exec_limit _ _ _ _ (fun _ => True)).
+  assert (HR : (1 - 0 <= SeriesC (lim_exec (WalkSAT N f, σ)))%R).
+  { eapply (twp_mass_lim_exec_limit _ _ _ _ (fun _ => True)); [done|].
     intros.
     iStartProof.
     iIntros "Hcr".
+    assert (0 <= ε')%R as Hε' by lra.
+    set ε'' := mknonnegreal _ Hε'.
+    replace ε' with ε''.(nonneg); [|done].
     wp_apply (tgl_wp_wand with "[Hcr]").
-    { iApply walksat_spec; eauto. }
+    { iApply (walksat_spec with "[//] [//] [] Hcr"); [done|]. simpl. done. }
     iIntros (?) "?"; done. }
   simpl in *.
   rewrite Rminus_0_r in HR.
@@ -1197,15 +1205,18 @@ Lemma walksat_limit Σ `{erisGpreS Σ} (N : nat) (HN : (0 < N)%nat) (σ : state)
   length solution = N ->
   tgl (lim_exec (WalkSAT N f, σ))
     (fun _ => True) (* Best we can do is prove it terminates? *)
-    nnreal_zero.
+    0.
 Proof.
   intros.
-  eapply twp_tgl_limit; first eapply H.
+  eapply twp_tgl_limit; first eapply H; [done|].
   intros.
   iStartProof.
   iIntros "Hcr".
+  assert (0 <= ε')%R as Hε' by lra.
+  set ε'' := mknonnegreal _ Hε'.
+  replace ε' with ε''.(nonneg); [|done].
   wp_apply (tgl_wp_wand with "[Hcr]").
-  { iApply walksat_spec; eauto. }
+  { iApply walksat_spec; eauto. by simpl. }
   iIntros (v) "HR".
   (* HR is unused... is there any proposition more interesting that ⊤ we *)
   done.
