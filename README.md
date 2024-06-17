@@ -5,6 +5,10 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 
 ## Publications
 
+[**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://arxiv.org/abs/2405.20083)<br>
+*Philipp G. Haselwarter, Kwing Hei Li, Markus de Medeiros, Simon Oddershede Gregersen, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
+arXiv:2405.20083
+
 [**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2404.14223)<br>
 *Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
 arXiv:2404.14223
