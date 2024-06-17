@@ -2245,6 +2245,7 @@ Section b_tree.
         replace ε with ε'.(nonneg); [|done].
 
         iApply (wp_couple_fragmented_rand_rand_inj_rev' f with "[$Hα $Hα' $Hε HΦ Hspec Hrelate Hrelate']").
+        { done. }
         { pose proof pow_max_child_num depth. pose proof children_num_pos _ _ _ Htree. lia. }
         iIntros (m).
         case_bool_decide as K.

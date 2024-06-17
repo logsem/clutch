@@ -103,15 +103,15 @@ Section rejection_sampler.
                          WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}) -∗
     WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
-    iIntros (Hpos) "Hspec Hε Hα Hαₛ IH".
+    iIntros (Hpos) "Hspec Hε Hα Hαₛ Hcnt".
     rewrite {1}/rejection_sampler_prog_annotated'.
     tp_pures.
     tp_bind (rand(#lbl:_) _)%E.
     assert (0 <= ε) as Hε by lra.
     set ε' := mknonnegreal _ Hε.
     replace ε with ε'.(nonneg); [|done].
-    wp_apply wp_couple_fragmented_rand_rand_leq_rev'; last iFrame; [lia|].
-    iFrame.
+    wp_apply (wp_couple_fragmented_rand_rand_leq_rev'
+               with "[$Hε $Hα $Hαₛ Hspec Hcnt]"); [done|done|].
     iIntros (m). case_match eqn:Heqn.
     - simpl. iIntros "[Hα Hαₛ]".
       tp_rand.
@@ -127,7 +127,7 @@ Section rejection_sampler.
       tp_pures.
       case_bool_decide; first lia.
       tp_pure.
-      iApply ("IH" $! ε'' with "[][$][$][$][$]").
+      iApply ("Hcnt" $! ε'' with "[][$][$][$][$]").
       by simplify_eq.
   Qed.
 

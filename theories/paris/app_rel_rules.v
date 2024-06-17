@@ -403,7 +403,7 @@ Section rules.
     set ε' := mknonnegreal _ Hε.
     replace ε with ε'.(nonneg); [|done]. 
     iIntros (K2 ε2) "He2 Hnais Herr' %Hε' /=".
-    wp_apply (wp_couple_fragmented_rand_rand_inj_rev' _ _ _ _ _ _ _ _ ε') ; [done|].
+    wp_apply (wp_couple_fragmented_rand_rand_inj_rev' _ _ _ _ _ _ _ _ ε') ; [done|done|].
     iFrame "Hα Hαs Herr".
     iIntros (m).
     iSpecialize ("Hlog" $! m).

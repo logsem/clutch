@@ -15,7 +15,6 @@ Section rules.
   Implicit Types e : expr.
   Implicit Types v : val.
   Implicit Types l : loc.
-  Implicit Types ε : nonnegreal.
 
   #[local] Open Scope R.
 
@@ -539,11 +538,11 @@ Section rules.
       by iFrame.
   Qed.
 
-  (** * fragmented state rand N ~ state rand M, M>=N, under injective function from N to M,
+  (** fragmented state rand N ~ state rand M, M>=N, under injective function from N to M,
       but with errors for rejection sampling! *)
-    (* TODO: update to (ε : R) *)
   Lemma wp_couple_fragmented_rand_rand_inj_rev' {M N} (f : fin(S N) → fin (S M)) {_: Inj (=) (=) f}
-    ns nsₛ α αₛ e E Φ ε:
+    ns nsₛ α αₛ e E Φ (ε : R) :
+    0 <= ε →
     (N < M)%nat →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (m : fin (S M)),
@@ -557,7 +556,7 @@ Section rules.
          WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hineq) "(>Hα & >Hαₛ & Hε & Hwp)".
+    iIntros (Hε Hineq) "(>Hα & >Hαₛ & Hε & Hwp)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
@@ -565,10 +564,11 @@ Section rules.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     iDestruct (ec_supply_bound with "[$][$]") as %Hle.
-
-    replace (ε_now)%NNR with (0 + ε_now)%NNR at 2 by (apply nnreal_ext; simpl; lra).
-    set ε_now1 := nnreal_minus ε_now ε Hle.
-    set ε_now2 := (ε_now + ε * nnreal_nat (S N) / nnreal_nat (S M - S N))%NNR.
+    
+    set ε' := mknonnegreal _ Hε.
+    
+    set ε_now1 := nnreal_minus ε_now ε' Hle.
+    set ε_now2 := (ε_now + ε' * nnreal_nat (S N) / nnreal_nat (S M - S N))%NNR.
     set (E2 σ := if bool_decide (∃ x, σ = state_upd_tapes <[αₛ:=(M; nsₛ ++ [f x])]> σ1')
                  then ε_now1 else ε_now2).
     assert (∀ σ, E2 σ <= Rmax ε_now1 ε_now2)%R.
@@ -717,7 +717,7 @@ Section rules.
       rewrite bool_decide_eq_true_2; last naive_solver.
       iSpecialize ("Hwp" $! (n)). iFrame.
       iDestruct ("Hwp" with "[$Hα $Hαₛ]") as "Hwp"; [done|].
-      replace (ε_now) with (ε + ε_now1)%NNR; last first.
+      replace (ε_now) with (ε' + ε_now1)%NNR; last first.
       { apply nnreal_ext. simpl. lra. }
       iMod (ec_supply_decrease with "[$] [$]") as (????) "H".
       iFrame.
@@ -744,8 +744,8 @@ Section rules.
       iApply ("Hwp" with "[$Hα $Hαₛ $Hε]").
       iPureIntro. simpl. rewrite -/(INR (S N)). rewrite S_INR.
       replace (INR M + 1 - (INR N + 1))%R with (INR M - INR N)%R by lra.
-      rewrite -{1}(Rmult_1_l (nonneg ε)).
-      rewrite Rmult_assoc (Rmult_comm (nonneg ε)).
+      rewrite -{1}(Rmult_1_l ε).
+      rewrite Rmult_assoc (Rmult_comm ε).
       rewrite -Rmult_plus_distr_r. apply Rmult_eq_compat_r.
       rewrite Rdiv_def.
       replace (1)%R with ((INR M - INR N)*/(INR M - INR N))%R at 1; last first.      
@@ -754,8 +754,8 @@ Section rules.
       rewrite -Rmult_plus_distr_r. lra.
   Qed.
 
-  (* TODO: update to (ε : R) *)
-  Lemma wp_couple_fragmented_rand_rand_leq_rev' {M N : nat} ns nsₛ α αₛ e E Φ ε:
+  Lemma wp_couple_fragmented_rand_rand_leq_rev' {M N : nat} ns nsₛ α αₛ e E Φ (ε : R) :
+    0 <= ε →
     (N < M)%nat →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (m : fin (S M)),
@@ -771,14 +771,14 @@ Section rules.
        end)
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hineq) "(>Hα & >Hαₛ & Hε & Hwp)".
+    iIntros (Hε Hineq) "(>Hα & >Hαₛ & Hε & Hwp)".
     assert (∀ x : fin(S N), fin_to_nat x < S M)%nat as H.
     { intros. pose proof fin_to_nat_lt x. lia. }
     pose (f := λ x, nat_to_fin (H x)).
     assert (Inj (eq) (eq) f) as Hinj.
     { rewrite /f. intros ?? H0. apply (f_equal fin_to_nat) in H0. rewrite !fin_to_nat_to_fin in H0.
       by apply fin_to_nat_inj. }
-    iApply (wp_couple_fragmented_rand_rand_inj_rev' f with "[$Hα $Hαₛ $Hε Hwp]"); [done|].
+    iApply (wp_couple_fragmented_rand_rand_inj_rev' f with "[$Hα $Hαₛ $Hε Hwp]"); [done|done|].
     iIntros (n).
     case_bool_decide as H1.
     - destruct H1 as [n' <-].
