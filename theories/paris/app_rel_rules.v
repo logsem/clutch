@@ -417,29 +417,23 @@ Section rules.
   Qed.
 
   Lemma refines_get_ec E e e' A :
-    (∀ ε : nonnegreal, ↯ ε -∗ ⌜ (0 < ε)%R ⌝ -∗ REL e << e' @ E : A) ⊢
+    (∀ ε : R, ↯ ε -∗ ⌜(0 < ε)%R⌝ -∗ REL e << e' @ E : A) ⊢
     (REL e << e' @ E : A).
   Proof.
     iIntros "H".
     rewrite refines_eq /refines_def.
     iIntros (K ε) "Hfill Hown Herr %Hpos".
-    replace (ε) with (nnreal_div ε (nnreal_nat 2) + nnreal_div ε (nnreal_nat 2))%NNR;
-      last first.
-    { apply nnreal_ext.
-      simpl. lra.
-    }
-    iPoseProof (ec_split with "Herr") as "[Herr1 Herr2]".
-    iApply ("H" with "Herr1 [] Hfill Hown Herr2").
-    - iPureIntro. simpl. lra.
-    - iPureIntro. simpl. lra.
+    replace (ε) with (ε / 2 + ε / 2)%R by lra. 
+    iDestruct (ec_split with "Herr") as "[Herr1 Herr2]";
+      [lra|lra|].
+    iApply ("H" with "Herr1 [] Hfill Hown Herr2"); iPureIntro; lra. 
   Qed.
 
-
-  Lemma refines_ind_amp E e e' A (k : nonnegreal) :
+  Lemma refines_ind_amp E e e' A (k : R) :
     (1 < k)%R ->
-    □ (∀ (ε : nonnegreal),
-          ⌜ (0 < ε)%R ⌝ -∗ (↯ ((k * ε)%NNR) -∗ (REL e << e' @ E : A))
-               -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
+    □ (∀ (ε : R),
+          ⌜(0 < ε)%R⌝ -∗ (↯ (k * ε) -∗ (REL e << e' @ E : A))
+          -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
       ⊢ REL e << e' @ E : A.
   Proof.
     intros Hk.
@@ -451,7 +445,6 @@ Section rules.
     iIntros (?) "% #? Herr".
     iApply ("IH" with "[//][$][$]").
   Qed.
-
 
   Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
     TCEq N (Z.to_nat z) →

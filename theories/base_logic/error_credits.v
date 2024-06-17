@@ -267,7 +267,7 @@ Section error_credit_theory.
   Qed.
 
   Lemma ec_eq x1 x2 :
-y    x1 = x2 → ↯ x1 -∗ ↯ x2.
+    x1 = x2 → ↯ x1 -∗ ↯ x2.
   Proof. iIntros (->) "$". Qed.
 
   Lemma ec_supply_eq x1 x2 :

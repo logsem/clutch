@@ -799,11 +799,10 @@ Section rules.
       apply fin_to_nat_inj. by rewrite !fin_to_nat_to_fin.
   Qed.
 
-<<<<<<< HEAD
   (** wp_couple_exp *)
   Lemma wp_couple_exp (M N p:nat) 
-    (f:(list (fin (S N))) -> fin (S M))
-    (Hinj: forall (l1 l2:list _), length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e E Φ:
+    (f : list (fin (S N)) → fin (S M))
+    (Hinj : ∀ (l1 l2 : list _), length l1 = p → length l2 = p → f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e E Φ:
     (S N ^ p = S M)%nat->
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     (∀ (l : list (fin (S N))) (m:fin (S M)),
@@ -879,11 +878,7 @@ Section rules.
       apply nnreal_ext. simpl; lra.
   Qed.
 
-  (** couplings between prim step and state steps*)
-=======
   (** * Exact couplings  *)
-
->>>>>>> c1c737a (wip adapting)
   Lemma wp_couple_tape_rand N f `{Bij (fin (S N)) (fin (S N)) f} K E α z ns Φ e :
     TCEq N (Z.to_nat z) →
     ▷ α ↪ (N; ns) ∗ ⤇ fill K (rand #z) ∗
