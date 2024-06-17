@@ -3279,9 +3279,9 @@ Section b_tree.
               relate_ab_tree_with_ranked_v t treev
           }}}.
       Axiom create_ranked_tree_spec_2:
-        forall E K,
+        forall K,
         ⤇ fill K create_ranked_tree -∗
-        spec_update E (∃ (treev:val), ⤇ fill K treev ∗ 
+        spec_update ⊤ (∃ (treev:val), ⤇ fill K treev ∗ 
               relate_ab_tree_with_ranked_v' t treev).
       Axiom create_tree_spec_1:
         {{{ True }}}
@@ -3290,9 +3290,9 @@ Section b_tree.
               relate_ab_tree_with_v t treev
           }}}.
       Axiom create_tree_spec_2:
-        forall E K,
+        forall K,
         ⤇ fill K create_tree -∗
-        spec_update E (∃ (treev:val), ⤇ fill K treev ∗ 
+        spec_update ⊤ (∃ (treev:val), ⤇ fill K treev ∗ 
               relate_ab_tree_with_v' t treev).
     End axioms.
 
@@ -3391,6 +3391,5 @@ Section b_tree.
     Qed.
     
   End final_proof.
-  
 
 End b_tree.
