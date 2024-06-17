@@ -3,9 +3,11 @@ From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
 From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
-From clutch.prob Require Export countable_sum distribution couplings union_bounds.
+From clutch.prob Require Export countable_sum distribution couplings graded_predicate_lifting.
 
 Open Scope R.
+
+(* TODO(SG): cleanup this file *)
 
 Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
@@ -47,11 +49,11 @@ Section couplings_theory.
     lra.
   Qed.
 
-  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) :
-    R a b → ARcoupl (dret a) (dret b) R 0.
+  Lemma ARcoupl_dret (a : A) (b : B) (R : A → B → Prop) r :
+    0 <= r →
+    R a b → ARcoupl (dret a) (dret b) R r.
   Proof.
-    intro HR.
-    intros f g Hf Hg Hfg.
+    intros Hr HR f g Hf Hg Hfg.
     assert (SeriesC (λ a0 : A, dret a a0 * f a0) = f a) as ->.
     { rewrite <-(SeriesC_singleton a (f a)).
       rewrite /pmf/=/dret_pmf ; series.
@@ -60,7 +62,7 @@ Section couplings_theory.
     { rewrite <-(SeriesC_singleton b (g b)).
       rewrite /pmf/=/dret_pmf ; series.
     }
-    rewrite Rplus_0_r. auto.
+    specialize (Hfg _ _ HR). lra. 
   Qed.
 
 
@@ -247,8 +249,15 @@ Section couplings_theory.
       rewrite /ARcoupl in Hcoup_fg.
       apply Rle_minus_l, Hcoup_fg; auto.
   Qed.
-
-
+  
+  Lemma ARcoupl_dbind' (ε1 ε2 ε : R) (f : A → distr A') (g : B → distr B')
+    (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) (S : A' → B' → Prop) :
+    (0 <= ε1) → (0 <= ε2) →
+    ε = ε1 + ε2 →
+    (∀ a b, R a b → ARcoupl (f a) (g b) S ε2) →
+    ARcoupl μ1 μ2 R ε1 →
+    ARcoupl (dbind f μ1) (dbind g μ2) S ε.
+  Proof. intros ? ? ->. by eapply ARcoupl_dbind. Qed. 
 
   Local Notation ℝ := R.
   (* Depend on LHS *)
@@ -397,9 +406,9 @@ Section couplings_theory.
     by apply Rmax_l.
   Qed.
 
-  Lemma ARcoupl_dbind_adv_lhs' (f : A → distr A') (g : B → distr B')
+  Lemma ARcoupl_dbind_adv_lhs' (E2 : A → ℝ) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
-    ε1 ε2 (E2 : A → ℝ) :
+    ε1 ε2 :
     (Rle 0 ε1) → (∃ n, ∀ a, 0 <= (E2 a) <= n) →
     (SeriesC (λ a, μ1 a * (E2 a)) <= ε2) →
     (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
@@ -615,9 +624,9 @@ Section couplings_theory.
       + apply HE2.
   Qed.
 
-  Lemma ARcoupl_dbind_adv_rhs' (f : A → distr A') (g : B → distr B')
+  Lemma ARcoupl_dbind_adv_rhs' (E2 : B → ℝ) (f : A → distr A') (g : B → distr B')
     (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
-    ε1 ε2 (E2 : B → ℝ) :
+    ε1 ε2 :
     (Rle 0 ε1) → (∃ n, ∀ b, 0 <= (E2 b) <= n) →
     (SeriesC (λ b, μ2 b * (E2 b)) <= ε2) →
     (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
@@ -661,6 +670,20 @@ Section couplings_theory.
   Proof.
   Abort.
 
+  Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
+    (∀ b, 0 <= g b) →
+    ex_expval μ (g ∘ f) →
+    Expval (dmap f μ) g = Expval μ (g ∘ f).
+  Proof.
+    intros Hg Hex.
+    rewrite Expval_dbind; [|done|].
+    - apply SeriesC_ext => a.
+      rewrite Expval_dret //.
+    - apply ex_expval_dbind; [done| |].
+      + eapply ex_seriesC_ext; [|done].
+        intros ?. rewrite Expval_dret //.
+      + intros a. apply ex_expval_dret.
+  Qed.
 
   Lemma ARcoupl_mass_leq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε :
     ARcoupl μ1 μ2 R ε → SeriesC μ1 <= SeriesC μ2 + ε.
@@ -855,7 +878,7 @@ Proof.
   rewrite -(Rplus_0_r ε).
   eapply (ARcoupl_dbind _ _ _ _ (λ (a : A) (a' : B), R (f a) (g a')) _ ε 0); auto; [lra |].
   intros a b Hab.
-  apply (ARcoupl_dret (f a) (g b) R Hab).
+  by eapply ARcoupl_dret. 
 Qed.
 
 Lemma ARcoupl_eq_trans_l `{Countable A, Countable B} μ1 μ2 μ3 (R: A → B → Prop) ε1 ε2 :
@@ -1201,10 +1224,10 @@ Proof.
 Qed.
 
 Lemma UB_to_ARcoupl `{Countable A, Countable B} (μ1 : distr A) (P : A -> Prop) (ε : R) :
-  ub_lift μ1 P ε ->
+  pgl μ1 P ε ->
   ARcoupl μ1 (dret tt) (λ a _, P a) ε.
 Proof.
-  rewrite /ub_lift /prob.
+  rewrite /pgl /prob.
   intros Hub f g Hf Hg Hfg.
   rewrite SeriesC_finite_foldr; simpl.
   rewrite dret_1_1; last done.
@@ -1243,9 +1266,9 @@ Qed.
 
 
 Lemma ARcoupl_to_UB `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (ε : R) :
-  ARcoupl μ1 μ2 (λ a _, P a) ε -> ub_lift μ1 P ε.
+  ARcoupl μ1 μ2 (λ a _, P a) ε -> pgl μ1 P ε.
 Proof.
-  rewrite /ARcoupl/ub_lift/prob.
+  rewrite /ARcoupl/pgl/prob.
   intros Har.
   eset (λ a:A, if bool_decide (P a) then 0 else 1) as f.
   eset (λ b:B, 0) as g.
@@ -1266,7 +1289,7 @@ Qed.
 
 Lemma up_to_bad_lhs `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : A -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P a -> Q a b) ε ->
-  ub_lift μ1 P ε' ->
+  pgl μ1 P ε' ->
   ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.
@@ -1313,7 +1336,7 @@ Qed.
 
 Lemma up_to_bad_rhs `{Countable A, Countable B} (μ1 : distr A) (μ2 : distr B) (P : B -> Prop) (Q : A → B → Prop) (ε ε' : R) :
   ARcoupl μ1 μ2 (λ a b, P b -> Q a b) ε ->
-  ub_lift μ2 P ε' ->
+  pgl μ2 P ε' ->
   ARcoupl μ1 μ2 Q (ε + ε').
 Proof.
   intros Hcpl Hub f g Hf Hg Hfg.

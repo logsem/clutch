@@ -287,7 +287,7 @@ Proof.
     rewrite dmap_dbind.
     erewrite (distr_ext (dunifP N≫=_)); last first.
     { intros. apply dbind_pmf_ext; [|done..].
-      intros. rewrite dmap_dret. done. 
+      intros. rewrite dmap_dret. done.
     }
     rewrite (dret_const (dunifP N)); [apply Rcoupl_eq | apply dunif_mass; lia].
   - rewrite pexec_Sn /step_or_final /=.
@@ -310,7 +310,7 @@ Proof.
         intros. setoid_rewrite pexec_Sn.
         rewrite /step_or_final/=He1/prim_step/=.
         rewrite dmap_dbind.
-        done. 
+        done.
       }
       rewrite /prim_step/=.
       destruct (decomp e1) as [K ered] eqn:Hdecomp_e1.
@@ -364,7 +364,7 @@ Proof.
   { intros. rewrite /dmap.
     rewrite -dbind_assoc. simpl.
     apply dbind_pmf_ext; try done.
-    intros. rewrite dret_id_left. done. 
+    intros. rewrite dret_id_left. done.
   }
   erewrite (distr_ext (state_step _ _ ≫= _) _).
   - eapply Rcoupl_dbind; last exact.
@@ -640,8 +640,8 @@ Lemma ARcoupl_erasure_erasable (e1 e1' : expr) ε ε1 ε2 σ1 σ1' μ1 μ2 R Φ 
   ARcoupl (μ1) (μ2) R ε1->
   erasable μ1 σ1->
   erasable μ2 σ1'->
-  (∀ σ2 σ2' : language.state prob_lang, R σ2 σ2' → ARcoupl (exec (S n) (e1, σ2)) (lim_exec (e1', σ2')) Φ ε2) ->
-  ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) Φ ε.
+  (∀ σ2 σ2' : language.state prob_lang, R σ2 σ2' → ARcoupl (exec n (e1, σ2)) (lim_exec (e1', σ2')) Φ ε2) ->
+  ARcoupl (exec n (e1, σ1)) (lim_exec (e1', σ1')) Φ ε.
 Proof.
   rewrite {1}/erasable.
   intros H1 H2 Hineq Hcoupl Hμ1 Hμ2 Hcont.
@@ -651,31 +651,39 @@ Proof.
   eapply ARcoupl_dbind; try done.
 Qed.
 
-
-Lemma ARcoupl_erasure_erasable_adv_rhs (e1 e1' : expr) ε ε1 ε2 σ1 σ1' μ1 μ2 (E2 : _ -> R) R Φ n :
-  0 <= ε1 ->
-  0 <= ε2 ->
-  ε1 + ε2 <= ε ->
-  ARcoupl (μ1) (μ2) R ε1 ->
-  (∃ n, ∀ b, (0 <= E2 b <= n)%R) -> 
-  SeriesC (λ b, μ2 b * E2 b) <= ε2 -> 
-  erasable μ1 σ1->
-  erasable μ2 σ1'->
-  (∀ σ2 σ2' : language.state prob_lang, R σ2 σ2' → ARcoupl (exec (S n) (e1, σ2)) (lim_exec (e1', σ2')) Φ (E2 σ2')) ->
-  ARcoupl (exec (S n) (e1, σ1)) (lim_exec (e1', σ1')) Φ ε.
+Lemma ARcoupl_erasure_erasable_exp_rhs ε1 μ1 μ1' (E2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε r n m :
+  0 <= ε1 →
+  ARcoupl μ1 (σ2' ← μ1'; pexec m (e1', σ2')) R ε1 →
+  ε1 + Expval (σ2' ← μ1'; pexec m (e1', σ2')) E2 <= ε →
+  (∀ ρ, (0 <= E2 ρ <= r)%R) →
+  erasable μ1 σ1 →
+  erasable μ1' σ1' →
+  (∀ σ2 e2' σ2', R σ2 (e2', σ2') →
+                 ARcoupl (exec n (e1, σ2)) (lim_exec (e2', σ2')) Φ (E2 (e2', σ2'))) →
+  ARcoupl (exec n (e1, σ1)) (lim_exec (e1', σ1')) Φ ε.
 Proof.
-  rewrite {1}/erasable.
-  intros H1 H2 Hineq Hcoupl Hbound Hsum Hμ1 Hμ2 Hcont.
+  intros H1 Hcoupl Hineq Hbound Hμ1 Hμ2 Hcont.
   rewrite -Hμ1.
-  erewrite <-erasable_lim_exec; last exact.
-  eapply ARcoupl_mon_grading; first exact.
-  eapply (ARcoupl_dbind_adv_rhs' _ _ _ _ _ _ _ _ E2); done.
+  rewrite -(erasable_pexec_lim_exec μ1' m) //.
+  eapply ARcoupl_mon_grading; [done|].
+  eapply (ARcoupl_dbind_adv_rhs' E2); [done|eauto|done| |done].
+  intros ? [] ?.
+  by eapply Hcont.
 Qed.
-(*   rewrite {1}/erasable. *)
-(*   intros Hcoupl Hμ1 Hμ2 Hcont. *)
-(*   rewrite -Hμ1. *)
-(*   erewrite <-erasable_lim_exec; last exact Hμ2. *)
-(*   eapply refRcoupl_dbind; try done. *)
-(*   by apply Rcoupl_refRcoupl. *)
-(* Qed. *)
 
+Lemma ARcoupl_erasure_erasable_exp_lhs ε1 μ1' (E2 : _ → R) R Φ (e1 e1' : expr) σ1 σ1' ε r n m :
+  0 <= ε1 →
+  ARcoupl (prim_step e1 σ1) (μ1' ≫= λ σ2', pexec m (e1', σ2')) R ε1 →
+  ε1 + Expval (prim_step e1 σ1) E2 <= ε →
+  (∀ ρ, (0 <= E2 ρ <= r)%R) →
+  erasable μ1' σ1' →
+  (∀ e2 σ2 e2' σ2', R (e2, σ2) (e2', σ2') →
+                    ARcoupl (exec n (e2, σ2)) (lim_exec (e2', σ2')) Φ (E2 (e2, σ2))) →
+  ARcoupl (prim_step e1 σ1 ≫= exec n) (lim_exec (e1', σ1')) Φ ε.
+Proof.
+  intros Hε Hcoupl Hle Hb Hμ1' Hcont.
+  rewrite -(erasable_pexec_lim_exec μ1' m) //.
+  eapply ARcoupl_mon_grading; [done|].
+  eapply (ARcoupl_dbind_adv_lhs' E2); [done|eauto|done| |done].
+  intros [] [] ?. by eapply Hcont.
+Qed.

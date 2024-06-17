@@ -354,8 +354,6 @@ Section rng.
       iMod (spec_hash_rng_flip_couplable with "Hhash HK") as "Hspec /="; auto.
       { lia. }
       wp_apply (spec_couplable_elim with "[$Hspec Hsc HΦ]"); auto.
-      (* TODO: why??? *)
-      pose proof elim_modal_spec_update_wp .
       iIntros (b) "> (HK&Hhash)".
       wp_pures. wp_store.
       iModIntro. iApply "HΦ".

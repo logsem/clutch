@@ -143,7 +143,7 @@ Section proof.
       rewrite bool_decide_eq_false_2; last naive_solver lia.
       iDestruct (array_cons with "Hl") as "[Hl HSl]".
       iDestruct "Hf" as "[Hf HSf]".
-      wp_smart_apply (ub_wp_wand with "Hf").
+      wp_smart_apply (pgl_wp_wand with "Hf").
       iIntros (v) "Hv".
       wp_store. wp_pures.
       rewrite Z.add_1_r -Nat2Z.inj_succ.

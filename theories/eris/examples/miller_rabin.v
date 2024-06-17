@@ -566,7 +566,7 @@ Section miller_rabin_code.
   Lemma MR_round_composite_error (m t u : Z) E :
     {{{ ⌜(1 < m)%Z /\ (0 <= t)%Z /\
           (m = 2^t * u + 1 /\ 0 <= u /\ Z.Odd u )%Z /\ ¬ Znumtheory.prime m ⌝ ∗
-       € (nnreal_div (nnreal_nat 1) (nnreal_nat 2))}}}
+       ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 2))}}}
       MR_round #m #t #u @ E
       {{{ (b : bool) , RET #b;
           ⌜ (b = false) ⌝ }}}.
@@ -658,10 +658,10 @@ Section miller_rabin_code.
   Lemma MR_round_composite_error_amplify (m t u : Z) (ε : nonnegreal) E :
     {{{ ⌜(1 < m)%Z /\ (0 <= t)%Z /\
           (m = 2^t * u + 1 /\ 0 <= u /\ Z.Odd u )%Z /\ ¬ Znumtheory.prime m ⌝ ∗
-       € ε }}}
+       ↯ ε }}}
       MR_round #m #t #u @ E
       {{{ (b : bool) , RET #b;
-          ⌜ (b = false) ⌝ ∨ ( € (nnreal_mult (nnreal_nat 2) ε) ) }}}.
+          ⌜ (b = false) ⌝ ∨ ( ↯ (nnreal_mult (nnreal_nat 2) ε) ) }}}.
   Proof.
     iIntros (Φ) "((%Hm & %Ht & (%Heq & (%Hpos & %Hodd)) & %Hcomp )& Herr) HΦ".
     wp_rec.
@@ -812,7 +812,7 @@ Section miller_rabin_code.
 
   Lemma MR_main_composite_error (m : Z) E :
     {{{ ⌜ ¬ Znumtheory.prime m ⌝ ∗
-          € (nnreal_div (nnreal_nat 1) (nnreal_nat 2))
+          ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat 2))
     }}}
       MR_main #m @ E
       {{{ (b : bool) , RET #b;
@@ -907,7 +907,7 @@ Lemma MR_main_looped_correct_prime (m : Z) E :
 
   Lemma MR_main_looped_composite_error (m : Z) E :
     {{{ ⌜ ¬ Znumtheory.prime m ⌝ ∗
-          € (nnreal_div (nnreal_nat 1) (nnreal_nat (2^num_iter)))
+          ↯ (nnreal_div (nnreal_nat 1) (nnreal_nat (2^num_iter)))
     }}}
       MR_main_looped #m @ E
       {{{ (b : bool) , RET #b;

@@ -18,7 +18,7 @@ Class clutchGS Σ := HeapG {
   clutchGS_heap_name : gname;
   clutchGS_tapes_name : gname;
   (* spec resources *)
-  clutchGS_spec :: specGS Σ;
+  clutchGS_spec :: specG_prob_lang Σ;
 }.
 
 Class clutchGpreS Σ := ClutchGpreS {
@@ -43,7 +43,6 @@ Definition tapes_auth `{clutchGS Σ} :=
 
 #[global] Instance clutchGS_clutchWpGS `{!clutchGS Σ} : clutchWpGS prob_lang Σ := {
   clutchWpGS_invGS := clutchGS_invG;
-  clutchWpGS_spec_updateGS := spec_rules_spec_updateGS;
   state_interp σ := (heap_auth 1 σ.(heap) ∗ tapes_auth 1 σ.(tapes))%I;
 }.
 
@@ -360,9 +359,3 @@ Qed.
 End primitive_laws.
 
 #[global] Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
-
-(** [tc_solve] does not realize that the [spec_updateGS] instances are the same but the [apply:]
-    tactic does... *)
-#[global] Hint Extern 0
-  (ElimModal _ _ _ (spec_update _ _) _ (WP _ @ _ {{ _ }}) (WP _ @ _ {{ _ }})) =>
-  apply: elim_modal_spec_update_wp : typeclass_instances.

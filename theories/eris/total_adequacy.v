@@ -2,15 +2,15 @@ From iris.proofmode Require Import base proofmode.
 From Coquelicot Require Export Lim_seq Rbar.
 From clutch.common Require Export language.
 From clutch.eris Require Import total_weakestpre adequacy primitive_laws.
-From clutch.prob Require Import distribution union_bounds.
+From clutch.prob Require Import distribution graded_predicate_lifting.
 
 Import uPred.
 
-Lemma twp_step_fupd_total_ub_lift_prim_step (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R P:
+Lemma twp_step_fupd_tgl_prim_step (e : language.expr prob_lang) σ (ε ε1:nonnegreal) (ε2: language.cfg prob_lang -> nonnegreal) R P:
   reducible (e, σ) -> 
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
   ε1 + SeriesC
-         (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> ub_lift (prim_step e σ) R ε1 ->
+         (λ ρ, prim_step e σ ρ * ε2 ρ) <= ε -> pgl (prim_step e σ) R ε1 ->
   (∀ e, R e → 1 - ε2 e <= prob (lim_exec e) P) ->
   1 - ε <= SeriesC (λ a, step (e, σ) a * prob (lim_exec a) P).
 Proof.
@@ -102,7 +102,7 @@ Proof.
     apply Rmult_le_pos; [apply pmf_pos|].
     apply Rplus_le_le_0_compat; [apply cond_nonneg|apply prob_ge_0].
   }
-  rewrite /ub_lift in Hub.
+  rewrite /pgl in Hub.
   assert (prob (prim_step e σ) (∽(λ ρ, bool_decide(R ρ)))%P <= ε1).
   { etrans; last exact. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
     intros; repeat case_bool_decide; try done. simpl. done. }
@@ -124,11 +124,11 @@ Proof.
     apply K. apply Hred.
 Qed.
 
-Lemma twp_step_fupd_total_ub_lift_state_step (e : language.expr prob_lang) σ l (ε ε1:nonnegreal) (ε2: _ -> nonnegreal) R P:
+Lemma twp_step_fupd_tgl_state_step (e : language.expr prob_lang) σ l (ε ε1:nonnegreal) (ε2: _ -> nonnegreal) R P:
   l ∈ language.get_active σ -> 
   (∃ r, ∀ ρ : language.cfg prob_lang, ε2 ρ <= r) ->
   ε1 + SeriesC
-         (λ ρ, language.state_step σ l ρ * ε2 (e, ρ)) <= ε -> ub_lift (language.state_step σ l) R ε1 ->
+         (λ ρ, language.state_step σ l ρ * ε2 (e, ρ)) <= ε -> pgl (language.state_step σ l) R ε1 ->
   (∀ s, R s → 1 - ε2 (e, s) <= prob (lim_exec (e, s)) P) ->
   1 - ε <= SeriesC (λ a, state_step σ l a * prob (lim_exec (e, a)) P).
 Proof.
@@ -223,7 +223,7 @@ Proof.
     apply Rmult_le_pos; [apply pmf_pos|].
     apply Rplus_le_le_0_compat; [apply cond_nonneg|apply prob_ge_0].
   }
-  rewrite /ub_lift in Hub.
+  rewrite /pgl in Hub.
   assert (prob (state_step σ l) (∽(λ ρ, bool_decide(R ρ)))%P <= ε1).
   { etrans; last exact. apply SeriesC_le; last apply ex_seriesC_filter_bool_pos; try done.
     intros; repeat case_bool_decide; try done. simpl. done. }
@@ -249,60 +249,41 @@ Qed.
 Section adequacy.
   Context `{!erisGS Σ}.
 
-  (*
-
-  Lemma ub_lift_dbind' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
-    ⌜ 0 <= ε' ⌝ -∗
-    ⌜ub_lift μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜ub_lift (f a) T ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
-  Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → ub_lift (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply ub_lift_dbind; eauto. }
-    iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
-  Qed.
-
-*)
-
-  Lemma total_ub_lift_dbind' `{Countable A, Countable A'}
+  Lemma tgl_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε':
     ⌜ 0 <= ε ⌝ -∗
     ⌜ 0 <= ε'⌝ -∗
-    ⌜total_ub_lift μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ -∗ |={∅}=> ⌜total_ub_lift (f a) T ε'⌝) -∗
-    |={∅}=> ⌜total_ub_lift (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+    ⌜tgl μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ -∗ |={∅}=> ⌜tgl (f a) T ε'⌝) -∗
+    |={∅}=> ⌜tgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
   Proof.
     iIntros (???) "H".
-    iApply (fupd_mono _ _ (⌜(∀ a b, R a → total_ub_lift (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply total_ub_lift_dbind; eauto. }
+    iApply (fupd_mono _ _ (⌜(∀ a b, R a → tgl (f a) T ε')⌝)).
+    { iIntros (?). iPureIntro. eapply tgl_dbind; eauto. }
     iIntros (???) "/=".
     iMod ("H" with "[//]"); auto.
   Qed.
 
 
-  Theorem twp_step_fupd_total_ub_lift (e : expr) (σ : state) (ε : nonnegreal) φ  :
+  Theorem twp_step_fupd_tgl (e : expr) (σ : state) (ε : nonnegreal) φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e [{ v, ⌜φ v⌝ }] ⊢
-    |={⊤,∅}=> ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝.
+    |={⊤,∅}=> ⌜tgl (lim_exec (e, σ)) φ ε⌝.
   Proof.
     iIntros "(Hstate & Herr & Htwp)".
     iRevert (σ ε) "Hstate Herr".
-    pose proof (ub_twp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
-                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜total_ub_lift (lim_exec (e, a)) φ a0⌝)%I) as H. iApply H.
+    pose proof (tgl_wp_ind_simple ⊤ () (λ e, ∀ (a : state) (a0 : nonnegreal),
+                                  state_interp a -∗ err_interp a0 ={⊤,∅}=∗ ⌜tgl (lim_exec (e, a)) φ a0⌝)%I) as H. iApply H.
     2: { destruct twp_default. done. }
     clear H e.
     iModIntro.
     iIntros (e) "H".
     iIntros (σ ε) "Hs Hec".
-    rewrite /ub_twp_pre.
+    rewrite /tgl_wp_pre.
     case_match.
     - iMod "H" as "%".
       iApply fupd_mask_intro; first done. iIntros "_".
       iPureIntro.
-      rewrite /total_ub_lift/prob.
+      rewrite /tgl/prob.
       etrans.
       2:{ eapply SeriesC_ge_elem; last apply ex_seriesC_filter_bool_pos; try done.
           intros. case_bool_decide; try lra. apply pmf_pos. }
@@ -313,7 +294,7 @@ Section adequacy.
     - iSpecialize ("H" $! σ ε with "[$]").
       iMod "H".
       iRevert (H).
-      iApply (exec_ub_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜total_ub_lift (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
+      iApply (glm_strong_ind (λ e σ ε, ⌜language.to_val e = None⌝ ={∅}=∗  ⌜tgl (lim_exec (e, σ)) φ ε⌝)%I with "[][$H]").
       iModIntro. clear e σ ε. iIntros (e σ ε) "H %Hval".
       iDestruct "H" as "[H|H]".
       + iDestruct "H" as "(%R & %ε1 & %ε2 & %Hred & %Hbound & %Hineq & %Hub & H)".
@@ -323,15 +304,15 @@ Section adequacy.
           ⌜R ρ2⌝ ={∅}=∗
           let
           '(e2, σ2) := ρ2 in
-          |={∅}=>  ⌜total_ub_lift (lim_exec (e2, σ2)) φ (ε2 ρ2)⌝)%I with "[H]" as "H".
+          |={∅}=>  ⌜tgl (lim_exec (e2, σ2)) φ (ε2 ρ2)⌝)%I with "[H]" as "H".
         { iIntros (ρ2) "%Hρ2". destruct (ρ2) as (e2&σ2). iMod ("H" $! e2 σ2 Hρ2) as "H".
           rewrite /exec_stutter.
           iDestruct "H" as (R2 ε1' ε2' Hineq' Htotal_ub) "H".
           iModIntro.
-          iApply (fupd_mono _ _ (⌜total_ub_lift (lim_exec (e2, σ2)) φ (ε1' + ε2')⌝)%I).
-          { iPureIntro. apply total_UB_mon_grading, Hineq'. }
+          iApply (fupd_mono _ _ (⌜tgl (lim_exec (e2, σ2)) φ (ε1' + ε2')⌝)%I).
+          { iPureIntro. apply tgl_mon_grading, Hineq'. }
           rewrite -(dret_id_left' (fun _ : () => (lim_exec (e2, σ2))) tt).
-          iApply total_ub_lift_dbind'.
+          iApply tgl_dbind'.
           (* Fix the weakening for the first two goals *)
           * iPureIntro. apply cond_nonneg.
           * iPureIntro. apply cond_nonneg.
@@ -340,12 +321,12 @@ Section adequacy.
             iMod ("H" with "[]") as "(Hσ&Herr&Hwand)". { iPureIntro; auto. }
             iMod ("Hwand" with "[$] [$]"); eauto.
         }
-        rewrite {2}/total_ub_lift.
+        rewrite {2}/tgl.
         setoid_rewrite prob_dbind.
         iApply (fupd_mono _ _ (⌜∀ e, R e -> 1 - (ε2 e) <= prob (lim_exec e) (λ x, bool_decide(φ x))⌝)%I).
         {
           iIntros (HR). iPureIntro.
-          by eapply twp_step_fupd_total_ub_lift_prim_step.
+          by eapply twp_step_fupd_tgl_prim_step.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "H".
         destruct a.
@@ -362,14 +343,14 @@ Section adequacy.
         2:{ iApply "IH"; try done. iPureIntro. set_solver. }
         iDestruct "H" as "(%R & %ε1 & %ε2 & %Hbound & %Hineq & %Hub & H)".
         iAssert (∀ σ2 : language.state prob_lang,
-                   ⌜R σ2⌝ ={∅}=∗ ⌜total_ub_lift (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
+                   ⌜R σ2⌝ ={∅}=∗ ⌜tgl (lim_exec (e, σ2)) φ (ε2 (e, σ2))⌝)%I with "[H]" as "H".
         { iClear "IH".
           iIntros. iMod ("H" $! σ2 (H)) as "H".
           iDestruct "H" as "(%R' & %ε1' & %ε2' & %Hineq' & %Hub' & H)".
           iApply fupd_mono.
-          { iApply pure_mono. intros. eapply total_UB_mon_grading; [eapply Hineq'|eauto]. }
+          { iApply pure_mono. intros. eapply tgl_mon_grading; [eapply Hineq'|eauto]. }
           rewrite -{2}(dret_id_left' (fun _ : () => (lim_exec (e, σ2))) tt).
-          iApply total_ub_lift_dbind'.
+          iApply tgl_dbind'.
           - iPureIntro; apply cond_nonneg.
           - iPureIntro; apply cond_nonneg.
           - iPureIntro; eapply Hub'.
@@ -378,15 +359,15 @@ Section adequacy.
             iDestruct "H" as "[H _]".
             iApply ("H" with "[//]").
         }
-        rewrite {2}/total_ub_lift.
+        rewrite {2}/tgl.
         iApply (fupd_mono _ _ (⌜∀ s, R s -> 1 - ε2 (e, s) <= prob (lim_exec (e, s)) (λ x, bool_decide (φ x))⌝)%I).
         {
           iIntros. iPureIntro.
           rewrite (erasure.lim_exec_eq_erasure [l]); last set_solver.
           simpl.
-          rewrite /total_ub_lift prob_dbind.
+          rewrite /tgl prob_dbind.
           erewrite SeriesC_ext; last by rewrite dret_id_right.
-          eapply twp_step_fupd_total_ub_lift_state_step; try done.
+          eapply twp_step_fupd_tgl_state_step; try done.
           set_solver.
         }
         iIntros (a HR). iMod ("H" $! a (HR)) as "%H".
@@ -395,9 +376,9 @@ Section adequacy.
 End adequacy.
 
 
-Theorem twp_total_ub_lift Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
-  total_ub_lift (lim_exec (e, σ)) φ ε.
+Theorem twp_tgl Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
+  tgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ 0 0) => Hinv.
@@ -411,36 +392,36 @@ Proof.
     simpl.
     iPureIntro.
     apply not_Rlt, Rge_le in Hcr.
-    rewrite /total_ub_lift; intros.
+    rewrite /tgl; intros.
     eapply Rle_trans; last eapply prob_ge_0.
     lra. }
   iMod (ec_alloc with "[]") as (?) "[? ?]"; [iPureIntro; eapply Hcr|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  epose proof (twp_step_fupd_total_ub_lift e σ ε φ).
+  epose proof (twp_step_fupd_tgl e σ ε φ).
   iApply fupd_wand_r. iSplitL.
   - iApply H1. iFrame. by iApply Hwp.
   - iIntros "%". iApply step_fupdN_intro; first done. done.
 Qed.
 
 Theorem twp_mass_lim_exec Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
   intros Hwp.
-  eapply total_ub_lift_termination_ineq.
-  by eapply twp_total_ub_lift.
+  eapply tgl_termination_ineq.
+  by eapply twp_tgl.
 Qed.
 
 
-Theorem twp_union_bound_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, ⊢ € ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
-  ub_lift (lim_exec (e, σ)) φ ε.
+Theorem twp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e [{ v, ⌜φ v⌝ }]) →
+  pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros.
-  eapply wp_union_bound_lim; first done.
+  eapply wp_pgl_lim; first done.
   intros H1.
   iIntros "Hε".
-  iApply ub_twp_ub_wp.
+  iApply tgl_wp_pgl_wp.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Hε]" as "H".
   2:{ destruct twp_default. destruct wp_default. iExact "H". }
   by iApply H0.
@@ -448,11 +429,11 @@ Qed.
 
 (** limit rules *)
 
-Theorem twp_total_ub_lift_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
-  total_ub_lift (lim_exec (e, σ)) φ ε.
+Theorem twp_tgl_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  tgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros H'. rewrite /total_ub_lift.
+  intros H'. rewrite /tgl.
   intros.
   apply real_le_limit.
   intros.
@@ -463,14 +444,14 @@ Proof.
   assert (ε+ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
   { by simpl. }
   rewrite Heq.
-  eapply twp_total_ub_lift; try done.
+  eapply twp_tgl; try done.
   intros. iIntros "He".
   iApply H'; last done.
   simpl. destruct ε; simpl; lra.
 Qed.
 
 Theorem twp_mass_lim_exec_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  (∀ `{erisGS Σ}, (∀ ε' : nonnegreal, ε' > ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
   (1 - ε <= SeriesC (lim_exec (e, σ)))%R.
 Proof.
   intros H'.
@@ -489,12 +470,12 @@ Proof.
   simpl. destruct ε; simpl in H1; simpl; lra.
 Qed.
 
-Theorem twp_union_bound_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (∀ `{erisGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ € ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
-  ub_lift (lim_exec (e, σ)) φ ε.
+Theorem twp_pgl_lim_limit Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+  (∀ `{erisGS Σ}, (∀ ε':nonnegreal, ε'>ε -> ⊢ ↯ ε' -∗ WP e [{ v, ⌜φ v⌝ }])) →
+  pgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros. eapply wp_union_bound_epsilon_lim; first done.
-  intros. iStartProof. iIntros "Herr". iApply ub_twp_ub_wp.
+  intros. eapply wp_pgl_epsilon_lim; first done.
+  intros. iStartProof. iIntros "Herr". iApply tgl_wp_pgl_wp.
   iAssert (WP e [{ v, ⌜φ v⌝ }])%I with "[Herr]" as "K".
   2:{ destruct twp_default. destruct wp_default. done. }
   iApply (H0 with "[$]").

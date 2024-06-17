@@ -7,7 +7,7 @@ From iris.prelude Require Import options.
 Local Open Scope R.
 
 Section wp.
-Context {Λ : ectxLanguage} `{!clutchWpGS Λ Σ} {Hinh : Inhabited (state Λ)}.
+Context {Λ : ectxLanguage} `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ} {Hinh : Inhabited (state Λ)}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.

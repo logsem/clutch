@@ -276,8 +276,6 @@ Section rules.
     iIntros (??) "(>Hα & >Hαs & Hr) HΨ".
     iApply wp_couple_tapes. iFrame.
     iIntros (n) "(Hαs & Hα) /=".
-    (* TODO: why is this not inferred? *)
-    pose proof elim_modal_spec_update_wp.
     iMod (step_rand with "[$Hr $Hαs]") as "[? ?]".
     iApply (wp_rand_tape with "Hα").
     iIntros "!> Hα".

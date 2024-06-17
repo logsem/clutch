@@ -43,7 +43,7 @@ Section basic.
 
   (** general case for the bounded sampler *)
   Definition bdd_approx_safe (n' m' depth : nat) (Hnm : (S n' < S m')%nat) E :
-    {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}} bdd_rejection_sampler n' m' #(S depth)@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
+    {{{ ↯ (bdd_cf_error (S n') (S m') (S depth) Hnm) }}} bdd_rejection_sampler n' m' #(S depth)@ E {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
  iIntros (Φ) "Hcr HΦ"; rewrite /bdd_rejection_sampler.
     assert (Hnm' : (n' < m')%nat) by lia.
@@ -91,7 +91,7 @@ Section basic.
 
   (** (approximate) safety of the unbounded rejection sampler *)
   Definition ubdd_approx_safe (n' m' depth : nat) Hnm E :
-    {{{ € (bdd_cf_error (S n') (S m') (S depth) Hnm) }}}
+    {{{ ↯ (bdd_cf_error (S n') (S m') (S depth) Hnm) }}}
       ubdd_rejection_sampler n' m' #() @ E
     {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝  }}}.
   Proof.
@@ -167,7 +167,7 @@ Section basic.
   (** Improve the safety of the unbounded sampler to use any positive amount of error credit *)
   Theorem ubdd_cf_safety (n' m' : nat) ε E :
     (n' < m')%nat ->
-    ⊢ {{{ €ε ∗ ⌜0 < ε ⌝ }}}
+    ⊢ {{{ ↯ε ∗ ⌜0 < ε ⌝ }}}
         ubdd_rejection_sampler n' m' #() @ E
       {{{ v, RET v ; ⌜exists v' : nat, v = SOMEV #v' /\ (v' < S n')%nat⌝ }}}.
   Proof.
@@ -186,7 +186,7 @@ Section basic.
   Theorem ubdd_cf_safety_rec (n' m' : nat) (ε : nonnegreal) E :
     (n' < m')%nat ->
     (0 < ε) ->
-    € ε -∗
+    ↯ ε -∗
       WP ubdd_rejection_sampler n' m' #() @ E [{ v, ⌜exists v' : nat, v = SOMEV #v' /\ (v' <= n')%nat⌝ }].
   Proof.
     iIntros (Hnm Hpos) "Hcr".

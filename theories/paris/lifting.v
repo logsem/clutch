@@ -1,13 +1,12 @@
 (** The "lifting lemmas" in this file serve to lift the rules of the operational
-semantics to the program logic. *)
+    semantics to the program logic. *)
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
 From clutch.paris Require Import app_weakestpre.
 
-
 Section lifting.
-Context `{!parisWpGS Λ Σ}.
+Context `{!spec_updateGS (lang_markov Λ) Σ, !parisWpGS Λ Σ}.
 Implicit Types v : val Λ.
 Implicit Types e : expr Λ.
 Implicit Types σ : state Λ.
@@ -16,51 +15,82 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 #[local] Open Scope R.
 
-Lemma wp_lift_step_fupd_couple E Φ e1 s :
-  to_val e1 = None →
-  (∀ σ1 e1' σ1' ε,
-    state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε
-    ={E,∅}=∗
-    (exec_coupl e1 σ1 e1' σ1' (λ '(e2, σ2) '(e2', σ2') ε2,
-      ▷ |={∅,E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}) ε))
-  ⊢ WP e1 @ s ; E {{ Φ }}.
+Lemma wp_lift_step_couple E Φ e1 s :
+  (∀ σ1 e1' σ1' ε1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
+      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2 ,
+        match to_val e1 with
+        | Some v => |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+                               err_interp ε2 ∗ Φ v
+        | None =>
+            prog_coupl e1 σ2 e2' σ2' ε2 (λ e3 σ3 e3' σ3' ε3,
+                ▷ spec_coupl ∅ σ3 e3' σ3' ε3 (λ σ4 e4' σ4' ε4,
+                    |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗
+                               err_interp ε4 ∗ WP e3 @ s; E {{ Φ }}))
+        end))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof. rewrite wp_unfold /wp_pre //. Qed.
+
+Lemma wp_lift_step_spec_couple E Φ e1 s :
+  (∀ σ1 e1' σ1' ε1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
+      spec_coupl ∅ σ1 e1' σ1' ε1 (λ σ2 e2' σ2' ε2,
+        |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+                   err_interp ε2 ∗ WP e1 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  by rewrite wp_unfold /wp_pre =>->.
+  iIntros "H".
+  iApply wp_lift_step_couple.
+  iIntros (????) "Hs".
+  iMod ("H" with "[$]") as "H".
+  iModIntro.
+  iApply (spec_coupl_bind with "[] H"); [done|].
+  iIntros (????) "H".
+  iApply fupd_spec_coupl.
+  iMod "H" as "(?&?&?&H)".
+  rewrite wp_unfold /wp_pre.
+  iApply ("H" with "[$]").
 Qed.
 
-Lemma wp_lift_step_fupd E Φ e1 s :
+Lemma wp_lift_step_prog_couple E Φ e1 s :
   to_val e1 = None →
-  (∀ σ1, state_interp σ1
-     ={E,∅}=∗
-    ⌜reducible (e1, σ1)⌝ ∗
+  (∀ σ1 e1' σ1' ε1,
+      state_interp σ1 ∗ spec_interp (e1', σ1') ∗ err_interp ε1 ={E, ∅}=∗
+      prog_coupl e1 σ1 e1' σ1' ε1 (λ e2 σ2 e2' σ2' ε2,
+        ▷ |={∅, E}=> state_interp σ2 ∗ spec_interp (e2', σ2') ∗
+                     err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
+  ⊢ WP e1 @ s; E {{ Φ }}.
+Proof.
+  iIntros (Hv) "H".
+  iApply wp_lift_step_couple.
+  iIntros (????) "Hs".
+  iMod ("H" with "[$]") as "H".
+  iApply spec_coupl_ret.
+  iModIntro. rewrite Hv.
+  iApply (prog_coupl_mono with "[] H").
+  iIntros (?????) "H !>".
+  by iApply spec_coupl_ret.
+Qed.
+
+Lemma wp_lift_step_later E Φ e1 s :
+  to_val e1 = None →
+  (∀ σ1, state_interp σ1 ={E,∅}=∗
+     ⌜reducible (e1, σ1)⌝ ∗
      ∀ e2 σ2,
-      ⌜prim_step e1 σ1 (e2, σ2) > 0 ⌝ ={∅}=∗ ▷ |={∅,E}=>
+      ⌜prim_step e1 σ1 (e2, σ2) > 0⌝ ={∅}=∗ ▷ |={∅,E}=>
       state_interp σ2 ∗ WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply wp_lift_step_fupd_couple; [done|].
-  iIntros (σ1 e1' σ1' ε) "[Hσ [Hρ Hε]]".
+  iApply wp_lift_step_prog_couple; [done|].
+  iIntros (σ1 e1' σ1' ε1) "(Hσ & Hρ & Hε)".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  replace (ε) with ((nnreal_zero + ε)%NNR) at 2; last first.
-  {
-    rewrite /nnreal_plus/=.
-    apply nnreal_ext.
-    simpl. lra.
-  }
-  iApply (exec_coupl_prim_step_l e1 σ1 _ _ _ nnreal_zero).
-  iExists _. (*(λ '(e2, σ2), prim_step e1 σ1 (e2, σ2) > 0). *)
-  iSplit; [done | ].
-  iSplit.
-  { iPureIntro.
-    eapply ARcoupl_pos_R, ARcoupl_trivial.
-    - apply prim_step_mass; eauto.
-    - apply dret_mass.
-  }
-  iIntros ([e2 σ2] (?&?&?)).
+  iApply prog_coupl_step_l; [done|].
+  iIntros (???).
   iMod ("H" with "[//]") as "H".
   iIntros "!> !>".
-  iFrame. done.
+  iMod "H" as "($ & $)".
+  by iFrame.
 Qed.
 
 (** Derived lifting lemmas. *)
@@ -74,8 +104,8 @@ Lemma wp_lift_step E Φ e1 s :
       WP e2 @ s; E {{ Φ }})
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd; [done|]. iIntros (?) "Hσ".
-  iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>!>" . by iApply "H".
+  iIntros (?) "H". iApply wp_lift_step_later; [done|]. iIntros (?) "Hσ".
+  iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (???) "!>" . by iApply "H".
 Qed.
 
 Lemma wp_lift_pure_step `{!Inhabited (state Λ)} E E' Φ e1 s :
@@ -85,7 +115,7 @@ Lemma wp_lift_pure_step `{!Inhabited (state Λ)} E E' Φ e1 s :
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (Hsafe Hstep) "H". iApply wp_lift_step.
-  { by eapply (to_final_None_1 (e1, inhabitant)), reducible_not_final. }
+  { specialize (Hsafe inhabitant). by eapply (to_final_None_1 (e1, _)), reducible_not_final. }
   iIntros (σ1) "Hσ". iMod "H".
   iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
   iSplit; [done|].
@@ -107,7 +137,7 @@ Lemma wp_lift_atomic_step_fupd {E1 E2 Φ} e1 s :
   ⊢ WP e1 @ s; E1 {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply (wp_lift_step_fupd E1 _ e1)=>//; iIntros (σ1) "Hσ1".
+  iApply (wp_lift_step_later E1 _ e1)=>//; iIntros (σ1) "Hσ1".
   iMod ("H" $! σ1 with "Hσ1") as "[$ H]".
   iApply fupd_mask_intro; first set_solver.
   iIntros "Hclose" (e2 σ2 Hs). iMod "Hclose" as "_".
@@ -152,7 +182,7 @@ Proof.
   iIntros (Hexec Hφ) "Hwp". specialize (Hexec Hφ).
   iInduction Hexec as [e|n e1 e2 e3 [Hsafe ?]] "IH"; simpl; first done.
   iApply wp_lift_pure_det_step.
-  - done. 
+  - eauto.
   - intros σ1 e2' σ2 Hpstep.
     by injection (pmf_1_supp_eq _ _ _ (pure_step_det σ1) Hpstep).
   - by iApply (step_fupd_wand with "Hwp").

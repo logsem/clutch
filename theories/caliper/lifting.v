@@ -4,8 +4,10 @@ From clutch.prelude Require Import iris_ext.
 From clutch.caliper Require Export weakestpre.
 Set Default Proof Using "Type".
 
+#[local] Open Scope R.
+
 Section lifting.
-Context `{!caliperWpG δ Λ Σ}.
+Context `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}.
 
 (** * RWP *)
 Lemma rwp_lift_step_fupd_coupl E Φ e1 a :

@@ -29,7 +29,7 @@ Module counter_example.
     (ResolveProph "p" "x").
 
   Lemma falso :
-    € (nnreal_inv(nnreal_nat(100))) ⊢ WP bad {{ _, False%I }}.
+    ↯ (nnreal_inv(nnreal_nat(100))) ⊢ WP bad {{ _, False%I }}.
   Proof.
     iIntros "Hcred".
     rewrite /bad.

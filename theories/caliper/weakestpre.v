@@ -14,9 +14,8 @@ Import uPred.
 
 Local Open Scope R.
 
-Class caliperWpG (δ : markov) (Λ : language) (Σ : gFunctors) := CaliperWpG {
+Class caliperWpG (δ : markov) (Λ : language) (Σ : gFunctors) `{!spec_updateGS δ Σ} := CaliperWpG {
   #[global] caliperWpG_invGS :: invGS_gen HasNoLc Σ;
-  #[global] caliperWpG_spec_updateGS :: spec_updateGS δ Σ;
 
   state_interp : state Λ → iProp Σ;
 }.
@@ -25,7 +24,7 @@ Global Arguments CaliperWpG {δ Λ Σ}.
 
 (** * A coupling fixpoint for [rwp] *)
 Section rwp_coupl.
-  Context `{!caliperWpG δ Λ Σ}.
+  Context `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}.
 
   Definition rwp_coupl_pre (Z : cfg Λ → mstate δ → iProp Σ) (Φ : cfg Λ * mstate δ → iProp Σ) : cfg Λ * mstate δ → iProp Σ :=
     (λ (x : cfg Λ * mstate δ),
@@ -278,7 +277,7 @@ Section rwp_coupl.
 End rwp_coupl.
 
 (** * The refinement weakest preconditions *)
-Definition rwp_pre `{!caliperWpG δ Λ Σ}
+Definition rwp_pre `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}
     (rwp : coPset -d> expr Λ -d> (val Λ -d> iProp Σ) -d> iProp Σ) :
     coPset -d> expr Λ -d> (val Λ -d> iProp Σ) -d> iProp Σ := λ E e1 Φ,
   (∀ σ1 a1,
@@ -290,7 +289,7 @@ Definition rwp_pre `{!caliperWpG δ Λ Σ}
             |={∅,E}=> state_interp σ2 ∗ spec_interp a2 ∗ rwp E e2 Φ)
     end)%I.
 
-Lemma rwp_pre_mono `{!caliperWpG δ Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
+Lemma rwp_pre_mono `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} (wp1 wp2 : coPset → expr Λ → (val Λ → iProp Σ) → iProp Σ) :
   ⊢ ((□ ∀ E e Φ, wp1 E e Φ -∗ wp2 E e Φ) →
         ∀ E e Φ, rwp_pre wp1 E e Φ -∗ rwp_pre wp2 E e Φ)%I.
 Proof.
@@ -305,12 +304,12 @@ Proof.
 Qed.
 
 (* Uncurry [rwp_pre] and equip its type with an OFE structure *)
-Definition rwp_pre' {Σ δ Λ} `{!caliperWpG δ Λ Σ} :
+Definition rwp_pre' {Σ δ Λ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} :
   (prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ) →
    prodO (prodO (leibnizO coPset) (exprO Λ)) (val Λ -d> iProp Σ) → iProp Σ
   := uncurry3 ∘ rwp_pre ∘ curry3.
 
-Local Instance exec_coupl_pre_mono {Λ δ Σ} `{!caliperWpG δ Λ Σ} :
+Local Instance exec_coupl_pre_mono {Λ δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} :
   BiMonoPred rwp_pre'.
 Proof.
   constructor.
@@ -328,15 +327,15 @@ Proof.
 Qed.
 
 (** * RWP *)
-#[local] Definition rwp_def {Λ δ Σ} `{!caliperWpG δ Λ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
+#[local] Definition rwp_def {Λ δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} (_ : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
   := bi_least_fixpoint rwp_pre' (E,e,Φ).
-#[local] Definition rwp_def' {Λ δ Σ} `{!caliperWpG δ Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+#[local] Definition rwp_def' {Λ δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
   {| wp := rwp_def; wp_default := () |}.
 #[local] Definition rwp_aux : seal (@rwp_def'). by eexists. Qed
                              .
 Definition rwp' := rwp_aux.(unseal).
 #[global] Existing Instance rwp'.
-#[local] Lemma rwp_unseal {Λ δ Σ} `{!caliperWpG δ Λ Σ} : wp = rwp_def'.(wp).
+#[local] Lemma rwp_unseal {Λ δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} : wp = rwp_def'.(wp).
 Proof. rewrite -rwp_aux.(seal_eq) //. Qed.
 
 (** * RSWP  *)
@@ -417,17 +416,17 @@ Notation "'⟨⟨⟨' P ⟩ ⟩ ⟩ e 'at' k ⟨⟨⟨ 'RET' pat ; Q ⟩ ⟩ ⟩
   (∀ Φ, P -∗ ▷^k (Q -∗ Φ pat%V) -∗ RSWP e at k ⟨⟨ Φ ⟩⟩) : stdpp_scope.
 
 (** An [rswp] takes an [rswp_step] and afterwards proves an [rwp] *)
-Definition rswp_step `{!caliperWpG δ Λ Σ} (k : nat) E (e1 : expr Λ) (Z : expr Λ → iProp Σ) : iProp Σ :=
+Definition rswp_step `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} (k : nat) E (e1 : expr Λ) (Z : expr Λ → iProp Σ) : iProp Σ :=
   (∀ σ1 a1,
       state_interp σ1 ∗ spec_interp a1 ={E,∅}=∗ |={∅}▷=>^k
       ⌜reducible (e1, σ1)⌝ ∧
       (∃ R, ⌜refRcoupl (dret a1) (prim_step e1 σ1) R⌝ ∧
             ∀ e2 σ2, ⌜R a1 (e2, σ2)⌝ -∗ |={∅,E}=> (state_interp σ2 ∗ spec_interp a1 ∗ Z e2))).
 
-#[local] Definition rswp_def {Λ δ Σ} `{!caliperWpG δ Λ Σ}
+#[local] Definition rswp_def {Λ δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}
   (k : nat) (a : ()) (E : coPset) (e : expr Λ) (Φ : val Λ → iProp Σ) : iProp Σ
   := rswp_step k E e (λ e2, WP e2 @ a; E {{ Φ }})%I.
-#[local] Definition rswp_def' {Λ δ Σ} `{!caliperWpG δ Λ Σ} : Rswp (iProp Σ) (expr Λ) (val Λ) ()
+#[local] Definition rswp_def' {Λ δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} : Rswp (iProp Σ) (expr Λ) (val Λ) ()
   := {| rswp := rswp_def; rswp_default := () |}.
 
 #[local] Definition rswp_aux : seal (@rswp_def'). by eexists. Qed.
@@ -435,11 +434,11 @@ Definition rswp_step `{!caliperWpG δ Λ Σ} (k : nat) E (e1 : expr Λ) (Z : exp
 Definition rswp' := rswp_aux.(unseal).
 #[global] Existing Instance rswp'.
 
-#[local] Lemma rswp_unseal `{!caliperWpG δ Λ Σ} : rswp = rswp_def'.(rswp).
+#[local] Lemma rswp_unseal `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ} : rswp = rswp_def'.(rswp).
 Proof. rewrite -rswp_aux.(seal_eq) //. Qed.
 
 Section rwp.
-Context `{!spec δ Σ} `{!caliperWpG δ Λ Σ}.
+Context `{!spec δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -688,7 +687,7 @@ Qed.
 End rwp.
 
 Section rswp.
-Context `{!spec δ Σ} `{!caliperWpG δ Λ Σ}.
+Context `{!spec δ Σ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -873,7 +872,7 @@ End rswp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context {Σ δ Λ} `{!caliperWpG δ Λ Σ}.
+  Context {Σ δ Λ} `{!spec_updateGS δ Σ, !caliperWpG δ Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
 

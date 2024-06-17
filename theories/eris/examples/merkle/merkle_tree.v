@@ -4,7 +4,7 @@ Set Default Proof Using "Type*".
 Open Scope nat.
 
 Section merkle_tree.
-  (*val_bit_size is a positive integer, 
+  (* val_bit_size is a positive integer,
     referring to the bit size of the return value of the hash function
     Therefore all hashes are smaller than 2 ^ val_bit_size
     val_bit_size_for_hash is one smaller than 2^val_bit_size since the spec for hash
@@ -102,13 +102,6 @@ Section merkle_tree.
     incorrect_proof (Branch h ltree rtree) ((false, root_hash_value ltree)::prooflist).
     
 
-  (* Definition root_hash_value_program : val := *)
-  (*   λ: "ltree", *)
-  (*     match: "ltree" with *)
-  (*     | InjL "x" => Fst "x" *)
-  (*     | InjR "x" => let, ("a", "b", "c") := "x" in "a" *)
-  (*     end. *)
-
   Definition compute_hash_from_leaf : val :=
     rec: "compute_hash_from_leaf" "lhmf" "lproof" "lleaf" := 
        match: list_head "lproof" with
@@ -126,17 +119,6 @@ Section merkle_tree.
         end.
 
   (** Lemmas *)
-  (* Lemma wp_root_hash_value_program n lt tree E: *)
-  (*   {{{ ⌜tree_relate n lt tree⌝ }}} *)
-  (*   root_hash_value_program lt @ E *)
-  (*   {{{ (retv:Z), RET #retv; ⌜retv = root_hash_value tree⌝}}}. *)
-  (* Proof. *)
-  (*   iIntros (Φ) "%H HΦ". *)
-  (*   rewrite /root_hash_value_program. wp_pures. *)
-  (*   inversion H. *)
-  (*   - wp_pures. iApply "HΦ". by iPureIntro. *)
-  (*   - wp_pures. iApply "HΦ". by iPureIntro. *)
-  (* Qed. *)
 
   Lemma hash_bound_manipulation finalhash:
     (0 ≤ finalhash) -> (finalhash ≤ val_size_for_hash) ->
@@ -221,7 +203,7 @@ Section merkle_tree.
         ⌜is_list proof lproof⌝ ∗
         ⌜possible_proof tree proof⌝ ∗
         ⌜ size m + (S n) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S n) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
+        ↯ (nnreal_nat (S n) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
      }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
@@ -259,8 +241,8 @@ Section merkle_tree.
       iIntros (proof') "%Hproof'".
       wp_pures. 
       inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n0) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (↯ ((nnreal_nat (S n0) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               ↯ (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -380,7 +362,7 @@ Section merkle_tree.
         ⌜tree_leaf_value_match tree v proof⌝ ∗
         ⌜v ≠ v'⌝ ∗
         ⌜ size m + (S height) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
+        ↯ (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
      }}}
       compute_hash_from_leaf f lproof (#v') @ E
       {{{ (retv:Z), RET #retv;
@@ -424,8 +406,8 @@ Section merkle_tree.
       iIntros (proof') "%Hproof'".
       wp_pures. 
       inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (↯ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               ↯ (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -514,7 +496,7 @@ Section merkle_tree.
         ⌜incorrect_proof tree proof ⌝ ∗
         ⌜tree_leaf_value_match tree v proof⌝ ∗
         ⌜ size m + (S height) <= max_hash_size⌝ ∗
-        € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR 
+        ↯ (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
      }}}
       compute_hash_from_leaf f lproof (#v) @ E
       {{{ (retv:Z), RET #retv;
@@ -537,8 +519,8 @@ Section merkle_tree.
       wp_pures. wp_apply wp_list_tail; first done.
       iIntros (proof') "%Hproof'".
       wp_pures. inversion Htvalid; subst.
-      iAssert (€ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
-               € (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (↯ ((nnreal_nat (S n) * amortized_error val_size_for_hash max_hash_size _)%NNR) ∗
+               ↯ (amortized_error val_size_for_hash max_hash_size _)%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split. iApply (ec_spend_irrel with "[$]").
         simpl. lra.
       }
@@ -712,7 +694,7 @@ Section merkle_tree.
                   coll_free_hashfun_amortized (val_size_for_hash)%nat max_hash_size f m' ∗
                   ⌜is_possible_proof_list proof lproof tree ⌝∗
                   ⌜ size m' + (S height) <= max_hash_size⌝ ∗
-                  € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
+                  ↯ (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
                    
             }}}
               checker lproof (#v)
@@ -720,7 +702,7 @@ Section merkle_tree.
                   if b then
                     ⌜tree_leaf_proof_match tree proof v⌝∗
                     coll_free_hashfun_amortized (val_size_for_hash) max_hash_size f m' ∗
-                    € (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
+                    ↯ (nnreal_nat (S height) * amortized_error (val_size_for_hash)%nat max_hash_size max_hash_size_pos)%NNR
                   else
                     ⌜incorrect_proof_or_leaf tree proof v⌝ ∗
                     ∃ m'', ⌜m' ⊆ m''⌝ ∗

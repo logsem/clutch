@@ -517,7 +517,7 @@ Proof.
     by eapply ARcoupl_dunif_leq, S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|].
   exists n . exists m.
   by rewrite Hnm //.
 Qed.
@@ -548,7 +548,7 @@ Proof.
     by apply S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   exists n .
   by rewrite Hnm //.
 Qed.
@@ -579,7 +579,7 @@ Proof.
     by eapply ARcoupl_dunif_leq_rev, S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   exists n . exists m.
   by rewrite Hnm //.
 Qed.
@@ -610,7 +610,7 @@ Proof.
     by eapply ARcoupl_dunif_leq_rev_inj, S_INR_le_compat.
   }
   intros n m Hnm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   exists m.
   by rewrite Hnm //.
 Qed.
@@ -643,7 +643,7 @@ Proof.
   { destruct ε ; done. } { simpl ; lra. }
   2: { rewrite -NMε. by apply ARcoupl_dunif_leq, S_INR_le_compat. }
   intros n m nm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|].
   simpl in nm. eauto.
 Qed.
 
@@ -673,58 +673,19 @@ Proof.
   { destruct ε ; done. } { simpl ; lra. }
   2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev, S_INR_le_compat. }
   intros n m nm.
-  apply ARcoupl_dret.
+  apply ARcoupl_dret; [done|]. 
   simpl in nm. eauto.
 Qed.
 
-Lemma ARcoupl_rand_r `{Countable A} (a : A) N z σ1' :
-  N = Z.to_nat z →
-  ARcoupl
-    (dret a)
-    (prim_step (rand #z) σ1')
-    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-Proof.
-  intros ?.
-  apply ARcoupl_exact.
-  by apply Rcoupl_rand_r.
-Qed.
-
-Lemma ARcoupl_rand_empty_r `{Countable A} N z (a : A) σ1' α' :
-  N = Z.to_nat z →
-  tapes σ1' !! α' = Some (N; []) →
-  ARcoupl
-    (dret a)
-    (prim_step (rand(#lbl:α') #z) σ1')
-    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-Proof.
-  intros ??.
-  apply ARcoupl_exact.
-  by apply Rcoupl_rand_empty_r.
-Qed.
-
-Lemma ARcoupl_rand_wrong_r `{Countable A} N M z ns (a : A) σ1' α' :
-  N = Z.to_nat z →
-  N ≠ M →
-  tapes σ1' !! α' = Some (M; ns) →
-  ARcoupl
-    (dret a)
-    (prim_step (rand(#lbl:α') #z) σ1')
-    (λ a' ρ2', ∃ (n : fin (S N)), a' = a ∧ ρ2' = (Val #n, σ1')) (nnreal_zero).
-Proof.
-  intros ???.
-  apply ARcoupl_exact.
-  eapply Rcoupl_rand_wrong_r; eauto.
-Qed.
-
-Lemma wp_couple_rand_no_coll_l N z (σ : state) (ρₛ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
+Lemma ARcoupl_rand_no_coll_l `{Countable A} N (x : fin (S N)) z (σ : state) (a : A) (ε : nonnegreal) :
   (0 < S N)%R →
   ((1 / S N) = ε)%R →
   N = Z.to_nat z →
   ARcoupl
     (prim_step (rand #z) σ)
-    (dret ρₛ1)
-    (λ ρ ρₛ2, ∃ n : fin (S N),
-        ρ = (Val #n, σ) ∧ (n ≠ x) ∧ ρₛ2 = ρₛ1)
+    (dret a)
+    (λ ρ a', ∃ n : fin (S N),
+        ρ = (Val #n, σ) ∧ (n ≠ x) ∧ a' = a)
     ε.
 Proof.
   intros Npos Nε Nz.
@@ -734,19 +695,19 @@ Proof.
   replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext ; simpl ; lra).
   eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
   2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_l _ _ x Npos).
-  move => n ? [xn ->]. apply ARcoupl_dret.
+  move => n ? [xn ->]. apply ARcoupl_dret; [done|]. 
   exists n. auto.
 Qed.
 
-Lemma wp_couple_rand_no_coll_r N z (σₛ : state) (ρ1 : cfg) (x : Fin.t (S N)) (ε : nonnegreal) :
+Lemma ARcoupl_rand_no_coll_r `{Countable A} N (x : fin (S N)) z (σₛ : state) (a : A) (ε : nonnegreal) :
   (0 < S N)%R →
   ((1 / S N) = ε)%R →
   N = Z.to_nat z →
   ARcoupl
-    (dret ρ1)
+    (dret a)
     (prim_step (rand #z) σₛ)
-    (λ ρ2 ρₛ, ∃ n : fin (S N),
-        ρ2 = ρ1 ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
+    (λ a' ρₛ, ∃ n : fin (S N),
+        a' = a ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
     ε.
 Proof.
   intros Npos Nε Nz.
@@ -757,9 +718,10 @@ Proof.
   replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
   eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
   2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_r _ _ x Npos).
-  move => ? n [-> xn]. apply ARcoupl_dret.
+  move => ? n [-> xn]. apply ARcoupl_dret; [done|]. 
   exists n. auto.
 Qed.
+
 (** * state_step ~ fair_coin  *)
 Lemma state_step_fair_coin_coupl σ α bs :
   σ.(tapes) !! α = Some ((1%nat; bs) : tape) →

@@ -400,7 +400,7 @@ Section prf_prp.
     (∀ n' : nat, val_size < n' → m !! n' = None) ->
     length sr <= S val_size ->
     (((S val_size - (length sr)) / S val_size)%R <= ε)%R ->
-    {{{ ⤇ fill K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr ∗ € ε }}}
+    {{{ ⤇ fill K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr ∗ ↯ ε }}}
       f #n @ E
     {{{ (z: Z), RET #z;
         ⤇ fill K (of_val #z) ∗ hashfun f (<[ n := z ]>m) ∗
@@ -460,7 +460,7 @@ Section prf_prp.
     set f := (λ n : nat, if (n <=? vl) then Z.to_nat (nth n sr 0) else n + val_size).
     iDestruct (ec_spend_le_irrel with "[$]") as "Hε".
     { instantiate (1:= mknonnegreal _ _). exact.  }
-    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl).
+    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl with "[HK Hε]").
     {
       intros x Hx.
       rewrite /f.
@@ -500,8 +500,8 @@ Section prf_prp.
       lia.
     }
     { rewrite -Hvl. instantiate (1:= mknonnegreal _ _). done. }
-    iFrame.
-    iIntros "!>" (x) "HK".
+    { iFrame. }
+    iIntros (x) "HK".
     simpl. 
     wp_pures.
     tp_pures.
@@ -598,7 +598,7 @@ Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list
   (forall x:Z, x∈ ((map_img m):gset _) -> x ∈ l -> False) ->
   (dom m ⊆ set_seq 0 (S val_size))->
   ((INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R <= ε)%R ->
-  {{{ € ε ∗
+  {{{ ↯ ε ∗
       hashfun f m ∗
       ⤇ fill K
         ((rec: "aux" "f" "i" :=
@@ -626,20 +626,19 @@ Proof.
 
      tp_pures.
      tp_bind (rand _)%E.
-     iMod (ec_zero).
-     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ _ nnreal_zero).
+     iMod (ec_zero) as "H0".
+     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ nnreal_zero
+              with "[$]").
      { lra. }
      { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
-
-     iFrame.
-     iIntros "!>" (n2 m2 ->) "HK".
+     iIntros (n2 m2) "[-> HK]".
      simpl.
      wp_pures.
      wp_pures.
      tp_pures.
      wp_bind (f _).
      tp_bind (g _).
-     iAssert (€ _ ∗ € _)%I with "[Hε]" as "[Hε Hε']".
+     iAssert (↯ _ ∗ ↯ _)%I with "[Hε]" as "[Hε Hε']".
      { iApply ec_split. iApply ec_weaken; last done.
        etrans; last exact. rewrite <-cons_seq. rewrite fold_symmetric; try (intros; lia).
        simpl. rewrite plus_INR Rdiv_plus_distr. apply Req_le.
@@ -739,11 +738,11 @@ Proof.
                       apply pos_INR.
                ** apply pos_INR_S.
             ++ apply gset_semi_set.
-Qed.
+  Qed.
 
   Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
     (INR(fold_left (Nat.add) (seq 0 n) 0%nat) / INR (S val_size))%R = ε ->
-    {{{ ⤇ fill K (test_prp #n) ∗ € ε }}}
+    {{{ ⤇ fill K (test_prp #n) ∗ ↯ ε }}}
       test_prf #n @ E
     {{{ f, RET f;
         ∃ g m l, ⤇ fill K (of_val g) ∗ hashfun f m∗

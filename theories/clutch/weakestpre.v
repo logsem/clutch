@@ -13,18 +13,17 @@ Import uPred.
 
 Local Open Scope R.
 
-Class clutchWpGS (Λ : language) (Σ : gFunctors) := ClutchWpGS {
+Class clutchWpGS (Λ : language) (Σ : gFunctors) `{spec_updateGS (lang_markov Λ) Σ} := ClutchWpGS {
   #[global] clutchWpGS_invGS :: invGS_gen HasNoLc Σ;
-  #[global] clutchWpGS_spec_updateGS :: spec_updateGS (lang_markov Λ) Σ;
 
   state_interp : state Λ → iProp Σ;
 }.
 Global Opaque clutchWpGS_invGS.
-Global Arguments ClutchWpGS {Λ Σ _}.
+Global Arguments ClutchWpGS {Λ Σ _ _}.
 
 (** * Coupling modalities *)
 Section exec_coupl.
-  Context `{!clutchWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ}.
 
   (** * [spec_coupl] *)
 
@@ -306,7 +305,7 @@ Section exec_coupl.
 End exec_coupl.
 
 (** * The weakest precondition  *)
-Definition wp_pre `{!clutchWpGS Λ Σ}
+Definition wp_pre `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ}
     (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
      coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ := λ E e1 Φ,
   (∀ σ1 e1' σ1',
@@ -320,7 +319,7 @@ Definition wp_pre `{!clutchWpGS Λ Σ}
                     |={∅, E}=> state_interp σ4 ∗ spec_interp (e4', σ4') ∗ wp E e3 Φ))
       end))%I.
 
-Local Instance wp_pre_contractive `{!clutchWpGS Λ Σ} : Contractive wp_pre.
+Local Instance wp_pre_contractive `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ} : Contractive wp_pre.
 Proof.
   rewrite /wp_pre /= => n wp wp' Hwp E e1 Φ.
   do 8 f_equiv.
@@ -336,17 +335,17 @@ Proof.
   apply Hwp.
 Qed.
 
-Local Definition wp_def `{!clutchWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+Local Definition wp_def `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
   {| wp := λ _ : (), fixpoint (wp_pre); wp_default := () |}.
 Local Definition wp_aux : seal (@wp_def). Proof. by eexists. Qed.
 Definition wp' := wp_aux.(unseal).
 Global Arguments wp' {Λ Σ _}.
 Global Existing Instance wp'.
-Local Lemma wp_unseal `{!clutchWpGS Λ Σ} : wp = (@wp_def Λ Σ _).(wp).
+Local Lemma wp_unseal `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ} : wp = (@wp_def Λ Σ _ _).(wp).
 Proof. rewrite -wp_aux.(seal_eq) //. Qed.
 
 Section wp.
-Context `{!clutchWpGS Λ Σ}.
+Context `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ}.
 Implicit Types P : iProp Σ.
 Implicit Types Φ : val Λ → iProp Σ.
 Implicit Types v : val Λ.
@@ -690,7 +689,7 @@ End wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!clutchWpGS Λ Σ}.
+  Context `{!spec_updateGS (lang_markov Λ) Σ, !clutchWpGS Λ Σ}.
   Implicit Types P Q : iProp Σ.
   Implicit Types Φ : val Λ → iProp Σ.
   Implicit Types v : val Λ.

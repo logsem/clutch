@@ -13,26 +13,26 @@ Section spec.
      In particular, this is a spec for bounded samplers. *)
   Definition bounded_sampling_scheme_spec (sampler checker : val) 𝜀factor 𝜀final E Θ : iProp Σ
     := ((∀ 𝜀,
-          [[{ € 𝜀 }]]
+          [[{ ↯ 𝜀 }]]
             ((Val sampler) #())%E @ E
           [[{ (v : val), RET v;
                ((WP ((Val checker) v) @ E [{ λ v', ⌜v' = #true ⌝ ∗ Θ v }]) ∨
-               (∃ 𝜀', € 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E [{ λ v', ⌜v' = #false⌝ ∨ (⌜v' = #true ⌝ ∗ Θ v)}])))}]]) ∗
+               (∃ 𝜀', ↯ 𝜀' ∗ ⌜𝜀 <= 𝜀' * 𝜀factor ⌝ ∗ (WP ((Val checker) v) @ E [{ λ v', ⌜v' = #false⌝ ∨ (⌜v' = #true ⌝ ∗ Θ v)}])))}]]) ∗
         (∀ v : val,
-          [[{ € 𝜀final }]]
+          [[{ ↯ 𝜀final }]]
             ((Val sampler) v) @ E
           [[{ (v' : val), RET v'; (WP ((Val checker) v') @ E [{ λ v'', ⌜v'' = #true ⌝ ∗ Θ v' }])}]]))%I.
 
   (* Easier to explain spec.
      It is allowed to wait arbitrarily long before spending,
-     and thus can wait to spend credit €1. *)
+     and thus can wait to spend credit ↯1. *)
   Definition sampling_scheme_spec (sampler checker : val) εfactor E Θ : iProp Σ
     := (∀ ε,
-       [[{ € ε }]]
+       [[{ ↯ ε }]]
             ((Val sampler) #())%E @ E
        [[{ (v : val), RET v;
                ((WP ((Val checker) v) @ E [{ λ v', ⌜v' = #true ⌝ ∗ Θ v }]) ∨
-               (∃ ε', € ε' ∗ ⌜ε <= ε' * εfactor ⌝ ∗ (WP ((Val checker) v) @ E [{ λ v', ⌜v' = #false⌝ ∨ (⌜v' = #true ⌝ ∗ Θ v)}])))}]])%I.
+               (∃ ε', ↯ ε' ∗ ⌜ε <= ε' * εfactor ⌝ ∗ (WP ((Val checker) v) @ E [{ λ v', ⌜v' = #false⌝ ∨ (⌜v' = #true ⌝ ∗ Θ v)}])))}]])%I.
 
   Definition unbounded_scheme_implies_bounded sampler checker (εfactor : nonnegreal) E Θ :
     ⊢ sampling_scheme_spec sampler checker εfactor E Θ -∗
@@ -56,7 +56,7 @@ Section safety.
     (0 < r < 1) ->
     (0 < εfinal < 1) ->
     bounded_sampling_scheme_spec sampler checker r εfinal E Θ -∗
-    € (generic_geometric_error r εfinal depth) -∗
+    ↯ (generic_geometric_error r εfinal depth) -∗
     (WP (gen_bounded_rejection_sampler #(S depth) sampler checker) @ E [{ fun v => Θ v }])%I.
   Proof.
     (* initial setup *)
@@ -70,7 +70,7 @@ Section safety.
       { iApply (ec_weaken with "Hcr"); rewrite /generic_geometric_error /=; lra. }
       iIntros (next_sample) "Hcheck_accept".
       wp_pures; wp_bind (checker next_sample)%E.
-      iApply (ub_twp_wand with "Hcheck_accept").
+      iApply (tgl_wp_wand with "Hcheck_accept").
       iIntros (?) "(#-> & ?)"; wp_pures.
       iModIntro; iFrame.
     - wp_pures.
@@ -79,11 +79,11 @@ Section safety.
       iApply ("Hamplify" $! (generic_geometric_error r εfinal (S depth')) with "Hcr").
       iIntros (next_sample) "[Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_accept").
+        iApply (tgl_wp_wand with "Hcheck_accept").
         iIntros (?) "(#-> & ?)"; wp_pures.
         iModIntro; iFrame.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_reject").
+        iApply (tgl_wp_wand with "Hcheck_reject").
         iIntros (?) "Hresult".
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").
@@ -104,7 +104,7 @@ Section safety.
   Lemma ho_ubdd_approx_safe (sampler checker : val) (r : nonnegreal) (depth : nat) E Θ :
     (0 < r < 1) ->
     sampling_scheme_spec sampler checker r E Θ -∗
-    € (generic_geometric_error r nnreal_one depth) -∗
+    ↯ (generic_geometric_error r nnreal_one depth) -∗
     (WP (gen_rejection_sampler sampler checker) @ E [{ fun v => Θ v }])%I.
   Proof.
     rewrite /sampling_scheme_spec.
@@ -120,11 +120,11 @@ Section safety.
       iApply ("Hamplify" $! (generic_geometric_error r nnreal_one (S depth')) with "Hcr").
       iIntros (next_sample) "[Hcheck_accept|[%ε'(Hcr&%Hε'&Hcheck_reject)]]"; wp_pures.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_accept").
+        iApply (tgl_wp_wand with "Hcheck_accept").
         iIntros (?) "(#-> & ?)"; wp_pures.
         iModIntro; iFrame.
       + wp_bind (checker next_sample)%V.
-        iApply (ub_twp_wand with "Hcheck_reject").
+        iApply (tgl_wp_wand with "Hcheck_reject").
         iIntros (?) "Hresult".
         iSpecialize ("IH" with "[Hcr]").
         * iApply (ec_spend_le_irrel with "Hcr").
@@ -146,7 +146,7 @@ Section safety.
     (0 < r < 1) ->
     0 < ε ->
     ⊢ sampling_scheme_spec sampler checker r E Θ -∗
-      €ε -∗
+      ↯ε -∗
       WP gen_rejection_sampler sampler checker @ E [{ v, Θ v }].
   Proof.
     iIntros ([? Hr] Hε) "#Hspec Hcr".
@@ -264,9 +264,9 @@ Section higherorder_flip2.
     := (fun z => if (flip_is_1 z) then εh else εt).
 
   Lemma flip_amplification (ε1 εh εt : nonnegreal) (Hmean : (εh + εt) = 2 * ε1 ) E :
-    [[{ € ε1 }]]
+    [[{ ↯ ε1 }]]
       rand #1 @ E
-    [[{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ € (scale_flip ε1 εh εt #v) }]].
+    [[{ v, RET #v; ⌜(v = 0%nat) \/ (v = 1%nat) ⌝ ∗ ↯ (scale_flip ε1 εh εt #v) }]].
   Proof.
     iIntros (Φ) "Hcr HΦ".
     iApply (twp_couple_rand_adv_comp1 1%nat  _ _ ε1 (ε2_flip1 ε1 εh εt) _ with "Hcr").

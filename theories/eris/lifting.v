@@ -16,16 +16,16 @@ Implicit Types Φ : val Λ → iProp Σ.
 
 #[local] Open Scope R.
 
-Lemma wp_lift_step_fupd_exec_ub E Φ e1 s :
+Lemma wp_lift_step_fupd_glm E Φ e1 s :
   to_val e1 = None →
   (∀ σ1 ε1,
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
-    exec_ub e1 σ1 ε1 (λ '(e2, σ2) ε2,
+    glm e1 σ1 ε1 (λ '(e2, σ2) ε2,
       ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }}))
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  by rewrite ub_wp_unfold /ub_wp_pre =>->.
+  by rewrite pgl_wp_unfold /pgl_wp_pre =>->.
 Qed.
 
 
@@ -41,10 +41,10 @@ Lemma wp_lift_step_fupd E Φ e1 s :
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
   iIntros (?) "H".
-  iApply wp_lift_step_fupd_exec_ub; [done|].
+  iApply wp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-  iApply (exec_ub_prim_step e1 σ1).
+  iApply (glm_prim_step e1 σ1).
   iExists _.
   iExists nnreal_zero.
   iExists ε.
@@ -54,7 +54,7 @@ Proof.
   { iPureIntro. simpl. lra. }
   iSplit.
   { iPureIntro.
-    eapply ub_lift_pos_R, ub_lift_trivial.
+    eapply pgl_pos_R, pgl_trivial.
     simpl; lra.
   }
   iIntros (e2 σ2 (?&?)).
@@ -115,7 +115,7 @@ Proof.
   iApply fupd_mask_intro; first set_solver. iIntros "Hclose !>".
   iMod "Hclose" as "_". iMod "H" as "($ & HQ)".
   destruct (to_val e2) eqn:?; last by iExFalso.
-  iApply ub_wp_value; last done. by apply of_to_val.
+  iApply pgl_wp_value; last done. by apply of_to_val.
 Qed.
 
 Lemma wp_lift_atomic_step {E Φ} e1 s :

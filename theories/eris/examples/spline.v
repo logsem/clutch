@@ -25,7 +25,7 @@ Section escaping_spline.
 
   (** Using mathematical induction on k *)
   Theorem spline_AST_aux (k : nat) (n : nat) E :
-    € (nnreal_div (nnreal_nat n) (nnreal_nat (S n + k)%nat)) -∗
+    ↯ (nnreal_div (nnreal_nat n) (nnreal_nat (S n + k)%nat)) -∗
       WP spline #n @ E [{ v, True }].
   Proof.
     iInduction (k) as [|m] "IH" forall (n).
@@ -93,7 +93,7 @@ Section escaping_spline.
 
   Theorem spline_AST (n : nat) (ε : nonnegreal) E :
     (0 < ε)%R ->
-    € ε -∗
+    ↯ ε -∗
       WP spline #n @ E [{ v, True }].
   Proof.
     iIntros (Hpos) "Herr".

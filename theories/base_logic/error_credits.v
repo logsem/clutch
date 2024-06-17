@@ -12,7 +12,6 @@ From iris.base_logic.lib Require Import iprop own.
 
 Import uPred.
 
-
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
   Canonical Structure nonnegrealO : ofe := leibnizO nonnegreal.
@@ -172,7 +171,7 @@ Local Definition ec_unseal :
   @ec = @ec_def := ec_aux.(seal_eq).
 Global Arguments ec {Σ _} ε.
 
-Notation "'€'  ε" := (ec ε) (at level 1).
+Notation "'↯'  ε" := (ec ε) (at level 1).
 
 (** The internal authoritative part of the credit ghost state,
   tracking how many credits are available in total.
@@ -191,19 +190,19 @@ Section error_credit_theory.
 
   (** Error credit rules *)
   Lemma ec_split ε1 ε2 :
-    € (nnreal_plus ε1 ε2) ⊣⊢ € ε1 ∗ € ε2.
+    ↯ (nnreal_plus ε1 ε2) ⊣⊢ ↯ ε1 ∗ ↯ ε2.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite -own_op auth_frag_op //=.
   Qed.
 
-  Lemma ec_zero : ⊢ |==> € nnreal_zero.
+  Lemma ec_zero : ⊢ |==> ↯ nnreal_zero.
   Proof.
     rewrite ec_unseal /ec_def. iApply own_unit.
   Qed.
 
   Lemma ec_supply_bound ε1 ε2 :
-    ec_supply ε2 -∗ € ε1 -∗ ⌜(ε1 <= ε2)%R⌝.
+    ec_supply ε2 -∗ ↯ ε1 -∗ ⌜(ε1 <= ε2)%R⌝.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
@@ -214,7 +213,7 @@ Section error_credit_theory.
   Qed.
 
   Lemma ec_decrease_supply ε1 ε2 :
-    ec_supply (ε1 + ε2)%NNR -∗ € ε1 -∗ |==> ec_supply ε2.
+    ec_supply (ε1 + ε2)%NNR -∗ ↯ ε1 -∗ |==> ec_supply ε2.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
@@ -226,7 +225,7 @@ Section error_credit_theory.
   Qed.
 
   Lemma ec_increase_supply (ε1 ε2 : nonnegreal) :
-    ⌜(ε1 + ε2 < 1)%R ⌝ ∗ ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ € ε2.
+    ⌜(ε1 + ε2 < 1)%R ⌝ ∗ ec_supply ε1 -∗ |==> ec_supply (ε1 + ε2)%NNR ∗ ↯ ε2.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
@@ -248,7 +247,7 @@ Section error_credit_theory.
 
 
   Lemma ec_split_supply ε1 ε2 :
-    ec_supply ε2 -∗ € ε1 -∗ ∃ ε3, ⌜ε2 = (ε1 + ε3)%NNR⌝.
+    ec_supply ε2 -∗ ↯ ε1 -∗ ∃ ε3, ⌜ε2 = (ε1 + ε3)%NNR⌝.
   Proof.
     rewrite ec_unseal /ec_def.
     rewrite ec_supply_unseal /ec_supply_def.
@@ -262,7 +261,7 @@ Section error_credit_theory.
   Qed.
 
   Lemma ec_weaken {ε1 : nonnegreal} (ε2 : nonnegreal) :
-    (ε2 <= ε1)%R → € ε1 -∗ € ε2.
+    (ε2 <= ε1)%R → ↯ ε1 -∗ ↯ ε2.
   Proof.
     intros H.
     set diff := mknonnegreal (ε1 - ε2) (Rle_0_le_minus ε2 ε1 H).
@@ -272,7 +271,7 @@ Section error_credit_theory.
     rewrite ec_split. iIntros "[$ _]".
   Qed.
 
-  Lemma ec_spend (ε : nonnegreal) : (1 <= nonneg ε)%R -> € ε -∗ False.
+  Lemma ec_spend (ε : nonnegreal) : (1 <= nonneg ε)%R -> ↯ ε -∗ False.
   Proof.
     iIntros (Hge1) "Hε".
     rewrite ec_unseal /ec_def.
@@ -283,40 +282,40 @@ Section error_credit_theory.
   Qed.
 
 
-  Lemma ec_spend_le_irrel ε1 ε2 : (ε2.(nonneg) <= ε1.(nonneg))%R → € ε1 -∗ € ε2.
+  Lemma ec_spend_le_irrel ε1 ε2 : (ε2.(nonneg) <= ε1.(nonneg))%R → ↯ ε1 -∗ ↯ ε2.
   Proof. iIntros (?) "?". iApply ec_weaken; done. Qed.
 
 
-  Lemma ec_spend_irrel ε1 ε2 : (ε1.(nonneg) = ε2.(nonneg)) → € ε1 -∗ € ε2.
+  Lemma ec_spend_irrel ε1 ε2 : (ε1.(nonneg) = ε2.(nonneg)) → ↯ ε1 -∗ ↯ ε2.
   Proof.
     iIntros (?) "?".
     replace ε1 with ε2; [iFrame|by apply nnreal_ext].
   Qed.
   
-  Global Instance ec_timeless ε : Timeless (€ ε).
+  Global Instance ec_timeless ε : Timeless (↯ ε).
   Proof.
     rewrite ec_unseal /ec_def. apply _.
   Qed.
 
-  Global Instance ec_0_persistent : Persistent (€ nnreal_zero).
+  Global Instance ec_0_persistent : Persistent (↯ nnreal_zero).
   Proof.
     rewrite ec_unseal /ec_def. apply _.
   Qed.
 
   Global Instance from_sep_ec_add ε1 ε2 :
-    FromSep (€ (nnreal_plus ε1 ε2)) (€ ε1) (€ ε2) | 0.
+    FromSep (↯ (nnreal_plus ε1 ε2)) (↯ ε1) (↯ ε2) | 0.
   Proof.
     by rewrite /FromSep ec_split.
   Qed.
 
   Global Instance into_sep_ec_add ε1 ε2 :
-    IntoSep (€ (nnreal_plus ε1 ε2)) (€ ε1) (€ ε2) | 0.
+    IntoSep (↯ (nnreal_plus ε1 ε2)) (↯ ε1) (↯ ε2) | 0.
   Proof.
     by rewrite /IntoSep ec_split.
   Qed.
 
   Global Instance combine_sep_as_ec_add ε1 ε2 :
-    CombineSepAs (€ ε1) (€ ε2) (€ (nnreal_plus ε1 ε2)) | 0.
+    CombineSepAs (↯ ε1) (↯ ε2) (↯ (nnreal_plus ε1 ε2)) | 0.
   Proof.
     by rewrite /CombineSepAs ec_split.
   Qed.
@@ -325,9 +324,9 @@ Section error_credit_theory.
 Lemma ec_ind_amp (ε k : nonnegreal) P :
   (0 < ε)%R ->
   (1 < k)%R ->
-  □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (€ (k * ε')%NNR -∗ P) -∗
-                                       € ε' -∗ P) -∗
-  € ε -∗ P.
+  □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (↯ (k * ε')%NNR -∗ P) -∗
+                                       ↯ ε' -∗ P) -∗
+  ↯ ε -∗ P.
 Proof.
   iIntros (Hpos Hgt1).
   assert (exists n, 1 <= ε * k^n)%R as [n Hn].
@@ -372,7 +371,7 @@ Qed.
 End error_credit_theory.
 
 Lemma ec_alloc `{!ecGpreS Σ} (n : nonnegreal) :
-  ⌜(nonneg n < 1)%R ⌝ ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ € n.
+  ⌜(nonneg n < 1)%R ⌝ ⊢ |==> ∃ _ : ecGS Σ, ec_supply n ∗ ↯ n.
 Proof.
   iIntros.
   rewrite ec_unseal /ec_def ec_supply_unseal /ec_supply_def.

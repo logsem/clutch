@@ -501,18 +501,18 @@ Section list_specs.
   Corollary wp_list_iter_err `{!Inject B val} (l : list A) (fv lv : val)
     (P : A -> iProp Σ) (Q : A -> iProp Σ) (err : A -> nonnegreal) E :
     {{{ (∀ (x : A),
-          {{{ P x ∗ € (err x)}}}
+          {{{ P x ∗ ↯ (err x)}}}
             fv (inject x) @ E
           {{{ fr, RET fr; Q x }}}) ∗
         ⌜is_list l lv⌝ ∗
-        [∗ list] x∈l, (P x ∗ € (err x))
+        [∗ list] x∈l, (P x ∗ ↯ (err x))
     }}}
       list_iter fv lv @ E
       {{{ rv, RET rv; [∗ list] x ∈ l, Q x
       }}}.
   Proof.
     iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
-    iApply (wp_list_iter_idx (λ _ a, P a ∗ € (err a))%I (λ _ a, Q a) ⌜True⌝%I _ l
+    iApply (wp_list_iter_idx (λ _ a, P a ∗ ↯ (err a))%I (λ _ a, Q a) ⌜True⌝%I _ l
         with "[] [HP] [HΦ]") ; try iFrame.
     - iIntros (i a φ) "!> (_&P_a&err_a) Hφ".
       iApply ("Hf" with "[$P_a $err_a]"). iIntros "!>" (?) "Qa". iApply "Hφ" ; iFrame.
@@ -523,24 +523,24 @@ Section list_specs.
   Corollary wp_list_iter_err_constant `{!Inject B val} (l : list A) (fv lv : val)
     (P : A -> iProp Σ) (Q : A -> iProp Σ) (err : nonnegreal) E :
     {{{ (∀ (x : A),
-          {{{ P x ∗ € err}}}
+          {{{ P x ∗ ↯ err}}}
             fv (inject x) @ E
           {{{ fr, RET fr; Q x }}}) ∗
         ⌜is_list l lv⌝ ∗
         ([∗ list] x∈l, (P x)) ∗
-         € (err * nnreal_nat (length l))%NNR
+         ↯ (err * nnreal_nat (length l))%NNR
     }}}
       list_iter fv lv @ E
       {{{ rv, RET rv; [∗ list] x ∈ l, Q x
       }}}.
   Proof.
     iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
-    iAssert (([∗ list] x ∈ l, P x ∗ € err))%I with "[HP]" as "HP".
+    iAssert (([∗ list] x ∈ l, P x ∗ ↯ err))%I with "[HP]" as "HP".
     { clear Hil. iInduction (l) as [| h t] "IH"; first done.
       rewrite !big_sepL_cons. simpl.
       iDestruct "HP" as "[[HP HP'] Herr]".
       iFrame.
-      iAssert (€ err ∗ € (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (↯ err ∗ ↯ (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split.
         assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%NNR as ->.
         - apply nnreal_ext. simpl. case_match; destruct err; simpl; lra.
@@ -1106,11 +1106,11 @@ Section list_specs_extra.
   Lemma wp_list_map_err `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
     (P : A -> iProp Σ) (Q : A -> val -> iProp Σ) (err : A -> nonnegreal) E :
     {{{ (∀ (x : A),
-          {{{ P x ∗ € (err x)}}}
+          {{{ P x ∗ ↯ (err x)}}}
             fv (inject x) @ E
           {{{ fr, RET fr; ⌜fr = inject $ f x ⌝ ∗ Q x fr }}}) ∗
         ⌜is_list l lv⌝ ∗
-        [∗ list] x∈l, (P x ∗ € (err x))
+        [∗ list] x∈l, (P x ∗ ↯ (err x))
     }}}
       list_map fv lv @ E
       {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
@@ -1125,12 +1125,12 @@ Section list_specs_extra.
   Lemma wp_list_map_err_constant `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
     (P : A -> iProp Σ) (Q : A -> val -> iProp Σ) (err : nonnegreal) E : 
     {{{ (∀ (x : A),
-          {{{ P x ∗ € err}}}
+          {{{ P x ∗ ↯ err}}}
             fv (inject x) @ E
           {{{ fr, RET fr; ⌜fr = inject $ f x ⌝ ∗ Q x fr }}}) ∗
         ⌜is_list l lv⌝ ∗
         ([∗ list] x∈l, P x) ∗
-        € (err * nnreal_nat (length l))%NNR
+        ↯ (err * nnreal_nat (length l))%NNR
     }}}
       list_map fv lv @ E
       {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
@@ -1138,12 +1138,12 @@ Section list_specs_extra.
       }}}.
   Proof.
     iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
-    iAssert (([∗ list] x ∈ l, P x ∗ € err))%I with "[HP]" as "HP".
+    iAssert (([∗ list] x ∈ l, P x ∗ ↯ err))%I with "[HP]" as "HP".
     { clear Hil. iInduction (l) as [| h t] "IH"; first done.
       rewrite !big_sepL_cons. simpl.
       iDestruct "HP" as "[[HP HP'] Herr]".
       iFrame.
-      iAssert (€ err ∗ € (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
+      iAssert (↯ err ∗ ↯ (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split.
         assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%NNR as ->.
         - apply nnreal_ext. simpl. case_match; destruct err; simpl; lra.

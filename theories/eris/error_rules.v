@@ -12,9 +12,9 @@ Section metatheory.
 Local Open Scope R.
 
 (** * rand(N) no error *)
-Lemma ub_lift_rand_trivial N z σ1 :
+Lemma pgl_rand_trivial N z σ1 :
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         ρ2 = (Val #n, σ1)) 0.
@@ -24,18 +24,18 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
-  { by apply ub_lift_trivial. }
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
+  { by apply pgl_trivial. }
   2,3: done.
   intros n ?.
-  apply ub_lift_dret.
+  apply pgl_dret.
   by exists n.
 Qed.
 
 (** * rand(N) error *)
-Lemma ub_lift_rand_err N z σ1 (m : fin (S N)):
+Lemma pgl_rand_err N z σ1 (m : fin (S N)):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         (n ≠ m)%fin /\ ρ2 = (Val #n, σ1)) (1/(N+1)).
@@ -45,10 +45,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -61,9 +61,9 @@ Proof.
 Qed.
 
 (* Same lemma holds for m an arbitrary natural *)
-Lemma ub_lift_rand_err_nat N z σ1 (m : nat):
+Lemma pgl_rand_err_nat N z σ1 (m : nat):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         (fin_to_nat n ≠ m)%fin /\ ρ2 = (Val #n, σ1)) (1/(N+1)).
@@ -73,10 +73,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r (1 / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err_nat. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -89,9 +89,9 @@ Proof.
 Qed.
 
 (* Generalization to lists *)
-Lemma ub_lift_rand_err_list_nat N z σ1 (ms : list nat):
+Lemma pgl_rand_err_list_nat N z σ1 (ms : list nat):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         Forall (λ m, (fin_to_nat n ≠ m)%fin) ms /\ ρ2 = (Val #n, σ1)) ((length ms)/(N+1)).
@@ -101,10 +101,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err_list_nat. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -116,9 +116,9 @@ Proof.
       lra.
 Qed.
 
-Lemma ub_lift_rand_err_list_int N z σ1 (ms : list Z):
+Lemma pgl_rand_err_list_int N z σ1 (ms : list Z):
   N = Z.to_nat z →
-  ub_lift
+  pgl
     (prim_step (rand #z) σ1)
     (λ ρ2, ∃ (n : fin (S N)),
         Forall (λ m, (Z.of_nat (fin_to_nat n) ≠ m)%fin) ms /\ ρ2 = (Val #n, σ1)) ((length ms)/(N+1)).
@@ -128,10 +128,10 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r ((length ms) / (N + 1))).
-  eapply (ub_lift_dbind _ _ _ _ _ 0); last first.
+  eapply (pgl_dbind _ _ _ _ _ 0); last first.
   { by apply ub_unif_err_list_int. }
   - intros n ?.
-    apply ub_lift_dret.
+    apply pgl_dret.
     exists n; split; [apply H | auto].
   - lra.
   - rewrite /Rdiv.
@@ -156,12 +156,12 @@ Section rules.
 
 Lemma twp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ s :
   TCEq N (Z.to_nat z) →
-  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -169,7 +169,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1)), _, _.
@@ -183,7 +183,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg ( nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
              = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -192,7 +192,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
        }
-      apply (ub_lift_rand_err (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -205,29 +205,29 @@ Proof.
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_twp_value.
+  iApply tgl_wp_value.
   iApply "Hwp".
   done.
 Qed.
 
 Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply ub_twp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   iApply (twp_rand_err with "[$]").
 Qed.
 
 Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ s :
   TCEq N (Z.to_nat z) →
-  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -235,7 +235,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
       (λ (ρ : expr * state),
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1)),_,_.
@@ -248,7 +248,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg (nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
              = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -257,7 +257,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
        }
-      apply (ub_lift_rand_err_nat (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err_nat (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -270,30 +270,30 @@ Proof.
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_twp_value.
+  iApply tgl_wp_value.
   iApply "Hwp".
   done.
 Qed.
 
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
   (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply ub_twp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   iApply (twp_rand_err_nat with "[$]").
 Qed.
 
 
 Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
+  ↯ (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
     (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -301,7 +301,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1)),_,_.
@@ -314,7 +314,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1)))
               = Rdiv (length ns) (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -323,7 +323,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
       }
-      apply (ub_lift_rand_err_list_nat (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err_list_nat (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -336,29 +336,29 @@ Proof.
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_twp_value.
+  iApply tgl_wp_value.
   iApply "Hwp".
   done.
 Qed.
 
 Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
+  ↯ (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
     (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply ub_twp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   by iApply (twp_rand_err_list_nat).
 Qed.
 
 Lemma twp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
+  ↯ (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
     (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -366,7 +366,7 @@ Proof.
   set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
   replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
   { apply nnreal_ext; simpl; lra. }
-  iApply exec_ub_prim_step.
+  iApply glm_prim_step.
   iExists
     (λ (ρ : expr * state),
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1)),_,_.
@@ -379,7 +379,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
+    eapply pgl_mon_pred; last first.
     - assert (nonneg (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1)))
               = Rdiv (length zs) (Z.to_nat z + 1)) as ->.
       { simpl.
@@ -388,7 +388,7 @@ Proof.
         rewrite plus_INR.
         f_equal.
       }
-      apply (ub_lift_rand_err_list_int (Z.to_nat z) z σ1); auto.
+      apply (pgl_rand_err_list_int (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
@@ -401,18 +401,18 @@ Proof.
   iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply ub_twp_value.
+  iApply tgl_wp_value.
   iApply "Hwp".
   done.
 Qed.
 
 Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
+  ↯ (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
     (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros. iApply ub_twp_ub_wp'.
+  iIntros. iApply tgl_wp_pgl_wp'.
   by iApply twp_rand_err_list_int.
 Qed.
 
@@ -420,12 +420,12 @@ Qed.
 
 Lemma wp_rand_err_filter (N : nat) (z : Z) (P : nat -> bool) E Φ :
   TCEq N (Z.to_nat z) →
-  € (nnreal_div (nnreal_nat (length (List.filter P (seq 0 (S N))))) (nnreal_nat(N+1))) ∗
+  ↯ (nnreal_div (nnreal_nat (length (List.filter P (seq 0 (S N))))) (nnreal_nat(N+1))) ∗
     (∀ x : fin (S N), ⌜ P x = false ⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (?) "[H1 H2]".
-  iApply ub_twp_ub_wp'.
+  iApply tgl_wp_pgl_wp'.
   iApply (twp_rand_err_list_nat _ _ (List.filter P (seq 0 (S N)))).
   iFrame.
   iIntros (x) "%H0".
@@ -482,14 +482,14 @@ Lemma twp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N)
   TCEq N (Z.to_nat z) →
   (exists r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  [[{ € ε1 }]] rand #z @ E [[{ n, RET #n; € (ε2 n) }]].
+  [[{ ↯ ε1 }]] rand #z @ E [[{ n, RET #n; ↯ (ε2 n) }]].
 Proof.
   iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
-  iApply twp_lift_step_fupd_exec_ub; [done|].
+  iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iApply exec_ub_adv_comp; simpl.
+  iApply glm_adv_comp; simpl.
   iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
   rewrite Hε3.
   set (foo := (λ (ρ : expr * state),
@@ -665,8 +665,8 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    eapply UB_mon_pred; last first.
-    - apply (ub_lift_rand_trivial (Z.to_nat z) z σ1); auto.
+    eapply pgl_mon_pred; last first.
+    - apply (pgl_rand_trivial (Z.to_nat z) z σ1); auto.
     - done.
   }
   iIntros (e2 σ2) "%H".
@@ -698,7 +698,7 @@ Proof.
   iMod "Hclose'".
   iApply fupd_mask_intro; [eauto|]; iIntros "_".
   iFrame.
-  iApply ub_twp_value.
+  iApply tgl_wp_value.
   iApply "HΨ".
   assert (nat_to_fin l = n) as ->; [|done].
   apply fin_to_nat_inj.
@@ -712,10 +712,10 @@ Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) 
   TCEq N (Z.to_nat z) →
   (exists r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
+  {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
   iIntros.
-  iApply (ub_twp_ub_wp_step' with "[$]").
+  iApply (tgl_wp_pgl_wp_step' with "[$]").
   wp_apply (twp_couple_rand_adv_comp with "[$]"); try done.
   iIntros (?) "H1 H2". iModIntro.
   iApply ("H2" with "[$]").
@@ -724,7 +724,7 @@ Qed.
 Lemma twp_couple_rand_adv_comp1 (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  [[{ € ε1 }]] rand #z @ E [[{ n, RET #n; € (ε2 n) }]].
+  [[{ ↯ ε1 }]] rand #z @ E [[{ n, RET #n; ↯ (ε2 n) }]].
 Proof.
   iIntros (H1 H2).
   eapply (twp_couple_rand_adv_comp _ _ _ ε1 ε2).
@@ -738,7 +738,7 @@ Qed.
 Lemma wp_couple_rand_adv_comp1 (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
-  {{{ € ε1 }}} rand #z @ E {{{ n, RET #n; € (ε2 n) }}}.
+  {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
   iIntros (H1 H2).
   eapply (wp_couple_rand_adv_comp _ _ _ ε1 ε2).
@@ -753,9 +753,9 @@ Qed.
 Lemma twp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
-  € ε0 ∗
+  ↯ ε0 ∗
     (∀ x : fin (S N),
-        (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨ € ε1) -∗ Φ #x)
+        (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨ ↯ ε1) -∗ Φ #x)
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (HN Hleq) "[Herr Hwp]".
@@ -858,13 +858,13 @@ Qed.
 Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
-  € ε0 ∗
+  ↯ ε0 ∗
     (∀ x : fin (S N),
-        (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨  € ε1 ) -∗ Φ #x)
+        (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨  ↯ ε1 ) -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (HN HK) "[Herr Hwp]".
-  iApply ub_twp_ub_wp'.
+  iApply tgl_wp_pgl_wp'.
   wp_apply twp_rand_err_list_adv; eauto.
   iFrame.
 Qed.
@@ -872,8 +872,8 @@ Qed.
 Lemma twp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
-  € ε0 ∗
-    (∀ x : fin (S N), ((⌜ P x = false⌝) ∨ € ε1 ) -∗ Φ #x)
+  ↯ ε0 ∗
+    (∀ x : fin (S N), ((⌜ P x = false⌝) ∨ ↯ ε1 ) -∗ Φ #x)
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (? HK) "[H1 Hwp]".
@@ -959,8 +959,8 @@ Lemma twp_rand_err_filter_below (N : nat) (M : nat) (z : Z) (ε0 ε1 : nonnegrea
   TCEq N (Z.to_nat z) →
   (M <= N) ->
   (ε1 * (M + 1) <= ε0 * (N + 1))%R ->
-  € ε0 ∗
-    (∀ x : fin (S N), ((⌜ M < x ⌝) ∨ € ε1 ) -∗ Φ #x)
+  ↯ ε0 ∗
+    (∀ x : fin (S N), ((⌜ M < x ⌝) ∨ ↯ ε1 ) -∗ Φ #x)
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (? HMN HK) "[H1 Hwp]".
@@ -984,8 +984,8 @@ Lemma twp_rand_err_filter_above (N : nat) (M : nat) (z : Z) (ε0 ε1 : nonnegrea
   TCEq N (Z.to_nat z) →
   (M <= N) ->
   (ε1 * (N - M) <= ε0 * (N + 1))%R ->
-  € ε0 ∗
-    (∀ x : fin (S N), ((⌜ x <= M ⌝) ∨ € ε1 ) -∗ Φ #x)
+  ↯ ε0 ∗
+    (∀ x : fin (S N), ((⌜ x <= M ⌝) ∨ ↯ ε1 ) -∗ Φ #x)
     ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (? HMN HK) "[H1 Hwp]".
@@ -1007,40 +1007,40 @@ Qed.
 Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
-  € ε0 ∗
-    (∀ x : fin (S N), (⌜ P x = false⌝ ∨ € ε1) -∗ Φ #x)
+  ↯ ε0 ∗
+    (∀ x : fin (S N), (⌜ P x = false⌝ ∨ ↯ ε1) -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (? HK) "[H1 Hwp]".
-  iApply ub_twp_ub_wp'.
+  iApply tgl_wp_pgl_wp'.
   wp_apply twp_rand_err_filter_adv; eauto.
   iFrame.
 Qed.
 
 
 Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp Σ) Φ:
-  (€ ε1 -∗ P -∗ WP e @ s; E {{ Q }}) -∗
-                                        (∀ x, Q x -∗ € ε2 -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
-                                                                                              P -∗ € (ε1+ε2)%NNR -∗ WP K e @ s; E {{ Φ }}.
+  (↯ ε1 -∗ P -∗ WP e @ s; E {{ Q }}) -∗
+                                        (∀ x, Q x -∗ ↯ ε2 -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
+                                                                                              P -∗ ↯ (ε1+ε2)%NNR -∗ WP K e @ s; E {{ Φ }}.
   Proof.
     iIntros "H1 H2 HP Hε".
-    iApply ub_wp_bind.
+    iApply pgl_wp_bind.
     iDestruct ("Hε") as "[He1 He2]".
-    iApply (ub_wp_wand with "[H1 He1 HP]").
+    iApply (pgl_wp_wand with "[H1 He1 HP]").
     { by iApply ("H1" with "[$]"). }
     iIntros (v) "HQ".
     iApply ("H2" with "[$]"). done.
   Qed.    
 
   Lemma wp_bind_err_exp e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp Σ) Φ:
-    (€ ε1 -∗ P -∗ WP e @ s; E {{ v, € (ε2 v) ∗ (Q v)}}) -∗
-                                                           (∀ x, Q x -∗ € (ε2 x) -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
-                                                                                                                     P -∗ € ε1 -∗ WP K e @ s; E {{ Φ }}.
+    (↯ ε1 -∗ P -∗ WP e @ s; E {{ v, ↯ (ε2 v) ∗ (Q v)}}) -∗
+                                                           (∀ x, Q x -∗ ↯ (ε2 x) -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
+                                                                                                                     P -∗ ↯ ε1 -∗ WP K e @ s; E {{ Φ }}.
   Proof.
     iIntros "H1 H2 HP Hε".
-    iApply ub_wp_bind.
-    iApply (ub_wp_wand with "[H1 Hε HP]").
-    { instantiate (1 := (λ v, € (ε2 v) ∗ Q v)%I). by iApply ("H1" with "[$]"). }
+    iApply pgl_wp_bind.
+    iApply (pgl_wp_wand with "[H1 Hε HP]").
+    { instantiate (1 := (λ v, ↯ (ε2 v) ∗ Q v)%I). by iApply ("H1" with "[$]"). }
     iIntros (v) "[Hε HQ]".
     iApply ("H2" with "[$]"). done.
   Qed.    
@@ -1051,14 +1051,14 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
 
   (** * Approximate Lifting *)
   
-  Lemma ub_lift_state (N : nat) 𝜎 𝛼 ns :
+  Lemma pgl_state (N : nat) 𝜎 𝛼 ns :
     𝜎.(tapes) !! 𝛼 = Some (N; ns) →
-    ub_lift
+    pgl
       (state_step 𝜎 𝛼)
       (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
       nnreal_zero.
   Proof.
-    rewrite /ub_lift. intros Htapes.
+    rewrite /pgl. intros Htapes.
     apply Req_le_sym; simpl.
     rewrite /prob SeriesC_0; auto.
     intros 𝜎'.
@@ -1083,23 +1083,23 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       ⊢ WP e @ E [{ Φ }].
   Proof.
     iIntros (He) "(H𝛼&Hwp)".
-    iApply twp_lift_step_fupd_exec_ub; [done|].
+    iApply twp_lift_step_fupd_glm; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
-    iApply exec_ub_state_step.
+    iApply glm_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
     iSplitR.
-    { iPureIntro. apply ub_lift_state, Hlookup. }
+    { iPureIntro. apply pgl_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
-    rewrite !ub_twp_unfold /ub_twp_pre /= He.
+    rewrite !tgl_wp_unfold /tgl_wp_pre /= He.
     iSpecialize ("Hwp" $! 𝜎' ε).
     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
@@ -1116,23 +1116,23 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (He) "(>H𝛼&Hwp)".
-    iApply wp_lift_step_fupd_exec_ub; [done|].
+    iApply wp_lift_step_fupd_glm; [done|].
     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
-    iApply exec_ub_state_step.
+    iApply glm_state_step.
     { rewrite /= /get_active.
       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
     iExists _.
     iSplitR.
-    { iPureIntro. apply ub_lift_state, Hlookup. }
+    { iPureIntro. apply pgl_state, Hlookup. }
     iIntros (𝜎') "[%n %H𝜎']".
     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
     iMod "Hclose'" as "_".
     iSpecialize ("Hwp" $! n with "H𝛼").
-    rewrite !ub_wp_unfold /ub_wp_pre /= He.
+    rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
     iSpecialize ("Hwp" $! 𝜎' ε).
     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
@@ -1147,18 +1147,18 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     to_val e = None →
     SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
     α ↪ (N; ns) ∗
-      € ε1 ∗
-      (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E [{ Φ }])
+      ↯ ε1 ∗
+      (∀ (n : fin (S N)), ↯ (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
   Proof.
     iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)".
-    iApply twp_lift_step_fupd_exec_ub; [done|].
+    iApply twp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    iApply (exec_ub_state_adv_comp' α); simpl.
+    iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
       done. }
@@ -1270,8 +1270,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iSplit.
     {
       iPureIntro.
-      eapply UB_mon_pred; last first.
-      - apply ub_lift_state. apply Hlookup.
+      eapply pgl_mon_pred; last first.
+      - apply pgl_state. apply Hlookup.
       - done.
     }
 
@@ -1301,7 +1301,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
     iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
-    rewrite ub_twp_unfold /ub_twp_pre.
+    rewrite tgl_wp_unfold /tgl_wp_pre.
     simpl.
     remember {| heap := heap2; tapes := tapes2 |} as σ2.
     rewrite Hσ_red.
@@ -1323,18 +1323,18 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     to_val e = None →
     SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
     α ↪ (N; ns) ∗
-      € ε1 ∗
-      (∀ (n : fin (S N)), € (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+      ↯ ε1 ∗
+      (∀ (n : fin (S N)), ↯ (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)".
-    iApply wp_lift_step_fupd_exec_ub; [done|].
+    iApply wp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
-    iApply (exec_ub_state_adv_comp' α); simpl.
+    iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
       done. }
@@ -1446,8 +1446,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iSplit.
     {
       iPureIntro.
-      eapply UB_mon_pred; last first.
-      - apply ub_lift_state. apply Hlookup.
+      eapply pgl_mon_pred; last first.
+      - apply pgl_state. apply Hlookup.
       - done.
     }
 
@@ -1476,7 +1476,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
     iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
-    rewrite ub_wp_unfold /ub_wp_pre.
+    rewrite pgl_wp_unfold /pgl_wp_pre.
     remember {| heap := heap2; tapes := tapes2 |} as σ2.
     rewrite /= Hσ_red /=.
     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
@@ -1496,15 +1496,15 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
 
 
   Lemma wp_1_err e E Φ :
-    to_val e = None -> (forall σ, reducible (e, σ)) -> € nnreal_one ⊢ WP e @ E {{Φ}}.
+    to_val e = None -> (forall σ, reducible (e, σ)) -> ↯ nnreal_one ⊢ WP e @ E {{Φ}}.
   Proof.
     iIntros (H1 H2) "He".
-    iApply wp_lift_step_fupd_exec_ub; first done.
+    iApply wp_lift_step_fupd_glm; first done.
     iIntros (σ1 ε) "[Hσ Hε]".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose'".
     iDestruct (ec_supply_bound with "Hε He ") as %Hle.
-    iApply exec_ub_prim_step.
+    iApply glm_prim_step.
     iExists (λ _, False), nnreal_one, nnreal_zero.
     iSplitR.
     { iPureIntro. eauto. }
@@ -1514,7 +1514,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       simpl. lra.
     }
     iSplitR.
-    { iPureIntro. unfold ub_lift. intros.
+    { iPureIntro. unfold pgl. intros.
       by epose proof prob_le_1 as K.
     }
     by iIntros (? Hfalse) "%".
@@ -1524,7 +1524,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
   Lemma twp_ec_spend e E Φ ε :
     (1 <= ε.(nonneg))%R →
     (to_val e = None) ->
-    € ε -∗ WP e @ E [{ Φ }].
+    ↯ ε -∗ WP e @ E [{ Φ }].
   Proof.
     iIntros (? ?) "?".
     iExFalso.
@@ -1535,10 +1535,10 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
   Lemma wp_ec_spend e E Φ ε :
     (1 <= ε.(nonneg))%R →
     (to_val e = None) ->
-    € ε -∗ WP e @ E {{ Φ }}.
+    ↯ ε -∗ WP e @ E {{ Φ }}.
   Proof.
     iIntros.
-    iApply ub_twp_ub_wp'.
+    iApply tgl_wp_pgl_wp'.
     iApply twp_ec_spend; try done.
   Qed.
 
@@ -1600,10 +1600,10 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     L = length suffix_total ->
     (0 < L)%nat ->
     (α ↪ (N; prefix) ∗
-       (€ (pos_to_nn ε))
+       (↯ (pos_to_nn ε))
        ⊢ (∀ (i : nat) (HL : (i <= L)%nat),
-           (((∃ junk, α ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf)) ∨
-               (α ↪ (N; prefix ++ (take i suffix_total)) ∗ € (εR N L i ε (mk_fRwf N L i kwf HL))))
+           (((∃ junk, α ↪ (N; prefix ++ junk) ∗ ↯(εAmp N L ε kwf)) ∨
+               (α ↪ (N; prefix ++ (take i suffix_total)) ∗ ↯ (εR N L i ε (mk_fRwf N L i kwf HL))))
             -∗ WP e @ E [{ Φ }])
            -∗ WP e @ E [{ Φ }]))%I.
   Proof.
@@ -1646,10 +1646,10 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     L = length suffix_total ->
     (0 < L)%nat ->
     (α ↪ (N; prefix) ∗
-       (€ (pos_to_nn ε))
+       (↯ (pos_to_nn ε))
        ⊢ (∀ (i : nat) (HL : (i <= L)%nat),
-           (((∃ junk, α ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf)) ∨
-               (α ↪ (N; prefix ++ (take i suffix_total)) ∗ € (εR N L i ε (mk_fRwf N L i kwf HL))))
+           (((∃ junk, α ↪ (N; prefix ++ junk) ∗ ↯(εAmp N L ε kwf)) ∨
+               (α ↪ (N; prefix ++ (take i suffix_total)) ∗ ↯ (εR N L i ε (mk_fRwf N L i kwf HL))))
             -∗ WP e @ E {{ Φ }})
            -∗ WP e @ E {{ Φ }}))%I.
   Proof.
@@ -1691,9 +1691,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     L = (length suffix) ->
-    € (pos_to_nn ε) ∗
+    ↯ (pos_to_nn ε) ∗
       (α ↪ (N; prefix)) ∗
-      ((α ↪ (N; prefix ++ suffix) ∨ (∃ junk, α ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf))) -∗ WP e @ E [{ Φ }])
+      ((α ↪ (N; prefix ++ suffix) ∨ (∃ junk, α ↪ (N; prefix ++ junk) ∗ ↯(εAmp N L ε kwf))) -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
   Proof.
     iIntros (? ? Hl) "(Hcr & Htape & Hwp)".
@@ -1714,9 +1714,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     L = (length suffix) ->
-    € (pos_to_nn ε) ∗
+    ↯ (pos_to_nn ε) ∗
       (α ↪ (N; prefix)) ∗
-      ((α ↪ (N; prefix ++ suffix) ∨ (∃ junk, α ↪ (N; prefix ++ junk) ∗ €(εAmp N L ε kwf))) -∗ WP e @ E {{ Φ }})
+      ((α ↪ (N; prefix ++ suffix) ∨ (∃ junk, α ↪ (N; prefix ++ junk) ∗ ↯(εAmp N L ε kwf))) -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
   Proof.
     iIntros (? ? Hl) "(Hcr & Htape & Hwp)".
@@ -1736,9 +1736,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
-    € (pos_to_nn ε) ∗
+    ↯ (pos_to_nn ε) ∗
       (α ↪ (N; prefix)) ∗
-      ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk))) ∨ α ↪ (N; prefix ++ junk) ∗ €(pos_to_nn (εAmp_iter N L d ε kwf)))
+      ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk))) ∨ α ↪ (N; prefix ++ junk) ∗ ↯(pos_to_nn (εAmp_iter N L d ε kwf)))
        -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
   Proof.
@@ -1784,9 +1784,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
-    € (pos_to_nn ε) ∗
+    ↯ (pos_to_nn ε) ∗
       (α ↪ (N; prefix)) ∗
-      ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk))) ∨ α ↪ (N; prefix ++ junk) ∗ €(pos_to_nn (εAmp_iter N L d ε kwf)))
+      ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk))) ∨ α ↪ (N; prefix ++ junk) ∗ ↯(pos_to_nn (εAmp_iter N L d ε kwf)))
        -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -1834,7 +1834,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     (0 < N)%nat ->
     (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
     (0 < ε)%R ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (N; prefix)) ∗
       ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk)))) -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
@@ -1864,7 +1864,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     (0 < N)%nat ->
     (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
     (0 < ε)%R ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (N; prefix)) ∗
       ((∃ junk, α ↪ (N; prefix ++ junk ++ (suffix (prefix ++ junk)))) -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
@@ -1893,7 +1893,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     to_val e = None →
     (0 < ε)%R ->
     (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (S N; prefix)) ∗
       ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
@@ -1915,7 +1915,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     to_val e = None →
     (0 < ε)%R ->
     (forall junk, 0 < (length (suffix (prefix ++ junk))) <= L)%nat ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (S N; prefix)) ∗
       ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix (prefix ++ junk))) -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
@@ -1937,7 +1937,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (0 < ε)%R ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (S N; prefix)) ∗
       ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix)) -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
@@ -1956,7 +1956,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (0 < ε)%R ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (S N; prefix)) ∗
       ((∃ junk, α ↪ (S N; prefix ++ junk ++ suffix)) -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
@@ -2002,7 +2002,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (0 < ε)%R ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (S N; prefix)) ∗
       ((∃ junk, α ↪ (S N; prefix ++ junk ++ (block_pad N (length suffix) (prefix ++ junk)) ++ suffix)) -∗ WP e @ E [{ Φ }])
       ⊢ WP e @ E [{ Φ }].
@@ -2026,7 +2026,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     TCEq N (Z.to_nat z) →
     to_val e = None →
     (0 < ε)%R ->
-    € ε ∗
+    ↯ ε ∗
       (α ↪ (S N; prefix)) ∗
       ((∃ junk, α ↪ (S N; prefix ++ junk ++ (block_pad N (length suffix) (prefix ++ junk)) ++ suffix)) -∗ WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
@@ -2050,9 +2050,9 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     to_val e = None ->
     (0 < ε)%R ->
     (1 < k)%R ->
-    □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (Ψ -∗ € (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
-      Ψ -∗ € ε' -∗ WP e @ E [{ Φ }]) -∗
-      Ψ -∗ € ε -∗ WP e @ E [{ Φ }].
+    □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (Ψ -∗ ↯ (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
+      Ψ -∗ ↯ ε' -∗ WP e @ E [{ Φ }]) -∗
+      Ψ -∗ ↯ ε -∗ WP e @ E [{ Φ }].
   Proof.
     iIntros (Hnval Hpos Hgt1) "#Hrec HΨ Herr".
     iRevert "HΨ".

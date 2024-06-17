@@ -1,10 +1,9 @@
-From Coq Require Export Reals Psatz.
+From Coq Require Import Reals Psatz.
 
-From iris.base_logic.lib Require Export fancy_updates own.
+From iris.base_logic.lib Require Export fancy_updates.
 From iris.proofmode Require Import base tactics classes.
 
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob Require Export couplings distribution markov.
+From clutch.prob Require Import distribution markov.
 
 Set Default Proof Using "Type".
 
