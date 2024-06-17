@@ -3393,3 +3393,4 @@ Section b_tree.
   End final_proof.
   
 
+End b_tree.
