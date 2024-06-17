@@ -388,6 +388,20 @@ Proof.
   by eapply prim_coupl_step_prim.
 Qed.
 
+Lemma iterM_state_step_erasable σ1 α bs n:
+  σ1.(tapes) !! α = Some bs →
+  erasable (iterM n (λ σ, state_step σ α) σ1) σ1.
+Proof.
+  revert σ1 bs.
+  induction n; intros σ1 bs H.
+  - simpl. apply dret_erasable.
+  - simpl. apply erasable_dbind; first by eapply state_step_erasable.
+    intros ? H0. 
+    destruct bs. 
+    erewrite state_step_unfold in H0; last done.
+    rewrite dmap_pos in H0. destruct H0 as (?&->&K).
+    eapply IHn. simpl. apply lookup_insert.
+Qed.
 
 Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v:
   σ1.(tapes) !! α = Some bs →

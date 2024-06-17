@@ -373,6 +373,22 @@ Section list_specs.
       wp_pures. iApply "HΦ". iPureIntro. right. eauto.
   Qed.
 
+  
+  Lemma spec_list_head E lv l K:
+    is_list l lv -> 
+    ⤇ fill K (list_head lv) -∗
+    spec_update E
+    (∃ v, ⤇ fill K v∗
+       ⌜(l = [] ∧ v = NONEV) ∨ (∃ a l', l = a :: l' ∧ v = SOMEV (inject a))⌝ ).
+  Proof.
+    iIntros (a) "Hspec".
+    rewrite /list_head.
+    tp_pures. destruct l; simpl in *; subst.
+    - tp_pures. iApply spec_update_ret. iFrame. iPureIntro. naive_solver.
+    - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
+      tp_pures. iApply spec_update_ret. iFrame. iPureIntro. naive_solver.
+  Qed.
+
   Lemma wp_list_tail E lv l :
     {{{ ⌜is_list l lv⌝ }}}
       list_tail lv @ E
@@ -383,6 +399,20 @@ Section list_specs.
     - wp_match. wp_inj. by iApply "HΦ".
     - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
       wp_match. wp_proj. by iApply "HΦ".
+  Qed.
+
+  Lemma spec_list_tail E lv l K:
+    is_list l lv ->
+     ⤇ fill K (list_tail lv) -∗
+     spec_update E
+       (∃ (v:val), ⤇ (fill K v) ∗ ⌜is_list (tail l) v⌝).
+  Proof.
+    iIntros (a) "Hspec".
+    rewrite /list_tail.
+    tp_pures. destruct l; simpl in *; subst.
+    - tp_pures. iApply spec_update_ret. iFrame. done.
+    - destruct a as [lv' [Hhead Htail]] eqn:Heq; subst.
+      tp_pures. iApply spec_update_ret. iFrame. done.
   Qed.
 
   Lemma wp_list_length E l lv :
@@ -702,6 +732,32 @@ Section list_specs.
         iNext. iIntros (v [ (Hv & Hs) | Hps]); simpl.
         * iApply "HΦ"; try eauto with lia.
         * iApply "HΦ"; try eauto with lia.
+  Qed.
+
+  Lemma spec_list_nth E l lv (i:nat) K:
+    is_list l lv -> 
+    ⤇ fill K (list_nth (Val lv) #i) -∗ spec_update E (∃ v, (⤇ fill K (of_val v)) ∗
+                                                           ((⌜v = NONEV⌝ ∧ ⌜length l <= i⌝) ∨
+                                                              ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝)).
+  Proof.
+    iIntros "%Ha Hspec".
+    iInduction l as [|a l'] "IH" forall (i lv Ha);
+      simpl in Ha; subst; rewrite /list_nth; tp_pures; rewrite -/list_nth.
+    - iApply spec_update_ret. iFrame. iLeft. iPureIntro. split; [done|simpl; lia].
+    - destruct Ha as [lv' [Hlv Hlcoh]]; subst.
+      tp_pures; first naive_solver. case_bool_decide; tp_pures. 
+      + iApply spec_update_ret. iFrame. iRight. iPureIntro. simplify_eq.
+        replace i with 0%nat; last lia. simpl. naive_solver.
+      + destruct i; first done.
+        assert ((S i - 1)%Z = i) as -> by lia.
+        iApply spec_update_mono.
+        iSplitL.
+        -- iApply ("IH" $! i lv' _ with "[Hspec]"); done.
+        -- iIntros "(%&?&[%|[%%]])".
+           ++ iFrame. iLeft. iPureIntro. simpl. split; [naive_solver|lia].
+           ++ iFrame. iRight. iPureIntro. naive_solver.
+              Unshelve.
+              done.
   Qed.
 
   Lemma wp_list_nth_some E (i: nat) l lv  :

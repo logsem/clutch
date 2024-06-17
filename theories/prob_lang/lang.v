@@ -543,6 +543,16 @@ Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
 Qed.
 
 
+Lemma state_upd_tapes_no_change σ l n ys :
+  tapes σ !! l = Some (n; ys)-> 
+  state_upd_tapes <[l:=(n; ys)]> σ = σ .
+Proof.
+  destruct σ as [? t]. simpl.
+  intros Ht.
+  f_equal.
+  apply insert_id. done.
+Qed.
+
 Lemma state_upd_tapes_same' σ σ' l n xs (x y : fin (S n)) :
   state_upd_tapes <[l:=(n; xs++[x])]> σ = state_upd_tapes <[l:=(n; xs++[y])]> σ' -> x = y.
 Proof. intros H. apply state_upd_tapes_same in H.

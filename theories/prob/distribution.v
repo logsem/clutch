@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect.
 From Coquelicot Require Import Rcomplements Rbar Series Lim_seq Hierarchy.
 From stdpp Require Export countable finite.
-From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical.
+From clutch.prelude Require Export base stdpp_ext Reals_ext Coquelicot_ext Series_ext classical uniform_list.
 From clutch.prob Require Export countable_sum.
 
 Record distr (A : Type) `{Countable A} := MkDistr {
@@ -423,6 +423,12 @@ Section monadic.
 
   Context `{Countable B}.
 
+  Lemma dbind_unfold_pmf μ1 (μ2 : A -> distr B) (b : B):
+    (μ1 ≫= μ2) b = SeriesC (λ a : A, μ1 a * μ2 a b).
+  Proof.
+    done.
+  Qed.
+  
   Lemma dret_id_left_pmf (f : A → distr B) (a : A) (b : B) :
     (a' ← dret a; f a') b = f a b.
   Proof.
@@ -1303,6 +1309,13 @@ Section dmap.
   Proof. rewrite /dmap dret_id_right //. Qed.
 
   Context `{Countable B}.
+  
+  Lemma dmap_unfold_pmf (f: A -> B) μ (b:B):
+    dmap f μ b = SeriesC (λ a : A, μ a * (if bool_decide (b = f a) then 1 else 0)).
+  Proof.
+    done.
+  Qed.
+  
   Context `{Countable X}.
 
   Lemma dmap_dret_pmf (f : A → B) (a : A) (b : B) :
@@ -2187,6 +2200,77 @@ Section uniform.
   Qed.
 
 End uniform.
+
+(** Uniform lists *)
+Section uniform_lists.
+  Program Definition dunifv (N p: nat): distr (list (fin (S N))) :=
+    MkDistr (λ x, if (bool_decide (length x = p)) then /(S N^p)%nat else 0) _ _ _.
+  Next Obligation.
+    intros. simpl.
+    case_bool_decide; last done.
+    rewrite -Rdiv_1_l. apply Rdiv_le_0_compat; first lra.
+    replace 0 with (INR 0) by done.
+    apply lt_INR.
+    apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
+    apply Nat.pow_le_mono_r; lia.
+  Qed.
+  Next Obligation.
+    intros.
+    eapply ex_seriesC_ext; last apply ex_seriesC_list.
+    simpl. intros. erewrite bool_decide_ext; first done.
+    by erewrite elem_of_enum_uniform_list.
+  Qed.
+  Next Obligation.
+    intros N p.
+    erewrite SeriesC_ext. 
+    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
+      rewrite enum_uniform_list_length.
+      erewrite Rinv_l; first done.
+      apply not_0_INR.
+      apply Nat.pow_nonzero.
+      lia.
+    - intros. erewrite bool_decide_ext; first done.
+      by erewrite elem_of_enum_uniform_list.
+  Qed.
+  
+  Lemma dunifv_pmf N p v:
+    dunifv N p v= if (bool_decide (length v = p)) then / (S N^p)%nat else 0.
+  Proof. done. Qed.
+
+  Lemma dunifv_mass N p:
+    SeriesC (dunifv N p) = 1.
+  Proof.
+    erewrite SeriesC_ext.
+    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
+      rewrite enum_uniform_list_length.
+      erewrite Rinv_l; first done.
+      apply not_0_INR.
+      apply Nat.pow_nonzero. lia.
+    - intros.
+      rewrite /dunifv_pmf.
+      erewrite bool_decide_ext; first done.
+      by erewrite elem_of_enum_uniform_list.
+  Qed. 
+
+  Lemma dunifv_pos N p v:
+    length v = p <-> 
+    dunifv N p v > 0.
+  Proof.
+    split.
+    - rewrite dunifv_pmf /=.
+      intros. 
+      rewrite bool_decide_eq_true_2; last done.
+      apply Rinv_pos.
+      apply Rlt_gt.
+      apply lt_0_INR.
+      apply PeanoNat.Nat.lt_le_trans with (S N ^ 0)%nat; first by (simpl; lia).
+      apply Nat.pow_le_mono_r; lia.
+    - rewrite /dunifv/pmf/=.
+      case_bool_decide; last lra.
+      done.
+  Qed.
+  
+End uniform_lists.
 
 Ltac inv_distr :=
   repeat

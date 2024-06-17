@@ -1479,3 +1479,14 @@ Proof.
   lra.
 Qed.
 
+Lemma ARcoupl_antisym `{Countable A} (μ1 μ2: distr A):
+  ARcoupl μ1 μ2 eq 0 -> ARcoupl μ2 μ1 eq 0 ->
+  μ1 = μ2.
+Proof.
+  intros H1 H2.
+  apply distr_ext.
+  intros a.
+  pose proof (ARcoupl_eq_elim _ _ _ H1 a).
+  pose proof (ARcoupl_eq_elim _ _ _ H2 a). lra.
+Qed. 
+  
