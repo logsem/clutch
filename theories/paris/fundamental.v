@@ -3,12 +3,12 @@ From iris.base_logic Require Export invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext. 
 From clutch.prob_lang Require Import metatheory notation lang.
-From clutch.clutch Require Import primitive_laws model compatibility rel_rules rel_tactics.
+From clutch.paris Require Import primitive_laws model compatibility app_rel_rules rel_tactics.
 From clutch.prob_lang.typing Require Import types.
-From clutch.clutch Require Import interp.
+From clutch.paris Require Import interp.
 
 Section fundamental.
-  Context `{!clutchRGS Σ}.
+  Context `{!parisRGS Σ}.
   Implicit Types Δ : listO (lrelC Σ).
   Hint Resolve to_of_val : core.
 
@@ -577,7 +577,7 @@ End fundamental.
 
 
 Section bin_log_related_under_typed_ctx.
-  Context `{!clutchRGS Σ}.
+  Context `{!parisRGS Σ}.
 
   (* Precongruence *)
   Lemma bin_log_related_under_typed_ctx Γ e e' τ Γ' τ' K :
