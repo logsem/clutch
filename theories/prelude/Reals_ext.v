@@ -180,6 +180,7 @@ Ltac2 split_le_le _ :=
   end
   ; ltac1:(intuition idtac).
 
+
 (* real_simpl should be save to use, i.e., it should make no "regrettable" choices. *)
 Ltac real_simpl :=
   match goal with
@@ -205,6 +206,12 @@ Ltac real_simpl :=
          | |- ?a * ?b < ?a * ?c => apply Rmult_lt_compat_l
          | |- ?a * ?b < ?c * ?b => apply Rmult_lt_compat_r
 
+         (* INR *)                           
+         | |- 0 < INR _ => apply lt_0_INR                                  
+         | |- 0 <= INR _ => apply pos_INR
+         | |- INR _ <= INR _ => apply le_INR
+         | |- INR _ < INR _ => apply lt_INR
+                                  
          (* = *)
          | H : ?r1 + ?r = ?r2 + ?r |- _ =>
              (apply Rplus_eq_reg_r in H; subst)
@@ -224,7 +231,7 @@ Ltac real_simpl :=
 
          (* general solving patterns *)
          | |- ∀ _, _ => intros
-         | _ => done || lra || eauto
+         | _ => done || lra || eauto with real || lia
          end.
 
 Ltac real_solver_partial :=

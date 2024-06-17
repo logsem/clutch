@@ -93,8 +93,21 @@ Proof.
   exact (proj2_sig (Choice unit A (λ _ x, P x) (λ _, Hex)) tt).
 Qed.
 
+Definition f_inv {A B} f `{Surj A B (=) f} : B → A := λ b, epsilon (surj f b).
+
+Lemma f_inv_cancel_r {A B} f `{Surj A B (=) f} b :
+  f (f_inv f b) = b.
+Proof.
+  unfold f_inv; simpl.
+  by rewrite (epsilon_correct _ (surj f b)).
+Qed.
+
+Lemma f_inv_cancel_l {A B} f `{Inj A B (=) (=) f, Surj A B (=) f} b :
+  f_inv f (f b) = b.
+Proof. apply (inj f), (epsilon_correct _ (surj f (f b))). Qed.
+
 Lemma partial_inv_fun {A B : Type} (f : A -> B) :
-  {f_inv : B -> option A | (forall b a, (f_inv b = Some a -> f a = b) /\ (f_inv b = None -> f a ≠ b)) }.
+  {f_inv : B → option A | (∀ b a, (f_inv b = Some a → f a = b) ∧ (f_inv b = None → f a ≠ b)) }.
 Proof.
   epose proof (Choice B (option A) (λ b o, forall a, (o = Some a -> f a = b) /\ (o = None -> f a ≠ b))  _) as (g & Hg).
   by exists g.

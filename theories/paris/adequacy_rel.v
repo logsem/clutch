@@ -17,10 +17,10 @@ Theorem refines_coupling Σ `{parisRGpreS Σ}
   (A : ∀ `{parisRGS Σ}, lrel Σ) (φ : val → val → Prop) e e' σ σ' :
   (∀ `{parisRGS Σ}, ∀ v v', A v v' -∗ ⌜φ v v'⌝) →
   (∀ `{parisRGS Σ}, ⊢ REL e << e' : A) →
-  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ 0%NNR.
+  ARcoupl (lim_exec (e, σ)) (lim_exec (e', σ')) φ 0.
 Proof.
   intros HA Hlog.
-  eapply (wp_adequacy_error_lim Σ).
+  eapply (wp_adequacy_error_lim Σ); [done|].
   intros H0 ε Hpos.
   iIntros "He' Herr".
   iMod na_alloc as "[%γ Htok]".

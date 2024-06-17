@@ -233,18 +233,14 @@ Section proof2.
       rewrite Rplus_assoc.
       iDestruct (etc_split with "[$Hx]") as "[Hx1 Hx2]".
       { auto. }
-      { apply Rplus_le_le_0_compat; try lra.
-        repeat apply Rmult_le_pos; try real_solver.
-        apply Rlt_le, Rinv_0_lt_compat.
-        apply pow_lt. lra.
+      { apply Rplus_le_le_0_compat; try lra.        
+        repeat apply Rmult_le_pos; real_solver.
       }
       set (current' := (λ x:fin (2%nat), (current*2+fin_to_nat x)*(2^remaining))%nat).
       set (f:= λ x: fin (2%nat), tc_total * (compute_num (current' x) (current' x + (2^remaining)) 243)%nat/(2^remaining)).
       wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _ f with "[$Hx2]").
       * intros n. rewrite /f.
-        repeat apply Rmult_le_pos; try real_solver.
-        apply Rlt_le, Rinv_0_lt_compat.
-        apply pow_lt. lra.
+        repeat apply Rmult_le_pos; real_solver.
       * simpl. f_equal. rewrite SeriesC_finite_foldr. simpl.
         eapply compute_num_split_lemma; done.
       * iIntros (n) "Hx".

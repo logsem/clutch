@@ -338,8 +338,8 @@ Section rules.
     by iApply refines_ret.
   Qed.
 
-  Lemma refines_couple_TT_err (N M : nat) E e1 e2 A α αₛ ns nsₛ (ε : nonnegreal) :
-    (N <= M)%R →
+  Lemma refines_couple_TT_err (N M : nat) E e1 e2 A α αₛ ns nsₛ (ε : R) :
+    (N <= M)%nat →
     (((S M - S N) / S M) = ε)%R →
     (▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
     (∀ (n : fin (S N)) (m : fin (S M)),
@@ -350,8 +350,7 @@ Section rules.
     iIntros (Hleq Heq) "(Hα & Hαs & Herr & Hlog)".
     rewrite refines_eq /refines_def.
     iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
-    wp_apply (wp_couple_tapes N M);
-      [done|done|].
+    wp_apply (wp_couple_tapes N M); [done|done|].
     iFrame.
     iIntros (n m) "H [Hα Hαs]".
     iApply ("Hlog" with "[$H] [$Hα $Hαs] [$He2] Hnais Herr' Hpos").
@@ -359,16 +358,14 @@ Section rules.
   Definition refines_couple_tapes := refines_couple_TT_err.
 
   Lemma refines_couple_TT_frag {M N} (f : fin(S M) → fin (S N)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ :
-    (M <= N)%R →
+    (M <= N)%nat →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     (∀ (n : fin (S N)),
-       if bool_decide(∃ m, f m = n) then
-         ∀ m,
-       α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f m = n⌝ -∗
-         REL e1 << e2 @ E : A
-     else
-       α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ) -∗
-         REL e1 << e2 @ E : A
+       if bool_decide (∃ m, f m = n) then
+         ∀ m, α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f m = n⌝ -∗
+              REL e1 << e2 @ E : A
+       else
+         α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ) -∗ REL e1 << e2 @ E : A
     )
     ⊢ REL e1 << e2 @ E : A.
   Proof.
@@ -386,60 +383,57 @@ Section rules.
       iApply ("Hlog" with "[$Hα $Hαs] [$He2] Hnais Herr' Hpos").
   Qed.
 
-  Lemma refines_couple_TT_adv {M N} (f : fin(S N) → fin (S M)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ ε :
-    (N < M)%R →
+  Lemma refines_couple_TT_adv {M N} (f : fin(S N) → fin (S M)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ (ε : R) :
+    (0 <= ε)%R →
+    (N < M)%nat →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
       (∀ (m : fin (S M)),
           if bool_decide (∃ n, f n = m) then
             ∀ n, α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ⌜f n = m⌝ -∗
                  REL e1 << e2 @ E : A
           else
-            ∀ (ε':nonnegreal),
-              ⌜(nonneg ε' = (S M) / (S M - S N) * ε)%R⌝ ∗
+            ∀ (ε' : R),
+              ⌜ε' = ((S M) / (S M - S N) * ε)%R⌝ ∗
               α ↪ (N; ns) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) ∗ ↯ ε' -∗
               REL e1 << e2 @ E : A)
       ⊢ REL e1 << e2 @ E : A.
   Proof.
-    iIntros (Hleq) "(Hα & Hαs & Herr & Hlog)".
+    iIntros (Hε Hleq) "(Hα & Hαs & Herr & Hlog)".
     rewrite refines_eq /refines_def.
-    iIntros (K2 ε') "He2 Hnais Herr' Hpos/=".
-    wp_apply wp_couple_fragmented_rand_rand_inj_rev'; [done|].
+    set ε' := mknonnegreal _ Hε.
+    replace ε with ε'.(nonneg); [|done]. 
+    iIntros (K2 ε2) "He2 Hnais Herr' %Hε' /=".
+    wp_apply (wp_couple_fragmented_rand_rand_inj_rev' _ _ _ _ _ _ _ _ ε') ; [done|].
     iFrame "Hα Hαs Herr".
     iIntros (m).
     iSpecialize ("Hlog" $! m).
     case_bool_decide.
     - iIntros (n) "(Hα & Hαs & Hnm)".
-      iApply ("Hlog" with "[$Hα $Hαs $Hnm] [$He2] Hnais Herr' Hpos").
+      iApply ("Hlog" with "[$Hα $Hαs $Hnm] [$He2] Hnais Herr' [//]").
     - iIntros (ε'0) "(%Herr2 & Hα & Hαs & Herr'0)".
-      iApply ("Hlog" $! ε'0 with "[$Hα $Hαs $Herr'0] [$He2] Hnais [$Herr'] Hpos").
+      iApply ("Hlog" $! ε'0 with "[$Hα $Hαs $Herr'0] [$He2] Hnais [$Herr'] [//]").
       iPureIntro.
       done.
   Qed.
 
   Lemma refines_get_ec E e e' A :
-    (∀ ε : nonnegreal, ↯ ε -∗ ⌜ (0 < ε)%R ⌝ -∗ REL e << e' @ E : A) ⊢
+    (∀ ε : R, ↯ ε -∗ ⌜(0 < ε)%R⌝ -∗ REL e << e' @ E : A) ⊢
     (REL e << e' @ E : A).
   Proof.
     iIntros "H".
     rewrite refines_eq /refines_def.
     iIntros (K ε) "Hfill Hown Herr %Hpos".
-    replace (ε) with (nnreal_div ε (nnreal_nat 2) + nnreal_div ε (nnreal_nat 2))%NNR;
-      last first.
-    { apply nnreal_ext.
-      simpl. lra.
-    }
-    iPoseProof (ec_split with "Herr") as "[Herr1 Herr2]".
-    iApply ("H" with "Herr1 [] Hfill Hown Herr2").
-    - iPureIntro. simpl. lra.
-    - iPureIntro. simpl. lra.
+    replace (ε) with (ε / 2 + ε / 2)%R by lra. 
+    iDestruct (ec_split with "Herr") as "[Herr1 Herr2]";
+      [lra|lra|].
+    iApply ("H" with "Herr1 [] Hfill Hown Herr2"); iPureIntro; lra. 
   Qed.
 
-
-  Lemma refines_ind_amp E e e' A (k : nonnegreal) :
+  Lemma refines_ind_amp E e e' A (k : R) :
     (1 < k)%R ->
-    □ (∀ (ε : nonnegreal),
-          ⌜ (0 < ε)%R ⌝ -∗ (↯ ((k * ε)%NNR) -∗ (REL e << e' @ E : A))
-               -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
+    □ (∀ (ε : R),
+          ⌜(0 < ε)%R⌝ -∗ (↯ (k * ε) -∗ (REL e << e' @ E : A))
+          -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
       ⊢ REL e << e' @ E : A.
   Proof.
     intros Hk.
@@ -451,7 +445,6 @@ Section rules.
     iIntros (?) "% #? Herr".
     iApply ("IH" with "[//][$][$]").
   Qed.
-
 
   Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
     TCEq N (Z.to_nat z) →

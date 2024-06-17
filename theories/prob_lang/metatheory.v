@@ -493,7 +493,7 @@ Qed.
 
 (** * Approximate rand(N) ~ rand(M) coupling, N <= M *)
 Lemma ARcoupl_rand_rand (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
-  (N <= M)%R ->
+  (N ≤ M)%nat →
   (((S M - S N) / S M) = ε)%R →
   N = Z.to_nat z →
   M = Z.to_nat w →
@@ -514,7 +514,8 @@ Proof.
   1,2: apply cond_nonneg.
   2 : {
     rewrite -NMε.
-    by eapply ARcoupl_dunif_leq, S_INR_le_compat.
+    eapply ARcoupl_dunif_leq.
+    split; real_solver.
   }
   intros n m Hnm.
   apply ARcoupl_dret; [done|].
@@ -524,8 +525,8 @@ Qed.
 
 (** * Approximate rand(N) ~ rand(M) coupling, N <= M, along an injection *)
 Lemma ARcoupl_rand_rand_inj (N M : nat) f `{Inj (fin (S N)) (fin (S M)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
-  (N <= M)%R ->
-  (((S M - S N) / S M) = ε)%R →
+  (N <= M)%nat →
+  ((S M - S N) / S M = ε)%R →
   N = Z.to_nat z →
   M = Z.to_nat w →
   ARcoupl
@@ -545,7 +546,7 @@ Proof.
   2 : {
     rewrite -NMε.
     eapply ARcoupl_dunif_leq_inj; eauto.
-    by apply S_INR_le_compat.
+    apply S_INR_le_compat. real_solver.
   }
   intros n m Hnm.
   apply ARcoupl_dret; [done|]. 
@@ -555,7 +556,7 @@ Qed.
 
 (** * Approximate rand(N) ~ rand(M) coupling, M <= N *)
 Lemma ARcoupl_rand_rand_rev (N M : nat) z w σ1 σ1' (ε : nonnegreal) :
-  (M <= N)%R ->
+  (M <= N)%nat →
   (((S N - S M) / S N) = ε)%R →
   N = Z.to_nat z →
   M = Z.to_nat w →
@@ -576,7 +577,8 @@ Proof.
   1,2: apply cond_nonneg.
   2 : {
     rewrite -NMε.
-    by eapply ARcoupl_dunif_leq_rev, S_INR_le_compat.
+    eapply ARcoupl_dunif_leq_rev, S_INR_le_compat.
+    real_solver. 
   }
   intros n m Hnm.
   apply ARcoupl_dret; [done|]. 
@@ -587,7 +589,7 @@ Qed.
 
 (** * Approximate rand(N) ~ rand(M) coupling, M <= N, along an injection *)
 Lemma ARcoupl_rand_rand_rev_inj (N M : nat) f `{Inj (fin (S M)) (fin (S N)) (=) (=) f} z w σ1 σ1' (ε : nonnegreal) :
-  (M <= N)%R ->
+  (M <= N)%nat →
   (((S N - S M) / S N) = ε)%R →
   N = Z.to_nat z →
   M = Z.to_nat w →
@@ -607,7 +609,8 @@ Proof.
   1,2: apply cond_nonneg.
   2 : {
     rewrite -NMε.
-    by eapply ARcoupl_dunif_leq_rev_inj, S_INR_le_compat.
+    eapply ARcoupl_dunif_leq_rev_inj, S_INR_le_compat; [done|].
+    real_solver. 
   }
   intros n m Hnm.
   apply ARcoupl_dret; [done|]. 
@@ -618,7 +621,7 @@ Qed.
 
 (** * Approximate state_step(α, N) ~ state_step(α', N) coupling *)
 Lemma ARcoupl_state_state (N M : nat) σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
-  (N <= M)%R ->
+  (N <= M)%nat →
   (((S M - S N) / S M) = ε)%R →
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
@@ -641,14 +644,14 @@ Proof.
   unshelve eapply ARcoupl_dbind.
   { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
   { destruct ε ; done. } { simpl ; lra. }
-  2: { rewrite -NMε. by apply ARcoupl_dunif_leq, S_INR_le_compat. }
+  2: { rewrite -NMε. apply ARcoupl_dunif_leq, S_INR_le_compat. real_solver. }
   intros n m nm.
   apply ARcoupl_dret; [done|].
   simpl in nm. eauto.
 Qed.
 
 Lemma ARcoupl_state_state_rev (N M : nat) σ1 σ2 α1 α2 xs ys (ε : nonnegreal) :
-  (M <= N)%R ->
+  (M <= N)%nat →
   (((S N - S M) / S N) = ε)%R →
   σ1.(tapes) !! α1 = Some (N; xs) →
   σ2.(tapes) !! α2 = Some (M; ys) →
@@ -671,15 +674,14 @@ Proof.
   unshelve eapply ARcoupl_dbind.
   { exact (λ (n : fin (S N)) (m : fin (S M)), fin_to_nat n = m). }
   { destruct ε ; done. } { simpl ; lra. }
-  2: { rewrite -NMε. by apply ARcoupl_dunif_leq_rev, S_INR_le_compat. }
+  2: { rewrite -NMε. apply ARcoupl_dunif_leq_rev, S_INR_le_compat. real_solver. }
   intros n m nm.
   apply ARcoupl_dret; [done|]. 
   simpl in nm. eauto.
 Qed.
 
 Lemma ARcoupl_rand_no_coll_l `{Countable A} N (x : fin (S N)) z (σ : state) (a : A) (ε : nonnegreal) :
-  (0 < S N)%R →
-  ((1 / S N) = ε)%R →
+  (1 / S N = ε)%R →
   N = Z.to_nat z →
   ARcoupl
     (prim_step (rand #z) σ)
@@ -688,20 +690,19 @@ Lemma ARcoupl_rand_no_coll_l `{Countable A} N (x : fin (S N)) z (σ : state) (a 
         ρ = (Val #n, σ) ∧ (n ≠ x) ∧ a' = a)
     ε.
 Proof.
-  intros Npos Nε Nz.
+  intros Nε Nz.
   rewrite head_prim_step_eq /=.
   rewrite -Nz.
   rewrite -(dmap_dret (λ x, x) _) /dmap.
   replace ε with (ε + nnreal_zero)%NNR by (apply nnreal_ext ; simpl ; lra).
-  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
-  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_l _ _ x Npos).
+  eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..]; last first. 
+  { rewrite -Nε. apply (ARcoupl_dunif_no_coll_l _ _ x). real_solver. }
   move => n ? [xn ->]. apply ARcoupl_dret; [done|]. 
   exists n. auto.
 Qed.
 
 Lemma ARcoupl_rand_no_coll_r `{Countable A} N (x : fin (S N)) z (σₛ : state) (a : A) (ε : nonnegreal) :
-  (0 < S N)%R →
-  ((1 / S N) = ε)%R →
+  (1 / S N = ε)%R →
   N = Z.to_nat z →
   ARcoupl
     (dret a)
@@ -710,14 +711,14 @@ Lemma ARcoupl_rand_no_coll_r `{Countable A} N (x : fin (S N)) z (σₛ : state) 
         a' = a ∧ ρₛ = (Val #n, σₛ) ∧ (n ≠ x))
     ε.
 Proof.
-  intros Npos Nε Nz.
+  intros Nε Nz.
   rewrite head_prim_step_eq /=.
   rewrite -Nz.
   rewrite -(dmap_dret (λ x, x) _).
   rewrite /dmap.
   replace ε with (nnreal_plus ε nnreal_zero) by (apply nnreal_ext ; simpl ; lra).
   eapply ARcoupl_dbind ; [destruct ε ; done | simpl ; lra |..].
-  2: rewrite -Nε ; apply (ARcoupl_dunif_no_coll_r _ _ x Npos).
+  2: rewrite -Nε; apply (ARcoupl_dunif_no_coll_r _ _ x); real_solver.
   move => ? n [-> xn]. apply ARcoupl_dret; [done|]. 
   exists n. auto.
 Qed.
@@ -1142,9 +1143,9 @@ Proof.
 Qed.
 
 Lemma Rcoupl_fragmented_rand_rand_inj (N M: nat) (f: fin (S M) -> fin (S N)) (Hinj: Inj (=) (=) f) σ σₛ ms ns α αₛ:
-  (M<=N)%R ->
-  σ.(tapes) !! α = Some (N%nat; ns) ->
-  σₛ.(tapes) !! αₛ = Some (M%nat; ms) ->
+  (M<=N)%nat →
+  σ.(tapes) !! α = Some (N%nat; ns) →
+  σₛ.(tapes) !! αₛ = Some (M%nat; ms) →
   Rcoupl
     (state_step σ α)
     (dunifP N≫= λ x, if bool_decide (∃ m, f m = x) then state_step σₛ αₛ else dret σₛ)

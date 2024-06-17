@@ -18,7 +18,6 @@ Section adequacy.
   Lemma step_fupd_fupdN_S n (P : iProp Σ) :  ((|={∅}▷=>^(S n) P) ⊣⊢ (|={∅}=> |={∅}▷=>^(S n) P))%I.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
 
-
   Lemma pgl_dbind' `{Countable A, Countable A'}
     (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
     ⌜ 0 <= ε ⌝ -∗
@@ -149,7 +148,7 @@ Section adequacy.
       by iApply "IH".
   Qed.
 
-  Theorem wp_refRcoupl_step_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
+  Theorem wp_refRcoupl_step_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜pgl (exec n (e, σ)) φ ε⌝.
   Proof.
@@ -248,7 +247,7 @@ Section adequacy.
           { apply pmf_ex_seriesC_mult_fn. exists r. intros a. pose proof cond_nonneg (ε2 a). naive_solver. }
           eassert (ex_seriesC (λ a : expr * state, if Datatypes.negb (bool_decide (R a)) then prim_step e1 σ1 a else 0)).
           { apply ex_seriesC_filter_bool_pos; auto. }
-          rewrite -!SeriesC_plus; auto; last first.          
+          rewrite -!SeriesC_plus; auto; last first.
           { apply ex_seriesC_plus; auto. }
           apply SeriesC_le; last first.
           { repeat apply ex_seriesC_plus; auto. }
@@ -297,7 +296,7 @@ Section adequacy.
             rewrite -!(dmap_mass _ (λ x, x.1)).
             eapply Rcoupl_mass_eq.
             rewrite /=/get_active elem_of_elements elem_of_dom in Hα.
-            destruct Hα as [??]. 
+            destruct Hα as [??].
             by eapply pexec_coupl_step_pexec.
           }
           simpl. apply Rle_ge.
@@ -318,7 +317,7 @@ Section adequacy.
           rewrite !Rcomplements.Rle_minus_l.
           replace 1 with (SeriesC (state_step σ1 α)); last first.
           { apply state_step_mass. rewrite /get_active in Hα.
-            rewrite elem_of_elements in Hα. done. 
+            rewrite elem_of_elements in Hα. done.
           }
           assert (ex_seriesC (λ a : state, state_step σ1 α a * SeriesC (prim_step e1 a ≫= iterM n prim_step_or_val)) ).
           { apply pmf_ex_seriesC_mult_fn. exists 1. intros; auto. }
@@ -326,7 +325,7 @@ Section adequacy.
           { apply pmf_ex_seriesC_mult_fn. destruct Hε''. epose proof cond_nonneg. naive_solver. }
           eassert (ex_seriesC (λ a : state, if Datatypes.negb (bool_decide (R2 a)) then state_step σ1 α a else 0)).
           { apply ex_seriesC_filter_bool_pos; auto. }
-          rewrite -!SeriesC_plus; auto; last first. 
+          rewrite -!SeriesC_plus; auto; last first.
           { apply ex_seriesC_plus; auto. }
           apply SeriesC_le; last first.
           { repeat apply ex_seriesC_plus; auto. }
@@ -345,7 +344,7 @@ Section adequacy.
             apply Rplus_le_le_0_compat; first real_solver.
             apply Rmult_le_pos; auto.
             apply cond_nonneg.
-        } 
+        }
         iIntros (e s).
         iApply step_fupd_fupdN_S.
         iMod ("H" with "[//]") as "H"; iModIntro.
@@ -361,14 +360,14 @@ Section adequacy.
           * simpl. apply Rle_ge. apply Rle_minus. done.
           * apply Rle_ge; auto.
         + iDestruct ("H" with "[//]") as "H". done.
-      } 
+      }
       iInduction (language.get_active σ1) as [| α] "IH"; [done|].
       rewrite big_orL_cons.
       iDestruct "H" as "[H | Ht]"; [done|].
       by iApply "IH".
   Qed.
-  
-  Theorem wp_safety_fupdN (e : expr) (σ : state) (ε : nonnegreal) n φ  :
+
+  Theorem wp_safety_fupdN (ε : nonnegreal) (e : expr) (σ : state) n φ  :
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }} ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜SeriesC (pexec n (e, σ)) >= 1 - ε⌝.
   Proof.
@@ -392,7 +391,7 @@ Section adequacy.
         { pose proof cond_nonneg ε. lra. }
         erewrite SeriesC_ext; last first.
         { intros. setoid_rewrite prim_step_or_val_is_val; last done.
-          done. 
+          done.
         }
         erewrite (SeriesC_ext _ (λ n0, if bool_decide (n0 = (of_val v, σ)) then 1 else 0)); last first.
         * intros []. case_bool_decide as H0.
@@ -409,7 +408,7 @@ Section adequacy.
                    intros. case_bool_decide; subst; simpl.
                    --- rewrite IHn. rewrite step_or_final_is_final; first rewrite dret_1_1; [lra|done|].
                        rewrite /is_final. simpl. done.
-                   --- simpl. rewrite step_or_final_is_final; last by rewrite /is_final. 
+                   --- simpl. rewrite step_or_final_is_final; last by rewrite /is_final.
                        rewrite dret_0; last done. lra.
              ++ rewrite dret_0; last done. lra.
           -- apply SeriesC_0.
@@ -424,7 +423,7 @@ Section adequacy.
                 apply SeriesC_0.
                 intros. destruct (decide (x = (of_val v, σ))).
                 ** subst. rewrite IHn; try done. lra.
-                ** rewrite step_or_final_is_final; last by rewrite /is_final. 
+                ** rewrite step_or_final_is_final; last by rewrite /is_final.
                    rewrite dret_0; last done.
                    lra.
         * rewrite SeriesC_singleton. lra.
@@ -456,21 +455,22 @@ Class erisGpreS Σ := ErisGpreS {
 Definition erisΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
-    GFunctor (authR (realUR))].
+    GFunctor (authR nonnegrealUR)].
 Global Instance subG_erisGPreS {Σ} : subG erisΣ Σ → erisGpreS Σ.
 Proof. solve_inG. Qed.
 
-Theorem wp_pgl Σ `{erisGpreS Σ} (e : expr) (σ : state) n (ε : nonnegreal) φ :
+Theorem wp_pgl Σ `{erisGpreS Σ} (e : expr) (σ : state) n (ε : R) φ :
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (exec n (e, σ)) φ ε.
 Proof.
-  intros Hwp.
+  intros Hε Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   (* Handle the trivial 1 <= ε case *)
-  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
     iApply (fupd_mask_intro); [eauto|].
     iIntros "_".
@@ -479,63 +479,62 @@ Proof.
     apply not_Rlt, Rge_le in Hcr.
     rewrite /pgl; intros.
     eapply Rle_trans; [eapply prob_le_1|done]. }
-  iMod (ec_alloc with "[//]") as (?) "[? ?]".
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply wp_refRcoupl_step_fupdN.
+  iApply (wp_refRcoupl_step_fupdN ε').
   iFrame.
   iApply Hwp.
   done.
 Qed.
 
-Lemma pgl_closed_lim (e : expr) (σ : state) (ε : nonnegreal) φ :
-  (forall n, pgl (exec n (e, σ)) φ ε ) ->
+Lemma pgl_closed_lim (e : expr) (σ : state) (ε : R) φ :
+  (∀ n, pgl (exec n (e, σ)) φ ε) →
   pgl (lim_exec (e, σ)) φ ε .
-Proof.
-  intros Hn.
-  apply lim_exec_continuous_prob; auto.
-Qed.
+Proof. intros Hn. by apply lim_exec_continuous_prob. Qed.
 
-Theorem wp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+Theorem wp_pgl_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
   intros.
   apply pgl_closed_lim.
   intro n.
-  apply (wp_pgl Σ); auto.
+  by apply (wp_pgl Σ).
 Qed.
 
-Theorem wp_pgl_epsilon_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ :
+Theorem wp_pgl_epsilon_lim Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ :
+  0 <= ε →
   (∀ `{erisGS Σ} (ε':nonnegreal), ε<ε' -> ⊢ ↯ ε' -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (lim_exec (e, σ)) φ ε.
 Proof.
-  intros H'.
-  apply pgl_epsilon_limit.
-  { destruct ε. simpl. lra. }
+  intros ? H'.
+  apply pgl_epsilon_limit; [lra|].
   intros ε0 H1.
-  assert (0<=ε0) as Hε0.
-  { trans ε; try lra. by destruct ε. }
+  assert (0<=ε0) as Hε0 by lra.
   pose (mknonnegreal ε0 Hε0) as NNRε0.
   assert (ε0 = (NNRbar_to_real (NNRbar.Finite (NNRε0)))) as Heq.
   { by simpl. }
   rewrite Heq.
-  eapply wp_pgl_lim; first done.
+  eapply wp_pgl_lim; [done|done|].
   intros. iIntros "He".
   iApply H'; try iFrame.
-  simpl. destruct ε; simpl in H1; simpl; lra.
+  lra.
 Qed.
 
-Theorem wp_safety Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
+Theorem wp_safety Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ n:
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC (pexec n (e, σ)) >= 1 - ε.
 Proof.
-  intros Hwp.
+  intros Hε Hwp.
   eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
   iIntros (Hinv) "_".
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   (* Handle the trivial 1 <= ε case *)
-  destruct (Rlt_decision (nonneg ε) 1) as [Hcr|Hcr]; last first.
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
   { iClear "Hh Ht".
     iApply (fupd_mask_intro); [eauto|].
     iIntros "_".
@@ -545,9 +544,10 @@ Proof.
     trans 0.
     - apply Rle_ge. apply SeriesC_ge_0'. intros. auto.
     - simpl. lra. }
-  iMod (ec_alloc with "[//]") as (?) "[? ?]".
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[? ?]"; [done|].
   set (HclutchGS := HeapG Σ _ _ _ γH γT _).
-  iApply wp_safety_fupdN. iFrame.
+  iApply (wp_safety_fupdN ε'). iFrame.
   iApply Hwp. done.
 Qed.
 
@@ -562,8 +562,8 @@ Proof.
     erewrite (SeriesC_ext _ (λ x, if bool_decide (is_final (e, σ) ∨ reducible (e, σ))
                                   then dret (e, σ) x else 0)); last first.
     { intros. destruct (decide (n=(e,σ))).
-      - subst. done. 
-      - rewrite dret_0; last done. by repeat case_match. 
+      - subst. done.
+      - rewrite dret_0; last done. by repeat case_match.
     }
     case_bool_decide as H.
     + rewrite dret_mass. case_match; first by rewrite dret_mass.
@@ -600,13 +600,14 @@ Proof.
       * apply SeriesC_0.
         intros x. eassert (0<= step _ x) as [|<-] by auto; auto.
         exfalso. apply H. right. rewrite /reducible. naive_solver.
-Qed. 
+Qed.
 
-Corollary wp_safety' Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : nonnegreal) φ n:
+Corollary wp_safety' Σ `{erisGpreS Σ} (e : expr) (σ : state) (ε : R) φ n:
+  0 <= ε →
   (∀ `{erisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  probp (pexec n (e, σ)) (λ ρ, (is_final ρ \/ reducible ρ)) >= 1 - ε.
+  probp (pexec n (e, σ)) (λ ρ, is_final ρ ∨ reducible ρ) >= 1 - ε.
 Proof.
-  eintros H'%wp_safety; last done.
-  etrans; last exact.
-  by erewrite pexec_safety_relate.
+  intros Hε Hwp.
+  rewrite pexec_safety_relate.
+  by eapply (wp_safety Σ).
 Qed.

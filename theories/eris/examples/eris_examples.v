@@ -38,7 +38,7 @@ Section test.
     rewrite /e'.
     wp_apply (twp_rand_err_nat _ _ 1).
     iSplitL.
-    - iApply (ec_spend_irrel with "[$]").
+    - iApply (ec_eq with "[$]").
       simpl. lra.
     - iIntros (x) "%".
       wp_pures.
@@ -61,7 +61,7 @@ Section test.
   Proof.
     iIntros "Herr".
     iExFalso.
-    iApply ec_spend; last done.
+    iApply ec_contradict; last done.
     simpl. lra.
   Qed.
 
@@ -72,7 +72,7 @@ Section test.
     rewrite /e'.
     wp_apply (wp_rand_err_nat _ _ 0).
     iSplitL.
-    - iApply (ec_spend_irrel with "[$]").
+    - iApply (ec_eq with "[$]").
       simpl. lra.
     - iIntros (x) "%".
       wp_pures.
@@ -150,7 +150,7 @@ Definition foo N (m : nat) : expr :=
 
 
 Lemma wp_foo (N : nat) m E :
-  {{{ ↯ (nnreal_inv(nnreal_nat(N+1))) }}}
+  {{{ ↯ (/ (N + 1)) }}}
   (foo N m) @ E
   {{{ v, RET v; ⌜ v = #true ⌝ }}}.
 Proof.
@@ -174,7 +174,7 @@ Definition bar N : expr :=
 
 
 Definition wp_bar (N : nat) E :
-  {{{ ↯ (nnreal_inv(nnreal_nat(N+1))) }}}
+  {{{ ↯ (/ (N+1)) }}}
   (bar N) @ E
   {{{ v, RET v; ⌜ v = #true ⌝ }}}.
 Proof.
@@ -238,7 +238,7 @@ Proof.
       }
       rewrite /f/=.
       iExFalso.
-      iApply (ec_spend with "[$]"). done.
+      iApply (ec_contradict with "[$]"). done.
   - assert (n = 2%fin) as ->; [|].
     { inv_fin n; first done.
       repeat (intros i; inv_fin i; first done).

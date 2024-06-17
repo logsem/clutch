@@ -537,13 +537,17 @@ Section list_specs.
     iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
     iAssert (([∗ list] x ∈ l, P x ∗ ↯ err))%I with "[HP]" as "HP".
     { clear Hil. iInduction (l) as [| h t] "IH"; first done.
-      rewrite !big_sepL_cons. simpl.
+      rewrite !big_sepL_cons. 
       iDestruct "HP" as "[[HP HP'] Herr]".
       iFrame.
       iAssert (↯ err ∗ ↯ (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split.
-        assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%NNR as ->.
-        - apply nnreal_ext. simpl. case_match; destruct err; simpl; lra.
+        { apply cond_nonneg. }
+        { apply Rmult_le_pos; [apply cond_nonneg|].
+          apply pos_INR. }
+        rewrite cons_length.
+        assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%R as ->.
+        - simpl. case_match; destruct err; simpl; lra.
         - done.
       }
       iFrame. iApply "IH"; iFrame.
@@ -1140,13 +1144,16 @@ Section list_specs_extra.
     iIntros (Φ) "[#Hf [%Hil HP]] HΦ".
     iAssert (([∗ list] x ∈ l, P x ∗ ↯ err))%I with "[HP]" as "HP".
     { clear Hil. iInduction (l) as [| h t] "IH"; first done.
-      rewrite !big_sepL_cons. simpl.
+      rewrite !big_sepL_cons. 
       iDestruct "HP" as "[[HP HP'] Herr]".
       iFrame.
       iAssert (↯ err ∗ ↯ (err * nnreal_nat (length t))%NNR)%I with "[Herr]" as "[Herr Herr']".
       { iApply ec_split.
-        assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%NNR as ->.
-        - apply nnreal_ext. simpl. case_match; destruct err; simpl; lra.
+        { apply cond_nonneg. }
+        { apply Rmult_le_pos; [apply cond_nonneg|]. apply pos_INR. }
+        rewrite cons_length.
+        assert (err *nnreal_nat (S(length t)) = err + err * nnreal_nat (length t))%R as ->.
+        - simpl. case_match; destruct err; simpl; lra.
         - done.
       }
       iFrame. iApply "IH"; iFrame.

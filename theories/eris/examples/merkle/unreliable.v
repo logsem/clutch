@@ -136,7 +136,7 @@ Section unreliable_storage.
       wp_pures.
       wp_apply (wp_insert_amortized with "[$H Herr]").
       + simpl in Hmsize. lia.
-      + iApply ec_spend_irrel; last done.
+      + iApply ec_eq; last done.
         simpl. lra.
       + iIntros (hash) "(%m' & H&%&%&%)".
         wp_pures. replace 2%Z with (Z.of_nat 2) by lia.
@@ -182,15 +182,21 @@ Section unreliable_storage.
                ↯ ((nnreal_nat (1) * amortized_error val_size_for_hash max_hash_size _)%NNR)
                  
               )%I with "[Herr]" as "[Herr [Herr' Herr'']]".
-      { repeat rewrite  -ec_split. iApply ec_spend_irrel; last done.
-        remember (amortized_error val_size_for_hash max_hash_size) as x.
-        clear.
-        assert (forall x y z, (nnreal_nat x * z + nnreal_nat y * z)%NNR = (nnreal_nat (x+y) * z)%NNR) as Hr; last erewrite !Hr.
-        - clear. intros. destruct z. apply nnreal_ext. simpl. rewrite plus_INR. lra. 
-        - repeat f_equal. remember (S height) as h.
-          simpl. assert (1<=2^h).
-          + clear. induction h; simpl; lia.
-          + lia. 
+      { assert (1 <= 2^height).
+        { clear. induction height; simpl; lia. }
+        assert (nnreal_nat (2 ^ S (S height) - 1) =
+                nnreal_nat (2 ^ S height - 1) + nnreal_nat (2 ^ S height - 1) + nnreal_nat 1)%NNR as ->.
+        {  apply nnreal_ext. simpl.
+          rewrite -plus_INR. 
+          replace 1%R with (INR 1); [|done].
+          rewrite -plus_INR. f_equal.
+          lia. }
+        rewrite 2!Rmult_plus_distr_r.
+        iDestruct (ec_split with "Herr") as "[Herr $]".
+        { apply Rplus_le_le_0_compat; apply Rmult_le_pos; apply cond_nonneg. }
+        { rewrite Rmult_1_l. apply cond_nonneg. }
+        iDestruct (ec_split with "Herr") as "[$ $]";
+          apply Rmult_le_pos; apply cond_nonneg.
       }
       subst.
       replace (Z.of_nat (S height) - 1)%Z with (Z.of_nat height); last lia.
@@ -220,8 +226,7 @@ Section unreliable_storage.
              apply (PeanoNat.Nat.le_lt_trans _ (size m + 2 ^ S height - 1 + 2^S height - 1)); try lia.
              clear. simpl. assert (0<2^height); try lia.
              induction height; simpl; lia.
-          -- iApply ec_spend_irrel; last done.
-             simpl. lra.
+          -- simpl. rewrite Rmult_1_l //. 
           -- iIntros (hash) "(%m''' & H&%Hfound&%&%)".
              wp_pures.
              replace 3%Z with (Z.of_nat 3) by lia.

@@ -7,6 +7,10 @@ From clutch.prob_lang Require Export lang.
 From clutch.eris Require Export lifting proofmode ectx_lifting primitive_laws seq_amplification.
 From clutch.eris Require Export total_lifting total_ectx_lifting total_primitive_laws.
 
+(** TODO: this file needs to get properly updated to take into account that the error credits [↯ ε]
+    now works for [ε : R] rather than [ε : nonnegreal]. Ideally, no `nonnegreal` should appear at
+    the level of the lemma statements! *)
+
 Section metatheory.
 
 Local Open Scope R.
@@ -24,9 +28,8 @@ Proof.
   rewrite head_prim_step_eq /=.
   rewrite /dmap -Hz.
   rewrite -(Rplus_0_r 0).
-  eapply (pgl_dbind _ _ _ _ _ 0); last first.
-  { by apply pgl_trivial. }
-  2,3: done.
+  eapply (pgl_dbind _ _ _ _ _ 0);
+    [done|done| |by apply pgl_trivial].
   intros n ?.
   apply pgl_dret.
   by exists n.
@@ -156,8 +159,7 @@ Section rules.
 
 Lemma twp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ s :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
-  (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
+  ↯ (/ (N + 1)) ∗ (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
@@ -165,10 +167,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
-  set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
-  replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
-  { apply nnreal_ext; simpl; lra. }
+  iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?& -> & He).
   iApply glm_prim_step.
   iExists
       (λ (ρ : expr * state),
@@ -184,13 +183,10 @@ Proof.
   {
     iPureIntro.
     eapply pgl_mon_pred; last first.
-    - assert (nonneg ( nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
-             = Rdiv 1 (Z.to_nat z + 1)) as ->.
+    - rewrite He.
+      assert (/ (Z.to_nat z + 1) = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
-        rewrite /Rdiv/= Rmult_1_l.
-        do 2 f_equal.
-        rewrite plus_INR.
-        f_equal.
+        rewrite /Rdiv/= Rmult_1_l //.
        }
       apply (pgl_rand_err (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
@@ -198,21 +194,21 @@ Proof.
   }
   iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
-  iPoseProof (ec_decrease_supply) as "Hdec".
-  iSpecialize ("Hdec" with "Hε Herr"); eauto.
+  iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   iModIntro.
   iMod "Hclose'".
-  iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply tgl_wp_value.
-  iApply "Hwp".
-  done.
+  rewrite -tgl_wp_value.
+  iDestruct ("Hwp" with "[//]") as "$".
+  iApply ec_supply_eq; [|done].
+  simplify_eq.
+  lra.
 Qed.
 
 Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (/ (N + 1)) ∗
   (∀ x, ⌜x ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
@@ -222,7 +218,7 @@ Qed.
 
 Lemma twp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ s :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (/ (N+1)) ∗
   (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ s; E [{ Φ }].
 Proof.
@@ -231,10 +227,7 @@ Proof.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
-  set (ε' := nnreal_minus ε (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) Hle ).
-  replace ε with (nnreal_plus (nnreal_inv (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
-  { apply nnreal_ext; simpl; lra. }
+  iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
   iApply glm_prim_step.
   iExists
       (λ (ρ : expr * state),
@@ -242,42 +235,36 @@ Proof.
   iSplit.
   { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
-  {
-    iPureIntro; apply Rle_refl.
-  }
+  { iPureIntro; apply Rle_refl. }
   iSplit.
   {
     iPureIntro.
     eapply pgl_mon_pred; last first.
-    - assert (nonneg (nnreal_inv (nnreal_nat (Z.to_nat z + 1)))
-             = Rdiv 1 (Z.to_nat z + 1)) as ->.
+    - rewrite He.
+      assert (/ (Z.to_nat z + 1) = Rdiv 1 (Z.to_nat z + 1)) as ->.
       { simpl.
-        rewrite /Rdiv/= Rmult_1_l.
-        do 2 f_equal.
-        rewrite plus_INR.
-        f_equal.
-       }
+        rewrite /Rdiv/= Rmult_1_l //. }
       apply (pgl_rand_err_nat (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
   iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
-  iPoseProof (ec_decrease_supply) as "Hdec".
-  iSpecialize ("Hdec" with "Hε Herr"); eauto.
+  iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   iModIntro.
   iMod "Hclose'".
-  iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply tgl_wp_value.
-  iApply "Hwp".
-  done.
+  rewrite -tgl_wp_value.
+  iDestruct ("Hwp" with "[//]") as "$".
+  iApply ec_supply_eq; [|done].
+  simplify_eq.
+  lra.
 Qed.
 
 Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_inv(nnreal_nat(N+1))) ∗
+  ↯ (/ (N+1)) ∗
   (∀ x : fin (S N), ⌜(fin_to_nat x) ≠ m⌝ -∗ Φ #x)
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
@@ -288,19 +275,16 @@ Qed.
 
 Lemma twp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
-    (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
-    ⊢ WP rand #z @ E [{ Φ }].
+  ↯ (length ns / (N+1)) ∗
+  (∀ x : fin (S N), ⌜Forall (λ m, fin_to_nat x ≠ m) ns⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
-  set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
-  replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
-  { apply nnreal_ext; simpl; lra. }
+  iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?&->&He).
   iApply glm_prim_step.
   iExists
     (λ (ρ : expr * state),
@@ -308,42 +292,33 @@ Proof.
   iSplit.
   { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
-  {
-    iPureIntro; apply Rle_refl.
-  }
+  { iPureIntro; apply Rle_refl. }
   iSplit.
   {
     iPureIntro.
     eapply pgl_mon_pred; last first.
-    - assert (nonneg (nnreal_div (nnreal_nat (length ns)) (nnreal_nat (Z.to_nat z + 1)))
-              = Rdiv (length ns) (Z.to_nat z + 1)) as ->.
-      { simpl.
-        rewrite /Rdiv/=.
-        do 2 f_equal.
-        rewrite plus_INR.
-        f_equal.
-      }
+    - rewrite He.
       apply (pgl_rand_err_list_nat (Z.to_nat z) z σ1); auto.
     - intros [] (n & Hn1 & [=]). simplify_eq.
       eauto.
   }
   iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
-  iPoseProof (ec_decrease_supply) as "Hdec".
-  iSpecialize ("Hdec" with "Hε Herr"); eauto.
+  iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   iModIntro.
   iMod "Hclose'".
-  iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply tgl_wp_value.
-  iApply "Hwp".
-  done.
+  rewrite -tgl_wp_value.
+  iDestruct ("Hwp" with "[//]") as "$".
+  iApply ec_supply_eq; [|done].
+  simplify_eq.
+  lra.
 Qed.
 
 Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_div (nnreal_nat (length ns)) (nnreal_nat(N+1))) ∗
+  ↯ (length ns / (N+1)) ∗
     (∀ x : fin (S N), ⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
@@ -353,19 +328,16 @@ Qed.
 
 Lemma twp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
-    (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
-    ⊢ WP rand #z @ E [{ Φ }].
+  ↯ (length zs / (N+1)) ∗
+  (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E [{ Φ }].
 Proof.
   iIntros (->) "[Herr Hwp]".
   iApply twp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iDestruct (ec_supply_bound with "Hε Herr ") as %Hle.
-  set (ε' := nnreal_minus ε (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) Hle ).
-  replace ε with (nnreal_plus (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1))) ε'); last first.
-  { apply nnreal_ext; simpl; lra. }
+  iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
   iApply glm_prim_step.
   iExists
     (λ (ρ : expr * state),
@@ -373,54 +345,41 @@ Proof.
   iSplit.
   { iPureIntro. eapply head_prim_reducible; eauto with head_step. }
   iSplit.
-  {
-    iPureIntro; apply Rle_refl.
-  }
+  { iPureIntro; apply Rle_refl. }
   iSplit.
   {
     iPureIntro.
     eapply pgl_mon_pred; last first.
-    - assert (nonneg (nnreal_div (nnreal_nat (length zs)) (nnreal_nat (Z.to_nat z + 1)))
-              = Rdiv (length zs) (Z.to_nat z + 1)) as ->.
-      { simpl.
-        rewrite /Rdiv/=.
-        do 2 f_equal.
-        rewrite plus_INR.
-        f_equal.
-      }
-      apply (pgl_rand_err_list_int (Z.to_nat z) z σ1); auto.
-    - intros [] (n & Hn1 & [=]). simplify_eq.
-      eauto.
+    - rewrite He. apply (pgl_rand_err_list_int (Z.to_nat z) z σ1); auto.
+    - intros [] (n & Hn1 & [=]). simplify_eq. eauto.
   }
   iIntros (e2 σ2) "%H".
   destruct H as (n & Hn1 & [=]); simplify_eq.
-  iPoseProof (ec_decrease_supply) as "Hdec".
-  iSpecialize ("Hdec" with "Hε Herr"); eauto.
+  iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   iModIntro.
   iMod "Hclose'".
-  iMod "Hdec".
   iFrame.
   iModIntro.
-  iApply tgl_wp_value.
-  iApply "Hwp".
-  done.
+  rewrite -tgl_wp_value.
+  iDestruct ("Hwp" with "[//]") as "$".
+  iApply ec_supply_eq; [|done].
+  simplify_eq.
+  lra.
 Qed.
 
 Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_div (nnreal_nat (length zs)) (nnreal_nat(N+1))) ∗
-    (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
-    ⊢ WP rand #z @ E {{ Φ }}.
+  ↯ (length zs / (N + 1)) ∗
+  (∀ x : fin (S N), ⌜Forall (λ m, (Z.of_nat $ fin_to_nat x) ≠ m) zs⌝ -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros. iApply tgl_wp_pgl_wp'.
   by iApply twp_rand_err_list_int.
 Qed.
 
-
-
 Lemma wp_rand_err_filter (N : nat) (z : Z) (P : nat -> bool) E Φ :
   TCEq N (Z.to_nat z) →
-  ↯ (nnreal_div (nnreal_nat (length (List.filter P (seq 0 (S N))))) (nnreal_nat(N+1))) ∗
+  ↯ (length (List.filter P (seq 0 (S N))) / (N + 1)) ∗
     (∀ x : fin (S N), ⌜ P x = false ⌝ -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
@@ -448,9 +407,9 @@ Qed.
 Lemma match_nonneg_coercions (n : nonnegreal) : NNRbar_to_real (NNRbar.Finite n) = nonneg n.
 Proof. by simpl. Qed.
 
-Lemma mean_constraint_ub (N : nat) ε1 (ε2 : fin (S N) -> nonnegreal) :
-  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) ->
-  (exists r, (0 <= r)%R /\ ∀ n,(ε2 n <= r)%R).
+Lemma mean_constraint_ub (N : nat) ε1 (ε2 : fin (S N) → nonnegreal) :
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  (∃ r, (0 <= r)%R ∧ ∀ n,(ε2 n <= r)%R).
 Proof.
   intros Hsum.
   exists (nnreal_nat (S N) * ε1)%NNR.
@@ -480,7 +439,7 @@ Qed.
 
 Lemma twp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
-  (exists r, ∀ n, (ε2 n <= r)%R) →
+  (∃ r, ∀ n, (ε2 n <= r)%R) →
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
   [[{ ↯ ε1 }]] rand #z @ E [[{ n, RET #n; ↯ (ε2 n) }]].
 Proof.
@@ -490,8 +449,8 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iApply glm_adv_comp; simpl.
-  iDestruct (ec_split_supply with "Hε Herr") as (ε3) "%Hε3".
-  rewrite Hε3.
+  (* iDestruct (ec_supply_bound with "Hε Herr") as %?. *)
+  iDestruct (ec_supply_ec_inv with "Hε Herr") as %(ε1' & ε3 & Hε_now & Hε1').
   set (foo := (λ (ρ : expr * state),
                 ε3 +
                   match ρ with
@@ -516,7 +475,7 @@ Proof.
     iPureIntro. exists (ε3 + r)%R.
     intros (e & σ); simpl.
     apply Rplus_le_compat; [lra |].
-    assert (nnreal_zero <= r)%R.
+    assert (0 <= r)%R.
     { transitivity (ε2 0%fin); auto.
       apply cond_nonneg.
     }
@@ -530,8 +489,9 @@ Proof.
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus.
     - rewrite Rplus_comm.
+      subst.
       apply Rplus_le_compat.
-      + rewrite <- Hε1.
+      + rewrite Hε1' -Hε1.
         etrans; last first.
         * apply (SeriesC_le_inj _
                    (λ ρ : expr * state,
@@ -554,17 +514,13 @@ Proof.
              apply Rmult_le_pos; [lra |].
              left. apply RinvN_pos'.
           ** intros ρ1 ρ2 m Hc1 Hc2.
-             do 14 (case_match; simplify_eq).
+             do 14 ((case_bool_decide || case_match); simplify_eq).
              f_equal.
-             *** do 3 f_equal.
-                 assert (fin_to_nat (nat_to_fin l0) = fin_to_nat (nat_to_fin l)) as He.
-                 { by rewrite Hc1. }
-                 rewrite !fin_to_nat_to_fin in He.
-                 apply Z2Nat.inj;
-                   [by eapply bool_decide_eq_true_1|by eapply bool_decide_eq_true_1|done].
-             *** apply bool_decide_eq_true_1 in H2.
-                 apply bool_decide_eq_true_1 in H.
-                 simplify_eq. done.
+             do 3 f_equal.
+             assert (fin_to_nat (nat_to_fin l0) = fin_to_nat (nat_to_fin l)) as He.
+             { by rewrite Hc1. }
+             rewrite !fin_to_nat_to_fin in He.
+             by apply Z2Nat.inj.
           ** apply ex_seriesC_finite.
         * apply SeriesC_le.
           ** intros []; split.
@@ -608,17 +564,17 @@ Proof.
              intros [e s].
              split.
              --- case_bool_decide; last first.
-                 { intros H0. inversion H0. done. }
-                 case_match; try (intros H1; by inversion H1).
-                 case_match; try (intros H2; by inversion H2).
-                 case_match; try (intros H3; by inversion H3).
-                 case_bool_decide; try (intros H4; by inversion H4).
-                 case_match; try (intros H5; by inversion H5).
+                 { inversion 1. done. }
+                 case_match; try (by inversion 1).
+                 case_match; try (by inversion 1).
+                 case_match; try (by inversion 1).
+                 case_bool_decide; try (by inversion 1).
+                 case_match; try (by inversion 1).
                  intros. subst. eapply elem_of_list_fmap_1_alt; last first.
                  { repeat f_equal. instantiate (1 := Z.to_nat n). lia. }
                  rewrite elem_of_seq. lia.
-             --- intros H. apply elem_of_list_fmap_2 in H.
-                 destruct H as [n[H1 H2]].
+             --- intros H1. apply elem_of_list_fmap_2 in H1.
+                 destruct H1 as [n[H1 H2]].
                  inversion H1.
                  replace (bool_decide (_=_)) with true.
                  2: { case_bool_decide; done. }
@@ -628,8 +584,7 @@ Proof.
                  rewrite elem_of_seq in H2. lia.
       + rewrite SeriesC_scal_r.
         rewrite <- Rmult_1_l.
-        apply Rmult_le_compat; auto; try lra.
-        apply cond_nonneg.
+        apply Rmult_le_compat; auto; try lra; apply cond_nonneg.
     - by apply ex_seriesC_scal_r.
     - eapply ex_seriesC_ext; last eapply ex_seriesC_list.
       intros [e s].
@@ -683,7 +638,7 @@ Proof.
     rewrite Nat2Z.id.
     apply fin_to_nat_lt.
   }
-  iMod (ec_decrease_supply with "Hε Herr") as "Hε2".
+  iMod (ec_supply_decrease with "Hε Herr") as (????) "Hε2".
   iModIntro.
   destruct (Rlt_decision (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
@@ -694,7 +649,9 @@ Proof.
   }
   replace (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R with (nonneg (ε3 + (ε2 (nat_to_fin l)))%NNR); [|by simpl].
   iApply exec_stutter_free.
-  iMod (ec_increase_supply ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hcr]"; [by iFrame|].
+  iMod (ec_supply_increase ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hcr]".
+  { lra. }
+  { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
   iMod "Hclose'".
   iApply fupd_mask_intro; [eauto|]; iIntros "_".
   iFrame.
@@ -706,7 +663,6 @@ Proof.
   rewrite Nat2Z.id.
   reflexivity.
 Qed.
-
 
 Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
@@ -749,7 +705,6 @@ Proof.
   - apply H2.
 Qed.
 
-
 Lemma twp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
@@ -787,6 +742,12 @@ Proof.
     rewrite Rmult_comm.
     rewrite -Rdiv_def.
     pose proof (pos_INR N).
+    split.
+    { apply Rmult_le_pos; [|real_solver].
+      apply Rmult_le_pos; [apply cond_nonneg|].
+      apply SeriesC_ge_0; [|apply ex_seriesC_finite].
+      intros ?. case_bool_decide; lra. }
+
     apply Rcomplements.Rle_div_l; [lra |].
     assert (SeriesC (λ x : fin (S N), if bool_decide (Exists (λ m : nat, fin_to_nat x = m) ns) then 1 else 0) <= length ns)%R as Haux.
     {
@@ -852,7 +813,7 @@ Proof.
       iLeft.
       iPureIntro.
       apply not_Exists_Forall; auto.
-      apply _. 
+      apply _.
 Qed.
 
 Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
@@ -1018,24 +979,27 @@ Proof.
 Qed.
 
 
-Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp Σ) Φ:
+Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val -> iProp Σ) Φ:
+  (0 <= ε1)%R →
+  (0 <= ε2)%R →
   (↯ ε1 -∗ P -∗ WP e @ s; E {{ Q }}) -∗
-                                        (∀ x, Q x -∗ ↯ ε2 -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
-                                                                                              P -∗ ↯ (ε1+ε2)%NNR -∗ WP K e @ s; E {{ Φ }}.
+  (∀ x, Q x -∗ ↯ ε2 -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
+  P -∗ ↯ (ε1+ε2)%NNR -∗ WP K e @ s; E {{ Φ }}.
   Proof.
-    iIntros "H1 H2 HP Hε".
+    iIntros (??) "H1 H2 HP Hε".
     iApply pgl_wp_bind.
+    rewrite ec_split //.
     iDestruct ("Hε") as "[He1 He2]".
     iApply (pgl_wp_wand with "[H1 He1 HP]").
     { by iApply ("H1" with "[$]"). }
     iIntros (v) "HQ".
     iApply ("H2" with "[$]"). done.
-  Qed.    
+  Qed.
 
   Lemma wp_bind_err_exp e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp Σ) Φ:
     (↯ ε1 -∗ P -∗ WP e @ s; E {{ v, ↯ (ε2 v) ∗ (Q v)}}) -∗
-                                                           (∀ x, Q x -∗ ↯ (ε2 x) -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
-                                                                                                                     P -∗ ↯ ε1 -∗ WP K e @ s; E {{ Φ }}.
+    (∀ x, Q x -∗ ↯ (ε2 x) -∗ WP K (Val x) @ s ; E {{ Φ }}) -∗
+    P -∗ ↯ ε1 -∗ WP K e @ s; E {{ Φ }}.
   Proof.
     iIntros "H1 H2 HP Hε".
     iApply pgl_wp_bind.
@@ -1043,19 +1007,15 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     { instantiate (1 := (λ v, ↯ (ε2 v) ∗ Q v)%I). by iApply ("H1" with "[$]"). }
     iIntros (v) "[Hε HQ]".
     iApply ("H2" with "[$]"). done.
-  Qed.    
-
-
-
-
+  Qed.
 
   (** * Approximate Lifting *)
-  
+
   Lemma pgl_state (N : nat) 𝜎 𝛼 ns :
     𝜎.(tapes) !! 𝛼 = Some (N; ns) →
     pgl
       (state_step 𝜎 𝛼)
-      (fun 𝜎' => exists (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
+      (λ 𝜎', ∃ (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
       nnreal_zero.
   Proof.
     rewrite /pgl. intros Htapes.
@@ -1156,14 +1116,16 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
+
+    iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
     iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
       done. }
-    iDestruct (ec_split_supply with "Hε_supply Hε") as (ε_rem) "%Hε_supply".
-    rewrite Hε_supply.
+    (* iDestruct (ec_supply_ec_inv with "Hε_supply Hε") as %(ε1' & ε_rem & -> & Hε1'). *)
+
 
     (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
     iExists
@@ -1191,6 +1153,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     (* upper bound on total error *)
     iSplit.
     { iPureIntro. simpl.
+      rewrite Hε1'.
+      rewrite match_nonneg_coercions.
       rewrite -Hsum.
       setoid_rewrite Rmult_plus_distr_l.
       rewrite SeriesC_plus.
@@ -1202,7 +1166,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
            - apply cond_nonneg.
            - destruct (finite.find _); [apply Hr_ub | simpl; apply Hr_nonneg]. }
 
-      rewrite -Rplus_comm; apply Rplus_le_compat; last first.
+      apply Rplus_le_compat.
       { (* holds because state_step is a pmf so is lt 1 *)
         rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
         apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
@@ -1276,7 +1240,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     }
 
     iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
-    iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
+
     rewrite /= Hsample.
     destruct (@find_is_Some _ _ _
                 (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
@@ -1298,7 +1262,10 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     }
     replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl].
     iApply exec_stutter_free.
-    iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
+    iMod (ec_supply_increase _ (ε2 sample) with "[$Hε_supply]") as "[Hε_supply Hε]".
+    { simplify_eq. lra. }
+
+
     iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
     rewrite tgl_wp_unfold /tgl_wp_pre.
@@ -1315,6 +1282,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       - iFrame. }
     rewrite -Hsample.
     iMod "Hclose"; iMod "Hwp"; iModIntro.
+    simplify_eq.
     done.
   Qed.
 
@@ -1332,14 +1300,13 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
+    iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
     iApply fupd_mask_intro; [set_solver|].
     iIntros "Hclose".
     iApply (glm_state_adv_comp' α); simpl.
     { rewrite /get_active.
       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
       done. }
-    iDestruct (ec_split_supply with "Hε_supply Hε") as (ε_rem) "%Hε_supply".
-    rewrite Hε_supply.
 
     (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
     iExists
@@ -1367,6 +1334,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     (* upper bound on total error *)
     iSplit.
     { iPureIntro. simpl.
+      rewrite Hε1' match_nonneg_coercions.
       rewrite -Hsum.
       setoid_rewrite Rmult_plus_distr_l.
       rewrite SeriesC_plus.
@@ -1378,7 +1346,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
            - apply cond_nonneg.
            - destruct (finite.find _); [apply Hr_ub | simpl; apply Hr_nonneg]. }
 
-      rewrite -Rplus_comm; apply Rplus_le_compat; last first.
+      apply Rplus_le_compat.
       { (* holds because state_step is a pmf so is lt 1 *)
         rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
         apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
@@ -1452,7 +1420,6 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     }
 
     iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
-    iMod (ec_decrease_supply with "Hε_supply Hε") as "Hε_supply".
 
     rewrite Hsample /=.
     destruct (@find_is_Some _ _ _
@@ -1473,7 +1440,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       iPureIntro.
       simpl ; lra.
     }
-    iMod (ec_increase_supply _ (ε2 sample) with "[Hε_supply]") as "[Hε_supply Hε]"; [by iFrame|].
+    iMod (ec_supply_increase _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
+    { simplify_eq. lra. }
     iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
     iSpecialize ("Hwp" $! sample).
     rewrite pgl_wp_unfold /pgl_wp_pre.
@@ -1528,7 +1496,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
   Proof.
     iIntros (? ?) "?".
     iExFalso.
-    by iApply ec_spend.
+    by iApply ec_contradict.
   Qed.
 
   (* FIXME: remove me *)
@@ -1613,8 +1581,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
                                       - iIntros "Hwp"; iApply "Hwp".
                                         iRight. iSplitL "Htape".
                                         + rewrite take_0. rewrite app_nil_r. iFrame.
-                                        + iApply ec_spend_irrel; last iFrame.
-                                          rewrite /εR /fR /pos_to_nn /=; lra.
+                                        + rewrite /εR /fR /pos_to_nn /=.
+                                          rewrite Rmult_1_r //.
                                       - iIntros "Hwand".
                                         assert (HL' : (i' <= L)%nat) by lia.
                                         iSpecialize ("IH" $! HL' _ with "Htape Hcr_initial").
@@ -1659,8 +1627,8 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
                                       - iIntros "Hwp"; iApply "Hwp".
                                         iRight. iSplitL "Htape".
                                         + rewrite take_0 app_nil_r. iFrame.
-                                        + iApply ec_spend_irrel; last iFrame.
-                                          rewrite /εR /fR /pos_to_nn /=; lra.
+                                        + rewrite /εR /fR /pos_to_nn /=.
+                                          rewrite Rmult_1_r //.
                                       - iIntros "Hwand".
                                         assert (HL' : (i' <= L)%nat) by lia.
                                         iSpecialize ("IH" $! HL' _ with "Htape Hcr_initial").
@@ -1746,8 +1714,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iInduction (d) as [|d'] "IH".
     - iApply "Hwp".
       iExists []; rewrite app_nil_r. iRight. iFrame.
-      iApply ec_spend_irrel; last auto.
-      by rewrite /εAmp_iter /pos_to_nn /= Rmult_1_r.
+      rewrite /εAmp_iter /pos_to_nn /= Rmult_1_r //.
     - iApply ("IH" with "Hcr Htape").
       iIntros "[%junk [Hlucky|(Htape&Hcr)]]".
       + iApply "Hwp". iExists junk; iLeft; iFrame.
@@ -1758,8 +1725,12 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
           rewrite -app_assoc; iFrame.
         * iExists _; iRight.
           rewrite -app_assoc -εAmp_iter_cmp; iFrame.
-          iApply (ec_spend_le_irrel with "Hcr").
+          iApply (ec_weaken with "Hcr").
           rewrite /εAmp /=.
+          split.
+          { apply Rmult_le_pos.
+            - apply Rmult_le_pos; [apply Rlt_le, cond_pos | apply pow_le, Rlt_le, k_pos].
+            - apply Rlt_le, k_pos. }
           apply Rmult_le_compat_l.
           { apply Rmult_le_pos; [apply Rlt_le, cond_pos | apply pow_le, Rlt_le, k_pos]. }
           apply Rplus_le_compat_l.
@@ -1794,7 +1765,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
     iInduction (d) as [|d'] "IH".
     - iApply "Hwp".
       iExists []; rewrite app_nil_r. iRight. iFrame.
-      iApply ec_spend_irrel; last auto.
+      iApply ec_eq; last auto.
       by rewrite /εAmp_iter /pos_to_nn /= Rmult_1_r.
     - iApply ("IH" with "Hcr Htape").
       iIntros "[%junk [Hlucky|(Htape&Hcr)]]".
@@ -1806,7 +1777,11 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
           rewrite -app_assoc; iFrame.
         * iExists _; iRight.
           rewrite -app_assoc -εAmp_iter_cmp; iFrame.
-          iApply (ec_spend_le_irrel with "Hcr").
+          iApply (ec_weaken with "Hcr").
+          split.
+          { apply Rmult_le_pos.
+            - apply Rmult_le_pos; [apply Rlt_le, cond_pos | apply pow_le, Rlt_le, k_pos].
+            - apply Rlt_le, k_pos. }
           rewrite /εAmp /=.
           apply Rmult_le_compat_l.
           { apply Rmult_le_pos; [apply Rlt_le, cond_pos | apply pow_le, Rlt_le, k_pos]. }
@@ -1856,7 +1831,6 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
       replace (nonneg ε) with (pos ε') by auto.
       done.
   Qed.
-
 
   Lemma presample_planner_pos N z e E α Φ (ε : nonnegreal) L prefix suffix :
     TCEq N (Z.to_nat z) →
@@ -2046,20 +2020,19 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E ε1 ε2 P (Q : val -> iProp
         iFrame.
   Qed.
 
-  Lemma twp_rec_total E (ε k : nonnegreal) e Φ Ψ :
-    to_val e = None ->
-    (0 < ε)%R ->
-    (1 < k)%R ->
-    □ ( ∀ (ε':nonnegreal), ⌜(0<ε')%R⌝ -∗ □ (Ψ -∗ ↯ (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
+  Lemma twp_rec_total E (ε k : R) e Φ Ψ :
+    to_val e = None →
+    (0 < ε)%R →
+    (1 < k)%R →
+    □ (∀ (ε' : R), ⌜(0<ε')%R⌝ -∗ □ (Ψ -∗ ↯ (k * ε')%NNR -∗ WP e @ E [{ Φ }]) -∗
       Ψ -∗ ↯ ε' -∗ WP e @ E [{ Φ }]) -∗
       Ψ -∗ ↯ ε -∗ WP e @ E [{ Φ }].
   Proof.
     iIntros (Hnval Hpos Hgt1) "#Hrec HΨ Herr".
     iRevert "HΨ".
-    iApply (ec_ind_amp _ k with "[Hrec] Herr"); auto.
-    iModIntro.
-    iIntros (ε') "%Hε' #HWP Herr HΨ".
-    iApply ("Hrec" with "[//] [HWP] [$HΨ] [$Herr]").
+    iApply (ec_ind_amp _ k with "[] Herr");  [done|done|].
+    iIntros "!#" (ε') "%Hε' #HWP Herr HΨ".
+    iApply ("Hrec" $! ε' with "[//] [HWP] HΨ Herr").
     iModIntro.
     iIntros "HΨ Herr".
     iApply ("HWP" with "Herr HΨ").

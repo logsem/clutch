@@ -12,7 +12,7 @@ Section spec.
   (* Spec for samplers which need to amplify some number of times, and then spend.
      In particular, this is a spec for bounded samplers. *)
   Definition bounded_sampling_scheme_spec (sampler checker : val) 𝜀factor 𝜀final E Θ : iProp Σ
-    := ((∀ 𝜀,
+    := ((∀ (𝜀 : nonnegreal),
           [[{ ↯ 𝜀 }]]
             ((Val sampler) #())%E @ E
           [[{ (v : val), RET v;
@@ -26,8 +26,8 @@ Section spec.
   (* Easier to explain spec.
      It is allowed to wait arbitrarily long before spending,
      and thus can wait to spend credit ↯1. *)
-  Definition sampling_scheme_spec (sampler checker : val) εfactor E Θ : iProp Σ
-    := (∀ ε,
+  Definition sampling_scheme_spec (sampler checker : val) (εfactor : nonnegreal) E Θ : iProp Σ
+    := (∀ (ε : nonnegreal),           
        [[{ ↯ ε }]]
             ((Val sampler) #())%E @ E
        [[{ (v : val), RET v;
@@ -41,7 +41,7 @@ Section spec.
     iIntros "?".
     iSplitL; iFrame.
     iIntros (? ?) "!> ?".
-    iExFalso; iApply (ec_spend with "[$]").
+    iExFalso; iApply (ec_contradict with "[$]").
     simpl; lra.
   Qed.
 End spec.
@@ -67,7 +67,7 @@ Section safety.
     iInduction depth as [|depth' Hdepth'] "IH".
     - wp_pures; wp_bind (sampler #())%E.
       wp_apply ("Haccept" with "[Hcr]").
-      { iApply (ec_weaken with "Hcr"); rewrite /generic_geometric_error /=; lra. }
+      { iApply (ec_weaken with "Hcr"). split; [lra|]. rewrite /generic_geometric_error /=; lra. }
       iIntros (next_sample) "Hcheck_accept".
       wp_pures; wp_bind (checker next_sample)%E.
       iApply (tgl_wp_wand with "Hcheck_accept").
@@ -86,8 +86,11 @@ Section safety.
         iApply (tgl_wp_wand with "Hcheck_reject").
         iIntros (?) "Hresult".
         iSpecialize ("IH" with "[Hcr]").
-        * iApply (ec_spend_le_irrel with "Hcr").
+        * iApply (ec_weaken with "Hcr").
           rewrite /generic_geometric_error /=.
+          split.
+          { real_solver. }
+          
           apply (Rmult_le_reg_r r); auto.
           by rewrite /generic_geometric_error /=
                      (Rmult_comm r _) -Rmult_assoc in Hε'.
@@ -113,7 +116,7 @@ Section safety.
     do 7 wp_pure.
     iInduction depth as [|depth' Hdepth'] "IH".
     - wp_pures; wp_bind (sampler #())%E.
-      iExFalso; iApply (ec_spend with "[$]").
+      iExFalso; iApply (ec_contradict with "[$]").
       rewrite /generic_geometric_error /=; lra.
     - wp_pures.
       wp_pures; wp_bind (sampler #())%E.
@@ -127,8 +130,9 @@ Section safety.
         iApply (tgl_wp_wand with "Hcheck_reject").
         iIntros (?) "Hresult".
         iSpecialize ("IH" with "[Hcr]").
-        * iApply (ec_spend_le_irrel with "Hcr").
+        * iApply (ec_weaken with "Hcr").
           rewrite /generic_geometric_error /=.
+          split; [real_solver|]. 
           apply (Rmult_le_reg_r r); auto.
           by rewrite /generic_geometric_error /=
                      (Rmult_comm r _) -Rmult_assoc in Hε'.
@@ -153,10 +157,11 @@ Section safety.
     rewrite /generic_geometric_error /=.
     destruct (error_limit' r Hr (mkposreal (nonneg ε) Hε)) as [d Hlim].
     iApply (ho_ubdd_approx_safe with "[]"); [eauto| iApply "Hspec" |].
-    iApply (ec_spend_le_irrel with "Hcr").
+    iApply (ec_weaken with "Hcr").
     rewrite /generic_geometric_error /= Rmult_1_l.
-    apply Rlt_le.
-    simpl in Hlim; eauto.
+    split; last first. 
+    - apply Rlt_le. simpl in Hlim; eauto.
+    - real_solver. 
   Qed.
 End safety.
 
@@ -281,7 +286,7 @@ Section higherorder_flip2.
         inv_fin n; first (left; done).
         intros i; inv_fin i; first (right; done).
         intros k. by apply Fin.case0.
-      + iApply (ec_spend_irrel with "Hcr"). rewrite /ε2_flip1 /scale_flip.
+      + iApply (ec_eq with "Hcr"). rewrite /ε2_flip1 /scale_flip.
         inv_fin n; first by rewrite /ε2_flip1 /=.
         intros n; inv_fin n; first by rewrite /ε2_flip1 /=.
         intros n; by apply Fin.case0.

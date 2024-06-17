@@ -924,17 +924,6 @@ Proof.
   apply ARcoupl_eq.
 Qed.
 
-(* TODO: move somewhere else *)
-Definition f_inv {A B} f `{Surj A B (=) f} : B → A := λ b, epsilon (surj f b).
-
-Lemma f_inv_cancel_r {A B} f `{Surj A B (=) f} b :
-  f (f_inv f b) = b.
-Proof. rewrite /f_inv /= (epsilon_correct _ (surj f b)) //. Qed.
-
-Lemma f_inv_cancel_l {A B} f `{Inj A B (=) (=) f, Surj A B (=) f} b :
-  f_inv f (f b) = b.
-Proof. apply (inj f), (epsilon_correct _ (surj f (f b))). Qed.
-
 Lemma ARcoupl_dunif (N : nat) f `{Bij (fin N) (fin N) f} :
   ARcoupl (dunif N) (dunif N) (λ n m, m = f n) 0.
 Proof.

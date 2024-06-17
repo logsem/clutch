@@ -584,17 +584,11 @@ Section miller_rabin_code.
         rewrite -Z2Nat.inj_succ; last by lia.
         f_equal. lia.
       }
+      split.
+      { apply Rcomplements.Rdiv_le_0_compat; real_solver. }
       simpl.
       apply (Rcomplements.Rle_div_l).
-      - rewrite plus_INR.
-        rewrite Z2Nat.inj_sub; last by lia.
-        rewrite minus_INR; last by lia.
-        simpl.
-        replace (Z.to_nat m - (1 + 1) + 1) with (Z.to_nat m - 1) by lra.
-        rewrite INR_IZR_INZ.
-        rewrite Z2Nat.id; last by lia.
-        apply Rlt_gt.
-        apply IZR_lt in Hm. lra.
+      - real_solver.
       - pose proof (MR_witness_card m) as Haux.
         etrans; eauto.
         rewrite Z2Nat.inj_sub; last by lia.
@@ -606,7 +600,7 @@ Section miller_rabin_code.
         {
           left. apply Rinv_0_lt_compat; lra.
         }
-        rewrite plus_INR minus_INR.
+        rewrite minus_INR.
         + rewrite minus_IZR.
           simpl.
           replace (Z.to_nat m - (1 + 1) + 1) with (Z.to_nat m - 1) by lra.
@@ -742,7 +736,10 @@ Section miller_rabin_code.
         rewrite -Z2Nat.inj_succ; last by lia.
         f_equal. lia.
       }
-      simpl. lra.
+      simpl.
+      split; [|lra].
+      apply Rmult_le_pos; [lra|].
+      apply cond_nonneg.
      }
       wp_pures.
       wp_bind (fast_mod_exp _ _ _).
@@ -929,7 +926,7 @@ Lemma MR_main_looped_correct_prime (m : Z) E :
     do 11 wp_pure.
     iInduction num_iter as [|k] "IH".
     - iExFalso.
-      iApply ec_spend; auto.
+      iApply ec_contradict; auto.
       simpl. lra.
     - wp_pures.
       wp_bind (MR_round _ _ _).
@@ -949,7 +946,7 @@ Lemma MR_main_looped_correct_prime (m : Z) E :
           }
           iApply ("IH" with "[Hpost]"); auto.
           iDestruct "Hpost" as "[% |Herr]"; [done |].
-          iApply (ec_spend_irrel with "[$Herr]").
+          iApply (ec_eq with "[$Herr]").
           simpl.
           rewrite Nat.add_0_r.
           replace (2 ^ k + 2 ^ k)%nat with (2 * 2^k)%nat by lia.

@@ -394,7 +394,7 @@ Section prf_prp.
    iApply "HΦ"; iFrame.
  Qed.
 
- Lemma wp_prf_prp_couple_eq_err E K (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) (ε : nonnegreal):
+ Lemma wp_prf_prp_couple_eq_err E K (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) (ε : R):
     m !! n = None →
     n <= val_size ->
     (∀ n' : nat, val_size < n' → m !! n' = None) ->
@@ -457,10 +457,12 @@ Section prf_prp.
     }
 
     tp_bind (rand _)%E.
+    iDestruct (ec_weaken with "[$]") as "Hε".
+    { split; [|done].
+      apply Rcomplements.Rdiv_le_0_compat; [|real_solver].
+      apply Rle_0_le_minus. real_solver. }
     set f := (λ n : nat, if (n <=? vl) then Z.to_nat (nth n sr 0) else n + val_size).
-    iDestruct (ec_spend_le_irrel with "[$]") as "Hε".
-    { instantiate (1:= mknonnegreal _ _). exact.  }
-    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl with "[HK Hε]").
+    wp_apply (wp_couple_rand_rand_rev_inj val_size vl f val_size vl with "[$]").
     {
       intros x Hx.
       rewrite /f.
@@ -496,16 +498,14 @@ Section prf_prp.
       rewrite app_length in Hperm.
       do 2 rewrite fmap_length in Hperm.
       rewrite seq_length Hvl in Hperm.
-      apply le_INR.
       lia.
     }
-    { rewrite -Hvl. instantiate (1:= mknonnegreal _ _). done. }
-    { iFrame. }
+    { rewrite -Hvl. done. }
     iIntros (x) "HK".
-    simpl. 
+    simpl.
     wp_pures.
     tp_pures.
-    pose proof (fin_to_nat_lt x). 
+    pose proof (fin_to_nat_lt x).
     tp_load.
     tp_bind (list_remove_nth _ _).
     unshelve iMod (spec_remove_nth _ _ sr _ with "[#] HK")
@@ -529,7 +529,7 @@ Section prf_prp.
     simpl. tp_pures.
     tp_bind (set _ _ _).
     iMod (spec_set with "[$] [$]") as "(HK&Hsm)".
-    simpl. 
+    simpl.
     tp_pures.
     tp_store.
     tp_pures.
@@ -557,14 +557,9 @@ Section prf_prp.
     simpl.
     apply perm_skip.
     by rewrite Permutation_app_comm.
-    Unshelve.
-    apply Rcomplements.Rdiv_le_0_compat.
-    - rewrite <- minus_INR; last lia.
-      apply pos_INR.
-    - apply pos_INR_S.
  Qed.
 
- 
+
 Definition test_prf: val :=
   λ: "n",
     let: "f" := init_hash #() in
@@ -590,9 +585,9 @@ Definition test_prp: val :=
 
 
 
-Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list Z) (ε : nonnegreal):
-  (0<=k<=n)%nat -> 
-  ((S val_size) - (n-k))%nat <= length l->
+Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list Z) (ε : R):
+  (0<=k<=n)%nat ->
+  ((S val_size) - (n-k))%nat <= length l ->
   NoDup l ->
   l⊆(Z.of_nat <$> seq 0 (S val_size)) ->
   (forall x:Z, x∈ ((map_img m):gset _) -> x ∈ l -> False) ->
@@ -627,26 +622,30 @@ Proof.
      tp_pures.
      tp_bind (rand _)%E.
      iMod (ec_zero) as "H0".
-     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ nnreal_zero
+     wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size _ _ 0
               with "[$]").
-     { lra. }
+     { done. }
      { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
      iIntros (n2 m2) "[-> HK]".
-     simpl.
+     iSimpl in "HK".
      wp_pures.
-     wp_pures.
-     tp_pures.
      wp_bind (f _).
+
+     tp_pures.
      tp_bind (g _).
      iAssert (↯ _ ∗ ↯ _)%I with "[Hε]" as "[Hε Hε']".
-     { iApply ec_split. iApply ec_weaken; last done.
-       etrans; last exact. rewrite <-cons_seq. rewrite fold_symmetric; try (intros; lia).
-       simpl. rewrite plus_INR Rdiv_plus_distr. apply Req_le.
-       f_equal; by instantiate (1:= mknonnegreal _ _).
-     }
+     { iApply ec_split; last first.
+       - iApply ec_weaken; last done.
+         split; last first.
+         { etrans; last exact. rewrite <-cons_seq. rewrite fold_symmetric; [|lia|lia].
+           rewrite [foldr _ _ _]/=.
+           rewrite plus_INR Rdiv_plus_distr. done. }
+         apply Rplus_le_le_0_compat; apply Rcomplements.Rdiv_le_0_compat; real_solver.
+       - apply Rcomplements.Rdiv_le_0_compat; real_solver.
+       - apply Rcomplements.Rdiv_le_0_compat; real_solver. }
      iAssert (⌜(n-S k')<S val_size⌝)%I with "[Hε]" as "%".
      { pose proof Nat.lt_ge_cases (n-S k') (S val_size) as [|]; first done.
-       iExFalso. iApply ec_spend; last done. simpl. 
+       iExFalso. iApply ec_contradict; last done. simpl.
        apply Rcomplements.Rle_div_r.
        - pose proof pos_INR_S val_size. apply Rlt_gt. exact.
        - rewrite Rmult_1_l. replace (_)%R with (INR (S val_size)); last by simpl. apply le_INR. lia. }
@@ -688,7 +687,7 @@ Proof.
          { replace (match val_size with | _ => _  end) with (INR (S val_size)); last by simpl.
            lra. }
          rewrite minus_INR; last lia.
-         lra. 
+         lra.
        * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
          do 3 wp_pure.
          simpl.
@@ -709,7 +708,7 @@ Proof.
          -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
          -- iPureIntro. intro. subst. rewrite map_img_insert_notin; last done.
             rewrite elem_of_union elem_of_app. intros [|] [|]; subst.
-            ++ set_unfold. subst. apply NoDup_app in HNoDup. set_solver. 
+            ++ set_unfold. subst. apply NoDup_app in HNoDup. set_solver.
             ++ set_unfold. subst. apply NoDup_app in HNoDup.
                destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup.
                set_solver.
@@ -727,21 +726,11 @@ Proof.
             apply Req_le. replace (S _)  with (n-k'); first done. lia.
          -- iModIntro; done.
             Unshelve.
-            ++ apply Rcomplements.Rdiv_le_0_compat.
-               ** apply pos_INR.
-               ** apply pos_INR_S.
-            ++ apply Rcomplements.Rdiv_le_0_compat.
-               ** clear. remember (seq _ _) as l. clear Heql.
-                  induction l.
-                  --- simpl. done.
-                  --- simpl. rewrite plus_INR. apply Rplus_le_le_0_compat; last done.
-                      apply pos_INR.
-               ** apply pos_INR_S.
             ++ apply gset_semi_set.
   Qed.
 
-  Lemma wp_prf_prp_test_err E K (n : nat) (ε : nonnegreal):
-    (INR(fold_left (Nat.add) (seq 0 n) 0%nat) / INR (S val_size))%R = ε ->
+  Lemma wp_prf_prp_test_err E K (n : nat) (ε : R):
+    (INR (fold_left (Nat.add) (seq 0 n) 0%nat) / INR (S val_size))%R = ε ->
     {{{ ⤇ fill K (test_prp #n) ∗ ↯ ε }}}
       test_prf #n @ E
     {{{ f, RET f;
@@ -773,6 +762,6 @@ Proof.
    - set_solver.
    - replace (_-_) with 0; try lia. rewrite <-Hε. done.
  Qed.
-   
+
 
 End prf_prp.

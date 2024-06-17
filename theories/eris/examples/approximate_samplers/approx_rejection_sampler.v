@@ -53,11 +53,12 @@ Section basic.
     - wp_pures.
       wp_apply (wp_rand_err_list_nat _ m' (seq (S n') ((S m') - (S n')))).
       iSplitL "Hcr".
-      + iApply (ec_spend_irrel with "[$]").
+      + iApply (ec_eq with "[$]").
         Opaque INR.
         rewrite /= Rmult_1_r.
         rewrite seq_length; apply Rmult_eq_compat_l.
-        do 2 f_equal; lia.
+        rewrite S_INR //.
+
       + iIntros (sample'') "%Hsample''".
         wp_pures.
         case_bool_decide; wp_pures.
@@ -103,10 +104,10 @@ Section basic.
     - wp_pures.
       wp_apply (wp_rand_err_list_nat _ _ (seq (S n') (S m' - S n'))).
       iSplitL "Hcr".
-      + iApply (ec_spend_irrel with "[$]").
+      + iApply (ec_eq with "[$]").
         rewrite /= Rmult_1_r.
         rewrite seq_length; apply Rmult_eq_compat_l.
-        do 2 f_equal; lia.
+        rewrite S_INR //.
       + iIntros (sample'') "%Hsample''".
         wp_pures.
         case_bool_decide; wp_pures.
@@ -177,6 +178,10 @@ Section basic.
     iApply ((ubdd_approx_safe _ _ d _) with "[Hcr] [HΦ]"); auto.
     iApply ec_weaken; last iAssumption.
     rewrite /bdd_cf_error /=; simpl in H.
+    split.
+    { apply Rmult_le_pos.
+      - rewrite -Rdiv_1_l. real_solver.
+      - apply pow_le. rewrite -Rdiv_1_l. real_solver. }    
     apply Rlt_le. done.
     Unshelve. by lia.
   Qed.
@@ -214,7 +219,10 @@ Section basic.
       iIntros (ε') "% #Hrec Herr".
       wp_rec.
       wp_bind (rand _)%E.
-      wp_apply (twp_rand_err_filter_above _ n' _ ε' ((mknonnegreal k Hk) * ε')%NNR); last first.
+      assert (0 <= ε') as Hε' by lra.
+      set ε'' := mknonnegreal _ Hε'.
+      
+      wp_apply (twp_rand_err_filter_above _ n' _ ε'' ((mknonnegreal k Hk) * ε'')%NNR); last first.
       + iFrame.
         iIntros (x) "[%Hleq | Herr]".
         * wp_pures.

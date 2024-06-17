@@ -13,6 +13,17 @@ Proof. intros ?. eapply Rbar_le_refl. Qed.
 #[global] Instance Rbar_lt_Transitive: Transitive Rbar_lt.
 Proof. intros ???. eapply Rbar_lt_trans. Qed.
 
+Lemma Rdiv_INR_ge_0 (n : nat) :
+  0 <= 1 / n.
+Proof.
+  destruct n.
+  { rewrite Rdiv_0_r //. }    
+  apply Rcomplements.Rdiv_le_0_compat; [lra|].
+  apply pos_INR_S.
+Qed.
+
+Hint Resolve Rdiv_INR_ge_0 : real.
+
 Lemma Rbar_le_fin' x y: 0 <= y → Rbar_le x y → x <= real y.
 Proof.
   rewrite /Rbar_le. destruct x => //=.
