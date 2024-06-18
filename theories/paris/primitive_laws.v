@@ -207,6 +207,20 @@ Proof.
   by iApply ("HΦ" $! x) .
 Qed.
 
+Lemma wp_rand (N : nat) (z : Z) E s :
+  TCEq N (Z.to_nat z) →
+  {{{ True }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
+Proof.
+  iIntros (-> Φ) "_ HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "Hσ !#".
+  solve_red.
+  iIntros "!>" (e2 σ2 Hs).
+  inv_head_step.
+  iFrame.
+  by iApply ("HΦ" $! x) .
+Qed.
+
 (** Tapes  *)
 Lemma wp_alloc_tape N z E s :
   TCEq N (Z.to_nat z) →

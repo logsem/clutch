@@ -319,6 +319,19 @@ Section rules.
     iApply ("H" with "[$Hspec] Hnais Herr Hpos").
   Qed.
 
+  Lemma refines_randU_l_err E K e (N : nat) (z : Z) A :
+    TCEq N (Z.to_nat z) →
+    (∀ (n : fin (S N)), REL fill K (Val #n) << e @ E : A)
+      ⊢ REL fill K (rand #z) << e @ E : A.
+  Proof.
+    iIntros (?) "H".
+    rewrite refines_eq /refines_def.
+    iIntros (K2 ε) "Hspec Hnais Herr Hpos /=".
+    wp_apply wp_bind. wp_apply wp_rand => //.
+    iIntros (n) "_" => /=.
+    iApply ("H" with "[$Hspec] Hnais Herr Hpos").
+  Qed.
+
   Lemma refines_wand E e1 e2 A A' :
     (REL e1 << e2 @ E : A) ⊢
     (∀ v1 v2, A v1 v2 ={⊤}=∗ A' v1 v2) -∗
