@@ -289,33 +289,55 @@ Section error_credit_theory.
     lra.
   Qed.
 
+  #[local] Lemma err_amp_power ε k :
+    0 < ε →
+    1 < k →
+    ∃ n, 1 <= ε * k ^ n.
+  Proof.
+    intros Hε Hk.
+    destruct (Lim_seq.is_lim_seq_geom_p k Hk (λ r, / ε <= r)) as [n Hn] => /=.
+    - exists (/ ε). real_solver.
+    - exists n.
+      apply (Rmult_le_reg_l (/ ε)).
+      + apply Rinv_0_lt_compat, Hε.
+      + rewrite -Rmult_assoc Rinv_l; [|lra].
+        rewrite Rmult_1_l Rmult_1_r. by apply Hn.
+  Qed.
+
+  Lemma ec_ind_amp_external (ε k : R) P :
+    0 < ε →
+    1 < k →
+    (∀ (ε' : R), 0 < ε' → □ (↯ (k * ε') -∗ P) ∗ ↯ ε' ⊢ P) →
+    (↯ ε ⊢ P).
+  Proof.
+    iIntros (Hε Hk Hamp) "Herr".
+    destruct (err_amp_power ε k) as [n Hn]; [done|done|].
+    iInduction n as [|m] "IH" forall (ε Hε Hn Hk) "Herr".
+    - iDestruct (ec_contradict with "Herr") as %[]. lra.
+    - iApply (Hamp with "[$Herr]"); [done|].
+      iIntros "!> Herr".
+      iApply ("IH" with "[] [] [//] Herr"); iPureIntro.
+      + real_solver.
+      + simpl in Hn. lra.
+  Qed.
+
+  (* TODO: can [ec_ind_amp] be derived from [ec_ind_amp_external] ? *)
   Lemma ec_ind_amp (ε k : R) P :
     0 < ε →
     1 < k →
     □ (∀ (ε' : R), ⌜0 < ε'⌝ -∗ □ (↯ (k * ε') -∗ P) -∗ ↯ ε' -∗ P) ⊢
     (↯ ε -∗ P).
   Proof.
-    iIntros (Hpos Hgt1) "#Hamp".
-    assert (∃ n, 1 <= ε * k ^ n) as [n Hn].
-    { pose proof (Lim_seq.is_lim_seq_geom_p k Hgt1) as H.
-      destruct (H (λ r, / ε <= r)) as [n Hn] => /=.
-      - exists (/ε). real_solver.
-      - exists n.
-        apply (Rmult_le_reg_l (/ ε)%R).
-        + apply Rinv_0_lt_compat, Hpos.
-        + rewrite -Rmult_assoc Rinv_l; [|lra].
-          rewrite Rmult_1_l Rmult_1_r. by apply Hn. }
-    iRevert (Hgt1).
-    iInduction n as [|m] "IH" forall (ε Hpos Hn).
-    - iIntros (Hgt1) "Herr".
-      iDestruct (ec_contradict with "Herr") as %[].
+    iIntros (Hpos Hgt1) "#Hamp Herr".
+    destruct (err_amp_power ε k) as [n Hn]; [done|done|].
+    iInduction n as [|m] "IH" forall (ε Hpos Hn Hgt1) "Herr".
+    - iDestruct (ec_contradict with "Herr") as %[].
       simpl in Hn. lra.
-    - iIntros (Hgt1) "Herr" .
-      iApply ("Hamp" with "[//] [] Herr").
+    - iApply ("Hamp" with "[//] [] Herr").
       iIntros "!# Herr".
       iApply ("IH" with "[] [] [//] Herr"); iPureIntro.
-      { real_solver. }
-      etrans; [done|]. simpl. lra.
+      + real_solver.
+      + simpl in Hn. lra.
   Qed.
 
   Global Instance ec_timeless r : Timeless (↯ r).
