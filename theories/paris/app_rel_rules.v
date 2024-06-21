@@ -357,7 +357,7 @@ Section rules.
   Qed.
   Definition refines_couple_tapes := refines_couple_TT_err.
 
-  Lemma refines_couple_TT_frag {M N} (f : fin(S M) → fin (S N)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ :
+  Lemma refines_couple_TT_frag (N M : nat) (f : fin(S M) → fin (S N)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ :
     (M <= N)%nat →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
     (∀ (n : fin (S N)),
@@ -383,7 +383,7 @@ Section rules.
       iApply ("Hlog" with "[$Hα $Hαs] [$He2] Hnais Herr' Hpos").
   Qed.
 
-  Lemma refines_couple_TT_adv {M N} (f : fin(S N) → fin (S M)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ (ε : R) :
+  Lemma refines_couple_TT_adv (N M : nat) (f : fin(S N) → fin (S M)) {_ : Inj (=) (=) f} E e1 e2 A α αₛ ns nsₛ (ε : R) :
     (0 <= ε)%R →
     (N < M)%nat →
     ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗ ↯ ε ∗
@@ -432,7 +432,7 @@ Section rules.
   Lemma refines_ind_amp E e e' A (k : R) :
     (1 < k)%R ->
     □ (∀ (ε : R),
-          ⌜(0 < ε)%R⌝ -∗ (↯ (k * ε) -∗ (REL e << e' @ E : A))
+          ⌜(0 < ε)%R⌝ -∗ □(↯ (k * ε) -∗ (REL e << e' @ E : A))
           -∗ ↯ ε -∗ (REL e << e' @ E : A))%I
       ⊢ REL e << e' @ E : A.
   Proof.
@@ -441,9 +441,6 @@ Section rules.
     iApply refines_get_ec.
     iIntros (ε) "Herr %Hpos".
     iApply (ec_ind_amp _ k with "[IH] Herr"); auto.
-    iModIntro.
-    iIntros (?) "% #? Herr".
-    iApply ("IH" with "[//][$][$]").
   Qed.
 
   Lemma refines_couple_UU N f `{Bij (fin (S N)) (fin (S N)) f} K K' E A z :
@@ -464,6 +461,69 @@ Section rules.
   Qed.
 
   Definition refines_couple_rands_lr := refines_couple_UU.
+
+
+  Lemma refines_arrow_val_err (v v' : val) A A' k :
+    (1 < k)%R ->
+    □ (∀ ε,
+          ⌜ (0 < ε)%R ⌝ -∗
+          □ ( ↯ ((k * ε)) -∗ ∀ v1 v2, A v1 v2 -∗ REL App v (of_val v1) << App v' (of_val v2) : A' ) -∗
+                ↯ ε -∗ ∀ v1 v2, A v1 v2 -∗ REL App v (of_val v1) << App v' (of_val v2) : A')
+      ⊢ REL (of_val v) << (of_val v') : (A → A')%lrel.
+  Proof.
+    iIntros (Hk) "#H".
+    iApply refines_ret. iModIntro.
+    iModIntro.
+    iIntros (v1 v2) "HA".
+    iApply refines_get_ec.
+    iIntros (ε') "Herr' %Hpos'".
+    iRevert (v1 v2) "HA".
+    by iApply (ec_ind_amp _ k); auto.
+  Qed.
+
+
+  Lemma refines_couple_exp (M N p : nat )
+    (f : list (fin (S N)) → fin (S M))
+    (Hinj : ∀ (l1 l2 : list _), length l1 = p → length l2 = p → f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e1 e2 E A:
+    (S N ^ p = S M)%nat->
+    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
+      (∀ (l : list (fin (S N))) (m:fin (S M)),
+          ⌜length l = p /\ f l = m⌝ -∗
+          α ↪ (N; ns ++ l) -∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
+              REL e1 << e2 @ E : A
+      )
+      ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (HExp) "[>Hα [>Hαs Hcont]]".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    wp_apply wp_couple_exp; eauto. iFrame.
+    iIntros (l m) "%Hlm Hα Hαs".
+    iApply ("Hcont" with "[//] Hα Hαs Hfill Hown Herr").
+    done.
+  Qed.
+
+
+  Lemma refines_couple_exp_rev (M N p : nat)
+    (f:(list (fin (S N))) -> fin (S M))
+    (Hinj: forall (l1 l2:list _), length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e1 e2 E A:
+    (S N ^ p = S M)%nat ->
+    ▷ α ↪ (M; ns) ∗ ▷ αₛ ↪ₛ (N; nsₛ) ∗
+      (∀ (l : list (fin (S N))) (m:fin (S M)),
+          ⌜length l = p /\ f l = m⌝ -∗
+          α ↪ (M; ns ++ [m]) -∗ αₛ ↪ₛ (N; nsₛ ++ l) -∗
+          REL e1 << e2 @ E : A
+      )
+      ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (HExp) "[>Hα [>Hαs Hcont]]".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    wp_apply wp_couple_exp_rev; eauto. iFrame.
+    iIntros (l m) "%Hlm Hα Hαs".
+    iApply ("Hcont" with "[//] Hα Hαs Hfill Hown Herr").
+    done.
+  Qed.
 
  (*
   TODO: Port other rules by need

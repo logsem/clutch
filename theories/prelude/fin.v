@@ -81,4 +81,10 @@ Section fin.
         exact (nat_to_fin Hineq).
   Qed.
 
+  Definition fin_force (M : nat) (n : nat) : fin (S M) :=
+    match le_lt_dec (S M) n with
+    | left _ => nat_to_fin (Nat.lt_succ_diag_r M) 
+    | right h => nat_to_fin h
+    end.
+
 End fin.
