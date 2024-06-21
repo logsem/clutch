@@ -121,3 +121,43 @@ Section escaping_spline.
 
 
 End escaping_spline.
+
+(*
+
+Section uniform_rw.
+
+  Local Open Scope R.
+  Context `{!erisGS Σ}.
+
+  Definition urw : val :=
+    (rec: "f" "n" :=
+       if: "n" < #1
+         then #()
+         else let: "x" := (rand #1) in
+                if: ("x" < #1)
+                then "f" ("n" + #1)
+                else "f" ("n" - #1)).
+
+
+  (** Using mathematical induction on k *)
+  Theorem urw_AST_aux (k : nat) (n : nat) E :
+    ↯ (n / (k+1)) -∗
+      WP urw #n @ E [{ v, True }].
+  Proof.
+    induction k.
+    - iIntros "Herr".
+      destruct n.
+      + rewrite /urw.
+        wp_pures.
+        done.
+      + iPoseProof (ec_weaken _ 1 with "Herr") as "Herr".
+        ** split; [lra|].
+           rewrite Rplus_0_l.
+           rewrite Rdiv_1_r.
+           pose proof (pos_INR n).
+           admit.
+        ** iPoseProof (ec_contradict with "Herr") as "?"; auto.
+           lra.
+    -
+
+*)
