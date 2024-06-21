@@ -5,7 +5,6 @@ From clutch.prob_lang Require Import notation metatheory lang.
 From clutch.paris Require Export primitive_laws model adequacy_rel interp fundamental.
 From clutch.prob_lang.typing Require Export contextual_refinement.
 
-Search bin_log_related.
 
 Lemma refines_sound_open Σ `{!parisRGpreS Σ} Γ e e' τ :
   (∀ `{parisRGS Σ} Δ, ⊢ 〈⊤;Δ;Γ〉 ⊨ e ≤log≤ e' : τ) →

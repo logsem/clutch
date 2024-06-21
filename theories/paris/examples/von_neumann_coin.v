@@ -393,3 +393,6 @@ Section proofs.
   destruct (destr_fin6 y) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
     try inversion Hxy; auto.
   Qed.
+
+
+End proofs.
