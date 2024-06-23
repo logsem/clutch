@@ -1,7 +1,7 @@
 (** * Coupling rules  *)
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
-From clutch.prelude Require Import stdpp_ext.
+From clutch.prelude Require Import stdpp_ext fin.
 From clutch.paris Require Import lifting ectx_lifting.
 From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
 From clutch.prob_lang.spec Require Import spec_rules.
@@ -38,11 +38,12 @@ Section rules.
   Lemma wp_couple_tapes (N M : nat) E e α αₛ ns nsₛ Φ (ε : R) :
     (N <= M)%nat →
     (S M - S N) / S M = ε →
-    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
     ↯ ε ∗
-    (∀ (n : fin (S N)) (m : fin (S M)),
-        ⌜fin_to_nat n = fin_to_nat m⌝ -∗
-        α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
+    (∀ (n m : nat),
+        ⌜ n ≤ N ⌝ -∗ ⌜ m ≤ M ⌝ -∗
+        ⌜n = m⌝ -∗
+        α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) -∗
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -50,6 +51,8 @@ Section rules.
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hα" as (fs) "(%&Hα)".
+    iDestruct "Hαₛ" as (fsₛ) "(%&Hαₛ)".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -62,24 +65,46 @@ Section rules.
     iApply spec_coupl_ret.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
-    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
-    iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
+    iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
+    iMod (ghost_map_update ((M; fsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
     iMod (ec_supply_decrease with "Hε2 Hε") as (????) "H".
     iModIntro. iMod "Hclose'" as "_". iFrame.
-    iDestruct ("Hwp" with "[//] [$]") as "$".
-    iApply ec_supply_eq; [|done].
-    simplify_eq/=; lra.
+    pose proof (fin_to_nat_lt n).
+    pose proof (fin_to_nat_lt m).
+    iDestruct ("Hwp" $! n m with "[] [] [//]") as "Hwp".
+    1,2: iPureIntro; lia.
+    iSplitL "H".
+    { iApply ec_supply_eq; [|done].
+      simplify_eq/=; lra. }
+    iModIntro.
+    iApply "Hwp".
+    iSplitL "Hα".
+    - iExists _. iFrame.
+      rewrite fmap_app.
+      simplify_eq. done.
+    - iExists _. iFrame.
+      rewrite fmap_app.
+      simplify_eq. done.
   Qed.
 
-  Lemma wp_couple_tapes_bij N f `{Bij (fin (S N)) (fin (S N)) f} E e α αₛ ns nsₛ Φ :
-    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (N; nsₛ) ∗
-      (∀ n : fin (S N), α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (N; nsₛ ++ [f n])  -∗ WP e @ E {{ Φ }})
+  Lemma wp_couple_tapes_bij N f `{Bij nat nat f} E e α αₛ ns nsₛ Φ :
+    (forall n, n ≤ N -> f n ≤ N) ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (N; nsₛ) ∗
+      (∀ n : nat, α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (N; nsₛ ++ [f n]) ∗ ⌜ n ≤ N ⌝  -∗
+                    WP e @ E {{ Φ }})
       ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros "(>Hα & >Hαₛ & Hwp)".
+    iIntros (Hdom) "(>Hα & >Hαₛ & Hwp)".
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)/=".
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
+    destruct (restr_bij_fin (S N) f) as [g [HBij Hfg]].
+    { intros n Hn.
+      eapply Nat.le_lt_trans; [apply Hdom; lia | ].
+      lia.
+    }
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -88,7 +113,7 @@ Section rules.
     iApply spec_coupl_erasables; [done|..].
     { apply ARcoupl_exact.
       (* eauto unifies the wrong premise? *)
-      apply Rcoupl_state_state; [apply H | apply H1 | apply H0 ]. }
+      apply Rcoupl_state_state; [apply HBij | apply H1 | apply H0 ]. }
     { by eapply state_step_erasable. }
     { by eapply state_step_erasable. }
     iIntros (σ2 σ2' (n & ? & ?)).
@@ -96,23 +121,34 @@ Section rules.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
     simplify_map_eq.
-    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
-    iMod (ghost_map_update ((N; nsₛ ++ [f n]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
+    iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
+    iMod (ghost_map_update ((N; fsₛ ++ [g n]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
     iModIntro. iMod "Hclose'" as "_".
     replace (0 + ε_now)%NNR with ε_now; last first.
     { apply nnreal_ext; simpl; lra. }
     iFrame.
-    iApply ("Hwp" with "[$]").
+    iApply ("Hwp" $! (fin_to_nat n) with "[-]").
+    iSplitL "Hα".
+    { iExists _. iFrame.
+      iPureIntro.
+      rewrite fmap_app //. }.
+    iSplitL "Hαₛ".
+    { iExists _. iFrame.
+      iPureIntro.
+      rewrite fmap_app -Hfg //. }
+    iPureIntro.
+    pose proof (fin_to_nat_lt n); lia.
   Qed.
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : R) :
     (M <= N)%nat →
     (S N - S M) / S N = ε →
-    ▷ α ↪ (N; ns) ∗ ▷ αₛ ↪ₛ (M; nsₛ) ∗
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
     ↯ ε ∗
-    (∀ (n : fin (S N)) (m : fin (S M)),
-        ⌜fin_to_nat n = fin_to_nat m⌝ -∗
-        α ↪ (N; ns ++ [n]) ∗ αₛ ↪ₛ (M; nsₛ ++ [m]) -∗
+    (∀ (n m : nat),
+        ⌜n = m⌝ -∗
+        α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [m]) -∗
+        ⌜m ≤ M⌝ -∗
         WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
@@ -120,6 +156,8 @@ Section rules.
     iApply wp_lift_step_spec_couple.
     iIntros (σ1 e1' σ1' ε_now) "((Hh1 & Ht1) & Hauth2 & Hε2)".
     iDestruct "Hauth2" as "(HK&Hh2&Ht2)".
+    iDestruct "Hα" as (fs) "(<-&Hα)".
+    iDestruct "Hαₛ" as (fsₛ) "(<-&Hαₛ)".
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
@@ -133,13 +171,23 @@ Section rules.
     iDestruct (ghost_map_lookup with "Ht1 Hα") as %?%lookup_total_correct.
     iDestruct (ghost_map_lookup with "Ht2 Hαₛ") as %?%lookup_total_correct.
     simplify_map_eq.
-    iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
-    iMod (ghost_map_update ((M; nsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
+    iMod (ghost_map_update ((N; fs ++ [n]) : tape) with "Ht1 Hα") as "[$ Hα]".
+    iMod (ghost_map_update ((M; fsₛ ++ [m]) : tape) with "Ht2 Hαₛ") as "[$ Hαₛ]".
     iMod (ec_supply_decrease with "Hε2 Hε") as (????) "H".
     iModIntro. iMod "Hclose'" as "_".
-    iFrame. iDestruct ("Hwp" with "[//] [$]") as "$".
-    iApply ec_supply_eq; [|done].
-    simplify_eq/=; lra.
+    iFrame.
+    iDestruct ("Hwp" with "[//] [-H] []") as "$".
+    - iSplitL "Hα".
+      { iExists _. iFrame.
+        iPureIntro.
+        rewrite fmap_app //. }
+      iExists _. iFrame.
+      iPureIntro.
+      rewrite fmap_app //.
+    - iPureIntro.
+      pose proof (fin_to_nat_lt m); lia.
+    - iApply ec_supply_eq; [|done].
+      simplify_eq/=; lra.
   Qed.
 
   Lemma wp_rand_avoid_l {N} (m : fin (S N)) (z : Z) E (ε : R) :

@@ -71,7 +71,91 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
-Section lifting.
+(** User-level tapes *)
+Definition nat_tape `{parisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
+  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ (N; fs).
+
+Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
+                                (at level 20, format "l ↪N ( M ; ns )") : bi_scope.
+
+Definition nat_spec_tape `{parisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
+  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ₛ (N; fs).
+
+Notation "l ↪ₛN ( M ; ns )" := (nat_spec_tape l M ns)%I
+       (at level 20, format "l ↪ₛN ( M ; ns )") : bi_scope.
+
+Section tape_interface.
+  Context `{!parisGS Σ}.
+
+  (** Helper lemmas to go back and forth between the user-level representation
+      of tapes (using nat) and the backend (using fin) *)
+
+  Lemma tapeN_to_empty l M :
+    (l ↪N ( M ; [] ) -∗ l ↪ ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (?) "(%Hmap & Hl')".
+    by destruct (fmap_nil_inv _ _ Hmap).
+  Qed.
+
+
+  Lemma empty_to_tapeN l M :
+    (l ↪ ( M ; [] ) -∗ l ↪N ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iExists []. auto.
+  Qed.
+
+  Lemma read_tape_head l M n ns :
+    (l ↪N ( M ; n :: ns ) -∗
+      ∃ x xs, l ↪ ( M ; x :: xs ) ∗ ⌜ fin_to_nat x = n ⌝ ∗
+        ( l ↪ ( M ; xs ) -∗l ↪N ( M ; ns ) )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (xss) "(%Hmap & Hl')".
+    destruct (fmap_cons_inv _ _ _ _ Hmap) as (x&xs&->&Hxs&->).
+    iExists x, xs.
+    iFrame.
+    iSplit; auto.
+    iIntros.
+    iExists xs; auto.
+  Qed.
+
+  Lemma spec_tapeN_to_empty l M :
+    (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (?) "(%Hmap & Hl')".
+    by destruct (fmap_nil_inv _ _ Hmap).
+  Qed.
+
+
+  Lemma empty_to_spec_tapeN l M :
+    (l ↪ₛ ( M ; [] ) -∗ l ↪ₛN ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iExists []. auto.
+  Qed.
+
+  Lemma read_spec_tape_head l M n ns :
+    (l ↪ₛN ( M ; n :: ns ) -∗
+      ∃ x xs, l ↪ₛ ( M ; x :: xs ) ∗ ⌜ fin_to_nat x = n ⌝ ∗
+              ( l ↪ₛ ( M ; xs ) -∗l ↪ₛN ( M ; ns ) )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (xss) "(%Hmap & Hl')".
+    destruct (fmap_cons_inv _ _ _ _ Hmap) as (x&xs&->&Hxs&->).
+    iExists x, xs.
+    iFrame.
+    iSplit; auto.
+    iIntros.
+    iExists xs; auto.
+  Qed.
+
+End tape_interface.
+
+
+  Section lifting.
 Context `{!parisGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
@@ -195,7 +279,7 @@ Qed.
 
 Lemma wp_rand (N : nat) (z : Z) E s :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} rand #z @ s; E {{{ (n : fin (S N)), RET #n; True }}}.
+  {{{ True }}} rand #z @ s; E {{{ (n : nat), RET #n; ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -204,13 +288,15 @@ Proof.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
-  by iApply ("HΦ" $! x) .
+  iApply ("HΦ" $! x).
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 (** Tapes  *)
 Lemma wp_alloc_tape N z E s :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪ (N; []) }}}.
+  {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪N (N; []) }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -220,30 +306,40 @@ Proof.
   iMod (ghost_map_insert (fresh_loc σ1.(tapes)) with "Ht") as "[$ Hl]".
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame. iModIntro.
-  by iApply "HΦ".
+  iApply "HΦ".
+  iExists []; auto.
 Qed.
 
 Lemma wp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl:α) #z @ s; E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
+  {{{ ▷ α ↪N (N; n :: ns) }}}
+    rand(#lbl:α) #z @ s; E
+  {{{ RET #(LitInt n); α ↪N (N; ns) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro.
-  by iApply "HΦ".
+  iApply "HΦ".
+  iSplit; first by iApply "Hret".
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 Lemma wp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
+  {{{ ▷ α ↪N (N; []) }}}
+    rand(#lbl:α) #z @ s; E
+  {{{ (n : nat), RET #(LitInt n); α ↪N (N; []) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
+  iPoseProof (tapeN_to_empty with "Hl") as "Hl".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
@@ -251,31 +347,40 @@ Proof.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
-  iModIntro. iApply ("HΦ" with "[$Hl //]").
+  iModIntro. iApply ("HΦ" with "[$Hl]").
+  iSplit; auto.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
+  {{{ ▷ α ↪N (M; ns) }}}
+    rand(#lbl:α) #z @ s; E
+  {{{ (n : nat), RET #(LitInt n); α ↪N (M; ns) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct "Hl" as (?) "(?&Hl)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 Hs).
   inv_head_step.
   iFrame.
   iModIntro.
-  iApply ("HΦ" with "[$Hl //]").
+  iApply ("HΦ").
+  iFrame.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 (** spec [rand] *)
 Lemma wp_rand_r N z E e K Φ :
   TCEq N (Z.to_nat z) →
   ⤇ fill K (rand #z) ∗
-  (∀ n : fin (S N), ⤇ fill K #n -∗ WP e @ E {{ Φ }})
+  (∀ n : nat, ⤇ fill K #n -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (->) "(Hj & Hwp)".
@@ -293,19 +398,22 @@ Proof.
   iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
   iFrame. iModIntro.
   iMod "Hclose" as "_"; iModIntro.
-  by iApply "Hwp".
+  iApply ("Hwp" with "Hj").
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 (** spec [rand(α)] with empty tape  *)
 Lemma wp_rand_empty_r N z E e K α Φ :
   TCEq N (Z.to_nat z) →
-  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (N; []) ∗
-  (∀ n : fin (S N), (α ↪ₛ (N; []) ∗ ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; []) ∗
+  (∀ n : nat, (α ↪ₛN (N; []) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (->) "(Hj & Hα & Hwp)".
   iApply wp_lift_step_spec_couple.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iPoseProof (spec_tapeN_to_empty with "Hα") as "Hα".
   iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
   iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
@@ -319,21 +427,24 @@ Proof.
   iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
   iFrame. iModIntro.
   iMod "Hclose" as "_"; iModIntro.
-  iApply "Hwp".
-  iFrame.
+  iApply ("Hwp" with "[Hα Hj]");
+   first by iFrame; auto.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 (** spec [rand(α)] with wrong tape  *)
 Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛ (M; ns) ∗
-  (∀ (n : fin (S N)), (α ↪ₛ (M; ns) ∗ ⤇ fill K #n) -∗ WP e @ E {{ Φ }})
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
+  (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (-> ?) "(Hj & Hα & Hwp)".
   iApply wp_lift_step_spec_couple.
   iIntros (σ1 e1' σ1' ε1) "(Hσ & Hs & Hε)".
+  iDestruct "Hα" as (?) "(%&Hα)".
   iDestruct (spec_auth_prog_agree with "Hs Hj") as %->.
   iDestruct (spec_auth_lookup_tape with "Hs Hα") as %?.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
@@ -347,8 +458,9 @@ Proof.
   iMod (spec_update_prog (fill K #_) with "Hs Hj") as "[$ Hj]".
   iFrame. iModIntro.
   iMod "Hclose" as "_"; iModIntro.
-  iApply "Hwp".
-  iFrame.
+  iApply ("Hwp" with "[-]"); first by iFrame.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 End lifting.
