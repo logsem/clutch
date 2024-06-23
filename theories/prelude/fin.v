@@ -1,5 +1,6 @@
+Require Import FinFun.
 From stdpp Require Import fin countable finite.
-From clutch.prelude Require Import base classical.
+From clutch.prelude Require Import base classical stdpp_ext.
 Set Default Proof Using "Type*".
 
 Section fin.
@@ -86,5 +87,35 @@ Section fin.
     | left _ => nat_to_fin (Nat.lt_succ_diag_r M) 
     | right h => nat_to_fin h
     end.
+
+  Lemma restr_bij_fin N f `{Bij nat nat f} :
+    (forall n, n < N -> f n < N) ->
+    exists (g : fin N -> fin N), (Bij g) /\
+                             (forall x : (fin N), fin_to_nat (g x) = f (fin_to_nat x)).
+  Proof.
+    intros Hdom.
+    exists (Fin2Restrict.restrict Hdom).
+    split.
+    - split.
+      + pose proof (Fin2Restrict.restrict_injective Hdom) as H1.
+        intros x y Hxy.
+        apply H1; auto.
+        intros x' y' Hx' Hy' Hxy'.
+        apply H; done.
+      + pose proof (Fin2Restrict.restrict_surjective Hdom) as H1.
+        destruct H as [Hinj Hsurj].
+        intros ?.
+        destruct H1 as [H2 H3].
+        edestruct H3 as [x Hx].
+        * apply bInjective_bSurjective; auto.
+          intros x' y' Hx' Hy' Hxy'.
+          apply Hinj; done.
+        * exists x. eauto.
+    - intro x.
+      rewrite -{1}(nat_to_fin_to_nat x); [ | apply fin_to_nat_lt ].
+      intros Hleq.
+      rewrite (Fin2Restrict.restrict_n2f Hdom).
+      rewrite fin_to_nat_to_fin //.
+  Qed.
 
 End fin.
