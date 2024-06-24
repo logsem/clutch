@@ -1479,3 +1479,77 @@ Proof.
   pose proof (ARcoupl_eq_elim _ _ _ H2 a). lra.
 Qed. 
   
+Lemma ARcoupl_tight `{Countable A} (μ1 μ2 : distr A) ε:
+  ARcoupl μ1 μ2 eq ε <-> SeriesC (λ x, if bool_decide (μ2 x <= μ1 x) then μ1 x - μ2 x else 0) <= ε.
+Proof.
+  split.
+  - rewrite /ARcoupl.
+    set (f:=λ x, if bool_decide (μ2 x <= μ1 x) then 1 else 0).
+    intros Hcoupl.
+    assert (∀ x, 0<=f x <=1).
+    { intros. rewrite /f. case_bool_decide; lra. }
+    eassert (SeriesC _ <= SeriesC _ + _) as H'.
+    { apply (Hcoupl f f); naive_solver. }
+    rewrite Rplus_comm -Rle_minus_l in H'.
+    etrans; last exact.
+    rewrite Rle_minus_r.
+    apply Req_le.
+    rewrite -SeriesC_plus; last first.
+    + apply pmf_ex_seriesC_mult_fn. naive_solver.
+    + apply ex_seriesC_le with μ1; last done.
+      intros. case_bool_decide; try done.
+      split; first lra.
+      by apply Rminus_le_0_compat.
+    + apply SeriesC_ext.
+      intros. rewrite /f.
+      case_bool_decide; lra.
+  - intros HseriesC f g Hf Hg Hfg.
+    rewrite Rplus_comm -Rle_minus_l.
+    etrans; last exact.
+    rewrite Rle_minus_l. 
+    rewrite -SeriesC_plus; last first.
+    + apply pmf_ex_seriesC_mult_fn. naive_solver.
+    + apply ex_seriesC_le with μ1; last done.
+      intros. case_bool_decide; try done.
+      split; first lra.
+      by apply Rminus_le_0_compat.
+    + apply SeriesC_le.
+      * intros n. split.
+        { apply Rmult_le_pos; naive_solver. }
+        case_bool_decide.
+        -- assert (f n <= g n) by naive_solver.
+           rewrite -Rle_minus_l.
+           trans (μ1 n * f n - μ2 n * f n).
+           ++ apply Ropp_le_cancel. rewrite !Ropp_minus_distr.
+              apply Rplus_le_compat_r.
+              apply Rmult_le_compat_l; [done|lra].
+           ++ rewrite -Rmult_minus_distr_r.
+              rewrite -{2}(Rmult_1_r (_-_)).
+              apply Rmult_le_compat_l; last naive_solver.
+              lra.
+        -- trans (μ1 n * g n).
+           ++ apply Rmult_le_compat_l; [done|naive_solver].
+           ++ rewrite Rplus_0_l. apply Rmult_le_compat_r; [naive_solver|lra].
+      * apply ex_seriesC_le with (λ x, μ1 x + μ2 x); last first.
+        { by apply ex_seriesC_plus. }
+        intros; split; case_bool_decide.
+        -- trans (μ1 n - μ2 n); first lra.
+           apply Rplus_le_0_compat.
+           apply Rmult_le_pos; naive_solver.
+        -- rewrite Rplus_0_l. apply Rmult_le_pos; naive_solver.
+        -- trans (μ1 n).
+           ++ cut (μ1 n + μ2 n * g n <= μ1 n + μ2 n*1); first lra.
+              apply Rplus_le_compat_l.
+              apply Rmult_le_compat_l; [done|naive_solver].
+           ++ by apply Rplus_le_0_compat.
+        -- trans (μ2 n * 1).
+           ++ rewrite Rplus_0_l.
+              apply Rmult_le_compat_l; [done|naive_solver].
+           ++ rewrite Rmult_1_r.
+              rewrite Rplus_comm.
+              by apply Rplus_le_0_compat.
+Qed.
+                 
+           
+      
+    
