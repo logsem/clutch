@@ -1550,6 +1550,41 @@ Proof.
               by apply Rplus_le_0_compat.
 Qed.
                  
-           
+Local Lemma ARcoupl_symmetric' `{Countable A} (μ1 μ2 : distr A) ε:
+  SeriesC μ1 = SeriesC μ2 -> (ARcoupl μ1 μ2 eq ε -> ARcoupl μ2 μ1 eq ε).
+Proof.
+  intros Heq.
+  rewrite !ARcoupl_tight.
+  intros; etrans; last exact.
+  apply Rplus_le_reg_r with (SeriesC μ1).
+  rewrite {2}Heq.
+  rewrite -!SeriesC_plus; last first; try done.
+  - apply ex_seriesC_le with (μ2); last done.
+    intros; case_bool_decide; split; try (lra||done).
+    apply Rminus_le_0_compat. done.
+  - apply ex_seriesC_le with (μ1); last done.
+    intros; case_bool_decide; split; try (lra||done).
+    apply Rminus_le_0_compat. done.
+  - apply SeriesC_le; last first.
+    + apply ex_seriesC_le with (λ x, μ1 x+ μ2 x); last first.
+      * by apply ex_seriesC_plus.
+      * intros n.
+        pose proof pmf_pos μ1 n.
+        pose proof pmf_pos μ2 n.
+        intros; case_bool_decide; lra.
+    + intros.
+      pose proof pmf_pos μ1 n.
+      pose proof pmf_pos μ2 n.
+      intros; repeat case_bool_decide; lra.
+Qed.
+
+Lemma ARcoupl_symmetric `{Countable A} (μ1 μ2 : distr A) ε:
+  SeriesC μ1 = SeriesC μ2 -> (ARcoupl μ1 μ2 eq ε <-> ARcoupl μ2 μ1 eq ε).
+Proof.
+  intros; split; intros; apply ARcoupl_symmetric'; naive_solver.
+Qed.
+  
+  
+    
       
     
