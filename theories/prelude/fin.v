@@ -88,6 +88,24 @@ Section fin.
     | right h => nat_to_fin h
     end.
 
+  Lemma fin_force_to_nat_le (M : nat) (n : nat) :
+    (n ≤ M) -> (fin_to_nat (fin_force M n)) = n.
+  Proof.
+    intros Hle.
+    rewrite /fin_force.
+    destruct le_lt_dec; try lia.
+    rewrite fin_to_nat_to_fin //.
+  Qed.
+
+  Lemma fin_force_to_nat_gt (M : nat) (n : nat) :
+    (n > M) -> (fin_to_nat (fin_force M n)) = M.
+  Proof.
+    intros Hgt.
+    rewrite /fin_force.
+    destruct le_lt_dec; try lia.
+    rewrite fin_to_nat_to_fin //.
+  Qed.
+
   Lemma restr_bij_fin N f `{Bij nat nat f} :
     (forall n, n < N -> f n < N) ->
     exists (g : fin N -> fin N), (Bij g) /\
@@ -116,6 +134,84 @@ Section fin.
       intros Hleq.
       rewrite (Fin2Restrict.restrict_n2f Hdom).
       rewrite fin_to_nat_to_fin //.
+  Qed.
+
+ (* Adapted from Coq standard library FinFun *)
+
+Definition bFunNM n m (f:nat->nat) := forall x, x < n -> f x < m.
+
+Definition restrictNM n m (f:nat->nat) (hf : bFunNM n m f) : (Fin.t n -> Fin.t m) :=
+ fun x => nat_to_fin (hf _ (fin_to_nat_lt x)).
+
+Lemma restrictNM_f2n n m f hf (x:Fin.t n) :
+ fin_to_nat (restrictNM n m f hf x) = f (fin_to_nat x).
+Proof.
+  rewrite /restrictNM.
+  rewrite fin_to_nat_to_fin //.
+Qed.
+
+
+Lemma restrictNM_n2f n m f hf x (h:x<n) :
+ restrictNM n m f hf (nat_to_fin h) = nat_to_fin (hf _ h).
+Proof.
+  rewrite /restrictNM.
+  rewrite Fin.of_nat_ext.
+  {
+    rewrite fin_to_nat_to_fin.
+    intros.
+    apply Fin.of_nat_ext.
+  }
+  rewrite fin_to_nat_to_fin.
+  by apply hf.
+Qed.
+
+Lemma restrict_injective n m f h :
+  Inj (=) (=) (restrictNM n m f h) <-> bInjective n f.
+Proof.
+  split.
+  - intros hf x y hx hy Eq.
+    rewrite -(fin_to_nat_to_fin x n).
+    rewrite -(fin_to_nat_to_fin y n).
+    f_equal.
+    apply hf.
+    do 2 rewrite restrictNM_n2f.
+    rewrite Fin.of_nat_ext.
+    {
+      rewrite Eq.
+      intros.
+      apply Fin.of_nat_ext.
+    }
+    by apply h.
+ - intros hf x y Eq.
+   apply fin_to_nat_inj.
+   apply hf.
+   1,2: apply fin_to_nat_lt.
+   do 2 rewrite <- (restrictNM_f2n n m f h).
+   rewrite Eq //.
+Qed.
+
+
+  Lemma restr_inj_fin N M (f : nat -> nat) `{Inj nat nat (=) (=) f} :
+    (N ≤ M) ->
+    (forall n : nat, (n < N) -> (f n < M)) ->
+    exists (g : fin N -> fin M), (Inj (=) (=) g) /\
+                             (forall x : (fin N), fin_to_nat (g x) = f (fin_to_nat x)).
+  Proof.
+    intros Hleq Hdom.
+    exists (restrictNM N M f Hdom).
+    destruct (restrict_injective N M f Hdom) as [H1 H2].
+    split.
+    - intros x y Hxy.
+      apply H2; auto.
+      intros a b Ha Hb Hab.
+      by apply H.
+    - intro x.
+      rewrite restrictNM_f2n //.
+  Qed.
+
+  Lemma fin_to_nat_le {n : nat} (i : fin (S n)) : (fin_to_nat i) ≤ n.
+  Proof.
+    pose proof (fin_to_nat_lt i); lia.
   Qed.
 
 End fin.
