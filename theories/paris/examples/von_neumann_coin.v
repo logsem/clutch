@@ -26,9 +26,9 @@ Section proofs.
   Definition die_tapes : expr :=
     (let: "γ" := alloc #5 in λ:<>, rand("γ") #5)%E.
 
-  Fixpoint bin_to_oct (l : list (fin 2)) : fin 8 :=
+  Fixpoint bin_to_oct (l : list nat) : nat :=
     match l with
-    | [b0; b1; b2] => fin.fin_force 7 (4*b0 + 2*b1 + b2)
+    | [b0; b1; b2] => (4*b0 + 2*b1 + b2)
     | _ => 0
     end.
 
@@ -68,7 +68,35 @@ Section proofs.
     rel_alloctape_r β as "Hβ".
     rel_pures_l.
     rel_pures_r.
-    iApply (refines_couple_exp 7 1 3 bin_to_oct); [|simpl; done|].
+    iApply (refines_couple_exp 7 1 3 bin_to_oct).
+    {
+      intros l Hl.
+      unfold bin_to_oct; simpl.
+      destruct l; simpl; [lia |].
+      destruct l; simpl; [lia |].
+      destruct l; simpl; [lia |].
+      destruct l; simpl; [ |lia].
+      apply Forall_cons_1 in Hl as [? Hl].
+      apply Forall_cons_1 in Hl as [? Hl].
+      apply Forall_cons_1 in Hl as [? Hl].
+      lia.
+    }
+    {
+      rewrite /bin_to_oct /length.
+      intros l1 l2 Hl1 Hl2 Hl1l2.
+      destruct l1; simpl; [lia |].
+      destruct l1; simpl; [lia |].
+      destruct l1; simpl; [lia |].
+      destruct l1; simpl; [|lia].
+      destruct l2; simpl; [lia |].
+      destruct l2; simpl; [lia |].
+      destruct l2; simpl; [lia |].
+      destruct l2; simpl; [|lia].
+      destruct l; simpl; [lia |].
+      destruct l; simpl; [lia |].
+      destruct l; simpl; [ |lia].
+
+    }
     {
       intros l1 l2 Hl1 Hl2 Heq.
       destruct l1 as [|a1 l1]; [inversion Hl1 |].
