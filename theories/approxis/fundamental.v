@@ -279,9 +279,11 @@ Section fundamental.
     destruct H2 as [-> ->].
     rel_alloctape_l α as "Hα".
     rel_alloctape_r β as "Hβ".
+    iPoseProof (tapeN_to_empty with "Hα") as "Hα".
+    iPoseProof (spec_tapeN_to_empty with "Hβ") as "Hβ".
     iMod (inv_alloc (logN .@ (α,β)) _ (α ↪ (_; []) ∗ β ↪ₛ (_; []))%I
            with "[$Hα $Hβ]") as "HN".
-    rel_values. iExists _, _. auto.
+    rel_values. iExists α, β, N. auto.
   Qed.
 
   Lemma bin_log_related_rand_tape Δ Γ e1 e1' e2 e2' :

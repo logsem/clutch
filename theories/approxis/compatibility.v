@@ -150,16 +150,22 @@ Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
     iIntros (K') "Hr".
     iInv (logN.@ (α, α')) as ">[Hα Hα']" "Hclose".
     iModIntro.
+    iPoseProof (empty_to_spec_tapeN with "Hα'") as "Hα'".
+    iPoseProof (empty_to_tapeN with "Hα") as "Hα".
     destruct (decide (N = M)); simplify_eq.
-    - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr]").
-      iIntros "!>" (N) "(Hα & Hαs & Hr)".
+    - iApply (wp_couple_rand_lbl_rand_lbl with "[$Hα $Hα' $Hr]"); auto.
+      iIntros "!>" (N) "(Hα & Hαs & Hr & %)".
+      iPoseProof (spec_tapeN_to_empty with "Hαs") as "Hαs".
+      iPoseProof (tapeN_to_empty with "Hα") as "Hα".
       iMod ("Hclose" with "[$Hα $Hαs]") as "_".
       iModIntro.
-      iExists _. iFrame "Hr".
+      iExists _. simpl. iFrame "Hr".
       rel_values.
     - iApply (wp_couple_rand_lbl_rand_lbl_wrong
-               with "[$Hα $Hα' $Hr]"); [done|].
-      iIntros "!>" (m) "(Hα & Hα' & Hr)".
+               with "[$Hα $Hα' $Hr]"); [done|done|].
+      iIntros "!>" (m) "(Hα & Hα' & Hr & %)".
+      iPoseProof (spec_tapeN_to_empty with "Hα'") as "Hα'".
+      iPoseProof (tapeN_to_empty with "Hα") as "Hα".
       iMod ("Hclose" with "[$Hα $Hα']") as "_".
       iModIntro.
       iExists _. iFrame "Hr".
@@ -176,8 +182,10 @@ Tactic Notation "rel_store_l_atomic" := rel_apply_l refines_store_l.
     destruct H as [-> ->].
     rel_bind_l (rand(_) _)%E.
     rel_bind_r (rand(_) _)%E.
-    iApply (refines_couple_rands_lr).
+    iApply (refines_couple_rands_lr); auto.
     iIntros (b).
+    iModIntro.
+    iIntros "%".
     value_case.
   Qed.
 
