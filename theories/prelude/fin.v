@@ -258,7 +258,8 @@ Qed.
 
 Lemma restr_list_inj_fixed_length N M p (f : list nat -> nat)
   (Hdom: forall (l : list nat), Forall (λ x, (x < N)%nat) l -> (f l < M)%nat)
-  (Hinj: forall (l1 l2:list nat), length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) :
+  (Hinj: forall (l1 l2:list nat), Forall (λ x, (x < N)%nat) l1 -> Forall (λ x, (x < N)%nat) l2 ->
+                           length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) :
   exists (g : list (fin N) -> fin M),
     (forall (l1 l2: list (fin N)), length l1 = p -> length l2 = p -> g l1 = g l2 -> l1 = l2) /\
       (forall (l : list (fin N)), fin_to_nat (g l) = f (fin_to_nat <$> l)).
@@ -267,7 +268,7 @@ Proof.
   split; last apply restrictListNM_f2n.
   intros ? ? ? ? H.
   apply (list_fmap_eq_inj fin_to_nat); first apply fin_to_nat_inj.
-  apply Hinj; [by rewrite fmap_length|by rewrite fmap_length|].
+  apply Hinj; [apply fin_forall_leq|apply fin_forall_leq|by rewrite fmap_length|by rewrite fmap_length|..].
   erewrite <-!restrictListNM_f2n.
   by erewrite H.
 Qed.
