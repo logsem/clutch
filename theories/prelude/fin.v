@@ -214,4 +214,46 @@ Qed.
     pose proof (fin_to_nat_lt i); lia.
   Qed.
 
+  Definition bFunListNM n m (f : list nat -> nat) := forall l, (Forall (λ x, x < n) l) -> f l < m.
+
+  Fixpoint forall_leq_to_fin n (l : list nat) (Hfa : (Forall (λ x, x < n) l)) : (list (fin n)) :=
+    match l, Hfa with
+      | [], H => []
+      | y :: ys, H => (nat_to_fin (Forall_inv H)) :: (forall_leq_to_fin n ys (Forall_inv_tail H))
+    end.
+
+  Lemma fin_forall_leq n (l : list (fin n)) :
+    Forall (λ x : nat, x < n) (fin_to_nat <$> l).
+  Proof.
+    induction l; auto.
+    rewrite fmap_cons.
+    apply Forall_cons; auto.
+    apply fin_to_nat_lt.
+  Qed.
+
+Definition restrictListNM n m (f:list nat -> nat) (hf : bFunListNM n m f) : (list (Fin.t n) -> Fin.t m) :=
+  fun l =>  nat_to_fin (hf _ (fin_forall_leq _ l)).
+
+Lemma restrictListNM_f2n n m f hf (l: (list (Fin.t n))) :
+ fin_to_nat (restrictListNM n m f hf l) = f (fin_to_nat <$> l).
+Proof.
+  rewrite /restrictListNM /=.
+  rewrite fin_to_nat_to_fin //.
+Qed.
+
+Lemma restrictListNM_n2f n m f hf l (hfa : (Forall (λ x, x<n) l)) :
+ restrictListNM n m f hf (forall_leq_to_fin _ _ hfa) = nat_to_fin (hf _ hfa).
+Proof.
+Admitted.
+
+Lemma restr_list_inj_fixed_length N M p (f : list nat -> nat)
+  (Hdom: forall (l : list nat), Forall (λ x, (x < N)%nat) l -> (f l < M)%nat)
+  (Hinj: forall (l1 l2:list nat), length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) :
+  exists (g : list (fin N) -> fin M),
+    (forall (l1 l2: list (fin N)), length l1 = p -> length l2 = p -> g l1 = g l2 -> l1 = l2) /\
+      (forall (l : list (fin N)), fin_to_nat (g l) = f (fin_to_nat <$> l)).
+Proof.
+Admitted.
+
+
 End fin.

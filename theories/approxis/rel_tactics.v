@@ -433,7 +433,7 @@ Lemma tac_rel_alloctape_l_simpl `{!approxisRGS Σ} K ℶ1 ℶ2 e N z t A E :
   e = fill K (AllocTape #z) →
   MaybeIntoLaterNEnvs 1 ℶ1 ℶ2 →
   (envs_entails ℶ2 (∀ (α : loc),
-     (α ↪ ((N; []) : tape) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
+     (α ↪N (N; []) -∗ refines E (fill K (of_val #lbl:α)) t A))) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal. intros -> ???; subst.
@@ -460,7 +460,7 @@ Tactic Notation "rel_alloctape_l" simple_intropattern(l) "as" constr(H) :=
 Lemma tac_rel_alloctape_r `{!approxisRGS Σ} K' ℶ E e N z t A :
   TCEq N (Z.to_nat z) →
   t = fill K' (AllocTape #z) →
-  envs_entails ℶ (∀ α, α ↪ₛ (N; []) -∗ refines E e (fill K' #lbl:α) A) →
+  envs_entails ℶ (∀ α, α ↪ₛN (N; []) -∗ refines E e (fill K' #lbl:α) A) →
   envs_entails ℶ (refines E e t A).
 Proof. intros -> ?. subst t. rewrite -refines_alloctape_r //. Qed.
 
@@ -480,11 +480,11 @@ Tactic Notation "rel_alloctape_r" simple_intropattern(l) "as" constr(H) :=
 
 Lemma tac_rel_rand_l `{!approxisRGS Σ} K ℶ1 ℶ2 i1 (α : loc) N (z : Z) n ns e t tres A E :
   t = fill K (rand(#lbl:α) #z) →
-  envs_lookup i1 ℶ1 = Some (false, α ↪ (N; n::ns))%I →
+  envs_lookup i1 ℶ1 = Some (false, α ↪N (N; n::ns))%I →
   TCEq N (Z.to_nat z) →
-  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ (N; ns))) ℶ1 = Some ℶ2 →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪N (N; ns))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #n) →
-  envs_entails ℶ2 (refines E tres e A) →
+  envs_entails ℶ2 (⌜n ≤ N⌝ -∗ refines E tres e A) →
   envs_entails ℶ1 (refines E t e A).
 Proof.
   rewrite envs_entails_unseal.
@@ -495,16 +495,19 @@ Proof.
   rewrite Hg.
   rewrite -(refines_rand_l _ K).
   rewrite -bi.later_sep.
-  apply bi.later_intro.
+  (* TODO: Cleaner proof? *)
+  etrans; [|apply bi.later_intro].
+  apply bi.sep_mono_r.
+  rewrite  bi.wand_curry //.
 Qed.
 
 Lemma tac_rel_rand_r `{!approxisRGS Σ} K ℶ1 ℶ2 E i1 (α : loc) N z n ns e t tres A :
   TCEq N (Z.to_nat z) →
   t = fill K (rand(#lbl:α) #z) →
-  envs_lookup i1 ℶ1 = Some (false, α ↪ₛ (N; n::ns))%I →
-  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛ (N; ns))) ℶ1 = Some ℶ2 →
+  envs_lookup i1 ℶ1 = Some (false, α ↪ₛN (N; n::ns))%I →
+  envs_simple_replace i1 false (Esnoc Enil i1 (α ↪ₛN (N; ns))) ℶ1 = Some ℶ2 →
   tres = fill K (of_val #n) →
-  envs_entails ℶ2 (refines E e tres A) →
+  envs_entails ℶ2 (⌜n ≤ N⌝ -∗ refines E e tres A) →
   envs_entails ℶ1 (refines E e t A).
 Proof.
   rewrite envs_entails_unseal.
@@ -519,7 +522,7 @@ Qed.
 
 Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
-    let α := match goal with |- _ = Some (_, (?α ↪ _)%I) => α end in
+    let α := match goal with |- _ = Some (_, (?α ↪ _ )%I) => α end in
     iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
