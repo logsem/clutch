@@ -15,33 +15,46 @@ Section prf_prp.
   (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
      If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
   Definition compute_hash_specialized hm : val :=
-    λ: "v",
-      match: get hm "v" with
-      | SOME "b" => "b"
+    λ: "x",
+      match: get hm "x" with
+      | SOME "y" => "y"
       | NONE =>
-          let: "b" := (rand #val_size) in
-          set hm "v" "b";;
-          "b"
+          let: "y" := (rand #val_size) in
+          set hm "x" "y";;
+          "y"
       end.
   Definition compute_hash : val :=
-    λ: "hm" "v",
-      match: get "hm" "v" with
-      | SOME "b" => "b"
+    λ: "mapref" "x",
+      match: get "mapref" "x" with
+      | SOME "y" => "y"
       | NONE =>
-          let: "b" := (rand #val_size) in
-          set "hm" "v" "b";;
-          "b"
+          let: "y" := (rand #val_size) in
+          set "mapref" "x" "y";;
+          "y"
       end.
 
   (* init_hash returns a hash as a function, basically wrapping the internal state
      in the returned function *)
   Definition init_hash : val :=
     λ: "_",
-      let: "hm" := init_hash_state #() in
-      compute_hash "hm".
+      (* Create a reference to a functional map *)
+      let: "mapref" := init_map #() in
+      λ: "x",
+        match: get "mapref" "x" with
+        | SOME "y" => "y"
+        | NONE =>
+            let: "y" := (rand #val_size) in
+            set "mapref" "x" "y";;
+            "y"
+        end.
+
+  (* A pseudo-random function family PRF is a function from KEY to functions of
+     type IN -> OUT that is indistinguishable from a function which randomly
+     samples functions IN -> OUT. *)
+  Definition PRF := init_hash.
 
   Definition hashfun f m : iProp Σ :=
-    ∃ (hm : loc), ⌜ f = compute_hash_specialized #hm ⌝ ∗ map_list hm ((λ b, LitV (LitInt b)) <$> m).
+    ∃ (mapref : loc), ⌜ f = compute_hash_specialized #mapref ⌝ ∗ map_list mapref ((λ b, LitV (LitInt b)) <$> m).
 
   #[global] Instance timeless_hashfun f m :
     Timeless (hashfun f m).
@@ -54,10 +67,9 @@ Section prf_prp.
   Proof.
     rewrite /init_hash.
     iIntros (Φ) "_ HΦ".
-    wp_pures. rewrite /init_hash_state.
+    wp_pures.
     wp_apply (wp_init_map with "[//]").
     iIntros (?) "Hm". wp_pures.
-    rewrite /compute_hash. wp_pures.
     iApply "HΦ". iExists _. rewrite fmap_empty. iFrame. eauto.
   Qed.
 
