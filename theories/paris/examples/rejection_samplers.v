@@ -113,7 +113,7 @@ Section rejection_sampler.
     wp_apply (wp_couple_fragmented_rand_rand_leq_rev'
                with "[$Hε $Hα $Hαₛ Hspec Hcnt]"); [done|done|].
     iIntros (m). case_match eqn:Heqn.
-    - simpl. iIntros "[Hα Hαₛ]". iClear "IH".
+    - simpl. iIntros "[Hα Hαₛ]". 
       tp_rand.
       tp_pures. case_bool_decide; last lia.
       tp_pures.
