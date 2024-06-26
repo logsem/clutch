@@ -547,7 +547,10 @@ Section rules.
 
   Lemma refines_couple_exp (M N p : nat ) (f : list nat → nat)
     (Hdom : ∀ l : list nat, Forall (λ x : nat, x < S N) l → f l < S M)
-    (Hinj : ∀ l1 l2 : list nat, length l1 = p → length l2 = p → f l1 = f l2 → l1 = l2) ns nsₛ α αₛ e1 e2 E A :
+    (Hinj: forall (l1 l2:list nat),
+        Forall (λ x, (x < S N)%nat) l1 ->
+        Forall (λ x, (x < S N)%nat) l2 ->
+        length l1 = p -> length l2 = p -> f l1 = f l2 -> l1 = l2) ns nsₛ α αₛ e1 e2 E A :
     (S N ^ p = S M)%nat->
     ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
       (∀ (l : list nat) (m: nat),
@@ -568,17 +571,43 @@ Section rules.
   Qed.
 
 
-  Lemma refines_couple_exp_rev (M N p : nat)
-    (f:(list nat) -> nat)
-    (Hdom : ∀ l : list nat, Forall (λ x : nat, x < S N) l → f l < S M)
-    (Hinj: ∀ l1 l2 : list nat, length l1 = p → length l2 = p → f l1 = f l2 → l1 = l2) ns nsₛ α αₛ e1 e2 E A:
+  Lemma refines_couple_exp_decoder (M N p : nat) ns nss α αs e1 e2 E A :
     (S N ^ p = S M)%nat ->
-    ▷ α ↪N (M; ns) ∗ ▷ αₛ ↪ₛN (N; nsₛ) ∗
+    ▷ α ↪N (N; ns) ∗ ▷ αs ↪ₛN (M; nss) ∗
       (∀ (l : list nat) (m: nat),
-          ⌜Forall (λ x : nat, x < S N) l⌝ -∗ ⌜m < S M⌝ -∗
-          ⌜length l = p /\ f l = m⌝ -∗
-          α ↪N (M; ns ++ [m]) -∗ αₛ ↪ₛN (N; nsₛ ++ l) -∗
+          ⌜Forall (λ x, (x < S N)%nat) l⌝ -∗
+          ⌜(m < S M)%nat ⌝ -∗
+          ⌜length l = p⌝ -∗
+          α ↪N (N; ns ++ l) -∗ αs ↪ₛN (M; nss ++ [@decoder_nat N l]) -∗
           REL e1 << e2 @ E : A
+      )
+      ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (HExp) "[>Hα [>Hαs Hcont]]".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    wp_apply (wp_couple_exp_decoder M N p ns nss α αs); eauto. iFrame.
+    iIntros (l m) "% % % Hα Hαs".
+    iApply ("Hcont" with "[//][//][//] Hα Hαs Hfill Hown Herr").
+    done.
+  Qed.
+
+
+    (** TODO: Strengthen Hinj hypothesis *)
+    Lemma refines_couple_exp_rev (M N p : nat)
+      (f:(list nat) -> nat)
+      (Hdom : ∀ l : list nat, Forall (λ x : nat, x < S N) l → f l < S M)
+      (Hinj: ∀ (l1 l2 : list nat),
+        Forall (λ x, (x < S N)%nat) l1 ->
+        Forall (λ x, (x < S N)%nat) l2 ->
+        length l1 = p → length l2 = p → f l1 = f l2 → l1 = l2) ns nsₛ α αₛ e1 e2 E A:
+      (S N ^ p = S M)%nat ->
+      ▷ α ↪N (M; ns) ∗ ▷ αₛ ↪ₛN (N; nsₛ) ∗
+        (∀ (l : list nat) (m: nat),
+            ⌜Forall (λ x : nat, x < S N) l⌝ -∗ ⌜m < S M⌝ -∗
+            ⌜length l = p /\ f l = m⌝ -∗
+            α ↪N (M; ns ++ [m]) -∗ αₛ ↪ₛN (N; nsₛ ++ l) -∗
+            REL e1 << e2 @ E : A
       )
       ⊢ REL e1 << e2 @ E : A.
   Proof.
@@ -610,6 +639,28 @@ Section rules.
     by iApply ("HΦ" with "[][$][$][$]").
   Qed.
     
+
+  Lemma refines_couple_exp_decoder_rev (M N p : nat) ns nss α αs e1 e2 E A :
+    (S N ^ p = S M)%nat ->
+    ▷ α ↪N (M; ns) ∗ ▷ αs ↪ₛN (N; nss) ∗
+      (∀ (l : list nat) (m: nat),
+          ⌜Forall (λ x, (x < S N)%nat) l⌝ -∗
+          ⌜(m < S M)%nat ⌝ -∗
+          ⌜length l = p⌝ -∗
+          α ↪N (M; ns ++ [@decoder_nat N l]) -∗ αs ↪ₛN (N; nss ++ l) -∗
+          REL e1 << e2 @ E : A
+      )
+      ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (HExp) "[>Hα [>Hαs Hcont]]".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    wp_apply (wp_couple_exp_decoder_rev M N p ns nss α αs); eauto. iFrame.
+    iIntros (l m) "% % % Hα Hαs".
+    iApply ("Hcont" with "[//][//][//] Hα Hαs Hfill Hown Herr").
+    done.
+  Qed.
+
  (*
   TODO: Port other rules by need
 

@@ -13,10 +13,9 @@ Section proofs.
        let: "α" := alloc #1 in
        let: "b0" := rand("α") #1 in
        let: "b1" := rand("α") #1 in
-       if: (("b0" = #1) && ("b1" = #1))
-       then "f" #()
-       else (let: "b2" := rand("α") #1 in
-             (#4*"b0" + #2*"b1" + "b2")))%V.
+       let: "b2" := rand("α") #1 in
+       let: "r" := (#4*"b2" + #2*"b1" + "b0") in
+       if: "r" < #6 then "r" else "f" #())%V.
 
   Definition rej_tapes : expr :=
     (rec: "f" <> :=
@@ -68,109 +67,35 @@ Section proofs.
     rel_alloctape_r β as "Hβ".
     rel_pures_l.
     rel_pures_r.
-    iApply (refines_couple_exp 7 1 3 bin_to_oct).
-    {
-      intros l Hl.
-      unfold bin_to_oct; simpl.
-      destruct l; simpl; [lia |].
-      destruct l; simpl; [lia |].
-      destruct l; simpl; [lia |].
-      destruct l; simpl; [ |lia].
-      apply Forall_cons_1 in Hl as [? Hl].
-      apply Forall_cons_1 in Hl as [? Hl].
-      apply Forall_cons_1 in Hl as [? Hl].
-      lia.
-    }
-    {
-      rewrite /bin_to_oct /length.
-      intros l1 l2 Hl1 Hl2 Hl1l2.
-      destruct l1; simpl; [lia |].
-      destruct l1; simpl; [lia |].
-      destruct l1; simpl; [lia |].
-      destruct l1; simpl; [|lia].
-      destruct l2; simpl; [lia |].
-      destruct l2; simpl; [lia |].
-      destruct l2; simpl; [lia |].
-      destruct l2; simpl; [|lia].
-      destruct l; simpl; [lia |].
-      destruct l; simpl; [lia |].
-      destruct l; simpl; [ |lia].
-
-    }
-    {
-      intros l1 l2 Hl1 Hl2 Heq.
-      destruct l1 as [|a1 l1]; [inversion Hl1 |].
-      destruct l1 as [|a2 l1]; [inversion Hl1 |].
-      destruct l1 as [|a3 l1]; [inversion Hl1 |].
-      destruct l1 as [|]; [|inversion Hl1].
-      destruct l2 as [|b1 l2]; [inversion Hl2 |].
-      destruct l2 as [|b2 l2]; [inversion Hl2 |].
-      destruct l2 as [|b3 l2]; [inversion Hl2 |].
-      destruct l2 as [|]; [|inversion Hl2].
-      rewrite /bin_to_oct /= /fin.fin_force in Heq.
-      apply (list_fmap_eq_inj fin_to_nat).
-      - apply fin_to_nat_inj.
-      - simpl.
-      destruct ( destr_fin2 a1) ;
-      destruct ( destr_fin2 a2) ;
-      destruct ( destr_fin2 a3) ;
-      destruct ( destr_fin2 b1) ;
-      destruct ( destr_fin2 b2) ;
-      destruct ( destr_fin2 b3); simplify_eq; auto.
-    }
+    iApply (refines_couple_exp_decoder 7 1 3 [] [] α β); [by simpl |].
     iFrame.
-    iIntros (l m) "[%Hl %Heq] Hα Hβ".
-    simpl.
-    destruct l as [|a1 l]; [inversion Hl |].
-    destruct l as [|a2 l]; [inversion Hl |].
-    destruct l as [|a3 l]; [inversion Hl |].
-    destruct l as [|]; [|inversion Hl].
-    rewrite /bin_to_oct /= in Heq.
-    do 2 rel_rand_l.
+    iIntros (l m) "%Hfa %Hm %Hlen Hα Hβ /=".
+    destruct l as [|a1 l]; [inversion Hlen |].
+    destruct l as [|a2 l]; [inversion Hlen |].
+    destruct l as [|a3 l]; [inversion Hlen |].
+    destruct l as [|a4 l]; [|inversion Hlen].
+    rewrite /fin.decoder_nat/=.
+    rewrite !Nat.add_0_r.
+    replace (a1 + (a2 + (a3 + a3) + (a2 + (a3 + a3)))) with (4*a3 + 2*a2 + a1) by lia.
+    rel_rand_l. iIntros "Ha1".
+    rel_rand_l. iIntros "Ha2".
+    rel_rand_l. iIntros "Ha3".
     rel_pures_l.
     rel_rand_r.
+    iIntros "Hr".
     rel_pures_r.
-    case_bool_decide as Ha1.
-    - rel_pures_l.
-      case_bool_decide as Ha2.
-      + rel_pure_l.
-        rewrite bool_decide_eq_false_2; last first.
-        {
-          intro Hm.
-          destruct ( destr_fin2 a1) ;
-          destruct ( destr_fin2 a2) ;
-            destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
-        }
-        rel_pure_r.
-        by rel_apply "IH".
-      + rel_pures_l.
-        rel_rand_l.
-        rel_pures_l.
-        rewrite bool_decide_eq_true_2; last first.
-        {
-          destruct ( destr_fin2 a1) ;
-          destruct ( destr_fin2 a2) ;
-          destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
-       }
-       rel_pures_r.
-       rewrite -Heq /=.
-       destruct ( destr_fin2 a1) ;
-       destruct ( destr_fin2 a2) ;
-         destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
-   - rel_pures_l.
-     rel_rand_l.
-     rel_pures_l.
-     rewrite bool_decide_eq_true_2; last first.
-     {
-       destruct ( destr_fin2 a1) ;
-       destruct ( destr_fin2 a2) ;
-       destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
-     }
-     rel_pures_r.
-     rewrite -Heq /=.
-     destruct ( destr_fin2 a1) ;
-     destruct ( destr_fin2 a2) ;
-     destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
+    case_bool_decide as H1.
+    - case_bool_decide as H2; [|lia].
+      rel_pures_l. rel_pures_r.
+      rel_values. iPureIntro.
+      simpl.
+      exists (4 * a3 + 2 * a2 + a1).
+      split; auto.
+      do 2 f_equal; simpl.
+      rewrite !Nat2Z.inj_add /=. lia.
+    - case_bool_decide; [lia|].
+      rel_pure_l. rel_pure_r.
+      by rel_apply "IH".
   Qed.
 
   Lemma rej_ref_vnd :
@@ -187,81 +112,34 @@ Section proofs.
     rel_alloctape_l β as "Hβ".
     rel_pures_l.
     rel_pures_r.
-    iApply (refines_couple_exp_rev 7 1 3 bin_to_oct); [|simpl; done|].
-    {
-      intros l1 l2 Hl1 Hl2 Heq.
-      destruct l1 as [|a1 l1]; [inversion Hl1 |].
-      destruct l1 as [|a2 l1]; [inversion Hl1 |].
-      destruct l1 as [|a3 l1]; [inversion Hl1 |].
-      destruct l1 as [|]; [|inversion Hl1].
-      destruct l2 as [|b1 l2]; [inversion Hl2 |].
-      destruct l2 as [|b2 l2]; [inversion Hl2 |].
-      destruct l2 as [|b3 l2]; [inversion Hl2 |].
-      destruct l2 as [|]; [|inversion Hl2].
-      rewrite /bin_to_oct /= /fin.fin_force in Heq.
-      apply (list_fmap_eq_inj fin_to_nat).
-      - apply fin_to_nat_inj.
-      - simpl.
-      destruct ( destr_fin2 a1) ;
-      destruct ( destr_fin2 a2) ;
-      destruct ( destr_fin2 a3) ;
-      destruct ( destr_fin2 b1) ;
-      destruct ( destr_fin2 b2) ;
-      destruct ( destr_fin2 b3); simplify_eq; auto.
-    }
+    iApply (refines_couple_exp_decoder_rev 7 1 3 [] [] β α); [by simpl|].
     iFrame.
-    iIntros (l m) "[%Hl %Heq] Hα Hβ".
-    simpl.
-    destruct l as [|a1 l]; [inversion Hl |].
-    destruct l as [|a2 l]; [inversion Hl |].
-    destruct l as [|a3 l]; [inversion Hl |].
-    destruct l as [|]; [|inversion Hl].
-    rewrite /bin_to_oct /= in Heq.
-    do 2 rel_rand_r.
+    iIntros (l m) "%Hfa %Hm %Hlen Hα Hβ".
+    destruct l as [|b1 l]; [inversion Hlen |].
+    destruct l as [|b2 l]; [inversion Hlen |].
+    destruct l as [|b3 l]; [inversion Hlen |].
+    destruct l as [|b4 l]; [|inversion Hlen].
+    rewrite /fin.decoder_nat/=.
+    rewrite !Nat.add_0_r.
+    replace (b1 + (b2 + (b3 + b3) + (b2 + (b3 + b3)))) with (4*b3 + 2*b2 + b1) by lia.
+    rel_rand_r. iIntros "Hb1".
+    rel_rand_r. iIntros "Hb2".
+    rel_rand_r. iIntros "Hb3".
     rel_pures_r.
     rel_rand_l.
+    iIntros "Hr".
     rel_pures_l.
-    case_bool_decide as H1.
-    - case_bool_decide as H2.
-      + rel_pures_r.
-        rewrite bool_decide_eq_false_2; last first.
-      {
-        intro H3.
-        destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-          destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; try lia.
-      }
-      rel_pures_l.
-      rel_rand_r.
-      rel_pures_r.
-      rewrite -Heq /fin.fin_force.
-      destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
-      + rel_pures_l.
-        rel_rand_r.
-        rel_pures_r.
-        rewrite -Heq /fin.fin_force.
-        destruct ( destr_fin2 a1) ;
-          destruct ( destr_fin2 a2) ;
-          destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
-    - rel_pure_l.
-      rewrite bool_decide_eq_true_2; last first.
-      {
-        do 2 f_equal.
-        destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
-      }
-      rel_pures_r.
-      rewrite bool_decide_eq_true_2; last first.
-      {
-        do 2 f_equal.
-        destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
-      }
-      rel_pure_r.
+    case_bool_decide.
+    - case_bool_decide; [|lia].
+      rel_pures_l. rel_pures_r.
+      rel_values. iPureIntro.
+      simpl.
+      exists (4 * b3 + 2 * b2 + b1).
+      split; auto.
+      do 2 f_equal; simpl.
+      rewrite !Nat2Z.inj_add /=. lia.
+    - case_bool_decide; [lia|].
+      rel_pure_l. rel_pure_r.
       by rel_apply "IH".
   Qed.
 
@@ -272,7 +150,7 @@ Section proofs.
     rewrite /rej_tapes /die_tapes.
     rel_alloctape_r γ as "Hγ".
     rel_pures_r.
-    iApply (refines_na_alloc (γ ↪ₛ (Z.to_nat 5; []))%I (nroot.@"coins")); iFrame.
+    iApply (refines_na_alloc (γ ↪ₛN (Z.to_nat 5; []))%I (nroot.@"coins")); iFrame.
     iIntros "#Hinv".
     rel_arrow.
     iIntros (v1 v2) "#Hv1v2".
@@ -284,81 +162,35 @@ Section proofs.
     rel_pures_l.
     replace (Z.to_nat 5) with 5 by lia.
     replace (Z.to_nat 7) with 7 by lia.
-    iApply (refines_couple_TT_frag 7 5 (λ (x : fin 6), fin.fin_force 7 (fin_to_nat x)));
-      first by lia.
-    iFrame.
-    iIntros (n).
+    iApply (refines_couple_TT_frag 7 5 (λ x,x)); [lia|lia|..]. iFrame.
+    iIntros (n) "%Hn".
     case_bool_decide as H.
-    - iIntros (m) "[Hβ [Hγ %Heq]]".
+    - iIntros (m) "(Hβ & Hγ & % & %)".
       simpl.
-      rel_rand_l.
+      rel_rand_l. iIntros "%".
       rel_pures_l.
       rel_pures_r.
-      rel_rand_r.
-      case_bool_decide as H1.
-      + rel_pures_l.
-        rewrite -Heq.
-        iApply (refines_na_close with "[-]").
-        iFrame.
-        iSplitL; auto.
-        rel_values.
-        iModIntro.
-        iExists m.
-        iPureIntro; split; auto.
-        f_equal.
-        rewrite /fin.fin_force.
-        pose proof (fin_to_nat_lt m).
-        case_match.
-        * lia.
-        * do 2 f_equal.
-          rewrite fin_to_nat_to_fin //.
-      + exfalso.
-        apply H1.
-        destruct H as [x <-].
-        rewrite /fin.fin_force.
-        pose proof (fin_to_nat_lt x).
-        case_match.
-        * lia.
-        * rewrite fin_to_nat_to_fin //.
-          lia.
-    - iIntros "[Hβ Hγ]".
-      simpl.
-      rel_rand_l.
+      rel_rand_r. iIntros "%".
+      rewrite bool_decide_eq_true_2; last by lia.
       rel_pures_l.
-      case_bool_decide as H2.
-      + exfalso.
-        assert (n < 6)%nat as H3 by lia.
+      iApply (refines_na_close with "[-]").
+      iFrame.
+      iSplitL; auto.
+      rel_values.
+    - iIntros "[Hβ [Hγ %]]".
+      simpl.
+      rel_rand_l. iIntros "%".
+      rel_pures_l.
+      rewrite bool_decide_eq_false_2; last first.
+      {
+        intros ?.
         apply H.
-        exists (Fin.of_nat_lt H3).
-        rewrite /fin.fin_force.
-
-        inv_fin n; auto; intros n.
-        inv_fin n; auto; intros n.
-        inv_fin n; auto; intros n.
-        inv_fin n; auto; intros n.
-        inv_fin n; auto; intros n.
-        inv_fin n; auto; intros n.
-        inv_fin n; auto; intros n.
-        * intros H. simpl in H. lia.
-        * intros.
-          inv_fin n; auto.
-          ** intros ? H. simpl in H. lia.
-          ** intros n. inv_fin n.
-      + rel_pures_l.
-        iApply (refines_na_close with "[-]").
-        iFrame.
-        iSplitL; auto.
-  Unshelve.
-  rewrite /fin.fin_force.
-  intros x y Hxy.
-  pose proof (fin_to_nat_lt x).
-  pose proof (fin_to_nat_lt y).
-  case_match; [lia |].
-  case_match; [lia |].
-
-  destruct (destr_fin6 x) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
-  destruct (destr_fin6 y) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
-    try inversion Hxy; auto.
+        exists n. lia.
+      }
+      rel_pures_l.
+      iApply (refines_na_close with "[-]").
+      iFrame.
+      iSplitL; auto.
   Qed.
 
 
@@ -369,7 +201,7 @@ Section proofs.
     rewrite /rej_tapes /die_tapes.
     rel_alloctape_l γ as "Hγ".
     rel_pures_l.
-    iApply (refines_na_alloc (γ ↪ (Z.to_nat 5; []))%I (nroot.@"coins")); iFrame.
+    iApply (refines_na_alloc (γ ↪N (Z.to_nat 5; []))%I (nroot.@"coins")); iFrame.
     iIntros "#Hinv".
     iApply (refines_arrow_val_err _ _ _ _ (8%nat / (8%nat - 6%nat)));
       first by (simpl; lra).
@@ -380,84 +212,38 @@ Section proofs.
     iIntros "[>Hγ Hclose]".
     rel_alloctape_r β as "Hβ".
     rel_pures_r.
-    iApply (refines_couple_TT_adv 5 7 (λ (x : fin 6), fin.fin_force 7 (fin_to_nat x)));
-      [| | iFrame]; [lra | lia |].
-    iIntros (m).
+    iApply (refines_couple_TT_adv 5 7 (λ x, x));
+      [| lia | lia | iFrame]; [lra |].
+    iIntros (m) "%".
     case_bool_decide.
-    - iIntros (n) "[Hγ [Hβ %Heq]]".
+    - iIntros (n) "(Hγ & Hβ & % & %)".
       simpl.
       rel_pures_l.
-      rel_rand_l.
-      rel_rand_r.
+      rel_rand_l; iIntros "%".
+      rel_rand_r; iIntros "%".
       rel_pures_r.
       iApply (refines_na_close with "[-]").
       iFrame.
       iSplitL; auto.
-      case_bool_decide as H2.
-      + rel_pures_r.
-        rel_values.
-        iExists m.
-        iModIntro.
-        iPureIntro.
-        split; auto.
-        f_equal.
-        rewrite /fin.fin_force in Heq.
-        pose proof (fin_to_nat_lt n).
-        case_match.
-        * lia.
-        * rewrite -Heq.
-          do 2 f_equal.
-          rewrite fin_to_nat_to_fin //.
-      + exfalso.
-        apply H2.
-        destruct H as [x <-].
-        rewrite /fin.fin_force.
-        pose proof (fin_to_nat_lt x).
-        case_match.
-        * lia.
-        * rewrite fin_to_nat_to_fin //.
-          lia.
-    - iIntros (ε') "(-> & Hγ & Hβ & Herr)".
+      rewrite bool_decide_eq_true_2; last by lia.
+      rel_pures_r.
+      rel_values.
+    - iIntros (ε') "(-> & Hγ & Hβ & Herr & %)".
       iApply (refines_na_close with "[-]").
       iFrame.
       iSplitL "Hγ"; auto.
-      rel_rand_r.
+      rel_rand_r; iIntros "%".
       rel_pures_r.
-      case_bool_decide as H2.
-      + exfalso.
-        assert (m < 6)%nat as H3.
-        { inv_fin m; auto; simpl; try lia. }
-        apply H.
-        exists (Fin.of_nat_lt H3).
-        rewrite /fin.fin_force.
-
-        inv_fin m; auto; intros m.
-        inv_fin m; auto; intros m.
-        inv_fin m; auto; intros m.
-        inv_fin m; auto; intros m.
-        inv_fin m; auto; intros m.
-        inv_fin m; auto; intros m.
-        inv_fin m; auto; intros m.
-        * intros H. simpl in H. lia.
-        * intros.
-          inv_fin m; auto.
-          ** intros ? H. simpl in H. lia.
-          ** intros m. inv_fin m.
-      + rel_pure_r.
-        iApply ("IH" with "[$Herr]").
-        iDestruct "Hv1v2" as (?) "?".
-        done.
-        Unshelve.
-  rewrite /fin.fin_force.
-  intros x y Hxy.
-  pose proof (fin_to_nat_lt x).
-  pose proof (fin_to_nat_lt y).
-  case_match; [lia |].
-  case_match; [lia |].
-  
-  destruct (destr_fin6 x) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
-  destruct (destr_fin6 y) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
-    try inversion Hxy; auto.
+      rewrite bool_decide_eq_false_2; last first.
+      {
+        intros ?.
+        apply H0.
+        exists m. lia.
+      }
+      rel_pure_r.
+      iApply ("IH" with "[$Herr]").
+      iDestruct "Hv1v2" as (?) "?".
+      done.
   Qed.
 
 
