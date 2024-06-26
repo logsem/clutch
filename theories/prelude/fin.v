@@ -274,3 +274,75 @@ Proof.
 Qed.
 
 End fin.
+
+Section decodings.
+
+(* TODO: Move somewhere more appropriate *)
+
+Context {N:nat}.
+
+  Fixpoint decoder_nat (l:list nat) :=
+    match l with
+    | [] => 0%nat
+    | x::l' => x + (S N) * (decoder_nat l')%nat
+    end.
+
+  Local Lemma pow_ge_1 b e :
+    (1 ≤ b) -> 1 ≤ (b ^ e).
+  Proof.
+    intros H.
+    rewrite -(Nat.pow_1_l e).
+    by apply Nat.pow_le_mono_l.
+  Qed.
+
+  Local Lemma decoder_aux_ineq l:
+    (Forall (λ x, x < S N)%nat l) ->
+    (decoder_nat l < (S N)^ (length l))%nat.
+  Proof.
+    intros Hfa.
+    induction l; first (simpl; lia).
+    apply Forall_cons_1 in Hfa as [Hhead Htail].
+    specialize (IHl Htail).
+    rewrite /decoder_nat.
+    rewrite cons_length.
+    rewrite -/decoder_nat.
+    apply Nat.lt_le_trans with (S N + S N * decoder_nat l)%nat; first lia.
+    assert (1<=S N ^ length l)%nat.
+    { apply pow_ge_1; lia. }
+    assert ((decoder_nat l) ≤ S N ^ length l - 1)%nat as H'; [lia |].
+    trans (S N + S N * (S N ^ length l - 1))%nat.
+    - apply Nat.add_le_mono_l.
+      apply Nat.mul_le_mono_pos_l; lia.
+    - rewrite Nat.pow_succ_r'.
+      cut (S N * (1+ S N ^ length l - 1) ≤ S N * S N ^ length l)%nat; last lia.
+      intros; etrans; last exact.
+      rewrite Nat.add_sub'.
+      rewrite Nat.mul_sub_distr_l.
+      rewrite Nat.mul_1_r.
+      rewrite -Nat.le_add_sub; auto.
+      rewrite <-Nat.mul_1_r at 1.
+      apply Nat.mul_le_mono_l. lia.
+  Qed.
+
+  Local Lemma decoder_aux_inj l1 l2:
+    (Forall (λ x, x < S N)%nat l1) ->
+    (Forall (λ x, x < S N)%nat l2) ->
+    length l1 = length l2 -> decoder_nat l1 = decoder_nat l2 -> l1 = l2.
+  Proof.
+    clear.
+    revert l2; induction l1.
+    - simpl. intros. symmetry. apply nil_length_inv. done.
+    - intros l2 Hfa1 Hfa2 Hlen2 H.
+      apply Forall_cons_1 in Hfa1 as [Hhead1 Htail1].
+      destruct l2; first (simpl in *; lia).
+      apply Forall_cons_1 in Hfa2 as [Hhead2 Htail2].
+      cut (a=n /\ decoder_nat l1=decoder_nat l2).
+      { intros [? ?].
+        f_equal; subst; last apply IHl1; try done.
+        simplify_eq. done.
+      } eapply Nat.mul_split_r; eauto.
+      simpl in H. lia.
+  Qed.
+
+
+End decodings.

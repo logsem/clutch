@@ -522,13 +522,13 @@ Qed.
 
 Tactic Notation "rel_rand_l" open_constr(ef) "in" open_constr(Kf) :=
   let solve_mapsto _ :=
-    let α := match goal with |- _ = Some (_, (?α ↪ _ )%I) => α end in
-    iAssumptionCore || fail "rel_rand_l: cannot find" α "↪ ?" in
+    let α := match goal with |- _ = Some ( _ , (?α ↪N ( _ ; _ ) )%I) => α end in
+    iAssumptionCore || fail "rel_rand_l: cannot find" α "↪N ?" in
   first
     [rel_reshape_cont_l ltac:(fun K e' =>
        unify K Kf ;
        unify e' ef ;
-       eapply (tac_rel_rand_l K); [reflexivity|idtac..])  
+       eapply (tac_rel_rand_l K); [reflexivity|idtac..])
     |fail 1 "rel_rand_l: cannot find 'Rand'"];
   [solve_mapsto ()
   |tc_solve
@@ -540,7 +540,7 @@ Tactic Notation "rel_rand_l" := rel_pures_l ; rel_rand_l _ in _.
 (* Tactic Notation "rel_rand_l_atomic" := rel_apply_l refines_rand_l. *)
 Tactic Notation "rel_rand_r" open_constr(ef) "in" open_constr(kf) :=
   let solve_mapsto _ :=
-    let l := match goal with |- _ = Some (_, (?l ↪ₛ _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (?l ↪ₛN (_ ; _)) %I) => l end in
     iAssumptionCore || fail "rel_rand_r: cannot find" l "↪ₛ ?" in
   first
     [rel_reshape_cont_r ltac:(fun K e' =>
