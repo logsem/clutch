@@ -26,34 +26,6 @@ Section proofs.
   Definition die_tapes : expr :=
     (let: "γ" := alloc #5 in λ:<>, rand("γ") #5)%E.
 
-  Fixpoint bin_to_oct (l : list nat) : nat :=
-    match l with
-    | [b0; b1; b2] => (4*b0 + 2*b1 + b2)
-    | _ => 0
-    end.
-
-  Lemma destr_fin2 (x : fin 2): {x = 0%fin} + {x = 1%fin}.
-  Proof.
-    inv_fin x; auto.
-    intros x.
-    inv_fin x; auto.
-    intros x.
-    inv_fin x; auto.
-  Qed.
-
-  (* Shame on me *)
-  Lemma destr_fin6 (x : fin 6):
-    x = 0%fin \/ x = 1%fin \/ x = 2%fin \/ x = 3%fin \/ x = 4%fin \/ x = 5%fin.
-  Proof.
-    inv_fin x; auto; intros x.
-    inv_fin x; auto; intros x.
-    inv_fin x; auto; intros x.
-    inv_fin x; auto; intros x.
-    inv_fin x; [right;right;auto| ]; intros x.
-    inv_fin x; [right;right;auto| ]; intros x.
-    inv_fin x.
-  Qed.
-
   Lemma vnd_ref_rej :
     ⊢ (REL (vnd_tapes) << (rej_tapes) : lrel_unit → lrel_int).
   Proof.
