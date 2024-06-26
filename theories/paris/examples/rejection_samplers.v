@@ -285,3 +285,12 @@ Proof.
   iIntros.
   by wp_apply (@wp_simpl_rejection _ _ Hineq with "[$][$]").
 Qed.
+
+Lemma rejection_sampler_correct N M (Hineq : (M<N)%nat) σ:
+  (lim_exec (@rejection_sampler_prog N M #(), σ)) =
+  (lim_exec (@simpl_sampler_prog M #(), σ)).
+Proof.
+  apply ARcoupl_antisym.
+  - by apply ARcoupl_rejection_sampler_simpl.
+  - by apply ARcoupl_simpl_rejection_sampler.
+Qed.
