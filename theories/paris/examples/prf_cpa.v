@@ -1,12 +1,9 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
-(* From clutch Require Import paris lib.flip. *)
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list.
 Set Default Proof Using "Type*".
 
-Section proofs.
-
-  Context `{!parisRGS Σ}.
+Section defs.
 
   (* symmetric encryption scheme = { keygen : unit -> key ; enc : key -> message -> cipher } *)
 
@@ -114,6 +111,9 @@ Section proofs.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
 
 
+  Section proofs.
+    Context `{!parisRGS Σ}.
+
   (* TODO: Should we prove a logical refinement, or a WP refinement? *)
   Theorem rf_is_CPA (Q : nat) :
     ↯ (Q * Q / (2 * Input)) ⊢ (REL (CPA #true adv rf_scheme #Q) << (CPA #false adv rf_scheme #Q) : lrel_bool).
@@ -180,7 +180,7 @@ Section proofs.
       rel_bind_r (Rand _ _).
       unshelve iApply (refines_bind with "[-]").
       1: exact lrel_int.
-      2: { iIntros (??) "#(%out&->&->)" => /=...  }
+      2: { iIntros (??) "#(%out&->&->)" => /=... admit. }
       (* (xor_sem (Fin.of_nat_lt Hmsg)) *)
       (* 1: rewrite Nat2Z.id. *)
       give_up.
@@ -197,9 +197,10 @@ Section proofs.
       all: iExists _ ; done.
       
 
-  Abort.
+  Admitted.
 
-  Theorem rf_is_CPA (Q : nat) :
+
+  Theorem wp_rf_is_CPA (Q : nat) :
     (↯ (Q * Q / (2 * Input)) ⊢  ⤇ (CPA #false adv rf_scheme #Q) -∗ WP (CPA #true adv rf_scheme #Q) {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }} ).
   Proof.
     iIntros "ε spec".
@@ -211,11 +212,30 @@ Section proofs.
     iApply (wp_couple_rand_rand with "spec").
     iIntros "!> %key spec" => /=.
     wp_pures ; tp_pures.
-    wp_bind (q_calls _ _).
-    tp_bind (q_calls _ _).
-    rewrite /q_calls ; wp_pures ; tp_pures.
-    wp_alloc r. tp_alloc as rs. wp_pures ; tp_pures.
 
   Abort.
 
 End proofs.
+
+Lemma rf_CPA_ARC Σ `{parisRGpreS Σ} σ σ' (Q : nat) :
+  ARcoupl
+    (lim_exec ((CPA #true adv rf_scheme #Q), σ))
+    (lim_exec ((CPA #false adv rf_scheme #Q), σ'))
+    (=)
+    (Q * Q / (2 * Input)).
+Proof.
+  unshelve eapply approximates_coupling ; eauto.
+  1: exact (fun _ => lrel_bool).
+  1: admit.
+  1: by iIntros (???) "#(%b&->&->)".
+  iIntros. by iApply rf_is_CPA.
+Admitted.
+
+Corollary foo Σ `{parisRGpreS Σ} σ σ' (Q : nat) :
+  (((lim_exec ((CPA #true adv rf_scheme #Q), σ)) #true)
+    <=
+      ((lim_exec ((CPA #false adv rf_scheme #Q), σ')) #true) + (Q * Q / (2 * Input)))%R.
+Proof.
+  apply ARcoupl_eq_elim.
+  by eapply rf_CPA_ARC.
+Qed.
