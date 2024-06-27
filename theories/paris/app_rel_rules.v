@@ -525,6 +525,25 @@ Section rules.
     done.
   Qed.
 
+  Lemma refines_couple_couple_avoid (N:nat) l z E K K' A:
+    NoDup l ->
+    TCEq N (Z.to_nat z) →
+    ↯ (length l / (S N)) ∗
+    ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
+    ⊢ REL fill K (rand #z) << fill K' (rand #z) @ E : A.
+  Proof.
+    iIntros (Hl ->) "[Hε HΦ]".
+    rewrite refines_eq/refines_def.
+    iIntros (? ε) "Hfill Hown Herr %Hpos".
+    wp_apply wp_bind.
+    rewrite -fill_app.
+    rewrite S_INR.
+    iApply (wp_couple_rand_rand_avoid with "[$]"); first done.
+    iIntros "!>" (n) "[% Hspec]".
+    rewrite fill_app.
+    by iApply ("HΦ" with "[][$][$][$]").
+  Qed.
+    
  (*
   TODO: Port other rules by need
 
