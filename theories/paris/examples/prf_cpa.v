@@ -56,7 +56,7 @@ Section defs.
       λ: "msg",
         let: "r" := rand #Input in
         let: "z" := "prf_key" "r" in
-        ("r", xor "z" "msg").
+        ("r", xor "msg" "z").
 
   Section security_defs.
     (* Tentative sketch of security definitions as we'd write them at the toplevel. *)
