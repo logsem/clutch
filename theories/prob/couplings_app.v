@@ -1617,7 +1617,54 @@ Proof.
   intros; split; intros; apply ARcoupl_swap; (lra||naive_solver).
 Qed.
   
-  
+Lemma ARcoupl_dunif_avoid N (l:list (fin N)):
+  NoDup l->
+  ARcoupl (dunif N) (dunif N) (λ x y, x∉l /\ x=y) (length l/N).
+Proof.
+  intros Hl.
+  cut (∀ ε, ARcoupl (dunif N) (ssd (λ x, bool_decide(x∉l)) (dunif N)) (=) ε ->
+            ARcoupl (dunif N) (dunif N) (λ x y, x∉l /\ x=y) ε).
+  {
+    intros H.
+    apply H.
+    apply ARcoupl_tight.
+    rewrite (SeriesC_ext _ (λ x, if bool_decide(x∈l) then 1/(N) else 0)).
+    - rewrite SeriesC_list_2; [lra|done].
+    - intros.
+      rewrite bool_decide_eq_true_2; last first.
+      { rewrite /ssd/ssd_pmf/pmf/=. case_bool_decide; try lra.
+        rewrite -Rdiv_1_l.
+        apply Rdiv_INR_ge_0.
+      }
+      rewrite /ssd/ssd_pmf{2}/pmf.
+      case_bool_decide.
+      + rewrite bool_decide_eq_false_2; last done.
+        lra.
+      + rewrite bool_decide_eq_true_2; last done.
+        rewrite dunif_pmf. lra.
+  }
+  intros ε Hcoupl f g Hf Hg Hfg.
+  pose (g':=λ x, if bool_decide (x∈l) then 1 else g x).
+  assert (∀ b, 0<=g' b <=1).
+  { rewrite /g'. intros. case_bool_decide; try lra. naive_solver. }
+  epose proof Hcoupl f g' _ _ _.
+  etrans; first exact.
+  apply Rplus_le_compat_r.
+  apply SeriesC_le; last apply pmf_ex_seriesC_mult_fn; last naive_solver.
+  intros n; split.
+  - apply Rmult_le_pos; naive_solver.
+  - rewrite /g'.
+    rewrite /ssd/ssd_pmf{1}/pmf.
+    case_bool_decide.
+    + by rewrite bool_decide_eq_false_2.
+    + rewrite Rmult_0_l.
+      apply Rmult_le_pos; naive_solver.
+    Unshelve.
+    all: try done.
+    intros ?? ->.
+    rewrite /g'.
+    case_bool_decide; naive_solver.
+Qed.
     
       
     
