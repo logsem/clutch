@@ -523,10 +523,10 @@ Lemma decoder_aux'_lt N (l:list (fin (S N))):
 
 
 Section b_tree.
-  Context {min_child_num' : nat}.
+  Context {max_child_num' : nat}.
   Context {depth : nat}.
-  Local Definition min_child_num := S min_child_num'.
-  Local Definition max_child_num := (2*min_child_num)%nat.
+  Local Definition min_child_num := (S O)%nat.
+  Local Definition max_child_num := (S max_child_num')%nat.
 
 
   Local Lemma min_child_num_pos: (0<min_child_num)%nat.
@@ -2510,7 +2510,7 @@ Section b_tree.
           - rewrite H.
             pose proof max_child_num_pos.
             replace (length xs') with height'; last (by simpl in Hlen; simplify_eq).
-            rewrite Nat.mul_comm. do 2 f_equal. lia.
+            rewrite Nat.mul_comm. replace (S (max_child_num - 1)) with max_child_num by lia. auto.
         }
         rewrite -!app_assoc.
         rewrite lookup_app_r; first rewrite lookup_app_l.
@@ -2523,9 +2523,10 @@ Section b_tree.
             simpl in *. done.
           }
           eapply Nat.lt_le_trans; first apply decoder_aux'_lt.
-          apply Nat.eq_le_incl; f_equal.
-          -- pose proof max_child_num_pos; lia.
-          -- by simplify_eq.
+          apply Nat.eq_le_incl.
+          replace (length xs') with height' by lia.
+          pose proof max_child_num_pos.
+          assert (S (max_child_num - 1) = max_child_num)%nat as ->; lia.
         * rewrite Heq. lia.
       + iIntros (?) "[-> Hrelate]".
         iSpecialize ("H1" with "[$]").
