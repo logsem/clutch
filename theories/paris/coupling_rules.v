@@ -387,7 +387,37 @@ Section rules.
       rand #z @ E
       {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #n }}}.
   Proof.
-  Admitted.
+    iIntros (H0 Hl Ψ) "[Hε Hr] HΨ".
+    iApply wp_lift_step_prog_couple; [done|].
+    iIntros (σ1 e1' σ1' ε) "[Hσ [Hs Hε2]]".
+    iDestruct (spec_auth_prog_agree with "Hs Hr") as %->.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose".
+    iDestruct (ec_supply_ec_inv with "Hε2 Hε") as %(x & x1 & -> & H).
+    iApply (prog_coupl_steps _ _ _
+              (* (λ ρ2 ρ2', *)
+              (*   ∃ (n : fin _), n∉l /\ρ2 = (Val #n, σ1) ∧ ρ2' = (fill K #(n), σ1')) *))
+    ; [done|solve_red|solve_red|..].
+    { eapply ARcoupl_steps_ctx_bind_r; first done.
+      apply ARcoupl_rand_rand_avoid_list; first done.
+      - by rewrite S_INR. 
+      - by apply TCEq_eq.
+    }
+    iIntros (e2 σ2 e2' σ2' (b & [= ->] & (?&?&[= -> ->] & [= -> ->]))) "!> !>".
+    iMod (spec_update_prog with "Hs Hr") as "[$ Hr]".
+    iMod (ec_supply_decrease with "Hε2 Hε") as (x2 x3 H1 ?) "H".
+    replace (x3) with (x1); last first.
+    { apply nnreal_ext. inversion H1.
+      lra.
+    }
+    iMod "Hclose" as "_".
+    (* replace (0 + ε)%NNR with ε; last first. *)
+    (* { apply nnreal_ext; simpl; lra. } *)
+    iFrame.
+    iApply wp_value.
+    iApply "HΨ".
+    iFrame.
+    by iPureIntro.
+  Qed.
   
 
   (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
