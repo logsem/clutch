@@ -190,19 +190,58 @@ Admitted.
     case_bool_decide as Hq...
     - rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
       assert (Z.to_nat msg < S Message) as Hmsg by admit.
-      opose proof (wp_couple_rand_rand_avoid).
-      rel_apply (refines_couple_UU).
-      iIntros (r_in) "!>"...
-      rel_bind_l (Match _ _ _ _ _).
-      rel_bind_r (Rand _ _).
-      unshelve iApply (refines_bind with "[-]").
-      1: exact lrel_int.
-      2: { iIntros (??) "#(%out&->&->)" => /=... admit. }
-      (* (xor_sem (Fin.of_nat_lt Hmsg)) *)
-      (* 1: rewrite Nat2Z.id. *)
-      give_up.
+
+      rel_apply (refines_couple_couple_avoid _ (dom M)).
+      1: admit.
+      iSplitL "ε".
+      1: admit.
+      iIntros (r_in) "!> %r_fresh"...
+
+  Lemma refines_get_l E K lm m (n: nat) e A :
+    (∀ res, map_list lm m -∗
+     ⌜ res = opt_to_val (m !! n) ⌝
+     -∗ REL (fill K (of_val res)) << e @E : A)
+    -∗ map_list lm m -∗ REL (fill K (get #lm #n)) << e @E : A.
+  Admitted.
+
+  rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
+  iIntros (?) "mapref #->"...
+  assert ((M !! fin_to_nat r_in) = None) as -> by admit.
+  simpl...
+  rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
+  iIntros (y) "!>"...
+
+  Lemma refines_set_l E K lm m (v : val) (n: nat) e A :
+    (map_list lm (<[n := v]>m)
+     -∗ REL (fill K (of_val #())) << e @E : A)
+    -∗ map_list lm m -∗ REL (fill K (set #lm #n v)) << e @E : A.
+  Admitted.
+
+  rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
+  iIntros "mapref"...
+
+
+  Lemma foobar E K (x : fin (S Message)) (y : Z) (Hy : ((Z.to_nat y) < S Message)) e A :
+    (REL (fill K (of_val #(xor_sem x (nat_to_fin Hy)))) << e @E : A)
+  -∗ REL (fill K (xor #x #y)) << e @E : A.
+  Admitted.
+  rel_bind_l (xor _ _).
+  rel_apply_l foobar.
+
+  iApply (refines_na_close with "[-]").
+  iFrame.
+  iSplitL.
+  { iFrame. iExists (q+1). admit. }
+  idtac...
+  rel_values.
+  repeat iExists _.
+  iModIntro. repeat iSplit ; iPureIntro ; eauto.
+  eexists. split ; eauto.
+  admit.
     - iApply (refines_na_close with "[-]").
       iFrame.
+      iSplit.
+      { done. }
       rel_apply refines_couple_UU.
       iIntros (?) "!>"...
       rel_apply refines_couple_UU.
@@ -212,25 +251,7 @@ Admitted.
       iExists _,_,_,_.
       repeat iSplit ; try done.
       all: iExists _ ; done.
-      
-
   Admitted.
-
-
-  Theorem wp_rf_is_CPA (Q : nat) :
-    (↯ (Q * Q / (2 * Input)) ⊢  ⤇ (CPA #false adv rf_scheme #Q) -∗ WP (CPA #true adv rf_scheme #Q) {{ v, ∃ v', ⤇ Val v' ∗ ⌜v = v'⌝ }} ).
-  Proof.
-    iIntros "ε spec".
-    rewrite /CPA.
-    rewrite /rf_scheme /rf_enc /prf_enc /rf_keygen.
-    wp_pures. tp_pures.
-    tp_bind (rand _)%E.
-    wp_bind (rand _)%E.
-    iApply (wp_couple_rand_rand with "spec").
-    iIntros "!> %key spec" => /=.
-    wp_pures ; tp_pures.
-
-  Abort.
 
 End proofs.
 
