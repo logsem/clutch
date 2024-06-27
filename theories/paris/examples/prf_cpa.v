@@ -27,7 +27,9 @@ Section defs.
   Definition q_calls : val :=
     λ:"Q" "f" "g",
       let: "counter" := ref #0 in
-      λ:"x", if: ! "counter" < "Q" then ("counter" <- !"counter" + #1 ;; "f" "x") else "g" "x".
+      λ:"x", if: (BinOp AndOp (! "counter" < "Q") ("x" < #Message))
+             then ("counter" <- !"counter" + #1 ;; "f" "x")
+             else "g" "x".
 
   Definition CPA : val :=
     λ:"b" "adv" "scheme" "Q",
