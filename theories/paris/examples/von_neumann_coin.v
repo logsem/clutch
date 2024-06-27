@@ -26,7 +26,7 @@ Section proofs.
   Definition die_tapes : expr :=
     (let: "γ" := alloc #5 in λ:<>, rand("γ") #5)%E.
 
-  Fixpoint bin_to_oct (l : list (fin 2)) : fin 8 :=
+  Definition bin_to_oct (l : list (fin 2)) : fin 8 :=
     match l with
     | [b0; b1; b2] => fin.fin_force 7 (4*b0 + 2*b1 + b2)
     | _ => 0

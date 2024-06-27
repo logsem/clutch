@@ -25,6 +25,23 @@ End couplings.
 Section couplings_theory.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
 
+  Lemma ARcoupl_ext (μ1 μ1': distr A') (μ2 μ2': distr B') R R' ε ε':
+    (∀ a, μ1 a = μ1' a) ->
+    (∀ b, μ2 b = μ2' b) ->
+    (∀ x y, R x y <-> R' x y) ->
+    (ε = ε') ->
+    ARcoupl μ1 μ2 R ε ->
+    ARcoupl μ1' μ2' R' ε'.
+  Proof.
+    intros Hμ1 Hμ2 HR -> Hcoupl f g Hf Hg Hfg.
+    specialize (Hcoupl f g Hf Hg).
+    replace (μ1') with μ1; last by apply distr_ext.
+    replace (μ2') with μ2; last by apply distr_ext.
+    apply Hcoupl.
+    intros ??. rewrite HR. naive_solver.
+  Qed.
+    
+
   Lemma ARcoupl_1 (μ1 : distr A') (μ2 : distr B') R ε:
     (1 <= ε) -> ARcoupl μ1 μ2 R ε.
   Proof.
@@ -987,6 +1004,21 @@ Proof.
         -- set_solver.
         -- set_solver.
         -- lra.
+Qed.
+
+Lemma ARcoupl_Bij (N : nat) f `{Bij (fin N) (fin N) f} (ε:nonnegreal):
+  ARcoupl (dunif N) (dunif N) (λ n m, m = f n) ε <->
+    ARcoupl (dmap f (dunif N)) (dmap id (dunif N)) (=) ε.
+Proof.
+  split; intros H1.
+  - apply ARcoupl_map; first apply cond_nonneg.
+    eapply ARcoupl_ext; last done; naive_solver.
+  - rewrite dmap_id in H1.
+    replace (nonneg ε) with (0+nonneg ε); last lra.
+    eapply ARcoupl_eq_trans_r; [done|apply cond_nonneg| |done].
+    erewrite <-(dmap_id (dunif N)) at 1.
+    apply ARcoupl_map; first done.
+    eapply ARcoupl_ext; last apply (ARcoupl_dunif _ id); naive_solver.
 Qed.
 
 Lemma ARcoupl_dunif_leq_inj (N M : nat) h `{Inj (fin N) (fin M) (=) (=) h}:

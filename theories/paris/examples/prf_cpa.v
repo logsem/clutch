@@ -174,3 +174,5 @@ Section proofs.
     wp_alloc r. tp_alloc as rs. wp_pures ; tp_pures.
 
   Abort.
+
+End proofs.
