@@ -723,6 +723,36 @@ Proof.
   exists n. auto.
 Qed.
 
+(** * a coupling between rand n and rand n avoiding results from a list *)
+Lemma ARcoupl_rand_rand_avoid_list (N : nat) z σ1 σ1' (ε : nonnegreal) l:
+  NoDup l ->
+  (length l / S N = ε)%R →
+  N = Z.to_nat z →
+  ARcoupl
+    (prim_step (rand #z) σ1)
+    (prim_step (rand #z) σ1')
+    (λ ρ2 ρ2', ∃ (n : fin (S N)),
+        (n∉l)/\
+        ρ2 = (Val #n, σ1) ∧ ρ2' = (Val #n, σ1'))
+   ε.
+Proof.
+  intros Hl Hε Hz.
+  rewrite !head_prim_step_eq /=.
+  rewrite /dmap -Hz.
+  replace ε with (nnreal_plus ε nnreal_zero); last first.
+  { apply nnreal_ext; simpl; lra. }
+  eapply ARcoupl_dbind.
+  1,2: apply cond_nonneg.
+  2 : {
+    rewrite -Hε.
+    by apply ARcoupl_dunif_avoid.
+  }
+  simpl.
+  intros n m [Hnm ->].
+  apply ARcoupl_dret; [done|].
+  naive_solver.
+Qed.
+
 (** * state_step ~ fair_coin  *)
 Lemma state_step_fair_coin_coupl σ α bs :
   σ.(tapes) !! α = Some ((1%nat; bs) : tape) →

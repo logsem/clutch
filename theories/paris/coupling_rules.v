@@ -378,6 +378,17 @@ Section rules.
     by iApply "HΨ".
   Qed.
 
+  (** coupling rand and rand but avoid certain values*)
+  Lemma wp_couple_rand_rand_avoid N (l:list _) z K E :
+    TCEq N (Z.to_nat z) →
+    NoDup l -> 
+    {{{ ⤇ fill K (rand #z) }}}
+      rand #z @ E
+      {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #n }}}.
+  Proof.
+  Admitted.
+  
+
   (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
   Lemma wp_couple_fragmented_rand_rand_inj {M N} (f: fin (S M) → fin (S N)) {_ : Inj (=) (=) f}
     ns nsₛ α αₛ e E Φ:
