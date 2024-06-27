@@ -382,7 +382,8 @@ Section rules.
   Lemma wp_couple_rand_rand_avoid N (l:list _) z K E :
     TCEq N (Z.to_nat z) →
     NoDup l -> 
-    {{{ ⤇ fill K (rand #z) }}}
+    {{{ ↯ (length l/(N+1)) ∗
+          ⤇ fill K (rand #z) }}}
       rand #z @ E
       {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #n }}}.
   Proof.
