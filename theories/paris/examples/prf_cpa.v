@@ -205,50 +205,50 @@ Admitted.
     iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q) & Hclose)".
     rel_load_l ; rel_load_r...
     rewrite /rf_rand_cipher.
-    case_bool_decide as Hq...
-    - rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
-      assert (Z.to_nat msg < S Message) as Hmsg by admit.
+  (*   case_bool_decide as Hq... *)
+  (*   - rel_load_l ; rel_load_r... rel_store_l ; rel_store_r... *)
+  (*     assert (Z.to_nat msg < S Message) as Hmsg by admit. *)
 
-      rel_apply (refines_couple_couple_avoid _ (dom M)).
-      1: admit.
-      iSplitL "ε".
-      1: admit.
-      iIntros (r_in) "!> %r_fresh"...
+  (*     rel_apply (refines_couple_couple_avoid _ (dom M)). *)
+  (*     1: admit. *)
+  (*     iSplitL "ε". *)
+  (*     1: admit. *)
+  (*     iIntros (r_in) "!> %r_fresh"... *)
 
-
-  rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
-  iIntros (?) "mapref #->"...
-  assert ((M !! fin_to_nat r_in) = None) as -> by admit.
-  simpl...
-  rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
-  iIntros (y) "!>"...
-  rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
-  iIntros "mapref"...
-  rel_bind_l (xor _ _).
-  rel_apply_l foobar.
-  iApply (refines_na_close with "[-]").
-  iFrame.
-  iSplitL.
-  { iFrame. iExists (q+1). admit. }
-  idtac...
-  rel_values.
-  repeat iExists _.
-  iModIntro. repeat iSplit ; iPureIntro ; eauto.
-  eexists. split ; eauto.
-  admit.
-    - iApply (refines_na_close with "[-]").
-      iFrame.
-      iSplit.
-      { done. }
-      rel_apply refines_couple_UU.
-      iIntros (?) "!>"...
-      rel_apply refines_couple_UU.
-      iIntros (?) "!>"...
-      rel_values => //.
-      iModIntro.
-      iExists _,_,_,_.
-      repeat iSplit ; try done.
-      all: iExists _ ; done.
+  (*     -  *)
+  (* rel_apply_l (refines_get_l with "[-mapref] [$mapref]"). *)
+  (* iIntros (?) "mapref #->"... *)
+  (* assert ((M !! fin_to_nat r_in) = None) as -> by admit. *)
+  (* simpl... *)
+  (* rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))). *)
+  (* iIntros (y) "!>"... *)
+  (* rel_apply_l (refines_set_l with "[-mapref] [$mapref]"). *)
+  (* iIntros "mapref"... *)
+  (* rel_bind_l (xor _ _). *)
+  (* rel_apply_l foobar. *)
+  (* iApply (refines_na_close with "[-]"). *)
+  (* iFrame. *)
+  (* iSplitL. *)
+  (* { iFrame. iExists (q+1). admit. } *)
+  (* idtac... *)
+  (* rel_values. *)
+  (* repeat iExists _. *)
+  (* iModIntro. repeat iSplit ; iPureIntro ; eauto. *)
+  (* eexists. split ; eauto. *)
+  (* admit. *)
+  (*   - iApply (refines_na_close with "[-]"). *)
+  (*     iFrame. *)
+  (*     iSplit. *)
+  (*     { done. } *)
+  (*     rel_apply refines_couple_UU. *)
+  (*     iIntros (?) "!>"... *)
+  (*     rel_apply refines_couple_UU. *)
+  (*     iIntros (?) "!>"... *)
+  (*     rel_values => //. *)
+  (*     iModIntro. *)
+  (*     iExists _,_,_,_. *)
+  (*     repeat iSplit ; try done. *)
+  (*     all: iExists _ ; done. *)
   Admitted.
 
 End proofs.
@@ -275,3 +275,5 @@ Proof.
   apply ARcoupl_eq_elim.
   by eapply rf_CPA_ARC.
 Qed.
+
+End defs. 
