@@ -116,17 +116,34 @@ Section defs.
     Context `{!parisRGS Σ}.
 
 Set Nested Proofs Allowed.
-Lemma refines_init_map_l K e A :
-  (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e : A)
-  -∗ REL (fill K (init_map #())) << e : A.
+Lemma refines_init_map_l E K e A :
+  (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e @ E : A)
+  -∗ REL (fill K (init_map #())) << e @ E : A.
 Admitted.
 
-Lemma refines_init_map_r K e A :
-  (∀ l : loc, map_list l ∅ -∗ REL e << (fill K (of_val #l)) : A)
-  -∗ REL e << (fill K (init_map #())) : A.
+Lemma refines_init_map_r E K e A :
+  (∀ l : loc, map_list l ∅ -∗ REL e << (fill K (of_val #l)) @ E : A)
+  -∗ REL e << (fill K (init_map #())) @ E : A.
 Admitted.
 
-  (* TODO: Should we prove a logical refinement, or a WP refinement? *)
+  Lemma refines_get_l E K lm m (n: nat) e A :
+    (∀ res, map_list lm m -∗
+     ⌜ res = opt_to_val (m !! n) ⌝
+     -∗ REL (fill K (of_val res)) << e @ E : A)
+    -∗ map_list lm m -∗ REL (fill K (get #lm #n)) << e @ E : A.
+  Admitted.
+
+  Lemma refines_set_l E K lm m (v : val) (n: nat) e A :
+    (map_list lm (<[n := v]>m)
+     -∗ REL (fill K (of_val #())) << e @ E : A)
+    -∗ map_list lm m -∗ REL (fill K (set #lm #n v)) << e @ E : A.
+  Admitted.
+
+  Lemma foobar E K (x : fin (S Message)) (y : Z) (Hy : ((Z.to_nat y) < S Message)) e A :
+    (REL (fill K (of_val #(xor_sem x (nat_to_fin Hy)))) << e @ E : A)
+  -∗ REL (fill K (xor #x #y)) << e @ E : A.
+  Admitted.
+
   Theorem rf_is_CPA (Q : nat) :
     ↯ (Q * Q / (2 * Input)) ⊢ (REL (CPA #true adv rf_scheme #Q) << (CPA #false adv rf_scheme #Q) : lrel_bool).
   Proof with (rel_pures_l ; rel_pures_r).
@@ -136,7 +153,6 @@ Admitted.
     rewrite /rf_scheme/rf_enc/prf_enc.
     idtac...
     rewrite /rf_keygen...
-    (* rewrite /rf_scheme/rf_keygen/rf_enc/prf_enc/enc/keygen. *)
     rel_apply refines_couple_UU.
     iIntros (key) "!>"...
     rewrite /random_function...
@@ -197,12 +213,6 @@ Admitted.
       1: admit.
       iIntros (r_in) "!> %r_fresh"...
 
-  Lemma refines_get_l E K lm m (n: nat) e A :
-    (∀ res, map_list lm m -∗
-     ⌜ res = opt_to_val (m !! n) ⌝
-     -∗ REL (fill K (of_val res)) << e @E : A)
-    -∗ map_list lm m -∗ REL (fill K (get #lm #n)) << e @E : A.
-  Admitted.
 
   rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
   iIntros (?) "mapref #->"...
@@ -210,24 +220,10 @@ Admitted.
   simpl...
   rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
   iIntros (y) "!>"...
-
-  Lemma refines_set_l E K lm m (v : val) (n: nat) e A :
-    (map_list lm (<[n := v]>m)
-     -∗ REL (fill K (of_val #())) << e @E : A)
-    -∗ map_list lm m -∗ REL (fill K (set #lm #n v)) << e @E : A.
-  Admitted.
-
   rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
   iIntros "mapref"...
-
-
-  Lemma foobar E K (x : fin (S Message)) (y : Z) (Hy : ((Z.to_nat y) < S Message)) e A :
-    (REL (fill K (of_val #(xor_sem x (nat_to_fin Hy)))) << e @E : A)
-  -∗ REL (fill K (xor #x #y)) << e @E : A.
-  Admitted.
   rel_bind_l (xor _ _).
   rel_apply_l foobar.
-
   iApply (refines_na_close with "[-]").
   iFrame.
   iSplitL.
