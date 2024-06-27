@@ -251,7 +251,8 @@ Section defs.
         done.
       }
       simpl...
-      rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
+      unshelve rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
+      { admit. }
       iIntros (y) "!>"...
       rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
       iIntros "mapref"...
