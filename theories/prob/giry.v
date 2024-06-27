@@ -486,7 +486,56 @@ HB.end.
 
     (* Taking expectaiton is measurable *)
     Lemma giry_meas_integrate f : @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_integrate_def f).
-    Proof. Admitted.
+    Proof.
+      rewrite /giryM_integrate_def.
+      rewrite /=/salgebraType.
+
+      (* FIXME: f should be nonnegative, there is no need for negative functions. *)
+      (* FIXME: Before proving this, go through the usages *)
+      (*   - Join is measurable
+           - Integral formula for bind
+           Do we want a lower integral in bind?
+      *)
+
+      (* This is not true (f may be negative) *)
+      (* Do we really want the normal integral here? Or should we use the lower integral like in mathlib? *)
+
+      have H1 :
+        (fun μ : giryType T => (\int[μ]_x f x)%E) =
+        (fun μ : giryType T =>
+          (ereal_sup [set sintegral μ h | h in [set h | (forall x : T, (h x)%:E <= ([eta f] \_ [set: T])^\+ x)]])%E).
+      { apply functional_extensionality.
+        intro x.
+        rewrite /integral/=.
+        (* Evaluation functions nonnegative*)
+        (* Unset Printing Notations.
+           Check (_ ^\+ _)%E. *)
+        admit.
+      }
+      rewrite H1; clear H1.
+
+      (* Search measurable_fun ereal_sup. *)
+      (* remove the sup and sum *)
+
+      (* Removing the sup: *)
+      (* is the domain type of h countable? *)
+      Check sintegral.
+
+      (* What is [eta f] \_ [set: T]? *)
+      (* Check (_ \_ _)%E. *)
+      (*
+      Check ([eta f] \_ [set: T])%E.
+      Locate patch.
+      Check (([eta f] \_ [set: T])^\+ )%E.
+      *)
+      have Hsimp_patch : (([eta f] \_ [set: T])^\+)%E = f.
+      { (* OK Assuming f is nonnegative *)
+        admit.  }
+      rewrite Hsimp_patch.
+
+      rewrite /sintegral/=.
+
+    Admitted.
 
     HB.instance Definition _ (f : measurable_map T (\bar R)) :=
       isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_integrate_def f) (giry_meas_integrate f).
