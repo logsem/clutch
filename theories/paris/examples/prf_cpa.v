@@ -49,10 +49,12 @@ Section proofs.
   (* We probably need to assume that forall x, Bij (xor x). *)
 
   Definition prf_enc : val :=
-    λ:"prf" "key" "msg",
-      let: "r" := rand #Input in
-      let: "z" := "prf" "key" "r" in
-      ("r", xor "z" "msg").
+    λ:"prf" "key",
+      let: "prf_key" := "prf" "key" in
+      λ: "msg",
+        let: "r" := rand #Input in
+        let: "z" := "prf_key" "r" in
+        ("r", xor "z" "msg").
 
   Section security_defs.
     (* Tentative sketch of security definitions as we'd write them at the toplevel. *)
