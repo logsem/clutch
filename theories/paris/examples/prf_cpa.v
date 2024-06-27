@@ -50,7 +50,7 @@ Section defs.
   Variable xor : val.
   (* We probably need to assume that forall x, Bij (xor x). *)
   Variable (xor_sem : fin (S Message) -> fin (S Output) -> fin (S Output)).
-  Variable H_xor : forall x, Bij (xor x).
+  Variable H_xor : forall x, Bij (xor_sem x).
 
   Definition prf_enc : val :=
     λ:"prf" "key",
@@ -172,7 +172,7 @@ Section defs.
     rewrite /rf_scheme/rf_enc/prf_enc.
     idtac...
     rewrite /rf_keygen...
-    rel_apply refines_couple_UU.
+    rel_apply (refines_couple_UU Key).
     iIntros (key) "!>"...
     rewrite /random_function...
     rel_apply_l refines_init_map_l.
@@ -252,7 +252,6 @@ Section defs.
       }
       simpl...
       unshelve rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
-      { admit. }
       iIntros (y) "!>"...
       rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
       iIntros "mapref"...
@@ -287,9 +286,9 @@ Section defs.
       iFrame.
       iSplit.
       { done. }
-      rel_apply refines_couple_UU.
+      rel_apply (refines_couple_UU Input).
       iIntros (?) "!>"...
-      rel_apply refines_couple_UU.
+      rel_apply (refines_couple_UU Output id).
       iIntros (?) "!>"...
       rel_values => //.
       iModIntro.
@@ -303,9 +302,9 @@ Section defs.
       iFrame.
       iSplit.
       { done. }
-      rel_apply refines_couple_UU.
+      rel_apply (refines_couple_UU Input).
       iIntros (?) "!>"...
-      rel_apply refines_couple_UU.
+      rel_apply (refines_couple_UU Output id).
       iIntros (?) "!>"...
       rel_values => //.
       iModIntro.
