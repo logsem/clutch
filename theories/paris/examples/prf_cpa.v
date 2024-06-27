@@ -33,9 +33,10 @@ Section defs.
     λ:"b" "adv" "scheme" "Q",
       let: "rr_key_b" :=
         let: "key" := keygen "scheme" #() in
-        let: "enc_key" := enc "scheme" "key" in
+        (* let: "enc_key" := enc "scheme" "key" in *)
         if: "b" then
-          "enc_key"
+          (* "enc_key" *)
+          enc "scheme" "key"
         else
           rand_cipher "scheme" in
       let: "oracle" := q_calls "Q" "rr_key_b" (rand_cipher "scheme") in
@@ -114,6 +115,17 @@ Section defs.
   Section proofs.
     Context `{!parisRGS Σ}.
 
+Set Nested Proofs Allowed.
+Lemma refines_init_map_l K e A :
+  (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e : A)
+  -∗ REL (fill K (init_map #())) << e : A.
+Admitted.
+
+Lemma refines_init_map_r K e A :
+  (∀ l : loc, map_list l ∅ -∗ REL e << (fill K (of_val #l)) : A)
+  -∗ REL e << (fill K (init_map #())) : A.
+Admitted.
+
   (* TODO: Should we prove a logical refinement, or a WP refinement? *)
   Theorem rf_is_CPA (Q : nat) :
     ↯ (Q * Q / (2 * Input)) ⊢ (REL (CPA #true adv rf_scheme #Q) << (CPA #false adv rf_scheme #Q) : lrel_bool).
@@ -121,22 +133,18 @@ Section defs.
     iIntros "ε".
     rel_pures_l.
     rewrite /CPA.
-    rewrite /rf_scheme/rf_keygen/rf_enc/prf_enc/enc/keygen.
-    rel_pures_l.
-    rel_pures_r.
+    rewrite /rf_scheme/rf_enc/prf_enc.
+    idtac...
+    rewrite /rf_keygen...
+    (* rewrite /rf_scheme/rf_keygen/rf_enc/prf_enc/enc/keygen. *)
     rel_apply refines_couple_UU.
-    iIntros (key) "!>".
-    rel_pures_l ; rel_pures_r.
-    rewrite /random_function. rel_pures_r.
-    rewrite /init_map. rel_pures_r.
-    rewrite /init_list.
-    rel_alloc_r listref' as "listref'". rel_pures_r.
-    rel_alloc_r mapref' as "mapref'". rel_pures_r.
-    rel_alloc_l listref as "listref". rel_pures_l.
-    rel_alloc_l mapref as "mapref". rel_pures_l.
+    iIntros (key) "!>"...
+    rewrite /random_function...
+    rel_apply_l refines_init_map_l.
+    iIntros (mapref) "mapref"...
     rel_bind_l (q_calls _ _ _)%E.
     rel_bind_r (q_calls _ _ _)%E.
-    unshelve iApply (refines_bind with "[ε] []").
+    unshelve iApply (refines_bind with "[-] []").
     1:{ exact (interp (TMessage → TCipher) []). }
     2:{
       iIntros (f f') "Hff'".
@@ -156,24 +164,33 @@ Section defs.
       assumption.
     }
 
-    rewrite /q_calls. rel_pures_l. rel_pures_r.
-    rel_alloc_l counter as "counter". rel_alloc_r counter' as "counter'". rel_pures_l ; rel_pures_r.
-    iApply (refines_na_alloc (∃ q : nat , ↯ ((Q-q) * (Q-q) / (2 * Input)) ∗ counter ↦ #q ∗ counter' ↦ₛ #q)%I
+    rewrite /q_calls...
+    rel_alloc_l counter as "counter"... rel_alloc_r counter' as "counter'"...
+
+    iApply (refines_na_alloc
+              (∃ (q : nat) M,
+                  ↯ ((Q-q) * (Q-q) / (2 * Input))
+                  ∗ counter ↦ #q
+                  ∗ counter' ↦ₛ #q
+                  ∗ map_list mapref M
+                  ∗ ⌜ List.length (dom M) = q ⌝
+              )%I
               (nroot.@"cpa")); iFrame.
     iSplitL.
-    1: { iExists 0. rewrite Rminus_0_r. iFrame. }
+    1: { iExists 0. rewrite Rminus_0_r. iFrame. admit. }
 
     iIntros "#Hinv".
 
     rel_arrow_val.
     iIntros (??) "#(%msg&->&->)" ; rel_pures_l ; rel_pures_r.
     iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "(> (%q & ε & counter & counter') & Hclose)".
+    iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q) & Hclose)".
     rel_load_l ; rel_load_r...
     rewrite /rf_rand_cipher.
     case_bool_decide as Hq...
     - rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
       assert (Z.to_nat msg < S Message) as Hmsg by admit.
+      opose proof (wp_couple_rand_rand_avoid).
       rel_apply (refines_couple_UU).
       iIntros (r_in) "!>"...
       rel_bind_l (Match _ _ _ _ _).
