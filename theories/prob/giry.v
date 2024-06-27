@@ -56,6 +56,16 @@ HB.structure Definition MeasurableMap {d1} {d2} T1 T2 :=
 (* FIXME: Builder for measurableFun to RealType? Or does this go automatically?  *)
 
 
+Section measurability_lemmas.
+  Context {d1} {T1 : measurableType d1}.
+  Context {d2} {T2 : measurableType d2}.
+
+  (* Lemma measurability_image : forall S1 : set T1, forall S2 : set T2,
+    d1.-measurable S1 -> d2.-measurable S2 ->  *)
+
+End measurability_lemmas.
+
+
 Section giry.
   Context (R : realType). (* FIXME: rather annoying to not infer this from context *)
   Local Open Scope classical_set_scope.
@@ -181,9 +191,8 @@ Section giry.
     (* Yes, first line, to apply the comap lemma. Maybe a more general comap lemma can avoid this. *)
 
     Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) borelER setT (giryM_eval_def HS).
-    Proof.
+    Proof using d.
       apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
-
       rewrite /T.-giry.-measurable/=.
       rewrite {2}/giry_subbase/=.
       apply  (@subset_trans _ (giry_subbase (T:=T))); last by apply sub_gen_smallest.
@@ -201,8 +210,6 @@ Section giry.
       done.
     Qed.
 
-
-
     HB.instance Definition _ (S : set T) (HS : d.-measurable S) :=
       isMeasurableMap.Build _ _ (giryM T) borelER (giryM_eval_def HS) (giryM_eval_def_measurable HS).
 
@@ -218,14 +225,26 @@ Section giry.
 
 
 
+  (* Lemmas for for section 6 *)
+
+  Lemma measurable_if_pushfowrard_subset {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2) :
+        (d2.-measurable  `<=` [set s : set T2 | d1.-measurable ( f@^-1` s )]) -> (measurable_fun setT f).
+  Proof.
+    intro HS.
+    rewrite /measurable_fun.
+    rewrite /subset in HS.
+    intros X Y HY.
+    specialize (HS Y HY).
+    simpl in HS.
+    rewrite setTI.
+    apply HS.
+  Qed.
 
   (** ********** 6. Measurability of (T₁ -> giryM T₂) functions *)
 
   (* FIXME: move *)
   Definition measurable_evaluations {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2) : Prop
     := forall (S : set T2), d2.-measurable S -> (@measurable_fun _ _ _ borelER setT (f ^~ S)).
-
-
 
   Section giry_measurable_characterization.
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
@@ -234,7 +253,7 @@ Section giry.
     Check (f ^~ _ : T1 -> borelER).
 
     Lemma measurable_evals_if_measurable : measurable_fun setT f -> measurable_evaluations f.
-    Proof.
+    Proof using d1.
       intros Hm.
       rewrite /measurable_evaluations.
       intros S HS.
@@ -246,7 +265,47 @@ Section giry.
     Qed.
 
     Lemma measurable_if_measurable_evals : measurable_evaluations f -> measurable_fun setT f.
-    Proof. Admitted.
+    Proof.
+      intro Hm.
+      rewrite /measurable_evaluations/measurable_fun/= in Hm.
+
+      apply (@measurable_if_pushfowrard_subset _ _ _ _ f).
+      rewrite {1}/measurable/=.
+      apply smallest_sub.
+      { (* Need show that the map is a sigma algebra *)
+        (* FIXME: Is the set that I defined the preimage class? *)
+        (* Check preimage_class. *)
+        (* wait no I don't think so *)
+        admit.
+      }
+      rewrite /giry_subbase/subset/=.
+      intros X [Y [HY HX]].
+
+      have G1 : d1.-measurable [set: T1] by auto.
+      specialize (Hm Y HY G1).
+      rewrite /salgebraType/= in Hm.
+      clear G1.
+
+      rewrite /preimage_class_of_measures/preimage_class/= in HX.
+      destruct HX as [B HB HBf].
+      rewrite setTI in HBf.
+
+      specialize (Hm B HB).
+      rewrite setTI in Hm.
+
+      rewrite <- HBf.
+      rewrite <- comp_preimage.
+      simpl.
+
+      have HF : (fun x : T1 => f x Y) = ((SubProbability.sort (R:=R))^~ Y \o f).
+      { apply functional_extensionality.
+        intro x.
+        by simpl.
+      }
+
+      rewrite HF in Hm.
+      apply Hm.
+    Admitted.
 
     Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
     Proof. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
@@ -453,7 +512,11 @@ HB.end.
     Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
     Lemma pushforward_setT (f : measurable_map T1 T2) (m : giryM T1) : (pushforward m (@measurable_mapP _ _ _ _ f) setT <= 1)%E.
-    Proof. (* Does this need any additional assumptions? *) Admitted.
+    Proof. (* Does this need any additional assumptions? *)
+      rewrite /pushforward.
+
+
+    Admitted.
 
     HB.instance Definition _ (f : measurable_map T1 T2) (m : giryM T1) := Measure_isSubProbability.Build _ _ _ (pushforward m (@measurable_mapP _ _ _ _ f)) (pushforward_setT f m).
 
