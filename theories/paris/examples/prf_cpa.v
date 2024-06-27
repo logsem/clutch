@@ -24,6 +24,8 @@ Section defs.
   Let enc scheme : expr := Fst (Snd scheme).
   Let rand_cipher scheme : expr := Snd (Snd scheme).
 
+  Local Opaque INR.
+
   Definition q_calls : val :=
     λ:"Q" "f" "g",
       let: "counter" := ref #0 in
@@ -117,7 +119,6 @@ Section defs.
   Section proofs.
     Context `{!parisRGS Σ}.
 
-    Set Nested Proofs Allowed.
     Lemma refines_init_map_l E K e A :
       (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e @ E : A)
       -∗ REL (fill K (init_map #())) << e @ E : A.
@@ -141,10 +142,26 @@ Section defs.
       -∗ map_list lm m -∗ REL (fill K (set #lm #n v)) << e @ E : A.
     Admitted.
 
-    Lemma foobar E K (x : fin (S Message)) (y : Z) (Hy : ((Z.to_nat y) < S Message)) e A :
-      (REL (fill K (of_val #(xor_sem x (nat_to_fin Hy)))) << e @ E : A)
+    Lemma foobar E K (x : Z) (y : fin (S Message)) (Hx : ((Z.to_nat x) < S Message)) e A :
+      (REL (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) << e @ E : A)
       -∗ REL (fill K (xor #x #y)) << e @ E : A.
     Admitted.
+
+    Lemma nat_to_fin_list (l:list nat):
+      (∀ x, x ∈ l -> (x < S Input)%nat) ->
+      ∃ l': (list (fin (S Input))), fin_to_nat <$> l' = l.
+    Proof.
+      clear.
+      induction l as [|a l'].
+      - intros. exists []. naive_solver.
+      - intros. set_unfold.
+        assert (a<S Input) as H' by naive_solver.
+        unshelve epose proof IHl' _ as [l ?]; first naive_solver.
+        exists (nat_to_fin H'::l).
+        simpl.
+        repeat f_equal; last done.
+        by rewrite fin_to_nat_to_fin.
+    Qed.
 
   Theorem rf_is_CPA (Q : nat) :
     ↯ (Q * Q / (2 * Input)) ⊢ (REL (CPA #true adv rf_scheme #Q) << (CPA #false adv rf_scheme #Q) : lrel_bool).
@@ -192,7 +209,7 @@ Section defs.
                   ∗ counter' ↦ₛ #q
                   ∗ map_list mapref M
                   ∗ ⌜ size (dom M) = q ⌝
-                  ∗ ⌜ ∀ x, x ∈ (dom M) -> (x < S Message)%nat ⌝
+                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
               )%I
               (nroot.@"cpa")); iFrame.
     iSplitL.
@@ -202,42 +219,86 @@ Section defs.
     rel_arrow_val.
     iIntros (??) "#(%msg&->&->)" ; rel_pures_l ; rel_pures_r.
     iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q) & Hclose)".
-    rel_load_l ; rel_load_r...
+    iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q & %dom_range) & Hclose)".
+    case_bool_decide as Hm.
+    - rel_load_l ; rel_load_r...
     rewrite /rf_rand_cipher.
-  (*   case_bool_decide as Hq... *)
-  (*   - rel_load_l ; rel_load_r... rel_store_l ; rel_store_r... *)
-  (*     assert (Z.to_nat msg < S Message) as Hmsg by admit. *)
-
-      rel_apply (refines_couple_couple_avoid _ (elements (dom M))); first eapply NoDup_elements.
-      iSplitL "ε".
-      1: admit.
+    case_bool_decide as Hq...
+    + rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
+      assert (Z.to_nat msg < S Message) as Hmsg by lia.
+      pose proof nat_to_fin_list (elements(dom M)) dom_range as [l' Hl'].
+      rel_apply (refines_couple_couple_avoid _ l').
+      { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
+        rewrite Hl'. apply NoDup_elements. }
+      replace (length l') with q; last first.
+      { erewrite <-fmap_length, Hl'.
+        by replace (length (elements (dom M))) with (size (dom M)).
+      }
+      iDestruct (ec_weaken _ (q/S Input+((Q - (q+1)%nat) * (Q - (q+1)%nat)/ (2 * Input))) with "[$]") as "ε".
+      { admit. }
+      iDestruct (ec_split with "[$]") as "[ε ε']".
+      { admit. }
+      { admit. }
+      iFrame.
       iIntros (r_in) "!> %r_fresh"...
-
-
-  rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
-  iIntros (?) "mapref #->"...
-  assert ((M !! fin_to_nat r_in) = None) as ->.
-  { admit.
-  }
-  simpl...
-  rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
-  iIntros (y) "!>"...
-  rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
-  iIntros "mapref"...
-  rel_bind_l (xor _ _).
-  rel_apply_l foobar.
-  iApply (refines_na_close with "[-]").
-  iFrame.
-  iSplitL.
-  { iFrame. iExists (q+1). admit. }
-  idtac...
-  rel_values.
-  repeat iExists _.
-  iModIntro. repeat iSplit ; iPureIntro ; eauto.
-  eexists. split ; eauto.
-  admit.
-    - iApply (refines_na_close with "[-]").
+      rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
+      iIntros (?) "mapref #->"...
+      assert ((M !! fin_to_nat r_in) = None) as ->.
+      { apply not_elem_of_dom_1.
+        rewrite -elem_of_elements.
+        rewrite -Hl'.
+        intros K. apply elem_of_list_fmap_2_inj in K; last apply fin_to_nat_inj.
+        done.
+      }
+      simpl...
+      rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
+      iIntros (y) "!>"...
+      rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
+      iIntros "mapref"...
+      rel_bind_l (xor _ _).
+      rel_apply_l foobar.
+      iApply (refines_na_close with "[-]").
+      iFrame.
+      iSplitL.
+      { replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
+        iFrame.
+        iModIntro.
+        iPureIntro; split.
+        - rewrite size_dom. rewrite size_dom in dom_q.
+          rewrite map_size_insert_None; first lia.
+          apply not_elem_of_dom_1.
+          rewrite -elem_of_elements.
+          rewrite -Hl'.
+          intros K.
+          apply elem_of_list_fmap_2_inj in K; last apply fin_to_nat_inj.
+          done.
+        - intros x.
+          rewrite elem_of_elements.
+          set_unfold.
+          intros [|]; last naive_solver.
+          subst. apply fin_to_nat_lt.
+      } 
+      idtac...
+      rel_values.
+      repeat iExists _.
+      iModIntro. repeat iSplit ; iPureIntro ; eauto. 
+    + iApply (refines_na_close with "[-]").
+      iFrame.
+      iSplit.
+      { done. }
+      rel_apply refines_couple_UU.
+      iIntros (?) "!>"...
+      rel_apply refines_couple_UU.
+      iIntros (?) "!>"...
+      rel_values => //.
+      iModIntro.
+      iExists _,_,_,_.
+      repeat iSplit ; try done.
+      all: iExists _ ; done.
+    - rel_load_l ; rel_load_r...
+      rewrite /rf_rand_cipher.
+      rewrite andb_false_r...
+      iApply (refines_na_close with "[-]").
       iFrame.
       iSplit.
       { done. }
@@ -263,10 +324,19 @@ Lemma rf_CPA_ARC Σ `{parisRGpreS Σ} σ σ' (Q : nat) :
 Proof.
   unshelve eapply approximates_coupling ; eauto.
   1: exact (fun _ => lrel_bool).
-  1: admit.
+  { repeat apply Rmult_le_pos; try apply pos_INR.
+    rewrite -Rdiv_1_l.
+    pose proof Rdiv_INR_ge_0 Input.
+    cut ((0 <= (2*1) / (2 * INR Input)))%R; first lra.
+    rewrite Rmult_comm.
+    rewrite Rmult_div_swap.
+    rewrite (Rmult_comm 2%R).
+    rewrite Rdiv_mult_distr.
+    lra.
+  }
   1: by iIntros (???) "#(%b&->&->)".
   iIntros. by iApply rf_is_CPA.
-Admitted.
+Qed.
 
 Corollary foo Σ `{parisRGpreS Σ} σ σ' (Q : nat) :
   (((lim_exec ((CPA #true adv rf_scheme #Q), σ)) #true)
