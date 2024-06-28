@@ -287,6 +287,30 @@ Context {N:nat}.
     | x::l' => x + (S N) * (decoder_nat l')%nat
     end.
 
+  Fixpoint decoder_nat_lr (l:list nat) :=
+    match l with
+    | [] => 0%nat
+    | x::l' => x * (S N)^(length l') + (decoder_nat_lr l')%nat
+    end.
+
+  Lemma decoder_nat_app (l1 l2 : list nat) :
+    decoder_nat (l1 ++ l2) = decoder_nat l1 + (S N)^(length l1) * (decoder_nat l2).
+  Proof.
+    induction l1; [simpl; lia |].
+    rewrite -app_comm_cons /= IHl1.
+    lia.
+  Qed.
+
+
+  Lemma decoder_nat_reverse (l : list nat) :
+    decoder_nat (reverse l) = decoder_nat_lr l.
+  Proof.
+    induction l; auto.
+    rewrite reverse_cons decoder_nat_app reverse_length IHl /=.
+    lia.
+  Qed.
+
+
   Local Lemma pow_ge_1 b e :
     (1 ≤ b) -> 1 ≤ (b ^ e).
   Proof.
@@ -324,6 +348,18 @@ Context {N:nat}.
       apply Nat.mul_le_mono_l. lia.
   Qed.
 
+
+  Local Lemma decoder_lr_aux_ineq l:
+    (Forall (λ x, x < S N)%nat l) ->
+    (decoder_nat_lr l < (S N)^ (length l))%nat.
+  Proof.
+    intros.
+    rewrite -decoder_nat_reverse -reverse_length.
+    apply decoder_aux_ineq.
+    by apply Forall_reverse.
+  Qed.
+
+
   Local Lemma decoder_aux_inj l1 l2:
     (Forall (λ x, x < S N)%nat l1) ->
     (Forall (λ x, x < S N)%nat l2) ->
@@ -344,5 +380,19 @@ Context {N:nat}.
       simpl in H. lia.
   Qed.
 
+
+  Local Lemma decoder_lr_aux_inj l1 l2:
+    (Forall (λ x, x < S N)%nat l1) ->
+    (Forall (λ x, x < S N)%nat l2) ->
+    length l1 = length l2 -> decoder_nat_lr l1 = decoder_nat_lr l2 -> l1 = l2.
+  Proof.
+    rewrite -(Forall_reverse _ l1).
+    rewrite -(Forall_reverse _ l2).
+    rewrite -(decoder_nat_reverse l1) -(reverse_length l1).
+    rewrite -(decoder_nat_reverse l2) -(reverse_length l2).
+    intros.
+    apply Inj_instance_2.
+    apply decoder_aux_inj; auto.
+  Qed.
 
 End decodings.
