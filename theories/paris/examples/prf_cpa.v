@@ -104,26 +104,76 @@ Section defs.
     Lemma refines_init_map_l E K e A :
       (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e @ E : A)
       -∗ REL (fill K (init_map #())) << e @ E : A.
-    Admitted.
+    Proof.
+      iIntros "Hlog".
+      iApply refines_wp_l.
+      by iApply wp_init_map.
+    Qed.
 
     Lemma refines_init_map_r E K e A :
-      (∀ l : loc, map_list l ∅ -∗ REL e << (fill K (of_val #l)) @ E : A)
+      (∀ l : loc, map_slist l ∅ -∗ REL e << (fill K (of_val #l)) @ E : A)
       -∗ REL e << (fill K (init_map #())) @ E : A.
-    Admitted.
+    Proof.
+      iIntros "Hlog".
+      iApply refines_step_r.
+      iIntros.
+      iMod (spec_init_map with "[$]") as "(%&?&?)".
+      iModIntro.
+      iFrame.
+      iApply ("Hlog" with "[$]").
+    Qed.
 
     Lemma refines_get_l E K lm m (n: nat) e A :
       (∀ res, map_list lm m -∗
               ⌜ res = opt_to_val (m !! n) ⌝
               -∗ REL (fill K (of_val res)) << e @ E : A)
       -∗ map_list lm m -∗ REL (fill K (get #lm #n)) << e @ E : A.
-    Admitted.
+    Proof.
+      iIntros "Hlog Hlm".
+      iApply refines_wp_l.
+      iApply (wp_get with "[$]").
+      iModIntro. iIntros (?) "[?%]".
+      by iApply ("Hlog" with "[$]"). 
+    Qed.
+
+    Lemma refines_get_r E K lm m (n: nat) e A :
+      (∀ res, map_slist lm m -∗
+              ⌜ res = opt_to_val (m !! n) ⌝
+              -∗ REL e << (fill K (of_val res)) @ E : A)
+      -∗ map_slist lm m -∗ REL e << (fill K (get #lm #n)) @ E : A.
+    Proof.
+      iIntros "Hlog Hlm".
+      iApply refines_step_r.
+      iIntros. 
+      iMod (spec_get with "[$][$]") as "[??]".
+      iModIntro. iFrame. 
+      by iApply ("Hlog" with "[$]"). 
+    Qed.
 
     Lemma refines_set_l E K lm m (v : val) (n: nat) e A :
       (map_list lm (<[n := v]>m)
        -∗ REL (fill K (of_val #())) << e @ E : A)
       -∗ map_list lm m -∗ REL (fill K (set #lm #n v)) << e @ E : A.
-    Admitted.
+    Proof.
+      iIntros "Hlog Hlm".
+      iApply refines_wp_l.
+      by iApply (wp_set with "[$]").
+    Qed.
 
+    Lemma refines_set_r E K lm m (v : val) (n: nat) e A :
+      (map_slist lm (<[n := v]>m)
+       -∗ REL e << (fill K (of_val #())) @ E : A)
+      -∗ map_slist lm m -∗ REL e << (fill K (set #lm #n v)) @ E : A.
+    Proof.
+      iIntros "Hlog Hlm".
+      iApply refines_step_r.
+      iIntros.
+      iMod (spec_set with "[$][$]") as "[??]".
+      iModIntro.
+      iFrame.
+      by iApply ("Hlog" with "[$]").
+    Qed.
+    
     Lemma xor_correct E K (x : Z) (y : fin (S Message)) (Hx : ((Z.to_nat x) < S Message)) e A :
       (REL (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) << e @ E : A)
       -∗ REL (fill K (xor #x #y)) << e @ E : A.
