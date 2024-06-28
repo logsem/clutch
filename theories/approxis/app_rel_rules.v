@@ -592,6 +592,27 @@ Section rules.
     done.
   Qed.
 
+  Lemma refines_couple_exp_decoder_lr (M N p : nat) ns nss α αs e1 e2 E A :
+    (S N ^ p = S M)%nat ->
+    ▷ α ↪N (N; ns) ∗ ▷ αs ↪ₛN (M; nss) ∗
+      (∀ (l : list nat) (m: nat),
+          ⌜Forall (λ x, (x < S N)%nat) l⌝ -∗
+          ⌜(m < S M)%nat ⌝ -∗
+          ⌜length l = p⌝ -∗
+          α ↪N (N; ns ++ l) -∗ αs ↪ₛN (M; nss ++ [@decoder_nat_lr N l]) -∗
+          REL e1 << e2 @ E : A
+      )
+      ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (HExp) "[>Hα [>Hαs Hcont]]".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    wp_apply (wp_couple_exp_decoder_lr M N p ns nss α αs); eauto. iFrame.
+    iIntros (l m) "% % % Hα Hαs".
+    iApply ("Hcont" with "[//][//][//] Hα Hαs Hfill Hown Herr").
+    done.
+  Qed.
+
 
     (** TODO: Strengthen Hinj hypothesis *)
     Lemma refines_couple_exp_rev (M N p : nat)
@@ -656,6 +677,28 @@ Section rules.
     rewrite refines_eq /refines_def.
     iIntros (K ε) "Hfill Hown Herr %Hpos".
     wp_apply (wp_couple_exp_decoder_rev M N p ns nss α αs); eauto. iFrame.
+    iIntros (l m) "% % % Hα Hαs".
+    iApply ("Hcont" with "[//][//][//] Hα Hαs Hfill Hown Herr").
+    done.
+  Qed.
+
+
+  Lemma refines_couple_exp_decoder_lr_rev (M N p : nat) ns nss α αs e1 e2 E A :
+    (S N ^ p = S M)%nat ->
+    ▷ α ↪N (M; ns) ∗ ▷ αs ↪ₛN (N; nss) ∗
+      (∀ (l : list nat) (m: nat),
+          ⌜Forall (λ x, (x < S N)%nat) l⌝ -∗
+          ⌜(m < S M)%nat ⌝ -∗
+          ⌜length l = p⌝ -∗
+          α ↪N (M; ns ++ [@decoder_nat_lr N l]) -∗ αs ↪ₛN (N; nss ++ l) -∗
+          REL e1 << e2 @ E : A
+      )
+      ⊢ REL e1 << e2 @ E : A.
+  Proof.
+    iIntros (HExp) "[>Hα [>Hαs Hcont]]".
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "Hfill Hown Herr %Hpos".
+    wp_apply (wp_couple_exp_decoder_lr_rev M N p ns nss α αs); eauto. iFrame.
     iIntros (l m) "% % % Hα Hαs".
     iApply ("Hcont" with "[//][//][//] Hα Hαs Hfill Hown Herr").
     done.

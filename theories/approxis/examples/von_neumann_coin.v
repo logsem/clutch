@@ -13,9 +13,11 @@ Section proofs.
        let: "α" := alloc #1 in
        let: "b0" := rand("α") #1 in
        let: "b1" := rand("α") #1 in
-       let: "b2" := rand("α") #1 in
-       let: "r" := (#4*"b2" + #2*"b1" + "b0") in
-       if: "r" < #6 then "r" else "f" #())%V.
+       if: (("b0" = #1) `and` ("b1" = #1))
+             then "f" #()
+             else (let: "b2" := rand("α") #1 in
+                  let: "r" := (#4*"b2" + #2*"b1" + "b0") in
+                  if: "r" < #6 then "r" else "f" #()))%V.
 
   Definition rej_tapes : expr :=
     (rec: "f" <> :=
@@ -40,7 +42,7 @@ Section proofs.
     rel_alloctape_r β as "Hβ".
     rel_pures_l.
     rel_pures_r.
-    iApply (refines_couple_exp_decoder 7 1 3 [] [] α β); [by simpl |].
+    iApply (refines_couple_exp_decoder_lr 7 1 3 [] [] α β); [by simpl |].
     iFrame.
     iIntros (l m) "%Hfa %Hm %Hlen Hα Hβ /=".
     destruct l as [|a1 l]; [inversion Hlen |].
@@ -52,10 +54,29 @@ Section proofs.
     replace (a1 + (a2 + (a3 + a3) + (a2 + (a3 + a3)))) with (4*a3 + 2*a2 + a1) by lia.
     rel_rand_l. iIntros "Ha1".
     rel_rand_l. iIntros "Ha2".
-    rel_rand_l. iIntros "Ha3".
-    rel_pures_l.
-    rel_rand_r.
-    iIntros "Hr".
+    do 4 rel_pure_l.
+    destruct( decide (a1 = 1 /\ a2 = 1)) as [ [-> ->] | Ha1a2].
+    - do 2 rel_pure_l.
+      rel_rand_r.
+      iIntros "Hr".
+      rel_pures_r.
+      rewrite bool_decide_eq_false_2; [|lia].
+      rel_pure_r.
+      by rel_apply "IH".
+    - rel_pures_l.
+      replace (#(bool_decide (#a1 = #1) && bool_decide (#a2 = #1))%bool) with (#false); last first.
+      {
+        do 2 f_equal.
+        apply not_and_l in Ha1a2 as [H1|H2].
+        - rewrite {1}bool_decide_eq_false_2; auto.
+          intro H. injection.
+
+      Search and not.
+      rewrite bool_decide_eq_false_2.
+      rel_rand_l. iIntros "Ha3".
+      rel_pures_l.
+      rel_rand_r.
+      iIntros "Hr".
     rel_pures_r.
     case_bool_decide as H1.
     - case_bool_decide as H2; [|lia].

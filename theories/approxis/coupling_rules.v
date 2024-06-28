@@ -1140,6 +1140,46 @@ Section rules.
   Qed.
 
 
+  Lemma wp_couple_exp_decoder_lr (M N p : nat ) ns nsₛ α αₛ e E Φ:
+    (S N ^ p = S M)%nat ->
+    ▷ α ↪N (N; ns) ∗ ▷ αₛ ↪ₛN (M; nsₛ) ∗
+    (∀ (l : list nat) (m: nat),
+       ⌜Forall (λ x, (x < S N)%nat) l⌝ -∗
+       ⌜(m < S M)%nat ⌝ -∗
+       ⌜length l = p⌝ -∗ 
+       α ↪N (N; ns ++ l) -∗ αₛ ↪ₛN (M; nsₛ ++ [@decoder_nat_lr N l]) -∗
+       WP e @ E {{ Φ }}
+    )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Heq) "(>Hα & >Hαₛ & Hwp)".
+    set (f := (λ l : list nat, if bool_decide (length l = p) then @decoder_nat_lr N l else 0%nat )).
+    iApply (wp_couple_exp M N p f); auto.
+    {
+      rewrite -Heq /f.
+      intros l Hl.
+      case_bool_decide; simplify_eq.
+      - by apply fin.decoder_lr_aux_ineq.
+      - lia.
+    }
+    {
+      rewrite /f.
+      intros ?????<-.
+      case_bool_decide; [|done].
+      rewrite bool_decide_eq_true_2; auto.
+      intro.
+      by apply (@fin.decoder_lr_aux_inj N).
+    }
+    iFrame.
+    rewrite /f.
+    iIntros (??) "% % (%&%) Hα Hαs".
+    case_bool_decide; [|done].
+    iApply ("Hwp" with "[//] [//] [//] Hα [Hαs]").
+    simplify_eq.
+    iFrame.
+  Qed.
+
+
   Lemma wp_couple_exp_rev (M N p:nat)
     (f:(list nat) -> nat)
     (Hdom: forall (l : list nat), Forall (λ x, (x < S N)%nat) l -> (f l < S M)%nat)
@@ -1198,6 +1238,7 @@ Section rules.
   Qed.
 
 
+
   Lemma wp_couple_exp_decoder_rev (M N p:nat) ns nsₛ α αₛ e E Φ:
     (S N ^ p = S M)%nat->
     ▷ α ↪N (M; ns) ∗ ▷ αₛ ↪ₛN (N; nsₛ) ∗
@@ -1227,6 +1268,46 @@ Section rules.
       rewrite bool_decide_eq_true_2; auto.
       intro.
       by apply (@fin.decoder_aux_inj N).
+    }
+    iFrame.
+    rewrite /f.
+    iIntros (??) "% % (%&%) Hα Hαs".
+    case_bool_decide; [|done].
+    simplify_eq.
+    iApply ("Hwp" with "[//] [//] [//] Hα [Hαs]").
+    iFrame.
+  Qed.
+
+
+  Lemma wp_couple_exp_decoder_lr_rev (M N p:nat) ns nsₛ α αₛ e E Φ:
+    (S N ^ p = S M)%nat->
+    ▷ α ↪N (M; ns) ∗ ▷ αₛ ↪ₛN (N; nsₛ) ∗
+    (∀ (l : list nat) (m: nat),
+       ⌜Forall (λ x, (x < S N)%nat) l⌝ -∗
+       ⌜(m < S M)%nat ⌝ -∗
+       ⌜length l = p⌝ -∗ 
+       α ↪N (M; ns ++ [@decoder_nat_lr N l]) -∗ αₛ ↪ₛN (N; nsₛ ++ l) -∗
+       WP e @ E {{ Φ }}
+    )
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Heq) "(>Hα & >Hαₛ & Hwp)".
+    set (f := (λ l : list nat, if bool_decide (length l = p) then @decoder_nat_lr N l else 0%nat )).
+    iApply (wp_couple_exp_rev M N p f); auto.
+    {
+      rewrite -Heq /f.
+      intros l Hl.
+      case_bool_decide; simplify_eq.
+      - by apply fin.decoder_lr_aux_ineq.
+      - lia.
+    }
+    {
+      rewrite /f.
+      intros ?????<-.
+      case_bool_decide; [|done].
+      rewrite bool_decide_eq_true_2; auto.
+      intro.
+      by apply (@fin.decoder_lr_aux_inj N).
     }
     iFrame.
     rewrite /f.
