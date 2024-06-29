@@ -64,7 +64,7 @@ Section b_tree_adt.
             | SOME "new" =>
                 (* Either the child was a leaf, or we had to split the child, so
                    we must insert "new" into the current node *)
-                insert_child_list' "p" "l" "v"
+                insert_child_list' "p" "l" "new"
             end
         end.
 
@@ -138,7 +138,12 @@ Section b_tree_adt.
         ⤇ fill K res' ∗
           btree_ptrv p ltv (S depth) (Br l') vs ∗
           btree_ptrv' p' ltv' (S depth) (Br l') vs ∗
-          ((⌜ res = NONEV ⌝ ∗ ⌜ res' = NONEV ⌝) ∨ True)
+          ((⌜ res = NONEV ⌝ ∗ ⌜ res' = NONEV ⌝) ∨
+           (∃ tvnew tvnew' tnew vs2new,
+               ⌜ res = SOMEV tvnew ⌝ ∗ ⌜ res' = SOMEV tvnew' ⌝ ∗
+               ⌜ @is_ab_b_tree max_child_num' (S depth) vs2new tnew ⌝ ∗
+               relate_ab_tree_with_v tnew tvnew ∗
+               relate_ab_tree_with_v' tnew tvnew'))
     }}}.
   Proof.
     iIntros (Φ) "(Hbtree&Hbtree'&%Htwf&Htv&Htv'&Hspec) HΦ".
@@ -176,7 +181,6 @@ Section b_tree_adt.
       iApply "HΦ".
       iModIntro.
       inversion Hwft0.
-      (* FIX vs' --> it should be the things from is_ab_b_tree of t, -1 of the replicated sets of 0s *)
       set (l0' := ((vs2, t) :: l0)).
       set (vs' :=
               flat_map (λ x : list (option val), x) l0'.*1 ++
@@ -221,8 +225,66 @@ Section b_tree_adt.
           simpl. iFrame.
       }
       eauto.
-    -
-  Abort.
+    - tp_pures. rewrite bool_decide_false; last by lia.
+      wp_pures. tp_pures.
+      wp_alloc ptrv as "Hptv".
+      replace (#ptrv) with (inject ptrv) by auto.
+      wp_apply (wp_list_cons _ nil); eauto.
+      iIntros (? Hlist).
+      tp_alloc as ptrv' "Hptv'".
+      tp_bind (list_cons _ _)%E.
+      replace (#ptrv') with (inject ptrv') by auto.
+      iMod (spec_list_cons _ _ _ nil with "[] Hspec") as (?) "(Hspec&%Hlist')".
+      { eauto. }
+      simpl.
+      tp_pures.
+      wp_pures.
+      iApply "HΦ".
+      iModIntro.
+      iExists _, _, _, _, _.
+      iFrame "Hspec".
+      rewrite /btree_ptrv/btree_ptrv'.
+      iFrame "Hp Hp'".
+      iSplitL "H1 H2".
+      { iSplit.
+        * iPureIntro. eapply Hwft0.
+        * rewrite relate_ab_tree_with_v_Br. iExists _, _, _. iFrame. eauto.
+      }
+      iSplitL "H1' H2'".
+      { iSplit.
+        * iPureIntro. eapply Hwft0.
+        * rewrite relate_ab_tree_with_v_Br'. iExists _, _, _. iFrame. eauto.
+      }
+      iRight.
+      set (l0' := [(vs2, t)]).
+      set (vs' :=
+              flat_map (λ x : list (option val), x) l0'.*1 ++
+       replicate ((S max_child_num' - length l0') * S max_child_num' ^ depth) None).
+      set (l' := (snd <$> l0')).
+      iExists _, _, (Br [t]), vs'.
+      iSplit; first eauto.
+      iSplit; first eauto.
+      iSplit.
+      {
+        iPureIntro.
+        econstructor.
+        { rewrite /l0'. econstructor; eauto. }
+        { rewrite /l0'; simpl. rewrite /b_tree.min_child_num/b_tree.max_child_num; lia. }
+      }
+      iSplitL "Htv Hptv".
+      {
+        rewrite relate_ab_tree_with_v_Br. iExists _, [ptrv], [tv].
+        repeat (iSplit; first eauto).
+        iFrame.
+        rewrite //=.
+      }
+      {
+        rewrite relate_ab_tree_with_v_Br'. iExists _, [ptrv'], [tv'].
+        repeat (iSplit; first eauto).
+        iFrame.
+        rewrite //=.
+      }
+  Qed.
 
    (* Specifying the unary behavior would be handy, since then we
    could cut out on having to effectively do the proof as many
