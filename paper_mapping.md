@@ -78,7 +78,7 @@
 | 6.2      | Theorem       | Adqeuacy (Weakest Preconditions)                     |          |      |      |
 
 
-## ??
+## Things from the paper
 - Pg 4
   - HT-REC
   - HT-IF
@@ -87,3 +87,74 @@
 
 - Change names to RandML?
 - Does the remark at the end of section 6 have a lemma?
+
+
+# Things from the development
+- [ ] `tachis/adequacy.v`
+  - ERT section?
+- [ ] `tachis/cost_models.v`
+- [ ] `tachis/derived_laws.v`
+- [ ] `tachis/ectx_lifting.v`
+- [ ] `tachis/ert_rules.v`
+- [ ] `tachis/ert_weakestpre.v`
+- [ ] `tachis/expected_time_credits.v`
+- [ ] `tachis/lifting.v`
+- [ ] `tachis/primitive_laws.v`
+- [ ] `tachis/problang_wp.v`
+- [ ] `tachis/proofmode.v`
+
+
+## Per-file deletion on these 
+- [ ] `bi/weakestpre.v`
+
+- [ ] `prob/countable_sum.v`
+- [ ] `prob/couplings.v`
+- [ ] `prob/couplings_app.v`
+- [ ] `prob/distribution.v`
+- [ ] `prob/generic_lifting.v`
+- [ ] `prob/graded_predicate_lifting.v`
+- [ ] `prob/markov.v`
+
+- [ ] `common/ectxi_language.v`
+- [ ] `common/ectx_language.v`
+- [ ] `common/erasable.v`
+- [ ] `common/exec.v`
+- [ ] `common/inject.v`
+- [ ] `common/language.v`
+
+- [ ] `prob_lang/spec/*`
+- [ ] `prob_lang/typing/*`
+- [ ] `prob_lang/class_instances.v`
+- [ ] `prob_lang/ctx_subst.v`
+- [ ] `prob_lang/erasure.v`
+- [ ] `prob_lang/exec_lang.v`
+- [ ] `prob_lang/lang.v`
+- [ ] `prob_lang/locations.v`
+- [ ] `prob_lang/metatheory.v`
+- [ ] `prob_lang/notation.v`
+- [ ] `prob_lang/tactics.v`
+- [ ] `prob_lang/wp_tactics.v`
+
+- [ ] `base_logic/error_credits.v`
+- [ ] `base_logic/spec_auth_markov.v`
+- [ ] `base_logic/spec_update.v`
+
+- [ ] `prelude/uniform_list.v`
+- [ ] `prelude/stdpp_ext.v`
+- [ ] `prelude/mc_stdlib.v`
+- [ ] `prelude/iris_ext.v`
+- [ ] `prelude/fin.v`
+- [ ] `prelude/classical.v`
+- [ ] `prelude/base.v`
+- [ ] `prelude/Series_ext.v`
+- [ ] `prelude/Reals_ext.v`
+- [ ] `prelude/NNRbar.v`
+- [ ] `prelude/Coquelicot_ext.v`
+- [ ] `prelude/zmodp_fin.v`
+- [ ] `prelude/asubst.v`
+- [ ] `prelude/properness.v`
+
+
+
+
+
