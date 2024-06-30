@@ -812,7 +812,7 @@ Section iter_markov.
 
   Lemma iter_markov_terminates_eps (ϵ : posreal) a m:
     SeriesC (lim_exec a) = 1 →
-    ϵ <= 1 → (* TODO: this assumption should not be necessary *)
+    ϵ <= 1 →
     ∃ n, SeriesC (exec (δ := iter_markov a) n (a, m)) > 1 - ϵ.
   Proof.
     intros Ha.

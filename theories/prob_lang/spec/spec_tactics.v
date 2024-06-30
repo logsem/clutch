@@ -102,7 +102,7 @@ Tactic Notation "tp_pure_at" open_constr(ef) :=
       [by rewrite ?fill_app | tc_solve | ..])
   end;
   [tc_solve || fail "tp_pure: cannot eliminate modality in the goal"
-  |iAssumptionCore || fail "tp_pure: cannot find the RHS" (* TODO fix error message *)
+  |iAssumptionCore || fail "tp_pure: cannot find the RHS"
   |try (exact I || reflexivity) (* ψ *)
   |try (exact I || reflexivity) (* ϕ *)
   |simpl; reflexivity ||  fail "tp_pure: this should not happen" (* e' = fill K' e2 *)

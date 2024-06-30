@@ -652,7 +652,7 @@ Section filter.
   Qed.
 
   Lemma SeriesC_split_elem f (a0 : A) :
-    (∀ a, 0 <= f a) →           (* TODO: this requirements should not be necessary? *)
+    (∀ a, 0 <= f a) →
     ex_seriesC f →
     SeriesC f = SeriesC (λ a, if bool_decide (a = a0) then f a else 0) +
                   SeriesC (λ a, if bool_decide (a ≠ a0) then f a else 0).
