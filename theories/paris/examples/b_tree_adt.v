@@ -17,6 +17,7 @@ Opaque INR.
 Section b_tree_adt.
 
   Context {max_child_num' : nat}.
+  Context (max_child_num_lt : 2 ≤ S max_child_num').
 
   Definition init_tree : val :=
     λ: "v", ref (InjL "v").
@@ -548,5 +549,87 @@ Section b_tree_adt.
         iExists _, _, _, _, _. iFrame.
   Qed.
 
+  Lemma rel_insert_tree K p p' tv tv' depth t vs (v: val) :
+    {{{ btree_ptrv p tv depth t vs ∗
+        btree_ptrv' p' tv' depth t vs ∗
+        ⤇ fill K (insert_tree #p' v)
+    }}}
+      insert_tree #p v
+    {{{ RET #(); 
+        ∃ depth' tv tv' vs t,
+        ⤇ fill K #() ∗
+        btree_ptrv p tv depth' t vs ∗
+        btree_ptrv' p' tv' depth' t vs 
+    }}}.
+  Proof.
+    iIntros (Φ) "(Hbtree&Hbtree'&Hspec) HΦ".
+    rewrite /insert_tree.
+    wp_pures. tp_pures.
+    tp_bind (insert_tree_aux _ _).
+    wp_apply (rel_insert_tree_aux with "[$Hbtree $Hbtree' $Hspec]").
+    iIntros (res) "Hres".
+    iDestruct "Hres" as (?????) "(Hspec&Hbtree&Hbtree'&Hres)".
+    iDestruct "Hres" as "[(->&->)|Hres]".
+    - simpl. tp_pures. wp_pures. iModIntro. iApply "HΦ". iExists _, _, _, _. iFrame.
+    - iDestruct "Hres" as (????) "(->&->&%Hab&Htvnew&Htvnew')".
+      simpl. tp_pures. wp_pures.
+      tp_alloc as ptrnew1' "Hptrnew'".
+      wp_alloc ptrnew1 as "Hptrnew".
+      wp_pures.
+      replace (#ptrnew1) with (@inject loc val _ ptrnew1) by auto.
+      wp_apply (wp_list_cons (A:=loc) _ []); first eauto.
+      iIntros (? Hlist).
+      tp_bind (list_cons #ptrnew1' _)%E.
+      replace (#ptrnew1') with (inject ptrnew1') by auto.
+      iMod (spec_list_cons _ _ _ nil with "[] Hspec") as (?) "(Hspec&%Hlist')".
+      { eauto. }
+      simpl.
+
+      iDestruct "Hbtree" as "(%&Hp&Hrelp)".
+      iDestruct "Hbtree'" as "(%&Hp'&Hrelp')".
+      tp_load.
+      wp_load.
+
+      tp_alloc as ptrnew2' "Hptrnew2'".
+      wp_alloc ptrnew2 as "Hptrnew2".
+
+      replace (#ptrnew2) with (inject ptrnew2) by auto.
+      wp_apply (wp_list_cons); first eauto.
+      iIntros (? Hlist2).
+
+      
+      tp_bind (list_cons #ptrnew2' _)%E.
+      replace (#ptrnew2') with (inject ptrnew2') by auto.
+      iMod (spec_list_cons (A:=loc) _ _ _ _ with "[] Hspec") as (?) "(Hspec&%Hlist2')".
+      { eauto. }
+
+      simpl.
+      tp_pures; tp_store.
+      wp_pures; wp_store.
+      simpl.
+      iModIntro. iApply "HΦ".
+      iExists (S depth), (InjRV v2), (InjRV v3), _, (Br [t'; tnew]). iFrame "Hspec Hp Hp'".
+      iSplitL "Hrelp Htvnew Hptrnew Hptrnew2".
+      * iSplitR; last first.
+        ** rewrite relate_ab_tree_with_v_Br. iExists _, [ptrnew2; ptrnew1], [tv0; tvnew].
+           repeat (iSplit; first eauto).
+           rewrite /=. iFrame.
+        ** iPureIntro.
+           set (l' := ((vs0, t') :: (vs2new, tnew) :: nil)).
+           replace ([t'; tnew]) with (l'.*2) by auto.
+           econstructor.
+           *** rewrite /l'. econstructor; eauto.
+           *** rewrite /b_tree.min_child_num /b_tree.max_child_num. rewrite /l'. econstructor; eauto => //=. lia.
+      * iSplitR; last first.
+        ** rewrite relate_ab_tree_with_v_Br'. iExists _, [ptrnew2'; ptrnew1'], [tv'0; tvnew'].
+           repeat (iSplit; first eauto).
+           rewrite /=. iFrame.
+        ** iPureIntro.
+           set (l' := ((vs0, t') :: (vs2new, tnew) :: nil)).
+           replace ([t'; tnew]) with (l'.*2) by auto.
+           econstructor.
+           *** rewrite /l'. econstructor; eauto.
+           *** rewrite /b_tree.min_child_num /b_tree.max_child_num. rewrite /l'. econstructor; eauto => //=. lia.
+  Qed.
 
 End b_tree_adt.
