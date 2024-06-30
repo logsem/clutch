@@ -1,91 +1,64 @@
 ## Reference from the paper to the code
 
-| §        | Kind          | Item                                       | Coq file                         | Name                               | Note                                                                     |
-|----------|---------------|--------------------------------------------|----------------------------------|------------------------------------|--------------------------------------------------------------------------|
-| 2.1      | Example       | ``coinToss``                               |                                  |                                    |                                                                          |
-| 2.2      | Example       | ``op``                                     |                                  |                                    |                                                                          |
-| 3.1      | Definition    | Discrete subdistribution                   |                                  |                                    |                                                                          |
-| 3.1      | Definition    | Discrete distribution monad                |                                  |                                    |                                                                          |
-| 3.1      | Definition    | `RandML`                                   |                                  |                                    |                                                                          |
-| 3.1      | Definition    | `step`                                     |                                  |                                    |                                                                          |
-| 3.1      | Definition    | `exec_n`                                   |                                  |                                    |                                                                          |
-| 3.1      | Definition    | `exec`                                     |                                  |                                    |                                                                          |
-| 3.2      | Definition    | Cost model                                 | `tachis/ert_weakestpre.v`        | `Costfun`                          |                                                                          |
-| 3.2      | Definition    | Expected cost, $m$ steps                   | `tachis/adequacy.v`              | `ERT `                             |                                                                          |
-| 3.2      | Definition    | Expected cost (limit)                      | `tachis/adequacy.v`              | `lim_ERT `                         |                                                                          |
-| 3.2      | Definition    | `cost_all`                                 | `tachis/cost_models.v`           | `CostLanguageCtx_Cost1_prob_lang ` |                                                                          |
-| 3.2      | Definition    | `cost_app`                                 | `tachis/cost_models.v`           | `CostApp`                          |                                                                          |
-| 3.2      | Definition    | `cost_rand`                                | `tachis/cost_models.v`           | `CostEntropy`                      |                                                                          |
-| 3.2      | Definition    | `cost_tick`                                | `tachis/cost_models.v`           | `CostTick`                         |                                                                          |
-| 4.1      | Definition    | `iProp`                                    |                                  |                                    |                                                                          |
-| 4.1      | Definition    | Credit assertion                           |                                  |                                    |                                                                          |
-| 4.1      | Rule          | Credit splitting rule                      |                                  |                                    |                                                                          |
-| 4.2      | Theorem       | Adqeuacy (Hoare Triples)                   |                                  |                                    |                                                                          |
-| 4.2      | Rule          | `HT-BIND`                                  |                                  |                                    |                                                                          |
-| 4.2      | Rule          | `HT-LOAD`                                  | `tachis/primitive_laws.v`        | `wp_load `                         |                                                                          |
-| 4.2      | Rule          | `HT-RAND`                                  | `tachis/primitive_laws.v`        | `wp_rand `                         |                                                                          |
-| 4.2      | Rule          | `HT-REC`                                   |                                  |                                    |                                                                          |
-| 4.3      | File          | Cost model tactics                         | `tachis/proofmode.v`             |                                    | See eg. `wp_*` tactics                                                   |
-| 5.1      | Example       | Coupon collector program                   |                                  |                                    |                                                                          |
-| 5.1      | Example       | Repeat Draw specification                  |                                  |                                    |                                                                          |
-| 5.2      | Example       | `repeatSwap` definition                    |                                  |                                    |                                                                          |
-| 5.2      | Example       | `shuffle` definition                       |                                  |                                    |                                                                          |
-| 5.2      | Example       | `shuffle` specification                    |                                  |                                    |                                                                          |
-| 5.3      | Example       | `sampleThree` definition                   |                                  |                                    |                                                                          |
-| 5.3      | Example       | `sampleThree` specification                |                                  |                                    |                                                                          |
-| 5.3      | Example       | `initSampler` definition                   |                                  |                                    |                                                                          |
-| 5.3      | Example       | `initSampler` specification                |                                  |                                    |                                                                          |
-| 5.3      | Example       | `prefetch` definition                      |                                  |                                    |                                                                          |
-| 5.3      | Example       | `prefetch ` specification                  |                                  |                                    |                                                                          |
-| 5.4, A?? | Example       | `isHashMap` definition                     |                                  |                                    |                                                                          |
-| 5.4, A?? | Example       | `insert` definition                        |                                  |                                    |                                                                          |
-| 5.4, A?? | Example       | `insert` exact specification               |                                  |                                    |                                                                          |
-| 5.4, A?? | Example       | `insert` approximate specification         |                                  |                                    |                                                                          |
-| 5.5      | Example       | `qSort` definition                         |                                  |                                    |                                                                          |
-| 5.5      | Example       | `isPureComp` definition                    |                                  |                                    |                                                                          |
-| 5.5      | Example       | `t_m` definition                           |                                  |                                    |                                                                          |
-| 5.5      | Example       | `t_m` upper bound                          |                                  |                                    |                                                                          |
-| 5.5      | Example       | `qSort` specification                      |                                  |                                    |                                                                          |
-| 5.5      | Example       | `ix_rk`                                    |                                  |                                    |                                                                          |
-| 5.5      | Example       | `ix_rev`                                   |                                  |                                    |                                                                          |
-| 5.5      | Example       | Credit distribution function `d`           |                                  |                                    |                                                                          |
-| 5.5      | Example       | Entropy recurrence relation `e`            |                                  |                                    |                                                                          |
-| 5.6      | Example       | Meldable heap implementation               |                                  |                                    |                                                                          |
-| 5.6      | Specification | Abstract comparator specification `isComp` |                                  |                                    |                                                                          |
-| 5.6      | Specification | Abstract min-heap specification            |                                  |                                    |                                                                          |
-| 5.6      | Example       | Type `BinaryTree`                          |                                  |                                    |                                                                          |
-| 5.6      | Example       | Function `treeToList`                      |                                  |                                    |                                                                          |
-| 5.6      | Specification | `isBinaryTree`                             |                                  |                                    |                                                                          |
-| 5.6      | Example       | `isMeldHeapVal`                            |                                  |                                    |                                                                          |
-| 5.6      | Example       | `isMeldHeapRef`                            |                                  |                                    |                                                                          |
-| 5.6      | Example       | `t^meld`                                   |                                  |                                    |                                                                          |
-| 5.6      | Specification | `meld` specification                       |                                  |                                    |                                                                          |
-| 5.6      | Example       | `tc^dist`                                  |                                  |                                    |                                                                          |
-| 5.6      | Example       | Meldable heap abstract min-heap instance   |                                  |                                    |                                                                          |
-| 5.7      | Example       | `repeatRemove`                             |                                  |                                    |                                                                          |
-| 5.7      | Example       | `merge`                                    |                                  |                                    |                                                                          |
-| 5.7      | Example       | `isComp` instance for lists                |                                  |                                    |                                                                          |
-| 5.7      | Specification | `merge` specification                      |                                  |                                    |                                                                          |
-| 5.7      | Example       | Composed `O(n log k)` merge specification  |                                  |                                    |                                                                          |
-| 6        | Definition    | Hoare triple                               |                                  |                                    |                                                                          |
-| 6.1      | Definition    | Cost interpretation                        |                                  |                                    |                                                                          |
-| 6.1      | Definition    | Expected Cost modality                     | `tachis/ert_weakestpre.v`        | `ERM `                             | See `ERM_unfold` for the equation at the start of 6.1                    |
-| 6.1      | Definition    | Weakest precondition                       | `tachis/ert_weakestpre.v`        | `ert_wp`                           | See `ert_wp_unfold `, `ert_wp_pre ` for the equation at the start of 6.1 |
-| 6.1      | Definition    | Cost credit resource algebra               |                                  |                                    |                                                                          |
-| 6.1      | Definition    | Cost interpretation                        | `tachis/expected_time_credits.v` | `etc_supply`                       |                                                                          |
-| 6.1      | Definition    | Cost budget                                | `tachis/expected_time_credits.v` | `ec`                               | Common notation in our development is `⧖`                                |
-| 6.1      | Rule          | Agreement Rule                             |                                  |                                    |                                                                          |
-| 6.1      | Rule          | Spending Rule                              |                                  |                                    |                                                                          |
-| 6.1      | Rule          | Acquiring Rule                             |                                  |                                    |                                                                          |
-| 6.2      | Theorem       | Adequacy (Weakest Preconditions)           | `tachis/adequacy.v`              | `wp_correct_lim `                  |                                                                          |
-| 6.3      | Remark        | Finite `cost_app` cost implies AST         | `tachis/adequacy.v`              | `wp_ERT_ast'`                      |                                                                          |
+| §   | Kind          | Item                                       | Coq file                            | Name                                    | Note                                                                     |
+|-----|---------------|--------------------------------------------|-------------------------------------|-----------------------------------------|--------------------------------------------------------------------------|
+| 2.1 | Example       | ``coinToss``                               | `tachis/examples/geometric.v`       | `geo`                                   |                                                                          |
+| 2.2 | Example       | ``op``                                     |                                     |                                         |                                                                          |
+| 3.1 | Definition    | Discrete subdistribution                   | `prob/distribution.v`               | `distr`                                 |                                                                          |
+| 3.1 | Definition    | Discrete distribution monad                | `prob/distribution.v`               | `dbind`, `dret`, etc                    |                                                                          |
+| 3.1 | Definition    | `RandML`                                   | `prob_lang/lang.v`                  |                                         |                                                                          |
+| 3.1 | Definition    | `step`                                     | `common/ectx_language.v`            | `prim_step`                             |                                                                          |
+| 3.1 | Definition    | `exec_n`                                   | `common/exec.v`                     | `exec`                                  |                                                                          |
+| 3.1 | Definition    | `exec`                                     | `common/exec.v`                     | `lim_exec_val`                          |                                                                          |
+| 3.2 | Definition    | Cost model                                 | `tachis/ert_weakestpre.v`           | `Costfun`                               |                                                                          |
+| 3.2 | Definition    | Expected cost, $m$ steps                   | `tachis/adequacy.v`                 | `ERT `                                  |                                                                          |
+| 3.2 | Definition    | Expected cost (limit)                      | `tachis/adequacy.v`                 | `lim_ERT `                              |                                                                          |
+| 3.2 | Definition    | `cost_all`                                 | `tachis/cost_models.v`              | `CostLanguageCtx_Cost1_prob_lang `      |                                                                          |
+| 3.2 | Definition    | `cost_app`                                 | `tachis/cost_models.v`              | `CostApp`                               |                                                                          |
+| 3.2 | Definition    | `cost_rand`                                | `tachis/cost_models.v`              | `CostEntropy`                           |                                                                          |
+| 3.2 | Definition    | `cost_tick`                                | `tachis/cost_models.v`              | `CostTick`                              |                                                                          |
+| 4.1 | Definition    | `iProp`                                    | Imported from Iris                  | `iProp`                                 |                                                                          |
+| 4.1 | Definition    | Credit assertion                           | `tachis/expected_time_credits.v`    | `ec`                                    | `⧖ x` is notation in our development for `$ x`                           |
+| 4.1 | Rule          | Credit splitting rule                      | `tachis/expected_time_credits.v`    | `etc_split`, `etc_combine`              |                                                                          |
+| 4.2 | Theorem       | Adqeuacy (Hoare Triples)                   |                                     |                                         |                                                                          |
+| 4.2 | Rule          | `HT-BIND`                                  |                                     |                                         |                                                                          |
+| 4.2 | Rule          | `HT-FRAME`                                 |                                     |                                         |                                                                          |
+| 4.2 | Rule          | `HT-LOAD`                                  | `tachis/primitive_laws.v`           | `wp_load`                               |                                                                          |
+| 4.2 | Rule          | `HT-RAND`                                  | `tachis/primitive_laws.v`           | `wp_rand`                               |                                                                          |
+| 4.2 | Rule          | `HT-REC`                                   |                                     |                                         |                                                                          |
+| 4.2 | Rule          | `HT-RAND-EXP`                              | `tachis/ert_rules.v`                | `wp_couple_rand_adv_comp_strong'`       |                                                                          |
+| 4.3 | File          | Cost model tactics                         | `tachis/proofmode.v`                |                                         | See eg. `wp_*` tactics                                                   |
+| 5.1 | Example       | Coupon Collector                           | `tachis/examples/couponcollector.v` | `wp_coupon_collection `                 |                                                                          |
+| 5.2 | Example       | Fischer Yates Shuffle                      | `tachis/examples/fisher_yates.v`    | `wp_fisher_yates `                      |                                                                          |
+| 5.4 | Example       | Hash map                                   | `tachis/examples/hashmap/hashmap.v` | `wp_amortized_hm_insert_new `           |                                                                          |
+| 5.4 | Example       | Ammortized Hash map                        | `tachis/examples/hashmap/hashmap.v` | `wp_hm_insert_new`, `wp_hm_lookup_new ` |                                                                          |
+| 5.5 | Example       | Quicksort Time bound                       | `tachis/examples/quicksort.v`       | `qs_time_bound `                        |                                                                          |
+| 5.5 | Example       | Quicksort Expected entropy bound           | `tachis/examples/quicksort.v`       | `qs_ent_bound`                          |                                                                          |
+| 5.6 | Example       | Meldable heap implementation               | `tachis/examples/meldable_heap.v`   | `meld_heap_spec `                       |                                                                          |
+| 5.6 | Specification | Abstract comparator specification `isComp` | `tachis/examples/min_heap_spec.v`   | `comparator`                            |                                                                          |
+| 5.6 | Specification | Abstract min-heap specification            | `tachis/examples/min_heap_spec.v`   | `min_heap`                              |                                                                          |
+| 5.7 | Example       | `isComp` instance for lists                | `tachis/examples/kway_merge.v`      | `Z_list_comparator `                    |                                                                          |
+| 5.7 | Example       | k-way merge abstract specification         | `tachis/examples/kway_merge.v`      | `wp_merge `                             |                                                                          |
+| 5.7 | Example       | Composed `O(n log k)` meldable heap merge  | `tachis/examples/kway_merge.v`      | `wp_meldable_merge `                    |                                                                          |
+| 6   | Definition    | Hoare triple                               |                                     |                                         |                                                                          |
+| 6.1 | Definition    | Cost interpretation                        |                                     |                                         |                                                                          |
+| 6.1 | Definition    | Expected Cost modality                     | `tachis/ert_weakestpre.v`           | `ERM `                                  | See `ERM_unfold` for the equation at the start of 6.1                    |
+| 6.1 | Definition    | Weakest precondition                       | `tachis/ert_weakestpre.v`           | `ert_wp`                                | See `ert_wp_unfold `, `ert_wp_pre ` for the equation at the start of 6.1 |
+| 6.1 | Definition    | Cost credit resource algebra               | `tachis/expected_time_credits.v`    | `etcGS `                                |                                                                          |
+| 6.1 | Definition    | Cost interpretation                        | `tachis/expected_time_credits.v`    | `etc_supply`                            |                                                                          |
+| 6.1 | Definition    | Cost budget                                | `tachis/expected_time_credits.v`    | `ec`                                    | `⧖ x` is notation in our development for `$ x`                           |
+| 6.1 | Rule          | Agreement Rule                             | `tachis/expected_time_credits.v`    | `etc_supply_bound `                     |                                                                          |
+| 6.1 | Rule          | Spending Rule                              | `tachis/expected_time_credits.v`    | `etc_supply_decrease `                  |                                                                          |
+| 6.1 | Rule          | Acquiring Rule                             | `tachis/expected_time_credits.v`    | `etc_supply_increase `                  |                                                                          |
+| 6.2 | Theorem       | Adequacy (Weakest Preconditions)           | `tachis/adequacy.v`                 | `wp_correct_lim `                       |                                                                          |
+| 6.3 | Remark        | Finite `cost_app` cost implies AST         | `tachis/adequacy.v`                 | `wp_ERT_ast'`                           |                                                                          |
 
 
 ## Things from the paper
 - Pg 4
   - HT-REC
   - HT-IF
-  - HT-FLIP-EXP `tachis/ert_rules.v` `wp_couple_rand_adv_comp_strong' `
+  - HT-FLIP-EXP?
   - HT rand `wp_couple_rand_constant ` (?)
 - Pg 10. Note about HT-FRAME?
 
@@ -116,7 +89,8 @@
 - [ ] `tachis/proofmode.v`
   - Any specific tactics?
 
-!! Remove all tapes !!
+-- Remove all tapes 
+-- Grep for FIXME, TODO
 
 
 
