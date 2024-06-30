@@ -468,73 +468,85 @@ Section b_tree_adt.
       { rewrite /btree_ptrv'. iFrame. simpl. eauto. }
       iNext. iIntros (res) "IHres".
       iDestruct "IHres" as (tv tv' vs t' res') "(Hspec&Hp1&Hp1'&Hres)".
+
+      (* Rebuild the btree_ptrv facts p after "putting back" the child we recursively inserted into *)
+      set (l' :=  <[ (n : nat) := (vs, t') ]> l).
+      set (vs' :=
+             (flat_map (λ x : list (option val), x) l'.*1 ++
+              replicate ((S max_child_num' - length l') * S max_child_num' ^ depth') None)).
+      iAssert (btree_ptrv p _ (S depth') (Br l'.*2) vs')%I
+        with "[Hp H1 H2 Hp1]" as "Hp".
+      {
+        rewrite /btree_ptrv. iFrame.
+        iDestruct "Hp1" as "(%Hab'&Hptr&Hrelate)".
+        iDestruct ("H2" $! (t', tv) with "Hrelate") as "H2".
+        iDestruct ("H1" $! (ptr, tv) with "Hptr") as "H1".
+        rewrite ?combine_insert.
+        iSplit; last first.
+        { rewrite relate_ab_tree_with_v_Br.
+          iExists _, _, _. iSplit; first eauto. iFrame.
+          rewrite ?insert_length //.
+          iSplit; first eauto.
+          { rewrite /l'. iPureIntro.
+            rewrite list_fmap_insert /= insert_length //.
+          }
+          iSplit; first eauto.
+          { rewrite /l'. iPureIntro.
+            rewrite list_fmap_insert /= insert_length //.
+          }
+          iSplit.
+          { iPureIntro. rewrite list_insert_id //. }
+          rewrite /l' list_fmap_insert /=. eauto.
+        }
+        iPureIntro.
+        econstructor.
+        * rewrite /l'. eapply Forall_insert; eauto.
+        * rewrite /l' insert_length //.
+      }
+
+      iAssert (btree_ptrv' p' _ (S depth') (Br l'.*2) vs')%I with "[Hp' H1' H2' Hp1']" as "Hp'".
+      { rewrite /btree_ptrv. iFrame.
+        iDestruct "Hp1'" as "(%Hab'&Hptr&Hrelate)".
+        iDestruct ("H2'" $! (t', tv') with "Hrelate") as "H2".
+        iDestruct ("H1'" $! (ptr', tv') with "Hptr") as "H1".
+        rewrite ?combine_insert.
+        iSplit; last first.
+        { rewrite relate_ab_tree_with_v_Br'.
+          iExists _, _, _. iSplit; first eauto. iFrame.
+          rewrite ?insert_length //.
+          iSplit; first eauto.
+          { rewrite /l'. iPureIntro.
+            rewrite list_fmap_insert /= insert_length //.
+          }
+          iSplit; first eauto.
+          { rewrite /l'. iPureIntro.
+            rewrite list_fmap_insert /= insert_length //.
+          }
+          iSplit.
+          { iPureIntro. rewrite list_insert_id //. }
+          rewrite /l' list_fmap_insert /=. eauto.
+        }
+        iPureIntro.
+        econstructor.
+        * rewrite /l'. eapply Forall_insert; eauto.
+        * rewrite /l' insert_length //.
+      }
+
       iDestruct "Hres" as "[Hnone|Hsome]".
       * iDestruct "Hnone" as "(->&->)".
         simpl.
         tp_pures. wp_pures. iModIntro.
-        set (l' :=  <[ (n : nat) := (vs, t') ]> l).
-        set (vs' :=
-             (flat_map (λ x : list (option val), x) l'.*1 ++
-              replicate ((S max_child_num' - length l') * S max_child_num' ^ depth') None)).
         iApply "HΦ". iExists _, _, vs', (Br (l'.*2)), _.
-        iFrame "Hspec".
-        iSplitL "Hp H1 H2 Hp1".
-        { rewrite /btree_ptrv. iFrame.
-          iDestruct "Hp1" as "(%Hab'&Hptr&Hrelate)".
-          iDestruct ("H2" $! (t', tv) with "Hrelate") as "H2".
-          iDestruct ("H1" $! (ptr, tv) with "Hptr") as "H1".
-          rewrite ?combine_insert.
-          iSplit; last first.
-          { rewrite relate_ab_tree_with_v_Br.
-            iExists _, _, _. iSplit; first eauto. iFrame.
-            rewrite ?insert_length //.
-            iSplit; first eauto.
-            { rewrite /l'. iPureIntro.
-              rewrite list_fmap_insert /= insert_length //.
-            }
-            iSplit; first eauto.
-            { rewrite /l'. iPureIntro.
-              rewrite list_fmap_insert /= insert_length //.
-            }
-            iSplit.
-            { iPureIntro. rewrite list_insert_id //. }
-            rewrite /l' list_fmap_insert /=. eauto.
-          }
-          iPureIntro.
-          econstructor.
-          * rewrite /l'. eapply Forall_insert; eauto.
-          * rewrite /l' insert_length //.
-        }
-        iSplitL "Hp' H1' H2' Hp1'".
-        { rewrite /btree_ptrv. iFrame.
-          iDestruct "Hp1'" as "(%Hab'&Hptr&Hrelate)".
-          iDestruct ("H2'" $! (t', tv') with "Hrelate") as "H2".
-          iDestruct ("H1'" $! (ptr', tv') with "Hptr") as "H1".
-          rewrite ?combine_insert.
-          iSplit; last first.
-          { rewrite relate_ab_tree_with_v_Br'.
-            iExists _, _, _. iSplit; first eauto. iFrame.
-            rewrite ?insert_length //.
-            iSplit; first eauto.
-            { rewrite /l'. iPureIntro.
-              rewrite list_fmap_insert /= insert_length //.
-            }
-            iSplit; first eauto.
-            { rewrite /l'. iPureIntro.
-              rewrite list_fmap_insert /= insert_length //.
-            }
-            iSplit.
-            { iPureIntro. rewrite list_insert_id //. }
-            rewrite /l' list_fmap_insert /=. eauto.
-          }
-          iPureIntro.
-          econstructor.
-          * rewrite /l'. eapply Forall_insert; eauto.
-          * rewrite /l' insert_length //.
-        }
-        iLeft. eauto.
-      *
-  Abort.
+        iFrame. iLeft. eauto.
+      * iDestruct "Hsome" as (tvnew tvnew' tnew vs2new) "(->&->&%Hwfnew&Htvnew&Htvnew')".
+        simpl.
+        tp_pures. wp_pures.
+        wp_apply (rel_insert_child_list' with "[$Hp $Hp' $Htvnew $Htvnew' $Hspec //]").
+        iIntros (res) "Hres".
+        iApply "HΦ".
+        iDestruct "Hres" as (?????) "H".
+        iExists _, _, _, _, _. iFrame.
+  Qed.
 
 
 End b_tree_adt.
