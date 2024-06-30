@@ -894,7 +894,6 @@ Proof.
   rewrite state_step_support_equiv_rel.
   inversion_clear 1.
   split; intros [[e2 σ2] Hs].
-  (* TODO: the sub goals used to be solved by [simplify_map_eq]  *)
   - destruct e; inv_head_step; try by (unshelve (eexists; solve_distr)).
     + destruct (decide (α = l1)); simplify_eq.
       * rewrite lookup_insert in H11. done.
@@ -977,7 +976,6 @@ Defined.
 Lemma expr_ord_wf : well_founded expr_ord.
 Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
 
-(* TODO: this proof is slow, but I do not see how to make it faster... *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
 Proof.
   rewrite /expr_ord /decomp_item.
@@ -988,7 +986,6 @@ Lemma decomp_fill_item Ki e :
   to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e).
 Proof. destruct Ki ; simpl ; by repeat destruct_match. Qed.
 
-(* TODO: this proof is slow, but I do not see how to make it faster... *)
 Lemma decomp_fill_item_2 e e' Ki :
   decomp_item e = Some (Ki, e') → fill_item Ki e' = e ∧ to_val e' = None.
 Proof.

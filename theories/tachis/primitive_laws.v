@@ -86,7 +86,6 @@ Proof.
     + iApply "IH"; [|done]. iPureIntro; lia.
     + simpl. iSplit; [|done].
       by rewrite big_sepM_singleton.
-      (* TODO: this is nasty... Find a better solution *)
       Unshelve.
       { apply heap_array_map_disjoint.
         intros.

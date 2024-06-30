@@ -133,7 +133,6 @@ Proof. destruct z; naive_solver. Qed.
 Lemma Z_to_bool_of_nat n : Z_to_bool (Z.of_nat n) = nat_to_bool n.
 Proof. destruct n; naive_solver. Qed.
 
-(* TODO: upstream *)
 Global Instance sigT_eq_dec `{EqDecision A} (P : A → Type) `{!∀ x, EqDecision (P x)} :
   EqDecision { x : A & P x }.
 Proof.
@@ -307,7 +306,6 @@ Section finite.
     encode_inv_nat n = enum A !! n.
   Proof.
     unfold encode_inv_nat.
-    (* TODO this assert used to be computed by simpl before 8.18. *)
     assert ((decode_nat n) = (enum A !! pred (Pos.to_nat (Pos.of_nat (S n))))) as -> by reflexivity.
     rewrite Nat2Pos.id; [|done].
     destruct (decide (n < card A)%nat) as [Hlt | Hnlt%not_lt]; simpl.

@@ -1584,7 +1584,6 @@ Proof.
   intros Hdom Hz.
   destruct e; simpl in *;
     repeat case_match; done || inv_dzero; simplify_map_eq.
-  (* TODO: [simplify_map_eq] should solve this? *)
   - destruct (decide (α = l1)).
     + simplify_eq.
       by apply not_elem_of_dom_2 in H5.

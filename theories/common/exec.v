@@ -1,6 +1,3 @@
-(* TODO: this is leftover from merging developments: most of this theory now
-   exists for arbitrary markov chains, see [prob/markov.v]. Some theory, however,
-   like [exec_cfg] and [lim_exec_cfg] does not exist so should be ported. *)
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import relations.

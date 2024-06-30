@@ -7,8 +7,6 @@ From clutch.prob Require Export countable_sum distribution.
 
 Open Scope R.
 
-(** TODO: decidablity should really just be a requirement on [f] and has to be threaded through all the
-    lemmas and definitions; nothing in this file in itself needs classical reasoning. *)
 Existing Instance make_decision | 1000.
 
 Section partial_graded_lifting.

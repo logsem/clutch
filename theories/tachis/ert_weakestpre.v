@@ -178,7 +178,6 @@ Section ERM.
     iIntros " (% & % & (%r & %Hr) & % & H) %Hv'".
     - rewrite least_fixpoint_unfold.
       simpl.
-      (* TODO factor this madness into some lemma(s)... *)
       destruct (partial_inv_fun K) as (Kinv & HKinv).
       assert (∀ e e', Kinv e' = Some e -> K e = e') as HKinv1; [intros; by apply HKinv |].
       assert (∀ e e', Kinv e = None -> K e' ≠ e) as HKinv2; [intros; by apply HKinv |].
@@ -198,7 +197,6 @@ Section ERM.
         etrans; [ | eapply (Hr (e, σ)); eauto]. apply cond_nonneg. }
       iSplit.
       + iPureIntro.
-        (* TODO: factor this out into some lemma(s)... *)
         etrans; [| apply H1].
         rewrite cost_fill //.
         apply Rplus_le_compat_l.

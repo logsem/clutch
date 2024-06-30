@@ -6,7 +6,6 @@ Import uPred.
 Section fupd.
   Local Existing Instances invGpreS_wsat invGpreS_lc.
 
-  (* TODO: remove when Iris is updated (this is on upstream main now) *)
   Lemma fupd_soundness_no_lc_unfold `{!invGpreS Σ} m E :
     ⊢ |==> ∃ `(Hws: invGS_gen HasNoLc Σ) (ω : coPset → iProp Σ),
         £ m ∗ ω E ∗ □ (∀ E1 E2 P, (|={E1, E2}=> P) -∗ ω E1 ==∗ ◇ (ω E2 ∗ P)).
@@ -26,7 +25,6 @@ Section fupd.
   Qed.
 End fupd.
 
-(* TODO: upstream? *)
 Section fupd_plainly_derived.
   Context {PROP : bi}.
   Context `{!BiFUpd PROP, !BiPlainly PROP, !BiFUpdPlainly PROP}.

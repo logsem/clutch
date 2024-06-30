@@ -321,7 +321,6 @@ Section error_credit_theory.
       + simpl in Hn. lra.
   Qed.
 
-  (* TODO: can [ec_ind_amp] be derived from [ec_ind_amp_external] ? *)
   Lemma ec_ind_amp (ε k : R) P :
     0 < ε →
     1 < k →

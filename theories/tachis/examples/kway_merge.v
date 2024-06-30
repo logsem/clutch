@@ -257,7 +257,6 @@ Section kway_merge_spec.
         wp_apply ("IH" $! zss' (z :: zs0) with "[] [] [] [] [Hrest] Hh Hout").
         { iPureIntro. rewrite Hp Forall_cons in Hzss. by destruct Hzss. }
         { iPureIntro.  constructor; [done|].
-          (* TODO: extract to a separate lemma *)
           destruct zs0; [done|]. constructor.
           rewrite Forall_cons in Hle; destruct Hle as [Hle _].
           setoid_rewrite Hp in Hle.
@@ -266,7 +265,6 @@ Section kway_merge_spec.
           rewrite Forall_cons in Hle. by destruct Hle. }
         { iPureIntro. rewrite Hp Forall_cons in Hne. by destruct Hne. }
         { iPureIntro.
-          (* TODO: extract to a separate lemma *)
           rewrite Hp in Hzss Hs.
           setoid_rewrite Hp in Hle; clear Hlen Hp zss Hne.
           apply Forall_cons in Hs as [_ Hs].

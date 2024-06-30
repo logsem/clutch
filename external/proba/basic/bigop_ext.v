@@ -120,7 +120,6 @@ Proof.
       ** move:Huniq. rewrite cons_uniq. move/andP. firstorder.
 Qed.
 
-(* TODO: this is obviously rather redundant with above *)
 Lemma sum_reidx_map_le {A B: eqType} (p: seq A) (q: seq B) P Q (h : A -> B) (F: A -> R) (F': B -> R) :
   (forall a,  a \in p -> F a <= F' (h a)) ->
   (forall a,  a \in p -> P a = true -> (h a) \in q /\ Q (h a) = true ) ->

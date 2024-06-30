@@ -90,9 +90,6 @@
   - Any specific tactics?
 
 -- Remove all tapes 
--- Grep for FIXME, TODO
-
-
 
 
 

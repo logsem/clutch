@@ -758,7 +758,6 @@ Section iter_markov.
     intros Hsup.
     assert (is_sup_seq (λ n : nat, SeriesC (exec n a)) 1).
     { rewrite -Hsup.
-      (* TODO: find a better solution than this sandwich business... *)
       rewrite (Rbar_le_sandwich 0 1).
       + apply Sup_seq_correct.
       + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.

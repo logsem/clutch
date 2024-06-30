@@ -1,5 +1,3 @@
-(* TODO move into metatheory.v ? *)
-
 From Coq Require Export Reals Psatz.
 From clutch.prob_lang Require Import lang.
 

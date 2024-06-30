@@ -443,7 +443,6 @@ Proof.
   - intros (m1 & m2) (n & [=] & Hn)%dmap_pos =>/=. by simplify_eq.
 Qed.
 
-(* TODO: generalize *)
 Lemma Rcoupl_fair_coin_dunifP `{Countable A} (μ : distr A) R :
   Rcoupl fair_coin μ R →
   Rcoupl (dunifP 1) μ (λ n a, R (fin_to_bool n) a).
@@ -451,7 +450,6 @@ Proof.
   intros Hcpl.
   assert (dunifP 1 = dmap bool_to_fin fair_coin) as ->.
   { apply distr_ext=>n.
-    (* TODO: use some nicer lemma *)
     rewrite /pmf/= /dbind_pmf SeriesC_bool.
     rewrite /pmf/= /fair_coin_pmf /dret_pmf.
     inv_fin n; simpl; [lra|]=> n.

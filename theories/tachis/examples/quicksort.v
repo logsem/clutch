@@ -1338,9 +1338,6 @@ Section program.
       rewrite /index_to_rank /rank /=.
       rewrite {14}Hxs.
 
-      (* TODO Causes Coq error, report me *)
-      (* rewrite -{1}(List.filter_length  (λ y : A, bool_decide (strict f (xs !!! ip) y))). *)
-
       apply Nat.add_sub_eq_l.
       replace (length (@List.filter A (fun y : A => @bool_decide (strict f y _) _) _))
          with (length (List.filter (∽ (λ x : A, (bool_decide (f xp x))))%P (xsL ++ xsR))); last first.

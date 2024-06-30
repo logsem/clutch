@@ -82,7 +82,6 @@ Section countable_sum.
     Proper (pointwise_relation A (@eq R) ==> eq ==> eq) countable_sum.
   Proof. intros ?? ? ? ??. subst. eapply countable_sum_ext; eauto. Qed.
 
-  (** TODO: more lifted lemmas on [sumC] *)
   Definition sumC_n (f : A → R) := sum_n (countable_sum f).
 
 End countable_sum.
@@ -614,7 +613,6 @@ Section filter.
          intro n; case_bool_decide; simpl; split; auto; lra.
   Qed.
 
-  (* TODO: make a [SeriesC_minus] lemma and cleanup proof *)
   Lemma is_seriesC_filter_union f v P Q `{∀ x, Decision (P x), ∀ x, Decision (Q x)} :
     (∀ n, 0 <= f n) →
     is_seriesC (λ n, if bool_decide (P n ∨ Q n) then f n else 0) v →
@@ -1558,7 +1556,6 @@ Section double.
       destruct (encode_inv_nat n), (encode_inv_nat m); simpl; auto; lra.
   Qed.
 
-  (* TODO: simplify using previous lemma  *)
   Lemma fubini_pos_ex_seriesC_prod_ex_rl  :
     ex_seriesC h → ex_seriesC (λ b, SeriesC (λ a, h (a, b))).
   Proof.

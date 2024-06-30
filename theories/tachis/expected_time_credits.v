@@ -7,8 +7,6 @@ From iris.base_logic.lib Require Import iprop own.
 
 Import uPred.
 
-(* TODO: move to [algebra/NNR.v] *)
-
 (** ** Non-negative real numbers with addition as the operation. *)
 Section NNR.
   Canonical Structure NNRO : ofe := leibnizO nonnegreal.

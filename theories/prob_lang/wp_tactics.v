@@ -106,7 +106,6 @@ Section wp_bind_tactics.
   Proof. rewrite envs_entails_unseal=> -> ->. by apply: wptac_wp_bind. Qed.
 End wp_bind_tactics.   
 
-(* TODO: find a better way so that we do not need to have a case for both [wp] and [twp]... *)
 Tactic Notation "wp_expr_eval" tactic3(t) :=
   iStartProof;
   lazymatch goal with

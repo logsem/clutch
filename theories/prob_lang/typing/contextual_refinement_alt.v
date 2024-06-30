@@ -118,7 +118,6 @@ Proof.
     rewrite lim_exec_SeriesC_SeqV_true //.
 Qed.
 
-(* TODO: cleanup development below *)
 Lemma ssd_is_value_lim_exec_cfg_same e σ :
   ssd (λ '(e', _), bool_decide (is_Some (to_val e'))) (lim_exec_cfg (e, σ)) =
   lim_exec_cfg (e, σ).

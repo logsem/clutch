@@ -73,7 +73,6 @@ Lemma fresh_loc_offset_is_fresh {V} (σ : gmap loc V) i :
 Proof.
   intros Hi. cut (∀ l, l ∈ (dom σ) → loc_car l < loc_car (fresh_loc σ) + i)%Z.
   { intros help Hf%help. simpl in *. lia. }
-  (* TODO: Is there a cleaner induction proof of this? *)
   rewrite /fresh_loc /fresh /set_fresh /=.
   rewrite /fresh /infinite_fresh /=.
   intros l Hl.

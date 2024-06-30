@@ -7,8 +7,6 @@ From clutch.prob Require Export countable_sum distribution couplings graded_pred
 
 Open Scope R.
 
-(* TODO(SG): cleanup this file *)
-
 Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
   Context (μ1 : distr A) (μ2 : distr B) (S : A -> B -> Prop).
@@ -748,7 +746,6 @@ Section couplings_theory.
   
 End couplings_theory.
 
-(* TODO: cleanup *)
 Section ARcoupl.
   Context `{Countable A, Countable B}.
   Variable (μ1 : distr A) (μ2 : distr B).

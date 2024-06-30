@@ -94,7 +94,6 @@ Definition fill_ctx_item (ctx : ctx_item) (e : expr) : expr :=
 
 Definition ctx := list ctx_item.
 
-(* TODO: consider using foldl here *)
 Definition fill_ctx (K : ctx) (e : expr) : expr := foldr fill_ctx_item e K.
 
 (** typed ctx *)
@@ -386,8 +385,6 @@ Ltac type_expr n :=
         | |- ⊢ᵥ InjRV _ : _ => eapply InjR_val_typed ; type_val (n-1)
         | |- ⊢ᵥ RecV _ _ _ : _ => eapply Rec_val_typed ; type_expr (n-1)
         | |- ⊢ᵥ (Λ: _) : (∀: _) => idtac
-        (* TODO does this overlap with the RecV case? Does the below work for
-        Λ: λ:"x","x"? *)
         (* eapply TLam_val_typed ; type_expr (n-1) *)
         | _ => idtac
         end

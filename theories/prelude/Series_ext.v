@@ -1785,7 +1785,6 @@ Section prod2.
     by apply (is_lim_seq_abs u (Finite l)).
   Qed.
 
-  (* TODO: factor out some of the proofs of is_finite_bounded, clean up *)
   Lemma is_series_double_covering:
     is_series (λ j, Series (λ k, a (j, k))) (Series (a ∘ σ)).
   Proof.

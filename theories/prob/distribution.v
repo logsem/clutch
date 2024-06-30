@@ -391,8 +391,6 @@ Qed.
   Proper (pointwise_relation A (=) ==> (=) ==> (=)) (@dbind A _ _ B _ _).
 Proof. intros ?? Hp ?? ->. f_equal. extensionality a. done. Qed.
 
-(* TODO: generalize to distributions with countable support so that we can use
-   the [stdpp] typeclasses *)
 Notation "m ≫= f" := (dbind f m) (at level 60, right associativity) : stdpp_scope.
 Notation "( m ≫=.)" := (λ f, dbind f m) (only parsing) : stdpp_scope.
 Notation "(.≫= f )" := (dbind f) (only parsing) : stdpp_scope.
@@ -2096,7 +2094,6 @@ Section convergence.
     lim_distr h Hmon a = Sup_seq (λ n, h n a).
   Proof. done. Qed.
 
-  (* TODO: extract some general lemmas from [exec.v] *)
 
  End convergence.
 

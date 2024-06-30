@@ -133,8 +133,6 @@ Tactic Notation "tp_pair" := tp_pure_at (Pair _ _).
 Tactic Notation "tp_closure" := tp_pure_at (Rec _ _ _).
 
 Lemma tac_tp_store `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e (l : loc) e' e2 v' v Q :
-  (* TODO: here instead of True we can consider another Coq premise, like in tp_pure.
-     Same goes for the rest of those tactics *)
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
   e = fill K (Store (# l) e') →

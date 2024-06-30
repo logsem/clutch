@@ -38,7 +38,6 @@ Open Scope R_scope.
 
 (* Operations for nonnegreals *)
 
-(* TODO: move into its own file *)
 Section nnreals.
 
   Implicit Type (x y : nonnegreal).
@@ -204,7 +203,6 @@ Definition Q2NNR (q : QArith_base.Q) (qpos : Z.le 0 (QArith_base.Qnum q)) : nonn
 Definition N_pow_pos (n : nat) (p : positive) : N :=
   Pos.iter (N.mul (N.of_nat n)) 1%N p.
 
-(* TODO upstream to Coq's RIneq.v? *)
 Declare Scope NNR_scope.
 Delimit Scope NNR_scope with NNR.
 
@@ -226,7 +224,6 @@ Number Notation nonnegreal of_number to_number (via INNR
   ])
   : NNR_scope.
 
-(* TODO remove these legacy definitions *)
 Definition nnreal_zero : nonnegreal := 0%NNR.
 Definition nnreal_one : nonnegreal := 1%NNR.
 Definition nnreal_half : nonnegreal := (1/2)%NNR.
@@ -304,9 +301,6 @@ Inductive NNRbar :=
   | Finite : nonnegreal -> NNRbar
   | p_infty : NNRbar.
 
-(* TODO: Decide if we want coercions to reals
-   or to nonnegreals
-*)
 
 
 Definition NNRbar_to_real (x : NNRbar) :=

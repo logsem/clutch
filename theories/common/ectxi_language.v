@@ -182,7 +182,6 @@ Section ectxi_language.
     inversion Hl.
   Qed.
 
-  (* TODO: move *)
   Lemma list_snoc_singleton_inv {A} (l1 l2 : list A) (a1 a2 : A) :
     l1 ++ [a1] = l2 ++ [a2] → l1 = l2 ∧ a1 = a2.
   Proof.
