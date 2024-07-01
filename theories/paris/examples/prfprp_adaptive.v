@@ -1,3 +1,14 @@
+(** The PRP/PRF switching Lemma.
+
+References:
+- Lemma 1, Bellare and Rogaway, 2006, Code-Based Game-Playing Proofs and the Security of Triple Encryption.
+- Lemma 6.7, Mike Rosulek, 2020, The Joy of Cryptography.
+- Theorem 4.4, Boneh and Shoup, 2023, A Graduate Course in Applied Cryptography (Version 0.6).
+
+Our definition deviates from Rosulek's and Boneh/Shoup in that we wrap the encryption oracle with [q_calls] to enforce the bound [Q] on the number of oracle calls, while loc. cit. rely on the assumption that the adversary runs in polynomial time in the security parameter.
+
+     *)
+
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list prf prp examples.prf_cpa.
 Set Default Proof Using "Type*".
