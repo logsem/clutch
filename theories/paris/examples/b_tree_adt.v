@@ -10,8 +10,8 @@ From stdpp Require Import list.
 From clutch.paris Require Import paris list.
 From clutch.paris Require adequacy.
 From clutch.paris Require Import b_tree.
+From clutch Require Export paris.
 Set Default Proof Using "Type*".
-Open Scope R.
 Opaque INR.
 
 Section b_tree_adt.
@@ -87,7 +87,7 @@ Section b_tree_adt.
             end
         end.
 
-  Definition insert_tree : val :=
+  Definition insert_tree_curry : val :=
     λ: "p" "v",
       match: insert_tree_aux "p" "v" with
       | NONE => #()
@@ -98,9 +98,10 @@ Section b_tree_adt.
           "p" <- "new_root"
       end.
 
+  Definition insert_tree : val :=
+    λ: "pv", insert_tree_curry (Fst "pv") (Snd "pv").
 
-
-  Context `{!parisGS Σ}.
+  Context `{!parisRGS Σ}.
 
   Definition btree_ptrv p treev depth tree l : iProp Σ :=
     ⌜ @is_ab_b_tree max_child_num' depth l tree ⌝ ∗
@@ -662,12 +663,12 @@ Section b_tree_adt.
         iExists _, _, _, _, _. iFrame.
   Qed.
 
-  Lemma rel_insert_tree K p p' tv tv' depth t vs (v: val) :
+  Lemma rel_insert_tree_curry K p p' tv tv' depth t vs (v: val) :
     {{{ btree_ptrv p tv depth t vs ∗
         btree_ptrv' p' tv' depth t vs ∗
-        ⤇ fill K (insert_tree #p' v)
+        ⤇ fill K (insert_tree_curry #p' v)
     }}}
-      insert_tree #p v
+      insert_tree_curry #p v
     {{{ RET #();
         ∃ depth' tv tv' vs t,
         ⤇ fill K #() ∗
@@ -676,7 +677,7 @@ Section b_tree_adt.
     }}}.
   Proof.
     iIntros (Φ) "(Hbtree&Hbtree'&Hspec) HΦ".
-    rewrite /insert_tree.
+    rewrite /insert_tree_curry.
     wp_pures. tp_pures.
     tp_bind (insert_tree_aux _ _).
     wp_apply (rel_insert_tree_aux with "[$Hbtree $Hbtree' $Hspec]").
@@ -744,5 +745,124 @@ Section b_tree_adt.
            *** rewrite /l'. econstructor; eauto.
            *** rewrite /b_tree.min_child_num /b_tree.max_child_num. rewrite /l'. econstructor; eauto => //=. lia.
   Qed.
+
+
+  (* We need some wrappers around the sampler programs from b_tree.v to handle
+     uncurrying and loading trees from the pointer. Additionally, the intermediate
+     versions need to use find_depth to compute depth instead of taking as argument *)
+
+  (* Version that computes depth and then calls the version from b_tree.v *)
+  Definition intermediate_sampler_prog' : val :=
+    λ: "pt",
+      let: "d" := find_depth "pt" in
+      let: "t" := !"pt" in
+      intermediate_sampler_annotated_prog (max_child_num' := max_child_num') "d" "t" #().
+
+  Definition opt_sampler_annotated_prog' : val :=
+    λ: "pt",
+      let: "t" := !"pt" in
+      optimized_sampler_annotated_prog (max_child_num' := max_child_num') "t" #().
+
+  Local Close Scope R.
+  Definition btreeτ : type := ∃: (TInt → #0) * (#0 * TInt → TUnit) * (#0 → TInt).
+
+  Definition opt_annotated_btree_pack : val :=
+    (init_tree, insert_tree, opt_sampler_annotated_prog').
+
+  Definition intermediate_btree_pack : val :=
+    (init_tree, insert_tree, intermediate_sampler_prog').
+
+  Definition bN := nroot.@"b_tree".
+
+  Definition btree_inv (p1 p2: loc) :=
+    (∃ depth t l, btree_ptr p1 depth t l ∗ btree_ptr' p2 depth t l)%I.
+
+  Definition R : lrel Σ :=
+    LRel (λ v1 v2, ∃ (p1 p2 : loc),
+          ⌜ v1 = #p1 ⌝ ∗ ⌜ v2 = #p2 ⌝ ∗
+           na_inv parisRGS_nais bN (btree_inv p1 p2))%I.
+
+  Lemma init_tree_self_lrel : ⊢ (lrel_int → R)%lrel init_tree init_tree.
+  Proof.
+    iIntros (v1 v2) "!>".
+    iDestruct 1 as (z) "(->&->)".
+    rewrite refines_eq. iIntros (K ε) "HK Hown Heps %Hlt".
+    iApply wp_fupd.
+    iMod (spec_init_tree with "HK") as (p2) "(Hspec&Hp2)".
+    wp_apply (wp_init_tree with "[//]").
+    iIntros (p1) "Hp1".
+    iMod (na_inv_alloc parisRGS_nais _ bN (btree_inv p1 p2) with "[Hp1 Hp2]") as "Hinv".
+    { iNext. rewrite /btree_inv. iExists _, _, _. iFrame "Hp1". iFrame "Hp2". }
+    iModIntro. iExists _, _. iFrame. eauto.
+  Qed.
+
+  Lemma insert_tree_self_lrel : ⊢ (R * lrel_int → ())%lrel insert_tree insert_tree.
+  Proof.
+    iIntros (vv1 vv2) "!>".
+    iIntros "Hpair".
+    iDestruct "Hpair" as (????) "(->&->&(HR&Hint))".
+    iDestruct "Hint" as (z) "(->&->)".
+    iDestruct "HR" as (p1 p2) "(->&->&Hinv)".
+    iApply (refines_na_inv with "[$Hinv]"); first done.
+    iIntros "(Hbtree&Hclo)".
+    rewrite /insert_tree. rel_pures_l. rel_pures_r.
+    rewrite refines_eq /refines_def.
+    iIntros (K ε) "HK Hna Heps %Hlt".
+    iDestruct "Hbtree" as (???) "(Hb1&Hb2)".
+    iDestruct "Hb1" as (?) "Hb1".
+    iDestruct "Hb2" as (?) "Hb2".
+    iApply wp_fupd.
+    wp_apply (rel_insert_tree_curry with "[$Hb1 $Hb2 $HK]").
+    iDestruct 1 as (?????) "(HK&Hb1&Hb2)".
+    iMod ("Hclo" with "[Hb1 Hb2 $Hna]").
+    { iNext. iExists _, _, _. iSplitL "Hb1"; iExists _; iFrame. }
+    iModIntro. iExists _, _; iFrame. eauto.
+  Qed.
+
+  Lemma intermediate_refines_opt_annotated Δ :
+    ⊢ REL intermediate_btree_pack  << opt_annotated_btree_pack : interp btreeτ Δ.
+  Proof.
+    iApply (refines_pack R).
+    rewrite refines_eq /refines_def. iIntros (K ε) "HK Hown Heps %Hlt".
+    wp_pures.
+    iModIntro. iExists _; iFrame. iSplit; first eauto. simpl.
+    iExists _, _, _, _.
+    iSplit; first eauto.
+    iSplit; first eauto.
+    clear Δ K ε Hlt.
+    (* Break up the nested pair interpretation on the left so
+       that we get a flat hierarchy of 3 goals for each component of the 3 tuple *)
+    iSplit; first (iExists _, _, _, _; iSplit; first eauto; iSplit; first eauto; iSplit).
+    - iApply init_tree_self_lrel.
+    - iApply insert_tree_self_lrel.
+    - iIntros (vv1 vv2) "!>".
+      iIntros "HR".
+      iDestruct "HR" as (p1 p2) "(->&->&Hinv)".
+      iApply (refines_na_inv with "[$Hinv]"); first done.
+      iIntros "(Hbtree&Hclo)".
+      rewrite /intermediate_sampler_prog'.
+      rewrite /opt_sampler_annotated_prog'.
+      rel_pures_l. rel_pures_r.
+      rewrite refines_eq /refines_def.
+      iIntros (K ε) "HK Hna Heps %Hlt".
+      wp_pures.
+      iDestruct "Hbtree" as (???) "(Hb1&Hb2)".
+      iDestruct "Hb1" as (?) "Hb1".
+      iDestruct "Hb2" as (?) "Hb2".
+      wp_apply (wp_find_depth with "Hb1").
+      iIntros "Hb1".
+      wp_pures.
+
+      iDestruct "Hb1" as "(%His_tree&Hp1&Hrel1)".
+      iDestruct "Hb2" as "(%&Hp2&Hrel2)".
+      iApply wp_fupd.
+      wp_load. wp_pures.
+      tp_load. tp_pures.
+      iMod (ec_zero) as "Hz".
+      wp_apply (intermediate_annotated_optimized_refinement with "[$Hrel1 $Hrel2 $Hz HK]"); eauto.
+      (* TODO: need to generalize statmeents in b_tree.v to be parameterized over a context *)
+  Abort.
+
+
 
 End b_tree_adt.
