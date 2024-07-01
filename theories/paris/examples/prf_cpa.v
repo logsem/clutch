@@ -1,54 +1,37 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list.
+From clutch.paris.examples Require Import security_definitions.
 Set Default Proof Using "Type*".
 
 Section defs.
 
-  (* symmetric encryption scheme = { keygen : unit -> key ; enc : key -> message -> cipher } *)
+  (** We will prove CPA security of a symmetric encryption scheme based on an
+  (idealised) PRF.
 
-  (* prf : Key -> Input -> Output *)
-  (* xor : 2^n -> 2^n -> 2^n *)
-  (* The scheme computes the ciphertext as *)
-  (* let r = rand_input () in (r, (xor (prf key r) msg)) *)
-  (* hence for the sake of the scheme, Output = Message and Cipher = Input * Output. *)
+References for the encryption scheme:
+- Definition 7.4, Mike Rosulek, 2020, The Joy of Cryptography.
+- Construction 3.28, Jonathan Katz and Yehuda Lindell, 2021, Introduction to Modern Cryptography (3rd edition).
 
+References for the CPA security proof:
+- Claim 7.5, Mike Rosulek, 2020, The Joy of Cryptography.
+- Theorem 3.29, Jonathan Katz and Yehuda Lindell, 2021, Introduction to Modern Cryptography (3rd edition).
+
+We prove the portions of the above theorems that are concerned with the reduction after the PRF is replaced with the idealised PRF.
+*)
+
+  (** Parameters of the PRF. *)
   Variable Key : nat.
   Variable Input : nat.
   Variable Output : nat.
+
   Let Message := Output.
   Let Cipher := Input * Output.
 
-  (* Let rand_cipher := (λ:<>, rand #Cipher)%E. *)
-  Let keygen scheme : expr := Fst scheme.
-  Let enc scheme : expr := Fst (Snd scheme).
-  Let rand_cipher scheme : expr := Snd (Snd scheme).
-
   Local Opaque INR.
 
-  Definition q_calls : val :=
-    λ:"Q" "f" "g",
-      let: "counter" := ref #0 in
-      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" < #Message)))
-             then ("counter" <- !"counter" + #1 ;; "f" "x")
-             else "g" "x".
-
-  Definition CPA : val :=
-    λ:"b" "adv" "scheme" "Q",
-      let: "rr_key_b" :=
-        let: "key" := keygen "scheme" #() in
-        (* let: "enc_key" := enc "scheme" "key" in *)
-        if: "b" then
-          (* "enc_key" *)
-          enc "scheme" "key"
-        else
-          rand_cipher "scheme" in
-      let: "oracle" := q_calls "Q" "rr_key_b" (rand_cipher "scheme") in
-      let: "b'" := "adv" "oracle" in
-      "b'".
-
+  (** Parameters of the generic PRF-based encryption scheme. *)
   Variable xor : val.
-  (* We probably need to assume that forall x, Bij (xor x). *)
   Variable (xor_sem : fin (S Message) -> fin (S Output) -> fin (S Output)).
   Variable H_xor : forall x, Bij (xor_sem x).
   Variable (xor_correct_l: forall `{!parisRGS Σ} E K (x : Z) (y : fin (S Message))
@@ -63,6 +46,7 @@ Section defs.
     (REL e << (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) @ E : A)
     -∗ REL e << (fill K (xor #x #y)) @ E : A).
 
+  (** Generic PRF-based symmetric encryption. *)
   Definition prf_enc : val :=
     λ:"prf" "key",
       let: "prf_key" := "prf" "key" in
@@ -71,116 +55,32 @@ Section defs.
         let: "z" := "prf_key" "r" in
         ("r", xor "msg" "z").
 
-  (** security_defs *)
-
-  (* An idealised random function family. *)
-  Definition random_function : val :=
-    λ: "_key",
-      (* Create a reference to a functional map *)
-      let: "mapref" := init_map #() in
-      λ: "x",
-        match: get "mapref" "x" with
-        | SOME "y" => "y"
-        | NONE =>
-            let: "y" := (rand #Output) in
-            set "mapref" "x" "y";;
-            "y"
-        end.
-
+  (** We specialize the construction to an idealized random function family. *)
   Definition rf_keygen : val := λ:<>, rand #Key.
-  Definition rf_enc : expr := prf_enc random_function.
+  Definition rf_enc : expr := prf_enc (random_function Output).
   Definition rf_rand_cipher : val := λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
   Definition rf_scheme : expr := (rf_keygen, (rf_enc, rf_rand_cipher)).
 
-  Definition CPA_rf : val := λ:"b" "adv", CPA "b" "adv" rf_scheme.
-
+  (** RandML types of the scheme. *)
   Definition TMessage := TInt.
   Definition TKey := TInt.
   Definition TInput := TInt.
   Definition TOutput := TInt.
   Definition TCipher := (TInput * TMessage)%ty.
-  Definition TAdv := ((TMessage → TCipher) → TBool)%ty.
-  Variable adv : val.
-  Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
 
+  (** We will prove CPA security of the scheme using the idealised random
+      function. We assume that the adversaries are well-typed. *)
+  Variable adv : val.
+  Definition TAdv := ((TMessage → TCipher) → TBool)%ty.
+  Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
+  Definition q_calls := q_calls Message.
+  Definition CPA := CPA Message.
+  Definition CPA_rf : val := λ:"b" "adv", CPA "b" "adv" rf_scheme.
 
 
   Section proofs.
     Context `{!parisRGS Σ}.
 
-    Lemma refines_init_map_l E K e A :
-      (∀ l : loc, map_list l ∅ -∗ REL (fill K (of_val #l)) << e @ E : A)
-      -∗ REL (fill K (init_map #())) << e @ E : A.
-    Proof.
-      iIntros "Hlog".
-      iApply refines_wp_l.
-      by iApply wp_init_map.
-    Qed.
-
-    Lemma refines_init_map_r E K e A :
-      (∀ l : loc, map_slist l ∅ -∗ REL e << (fill K (of_val #l)) @ E : A)
-      -∗ REL e << (fill K (init_map #())) @ E : A.
-    Proof.
-      iIntros "Hlog".
-      iApply refines_step_r.
-      iIntros.
-      iMod (spec_init_map with "[$]") as "(%&?&?)".
-      iModIntro.
-      iFrame.
-      iApply ("Hlog" with "[$]").
-    Qed.
-
-    Lemma refines_get_l E K lm m (n: nat) e A :
-      (∀ res, map_list lm m -∗
-              ⌜ res = opt_to_val (m !! n) ⌝
-              -∗ REL (fill K (of_val res)) << e @ E : A)
-      -∗ map_list lm m -∗ REL (fill K (get #lm #n)) << e @ E : A.
-    Proof.
-      iIntros "Hlog Hlm".
-      iApply refines_wp_l.
-      iApply (wp_get with "[$]").
-      iModIntro. iIntros (?) "[?%]".
-      by iApply ("Hlog" with "[$]"). 
-    Qed.
-
-    Lemma refines_get_r E K lm m (n: nat) e A :
-      (∀ res, map_slist lm m -∗
-              ⌜ res = opt_to_val (m !! n) ⌝
-              -∗ REL e << (fill K (of_val res)) @ E : A)
-      -∗ map_slist lm m -∗ REL e << (fill K (get #lm #n)) @ E : A.
-    Proof.
-      iIntros "Hlog Hlm".
-      iApply refines_step_r.
-      iIntros. 
-      iMod (spec_get with "[$][$]") as "[??]".
-      iModIntro. iFrame. 
-      by iApply ("Hlog" with "[$]"). 
-    Qed.
-
-    Lemma refines_set_l E K lm m (v : val) (n: nat) e A :
-      (map_list lm (<[n := v]>m)
-       -∗ REL (fill K (of_val #())) << e @ E : A)
-      -∗ map_list lm m -∗ REL (fill K (set #lm #n v)) << e @ E : A.
-    Proof.
-      iIntros "Hlog Hlm".
-      iApply refines_wp_l.
-      by iApply (wp_set with "[$]").
-    Qed.
-
-    Lemma refines_set_r E K lm m (v : val) (n: nat) e A :
-      (map_slist lm (<[n := v]>m)
-       -∗ REL e << (fill K (of_val #())) @ E : A)
-      -∗ map_slist lm m -∗ REL e << (fill K (set #lm #n v)) @ E : A.
-    Proof.
-      iIntros "Hlog Hlm".
-      iApply refines_step_r.
-      iIntros.
-      iMod (spec_set with "[$][$]") as "[??]".
-      iModIntro.
-      iFrame.
-      by iApply ("Hlog" with "[$]").
-    Qed.
-    
     Lemma nat_to_fin_list (l:list nat):
       (∀ x, x ∈ l -> (x < S Input)%nat) ->
       ∃ l': (list (fin (S Input))), fin_to_nat <$> l' = l.
@@ -202,7 +102,7 @@ Section defs.
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
       rel_pures_l.
-      rewrite /CPA.
+      rewrite /CPA/security_definitions.CPA.
       rewrite /rf_scheme/rf_enc/prf_enc.
       idtac...
       rewrite /rf_keygen...
@@ -233,7 +133,7 @@ Section defs.
         assumption.
       }
 
-      rewrite /q_calls...
+      rewrite /q_calls/security_definitions.q_calls...
       rel_alloc_l counter as "counter"... rel_alloc_r counter' as "counter'"...
 
       iApply (refines_na_alloc
@@ -373,7 +273,7 @@ Section defs.
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
       rel_pures_l.
-      rewrite /CPA.
+      rewrite /CPA/security_definitions.CPA.
       rewrite /rf_scheme/rf_enc/prf_enc...
       rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key).
@@ -403,7 +303,7 @@ Section defs.
         assumption.
       }
 
-      rewrite /q_calls...
+      rewrite /q_calls/security_definitions.q_calls...
       rel_alloc_l counter as "counter"... rel_alloc_r counter' as "counter'"...
 
       iApply (refines_na_alloc
