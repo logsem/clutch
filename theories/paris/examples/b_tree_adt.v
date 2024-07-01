@@ -58,6 +58,16 @@ Section b_tree_adt.
       | NONE => #()
       end).
 
+  Definition find_depth : val :=
+    rec: "find_depth" "p" :=
+      let: "t" := !"p" in
+        match: "t" with
+        | InjL "_" => #0
+        | InjR "l" =>
+            let: "c" := get (list_head "l") in
+            #1 + "find_depth" "c"
+        end.
+
   Definition insert_tree_aux : val :=
     rec: "insert_tree" "p" "v" :=
         let: "t" := !"p" in
@@ -131,6 +141,109 @@ Section b_tree_adt.
     iSplit.
     { iPureIntro. econstructor. }
     { rewrite relate_ab_tree_with_v_Lf' //=. }
+  Qed.
+
+  Lemma wp_find_depth p tv depth t vs :
+    {{{ btree_ptrv p tv depth t vs }}}
+      find_depth #p
+    {{{ RET #depth; btree_ptrv p tv depth t vs }}}.
+  Proof.
+    iInduction depth as [| depth] "IH" forall (p tv t vs).
+    - iIntros (Φ) "Hbtree HΦ".
+      wp_rec.
+      iDestruct "Hbtree" as "(%Hwft0&Hp&Hrelate)".
+      wp_load.
+      inversion Hwft0. subst.
+      rewrite relate_ab_tree_with_v_Lf. iDestruct "Hrelate" as %Heq. subst.
+      wp_pures. iModIntro. iApply "HΦ". iFrame.
+      rewrite relate_ab_tree_with_v_Lf. eauto.
+    - iIntros (Φ) "Hbtree HΦ".
+      wp_rec.
+      iDestruct "Hbtree" as "(%Hwft0&Hp&Hrelate)".
+      wp_load.
+      inversion Hwft0. subst.
+      rewrite relate_ab_tree_with_v_Br.
+      iDestruct "Hrelate" as (??? Heq1 Heq2 Heq3 ?) "(H1&H2)".
+      subst. wp_pures.
+      specialize (b_tree.min_child_num_pos) => ?.
+      wp_apply wp_list_head; first eauto.
+      iIntros (? [(->&->)|Hvals]).
+      { rewrite fmap_length /= in Heq2; lia. }
+      destruct Hvals as (pc&?&->&->).
+      rewrite /get; wp_pures.
+      destruct v_lis as [|tv v_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      iDestruct (big_sepL_lookup_acc _ _ O with "H1") as "(H1&H1clos)".
+      { eauto. }
+      destruct l as [|(?&t) l_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      iDestruct (big_sepL_lookup_acc _ _ O with "H2") as "(H2&H2clos)".
+      { eauto. }
+      wp_apply ("IH" with "[H1 H2]").
+      { rewrite /btree_ptrv. iFrame. inversion H0; eauto. }
+      iIntros "Hb". wp_pures.
+      iModIntro.
+      replace (1 + Z.of_nat depth)%Z with (Z.of_nat (S depth)) by lia.
+      iApply "HΦ".
+      iDestruct "Hb" as "(%&H1&H2)".
+      iDestruct ("H1clos" with "H1") as "H1".
+      iDestruct ("H2clos" with "H2") as "H2".
+      iFrame. iSplit.
+      { iPureIntro. econstructor; eauto. }
+      rewrite relate_ab_tree_with_v_Br.
+      iExists _, _, _. iFrame. eauto.
+  Qed.
+
+  Lemma spec_find_depth E K p tv depth t vs :
+    btree_ptrv' p tv depth t vs -∗
+    ⤇ fill K (find_depth #p) -∗
+    spec_update E (⤇ fill K #depth ∗ btree_ptrv' p tv depth t vs).
+  Proof.
+    iInduction depth as [| depth] "IH" forall (K p tv t vs).
+    - iIntros "Hbtree Hspec".
+      tp_rec.
+      iDestruct "Hbtree" as "(%Hwft0&Hp&Hrelate)".
+      tp_load.
+      inversion Hwft0. subst.
+      rewrite relate_ab_tree_with_v_Lf'. iDestruct "Hrelate" as %Heq. subst.
+      tp_pures. iModIntro. iFrame.
+      rewrite relate_ab_tree_with_v_Lf'. eauto.
+    - iIntros "Hbtree Hspec".
+      tp_rec.
+      iDestruct "Hbtree" as "(%Hwft0&Hp&Hrelate)".
+      tp_load.
+      inversion Hwft0. subst.
+      rewrite relate_ab_tree_with_v_Br'.
+      iDestruct "Hrelate" as (??? Heq1 Heq2 Heq3 ?) "(H1&H2)".
+      subst. tp_pures.
+      specialize (b_tree.min_child_num_pos) => ?.
+      tp_bind (list_head _).
+      iMod (spec_list_head with "[$]") as "Hhd"; first eauto.
+      iDestruct "Hhd" as (?) "(Hspec&%Hcases)".
+      destruct Hcases as [(->&->)|Hvals].
+      { rewrite fmap_length /= in Heq2; lia. }
+      destruct Hvals as (pc&?&->&->).
+      rewrite /get; tp_pures.
+      destruct v_lis as [|tv v_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      iDestruct (big_sepL_lookup_acc _ _ O with "H1") as "(H1&H1clos)".
+      { eauto. }
+      destruct l as [|(?&t) l_lis]; first by (rewrite fmap_length /= in Heq3; lia).
+      iDestruct (big_sepL_lookup_acc _ _ O with "H2") as "(H2&H2clos)".
+      { eauto. }
+      iEval (simpl) in "Hspec". tp_pures.
+      tp_bind (find_depth _).
+      iMod ("IH" with "[H1 H2] Hspec") as "IHres".
+      { rewrite /btree_ptrv. iFrame. inversion H0; eauto. }
+      iDestruct "IHres" as "(Hspec&Hb)".
+      iEval (simpl) in "Hspec". tp_pures.
+      iModIntro.
+      replace (1 + Z.of_nat depth)%Z with (Z.of_nat (S depth)) by lia.
+      iFrame.
+      iDestruct "Hb" as "(%&H1&H2)".
+      iDestruct ("H1clos" with "H1") as "H1".
+      iDestruct ("H2clos" with "H2") as "H2".
+      iFrame. iSplit.
+      { iPureIntro. econstructor; eauto. }
+      rewrite relate_ab_tree_with_v_Br'.
+      iExists _, _, _. iFrame. eauto.
   Qed.
 
   Lemma rel_insert_child_list' K p p' ltv ltv' depth l vs vs2 t tv tv' :
@@ -555,11 +668,11 @@ Section b_tree_adt.
         ⤇ fill K (insert_tree #p' v)
     }}}
       insert_tree #p v
-    {{{ RET #(); 
+    {{{ RET #();
         ∃ depth' tv tv' vs t,
         ⤇ fill K #() ∗
         btree_ptrv p tv depth' t vs ∗
-        btree_ptrv' p' tv' depth' t vs 
+        btree_ptrv' p' tv' depth' t vs
     }}}.
   Proof.
     iIntros (Φ) "(Hbtree&Hbtree'&Hspec) HΦ".
@@ -597,7 +710,7 @@ Section b_tree_adt.
       wp_apply (wp_list_cons); first eauto.
       iIntros (? Hlist2).
 
-      
+
       tp_bind (list_cons #ptrnew2' _)%E.
       replace (#ptrnew2') with (inject ptrnew2') by auto.
       iMod (spec_list_cons (A:=loc) _ _ _ _ with "[] Hspec") as (?) "(Hspec&%Hlist2')".
