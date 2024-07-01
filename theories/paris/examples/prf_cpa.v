@@ -1,7 +1,7 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list.
-From clutch.paris.examples Require Import security_definitions.
+From clutch.paris.examples Require Import prf security_definitions.
 Set Default Proof Using "Type*".
 
 Section defs.

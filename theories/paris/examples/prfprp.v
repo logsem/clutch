@@ -1,4 +1,4 @@
-From clutch.paris Require Export paris map list prp.
+From clutch.paris Require Export paris map list prf prp.
 Set Default Proof Using "Type*".
 
 Section prf_prp.
@@ -8,70 +8,6 @@ Section prf_prp.
   Context `{!parisGS Σ}.
 
   Variable val_size : nat.
-
-  (* A hash function's internal state is a map from previously queried keys to their hash value *)
-  Definition init_hash_state : val := init_map.
-
-  (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
-     If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
-  Definition compute_hash_specialized hm : val :=
-    λ: "x",
-      match: get hm "x" with
-      | SOME "y" => "y"
-      | NONE =>
-          let: "y" := (rand #val_size) in
-          set hm "x" "y";;
-          "y"
-      end.
-  Definition compute_hash : val :=
-    λ: "mapref" "x",
-      match: get "mapref" "x" with
-      | SOME "y" => "y"
-      | NONE =>
-          let: "y" := (rand #val_size) in
-          set "mapref" "x" "y";;
-          "y"
-      end.
-
-  (* init_hash returns a hash as a function, basically wrapping the internal state
-     in the returned function *)
-  Definition init_hash : val :=
-    λ: "_",
-      (* Create a reference to a functional map *)
-      let: "mapref" := init_map #() in
-      λ: "x",
-        match: get "mapref" "x" with
-        | SOME "y" => "y"
-        | NONE =>
-            let: "y" := (rand #val_size) in
-            set "mapref" "x" "y";;
-            "y"
-        end.
-
-  (* A pseudo-random function family PRF is a function from KEY to functions of
-     type IN -> OUT that is indistinguishable from a function which randomly
-     samples functions IN -> OUT. *)
-  Definition PRF := init_hash.
-
-  Definition hashfun f m : iProp Σ :=
-    ∃ (mapref : loc), ⌜ f = compute_hash_specialized #mapref ⌝ ∗ map_list mapref ((λ b, LitV (LitInt b)) <$> m).
-
-  #[global] Instance timeless_hashfun f m :
-    Timeless (hashfun f m).
-  Proof. apply _. Qed.
-
-  Lemma wp_init_hash E :
-    {{{ True }}}
-      init_hash #() @ E
-    {{{ f, RET f; hashfun f ∅ }}}.
-  Proof.
-    rewrite /init_hash.
-    iIntros (Φ) "_ HΦ".
-    wp_pures.
-    wp_apply (wp_init_map with "[//]").
-    iIntros (?) "Hm". wp_pures.
-    iApply "HΦ". iExists _. rewrite fmap_empty. iFrame. eauto.
-  Qed.
 
   (*
   Definition coll_free (m : gmap nat Z) :=
@@ -123,36 +59,22 @@ Section prf_prp.
   Qed.
 *)
 
-  Lemma wp_hashfun_prev E f m (n : nat) (b : Z) :
-    m !! n = Some b →
-    {{{ hashfun f m }}}
-      f #n @ E
-    {{{ RET #b; hashfun f m }}}.
-  Proof.
-    iIntros (Hlookup Φ) "Hhash HΦ".
-    iDestruct "Hhash" as (hm ->) "H".
-    rewrite /compute_hash_specialized.
-    wp_pures.
-    wp_apply (wp_get with "[$]").
-    iIntros (vret) "(Hhash&->)".
-    rewrite lookup_fmap Hlookup /=. wp_pures. iModIntro. iApply "HΦ".
-    iExists _. eauto.
-  Qed.
-
   Definition is_sprp := is_sprp val_size.
   Definition init_prp := init_prp val_size.
+  Definition is_random_function := is_random_function val_size.
+  Definition random_function := random_function val_size.
 
  Lemma wp_prf_prp_couple_eq_Some E K (k:Z) (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) :
    m !! n = Some k →
    n <= val_size ->
-   {{{ ⤇ fill K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr}}}
+   {{{ ⤇ fill K (sf #n) ∗ is_random_function f m ∗ is_sprp sf m sr}}}
      f #n @ E
      {{{ RET #k;
-         ⤇ fill K (of_val #k) ∗ hashfun f m ∗ is_sprp sf m sr }}}.
+         ⤇ fill K (of_val #k) ∗ is_random_function f m ∗ is_sprp sf m sr }}}.
  Proof.
    iIntros (Hsome Hrange Φ) "(HK&Hf&Hg) HΦ".
    iMod (spec_prp_prev with "[$]") as "[HK Hg]"; [done|].
-   wp_apply (wp_hashfun_prev with "[$]"); first done.
+   wp_apply (wp_random_function_prev with "[$]"); first done.
    iIntros "Hf".
    iApply "HΦ"; iFrame.
  Qed.
@@ -163,10 +85,10 @@ Section prf_prp.
     (∀ n' : nat, val_size < n' → m !! n' = None) ->
     length sr <= S val_size ->
     (((S val_size - (length sr)) / S val_size)%R <= ε)%R ->
-    {{{ ⤇ fill K (sf #n) ∗ hashfun f m ∗ is_sprp sf m sr ∗ ↯ ε }}}
+    {{{ ⤇ fill K (sf #n) ∗ is_random_function f m ∗ is_sprp sf m sr ∗ ↯ ε }}}
       f #n @ E
     {{{ (z: Z), RET #z;
-        ⤇ fill K (of_val #z) ∗ hashfun f (<[ n := z ]>m) ∗
+        ⤇ fill K (of_val #z) ∗ is_random_function f (<[ n := z ]>m) ∗
           ∃ l1 l2,
                 ⌜ sr = l1 ++ z :: l2 ⌝ ∗
           is_sprp sf (<[n := z]>m) (l1 ++ l2) }}}.
@@ -174,7 +96,7 @@ Section prf_prp.
     iIntros (Hnone Hrange Hdom Hineq Hε Φ) "(HK & Hprf & Hprp & Herr) HΦ".
     iDestruct "Hprf" as (hm ->) "Hm".
     iDestruct "Hprp" as (lsm lsr) "(-> & Hsm & Hlsr & %Hperm)".
-    rewrite /compute_hash_specialized.
+    rewrite /compute_rf_specialized.
     rewrite /query_prp_specialized.
     wp_pures.
     tp_pures.
@@ -325,7 +247,7 @@ Section prf_prp.
 
 Definition test_prf: val :=
   λ: "n",
-    let: "f" := init_hash #() in
+    let: "f" := random_function #() in
   letrec: "aux" "f" "i" :=
     (if: "i" ≤ #0
      then  "f"
@@ -357,7 +279,7 @@ Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list
   (dom m ⊆ set_seq 0 (S val_size))->
   ((INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R <= ε)%R ->
   {{{ ↯ ε ∗
-      hashfun f m ∗
+      is_random_function f m ∗
       ⤇ fill K
         ((rec: "aux" "f" "i" :=
             if: "i" ≤ #0 then "f"
@@ -368,7 +290,7 @@ Lemma wp_prf_prp_test_err_ind E K (f g:val) (m : gmap nat Z) (n k : nat) (l:list
     #k
     @ E
     {{{ f, RET f;
-        ∃ g m l, ⤇ fill K (of_val g) ∗ hashfun f m∗
+        ∃ g m l, ⤇ fill K (of_val g) ∗ is_random_function f m∗
                  is_sprp g m l }}}.
 Proof.
   iInduction k as [|k'] "IH" forall (m l ε).
@@ -497,15 +419,15 @@ Proof.
     {{{ ⤇ fill K (test_prp #n) ∗ ↯ ε }}}
       test_prf #n @ E
     {{{ f, RET f;
-        ∃ g m l, ⤇ fill K (of_val g) ∗ hashfun f m∗
+        ∃ g m l, ⤇ fill K (of_val g) ∗ is_random_function f m∗
           is_sprp g m l }}}.
  Proof.
    iIntros (Hε Φ) "(HK & Herr) HΦ ".
 
    rewrite /test_prf.
    wp_pure.
-   wp_bind (init_hash _).
-   wp_apply (wp_init_hash); first done.
+   wp_bind (random_function _).
+   wp_apply (wp_random_function); first done.
    iIntros (f) "Hf".
    do 2 wp_pure.
 

@@ -64,23 +64,3 @@ Our definition further differs from Katz/Lindell in that, depending on the value
   End CPA.
 
 End symmetric.
-
-Section PRF.
-
-  Variable Key Input Output : nat.
-
-  (* An idealised random function family. *)
-  Definition random_function : val :=
-    λ: "_key",
-      (* Create a reference to a functional map *)
-      let: "mapref" := init_map #() in
-      λ: "x",
-        match: get "mapref" "x" with
-        | SOME "y" => "y"
-        | NONE =>
-            let: "y" := (rand #Output) in
-            set "mapref" "x" "y";;
-            "y"
-        end.
-
-End PRF.
