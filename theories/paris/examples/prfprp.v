@@ -60,7 +60,7 @@ Section prf_prp.
 *)
 
   Definition is_sprp := is_sprp val_size.
-  Definition init_prp := init_prp val_size.
+  Definition random_permutation := random_permutation val_size.
   Definition is_random_function := is_random_function val_size.
   Definition random_function := random_function val_size.
 
@@ -259,7 +259,7 @@ Definition test_prf: val :=
 
 Definition test_prp: val :=
   λ: "n",
-    let: "f" := init_prp #() in
+    let: "f" := random_permutation #() in
     letrec: "aux" "f" "i" :=
     (if: "i" ≤ #0
      then  "f"
@@ -433,8 +433,8 @@ Proof.
 
    rewrite /test_prp.
    tp_pure.
-   tp_bind (init_prp _).
-   iMod (spec_init_prp with "HK") as (g) "(HK & Hg)".
+   tp_bind (random_permutation _).
+   iMod (spec_random_permutation with "HK") as (g) "(HK & Hg)".
    iSimpl in "HK".
    do 5 tp_pure.
    do 3 wp_pure.

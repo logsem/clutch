@@ -1,10 +1,15 @@
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list.
+From clutch.paris Require Export bounded_oracle.
 Set Default Proof Using "Type*".
 
 Section definition.
 
   Variable Key Input Output : nat.
+
+  Let keygen PRF_scheme : expr := Fst PRF_scheme.
+  Let prf PRF_scheme : expr := Fst (Snd PRF_scheme).
+  Let rand_output PRF_scheme : expr := Snd (Snd PRF_scheme).
 
   (* An idealised random function family. *)
   Definition random_function : val :=
@@ -20,7 +25,23 @@ Section definition.
             "y"
         end.
 
-  Section spec.
+  Let q_calls := q_calls Input.
+
+  Definition PRF : val :=
+    λ:"b" "adv" "PRF_scheme" "Q",
+      let: "key" := keygen "PRF_scheme" #() in
+      let: "rf_key" := random_function "key" in
+      let: "prf_key_b" :=
+        if: "b" then
+          prf "PRF_scheme" "key"
+        else
+          "rf_key" in
+      let: "oracle" := q_calls "Q" "prf_key_b" "rf_key" in
+      let: "b'" := "adv" "oracle" in
+      "b'".
+
+  Section spec_ideal.
+
     Context `{!parisGS Σ}.
 
     (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
@@ -80,6 +101,6 @@ Section definition.
       iExists _. eauto.
     Qed.
 
-  End spec.
+  End spec_ideal.
 
 End definition.

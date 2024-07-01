@@ -1,5 +1,6 @@
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list.
+From clutch.paris Require Export bounded_oracle.
 Set Default Proof Using "Type*".
 
 
@@ -8,6 +9,9 @@ Section PRP.
   Context `{!parisGS Σ}.
 
   Variable val_size : nat.
+
+  Let keygen PRP_scheme : expr := Fst PRP_scheme.
+  Let prp PRP_scheme : expr := Fst (Snd PRP_scheme).
 
   (* A prp's internal state is a tuple of:
        - a map from previously queried keys to their value, and
@@ -21,7 +25,7 @@ Section PRP.
    *)
 
 
-  Definition init_prp_state : val :=
+  Definition random_permutation_state : val :=
     λ: "_",
       let: "val_map" := init_map #() in
       let: "fr_val" := list_seq #0 #(S val_size) in
@@ -65,10 +69,26 @@ Section PRP.
 
   (* init_hash returns a hash as a function, basically wrapping the internal state
      in the returned function *)
-  Definition init_prp : val :=
+  Definition random_permutation : val :=
     λ: "_",
-      let: "p" := init_prp_state #() in
+      let: "p" := random_permutation_state #() in
       query_prp (Fst "p") (Snd "p").
+
+
+  Let q_calls := q_calls val_size.
+
+  Definition PRP : val :=
+    λ:"b" "adv" "PRP_scheme" "Q",
+      let: "key" := keygen "PRP_scheme" #() in
+      let: "rp_key" := random_permutation "key" in
+      let: "prp_key_b" :=
+        if: "b" then
+          prp "PRP_scheme" "key"
+        else
+          "rp_key" in
+      let: "oracle" := q_calls "Q" "prp_key_b" "rp_key" in
+      let: "b'" := "adv" "oracle" in
+      "b'".
 
 
   Definition is_prp f (m : gmap nat Z) (r : list Z) : iProp Σ :=
@@ -104,15 +124,15 @@ Section PRP.
     apply IHs.
   Qed.
 
-  Lemma wp_init_prp E :
+  Lemma wp_random_permutation E :
     {{{ True }}}
-      init_prp #() @ E
+      random_permutation #() @ E
       {{{ f, RET f; is_prp f ∅ (Z.of_nat <$> (seq 0 (S val_size))) }}}.
   Proof.
-    rewrite /init_prp.
+    rewrite /random_permutation.
     iIntros (Φ) "_ Hφ".
     wp_pures.
-    rewrite /init_prp_state.
+    rewrite /random_permutation_state.
     wp_pures.
     wp_apply (wp_init_map with "[//]").
     iIntros (?) "Hm". wp_pures.
@@ -148,12 +168,12 @@ Section PRP.
   Qed.
 
 
-  Lemma spec_init_prp E K :
-    ⤇ fill K (init_prp #()) -∗ spec_update E (∃ f, ⤇ fill K (of_val f) ∗ is_sprp f ∅ (Z.of_nat <$> (seq 0 (S val_size)))).
+  Lemma spec_random_permutation E K :
+    ⤇ fill K (random_permutation #()) -∗ spec_update E (∃ f, ⤇ fill K (of_val f) ∗ is_sprp f ∅ (Z.of_nat <$> (seq 0 (S val_size)))).
   Proof.
-    rewrite /init_prp.
+    rewrite /random_permutation.
     iIntros "Hspec".
-    rewrite /init_prp_state.
+    rewrite /random_permutation_state.
     tp_pures.
     tp_bind (init_map _).
     iMod (spec_init_map with "[$]") as (l) "(Hspec&Hm)"; auto.

@@ -1,7 +1,7 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
 From clutch Require Import lib.flip.
 From clutch.paris Require Import paris map list.
-From clutch.paris.examples Require Import prf security_definitions.
+From clutch.paris.examples Require Import prf symmetric.
 Set Default Proof Using "Type*".
 
 Section defs.
@@ -102,7 +102,7 @@ We prove the portions of the above theorems that are concerned with the reductio
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
       rel_pures_l.
-      rewrite /CPA/security_definitions.CPA.
+      rewrite /CPA/symmetric.CPA.
       rewrite /rf_scheme/rf_enc/prf_enc.
       idtac...
       rewrite /rf_keygen...
@@ -133,7 +133,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         assumption.
       }
 
-      rewrite /q_calls/security_definitions.q_calls...
+      rewrite /q_calls/bounded_oracle.q_calls...
       rel_alloc_l counter as "counter"... rel_alloc_r counter' as "counter'"...
 
       iApply (refines_na_alloc
@@ -273,7 +273,7 @@ We prove the portions of the above theorems that are concerned with the reductio
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
       rel_pures_l.
-      rewrite /CPA/security_definitions.CPA.
+      rewrite /CPA/symmetric.CPA.
       rewrite /rf_scheme/rf_enc/prf_enc...
       rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key).
@@ -303,7 +303,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         assumption.
       }
 
-      rewrite /q_calls/security_definitions.q_calls...
+      rewrite /q_calls/bounded_oracle.q_calls...
       rel_alloc_l counter as "counter"... rel_alloc_r counter' as "counter'"...
 
       iApply (refines_na_alloc
