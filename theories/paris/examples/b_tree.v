@@ -1603,13 +1603,13 @@ Section b_tree.
         lia.
   Qed.
 
-  Lemma spec_naive_sampler_rec_prog (depth: nat) (n:nat) l tree treev E:
+  Lemma spec_naive_sampler_rec_prog Kctx (depth: nat) (n:nat) l tree treev E:
     (n<length(filter(λ x, is_Some x) l))%nat ->
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_ranked_v' tree treev -∗
-    ⤇ (naive_sampler_rec_prog treev #n) -∗
+    ⤇ fill Kctx (naive_sampler_rec_prog treev #n) -∗
     spec_update E
-      (∃ v:val, ⤇ v ∗
+      (∃ v:val, ⤇ fill Kctx v ∗
                 ⌜Some (Some v) = filter (λ x, is_Some x) l !! n⌝ ∗
                 relate_ab_tree_with_ranked_v' tree treev)
   .
@@ -1714,13 +1714,13 @@ Section b_tree.
           rewrite fmap_length in Hlen3. lia.
   Qed.
 
-  Lemma annotated_naive_naive_refinement depth tree l treev treev':
+  Lemma annotated_naive_naive_refinement Kctx depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_ranked_v tree treev ∗
         relate_ab_tree_with_ranked_v' tree treev' ∗
-        ⤇ (naive_sampler_prog treev' #()) ∗
+        ⤇ fill Kctx (naive_sampler_prog treev' #()) ∗
         ↯ nnreal_zero }}}
-    (naive_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}
+    (naive_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}
   .
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
@@ -1766,13 +1766,13 @@ Section b_tree.
   Qed.
 
 
-  Lemma naive_annotated_naive_refinement depth tree l treev treev':
+  Lemma naive_annotated_naive_refinement Kctx depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_ranked_v tree treev ∗
         relate_ab_tree_with_ranked_v' tree treev' ∗
-        ⤇ (naive_sampler_annotated_prog treev' #()) ∗
+        ⤇ fill Kctx (naive_sampler_annotated_prog treev' #()) ∗
         ↯ nnreal_zero }}}
-     (naive_sampler_prog treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}
+     (naive_sampler_prog treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}
   .
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
@@ -1918,19 +1918,19 @@ Section b_tree.
         rewrite fmap_length in Hlen1. lia.
   Qed.
 
-  Lemma spec_intermediate_sampler_rec_prog_Some K (depth: nat) (n:nat) l tree treev E v:
+  Lemma spec_intermediate_sampler_rec_prog_Some Kctx (depth: nat) (n:nat) l tree treev E v:
     (n<length l)%nat ->
     l!!n=Some (Some v)->
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v' tree treev -∗
-    ⤇ fill K (intermediate_sampler_rec_prog treev #n #depth) -∗
+    ⤇ fill Kctx (intermediate_sampler_rec_prog treev #n #depth) -∗
     spec_update E
-      (∃ v':val, ⤇ fill K v' ∗
+      (∃ v':val, ⤇ fill Kctx v' ∗
             ⌜v' = SOMEV v⌝ ∗
             relate_ab_tree_with_v' tree treev)
       .
   Proof.
-    iInduction depth as [|depth'] "IH" forall (n l tree treev v).
+    iInduction depth as [|depth'] "IH" forall (Kctx n l tree treev v).
     - (* depth is 0*)
       iIntros (Hlen Hlookup Htree) "Hrelate Hspec".
       inversion Htree. subst.
@@ -2118,14 +2118,14 @@ Section b_tree.
         rewrite fmap_length in Hlen1. lia.
   Qed.
 
-  Lemma spec_intermediate_sampler_rec_prog_None K (depth: nat) (n:nat) l tree treev E:
+  Lemma spec_intermediate_sampler_rec_prog_None Kctx (depth: nat) (n:nat) l tree treev E:
     (n<length l)%nat ->
     l!!n=Some None->
     is_ab_b_tree depth l tree ->
     relate_ab_tree_with_v' tree treev -∗
-    ⤇ fill K (intermediate_sampler_rec_prog treev #n #depth) -∗
+    ⤇ fill Kctx (intermediate_sampler_rec_prog treev #n #depth) -∗
     spec_update E
-      (∃ v':val, ⤇ fill K v' ∗
+      (∃ v':val, ⤇ fill Kctx v' ∗
                  ⌜v' = NONEV⌝ ∗
                  relate_ab_tree_with_v' tree treev)
   .
@@ -2219,14 +2219,14 @@ Section b_tree.
         rewrite fmap_length in Hlen1. lia.
   Qed.
 
-  Lemma annotated_naive_intermediate_refinement depth tree l treev treev' (ε:nonnegreal):
+  Lemma annotated_naive_intermediate_refinement Kctx depth tree l treev treev' (ε:nonnegreal):
     (0<ε)%R ->
     is_ab_b_tree depth l tree ->
     {{{  relate_ab_tree_with_ranked_v tree treev ∗
          relate_ab_tree_with_v' tree treev' ∗
-         ⤇ (intermediate_sampler_annotated_prog #depth treev' #()) ∗
+         ⤇ fill Kctx (intermediate_sampler_annotated_prog #depth treev' #()) ∗
          ↯ ε }}}
-      (naive_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}
+      (naive_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}
   .
   Proof.
     iIntros (Hε Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
@@ -2245,8 +2245,8 @@ Section b_tree.
     do 2 tp_pure.
     pose proof ab_tree_children_num _ _ _ Htree as H.
     assert (children_num tree <= max_child_num^depth)%nat as Hineq.
-    { pose proof ab_b_tree_list_length _ _ _ Htree as K.
-      rewrite <-K.
+    { pose proof ab_b_tree_list_length _ _ _ Htree as K'.
+      rewrite <-K'.
       rewrite H. apply filter_length.
     }
     tp_pure.
@@ -2271,9 +2271,9 @@ Section b_tree.
         { done. }
         { pose proof pow_max_child_num depth. pose proof children_num_pos _ _ _ Htree. lia. }
         iIntros (m).
-        case_bool_decide as K.
+        case_bool_decide as K'.
         * (* hit somthing on the right!*)
-          destruct K as [n <-].
+          destruct K' as [n <-].
           iIntros (?) "(Hα & Hα' & %Hfsame)".
           apply Hinj in Hfsame. subst. simpl.
           wp_apply (wp_rand_tape with "[$]").
@@ -2300,7 +2300,7 @@ Section b_tree.
           iIntros (ε'') "(%&Hα & Hα'&Hε)".
           (** only step RHS *)
           assert (l!!(fin_to_nat m)=Some None) as Hnone.
-          { apply Hf2. intros. intro. apply K. subst. naive_solver. }
+          { apply Hf2. intros. intro. apply K'. subst. naive_solver. }
           tp_pures.
           tp_bind (rand(_) _)%E.
           iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
@@ -2336,8 +2336,8 @@ Section b_tree.
       iApply (wp_couple_fragmented_rand_rand_inj_rev f with "[$Hα $Hα' Hspec HΦ Hrelate Hrelate']").
       { rewrite Hsame. done. }
       iIntros (m).
-      case_bool_decide as K.
-      + destruct K as [n <-].
+      case_bool_decide as K'.
+      + destruct K' as [n <-].
         iIntros (?) "(Hα & Hα' & %Hfsame)".
         apply Hinj in Hfsame. subst. simpl.
         wp_apply (wp_rand_tape with "[$]").
@@ -2363,7 +2363,7 @@ Section b_tree.
         replace res' with v; first done.
         do 2 apply Some_inj. rewrite -Hvsome. rewrite Hvsame. done.
       + (** contradiction since RHS is populated *)
-        exfalso. apply K.
+        exfalso. apply K'.
         apply finite_inj_surj; first done.
         rewrite !fin_card. rewrite H. lia.
         Unshelve.
@@ -2374,13 +2374,13 @@ Section b_tree.
           pose proof ab_b_tree_list_length _ _ _ Htree; lia.
   Qed.
 
-  Lemma intermediate_annotated_naive_refinement depth tree l treev treev':
+  Lemma intermediate_annotated_naive_refinement Kctx depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
     relate_ab_tree_with_ranked_v' tree treev' ∗
-    ⤇ (naive_sampler_annotated_prog treev' #()) ∗
+    ⤇ fill Kctx (naive_sampler_annotated_prog treev' #()) ∗
     ↯ 0%NNR }}}
-      (intermediate_sampler_annotated_prog #depth treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}
+      (intermediate_sampler_annotated_prog #depth treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}
   .
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
@@ -2880,13 +2880,13 @@ Section b_tree.
         rewrite fmap_length in Hlen1. lia.
   Qed.
 
-  Lemma intermediate_annotated_optimized_refinement depth tree l treev treev':
+  Lemma intermediate_annotated_optimized_refinement Kctx depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
     relate_ab_tree_with_v' tree treev' ∗
-    ⤇ (optimized_sampler_annotated_prog treev' #()) ∗
+    ⤇ fill Kctx (optimized_sampler_annotated_prog treev' #()) ∗
     ↯ 0%NNR }}}
-    (intermediate_sampler_annotated_prog #depth treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}
+    (intermediate_sampler_annotated_prog #depth treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}
   .
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
@@ -2965,13 +2965,13 @@ Section b_tree.
   Qed.
 
 
-  Lemma annotated_optimized_intermediate_refinement depth tree l treev treev':
+  Lemma annotated_optimized_intermediate_refinement Kctx depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
     relate_ab_tree_with_v' tree treev' ∗
-    ⤇ (intermediate_sampler_annotated_prog #depth treev' #()) ∗
+    ⤇ fill Kctx (intermediate_sampler_annotated_prog #depth treev' #()) ∗
     ↯ 0%NNR }}}
-    (optimized_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}
+    (optimized_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}
   .
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
@@ -3157,13 +3157,13 @@ Section b_tree.
           rewrite fmap_length in H2. lia.
   Qed.
 
-  Lemma optimized_annotated_optimized_refinement depth tree l treev treev':
+  Lemma optimized_annotated_optimized_refinement Kctx depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
     relate_ab_tree_with_v' tree treev' ∗
-    ⤇ (optimized_sampler_prog treev' #()) ∗
+    ⤇ fill Kctx (optimized_sampler_prog treev' #()) ∗
     ↯ nnreal_zero }}}
-    (optimized_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}.
+    (optimized_sampler_annotated_prog treev #()) {{{ v, RET v;  ⤇ fill Kctx (Val v)  }}}.
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
     rewrite /optimized_sampler_annotated_prog /optimized_sampler_prog.
@@ -3289,13 +3289,13 @@ Section b_tree.
           rewrite fmap_length in H2. lia.
   Qed.
 
-  Lemma annotated_optimized_optimized_refinement depth tree l treev treev':
+  Lemma annotated_optimized_optimized_refinement K depth tree l treev treev':
     is_ab_b_tree depth l tree ->
     {{{ relate_ab_tree_with_v tree treev ∗
     relate_ab_tree_with_v' tree treev' ∗
-    ⤇ (optimized_sampler_annotated_prog treev' #()) ∗
+    ⤇ fill K (optimized_sampler_annotated_prog treev' #()) ∗
     ↯ nnreal_zero }}}
-    (optimized_sampler_prog treev #()) {{{ v, RET v;  ⤇ (Val v)  }}}.
+    (optimized_sampler_prog treev #()) {{{ v, RET v;  ⤇ fill K (Val v)  }}}.
   Proof.
     iIntros (Htree Φ) "(Hrelate & Hrelate' & Hspec & Hε) HΦ".
     rewrite /optimized_sampler_annotated_prog /optimized_sampler_prog.
@@ -3367,6 +3367,7 @@ Section b_tree.
           tp_bind (create_ranked_tree).
           iMod (create_ranked_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
+          tp_bind _.
           wp_apply (naive_annotated_naive_refinement with "[$]"); first done.
           iIntros. iFrame. done.
         - replace 0%R with (nonneg 0%NNR); last (simpl; by rewrite N2Nat.inj_0); eapply wp_adequacy; try done.
@@ -3375,7 +3376,7 @@ Section b_tree.
           iIntros.
           tp_bind (create_ranked_tree).
           iMod (create_ranked_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
-          simpl.
+          tp_bind _.
           wp_apply (annotated_naive_naive_refinement with "[$]"); first done.
           iIntros. iFrame. done.
       }
@@ -3393,7 +3394,7 @@ Section b_tree.
           assert (0 <= ε')%R as Hε by lra.
           set ε'' := mknonnegreal _ Hε.
           replace ε' with ε''.(nonneg) by done.
-
+          tp_bind _.
           wp_apply (annotated_naive_intermediate_refinement with "[$]"); [done|done|].
           iIntros. iFrame. done.
         - eapply wp_adequacy; try done.
@@ -3403,6 +3404,7 @@ Section b_tree.
           tp_bind (create_ranked_tree).
           iMod (create_ranked_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
+          tp_bind _.
           wp_apply (intermediate_annotated_naive_refinement with "[$]"); first done.
           iIntros. iFrame. done.
       }
@@ -3416,6 +3418,7 @@ Section b_tree.
           tp_bind (create_tree).
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
+          tp_bind _.
           wp_apply (intermediate_annotated_optimized_refinement with "[$]"); first done.
           iIntros. iFrame. done.
         - eapply wp_adequacy; try done.
@@ -3425,6 +3428,7 @@ Section b_tree.
           tp_bind (create_tree).
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
+          tp_bind _.
           wp_apply (annotated_optimized_intermediate_refinement with "[$]"); first done.
           iIntros. iFrame. done.
       }
@@ -3437,6 +3441,7 @@ Section b_tree.
           tp_bind (create_tree).
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
+          tp_bind _.
           wp_apply (optimized_annotated_optimized_refinement with "[$]"); first done.
           iIntros. iFrame. done.
         - eapply wp_adequacy; try done.
@@ -3446,6 +3451,7 @@ Section b_tree.
           tp_bind (create_tree).
           iMod (create_tree_spec_2 with "[$]") as "(%&Hspec&Hrelate')".
           simpl.
+          tp_bind _.
           wp_apply (annotated_optimized_optimized_refinement with "[$]"); first done.
           iIntros. iFrame. done.
     Qed.
