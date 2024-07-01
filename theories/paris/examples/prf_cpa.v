@@ -72,10 +72,6 @@ Section defs.
         ("r", xor "msg" "z").
 
   (** security_defs *)
-  (* Tentative sketch of security definitions as we'd write them at the toplevel. *)
-  (* Arguments to the game (adversary, scheme, ...) are omitted. *)
-
-  (* Variable ε : R. *)
 
   (* An idealised random function family. *)
   Definition random_function : val :=
