@@ -41,6 +41,9 @@ Section prp_prf.
   Section proofs.
     Context `{!parisRGS Σ}.
 
+    (* Can we give a nice *amortized* spec for relating
+       [q_calls random_function] and [q_calls random_permutation] ? *)
+
     Theorem PRP_PRF (Q : nat) ε :
       (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R = ε
       →
