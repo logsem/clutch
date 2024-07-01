@@ -71,7 +71,7 @@ We prove the portions of the above theorems that are concerned with the reductio
   (** We will prove CPA security of the scheme using the idealised random
       function. We assume that the adversaries are well-typed. *)
   Variable adv : val.
-  Definition TAdv := ((TMessage → TCipher) → TBool)%ty.
+  Definition TAdv := ((TMessage → (TUnit + TCipher)) → TBool)%ty.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
   Definition q_calls := q_calls Message.
   Definition CPA := CPA Message.
@@ -111,10 +111,10 @@ We prove the portions of the above theorems that are concerned with the reductio
       rewrite /random_function...
       rel_apply_l refines_init_map_l.
       iIntros (mapref) "mapref"...
-      rel_bind_l (q_calls _ _ _)%E.
-      rel_bind_r (q_calls _ _ _)%E.
+      rel_bind_l (q_calls _ _)%E.
+      rel_bind_r (q_calls _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
-      1:{ exact (interp (TMessage → TCipher) []). }
+      1:{ exact (interp (TMessage → (TUnit + TCipher)) []). }
       2:{
         iIntros (f f') "Hff'".
         simpl.
@@ -126,7 +126,9 @@ We prove the portions of the above theorems that are concerned with the reductio
         Unshelve.
         3: exact (interp TBool []).
         1: { rel_arrow_val. iIntros (??) "#(%_&->&->)". rel_pures_l ; rel_pures_r. rel_values. }
-        replace (lrel_arr (lrel_arr lrel_int (lrel_prod lrel_int lrel_int))
+        replace (lrel_arr
+                   (lrel_arr lrel_int
+                      (lrel_sum lrel_unit (lrel_prod lrel_int lrel_int)))
                    (interp TBool nil)) with
           (interp TAdv []) by easy.
         iApply refines_typed.
@@ -236,20 +238,13 @@ We prove the portions of the above theorems that are concerned with the reductio
           idtac...
           rel_values.
           repeat iExists _.
-          iModIntro. repeat iSplit ; iPureIntro ; eauto. 
+          iModIntro. iRight. repeat iSplit ; iPureIntro ; eauto.
+          simpl. by repeat unshelve eexists.
         + iApply (refines_na_close with "[-]").
           iFrame.
           iSplit...
           { done. }
-          rel_apply (refines_couple_UU Input).
-          iIntros (?) "!>"...
-          rel_apply (refines_couple_UU Output id).
-          iIntros (?) "!>"...
-          rel_values => //.
-          iModIntro.
-          iExists _,_,_,_.
-          repeat iSplit ; try done.
-          all: iExists _ ; done.
+          rel_values. repeat iExists _. iLeft. done.
       - rel_load_l ; rel_load_r...
         rewrite /rf_rand_cipher.
         rewrite andb_false_r...
@@ -257,15 +252,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         iFrame.
         iSplit.
         { done. }
-        rel_apply (refines_couple_UU Input).
-        iIntros (?) "!>"...
-        rel_apply (refines_couple_UU Output id).
-        iIntros (?) "!>"...
-        rel_values => //.
-        iModIntro.
-        iExists _,_,_,_.
-        repeat iSplit ; try done.
-        all: iExists _ ; done.
+        rel_values. repeat iExists _. iLeft. done.
     Qed.
 
     Theorem rf_is_CPA' (Q : nat) :
@@ -281,10 +268,10 @@ We prove the portions of the above theorems that are concerned with the reductio
       rewrite /random_function...
       rel_apply_r refines_init_map_r.
       iIntros (mapref) "mapref"...
-      rel_bind_l (q_calls _ _ _)%E.
-      rel_bind_r (q_calls _ _ _)%E.
+      rel_bind_l (q_calls _ _)%E.
+      rel_bind_r (q_calls _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
-      1:{ exact (interp (TMessage → TCipher) []). }
+      1:{ exact ((interp (TMessage → (TUnit + TCipher))) []). }
       2:{
         iIntros (f f') "Hff'".
         simpl.
@@ -296,7 +283,9 @@ We prove the portions of the above theorems that are concerned with the reductio
         Unshelve.
         3: exact (interp TBool []).
         1: { rel_arrow_val. iIntros (??) "#(%_&->&->)". rel_pures_l ; rel_pures_r. rel_values. }
-        replace (lrel_arr (lrel_arr lrel_int (lrel_prod lrel_int lrel_int))
+        replace (lrel_arr
+                   (lrel_arr lrel_int
+                      (lrel_sum lrel_unit (lrel_prod lrel_int lrel_int)))
                    (interp TBool nil)) with
           (interp TAdv []) by easy.
         iApply refines_typed.
@@ -414,21 +403,18 @@ We prove the portions of the above theorems that are concerned with the reductio
           idtac...
           rel_values.
           repeat iExists _.
-          iModIntro. repeat iSplit ; iPureIntro ; eauto. simpl.
-          exists y. by erewrite f_inv_cancel_r.
+          iModIntro. iRight. repeat iSplit ; iPureIntro ; eauto.
+          simpl.
+          exists #r_in. eexists #r_in.
+          exists #y.
+          eexists. repeat split ; try eauto with done.
+          1: by eexists. exists y. split ; first done.
+          by erewrite f_inv_cancel_r.
         + iApply (refines_na_close with "[-]").
           iFrame.
           iSplit.
           { done. }
-          rel_apply (refines_couple_UU Input).
-          iIntros (?) "!>"...
-          rel_apply (refines_couple_UU Output id).
-          iIntros (?) "!>"...
-          rel_values => //.
-          iModIntro.
-          iExists _,_,_,_.
-          repeat iSplit ; try done.
-          all: iExists _ ; done.
+          rel_values. repeat iExists _. iLeft. done.
       - rel_load_l ; rel_load_r...
         rewrite /rf_rand_cipher.
         rewrite andb_false_r...
@@ -436,15 +422,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         iFrame.
         iSplit.
         { done. }
-        rel_apply (refines_couple_UU Input).
-        iIntros (?) "!>"...
-        rel_apply (refines_couple_UU Output id).
-        iIntros (?) "!>"...
-        rel_values => //.
-        iModIntro.
-        iExists _,_,_,_.
-        repeat iSplit ; try done.
-        all: iExists _ ; done.
+        rel_values. repeat iExists _. iLeft. done.
     Qed.
     
 

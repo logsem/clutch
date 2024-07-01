@@ -80,13 +80,12 @@ Section PRP.
   Definition PRP : val :=
     λ:"b" "adv" "PRP_scheme" "Q",
       let: "key" := keygen "PRP_scheme" #() in
-      let: "rp_key" := random_permutation "key" in
       let: "prp_key_b" :=
         if: "b" then
           prp "PRP_scheme" "key"
         else
-          "rp_key" in
-      let: "oracle" := q_calls "Q" "prp_key_b" "rp_key" in
+          random_permutation "key" in
+      let: "oracle" := q_calls "Q" "prp_key_b" in
       let: "b'" := "adv" "oracle" in
       "b'".
 

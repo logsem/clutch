@@ -30,13 +30,12 @@ Section definition.
   Definition PRF : val :=
     λ:"b" "adv" "PRF_scheme" "Q",
       let: "key" := keygen "PRF_scheme" #() in
-      let: "rf_key" := random_function "key" in
       let: "prf_key_b" :=
         if: "b" then
           prf "PRF_scheme" "key"
         else
-          "rf_key" in
-      let: "oracle" := q_calls "Q" "prf_key_b" "rf_key" in
+          random_function "key" in
+      let: "oracle" := q_calls "Q" "prf_key_b" in
       let: "b'" := "adv" "oracle" in
       "b'".
 

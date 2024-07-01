@@ -44,7 +44,7 @@ Our definition further differs from Katz/Lindell in that, depending on the value
             enc "scheme" "key"
           else
             rand_cipher "scheme" in
-        let: "oracle" := q_calls "Q" "rr_key_b" (rand_cipher "scheme") in
+        let: "oracle" := q_calls "Q" "rr_key_b" in
         let: "b'" := "adv" "oracle" in
         "b'".
 
