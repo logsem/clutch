@@ -162,6 +162,21 @@ Proof.
   iFrame. iModIntro. by iApply "HΦ".
 Qed.
 
+(** Recursive functions: we do not use this lemmas as it is easier to use Löb *)
+(* induction directly, but this demonstrates that we can state the expected *)
+(* reasoning principle for recursive functions, without any visible ▷. *)
+Lemma wp_rec_löb E f x e Φ Ψ :
+  □ ( □ (∀ v, Ψ v -∗ ⧖ (cost ((rec: f x := e)%V v))  -∗ WP (rec: f x := e)%V v @ E {{ Φ }}) -∗
+     ∀ v, Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E {{ Φ }}) -∗
+  ∀ v, Ψ v -∗ ⧖ (cost ((rec: f x := e)%V v)) -∗ WP (rec: f x := e)%V v @ E {{ Φ }}.
+Proof.
+  iIntros "#Hrec". iLöb as "IH". iIntros (v) "HΨ H⧖".
+  iApply lifting.wp_pure_step_later; first done.
+  iFrame.
+  iNext. iApply ("Hrec" with "[] HΨ"). iIntros "!>" (w) "HΨ H⧖".
+  iApply ("IH" with "HΨ"). iFrame.
+Qed.
+
 End primitive_laws.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
