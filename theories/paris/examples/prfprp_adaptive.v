@@ -49,6 +49,8 @@ Section prp_prf.
       →
       ↯ ε ⊢ (REL (PRP #false adv #() #Q) << (PRF #false adv #() #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
+      iIntros (<-) "Hε".
+      rewrite /PRP/PRF/prp.PRP/prf.PRF...
     Admitted.
 
     Theorem PRF_PRP (Q : nat) ε :
