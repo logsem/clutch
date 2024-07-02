@@ -247,10 +247,19 @@ Section b_tree_adt.
       iExists _, _, _. iFrame. eauto.
   Qed.
 
-  Lemma rel_insert_child_list' K p p' ltv ltv' depth l vs vs2 t tv tv' :
+  Definition olift (P : val -> Prop) : option val → Prop :=
+    λ ov,
+    match ov with
+    | Some v => P v
+    | None => True
+    end.
+
+  Lemma rel_insert_child_list' K P p p' ltv ltv' depth l vs vs2 t tv tv' :
     {{{ btree_ptrv p (InjRV ltv) (S depth) (Br l) vs ∗
         btree_ptrv' p' (InjRV ltv') (S depth) (Br l) vs ∗
         ⌜ @is_ab_b_tree max_child_num' depth vs2 t ⌝ ∗
+        ⌜ Forall (olift P) vs ⌝ ∗
+        ⌜ Forall (olift P) vs2 ⌝ ∗
         relate_ab_tree_with_v t tv ∗
         relate_ab_tree_with_v' t tv' ∗
         ⤇ fill K (insert_child_list' #p' ltv' tv')
@@ -261,15 +270,17 @@ Section b_tree_adt.
         ⤇ fill K res' ∗
           btree_ptrv p ltv (S depth) (Br l') vs ∗
           btree_ptrv' p' ltv' (S depth) (Br l') vs ∗
+          ⌜ Forall (olift P) vs ⌝ ∗
           ((⌜ res = NONEV ⌝ ∗ ⌜ res' = NONEV ⌝) ∨
            (∃ tvnew tvnew' tnew vs2new,
                ⌜ res = SOMEV tvnew ⌝ ∗ ⌜ res' = SOMEV tvnew' ⌝ ∗
                ⌜ @is_ab_b_tree max_child_num' (S depth) vs2new tnew ⌝ ∗
+               ⌜ Forall (olift P) vs2new ⌝ ∗
                relate_ab_tree_with_v tnew tvnew ∗
                relate_ab_tree_with_v' tnew tvnew'))
     }}}.
   Proof.
-    iIntros (Φ) "(Hbtree&Hbtree'&%Htwf&Htv&Htv'&Hspec) HΦ".
+    iIntros (Φ) "(Hbtree&Hbtree'&%Htwf&%Hforall&%Hforall2&Htv&Htv'&Hspec) HΦ".
     rewrite /insert_child_list'.
     wp_pures.
     tp_pures.
@@ -348,6 +359,15 @@ Section b_tree_adt.
           simpl. iFrame.
       }
       eauto.
+      iSplit; last eauto.
+      { rewrite /vs'. iPureIntro. apply Forall_app. split.
+        * apply Forall_flat_map.
+          rewrite /l0'.
+          rewrite fmap_cons; econstructor; first done.
+          subst. eapply Forall_app in Hforall as [Hforall0 ?].
+          apply Forall_flat_map in Hforall0; auto.
+        * apply Forall_replicate. rewrite //=.
+      }
     - tp_pures. rewrite bool_decide_false; last by lia.
       wp_pures. tp_pures.
       wp_alloc ptrv as "Hptv".
@@ -378,6 +398,7 @@ Section b_tree_adt.
         * iPureIntro. eapply Hwft0.
         * rewrite relate_ab_tree_with_v_Br'. iExists _, _, _. iFrame. eauto.
       }
+      iSplit; first done.
       iRight.
       set (l0' := [(vs2, t)]).
       set (vs' :=
@@ -393,6 +414,14 @@ Section b_tree_adt.
         econstructor.
         { rewrite /l0'. econstructor; eauto. }
         { rewrite /l0'; simpl. rewrite /b_tree.min_child_num/b_tree.max_child_num; lia. }
+      }
+      iSplit.
+      { rewrite /vs'. iPureIntro. apply Forall_app. split.
+        * apply Forall_flat_map.
+          rewrite /l0'.
+          rewrite fmap_cons; econstructor; first done.
+          subst. econstructor.
+        * apply Forall_replicate. rewrite //=.
       }
       iSplitL "Htv Hptv".
       {
@@ -440,9 +469,11 @@ Section b_tree_adt.
       * intros [|n] => //=. rewrite IHla //.
   Qed.
 
-  Lemma rel_insert_tree_aux K p p' tv tv' depth t vs (v: val) :
+  Lemma rel_insert_tree_aux K P p p' tv tv' depth t vs (v: val) :
     {{{ btree_ptrv p tv depth t vs ∗
         btree_ptrv' p' tv' depth t vs ∗
+        ⌜ Forall (olift P) vs ⌝ ∗
+        ⌜ P v ⌝ ∗
         ⤇ fill K (insert_tree_aux #p' v)
     }}}
       insert_tree_aux #p v
@@ -451,16 +482,18 @@ Section b_tree_adt.
         ⤇ fill K res' ∗
           btree_ptrv p tv depth t' vs ∗
           btree_ptrv' p' tv' depth t' vs ∗
+        ⌜ Forall (olift P) vs ⌝ ∗
           ((⌜ res = NONEV ⌝ ∗ ⌜ res' = NONEV ⌝) ∨
            (∃ tvnew tvnew' tnew vs2new,
                ⌜ res = SOMEV tvnew ⌝ ∗ ⌜ res' = SOMEV tvnew' ⌝ ∗
                ⌜ @is_ab_b_tree max_child_num' depth vs2new tnew ⌝ ∗
+               ⌜ Forall (olift P) vs2new ⌝ ∗
                relate_ab_tree_with_v tnew tvnew ∗
                relate_ab_tree_with_v' tnew tvnew'))
     }}}.
   Proof.
-    iIntros (Φ) "(Hbtree&Hbtree'&Hspec) HΦ".
-    iInduction depth as [| depth'] "IH" forall (K p p' tv tv' t vs Φ).
+    iIntros (Φ) "(Hbtree&Hbtree'&Hforall&%HPv&Hspec) HΦ".
+    iInduction depth as [| depth'] "IH" forall (K p p' tv tv' t vs Φ); iDestruct "Hforall" as %Hforall.
     - rewrite /insert_tree_aux. wp_pures.
       tp_pures.
       rewrite -/insert_tree_aux.
@@ -485,6 +518,7 @@ Section b_tree_adt.
       { iSplitL; eauto.
         rewrite relate_ab_tree_with_v_Lf'; eauto.
       }
+      iSplit; first done.
       iRight.
       iExists _, _, (Lf v), ([Some v]).
       iSplit; first done.
@@ -578,11 +612,18 @@ Section b_tree_adt.
       }
       tp_bind (insert_tree_aux _ _)%E.
       destruct Hvs1 as (vs1&Hlookupl&His_ab_b_tree1).
-      iApply ("IH" with "[Hp1 Ht] [Hp1' Ht'] Hspec ").
+      iApply ("IH" with "[Hp1 Ht] [Hp1' Ht'] [] Hspec ").
       { rewrite /btree_ptrv. iFrame. simpl. eauto. }
       { rewrite /btree_ptrv'. iFrame. simpl. eauto. }
+      { iPureIntro.
+        apply Forall_app in Hforall as [Hforall1 _].
+        apply Forall_flat_map in Hforall1.
+        rewrite Forall_fmap in Hforall1.
+        eapply Forall_lookup_1 in Hlookupl; eauto.
+        simpl; eauto.
+      }
       iNext. iIntros (res) "IHres".
-      iDestruct "IHres" as (tv tv' vs t' res') "(Hspec&Hp1&Hp1'&Hres)".
+      iDestruct "IHres" as (tv tv' vs t' res') "(Hspec&Hp1&Hp1'&%Hforall1&Hres)".
 
       (* Rebuild the btree_ptrv facts p after "putting back" the child we recursively inserted into *)
       set (l' :=  <[ (n : nat) := (vs, t') ]> l).
@@ -647,13 +688,24 @@ Section b_tree_adt.
         * rewrite /l' insert_length //.
       }
 
+      assert (Forall (olift P) vs').
+      { rewrite /vs'. apply Forall_app. split.
+        * apply Forall_flat_map.
+          rewrite /l'.
+          eapply Forall_app in Hforall as [Hforall0 ?].
+          eapply Forall_fmap, Forall_insert.
+          { apply Forall_fmap; eauto. apply Forall_flat_map in Hforall0; auto. }
+          rewrite /=. eauto.
+        * apply Forall_replicate. rewrite //=.
+      }
       iDestruct "Hres" as "[Hnone|Hsome]".
       * iDestruct "Hnone" as "(->&->)".
         simpl.
         tp_pures. wp_pures. iModIntro.
         iApply "HΦ". iExists _, _, vs', (Br (l'.*2)), _.
-        iFrame. iLeft. eauto.
-      * iDestruct "Hsome" as (tvnew tvnew' tnew vs2new) "(->&->&%Hwfnew&Htvnew&Htvnew')".
+        iFrame. iSplit; first done.
+        iLeft. eauto.
+      * iDestruct "Hsome" as (tvnew tvnew' tnew vs2new) "(->&->&%Hwfnew&%Hforallnew&Htvnew&Htvnew')".
         simpl.
         tp_pures. wp_pures.
         wp_apply (rel_insert_child_list' with "[$Hp $Hp' $Htvnew $Htvnew' $Hspec //]").
@@ -663,9 +715,11 @@ Section b_tree_adt.
         iExists _, _, _, _, _. iFrame.
   Qed.
 
-  Lemma rel_insert_tree_curry K p p' tv tv' depth t vs (v: val) :
+  Lemma rel_insert_tree_curry K P p p' tv tv' depth t vs (v: val) :
     {{{ btree_ptrv p tv depth t vs ∗
         btree_ptrv' p' tv' depth t vs ∗
+        ⌜ Forall (olift P) vs ⌝ ∗
+        ⌜ P v ⌝ ∗
         ⤇ fill K (insert_tree_curry #p' v)
     }}}
       insert_tree_curry #p v
@@ -673,19 +727,20 @@ Section b_tree_adt.
         ∃ depth' tv tv' vs t,
         ⤇ fill K #() ∗
         btree_ptrv p tv depth' t vs ∗
-        btree_ptrv' p' tv' depth' t vs
+        btree_ptrv' p' tv' depth' t vs ∗
+        ⌜ Forall (olift P) vs ⌝
     }}}.
   Proof.
-    iIntros (Φ) "(Hbtree&Hbtree'&Hspec) HΦ".
+    iIntros (Φ) "(Hbtree&Hbtree'&%Hforall&%HPv&Hspec) HΦ".
     rewrite /insert_tree_curry.
     wp_pures. tp_pures.
     tp_bind (insert_tree_aux _ _).
-    wp_apply (rel_insert_tree_aux with "[$Hbtree $Hbtree' $Hspec]").
+    wp_apply (rel_insert_tree_aux _ P with "[$Hbtree $Hbtree' $Hspec //]").
     iIntros (res) "Hres".
-    iDestruct "Hres" as (?????) "(Hspec&Hbtree&Hbtree'&Hres)".
+    iDestruct "Hres" as (?????) "(Hspec&Hbtree&Hbtree'&%Hforall'&Hres)".
     iDestruct "Hres" as "[(->&->)|Hres]".
-    - simpl. tp_pures. wp_pures. iModIntro. iApply "HΦ". iExists _, _, _, _. iFrame.
-    - iDestruct "Hres" as (????) "(->&->&%Hab&Htvnew&Htvnew')".
+    - simpl. tp_pures. wp_pures. iModIntro. iApply "HΦ". iExists _, _, _, _. iFrame; eauto.
+    - iDestruct "Hres" as (????) "(->&->&%Hab&%Hforall''&Htvnew&Htvnew')".
       simpl. tp_pures. wp_pures.
       tp_alloc as ptrnew1' "Hptrnew'".
       wp_alloc ptrnew1 as "Hptrnew".
@@ -734,7 +789,15 @@ Section b_tree_adt.
            econstructor.
            *** rewrite /l'. econstructor; eauto.
            *** rewrite /b_tree.min_child_num /b_tree.max_child_num. rewrite /l'. econstructor; eauto => //=. lia.
-      * iSplitR; last first.
+      * iSplit; last first.
+        { iPureIntro. apply Forall_app.
+          split.
+          * apply Forall_flat_map.
+            rewrite fmap_cons; econstructor; first done.
+            econstructor; eauto.
+          * apply Forall_replicate. rewrite //=.
+        }
+        iSplitR; last first.
         ** rewrite relate_ab_tree_with_v_Br'. iExists _, [ptrnew2'; ptrnew1'], [tv'0; tvnew'].
            repeat (iSplit; first eauto).
            rewrite /=. iFrame.
@@ -774,8 +837,10 @@ Section b_tree_adt.
 
   Definition bN := nroot.@"b_tree".
 
+  Definition isInt := (λ v : val, ∃ n : Z, v = #n).
   Definition btree_inv (p1 p2: loc) :=
-    (∃ depth t l, btree_ptr p1 depth t l ∗ btree_ptr' p2 depth t l)%I.
+    (∃ depth t l, ⌜ Forall (olift isInt) l⌝ ∗
+                    btree_ptr p1 depth t l ∗ btree_ptr' p2 depth t l)%I.
 
   Definition R : lrel Σ :=
     LRel (λ v1 v2, ∃ (p1 p2 : loc),
@@ -792,7 +857,8 @@ Section b_tree_adt.
     wp_apply (wp_init_tree with "[//]").
     iIntros (p1) "Hp1".
     iMod (na_inv_alloc parisRGS_nais _ bN (btree_inv p1 p2) with "[Hp1 Hp2]") as "Hinv".
-    { iNext. rewrite /btree_inv. iExists _, _, _. iFrame "Hp1". iFrame "Hp2". }
+    { iNext. rewrite /btree_inv. iExists _, _, _. iFrame "Hp1". iFrame "Hp2".
+      iPureIntro. econstructor => //=. rewrite /isInt; eauto. }
     iModIntro. iExists _, _. iFrame. eauto.
   Qed.
 
@@ -808,14 +874,15 @@ Section b_tree_adt.
     rewrite /insert_tree. rel_pures_l. rel_pures_r.
     rewrite refines_eq /refines_def.
     iIntros (K ε) "HK Hna Heps %Hlt".
-    iDestruct "Hbtree" as (???) "(Hb1&Hb2)".
+    iDestruct "Hbtree" as (???) "(%Hforall&Hb1&Hb2)".
     iDestruct "Hb1" as (?) "Hb1".
     iDestruct "Hb2" as (?) "Hb2".
     iApply wp_fupd.
-    wp_apply (rel_insert_tree_curry with "[$Hb1 $Hb2 $HK]").
-    iDestruct 1 as (?????) "(HK&Hb1&Hb2)".
-    iMod ("Hclo" with "[Hb1 Hb2 $Hna]").
-    { iNext. iExists _, _, _. iSplitL "Hb1"; iExists _; iFrame. }
+    wp_apply (rel_insert_tree_curry _ isInt with "[$Hb1 $Hb2 $HK]").
+    { iPureIntro; split; rewrite /isInt; eauto. }
+    iDestruct 1 as (?????) "(HK&Hb1&Hb2&Hforall')".
+    iMod ("Hclo" with "[Hb1 Hb2 $Hna $Hforall']").
+    { iNext. iExists _, _. iSplitL "Hb1"; iExists _; iFrame. }
     iModIntro. iExists _, _; iFrame. eauto.
   Qed.
 
@@ -846,7 +913,7 @@ Section b_tree_adt.
       rewrite refines_eq /refines_def.
       iIntros (K ε) "HK Hna Heps %Hlt".
       wp_pures.
-      iDestruct "Hbtree" as (???) "(Hb1&Hb2)".
+      iDestruct "Hbtree" as (???) "(%Hforall&Hb1&Hb2)".
       iDestruct "Hb1" as (?) "Hb1".
       iDestruct "Hb2" as (?) "Hb2".
       wp_apply (wp_find_depth with "Hb1").
@@ -860,17 +927,14 @@ Section b_tree_adt.
       tp_load. tp_pures.
       iMod (ec_zero) as "Hz".
       wp_apply (intermediate_annotated_optimized_refinement with "[$Hrel1 $Hrel2 $Hz HK]"); eauto.
-      iIntros (?) "(HK&Hrel1&Hrel2)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
+      iIntros (?) "(HK&%Helem&Hrel1&Hrel2)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
       { iNext. rewrite /btree_inv. iExists _, _, _.
-        iSplitL "Hp1 Hrel1"; iExists _; iFrame; eauto. }
+        iFrame "%". iSplitL "Hp1 Hrel1"; iExists _; iFrame; eauto. }
       iModIntro. iExists _, _. iFrame. iSplit; first done.
-
-      (* TODO: b_tree sample lemmas need to show that the sampled
-         element was actually *in* the list l, then need to strengthen
-         invariant to say that every thing in is_ab_b_tree list of
-         values is an int *)
-
-  Abort.
+      iPureIntro.
+      eapply Forall_forall in Hforall; last eauto.
+      destruct Hforall as (n&->). naive_solver.
+  Qed.
 
 
 
