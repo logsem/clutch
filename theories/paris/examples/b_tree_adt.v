@@ -830,6 +830,9 @@ Section b_tree_adt.
       optimized_sampler_annotated_prog (max_child_num' := max_child_num') "t" #().
 
   Local Close Scope R.
+
+  (* The abstract type of btrees, as an existential. The first operation is
+     creating a tree, second is inserting, and third is sampling *)
   Definition btreeτ : type := ∃: (TInt → #0) * (#0 * TInt → TUnit) * (#0 → TInt).
 
   Definition opt_annotated_btree_pack : val :=
