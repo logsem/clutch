@@ -18,7 +18,7 @@
 | 3.2 | Definition    | `cost_app`                                 | [theories/tachis/cost_models.v]              | `CostApp`                                            |                                                                          |
 | 3.2 | Definition    | `cost_rand`                                | [theories/tachis/cost_models.v]              | `CostEntropy`                                        |                                                                          |
 | 3.2 | Definition    | `cost_tick`                                | [theories/tachis/cost_models.v]              | `CostTick`                                           |                                                                          |
-| 4.1 | Definition    | `iProp`                                    | Imported from Iris                           | `iProp`                                              |                                                                          |
+| 4.1 | Definition    | `iProp`                                    | Imported from [Iris upstream]                | `iProp`                                              |                                                                          |
 | 4.1 | Definition    | Credit assertion                           | [theories/tachis/expected_time_credits.v]    | `ec`                                                 | `⧖ x` is notation in our development for `$ x`                           |
 | 4.1 | Rule          | Credit splitting rule                      | [theories/tachis/expected_time_credits.v]    | `etc_split`, `etc_combine`                           |                                                                          |
 | 4.2 | Theorem       | Adqeuacy (Hoare Triples)                   | [theories/tachis/adequacy.v]                 | Derivable from `wp_correct_lim `                     |                                                                          |
@@ -82,4 +82,4 @@
 [theories/tachis/expected_time_credits.v]: theories/tachis/expected_time_credits.v
 
 
-[iris upstream]: https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v
+[Iris upstream]: https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v
