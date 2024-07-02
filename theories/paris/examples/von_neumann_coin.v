@@ -7,15 +7,16 @@ Section proofs.
   Context `{!parisRGS Σ}.
 
 
-  (* Von Neumann die *)
+  (* die from 3 coins with early abort *)
   Definition vnd_tapes : expr :=
     (rec: "f" <> :=
        let: "α" := alloc #1 in
        let: "b0" := rand("α") #1 in
        let: "b1" := rand("α") #1 in
-       let: "b2" := rand("α") #1 in
-       let: "r" := (#4*"b0" + #2*"b1" + "b2") in
-       if: "r" < #6 then "r" else "f" #())%V.
+       if: (("b0" = #1) && ("b1" = #1))
+       then "f" #()
+       else (let: "b2" := rand("α") #1 in
+             (#4*"b0" + #2*"b1" + "b2")))%V.
 
   Definition rej_tapes : expr :=
     (rec: "f" <> :=
@@ -98,34 +99,52 @@ Section proofs.
     destruct l as [|a3 l]; [inversion Hl |].
     destruct l as [|]; [|inversion Hl].
     rewrite /bin_to_oct /= in Heq.
-    do 3 rel_rand_l.
+    do 2 rel_rand_l.
     rel_pures_l.
     rel_rand_r.
     rel_pures_r.
-    rewrite -Heq.
-    rewrite /fin.fin_force.
-    case_bool_decide as H1.
-    - case_bool_decide as H2.
-      + rel_pures_l. rel_pures_r.
-        destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-          destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
-      + exfalso.
-        apply H2.
-        destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl; simpl in H1; lia.
-    - case_bool_decide as H2.
-      + exfalso.
-        apply H1.
-        destruct ( destr_fin2 a1) ;
-        destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl; simpl in H2; lia.
-      + rel_pure_l. rel_pure_r.
-        rel_apply "IH".
-        auto.
+    case_bool_decide as Ha1.
+    - rel_pures_l.
+      case_bool_decide as Ha2.
+      + rel_pure_l.
+        rewrite bool_decide_eq_false_2; last first.
+        {
+          intro Hm.
+          destruct ( destr_fin2 a1) ;
+          destruct ( destr_fin2 a2) ;
+            destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
+        }
+        rel_pure_r.
+        by rel_apply "IH".
+      + rel_pures_l.
+        rel_rand_l.
+        rel_pures_l.
+        rewrite bool_decide_eq_true_2; last first.
+        {
+          destruct ( destr_fin2 a1) ;
+          destruct ( destr_fin2 a2) ;
+          destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
+       }
+       rel_pures_r.
+       rewrite -Heq /=.
+       destruct ( destr_fin2 a1) ;
+       destruct ( destr_fin2 a2) ;
+         destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
+   - rel_pures_l.
+     rel_rand_l.
+     rel_pures_l.
+     rewrite bool_decide_eq_true_2; last first.
+     {
+       destruct ( destr_fin2 a1) ;
+       destruct ( destr_fin2 a2) ;
+       destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
+     }
+     rel_pures_r.
+     rewrite -Heq /=.
+     destruct ( destr_fin2 a1) ;
+     destruct ( destr_fin2 a2) ;
+     destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
   Qed.
-
 
   Lemma rej_ref_vnd :
    ⊢ REL (rej_tapes) << (vnd_tapes) : lrel_unit → lrel_int.
@@ -171,32 +190,52 @@ Section proofs.
     destruct l as [|a3 l]; [inversion Hl |].
     destruct l as [|]; [|inversion Hl].
     rewrite /bin_to_oct /= in Heq.
-    do 3 rel_rand_r.
+    do 2 rel_rand_r.
     rel_pures_r.
     rel_rand_l.
     rel_pures_l.
-    rewrite -Heq.
-    rewrite /fin.fin_force.
     case_bool_decide as H1.
     - case_bool_decide as H2.
-      + rel_pures_l. rel_pures_r.
+      + rel_pures_r.
+        rewrite bool_decide_eq_false_2; last first.
+      {
+        intro H3.
         destruct ( destr_fin2 a1) ;
         destruct ( destr_fin2 a2) ;
+          destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; try lia.
+      }
+      rel_pures_l.
+      rel_rand_r.
+      rel_pures_r.
+      rewrite -Heq /fin.fin_force.
+      destruct ( destr_fin2 a1) ;
+        destruct ( destr_fin2 a2) ;
+        destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
+      + rel_pures_l.
+        rel_rand_r.
+        rel_pures_r.
+        rewrite -Heq /fin.fin_force.
+        destruct ( destr_fin2 a1) ;
+          destruct ( destr_fin2 a2) ;
           destruct ( destr_fin2 a3) ; simplify_eq; simpl; rel_values.
-      + exfalso.
-        apply H2.
+    - rel_pure_l.
+      rewrite bool_decide_eq_true_2; last first.
+      {
+        do 2 f_equal.
         destruct ( destr_fin2 a1) ;
         destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl; simpl in H1; lia.
-    - case_bool_decide as H2.
-      + exfalso.
-        apply H1.
+        destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
+      }
+      rel_pures_r.
+      rewrite bool_decide_eq_true_2; last first.
+      {
+        do 2 f_equal.
         destruct ( destr_fin2 a1) ;
         destruct ( destr_fin2 a2) ;
-        destruct ( destr_fin2 a3) ; simplify_eq; simpl; simpl in H2; lia.
-      + rel_pure_l. rel_pure_r.
-        rel_apply "IH".
-        auto.
+        destruct ( destr_fin2 a3) ; simplify_eq; simpl in *; lia.
+      }
+      rel_pure_r.
+      by rel_apply "IH".
   Qed.
 
 
