@@ -860,7 +860,16 @@ Section b_tree_adt.
       tp_load. tp_pures.
       iMod (ec_zero) as "Hz".
       wp_apply (intermediate_annotated_optimized_refinement with "[$Hrel1 $Hrel2 $Hz HK]"); eauto.
-      iIntros (?) "HK". iMod ("Hclo" with "[Hp1 Hp2 $Hna]").
+      iIntros (?) "(HK&Hrel1&Hrel2)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
+      { iNext. rewrite /btree_inv. iExists _, _, _.
+        iSplitL "Hp1 Hrel1"; iExists _; iFrame; eauto. }
+      iModIntro. iExists _, _. iFrame. iSplit; first done.
+
+      (* TODO: b_tree sample lemmas need to show that the sampled
+         element was actually *in* the list l, then need to strengthen
+         invariant to say that every thing in is_ab_b_tree list of
+         values is an int *)
+
   Abort.
 
 
