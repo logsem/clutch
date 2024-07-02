@@ -814,7 +814,10 @@ Section b_tree_adt.
      uncurrying and loading trees from the pointer. Additionally, the intermediate
      versions need to use find_depth to compute depth instead of taking as argument *)
 
-  (* Version that computes depth and then calls the version from b_tree.v *)
+  (* Version that computes depth and then calls the version from
+     b_tree.v.  Of course it's "silly" to compute the depth on every
+     sampling call, but recall that this intermediate program is just
+     a proof device, so we don't care about its efficiency.  *)
   Definition intermediate_sampler_prog' : val :=
     λ: "pt",
       let: "d" := find_depth "pt" in
@@ -936,6 +939,56 @@ Section b_tree_adt.
       destruct Hforall as (n&->). naive_solver.
   Qed.
 
+  Lemma opt_annotated_refines_intermediate Δ :
+    ⊢ REL opt_annotated_btree_pack  << intermediate_btree_pack : interp btreeτ Δ.
+  Proof.
+    iApply (refines_pack R).
+    rewrite refines_eq /refines_def. iIntros (K ε) "HK Hown Heps %Hlt".
+    wp_pures.
+    iModIntro. iExists _; iFrame. iSplit; first eauto. simpl.
+    iExists _, _, _, _.
+    iSplit; first eauto.
+    iSplit; first eauto.
+    clear Δ K ε Hlt.
+    (* Break up the nested pair interpretation on the left so
+       that we get a flat hierarchy of 3 goals for each component of the 3 tuple *)
+    iSplit; first (iExists _, _, _, _; iSplit; first eauto; iSplit; first eauto; iSplit).
+    - iApply init_tree_self_lrel.
+    - iApply insert_tree_self_lrel.
+    - iIntros (vv1 vv2) "!>".
+      iIntros "HR".
+      iDestruct "HR" as (p1 p2) "(->&->&Hinv)".
+      iApply (refines_na_inv with "[$Hinv]"); first done.
+      iIntros "(Hbtree&Hclo)".
+      rewrite /intermediate_sampler_prog'.
+      rewrite /opt_sampler_annotated_prog'.
+      rel_pures_l. rel_pures_r.
+      rewrite refines_eq /refines_def.
+      iIntros (K ε) "HK Hna Heps %Hlt".
+      wp_pures.
+      iDestruct "Hbtree" as (???) "(%Hforall&Hb1&Hb2)".
+      iDestruct "Hb1" as (?) "Hb1".
+      iDestruct "Hb2" as (?) "Hb2".
+      tp_bind (find_depth _)%E.
+      iMod (spec_find_depth with "Hb2 HK") as "(HK&Hb2)".
+      iEval (simpl) in "HK".
+      tp_pures.
+
+      iDestruct "Hb1" as "(%His_tree&Hp1&Hrel1)".
+      iDestruct "Hb2" as "(%&Hp2&Hrel2)".
+      iApply wp_fupd.
+      wp_load. wp_pures.
+      tp_load. tp_pures.
+      iMod (ec_zero) as "Hz".
+      wp_apply (annotated_optimized_intermediate_refinement with "[$Hrel1 $Hrel2 $Hz HK]"); eauto.
+      iIntros (?) "(HK&%Helem&Hrel1&Hrel2)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
+      { iNext. rewrite /btree_inv. iExists _, _, _.
+        iFrame "%". iSplitL "Hp1 Hrel1"; iExists _; iFrame; eauto. }
+      iModIntro. iExists _, _. iFrame. iSplit; first done.
+      iPureIntro.
+      eapply Forall_forall in Hforall; last eauto.
+      destruct Hforall as (n&->). naive_solver.
+  Qed.
 
 
 End b_tree_adt.
