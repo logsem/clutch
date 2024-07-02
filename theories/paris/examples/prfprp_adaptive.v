@@ -10,7 +10,7 @@ Our definition deviates from Rosulek's and Boneh/Shoup in that we wrap the encry
      *)
 
 From clutch Require Import lib.flip.
-From clutch.paris Require Import paris map list prf prp examples.prf_cpa.
+From clutch.paris Require Import paris map list prf prp.
 Set Default Proof Using "Type*".
 
 Section prp_prf.
@@ -111,7 +111,7 @@ Section prp_prf.
         assumption.
       }
 
-      rewrite /q_calls/prf_cpa.q_calls /bounded_oracle.q_calls.
+      rewrite /q_calls /bounded_oracle.q_calls.
       rel_alloc_l counter as "counter".
       rel_alloc_r counter' as "counter'"...
       replace 0%Z with (Z.of_nat 0%nat) by lia.
@@ -345,7 +345,7 @@ Section prp_prf.
         assumption.
       }
 
-      rewrite /q_calls/prf_cpa.q_calls /bounded_oracle.q_calls.
+      rewrite /q_calls /bounded_oracle.q_calls.
       rel_alloc_l counter as "counter".
       rel_alloc_r counter' as "counter'"...
       replace 0%Z with (Z.of_nat 0%nat) by lia.
