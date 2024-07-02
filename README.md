@@ -1,25 +1,11 @@
-# Clutch Project
+# Tachis: Higher-Order Separation Logic with Credits for Expected Costs
 
-This repository contains the formal development of multiple higher-order probabilistic separation logics for proving properties of higher-order probabilistic programs.
-All of the logics are built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/).
+This is the artifact for the Tachis logic, submitted to OOPSLA 2024 under "Tachis: Higher-Order Separation Logic with Credits for Expected Costs".  
+The file `paper_mapping.md` relates definitions, rules, and theorems from the paper into the Coq formalization. 
 
-## Publications
+Tachis is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/). 
 
-[**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://arxiv.org/abs/2405.20083)<br>
-*Philipp G. Haselwarter, Kwing Hei Li, Markus de Medeiros, Simon Oddershede Gregersen, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2405.20083
-
-[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2404.14223)<br>
-*Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.14223
-
-[**Almost-Sure Termination by Guarded Refinement**](https://arxiv.org/abs/2404.08494) <br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.08494
-
-[**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
-*Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-In POPL 2024: ACM SIGPLAN Symposium on Principles of Programming Languages
+This project is built on top of [Clutch](https://github.com/logsem/clutch)
 
 ## Building the development
 
@@ -52,16 +38,3 @@ opam install . --deps-only
 ```
 
 You should now be able to build the development by using `make -j N` where `N` is the number of cores available on your machine.
-
-## Axioms
-
-The development relies on axioms for classical reasoning and an axiomatization of the reals numbers, both found in Coq's standard library. For example, the following list is produced when executing the command `Print Assumptions eager_lazy_equiv.` in [`theories/clutch/examples/lazy_eager_coin.v`](theories/clutch/examples/lazy_eager_coin.v):
-
-```
-ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
-ClassicalDedekindReals.sig_forall_dec : ∀ P : nat → Prop, (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}
-functional_extensionality_dep : ∀ (A : Type) (B : A → Type) (f g : ∀ x : A, B x), (∀ x : A, f x = g x) → f = g
-constructive_indefinite_description : ∀ (A : Type) (P : A → Prop), (∃ x : A, P x) → {x : A | P x}
-classic : ∀ P : Prop, P ∨ ¬ P
-```
-
