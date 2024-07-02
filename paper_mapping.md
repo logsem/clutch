@@ -52,3 +52,34 @@
 | 6.1 | Rule          | Acquiring Rule                             | [theories/tachis/expected_time_credits.v]    | `etc_supply_increase `                               |                                                                          |
 | 6.2 | Theorem       | Adequacy (Weakest Preconditions)           | [theories/tachis/adequacy.v]                 | `wp_correct_lim `                                    |                                                                          |
 | 6.3 | Remark        | Finite `cost_app` cost implies AST         | [theories/tachis/adequacy.v]                 | `wp_ERT_ast'`                                        |                                                                          |
+
+
+
+
+[theories/tachis/examples/geometric.v]: theories/tachis/examples/geometric.v
+[theories/tachis/examples/amortized.v]: theories/tachis/examples/amortized.v
+[theories/prob/distribution.v]: theories/prob/distribution.v
+[theories/prob_lang/lang.v]: theories/prob_lang/lang.v
+[theories/common/ectx_language.v]: theories/common/ectx_language.v
+[theories/common/exec.v]: theories/common/exec.v
+[theories/tachis/ert_weakestpre.v]: theories/tachis/ert_weakestpre.v
+[theories/tachis/adequacy.v]: theories/tachis/adequacy.v
+[theories/tachis/cost_models.v]: theories/tachis/cost_models.v
+[theories/tachis/expected_time_credits.v]: theories/tachis/expected_time_credits.v
+[theories/tachis/ert_weakestpre.v]: theories/tachis/ert_weakestpre.v
+[theories/tachis/primitive_laws.v]: theories/tachis/primitive_laws.v
+[theories/tachis/ert_rules.v]: theories/tachis/ert_rules.v
+[theories/tachis/proofmode.v]: theories/tachis/proofmode.v
+[theories/tachis/examples/couponcollector.v]: theories/tachis/examples/couponcollector.v
+[theories/tachis/examples/fisher_yates.v]: theories/tachis/examples/fisher_yates.v
+[theories/tachis/examples/hashmap/hashmap.v]: theories/tachis/examples/hashmap/hashmap.v
+[theories/tachis/examples/quicksort.v]: theories/tachis/examples/quicksort.v
+[theories/tachis/examples/meldable_heap.v]: theories/tachis/examples/meldable_heap.v
+[theories/tachis/examples/min_heap_spec.v]: theories/tachis/examples/min_heap_spec.v
+[theories/tachis/examples/kway_merge.v]: theories/tachis/examples/kway_merge.v
+[theories/bi/weakestpre.v]: theories/bi/weakestpre.v
+[theories/tachis/ert_weakestpre.v]: theories/tachis/ert_weakestpre.v
+[theories/tachis/expected_time_credits.v]: theories/tachis/expected_time_credits.v
+
+
+[iris upstream]: https://gitlab.mpi-sws.org/iris/iris/-/blob/master/iris/base_logic/lib/iprop.v
