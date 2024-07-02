@@ -38,6 +38,8 @@ Section prp_prf.
 
   Local Opaque INR.
   Local Opaque is_list.
+  Local Ltac smash := 
+    repeat (apply Rcomplements.Rdiv_le_0_compat||apply pos_INR_S||apply pos_INR). 
 
   Section proofs.
     Context `{!parisRGS Σ}.
@@ -115,19 +117,19 @@ Section prp_prf.
       replace 0%Z with (Z.of_nat 0%nat) by lia.
       erewrite <-fmap_empty.
       iApply (refines_na_alloc
-                (∃ (q : nat) (M:gmap nat Z) (l:list nat),
+                (∃ (q : nat) (M:gmap nat Z) (l:list nat) v',
                     ↯ (fold_left Nat.add (seq q (Q-q)) 0%nat / S val_size)
                     ∗ counter ↦ #q
                     ∗ counter' ↦ₛ #q
                     ∗ map_list mapref ((λ b, LitV (LitInt b)) <$> M)
                     ∗ map_slist mapref' ((λ b, LitV (LitInt b)) <$> M)
-                    ∗ ⌜ (size (dom M) <= q)%nat ⌝
+                    ∗ ⌜ (size (M) <= q)%nat ⌝
                     ∗ ⌜ ∀ x, x ∈ (dom M) -> (x < S val_size)%nat ⌝
                     ∗ ⌜NoDup l⌝
-                    ∗ ⌜is_list l v⌝
-                    ∗ ⌜(S val_size - (size (dom M)) <=length l)%nat⌝  
-                    ∗ unused ↦ v
-                    ∗ ⌜(forall x:nat, x∈ ((map_img M):gset _) -> x ∈ l -> False)⌝
+                    ∗ ⌜is_list l v'⌝
+                    ∗ ⌜(S val_size - (size (M)) <=length l<=S val_size)%nat⌝  
+                    ∗ unused ↦ v'
+                    ∗ ⌜(forall x:nat, Z.of_nat x∈ ((map_img M):gset _) -> x ∈ l -> False)⌝
                     ∗ ⌜∀ x, x ∈ l -> (x<S val_size)%nat ⌝
                 )%I
                 (nroot.@"cpa")); iFrame.
@@ -139,6 +141,7 @@ Section prp_prf.
         repeat split; try done.
         - rewrite cons_seq. apply NoDup_seq. 
         - rewrite cons_seq. by rewrite seq_length.
+        - rewrite cons_seq. by rewrite seq_length.
         - intros ?. rewrite cons_seq. rewrite elem_of_seq. lia.         
       }
       iIntros "#Hinv".
@@ -146,7 +149,7 @@ Section prp_prf.
       iIntros (??) "(%n&->&->)"...
       rewrite -bool_decide_and.
       iApply (refines_na_inv with "[$Hinv]"); first done.
-      iIntros "[>(%q&%M&%l&Hε&Hcounter&Hcounter'&Hml&Hml'&%&%&%&%&%&unused&%&%) Hclose]".
+      iIntros "[>(%q&%M&%l&%v'&Hε&Hcounter&Hcounter'&Hml&Hml'&%&%&%HNoDup&%&%Hlen&unused&%Hdisjoint&%) Hclose]".
       rel_load_l; rel_load_r...
       rewrite -bool_decide_and.
       case_bool_decide; last first.
@@ -164,26 +167,24 @@ Section prp_prf.
       iIntros (?) "Hml ->".
       rel_apply_r (refines_get_r with "[-Hml'][$]").
       iIntros (?) "Hml' ->".
+      replace (Z.of_nat q+1)%Z with (Z.of_nat (S q)) by lia.
+      replace (Q-q) with (S (Q-S q)) by lia.
+      rewrite -cons_seq.
+      rewrite fold_symmetric; try lia.
+      simpl. rewrite -fold_symmetric; try lia.
+      rewrite plus_INR Rdiv_plus_distr.
       destruct (((λ b : Z, #b) <$> M)!!Z.to_nat n) eqn:Hres...
       { (* we query something from before*)
-        replace (Z.of_nat q+1)%Z with (Z.of_nat (S q)) by lia.
         iApply refines_na_close; iFrame.
         iSplitL.
         - iModIntro. iExists M, l. iFrame.
           iSplitL.
-          + replace (Q-q) with (S (Q-S q)) by lia.
-            rewrite -cons_seq.
-            rewrite fold_symmetric; try lia.
-            simpl. rewrite -fold_symmetric; try lia.
-            rewrite plus_INR Rdiv_plus_distr.
-            iApply (ec_weaken with "[$]").
+          + iApply (ec_weaken with "[$]").
             split.
             * rewrite fold_symmetric; try lia.
-              apply Rcomplements.Rdiv_le_0_compat; last apply pos_INR_S.
-              apply pos_INR.
+              smash.
             * rewrite Rplus_comm. apply Rplus_le_0_compat.
-              apply Rcomplements.Rdiv_le_0_compat; last apply pos_INR_S.
-              apply pos_INR.
+              smash.
           + iPureIntro; repeat split; (done||lia).
         - rewrite lookup_fmap_Some in Hres.
           destruct Hres as (?&<-&?).
@@ -195,14 +196,14 @@ Section prp_prf.
       rel_apply_l refines_list_length_l; first done.
       iIntros (?) "->"...
       (* make sure list has at least one element*)
-      assert (size(dom M)<S val_size)%nat.
+      assert (size(M)<S val_size)%nat.
       { apply Nat.nle_gt.
         intros ?.
         unshelve epose proof set_subseteq_size_eq (dom M) (set_seq 0 (S val_size)) _ _ as K.
         - intros ??. rewrite elem_of_set_seq.
           split; first lia.
           set_unfold. naive_solver.
-        - rewrite size_set_seq. lia.
+        - rewrite size_dom. rewrite size_set_seq. lia.
         - eapply is_Some_None. rewrite <-Hres.
           rewrite -elem_of_dom.
           rewrite dom_fmap.
@@ -210,10 +211,98 @@ Section prp_prf.
           rewrite elem_of_set_seq. lia.
       }
       (* here need to lift coupling rule to logical relations... *)
-      
-      
-    Admitted.
-
+      set f := (λ n : nat, if (n <=? val_size) then (nth n l 0) else n + val_size).
+      rel_apply (refines_couple_UU_err _ _ (mknonnegreal _ _) f); try lia.
+      { intros. rewrite /f.
+        rewrite leb_correct; try lia.
+        apply Forall_nth; last lia.
+        rewrite Forall_forall.
+        done. 
+      }
+      { rewrite /f.
+        intros ????.
+        rewrite !leb_correct; try lia.
+        apply NoDup_nth; try lia.
+        by apply NoDup_ListNoDup.
+      }
+      { done. }
+      iDestruct (ec_split with "[$]") as "[Hε Hε']"; try smash.
+      iSplitL "Hε".
+      { iApply ec_weaken; last done.
+        split.
+        - rewrite -Rdiv_def.
+          smash. rewrite -minus_INR; last lia.
+          smash.
+        - rewrite Rdiv_def.
+          apply Rmult_le_compat_r.
+          + apply Rlt_le.
+            apply RinvN_pos'.
+          + rewrite -minus_INR; last lia.
+            apply le_INR. lia.
+      } 
+      iIntros (x). iModIntro. rewrite /f...
+      pose proof fin_to_nat_lt x.
+      rewrite leb_correct; last lia.
+      rel_load_l.
+      rel_apply_l refines_list_remove_nth_l.
+      { iPureIntro. split; first done. lia. }
+      simpl.
+      iIntros (?) "(%&%&%&%&->&<-&->&%)"...
+      rewrite nth_middle.
+      rel_apply_l (refines_set_l with "[-Hml][$]").
+      iIntros "Hml".
+      rel_apply_r (refines_set_r with "[-Hml'][$]").
+      iIntros "Hml'"...
+      rel_store_l...
+      iApply (refines_na_close).
+      iSplitR "Hclose"; last first.
+      { iFrame.
+        rel_values.
+        repeat iExists _. iRight.
+        iPureIntro; repeat split; try done.
+        by eexists (Z.of_nat _). 
+      }
+      iModIntro.
+      iExists _, (<[Z.to_nat n:=_]> M), (_++_).
+      rewrite fmap_insert. iFrame.
+      iPureIntro; repeat split.
+      - rewrite map_size_insert.
+        case_match; simpl; lia.
+      - intros ?. rewrite dom_insert.
+        set_unfold. intros [|]; try lia.
+        naive_solver.
+      - rewrite NoDup_ListNoDup.
+        eapply NoDup_remove_1.
+        rewrite -NoDup_ListNoDup.
+        done.
+      - done.
+      - rewrite map_size_insert_None.
+        + rewrite app_length.
+          rewrite app_length cons_length in Hlen. lia.
+        + rewrite lookup_fmap in Hres.
+          rewrite fmap_None in Hres. done.
+      - rewrite app_length.
+        rewrite app_length cons_length in Hlen. lia.
+      - intros ?. rewrite elem_of_map_img.
+        intros [? K].
+        rewrite lookup_insert_Some in K.
+        destruct K as [[<- K']|[K1 K2]].
+        + apply Nat2Z.inj' in K'. subst.
+          rewrite NoDup_ListNoDup in HNoDup.
+          apply NoDup_remove_2 in HNoDup.
+          rewrite elem_of_list_In. done.
+        + intros ?. set_unfold.
+          eapply Hdisjoint.
+          * rewrite elem_of_map_img. naive_solver.
+          * naive_solver.
+      - set_unfold. naive_solver.
+        Unshelve.
+        rewrite -Rdiv_def.
+        smash.
+        rewrite -minus_INR; last lia.
+        smash.
+    Qed.
+    
     Theorem PRF_PRP (Q : nat) ε :
       (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R = ε
       →
