@@ -16,8 +16,7 @@ Section proofs.
        if: (("b0" = #1) `and` ("b1" = #1))
              then "f" #()
              else (let: "b2" := rand("α") #1 in
-                  let: "r" := (#4*"b2" + #2*"b1" + "b0") in
-                  if: "r" < #6 then "r" else "f" #()))%V.
+                  (#4*"b0" + #2*"b1" + "b2")))%V.
 
   Definition rej_tapes : expr :=
     (rec: "f" <> :=
@@ -51,12 +50,11 @@ Section proofs.
     destruct l as [|a4 l]; [|inversion Hlen].
     rewrite /fin.decoder_nat/=.
     rewrite !Nat.add_0_r.
-    replace (a1 + (a2 + (a3 + a3) + (a2 + (a3 + a3)))) with (4*a3 + 2*a2 + a1) by lia.
-    rel_rand_l. iIntros "Ha1".
-    rel_rand_l. iIntros "Ha2".
-    do 4 rel_pure_l.
+    rel_rand_l. iIntros "%Ha1".
+    rel_rand_l. iIntros "%Ha2".
+    rel_pures_l.
     destruct( decide (a1 = 1 /\ a2 = 1)) as [ [-> ->] | Ha1a2].
-    - do 2 rel_pure_l.
+    - rel_pure_l.
       rel_rand_r.
       iIntros "Hr".
       rel_pures_r.
@@ -69,31 +67,32 @@ Section proofs.
         do 2 f_equal.
         apply not_and_l in Ha1a2 as [H1|H2].
         - rewrite {1}bool_decide_eq_false_2; auto.
-          intro H. injection.
-
-      Search and not.
-      rewrite bool_decide_eq_false_2.
-      rel_rand_l. iIntros "Ha3".
+          intro H. inversion H. lia.
+        - symmetry.
+          apply andb_false_intro2.
+          rewrite bool_decide_eq_false_2; auto.
+          intro H. inversion H. lia.
+      }
+      rel_pures_l.
+      rel_rand_l. iIntros "%Ha3".
       rel_pures_l.
       rel_rand_r.
-      iIntros "Hr".
-    rel_pures_r.
-    case_bool_decide as H1.
-    - case_bool_decide as H2; [|lia].
-      rel_pures_l. rel_pures_r.
+      iIntros "%Hr".
+      rel_pures_r.
+      case_bool_decide as H1; [|lia].
+      rel_pures_r.
       rel_values. iPureIntro.
       simpl.
-      exists (4 * a3 + 2 * a2 + a1).
+      exists (4 * a1 + 2 * a2 + a3).
       split; auto.
-      do 2 f_equal; simpl.
-      rewrite !Nat2Z.inj_add /=. lia.
-    - case_bool_decide; [lia|].
-      rel_pure_l. rel_pure_r.
-      by rel_apply "IH".
+      + do 2 f_equal; simpl.
+        rewrite !Nat2Z.inj_add /=. lia.
+      + do 2 f_equal; simpl.
+        rewrite !Nat2Z.inj_add /=. lia.
   Qed.
 
   Lemma rej_ref_vnd :
-   ⊢ REL (rej_tapes) << (vnd_tapes) : lrel_unit → lrel_int.
+    ⊢ REL (rej_tapes) << (vnd_tapes) : lrel_unit → lrel_int.
   Proof.
     rewrite /vnd_tapes /rej_tapes.
     iApply (refines_arrow_val).
@@ -106,7 +105,7 @@ Section proofs.
     rel_alloctape_l β as "Hβ".
     rel_pures_l.
     rel_pures_r.
-    iApply (refines_couple_exp_decoder_rev 7 1 3 [] [] β α); [by simpl|].
+    iApply (refines_couple_exp_decoder_lr_rev 7 1 3 [] [] β α); [by simpl|].
     iFrame.
     iIntros (l m) "%Hfa %Hm %Hlen Hα Hβ".
     destruct l as [|b1 l]; [inversion Hlen |].
@@ -115,26 +114,46 @@ Section proofs.
     destruct l as [|b4 l]; [|inversion Hlen].
     rewrite /fin.decoder_nat/=.
     rewrite !Nat.add_0_r.
-    replace (b1 + (b2 + (b3 + b3) + (b2 + (b3 + b3)))) with (4*b3 + 2*b2 + b1) by lia.
-    rel_rand_r. iIntros "Hb1".
-    rel_rand_r. iIntros "Hb2".
-    rel_rand_r. iIntros "Hb3".
+    rel_rand_r. iIntros "%Hb1".
+    rel_rand_r. iIntros "%Hb2".
     rel_pures_r.
-    rel_rand_l.
-    iIntros "Hr".
-    rel_pures_l.
-    case_bool_decide.
-    - case_bool_decide; [|lia].
-      rel_pures_l. rel_pures_r.
+    rel_pures_r.
+    destruct( decide (b1 = 1 /\ b2 = 1)) as [ [-> ->] | Hb1b2].
+    - rel_pure_r.
+      rel_rand_l.
+      iIntros "Hr".
+      rel_pures_l.
+      rewrite bool_decide_eq_false_2; [|lia].
+      rel_pure_l.
+      by rel_apply "IH".
+    - rel_pures_r.
+      replace (#(bool_decide (#b1 = #1) && bool_decide (#b2 = #1))%bool) with (#false); last first.
+      {
+        do 2 f_equal.
+        apply not_and_l in Hb1b2 as [H1|H2].
+        - rewrite {1}bool_decide_eq_false_2; auto.
+          intro H. inversion H. lia.
+        - symmetry.
+          apply andb_false_intro2.
+          rewrite bool_decide_eq_false_2; auto.
+          intro H. inversion H. lia.
+      }
+      rel_pures_r.
+      rel_rand_r. iIntros "%Hb3".
+      rel_pures_r.
+      rel_rand_l.
+      iIntros "%Hr".
+      rel_pures_l.
+      case_bool_decide as H1; [|lia].
+      rel_pures_l.
       rel_values. iPureIntro.
       simpl.
-      exists (4 * b3 + 2 * b2 + b1).
+      exists (4 * b1 + 2 * b2 + b3).
       split; auto.
-      do 2 f_equal; simpl.
-      rewrite !Nat2Z.inj_add /=. lia.
-    - case_bool_decide; [lia|].
-      rel_pure_l. rel_pure_r.
-      by rel_apply "IH".
+      + do 2 f_equal; simpl.
+        rewrite !Nat2Z.inj_add /=. lia.
+      + do 2 f_equal; simpl.
+        rewrite !Nat2Z.inj_add /=. lia.
   Qed.
 
 
