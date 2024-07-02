@@ -1,7 +1,6 @@
-# Tachis: Higher-Order Separation Logic with Credits for Expected Costs
+# Tachis
 
-This is the artifact for the Tachis logic, submitted to OOPSLA 2024 under "Tachis: Higher-Order Separation Logic with Credits for Expected Costs".  
-The file `paper_mapping.md` relates definitions, rules, and theorems from the paper into the Coq formalization. 
+This is the artifact for the Tachis logic, submitted to OOPSLA 2024 under "Tachis: Higher-Order Separation Logic with Credits for Expected Costs". The file `paper_mapping.md` relates definitions, rules, and theorems from the paper into the Coq formalization. 
 
 Tachis is built using the [Iris](https://iris-project.org) program logic framework and mechanized in the [Coq proof assistant](https://coq.inria.fr/). 
 
