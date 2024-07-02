@@ -37,7 +37,7 @@ Section prp_prf.
          if: "b" then PRP #false "adv" #() else PRF #false "adv" #(). *)
 
   Local Opaque INR.
-  Local Opaque seq.
+  Local Opaque is_list.
 
   Section proofs.
     Context `{!parisRGS Σ}.
@@ -84,7 +84,7 @@ Section prp_prf.
       rel_apply_l (refines_list_seq_l _ _ _ _ 0%nat).
       iIntros (?) "%"...
       rel_alloc_l unused as "unused"...
-      rewrite /query_prp...
+      rewrite /query_prp... 
       rel_bind_l (q_calls _ _).
       rel_bind_r (q_calls _ _).
       unshelve iApply (refines_bind with "[-][]").
@@ -109,14 +109,14 @@ Section prp_prf.
         assumption.
       }
 
-      rewrite /q_calls /prf_cpa.q_calls /bounded_oracle.q_calls...
+      rewrite /q_calls/prf_cpa.q_calls /bounded_oracle.q_calls.
       rel_alloc_l counter as "counter".
       rel_alloc_r counter' as "counter'"...
       replace 0%Z with (Z.of_nat 0%nat) by lia.
       erewrite <-fmap_empty.
       iApply (refines_na_alloc
                 (∃ (q : nat) (M:gmap nat Z) (l:list nat),
-                    ↯ (fold_left Nat.add (seq q Q) 0%nat / S val_size)
+                    ↯ (fold_left Nat.add (seq q (Q-q)) 0%nat / S val_size)
                     ∗ counter ↦ #q
                     ∗ counter' ↦ₛ #q
                     ∗ map_list mapref ((λ b, LitV (LitInt b)) <$> M)
@@ -125,21 +125,22 @@ Section prp_prf.
                     ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S val_size)%nat ⌝
                     ∗ ⌜NoDup l⌝
                     ∗ ⌜is_list l v⌝
-                    ∗ ⌜(S val_size - q <=length l)%nat⌝  
+                    ∗ ⌜(S val_size - (size (dom M)) <=length l)%nat⌝  
                     ∗ unused ↦ v
                     ∗ ⌜(forall x:nat, x∈ ((map_img M):gset _) -> x ∈ l -> False)⌝
                     ∗ ⌜∀ x, x ∈ l -> (x<S val_size)%nat ⌝
                 )%I
                 (nroot.@"cpa")); iFrame.
-      iSplit. 
+      replace (Q-0) with Q by lia; iFrame.
+      iSplitL. 
       { (* solve obligations to establish invariant *)
         iPureIntro. simpl.
         eexists _.
         repeat split; try done.
         - by set_unfold.
-        - apply NoDup_seq. 
-        - by rewrite seq_length.
-        - intros ?. rewrite elem_of_seq. lia.         
+        - rewrite cons_seq. apply NoDup_seq. 
+        - rewrite cons_seq. by rewrite seq_length.
+        - intros ?. rewrite cons_seq. rewrite elem_of_seq. lia.         
       }
       iIntros "#Hinv".
       rel_arrow_val.
@@ -171,7 +172,19 @@ Section prp_prf.
         iSplitL.
         - iModIntro. iExists M, l. iFrame.
           iSplitL.
-          + admit.
+          + replace (Q-q) with (S (Q-S q)) by lia.
+            rewrite -cons_seq.
+            rewrite fold_symmetric; try lia.
+            simpl. rewrite -fold_symmetric; try lia.
+            rewrite plus_INR Rdiv_plus_distr.
+            iApply (ec_weaken with "[$]").
+            split.
+            * rewrite fold_symmetric; try lia.
+              apply Rcomplements.Rdiv_le_0_compat; last apply pos_INR_S.
+              apply pos_INR.
+            * rewrite Rplus_comm. apply Rplus_le_0_compat.
+              apply Rcomplements.Rdiv_le_0_compat; last apply pos_INR_S.
+              apply pos_INR.
           + iPureIntro; repeat split; (done||lia).
         - rewrite lookup_fmap_Some in Hres.
           destruct Hres as (?&<-&?).
@@ -179,6 +192,26 @@ Section prp_prf.
           simpl.
           repeat split; by eexists _.
       }
+      rel_load_l.
+      rel_apply_l refines_list_length_l; first done.
+      iIntros (?) "->"...
+      (* make sure list has at least one element*)
+      assert (size(dom M)<S val_size)%nat.
+      { apply Nat.nle_gt.
+        intros ?.
+        unshelve epose proof set_subseteq_size_eq (dom M) (set_seq 0 (S val_size)) _ _ as K.
+        - intros ??. rewrite elem_of_set_seq.
+          split; first lia.
+          set_unfold. naive_solver.
+        - rewrite size_set_seq. lia.
+        - eapply is_Some_None. rewrite <-Hres.
+          rewrite -elem_of_dom.
+          rewrite dom_fmap.
+          rewrite K.
+          rewrite elem_of_set_seq. lia.
+      }
+      (* here need to lift coupling rule to logical relations... *)
+      
       
     Admitted.
 

@@ -11,7 +11,7 @@ Section bounded_oracle.
   Definition q_calls (MAX : Z) : val :=
     λ:"Q" "f",
       let: "counter" := ref #0 in
-      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" < #MAX)))
+      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ #MAX)))
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 End bounded_oracle.

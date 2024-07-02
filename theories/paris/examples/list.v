@@ -1389,3 +1389,65 @@ Section list_specs_extra.
   Qed.
 
 End list_specs_extra.
+
+Section list_rel.
+
+    Context `{!parisRGS Σ}.
+    Context `[!Inject B val].
+
+    Lemma refines_list_length_l E K e A lv (l:list B):
+      ⌜is_list l lv⌝ -∗
+      (∀ v : nat, ⌜v = length l⌝  -∗ REL (fill K (of_val #v)) << e @ E : A)
+      -∗ REL (fill K (list_length lv)) << e @ E : A.
+    Proof.
+      iIntros (?) "Hlog".
+      iApply refines_wp_l.
+      by iApply wp_list_length.
+    Qed.
+    
+    Lemma refines_list_length_r E K e A lv (l:list B):
+      ⌜is_list l lv⌝ -∗
+      (∀ v : nat, ⌜v = length l⌝  -∗ REL e << (fill K (of_val #v)) @ E : A)
+      -∗ REL e << (fill K (list_length lv)) @ E : A.
+    Proof.
+      iIntros "? Hlog".
+      iApply refines_step_r.
+      iIntros.
+      iMod (spec_list_length with "[$][$]") as "(%&?&->)".
+      iModIntro.
+      iFrame. simpl.
+      by iApply ("Hlog").
+    Qed.
+
+    Lemma refines_list_remove_nth_l E K e A lv (l:list B) (i:nat):
+      ⌜is_list l lv ∧ i < length l⌝ -∗      
+      (∀ v : val, (∃ (e : B) (lv' : val) (l1 l2 : list B),
+                      ⌜l = l1 ++ e :: l2 ∧ length l1 = i ∧ v = InjRV (inject e, lv') ∧ is_list (l1 ++ l2) lv'⌝)
+                  -∗ REL (fill K (of_val v)) << e @ E : A)
+      -∗ REL (fill K (list_remove_nth lv #i)) << e @ E : A.
+    Proof.
+      iIntros (?) "Hlog".
+      iApply refines_wp_l.
+      by iApply wp_remove_nth.
+    Qed.
+
+    
+    Lemma refines_list_remove_nth_r E K e A lv (l:list B) (i:nat):
+      ⌜is_list l lv ∧ i < length l⌝ -∗      
+      (∀ v : val, (∃ (e : B) (lv' : val) (l1 l2 : list B),
+                      ⌜l = l1 ++ e :: l2 ∧ length l1 = i ∧ v = InjRV (inject e, lv') ∧ is_list (l1 ++ l2) lv'⌝)
+                  -∗ REL e << (fill K (of_val v)) @ E : A)
+      -∗ REL e << (fill K (list_remove_nth lv #i)) @ E : A.
+    Proof.
+      iIntros "?Hlog".
+      iApply refines_step_r.
+      iIntros.
+      iMod (spec_remove_nth with "[$][$]") as "(%&?&%&%&%&%&->&<-&->&%)".
+      iModIntro.
+      iFrame.
+      iApply ("Hlog").
+      iPureIntro.
+      naive_solver.
+    Qed.
+    
+End list_rel.
