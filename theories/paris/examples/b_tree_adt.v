@@ -860,7 +860,7 @@ Section b_tree_adt.
       tp_load. tp_pures.
       iMod (ec_zero) as "Hz".
       wp_apply (intermediate_annotated_optimized_refinement with "[$Hrel1 $Hrel2 $Hz HK]"); eauto.
-      (* TODO: need to generalize statmeents in b_tree.v to be parameterized over a context *)
+      iIntros (?) "HK". iMod ("Hclo" with "[Hp1 Hp2 $Hna]").
   Abort.
 
 
