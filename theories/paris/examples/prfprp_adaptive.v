@@ -122,7 +122,7 @@ Section prp_prf.
                     ∗ map_list mapref ((λ b, LitV (LitInt b)) <$> M)
                     ∗ map_slist mapref' ((λ b, LitV (LitInt b)) <$> M)
                     ∗ ⌜ (size (dom M) <= q)%nat ⌝
-                    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S val_size)%nat ⌝
+                    ∗ ⌜ ∀ x, x ∈ (dom M) -> (x < S val_size)%nat ⌝
                     ∗ ⌜NoDup l⌝
                     ∗ ⌜is_list l v⌝
                     ∗ ⌜(S val_size - (size (dom M)) <=length l)%nat⌝  
@@ -137,7 +137,6 @@ Section prp_prf.
         iPureIntro. simpl.
         eexists _.
         repeat split; try done.
-        - by set_unfold.
         - rewrite cons_seq. apply NoDup_seq. 
         - rewrite cons_seq. by rewrite seq_length.
         - intros ?. rewrite cons_seq. rewrite elem_of_seq. lia.         
