@@ -1304,21 +1304,36 @@ Section b_tree.
       end.
 
   (** lemmas about fst of treev **)
+  Lemma wp_fst_ranked_tree' E d tree l treev:
+    is_ab_b_tree d l tree ->
+    {{{ relate_ab_tree_with_ranked_v tree treev }}}
+    (Fst treev)@ E {{{ RET (#(children_num tree));
+                            ⌜∃ v', treev = (#(children_num tree), v')%V ⌝ ∗
+                            relate_ab_tree_with_ranked_v tree treev }}}.
+  Proof.
+    iIntros "%Htree %Φ Hrelate HΦ".
+    destruct tree; inversion Htree; subst.
+    - erewrite relate_ab_tree_with_ranked_v_Lf. iDestruct "Hrelate" as "->".
+      wp_pures. iApply "HΦ". iModIntro. iSplit; auto.
+      + iPureIntro. naive_solver.
+    - erewrite relate_ab_tree_with_ranked_v_Br.
+      iDestruct "Hrelate" as "(%&%&%&%&%&->&%&%&%&%&%&H1&%Hchild_nums&H3)".
+      subst.
+      rewrite /=. wp_pures.
+      erewrite list_sum_foldr; eauto.
+      iApply "HΦ". iModIntro. iSplit.
+      + iPureIntro. naive_solver.
+      + iExists _, _, _, _, _. iFrame. iFrame "%".
+        erewrite list_sum_foldr; eauto.
+  Qed.
+
   Lemma wp_fst_ranked_tree E d tree l treev:
     is_ab_b_tree d l tree ->
     {{{ relate_ab_tree_with_ranked_v tree treev }}}
     (Fst treev)@ E {{{ (v:nat), RET (#v); ⌜∃ v', treev = (#v, v')%V ⌝ ∗ relate_ab_tree_with_ranked_v tree treev }}}.
   Proof.
     iIntros "%Htree %Φ Hrelate HΦ".
-    destruct tree; inversion Htree; subst.
-    - erewrite relate_ab_tree_with_ranked_v_Lf. iDestruct "Hrelate" as "->".
-      wp_pures. iApply "HΦ". iModIntro. iSplit.
-      + iPureIntro. naive_solver.
-      + rewrite relate_ab_tree_with_ranked_v_Lf. naive_solver.
-    - erewrite relate_ab_tree_with_ranked_v_Br. iDestruct "Hrelate" as "(%&%&%&%&%&->&H)".
-      wp_pures. iApply "HΦ". iModIntro. iSplit.
-      + iPureIntro. naive_solver.
-      + rewrite relate_ab_tree_with_ranked_v_Br. iFrame. done.
+    wp_apply (wp_fst_ranked_tree' with "Hrelate"); eauto.
   Qed.
 
   Lemma spec_fst_ranked_tree E K d tree l treev:

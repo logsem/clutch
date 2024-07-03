@@ -29,6 +29,16 @@ Definition list_tail : val :=
   | NONE => NONE
   end.
 
+Definition list_fold_right : val :=
+  rec: "list_fold_right" "handler" "l" "acc" :=
+  match: "l" with
+     SOME "c" =>
+     let: "hd" := Fst "c" in
+     let: "tl" := Snd "c" in
+     "handler" "hd" ("list_fold_right" "handler" "tl" "acc")
+  |  NONE => "acc"
+  end.
+
 Definition list_fold : val :=
   rec: "list_fold" "handler" "acc" "l" :=
   match: "l" with
@@ -373,9 +383,9 @@ Section list_specs.
       wp_pures. iApply "HΦ". iPureIntro. right. eauto.
   Qed.
 
-  
+
   Lemma spec_list_head E lv l K:
-    is_list l lv -> 
+    is_list l lv ->
     ⤇ fill K (list_head lv) -∗
     spec_update E
     (∃ v, ⤇ fill K v∗
@@ -735,7 +745,7 @@ Section list_specs.
   Qed.
 
   Lemma spec_list_nth E l lv (i:nat) K:
-    is_list l lv -> 
+    is_list l lv ->
     ⤇ fill K (list_nth (Val lv) #i) -∗ spec_update E (∃ v, (⤇ fill K (of_val v)) ∗
                                                            ((⌜v = NONEV⌝ ∧ ⌜length l <= i⌝) ∨
                                                               ⌜∃ r, v = SOMEV (inject r) ∧ nth_error l i = Some r⌝)).
@@ -745,7 +755,7 @@ Section list_specs.
       simpl in Ha; subst; rewrite /list_nth; tp_pures; rewrite -/list_nth.
     - iApply spec_update_ret. iFrame. iLeft. iPureIntro. split; [done|simpl; lia].
     - destruct Ha as [lv' [Hlv Hlcoh]]; subst.
-      tp_pures; first naive_solver. case_bool_decide; tp_pures. 
+      tp_pures; first naive_solver. case_bool_decide; tp_pures.
       + iApply spec_update_ret. iFrame. iRight. iPureIntro. simplify_eq.
         replace i with 0%nat; last lia. simpl. naive_solver.
       + destruct i; first done.
@@ -896,7 +906,7 @@ Section list_specs.
         tp_pures.
         iModIntro.
         iExists _.
-        iFrame. 
+        iFrame.
         iExists _, (inject ((a :: l1) ++ l2)), (a :: l1), l2.
         iSplit.
         { iPureIntro; auto. }
@@ -1135,7 +1145,7 @@ Section list_specs_extra.
             fv (inject x) @ E
           {{{ fr, RET fr; ⌜fr = inject (f x)⌝ ∗ ψ (f x) }}}) ∗
           ⌜is_list l lv⌝ ∗
-          [∗ list] x ∈ l, γ x 
+          [∗ list] x ∈ l, γ x
     }}}
       list_map fv lv @ E
     {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
@@ -1388,7 +1398,7 @@ Section list_specs_extra.
       by apply is_list_inject.
   Qed.
 
-  
+
   Lemma spec_list_seq E K (n m : nat) :
     ⤇ fill K (list_seq #n #m) -∗ spec_update E (∃ v, (⤇ fill K (of_val v) ∗ ⌜is_list (seq n m) v⌝)).
   Proof.

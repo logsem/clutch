@@ -115,17 +115,19 @@ Section b_tree_adt.
      behaves like the "naive" algorithm, so we do not particularly
      care. *)
 
-  Definition list_sum : val :=
-    λ: "l", list_fold (λ: "x" "y", "x" + "y") #0 "l".
+  Definition do_list_sum : val :=
+    λ: "l", list_fold_right (λ: "x" "y", "x" + "y") "l" #0.
 
   Definition build_ranked : val :=
     rec: "build_ranked" "t" :=
         match: "t" with
         | InjL "v" => (#1, InjL "v")
         | InjR "l" =>
-            let: "rl" := list_map (λ: "p", ref ("build_ranked" !"p")) "l" in
-            let: "lens" := list_map (λ: "p", Fst (! "p")) "rl" in
-            (list_sum "lens", InjR "rl")
+            let: "rl" := list_map (λ: "p",
+                                      let: "c" := "build_ranked" !"p" in
+                                      (Fst "c", ref "c")) "l" in
+            let: "lens" := list_map (λ: "v", Fst "v") "rl" in
+            (do_list_sum "lens", InjR "rl")
         end.
 
   (* Tries to insert a new child v into the list of children l pointed to by p.
@@ -213,6 +215,34 @@ Section b_tree_adt.
   Definition btree_ptr' p depth tree l : iProp Σ :=
     ∃ treev, btree_ptrv' p treev depth tree l.
 
+  Lemma wp_do_list_sum (l : list nat) (v: val) :
+    {{{ ⌜ is_list l v ⌝ }}}
+      do_list_sum v
+    {{{ RET #(list_sum l); True }}}.
+  Proof.
+    clear.
+    iIntros (Φ) "%Hlist HΦ".
+    rewrite /do_list_sum.
+    wp_pures.
+    iInduction l as [| n l] "IH" forall (v Hlist Φ).
+    - wp_rec. inversion Hlist; subst. wp_pures.
+      iApply "HΦ"; auto.
+    - wp_rec. inversion Hlist as [tl [-> ?]]; subst. wp_pures.
+      wp_apply ("IH" with "[//]").
+      iIntros "_". wp_pures. iModIntro. simpl.
+      replace (Z.of_nat n + Z.of_nat (list_sum l))%Z with
+              (Z.of_nat (n + list_sum l)) by lia.
+      by iApply "HΦ".
+  Qed.
+
+  Lemma map_fst_combine {A B: Type} (l1 : list A) (l2: list B) :
+    length l1 = length l2 →
+    map fst (combine l1 l2) = l1.
+  Proof.
+    revert l2; induction l1 as [| a l1 IH] => //=.
+    intros [| b l2] => //=. intros. rewrite IH; eauto.
+  Qed.
+
   Lemma wp_build_ranked tree (treev : val) depth l :
     {{{ ⌜ @is_ab_b_tree max_child_num' depth l tree ⌝ ∗
         relate_ab_tree_with_v tree treev
@@ -241,18 +271,25 @@ Section b_tree_adt.
       (* Sadly, we can't just use wp_list_map because this doesn't fall into a pattern
          where there's a Gallina level map function. *)
       (* wp_apply (wp_list_mapi with "[$H1]"). *)
-      iAssert (WP list_map (λ: "p", ref (build_ranked ! "p"))%V v'
-                  {{ v, ∃ loc_lis' v_lis', ⌜ is_list loc_lis' v ⌝ ∗
+      iAssert (WP list_map (λ: "p",
+                                      let: "c" := build_ranked !"p" in
+                                      (Fst "c", ref "c"))%V v'
+                  {{ v', ∃ loc_lis' v_lis' num_lis',
+                        ⌜length l0.*2 = length loc_lis'⌝ ∗
+                        ⌜length l0.*2 = length v_lis'⌝ ∗
+                        ⌜length l0.*2 = length num_lis'⌝ ∗
+                        ⌜is_list (combine num_lis' loc_lis') v'⌝ ∗
                         ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
                         ([∗ list] x ∈ combine l0.*2 v_lis, relate_ab_tree_with_v x.1 x.2) ∗
                         ([∗ list] x ∈ combine loc_lis' v_lis', x.1 ↦ x.2) ∗
+                        ([∗ list] x ∈ combine l0.*2 num_lis', ⌜children_num x.1 = x.2⌝) ∗
                         ([∗ list] x ∈ combine l0.*2 v_lis', relate_ab_tree_with_ranked_v x.1 x.2) }})%I
         with "[H1 H2]" as "Hwp".
       { clear Htree Hnumchild.
         iInduction loc_lis as [| p loc_lis'] "IHmap" forall (l0 v_lis Heq2 Heq3 Hforall v' Hloc_lis).
         - wp_rec. inversion Hloc_lis. subst. wp_pures.
-          iModIntro. iExists [], []. rewrite /=. iFrame.
-          destruct l0; simpl in Heq2; try lia. eauto.
+          iModIntro. iExists [], [], []. rewrite /=. iFrame.
+          destruct l0; simpl in Heq2; try lia. rewrite //=.
         - wp_rec. inversion Hloc_lis as [vtl [Heq Hlist']]. subst.
           wp_pures.
           destruct l0 as [| (ov&t) l0]; simpl in Heq2; first by lia.
@@ -265,30 +302,43 @@ Section b_tree_adt.
             { inversion Hforall; eauto. }
           }
           iIntros (?) "Htl".
-          iDestruct "Htl" as (??) "(%His_list_tl&H1&H2&H1'&Ht2')".
+          iDestruct "Htl" as (???) "(%His_list_tl&%&%&%&H1&H2&H1'&H2'&H3')".
           inversion Hforall.
           subst.
           wp_pures. wp_load. wp_apply ("IH" with "[$Hrel //]").
           iIntros (treev') "(Hrel&Hrel')".
           wp_alloc p' as "Hp'".
-          replace (#p') with (inject (p' : loc)) by auto.
+          wp_apply (wp_fst_ranked_tree' with "[$]"); first eauto.
+          iIntros "Hn".
+          iDestruct "Hn" as "(%Hn&Hrel')".
+          destruct Hn as (treeb'&->).
+          wp_pures.
+          replace ((#(children_num t), #p')%V) with (inject (children_num t : nat, p' : loc) : val) by auto.
           wp_apply (wp_list_cons); eauto.
-          iIntros (? Hlist).
-          iExists _, (treev' :: v_lis'). iSplit; first done.
-          rewrite /=. iFrame.
+          iIntros (v0' Hlist).
+          iExists (p' :: _), ((#(children_num t), treeb')%V :: v_lis'), ((children_num t) :: num_lis').
+          simpl. iFrame. iPureIntro; split_and!; eauto.
       }
       iApply (wp_wand with "Hwp").
       iIntros (?) "H".
-      iDestruct "H" as (???) "(H1&H2&H1'&H2')".
+      iDestruct "H" as (???????) "(H1&H2&H1'&H2'&H3')".
       wp_pures.
       wp_bind (list_map _ _).
-      (*
-      iAssert (WP list_map (λ: "p", Fst ! "p")
-                  {{ v, ⌜
-                      [∗ list] x ∈ combine loc_lis' v_lis', x.1 ↦ x.2
-                      [∗ list] x ∈ combine l0.*2 v_lis', relate_ab_tree_with_ranked_v x.1 x.2 }}
-       *)
-  Abort.
+      wp_apply (wp_list_map (combine num_lis' loc_lis') fst).
+      { iSplit; last by done.
+        iIntros ((n&l) Φ') "_ !> HΦ".
+        wp_pures. iApply "HΦ". eauto.
+      }
+      iIntros (rv) "%Hislist".
+      wp_pures.
+      wp_apply (wp_do_list_sum); first eauto.
+      iIntros "_". wp_pures.
+      iModIntro. iApply "HΦ".
+      iSplitL "H1 H2".
+      { rewrite relate_ab_tree_with_v_Br. iFrame. eauto. }
+      { rewrite relate_ab_tree_with_ranked_v_Br. iFrame.
+        iExists _, _. rewrite map_fst_combine //. lia. }
+  Qed.
 
   Lemma wp_init_tree (v : val) :
     {{{ True }}}
