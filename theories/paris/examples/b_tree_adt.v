@@ -5,6 +5,7 @@
    b_tree.v *)
 
 
+
 From Coq.Program Require Import Wf.
 From stdpp Require Import list.
 From clutch.paris Require Import paris list.
@@ -13,6 +14,88 @@ From clutch.paris Require Import b_tree.
 From clutch Require Export paris.
 Set Default Proof Using "Type*".
 Opaque INR.
+
+(* TODO: upstream? *)
+Section big_sepL.
+  Context `{!parisRGS Σ}.
+
+  Lemma big_sepL_combine_swap {A B : Type} (l1 : list A) (l2: list B) (Φ : A → B → iProp Σ) :
+    ([∗ list] x ∈ combine l1 l2, Φ x.1 x.2) ⊢ ([∗ list] y ∈ combine l2 l1, Φ y.2 y.1).
+  Proof.
+    iInduction l1 as [| a l1] "IH" forall (l2).
+    - rewrite //=. destruct l2; eauto.
+    - destruct l2 as [| b l2].
+      * rewrite //=.
+      * rewrite /=. iIntros "($&H)". iApply "IH". auto.
+  Qed.
+
+  Lemma big_sepL_combine_left {A B : Type} (l1 : list A) (l2: list B) (Φ : A → B → iProp Σ) :
+    length l1 = length l2 →
+    ([∗ list] x ∈ combine l1 l2, Φ x.1 x.2) ⊣⊢ ([∗ list] i ↦ a ∈ l1, ∃ b, ⌜ l2 !! i = Some b ⌝ ∗ Φ a b).
+  Proof.
+    iInduction l1 as [| a l1] "IH" forall (l2).
+    - rewrite //=.
+    - iIntros (Hlen). destruct l2 as [| b l2].
+      * simpl in Hlen; lia.
+      * rewrite /=. inversion Hlen; subst. iSpecialize ("IH" $! l2 with "[//]").
+        iDestruct "IH" as "(IH1&IH2)".
+        iSplit; iIntros "(Hhd&Htl)".
+        { iDestruct ("IH1" with "[$]") as "$"; by iFrame. }
+        { iDestruct ("IH2" with "[$]") as "$".
+          iDestruct "Hhd" as (?) "(%Heq&?)". inversion Heq; iFrame. }
+  Qed.
+
+  Lemma big_sepL_combine_right {A B : Type} (l1 : list A) (l2: list B) (Φ : A → B → iProp Σ) :
+    length l1 = length l2 →
+    ([∗ list] x ∈ combine l1 l2, Φ x.1 x.2) ⊣⊢ ([∗ list] i ↦ b ∈ l2, ∃ a, ⌜ l1 !! i = Some a ⌝ ∗ Φ a b).
+  Proof.
+    iIntros (Hlen). rewrite -big_sepL_combine_left; auto.
+    iSplit.
+    - iApply big_sepL_combine_swap.
+    - iIntros "H". iDestruct (big_sepL_combine_swap _ _ (λ b a, Φ a b) with "H") as "H".
+      auto.
+  Qed.
+
+  Lemma big_sepL_combine_chain_left {A B C: Type} l1 l2 l3 (Φ : A → C → iProp Σ) (Ψ : B → C → iProp Σ) :
+    length l1 = length l3 →
+    length l2 = length l3 →
+    ([∗ list] x ∈ combine l1 l3, Φ x.1 x.2) ∗
+    ([∗ list] x ∈ combine l2 l3, Ψ x.1 x.2)
+    ⊢ ([∗ list] i ↦ a ∈ l1, ∃ b c, ⌜ l2 !! i = Some b ∧ l3 !! i = Some c ⌝ ∗ Φ a c ∗ Ψ b c).
+  Proof.
+    iInduction l1 as [| a l1] "IH" forall (l2 l3).
+    - rewrite /=; auto.
+    -  iIntros (Hlen13 Hlen23) "(Hl1l3&Hl2l3)".
+       destruct l3 as [| c l3]; first by (inversion Hlen13).
+       destruct l2 as [| b l2]; first by (inversion Hlen23).
+       rewrite /=.
+       iDestruct "Hl1l3" as "(Hac&Hl1l3)".
+       iDestruct "Hl2l3" as "(Hbc&Hl2l3)".
+       iSplitL "Hac Hbc"; first by iFrame.
+       iApply "IH"; iFrame; eauto.
+  Qed.
+
+  Lemma big_sepL_combine_unchain_left {A B C: Type} l1 l2 l3 (Φ : A → C → iProp Σ) (Ψ : B → C → iProp Σ) :
+    length l1 = length l3 →
+    length l2 = length l3 →
+    ([∗ list] i ↦ a ∈ l1, ∃ b c, ⌜ l2 !! i = Some b ∧ l3 !! i = Some c ⌝ ∗ Φ a c ∗ Ψ b c)
+    ⊢ ([∗ list] x ∈ combine l1 l3, Φ x.1 x.2) ∗ ([∗ list] x ∈ combine l2 l3, Ψ x.1 x.2).
+  Proof.
+    iInduction l1 as [| a l1] "IH" forall (l2 l3);
+    iIntros (Hlen13 Hlen23) "H";
+    destruct l3 as [| c l3]; try (by inversion Hlen13);
+    destruct l2 as [| b l2]; try (by inversion Hlen23).
+    - rewrite /=; auto.
+    - rewrite /=.
+      iDestruct "H" as "(Hhd&Htl)".
+      iDestruct ("IH" with "[] [] Htl") as "(Htl1&Htl2)"; [ auto | auto |].
+      iDestruct "Hhd" as (? ?) "(%Heq&HΦ&HΨ)".
+      destruct Heq as (Heq1&Heq2). inversion Heq1; subst. inversion Heq2; subst.
+      iFrame.
+  Qed.
+
+End big_sepL.
+
 
 Section b_tree_adt.
 
@@ -25,21 +108,33 @@ Section b_tree_adt.
   Definition init_ranked_tree : val :=
     λ: "v", ref ((#1, InjL "v")).
 
-  (* Tries to insert a new child into a list of children. The child list may already be full,
-     so we return a pair, where the second component is (optionally)  list of the subset of children
-     resulting from splitting the list.
+  (* Given a non-ranked tree, creates a copy that is ranked and
+     returns it.  Of course, this would be quite an expensive
+     operation. But we are only using this for purposes of the
+     specification (showing that the optimized sampling algorithm
+     behaves like the "naive" algorithm, so we do not particularly
+     care. *)
 
-     An optimal B+-tree would try to split the lists evenly, but that is really irrelevant for our purposes,
-     so for simplicity we just put solely the new element in the second list.
-   *)
+  Definition list_sum : val :=
+    λ: "l", list_fold (λ: "x" "y", "x" + "y") #0 "l".
 
-  (*
-  Definition insert_child_list : val :=
-    λ: "l" "v",
-      if: list_length "l" < #(S max_child_num') then
-        (InjR (list_cons (ref "v") "l"), NONE)
-      else
-        (InjR ("l"), SOME (InjR (list_cons (ref "v") list_nil))).
+  Definition build_ranked : val :=
+    rec: "build_ranked" "t" :=
+        match: "t" with
+        | InjL "v" => (#1, InjL "v")
+        | InjR "l" =>
+            let: "rl" := list_map (λ: "p", ref ("build_ranked" !"p")) "l" in
+            let: "lens" := list_map (λ: "p", Fst (! "p")) "rl" in
+            (list_sum "lens", InjR "rl")
+        end.
+
+  (* Tries to insert a new child v into the list of children l pointed to by p.
+     If the child list l is not already full, this returns None.
+     However, if the list l is full full, we return a new node that will need to become a sibling of p.
+
+     An optimal B+-tree would try to split l evenly, with half (+- new node) going to the new sibling and
+     half staying in p, but that is really irrelevant for our purposes,
+     so for simplicity we just put solely the new child v in the second list.
    *)
 
   Definition insert_child_list' : val :=
@@ -49,7 +144,6 @@ Section b_tree_adt.
         NONE
       else
         SOME (InjR (list_cons (ref "v") list_nil)).
-
 
   Definition get : val :=
     (λ: "ov",
@@ -118,6 +212,83 @@ Section b_tree_adt.
 
   Definition btree_ptr' p depth tree l : iProp Σ :=
     ∃ treev, btree_ptrv' p treev depth tree l.
+
+  Lemma wp_build_ranked tree (treev : val) depth l :
+    {{{ ⌜ @is_ab_b_tree max_child_num' depth l tree ⌝ ∗
+        relate_ab_tree_with_v tree treev
+    }}}
+      build_ranked treev
+   {{{ treev', RET treev';
+       relate_ab_tree_with_v tree treev ∗
+       relate_ab_tree_with_ranked_v tree treev' }}}.
+  Proof.
+    iInduction depth as [| depth] "IH" forall (tree treev l).
+    - iIntros (Φ) "(%Htree&Hrelate) HΦ".
+      wp_rec.
+      inversion Htree; subst.
+      iEval (rewrite relate_ab_tree_with_v_Lf) in "Hrelate". iDestruct "Hrelate" as %->.
+      wp_pures. iModIntro.
+      iApply "HΦ".
+      rewrite relate_ab_tree_with_v_Lf.
+      rewrite relate_ab_tree_with_ranked_v_Lf; eauto.
+    - iIntros (Φ) "(%Htree&Hrelate) HΦ".
+      wp_rec.
+      inversion Htree as [| ? l0 Hforall Hnumchild]; subst.
+      iEval (rewrite relate_ab_tree_with_v_Br) in "Hrelate".
+      iDestruct "Hrelate" as (??? Heq1 Heq2 Heq3 Hloc_lis) "(H1&H2)".
+      subst. wp_pures.
+      wp_bind (list_map _ _).
+      (* Sadly, we can't just use wp_list_map because this doesn't fall into a pattern
+         where there's a Gallina level map function. *)
+      (* wp_apply (wp_list_mapi with "[$H1]"). *)
+      iAssert (WP list_map (λ: "p", ref (build_ranked ! "p"))%V v'
+                  {{ v, ∃ loc_lis' v_lis', ⌜ is_list loc_lis' v ⌝ ∗
+                        ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ x.2) ∗
+                        ([∗ list] x ∈ combine l0.*2 v_lis, relate_ab_tree_with_v x.1 x.2) ∗
+                        ([∗ list] x ∈ combine loc_lis' v_lis', x.1 ↦ x.2) ∗
+                        ([∗ list] x ∈ combine l0.*2 v_lis', relate_ab_tree_with_ranked_v x.1 x.2) }})%I
+        with "[H1 H2]" as "Hwp".
+      { clear Htree Hnumchild.
+        iInduction loc_lis as [| p loc_lis'] "IHmap" forall (l0 v_lis Heq2 Heq3 Hforall v' Hloc_lis).
+        - wp_rec. inversion Hloc_lis. subst. wp_pures.
+          iModIntro. iExists [], []. rewrite /=. iFrame.
+          destruct l0; simpl in Heq2; try lia. eauto.
+        - wp_rec. inversion Hloc_lis as [vtl [Heq Hlist']]. subst.
+          wp_pures.
+          destruct l0 as [| (ov&t) l0]; simpl in Heq2; first by lia.
+          destruct v_lis as [| v' v_lis]; simpl in Heq3; first by lia.
+          iEval (rewrite /=) in "H1". iDestruct "H1" as "(Hp&Htl1)".
+          iEval (rewrite /=) in "H2". iDestruct "H2" as "(Hrel&Htl2)".
+          wp_bind (list_map _ _).
+          iApply (wp_wand with "[Htl1 Htl2]").
+          { iDestruct ("IHmap" with "[] [] [] [] Htl1 Htl2") as "$"; eauto.
+            { inversion Hforall; eauto. }
+          }
+          iIntros (?) "Htl".
+          iDestruct "Htl" as (??) "(%His_list_tl&H1&H2&H1'&Ht2')".
+          inversion Hforall.
+          subst.
+          wp_pures. wp_load. wp_apply ("IH" with "[$Hrel //]").
+          iIntros (treev') "(Hrel&Hrel')".
+          wp_alloc p' as "Hp'".
+          replace (#p') with (inject (p' : loc)) by auto.
+          wp_apply (wp_list_cons); eauto.
+          iIntros (? Hlist).
+          iExists _, (treev' :: v_lis'). iSplit; first done.
+          rewrite /=. iFrame.
+      }
+      iApply (wp_wand with "Hwp").
+      iIntros (?) "H".
+      iDestruct "H" as (???) "(H1&H2&H1'&H2')".
+      wp_pures.
+      wp_bind (list_map _ _).
+      (*
+      iAssert (WP list_map (λ: "p", Fst ! "p")
+                  {{ v, ⌜
+                      [∗ list] x ∈ combine loc_lis' v_lis', x.1 ↦ x.2
+                      [∗ list] x ∈ combine l0.*2 v_lis', relate_ab_tree_with_ranked_v x.1 x.2 }}
+       *)
+  Abort.
 
   Lemma wp_init_tree (v : val) :
     {{{ True }}}

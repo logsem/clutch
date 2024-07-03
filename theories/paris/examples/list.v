@@ -1128,6 +1128,42 @@ Section list_specs_extra.
   Context `{!parisGS Σ}.
   Context `[!Inject A val].
 
+  Lemma wp_list_map_strong `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val)
+        (γ : A -> iProp Σ) (ψ : B -> iProp Σ) E :
+    {{{ □ (∀ (x : A),
+          {{{ γ x }}}
+            fv (inject x) @ E
+          {{{ fr, RET fr; ⌜fr = inject (f x)⌝ ∗ ψ (f x) }}}) ∗
+          ⌜is_list l lv⌝ ∗
+          [∗ list] x ∈ l, γ x 
+    }}}
+      list_map fv lv @ E
+    {{{ rv, RET rv; ⌜is_list (List.map f l) rv⌝ ∗
+        [∗ list] y ∈ (List.map f l), ψ y
+    }}}.
+  Proof.
+    iIntros (Φ) "[#Hf [%Hil Hl]] HΦ".
+    iInduction l as [ | h t] "IH" forall (lv Hil Φ); simpl in Hil; try subst; rewrite /list_map.
+    - wp_pures.
+      iApply "HΦ". iModIntro.
+      iSplit.
+      * iPureIntro. rewrite /is_list; done.
+      * rewrite /=. auto.
+    - wp_pures.
+      iDestruct "Hl" as "(Hd&Htl)".
+      destruct Hil as (lv' & -> & Hil').
+      do 4 wp_pure _.
+      fold list_map.
+      wp_apply ("IH" with "[] Htl"); [done |].
+      iIntros (rv) "(%Hil_rv&Htl)"; wp_pures.
+      wp_apply ("Hf" with "Hd").
+      iIntros (fr) "(->&Hhd)".
+      wp_apply wp_list_cons; [done |].
+      iIntros (v) "%Hilf".
+      iApply "HΦ"; auto.
+      rewrite /=; iFrame. auto.
+  Qed.
+
   Lemma wp_list_map `{!Inject B val} (l : list A) (f : A -> B) (fv lv : val) E :
     {{{ (∀ (x : A),
           {{{ True }}}
