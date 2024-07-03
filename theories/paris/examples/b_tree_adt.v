@@ -1050,6 +1050,12 @@ Section b_tree_adt.
       let: "t" := !"pt" in
       optimized_sampler_annotated_prog (max_child_num' := max_child_num') "t" #().
 
+  Definition naive_sampler_annotated_prog' : val :=
+    λ: "pt",
+       let: "t" := !"pt" in
+       let: "rt" := build_ranked "t" in
+       naive_sampler_annotated_prog "rt" #().
+
   Local Close Scope R.
 
   (* The abstract type of btrees, as an existential. The first operation is
@@ -1061,6 +1067,9 @@ Section b_tree_adt.
 
   Definition intermediate_btree_pack : val :=
     (init_tree, insert_tree, intermediate_sampler_prog').
+
+  Definition naive_annotated_btree_pack : val :=
+    (init_tree, insert_tree, naive_sampler_annotated_prog').
 
   Definition bN := nroot.@"b_tree".
 
@@ -1214,5 +1223,67 @@ Section b_tree_adt.
       destruct Hforall as (n&->). naive_solver.
   Qed.
 
+  Lemma naive_annotated_refines_intermediate Δ :
+    ⊢ REL naive_annotated_btree_pack  << intermediate_btree_pack : interp btreeτ Δ.
+  Proof.
+    iApply (refines_pack R).
+    rewrite refines_eq /refines_def. iIntros (K ε) "HK Hown Heps %Hlt".
+    wp_pures.
+    iModIntro. iExists _; iFrame. iSplit; first eauto. simpl.
+    iExists _, _, _, _.
+    iSplit; first eauto.
+    iSplit; first eauto.
+    clear Δ K ε Hlt.
+    (* Break up the nested pair interpretation on the left so
+       that we get a flat hierarchy of 3 goals for each component of the 3 tuple *)
+    iSplit; first (iExists _, _, _, _; iSplit; first eauto; iSplit; first eauto; iSplit).
+    - iApply init_tree_self_lrel.
+    - iApply insert_tree_self_lrel.
+    - iIntros (vv1 vv2) "!>".
+      iIntros "HR".
+      iDestruct "HR" as (p1 p2) "(->&->&Hinv)".
+      iApply (refines_na_inv with "[$Hinv]"); first done.
+      iIntros "(Hbtree&Hclo)".
+      rewrite /intermediate_sampler_prog'.
+      rewrite /naive_sampler_annotated_prog'.
+      rel_pures_l. rel_pures_r.
+      rewrite refines_eq /refines_def.
+      iIntros (K ε) "HK Hna Heps %Hlt".
+      wp_pures.
+      iDestruct "Hbtree" as (???) "(%Hforall&Hb1&Hb2)".
+      iDestruct "Hb1" as (?) "Hb1".
+      iDestruct "Hb2" as (?) "Hb2".
+      tp_bind (find_depth _)%E.
+      iMod (spec_find_depth with "Hb2 HK") as "(HK&Hb2)".
+      iEval (simpl) in "HK".
+      tp_pures.
+
+      iDestruct "Hb1" as "(%His_tree&Hp1&Hrel1)".
+      iDestruct "Hb2" as "(%&Hp2&Hrel2)".
+      iApply wp_fupd.
+      wp_load. wp_pures.
+      tp_load. tp_pures.
+
+      wp_apply (wp_build_ranked with "[$Hrel1]"); first eauto.
+      iIntros (treev') "(Hrel1&Hrel1_ranked)".
+      wp_pures.
+      assert (Hsplit: (ε = ε/2 + ε/2)%R).
+      { nra. }
+      assert (Hle: (0 <= ε / 2)%R).
+      { nra. }
+      rewrite Hsplit ec_split; auto.
+      iDestruct "Heps" as "(Heps1&Heps2)".
+      wp_apply (annotated_naive_intermediate_refinement with "[$Hrel1_ranked $Hrel2 $HK Heps1]"); eauto.
+      2:{ set (eps' := mknonnegreal _ Hle).
+          replace (ε/2)%R with (NNRbar_to_real (NNRbar.Finite eps')); eauto. }
+      { rewrite //=. nra. }
+      iIntros (?) "(HK&%Helem&Hrel1_ranked&Hrel2)". iMod ("Hclo" with "[Hp1 Hp2 $Hna Hrel1 Hrel2]").
+      { iNext. rewrite /btree_inv. iExists _, _, _.
+        iFrame "%". iSplitL "Hp1 Hrel1"; iExists _; iFrame; eauto. }
+      iModIntro. iExists _, _. iFrame. iSplit; first by (iPureIntro; nra).
+      iPureIntro.
+      eapply Forall_forall in Hforall; last eauto.
+      destruct Hforall as (n&->). naive_solver.
+  Qed.
 
 End b_tree_adt.
