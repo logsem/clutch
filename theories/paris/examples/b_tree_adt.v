@@ -235,6 +235,26 @@ Section b_tree_adt.
       by iApply "HΦ".
   Qed.
 
+  Lemma spec_do_list_sum K E (l : list nat) (v: val) :
+    ⌜ is_list l v ⌝ -∗
+    ⤇ fill K (do_list_sum v) -∗
+    spec_update E (⤇ fill K #(list_sum l)).
+  Proof.
+    clear.
+    iIntros "%Hlist HK".
+    rewrite /do_list_sum.
+    tp_pures.
+    iInduction l as [| n l] "IH" forall (K v Hlist).
+    - tp_rec. inversion Hlist; subst. tp_pures. eauto.
+    - tp_rec. inversion Hlist as [tl [-> ?]]; subst. tp_pures.
+      tp_bind (list_fold_right _ _ _).
+      iMod ("IH" with "[//] HK") as "HK".
+      iEval (simpl) in "HK". tp_pures. iModIntro. simpl.
+      replace (Z.of_nat n + Z.of_nat (list_sum l))%Z with
+              (Z.of_nat (n + list_sum l)) by lia.
+      eauto.
+  Qed.
+
   Lemma map_fst_combine {A B: Type} (l1 : list A) (l2: list B) :
     length l1 = length l2 →
     map fst (combine l1 l2) = l1.
@@ -337,6 +357,106 @@ Section b_tree_adt.
       iSplitL "H1 H2".
       { rewrite relate_ab_tree_with_v_Br. iFrame. eauto. }
       { rewrite relate_ab_tree_with_ranked_v_Br. iFrame.
+        iExists _, _. rewrite map_fst_combine //. lia. }
+  Qed.
+
+  Lemma spec_build_ranked K E tree (treev : val) depth l :
+    ⌜ @is_ab_b_tree max_child_num' depth l tree ⌝ -∗
+    relate_ab_tree_with_v' tree treev -∗
+    ⤇ fill K (build_ranked treev) -∗
+   spec_update E (∃ treev' : val,
+       ⤇ fill K treev' ∗
+       relate_ab_tree_with_v' tree treev ∗
+       relate_ab_tree_with_ranked_v' tree treev').
+  Proof.
+    iInduction depth as [| depth] "IH" forall (K tree treev l).
+    - iIntros "%Htree Hrelate Hspec".
+      tp_rec.
+      inversion Htree; subst.
+      iEval (rewrite relate_ab_tree_with_v_Lf') in "Hrelate". iDestruct "Hrelate" as %->.
+      tp_pures. iModIntro.
+      iExists _. iFrame.
+      rewrite relate_ab_tree_with_v_Lf'.
+      rewrite relate_ab_tree_with_ranked_v_Lf'; eauto.
+    - iIntros "%Htree Hrelate Hspec".
+      tp_rec.
+      inversion Htree as [| ? l0 Hforall Hnumchild]; subst.
+      iEval (rewrite relate_ab_tree_with_v_Br') in "Hrelate".
+      iDestruct "Hrelate" as (??? Heq1 Heq2 Heq3 Hloc_lis) "(H1&H2)".
+      subst. tp_pures.
+      tp_bind (list_map _ _).
+      iAssert (∀ K: list (ectxi_language.ectx_item prob_ectxi_lang),
+                      ⤇ fill K (list_map (λ: "p",
+                                      let: "c" := build_ranked !"p" in
+                                      (Fst "c", ref "c"))%V v')
+               -∗ spec_update E (∃ v' : val,
+                        ⤇ fill K v' ∗
+                        ∃ loc_lis' v_lis' num_lis',
+                        ⌜length l0.*2 = length loc_lis'⌝ ∗
+                        ⌜length l0.*2 = length v_lis'⌝ ∗
+                        ⌜length l0.*2 = length num_lis'⌝ ∗
+                        ⌜is_list (combine num_lis' loc_lis') v'⌝ ∗
+                        ([∗ list] x ∈ combine loc_lis v_lis, x.1 ↦ₛ x.2) ∗
+                        ([∗ list] x ∈ combine l0.*2 v_lis, relate_ab_tree_with_v' x.1 x.2) ∗
+                        ([∗ list] x ∈ combine loc_lis' v_lis', x.1 ↦ₛ x.2) ∗
+                        ([∗ list] x ∈ combine l0.*2 num_lis', ⌜children_num x.1 = x.2⌝) ∗
+                        ([∗ list] x ∈ combine l0.*2 v_lis', relate_ab_tree_with_ranked_v' x.1 x.2)))%I
+        with "[H1 H2]" as "Hwp".
+      { clear Htree Hnumchild K.
+        iInduction loc_lis as [| p loc_lis'] "IHmap" forall (l0 v_lis Heq2 Heq3 Hforall v' Hloc_lis);
+          iIntros (K) "HK".
+        - tp_rec. inversion Hloc_lis. subst. tp_pures.
+          iModIntro. iExists _; iFrame. iExists [], [], []. rewrite /=. iFrame.
+          destruct l0; simpl in Heq2; try lia. rewrite //=.
+        - tp_rec. inversion Hloc_lis as [vtl [Heq Hlist']]. subst.
+          tp_pures.
+          destruct l0 as [| (ov&t) l0]; simpl in Heq2; first by lia.
+          destruct v_lis as [| v' v_lis]; simpl in Heq3; first by lia.
+          iEval (rewrite /=) in "H1". iDestruct "H1" as "(Hp&Htl1)".
+          iEval (rewrite /=) in "H2". iDestruct "H2" as "(Hrel&Htl2)".
+          tp_bind (list_map _ _).
+          iDestruct ("IHmap" with "[] [] [] [] Htl1 Htl2") as "Htl"; eauto.
+          { inversion Hforall; eauto. }
+          iMod ("Htl" with "HK") as (?) "[Hspec Htl]".
+          iDestruct "Htl" as (???) "(%His_list_tl&%&%&%&H1&H2&H1'&H2'&H3')".
+          inversion Hforall.
+          subst.
+          iEval (simpl) in "Hspec".
+          tp_pures. tp_load.
+          tp_bind (build_ranked _).
+          iMod ("IH" with "[//] Hrel Hspec") as (treev') "(Hspec&Hrel&Hrel')".
+          iEval (simpl) in "Hspec".
+          tp_pures.
+          tp_alloc as p' "Hp'".
+          tp_bind (Fst _).
+          iMod(spec_fst_ranked_tree' with "[$] [$]") as "(Hspec&%Hn&Hrel')"; first by eauto.
+          destruct Hn as (treeb'&->).
+          iEval (simpl) in "Hspec".
+          tp_pures.
+          replace ((#(children_num t), #p')%V) with (inject (children_num t : nat, p' : loc) : val) by auto.
+          iMod (spec_list_cons with "[] [$]") as (v0') "(Hspec&%Hlist)"; first eauto.
+          iModIntro.
+          iExists _. iFrame "Hspec".
+          iExists (p' :: _), ((#(children_num t), treeb')%V :: v_lis'), ((children_num t) :: num_lis').
+          simpl. iFrame. iPureIntro; split_and!; eauto.
+      }
+      iMod ("Hwp" with "[$]") as (?) "(Hspec&H)".
+      iDestruct "H" as (???????) "(H1&H2&H1'&H2'&H3')".
+      simpl. tp_pures.
+      tp_bind (list_map _ _).
+      iMod (spec_list_map _ (combine num_lis' loc_lis') fst with "[] [//] Hspec") as (rv) "(Hspec&%Hislist)".
+      { iModIntro. iIntros (? (n&?)) "HK". tp_pures. iModIntro. eauto. }
+      iEval (simpl) in "Hspec".
+      tp_pures.
+      tp_bind (do_list_sum _).
+      iMod (spec_do_list_sum with "[//] [$]") as "Hspec".
+      iEval (simpl) in "Hspec".
+      tp_pures.
+      iModIntro.
+      iExists _; iFrame "Hspec".
+      iSplitL "H1 H2".
+      { rewrite relate_ab_tree_with_v_Br'. iFrame. eauto. }
+      { rewrite relate_ab_tree_with_ranked_v_Br'. iFrame.
         iExists _, _. rewrite map_fst_combine //. lia. }
   Qed.
 

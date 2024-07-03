@@ -1336,6 +1336,32 @@ Section b_tree.
     wp_apply (wp_fst_ranked_tree' with "Hrelate"); eauto.
   Qed.
 
+
+  Lemma spec_fst_ranked_tree' E K d tree l treev:
+    is_ab_b_tree d l tree ->
+    relate_ab_tree_with_ranked_v' tree treev -∗
+    ⤇ fill K (Fst treev) -∗
+    spec_update E (⤇ fill K (#(children_num tree)) ∗ ⌜∃ v', treev = (#(children_num tree), v')%V⌝ ∗
+                   relate_ab_tree_with_ranked_v' tree treev).
+  Proof.
+    iIntros "%Htree Hrelate Hspec".
+    destruct tree; inversion Htree; subst.
+    - iEval (erewrite relate_ab_tree_with_ranked_v_Lf') in "Hrelate". iDestruct "Hrelate" as "->".
+      tp_pures. iModIntro. iFrame "Hspec". iSplit; auto.
+      + iPureIntro. naive_solver.
+      + erewrite relate_ab_tree_with_ranked_v_Lf'; auto.
+    - iEval (erewrite relate_ab_tree_with_ranked_v_Br') in "Hrelate".
+      iDestruct "Hrelate" as "(%&%&%&%&%&->&%&%&%&%&%&H1&%Hchild_nums&H3)".
+      subst.
+      rewrite /=. tp_pures.
+      erewrite list_sum_foldr; eauto.
+      iModIntro. iFrame. iSplit.
+      + iPureIntro. naive_solver.
+      + rewrite relate_ab_tree_with_ranked_v_Br'.
+        iExists _, _, _, _, _. iFrame. iFrame "%".
+        erewrite list_sum_foldr; eauto.
+  Qed.
+
   Lemma spec_fst_ranked_tree E K d tree l treev:
     is_ab_b_tree d l tree ->
     relate_ab_tree_with_ranked_v' tree treev -∗

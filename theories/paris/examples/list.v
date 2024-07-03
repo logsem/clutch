@@ -1201,6 +1201,31 @@ Section list_specs_extra.
       iApply "HΦ"; auto.
   Qed.
 
+  Lemma spec_list_map `{!Inject B val} K (l : list A) (f : A -> B) (fv lv : val) E :
+    □ (∀ K (x : A),
+          ⤇ fill K (fv (inject x)) -∗
+          spec_update E (∃ fr : val, ⤇ fill K fr ∗ ⌜fr = inject (f x)⌝)) -∗
+      ⌜is_list l lv⌝ -∗
+      ⤇ fill K (list_map fv lv) -∗
+    spec_update E (∃ rv : val, ⤇ fill K rv ∗ ⌜is_list (List.map f l) rv⌝).
+  Proof.
+    iIntros "#Hf %Hil HK".
+    iInduction l as [ | h t] "IH" forall (K lv Hil); simpl in Hil; try subst; rewrite /list_map.
+    - tp_pures. iModIntro; iFrame; eauto.
+    - tp_pures.
+      destruct Hil as (lv' & -> & Hil').
+      do 4 tp_pure.
+      fold list_map.
+      tp_bind (list_map _ _).
+      iMod ("IH" with "[//] [$]") as (rv) "(Hspec&%Hil_rv)".
+      simpl. tp_pures.
+      tp_bind (fv _).
+      iMod ("Hf" with "[$]") as (fr) "(HK&->)".
+      simpl.
+      iMod (spec_list_cons with "[//] [$]") as (v) "(HK&%Hilf)".
+      iModIntro; iExists _; iFrame. eauto.
+  Qed.
+
   (* TODO: is this in some Coq library? *)
   Fixpoint mapi_loop {B : Type} (f : nat -> A -> B) (k : nat) (l : list A) : list B :=
     match l with
