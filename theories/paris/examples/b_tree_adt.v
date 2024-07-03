@@ -1683,3 +1683,61 @@ Section b_tree_adt.
   Qed.
 
 End b_tree_adt.
+
+Section b_tree_ctx_equiv.
+
+  (* TODO: for some reason etransitivity is not working correctly. *)
+  Existing Instance ctx_refines_transitive.
+
+  Lemma naive_refines_opt (n: nat) (Hlt: 2 ≤ n) :
+    ∅ ⊨ naive_btree_pack (max_child_num' := n) ≤ctx≤ opt_btree_pack (max_child_num' := n) : btreeτ.
+  Proof.
+    assert (parisRGpreS parisRΣ).
+    { apply subG_parisRGPreS. apply subG_refl. }
+
+    eapply ctx_refines_transitive.
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply naive_refines_naive_annotated; lia. }
+
+    eapply ctx_refines_transitive.
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply naive_annotated_refines_intermediate; lia. }
+
+    eapply ctx_refines_transitive.
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply intermediate_refines_opt_annotated; lia. }
+
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply opt_annotated_refines_opt; lia. }
+  Qed.
+
+
+  Lemma opt_refines_naive (n: nat) (Hlt: 2 ≤ n) :
+    ∅ ⊨ opt_btree_pack (max_child_num' := n) ≤ctx≤ naive_btree_pack (max_child_num' := n) : btreeτ.
+  Proof.
+    assert (parisRGpreS parisRΣ).
+    { apply subG_parisRGPreS. apply subG_refl. }
+
+    eapply ctx_refines_transitive.
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply opt_refines_opt_annotated; lia. }
+
+    eapply ctx_refines_transitive.
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply opt_annotated_refines_intermediate; lia. }
+
+    eapply ctx_refines_transitive.
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply intermediate_refines_naive_annotated; lia. }
+
+    { eapply (@refines_sound parisRΣ); eauto.
+      iIntros. iApply naive_annotated_refines_naive; lia. }
+  Qed.
+
+  Lemma naive_equiv_opt (n: nat) (Hlt: 2 ≤ n) :
+    ∅ ⊨ naive_btree_pack (max_child_num' := n) =ctx= opt_btree_pack (max_child_num' := n) : btreeτ.
+  Proof.
+    split; [ apply naive_refines_opt | apply opt_refines_naive ]; auto.
+  Qed.
+
+End b_tree_ctx_equiv.
