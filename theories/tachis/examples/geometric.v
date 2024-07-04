@@ -46,6 +46,19 @@ Section proofs.
       
 End proofs.
 
+From tachis.tachis Require Import adequacy.
+From Coquelicot Require Import Rbar.
+Open Scope NNR.
+Open Scope R.
+
+Lemma ert_geo σ :
+  Rbar.real (lim_ERT (costfun := CostApp) (geo #(), σ)) <= 2%NNR.
+Proof.
+  eapply (wp_ERT_lim _ tachisΣ _ _ _ (λ _, True)) => HtachGS.
+  iIntros "Hx".
+  by iApply (wp_geo with "Hx").
+Qed.
+
 Section generalized.
   
   Local Hint Resolve pos_INR : core.
