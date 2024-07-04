@@ -46,7 +46,7 @@ Section proofs.
       
 End proofs.
 
-From tachis.tachis Require Import adequacy.
+From clutch.tachis Require Import adequacy.
 From Coquelicot Require Import Rbar.
 Open Scope NNR.
 Open Scope R.
