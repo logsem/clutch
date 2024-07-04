@@ -15,7 +15,7 @@ From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 Set Default Proof Using "Type*".
 
 Section ERT.
-  Context `{!Costfun prob_lang}.
+  Context `{costfun : !Costfun prob_lang}.
 
   Fixpoint ERT k (ρ : cfg) : R :=
     let '(e, σ) := ρ in
@@ -405,18 +405,18 @@ Class tachisGpreS Σ := TachisGpreS {
   tachisGpreS_etc   :: etcGpreS Σ;
 }.
 
-Definition tachisΣ (cost : Costfun prob_lang) : gFunctors :=
+Definition tachisΣ : gFunctors :=
   #[invΣ; ghost_mapΣ loc val;
     ghost_mapΣ loc tape;
     GFunctor (authR (nonnegrealUR))].
-Global Instance subG_tachisGPreS (cost : Costfun prob_lang) {Σ} : subG (tachisΣ cost) Σ → tachisGpreS Σ.
+Global Instance subG_tachisGPreS {Σ} : subG tachisΣ Σ → tachisGpreS Σ.
 Proof. solve_inG. Qed.
 
 Section wp_ERT.
 Context (costfun : Costfun prob_lang).
 
 Theorem wp_ERT Σ `{tachisGpreS Σ} (e : expr) (σ : state) n (x : nonnegreal) φ :
-  (∀ `{tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{!tachisGS Σ costfun}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ERT n (e, σ) <= x.
 Proof.
   intros Hwp.
@@ -433,7 +433,7 @@ Proof.
 Qed.
 
 Theorem wp_ERT_lim Σ `{tachisGpreS Σ} (e : expr) (σ : state) (x : nonnegreal) φ :
-  (∀ `{tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{!tachisGS Σ costfun}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   lim_ERT (e, σ) <= x.
 Proof.
   intros Hwp.
@@ -443,7 +443,7 @@ Qed.
 
 Theorem wp_ERT_ast Σ `{tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
-  (∀ `{tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{!tachisGS Σ costfun}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   n <= x + n * SeriesC (exec n (e, σ)).
 Proof.
   intros Hcost Hwp.
@@ -506,7 +506,7 @@ Qed.
 
 Theorem wp_ERT_ast' Σ `{tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
   (∀ e, cost e = 1) →
-  (∀ `{tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{!tachisGS Σ costfun}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   SeriesC (lim_exec (e, σ)) = 1.
 Proof.
   intros. eapply ERT_implies_AST.
@@ -515,7 +515,7 @@ Qed.
 
 (** wp correct*)
 Theorem wp_correct Σ `{tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (∀ `{tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{!tachisGS Σ costfun}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ∀ v, exec n (e, σ) v > 0 → φ v.
 Proof using costfun.
   intros Hwp.
@@ -537,7 +537,7 @@ Local Lemma exec_lim_exec_pos (e : expr) (σ : state) (φ : val → Prop) :
 Proof. intros H v [n Hexec]%lim_exec_pos. naive_solver. Qed.
 
 Theorem wp_correct_lim Σ `{tachisGpreS Σ} (e : expr) (σ : state) (n : nat) (x : nonnegreal) φ :
-  (∀ `{tachisGS Σ}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  (∀ `{!tachisGS Σ costfun}, ⊢ ⧖ x -∗ WP e {{ v, ⌜φ v⌝ }}) →
   ∀ v, lim_exec (e, σ) v > 0 → φ v.
 Proof using costfun.
   intros H'. apply exec_lim_exec_pos.

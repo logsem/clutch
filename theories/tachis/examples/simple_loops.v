@@ -1,7 +1,7 @@
 From tachis.prob_lang Require Import lang notation tactics metatheory.
-From tachis.tachis Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.tachis Require Import expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
-From iris.proofmode Require Export proofmode.
+From iris.proofmode Require Import proofmode.
 Set Default Proof Using "Type*".
 
 #[local] Notation "'while' e1 'do' e2 'end'" :=
@@ -85,6 +85,10 @@ Section loop1.
   Qed.
 
 End loop1.
+
+
+
+
 
 Definition loop1_tick (l : loc) : expr :=
   while (#0 < !#l) do

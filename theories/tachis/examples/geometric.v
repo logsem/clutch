@@ -28,7 +28,7 @@ Section proofs.
     iIntros (Φ) "Hx HΦ".
     iLöb as "IH" forall (Φ) "Hx HΦ".
     rewrite /geo.
-    wp_pures.                     
+    wp_pures.
     replace (2-1) with 1 by lra.
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
                 (λ x, if (bool_decide (# (fin_to_nat x) = # 0))
@@ -43,11 +43,24 @@ Section proofs.
       + iModIntro. iApply "HΦ". done.
       + iApply ("IH" with "[$]"). done.
   Qed.
-      
+
 End proofs.
 
+From tachis.tachis Require Import adequacy.
+From Coquelicot Require Import Rbar.
+Open Scope NNR.
+Open Scope R.
+
+Lemma ert_geo σ :
+  Rbar.real (lim_ERT (costfun := CostApp) (geo #(), σ)) <= 2%NNR.
+Proof.
+  eapply (wp_ERT_lim _ tachisΣ _ _ _ (λ _, True)) => HtachGS.
+  iIntros "Hx".
+  by iApply (wp_geo with "Hx").
+Qed.
+
 Section generalized.
-  
+
   Local Hint Resolve pos_INR : core.
   Local Hint Resolve pos_INR_S: core.
 
@@ -109,7 +122,7 @@ Section generalized.
     remember (S n) as n'.
     erewrite (SeriesC_ext _ (λ n0 : fin n', (if bool_decide (n0 < m) then 0 else 1)*/m)); last first.
     { intros. case_bool_decide; try lra. rewrite Rmult_div_assoc !Rdiv_def Rmult_1_l Rinv_l.
-      - done. 
+      - done.
       - intro. subst. pose proof pos_INR_S n. lra.
     }
     rewrite SeriesC_scal_r. rewrite <-(Rdiv_diag m) at 1; last first.
@@ -119,7 +132,7 @@ Section generalized.
   Qed.
 
   Context `{!tachisGS Σ CostApp}.
-  
+
   Lemma wp_geo' E:
     {{{ ⧖ tc }}}
       geo' #()@E
@@ -132,14 +145,14 @@ Section generalized.
       - rewrite Rmult_1_l. apply le_INR. lia. }
     iIntros (Φ) "Hx HΦ".
     iLöb as "IH" forall (Φ) "Hx HΦ".
-    rewrite /geo'. 
+    rewrite /geo'.
     wp_pure.
     wp_apply (wp_couple_rand_adv_comp' _ _ _ _ _
                 (λ x, if (bool_decide ((fin_to_nat x) < m))
                           then 0
                       else tc) with "[$]").
     - intros; case_bool_decide; lra.
-    - simpl. rewrite Rplus_0_l. apply tc_split. 
+    - simpl. rewrite Rplus_0_l. apply tc_split.
     - iIntros (v) "Hx". wp_pure.
       case_bool_decide as H1; case_bool_decide as H2; wp_pure.
       + iModIntro. iApply "HΦ". done.
@@ -149,46 +162,3 @@ Section generalized.
   Qed.
 
 End generalized.
-
-(* Defining these as paramaters until we decide what counts as a tick *)
-
-(* Definition tc_val := (nnreal_nat 1). *)
-(* Definition tc_recurse := (nnreal_nat 1). *)
-(* Definition tc_sample := (nnreal_nat 1). *)
-(* Definition tc_if := (nnreal_nat 1). *)
-
-(* Definition tc_spec : nonnegreal := ((nnreal_nat 2) * tc_if + tc_val + tc_recurse)%NNR. *)
-
-(* Definition tc_distr (s : fin 2) : nonnegreal *)
-(*   := if fin_to_bool s *)
-(*       then (tc_if + tc_val)%NNR *)
-(*       else (tc_if + tc_recurse + tc_spec)%NNR. *)
-
-(* Lemma tc_distr_mean : (SeriesC tc_distr) = nonneg ((nnreal_nat 2) * tc_spec)%NNR. *)
-(* Proof. rewrite SeriesC_fin2 /=. lra. Qed. *)
-
-(* Check ⧖ tc_spec -∗ (WP geo #() @ _ {{ fun _ => ⌜True ⌝ }})%I. *)
-
-(* Proof:
-    Use Lob induction.
-    Start: ⧖ X
-    - step (rand #1) with advanced composition on (⧖ X)
-    amplify using X = (1/2) (tc_if + tc_val) + (1/2) (tc_if + tc_recurse + X)
-    Case #0: ⧖ tc_if + tc_val
-      - step if statement
-      ⧖ tc_val
-      - step return of a value
-      ⧖ 0
-    Case #1:
-      ⧖ tc_if + tc_recurse + X
-      - step if statement
-      ⧖ tc_recurse + X
-      - step to allow function application
-      ⧖ X
-      - Apply induction hypothesis
-
-    Solving,
-    X = (1/2) (tc_if + tc_val) + (1/2) (tc_if + tc_recurse + X)
-    2X = (tc_if + tc_val) + (tc_if + tc_recurse + X)
-    X = tc_if + tc_val + tc_if + tc_recurse
- *)
