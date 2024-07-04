@@ -42,7 +42,6 @@ Section proofs.
     inv_fin x; auto.
   Qed.
 
-  (* Shame on me *)
   Lemma destr_fin6 (x : fin 6):
     x = 0%fin \/ x = 1%fin \/ x = 2%fin \/ x = 3%fin \/ x = 4%fin \/ x = 5%fin.
   Proof.
@@ -304,7 +303,7 @@ Section proofs.
         apply H.
         exists (Fin.of_nat_lt H3).
         rewrite /fin.fin_force.
-        (* Shame on me *)
+
         inv_fin n; auto; intros n.
         inv_fin n; auto; intros n.
         inv_fin n; auto; intros n.
@@ -328,7 +327,7 @@ Section proofs.
   pose proof (fin_to_nat_lt y).
   case_match; [lia |].
   case_match; [lia |].
-  (* Shame on me *)
+
   destruct (destr_fin6 x) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
   destruct (destr_fin6 y) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
     try inversion Hxy; auto.
@@ -403,7 +402,7 @@ Section proofs.
         apply H.
         exists (Fin.of_nat_lt H3).
         rewrite /fin.fin_force.
-        (* Shame on me *)
+
         inv_fin m; auto; intros m.
         inv_fin m; auto; intros m.
         inv_fin m; auto; intros m.
@@ -427,7 +426,7 @@ Section proofs.
   pose proof (fin_to_nat_lt y).
   case_match; [lia |].
   case_match; [lia |].
-  (* Shame on me *)
+  
   destruct (destr_fin6 x) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
   destruct (destr_fin6 y) as [-> | [-> | [-> | [-> | [-> | ->]]]]];
     try inversion Hxy; auto.
