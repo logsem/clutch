@@ -1,7 +1,7 @@
 (** * Meldable Heaps *)
-From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
-From clutch.tachis Require Import min_heap_spec.
-From clutch.common Require Import inject.
+From tachis.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws expected_time_credits cost_models problang_wp proofmode ert_rules.
+From tachis.tachis Require Import min_heap_spec.
+From tachis.common Require Import inject.
 From iris.proofmode Require Export tactics.
 From Coq Require Export Reals Psatz.
 From stdpp Require Import sorting.

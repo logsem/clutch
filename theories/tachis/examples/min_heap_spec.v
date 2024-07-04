@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation.
-From clutch.tachis Require Export problang_wp.
+From tachis.prob_lang Require Import lang notation.
+From tachis.tachis Require Export problang_wp.
 Set Default Proof Using "Type*".
 
 Record comparator (K : Type) (c : Costfun prob_lang) := Comparator {

@@ -1,5 +1,5 @@
-From clutch.common Require Export inject.
-From clutch.tachis Require Export problang_wp proofmode derived_laws ert_rules cost_models.
+From tachis.common Require Export inject.
+From tachis.tachis Require Export problang_wp proofmode derived_laws ert_rules cost_models.
 From iris.proofmode Require Import proofmode.
 
 (** * Functional list in the [CostTick] cost model *)

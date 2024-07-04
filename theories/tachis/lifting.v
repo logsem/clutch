@@ -2,8 +2,8 @@
 semantics to the program logic. *)
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
-From clutch.prelude Require Import NNRbar.
-From clutch.tachis Require Import ert_weakestpre.
+From tachis.prelude Require Import NNRbar.
+From tachis.tachis Require Import ert_weakestpre.
 
 
 Section lifting.

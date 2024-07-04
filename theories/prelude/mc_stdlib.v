@@ -1,5 +1,5 @@
 From Coq Require Import ZArith.
-From clutch.prelude Require Import base.
+From tachis.prelude Require Import base.
 
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import fintype ssrbool zmodp.

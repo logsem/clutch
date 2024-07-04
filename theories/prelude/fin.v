@@ -1,5 +1,5 @@
 From stdpp Require Import fin countable finite.
-From clutch.prelude Require Import base classical.
+From tachis.prelude Require Import base classical.
 Set Default Proof Using "Type*".
 
 Section fin.

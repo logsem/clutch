@@ -1,10 +1,10 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
 From stdpp Require Import fin_maps fin_map_dom.
-From clutch.prelude Require Import stdpp_ext.
-From clutch.common Require Import exec language ectx_language erasable.
-From clutch.prob_lang Require Import locations notation lang metatheory.
-From clutch.prob Require Import couplings couplings_app markov.
+From tachis.prelude Require Import stdpp_ext.
+From tachis.common Require Import exec language ectx_language erasable.
+From tachis.prob_lang Require Import locations notation lang metatheory.
+From tachis.prob Require Import couplings couplings_app markov.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.

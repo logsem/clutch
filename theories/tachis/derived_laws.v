@@ -7,8 +7,8 @@ For utility functions on arrays (e.g., freeing/copying an array), see
 From stdpp Require Import fin_maps.
 From iris.bi Require Import lib.fractional.
 From iris.proofmode Require Import proofmode.
-From clutch.prob_lang Require Import tactics lang notation.
-From clutch.tachis Require Export primitive_laws.
+From tachis.prob_lang Require Import tactics lang notation.
+From tachis.tachis Require Export primitive_laws.
 From iris.prelude Require Import options.
 
 (** The [array] connective is a version of [pointsto] that works

@@ -2,8 +2,8 @@ From Coq Require Import Reals Psatz.
 From Coq.ssr Require Import ssreflect ssrfun.
 From Coquelicot Require Import Rcomplements Lim_seq Rbar.
 From stdpp Require Export countable.
-From clutch.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
-From clutch.prob Require Export countable_sum distribution couplings graded_predicate_lifting.
+From tachis.prelude Require Export base Coquelicot_ext Reals_ext stdpp_ext.
+From tachis.prob Require Export countable_sum distribution couplings graded_predicate_lifting.
 
 Open Scope R.
 
@@ -666,24 +666,6 @@ Section couplings_theory.
       + apply ARcoupl_1; done.
       + eapply ARcoupl_mon_grading; done.
   Qed.
-
-  (* Depend on both *)
-  (** This statement atm is not sound.
-      Counter example: 
-      Suppose μ1 and μ2 are rand 1s, and S is (=), ε1 is 1/2
-      With this statement, we can assign E2 to be λ a b, if a = b then 1 else 0
-      Meaning, that for the branches where the two rands return the same value,
-      we somehow bumped up the errors from 1/2 to 1, which should not be possible 
-      in the normal case
-   *)
-  Lemma ARcoupl_dbind_adv (f : A → distr A') (g : B → distr B')
-    (μ1 : distr A) (μ2 : distr B) (S : A → B → Prop) (S' : A' → B' → Prop)
-    ε1 ε2 (E2 : A → B → ℝ) :
-    (Rle 0 ε1) → (∀ a b, Rle 0 (E2 a b)) →
-    (SeriesC (λ '(a, b), μ1 a * μ2 b * (E2 a b)) <= ε2) →
-    (∀ a b, S a b → ARcoupl (f a) (g b) S' (E2 a b)) → ARcoupl μ1 μ2 S ε1 → ARcoupl (dbind f μ1) (dbind g μ2) S' (ε1 + ε2).
-  Proof.
-  Abort.
 
   Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
     (∀ b, 0 <= g b) →

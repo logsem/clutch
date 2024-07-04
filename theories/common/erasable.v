@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
-From clutch.common Require Import language.
-From clutch.prob Require Export couplings distribution markov.
+From tachis.common Require Import language.
+From tachis.prob Require Export couplings distribution markov.
 
 Section erasable.
   Context {Λ : language}.

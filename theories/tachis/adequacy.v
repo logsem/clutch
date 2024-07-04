@@ -4,11 +4,11 @@ From iris.base_logic.lib Require Import ghost_map invariants fancy_updates.
 From iris.algebra Require Import excl.
 From iris.prelude Require Import options.
 
-From clutch.prelude Require Import stdpp_ext iris_ext.
-From clutch.prob_lang Require Import erasure notation.
-From clutch.common Require Export language.
-From clutch.tachis Require Import expected_time_credits ert_weakestpre problang_wp.
-From clutch.prob Require Import distribution.
+From tachis.prelude Require Import stdpp_ext iris_ext.
+From tachis.prob_lang Require Import erasure notation.
+From tachis.common Require Export language.
+From tachis.tachis Require Import expected_time_credits ert_weakestpre problang_wp.
+From tachis.prob Require Import distribution.
 Import uPred.
 
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
@@ -425,7 +425,7 @@ Proof.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
   iApply (wp_refRcoupl_step_fupdN).
   iFrame.
   iApply Hwp.
@@ -452,7 +452,7 @@ Proof.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN_ast; auto.
   iFrame.
   iApply Hwp.
@@ -524,7 +524,7 @@ Proof using costfun.
   iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
   iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
   iMod (etc_alloc) as (?) "[??]".
-  set (HclutchGS := HeapG Σ _ _ _ _ γH γT _).
+  set (HtachisGS := HeapG Σ _ _ _ _ γH γT _).
   iApply wp_refRcoupl_step_fupdN_correct; auto.
   iFrame.
   iApply Hwp.

@@ -1,4 +1,4 @@
-From clutch.tachis Require Import ert_weakestpre problang_wp.
+From tachis.tachis Require Import ert_weakestpre problang_wp.
 #[local] Open Scope R.
 
 (** Utility functions *)

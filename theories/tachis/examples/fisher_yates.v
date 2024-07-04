@@ -1,9 +1,9 @@
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.tachis Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
-From clutch.common Require Import inject.
-From clutch.tachis.examples Require Export meldable_heap.
+From tachis.common Require Import inject.
+From tachis.tachis.examples Require Export meldable_heap.
 Set Default Proof Using "Type*".
 
 (** Entropy of Fisher Yates shuffle *)

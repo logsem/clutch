@@ -1,10 +1,10 @@
 From iris.proofmode Require Import coq_tactics reduction spec_patterns intro_patterns.
 From iris.proofmode Require Export tactics.
 
-From clutch.prob_lang Require Import lang notation class_instances tactics.
-From clutch.prob_lang Require Export wp_tactics.
+From tachis.prob_lang Require Import lang notation class_instances tactics.
+From tachis.prob_lang Require Export wp_tactics.
 
-From clutch.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws cost_models.
+From tachis.tachis Require Import ert_weakestpre lifting ectx_lifting primitive_laws cost_models.
 From iris.prelude Require Import options.
 Set Default Proof Using "Type*".
 

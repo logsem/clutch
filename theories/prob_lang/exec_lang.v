@@ -1,5 +1,5 @@
 From Coq Require Export Reals Psatz.
-From clutch.prob_lang Require Import lang.
+From tachis.prob_lang Require Import lang.
 
 Lemma exec_det_step_ctx K `{!LanguageCtx K} n ρ (e1 e2 : expr) σ1 σ2 :
   prim_step e1 σ1 (e2, σ2) = 1%R →

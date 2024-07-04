@@ -1,9 +1,9 @@
 From Coquelicot Require Import Hierarchy.
 From stdpp Require Import sorting.
 From iris.proofmode Require Export proofmode.
-From clutch.tachis Require Export problang_wp proofmode derived_laws ert_rules cost_models.
-From clutch.tachis.examples.lib Require Import list.
-From clutch.tachis.examples Require Import min_heap_spec.
+From tachis.tachis Require Export problang_wp proofmode derived_laws ert_rules cost_models.
+From tachis.tachis.examples.lib Require Import list.
+From tachis.tachis.examples Require Import min_heap_spec.
 Set Default Proof Using "Type*".
 
 Open Scope R.
@@ -503,7 +503,7 @@ Section kway_merge_spec.
 
 End kway_merge_spec.
 
-From clutch.tachis.examples Require Import meldable_heap.
+From tachis.tachis.examples Require Import meldable_heap.
 
 Section kway_merge_meldable_heap.
   Context `{!tachisGS Σ CostTick}.

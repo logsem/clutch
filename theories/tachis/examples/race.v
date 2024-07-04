@@ -1,5 +1,5 @@
-From clutch.prob_lang Require Import lang notation tactics metatheory.
-From clutch.tachis Require Export expected_time_credits ert_weakestpre problang_wp proofmode
+From tachis.prob_lang Require Import lang notation tactics metatheory.
+From tachis.tachis Require Export expected_time_credits ert_weakestpre problang_wp proofmode
   derived_laws cost_models ert_rules.
 From iris.proofmode Require Export proofmode.
 Set Default Proof Using "Type*".

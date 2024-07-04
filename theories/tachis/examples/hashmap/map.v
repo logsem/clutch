@@ -1,7 +1,7 @@
 From stdpp Require Import namespaces.
-From clutch.prob_lang Require Export lang notation tactics.
+From tachis.prob_lang Require Export lang notation tactics.
 From iris.proofmode Require Export proofmode.
-From clutch.tachis Require Export
+From tachis.tachis Require Export
   primitive_laws derived_laws proofmode ert_rules cost_models.
 Set Default Proof Using "Type*".
 

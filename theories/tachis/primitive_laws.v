@@ -3,9 +3,9 @@
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import auth excl.
 From iris.base_logic.lib Require Export ghost_map.
-From clutch.tachis Require Export expected_time_credits ert_weakestpre ectx_lifting problang_wp.
-From clutch.prob_lang Require Export class_instances.
-From clutch.prob_lang Require Import tactics lang notation.
+From tachis.tachis Require Export expected_time_credits ert_weakestpre ectx_lifting problang_wp.
+From tachis.prob_lang Require Export class_instances.
+From tachis.prob_lang Require Import tactics lang notation.
 From iris.prelude Require Import options.
 
 
