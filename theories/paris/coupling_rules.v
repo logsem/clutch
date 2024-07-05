@@ -418,6 +418,42 @@ Section rules.
     iFrame.
     by iPureIntro.
   Qed.
+
+  Local Lemma length_remove_dups `{EqDecision A} (l:list A):
+    length (remove_dups l) <= length l.
+  Proof.
+    induction l; first done.
+    simpl.
+    case_match; simpl.
+    all: rewrite -!/(INR (S _)); rewrite !S_INR; lra.
+  Qed.
+
+  Lemma wp_couple_rand_rand_avoid' N (l:list _) z K E :
+    TCEq N (Z.to_nat z) →
+    {{{ ↯ (length l/(N+1)) ∗
+          ⤇ fill K (rand #z) }}}
+      rand #z @ E
+      {{{ (n : fin (S N)), RET #n; ⌜n∉l⌝ ∗ ⤇ fill K #n }}}.
+  Proof.
+    set (l':=remove_dups l).
+    iIntros (H0 Ψ) "[Hε Hr] HΨ".
+    iApply (wp_couple_rand_rand_avoid with "[-HΨ]").
+    - apply NoDup_remove_dups.
+    - iFrame.
+      iApply (ec_weaken with "[$]").
+      split.
+      + apply Rcomplements.Rdiv_le_0_compat.
+        * apply pos_INR.
+        * pose proof pos_INR N. lra.
+      + rewrite !Rdiv_def.
+        apply Rmult_le_compat_r.
+        * apply Rlt_le. apply Rinv_0_lt_compat. pose proof pos_INR N. lra.
+        * admit.
+    - iModIntro. iIntros (?) "[%?]".
+      iApply "HΨ". iFrame.
+      iPureIntro.
+      by rewrite -elem_of_remove_dups.
+  Admitted.
   
 
   (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
