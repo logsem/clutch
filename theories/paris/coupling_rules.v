@@ -448,12 +448,12 @@ Section rules.
       + rewrite !Rdiv_def.
         apply Rmult_le_compat_r.
         * apply Rlt_le. apply Rinv_0_lt_compat. pose proof pos_INR N. lra.
-        * admit.
+        * apply length_remove_dups. 
     - iModIntro. iIntros (?) "[%?]".
       iApply "HΨ". iFrame.
       iPureIntro.
       by rewrite -elem_of_remove_dups.
-  Admitted.
+  Qed.
   
 
   (** fragmented state rand N ~ state rand M, N>=M, under injective function from M to N*)
