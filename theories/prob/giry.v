@@ -798,7 +798,12 @@ measurable_fun_limn_sup:
       Qed.
 
       Definition giryM_join_ge0 A : (0 <= giryM_join_def m A)%E.
-      Proof. Admitted.
+      Proof using d.
+        rewrite /giryM_join_def.
+        apply integral_ge0.
+        intros μ _.
+        apply (measure_ge0 μ A).
+      Qed.
 
       Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join_def m).
       Proof. Admitted.
@@ -843,9 +848,9 @@ measurable_fun_limn_sup:
     Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
     Proof. Admitted.
 
+    (* FIXME: fix f type to match measurable_fun lemma *)
     (* FIXME: measurable_fun usage *)
     (* lintegral_join *)
-    (* FIXME: Assume f is nonnegative *)
     Lemma giryM_join_integrate (m : giryM (giryM T)) (f : T -> \bar R) (mf : measurable_fun setT f) :
       (\int[giryM_join m]_x (f x) = \int[m]_μ (\int[μ]_x f x))%E.
     Proof.
@@ -870,6 +875,7 @@ measurable_fun_limn_sup:
     Admitted.
 
 
+    (* TODO: Port these equations *)
     (* join_map_map *)
     (* join_map_join *)
     (* join_map_dirac *)
@@ -925,6 +931,8 @@ measurable_fun_limn_sup:
     Context {f : T1 -> giryM T2} (mf : measurable_fun setT f).
 
 
+    (* TODO: Port these equations *)
+
     (* FIXME: Make a measurable_map instance for mzero and cst *)
     (*
     Lemma giryM_bind_0_l : giryM_bind mzero mf = mzero.
@@ -961,6 +969,7 @@ measurable_fun_limn_sup:
      *)
 
     (* Other monad laws? *)
+    (* TODO: Check that you've gotten all the equations  *)
 
     (* join_eq_bind *)
 
