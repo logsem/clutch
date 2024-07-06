@@ -536,8 +536,8 @@ HB.end.
 
       (* This one could actually be applied, if we can do the right rewrites to the sum? *)
       (* Reduces the problem to proving measurablility at evey approximation level *)
-      have h_seq (i : nat) (μ : giryM T) : \bar R := 0:%:E.
-
+      have h_seq (i : nat) (μ : giryM T) : \bar R.
+      { admit.  }
 
 
       Check @ge0_emeasurable_fun_sum _ (giryM T) R setT h_seq _.
@@ -782,7 +782,20 @@ measurable_fun_limn_sup:
       Context (m : giryM (giryM T)).
 
       Definition giryM_join0 : giryM_join_def m set0 = 0%E.
-      Proof. Admitted.
+      Proof using d.
+        rewrite /giryM_join_def.
+        have X1 : (\int[m]_μ μ set0)%E  = ((integral m setT (cst GRing.zero)))%E.
+        { f_equal.
+          apply functional_extensionality.
+          intro μ.
+          by rewrite measure0.
+        }
+        rewrite X1.
+        rewrite integral_cst.
+        - by rewrite (mul0e _).
+        - rewrite /=.
+          by apply (@measurableT _ (salgebraType _)).
+      Qed.
 
       Definition giryM_join_ge0 A : (0 <= giryM_join_def m A)%E.
       Proof. Admitted.
