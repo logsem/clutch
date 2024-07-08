@@ -1,4 +1,4 @@
-From clutch.paris Require Export paris map list prf prp.
+From clutch.paris Require Export paris map list prf prp sum_seq.
 Set Default Proof Using "Type*".
 
 Section prp_prf.
@@ -11,16 +11,22 @@ Section prp_prf.
 
    *)
 
-  Context `{!parisGS Σ}.
-
   Variable val_size : nat.
 
-  Definition is_sprp := is_sprp val_size.
-  Definition random_permutation := random_permutation val_size.
-  Definition is_random_function := is_random_function val_size.
-  Definition random_function := random_function val_size.
   Definition wPRP := wPRP val_size.
   Definition wPRF := wPRF val_size val_size.
+  Definition random_permutation := random_permutation val_size.
+  Definition random_function := random_function val_size.
+
+Section Approxis.
+  (* We derive the logical refinement in Approxis, in order to then conclude
+     via adequacy. *)
+
+  Context `{!parisGS Σ}.
+
+  Definition is_sprp := is_sprp val_size.
+  Definition is_random_function := is_random_function val_size.
+
 
   Lemma wp_prf_prp_couple_eq_Some E K (k:Z) (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) :
     m !! n = Some k →
@@ -371,7 +377,7 @@ Section prp_prf.
   (* We compare the "ideal" wPRP and wPRF games (as indicated by the #false
      argument below); to ignore the "real" games (wPRP #true and wPRF #true),
      we provide a dummy scheme. *)
-  Let dummy_scheme : val := ((λ: "_", #()),#()).
+  Definition dummy_scheme : val := ((λ: "_", #()),#()).
 
   Lemma wp_wPRF_wPRP
     E K (Q : nat) (ε : R) :
@@ -421,5 +427,86 @@ Section prp_prf.
       by iApply "HΦ".
   Qed.
 
+
+  Lemma wp_wPRP_wPRF
+    E K (Q : nat) (ε : R) :
+    ((fold_left Nat.add (seq 0 Q) 0%nat / S val_size)%R = ε) →
+    {{{ ↯ ε ∗ ⤇ fill K (wPRF #false dummy_scheme #Q) }}}
+      (wPRP #false dummy_scheme #Q) @ E
+      {{{ (vres : val), RET vres; ⤇ fill K vres }}}.
+  Admitted.
+
+End Approxis.
+
+  Lemma ARC_wPRF_wPRP Σ `{parisGpreS Σ}
+    σ σ' (Q : nat) (ε : R) :
+    ((fold_left Nat.add (seq 0 Q) 0%nat / S val_size)%R = ε) →
+    ARcoupl
+      (lim_exec ((wPRF #false dummy_scheme #Q), σ))
+      (lim_exec ((wPRP #false dummy_scheme #Q), σ'))
+      (=) ε.
+  Proof.
+    intros <-. unshelve eapply adequacy.wp_adequacy ; eauto.
+    1: apply Rcomplements.Rdiv_le_0_compat; real_solver.
+    iIntros (?) "spec ε".
+    iApply (wp_wPRF_wPRP _ [] with "[spec $ε]") => //.
+    iNext ; iIntros. iExists _. iFrame. done.
+  Qed.
+
+  Lemma ARC_wPRP_wPRF Σ `{parisGpreS Σ}
+    σ σ' (Q : nat) (ε : R) :
+    ((fold_left Nat.add (seq 0 Q) 0%nat / S val_size)%R = ε) →
+    ARcoupl
+      (lim_exec ((wPRP #false dummy_scheme #Q), σ))
+      (lim_exec ((wPRF #false dummy_scheme #Q), σ'))
+      (=) ε.
+  Proof.
+    intros <-.
+    unshelve eapply adequacy.wp_adequacy ; eauto.
+    1: apply Rcomplements.Rdiv_le_0_compat; real_solver.
+    iIntros (?) "spec ε".
+    iApply (wp_wPRP_wPRF _ [] with "[spec $ε]") => //.
+    iNext ; iIntros. iExists _. iFrame. done.
+  Qed.
+
+  Corollary wPRF_wPRP_bound Σ `{parisGpreS Σ} σ σ' (Q : nat) ε :
+    ((((Q - 1) * Q) / (2 * S val_size)) = ε)%R →
+    ((lim_exec ((wPRF #false dummy_scheme #Q), σ) #true)
+     <=
+       ((lim_exec ((wPRP #false dummy_scheme #Q), σ')) #true) + ε)%R.
+  Proof.
+    intros hε; apply ARcoupl_eq_elim.
+    pose proof (sum_seq Q).
+    rewrite Rdiv_mult_distr in hε.
+    rewrite (sum_seq Q) in hε.
+    eapply ARC_wPRF_wPRP => //.
+  Qed.
+
+  Corollary wPRP_wPRF_bound Σ `{parisGpreS Σ} σ σ' (Q : nat) ε :
+    ((((Q - 1) * Q) / (2 * S val_size)) = ε)%R →
+    ((lim_exec ((wPRP #false dummy_scheme #Q), σ) #true)
+     <=
+       ((lim_exec ((wPRF #false dummy_scheme #Q), σ')) #true) + ε)%R.
+  Proof.
+    intros hε; apply ARcoupl_eq_elim.
+    pose proof (sum_seq Q).
+    rewrite Rdiv_mult_distr in hε.
+    rewrite (sum_seq Q) in hε.
+    eapply ARC_wPRP_wPRF => //.
+  Qed.
+
+  Lemma weak_switching_lemma σ σ' (Q : nat) :
+    (Rabs ((lim_exec (wPRP #false dummy_scheme #Q, σ ) #true) -
+           (lim_exec (wPRF #false dummy_scheme #Q, σ') #true))
+     <= ((Q - 1) * Q / (2 * S val_size)))%R.
+  Proof.
+    apply Rabs_le.
+    set (ε := ((Q - 1) * Q / (2 * S val_size))%R).
+    opose proof (wPRP_wPRF_bound _ σ σ' Q ε _) ; eauto.
+    { apply subG_parisRGPreS. apply subG_refl. }
+    opose proof (wPRF_wPRP_bound _ σ' σ Q ε _) ; eauto.
+    { apply subG_parisRGPreS. apply subG_refl. }
+    split ; lra.
+  Qed.
 
 End prp_prf.
