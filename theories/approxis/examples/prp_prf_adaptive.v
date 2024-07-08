@@ -10,7 +10,7 @@ Our definition deviates from Rosulek's and Boneh/Shoup in that we wrap the encry
      *)
 
 From clutch Require Import lib.flip.
-From clutch.approxis Require Import approxis map list prf prp.
+From clutch.approxis Require Import approxis map list prf prp sum_seq.
 Set Default Proof Using "Type*".
 
 Section prp_prf.
@@ -539,4 +539,102 @@ Section prp_prf.
 
   End proofs.
 
+  Variable (Q : nat).
+  Let ε := (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R.
+
+  Let PRF : expr := (PRF #false adv ((λ: "_", #()),#()) #Q)%E.
+  Let PRP : expr := (PRP #false adv ((λ: "_", #()),#()) #Q)%E.
+
+  Lemma PRF_PRP_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec (PRF, σ))
+      (lim_exec (PRP, σ'))
+      (=)
+      ((Q-1) * Q / (2 * S Input)).
+  Proof.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    { apply Rcomplements.Rdiv_le_0_compat ; try real_solver.
+      destruct Q.
+      - clear. by rewrite Rmult_0_r.
+      - clear. assert (0 <= (Rminus (INR (S n)) (IZR (Zpos xH))))%R.
+        2: { etrans. 1: exact H.
+             assert (S n - 1 <= (S n - 1) * S n) by lia.
+             clear H.
+             replace 1%R with (INR 1) by easy.
+             rewrite -minus_INR ; [|lia].
+             rewrite -mult_INR. by apply le_INR. }
+        replace 1%R with (INR 1) by easy.
+        rewrite -minus_INR ; [|lia].
+        replace 0%R with (INR 0) by easy.
+        apply le_INR. lia.
+    }
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply PRF_PRP ; [|iFrame].
+    rewrite /Input.
+    opose proof (sum_seq Q) as eq.
+    rewrite -eq. rewrite Rdiv_mult_distr. done.
+  Qed.
+
+  Lemma PRP_PRF_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec (PRP, σ))
+      (lim_exec (PRF, σ'))
+      (=)
+      ((Q-1) * Q / (2 * S Input)).
+  Proof.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    { apply Rcomplements.Rdiv_le_0_compat ; try real_solver.
+      destruct Q.
+      - clear. by rewrite Rmult_0_r.
+      - clear. assert (0 <= (Rminus (INR (S n)) (IZR (Zpos xH))))%R.
+        2: { etrans. 1: exact H.
+             assert (S n - 1 <= (S n - 1) * S n) by lia.
+             clear H.
+             replace 1%R with (INR 1) by easy.
+             rewrite -minus_INR ; [|lia].
+             rewrite -mult_INR. by apply le_INR. }
+        replace 1%R with (INR 1) by easy.
+        rewrite -minus_INR ; [|lia].
+        replace 0%R with (INR 0) by easy.
+        apply le_INR. lia.
+    }
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply PRP_PRF ; [|iFrame].
+    rewrite /Input.
+    opose proof (sum_seq Q) as eq.
+    rewrite -eq. rewrite Rdiv_mult_distr. done.
+  Qed.
+
+  Corollary PRF_PRP_bound Σ `{approxisRGpreS Σ} σ σ' :
+    (((lim_exec (PRF, σ)) #true)
+     <=
+       ((lim_exec (PRP, σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
+  Proof.
+    apply ARcoupl_eq_elim.
+    by eapply PRF_PRP_ARC.
+  Qed.
+
+  Corollary PRP_PRF_bound Σ `{approxisRGpreS Σ} σ σ' :
+    (((lim_exec (PRP, σ)) #true)
+     <=
+       ((lim_exec (PRF, σ')) #true) + ((Q-1) * Q / (2 * S Input)))%R.
+  Proof.
+    apply ARcoupl_eq_elim.
+    by eapply PRP_PRF_ARC.
+  Qed.
+
 End prp_prf.
+
+
+Lemma switching_lemma N σ σ' (adv : val) (typed : ∅ ⊢ₜ adv : TAdv) (Q : nat) :
+  (Rabs ( (( lim_exec (PRP N #false adv ((λ: "_", #()),#())%E #Q, σ)) #true) -
+            (lim_exec (PRF N #false adv ((λ: "_", #()),#())%E #Q, σ') #true) )
+   <= ((Q-1) * Q / (2 * S N)))%R.
+Proof.
+  apply Rabs_le.
+  opose proof (PRF_PRP_bound N adv typed Q approxisRΣ σ' σ) as h => //.
+  opose proof (PRP_PRF_bound N adv typed Q approxisRΣ σ σ') as h' => //.
+  split ; lra.
+Qed.
