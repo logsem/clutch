@@ -87,8 +87,15 @@ Section definition.
     Definition is_random_function f m : iProp Σ :=
       ∃ (mapref : loc), ⌜ f = compute_rf_specialized #mapref ⌝ ∗ map_list mapref ((λ b, LitV (LitInt b)) <$> m).
 
+    Definition is_srandom_function f m : iProp Σ :=
+      ∃ (mapref : loc), ⌜ f = compute_rf_specialized #mapref ⌝ ∗ map_slist mapref ((λ b, LitV (LitInt b)) <$> m).
+
     #[global] Instance timeless_is_random_function f m :
       Timeless (is_random_function f m).
+    Proof. apply _. Qed.
+
+    #[global] Instance timeless_is_srandom_function f m :
+      Timeless (is_srandom_function f m).
     Proof. apply _. Qed.
 
     Lemma wp_random_function E :
@@ -102,6 +109,20 @@ Section definition.
       wp_apply (wp_init_map with "[//]").
       iIntros (?) "Hm". wp_pures.
       iApply "HΦ". iExists _. rewrite fmap_empty. iFrame. eauto.
+    Qed.
+
+    Lemma spec_random_function E K:
+      ⤇ fill K (random_function #()) -∗
+      spec_update E (∃ (f:val), ⤇ fill K f ∗ is_srandom_function f ∅).
+    Proof.
+      rewrite /random_function.
+      iIntros "Hspec".
+      tp_pures.
+      tp_bind (init_map _).
+      iMod (spec_init_map with "[$]") as "(%&?&?)".
+      simpl. tp_pures.
+      iApply spec_update_ret.
+      by iFrame.
     Qed.
 
     Lemma wp_random_function_prev E f m (n : nat) (b : Z) :
@@ -120,6 +141,24 @@ Section definition.
       iExists _. eauto.
     Qed.
 
+    
+    Lemma spec_random_function_prev E f m (n : nat) (b : Z) K:
+      m !! n = Some b →
+      is_srandom_function f m -∗
+      ⤇ fill K (f #n) -∗
+      spec_update E (⤇ fill K #b ∗ is_srandom_function f m).
+    Proof.
+      iIntros (Hlookup) "Hhash Hspec".
+      iDestruct "Hhash" as (hm ->) "H".
+      rewrite /compute_rf_specialized.
+      tp_pures.
+      tp_bind (get _ _).
+      iMod (spec_get with "[$][$]") as "(?&?)".
+      simpl. 
+      rewrite lookup_fmap Hlookup /=. tp_pures. iModIntro.
+      iFrame. auto.
+    Qed.
+    
   End spec_ideal.
 
 End definition.

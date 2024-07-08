@@ -222,6 +222,22 @@ Section PRP.
     rewrite map_to_list_empty //.
   Qed.
 
+  Lemma wp_prp_prev E (f:val) m r (n : nat) (b : Z):
+    m !! n = Some b →
+    {{{is_prp f m r}}}
+      (f #n)@E
+      {{{ RET #b; is_prp f m r}}}.
+  Proof.
+    iIntros (Hlookup Φ) "Hprp HΦ".
+    iDestruct "Hprp" as (lm lr) "(-> & Hlm & Hlr)".
+    rewrite /query_prp_specialized.
+    wp_pures.
+    wp_apply (wp_get with "[$]").
+    iIntros (res) "[Hm ->]".
+    rewrite lookup_fmap Hlookup /=.
+    wp_pures.
+    iApply "HΦ". by iFrame.
+  Qed.
 
   Lemma spec_prp_prev E (f:val) m r (n : nat) (b : Z) K:
     m !! n = Some b →
