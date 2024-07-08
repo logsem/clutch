@@ -31,8 +31,6 @@ Section PRP.
       let: "fr_val" := list_seq #0 #(S val_size) in
       ("val_map", ref "fr_val").
 
-  (* To hash a value v, we check whether it is in the map (i.e. it has been previously hashed).
-     If it has we return the saved hash value, otherwise we draw a hash value and save it in the map *)
   Definition query_prp_specialized hm fv : val :=
     λ: "v",
       match: get hm "v" with
@@ -67,13 +65,10 @@ Section PRP.
            end)
       end.
 
-  (* init_hash returns a hash as a function, basically wrapping the internal state
-     in the returned function *)
   Definition random_permutation : val :=
     λ: "_",
       let: "p" := random_permutation_state #() in
       query_prp (Fst "p") (Snd "p").
-
 
   Let q_calls := q_calls val_size.
 
@@ -119,7 +114,6 @@ Section PRP.
   #[global] Instance timeless_is_prp f m r:
     Timeless (is_prp f m r).
   Proof. apply _. Qed.
-
 
   Definition is_sprp f (m : gmap nat Z) (r : list Z) : iProp Σ :=
     ∃ (hm : loc) (fv : loc),
