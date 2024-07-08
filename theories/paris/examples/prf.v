@@ -39,6 +39,26 @@ Section definition.
       let: "b'" := "adv" "oracle" in
       "b'".
 
+  Definition wPRF : val :=
+    λ:"b" "PRF_scheme" "Q",
+      let: "key" := keygen "PRF_scheme" #() in
+      let: "prf_key_b" :=
+        if: "b" then
+          prf "PRF_scheme" "key"
+        else
+          random_function "key" in
+      let: "res" := ref list_nil in
+      letrec: "loop" "i" :=
+          if: "i" = #0 then #() else
+            let: "x" := rand #Input in
+            let: "y" := "prf_key_b" "x" in
+            "res" <- list_cons ("x", "y") (!"res") ;;
+            "loop" ("i" - #1)
+      in
+      ("loop" "Q") ;;
+      ! "res"
+  .
+
   Section spec_ideal.
 
     Context `{!parisGS Σ}.

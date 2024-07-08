@@ -337,6 +337,18 @@ Section list_specs.
     {{{ v, RET v; ⌜is_list [] v⌝}}}.
   Proof. iIntros (Φ) "_ HΦ". wp_pures. by iApply "HΦ". Qed.
 
+  Lemma spec_list_nil E K :
+    ⤇ fill K list_nil -∗
+    spec_update E (∃ v, ⤇ fill K (of_val v) ∗ ⌜is_list [] v⌝).
+  Proof.
+    iIntros "Hspec".
+    tp_pures.
+    iModIntro.
+    iExists _.
+    iFrame.
+    iPureIntro; by eexists.
+  Qed.
+
   Lemma wp_list_cons a l lv E :
     {{{ ⌜is_list l lv⌝ }}}
       list_cons (inject a) lv @ E

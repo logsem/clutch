@@ -244,6 +244,227 @@ Section prf_prp.
     by rewrite Permutation_app_comm.
  Qed.
 
+ Let dummy_scheme : val := ((λ: "_", #()),#()).
+
+ Definition loop (f : val) (res : loc) :=
+   (rec: "loop" "i" :=
+      if: "i" = #0 then #()
+      else let: "x" := rand #val_size in
+           let: "y" := f "x" in
+           #res <- list_cons ("x", "y") ! #res;;
+           "loop" ("i" - #1))%V.
+
+  Lemma wp_wPRF_wPRP_err_ind E K (rf rp : val) (res res' : loc ) (m : gmap nat Z) (n k : nat) (l:list Z) (ε : R):
+    (0<=k<=n)%nat ->
+    ((S val_size) - (n-k))%nat <= length l ->
+    NoDup l ->
+    l⊆(Z.of_nat <$> seq 0 (S val_size)) ->
+    (forall x:Z, x∈ ((map_img m):gset _) -> x ∈ l -> False) ->
+    (dom m ⊆ set_seq 0 (S val_size))->
+    ((INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R <= ε)%R ->
+    {{{ ↯ ε ∗
+        is_random_function rf m ∗
+        ⤇ fill K (loop rp res' #k) ∗
+        is_sprp rp m l ∗
+        ∃ lres, ∃ vres : val, ⌜is_list lres vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres
+    }}}
+      loop rf res #k
+      @ E
+      {{{ RET #();
+          ∃ m l,
+            ⤇ fill K #() ∗
+            is_random_function rf m ∗
+            is_sprp rp m l ∗
+            ∃ lres, ∃ vres : val, ⌜is_list lres vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres
+      }}}.
+  Proof with (wp_pures ; tp_pures).
+    iInduction k as [|Q'] "IH" forall (ε m l).
+    - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
+        "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
+      rewrite /loop.
+      tp_pures.
+      1: by (simpl ; auto).
+      wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "rf rp".
+      iFrame. by iExists _.
+    - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
+        "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
+      rewrite /loop.
+      wp_pures.
+      tp_pures.
+      1: by (simpl ; auto).
+      rewrite -/(loop rf res) -/(loop rp res').
+      iMod (ec_zero) as "H0".
+      wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size with "[spec H0]") => //.
+      { iSplitL "spec".
+        - tp_bind (rand _)%E. done.
+        - rewrite Rminus_diag /Rdiv Rmult_0_l /=//.
+      }
+      iIntros (n2 m2) "[-> spec]".
+      iSimpl in "spec"...
+      wp_pures. wp_bind (rf _).
+      tp_pures. tp_bind (rp _).
+      iAssert (↯ _ ∗ ↯ _)%I with "[ε]" as "[Hε Hε']".
+      { iApply ec_split; last first.
+        - iApply ec_weaken; last done.
+          split; last first.
+          { etrans; last exact. rewrite <-cons_seq. rewrite fold_symmetric; [|lia|lia].
+            rewrite [foldr _ _ _]/=.
+            rewrite plus_INR Rdiv_plus_distr. done. }
+          apply Rplus_le_le_0_compat; apply Rcomplements.Rdiv_le_0_compat; real_solver.
+        - apply Rcomplements.Rdiv_le_0_compat; real_solver.
+        - apply Rcomplements.Rdiv_le_0_compat; real_solver. }
+      iAssert (⌜(n-S Q')<S val_size⌝)%I with "[Hε]" as "%".
+      { pose proof Nat.lt_ge_cases (n-S Q') (S val_size) as [|]; first done.
+        iExFalso. iApply ec_contradict; last done. simpl.
+        apply Rcomplements.Rle_div_r.
+        - pose proof pos_INR_S val_size. apply Rlt_gt. exact.
+        - rewrite Rmult_1_l. replace (_)%R with (INR (S val_size)); last by simpl. apply le_INR. lia. }
+
+      destruct (m!!fin_to_nat m2) eqn:Hm'.
+      + iApply (wp_prf_prp_couple_eq_Some
+                  _ _ _ _ _ _ _ _ Hm' with "[$spec $rf $rp]").
+        * apply elem_of_dom_2 in Hm'.
+          eapply elem_of_weaken in Hm'; last done.
+          rewrite elem_of_set_seq in Hm'. lia.
+        * iNext. iIntros " (spec & Hf & Hg)".
+          wp_pures. wp_load.
+          wp_pure.
+          wp_bind (list_cons (#m2, #z)%V vres).
+          iApply (wp_list_cons $! list_vres).
+          iNext. iIntros (cons_vres) "%list_vres_cons".
+          iSimpl in "spec". tp_pure. tp_pure. tp_load. tp_pure.
+          tp_bind (list_cons (#m2, #z)%V vres)%E.
+          iMod (spec_list_cons $! list_vres with "spec") as "[%vres_cons' [spec %list_vres_cons']]" => // ; iSimpl in "spec".
+          wp_store. tp_store. tp_pure. tp_pure.
+          wp_pures. tp_pures.
+          replace #(S Q' - 1) with (#Q') by (do 2 f_equal ; lia).
+          iApply ("IH" $! (foldr Nat.add 0%nat (seq (S (n - S Q')) Q') / S val_size)%R
+                   with "[][][][][][][][-HΦ][HΦ]"); try done ; try by (iPureIntro ; lia).
+          { simpl. iPureIntro. apply Req_le. rewrite fold_symmetric; try (intros; lia).
+            replace (S _)  with (n-Q'); first done. lia. }
+          iFrame "Hf Hg spec Hε'".
+          pose proof (is_list_eq _ _ _ list_vres_cons list_vres_cons') as eq_vres ; rewrite -eq_vres.
+          iExists _,_. by iFrame.
+      + wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ m2
+                   with "[$Hε $rp $rf $spec]"); [done|pose proof(fin_to_nat_lt m2); lia|..].
+        * intros. apply not_elem_of_dom_1. intro.
+          eassert (n' ∈ (set_seq 0 (S val_size))).
+          { eapply elem_of_weaken; exact. }
+          rewrite elem_of_set_seq in H2. lia.
+        * pose proof list_pigeonhole _ _ Hsubseteq as H0.
+          pose proof Nat.lt_ge_cases  (S val_size) (length l) as [H1|H1]; try lia.
+          rewrite fmap_length seq_length in H0.
+          specialize (H0 H1).
+          destruct H0 as (?&?&?&?&?&?).
+          eapply NoDup_lookup in HNoDup; [|exact H2|exact H3].
+          subst. lia.
+        * simpl. rewrite Rdiv_def. f_equal. rewrite minus_INR; last lia.
+          rewrite Rdiv_def. apply Rmult_le_compat_r; first pose proof pos_INR_S val_size as H0.
+          { rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra. done. }
+          rewrite Rcomplements.Rle_minus_l.
+          trans (INR n - INR (S Q') + INR (S val_size - (n - S Q')))%R; last first.
+          { apply Rplus_le_compat_l. apply le_INR. lia. }
+          rewrite minus_INR; last lia.
+          assert (0<=INR n - INR (S Q') - INR (n-S Q'))%R; last first.
+          { replace (match val_size with | _ => _  end) with (INR (S val_size)); last by simpl.
+            lra. }
+          rewrite minus_INR; last lia.
+          lra.
+        * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
+          wp_pures. wp_load.
+          wp_pure.
+          wp_bind (list_cons (#m2, #z)%V vres).
+          iApply (wp_list_cons $! list_vres).
+          iNext. iIntros (cons_vres) "%list_vres_cons".
+          iSimpl in "HK". tp_pure. tp_pure. tp_load. tp_pure.
+          tp_bind (list_cons (#m2, #z)%V vres)%E.
+          iMod (spec_list_cons $! list_vres with "HK") as "[%vres_cons' [spec %list_vres_cons']]" => // ; iSimpl in "spec".
+          wp_store. tp_store. tp_pure. tp_pure.
+          wp_pures. tp_pures.
+          replace #(S Q' - 1) with (#Q') by (do 2 f_equal ; lia).
+          iApply ("IH" $! (foldr Nat.add 0%nat (seq (S (n - S Q')) Q') / S val_size)%R
+                   with "[][][][][][][][-HΦ $Hf $Hg $spec $Hε'][HΦ]"); try done ; try by (iPureIntro ; lia).
+          -- iPureIntro.
+             apply le_S_n.
+             replace (S (S _ - _)) with (S val_size - (n - S Q')) by lia.
+             trans (length l); try done.
+             subst. rewrite !app_length cons_length. lia.
+          -- iPureIntro. subst. apply NoDup_app. apply NoDup_app in HNoDup.
+             destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup. set_solver.
+          -- iPureIntro. rewrite list_subseteq_app_iff_l. split; set_solver.
+          -- iPureIntro. intro. subst. rewrite map_img_insert_notin; last done.
+             rewrite elem_of_union elem_of_app. intros [|] [|]; subst.
+             ++ set_unfold. subst. apply NoDup_app in HNoDup. set_solver.
+             ++ set_unfold. subst. apply NoDup_app in HNoDup.
+                destruct HNoDup as [?[? HNoDup]]. apply NoDup_cons in HNoDup.
+                set_solver.
+             ++ eapply Hdom; set_solver.
+             ++ eapply Hdom; set_solver.
+          -- iPureIntro. intros. subst. simpl.
+             rewrite dom_insert_L.
+             apply union_least; last done.
+             rewrite singleton_subseteq_l.
+             rewrite <-set_seq_S_start.
+             rewrite elem_of_set_seq.
+             pose proof (fin_to_nat_lt m2).
+             lia.
+          -- simpl. rewrite Rdiv_def. iPureIntro. repeat f_equal. rewrite fold_symmetric; try (intros; lia).
+             apply Req_le. replace (S _)  with (n-Q'); first done. lia.
+          -- pose proof (is_list_eq _ _ _ list_vres_cons list_vres_cons') as eq_vres ; rewrite -eq_vres.
+             iExists _,_ ; by iFrame "res res'".
+             Unshelve.
+             ++ apply gset_semi_set.
+  Qed.
+
+
+  Lemma wp_wprf_wprp
+    E K (Q : nat) (ε : R) :
+    ((fold_left Nat.add (seq 0 Q) 0%nat / S val_size)%R = ε) →
+    {{{ ↯ ε ∗ ⤇ fill K (wPRP val_size #false dummy_scheme #Q) }}}
+      wPRF val_size val_size #false dummy_scheme #Q @ E
+      {{{ (vres : val), RET vres; ⤇ fill K vres }}}.
+  Proof with (wp_pures ; tp_pures).
+    rewrite /wPRF/wPRP. iIntros (Hε) "%Φ (ε & spec) HΦ"...
+    tp_bind (prp.random_permutation _ #()).
+    iMod (spec_random_permutation with "spec") as (rp) "(spec & rp)".
+    wp_bind (random_function _).
+    wp_apply (wp_random_function); first done.
+    iIntros (rf) "rf" ; simpl. wp_pure. wp_pure.
+    wp_apply wp_list_nil => //.
+    iIntros (vres) "%list_vres".
+    wp_alloc res as "res".
+    tp_pure. tp_pure.
+    tp_bind list_nil.
+    iMod (spec_list_nil with "[spec]") as "[%vres' [spec %list_vres']]" => // ; iSimpl in "spec".
+    pose proof (is_list_eq _ _ _ list_vres list_vres') as eq_vres ; rewrite -eq_vres.
+    tp_alloc as res' "res'".
+    do 2 wp_pure. do 2 tp_pure.
+    wp_pure. wp_pure. wp_pure.
+    wp_bind ((rec: "loop" _ := _) _)%V.
+    tp_pure. tp_pure. tp_pure.
+    tp_bind ((rec: "loop" _ := _) _)%V.
+    iAssert (∃ l vres, ⌜is_list l vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres)%I
+      with "[res res']" as "res". 1: (iExists _,_ ; by iFrame).
+    fold (loop rf res).
+    fold (loop rp res').
+
+    iApply (wp_wPRF_wPRP_err_ind with "[-HΦ $ε $rf $rp $spec]").
+    - split; first lia. done.
+    - simpl. rewrite fmap_length seq_length. lia.
+    - intros.
+      replace (Z.of_nat 0 :: list_fmap nat Z Z.of_nat (seq 1 val_size)) with (Z.of_nat <$> seq 0 (S val_size)) by easy.
+      apply NoDup_fmap_2; last apply NoDup_seq. apply Nat2Z.inj'.
+    - intros; set_solver.
+    - set_solver.
+    - set_solver.
+    - replace (_-_) with 0; try lia. rewrite <-Hε. done.
+    - easy.
+    - iNext. iIntros "(%m & %l & spec & rf & rp & %vlist & %vres'' & %is_res & hres & hres')". wp_pures.
+      simpl. tp_pures. tp_load.
+      wp_load.
+      by iApply "HΦ".
+  Qed.
+
 
 Definition test_prf: val :=
   λ: "n",

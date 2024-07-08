@@ -89,6 +89,25 @@ Section PRP.
       let: "b'" := "adv" "oracle" in
       "b'".
 
+  Definition wPRP : val :=
+    λ:"b" "PRP_scheme" "Q",
+      let: "key" := keygen "PRP_scheme" #() in
+      let: "prp_key_b" :=
+        if: "b" then
+          prp "PRP_scheme" "key"
+        else
+          random_permutation "key" in
+      let: "res" := ref list_nil in
+      let: "loop" := rec: "loop" "i" :=
+          if: "i" = #0 then #() else
+            let: "x" := rand #val_size in
+            let: "y" := "prp_key_b" "x" in
+            "res" <- list_cons ("x", "y") (!"res") ;;
+            "loop" ("i" - #1)
+      in
+      "loop" "Q" ;;
+      ! "res"
+  .
 
   Definition is_prp f (m : gmap nat Z) (r : list Z) : iProp Σ :=
     ∃ (hm : loc) (fv : loc),
