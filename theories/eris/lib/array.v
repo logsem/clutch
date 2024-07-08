@@ -1,7 +1,6 @@
 From clutch.common Require Import inject.
 From clutch Require Import eris.
 
-(* From clutch.paris.examples Require Export map. *)
 Set Default Proof Using "Type*".
 
 

@@ -2,7 +2,6 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext NNRbar.
-(* From clutch.paris Require Import lifting ectx_lifting. *)
 From clutch.prob_lang Require Import lang notation tactics metatheory.
 From Coq Require Export Reals Psatz.
 Require Import Lra.
