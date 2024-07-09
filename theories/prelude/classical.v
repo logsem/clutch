@@ -72,7 +72,7 @@ Proof.
   tauto.
 Qed.
 
-(* PGH: resurrected some old classical facts in the Great Merge of 2023 to fix
+(* resurrected some old classical facts in the Great Merge of 2023 to fix
 compatibility issues. Prove choice as a lemma instead of an additional axiom
 though. *)
 Lemma Choice :

@@ -7,7 +7,7 @@ From clutch.prob Require Export countable_sum distribution couplings graded_pred
 
 Open Scope R.
 
-(* TODO(SG): cleanup this file *)
+(* TODO: cleanup this file *)
 
 Section couplings.
   Context `{Countable A, Countable B, Countable A', Countable B'}.
