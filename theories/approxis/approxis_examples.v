@@ -4,8 +4,9 @@ From clutch.approxis.examples Require Import prp_prf_weak prp_prf_adaptive rejec
 Definition main_results:= (weak_switching_lemma,
                              switching_lemma,
                                rejection_sampler_correct,
-                                 naive_equiv_opt,
-                                   CPA_bound_realistic
+                                 vnd_equiv_die,
+                                   naive_equiv_opt,
+                                     CPA_bound_realistic
                           ).
 
 Print Assumptions main_results.
