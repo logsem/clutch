@@ -1,5 +1,5 @@
 (* Our old friend, the Von Neumann coin, but now with approximate refinements!*)
-From clutch Require Export approxis lib.flip.
+From clutch Require Export approxis.
 Set Default Proof Using "Type*".
 
 Section proofs.

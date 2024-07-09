@@ -1,4 +1,3 @@
-From clutch Require Import lib.flip.
 From clutch.approxis Require Import approxis map list.
 Set Default Proof Using "Type*".
 
