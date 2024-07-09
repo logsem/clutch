@@ -1,5 +1,4 @@
 (* CPA security of a PRF based symmetric encryption scheme. *)
-From clutch Require Import lib.flip.
 From clutch.approxis Require Import approxis map list.
 From clutch.approxis.examples Require Import prf symmetric.
 Set Default Proof Using "Type*".

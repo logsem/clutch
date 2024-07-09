@@ -9,7 +9,6 @@ Our definition deviates from Rosulek's and Boneh/Shoup in that we wrap the encry
 
      *)
 
-From clutch Require Import lib.flip.
 From clutch.approxis Require Import approxis map list prf prp sum_seq.
 Set Default Proof Using "Type*".
 

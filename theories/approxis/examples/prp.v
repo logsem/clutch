@@ -1,4 +1,3 @@
-From clutch Require Import lib.flip.
 From clutch.approxis Require Import approxis map list.
 From clutch.approxis Require Export bounded_oracle.
 Set Default Proof Using "Type*".
