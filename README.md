@@ -35,3 +35,21 @@ opam install . --deps-only
 ```
 
 You should now be able to build the development by using `make -j N` where `N` is the number of cores available on your machine.
+
+## Examples shown in the paper
+The main results of the examples shown in the Approxis paper are summarized in the file [`theories/approxis/approxis_examples.v`](theories/approxis/approxis_examples.v).
+It also prints out a list of the axioms used for classical reasoning and axiomatization of the reals: 
+
+```
+ClassicalDedekindReals.sig_not_dec : ∀ P : Prop, {¬ ¬ P} + {¬ P}
+ClassicalDedekindReals.sig_forall_dec
+  : ∀ P : nat → Prop,
+      (∀ n : nat, {P n} + {¬ P n}) → {n : nat | ¬ P n} + {∀ n : nat, P n}
+propositional_extensionality : ∀ P Q : Prop, P ↔ Q → P = Q
+functional_extensionality_dep
+  : ∀ (A : Type) (B : A → Type) (f g : ∀ x : A, B x),
+      (∀ x : A, f x = g x) → f = g
+ClassicalEpsilon.constructive_indefinite_description
+  : ∀ (A : Type) (P : A → Prop), (∃ x : A, P x) → {x : A | P x}
+Classical_Prop.classic : ∀ P : Prop, P ∨ ¬ P
+```
