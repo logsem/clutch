@@ -434,3 +434,21 @@ Section proofs.
 
 
 End proofs.
+
+Lemma rej_equiv_die:
+  ∅ ⊨ vnd_tapes =ctx= die_tapes: TUnit → TInt.
+Proof.
+  assert (approxisRGpreS approxisRΣ).
+  { apply subG_approxisRGPreS. apply subG_refl. }
+  split.
+  - eapply ctx_refines_transitive.
+    + eapply refines_sound; eauto.
+      iIntros. iApply vnd_ref_rej.
+    + eapply refines_sound; eauto.
+      iIntros. iApply rej_ref_die.
+  - eapply ctx_refines_transitive.
+    + eapply refines_sound; eauto.
+      iIntros. iApply die_ref_rej.
+    + eapply refines_sound; eauto.
+      iIntros. iApply rej_ref_vnd.
+Qed.
