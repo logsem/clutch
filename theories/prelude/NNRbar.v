@@ -471,7 +471,7 @@ Proof.
   apply sym_not_eq in H ;
   unfold is_NNRbar_mult ; simpl ;
   case: Rle_dec => // H0 .
-  (* AA: Can we make this cleaner? *)
+  (* Can we make this cleaner? *)
   + destruct H; symmetry; apply nnreal_le_0; auto.
   + destruct H; symmetry; apply nnreal_le_0; auto.
 Qed.
