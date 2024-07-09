@@ -850,11 +850,11 @@ End Approxis.
     iNext ; iIntros. iExists _. iFrame. done.
   Qed.
 
-  Corollary wPRF_wPRP_bound Σ `{approxisGpreS Σ} σ σ' (Q : nat) ε :
+  Corollary wPRF_wPRP_bound Σ `{approxisGpreS Σ} σ σ' (Q : nat) ε vres :
     ((((Q - 1) * Q) / (2 * S val_size)) = ε)%R →
-    ((lim_exec ((wPRF #false dummy_scheme #Q), σ) #true)
+    ((lim_exec ((wPRF #false dummy_scheme #Q), σ) vres)
      <=
-       ((lim_exec ((wPRP #false dummy_scheme #Q), σ')) #true) + ε)%R.
+       ((lim_exec ((wPRP #false dummy_scheme #Q), σ')) vres) + ε)%R.
   Proof.
     intros hε; apply ARcoupl_eq_elim.
     pose proof (sum_seq Q).
@@ -863,11 +863,11 @@ End Approxis.
     eapply ARC_wPRF_wPRP => //.
   Qed.
 
-  Corollary wPRP_wPRF_bound Σ `{approxisGpreS Σ} σ σ' (Q : nat) ε :
+  Corollary wPRP_wPRF_bound Σ `{approxisGpreS Σ} σ σ' (Q : nat) ε vres :
     ((((Q - 1) * Q) / (2 * S val_size)) = ε)%R →
-    ((lim_exec ((wPRP #false dummy_scheme #Q), σ) #true)
+    ((lim_exec ((wPRP #false dummy_scheme #Q), σ) vres)
      <=
-       ((lim_exec ((wPRF #false dummy_scheme #Q), σ')) #true) + ε)%R.
+       ((lim_exec ((wPRF #false dummy_scheme #Q), σ')) vres) + ε)%R.
   Proof.
     intros hε; apply ARcoupl_eq_elim.
     pose proof (sum_seq Q).
@@ -876,16 +876,16 @@ End Approxis.
     eapply ARC_wPRP_wPRF => //.
   Qed.
 
-  Lemma weak_switching_lemma σ σ' (Q : nat) :
-    (Rabs ((lim_exec (wPRP #false dummy_scheme #Q, σ ) #true) -
-           (lim_exec (wPRF #false dummy_scheme #Q, σ') #true))
+  Lemma weak_switching_lemma σ σ' (Q : nat) vres :
+    (Rabs ((lim_exec (wPRP #false dummy_scheme #Q, σ ) vres) -
+           (lim_exec (wPRF #false dummy_scheme #Q, σ') vres))
      <= ((Q - 1) * Q / (2 * S val_size)))%R.
   Proof.
     apply Rabs_le.
     set (ε := ((Q - 1) * Q / (2 * S val_size))%R).
-    opose proof (wPRP_wPRF_bound _ σ σ' Q ε _) ; eauto.
+    opose proof (wPRP_wPRF_bound _ σ σ' Q ε vres _) ; eauto.
     { apply subG_approxisRGPreS. apply subG_refl. }
-    opose proof (wPRF_wPRP_bound _ σ' σ Q ε _) ; eauto.
+    opose proof (wPRF_wPRP_bound _ σ' σ Q ε vres _) ; eauto.
     { apply subG_approxisRGPreS. apply subG_refl. }
     split ; lra.
   Qed.
