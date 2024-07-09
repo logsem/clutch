@@ -18,10 +18,6 @@ with lists of values. *)
 Definition array `{!approxisGS Σ} (l : loc) (dq : dfrac) (vs : list val) : iProp Σ :=
   [∗ list] i ↦ v ∈ vs, (l +ₗ i) ↦{dq} v.
 
-(*
-Notation "l ↦∗{ dq } vs" := (array l dq vs)
-  (at level 20, dq custom dfrac at level 1, format "l  ↦∗{ dq } vs") : bi_scope.
-*)
 
 Notation "l ↦∗{ dq } vs" := (array l dq vs)
   (at level 20, format "l  ↦∗{ dq }  vs") : bi_scope.
@@ -43,15 +39,6 @@ Section lifting.
   Implicit Types l : loc.
   Implicit Types vs : list val.
   Implicit Types sz off : nat.
-
-  (*
-Global Instance array_timeless l q vs : Timeless (array l q vs) := _.
-
-Global Instance array_fractional l vs : Fractional (λ q, l ↦∗{#q} vs)%I := _.
-Global Instance array_as_fractional l q vs :
-  AsFractional (l ↦∗{#q} vs) (λ q, l ↦∗{#q} vs)%I q.
-Proof. split; done || apply _. Qed.
-*)
 
 Lemma array_nil l dq : l ↦∗{dq} [] ⊣⊢ emp.
 Proof. by rewrite /array. Qed.
