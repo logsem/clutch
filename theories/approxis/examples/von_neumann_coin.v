@@ -435,7 +435,7 @@ Section proofs.
 
 End proofs.
 
-Lemma rej_equiv_die:
+Lemma vnd_equiv_die:
   ∅ ⊨ vnd_tapes =ctx= die_tapes: TUnit → TInt.
 Proof.
   assert (approxisRGpreS approxisRΣ).
