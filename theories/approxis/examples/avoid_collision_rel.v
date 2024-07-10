@@ -1,5 +1,4 @@
-(* From discussions with Ugo:
-
+(* 
 ''' define e := let x = rand n in x = t
 
 where x : string(n), n sec'ty param, and t arbitrary.
