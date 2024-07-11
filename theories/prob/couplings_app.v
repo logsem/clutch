@@ -745,6 +745,23 @@ Section couplings_theory.
     }
     apply Hcoupl; real_solver.
   Qed.
+
+  Lemma ARcoupl_eq_elim_tv (μ1 μ2 : distr A) ε :
+    ARcoupl μ1 μ2 (=) ε →
+    forall (P : A -> Prop),
+    SeriesC (λ a : A, if bool_decide (P a) then μ1 a else 0)  <=
+    SeriesC (λ a : A, if bool_decide (P a) then μ2 a else 0) + ε.
+  Proof.
+    intros Hcoupl P.
+    rewrite /ARcoupl in Hcoupl.
+    assert (SeriesC (λ a : A, if bool_decide (P a) then μ1 a else 0)
+            = SeriesC (λ a : A, μ1 a * (if bool_decide (P a) then 1 else 0))) as ->.
+    { apply SeriesC_ext; real_solver. }
+    assert (SeriesC (λ a : A, if bool_decide (P a) then μ2 a else 0)
+            = SeriesC (λ a : A, μ2 a * (if bool_decide (P a) then 1 else 0))) as ->.
+    { apply SeriesC_ext; real_solver. }
+    apply Hcoupl; real_solver.
+  Qed.
   
 End couplings_theory.
 
