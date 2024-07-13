@@ -460,18 +460,6 @@ HB.end.
   End giry_ret_laws.
 
 
-
-
-
-
-
-
-
-
-
-
-
-
   (** ********** 6. Expectations over the Giry Monad *)
   Section giryM_integrate_laws.
     (* TODO: Port laws from prob here *)
@@ -857,6 +845,7 @@ measurable_fun_limn_sup:
   Section giryM_join_laws.
     (* TODO: Port laws from prob here *)
     Context {d} {T : measurableType d}.
+    Context {d2} {T2 : measurableType d2}.
 
     Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
     Proof.
@@ -997,13 +986,21 @@ measurable_fun_limn_sup:
     Admitted.
 
 
+    Lemma giryM_join_map_map (mf : measurable_map T T2) (m : giryM (giryM T)) :
+      giryM_join (giryM_map (giryM_map mf) m) = giryM_map mf (giryM_join m).
+    Proof. Admitted.
 
-    (* TODO: Port these equations *)
-    (* join_map_map *)
-    (* join_map_join *)
-    (* join_map_dirac *)
-    (* join_dirac *)
+    Lemma giryM_join_map_join (m : giryM (giryM (giryM T))) :
+      giryM_join (giryM_map giryM_join m) = giryM_join (giryM_join m).
+    Proof. Admitted.
 
+    Lemma giryM_join_map_ret (μ : (giryM T)) :
+      giryM_join (giryM_map giryM_ret μ) = μ.
+    Proof. Admitted.
+
+    Lemma giryM_join_ret (μ : (giryM T)) :
+      giryM_join (giryM_ret μ) = μ.
+    Proof. Admitted.
   End giryM_join_laws.
 
 
@@ -1032,6 +1029,32 @@ measurable_fun_limn_sup:
 
   (* TODO: Mcmp_aux / seal *)
 
+  (** ********** ?. Constant is measurable_map *)
+  Section MeasurableMap_const.
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+    Lemma Mcst_def_measurable (t : T2):
+      @measurable_fun _ _ T1 T2 setT (cst t).
+    Proof. Admitted.
+
+    HB.instance Definition _ (t : T2) :=
+      isMeasurableMap.Build _ _ T1 T2 (cst t) (Mcst_def_measurable t).
+  End MeasurableMap_const.
+
+  (*
+  (** ********** ?. Id is measurable_map *)
+  Section MeasurableMap_id.
+    Context {d1} {T1 : measurableType d1}.
+
+    Lemma Mid_def_measurable :
+      @measurable_fun _ _ T1 T1 setT (id : T1 -> T1).
+    Proof. Admitted.
+
+    HB.instance Definition _ :=
+      isMeasurableMap.Build _ _ T1 T1 (@id T1 ) Mid_def_measurable.
+  End MeasurableMap_const.
+   *)
+
 
   (** ********** 8. Monad bind *)
 
@@ -1051,50 +1074,38 @@ measurable_fun_limn_sup:
   Section giryM_bind_laws.
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-    Context {f : T1 -> giryM T2} (mf : measurable_fun setT f).
+    Context {f : measurable_map T1 (giryM T2)}.
 
 
     (* TODO: Port these equations *)
-
-    (* FIXME: Make a measurable_map instance for mzero and cst *)
-    (*
-    Lemma giryM_bind_0_l : giryM_bind mzero mf = mzero.
+    Lemma giryM_bind_0_l : giryM_bind f mzero = mzero.
     Proof. Admitted.
 
     (* FIXME: make it so that I don't have to annotate giryM T2 here? *)
-    Lemma giryM_bind_0_r (μ : giryM T1) : giryM_bind μ (measurable_cst (mzero : giryM T2)) = mzero.
+    Lemma giryM_bind_0_r (μ : giryM T1) : giryM_bind (cst (mzero : giryM T2)) μ = mzero.
     Proof. Admitted.
 
-    Lemma giryM_bind_measurable : measurable_fun setT (giryM_bind^~ mf).
+    (* Check (giryM_bind f). *)
+    Lemma giryM_bind_measurable : measurable_fun setT (giryM_bind f).
     Proof. Admitted.
 
     Lemma giryM_bind_eval (m : giryM T1) (s : set T2) (HS : measurable s) :
-      (giryM_bind m mf s = \int[m]_x f x s)%E.
+      (giryM_bind f m s = \int[m]_x f x s)%E.
     Proof. Admitted.
 
     Lemma giryM_bind_integrate (m : giryM T1) (g : T2 -> \bar R) (mg : measurable_fun setT g) :
-      (\int[giryM_bind m mf]_x g x = \int[m]_a (\int[f a]_x g x))%E.
+      (\int[giryM_bind f m]_x g x = \int[m]_a (\int[f a]_x g x))%E.
     Proof. Admitted.
 
-
-    (* This is a mess ... put it into a fresh namespace *)
+    (* This is a mess ... put it into a fresh namespace? *)
     Lemma giryM_bind_bind {d3} {T3 : measurableType d3} (g : T2 -> giryM T3) (mg : measurable_fun setT g) (m : giryM T1) : True.
     Proof. Admitted.
 
-    Lemma giryM_bind_ret_l t : giryM_bind (giryM_ret t) mf = f t.
+    Lemma giryM_bind_ret_l t : giryM_bind f (giryM_ret t) = f t.
     Proof. Admitted.
 
-
-    Lemma giryM_bind_ret_r (m : giryM T1) : giryM_bind m (giry_ret_measurable : measurable_fun _ _) = m.
+    Lemma giryM_bind_ret_r (m : giryM T1) : giryM_bind giryM_ret m = m.
     Proof. Admitted.
-
-
-     *)
-
-    (* Other monad laws? *)
-    (* TODO: Check that you've gotten all the equations  *)
-
-    (* join_eq_bind *)
 
   End giryM_bind_laws.
 
