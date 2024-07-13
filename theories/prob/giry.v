@@ -353,92 +353,29 @@ HB.end.
     Local Definition giryM_ret_def : T -> giryM T := fun t0 => @dirac _ T t0 _.
 
     Local Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret_def.
-    Proof.
-      (* rewrite /measurable_fun. intros H Y HY. *)
-      (* The preimage is the set [s | giryM_ret s ∈ Y] *)
-      (* In principle this could be any subset of T, somehow the measurability of
-         Y has to eliminate this possibility. *)
-
-
-      (* Enough to work in a subbasis *)
-      apply (@measurability _ _ _ _ _ giryM_ret_def (@giry_subbase _ T)); first by simpl.
-      rewrite /subset; intros X HX.
-      rewrite /preimage_class/= in HX.
-      rewrite /salgebraType in HX.
-      destruct HX as [Z HZ <-].
-      rewrite setTI.
-
-      rewrite /giry_subbase/= in HZ.
-      destruct HZ as [S [HS HSZ]].
-      rewrite /preimage_class_of_measures/= in HSZ.
-
-      (* Z is a set of subprobability distributions on T.
-         S is a set of T
-         S is measurable in T.
-         Z is measurable in (giryM T).
-
-        giry_subbase Z tells me very little about Z
-         measurable_measure (mathlib) characterizes measurable functions into the monad by their
-         evaluations. So unfolding down one more layer is (probably) necessary using this line.
-
-        Consequence: Probaby best to try applying the lemma you declared and then immediately forgot about.
-
-       *)
-      simpl in *.
-      rewrite /preimage_class/= in HSZ.
-      destruct HSZ as [SR HSBorel <-].
-      rewrite setTI.
-
-      (* SR is a borel set in (\bar R).
-         ( ... ^~ S @^-1` SR) is the set of all subprobabilility measures which evaluate S to something in SR
-         (giryM_ret_def @^-1 ... SR ) is the set of all elements of T whose dirac measure
-            evaluates S to something in SR.
-
-          For any (t : T), t ∈ S <-> dirac t S = 1
-          (0 ∈ SR) / (t ∈ S) :        Says nothing
-          (0 ∈ SR) / (t not ∈ S) :    t ∈ (... @^-1 ...)
-          (1 ∈ SR) / (t ∈ S) :        t ∈ (... @^-1 ...)
-          (1 ∈ SR) / (t not ∈ S) :    Says nothing
-
-          Neither -> t not∈ (... @^-1 ...).
-
-          Can I peel back one level of unfolding and eliminate the explicit R borel set reasoning?
-            (see above for answer)
-       *)
-
-
-      rewrite /ereal_borel_sets/= in HSBorel.
-
-      (* Check sigma_algebra_preimage_classE. *)
-      simpl.
-      rewrite /measurable/=.
-    Restart.
-      (* Attempt 2 *)
-
+    Proof using d.
       apply measurable_evals_iff_measurable.
       rewrite /measurable_evaluations.
       intros S SMeas.
-      (* Now we're proving a T → \bar R function is measurable... better. *)
-      (* This should be easy to characterize since S is measurable. Just depends on
-         if 0 or 1 is in the real set. *)
-
       rewrite /measurable_fun/= .
       intros ? Y HY.
-      (* NOTE: Since its using 'measurable, it seems that Borel or Lebesgue doesn't matter here. (assuming qed)*)
+      (* NOTE: Since its using 'measurable, it seems that Borel or Lebesgue doesn't matter here.  *)
       remember (fun x : T => (\d_x)%R S) as f.
-      rewrite <- (preimage_range f).
-      rewrite -preimage_setI.
-
-      (* Probably silly to work in this order *)
-      replace (range f) with ([set 0%:E; 1%:E] : set \bar R) by admit.
-      (* Split it into (f @^-1 ({1} & Y)) U (f^-1 ({0} & Y))
-          Then I can simplify each thing easier (maybe). *)
-      rewrite setIUl.
-      rewrite preimage_setU.
-      do 2 rewrite set1I.
-
-      (* Now we're looking decent. Figure out how to use LEM and complete. *)
-    Admitted.
+      rewrite /dirac in Heqf.
+      have W : f = (comp EFin (indic S)).
+      { apply functional_extensionality. intro. by rewrite Heqf/=. }
+      rewrite W.
+      rewrite setTI.
+      rewrite comp_preimage.
+      rewrite preimage_indic.
+      remember (in_mem GRing.zero (mem (preimage EFin Y))) as B1; rewrite -HeqB1.
+      remember (in_mem (GRing.one R) (mem (preimage EFin Y))) as B2; rewrite -HeqB2.
+      destruct B1; destruct B2; simpl.
+      - apply H.
+      - apply measurableC, SMeas.
+      - apply SMeas.
+      - apply measurable0.
+    Qed.
 
     HB.instance Definition _ :=
       isMeasurableMap.Build _ _ T (giryM T) giryM_ret_def giry_ret_measurable.
