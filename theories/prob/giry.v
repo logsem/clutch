@@ -806,7 +806,20 @@ measurable_fun_limn_sup:
       Qed.
 
       Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join_def m).
-      Proof. Admitted.
+      Proof.
+        (* Search semi_sigma_additive.
+        Search sigma_additive.
+        Search additive. *)
+        rewrite /semi_sigma_additive.
+        intros F Fmeas Htriv_int HFunion_meas.
+        rewrite /giryM_join_def.
+        Search integral bigcup. (* Seems like the limit we want *)
+
+        Check (integral_bigcup Htriv_int Fmeas).
+        Search topology.cvg_to topology.lim.
+        Search (topology.cvg_to _ (topology.nbhs _)) topology.lim.
+
+      Admitted.
 
       HB.instance Definition _
         := isMeasure.Build _ _ _
@@ -846,33 +859,143 @@ measurable_fun_limn_sup:
     Context {d} {T : measurableType d}.
 
     Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
-    Proof. Admitted.
-
-    (* FIXME: fix f type to match measurable_fun lemma *)
-    (* FIXME: measurable_fun usage *)
-    (* lintegral_join *)
-    Lemma giryM_join_integrate (m : giryM (giryM T)) (f : T -> \bar R) (mf : measurable_fun setT f) :
-      (\int[giryM_join m]_x (f x) = \int[m]_μ (\int[μ]_x f x))%E.
     Proof.
-      rewrite /giryM_join.
+      simpl.
       rewrite /giryM_join_def'.
-      rewrite /=.
-      rewrite /giryM_join_def.
-      rewrite /=.
+      rewrite /salgebraType.
+      rewrite /giryType.
+      (* How to I compare for equality? *)
+      HB.about SubProbability.
+      Search subprobability.
 
-      rewrite /integral.
-
-      replace (\int[giryM_join m]_x f x)%E
-         with (ereal_sup [set sintegral (giryM_join_def m) h | h in [set h | (forall x : T, (h x)%:E <= ([eta f] \_ [set: T])^\+ x)]])%E
-          by admit.
-
-      rewrite /integral/=.
-      replace
-        (ereal_sup [set sintegral (giryM_join_def m) h | h in [set h | (forall x : T, (h x)%:E <= ([eta f] \_ [set: T])^\- x)]])%E
-        with (0 : R)%:E by admit.
-
+      (* Lol maybe this will work *)
+      (* f_equal *)
 
     Admitted.
+
+    (* lintegral_join *)
+    Lemma giryM_join_integrate (m : giryM (giryM T)) (f : T -> \bar R) (Hf : forall x : T, (0%R <= f x)%E)
+      (mf : measurable_fun setT f) :
+      (\int[giryM_join m]_x (f x) = \int[m]_μ (\int[μ]_x f x))%E.
+    Proof.
+      have HTmeas : d.-measurable [set: T] by admit.
+
+      (* Rewrite integral over (giryM_join M) to limit. *)
+      erewrite nd_ge0_integral_lim; first last.
+      - intro x.
+        apply (@cvg_nnsfun_approx _ _ _ setT HTmeas _ mf).
+        - intros. apply Hf.
+        - by simpl.
+      - intros x n' m' Hle.
+        (* Check (@nd_nnsfun_approx _ _ _ _ _ _ _ n' m' Hle). *)
+        (* Need to turn the %R comparison into %O)*)
+        admit.
+      - apply Hf.
+
+      (* Rewrite integral over μ to limit, under the RHS integral. *)
+      have Setoid1 : forall g h, g = h -> (\int[m]_μ g μ)%E = (\int[m]_μ (h μ))%E.
+      { intros. f_equal. apply functional_extensionality. intros. by rewrite H. }
+      erewrite Setoid1; last first.
+      { apply functional_extensionality.
+        intro y.
+        erewrite nd_ge0_integral_lim.
+        - reflexivity.
+        - apply Hf.
+        - (* See above admit *)
+          admit.
+        - intro x.
+          apply (@cvg_nnsfun_approx _ _ _ setT HTmeas _ mf).
+          - intros. apply Hf.
+          - by simpl.
+      }
+
+    (* Rewrite the sintegral of nnsfun_approx into a sum *)
+    rewrite topology.fmap_comp.
+    (*Check (sintegral (giryM_join m)).
+    Check (functional_extensionality _ _ (sintegralEnnsfun (giryM_join m))).
+    Locate sintegralEnnsfun.
+    have Hext := (functional_extensionality _ _ (sintegralEnnsfun (giryM_join m))). *)
+    have Setoid2 : forall S, forall g h, g = h  -> (topology.fmap g S) = (topology.fmap h S).
+    { intros ? ? ? ? ? H. by rewrite H. }
+    erewrite Setoid2; last first.
+    - apply functional_extensionality.
+      apply (sintegralE _).  (* FIXME: Possible issue down the road: sintegralE vs sintegralET *)
+    erewrite Setoid1; last first.
+    { apply functional_extensionality.
+      intro y.
+      rewrite topology.fmap_comp.
+      erewrite Setoid2.
+      - reflexivity.
+      - apply functional_extensionality.
+        apply (sintegralE _). (* See sintegral comment above *)
+    }
+    (* Evaluate the giryM_join on the LHS into an integral *)
+    erewrite
+      (Setoid2 _ _ _ _
+         (fun f' => (bigop.body GRing.zero
+                    (finite_support GRing.zero (image setT (fun i : T => f' i))
+                       (fun x : R => _))
+                    _ ))); last first.
+    - (* What a nightmare, there has to be a better way to rewrite under the integral sign *)
+      (* Look for an example in mathcomp analysis source *)
+      apply functional_extensionality.
+      intro f'.
+      f_equal.
+      apply functional_extensionality.
+      intro x.
+      f_equal.
+      rewrite /giryM_join.
+      rewrite /giryM_join_def'.
+      simpl.
+      rewrite /giryM_join_def.
+      done.
+    simpl.
+    rewrite -topology.fmap_comp.
+
+    Search finite_support esum.
+    Search esum topology.lim.
+    Check nneseries_esum.
+
+    (* Want the LHS to be of the form
+        topology.lim
+          (topology.fmap
+            (fun n : nat => (\sum_(0 <= i < n | P i) a i)%R)
+            (topology.nbhs topology.eventually))
+     *)
+    (* nat -> (... R ...) *)
+    Check  ((fun f' : T -> R =>
+         (\sum_(x <- finite_support 0 (range f') (fun x : R => (x%:E * giryM_join_def m (f' @^-1` [set x]))%E))
+             (x%:E * \int[m]_μ μ (f' @^-1` [set x]))%E)%R) \o (fun x : nat => nnsfun_approx HTmeas mf x)).
+
+    have approx_func : nat -> R := (fun _ => 0%R).
+    erewrite (Setoid2 _ _ _ _ (fun n => _)); last first.
+    - apply functional_extensionality.
+      intro n.
+      simpl.
+      (* What should the value of approx_func be? *)
+      (* Get the i'th value of (range (nnsfun_approx HTmeas mf n))
+         Map it through (nnsfun_approx HTmeas mf n @^-1`...)
+         What is that? Is it just nnsfun_approx ... i* 2^-n? *)
+      have A :
+        (finite_support 0 (range (nnsfun_approx HTmeas mf n)) (fun x : R => (x%:E * giryM_join_def m (nnsfun_approx HTmeas mf n @^-1` [set x]))%E))%E =
+        ([seq approx_func i | i <- (index_iota 0 n)] : seq R).
+      { admit.  }
+      rewrite A.
+
+      clear A.
+      erewrite (@big_map _ _ _ _ _ approx_func (index_iota 0 n) (fun _ => true) _).
+      reflexivity.
+    (* Great, now we should be able to exchange the limit?*)
+    Check @nneseries_esum _ _ (fun _ => true). (* Err... maybe not. Unless the limit is inside the esum definition? *)
+    Check sequences.nneseries_sum.
+    (* This looks closer, but that inner sum is strange. Maybe check out the proof?  *)
+
+    Search (topology.lim (topology.fmap _ _)) "sum".
+
+    Check esum_fset. (* sum -> esum, but have to do above? *)
+    (* rewrite esum_fset. *)
+    Admitted.
+
 
 
     (* TODO: Port these equations *)
