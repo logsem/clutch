@@ -664,11 +664,7 @@ measurable_fun_limn_sup:
     Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
     Lemma pushforward_setT (f : measurable_map T1 T2) (m : giryM T1) : (pushforward m (@measurable_mapP _ _ _ _ f) setT <= 1)%E.
-    Proof. (* Does this need any additional assumptions? *)
-      rewrite /pushforward.
-
-
-    Admitted.
+    Proof using Type. rewrite /pushforward preimage_setT. apply sprobability_setT. Qed.
 
     HB.instance Definition _ (f : measurable_map T1 T2) (m : giryM T1) := Measure_isSubProbability.Build _ _ _ (pushforward m (@measurable_mapP _ _ _ _ f)) (pushforward_setT f m).
 
