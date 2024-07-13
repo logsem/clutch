@@ -229,7 +229,7 @@ Section giry.
 
   Lemma measurable_if_pushfowrard_subset {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2) :
         (d2.-measurable  `<=` [set s : set T2 | d1.-measurable ( f@^-1` s )]) -> (measurable_fun setT f).
-  Proof.
+  Proof using Type.
     intro HS.
     rewrite /measurable_fun.
     rewrite /subset in HS.
@@ -265,18 +265,30 @@ Section giry.
     Qed.
 
     Lemma measurable_if_measurable_evals : measurable_evaluations f -> measurable_fun setT f.
-    Proof.
+    Proof using Type.
       intro Hm.
       rewrite /measurable_evaluations/measurable_fun/= in Hm.
 
       apply (@measurable_if_pushfowrard_subset _ _ _ _ f).
       rewrite {1}/measurable/=.
       apply smallest_sub.
-      { (* Need show that the map is a sigma algebra *)
-        (* FIXME: Is the set that I defined the preimage class? *)
-        (* Check preimage_class. *)
-        (* wait no I don't think so *)
-        admit.
+      { rewrite /sigma_algebra.
+        constructor.
+        - rewrite /= preimage_set0.
+          apply measurable0.
+        - intros ?.
+          simpl.
+          intro HA.
+          rewrite setTD.
+          rewrite -preimage_setC.
+          apply measurableC.
+          apply HA.
+        - simpl.
+          intros S MS.
+          rewrite preimage_bigcup.
+          apply bigcup_measurable.
+          intros k _.
+          apply MS.
       }
       rewrite /giry_subbase/subset/=.
       intros X [Y [HY HX]].
@@ -305,7 +317,7 @@ Section giry.
 
       rewrite HF in Hm.
       apply Hm.
-    Admitted.
+    Qed.
 
     Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
     Proof using Type. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
