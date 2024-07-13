@@ -88,7 +88,7 @@ Section giry.
     HB.instance Definition _ := gen_choiceMixin (giryType T).
 
     Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
-    Proof using d. by rewrite /mzero/=. Qed.
+    Proof using Type. by rewrite /mzero/=. Qed.
 
     HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
 
@@ -133,14 +133,14 @@ Section giry.
 
     (* Example: Measuring sets in the Giry space *)
     Example test_giry_measures_0 : T.-giry.-measurable (set0 : set (giryM T)).
-    Proof using d. simpl. apply measurable0. Qed.
+    Proof using Type. simpl. apply measurable0. Qed.
 
     Example test_giry_measures_T : T.-giry.-measurable [set: giryM T].
-    Proof using d. rewrite /=. apply (@measurableT _ (salgebraType _)). Qed.
+    Proof using Type. rewrite /=. apply (@measurableT _ (salgebraType _)). Qed.
 
     (* giryM is also a measurable type, so can be nested. *)
     Example test_giry_measures_0' : (giryM T).-giry.-measurable (set0 : set (giryM (giryM T))).
-    Proof using d. simpl. apply measurable0. Qed.
+    Proof using Type. simpl. apply measurable0. Qed.
 
   End giry_space_example.
 
@@ -158,10 +158,10 @@ Section giry.
     Example giry_ret_μ : giryM (giryM T) := @dirac _ _ μ_target _.
 
     Example int_zero_over_dirac : (\int[giry_ret_μ]_x cst 0%:E x)%E = 0%:E.
-    Proof using d. apply integral0. Qed.
+    Proof using Type. apply integral0. Qed.
 
     Example int_one_over_dirac : (\int[giry_ret_μ]_x cst 1%:E x)%E = 1%:E.
-    Proof using d.
+    Proof using Type.
       rewrite integral_cst /=.
       - by rewrite diracT mul1e.
       - rewrite -setC0.
@@ -191,7 +191,7 @@ Section giry.
     (* Yes, first line, to apply the comap lemma. Maybe a more general comap lemma can avoid this. *)
 
     Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) borelER setT (giryM_eval_def HS).
-    Proof using d.
+    Proof using Type.
       apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
       rewrite /T.-giry.-measurable/=.
       rewrite {2}/giry_subbase/=.
@@ -221,7 +221,7 @@ Section giry.
     := (giryM_eval_def HS).
   Lemma giryM_eval_aux {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) :
     forall μ, giryM_eval HS μ = μ S.
-  Proof using R. done. Qed.
+  Proof using Type. done. Qed.
 
 
 
@@ -253,7 +253,7 @@ Section giry.
     Check (f ^~ _ : T1 -> borelER).
 
     Lemma measurable_evals_if_measurable : measurable_fun setT f -> measurable_evaluations f.
-    Proof using d1.
+    Proof using Type.
       intros Hm.
       rewrite /measurable_evaluations.
       intros S HS.
@@ -308,7 +308,7 @@ Section giry.
     Admitted.
 
     Lemma measurable_evals_iff_measurable : measurable_evaluations f <-> measurable_fun setT f.
-    Proof. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
+    Proof using Type. split; [apply measurable_if_measurable_evals | apply measurable_evals_if_measurable]. Qed.
 
     (* Probably want to use measurable_evaluations as a builder for measuable_fun now, so I can
        instansiate THAT and get the measurable fun hierarchy bit automatically (by this lemma) *)
@@ -353,7 +353,7 @@ HB.end.
     Local Definition giryM_ret_def : T -> giryM T := fun t0 => @dirac _ T t0 _.
 
     Local Lemma giry_ret_measurable : @measurable_fun _ _ T (giryM T) setT giryM_ret_def.
-    Proof using d.
+    Proof using Type.
       apply measurable_evals_iff_measurable.
       rewrite /measurable_evaluations.
       intros S SMeas.
@@ -385,7 +385,7 @@ HB.end.
   (* FIXME: This is the interface that should be used *)
   Definition giryM_ret {d} {T : measurableType d} : measurable_map T (giryM T) := giryM_ret_def.
   Lemma giryM_ret_aux {d} {T : measurableType d} (t : T) : giryM_ret t = dirac t.
-  Proof using R. auto. Qed.
+  Proof using Type. auto. Qed.
 
   (* CHECK: Arguments to infer seem good *)
   Check giryM_ret _.
@@ -639,7 +639,7 @@ measurable_fun_limn_sup:
     := (@giryM_integrate_def f ).
   Lemma giryM_integrate_aux {d} {T : measurableType d} (f : measurable_map T (\bar R)) :
     forall μ, (giryM_integrate f μ = \int[μ]_x (f x))%E.
-  Proof using R. done. Qed.
+  Proof using Type. done. Qed.
    *)
 
 
@@ -677,7 +677,7 @@ measurable_fun_limn_sup:
     := giryM_map_def f.
   Lemma giryM_map_aux {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
     forall μ, giryM_map f μ = pushforward μ  (@measurable_mapP _ _ _ _ f).
-  Proof using R. done. Qed.
+  Proof using Type. done. Qed.
 
 
   Section giry_map_laws.
@@ -707,7 +707,7 @@ measurable_fun_limn_sup:
       Context (m : giryM (giryM T)).
 
       Definition giryM_join0 : giryM_join_def m set0 = 0%E.
-      Proof using d.
+      Proof using Type.
         rewrite /giryM_join_def.
         have X1 : (\int[m]_μ μ set0)%E  = ((integral m setT (cst GRing.zero)))%E.
         { f_equal.
@@ -723,7 +723,7 @@ measurable_fun_limn_sup:
       Qed.
 
       Definition giryM_join_ge0 A : (0 <= giryM_join_def m A)%E.
-      Proof using d.
+      Proof using Type.
         rewrite /giryM_join_def.
         apply integral_ge0.
         intros μ _.
@@ -775,7 +775,7 @@ measurable_fun_limn_sup:
   Definition giryM_join {d} {T : measurableType d} : measurable_map (giryM (giryM T)) (giryM T) := giryM_join_def'.
   Lemma giryM_join_aux {d} {T : measurableType d} (m : giryM (giryM T)) :
     forall S, (giryM_join m S = \int[m]_μ (μ S))%E.
-  Proof using R. done. Qed.
+  Proof using Type. done. Qed.
 
 
 
