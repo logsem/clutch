@@ -655,6 +655,20 @@ measurable_fun_limn_sup:
    *)
 
 
+  (* TODO: Mcmp_aux / seal *)
+
+  (** ********** ?. Constant is measurable_map *)
+  Section MeasurableMap_const.
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+    Lemma Mcst_def_measurable (t : T2):
+      @measurable_fun _ _ T1 T2 setT (cst t).
+    Proof using Type. apply measurable_cst. Qed.
+
+
+    HB.instance Definition _ (t : T2) :=
+      isMeasurableMap.Build _ _ T1 T2 (cst t) (Mcst_def_measurable t).
+  End MeasurableMap_const.
 
 
 
@@ -671,7 +685,17 @@ measurable_fun_limn_sup:
     Definition giryM_map_def (f : measurable_map T1 T2) (m : giryM T1) : giryM T2 := pushforward m (@measurable_mapP _ _ _ _ f).
 
     Lemma giryM_map_def_is_measurable (f : measurable_map T1 T2) : @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map_def f).
-    Proof. Admitted.
+    Proof.
+      have HM := @measurable_mapP _ _ _ _ f.
+      apply measurable_if_pushfowrard_subset.
+      rewrite /giryM_map_def.
+      intros S SM.
+      (* rewrite /giryM_map_def/measurable_fun.
+      intros ? Y YMeas.
+      rewrite setTI.
+      rewrite /pushforward.
+      rewrite /preimage.*)
+    Admitted.
 
     HB.instance Definition _ (f : measurable_map T1 T2) :=
       isMeasurableMap.Build _ _ (giryM T1) (giryM T2) (giryM_map_def f) (giryM_map_def_is_measurable f).
@@ -691,11 +715,27 @@ measurable_fun_limn_sup:
   Section giry_map_laws.
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+
+    Lemma giryM_map_zero (f : measurable_map T1 T2) : giryM_map f mzero = mzero.
+    Proof.
+      rewrite giryM_map_aux/mzero/pushforward.
+      (* functional_extensionality doesn't work... weird *)
+    Admitted.
+
+    Lemma giryM_map_cst (μ : giryM T1) (k : T2) : giryM_map (cst k) μ = giryM_ret k .
+    Proof.
+      rewrite giryM_map_aux.
+      rewrite /pushforward.
+      Search cst preimage.
+      Check preimage_cst. (* This one does it *)
+    Admitted.
+
+
+
+
+
   End giry_map_laws.
-
-
-
-
 
 
 
@@ -956,49 +996,18 @@ measurable_fun_limn_sup:
   Section MeasurableMap_cmp.
     Context {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}.
 
-    Definition Mcmp_def (f : measurable_map T2 T3) (g : measurable_map T1 T2) : T1 -> T3
-      := fun x => f (g (x)).
-
-    Lemma Mcmp_def_measurable (f : measurable_map T2 T3) (g : measurable_map T1 T2) :
-      @measurable_fun _ _ T1 T3 setT (Mcmp_def f g).
+    Lemma cmp_measurable (f : measurable_map T2 T3) (g : measurable_map T1 T2) :
+      @measurable_fun _ _ T1 T3 setT (comp f g).
     Proof. Admitted.
 
     HB.instance Definition _ (f : measurable_map T2 T3) (g : measurable_map T1 T2) :=
-      isMeasurableMap.Build _ _ T1 T3 (Mcmp_def f g) (Mcmp_def_measurable f g).
+      isMeasurableMap.Build _ _ T1 T3 (comp f g) (cmp_measurable f g).
 
   End MeasurableMap_cmp.
 
   Definition Mcmp {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
     (f : measurable_map T2 T3) (g : measurable_map T1 T2) : measurable_map T1 T3
-    := Mcmp_def f g.
-
-  (* TODO: Mcmp_aux / seal *)
-
-  (** ********** ?. Constant is measurable_map *)
-  Section MeasurableMap_const.
-    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-
-    Lemma Mcst_def_measurable (t : T2):
-      @measurable_fun _ _ T1 T2 setT (cst t).
-    Proof. Admitted.
-
-    HB.instance Definition _ (t : T2) :=
-      isMeasurableMap.Build _ _ T1 T2 (cst t) (Mcst_def_measurable t).
-  End MeasurableMap_const.
-
-  (*
-  (** ********** ?. Id is measurable_map *)
-  Section MeasurableMap_id.
-    Context {d1} {T1 : measurableType d1}.
-
-    Lemma Mid_def_measurable :
-      @measurable_fun _ _ T1 T1 setT (id : T1 -> T1).
-    Proof. Admitted.
-
-    HB.instance Definition _ :=
-      isMeasurableMap.Build _ _ T1 T1 (@id T1 ) Mid_def_measurable.
-  End MeasurableMap_const.
-   *)
+    := comp f g.
 
 
   (** ********** 8. Monad bind *)
@@ -1022,17 +1031,47 @@ measurable_fun_limn_sup:
     Context {f : measurable_map T1 (giryM T2)}.
 
 
-    (* TODO: Port these equations *)
     Lemma giryM_bind_0_l : giryM_bind f mzero = mzero.
-    Proof. Admitted.
+    Proof using Type.
+      rewrite /giryM_bind.
+      rewrite /Mcmp/comp.
+      (* FIXME *)
+      Opaque giryM_join.
+      Opaque giryM_map.
+      simpl.
+      Transparent giryM_join.
+      Transparent giryM_map.
+      rewrite giryM_map_zero.
+      apply (@giryM_join_zero _ _ _ T2). (* FIXME: Weird *)
+    Qed.
 
     (* FIXME: make it so that I don't have to annotate giryM T2 here? *)
     Lemma giryM_bind_0_r (μ : giryM T1) : giryM_bind (cst (mzero : giryM T2)) μ = mzero.
-    Proof. Admitted.
+    Proof using Type.
+      rewrite /giryM_bind.
+      rewrite /Mcmp/comp.
+      (* FIXME *)
+      Opaque giryM_join.
+      Opaque giryM_map.
+      simpl.
+      Transparent giryM_join.
+      Transparent giryM_map.
+      rewrite giryM_map_cst.
+      by rewrite (@giryM_join_ret _ _ _ T2).
+    Qed.
 
-    (* Check (giryM_bind f). *)
     Lemma giryM_bind_measurable : measurable_fun setT (giryM_bind f).
-    Proof. Admitted.
+    Proof using Type.
+      rewrite /giryM_bind.
+      rewrite /Mcmp/comp.
+      (* FIXME *)
+      Opaque giryM_join.
+      Opaque giryM_map.
+      simpl.
+      Transparent giryM_join.
+      Transparent giryM_map.
+      apply cmp_measurable.
+    Qed.
 
     Lemma giryM_bind_eval (m : giryM T1) (s : set T2) (HS : measurable s) :
       (giryM_bind f m s = \int[m]_x f x s)%E.
@@ -1042,15 +1081,19 @@ measurable_fun_limn_sup:
       (\int[giryM_bind f m]_x g x = \int[m]_a (\int[f a]_x g x))%E.
     Proof. Admitted.
 
-    (* This is a mess ... put it into a fresh namespace? *)
-    Lemma giryM_bind_bind {d3} {T3 : measurableType d3} (g : T2 -> giryM T3) (mg : measurable_fun setT g) (m : giryM T1) : True.
-    Proof. Admitted.
-
     Lemma giryM_bind_ret_l t : giryM_bind f (giryM_ret t) = f t.
     Proof. Admitted.
 
     Lemma giryM_bind_ret_r (m : giryM T1) : giryM_bind giryM_ret m = m.
     Proof. Admitted.
+
+    Context {d3} {T3 : measurableType d3} (g : measurable_map T2 (giryM T3)).
+
+    Lemma giryM_bind_bind (m : giryM T1) :
+      giryM_bind g (giryM_bind f m) = giryM_bind (comp (giryM_bind g) f) m.
+    Proof.
+      rewrite /giryM_bind.
+    Admitted.
 
   End giryM_bind_laws.
 
