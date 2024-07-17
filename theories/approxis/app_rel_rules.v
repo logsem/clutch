@@ -488,7 +488,7 @@ Section rules.
     (N <= M)%nat →
     ((S M - S N) / S M = ε)%R →
     ↯ ε ∗
-    ▷ (∀ (n : fin (S N)), REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
+    ▷ (∀ (n : nat), ⌜ n ≤ N ⌝ -∗ REL fill K (Val #n) << fill K' (Val #(f n)) @ E : A)
     ⊢ REL fill K (rand #z) << fill K' (rand #w) @ E : A.
   Proof.
     iIntros (??->->??) "[Hε Hcnt]".
@@ -497,12 +497,12 @@ Section rules.
     wp_apply wp_bind.
     rewrite -fill_app.
     iApply (wp_couple_rand_rand_inj _ _ f with "[$Hε $Hfill]"); try done.
-    iIntros "!>" (n) "Hspec".
+    iIntros "!>" (n) "(Hspec & %Hn)".
     rewrite fill_app.
-    iSpecialize ("Hcnt" with "Hspec Hown").
+    iSpecialize ("Hcnt" with "[//] Hspec Hown").
     iApply ("Hcnt" with "Herr"); done.
   Qed.
-  
+
   Lemma refines_couple_UU_err_rev N M ε f K K' E A (z w :Z):
     (∀ n, n < S M → f n < S N)%nat →
     (∀ n1 n2, n1 < S M → n2 < S M → f n1 = f n2 → n1 = n2)%nat →
@@ -511,7 +511,7 @@ Section rules.
     (M <= N)%nat →
     ((S N - S M) / S N = ε)%R →
     ↯ ε ∗
-    ▷ (∀ (n : fin (S M)), REL fill K (Val #(f n)) << fill K' (Val #n) @ E : A)
+    ▷ (∀ (n : nat), ⌜ n ≤ M ⌝ -∗ REL fill K (Val #(f n)) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand #z) << fill K' (rand #w) @ E : A.
   Proof.
     iIntros (??->->??) "[Hε Hcnt]".
@@ -520,9 +520,9 @@ Section rules.
     wp_apply wp_bind.
     rewrite -fill_app.
     iApply (wp_couple_rand_rand_rev_inj _ _ f with "[$Hε $Hfill]"); try done.
-    iIntros "!>" (n) "Hspec".
+    iIntros "!>" (n) "[Hspec %]".
     rewrite fill_app.
-    iSpecialize ("Hcnt" with "Hspec Hown").
+    iSpecialize ("Hcnt" with "[//] Hspec Hown").
     iApply ("Hcnt" with "Herr"); done.
   Qed.
 

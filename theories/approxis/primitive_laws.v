@@ -72,20 +72,20 @@ Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
 (** User-level tapes *)
-Definition nat_tape `{parisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
+Definition nat_tape `{approxisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
   ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ (N; fs).
 
 Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
                                 (at level 20, format "l ↪N ( M ; ns )") : bi_scope.
 
-Definition nat_spec_tape `{parisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
+Definition nat_spec_tape `{approxisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
   ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ₛ (N; fs).
 
 Notation "l ↪ₛN ( M ; ns )" := (nat_spec_tape l M ns)%I
        (at level 20, format "l ↪ₛN ( M ; ns )") : bi_scope.
 
 Section tape_interface.
-  Context `{!parisGS Σ}.
+  Context `{!approxisGS Σ}.
 
   (** Helper lemmas to go back and forth between the user-level representation
       of tapes (using nat) and the backend (using fin) *)
@@ -156,7 +156,7 @@ End tape_interface.
 
 
   Section lifting.
-Context `{!parisGS Σ}.
+Context `{!approxisGS Σ}.
 Implicit Types P Q : iProp Σ.
 Implicit Types Φ Ψ : val → iProp Σ.
 Implicit Types σ : state.

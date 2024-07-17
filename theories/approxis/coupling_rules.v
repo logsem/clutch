@@ -1,7 +1,7 @@
 (** * Coupling rules  *)
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import proofmode.
-From clutch.prelude Require Import stdpp_ext.
+From clutch.prelude Require Import stdpp_ext fin.
 From clutch.approxis Require Import lifting ectx_lifting.
 From clutch.prob_lang Require Import lang notation tactics metatheory erasure.
 From clutch.prob_lang.spec Require Import spec_rules.
@@ -135,7 +135,7 @@ Section rules.
       iPureIntro.
       rewrite fmap_app -Hfg //. }
     iPureIntro.
-    apply (fin_to_nat_le n).
+    apply (fin.fin_to_nat_le n).
   Qed.
 
   Lemma wp_couple_tapes_rev (N M : nat) E e α αₛ ns nsₛ Φ (ε : R) :
