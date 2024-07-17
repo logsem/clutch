@@ -192,4 +192,29 @@ Proof.
   iApply ("HΦ" with "[$Hl //]").
 Qed.
 
+
+(** A rule for error amplification for recursive functions *)
+Lemma twp_rec_err E f x e ε k Φ Ψ :
+  (0 < ε)%R ->
+  (1 < k)%R ->
+  □ (∀ ε', □ (∀ v, ↯ (k*ε') -∗ Ψ v -∗ WP (rec: f x := e)%V v @ E [{ Φ }]) -∗
+      ∀ v, ↯ ε' -∗ Ψ v -∗ WP (subst' x v (subst' f (rec: f x := e) e)) @ E [{ Φ }]) -∗
+  ∀ v, ↯ ε -∗ Ψ v -∗ WP (rec: f x := e)%V v @ E [{ Φ }].
+Proof.
+  iIntros (Hε Hk).
+  iIntros "#Hrec".
+  iIntros (v) "Herr Hv".
+  iRevert (v) "Hv".
+  iApply (ec_ind_amp _ k with "[] Herr"); auto.
+  iModIntro.
+  iIntros (ε') "%Hε' #IH Herr'".
+  iIntros (v) "Hv".
+  iApply total_lifting.twp_pure_step_fupd; first done.
+  iApply ("Hrec" with "[] Herr' Hv").
+  iModIntro.
+  iIntros (w) "Hkerr Hw".
+  iApply ("IH" with "Hkerr Hw").
+Qed.
+
+
 End total_primitive_laws.
