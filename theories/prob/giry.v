@@ -926,61 +926,6 @@ measurable_fun_limn_sup:
     simpl.
     rewrite -topology.fmap_comp.
 
-    Search finite_support esum.
-    Search esum topology.lim.
-    Check nneseries_esum.
-
-    (* Want the LHS to be of the form
-        topology.lim
-          (topology.fmap
-            (fun n : nat => (\sum_(0 <= i < n | P i) a i)%R)
-            (topology.nbhs topology.eventually))
-     *)
-    (* nat -> (... R ...) *)
-    (* Check  ((fun f' : T -> R =>
-         (\sum_(x <- finite_support 0 (range f') (fun x : R => (x%:E * giryM_join_def m (f' @^-1` [set x]))%E))
-             (x%:E * \int[m]_μ μ (f' @^-1` [set x]))%E)%R) \o (fun x : nat => nnsfun_approx HTmeas mf x)). *)
-
-    (* For now, let's not change the indices on the LHS. We can do that later, but first
-       we should apply monotone convergence on the RHS.
-
-       At the very least, this will make the limits pointwise equal, simplifying the
-       rewrites on the LHS we have to do.
-     *)
-
-    (*
-    have approx_func : nat -> R := (fun _ => 0%R).
-    erewrite (Setoid2 _ _ _ _ (fun n => _)); last first.
-    - apply functional_extensionality.
-      intro n.
-      simpl.
-      (* What should the value of approx_func be? *)
-      (* Get the i'th value of (range (nnsfun_approx HTmeas mf n))
-         Map it through (nnsfun_approx HTmeas mf n @^-1`...)
-         What is that? Is it just nnsfun_approx ... i* 2^-n? *)
-      have A :
-        (finite_support 0 (range (nnsfun_approx HTmeas mf n)) (fun x : R => (x%:E * giryM_join_def m (nnsfun_approx HTmeas mf n @^-1` [set x]))%E))%E =
-        ([seq approx_func i | i <- (index_iota 0 n)] : seq R).
-      {
-        admit.  }
-      rewrite A.
-
-      clear A.
-      erewrite (@big_map _ _ _ _ _ approx_func (index_iota 0 n) (fun _ => true) _).
-      reflexivity.
-    (* Great, now we should be able to exchange the limit?*)
-    Check @nneseries_esum _ _ (fun _ => true). (* Err... maybe not. Unless the limit is inside the esum definition? *)
-    Check sequences.nneseries_sum.
-    (* This looks closer, but that inner sum is strange. Maybe check out the proof?  *)
-
-    Search (topology.lim (topology.fmap _ _)) "sum".
-
-    Check esum_fset. (* sum -> esum, but have to do above? *)
-    (* rewrite esum_fset. *)
-
-    *)
-
-
     (* Apply the monotone convergence theorem *)
     erewrite (Setoid1 _ (fun μ : giryM T => _)); last first.
     { apply functional_extensionality.
@@ -1017,8 +962,41 @@ measurable_fun_limn_sup:
       admit.
 
 
+    (* Pointwise equality between limits *)
+    f_equal.
+    f_equal.
+    rewrite /comp.
+    apply functional_extensionality.
+    intro n.
+
+    (* Exchange finite sum with integral on the RHS (LHS seems harder) *)
+    rewrite ge0_integral_fsum; first last.
+    - (* Range of approximation is finite *)
+      admit.
+    - (* Argument is nonnegative *)
+      intros n' μ _.
+      admit.
+    - (* Argument is pointwise measurable. *)
+      admit.
+    - (* ⊤ is measurable *)
+      admit.
 
 
+    f_equal.
+    - (* The index sets are the same *)
+      (* As predicted, it's way easier do prove this down here *)
+      f_equal.
+      apply functional_extensionality.
+      intro x.
+      rewrite /giryM_join_def.
+      (* Scalar multiplication *)
+      admit.
+    - (* The bodies are the same *)
+      apply functional_extensionality.
+      intro x.
+      f_equal.
+      (* Scalar multiplication *)
+      admit.
     Admitted.
 
 
