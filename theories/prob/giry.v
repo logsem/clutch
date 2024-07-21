@@ -937,10 +937,18 @@ measurable_fun_limn_sup:
             (topology.nbhs topology.eventually))
      *)
     (* nat -> (... R ...) *)
-    Check  ((fun f' : T -> R =>
+    (* Check  ((fun f' : T -> R =>
          (\sum_(x <- finite_support 0 (range f') (fun x : R => (x%:E * giryM_join_def m (f' @^-1` [set x]))%E))
-             (x%:E * \int[m]_μ μ (f' @^-1` [set x]))%E)%R) \o (fun x : nat => nnsfun_approx HTmeas mf x)).
+             (x%:E * \int[m]_μ μ (f' @^-1` [set x]))%E)%R) \o (fun x : nat => nnsfun_approx HTmeas mf x)). *)
 
+    (* For now, let's not change the indices on the LHS. We can do that later, but first
+       we should apply monotone convergence on the RHS.
+
+       At the very least, this will make the limits pointwise equal, simplifying the
+       rewrites on the LHS we have to do.
+     *)
+
+    (*
     have approx_func : nat -> R := (fun _ => 0%R).
     erewrite (Setoid2 _ _ _ _ (fun n => _)); last first.
     - apply functional_extensionality.
@@ -953,7 +961,8 @@ measurable_fun_limn_sup:
       have A :
         (finite_support 0 (range (nnsfun_approx HTmeas mf n)) (fun x : R => (x%:E * giryM_join_def m (nnsfun_approx HTmeas mf n @^-1` [set x]))%E))%E =
         ([seq approx_func i | i <- (index_iota 0 n)] : seq R).
-      { admit.  }
+      {
+        admit.  }
       rewrite A.
 
       clear A.
@@ -968,6 +977,48 @@ measurable_fun_limn_sup:
 
     Check esum_fset. (* sum -> esum, but have to do above? *)
     (* rewrite esum_fset. *)
+
+    *)
+
+
+    (* Apply the monotone convergence theorem *)
+    erewrite (Setoid1 _ (fun μ : giryM T => _)); last first.
+    { apply functional_extensionality.
+      intro μ.
+      rewrite -topology.fmap_comp.
+      (* Could simplify the composition some more here? *)
+      reflexivity.
+    }
+    rewrite (@monotone_convergence _ (giryM T) R m setT _ _ _ _ _); first last.
+    - (* Sequence is monotone *)
+      (* Unset Printing Notations. *)
+      intros μ _.
+      Check nd_nnsfun_approx.
+      Search homomorphism_2 bigop.body.
+
+      (* Might need to do this directly.. I can't find any relevant theorems for this type of sum *)
+      (* Surely this proof was done somewhere else so I'm confident it's possible. *)
+      intros x y Hle.
+      admit.
+    - (* Sequence is nonnegative *)
+      intros n μ _.
+      simpl.
+      Search 0%R (_ <= _)%E "sum".
+      (* None of the relevant theorems work, but something will. *)
+      admit.
+    - (* Sequence is pointwise measurable *)
+      intros n.
+      apply emeasurable_fun_fsum. (* Measurability of finite sums *)
+      { (* Sum is finite *)  admit. }
+      intro range_element.
+      (* Seems to be no lemmas that mul measurable is measurable in ENNR, only R *)
+      admit.
+    - (* ⊤ is measurable *)
+      admit.
+
+
+
+
     Admitted.
 
 
