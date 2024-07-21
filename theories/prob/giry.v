@@ -121,6 +121,15 @@ Section giry.
 
 
 
+  Lemma giryM_ext {d : measure_display} {T : measurableType d} (μ1 μ2 : giryM T) : (forall S, μ1 S = μ2 S) -> μ1 = μ2.
+  Proof.
+    Check eq_measure.
+  Admitted.
+
+
+
+
+
   Definition borelER_display := sigma_display ereal_borel_subbase.
   Definition borelER : measurableType borelER_display
     := [the measurableType _ of salgebraType ereal_borel_subbase].
@@ -834,16 +843,13 @@ measurable_fun_limn_sup:
 
     Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
     Proof.
-      simpl.
-      rewrite /giryM_join_def'.
-      rewrite /salgebraType.
-      rewrite /giryType.
-      (* How to I compare for equality? *)
-      HB.about SubProbability.
-      Search subprobability.
+      apply giryM_ext.
+      intro S.
+      rewrite /mzero.
 
-      (* Lol maybe this will work *)
-      (* f_equal *)
+      simpl.  (* That's so odd, why doesn't it beta reduce here *)
+
+
 
     Admitted.
 
@@ -1002,7 +1008,14 @@ measurable_fun_limn_sup:
 
     Lemma giryM_join_map_map (mf : measurable_map T T2) (m : giryM (giryM T)) :
       giryM_join (giryM_map (giryM_map mf) m) = giryM_map mf (giryM_join m).
-    Proof. Admitted.
+    Proof.
+      apply giryM_ext.
+      intro S.
+      rewrite giryM_join_aux.
+      rewrite giryM_map_aux.
+      rewrite giryM_map_aux.
+      (* rewrite giryM_join_integrate. *)
+    Admitted.
 
     Lemma giryM_join_map_join (m : giryM (giryM (giryM T))) :
       giryM_join (giryM_map giryM_join m) = giryM_join (giryM_join m).
