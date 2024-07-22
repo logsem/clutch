@@ -725,7 +725,6 @@ measurable_fun_limn_sup:
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
 
-
     Lemma giryM_map_zero (f : measurable_map T1 T2) : giryM_map f mzero = mzero.
     Proof.
       rewrite giryM_map_aux/mzero/pushforward.
@@ -740,8 +739,9 @@ measurable_fun_limn_sup:
       Check preimage_cst. (* This one does it *)
     Admitted.
 
-
-
+    Lemma giryM_map_integrate (g : measurable_map T2 (\bar R)) (h : measurable_map T1 T2) (μ : giryM T1):
+      (\int[giryM_map h μ]_x g x  = \int[μ]_x g (h x))%E.
+    Proof. Admitted.
 
 
   End giry_map_laws.
@@ -1129,6 +1129,7 @@ measurable_fun_limn_sup:
     Lemma giryM_bind_ret_r (m : giryM T1) : giryM_bind giryM_ret m = m.
     Proof. Admitted.
 
+
     Context {d3} {T3 : measurableType d3} (g : measurable_map T2 (giryM T3)).
 
     Lemma giryM_bind_bind (m : giryM T1) :
@@ -1136,6 +1137,11 @@ measurable_fun_limn_sup:
     Proof.
       rewrite /giryM_bind.
     Admitted.
+
+
+    (* Make identity a measurable_map *)
+    (* Lemma giryM_join_bind (m : giryM (giryM T1)) :
+      giryM_join m = giryM_bind (fun x => x) m. *)
 
   End giryM_bind_laws.
 
