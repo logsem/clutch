@@ -104,7 +104,7 @@ Section rules.
   Lemma step_rand E K l N z n ns :
     TCEq N (Z.to_nat z) →
     ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛ (N; n :: ns)
-    ⊢ spec_update E (⤇ fill K #n ∗ l ↪ₛ (N; ns)).
+      ⊢ spec_update E (⤇ fill K #n ∗ l ↪ₛ (N; ns)).
   Proof.
     iIntros (->) "[HK Hl]". rewrite spec_update_unseal.
     iIntros ([? σ]) "Hs".
@@ -119,5 +119,44 @@ Section rules.
     { by apply dret_1_1. }
     solve_step. case_bool_decide; [|lia]. by apply dret_1_1.
   Qed.
+
+
+  (** AllocTape and Rand (nat tape)  *)
+  Lemma step_allocnattape E K N z :
+    TCEq N (Z.to_nat z) →
+    ⤇ fill K (alloc #z) ⊢ spec_update E (∃ l, ⤇ fill K (#lbl:l) ∗ l ↪ₛN (N; [])).
+  Proof.
+    iIntros (->) "HK".
+    iMod (step_alloctape with "HK") as (l) "(HK & Hl)".
+    rewrite spec_update_unseal.
+    iIntros ([? σ]) "Hs".
+    iModIntro.
+    iExists _,0. iFrame.
+    iPureIntro.
+    split; [|done].
+    rewrite stepN_O //.
+    by apply dret_1.
+  Qed.
+
+
+  Lemma step_randnat E K l N z n ns :
+    TCEq N (Z.to_nat z) →
+    ⤇ fill K (rand(#lbl:l) #z) ∗ l ↪ₛN (N; n :: ns)
+      ⊢ spec_update E (⤇ fill K #n ∗ ⌜ n ≤ N ⌝ ∗ l ↪ₛN (N; ns)).
+  Proof.
+    iIntros (->) "[HK Hl]".
+    iDestruct (read_spec_tape_head with "Hl") as (x xs) "(Hl&<-&Hcont)".
+    iMod (step_rand with "[$HK $Hl]") as "(HK & Hl)".
+    iDestruct ("Hcont" with "Hl") as "Hl".
+    rewrite spec_update_unseal.
+    iIntros ([? σ]) "Hs".
+    iModIntro.
+    iExists _,0. iFrame.
+    iPureIntro.
+    split; [| pose proof (fin_to_nat_lt x); lia].
+    rewrite stepN_O //.
+    by apply dret_1.
+  Qed.
+
 
 End rules.

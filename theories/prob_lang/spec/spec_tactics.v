@@ -300,6 +300,52 @@ Tactic Notation "tp_alloctape" "as" ident(l) constr(H) :=
 Tactic Notation "tp_alloctape" "as" ident(j') :=
   let H := iFresh in tp_alloctape as j' H.
 
+
+Lemma tac_tp_allocnattape `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 E1 i1 K e N z Q :
+  (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
+  TCEq N (Z.to_nat z) →
+  envs_lookup i1 Δ1 = Some (false, ⤇ e)%I →
+  e = fill K (alloc #z) →
+  (∀ α : loc, ∃ Δ2,
+    envs_simple_replace i1 false
+       (Esnoc Enil i1 (⤇ fill K #lbl:α)) Δ1 = Some Δ2 ∧
+    (envs_entails Δ2 ((α ↪ₛN (N; [])) -∗ Q)%I)) →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ??? Hfill HQ.
+  rewrite (envs_lookup_sound' Δ1 false i1); last by eassumption.
+  rewrite Hfill /=.
+  rewrite step_allocnattape //.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r, bi.wand_intro_l.
+  rewrite bi.sep_exist_r.
+  apply bi.exist_elim=> l.
+  destruct (HQ l) as (Δ2 & HΔ2 & HQ').
+  rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=.
+  rewrite HQ' right_id.
+  iIntros "[[H Hl] Hcnt]".
+  iApply ("Hcnt" with "H Hl").
+Qed.
+
+Tactic Notation "tp_allocnattape" ident(l) "as"  constr(H) :=
+  let finish _ :=
+    first [intros l | fail 1 "tp_allocnattape:" l "not fresh"];
+    eexists; split;
+    [ reduction.pm_reflexivity
+    | (iIntros H; tp_normalise) || fail 1 "tp_alloctape:" H "not correct intro pattern" ] in
+  iStartProof;
+  eapply (tac_tp_allocnattape);
+  [tc_solve || fail "tp_allocnattape: cannot eliminate modality in the goal"
+  | (* postpone solving [TCEq ...] *)
+  |iAssumptionCore || fail "tp_allocnattape: cannot find the RHS"
+  |tp_bind_helper
+  | ];
+  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  | finish () ].
+
+Tactic Notation "tp_allocnattape" ident(j') :=
+  let H := iFresh in tp_alloctape as j' H.
+
 Lemma tac_tp_rand `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
   (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
   TCEq N (Z.to_nat z) →
@@ -341,6 +387,58 @@ Tactic Notation "tp_rand" :=
   |pm_reduce (* new goal *)];
   [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
   |].
+
+
+Lemma tac_tp_randnat `{specG_prob_lang Σ, invGS_gen hasLc Σ} Δ1 Δ2 E1 i1 i2 K e e2 (l : loc) N z n ns Q :
+  (∀ P, ElimModal True false false (spec_update E1 P) P Q Q) →
+  TCEq N (Z.to_nat z) →
+  envs_lookup_delete false i1 Δ1 = Some (false, ⤇ e, Δ2)%I →
+  e = fill K (rand(#lbl:l) #z) →
+  envs_lookup i2 Δ2 = Some (false, l ↪ₛN (N; n::ns))%I →
+  e2 = fill K (of_val #n) →
+  match envs_simple_replace i2 false
+    (Esnoc (Esnoc Enil i1 (⤇ e2)) i2 (l ↪ₛN (N; ns))%I) Δ2 with
+  | Some Δ3 => envs_entails Δ3 ((⌜n ≤ N⌝ -∗ Q)%I)
+  | None    => False
+  end →
+  envs_entails Δ1 Q.
+Proof.
+  rewrite envs_entails_unseal. intros ??? -> ? -> HQ.
+  rewrite envs_lookup_delete_sound //; simpl.
+  destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+  rewrite (envs_simple_replace_sound Δ2 Δ3 i2) //; simpl.
+  rewrite right_id.
+  rewrite assoc.
+  rewrite step_randnat //=.
+  rewrite -[Q]elim_modal //.
+  apply bi.sep_mono_r.
+  apply bi.wand_intro_l. simpl.
+  rewrite HQ.
+  rewrite (comm _ _ (⌜n ≤ N⌝ ∗ l↪ₛN(N; ns))%I).
+  rewrite (bi.sep_assoc' (⌜n ≤ N⌝) (l↪ₛN(N; ns)) ) .
+  rewrite (bi.sep_assoc' (⌜n ≤ N⌝) (l↪ₛN(N; ns) ∗ ⤇ fill K #n )).
+  by rewrite 2!bi.wand_elim_r.
+Qed.
+
+
+Tactic Notation "tp_randnat" "as" constr(H) :=
+  let finish _ :=
+        ((iIntros H; tp_normalise) || fail 1 "tp_alloctape:" H "not correct intro pattern") in
+  iStartProof;
+  eapply tac_tp_randnat;
+  [tc_solve || fail "tp_rand: cannot eliminate modality in the goal"
+  | (* postpone solving [TCEq ...] until after the tape has been unified *)
+  |iAssumptionCore || fail "tp_rand: cannot find the RHS"
+  |tp_bind_helper
+  |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
+  |simpl; reflexivity || fail "tp_rand: this should not happen"
+  |pm_reduce (* new goal *)];
+  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  | finish () ].
+
+Tactic Notation "tp_randnat" :=
+  tp_randnat as "%".
+
 
 (** Some simple tests *)
 Section tests.

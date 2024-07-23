@@ -51,6 +51,24 @@ Class GwpTacticsHeap Σ A (laters : bool) (gwp : A → coPset → expr → (val 
     (▷ wptac_mapsto l (DfracOwn 1) v') -∗
     (▷?laters ((wptac_mapsto l (DfracOwn 1) v) -∗ Φ (LitV (LitUnit))%V)) -∗
     gwp a E (Store (Val $ LitV $ LitLoc l) (Val v)) Φ;
+  }.
+
+
+(** Tapes *)
+Class GwpTacticsTapes Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= {
+  wptac_mapsto_tape : loc → dfrac → nat -> (list nat) → iProp Σ;
+
+  wptac_wp_alloctape E (N : nat) (z : Z) a Φ :
+    TCEq N (Z.to_nat z) ->
+    True -∗
+    (▷?laters (∀ l, (wptac_mapsto_tape l (DfracOwn 1) N nil) -∗ Φ (LitV (LitLbl l))%V)) -∗
+    gwp a E (AllocTape (Val $ LitV $ LitInt $ z)) Φ;
+
+    wptac_wp_rand_tape E N (n : nat) (z : Z) ns l dq a Φ :
+    TCEq N (Z.to_nat z) ->
+    (▷ wptac_mapsto_tape l dq N (n::ns)) -∗
+    (▷?laters ((wptac_mapsto_tape l dq N ns) -∗ ⌜ n ≤ N ⌝ -∗ Φ (LitV $ LitInt $ n)%V)) -∗
+    gwp a E (Rand (LitV (LitInt z)) (LitV (LitLbl l))) Φ;
 }.
 
 Section wp_tactics.
@@ -143,6 +161,8 @@ Ltac wp_value_head :=
 Ltac wp_finish :=
   (* simplify occurences of [wptac_mapsto] projections  *)
   rewrite ?[wptac_mapsto _ _ _]/=;
+  (* simplify occurences of [wptac_mapsto_tape] projections  *)
+  rewrite ?[wptac_mapsto_tape _ _ _]/=;
   (* simplify occurences of subst/fill *)
   wp_expr_simpl;
   (* in case we have reached a value, get rid of the wp *)
@@ -491,3 +511,151 @@ Tactic Notation "wp_store" :=
     |pm_reduce; first [wp_seq|wp_finish]]
   | _ => fail "wp_store: not a 'wp'"
   end.
+
+
+Section tape_tactics.
+  Context `{GwpTacticsBase Σ A hlc gwp, GwpTacticsBind Σ A hlc gwp, !GwpTacticsTapes Σ A laters gwp}.
+
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+  (** Notations with binder. *)
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+     format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+  Lemma tac_wp_alloctape Δ Δ' E j K N z Φ a :
+    TCEq N (Z.to_nat z) ->
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    (∀ l,
+        match envs_app false (Esnoc Enil j (wptac_mapsto_tape l (DfracOwn 1) N nil)) Δ' with
+        | Some Δ'' =>
+            envs_entails Δ'' (WP fill K (Val $ LitV $ LitLbl l) @ a ; E {{ Φ }})
+        | None => False
+        end) →
+    envs_entails Δ (WP fill K (AllocTape (Val $ LitV $ LitInt z)) @ a; E {{ Φ }}).
+  Proof.
+    rewrite envs_entails_unseal=> ? ? HΔ.
+    rewrite -wptac_wp_bind.
+    eapply bi.wand_apply.
+    { by apply bi.wand_entails, wptac_wp_alloctape. }
+    rewrite left_id into_laterN_env_sound.
+    apply bi.laterN_mono, bi.forall_intro=> l.
+    specialize (HΔ l).
+    destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [| contradiction].
+    rewrite envs_app_sound //; simpl.
+    apply bi.wand_intro_l.
+    rewrite right_id.
+    rewrite bi.wand_elim_r //.
+  Qed.
+
+
+  Lemma tac_wp_rand_tape Δ1 Δ2 E i j K l N z n ns Φ a :
+    TCEq N (Z.to_nat z) ->
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ1 Δ2 →
+    envs_lookup i Δ2 = Some (false, wptac_mapsto_tape l (DfracOwn 1) N (n::ns)) ->
+    (match envs_simple_replace i false (Esnoc Enil i (wptac_mapsto_tape l (DfracOwn 1) N ns)) Δ2 with
+    | Some Δ3 =>
+        (match envs_app false (Esnoc Enil j (⌜n ≤ N⌝%I)) Δ3 with
+        | Some Δ4 => envs_entails Δ4 (WP fill K (Val $ LitV $ LitInt n) @ a; E {{ Φ }})
+        | None    => False
+        end)
+    | None    => False
+    end) →
+    envs_entails Δ1 (gwp a E (fill K (Rand (LitV (LitInt z)) (LitV (LitLbl l)))) Φ ).
+  Proof.
+    rewrite envs_entails_unseal=> ?? Hi HΔ.
+    destruct (envs_simple_replace _ _ _ _) as [Δ3|] eqn:HΔ3; last done.
+    rewrite -wptac_wp_bind.
+    eapply bi.wand_apply.
+    { by apply bi.wand_entails, wptac_wp_rand_tape. }
+    rewrite into_laterN_env_sound.
+    destruct laters.
+    - rewrite -bi.later_sep.
+      apply bi.later_mono.
+      rewrite (envs_simple_replace_sound Δ2 Δ3 i) /= //; simpl.
+      iIntros "[$ He]".
+      iIntros "Htp ?".
+      destruct (envs_app _ _ _) as [Δ4 |] eqn: HΔ4; [|contradiction].
+      rewrite envs_app_sound //; simpl.
+      iApply HΔ.
+      iApply ("He" with "[$Htp]").
+      iFrame.
+    - simpl.
+      rewrite (envs_simple_replace_sound Δ2 Δ3 i) /= //; simpl.
+      iIntros "[$ He]".
+      iIntros "Htp ?".
+      destruct (envs_app _ _ _) as [Δ4 |] eqn: HΔ4; [|contradiction].
+      rewrite envs_app_sound //; simpl.
+      iApply HΔ.
+      iApply ("He" with "[$Htp]").
+      iFrame.
+  Qed.
+
+End tape_tactics.
+
+
+Tactic Notation "wp_alloctape" ident(l) "as" constr(H) :=
+  let Htmp := iFresh in
+  let finish _ :=
+    first [intros l | fail 1 "wp_alloctape:" l "not fresh"];
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_alloc:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloctape _ _ _ Htmp K))
+          |fail 1 "wp_alloc: cannot find 'AllocTape' in" e];
+        [tc_solve | tc_solve
+        |finish ()]
+| |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloctape _ _ _ Htmp K))
+          |fail 1 "wp_alloc: cannot find 'AllocTape' in" e];
+        [tc_solve | tc_solve
+        |finish ()]
+  | _ => fail "wp_alloc: not a 'wp'"
+  end.
+
+
+Tactic Notation "wp_alloctape" ident(l) :=
+  wp_alloctape l as "?".
+
+Tactic Notation "wp_randtape" "as" constr(H) :=
+  let Htmp := iFresh in
+  let solve_wptac_mapsto_tape _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_tape ?l _ _ (_ :: _))%I) => l end in
+    iAssumptionCore || fail "wp_load: cannot find" l "↪N ?" in
+  let finish _ :=
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_alloc:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+      first
+        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
+        |fail 1 "wp_load: cannot find 'Rand' in" e];
+      [tc_solve
+      |tc_solve
+      |solve_wptac_mapsto_tape ()
+      |finish () ]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+      first
+        [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
+        |fail 1 "wp_load: cannot find 'Rand' in" e];
+      [tc_solve
+      |tc_solve
+      |solve_wptac_mapsto_tape ()
+      |finish ()]
+  | _ => fail "wp_load: not a 'wp'"
+  end.
+
+Tactic Notation "wp_randtape" :=
+  wp_randtape as "%".

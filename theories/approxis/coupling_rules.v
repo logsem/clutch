@@ -632,7 +632,7 @@ Section rules.
        ⌜ n ≤ N ⌝ -∗
        if (bool_decide (n < S M)%nat)
          then
-           α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [n]) ∗ ⌜ n ≤ N ⌝ -∗
+           α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ ++ [n]) ∗ ⌜ n ≤ M ⌝ -∗
            WP e @ E {{ Φ }}
          else
            α ↪N (N; ns ++ [n]) ∗ αₛ ↪ₛN (M; nsₛ) ∗ ⌜ n ≤ N ⌝ -∗

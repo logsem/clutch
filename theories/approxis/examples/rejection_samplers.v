@@ -1,5 +1,10 @@
 From clutch.approxis Require Import adequacy.
 From clutch.approxis Require Export approxis.
+
+
+From iris.proofmode Require Import coq_tactics reduction spec_patterns.
+From iris.proofmode Require Export tactics.
+
 Set Default Proof Using "Type*".
 Open Scope R.
 
@@ -48,43 +53,135 @@ Section rejection_sampler.
 
   Context `{!approxisGS Σ}.
 
-  Lemma wp_rejection_simpl:
-    {{{ ⤇ simpl_sampler_prog_annotated #() }}}
-      rejection_sampler_prog_annotated #()
-    {{{ (v : val), RET v; ⤇ v }}}.
-  Proof.
-    iIntros (?) "Hspec H".
-    rewrite /simpl_sampler_prog_annotated /rejection_sampler_prog_annotated.
-    wp_apply (wp_alloc_tape); [done|].
-    iIntros (α) "Hα".
-    tp_alloctape as αₛ "Hαₛ".
-    tp_pures. do 3 wp_pure.
-    iLöb as "IH" forall "Hspec Hα Hαₛ".
-    wp_pures.
-    wp_apply (wp_couple_fragmented_rand_rand_leq M N); try (done || lia).
 
-    rewrite Nat2Z.id. iFrame.
-    iIntros (n).
-    case_match eqn:Heqn.
-    - iIntros "[Hα Hαₛ]".
-      simpl.
-      wp_apply (wp_rand_tape with "[$]").
-      iIntros "Hα".
-      wp_pures.
-      rewrite bool_decide_eq_true_2; last lia.
-      tp_rand.
-      wp_pures.
-      iModIntro.
-      iApply "H".
-      rewrite fin_to_nat_to_fin //.
-    - iIntros "[Hα Hαₛ]".
-      simpl.
-      wp_apply (wp_rand_tape with "[$]").
-      iIntros "Hα".
-      wp_pures.
-      rewrite bool_decide_eq_false_2; last lia.
-      wp_pure.
-      wp_apply ("IH" with "[$][$][$][$]").
+Tactic Notation "my_wp_alloctape" ident(l) "as" constr(H) :=
+  let Htmp := iFresh in
+  let finish _ :=
+    first [intros l | fail 1 "wp_alloctape:" l "not fresh"];
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_alloc:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+      let process_single _ :=
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloctape _ _ _ Htmp K))
+          |fail 1 "wp_alloc: cannot find 'AllocTape' in" e];
+        [ idtac
+        | tc_solve
+        |finish ()]
+      in process_single ()
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+      let process_single _ :=
+        first
+          [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloctape _ _ _ Htmp K))
+          |fail 1 "wp_alloc: cannot find 'AllocTape' in" e];
+        [tc_solve
+        |finish ()]
+      in process_single ()
+  | _ => fail "wp_alloc: not a 'wp'"
+  end.
+
+
+Tactic Notation "my_wp_randtape" "as" constr(H) :=
+  let Htmp := iFresh in
+  let solve_wptac_mapsto_tape _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_tape ?l _ _ (_ :: _))%I) => l end in
+    iAssumptionCore || fail "wp_load: cannot find" l "↦ ?" in
+  let finish _ :=
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_alloc:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
+      |fail 1 "wp_load: cannot find 'Rand' in" e];
+    [tc_solve | tc_solve | solve_wptac_mapsto_tape () | finish () ]
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
+      |fail 1 "wp_load: cannot find 'Rand' in" e];
+    [idtac
+    |tc_solve
+    |solve_wptac_mapsto_tape ()
+    |wp_finish]
+  | _ => fail "wp_load: not a 'wp'"
+  end.
+
+
+Tactic Notation "my_tp_randnat" "as" constr(H) :=
+  let finish _ :=
+        ((iIntros H; tp_normalise) || fail 1 "tp_alloctape:" H "not correct intro pattern") in
+  iStartProof;
+  eapply tac_tp_randnat;
+  [tc_solve || fail "tp_rand: cannot eliminate modality in the goal"
+  | (* postpone solving [TCEq ...] until after the tape has been unified *)
+  |iAssumptionCore || fail "tp_rand: cannot find the RHS"
+  |tp_bind_helper
+  |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
+  |simpl; reflexivity || fail "tp_rand: this should not happen"
+  |pm_reduce (* new goal *)];
+  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  | finish () ].
+
+
+Tactic Notation "my_tp_allocnattape" ident(l) "as"  constr(H) :=
+  let finish _ :=
+    first [intros l | fail 1 "tp_allocnattape:" l "not fresh"];
+    eexists; split;
+    [ reduction.pm_reflexivity
+    | (iIntros H; tp_normalise) || fail 1 "tp_alloctape:" H "not correct intro pattern" ] in
+  iStartProof;
+  eapply (tac_tp_allocnattape);
+  [tc_solve || fail "tp_allocnattape: cannot eliminate modality in the goal"
+  | (* postpone solving [TCEq ...] *)
+  |iAssumptionCore || fail "tp_allocnattape: cannot find the RHS"
+  |tp_bind_helper
+  | ];
+  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  | finish () ].
+
+Lemma wp_rejection_simpl:
+  {{{ ⤇ simpl_sampler_prog_annotated #() }}}
+    rejection_sampler_prog_annotated #()
+    {{{ (v : val), RET v; ⤇ v }}}.
+Proof.
+  iIntros (?) "Hspec H".
+  rewrite /simpl_sampler_prog_annotated /rejection_sampler_prog_annotated.
+  wp_alloctape α as "Hα".
+  tp_allocnattape αs as "Hαₛ".
+  tp_pures. do 3 wp_pure.
+  iLöb as "IH" forall "Hspec Hα Hαₛ".
+  wp_pures.
+  wp_apply (wp_couple_fragmented_rand_rand_leq M N); try (done || lia).
+  iFrame.
+  iIntros (n).
+  case_match eqn:Heqn.
+  - iIntros "% [Hα [Hαₛ %]]".
+    simpl.
+    wp_randtape as "%".
+    wp_pures.
+    rewrite bool_decide_eq_true_2; last lia.
+    (* tp_rand. *)
+    tp_randnat.
+    wp_pures.
+    iModIntro.
+    by iApply "H".
+  - iIntros "% [Hα [Hαₛ %]]".
+    simpl.
+    wp_randtape as "%".
+    wp_pures.
+    apply bool_decide_eq_false_1 in Heqn.
+    rewrite bool_decide_eq_false_2; last lia.
+    wp_pure.
+    wp_apply ("IH" with "[$][$][$][$]").
   Qed.
 
   Definition rejection_sampler_prog_annotated' αₛ : val :=
@@ -96,35 +193,37 @@ Section rejection_sampler.
   Lemma wp_simpl_rejection_ind_aux (ε : R) α αₛ:
     0 < ε →
     ⤇ rejection_sampler_prog_annotated' αₛ #() -∗
-    ↯ ε -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
+    ↯ ε -∗ α ↪N (M; []) -∗ αₛ ↪ₛN (N; []) -∗
     (∀ (ε' : R), ⌜ε' = ((S N / (S N - S M)) * ε)%R⌝ -∗
                          ⤇ rejection_sampler_prog_annotated' αₛ #() -∗
-                         ↯ ε' -∗ α ↪ (M; []) -∗ αₛ ↪ₛ (N; []) -∗
+                         ↯ ε' -∗ α ↪N (M; []) -∗ αₛ ↪ₛN (N; []) -∗
                          WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}) -∗
     WP rand(#lbl:α) #M {{ v, ∃ v' : val, ⤇ v' ∗ ⌜v = v'⌝ }}.
   Proof.
     iIntros (Hpos) "Hspec Hε Hα Hαₛ Hcnt".
     rewrite {1}/rejection_sampler_prog_annotated'.
     tp_pures.
-    tp_bind (rand(#lbl:_) _)%E.
     assert (0 <= ε) as Hε by lra.
     set ε' := mknonnegreal _ Hε.
     replace ε with ε'.(nonneg); [|done].
     wp_apply (wp_couple_fragmented_rand_rand_leq_rev'
                with "[$Hε $Hα $Hαₛ Hspec Hcnt]"); [done|done|].
-    iIntros (m). case_match eqn:Heqn.
-    - simpl. iIntros "[Hα Hαₛ]". 
-      tp_rand.
+    iIntros (m) "%". case_match eqn:Heqn.
+    - iIntros "[Hα [Hαₛ %]]".
+      (* tp_rand. *)
+      tp_randnat.
+      apply bool_decide_eq_true_1 in Heqn.
       tp_pures. case_bool_decide; last lia.
       tp_pures.
-      wp_apply (wp_rand_tape with "[$]").
-      iIntros. iExists _. iFrame.
-      iPureIntro.
-      f_equal. by rewrite fin_to_nat_to_fin.
-    - iIntros (ε'') "(% & Hα & Hαₛ & Hε)".
+      wp_randtape.
+      iExists _. iFrame.
+      iPureIntro. done.
+    - iIntros (ε'') "(% & Hα & Hαₛ & Hε & %)".
       iSimpl in "Hspec".
-      tp_rand.
+      (* tp_rand. *)
+      tp_randnat.
       tp_pures.
+      apply bool_decide_eq_false_1 in Heqn.
       case_bool_decide; first by (exfalso ; lia).
       tp_pure.
       iApply ("Hcnt" $! ε'' with "[][$][$][$][$]").
@@ -138,11 +237,10 @@ Section rejection_sampler.
   Proof.
     iIntros (Hpos) "Hspec Hε".
     rewrite /simpl_sampler_prog_annotated/rejection_sampler_prog_annotated.
-    wp_apply (wp_alloc_tape); first done.
-    iIntros (α) "Hα".
-    tp_alloctape as αₛ "Hαₛ".
+    wp_alloctape α as "Hα".
+    tp_allocnattape αₛ as "Hαₛ".
     do 3 tp_pure.
-    wp_pures. rewrite Nat2Z.id.
+    wp_pures.
     iRevert "Hα Hαₛ Hspec".
     iApply (ec_ind_amp _ (S N / (S N - S M)) with "[] Hε"); [done|real_solver|].
     iIntros "!#" (??) "#IH ????".
@@ -157,17 +255,15 @@ Section rejection_sampler.
   Proof.
     iIntros "Hspec".
     rewrite /rejection_sampler_prog_annotated.
-    tp_alloctape as α "Hα".
+    tp_allocnattape α as "Hα".
     do 3 tp_pure.
     iLöb as "IH" forall "Hspec Hα".
     rewrite /rejection_sampler_prog.
     wp_pures. tp_pures.
-    wp_apply (wp_couple_rand_tape with "Hα").
-    iIntros (n) "Hα". simpl.
+    wp_apply (wp_couple_rand_tape with "Hα"); first done.
+    iIntros (n) "(Hα&?)". simpl.
     tp_pures.
-    tp_bind (rand(_) _)%E.
-    iMod (step_rand with "[$]") as "[Hspec Hα]".
-    simpl.
+    tp_randnat.
     tp_pures. wp_pures.
     case_bool_decide.
     - tp_pures. wp_pures.
@@ -183,12 +279,11 @@ Section rejection_sampler.
     iIntros "Hspec".
     rewrite /simpl_sampler_prog_annotated.
     rewrite /simpl_sampler_prog.
-    wp_apply wp_alloc_tape; [done|].
-    iIntros (α) "Hα".
+    wp_alloctape α as "Hα".
     tp_pures. wp_pures.
     tp_bind (rand (_))%E.
-    wp_apply (wp_couple_tape_rand with "[$Hα $Hspec]").
-    iIntros (x) "[Hα Hspec]".
+    wp_apply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
+    iIntros (x) "[Hα [Hspec %]]".
     simpl.
     wp_apply (wp_rand_tape with "[$]").
     iIntros. iExists _. iFrame. done.
@@ -200,17 +295,16 @@ Section rejection_sampler.
   Proof.
     iIntros "Hspec".
     rewrite /rejection_sampler_prog_annotated.
-    wp_apply (wp_alloc_tape); first done.
-    iIntros (α) "Hα".
+    wp_alloctape α as "Hα".
     do 3 wp_pure.
     iLöb as "IH" forall "Hspec Hα".
     rewrite /rejection_sampler_prog.
     tp_pures. wp_pures.
     tp_bind (rand (_))%E.
-    wp_apply (wp_couple_tape_rand with "[$Hα $Hspec]").
-    iIntros (x) "[Hα Hspec]".
+    wp_apply (wp_couple_tape_rand with "[$Hα $Hspec]"); first done.
+    iIntros (x) "[Hα [Hspec %]]".
     simpl.
-    wp_apply (wp_rand_tape with "[$]").
+    wp_randtape.
     iIntros.
     tp_pures; wp_pures.
     case_bool_decide.
@@ -227,11 +321,10 @@ Section rejection_sampler.
     iIntros "Hspec".
     rewrite /simpl_sampler_prog_annotated.
     rewrite /simpl_sampler_prog.
-    tp_alloctape as α "Hα".
+    tp_allocnattape α as "Hα".
     wp_pures. tp_pures.
-    wp_apply (wp_couple_rand_rand_lbl _ _ _ [] with "[$]").
-    rewrite Nat2Z.id.
-    iIntros (?) "[Hα Hspec]".
+    wp_apply (wp_couple_rand_rand_lbl _ _ _ [] with "[$]"); first done.
+    iIntros (?) "[Hα [Hspec %]]".
     eauto.
   Qed.
 

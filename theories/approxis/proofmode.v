@@ -22,3 +22,8 @@ Next Obligation. intros. by apply wp_load. Qed.
 Next Obligation. intros. by apply wp_store. Qed.
 
 
+#[global] Program Instance rel_logic_wptactics_tape `{!approxisGS Σ} : GwpTacticsTapes Σ unit true wp :=
+  Build_GwpTacticsTapes _ _ _ _ (λ l q N ns, (l ↪N ( N ; ns ))%I) _ _.
+Next Obligation. intros. by apply wp_alloc_tape. Qed.
+Next Obligation. intros. rewrite (bi.wand_curry (l↪N(N;ns))). by apply wp_rand_tape. Qed.
+

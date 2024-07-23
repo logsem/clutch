@@ -6,7 +6,7 @@ From clutch.base_logic Require Export error_credits.
 From clutch.approxis Require Export app_weakestpre ectx_lifting.
 From clutch.prob_lang Require Export class_instances.
 From clutch.prob_lang Require Import tactics lang notation metatheory.
-From clutch.prob_lang.spec Require Export spec_ra spec_rules.
+From clutch.prob_lang.spec Require Export spec_ra spec_rules spec_tactics.
 From iris.prelude Require Import options.
 
 Class approxisGS Σ := HeapG {
@@ -78,11 +78,13 @@ Definition nat_tape `{approxisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
 Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
                                 (at level 20, format "l ↪N ( M ; ns )") : bi_scope.
 
+(*
 Definition nat_spec_tape `{approxisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
   ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ₛ (N; fs).
 
 Notation "l ↪ₛN ( M ; ns )" := (nat_spec_tape l M ns)%I
        (at level 20, format "l ↪ₛN ( M ; ns )") : bi_scope.
+*)
 
 Section tape_interface.
   Context `{!approxisGS Σ}.
@@ -121,6 +123,7 @@ Section tape_interface.
     iExists xs; auto.
   Qed.
 
+  (*
   Lemma spec_tapeN_to_empty l M :
     (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
   Proof.
@@ -151,6 +154,7 @@ Section tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
+*)
 
 End tape_interface.
 
@@ -403,6 +407,22 @@ Proof.
   pose proof (fin_to_nat_lt x); lia.
 Qed.
 
+(** This is just a wrapper for tp_alloctape that works with nats
+    TODO : Make into tactic *)
+Lemma wp_alloc_tape_r N z E e K Φ :
+  TCEq N (Z.to_nat z) →
+  ⤇ fill K (alloc #z) ∗
+    (∀ α, ⤇ fill K #lbl:α -∗ α ↪ₛN (N; []) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (->) "(Hj & Hwp)".
+  tp_alloctape as α "Hα".
+  iApply ("Hwp" with "Hj").
+  iFrame.
+  iPureIntro.
+  auto.
+Qed.
+
 (** spec [rand(α)] with empty tape  *)
 Lemma wp_rand_empty_r N z E e K α Φ :
   TCEq N (Z.to_nat z) →
@@ -433,13 +453,32 @@ Proof.
   pose proof (fin_to_nat_lt x); lia.
 Qed.
 
-(** spec [rand(α)] with wrong tape  *)
-Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
+
+(** This is just a wrapper for tp_rand that works with nats
+    TODO: Make into tactic *)
+Lemma wp_rand_tape_r N z E e K α Φ n ns :
   TCEq N (Z.to_nat z) →
-  N ≠ M →
-  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
-  (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
-  ⊢ WP e @ E {{ Φ }}.
+  ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (N; n::ns) ∗
+    ((α ↪ₛN (N; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (Heq) "(Hj & Hα & Hwp)".
+  iDestruct (read_spec_tape_head with "Hα") as (x xs) "(Hl&<-&Hret)".
+  tp_rand.
+  iDestruct ("Hret" with "Hl") as "Hret".
+  iApply ("Hwp" with "[$]").
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
+Qed.
+
+
+  (** spec [rand(α)] with wrong tape  *)
+  Lemma wp_rand_wrong_tape_r N M z E e K α Φ ns :
+    TCEq N (Z.to_nat z) →
+    N ≠ M →
+    ⤇ fill K (rand(#lbl:α) #z) ∗ α ↪ₛN (M; ns) ∗
+      (∀ (n : nat), (α ↪ₛN (M; ns) ∗ ⤇ fill K #n) -∗ ⌜ n <= N ⌝ -∗ WP e @ E {{ Φ }})
+      ⊢ WP e @ E {{ Φ }}.
 Proof.
   iIntros (-> ?) "(Hj & Hα & Hwp)".
   iApply wp_lift_step_spec_couple.
