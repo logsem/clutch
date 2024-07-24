@@ -433,7 +433,7 @@ Tactic Notation "tp_randnat" "as" constr(H) :=
   |iAssumptionCore || fail "tp_rand: cannot find '? ↪ₛ ?'"
   |simpl; reflexivity || fail "tp_rand: this should not happen"
   |pm_reduce (* new goal *)];
-  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  [ try tc_solve (*|| fail "tp_rand: cannot convert bound to a natural number"*)
   | finish () ].
 
 Tactic Notation "tp_randnat" :=

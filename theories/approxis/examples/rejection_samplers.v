@@ -103,7 +103,7 @@ Tactic Notation "my_wp_randtape" "as" constr(H) :=
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
       |fail 1 "wp_load: cannot find 'Rand' in" e];
-    [tc_solve | tc_solve | solve_wptac_mapsto_tape () | finish () ]
+    [ | tc_solve | solve_wptac_mapsto_tape () | finish () ]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
     first
       [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
@@ -145,7 +145,7 @@ Tactic Notation "my_tp_allocnattape" ident(l) "as"  constr(H) :=
   |iAssumptionCore || fail "tp_allocnattape: cannot find the RHS"
   |tp_bind_helper
   | ];
-  [tc_solve || fail "tp_rand: cannot convert bound to a natural number"
+  [try tc_solve |
   | finish () ].
 
 Lemma wp_rejection_simpl:

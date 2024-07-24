@@ -240,7 +240,7 @@ Section prp_prf.
             apply le_INR. lia.
       } 
       iIntros (x). iModIntro. rewrite /f...
-      pose proof fin_to_nat_lt x.
+      iIntros "%Hx".
       rewrite leb_correct; last lia.
       rel_load_l.
       rel_apply_l refines_list_remove_nth_l.
@@ -474,7 +474,7 @@ Section prp_prf.
             apply le_INR. lia.
       } 
       iIntros (x). iModIntro. rewrite /f...
-      pose proof fin_to_nat_lt x.
+      iIntros "%Hx".
       rewrite leb_correct; last lia.
       rel_load_r.
       rel_apply_r refines_list_remove_nth_r.

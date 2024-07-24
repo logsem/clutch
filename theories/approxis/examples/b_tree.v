@@ -264,6 +264,113 @@ Section stage1.
           -- rewrite filter_list_length. lia.
   Qed.
 
+
+  Lemma inj_function_exists {A} l M N:
+    length l = M ->
+    length (filter (λ x:option A, is_Some x) l) = N ->
+    exists f: (nat -> nat), Inj eq eq f /\
+                          (forall n, n < N -> f n < M)%nat /\
+                          (forall x, (x < N)%nat ->
+                                  ((∃ v, (l !! (f x)) = Some (Some v))
+                                /\
+                                  l!!(f x) = filter (λ x, is_Some x) l !! x)
+                          ) /\
+                          (forall x, (x < M)%nat -> (forall y, (y < N)%nat -> x ≠ f y) -> l!!x = Some None).
+  Proof.
+    intros Hlen1 Hlen2.
+    pose (l' := filter (λ x, is_Some (x.2)) (index_list l)).
+    assert (length l' = N )as H.
+    {
+      rewrite /l' -Hlen2.
+      rewrite filter_list_length' //.
+    }
+    (*
+    assert (forall x : nat, x < N -> x < length l')%nat as H.
+    { intros x.
+      replace (length l') with N; first done.
+      rewrite -Hlen2.
+      rewrite /l'.
+      clear.
+      induction l; simpl; first done.
+      rewrite !filter_cons; simpl; case_match; simpl; by rewrite IHl -filter_list_length.
+    }
+    *)
+    set f := (λ (x:nat), (if bool_decide ((x < N)%nat) then (l'!!!x).1 else (x+M)%nat)).
+    assert (forall x, (x < N)%nat -> (f x < M)%nat) as Hdom.
+    {
+      intros x Hx.
+      rewrite /f.
+      case_bool_decide; last lia.
+      rewrite /l'.
+      rewrite /l' in H.
+      apply Forall_lookup_total_1; last lia.
+      rewrite Forall_forall.
+      intros x' Hx'.
+      rewrite elem_of_list_filter in Hx'.
+      destruct Hx' as [? Hx'].
+      rewrite -Hlen1. by apply index_list_range.
+    }
+    exists f.
+      split; [ | split; [apply Hdom | split]].
+      + (* prove injection *)
+        intros x y Hf.
+        pose proof Hf as Hf2.
+        rewrite /f in Hf.
+        rewrite /l' in Hf, H.
+        case_bool_decide; case_bool_decide.
+        * eapply (index_list_inj _ _ l); lia.
+        * specialize (Hdom x H0).
+          rewrite {2}/f in Hf2.
+          rewrite bool_decide_eq_false_2 in Hf2; auto.
+          lia.
+        * specialize (Hdom y H1).
+          rewrite {1}/f in Hf2.
+          rewrite bool_decide_eq_false_2 in Hf2; auto.
+          lia.
+        * lia.
+      + (* prove domain is true *)
+        intros x Hx.
+        rewrite /f.
+        rewrite bool_decide_eq_true_2; auto.
+        split.
+        * apply Forall_lookup_total_1; last lia.
+          rewrite Forall_forall.
+          rewrite /l'.
+          intros x'. rewrite elem_of_list_filter.
+          intros [??]. by apply index_list_lookup_lemma.
+        * rewrite /l'.
+          apply filter_index_list_relate. lia.
+      + (* prove if not in domain, it must be false *)
+        intros x Hleq Hx.
+        destruct (l!!x) eqn :Heqn1; last first.
+        { apply lookup_ge_None_1 in Heqn1. lia.
+        }
+        destruct o as [|]; last done.
+        exfalso.
+        cut ((x, Some a) ∈ l').
+        * rewrite /l'. rewrite elem_of_list_lookup.
+          intros [i Hi].
+          cut (i<N)%nat.
+          -- intros Hproof.
+             apply (Hx i); auto.
+             rewrite /f/l'.
+             rewrite bool_decide_eq_true_2; auto.
+             apply list_lookup_total_correct in Hi.
+             by rewrite Hi.
+          -- apply lookup_lt_Some in Hi.
+             rewrite -Hlen2. rewrite -filter_list_length' in Hi. lia.
+        * rewrite /l'. rewrite elem_of_list_filter; simpl; split; first done.
+          apply elem_of_index_list. done.
+  Qed.
+
+
+Lemma nat_inj_surj (f : nat -> nat) N:
+  Inj eq eq f →
+  (forall n, n < N -> f n < N)%nat ->
+  (forall n, (n < N)%nat -> exists m, ((m < N)%nat /\ f m = n)).
+Admitted.
+
+  (*
   Lemma inj_function_exists {A} l M N:
     length l = M ->
     length (filter (λ x:option A, is_Some x) l) = N ->
@@ -340,6 +447,7 @@ Section stage1.
       destruct Hx' as [? Hx'].
       rewrite -Hlen1; by apply index_list_range.
   Qed.
+  *)
 
 End stage1.
 
@@ -1805,21 +1913,17 @@ Section b_tree.
     replace (Z.of_nat _ - 1)%Z with (Z.of_nat (children_num tree - 1)); last first.
     { pose proof children_num_pos _ _ _ Htree. lia. }
     rewrite Nat2Z.id.
-    iApply (wp_couple_tape_rand with "[$Hα $Hspec Hrelate Hrelate' HΦ]").
-    simpl. iIntros (?) "[Hα Hspec]".
+    iApply (wp_couple_tape_rand with "[$Hα $Hspec Hrelate Hrelate' HΦ]"); first done.
+    simpl. iIntros (?) "[Hα [Hspec %]]".
     tp_pures.
-    wp_apply (wp_rand_tape with "[$]"). iIntros "Hα".
+    wp_apply (wp_rand_tape with "[$]"). iIntros "(Hα & %)".
     wp_pures.
     pose proof ab_tree_children_num _ _ _ Htree.
     iDestruct (spec_naive_sampler_rec_prog with "[$][$]") as ">(%v&Hspec&%&Hrelate')"; [|done|].
-    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
-      rewrite -H.
-      pose proof children_num_pos _ _ _ Htree.
+    { pose proof children_num_pos _ _ _ Htree.
       lia. }
     wp_apply (wp_naive_sampler_rec_prog with "[$Hrelate]"); [|done|].
-    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
-      rewrite -H.
-      pose proof children_num_pos _ _ _ Htree.
+    { pose proof children_num_pos _ _ _ Htree.
       lia. }
     iIntros (v') "[%?]".
     iApply "HΦ".
@@ -1857,23 +1961,20 @@ Section b_tree.
     iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$Hrelate]") as "(%&%)"; first done.
     simplify_eq; simpl.
     tp_pures; wp_pures.
-    tp_alloctape as α "Hα".
+    tp_allocnattape α as "Hα".
     tp_pures.
     tp_bind (rand(_) _)%E.
-    wp_apply (wp_couple_rand_tape with "[$Hα]").
-    iIntros (n) "Hα". simpl.
-    wp_pures. tp_bind (rand(_) _)%E.
-    iMod (step_rand with "[$Hspec $Hα]") as "[Hspec Hα]".
+    wp_apply (wp_couple_rand_tape with "[$Hα]"); first done.
+    iIntros (n) "(Hα&%)". simpl.
+    wp_pures.
+    tp_randnat.
     simpl.
     tp_pures.
     pose proof ab_tree_children_num _ _ _ Htree.
     iDestruct (spec_naive_sampler_rec_prog with "[$Hrelate'][$]") as ">(%v1&Hspec&%&Hrelate')"; [|done|].
-    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
-      rewrite -H.
-      pose proof children_num_pos _ _ _ Htree. lia. }
+    { pose proof children_num_pos _ _ _ Htree. lia. }
     wp_apply (wp_naive_sampler_rec_prog with "[$Hrelate]"); [|done|].
-    { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
-      rewrite -H. pose proof children_num_pos _ _ _ Htree. lia. }
+    { pose proof children_num_pos _ _ _ Htree. lia. }
     iIntros (v2) "[%?]".
     iApply "HΦ".
     iFrame.
@@ -2325,10 +2426,9 @@ Section b_tree.
     wp_pures.
     iDestruct (relate_ab_tree_with_ranked_v_child_num with "[$]") as "(%&->)"; first done.
     wp_pures.
-    wp_apply (wp_alloc_tape); first done.
-    iIntros (α) "Hα".
+    wp_alloctape α as "Hα".
     wp_pures.
-    tp_alloctape as α' "Hα'".
+    tp_allocnattape α' as "Hα'".
     do 2 tp_pure.
     pose proof ab_tree_children_num _ _ _ Htree as H.
     assert (children_num tree <= max_child_num^depth)%nat as Hineq.
@@ -2349,7 +2449,7 @@ Section b_tree.
         replace (Z.to_nat (Z.of_nat (max_child_num ^ depth) - 1)) with (max_child_num ^ depth - 1)%nat; last first.
         { pose proof pow_max_child_num depth. lia. }
 
-        epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
+        epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hdom & Hf1 & Hf2).
         assert (0 <= ε) as Hε' by lra.
         set ε' := mknonnegreal _ Hε'.
         replace ε with ε'.(nonneg); [|done].
@@ -2357,29 +2457,27 @@ Section b_tree.
         iApply (wp_couple_fragmented_rand_rand_inj_rev' f with "[$Hα $Hα' $Hε HΦ Hspec Hrelate Hrelate']").
         { done. }
         { pose proof pow_max_child_num depth. pose proof children_num_pos _ _ _ Htree. lia. }
-        iIntros (m).
+        { done. }
+        iIntros (m) "%".
         case_bool_decide as K'.
         * (* hit somthing on the right!*)
-          destruct K' as [n <-].
-          iIntros (?) "(Hα & Hα' & %Hfsame)".
-          apply Hinj in Hfsame. subst. simpl.
-          wp_apply (wp_rand_tape with "[$]").
-          { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; first done. lia. }
-          iIntros "Hα".
-          wp_pures. tp_pures.
-          tp_bind (rand(_) _)%E.
-          iMod (step_rand with "[$Hspec $Hα']") as "[Hspec Hα'] /=".
+          destruct K' as [n [? <-]].
+          iIntros (?) "(Hα & Hα' & % & %)". simpl.
+          wp_randtape.
+          { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; last lia. done. }
+          wp_pures.
+          tp_pures.
+          tp_randnat.
           { apply TCEq_eq. lia. }
           tp_pures.
-          specialize (Hf1 n) as [[v Hvsome] Hvsame].
+          specialize (Hf1 n0) as [[v Hvsome] Hvsame]; first lia.
           tp_bind (intermediate_sampler_rec_prog _ _ _).
           iMod (spec_intermediate_sampler_rec_prog_Some with "[$][$]") as
-            "(%res & Hspec & -> & %Helem & Hrelate')"; [|done|done|].
+            "(%res & Hspec & -> & %Helem & Hrelate')"; [|eauto|done|].
           { apply lookup_lt_is_Some_1. done. }
           simpl. tp_pures.
           wp_apply (wp_naive_sampler_rec_prog with "[$]"); [|done|].
-          { pose proof fin_to_nat_lt n. rewrite -H.
-            pose proof children_num_pos _ _ _ Htree. lia. }
+          { pose proof children_num_pos _ _ _ Htree. lia. }
           iIntros (res') "[% Hrelate]".
           iApply "HΦ".
           iFrame.
@@ -2387,16 +2485,15 @@ Section b_tree.
           replace res' with v; first done.
           do 2 apply Some_inj. rewrite -Hvsome. rewrite Hvsame. done.
         * (* missed! *)
-          iIntros (ε'') "(%&Hα & Hα'&Hε)".
+          iIntros (ε'') "(%&Hα & Hα'&Hε&%)".
           (** only step RHS *)
-          assert (l!!(fin_to_nat m)=Some None) as Hnone.
-          { apply Hf2. intros. intro. apply K'. subst. naive_solver. }
+          assert (l!!m=Some None) as Hnone.
+          { apply Hf2; first lia.
+            intros. intro. apply K'. subst.
+            exists y. split; auto. lia. }
           tp_pures.
-          tp_bind (rand(_) _)%E.
-          iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+          tp_randnat.
           { apply TCEq_eq. lia. }
-          iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
-          iIntros "[Hspec Hα']".
           tp_pures.
           tp_bind (intermediate_sampler_rec_prog _ _ _).
           iMod (spec_intermediate_sampler_rec_prog_None with "[$][$]") as "(%res & Hspec & -> & Hrelate')"; [|done|done|].
@@ -2405,7 +2502,7 @@ Section b_tree.
           do 3 tp_pure.
           iApply ("IH" with "[Hε][$][$][$][$][$][$]").
           iApply ec_weaken; last done.
-          rewrite H0. simpl. split; [|done].
+          rewrite H1. simpl. split; [|done].
           apply Rmult_le_pos; [|done].
           apply Rcomplements.Rdiv_le_0_compat; [apply pos_INR|].
           rewrite -minus_INR /=; [|lia].
@@ -2419,35 +2516,29 @@ Section b_tree.
         by eapply factor_gt_1.
     - (* do a normal no error fragmented sampling and reject second case since the tree is populated *)
       tp_pures.
-      epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
+      epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hdom & Hinj & Hf1 & Hf2).
       replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat by lia.
       replace (Z.to_nat (Z.of_nat (max_child_num ^ depth) - 1)) with (max_child_num ^ depth - 1)%nat; last first.
       { pose proof pow_max_child_num depth. lia. }
-      iApply (wp_couple_fragmented_rand_rand_inj_rev f with "[$Hα $Hα' Hspec HΦ Hrelate Hrelate']").
+      iApply (wp_couple_fragmented_rand_rand_inj_rev f with "[$Hα $Hα' Hspec HΦ Hrelate Hrelate']"); auto.
       { rewrite Hsame. done. }
-      iIntros (m).
+      iIntros (m) "%".
       case_bool_decide as K'.
-      + destruct K' as [n <-].
-        iIntros (?) "(Hα & Hα' & %Hfsame)".
-        apply Hinj in Hfsame. subst. simpl.
-        wp_apply (wp_rand_tape with "[$]").
+      + destruct K' as [n [? <-]].
+        iIntros (?) "(Hα & Hα' & % & %)".
+        wp_randtape.
         { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; first done. lia. }
-        iIntros "Hα".
         wp_pures. tp_pures.
-        tp_bind (rand(_) _)%E.
-        iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+        tp_randnat.
         { apply TCEq_eq. lia. }
-        iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
-        iIntros "[Hspec Hα']".
         tp_pures.
-        specialize (Hf1 n) as [[v Hvsome] Hvsame].
+        specialize (Hf1 n0) as [[v Hvsome] Hvsame]; first lia.
         tp_bind (intermediate_sampler_rec_prog _ _ _).
         iMod (spec_intermediate_sampler_rec_prog_Some with "[$][$]") as "(%res & Hspec & -> & %Helem & Hrelate')"; [|done|done|].
         { apply lookup_lt_is_Some_1. done. }
         simpl. tp_pures.
         wp_apply (wp_naive_sampler_rec_prog with "[$]"); [|done|].
-        { pose proof fin_to_nat_lt n. rewrite -H.
-          pose proof children_num_pos _ _ _ Htree. lia. }
+        { pose proof children_num_pos _ _ _ Htree. lia. }
         iIntros (res') "[% Hrelate]".
         iApply "HΦ".
         iFrame.
@@ -2456,8 +2547,10 @@ Section b_tree.
         do 2 apply Some_inj. rewrite -Hvsome. rewrite Hvsame. done.
       + (** contradiction since RHS is populated *)
         exfalso. apply K'.
-        apply finite_inj_surj; first done.
-        rewrite !fin_card. rewrite H. lia.
+        rewrite Hsame in Hinj.
+        destruct (nat_inj_surj f _ Hdom Hinj m) as [n [? ?]]; first lia.
+        exists n.
+        split; auto. lia.
         Unshelve.
         { trans 1; first lra.
           apply Rlt_le. by eapply factor_gt_1.
@@ -2489,10 +2582,9 @@ Section b_tree.
     wp_apply (wp_pow); first done.
     iIntros (n) "->".
     wp_pures.
-    wp_apply (wp_alloc_tape); first done.
-    iIntros (α) "Hα".
+    wp_alloctape α as "Hα".
     do 2 wp_pure.
-    tp_alloctape as α' "Hα'".
+    tp_allocnattape α' as "Hα'".
     tp_pures.
     wp_pure.
     (* iLöb *)
@@ -2500,7 +2592,7 @@ Section b_tree.
     wp_pures.
     replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat by lia.
     pose proof ab_tree_children_num _ _ _ Htree as H.
-    epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hf1 & Hf2).
+    epose proof inj_function_exists l (S (max_child_num ^ depth-1))%nat (S (children_num tree-1))%nat _ _ as (f & Hinj & Hdom & Hf1 & Hf2).
     assert (children_num tree <= max_child_num^depth)%nat as Hineq.
     { pose proof ab_b_tree_list_length _ _ _ Htree as K.
       rewrite <-K.
@@ -2508,29 +2600,23 @@ Section b_tree.
     }
     replace (Z.to_nat (Z.of_nat (max_child_num ^ depth) - 1)) with (max_child_num ^ depth - 1)%nat; last first.
     { pose proof pow_max_child_num depth. lia. }
-    iApply (wp_couple_fragmented_rand_rand_inj f with "[$Hα $Hα' Hε Hspec Hrelate HΦ Hrelate']").
+    iApply (wp_couple_fragmented_rand_rand_inj f with "[$Hα $Hα' Hε Hspec Hrelate HΦ Hrelate']"); auto.
     { lia. }
-    iIntros (m).
+    iIntros (m) "%".
     case_bool_decide as K.
     - (* hit somthing on the right!*)
-      destruct K as [n <-].
-      iIntros (?) "(Hα & Hα' & %Hfsame)".
-      apply Hinj in Hfsame. subst. simpl.
-      wp_apply (wp_rand_tape with "[$]").
+      destruct K as [n [? <-]].
+      iIntros (?) "(Hα & Hα' & %Hfsame & %)".
+      wp_randtape.
       { apply TCEq_eq. lia. }
-      iIntros "Hα".
-      wp_pures. tp_pures.
-      tp_bind (rand(_) _)%E.
-      iDestruct (step_rand with "[$Hspec $Hα']") as "Hspec".
+      wp_pures.
+      tp_randnat.
       { replace (Z.to_nat (Z.of_nat (children_num tree) - 1)) with (children_num tree - 1)%nat; first done. lia. }
-      iApply elim_modal_spec_update_wp; first done; iFrame; simpl.
-      iIntros "[Hspec Hα']".
       tp_pures.
-      specialize (Hf1 n) as [[v Hvsome] Hvsame].
+      specialize (Hf1 m) as [[v Hvsome] Hvsame]; first lia.
       iDestruct (spec_naive_sampler_rec_prog with "[$][$]") as ">(%v0&Hspec&%&Hrelate')"; [|done|].
-      { eapply Nat.lt_le_trans; first apply fin_to_nat_lt.
-        rewrite -H. pose proof children_num_pos _ _ _ Htree. lia. }
-      wp_apply (wp_intermediate_sampler_rec_prog_Some with "[$]"); [|exact|done|..].
+      { rewrite -H. pose proof children_num_pos _ _ _ Htree. lia. }
+      wp_apply (wp_intermediate_sampler_rec_prog_Some with "[$]"); [| exact |done|..].
       { apply lookup_lt_is_Some_1. done. }
       iIntros (res) "[-> [%Helem Hrelate]]".
       wp_pures.
@@ -2542,13 +2628,12 @@ Section b_tree.
       do 2 apply Some_inj.
       rewrite -Hvsome. rewrite Hvsame. done.
     - (* missed! *)
-      iIntros "(Hα & Hα')".
+      iIntros "(Hα & Hα' & %)".
       (** only step LHS *)
-      assert (l!!(fin_to_nat m)=Some None) as Hnone.
-      { apply Hf2. intros. intro. apply K. subst. naive_solver. }
-      wp_apply (wp_rand_tape with "[$]").
+      assert (l!!m=Some None) as Hnone.
+      { apply Hf2; first lia. intros. intro. apply K. subst. exists y. split; auto. lia. }
+      wp_randtape.
       { apply TCEq_eq. lia. }
-      iIntros "Hα".
       wp_pures.
       wp_apply (wp_intermediate_sampler_rec_prog_None with "[$]"); [|exact|done|..].
       { by apply lookup_lt_is_Some_1. }
@@ -2560,6 +2645,11 @@ Section b_tree.
         pose proof pow_max_child_num depth. lia.
       + pose proof children_num_pos _ _ _ Htree. lia.
   Qed.
+
+
+ End logic_level.
+
+(* WIP : Finish refactoring
 
   (** Stage 2 *)
   (** This is a refinement between the rejection sampler one and the optimized one
@@ -3605,4 +3695,8 @@ Section b_tree.
 
   End final_proof.
 
+
+*)
+
 End b_tree.
+

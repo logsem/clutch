@@ -164,11 +164,10 @@ Section Approxis.
       lia.
     }
     { rewrite -Hvl. done. }
-    iIntros (x) "HK".
+    iIntros (x) "(HK & %)".
     simpl.
     wp_pures.
     tp_pures.
-    pose proof (fin_to_nat_lt x).
     tp_load.
     tp_bind (list_remove_nth _ _).
     unshelve iMod (spec_remove_nth _ _ sr _ with "[#] HK")
@@ -328,11 +327,10 @@ Section Approxis.
       lia.
     }
     { rewrite -Hvl. done. }
-    iIntros (x) "HK".
+    iIntros (x) "(HK & %)".
     simpl.
     wp_pures.
     tp_pures.
-    pose proof (fin_to_nat_lt x).
     wp_load.
     wp_apply (wp_remove_nth).
     { iPureIntro; split; try done. lia. }
@@ -434,7 +432,7 @@ Section Approxis.
         - tp_bind (rand _)%E. done.
         - rewrite Rminus_diag /Rdiv Rmult_0_l /=//.
       }
-      iIntros (n2 m2) "[-> spec]".
+      iIntros (n2) "(% & spec)".
       iSimpl in "spec"...
       wp_pures. wp_bind (rf _).
       tp_pures. tp_bind (rp _).
@@ -448,14 +446,14 @@ Section Approxis.
           apply Rplus_le_le_0_compat; apply Rcomplements.Rdiv_le_0_compat; real_solver.
         - apply Rcomplements.Rdiv_le_0_compat; real_solver.
         - apply Rcomplements.Rdiv_le_0_compat; real_solver. }
-      iAssert (⌜(n-S Q')<S val_size⌝)%I with "[Hε]" as "%".
+      iAssert (⌜(n-S Q')<S val_size⌝)%I with "[Hε]" as "%Hdiff".
       { pose proof Nat.lt_ge_cases (n-S Q') (S val_size) as [|]; first done.
         iExFalso. iApply ec_contradict; last done. simpl.
         apply Rcomplements.Rle_div_r.
         - pose proof pos_INR_S val_size. apply Rlt_gt. exact.
         - rewrite Rmult_1_l. replace (_)%R with (INR (S val_size)); last by simpl. apply le_INR. lia. }
 
-      destruct (m!!fin_to_nat m2) eqn:Hm'.
+      destruct (m!! n2) eqn:Hm'.
       + iApply (wp_prf_prp_couple_eq_Some
                   _ _ _ _ _ _ _ _ Hm' with "[$spec $rf $rp]").
         * apply elem_of_dom_2 in Hm'.
@@ -464,11 +462,11 @@ Section Approxis.
         * iNext. iIntros " (spec & Hf & Hg)".
           wp_pures. wp_load.
           wp_pure.
-          wp_bind (list_cons (#m2, #z)%V vres).
+          wp_bind (list_cons (#n2, #z)%V vres).
           iApply (wp_list_cons $! list_vres).
           iNext. iIntros (cons_vres) "%list_vres_cons".
           iSimpl in "spec". tp_pure. tp_pure. tp_load. tp_pure.
-          tp_bind (list_cons (#m2, #z)%V vres)%E.
+          tp_bind (list_cons (#n2, #z)%V vres)%E.
           iMod (spec_list_cons $! list_vres with "spec") as "[%vres_cons' [spec %list_vres_cons']]" => // ; iSimpl in "spec".
           wp_store. tp_store. tp_pure. tp_pure.
           wp_pures. tp_pures.
@@ -480,8 +478,8 @@ Section Approxis.
           iFrame "Hf Hg spec Hε'".
           pose proof (is_list_eq _ _ _ list_vres_cons list_vres_cons') as eq_vres ; rewrite -eq_vres.
           iExists _,_. by iFrame.
-      + wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ m2
-                   with "[$Hε $rp $rf $spec]"); [done|pose proof(fin_to_nat_lt m2); lia|..].
+      + wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ n2
+                   with "[$Hε $rp $rf $spec]"); [done|lia|..].
         * intros. apply not_elem_of_dom_1. intro.
           eassert (n' ∈ (set_seq 0 (S val_size))).
           { eapply elem_of_weaken; exact. }
@@ -508,11 +506,11 @@ Section Approxis.
         * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
           wp_pures. wp_load.
           wp_pure.
-          wp_bind (list_cons (#m2, #z)%V vres).
+          wp_bind (list_cons (#n2, #z)%V vres).
           iApply (wp_list_cons $! list_vres).
           iNext. iIntros (cons_vres) "%list_vres_cons".
           iSimpl in "HK". tp_pure. tp_pure. tp_load. tp_pure.
-          tp_bind (list_cons (#m2, #z)%V vres)%E.
+          tp_bind (list_cons (#n2, #z)%V vres)%E.
           iMod (spec_list_cons $! list_vres with "HK") as "[%vres_cons' [spec %list_vres_cons']]" => // ; iSimpl in "spec".
           wp_store. tp_store. tp_pure. tp_pure.
           wp_pures. tp_pures.
@@ -541,7 +539,6 @@ Section Approxis.
              rewrite singleton_subseteq_l.
              rewrite <-set_seq_S_start.
              rewrite elem_of_set_seq.
-             pose proof (fin_to_nat_lt m2).
              lia.
           -- simpl. rewrite Rdiv_def. iPureIntro. repeat f_equal. rewrite fold_symmetric; try (intros; lia).
              apply Req_le. replace (S _)  with (n-Q'); first done. lia.
@@ -597,7 +594,7 @@ Section Approxis.
         - tp_bind (rand _)%E. done.
         - rewrite Rminus_diag /Rdiv Rmult_0_l /=//.
       }
-      iIntros (n2 m2) "[-> spec]".
+      iIntros (n2) "[%Hn2 spec]".
       iSimpl in "spec"...
       wp_pures. wp_bind (rp _).
       tp_pures. tp_bind (rf _).
@@ -618,7 +615,7 @@ Section Approxis.
         - pose proof pos_INR_S val_size. apply Rlt_gt. exact.
         - rewrite Rmult_1_l. replace (_)%R with (INR (S val_size)); last by simpl. apply le_INR. lia. }
 
-      destruct (m!!fin_to_nat m2) eqn:Hm'.
+      destruct (m!!n2) eqn:Hm'.
       + iApply (wp_prp_prf_couple_eq_Some
                   _ _ _ _ _ _ _ _ Hm' with "[$spec $rf $rp]").
         * apply elem_of_dom_2 in Hm'.
@@ -627,11 +624,11 @@ Section Approxis.
         * iNext. iIntros " (spec & Hf & Hg)".
           wp_pures. wp_load.
           wp_pure.
-          wp_bind (list_cons (#m2, #z)%V vres).
+          wp_bind (list_cons (#n2, #z)%V vres).
           iApply (wp_list_cons $! list_vres).
           iNext. iIntros (cons_vres) "%list_vres_cons".
           iSimpl in "spec". tp_pure. tp_pure. tp_load. tp_pure.
-          tp_bind (list_cons (#m2, #z)%V vres)%E.
+          tp_bind (list_cons (#n2, #z)%V vres)%E.
           iMod (spec_list_cons $! list_vres with "spec") as "[%vres_cons' [spec %list_vres_cons']]" => // ; iSimpl in "spec".
           wp_store. tp_store. wp_pure.
           tp_pure. tp_pure. tp_pure.
@@ -643,8 +640,8 @@ Section Approxis.
           iFrame "Hf Hg spec Hε'".
           pose proof (is_list_eq _ _ _ list_vres_cons list_vres_cons') as eq_vres ; rewrite -eq_vres.
           iExists _,_. by iFrame.
-      + wp_apply (wp_prp_prf_couple_eq_err _ _ _ _ _ _ m2
-                   with "[$Hε $rp $rf $spec]"); [done|pose proof(fin_to_nat_lt m2); lia|..].
+      + wp_apply (wp_prp_prf_couple_eq_err _ _ _ _ _ _ n2
+                   with "[$Hε $rp $rf $spec]"); [done|lia|..].
         * intros. apply not_elem_of_dom_1. intro.
           eassert (n' ∈ (set_seq 0 (S val_size))).
           { eapply elem_of_weaken; exact. }
@@ -671,11 +668,11 @@ Section Approxis.
         * iIntros (z) "(HK & Hf & (%l1 & %l2 & %Hperm & Hg))".
           wp_pures. wp_load.
           wp_pure.
-          wp_bind (list_cons (#m2, #z)%V vres).
+          wp_bind (list_cons (#n2, #z)%V vres).
           iApply (wp_list_cons $! list_vres).
           iNext. iIntros (cons_vres) "%list_vres_cons".
           iSimpl in "HK". tp_pure. tp_pure. tp_load. tp_pure.
-          tp_bind (list_cons (#m2, #z)%V vres)%E.
+          tp_bind (list_cons (#n2, #z)%V vres)%E.
           iMod (spec_list_cons $! list_vres with "HK") as "[%vres_cons' [spec %list_vres_cons']]" => // ; iSimpl in "spec".
           wp_store. tp_store. tp_pure. tp_pure. tp_pure.
           wp_pure.
@@ -704,7 +701,6 @@ Section Approxis.
              rewrite singleton_subseteq_l.
              rewrite <-set_seq_S_start.
              rewrite elem_of_set_seq.
-             pose proof (fin_to_nat_lt m2).
              lia.
           -- simpl. rewrite Rdiv_def. iPureIntro. repeat f_equal. rewrite fold_symmetric; try (intros; lia).
              apply Req_le. replace (S _)  with (n-Q'); first done. lia.
@@ -714,7 +710,7 @@ Section Approxis.
              ++ apply gset_semi_set.
   Qed.
 
-  
+
   (* We compare the "ideal" wPRP and wPRF games (as indicated by the #false
      argument below); to ignore the "real" games (wPRP #true and wPRF #true),
      we provide a dummy scheme. *)

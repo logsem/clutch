@@ -1,6 +1,8 @@
 From clutch.approxis Require Export approxis map list prf prp prp_prf_weak.
 Set Default Proof Using "Type*".
 
+(* WIP : Refactor examples
+
 Section prp_prf_test.
 
   (* Alternative specification for the weak PRP/PRF Switching Lemma.
@@ -223,3 +225,5 @@ Section prp_prf_test.
 
 
 End prp_prf_test.
+
+*)

@@ -3,6 +3,8 @@ From clutch.approxis Require Import approxis map list.
 From clutch.approxis.examples Require Import prf symmetric.
 Set Default Proof Using "Type*".
 
+(* WIP : Refactor examples
+
 Section defs.
 
   (** We will prove CPA security of a symmetric encryption scheme based on an
@@ -610,3 +612,5 @@ Section implementation.
   Qed.
       
 End implementation.
+
+*)

@@ -5,6 +5,7 @@
    b_tree.v *)
 
 
+(* WIP : Refactor examples
 
 From Coq.Program Require Import Wf.
 From stdpp Require Import list.
@@ -1741,3 +1742,5 @@ Section b_tree_ctx_equiv.
   Qed.
 
 End b_tree_ctx_equiv.
+
+*)

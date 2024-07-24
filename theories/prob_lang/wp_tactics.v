@@ -642,17 +642,18 @@ Tactic Notation "wp_randtape" "as" constr(H) :=
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
         |fail 1 "wp_load: cannot find 'Rand' in" e];
-      [tc_solve
-      |tc_solve
-      |solve_wptac_mapsto_tape ()
-      |finish () ]
+      [ (* Delay resolution of TCEq *)
+      | tc_solve
+      | solve_wptac_mapsto_tape ()
+      |];
+      [try tc_solve | finish ()]
   | |- envs_entails _ (twp ?s ?E ?e ?Q) =>
       first
         [reshape_expr e ltac:(fun K e' => eapply (tac_wp_rand_tape _ _ _ _ Htmp K))
         |fail 1 "wp_load: cannot find 'Rand' in" e];
-      [tc_solve
+      [try tc_solve
       |tc_solve
-      |solve_wptac_mapsto_tape ()
+      |try (solve_wptac_mapsto_tape ())
       |finish ()]
   | _ => fail "wp_load: not a 'wp'"
   end.
