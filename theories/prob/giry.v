@@ -13,6 +13,8 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Set Default Proof Using "Type".
+
 (**   Summary
 
       giryType T              Type of points in the giry sigma algebra on T, namely, subdistributions on T
@@ -88,7 +90,7 @@ Section giry.
     HB.instance Definition _ := gen_choiceMixin (giryType T).
 
     Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
-    Proof using Type. by rewrite /mzero/=. Qed.
+    Proof. by rewrite /mzero/=. Qed.
 
     HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
 
@@ -120,13 +122,10 @@ Section giry.
   Notation "T .-giry.-measurable" := (measurable : set (set (giryM T))) : classical_set_scope.
 
 
-
   Lemma giryM_ext {d : measure_display} {T : measurableType d} (μ1 μ2 : giryM T) : (forall S, μ1 S = μ2 S) -> μ1 = μ2.
   Proof.
     Check eq_measure.
   Admitted.
-
-
 
 
 
@@ -142,14 +141,14 @@ Section giry.
 
     (* Example: Measuring sets in the Giry space *)
     Example test_giry_measures_0 : T.-giry.-measurable (set0 : set (giryM T)).
-    Proof using Type. simpl. apply measurable0. Qed.
+    Proof. apply measurable0. Qed.
 
     Example test_giry_measures_T : T.-giry.-measurable [set: giryM T].
-    Proof using Type. rewrite /=. apply (@measurableT _ (salgebraType _)). Qed.
+    Proof. apply (@measurableT _ (salgebraType _)). Qed.
 
     (* giryM is also a measurable type, so can be nested. *)
     Example test_giry_measures_0' : (giryM T).-giry.-measurable (set0 : set (giryM (giryM T))).
-    Proof using Type. simpl. apply measurable0. Qed.
+    Proof. apply measurable0. Qed.
 
   End giry_space_example.
 
@@ -167,10 +166,10 @@ Section giry.
     Example giry_ret_μ : giryM (giryM T) := @dirac _ _ μ_target _.
 
     Example int_zero_over_dirac : (\int[giry_ret_μ]_x cst 0%:E x)%E = 0%:E.
-    Proof using Type. apply integral0. Qed.
+    Proof. apply integral0. Qed.
 
     Example int_one_over_dirac : (\int[giry_ret_μ]_x cst 1%:E x)%E = 1%:E.
-    Proof using Type.
+    Proof.
       rewrite integral_cst /=.
       - by rewrite diracT mul1e.
       - rewrite -setC0.
@@ -189,9 +188,6 @@ Section giry.
 
     Local Definition giryM_eval_def (S : set T) (HS : d.-measurable S) : giryM T -> borelER := (fun μ => μ S).
 
-    Check measurable_fun.
-
-
 
     (* Evaluation functions are measurable maps *)
 
@@ -200,7 +196,7 @@ Section giry.
     (* Yes, first line, to apply the comap lemma. Maybe a more general comap lemma can avoid this. *)
 
     Local Lemma giryM_eval_def_measurable (S : set T) (HS : d.-measurable S) : @measurable_fun _ _ (giryM T) borelER setT (giryM_eval_def HS).
-    Proof using Type.
+    Proof.
       apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
       rewrite /T.-giry.-measurable/=.
       rewrite {2}/giry_subbase/=.
@@ -230,15 +226,14 @@ Section giry.
     := (giryM_eval_def HS).
   Lemma giryM_eval_aux {d} {T : measurableType d} (S : set T) (HS : d.-measurable S) :
     forall μ, giryM_eval HS μ = μ S.
-  Proof using Type. done. Qed.
+  Proof. done. Qed.
 
 
 
   (* Lemmas for for section 6 *)
 
   Lemma measurable_if_pushfowrard_subset {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> T2) :
-        (d2.-measurable  `<=` [set s : set T2 | d1.-measurable ( f@^-1` s )]) -> (measurable_fun setT f).
-  Proof using Type.
+        (d2.-measurable  `<=` [set s : set T2 | d1.-measurable ( f@^-1` s )]) -> (measurable_fun setT f). Proof.
     intro HS.
     rewrite /measurable_fun.
     rewrite /subset in HS.
@@ -274,7 +269,7 @@ Section giry.
     Qed.
 
     Lemma measurable_if_measurable_evals : measurable_evaluations f -> measurable_fun setT f.
-    Proof using Type.
+    Proof.
       intro Hm.
       rewrite /measurable_evaluations/measurable_fun/= in Hm.
 
@@ -427,11 +422,6 @@ HB.end.
     Definition giryM_integrate_def (f : measurable_map T (\bar R)) : giryM T -> \bar R
       := fun μ => (\int[μ]_x (f x))%E.
 
-    (* measurable_lintegral *)
-    (*  -> lintegral_bind *)
-    (*    -> bind_bind *)
-    (*  -> measurable_join  *)
-    (* Taking expectaiton is measurable *)
     Lemma giry_meas_integrate (f : measurable_map T (\bar R)) (Hf : forall x : T, (0%R <= f x)%E) :
       @measurable_fun _ _ (giryM T) (\bar R) setT (giryM_integrate_def f).
     Proof.
@@ -695,10 +685,24 @@ measurable_fun_limn_sup:
 
     Lemma giryM_map_def_is_measurable (f : measurable_map T1 T2) : @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map_def f).
     Proof.
+      apply measurable_if_measurable_evals.
+      rewrite /measurable_evaluations.
+      intros S HS.
+      apply measurable_if_pushfowrard_subset.
+      intros Y HY.
+      simpl.
+
+      (*
+
       have HM := @measurable_mapP _ _ _ _ f.
       apply measurable_if_pushfowrard_subset.
       rewrite /giryM_map_def.
       intros S SM.
+      simpl.
+      rewrite /pushforward.
+      simpl.*)
+
+
       (* rewrite /giryM_map_def/measurable_fun.
       intros ? Y YMeas.
       rewrite setTI.
@@ -718,7 +722,7 @@ measurable_fun_limn_sup:
     := giryM_map_def f.
   Lemma giryM_map_aux {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
     forall μ, giryM_map f μ = pushforward μ  (@measurable_mapP _ _ _ _ f).
-  Proof using Type. done. Qed.
+  Proof. done. Qed.
 
 
   Section giry_map_laws.
@@ -735,15 +739,38 @@ measurable_fun_limn_sup:
     Proof.
       rewrite giryM_map_aux.
       rewrite /pushforward.
-      Search cst preimage.
-      Check preimage_cst. (* This one does it *)
+      rewrite giryM_ret_aux.
+      (* Weird that I can't apply functional extensionality *)
+      have H : (fun A : set T2 => μ (cst k @^-1` A)) = (fun A : set T2 => ((\1_A k)%:E)).
+      { apply functional_extensionality.
+        intro A.
+        rewrite preimage_cst.
+        rewrite /indic.
+        destruct (k \in A).
+        - simpl.
+          admit.
+        - simpl.
+          admit.
+      }
+      rewrite H.
+      clear H.
+      rewrite /dirac.
+      Fail reflexivity.
+      (* ???? *)
+      (* This whole proof is haunted *)
     Admitted.
 
     Lemma giryM_map_integrate (g : measurable_map T2 (\bar R)) (h : measurable_map T1 T2) (μ : giryM T1):
       (\int[giryM_map h μ]_x g x  = \int[μ]_x g (h x))%E.
-    Proof. Admitted.
-
-
+    Proof.
+      rewrite giryM_map_aux.
+      rewrite integral_pushforward.
+      (* Can this be weakened to include negative g? *)
+      - simpl.
+        reflexivity.
+      - admit.
+      - admit.
+    Admitted.
   End giry_map_laws.
 
 
@@ -764,7 +791,7 @@ measurable_fun_limn_sup:
       Context (m : giryM (giryM T)).
 
       Definition giryM_join0 : giryM_join_def m set0 = 0%E.
-      Proof using Type.
+      Proof.
         rewrite /giryM_join_def.
         have X1 : (\int[m]_μ μ set0)%E  = ((integral m setT (cst GRing.zero)))%E.
         { f_equal.
@@ -780,7 +807,7 @@ measurable_fun_limn_sup:
       Qed.
 
       Definition giryM_join_ge0 A : (0 <= giryM_join_def m A)%E.
-      Proof using Type.
+      Proof.
         rewrite /giryM_join_def.
         apply integral_ge0.
         intros μ _.
@@ -811,7 +838,24 @@ measurable_fun_limn_sup:
              giryM_join_semi_additive.
 
       Lemma giryM_join_setT : (giryM_join_def m setT <= 1)%E.
-      Proof. (* Does this need any additional assumptions? *) Admitted.
+      Proof.
+        rewrite /giryM_join_def.
+        have H : (\int[m]_μ μ [set: T] <= \int[m]_μ 1)%E.
+        { Search integral (_ <= _)%E.
+          apply ge0_le_integral.
+          - by [].
+          - intros ? ?; by [].
+          - simpl.
+            admit.
+          - intros ? ?; by [].
+          - admit.
+          - intros ? ?.
+            (* Because of subprobability *)
+            admit.  }
+
+      (* Now I just need that the measure of m is at most 1,
+         Also true because of subprobability. *)
+      Admitted.
 
       HB.instance Definition _ :=  Measure_isSubProbability.Build _ _ _ (giryM_join_def m) giryM_join_setT.
 
@@ -832,7 +876,7 @@ measurable_fun_limn_sup:
   Definition giryM_join {d} {T : measurableType d} : measurable_map (giryM (giryM T)) (giryM T) := giryM_join_def'.
   Lemma giryM_join_aux {d} {T : measurableType d} (m : giryM (giryM T)) :
     forall S, (giryM_join m S = \int[m]_μ (μ S))%E.
-  Proof using Type. done. Qed.
+  Proof. done. Qed.
 
 
 
@@ -846,9 +890,8 @@ measurable_fun_limn_sup:
       apply giryM_ext.
       intro S.
       rewrite /mzero.
-
-      simpl.  (* That's so odd, why doesn't it beta reduce here *)
-
+      (* Odd that it doesn't reduce mzero? *)
+      simpl.
 
 
     Admitted.
@@ -858,7 +901,7 @@ measurable_fun_limn_sup:
       (mf : measurable_fun setT f) :
       (\int[giryM_join m]_x (f x) = \int[m]_μ (\int[μ]_x f x))%E.
     Proof.
-      have HTmeas : d.-measurable [set: T] by admit.
+      have HTmeas : d.-measurable [set: T] by [].
 
       (* Rewrite integral over (giryM_join M) to limit. *)
       erewrite nd_ge0_integral_lim; first last.
