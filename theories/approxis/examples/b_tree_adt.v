@@ -5,8 +5,6 @@
    b_tree.v *)
 
 
-(* WIP : Refactor examples
-
 From Coq.Program Require Import Wf.
 From stdpp Require Import list.
 From clutch.approxis Require Import approxis list.
@@ -899,21 +897,20 @@ Section b_tree_adt.
       { rewrite -Heq2 map_length. rewrite /b_tree.min_child_num in H1. lia. }
       assert ((Z.of_nat (length loc_lis) - 1)%Z = (length loc_lis - 1)%nat) as ->.
       { lia. }
-      wp_apply (wp_couple_rand_rand with "H").
-      iIntros (n) "Hspec".
+      wp_apply (wp_couple_rand_rand with "H"); first auto.
+      iIntros (n) "[% Hspec]".
       simpl.
       wp_pures.
       tp_pures.
       wp_apply (wp_list_nth); first eauto.
       iIntros (? Hlist_nth).
-      assert (n < length loc_lis)%nat.
-      { specialize (fin_to_nat_lt n). lia. }
+      assert (n < length loc_lis)%nat by lia.
       destruct Hlist_nth as [(?&Hbad)|Hlist_nth].
-      { exfalso. specialize (fin_to_nat_lt n). lia. }
+      { exfalso. lia. }
       tp_bind (list_nth _ _)%E.
       iMod (spec_list_nth with "Hspec") as (?) "(Hspec&%Hlist_nth')"; first eauto.
       destruct Hlist_nth' as [(?&Hbad)|Hlist_nth'].
-      { exfalso. specialize (fin_to_nat_lt n). lia. }
+      { exfalso. lia. }
       destruct Hlist_nth as (ptr&->&Hnth_ptr).
       destruct Hlist_nth' as (ptr'&->&Hnth_ptr').
       simpl.
@@ -1743,4 +1740,3 @@ Section b_tree_ctx_equiv.
 
 End b_tree_ctx_equiv.
 
-*)
