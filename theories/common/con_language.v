@@ -35,7 +35,7 @@ Section con_language_mixin.
 End con_language_mixin.
 
 
-Structure con_language := ConLanguage {
+Structure conLanguage := ConLanguage {
   expr : Type;
   val : Type;
   state : Type;
@@ -81,12 +81,12 @@ Canonical Structure stateO Λ := leibnizO (state Λ).
 Canonical Structure valO Λ := leibnizO (val Λ).
 Canonical Structure exprO Λ := leibnizO (expr Λ).
 
-Definition cfg (Λ : con_language) := (list (expr Λ) * state Λ)%type.
+Definition cfg (Λ : conLanguage) := (list (expr Λ) * state Λ)%type.
 
 Definition fill_lift {Λ} (K : expr Λ → expr Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
   λ '(e, σ), (K e, σ).
 
-Global Instance inj_fill_lift {Λ : con_language} (K : expr Λ → expr Λ) :
+Global Instance inj_fill_lift {Λ : conLanguage} (K : expr Λ → expr Λ) :
   Inj (=) (=) K →
   Inj (=) (=) (fill_lift K).
 Proof. by intros ? [] [] [=->%(inj _) ->]. Qed.
@@ -95,13 +95,13 @@ Definition fill_lift' {Λ} (K : expr Λ → expr Λ)
   : (expr Λ * state Λ * list (expr Λ)) → (expr Λ * state Λ * list (expr Λ)):=
   (λ '(e, σ, efs), (fill_lift K (e, σ), efs)).
 
-Global Instance inj_fill_lift' {Λ : con_language} (K : expr Λ → expr Λ) :
+Global Instance inj_fill_lift' {Λ : conLanguage} (K : expr Λ → expr Λ) :
   Inj (=) (=) K →
   Inj (=) (=) (fill_lift' K).
 Proof. intros ? [[]] [[]] ?. by simplify_eq.
 Qed.
 
-Class ConLanguageCtx {Λ : con_language} (K : expr Λ → expr Λ) := {
+Class ConLanguageCtx {Λ : conLanguage} (K : expr Λ → expr Λ) := {
   fill_not_val e :
     to_val e = None → to_val (K e) = None;
   fill_inj : Inj (=) (=) K;
@@ -129,7 +129,7 @@ Class ConLanguageCtx {Λ : con_language} (K : expr Λ → expr Λ) := {
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
 Section con_language.
-  Context {Λ : con_language}.
+  Context {Λ : conLanguage}.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
