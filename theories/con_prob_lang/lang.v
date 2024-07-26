@@ -4,7 +4,7 @@ From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.prob Require Export distribution.
-From clutch.common Require Export language ectx_language ectxi_language.
+From clutch.common Require Export con_language con_ectx_language con_ectxi_language.
 From clutch.prob_lang Require Export locations.
 From iris.prelude Require Import options.
 
@@ -1037,24 +1037,24 @@ Proof.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
 
-(* Lemma prob_lang_mixin : *)
-(*   EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active. *)
-(* Proof. *)
-(*   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck, *)
-(*     state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass, *)
-(*     fill_item_val, fill_item_no_val_inj, head_ctx_step_val, *)
-(*     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord. *)
-(* Qed. *)
+Lemma con_prob_lang_mixin :
+  ConEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
+Proof.
+  split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
+    state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
+    fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
+      decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
+Qed.
 
 End con_prob_lang.
 
 (** Language *)
-(* Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin. *)
-(* Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang. *)
-(* Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang. *)
+Canonical Structure con_prob_ectxi_lang := ConEctxiLanguage con_prob_lang.get_active con_prob_lang.con_prob_lang_mixin.
+Canonical Structure con_prob_ectx_lang := ConEctxLanguageOfEctxi con_prob_ectxi_lang.
+Canonical Structure con_prob_lang := ConLanguageOfEctx con_prob_ectx_lang.
 
 (* Prefer prob_lang names over ectx_language names. *)
 Export con_prob_lang.
 
-Definition cfg : Type := expr * state.
+Definition cfg : Type := list expr * state.
 
