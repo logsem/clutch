@@ -262,7 +262,7 @@ Section con_ectx_language.
       rewrite dmap_mass //.
   Qed.
 
-  Canonical Structure con_ectx_lang : con_language := ConLanguage (get_active := get_active) con_ectx_lang_mixin.
+  Canonical Structure con_ectx_lang : conLanguage := ConLanguage (get_active := get_active) con_ectx_lang_mixin.
 
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ' efs,
@@ -499,7 +499,7 @@ Section con_ectx_language.
 End con_ectx_language.
 
 Global Arguments con_ectx_lang : clear implicits.
-Coercion con_ectx_lang : conEctxLanguage >-> con_language.
+Coercion con_ectx_lang : conEctxLanguage >-> conLanguage.
 
 (* This definition makes sure that the fields of the [language] record do not
 refer to the projections of the [ectxLanguage] record but to the actual fields
@@ -508,7 +508,7 @@ work.
 
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
-Definition ConLanguageOfEctx (Λ : conEctxLanguage) : con_language :=
+Definition ConLanguageOfEctx (Λ : conEctxLanguage) : conLanguage :=
   let '@ConEctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix := Λ in
   @ConLanguage E V St StI _ _ _ _ _ _ _ _ of_val to_val _ state act
     (@con_ectx_lang_mixin (@ConEctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix )).
