@@ -351,9 +351,10 @@ Definition con_lang_mdp_step (Λ : conLanguage) (n: thread_id) (ρ : cfg Λ) : d
            | None => (* thread id exceed num of thread, so we stutter *)
                dret (expr_lis, σ)
            | Some expr =>
-               if bool_decide (is_Some (to_val expr)) 
-               then (* expr is a val, so we stutter *) dret (expr_lis, σ)
-               else dmap (λ '(expr', σ', efs), ((<[n:=expr']> expr_lis) ++ efs, σ')) (prim_step expr σ)
+               match to_val expr with 
+               | Some _ => (* expr is a val, so we stutter *) dret (expr_lis, σ)
+               | None => dmap (λ '(expr', σ', efs), ((<[n:=expr']> expr_lis) ++ efs, σ')) (prim_step expr σ)
+               end
            end
   end.
 
