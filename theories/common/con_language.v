@@ -177,7 +177,7 @@ Section con_language.
   Class Atomic (a : atomicity) (e : expr Λ) : Prop :=
     atomic σ e' σ' efs:
       prim_step e σ (e', σ', efs) > 0 →
-      if a is WeaklyAtomic then irreducible e' σ else is_Some (to_val e').
+      if a is WeaklyAtomic then irreducible e' σ' else is_Some (to_val e').
 
   Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.
@@ -189,7 +189,7 @@ Section con_language.
   Proof.
     unfold Atomic. destruct a; eauto.
     intros ????? H' [[]].
-    epose proof pmf_pos (prim_step e' σ) _ as [K|]; last done.
+    epose proof pmf_pos (prim_step e' σ') _ as [K|]; last done.
     apply Rlt_gt, val_stuck in K.
     apply H in H'. rewrite K in H'.
     destruct H'. done.
