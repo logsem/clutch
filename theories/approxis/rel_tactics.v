@@ -3,8 +3,8 @@ From iris.proofmode Require Import
      coq_tactics ltac_tactics
      reduction.
 From clutch.prelude Require Import stdpp_ext.
-From clutch.common Require Import language ectxi_language.
-From clutch.prob_lang Require Import locations class_instances notation tactics lang.
+From clutch.common Require Import language ectxi_language locations.
+From clutch.prob_lang Require Import class_instances notation tactics lang.
 From clutch.prob_lang.spec Require Export spec_tactics.
 From clutch.approxis Require Import primitive_laws model app_rel_rules proofmode.
 

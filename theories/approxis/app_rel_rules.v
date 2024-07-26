@@ -2,9 +2,9 @@
 From stdpp Require Import coPset namespaces.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import list.
-From clutch.common Require Import language ectx_language ectxi_language.
+From clutch.common Require Import language ectx_language ectxi_language locations.
 From clutch.prelude Require Import fin.
-From clutch.prob_lang Require Import locations notation lang.
+From clutch.prob_lang Require Import notation lang.
 From clutch.prob_lang.spec Require Import spec_ra spec_rules spec_tactics.
 From clutch.approxis Require Import ectx_lifting app_weakestpre model.
 From clutch.approxis Require Export proofmode primitive_laws coupling_rules.
