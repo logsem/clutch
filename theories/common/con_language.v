@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Export weakestpre.
-From clutch.prob Require Import distribution.
+From clutch.prob Require Import distribution mdp.
 
 Section con_language_mixin.
   Context {expr val state state_idx : Type}.
@@ -111,20 +111,6 @@ Class ConLanguageCtx {Λ : conLanguage} (K : expr Λ → expr Λ) := {
 }.
 
 #[global] Existing Instance fill_inj.
-
-(* Definition lang_markov_mixin (Λ : language) : *)
-(*   MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1). *)
-(* Proof. *)
-(*   constructor. *)
-(*   move=> [e σ] /= [v Hv] [e' σ']. *)
-(*   case (Rgt_dec (prim_step e σ (e', σ')) 0) *)
-(*     as [H | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=. *)
-(*   eapply mixin_val_stuck in H; [|eapply language_mixin]. *)
-(*   simplify_eq. *)
-(* Qed. *)
-
-(* Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ). *)
-
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
@@ -354,5 +340,43 @@ Section con_language.
     by rewrite to_of_val in Hval.
   Qed.
 End con_language.
+
+(* con_language is a mdp *)
+Notation thread_id := nat.
+Definition con_lang_mdp_step (Λ : conLanguage) (n: thread_id) (ρ : cfg Λ) : distr (cfg Λ) :=
+  let '(expr_lis, σ) := ρ in
+  match mbind to_val (expr_lis!!0%nat) with
+  | Some _ => dzero
+  | None => match expr_lis!!n with
+           | None => (* thread id exceed num of thread, so we stutter *)
+               dret (expr_lis, σ)
+           | Some expr =>
+               if bool_decide (is_Some (to_val expr)) 
+               then (* expr is a val, so we stutter *) dret (expr_lis, σ)
+               else dmap (λ '(expr', σ', efs), ((<[n:=expr']> expr_lis) ++ efs, σ')) (prim_step expr σ)
+           end
+  end.
+
+Definition con_lang_mdp_to_final (Λ : conLanguage) (ρ : cfg Λ) : option (val Λ):=
+  let '(expr_lis, σ) := ρ in
+  match expr_lis !! 0%nat with
+  | Some expr => to_val expr
+  | None => None 
+  end.
+
+Definition con_lang_mdp_mixin (Λ : conLanguage) :
+  MdpMixin (con_lang_mdp_step Λ) (con_lang_mdp_to_final Λ).
+Proof.
+  constructor.
+  intros []. simpl.
+  case_match; last by intros [].
+  intros [? H1] ? .
+  intros. case_match eqn: H0; first done.
+  exfalso.
+  apply of_to_val in H1. subst. simpl in H0.
+  rewrite to_of_val in H0. done.
+Qed.
+
+Canonical Structure con_lang_mdp (Λ : conLanguage) := Mdp _ _ (con_lang_mdp_mixin Λ).
 
 Global Hint Mode PureExec + - - ! - : typeclass_instances.
