@@ -63,16 +63,62 @@ Section scheduler.
   (** * TODO: Lemmas for sch_stepN *)
 
   (* sch_step_or_final does a non-strict step, and returns whole configuration *)
-  Definition step_or_final a :=
+  Definition sch_step_or_final a :=
     match to_final a.2 with
     | Some _ => dret a
     | None => sch_step a
     end.
 
-  Definition pexec (n:nat) p := iterM n step_or_final p.
+  Definition sch_pexec (n:nat) p := iterM n sch_step_or_final p.
 
   (** * TODO: Lemmas for pexec *)
 
+  (* exec takes non-strict steps and returns the final mstate_ret,
+     in a language setting, that's the value
+   *)
+
+  Fixpoint sch_exec (n:nat) (ρ : sch_state * mdpstate δ) {struct n} : distr (mdpstate_ret δ) :=
+    let '(sch_σ, mdp_σ) := ρ in
+    match to_final mdp_σ, n with
+    | Some b, _ => dret b
+    | None, 0 => dzero
+    | None, S n => sch_step ρ ≫= sch_exec n
+    end.
+
+  Lemma sch_exec_is_final a b c n :
+    to_final a = Some b → sch_exec n (c, a) = dret b.
+  Proof. destruct n; simpl; by intros ->. Qed.
+
+  Lemma sch_exec_Sn a n :
+    sch_exec (S n) a = sch_step_or_final a ≫= sch_exec n.
+  Proof.
+    rewrite /sch_step_or_final /=.
+    destruct a. simpl.
+    case_match; [|done].
+    rewrite dret_id_left -/sch_exec.
+    by erewrite sch_exec_is_final.
+  Qed.
+  
+  Lemma sch_exec_mono a n v :
+    sch_exec n a v <= sch_exec (S n) a v.
+  Proof.
+    apply refRcoupl_eq_elim.
+    move : a.
+    induction n.
+    - intros [].
+      apply refRcoupl_from_leq.
+      intros b. rewrite /distr_le /=.
+      by case_match.
+    - intros []; do 2 rewrite sch_exec_Sn.
+      eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
+      by intros ? ? ->.
+  Qed.
+  
+  (** * TODO: lemmas for sch_exec *)
+
+  (** * Full evaluation (limit of stratification) *)
+  Definition sch_lim_exec (ρ : sch_state * mdpstate δ) : distr (mdpstate_ret δ) :=
+    lim_distr (λ n, sch_exec n ρ) (sch_exec_mono ρ).
   
 
 End scheduler.
