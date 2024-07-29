@@ -378,6 +378,16 @@ Proof.
   rewrite to_of_val in H0. done.
 Qed.
 
-Canonical Structure con_lang_mdp (Λ : conLanguage) := Mdp _ _ (con_lang_mdp_mixin Λ).
+Canonical Structure con_lang_mdp (Λ : conLanguage):mdp := Mdp _ _ (con_lang_mdp_mixin Λ).
+
+
+Section typeclasses.
+  Class TapeOblivious `{δ : con_lang_mdp Λ} `{Countable sch_int_σ} (sch : scheduler δ sch_int_σ) : Prop :=
+    tape_oblivious :
+      ρ.1 = ρ'.1-> sch ρ = sch ρ'
+    .
+  
+End typeclasses.
+
 
 Global Hint Mode PureExec + - - ! - : typeclass_instances.

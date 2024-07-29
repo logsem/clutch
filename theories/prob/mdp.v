@@ -50,8 +50,8 @@ Section scheduler.
       scheduler_f :> (sch_state * mdpstate δ) -> distr (sch_state * mdpaction δ)
     }.
   
-  Definition scheduler_int_state_f (s:scheduler) ρ := lmarg (s ρ).
-  Definition scheduler_action_f (s:scheduler) ρ := rmarg (s ρ).
+  Definition sch_int_state_f (s:scheduler) ρ := lmarg (s ρ).
+  Definition sch_action_f (s:scheduler) ρ := rmarg (s ρ).
 
   
   Section is_final.
@@ -102,8 +102,8 @@ Section scheduler.
   Section reducible.
     Implicit Types ρ : sch_state * mdpstate δ.
 
-    Definition reducible ρ := ∃ ac a', scheduler_action_f sch ρ ac > 0 /\ step ac ρ.2 a' > 0.
-    Definition irreducible ρ := ∀ ac a', scheduler_action_f sch ρ ac = 0 \/ step ac ρ.2 a' = 0.
+    Definition reducible ρ := ∃ ac a', sch_action_f sch ρ ac > 0 /\ step ac ρ.2 a' > 0.
+    Definition irreducible ρ := ∀ ac a', sch_action_f sch ρ ac = 0 \/ step ac ρ.2 a' = 0.
     Definition stuck a := ¬ is_final a.2 ∧ irreducible a.
     Definition not_stuck a := is_final a.2 ∨ reducible a.
 
@@ -114,7 +114,7 @@ Section scheduler.
         apply (not_exists_forall_not _ _) with ac in H.
         apply (not_exists_forall_not _ _) with a' in H.
         apply not_and_or_not in H as [|].
-        + left. pose proof pmf_pos (scheduler_action_f sch a) ac.
+        + left. pose proof pmf_pos (sch_action_f sch a) ac.
           lra.
         + right. pose proof pmf_pos (step ac a.2) a'.
           lra.
@@ -736,7 +736,3 @@ Section scheduler.
 End scheduler.
 
 #[global] Arguments scheduler (_ _) {_ _}.
-
-Section typeclasses.
-  Class TapeOblivious {δ : mdp} `{Countable sch_int_σ} (sch : scheduler δ sch_int_σ) : Prop := True.
-End typeclasses.
