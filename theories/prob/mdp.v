@@ -500,6 +500,235 @@ Section scheduler.
     (** * Full evaluation (limit of stratification) *)
     Definition sch_lim_exec (ρ : sch_state * mdpstate δ) : distr (mdpstate_ret δ) :=
       lim_distr (λ n, sch_exec n ρ) (sch_exec_mono ρ).
+
+    
+    Lemma sch_lim_exec_unfold a b :
+      sch_lim_exec a b = Sup_seq (λ n, (sch_exec n a) b).
+    Proof. apply lim_distr_pmf. Qed.
+
+    Lemma sch_lim_exec_Sup_seq a :
+      SeriesC (sch_lim_exec a) = Sup_seq (λ n, SeriesC (sch_exec n a)).
+    Proof.
+      erewrite SeriesC_ext; last first.
+      { intros ?. rewrite sch_lim_exec_unfold //. }
+      erewrite MCT_seriesC; eauto.
+      - intros. apply sch_exec_mono.
+      - intros. by eapply SeriesC_correct.
+      - rewrite (Rbar_le_sandwich 0 1).
+        + apply Sup_seq_correct.
+        + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+        + by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma sch_lim_exec_step a :
+      sch_lim_exec a = sch_step_or_final a ≫= sch_lim_exec.
+    Proof.
+      apply distr_ext.
+      intro b.
+      rewrite {2}/pmf /= /dbind_pmf.
+      rewrite sch_lim_exec_unfold.
+      setoid_rewrite sch_lim_exec_unfold.
+      assert
+        (SeriesC (λ a', sch_step_or_final a a' * Sup_seq (λ n, sch_exec n a' b)) =
+         SeriesC (λ a', Sup_seq (λ n, sch_step_or_final a a' * sch_exec n a' b))) as ->.
+      { apply SeriesC_ext; intro b'.
+        apply eq_rbar_finite.
+        rewrite rmult_finite.
+        rewrite (rbar_finite_real_eq).
+        - rewrite -Sup_seq_scal_l //.
+        - apply (Rbar_le_sandwich 0 1).
+          + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+          + by apply upper_bound_ge_sup=>/=. }
+      rewrite (MCT_seriesC _ (λ n, sch_exec (S n) a b) (sch_lim_exec a b)) //.
+      - intros. by apply Rmult_le_pos.
+      - intros.
+        apply Rmult_le_compat; [done|done|done|].
+        apply sch_exec_mono.
+      - intros a'.
+        exists (sch_step_or_final a a').
+        intros n.
+        rewrite <- Rmult_1_r. by apply Rmult_le_compat_l.
+      - intro n.
+        rewrite sch_exec_Sn.
+        rewrite {3}/pmf/=/dbind_pmf.
+        apply SeriesC_correct.
+        apply (ex_seriesC_le _ (sch_step_or_final a)); [|done].
+        intros a'. split.
+        + by apply Rmult_le_pos.
+        + rewrite <- Rmult_1_r. by apply Rmult_le_compat_l.
+      - rewrite sch_lim_exec_unfold.
+        rewrite mon_sup_succ.
+        + rewrite (Rbar_le_sandwich 0 1).
+          * apply Sup_seq_correct.
+          * by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+          * by apply upper_bound_ge_sup=>/=.
+        + intro; apply sch_exec_mono.
+    Qed.
+
+    Lemma sch_lim_exec_pexec n a :
+      sch_lim_exec a = sch_pexec n a ≫= sch_lim_exec.
+    Proof.
+      move : a.
+      induction n; intro a.
+      - rewrite sch_pexec_O dret_id_left //.
+      - rewrite sch_pexec_Sn -dbind_assoc/=.
+        rewrite sch_lim_exec_step.
+        apply dbind_eq; [|done].
+        intros ??. apply IHn.
+    Qed.
+
+    Lemma sch_lim_exec_det_final n a a' b :
+      to_final a'.2 = Some b →
+      sch_pexec n a a' = 1 →
+      sch_lim_exec a = dret b.
+    Proof.
+      intros Hb Hpe.
+      apply distr_ext.
+      intro b'.
+      rewrite sch_lim_exec_unfold.
+      rewrite {2}/pmf /= /dret_pmf.
+      case_bool_decide; simplify_eq.
+      - apply Rle_antisym.
+        + apply finite_rbar_le; [eapply is_finite_Sup_seq_sch_exec|].
+          by apply upper_bound_ge_sup=>/=.
+        + apply rbar_le_finite; [eapply is_finite_Sup_seq_sch_exec|].
+          apply (Sup_seq_minor_le _ _ n)=>/=.
+          by erewrite sch_pexec_exec_det.
+      - rewrite -(sup_seq_const 0).
+        f_equal. apply Sup_seq_ext=> m.
+        f_equal. by eapply sch_pexec_exec_det_neg.
+    Qed.
+
+    Lemma sch_lim_exec_final a b :
+      to_final a.2 = Some b →
+      sch_lim_exec a = dret b.
+    Proof.
+      intros. erewrite (sch_lim_exec_det_final 0%nat); [done|done|].
+      rewrite sch_pexec_O. by apply dret_1_1.
+    Qed.
+
+    Lemma sch_lim_exec_not_final a :
+      ¬ is_final a.2 →
+      sch_lim_exec a = sch_step a ≫= sch_lim_exec.
+    Proof.
+      intros Hn. rewrite sch_lim_exec_step sch_step_or_final_not_final //.
+    Qed.
+
+    Lemma sch_lim_exec_leq a b (r : R) :
+      (∀ n, sch_exec n a b <= r) →
+      sch_lim_exec a b <= r.
+    Proof.
+      intro Hexec.
+      rewrite sch_lim_exec_unfold.
+      apply finite_rbar_le; [apply is_finite_Sup_seq_sch_exec|].
+      by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma sch_lim_exec_leq_mass  a r :
+      (∀ n, SeriesC (sch_exec n a) <= r) →
+      SeriesC (sch_lim_exec a) <= r.
+    Proof.
+      intro Hm.
+      erewrite SeriesC_ext; last first.
+      { intros. rewrite sch_lim_exec_unfold //. }
+      erewrite (MCT_seriesC _ (λ n, SeriesC (sch_exec n a)) (Sup_seq (λ n, SeriesC (sch_exec n a)))); eauto.
+      - apply finite_rbar_le; [apply is_finite_Sup_seq_SeriesC_sch_exec|].
+        by apply upper_bound_ge_sup.
+      - apply sch_exec_mono.
+      - intros. by apply SeriesC_correct.
+      - rewrite (Rbar_le_sandwich 0 1).
+        + apply (Sup_seq_correct (λ n, SeriesC (sch_exec n a))).
+        + by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+        + by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma sch_lim_exec_term n a :
+      SeriesC (sch_exec n a) = 1 →
+      sch_lim_exec a = sch_exec n a.
+    Proof.
+      intro Hv.
+      apply distr_ext=> b.
+      rewrite sch_lim_exec_unfold.
+      apply Rle_antisym.
+      - apply finite_rbar_le; [apply is_finite_Sup_seq_sch_exec|].
+        rewrite -/pmf.
+        apply upper_bound_ge_sup.
+        intros n'.
+        destruct (decide (n <= n')) as [|?%Rnot_le_lt].
+        + right. apply sch_exec_mono_term; [done|]. by apply INR_le.
+        + apply sch_exec_mono'. apply INR_le. by left.
+      - apply rbar_le_finite; [apply is_finite_Sup_seq_sch_exec|].
+        apply (sup_is_upper_bound (λ m, sch_exec m a b) n).
+    Qed.
+
+    Lemma sch_lim_exec_pos a b :
+      sch_lim_exec a b > 0 → ∃ n, sch_exec n a b > 0.
+    Proof.
+      intros.
+      apply Classical_Pred_Type.not_all_not_ex.
+      intros H'.
+      assert (sch_lim_exec a b <= 0); [|lra].
+      apply sch_lim_exec_leq => n.
+      by apply Rnot_gt_le.
+    Qed.
+
+    Lemma sch_lim_exec_continuous_prob a ϕ r :
+      (∀ n, prob (sch_exec n a) ϕ <= r) →
+      prob (sch_lim_exec a) ϕ <= r.
+    Proof.
+      intro Hm.
+      rewrite /prob.
+      erewrite SeriesC_ext; last first.
+      { intro; rewrite sch_lim_exec_unfold; auto. }
+      assert
+        (forall v, (if ϕ v then real (Sup_seq (λ n0 : nat, sch_exec n0 a v)) else 0) =
+              (real (Sup_seq (λ n0 : nat, if ϕ v then sch_exec n0 a v else 0)))) as Haux.
+      { intro v.
+        destruct (ϕ v); auto.
+        rewrite sup_seq_const //.
+      }
+      assert
+        (is_finite (Sup_seq (λ n0 : nat, SeriesC (λ v, if ϕ v then sch_exec n0 a v else 0)))) as Hfin.
+      {
+        apply (Rbar_le_sandwich 0 1).
+        + apply (Sup_seq_minor_le _ _ 0%nat); simpl.
+          apply SeriesC_ge_0'.
+          intro v; destruct (ϕ v); auto.
+          lra.
+        + apply upper_bound_ge_sup; intro; simpl; auto.
+          apply (Rle_trans _ (SeriesC (sch_exec n a))); auto.
+          apply (SeriesC_le _ (sch_exec n a)); auto.
+          intro v; destruct (ϕ v); real_solver.
+      }
+      erewrite SeriesC_ext; last first.
+      {
+        intro; rewrite Haux //.
+      }
+      erewrite (MCT_seriesC _ (λ n, SeriesC (λ v, if ϕ v then sch_exec n a v else 0))
+                  (Sup_seq (λ n0 : nat, SeriesC (λ v, if ϕ v then sch_exec n0 a v else 0))));
+        auto.
+      - apply finite_rbar_le; auto.
+        apply upper_bound_ge_sup; auto.
+      - intros n v.
+        destruct (ϕ v); auto.
+        lra.
+      - intros n v.
+        destruct (ϕ v); [ apply sch_exec_mono | lra].
+      - intro v; destruct (ϕ v); exists 1; intro; auto; lra.
+      - intros n.
+        apply SeriesC_correct; auto.
+        apply (ex_seriesC_le _ (sch_exec n a)); auto.
+        intro v; destruct (ϕ v); real_solver.
+      - rewrite (Rbar_le_sandwich 0 1); auto.
+        + apply (Sup_seq_correct (λ n0 : nat, SeriesC (λ v, if ϕ v then sch_exec n0 a v else 0))).
+        + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+          apply SeriesC_ge_0'.
+          intro v; destruct (ϕ v); real_solver.
+        + apply upper_bound_ge_sup; intro; simpl; auto.
+          apply (Rle_trans _ (SeriesC (sch_exec n a))); auto.
+          apply (SeriesC_le _ (sch_exec n a)); auto.
+          intro v; destruct (ϕ v); real_solver.
+    Qed.
     
   End step.
 
