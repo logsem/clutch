@@ -3,7 +3,6 @@ From clutch.approxis Require Import approxis map list.
 From clutch.approxis.examples Require Import prf symmetric.
 Set Default Proof Using "Type*".
 
-(* WIP : Refactor examples
 
 Section defs.
 
@@ -33,18 +32,21 @@ We prove the portions of the above theorems that are concerned with the reductio
 
   (** Parameters of the generic PRF-based encryption scheme. *)
   Variable xor : val.
-  Variable (xor_sem : fin (S Message) -> fin (S Output) -> fin (S Output)).
+  Variable (xor_sem : nat -> nat -> nat).
   Variable H_xor : forall x, Bij (xor_sem x).
-  Variable (xor_correct_l: forall `{!approxisRGS Σ} E K (x : Z) (y : fin (S Message))
+  Variable H_xor_dom: forall x, x < S Message -> (∀ n : nat, n < S Output → xor_sem x n < S Output).
+  Variable (xor_correct_l: forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
                              (_: (0<=x)%Z)
-                             (Hx : ((Z.to_nat x) < S Message)) e A,
-    (REL (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) << e @ E : A)
+                             (_: ((Z.to_nat x) < S Message))
+                             (_: y < S Message) e A,
+    (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
     -∗ REL (fill K (xor #x #y)) << e @ E : A).
   
-  Variable (xor_correct_r: ∀ `{!approxisRGS Σ} E K (x : Z) (y : fin (S Message))
+  Variable (xor_correct_r: ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
                              (_: (0<=x)%Z)
-                             (Hx : ((Z.to_nat x) < S Message)) e A,
-    (REL e << (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) @ E : A)
+                             (_: ((Z.to_nat x) < S Message))
+                             (_: y < S Message) e A,
+    (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
     -∗ REL e << (fill K (xor #x #y)) @ E : A).
 
   (** Generic PRF-based symmetric encryption. *)
@@ -107,8 +109,8 @@ We prove the portions of the above theorems that are concerned with the reductio
       rewrite /rf_scheme/rf_enc/prf_enc.
       idtac...
       rewrite /rf_keygen...
-      rel_apply (refines_couple_UU Key).
-      iIntros (key) "!>"...
+      rel_apply (refines_couple_UU Key id); first done.
+      iIntros (key) "!> %"...
       rewrite /random_function...
       rel_apply_l refines_init_map_l.
       iIntros (mapref) "mapref"...
@@ -209,12 +211,12 @@ We prove the portions of the above theorems that are concerned with the reductio
             done.
           }
           simpl...
-          unshelve rel_apply (refines_couple_UU _ (xor_sem (Fin.of_nat_lt Hmsg))).
-          iIntros (y) "!>"...
+          unshelve rel_apply (refines_couple_UU _ (xor_sem (Z.to_nat msg))); first auto.
+          iIntros (y) "!> %"...
           rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
           iIntros "mapref"...
           rel_bind_l (xor _ _).
-          rel_apply_l xor_correct_l; first done.
+          rel_apply_l xor_correct_l; [done | done | lia |].
           iApply (refines_na_close with "[-]").
           iFrame.
           iSplitL.
@@ -235,7 +237,7 @@ We prove the portions of the above theorems that are concerned with the reductio
               set_unfold.
               intros [|]; last naive_solver.
               subst. apply fin_to_nat_lt.
-          } 
+          }
           idtac...
           rel_values.
           repeat iExists _.
@@ -264,8 +266,8 @@ We prove the portions of the above theorems that are concerned with the reductio
       rewrite /CPA/symmetric.CPA.
       rewrite /rf_scheme/rf_enc/prf_enc...
       rewrite /rf_keygen...
-      rel_apply (refines_couple_UU Key).
-      iIntros (key) "!>"...
+      rel_apply (refines_couple_UU Key id); first auto.
+      iIntros (key) "!> %"...
       rewrite /random_function...
       rel_apply_r refines_init_map_r.
       iIntros (mapref) "mapref"...
@@ -366,20 +368,25 @@ We prove the portions of the above theorems that are concerned with the reductio
             done.
           }
           simpl...
-          unshelve rel_apply (refines_couple_UU _ (f_inv (xor_sem (Fin.of_nat_lt Hmsg)))).
+          unshelve rel_apply (refines_couple_UU _ (f_inv (xor_sem (Z.to_nat msg)))).
           { apply H_xor. }
           { split.
             - intros ?? H'.
-              apply (f_equal (xor_sem (nat_to_fin Hmsg))) in H'.
+              apply (f_equal (xor_sem (Z.to_nat msg))) in H'.
               by rewrite !f_inv_cancel_r in H'.
-            - intros y. exists (xor_sem (nat_to_fin Hmsg) y).
+            - intros y. exists (xor_sem (Z.to_nat msg) y).
               apply f_inv_cancel_l. apply H_xor. 
           }
-          iIntros (y) "!>"...
+          {
+            apply fin.f_inv_restr; auto.
+          }
+          iIntros (y) "!> %"...
           rel_apply_r (refines_set_r with "[-mapref] [$mapref]").
           iIntros "mapref"...
           rel_bind_r (xor _ _).
-          rel_apply_r xor_correct_r; first lia.
+          rel_apply_r xor_correct_r; [lia| lia| |  ].
+          { apply fin.f_inv_restr; auto.
+            lia. }
           iApply (refines_na_close with "[-]").
           iFrame.
           iSplitL.
@@ -425,7 +432,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         { done. }
         rel_values. repeat iExists _. iLeft. done.
     Qed.
-    
+
 
   End proofs.
 
@@ -521,79 +528,90 @@ Section implementation.
     (λ: "x" "y", let: "sum" := "x" + "y" in
                  if: "sum" < #Output then "sum" else "sum" - #Output)%V.
 
-  Lemma xor_sem_aux (x y:fin (Output)):
-    (if bool_decide (fin_to_nat x + fin_to_nat y<Output)
-    then fin_to_nat x + fin_to_nat y
-    else fin_to_nat x + fin_to_nat y - Output) < Output.     
-  Proof.
-    case_bool_decide; first done.
-    pose proof fin_to_nat_lt x.
-    pose proof fin_to_nat_lt y.
-    lia.
-  Qed.
+  Definition xor_sem (x y : nat) :=
+    (if bool_decide (x ≥ Output)
+       then y
+       else if bool_decide (y ≥ Output)
+         then y
+         else if bool_decide(x + y < Output)
+           then x + y
+           else x + y - Output).
 
-  Definition xor_sem x y := nat_to_fin (xor_sem_aux x y).
-  
   Lemma xor_sem_bij x: Bij (xor_sem x).
   Proof.
     split.
     - intros y y'. rewrite /xor_sem.
       intros H.
-      apply (f_equal fin_to_nat) in H.
-      rewrite !fin_to_nat_to_fin in H.
-      apply fin_to_nat_inj.
-      pose proof fin_to_nat_lt x.
-      pose proof fin_to_nat_lt y.
-      pose proof fin_to_nat_lt y'.
-      case_bool_decide; case_bool_decide; lia.
+      case_bool_decide; [lia |].
+      case_bool_decide; case_bool_decide; [ lia | | | ].
+      + case_bool_decide; lia.
+      + case_bool_decide; [lia | ].
+        case_bool_decide; lia.
+      + case_bool_decide; [lia | ].
+        case_bool_decide; lia.
     - rewrite /xor_sem. intros y.
-      pose proof fin_to_nat_lt x.
-      pose proof fin_to_nat_lt y.
-      destruct (decide (x<=y)) eqn:Heqn.
-      + assert (y-x<Output) as K by lia.
-        exists (nat_to_fin K).
-        apply fin_to_nat_inj.
-        rewrite !fin_to_nat_to_fin.
-        case_bool_decide; lia.
-      + assert (Output+y-x<Output) as K by lia.
-        exists (nat_to_fin K).
-        apply fin_to_nat_inj.
-        rewrite !fin_to_nat_to_fin.
-        case_bool_decide; lia.
+      case_bool_decide; [eauto |].
+      destruct (decide (y ≥ Output)).
+      + exists y. case_bool_decide; lia.
+      + destruct (decide (x<=y)).
+        * exists (y-x).
+          case_bool_decide; [lia |].
+          case_bool_decide; lia.
+        * exists (Output+y-x).
+          case_bool_decide; [lia |].
+          case_bool_decide; lia.
   Qed.
-  
-  Lemma xor_correct_l `{!approxisRGS Σ} E K (x : Z) (y : fin (S Message'))
+
+  Lemma xor_sem_dom: forall x, x < S Message' -> (∀ n : nat, n < S Output' → xor_sem x n < S Output').
+  Proof.
+    intros.
+    rewrite /xor_sem.
+    case_bool_decide; [lia |].
+    case_bool_decide; [lia |].
+    case_bool_decide; lia.
+  Qed.
+
+
+  Lemma xor_correct_l `{!approxisRGS Σ} E K (x : Z) (y : nat)
     (_: (0<=x)%Z)
-    (Hx : ((Z.to_nat x) < S Message')) e A:
-    (REL (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) << e @ E : A)
+    (Hx : ((Z.to_nat x) < S Message'))
+    (_ : y < S Message' ) e A:
+    (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
     -∗ REL (fill K (xor #x #y)) << e @ E : A.
   Proof with rel_pures_l.
     iIntros "H".
     rewrite /xor...
-    rewrite /xor_sem. rewrite !fin_to_nat_to_fin.
+    rewrite /xor_sem.
+    rewrite bool_decide_eq_false_2; last lia.
+    rewrite bool_decide_eq_false_2; last lia.
     case_bool_decide.
-    - rewrite bool_decide_eq_true_2; last lia...
-      replace (Z.of_nat (Z.to_nat x + fin_to_nat y))%Z with (x + Z.of_nat (fin_to_nat y))%Z; first done.
-      rewrite Nat2Z.inj_add. rewrite Z2Nat.id; lia.
+    - rewrite bool_decide_eq_true_2; last lia.
+      rel_pures_l.
+      replace (Z.of_nat (Z.to_nat x + y))%Z with (x + Z.of_nat y)%Z by lia.
+      done.
     - rewrite bool_decide_eq_false_2; last lia...
-      replace (Z.of_nat (Z.to_nat x + fin_to_nat y - S Message'))%Z with (x + Z.of_nat (fin_to_nat y) - Z.of_nat (S Message'))%Z by lia.
+      replace (Z.of_nat (Z.to_nat x + y - S Message'))%Z with (x + Z.of_nat y - Z.of_nat (S Message'))%Z by lia.
       done.
   Qed.
-  
-  Lemma xor_correct_r  `{!approxisRGS Σ} E K (x : Z) (y : fin (S Message')) 
-    (_: (0<=x)%Z) (Hx : ((Z.to_nat x) < S Message')) e A:
-    (REL e << (fill K (of_val #(xor_sem (nat_to_fin Hx) (y)))) @ E : A)
+
+  Lemma xor_correct_r  `{!approxisRGS Σ} E K (x : Z) (y : nat)
+    (_: (0<=x)%Z)
+    (Hx : ((Z.to_nat x) < S Message'))
+    (_: y < S Message') e A:
+    (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
     -∗ REL e << (fill K (xor #x #y)) @ E : A.
   Proof with rel_pures_r.
     iIntros "H".
     rewrite /xor...
-    rewrite /xor_sem. rewrite !fin_to_nat_to_fin.
+    rewrite /xor_sem.
+    rewrite bool_decide_eq_false_2; last lia.
+    rewrite bool_decide_eq_false_2; last lia.
     case_bool_decide.
     - rewrite bool_decide_eq_true_2; last lia...
-      replace (Z.of_nat (Z.to_nat x + fin_to_nat y))%Z with (x + Z.of_nat (fin_to_nat y))%Z; first done.
+      replace (Z.of_nat (Z.to_nat x + y))%Z with (x + Z.of_nat y)%Z; first done.
       rewrite Nat2Z.inj_add. rewrite Z2Nat.id; lia.
     - rewrite bool_decide_eq_false_2; last lia...
-      replace (Z.of_nat (Z.to_nat x + fin_to_nat y - S Message'))%Z with (x + Z.of_nat (fin_to_nat y) - Z.of_nat (S Message'))%Z by lia.
+      replace (Z.of_nat (Z.to_nat x + y - S Message'))%Z with (x + Z.of_nat y - Z.of_nat (S Message'))%Z by lia.
       done.
   Qed.
 
@@ -601,16 +619,16 @@ Section implementation.
     (Rabs (((lim_exec (((CPA Output') #true adv (rf_scheme Key' Input' Output' xor) #Q), σ)) #true) -
              ((lim_exec (((CPA Output') #false adv (rf_scheme Key' Input' Output' xor) #Q), σ')) #true)) <= (Q * Q / (2 * S Input')))%R.
   Proof.
-    unshelve epose proof CPA_bound Key' Input' Output' xor xor_sem _ _ _ adv _ _ σ σ' Q as H.
+    unshelve epose proof CPA_bound Key' Input' Output' xor xor_sem _ _ _ _ adv _ _ σ σ' Q as H.
     - apply xor_sem_bij.
+    - apply xor_sem_dom.
     - intros. by apply xor_correct_l.
     - intros. by apply xor_correct_r.
     - done.
     - apply approxisRΣ.
     - apply subG_approxisRGPreS. apply subG_refl.
-    - apply H. 
+    - apply H.
   Qed.
-      
+
 End implementation.
 
-*)

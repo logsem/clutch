@@ -106,7 +106,7 @@ Section fin.
     rewrite fin_to_nat_to_fin //.
   Qed.
 
-  Lemma restr_bij_fin N f `{Bij nat nat f} :
+  Lemma restr_bij_fin N f `{Inj nat nat eq eq f} :
     (forall n, n < N -> f n < N) ->
     exists (g : fin N -> fin N), (Bij g) /\
                              (forall x : (fin N), fin_to_nat (g x) = f (fin_to_nat x)).
@@ -121,13 +121,12 @@ Section fin.
         intros x' y' Hx' Hy' Hxy'.
         apply H; done.
       + pose proof (Fin2Restrict.restrict_surjective Hdom) as H1.
-        destruct H as [Hinj Hsurj].
         intros ?.
         destruct H1 as [H2 H3].
         edestruct H3 as [x Hx].
         * apply bInjective_bSurjective; auto.
           intros x' y' Hx' Hy' Hxy'.
-          apply Hinj; done.
+          apply H; done.
         * exists x. eauto.
     - intro x.
       rewrite -{1}(nat_to_fin_to_nat x); [ | apply fin_to_nat_lt ].
@@ -135,6 +134,34 @@ Section fin.
       rewrite (Fin2Restrict.restrict_n2f Hdom).
       rewrite fin_to_nat_to_fin //.
   Qed.
+
+
+  Lemma nat_inj_surj N f `{Inj nat nat eq eq f}:
+    (forall n, n < N -> f n < N)%nat ->
+    (forall n, (n < N)%nat -> exists m, ((m < N)%nat /\ f m = n)).
+  Proof.
+    intros Hdom n Hn.
+    destruct (restr_bij_fin N f Hdom) as [g [[HgInj HgSurj] HgEq]].
+    set x := f_inv g (nat_to_fin Hn).
+    exists x; split; [apply fin_to_nat_lt |].
+    rewrite /x.
+    rewrite -HgEq f_inv_cancel_r.
+    apply fin_to_nat_to_fin.
+  Qed.
+
+
+  Lemma f_inv_restr N f `{Bij nat nat f} :
+    (forall n, n < N -> f n < N) ->
+    (forall n, n < N -> f_inv f n < N).
+  Proof.
+    intros Hdom n Hn.
+    destruct (nat_inj_surj N f Hdom n Hn) as (x & Hx1 & Hx2).
+    assert (f_inv f n = x) as ->; auto.
+    apply H.
+    rewrite f_inv_cancel_r //.
+  Qed.
+
+
 
  (* Adapted from Coq standard library FinFun *)
 

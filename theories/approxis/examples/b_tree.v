@@ -365,11 +365,6 @@ Section stage1.
   Qed.
 
 
-Lemma nat_inj_surj (f : nat -> nat) N:
-  Inj eq eq f →
-  (forall n, n < N -> f n < N)%nat ->
-  (forall n, (n < N)%nat -> exists m, ((m < N)%nat /\ f m = n)).
-Admitted.
 
   (*
   Lemma inj_function_exists {A} l M N:
@@ -2549,7 +2544,7 @@ Section b_tree.
       + (** contradiction since RHS is populated *)
         exfalso. apply K'.
         rewrite Hsame in Hinj.
-        destruct (nat_inj_surj f _ Hdom Hinj m) as [n [? ?]]; first lia.
+        destruct (nat_inj_surj _ f Hinj m) as [n [? ?]]; first lia.
         exists n.
         split; auto. lia.
         Unshelve.

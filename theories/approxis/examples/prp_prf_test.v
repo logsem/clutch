@@ -1,7 +1,6 @@
 From clutch.approxis Require Export approxis map list prf prp prp_prf_weak.
 Set Default Proof Using "Type*".
 
-(* WIP : Refactor examples
 
 Section prp_prf_test.
 
@@ -86,7 +85,7 @@ Section prp_prf_test.
                  with "[$]").
       { done. }
       { rewrite Rminus_diag /Rdiv Rmult_0_l /=//. }
-      iIntros (n2 m2) "[-> HK]".
+      iIntros (n2) "[% HK]".
       iSimpl in "HK".
       wp_pures.
       wp_bind (f _).
@@ -103,28 +102,25 @@ Section prp_prf_test.
           apply Rplus_le_le_0_compat; apply Rcomplements.Rdiv_le_0_compat; real_solver.
         - apply Rcomplements.Rdiv_le_0_compat; real_solver.
         - apply Rcomplements.Rdiv_le_0_compat; real_solver. }
-      iAssert (⌜(n-S k')<S val_size⌝)%I with "[Hε]" as "%".
+      iAssert (⌜(n-S k')<S val_size⌝)%I with "[Hε]" as "%HnSk'".
       { pose proof Nat.lt_ge_cases (n-S k') (S val_size) as [|]; first done.
         iExFalso. iApply ec_contradict; last done. simpl.
         apply Rcomplements.Rle_div_r.
         - pose proof pos_INR_S val_size. apply Rlt_gt. exact.
         - rewrite Rmult_1_l. replace (_)%R with (INR (S val_size)); last by simpl. apply le_INR. lia. }
-      destruct (m!!fin_to_nat m2) eqn:Hm'.
+      destruct (m!!n2) eqn:Hm'.
       + wp_apply (wp_prf_prp_couple_eq_Some with "[$]"); try done.
-        * apply elem_of_dom_2 in Hm'.
-          eapply elem_of_weaken in Hm'; last done.
-          rewrite elem_of_set_seq in Hm'. lia.
-        * iIntros "(HK & Hf & Hg)".
-          do 3 wp_pure. simpl.
-          do 3 tp_pure.
-          replace (Z.of_nat _ - 1)%Z with (Z.of_nat k')%Z; last lia.
-          iApply ("IH" with "[][][][][][][][$]"); try done.
-          -- iPureIntro. lia.
-          -- iPureIntro. lia.
-          -- simpl. iPureIntro. apply Req_le. rewrite fold_symmetric; try (intros; lia).
-             replace (S _)  with (n-k'); first done. lia.
-      + wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ _ m2
-                   with "[$Hε $Hg $Hf $HK]"); [done|pose proof(fin_to_nat_lt m2); lia|..].
+        iIntros "(HK & Hf & Hg)".
+        do 3 wp_pure. simpl.
+        do 3 tp_pure.
+        replace (Z.of_nat _ - 1)%Z with (Z.of_nat k')%Z; last lia.
+        iApply ("IH" with "[][][][][][][][$]"); try done.
+        -- iPureIntro. lia.
+        -- iPureIntro. lia.
+        -- simpl. iPureIntro. apply Req_le. rewrite fold_symmetric; try (intros; lia).
+           replace (S _)  with (n-k'); first done. lia.
+      + wp_apply (wp_prf_prp_couple_eq_err _ _ _ _ _ _ _ n2
+                   with "[$Hε $Hg $Hf $HK]"); [done|lia|..].
         * intros. apply not_elem_of_dom_1. intro.
           eassert (n' ∈ (set_seq 0 (S val_size))).
           { eapply elem_of_weaken; exact. }
@@ -180,7 +176,6 @@ Section prp_prf_test.
              rewrite singleton_subseteq_l.
              rewrite <-set_seq_S_start.
              rewrite elem_of_set_seq.
-             pose proof (fin_to_nat_lt m2).
              lia.
           -- simpl. rewrite Rdiv_def. iPureIntro. repeat f_equal. rewrite fold_symmetric; try (intros; lia).
              apply Req_le. replace (S _)  with (n-k'); first done. lia.
@@ -226,4 +221,3 @@ Section prp_prf_test.
 
 End prp_prf_test.
 
-*)
