@@ -3,7 +3,7 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
-From clutch.prob Require Export distribution.
+From clutch.prob Require Export distribution mdp.
 From clutch.common Require Export con_language con_ectx_language con_ectxi_language locations.
 From iris.prelude Require Import options.
 
@@ -1056,4 +1056,16 @@ Canonical Structure con_prob_lang := ConLanguageOfEctx con_prob_ectx_lang.
 Export con_prob_lang.
 
 Definition cfg : Type := list expr * state.
+Section sch_typeclasses.
+  Class TapeOblivious `{Countable sch_int_σ} (sch : scheduler (con_lang_mdp con_prob_lang) sch_int_σ) : Prop :=
+    tape_oblivious :
+     ∀ ζ ρ ρ', ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> sch (ζ, ρ) = sch (ζ, ρ')
+  .
+  Global Arguments TapeOblivious {_ _ _} (_).
 
+  Lemma sch_tape_oblivious `{TapeOblivious sch} ζ ρ ρ':
+    ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> sch (ζ, ρ) = sch (ζ, ρ').
+  Proof.
+  Admitted.
+  
+End sch_typeclasses.
