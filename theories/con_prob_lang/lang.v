@@ -1061,11 +1061,12 @@ Section sch_typeclasses.
     tape_oblivious :
      ∀ ζ ρ ρ', ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> sch (ζ, ρ) = sch (ζ, ρ')
   .
-  Global Arguments TapeOblivious {_ _ _} (_).
+  Global Arguments TapeOblivious (_) {_ _} (_).
 
-  Lemma sch_tape_oblivious `{TapeOblivious sch} ζ ρ ρ':
+  Lemma sch_tape_oblivious `{TapeOblivious si sch} ζ ρ ρ' :
     ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> sch (ζ, ρ) = sch (ζ, ρ').
   Proof.
-  Admitted.
+    apply tape_oblivious.
+  Qed.
   
 End sch_typeclasses.
