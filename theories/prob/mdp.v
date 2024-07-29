@@ -10,28 +10,28 @@ Section mdp_mixin.
   Context (to_final : mdpstate → option mdpstate_ret).
 
   Record MdpMixin := {
-    mixin_to_final_is_final a :
+      mixin_to_final_is_final a :
       is_Some (to_final a) → ∀ ac a', step ac a a' = 0;
-  }.
+    }.
 End mdp_mixin.
 
 Structure mdp := Mdp {
-  mdpstate : Type;
-  mdpstate_ret : Type;
-  mdpaction : Type;
+                     mdpstate : Type;
+                     mdpstate_ret : Type;
+                     mdpaction : Type;
                      
-  mdpstate_eqdec : EqDecision mdpstate;
-  mdpstate_count : Countable mdpstate;
-  mdpstate_ret_eqdec : EqDecision mdpstate_ret;
-  mdpstate_ret_count : Countable mdpstate_ret;
-  mdpaction_eqdec : EqDecision mdpaction;
-  mdpaction_count : Countable mdpaction;
+                     mdpstate_eqdec : EqDecision mdpstate;
+                     mdpstate_count : Countable mdpstate;
+                     mdpstate_ret_eqdec : EqDecision mdpstate_ret;
+                     mdpstate_ret_count : Countable mdpstate_ret;
+                     mdpaction_eqdec : EqDecision mdpaction;
+                     mdpaction_count : Countable mdpaction;
 
-  step     : mdpaction -> mdpstate → distr mdpstate;
-  to_final : mdpstate → option mdpstate_ret;
+                     step     : mdpaction -> mdpstate → distr mdpstate;
+                     to_final : mdpstate → option mdpstate_ret;
 
-  mdp_mixin : MdpMixin step to_final;
-}.
+                     mdp_mixin : MdpMixin step to_final;
+                   }.
 #[global] Arguments Mdp {_ _ _ _ _ _ _ _ _} _ _ _.
 #[global] Arguments step {_}.
 #[global] Arguments to_final {_}.
@@ -218,6 +218,21 @@ Section scheduler.
       | None => sch_step a
       end.
 
+    Lemma sch_step_or_final_is_final ρ:
+      is_final ρ.2 -> sch_step_or_final ρ = dret ρ.
+    Proof.
+      rewrite /sch_step_or_final.
+      by intros [? ->].
+    Qed.
+
+    Lemma sch_step_or_final_not_final ρ:
+      ¬ is_final ρ.2 -> sch_step_or_final ρ = sch_step ρ.
+    Proof.
+      rewrite /sch_step_or_final.
+      intros H. case_match; last done.
+      exfalso. rewrite /is_final in H. naive_solver.
+    Qed.
+
     Definition sch_pexec (n:nat) p := iterM n sch_step_or_final p.
 
     Lemma sch_pexec_O a :
@@ -246,15 +261,15 @@ Section scheduler.
       rewrite sch_pexec_plus sch_pexec_1 //.
     Qed.
 
-    (* Lemma sch_pexec_is_final n a : *)
-    (*   is_final a → sch_pexec n a = dret a. *)
-    (* Proof. *)
-    (*   intros ?. *)
-    (*   induction n. *)
-    (*   - rewrite pexec_O //. *)
-    (*   - rewrite pexec_Sn step_or_final_is_final //. *)
-    (*     rewrite dret_id_left -IHn //. *)
-    (* Qed. *)
+    Lemma sch_pexec_is_final n a :
+      is_final a.2 → sch_pexec n a = dret a.
+    Proof.
+      intros H.
+      induction n.
+      - rewrite sch_pexec_O //.
+      - erewrite sch_pexec_Sn, sch_step_or_final_is_final; last done.
+        rewrite dret_id_left -IHn //.
+    Qed.
 
     (* Lemma pexec_no_final a n : *)
     (*   ¬ is_final a → *)
@@ -304,9 +319,9 @@ Section scheduler.
       | None, S n => sch_step ρ ≫= sch_exec n
       end.
 
-    Lemma sch_exec_is_final a b c n :
-      to_final a = Some b → sch_exec n (c, a) = dret b.
-    Proof. destruct n; simpl; by intros ->. Qed.
+    Lemma sch_exec_is_final ρ b n :
+      to_final ρ.2 = Some b → sch_exec n ρ = dret b.
+    Proof. destruct ρ, n; simpl; by intros ->. Qed.
 
     Lemma sch_exec_Sn a n :
       sch_exec (S n) a = sch_step_or_final a ≫= sch_exec n.
@@ -317,6 +332,44 @@ Section scheduler.
       rewrite dret_id_left -/sch_exec.
       by erewrite sch_exec_is_final.
     Qed.
+    
+    Lemma sch_exec_plus a n1 n2 :
+      sch_exec (n1 + n2) a = sch_pexec n1 a ≫= sch_exec n2.
+    Proof.
+      revert a. induction n1.
+      - intro a. rewrite sch_pexec_O dret_id_left //.
+      - intro a. replace ((S n1 + n2)%nat) with ((S (n1 + n2))); auto.
+        rewrite sch_exec_Sn sch_pexec_Sn.
+        apply distr_ext.
+        intro.
+        rewrite -dbind_assoc.
+        rewrite /pmf/=/dbind_pmf.
+        by setoid_rewrite IHn1.
+    Qed.
+
+    Lemma sch_exec_pexec_relate a n:
+      sch_exec n a = sch_pexec n a ≫=
+                       (λ e, match to_final e.2 with
+                             | Some b => dret b
+                             | _ => dzero
+                             end).
+    Proof.
+      revert a.
+      induction n; intros [].
+      - simpl. rewrite sch_pexec_O.
+        rewrite dret_id_left'.
+        done.
+      - simpl. rewrite sch_pexec_Sn.
+        rewrite -dbind_assoc'.
+        case_match eqn:H.
+        + erewrite sch_step_or_final_is_final; last by eapply to_final_Some_2. 
+          rewrite dret_id_left'.
+          rewrite sch_pexec_is_final; last by eapply to_final_Some_2.
+          rewrite dret_id_left'. rewrite H. done.
+        + rewrite sch_step_or_final_not_final; last by eapply to_final_None_2.
+          apply dbind_ext_right. done.
+    Qed.
+
     
     Lemma sch_exec_mono a n v :
       sch_exec n a v <= sch_exec (S n) a v.
@@ -332,8 +385,117 @@ Section scheduler.
         eapply refRcoupl_dbind; [|apply refRcoupl_eq_refl].
         by intros ? ? ->.
     Qed.
-    
-    (** * TODO: lemmas for sch_exec *)
+
+    Lemma sch_exec_mono' ρ n m v :
+      n ≤ m → sch_exec n ρ v <= sch_exec m ρ v.
+    Proof.
+      eapply (mon_succ_to_mon (λ x, sch_exec x ρ v)).
+      intro. apply sch_exec_mono.
+    Qed.
+
+    Lemma sch_exec_mono_term a b n m :
+      SeriesC (sch_exec n a) = 1 →
+      n ≤ m →
+      sch_exec m a b = sch_exec n a b.
+    Proof.
+      intros Hv Hleq.
+      apply Rle_antisym; [ |by apply sch_exec_mono'].
+      destruct (decide (sch_exec m a b <= sch_exec n a b))
+        as [|?%Rnot_le_lt]; [done|].
+      exfalso.
+      assert (1 < SeriesC (sch_exec m a)); last first.
+      - assert (SeriesC (sch_exec m a) <= 1); [done|]. lra.
+      - rewrite -Hv.
+        apply SeriesC_lt; eauto.
+        intros b'. by split; [|apply sch_exec_mono'].
+    Qed.
+
+    Lemma sch_exec_O_not_final a :
+      ¬ is_final a.2 →
+      sch_exec 0 a = dzero.
+    Proof. destruct a. intros ?%to_final_None_1 =>/=. simpl in *. by case_match. Qed.
+
+    Lemma sch_exec_Sn_not_final a n :
+      ¬ is_final a.2 →
+      sch_exec (S n) a = sch_step a ≫= sch_exec n.
+    Proof. intros ?. rewrite sch_exec_Sn sch_step_or_final_not_final //. 
+    Qed.
+
+    Lemma sch_pexec_exec_le_final n a a' b :
+      to_final a'.2 =Some b->
+      sch_pexec n a a' <= sch_exec n a b.
+    Proof.
+      intros.
+      revert a. induction n; intros a.
+      - rewrite sch_pexec_O.
+        destruct (decide (a = a')) as [->|].
+        + erewrite sch_exec_is_final; last done.
+          rewrite !dret_1_1 //.
+        + rewrite dret_0 //.
+      - rewrite sch_exec_Sn sch_pexec_Sn.
+        destruct (decide (is_final a.2)) as [|].
+        + erewrite sch_step_or_final_is_final; last done.
+          rewrite 2!dret_id_left -/sch_exec.
+          apply IHn.
+        + rewrite sch_step_or_final_not_final //.
+          rewrite /pmf /= /dbind_pmf.
+          eapply SeriesC_le.
+          * intros a''. split; [by apply Rmult_le_pos|].
+            by apply Rmult_le_compat.
+          * eapply pmf_ex_seriesC_mult_fn.
+            exists 1. by intros ρ.
+    Qed.
+
+    Lemma sch_pexec_exec_det n a a' b :
+      to_final a'.2 = Some b →
+      sch_pexec n a a' = 1 → sch_exec n a b = 1.
+    Proof.
+      intros Hf.
+      pose proof (sch_pexec_exec_le_final n a a' b Hf).
+      pose proof (pmf_le_1 (sch_exec n a) b).
+      lra.
+    Qed.
+
+    Lemma sch_exec_pexec_val_neq_le n m a a' b b' :
+      to_final a'.2 = Some b' →
+      b ≠ b' → sch_exec m a b + sch_pexec n a a' <= 1.
+    Proof.
+      intros Hf Hneq.
+      etrans; [by apply Rplus_le_compat_l, sch_pexec_exec_le_final|].
+      etrans; [apply Rplus_le_compat_l, (sch_exec_mono' _ n (n `max` m)), Nat.le_max_l|].
+      etrans; [apply Rplus_le_compat_r, (sch_exec_mono' _ m (n `max` m)), Nat.le_max_r|].
+      etrans; [|apply (pmf_SeriesC (sch_exec (n `max` m) a))].
+      by apply pmf_plus_neq_SeriesC.
+    Qed.
+
+    Lemma sch_pexec_exec_det_neg n m a a' b b' :
+      to_final a'.2 = Some b' →
+      sch_pexec n a a' = 1 →
+      b ≠ b' →
+      sch_exec m a b = 0.
+    Proof.
+      intros Hf Hexec Hv.
+      pose proof (sch_exec_pexec_val_neq_le n m a a' b b' Hf Hv) as Hle.
+      rewrite Hexec in Hle.
+      pose proof (pmf_pos (sch_exec m a) b).
+      lra.
+    Qed.
+
+    Lemma is_finite_Sup_seq_sch_exec a b :
+      is_finite (Sup_seq (λ n, sch_exec n a b)).
+    Proof.
+      apply (Rbar_le_sandwich 0 1).
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      - by apply upper_bound_ge_sup=>/=.
+    Qed.
+
+    Lemma is_finite_Sup_seq_SeriesC_sch_exec a :
+      is_finite (Sup_seq (λ n, SeriesC (sch_exec n a))).
+    Proof.
+      apply (Rbar_le_sandwich 0 1).
+      - by apply (Sup_seq_minor_le _ _ 0%nat)=>/=.
+      - by apply upper_bound_ge_sup=>/=.
+    Qed.
 
     (** * Full evaluation (limit of stratification) *)
     Definition sch_lim_exec (ρ : sch_state * mdpstate δ) : distr (mdpstate_ret δ) :=
