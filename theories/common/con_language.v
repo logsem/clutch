@@ -342,8 +342,7 @@ Section con_language.
 End con_language.
 
 (* con_language is a mdp *)
-Notation thread_id := nat.
-Definition con_lang_mdp_step (Λ : conLanguage) (n: thread_id) (ρ : cfg Λ) : distr (cfg Λ) :=
+Definition con_lang_mdp_step (Λ : conLanguage) (n: nat) (ρ : cfg Λ) : distr (cfg Λ) :=
   let '(expr_lis, σ) := ρ in
   match mbind to_val (expr_lis!!0%nat) with
   | Some _ => dzero
