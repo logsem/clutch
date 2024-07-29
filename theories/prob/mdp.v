@@ -49,6 +49,7 @@ Section scheduler.
   Record scheduler:= {
       scheduler_f :> (sch_state * mdpstate δ) -> distr (sch_state * mdpaction δ)
     }.
+  
   Definition scheduler_int_state_f (s:scheduler) ρ := lmarg (s ρ).
   Definition scheduler_action_f (s:scheduler) ρ := rmarg (s ρ).
 
@@ -733,3 +734,9 @@ Section scheduler.
   End step.
 
 End scheduler.
+
+#[global] Arguments scheduler (_ _) {_ _}.
+
+Section typeclasses.
+  Class TapeOblivious {δ : mdp} `{Countable sch_int_σ} (sch : scheduler δ sch_int_σ) : Prop := True.
+End typeclasses.
