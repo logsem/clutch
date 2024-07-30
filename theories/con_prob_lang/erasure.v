@@ -14,37 +14,41 @@ Section erasure_helpers.
   Variable (m : nat).
   Context {sch_int_σ: Type}.
   Context `{TapeOblivious sch_int_σ sch}.
-  Context {ζ : sch_int_σ}.
   Hypothesis IH :
-    ∀ (es1 : list expr) (σ1 : state) α N zs,
+    ∀ (es1 : list expr) (σ1 : state) α N zs ζ,
     tapes σ1 !! α = Some (N; zs) →
     Rcoupl
-      (dmap (λ x, x.1) (sch_pexec sch m (ζ, (es1, σ1))))
-      (dmap (λ x, x.1) (dunifP N ≫= (λ z, sch_pexec sch m (ζ, (es1, state_upd_tapes <[α:= (N; zs ++ [z])]> σ1))))) eq.
+      (dmap (λ x, x.2.1) (sch_pexec sch m (ζ, (es1, σ1))))
+      (dmap (λ x, x.2.1) (dunifP N ≫= (λ z, sch_pexec sch m (ζ, (es1, state_upd_tapes <[α:= (N; zs ++ [z])]> σ1))))) eq.
 
-  (* Local Lemma ind_case_det e σ α N zs K : *)
-  (*   tapes σ !! α = Some (N; zs) → *)
-  (*   is_det_head_step e σ = true → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step e σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP N ≫= (λ z, dmap *)
-  (*                          (fill_lift K) *)
-  (*                          (head_step e (state_upd_tapes <[α:= (N; zs ++ [z]) ]> σ)) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))) *)
-  (*      (=). *)
-  (* Proof using m IH. *)
-  (*   intros Hα (e2 & (σ2 & Hdet))%is_det_head_step_true%det_step_pred_ex_rel. *)
-  (*   erewrite 1!det_head_step_singleton; [|done..]. *)
-  (*   setoid_rewrite (det_head_step_singleton ); eauto; last first. *)
-  (*   - eapply det_head_step_upd_tapes; eauto. *)
-  (*   - erewrite det_step_eq_tapes in Hα; [|done]. *)
-  (*     rewrite !dmap_dret. *)
-  (*     setoid_rewrite (dmap_dret (fill_lift K)). *)
-  (*     rewrite !dret_id_left. *)
-  (*     erewrite (distr_ext (dunifP _ ≫= _) _); last first. *)
-  (*     { intros. apply dbind_pmf_ext; [|done..]. intros. *)
-  (*       rewrite dret_id_left. done. } *)
-  (*     rewrite -dmap_dbind. apply IH. done. *)
-  (* Qed. *)
+  Local Lemma ind_case_det e σ α N zs K (n:nat) s es:
+    tapes σ !! α = Some (N; zs) →
+    is_det_head_step e σ = true ->
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step e σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP N
+      ≫= λ a0 : fin (S N),
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step e (state_upd_tapes <[α:=(N; zs ++ [a0])]> σ)))
+     ≫= λ b : sch_int_σ * con_language.cfg con_prob_lang,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+    intros Hα (e2 & (σ2 & (efs & Hdet)))%is_det_head_step_true%det_step_pred_ex_rel.
+    erewrite 1!det_head_step_singleton; [|done..].
+    setoid_rewrite (det_head_step_singleton ); eauto; last first.
+    - eapply det_head_step_upd_tapes; eauto.
+    - erewrite det_step_eq_tapes in Hα; [|done].
+      rewrite !dmap_dret.
+      rewrite !dret_id_left /=.
+      rewrite -!dbind_assoc.
+      erewrite (distr_ext (dunifP _ ≫= _) _); last first.
+      { intros. apply dbind_pmf_ext; [|done..]. intros.
+        rewrite dmap_dret dret_id_left. simpl. done. }
+      rewrite -dmap_dbind. apply IH. done.
+  Qed.
 
   (* Local Lemma ind_case_dzero e σ α N zs K : *)
   (*   tapes σ !! α = Some (N; zs) → *)
@@ -338,7 +342,7 @@ Proof.
       eapply Rcoupl_dbind; last apply Rcoupl_eq.
       intros ?[] ->.
       rewrite /dmap.
-      destruct (es1 !! n) eqn:He2; last first.
+      destruct (es1 !! n)  as [e1|]eqn:He2; last first.
       { (* we step a thread id that is out of bound *)
         rewrite !dret_id_left. rewrite -/dmap.
         rewrite dmap_fold.
@@ -362,7 +366,7 @@ Proof.
             naive_solver.
           + done.
       }
-      destruct (to_val e) eqn:He3.
+      destruct (to_val e1) eqn:He3.
       { (* the thread we chose is already a value *)
         rewrite !dret_id_left. rewrite -/dmap.
         rewrite dmap_fold.
@@ -387,19 +391,22 @@ Proof.
           + done.
       }
       rewrite /prim_step/=.
+      destruct (decomp e1) as [K ered] eqn:Hdecomp_e1.
+      rewrite Hdecomp_e1.
+      rewrite !dmap_fold !dmap_comp /=.
+      erewrite (distr_ext (dunifP N≫=_)); last first.
+      { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite !dmap_fold !dmap_comp. done. }
+      destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]].
+      * eapply ind_case_det; [done|done|done|by apply is_det_head_step_true].
+      * inversion HP; simplify_eq.
+        -- admit. (* by eapply ind_case_alloc. *)
+        -- admit. (* by eapply ind_case_rand_some. *)
+        -- admit. (* by eapply ind_case_rand_empty. *)
+        -- admit. (* by eapply ind_case_rand_some_neq. *)
+        -- admit. (* by eapply ind_case_rand. *)
+      * admit. (* by eapply ind_case_dzero. *)
 Admitted.
-(*       repeat setoid_rewrite dbind_assoc. *)
-(*       destruct (decomp e1) as [K ered] eqn:Hdecomp_e1. *)
-(*       rewrite Hdecomp_e1. *)
-(*       destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]]. *)
-(*       * eapply ind_case_det; [done|done|by apply is_det_head_step_true]. *)
-(*       * inversion HP; simplify_eq. *)
-(*         -- by eapply ind_case_alloc. *)
-(*         -- by eapply ind_case_rand_some. *)
-(*         -- by eapply ind_case_rand_empty. *)
-(*         -- by eapply ind_case_rand_some_neq. *)
-(*         -- by eapply ind_case_rand. *)
-(*       * by eapply ind_case_dzero. *)
 (* Qed. *)
 
 Lemma pexec_coupl_step_pexec `{Countable sch_int_σ} m es1 σ1 α bs ζ `{TapeOblivious sch_int_σ sch} :
