@@ -1068,5 +1068,11 @@ Section sch_typeclasses.
   Proof.
     apply tape_oblivious.
   Qed.
+
+  Lemma sch_tape_oblivious_state_upd_tapes `{TapeOblivious si sch} ζ α t σ es:
+    sch (ζ, (es, state_upd_tapes <[α:=t]> σ)) = sch (ζ, (es, σ)).
+  Proof.
+    apply sch_tape_oblivious; by simpl.
+  Qed.
   
 End sch_typeclasses.

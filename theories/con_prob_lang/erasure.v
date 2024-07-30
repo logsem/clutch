@@ -275,7 +275,7 @@ Section erasure_helpers.
 End erasure_helpers.
 
 
-Lemma prim_coupl_upd_tapes_dom `{Countable sch_int_σ} m (es1: list expr) σ1 α N ns ζ (sch: scheduler (con_lang_mdp con_prob_lang) sch_int_σ):
+Lemma prim_coupl_upd_tapes_dom `{Countable sch_int_σ} m (es1: list expr) σ1 α N ns ζ `{TapeOblivious sch_int_σ sch}:
   σ1.(tapes) !! α = Some (N; ns) →
   Rcoupl
     (dmap (λ x, x.2.1) (sch_pexec sch m (ζ, (es1, σ1))))
@@ -283,40 +283,112 @@ Lemma prim_coupl_upd_tapes_dom `{Countable sch_int_σ} m (es1: list expr) σ1 α
        (λ n, dmap (λ x, x.2.1) (sch_pexec sch m (ζ, (es1, state_upd_tapes <[α := (N; ns ++ [n])]> σ1)))))
     (=).
 Proof.
+  rewrite -dmap_dbind.
+  revert es1 σ1 α N ns ζ; induction m; intros es1 σ1 α N ns ζ Hα.
+  - rewrite /sch_pexec /=.
+    rewrite dmap_dret.
+    rewrite dmap_dbind.
+    erewrite (distr_ext (dunifP N≫=_)); last first.
+    { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite dmap_dret. done.
+    }
+    rewrite (dret_const (dunifP N)); [apply Rcoupl_eq | apply dunif_mass; lia].
+  - rewrite sch_pexec_Sn /sch_step_or_final.
+    case_match eqn:He1; simpl in He1.
+    + rewrite dret_id_left.
+      rewrite -/(sch_pexec sch m (ζ, (es1, σ1))).
+      rewrite sch_pexec_is_final; last by rewrite /is_final.
+      rewrite dmap_dret. simpl.
+      rewrite dmap_dbind.
+      erewrite (distr_ext (dunifP N ≫=_)); last first.
+      { intros. apply dbind_pmf_ext; [|done..].
+        intros. rewrite sch_pexec_is_final; last by rewrite /is_final.
+        rewrite dmap_dret. simpl. done.
+      }
+      rewrite dret_const; [|solve_distr_mass].
+      apply Rcoupl_eq.
+    + rewrite !dmap_dbind.
+      erewrite (distr_ext (dunifP N ≫= _)); last first.
+      { intros. apply dbind_pmf_ext; [|done..].
+        intros. setoid_rewrite sch_pexec_Sn.
+        rewrite /sch_step_or_final/=He1/sch_step/=.
+        rewrite !dmap_dbind/=.
+        apply dbind_pmf_ext; [done| |done].
+        apply dbind_ext_right.
+        intros [sch_int_σ' thread_id].
+        rewrite /mbind/option_bind He1.
+        instantiate (1 := λ '(sch_int_σ', thread_id),
+                       dmap (λ mdp_σ' : con_language.cfg con_prob_lang, (sch_int_σ', mdp_σ'))
+                         match es1 !! thread_id with
+                         | Some expr0 =>
+                             match to_val expr0 with
+                             | Some _ => dret (es1, state_upd_tapes <[α:=(N; ns ++ [a0])]> σ1)
+                             | None =>
+                                 dmap (λ '(expr', σ', efs), (<[thread_id:=expr']> es1 ++ efs, σ'))
+                                   (prim_step expr0 (state_upd_tapes <[α:=(N; ns ++ [a0])]> σ1))
+                             end
+                         | None => dret (es1, state_upd_tapes <[α:=(N; ns ++ [a0])]> σ1)
+                         end ).
+        done.
+      }
+      rewrite /sch_step/prim_step/=.
+      rewrite /mbind/option_bind He1.
+      setoid_rewrite sch_tape_oblivious_state_upd_tapes.
+      rewrite dbind_assoc dbind_swap -!dbind_assoc'.
+      eapply Rcoupl_dbind; last apply Rcoupl_eq.
+      intros ?[] ->.
+      rewrite /dmap.
+      destruct (es1 !! n) eqn:He2; last first.
+      { (* we step a thread id that is out of bound *)
+        rewrite !dret_id_left. rewrite -/dmap.
+        rewrite dmap_fold.
+        erewrite (distr_ext(_≫=_)); last first.
+        - intros.
+          rewrite dbind_assoc. rewrite dmap_fold.
+          erewrite dmap_eq; first done; last first.
+          + intros [?[??]].
+            apply dbind_pmf_ext; [done| |done].
+            etrans.
+            * apply dbind_ext_right.
+              intros. rewrite dret_id_left. done.
+            * rewrite dmap_fold. done.
+          + done.
+        - rewrite {3}/dmap. rewrite -dbind_assoc.
+          eapply Rcoupl_eq_trans; first apply IHm; last first.
+          + apply Rcoupl_dmap.
+            eapply Rcoupl_dbind; last apply Rcoupl_eq.
+            intros ?? ->.
+            rewrite dret_id_left. eapply Rcoupl_mono; first apply Rcoupl_eq.
+            naive_solver.
+          + done.
+      }
+      destruct (to_val e) eqn:He3.
+      { (* the thread we chose is already a value *)
+        rewrite !dret_id_left. rewrite -/dmap.
+        rewrite dmap_fold.
+        erewrite (distr_ext(_≫=_)); last first.
+        - intros.
+          rewrite dbind_assoc. rewrite dmap_fold.
+          erewrite dmap_eq; first done; last first.
+          + intros [?[??]].
+            apply dbind_pmf_ext; [done| |done].
+            etrans.
+            * apply dbind_ext_right.
+              intros. rewrite dret_id_left. done.
+            * rewrite dmap_fold. done.
+          + done.
+        - rewrite {3}/dmap. rewrite -dbind_assoc.
+          eapply Rcoupl_eq_trans; first apply IHm; last first.
+          + apply Rcoupl_dmap.
+            eapply Rcoupl_dbind; last apply Rcoupl_eq.
+            intros ?? ->.
+            rewrite dret_id_left. eapply Rcoupl_mono; first apply Rcoupl_eq.
+            naive_solver.
+          + done.
+      }
+      rewrite /prim_step/=.
 Admitted.
-(*   rewrite -dmap_dbind. *)
-(*   revert e1 σ1 α N ns; induction m; intros e1 σ1 α N ns Hα. *)
-(*   - rewrite /pexec /=. *)
-(*     rewrite dmap_dret. *)
-(*     rewrite dmap_dbind. *)
-(*     erewrite (distr_ext (dunifP N≫=_)); last first. *)
-(*     { intros. apply dbind_pmf_ext; [|done..]. *)
-(*       intros. rewrite dmap_dret. done. *)
-(*     } *)
-(*     rewrite (dret_const (dunifP N)); [apply Rcoupl_eq | apply dunif_mass; lia]. *)
-(*   - rewrite pexec_Sn /step_or_final /=. *)
-(*     destruct (to_val e1) eqn:He1. *)
-(*     + rewrite dret_id_left. *)
-(*       rewrite -/(pexec m (e1, σ1)). *)
-(*       rewrite pexec_is_final; last by rewrite /is_final. *)
-(*       rewrite dmap_dret. simpl. *)
-(*       rewrite dmap_dbind. *)
-(*       erewrite (distr_ext (dunifP N ≫=_)); last first. *)
-(*       { intros. apply dbind_pmf_ext; [|done..]. *)
-(*         intros. rewrite pexec_is_final; last by rewrite /is_final. *)
-(*         rewrite dmap_dret. simpl. done. *)
-(*       } *)
-(*       rewrite dret_const; [|solve_distr_mass]. *)
-(*       apply Rcoupl_eq. *)
-(*     + rewrite !dmap_dbind. *)
-(*       erewrite (distr_ext (dunifP N ≫= _)); last first. *)
-(*       { intros. apply dbind_pmf_ext; [|done..]. *)
-(*         intros. setoid_rewrite pexec_Sn. *)
-(*         rewrite /step_or_final/=He1/prim_step/=. *)
-(*         rewrite dmap_dbind. *)
-(*         done. *)
-(*       } *)
-(*       rewrite /prim_step/=. *)
+(*       repeat setoid_rewrite dbind_assoc. *)
 (*       destruct (decomp e1) as [K ered] eqn:Hdecomp_e1. *)
 (*       rewrite Hdecomp_e1. *)
 (*       destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]]. *)
@@ -330,7 +402,7 @@ Admitted.
 (*       * by eapply ind_case_dzero. *)
 (* Qed. *)
 
-Lemma pexec_coupl_step_pexec `{Countable sch_int_σ} m es1 σ1 α bs ζ (sch: scheduler (con_lang_mdp con_prob_lang) sch_int_σ) :
+Lemma pexec_coupl_step_pexec `{Countable sch_int_σ} m es1 σ1 α bs ζ `{TapeOblivious sch_int_σ sch} :
   σ1.(tapes) !! α = Some bs →
    Rcoupl
     (dmap (λ ρ, ρ.2.1) (sch_pexec sch m (ζ, (es1, σ1))))
@@ -352,7 +424,7 @@ Proof.
   intros. naive_solver.
 Qed.
 
-Lemma prim_coupl_step_prim `{Hcountable:Countable sch_int_σ} m es1 σ1 α bs ζ (sch: scheduler (con_lang_mdp con_prob_lang) sch_int_σ) :
+Lemma prim_coupl_step_prim `{Hcountable:Countable sch_int_σ} m es1 σ1 α bs ζ `{HTO: TapeOblivious sch_int_σ sch} :
   σ1.(tapes) !! α = Some bs →
   Rcoupl
     (sch_exec sch m (ζ, (es1, σ1)))
@@ -360,7 +432,7 @@ Lemma prim_coupl_step_prim `{Hcountable:Countable sch_int_σ} m es1 σ1 α bs ζ
     eq.
 Proof.
   intros Hα.
-  epose proof pexec_coupl_step_pexec _ _ _ _ _ _ _ Hα as H.
+  epose proof pexec_coupl_step_pexec _ _ _ _ _ _ Hα as H'.
   setoid_rewrite sch_exec_pexec_relate.
   simpl.
   set (g:= λ es2: list expr, match option_bind _ _ to_val ((es2!!(0%nat)): option expr) with | Some b => dret b | None => dzero end).
@@ -384,7 +456,7 @@ Proof.
     rewrite /option_bind. done.
 Qed.
 
-Lemma state_step_sch_erasable `{Hcountable:Countable sch_int_σ} σ1 α bs (sch: scheduler (con_lang_mdp con_prob_lang) sch_int_σ):
+Lemma state_step_sch_erasable `{Hcountable:Countable sch_int_σ} σ1 α bs `{TapeOblivious sch_int_σ sch}:
   σ1.(tapes) !! α = Some bs →
   sch_erasable sch (state_step σ1 α) σ1.
 Proof.
