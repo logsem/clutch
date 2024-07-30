@@ -398,7 +398,7 @@ Proof.
       { intros. apply dbind_pmf_ext; [|done..].
       intros. rewrite !dmap_fold !dmap_comp. done. }
       destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]].
-      * eapply ind_case_det; [done|done|done|by apply is_det_head_step_true].
+      * eapply ind_case_det; [done|done|by apply is_det_head_step_true].
       * inversion HP; simplify_eq.
         -- admit. (* by eapply ind_case_alloc. *)
         -- admit. (* by eapply ind_case_rand_some. *)
