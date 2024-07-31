@@ -577,7 +577,7 @@ Proof.
 Qed.
 
 Lemma sch_limprim_coupl_step_sch_limprim
-  `{Hcountable:Countable sch_int_σ} e1 σ1 α bs ζ`{TapeOblivious sch_int_σ sch} :
+  `{Hcountable:Countable sch_int_σ} (e1 : list expr) σ1 α bs ζ`{TapeOblivious sch_int_σ sch} :
   σ1.(tapes) !! α = Some bs →
   Rcoupl
     (sch_lim_exec sch (ζ, (e1, σ1)))
