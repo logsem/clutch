@@ -186,45 +186,44 @@ Section erasure_helpers.
      ≫= λ b,
        dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
   Proof using m IH.
-  Admitted.
-  (*   intros Hz Hα Hα'. *)
-  (*   destruct (decide (α = α')) as [-> | Hαneql]. *)
-  (*   + simplify_eq.  rewrite /head_step Hα. *)
-  (*     rewrite bool_decide_eq_true_2 //. *)
-  (*     rewrite {1 2}/dmap. *)
-  (*     rewrite -!dbind_assoc -/exec. *)
-  (*     eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq]. *)
-  (*     intros ? b ->. *)
-  (*     do 2 rewrite dret_id_left. *)
-  (*     rewrite lookup_insert. *)
-  (*     rewrite bool_decide_eq_true_2 //. *)
-  (*     rewrite dmap_dret dret_id_left -/exec. *)
-  (*     rewrite upd_tape_twice. *)
-  (*     rewrite /state_upd_tapes insert_id //. *)
-  (*     destruct σ; simpl. *)
-  (*     apply Rcoupl_eq. *)
-  (*   + rewrite /head_step /=. *)
-  (*     setoid_rewrite lookup_insert_ne; [|done]. *)
-  (*     rewrite Hα'. *)
-  (*     rewrite bool_decide_eq_true_2 //. *)
-  (*     rewrite {1 2}/dmap. *)
-  (*     erewrite (dbind_ext_right (dunifP N)); last first. *)
-  (*     { intro. *)
-  (*       rewrite {1 2}/dmap. *)
-  (*       do 2 rewrite -dbind_assoc -/exec. *)
-  (*       done. } *)
-  (*     rewrite -!dbind_assoc -/exec. *)
-  (*     rewrite dbind_comm. *)
-  (*     eapply Rcoupl_dbind; [|apply Rcoupl_eq]. *)
-  (*     intros; simplify_eq. *)
-  (*     do 2 rewrite dret_id_left /=. *)
-  (*     erewrite (distr_ext (dunifP N≫=_)); last first. *)
-  (*     { intros. apply dbind_pmf_ext; [|done..]. *)
-  (*       intros. rewrite !dret_id_left. done. *)
-  (*     } *)
-  (*     rewrite dbind_assoc. *)
-  (*     by apply IH. *)
-  (* Qed. *)
+    intros Hz Hα Hα'.
+    destruct (decide (α = α')) as [-> | Hαneql].
+    + simplify_eq.  rewrite /head_step Hα.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite {1 2}/dmap.
+      rewrite -!dbind_assoc.
+      eapply (Rcoupl_dbind _ _ _ _ (=)); [ |apply Rcoupl_eq].
+      intros ? b ->.
+      do 2 rewrite dret_id_left.
+      rewrite lookup_insert.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite dmap_dret dret_id_left.
+      rewrite upd_tape_twice.
+      rewrite dmap_fold.
+      rewrite state_upd_tapes_no_change; [|done].
+      apply Rcoupl_eq.
+    + rewrite /head_step /=.
+      setoid_rewrite lookup_insert_ne; [|done].
+      rewrite Hα'.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite !dbind_assoc.
+      rewrite -!dbind_assoc.
+      erewrite (dbind_ext_right (dunifP N)); last first.
+      { intro.
+        rewrite /dmap.
+        rewrite -!dbind_assoc.
+        apply dbind_ext_right.
+        intros.
+        rewrite !dret_id_left. done.
+      }
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      do 2 rewrite dret_id_left /=.
+      rewrite !dbind_assoc.
+      rewrite !dmap_fold.
+      by apply IH.
+  Qed.
 
   Local Lemma ind_case_rand_some_neq (z:Z) σ α α' (N M:nat) ns ns' K (id:nat) s es:
     N≠Z.to_nat z ->
@@ -383,7 +382,7 @@ Proof.
       rewrite /sch_step/prim_step/=.
       rewrite /mbind/option_bind He1.
       setoid_rewrite sch_tape_oblivious_state_upd_tapes.
-      rewrite dbind_assoc dbind_swap -!dbind_assoc'.
+      rewrite dbind_assoc dbind_comm -!dbind_assoc'.
       eapply Rcoupl_dbind; last apply Rcoupl_eq.
       intros ?[] ->.
       rewrite /dmap.

@@ -525,32 +525,6 @@ Section monadic.
     μ ≫= (λ a, f a ≫= g) = (μ ≫= f) ≫= g.
   Proof. rewrite dbind_assoc //. Qed.
 
-  Lemma dbind_swap `{Countable B'} f (g : A -> B -> distr B') μ:
-    μ ≫= (λ a, f ≫= λ b, g a b) = f ≫= (λ b, μ ≫= (λ a, g a b)).
-  Proof.
-    apply distr_ext. intros.
-    rewrite {1 2}/dbind{1 2}/dbind_pmf{1 3}/pmf/=.
-    rewrite {1 2}/dbind {1 2}/dbind_pmf{4 6}/pmf/=.
-    setoid_rewrite <-SeriesC_scal_l.
-    pose proof fubini_pos_seriesC (λ '(x,y), μ x * (f y * g x y a)) as H2.
-    etrans.
-    - etrans; last (symmetry; apply H2); try done.
-      + intros. real_solver.
-      + intros. apply ex_seriesC_scal_l.
-        apply pmf_ex_seriesC_mult_fn.
-        naive_solver.
-      + setoid_rewrite SeriesC_scal_l.
-        apply pmf_ex_seriesC_mult_fn.
-        exists 1.
-        intros.
-        split.
-        * apply SeriesC_ge_0'. real_solver.
-        * trans (SeriesC f); last done.
-          apply SeriesC_le; last done.
-          real_solver.
-    - apply SeriesC_ext; intros; apply SeriesC_ext; intros; lra.
-  Qed.
-
   Lemma dbind_comm `{Countable B'} (f : A → B → distr B') (μ1 : distr A) (μ2 : distr B):
     (a ← μ1 ; b ← μ2; f a b) = (b ← μ2; a ← μ1; f a b).
   Proof.
