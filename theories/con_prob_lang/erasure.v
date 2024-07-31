@@ -517,62 +517,64 @@ Proof.
   by eapply prim_coupl_step_prim.
 Qed.
 
-(* Lemma iterM_state_step_erasable σ1 α bs n: *)
-(*   σ1.(tapes) !! α = Some bs → *)
-(*   erasable (iterM n (λ σ, state_step σ α) σ1) σ1. *)
-(* Proof. *)
-(*   revert σ1 bs. *)
-(*   induction n; intros σ1 bs H. *)
-(*   - simpl. apply dret_erasable. *)
-(*   - simpl. apply erasable_dbind; first by eapply state_step_erasable. *)
-(*     intros ? H0.  *)
-(*     destruct bs.  *)
-(*     erewrite state_step_unfold in H0; last done. *)
-(*     rewrite dmap_pos in H0. destruct H0 as (?&->&K). *)
-(*     eapply IHn. simpl. apply lookup_insert. *)
-(* Qed. *)
+Lemma iterM_state_step_sch_erasable
+  `{Hcountable:Countable sch_int_σ} σ1 α bs n `{TapeOblivious sch_int_σ sch}:
+  σ1.(tapes) !! α = Some bs →
+  sch_erasable sch (iterM n (λ σ, state_step σ α) σ1) σ1.
+Proof.
+  revert σ1 bs.
+  induction n; intros σ1 bs K.
+  - simpl. apply dret_sch_erasable.
+  - simpl. apply sch_erasable_dbind; first by eapply state_step_sch_erasable.
+    intros ? K'.
+    destruct bs.
+    erewrite state_step_unfold in K'; last done.
+    rewrite dmap_pos in K'. destruct K' as (?&->&?).
+    eapply IHn. simpl. apply lookup_insert.
+Qed.
 
-(* Lemma limprim_coupl_step_limprim_aux e1 σ1 α bs v: *)
-(*   σ1.(tapes) !! α = Some bs → *)
-(*   (lim_exec (e1, σ1)) v = *)
-(*   (state_step σ1 α ≫= (λ σ2, lim_exec (e1, σ2))) v. *)
-(* Proof. *)
-(*   intro Hsome. *)
-(*    rewrite lim_exec_unfold/=. *)
-(*    rewrite {2}/pmf/=/dbind_pmf. *)
-(*    setoid_rewrite lim_exec_unfold. *)
-(*    simpl in *. *)
-(*    assert *)
-(*      (SeriesC (λ a: state, state_step σ1 α a * Sup_seq (λ n : nat, exec n (e1, a) v)) = *)
-(*      SeriesC (λ a: state, Sup_seq (λ n : nat, state_step σ1 α a * exec n (e1, a) v))) as Haux. *)
-(*    { apply SeriesC_ext; intro v'. *)
-(*      apply eq_rbar_finite. *)
-(*      rewrite rmult_finite. *)
-(*      rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, exec n (e1, v') v))); auto. *)
-(*      - rewrite <- (Sup_seq_scal_l (state_step σ1 α v') (λ n : nat, exec n (e1, v') v)); auto. *)
-(*      - apply (Rbar_le_sandwich 0 1). *)
-(*        + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto. *)
-(*        + apply upper_bound_ge_sup; intro; simpl; auto. *)
-(*    } *)
-(*    rewrite Haux. *)
-(*    rewrite (MCT_seriesC _ (λ n, exec n (e1,σ1) v) (lim_exec (e1,σ1) v)); auto. *)
-(*    - real_solver. *)
-(*    - intros. apply Rmult_le_compat; auto; [done|apply exec_mono]. *)
-(*    - intro. exists (state_step σ1 α a)=>?. real_solver. *)
-(*    - intro n. *)
-(*      rewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim n e1 σ1 α bs Hsome)); auto. *)
-(*      rewrite {3}/pmf/=/dbind_pmf. *)
-(*      apply SeriesC_correct; auto. *)
-(*      apply (ex_seriesC_le _ (state_step σ1 α)); auto. *)
-(*      real_solver. *)
-(*    - rewrite lim_exec_unfold. *)
-(*      rewrite rbar_finite_real_eq; [apply Sup_seq_correct |]. *)
-(*      rewrite mon_sup_succ. *)
-(*      + apply (Rbar_le_sandwich 0 1); auto. *)
-(*        * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto. *)
-(*        * apply upper_bound_ge_sup; intro; simpl; auto. *)
-(*      + intros. eapply exec_mono. *)
-(* Qed. *)
+Lemma limprim_coupl_step_limprim_aux
+  `{Hcountable:Countable sch_int_σ} e1 σ1 α bs v ζ `{TapeOblivious sch_int_σ sch}:
+  σ1.(tapes) !! α = Some bs →
+  (sch_lim_exec sch (ζ, (e1, σ1))) v =
+  (state_step σ1 α ≫= (λ σ2, sch_lim_exec sch (ζ, (e1, σ2)))) v.
+Proof.
+  intro Hsome.
+   rewrite sch_lim_exec_unfold/=.
+   rewrite {2}/pmf/=/dbind_pmf.
+   setoid_rewrite sch_lim_exec_unfold.
+   simpl in *.
+   assert
+     (SeriesC (λ a: state, state_step σ1 α a * Sup_seq (λ n : nat, sch_exec sch n (ζ, (e1, a)) v)) =
+     SeriesC (λ a: state, Sup_seq (λ n : nat, state_step σ1 α a * sch_exec sch n (ζ, (e1, a)) v))) as Haux.
+   { apply SeriesC_ext; intro v'.
+     apply eq_rbar_finite.
+     rewrite rmult_finite.
+     rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, sch_exec sch n (ζ, (e1, v')) v))); auto.
+     - rewrite <- (Sup_seq_scal_l (state_step σ1 α v') (λ n : nat, sch_exec sch n (ζ, (e1, v')) v)); auto.
+     - apply (Rbar_le_sandwich 0 1).
+       + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+       + apply upper_bound_ge_sup; intro; simpl; auto.
+   }
+   rewrite Haux.
+   rewrite (MCT_seriesC _ (λ n, sch_exec sch n (ζ, (e1,σ1)) v) (sch_lim_exec sch (ζ, (e1,σ1)) v)); auto.
+   - real_solver.
+   - intros. apply Rmult_le_compat; auto; [done|apply sch_exec_mono].
+   - intro. exists (state_step σ1 α a)=>?. real_solver.
+   - intro n.
+     rewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim n e1 σ1 α bs _ Hsome)); auto.
+     rewrite {3}/pmf/=/dbind_pmf.
+     apply SeriesC_correct; auto.
+     apply (ex_seriesC_le _ (state_step σ1 α)); auto.
+     real_solver.
+   - rewrite sch_lim_exec_unfold.
+     rewrite rbar_finite_real_eq; [apply Sup_seq_correct |].
+     rewrite mon_sup_succ.
+     + apply (Rbar_le_sandwich 0 1); auto.
+       * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
+       * apply upper_bound_ge_sup; intro; simpl; auto.
+     + intros. eapply sch_exec_mono.
+Qed.
 
 (* Lemma limprim_coupl_step_limprim e1 σ1 α bs : *)
 (*   σ1.(tapes) !! α = Some bs → *)
