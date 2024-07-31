@@ -115,18 +115,23 @@ Section erasure_helpers.
     by apply fresh_loc_lookup.
   Qed.
 
-  (* Local Lemma ind_case_rand_some σ α α' K N M (z : Z) n ns ns' : *)
-  (*   N = Z.to_nat z → *)
-  (*   tapes σ !! α = Some (M; ns') → *)
-  (*   tapes σ !! α' = Some (N; n :: ns) → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP M ≫= *)
-  (*        (λ n, dmap (fill_lift K) *)
-  (*                (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:= (M; ns' ++ [n])]> σ)) *)
-  (*                ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))) *)
-  (*     (=). *)
-  (* Proof using m IH. *)
+  Local Lemma ind_case_rand_some (z:Z) σ α α' (N M:nat) n ns ns' K (id:nat) s es:
+    N=Z.to_nat z ->
+    tapes σ!!α = Some (M;ns') ->
+    tapes σ !! α' = Some (N; n::ns) →
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step (rand(#lbl:α') #z) σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP M
+      ≫= λ a0 ,
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:=(M; ns' ++ [a0])]> σ)))
+     ≫= λ b,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+  Admitted.
   (*   intros Hz Hα Hα'. *)
   (*   apply lookup_total_correct in Hα as Hαtot. *)
   (*   apply lookup_total_correct in Hα' as Hα'tot. *)
@@ -161,18 +166,23 @@ Section erasure_helpers.
   (*     rewrite lookup_insert_ne //. *)
   (* Qed. *)
 
-  (* Local Lemma ind_case_rand_empty σ α α' K (N M : nat) z ns : *)
-  (*   M = Z.to_nat z → *)
-  (*   tapes σ !! α = Some (N; ns) → *)
-  (*   tapes σ !! α' = Some (M; []) → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP N ≫= *)
-  (*        (λ n, dmap (fill_lift K) *)
-  (*                (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α := (N; ns ++ [n])]> σ)) *)
-  (*                ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))) *)
-  (*     eq. *)
-  (* Proof using m IH. *)
+  Local Lemma ind_case_rand_empty (z:Z) σ α α' (N M:nat) ns K (id:nat) s es:
+    M=Z.to_nat z ->
+    tapes σ!!α = Some (N;ns) ->
+    tapes σ !! α' = Some (M; []) →
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step (rand(#lbl:α') #z) σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP N
+      ≫= λ a0 ,
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:=(N; ns ++ [a0])]> σ)))
+     ≫= λ b,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+  Admitted.
   (*   intros Hz Hα Hα'. *)
   (*   destruct (decide (α = α')) as [-> | Hαneql]. *)
   (*   + simplify_eq.  rewrite /head_step Hα. *)
@@ -212,18 +222,23 @@ Section erasure_helpers.
   (*     by apply IH. *)
   (* Qed. *)
 
-  (* Local Lemma ind_case_rand_some_neq σ α α' K N M ns ns' z : *)
-  (*   N ≠ Z.to_nat z → *)
-  (*   tapes σ !! α = Some (M; ns') → *)
-  (*   tapes σ !! α' = Some (N; ns) → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step (rand(#lbl:α') #z) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP M ≫= *)
-  (*        (λ n, dmap (fill_lift K) *)
-  (*                (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:= (M; ns' ++ [n]) : tape]> σ)) *)
-  (*                ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))) *)
-  (*     (=). *)
-  (* Proof using m IH. *)
+  Local Lemma ind_case_rand_some_neq (z:Z) σ α α' (N M:nat) ns ns' K (id:nat) s es:
+    N≠Z.to_nat z ->
+    tapes σ!!α = Some (M;ns') ->
+    tapes σ !! α' = Some (N; ns) →
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step (rand(#lbl:α') #z) σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP M
+      ≫= λ a0 ,
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step (rand(#lbl:α') #z) (state_upd_tapes <[α:=(M; ns' ++ [a0])]> σ)))
+     ≫= λ b,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+  Admitted.
   (*   intros Hz Hα Hα'. *)
   (*   rewrite /head_step Hα'. *)
   (*   rewrite bool_decide_eq_false_2 //. *)
@@ -263,18 +278,22 @@ Section erasure_helpers.
   (*     by apply IH. *)
   (* Qed. *)
 
-  (* Local Lemma ind_case_rand σ α K (M N : nat) z ns : *)
-  (*   N = Z.to_nat z → *)
-  (*   tapes σ !! α = Some (M; ns) → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step (rand #z) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP M ≫= *)
-  (*        (λ n, *)
-  (*          dmap (fill_lift K) *)
-  (*            (head_step (rand #z) (state_upd_tapes <[α := (M; ns ++ [n]) : tape]> σ)) *)
-  (*            ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))) *)
-  (*     eq. *)
-  (* Proof using m IH. *)
+  Local Lemma ind_case_rand (z:Z) σ α (N M:nat) ns K (id:nat) s es:
+    N=Z.to_nat z ->
+    tapes σ!!α = Some (M;ns) ->
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step (rand #z) σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP M
+      ≫= λ a0 ,
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[id:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step (rand #z) (state_upd_tapes <[α:=(M; ns ++ [a0])]> σ)))
+     ≫= λ b,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+  Admitted.
   (*   intros Hz Hα. *)
   (*   rewrite /head_step. *)
   (*   rewrite {1 2}/dmap. *)
@@ -423,13 +442,12 @@ Proof.
       * eapply ind_case_det; [done|done|by apply is_det_head_step_true].
       * inversion HP; simplify_eq.
         -- by eapply ind_case_alloc. 
-        -- admit. (* by eapply ind_case_rand_some. *)
-        -- admit. (* by eapply ind_case_rand_empty. *)
-        -- admit. (* by eapply ind_case_rand_some_neq. *)
-        -- admit. (* by eapply ind_case_rand. *)
-      * by eapply ind_case_dzero. 
-Admitted.
-(* Qed. *)
+        -- by eapply ind_case_rand_some.
+        -- by eapply ind_case_rand_empty.
+        -- by eapply ind_case_rand_some_neq.
+        -- by eapply ind_case_rand.
+      * by eapply ind_case_dzero.
+Qed.
 
 Lemma pexec_coupl_step_pexec `{Countable sch_int_σ} m es1 σ1 α bs ζ `{TapeOblivious sch_int_σ sch} :
   σ1.(tapes) !! α = Some bs →
