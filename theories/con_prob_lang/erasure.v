@@ -241,45 +241,44 @@ Section erasure_helpers.
      ≫= λ b,
        dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
   Proof using m IH.
-  Admitted.
-  (*   intros Hz Hα Hα'. *)
-  (*   rewrite /head_step Hα'. *)
-  (*   rewrite bool_decide_eq_false_2 //. *)
-  (*   destruct (decide (α = α')) as [-> | Heq]. *)
-  (*   - simplify_eq. *)
-  (*     setoid_rewrite lookup_insert. *)
-  (*     rewrite bool_decide_eq_false_2 //. *)
-  (*     rewrite /dmap /=. *)
-  (*     rewrite -!dbind_assoc -/exec. *)
-  (*     erewrite (dbind_ext_right (dunifP M)); last first. *)
-  (*     { intros. rewrite -!dbind_assoc -/exec //. } *)
-  (*     rewrite dbind_comm. *)
-  (*     eapply Rcoupl_dbind; [|apply Rcoupl_eq]. *)
-  (*     intros; simplify_eq. *)
-  (*     rewrite 2!dret_id_left. *)
-  (*     erewrite (distr_ext (dunifP M ≫=_ )); last first. *)
-  (*     { intros. apply dbind_pmf_ext; [|done..]. *)
-  (*       intros. rewrite !dret_id_left; done. *)
-  (*     } *)
-  (*     rewrite -dmap_dbind. *)
-  (*     by apply IH. *)
-  (*   - setoid_rewrite lookup_insert_ne; [|done]. *)
-  (*     rewrite Hα' bool_decide_eq_false_2 //. *)
-  (*     rewrite /dmap. *)
-  (*     rewrite -!dbind_assoc -/exec. *)
-  (*     erewrite (dbind_ext_right (dunifP M)); last first. *)
-  (*     { intros. rewrite -!dbind_assoc -/exec //. } *)
-  (*     rewrite dbind_comm. *)
-  (*     eapply Rcoupl_dbind; [|apply Rcoupl_eq]. *)
-  (*     intros; simplify_eq. *)
-  (*     rewrite 2!dret_id_left. *)
-  (*     erewrite (distr_ext (dunifP M ≫=_ )); last first. *)
-  (*     { intros. apply dbind_pmf_ext; [|done..]. *)
-  (*       intros. rewrite !dret_id_left; done. *)
-  (*     } *)
-  (*     rewrite -dmap_dbind. *)
-  (*     by apply IH. *)
-  (* Qed. *)
+    intros Hz Hα Hα'.
+    rewrite /head_step Hα'.
+    rewrite bool_decide_eq_false_2 //.
+    destruct (decide (α = α')) as [-> | Heq].
+    - simplify_eq.
+      setoid_rewrite lookup_insert.
+      rewrite bool_decide_eq_false_2 //.
+      rewrite /dmap /=.
+      rewrite -!dbind_assoc.
+      erewrite (dbind_ext_right (dunifP M)); last first.
+      { intros. rewrite -!dbind_assoc.
+        apply dbind_ext_right.
+        intros.
+        rewrite !dret_id_left'//.
+      } 
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      rewrite 2!dret_id_left.
+      rewrite -!dmap_dbind.
+      by apply IH.
+    - setoid_rewrite lookup_insert_ne; [|done].
+      rewrite Hα' bool_decide_eq_false_2 //.
+      rewrite /dmap.
+      rewrite -!dbind_assoc. 
+      erewrite (dbind_ext_right (dunifP M)); last first.
+      { intros. rewrite -!dbind_assoc.
+        apply dbind_ext_right.
+        intros.
+        rewrite !dret_id_left//.
+      } 
+      rewrite dbind_comm.
+      eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+      intros; simplify_eq.
+      rewrite 2!dret_id_left.
+      rewrite -dmap_dbind.
+      by apply IH.
+  Qed.
 
   Local Lemma ind_case_rand (z:Z) σ α (N M:nat) ns K (id:nat) s es:
     N=Z.to_nat z ->
@@ -296,29 +295,30 @@ Section erasure_helpers.
      ≫= λ b,
        dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
   Proof using m IH.
-  Admitted.
-  (*   intros Hz Hα. *)
-  (*   rewrite /head_step. *)
-  (*   rewrite {1 2}/dmap. *)
-  (*   erewrite (dbind_ext_right (dunifP M)); last first. *)
-  (*   { intro. *)
-  (*     rewrite {1 2}/dmap. *)
-  (*     do 2 rewrite -dbind_assoc //. } *)
-  (*   rewrite -/exec /=. *)
-  (*   rewrite -!dbind_assoc -/exec. *)
-  (*   erewrite (dbind_ext_right (dunifP M)); last first. *)
-  (*   { intros n. rewrite -!dbind_assoc. done. } *)
-  (*   rewrite dbind_comm. *)
-  (*   eapply Rcoupl_dbind; [|apply Rcoupl_eq]. *)
-  (*   intros; simplify_eq. *)
-  (*   do 2 rewrite dret_id_left. *)
-  (*   erewrite (distr_ext (dunifP M ≫=_ )); last first. *)
-  (*   { intros. apply dbind_pmf_ext; [|done..]. *)
-  (*     intros. rewrite !dret_id_left; done. *)
-  (*   } *)
-  (*   rewrite -dmap_dbind. *)
-  (*   apply IH; auto. *)
-  (* Qed. *)
+    intros Hz Hα.
+    rewrite /head_step.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intro.
+      rewrite {1 2}/dmap.
+      rewrite -dbind_assoc.
+      apply dbind_ext_right.
+      intros. rewrite !dret_id_left. done.
+    }
+    rewrite {2 3}/dmap.
+    rewrite -!dbind_assoc.
+    erewrite (dbind_ext_right (dunifP M)); last first.
+    { intros n. rewrite -!dbind_assoc. done. }
+    rewrite dbind_comm.
+    eapply Rcoupl_dbind; [|apply Rcoupl_eq].
+    intros; simplify_eq.
+    do 2 rewrite dret_id_left.
+    erewrite (distr_ext (dunifP M ≫=_ )); last first.
+    { intros. apply dbind_pmf_ext; [|done..].
+      intros. rewrite !dret_id_left. done.
+    }
+    rewrite -dmap_dbind.
+    apply IH; auto.
+  Qed.
 
 End erasure_helpers.
 
@@ -576,44 +576,45 @@ Proof.
      + intros. eapply sch_exec_mono.
 Qed.
 
-(* Lemma limprim_coupl_step_limprim e1 σ1 α bs : *)
-(*   σ1.(tapes) !! α = Some bs → *)
-(*   Rcoupl *)
-(*     (lim_exec (e1, σ1)) *)
-(*     (state_step σ1 α ≫= (λ σ2, lim_exec (e1, σ2))) *)
-(*     eq. *)
-(* Proof. *)
-(*   intro Hsome. *)
-(*   erewrite (distr_ext (lim_exec (e1, σ1))); last first. *)
-(*   - intro a. *)
-(*     apply (limprim_coupl_step_limprim_aux _ _ _ _ _ Hsome). *)
-(*   - apply Rcoupl_eq. *)
-(* Qed. *)
+Lemma sch_limprim_coupl_step_sch_limprim
+  `{Hcountable:Countable sch_int_σ} e1 σ1 α bs ζ`{TapeOblivious sch_int_σ sch} :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl
+    (sch_lim_exec sch (ζ, (e1, σ1)))
+    (state_step σ1 α ≫= (λ σ2, sch_lim_exec sch (ζ, (e1, σ2))))
+    eq.
+Proof.
+  intro Hsome.
+  erewrite (distr_ext (sch_lim_exec sch (ζ, (e1, σ1)))); last first.
+  - intro a.
+    apply (limprim_coupl_step_limprim_aux _ _ _ _ _ _ Hsome).
+  - apply Rcoupl_eq.
+Qed.
 
-(* Lemma lim_exec_eq_erasure αs e σ : *)
-(*   αs ⊆ get_active σ → *)
-(*   lim_exec (e, σ) = foldlM state_step σ αs ≫= (λ σ', lim_exec (e, σ')). *)
-(* Proof. *)
-(*   induction αs as [|α αs IH] in σ |-*. *)
-(*   { rewrite /= dret_id_left //. } *)
-(*   intros Hα. *)
-(*   eapply Rcoupl_eq_elim. *)
-(*   assert (lim_exec (e, σ) = state_step σ α ≫= (λ σ2, lim_exec (e, σ2))) as ->. *)
-(*   { apply distr_ext => v. *)
-(*     assert (α ∈ get_active σ) as Hel; [apply Hα; left|]. *)
-(*     rewrite /get_active in Hel. *)
-(*     apply elem_of_elements, elem_of_dom in Hel as [? ?]. *)
-(*     by eapply limprim_coupl_step_limprim_aux. } *)
-(*   rewrite foldlM_cons -dbind_assoc. *)
-(*   eapply Rcoupl_dbind; [|eapply Rcoupl_pos_R, Rcoupl_eq]. *)
-(*   intros ?? (-> & Hs%state_step_support_equiv_rel & _). *)
-(*   inversion_clear Hs. *)
-(*   rewrite IH; [eapply Rcoupl_eq|]. *)
-(*   intros α' ?. rewrite /get_active /=. *)
-(*   apply elem_of_elements. *)
-(*   apply elem_of_dom. *)
-(*   destruct (decide (α = α')); subst. *)
-(*   + eexists. rewrite lookup_insert //. *)
-(*   + rewrite lookup_insert_ne //. *)
-(*     apply elem_of_dom. eapply elem_of_elements, Hα. by right. *)
-(* Qed. *)
+Lemma sch_lim_exec_eq_erasure `{Hcountable:Countable sch_int_σ} αs e σ ζ `{TapeOblivious sch_int_σ sch}:
+  αs ⊆ get_active σ →
+  sch_lim_exec sch (ζ, (e, σ)) = foldlM state_step σ αs ≫= (λ σ', sch_lim_exec sch (ζ, (e, σ'))).
+Proof.
+  induction αs as [|α αs IH] in σ |-*.
+  { rewrite /= dret_id_left //. }
+  intros Hα.
+  eapply Rcoupl_eq_elim.
+  assert (sch_lim_exec sch (ζ, (e, σ)) = state_step σ α ≫= (λ σ2, sch_lim_exec sch (ζ, (e, σ2)))) as ->.
+  { apply distr_ext => v.
+    assert (α ∈ get_active σ) as Hel; [apply Hα; left|].
+    rewrite /get_active in Hel.
+    apply elem_of_elements, elem_of_dom in Hel as [? ?].
+    by eapply limprim_coupl_step_limprim_aux. }
+  rewrite foldlM_cons -dbind_assoc.
+  eapply Rcoupl_dbind; [|eapply Rcoupl_pos_R, Rcoupl_eq].
+  intros ?? (-> & Hs%state_step_support_equiv_rel & _).
+  inversion_clear Hs.
+  rewrite IH; [eapply Rcoupl_eq|].
+  intros α' ?. rewrite /get_active /=.
+  apply elem_of_elements.
+  apply elem_of_dom.
+  destruct (decide (α = α')); subst.
+  + eexists. rewrite lookup_insert //.
+  + rewrite lookup_insert_ne //.
+    apply elem_of_dom. eapply elem_of_elements, Hα. by right.
+Qed.
