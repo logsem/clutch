@@ -387,6 +387,15 @@ Proof.
   rewrite Heq //.
 Qed.
 
+Lemma dbind_ext_right' `{Countable A, Countable B} (μ1 μ2 : distr A) (f g : A → distr B) :
+  (∀ a, f a = g a) →
+  μ1 = μ2 ->
+  dbind f μ1 = dbind g μ2.
+Proof.
+  intros Heq ->.
+  by apply dbind_ext_right.
+Qed. 
+
 #[global] Instance Proper_dbind `{Countable A, Countable B} :
   Proper (pointwise_relation A (=) ==> (=) ==> (=)) (@dbind A _ _ B _ _).
 Proof. intros ?? Hp ?? ->. f_equal. extensionality a. done. Qed.

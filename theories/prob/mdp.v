@@ -236,6 +236,12 @@ Section scheduler.
 
     Definition sch_pexec (n:nat) p := iterM n sch_step_or_final p.
 
+    Lemma sch_pexec_fold n p:
+      iterM n sch_step_or_final p = sch_pexec n p.
+    Proof.
+      done.
+    Qed.
+
     Lemma sch_pexec_O a :
       sch_pexec 0 a = dret a.
     Proof. done. Qed.

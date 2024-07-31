@@ -33,7 +33,7 @@ Section erasure_helpers.
       ≫= λ a0 : fin (S N),
            dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
              (head_step e (state_upd_tapes <[α:=(N; zs ++ [a0])]> σ)))
-     ≫= λ b : sch_int_σ * con_language.cfg con_prob_lang,
+     ≫= λ b,
        dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
   Proof using m IH.
     intros Hα (e2 & (σ2 & (efs & Hdet)))%is_det_head_step_true%det_step_pred_ex_rel.
@@ -50,48 +50,70 @@ Section erasure_helpers.
       rewrite -dmap_dbind. apply IH. done.
   Qed.
 
-  (* Local Lemma ind_case_dzero e σ α N zs K : *)
-  (*   tapes σ !! α = Some (N; zs) → *)
-  (*   head_step e σ = dzero → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step e σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP N ≫= (λ z, *)
-  (*                     dmap (fill_lift K) (head_step e (state_upd_tapes <[α:=(N; zs ++ [z])]> σ)) ≫= *)
-  (*                       λ ρ, dmap (λ x, x.1) (pexec m ρ))) eq. *)
-  (* Proof using m IH. *)
-  (*   intros Hα Hz. *)
-  (*   rewrite Hz. *)
-  (*   setoid_rewrite head_step_dzero_upd_tapes; [|by eapply elem_of_dom_2|done]. *)
-  (*   rewrite dmap_dzero dbind_dzero dzero_dbind. *)
-  (*   apply Rcoupl_dzero_dzero. *)
-  (* Qed. *)
+  Local Lemma ind_case_dzero e σ α N zs K (n:nat) s es:
+    tapes σ !! α = Some (N; zs) →
+    head_step e σ = dzero ->
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step e σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP N
+      ≫= λ a0 : fin (S N),
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step e (state_upd_tapes <[α:=(N; zs ++ [a0])]> σ)))
+     ≫= λ b,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+    intros Hα Hz.
+    rewrite Hz.
+    setoid_rewrite head_step_dzero_upd_tapes; [|by eapply elem_of_dom_2|done].
+    rewrite dmap_dzero dbind_dzero dzero_dbind.
+    rewrite dbind_dzero.
+    apply Rcoupl_dzero_dzero.
+  Qed.
 
-  (* Local Lemma ind_case_alloc σ α N ns (z : Z) K : *)
-  (*   tapes σ !! α = Some (N; ns) → *)
-  (*   Rcoupl *)
-  (*     (dmap (fill_lift K) (head_step (alloc #z) σ) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ)) *)
-  (*     (dunifP N ≫= *)
-  (*        (λ n, dmap (fill_lift K) (head_step (alloc #z) (state_upd_tapes <[α:= (N; ns ++ [n])]> σ)) ≫= λ ρ, dmap (λ x, x.1) (pexec m ρ))) *)
-  (*     eq. *)
-  (* Proof using m IH. *)
-  (*   intros Hα. *)
-  (*   rewrite dmap_dret dret_id_left -/exec. *)
-  (*   setoid_rewrite (dmap_dret (fill_lift K)). *)
-  (*   erewrite (distr_ext (dunifP N ≫= _)); last first. *)
-  (*   { intros. apply dbind_pmf_ext; [|done..]. *)
-  (*     intros. rewrite dret_id_left. done. } *)
-  (*   rewrite -dmap_dbind. *)
-  (*   (* TODO: fix slightly ugly hack ... *) *)
-  (*   revert IH; intro IHm. *)
-  (*   apply lookup_total_correct in Hα as Hαtot. *)
-  (*   pose proof (elem_fresh_ne _ _ _ Hα) as Hne. *)
-  (*   erewrite dbind_ext_right; last first. *)
-  (*   { intros n. *)
-  (*     rewrite -(fresh_loc_upd_some _ _ (N; ns)); [|done]. *)
-  (*     rewrite (fresh_loc_upd_swap σ α (N; ns) (_; [])) //. } *)
-  (*   apply IHm. *)
-  (*   by apply fresh_loc_lookup. *)
-  (* Qed. *)
+  Local Lemma ind_case_alloc (z:Z) σ α N zs K (n:nat) s es:
+    tapes σ !! α = Some (N; zs) →
+    Rcoupl
+    (dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+       (head_step (alloc #z) σ)
+     ≫= λ a,
+          dmap (λ x, x.2.1) (sch_pexec sch m a))
+    ((dunifP N
+      ≫= λ a0 : fin (S N),
+           dmap (pair s ∘ ((λ '(expr', σ', efs), (<[n:=expr']> es ++ efs, σ')) ∘ fill_lift' K))
+             (head_step (alloc #z) (state_upd_tapes <[α:=(N; zs ++ [a0])]> σ)))
+     ≫= λ b,
+       dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
+  Proof using m IH.
+    intros Hα.
+    rewrite dmap_dret dret_id_left.
+    rewrite {3}/dmap.
+    erewrite dbind_ext_right'; [|done|]; last first.
+    { rewrite dbind_assoc dmap_fold.
+      rewrite /dmap -dbind_assoc.
+      erewrite dbind_ext_right; last first.
+      - intros. rewrite dret_id_left. done.
+      - done.
+    }
+    rewrite -dmap_dbind.
+    rewrite -dbind_assoc.
+    erewrite dbind_ext_right; last first.
+    { intros.
+      rewrite dret_id_left'.
+      rewrite sch_pexec_fold.
+      done.
+    }
+    apply lookup_total_correct in Hα as Hαtot.
+    pose proof (elem_fresh_ne _ _ _ Hα) as Hne.
+    erewrite dbind_ext_right; last first.
+    { intros ?.
+      rewrite -(fresh_loc_upd_some _ _ (N; zs)); [|done].
+      rewrite (fresh_loc_upd_swap σ α (N; zs) (_; [])) //. }
+    apply IH.
+    by apply fresh_loc_lookup.
+  Qed.
 
   (* Local Lemma ind_case_rand_some σ α α' K N M (z : Z) n ns ns' : *)
   (*   N = Z.to_nat z → *)
@@ -400,12 +422,12 @@ Proof.
       destruct (det_or_prob_or_dzero ered σ1) as [ HD | [HP | HZ]].
       * eapply ind_case_det; [done|done|by apply is_det_head_step_true].
       * inversion HP; simplify_eq.
-        -- admit. (* by eapply ind_case_alloc. *)
+        -- by eapply ind_case_alloc. 
         -- admit. (* by eapply ind_case_rand_some. *)
         -- admit. (* by eapply ind_case_rand_empty. *)
         -- admit. (* by eapply ind_case_rand_some_neq. *)
         -- admit. (* by eapply ind_case_rand. *)
-      * admit. (* by eapply ind_case_dzero. *)
+      * by eapply ind_case_dzero. 
 Admitted.
 (* Qed. *)
 
