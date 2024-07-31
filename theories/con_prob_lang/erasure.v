@@ -8,6 +8,7 @@ From clutch.prob Require Import couplings couplings_app mdp.
 
 Set Default Proof Using "Type*".
 Local Open Scope R.
+Local Opaque state_upd_tapes.
 
 Section erasure_helpers.
 
@@ -131,40 +132,43 @@ Section erasure_helpers.
      ≫= λ b,
        dmap (λ x, x.2.1) (sch_pexec sch m b)) eq.
   Proof using m IH.
-  Admitted.
-  (*   intros Hz Hα Hα'. *)
-  (*   apply lookup_total_correct in Hα as Hαtot. *)
-  (*   apply lookup_total_correct in Hα' as Hα'tot. *)
-  (*   destruct (decide (α = α')) as [-> | Hαneql]. *)
-  (*   - simplify_eq. rewrite /head_step Hα. *)
-  (*     setoid_rewrite lookup_insert. *)
-  (*     rewrite bool_decide_eq_true_2 //. *)
-  (*     rewrite dmap_dret dret_id_left -/exec. *)
-  (*     erewrite dbind_ext_right; last first. *)
-  (*     { intros. *)
-  (*       rewrite -app_comm_cons. *)
-  (*       rewrite upd_tape_twice dmap_dret dret_id_left -/exec //. } *)
-  (*     assert (Haux : ∀ n, *)
-  (*                state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> σ = *)
-  (*                state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> (state_upd_tapes <[α':=(Z.to_nat z; ns)]> σ)). *)
-  (*     { intros. rewrite /state_upd_tapes. f_equal. rewrite insert_insert //. } *)
-  (*     erewrite dbind_ext_right; [| intros; rewrite Haux; done]. *)
-  (*     rewrite -dmap_dbind. *)
-  (*     apply IH. *)
-  (*     apply lookup_insert. *)
-  (*   - rewrite /head_step Hα'. *)
-  (*     rewrite bool_decide_eq_true_2 //. *)
-  (*     setoid_rewrite lookup_insert_ne; [|done]. *)
-  (*     rewrite Hα' bool_decide_eq_true_2 //. *)
-  (*     rewrite !dmap_dret !dret_id_left -/exec. *)
-  (*     erewrite dbind_ext_right; last first. *)
-  (*     { intros. *)
-  (*       rewrite upd_diff_tape_comm; [|done]. *)
-  (*       rewrite dmap_dret dret_id_left -/exec //. } *)
-  (*     rewrite -dmap_dbind. *)
-  (*     eapply IH. *)
-  (*     rewrite lookup_insert_ne //. *)
-  (* Qed. *)
+    intros Hz Hα Hα'.
+    apply lookup_total_correct in Hα as Hαtot.
+    apply lookup_total_correct in Hα' as Hα'tot.
+    destruct (decide (α = α')) as [-> | Hαneql].
+    - simplify_eq. rewrite /head_step Hα.
+      setoid_rewrite lookup_insert.
+      rewrite bool_decide_eq_true_2 //.
+      rewrite dmap_dret dret_id_left.
+      rewrite -dmap_dbind.
+      erewrite dbind_ext_right'; [|done|]; last first.
+      { apply dbind_ext_right.
+        intros.
+        simpl. rewrite dmap_dret. done.
+      }
+      assert (Haux : ∀ n,
+                 state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> σ =
+                 state_upd_tapes <[α':=(Z.to_nat z; ns ++ [n])]> (state_upd_tapes <[α':=(Z.to_nat z; ns)]> σ)).
+      { intros. by rewrite state_upd_tapes_twice. }
+      rewrite -!dbind_assoc.
+      erewrite dbind_ext_right; last first.
+      { intros. by rewrite dret_id_left sch_pexec_fold state_upd_tapes_twice Haux. }
+      apply IH.
+      apply lookup_insert.
+    - rewrite /head_step Hα'.
+      rewrite bool_decide_eq_true_2 //.
+      setoid_rewrite lookup_insert_ne; [|done].
+      rewrite Hα' bool_decide_eq_true_2 //.
+      rewrite !dmap_dret !dret_id_left.
+      rewrite -dmap_dbind.
+      rewrite -dbind_assoc.
+      erewrite dbind_ext_right; last first.
+      { intros.
+        rewrite upd_diff_tape_comm; [|done].
+        rewrite dmap_dret dret_id_left sch_pexec_fold //. }
+      eapply IH.
+      rewrite lookup_insert_ne //.
+  Qed.
 
   Local Lemma ind_case_rand_empty (z:Z) σ α α' (N M:nat) ns K (id:nat) s es:
     M=Z.to_nat z ->
