@@ -479,6 +479,7 @@ HB.end.
       Check @ge0_emeasurable_fun_sum _ (giryM T) R setT h_seq _.
 
 
+
       have Questionable : forall μ : giryType T,
            (topology.lim
              (topology.fmap (sintegral μ \o (fun x : nat => nnsfun_approx HMT measurable_mapP x))
@@ -1127,7 +1128,7 @@ measurable_fun_limn_sup:
       Transparent giryM_join.
       Transparent giryM_map.
       rewrite giryM_map_zero.
-      apply (@giryM_join_zero _ _ _ T2). (* FIXME: Weird *)
+      apply giryM_join_zero.
     Qed.
 
     (* FIXME: make it so that I don't have to annotate giryM T2 here? *)
@@ -1142,7 +1143,7 @@ measurable_fun_limn_sup:
       Transparent giryM_join.
       Transparent giryM_map.
       rewrite giryM_map_cst.
-      by rewrite (@giryM_join_ret _ _ _ T2).
+      by rewrite giryM_join_ret.
     Qed.
 
     Lemma giryM_bind_measurable : measurable_fun setT (giryM_bind f).
