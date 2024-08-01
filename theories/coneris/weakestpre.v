@@ -16,6 +16,7 @@ Local Open Scope NNR_scope.
 Class conerisWpGS (Λ : conLanguage) (Σ : gFunctors) := ConerisWpGS {
   conerisWpGS_invGS :: invGS_gen HasNoLc Σ;
   state_interp : state Λ → iProp Σ;
+  fork_post: val Λ -> iProp Σ;
   err_interp : nonnegreal → iProp Σ;
 }.
 Global Opaque conerisWpGS_invGS.
@@ -223,3 +224,44 @@ Section glm.
   Qed. 
     
 End glm.
+
+(** * The weakest precondition *)
+
+Definition pgl_wp_pre `{!conerisWpGS Λ Σ}
+    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
+  coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ :=
+  (λ E e1 Φ,
+     match to_val e1 with
+     | Some v => |={E}=>Φ v
+     | None => ∀ σ1 ε1,
+     state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
+     glm e1 σ1 ε1
+       (λ '(e2, σ2, efs) (ε2: nonnegreal),  ▷|={∅,E}=> 
+          state_interp σ2 ∗  err_interp ε2 ∗ wp E e2 Φ ∗
+          [∗ list] ef ∈efs, wp ⊤ ef fork_post
+       )
+     end
+  )%I.
+
+
+Local Instance wp_pre_contractive `{!conerisWpGS Λ Σ} : Contractive (pgl_wp_pre).
+Proof.
+  rewrite /pgl_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
+  do 7 (f_equiv).
+  apply least_fixpoint_ne_outer; [|done].
+  intros Ψ [[e' σ'] ε']. rewrite /glm_pre.
+  do 17 f_equiv.
+  f_contractive.
+  repeat f_equiv; apply Hwp.
+Qed.
+
+(* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
+Local Definition pgl_wp_def `{!conerisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+  {| wp := λ _ : (), fixpoint (pgl_wp_pre); wp_default := () |}.
+Local Definition pgl_wp_aux : seal (@pgl_wp_def). Proof. by eexists. Qed.
+Definition pgl_wp' := pgl_wp_aux.(unseal).
+Global Arguments pgl_wp' {Λ Σ _}.
+Global Existing Instance pgl_wp'.
+Local Lemma pgl_wp_unseal `{!conerisWpGS Λ Σ} : wp = (@pgl_wp_def Λ Σ _).(wp).
+Proof. rewrite -pgl_wp_aux.(seal_eq) //. Qed.
+
