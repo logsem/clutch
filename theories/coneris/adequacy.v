@@ -16,6 +16,14 @@ Notation con_prob_lang_mdp := (con_lang_mdp con_prob_lang).
 
 Section adequacy.
   Context `{!conerisGS Σ}.
+
+  Theorem wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
+    (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state):
+    state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }}  ∗ ([∗ list] e'∈ es, WP e' {{ _, True%I }})  ⊢
+    |={⊤,∅}=> |={∅}▷=>^n ⌜pgl (sch_exec sch n (ζ, (e::es, σ))) φ ε⌝.
+  Proof.
+  Admitted.
+  
 End adequacy.
 
 Class conerisGpreS Σ := ConerisGpreS {
@@ -32,13 +40,47 @@ Definition conerisΣ : gFunctors :=
 Global Instance subG_conerisGPreS {Σ} : subG conerisΣ Σ → conerisGpreS Σ.
 Proof. solve_inG. Qed.
 
+Theorem wp_pgl_multi Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state) n
+  (e : expr) es (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
+  0 <= ε →
+  (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ (WP e {{ v, ⌜φ v⌝ }} ∗ [∗ list] e'∈ es, WP e' {{ _, True%I }})) →
+  pgl (sch_exec sch n (ζ, (e::es, σ))) φ ε.
+Proof.
+  intros Hε Hwp.
+  eapply pure_soundness, (step_fupdN_soundness_no_lc _ n 0).
+  iIntros (Hinv) "_".
+  iMod (ghost_map_alloc σ.(heap)) as "[%γH [Hh _]]".
+  iMod (ghost_map_alloc σ.(tapes)) as "[%γT [Ht _]]".
+  (* Handle the trivial 1 <= ε case *)
+  destruct (decide (ε < 1)) as [Hcr|Hcr]; last first.
+  { iClear "Hh Ht".
+    iApply (fupd_mask_intro); [eauto|].
+    iIntros "_".
+    iApply step_fupdN_intro; [eauto|].
+    iApply laterN_intro; iPureIntro.
+    apply not_Rlt, Rge_le in Hcr.
+    rewrite /pgl; intros.
+    eapply Rle_trans; [eapply prob_le_1|done]. }
+  set ε' := mknonnegreal _ Hε.
+  iMod (ec_alloc ε') as (?) "[??]"; [done|].
+  set (HclutchGS := HeapG Σ _ _ _ γH γT _).
+  iApply (wp_refRcoupl_step_fupdN _ ε').
+  iFrame. by iApply Hwp.
+Qed.
+
 Theorem wp_pgl Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state) n
   (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
   0 <= ε →
   (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (sch_exec sch n (ζ, ([e], σ))) φ ε.
 Proof.
-Admitted.
+  intros ? Hwp.
+  eapply wp_pgl_multi; [done..|].
+  simpl.
+  iIntros.
+  iSplitL; last done.
+  by iApply Hwp.
+Qed.
 
 Lemma pgl_closed_lim `{Countable sch_int_state} (ζ : sch_int_state) (e : expr) (σ : state) (ε : R)
   (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
