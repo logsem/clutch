@@ -17,11 +17,61 @@ Notation con_prob_lang_mdp := (con_lang_mdp con_prob_lang).
 Section adequacy.
   Context `{!conerisGS Σ}.
 
-  Theorem wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
+  Lemma pgl_dbind' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ 0 <= ε' ⌝ -∗
+    ⌜pgl μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜pgl (f a) T ε'⌝) -∗
+    |={∅}▷=>^(S n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T ε')⌝)).
+    { iIntros (?). iPureIntro. eapply pgl_dbind; eauto. }
+    iIntros (???) "/=".
+    iMod ("H" with "[//]"); auto.
+  Qed.
+
+  Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
     (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state):
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }}  ∗ ([∗ list] e'∈ es, WP e' {{ _, True%I }})  ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜pgl (sch_exec sch n (ζ, (e::es, σ))) φ ε⌝.
   Proof.
+    iInduction n as [|n] "IH" forall (ζ ε e es σ); iIntros "((Hσh & Hσt) & Hε & Hwp & Hwps)".
+    - rewrite /sch_exec /=.
+      destruct (to_val e) eqn:Heq.
+      + apply of_to_val in Heq as <-.
+        rewrite pgl_wp_value_fupd.
+        iMod "Hwp" as "%".
+        iApply fupd_mask_intro; [set_solver|]; iIntros.
+        iPureIntro.
+        apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
+        apply pgl_dret; auto.
+      + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iPureIntro.
+        apply pgl_dzero,
+        Rle_ge,
+        cond_nonneg.
+    - rewrite sch_exec_Sn /sch_step_or_final/=.
+      destruct (to_val e) eqn:Heq.
+      + apply of_to_val in Heq as <-.
+        rewrite pgl_wp_value_fupd.
+        iMod "Hwp" as "%".
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iApply step_fupdN_intro; [done|]. do 4 iModIntro.
+        iPureIntro.
+        rewrite dret_id_left'/=.
+        erewrite sch_exec_is_final; last done.
+        apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
+        apply pgl_dret; auto.
+      + rewrite /sch_step. rewrite -dbind_assoc.
+        replace (ε) with (0+ε)%NNR; last (apply nnreal_ext;simpl; lra).
+        iApply pgl_dbind'; [done|
+                             iPureIntro; apply cond_nonneg|
+                             iPureIntro;apply pgl_trivial;simpl;lra|
+                             ..].
+        (* OK This doesnt work*)
+        (* iIntros (? _). *)
   Admitted.
   
 End adequacy.
