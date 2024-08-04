@@ -122,12 +122,22 @@ Section giry.
   Notation "T .-giry.-measurable" := (measurable : set (set (giryM T))) : classical_set_scope.
 
 
-  Lemma giryM_ext {d : measure_display} {T : measurableType d} (μ1 μ2 : giryM T) : (forall S, μ1 S = μ2 S) -> μ1 = μ2.
+  (* Proof stolen from eq_measure *)
+  Lemma giryM_ext {d : measure_display} {T : measurableType d} (μ1 μ2 : giryM T) :
+    (μ1 = μ2 :> (set T -> \bar R)) -> μ1 = μ2.
   Proof.
-    Check eq_measure.
-  Admitted.
-
-
+    move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
+    rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
+    f_equal.
+    by rewrite
+      (_ : x1 = y1)//
+      (_ : x2 = y2)//
+      (_ : x3 = y3)//
+      (_ : x4 = y4)//
+      (_ : x5 = y5)//
+      (_ : x6 = y6)//
+      (_ : x7 = y7)//.
+  Qed.
 
   Definition borelER_display := sigma_display ereal_borel_subbase.
   Definition borelER : measurableType borelER_display
@@ -889,6 +899,7 @@ measurable_fun_limn_sup:
     Lemma giryM_join_zero : giryM_join mzero = (mzero : giryM T).
     Proof.
       apply giryM_ext.
+      apply functional_extensionality.
       intro S.
       rewrite /mzero.
       (* Odd that it doesn't reduce mzero? *)
@@ -1040,6 +1051,7 @@ measurable_fun_limn_sup:
       giryM_join (giryM_map (giryM_map mf) m) = giryM_map mf (giryM_join m).
     Proof.
       apply giryM_ext.
+      apply functional_extensionality.
       intro S.
       rewrite giryM_join_aux.
       rewrite giryM_map_aux.
