@@ -919,9 +919,10 @@ measurable_fun_limn_sup:
       (* Rewrite integral over μ to limit, under the RHS integral. *)
       have Setoid1 : forall g h, g = h -> (\int[m]_μ g μ)%E = (\int[m]_μ (h μ))%E.
       { intros. f_equal. apply functional_extensionality. intros. by rewrite H. }
+
       erewrite Setoid1; last first.
       { apply functional_extensionality.
-        intro y.
+        move=> y.
         erewrite nd_ge0_integral_lim.
         - reflexivity.
         - apply Hf.
@@ -935,24 +936,15 @@ measurable_fun_limn_sup:
 
     (* Rewrite the sintegral of nnsfun_approx into a sum *)
     rewrite topology.fmap_comp.
-    (*Check (sintegral (giryM_join m)).
-    Check (functional_extensionality _ _ (sintegralEnnsfun (giryM_join m))).
-    Locate sintegralEnnsfun.
-    have Hext := (functional_extensionality _ _ (sintegralEnnsfun (giryM_join m))). *)
+
     have Setoid2 : forall S, forall g h, g = h  -> (topology.fmap g S) = (topology.fmap h S).
     { intros ? ? ? ? ? H. by rewrite H. }
     erewrite Setoid2; last first.
     - apply functional_extensionality.
       apply (sintegralE _).  (* FIXME: Possible issue down the road: sintegralE vs sintegralET *)
-    erewrite Setoid1; last first.
-    { apply functional_extensionality.
-      intro y.
-      rewrite topology.fmap_comp.
-      erewrite Setoid2.
-      - reflexivity.
-      - apply functional_extensionality.
-        apply (sintegralE _). (* See sintegral comment above *)
-    }
+
+    under eq_integral=> ? _ do rewrite topology.fmap_comp.
+
     (* Evaluate the giryM_join on the LHS into an integral *)
     erewrite
       (Setoid2 _ _ _ _
@@ -976,14 +968,8 @@ measurable_fun_limn_sup:
     simpl.
     rewrite -topology.fmap_comp.
 
-    (* Apply the monotone convergence theorem *)
-    erewrite (Setoid1 _ (fun μ : giryM T => _)); last first.
-    { apply functional_extensionality.
-      intro μ.
-      rewrite -topology.fmap_comp.
-      (* Could simplify the composition some more here? *)
-      reflexivity.
-    }
+    under eq_integral=> ? _ do rewrite -topology.fmap_comp.
+
     rewrite (@monotone_convergence _ (giryM T) R m setT _ _ _ _ _); first last.
     - (* Sequence is monotone *)
       (* Unset Printing Notations. *)
