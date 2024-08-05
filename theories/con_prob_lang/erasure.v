@@ -618,3 +618,33 @@ Proof.
   + rewrite lookup_insert_ne //.
     apply elem_of_dom. eapply elem_of_elements, Hα. by right.
 Qed.
+
+Lemma prim_step_state_step_swap α σ e bs:
+  σ.(tapes) !! α = Some bs  ->
+  state_step σ α ≫= (λ σ', prim_step e σ') =
+  prim_step e σ ≫= (λ '(e', σ', efs), dmap (λ σ'', (e', σ'', efs)) (state_step σ' α)).
+Proof.
+Admitted.
+
+Lemma prim_coupl_step_prim' `{Hcountable:Countable sch_int_σ} e n es1 σ1 α bs ζ e1 (num:nat) `{HTO: TapeOblivious sch_int_σ sch} :
+  σ1.(tapes) !! α = Some bs →
+  (e::es1)!!num=Some e1 ->
+  Rcoupl
+    (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s)))
+    (state_step σ1 α ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s))))
+    eq.
+Proof.
+  intros H1 H2.
+  rewrite dbind_assoc'.
+  erewrite prim_step_state_step_swap; last done.
+  rewrite -dbind_assoc'.
+  eapply Rcoupl_dbind; last first.
+  { apply Rcoupl_pos_R. apply Rcoupl_eq. }
+  simpl. intros [[]] ? [<- [? _]].
+  rewrite /dmap.
+  rewrite -dbind_assoc'.
+  erewrite dbind_ext_right; last first.
+  { intros; by rewrite dret_id_left'. }
+  eapply prim_coupl_step_prim; first done.
+  admit.
+Admitted.
