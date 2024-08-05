@@ -52,6 +52,7 @@ Section adequacy.
   
   Lemma glm_erasure `{Countable sch_int_state}  (ζ : sch_int_state) (e : expr)
     chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat) `{!TapeOblivious sch_int_state sch}:
+    to_val e = None ->
     to_val chosen_e = None →
     (e::es)!!num = Some chosen_e->
     glm chosen_e σ ε (λ '(e2, σ2, efs) ε',
@@ -59,13 +60,13 @@ Section adequacy.
     ⊢ |={∅}▷=>^(S n)
         ⌜pgl (prim_step chosen_e σ ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:= e']>(e :: es ++ l), s))) φ ε⌝.
   Proof.
-    iIntros (Hv Hfound) "Hexec".
+    iIntros (Hv Hv' Hfound) "Hexec".
     iAssert (⌜to_val chosen_e = None⌝)%I as "-#H"; [done|].
     iAssert (⌜(e::es)!!num = Some chosen_e⌝)%I as "-#H'"; [done|].
     iRevert "Hexec H H'".
     rewrite /glm /glm'.
     set (Φ := (λ '((e1, σ1), ε''),
-                (⌜to_val e1 = None⌝ -∗ ⌜(e :: es) !! num = Some e1⌝ ={∅}▷=∗^(S n)
+                (⌜to_val e1 = None⌝ -∗ ⌜to_val e = None⌝ -∗ ⌜(e :: es) !! num = Some e1⌝ ={∅}▷=∗^(S n)
                  ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I) :
            prodO partial_cfgO NNRO → iPropI Σ).
     assert (NonExpansive Φ).
@@ -75,10 +76,10 @@ Section adequacy.
           |={∅}▷=>^(S n) ⌜pgl (sch_exec sch n (ζ, (<[num:=e2]> (e :: es ++ efs), σ2))) φ ε'⌝))%I).
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix % %".
-      by iMod ("H" $! ((_, _)) with "Hfix [//][//]"). }
-    clear Hv.
+      by iMod ("H" $! ((_, _)) with "Hfix [//][//][//]"). }
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /F/Φ/glm_pre.
-    iIntros "[(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| H] %Hv %Hlookup".
+    clear Hv Hv'.
+    iIntros "[(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| H] %Hv %Hv' %Hlookup".
     - iApply step_fupdN_mono.
       { apply pure_mono. eapply pgl_mon_grading; done. }
       iApply pgl_dbind_adv'.
@@ -107,7 +108,7 @@ Section adequacy.
       { iIntros (?). iPureIntro.
         rewrite /= /get_active in Hα.
         apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-        erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim' _ _ _ _ _ _ _ _ _ Hα Hlookup)).
+        erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim' _ _ _ _ _ _ _ _ _ Hα Hlookup _ _)).
         apply (pgl_mon_grading _ _
                  (ε1 + (SeriesC (λ ρ , state_step σ1 α ρ * ε2 ρ)))) => //.
         eapply pgl_dbind_adv; eauto; [by destruct ε1|].
@@ -124,6 +125,8 @@ Section adequacy.
         apply pgl_1. apply Rge_le. done. 
       }
       by iApply "H".
+      Unshelve.
+      all: try done.
   Qed. 
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
