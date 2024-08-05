@@ -35,6 +35,21 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
   
+  Lemma pgl_dbind_adv' `{Countable A, Countable A'}
+    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
+    ⌜ 0 <= ε ⌝ -∗
+    ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
+    ⌜pgl μ R ε⌝ -∗
+    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅}▷=>^(S n) ⌜pgl (dbind f μ) T (ε + SeriesC (λ a : A, (μ a * ε' a)%R))⌝ : iProp Σ.
+  Proof.
+    iIntros (???) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T (ε' a))⌝)).
+    { iIntros (?). iPureIntro. eapply pgl_dbind_adv; eauto. }
+    iIntros (???) "/=".
+    iMod ("H" with "[//]"); auto.
+  Qed.
+  
   Lemma glm_erasure `{Countable sch_int_state} (ζ : sch_int_state) (e : expr)
     chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat):
     to_val chosen_e = None →
@@ -63,15 +78,20 @@ Section adequacy.
       by iMod ("H" $! ((_, _)) with "Hfix [//][//]"). }
     clear.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /F/Φ/glm_pre.
-    iIntros "(%R & %ε1 & %ε2 & %Hred & % & %Hlift & H) %Hv %Hlookup".
+    iIntros "(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H) %Hv %Hlookup".
     iApply step_fupdN_mono.
     { apply pure_mono. eapply pgl_mon_grading; done. }
-    iApply pgl_dbind'.
+    iApply pgl_dbind_adv'.
     - iPureIntro; apply cond_nonneg.
-    - iPureIntro; apply cond_nonneg.
+    - iPureIntro. exists r. split; [apply cond_nonneg|done].
     - done.
     - iIntros ([[??]?] ?).
-      by iMod ("H" with "[//]").
+      rewrite step_fupd_fupdN_S.
+      iMod ("H" with "[//]") as "[%|H]".
+      { iApply step_fupdN_intro; try done. repeat iPureIntro.
+        apply pgl_1; lra.
+      }
+      done.
   Qed. 
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
