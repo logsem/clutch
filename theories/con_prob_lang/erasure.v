@@ -619,39 +619,87 @@ Proof.
     apply elem_of_dom. eapply elem_of_elements, Hα. by right.
 Qed.
 
-Lemma prim_step_state_step_swap α σ e bs:
-  σ.(tapes) !! α = Some bs →
-  state_step σ α ≫= (λ σ', prim_step e σ') =
-  prim_step e σ ≫= (λ '(e', σ', efs), dmap (λ σ'', (e', σ'', efs)) (state_step σ' α)).
+Local Definition force_first_thread_scheduler `{Hcountable:Countable sch_int_σ} sch (num:nat) (initial: sch_int_σ)
+  `{!TapeOblivious sch_int_σ sch} :=
+  Build_scheduler {|
+      scheduler_f '(ζ, ρ) :=
+        match ζ with
+        | None => dret (Some initial, num)
+        | Some ζ' => dmap (λ '(ζ', ac), (Some ζ', ac)) (sch (ζ', ρ))
+        end
+    |}.
+
+Local Lemma force_first_thread_scheduler_tape_oblivious
+  `{Hcountable:Countable sch_int_σ} sch (num:nat) (initial: sch_int_σ)
+  `{HTO: !TapeOblivious sch_int_σ sch}:
+  TapeOblivious _ (force_first_thread_scheduler sch num initial).
 Proof.
-Admitted.
+  rewrite /TapeOblivious/force_first_thread_scheduler/=.
+  intros. case_match; try done.
+  f_equal.
+  by apply HTO.
+Qed. 
+
+Local Lemma force_first_thread_scheduler_lemma `{Hcountable:Countable sch_int_σ} ζ ρ sch num initial n `{!TapeOblivious sch_int_σ sch} :
+  sch_exec sch n (ζ, ρ) = sch_exec (force_first_thread_scheduler sch num initial) n (Some ζ, ρ).
+Proof.
+  revert ζ ρ.
+  induction n.
+  - intros. by rewrite /sch_exec.
+  - intros. rewrite !sch_exec_Sn. rewrite {2}/force_first_thread_scheduler/scheduler_f.
+    rewrite /sch_step_or_final /=.
+    case_match.
+    + rewrite !dret_id_left. naive_solver.
+    + rewrite /sch_step /=. destruct sch. simpl.
+      rewrite /dmap -!dbind_assoc'.
+      apply dbind_ext_right.
+      intros [].
+      rewrite dret_id_left.
+      rewrite -!dbind_assoc'.
+      apply dbind_ext_right.
+      intros. 
+      by rewrite !dret_id_left.
+Qed.
+
+Local Lemma force_first_thread_scheduler_lemma' `{Hcountable:Countable sch_int_σ} e1 e es1 σ1 sch num initial n `{!TapeOblivious sch_int_σ sch} :
+  (e::es1)!!num=Some e1 ->
+  to_val e = None ->
+  to_val e1 = None ->
+  (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (initial, (<[num:=e']> (e::es1 ++ l), s))) = sch_exec (force_first_thread_scheduler sch num initial) (S n) (None, (e::es1, σ1)).
+Proof.
+  intros H Hv Hv'.
+  rewrite /force_first_thread_scheduler{2}/sch_exec.
+  simpl.
+  rewrite Hv /sch_step -!dbind_assoc'/= dret_id_left Hv H Hv' /dmap -!dbind_assoc'.
+  apply dbind_ext_right.
+  intros [[]].
+  rewrite !dret_id_left.
+  erewrite force_first_thread_scheduler_lemma.
+  repeat f_equal.
+  rewrite -insert_app_l.
+  - by rewrite app_comm_cons.
+  - by eapply lookup_lt_Some.
+Qed. 
 
 Lemma prim_coupl_step_prim' `{Hcountable:Countable sch_int_σ} e n es1 σ1 α bs ζ e1 (num:nat) `{HTO: TapeOblivious sch_int_σ sch} :
   σ1.(tapes) !! α = Some bs →
-  (e::es1)!!num=Some e1 -> 
+  (e::es1)!!num=Some e1 ->
+  to_val e = None ->
+  to_val e1 = None ->
   Rcoupl
     (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s)))
     (state_step σ1 α ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s))))
     eq.
 Proof.
-  intros H1 H2.
-  rewrite dbind_assoc'.
-  erewrite prim_step_state_step_swap; last done.
-  rewrite -dbind_assoc'.
-  eapply Rcoupl_dbind; last first.
-  { apply Rcoupl_pos_R. apply Rcoupl_eq. }
-  simpl. intros [[? s]] ? [<- [H' _]].
-  rewrite /dmap.
-  rewrite -dbind_assoc'.
-  erewrite dbind_ext_right; last first.
-  { intros; by rewrite dret_id_left'. }
-  assert (α ∈ get_active (s)) as Hα'.
-  { rewrite /get_active.
-    apply elem_of_elements.
-    eapply prim_step_get_active; last done.
-    eapply elem_of_dom; naive_solver.
-  }
-  rewrite /get_active in Hα'.
-  apply elem_of_elements, elem_of_dom in Hα' as [bs' Hα'].
-  by eapply prim_coupl_step_prim.
+  intros H1 H2 H3 H4.
+  erewrite force_first_thread_scheduler_lemma'; try done.
+  eapply Rcoupl_eq_trans.
+  - eapply prim_coupl_step_prim; last done.
+    apply force_first_thread_scheduler_tape_oblivious.
+  - eapply Rcoupl_dbind; last apply Rcoupl_eq.
+    intros ??->.
+    apply Rcoupl_eq_sym.
+    rewrite force_first_thread_scheduler_lemma'; try done.
+    apply Rcoupl_eq.
 Qed. 
+
