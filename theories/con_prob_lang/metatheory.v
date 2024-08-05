@@ -1612,6 +1612,32 @@ Proof.
       rewrite H5 in H6. done.
 Qed.
 
+Lemma head_step_get_active α σ σ' e e' efs:
+  α ∈ dom σ.(tapes) ->
+  head_step e σ (e', σ', efs) > 0 ->
+  α ∈ dom σ'.(tapes).
+Proof.
+  intros H Hh.
+  rewrite head_step_support_equiv_rel in Hh.
+  inversion Hh; subst; try done; simpl.
+  all: eapply elem_of_subseteq; [|exact].
+  all: apply dom_insert_subseteq.
+Qed.
+
+
+Lemma prim_step_get_active α σ σ' e e' efs:
+  α ∈ dom σ.(tapes) ->
+  prim_step e σ (e', σ', efs) > 0 ->
+  α ∈ dom σ'.(tapes).
+Proof.
+  rewrite /prim_step.
+  intros H1 H2.
+  case_match. simpl in H2.
+  rewrite dmap_pos in H2. destruct H2 as [[[]] [H0 ?]].
+  rewrite /fill_lift'/fill_lift in H0. simplify_eq.
+  by eapply head_step_get_active.
+Qed.
+
 Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 efs α z zs :
   det_head_step_rel e1 σ1 e2 σ2 efs →
   tapes σ1 !! α = Some (N; zs) →
