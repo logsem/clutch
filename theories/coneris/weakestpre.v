@@ -28,15 +28,14 @@ Section glm.
   Implicit Types ε : nonnegreal.
 
   Definition stutter
-    (Z : (expr Λ * state Λ * list (expr Λ)) -> nonnegreal -> iProp Σ)
-    (ρ : (expr Λ * state Λ * list (expr Λ)))
+    (Z : nonnegreal -> iProp Σ)
     (ε : nonnegreal) : iProp Σ :=
-    (⌜(ε>=1)%R⌝ ∨ Z ρ ε)%I.
+    (⌜(ε>=1)%R⌝ ∨ Z ε)%I.
 
-  Lemma stutter_mono Z1 Z2 ρ ε ε':
+  Lemma stutter_mono Z1 Z2 ε ε':
     ⌜ (ε<=ε')%R ⌝ -∗
-    (Z1 ρ ε -∗ Z2 ρ ε') -∗
-    stutter Z1 ρ ε -∗ stutter Z2 ρ ε'.
+    (Z1 ε -∗ Z2 ε') -∗
+    stutter Z1 ε -∗ stutter Z2 ε'.
   Proof.
     iIntros (?) "H [% | H']".
     - iLeft. iPureIntro. lra.
@@ -54,8 +53,14 @@ Section glm.
            ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2 ρ) <= ε)%R⌝ ∗
            ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
-                        stutter Z (e2, σ2, efs) (ε2 (e2, σ2, efs)))
-       )
+                        stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
+       ) (* ∨ *)
+     (* ([∨ list] α ∈ get_active σ1, *)
+     (*    (∃ R (ε1 : nonnegreal) (ε2 : state Λ -> nonnegreal), *)
+     (*      ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗ *)
+     (*      ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 ρ) <= ε)%R ⌝ ∗ *)
+     (*      ⌜pgl (state_step σ1 α) R ε1⌝ ∗ *)
+     (*          ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (λ ε', Φ ((e1, σ2), ε')) (ε2 σ2))) *)
     )%I.
 
   Canonical Structure NNRO := leibnizO nonnegreal.
@@ -89,7 +94,7 @@ Section glm.
            ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2 ρ) <= ε)%R⌝ ∗
            ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
-                        stutter Z (e2, σ2, efs) (ε2 (e2, σ2, efs)))
+                        stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
        ))%I.
   Proof.
     rewrite /glm/glm' least_fixpoint_unfold//.
@@ -303,7 +308,7 @@ Section glm.
           ⌜reducible e1 σ1⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-            ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ stutter Z (e2, σ2, efs) (ε2 (e2, σ2, efs)))
+            ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
     ⊢ glm e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & % & % & % & H)".
