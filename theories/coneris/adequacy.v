@@ -50,8 +50,8 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
   
-  Lemma glm_erasure `{Countable sch_int_state} (ζ : sch_int_state) (e : expr)
-    chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat):
+  Lemma glm_erasure `{Countable sch_int_state}  (ζ : sch_int_state) (e : expr)
+    chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat) `{!TapeOblivious sch_int_state sch}:
     to_val chosen_e = None →
     (e::es)!!num = Some chosen_e->
     glm chosen_e σ ε (λ '(e2, σ2, efs) ε',
@@ -76,26 +76,58 @@ Section adequacy.
     iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
     { iIntros "Hfix % %".
       by iMod ("H" $! ((_, _)) with "Hfix [//][//]"). }
-    clear.
+    clear Hv.
     iIntros "!#" ([[e1 σ1] ε'']). rewrite /F/Φ/glm_pre.
-    iIntros "(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H) %Hv %Hlookup".
-    iApply step_fupdN_mono.
-    { apply pure_mono. eapply pgl_mon_grading; done. }
-    iApply pgl_dbind_adv'.
-    - iPureIntro; apply cond_nonneg.
-    - iPureIntro. exists r. split; [apply cond_nonneg|done].
-    - done.
-    - iIntros ([[??]?] ?).
-      rewrite step_fupd_fupdN_S.
-      iMod ("H" with "[//]") as "[%|H]".
-      { iApply step_fupdN_intro; try done. repeat iPureIntro.
-        apply pgl_1; lra.
+    iIntros "[(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| H] %Hv %Hlookup".
+    - iApply step_fupdN_mono.
+      { apply pure_mono. eapply pgl_mon_grading; done. }
+      iApply pgl_dbind_adv'.
+      + iPureIntro; apply cond_nonneg.
+      + iPureIntro. exists r. split; [apply cond_nonneg|done].
+      + done.
+      + iIntros ([[??]?] ?).
+        rewrite step_fupd_fupdN_S.
+        iMod ("H" with "[//]") as "[%|H]".
+        { iApply step_fupdN_intro; try done. iPureIntro.
+          apply pgl_1; lra.
+        }
+        done.
+    - iDestruct (big_orL_mono _ (λ _ _,
+                     |={∅}▷=>^(S n)
+                       ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I
+                  with "H") as "H"; last first.
+      { simpl. iInduction (get_active σ1) as [| α] "IH"; [done|].
+        rewrite big_orL_cons.
+        iDestruct "H" as "[H | Ht]"; [done|].
+        by iApply "IH". }
+      iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
+      iApply (step_fupdN_mono _ _ _
+                (⌜∀ σ2 , R2 σ2 → pgl (prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ
+                                   (ε2 σ2)⌝)%I).
+      { iIntros (?). iPureIntro.
+        rewrite /= /get_active in Hα.
+        apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
+        erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim' _ _ _ _ _ _ _ _ _ Hα Hlookup)).
+        apply (pgl_mon_grading _ _
+                 (ε1 + (SeriesC (λ ρ , state_step σ1 α ρ * ε2 ρ)))) => //.
+        eapply pgl_dbind_adv; eauto; [by destruct ε1|].
+        destruct Hε'' as [r Hr]; exists r.
+        intros a.
+        split; [by destruct (ε2 _) | by apply Hr].
       }
-      done.
+      iIntros (σ2 Hσ2).
+      iApply step_fupd_fupdN_S.
+      iMod ("H" with "[//]") as "H"; iModIntro.
+      iDestruct "H" as "[%|H]".
+      { iApply step_fupdN_intro; try done.
+        iPureIntro.
+        apply pgl_1. apply Rge_le. done. 
+      }
+      by iApply "H".
   Qed. 
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
-    (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state):
+    (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
     state_interp σ ∗ err_interp (ε) ∗ WP e {{ v, ⌜φ v⌝ }}  ∗ ([∗ list] e'∈ es, WP e' {{ _, True%I }})  ⊢
     |={⊤,∅}=> |={∅}▷=>^n ⌜pgl (sch_exec sch n (ζ, (e::es, σ))) φ ε⌝.
   Proof.
@@ -235,7 +267,7 @@ Global Instance subG_conerisGPreS {Σ} : subG conerisΣ Σ → conerisGpreS Σ.
 Proof. solve_inG. Qed.
 
 Theorem wp_pgl_multi Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state) n
-  (e : expr) es (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
+  (e : expr) es (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
   0 <= ε →
   (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ (WP e {{ v, ⌜φ v⌝ }} ∗ [∗ list] e'∈ es, WP e' {{ _, True%I }})) →
   pgl (sch_exec sch n (ζ, (e::es, σ))) φ ε.
@@ -263,7 +295,7 @@ Proof.
 Qed.
 
 Theorem wp_pgl Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state) n
-  (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
+  (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
   0 <= ε →
   (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (sch_exec sch n (ζ, ([e], σ))) φ ε.
@@ -277,19 +309,19 @@ Proof.
 Qed.
 
 Lemma pgl_closed_lim `{Countable sch_int_state} (ζ : sch_int_state) (e : expr) (σ : state) (ε : R)
-  (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
+  (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
   (∀ n, pgl (sch_exec sch n (ζ, ([e], σ))) φ ε) →
   pgl (sch_lim_exec sch (ζ, ([e], σ))) φ ε .
 Proof. intros Hn. by apply sch_lim_exec_continuous_prob. Qed.
 
 Theorem wp_pgl_lim Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state)
-  (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ :
+  (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
   0 <= ε →
   (∀ `{conerisGS Σ}, ⊢ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (sch_lim_exec sch (ζ, ([e], σ))) φ ε.
 Proof.
   intros.
-  apply pgl_closed_lim.
+  apply pgl_closed_lim; first done.
   intros.
   by eapply wp_pgl.
 Qed.
