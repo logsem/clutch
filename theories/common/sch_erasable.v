@@ -4,11 +4,13 @@ From clutch.prob Require Export couplings distribution mdp.
 
 Section sch_erasable.
   Context {Λ : conLanguage}.
-  Context `{Countable sch_state}.
-  Context (sch : scheduler (con_lang_mdp Λ) sch_state).
-
+  Context (P : ∀ {t} {Heq: EqDecision t} {Hcount: Countable t}, scheduler (con_lang_mdp Λ) t -> Prop).
+  Global Arguments P {_ _ _} (_).
+  
   Definition sch_erasable (μ : distr (state Λ)) σ:=
-    ∀ es ζ m, μ ≫= (λ σ', sch_exec sch m (ζ, (es, σ'))) = sch_exec sch m (ζ, (es, σ)).
+    ∀ (sch_state:Type) `(H:Countable sch_state) (sch : scheduler (con_lang_mdp Λ) sch_state) es ζ m,
+    P sch ->
+    μ ≫= (λ σ', sch_exec sch m (ζ, (es, σ'))) = sch_exec sch m (ζ, (es, σ)).
 
   Definition sch_erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
     sch_erasable μ1 σ → (∀ σ', μ1 σ' > 0 → sch_erasable (μ2 σ') σ') → sch_erasable (μ1 ≫= μ2) σ.
@@ -16,21 +18,23 @@ Section sch_erasable.
     intros H1 H2.
     rewrite /sch_erasable.
     intros. rewrite -dbind_assoc'.
-    rewrite -H1. apply dbind_eq; last naive_solver.
+    rewrite -H1; last done. apply dbind_eq; last naive_solver.
     intros. by apply H2.
   Qed.
 
-  Lemma sch_erasable_sch_lim_exec (μ : distr (state Λ)) σ es ζ :
+  Lemma sch_erasable_sch_lim_exec
+    (μ : distr (state Λ)) `{Countable sch_state} (sch : scheduler (con_lang_mdp Λ) sch_state) σ es ζ :
     sch_erasable μ σ →
+    P sch ->
     μ ≫= (λ σ', sch_lim_exec sch (ζ, (es, σ'))) = sch_lim_exec sch (ζ, (es, σ)).
   Proof.
     rewrite /sch_erasable.
-    intros He. apply distr_ext. intros c.
+    intros He HP. apply distr_ext. intros c.
     rewrite /dbind{1}/pmf/dbind_pmf. simpl.
     rewrite /sch_lim_exec. rewrite lim_distr_pmf.
     assert ((Rbar.real (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (sch_exec sch n (ζ, (es, σ)) c)))) =
       (Rbar.real (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite ((μ ≫= (λ σ', sch_exec sch n (ζ, (es, σ')))) c))))) as Heq.
-    { f_equal. apply Lim_seq.Sup_seq_ext. intros n. rewrite He. done. }
+    { f_equal. apply Lim_seq.Sup_seq_ext. intros n. rewrite He; done. }
     rewrite Heq.
     setoid_rewrite lim_distr_pmf; last first.
     { intros. rewrite /dbind/pmf/dbind_pmf.
@@ -83,17 +87,19 @@ Section sch_erasable.
   (*   by setoid_rewrite exec_is_final. *)
   (* Qed. *)
 
-  Lemma sch_erasable_pexec_sch_lim_exec (μ : distr (state Λ)) n σ e ζ :
+  Lemma sch_erasable_pexec_sch_lim_exec
+    `{Countable sch_state} (sch : scheduler (con_lang_mdp Λ) sch_state) (μ : distr (state Λ)) n σ e ζ :
     sch_erasable μ σ →
+    P sch ->
     (σ' ← μ; sch_pexec sch n (ζ, (e, σ'))) ≫= sch_lim_exec sch = sch_lim_exec sch  (ζ, (e, σ)).
   Proof.     
-    intros Hμ.
+    intros Hμ HP.
     rewrite -(sch_erasable_sch_lim_exec μ) //.
     setoid_rewrite (sch_lim_exec_pexec sch n).
     rewrite -dbind_assoc //.
   Qed.   
 
-  Lemma sch_erasable_dbind_predicate `{Countable A} (μ : distr _) μ1 μ2 (σ : state Λ) (f: A → bool):
+  Lemma sch_erasable_dbind_predicate `{Countable A} (μ : distr _)  μ1 μ2 (σ : state Λ) (f: A → bool):
     SeriesC μ = 1 →
     sch_erasable μ1 σ →
     sch_erasable μ2 σ →
@@ -101,7 +107,7 @@ Section sch_erasable.
   Proof.
     rewrite /sch_erasable.
     intros Hsum H1 H2.
-    intros e m ac. rewrite -dbind_assoc'.
+    intros ζ ? ? sch e m ac HP. rewrite -dbind_assoc'.
     rewrite {1}/dbind/dbind_pmf/=.
     apply distr_ext. intros v. rewrite {1}/pmf/=.
     erewrite (SeriesC_ext _ (λ a : A, μ a * sch_exec sch ac (m, (e, σ)) v)).
@@ -115,9 +121,9 @@ End sch_erasable.
 
 Section sch_erasable_functions.
 
-  Lemma dret_sch_erasable {Λ} `{Countable sch_state} {sch : scheduler (con_lang_mdp Λ) sch_state}
+  Lemma dret_sch_erasable {Λ} 
     (σ : state Λ) :
-    sch_erasable sch (dret σ) σ.
+    sch_erasable (λ _, True) (dret σ) σ.
   Proof.
     intros.
     rewrite /sch_erasable.
