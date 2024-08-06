@@ -4,12 +4,12 @@ From clutch.prob Require Export couplings distribution mdp.
 
 Section sch_erasable.
   Context {Λ : conLanguage}.
-  Context (P : ∀ {t} {Heq: EqDecision t} {Hcount: Countable t}, scheduler (con_lang_mdp Λ) t -> Prop).
-  Global Arguments P {_ _ _} (_).
+  Context (P : ∀ t {Heq: EqDecision t} {Hcount: Countable t}, scheduler (con_lang_mdp Λ) t -> Prop).
+  Global Arguments P (_) {_ _} (_).
   
   Definition sch_erasable (μ : distr (state Λ)) σ:=
     ∀ (sch_state:Type) `(H:Countable sch_state) (sch : scheduler (con_lang_mdp Λ) sch_state) es ζ m,
-    P sch ->
+    P sch_state sch ->
     μ ≫= (λ σ', sch_exec sch m (ζ, (es, σ'))) = sch_exec sch m (ζ, (es, σ)).
 
   Definition sch_erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
@@ -25,7 +25,7 @@ Section sch_erasable.
   Lemma sch_erasable_sch_lim_exec
     (μ : distr (state Λ)) `{Countable sch_state} (sch : scheduler (con_lang_mdp Λ) sch_state) σ es ζ :
     sch_erasable μ σ →
-    P sch ->
+    P sch_state sch ->
     μ ≫= (λ σ', sch_lim_exec sch (ζ, (es, σ'))) = sch_lim_exec sch (ζ, (es, σ)).
   Proof.
     rewrite /sch_erasable.
@@ -90,7 +90,7 @@ Section sch_erasable.
   Lemma sch_erasable_pexec_sch_lim_exec
     `{Countable sch_state} (sch : scheduler (con_lang_mdp Λ) sch_state) (μ : distr (state Λ)) n σ e ζ :
     sch_erasable μ σ →
-    P sch ->
+    P sch_state sch ->
     (σ' ← μ; sch_pexec sch n (ζ, (e, σ'))) ≫= sch_lim_exec sch = sch_lim_exec sch  (ζ, (e, σ)).
   Proof.     
     intros Hμ HP.
@@ -123,7 +123,7 @@ Section sch_erasable_functions.
 
   Lemma dret_sch_erasable {Λ} 
     (σ : state Λ) :
-    sch_erasable (λ _, True) (dret σ) σ.
+    sch_erasable (λ _ _, True) (dret σ) σ.
   Proof.
     intros.
     rewrite /sch_erasable.
