@@ -42,7 +42,6 @@ Section glm.
     - iRight. by iApply "H".
   Qed. 
 
-  (* Simple one without adv comp or state steps*)
   Definition glm_pre
     (Z : (expr Λ * state Λ * list (expr Λ)) -> nonnegreal -> iProp Σ) (Φ : partial_cfg Λ * nonnegreal -> iProp Σ) :=
     (λ (x : partial_cfg Λ * nonnegreal),
