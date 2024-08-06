@@ -506,32 +506,32 @@ Proof.
     rewrite /option_bind. done.
 Qed.
 
-(* Lemma state_step_sch_erasable `{Hcountable:Countable sch_int_σ} σ1 α bs `{TapeOblivious sch_int_σ sch}: *)
-(*   σ1.(tapes) !! α = Some bs → *)
-(*   sch_erasable sch (state_step σ1 α) σ1. *)
-(* Proof. *)
-(*   intros. rewrite /sch_erasable. *)
-(*   intros. *)
-(*   symmetry. *)
-(*   apply Rcoupl_eq_elim. *)
-(*   by eapply prim_coupl_step_prim. *)
-(* Qed. *)
+Lemma state_step_sch_erasable σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  sch_erasable (λ t Heq Hcount sch', TapeOblivious t sch') (state_step σ1 α) σ1.
+Proof.
+  intros. rewrite /sch_erasable.
+  intros.
+  symmetry.
+  apply Rcoupl_eq_elim.
+  by eapply prim_coupl_step_prim.
+Qed.
 
-(* Lemma iterM_state_step_sch_erasable *)
-(*   `{Hcountable:Countable sch_int_σ} σ1 α bs n `{TapeOblivious sch_int_σ sch}: *)
-(*   σ1.(tapes) !! α = Some bs → *)
-(*   sch_erasable sch (iterM n (λ σ, state_step σ α) σ1) σ1. *)
-(* Proof. *)
-(*   revert σ1 bs. *)
-(*   induction n; intros σ1 bs K. *)
-(*   - simpl. apply dret_sch_erasable. *)
-(*   - simpl. apply sch_erasable_dbind; first by eapply state_step_sch_erasable. *)
-(*     intros ? K'. *)
-(*     destruct bs. *)
-(*     erewrite state_step_unfold in K'; last done. *)
-(*     rewrite dmap_pos in K'. destruct K' as (?&->&?). *)
-(*     eapply IHn. simpl. apply lookup_insert. *)
-(* Qed. *)
+Lemma iterM_state_step_sch_erasable
+  σ1 α bs n:
+  σ1.(tapes) !! α = Some bs →
+  sch_erasable (λ t Heq Hcount sch', TapeOblivious t sch') (iterM n (λ σ, state_step σ α) σ1) σ1.
+Proof.
+  revert σ1 bs.
+  induction n; intros σ1 bs K.
+  - simpl. apply dret_sch_erasable.
+  - simpl. apply sch_erasable_dbind; first by eapply state_step_sch_erasable.
+    intros ? K'.
+    destruct bs.
+    erewrite state_step_unfold in K'; last done.
+    rewrite dmap_pos in K'. destruct K' as (?&->&?).
+    eapply IHn. simpl. apply lookup_insert.
+Qed.
 
 Lemma limprim_coupl_step_limprim_aux
   `{Hcountable:Countable sch_int_σ} e1 σ1 α bs v ζ `{TapeOblivious sch_int_σ sch}:

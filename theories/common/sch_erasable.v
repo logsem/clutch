@@ -4,8 +4,9 @@ From clutch.prob Require Export couplings distribution mdp.
 
 Section sch_erasable.
   Context {Λ : conLanguage}.
-  Context (P : ∀ t {Heq: EqDecision t} {Hcount: Countable t}, scheduler (con_lang_mdp Λ) t -> Prop).
+  Variable (P : ∀ t {Heq: EqDecision t} {Hcount: Countable t}, scheduler (con_lang_mdp Λ) t -> Prop).
   Global Arguments P (_) {_ _} (_).
+
   
   Definition sch_erasable (μ : distr (state Λ)) σ:=
     ∀ (sch_state:Type) `(H:Countable sch_state) (sch : scheduler (con_lang_mdp Λ) sch_state) es ζ m,
@@ -122,8 +123,8 @@ End sch_erasable.
 Section sch_erasable_functions.
 
   Lemma dret_sch_erasable {Λ} 
-    (σ : state Λ) :
-    sch_erasable (λ _ _, True) (dret σ) σ.
+    (σ : state Λ) P:
+    sch_erasable P (dret σ) σ.
   Proof.
     intros.
     rewrite /sch_erasable.
