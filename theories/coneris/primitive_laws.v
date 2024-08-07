@@ -267,6 +267,15 @@ Proof.
   iApply ("HΦ" with "[$Hl //]").
 Qed.
 
+Lemma wp_fork s E e Φ :
+  ▷ WP e @ s; ⊤ {{ _, True }} -∗ ▷ Φ (LitV LitUnit) -∗ WP Fork e @ s; E {{ Φ }}.
+Proof.
+  iIntros "He HΦ". iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "(Hh & Ht) !#". solve_red.
+  iIntros "!>" (e2 σ2 efs Hs).
+  inv_head_step. by iFrame. 
+Qed.
+
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
