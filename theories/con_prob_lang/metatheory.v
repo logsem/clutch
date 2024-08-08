@@ -33,6 +33,9 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | AllocTape e => is_closed_expr X e
   | Tick e => is_closed_expr X e
   | Fork e => is_closed_expr X e
+  | CmpXchg e0 e1 e2 => is_closed_expr X e0 && is_closed_expr X e1 && is_closed_expr X e2
+  | Xchg e1 e2 => is_closed_expr X e1 && is_closed_expr X e2
+  | FAA e1 e2 => is_closed_expr X e1 && is_closed_expr X e2
   end
 with is_closed_val (v : val) : bool :=
   match v with
@@ -65,6 +68,9 @@ Fixpoint subst_map (vs : gmap string val) (e : expr)  : expr :=
   | Rand e1 e2 => Rand (subst_map vs e1) (subst_map vs e2)
   | Tick e => Tick (subst_map vs e)
   | Fork e => Fork (subst_map vs e)
+  | CmpXchg e0 e1 e2 => CmpXchg (subst_map vs e0) (subst_map vs e1) (subst_map vs e2)
+  | Xchg e1 e2 => Xchg (subst_map vs e1) (subst_map vs e2)
+  | FAA e1 e2 => FAA (subst_map vs e1) (subst_map vs e2)
   end.
 
 (* Properties *)
@@ -1381,6 +1387,20 @@ Inductive det_head_step_rel : expr → state → expr → state → list expr ->
   det_head_step_rel (Tick (Val $ LitV $ LitInt z)) σ (Val $ LitV $ LitUnit) σ []
 | ForkDS e σ :
   det_head_step_rel (Fork e) σ (Val $ LitV $ LitUnit) σ [e]
+| CmpXchgDS l v1 v2 σ vl:
+  σ.(heap)!!l = Some vl ->
+  vals_compare_safe vl v1 ->
+  let b := bool_decide (vl=v1) in
+  det_head_step_rel (CmpXchg (Val $ LitV $ LitLoc l) (Val v1) (Val v2)) σ
+    (Val $ PairV vl (LitV $ LitBool b)) (if b then state_upd_heap <[l:=v2]> σ else σ) []
+| XchgDS l v1 v2 σ:
+  σ.(heap) !! l = Some v1 ->
+  det_head_step_rel (Xchg (Val $ LitV $ LitLoc l) (Val v2)) σ
+    (Val $ v1) (state_upd_heap <[l:=v2]> σ) []
+| FaaDS l i1 i2 σ :
+  σ.(heap) !! l = Some (LitV (LitInt i1)) ->
+  det_head_step_rel (FAA (Val $ LitV $ LitLoc l) (Val $ LitV (LitInt i2))) σ
+                    (Val $ LitV (LitInt i1)) (state_upd_heap <[l:=LitV (LitInt (i1+i2))]> σ) []
 .
 
 Inductive det_head_step_pred : expr → state → Prop :=
@@ -1427,6 +1447,16 @@ Inductive det_head_step_pred : expr → state → Prop :=
   det_head_step_pred (Tick (Val $ LitV $ LitInt z)) σ
 | ForkDSP e σ :
   det_head_step_pred (Fork e) σ
+| CmpXchgDSP σ l vl v1 v2:
+  σ.(heap)!!l = Some vl ->
+  vals_compare_safe vl v1 ->
+  det_head_step_pred (CmpXchg (Val $ LitV $ LitLoc l) (Val v1) (Val v2)) σ
+| XchgDSP σ l v1 v2:
+  σ.(heap)!!l = Some v1 ->
+  det_head_step_pred (Xchg (Val $ LitV $ LitLoc l) (Val v2)) σ
+| FaaDSP σ l i1 i2:
+  σ.(heap)!!l = Some (LitV (LitInt i1)) ->
+  det_head_step_pred (FAA (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i2)) σ
 .
 
 Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
@@ -1451,12 +1481,18 @@ Definition is_det_head_step (e1 : expr) (σ1 : state)  : bool :=
       bool_decide (is_Some (σ1.(heap) !! l))
   | Tick (Val (LitV (LitInt z))) => true
   | Fork e => true
+  | CmpXchg (Val (LitV (LitLoc l))) (Val v1) (Val v2) =>
+      bool_decide (∃ vl, σ1.(heap)!!l = Some vl /\ vals_compare_safe vl v1)
+  | Xchg (Val (LitV (LitLoc l))) (Val v2) =>
+         bool_decide (is_Some (σ1.(heap)!!l))
+  | FAA (Val (LitV (LitLoc l))) (Val (LitV (LitInt i2))) =>
+         bool_decide (∃ i1, σ1.(heap)!!l = Some (LitV (LitInt i1)))
   | _ => false
   end.
 
 Lemma det_step_eq_tapes e1 σ1 e2 σ2 efs :
   det_head_step_rel e1 σ1 e2 σ2 efs → σ1.(tapes) = σ2.(tapes).
-Proof. inversion 1; auto. Qed.
+Proof. inversion 1; auto; case_match; auto. Qed.
 
 Inductive prob_head_step_pred : expr -> state -> Prop :=
 | AllocTapePSP σ N z :
@@ -1502,7 +1538,7 @@ Qed.
 Local Ltac solve_step_det :=
   rewrite /pmf /=;
     repeat (rewrite bool_decide_eq_true_2 // || case_match);
-  try (lra || lia || done).
+  try (lra || lia || done); naive_solver.
 
 Local Ltac inv_det_head_step :=
   repeat
@@ -1513,6 +1549,8 @@ Local Ltac inv_det_head_step :=
         repeat (case_match in H; simplify_eq)
     | H : is_Some _ |- _ => destruct H
     | H : bool_decide  _ = true |- _ => rewrite bool_decide_eq_true in H; destruct_and?
+    | H: ∃ _, _ |- _ => destruct H
+    | H: _/\ _ |- _ => destruct H
     | _ => progress simplify_map_eq/=
     end.
 
@@ -1619,7 +1657,7 @@ Lemma head_step_get_active α σ σ' e e' efs:
 Proof.
   intros H Hh.
   rewrite head_step_support_equiv_rel in Hh.
-  inversion Hh; subst; try done; simpl.
+  inversion Hh; subst; try done; simpl; try case_bool_decide; simpl; try done.
   all: eapply elem_of_subseteq; [|exact].
   all: apply dom_insert_subseteq.
 Qed.
@@ -1647,7 +1685,11 @@ Lemma det_head_step_upd_tapes N e1 σ1 e2 σ2 efs α z zs :
 Proof.
   inversion 1; try econstructor; eauto.
   (* Unsolved case *)
-  intros. rewrite state_upd_tapes_heap. econstructor; eauto.
+  - intros. rewrite state_upd_tapes_heap. econstructor; eauto.
+  - intros.
+    replace (state_upd_tapes _ (if _ then _ else _)) with (if b then state_upd_heap <[l:=v2]> (state_upd_tapes <[α:=(N; zs ++ [z])]> σ1) else (state_upd_tapes <[α:=(N; zs ++ [z])]> σ1)); last first.
+    { by case_match; simpl. }
+    econstructor; eauto.
 Qed.
 
 Lemma upd_tape_some σ α N n ns :
