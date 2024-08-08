@@ -61,6 +61,16 @@ Section atomic.
   Proof. solve_atomic. Qed.
   Global Instance fork_atomic s e: Atomic s (Fork e).
   Proof. solve_atomic. Qed.
+
+  Global Instance CmpXchg_atomic s v0 v1 v2: Atomic s (CmpXchg (Val v0) (Val v1) (Val v2)).
+  Proof. solve_atomic. Qed.
+  Global Instance xchg_atomic s v1 v2 : Atomic s (Xchg (Val v1) (Val v2)).
+  Proof. solve_atomic. Qed.
+  Global Instance faa_atomic s v1 v2 : Atomic s (FAA (Val v1) (Val v2)).
+  Proof. solve_atomic. Qed.
+
+           
+                                                    
 End atomic.
 
 (** * Instances of the [PureExec] class *)

@@ -36,6 +36,13 @@ Ltac reshape_expr e tac :=
   | Rand ?e (Val ?v) => go (RandLCtx v :: K) e
   | Rand ?e1 ?e2 => go (RandRCtx e1 :: K) e2
   | Tick ?e => go (TickCtx :: K) e
+  | CmpXchg ?e0 (Val ?v1) (Val ?v2) => go (CmpXchgLCtx v1 v2 :: K) e0
+  | CmpXchg ?e0 ?e1 (Val ?v2) => go (CmpXchgMCtx e0 v2 :: K) e1
+  | CmpXchg ?e0 ?e1 ?e2 => go (CmpXchgRCtx e0 e1 :: K) e2
+  | Xchg ?e1 (Val ?v2) => go (XchgLCtx v2 :: K) e1
+  | Xchg ?e1 ?e2 => go (XchgRCtx e1 :: K) e2
+  | FAA ?e1 (Val ?v2) => go (FaaLCtx v2 :: K) e1
+  | FAA ?e1 ?e2 => go (FaaRCtx e1 :: K) e2
   end in go (@nil ectx_item) e.
 
 Local Open Scope R.

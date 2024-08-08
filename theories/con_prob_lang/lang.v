@@ -52,7 +52,11 @@ Inductive expr :=
   (* No-op operator used for cost *)
   | Tick (e : expr)
   (* concurrency *)
-  | Fork (e : expr)       
+  | Fork (e : expr)
+  (* arbitrary atomic expressions*)     
+  | CmpXchg (e0 : expr) (e1 : expr) (e2 : expr)
+  | Xchg (e0 : expr) (e1 : expr)
+  | FAA (e1 : expr) (e2 : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -190,6 +194,10 @@ Proof.
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Tick e, Tick e' => cast_if (decide (e = e'))
      | Fork e, Fork e' => cast_if (decide (e = e'))
+     | CmpXchg e0 e1 e2, CmpXchg e0' e1' e2' => 
+         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | Xchg e1 e2, Xchg e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | FAA e1 e2, FAA e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -268,6 +276,9 @@ Proof.
      | Rand e1 e2 => GenNode 16 [go e1; go e2]
      | Tick e => GenNode 17 [go e]
      | Fork e => GenNode 18 [go e]
+     | CmpXchg e0 e1 e2 => GenNode 19 [go e0; go e1; go e2]
+     | Xchg e1 e2 => GenNode 20 [go e1; go e2]
+     | FAA e1 e2 => GenNode 21 [go e1; go e2]
      end
    with gov v :=
      match v with
@@ -302,6 +313,9 @@ Proof.
      | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
      | GenNode 17 [e] => Tick (go e)
      | GenNode 18 [e] => Fork (go e)
+     | GenNode 19 [e0; e1; e2] => CmpXchg (go e0) (go e1) (go e2)
+     | GenNode 20 [e1; e2] => Xchg (go e1) (go e2)
+     | GenNode 21 [e1; e2] => FAA (go e1) (go e2)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -316,7 +330,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -361,6 +375,13 @@ Inductive ectx_item :=
   | RandLCtx (v2 : val)
   | RandRCtx (e1 : expr)
   | TickCtx
+  | XchgLCtx (v2 : val)
+  | XchgRCtx (e1 : expr)
+  | CmpXchgLCtx (v1 : val) (v2 : val)
+  | CmpXchgMCtx (e0 : expr) (v2 : val)
+  | CmpXchgRCtx (e0 : expr) (e1 : expr)
+  | FaaLCtx (v2 : val)
+  | FaaRCtx (e1 : expr)
 .
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -387,6 +408,13 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | RandLCtx v2 => Rand e (Val v2)
   | RandRCtx e1 => Rand e1 e
   | TickCtx => Tick e
+  | XchgLCtx v2 => Xchg e (Val v2)
+  | XchgRCtx e1 => Xchg e1 e
+  | CmpXchgLCtx v1 v2 => CmpXchg e (Val v1) (Val v2)
+  | CmpXchgMCtx e0 v2 => CmpXchg e0 e (Val v2)
+  | CmpXchgRCtx e0 e1 => CmpXchg e0 e1 e
+  | FaaLCtx v2 => FAA e (Val v2)
+  | FaaRCtx e1 => FAA e1 e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -435,6 +463,26 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       end
   | Tick e         => noval e TickCtx
   | Fork e         => None
+  | CmpXchg e0 e1 e2 =>
+      match e2 with
+      | Val v2 =>
+          match e1 with
+          | Val v1 =>
+              noval e0 (CmpXchgLCtx v1 v2)
+          | _ =>Some (CmpXchgMCtx e0 v2, e1)
+          end
+      | _ => Some (CmpXchgRCtx e0 e1, e2)
+      end
+  | Xchg e1 e2 =>
+      match e2 with
+      | Val v      => noval e1 (XchgLCtx v)
+      | _          => Some (XchgRCtx e1, e2)
+      end
+  | FAA e1 e2 =>
+      match e2 with
+      | Val v      => noval e1 (FaaLCtx v)
+      | _          => Some (FaaRCtx e1, e2)
+      end
   | _              => None
   end.
 
@@ -462,6 +510,9 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
   | Tick e => Tick (subst x v e)
   | Fork e => Fork (subst x v e)
+  | CmpXchg e0 e1 e2 => CmpXchg (subst x v e0) (subst x v e1) (subst x v e2)
+  | Xchg e1 e2 => Xchg (subst x v e1) (subst x v e2)
+  | FAA e1 e2 => FAA (subst x v e1) (subst x v e2)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -737,6 +788,30 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state * list (exp
       end
   | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1, [])
   | Fork e => dret (Val $ LitV $ LitUnit, σ1, [e])
+  | CmpXchg (Val (LitV (LitLoc l))) (Val v1) (Val v2) =>
+      match σ1.(heap) !! l with
+      | Some v =>
+          if decide (vals_compare_safe v v1)
+          then
+            let b:= bool_decide (v=v1) in
+            dret (Val $ PairV v (LitV $ LitBool b),
+                    (if b then state_upd_heap <[l:=v2]> σ1 else σ1),
+                      [])
+          else dzero
+        | None => dzero
+      end
+  | Xchg (Val (LitV (LitLoc l))) (Val v2) =>
+      match σ1.(heap)!!l with
+      | Some v1 => dret (Val v1, state_upd_heap <[l:=v2]> σ1, [])
+      | None => dzero
+      end
+  | FAA (Val (LitV (LitLoc l))) (Val (LitV (LitInt i2))) =>
+      match σ1.(heap)!!l with
+      | Some (LitV (LitInt i1)) => dret (Val $ LitV $ LitInt i1,
+                                          state_upd_heap <[l:=LitV (LitInt (i1+i2))]> σ1,
+                                            [])
+      | _ => dzero
+      end
   | _ => dzero
   end.
 
@@ -847,6 +922,19 @@ Inductive head_step_rel : expr → state → expr → state -> list expr → Pro
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ []
 | ForkS e σ:
   head_step_rel (Fork $ e) σ (Val $ LitV $ LitUnit) σ [e]
+| CmpXchgS σ l vl v1 v2 b:
+  σ.(heap) !! l = Some vl ->
+  vals_compare_safe vl v1 ->
+  b = bool_decide (vl = v1) ->
+  head_step_rel (CmpXchg (Val $ LitV $ LitLoc l) (Val v1) (Val v2)) σ (Val $ PairV vl (LitV $ LitBool b)) (if b then state_upd_heap <[l:=v2]> σ else σ) []
+| XchgS σ l v1 v2:
+  σ.(heap) !! l = Some v1 ->
+  head_step_rel (Xchg (Val $ LitV $ LitLoc l) (Val v2)) σ (Val v1) (state_upd_heap <[l:=v2]> σ) []
+| FAAS σ l i1 i2:
+  σ.(heap) !! l = Some (LitV (LitInt i1)) ->
+  head_step_rel (FAA (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i2)) σ (Val $ LitV $ LitInt i1)
+                (state_upd_heap <[l:= LitV (LitInt (i1+i2))]> σ) []
+    
 .
 
 Create HintDb head_step.
@@ -886,6 +974,7 @@ Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 l :
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
+    all: constructor; try done; by case_bool_decide.
   - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
 Qed.
 
@@ -975,6 +1064,9 @@ Fixpoint height (e : expr) : nat :=
   | Rand e1 e2 => 1 + height e1 + height e2
   | Tick e => 1 + height e
   | Fork e => 1 + height e
+  | CmpXchg e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | Xchg e1 e2 => 1 + height e1 + height e2
+  | FAA e1 e2 => 1 + height e1 + height e2
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.

@@ -27,6 +27,13 @@ Definition subst_map_ctx_item (es : stringmap val) (K : ectx_item) :=
   | RandLCtx v2 => RandLCtx v2
   | RandRCtx e1 => RandRCtx (subst_map es e1)
   | TickCtx => TickCtx
+  | CmpXchgLCtx v1 v2 => CmpXchgLCtx v1 v2
+  | CmpXchgMCtx e0 v2 => CmpXchgMCtx (subst_map es e0) v2
+  | CmpXchgRCtx e0 e1 => CmpXchgRCtx (subst_map es e0) (subst_map es e2)
+  | XchgLCtx v2 => XchgLCtx v2
+  | XchgRCtx e1 => XchgRCtx (subst_map es e1)
+  | FaaLCtx v2 => FaaLCtx v2
+  | FaaRCtx e1 => FaaRCtx (subst_map es e1)
   end.
 
 Definition subst_map_ctx (es : stringmap val) (K : list ectx_item) :=
