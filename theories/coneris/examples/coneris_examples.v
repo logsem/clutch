@@ -207,5 +207,16 @@ Proof.
     done.
 Qed.
 
+Definition fork_prog : expr := Fork #();; #().
 
+Lemma wp_fork : {{{ True }}} fork_prog {{{ v, RET v; True }}}.
+Proof.
+  iIntros (Φ) "_ HΦ".
+  rewrite /fork_prog.
+  wp_apply wp_fork.
+  - by wp_pures.
+  - wp_pures. by iApply "HΦ".
+Qed. 
+  
+                          
 
