@@ -74,6 +74,7 @@ Class GwpTacticsTapes Σ A (laters : bool) (gwp : A → coPset → expr → (val
 (** Atomic Concurrency *)
 Class GwpTacticsAtomicConcurrency Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= {
     wptac_mapsto_conc : loc → dfrac → val → iProp Σ;
+    
     wptac_wp_cmpxchg E Φ l dq v v1 v2 a:
     ( ▷ wptac_mapsto_conc l dq v ) -∗
     ( ⌜ vals_compare_safe v v1 ⌝) -∗
@@ -681,3 +682,165 @@ Tactic Notation "wp_randtape" "as" constr(H) :=
 
 Tactic Notation "wp_randtape" :=
   wp_randtape as "%".
+
+
+Section concurrency_tactics.
+  Context `{GwpTacticsBase Σ A hlc gwp, GwpTacticsBind Σ A hlc gwp,
+              !GwpTacticsAtomicConcurrency Σ A laters gwp}.
+
+  Local Notation "'WP' e @ s ; E {{ Φ } }" := (gwp s E e%E Φ)
+    (at level 20, e, Φ at level 200, only parsing) : bi_scope.
+
+  (** Notations with binder. *)
+  Local Notation "'WP' e @ s ; E {{ v , Q } }" := (gwp s E e%E (λ v, Q))
+    (at level 20, e, Q at level 200,
+       format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
+
+  Lemma tac_wp_cmpxchg Δ Δ' s E i K l v v1 v2 Φ :
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    envs_lookup i Δ' = Some (false, wptac_mapsto_conc l (DfracOwn 1) v)%I →
+    vals_compare_safe v v1 →
+    match envs_simple_replace i false (Esnoc Enil i (wptac_mapsto_conc l (DfracOwn 1) v2)) Δ' with
+    | Some Δ'' =>
+        v = v1 →
+        envs_entails Δ'' (WP fill K (Val $ PairV v (LitV $ LitBool true)) @ s; E {{ Φ }})
+    | None => False
+    end →
+    (v ≠ v1 →
+     envs_entails Δ' (WP fill K (Val $ PairV v (LitV $ LitBool false)) @ s; E {{ Φ }})) →
+    envs_entails Δ (WP fill K (CmpXchg (LitV l) (Val v1) (Val v2)) @ s; E {{ Φ }}).
+  Proof.
+  Admitted.
+
+  Lemma tac_wp_cmpxchg_fail Δ Δ' s E i K b l v v1 v2 Φ :
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    envs_lookup i Δ' = Some (b, wptac_mapsto_conc l (DfracOwn 1) v)%I →
+    v ≠ v1 → vals_compare_safe v v1 →
+    envs_entails Δ' (WP fill K (Val $ PairV v (LitV $ LitBool false)) @ s; E {{ Φ }}) →
+    envs_entails Δ (WP fill K (CmpXchg (LitV l) v1 v2) @ s; E {{ Φ }}).
+  Proof.
+  Admitted.
+
+  Lemma tac_wp_cmpxchg_suc Δ Δ' s E i K l v v1 v2 Φ :
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    envs_lookup i Δ' = Some (false, wptac_mapsto_conc l (DfracOwn 1) v)%I →
+    v = v1 → vals_compare_safe v v1 →
+    match envs_simple_replace i false (Esnoc Enil i (wptac_mapsto_conc l (DfracOwn 1) v2)) Δ' with
+    | Some Δ'' =>
+        envs_entails Δ'' (WP fill K (Val $ PairV v (LitV $ LitBool true)) @ s; E {{ Φ }})
+    | None => False
+    end →
+    envs_entails Δ (WP fill K (CmpXchg (LitV l) v1 v2) @ s; E {{ Φ }}).
+  Proof.
+  Admitted.
+
+  Lemma tac_wp_xchg Δ Δ' s E i K l v v' Φ :
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    envs_lookup i Δ' = Some (false, wptac_mapsto_conc l (DfracOwn 1) v)%I →
+    match envs_simple_replace i false (Esnoc Enil i (wptac_mapsto_conc l (DfracOwn 1) v')) Δ' with
+    | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ v) @ s; E {{ Φ }})
+    | None => False
+    end →
+    envs_entails Δ (WP fill K (Xchg (LitV l) (Val v')) @ s; E {{ Φ }}).
+  Proof.
+  Admitted.
+
+  Lemma tac_wp_faa Δ Δ' s E i K l z1 z2 Φ :
+    MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
+    envs_lookup i Δ' = Some (false, wptac_mapsto_conc l (DfracOwn 1) (LitV (LitInt z1)))%I →
+    match envs_simple_replace i false (Esnoc Enil i (wptac_mapsto_conc l (DfracOwn 1) (LitV (LitInt (z1+z2))))) Δ' with
+    | Some Δ'' => envs_entails Δ'' (WP fill K (Val $ LitV z1) @ s; E {{ Φ }})
+    | None => False
+    end →
+    envs_entails Δ (WP fill K (FAA (LitV l) (LitV z2)) @ s; E {{ Φ }}).
+  Proof.
+  Admitted.
+End concurrency_tactics.
+
+Tactic Notation "wp_cmpxchg" "as" simple_intropattern(H1) "|" simple_intropattern(H2) :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    iAssumptionCore || fail "wp_cmpxchg: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_cmpxchg _ _ _ _ _ K))
+      |fail 1 "wp_cmpxchg: cannot find 'CmpXchg' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |try solve_vals_compare_safe
+    |pm_reduce; intros H1; wp_finish
+    |intros H2; wp_finish]
+  | _ => fail "wp_cmpxchg: not a 'wp'"
+  end.
+
+Tactic Notation "wp_cmpxchg_fail" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    iAssumptionCore || fail "wp_cmpxchg_fail: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_cmpxchg_fail _ _ _ _ _ K))
+      |fail 1 "wp_cmpxchg_fail: cannot find 'CmpXchg' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |try (simpl; congruence) (* value inequality *)
+    |try solve_vals_compare_safe
+    |wp_finish]
+  | _ => fail "wp_cmpxchg_fail: not a 'wp'"
+  end.
+
+Tactic Notation "wp_cmpxchg_suc" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    iAssumptionCore || fail "wp_cmpxchg_suc: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_cmpxchg_suc _ _ _ _ _ K))
+      |fail 1 "wp_cmpxchg_suc: cannot find 'CmpXchg' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |try (simpl; congruence) (* value equality *)
+    |try solve_vals_compare_safe
+    |pm_reduce; wp_finish]
+  | _ => fail "wp_cmpxchg_suc: not a 'wp'"
+  end.
+
+
+Tactic Notation "wp_xchg" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    iAssumptionCore || fail "wp_xchg: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_xchg _ _ _ _ _ K))
+      |fail 1 "wp_xchg: cannot find 'Xchg' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |pm_reduce; first [wp_seq|wp_finish]]
+  | _ => fail "wp_xchg: not a 'wp'"
+  end.
+
+
+Tactic Notation "wp_faa" :=
+  let solve_pointsto _ :=
+    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    iAssumptionCore || fail "wp_faa: cannot find" l "↦ ?" in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_faa _ _ _ _ _ K))
+      |fail 1 "wp_faa: cannot find 'FAA' in" e];
+    [tc_solve
+    |solve_pointsto ()
+    |pm_reduce; wp_finish]
+  | _ => fail "wp_faa: not a 'wp'"
+  end.
