@@ -1,6 +1,6 @@
 From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Rcomplements Rbar Lim_seq.
-From clutch.prob Require Import distribution couplings couplings_app.
+From clutch.prob Require Import distribution couplings couplings_app mdp.
 Set Default Proof Using "Type*".
 
 (** * Markov Chains *)
@@ -38,6 +38,16 @@ Structure markov := Markov {
 #[global] Existing Instance mstate_ret_eqdec.
 #[global] Existing Instance mstate_ret_count.
 
+Definition markov_mdp_mixin (m : markov):
+  MdpMixin (λ (x:()) s, m.(step) s) (m.(to_final)).
+Proof.
+  constructor.
+  intros.
+  by apply markov_mixin.
+Qed.
+
+Canonical Structure markov_mdp (m : markov) := Mdp _ _ (markov_mdp_mixin m). 
+  
 Section is_final.
   Context {δ : markov}.
   Implicit Types a : mstate δ.

@@ -3,14 +3,14 @@ From stdpp Require Export binders strings.
 From stdpp Require Import gmap fin_maps countable fin.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
-From clutch.prob Require Export distribution.
-From clutch.common Require Export language ectx_language ectxi_language locations.
+From clutch.prob Require Export distribution mdp.
+From clutch.common Require Export con_language con_ectx_language con_ectxi_language locations.
 From iris.prelude Require Import options.
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
-Module prob_lang.
+Module con_prob_lang.
 
 Inductive base_lit : Set :=
   | LitInt (n : Z) | LitBool (b : bool) | LitUnit | LitLoc (l : loc) | LitLbl (l : loc).
@@ -51,6 +51,12 @@ Inductive expr :=
   | Rand (e1 e2 : expr)
   (* No-op operator used for cost *)
   | Tick (e : expr)
+  (* concurrency *)
+  | Fork (e : expr)
+  (* arbitrary atomic expressions*)     
+  | CmpXchg (e0 : expr) (e1 : expr) (e2 : expr)
+  | Xchg (e0 : expr) (e1 : expr)
+  | FAA (e1 : expr) (e2 : expr)
 with val :=
   | LitV (l : base_lit)
   | RecV (f x : binder) (e : expr)
@@ -60,6 +66,7 @@ with val :=
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
+
 
 Notation of_val := Val (only parsing).
 
@@ -186,6 +193,11 @@ Proof.
      | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
      | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Tick e, Tick e' => cast_if (decide (e = e'))
+     | Fork e, Fork e' => cast_if (decide (e = e'))
+     | CmpXchg e0 e1 e2, CmpXchg e0' e1' e2' => 
+         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | Xchg e1 e2, Xchg e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
+     | FAA e1 e2, FAA e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | _, _ => right _
      end
    with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
@@ -263,6 +275,10 @@ Proof.
      | AllocTape e => GenNode 15 [go e]
      | Rand e1 e2 => GenNode 16 [go e1; go e2]
      | Tick e => GenNode 17 [go e]
+     | Fork e => GenNode 18 [go e]
+     | CmpXchg e0 e1 e2 => GenNode 19 [go e0; go e1; go e2]
+     | Xchg e1 e2 => GenNode 20 [go e1; go e2]
+     | FAA e1 e2 => GenNode 21 [go e1; go e2]
      end
    with gov v :=
      match v with
@@ -296,6 +312,10 @@ Proof.
      | GenNode 15 [e] => AllocTape (go e)
      | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
      | GenNode 17 [e] => Tick (go e)
+     | GenNode 18 [e] => Fork (go e)
+     | GenNode 19 [e0; e1; e2] => CmpXchg (go e0) (go e1) (go e2)
+     | GenNode 20 [e1; e2] => Xchg (go e1) (go e2)
+     | GenNode 21 [e1; e2] => FAA (go e1) (go e2)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -310,7 +330,7 @@ Proof.
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -354,7 +374,15 @@ Inductive ectx_item :=
   | AllocTapeCtx
   | RandLCtx (v2 : val)
   | RandRCtx (e1 : expr)
-  | TickCtx.
+  | TickCtx
+  | XchgLCtx (v2 : val)
+  | XchgRCtx (e1 : expr)
+  | CmpXchgLCtx (v1 : val) (v2 : val)
+  | CmpXchgMCtx (e0 : expr) (v2 : val)
+  | CmpXchgRCtx (e0 : expr) (e1 : expr)
+  | FaaLCtx (v2 : val)
+  | FaaRCtx (e1 : expr)
+.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
@@ -380,6 +408,13 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | RandLCtx v2 => Rand e (Val v2)
   | RandRCtx e1 => Rand e1 e
   | TickCtx => Tick e
+  | XchgLCtx v2 => Xchg e (Val v2)
+  | XchgRCtx e1 => Xchg e1 e
+  | CmpXchgLCtx v1 v2 => CmpXchg e (Val v1) (Val v2)
+  | CmpXchgMCtx e0 v2 => CmpXchg e0 e (Val v2)
+  | CmpXchgRCtx e0 e1 => CmpXchg e0 e1 e
+  | FaaLCtx v2 => FAA e (Val v2)
+  | FaaRCtx e1 => FAA e1 e
   end.
 
 Definition decomp_item (e : expr) : option (ectx_item * expr) :=
@@ -427,6 +462,27 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       | _          => Some (RandRCtx e1, e2)
       end
   | Tick e         => noval e TickCtx
+  | Fork e         => None
+  | CmpXchg e0 e1 e2 =>
+      match e2 with
+      | Val v2 =>
+          match e1 with
+          | Val v1 =>
+              noval e0 (CmpXchgLCtx v1 v2)
+          | _ =>Some (CmpXchgMCtx e0 v2, e1)
+          end
+      | _ => Some (CmpXchgRCtx e0 e1, e2)
+      end
+  | Xchg e1 e2 =>
+      match e2 with
+      | Val v      => noval e1 (XchgLCtx v)
+      | _          => Some (XchgRCtx e1, e2)
+      end
+  | FAA e1 e2 =>
+      match e2 with
+      | Val v      => noval e1 (FaaLCtx v)
+      | _          => Some (FaaRCtx e1, e2)
+      end
   | _              => None
   end.
 
@@ -453,6 +509,10 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | AllocTape e => AllocTape (subst x v e)
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
   | Tick e => Tick (subst x v e)
+  | Fork e => Fork (subst x v e)
+  | CmpXchg e0 e1 e2 => CmpXchg (subst x v e0) (subst x v e1) (subst x v e2)
+  | Xchg e1 e2 => Xchg (subst x v e1) (subst x v e2)
+  | FAA e1 e2 => FAA (subst x v e1) (subst x v e2)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
@@ -650,53 +710,53 @@ Qed.
 
 #[local] Open Scope R.
 
-Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
+Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state * list (expr)) :=
   match e1 with
   | Rec f x e =>
-      dret (Val $ RecV f x e, σ1)
+      dret (Val $ RecV f x e, σ1, [])
   | Pair (Val v1) (Val v2) =>
-      dret (Val $ PairV v1 v2, σ1)
+      dret (Val $ PairV v1 v2, σ1, [])
   | InjL (Val v) =>
-      dret (Val $ InjLV v, σ1)
+      dret (Val $ InjLV v, σ1, [])
   | InjR (Val v) =>
-      dret (Val $ InjRV v, σ1)
+      dret (Val $ InjRV v, σ1, [])
   | App (Val (RecV f x e1)) (Val v2) =>
-      dret (subst' x v2 (subst' f (RecV f x e1) e1) , σ1)
+      dret (subst' x v2 (subst' f (RecV f x e1) e1) , σ1, [])
   | UnOp op (Val v) =>
       match un_op_eval op v with
-        | Some w => dret (Val w, σ1)
+        | Some w => dret (Val w, σ1, [])
         | _ => dzero
       end
   | BinOp op (Val v1) (Val v2) =>
       match bin_op_eval op v1 v2 with
-        | Some w => dret (Val w, σ1)
+        | Some w => dret (Val w, σ1, [])
         | _ => dzero
       end
   | If (Val (LitV (LitBool true))) e1 e2  =>
-      dret (e1 , σ1)
+      dret (e1 , σ1, [])
   | If (Val (LitV (LitBool false))) e1 e2 =>
-      dret (e2 , σ1)
+      dret (e2 , σ1, [])
   | Fst (Val (PairV v1 v2)) =>
-      dret (Val v1, σ1)
+      dret (Val v1, σ1, [])
   | Snd (Val (PairV v1 v2)) =>
-      dret (Val v2, σ1)
+      dret (Val v2, σ1, [])
   | Case (Val (InjLV v)) e1 e2 =>
-      dret (App e1 (Val v), σ1)
+      dret (App e1 (Val v), σ1, [])
   | Case (Val (InjRV v)) e1 e2 =>
-      dret (App e2 (Val v), σ1)
+      dret (App e2 (Val v), σ1, [])
   | AllocN (Val (LitV (LitInt N))) (Val v) =>
       let ℓ := fresh_loc σ1.(heap) in
       if bool_decide (0 < Z.to_nat N)%nat
-        then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1)
+        then dret (Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1, [])
         else dzero
   | Load (Val (LitV (LitLoc l))) =>
       match σ1.(heap) !! l with
-        | Some v => dret (Val v, σ1)
+        | Some v => dret (Val v, σ1, [])
         | None => dzero
       end
   | Store (Val (LitV (LitLoc l))) (Val w) =>
       match σ1.(heap) !! l with
-        | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1)
+        | Some v => dret (Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1, [])
         | None => dzero
       end
   (* Since our language only has integers, we use Z.to_nat, which maps positive
@@ -704,10 +764,10 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
      [dunifP N = dunif (1 + N)] to avoid the case [dunif 0 = dzero]. *)
   (* Uniform sampling from [0, 1 , ..., N] *)
   | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
-      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+      dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1, [])) (dunifP (Z.to_nat N))
   | AllocTape (Val (LitV (LitInt z))) =>
       let ι := fresh_loc σ1.(tapes) in
-      dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1)
+      dret (Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1, [])
   (* Labelled sampling, conditional on tape contents *)
   | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
       match σ1.(tapes) !! l with
@@ -716,17 +776,42 @@ Definition head_step (e1 : expr) (σ1 : state) : distr (expr * state) :=
             match ns  with
             | n :: ns =>
                 (* the tape is non-empty so we consume the first number *)
-                dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1)
+                dret (Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1, [])
             | [] =>
                 (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
-                dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP M)
+                dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1, [])) (dunifP M)
             end
           else
             (* bound did not match the bound of the tape *)
-            dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1)) (dunifP (Z.to_nat N))
+            dmap (λ n : fin _, (Val $ LitV $ LitInt n, σ1, [])) (dunifP (Z.to_nat N))
       | None => dzero
       end
-  | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1)
+  | Tick (Val (LitV (LitInt n))) => dret (Val $ LitV $ LitUnit, σ1, [])
+  | Fork e => dret (Val $ LitV $ LitUnit, σ1, [e])
+  | CmpXchg (Val (LitV (LitLoc l))) (Val v1) (Val v2) =>
+      match σ1.(heap) !! l with
+      | Some v =>
+          if decide (vals_compare_safe v v1)
+          then
+            let b:= bool_decide (v=v1) in
+            dret (Val $ PairV v (LitV $ LitBool b),
+                    (if b then state_upd_heap <[l:=v2]> σ1 else σ1),
+                      [])
+          else dzero
+        | None => dzero
+      end
+  | Xchg (Val (LitV (LitLoc l))) (Val v2) =>
+      match σ1.(heap)!!l with
+      | Some v1 => dret (Val v1, state_upd_heap <[l:=v2]> σ1, [])
+      | None => dzero
+      end
+  | FAA (Val (LitV (LitLoc l))) (Val (LitV (LitInt i2))) =>
+      match σ1.(heap)!!l with
+      | Some (LitV (LitInt i1)) => dret (Val $ LitV $ LitInt i1,
+                                          state_upd_heap <[l:=LitV (LitInt (i1+i2))]> σ1,
+                                            [])
+      | _ => dzero
+      end
   | _ => dzero
   end.
 
@@ -763,91 +848,107 @@ Lemma head_ctx_step_val Ki e σ ρ :
 Proof.
   destruct ρ, Ki ;
     rewrite /pmf/= ;
-    repeat case_match; clear -H ; inversion H; intros ; (lra || done).
+    repeat case_match; clear -H; inversion H; intros ; (lra || done).
 Qed.
 
 (** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
-Inductive head_step_rel : expr → state → expr → state → Prop :=
+Inductive head_step_rel : expr → state → expr → state -> list expr → Prop :=
 | RecS f x e σ :
-  head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ
+  head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ []
 | PairS v1 v2 σ :
-  head_step_rel (Pair (Val v1) (Val v2)) σ (Val $ PairV v1 v2) σ
+  head_step_rel (Pair (Val v1) (Val v2)) σ (Val $ PairV v1 v2) σ []
 | InjLS v σ :
-  head_step_rel (InjL $ Val v) σ (Val $ InjLV v) σ
+  head_step_rel (InjL $ Val v) σ (Val $ InjLV v) σ []
 | InjRS v σ :
-  head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ
+  head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ []
 | BetaS f x e1 v2 e' σ :
   e' = subst' x v2 (subst' f (RecV f x e1) e1) →
-  head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ
+  head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ []
 | UnOpS op v v' σ :
   un_op_eval op v = Some v' →
-  head_step_rel (UnOp op (Val v)) σ (Val v') σ
+  head_step_rel (UnOp op (Val v)) σ (Val v') σ []
 | BinOpS op v1 v2 v' σ :
   bin_op_eval op v1 v2 = Some v' →
-  head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ
+  head_step_rel (BinOp op (Val v1) (Val v2)) σ (Val v') σ []
 | IfTrueS e1 e2 σ :
-  head_step_rel (If (Val $ LitV $ LitBool true) e1 e2) σ e1 σ
+  head_step_rel (If (Val $ LitV $ LitBool true) e1 e2) σ e1 σ []
 | IfFalseS e1 e2 σ :
-  head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ
+  head_step_rel (If (Val $ LitV $ LitBool false) e1 e2) σ e2 σ []
 | FstS v1 v2 σ :
-  head_step_rel (Fst (Val $ PairV v1 v2)) σ (Val v1) σ
+  head_step_rel (Fst (Val $ PairV v1 v2)) σ (Val v1) σ []
 | SndS v1 v2 σ :
-  head_step_rel (Snd (Val $ PairV v1 v2)) σ (Val v2) σ
+  head_step_rel (Snd (Val $ PairV v1 v2)) σ (Val v2) σ []
 | CaseLS v e1 e2 σ :
-  head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
+  head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ []
 | CaseRS v e1 e2 σ :
-  head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
+  head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ []
 | AllocNS z N v σ l :
   l = fresh_loc σ.(heap) →
   N = Z.to_nat z →
   (0 < N)%nat ->
   head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
-    (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
+    (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ) []
 | LoadS l v σ :
   σ.(heap) !! l = Some v →
-  head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ
+  head_step_rel (Load (Val $ LitV $ LitLoc l)) σ (of_val v) σ []
 | StoreS l v w σ :
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
-    (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
+    (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ) []
 | RandNoTapeS z N (n : fin (S N)) σ:
   N = Z.to_nat z →
-  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
+  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ []
 | AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
   N = Z.to_nat z →
-  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
+  head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ 
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ) []
 | RandTapeS l z N n ns σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
-    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
+    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ) []
 | RandTapeEmptyS l z N (n : fin (S N)) σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((N; []) : tape) →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ []
 | RandTapeOtherS l z M N ms (n : fin (S N)) σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((M; ms) : tape) →
   N ≠ M →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ []
 | TickS σ z :
-  head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
+  head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ []
+| ForkS e σ:
+  head_step_rel (Fork $ e) σ (Val $ LitV $ LitUnit) σ [e]
+| CmpXchgS σ l vl v1 v2 b:
+  σ.(heap) !! l = Some vl ->
+  vals_compare_safe vl v1 ->
+  b = bool_decide (vl = v1) ->
+  head_step_rel (CmpXchg (Val $ LitV $ LitLoc l) (Val v1) (Val v2)) σ (Val $ PairV vl (LitV $ LitBool b)) (if b then state_upd_heap <[l:=v2]> σ else σ) []
+| XchgS σ l v1 v2:
+  σ.(heap) !! l = Some v1 ->
+  head_step_rel (Xchg (Val $ LitV $ LitLoc l) (Val v2)) σ (Val v1) (state_upd_heap <[l:=v2]> σ) []
+| FAAS σ l i1 i2:
+  σ.(heap) !! l = Some (LitV (LitInt i1)) ->
+  head_step_rel (FAA (Val $ LitV $ LitLoc l) (Val $ LitV $ LitInt i2)) σ (Val $ LitV $ LitInt i1)
+                (state_upd_heap <[l:= LitV (LitInt (i1+i2))]> σ) []
+    
+.
 
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 (* 0%fin always has non-zero mass, so propose this choice if the reduct is
    unconstrained. *)
 Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _ _) =>
          eapply (RandNoTapeS _ _ 0%fin) : head_step.
 Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _ _) =>
          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
 Global Hint Extern 1
-  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
+  (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
 
 Inductive state_step_rel : state → loc → state → Prop :=
@@ -868,11 +969,12 @@ Ltac inv_head_step :=
     | H : is_Some (_ !! _) |- _ => destruct H
     end.
 
-Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
-  head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
+Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 l :
+  head_step e1 σ1 (e2, σ2, l) > 0 ↔ head_step_rel e1 σ1 e2 σ2 l.
 Proof.
   split.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
+    all: constructor; try done; by case_bool_decide.
   - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
 Qed.
 
@@ -930,7 +1032,7 @@ Qed.
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
 Proof.
-  intros [[] Hs%head_step_support_equiv_rel].
+  intros [[[??] ?] Hs%head_step_support_equiv_rel].
   inversion Hs;
     repeat (simplify_map_eq/=; solve_distr_mass || case_match; try (case_bool_decide; done)).
 Qed.
@@ -961,6 +1063,10 @@ Fixpoint height (e : expr) : nat :=
   | AllocTape e => 1 + height e
   | Rand e1 e2 => 1 + height e1 + height e2
   | Tick e => 1 + height e
+  | Fork e => 1 + height e
+  | CmpXchg e0 e1 e2 => 1 + height e0 + height e1 + height e2
+  | Xchg e1 e2 => 1 + height e1 + height e2
+  | FAA e1 e2 => 1 + height e1 + height e2
   end.
 
 Definition expr_ord (e1 e2 : expr) : Prop := (height e1 < height e2)%nat.
@@ -1022,23 +1128,43 @@ Proof.
       apply elem_of_dom. eapply elem_of_elements, Hact. by right.
 Qed.
 
-Lemma prob_lang_mixin :
-  EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
+Lemma con_prob_lang_mixin :
+  ConEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
 Proof.
   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
     state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
     fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
-    decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
+      decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
 
-End prob_lang.
+End con_prob_lang.
 
 (** Language *)
-Canonical Structure prob_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
-Canonical Structure prob_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
-Canonical Structure prob_lang := LanguageOfEctx prob_ectx_lang.
+Canonical Structure con_prob_ectxi_lang := ConEctxiLanguage con_prob_lang.get_active con_prob_lang.con_prob_lang_mixin.
+Canonical Structure con_prob_ectx_lang := ConEctxLanguageOfEctxi con_prob_ectxi_lang.
+Canonical Structure con_prob_lang := ConLanguageOfEctx con_prob_ectx_lang.
 
 (* Prefer prob_lang names over ectx_language names. *)
-Export prob_lang.
+Export con_prob_lang.
 
-Definition cfg : Type := expr * state.
+Definition cfg : Type := list expr * state.
+Section sch_typeclasses.
+  Class TapeOblivious `{Countable sch_int_σ} (sch : scheduler (con_lang_mdp con_prob_lang) sch_int_σ) : Prop :=
+    tape_oblivious :
+     ∀ ζ ρ ρ', ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> sch (ζ, ρ) = sch (ζ, ρ')
+  .
+  Global Arguments TapeOblivious (_) {_ _} (_).
+
+  Lemma sch_tape_oblivious `{TapeOblivious si sch} ζ ρ ρ' :
+    ρ.1 = ρ'.1 -> heap ρ.2 = heap ρ'.2 -> sch (ζ, ρ) = sch (ζ, ρ').
+  Proof.
+    apply tape_oblivious.
+  Qed.
+
+  Lemma sch_tape_oblivious_state_upd_tapes `{TapeOblivious si sch} ζ α t σ es:
+    sch (ζ, (es, state_upd_tapes <[α:=t]> σ)) = sch (ζ, (es, σ)).
+  Proof.
+    apply sch_tape_oblivious; by simpl.
+  Qed.
+  
+End sch_typeclasses.

@@ -1,9 +1,9 @@
 (** A binary logical relation for System F_mu_ref with tapes *)
 From iris.base_logic Require Export na_invariants.
 From iris.proofmode Require Import proofmode.
-From clutch.common Require Import language ectxi_language.
+From clutch.common Require Import language ectxi_language locations.
 From clutch.prelude Require Import properness.
-From clutch.prob_lang Require Import locations notation lang.
+From clutch.prob_lang Require Import notation lang.
 From clutch.approxis Require Import app_weakestpre primitive_laws.
 
 Definition logN : namespace := nroot .@ "logN".

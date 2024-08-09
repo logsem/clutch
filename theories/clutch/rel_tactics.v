@@ -4,7 +4,7 @@ From iris.proofmode Require Import
      reduction.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.common Require Import language ectxi_language.
-From clutch.prob_lang Require Import locations class_instances notation tactics lang.
+From clutch.prob_lang Require Import class_instances notation tactics lang.
 From clutch.prob_lang.spec Require Export spec_tactics.
 From clutch.clutch Require Import primitive_laws model rel_rules proofmode.
 

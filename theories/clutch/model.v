@@ -3,7 +3,7 @@ From iris.base_logic Require Export na_invariants.
 From iris.proofmode Require Import proofmode.
 From clutch.common Require Import language ectxi_language.
 From clutch.prelude Require Import properness.
-From clutch.prob_lang Require Import locations notation lang.
+From clutch.prob_lang Require Import notation lang.
 From clutch.prob_lang.spec Require Import spec_rules.
 From clutch.clutch Require Import weakestpre primitive_laws.
 

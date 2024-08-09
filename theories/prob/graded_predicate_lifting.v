@@ -276,6 +276,13 @@ Section pgl_theory.
     by case_bool_decide.
   Qed.
 
+  Lemma pgl_1 (μ : distr A) (ε : R) P:
+    (1<=ε) -> pgl μ P ε.
+  Proof.
+    rewrite /pgl.
+    intros; etrans; [apply prob_le_1|done].
+  Qed.
+
   Lemma pgl_and (μ : distr A) (f g : A → Prop) (ε1 ε2 : R) :
     pgl μ f ε1 →
     pgl μ g ε2 →
