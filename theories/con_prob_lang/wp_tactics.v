@@ -69,7 +69,18 @@ Class GwpTacticsTapes Σ A (laters : bool) (gwp : A → coPset → expr → (val
     (▷ wptac_mapsto_tape l dq N (n::ns)) -∗
     (▷?laters ((wptac_mapsto_tape l dq N ns) -∗ ⌜ n ≤ N ⌝ -∗ Φ (LitV $ LitInt $ n)%V)) -∗
     gwp a E (Rand (LitV (LitInt z)) (LitV (LitLbl l))) Φ;
-}.
+  }.
+
+(** Atomic Concurrency *)
+Class GwpTacticsAtomicConcurrency Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= {
+    wptac_mapsto_conc : loc → dfrac → val → iProp Σ;
+    wptac_wp_cmpxchg E Φ l dq v v1 v2 a:
+    ( ▷ wptac_mapsto_conc l dq v ) -∗
+    ( ⌜ vals_compare_safe v v1 ⌝) -∗
+    let b := bool_decide (v = v1) in
+    (▷?laters ((wptac_mapsto_conc l dq (if b then v else v2)) -∗ Φ ((PairV v (LitV $ LitBool b)))%V)) -∗
+    gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ;
+  }.
 
 Section wp_tactics.
   Context `{GwpTacticsBase Σ A hlc gwp}.
