@@ -60,6 +60,85 @@ Notation "l ↪{# q } v" := (l ↪{ DfracOwn q } v)%I
 Notation "l ↪ v" := (l ↪{ DfracOwn 1 } v)%I
   (at level 20, format "l  ↪  v") : bi_scope.
 
+(** User-level tapes *)
+Definition nat_tape `{conerisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
+  ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ (N; fs).
+
+Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
+                                (at level 20, format "l ↪N ( M ; ns )") : bi_scope.
+
+Section tape_interface.
+  Context `{!conerisGS Σ}.
+
+  (** Helper lemmas to go back and forth between the user-level representation
+      of tapes (using nat) and the backend (using fin) *)
+
+  Lemma tapeN_to_empty l M :
+    (l ↪N ( M ; [] ) -∗ l ↪ ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (?) "(%Hmap & Hl')".
+    by destruct (fmap_nil_inv _ _ Hmap).
+  Qed.
+
+
+  Lemma empty_to_tapeN l M :
+    (l ↪ ( M ; [] ) -∗ l ↪N ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iExists []. auto.
+  Qed.
+
+  Lemma read_tape_head l M n ns :
+    (l ↪N ( M ; n :: ns ) -∗
+      ∃ x xs, l ↪ ( M ; x :: xs ) ∗ ⌜ fin_to_nat x = n ⌝ ∗
+        ( l ↪ ( M ; xs ) -∗l ↪N ( M ; ns ) )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (xss) "(%Hmap & Hl')".
+    destruct (fmap_cons_inv _ _ _ _ Hmap) as (x&xs&->&Hxs&->).
+    iExists x, xs.
+    iFrame.
+    iSplit; auto.
+    iIntros.
+    iExists xs; auto.
+  Qed.
+
+  (*
+  Lemma spec_tapeN_to_empty l M :
+    (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (?) "(%Hmap & Hl')".
+    by destruct (fmap_nil_inv _ _ Hmap).
+  Qed.
+
+
+  Lemma empty_to_spec_tapeN l M :
+    (l ↪ₛ ( M ; [] ) -∗ l ↪ₛN ( M ; [] )).
+  Proof.
+    iIntros "Hl".
+    iExists []. auto.
+  Qed.
+
+  Lemma read_spec_tape_head l M n ns :
+    (l ↪ₛN ( M ; n :: ns ) -∗
+      ∃ x xs, l ↪ₛ ( M ; x :: xs ) ∗ ⌜ fin_to_nat x = n ⌝ ∗
+              ( l ↪ₛ ( M ; xs ) -∗l ↪ₛN ( M ; ns ) )).
+  Proof.
+    iIntros "Hl".
+    iDestruct "Hl" as (xss) "(%Hmap & Hl')".
+    destruct (fmap_cons_inv _ _ _ _ Hmap) as (x&xs&->&Hxs&->).
+    iExists x, xs.
+    iFrame.
+    iSplit; auto.
+    iIntros.
+    iExists xs; auto.
+  Qed.
+*)
+
+End tape_interface.
+
 
 
 Section lifting.
@@ -202,7 +281,7 @@ Qed.
 (** Tapes  *)
 Lemma wp_alloc_tape N z E s :
   TCEq N (Z.to_nat z) →
-  {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪ (N; []) }}}.
+  {{{ True }}} alloc #z @ s; E {{{ α, RET #lbl:α; α ↪N (N; []) }}}.
 Proof.
   iIntros (-> Φ) "_ HΦ".
   iApply wp_lift_atomic_head_step; [done|].
@@ -213,16 +292,20 @@ Proof.
   { apply not_elem_of_dom, fresh_loc_is_fresh. }
   iFrame. iModIntro.
   iSplitL; last done.
-  by iApply "HΦ".
+  iApply "HΦ".
+  iExists []; auto.
 Qed.
 
 Lemma wp_rand_tape N α n ns z E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; n :: ns) }}} rand(#lbl:α) #z @ s; E {{{ RET #(LitInt n); α ↪ (N; ns) }}}.
+  {{{ ▷ α ↪N (N; n :: ns) }}}
+    rand(#lbl:α) #z @ s; E
+  {{{ RET #(LitInt n); α ↪N (N; ns) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct (read_tape_head with "Hl") as (x xs) "(Hl&<-&Hret)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 efs Hs).
@@ -230,14 +313,20 @@ Proof.
   iMod (ghost_map_update with "Ht Hl") as "[$ Hl]".
   iFrame. iModIntro.
   iSplitL; last done.
-  by iApply "HΦ".
+  iApply "HΦ".
+  iSplit; first by iApply "Hret".
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 Lemma wp_rand_tape_empty N z α E s :
   TCEq N (Z.to_nat z) →
-  {{{ ▷ α ↪ (N; []) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (N; []) }}}.
+  {{{ ▷ α ↪N (N; []) }}}
+    rand(#lbl:α) #z @ s; E
+  {{{ (n : nat), RET #(LitInt n); α ↪N (N; []) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> Φ) ">Hl HΦ".
+  iPoseProof (tapeN_to_empty with "Hl") as "Hl".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
@@ -245,18 +334,24 @@ Proof.
   iIntros "!>" (e2 σ2 efs Hs).
   inv_head_step.
   iFrame.
-  iSplitL; last done.
-  iModIntro. iApply ("HΦ" with "[$Hl //]").
+  iModIntro. iSplitL; last done.
+  iApply ("HΦ" with "[$Hl]").
+  iSplit; auto.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 Lemma wp_rand_tape_wrong_bound N M z α E ns s :
   TCEq N (Z.to_nat z) →
   N ≠ M →
-  {{{ ▷ α ↪ (M; ns) }}} rand(#lbl:α) #z @ s; E {{{ (n : fin (S N)), RET #(LitInt n); α ↪ (M; ns) }}}.
+  {{{ ▷ α ↪N (M; ns) }}}
+    rand(#lbl:α) #z @ s; E
+  {{{ (n : nat), RET #(LitInt n); α ↪N (M; ns) ∗ ⌜n <= N⌝ }}}.
 Proof.
   iIntros (-> ? Φ) ">Hl HΦ".
   iApply wp_lift_atomic_head_step; [done|].
   iIntros (σ1) "(Hh & Ht) !#".
+  iDestruct "Hl" as (?) "(?&Hl)".
   iDestruct (ghost_map_lookup with "Ht Hl") as %?.
   solve_red.
   iIntros "!>" (e2 σ2 efs Hs).
@@ -264,7 +359,10 @@ Proof.
   iFrame.
   iModIntro.
   iSplitL; last done.
-  iApply ("HΦ" with "[$Hl //]").
+  iApply ("HΦ").
+  iFrame.
+  iPureIntro.
+  pose proof (fin_to_nat_lt x); lia.
 Qed.
 
 Lemma wp_fork s E e Φ :
