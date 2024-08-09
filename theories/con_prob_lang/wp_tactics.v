@@ -80,6 +80,16 @@ Class GwpTacticsAtomicConcurrency Σ A (laters : bool) (gwp : A → coPset → e
     let b := bool_decide (v = v1) in
     (▷?laters ((wptac_mapsto_conc l dq (if b then v else v2)) -∗ Φ ((PairV v (LitV $ LitBool b)))%V)) -∗
     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ;
+    
+    wptac_wp_xchg E Φ l dq v1 v2 a:
+    ( ▷ wptac_mapsto_conc l dq v1 ) -∗
+    (▷?laters ((wptac_mapsto_conc l dq v2) -∗ Φ v1)) -∗
+    gwp a E (Xchg (Val $ LitV $ LitLoc $ l) (Val v2)) Φ;
+    
+    wptac_wp_faa E Φ l dq i1 i2 a:
+    ( ▷ wptac_mapsto_conc l dq (LitV $ LitInt $ i1) ) -∗
+    (▷?laters ((wptac_mapsto_conc l dq (LitV $ LitInt $ (i1+i2)%Z)) -∗ Φ (LitV $ LitInt i1))) -∗
+    gwp a E (FAA (Val $ LitV $ LitLoc $ l) (Val $ LitV $ LitInt i2) ) Φ;
   }.
 
 Section wp_tactics.
