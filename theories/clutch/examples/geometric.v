@@ -1,6 +1,6 @@
 (* Small demo that Clutch can prove equivalence of recursively defined procedures. *)
 
-From clutch Require Export clutch lib.flip.
+From clutch Require Export clutch clutch.lib.flip.
 Set Default Proof Using "Type*".
 
 Definition geo_true : val := rec: "f" "n" := if: flip then "n" else "f" ("n" + #1).

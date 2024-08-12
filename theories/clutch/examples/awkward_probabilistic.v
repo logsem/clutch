@@ -13,7 +13,7 @@ NB: e1 and e2 are equivalent only if executed only once. We prove the
 equivalence by adding a guard that returns `NONE` after the first invocation.
 *)
 
-From clutch Require Export clutch lib.flip. 
+From clutch Require Export clutch clutch.lib.flip. 
 From clutch.clutch.examples Require Export one_time_pad.
 
 Set Default Proof Using "Type*".

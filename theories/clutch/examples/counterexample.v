@@ -1,4 +1,4 @@
-From clutch Require Export clutch lib.flip.
+From clutch Require Export clutch clutch.lib.flip.
 Set Default Proof Using "Type*".
 
 (** If we assume that we can freely pick presampling tapes to read from when

@@ -4,7 +4,7 @@
    NB: This example was mentioned as open problem in Aleš Bizjak's thesis.
  *)
 
-From clutch Require Export clutch lib.flip.
+From clutch Require Export clutch clutch.lib.flip.
 Set Default Proof Using "Type*".
 
 (* A diverging term. *)
