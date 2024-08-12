@@ -6,7 +6,7 @@
     the only difference being the use of sequential composition with `f()` in the
     body of the closures. *)
 
-From clutch Require Export clutch lib.flip. 
+From clutch Require Export clutch clutch.lib.flip. 
 Set Default Proof Using "Type*".
 
 (** The lazy/eager coins, without tapes *)

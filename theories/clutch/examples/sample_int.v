@@ -1,4 +1,4 @@
-From clutch Require Export clutch lib.flip lib.conversion.
+From clutch Require Export clutch clutch.lib.flip clutch.lib.conversion.
 
 (* This is a library for sampling integers in the set {0, ..., 2^n-1}
    for some natural number n > 0.

@@ -1,4 +1,4 @@
-From clutch Require Export clutch lib.flip.
+From clutch Require Export clutch clutch.lib.flip.
 From clutch.clutch.examples Require Export sample_int.
 
 Section lazy_int.

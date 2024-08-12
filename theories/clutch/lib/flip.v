@@ -2,7 +2,7 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import
   coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
-From clutch Require Import clutch lib.conversion.
+From clutch Require Import clutch clutch.lib.conversion.
 
 Definition flipL : val := λ: "e", int_to_bool (rand("e") #1%nat).
 Definition flip : expr := (flipL #()).

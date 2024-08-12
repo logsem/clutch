@@ -1,4 +1,4 @@
-From clutch Require Export clutch lib.flip.
+From clutch Require Export clutch clutch.lib.flip.
 Set Default Proof Using "Type*".
 
 Section proofs.
