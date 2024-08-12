@@ -28,8 +28,8 @@ Proof.
   iIntros "Hf1 Hf2 HΦ". wp_lam. wp_let.
   wp_apply (spawn_spec parN with "Hf1"). iIntros (l) "Hl".
   wp_let. wp_bind (f2 _).
-  wp_apply (pgl_wp_wand with "Hf2"). iIntros (v) "H2". wp_let.
-  wp_apply (join_spec with "[$Hl]"). iIntros (w) "H1".
+  wp_apply (pgl_wp_wand with "Hf2") as (v) "H2". wp_let.
+  wp_apply (join_spec with "[$Hl]") as (w) "H1".
   iSpecialize ("HΦ" with "[$H1 $H2]"). by wp_pures.
 Qed.
 
