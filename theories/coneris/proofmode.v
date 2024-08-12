@@ -26,8 +26,9 @@ Next Obligation. intros. by apply wp_alloc_tape. Qed.
 Next Obligation. intros. rewrite (bi.wand_curry (l↪N(N;ns))). by apply wp_rand_tape. Qed.
 
 #[global] Program Instance rel_logic_wptactics_atomic_concurrency `{!conerisGS Σ} : GwpTacticsAtomicConcurrency Σ unit true wp :=
-  Build_GwpTacticsAtomicConcurrency _ _ _ _ (λ l q v, (l ↦{q} v)%I) _ _ _.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
-Next Obligation. Admitted.
+  Build_GwpTacticsAtomicConcurrency _ _ _ _ (λ l q v, (l ↦{q} v)%I) _ _ _ _.
+Next Obligation. intros. by apply wp_cmpxchg_fail. Qed.
+Next Obligation. intros. by apply wp_cmpxchg_suc. Qed. 
+Next Obligation. intros. by apply wp_xchg. Qed.
+Next Obligation. intros. by apply wp_faa. Qed. 
   

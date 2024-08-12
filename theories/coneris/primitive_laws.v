@@ -374,6 +374,40 @@ Proof.
   inv_head_step. by iFrame. 
 Qed.
 
+(* Concurrency *)
+Lemma wp_cmpxchg_fail s E (v v1 v2: val) l dq :
+  v ≠ v1 ->
+  {{{ ▷ l ↦{dq} v }}}
+    CmpXchg #l v1 v2 @ s; E
+   {{{ RET (v, #false)%V; l ↦{dq} v }}}.
+Proof.
+Admitted.
+
+Lemma wp_cmpxchg_suc s E (v v1 v2: val) l :
+  v = v1 ->
+  {{{ ▷ l ↦ v }}}
+    CmpXchg #l v1 v2 @ s; E
+   {{{ RET (v, #true)%V; l ↦ v2 }}}.
+Proof.
+Admitted.
+
+Lemma wp_xchg s E (v1 v2: val) l :
+  {{{ ▷ l ↦ v1 }}}
+    Xchg #l v2 @ s; E
+   {{{ RET v1; l ↦ v2 }}}.
+Proof.
+Admitted.
+
+
+Lemma wp_faa s E (i1 i2: Z) l :
+  {{{ ▷ l ↦ #i1 }}}
+    FAA #l #i2 @ s; E
+   {{{ RET #i1; l ↦ #(i1+i2)%Z }}}.
+Proof.
+Admitted.
+
+
+  
 End lifting.
 
 Global Hint Extern 0 (TCEq _ (Z.to_nat _ )) => rewrite Nat2Z.id : typeclass_instances.
