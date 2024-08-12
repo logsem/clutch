@@ -376,27 +376,54 @@ Qed.
 
 (* Concurrency *)
 Lemma wp_cmpxchg_fail s E (v v1 v2: val) l dq :
+  vals_compare_safe v v1 ->
   v ≠ v1 ->
   {{{ ▷ l ↦{dq} v }}}
     CmpXchg #l v1 v2 @ s; E
    {{{ RET (v, #false)%V; l ↦{dq} v }}}.
 Proof.
-Admitted.
+  iIntros (?? Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+  solve_red.
+  iIntros "!> /=" (e2 σ2 efs Hs); inv_head_step.
+  iFrame. iSplitL; last done.
+  by iApply "HΦ".
+Qed.
+
 
 Lemma wp_cmpxchg_suc s E (v v1 v2: val) l :
+  vals_compare_safe v v1 ->
   v = v1 ->
   {{{ ▷ l ↦ v }}}
     CmpXchg #l v1 v2 @ s; E
    {{{ RET (v, #true)%V; l ↦ v2 }}}.
 Proof.
-Admitted.
+  iIntros (? ? Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+  solve_red.
+  iIntros "!> /=" (e2 σ2 efs Hs); inv_head_step.
+  iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
+  iFrame. iModIntro. iSplitL; last done. by iApply "HΦ".
+Qed.
 
 Lemma wp_xchg s E (v1 v2: val) l :
   {{{ ▷ l ↦ v1 }}}
     Xchg #l v2 @ s; E
    {{{ RET v1; l ↦ v2 }}}.
 Proof.
-Admitted.
+  iIntros (Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+  solve_red.
+  iIntros "!> /=" (e2 σ2 efs Hs); inv_head_step.
+  iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
+  iFrame. iModIntro. iSplitL; last done. by iApply "HΦ".
+Qed.
 
 
 Lemma wp_faa s E (i1 i2: Z) l :
@@ -404,7 +431,15 @@ Lemma wp_faa s E (i1 i2: Z) l :
     FAA #l #i2 @ s; E
    {{{ RET #i1; l ↦ #(i1+i2)%Z }}}.
 Proof.
-Admitted.
+  iIntros (Φ) ">Hl HΦ".
+  iApply wp_lift_atomic_head_step; [done|].
+  iIntros (σ1) "[Hh Ht] !#".
+  iDestruct (ghost_map_lookup with "Hh Hl") as %?.
+  solve_red.
+  iIntros "!> /=" (e2 σ2 efs Hs); inv_head_step.
+  iMod (ghost_map_update with "Hh Hl") as "[$ Hl]".
+  iFrame. iModIntro. iSplitL; last done. by iApply "HΦ".
+Qed.
 
 
   
