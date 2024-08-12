@@ -795,7 +795,17 @@ Section concurrency_tactics.
     end →
     envs_entails Δ (WP fill K (Xchg (LitV l) (Val v')) @ s; E {{ Φ }}).
   Proof.
-  Admitted.
+    rewrite envs_entails_unseal=> ???.
+    destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+    rewrite -wptac_wp_bind. eapply bi.wand_apply; first by eapply bi.wand_entails, wptac_wp_xchg.
+    destruct laters.
+    - rewrite into_laterN_env_sound -bi.later_sep envs_simple_replace_sound //; simpl.
+      rewrite right_id.
+      by apply bi.later_mono, bi.sep_mono_r, bi.wand_mono.
+    - rewrite into_laterN_env_sound envs_simple_replace_sound //; simpl.
+      rewrite right_id.
+      apply bi.sep_mono, bi.wand_mono; eauto.
+  Qed.
 
   Lemma tac_wp_faa Δ Δ' s E i K l z1 z2 Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
@@ -806,7 +816,17 @@ Section concurrency_tactics.
     end →
     envs_entails Δ (WP fill K (FAA (LitV l) (LitV z2)) @ s; E {{ Φ }}).
   Proof.
-  Admitted.
+    rewrite envs_entails_unseal=> ???.
+    destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+    rewrite -wptac_wp_bind. eapply bi.wand_apply; first by eapply bi.wand_entails, (wptac_wp_faa _ _ _ _ z1 z2).
+    destruct laters.
+    - rewrite into_laterN_env_sound -bi.later_sep envs_simple_replace_sound //; simpl.
+      rewrite right_id. by apply bi.later_mono, bi.sep_mono_r, bi.wand_mono.
+    - rewrite into_laterN_env_sound envs_simple_replace_sound //; simpl.
+      rewrite right_id. eapply bi.sep_mono, bi.wand_mono; eauto.
+  Qed.
+
+
 End concurrency_tactics.
 
 Tactic Notation "wp_cmpxchg" "as" simple_intropattern(H1) "|" simple_intropattern(H2) :=
