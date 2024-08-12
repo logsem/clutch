@@ -74,22 +74,29 @@ Class GwpTacticsTapes Σ A (laters : bool) (gwp : A → coPset → expr → (val
 (** Atomic Concurrency *)
 Class GwpTacticsAtomicConcurrency Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ):= {
     wptac_mapsto_conc : loc → dfrac → val → iProp Σ;
-    
-    wptac_wp_cmpxchg E Φ l dq v v1 v2 a:
+
+    wptac_wp_cmpxchg_fail E Φ l dq v v1 v2 a:
+    v≠v1->
     vals_compare_safe v v1 ->
     ( ▷ wptac_mapsto_conc l dq v ) -∗
-    let b := bool_decide (v = v1) in
-    (▷?laters ((wptac_mapsto_conc l dq (if b then v2 else v)) -∗ Φ ((PairV v (LitV $ LitBool b)))%V)) -∗
+    (▷?laters ((wptac_mapsto_conc l dq v) -∗ Φ ((PairV v (LitV $ LitBool false)))%V)) -∗
     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ;
     
-    wptac_wp_xchg E Φ l dq v1 v2 a:
-    ( ▷ wptac_mapsto_conc l dq v1 ) -∗
-    (▷?laters ((wptac_mapsto_conc l dq v2) -∗ Φ v1)) -∗
+    wptac_wp_cmpxchg_suc E Φ l v v1 v2 a:
+    v=v1->
+    vals_compare_safe v v1 ->
+    ( ▷ wptac_mapsto_conc l (DfracOwn 1) v ) -∗
+    (▷?laters ((wptac_mapsto_conc l (DfracOwn 1) v2) -∗ Φ ((PairV v (LitV $ LitBool true)))%V)) -∗
+    gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ;
+    
+    wptac_wp_xchg E Φ l v1 v2 a:
+    ( ▷ wptac_mapsto_conc l (DfracOwn 1) v1 ) -∗
+    (▷?laters ((wptac_mapsto_conc l (DfracOwn 1) v2) -∗ Φ v1)) -∗
     gwp a E (Xchg (Val $ LitV $ LitLoc $ l) (Val v2)) Φ;
     
-    wptac_wp_faa E Φ l dq i1 i2 a:
-    ( ▷ wptac_mapsto_conc l dq (LitV $ LitInt $ i1) ) -∗
-    (▷?laters ((wptac_mapsto_conc l dq (LitV $ LitInt $ (i1+i2)%Z)) -∗ Φ (LitV $ LitInt i1))) -∗
+    wptac_wp_faa E Φ l i1 i2 a:
+    ( ▷ wptac_mapsto_conc l (DfracOwn 1) (LitV $ LitInt $ i1) ) -∗
+    (▷?laters ((wptac_mapsto_conc l (DfracOwn 1) (LitV $ LitInt $ (i1+i2)%Z)) -∗ Φ (LitV $ LitInt i1))) -∗
     gwp a E (FAA (Val $ LitV $ LitLoc $ l) (Val $ LitV $ LitInt i2) ) Φ;
   }.
 
@@ -696,30 +703,6 @@ Section concurrency_tactics.
     (at level 20, e, Q at level 200,
        format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
-  Lemma wptac_wp_cmpxchg_fail E Φ l dq v v1 v2 a:
-    v≠v1->
-    vals_compare_safe v v1 ->
-    ( ▷ wptac_mapsto_conc l dq v ) -∗
-    (▷?laters ((wptac_mapsto_conc l dq v) -∗ Φ ((PairV v (LitV $ LitBool false)))%V)) -∗
-    gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ.
-  Proof.
-    iIntros.
-    iApply (wptac_wp_cmpxchg with "[$]"); first done.
-    by rewrite bool_decide_eq_false_2.
-  Qed.
-  
-  Lemma wptac_wp_cmpxchg_suc E Φ l dq v v1 v2 a:
-    v=v1->
-    vals_compare_safe v v1 ->
-    ( ▷ wptac_mapsto_conc l dq v ) -∗
-    (▷?laters ((wptac_mapsto_conc l dq v2) -∗ Φ ((PairV v (LitV $ LitBool true)))%V)) -∗
-    gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ.
-  Proof.
-    iIntros.
-    iApply (wptac_wp_cmpxchg with "[$]"); first done.
-    by rewrite bool_decide_eq_true_2.
-  Qed.
-
   Lemma tac_wp_cmpxchg Δ Δ' s E i K l v v1 v2 Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
     envs_lookup i Δ' = Some (false, wptac_mapsto_conc l (DfracOwn 1) v)%I →
@@ -823,7 +806,7 @@ Section concurrency_tactics.
   Proof.
     rewrite envs_entails_unseal=> ???.
     destruct (envs_simple_replace _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
-    rewrite -wptac_wp_bind. eapply bi.wand_apply; first by eapply bi.wand_entails, (wptac_wp_faa _ _ _ _ z1 z2).
+    rewrite -wptac_wp_bind. eapply bi.wand_apply; first by eapply bi.wand_entails, (wptac_wp_faa _ _ _ z1 z2).
     destruct laters.
     - rewrite into_laterN_env_sound -bi.later_sep envs_simple_replace_sound //; simpl.
       rewrite right_id. by apply bi.later_mono, bi.sep_mono_r, bi.wand_mono.
