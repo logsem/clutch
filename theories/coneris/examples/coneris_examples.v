@@ -1,5 +1,5 @@
 From clutch.coneris Require Export coneris.
-
+  
 Section test.
   Context `{!conerisGS Σ}.
 
@@ -217,6 +217,20 @@ Proof.
   - by wp_pures.
   - wp_pures. by iApply "HΦ".
 Qed. 
-  
-                          
 
+Lemma wp_concurrency_atomic l: {{{ l ↦#0 }}}
+                                CmpXchg #l #0 #1 ;;
+                              CmpXchg #l #0 #1 ;;
+                              Xchg #l #2 ;;
+                              FAA #l #3
+                                  {{{ RET #2; l↦#5}}}.
+Proof.
+  iIntros (Φ) "? HΦ".
+  wp_cmpxchg_suc.
+  wp_pures.
+  wp_cmpxchg_fail.
+  wp_pures.
+  wp_xchg.
+  wp_faa.
+  iModIntro. by iApply "HΦ".
+Qed.

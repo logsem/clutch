@@ -819,7 +819,7 @@ End concurrency_tactics.
 
 Tactic Notation "wp_cmpxchg" "as" simple_intropattern(H1) "|" simple_intropattern(H2) :=
   let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_conc ?l _ _)%I) => l end in
     iAssumptionCore || fail "wp_cmpxchg: cannot find" l "↦ ?" in
   wp_pures;
   lazymatch goal with
@@ -837,7 +837,7 @@ Tactic Notation "wp_cmpxchg" "as" simple_intropattern(H1) "|" simple_intropatter
 
 Tactic Notation "wp_cmpxchg_fail" :=
   let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_conc ?l _ _)%I) => l end in
     iAssumptionCore || fail "wp_cmpxchg_fail: cannot find" l "↦ ?" in
   wp_pures;
   lazymatch goal with
@@ -855,7 +855,7 @@ Tactic Notation "wp_cmpxchg_fail" :=
 
 Tactic Notation "wp_cmpxchg_suc" :=
   let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_conc ?l _ _)%I) => l end in
     iAssumptionCore || fail "wp_cmpxchg_suc: cannot find" l "↦ ?" in
   wp_pures;
   lazymatch goal with
@@ -874,7 +874,7 @@ Tactic Notation "wp_cmpxchg_suc" :=
 
 Tactic Notation "wp_xchg" :=
   let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_conc ?l _ _)%I) => l end in
     iAssumptionCore || fail "wp_xchg: cannot find" l "↦ ?" in
   wp_pures;
   lazymatch goal with
@@ -891,7 +891,7 @@ Tactic Notation "wp_xchg" :=
 
 Tactic Notation "wp_faa" :=
   let solve_pointsto _ :=
-    let l := match goal with |- _ = Some (_, (wptac_mapsto ?l _ _)%I) => l end in
+    let l := match goal with |- _ = Some (_, (wptac_mapsto_conc ?l _ _)%I) => l end in
     iAssumptionCore || fail "wp_faa: cannot find" l "↦ ?" in
   wp_pures;
   lazymatch goal with
