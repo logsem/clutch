@@ -703,8 +703,10 @@ Section concurrency_tactics.
     (▷?laters ((wptac_mapsto_conc l dq v) -∗ Φ ((PairV v (LitV $ LitBool false)))%V)) -∗
     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ.
   Proof.
-  Admitted.
-
+    iIntros.
+    iApply (wptac_wp_cmpxchg with "[$]"); first done.
+    by rewrite bool_decide_eq_false_2.
+  Qed.
   
   Lemma wptac_wp_cmpxchg_suc E Φ l dq v v1 v2 a:
     v=v1->
@@ -713,7 +715,10 @@ Section concurrency_tactics.
     (▷?laters ((wptac_mapsto_conc l dq v2) -∗ Φ ((PairV v (LitV $ LitBool true)))%V)) -∗
     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ.
   Proof.
-  Admitted.
+    iIntros.
+    iApply (wptac_wp_cmpxchg with "[$]"); first done.
+    by rewrite bool_decide_eq_true_2.
+  Qed.
 
   Lemma tac_wp_cmpxchg Δ Δ' s E i K l v v1 v2 Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
