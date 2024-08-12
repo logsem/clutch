@@ -76,10 +76,10 @@ Class GwpTacticsAtomicConcurrency Σ A (laters : bool) (gwp : A → coPset → e
     wptac_mapsto_conc : loc → dfrac → val → iProp Σ;
     
     wptac_wp_cmpxchg E Φ l dq v v1 v2 a:
+    vals_compare_safe v v1 ->
     ( ▷ wptac_mapsto_conc l dq v ) -∗
-    ( ⌜ vals_compare_safe v v1 ⌝) -∗
     let b := bool_decide (v = v1) in
-    (▷?laters ((wptac_mapsto_conc l dq (if b then v else v2)) -∗ Φ ((PairV v (LitV $ LitBool b)))%V)) -∗
+    (▷?laters ((wptac_mapsto_conc l dq (if b then v2 else v)) -∗ Φ ((PairV v (LitV $ LitBool b)))%V)) -∗
     gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ;
     
     wptac_wp_xchg E Φ l dq v1 v2 a:
@@ -696,6 +696,25 @@ Section concurrency_tactics.
     (at level 20, e, Q at level 200,
        format "'[hv' 'WP'  e  '/' @  '[' s ;  '/' E  ']' '/' {{  '[' v ,  '/' Q  ']' } } ']'") : bi_scope.
 
+  Lemma wptac_wp_cmpxchg_fail E Φ l dq v v1 v2 a:
+    v≠v1->
+    vals_compare_safe v v1 ->
+    ( ▷ wptac_mapsto_conc l dq v ) -∗
+    (▷?laters ((wptac_mapsto_conc l dq v) -∗ Φ ((PairV v (LitV $ LitBool false)))%V)) -∗
+    gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ.
+  Proof.
+  Admitted.
+
+  
+  Lemma wptac_wp_cmpxchg_suc E Φ l dq v v1 v2 a:
+    v=v1->
+    vals_compare_safe v v1 ->
+    ( ▷ wptac_mapsto_conc l dq v ) -∗
+    (▷?laters ((wptac_mapsto_conc l dq v2) -∗ Φ ((PairV v (LitV $ LitBool true)))%V)) -∗
+    gwp a E (CmpXchg (Val $ LitV $ LitLoc $ l) (Val v1) (Val v2)) Φ.
+  Proof.
+  Admitted.
+
   Lemma tac_wp_cmpxchg Δ Δ' s E i K l v v1 v2 Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
     envs_lookup i Δ' = Some (false, wptac_mapsto_conc l (DfracOwn 1) v)%I →
@@ -710,16 +729,46 @@ Section concurrency_tactics.
      envs_entails Δ' (WP fill K (Val $ PairV v (LitV $ LitBool false)) @ s; E {{ Φ }})) →
     envs_entails Δ (WP fill K (CmpXchg (LitV l) (Val v1) (Val v2)) @ s; E {{ Φ }}).
   Proof.
-  Admitted.
+    rewrite envs_entails_unseal=> ??? Hsuc Hfail.
+    destruct (envs_simple_replace _ _ _ _) as [Δ''|] eqn:HΔ''; [ | contradiction ].
+    destruct (decide (v = v1)) as [Heq|Hne].
+    - rewrite -wptac_wp_bind. eapply bi.wand_apply.
+      { eapply bi.wand_entails, wptac_wp_cmpxchg_suc; eauto. }
+      rewrite into_laterN_env_sound /= {1}envs_simple_replace_sound //; simpl.
+      destruct laters.
+      + rewrite -bi.later_sep.
+        apply bi.later_mono, bi.sep_mono_r. rewrite right_id. apply bi.wand_mono; auto.
+      + simpl. apply bi.sep_mono; eauto.
+        apply bi.wand_mono; eauto. 
+    - rewrite -wptac_wp_bind. eapply bi.wand_apply.
+      { eapply bi.wand_entails, wptac_wp_cmpxchg_fail; eauto. }
+      rewrite into_laterN_env_sound /= envs_lookup_split//; simpl.
+      destruct laters.
+      + rewrite -bi.later_sep.
+        apply bi.later_mono, bi.sep_mono_r. apply bi.wand_mono; auto.
+      + simpl. apply bi.sep_mono; eauto.
+        apply bi.wand_mono; eauto.
+  Qed.
 
-  Lemma tac_wp_cmpxchg_fail Δ Δ' s E i K b l v v1 v2 Φ :
+  Lemma tac_wp_cmpxchg_fail Δ Δ' s E i K b l v v1 (v2:val) Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
     envs_lookup i Δ' = Some (b, wptac_mapsto_conc l (DfracOwn 1) v)%I →
     v ≠ v1 → vals_compare_safe v v1 →
     envs_entails Δ' (WP fill K (Val $ PairV v (LitV $ LitBool false)) @ s; E {{ Φ }}) →
     envs_entails Δ (WP fill K (CmpXchg (LitV l) v1 v2) @ s; E {{ Φ }}).
   Proof.
-  Admitted.
+    rewrite envs_entails_unseal=> ???? Hi.
+    rewrite -wptac_wp_bind. eapply bi.wand_apply; first eapply bi.wand_entails, wptac_wp_cmpxchg_fail; eauto.
+    erewrite into_laterN_env_sound, envs_lookup_split; simpl; eauto.
+    destruct laters.
+    - rewrite -bi.later_sep. simpl. iApply bi.later_mono. simpl.
+      destruct b; simpl.
+      + iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
+      + iIntros "[$ He]". iIntros "Hl". iApply Hi. iApply "He". iFrame "Hl".
+    - simpl. destruct b; simpl.
+      + iIntros "[#$ He]". iIntros "_". iApply Hi. iApply "He". iFrame "#".
+      + iIntros "[$ He]". iIntros "Hl". iApply Hi. iApply "He". iFrame "Hl".
+  Qed.
 
   Lemma tac_wp_cmpxchg_suc Δ Δ' s E i K l v v1 v2 Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
@@ -732,7 +781,10 @@ Section concurrency_tactics.
     end →
     envs_entails Δ (WP fill K (CmpXchg (LitV l) v1 v2) @ s; E {{ Φ }}).
   Proof.
-  Admitted.
+    intros. eapply tac_wp_cmpxchg; eauto; last naive_solver.
+    case_match; naive_solver.
+  Qed.
+
 
   Lemma tac_wp_xchg Δ Δ' s E i K l v v' Φ :
     MaybeIntoLaterNEnvs (if laters then 1 else 0) Δ Δ' →
