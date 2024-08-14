@@ -13,6 +13,8 @@ Canonical Structure nonnegrealO : ofe := leibnizO nonnegreal.
 (** ** RA for the reals in the interval [0, 1) with addition as the operation. *)
 Section nonnegreal.
 
+  Global Instance nonnegreal_inhabited : Inhabited nonnegreal := populate (nnreal_one).
+
   #[local] Open Scope R.
   #[local] Open Scope NNR.
 
