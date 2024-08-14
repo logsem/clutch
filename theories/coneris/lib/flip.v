@@ -16,6 +16,7 @@ Notation "l ↪B bs" := (bool_tape l bs)
 
 Section specs.
   Context `{conerisGS Σ}.
+    
   
   Lemma tape_conversion_bool_nat α bs:
     α ↪B (bs) ⊣⊢ α ↪N (1; (λ b:bool, if b then 1 else 0) <$> bs).
@@ -81,6 +82,25 @@ Section specs.
     wp_apply (wp_int_to_bool with "[//]").
     iIntros "_".
     by iApply "HΦ".
+  Qed.
+
+  Lemma wp_flip_adv E (ε:nonnegreal) ε2:
+    (nonneg ε = 1/2 * (nonneg (ε2 true) + nonneg (ε2 false)))%R ->
+    {{{ ↯ ε }}} flip @ E {{{ (b : bool), RET #(LitBool b); ↯ (ε2 b) }}}.
+  Proof.
+    iIntros (? Φ) "Herr HΦ". rewrite /flip/flipL.
+    wp_pures.
+    wp_bind (rand(_) _)%E.
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ (λ x, if fin_to_nat x =? 0%nat then ε2 false else ε2 true) with "[$Herr]").
+    { rewrite SeriesC_finite_foldr. simpl. lra. }
+    iIntros (n) "? /=".
+    wp_apply (wp_int_to_bool with "[//]").
+    iIntros "_".
+    iApply "HΦ".
+    iApply ec_eq; last done.
+    inv_fin n; simpl; first done.
+    intros n; inv_fin n; first done.
+    intros n; inv_fin n.
   Qed.
 
   Lemma wp_flipL E α b bs :
