@@ -35,6 +35,36 @@ Section lemmas.
   Qed.
 End lemmas.
 
+
+Section lemmas.
+  Context `{!inG Σ (excl_authR (optionO boolO))}.
+
+  (* Helpful lemmas *)
+  Lemma ghost_var_alloc' b :
+    ⊢ |==> ∃ γ, own γ (●E b) ∗ own γ (◯E b).
+  Proof.
+    iMod (own_alloc (●E b ⋅ ◯E b)) as (γ) "[??]".
+    - by apply excl_auth_valid.
+    - by eauto with iFrame.
+  Qed.
+
+  Lemma ghost_var_agree' γ b c :
+    own γ (●E b) -∗ own γ (◯E c) -∗ ⌜ b = c ⌝.
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    by iCombine "Hγ● Hγ◯" gives %<-%excl_auth_agree_L.
+  Qed.
+
+  Lemma ghost_var_update' γ b' b c :
+    own γ (●E b) -∗ own γ (◯E c) ==∗ own γ (●E b') ∗ own γ (◯E b').
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    iMod (own_update_2 _ _ _ (●E b' ⋅ ◯E b') with "Hγ● Hγ◯") as "[$$]".
+    { by apply excl_auth_update. }
+    done.
+  Qed.
+End lemmas.
+
 Section simple_parallel_add.
 Definition simple_parallel_add : expr :=
   let: "r" := ref #0 in
@@ -51,7 +81,6 @@ Definition simple_parallel_add_inv (l:loc) (γ1 γ2 : gname) : iProp Σ :=
   ∃ (b1 b2 : bool) (z : Z),
       own γ1 (●E b1) ∗ own γ2 (●E b2) ∗ l ↦ #z ∗
       ⌜(z = bool_to_Z b1 + bool_to_Z b2)%Z⌝.
-
 
 Lemma simple_parallel_add_spec:
   {{{ ↯ (2/3) }}}
@@ -120,6 +149,65 @@ Definition parallel_add : expr :=
   (if: flip then FAA "r" #1 else #())
   ;;
   !"r".
+
+Definition is_Some_true x:=
+  match x with
+  | Some true => true
+  | _ => false
+  end.
+
+(* More complicated spec, where the error is stored in the invariant for adv comp *)
+Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (optionO boolO))}.
+
+Definition parallel_add_inv (l:loc) (γ1 γ2 : gname) : iProp Σ :=
+  ∃ (b1 b2 : option bool) (flip_num:nat) (err:nonnegreal) (z : Z),
+    own γ1 (●E b1) ∗ own γ2 (●E b2) ∗ l ↦ #z ∗
+    ↯ err ∗
+    ⌜ (nonneg err = 1- Rpower 2%R (INR flip_num-2))%R⌝ ∗
+    ⌜(flip_num = bool_to_nat (ssrbool.isSome b1) +bool_to_nat (ssrbool.isSome b2))%nat⌝∗ 
+    ⌜(z = bool_to_Z (is_Some_true b1) + bool_to_Z (is_Some_true b2))%Z⌝
+.
+
+Lemma parallel_add_spec:
+  {{{ ↯ (3/4) }}}
+    parallel_add
+    {{{ (z:Z), RET #z; ⌜(z=2)⌝ }}}.
+Proof.
+  iIntros (Φ) "Herr HΦ".
+  rewrite /parallel_add.
+  wp_alloc l as "Hl".
+  wp_pures.
+  iMod (ghost_var_alloc' None) as (γ1) "[Hγ1● Hγ1◯]".
+  iMod (ghost_var_alloc' None) as (γ2) "[Hγ2● Hγ2◯]".
+  iMod (inv_alloc nroot _ (parallel_add_inv l γ1 γ2) with "[Hl Hγ1● Hγ2● Herr]") as "#I".
+  { iModIntro. iExists _, _, _,  (mknonnegreal _ _), _. iFrame.
+    simpl.
+    repeat iSplit; [|done|iPureIntro; lia].
+    iPureIntro. simpl.
+    replace (0-2)%R with (-2)%R by lra.
+    assert (Rpower 2 (-2) = 1/4)%R; last lra.
+    rewrite Rpower_Ropp.
+    rewrite Rdiv_1_l; f_equal.
+    rewrite /Rpower.
+    rewrite -(exp_ln 4%R); last lra.
+    f_equal.
+    replace (IPR 2) with (INR 2); last first.
+    { by rewrite -INR_IPR. }
+    erewrite <-ln_pow; [|lra].
+    f_equal. lra.
+  }
+  wp_apply (wp_par (λ _, own γ1 (◯E (Some true)))%I (λ _, own γ2 (◯E (Some true)))%I
+             with "[Hγ1◯][Hγ2◯]").
+  { rewrite /flipL.
+    wp_pures.
+    wp_bind (rand _)%E.
+    (* adding an extra question mark for nonnegreal doesnt work ?? *)
+    iInv "I" as (???) "K" "Hclose".
+    (* iDestruct (ghost_var_agree' with "[$Hγ1●][$]") as "->". *)
+    (* simpl in *. subst. *)
+    (* wp_apply (wp_couple_rand_adv_comp1 with "[Herr]"). *)
+  }
+Admitted.
 
 End parallel_add.
 
