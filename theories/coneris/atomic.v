@@ -207,7 +207,7 @@ Notation "'<<{' α '}>>' e @ E '<<{' β '|' 'RET' v '}>>'" :=
   )
   (at level 20, E, β, α, v at level 200,
    format "'[hv' '<<{'  '[' α  ']' '}>>'  '/  ' e  @  E  '/' '<<{'  '[' β  '|'  '/' RET  v  ']' '}>>' ']'")
-  : bi_scope.
+    : bi_scope.
 
 (** Theory *)
 Section lemmas.
