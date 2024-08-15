@@ -579,15 +579,14 @@ Section Approxis.
       rewrite /loop.
       tp_pures.
       1: by (simpl ; auto).
-      wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "rf rp".
+      wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "spec rf rp".
       iFrame. by iExists _.
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
       rewrite /loop.
       wp_pures.
-      tp_pures.
-      1: by (simpl ; auto).
-      rewrite -/(loop rf res) -/(loop rp res').
+      tp_pures ; [by (simpl ; auto)|].
+      rewrite -/(loop rf res') -/(loop rp res).
       iMod (ec_zero) as "H0".
       wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size with "[spec H0]") => //.
       { iSplitL "spec".
@@ -635,6 +634,7 @@ Section Approxis.
           replace #(S Q' - 1) with (#Q') by (do 2 f_equal ; lia).
           iApply ("IH" $! (foldr Nat.add 0%nat (seq (S (n - S Q')) Q') / S val_size)%R
                    with "[][][][][][][][-HΦ][HΦ]"); try done ; try by (iPureIntro ; lia).
+          all: iClear "IH".
           { simpl. iPureIntro. apply Req_le. rewrite fold_symmetric; try (intros; lia).
             replace (S _)  with (n-Q'); first done. lia. }
           iFrame "Hf Hg spec Hε'".
@@ -658,7 +658,7 @@ Section Approxis.
           { rewrite -Rdiv_1_l. apply Rcomplements.Rdiv_le_0_compat; try lra. done. }
           rewrite Rcomplements.Rle_minus_l.
           trans (INR n - INR (S Q') + INR (S val_size - (n - S Q')))%R; last first.
-          { apply Rplus_le_compat_l. apply le_INR. lia. }
+          { apply Rplus_le_compat_l. apply le_INR. assumption. }
           rewrite minus_INR; last lia.
           assert (0<=INR n - INR (S Q') - INR (n-S Q'))%R; last first.
           { replace (match val_size with | _ => _  end) with (INR (S val_size)); last by simpl.
@@ -725,7 +725,7 @@ Section Approxis.
   Proof with (wp_pures ; tp_pures).
     rewrite /wPRF/wPRP/prf.wPRF/prp.wPRP. iIntros (Hε) "%Φ (ε & spec) HΦ"...
     tp_bind (prp.random_permutation _ #()).
-    iMod (spec_random_permutation with "spec") as (rp) "(spec & rp)".
+    iMod (spec_random_permutation with "spec") as (rp) "(spec & rp)" ; iSimpl in "spec".
     wp_bind (random_function _).
     wp_apply (wp_random_function); first done.
     iIntros (rf) "rf" ; simpl. wp_pure. wp_pure.
@@ -791,11 +791,10 @@ Section Approxis.
     wp_bind ((rec: "loop" _ := _) _)%V.
     tp_pure. tp_pure. tp_pure.
     tp_bind ((rec: "loop" _ := _) _)%V.
-    iAssert (∃ l vres, ⌜is_list l vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres)%I
+    iAssert (∃ lres vres, ⌜is_list lres vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres)%I
       with "[res res']" as "res". 1: (iExists _,_ ; by iFrame).
-    fold (loop rf res).
-    fold (loop rp res').
-
+    fold (loop rf res').
+    fold (loop rp res).
     iApply (wp_wPRP_wPRF_err_ind with "[-HΦ $ε $rf $rp $spec]").
     - split; first lia. done.
     - simpl. rewrite fmap_length seq_length. lia.
