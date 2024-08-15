@@ -9,6 +9,8 @@ Section concurrent_hash.
   Variable max_hash_size : nat.
   Hypothesis max_hash_size_pos: (0<max_hash_size)%nat.
 
+  Definition err := amortized_error val_size max_hash_size max_hash_size_pos.
+
   Context {Hineq : (insert_num <= max_hash_size)%nat}.
 
   Local Existing Instance spin_lock.
@@ -35,7 +37,7 @@ Section concurrent_hash.
   Context `{!conerisGS Σ, !spawnG Σ}.
 
   Lemma concurrent_hash_spec :
-    {{{ True }}}
+    {{{ ↯ (INR insert_num * err)%R }}}
       concurrent_hash_prog
       {{{ (f:val), RET f; ∃ m, inv nroot (coll_free_hashfun_amortized val_size max_hash_size f m)}}}.
   Proof.
