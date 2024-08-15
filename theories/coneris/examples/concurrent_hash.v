@@ -41,6 +41,11 @@ Section concurrent_hash.
       concurrent_hash_prog
       {{{ (f:val), RET f; ∃ m, inv nroot (coll_free_hashfun_amortized val_size max_hash_size f m)}}}.
   Proof.
+    rewrite /concurrent_hash_prog.
+    iIntros (Φ) "Herr HΦ".
+    wp_apply wp_init_hash as (h) ">Hf"; first done.
+    wp_pures.
+    
   Admitted.
   
 End concurrent_hash.
