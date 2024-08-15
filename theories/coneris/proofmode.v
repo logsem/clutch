@@ -32,3 +32,7 @@ Next Obligation. intros. by apply wp_cmpxchg_suc. Qed.
 Next Obligation. intros. by apply wp_xchg. Qed.
 Next Obligation. intros. by apply wp_faa. Qed. 
   
+
+#[global] Program Instance rel_logic_wptactics_frame_wand `{!conerisGS Σ} : GwpTacticsFrameWand Σ unit true wp :=
+  Build_GwpTacticsFrameWand _ _ _ _ _.
+Next Obligation. iIntros (???????) "H1 H2". by iApply (pgl_wp_frame_wand with "[H1][$]"). Qed.

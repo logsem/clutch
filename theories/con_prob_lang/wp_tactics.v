@@ -1,4 +1,4 @@
-From iris.bi Require Export bi updates.
+From iris.bi Require Export bi updates atomic.
 From iris.base_logic.lib Require Import fancy_updates.
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
@@ -23,6 +23,11 @@ Class GwpTacticsPure Σ A (laters : bool) (gwp : A → coPset → expr → (val 
     PureExec φ n e1 e2 →
     φ →
     ▷^(if laters then n else 0) (gwp a E e2 Φ) ⊢ (gwp a E e1 Φ);
+  }.
+
+Class GwpTacticsFrameWand Σ A (laters : bool) (gwp : A → coPset → expr → (val → iProp Σ) → iProp Σ) := {
+  wptac_wp_frame_wand E e Φ a R:
+    R -∗ (gwp a E e (λ v, R -∗ Φ v)) -∗ (gwp a E e Φ);
 }.
 
 (** Heap *)
@@ -422,6 +427,24 @@ Tactic Notation "wp_smart_apply" open_constr(lem) "as" "(" simple_intropattern(x
     simple_intropattern(x8) simple_intropattern(x9) simple_intropattern(x10) ")"
     constr(pat) :=
   wp_smart_apply lem; last iIntros ( x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 ) pat.
+
+
+Tactic Notation "awp_apply" open_constr(lem) :=
+  (* [pm_prettify] is needed to clean up telescopes. *)
+  wp_apply_core lem ltac:(fun H => iApplyHyp H; pm_prettify) ltac:(fun cont => fail);
+  last iAuIntro.
+Tactic Notation "awp_apply" open_constr(lem) "without" constr(Hs) :=
+  (* Convert "list of hypothesis" into specialization pattern. *)
+  let Hs := words Hs in
+  let Hs := eval vm_compute in (INamed <$> Hs) in
+    wp_apply_core lem
+      ltac:(fun H =>
+              iApply (wptac_wp_frame_wand with
+                  [SGoal $ SpecGoal GSpatial false [] Hs false]);
+              [iAccu|iApplyHyp H; pm_prettify])
+             ltac:(fun cont => fail);
+                               last iAuIntro.
+  
 
 Section heap_tactics.
   Context `{GwpTacticsBase Σ A hlc gwp, GwpTacticsBind Σ A hlc gwp, !GwpTacticsHeap Σ A laters gwp}.

@@ -1,6 +1,6 @@
 From iris.algebra Require Import excl_auth.
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris par spawn lib.flip.
+From clutch.coneris Require Import coneris par spawn atomic lib.flip.
 
 Local Open Scope Z.
 
@@ -308,6 +308,99 @@ Proof.
     + pose proof resource_nonneg b1. lra.
     + pose proof resource_nonneg b1. lra.
 Qed.
+
+(** This time we use the property of flip being logically atomic *)
+Lemma parallel_add_spec':
+  {{{ ↯ (3/4) }}}
+    parallel_add
+    {{{ (z:Z), RET #z; ⌜(z=2)⌝ }}}.
+Proof.
+  iIntros (Φ) "Herr HΦ".
+  rewrite /parallel_add.
+  wp_alloc l as "Hl".
+  wp_pures.
+  iMod (ghost_var_alloc' None) as (γ1) "[Hγ1● Hγ1◯]".
+  iMod (ghost_var_alloc' None) as (γ2) "[Hγ2● Hγ2◯]".
+  iMod (inv_alloc nroot _ (parallel_add_inv l γ1 γ2) with "[Hl Hγ1● Hγ2● Herr]") as "#I".
+  { iModIntro. iExists _, _, _,  (mknonnegreal _ _), _. iFrame.
+    simpl.
+    repeat iSplit; [|done|iPureIntro; lia].
+    iPureIntro. simpl.
+    replace (0-2)%R with (-2)%R by lra.
+    assert (Rpower 2 (-2) = 1/4)%R; last lra.
+    rewrite Rpower_Ropp.
+    rewrite Rdiv_1_l; f_equal.
+    rewrite /Rpower.
+    rewrite -(exp_ln 4%R); last lra.
+    f_equal.
+    replace (IPR 2) with (INR 2); last first.
+    { by rewrite -INR_IPR. }
+    erewrite <-ln_pow; [|lra].
+    f_equal. lra.
+  }
+  wp_apply (wp_par (λ _, own γ1 (◯E (Some true)))%I (λ _, own γ2 (◯E (Some true)))%I
+             with "[Hγ1◯][Hγ2◯]").
+  { wp_bind (flipL _).
+    admit.
+  }
+  (* { rewrite /flipL. *)
+  (*   wp_pures. *)
+  (*   wp_bind (rand _)%E. *)
+  (*   iInv "I" as (?????) ">( Hγ1● & Hγ2● & Hl & Herr & %H & -> & ->)" "Hclose". *)
+  (*   iDestruct (ghost_var_agree' with "[$Hγ2●][$]") as "->". *)
+  (*   simpl in *. *)
+  (*   wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ *)
+  (*               (λ x, if fin_to_nat x =? 0 then nnreal_one else mknonnegreal (1 - Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 1))%R _) with "[$Herr]"). *)
+  (*   - rewrite SeriesC_finite_foldr; simpl. *)
+  (*     rewrite H. *)
+  (*     trans ((1 / (1 + 1) * (2 - Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 1)) + 0))%R; first lra. *)
+  (*     rewrite Nat.add_0_r. *)
+  (*     trans (1 / (1 + 1) *  (2 - 2*Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 2)))%R; last lra. *)
+  (*     assert (((Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 1)) + 0)%R = *)
+  (*             (( 2 * Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 2)))%R); last lra. *)
+  (*     assert (((INR (bool_to_nat (ssrbool.isSome b1)) - 1))%R = (1+(bool_to_nat (ssrbool.isSome b1) - 2)))%R as -> by lra. *)
+  (*     rewrite Rpower_plus. rewrite Rpower_1; lra. *)
+  (*   - iIntros (n) "Herr". *)
+  (*     inv_fin n; simpl; first (iExFalso; by iApply (ec_contradict with "[$]")). *)
+  (*     intros n. inv_fin n; last (intros n; inv_fin n). *)
+  (*     iMod (ghost_var_update' _ (Some false) with "[$Hγ2●][$]") as "[Hγ2● Hγ2◯]". *)
+  (*     iMod ("Hclose" with "[Hγ1● Hγ2● Hl Herr]") as "_". *)
+  (*     { iNext. iExists _, _, _, (mknonnegreal _ _ ), _. iFrame. *)
+  (*       repeat iSplit; iPureIntro; [|done|done]. *)
+  (*       rewrite plus_INR. *)
+  (*       simpl. *)
+  (*       replace (INR (bool_to_nat (ssrbool.isSome b1))+1 - 2)%R with *)
+  (*         (INR (bool_to_nat (ssrbool.isSome b1)) - 1)%R; lra. *)
+  (*     } *)
+  (*     iModIntro. wp_pures. *)
+  (*     wp_apply conversion.wp_int_to_bool as "_"; first done. *)
+  (*     wp_pures. *)
+  (*     clear err H. *)
+  (*     iInv "I" as (?????) ">( Hγ1● & Hγ2● & Hl & Herr & %H & -> & ->)" "Hclose". *)
+  (*     iDestruct (ghost_var_agree' with "[$Hγ2●][$]") as "->". *)
+  (*     wp_faa. *)
+  (*     iMod (ghost_var_update' _ (Some true) with "[$Hγ2●][$]") as "[Hγ2● Hγ2◯]". *)
+  (*     iMod ("Hclose" with "[Hγ1● Hγ2● Hl Herr]") as "_"; last done. *)
+  (*     iNext. iExists _, _, _, (mknonnegreal _ _ ), _. iFrame; simpl. *)
+  (*     repeat iSplit; iPureIntro; [done|done|lia].  *)
+  (* } *)
+  (* iIntros (??) "[Hγ1◯ Hγ2◯]". *)
+  (* iNext. wp_pures. *)
+  (* iInv "I" as (?????) ">( Hγ1● & Hγ2● & Hl & Herr & %H & -> & ->)" "Hclose". *)
+  (* wp_load. *)
+  (* iDestruct (ghost_var_agree' with "[$Hγ1●][$]") as "->". *)
+  (* iDestruct (ghost_var_agree' with "[$Hγ2●][$]") as "->". *)
+  (* iMod ("Hclose" with "[Hγ1● Hγ2● Hl Herr]") as "_". *)
+  (* - iNext. iFrame. iPureIntro. simpl. eexists _. repeat split; naive_solver. *)
+  (* - simpl. iApply "HΦ". iPureIntro. lia. *)
+  (*   Unshelve. *)
+  (*   all: try lra. *)
+  (*   all: try apply cond_nonneg. *)
+  (*   + pose proof resource_nonneg b2. lra. *)
+  (*   + pose proof resource_nonneg b2. lra. *)
+  (*   + pose proof resource_nonneg b1. lra. *)
+  (*   + pose proof resource_nonneg b1. lra. *)
+Admitted.
 
 End parallel_add.
 
