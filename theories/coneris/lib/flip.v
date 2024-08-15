@@ -2,7 +2,7 @@
 From stdpp Require Import namespaces.
 From iris.proofmode Require Import
   coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
-From clutch.coneris Require Import coneris lib.conversion.
+From clutch.coneris Require Import coneris lib.conversion atomic.
 
 Definition flipL : val := λ: "e", int_to_bool (rand("e") #1%nat).
 Definition flip : expr := (flipL #()).
@@ -102,6 +102,24 @@ Section specs.
     intros n; inv_fin n; first done.
     intros n; inv_fin n.
   Qed.
+
+  Lemma awp_flip_adv E (ε:nonnegreal) ε2 : 
+    (nonneg ε = 1/2 * (nonneg (ε2 true) + nonneg (ε2 false)))%R -> ⊢
+    (<<{ ↯ ε }>> flip @ E <<{ ∃∃ (b:bool), ↯ (ε2 b) | RET #b }>>)%I.
+  Proof.
+    iIntros (??) "AU".
+    rewrite /flip/flipL.
+    wp_pures.
+    wp_bind (rand _)%E.
+    iMod "AU" as "[Herr [_ Hclose]]".
+    wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ (λ x, if fin_to_nat x =? 0%nat then ε2 false else ε2 true) with "[$Herr]").
+    { rewrite SeriesC_finite_foldr. simpl. lra. }
+    iIntros (n) "? /=".
+    inv_fin n; simpl; [|intros n; inv_fin n; simpl; [|intros n; inv_fin n]].
+    all: iMod ("Hclose" with "[$]"); iModIntro; wp_apply (wp_int_to_bool with "[//]").
+    all: iIntros; done.
+  Qed.
+    
 
   Lemma wp_flipL E α b bs :
     {{{ ▷ α ↪B (b :: bs) }}} flipL #lbl:α @ E {{{ RET #(LitBool b); α ↪B bs }}}.
