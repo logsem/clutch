@@ -1,5 +1,5 @@
 From iris.base_logic.lib Require Import invariants.
-From clutch.coneris Require Import coneris par spawn spin_lock hash lock.
+From clutch.coneris Require Import coneris par spawn spin_lock hash atomic lock.
 
 Set Default Proof Using "Type*".
 
@@ -55,9 +55,14 @@ Section concurrent_hash.
       + iFrame. iSplitR; first iApply "H". iFrame.
       + done.
   Admitted.
+
+  Lemma hash_once_prog_spec' γ (l:val) (f:val) E:
+    ⊢ <<{ is_lock γ l (∃ m, coll_free_hashfun_amortized val_size max_hash_size f m) ∗ ↯ err }>>
+      hash_once_prog f l #() @ E
+      <<{ ∃∃ (v:val), True | RET v }>>.
+  Proof.
+  Admitted. 
         
-    
-    
   
   Lemma concurrent_hash_spec :
     {{{ ↯ (INR insert_num * err)%R }}}
