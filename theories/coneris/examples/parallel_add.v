@@ -474,6 +474,6 @@ Proof.
   - iNext. iFrame. iPureIntro. simpl. eexists _. repeat split; naive_solver.
   - simpl. iApply "HΦ". iPureIntro. lia.
 Qed. 
-
+   
 End parallel_add.
 
