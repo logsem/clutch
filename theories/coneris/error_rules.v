@@ -639,6 +639,34 @@ Proof.
   - apply H2.
 Qed.
 
+
+Lemma wp_couple_rand_adv_comp1' (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  (SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n))%R <= (nonneg ε1))%R →
+  {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
+Proof.
+  iIntros (H1 H2).
+  unshelve epose (difference := mknonnegreal ((nonneg ε1)-SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n)))%R _); first lra.
+  epose (ε2' n:= (ε2 n + difference)%NNR).
+  iIntros (Φ) "Herr HΦ". 
+  wp_apply (wp_couple_rand_adv_comp1 _ _ _ ε1 ε2' with "[$]").
+  - rewrite /ε2'. Local Opaque INR. simpl.
+    setoid_rewrite Rmult_plus_distr_l.
+    rewrite SeriesC_plus; [|apply ex_seriesC_finite..].
+    setoid_rewrite Rmult_plus_distr_l.
+    rewrite SeriesC_plus; [|apply ex_seriesC_finite..].
+    rewrite SeriesC_finite_mass fin_card.
+    replace (INR (S N) * (1 / INR (S N) * nonneg ε1))%R with (nonneg ε1); last first.
+    { rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.  }
+    assert ((SeriesC (λ x : fin (S N), 1 / S N * nonneg (ε2 x))
+             + SeriesC (λ _ : fin (S N), 1 / S N * - SeriesC (λ n : fin (S N), 1 / S N * nonneg (ε2 n))))%R = 0)%R; last lra.
+    rewrite SeriesC_finite_mass fin_card.
+    rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.
+  - iIntros. iApply "HΦ". iApply ec_weaken; last done.
+    simpl; split; first apply cond_nonneg.
+    apply Rplus_le_0_compat. lra.
+Qed.
+
 Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
