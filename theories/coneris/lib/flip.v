@@ -121,7 +121,25 @@ Section specs.
     all: iMod ("Hclose" with "[$]"); iModIntro; wp_apply (wp_int_to_bool with "[//]").
     all: iIntros; done.
   Qed.
-    
+
+  Lemma awp_flip_adv' E (ε2 : nonnegreal -> bool -> nonnegreal):
+    (∀ ε, nonneg ε >= 1/2 * (nonneg (ε2 ε true) + nonneg (ε2 ε false)))%R ->
+    ⊢(<<{ ∀∀ (ε:nonnegreal), ↯ ε }>> flip @ E
+       <<{ ∃∃ (b:bool) ,
+             ↯ (ε2 ε b) | RET #b }>>)%I.
+  Proof.
+    iIntros (K ?) "AU".
+    rewrite /flip/flipL.
+    wp_pures.
+    wp_bind (rand _)%E.
+    iMod "AU" as "[%ε [Herr [_ Hclose]]]".
+    wp_apply (wp_couple_rand_adv_comp1' _ _ _ _ (λ x, if fin_to_nat x =? 0%nat then ε2 ε false else ε2 ε true) with "[$Herr]").
+    { rewrite SeriesC_finite_foldr. simpl. specialize (K ε). lra. }
+    iIntros (n) "? /=".
+    inv_fin n; simpl; [|intros n; inv_fin n; simpl; [|intros n; inv_fin n]].
+    all: iMod ("Hclose" with "[$]"); iModIntro; wp_apply (wp_int_to_bool with "[//]").
+    all: iIntros; done.
+  Qed.    
 
   Lemma wp_flipL E α b bs :
     {{{ ▷ α ↪B (b :: bs) }}} flipL #lbl:α @ E {{{ RET #(LitBool b); α ↪B bs }}}.
