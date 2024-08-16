@@ -650,12 +650,12 @@ Proof.
   epose (ε2' n:= (ε2 n + difference)%NNR).
   iIntros (Φ) "Herr HΦ". 
   wp_apply (wp_couple_rand_adv_comp1 _ _ _ ε1 ε2' with "[$]").
-  - rewrite /ε2'. Local Opaque INR. simpl.
+  - rewrite /ε2'. rewrite /difference; simpl. rewrite -/(INR (S N)).
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus; [|apply ex_seriesC_finite..].
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus; [|apply ex_seriesC_finite..].
-    rewrite SeriesC_finite_mass fin_card.
+    rewrite SeriesC_finite_mass fin_card. 
     replace (INR (S N) * (1 / INR (S N) * nonneg ε1))%R with (nonneg ε1); last first.
     { rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.  }
     assert ((SeriesC (λ x : fin (S N), 1 / S N * nonneg (ε2 x))
@@ -664,6 +664,7 @@ Proof.
     rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.
   - iIntros. iApply "HΦ". iApply ec_weaken; last done.
     simpl; split; first apply cond_nonneg.
+    rewrite -/(INR (S N)).
     apply Rplus_le_0_compat. lra.
 Qed.
 
