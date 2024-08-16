@@ -18,7 +18,7 @@ Section concurrent_hash.
   Definition hash_once_prog : val :=
     λ: "h" "lock" "_",
       acquire "lock";;
-      "h" (rand #val_size)
+      "h" (rand #val_size);;
       release "lock"
   .
 
@@ -34,8 +34,31 @@ Section concurrent_hash.
     multiple_parallel #insert_num (hash_once_prog "h" "lock");;
     "h".
 
-  Context `{!conerisGS Σ, !spawnG Σ}.
+  Context `{!conerisGS Σ, !spawnG Σ, !lockG Σ}.
 
+  Lemma hash_once_prog_spec γ l f:
+    {{{ is_lock γ l (∃ m, coll_free_hashfun_amortized val_size max_hash_size f m) ∗ ↯ err }}}
+      hash_once_prog f l #()
+      {{{ (v:val), RET v; True }}}.
+  Proof.
+    iIntros (Φ) "[#H Herr] HΦ".
+    rewrite /hash_once_prog.
+    wp_pures.
+    wp_apply (acquire_spec with "H") as "[Hl [% K]]".
+    wp_pures.
+    wp_apply wp_rand; first done.
+    iIntros.
+    wp_apply (wp_insert_amortized with "[$]").
+    - admit.
+    - iIntros (?) "(%&?&%)". wp_pures.
+      wp_apply (release_spec with "[-HΦ]").
+      + iFrame. iSplitR; first iApply "H". iFrame.
+      + done.
+  Admitted.
+        
+    
+    
+  
   Lemma concurrent_hash_spec :
     {{{ ↯ (INR insert_num * err)%R }}}
       concurrent_hash_prog
