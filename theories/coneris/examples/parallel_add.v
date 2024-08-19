@@ -152,6 +152,9 @@ Qed.
 End simple_parallel_add.
 
 Section parallel_add.
+
+Definition half_FAA (l:loc):=
+  (if: flip then FAA #l #1 else #())%E.
   
 Definition parallel_add : expr :=
   let: "r" := ref #0 in

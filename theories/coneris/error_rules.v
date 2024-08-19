@@ -807,6 +807,8 @@ Proof.
     iRight. iFrame.
 Qed.
 
+End rules.
+
 
 (* (* Two lemmas about lists. Could be moved, but not sure where to *) *)
 (* Lemma length_filter_seq_below (N M : nat): *)
@@ -1987,4 +1989,3 @@ Qed.
 (*     iApply ("HWP" with "Herr HΨ"). *)
 (*   Qed. *)
 
-End rules.
