@@ -45,6 +45,12 @@ Section lemmas.
     { by apply excl_auth_update. }
     done.
   Qed.
+
+  Lemma hocap_error_irrel γ (b c:R) :
+    (b=c)%R -> (●↯ b @ γ) -∗ (●↯ c @ γ).
+  Proof.
+    iIntros (->) "$".
+  Qed.
     
 End lemmas.
 
