@@ -543,7 +543,7 @@ Proof.
       by iApply "HΦ".
 Qed.
 
-Lemma parallel_add_spec''':
+Lemma parallel_add_spec'':
   {{{ ↯ (3/4) }}}
     parallel_add
     {{{ (z:Z), RET #z; ⌜(z=2)⌝ }}}.
