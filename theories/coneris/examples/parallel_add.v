@@ -76,6 +76,39 @@ Section lemmas.
   Qed.
 End lemmas.
 
+
+Section lemmasZ.
+  Context `{!inG Σ (excl_authR ZR)}.
+
+  (* Helpful lemmas *)
+  Lemma ghost_var_allocZ b :
+    ⊢ |==> ∃ γ, own γ (●E b) ∗ own γ (◯E b).
+  Proof.
+    iMod (own_alloc (●E b ⋅ ◯E b)) as (γ) "[??]".
+    - by apply excl_auth_valid.
+    - by eauto with iFrame.
+  Qed.
+
+  Lemma ghost_var_agreeZ γ b c :
+    own γ (●E b) -∗ own γ (◯E c) -∗ ⌜ b = c ⌝.
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    by iCombine "Hγ● Hγ◯" gives %<-%excl_auth_agree_L.
+  Qed.
+
+  Lemma ghost_var_updateZ γ b' b c :
+    own γ (●E b) -∗ own γ (◯E c) ==∗ own γ (●E b') ∗ own γ (◯E b').
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    iMod (own_update_2 _ _ _ (●E b' ⋅ ◯E b') with "Hγ● Hγ◯") as "[$$]".
+    { by apply excl_auth_update. }
+    done.
+  Qed.
+End lemmasZ.
+
+
+
+
 Section simple_parallel_add.
 Definition simple_parallel_add : expr :=
   let: "r" := ref #0 in
@@ -478,12 +511,12 @@ Proof.
   - simpl. iApply "HΦ". iPureIntro. lia.
 Qed.
 
-Context `{!hocap_errorGS Σ, !inG Σ (frac_authR ZR)}.
+Context `{!hocap_errorGS Σ, !inG Σ (excl_authR ZR), !inG Σ (excl_authR (optionO boolO))}.
 (* A hocap style spec for half_FAA*)
 Definition loc_nroot:=nroot.@"loc".
 Definition both_nroot:=nroot.@"both".
 Definition loc_inv (l:loc) γ:= 
-  inv loc_nroot (∃ (z:Z), l↦#z ∗ own γ (●F z)).
+  inv loc_nroot (∃ (z:Z), l↦#z ∗ own γ (●E z)).
 
 Lemma wp_half_FAA E
   (ε2 : nonnegreal -> bool -> nonnegreal)
@@ -492,9 +525,9 @@ Lemma wp_half_FAA E
   ↑loc_nroot ⊆ E ->
   (∀ (ε:nonnegreal),  ((nonneg (ε2 ε true) + nonneg (ε2 ε false))/2 <= (nonneg ε))%R) →
   {{{ error_inv γ1 ∗ loc_inv l γ2 ∗
-      □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ1 ={E∖↑hocap_error_nroot}=∗ ●↯ (ε2 ε b) @ γ1 ∗ (⌜(1<=ε2 ε b)%R⌝∨R b) ) ∗
-      □ (∀ (b:bool) (z:Z), R b ∗ own γ2 (●F z) ={E∖↑loc_nroot}=∗
-                                       if b then own γ2 (●F(z+1)%Z)∗ Q else own γ2 (●F(z))∗ Q ) ∗
+      □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ1 ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝∨●↯ (ε2 ε b) @ γ1 ∗ R b) ) ∗
+      □ (∀ (b:bool) (z:Z), R b ∗ own γ2 (●E z) ={E∖↑loc_nroot}=∗
+                                       if b then own γ2 (●E(z+1)%Z)∗ Q else own γ2 (●E(z))∗ Q ) ∗
       P }}} half_FAA l @ E {{{ (v: val), RET v; Q }}}.
 Proof.
   iIntros (Hsubset1 Hsubset2 Hineq Φ) "(#Hinv1 & #Hinv2 & #Hchange1 & #Hchange2 & HP) HΦ".
@@ -529,26 +562,29 @@ Proof.
   { lra. }
   simpl.
   (** Allocate hocap heap *)
-  iMod (own_alloc ((●F 0) ⋅ (◯F 0))) as "[%γ2 [Hauth_loc Hfrag_loc]]".
-  { by apply frac_auth_valid. }
-  (** Allocate hocap for tracking contribution *)
-  iMod (own_alloc ((●F 0) ⋅ (◯F 0))) as "[%γ3 [Hauth_contribute Hfrag_contribute]]".
-  { by apply frac_auth_valid. }
-  (** Allocate resource for tracking whether we are in middle of the half_FAA*)
-  iMod (own_alloc ((●F 0) ⋅ (◯F 0))) as "[%γ4 [Hauth_track Hfrag_track]]".
-  { by apply frac_auth_valid. }
+  iMod (own_alloc ((●E 0) ⋅ (◯E 0))) as "[%γ2 [Hauth_loc Hfrag_loc]]".
+  { by apply excl_auth_valid. }
+  (** Allocate hocap for tracking contributions *)
+  iMod (own_alloc ((●E None) ⋅ (◯E None))) as "[%γ3 [Hauth_a Hfrag_a]]".
+  { by apply excl_auth_valid. }
+  iMod (own_alloc ((●E None) ⋅ (◯E None))) as "[%γ4 [Hauth_b Hfrag_b]]".
+  { by apply excl_auth_valid. }
   (** Allocate error invariants *)
   iMod (inv_alloc hocap_error_nroot _ ((∃ (ε:nonnegreal), ↯ ε ∗ ●↯ ε @ γ1)) with "[Herr Hεauth]") as "#Hεinv".
   { iExists (mknonnegreal (3/4) _); iFrame.
     Unshelve. lra. }
   (** Allocate location inv *)
-  iMod (inv_alloc loc_nroot _ (∃ (z:Z), l↦#z ∗ own γ2 (●F z)
+  iMod (inv_alloc loc_nroot _ (∃ (z:Z), l↦#z ∗ own γ2 (●E z)
           ) with "[Hl Hauth_loc]") as "#Hlocinv".
   { iFrame. }
-  iMod (inv_alloc both_nroot _ (∃ (z x:Z), own γ2 (◯F z) ∗ own γ3 (●F z) ∗
-                                         ⌜(0<=x+z<=2)%Z⌝ ∗ ⌜(0<=x<=1)%Z⌝ ∗ ⌜(0<=z<=2)%Z⌝ ∗
-                                          own γ4 (●F x)∗ ◯↯ (1-Rpower 2 (IZR z+IZR x-2))%R@ γ1) with "[Hauth_contribute Hfrag_loc Hεfrag Hauth_track]") as "#Hinvboth".
-  { iFrame. iModIntro. do 3 (iSplitR; first by iPureIntro).
+  iMod (inv_alloc both_nroot _
+          (∃ (z:Z) (a b:option bool), own γ2 (◯E z) ∗
+                                   own γ3 (●E a) ∗
+                                   own γ4 (●E b) ∗
+                                   ⌜(z=bool_to_Z (is_Some_true a) + bool_to_Z (is_Some_true b))%Z⌝ ∗
+                                   ◯↯ (1-Rpower 2 (IZR (bool_to_Z (bool_decide (is_Some a)))+IZR (bool_to_Z (bool_decide (is_Some b)))-2))%R@ γ1)
+         with "[Hfrag_loc Hεfrag Hauth_a Hauth_b]") as "#Hinvboth".
+  { iFrame. simpl. iModIntro. iSplitR; first by iPureIntro.
     replace (1-_)%R with (3/4)%R; first done.
     replace (Rpower _ _) with (1/4)%R; try lra.
     replace (0+0-2)%R with (-2)%R by lra.
@@ -556,61 +592,70 @@ Proof.
     rewrite -ln_pow; last lra.
     rewrite exp_ln; lra.
   }
-  iDestruct "Hfrag_contribute" as "[Hfrag_contribute1 Hfrag_contribute2]".
-  iDestruct "Hfrag_track" as "[Hfrag_track1 Hfrag_track2]".
-  wp_apply (wp_par (λ _, own γ3 (◯F{1 / 2} 1))(λ _, own γ3 (◯F{1 / 2} 1)) with "[Hfrag_contribute1 Hfrag_track1][Hfrag_contribute2 Hfrag_track2]").
+  wp_apply (wp_par (λ _, own γ3 (◯E (Some true)))(λ _, own γ4 (◯E (Some true))) with "[Hfrag_a][Hfrag_b]").
   - (* first branch *)
     wp_apply (wp_half_FAA _ (λ x b,
             match ClassicalEpsilon.excluded_middle_informative (1/2<=nonneg x)%R
             with
             | left P => if b then  mknonnegreal (2*x - 1)%R _ else nnreal_one
             | _ => x
-            end ) (own γ3 (◯F{1 / 2} 0) ∗ own γ4 (◯F{1 / 2} 0))
-                (own γ3 (◯F{1 / 2} 1) ∗ own γ4 (◯F{1 / 2} 0))
-                _ γ1 γ2 l with "[$Hfrag_contribute1 $Hfrag_track1]"); [done|done|..].
+            end ) (own γ3 (◯E None))
+                (own γ3 (◯E (Some true)))
+                (λ b, ⌜b=true⌝ ∗ (own γ3 (◯E (Some false))))%I γ1 γ2 l with "[$Hfrag_a]"); [done|done|..].
     + intros. case_match; simpl; lra.
     + repeat iSplit.
       * done.
       * done.
-      * iModIntro. iIntros (ε b) "[[Hcontributefrag Htrackfrag] Hεauth]".
-        iInv both_nroot as ">(%z & %x & H & Hcontributeauth & % & % & % & Htrackauth & Hεfrag)" "Hclose".
+      * iModIntro. iIntros (ε res) "[Hfrag_a Hεauth]".
+        iInv both_nroot as ">(%z & %a & %b & Hloc_frag & Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose".
         iDestruct (hocap_error_agree with "[$][$]") as "%K".
+        iDestruct (ghost_var_agree' with "[$Hauth_a][$]") as "->".
+        simpl in *.
         case_match; last first.
         { exfalso. apply n.
           simpl in *.
           rewrite K.
-          assert (Rpower 2 (IZR z + IZR x - 2) <= 1/2)%R; try lra.
+          assert (Rpower 2 (0+IZR (bool_to_Z (bool_decide (is_Some b))) - 2) <= 1/2)%R; try lra.
           replace (_/_)%R with (/2) by lra.
           rewrite -{3}(Rpower_1 2); last lra.
           rewrite -Rpower_Ropp.
           apply Rle_Rpower; first lra.
-          simpl.
-          assert (IZR z + IZR x <= 1)%R; try lra.
-          rewrite -plus_IZR.
-          apply IZR_le.
-          admit.
+          case_bool_decide; simpl; lra.
         }
+        iMod (ghost_var_update' _ (Some false) with "[$Hauth_a][$]") as "[Hauth_a Hfrag_a]".
+        iMod (hocap_error_update _ (mknonnegreal _ _)with "[$][$]") as "[Hεauth Hεfrag]".
+        simpl.
+        iMod ("Hclose" with "[Hloc_frag Hauth_a Hauth_b Hεfrag]"); iFrame; first done.
+        simpl. case_match; last first.
+        { iLeft. done. }
+        iRight. iFrame. iModIntro; iSplitL; last done.
+        simpl. rewrite K.
         admit.
-      * admit.
-    + iIntros (?) "[??]". done.
+      * iModIntro.
+        iIntros (??) "[[-> Hfrag_a] Hauth_loc]".
+        iInv both_nroot as ">(% & %a & %b & Hloc_frag & Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose".
+        iDestruct (ghost_var_agreeZ with "[$][$]") as "->". 
+        iDestruct (ghost_var_agree'  with "[$Hauth_a][$]") as "->".
+        iMod (ghost_var_updateZ  with "[$][$]") as "[Hauth_loc Hfrag_loc]".
+        iMod (ghost_var_update' _ (Some true) with "[$Hauth_a][$]") as "[Hauth_a Hfrag_a]".
+        simpl.
+        iMod ("Hclose" with "[$Hfrag_loc $Hauth_a $Hauth_b $Hεfrag]") as "_"; first done.
+        iFrame. simpl.
+        iModIntro.
+        replace (0+_+1)%Z with (1+bool_to_Z (is_Some_true b)); [done|lia].
+    + iIntros. done. 
   - admit.
-  - iIntros (??) "[H1 H2]". iModIntro. wp_pures.
-    iCombine "H1 H2" as "Hfragcontribute". replace (1+1)%Z with 2%Z by lia.
-    iInv loc_nroot as ">(%&Hl&Hauth_loc)" "Hclose".
-    iInv both_nroot as ">(%&%&Hloc&Hcontribute&%&%&%&Htrack&Herr)" "Hclose'".
-    iCombine "Hauth_loc Hloc" as "Hloc".
-    iDestruct (own_valid with "Hloc") as "%K".
-    apply frac_auth_agree in K. apply leibniz_equiv in K; subst.
-    iDestruct "Hloc" as "[Hlocauth Hlocfrag]".
-    iCombine "Hcontribute Hfragcontribute" as "Hcontribute".
-    iDestruct (own_valid with "Hcontribute") as "%K".
-    apply frac_auth_agree in K. apply leibniz_equiv in K; subst.
-    iDestruct "Hcontribute" as "[Hcontributeauth Hcontributefrag]".
+  - iIntros (??) "[Hfrag_a Hfrag_b]". iModIntro. wp_pures.
+    iInv loc_nroot as ">(%&Hl&Hloc_auth)" "Hclose".
+    iInv both_nroot as ">(%&%&%&Hloc_frag&Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose'".
+    iDestruct (ghost_var_agreeZ with "[$][$]") as "->". 
+    iDestruct (ghost_var_agree' with "[$Hauth_a][$]") as "->".
+    iDestruct (ghost_var_agree' with "[$Hauth_b][$]") as "->".
+    simpl.
     wp_load.
-    iMod ("Hclose'" with "[Hlocfrag Hcontributeauth Htrack Herr]").
-    { by iFrame. }
+    iMod ("Hclose'" with "[$Hloc_frag $Hauth_a $Hauth_b $Hεfrag]"); first done.
     iModIntro.
-    iMod ("Hclose" with "[Hl Hlocauth]"); first by iFrame.
+    iMod ("Hclose" with "[Hl Hloc_auth]"); first by iFrame.
     by iApply "HΦ".
 Admitted.
   
