@@ -34,14 +34,13 @@ Section lemmas.
     done.
   Qed.
 
-  Local Lemma resource_nonneg (b:option bool): (0 <= 1 - Rpower 2 (bool_to_nat (ssrbool.isSome b) - 1))%R.
+  Local Lemma resource_nonneg (b:bool): (0 <= 1 - Rpower 2 (bool_to_nat b - 1))%R.
   Proof.
-    destruct b as [[]|]; simpl.
+    destruct b as [|]; simpl.
     - replace (1-1)%R with 0%R by lra.
       rewrite Rpower_O; lra.
     - replace (1-1)%R with 0%R by lra.
-      rewrite Rpower_O; lra.
-    - replace (0-1)%R with (-1)%R by lra.
+      replace (0-1)%R with (-1)%R by lra.
       rewrite Rpower_Ropp. rewrite Rpower_1; lra.
   Qed. 
 End lemmas.
@@ -339,10 +338,7 @@ Proof.
     Unshelve.
     all: try lra.
     all: try apply cond_nonneg.
-    + pose proof resource_nonneg b2. lra.
-    + pose proof resource_nonneg b2. lra.
-    + pose proof resource_nonneg b1. lra.
-    + pose proof resource_nonneg b1. lra.
+    all: apply resource_nonneg. 
 Qed.
 
 (** This time we use the property of flip being logically atomic *)
@@ -630,7 +626,9 @@ Proof.
         { iLeft. done. }
         iRight. iFrame. iModIntro; iSplitL; last done.
         simpl. rewrite K.
-        admit.
+        iApply (hocap_error_irrel with "[$]").
+        rewrite !Rpower_plus Rpower_O; last lra.
+        rewrite Rpower_1; lra.
       * iModIntro.
         iIntros (??) "[[-> Hfrag_a] Hauth_loc]".
         iInv both_nroot as ">(% & %a & %b & Hloc_frag & Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose".
@@ -644,7 +642,59 @@ Proof.
         iModIntro.
         replace (0+_+1)%Z with (1+bool_to_Z (is_Some_true b)); [done|lia].
     + iIntros. done. 
-  - admit.
+  - (* first branch *)
+    wp_apply (wp_half_FAA _ (λ x b,
+            match ClassicalEpsilon.excluded_middle_informative (1/2<=nonneg x)%R
+            with
+            | left P => if b then  mknonnegreal (2*x - 1)%R _ else nnreal_one
+            | _ => x
+            end ) (own γ4 (◯E None))
+                (own γ4 (◯E (Some true)))
+                (λ b, ⌜b=true⌝ ∗ (own γ4 (◯E (Some false))))%I γ1 γ2 l with "[$Hfrag_b]"); [done|done|..].
+    + intros. case_match; simpl; lra.
+    + repeat iSplit.
+      * done.
+      * done.
+      * iModIntro. iIntros (ε res) "[Hfrag_b Hεauth]".
+        iInv both_nroot as ">(%z & %a & %b & Hloc_frag & Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose".
+        iDestruct (hocap_error_agree with "[$][$]") as "%K".
+        iDestruct (ghost_var_agree' with "[$Hauth_b][$]") as "->".
+        simpl in *.
+        case_match; last first.
+        { exfalso. apply n.
+          simpl in *.
+          rewrite K.
+          assert (Rpower 2 (IZR (bool_to_Z (bool_decide (is_Some a)))+0 - 2) <= 1/2)%R; try lra.
+          replace (_/_)%R with (/2) by lra.
+          rewrite -{3}(Rpower_1 2); last lra.
+          rewrite -Rpower_Ropp.
+          apply Rle_Rpower; first lra.
+          case_bool_decide; simpl; lra.
+        }
+        iMod (ghost_var_update' _ (Some false) with "[$Hauth_b][$]") as "[Hauth_b Hfrag_b]".
+        iMod (hocap_error_update _ (mknonnegreal _ _)with "[$][$]") as "[Hεauth Hεfrag]".
+        simpl.
+        iMod ("Hclose" with "[Hloc_frag Hauth_a Hauth_b Hεfrag]"); iFrame; first done.
+        simpl. case_match; last first.
+        { iLeft. done. }
+        iRight. iFrame. iModIntro; iSplitL; last done.
+        simpl. rewrite K.
+        iApply (hocap_error_irrel with "[$]").
+        rewrite !Rpower_plus Rpower_O; last lra.
+        rewrite Rpower_1; lra.
+      * iModIntro.
+        iIntros (??) "[[-> Hfrag_a] Hauth_loc]".
+        iInv both_nroot as ">(% & %a & %b & Hloc_frag & Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose".
+        iDestruct (ghost_var_agreeZ with "[$][$]") as "->". 
+        iDestruct (ghost_var_agree'  with "[$Hauth_b][$]") as "->".
+        iMod (ghost_var_updateZ  with "[$][$]") as "[Hauth_loc Hfrag_loc]".
+        iMod (ghost_var_update' _ (Some true) with "[$Hauth_b][$]") as "[Hauth_b Hfrag_b]".
+        simpl.
+        iMod ("Hclose" with "[$Hfrag_loc $Hauth_a $Hauth_b $Hεfrag]") as "_"; first done.
+        iFrame. simpl.
+        iModIntro.
+        replace (_+0+1)%Z with (bool_to_Z (is_Some_true a)+1); [done|lia].
+    + iIntros. done. 
   - iIntros (??) "[Hfrag_a Hfrag_b]". iModIntro. wp_pures.
     iInv loc_nroot as ">(%&Hl&Hloc_auth)" "Hclose".
     iInv both_nroot as ">(%&%&%&Hloc_frag&Hauth_a & Hauth_b & -> & Hεfrag)" "Hclose'".
@@ -657,7 +707,13 @@ Proof.
     iModIntro.
     iMod ("Hclose" with "[Hl Hloc_auth]"); first by iFrame.
     by iApply "HΦ".
-Admitted.
+    Unshelve.
+    all: simpl; try lra.
+    + replace (1+_-2)%R with (INR (bool_to_nat (bool_decide (is_Some b)))-1)%R; first apply resource_nonneg.
+      case_bool_decide; simpl; lra.
+    + replace (_+1-2)%R with (INR (bool_to_nat (bool_decide (is_Some a)))-1)%R; first apply resource_nonneg.
+      case_bool_decide; simpl; lra.
+Qed.
   
   
 
