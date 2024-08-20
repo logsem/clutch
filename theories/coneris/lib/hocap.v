@@ -44,7 +44,8 @@ Section lemmas.
     iMod (own_update_2 _ _ _ (_ ⋅ _) with "Hγ● Hγ◯") as "[$$]".
     { by apply excl_auth_update. }
     done.
-  Qed. 
+  Qed.
+    
 End lemmas.
 
 Section HOCAP.
@@ -61,15 +62,15 @@ Section HOCAP.
     ↑hocap_error_nroot ⊆ E ->
     (∀ (ε:nonnegreal), SeriesC (λ n, (1 / (S N)) * nonneg (ε2 ε n))%R <= (nonneg ε))%R →
     {{{ error_inv γ∗
-        (∀ (ε:nonnegreal) (n : fin (S N)), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗
-                                           (●↯ (ε2 ε n) @ γ ∗ (⌜(1<=ε2 ε n)%R⌝ ∨ Q (n))) ) ∗
+        □(∀ (ε:nonnegreal) (n : fin (S N)), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗
+                                           (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ Q (n))) ) ∗
         P }}} rand #z @ E {{{ n, RET #n; Q (n)}}}.
   Proof.
-    iIntros (-> Hsubset Hineq) "%Φ [#Hinv [Hchange HP]] HΦ".
+    iIntros (-> Hsubset Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
     iInv "Hinv" as ">(%ε & Hε & Hauth)" "Hclose".
     wp_apply (wp_couple_rand_adv_comp1' with "[$]"); first apply Hineq.
     iIntros (n) "Hε".
-    iMod ("Hchange" $! _ n with "[$]") as "[Hauth [%|HQ]]"; last first.
+    iMod ("Hchange" $! _ n with "[$]") as "[%|[Hauth HQ]]"; last first.
     { iMod ("Hclose" with "[Hauth Hε]") as "_"; first iFrame.
       by iApply "HΦ". }
     iExFalso.
@@ -82,7 +83,7 @@ Section HOCAP.
     ↑hocap_error_nroot ⊆ E ->
     (∀ (ε:nonnegreal),  ((nonneg (ε2 ε true) + nonneg (ε2 ε false))/2 <= (nonneg ε))%R) →
     {{{ error_inv γ∗
-        □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗ ●↯ (ε2 ε b) @ γ ∗ (⌜(1<=ε2 ε b)%R⌝ ∨ Q (b)) ) ∗
+        □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝ ∨ ●↯ (ε2 ε b) @ γ ∗ Q (b)) ) ∗
         P }}} flip @ E {{{ (b:bool), RET #b; Q (b)}}}.
   Proof.
     iIntros (Hsubset Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
@@ -91,9 +92,11 @@ Section HOCAP.
     wp_apply (wp_hocap_rand_adv_comp _ _ _ (λ ε x, if fin_to_nat x =? 1%nat then ε2 ε true else ε2 ε false) P (λ x, Q (fin_to_nat x =? 1%nat)) with "[-HΦ]"); [done|..].
     - intros ε. rewrite SeriesC_finite_foldr; simpl. specialize (Hineq ε). lra.
     - iFrame. iSplitR; first iExact "Hinv".
+      iModIntro.
       iIntros (ε n) "H".
-      iMod ("Hchange" $! _ (fin_to_nat n =? 1%nat)with "[$]") as "[Hε HQ]".
-      iModIntro. iSplitL "Hε"; by case_match. 
+      iMod ("Hchange" $! _ (fin_to_nat n =? 1%nat)with "[$]") as "[%|[Hε HQ]]".
+      + iModIntro. iLeft. iPureIntro. by case_match.
+      + iModIntro. iRight. iFrame. by case_match. 
     - iIntros.
       wp_apply (conversion.wp_int_to_bool); first done.
       iIntros "_".
