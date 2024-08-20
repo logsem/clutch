@@ -128,7 +128,9 @@ Section HOCAP.
   (*   - intros ε. simpl. specialize (Hineq ε). lra. *)
   (*   - iFrame. *)
   (*     iSplit; first done. *)
+  (*     iModIntro. iIntros. *)
   (*     admit. *)
+  (*   - admit. *)
   (* Abort. *)
     
 End HOCAP.
