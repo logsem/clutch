@@ -867,10 +867,10 @@ Proof.
 Qed.
 
 
-Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   to_val e = None →
-  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= (nonneg ε1))%R →
+  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
   ▷α ↪N (N; ns) ∗
   ↯ ε1 ∗
   (∀ n, ↯ (ε2 n) ∗ α ↪N (N; ns ++ [fin_to_nat n]) -∗ WP e @ E {{ Φ }})
@@ -918,8 +918,7 @@ Proof.
 
   (* upper bound on total error *)
   iSplit.
-  { iPureIntro. simpl.
-    rewrite Hε1' match_nonneg_coercions.
+  { iPureIntro. simpl. subst.
     etrans; last (apply Rplus_le_compat_l; exact).
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus.

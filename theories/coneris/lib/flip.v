@@ -177,9 +177,9 @@ Section specs.
     by rewrite tape_conversion_nat_bool. 
   Qed.
 
-  Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : nonnegreal) (ε2 : bool -> nonnegreal) :
+  Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : R) (ε2 : bool -> nonnegreal) :
     to_val e = None →
-    ((nonneg (ε2 true) + nonneg (ε2 false))/2 <= (nonneg ε1))%R →
+    ((nonneg (ε2 true) + nonneg (ε2 false))/2 <= ε1)%R →
     ▷α ↪B bs ∗
     ↯ ε1 ∗
     (∀ b, ↯ (ε2 b) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})

@@ -105,7 +105,34 @@ Section lemmasZ.
   Qed.
 End lemmasZ.
 
+Section lemmasfrac.
+  Context `{!inG Σ (frac_authR ZR)}.
 
+  (* Helpful lemmas *)
+  Lemma ghost_var_alloc_frac b :
+    ⊢ |==> ∃ γ, own γ (●F b) ∗ own γ (◯F b).
+  Proof.
+    iMod (own_alloc (●F b ⋅ ◯F b)) as (γ) "[??]".
+    - by apply frac_auth_valid.
+    - by eauto with iFrame.
+  Qed.
+
+  Lemma ghost_var_agree_frac γ b c :
+    own γ (●F b) -∗ own γ (◯F c) -∗ ⌜ b = c ⌝.
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    by iCombine "Hγ● Hγ◯" gives %<-%frac_auth_agree_L.
+  Qed.
+
+  Lemma ghost_var_update_frac γ b' b c q:
+    own γ (●F b) -∗ own γ (◯F{q} c) ==∗ own γ (●F (b+b')) ∗ own γ (◯F{q} (c+ b')).
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    iMod (own_update_2 _ _ _ (●F _ ⋅ ◯F{q} _) with "Hγ● Hγ◯") as "[$$]".
+    { apply frac_auth_update. apply Z_local_update; lia. }
+    done.
+  Qed.
+End lemmasfrac.
 
 
 Section simple_parallel_add.
@@ -738,16 +765,14 @@ Section attempt3.
   (* A hocap style spec for half_FAA'*)
   
   Lemma wp_half_FAA' E
-    (ε2 : nonnegreal -> bool -> nonnegreal)
-    (P Q : iProp Σ) (R : bool -> iProp Σ) γ (l:loc) α bs:
+    (P Q : iProp Σ)  γ (l:loc) α bs:
     ↑loc_nroot ⊆ E ->
-    (∀ (ε:nonnegreal),  ((nonneg (ε2 ε true) + nonneg (ε2 ε false))/2 <= (nonneg ε))%R) →
     {{{ inv loc_nroot (∃ (z:Z), l↦#z ∗ own γ (●F z)) ∗
         □ (∀ (z:Z), P ∗ own γ (●F z) ={E∖↑loc_nroot}=∗
                           own γ (●F(z+1)%Z)∗ Q) ∗
         P ∗ α ↪B (true::bs) }}} half_FAA' l α @ E {{{ (v: val), RET v; α ↪B (bs) ∗ Q }}}.
   Proof.
-    iIntros (Hsubset Hineq Φ) "(#Hinv & #Hchange & HP & Hα) HΦ".
+    iIntros (Hsubset Φ) "(#Hinv & #Hchange & HP & Hα) HΦ".
     rewrite /half_FAA'.
     wp_apply (wp_flipL with "[$]").
     iIntros "Hα".
@@ -780,7 +805,38 @@ Section attempt3.
             ) with "[Hl Hauth_loc]") as "#Hlocinv".
     { iFrame. }
     iDestruct "Hfrag_loc" as "[Hfrac_a Hfrac_b]".
-  Admitted.
+    (** presample *)
+    wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_half else nnreal_one)); [done|..]; last iFrame "Hα Herr".
+    { simpl. lra. }
+    iIntros ([|]) "[Herr Hα]"; last first.
+    { iExFalso. by iApply ec_contradict. }
+    wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_zero else nnreal_one)); [done|..]; last iFrame "Hα' Herr".
+    { simpl. lra. }
+    iIntros ([|]) "[? Hα']"; last first.
+    { iExFalso. by iApply ec_contradict. }
+    wp_apply (wp_par (λ _, own γ (◯F{1/2} 1))%I (λ _, own γ (◯F{1/2} 1))%I
+               with "[Hfrac_a Hα][Hfrac_b Hα']").
+    - wp_apply (wp_half_FAA' _ (own γ (◯F{1/2} 0)) (own γ (◯F{1/2} 1)) with "[$Hfrac_a $Hα]"); [done| | by iIntros (?) "[??]"].
+      iSplit; first done.
+      iModIntro.
+      iIntros (?) "[Hfrac Hauth]".
+      iMod (ghost_var_update_frac with "[$][$]") as "[??]".
+      by iFrame.
+    - wp_apply (wp_half_FAA' _ (own γ (◯F{1/2} 0)) (own γ (◯F{1/2} 1)) with "[$Hfrac_b $Hα']"); [done| | by iIntros (?) "[??]"].
+      iSplit; first done.
+      iModIntro.
+      iIntros (?) "[Hfrac Hauth]".
+      iMod (ghost_var_update_frac with "[$][$]") as "[??]".
+      by iFrame.
+    - iIntros (??) "[Hfrac_a Hfrac_b]".
+      iCombine "Hfrac_a Hfrac_b" as "Hfrac".
+      iNext. wp_pures.
+      iInv "Hlocinv" as ">(%z & Hl & Hauth)" "Hclose".
+      iDestruct (ghost_var_agree_frac with "[$][$]") as "->".
+      wp_load.
+      iMod ("Hclose" with "[$]").
+      by iApply "HΦ".
+  Qed. 
   
 End attempt3.
 
