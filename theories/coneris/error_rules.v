@@ -807,6 +807,245 @@ Proof.
     iRight. iFrame.
 Qed.
 
+Lemma pgl_state (N : nat) 𝜎 𝛼 ns :
+  𝜎.(tapes) !! 𝛼 = Some (N; ns) →
+  pgl
+    (state_step 𝜎 𝛼)
+    (λ 𝜎', ∃ (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎)
+    nnreal_zero.
+Proof.
+  rewrite /pgl. intros Htapes.
+  apply Req_le_sym; simpl.
+  rewrite /prob SeriesC_0; auto.
+  intros 𝜎'.
+  case_bool_decide; auto.
+  rewrite /state_step.
+  case_bool_decide.
+  2: { exfalso. apply H0. by apply elem_of_dom. }
+  intros.
+  replace (lookup_total 𝛼 (tapes 𝜎)) with (N; ns).
+  2: { rewrite (lookup_total_correct _ _ (existT N ns)); auto.  }
+  apply dmap_unif_zero.
+  intros n Hcont.
+  apply H.
+  naive_solver.
+Qed.
+
+Lemma wp_presample (N : nat) E e 𝛼 Φ ns :
+  to_val e = None →
+  ▷ 𝛼 ↪ (N; ns) ∗
+  (∀ (n : fin (S N)), 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (He) "(>H𝛼&Hwp)".
+  iApply wp_lift_step_fupd_glm; [done|].
+  iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
+  iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
+  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+  replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
+  iApply glm_state_step.
+  { rewrite /= /get_active.
+    by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+  iExists _.
+  iSplitR.
+  { iPureIntro. apply pgl_state, Hlookup. }
+  iIntros (𝜎') "[%n %H𝜎']".
+  iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
+  iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
+  iMod "Hclose'" as "_".
+  iSpecialize ("Hwp" $! n with "H𝛼").
+  rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
+  iSpecialize ("Hwp" $! 𝜎' ε).
+  iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
+  { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
+    rewrite H𝜎'.
+    iFrame.
+  }
+  iModIntro. iApply "Hwp".
+Qed.
+
+
+Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+  TCEq N (Z.to_nat z) →
+  to_val e = None →
+  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= (nonneg ε1))%R →
+  α ↪ (N; ns) ∗
+  ↯ ε1 ∗
+  (∀ (n : fin (S N)), ↯ (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
+  ⊢ WP e @ E {{ Φ }}.
+Proof.
+  iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)".
+  iApply wp_lift_step_fupd_glm; [done|].
+  iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+  iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup.
+  iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
+  iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
+  iApply fupd_mask_intro; [set_solver|].
+  iIntros "Hclose".
+  iApply (glm_state_adv_comp' α); simpl.
+  { rewrite /get_active.
+    apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
+    done. }
+  assert (0<=SeriesC (λ n : fin (S (Z.to_nat z)), 1 / S (Z.to_nat z) * ε2 n))%R as Hineq.
+  { apply SeriesC_ge_0'. intros. apply Rmult_le_pos; [apply Rdiv_INR_ge_0|apply cond_nonneg]. }
+  assert (SeriesC (λ n : fin (S (Z.to_nat z)), 1 / S (Z.to_nat z) * ε2 n) = nonneg (mknonnegreal _ Hineq))%R as Hsum' by done.
+
+  (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
+  iExists
+    (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)),
+      (fun ρ => (ε_rem +
+                match finite.find (fun s => state_upd_tapes <[α:=(_; ns ++ [s]) : tape]> σ1 = ρ) with
+                | Some s => ε2 s
+                | None => nnreal_zero
+                end))%NNR.
+
+  (* upper bound on ε2 *)
+  iSplit.
+  { iPureIntro.
+    destruct (mean_constraint_ub _ _ _ Hsum') as [r [Hr_nonneg Hr_ub]].
+    assert (Hr_nnonneg : (0 <= r)%R).
+    { eapply Rle_trans; [|apply (Hr_ub 0%fin)].
+      rewrite match_nonneg_coercions.
+      apply cond_nonneg. }
+    exists (ε_rem + r)%R.
+    intros [e' σ'].
+    apply Rplus_le_compat_l.
+    destruct (finite.find _); auto; apply Hr_ub.
+  }
+
+  (* upper bound on total error *)
+  iSplit.
+  { iPureIntro. simpl.
+    rewrite Hε1' match_nonneg_coercions.
+    etrans; last (apply Rplus_le_compat_l; exact).
+    setoid_rewrite Rmult_plus_distr_l.
+    rewrite SeriesC_plus.
+    (* existence *)
+    2: { apply ex_seriesC_scal_r, pmf_ex_seriesC. }
+    2: { apply pmf_ex_seriesC_mult_fn.
+         destruct (mean_constraint_ub _ _ _ Hsum') as [r [Hr_nonneg Hr_ub]].
+         exists r; intros; split.
+         - apply cond_nonneg.
+         - destruct (finite.find _); [apply Hr_ub | simpl; apply Hr_nonneg]. }
+
+    apply Rplus_le_compat.
+    { (* holds because state_step is a pmf so is lt 1 *)
+      rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
+      apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
+
+    (* rewrite to a form for SeriesC_le *)
+    pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
+    rewrite (SeriesC_ext
+               (λ x : state, state_step σ1 α x * _)%R
+               (fun x : state => from_option f 0
+                                (finite.find (fun n => state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1 = x ))%R));
+      last first.
+    { intros n.
+      destruct (finite.find _) as [sf|] eqn:HeqF.
+      - Opaque INR.
+        apply find_Some in HeqF.
+        simpl in HeqF; rewrite -HeqF.
+        rewrite /from_option /f.
+        apply Rmult_eq_compat_r.
+        rewrite /state_upd_tapes /=.
+        rewrite /pmf /state_step.
+        rewrite bool_decide_true; last first.
+        { rewrite elem_of_dom Hlookup /= /is_Some; by exists (Z.to_nat z; ns). }
+        rewrite (lookup_total_correct _ _ (Z.to_nat z; ns)); auto.
+        rewrite /dmap /dbind /dbind_pmf /pmf.
+        rewrite /= SeriesC_scal_l -{1}(Rmult_1_r (1 / _))%R.
+        rewrite /Rdiv Rmult_1_l; apply Rmult_eq_compat_l.
+        (* this series is 0 unless a = sf *)
+        rewrite /dret /dret_pmf.
+        rewrite -{2}(SeriesC_singleton sf 1%R).
+        apply SeriesC_ext; intros.
+        symmetry.
+        case_bool_decide; simplify_eq.
+        + rewrite bool_decide_true; auto.
+        + rewrite bool_decide_false; auto.
+          rewrite /not; intros Hcont.
+          rewrite /not in H; apply H.
+          rewrite /state_upd_tapes in Hcont.
+          assert (R1 : ((Z.to_nat z; ns ++ [sf]) : tape) = (Z.to_nat z; ns ++ [n0])).
+          { apply (insert_inv (tapes σ1) α). by inversion Hcont. }
+          apply Eqdep_dec.inj_pair2_eq_dec in R1; [|apply PeanoNat.Nat.eq_dec].
+          apply app_inv_head in R1.
+          by inversion R1.
+          Transparent INR.
+      - rewrite /from_option /INR /=. lra.
+    }
+
+    apply SeriesC_le_inj.
+    - (* f is nonnegative *)
+      intros.
+      apply Rmult_le_pos.
+      + rewrite /Rdiv.
+        apply Rmult_le_pos; try lra.
+        apply Rlt_le, Rinv_0_lt_compat, pos_INR_S.
+      + apply cond_nonneg.
+    - (* injection *)
+      intros ? ? ? HF1 HF2.
+      apply find_Some in HF1.
+      apply find_Some in HF2.
+      by rewrite -HF1 -HF2.
+    - (* existence *)
+      apply ex_seriesC_finite.
+  }
+
+  (* lifted lookup on tapes *)
+  iSplit.
+  {
+    iPureIntro.
+    eapply pgl_mon_pred; last first.
+    - apply pgl_state. apply Hlookup.
+    - done.
+  }
+
+  iIntros ((heap2 & tapes2)) "[%sample %Hsample]".
+
+  rewrite Hsample /=.
+  destruct (@find_is_Some _ _ _
+              (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1)
+              _ sample eq_refl)
+    as [r [Hfind Hr]].
+  rewrite Hfind.
+  replace r with sample; last first.
+  { rewrite /state_upd_tapes in Hr.
+    inversion Hr as [Heqt].
+    apply (insert_inv (tapes σ1) α) in Heqt.
+    apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
+    apply app_inv_head in Heqt.
+    by inversion Heqt. }
+  destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
+  { apply Rnot_lt_ge, Rge_le in Hdec.
+    iLeft.
+    iPureIntro.
+    simpl ; lra.
+  }
+  iMod (ec_supply_increase _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
+  { simplify_eq. lra. }
+  iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+  iSpecialize ("Hwp" $! sample).
+  rewrite pgl_wp_unfold /pgl_wp_pre.
+  remember {| heap := heap2; tapes := tapes2 |} as σ2.
+  rewrite /= Hσ_red /=.
+  iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
+  iSpecialize ("Hwp" $! σ2 _).
+  iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]").
+  { iSplitL "Hheap Htapes".
+    - rewrite /tapes_auth.
+      rewrite Heqσ2 in Hsample. inversion Hsample.
+      simplify_eq. simpl. iFrame.
+    - iFrame. }
+  rewrite -Hsample.
+  iMod "Hclose"; iMod "Hwp"; iModIntro.
+  replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl].
+  iRight.
+  iFrame.
+Qed.
+
+
+
 End rules.
 
 
@@ -962,29 +1201,6 @@ End rules.
 
 (*   (** * Approximate Lifting *) *)
 
-(*   Lemma pgl_state (N : nat) 𝜎 𝛼 ns : *)
-(*     𝜎.(tapes) !! 𝛼 = Some (N; ns) → *)
-(*     pgl *)
-(*       (state_step 𝜎 𝛼) *)
-(*       (λ 𝜎', ∃ (n : fin (S N)), 𝜎' = state_upd_tapes <[𝛼 := (N; ns ++ [n])]> 𝜎) *)
-(*       nnreal_zero. *)
-(*   Proof. *)
-(*     rewrite /pgl. intros Htapes. *)
-(*     apply Req_le_sym; simpl. *)
-(*     rewrite /prob SeriesC_0; auto. *)
-(*     intros 𝜎'. *)
-(*     case_bool_decide; auto. *)
-(*     rewrite /state_step. *)
-(*     case_bool_decide. *)
-(*     2: { exfalso. apply H0. by apply elem_of_dom. } *)
-(*     intros. *)
-(*     replace (lookup_total 𝛼 (tapes 𝜎)) with (N; ns). *)
-(*     2: { rewrite (lookup_total_correct _ _ (existT N ns)); auto.  } *)
-(*     apply dmap_unif_zero. *)
-(*     intros n Hcont. *)
-(*     apply H. *)
-(*     naive_solver. *)
-(*   Qed. *)
 
 (*   (** adapted from wp_couple_tapes in the relational logic *) *)
 (*   Lemma twp_presample (N : nat) E e 𝛼 Φ ns : *)
@@ -1011,39 +1227,6 @@ End rules.
 (*     iMod "Hclose'" as "_". *)
 (*     iSpecialize ("Hwp" $! n with "H𝛼"). *)
 (*     rewrite !tgl_wp_unfold /tgl_wp_pre /= He. *)
-(*     iSpecialize ("Hwp" $! 𝜎' ε). *)
-(*     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp". *)
-(*     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra). *)
-(*       rewrite H𝜎'. *)
-(*       iFrame. *)
-(*     } *)
-(*     iModIntro. iApply "Hwp". *)
-(*   Qed. *)
-
-(*   Lemma wp_presample (N : nat) E e 𝛼 Φ ns : *)
-(*     to_val e = None → *)
-(*     ▷ 𝛼 ↪ (N; ns) ∗ *)
-(*       (∀ (n : fin (S N)), 𝛼 ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }}) *)
-(*       ⊢ WP e @ E {{ Φ }}. *)
-(*   Proof. *)
-(*     iIntros (He) "(>H𝛼&Hwp)". *)
-(*     iApply wp_lift_step_fupd_glm; [done|]. *)
-(*     iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)". *)
-(*     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup. *)
-(*     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
-(*     replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra). *)
-(*     iApply glm_state_step. *)
-(*     { rewrite /= /get_active. *)
-(*       by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. } *)
-(*     iExists _. *)
-(*     iSplitR. *)
-(*     { iPureIntro. apply pgl_state, Hlookup. } *)
-(*     iIntros (𝜎') "[%n %H𝜎']". *)
-(*     iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct. *)
-(*     iMod (ghost_map_update ((N; ns ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]". *)
-(*     iMod "Hclose'" as "_". *)
-(*     iSpecialize ("Hwp" $! n with "H𝛼"). *)
-(*     rewrite !pgl_wp_unfold /pgl_wp_pre /= He. *)
 (*     iSpecialize ("Hwp" $! 𝜎' ε). *)
 (*     iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp". *)
 (*     { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra). *)
@@ -1235,182 +1418,6 @@ End rules.
 (*     iMod "Hclose"; iMod "Hwp"; iModIntro. *)
 (*     simplify_eq. *)
 (*     done. *)
-(*   Qed. *)
-
-(*   Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) : *)
-(*     TCEq N (Z.to_nat z) → *)
-(*     to_val e = None → *)
-(*     SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) → *)
-(*     α ↪ (N; ns) ∗ *)
-(*       ↯ ε1 ∗ *)
-(*       (∀ (n : fin (S N)), ↯ (ε2 n) ∗ α ↪ (N; ns ++ [n]) -∗ WP e @ E {{ Φ }}) *)
-(*       ⊢ WP e @ E {{ Φ }}. *)
-(*   Proof. *)
-(*     iIntros (-> Hσ_red Hsum) "(Hα & Hε & Hwp)". *)
-(*     iApply wp_lift_step_fupd_glm; [done|]. *)
-(*     iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]". *)
-(*     iDestruct (ghost_map_lookup with "Htapes Hα") as %Hlookup. *)
-(*     iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub. *)
-(*     iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply". *)
-(*     iApply fupd_mask_intro; [set_solver|]. *)
-(*     iIntros "Hclose". *)
-(*     iApply (glm_state_adv_comp' α); simpl. *)
-(*     { rewrite /get_active. *)
-(*       apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. *)
-(*       done. } *)
-
-(*     (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *) *)
-(*     iExists *)
-(*       (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1)), *)
-(*       (fun ρ => (ε_rem + *)
-(*                    match finite.find (fun s => state_upd_tapes <[α:=(_; ns ++ [s]) : tape]> σ1 = snd ρ) with *)
-(*                    | Some s => ε2 s *)
-(*                    | None => nnreal_zero *)
-(*                    end))%NNR. *)
-
-(*     (* upper bound on ε2 *) *)
-(*     iSplit. *)
-(*     { iPureIntro. *)
-(*       destruct (mean_constraint_ub _ _ _ Hsum) as [r [Hr_nonneg Hr_ub]]. *)
-(*       assert (Hr_nnonneg : (0 <= r)%R). *)
-(*       { eapply Rle_trans; [|apply (Hr_ub 0%fin)]. *)
-(*         rewrite match_nonneg_coercions. *)
-(*         apply cond_nonneg. } *)
-(*       exists (ε_rem + r)%R. *)
-(*       intros [e' σ']. *)
-(*       apply Rplus_le_compat_l. *)
-(*       destruct (finite.find _); auto; apply Hr_ub. *)
-(*     } *)
-
-(*     (* upper bound on total error *) *)
-(*     iSplit. *)
-(*     { iPureIntro. simpl. *)
-(*       rewrite Hε1' match_nonneg_coercions. *)
-(*       rewrite -Hsum. *)
-(*       setoid_rewrite Rmult_plus_distr_l. *)
-(*       rewrite SeriesC_plus. *)
-(*       (* existence *) *)
-(*       2: { apply ex_seriesC_scal_r, pmf_ex_seriesC. } *)
-(*       2: { apply pmf_ex_seriesC_mult_fn. *)
-(*            destruct (mean_constraint_ub _ _ _ Hsum) as [r [Hr_nonneg Hr_ub]]. *)
-(*            exists r; intros; split. *)
-(*            - apply cond_nonneg. *)
-(*            - destruct (finite.find _); [apply Hr_ub | simpl; apply Hr_nonneg]. } *)
-
-(*       apply Rplus_le_compat. *)
-(*       { (* holds because state_step is a pmf so is lt 1 *) *)
-(*         rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)). *)
-(*         apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. } *)
-
-(*       (* rewrite to a form for SeriesC_le *) *)
-(*       pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R. *)
-(*       rewrite (SeriesC_ext *)
-(*                  (λ x : state, state_step σ1 α x * _)%R *)
-(*                  (fun x : state => from_option f 0 *)
-(*                                      (finite.find (fun n => state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1 = x ))%R)); *)
-(*         last first. *)
-(*       { intros n. *)
-(*         destruct (finite.find _) as [sf|] eqn:HeqF. *)
-(*         - Opaque INR. *)
-(*           apply find_Some in HeqF. *)
-(*           simpl in HeqF; rewrite -HeqF. *)
-(*           rewrite /from_option /f. *)
-(*           apply Rmult_eq_compat_r. *)
-(*           rewrite /state_upd_tapes /=. *)
-(*           rewrite /pmf /state_step. *)
-(*           rewrite bool_decide_true; last first. *)
-(*           { rewrite elem_of_dom Hlookup /= /is_Some; by exists (Z.to_nat z; ns). } *)
-(*           rewrite (lookup_total_correct _ _ (Z.to_nat z; ns)); auto. *)
-(*           rewrite /dmap /dbind /dbind_pmf /pmf. *)
-(*           rewrite /= SeriesC_scal_l -{1}(Rmult_1_r (1 / _))%R. *)
-(*           rewrite /Rdiv Rmult_1_l; apply Rmult_eq_compat_l. *)
-(*           (* this series is 0 unless a = sf *) *)
-(*           rewrite /dret /dret_pmf. *)
-(*           rewrite -{2}(SeriesC_singleton sf 1%R). *)
-(*           apply SeriesC_ext; intros. *)
-(*           symmetry. *)
-(*           case_bool_decide; simplify_eq. *)
-(*           + rewrite bool_decide_true; auto. *)
-(*           + rewrite bool_decide_false; auto. *)
-(*             rewrite /not; intros Hcont. *)
-(*             rewrite /not in H; apply H. *)
-(*             rewrite /state_upd_tapes in Hcont. *)
-(*             assert (R1 : ((Z.to_nat z; ns ++ [sf]) : tape) = (Z.to_nat z; ns ++ [n0])). *)
-(*             { apply (insert_inv (tapes σ1) α). by inversion Hcont. } *)
-(*             apply Eqdep_dec.inj_pair2_eq_dec in R1; [|apply PeanoNat.Nat.eq_dec]. *)
-(*             apply app_inv_head in R1. *)
-(*             by inversion R1. *)
-(*             Transparent INR. *)
-(*         - rewrite /from_option /INR /=. lra. *)
-(*       } *)
-
-(*       apply SeriesC_le_inj. *)
-(*       - (* f is nonnegative *) *)
-(*         intros. *)
-(*         apply Rmult_le_pos. *)
-(*         + rewrite /Rdiv. *)
-(*           apply Rmult_le_pos; try lra. *)
-(*           apply Rlt_le, Rinv_0_lt_compat, pos_INR_S. *)
-(*         + apply cond_nonneg. *)
-(*       - (* injection *) *)
-(*         intros ? ? ? HF1 HF2. *)
-(*         apply find_Some in HF1. *)
-(*         apply find_Some in HF2. *)
-(*         by rewrite -HF1 -HF2. *)
-(*       - (* existence *) *)
-(*         apply ex_seriesC_finite. *)
-(*     } *)
-
-(*     (* lifted lookup on tapes *) *)
-(*     iSplit. *)
-(*     { *)
-(*       iPureIntro. *)
-(*       eapply pgl_mon_pred; last first. *)
-(*       - apply pgl_state. apply Hlookup. *)
-(*       - done. *)
-(*     } *)
-
-(*     iIntros ((heap2 & tapes2)) "[%sample %Hsample]". *)
-
-(*     rewrite Hsample /=. *)
-(*     destruct (@find_is_Some _ _ _ *)
-(*                 (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns ++ [sample])]> σ1) *)
-(*                 _ sample eq_refl) *)
-(*       as [r [Hfind Hr]]. *)
-(*     rewrite Hfind. *)
-(*     replace r with sample; last first. *)
-(*     { rewrite /state_upd_tapes in Hr. *)
-(*       inversion Hr as [Heqt]. *)
-(*       apply (insert_inv (tapes σ1) α) in Heqt. *)
-(*       apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec]. *)
-(*       apply app_inv_head in Heqt. *)
-(*       by inversion Heqt. } *)
-(*     destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first. *)
-(*     { apply Rnot_lt_ge, Rge_le in Hdec. *)
-(*       iApply exec_stutter_spend. *)
-(*       iPureIntro. *)
-(*       simpl ; lra. *)
-(*     } *)
-(*     iMod (ec_supply_increase _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]". *)
-(*     { simplify_eq. lra. } *)
-(*     iMod (ghost_map_update ((Z.to_nat z; ns ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]". *)
-(*     iSpecialize ("Hwp" $! sample). *)
-(*     rewrite pgl_wp_unfold /pgl_wp_pre. *)
-(*     remember {| heap := heap2; tapes := tapes2 |} as σ2. *)
-(*     rewrite /= Hσ_red /=. *)
-(*     iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame. *)
-(*     iSpecialize ("Hwp" $! σ2 _). *)
-(*     iSpecialize ("Hwp" with "[Hheap Htapes Hε_supply]"). *)
-(*     { iSplitL "Hheap Htapes". *)
-(*       - rewrite /tapes_auth. *)
-(*         rewrite Heqσ2 in Hsample. inversion Hsample. *)
-(*         simplify_eq. simpl. iFrame. *)
-(*       - iFrame. } *)
-(*     rewrite -Hsample. *)
-(*     iMod "Hclose"; iMod "Hwp"; iModIntro. *)
-(*     replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl]. *)
-(*     iApply exec_stutter_free. *)
-(*     iFrame. *)
 (*   Qed. *)
 
 
