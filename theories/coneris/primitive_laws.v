@@ -103,7 +103,7 @@ Section tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
-
+  
   (*
   Lemma spec_tapeN_to_empty l M :
     (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).

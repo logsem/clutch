@@ -177,6 +177,21 @@ Section specs.
     by rewrite tape_conversion_nat_bool. 
   Qed.
 
+  Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : nonnegreal) (ε2 : bool -> nonnegreal) :
+    to_val e = None →
+    (ε2 true + ε2 false <= (nonneg ε1))%R →
+    ▷α ↪B bs ∗
+    ↯ ε1 ∗
+    (∀ b, ↯ (ε2 b) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hval Hineq) "(Hα & Herr & HΦ)".
+    rewrite tape_conversion_bool_nat.
+    wp_apply (wp_presample_adv_comp); [done| |iFrame]; last first.
+  Abort. 
+    
+    
+                                         
 
 Global Opaque tapeB.
 End specs.
