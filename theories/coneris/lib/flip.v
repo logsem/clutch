@@ -179,19 +179,49 @@ Section specs.
 
   Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : nonnegreal) (ε2 : bool -> nonnegreal) :
     to_val e = None →
-    (ε2 true + ε2 false <= (nonneg ε1))%R →
+    ((nonneg (ε2 true) + nonneg (ε2 false))/2 <= (nonneg ε1))%R →
     ▷α ↪B bs ∗
     ↯ ε1 ∗
     (∀ b, ↯ (ε2 b) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hval Hineq) "(Hα & Herr & HΦ)".
+    iIntros (Hval Hineq) "(>Hα & Herr & HΦ)".
     rewrite tape_conversion_bool_nat.
-    wp_apply (wp_presample_adv_comp); [done| |iFrame]; last first.
-  Abort. 
-    
-    
-                                         
+    wp_apply (wp_presample_adv_comp 1%nat 1 _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [done| |iFrame].
+    - rewrite SeriesC_finite_foldr; simpl. etrans; last exact. lra.
+    - iIntros (n) "[Herr Hα]".
+      iApply ("HΦ" $! (fin_to_nat n =? 1%nat)).
+      iFrame.
+      rewrite tape_conversion_bool_nat. rewrite fmap_app. simpl.
+      replace (if fin_to_nat n=?1%nat then 1%nat else _) with (fin_to_nat n); first done.
+      inv_fin n; simpl; first lia; intros n; inv_fin n; simpl; first lia; intros n; inv_fin n.
+  Qed.
+
+  Lemma wp_presample_bool E e α Φ bs :
+    to_val e = None →
+    ▷α ↪B bs ∗
+    (∀ b, α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
+    ⊢ WP e @ E {{ Φ }}.
+  Proof.
+    iIntros (Hval) "(>Hα & HΦ)".
+    rewrite tape_conversion_bool_nat.
+    wp_apply (wp_presample 1%nat); [done|iFrame].
+    iIntros (n) "Hα".
+    iApply ("HΦ" $! (n=? 1%nat)).
+    iFrame.
+    rewrite tape_conversion_bool_nat. rewrite fmap_app. simpl.
+    iAssert (⌜n<2⌝)%I with "[Hα]" as "%".
+    - iDestruct "Hα" as "[% [%K ?]]".
+      iPureIntro.
+      apply fmap_app_inv in K as [?[?[?[H1 ?]]]].
+      simplify_eq.
+      apply (f_equal (λ x, x!!0%nat)) in H1; simpl in *.
+      symmetry in H1.
+      apply list_lookup_fmap_Some in H1 as [?[??]]. subst.
+      apply fin_to_nat_lt.
+    - replace (if n=?1%nat then 1%nat else _) with (n); first done.
+      destruct n as [|[|]]; simpl; lia.
+  Qed. 
 
 Global Opaque tapeB.
 End specs.
