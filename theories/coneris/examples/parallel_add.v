@@ -734,7 +734,7 @@ Definition parallel_add' : expr :=
   !"r".
 
 Section attempt3.
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR ZR), !inG Σ (excl_authR (optionO boolO))}.
+  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (frac_authR ZR)}.
   (* A hocap style spec for half_FAA'*)
   
   Lemma wp_half_FAA' E
@@ -742,9 +742,9 @@ Section attempt3.
     (P Q : iProp Σ) (R : bool -> iProp Σ) γ (l:loc) α bs:
     ↑loc_nroot ⊆ E ->
     (∀ (ε:nonnegreal),  ((nonneg (ε2 ε true) + nonneg (ε2 ε false))/2 <= (nonneg ε))%R) →
-    {{{ loc_inv l γ ∗
-        □ (∀ (z:Z), P ∗ own γ (●E z) ={E∖↑loc_nroot}=∗
-                          own γ (●E(z+1)%Z)∗ Q) ∗
+    {{{ inv loc_nroot (∃ (z:Z), l↦#z ∗ own γ (●F z)) ∗
+        □ (∀ (z:Z), P ∗ own γ (●F z) ={E∖↑loc_nroot}=∗
+                          own γ (●F(z+1)%Z)∗ Q) ∗
         P ∗ α ↪B (true::bs) }}} half_FAA' l α @ E {{{ (v: val), RET v; α ↪B (bs) ∗ Q }}}.
   Proof.
     iIntros (Hsubset Hineq Φ) "(#Hinv & #Hchange & HP & Hα) HΦ".
@@ -757,8 +757,30 @@ Section attempt3.
     iMod ("Hchange" with "[$]") as "[??]".
     iMod ("Hclose" with "[$]").
     iApply "HΦ". by iFrame.
-  Qed. 
+  Qed.
+
   
+  Lemma parallel_add_spec''':
+    {{{ ↯ (3/4) }}}
+      parallel_add'
+      {{{ (z:Z), RET #z; ⌜(z=2)⌝ }}}.
+  Proof with wp_pures.
+    iIntros (Φ) "Herr HΦ".
+    rewrite /parallel_add'.
+    wp_alloc l as "Hl".
+    wp_pures.
+    wp_apply (wp_allocB_tape with "[//]") as (α) "Hα"...
+    wp_apply (wp_allocB_tape with "[//]") as (α') "Hα'"...
+    rewrite -/(half_FAA' l α) -/(half_FAA' l α').
+    (** Create location RA *)
+    iMod (own_alloc ((●F 0) ⋅ (◯F 0))) as "[%γ [Hauth_loc Hfrag_loc]]".
+    { by apply frac_auth_valid. }
+    (** Allocate location inv *)
+    iMod (inv_alloc loc_nroot _ (∃ (z:Z), l↦#z ∗ own γ (●F z)
+            ) with "[Hl Hauth_loc]") as "#Hlocinv".
+    { iFrame. }
+    iDestruct "Hfrag_loc" as "[Hfrac_a Hfrac_b]".
+  Admitted.
   
 End attempt3.
 
