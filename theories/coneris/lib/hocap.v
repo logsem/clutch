@@ -1,6 +1,6 @@
 (** * Hocap specs *)
 From stdpp Require Import namespaces.
-From iris Require Import excl_auth invariants.
+From iris Require Import excl_auth invariants list.
 From clutch.coneris Require Import coneris flip.
 
 Set Default Proof Using "Type*".
@@ -18,8 +18,20 @@ Definition hocap_errorΣ := #[GFunctor (excl_authR (nonnegrealUR))].
 Notation "'●↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ own γ (●E x))%I
                          (at level 1).
 Notation "'◯↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ own γ (◯E x))%I
-                          (at level 1).
-Section lemmas.
+                             (at level 1).
+
+Definition hocap_tapes_nroot:=nroot.@"tapes".
+Class hocap_tapesGS (Σ : gFunctors) := Hocal_tapesGS {
+  hocap_tapesGS_inG :: ghost_mapG Σ loc (nat*list nat)
+                                         }.
+Definition hocap_tapesΣ := ghost_mapΣ loc (nat*list nat).
+
+Notation "α ◯↪N ( M ; ns ) @ γ":= (α ↪[ γ ] (M,ns))%I
+                                    (at level 20, format "α ◯↪N ( M ; ns ) @ γ") : bi_scope.
+
+Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
+
+Section error_lemmas.
   Context `{!conerisGS Σ, !hocap_errorGS Σ}.
   (* Helpful lemmas *)
   Lemma hocap_error_alloc (ε:nonnegreal):
@@ -52,7 +64,13 @@ Section lemmas.
     iIntros (->) "$".
   Qed.
     
-End lemmas.
+End error_lemmas.
+
+Section tapes_lemmas.
+  Context `{!conerisGS Σ, !hocap_tapesGS Σ}.
+
+  (** * TODO add*)
+End tapes_lemmas.
 
 Section HOCAP.
 
@@ -112,26 +130,34 @@ Section HOCAP.
       intros n; inv_fin n.
   Qed.
 
-  (* Lemma wp_hocap_flip_flip_adv_comp E *)
-  (*   (ε2 : nonnegreal -> (bool*bool) -> nonnegreal) *)
-  (*   (P : iProp Σ) (Q : (bool*bool) -> iProp Σ) γ: *)
-  (*   ↑hocap_error_nroot ⊆ E -> *)
-  (*   (∀ (ε:nonnegreal),  ((nonneg (ε2 ε (true, true)) + nonneg (ε2 ε (true, false)) + *)
-  (*                           (nonneg (ε2 ε (false, true)) + nonneg (ε2 ε (false, false)) *)
-  (*                        ))/4 <= (nonneg ε))%R) → *)
-  (*   {{{ error_inv γ∗ *)
-  (*      □ (∀ (ε:nonnegreal) (b : (bool*bool)), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗ ●↯ (ε2 ε b) @ γ ∗ Q (b) ) ∗ *)
-  (*       P }}} (flip, flip) @ E {{{ (b:bool*bool), RET (#b.1,#b.2); Q (b)}}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ". *)
-  (*   wp_apply (wp_hocap_flip_adv_comp _ (λ x b, nnreal_div (ε2 x (false, b) + ε2 x (true, b))%NNR (mknonnegreal 2 _)) P with "[-HΦ]"); [done|..]. *)
-  (*   - intros ε. simpl. specialize (Hineq ε). lra. *)
-  (*   - iFrame. *)
-  (*     iSplit; first done. *)
-  (*     iModIntro. iIntros. *)
-  (*     admit. *)
-  (*   - admit. *)
-  (* Abort. *)
-    
+  (** With tapes *)
+  Context `{!hocap_tapesGS Σ}.
+  
+  Definition tapes_inv (γ :gname):=
+    inv hocap_tapes_nroot (∃ m, ●m@γ ∗ [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )  ).
+  Lemma wp_hocap_presample_adv_comp (N : nat)  z E e 
+     (ε2 : nonnegreal -> fin (S N) -> nonnegreal)
+    (P : iProp Σ) (Q : val-> iProp Σ) γ γ':
+    TCEq N (Z.to_nat z) →
+    to_val e = None ->
+    ↑hocap_error_nroot ⊆ E ->
+    ↑hocap_tapes_nroot ⊆ E -> 
+    (∀ (ε:nonnegreal), SeriesC (λ n, (1 / (S N)) * nonneg (ε2 ε n))%R <= (nonneg ε))%R →
+    error_inv γ -∗ tapes_inv γ' -∗
+    □(∀ (ε:nonnegreal) (n : fin (S N)) m α ns,
+        P ∗ ●↯ ε @ γ ∗ ●m@γ' ∗⌜m!!α = Some (N, ns)⌝
+        ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗
+        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ')) -∗
+        WP e @ E {{Q}} ) -∗
+    P -∗
+    WP e @ E {{ Q }}.
+  Proof.
+    iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #HΦ P".
+    wp_apply fupd_pgl_wp.
+    iApply (wp_presample_adv_comp); [done|exact|..].
+    repeat iSplitR.
+    - 
+  Abort.
+  
 End HOCAP.
 
