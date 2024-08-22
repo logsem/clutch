@@ -4,7 +4,7 @@ From iris.proofmode Require Import proofmode.
 From clutch.prelude Require Import stdpp_ext.
 From clutch.con_prob_lang Require Import notation tactics metatheory.
 From clutch.con_prob_lang Require Export lang.
-From clutch.coneris Require Export lifting proofmode ectx_lifting primitive_laws. (* seq_amplification *)
+From clutch.coneris Require Export lifting proofmode ectx_lifting primitive_laws wp_update. 
 
 (** TODO: this file needs to get properly updated to take into account that the error credits [↯ ε]
     now works for [ε : R] rather than [ε : nonnegreal]. Ideally, no `nonnegreal` should appear at
@@ -867,8 +867,7 @@ Proof.
 Qed.
 
 
-Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
-  TCEq N (Z.to_nat z) →
+Lemma wp_presample_adv_comp (N : nat) E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
   to_val e = None →
   (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
   ▷α ↪N (N; ns) ∗
@@ -876,7 +875,7 @@ Lemma wp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) 
   (∀ n, ↯ (ε2 n) ∗ α ↪N (N; ns ++ [fin_to_nat n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (-> Hσ_red Hsum) "(>Hα & Hε & Hwp)".
+  iIntros (Hσ_red Hsum) "(>Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
   iDestruct "Hα" as (ns') "(%Hmap & Hα)".
@@ -889,9 +888,9 @@ Proof.
   { rewrite /get_active.
     apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
     done. }
-  assert (0<=SeriesC (λ n : fin (S (Z.to_nat z)), 1 / S (Z.to_nat z) * ε2 n))%R as Hineq.
+  assert (0<=SeriesC (λ n : fin (S N), 1 / S N * ε2 n))%R as Hineq.
   { apply SeriesC_ge_0'. intros. apply Rmult_le_pos; [apply Rdiv_INR_ge_0|apply cond_nonneg]. }
-  assert (SeriesC (λ n : fin (S (Z.to_nat z)), 1 / S (Z.to_nat z) * ε2 n) = nonneg (mknonnegreal _ Hineq))%R as Hsum' by done.
+  assert (SeriesC (λ n : fin (S N), 1 / S N * ε2 n) = nonneg (mknonnegreal _ Hineq))%R as Hsum' by done.
 
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
   iExists
@@ -936,7 +935,7 @@ Proof.
       apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
 
     (* rewrite to a form for SeriesC_le *)
-    pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
+    pose f := (fun n : fin _ => 1 / S N * ε2 n)%R.
     rewrite (SeriesC_ext
                (λ x : state, state_step σ1 α x * _)%R
                (fun x : state => from_option f 0
@@ -952,8 +951,8 @@ Proof.
         rewrite /state_upd_tapes /=.
         rewrite /pmf /state_step.
         rewrite bool_decide_true; last first.
-        { rewrite elem_of_dom Hlookup /= /is_Some; by exists (Z.to_nat z; ns'). }
-        rewrite (lookup_total_correct _ _ (Z.to_nat z; ns')); auto.
+        { rewrite elem_of_dom Hlookup /= /is_Some; by exists (N; ns'). }
+        rewrite (lookup_total_correct _ _ (N; ns')); auto.
         rewrite /dmap /dbind /dbind_pmf /pmf.
         rewrite /= SeriesC_scal_l -{1}(Rmult_1_r (1 / _))%R.
         rewrite /Rdiv Rmult_1_l; apply Rmult_eq_compat_l.
@@ -968,7 +967,7 @@ Proof.
           rewrite /not; intros Hcont.
           rewrite /not in H; apply H.
           rewrite /state_upd_tapes in Hcont.
-          assert (R1 : ((Z.to_nat z; ns' ++ [sf]) : tape) = (Z.to_nat z; ns' ++ [n0])).
+          assert (R1 : ((N; ns' ++ [sf]) : tape) = (N; ns' ++ [n0])).
           { apply (insert_inv (tapes σ1) α). by inversion Hcont. }
           apply Eqdep_dec.inj_pair2_eq_dec in R1; [|apply PeanoNat.Nat.eq_dec].
           apply app_inv_head in R1.
@@ -1007,7 +1006,7 @@ Proof.
 
   rewrite Hsample /=.
   destruct (@find_is_Some _ _ _
-              (λ s : fin (S (Z.to_nat z)), state_upd_tapes <[α:=(Z.to_nat z; ns' ++ [s])]> σ1 = state_upd_tapes <[α:=(Z.to_nat z; ns' ++ [sample])]> σ1)
+              (λ s : fin (S N), state_upd_tapes <[α:=(N; ns' ++ [s])]> σ1 = state_upd_tapes <[α:=(N; ns' ++ [sample])]> σ1)
               _ sample eq_refl)
     as [r [Hfind Hr]].
   rewrite Hfind.
@@ -1026,7 +1025,7 @@ Proof.
   }
   iMod (ec_supply_increase _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
   { simplify_eq. lra. }
-  iMod (ghost_map_update ((Z.to_nat z; ns' ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+  iMod (ghost_map_update ((N; ns' ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
   rewrite pgl_wp_unfold /pgl_wp_pre.
   remember {| heap := heap2; tapes := tapes2 |} as σ2.
@@ -1047,7 +1046,28 @@ Proof.
   iFrame.
 Qed.
 
+  Lemma wp_update_presample E α N ns :
+    α ↪N (N; ns) -∗ wp_update E (∃ n, α ↪N (N; ns ++ [n])).
+  Proof.
+    rewrite wp_update_unseal.
+    iIntros "Hα" (e Φ Hv) "Hwp".
+    iApply wp_presample.
+    { rewrite Hv //. }
+    iFrame. iIntros (n) "Hα".
+    iApply ("Hwp" with "[$Hα]").
+  Qed.
 
+  Lemma wp_update_presample_exp E α N ns (ε1 : R) (ε2 : fin (S N) → nonnegreal) :
+    (SeriesC (λ n, 1 / (S N) * ε2 n)%R <= ε1)%R →
+    α ↪N (N; ns) ∗ ↯ ε1 -∗ wp_update E (∃ n, α ↪N (N; ns ++ [fin_to_nat n]) ∗ ↯ (ε2 n)).
+  Proof. 
+    rewrite wp_update_unseal.
+    iIntros (?) "[Hα Hε1]". iIntros (e Φ Hv) "Hwp".
+    iApply wp_presample_adv_comp; [|done|].
+    { rewrite Hv //. }
+    iFrame. iIntros (n) "[Hα Hε2]".
+    iApply ("Hwp" with "[$Hα $Hε2]").
+  Qed. 
 
 End rules.
 

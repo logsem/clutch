@@ -187,7 +187,7 @@ Section specs.
   Proof.
     iIntros (Hval Hineq) "(>Hα & Herr & HΦ)".
     rewrite tape_conversion_bool_nat.
-    wp_apply (wp_presample_adv_comp 1%nat 1 _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [done| |iFrame].
+    wp_apply (wp_presample_adv_comp 1%nat _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [done| |iFrame].
     - rewrite SeriesC_finite_foldr; simpl. etrans; last exact. lra.
     - iIntros (n) "[Herr Hα]".
       iApply ("HΦ" $! (fin_to_nat n =? 1%nat)).
