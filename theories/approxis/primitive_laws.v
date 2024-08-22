@@ -76,7 +76,7 @@ Definition nat_tape `{approxisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
   ∃ (fs : list (fin (S N))), ⌜fin_to_nat <$> fs = ns⌝ ∗ l ↪ (N; fs).
 
 Notation "l ↪N ( M ; ns )" := (nat_tape l M ns)%I
-                                (at level 20, format "l ↪N ( M ; ns )") : bi_scope.
+  (at level 20, format "l  ↪N  ( M ;  ns )") : bi_scope.
 
 (*
 Definition nat_spec_tape `{approxisGS Σ} l (N : nat) (ns : list nat) : iProp Σ :=
