@@ -137,7 +137,7 @@ Section HOCAP.
     inv hocap_tapes_nroot (∃ m, ●m@γ ∗ [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )  ).
   Lemma wp_hocap_presample_adv_comp (N : nat)  z E e 
      (ε2 : nonnegreal -> fin (S N) -> nonnegreal)
-    (P : iProp Σ) (Q : val-> iProp Σ) γ γ':
+    (P : iProp Σ) (Q : val-> iProp Σ) R γ γ':
     TCEq N (Z.to_nat z) →
     to_val e = None ->
     ↑hocap_error_nroot ⊆ E ->
@@ -145,17 +145,19 @@ Section HOCAP.
     (∀ (ε:nonnegreal), SeriesC (λ n, (1 / (S N)) * nonneg (ε2 ε n))%R <= (nonneg ε))%R →
     error_inv γ -∗ tapes_inv γ' -∗
     □(∀ (ε:nonnegreal) (n : fin (S N)) m α ns,
-        P ∗ ●↯ ε @ γ ∗ ●m@γ' ∗⌜m!!α = Some (N, ns)⌝
+        (P ∗ ●↯ ε @ γ ∗ ●m@γ' ∗⌜m!!α = Some (N, ns)⌝
         ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗
-        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ')) -∗
-        WP e @ E {{Q}} ) -∗
+        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ R (n))))) -∗
+    □ (∀ n, R n -∗ WP e @ E {{Q}} ) -∗
     P -∗
     WP e @ E {{ Q }}.
   Proof.
-    iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #HΦ P".
-    wp_apply fupd_pgl_wp.
+    iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #Hviewshift #HΦ P".
+    iApply fupd_pgl_wp.
+    iInv "Hinv" as ">(%ε & Hε & Hauth)" "Hclose".
+    iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'".
     iApply (wp_presample_adv_comp); [done|exact|..].
-    repeat iSplitR.
+    iApply fupd_frame_l.
     - 
   Abort.
   
