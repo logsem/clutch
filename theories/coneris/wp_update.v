@@ -1,4 +1,6 @@
-From clutch.coneris Require Import coneris.
+From iris.base_logic.lib Require Export fancy_updates.
+From iris.proofmode Require Import base tactics classes.
+From clutch.coneris Require Import weakestpre primitive_laws.
 
 (** A [wp_update] modality for Coneris that captures propositions that can be elimnated against an
     arbitrary weakest precondition. This includes, e.g., state steps.
