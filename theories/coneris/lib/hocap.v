@@ -80,40 +80,46 @@ Section HOCAP.
     inv hocap_error_nroot (∃ (ε:nonnegreal), ↯ ε ∗ ●↯ ε @ γ).
 
   Lemma wp_hocap_rand_adv_comp (N : nat) z E
-     (ε2 : nonnegreal -> fin (S N) -> nonnegreal)
+     (ε2 : R -> fin (S N) -> R)
     (P : iProp Σ) (Q : (fin (S N)) -> iProp Σ) γ:
     TCEq N (Z.to_nat z) →
     ↑hocap_error_nroot ⊆ E ->
-    (∀ (ε:nonnegreal), SeriesC (λ n, (1 / (S N)) * nonneg (ε2 ε n))%R <= (nonneg ε))%R →
+    (∀ ε n, (0<=ε -> 0<=ε2 ε n))%R ->
+    (∀ (ε:R), 0<=ε ->SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= (ε))%R →
     {{{ error_inv γ∗
         □(∀ (ε:nonnegreal) (n : fin (S N)), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗
                                            (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ Q (n))) ) ∗
         P }}} rand #z @ E {{{ n, RET #n; Q (n)}}}.
   Proof.
-    iIntros (-> Hsubset Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
+    iIntros (-> Hsubset ? Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
     iInv "Hinv" as ">(%ε & Hε & Hauth)" "Hclose".
-    wp_apply (wp_couple_rand_adv_comp1' with "[$]"); first apply Hineq.
+    iDestruct (ec_valid with "[$]") as "%".
+    wp_apply (wp_couple_rand_adv_comp1' _ _ _ _ (ε2 ε) with "[$]"); [naive_solver|naive_solver|].
     iIntros (n) "Hε".
     iMod ("Hchange" $! _ n with "[$]") as "[%|[Hauth HQ]]"; last first.
-    { iMod ("Hclose" with "[Hauth Hε]") as "_"; first iFrame.
-      by iApply "HΦ". }
+    { iMod ("Hclose" with "[Hauth Hε]") as "_".
+      - unshelve iExists (mknonnegreal _ _); last iFrame.
+        naive_solver.
+      - by iApply "HΦ". }
     iExFalso.
     by iApply (ec_contradict with "[$]").
   Qed.
 
   Lemma wp_hocap_flip_adv_comp E
-    (ε2 : nonnegreal -> bool -> nonnegreal)
+    (ε2 : R -> bool -> R)
     (P : iProp Σ) (Q : bool -> iProp Σ) γ:
     ↑hocap_error_nroot ⊆ E ->
-    (∀ (ε:nonnegreal),  ((nonneg (ε2 ε true) + nonneg (ε2 ε false))/2 <= (nonneg ε))%R) →
+    (∀ ε b, 0<=ε -> 0<=ε2 ε b)%R ->
+    (∀ (ε:R), 0<=ε ->  (((ε2 ε true) + (ε2 ε false))/2 <= (ε)))%R →
     {{{ error_inv γ∗
         □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝ ∨ ●↯ (ε2 ε b) @ γ ∗ Q (b)) ) ∗
         P }}} flip @ E {{{ (b:bool), RET #b; Q (b)}}}.
   Proof.
-    iIntros (Hsubset Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
+    iIntros (Hsubset ? Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
     rewrite /flip/flipL.
     wp_pures.
     wp_apply (wp_hocap_rand_adv_comp _ _ _ (λ ε x, if fin_to_nat x =? 1%nat then ε2 ε true else ε2 ε false) P (λ x, Q (fin_to_nat x =? 1%nat)) with "[-HΦ]"); [done|..].
+    - intros; case_match; naive_solver.
     - intros ε. rewrite SeriesC_finite_foldr; simpl. specialize (Hineq ε). lra.
     - iFrame. iSplitR; first iExact "Hinv".
       iModIntro.
@@ -136,21 +142,22 @@ Section HOCAP.
   Definition tapes_inv (γ :gname):=
     inv hocap_tapes_nroot (∃ m, ●m@γ ∗ [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )  ).
   Lemma wp_hocap_presample_adv_comp (N : nat)  z E e ns α
-     (ε2 : nonnegreal -> fin (S N) -> nonnegreal)
-    (P : iProp Σ) (Q : val-> iProp Σ) R γ γ':
+     (ε2 : R -> fin (S N) -> R)
+    (P : iProp Σ) (Q : val-> iProp Σ) T γ γ':
     TCEq N (Z.to_nat z) →
     TCEq (to_val e) None ->
     ↑hocap_error_nroot ⊆ E ->
     ↑hocap_tapes_nroot ⊆ E ->
-    (∀ (ε:nonnegreal), SeriesC (λ n, (1 / (S N)) * nonneg (ε2 ε n))%R <= (nonneg ε))%R →
+    (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
+    (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R →
     error_inv γ -∗ tapes_inv γ' -∗
-    (□∀ (ε:nonnegreal) (n : fin (S N)) m, (⌜m!!α = Some (N, ns)⌝ -∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
+    (□∀ (ε:R) (n : fin (S N)) m, (⌜m!!α = Some (N, ns)⌝ -∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
                                                 ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗
-        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ R (n))))
+        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ T (n))))
         -∗ P -∗ α ◯↪N (N; ns) @ γ' -∗
-        wp_update E (∃ n, R (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ').
+        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ').
   Proof.
-    iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #Hshift HP Htape".
+    iIntros (-> Hval Hsubset Hubset' ? Hineq) "#Hinv #Hinv' #Hshift HP Htape".
     iApply fupd_wp_update.
     iInv "Hinv" as ">(%ε' & Hε & Hauth)" "Hclose".
     iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'".
@@ -170,7 +177,8 @@ Section HOCAP_alt.
 
   Lemma wp_flip_exp_hocap  (P : iProp Σ) (Q : bool → iProp Σ) E1 E2 :
     □ (P ={E1, E2}=∗
-        ∃ ε1 ε2, ⌜((nonneg (ε2 true) + nonneg (ε2 false))/2 <= nonneg ε1)%R⌝ ∗
+       ∃ ε1 ε2, ⌜(( (ε2 true) +  (ε2 false))/2 <=  ε1)%R⌝ ∗
+                ⌜(∀ b, 0<=ε2 b)%R⌝ ∗
                  ↯ ε1 ∗ (∀ (b : bool), ↯ (ε2 b) ={E2, E1}=∗ Q b)) -∗
     {{{ P }}} flip @ E1 {{{ (b : bool), RET #b; Q b}}}.
   Proof.
@@ -178,9 +186,10 @@ Section HOCAP_alt.
     rewrite /flip /flipL.
     wp_pures.
     wp_bind (rand _)%E.
-    iMod ("Hvs" with "HP") as (ε1 ε2) "(% & Hε1 & HQ)".
+    iMod ("Hvs" with "HP") as (ε1 ε2) "(% & % & Hε1 & HQ)".
     set (ε2' := ε2 ∘ fin_to_bool).
     iApply (wp_couple_rand_adv_comp1' _ _ _ _  ε2' with "Hε1").
+    { intros; rewrite /ε2'. simpl. done. }
     { rewrite SeriesC_finite_foldr /ε2' /=. lra. }
     iIntros "!>" (n) "Hε2".
     assert (ε2' n = ε2 (Z_to_bool n)) as ->.

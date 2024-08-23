@@ -74,11 +74,12 @@ Section test.
   Proof.
     iIntros "Herr".
     rewrite /e.
-    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then nnreal_zero else
-                      if (fin_to_nat n =? 2) then nnreal_half else nnreal_half)
+    set (ε2 := λ n : fin (S 3), if (fin_to_nat n <? 2) then 0%R else
+         (/2)%R)
         .
         wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ ε2 with "[$]").
-        { rewrite SeriesC_finite_foldr. simpl. lra. }
+        { rewrite /ε2. intros. case_match; lra. }
+        { rewrite SeriesC_finite_foldr. simpl. rewrite /ε2. simpl. lra. }
         iIntros (n) "Herr".
         wp_pures. 
         case_bool_decide; wp_pures; first done.
@@ -91,8 +92,8 @@ Section test.
           - by repeat (inv_fin n; [done|intros n ?]).
           - by repeat (inv_fin n; [done|intros n ?]).
         }
-    - by wp_apply wp_e'_two.
-    - by wp_apply wp_e'_three.
+    - wp_apply wp_e'_two. simpl. rewrite /ε2. iApply ec_eq; last done. lra.
+    - wp_apply wp_e'_three. rewrite /ε2//.  iApply ec_eq; last done. simpl. lra.
   Qed.
     
 End test.
@@ -168,19 +169,20 @@ Proof.
   wp_pures.
   set f:= (λ n : fin 3,
               if bool_decide (n = 0%fin)
-                then nnreal_zero
-                else if bool_decide (n = 1%fin) then nnreal_one
-                                            else nnreal_inv((nnreal_nat 2))).
+                then 0%R
+                else if bool_decide (n = 1%fin) then 1%R
+                                            else (/2)%R).
   unshelve wp_apply (wp_couple_rand_adv_comp _ _ _ _ f with "Herr").
+  { intros. rewrite /f. repeat case_bool_decide; simpl; lra. }
   {
-    exists 1; intro n.
+    exists 1%R; intro n.
     rewrite /f.
     case_bool_decide.
     - simpl; lra.
     - case_bool_decide; simpl; lra.
   }
   {
-    rewrite SeriesC_finite_foldr. simpl. lra.
+    rewrite SeriesC_finite_foldr. simpl. rewrite /f. simpl. lra.
   }
   iIntros (n) "Hεcont".
   wp_pures.

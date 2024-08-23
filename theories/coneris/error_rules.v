@@ -366,43 +366,39 @@ Qed.
 Lemma match_nonneg_coercions (n : nonnegreal) : NNRbar_to_real (NNRbar.Finite n) = nonneg n.
 Proof. by simpl. Qed.
 
-Lemma mean_constraint_ub (N : nat) ε1 (ε2 : fin (S N) → nonnegreal) :
-  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+Lemma mean_constraint_ub (N : nat) (ε1:R) (ε2 : fin (S N) → R) :
+  (0<=ε1)%R ->
+  (forall n, (0<=ε2 n)%R) ->
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (ε1) →
   (∃ r, (0 <= r)%R ∧ ∀ n,(ε2 n <= r)%R).
 Proof.
-  intros Hsum.
-  exists (nnreal_nat (S N) * ε1)%NNR.
-  split. { apply Rmult_le_pos; apply cond_nonneg. }
+  intros Hineq1 Hineq2 Hsum.
+  exists (INR (S N) * ε1)%R.
+  split. { apply Rmult_le_pos; try lra. apply pos_INR. }
   intros n.
-  Opaque nnreal_nat.
-  rewrite /= -Hsum.
-  rewrite SeriesC_scal_l -Rmult_assoc -(Rmult_1_l (nonneg (ε2 _))).
+  rewrite -Hsum.
+  rewrite SeriesC_scal_l -Rmult_assoc -(Rmult_1_l ((ε2 _))).
   apply Rmult_le_compat; try lra.
-  - by apply cond_nonneg.
+  - naive_solver.
   - rewrite /Rdiv Rmult_1_l.
-    rewrite /= Rinv_r; try lra.
-    Transparent nnreal_nat.
-    rewrite /nnreal_nat.
-    replace (nonneg {| nonneg := INR (S N); cond_nonneg := _ |}) with (INR (S N)); [| by simpl ].
-    by apply not_0_INR.
-  - rewrite -match_nonneg_coercions.
-    rewrite -(SeriesC_singleton_dependent _ ε2).
+    rewrite Rinv_r; try lra.
+    pose proof pos_INR_S N. lra.
+  - rewrite -(SeriesC_singleton_dependent _ ε2).
     apply SeriesC_le.
     + intros n'.
-      assert (H : (0 <= (nonneg (ε2 n')))%R) by apply cond_nonneg.
-      rewrite /nnreal_zero /=.
-      case_bool_decide; try lra.
+      subst.
+      case_bool_decide; try lra; naive_solver.
     + apply ex_seriesC_finite.
 Qed.
 
-
-Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
+  (∀ n, (0<=ε2 n)%R) ->
   (∃ r, ∀ n, (ε2 n <= r)%R) →
-  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1 →
+  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1)%R →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
-  iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
+  iIntros (-> Hineq (r & Hε2) Hε1 Ψ) "Herr HΨ".
   iApply wp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
@@ -410,20 +406,20 @@ Proof.
   iApply glm_adv_comp; simpl.
   (* iDestruct (ec_supply_bound with "Hε Herr") as %?. *)
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(ε1' & ε3 & Hε_now & Hε1').
-  set (foo := (λ (ρ : expr * state * list expr),
+  unshelve eset (foo := (λ (ρ : expr * state * list expr),
                 ε3 +
                   match ρ with
                   | (Val (LitV (LitInt n)), σ, []) =>
                       if bool_decide(σ = σ1)
                       then if bool_decide (0 ≤ n)%Z
                            then match (lt_dec (Z.to_nat n) (S (Z.to_nat z))) with
-                                | left H => ε2 (@Fin.of_nat_lt (Z.to_nat n) (S (Z.to_nat z)) H)
+                                | left H => mknonnegreal (ε2 (@Fin.of_nat_lt (Z.to_nat n) (S (Z.to_nat z)) H)) _
                                 | _ => nnreal_zero
                                 end
                            else nnreal_zero
                       else nnreal_zero
                   | _ => nnreal_zero
-                  end)%NNR).
+                  end)%NNR); first naive_solver.
   iExists
     (λ ρ,
       ∃ (n : fin (S (Z.to_nat z))), ρ = (Val #n, σ1, [])), nnreal_zero, foo.
@@ -436,7 +432,6 @@ Proof.
     apply Rplus_le_compat; [lra |].
     assert (0 <= r)%R.
     { transitivity (ε2 0%fin); auto.
-      apply cond_nonneg.
     }
     do 8 (case_match; auto).
     apply Hε2.
@@ -444,13 +439,13 @@ Proof.
   iSplit.
   {
     iPureIntro.
-    rewrite /foo /= Rplus_0_l.
+    rewrite /foo Rplus_0_l.
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus.
     - rewrite Rplus_comm.
       subst.
       apply Rplus_le_compat.
-      + rewrite Hε1'.
+      + erewrite Hε1'.
         etrans; last first.
         * apply (SeriesC_le_inj _
                    (λ ρ : expr * state * list expr,
@@ -469,7 +464,7 @@ Proof.
                        else None)).
           ** intros.
              (* TODO: Add this to real solver *)
-             apply Rmult_le_pos; [ | apply cond_nonneg ].
+             apply Rmult_le_pos; [ | done ].
              apply Rmult_le_pos; [lra |].
              left. apply RinvN_pos'.
           ** intros ρ1 ρ2 m Hc1 Hc2.
@@ -487,7 +482,7 @@ Proof.
                  case_match; (try apply cond_nonneg).
              *** case_bool_decide; simplify_eq.
                  **** do 6 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
-                      apply Rmult_le_compat_r; [ apply cond_nonneg |].
+                      apply Rmult_le_compat_r; [ done |].
                       rewrite head_prim_step_eq /=.
                       rewrite /dmap /pmf/=/dbind_pmf/dunifP.
                       setoid_rewrite dunif_pmf.
@@ -550,14 +545,14 @@ Proof.
       intros [[e s] efs].
       instantiate (2 := (λ n:nat, ( Val #(LitInt n), σ1, [])) <$> (seq 0%nat (S (Z.to_nat z)))).
       case_bool_decide; last first.
-      + repeat (case_match; try (simpl; lra)).
+      + do 7 (case_match; try (simpl; lra)).
         exfalso. apply H. subst.
         eapply elem_of_list_fmap_1_alt; last first.
         { apply bool_decide_eq_true_1 in H5, H4. repeat f_equal.
           - instantiate (1 := Z.to_nat n). lia.
           - done.
         }
-        rewrite elem_of_seq. lia.
+        rewrite elem_of_seq. lia. 
       + instantiate (1 :=
                        (λ '(e, s, efs), (prim_step (rand #z) σ1 (e, s, efs) *
                                       match (e, efs) with
@@ -600,18 +595,17 @@ Proof.
   }
   iMod (ec_supply_decrease with "Hε Herr") as (????) "Hε2".
   iModIntro.
-  destruct (Rlt_decision (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R 1%R) as [Hdec|Hdec]; last first.
+  destruct (Rlt_decision (nonneg ε3 + (ε2 (nat_to_fin l)))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
     iLeft.
     iPureIntro.
     simpl.
     lra.
   }
-  replace (nonneg ε3 + nonneg (ε2 (nat_to_fin l)))%R with (nonneg (ε3 + (ε2 (nat_to_fin l)))%NNR); [|by simpl].
   iRight.
   iModIntro.
-  iMod (ec_supply_increase ε3 (ε2 (nat_to_fin l)) with "[Hε2]") as "[Hε2 Hcr]".
-  { lra. }
+  unshelve iMod (ec_supply_increase ε3 (mknonnegreal (ε2 (nat_to_fin l)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done.
+  { simpl. lra. }
   { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
   iMod "Hclose'".
   iApply fupd_mask_intro; [eauto|]; iIntros "_".
@@ -625,32 +619,38 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma wp_couple_rand_adv_comp1 (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp1 (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
+  (∀ n, (0<=ε2 n)%R) ->
   SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1 →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
-  iIntros (H1 H2 Φ) "Herr HΦ".
+  iIntros (H1 Hineq H2 Φ) "Herr HΦ".
   iDestruct (ec_valid with "[$]") as "[%K %]".
-  wp_apply (wp_couple_rand_adv_comp _ _ _ (mknonnegreal ε1 K) ε2 with "[$]"). 
-  - edestruct (mean_constraint_ub N (mknonnegreal ε1 K)) as [H3 H4].
-    + by erewrite H2. 
+  wp_apply (wp_couple_rand_adv_comp _ _ _ (ε1) ε2 with "[$]"); [done|..].
+  - edestruct (mean_constraint_ub N ε1 ) as [H3 H4].
+    + done.
+    + done.
+    + by erewrite H2.
     + eexists _; eapply H4.
   - apply H2.
   - done.
 Qed.
 
 
-Lemma wp_couple_rand_adv_comp1' (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp1' (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   TCEq N (Z.to_nat z) →
-  (SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n))%R <= (ε1))%R →
+  (∀ n, (0<=ε2 n)%R) ->
+  (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
-  iIntros (H1 H2).
-  unshelve epose (difference := mknonnegreal ((ε1)-SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n)))%R _); first lra.
-  epose (ε2' n:= (ε2 n + difference)%NNR).
+  iIntros (H1 Hineq H2).
+  epose (difference :=  ((ε1)-SeriesC (λ n, (1 / (S N)) * (ε2 n)))%R ). 
+  epose (ε2' n:= (ε2 n + difference)%R).
   iIntros (Φ) "Herr HΦ". 
   wp_apply (wp_couple_rand_adv_comp1 _ _ _ ε1 ε2' with "[$]").
+  - rewrite /ε2'/difference. intros. apply Rplus_le_le_0_compat; first done.
+    lra.
   - rewrite /ε2'. rewrite /difference; simpl. rewrite -/(INR (S N)).
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus; [|apply ex_seriesC_finite..].
@@ -659,39 +659,30 @@ Proof.
     rewrite SeriesC_finite_mass fin_card. 
     replace (INR (S N) * (1 / INR (S N) * ε1))%R with (ε1); last first.
     { rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.  }
-    assert ((SeriesC (λ x : fin (S N), 1 / S N * nonneg (ε2 x))
-             + SeriesC (λ _ : fin (S N), 1 / S N * - SeriesC (λ n : fin (S N), 1 / S N * nonneg (ε2 n))))%R = 0)%R; last lra.
+    assert ((SeriesC (λ x : fin (S N), 1 / S N * (ε2 x))
+             + SeriesC (λ _ : fin (S N), 1 / S N * - SeriesC (λ n : fin (S N), 1 / S N * (ε2 n))))%R = 0)%R; last lra.
     rewrite SeriesC_finite_mass fin_card.
     rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.
   - iIntros. iApply "HΦ". iApply ec_weaken; last done.
-    simpl; split; first apply cond_nonneg.
+    simpl; split; first done.
     rewrite -/(INR (S N)).
-    apply Rplus_le_0_compat. lra.
+    apply Rplus_le_0_compat. rewrite /difference; lra. 
 Qed.
 
-Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 : R) (ε1 : nonnegreal) E Φ :
+Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 : R) (ε1 : R) E Φ :
   TCEq N (Z.to_nat z) →
+  (0<=ε1)%R ->
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
   ↯ ε0 ∗
     (∀ x : fin (S N),
         (⌜Forall (λ m, (fin_to_nat x) ≠ m) ns⌝ ∨ ↯ ε1) -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros (HN Hleq) "[Herr Hwp]".
-  set (ε2 := (λ x : fin (S N), if bool_decide (Exists (λ m : nat, (fin_to_nat x) =  m) ns) then ε1 else nnreal_zero)).
-  wp_apply (wp_couple_rand_adv_comp1 _ _ _ (mknonnegreal (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) _) ε2 with "[Herr]").
-  Unshelve.
-  4: {
-    apply SeriesC_ge_0.
-    - intro. apply Rmult_le_pos.
-      + apply Rmult_le_pos; [lra |].
-        left. apply Rinv_0_lt_compat.
-        pose proof (pos_INR N).
-        lra.
-      + apply cond_nonneg.
-    - apply ex_seriesC_finite.
-  }
-  - rewrite S_INR //.
+  iIntros (HN Hineq Hleq) "[Herr Hwp]".
+  set (ε2 := (λ x : fin (S N), if bool_decide (Exists (λ m : nat, (fin_to_nat x) =  m) ns) then ε1 else 0)).
+  wp_apply (wp_couple_rand_adv_comp1 _ _ _  (SeriesC (λ n : fin (S N), (1 / (N + 1) * ε2 n)%R)) ε2 with "[Herr]").
+  { intros. rewrite /ε2. by case_bool_decide. }
+  { rewrite S_INR. done. }
   - iApply ec_weaken; auto.
     simpl.
     rewrite SeriesC_scal_l /ε2.
@@ -708,7 +699,7 @@ Proof.
     pose proof (pos_INR N).
     split.
     { apply Rmult_le_pos; [|real_solver].
-      apply Rmult_le_pos; [apply cond_nonneg|].
+      apply Rmult_le_pos; [lra|].
       apply SeriesC_ge_0; [|apply ex_seriesC_finite].
       intros ?. case_bool_decide; lra. }
 
@@ -755,7 +746,7 @@ Proof.
             etrans; last first.
             ** apply IHns.
                etrans; eauto.
-               apply Rmult_le_compat_l; [apply cond_nonneg |].
+               apply Rmult_le_compat_l; [lra |].
                rewrite cons_length S_INR; lra.
             **
               apply Rcomplements.Rle_minus_l.
@@ -766,7 +757,6 @@ Proof.
     }
     etrans; eauto.
     apply Rmult_le_compat_l; auto.
-    apply cond_nonneg.
   - iIntros (n) "Herrn".
     rewrite /ε2.
     case_bool_decide.
@@ -780,14 +770,15 @@ Proof.
       apply _.
 Qed.
 
-Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 : R) (ε1 : nonnegreal) E Φ :
+Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 : R) (ε1 : R) E Φ :
   TCEq N (Z.to_nat z) →
+  (0<=ε1)%R->
   (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
   ↯ ε0 ∗
     (∀ x : fin (S N), ((⌜ P x = false⌝) ∨ ↯ ε1 ) -∗ Φ #x)
     ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
-  iIntros (? HK) "[H1 Hwp]".
+  iIntros (? Hineq HK) "[H1 Hwp]".
   iApply (wp_rand_err_list_adv _ _ (List.filter P (seq 0 (S N))) ε0 ε1); auto.
   iFrame.
   iIntros (x) "[%Hfor|Herr]".
@@ -868,15 +859,16 @@ Proof.
 Qed.
 
 
-Lemma wp_presample_adv_comp (N : nat) E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_presample_adv_comp (N : nat) E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
   to_val e = None →
+  (∀ n, 0<=ε2 n)%R ->
   (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
   ▷α ↪N (N; ns) ∗
   ↯ ε1 ∗
   (∀ n, ↯ (ε2 n) ∗ α ↪N (N; ns ++ [fin_to_nat n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (Hσ_red Hsum) "(>Hα & Hε & Hwp)".
+  iIntros (Hσ_red Hpos Hsum) "(>Hα & Hε & Hwp)".
   iApply wp_lift_step_fupd_glm; [done|].
   iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
   iDestruct "Hα" as (ns') "(%Hmap & Hα)".
@@ -890,26 +882,22 @@ Proof.
     apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom.
     done. }
   assert (0<=SeriesC (λ n : fin (S N), 1 / S N * ε2 n))%R as Hineq.
-  { apply SeriesC_ge_0'. intros. apply Rmult_le_pos; [apply Rdiv_INR_ge_0|apply cond_nonneg]. }
+  { apply SeriesC_ge_0'. intros. apply Rmult_le_pos; [apply Rdiv_INR_ge_0|done]. }
   assert (SeriesC (λ n : fin (S N), 1 / S N * ε2 n) = nonneg (mknonnegreal _ Hineq))%R as Hsum' by done.
 
   (* R: predicate should hold iff tapes σ' at α is ns ++ [n] *)
-  iExists
+  unshelve iExists
     (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns' ++ [n]) : tape]> σ1)),
       (fun ρ => (ε_rem +
                 match finite.find (fun s => state_upd_tapes <[α:=(_; ns' ++ [s]) : tape]> σ1 = ρ) with
-                | Some s => ε2 s
+                | Some s => mknonnegreal (ε2 s) _
                 | None => nnreal_zero
                 end))%NNR.
-
+  { done. }
   (* upper bound on ε2 *)
   iSplit.
   { iPureIntro.
-    destruct (mean_constraint_ub _ _ _ Hsum') as [r [Hr_nonneg Hr_ub]].
-    assert (Hr_nnonneg : (0 <= r)%R).
-    { eapply Rle_trans; [|apply (Hr_ub 0%fin)].
-      rewrite match_nonneg_coercions.
-      apply cond_nonneg. }
+    edestruct (mean_constraint_ub N (SeriesC (λ n : fin (S N), 1 / S N * ε2 n))%R ε2) as [r [Hr_nonneg Hr_ub]]; try done.
     exists (ε_rem + r)%R.
     intros [e' σ'].
     apply Rplus_le_compat_l.
@@ -925,7 +913,7 @@ Proof.
     (* existence *)
     2: { apply ex_seriesC_scal_r, pmf_ex_seriesC. }
     2: { apply pmf_ex_seriesC_mult_fn.
-         destruct (mean_constraint_ub _ _ _ Hsum') as [r [Hr_nonneg Hr_ub]].
+         destruct (mean_constraint_ub N (SeriesC (λ n : fin (S N), 1 / S N * ε2 n))%R ε2) as [r [Hr_nonneg Hr_ub]]; try done.
          exists r; intros; split.
          - apply cond_nonneg.
          - destruct (finite.find _); [apply Hr_ub | simpl; apply Hr_nonneg]. }
@@ -984,7 +972,7 @@ Proof.
       + rewrite /Rdiv.
         apply Rmult_le_pos; try lra.
         apply Rlt_le, Rinv_0_lt_compat, pos_INR_S.
-      + apply cond_nonneg.
+      + done.
     - (* injection *)
       intros ? ? ? HF1 HF2.
       apply find_Some in HF1.
@@ -1018,14 +1006,14 @@ Proof.
     apply Eqdep_dec.inj_pair2_eq_dec in Heqt; [|apply PeanoNat.Nat.eq_dec].
     apply app_inv_head in Heqt.
     by inversion Heqt. }
-  destruct (Rlt_decision (nonneg ε_rem + nonneg (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
+  destruct (Rlt_decision (nonneg ε_rem + (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
     iLeft.
     iPureIntro.
     simpl ; lra.
   }
-  iMod (ec_supply_increase _ (ε2 sample) with "Hε_supply") as "[Hε_supply Hε]".
-  { simplify_eq. lra. }
+  unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample) _) with "Hε_supply") as "[Hε_supply Hε]"; first done.
+  { simplify_eq. simpl. lra. }
   iMod (ghost_map_update ((N; ns' ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
   iSpecialize ("Hwp" $! sample).
   rewrite pgl_wp_unfold /pgl_wp_pre.
@@ -1042,7 +1030,6 @@ Proof.
     - iFrame. }
   rewrite -Hsample.
   iMod "Hclose"; iMod "Hwp"; iModIntro.
-  replace (nonneg ε_rem + nonneg (ε2 sample))%R with (nonneg (ε_rem + ε2 sample)%NNR); [|by simpl].
   iRight.
   iFrame.
 Qed.
@@ -1058,14 +1045,14 @@ Qed.
     iApply ("Hwp" with "[$Hα]").
   Qed.
 
-  Lemma wp_update_presample_exp E α N ns (ε1 : R) (ε2 : fin (S N) → nonnegreal) :
+  Lemma wp_update_presample_exp E α N ns (ε1 : R) (ε2 : fin (S N) → R) :
+    (∀ n, 0<=ε2 n)%R ->
     (SeriesC (λ n, 1 / (S N) * ε2 n)%R <= ε1)%R →
     α ↪N (N; ns) ∗ ↯ ε1 -∗ wp_update E (∃ n, α ↪N (N; ns ++ [fin_to_nat n]) ∗ ↯ (ε2 n)).
-  Proof. 
+  Proof.
     rewrite wp_update_unseal.
-    iIntros (?) "[Hα Hε1]". iIntros (e Φ Hv) "Hwp".
-    iApply wp_presample_adv_comp; [|done|].
-    { rewrite Hv //. }
+    iIntros (? ?) "[Hα Hε1]". iIntros (e Φ Hv) "Hwp".
+    iApply (wp_presample_adv_comp _ _ _ _ _ _ _ ε2); [rewrite Hv//|done|done|..].
     iFrame. iIntros (n) "[Hα Hε2]".
     iApply ("Hwp" with "[$Hα $Hε2]").
   Qed. 
