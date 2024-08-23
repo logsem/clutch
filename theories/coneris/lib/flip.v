@@ -84,14 +84,16 @@ Section specs.
     by iApply "HΦ".
   Qed.
 
-  Lemma wp_flip_adv E (ε:nonnegreal) ε2:
-    (nonneg ε = 1/2 * (nonneg (ε2 true) + nonneg (ε2 false)))%R ->
+  Lemma wp_flip_adv E (ε:R) (ε2 : bool->R):
+    (∀ b, (0<=ε2 b)%R)->
+    (ε = 1/2 * ((ε2 true) + (ε2 false)))%R ->
     {{{ ↯ ε }}} flip @ E {{{ (b : bool), RET #(LitBool b); ↯ (ε2 b) }}}.
   Proof.
-    iIntros (? Φ) "Herr HΦ". rewrite /flip/flipL.
+    iIntros (?? Φ) "Herr HΦ". rewrite /flip/flipL.
     wp_pures.
     wp_bind (rand(_) _)%E.
     wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ (λ x, if fin_to_nat x =? 0%nat then ε2 false else ε2 true) with "[$Herr]").
+    { intros; case_match; done. }
     { rewrite SeriesC_finite_foldr. simpl. lra. }
     iIntros (n) "? /=".
     wp_apply (wp_int_to_bool with "[//]").
@@ -103,38 +105,44 @@ Section specs.
     intros n; inv_fin n.
   Qed.
 
-  Lemma awp_flip_adv E (ε2 : nonnegreal -> bool -> nonnegreal):
-    (∀ ε, nonneg ε = 1/2 * (nonneg (ε2 ε true) + nonneg (ε2 ε false)))%R ->
-    ⊢(<<{ ∀∀ (ε:nonnegreal), ↯ ε }>> flip @ E
+  Lemma awp_flip_adv E (ε2 : R -> bool -> R):
+    (∀ ε b, (0<=ε -> 0<=ε2 ε b))%R ->
+    (∀ ε, 0<=ε -> ε = 1/2 * ((ε2 ε true) + (ε2 ε false)))%R ->
+    ⊢(<<{ ∀∀ (ε:R), ↯ ε }>> flip @ E
        <<{ ∃∃ (b:bool) ,
              ↯ (ε2 ε b) | RET #b }>>)%I.
   Proof.
-    iIntros (K ?) "AU".
+    iIntros (? K ?) "AU".
     rewrite /flip/flipL.
     wp_pures.
     wp_bind (rand _)%E.
     iMod "AU" as "[%ε [Herr [_ Hclose]]]".
+    iDestruct (ec_valid with "[$]") as "%".
     wp_apply (wp_couple_rand_adv_comp1 _ _ _ _ (λ x, if fin_to_nat x =? 0%nat then ε2 ε false else ε2 ε true) with "[$Herr]").
-    { rewrite SeriesC_finite_foldr. simpl. rewrite (K ε). lra. }
+    { intros; case_match; naive_solver. }
+    { rewrite SeriesC_finite_foldr. simpl. rewrite {3}(K ε); first (simpl; lra). lra.  }
     iIntros (n) "? /=".
     inv_fin n; simpl; [|intros n; inv_fin n; simpl; [|intros n; inv_fin n]].
     all: iMod ("Hclose" with "[$]"); iModIntro; wp_apply (wp_int_to_bool with "[//]").
     all: iIntros; done.
   Qed.
 
-  Lemma awp_flip_adv' E (ε2 : nonnegreal -> bool -> nonnegreal):
-    (∀ ε, nonneg ε >= 1/2 * (nonneg (ε2 ε true) + nonneg (ε2 ε false)))%R ->
-    ⊢(<<{ ∀∀ (ε:nonnegreal), ↯ ε }>> flip @ E
+  Lemma awp_flip_adv' E (ε2 : R -> bool -> R):
+    (∀ ε b, (0<=ε ->0<=ε2 ε b))%R ->
+    (∀ ε, 0<=ε -> ε >= 1/2 * ((ε2 ε true) + (ε2 ε false)))%R ->
+    ⊢(<<{ ∀∀ (ε:R), ↯ ε }>> flip @ E
        <<{ ∃∃ (b:bool) ,
              ↯ (ε2 ε b) | RET #b }>>)%I.
   Proof.
-    iIntros (K ?) "AU".
+    iIntros (? K ?) "AU".
     rewrite /flip/flipL.
     wp_pures.
     wp_bind (rand _)%E.
     iMod "AU" as "[%ε [Herr [_ Hclose]]]".
+    iDestruct (ec_valid with "[$]") as "%".
     wp_apply (wp_couple_rand_adv_comp1' _ _ _ _ (λ x, if fin_to_nat x =? 0%nat then ε2 ε false else ε2 ε true) with "[$Herr]").
-    { rewrite SeriesC_finite_foldr. simpl. specialize (K ε). lra. }
+    { intros; case_match; naive_solver. }
+    { rewrite SeriesC_finite_foldr. simpl. specialize (K ε); lra. }
     iIntros (n) "? /=".
     inv_fin n; simpl; [|intros n; inv_fin n; simpl; [|intros n; inv_fin n]].
     all: iMod ("Hclose" with "[$]"); iModIntro; wp_apply (wp_int_to_bool with "[//]").
@@ -177,17 +185,19 @@ Section specs.
     by rewrite tape_conversion_nat_bool. 
   Qed.
 
-  Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : R) (ε2 : bool -> nonnegreal) :
+  Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : R) (ε2 : bool -> R) :
     to_val e = None →
-    ((nonneg (ε2 true) + nonneg (ε2 false))/2 <= ε1)%R →
+    (∀ b, (0<=ε2 b)%R) -> 
+    (((ε2 true) + (ε2 false))/2 <= ε1)%R →
     ▷α ↪B bs ∗
     ↯ ε1 ∗
     (∀ b, ↯ (ε2 b) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hval Hineq) "(>Hα & Herr & HΦ)".
+    iIntros (Hval ? Hineq) "(>Hα & Herr & HΦ)".
     rewrite tape_conversion_bool_nat.
-    wp_apply (wp_presample_adv_comp 1%nat _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [done| |iFrame].
+    wp_apply (wp_presample_adv_comp 1%nat _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [done| | |iFrame].
+    - intros; done. 
     - rewrite SeriesC_finite_foldr; simpl. etrans; last exact. lra.
     - iIntros (n) "[Herr Hα]".
       iApply ("HΦ" $! (fin_to_nat n =? 1%nat)).

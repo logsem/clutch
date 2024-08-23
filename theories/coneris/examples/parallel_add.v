@@ -279,7 +279,9 @@ Section attempt1.
       iDestruct (ghost_var_agree' with "[$Hγ1●][$]") as "->".
       simpl in *.
       wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
-                  (λ x, if fin_to_nat x =? 0 then nnreal_one else mknonnegreal (1 - Rpower 2 (bool_to_nat (ssrbool.isSome b2) - 1))%R _) with "[$Herr]").
+                  (λ x, if fin_to_nat x =? 0 then 1%R else (1 - Rpower 2 (bool_to_nat (ssrbool.isSome b2) - 1))%R) with "[$Herr]").
+      - intros; case_match; first lra.
+        apply resource_nonneg.
       - rewrite SeriesC_finite_foldr; simpl.
         rewrite H.
         trans ((1 / (1 + 1) * (2 - Rpower 2 (bool_to_nat (ssrbool.isSome b2) - 1)) + 0))%R; first lra.
@@ -320,7 +322,8 @@ Section attempt1.
       iDestruct (ghost_var_agree' with "[$Hγ2●][$]") as "->".
       simpl in *.
       wp_apply (wp_couple_rand_adv_comp1 _ _ _ _
-                  (λ x, if fin_to_nat x =? 0 then nnreal_one else mknonnegreal (1 - Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 1))%R _) with "[$Herr]").
+                  (λ x, if fin_to_nat x =? 0 then 1%R else (1 - Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 1))%R) with "[$Herr]").
+      - intros; case_match; first lra. apply resource_nonneg.
       - rewrite SeriesC_finite_foldr; simpl.
         rewrite H.
         trans ((1 / (1 + 1) * (2 - Rpower 2 (bool_to_nat (ssrbool.isSome b1) - 1)) + 0))%R; first lra.
@@ -405,11 +408,12 @@ Section attempt1.
       awp_apply
         (awp_flip_adv _
            (λ x b,
-              match ClassicalEpsilon.excluded_middle_informative (1/2<=nonneg x)%R
+              match ClassicalEpsilon.excluded_middle_informative (1/2<=x)%R
               with
-              | left P => if b then  mknonnegreal (2*x - 1)%R _ else nnreal_one
+              | left P => if b then(2*x - 1)%R else 1%R
               | _ => x
               end )).
+      - intros. repeat case_match; lra.
       - intros; case_match; simpl; lra.
       - iInv "I" as (?????) ">( Hγ1● & Hγ2● & Hl & Herr & %H & -> & ->)".
         iDestruct (ghost_var_agree' with "[$Hγ1●][$]") as "->".
@@ -417,12 +421,13 @@ Section attempt1.
         + iIntros. iFrame. eauto.
         + iIntros (b).
           case_match eqn:Heqn; last first.
-          { exfalso. apply n. rewrite H. simpl.
+          { exfalso. apply n. simpl. rewrite H.
             rewrite Rpower_plus Rpower_Ropp.
             replace (Rpower 2 2)%R with 4%R; last first.
             { replace (2)%R with (1+1)%R at 2 by lra.
               rewrite Rpower_plus Rpower_1; lra.
             }
+            simpl.
             assert (Rpower 2 (bool_to_nat (ssrbool.isSome b2))<=2)%R; last lra.
             replace 2%R with (Rpower 2 1)%R at 2; last (rewrite Rpower_1; lra).
             apply Rle_Rpower; first lra.
@@ -458,19 +463,19 @@ Section attempt1.
             iNext. iExists _, _, _, (mknonnegreal _ _ ), _. iFrame; simpl.
             repeat iSplit; iPureIntro; [done|done|lia].
             Unshelve.
-            all: simpl; try lra; apply cond_nonneg.
+            all: simpl; simpl in *; try lra; apply cond_nonneg.
     }
-
     { wp_bind (flipL _).
       (* need to change with using epsilon *)
       awp_apply
         (awp_flip_adv _
            (λ x b,
-              match ClassicalEpsilon.excluded_middle_informative (1/2<=nonneg x)%R
+              match ClassicalEpsilon.excluded_middle_informative (1/2<=x)%R
               with
-              | left P => if b then  mknonnegreal (2*x - 1)%R _ else nnreal_one
+              | left P => if b then  (2*x - 1)%R else 1%R
               | _ => x
               end )).
+      - intros; repeat case_match; simpl; lra.
       - intros; case_match; simpl; lra.
       - iInv "I" as (?????) ">( Hγ1● & Hγ2● & Hl & Herr & %H & -> & ->)".
         iDestruct (ghost_var_agree' with "[$Hγ2●][$]") as "->".
@@ -478,7 +483,7 @@ Section attempt1.
         + iIntros. iFrame. eauto.
         + iIntros (b).
           case_match eqn:Heqn; last first.
-          { exfalso. apply n. rewrite H. simpl.
+          { exfalso. apply n. simpl. rewrite H. simpl.
             rewrite Rpower_plus Rpower_Ropp.
             replace (Rpower 2 2)%R with 4%R; last first.
             { replace (2)%R with (1+1)%R at 2 by lra.
@@ -521,7 +526,7 @@ Section attempt1.
             iNext. iExists _, _, _, (mknonnegreal _ _ ), _. iFrame; simpl.
             repeat iSplit; iPureIntro; [done|done|lia].
             Unshelve.
-            all: simpl; try lra; apply cond_nonneg.
+            all: simpl; simpl in *; try lra; apply cond_nonneg.
     }
     
     iIntros (??) "[Hγ1◯ Hγ2◯]".
@@ -545,20 +550,23 @@ Section attempt2.
     inv loc_nroot (∃ (z:Z), l↦#z ∗ own γ (●E z)).
 
   Lemma wp_half_FAA E
-    (ε2 : nonnegreal -> bool -> nonnegreal)
-    (P Q : iProp Σ) (R : bool -> iProp Σ) γ1 γ2 (l:loc):
+    (ε2 : R -> bool -> R)
+    (P Q : iProp Σ) (T : bool -> iProp Σ) γ1 γ2 (l:loc):
     ↑hocap_error_nroot ⊆ E ->
     ↑loc_nroot ⊆ E ->
-    (∀ (ε:nonnegreal),  ((nonneg (ε2 ε true) + nonneg (ε2 ε false))/2 <= (nonneg ε))%R) →
+    (∀ ε b, 0<= ε -> 0<= ε2 ε b)%R->
+    (∀ (ε:R), 0<=ε -> (((ε2 ε true) + (ε2 ε false))/2 <= (ε)))%R →
     {{{ error_inv γ1 ∗ loc_inv l γ2 ∗
-        □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ1 ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝∨●↯ (ε2 ε b) @ γ1 ∗ R b) ) ∗
-        □ (∀ (b:bool) (z:Z), R b ∗ own γ2 (●E z) ={E∖↑loc_nroot}=∗
+        □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ1 ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝∨●↯ (ε2 ε b) @ γ1 ∗ T b) ) ∗
+        □ (∀ (b:bool) (z:Z), T b ∗ own γ2 (●E z) ={E∖↑loc_nroot}=∗
                           if b then own γ2 (●E(z+1)%Z)∗ Q else own γ2 (●E(z))∗ Q ) ∗
         P }}} half_FAA l @ E {{{ (v: val), RET v; Q }}}.
   Proof.
-    iIntros (Hsubset1 Hsubset2 Hineq Φ) "(#Hinv1 & #Hinv2 & #Hchange1 & #Hchange2 & HP) HΦ".
+    iIntros (Hsubset1 Hsubset2 ? Hineq Φ) "(#Hinv1 & #Hinv2 & #Hchange1 & #Hchange2 & HP) HΦ".
     rewrite /half_FAA.
-    wp_apply (wp_hocap_flip_adv_comp _ _ P with "[-HΦ]"); [done|done|..].
+    wp_apply (wp_hocap_flip_adv_comp _ ε2 P with "[-HΦ]"); [done|..].
+    - intros. naive_solver.
+    - simpl. intros; naive_solver.
     - by repeat iSplit.
     - iIntros. destruct b.
       + wp_pures. iInv "Hinv2" as "(%&?&?)" "Hclose".
@@ -621,13 +629,14 @@ Section attempt2.
     wp_apply (wp_par (λ _, own γ3 (◯E (Some true)))(λ _, own γ4 (◯E (Some true))) with "[Hfrag_a][Hfrag_b]").
     - (* first branch *)
       wp_apply (wp_half_FAA _ (λ x b,
-                                 match ClassicalEpsilon.excluded_middle_informative (1/2<=nonneg x)%R
+                                 match ClassicalEpsilon.excluded_middle_informative (1/2<=x)%R
                                  with
-                                 | left P => if b then  mknonnegreal (2*x - 1)%R _ else nnreal_one
+                                 | left P => if b then  (2*x - 1)%R else 1%R
                                  | _ => x
                                  end ) (own γ3 (◯E None))
                   (own γ3 (◯E (Some true)))
                   (λ b, ⌜b=true⌝ ∗ (own γ3 (◯E (Some false))))%I γ1 γ2 l with "[$Hfrag_a]"); [done|done|..].
+      + intros; repeat case_match; lra.
       + intros. case_match; simpl; lra.
       + repeat iSplit.
         * done.
@@ -674,13 +683,14 @@ Section attempt2.
       + iIntros. done. 
     - (* first branch *)
       wp_apply (wp_half_FAA _ (λ x b,
-                                 match ClassicalEpsilon.excluded_middle_informative (1/2<=nonneg x)%R
+                                 match ClassicalEpsilon.excluded_middle_informative (1/2<=x)%R
                                  with
-                                 | left P => if b then  mknonnegreal (2*x - 1)%R _ else nnreal_one
+                                 | left P => if b then  (2*x - 1)%R else 1%R
                                  | _ => x
                                  end ) (own γ4 (◯E None))
                   (own γ4 (◯E (Some true)))
                   (λ b, ⌜b=true⌝ ∗ (own γ4 (◯E (Some false))))%I γ1 γ2 l with "[$Hfrag_b]"); [done|done|..].
+      + intros; repeat case_match; lra.
       + intros. case_match; simpl; lra.
       + repeat iSplit.
         * done.
@@ -807,11 +817,13 @@ Section attempt3.
     iDestruct "Hfrag_loc" as "[Hfrac_a Hfrac_b]".
     (** presample *)
     wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_half else nnreal_one)); [done|..]; last iFrame "Hα Herr".
-    { simpl. lra. }
+    { intros; case_match; simpl; lra. }
+    { simpl; lra. }
     iIntros ([|]) "[Herr Hα]"; last first.
     { iExFalso. by iApply ec_contradict. }
     wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_zero else nnreal_one)); [done|..]; last iFrame "Hα' Herr".
-    { simpl. lra. }
+    { intros; case_match; simpl; lra. }
+    { simpl; lra. }
     iIntros ([|]) "[? Hα']"; last first.
     { iExFalso. by iApply ec_contradict. }
     wp_apply (wp_par (λ _, own γ (◯F{1/2} 1))%I (λ _, own γ (◯F{1/2} 1))%I
