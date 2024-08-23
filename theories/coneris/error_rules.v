@@ -396,10 +396,10 @@ Proof.
 Qed.
 
 
-Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
   (∃ r, ∀ n, (ε2 n <= r)%R) →
-  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1 →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
   iIntros (-> (r & Hε2) Hε1 Ψ) "Herr HΨ".
@@ -450,7 +450,7 @@ Proof.
     - rewrite Rplus_comm.
       subst.
       apply Rplus_le_compat.
-      + rewrite Hε1' -Hε1.
+      + rewrite Hε1'.
         etrans; last first.
         * apply (SeriesC_le_inj _
                    (λ ρ : expr * state * list expr,
@@ -586,7 +586,7 @@ Proof.
   }
   iIntros (e2 σ2 efs) "%H".
   destruct H as (n & Hn1); simplify_eq.
-  rewrite /foo /=.
+  rewrite /foo.
   rewrite bool_decide_eq_true_2; last done.
   rewrite bool_decide_eq_true_2; last first.
   { by zify. }
@@ -615,7 +615,7 @@ Proof.
   { iApply ec_supply_eq; [|done]. simplify_eq. lra. }
   iMod "Hclose'".
   iApply fupd_mask_intro; [eauto|]; iIntros "_".
-  iFrame.
+  simpl. iFrame.
   iApply pgl_wp_value.
   iApply "HΨ".
   assert (nat_to_fin l = n) as ->; [|done].
@@ -625,28 +625,29 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma wp_couple_rand_adv_comp1 (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp1 (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
-  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) →
+  SeriesC (λ n, (1 / (S N)) * ε2 n)%R = ε1 →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
-  iIntros (H1 H2).
-  eapply (wp_couple_rand_adv_comp _ _ _ ε1 ε2).
-  - apply H1.
-  - edestruct mean_constraint_ub as [H3 H4].
-    + apply H2.
+  iIntros (H1 H2 Φ) "Herr HΦ".
+  iDestruct (ec_valid with "[$]") as "[%K %]".
+  wp_apply (wp_couple_rand_adv_comp _ _ _ (mknonnegreal ε1 K) ε2 with "[$]"). 
+  - edestruct (mean_constraint_ub N (mknonnegreal ε1 K)) as [H3 H4].
+    + by erewrite H2. 
     + eexists _; eapply H4.
   - apply H2.
+  - done.
 Qed.
 
 
-Lemma wp_couple_rand_adv_comp1' (N : nat) z E (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) :
+Lemma wp_couple_rand_adv_comp1' (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> nonnegreal) :
   TCEq N (Z.to_nat z) →
-  (SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n))%R <= (nonneg ε1))%R →
+  (SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n))%R <= (ε1))%R →
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
   iIntros (H1 H2).
-  unshelve epose (difference := mknonnegreal ((nonneg ε1)-SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n)))%R _); first lra.
+  unshelve epose (difference := mknonnegreal ((ε1)-SeriesC (λ n, (1 / (S N)) * nonneg (ε2 n)))%R _); first lra.
   epose (ε2' n:= (ε2 n + difference)%NNR).
   iIntros (Φ) "Herr HΦ". 
   wp_apply (wp_couple_rand_adv_comp1 _ _ _ ε1 ε2' with "[$]").
@@ -656,7 +657,7 @@ Proof.
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus; [|apply ex_seriesC_finite..].
     rewrite SeriesC_finite_mass fin_card. 
-    replace (INR (S N) * (1 / INR (S N) * nonneg ε1))%R with (nonneg ε1); last first.
+    replace (INR (S N) * (1 / INR (S N) * ε1))%R with (ε1); last first.
     { rewrite -Rmult_assoc Rdiv_1_l Rinv_r; first lra. pose proof pos_INR_S N. lra.  }
     assert ((SeriesC (λ x : fin (S N), 1 / S N * nonneg (ε2 x))
              + SeriesC (λ _ : fin (S N), 1 / S N * - SeriesC (λ n : fin (S N), 1 / S N * nonneg (ε2 n))))%R = 0)%R; last lra.
@@ -668,7 +669,7 @@ Proof.
     apply Rplus_le_0_compat. lra.
 Qed.
 
-Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
+Lemma wp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 : R) (ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
   ↯ ε0 ∗
@@ -779,7 +780,7 @@ Proof.
       apply _.
 Qed.
 
-Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ :
+Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 : R) (ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R ->
   ↯ ε0 ∗
@@ -1129,7 +1130,7 @@ End rules.
 (* Qed. *)
 
 
-(* Lemma twp_rand_err_filter_below (N : nat) (M : nat) (z : Z) (ε0 ε1 : nonnegreal) E Φ : *)
+(* Lemma twp_rand_err_filter_below (N : nat) (M : nat) (z : Z) (ε0 ε1 : R) E Φ : *)
 (*   TCEq N (Z.to_nat z) → *)
 (*   (M <= N) -> *)
 (*   (ε1 * (M + 1) <= ε0 * (N + 1))%R -> *)
@@ -1154,7 +1155,7 @@ End rules.
 (* Qed. *)
 
 
-(* Lemma twp_rand_err_filter_above (N : nat) (M : nat) (z : Z) (ε0 ε1 : nonnegreal) E Φ : *)
+(* Lemma twp_rand_err_filter_above (N : nat) (M : nat) (z : Z) (ε0 ε1 : R) E Φ : *)
 (*   TCEq N (Z.to_nat z) → *)
 (*   (M <= N) -> *)
 (*   (ε1 * (N - M) <= ε0 * (N + 1))%R -> *)
@@ -1178,7 +1179,7 @@ End rules.
 (* Qed. *)
 
 
-(* Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : nonnegreal) E Φ : *)
+(* Lemma wp_rand_err_filter_adv (N : nat) (z : Z) (P : nat -> bool) (ε0 ε1 : R) E Φ : *)
 (*   TCEq N (Z.to_nat z) → *)
 (*   (ε1 * (length (List.filter P (seq 0 (S N)))) <= ε0 * (N + 1))%R -> *)
 (*   ↯ ε0 ∗ *)
@@ -1259,7 +1260,7 @@ End rules.
 (*     iModIntro. iApply "Hwp". *)
 (*   Qed. *)
 
-(*   Lemma twp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : nonnegreal) (ε2 : fin (S N) -> nonnegreal) : *)
+(*   Lemma twp_presample_adv_comp (N : nat) z E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     SeriesC (λ n, (1 / (S N)) * ε2 n)%R = (nonneg ε1) → *)
@@ -1784,7 +1785,7 @@ End rules.
 (*                  constructor; try lia. *)
 (*   Qed. *)
 
-(*   Lemma twp_presample_planner_pos N z e E α Φ (ε : nonnegreal) L prefix suffix : *)
+(*   Lemma twp_presample_planner_pos N z e E α Φ (ε : R) L prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < N)%nat -> *)
@@ -1813,7 +1814,7 @@ End rules.
 (*       done. *)
 (*   Qed. *)
 
-(*   Lemma presample_planner_pos N z e E α Φ (ε : nonnegreal) L prefix suffix : *)
+(*   Lemma presample_planner_pos N z e E α Φ (ε : R) L prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < N)%nat -> *)
@@ -1843,7 +1844,7 @@ End rules.
 (*   Qed. *)
 
 (*   (* general planner rule, with bounded synchronization strings *) *)
-(*   Lemma twp_presample_planner_sync N z e E α Φ (ε : nonnegreal) L prefix suffix : *)
+(*   Lemma twp_presample_planner_sync N z e E α Φ (ε : R) L prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < ε)%R -> *)
@@ -1865,7 +1866,7 @@ End rules.
 (*   Qed. *)
 
 (*   (* general planner rule, with bounded synchronization strings *) *)
-(*   Lemma presample_planner_sync N z e E α Φ (ε : nonnegreal) L prefix suffix : *)
+(*   Lemma presample_planner_sync N z e E α Φ (ε : R) L prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < ε)%R -> *)
@@ -1888,7 +1889,7 @@ End rules.
 
 
 (*   (* classic version *) *)
-(*   Lemma twp_presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix : *)
+(*   Lemma twp_presample_planner N z e E α Φ (ε : R) prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < ε)%R -> *)
@@ -1907,7 +1908,7 @@ End rules.
 (*       + rewrite HS. iFrame. *)
 (*   Qed. *)
 
-(*   Lemma presample_planner N z e E α Φ (ε : nonnegreal) prefix suffix : *)
+(*   Lemma presample_planner N z e E α Φ (ε : R) prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < ε)%R -> *)
@@ -1953,7 +1954,7 @@ End rules.
 (*   Qed. *)
 
 (*   (* version where junk is a mipltple of sample length *) *)
-(*   Lemma twp_presample_planner_aligned N z e E α Φ (ε : nonnegreal) prefix suffix : *)
+(*   Lemma twp_presample_planner_aligned N z e E α Φ (ε : R) prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < ε)%R -> *)
@@ -1977,7 +1978,7 @@ End rules.
 (*         iFrame. *)
 (*   Qed. *)
 
-(*   Lemma presample_planner_aligned N z e E α Φ (ε : nonnegreal) prefix suffix : *)
+(*   Lemma presample_planner_aligned N z e E α Φ (ε : R) prefix suffix : *)
 (*     TCEq N (Z.to_nat z) → *)
 (*     to_val e = None → *)
 (*     (0 < ε)%R -> *)

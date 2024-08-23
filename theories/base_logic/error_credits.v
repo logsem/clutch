@@ -291,6 +291,14 @@ Section error_credit_theory.
     lra.
   Qed.
 
+  Lemma ec_valid (ε : R) : ↯ ε -∗ ⌜(0<=ε<1)%R⌝.
+  Proof.
+    iIntros "(%&<-&H)".
+    rewrite ec_unseal /ec_def.
+    iDestruct (own_valid with "H") as %?%auth_frag_valid_1.
+    destruct x. compute in H. simpl in *. iPureIntro. lra.
+  Qed. 
+
   #[local] Lemma err_amp_power ε k :
     0 < ε →
     1 < k →
