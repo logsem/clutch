@@ -233,6 +233,7 @@ Section attempt1.
   (* More complicated spec, where the error is stored in the invariant for adv comp *)
   Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (optionO boolO))}.
 
+  (** Ideally err should be a R*)
   Definition parallel_add_inv (l:loc) (γ1 γ2 : gname) : iProp Σ :=
     ∃ (b1 b2 : option bool) (flip_num:nat) (err:nonnegreal) (z : Z),
       own γ1 (●E b1) ∗ own γ2 (●E b2) ∗ l ↦ #z ∗
@@ -368,7 +369,7 @@ Section attempt1.
     - simpl. iApply "HΦ". iPureIntro. lia.
       Unshelve.
       all: try lra.
-      all: try apply cond_nonneg.
+      all: simpl; try apply cond_nonneg.
       all: apply resource_nonneg. 
   Qed.
 
@@ -557,7 +558,7 @@ Section attempt2.
     (∀ ε b, 0<= ε -> 0<= ε2 ε b)%R->
     (∀ (ε:R), 0<=ε -> (((ε2 ε true) + (ε2 ε false))/2 <= (ε)))%R →
     {{{ error_inv γ1 ∗ loc_inv l γ2 ∗
-        □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ1 ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝∨●↯ (ε2 ε b) @ γ1 ∗ T b) ) ∗
+        □(∀ (ε:R) (b : bool), P ∗ ●↯ ε @ γ1 ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝∨●↯ (ε2 ε b) @ γ1 ∗ T b) ) ∗
         □ (∀ (b:bool) (z:Z), T b ∗ own γ2 (●E z) ={E∖↑loc_nroot}=∗
                           if b then own γ2 (●E(z+1)%Z)∗ Q else own γ2 (●E(z))∗ Q ) ∗
         P }}} half_FAA l @ E {{{ (v: val), RET v; Q }}}.
@@ -604,7 +605,7 @@ Section attempt2.
     iMod (own_alloc ((●E None) ⋅ (◯E None))) as "[%γ4 [Hauth_b Hfrag_b]]".
     { by apply excl_auth_valid. }
     (** Allocate error invariants *)
-    iMod (inv_alloc hocap_error_nroot _ ((∃ (ε:nonnegreal), ↯ ε ∗ ●↯ ε @ γ1)) with "[Herr Hεauth]") as "#Hεinv".
+    iMod (inv_alloc hocap_error_nroot _ ((∃ (ε:R), ↯ ε ∗ ●↯ ε @ γ1)) with "[Herr Hεauth]") as "#Hεinv".
     { iExists (mknonnegreal (3/4) _); iFrame.
       Unshelve. lra. }
     (** Allocate location inv *)
