@@ -151,7 +151,7 @@ Section HOCAP.
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R →
     error_inv γ -∗ tapes_inv γ' -∗
-    (□∀ (ε:R) (n : fin (S N)) m, (⌜m!!α = Some (N, ns)⌝ -∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
+    (□∀ (ε:R) (n : fin (S N)) m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
                                                 ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ T (n))))
         -∗ P -∗ α ◯↪N (N; ns) @ γ' -∗
@@ -161,6 +161,15 @@ Section HOCAP.
     iApply fupd_wp_update.
     iInv "Hinv" as ">(%ε' & Hε & Hauth)" "Hclose".
     iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'".
+    iDestruct (ec_valid with "[$]") as "%".
+    iApply wp_update_mono. iApply fupd_frame_l.
+    iSplitL "Hε".
+    - iApply (wp_update_presample_exp _ α _ ns ε' (ε2 ε) with "[$Hε]").
+      + naive_solver.
+      + naive_solver.
+      + admit.
+    - (** Here need to do a view shift, but we do not know what n is? *)
+      rewrite bi.exist_wand_forall.
   Abort. 
     
   (*   iApply (wp_presample_adv_comp); [done|exact|..]. *)
