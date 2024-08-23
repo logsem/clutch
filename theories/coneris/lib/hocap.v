@@ -77,7 +77,7 @@ Section HOCAP.
   Context `{!conerisGS Σ, !hocap_errorGS Σ}.
 
   Definition error_inv (γ :gname):=
-    inv hocap_error_nroot (∃ (ε:nonnegreal), ↯ ε ∗ ●↯ ε @ γ).
+    inv hocap_error_nroot (∃ (ε:R), ↯ ε ∗ ●↯ ε @ γ).
 
   Lemma wp_hocap_rand_adv_comp (N : nat) z E
      (ε2 : R -> fin (S N) -> R)
@@ -87,7 +87,7 @@ Section HOCAP.
     (∀ ε n, (0<=ε -> 0<=ε2 ε n))%R ->
     (∀ (ε:R), 0<=ε ->SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= (ε))%R →
     {{{ error_inv γ∗
-        □(∀ (ε:nonnegreal) (n : fin (S N)), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗
+        □(∀ (ε:R) (n : fin (S N)), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗
                                            (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ Q (n))) ) ∗
         P }}} rand #z @ E {{{ n, RET #n; Q (n)}}}.
   Proof.
@@ -112,7 +112,7 @@ Section HOCAP.
     (∀ ε b, 0<=ε -> 0<=ε2 ε b)%R ->
     (∀ (ε:R), 0<=ε ->  (((ε2 ε true) + (ε2 ε false))/2 <= (ε)))%R →
     {{{ error_inv γ∗
-        □(∀ (ε:nonnegreal) (b : bool), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝ ∨ ●↯ (ε2 ε b) @ γ ∗ Q (b)) ) ∗
+        □(∀ (ε:R) (b : bool), P ∗ ●↯ ε @ γ ={E∖↑hocap_error_nroot}=∗ (⌜(1<=ε2 ε b)%R⌝ ∨ ●↯ (ε2 ε b) @ γ ∗ Q (b)) ) ∗
         P }}} flip @ E {{{ (b:bool), RET #b; Q (b)}}}.
   Proof.
     iIntros (Hsubset ? Hineq) "%Φ [#Hinv [#Hchange HP]] HΦ".
