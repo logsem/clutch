@@ -106,6 +106,16 @@ Section tapes_lemmas.
     iApply (ghost_map_update with "[$][$]"). 
   Qed.
 
+  Lemma hocap_tapes_notin α N ns m:
+    α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (t.1; t.2)) -∗ ⌜m!!α=None ⌝.
+  Proof.
+    destruct (m!!α) eqn:Heqn; last by iIntros.
+    iIntros "Hα Hmap".
+    iDestruct (big_sepM_lookup with "[$]") as "?"; first done.
+    iExFalso.
+    iApply (tapeN_tapeN_contradict with "[$][$]").
+  Qed. 
+
   (** * TODO add*)
 End tapes_lemmas.
 

@@ -89,6 +89,13 @@ Section tape_interface.
     iExists []. auto.
   Qed.
 
+  Lemma tapeN_tapeN_contradict l N M ns ms:
+    l ↪N ( N;ns ) -∗ l↪N (M;ms) -∗ False.
+  Proof.
+    iIntros "(%&<-&H1) (%&<-&H2)".
+    by iDestruct (ghost_map_elem_ne with "[$][$]") as "%".
+  Qed.
+
   Lemma read_tape_head l M n ns :
     (l ↪N ( M ; n :: ns ) -∗
       ∃ x xs, l ↪ ( M ; x :: xs ) ∗ ⌜ fin_to_nat x = n ⌝ ∗
