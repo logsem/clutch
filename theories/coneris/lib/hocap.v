@@ -188,11 +188,10 @@ Section HOCAP.
 
   Definition tapes_inv (γ :gname):=
     inv hocap_tapes_nroot (∃ m, ●m@γ ∗ [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )  ).
-  Lemma wp_hocap_presample_adv_comp (N : nat)  z E e ns α
+  Lemma wp_hocap_presample_adv_comp (N : nat)  z E ns α
      (ε2 : R -> fin (S N) -> R)
     (P : iProp Σ) (Q : val-> iProp Σ) T γ γ':
     TCEq N (Z.to_nat z) →
-    TCEq (to_val e) None ->
     ↑hocap_error_nroot ⊆ E ->
     ↑hocap_tapes_nroot ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
@@ -204,7 +203,7 @@ Section HOCAP.
         -∗ P -∗ α ◯↪N (N; ns) @ γ' -∗
         wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ').
   Proof.
-    iIntros (-> Hval Hsubset Hubset' ? Hineq) "#Hinv #Hinv' #Hshift HP Htape".
+    iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #Hshift HP Htape".
     iApply fupd_wp_update.
     iInv "Hinv" as ">(%ε' & Hε & Hauth)" "Hclose".
     iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'".
