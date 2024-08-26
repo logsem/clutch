@@ -9,7 +9,7 @@ Section impl1.
   Definition new_counter : val:= λ: "_", ref #0.
   Definition incr_counter : val := λ: "l", let: "n" := rand #3 in FAA "l" "n";; "n".
   Definition allocate_tape : val := λ: "_", AllocTape #3.
-  Definition incr_counter_tape :val := λ: "l" "α", let: "n" := rand("α") #3 in FAA "l" (rand("α") #3;; "n").
+  Definition incr_counter_tape :val := λ: "l" "α", let: "n" := rand("α") #3 in FAA "l" "n";; "n".
 
   Context `{!conerisGS Σ, !hocap_errorGS Σ, !hocap_tapesGS Σ, !inG Σ (frac_authR ZR)}.
   Definition counter_inv_pred (c:val) γ1 γ2 γ3:=
@@ -103,8 +103,50 @@ Section impl1.
     }
     iApply "HΦ".
     by iFrame.
+  Qed.
+
+  Lemma incr_counter_tape_spec c γ1 γ2 γ3 (ε2:R -> nat -> R) (P Q: iProp Σ) (α:loc) (n:nat) ns:
+    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
+        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={⊤∖↑counter_nroot}=∗
+                          own γ3 (●F(z+n)%Z)∗ Q) ∗
+        P ∗ α ◯↪N (3%nat; n::ns) @ γ2
+    }}}
+      incr_counter_tape c #lbl:α
+      {{{ RET #n; Q ∗ α ◯↪N (3%nat; ns) @ γ2}}}.
+  Proof.
+    iIntros (Φ) "(#Hinv & #Hvs & HP & Hα) HΦ".
+    rewrite /incr_counter_tape.
+    wp_pures.
+    wp_bind (rand(_) _)%E.
+    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    erewrite <-(insert_delete m) at 1; last done.
+    rewrite big_sepM_insert; last apply lookup_delete.
+    simpl.
+    iDestruct "H3" as "[Htape H3]".
+    wp_apply (wp_rand_tape with "[$]").
+    iIntros "[Htape %]".
+    iMod (hocap_tapes_pop with "[$][$]") as "[H4 Hα]".
+    iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_".
+    { iSplitL; last done.
+      erewrite <-(insert_delete m) at 2; last done.
+      iNext.
+      rewrite insert_insert.
+      rewrite big_sepM_insert; last apply lookup_delete. iFrame.
+    }
+    iModIntro.
+    wp_pures.
+    clear.
+    wp_bind (FAA _ _).
+    iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    wp_faa.
+    iMod ("Hvs" with "[$]") as "[H6 HQ]".
+    iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
+    iModIntro. wp_pures.
+    iApply "HΦ".
+    by iFrame.
   Qed. 
-  
+    
     
     
 End impl1.
