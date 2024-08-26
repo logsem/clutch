@@ -15,7 +15,7 @@ Section impl1.
   Definition counter_inv_pred (c:val) γ1 γ2 γ3:=
     (∃ (ε:R) m (l:loc) (z:Z),
         ↯ ε ∗ ●↯ ε @ γ1 ∗
-        [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 ) ∗ ●m@γ2 ∗  
+        ([∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )) ∗ ●m@γ2 ∗  
         ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z)
     )%I.
 
@@ -34,10 +34,16 @@ Section impl1.
     wp_pures.
     wp_alloc l as "Hl".
     iDestruct (ec_valid with "[$]") as "%".
-    unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [??]]".
+    unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [H1 H2]]".
     { lra. }
     simpl.
-  Abort.
-    
+    iMod (hocap_tapes_alloc (∅:gmap _ _)) as "[%γ2 [H3 H4]]".
+    iMod (own_alloc (●F 0%Z ⋅ ◯F 0%Z)) as "[%γ3[H5 H6]]".
+    { by apply frac_auth_valid. }
+    iMod (inv_alloc counter_nroot _ (counter_inv_pred (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
+    { iSplit; last done. by iApply big_sepM_empty. }
+    iApply "HΦ".
+    iExists _, _, _. by iFrame.
+  Qed. 
   
 End impl1.
