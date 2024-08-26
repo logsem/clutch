@@ -21,9 +21,9 @@ Section impl1.
 
   Definition counter_nroot := nroot.@"counter".
 
-  Lemma new_counter_spec ε:
+  Lemma new_counter_spec E ε:
     {{{ ↯ ε }}}
-      new_counter #()
+      new_counter #() @ E
       {{{ (c:val), RET c;
           ∃ γ1 γ2 γ3, inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
                       ◯↯ε @ γ1 ∗ own γ3 (◯F 0%Z)
@@ -46,19 +46,20 @@ Section impl1.
     iExists _, _, _. by iFrame.
   Qed. 
 
-  Lemma incr_counter_spec c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T Q: nat -> iProp Σ):
+  Lemma incr_counter_spec E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T Q: nat -> iProp Σ):
+    ↑counter_nroot ⊆ E->
     (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
     (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
     {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
-        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={⊤∖↑counter_nroot}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
-        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={⊤∖↑counter_nroot}=∗
+        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑counter_nroot}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
+        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
                           own γ3 (●F(z+n)%Z)∗ Q n) ∗
         P
     }}}
-      incr_counter c
+      incr_counter c @ E
       {{{ (n:nat), RET #n; Q n }}}.
   Proof.
-    iIntros (Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP) HΦ".
+    iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP) HΦ".
     rewrite /incr_counter.
     wp_pures.
     wp_bind (rand _)%E.
@@ -72,7 +73,7 @@ Section impl1.
     { iExFalso. iApply ec_contradict; last done. done. }
     iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
     iModIntro. wp_pures.
-    clear.
+    clear -Hsubset.
     wp_bind (FAA _ _).
     iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     wp_faa.
@@ -83,14 +84,15 @@ Section impl1.
     by iApply "HΦ".
   Qed.
 
-  Lemma allocate_tape_spec c γ1 γ2 γ3:
+  Lemma allocate_tape_spec E c γ1 γ2 γ3:
+    ↑counter_nroot ⊆ E->
     {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) }}}
-      allocate_tape #()
+      allocate_tape #() @ E
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (3%nat; []) @ γ2
       }}}.
   Proof.
-    iIntros (Φ) "#Hinv HΦ".
+    iIntros (Hsubset Φ) "#Hinv HΦ".
     rewrite /allocate_tape.
     wp_pures.
     wp_alloctape α as "Hα".
@@ -105,16 +107,17 @@ Section impl1.
     by iFrame.
   Qed.
 
-  Lemma incr_counter_tape_spec c γ1 γ2 γ3 (ε2:R -> nat -> R) (P Q: iProp Σ) (α:loc) (n:nat) ns:
+  Lemma incr_counter_tape_spec E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P Q: iProp Σ) (α:loc) (n:nat) ns:
+    ↑counter_nroot⊆E -> 
     {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
-        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={⊤∖↑counter_nroot}=∗
+        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
                           own γ3 (●F(z+n)%Z)∗ Q) ∗
         P ∗ α ◯↪N (3%nat; n::ns) @ γ2
     }}}
-      incr_counter_tape c #lbl:α
+      incr_counter_tape c #lbl:α @ E
       {{{ RET #n; Q ∗ α ◯↪N (3%nat; ns) @ γ2}}}.
   Proof.
-    iIntros (Φ) "(#Hinv & #Hvs & HP & Hα) HΦ".
+    iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ".
     rewrite /incr_counter_tape.
     wp_pures.
     wp_bind (rand(_) _)%E.
@@ -136,7 +139,7 @@ Section impl1.
     }
     iModIntro.
     wp_pures.
-    clear.
+    clear -Hsubset.
     wp_bind (FAA _ _).
     iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     wp_faa.
