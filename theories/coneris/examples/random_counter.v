@@ -107,7 +107,7 @@ Section impl1.
     by iFrame.
   Qed.
 
-  Lemma incr_counter_tape_spec E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P Q: iProp Σ) (α:loc) (n:nat) ns:
+  Lemma incr_counter_tape_spec_some E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P Q: iProp Σ) (α:loc) (n:nat) ns:
     ↑counter_nroot⊆E -> 
     {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
         □ (∀ (z:Z), P ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
@@ -150,6 +150,49 @@ Section impl1.
     by iFrame.
   Qed. 
     
-    
+  Lemma incr_counter_tape_spec_none E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T Q: nat -> iProp Σ) (α:loc) (ns:list nat):
+    ↑counter_nroot ⊆ E->
+    (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
+    (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
+    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
+        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑counter_nroot}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
+        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
+                          own γ3 (●F(z+n)%Z)∗ Q n) ∗
+        P ∗ α ◯↪N (3%nat; []) @ γ2
+    }}}
+      incr_counter_tape c #lbl:α @ E
+      {{{ (n:nat), RET #n; Q n ∗ α ◯↪N (3%nat; []) @ γ2 }}}.
+  Proof.
+    iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP & Hα) HΦ".
+    rewrite /incr_counter_tape.
+    wp_pures.
+    wp_bind (rand(_) _)%E.
+    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    rewrite big_sepM_lookup_acc; last done.
+    iDestruct (ec_valid with "[$]") as "[%K1 %K2]".
+    iDestruct ("H3") as "[H3 H3']". simpl.
+    wp_apply (wp_couple_empty_tape_adv_comp _ _ _ _ (λ x, ε2 ε x) with "[$]").
+    { intros. naive_solver. }
+    { rewrite SeriesC_nat_bounded. simpl. specialize (Hineq ε K1).
+      rewrite /Hierarchy.sum_n Hierarchy.sum_n_m_Reals; last lia.
+      rewrite /sum_f/sum_f_R0/=. lra. }
+    iIntros (n) "[Htape H1]".
+    iMod ("Hvs1" with "[$]") as "[%|[H2 HT]]".
+    { iExFalso. iApply ec_contradict; last done. done. }
+    iDestruct ("H3'" with "[$]") as "H3".
+    iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
+    iModIntro. wp_pures.
+    clear -Hsubset.
+    wp_bind (FAA _ _).
+    iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    wp_faa.
+    iMod ("Hvs2" with "[$]") as "[H6 HQ]".
+    iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
+    iModIntro.
+    wp_pures.
+    iApply "HΦ". by iFrame.
+  Qed.
+  
     
 End impl1.

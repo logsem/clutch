@@ -1080,6 +1080,19 @@ Qed.
     - iApply wp_update_mono; iFrame.
       iIntros "(%&H1&H2)".
       iFrame.
+  Qed.
+
+  Lemma wp_couple_empty_tape_adv_comp E α N (ε1 : R) (ε2 : nat → R) :
+    (∀ (n:nat), 0<= ε2 n)%R ->
+    (SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 n else 0%R)%R <= ε1)%R →
+    {{{ α ↪N (N; []) ∗ ↯ ε1 }}}
+      rand(#lbl:α) #N @ E
+      {{{ n, RET #n; α ↪N (N; []) ∗ ↯ (ε2 n) }}}.
+  Proof.
+    iIntros (Hpos Hineq Φ) "[Hα Herr] HΦ".
+    iMod (wp_update_presample_exp' with "[$]") as "(%&H1&H2)"; [done|done|].
+    wp_apply (wp_rand_tape with "[$]") as "[??]".
+    iApply "HΦ". iFrame.
   Qed. 
       
 End rules.
