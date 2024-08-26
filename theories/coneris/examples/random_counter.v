@@ -193,6 +193,24 @@ Section impl1.
     wp_pures.
     iApply "HΦ". by iFrame.
   Qed.
+
+  
+  Lemma counter_presample (N : nat)  z E ns α
+     (ε2 : R -> fin (S N) -> R)
+    (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
+    TCEq N (Z.to_nat z) →
+    ↑counter_nroot ⊆ E ->
+    (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
+    (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R →
+    inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) -∗
+    (□∀ (ε:R)  m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ1 ∗ ●m@γ2) 
+                                                ={E∖↑counter_nroot}=∗
+        ∃ n, (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ2 ∗ T (n))))
+        -∗ P -∗ α ◯↪N (N; ns) @ γ2 -∗
+        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ2).
+  Proof.
+    iIntros (-> Hsubset Hpos Hineq) "#Hinv HP Hfrag".
+  Abort.
   
     
 End impl1.
