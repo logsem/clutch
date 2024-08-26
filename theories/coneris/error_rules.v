@@ -1055,8 +1055,33 @@ Qed.
     iApply (wp_presample_adv_comp _ _ _ _ _ _ _ ε2); [rewrite Hv//|done|done|..].
     iFrame. iIntros (n) "[Hα Hε2]".
     iApply ("Hwp" with "[$Hα $Hε2]").
-  Qed. 
+  Qed.
 
+  Lemma wp_update_presample_exp' E α N ns (ε1 : R) (ε2 : nat → R) :
+    (∀ n, 0<=ε2 n)%R ->
+    (SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 n else 0%R)%R <= ε1)%R →
+    α ↪N (N; ns) ∗ ↯ ε1 -∗ wp_update E (∃ n, α ↪N (N; ns ++ [n]) ∗ ↯ (ε2 n)).
+  Proof.
+    iIntros (? ?) "[Hα Hε1]".
+    iPoseProof (wp_update_presample_exp _ _ _ _ _ (λ x, ε2 (fin_to_nat x))  with "[$]") as "K".
+    - naive_solver.
+    - etrans; last exact.
+      erewrite (SeriesC_ext _ (λ x, from_option (λ m, if bool_decide (m≤N) then 1/S N * ε2 m else 0)%R 0 (Some (fin_to_nat x)))); last first.
+      { intros. rewrite S_INR. simpl.
+        rewrite bool_decide_eq_true_2; first done.
+        pose proof fin_to_nat_lt n. lia.
+      }
+      apply SeriesC_le_inj.
+      + intros; case_bool_decide; last lra.
+        apply Rmult_le_pos; last done.
+        apply Rdiv_INR_ge_0.
+      + intros. by simplify_eq.
+      + apply ex_seriesC_nat_bounded.
+    - iApply wp_update_mono; iFrame.
+      iIntros "(%&H1&H2)".
+      iFrame.
+  Qed. 
+      
 End rules.
 
 
