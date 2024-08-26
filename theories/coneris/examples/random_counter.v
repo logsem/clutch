@@ -81,6 +81,30 @@ Section impl1.
     iModIntro.
     wp_pures.
     by iApply "HΦ".
+  Qed.
+
+  Lemma allocate_tape_spec c γ1 γ2 γ3:
+    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) }}}
+      allocate_tape #()
+      {{{ (v:val), RET v;
+          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (3%nat; []) @ γ2
+      }}}.
+  Proof.
+    iIntros (Φ) "#Hinv HΦ".
+    rewrite /allocate_tape.
+    wp_pures.
+    wp_alloctape α as "Hα".
+    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_notin with "[$][$]") as "%".
+    iMod (hocap_tapes_new with "[$]") as "[H4 H7]"; first done.
+    iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_".
+    { iNext. iSplitL; last done.
+      rewrite big_sepM_insert; [simpl; iFrame|done].
+    }
+    iApply "HΦ".
+    by iFrame.
   Qed. 
+  
+    
     
 End impl1.
