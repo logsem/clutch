@@ -69,6 +69,43 @@ End error_lemmas.
 Section tapes_lemmas.
   Context `{!conerisGS Σ, !hocap_tapesGS Σ}.
 
+  Lemma hocap_tapes_alloc m:
+    ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1; v.2) @ γ).
+  Proof.
+    iMod ghost_map_alloc as (γ) "[??]".
+    iFrame. iModIntro.
+    iApply big_sepM_mono; last done.
+    by iIntros (?[??]).
+  Qed.
+
+  Lemma hocap_tapes_agree m γ k N ns:
+    (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) -∗ ⌜ m!!k = Some (N, ns) ⌝.
+  Proof.
+    iIntros "H1 H2".
+    by iCombine "H1 H2" gives "%".
+  Qed.
+
+  Lemma hocap_tapes_new γ m k N ns :
+    m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ).
+  Proof.
+    iIntros (Hlookup) "H".
+    by iApply ghost_map_insert.
+  Qed.
+
+  Lemma hocap_tapes_presample γ m k N ns n:
+    (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++[n])]>m) @ γ) ∗ (k ◯↪N (N; ns++[n]) @ γ).
+  Proof.
+    iIntros "H1 H2".
+    iApply (ghost_map_update with "[$][$]"). 
+  Qed.
+
+  Lemma hocap_tapes_pop γ m k N ns n:
+    (● m @ γ) -∗ (k ◯↪N (N; n::ns) @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ).
+  Proof.
+    iIntros "H1 H2".
+    iApply (ghost_map_update with "[$][$]"). 
+  Qed.
+
   (** * TODO add*)
 End tapes_lemmas.
 
@@ -151,9 +188,9 @@ Section HOCAP.
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R →
     error_inv γ -∗ tapes_inv γ' -∗
-    (□∀ (ε:R) (n : fin (S N)) m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
+    (□∀ (ε:R)  m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
                                                 ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗
-        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ T (n))))
+        ∃ n, (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ T (n))))
         -∗ P -∗ α ◯↪N (N; ns) @ γ' -∗
         wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ').
   Proof.
@@ -162,14 +199,13 @@ Section HOCAP.
     iInv "Hinv" as ">(%ε' & Hε & Hauth)" "Hclose".
     iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'".
     iDestruct (ec_valid with "[$]") as "%".
-    iApply wp_update_mono. iApply fupd_frame_l.
+    iApply wp_update_mono_fupd. iApply fupd_frame_l.
     iSplitL "Hε".
     - iApply (wp_update_presample_exp _ α _ ns ε' (ε2 ε) with "[$Hε]").
       + naive_solver.
       + naive_solver.
       + admit.
-    - (** Here need to do a view shift, but we do not know what n is? *)
-      rewrite bi.exist_wand_forall.
+    - iMod ("Hclose'" with "[$]"). 
   Abort. 
     
   (*   iApply (wp_presample_adv_comp); [done|exact|..]. *)
