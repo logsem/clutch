@@ -7,8 +7,8 @@ From iris.prelude Require Import options.
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings distribution graded_predicate_lifting.
-From clutch.con_prob_lang Require Import lang.
-From clutch.common Require Export con_language.
+From clutch.con_prob_lang Require Import lang erasure.
+From clutch.common Require Export sch_erasable con_language.
 
 Import uPred.
 
@@ -60,12 +60,12 @@ Section glm.
            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
                         stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
        ) ∨
-     ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+         (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+          ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 ρ) <= ε)%R ⌝ ∗
-          ⌜pgl (state_step σ1 α) R ε1⌝ ∗
-              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (λ ε', Φ ((e1, σ2), ε')) (ε2 σ2)))
+          ⌜ (ε1 + SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
+          ⌜pgl μ R ε1⌝ ∗
+              ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (λ ε', Φ ((e1, σ2), ε')) (ε2 σ2))
     )%I.
 
   Canonical Structure NNRO := leibnizO nonnegreal.
@@ -87,21 +87,14 @@ Section glm.
     iDestruct "Hexec" as "[H|H]".
     - by iLeft.
     - iRight.
-      iInduction (get_active σ1) as [| l] "IH" forall "H".
-      { rewrite big_orL_nil //. }
-      rewrite !big_orL_cons.
-      iDestruct "H" as "[(% & % & % & % & %Hsum & %Hlift & HΦ) | H]".
-      + iLeft. iExists R2.
-        iExists ε1. iExists _.
-        iSplit; [try done|].
-        iSplit; [try done|].
-        iSplit; [try done|].
-        iIntros.
-        iApply (stutter_mono with "[]"); first done; last first.
+      iDestruct "H" as "(% & % & % & % & % & %Herasable & %Hsum & %Hlift & HΦ)".
+      iExists _, _, _, _.
+      repeat iSplit; try done.
+      iIntros.
+      iApply (stutter_mono with "[]"); first done; last first.
         * by iMod ("HΦ" with "[//]").
         * iIntros.
           by iApply "Hwand".
-      + iRight. by iApply "IH".
   Qed.
 
   
@@ -118,14 +111,13 @@ Section glm.
            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
                         stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
        ) ∨
-         ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+         (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+          ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 ρ) <= ε)%R ⌝ ∗
-          ⌜pgl (state_step σ1 α) R ε1⌝ ∗
-          ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (λ ε', glm e1 σ2 ε' Z) (ε2 σ2)))
-           )
-      %I.
+          ⌜ (ε1 + SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
+          ⌜pgl μ R ε1⌝ ∗
+          ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (λ ε', glm e1 σ2 ε' Z) (ε2 σ2))
+      )%I.
   Proof.
     rewrite /glm/glm' least_fixpoint_unfold//.
   Qed.
@@ -153,25 +145,20 @@ Section glm.
     - rewrite least_fixpoint_unfold.
       iRight.
       simpl.
-      iInduction (con_prob_lang.get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq2 & %Hub & %Hlift & H )) | Ht]".
-      + iLeft.
-        iExists R2. iExists ε1. iExists ε2.
-        iSplit; [auto|].
-        iSplit; [ iPureIntro; lra | ].
-        iSplit; [ done | ].
-        iIntros.
-        rewrite /glm_pre.
-        iClear "IH".
-        iMod ("H" with "[//]").
-        iModIntro.
-        iApply stutter_mono; [done| |done].
-        simpl.
-        iIntros "K".
-        by iApply "K".
-      + iRight. by iApply ("IH" with "Ht"). 
+      iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & (%Herasable & %Hleq2 & %Hub & %Hlift & H ))".
+      iExists R2, μ. iExists ε1. iExists ε2.
+      iSplit; [auto|].
+      iSplit; [auto|].
+      iSplit; [ iPureIntro; lra | ].
+      iSplit; [ done | ].
+      iIntros.
+      rewrite /glm_pre.
+      iMod ("H" with "[//]").
+      iModIntro.
+      iApply stutter_mono; [done| |done].
+      simpl.
+      iIntros "K".
+      by iApply "K".
   Qed.
   
   Lemma glm_strong_mono e1 σ1 Z1 Z2 ε ε' :
@@ -205,25 +192,21 @@ Section glm.
       iPureIntro. naive_solver.
    - rewrite least_fixpoint_unfold.
      iRight.
-     simpl.
-      iInduction (con_prob_lang.get_active σ') as [| l] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & % & H)) | Ht]".
-      + iLeft. iExists R2. iExists ε1. iExists ε2.
-        iSplit; [auto | ].
-        iSplit; [iPureIntro; lra | ].
-        iSplit; [done | ].
-        iIntros.
-        iMod ("H" with "[//]") as "H".
-        iModIntro.
-        iApply (stutter_mono with "[][HZ]"); [done| |done].
-        simpl.
-        rewrite /Φ.
-        iIntros "H". 
-        iApply "H".
-        iFrame.
-      + iRight. by iApply ("IH" with "Ht").
+     iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & (% & % & % & % & H))".
+      iExists R2. iExists μ. iExists ε1. iExists ε2.
+      iSplit; [auto | ].
+      iSplit; [auto | ].
+      iSplit; [by iPureIntro| ].
+      iSplit; [done | ].
+      iIntros.
+      iMod ("H" with "[//]") as "H".
+      iModIntro.
+      iApply (stutter_mono with "[][HZ]"); [done| |done].
+      simpl.
+      rewrite /Φ.
+      iIntros "H". 
+      iApply "H".
+      iFrame.
   Qed.
 
   Lemma glm_mono Z1 Z2 e1 σ1 ε1 ε2 :
@@ -373,19 +356,14 @@ Section glm.
         - apply HKinv1 in H3. f_equal. by apply fill_inj.
         - eapply (HKinv2 _ e) in H3. done. }
       simpl.
-      iInduction (con_prob_lang.get_active σ') as [| l ls] "IH".
-      { rewrite big_orL_nil //. }
-      rewrite 2!big_orL_cons.
-      iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hub & %Hleq & %Hlift & H)) | Ht]".
-      + iLeft.
-        iExists _, _, _.
-        repeat iSplit; try done.
-        iIntros.
-        iMod ("H" with "[//]") as "H".
-        rewrite /Φ.
-        iApply stutter_mono; [done| |done].
-        simpl. iIntros "H". by iApply "H".
-      + iRight. by iApply ("IH" with "Ht").
+      iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & (%Herasable & %Hub & %Hleq & %Hlift & H))".
+      iExists _, _, _, _.
+      repeat iSplit; try done.
+      iIntros.
+      iMod ("H" with "[//]") as "H".
+      rewrite /Φ.
+      iApply stutter_mono; [done| |done].
+      simpl. iIntros "H". by iApply "H".
   Qed.
 
   Lemma glm_prim_step e1 σ1 Z ε :
@@ -420,19 +398,40 @@ Section glm.
     by repeat iSplit.
   Qed.
 
+  Lemma glm_erasable_adv_comp e1 σ1 Z (ε : nonnegreal) :
+    ((∃ R μ (ε1:nonnegreal) (ε2 : _ -> nonnegreal),
+         ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
+         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+                     ⌜(ε1 + SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
+                     ⌜pgl μ R ε1⌝ ∗
+                     ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 σ2))
+     ⊢ glm e1 σ1 ε Z)%I.
+  Proof. 
+    iIntros "(% & % & % & % & % & % & %Hε & % & H)".
+    rewrite {1}glm_unfold.
+    iRight.
+    iExists _,_ ,_, _.
+    by repeat iSplit.
+  Qed. 
+
   Lemma glm_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
     α ∈ get_active σ1 →
     (∃ R, ⌜pgl (state_step σ1 α) R ε⌝ ∗
           ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ glm e1 σ2 ε' Z)
     ⊢ glm e1 σ1 (ε + ε') Z.
   Proof.
-    iIntros (?) "(%&%&H)".
-    rewrite glm_unfold. iRight.
-    iApply big_orL_elem_of; first done.
-    iExists R2, ε, (λ _, ε').
-    repeat iSplit; try done.
+    iIntros (Hin) "(%R&%&H)".
+    iApply glm_erasable_adv_comp.
+    iExists R, (state_step σ1 α), ε, (λ _, ε').
+    repeat iSplit.
+    - iPureIntro.
+      simpl in *.
+      rewrite elem_of_elements elem_of_dom in Hin.
+      destruct Hin.
+      by eapply state_step_sch_erasable.
     - iPureIntro; eexists _; done.
     - iPureIntro. rewrite SeriesC_scal_r. rewrite state_step_mass; [simpl;lra|done]. 
+    - done.
     - iIntros. iRight. by iApply "H".
   Qed.
 
@@ -448,15 +447,16 @@ Section glm.
         ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 σ2))
       ⊢ glm e1 σ1 ε Z)%I.
   Proof.
-    iIntros (?) "(% & % & % & %Hε & % & H)".
-    rewrite {1}glm_unfold.
-    iRight.
-    iApply big_orL_elem_of; eauto.
-    iExists _,nnreal_zero,_.
-    iSplit; [auto|].
-    iSplit.
-    { iPureIntro. by rewrite /= Rplus_0_l. }
-    iSplit; [done|done].
+    iIntros (Hin) "(%R & %ε2 & % & %Hε & % & H)".
+    iApply glm_erasable_adv_comp.
+    iExists R, _, nnreal_zero, ε2.
+    repeat iSplit; try done.
+    - iPureIntro.
+      simpl in *.
+      rewrite elem_of_elements elem_of_dom in Hin.
+      destruct Hin.
+      by eapply state_step_sch_erasable.
+    - iPureIntro. simpl in *. lra. 
   Qed.
   
 

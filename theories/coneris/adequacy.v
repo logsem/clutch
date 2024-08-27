@@ -93,26 +93,25 @@ Section adequacy.
           apply pgl_1; lra.
         }
         done.
-    - iDestruct (big_orL_mono _ (λ _ _,
-                     |={∅}▷=>^(S n)
-                       ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I
-                  with "H") as "H"; last first.
-      { simpl. iInduction (get_active σ1) as [| α] "IH"; [done|].
-        rewrite big_orL_cons.
-        iDestruct "H" as "[H | Ht]"; [done|].
-        by iApply "IH". }
-      iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)".
+    - (* iDestruct (big_orL_mono _ (λ _ _, *)
+      (*                |={∅}▷=>^(S n) *)
+      (*                  ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I *)
+      (*             with "H") as "H"; last first. *)
+      (* { simpl. iInduction (get_active σ1) as [| α] "IH"; [done|]. *)
+      (*   rewrite big_orL_cons. *)
+      (*   iDestruct "H" as "[H | Ht]"; [done|]. *)
+      (*   by iApply "IH". } *)
+      (* iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)". *)
+      iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & %Herasable & (%r & %Hr) & % & %Hlift & H)".
       iApply (step_fupdN_mono _ _ _
                 (⌜∀ σ2 , R2 σ2 → pgl (prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ
                                    (ε2 σ2)⌝)%I).
       { iIntros (?). iPureIntro.
-        rewrite /= /get_active in Hα.
-        apply elem_of_elements, elem_of_dom in Hα as [bs Hα].
-        erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim' _ _ _ _ _ _ _ _ _ Hα Hlookup _ _)).
+        unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); try done.
         apply (pgl_mon_grading _ _
-                 (ε1 + (SeriesC (λ ρ , state_step σ1 α ρ * ε2 ρ)))) => //.
+                 (ε1 + (SeriesC (λ ρ , μ ρ * ε2 ρ)))) => //.
         eapply pgl_dbind_adv; eauto; [by destruct ε1|].
-        destruct Hε'' as [r Hr]; exists r.
+        exists r.
         intros a.
         split; [by destruct (ε2 _) | by apply Hr].
       }
@@ -125,8 +124,6 @@ Section adequacy.
         apply pgl_1. apply Rge_le. done. 
       }
       by iApply "H".
-      Unshelve.
-      all: try done.
   Qed. 
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
