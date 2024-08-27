@@ -6,8 +6,9 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-Import Coq.Logic.FunctionalExtensionality.
+From clutch.prob.monad Require Export types.
 
+Import Coq.Logic.FunctionalExtensionality.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -15,152 +16,8 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
-(**   Summary
+(*
 
-      giryType T              Type of points in the giry sigma algebra on T, namely, subdistributions on T
-      giryM T                 Measurable space on giryType (measures)
-
-      T.-giry                 Display for the giry sigma algebra on T
-      T.-giry.-measurable     Measurability in the giry sigma algebra on T
-
-      Monad operations, each respects subdistribution structure on giryM
-        giryM_ret
-        giryM_map
-        giryM_join
-        giryM_bind
-
-
-    CITE: Mathlib
-*)
-
-Reserved Notation "T .-giry" (at level 1, format "T .-giry").
-Reserved Notation "T .-giry.-measurable"
- (at level 2, format "T .-giry.-measurable").
-
-
-
-(** ********** 0. Define HB structure for measurable functions *)
-(* This is very close to isMeasurableFun, but the codomain is not a realType. *)
-(* Odd that they don't have this in the Hierarchy already? *)
-(* The reason we want this is to avoid carrying around measurability requirements everywhere *)
-
-
-HB.mixin Record isMeasurableMap d1 d2 (T1 : measurableType d1) (T2 : measurableType d2)
-  (f : T1 -> T2) := {
-  measurable_mapP : measurable_fun setT f
-}.
-
-#[short(type=measurable_map)]
-HB.structure Definition MeasurableMap {d1} {d2} T1 T2 :=
-  {f of @isMeasurableMap d1 d2 T1 T2 f}.
-
-
-(* FIXME: Builder for measurableFun to RealType? Or does this go automatically?  *)
-
-
-Section measurability_lemmas.
-  Context {d1} {T1 : measurableType d1}.
-  Context {d2} {T2 : measurableType d2}.
-
-  (* Lemma measurability_image : forall S1 : set T1, forall S2 : set T2,
-    d1.-measurable S1 -> d2.-measurable S2 ->  *)
-
-End measurability_lemmas.
-
-
-Section giry.
-  Context (R : realType). (* FIXME: rather annoying to not infer this from context *)
-  Local Open Scope classical_set_scope.
-
-  (* FIXME: Are these the same? Or is 'measurable derived from the Lebesgue measure? Would that be an issue? *)
-  (* 'measurable breaks when I remove the import to lebesgue_measure *)
-  Definition ereal_borel_subbase : set (set \bar R) := [set N | exists x, ereal_nbhs x N].
-
-  Definition ereal_borel_sets : set (set \bar R) := <<s [set N | exists x, ereal_nbhs x N]>>.
-  Definition ereal_meas_sets : set (set \bar R) := 'measurable.
-
-  Definition giryType {d} T : Type := @subprobability d T R.
-
-  (** ********** 1. Define the measurable sets of a giry sigma algebra *)
-  Section giry_space.
-    Variable (d : measure_display) (T : measurableType d).
-
-    (* #[log] *)
-    HB.instance Definition _ := gen_eqMixin (giryType T).
-    HB.instance Definition _ := gen_choiceMixin (giryType T).
-
-    Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
-    Proof. by rewrite /mzero/=. Qed.
-
-    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
-
-    HB.instance Definition _ := isPointed.Build (giryType T) mzero.
-
-    Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
-      @preimage_class (giryType T)
-        (\bar R)                  (* Range type *)
-        setT                      (* Domain set *)
-        (fun μ => μ S)              (* Evaluation function *)
-        ereal_borel_sets           (* Range sets*).
-
-    Definition giry_subbase : set (set (giryType T))
-      := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
-
-    Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
-
-
-  End giry_space.
-
-
-
-  Definition giryM_display {d} {T} := sigma_display (@giry_subbase d T).
-
-  Definition giryM {d} (T : measurableType d) : measurableType giryM_display
-    := [the measurableType _ of salgebraType (@giry_subbase _ T)].
-
-  Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
-  Notation "T .-giry.-measurable" := (measurable : set (set (giryM T))) : classical_set_scope.
-
-
-  (* Proof stolen from eq_measure *)
-  Lemma giryM_ext {d : measure_display} {T : measurableType d} (μ1 μ2 : giryM T) :
-    (μ1 = μ2 :> (set T -> \bar R)) -> μ1 = μ2.
-  Proof.
-    move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
-    rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
-    f_equal.
-    by rewrite
-      (_ : x1 = y1)//
-      (_ : x2 = y2)//
-      (_ : x3 = y3)//
-      (_ : x4 = y4)//
-      (_ : x5 = y5)//
-      (_ : x6 = y6)//
-      (_ : x7 = y7)//.
-  Qed.
-
-  Definition borelER_display := sigma_display ereal_borel_subbase.
-  Definition borelER : measurableType borelER_display
-    := [the measurableType _ of salgebraType ereal_borel_subbase].
-
-  (* Check measurability. *)
-
-  (** ********** 2. Test: Examples of measuring sets *)
-  Section giry_space_example.
-    Context {d : measure_display} (T : measurableType d).
-
-    (* Example: Measuring sets in the Giry space *)
-    Example test_giry_measures_0 : T.-giry.-measurable (set0 : set (giryM T)).
-    Proof. by apply measurable0. Qed.
-
-    Example test_giry_measures_T : T.-giry.-measurable [set: giryM T].
-    Proof. by eapply @measurableT. Qed.
-
-    (* giryM is also a measurable type, so can be nested. *)
-    Example test_giry_measures_0' : (giryM T).-giry.-measurable (set0 : set (giryM (giryM T))).
-    Proof. by apply measurable0. Qed.
-
-  End giry_space_example.
 
 
 
@@ -1192,3 +1049,4 @@ measurable_fun_limn_sup:
   End giryM_bind_laws.
 
 End giry.
+*)

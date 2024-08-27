@@ -6,6 +6,7 @@ From mathcomp.analysis Require Import reals ereal signed normedtype sequences es
 From clutch.prob Require Export giry.
 From clutch.prob_lang Require Import lang.
 
+(*
 Reserved Notation "'<<discr' G '>>'"
   (at level 2, format "'<<discr'  G  '>>'").
 
@@ -290,3 +291,4 @@ Definition state_step (σ1 : state) (α : loc) : distr state :=
 
 *)
 End meas_semantics.
+*)
