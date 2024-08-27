@@ -209,7 +209,7 @@ Section impl1.
         -∗ P -∗ α ◯↪N (N; ns) @ γ2 -∗
         wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ2).
   Proof.
-    iIntros (-> Hsubset Hpos Hineq) "#Hinv HP Hfrag".
+    iIntros (-> Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
   Abort.
   
     

@@ -608,8 +608,7 @@ Proof.
   rewrite !pgl_wp_unfold /pgl_wp_pre.
   destruct (to_val e2) as [?|] eqn:He2.
   + iFrame. do 2 (iMod "Hwp"). by do 2 iModIntro.
-  + iMod ("Hwp" $! _ _ with "[Hσ Hε]") as "Hwp"; [iFrame|].
-    specialize (atomic _ _ _ _ Hstep) as Hatomic. (* key step *)
+  + specialize (atomic _ _ _ _ Hstep) as Hatomic. (* key step *)
     destruct Hatomic.
     congruence. (* how do we do this "by hand"? Not obvious to me *)
 Qed.
