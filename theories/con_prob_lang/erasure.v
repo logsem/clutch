@@ -540,40 +540,7 @@ Lemma limprim_coupl_step_limprim_aux
   (state_step σ1 α ≫= (λ σ2, sch_lim_exec sch (ζ, (e1, σ2)))) v.
 Proof.
   intro Hsome.
-   rewrite sch_lim_exec_unfold/=.
-   rewrite {2}/pmf/=/dbind_pmf.
-   setoid_rewrite sch_lim_exec_unfold.
-   simpl in *.
-   assert
-     (SeriesC (λ a: state, state_step σ1 α a * Sup_seq (λ n : nat, sch_exec sch n (ζ, (e1, a)) v)) =
-     SeriesC (λ a: state, Sup_seq (λ n : nat, state_step σ1 α a * sch_exec sch n (ζ, (e1, a)) v))) as Haux.
-   { apply SeriesC_ext; intro v'.
-     apply eq_rbar_finite.
-     rewrite rmult_finite.
-     rewrite (rbar_finite_real_eq (Sup_seq (λ n : nat, sch_exec sch n (ζ, (e1, v')) v))); auto.
-     - rewrite <- (Sup_seq_scal_l (state_step σ1 α v') (λ n : nat, sch_exec sch n (ζ, (e1, v')) v)); auto.
-     - apply (Rbar_le_sandwich 0 1).
-       + apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
-       + apply upper_bound_ge_sup; intro; simpl; auto.
-   }
-   rewrite Haux.
-   rewrite (MCT_seriesC _ (λ n, sch_exec sch n (ζ, (e1,σ1)) v) (sch_lim_exec sch (ζ, (e1,σ1)) v)); auto.
-   - real_solver.
-   - intros. apply Rmult_le_compat; auto; [done|apply sch_exec_mono].
-   - intro. exists (state_step σ1 α a)=>?. real_solver.
-   - intro n.
-     rewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim n e1 σ1 α bs _ Hsome)); auto.
-     rewrite {3}/pmf/=/dbind_pmf.
-     apply SeriesC_correct; auto.
-     apply (ex_seriesC_le _ (state_step σ1 α)); auto.
-     real_solver.
-   - rewrite sch_lim_exec_unfold.
-     rewrite rbar_finite_real_eq; [apply Sup_seq_correct |].
-     rewrite mon_sup_succ.
-     + apply (Rbar_le_sandwich 0 1); auto.
-       * apply (Sup_seq_minor_le _ _ 0%nat); simpl; auto.
-       * apply upper_bound_ge_sup; intro; simpl; auto.
-     + intros. eapply sch_exec_mono.
+  erewrite <-sch_erasable_sch_lim_exec; [done|by eapply state_step_sch_erasable|done].
 Qed.
 
 Lemma sch_limprim_coupl_step_sch_limprim
@@ -679,6 +646,29 @@ Proof.
   rewrite -insert_app_l.
   - by rewrite app_comm_cons.
   - by eapply lookup_lt_Some.
+Qed.
+
+
+Lemma prim_coupl_step_prim_sch_erasable `{Hcountable:Countable sch_int_σ} e n es1 σ1 ζ e1 (num:nat) μ `{HTO: TapeOblivious sch_int_σ sch} :
+  sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ->
+  (e::es1)!!num=Some e1 ->
+  to_val e = None ->
+  to_val e1 = None ->
+  Rcoupl
+    (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s)))
+    (μ ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s))))
+    eq.
+Proof.
+  intros H1 H2 H3 H4.
+  erewrite force_first_thread_scheduler_lemma'; try done.
+  eapply Rcoupl_eq_trans.
+  - erewrite <-H1; last apply force_first_thread_scheduler_tape_oblivious.
+    apply Rcoupl_eq.
+  - eapply Rcoupl_dbind; last apply Rcoupl_eq.
+    intros ??->.
+    apply Rcoupl_eq_sym.
+    rewrite force_first_thread_scheduler_lemma'; try done.
+    apply Rcoupl_eq.
 Qed. 
 
 Lemma prim_coupl_step_prim' `{Hcountable:Countable sch_int_σ} e n es1 σ1 α bs ζ e1 (num:nat) `{HTO: TapeOblivious sch_int_σ sch} :
@@ -692,14 +682,6 @@ Lemma prim_coupl_step_prim' `{Hcountable:Countable sch_int_σ} e n es1 σ1 α bs
     eq.
 Proof.
   intros H1 H2 H3 H4.
-  erewrite force_first_thread_scheduler_lemma'; try done.
-  eapply Rcoupl_eq_trans.
-  - eapply prim_coupl_step_prim; last done.
-    apply force_first_thread_scheduler_tape_oblivious.
-  - eapply Rcoupl_dbind; last apply Rcoupl_eq.
-    intros ??->.
-    apply Rcoupl_eq_sym.
-    rewrite force_first_thread_scheduler_lemma'; try done.
-    apply Rcoupl_eq.
+  apply prim_coupl_step_prim_sch_erasable; try done.
+  by eapply state_step_sch_erasable.
 Qed. 
-
