@@ -30,11 +30,11 @@ Set Default Proof Using "Type".
 
  *)
 
-
+(*
 Reserved Notation "T .-giry" (at level 1, format "T .-giry").
 Reserved Notation "T .-giry.-measurable"
  (at level 2, format "T .-giry.-measurable").
-
+*)
 
 
 (** ********** Measurable Functions ********** **)
@@ -84,15 +84,14 @@ End ereal_borel.
 (** ********** Giry Monad ********** **)
 
 Section giry.
-  Context `{R : realType}.
   Local Open Scope classical_set_scope.
 
-
-  Definition giryType {d} T : Type := @subprobability d T R.
-
-  (** ********** 1. Define the measurable sets of a giry sigma algebra *)
   Section giry_space.
-    Variable (d : measure_display) (T : measurableType d).
+    (** Define a measurable space over (giryType T) *)
+    Context `{R : realType} `{d : measure_display} (T : measurableType d).
+
+    (* Type of points in the Giry monad *)
+    Definition giryType {d} T : Type := @subprobability d T R.
 
     HB.instance Definition _ := gen_eqMixin (giryType T).
     HB.instance Definition _ := gen_choiceMixin (giryType T).
@@ -115,32 +114,47 @@ Section giry.
       := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
 
     Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
-
   End giry_space.
 
-  Definition giryM_display {d} {T} := sigma_display (@giry_subbase d T).
+  Definition giryM_display `{R : realType} `{d : measure_display} `{T : measurableType d} :=
+    sigma_display (@giry_subbase R d T).
+  Global Arguments giryM_display {_} {_} {_}.
 
   (** Use giryM for any Giry Monad type *)
-  Definition giryM {d} (T : measurableType d) : measurableType giryM_display
-    := [the measurableType _ of salgebraType (@giry_subbase _ T)].
+  Definition giryM (R : realType) (d : measure_display) (T : measurableType d) : measurableType giryM_display :=
+    [the measurableType _ of salgebraType (@giry_subbase R d T)].
+  Global Arguments giryM {_} {_} _.
 
-  Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
-  Notation "T .-giry.-measurable" := (measurable : set (set (giryM T))) : classical_set_scope.
 
-  (* Extensionality (as functions) for giryM  *)
-  Lemma giryM_ext {d : measure_display} {T : measurableType d} (μ1 μ2 : giryM T) :
-    (μ1 = μ2 :> (set T -> \bar R)) -> μ1 = μ2.
-  Proof.
-    move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
-    rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
-    f_equal.
-    by rewrite
-      (_ : x1 = y1)//
-      (_ : x2 = y2)//
-      (_ : x3 = y3)//
-      (_ : x4 = y4)//
-      (_ : x5 = y5)//
-      (_ : x6 = y6)//
-      (_ : x7 = y7)//.
-  Qed.
+  Section giry_lemmas.
+    Context `{R : realType} `{d : measure_display} {T : measurableType d}.
+    Notation giryM := (giryM (R := R)).
+
+    Lemma giryM_ext (μ1 μ2 : giryM T) :
+      (μ1 = μ2 :> (set T -> \bar R)) -> μ1 = μ2.
+    Proof.
+      move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
+      rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
+      f_equal.
+      by rewrite
+        (_ : x1 = y1)//
+        (_ : x2 = y2)//
+        (_ : x3 = y3)//
+        (_ : x4 = y4)//
+        (_ : x5 = y5)//
+        (_ : x6 = y6)//
+        (_ : x7 = y7)//.
+    Qed.
+
+  End giry_lemmas.
 End giry.
+
+
+
+(* Notation is useless without inference for R
+
+Section giryNotation.
+  Notation "T .-giry" := (@giryM_display _ T) : measure_display_scope.
+  Notation "T .-giry.-measurable" := ((@measurable _ (giryM T)) : set (set (giryM T))) : classical_set_scope.
+End giryNotation.
+*)
