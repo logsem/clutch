@@ -93,16 +93,7 @@ Section adequacy.
           apply pgl_1; lra.
         }
         done.
-    - (* iDestruct (big_orL_mono _ (λ _ _, *)
-      (*                |={∅}▷=>^(S n) *)
-      (*                  ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I *)
-      (*             with "H") as "H"; last first. *)
-      (* { simpl. iInduction (get_active σ1) as [| α] "IH"; [done|]. *)
-      (*   rewrite big_orL_cons. *)
-      (*   iDestruct "H" as "[H | Ht]"; [done|]. *)
-      (*   by iApply "IH". } *)
-      (* iIntros (i α Hα%elem_of_list_lookup_2) "(% & %ε1 & %ε2 & %Hε'' & %Hleq & %Hlift & H)". *)
-      iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & %Herasable & (%r & %Hr) & % & %Hlift & H)".
+    - iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & %Herasable & (%r & %Hr) & % & %Hlift & H)".
       iApply (step_fupdN_mono _ _ _
                 (⌜∀ σ2 , R2 σ2 → pgl (prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ
                                    (ε2 σ2)⌝)%I).
