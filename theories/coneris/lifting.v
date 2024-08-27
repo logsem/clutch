@@ -1,15 +1,17 @@
 From iris.proofmode Require Import tactics.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.
+From clutch.con_prob_lang Require Import lang.
 From clutch.coneris Require Import weakestpre.
 
+
 Section lifting.
-  Context `{!conerisWpGS Λ Σ}.
-  Implicit Types v : val Λ.
-  Implicit Types e : expr Λ.
-  Implicit Types σ : state Λ.
+  Context `{!conerisWpGS con_prob_lang Σ}.
+  Implicit Types v : val con_prob_lang.
+  Implicit Types e : expr con_prob_lang.
+  Implicit Types σ : state con_prob_lang.
   Implicit Types P Q : iProp Σ.
-  Implicit Types Φ : val Λ → iProp Σ.
+  Implicit Types Φ : val con_prob_lang → iProp Σ.
 
   #[local] Open Scope R.
 
@@ -80,7 +82,7 @@ Section lifting.
     iMod ("H" with "Hσ") as "[$ H]". iIntros "!>" (????) "!>!>" . by iApply "H".
   Qed.
 
-  Lemma wp_lift_pure_step_no_fork `{!Inhabited (state Λ)} E E' Φ e1 s :
+  Lemma wp_lift_pure_step_no_fork `{!Inhabited (state con_prob_lang)} E E' Φ e1 s :
     (∀ σ1, reducible e1 σ1) →
     (∀ σ1 e2 σ2 efs, prim_step e1 σ1 (e2, σ2, efs) > 0 → σ2 = σ1 /\ efs = []) →
     (|={E}[E']▷=> ∀ e2 σ efs, ⌜prim_step e1 σ (e2, σ, efs) > 0⌝ → WP e2 @ s; E {{ Φ }})
@@ -141,7 +143,7 @@ Section lifting.
     by iApply "H".
   Qed.
 
-  Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state Λ)} {E E' Φ} e1 e2 s :
+  Lemma wp_lift_pure_det_step_no_fork `{!Inhabited (state con_prob_lang)} {E E' Φ} e1 e2 s :
     (∀ σ1, reducible e1 σ1) →
     (∀ σ1 e2' σ2 efs, prim_step e1 σ1 (e2', σ2, efs) > 0 → σ2 = σ1 ∧ e2' = e2 /\ efs = []) →
     (|={E}[E']▷=> WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
@@ -152,7 +154,7 @@ Section lifting.
     iIntros (e' σ efs (?&->&->)%Hpuredet); auto.
   Qed.
 
-  Lemma wp_pure_step_fupd `{!Inhabited (state Λ)} E E' e1 e2 φ n Φ s :
+  Lemma wp_pure_step_fupd `{!Inhabited (state con_prob_lang)} E E' e1 e2 φ n Φ s :
     PureExec φ n e1 e2 →
     φ →
     (|={E}[E']▷=>^n WP e2 @ s; E {{ Φ }}) ⊢ WP e1 @ s; E {{ Φ }}.
@@ -166,7 +168,7 @@ Section lifting.
     - by iApply (step_fupd_wand with "Hwp").
   Qed.
 
-  Lemma wp_pure_step_later `{!Inhabited (state Λ)} E e1 e2 φ n Φ s :
+  Lemma wp_pure_step_later `{!Inhabited (state con_prob_lang)} E e1 e2 φ n Φ s :
     PureExec φ n e1 e2 →
     φ →
     ▷^n WP e2 @ s; E {{ Φ }} ⊢ WP e1 @ s; E {{ Φ }}.
