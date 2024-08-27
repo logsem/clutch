@@ -1,4 +1,4 @@
-From iris.base_logic.lib Require Export fancy_updates.
+From iris.base_logic.lib Require Export fancy_updates invariants.
 From iris.proofmode Require Import base tactics classes.
 From clutch.coneris Require Import weakestpre primitive_laws.
 
@@ -171,3 +171,4 @@ Section wp_update.
   Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. apply wp_update_ret. Qed.
 
 End wp_update.
+
