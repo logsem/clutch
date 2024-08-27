@@ -39,7 +39,7 @@ Section discrete_space.
 
   Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.
 
-  Check <<discr cfg>>.
+  (* Check <<discr cfg>>. *)
 
 
   Section discrete_space_mapout.
@@ -65,14 +65,14 @@ Section discrete_space_cfg.
   HB.instance Definition _ := isPointed.Build cfg inhabitant.
 
   (* Is there some way to copy the sigma algebra from (discrType cfg) to cfg? *)
-  Check ((discrType cfg) : measurableType _).
-  Check (giryM _ (discrType cfg)).
+  (* Check ((discrType cfg) : measurableType _).
+  Check (giryM _ (discrType cfg)). *)
 
 
 
   Fail Check (cfg : measurableType _).
 
-  Check (fun x : cfg => (x : discrType cfg)).
+  (* Check (fun x : cfg => (x : discrType cfg)). *)
 
   (*
   Definition cfg_meas : set (set cfg) := [set: set cfg].
@@ -121,11 +121,11 @@ Section unif_fin_space.
 
   HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ unifM unifM_T.
 
-  Check (unifM : subprobability _ _).
+  (* Check (unifM : subprobability _ _).
   Check (unifM : giryType R (discrType ('I_(S m)))).
 
   Check (discrType ('I_(S m)) : measurableType _). (* Okay so this works *)
-  Check (unifM : giryM R (discrType ('I_(S m)))). (* And this works too.... what does wrong withcfg? *)
+  Check (unifM : giryM R (discrType ('I_(S m)))). (* And this works too.... what does wrong withcfg? *) *)
 
 End unif_fin_space.
 
@@ -144,12 +144,12 @@ Section meas_semantics.
       type to expt * state, but does that break the hierarchy?)*)
 
   (* FIXME why isn't this notation recognized *)
-  Fail Check <<discr cfg>>.
+  (* Fail Check <<discr cfg>>. *)
 
-  Check fun f => @giryM_map R _ _ _ _ _ (unifM (Z.to_nat _)) (discr_mapout_measurable f setT).
+  (* Check fun f => @giryM_map R _ _ _ _ _ (unifM (Z.to_nat _)) (discr_mapout_measurable f setT).
 
   Check (giryM _ (giryM _ (discrType cfg))).
-  Check (giryM _ (discrType cfg)).
+  Check (giryM _ (discrType cfg)). *)
 
   Definition head_stepM (e1 : expr) (σ1 : state) : giryM R (discrType cfg) :=
     match e1 with
@@ -201,11 +201,11 @@ Section meas_semantics.
           | None => mzero
         end
     (* Uniform sampling from [0, 1 , ..., N] *)
-    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
-        giryM_map
+    | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) => mzero
+        (* giryM_map
           (unifM (Z.to_nat N))
           (discr_mapout_measurable
-             (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discrType cfg)) setT)
+             (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discrType cfg)) setT) *)
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1) : discrType cfg)
@@ -218,15 +218,16 @@ Section meas_semantics.
               | n :: ns =>
                   (* the tape is non-empty so we consume the first number *)
                   giryM_ret R ((Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1) : discrType cfg)
-              | [] =>
-                  (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
+              | [] => mzero (* FIXME *)
+                  (* (* the tape is allocated but empty, so we sample from [0, 1, ..., M] uniformly *)
                   let f := (fun (n : 'I_(S (Z.to_nat M))) => ((Val $ LitV $ LitInt n, σ1) : discrType cfg)) in
-                  @giryM_map _ _ _ _ _ _ (unifM (Z.to_nat _)) (discr_mapout_measurable f setT)
+                  @giryM_map _ _ _ _ _ _ (unifM (Z.to_nat _)) (discr_mapout_measurable f setT)  *)
               end
             else
               (* bound did not match the bound of the tape *)
               let f :=  (fun (n : 'I_(S (Z.to_nat M))) => ((Val $ LitV $ LitInt n, σ1) : discrType cfg)) in
-              @giryM_map _ _ _ _ _ _ (unifM (Z.to_nat M)) (discr_mapout_measurable f setT)
+              mzero
+              (* @giryM_map _ _ _ _ _ _ (unifM (Z.to_nat M)) (discr_mapout_measurable f setT)  *)
         | None => mzero
         end
     | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : discrType cfg)
@@ -243,7 +244,7 @@ Section meas_semantics.
     Local Definition unsound_meas_obligation d1 d2 T1 T2 f: @measurable_fun d1 d2 T1 T2 setT f.
     Proof. Admitted.
 
-    Fixpoint giry_iterM (n : nat) (f : T -> (giryM R T)) (mf : measurable_fun setT f) (a : T) : giryM R T
+    (* Fixpoint giry_iterM (n : nat) (f : T -> (giryM R T)) (mf : measurable_fun setT f) (a : T) : giryM R T
       := match n with
            O => giryM_ret R a
          | (S n) =>
@@ -251,6 +252,7 @@ Section meas_semantics.
              let next_mf : measurable_fun _ next := unsound_meas_obligation _ _ _ _ _ in
              giryM_bind (f a) next_mf
          end.
+         *)
 
   End giry_iterM.
 

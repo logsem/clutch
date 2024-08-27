@@ -143,7 +143,7 @@ Section giry.
   Definition borelER : measurableType borelER_display
     := [the measurableType _ of salgebraType ereal_borel_subbase].
 
-  Check measurability.
+  (* Check measurability. *)
 
   (** ********** 2. Test: Examples of measuring sets *)
   Section giry_space_example.
@@ -151,14 +151,14 @@ Section giry.
 
     (* Example: Measuring sets in the Giry space *)
     Example test_giry_measures_0 : T.-giry.-measurable (set0 : set (giryM T)).
-    Proof. apply measurable0. Qed.
+    Proof. by apply measurable0. Qed.
 
     Example test_giry_measures_T : T.-giry.-measurable [set: giryM T].
-    Proof. apply (@measurableT _ (salgebraType _)). Qed.
+    Proof. by eapply @measurableT. Qed.
 
     (* giryM is also a measurable type, so can be nested. *)
     Example test_giry_measures_0' : (giryM T).-giry.-measurable (set0 : set (giryM (giryM T))).
-    Proof. apply measurable0. Qed.
+    Proof. by apply measurable0. Qed.
 
   End giry_space_example.
 
@@ -187,7 +187,6 @@ Section giry.
         by apply measurable0.
     Qed.
   End giry_integral_example.
-
 
 
 
@@ -264,7 +263,7 @@ Section giry.
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
     Variable (f : T1 -> giryM T2).
 
-    Check (f ^~ _ : T1 -> borelER).
+    (* Check (f ^~ _ : T1 -> borelER). *)
 
     Lemma measurable_evals_if_measurable : measurable_fun setT f -> measurable_evaluations f.
     Proof using Type.
@@ -414,7 +413,7 @@ HB.end.
   Proof using Type. auto. Qed.
 
   (* CHECK: Arguments to infer seem good *)
-  Check giryM_ret _.
+  (* Check giryM_ret _. *)
   (* TODO: Make some notation *)
 
   Section giry_ret_laws.
@@ -478,15 +477,14 @@ HB.end.
       clear X.
 
       (* This is a related measurable function *)
-      Check @ge0_emeasurable_fun_sum d T R setT. (* This sum is over T.*)
+      (* Check @ge0_emeasurable_fun_sum d T R setT. (* This sum is over T.*) *)
 
       (* This one could actually be applied, if we can do the right rewrites to the sum? *)
       (* Reduces the problem to proving measurablility at evey approximation level *)
       have h_seq (i : nat) (μ : giryM T) : \bar R.
       { admit.  }
 
-
-      Check @ge0_emeasurable_fun_sum _ (giryM T) R setT h_seq _.
+      (* Check @ge0_emeasurable_fun_sum _ (giryM T) R setT h_seq _. *)
 
 
 
@@ -534,8 +532,8 @@ HB.end.
       (* have Strange : forall z, h_seq z μ = (z%:E * μ (nnsfun_approx HMT measurable_mapP n @^-1` [set z]))%R.  *)
 
       (* FIXME: Next step-- is this provable? *)
-      Check [set r | 0 < r].
-      Check index_iota 0 n.
+      (* Check [set r | 0 < r].
+      Check index_iota 0 n. *)
 
       (* Aside from coercion hell, we should be able to define
          h_seq = (x%:E * μ (nnsfun_approx HMT measurable_mapP n @^-1` [set x])) *)
@@ -568,6 +566,7 @@ HB.end.
 
       have H1 : (forall x : T, [set: T] x -> (0%R <= f x)%E) by admit.
       have H2 : d.-measurable [set: T] by admit.
+      (*
 
       Check @is_cvg_sintegral d T R.
 
@@ -587,43 +586,43 @@ HB.end.
       (* Search topology.lim topology.cvg_to. *)
 
       Search measurable_fun topology.lim.
+      *)
 
 
 
-
-      Check sequences.congr_lim. (* Only aesthetically useful *)
+      (* Check sequences.congr_lim. (* Only aesthetically useful *) *)
 
       (* Relate cvg_lim to lim *)
-      Check topology.cvg_lim.
+      (* Check topology.cvg_lim. *)
 
       (* Approximations converge to the limit *)
-      Check is_cvg_sintegral. (* Limit of sintegral *)
+      (* Check is_cvg_sintegral. (* Limit of sintegral *) *)
 
-      Check approximation. (* Use on Hypothesis. *)
+      (* Check approximation. (* Use on Hypothesis. *) *)
 
       (* Can I turn the lim thing into a cvg_to problem? *)
 
 
       (* Can I simplify the sintegral? *)
-      Check sintegralEnnsfun. (* Turn integral into sum *)
+      (* Check sintegralEnnsfun. (* Turn integral into sum *)
       Search topology.fmap (_ \o _).
-      Check fun μ => @sintegralE d T R _.
+      Check fun μ => @sintegralE d T R _. *)
       (* (μ \o (fun x : nat => nnsfun_approx HMT measurable_mapP x)). *)
 
 
-      Check topology.fmap_comp (sintegral _) (fun x : nat => nnsfun_approx _ measurable_mapP x).
+      (* Check topology.fmap_comp (sintegral _) (fun x : nat => nnsfun_approx _ measurable_mapP x). *)
 
-      Search topology.lim topology.fmap topology.eventually.
+      (* Search topology.lim topology.fmap topology.eventually.
       Search topology.lim sintegral.
 
       Search topology.fmap sintegral.
-      Search measurable_fun.
+      Search measurable_fun. *)
 
 
 
 
       (* I don't know if I can do much more with measurable_fun? Maybe MCT? since it's about th emeasurability of a limit? *)
-      Locate cvg_monotone_convergence.
+      (* Locate cvg_monotone_convergence. *)
 
       (* Search measurable_fun.
       rewrite /measurable_fun.
@@ -642,7 +641,7 @@ measurable_comp:
 measurable_fun_limn_sup:
 *)
 
-      Search measurable_fun topology.lim.
+      (* Search measurable_fun topology.lim. *)
       rewrite /sintegral/=.
       (**)
 
@@ -698,6 +697,8 @@ measurable_fun_limn_sup:
     Proof.
       apply measurable_if_measurable_evals.
       rewrite /measurable_evaluations.
+      (* Check pushforward. *)
+
       intros S HS.
       apply measurable_if_pushfowrard_subset.
       intros Y HY.
@@ -751,6 +752,9 @@ measurable_fun_limn_sup:
       rewrite giryM_map_aux.
       rewrite /pushforward.
       rewrite giryM_ret_aux.
+
+      (* Defining a specific version of cst that is a measurable function (Mcst, like Mcmp) might fix this *)
+
       (* Weird that I can't apply functional extensionality *)
       have H : (fun A : set T2 => μ (cst k @^-1` A)) = (fun A : set T2 => ((\1_A k)%:E)).
       { apply functional_extensionality.
@@ -833,11 +837,11 @@ measurable_fun_limn_sup:
         rewrite /semi_sigma_additive.
         intros F Fmeas Htriv_int HFunion_meas.
         rewrite /giryM_join_def.
-        Search integral bigcup. (* Seems like the limit we want *)
+        (* Search integral bigcup. (* Seems like the limit we want *) *)
 
-        Check (integral_bigcup Htriv_int Fmeas).
-        Search topology.cvg_to topology.lim.
-        Search (topology.cvg_to _ (topology.nbhs _)) topology.lim.
+        (* Check (integral_bigcup Htriv_int Fmeas).
+        (* Search topology.cvg_to topology.lim.
+        Search (topology.cvg_to _ (topology.nbhs _)) topology.lim. *) *)
 
       Admitted.
 
@@ -852,7 +856,7 @@ measurable_fun_limn_sup:
       Proof.
         rewrite /giryM_join_def.
         have H : (\int[m]_μ μ [set: T] <= \int[m]_μ 1)%E.
-        { Search integral (_ <= _)%E.
+        { (* Search integral (_ <= _)%E. *)
           apply ge0_le_integral.
           - by [].
           - intros ? ?; by [].
@@ -875,7 +879,9 @@ measurable_fun_limn_sup:
     Definition giryM_join_def' : giryM (giryM T) -> (giryM T) := giryM_join_def.
 
     Lemma giryM_join_def'_measurable : @measurable_fun _ _ (giryM (giryM T)) (giryM T) setT giryM_join_def'.
-    Proof. Admitted.
+    Proof.
+
+    Admitted.
 
     HB.instance Definition _ :=
       isMeasurableMap.Build _ _ (giryM (giryM T)) (giryM T) giryM_join_def' giryM_join_def'_measurable.
@@ -985,8 +991,8 @@ measurable_fun_limn_sup:
     - (* Sequence is monotone *)
       (* Unset Printing Notations. *)
       intros μ _.
-      Check nd_nnsfun_approx.
-      Search homomorphism_2 bigop.body.
+      (* Check nd_nnsfun_approx.
+      (* Search homomorphism_2 bigop.body. *) *)
 
       (* Might need to do this directly.. I can't find any relevant theorems for this type of sum *)
       (* Surely this proof was done somewhere else so I'm confident it's possible. *)
@@ -995,7 +1001,7 @@ measurable_fun_limn_sup:
     - (* Sequence is nonnegative *)
       intros n μ _.
       simpl.
-      Search 0%R (_ <= _)%E "sum".
+      (* Search 0%R (_ <= _)%E "sum". *)
       (* None of the relevant theorems work, but something will. *)
       admit.
     - (* Sequence is pointwise measurable *)
@@ -1082,7 +1088,15 @@ measurable_fun_limn_sup:
 
     Lemma cmp_measurable (f : measurable_map T2 T3) (g : measurable_map T1 T2) :
       @measurable_fun _ _ T1 T3 setT (comp f g).
-    Proof. Admitted.
+    Proof.
+      apply (@measurable_comp _ _ _ _ _ _ setT).
+      - (* Search measurable setT. *)
+        (* Annoying *)
+        admit.
+      - apply subsetT.
+      - apply measurable_mapP.
+      - apply measurable_mapP.
+    Admitted.
 
     HB.instance Definition _ (f : measurable_map T2 T3) (g : measurable_map T1 T2) :=
       isMeasurableMap.Build _ _ T1 T3 (comp f g) (cmp_measurable f g).
@@ -1096,24 +1110,14 @@ measurable_fun_limn_sup:
 
   (** ********** 8. Monad bind *)
 
-(*
-  Definition giryM_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-                        (f : measurable_map T1 (giryM T2)) (m : giryM T1) : giryM T2
-    := giryM_join (giryM_map f m).
-*)
-
   Definition giryM_bind {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
                         (f : measurable_map T1 (giryM T2)) : measurable_map (giryM T1) (giryM T2)
     := Mcmp giryM_join (giryM_map f).
-
-  (* No need to prove measurability! *)
-
 
   Section giryM_bind_laws.
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
     Context {f : measurable_map T1 (giryM T2)}.
-
 
     Lemma giryM_bind_0_l : giryM_bind f mzero = mzero.
     Proof using Type.
@@ -1177,9 +1181,9 @@ measurable_fun_limn_sup:
     Lemma giryM_bind_bind (m : giryM T1) :
       giryM_bind g (giryM_bind f m) = giryM_bind (comp (giryM_bind g) f) m.
     Proof.
+      (* Probably Mcmp *)
       rewrite /giryM_bind.
     Admitted.
-
 
     (* Make identity a measurable_map *)
     (* Lemma giryM_join_bind (m : giryM (giryM T1)) :
