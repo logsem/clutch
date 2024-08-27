@@ -11,15 +11,15 @@ arXiv:2407.14107
 
 [**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://arxiv.org/abs/2405.20083)<br>
 *Philipp G. Haselwarter, Kwing Hei Li, Markus de Medeiros, Simon Oddershede Gregersen, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2405.20083
+To appear in OOPSLA 2024: ACM SIGPLAN Conference on Object-Oriented Programming, Systems, Languages, and Applications
 
-[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://arxiv.org/abs/2404.14223)<br>
+[**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://doi.org/10.1145/3674635)<br>
 *Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.14223
+In ICFP 2024: ACM SIGPLAN International Conference on Functional Programming
 
-[**Almost-Sure Termination by Guarded Refinement**](https://arxiv.org/abs/2404.08494) <br>
+[**Almost-Sure Termination by Guarded Refinement**](https://doi.org/10.1145/3674632) <br>
 *Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
-arXiv:2404.08494
+In ICFP 2024: ACM SIGPLAN International Conference on Functional Programming
 
 [**Asynchronous Probabilistic Couplings in Higher-Order Separation Logic**](https://dl.acm.org/doi/10.1145/3632868)<br>
 *Simon Oddershede Gregersen, Alejandro Aguirre, Philipp G. Haselwarter, Joseph Tassarotti, Lars Birkedal*<br>
