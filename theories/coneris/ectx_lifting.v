@@ -1,17 +1,18 @@
 (** Some derived lemmas for ectx-based languages *)
 From iris.proofmode Require Import proofmode.
 From clutch.common Require Import con_ectx_language.
+From clutch.con_prob_lang Require Import lang.
 From clutch.coneris Require Import weakestpre lifting.
 From iris.prelude Require Import options.
 
 Local Open Scope R.
 
 Section wp.
-Context {Λ : conEctxLanguage} `{!conerisWpGS Λ Σ} {Hinh : Inhabited (state Λ)}.
+Context `{!conerisWpGS con_prob_lang Σ} {Hinh : Inhabited (state con_prob_lang)}.
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
+Implicit Types Φ : val con_prob_lang → iProp Σ.
+Implicit Types v : val con_prob_lang.
+Implicit Types e : expr con_prob_lang.
 Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
 

@@ -7,11 +7,17 @@ From iris.prelude Require Import options.
 From clutch.bi Require Export weakestpre.
 From clutch.prelude Require Import stdpp_ext iris_ext NNRbar.
 From clutch.prob Require Export couplings distribution graded_predicate_lifting.
+From clutch.con_prob_lang Require Import lang.
 From clutch.common Require Export con_language.
 
 Import uPred.
 
 Local Open Scope NNR_scope.
+
+(** We for now specialize the wp to con_prob_lang, since we allow 
+    big state steps which are sch_erasable to tape oblivious schedulers,
+    a kind of schedulers specific to the language
+*)
 
 Class conerisWpGS (Λ : conLanguage) (Σ : gFunctors) := ConerisWpGS {
   conerisWpGS_invGS :: invGS_gen HasNoLc Σ;
@@ -24,7 +30,7 @@ Global Arguments ConerisWpGS {Λ Σ}.
 
 
 Section glm.
-  Context `{conerisWpGS Λ Σ}.
+  Context `{conerisWpGS con_prob_lang Σ}.
   Implicit Types ε : nonnegreal.
 
   Definition stutter
@@ -43,10 +49,10 @@ Section glm.
   Qed. 
 
   Definition glm_pre
-    (Z : (expr Λ * state Λ * list (expr Λ)) -> nonnegreal -> iProp Σ) (Φ : partial_cfg Λ * nonnegreal -> iProp Σ) :=
-    (λ (x : partial_cfg Λ * nonnegreal),
+    (Z : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal -> iProp Σ) (Φ : partial_cfg con_prob_lang * nonnegreal -> iProp Σ) :=
+    (λ (x : partial_cfg con_prob_lang * nonnegreal),
        let '((e1, σ1), ε) := x in
-       (∃ R (ε1 : nonnegreal) (ε2 : (expr Λ * state Λ * list (expr Λ)) -> nonnegreal),
+       (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
            ⌜reducible e1 σ1⌝ ∗
            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
            ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2 ρ) <= ε)%R⌝ ∗
@@ -55,7 +61,7 @@ Section glm.
                         stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
        ) ∨
      ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 : nonnegreal) (ε2 : state Λ -> nonnegreal),
+        (∃ R (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 ρ) <= ε)%R ⌝ ∗
           ⌜pgl (state_step σ1 α) R ε1⌝ ∗
@@ -102,9 +108,9 @@ Section glm.
   Definition glm' Z := bi_least_fixpoint (glm_pre Z).
   Definition glm e σ ε Z := glm' Z ((e, σ), ε).
 
-  Lemma glm_unfold (e1 : exprO Λ) (σ1 : stateO Λ) Z (ε : NNRO) :
+  Lemma glm_unfold (e1 : exprO con_prob_lang) (σ1 : stateO con_prob_lang) Z (ε : NNRO) :
     glm e1 σ1 ε Z ≡
-      ((∃ R (ε1 : nonnegreal) (ε2 : (expr Λ * state Λ * list (expr Λ)) -> nonnegreal),
+      ((∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
            ⌜reducible e1 σ1⌝ ∗
            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
            ⌜(ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2 ρ) <= ε)%R⌝ ∗
@@ -113,7 +119,7 @@ Section glm.
                         stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
        ) ∨
          ([∨ list] α ∈ get_active σ1,
-        (∃ R (ε1 : nonnegreal) (ε2 : state Λ -> nonnegreal),
+        (∃ R (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 ρ) <= ε)%R ⌝ ∗
           ⌜pgl (state_step σ1 α) R ε1⌝ ∗
@@ -124,7 +130,7 @@ Section glm.
     rewrite /glm/glm' least_fixpoint_unfold//.
   Qed.
 
-  Local Definition partial_cfgO := (prodO (exprO Λ) (stateO Λ)).
+  Local Definition partial_cfgO := (prodO (exprO con_prob_lang) (stateO con_prob_lang)).
   
   Lemma glm_mono_grading e σ Z ε ε' :
     ⌜(ε <= ε')%R⌝ -∗
@@ -146,7 +152,8 @@ Section glm.
       iPureIntro; etrans; done.
     - rewrite least_fixpoint_unfold.
       iRight.
-      iInduction (get_active σ') as [| l] "IH".
+      simpl.
+      iInduction (con_prob_lang.get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
       iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hleq2 & %Hub & %Hlift & H )) | Ht]".
@@ -197,8 +204,9 @@ Section glm.
       iApply "HZ". iFrame.
       iPureIntro. naive_solver.
    - rewrite least_fixpoint_unfold.
-      iRight.
-      iInduction (get_active σ') as [| l] "IH".
+     iRight.
+     simpl.
+      iInduction (con_prob_lang.get_active σ') as [| l] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
       iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (% & % & % & H)) | Ht]".
@@ -364,7 +372,8 @@ Section glm.
         destruct (Kinv (K e)) eqn:H3.
         - apply HKinv1 in H3. f_equal. by apply fill_inj.
         - eapply (HKinv2 _ e) in H3. done. }
-      iInduction (get_active σ') as [| l ls] "IH".
+      simpl.
+      iInduction (con_prob_lang.get_active σ') as [| l ls] "IH".
       { rewrite big_orL_nil //. }
       rewrite 2!big_orL_cons.
       iDestruct "H" as "[(%R2 & %ε1 & %ε2 & (%Hub & %Hleq & %Hlift & H)) | Ht]".
@@ -451,14 +460,14 @@ Section glm.
   Qed.
   
 
-  Lemma glm_strong_ind (Ψ : expr Λ → state Λ → nonnegreal → iProp Σ) Z :
+  Lemma glm_strong_ind (Ψ : expr con_prob_lang → state con_prob_lang → nonnegreal → iProp Σ) Z :
     (∀ n e σ ε, Proper (dist n) (Ψ e σ ε)) →
     ⊢ (□ (∀ e σ ε, glm_pre Z (λ '((e, σ), ε), Ψ e σ ε ∧ glm e σ ε Z)%I ((e, σ), ε) -∗ Ψ e σ ε) →
        ∀ e σ ε, glm e σ ε Z -∗ Ψ e σ ε)%I.
   Proof.
     iIntros (HΨ). iIntros "#IH" (e σ ε) "H".
     set (Ψ' := (λ '((e, σ), ε), Ψ e σ ε):
-           (prodO (prodO (exprO Λ) (stateO Λ)) NNRO) → iProp Σ).
+           (prodO (prodO (exprO con_prob_lang) (stateO con_prob_lang)) NNRO) → iProp Σ).
     assert (NonExpansive Ψ').
     { intros n [[e1 σ1]?] [[e2 σ2]?]
         [[?%leibniz_equiv ?%leibniz_equiv]?%leibniz_equiv].
@@ -472,9 +481,9 @@ End glm.
 
 (** * The weakest precondition *)
 
-Definition pgl_wp_pre `{!conerisWpGS Λ Σ}
-    (wp : coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ) :
-  coPset -d> expr Λ -d> (val Λ -d> iPropO Σ) -d> iPropO Σ :=
+Definition pgl_wp_pre `{!conerisWpGS con_prob_lang Σ}
+    (wp : coPset -d> expr con_prob_lang -d> (val con_prob_lang -d> iPropO Σ) -d> iPropO Σ) :
+  coPset -d> expr con_prob_lang -d> (val con_prob_lang -d> iPropO Σ) -d> iPropO Σ :=
   (λ E e1 Φ,
      match to_val e1 with
      | Some v => |={E}=>Φ v
@@ -489,7 +498,7 @@ Definition pgl_wp_pre `{!conerisWpGS Λ Σ}
   )%I.
 
 
-Local Instance wp_pre_contractive `{!conerisWpGS Λ Σ} : Contractive (pgl_wp_pre).
+Local Instance wp_pre_contractive `{!conerisWpGS con_prob_lang Σ} : Contractive (pgl_wp_pre).
 Proof.
   rewrite /pgl_wp_pre /= => n wp wp' Hwp E e1 Φ /=.
   do 7 (f_equiv).
@@ -502,23 +511,23 @@ Proof.
 Qed.
 
 (* TODO: get rid of stuckness in notation [iris/bi/weakestpre.v] so that we don't have to do this *)
-Local Definition pgl_wp_def `{!conerisWpGS Λ Σ} : Wp (iProp Σ) (expr Λ) (val Λ) () :=
+Local Definition pgl_wp_def `{!conerisWpGS con_prob_lang Σ} : Wp (iProp Σ) (expr con_prob_lang) (val con_prob_lang) () :=
   {| wp := λ _ : (), fixpoint (pgl_wp_pre); wp_default := () |}.
 Local Definition pgl_wp_aux : seal (@pgl_wp_def). Proof. by eexists. Qed.
 Definition pgl_wp' := pgl_wp_aux.(unseal).
-Global Arguments pgl_wp' {Λ Σ _}.
+Global Arguments pgl_wp' {Σ _}.
 Global Existing Instance pgl_wp'.
-Local Lemma pgl_wp_unseal `{!conerisWpGS Λ Σ} : wp = (@pgl_wp_def Λ Σ _).(wp).
+Local Lemma pgl_wp_unseal `{!conerisWpGS con_prob_lang Σ} : wp = (@pgl_wp_def Σ _).(wp).
 Proof. rewrite -pgl_wp_aux.(seal_eq) //. Qed.
 
 Section pgl_wp.
-Context `{!conerisWpGS Λ Σ}.
+Context `{!conerisWpGS con_prob_lang Σ}.
 Implicit Types P : iProp Σ.
-Implicit Types Φ : val Λ → iProp Σ.
-Implicit Types v : val Λ.
-Implicit Types e : expr Λ.
-Implicit Types σ : state Λ.
-Implicit Types ρ : partial_cfg Λ.
+Implicit Types Φ : val con_prob_lang → iProp Σ.
+Implicit Types v : val con_prob_lang.
+Implicit Types e : expr con_prob_lang.
+Implicit Types σ : state con_prob_lang.
+Implicit Types ρ : partial_cfg con_prob_lang.
 Implicit Types ε : R.
 
 (* Weakest pre *)
@@ -569,7 +578,7 @@ Lemma pgl_wp_strong_mono E1 E2 e Φ Ψ s :
 Proof.
   iIntros (HE) "H HΦ". iLöb as "IH" forall (e E1 E2 HE Φ Ψ).
   rewrite !pgl_wp_unfold /pgl_wp_pre /=.
-  destruct (to_val e) as [v|] eqn:?.
+  destruct (con_prob_lang.to_val e) as [v|] eqn:?.
   { iApply ("HΦ" with "[> -]"). by iApply (fupd_mask_mono E1 _). }
   iIntros (σ1 ε) "[Hσ Hε]".
   iMod (fupd_mask_subseteq E1) as "Hclose"; first done.
@@ -722,11 +731,11 @@ End pgl_wp.
 
 (** Proofmode class instances *)
 Section proofmode_classes.
-  Context `{!conerisWpGS Λ Σ}.
+  Context `{!conerisWpGS con_prob_lang Σ}.
   Implicit Types P Q : iProp Σ.
-  Implicit Types Φ : val Λ → iProp Σ.
-  Implicit Types v : val Λ.
-  Implicit Types e : expr Λ.
+  Implicit Types Φ : val con_prob_lang → iProp Σ.
+  Implicit Types v : val con_prob_lang.
+  Implicit Types e : expr con_prob_lang.
 
   Global Instance frame_pgl_wp p s E e R Φ Ψ :
     (∀ v, Frame p R (Φ v) (Ψ v)) →
