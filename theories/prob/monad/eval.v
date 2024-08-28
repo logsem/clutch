@@ -59,6 +59,16 @@ Lemma giryM_eval_eval (R : realType) {d} {T : measurableType d} {S : set T} (HS 
 Proof. done. Qed.
 
 
+(** Eval is nonnegative *)
+Lemma giryM_eval_nonneg (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
+  forall x : giryM T, (0%R <= giryM_eval R HS x)%E.
+Proof. Admitted.
+
+
+
+
+
+
 Section giryM_eval_char.
   (** Characterize measurability of A -> giryM B functions using evaluations *)
   Context `{R : realType}.

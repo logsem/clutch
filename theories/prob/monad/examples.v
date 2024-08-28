@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const map zero.
+From clutch.prob.monad Require Export types eval ret integrate const map zero compose join.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -67,6 +67,8 @@ End giry_integral_example.
 Section seal_example.
   Context {d : measure_display} (T : measurableType d).
   Context {d2 : measure_display} (T2 : measurableType d).
+  Context {d3 : measure_display} (T3 : measurableType d).
+
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
 
@@ -134,6 +136,29 @@ Section seal_example.
     apply giryM_ext.
     intro S.
     rewrite giryM_zero_eval.
+    Set Printing All.
+    Unset Printing All.
+  Abort.
+
+
+  Lemma X (f : measurable_map T2 T3) (g : measurable_map T T2) : m_cmp f g = m_cmp f g.
+  Proof.
+    rewrite /m_cmp.
+    (* unfold compose.m_cmp_def. This should be sealed! *)
+    apply measurable_map_ext.
+    intro t.
+    rewrite m_cmp_eval.
+    Set Printing All.
+    Unset Printing All.
+  Abort.
+
+  Lemma X (m : giryM (giryM T)) : giryM_join m = giryM_join m.
+  Proof.
+    rewrite /giryM_join.
+    (* unfold .m_cmp_def. This should be sealed! *)
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
     Set Printing All.
     Unset Printing All.
   Abort.
