@@ -220,10 +220,8 @@ Section impl1.
     iDestruct "H3" as "[Htape H3]".
     iDestruct (wp_update_presample_exp' E _ _ _ _ (ε2 ε) with "[$]") as "Hupdate"; [intros; naive_solver|naive_solver|].
     (** Here we need to do an update on H4 and Hfrag, but we dont know what to update to???*)
-
-    
-    iMod ("Hvs" with "[$HP $H2 $H4 //]") as "Hcont".
-    iModIntro.
+    (** maybe wp_update is the wrong abstraction. 
+        We also need to destruct Hupdate to reestablish the invariant*)
     
     
   Abort.
