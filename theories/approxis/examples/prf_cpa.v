@@ -59,6 +59,7 @@ We prove the portions of the above theorems that are concerned with the reductio
         ("r", xor "msg" "z").
 
   (** We specialize the construction to an idealized random function family. *)
+  (* Definition rf_keygen : val := λ:<>, rand #Key. *)
   Definition rf_keygen : val := λ:<>, rand #Key.
   Definition rf_enc : expr := prf_enc (random_function Output).
   Definition rf_rand_cipher : val := λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
@@ -78,7 +79,6 @@ We prove the portions of the above theorems that are concerned with the reductio
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
   Definition q_calls := q_calls Message.
   Definition CPA := CPA Message.
-  Definition CPA_rf : val := λ:"b" "adv", CPA "b" "adv" rf_scheme.
 
 
   Section proofs.

@@ -47,6 +47,15 @@ Our definition further differs from Katz/Lindell in that, depending on the value
         let: "b'" := "adv" "oracle" in
         "b'".
 
+    Definition CPA_real : val :=
+      λ:"scheme" "Q",
+        let: "key" := keygen "scheme" #() in
+        q_calls "Q" (enc "scheme" "key").
+
+    Definition CPA_rand : val :=
+      λ:"scheme" "Q",
+        q_calls "Q" (rand_cipher "scheme").
+
   End CPA.
 
 End symmetric.

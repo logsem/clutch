@@ -55,8 +55,22 @@ Section definition.
             "loop" ("i" - #1)
       in
       ("loop" "Q") ;;
-      ! "res"
-  .
+      ! "res".
+
+  (* Rosulek, Def. 6.1 (PRF security) *)
+  (* NB: Rosulek samples the key from {0,1}^λ, we sample it from [0,Key]. *)
+  Definition PRF_real : val :=
+    λ:"PRF_scheme" "Q",
+      let: "k" := keygen "PRF_scheme" #() in
+      let: "lookup" := prf "PRF_scheme" "k" in
+      let: "oracle" := q_calls "Q" "lookup" in
+      "oracle".
+
+  Definition PRF_rand : val :=
+    λ:"PRF_scheme" "Q",
+      let: "lookup" := random_function #() in
+      let: "oracle" := q_calls "Q" "lookup" in
+      "oracle".
 
   Section spec_ideal.
 
