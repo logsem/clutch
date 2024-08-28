@@ -92,7 +92,7 @@ Section wp_update.
   Lemma wp_update_one_inv N E P R R':
     ↑N ⊆ E -> 
     inv N P -∗
-    (▷ P ∗ R ={E∖↑N}=∗ ▷P ∗ wp_update E R') -∗
+    (▷ P ∗ R ={E∖↑N}=∗ ▷P ∗wp_update E R') -∗
     R -∗ wp_update E R'.
   Proof.
     iIntros (?) "#Hinv Hvs HR".
@@ -102,7 +102,7 @@ Section wp_update.
     iMod ("Hvs" with "[$]") as "[HP HR]".
     by iMod ("Hclose" with "[$]").
   Qed.
-
+    
   Global Instance from_modal_wp_update_wp_update P E :
     FromModal True modality_id (wp_update E P) (wp_update E P) P.
   Proof. iIntros (_) "HP /=". by iApply wp_update_ret. Qed.
