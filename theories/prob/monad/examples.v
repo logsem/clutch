@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate.
+From clutch.prob.monad Require Export types eval ret integrate const.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -66,6 +66,7 @@ End giry_integral_example.
 (** ********** Test: sealing *)
 Section seal_example.
   Context {d : measure_display} (T : measurableType d).
+  Context {d2 : measure_display} (T2 : measurableType d).
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
 
@@ -83,6 +84,8 @@ Section seal_example.
   Proof.
     rewrite /giryM_ret.
     Fail unfold giryM_ret_def.
+    (* TODO: giryM_ret_aux could be expresed as an evaluation lemma.
+       I think this might help remove some invisible coercions, if those continue to be an issue. *)
     rewrite giryM_ret_aux.
   Abort.
 
@@ -94,6 +97,15 @@ Section seal_example.
     apply measurable_map_ext.
     intro μ.
     rewrite giryM_integrate_aux.
+  Abort.
+
+  Lemma X (v : T2) : (m_cst v : measurable_map T T2) = m_cst v.
+  Proof.
+    rewrite /m_cst.
+    Fail unfold m_cst_def.
+    apply measurable_map_ext.
+    intro x.
+    rewrite m_cst_aux.
   Abort.
 
 

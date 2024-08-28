@@ -21,20 +21,6 @@ Set Default Proof Using "Type".
 
 (*
 
-  (* TODO: Mcmp_aux / seal *)
-
-  (** ********** ?. Constant is measurable_map *)
-  Section MeasurableMap_const.
-    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-
-    Lemma Mcst_def_measurable (t : T2):
-      @measurable_fun _ _ T1 T2 setT (cst t).
-    Proof using Type. apply measurable_cst. Qed.
-
-
-    HB.instance Definition _ (t : T2) :=
-      isMeasurableMap.Build _ _ T1 T2 (cst t) (Mcst_def_measurable t).
-  End MeasurableMap_const.
 
 
 
