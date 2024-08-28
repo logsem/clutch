@@ -80,6 +80,29 @@ Section wp_update.
     iFrame. eauto.
   Qed.
 
+  Lemma wp_update_fupd R R' E:
+    (R ={E}=∗ wp_update E R') -∗
+    R -∗ wp_update E R'.
+  Proof.
+    iIntros "Hvs H".
+    iApply fupd_wp_update.
+    by iMod ("Hvs" with "[$]").
+  Qed. 
+
+  Lemma wp_update_one_inv N E P R R':
+    ↑N ⊆ E -> 
+    inv N P -∗
+    (▷ P ∗ R ={E∖↑N}=∗ ▷P ∗ wp_update E R') -∗
+    R -∗ wp_update E R'.
+  Proof.
+    iIntros (?) "#Hinv Hvs HR".
+    iApply (wp_update_fupd R with "[Hvs][$]").
+    iIntros "HR".
+    iInv "Hinv" as "HP" "Hclose".
+    iMod ("Hvs" with "[$]") as "[HP HR]".
+    by iMod ("Hclose" with "[$]").
+  Qed.
+
   Global Instance from_modal_wp_update_wp_update P E :
     FromModal True modality_id (wp_update E P) (wp_update E P) P.
   Proof. iIntros (_) "HP /=". by iApply wp_update_ret. Qed.

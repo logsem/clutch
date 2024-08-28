@@ -196,20 +196,36 @@ Section impl1.
 
   
   Lemma counter_presample (N : nat)  z E ns α
-     (ε2 : R -> fin (S N) -> R)
+     (ε2 : R -> nat -> R)
     (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
     TCEq N (Z.to_nat z) →
     ↑counter_nroot ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
-    (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R →
+    (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 ε n else 0%R)%R <= ε)%R->
     inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) -∗
-    (□∀ (ε:R)  m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ1 ∗ ●m@γ2) 
-                                                ={E∖↑counter_nroot}=∗
-        ∃ n, (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ2 ∗ T (n))))
-        -∗ P -∗ α ◯↪N (N; ns) @ γ2 -∗
-        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ2).
+    (□∀ (ε:R) n, (P ∗ ●↯ ε @ γ1) ={E∖↑counter_nroot}=∗
+        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n)))) 
+        -∗
+    P -∗ α ◯↪N (N; ns) @ γ2 -∗
+        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[n]) @ γ2).
   Proof.
     iIntros (-> Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
+    iApply (wp_update_one_inv _ _ _ (P∗α◯↪N(Z.to_nat z;ns)@γ2)%I); [done|done| |iFrame].
+    iIntros "(>(%ε & %m & %l & %n & H1 & H2 & H3 & H4 & -> & H5 & H6) & HP & Hfrag)".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    iDestruct (ec_valid with "[$]") as "%".
+    erewrite <-(insert_delete m) at 1; last done.
+    rewrite big_sepM_insert; last apply lookup_delete.
+    simpl.
+    iDestruct "H3" as "[Htape H3]".
+    iDestruct (wp_update_presample_exp' E _ _ _ _ (ε2 ε) with "[$]") as "Hupdate"; [intros; naive_solver|naive_solver|].
+    (** Here we need to do an update on H4 and Hfrag, but we dont know what to update to???*)
+
+    
+    iMod ("Hvs" with "[$HP $H2 $H4 //]") as "Hcont".
+    iModIntro.
+    
+    
   Abort.
   
     
