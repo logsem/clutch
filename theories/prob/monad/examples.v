@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval.
+From clutch.prob.monad Require Export types eval ret.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -69,12 +69,24 @@ Section seal_example.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
 
-  Variable (S : set T) (HS : measurable S).
-
-  Lemma X : giryM_eval R HS = giryM_eval R HS.
+  Lemma X (S : set T) (HS : measurable S) : giryM_eval R HS = giryM_eval R HS.
   Proof.
     unfold giryM_eval.
     Fail unfold giryM_eval_def.
+    (* Restart.
+    Check giryM_eval R HS. *)
+    (* TODO: Should be able to prove the equality of measurable maps using funext *)
+
+    (* apply giryM_ext. *)
+    (* rewrite giryM_eval_aux. *)
+  Abort.
+
+
+  Lemma X (v : T) : giryM_ret R v = giryM_ret R v.
+  Proof.
+    rewrite /giryM_ret.
+    Fail unfold giryM_ret_def.
+    rewrite giryM_ret_aux.
   Abort.
 
 End seal_example.
