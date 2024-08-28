@@ -101,24 +101,37 @@ Section giryM_join_definition.
 
   End giryM_join_measure_def.
 
+  (* Workaround for HB bindings issue *)
   Definition giryM_join_def' : giryM (giryM T) -> (giryM T) := giryM_join_def.
 
 
-  (*  I think this idea is doomed:
-
+  (* The measurable evaluation function which computes the giryM_join_def on measurable sets *)
   Definition giryM_join_meas_map_pre {S : set T} (HS : d.-measurable S) : measurable_map (giryM (giryM T)) borelER :=
     @giryM_integrate R _ (giryM T) (giryM_eval R HS) (giryM_eval_nonneg HS).
 
-      The value of (join ⋅ S) is defined by a measurable function (at least, measurable in the normal sense)
-  *)
+  (* giryM_join_def equals the measurable evaluation function at each measruable set *)
+  Lemma giryM_join_meas_map_pre_spec {S : set T} (HS : d.-measurable S) (m : giryM (giryM T)):
+      giryM_join_meas_map_pre HS m = giryM_join_def m S.
+  Proof. by rewrite /giryM_join_meas_map_pre giryM_integrate_eval /giryM_join_def. Qed.
+
 
   Lemma giryM_join_def'_measurable : @measurable_fun _ _ (giryM (giryM T)) (giryM T) setT giryM_join_def'.
   Proof.
-
-  Admitted.
+    apply measurable_if_measurable_evals.
+    rewrite /giryM_join_def'/measurable_evaluations.
+    intros S HS.
+    have H1 : (fun x : giryM (giryM T) => giryM_join_def x S) = (fun x : giryM (giryM T) => giryM_join_meas_map_pre HS x).
+    { apply functional_extensionality.
+      intros ?.
+      by rewrite giryM_join_meas_map_pre_spec.
+    }
+    rewrite H1.
+    rewrite /giryM_join_meas_map_pre.
+    apply measurable_mapP.
+  Qed.
 
   HB.instance Definition _ :=
-    isMeasurableMap.Build _ _ (giryM (giryM T)) (giryM T) giryM_join_def' giryM_join_def'_measurable.
+    isMeasurableMap.Build _ _ (giryM (giryM T)) (giryM T) (giryM_join_def' : giryM (giryM T) -> (giryM T)) giryM_join_def'_measurable.
 
 End giryM_join_definition.
 
