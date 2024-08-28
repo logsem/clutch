@@ -59,6 +59,18 @@ Section measurability_lemmas.
   Context {d1} {T1 : measurableType d1}.
   Context {d2} {T2 : measurableType d2}.
 
+  Local Open Scope classical_set_scope.
+
+  (* Weak extensionality: The functions are equal pointwise *)
+  Lemma measurable_map_ext (m1 m2 : measurable_map T1 T2) (H : forall t : T1, m1 t = m2 t) : m1 = m2.
+  Proof.
+    apply functional_extensionality in  H.
+    move: m1 m2 H => [x [[Hmfx]]] [y [[Hmfy]]] /= Hxy.
+    (* Something like this will work *)
+    (* rewrite Hxy in Hmfx. *)
+
+  Admitted.
+
   (* Lemma measurability_image : forall S1 : set T1, forall S2 : set T2,
     d1.-measurable S1 -> d2.-measurable S2 ->  *)
 
