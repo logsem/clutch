@@ -102,6 +102,13 @@ Section wp_update.
     iMod ("Hvs" with "[$]") as "[HP HR]".
     by iMod ("Hclose" with "[$]").
   Qed.
+
+  Lemma wp_update_unfold E (P:iProp Σ):
+     wp_update E P ⊣⊢
+     (∀ e Φ, ⌜TCEq (to_val e) None⌝ -∗ (P -∗ WP e @ E {{ Φ }}) -∗ WP e @ E {{ Φ }}).
+  Proof.
+    by rewrite wp_update_unseal.
+  Qed. 
     
   Global Instance from_modal_wp_update_wp_update P E :
     FromModal True modality_id (wp_update E P) (wp_update E P) P.
