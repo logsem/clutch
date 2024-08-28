@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const map.
+From clutch.prob.monad Require Export types eval ret integrate const map zero.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -123,6 +123,17 @@ Section seal_example.
     intro S.
     rewrite giryM_map_eval.
     (* FIXME: eliminate reverse coercion!! *)
+    Set Printing All.
+    Unset Printing All.
+  Abort.
+
+  Lemma X : (giryM_zero : giryM T) = giryM_zero.
+  Proof.
+    rewrite /giryM_zero.
+    (* unfold map.giryM_zero_def. This should be sealed! *)
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_zero_eval.
     Set Printing All.
     Unset Printing All.
   Abort.

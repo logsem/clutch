@@ -22,60 +22,6 @@ Set Default Proof Using "Type".
 (*
 
 
-
-  Section giry_map_laws.
-    (* TODO: Port laws from prob here *)
-    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-
-    Lemma giryM_map_zero (f : measurable_map T1 T2) : giryM_map f mzero = mzero.
-    Proof.
-      rewrite giryM_map_aux/mzero/pushforward.
-      (* functional_extensionality doesn't work... weird *)
-    Admitted.
-
-    Lemma giryM_map_cst (μ : giryM T1) (k : T2) : giryM_map (cst k) μ = giryM_ret k .
-    Proof.
-      rewrite giryM_map_aux.
-      rewrite /pushforward.
-      rewrite giryM_ret_aux.
-
-      (* Defining a specific version of cst that is a measurable function (Mcst, like Mcmp) might fix this *)
-
-      (* Weird that I can't apply functional extensionality *)
-      have H : (fun A : set T2 => μ (cst k @^-1` A)) = (fun A : set T2 => ((\1_A k)%:E)).
-      { apply functional_extensionality.
-        intro A.
-        rewrite preimage_cst.
-        rewrite /indic.
-        destruct (k \in A).
-        - simpl.
-          admit.
-        - simpl.
-          admit.
-      }
-      rewrite H.
-      clear H.
-      rewrite /dirac.
-      Fail reflexivity.
-      (* ???? *)
-      (* This whole proof is haunted *)
-    Admitted.
-
-    Lemma giryM_map_integrate (g : measurable_map T2 (\bar R)) (h : measurable_map T1 T2) (μ : giryM T1):
-      (\int[giryM_map h μ]_x g x  = \int[μ]_x g (h x))%E.
-    Proof.
-      rewrite giryM_map_aux.
-      rewrite integral_pushforward.
-      (* Can this be weakened to include negative g? *)
-      - simpl.
-        reflexivity.
-      - admit.
-      - admit.
-    Admitted.
-  End giry_map_laws.
-
-
-
   (** ********** 8. Monad join *)
 
 
@@ -479,3 +425,61 @@ Set Default Proof Using "Type".
 
 End giry.
 *)
+
+
+
+  (* Laws
+
+
+  Section giry_map_laws.
+    (* TODO: Port laws from prob here *)
+    Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+    Lemma giryM_map_zero (f : measurable_map T1 T2) : giryM_map f mzero = mzero.
+    Proof.
+      rewrite giryM_map_aux/mzero/pushforward.
+      (* functional_extensionality doesn't work... weird *)
+    Admitted.
+
+    Lemma giryM_map_cst (μ : giryM T1) (k : T2) : giryM_map (cst k) μ = giryM_ret k .
+    Proof.
+      rewrite giryM_map_aux.
+      rewrite /pushforward.
+      rewrite giryM_ret_aux.
+
+      (* Defining a specific version of cst that is a measurable function (Mcst, like Mcmp) might fix this *)
+
+      (* Weird that I can't apply functional extensionality *)
+      have H : (fun A : set T2 => μ (cst k @^-1` A)) = (fun A : set T2 => ((\1_A k)%:E)).
+      { apply functional_extensionality.
+        intro A.
+        rewrite preimage_cst.
+        rewrite /indic.
+        destruct (k \in A).
+        - simpl.
+          admit.
+        - simpl.
+          admit.
+      }
+      rewrite H.
+      clear H.
+      rewrite /dirac.
+      Fail reflexivity.
+      (* ???? *)
+      (* This whole proof is haunted *)
+    Admitted.
+
+    Lemma giryM_map_integrate (g : measurable_map T2 (\bar R)) (h : measurable_map T1 T2) (μ : giryM T1):
+      (\int[giryM_map h μ]_x g x  = \int[μ]_x g (h x))%E.
+    Proof.
+      rewrite giryM_map_aux.
+      rewrite integral_pushforward.
+      (* Can this be weakened to include negative g? *)
+      - simpl.
+        reflexivity.
+      - admit.
+      - admit.
+    Admitted.
+  End giry_map_laws.
+
+   *)
