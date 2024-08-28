@@ -142,9 +142,10 @@ Section giry.
     Context `{R : realType} `{d : measure_display} {T : measurableType d}.
     Notation giryM := (giryM (R := R)).
 
-    Lemma giryM_ext (μ1 μ2 : giryM T) :
-      (μ1 = μ2 :> (set T -> \bar R)) -> μ1 = μ2.
+    Lemma giryM_ext (μ1 μ2 : giryM T) (H : forall S : set T, μ1 S = μ2 S) : μ1 = μ2.
     Proof.
+      apply functional_extensionality in H.
+      move: H.
       move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
       rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
       f_equal.

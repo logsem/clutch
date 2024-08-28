@@ -268,6 +268,6 @@ Definition giryM_integrate {R : realType} {d} {T : measurableType d} {f : measur
   := (giryM_integrate_def Hf).
 
 (** Public equality for integrate *)
-Lemma giryM_integrate_aux {R : realType} {d} {T : measurableType d} {f : measurable_map T (@borelER R)}  (Hf : forall x : T, (0%R <= f x)%E) :
+Lemma giryM_integrate_eval {R : realType} {d} {T : measurableType d} {f : measurable_map T (@borelER R)}  (Hf : forall x : T, (0%R <= f x)%E) :
   forall μ, (giryM_integrate Hf μ = \int[μ]_x (f x))%E.
 Proof. done. Qed.

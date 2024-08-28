@@ -76,17 +76,16 @@ Section seal_example.
     Fail unfold giryM_eval_def.
     apply measurable_map_ext.
     intro μ.
-    rewrite giryM_eval_aux.
+    rewrite giryM_eval_eval.
   Abort.
-
 
   Lemma X (v : T) : giryM_ret R v = giryM_ret R v.
   Proof.
     rewrite /giryM_ret.
     Fail unfold giryM_ret_def.
-    (* TODO: giryM_ret_aux could be expresed as an evaluation lemma.
-       I think this might help remove some invisible coercions, if those continue to be an issue. *)
-    rewrite giryM_ret_aux.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_ret_eval.
   Abort.
 
   Lemma X (f : measurable_map T (@borelER R)) (Hf : forall x : T, (0%R <= f x)%E) :
@@ -96,7 +95,7 @@ Section seal_example.
     Fail unfold giryM_integrate_def.
     apply measurable_map_ext.
     intro μ.
-    rewrite giryM_integrate_aux.
+    rewrite giryM_integrate_eval.
   Abort.
 
   Lemma X (v : T2) : (m_cst v : measurable_map T T2) = m_cst v.
@@ -105,7 +104,7 @@ Section seal_example.
     Fail unfold m_cst_def.
     apply measurable_map_ext.
     intro x.
-    rewrite m_cst_aux.
+    rewrite m_cst_eval.
   Abort.
 
 

@@ -58,5 +58,5 @@ End giry_ret.
 Definition giryM_ret (R : realType) {d} {T : measurableType d} : measurable_map T (@giryM R _ T) := giryM_ret_def.
 
 (** Public equality for ret *)
-Lemma giryM_ret_aux (R : realType) {d} {T : measurableType d} (t : T) : giryM_ret R t = dirac t.
+Lemma giryM_ret_eval (R : realType) {d} {T : measurableType d} (t : T) : forall z, giryM_ret R t z = dirac t z.
 Proof. auto. Qed.

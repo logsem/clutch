@@ -54,7 +54,7 @@ Definition giryM_eval (R : realType) {d} {T : measurableType d} {S : set T} (HS 
   (@giryM_eval_def R _ T S HS).
 
 (** Public equality for eval *)
-Lemma giryM_eval_aux (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
+Lemma giryM_eval_eval (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
   forall μ, giryM_eval R HS μ = μ S.
 Proof. done. Qed.
 
