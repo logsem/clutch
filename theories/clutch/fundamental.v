@@ -315,6 +315,17 @@ Section fundamental.
     value_case.
   Qed.
 
+  Lemma bin_log_related_subsume_int_nat  Δ Γ e e' :
+  (〈Δ; Γ〉 ⊨ e ≤log≤ e' : TNat) -∗
+  (〈Δ; Γ〉 ⊨ e ≤log≤ e' : TInt).
+  Proof.
+    iIntros "IH".
+    intro_clause.
+    rel_bind_ap e e' "IH" v v' "#IH".
+    iDestruct "IH" as (N) "(->&->)".
+    value_case.
+  Qed.
+
   Lemma bin_log_related_unboxed_eq Δ Γ e1 e2 e1' e2' τ :
     UnboxedType τ →
     (〈Δ;Γ〉 ⊨ e1 ≤log≤ e1' : τ) -∗
@@ -532,6 +543,7 @@ Section fundamental.
       + iApply bin_log_related_alloctape. by iApply fundamental.
       + iApply bin_log_related_rand_tape; by iApply fundamental.
       + iApply bin_log_related_rand_unit; by iApply fundamental.
+      + iApply bin_log_related_subsume_int_nat ; by iApply fundamental.
     - intros Hv. destruct Hv; simpl.
       + iSplit; eauto.
       + iExists _; iSplit; eauto.

@@ -57,25 +57,30 @@ Global Instance SubstLemmas_typer : SubstLemmas type. derive. Qed.
 
 Definition binop_int_res_type (op : bin_op) : option type :=
   match op with
-  | MultOp => Some TInt | PlusOp => Some TInt | MinusOp => Some TInt
-  | RemOp => Some TInt | QuotOp => Some TInt
-  | EqOp => Some TBool | LeOp => Some TBool | LtOp => Some TBool
-  | _ => None
+  | PlusOp | MinusOp | MultOp | QuotOp | RemOp => Some TInt
+  | AndOp | OrOp | XorOp => None
+  | ShiftLOp | ShiftROp => Some TInt
+  | LeOp | LtOp | EqOp => Some TBool
+  | OffsetOp => Some TInt
   end.
 Definition binop_bool_res_type (op : bin_op) : option type :=
   match op with
-  | XorOp => Some TBool | EqOp => Some TBool
-  | _ => None
+  | PlusOp | MinusOp | MultOp | QuotOp | RemOp => None
+  | AndOp | OrOp | XorOp => Some TBool
+  | ShiftLOp | ShiftROp => None
+  | LeOp | LtOp => None
+  | EqOp => Some TBool
+  | OffsetOp => None
   end.
 Definition unop_int_res_type (op : un_op) : option type :=
   match op with
+  | NegOp => None
   | MinusUnOp => Some TInt
-  | _ => None
   end.
 Definition unop_bool_res_type (op : un_op) : option type :=
   match op with
   | NegOp => Some TBool
-  | _ => None
+  | MinusUnOp => None
   end.
 
 Declare Scope FType_scope.
@@ -130,7 +135,7 @@ Notation "'unpack:' x := e1 'in' e2" := (unpack e1%E (LamV x%binder e2%E))
 Global Instance insert_binder (A : Type): Insert binder A (stringmap A) :=
   binder_insert.
 
-(** Typing itclutch *)
+(** Typing Clutch *)
 Inductive typed : stringmap type → expr → type → Prop :=
   | Var_typed Γ x τ :
      Γ !! x = Some τ →
@@ -146,6 +151,13 @@ Inductive typed : stringmap type → expr → type → Prop :=
      Γ ⊢ₜ e1 : TBool → Γ ⊢ₜ e2 : TBool →
      binop_bool_res_type op = Some τ →
      Γ ⊢ₜ BinOp op e1 e2 : τ
+(* NB: The below typing rule for Offsets is not safe: even when the premises
+hold, the location computed by offsetting e1 with e2 may not hold a value of
+type τ, and evaluation will get stuck. A separate type of arrays together with
+typing for AllocN could work. *)
+  (* | Offset_typed Γ e1 e2 τ :
+       Γ ⊢ₜ e1 : ref τ → Γ ⊢ₜ e2 : TInt →
+       Γ ⊢ₜ BinOp OffsetOp e1 e2 : ref τ *)
   | UnOp_typed_int Γ op e τ :
      Γ ⊢ₜ e : TInt →
      unop_int_res_type op = Some τ →
@@ -215,6 +227,7 @@ Inductive typed : stringmap type → expr → type → Prop :=
   | TAllocTape e Γ : Γ ⊢ₜ e : TNat →  Γ ⊢ₜ AllocTape e : TTape
   | TRand  Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TTape → Γ ⊢ₜ Rand e1 e2 : TNat
   | TRandU Γ e1 e2 : Γ ⊢ₜ e1 : TNat → Γ ⊢ₜ e2 : TUnit → Γ ⊢ₜ Rand e1 e2 : TNat
+  | Subsume_int_nat Γ e : Γ ⊢ₜ e : TNat → Γ ⊢ₜ e : TInt
 with val_typed : val → type → Prop :=
   | Unit_val_typed : ⊢ᵥ LitV LitUnit : TUnit                                       
   | Int_val_typed (n : Z) : ⊢ᵥ LitV (LitInt n) : TInt
