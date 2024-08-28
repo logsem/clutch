@@ -23,63 +23,6 @@ Set Default Proof Using "Type".
 
 
 
-
-  (** ********** 7. Monad map  *)
-
-  Section giryM_map_definition.
-    Context {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2}.
-
-    Lemma pushforward_setT (f : measurable_map T1 T2) (m : giryM T1) : (pushforward m (@measurable_mapP _ _ _ _ f) setT <= 1)%E.
-    Proof using Type. rewrite /pushforward preimage_setT. apply sprobability_setT. Qed.
-
-    HB.instance Definition _ (f : measurable_map T1 T2) (m : giryM T1) := Measure_isSubProbability.Build _ _ _ (pushforward m (@measurable_mapP _ _ _ _ f)) (pushforward_setT f m).
-
-    Definition giryM_map_def (f : measurable_map T1 T2) (m : giryM T1) : giryM T2 := pushforward m (@measurable_mapP _ _ _ _ f).
-
-    Lemma giryM_map_def_is_measurable (f : measurable_map T1 T2) : @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map_def f).
-    Proof.
-      apply measurable_if_measurable_evals.
-      rewrite /measurable_evaluations.
-      (* Check pushforward. *)
-
-      intros S HS.
-      apply measurable_if_pushfowrard_subset.
-      intros Y HY.
-      simpl.
-
-      (*
-
-      have HM := @measurable_mapP _ _ _ _ f.
-      apply measurable_if_pushfowrard_subset.
-      rewrite /giryM_map_def.
-      intros S SM.
-      simpl.
-      rewrite /pushforward.
-      simpl.*)
-
-
-      (* rewrite /giryM_map_def/measurable_fun.
-      intros ? Y YMeas.
-      rewrite setTI.
-      rewrite /pushforward.
-      rewrite /preimage.*)
-    Admitted.
-
-    HB.instance Definition _ (f : measurable_map T1 T2) :=
-      isMeasurableMap.Build _ _ (giryM T1) (giryM T2) (giryM_map_def f) (giryM_map_def_is_measurable f).
-
-  End giryM_map_definition.
-
-
-  (* FIXME: Seal above definitions *)
-  Definition giryM_map {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
-      measurable_map (giryM T1) (giryM T2)
-    := giryM_map_def f.
-  Lemma giryM_map_aux {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
-    forall μ, giryM_map f μ = pushforward μ  (@measurable_mapP _ _ _ _ f).
-  Proof. done. Qed.
-
-
   Section giry_map_laws.
     (* TODO: Port laws from prob here *)
     Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.

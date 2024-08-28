@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const.
+From clutch.prob.monad Require Export types eval ret integrate const map.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -73,39 +73,58 @@ Section seal_example.
   Lemma X (S : set T) (HS : measurable S) : giryM_eval R HS = giryM_eval R HS.
   Proof.
     rewrite /giryM_eval.
-    Fail unfold giryM_eval_def.
+    (* unfold eval.giryM_eval_def. This should be sealed! *)
     apply measurable_map_ext.
     intro μ.
     rewrite giryM_eval_eval.
+    Set Printing All.
+    Unset Printing All.
   Abort.
 
   Lemma X (v : T) : giryM_ret R v = giryM_ret R v.
   Proof.
     rewrite /giryM_ret.
-    Fail unfold giryM_ret_def.
+    (* unfold ret.giryM_ret_def. This should be sealed! *)
     apply giryM_ext.
     intro S.
     rewrite giryM_ret_eval.
+    Set Printing All.
+    Unset Printing All.
   Abort.
 
   Lemma X (f : measurable_map T (@borelER R)) (Hf : forall x : T, (0%R <= f x)%E) :
     giryM_integrate Hf = giryM_integrate Hf.
   Proof.
     rewrite /giryM_integrate.
-    Fail unfold giryM_integrate_def.
+    (* unfold integrate.giryM_integrate_def. This should be sealed! *)
     apply measurable_map_ext.
     intro μ.
     rewrite giryM_integrate_eval.
+    Set Printing All.
+    Unset Printing All.
   Abort.
 
   Lemma X (v : T2) : (m_cst v : measurable_map T T2) = m_cst v.
   Proof.
     rewrite /m_cst.
-    Fail unfold m_cst_def.
+    (* unfold const.m_cst_def. This should be sealed! *)
     apply measurable_map_ext.
     intro x.
     rewrite m_cst_eval.
+    Set Printing All.
+    Unset Printing All.
   Abort.
 
+  Lemma X (f : measurable_map T T2) (m1 : giryM T) : giryM_map f m1 = giryM_map f m1.
+  Proof.
+    rewrite /giryM_map.
+    (* unfold map.giryM_map_def. This should be sealed! *)
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_map_eval.
+    (* FIXME: eliminate reverse coercion!! *)
+    Set Printing All.
+    Unset Printing All.
+  Abort.
 
 End seal_example.
