@@ -110,6 +110,14 @@ Section tape_interface.
     iIntros.
     iExists xs; auto.
   Qed.
+
+  Lemma tapeN_lookup α N ns m: 
+    α ↪N (N; ns) -∗ tapes_auth 1 m -∗ ⌜∃ ns', m!!α = Some (N; ns') /\ fin_to_nat <$> ns' = ns⌝.
+  Proof.
+    iIntros "(%&%&Hα) Hb".
+    iDestruct (ghost_map_lookup with "[$][$]") as "%".
+    iPureIntro. naive_solver.
+  Qed.
   
   (*
   Lemma spec_tapeN_to_empty l M :

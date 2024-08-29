@@ -210,52 +210,32 @@ Section impl1.
         wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[n]) @ γ2).
   Proof.
     iIntros (-> Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-    iApply (wp_update_one_inv _ _ _ (P∗α◯↪N(Z.to_nat z;ns)@γ2)%I); [done|done| |iFrame].
-    iIntros "(>(%ε & %m & %l & %n & H1 & H2 & H3 & H4 & -> & H5 & H6) & HP & Hfrag)".
+    rewrite wp_update_unfold.
+    iIntros (?? Hv) "Hcnt".
+    rewrite {2}pgl_wp_unfold /pgl_wp_pre /= Hv.
+    iIntros (σ ε) "((Hheap&Htapes)&Hε)".
+    iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|].
     iDestruct (hocap_tapes_agree with "[$][$]") as "%".
-    iDestruct (ec_valid with "[$]") as "%".
     erewrite <-(insert_delete m) at 1; last done.
     rewrite big_sepM_insert; last apply lookup_delete.
     simpl.
     iDestruct "H3" as "[Htape H3]".
-    iDestruct (wp_update_presample_exp' E _ _ _ _ (ε2 ε) with "[$]") as "Hupdate"; [intros; naive_solver|naive_solver|].
-    (** Here we need to do an update on H4 and Hfrag, but we dont know what to update to???*)
-    (** maybe wp_update is the wrong abstraction. 
-        We also need to destruct Hupdate to reestablish the invariant*)
-    
-    
+    iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%)".
+    iDestruct (ec_supply_bound with "[$][$]") as "%".
+    iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    iApply glm_state_adv_comp'.
+    { rewrite /=/get_active. 
+      by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
+    unshelve iExists
+    (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns' ++ [n]) : tape]> σ)),
+      (fun ρ => (ε_rem +
+                match finite.find (fun s => state_upd_tapes <[α:=(_; ns' ++ [s]) : tape]> σ = ρ) with
+                | Some s => mknonnegreal (ε2 (nonneg ε1') (fin_to_nat s)) _
+                | None => nnreal_zero
+                end))%NNR.
+    { apply Hpos. apply cond_nonneg. }
   Abort.
-
-  Lemma counter_presample (N : nat)  z E ns α
-     (ε2 : R -> nat -> R)
-    (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
-    TCEq N (Z.to_nat z) →
-    ↑counter_nroot ⊆ E ->
-    (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
-    (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 ε n else 0%R)%R <= ε)%R->
-    inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) -∗
-    (□∀ (ε:R) n, (P ∗ ●↯ ε @ γ1) ={E∖↑counter_nroot}=∗
-        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n)))) 
-        -∗
-    P -∗ α ◯↪N (N; ns) @ γ2 -∗
-        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[n]) @ γ2).
-  Proof. 
-    iIntros (-> Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-    rewrite wp_update_unfold.
-    iIntros (???) "Hwp".
-    iApply fupd_pgl_wp.
-    iInv "Hinv" as ">(%ε & %m & %l & %v & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
-    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
-    iDestruct (ec_valid with "[$]") as "%".
-    erewrite <-(insert_delete m) at 1; last done.
-    rewrite big_sepM_insert; last apply lookup_delete.
-    simpl.
-    iDestruct "H3" as "[Htape H3]".
-    iDestruct (wp_update_presample_exp' E _ _ _ _ (ε2 ε) with "[$]") as "Hupdate"; [intros; naive_solver|naive_solver|].
-    rewrite wp_update_unfold.
-    iApply "Hupdate"; first done.
-  Abort.
-    
   
-    
+  
 End impl1.
