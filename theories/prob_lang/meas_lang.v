@@ -3,7 +3,7 @@ From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
-From clutch.prob Require Export giry.
+From clutch.prob.monad Require Export laws.
 From clutch.prob_lang Require Import lang.
 
 (*
