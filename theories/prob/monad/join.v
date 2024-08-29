@@ -56,18 +56,11 @@ Section giryM_join_definition.
 
     Definition giryM_join_semi_additive : semi_sigma_additive (giryM_join_def m).
     Proof.
-      (* Search semi_sigma_additive.
-      Search sigma_additive.
-      Search additive. *)
       rewrite /semi_sigma_additive.
       intros F Fmeas Htriv_int HFunion_meas.
       rewrite /giryM_join_def.
-      (* Search integral bigcup. (* Seems like the limit we want *) *)
-
       (* Check (integral_bigcup Htriv_int Fmeas).
-      (* Search topology.cvg_to topology.lim.
-      Search (topology.cvg_to _ (topology.nbhs _)) topology.lim. *) *)
-
+      Check (@integral_bigcup _ _ R m _ _ _ _). *)
     Admitted.
 
     HB.instance Definition _

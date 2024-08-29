@@ -34,22 +34,23 @@ Section giryM_map_definition.
       giryM_map_def f m S = pushforward m (@measurable_mapP _ _ _ _ f) S.
   Proof. by rewrite /pushforward/giryM_map_def. Qed.
 
-  Local Definition giryM_map_def_0 (f : measurable_map T1 T2) (m : giryM T1) : giryM_map_def f m set0 = 0%E.
+  Local Lemma giryM_map_def_0 (f : measurable_map T1 T2) (m : giryM T1) : giryM_map_def f m set0 = 0%E.
   Proof.
     rewrite giryM_map_def_pushforward_equiv.
-    (* Take from pushforward measure proof *)
-  Admitted.
+    apply (measure0 (pushforward m (@measurable_mapP _ _ _ _ f))).
+  Qed.
 
-  Local Definition giryM_map_def_ge0 (f : measurable_map T1 T2) (m : giryM T1) A : (0 <= giryM_map_def f m A)%E.
+  Local Lemma giryM_map_def_ge0 (f : measurable_map T1 T2) (m : giryM T1) A : (0 <= giryM_map_def f m A)%E.
   Proof.
     rewrite giryM_map_def_pushforward_equiv.
-    (* Take from pushforward measure proof *)
-  Admitted.
+    apply (measure_ge0 (pushforward m (@measurable_mapP _ _ _ _ f))).
+  Qed.
 
-  Local Definition giryM_map_def_semi_additive (f : measurable_map T1 T2) (m : giryM T1) : semi_sigma_additive (giryM_map_def f m).
+  Local Lemma giryM_map_def_semi_additive (f : measurable_map T1 T2) (m : giryM T1) : semi_sigma_additive (giryM_map_def f m).
   Proof.
-    (* Take from pushforward measure proof *)
-  Admitted.
+    rewrite (functional_extensionality _ _ (giryM_map_def_pushforward_equiv f m)).
+    apply (@measure_semi_sigma_additive _ _ _ (pushforward m (@measurable_mapP _ _ _ _ f))).
+  Qed.
 
   Local Lemma giryM_map_def_setT  (f : measurable_map T1 T2) (m : giryM T1) :
     (giryM_map_def f m setT <= 1)%E.
@@ -114,14 +115,28 @@ Section giryM_map_definition.
   Local Lemma giryM_map_def'_is_measurable (f : measurable_map T1 T2) :
     @measurable_fun _ _ (giryM T1) (giryM T2) setT (giryM_map_def' f).
   Proof.
+    apply measurable_if_measurable_evals.
+    rewrite /measurable_evaluations.
+    intros S HS.
     rewrite /giryM_map_def'.
-    (* FIXME There's still this reverse coercion lurking around this proof
-       but I think that it's necessary, and at least now it doesn't leak through
-       the spec. *)
-    Set Printing All.
-    unfold reverse_coercion.
-    Unset Printing All.
+    erewrite functional_extensionality.
+    2: {
+      intro m.
+      rewrite /= giryM_map_def_pushforward_equiv.
+      reflexivity.
+    }
+    simpl.
+    apply measurable_if_pushfowrard_subset.
 
+    (*
+    Check (@measurability _ _ _ _ setT _ ereal_borel_subbase _).
+    Search subset smallest.
+    rewrite /subset.
+    intros Rs HRs.
+    simpl.
+    rewrite /pushforward.
+    rewrite /preimage.
+     *)
   Admitted.
 
   HB.instance Definition _ (f : measurable_map T1 T2)  :=
@@ -143,6 +158,6 @@ Proof.
   intros μ S.
   rewrite /giryM_map/giryM_map_def'.
   rewrite -giryM_map_def_pushforward_equiv.
-  simpl. (* Reverse coercion no issue here *)
+  simpl.
   done.
 Qed.
