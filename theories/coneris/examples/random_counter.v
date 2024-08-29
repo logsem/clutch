@@ -224,18 +224,39 @@ Section impl1.
     iDestruct (ec_supply_bound with "[$][$]") as "%".
     iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iApply glm_state_adv_comp'.
-    { rewrite /=/get_active. 
-      by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
-    unshelve iExists
-    (fun σ' : state => exists n : fin _, σ' = (state_upd_tapes <[α:=(_; ns' ++ [n]) : tape]> σ)),
-      (fun ρ => (ε_rem +
-                match finite.find (fun s => state_upd_tapes <[α:=(_; ns' ++ [s]) : tape]> σ = ρ) with
-                | Some s => mknonnegreal (ε2 (nonneg ε1') (fin_to_nat s)) _
-                | None => nnreal_zero
-                end))%NNR.
+    iApply glm_state_adv_comp_con_prob_lang; first done.
+    unshelve iExists (λ x, mknonnegreal (ε2 ε1' x) _).
     { apply Hpos. apply cond_nonneg. }
-  Abort.
+    iSplit.
+    { iPureIntro. 
+      unshelve epose proof (Hineq ε1' _) as H1; first apply cond_nonneg.
+      by rewrite SeriesC_nat_bounded_fin in H1. }
+    iIntros (sample).
+    
+    destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' sample))%R 1%R) as [Hdec|Hdec]; last first.
+    { apply Rnot_lt_ge, Rge_le in Hdec.
+      iLeft.
+      iPureIntro.
+      simpl. simpl in *. lra.
+    }
+    iRight.
+    unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' sample) _) with "Hε_supply") as "[Hε_supply Hε]".
+    { apply Hpos. apply cond_nonneg. }
+    { simpl. done. }
+    iMod (tapeN_update_append _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
+    iMod (hocap_tapes_presample _ _ _ _ _ (fin_to_nat sample) with "[$][$]") as "[H4 Hfrag]".
+    iMod "Hclose'" as "_".
+    iMod ("Hvs" with "[$]") as "[%|[H2 HT]]".
+    { iExFalso. iApply (ec_contradict with "[$]"). exact. }
+    iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4 $H5 $H6]") as "_".
+    { iNext. iSplit; last done.
+      rewrite big_sepM_insert_delete; iFrame.
+    }
+    iSpecialize ("Hcnt" with "[$]").
+    setoid_rewrite pgl_wp_unfold.
+    rewrite /pgl_wp_pre /= Hv.
+    iApply ("Hcnt" $! (state_upd_tapes <[α:= (Z.to_nat z; ns' ++[sample]):tape]> σ) with "[$]").
+  Qed. 
   
   
 End impl1.
