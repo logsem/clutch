@@ -62,11 +62,11 @@ Proof. done. Qed.
 (** Eval is nonnegative *)
 Lemma giryM_eval_nonneg (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
   forall x : giryM T, (0%R <= giryM_eval R HS x)%E.
-Proof. Admitted.
-
-
-
-
+Proof.
+  intro μ.
+  rewrite /giryM_eval_eval.
+  apply (measure_ge0 μ S).
+Qed.
 
 
 Section giryM_eval_char.

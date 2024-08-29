@@ -25,13 +25,11 @@ Section MeasurableMap_compose.
     @measurable_fun _ _ T1 T3 setT (m_cmp_def f g).
   Proof.
     apply (@measurable_comp _ _ _ _ _ _ setT).
-    - (* Search measurable setT. *)
-      (* Annoying *)
-      admit.
+    - apply (@measurableT _ T2).
     - apply subsetT.
     - apply measurable_mapP.
     - apply measurable_mapP.
-  Admitted.
+  Qed.
 
   HB.instance Definition _ (f : measurable_map T2 T3) (g : measurable_map T1 T2) :=
     isMeasurableMap.Build _ _ T1 T3 (m_cmp_def f g) (m_cmp_def_measurable f g).

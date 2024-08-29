@@ -16,7 +16,40 @@ Unset Printing Implicit Defensive.
 
 Set Default Proof Using "Type".
 
+(**
+    The Giry Probability Monad
 
+    Types:
+      measurable_map T1 T2 (written T1 -mm-> T2 )
+        - coerces to regular functions T1 -> T2
+
+      giryM T
+        - measurable type of probability subdistributions over T
+
+      borelER
+        - Borel type on the extended real numbers
+
+
+    Definitions:
+
+      m_cmp (f : B -mm-> C) (g : A -mm-> B)           : A -mm-> C
+      m_cst (k : B)                                   : A -mm-> B
+
+      giryM_zero                                      : giryM A
+      giryM_eval (S : measurable set A)               : giryM A -mm-> borelER
+      giryM_integrate (f : nonnegative A -> borelER)  : giryM A -mm-> borelER
+      giryM_map (f : A -mm-> B)                       : giryM A -mm-> giryM B
+
+      giryM_ret                                       : A -mm-> giryM A
+      giryM_bind (f : A -mm-> giryM B)                : giryM A -mm-> giryM B
+      giryM_join                                      : giryM (giryM A) -mm-> giryM A
+
+    Each function giryM_X has an evaluation function giryM_X_eval (the definition itself
+    should not be unfolded)
+
+    Laws:
+
+ *)
 
 
 

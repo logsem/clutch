@@ -80,21 +80,50 @@ Section giryM_join_definition.
     Lemma giryM_join_setT : (giryM_join_def m setT <= 1)%E.
     Proof.
       rewrite /giryM_join_def.
-      have H : (\int[m]_μ μ [set: T] <= \int[m]_μ 1)%E.
-      { (* Search integral (_ <= _)%E. *)
-        apply ge0_le_integral.
+      have H : (\int[m]_μ μ [set: T] <= \int[m]_μ (cst 1 μ))%E.
+      { apply ge0_le_integral.
         - by [].
         - intros ? ?; by [].
-        - simpl.
-          admit.
+        - (*
+          have Hmeas_equiv : forall S, (measurable (S : set (extended R))) = (measurable (S : set (borelER))).
+          { intro S.
+            rewrite /measurable/=.
+            rewrite /measurable/=.
+            (* Ocitv is the set (x, y], ereal_borel_subbase is the set of neighbourhoods of points *)
+            (* I read 'measurable totally wrong, this lemma is provable but I should just use
+               the mathcomp analysis def'ns of the Borel space on extended R and delete borelER. *)
+            admit.
+          }
+          *)
+          apply (@measurability _ _ _ _ _ (_ ^~ [set: T]) ereal_borel_subbase).
+          { (* 'measurable is the same as ereal Borel space *) admit. }
+          rewrite /measurable/=.
+          rewrite {5}/giry_subbase/=.
+          apply  (@subset_trans _ (giry_subbase (T:=T))); last by apply sub_gen_smallest.
+          rewrite /subset/=.
+          intros X.
+          rewrite /preimage_class/=.
+          intros [Y HY <-].
+          rewrite {1}/giry_subbase/=.
+          eexists _, _.
+          rewrite /preimage_class_of_measures/preimage_class/=.
+          exists Y.
+          { apply sub_gen_smallest.
+            rewrite /ereal_borel_subbase/= in HY.
+            done. }
+          done.
+          Unshelve.
+          4: eapply @measurableT.
         - intros ? ?; by [].
-        - admit.
+        - by apply measurable_cst.
         - intros ? ?.
-          (* Because of subprobability *)
-          admit.  }
-
-    (* Now I just need that the measure of m is at most 1,
-       Also true because of subprobability. *)
+          simpl.
+          by apply sprobability_setT.
+      }
+      rewrite integral_cst/= in H; last by apply (@measurableT _ (giryM T)).
+      apply (Order.le_trans H).
+      rewrite mul1e.
+      apply sprobability_setT.
     Admitted.
 
     HB.instance Definition _ :=  Measure_isSubProbability.Build _ _ _ (giryM_join_def m) giryM_join_setT.
