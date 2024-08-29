@@ -262,12 +262,12 @@ End giryM_integrate_laws.
 
 
 (** Public definition for integrate (integral over nonnegative measurable functions into borelER)*)
-Definition giryM_integrate {R : realType} {d} {T : measurableType d} {f : measurable_map T (@borelER R)}
+Definition giryM_integrate {R : realType} {d} {T : measurableType d} (f : measurable_map T (@borelER R))
     (Hf : forall x : T, (0%R <= f x)%E) :
     measurable_map (@giryM R _ T) (@borelER R)
   := (giryM_integrate_def Hf).
 
 (** Public equality for integrate *)
-Lemma giryM_integrate_eval {R : realType} {d} {T : measurableType d} {f : measurable_map T (@borelER R)}  (Hf : forall x : T, (0%R <= f x)%E) :
+Lemma giryM_integrate_eval {R : realType} {d} {T : measurableType d} (f : measurable_map T (@borelER R)) (Hf : forall x : T, (0%R <= f x)%E) :
   forall μ, (giryM_integrate Hf μ = \int[μ]_x (f x))%E.
 Proof. done. Qed.
