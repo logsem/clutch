@@ -54,8 +54,8 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     counter_error_auth (L:=L) γ x1 -∗ counter_error_frag (L:=L) γ x2 ==∗
     counter_error_auth (L:=L) γ x3 ∗ counter_error_frag (L:=L) γ x3;
 
-  (* counter_tapes_auth_exclusive {L : counterG Σ} γ m m': *)
-  (* counter_tapes_auth (L:=L) γ m -∗ counter_tapes_auth (L:=L) γ m' -∗ False; *)
+  counter_tapes_auth_exclusive {L : counterG Σ} γ m m':
+  counter_tapes_auth (L:=L) γ m -∗ counter_tapes_auth (L:=L) γ m' -∗ False;
   counter_tapes_frag_exclusive {L : counterG Σ} γ α N N' ns ns':
   counter_tapes_frag (L:=L) γ α N ns -∗ counter_tapes_frag (L:=L) γ α N' ns' -∗ False;
   counter_tapes_agree {L : counterG Σ} γ α m N ns:
@@ -478,6 +478,12 @@ Qed.
 Next Obligation.
   simpl. iIntros (???????) "??".
   iApply (hocap_error_update with "[$][$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????) "H1 H2".
+  iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "[%H _]".
+  by apply Qp.not_add_le_r in H.
 Qed.
 Next Obligation.
   simpl. 
