@@ -998,6 +998,18 @@ End finite.
         * do 3 f_equal. apply fin_to_nat_inj. simpl. by rewrite !fin_to_nat_to_fin.
   Qed.
 
+  Lemma SeriesC_nat_bounded_fin f N:
+    SeriesC (λ n : nat, if bool_decide (n ≤ N) then f n else 0) =
+    SeriesC (λ n:(fin (S N)), f (fin_to_nat n)).
+  Proof.
+    rewrite SeriesC_fin_sum.
+    rewrite SeriesC_nat_bounded.
+    apply sum_n_ext_loc.
+    intros n ?.
+    rewrite /extend_fin_to_R.
+    case_match; first lia.
+    by rewrite fin_to_nat_to_fin.
+  Qed.
 
 (** Results about positive (non-negative) series *)
 Section positive.
