@@ -458,7 +458,7 @@ Section glm.
       by eapply state_step_sch_erasable.
     - iPureIntro. simpl in *. lra. 
   Qed.
-  
+
 
   Lemma glm_strong_ind (Ψ : expr con_prob_lang → state con_prob_lang → nonnegreal → iProp Σ) Z :
     (∀ n e σ ε, Proper (dist n) (Ψ e σ ε)) →
