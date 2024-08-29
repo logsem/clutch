@@ -4,7 +4,7 @@ From clutch.coneris Require Import coneris hocap.
 
 Set Default Proof Using "Type*".
 
-(* Class lock := Lock *)
+(* Class lock `{!conerisGS Σ} := Lock *)
 (* { *)
 (*   (** * Operations *) *)
 (*   new_counter : val; *)
@@ -15,29 +15,75 @@ Set Default Proof Using "Type*".
 (*   (** The assumptions about [Σ] *) *)
 (*   counterG : gFunctors → Type; *)
 (*   (** [name] is used to associate [locked] with [is_lock] *) *)
-(*   ε_name : Type; *)
+(*   error_name : Type; *)
 (*   tape_name: Type; *)
-(*   counter_name: Type;                 *)
+(*   counter_name: Type; *)
 (*   (** * Predicates *) *)
-(*   is_counter `{!conerisGS Σ} {L : counterG Σ} (counter: val) *)
-(*     (γ1: ε_name) (γ1: ε_name): iProp Σ; *)
-(*   locked `{!conerisGS Σ} {L : lockG Σ} (γ: lock_name) : iProp Σ; *)
+(*   is_counter {L : counterG Σ} (N:namespace) (counter: val) *)
+(*     (γ1: error_name) (γ2: tape_name) (γ3: counter_name): iProp Σ; *)
+(*   counter_error_auth {L : counterG Σ} (γ: error_name) (x:R): iProp Σ; *)
+(*   counter_error_frag {L : counterG Σ} (γ: error_name) (x:R): iProp Σ; *)
+(*   counter_tapes_auth {L : counterG Σ} (γ: tape_name) (m:gmap loc (nat*list nat)): iProp Σ; *)
+(*   counter_tapes_frag {L : counterG Σ} (γ: tape_name) (α:loc) (N:nat) (ns:list nat): iProp Σ; *)
+(*   counter_content_auth {L : counterG Σ} (γ: counter_name) (z:Z): iProp Σ; *)
+(*   counter_content_frag {L : counterG Σ} (γ: counter_name) (f:frac) (z:Z): iProp Σ; *)
 (*   (** * General properties of the predicates *) *)
-(*   #[global] is_lock_persistent `{!conerisGS Σ} {L : lockG Σ} γ lk R :: *)
-(*     Persistent (is_lock (L:=L) γ lk R); *)
-(*   is_lock_iff `{!conerisGS Σ} {L : lockG Σ} γ lk R1 R2 : *)
-(*     is_lock (L:=L) γ lk R1 -∗ ▷ □ (R1 ∗-∗ R2) -∗ is_lock (L:=L) γ lk R2; *)
-(*   #[global] locked_timeless `{!conerisGS Σ} {L : lockG Σ} γ :: *)
-(*     Timeless (locked (L:=L) γ); *)
-(*   locked_exclusive `{!conerisGS Σ} {L : lockG Σ} γ : *)
-(*     locked (L:=L) γ -∗ locked (L:=L) γ -∗ False; *)
+(*   #[global] is_counter_persistent {L : counterG Σ} N c γ1 γ2 γ3 :: *)
+(*     Persistent (is_counter (L:=L) N c γ1 γ2 γ3); *)
+(*   #[global] counter_error_auth_timeless {L : counterG Σ} γ x :: *)
+(*     Timeless (counter_error_auth (L:=L) γ x); *)
+(*   #[global] counter_error_frag_timeless {L : counterG Σ} γ x :: *)
+(*     Timeless (counter_error_frag (L:=L) γ x); *)
+(*   #[global] counter_tapes_auth_timeless {L : counterG Σ} γ m :: *)
+(*     Timeless (counter_tapes_auth (L:=L) γ m); *)
+(*   #[global] counter_tapes_frag_timeless {L : counterG Σ} γ α N ns :: *)
+(*     Timeless (counter_tapes_frag (L:=L) γ α N ns); *)
+(*   #[global] counter_content_auth_timeless {L : counterG Σ} γ z :: *)
+(*     Timeless (counter_content_auth (L:=L) γ z); *)
+(*   #[global] counter_content_frag_timeless {L : counterG Σ} γ f z :: *)
+(*     Timeless (counter_content_frag (L:=L) γ f z); *)
+
+(*   counter_error_auth_exclusive {L : counterG Σ} γ x1 x2: *)
+(*     counter_error_auth (L:=L) γ x1 -∗ counter_error_auth (L:=L) γ x2 -∗ False;  *)
+(*   counter_error_frag_exclusive {L : counterG Σ} γ x1 x2: *)
+(*   counter_error_frag (L:=L) γ x1 -∗ counter_error_frag (L:=L) γ x2 -∗ False; *)
+(*   counter_error_agree {L : counterG Σ} γ x1 x2: *)
+(*     counter_error_auth (L:=L) γ x1 -∗ counter_error_frag (L:=L) γ x2 -∗ ⌜x1 = x2 ⌝;  *)
+(*   counter_error_update {L : counterG Σ} γ x1 x2 x3: *)
+(*     counter_error_auth (L:=L) γ x1 -∗ counter_error_frag (L:=L) γ x2 ==∗ *)
+(*     counter_error_auth (L:=L) γ x3 ∗ counter_error_frag (L:=L) γ x3; *)
+
+(*   counter_tapes_auth_exclusive {L : counterG Σ} γ m1 m2: *)
+(*     counter_tapes_auth (L:=L) γ m1 -∗ counter_tapes_auth (L:=L) γ m2 -∗ False;  *)
+(*   counter_tapes_frag_exclusive {L : counterG Σ} γ α N N' ns ns': *)
+(*   counter_tapes_frag (L:=L) γ α N ns -∗ counter_tapes_frag (L:=L) γ α N' ns' -∗ False; *)
+(*   counter_tapes_agree {L : counterG Σ} γ α m N ns: *)
+(*     counter_tapes_auth (L:=L) γ m -∗ counter_tapes_frag (L:=L) γ α N ns -∗ ⌜ m!! α = Some (N, ns) ⌝;  *)
+(*   counter_tapes_update {L : counterG Σ} γ α m N ns n: *)
+(*     counter_tapes_auth (L:=L) γ m -∗ counter_tapes_frag (L:=L) γ α N ns ==∗ *)
+(*     counter_tapes_auth (L:=L) γ (<[α := (N, ns ++[n])]> m) ∗ counter_tapes_frag (L:=L) γ α N (ns ++ [n]); *)
+
+(*   counter_content_auth_exclusive {L : counterG Σ} γ z1 z2: *)
+(*     counter_content_auth (L:=L) γ z1 -∗ counter_content_auth (L:=L) γ z2 -∗ False;  *)
+(*   counter_content_less_than {L : counterG Σ} γ z z' f: *)
+(*     counter_content_auth (L:=L) γ z -∗ counter_content_frag (L:=L) γ f z' -∗ ⌜(z'<=z)%Z ⌝;  *)
+(*   counter_content_agree {L : counterG Σ} γ z z': *)
+(*     counter_content_auth (L:=L) γ z -∗ counter_content_frag (L:=L) γ 1%Qp z' -∗ ⌜(z'<=z)%Z ⌝; *)
+(*   counter_content_update {L : counterG Σ} γ f z1 z2 z3: *)
+(*     counter_content_auth (L:=L) γ z1 -∗ counter_content_frag (L:=L) γ f z2 ==∗ *)
+(*     counter_content_auth (L:=L) γ (z1+z3)%Z ∗ counter_content_frag (L:=L) γ f (z2+z3)%Z; *)
+  
 (*   (** * Program specs *) *)
-(*   newlock_spec `{!conerisGS Σ} {L : lockG Σ} (R : iProp Σ) : *)
-(*     {{{ R }}} newlock #() {{{ lk γ, RET lk; is_lock (L:=L) γ lk R }}}; *)
-(*   acquire_spec `{!conerisGS Σ} {L : lockG Σ} γ lk R : *)
-(*     {{{ is_lock (L:=L) γ lk R }}} acquire lk {{{ RET #(); locked (L:=L) γ ∗ R }}}; *)
-(*   release_spec `{!conerisGS Σ} {L : lockG Σ} γ lk R : *)
-(*     {{{ is_lock (L:=L) γ lk R ∗ locked (L:=L) γ ∗ R }}} release lk {{{ RET #(); True }}} *)
+(*   new_counter_spec {L : counterG Σ} N ε: *)
+(*   {{{ ↯ ε }}} new_counter #() *)
+(*     {{{ c, RET c; ∃ γ1 γ2 γ3, is_counter (L:=L) N c γ1 γ2 γ3 ∗ *)
+(*                               counter_error_frag (L:=L) γ1 ε ∗ *)
+(*                               counter_content_frag (L:=L) γ3 1%Qp 0%Z *)
+(*     }}}; *)
+(*   (* acquire_spec `{!conerisGS Σ} {L : lockG Σ} γ lk R : *) *)
+(*   (*   {{{ is_lock (L:=L) γ lk R }}} acquire lk {{{ RET #(); locked (L:=L) γ ∗ R }}}; *) *)
+(*   (* release_spec `{!conerisGS Σ} {L : lockG Σ} γ lk R : *) *)
+(*   (*   {{{ is_lock (L:=L) γ lk R ∗ locked (L:=L) γ ∗ R }}} release lk {{{ RET #(); True }}} *) *)
 (* }. *)
 
 
@@ -57,13 +103,11 @@ Section impl1.
         ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z)
     )%I.
 
-  Definition counter_nroot := nroot.@"counter".
-
-  Lemma new_counter_spec E ε:
+  Lemma new_counter_spec E ε N:
     {{{ ↯ ε }}}
       new_counter #() @ E
       {{{ (c:val), RET c;
-          ∃ γ1 γ2 γ3, inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
+          ∃ γ1 γ2 γ3, inv N (counter_inv_pred c γ1 γ2 γ3) ∗
                       ◯↯ε @ γ1 ∗ own γ3 (◯F 0%Z)
       }}}.
   Proof.
@@ -78,19 +122,19 @@ Section impl1.
     iMod (hocap_tapes_alloc (∅:gmap _ _)) as "[%γ2 [H3 H4]]".
     iMod (own_alloc (●F 0%Z ⋅ ◯F 0%Z)) as "[%γ3[H5 H6]]".
     { by apply frac_auth_valid. }
-    iMod (inv_alloc counter_nroot _ (counter_inv_pred (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
+    iMod (inv_alloc N _ (counter_inv_pred (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
     { iSplit; last done. by iApply big_sepM_empty. }
     iApply "HΦ".
     iExists _, _, _. by iFrame.
   Qed. 
 
-  Lemma incr_counter_spec E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: Z->nat->iProp Σ):
-    ↑counter_nroot ⊆ E->
+  Lemma incr_counter_spec E N c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: Z->nat->iProp Σ):
+    ↑N ⊆ E->
     (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
     (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
-    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
-        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑counter_nroot}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
-        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
+    {{{ inv N (counter_inv_pred c γ1 γ2 γ3) ∗
+        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
+        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={E∖↑N}=∗
                           own γ3 (●F(z+n)%Z)∗ Q z n) ∗
         P
     }}}
@@ -101,7 +145,7 @@ Section impl1.
     rewrite /incr_counter.
     wp_pures.
     wp_bind (rand _)%E.
-    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     iDestruct (ec_valid with "[$]") as "[%K1 %K2]".
     wp_apply (wp_couple_rand_adv_comp1' _ _ _ _ (λ x, ε2 ε (fin_to_nat x)) with "[$]").
     { intros. naive_solver. }
@@ -113,7 +157,7 @@ Section impl1.
     iModIntro. wp_pures.
     clear -Hsubset.
     wp_bind (FAA _ _).
-    iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     wp_faa.
     iMod ("Hvs2" with "[$]") as "[H6 HQ]".
     iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
@@ -122,9 +166,9 @@ Section impl1.
     by iApply "HΦ".
   Qed.
 
-  Lemma allocate_tape_spec E c γ1 γ2 γ3:
-    ↑counter_nroot ⊆ E->
-    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) }}}
+  Lemma allocate_tape_spec N E c γ1 γ2 γ3:
+    ↑N ⊆ E->
+    {{{ inv N (counter_inv_pred c γ1 γ2 γ3) }}}
       allocate_tape #() @ E
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (3%nat; []) @ γ2
@@ -134,7 +178,7 @@ Section impl1.
     rewrite /allocate_tape.
     wp_pures.
     wp_alloctape α as "Hα".
-    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     iDestruct (hocap_tapes_notin with "[$][$]") as "%".
     iMod (hocap_tapes_new with "[$]") as "[H4 H7]"; first done.
     iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_".
@@ -145,10 +189,10 @@ Section impl1.
     by iFrame.
   Qed.
 
-  Lemma incr_counter_tape_spec_some E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:Z->iProp Σ) (α:loc) (n:nat) ns:
-    ↑counter_nroot⊆E -> 
-    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
-        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
+  Lemma incr_counter_tape_spec_some N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:Z->iProp Σ) (α:loc) (n:nat) ns:
+    ↑N⊆E -> 
+    {{{ inv N (counter_inv_pred c γ1 γ2 γ3) ∗
+        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                           own γ3 (●F(z+n)%Z)∗ Q z) ∗
         P ∗ α ◯↪N (3%nat; n::ns) @ γ2
     }}}
@@ -159,7 +203,7 @@ Section impl1.
     rewrite /incr_counter_tape.
     wp_pures.
     wp_bind (rand(_) _)%E.
-    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     iDestruct (hocap_tapes_agree with "[$][$]") as "%".
     erewrite <-(insert_delete m) at 1; last done.
     rewrite big_sepM_insert; last apply lookup_delete.
@@ -179,7 +223,7 @@ Section impl1.
     wp_pures.
     clear -Hsubset.
     wp_bind (FAA _ _).
-    iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     wp_faa.
     iMod ("Hvs" with "[$]") as "[H6 HQ]".
     iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
@@ -188,13 +232,13 @@ Section impl1.
     by iFrame.
   Qed. 
     
-  Lemma incr_counter_tape_spec_none E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: Z -> nat -> iProp Σ)(α:loc) (ns:list nat):
-    ↑counter_nroot ⊆ E->
+  Lemma incr_counter_tape_spec_none N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: Z -> nat -> iProp Σ)(α:loc) (ns:list nat):
+    ↑N ⊆ E->
     (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
     (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
-    {{{ inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
-        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑counter_nroot}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
-        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
+    {{{ inv N (counter_inv_pred c γ1 γ2 γ3) ∗
+        □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗
+        □ (∀ (n:nat) (z:Z), T n ∗ own γ3 (●F z) ={E∖↑N}=∗
                           own γ3 (●F(z+n)%Z)∗ Q z n) ∗
         P ∗ α ◯↪N (3%nat; []) @ γ2
     }}}
@@ -205,7 +249,7 @@ Section impl1.
     rewrite /incr_counter_tape.
     wp_pures.
     wp_bind (rand(_) _)%E.
-    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     iDestruct (hocap_tapes_agree with "[$][$]") as "%".
     rewrite big_sepM_lookup_acc; last done.
     iDestruct (ec_valid with "[$]") as "[%K1 %K2]".
@@ -223,7 +267,7 @@ Section impl1.
     iModIntro. wp_pures.
     clear -Hsubset.
     wp_bind (FAA _ _).
-    iInv counter_nroot as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     wp_faa.
     iMod ("Hvs2" with "[$]") as "[H6 HQ]".
     iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done.
@@ -233,15 +277,15 @@ Section impl1.
   Qed.
 
   
-  Lemma counter_presample (N : nat)  z E ns α
+  Lemma counter_presample NS (N : nat)  z E ns α
      (ε2 : R -> nat -> R)
     (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
     TCEq N (Z.to_nat z) →
-    ↑counter_nroot ⊆ E ->
+    ↑NS ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 ε n else 0%R)%R <= ε)%R->
-    inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) -∗
-    (□∀ (ε:R) n, (P ∗ ●↯ ε @ γ1) ={E∖↑counter_nroot}=∗
+    inv NS (counter_inv_pred c γ1 γ2 γ3) -∗
+    (□∀ (ε:R) n, (P ∗ ●↯ ε @ γ1) ={E∖↑NS}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n)))) 
         -∗
     P -∗ α ◯↪N (N; ns) @ γ2 -∗
@@ -296,10 +340,10 @@ Section impl1.
     iApply ("Hcnt" $! (state_upd_tapes <[α:= (Z.to_nat z; ns' ++[sample]):tape]> σ) with "[$]").
   Qed. 
 
-  Lemma read_counter_spec E c γ1 γ2 γ3 P Q:
-    ↑counter_nroot ⊆ E ->
-    {{{  inv counter_nroot (counter_inv_pred c γ1 γ2 γ3) ∗
-        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={E∖↑counter_nroot}=∗
+  Lemma read_counter_spec N E c γ1 γ2 γ3 P Q:
+    ↑N ⊆ E ->
+    {{{  inv N (counter_inv_pred c γ1 γ2 γ3) ∗
+        □ (∀ (z:Z), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                     own γ3 (●F z)∗ Q z)
          ∗ P
     }}}
@@ -310,7 +354,7 @@ Section impl1.
     iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP) HΦ".
     rewrite /read_counter.
     wp_pure.
-    iInv counter_nroot as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     wp_load.
     iMod ("Hvs" with "[$]") as "[H6 HQ]".
     iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]"); first done.
