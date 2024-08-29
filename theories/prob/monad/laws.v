@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind.
+From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind identity.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -48,8 +48,19 @@ Set Default Proof Using "Type".
     should not be unfolded)
 
     Laws:
-      giryM_join (giryM_zero) = giryM_zero
-
+      giryM_join (giryM_zero)                 = giryM_zero
+      giryM_integrate f (giryM_join m)        = giryM_integrate (giryM_integrate f) m
+      giryM_join (giryM_map (giryM_map f) m)  = giryM_map f (giryM_join m)
+      giryM_join (giryM_map giryM_join m)     = giryM_join (giryM_join m)
+      giryM_join (giryM_map giryM_ret t)      = t
+      giryM_join (giryM_ret t)                = t
+      giryM_bind f giryM_zero                 = giryM_zero
+      giryM_bind (m_cst giryM_zero) t         = giryM_zero
+      giryM_bind f (giryM_ret t)              = f t
+      giryM_bind giryM_ret m                  = m
+      giryM_bind g (giryM_bind f m)           = giryM_bind (m_cmp (giryM_bind g) f) m
+      giryM_map f giryM_zero                  = giryM_zero
+      giryM_map (m_cst k) t                   = giryM_ret R k
 
  *)
 
@@ -311,9 +322,9 @@ Section monad_laws.
     rewrite /giryM_bind.
   Admitted.
 
-  (* TODO Make identity a measurable_map *)
-  (* Lemma giryM_join_bind (m : giryM (giryM T1)) :
-    giryM_join m = giryM_bind (fun x => x) m. *)
+  Lemma giryM_join_bind {d} {T : measurableType d} (m : giryM (giryM T)) :
+    giryM_join m = giryM_bind m_id m.
+  Admitted.
 
   Lemma giryM_map_zero {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
       giryM_map f giryM_zero = (giryM_zero : giryM T2).
@@ -354,6 +365,7 @@ Section monad_laws.
     (* This whole proof is haunted *)
   Admitted.
 
+  (* FIXME: Use Integrate instead *)
   Lemma giryM_map_integrate  {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
       (g : measurable_map T2 (\bar R)) (h : measurable_map T1 T2) (μ : giryM T1):
     (\int[giryM_map h μ]_x g x  = \int[μ]_x g (h x))%E.

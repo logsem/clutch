@@ -6,7 +6,7 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
-From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind laws.
+From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind laws identity.
 
 Import Coq.Logic.FunctionalExtensionality.
 
@@ -162,5 +162,17 @@ Section seal_example.
     Set Printing All.
     Unset Printing All.
   Abort.
+
+  Lemma X : (m_id : measurable_map T T) = m_id .
+  Proof.
+    rewrite /m_id.
+    (* unfold .m_id. This should be sealed! *)
+    apply measurable_map_ext.
+    intro S.
+    rewrite m_id_eval.
+    Set Printing All.
+    Unset Printing All.
+  Abort.
+
 
 End seal_example.
