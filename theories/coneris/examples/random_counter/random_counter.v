@@ -98,7 +98,7 @@ Class random_counter `{!conerisGS Σ} := RandCounter
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ counter_tapes_frag (L:=L) γ2 α 3%nat []
       }}};
-  incr_counter_tape_spec_some {L: counterG Σ} N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
+  incr_counter_tape_spec_some {L: counterG Σ} N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E -> 
     {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗
         □ (∀ (z:nat), P ∗ counter_content_auth (L:=L) γ3 z ={E∖↑N}=∗
@@ -122,7 +122,7 @@ Class random_counter `{!conerisGS Σ} := RandCounter
                                  {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ counter_tapes_frag (L:=L) γ2 α 3%nat [] }}};
   counter_presample_spec {L: counterG Σ} NS E ns α
      (ε2 : R -> nat -> R)
-    (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
+    (P : iProp Σ) T γ1 γ2 γ3 c:
     ↑NS ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤3%nat)) then 1 / (S 3%nat) * ε2 ε n else 0%R)%R <= ε)%R->
