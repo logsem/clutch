@@ -184,3 +184,10 @@ Section bi_least_fixpoint.
   Qed.
 
 End bi_least_fixpoint.
+
+Section timeless.
+  
+  Global Instance if_timeless {PROP:bi} (b:bool) f g: Timeless (PROP :=PROP) f -> Timeless g -> Timeless (if b then f else g).
+  Proof. by destruct b. Qed.
+  
+End timeless.

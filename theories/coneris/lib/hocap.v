@@ -21,7 +21,7 @@ Notation "'◯↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ 
                              (at level 1).
 
 Definition hocap_tapes_nroot:=nroot.@"tapes".
-Class hocap_tapesGS (Σ : gFunctors) := Hocal_tapesGS {
+Class hocap_tapesGS (Σ : gFunctors) := Hocap_tapesGS {
   hocap_tapesGS_inG :: ghost_mapG Σ loc (nat*list nat)
                                          }.
 Definition hocap_tapesΣ := ghost_mapΣ loc (nat*list nat).
@@ -106,8 +106,8 @@ Section tapes_lemmas.
     iApply (ghost_map_update with "[$][$]"). 
   Qed.
 
-  Lemma hocap_tapes_notin α N ns m:
-    α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (t.1; t.2)) -∗ ⌜m!!α=None ⌝.
+  Lemma hocap_tapes_notin α N ns m (f:(nat*list nat)-> nat) g:
+    α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝.
   Proof.
     destruct (m!!α) eqn:Heqn; last by iIntros.
     iIntros "Hα Hmap".

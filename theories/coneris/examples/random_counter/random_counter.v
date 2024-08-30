@@ -120,19 +120,18 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     }}}
       incr_counter_tape c #lbl:α @ E
                                  {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ counter_tapes_frag (L:=L) γ2 α 3%nat [] }}};
-  counter_presample_spec {L: counterG Σ} NS (N : nat)  z E ns α
+  counter_presample_spec {L: counterG Σ} NS E ns α
      (ε2 : R -> nat -> R)
     (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
-    TCEq N (Z.to_nat z) →
     ↑NS ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
-    (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 ε n else 0%R)%R <= ε)%R->
+    (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤3%nat)) then 1 / (S 3%nat) * ε2 ε n else 0%R)%R <= ε)%R->
     is_counter (L:=L) NS c γ1 γ2 γ3 -∗
     (□∀ (ε:R) n, (P ∗ counter_error_auth (L:=L) γ1 ε) ={E∖↑NS}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨ (counter_error_auth (L:=L) γ1 (ε2 ε n)  ∗ T (n)))) 
         -∗
-    P -∗ counter_tapes_frag (L:=L) γ2 α N ns-∗
-        wp_update E (∃ n, T (n) ∗ counter_tapes_frag (L:=L) γ2 α N (ns++[n]));
+    P -∗ counter_tapes_frag (L:=L) γ2 α 3%nat ns-∗
+        wp_update E (∃ n, T (n) ∗ counter_tapes_frag (L:=L) γ2 α 3%nat (ns++[n]));
   read_counter_spec {L: counterG Σ} N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
     {{{  is_counter (L:=L) N c γ1 γ2 γ3  ∗
