@@ -61,7 +61,7 @@ Set Default Proof Using "Type".
       giryM_bind giryM_ret m                  = m
       giryM_bind g (giryM_bind f m)           = giryM_bind (m_cmp (giryM_bind g) f) m
       giryM_map f giryM_zero                  = giryM_zero
-      giryM_map (m_cst k) t                   = giryM_ret R k
+      giryM_map (m_cst k) t                   = giryM_ret R k     (only for proper distributions)
 
  *)
 
@@ -70,6 +70,11 @@ Section monad_laws.
   Notation giryM := (giryM (R := R)).
 
   Local Open Scope classical_set_scope.
+
+  (* Can I derive this from eval? Or should I just move the measurability of eval into this and then use it there too?*)
+  Lemma unknown {d1} {T1 : measurableType d1} (S : set T1 ) : measurable_fun [set: giryM T1] ((SubProbability.sort (R:=R))^~ S).
+  Proof.
+  Admitted.
 
   Lemma giryM_join_zero {d1} {T1 : measurableType d1} : giryM_join giryM_zero = (giryM_zero: giryM T1).
   Proof.
@@ -206,151 +211,257 @@ Section monad_laws.
       admit.
   Admitted.
 
+  Lemma giryM_map_zero {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
+      giryM_map f giryM_zero = (giryM_zero : giryM T2).
+  Proof.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_map_eval.
+    rewrite giryM_zero_eval.
+    by rewrite /=/mzero/pushforward.
+  Qed.
+
+
+  (* Note: this does not hold for subdistributions! *)
+  Lemma giryM_map_cst {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (μ : giryM T1) (Hμ : μ [set: T1] = 1%:E) (k : T2) :
+      giryM_map (m_cst k) μ = giryM_ret R k .
+  Proof.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_map_eval.
+    rewrite giryM_ret_eval.
+    rewrite /pushforward.
+    rewrite preimage_cst.
+    rewrite /dirac/indic/=.
+    destruct (k \in S); simpl.
+    - trivial.
+    - by rewrite measure0.
+  Qed.
+
+
+  Lemma giryM_map_integrate  {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+      (g : measurable_map T2 (\bar R)) (Hg : forall x : T2, (0%R <= g x)%E)
+      (h : measurable_map T1 T2) (Hgh : forall x : T1, (0%R <= (m_cmp g h) x)%E)
+      (μ : giryM T1):
+    (giryM_integrate Hg (giryM_map h μ) = giryM_integrate Hgh μ)%E.
+  Proof.
+    rewrite giryM_integrate_eval.
+    rewrite giryM_integrate_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply measurable_mapP.
+    - by apply Hg.
+    f_equal.
+  Qed.
+
+
   Lemma giryM_join_map_map {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
       (mf : measurable_map T1 T2) (m : giryM (giryM T1)) :
     giryM_join (giryM_map (giryM_map mf) m) = giryM_map mf (giryM_join m).
   Proof.
     apply giryM_ext.
     intro S.
-    (* rewrite giryM_join_aux.
-    rewrite giryM_map_aux.
-    rewrite giryM_map_aux. *)
-    (* rewrite giryM_join_integrate. *)
-  Admitted.
-
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    rewrite giryM_map_eval.
+    rewrite /pushforward.
+    rewrite giryM_join_eval.
+    f_equal.
+  Qed.
 
   Lemma giryM_join_map_join {d1} {T1 : measurableType d1} (m : giryM (giryM (giryM T1))) :
     giryM_join (giryM_map giryM_join m) = giryM_join (giryM_join m).
-  Proof. Admitted.
+  Proof.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
+    rewrite giryM_join_eval.
+    f_equal.
+    (* FIXME: This is an independently useful result, if true.
+       Is it true though? I'm not convinced yet. Did I steal this from somwehere?.
+       The lemma could still be true even if this step is false.
+     *)
+  Abort.
 
-  Lemma giryM_join_map_ret {d1} {T1 : measurableType d1} (μ : (giryM T1)) :
-    giryM_join (giryM_map (giryM_ret R) μ) = μ.
-  Proof. Admitted.
+  (* TODO: Can I prove this for all sets?*)
+  Lemma giryM_join_map_ret_meas {d1} {T1 : measurableType d1} (μ : (giryM T1))
+    (S : set T1) (HS : d1.-measurable S):
+    giryM_join (giryM_map (giryM_ret R) μ) S = μ S.
+  Proof.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    simpl.
+    rewrite /dirac/=.
+    rewrite integral_indic.
+    - by rewrite setIT.
+    - by apply @measurableT.
+    - done.
+  Qed.
 
   Lemma giryM_join_ret {d1} {T1 : measurableType d1} (μ : (giryM T1)) :
     giryM_join (giryM_ret R μ) = μ.
-  Proof. Admitted.
+  Proof.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
+    rewrite integral_dirac.
+    - by rewrite diracT mul1e.
+    - by apply @measurableT.
+    - apply (@measurable_comp _ _ _ _ _ _ setT).
+      - by apply @measurableT.
+      - by apply subsetT.
+      - by apply unknown.
+      - by apply measurable_id.
+  Qed.
 
 
   Lemma giryM_bind_0_l {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {f : measurable_map T1 (giryM T2)} :
     giryM_bind f giryM_zero = giryM_zero .
   Proof.
-    (* rewrite /giryM_bind.
-    rewrite /Mcmp/comp.
-    (* FIXME *)
-    Opaque giryM_join.
-    Opaque giryM_map.
-    simpl.
-    Transparent giryM_join.
-    Transparent giryM_map.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
     rewrite giryM_map_zero.
-    apply giryM_join_zero. *)
-  Admitted.
+    rewrite integral_measure_zero.
+    by rewrite giryM_zero_eval.
+  Qed.
+
 
   Lemma giryM_bind_0_r {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (μ : giryM T1) :
     giryM_bind (m_cst giryM_zero) μ = (giryM_zero : giryM T2).
   Proof.
-    (*
-    rewrite /giryM_bind.
-    rewrite /Mcmp/comp.
-    (* FIXME *)
-    Opaque giryM_join.
-    Opaque giryM_map.
-    simpl.
-    Transparent giryM_join.
-    Transparent giryM_map.
-    rewrite giryM_map_cst.
-    by rewrite giryM_join_ret. *)
-  Admitted.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    rewrite /=/mzero.
+    rewrite integral_cst.
+    - by rewrite mul0e.
+    - by apply @measurableT.
+  Qed.
 
-
-  (* I don't know if I want this in the interface yet-- probably express it similar to join_integrate
-     instead?
-
-     Lemma giryM_bind_eval (m : giryM T1) (s : set T2) (HS : measurable s) :
-     (giryM_bind f m s = \int[m]_x f x s)%E.
-     Proof. Admitted.
-
-
-    Lemma giryM_bind_integrate (m : giryM T1) (g : T2 -> \bar R) (mg : measurable_fun setT g) :
-      (\int[giryM_bind f m]_x g x = \int[m]_a (\int[f a]_x g x))%E.
-    Proof. Admitted.
-   *)
-
+  (* TODO: Can I fit this into the framework? *)
+  Lemma giryM_bind_eval {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
+    (m : giryM T1) {S : set T2} (f : measurable_map T1 (giryM T2)) :
+     (giryM_bind f m S = \int[m]_x (f x S))%E.
+  Proof.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward /=; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    done.
+  Qed.
 
   Lemma giryM_bind_ret_l {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {f : measurable_map T1 (giryM T2)} t :
     giryM_bind f (giryM_ret R t) = f t.
-  Proof. Admitted.
-
-  Lemma giryM_bind_ret_r {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {f : measurable_map T1 (giryM T2)} (m : giryM T1) :
-    giryM_bind (giryM_ret R) m = m.
-  Proof. Admitted.
-
-  Lemma giryM_bind_bind {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
-    {f : measurable_map T1 (giryM T2)} {g : measurable_map T2 (giryM T3)}
-    (m : giryM T1) :
-    giryM_bind g (giryM_bind f m) = giryM_bind (m_cmp (giryM_bind g) f) m.
   Proof.
-    rewrite /giryM_bind.
-  Admitted.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    rewrite integral_dirac.
+    - by rewrite diracT /= mul1e.
+    - by apply @measurableT.
+    apply (@measurable_comp _ _ _ _ _ _ setT).
+    - by apply @measurableT.
+    - by apply subsetT.
+    - by apply unknown.
+    - by apply measurable_mapP.
+  Qed.
+
+
+  (* TODO: Can I prove this for all sets? *)
+  Lemma giryM_bind_ret_r_meas {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {f : measurable_map T1 (giryM T2)}
+    (m : giryM T1) (S : set T1) (HS : d1.-measurable S):
+    giryM_bind (giryM_ret R) m S = m S.
+  Proof.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    rewrite /=.
+    rewrite /dirac integral_indic.
+    - by rewrite setIT.
+    - by apply @measurableT.
+    - done.
+  Qed.
+
+  Lemma giryM_bind_bind_meas {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
+    {f : measurable_map T1 (giryM T2)} {g : measurable_map T2 (giryM T3)}
+    (m : giryM T1) (S : set T3) (HS : d3.-measurable S):
+    giryM_bind g (giryM_bind f m) S = giryM_bind (m_cmp (giryM_bind g) f) m S.
+  Proof.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    have IHF : forall x : T2, (0%R <= m_cmp (giryM_eval R HS) g x)%E.
+    { intro x.
+      rewrite m_cmp_eval.
+      rewrite /comp.
+      rewrite giryM_eval_eval.
+      by apply (measure_ge0 (g x)).
+    }
+    have IHF' :  forall x : giryM T2, (0%R <= giryM_integrate IHF x)%E.
+    { intros ?.
+      rewrite giryM_integrate_eval.
+      apply integral_ge0.
+      intros y _.
+      rewrite m_cmp_eval.
+      rewrite /comp.
+      rewrite giryM_eval_eval.
+      by apply (measure_ge0 (g y)).
+    }
+    have I := @giryM_join_integrate _ T2 (m_cmp (giryM_eval _ HS) g) IHF IHF' (giryM_map f m).
+    rewrite giryM_integrate_eval in I.
+    rewrite I.
+    rewrite giryM_join_eval.
+    rewrite giryM_integrate_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply measurable_mapP.
+    - by apply IHF'.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    f_equal.
+    apply functional_extensionality.
+    intro t.
+    simpl.
+    rewrite giryM_integrate_eval.
+    rewrite giryM_join_eval.
+    rewrite integral_pushforward; cycle 1.
+    - by apply measurable_mapP.
+    - by apply unknown.
+    - by intro u; apply (measure_ge0 u).
+    f_equal.
+  Qed.
 
   Lemma giryM_join_bind {d} {T : measurableType d} (m : giryM (giryM T)) :
     giryM_join m = giryM_bind m_id m.
-  Admitted.
-
-  Lemma giryM_map_zero {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
-      giryM_map f giryM_zero = (giryM_zero : giryM T2).
   Proof.
-    (* rewrite giryM_map_aux/mzero/pushforward. *)
-    (* functional_extensionality doesn't work... weird *)
-  Admitted.
-
-
-  Lemma giryM_map_cst {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (μ : giryM T1) (k : T2) :
-      giryM_map (m_cst k) μ = giryM_ret R k .
-  Proof.
-    (*
-    rewrite giryM_map_aux.
-    rewrite /pushforward.
-    rewrite giryM_ret_aux.
-
-    (* Defining a specific version of cst that is a measurable function (Mcst, like Mcmp) might fix this *)
-
-    (* Weird that I can't apply functional extensionality *)
-    have H : (fun A : set T2 => μ (cst k @^-1` A)) = (fun A : set T2 => ((\1_A k)%:E)).
-    { apply functional_extensionality.
-      intro A.
-      rewrite preimage_cst.
-      rewrite /indic.
-      destruct (k \in A).
-      - simpl.
-        admit.
-      - simpl.
-        admit.
-    }
-    rewrite H.
-    clear H.
-    rewrite /dirac.
-    Fail reflexivity.
-     *)
-    (* ???? *)
-    (* This whole proof is haunted *)
-  Admitted.
-
-  (* FIXME: Use Integrate instead *)
-  Lemma giryM_map_integrate  {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-      (g : measurable_map T2 (\bar R)) (h : measurable_map T1 T2) (μ : giryM T1):
-    (\int[giryM_map h μ]_x g x  = \int[μ]_x g (h x))%E.
-  Proof.
-    (*
-    rewrite giryM_map_aux.
-    rewrite integral_pushforward.
-    (* Can this be weakened to include negative g? *)
-    - simpl.
-      reflexivity.
-    - admit.
-    - admit.
-      *)
-  Admitted.
+    apply giryM_ext.
+    intro S.
+    rewrite giryM_join_eval.
+    rewrite giryM_join_eval.
+    f_equal.
+  Qed.
 
 End monad_laws.
