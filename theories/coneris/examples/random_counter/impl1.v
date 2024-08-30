@@ -204,21 +204,20 @@ Section impl1.
   Qed.
 
   
-  Lemma counter_presample_spec1 NS (N : nat)  z E ns α
+  Lemma counter_presample_spec1 NS E ns α
      (ε2 : R -> nat -> R)
     (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
-    TCEq N (Z.to_nat z) →
     ↑NS ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
-    (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 ε n else 0%R)%R <= ε)%R->
+    (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤3%nat)) then 1 / (S 3%nat) * ε2 ε n else 0%R)%R <= ε)%R->
     inv NS (counter_inv_pred1 c γ1 γ2 γ3) -∗
     (□∀ (ε:R) n, (P ∗ ●↯ ε@ γ1) ={E∖↑NS}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n)))) 
         -∗
-    P -∗ α ◯↪N (N; ns) @ γ2 -∗
-        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[n]) @ γ2).
+    P -∗ α ◯↪N (3%nat; ns) @ γ2 -∗
+        wp_update E (∃ n, T (n) ∗ α◯↪N (3%nat; ns++[n]) @ γ2).
   Proof.
-    iIntros (-> Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
+    iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
     rewrite wp_update_unfold.
     iIntros (?? Hv) "Hcnt".
     rewrite {2}pgl_wp_unfold /pgl_wp_pre /= Hv.
@@ -264,7 +263,7 @@ Section impl1.
     iSpecialize ("Hcnt" with "[$]").
     setoid_rewrite pgl_wp_unfold.
     rewrite /pgl_wp_pre /= Hv.
-    iApply ("Hcnt" $! (state_upd_tapes <[α:= (Z.to_nat z; ns' ++[sample]):tape]> σ) with "[$]").
+    iApply ("Hcnt" $! (state_upd_tapes <[α:= (3%nat; ns' ++[sample]):tape]> σ) with "[$]").
   Qed. 
 
   Lemma read_counter_spec1 N E c γ1 γ2 γ3 P Q:
