@@ -32,6 +32,7 @@ Set Default Proof Using "Type".
 
     Definitions:
 
+      m_id                                            : A -mm-> A
       m_cmp (f : B -mm-> C) (g : A -mm-> B)           : A -mm-> C
       m_cst (k : B)                                   : A -mm-> B
 
@@ -88,150 +89,121 @@ Section monad_laws.
       (m : giryM (giryM T1)) :
     (@giryM_integrate _ _ _ f Hf) (giryM_join m) = (@giryM_integrate _ _ _ (@giryM_integrate _ _ _ f Hf)) Hf' m.
   Proof.
-    have HTmeas : d1.-measurable [set: T1] by [].
-
     (* Rewrite integral over (giryM_join M) to limit. *)
+    have HM : d1.-measurable [set: T1] by apply @measurableT.
     rewrite giryM_integrate_eval.
-    erewrite nd_ge0_integral_lim; last first.
-    - intro x.
-      apply cvg_nnsfun_approx.
-      - intros. apply Hf.
-      - done.
+    rewrite (nd_ge0_integral_lim (giryM_join m) _ _ (fun _ => @cvg_nnsfun_approx _ T1 R setT HM f _ _ _ _)); cycle 2.
+    - by apply Hf.
     - intros x n' m' Hle.
       (* Check (@nd_nnsfun_approx _ _ _ _ _ _ _ n' m' Hle). *)
       (* Need to turn the %R comparison into %O)*)
       admit.
-    - apply Hf.
-    Unshelve.
-    3: admit.
-    2: {
-      have H := @measurable_mapP _ _ _ _ f.
-      simpl.
-      (* So, I could prove this (since its setT), but I should figure out
-         why I'm getting such a deranged side condition first. *)
+    - by intros ???; apply Hf.
+    - by intros; simpl.
+    - have f' := (@measurable_mapP _ _ _ _ f).
+      (* Might be fixable by changing borelER to 'measurable*)
       admit.
-    }
-
-    (*
+    intro Hfmf.
 
     (* Rewrite integral over μ to limit, under the RHS integral. *)
+    rewrite giryM_integrate_eval.
+    under eq_integral=> ? _ do rewrite giryM_integrate_eval.
+    under eq_integral=> ? _ do erewrite (nd_ge0_integral_lim _ _ _ (fun x => (@cvg_nnsfun_approx _ _ _ setT _ _ Hfmf _ _ _))).
+    Unshelve.
+    all: cycle 1.
+    - by apply Hf.
+    - intros x n' m' Hle.
+      (* See above *)
+      admit.
+    - by intros ??; apply Hf.
+    - by simpl.
+    - by simpl.
+
+    (* Rewrite the sintegral of nnsfun_approx into a sum (on the left?)*)
+    rewrite topology.fmap_comp.
+
     have Setoid1 : forall g h, g = h -> (\int[m]_μ g μ)%E = (\int[m]_μ (h μ))%E.
     { intros. f_equal. apply functional_extensionality. intros. by rewrite H. }
+    have Setoid2 : forall S, forall g h, g = h  -> (topology.fmap g S) = (topology.fmap h S).
+    { by intros ? ? ? ? ? H; rewrite H. }
 
+    (* Change to use under? *)
+    erewrite Setoid2; last first.
+    - by apply (functional_extensionality _ _ (sintegralE _)).
+      (* FIXME: Possible issue down the road: sintegralE vs sintegralET *)
+
+    under eq_integral=> ? _ do rewrite topology.fmap_comp.
     erewrite Setoid1; last first.
-    { apply functional_extensionality.
-      move=> y.
-      erewrite nd_ge0_integral_lim.
-      - reflexivity.
-      - apply Hf.
-      - (* See above admit *)
-        admit.
-      - intro x.
-        apply (@cvg_nnsfun_approx _ _ _ setT HTmeas _ mf).
-        - intros. apply Hf.
-        - by simpl.
-    }
+    - apply functional_extensionality.
+      intro x.
+      rewrite (functional_extensionality _ _ (sintegralE _ )).
+      reflexivity.
 
-  (* Rewrite the sintegral of nnsfun_approx into a sum *)
-  rewrite topology.fmap_comp.
+    under eq_integral=> ? _ do rewrite /=-topology.fmap_comp.
+    rewrite (@monotone_convergence _ (giryM T1) R m setT _ _ _ _ _); first last.
+    - (* Sequence is monotone *)
+      (* Unset Printing Notations. *)
+      intros μ _.
+      (* Check nd_nnsfun_approx.
+      (* Search homomorphism_2 bigop.body. *) *)
 
-  have Setoid2 : forall S, forall g h, g = h  -> (topology.fmap g S) = (topology.fmap h S).
-  { intros ? ? ? ? ? H. by rewrite H. }
-  erewrite Setoid2; last first.
-  - apply functional_extensionality.
-    apply (sintegralE _).  (* FIXME: Possible issue down the road: sintegralE vs sintegralET *)
+      (* Might need to do this directly.. I can't find any relevant theorems for this type of sum *)
+      (* Surely this proof was done somewhere else so I'm confident it's possible. *)
+      intros x y Hle.
+      admit.
+    - (* Sequence is nonnegative *)
+      intros n μ _.
+      simpl.
+      (* Search 0%R (_ <= _)%E "sum". *)
+      (* None of the relevant theorems work, but something will. *)
+      admit.
+    - (* Sequence is pointwise measurable *)
+      intros n.
+      apply emeasurable_fun_fsum. (* Measurability of finite sums *)
+      { (* Sum is finite *)  admit. }
+      intro range_element.
+      (* Seems to be no lemmas that mul measurable is measurable in ENNR, only R *)
+      admit.
+    - (* ⊤ is measurable *)
+      admit.
 
-  under eq_integral=> ? _ do rewrite topology.fmap_comp.
-
-  (* Evaluate the giryM_join on the LHS into an integral *)
-  erewrite
-    (Setoid2 _ _ _ _
-       (fun f' => (bigop.body GRing.zero
-                  (finite_support GRing.zero (image setT (fun i : T => f' i))
-                     (fun x : R => _))
-                  _ ))); last first.
-  - (* What a nightmare, there has to be a better way to rewrite under the integral sign *)
-    (* Look for an example in mathcomp analysis source *)
-    apply functional_extensionality.
-    intro f'.
+    (* Pointwise equality between limits *)
     f_equal.
-    apply functional_extensionality.
-    intro x.
+    rewrite -topology.fmap_comp.
     f_equal.
-    rewrite /giryM_join.
-    rewrite /giryM_join_def'.
-    simpl.
-    rewrite /giryM_join_def.
-    done.
-  simpl.
-  rewrite -topology.fmap_comp.
-
-  under eq_integral=> ? _ do rewrite -topology.fmap_comp.
-
-  rewrite (@monotone_convergence _ (giryM T) R m setT _ _ _ _ _); first last.
-  - (* Sequence is monotone *)
-    (* Unset Printing Notations. *)
-    intros μ _.
-    (* Check nd_nnsfun_approx.
-    (* Search homomorphism_2 bigop.body. *) *)
-
-    (* Might need to do this directly.. I can't find any relevant theorems for this type of sum *)
-    (* Surely this proof was done somewhere else so I'm confident it's possible. *)
-    intros x y Hle.
-    admit.
-  - (* Sequence is nonnegative *)
-    intros n μ _.
-    simpl.
-    (* Search 0%R (_ <= _)%E "sum". *)
-    (* None of the relevant theorems work, but something will. *)
-    admit.
-  - (* Sequence is pointwise measurable *)
-    intros n.
-    apply emeasurable_fun_fsum. (* Measurability of finite sums *)
-    { (* Sum is finite *)  admit. }
-    intro range_element.
-    (* Seems to be no lemmas that mul measurable is measurable in ENNR, only R *)
-    admit.
-  - (* ⊤ is measurable *)
-    admit.
-
-
-  (* Pointwise equality between limits *)
-  f_equal.
-  f_equal.
-  rewrite /comp.
-  apply functional_extensionality.
-  intro n.
-
-  (* Exchange finite sum with integral on the RHS (LHS seems harder) *)
-  rewrite ge0_integral_fsum; first last.
-  - (* Range of approximation is finite *)
-    admit.
-  - (* Argument is nonnegative *)
-    intros n' μ _.
-    admit.
-  - (* Argument is pointwise measurable. *)
-    admit.
-  - (* ⊤ is measurable *)
-    admit.
-
-
-  f_equal.
-  - (* The index sets are the same *)
-    (* As predicted, it's way easier do prove this down here *)
-    f_equal.
+    rewrite /comp.
     apply functional_extensionality.
-    intro x.
-    rewrite /giryM_join_def.
-    (* Scalar multiplication *)
-    admit.
-  - (* The bodies are the same *)
-    apply functional_extensionality.
-    intro x.
+    intro n.
+
+    (* Exchange finite sum with integral on the RHS (LHS seems harder) *)
+    rewrite ge0_integral_fsum; first last.
+    - (* Range of approximation is finite *)
+      admit.
+    - (* Argument is nonnegative *)
+      intros n' μ _.
+      admit.
+    - (* Argument is pointwise measurable. *)
+      admit.
+    - (* ⊤ is measurable *)
+      apply @measurableT.
+
     f_equal.
-    (* Scalar multiplication *)
-    admit.
-     *)
+    - (* The index sets are the same *)
+      (* As predicted, it's way easier do prove this down here *)
+      f_equal.
+      apply functional_extensionality.
+      intro x.
+
+      (* rewrite (giryM_join_eval m). *)
+      admit.
+      (* rewrite /giryM_join. *)
+      (* Scalar multiplication *)
+    - (* The bodies are the same *)
+      apply functional_extensionality.
+      intro x.
+      f_equal.
+      (* Scalar multiplication *)
+      admit.
   Admitted.
 
   Lemma giryM_join_map_map {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
