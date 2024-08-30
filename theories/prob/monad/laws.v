@@ -352,4 +352,5 @@ Section monad_laws.
     - admit.
       *)
   Admitted.
+
 End monad_laws.
