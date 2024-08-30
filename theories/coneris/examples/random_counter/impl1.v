@@ -338,14 +338,13 @@ Qed.
 Next Obligation.
   simpl.
   iIntros (??????) "H1 H2".
-  iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "[%H _]".
-  by apply Qp.not_add_le_r in H.
+  by iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "[%H _]".
 Qed.
 Next Obligation.
   simpl. 
   iIntros (?????????) "H1 H2".
   iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
-  rewrite dfrac_op_own dfrac_valid_own. apply Qp.not_add_le_r.
+  rewrite dfrac_op_own dfrac_valid_own. by intro.
 Qed.
 Next Obligation.
   simpl.
