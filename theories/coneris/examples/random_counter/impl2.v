@@ -36,12 +36,12 @@ Section tapes_lemmas.
   (*   by iCombine "H1 H2" gives "%". *)
   (* Qed. *)
 
-  (* Lemma hocap_tapes_new γ m k N ns : *)
-  (*   m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
-  (* Proof. *)
-  (*   iIntros (Hlookup) "H". *)
-  (*   by iApply ghost_map_insert. *)
-  (* Qed. *)
+  Lemma hocap_tapes_new' γ m k N ns b:
+    m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(b, (N,ns))]>m) @ γ) ∗ (k ◯↪N (b, N; ns) @ γ).
+  Proof.
+    iIntros (Hlookup) "H".
+    by iApply ghost_map_insert.
+  Qed.
 
   (* Lemma hocap_tapes_presample γ m k N ns n: *)
   (*   (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++[n])]>m) @ γ) ∗ (k ◯↪N (N; ns++[n]) @ γ). *)
@@ -57,15 +57,15 @@ Section tapes_lemmas.
   (*   iApply (ghost_map_update with "[$][$]").  *)
   (* Qed. *)
 
-  (* Lemma hocap_tapes_notin α N ns m (f:(nat*list nat)-> nat) g: *)
-  (*   α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝. *)
-  (* Proof. *)
-  (*   destruct (m!!α) eqn:Heqn; last by iIntros. *)
-  (*   iIntros "Hα Hmap". *)
-  (*   iDestruct (big_sepM_lookup with "[$]") as "?"; first done. *)
-  (*   iExFalso. *)
-  (*   iApply (tapeN_tapeN_contradict with "[$][$]"). *)
-  (* Qed.  *)
+  Lemma hocap_tapes_notin' α N ns m (f:(bool*(nat*list nat))-> nat) g:
+    α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝.
+  Proof.
+    destruct (m!!α) eqn:Heqn; last by iIntros.
+    iIntros "Hα Hmap".
+    iDestruct (big_sepM_lookup with "[$]") as "?"; first done.
+    iExFalso.
+    iApply (tapeN_tapeN_contradict with "[$][$]").
+  Qed.
 
 End tapes_lemmas.
 
@@ -96,8 +96,7 @@ Section impl2.
   Definition counter_inv_pred2 (c:val) γ1 γ2 γ3:=
     (∃ (ε:R) (m:gmap loc (bool*(nat * list nat))) (l:loc) (z:nat),
         ↯ ε ∗ ●↯ ε @ γ1 ∗
-        ([∗ map] α ↦ t ∈ m, if (t.1:bool) then α ↪N ( t.2.1 `div` 2%nat ; expander t.2.2 )
-           else α ↪N ( t.2.1 `div` 2%nat ; drop 1%nat (expander t.2.2) ))
+        ([∗ map] α ↦ t ∈ m, α ↪N ( t.2.1 `div` 2%nat ; if t.1:bool then expander t.2.2 else drop 1%nat (expander t.2.2)) )
         ∗ ●m@γ2 ∗  
         ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z)
     )%I.
@@ -172,30 +171,29 @@ Section impl2.
   (*   by iApply "HΦ". *)
   (* Qed. *)
 
-  (** TODO *)
-  (* Lemma allocate_tape_spec2 N E c γ1 γ2 γ3: *)
-  (*   ↑N ⊆ E-> *)
-  (*   {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) }}} *)
-  (*     allocate_tape2 #() @ E *)
-  (*     {{{ (v:val), RET v; *)
-  (*         ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (3%nat; []) @ γ2 *)
-  (*     }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Φ) "#Hinv HΦ". *)
-  (*   rewrite /allocate_tape2. *)
-  (*   wp_pures. *)
-  (*   wp_alloctape α as "Hα". *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_notin with "[$][$]") as "%". *)
-  (*   iMod (hocap_tapes_new _ _ _ 3%nat with "[$]") as "[H4 H7]"; first done. *)
-  (*   replace ([]) with (expander []) by done. *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_". *)
-  (*   { iNext. iSplitL; last done. *)
-  (*     rewrite big_sepM_insert; [iFrame|done]. *)
-  (*   } *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-  (* Qed. *)
+  Lemma allocate_tape_spec2 N E c γ1 γ2 γ3:
+    ↑N ⊆ E->
+    {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) }}}
+      allocate_tape2 #() @ E
+      {{{ (v:val), RET v;
+          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true, 3%nat; []) @ γ2
+      }}}.
+  Proof.
+    iIntros (Hsubset Φ) "#Hinv HΦ".
+    rewrite /allocate_tape2.
+    wp_pures.
+    wp_alloctape α as "Hα".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_notin' with "[$][$]") as "%".
+    iMod (hocap_tapes_new' _ _ _ 3%nat _ true with "[$]") as "[H4 H7]"; first done.
+    replace ([]) with (expander []) by done.
+    iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_".
+    { iNext. iSplitL; last done.
+      rewrite big_sepM_insert; [iFrame|done].
+    }
+    iApply "HΦ".
+    by iFrame.
+  Qed.
 
   (** TODO*)
   (* Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns: *)
