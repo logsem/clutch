@@ -17,6 +17,57 @@ Notation "α ◯↪N ( b ,  M ; ns ) @ γ":= (α ↪[ γ ] (b, (M,ns)))%I
 
 Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
 
+Section tapes_lemmas.
+  Context `{!conerisGS Σ, !hocap_tapesGS' Σ}.
+
+  Lemma hocap_tapes_alloc' m:
+    ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1, v.2.1; v.2.2) @ γ).
+  Proof.
+    iMod ghost_map_alloc as (γ) "[??]".
+    iFrame. iModIntro.
+    iApply big_sepM_mono; last done.
+    by iIntros (?[?[??]]).
+  Qed.
+
+  (* Lemma hocap_tapes_agree m γ k N ns: *)
+  (*   (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) -∗ ⌜ m!!k = Some (N, ns) ⌝. *)
+  (* Proof. *)
+  (*   iIntros "H1 H2". *)
+  (*   by iCombine "H1 H2" gives "%". *)
+  (* Qed. *)
+
+  (* Lemma hocap_tapes_new γ m k N ns : *)
+  (*   m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
+  (* Proof. *)
+  (*   iIntros (Hlookup) "H". *)
+  (*   by iApply ghost_map_insert. *)
+  (* Qed. *)
+
+  (* Lemma hocap_tapes_presample γ m k N ns n: *)
+  (*   (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++[n])]>m) @ γ) ∗ (k ◯↪N (N; ns++[n]) @ γ). *)
+  (* Proof. *)
+  (*   iIntros "H1 H2". *)
+  (*   iApply (ghost_map_update with "[$][$]").  *)
+  (* Qed. *)
+
+  (* Lemma hocap_tapes_pop γ m k N ns n: *)
+  (*   (● m @ γ) -∗ (k ◯↪N (N; n::ns) @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
+  (* Proof. *)
+  (*   iIntros "H1 H2". *)
+  (*   iApply (ghost_map_update with "[$][$]").  *)
+  (* Qed. *)
+
+  (* Lemma hocap_tapes_notin α N ns m (f:(nat*list nat)-> nat) g: *)
+  (*   α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝. *)
+  (* Proof. *)
+  (*   destruct (m!!α) eqn:Heqn; last by iIntros. *)
+  (*   iIntros "Hα Hmap". *)
+  (*   iDestruct (big_sepM_lookup with "[$]") as "?"; first done. *)
+  (*   iExFalso. *)
+  (*   iApply (tapeN_tapeN_contradict with "[$][$]"). *)
+  (* Qed.  *)
+
+End tapes_lemmas.
 
 Section lemmas.
   Context `{hocap_tapesGS' Σ}.
@@ -51,32 +102,31 @@ Section impl2.
         ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z)
     )%I.
 
-  (** TODO*)
-  (* Lemma new_counter_spec2 E ε N: *)
-  (*   {{{ ↯ ε }}} *)
-  (*     new_counter2 #() @ E *)
-  (*     {{{ (c:val), RET c; *)
-  (*         ∃ γ1 γ2 γ3, inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗ *)
-  (*                     ◯↯ε @ γ1 ∗ own γ3 (◯F 0%nat) *)
-  (*     }}}. *)
-  (* Proof. *)
-  (*   rewrite /new_counter2. *)
-  (*   iIntros (Φ) "Hε HΦ". *)
-  (*   wp_pures. *)
-  (*   wp_alloc l as "Hl". *)
-  (*   iDestruct (ec_valid with "[$]") as "%". *)
-  (*   unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [H1 H2]]". *)
-  (*   { lra. } *)
-  (*   simpl. *)
-  (*   iMod (hocap_tapes_alloc (∅:gmap _ _)) as "[%γ2 [H3 H4]]". *)
-  (*   iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]". *)
-  (*   { by apply frac_auth_valid. } *)
-  (*   replace (#0) with (#0%nat) by done. *)
-  (*   iMod (inv_alloc N _ (counter_inv_pred2 (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv". *)
-  (*   { iSplit; last done. by iApply big_sepM_empty. } *)
-  (*   iApply "HΦ". *)
-  (*   iExists _, _, _. by iFrame. *)
-  (* Qed. *)
+  Lemma new_counter_spec2 E ε N:
+    {{{ ↯ ε }}}
+      new_counter2 #() @ E
+      {{{ (c:val), RET c;
+          ∃ γ1 γ2 γ3, inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗
+                      ◯↯ε @ γ1 ∗ own γ3 (◯F 0%nat)
+      }}}.
+  Proof.
+    rewrite /new_counter2.
+    iIntros (Φ) "Hε HΦ".
+    wp_pures.
+    wp_alloc l as "Hl".
+    iDestruct (ec_valid with "[$]") as "%".
+    unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [H1 H2]]".
+    { lra. }
+    simpl.
+    iMod (hocap_tapes_alloc' (∅:gmap _ _)) as "[%γ2 [H3 H4]]".
+    iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]".
+    { by apply frac_auth_valid. }
+    replace (#0) with (#0%nat) by done.
+    iMod (inv_alloc N _ (counter_inv_pred2 (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
+    { iSplit; last done. by iApply big_sepM_empty. }
+    iApply "HΦ".
+    iExists _, _, _. by iFrame.
+  Qed.
 
 
   (** This lemma is not possible as only one view shift*)
