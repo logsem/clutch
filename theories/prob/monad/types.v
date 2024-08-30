@@ -25,9 +25,6 @@ Set Default Proof Using "Type".
         T.-giry                 Display for the giry sigma algebra on T
         T.-giry.-measurable     Measurability in the giry sigma algebra on T
 
-      Other
-        borelER                 measurableType for the Borel space on extended reals
-
  *)
 
 (*
@@ -76,9 +73,8 @@ Section measurability_lemmas.
 
 End measurability_lemmas.
 
-
+(*
 (** ********** Borel space on extended Reals ********** **)
-
 Section ereal_borel.
   Context `{R : realType}.
 
@@ -91,7 +87,7 @@ Section ereal_borel.
   Definition borelER : measurableType borelER_display
     := [the measurableType _ of salgebraType ereal_borel_subbase].
 End ereal_borel.
-
+*)
 
 (** ********** Giry Monad ********** **)
 
@@ -117,10 +113,10 @@ Section giry.
 
     Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
       @preimage_class (giryType T)
-        borelER               (* Range type *)
+        (\bar R)                  (* Range type *)
         setT                      (* Domain set *)
         (fun μ => μ S)              (* Evaluation function *)
-        (@ereal_borel_sets R)     (* Range sets*).
+        'measurable               (* Range sets *).
 
     Definition giry_subbase : set (set (giryType T))
       := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].

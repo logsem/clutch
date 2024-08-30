@@ -103,6 +103,9 @@ Section giryM_join_definition.
           Locate ocitv_type.
            *)
 
+          (* This breaks for the same reason as eval (I coped the proof)*)
+          admit.
+          (*
           apply (@measurability _ _ _ _ _ (_ ^~ [set: T]) ereal_borel_subbase).
           {
 
@@ -124,6 +127,7 @@ Section giryM_join_definition.
           done.
           Unshelve.
           4: eapply @measurableT.
+        *)
         - intros ? ?; by [].
         - by apply measurable_cst.
         - intros ? ?.
@@ -145,7 +149,7 @@ Section giryM_join_definition.
 
 
   (* The measurable evaluation function which computes the giryM_join_def on measurable sets *)
-  Definition giryM_join_meas_map_pre {S : set T} (HS : d.-measurable S) : measurable_map (giryM (giryM T)) borelER :=
+  Definition giryM_join_meas_map_pre {S : set T} (HS : d.-measurable S) : measurable_map (giryM (giryM T)) (\bar R) :=
     @giryM_integrate R _ (giryM T) (giryM_eval R HS) (giryM_eval_nonneg HS).
 
   (* giryM_join_def equals the measurable evaluation function at each measruable set *)

@@ -94,7 +94,7 @@ Section seal_example.
     Unset Printing All.
   Abort.
 
-  Lemma X (f : measurable_map T (@borelER R)) (Hf : forall x : T, (0%R <= f x)%E) :
+  Lemma X (f : measurable_map T (\bar R)) (Hf : forall x : T, (0%R <= f x)%E) :
     giryM_integrate Hf = giryM_integrate Hf.
   Proof.
     rewrite /giryM_integrate.

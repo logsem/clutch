@@ -37,8 +37,8 @@ Set Default Proof Using "Type".
       m_cst (k : B)                                   : A -mm-> B
 
       giryM_zero                                      : giryM A
-      giryM_eval (S : measurable set A)               : giryM A -mm-> borelER
-      giryM_integrate (f : nonnegative A -> borelER)  : giryM A -mm-> borelER
+      giryM_eval (S : measurable set A)               : giryM A -mm-> \bar R
+      giryM_integrate (f : nonnegative A -> borelER)  : giryM A -mm-> \bar R
       giryM_map (f : A -mm-> B)                       : giryM A -mm-> giryM B
 
       giryM_ret                                       : A -mm-> giryM A
@@ -84,7 +84,7 @@ Section monad_laws.
   (* FIXME: Express using nonnegative functions (I think they're in the hierarhy?) *)
   (* FIXME: giryM_integrate @ symbol *)
   Lemma giryM_join_integrate {d1} {T1 : measurableType d1}
-      (f : measurable_map T1 borelER) (Hf : forall x : T1, (0%R <= f x)%E)
+      (f : measurable_map T1 (\bar R)) (Hf : forall x : T1, (0%R <= f x)%E)
       (Hf' : forall x : giryM T1, (0%R <= giryM_integrate Hf x)%E)
       (m : giryM (giryM T1)) :
     (@giryM_integrate _ _ _ f Hf) (giryM_join m) = (@giryM_integrate _ _ _ (@giryM_integrate _ _ _ f Hf)) Hf' m.

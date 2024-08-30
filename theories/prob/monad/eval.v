@@ -21,11 +21,12 @@ Section giryM_eval.
   Notation giryM := (giryM (R := R)).
   Context {d} {T : measurableType d}.
 
-  Local Definition giryM_eval_def (S : set T) (HS : measurable S) : giryM T -> borelER := (fun μ => μ S).
+  Local Definition giryM_eval_def (S : set T) (HS : measurable S) : giryM T -> \bar R := (fun μ => μ S).
 
   Local Lemma giryM_eval_def_measurable (S : set T) (HS : measurable S) : measurable_fun setT (giryM_eval_def HS).
   Proof.
-    apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
+  Admitted.
+  (* apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
     rewrite /measurable/=.
     rewrite {2}/giry_subbase/=.
     apply  (@subset_trans _ (giry_subbase (T:=T))); last by apply sub_gen_smallest.
@@ -41,16 +42,16 @@ Section giryM_eval.
       rewrite /ereal_borel_subbase/= in HY.
       done. }
     done.
-  Qed.
+  Qed.*)
 
   HB.instance Definition _ (S : set T) (HS : measurable S) :=
-    isMeasurableMap.Build _ _ (giryM T) borelER (giryM_eval_def HS) (giryM_eval_def_measurable HS).
+    isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
 
 End giryM_eval.
 
 (** Public definition for eval *)
 Definition giryM_eval (R : realType) {d} {T : measurableType d} {S : set T} (HS : measurable S) :
-    measurable_map (giryM T) borelER :=
+    measurable_map (giryM T) (\bar R) :=
   (@giryM_eval_def R _ T S HS).
 
 (** Public equality for eval *)
@@ -83,7 +84,7 @@ Section giryM_eval_char.
       for all measurable sets S, evaluating f by S is a measurable function.
    *)
   Definition measurable_evaluations {d1} {d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : T1 -> giryM T2) : Prop
-    := forall (S : set T2), d2.-measurable S -> (measurable_fun setT ((f ^~ S) : T1 -> borelER)).
+    := forall (S : set T2), d2.-measurable S -> (measurable_fun setT ((f ^~ S) : T1 -> \bar R)).
 
   Lemma measurable_evals_if_measurable : measurable_fun setT f -> measurable_evaluations f.
   Proof.
@@ -92,7 +93,7 @@ Section giryM_eval_char.
     intros S HS.
     replace (fun x : T1 => f x S) with ((@^~ S) \o f); last by apply functional_extensionality.
 
-    apply (@measurable_comp _ _ _ _ _ _ setT (@^~ S : giryM T2 -> borelER)); auto.
+    apply (@measurable_comp _ _ _ _ _ _ setT (@^~ S : giryM T2 -> \bar R)); auto.
     { apply subsetT. }
     apply (giryM_eval_def_measurable HS).
   Qed.

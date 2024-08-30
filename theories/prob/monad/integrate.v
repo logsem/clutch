@@ -19,7 +19,6 @@ Set Default Proof Using "Type".
 Section giryM_integrate_laws.
   Context `{R : realType}.
   Notation giryM := (giryM (R := R)).
-  Notation borelER := (borelER (R := R)).
   Context {d} {T : measurableType d}.
 
   Local Open Scope classical_set_scope.
@@ -38,10 +37,10 @@ Section giryM_integrate_laws.
       into borelER into the hierarchy.
    *)
 
-  Local Definition giryM_integrate_def {f : measurable_map T borelER} (Hf : forall x : T, (0%R <= f x)%E) : giryM T -> borelER
+  Local Definition giryM_integrate_def {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E) : giryM T -> \bar R
     := fun μ => (\int[μ]_x (f x))%E.
 
-  Local Lemma giry_meas_integrate {f : measurable_map T borelER} (Hf : forall x : T, (0%R <= f x)%E) :
+  Local Lemma giry_meas_integrate {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E) :
     measurable_fun setT (giryM_integrate_def Hf).
   Proof.
     rewrite /giryM_integrate_def.
@@ -255,19 +254,19 @@ Section giryM_integrate_laws.
     rewrite /sintegral/=.
   Admitted.
 
-  HB.instance Definition _ {f : measurable_map T borelER} (Hf : forall x : T, (0%R <= f x)%E):=
-    isMeasurableMap.Build _ _ (giryM T) borelER (giryM_integrate_def Hf) (giry_meas_integrate Hf).
+  HB.instance Definition _ {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E):=
+    isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_integrate_def Hf) (giry_meas_integrate Hf).
 
 End giryM_integrate_laws.
 
 
 (** Public definition for integrate (integral over nonnegative measurable functions into borelER)*)
-Definition giryM_integrate {R : realType} {d} {T : measurableType d} (f : measurable_map T (@borelER R))
+Definition giryM_integrate {R : realType} {d} {T : measurableType d} (f : measurable_map T (\bar R))
     (Hf : forall x : T, (0%R <= f x)%E) :
-    measurable_map (@giryM R _ T) (@borelER R)
+    measurable_map (@giryM R _ T) (\bar R)
   := (giryM_integrate_def Hf).
 
 (** Public equality for integrate *)
-Lemma giryM_integrate_eval {R : realType} {d} {T : measurableType d} (f : measurable_map T (@borelER R)) (Hf : forall x : T, (0%R <= f x)%E) :
+Lemma giryM_integrate_eval {R : realType} {d} {T : measurableType d} (f : measurable_map T (\bar R)) (Hf : forall x : T, (0%R <= f x)%E) :
   forall μ, (giryM_integrate Hf μ = \int[μ]_x (f x))%E.
 Proof. done. Qed.
