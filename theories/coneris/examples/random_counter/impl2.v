@@ -5,7 +5,7 @@ From clutch.coneris Require Import coneris hocap random_counter.
 Set Default Proof Using "Type*".
 
 Local Definition expander (l:list nat):=
-  l ≫= (λ x, [x `div` 2%nat; x `mod` 2%nat]).
+  l ≫= (λ x, [Nat.div2 x; Nat.b2n (Nat.odd x)]).
 
 Class hocap_tapesGS' (Σ : gFunctors) := Hocap_tapesGS' {
   hocap_tapesGS_inG' :: ghost_mapG Σ loc (bool* (nat*list nat))
@@ -29,12 +29,12 @@ Section tapes_lemmas.
     by iIntros (?[?[??]]).
   Qed.
 
-  (* Lemma hocap_tapes_agree m γ k N ns: *)
-  (*   (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) -∗ ⌜ m!!k = Some (N, ns) ⌝. *)
-  (* Proof. *)
-  (*   iIntros "H1 H2". *)
-  (*   by iCombine "H1 H2" gives "%". *)
-  (* Qed. *)
+  Lemma hocap_tapes_agree' m b γ k N ns:
+    (● m @ γ) -∗ (k ◯↪N (b, N; ns) @ γ) -∗ ⌜ m!!k = Some (b, (N, ns)) ⌝.
+  Proof.
+    iIntros "H1 H2".
+    by iCombine "H1 H2" gives "%".
+  Qed.
 
   Lemma hocap_tapes_new' γ m k N ns b:
     m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(b, (N,ns))]>m) @ γ) ∗ (k ◯↪N (b, N; ns) @ γ).
@@ -50,12 +50,19 @@ Section tapes_lemmas.
   (*   iApply (ghost_map_update with "[$][$]").  *)
   (* Qed. *)
 
-  (* Lemma hocap_tapes_pop γ m k N ns n: *)
-  (*   (● m @ γ) -∗ (k ◯↪N (N; n::ns) @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
-  (* Proof. *)
-  (*   iIntros "H1 H2". *)
-  (*   iApply (ghost_map_update with "[$][$]").  *)
-  (* Qed. *)
+  Lemma hocap_tapes_pop1' γ m k N ns:
+    (● m @ γ) -∗ (k ◯↪N (true, N; ns) @ γ) ==∗ (● (<[k:=(false, (N,ns))]>m) @ γ) ∗ (k ◯↪N (false, N; ns) @ γ).
+  Proof.
+    iIntros "H1 H2".
+    iApply (ghost_map_update with "[$][$]").
+  Qed.
+  
+  Lemma hocap_tapes_pop2' γ m k N ns n:
+    (● m @ γ) -∗ (k ◯↪N (false, N; n::ns) @ γ) ==∗ (● (<[k:=(true, (N,ns))]>m) @ γ) ∗ (k ◯↪N (true, N; ns) @ γ).
+  Proof.
+    iIntros "H1 H2".
+    iApply (ghost_map_update with "[$][$]").
+  Qed.
 
   Lemma hocap_tapes_notin' α N ns m (f:(bool*(nat*list nat))-> nat) g:
     α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝.
@@ -78,12 +85,12 @@ Section impl2.
   Definition new_counter2 : val:= λ: "_", ref #0.
   Definition incr_counter2 : val := λ: "l", let: "n" := rand #1 in
                                             let: "n'" := rand #1 in
-                                            let: "x" := "n" + "n'" in
+                                            let: "x" := #2 * "n" + "n'" in
                                             (FAA "l" "x", "x").
   Definition allocate_tape2 : val := λ: "_", AllocTape #1.
   Definition incr_counter_tape2 :val := λ: "l" "α", let: "n" := rand("α") #1 in
                                                     let: "n'" := rand("α") #1 in
-                                                    let: "x" := "n" + "n'" in
+                                                    let: "x" := #2 * "n" + "n'" in
                                                     (FAA "l" "x", "x").
   Definition read_counter2 : val := λ: "l", !"l".
   Class counterG1 Σ := CounterG1 { counterG1_error::hocap_errorGS Σ;
@@ -195,53 +202,72 @@ Section impl2.
     by iFrame.
   Qed.
 
-  (** TODO*)
-  (* Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns: *)
-  (*   ↑N⊆E ->  *)
-  (*   {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗ *)
-  (*       □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗ *)
-  (*                         own γ3 (●F(z+n)%nat)∗ Q z) ∗ *)
-  (*       P ∗ α ◯↪N (3%nat; n::ns) @ γ2 *)
-  (*   }}} *)
-  (*     incr_counter_tape2 c #lbl:α @ E *)
-  (*     {{{ (z:nat), RET (#z, #n); Q z ∗ α ◯↪N (3%nat; ns) @ γ2}}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ". *)
-  (*   rewrite /incr_counter_tape2. *)
-  (*   wp_pures. *)
-  (*   wp_bind (rand(_) _)%E. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[Htape H3]". *)
-  (*   wp_apply (wp_rand_tape with "[$]"). *)
-  (*   iIntros "[Htape %]". *)
-  (*   iMod (hocap_tapes_pop with "[$][$]") as "[H4 Hα]". *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_". *)
-  (* Abort. *)
-  (*   { iSplitL; last done. *)
-  (*     erewrite <-(insert_delete m) at 2; last done. *)
-  (*     iNext. *)
-  (*     rewrite insert_insert. *)
-  (*     rewrite big_sepM_insert; last apply lookup_delete. iFrame. *)
-  (*     simpl. *)
-  (*   } *)
-  (*   iModIntro. *)
-  (*   wp_pures. *)
-  (*   clear -Hsubset. *)
-  (*   wp_bind (FAA _ _). *)
-  (*   iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_faa. *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   replace (#(z+n)) with (#(z+n)%nat); last first. *)
-  (*   { by rewrite Nat2Z.inj_add. } *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done. *)
-  (*   iModIntro. wp_pures. *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-  (* Qed.  *)
+  Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
+    ↑N⊆E ->
+    {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗
+        □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
+                          own γ3 (●F(z+n)%nat)∗ Q z) ∗
+        P ∗ α ◯↪N (true, 3%nat; n::ns) @ γ2
+    }}}
+      incr_counter_tape2 c #lbl:α @ E
+      {{{ (z:nat), RET (#z, #n); Q z ∗ α ◯↪N (true, 3%nat; ns) @ γ2}}}.
+  Proof.
+    iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ".
+    rewrite /incr_counter_tape2.
+    wp_pures.
+    wp_bind (rand(_) _)%E.
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_agree' with "[$][$]") as "%".
+    erewrite <-(insert_delete m) at 1; last done.
+    rewrite big_sepM_insert; last apply lookup_delete.
+    simpl.
+    iDestruct "H3" as "[Htape H3]".
+    wp_apply (wp_rand_tape with "[$]").
+    iIntros "[Htape %H1]".
+    iMod (hocap_tapes_pop1' with "[$][$]") as "[H4 Hα]".
+    iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_".
+    { iSplitL; last done.
+      erewrite <-(insert_delete m) at 2; last done.
+      iNext.
+      rewrite insert_insert.
+      rewrite big_sepM_insert; last apply lookup_delete. iFrame.
+    }
+    iModIntro.
+    wp_pures.
+    clear -Hsubset H1.
+    wp_bind (rand(_) _)%E.
+    iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_agree' with "[$][$]") as "%".
+    erewrite <-(insert_delete m) at 1; last done.
+    rewrite big_sepM_insert; last apply lookup_delete.
+    simpl.
+    iDestruct "H3" as "[Htape H3]".
+    wp_apply (wp_rand_tape with "[$]").
+    iIntros "[Htape %H2]".
+    iMod (hocap_tapes_pop2' with "[$][$]") as "[H4 Hα]".
+    iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_".
+    { iSplitL; last done.
+      erewrite <-(insert_delete m) at 2; last done.
+      iNext.
+      rewrite insert_insert.
+      rewrite big_sepM_insert; last apply lookup_delete. iFrame.
+    }
+    iModIntro.
+    wp_pures.
+    clear -Hsubset H1 H2.
+    wp_bind (FAA _ _).
+    iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    wp_faa.
+    iMod ("Hvs" with "[$]") as "[H6 HQ]".
+    replace (#(z+n)) with (#(z+n)%nat); last first.
+    { by rewrite Nat2Z.inj_add. }
+    replace 2%Z with (Z.of_nat 2%nat) by done.
+    rewrite -Nat2Z.inj_mul -Nat2Z.inj_add -Nat.div2_odd -Nat2Z.inj_add. 
+    iMod ("Hclose" with "[$H1 $H2 $H3 $H4 H5 $H6]") as "_"; first by iFrame.
+    iModIntro. wp_pures.
+    iApply "HΦ".
+    by iFrame.
+  Qed.
 
   (** Possible, but only if you do the state step *)
   (* Lemma incr_counter_tape_spec_none2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat): *)
