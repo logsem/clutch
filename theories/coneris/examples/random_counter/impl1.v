@@ -112,7 +112,7 @@ Section impl1.
     by iFrame.
   Qed.
 
-  Lemma incr_counter_tape_spec_some1 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
+  Lemma incr_counter_tape_spec_some1 N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E -> 
     {{{ inv N (counter_inv_pred1 c γ1 γ2 γ3) ∗
         □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
@@ -206,7 +206,7 @@ Section impl1.
   
   Lemma counter_presample_spec1 NS E ns α
      (ε2 : R -> nat -> R)
-    (P : iProp Σ) (Q : val-> iProp Σ) T γ1 γ2 γ3 c:
+    (P : iProp Σ) T γ1 γ2 γ3 c:
     ↑NS ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤3%nat)) then 1 / (S 3%nat) * ε2 ε n else 0%R)%R <= ε)%R->
