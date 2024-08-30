@@ -283,27 +283,27 @@ Section impl2.
     P -∗ α ◯↪N (true, 3%nat; ns) @ γ2 -∗
         wp_update E (∃ n, T (n) ∗ α◯↪N (true, 3%nat; ns++[n]) @ γ2).
   Proof.
+    iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
+    rewrite wp_update_unfold.
+    iIntros (?? Hv) "Hcnt".
+    rewrite {2}pgl_wp_unfold /pgl_wp_pre /= Hv.
+    iIntros (σ ε) "((Hheap&Htapes)&Hε)".
+    iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|].
+    iDestruct (hocap_tapes_agree' with "[$][$]") as "%".
+    erewrite <-(insert_delete m) at 1; last done.
+    rewrite big_sepM_insert; last apply lookup_delete.
+    simpl.
+    iDestruct "H3" as "[Htape H3]".
+    iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%)".
+    iDestruct (ec_supply_bound with "[$][$]") as "%".
+    iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
   Admitted.
-  (*   iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag". *)
-  (*   rewrite wp_update_unfold. *)
-  (*   iIntros (?? Hv) "Hcnt". *)
-  (*   rewrite {2}pgl_wp_unfold /pgl_wp_pre /= Hv. *)
-  (*   iIntros (σ ε) "((Hheap&Htapes)&Hε)". *)
-  (*   iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|]. *)
-  (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[Htape H3]". *)
-  (*   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%)". *)
-  (*   iDestruct (ec_supply_bound with "[$][$]") as "%". *)
-  (*   iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst. *)
-  (*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
   (*   iApply glm_state_adv_comp_con_prob_lang; first done. *)
   (*   unshelve iExists (λ x, mknonnegreal (ε2 ε1' x) _). *)
   (*   { apply Hpos. apply cond_nonneg. } *)
   (*   iSplit. *)
-  (*   { iPureIntro.  *)
+  (*   { iPureIntro. *)
   (*     unshelve epose proof (Hineq ε1' _) as H1; first apply cond_nonneg. *)
   (*     by rewrite SeriesC_nat_bounded_fin in H1. } *)
   (*   iIntros (sample). *)
@@ -331,7 +331,7 @@ Section impl2.
   (*   setoid_rewrite pgl_wp_unfold. *)
   (*   rewrite /pgl_wp_pre /= Hv. *)
   (*   iApply ("Hcnt" $! (state_upd_tapes <[α:= (3%nat; ns' ++[sample]):tape]> σ) with "[$]"). *)
-  (* Qed.  *)
+  (* Qed. *)
 
   
   Lemma incr_counter_tape_spec_none2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat):

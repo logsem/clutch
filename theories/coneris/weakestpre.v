@@ -459,6 +459,27 @@ Section glm.
     - iPureIntro. simpl in *. lra. 
   Qed.
 
+  Lemma glm_iterM_state_adv_comp' N α e1 σ1 Z (ε : nonnegreal) :
+    (α ∈ get_active σ1 ->
+     (∃ R (ε2 : _ -> nonnegreal),
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+        ⌜ (SeriesC (λ ρ, (iterM N (λ σ, state_step σ α) σ1 ρ) * ε2 ρ) <= ε)%R ⌝ ∗
+        ⌜pgl (iterM N (λ σ, state_step σ α) σ1) R nnreal_zero⌝ ∗
+        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 σ2))
+      ⊢ glm e1 σ1 ε Z)%I.
+  Proof.
+    iIntros (Hin) "(%R & %ε2 & % & %Hε & % & H)".
+    iApply glm_erasable_adv_comp.
+    iExists R, _, nnreal_zero, ε2.
+    repeat iSplit; try done.
+    - iPureIntro.
+      simpl in *.
+      rewrite elem_of_elements elem_of_dom in Hin.
+      destruct Hin.
+      by eapply iterM_state_step_sch_erasable.
+    - iPureIntro. simpl in *. lra. 
+  Qed.
+
 
   Lemma glm_strong_ind (Ψ : expr con_prob_lang → state con_prob_lang → nonnegreal → iProp Σ) Z :
     (∀ n e σ ε, Proper (dist n) (Ψ e σ ε)) →
