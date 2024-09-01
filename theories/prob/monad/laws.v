@@ -71,11 +71,6 @@ Section monad_laws.
 
   Local Open Scope classical_set_scope.
 
-  (* Can I derive this from eval? Or should I just move the measurability of eval into this and then use it there too?*)
-  Lemma unknown {d1} {T1 : measurableType d1} (S : set T1 ) : measurable_fun [set: giryM T1] ((SubProbability.sort (R:=R))^~ S).
-  Proof.
-  Admitted.
-
   Lemma giryM_join_zero {d1} {T1 : measurableType d1} : giryM_join giryM_zero = (giryM_zero: giryM T1).
   Proof.
     apply giryM_ext.
@@ -258,10 +253,9 @@ Section monad_laws.
 
   Lemma giryM_join_map_map {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
       (mf : measurable_map T1 T2) (m : giryM (giryM T1)) :
-    giryM_join (giryM_map (giryM_map mf) m) = giryM_map mf (giryM_join m).
+    giryM_join (giryM_map (giryM_map mf) m) ≡μ giryM_map mf (giryM_join m).
   Proof.
-    apply giryM_ext.
-    intro S.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
@@ -288,10 +282,10 @@ Section monad_laws.
   Abort.
 
   (* TODO: Can I prove this for all sets?*)
-  Lemma giryM_join_map_ret_meas {d1} {T1 : measurableType d1} (μ : (giryM T1))
-    (S : set T1) (HS : d1.-measurable S):
-    giryM_join (giryM_map (giryM_ret R) μ) S = μ S.
+  Lemma giryM_join_map_ret {d1} {T1 : measurableType d1} (μ : (giryM T1)) :
+    giryM_join (giryM_map (giryM_ret R) μ) ≡μ μ.
   Proof.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
@@ -306,10 +300,9 @@ Section monad_laws.
   Qed.
 
   Lemma giryM_join_ret {d1} {T1 : measurableType d1} (μ : (giryM T1)) :
-    giryM_join (giryM_ret R μ) = μ.
+    giryM_join (giryM_ret R μ) ≡μ μ.
   Proof.
-    apply giryM_ext.
-    intro S.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_dirac.
     - by rewrite diracT mul1e.
@@ -335,10 +328,9 @@ Section monad_laws.
 
 
   Lemma giryM_bind_0_r {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (μ : giryM T1) :
-    giryM_bind (m_cst giryM_zero) μ = (giryM_zero : giryM T2).
+    giryM_bind (m_cst giryM_zero) μ ≡μ (giryM_zero : giryM T2).
   Proof.
-    apply giryM_ext.
-    intro S.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
@@ -352,8 +344,8 @@ Section monad_laws.
 
   (* TODO: Can I fit this into the framework? *)
   Lemma giryM_bind_eval {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}
-    (m : giryM T1) {S : set T2} (f : measurable_map T1 (giryM T2)) :
-     (giryM_bind f m S = \int[m]_x (f x S))%E.
+    (m : giryM T1) {S : set T2} (HS : measurable S) (f : measurable_map T1 (giryM T2)) :
+    (giryM_bind f m S = \int[m]_x (f x S))%E.
   Proof.
     rewrite giryM_join_eval.
     rewrite integral_pushforward /=; cycle 1.
@@ -364,10 +356,9 @@ Section monad_laws.
   Qed.
 
   Lemma giryM_bind_ret_l {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {f : measurable_map T1 (giryM T2)} t :
-    giryM_bind f (giryM_ret R t) = f t.
+    giryM_bind f (giryM_ret R t) ≡μ f t.
   Proof.
-    apply giryM_ext.
-    intro S.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
@@ -384,11 +375,11 @@ Section monad_laws.
   Qed.
 
 
-  (* TODO: Can I prove this for all sets? *)
   Lemma giryM_bind_ret_r_meas {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} {f : measurable_map T1 (giryM T2)}
-    (m : giryM T1) (S : set T1) (HS : d1.-measurable S):
-    giryM_bind (giryM_ret R) m S = m S.
+    (m : giryM T1) :
+    giryM_bind (giryM_ret R) m ≡μ m.
   Proof.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
@@ -403,9 +394,10 @@ Section monad_laws.
 
   Lemma giryM_bind_bind_meas {d1 d2 d3} {T1 : measurableType d1} {T2 : measurableType d2} {T3 : measurableType d3}
     {f : measurable_map T1 (giryM T2)} {g : measurable_map T2 (giryM T3)}
-    (m : giryM T1) (S : set T3) (HS : d3.-measurable S):
-    giryM_bind g (giryM_bind f m) S = giryM_bind (m_cmp (giryM_bind g) f) m S.
+    (m : giryM T1) :
+    giryM_bind g (giryM_bind f m) ≡μ giryM_bind (m_cmp (giryM_bind g) f) m.
   Proof.
+    intros S HS.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.

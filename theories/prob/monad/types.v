@@ -7,6 +7,8 @@ From mathcomp.analysis Require Import reals ereal signed normedtype esum numfun 
 From HB Require Import structures.
 
 Import Coq.Logic.FunctionalExtensionality.
+Import Coq.Relations.Relation_Definitions.
+Import Coq.Classes.RelationClasses.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -89,74 +91,105 @@ Section ereal_borel.
 End ereal_borel.
 *)
 
+
+
+
 (** ********** Giry Monad ********** **)
 
-Section giry.
+Section giry_space.
+  (** Define a measurable space over (giryType T) *)
+  Context `{R : realType} `{d : measure_display} (T : measurableType d).
   Local Open Scope classical_set_scope.
 
-  Section giry_space.
-    (** Define a measurable space over (giryType T) *)
-    Context `{R : realType} `{d : measure_display} (T : measurableType d).
+  (* Type of points in the Giry monad *)
+  Definition giryType {d} T : Type := @subprobability d T R.
 
-    (* Type of points in the Giry monad *)
-    Definition giryType {d} T : Type := @subprobability d T R.
+  HB.instance Definition _ := gen_eqMixin (giryType T).
+  HB.instance Definition _ := gen_choiceMixin (giryType T).
 
-    HB.instance Definition _ := gen_eqMixin (giryType T).
-    HB.instance Definition _ := gen_choiceMixin (giryType T).
+  Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
+  Proof. by rewrite /mzero/=. Qed.
 
-    Lemma mzero_setT : (@mzero d T R setT <= 1)%E.
-    Proof. by rewrite /mzero/=. Qed.
+  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
 
-    HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ (@mzero d T R) mzero_setT.
+  HB.instance Definition _ := isPointed.Build (giryType T) mzero.
 
-    HB.instance Definition _ := isPointed.Build (giryType T) mzero.
+  Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
+    @preimage_class (giryType T)
+      (\bar R)                  (* Range type *)
+      setT                      (* Domain set *)
+      (fun μ => μ S)              (* Evaluation function *)
+      'measurable               (* Range sets *).
 
-    Definition preimage_class_of_measures (S : set T) : set (set (giryType T)) :=
-      @preimage_class (giryType T)
-        (\bar R)                  (* Range type *)
-        setT                      (* Domain set *)
-        (fun μ => μ S)              (* Evaluation function *)
-        'measurable               (* Range sets *).
+  Definition giry_subbase : set (set (giryType T))
+    := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
 
-    Definition giry_subbase : set (set (giryType T))
-      := [set C | exists (S : set T) (_ : measurable S), preimage_class_of_measures S C].
+  Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
+End giry_space.
 
-    Definition giry_measurable : set (set (giryType T)) := <<s giry_subbase>>.
-  End giry_space.
+Definition giryM_display `{R : realType} `{d : measure_display} `{T : measurableType d} :=
+  sigma_display (@giry_subbase R d T).
+Global Arguments giryM_display {_} {_} {_}.
 
-  Definition giryM_display `{R : realType} `{d : measure_display} `{T : measurableType d} :=
-    sigma_display (@giry_subbase R d T).
-  Global Arguments giryM_display {_} {_} {_}.
-
-  (** Use giryM for any Giry Monad type *)
-  Definition giryM (R : realType) (d : measure_display) (T : measurableType d) : measurableType giryM_display :=
-    [the measurableType _ of salgebraType (@giry_subbase R d T)].
-  Global Arguments giryM {_} {_} _.
+(** Use giryM for any Giry Monad type *)
+Definition giryM (R : realType) (d : measure_display) (T : measurableType d) : measurableType giryM_display :=
+  [the measurableType _ of salgebraType (@giry_subbase R d T)].
+Global Arguments giryM {_} {_} _.
 
 
-  Section giry_lemmas.
-    Context `{R : realType} `{d : measure_display} {T : measurableType d}.
-    Notation giryM := (giryM (R := R)).
+(** Relation defeining measure equality *)
+(* Local Open Scope classical_set_scope. *)
 
-    Lemma giryM_ext (μ1 μ2 : giryM T) (H : forall S : set T, μ1 S = μ2 S) : μ1 = μ2.
-    Proof.
-      apply functional_extensionality in H.
-      move: H.
-      move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
-      rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
-      f_equal.
-      by rewrite
-        (_ : x1 = y1)//
-        (_ : x2 = y2)//
-        (_ : x3 = y3)//
-        (_ : x4 = y4)//
-        (_ : x5 = y5)//
-        (_ : x6 = y6)//
-        (_ : x7 = y7)//.
-    Qed.
+Definition measure_eq `{R : realType} `{d : measure_display} {T : measurableType d} : relation (@giryM R d T) :=
+  fun μ1 μ2 => forall (S : set T), measurable S -> μ1 S = μ2 S.
+Notation "x ≡μ y" := (measure_eq x y) (at level 70).
+Global Hint Extern 0 (_ ≡μ _) => reflexivity : core.
+Global Hint Extern 0 (_ ≡μ _) => symmetry; assumption : core.
 
-  End giry_lemmas.
-End giry.
+Instance equivalence_measure_eq `{R : realType} `{d : measure_display} {T : measurableType d} :
+  Equivalence (@measure_eq R d T).
+Proof.
+  constructor.
+  - done.
+  - rewrite /Symmetric.
+    intros ? ? H ? ?.
+    by rewrite H //=.
+  - intros ? ? ? H0 H1 ? ?.
+    by rewrite H0 //= H1 //=.
+Qed.
+
+
+
+Section giry_lemmas.
+  Context `{R : realType} `{d : measure_display} {T : measurableType d}.
+  Notation giryM := (giryM (R := R)).
+
+  Lemma giryM_ext (μ1 μ2 : giryM T) (H : forall S : set T, μ1 S = μ2 S) : μ1 = μ2.
+  Proof.
+    apply functional_extensionality in H.
+    move: H.
+    move: μ1 μ2 => [x [[x1] x2 [x3] [x4] [x5 [x6]] [x7]]] [y [[+] + [+] [+] [+ [+]] [+]]] /= xy.
+    rewrite -{}xy => y1 y2 y3 y4 y5 y6 y7.
+    f_equal.
+    by rewrite
+      (_ : x1 = y1)//
+      (_ : x2 = y2)//
+      (_ : x3 = y3)//
+      (_ : x4 = y4)//
+      (_ : x5 = y5)//
+      (_ : x6 = y6)//
+      (_ : x7 = y7)//.
+  Qed.
+
+
+  (* Can I derive this from eval? Or should I just move the measurability of eval into this and then use it there too?*)
+  (* FIXME: I think I'll need S to be measurable *)
+  Lemma unknown {d1} {T1 : measurableType d1} (S : set T1) (HS : measurable S):
+    measurable_fun [set: giryM T1] ((SubProbability.sort (R:=R))^~ S).
+  Proof.
+    Check measurable_funP.
+  Admitted.
+End giry_lemmas.
 
 
 
