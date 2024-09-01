@@ -77,57 +77,8 @@ Section giryM_join_definition.
       { apply ge0_le_integral.
         - by [].
         - intros ? ?; by [].
-        -
-
-          (*
-          have Hmeas_equiv : forall S, (measurable (S : set (extended R))) = (measurable (S : set (borelER))).
-          { intro S.
-            rewrite /measurable/=.
-            rewrite /measurable/=.
-            (* Ocitv is the set (x, y], ereal_borel_subbase is the set of neighbourhoods of points *)
-            (* I read 'measurable totally wrong, this lemma is provable but I should just use
-               the mathcomp analysis def'ns of the Borel space on extended R and delete borelER. *)
-            admit.
-          }
-          Locate measurability.
-          rewrite /measurable_fun.
-          rewrite /'measurable.
-
-          *)
-          (* HB.about constructive_ereal_extended__canonical__measure_Measurable. *)
-          (*
-              HB.instance Definition _ :=
-              (ereal_isMeasurable (R.-ocitv.-measurable)).
-
-          Unset Printing Notations. Check R.-ocitv.-measurable.
-          Locate ocitv_type.
-           *)
-
-          (* This breaks for the same reason as eval (I coped the proof)*)
-          admit.
-          (*
-          apply (@measurability _ _ _ _ _ (_ ^~ [set: T]) ereal_borel_subbase).
-          {
-
-            (* 'measurable is the same as ereal Borel space *) admit. }
-          rewrite /measurable/=.
-          rewrite {5}/giry_subbase/=.
-          apply  (@subset_trans _ (giry_subbase (T:=T))); last by apply sub_gen_smallest.
-          rewrite /subset/=.
-          intros X.
-          rewrite /preimage_class/=.
-          intros [Y HY <-].
-          rewrite {1}/giry_subbase/=.
-          eexists _, _.
-          rewrite /preimage_class_of_measures/preimage_class/=.
-          exists Y.
-          { apply sub_gen_smallest.
-            rewrite /ereal_borel_subbase/= in HY.
-            done. }
-          done.
-          Unshelve.
-          4: eapply @measurableT.
-        *)
+        - apply base_eval_measurable.
+          by apply @measurableT.
         - intros ? ?; by [].
         - by apply measurable_cst.
         - intros ? ?.
@@ -138,7 +89,7 @@ Section giryM_join_definition.
       apply (Order.le_trans H).
       rewrite mul1e.
       apply sprobability_setT.
-    Admitted.
+    Qed.
 
     HB.instance Definition _ :=  Measure_isSubProbability.Build _ _ _ (giryM_join_def m) giryM_join_setT.
 

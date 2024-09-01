@@ -23,20 +23,6 @@ Section giryM_integrate_laws.
 
   Local Open Scope classical_set_scope.
 
-  (* TODO:
-      I changed the definition to take functions to borelER rather than (\bar R)
-      IIUC the default sigma algebra on (\bar R) is the Lebesge SA
-      borelER is strictly weaker in terms of measurability, and I think it's enough
-      for what we need, but I'm not totally sure yet.
-
-      It also breaks the proof skeleton below.
-
-      I also added the restriction that we only integrate nonnegative functions to the
-      definition, since it's necessary in the measuability proof and we're only
-      exposing the measurable interface. Might consider adding nonnegative functions
-      into borelER into the hierarchy.
-   *)
-
   Local Definition giryM_integrate_def {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E) : giryM T -> \bar R
     := fun μ => (\int[μ]_x (f x))%E.
 
@@ -45,7 +31,6 @@ Section giryM_integrate_laws.
   Proof.
     rewrite /giryM_integrate_def.
     rewrite /=/salgebraType.
-    (*
 
     (* The approximation lemma for f that corresponds roughly to the mathlib limits *)
     have HMT : d.-measurable [set: T] by [].
@@ -165,13 +150,10 @@ Section giryM_integrate_laws.
     (* measure ofnnsfun_approx is measurable? *)
     (* - Regardless of a lemma for this, there should be a lemma for finite sums, which that is. *)
     (* Then I just need measuring a set is measurable, which is giryM_eval_def_measurable? Or something like that. *)
-    *)
+
+
+    (*
     Restart.
-
-
-
-
-
 
     have H1 : (forall x : T, [set: T] x -> (0%R <= f x)%E) by admit.
     have H2 : d.-measurable [set: T] by admit.
@@ -252,6 +234,7 @@ Section giryM_integrate_laws.
 
     (* Search measurable_fun topology.lim. *)
     rewrite /sintegral/=.
+*)
   Admitted.
 
   HB.instance Definition _ {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E):=
