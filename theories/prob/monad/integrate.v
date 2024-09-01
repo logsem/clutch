@@ -35,7 +35,7 @@ Section giryM_integrate_laws.
     have Setoid2 S1 S2 (HSS : S1 = S2): topology.lim S1 = topology.lim S2 by rewrite HSS.
     have Setoid3 f1 f2 S (Hff : f1 = f2): topology.fmap f1 S = topology.fmap f2 S by rewrite Hff.
 
-    Search (topology.lim _ _ = topology.lim _ _).
+    (* Search (topology.lim _ _ = topology.lim _ _). *)
 
     rewrite /giryM_integrate_def.
     have HMTop : d.-measurable [set: T] by done.
@@ -70,8 +70,8 @@ Section giryM_integrate_laws.
     }
 
     (* Target: *)
-    Search measurable_fun "sum".
-    Check ge0_emeasurable_fun_sum.
+    (*Search measurable_fun "sum".
+    Check ge0_emeasurable_fun_sum. *)
 
 
     (* Search sintegral. *)
