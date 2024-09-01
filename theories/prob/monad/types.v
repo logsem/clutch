@@ -164,6 +164,8 @@ Section giry_lemmas.
   Context `{R : realType} `{d : measure_display} {T : measurableType d}.
   Notation giryM := (giryM (R := R)).
 
+  Local Open Scope classical_set_scope.
+
   Lemma giryM_ext (μ1 μ2 : giryM T) (H : forall S : set T, μ1 S = μ2 S) : μ1 = μ2.
   Proof.
     apply functional_extensionality in H.
@@ -182,13 +184,36 @@ Section giry_lemmas.
   Qed.
 
 
-  (* Can I derive this from eval? Or should I just move the measurability of eval into this and then use it there too?*)
-  (* FIXME: I think I'll need S to be measurable *)
-  Lemma unknown {d1} {T1 : measurableType d1} (S : set T1) (HS : measurable S):
+  Lemma base_eval_measurable {d1} {T1 : measurableType d1} (S : set T1) (HS : measurable S):
     measurable_fun [set: giryM T1] ((SubProbability.sort (R:=R))^~ S).
   Proof.
-    Check measurable_funP.
-  Admitted.
+    eapply (@measurability _ _ _ _ _ _ 'measurable).
+    { rewrite /measurable/=.
+      symmetry.
+      rewrite smallest_id.
+      - done.
+      - constructor.
+        - by apply emeasurable0.
+        - intros ??.
+          rewrite setTD.
+          by apply emeasurableC.
+        - by apply bigcupT_emeasurable.
+    }
+    rewrite /measurable/=.
+    rewrite {2}/giry_subbase/=.
+    apply  (@subset_trans _ (giry_subbase (T:=T1))); last by apply sub_gen_smallest.
+    rewrite /subset/=.
+    intros X.
+    rewrite /preimage_class/=.
+    intros [Y HY <-].
+    rewrite {1}/giry_subbase/=.
+    exists S, HS.
+    rewrite /preimage_class_of_measures/preimage_class/=.
+    exists Y.
+    - done.
+    - by rewrite setTI.
+  Qed.
+
 End giry_lemmas.
 
 

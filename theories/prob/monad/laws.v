@@ -259,7 +259,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     rewrite giryM_map_eval.
     rewrite /pushforward.
@@ -289,7 +289,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     simpl.
     rewrite /dirac/=.
@@ -310,7 +310,7 @@ Section monad_laws.
     - apply (@measurable_comp _ _ _ _ _ _ setT).
       - by apply @measurableT.
       - by apply subsetT.
-      - by apply unknown.
+      - by apply base_eval_measurable.
       - by apply measurable_id.
   Qed.
 
@@ -334,7 +334,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     rewrite /=/mzero.
     rewrite integral_cst.
@@ -350,7 +350,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward /=; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     done.
   Qed.
@@ -362,7 +362,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     rewrite integral_dirac.
     - by rewrite diracT /= mul1e.
@@ -370,7 +370,7 @@ Section monad_laws.
     apply (@measurable_comp _ _ _ _ _ _ setT).
     - by apply @measurableT.
     - by apply subsetT.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by apply measurable_mapP.
   Qed.
 
@@ -383,7 +383,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     rewrite /=.
     rewrite /dirac integral_indic.
@@ -401,7 +401,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     have IHF : forall x : T2, (0%R <= m_cmp (giryM_eval R HS) g x)%E.
     { intro x.
@@ -431,7 +431,7 @@ Section monad_laws.
     - by apply IHF'.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     f_equal.
     apply functional_extensionality.
@@ -441,7 +441,7 @@ Section monad_laws.
     rewrite giryM_join_eval.
     rewrite integral_pushforward; cycle 1.
     - by apply measurable_mapP.
-    - by apply unknown.
+    - by apply base_eval_measurable.
     - by intro u; apply (measure_ge0 u).
     f_equal.
   Qed.

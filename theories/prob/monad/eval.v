@@ -24,25 +24,7 @@ Section giryM_eval.
   Local Definition giryM_eval_def (S : set T) (HS : measurable S) : giryM T -> \bar R := (fun μ => μ S).
 
   Local Lemma giryM_eval_def_measurable (S : set T) (HS : measurable S) : measurable_fun setT (giryM_eval_def HS).
-  Proof.
-  Admitted.
-  (* apply (@measurability _ _ _ _ _ (giryM_eval_def HS) ereal_borel_subbase); first by simpl.
-    rewrite /measurable/=.
-    rewrite {2}/giry_subbase/=.
-    apply  (@subset_trans _ (giry_subbase (T:=T))); last by apply sub_gen_smallest.
-    rewrite /subset/=.
-    intros X.
-    rewrite /preimage_class/=.
-    intros [Y HY <-].
-    rewrite {1}/giry_subbase/=.
-    exists S, HS.
-    rewrite /preimage_class_of_measures/preimage_class/=.
-    exists Y.
-    { apply sub_gen_smallest.
-      rewrite /ereal_borel_subbase/= in HY.
-      done. }
-    done.
-  Qed.*)
+  Proof. by apply base_eval_measurable. Qed.
 
   HB.instance Definition _ (S : set T) (HS : measurable S) :=
     isMeasurableMap.Build _ _ (giryM T) (\bar R) (giryM_eval_def HS) (giryM_eval_def_measurable HS).
