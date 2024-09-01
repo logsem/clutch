@@ -29,8 +29,54 @@ Section giryM_integrate_laws.
   Local Lemma giry_meas_integrate {f : measurable_map T (\bar R)} (Hf : forall x : T, (0%R <= f x)%E) :
     measurable_fun setT (giryM_integrate_def Hf).
   Proof.
+    have Setoid1 (d1 d2: measure_display) (X : measurableType d1) (Y : measurableType d2) (S : set X) (f1 f2 : X -> Y) (Hfg : f1 = f2) :
+      measurable_fun S f1 =  measurable_fun S f2.
+    { by rewrite Hfg. }
+    have Setoid2 S1 S2 (HSS : S1 = S2): topology.lim S1 = topology.lim S2 by rewrite HSS.
+    have Setoid3 f1 f2 S (Hff : f1 = f2): topology.fmap f1 S = topology.fmap f2 S by rewrite Hff.
+
+    Search (topology.lim _ _ = topology.lim _ _).
+
     rewrite /giryM_integrate_def.
-    rewrite /=/salgebraType.
+    have HMTop : d.-measurable [set: T] by done.
+    pose HApprox := (nnsfun_approx HMTop (@measurable_mapP _ _ _ _ f)).
+
+    (* Move under the measurable_fun *)
+    erewrite (Setoid1 _ _ _ _ _ _ (fun (μ : giryM T) => _)); last first.
+    { apply functional_extensionality; intro μ.
+      (* Rewrite this integral to the limit of a finite sum  *)
+      rewrite (@nd_ge0_integral_lim _ _ _ _ _ HApprox); cycle 1.
+      - by apply Hf.
+      - intros x.
+        intros n1 n2 Hle.
+        have HR := (@nd_nnsfun_approx d T R setT HMTop f (@measurable_mapP _ _ _ _ f)) n1 n2 Hle.
+        by apply (asboolW HR).
+      - intro x.
+        refine (@cvg_nnsfun_approx d T R setT HMTop f (@measurable_mapP _ _ _ _ f) _ x _).
+        - intros ? ?.
+          by apply Hf.
+        - by simpl.
+
+      (* Combine the composition into a single sum *)
+      eapply Setoid2.
+      eapply Setoid3.
+      rewrite /comp.
+      apply functional_extensionality; intro n.
+      rewrite sintegralEnnsfun.
+
+      (* Could simplify the preimage (its a singleton) *)
+      (* Search topology.lim "sum". *)
+      reflexivity.
+    }
+
+    (* Target: *)
+    Search measurable_fun "sum".
+    Check ge0_emeasurable_fun_sum.
+
+
+    (* Search sintegral. *)
+
+    (*
 
     (* The approximation lemma for f that corresponds roughly to the mathlib limits *)
     have HMT : d.-measurable [set: T] by [].
@@ -81,6 +127,9 @@ Section giryM_integrate_laws.
     (* Check @ge0_emeasurable_fun_sum _ (giryM T) R setT h_seq _. *)
 
 
+    Check sintegralEnnsfun.
+    Check (comp (sintegral _) (fun x : nat => nnsfun_approx HMT measurable_mapP x)).
+    Search measurable_fun topology.lim.
 
     have Questionable : forall μ : giryType T,
          (topology.lim
@@ -97,7 +146,8 @@ Section giryM_integrate_laws.
       (* Rewriting sintegral *)
       have X1 : (comp (sintegral μ) (fun x : nat => nnsfun_approx HMT measurable_mapP x)) =
                 (fun x : nat => (sintegral μ (nnsfun_approx HMT measurable_mapP x))).
-      { intros What1 What2. rewrite /comp. apply functional_extensionality. intro x. simpl. admit. }
+      { intros What1 What2. rewrite /comp. apply functional_extensionality. intro x. simpl.
+        admit. }
       erewrite X1. Unshelve. 2: apply AAAA. (* ???? *)
       clear X1.
       have X2 : forall n : nat,
@@ -234,6 +284,7 @@ Section giryM_integrate_laws.
 
     (* Search measurable_fun topology.lim. *)
     rewrite /sintegral/=.
+*)
 *)
   Admitted.
 

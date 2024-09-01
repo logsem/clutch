@@ -59,8 +59,6 @@ Section giryM_join_definition.
       rewrite /semi_sigma_additive.
       intros F Fmeas Htriv_int HFunion_meas.
       rewrite /giryM_join_def.
-      (* Check (integral_bigcup Htriv_int Fmeas).
-      Check (@integral_bigcup _ _ R m _ _ _ _). *)
     Admitted.
 
     HB.instance Definition _
