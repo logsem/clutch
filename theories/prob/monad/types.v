@@ -63,11 +63,10 @@ Section measurability_lemmas.
   (* Weak extensionality: The functions are equal pointwise *)
   Lemma measurable_map_ext (m1 m2 : measurable_map T1 T2) (H : forall t : T1, m1 t = m2 t) : m1 = m2.
   Proof.
-    apply functional_extensionality in  H.
-    move: m1 m2 H => [x [[Hmfx]]] [y [[Hmfy]]] /= Hxy.
-    (* Something like this will work *)
-    (* rewrite Hxy in Hmfx. *)
-
+    apply functional_extensionality in H.
+    (* move: m1 m2 H => [x [[y] [+ [[+]]] +]]. *)
+    move: m1 m2 H => [x [[+]]] [y [[+]]] /= Hxy.
+    intros w v.
   Admitted.
 
   (* Lemma measurability_image : forall S1 : set T1, forall S2 : set T2,

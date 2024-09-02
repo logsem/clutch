@@ -94,15 +94,13 @@ Section monad_laws.
     rewrite giryM_integrate_eval.
     rewrite (nd_ge0_integral_lim (giryM_join m) _ _ (fun _ => @cvg_nnsfun_approx _ T1 R setT HM f _ _ _ _)); cycle 2.
     - by apply Hf.
-    - intros x n' m' Hle.
-      (* Check (@nd_nnsfun_approx _ _ _ _ _ _ _ n' m' Hle). *)
-      (* Need to turn the %R comparison into %O)*)
+    - intros x t n' m' Hle.
+      have HR := (@nd_nnsfun_approx _ _ _ _ HM _ x n' m' Hle).
+      (* apply Order.POrderTheory.leif_eq in HR. *)
       admit.
     - by intros ???; apply Hf.
     - by intros; simpl.
-    - have f' := (@measurable_mapP _ _ _ _ f).
-      (* Might be fixable by changing borelER to 'measurable*)
-      admit.
+    - by apply @measurable_mapP.
     intro Hfmf.
 
     (* Rewrite integral over μ to limit, under the RHS integral. *)
@@ -150,23 +148,28 @@ Section monad_laws.
       (* Might need to do this directly.. I can't find any relevant theorems for this type of sum *)
       (* Surely this proof was done somewhere else so I'm confident it's possible. *)
       intros x y Hle.
+
       admit.
     - (* Sequence is nonnegative *)
       intros n μ _.
-      simpl.
-      (* Search 0%R (_ <= _)%E "sum". *)
-      (* None of the relevant theorems work, but something will. *)
-      admit.
+      rewrite /= fsume_ge0 //=.
+      intros i [t ? <-].
+      apply mule_ge0.
+      + rewrite nnsfun_approxE.
+        rewrite /approx /=.
+        (* How to lower bound these sums? *)
+        admit.
+      + by eapply @measure_ge0.
     - (* Sequence is pointwise measurable *)
       intros n.
       apply emeasurable_fun_fsum. (* Measurability of finite sums *)
-      { (* Sum is finite *)  admit. }
+      { rewrite nnsfun_approxE.
+        rewrite /finite_set.
+        (* Sum is finite *)  admit. }
       intro range_element.
       (* Seems to be no lemmas that mul measurable is measurable in ENNR, only R *)
       admit.
-    - (* ⊤ is measurable *)
-      admit.
-
+    - by apply @measurableT.
     (* Pointwise equality between limits *)
     f_equal.
     rewrite -topology.fmap_comp.
@@ -181,11 +184,13 @@ Section monad_laws.
       admit.
     - (* Argument is nonnegative *)
       intros n' μ _.
-      admit.
+      apply mule_ge0.
+      + admit.
+      + by apply @measure_ge0.
     - (* Argument is pointwise measurable. *)
+      intro range_element.
       admit.
-    - (* ⊤ is measurable *)
-      apply @measurableT.
+    - by apply @measurableT.
 
     f_equal.
     - (* The index sets are the same *)
@@ -193,17 +198,21 @@ Section monad_laws.
       f_equal.
       apply functional_extensionality.
       intro x.
-
-      (* rewrite (giryM_join_eval m). *)
-      admit.
-      (* rewrite /giryM_join. *)
-      (* Scalar multiplication *)
+      rewrite /= giryM_join_eval.
+      rewrite integralZl /=.
+      + done.
+      + by apply (@measurableT (@giryM_display R d1 T1) (@salgebraType (@giryType R d1 T1) (@giry_subbase R d1 T1))).
+      + (* apply base_eval_measurable. *)
+        admit.
     - (* The bodies are the same *)
       apply functional_extensionality.
       intro x.
       f_equal.
-      (* Scalar multiplication *)
-      admit.
+      rewrite /= giryM_join_eval.
+      rewrite integralZl.
+      + done.
+      + by apply (@measurableT (@giryM_display R d1 T1) (@salgebraType (@giryType R d1 T1) (@giry_subbase R d1 T1))).
+      + admit.
   Admitted.
 
   Lemma giryM_map_zero {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2} (f : measurable_map T1 T2) :
@@ -455,5 +464,4 @@ Section monad_laws.
     rewrite giryM_join_eval.
     f_equal.
   Qed.
-
 End monad_laws.
