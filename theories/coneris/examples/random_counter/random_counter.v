@@ -143,3 +143,34 @@ Class random_counter `{!conerisGS Σ} := RandCounter
       {{{ (n':nat), RET #n'; Q n'
       }}}
 }.
+
+
+Section lemmas.
+  Context `{rc:random_counter}.
+  
+  Lemma incr_counter_tape_spec_none {L: counterG Σ} N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat):
+    ↑N ⊆ E->
+    (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
+    (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
+    {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗
+        □(∀ (ε:R) (n : nat), P ∗ counter_error_auth (L:=L) γ1 ε
+                           ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨ counter_error_auth (L:=L) γ1 (ε2 ε n) ∗ T n) ) ∗
+        □ (∀ (n:nat) (z:nat), T n ∗ counter_content_auth (L:=L) γ3 z  ={E∖↑N}=∗
+                          counter_content_auth (L:=L) γ3 (z+n)%nat ∗ Q z n) ∗
+        P ∗ counter_tapes_frag (L:=L) γ2 α 3%nat []
+    }}}
+      incr_counter_tape c #lbl:α @ E
+                                 {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ counter_tapes_frag (L:=L) γ2 α 3%nat [] }}}.
+  Proof.
+    iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP & Hα) HΦ".
+    iMod (counter_presample_spec with "[//][//][$][$]") as "(%&HT&Hα)"; try done.
+    { intros ε Hε. specialize (Hineq ε Hε).
+      rewrite SeriesC_nat_bounded_fin SeriesC_finite_foldr /=. lra.
+    }
+    iApply (incr_counter_tape_spec_some _ _ _ _ _ _ (T n) (λ x, Q x n) with "[$Hα $HT]"); try done.
+    { by iSplit. }
+    iNext.
+    iIntros. iApply ("HΦ" with "[$]").
+  Qed.
+  
+End lemmas.
