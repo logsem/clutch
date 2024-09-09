@@ -2,6 +2,7 @@
 From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
+From mathcomp.analysis Require Import normedtype.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
 From HB Require Import structures.
 
@@ -29,3 +30,9 @@ Section Lib.
     apply HS.
   Qed.
 End Lib.
+
+(*
+(* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
+Definition fin_of_Im (m : nat) : 'I_m -> fin m.
+Admitted.
+*)
