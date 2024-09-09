@@ -6,19 +6,37 @@ From mathcomp.analysis Require Import reals ereal signed normedtype sequences es
 From clutch.prob.monad Require Export laws.
 From clutch.prob_lang Require Import lang.
 
-Section cfg_sigma_algebra.
-  (** Defines the sigma algebra on configurations *)
-  (* Currently OK with a discrete space, until we add real-valued primitives to the langauge *)
-
+Section pointed_instances.
   Local Open Scope classical_set_scope.
+  (** states are pointed *)
+  (* Maybe define a builder for this? Any sdtpp inhabited type -> mathcomp pointed type *)
 
-  (* Fail Check (<<discr cfg>> : measurableType _). *)
-  HB.instance Definition _ := gen_eqMixin cfg.
-  HB.instance Definition _ := gen_choiceMixin cfg.
-  HB.instance Definition _ := isPointed.Build cfg inhabitant.
-  (* Check (<<discr cfg>> : measurableType _). *)
+  (* Fail Check (<<discr state>> : measurableType _).  *)
+  HB.instance Definition _ := gen_eqMixin state.
+  HB.instance Definition _ := gen_choiceMixin state.
+  HB.instance Definition _ := isPointed.Build state inhabitant.
+  (* Check (<<discr state>> : measurableType _). *)
 
-End cfg_sigma_algebra.
+  (** expr is pointed *)
+  (* Fail Check (<<discr expr>> : measurableType _).  *)
+  HB.instance Definition _ := gen_eqMixin expr.
+  HB.instance Definition _ := gen_choiceMixin expr.
+  HB.instance Definition _ := isPointed.Build expr inhabitant.
+  (* Check (<<discr expr>> : measurableType _).  *)
+
+  (** loc is pointed *)
+  (* Fail Check (<<discr loc>> : measurableType _).  *)
+  HB.instance Definition _ := gen_eqMixin loc.
+  HB.instance Definition _ := gen_choiceMixin loc.
+  HB.instance Definition _ := isPointed.Build loc inhabitant.
+  (* Check (<<discr loc>> : measurableType _).  *)
+
+  (** cfg is pointed (automatic) *)
+  (* Check (<<discr cfg>> : measurableType _).  *)
+
+  (** state * loc is pointed (automatic) *)
+  (* Check (<<discr (state * loc)>> : measurableType _). *)
+End pointed_instances.
 
 Section meas_semantics.
   Local Open Scope classical_set_scope.
@@ -117,45 +135,28 @@ Section meas_semantics.
     := m_discr head_stepM_def.
 
 
-  (** * Monadic itereration  *)
-  Section giry_iterM.
-    Local Open Scope classical_set_scope.
-    Context {d} {T : measurableType d}.
+  Definition state_stepM_def (c : state * loc) : giryM (<<discr state>>) :=
+    let (σ1, α) := c in
+    if bool_decide (α ∈ dom σ1.(tapes)) then
+      let: (N; ns) := (σ1.(tapes) !!! α) in
+      giryM_zero
+      (* dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N) *)
+    else giryM_zero.
 
-    Fixpoint giry_iterM (n : nat) (f : measurable_map T (giryM T)) : measurable_map T (giryM T)
-      := match n with
-           O => giryM_ret R
-         | (S n) => m_cmp (giryM_bind f) (giry_iterM n f)
-         end.
-  End giry_iterM.
+  Definition state_stepM : measurable_map <<discr (state * loc)>> (giryM <<discr state>>)
+    := m_discr state_stepM_def.
 
   (* Check giry_iterM _ head_stepM. *)
 
 
 
 
-
   (** NEXT: *)
-  (* Connect the steps together with bind to get exec_n and exec *)
-  (* Port state_step (easy) *)
-
 
   (* Show that sampling a real value is measurable (map over unif. space on [0, 1] is measurable) *)
   (* Add random real sampling head step *)
 
-  (* Change sigma algeba to measure real tapes (Borel of infinite product spaces)*)
+  (* Change sigma algeba to measure real tapes (Borel of infinite product spaces) *)
   (* Add sample infinite tape step *)
 
-
-  (** To port below *)
-
-
-(*
-Definition state_step (σ1 : state) (α : loc) : distr state :=
-  if bool_decide (α ∈ dom σ1.(tapes)) then
-    let: (N; ns) := (σ1.(tapes) !!! α) in
-    dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N)
-  else dzero.
-
-*)
 End meas_semantics.

@@ -465,3 +465,22 @@ Section monad_laws.
     f_equal.
   Qed.
 End monad_laws.
+
+
+
+(** Derived forms *)
+Section giry_iterM.
+  Local Open Scope classical_set_scope.
+  Context `{R : realType}.
+  Notation giryM := (giryM (R := R)).
+  Context {d} {T : measurableType d}.
+
+  Local Open Scope classical_set_scope.
+
+  (* Monadic iteration *)
+  Fixpoint giry_iterM (n : nat) (f : measurable_map T (giryM T)) : measurable_map T (giryM T)
+    := match n with
+         O => giryM_ret R
+       | (S n) => m_cmp (giryM_bind f) (giry_iterM n f)
+       end.
+End giry_iterM.
