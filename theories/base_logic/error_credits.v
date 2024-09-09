@@ -381,3 +381,5 @@ Proof.
   - pose (C := EcGS _ _ γEC).
     iModIntro. iExists C. by iFrame.
 Qed.
+
+#[global] Hint Resolve cond_nonneg : core.

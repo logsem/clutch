@@ -1011,6 +1011,14 @@ End finite.
     by rewrite fin_to_nat_to_fin.
   Qed.
 
+  
+  Lemma SeriesC_nat_bounded' (f : nat -> R) (N : nat) :
+    SeriesC (λ (n : nat), if bool_decide ((n <= N)%nat) then f n else 0) = foldr (Rplus ∘ f ∘ fin_to_nat) 0%R (enum (fin (S N))).
+  Proof.
+    rewrite SeriesC_nat_bounded_fin.
+    by rewrite SeriesC_finite_foldr.
+  Qed.
+
 (** Results about positive (non-negative) series *)
 Section positive.
   Context `{Countable A}.

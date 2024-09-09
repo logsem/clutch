@@ -479,7 +479,6 @@ Proof.
         * apply SeriesC_le.
           ** intros [[]]; split.
              *** apply Rmult_le_pos; auto.
-                 case_match; (try apply cond_nonneg).
              *** case_bool_decide; simplify_eq.
                  **** do 6 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ done |].
@@ -876,7 +875,7 @@ Proof.
     apply Rplus_le_compat.
     { (* holds because state_step is a pmf so is lt 1 *)
       rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
-      apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
+      apply Rmult_le_compat; try auto; lra. }
 
     (* rewrite to a form for SeriesC_le *)
     pose f := (fun n : fin _ => 1 / S N * ε2 n)%R.
