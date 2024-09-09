@@ -29,8 +29,6 @@ Section unif_fin_space.
   HB.instance Definition _ := gen_choiceMixin ('I_m).
   HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.
 
-  (* FIXME: Something odd about this: should work for all discrete types not just I_(S m)? *)
-  (* In the special case of I_(S_m), all sets are finite *)
   Definition giryM_unif_def (X : set <<discr 'I_(S m)>>) : \bar R
     :=  if `[< finite_set X >] then ((#|` fset_set X |)%:R / (S m)%:R)%:E else +oo.
 
@@ -57,11 +55,11 @@ Local Open Scope classical_set_scope.
 Local Open Scope ereal_scope.
 
 (** Public definition for the zero function *)
-Definition giryM_unif {R : realType} {d} {T : measurableType d} {m : nat} : @giryM R _ <<discr ('I_(S m))>> :=
+Definition giryM_unif {R : realType} (m : nat) : @giryM R _ <<discr ('I_(S m))>> :=
   @giryM_unif_def R m.
 
 (** Public equality for the zero function *)
-Definition giryM_unif_eval {R : realType} {d} {T : measurableType d} {m : nat} :
+Definition giryM_unif_eval {R : realType} (m : nat) :
     forall X : set <<discr ('I_(S m))>>,
-      (@giryM_unif R d T m) X = if `[< finite_set X >] then ((#|` fset_set X |)%:R / (S m)%:R)%:E else +oo.
+      (@giryM_unif R m) X =  if `[< finite_set X >] then ((#|` fset_set X |)%:R / (S m)%:R)%:E else +oo.
 Proof. done. Qed.

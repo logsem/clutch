@@ -264,3 +264,17 @@ Section discrete_space.
 End discrete_space.
 
 Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.
+
+Section fin_pointed.
+  Local Open Scope ereal_scope.
+  Local Open Scope classical_set_scope.
+  Context {R : realType}.
+  Variable (m : nat).
+
+  (* The finite type of > 0 elements is pointed *)
+  Program Definition Ism_inhabitant : 'I_(S m). eapply (@Ordinal _), leqnn. Defined.
+
+  HB.instance Definition _ := gen_eqMixin ('I_m).
+  HB.instance Definition _ := gen_choiceMixin ('I_m).
+  HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.
+End fin_pointed.
