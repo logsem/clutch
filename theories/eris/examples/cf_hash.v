@@ -753,7 +753,7 @@ Section coll_free_hash.
         rewrite mult_INR.
         rewrite <- (Rmult_1_l rval) at 1.
         apply Rmult_lt_compat_r.
-        ** eapply Rle_lt_trans; eauto.
+        ** eapply Rle_lt_trans; last eauto.
            apply pos_INR.
         ** simpl. lra.
       * iSplit.

@@ -220,7 +220,7 @@ Section faulty_allocator.
         iPureIntro.
         rewrite Hyes mult_INR /=.
         assert (0 < rval); [ | lra].
-        eapply Rle_lt_trans; eauto.
+        eapply Rle_lt_trans; last eauto. 
         apply pos_INR.
       }
       iSplit.
