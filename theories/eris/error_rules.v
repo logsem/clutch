@@ -525,7 +525,6 @@ Proof.
         * apply SeriesC_le.
           ** intros []; split.
              *** apply Rmult_le_pos; auto.
-                 case_match; (try apply cond_nonneg).
              *** case_bool_decide; simplify_eq.
                  **** do 5 (case_match; simpl; (try (rewrite Rmult_0_r; lra))).
                       apply Rmult_le_compat_r; [ apply cond_nonneg |].
@@ -1169,7 +1168,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       apply Rplus_le_compat.
       { (* holds because state_step is a pmf so is lt 1 *)
         rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
-        apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
+        apply Rmult_le_compat; try auto; lra. }
 
       (* rewrite to a form for SeriesC_le *)
       pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
@@ -1349,7 +1348,7 @@ Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val ->
       apply Rplus_le_compat.
       { (* holds because state_step is a pmf so is lt 1 *)
         rewrite SeriesC_scal_r -{2}(Rmult_1_l (nonneg ε_rem)).
-        apply Rmult_le_compat; try auto; [apply cond_nonneg | lra]. }
+        apply Rmult_le_compat; try auto; lra. }
 
       (* rewrite to a form for SeriesC_le *)
       pose f := (fun n : fin _ => 1 / S (Z.to_nat z) * ε2 n)%R.
