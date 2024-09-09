@@ -27,6 +27,9 @@ Set Default Proof Using "Type".
         T.-giry                 Display for the giry sigma algebra on T
         T.-giry.-measurable     Measurability in the giry sigma algebra on T
 
+      Discrete Spaces
+        <<discr T>>             measurableType for discrete space on T
+
  *)
 
 (*
@@ -224,3 +227,40 @@ Section giryNotation.
   Notation "T .-giry.-measurable" := ((@measurable _ (giryM T)) : set (set (giryM T))) : classical_set_scope.
 End giryNotation.
 *)
+
+
+Reserved Notation "'<<discr' G '>>'"
+  (at level 2, format "'<<discr'  G  '>>'").
+
+
+Section discrete_space.
+  Local Open Scope classical_set_scope.
+
+  (* Type of points in a discrete space *)
+  Definition discrType (T : Type) : Type := T.
+
+  Section discr_salgebra_instance.
+    Variables (T: pointedType).
+    Definition inhab : discrType T := (@point T).
+
+    Definition discr_meas : set (set (discrType T)) := [set: set (discrType T)].
+
+    Lemma discr_meas0 : discr_meas set0.
+    Proof. by []. Qed.
+
+    Lemma discr_measC X : discr_meas X -> discr_meas (~` X).
+    Proof. by []. Qed.
+
+    Lemma discr_measU (F : sequences.sequence (set T)) : (forall i, discr_meas (F i)) -> discr_meas (\bigcup_i F i).
+    Proof. by []. Qed.
+
+    HB.instance Definition _ := gen_eqMixin (discrType T).
+    HB.instance Definition _ := gen_choiceMixin (discrType T).
+    HB.instance Definition _ := isPointed.Build (discrType T) inhab.
+    HB.instance Definition _:= @isMeasurable.Build default_measure_display (discrType T) discr_meas
+                                 discr_meas0 discr_measC discr_measU.
+  End discr_salgebra_instance.
+
+End discrete_space.
+
+Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.

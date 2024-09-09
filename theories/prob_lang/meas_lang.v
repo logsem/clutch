@@ -6,54 +6,9 @@ From mathcomp.analysis Require Import reals ereal signed normedtype sequences es
 From clutch.prob.monad Require Export laws.
 From clutch.prob_lang Require Import lang.
 
+
+
 (*
-Reserved Notation "'<<discr' G '>>'"
-  (at level 2, format "'<<discr'  G  '>>'").
-
-
-Section discrete_space.
-  Local Open Scope classical_set_scope.
-
-  Definition discrType (T : Type) : Type := T.
-
-  Section discr_salgebra_instance.
-    Variables (T: pointedType).
-    Definition inhab : discrType T := (@point T).  (* There has to be better way *)
-
-    Definition discr_meas : set (set (discrType T)) := [set: set (discrType T)].
-
-    Lemma discr_meas0 : discr_meas set0.
-    Proof. by []. Qed.
-
-    Lemma discr_measC X : discr_meas X -> discr_meas (~` X).
-    Proof. by []. Qed.
-
-    Lemma discr_measU (F : sequence (set T)) : (forall i, discr_meas (F i)) -> discr_meas (\bigcup_i F i).
-    Proof. by []. Qed.
-
-    HB.instance Definition _ := gen_eqMixin (discrType T).
-    HB.instance Definition _ := gen_choiceMixin (discrType T).
-    HB.instance Definition _ := isPointed.Build (discrType T) inhab.
-    HB.instance Definition _:= @isMeasurable.Build default_measure_display (discrType T) discr_meas
-                                 discr_meas0 discr_measC discr_measU.
-  End discr_salgebra_instance.
-
-  Notation "'<<discr' G '>>'" := (discrType G) : classical_set_scope.
-
-  (* Check <<discr cfg>>. *)
-
-
-  Section discrete_space_mapout.
-    Context {d2} {T1 : pointedType} {T2 : measurableType d2}.
-    Variable (f : <<discr T1>> -> T2).
-
-    Lemma discr_mapout_measurable S : (measurable_fun S f).
-    Proof. rewrite /measurable_fun. intros. by rewrite /measurable/=/discr_meas/=. Qed.
-
-  End discrete_space_mapout.
-End discrete_space.
-
-
 
 
 Section discrete_space_cfg.
@@ -93,47 +48,6 @@ Section discrete_space_cfg.
    *)
 
 End discrete_space_cfg.
-
-
-
-
-Section unif_fin_space.
-  Local Open Scope ereal_scope.
-  Context {R : realType}.
-  Variable (m : nat).
-
-  Program Definition Ism_inhabitant : 'I_(S m). eapply (@Ordinal _), leqnn. Defined.
-
-  HB.instance Definition _ := gen_eqMixin ('I_m).
-  HB.instance Definition _ := gen_choiceMixin ('I_m).
-  HB.instance Definition _ N := isPointed.Build ('I_(S m)) Ism_inhabitant.
-
-  Definition unifM (X : set (discrType 'I_(S m))) : \bar R
-    :=  if `[< finite_set X >] then ((#|` fset_set X |)%:R / (S m)%:R)%:E else +oo.
-
-  Lemma unifM0 : unifM set0 = 0. Proof. Admitted.
-  Lemma unifM_ge0 (A : set (discrType 'I_(S m))) : 0 <= unifM A. Proof. Admitted.
-  Lemma unifM_sigma_additive : semi_sigma_additive unifM. Proof. Admitted.
-
-  HB.instance Definition _ :=
-    isMeasure.Build _ _ _ unifM unifM0 unifM_ge0 unifM_sigma_additive.
-
-  Lemma unifM_T : unifM setT <= 1%E. Proof. Admitted.
-
-  HB.instance Definition _ := Measure_isSubProbability.Build _ _ _ unifM unifM_T.
-
-  (* Check (unifM : subprobability _ _).
-  Check (unifM : giryType R (discrType ('I_(S m)))).
-
-  Check (discrType ('I_(S m)) : measurableType _). (* Okay so this works *)
-  Check (unifM : giryM R (discrType ('I_(S m)))). (* And this works too.... what does wrong withcfg? *) *)
-
-End unif_fin_space.
-
-(* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
-Definition fin_of_Im (m : nat) : 'I_m -> fin m.
-Admitted.
-
 
 Section meas_semantics.
   Local Open Scope classical_set_scope.
