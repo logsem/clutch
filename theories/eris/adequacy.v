@@ -79,7 +79,7 @@ Section adequacy.
       rewrite exec_Sn_not_final; [|eauto].
       iApply pgl_dbind_adv'.
       + iPureIntro; apply cond_nonneg.
-      + iPureIntro. exists r. split; auto. apply cond_nonneg.
+      + iPureIntro. exists r. split; auto. 
       + done.
       + iIntros ([] ?).
         iApply step_fupd_fupdN_S.
@@ -262,7 +262,6 @@ Section adequacy.
           + apply Rle_plus_r; first done.
             apply Rplus_le_le_0_compat; first real_solver.
             apply Rmult_le_pos; auto.
-            apply cond_nonneg.
       }
       iIntros ([e s] ?).
       iMod ("H" with "[//]") as "H".
@@ -343,7 +342,6 @@ Section adequacy.
           - apply Rle_plus_r; first done.
             apply Rplus_le_le_0_compat; first real_solver.
             apply Rmult_le_pos; auto.
-            apply cond_nonneg.
         }
         iIntros (e s).
         iApply step_fupd_fupdN_S.
