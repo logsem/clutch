@@ -119,22 +119,17 @@ Section meas_semantics.
 
   (** * Monadic itereration  *)
   Section giry_iterM.
-
+    Local Open Scope classical_set_scope.
     Context {d} {T : measurableType d}.
 
-    (* Fixpoint giry_iterM (n : nat) (f : T -> (giryM R T)) (mf : measurable_fun setT f) (a : T) : giryM R T
+    Fixpoint giry_iterM (n : nat) (f : measurable_map T (giryM T)) : measurable_map T (giryM T)
       := match n with
-           O => giryM_ret R a
-         | (S n) =>
-             let next : T -> giryM R T := giry_iterM n f mf in
-             let next_mf : measurable_fun _ next := unsound_meas_obligation _ _ _ _ _ in
-             giryM_bind (f a) next_mf
+           O => giryM_ret R
+         | (S n) => m_cmp (giryM_bind f) (giry_iterM n f)
          end.
-         *)
-
   End giry_iterM.
 
-
+  (* Check giry_iterM _ head_stepM. *)
 
 
 
