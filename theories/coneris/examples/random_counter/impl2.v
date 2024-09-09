@@ -1,6 +1,7 @@
 From iris.algebra Require Import frac_auth.
 From iris.base_logic.lib Require Import invariants.
 From clutch.coneris Require Import coneris hocap random_counter.
+From clutch Require Import uniform_list.
 
 Set Default Proof Using "Type*".
 
@@ -269,7 +270,6 @@ Section impl2.
     by iFrame.
   Qed.
 
-  (** TODO *)
   Lemma counter_presample_spec2 NS  E ns α
      (ε2 : R -> nat -> R)
     (P : iProp Σ) T γ1 γ2 γ3 c:
@@ -305,11 +305,21 @@ Section impl2.
                                        end)).
     unshelve iExists
       (λ l, mknonnegreal (ε2 ε1' (f l) ) _).
-    { admit. }
+    { apply Hpos; simpl. auto. }
     simpl.
     iSplit.
     { iPureIntro.
-    admit. }
+      etrans; last apply Hineq; last auto.
+      pose (k:=(λ n, 1 / ((1 + 1) * ((1 + 1) * 1)) * ε2 ε1' (f n))%R).
+      erewrite (SeriesC_ext _ (λ x, if bool_decide (x ∈ enum_uniform_list 1%nat 2%nat)
+                                    then k x else 0%R))%R; last first.
+      - intros. case_bool_decide as K.
+        + rewrite elem_of_enum_uniform_list in K. by rewrite K /k.
+        + rewrite elem_of_enum_uniform_list in K.
+          case_match eqn:K'; [by rewrite Nat.eqb_eq in K'|done].
+      - rewrite SeriesC_list; last apply NoDup_enum_uniform_list.
+        rewrite /k /=. rewrite SeriesC_nat_bounded'/=. lra.
+    }
     iIntros (sample ?).
     destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (f sample)))%R 1%R) as [Hdec|Hdec]; last first.
     { apply Rnot_lt_ge, Rge_le in Hdec.
@@ -322,11 +332,13 @@ Section impl2.
     { apply Hpos. apply cond_nonneg. }
     { simpl. done. }
     assert (Nat.div2 (f sample)<2)%nat as K1.
-    { admit. }
+    { rewrite Nat.div2_div. apply Nat.Div0.div_lt_upper_bound. rewrite /f.
+      simpl. repeat case_match; try lia. pose proof fin_to_nat_lt t. pose proof fin_to_nat_lt t0. lia.
+    }
     rewrite -H1.
     iMod (tapeN_update_append _ _ _ _ (nat_to_fin K1) with "[$][$]") as "[Htapes Htape]".
     assert (Nat.b2n (Nat.odd (f sample))<2)%nat as K2.
-    { admit. }
+    { edestruct (Nat.odd _); simpl; lia.  }
     rewrite -(list_fmap_singleton (fin_to_nat)) -fmap_app.
     iMod (tapeN_update_append _ _ _ _ (nat_to_fin K2) with "[$][$]") as "[Htapes Htape]".
     iMod (hocap_tapes_presample' _ _ _ _ _ _ (f sample) with "[$][$]") as "[H4 Hfrag]".
@@ -336,7 +348,17 @@ Section impl2.
     rewrite insert_insert.
     rewrite fmap_app -!app_assoc /=.
     assert (([nat_to_fin K1;nat_to_fin K2]) = sample) as K.
-    { admit. }
+    { destruct sample as [|x xs]; first done.
+      destruct xs as [|x' xs]; first done.
+      destruct xs as [|]; last done.
+      pose proof fin_to_nat_lt x. pose proof fin_to_nat_lt x'.
+      repeat f_equal; apply fin_to_nat_inj; rewrite fin_to_nat_to_fin. 
+      - rewrite /f. rewrite Nat.div2_div.
+        rewrite Nat.mul_comm Nat.div_add_l; last lia. rewrite Nat.div_small; lia.
+      - rewrite /f. rewrite Nat.add_comm Nat.odd_add_even.
+        + destruct (fin_to_nat x') as [|[|]]; simpl; lia.
+        + by econstructor. 
+    }
     iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4 $H5 $H6]") as "_".
     { iNext. iSplit; last done.
       rewrite big_sepM_insert_delete; iFrame.
@@ -348,7 +370,7 @@ Section impl2.
     rewrite /pgl_wp_pre /= Hv.
     rewrite K.
     iApply ("Hcnt" $! (state_upd_tapes <[α:= (1%nat; ns' ++ sample):tape]> σ) with "[$]").
-  Admitted.
+  Qed.
 
   
   (* Lemma incr_counter_tape_spec_none2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat): *)
