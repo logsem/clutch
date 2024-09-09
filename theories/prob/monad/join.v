@@ -58,7 +58,78 @@ Section giryM_join_definition.
     Proof.
       rewrite /semi_sigma_additive.
       intros F Fmeas Htriv_int HFunion_meas.
+      simpl.
+
+      (*
       rewrite /giryM_join_def.
+      Check @integral_bigcup _ _ _ _ F _ Htriv_int Fmeas .
+      *)
+
+      (* Setoid lemmas for the next step: *)
+      have Setoid1 (S1 S2 S3 : topology.set_system (extended (Real.sort R))) :
+        (S1 = S2) -> topology.cvg_to S1 S3 -> topology.cvg_to S2 S3 by move=>->.
+      have Setoid2 G H : (G = H) -> (topology.nbhs G) = (topology.nbhs H) by move=>->.
+      have Setoid3 (G H : nat -> (extended (Real.sort R))) S : (G = H) -> topology.fmap G S = topology.fmap H S by move=>->.
+      have Setoid4 (G H : types.giryM T -> \bar R) : (G = H) ->  (integral m setT G)%E =  (integral m setT H)%E by admit.
+
+      (* Perform rewrites underneath the cvg_to and nbhs *)
+      eapply Setoid1.
+      { symmetry.
+        eapply Setoid2.
+        eapply etrans.
+        { eapply Setoid3.
+          eapply etrans.
+          { apply functional_extensionality.
+            intro n.
+            (* Rewrite giryM_join_def to an integral *)
+            rewrite /giryM_join_def.
+
+            (* Exchange integral and finite sum *)
+            have Goal1 : (\sum_(0 <= i < n) (\int[m]_μ μ (F i))%E)%R = (\int[m]_μ (\sum_(0 <= i < n) (μ (F i))%R))%E.
+            { admit. }
+            rewrite Goal1.
+            clear Goal1.
+
+            (* By disjointness: finite sum of measures of sets = measure of union of sets *)
+            (* FIXME: There's got to be some place in mathcomp where they do this already *)
+            eapply Setoid4.
+            apply functional_extensionality.
+            intro μ.
+            have Goal2 :
+              (bigop.body GRing.zero (index_iota 0 n) (fun i : nat => BigBody i GRing.add true (μ (F i)))) =
+              μ (bigop.body set0 (index_iota 0 n) (fun i : nat => BigBody i setU true (F i))).
+            { admit. }
+            rewrite Goal2 /=.
+            reflexivity.
+          }
+
+          (* Rewrite to \comp *)
+          have Goal3 :
+            (fun n : nat => (\int[m]_μ μ (\big[setU/set0]_(0 <= i < n) F i))%E) =
+            comp
+              (fun (S : set T) => (\int[m]_μ (μ S))%E) (* Basically giryM_integrate of giryM_eval *)
+              (fun n : nat => (bigop.body set0 (index_iota 0 n) (fun i : nat => BigBody i setU true (F i)))).
+          { admit.
+          }
+          apply Goal3.
+        }
+
+        (* Rewrite with fmap_comp*)
+        rewrite topology.fmap_comp.
+        reflexivity.
+      }
+
+      (* Now I want to take the union of the sequence, turn it into bigcup *)
+      (* Or go the other way around: rewrite RHS to comp and cancel the cts function integrate *)
+      (* The former seems easier *)
+
+
+      (* Finish using one of these:
+      Check topology.cvg_fmap.
+      Search (topology.fmap _ (topology.nbhs _)).
+      Check topology.cvg_fmap2.
+      Search (topology.nbhs (topology.fmap _ _)).
+       *)
     Admitted.
 
     HB.instance Definition _
