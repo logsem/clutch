@@ -30,9 +30,3 @@ Section Lib.
     apply HS.
   Qed.
 End Lib.
-
-(*
-(* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
-Definition fin_of_Im (m : nat) : 'I_m -> fin m.
-Admitted.
-*)

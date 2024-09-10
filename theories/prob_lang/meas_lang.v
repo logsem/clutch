@@ -134,13 +134,17 @@ Section meas_semantics.
   Definition head_stepM : measurable_map <<discr cfg>> (giryM <<discr cfg>>)
     := m_discr head_stepM_def.
 
+  (* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
+  Definition fin_of_Im (m : nat) : 'I_m -> fin m.
+  Admitted.
 
   Definition state_stepM_def (c : state * loc) : giryM (<<discr state>>) :=
     let (σ1, α) := c in
     if bool_decide (α ∈ dom σ1.(tapes)) then
       let: (N; ns) := (σ1.(tapes) !!! α) in
-      giryM_zero
-      (* dmap (λ n, state_upd_tapes (<[α := (N; ns ++ [n])]>) σ1) (dunifP N) *)
+      giryM_map
+        (m_discr (λ (n : 'I_(S N)), (state_upd_tapes (<[α := (N; ns ++ [ fin_of_Im _ n : fin (S N)])]>) σ1) : <<discr state>>))
+        (giryM_unif _)
     else giryM_zero.
 
   Definition state_stepM : measurable_map <<discr (state * loc)>> (giryM <<discr state>>)
