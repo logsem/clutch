@@ -42,6 +42,15 @@ Section uniform_list.
         exists l'. rewrite elem_of_list_ret. simplify_eq. naive_solver.
   Qed.
 
+  Lemma elem_of_enum_uniform_list' l p:
+    bool_decide (l∈enum_uniform_list p) = (length l =? p).
+  Proof.
+    case_bool_decide as H.
+    all: rewrite elem_of_enum_uniform_list in H; subst.
+    - by rewrite Nat.eqb_refl.
+    - symmetry; by rewrite Nat.eqb_neq.
+  Qed.
+
   Lemma bind_length1 {A:Type} (l:list (list A)) a:
     length (l ≫= λ y, mret (a :: y)) = length l.
   Proof.
