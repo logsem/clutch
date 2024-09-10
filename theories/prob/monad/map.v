@@ -126,9 +126,11 @@ Section giryM_map_definition.
       reflexivity.
     }
     simpl.
-    apply measurable_if_pushfowrard_subset.
+
+
 
     (*
+    apply measurable_if_pushfowrard_subset.
     Check (@measurability _ _ _ _ setT _ ereal_borel_subbase _).
     Search subset smallest.
     rewrite /subset.
