@@ -79,18 +79,6 @@ Class random_counter `{!conerisGS Σ} := RandCounter
                               counter_error_frag (L:=L) γ1 ε ∗
                               counter_content_frag (L:=L) γ3 1%Qp 0%nat
     }}};
-  (* incr_counter_spec {L: counterG Σ} E N c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat->nat->iProp Σ): *)
-  (*   ↑N ⊆ E-> *)
-  (*   (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R-> *)
-  (*   (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R → *)
-  (*   {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗ *)
-  (*       □(∀ (ε:R) (n : nat), P ∗ counter_error_auth (L:=L) γ1 ε ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨ counter_error_auth (L:=L) γ1 (ε2 ε n) ∗ T n) ) ∗ *)
-  (*       □ (∀ (n:nat) (z:nat), T n ∗ counter_content_auth (L:=L) γ3 z ={E∖↑N}=∗ *)
-  (*                         counter_content_auth (L:=L) γ3 (z+n)%nat∗ Q z n) ∗ *)
-  (*       P *)
-  (*   }}} *)
-  (*     incr_counter c @ E *)
-  (*     {{{ (n:nat) (z:nat), RET (#z, #n); Q z n }}}; *)
   allocate_tape_spec {L: counterG Σ} N E c γ1 γ2 γ3:
     ↑N ⊆ E->
     {{{ is_counter (L:=L) N c γ1 γ2 γ3 }}}
@@ -107,19 +95,6 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     }}}
       incr_counter_tape c #lbl:α @ E
                                  {{{ (z:nat), RET (#z, #n); Q z ∗ counter_tapes_frag (L:=L) γ2 α 3%nat ns}}};
-  (* incr_counter_tape_spec_none {L: counterG Σ} N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat): *)
-  (*   ↑N ⊆ E-> *)
-  (*   (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R-> *)
-  (*   (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R → *)
-  (*   {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗ *)
-  (*       □(∀ (ε:R) (n : nat), P ∗ counter_error_auth (L:=L) γ1 ε *)
-  (*                          ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨ counter_error_auth (L:=L) γ1 (ε2 ε n) ∗ T n) ) ∗ *)
-  (*       □ (∀ (n:nat) (z:nat), T n ∗ counter_content_auth (L:=L) γ3 z  ={E∖↑N}=∗ *)
-  (*                         counter_content_auth (L:=L) γ3 (z+n)%nat ∗ Q z n) ∗ *)
-  (*       P ∗ counter_tapes_frag (L:=L) γ2 α 3%nat [] *)
-  (*   }}} *)
-  (*     incr_counter_tape c #lbl:α @ E *)
-  (*                                {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ counter_tapes_frag (L:=L) γ2 α 3%nat [] }}}; *)
   counter_presample_spec {L: counterG Σ} NS E ns α
      (ε2 : R -> nat -> R)
     (P : iProp Σ) T γ1 γ2 γ3 c:
