@@ -34,6 +34,18 @@ Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
 Section error_lemmas.
   Context `{!conerisGS Σ, !hocap_errorGS Σ}.
   (* Helpful lemmas *)
+  Lemma hocap_error_auth_pos (b:R) γ:
+    (●↯ b @ γ) -∗ ⌜(0<=b)%R⌝.
+  Proof.
+    by iIntros "[%[<- H]]".
+  Qed. 
+
+  Lemma hocap_error_frag_pos (b:R) γ:
+    (◯↯ b @ γ) -∗ ⌜(0<=b)%R⌝.
+  Proof.
+    by iIntros "[%[<- H]]".
+  Qed. 
+  
   Lemma hocap_error_alloc (ε:nonnegreal):
     ⊢ |==>∃ γ, (●↯ ε @ γ) ∗ (◯↯ ε @ γ).
   Proof.
