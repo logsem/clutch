@@ -65,7 +65,10 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   counter_content_auth_exclusive {L : counterG Σ} γ z1 z2:
     counter_content_auth (L:=L) γ z1 -∗ counter_content_auth (L:=L) γ z2 -∗ False;
   counter_content_less_than {L : counterG Σ} γ z z' f:
-    counter_content_auth (L:=L) γ z -∗ counter_content_frag (L:=L) γ f z' -∗ ⌜(z'<=z)%nat ⌝;
+  counter_content_auth (L:=L) γ z -∗ counter_content_frag (L:=L) γ f z' -∗ ⌜(z'<=z)%nat ⌝;
+  counter_content_frag_combine {L:counterG Σ} γ f f' z z':
+    (counter_content_frag (L:=L) γ f z ∗ counter_content_frag (L:=L) γ f' z')%I ≡
+    counter_content_frag (L:=L) γ (f+f')%Qp (z+z')%nat;
   counter_content_agree {L : counterG Σ} γ z z':
     counter_content_auth (L:=L) γ z -∗ counter_content_frag (L:=L) γ 1%Qp z' -∗ ⌜(z'=z)%nat ⌝;
   counter_content_update {L : counterG Σ} γ f z1 z2 z3:
@@ -121,9 +124,9 @@ Class random_counter `{!conerisGS Σ} := RandCounter
 
 
 Section lemmas.
-  Context `{rc:random_counter}.
+  Context `{rc:random_counter} {L: counterG Σ}.
   
-  Lemma incr_counter_tape_spec_none {L: counterG Σ} N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat):
+  Lemma incr_counter_tape_spec_none  N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat):
     ↑N ⊆ E->
     (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
     (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
@@ -147,5 +150,23 @@ Section lemmas.
     iNext.
     iIntros. iApply ("HΦ" with "[$]").
   Qed.
+
+  Lemma incr_counter_tape_spec_none' N E c γ1 γ2 γ3 ε (ε2:R -> nat -> R)(α:loc) (ns:list nat) (q:Qp) (z:nat):
+    ↑N ⊆ E->
+    (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
+    (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
+    {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗
+        counter_error_frag (L:=L) γ1 ε ∗
+        counter_tapes_frag (L:=L) γ2 α 3%nat [] ∗
+        counter_content_frag (L:=L) γ3 q z 
+    }}}
+      incr_counter_tape c #lbl:α @ E
+                                 {{{ (z:nat) (n:nat),
+                                       RET (#z, #n); ⌜(0<=n<4)%nat⌝ ∗
+                                                     counter_error_frag (L:=L) γ1 (ε2 ε n) ∗
+                                                     counter_tapes_frag (L:=L) γ2 α 3%nat [] ∗
+                                                     counter_content_frag (L:=L) γ3 q (z+n)%nat }}}.
+  Proof.
+  Admitted.
   
 End lemmas.

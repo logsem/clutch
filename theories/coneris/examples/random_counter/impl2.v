@@ -451,6 +451,11 @@ Next Obligation.
   by apply nat_included.
 Qed.
 Next Obligation.
+  simpl.
+  iIntros (????????).
+  rewrite frac_auth_frag_op. by rewrite own_op.
+Qed.
+Next Obligation.
   simpl. iIntros (??????) "H1 H2".
   iCombine "H1 H2" gives "%H".
   iPureIntro.
