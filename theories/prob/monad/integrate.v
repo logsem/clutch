@@ -42,6 +42,9 @@ Section giryM_integrate_laws.
     pose HApprox := (nnsfun_approx HMTop (@measurable_mapP _ _ _ _ f)).
 
     (* Move under the measurable_fun *)
+    (* Broken by new mathcomp-analysis *)
+
+    (*
     erewrite (Setoid1 _ _ _ _ _ _ (fun (μ : giryM T) => _)); last first.
     { apply functional_extensionality; intro μ.
       (* Rewrite this integral to the limit of a finite sum  *)
@@ -68,6 +71,7 @@ Section giryM_integrate_laws.
       (* Search topology.lim "sum". *)
       reflexivity.
     }
+     *)
 
     (* Target: *)
     (*Search measurable_fun "sum".
