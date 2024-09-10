@@ -197,8 +197,16 @@ Section lemmas.
           naive_solver. }
         iPureIntro. split; first lia.
         apply leb_complete in H. lia.
-      + admit.
-    - admit.
-  Admitted.
+      + iModIntro.
+        iIntros (??) "[(%&Herr & Hcontent) Hcontent_auth]".
+        iFrame.
+        iDestruct (counter_content_less_than with "[$][$]") as "%".
+        by iMod (counter_content_update with "[$][$]") as "[$ $]".
+    - iIntros (??) "[(%&%&?&?)?]".
+      iApply "HΦ".
+      iFrame.
+      rewrite /ε2'. case_match eqn: H2; first by iFrame.
+      apply leb_iff_conv in H2. lia.
+  Qed.
   
 End lemmas.
