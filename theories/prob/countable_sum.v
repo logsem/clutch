@@ -1254,6 +1254,21 @@ Section fubini.
       apply Series_0; auto.
   Qed.
 
+  Lemma fubini_pos_seriesC' (h : A -> B → R) :
+    (∀ a b, 0 <= h a b) →
+    (∀ a, ex_seriesC (λ b, h a b)) →
+    (ex_seriesC (λ a, SeriesC (λ b, h a b))) →
+    SeriesC (λ b, SeriesC (λ a, h a b)) =
+    SeriesC (λ a, SeriesC (λ b, h a b)).
+  Proof.
+    intros.
+    pose (h' := λ '(a,b), h a b).
+    assert (forall a b, h a b = h' (a,b)) as H'.
+    { intros. by rewrite /h'. }
+    setoid_rewrite H'.
+    apply fubini_pos_seriesC.
+    all: by setoid_rewrite <-H'.
+  Qed.
 
 End fubini.
 
