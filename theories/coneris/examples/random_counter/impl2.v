@@ -157,27 +157,6 @@ Section impl2.
     iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     (** cant do two view shifts! *)
   Abort.
-    (* iDestruct (ec_valid with "[$]") as "[%K1 %K2]". *)
-  (*   wp_apply (wp_couple_rand_adv_comp1' _ _ _ _ (λ x, ε2 ε (fin_to_nat x)) with "[$]"). *)
-  (*   { intros. naive_solver. } *)
-  (*   { rewrite SeriesC_finite_foldr; specialize (Hineq ε K1). simpl; lra. } *)
-  (*   iIntros (n) "H1". *)
-  (*   iMod ("Hvs1" with "[$]") as "[%|[H2 HT]]". *)
-  (*   { iExFalso. iApply ec_contradict; last done. done. } *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done. *)
-  (*   iModIntro. wp_pures. *)
-  (*   clear -Hsubset. *)
-  (*   wp_bind (FAA _ _). *)
-  (*   iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_faa. *)
-  (*   iMod ("Hvs2" with "[$]") as "[H6 HQ]". *)
-  (*   replace (#(z+n)) with (#(z+n)%nat); last first. *)
-  (*   { by rewrite Nat2Z.inj_add. } *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done. *)
-  (*   iModIntro. *)
-  (*   wp_pures. *)
-  (*   by iApply "HΦ". *)
-  (* Qed. *)
 
   Lemma allocate_tape_spec2 N E c γ1 γ2 γ3:
     ↑N ⊆ E->
@@ -372,30 +351,6 @@ Section impl2.
     iApply ("Hcnt" $! (state_upd_tapes <[α:= (1%nat; ns' ++ sample):tape]> σ) with "[$]").
   Qed.
 
-  
-  (* Lemma incr_counter_tape_spec_none2 N E c γ1 γ2 γ3 (ε2:R -> nat -> R) (P: iProp Σ) (T: nat -> iProp Σ) (Q: nat -> nat -> iProp Σ)(α:loc) (ns:list nat): *)
-  (*   ↑N ⊆ E-> *)
-  (*   (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R-> *)
-  (*   (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R → *)
-  (*   {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗ *)
-  (*       □(∀ (ε:R) (n : nat), P ∗ ●↯ ε @ γ1 ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨●↯ (ε2 ε n) @ γ1 ∗ T n) ) ∗ *)
-  (*       □ (∀ (n:nat) (z:nat), T n ∗ own γ3 (●F z) ={E∖↑N}=∗ *)
-  (*                         own γ3 (●F(z+n)%nat)∗ Q z n) ∗ *)
-  (*       P ∗ α ◯↪N (true, 3%nat; []) @ γ2 *)
-  (*   }}} *)
-  (*     incr_counter_tape2 c #lbl:α @ E *)
-  (*     {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ α ◯↪N (true, 3%nat; []) @ γ2 }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP & Hα) HΦ". *)
-  (*   iMod (counter_presample_spec2 with "[//][//][$][$]") as "(%&HT&Hα)"; try done. *)
-  (*   { intros ε Hε. specialize (Hineq ε Hε). *)
-  (*     rewrite SeriesC_nat_bounded_fin SeriesC_finite_foldr /=. lra. *)
-  (*   } *)
-  (*   iApply (incr_counter_tape_spec_some2 _ _ _ _ _ _ (T n) (λ x, Q x n) with "[$Hα $HT]"); try done. *)
-  (*   { by iSplit. } *)
-  (*   iNext.  *)
-  (*   iIntros. iApply ("HΦ" with "[$]"). *)
-  (* Qed. *)
 
   Lemma read_counter_spec2 N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
