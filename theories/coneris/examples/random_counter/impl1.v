@@ -278,6 +278,16 @@ Next Obligation.
 Qed.
 Next Obligation.
   simpl.
+  iIntros (?????) "H".
+  iApply (hocap_error_auth_pos with "[$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (?????) "H".
+  iApply (hocap_error_frag_pos with "[$]").
+Qed.
+Next Obligation.
+  simpl.
   iIntros (??????) "H1 H2".
   iApply (hocap_error_agree with "[$][$]").
 Qed.
