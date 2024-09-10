@@ -902,10 +902,18 @@ Proof.
       by rewrite dmap_unfold_pmf -SeriesC_scal_r.
     }
     rewrite fubini_pos_seriesC'; last first.
-    + admit.
+    + eapply (ex_seriesC_ext (λ a, if bool_decide (a ∈ enum_uniform_list N p) then _ else 0%R)); last apply ex_seriesC_list.
+      intros n.
+      case_bool_decide as H; first done.
+      rewrite SeriesC_0; first done.
+      intros x.
+      rewrite dunifv_pmf bool_decide_eq_false_2; first lra.
+      by rewrite -elem_of_enum_uniform_list.
     + intros a.
       rewrite dunifv_pmf.
-      admit.
+      eapply (ex_seriesC_ext (λ b, if bool_decide (b=state_upd_tapes <[α:=(N; ns ++ a)]> σ1) then _ else 0%R)); last apply ex_seriesC_singleton_dependent.
+      intros.
+      case_bool_decide as H; [done|lra].
     + intros.
       repeat apply Rmult_le_pos; repeat case_match; simpl; try lra; try done.
       all: apply Rplus_le_le_0_compat; by try lra.
@@ -962,7 +970,7 @@ Proof.
       { apply state_upd_tapes_same in H'. by simplify_eq. }
       replace (_+{|nonneg := _ ; cond_nonneg := _|})%NNR with (ε_rem+ ε2 ns')%NNR; try done.
       apply nnreal_ext. by simpl.
-Admitted.
+Qed.
 
 
 Lemma glm_state_adv_comp_con_prob_lang α e1 σ1 Z (ε ε_rem: nonnegreal) N ns:
