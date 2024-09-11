@@ -30,7 +30,7 @@ Global Opaque conerisWpGS_invGS.
 Global Arguments ConerisWpGS {Λ Σ}.
 Canonical Structure NNRO := leibnizO nonnegreal.
 
-Section glm.
+Section modalities.
   Context `{conerisWpGS con_prob_lang Σ}.
   Implicit Types ε : nonnegreal.
 
@@ -95,7 +95,7 @@ Section glm.
     (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
+          ⌜ (ε1 + Expval μ ε2 <= ε)%R ⌝ ∗
           ⌜pgl μ R ε1⌝ ∗
           ∀ σ2, ⌜ R σ2 ⌝ ={E}=∗ state_step_coupl E σ2 (ε2 σ2) Z)%I
     ⊢ state_step_coupl E σ1 ε Z.
@@ -127,7 +127,7 @@ Section glm.
     repeat iSplit.
     - iPureIntro. apply dret_sch_erasable.
     - iPureIntro. naive_solver.
-    - simpl. iPureIntro. rewrite SeriesC_scal_r.
+    - simpl. iPureIntro. rewrite Expval_const; last done.
       rewrite dret_mass. lra.
     - iPureIntro.
       by apply pgl_dret.
@@ -166,7 +166,7 @@ Section glm.
     repeat iSplit.
     - iPureIntro. apply dret_sch_erasable.
     - iPureIntro; naive_solver.
-    - iPureIntro. simpl. rewrite SeriesC_scal_r dret_mass; lra.
+    - iPureIntro. simpl. rewrite Expval_const; last done. rewrite dret_mass; lra.
     - iPureIntro. by apply pgl_dret.
     - by iIntros (?->).
   Qed.
@@ -194,6 +194,61 @@ Section glm.
       iMod "Hclose".
       by iApply "H".
   Qed.
+  
+  Lemma state_step_coupl_state_step E α σ1 Z (ε ε' : nonnegreal) :
+    α ∈ get_active σ1 →
+    (∃ R, ⌜pgl (state_step σ1 α) R ε⌝ ∗
+          ∀ σ2 , ⌜R σ2 ⌝ ={E}=∗ state_step_coupl E σ2 ε' Z)
+    ⊢ state_step_coupl E σ1 (ε + ε') Z.
+  Proof.
+    iIntros (Hin) "(%R&%&H)".
+    iApply state_step_coupl_rec.
+    iExists R, (state_step σ1 α), ε, (λ _, ε').
+    repeat iSplit; try done.
+    - iPureIntro.
+      simpl in *.
+      rewrite elem_of_elements elem_of_dom in Hin.
+      destruct Hin.
+      by eapply state_step_sch_erasable.
+    - iPureIntro; eexists _; done.
+    - iPureIntro. rewrite Expval_const; last done. rewrite state_step_mass; [simpl;lra|done]. 
+  Qed.
+
+  Lemma state_step_coupl_iterM_state_adv_comp E N α σ1 Z (ε : nonnegreal) :
+    (α ∈ get_active σ1 ->
+     (∃ R ε1 (ε2 : _ -> nonnegreal),
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+        ⌜ (ε1 + Expval (iterM N (λ σ, state_step σ α) σ1) ε2 <= ε)%R ⌝ ∗
+        ⌜pgl (iterM N (λ σ, state_step σ α) σ1) R ε1⌝ ∗
+        ∀ σ2, ⌜ R σ2 ⌝ ={E}=∗ state_step_coupl E σ2 (ε2 σ2) Z)
+      ⊢ state_step_coupl E σ1 ε Z)%I.
+  Proof.
+    iIntros (Hin) "(%R & %ε1 & %ε2 & % & %Hε & % & H)".
+    iApply state_step_coupl_rec.
+    iExists R, _, ε1, ε2.
+    repeat iSplit; try done.
+    - iPureIntro.
+      simpl in *.
+      rewrite elem_of_elements elem_of_dom in Hin.
+      destruct Hin.
+      by eapply iterM_state_step_sch_erasable.
+  Qed. 
+  
+  Lemma state_step_coupl_state_adv_comp E α σ1 Z (ε : nonnegreal) :
+    (α ∈ get_active σ1 ->
+     (∃ R ε1 (ε2 : _ -> nonnegreal),
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+        ⌜ (ε1 + Expval (state_step σ1 α) ε2 <= ε)%R ⌝ ∗
+        ⌜pgl (state_step σ1 α) R ε1⌝ ∗
+        ∀ σ2, ⌜ R σ2 ⌝ ={E}=∗ state_step_coupl E σ2 (ε2 σ2) Z)
+      ⊢ state_step_coupl E σ1 ε Z)%I.
+  Proof.
+    iIntros (Hin) "(%R & %ε1 & %ε2 & % & %Hε & % & H)".
+    iApply (state_step_coupl_iterM_state_adv_comp _ 1%nat); first done.
+    repeat iExists _. simpl. rewrite dret_id_right.
+    by repeat iSplit.
+  Qed.
+  
 
   (** * One step prog coupl *)
 
@@ -606,139 +661,50 @@ Section glm.
   (* Qed. *)
 
 
-  Lemma glm_prim_step e1 σ1 Z ε :
+  Lemma prog_coupl_prim_step e1 σ1 Z ε :
     (∃ R ε1 ε2, ⌜reducible e1 σ1⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
           ∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ Z (e2, σ2, efs) ε2)
-    ⊢ glm e1 σ1 ε Z.
+    ⊢ prog_coupl e1 σ1 ε Z.
   Proof.
     iIntros "(%R&%ε1&%ε2&%&%&%&H)".
-    rewrite glm_unfold.
-    iLeft.
     iExists R, ε1, (λ _, ε2).
     repeat iSplit; try done.
     - iPureIntro. naive_solver.
-    - iPureIntro. rewrite SeriesC_scal_r. rewrite prim_step_mass; [lra|done].
-    - iIntros (????). iRight.
-      iApply "H". done.
-  Qed.
-  
+    - iPureIntro. rewrite Expval_const; last done.
+      rewrite prim_step_mass; [lra|done].
+  Qed. 
 
-  Lemma glm_adv_comp e1 σ1 Z (ε : nonnegreal) :
+  Lemma prog_coupl_adv_comp e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε1 : nonnegreal) (ε2 : _ -> nonnegreal),
           ⌜reducible e1 σ1⌝ ∗
-          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (prim_step e1 σ1 ρ) * ε2(ρ)) <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-            ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ stutter (λ ε', Z (e2, σ2, efs) ε') (ε2 (e2, σ2, efs)))
-    ⊢ glm e1 σ1 ε Z.
+          ⌜ exists (r:nonnegreal), forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+          ⌜ (ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
+            ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ Z (e2, σ2, efs) (ε2 (e2, σ2, efs)))
+    ⊢ prog_coupl e1 σ1 ε Z.
   Proof.
     iIntros "(% & % & % & % & % & % & % & H)".
-    rewrite {1}glm_unfold.
-    iLeft.
     iExists _,_,_.
     by repeat iSplit.
   Qed.
 
-  Lemma glm_erasable_adv_comp e1 σ1 Z (ε : nonnegreal) :
-    ((∃ R μ (ε1:nonnegreal) (ε2 : _ -> nonnegreal),
-         ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
-         ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-                     ⌜(ε1 + SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
-                     ⌜pgl μ R ε1⌝ ∗
-                     ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 σ2))
-     ⊢ glm e1 σ1 ε Z)%I.
-  Proof. 
-    iIntros "(% & % & % & % & % & % & %Hε & % & H)".
-    rewrite {1}glm_unfold.
-    iRight.
-    iExists _,_ ,_, _.
-    by repeat iSplit.
-  Qed. 
 
-  Lemma glm_state_step α e1 σ1 Z (ε ε' : nonnegreal) :
-    α ∈ get_active σ1 →
-    (∃ R, ⌜pgl (state_step σ1 α) R ε⌝ ∗
-          ∀ σ2 , ⌜R σ2 ⌝ ={∅}=∗ glm e1 σ2 ε' Z)
-    ⊢ glm e1 σ1 (ε + ε') Z.
-  Proof.
-    iIntros (Hin) "(%R&%&H)".
-    iApply glm_erasable_adv_comp.
-    iExists R, (state_step σ1 α), ε, (λ _, ε').
-    repeat iSplit.
-    - iPureIntro.
-      simpl in *.
-      rewrite elem_of_elements elem_of_dom in Hin.
-      destruct Hin.
-      by eapply state_step_sch_erasable.
-    - iPureIntro; eexists _; done.
-    - iPureIntro. rewrite SeriesC_scal_r. rewrite state_step_mass; [simpl;lra|done]. 
-    - done.
-    - iIntros. iRight. by iApply "H".
-  Qed.
-
-
-
-  (* for state steps that consume zero error *)
-  Lemma glm_state_adv_comp' α e1 σ1 Z (ε : nonnegreal) :
-    (α ∈ get_active σ1 ->
-     (∃ R (ε2 : _ -> nonnegreal),
-        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-        ⌜ (SeriesC (λ ρ, (state_step σ1 α ρ) * ε2 ρ) <= ε)%R ⌝ ∗
-        ⌜pgl (state_step σ1 α) R nnreal_zero⌝ ∗
-        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 σ2))
-      ⊢ glm e1 σ1 ε Z)%I.
-  Proof.
-    iIntros (Hin) "(%R & %ε2 & % & %Hε & % & H)".
-    iApply glm_erasable_adv_comp.
-    iExists R, _, nnreal_zero, ε2.
-    repeat iSplit; try done.
-    - iPureIntro.
-      simpl in *.
-      rewrite elem_of_elements elem_of_dom in Hin.
-      destruct Hin.
-      by eapply state_step_sch_erasable.
-    - iPureIntro. simpl in *. lra. 
-  Qed.
-
-  Lemma glm_iterM_state_adv_comp' N α e1 σ1 Z (ε : nonnegreal) :
-    (α ∈ get_active σ1 ->
-     (∃ R (ε2 : _ -> nonnegreal),
-        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-        ⌜ (SeriesC (λ ρ, (iterM N (λ σ, state_step σ α) σ1 ρ) * ε2 ρ) <= ε)%R ⌝ ∗
-        ⌜pgl (iterM N (λ σ, state_step σ α) σ1) R nnreal_zero⌝ ∗
-        ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ stutter (fun ε' => glm e1 σ2 ε' Z) (ε2 σ2))
-      ⊢ glm e1 σ1 ε Z)%I.
-  Proof.
-    iIntros (Hin) "(%R & %ε2 & % & %Hε & % & H)".
-    iApply glm_erasable_adv_comp.
-    iExists R, _, nnreal_zero, ε2.
-    repeat iSplit; try done.
-    - iPureIntro.
-      simpl in *.
-      rewrite elem_of_elements elem_of_dom in Hin.
-      destruct Hin.
-      by eapply iterM_state_step_sch_erasable.
-    - iPureIntro. simpl in *. lra. 
-  Qed.
-
-
-  Lemma glm_strong_ind (Ψ : expr con_prob_lang → state con_prob_lang → nonnegreal → iProp Σ) Z :
-    (∀ n e σ ε, Proper (dist n) (Ψ e σ ε)) →
-    ⊢ (□ (∀ e σ ε, glm_pre Z (λ '((e, σ), ε), Ψ e σ ε ∧ glm e σ ε Z)%I ((e, σ), ε) -∗ Ψ e σ ε) →
-       ∀ e σ ε, glm e σ ε Z -∗ Ψ e σ ε)%I.
-  Proof.
-    iIntros (HΨ). iIntros "#IH" (e σ ε) "H".
-    set (Ψ' := (λ '((e, σ), ε), Ψ e σ ε):
-           (prodO (prodO (exprO con_prob_lang) (stateO con_prob_lang)) NNRO) → iProp Σ).
-    assert (NonExpansive Ψ').
-    { intros n [[e1 σ1]?] [[e2 σ2]?]
-        [[?%leibniz_equiv ?%leibniz_equiv]?%leibniz_equiv].
-      simplify_eq/=. f_equiv. }
-    rewrite /glm/glm'.
-    iApply (least_fixpoint_ind _ Ψ' with "[] H").
-    iModIntro. iIntros ([[??]?]) "H". by iApply "IH".
-  Qed. 
-    
-End glm.
+  (* Lemma glm_strong_ind (Ψ : expr con_prob_lang → state con_prob_lang → nonnegreal → iProp Σ) Z : *)
+  (*   (∀ n e σ ε, Proper (dist n) (Ψ e σ ε)) → *)
+  (*   ⊢ (□ (∀ e σ ε, glm_pre Z (λ '((e, σ), ε), Ψ e σ ε ∧ glm e σ ε Z)%I ((e, σ), ε) -∗ Ψ e σ ε) → *)
+  (*      ∀ e σ ε, glm e σ ε Z -∗ Ψ e σ ε)%I. *)
+  (* Proof. *)
+  (*   iIntros (HΨ). iIntros "#IH" (e σ ε) "H". *)
+  (*   set (Ψ' := (λ '((e, σ), ε), Ψ e σ ε): *)
+  (*          (prodO (prodO (exprO con_prob_lang) (stateO con_prob_lang)) NNRO) → iProp Σ). *)
+  (*   assert (NonExpansive Ψ'). *)
+  (*   { intros n [[e1 σ1]?] [[e2 σ2]?] *)
+  (*       [[?%leibniz_equiv ?%leibniz_equiv]?%leibniz_equiv]. *)
+  (*     simplify_eq/=. f_equiv. } *)
+  (*   rewrite /glm/glm'. *)
+  (*   iApply (least_fixpoint_ind _ Ψ' with "[] H"). *)
+  (*   iModIntro. iIntros ([[??]?]) "H". by iApply "IH". *)
+  (* Qed.  *)
+End modalities.
 
 (** * The weakest precondition *)
 
