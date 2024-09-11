@@ -1306,6 +1306,7 @@ Section exp_val_prop.
 
 End exp_val_prop.
 
+
 (** * Monadic map *)
 Definition dmap `{Countable A, Countable B} (f : A → B) (μ : distr A) : distr B :=
     a ← μ; dret (f a).
@@ -1415,7 +1416,24 @@ Section dmap.
       intros [=]. eauto.
   Qed.
 
+  Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
+    (∀ b, 0 <= g b) →
+    ex_expval μ (g ∘ f) →
+    Expval (dmap f μ) g = Expval μ (g ∘ f).
+  Proof.
+    intros Hg Hex.
+    rewrite Expval_dbind; [|done|].
+    - apply SeriesC_ext => a.
+      rewrite Expval_dret //.
+    - apply ex_expval_dbind; [done| |].
+      + eapply ex_seriesC_ext; [|done].
+        intros ?. rewrite Expval_dret //.
+      + intros a. apply ex_expval_dret.
+  Qed.
+  
 End dmap.
+
+
 
 (** * Monadic strength  *)
 Definition strength_l `{Countable A, Countable B} (a : A) (μ : distr B) : distr (A * B) :=
