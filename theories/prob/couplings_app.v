@@ -687,20 +687,6 @@ Section couplings_theory.
   Proof.
   Abort.
 
-  Lemma Expval_dmap (μ : distr A) (f : A → B) (g : B → R) :
-    (∀ b, 0 <= g b) →
-    ex_expval μ (g ∘ f) →
-    Expval (dmap f μ) g = Expval μ (g ∘ f).
-  Proof.
-    intros Hg Hex.
-    rewrite Expval_dbind; [|done|].
-    - apply SeriesC_ext => a.
-      rewrite Expval_dret //.
-    - apply ex_expval_dbind; [done| |].
-      + eapply ex_seriesC_ext; [|done].
-        intros ?. rewrite Expval_dret //.
-      + intros a. apply ex_expval_dret.
-  Qed.
 
   Lemma ARcoupl_mass_leq (μ1 : distr A) (μ2 : distr B) (R : A → B → Prop) ε :
     ARcoupl μ1 μ2 R ε → SeriesC μ1 <= SeriesC μ2 + ε.
