@@ -49,6 +49,38 @@ Section adequacy.
     iIntros (???) "/=".
     iMod ("H" with "[//]"); auto.
   Qed.
+
+  Lemma wp_adequacy_val_fupd `{Countable sch_int_state}  (ζ : sch_int_state) e es (sch: scheduler con_prob_lang_mdp sch_int_state) n v σ ε φ `{!TapeOblivious sch_int_state sch}:
+    to_val e = Some v →
+    state_interp σ ∗ err_interp ε ∗
+    WP e {{ v, ⌜φ v ⌝ }} ⊢
+    |={⊤, ∅}=> ⌜pgl (sch_exec sch n (ζ, (Val v :: es, σ))) φ ε⌝.
+  Proof.
+    iIntros (Hval) "(?&?&Hwp)".
+    rewrite pgl_wp_unfold/pgl_wp_pre.
+    iMod ("Hwp" with "[$]") as "H".
+    simpl. rewrite Hval.
+    iRevert (σ ε) "H".
+    iApply state_step_coupl_ind.
+    iModIntro.
+    iIntros (??) "[%|[>(_&_&%)|(%R&%μ&%&%&%Herasable&%&%Hineq&%Hpgl&H)]]".
+    - iPureIntro. by apply pgl_1.
+    - iApply fupd_mask_intro; first done.
+      iIntros "_".
+      iPureIntro.
+      erewrite sch_exec_is_final; last done.
+      eapply pgl_mon_grading; last apply pgl_dret; auto.
+    - erewrite <-Herasable; last done.
+      iApply (fupd_mono _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        eapply pgl_mon_grading; first apply Hineq.
+        eapply pgl_dbind_adv; [auto| |exact H'|exact].
+        naive_solver.
+      }
+      iIntros (??).
+      by iMod ("H" with "[//]") as "[? _]".
+  Qed.
   
   (* Lemma glm_erasure `{Countable sch_int_state}  (ζ : sch_int_state) (e : expr) *)
   (*   chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat) `{!TapeOblivious sch_int_state sch}: *)
@@ -124,19 +156,23 @@ Section adequacy.
   Proof.
     iInduction n as [|n] "IH" forall (ζ ε e es σ); iIntros "((Hσh & Hσt) & Hε & Hwp & Hwps)".
     - Local Transparent sch_exec.
-      rewrite /sch_exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
-        admit.
-      + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-        iPureIntro.
+        iApply wp_adequacy_val_fupd; last iFrame.
+        done.
+      + rewrite /sch_exec /=.
+        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
+        iPureIntro. rewrite Heq.
         apply pgl_dzero,
         Rle_ge,
         cond_nonneg.
     - rewrite sch_exec_Sn /sch_step_or_final/=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
-        admit.
+        rewrite dret_id_left'/=.
+        iMod (wp_adequacy_val_fupd with "[$]") as "%"; first done.
+        repeat iModIntro.
+        by iApply step_fupdN_intro.
         (* rewrite pgl_wp_value_fupd. *)
         (* iMod "Hwp" as "%". *)
         (* iApply fupd_mask_intro; [set_solver|]; iIntros "_". *)
@@ -248,7 +284,7 @@ Section adequacy.
           (* replace (_-_)%nat with 0%nat by lia. *)
           (* done. *)
   Admitted.
-  
+
 End adequacy.
 
 Class conerisGpreS Σ := ConerisGpreS {
