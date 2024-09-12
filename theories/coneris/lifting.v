@@ -18,12 +18,20 @@ Section lifting.
   Lemma wp_lift_step_fupd_glm E Φ e1 s :
     to_val e1 = None →
     (∀ σ1 ε1,
-       state_interp σ1 ∗ err_interp ε1
-       ={E,∅}=∗
-       glm e1 σ1 ε1 (λ '(e2, σ2, efs) ε2,
-                       ▷ |={∅,E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e2 @ s; E {{ Φ }} ∗
-                                                                        [∗ list] ef ∈ efs, WP ef @ s ; ⊤ {{fork_post }}       
-    ))
+     state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
+     state_step_coupl σ1 ε1
+       (λ σ2 ε2,
+          match to_val e1 with
+          | Some v => |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ Φ v
+          | None => prog_coupl e1 σ2 ε2
+                     (λ e3 σ3 efs ε3,
+                        ▷ state_step_coupl σ3 ε3
+                          (λ σ4 ε4, |={∅, E}=> state_interp σ4 ∗ err_interp ε4 ∗ WP e3 @ s ; E {{Φ}} ∗
+                                              [∗ list] ef ∈efs, WP ef @ s ; ⊤ {{fork_post}}
+                          )
+                     )
+          end
+       ))
     ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
     by rewrite pgl_wp_unfold /pgl_wp_pre =>->.
@@ -45,12 +53,13 @@ Section lifting.
     iApply wp_lift_step_fupd_glm; [done|].
     iIntros (σ1 ε) "[Hσ Hε]".
     iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
-    iApply (glm_prim_step e1 σ1).
+    iApply state_step_coupl_ret.
+    rewrite H.
+    iApply prog_coupl_prim_step.
     iExists _.
     iExists nnreal_zero.
     iExists ε.
-    iSplit.
-    { iPureIntro. simpl. done. }
+    iSplit; first done.
     iSplit.
     { iPureIntro. simpl. lra. }
     iSplit.
@@ -62,6 +71,7 @@ Section lifting.
     iIntros (e2 σ2 efs (?&?)).
     iMod ("H" with "[//]")as "H".
     iIntros "!> !>".
+    iApply state_step_coupl_ret.
     by iMod "H" as "[$ $]".
   Qed.
 
