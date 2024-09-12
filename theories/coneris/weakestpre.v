@@ -870,6 +870,27 @@ Proof.
   by iApply "Hw".
 Qed.
 
+Lemma state_step_coupl_pgl_wp E e Φ s :
+  (∀ σ1 ε1, state_interp σ1 ∗ err_interp ε1 -∗
+            state_step_coupl σ1 ε1
+              (λ σ2 ε2, |={E}=> state_interp σ2 ∗ err_interp ε2 ∗ WP e @ s ; E {{Φ}})) -∗
+  WP e @ s ; E {{ Φ }}.
+Proof.
+  iIntros "H".
+  erewrite pgl_wp_unfold. rewrite /pgl_wp_pre.
+  iIntros (??) "[??]". 
+  iApply fupd_mask_intro; first set_solver.
+  iIntros "Hclose".
+  iSpecialize ("H" with "[$]").
+  iApply (state_step_coupl_bind with "[Hclose][$]").
+  iIntros (??) "H".
+  iApply fupd_state_step_coupl.
+  iMod "Hclose" as "_".
+  iMod "H" as "(?&?&H)".
+  rewrite pgl_wp_unfold/pgl_wp_pre.
+  iApply "H". iFrame.
+Qed. 
+
 Lemma fupd_pgl_wp s E e Φ : (|={E}=> WP e @ s; E {{ Φ }}) ⊢ WP e @ s; E {{ Φ }}.
 Proof.
   rewrite pgl_wp_unfold /pgl_wp_pre. iIntros "H" (??) "[??]".
