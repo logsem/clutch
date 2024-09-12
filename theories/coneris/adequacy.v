@@ -50,72 +50,72 @@ Section adequacy.
     iMod ("H" with "[//]"); auto.
   Qed.
   
-  Lemma glm_erasure `{Countable sch_int_state}  (ζ : sch_int_state) (e : expr)
-    chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat) `{!TapeOblivious sch_int_state sch}:
-    to_val e = None ->
-    to_val chosen_e = None →
-    (e::es)!!num = Some chosen_e->
-    glm chosen_e σ ε (λ '(e2, σ2, efs) ε',
-        |={∅}▷=>^(S n) ⌜pgl (sch_exec sch n (ζ, (<[num:=e2]>(e::es++efs), σ2))) φ ε'⌝)
-    ⊢ |={∅}▷=>^(S n)
-        ⌜pgl (prim_step chosen_e σ ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:= e']>(e :: es ++ l), s))) φ ε⌝.
-  Proof.
-    iIntros (Hv Hv' Hfound) "Hexec".
-    iAssert (⌜to_val chosen_e = None⌝)%I as "-#H"; [done|].
-    iAssert (⌜(e::es)!!num = Some chosen_e⌝)%I as "-#H'"; [done|].
-    iRevert "Hexec H H'".
-    rewrite /glm /glm'.
-    set (Φ := (λ '((e1, σ1), ε''),
-                (⌜to_val e1 = None⌝ -∗ ⌜to_val e = None⌝ -∗ ⌜(e :: es) !! num = Some e1⌝ ={∅}▷=∗^(S n)
-                 ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I) :
-           prodO partial_cfgO NNRO → iPropI Σ).
-    assert (NonExpansive Φ).
-    { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. }
-    set (F := (glm_pre
-       (λ '(e2, σ2, efs) (ε' : nonnegreal),
-          |={∅}▷=>^(S n) ⌜pgl (sch_exec sch n (ζ, (<[num:=e2]> (e :: es ++ efs), σ2))) φ ε'⌝))%I).
-    iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first.
-    { iIntros "Hfix % %".
-      by iMod ("H" $! ((_, _)) with "Hfix [//][//][//]"). }
-    iIntros "!#" ([[e1 σ1] ε'']). rewrite /F/Φ/glm_pre.
-    clear Hv Hv'.
-    iIntros "[(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| H] %Hv %Hv' %Hlookup".
-    - iApply step_fupdN_mono.
-      { apply pure_mono. eapply pgl_mon_grading; done. }
-      iApply pgl_dbind_adv'.
-      + iPureIntro; apply cond_nonneg.
-      + iPureIntro. exists r. split; [apply cond_nonneg|done].
-      + done.
-      + iIntros ([[??]?] ?).
-        rewrite step_fupd_fupdN_S.
-        iMod ("H" with "[//]") as "[%|H]".
-        { iApply step_fupdN_intro; try done. iPureIntro.
-          apply pgl_1; lra.
-        }
-        done.
-    - iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & %Herasable & (%r & %Hr) & % & %Hlift & H)".
-      iApply (step_fupdN_mono _ _ _
-                (⌜∀ σ2 , R2 σ2 → pgl (prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ
-                                   (ε2 σ2)⌝)%I).
-      { iIntros (?). iPureIntro.
-        unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); try done.
-        apply (pgl_mon_grading _ _
-                 (ε1 + (SeriesC (λ ρ , μ ρ * ε2 ρ)))) => //.
-        eapply pgl_dbind_adv; eauto; [by destruct ε1|].
-        exists r.
-        intros a.
-        split; [by destruct (ε2 _) | by apply Hr].
-      }
-      iIntros (σ2 Hσ2).
-      iApply step_fupd_fupdN_S.
-      iMod ("H" with "[//]") as "H"; iModIntro.
-      iDestruct "H" as "[%|H]".
-      { iApply step_fupdN_intro; try done.
-        iPureIntro.
-        apply pgl_1. apply Rge_le. done. 
-      }
-      by iApply "H".
-  Qed. 
+  (* Lemma glm_erasure `{Countable sch_int_state}  (ζ : sch_int_state) (e : expr) *)
+  (*   chosen_e es (σ : state) (n : nat) φ (ε : nonnegreal) (sch: scheduler con_prob_lang_mdp sch_int_state) (num:nat) `{!TapeOblivious sch_int_state sch}: *)
+  (*   to_val e = None -> *)
+  (*   to_val chosen_e = None → *)
+  (*   (e::es)!!num = Some chosen_e-> *)
+  (*   glm chosen_e σ ε (λ '(e2, σ2, efs) ε', *)
+  (*       |={∅}▷=>^(S n) ⌜pgl (sch_exec sch n (ζ, (<[num:=e2]>(e::es++efs), σ2))) φ ε'⌝) *)
+  (*   ⊢ |={∅}▷=>^(S n) *)
+  (*       ⌜pgl (prim_step chosen_e σ ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:= e']>(e :: es ++ l), s))) φ ε⌝. *)
+  (* Proof. *)
+  (*   iIntros (Hv Hv' Hfound) "Hexec". *)
+  (*   iAssert (⌜to_val chosen_e = None⌝)%I as "-#H"; [done|]. *)
+  (*   iAssert (⌜(e::es)!!num = Some chosen_e⌝)%I as "-#H'"; [done|]. *)
+  (*   iRevert "Hexec H H'". *)
+  (*   rewrite /glm /glm'. *)
+  (*   set (Φ := (λ '((e1, σ1), ε''), *)
+  (*               (⌜to_val e1 = None⌝ -∗ ⌜to_val e = None⌝ -∗ ⌜(e :: es) !! num = Some e1⌝ ={∅}▷=∗^(S n) *)
+  (*                ⌜pgl (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ ε''⌝)%I) : *)
+  (*          prodO partial_cfgO NNRO → iPropI Σ). *)
+  (*   assert (NonExpansive Φ). *)
+  (*   { intros m ((?&?)&?) ((?&?)&?) [[[=] [=]] [=]]. by simplify_eq. } *)
+  (*   set (F := (glm_pre *)
+  (*      (λ '(e2, σ2, efs) (ε' : nonnegreal), *)
+  (*         |={∅}▷=>^(S n) ⌜pgl (sch_exec sch n (ζ, (<[num:=e2]> (e :: es ++ efs), σ2))) φ ε'⌝))%I). *)
+  (*   iPoseProof (least_fixpoint_iter F Φ with "[]") as "H"; last first. *)
+  (*   { iIntros "Hfix % %". *)
+  (*     by iMod ("H" $! ((_, _)) with "Hfix [//][//][//]"). } *)
+  (*   iIntros "!#" ([[e1 σ1] ε'']). rewrite /F/Φ/glm_pre. *)
+  (*   clear Hv Hv'. *)
+  (*   iIntros "[(%R & %ε1 & %ε2 & %Hred & (%r & %Hr) & % & %Hlift & H)| H] %Hv %Hv' %Hlookup". *)
+  (*   - iApply step_fupdN_mono. *)
+  (*     { apply pure_mono. eapply pgl_mon_grading; done. } *)
+  (*     iApply pgl_dbind_adv'. *)
+  (*     + iPureIntro; apply cond_nonneg. *)
+  (*     + iPureIntro. exists r. split; [apply cond_nonneg|done]. *)
+  (*     + done. *)
+  (*     + iIntros ([[??]?] ?). *)
+  (*       rewrite step_fupd_fupdN_S. *)
+  (*       iMod ("H" with "[//]") as "[%|H]". *)
+  (*       { iApply step_fupdN_intro; try done. iPureIntro. *)
+  (*         apply pgl_1; lra. *)
+  (*       } *)
+  (*       done. *)
+  (*   - iDestruct "H" as "(%R2 & %μ & %ε1 & %ε2 & %Herasable & (%r & %Hr) & % & %Hlift & H)". *)
+  (*     iApply (step_fupdN_mono _ _ _ *)
+  (*               (⌜∀ σ2 , R2 σ2 → pgl (prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e :: es ++ l), s))) φ *)
+  (*                                  (ε2 σ2)⌝)%I). *)
+  (*     { iIntros (?). iPureIntro. *)
+  (*       unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); try done. *)
+  (*       apply (pgl_mon_grading _ _ *)
+  (*                (ε1 + (SeriesC (λ ρ , μ ρ * ε2 ρ)))) => //. *)
+  (*       eapply pgl_dbind_adv; eauto; [by destruct ε1|]. *)
+  (*       exists r. *)
+  (*       intros a. *)
+  (*       split; [by destruct (ε2 _) | by apply Hr]. *)
+  (*     } *)
+  (*     iIntros (σ2 Hσ2). *)
+  (*     iApply step_fupd_fupdN_S. *)
+  (*     iMod ("H" with "[//]") as "H"; iModIntro. *)
+  (*     iDestruct "H" as "[%|H]". *)
+  (*     { iApply step_fupdN_intro; try done. *)
+  (*       iPureIntro. *)
+  (*       apply pgl_1. apply Rge_le. done.  *)
+  (*     } *)
+  (*     by iApply "H". *)
+  (* Qed.  *)
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
     (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
@@ -127,12 +127,7 @@ Section adequacy.
       rewrite /sch_exec /=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
-        rewrite pgl_wp_value_fupd.
-        iMod "Hwp" as "%".
-        iApply fupd_mask_intro; [set_solver|]; iIntros.
-        iPureIntro.
-        apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
-        apply pgl_dret; auto.
+        admit.
       + iApply fupd_mask_intro; [set_solver|]; iIntros "_".
         iPureIntro.
         apply pgl_dzero,
@@ -141,15 +136,16 @@ Section adequacy.
     - rewrite sch_exec_Sn /sch_step_or_final/=.
       destruct (to_val e) eqn:Heq.
       + apply of_to_val in Heq as <-.
-        rewrite pgl_wp_value_fupd.
-        iMod "Hwp" as "%".
-        iApply fupd_mask_intro; [set_solver|]; iIntros "_".
-        iApply step_fupdN_intro; [done|]. do 4 iModIntro.
-        iPureIntro.
-        rewrite dret_id_left'/=.
-        erewrite sch_exec_is_final; last done.
-        apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ].
-        apply pgl_dret; auto.
+        admit.
+        (* rewrite pgl_wp_value_fupd. *)
+        (* iMod "Hwp" as "%". *)
+        (* iApply fupd_mask_intro; [set_solver|]; iIntros "_". *)
+        (* iApply step_fupdN_intro; [done|]. do 4 iModIntro. *)
+        (* iPureIntro. *)
+        (* rewrite dret_id_left'/=. *)
+        (* erewrite sch_exec_is_final; last done. *)
+        (* apply (pgl_mon_grading _ _ 0); [apply cond_nonneg | ]. *)
+        (* apply pgl_dret; auto. *)
       + rewrite {1}/sch_step. rewrite <-dbind_assoc.
         replace (ε) with (0+ε)%NNR; last (apply nnreal_ext;simpl; lra).
         iApply pgl_dbind'; [done|
@@ -187,23 +183,25 @@ Section adequacy.
           rewrite pgl_wp_unfold /pgl_wp_pre/=Heq.
           iMod ("Hwp" with "[$]") as "Hlift".
           replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
-          iPoseProof
-            (glm_mono _ (λ '(e2, σ2, efs) ε', |={∅}▷=>^(S n)
-                                  ⌜pgl (sch_exec sch n (sch_σ, (<[0%nat:=e2]>(e::es++efs), σ2))) φ ε'⌝)%I
-              with "[%] [-Hlift] Hlift") as "H"; first done.
-          { simpl.
-            iIntros ([[??]?]?) "H!>!>".
-            iMod "H" as "(Hstate & Herr_auth & Hwp & Hwps')".
-            iApply ("IH").
-            iFrame. }
-          iModIntro. rewrite /dmap -!dbind_assoc.
-          erewrite dbind_ext_right; last first.
-          { intros [[]]. rewrite !dret_id_left.
-            by instantiate (1 := (λ '(e',s,l), sch_exec sch n (sch_σ, (<[0%nat := e']> (e :: es ++ l), s)))). 
-          }
-          iApply glm_erasure; last first; try done.
-          replace chosen_e with e; first done.
-          simpl in Hlookup. by simplify_eq.
+          replace chosen_e with e; last (simpl in Hlookup; by simplify_eq).
+          admit.
+          (* iPoseProof *)
+          (*   (glm_mono _ (λ '(e2, σ2, efs) ε', |={∅}▷=>^(S n) *)
+          (*                         ⌜pgl (sch_exec sch n (sch_σ, (<[0%nat:=e2]>(e::es++efs), σ2))) φ ε'⌝)%I *)
+          (*     with "[%] [-Hlift] Hlift") as "H"; first done. *)
+          (* { simpl. *)
+          (*   iIntros ([[??]?]?) "H!>!>". *)
+          (*   iMod "H" as "(Hstate & Herr_auth & Hwp & Hwps')". *)
+          (*   iApply ("IH"). *)
+          (*   iFrame. } *)
+          (* iModIntro. rewrite /dmap -!dbind_assoc. *)
+          (* erewrite dbind_ext_right; last first. *)
+          (* { intros [[]]. rewrite !dret_id_left. *)
+          (*   by instantiate (1 := (λ '(e',s,l), sch_exec sch n (sch_σ, (<[0%nat := e']> (e :: es ++ l), s)))).  *)
+          (* } *)
+          (* iApply glm_erasure; last first; try done. *)
+          (* replace chosen_e with e; first done. *)
+          (* simpl in Hlookup. by simplify_eq. *)
         * (* step other threads*)
           simpl in Hlookup.
           apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
@@ -212,34 +210,44 @@ Section adequacy.
           rewrite Hcheckval.
           iMod ("Hwp'" with "[$]") as "Hlift".
           replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
-          iPoseProof
-            (glm_mono _ (λ '(e2, σ2, efs) ε', |={∅}▷=>^(S n)
-                                  ⌜pgl (sch_exec sch n (sch_σ, (<[(S (length l1))%nat:=e2]>(e::(l1++chosen_e::l2)++efs), σ2))) φ ε'⌝)%I
-              with "[%] [-Hlift] Hlift") as "H"; first done.
-          { simpl.
-            iIntros ([[??]?]?) "H!>!>".
-            iMod "H" as "(Hstate & Herr_auth & Hwp' & Hwps')".
-            iApply ("IH").
-            iFrame.
-            rewrite -app_assoc.
-            rewrite insert_app_r_alt; last lia.
-            replace (_-_)%nat with 0%nat by lia. simpl.
-            repeat iApply big_sepL_app; iFrame.
+          (* simplify the function *)
+          erewrite (distr_ext _ (dbind _ _)); last first.
+          { intros a. apply dbind_pmf_ext; [done| |done].
+            apply dmap_eq; first done.
+            intros a'.
+            eapply (dmap_eq_pmf _ (λ '(_,_,_),_)); last done.
+            intros [[??]?]?.
+            rewrite insert_app_r_alt; last done.
+            by rewrite Nat.sub_diag/=.
           }
-          iModIntro.
-          rewrite /dmap -!dbind_assoc.
-          erewrite dbind_ext_right; last first.
-          { intros [[]]. rewrite !dret_id_left.
-            instantiate (1 := (λ '(e',s,l), sch_exec sch n (sch_σ, (<[S (length l1):=e']> (e :: (l1 ++ chosen_e :: l2) ++ l), s)))). simpl.
-            rewrite -insert_app_l; first done.
-            rewrite app_length. simpl; lia.
-          }
-          iApply glm_erasure; try done.
-          simpl. rewrite lookup_app_r; last lia.
-          replace (_-_)%nat with 0%nat by lia.
-          done.
-  Qed.
-
+          admit.
+          (* iPoseProof *)
+          (*   (glm_mono _ (λ '(e2, σ2, efs) ε', |={∅}▷=>^(S n) *)
+          (*                         ⌜pgl (sch_exec sch n (sch_σ, (<[(S (length l1))%nat:=e2]>(e::(l1++chosen_e::l2)++efs), σ2))) φ ε'⌝)%I *)
+          (*     with "[%] [-Hlift] Hlift") as "H"; first done. *)
+          (* { simpl. *)
+          (*   iIntros ([[??]?]?) "H!>!>". *)
+          (*   iMod "H" as "(Hstate & Herr_auth & Hwp' & Hwps')". *)
+          (*   iApply ("IH"). *)
+          (*   iFrame. *)
+          (*   rewrite -app_assoc. *)
+          (*   rewrite insert_app_r_alt; last lia. *)
+          (*   replace (_-_)%nat with 0%nat by lia. simpl. *)
+          (*   repeat iApply big_sepL_app; iFrame. *)
+          (* } *)
+          (* iModIntro. *)
+          (* rewrite /dmap -!dbind_assoc. *)
+          (* erewrite dbind_ext_right; last first. *)
+          (* { intros [[]]. rewrite !dret_id_left. *)
+          (*   instantiate (1 := (λ '(e',s,l), sch_exec sch n (sch_σ, (<[S (length l1):=e']> (e :: (l1 ++ chosen_e :: l2) ++ l), s)))). simpl. *)
+          (*   rewrite -insert_app_l; first done. *)
+          (*   rewrite app_length. simpl; lia. *)
+          (* } *)
+          (* iApply glm_erasure; try done. *)
+          (* simpl. rewrite lookup_app_r; last lia. *)
+          (* replace (_-_)%nat with 0%nat by lia. *)
+          (* done. *)
+  Admitted.
   
 End adequacy.
 

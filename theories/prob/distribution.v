@@ -1367,6 +1367,21 @@ Section dmap.
     intros. rewrite Hfg //.
   Qed.
 
+  Lemma dmap_eq_pmf (f g : A → B) (μ1 μ2 : distr A) x:
+    (∀ a, μ1 a > 0 → f a = g a) →
+    (∀ a, μ1 a = μ2 a) →
+    dmap f μ1 x= dmap g μ2 x.
+  Proof.
+    intros Hfg Hμ.
+    rewrite /dmap!dbind_unfold_pmf.
+    apply SeriesC_ext.
+    intros n.
+    rewrite -Hμ.
+    destruct (pmf_pos μ1 n) as [|<-].
+    - by rewrite Hfg.
+    - lra.
+  Qed.
+
   Lemma dmap_mass (μ : distr A) (f : A → B):
     SeriesC (dmap f μ) = SeriesC μ.
   Proof.
