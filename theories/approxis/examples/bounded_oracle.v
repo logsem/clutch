@@ -14,3 +14,40 @@ Section bounded_oracle.
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 End bounded_oracle.
+
+Class MaxCalls := { Q : nat }.
+Class DomainUpperBound := { F_MAX : nat }.
+
+Section link.
+  Context {max_calls : MaxCalls}.
+  Context {upper_bound : DomainUpperBound}.
+  Definition compose (g f : expr) := (λ:"x", g (f "x"))%E.
+  Definition restr (F : expr) := (q_calls (Q) (Val #F_MAX) F).
+  Definition link (A F : expr) := compose A (restr F).
+End link.
+
+#[global]
+  Hint Unfold compose : core.
+
+(* Infix " ∘ " := link : expr_scope. *)
+Infix " ∘ " := compose : expr_scope.
+(* Notation "F '^Q'" := (restr F) (at level 9) : expr_scope. *)
+(* Notation "F 'ꟴ'" := (restr F) (at level 9, format "F ꟴ") : expr_scope. *)
+Notation "F '^q'" := (restr F) (at level 9) : expr_scope.
+Notation "F '𐞥'" := (restr F) (at level 9, format "F 𐞥") : expr_scope.
+
+Section link_test.
+  Context {max_calls : MaxCalls}.
+  Context {upper_bound : DomainUpperBound}.
+  Open Scope expr_scope.
+
+  (* Check Q.
+     Check (λ A F, (App A (q_calls Q F))).
+
+     Check λ A F G : expr, A (G F).
+     Check λ A F G : expr, A ∘ (G ∘ F).
+     Check λ A F G : expr, A ((G (F 𐞥))𐞥).
+     Check λ A F G : expr, A (G F 𐞥)𐞥.
+     Check λ A F G : expr, A ∘ (G ∘ F^q)^q = (A ∘ G^q) ∘ F^q . *)
+
+End link_test.

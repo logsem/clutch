@@ -12,7 +12,21 @@ Section prf_assumption.
   Variable Input : nat.
   Variable Output : nat.
 
-  Definition q_calls := q_calls Input.
+  Definition q_calls' (Q : nat) (counter : loc) (f : val) : val :=
+   λ: "x",
+     if: ! #counter < #Q
+     then #counter <- ! #counter + #1;; InjR (f "x") else
+     InjLV #().
+  (* Definition q_calls : val :=
+       λ:"Q" "f",
+         let: "counter" := ref #0 in
+         q_calls' "Q" "counter" "f". *)
+  Definition q_calls : val :=
+    λ:"Q" "f",
+      let: "counter" := ref #0 in
+      λ:"x", if: (! "counter" < "Q")
+             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
+             else NONEV.
 
   Definition N := S Input.
 
@@ -26,12 +40,38 @@ Section prf_assumption.
   Definition TKey := TNat.
   Definition TInput := TNat.
   Definition TOutput := TNat.
-  Definition TPRF : type := TKey → TInput → TOutput.
+  Definition TPRF : type := TKey → TInput → TOption TOutput.
 
-  Definition T_PRF_Adv := ((TInput → (TOption TOutput)) → TBool)%ty.
+  Definition T_PRF_Adv := ((TInput → TOption TOutput) → TBool)%ty.
 
-  Definition PRF_rand := PRF_rand Input Output.
-  Definition PRF_real := PRF_real Input.
+  Definition opt_mult : val :=
+    λ:"opt",
+      match: "opt" with
+      | NONE => NONE
+      | SOME "vopt" =>
+          match: "vopt" with
+          | NONE => NONE
+          | SOME "v" => SOME "v"
+          end
+      end.
+
+  Definition PRF_rand : val :=
+  let keygen PRF_scheme : expr := Fst PRF_scheme in
+  let prf PRF_scheme : expr := Fst (Snd PRF_scheme) in
+  let rand_output PRF_scheme : expr := Snd (Snd PRF_scheme) in
+    λ:"PRF_scheme" "Q",
+      let: "lookup" := random_function Output #() in
+      let: "oracle" := q_calls "Q" "lookup" in
+      "oracle".
+  Definition PRF_real : val :=
+  let keygen PRF_scheme : expr := Fst PRF_scheme in
+  let prf PRF_scheme : expr := Fst (Snd PRF_scheme) in
+  let rand_output PRF_scheme : expr := Snd (Snd PRF_scheme) in
+    λ:"PRF_scheme" "Q",
+      let: "k" := keygen "PRF_scheme" #() in
+      let: "lookup" := prf "PRF_scheme" "k" in
+      let: "oracle" := q_calls "Q" "lookup" in
+      λ:"in", opt_mult ("oracle" "in").
   Definition PRF_scheme_F : val := (keygen, (F, rand_output)).
 
   Variable xor : val.
@@ -39,7 +79,7 @@ Section prf_assumption.
   Definition TKeygen : type := (TUnit → TKey)%ty.
 
   Definition TMessage := TInt.
-  Hypothesis xor_typed : (⊢ᵥ xor : (TMessage → TOutput → TOutput)).
+  Hypothesis xor_typed : (⊢ᵥ xor : (TMessage → TInput → TOption TOutput)).
   Hypothesis keygen_typed : (⊢ᵥ keygen : TKeygen).
   Hypothesis F_typed : (⊢ᵥ F : TPRF).
   Hypothesis H_in_out : (Input = Output).
@@ -74,29 +114,53 @@ Section prf_assumption.
   Variable (xor_sem : nat -> nat -> nat).
   Variable H_xor : forall x, Bij (xor_sem x).
   Variable H_xor_dom: forall x, x < S Message -> (∀ n : nat, n < S Output → xor_sem x n < S Output).
-  Variable (xor_correct_l: forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
+  Definition XOR_CORRECT_L := forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
                              (_: (0<=x)%Z)
                              (_: ((Z.to_nat x) < S Message))
                              (_: y < S Message) e A,
     (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
-    -∗ REL (fill K (xor #x #y)) << e @ E : A).
-
-  Variable (xor_correct_r: ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
+    -∗ REL (fill K (xor #x #y)) << e @ E : A.
+  Definition XOR_CORRECT_R := ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
                              (_: (0<=x)%Z)
                              (_: ((Z.to_nat x) < S Message))
                              (_: y < S Message) e A,
     (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
-    -∗ REL e << (fill K (xor #x #y)) @ E : A).
+    -∗ REL e << (fill K (xor #x #y)) @ E : A.
+  Variable (xor_correct_l: XOR_CORRECT_L).
+  Variable (xor_correct_r: XOR_CORRECT_R).
 
+  Definition bind_opt : val :=
+    λ:"k" "vopt",
+      match: "vopt" with
+      | NONE => NONE
+      | SOME "v" => "k" "v"
+      end.
+
+  Notation "m >>= f" := (bind_opt f m) (at level 60, right associativity) : expr_scope.
+
+  Definition check_valid_input : val :=
+    λ:"msg", if: (BinOp AndOp (#0 ≤ "msg") ("msg" ≤ #Input)) then SOME "msg" else NONEV.
+
+  Definition prf_k_enc (prf_k : expr) : val :=
+    (λ: "msg",
+       check_valid_input "msg" >>=
+         (λ: "msg",
+            let: "r" := rand #Input in
+            let: "z" := prf_k "r" in InjR ("r", xor "msg" "z")))%V.
   (** Generic PRF-based symmetric encryption. *)
   (* Redefined here to make it parametrised by the PRF on the Coq level. *)
+  (* Definition prf_enc (prf : val) : val :=
+       λ:"key",
+         let: "prf_key" := prf "key" in
+         prf_k_enc "prf_key". *)
   Definition prf_enc (prf : val) : val :=
     λ:"key",
       let: "prf_key" := prf "key" in
-      λ: "msg",
-        let: "r" := rand #Input in
-        let: "z" := "prf_key" "r" in
-        ("r", xor "msg" "z").
+      (λ: "msg",
+         check_valid_input "msg" >>=
+           (λ: "msg",
+              let: "r" := rand #Input in
+              "prf_key" "r" >>= λ:"z", ("r", xor "msg" "z"))).
 
   (* Let F_keygen := rf_keygen Key. *)
   Let F_keygen := keygen.
@@ -104,8 +168,18 @@ Section prf_assumption.
   Let F_rand_cipher := rf_rand_cipher Input Output.
   Definition sym_scheme_F : val := (F_keygen, (F_enc, F_rand_cipher)).
 
-  Let CPA_real := CPA_real Message.
-  Let CPA_rand := CPA_rand Message.
+
+  Definition CPA_real : val :=
+    let keygen scheme : expr := Fst scheme in
+    let enc scheme : expr := Fst (Snd scheme) in
+    λ:"scheme" "Q",
+      let: "key" := keygen "scheme" #() in
+      let: "oracle" := q_calls "Q" (enc "scheme" "key") in
+      λ:"msg", opt_mult ("oracle" "msg").
+  Definition CPA_rand : val :=
+    let rand_cipher scheme : expr := Snd (Snd scheme) in
+    λ:"scheme" "Q",
+      q_calls "Q" (rand_cipher "scheme").
 
   (** The reduction to PRF security. *)
   (* PROOF SKETCH *)
@@ -161,27 +235,15 @@ Section prf_assumption.
 
    *)
 
-  Definition opt_mult : val :=
-    λ:"opt",
-      match: "opt" with
-      | NONE => NONE
-      | SOME "vopt" =>
-          match: "vopt" with
-          | NONE => NONE
-          | SOME "v" => SOME "v"
-          end
-      end.
   Definition R_prf : val :=
     λ:"prf_key",
-      let: "prf_key_q" := q_calls #Q
-                     (λ: "msg",
-                        let: "r" := rand #Input in
-                        let: "z" := "prf_key" "r" in
-                        match: "z" with
-                        | SOME "z" => SOME ("r", xor "msg" "z")
-                        | NONE => NONE
-                        end
-                     ) in
+      let: "prf_key_q" :=
+        q_calls #Q (λ: "msg",
+         (check_valid_input "msg") >>= λ:"msg",
+         let: "r" := rand #Input in
+         "prf_key" "r"
+         >>= λ:"z", SOME ("r", xor "msg" "z")
+      ) in
       λ:"msg", opt_mult ("prf_key_q" "msg").
 
   Definition RED : val :=
@@ -301,15 +363,16 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
   Proof.
     all: clear xor_correct_l xor_correct_r.
     rewrite /RED. tychk. 1: eauto.
-    rewrite /R_prf. constructor.
+    rewrite /R_prf/check_valid_input/bind_opt/opt_mult. constructor.
     type_expr 4.
     all: try by tychk.
     Unshelve.
-    3: exact (TOption (TOption TCipher)).
+    (* 3: exact (TOption TCipher). *)
+    2,3: exact TUnit.
     all: tychk.
-    1,2: rewrite /opt_mult/q_calls/prf_cpa.q_calls/bounded_oracle.q_calls.
+    1: rewrite /opt_mult/q_calls/prf_cpa.q_calls/bounded_oracle.q_calls.
     1: tychk ; simplify_map_eq.
-    tychk ; simplify_map_eq.
+    tychk ; simplify_map_eq. compute.
   Qed.
 
   (* Should also prove that PPT(adversary) ⇒ PPT(RED). *)
@@ -317,36 +380,50 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
   Lemma reduction :
     ⊢ (REL (adversary (CPA_real sym_scheme_F #Q))
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
-  Proof.
+  Proof with (rel_pures_l ; rel_pures_r).
     rewrite /RED. rel_pures_r.
     rewrite /PRF_scheme_F/PRF_real/prf.PRF_real.
     rel_pures_r.
     rewrite /CPA_real/symmetric.CPA_real.
     rel_pures_l. rewrite /F_keygen/rf_keygen.
+    (* Initialise LHS & RHS: keygen *)
     rel_bind_l (keygen _)%E.
     rel_bind_r (keygen _)%E.
     unshelve iApply (refines_bind with "[-] []").
     1: exact (interp TKey []).
-    { iApply refines_typed. by tychk. }
-    iIntros (??(key&->&->)). simpl.
-    rel_pures_l. rel_pures_r.
-    rewrite /F_enc/prf_enc. rel_pures_l.
-    rel_bind_l (F #key)%E.
-    rel_bind_r (F #key)%E.
-    unshelve iApply (refines_bind with "[-] []").
-    1: exact (interp (TInput → TOutput) []).
-    { iApply refines_typed. type_expr 1. 1: by tychk. do 2 constructor.  }
+    1: iApply refines_typed ; by tychk.
+    iIntros (??(key&->&->)). simpl...
+    rewrite /F_enc. rewrite /prf_enc. rel_pures_l.
+    rel_bind_l (F #key)%E. rel_bind_r (F #key)%E.
+    unshelve iApply (refines_bind).
+    1: exact (interp (TInput → TOption TOutput) []).
+    { iApply refines_typed. type_expr 1. 1: by tychk. do 2 constructor. }
     rewrite /TInput/TOutput.
     iIntros (F_key F_key') "#rel_prf_key". iSimpl in "rel_prf_key".
-    simpl. rel_pures_l ; rel_pures_r.
-    rewrite {2}/bounded_oracle.q_calls. rel_pures_r.
-    rel_alloc_r counter_r as "counter_r". rel_pures_r.
-    rewrite /R_prf. rel_pures_r. rewrite /q_calls/prf_cpa.q_calls.
-    rewrite /Message.
-    rewrite -H_in_out.
-    rel_bind_l (bounded_oracle.q_calls _ _ _)%E.
+    simpl.
+    rel_pures_l.
+    rel_pures_r.
+    (* Initialise RHS: q_calls *)
+    rewrite {2}/q_calls.
+    rel_pures_r.
+    rel_alloc_r counter_r_inner as "counter_r_inner". rel_pures_r.
+   (*  set (q_calls' (Q:Z) (counter : loc) (f : val) := (
+      λ: "x",
+        if: ! #counter < #Q
+        then #counter <- ! #counter + #1;; InjR (f "x") else
+        InjLV #())%V). *)
+    fold (q_calls' Q counter_r_inner F_key').
+    rewrite /R_prf. rel_pures_r.
+    (* rewrite {2}/q_calls/prf_cpa.q_calls.
+       rewrite /Message.
+       rel_alloc_r counter_r as "counter_r". *)
+    (* rewrite -H_in_out. *)
+    (* Pull out the adversary by well-typedness. *)
+    (* rel_bind_l (q_calls _ _)%E. *)
+    rel_bind_l (let:"oracle" := _ in _)%E.
     (* rel_bind_r (bounded_oracle.q_calls _ _ _)%E. *)
-    rel_bind_r (let: _ := _ in _)%E.
+    (* rel_bind_r (λ:"msg", _)%V. *)
+    rel_bind_r (let:"prf_key_q" := _ in _)%E.
     unshelve iApply (refines_bind with "[-] []").
     1: exact (interp (TMessage → TOption TCipher) []).
     2:{ simpl. iIntros (f f') "H_f_f'".
@@ -361,46 +438,100 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
         rewrite /t.
         iApply refines_typed. by tychk. }
     simpl.
-    rewrite /bounded_oracle.q_calls/opt_mult.
+    rewrite /q_calls(* /opt_mult *).
+    (* rewrite {1}/check_valid_input. *)
     rel_pures_l ; rel_pures_r.
     rel_alloc_l counter_l as "counter_l".
-    rel_alloc_r counter_r' as "counter_r'".
+    rel_alloc_r counter_r_outer as "counter_r_outer".
     rel_pures_l ; rel_pures_r.
+    fold (prf_k_enc F_key).
+    fold (q_calls' Q counter_l (prf_k_enc F_key)).
     (* Invariant: all counters agree. *)
     iApply (refines_na_alloc
-              ( ∃ (q : nat), counter_l ↦ #q
-                             ∗ counter_r ↦ₛ #q
-                             ∗ counter_r' ↦ₛ #q )%I
+              ( ∃ (q q' : nat), counter_l ↦ #q
+                             ∗ counter_r_inner ↦ₛ #q'
+                             ∗ counter_r_outer ↦ₛ #q
+                             ∗ ⌜ q' <= q ⌝ )%I
               (nroot.@"RED")) ; iFrame.
       iSplitL.
-      1: iExists 0 ; iFrame.
+      1: iExists 0,0 ; iFrame ; eauto.
       iIntros "#Hinv".
       rel_arrow_val.
       iIntros (??) "#(%msg&->&->)" ; rel_pures_l ; rel_pures_r.
       iApply (refines_na_inv with "[$Hinv]"); [done|].
-      iIntros "(> (%q & counter_l & counter_r & counter_r') & Hclose)".
-      rel_load_l ; rel_load_r.
-      case_bool_decide as Hmsg_pos.
-      all: case_bool_decide as H_msg_max.
-      all: simpl ; rel_pures_l ; rel_pures_r.
-      all: try case_bool_decide as qQ.
-      all: simpl ; rel_pures_l ; rel_pures_r.
-      2-8: iApply (refines_na_close with "[-]") ;
-      iFrame ; rel_values ;
-      iExists _,_ ; iLeft ; done.
-      rel_load_l ; rel_load_r.
-      simpl ; rel_pures_l ; rel_pures_r.
-      rel_store_l ; rel_store_r.
-      simpl ; rel_pures_l ; rel_pures_r.
+      iIntros "(> (%q & %q' & counter_l & counter_r_inner & counter_r_outer & %qq' ) & Hclose)".
+      rewrite {1}/q_calls'.
+      rel_load_l. rel_pures_l. rel_load_r...
+      case_bool_decide as qQ ; simpl...
+      2: rewrite /opt_mult ; rel_pures_l ; rel_pures_r ; iApply (refines_na_close with "[-]") ;
+      iFrame ; iSplitL ; eauto ; rel_values ; iExists _,_ ; iLeft ; done.
+      rel_load_l. rel_store_l...
+      rel_load_r. rel_store_r...
+      rewrite /prf_k_enc/check_valid_input...
+      case_bool_decide as Hmsg_pos ; simpl...
+      2: { rewrite /opt_mult/bind_opt ; rel_pures_r.
+           rel_pures_l ; iApply (refines_na_close with "[-]").
+        iFrame.
+        iSplitL ; eauto. 2: rel_values ; iExists _,_ ; iLeft ; done.
+        iExists (q+1).
+        assert (Z.of_nat (q+1)%nat = (q+1)%Z) as -> by lia.
+        iFrame. iPureIntro. lia.
+      }
+
+
+    rel_bind_l (_ >>= _)%E. rel_bind_r (_ >>= _)%E.
+    unshelve iApply (refines_bind).
+    1: exact (interp (TInput → TOption TOutput) []).
+    { iApply refines_typed. type_expr 1. 1: by tychk. do 2 constructor. }
+    rewrite /TInput/TOutput.
+    iIntros (F_key F_key') "#rel_prf_key". iSimpl in "rel_prf_key".
+    simpl.
+    rel_pures_l.
+    rel_pures_r.
+
+
+        2: iApply (refines_na_close with "[-]") ;
+        iFrame ; rel_values ; iExists _,_ ; iLeft ; done.
+        case_bool_decide as H_msg_max...
+        2: iApply (refines_na_close with "[-]") ;
+        iFrame ; rel_values ; iExists _,_ ; iLeft ; done.
+        simpl...
+        rel_pures_r.
+        rel_bind_r (rand _)%E.
+        rel_apply_r (refines_randU_r).
+        iIntros "%n %Hn". rel_pures_r.
+        rel_load_r. rel_pures_r.
+        case_bool_decide as qQ' ; try by exfalso.
+        simpl. rel_pures_r. rel_pures_l.
+
+        iApply (refines_na_close with "[-]") ; iFrame.
+        rel_values ;
+          iExists _,_ ; iLeft ; done.
+      }
+      {
+        (* iApply (refines_na_close with "[-]") ; iFrame. *)
+        simpl...
+        rel_pures_r.
+        rel_pures_l.
+        rel_load_l. simpl. rel_pures_l. rel_store_l. rel_pures_l.
+
+        case_bool_decide as Hmsg_pos ; simpl...
+        2: iApply (refines_na_close with "[-]") ;
+        iFrame ; rel_values ; iExists _,_ ; iLeft ; done.
+        case_bool_decide as H_msg_max...
+        2: iApply (refines_na_close with "[-]") ;
+        iFrame ; rel_values ; iExists _,_ ; iLeft ; done.
+        simpl...
+
       rel_apply (refines_couple_UU Input id); first auto.
       iIntros (r) "!> %".
       simpl ; rel_pures_l ; rel_pures_r.
       rel_load_r. rel_pures_r.
       case_bool_decide. 2: by exfalso.
-      case_bool_decide.
-      1: case_bool_decide.
+      (* case_bool_decide.
+         1: case_bool_decide. *)
       all: simpl ; rel_pures_l ; rel_pures_r.
-      2,3: by exfalso ; lia.
+      (* 2,3: by exfalso ; lia. *)
 
       rel_load_r. rel_store_r. rel_pures_r.
       1: assert ((q+1)%Z = q+1) as -> by lia.
@@ -427,6 +558,7 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
       iIntros (??) "#( % & % & % & % & -> & -> & (% & -> & ->) & % & -> & ->)" ; rel_pures_l ; rel_pures_r.
       rel_values. iExists _,_. iPureIntro. right. repeat split.
       eexists _,_,_,_. repeat split. all: by eexists _.
+      } 
   Qed.
 
   Variable ε_F : nonnegreal.
@@ -507,10 +639,10 @@ Proof.
 Qed.
 
 Fact q_calls_typed_io :
-  ⊢ᵥ bounded_oracle.q_calls Input
+  ⊢ᵥ q_calls
     : (TInt → (TInput → TOutput) → TInput → TOption TOutput).
 Proof.
-  rewrite /bounded_oracle.q_calls.
+  rewrite /q_calls.
   type_val 8 ; try by tychk.
   all: type_expr 1 ; try by tychk.
   all: apply Subsume_int_nat. all: tychk.
@@ -571,7 +703,7 @@ Proof with (rel_pures_l ; rel_pures_r).
     rewrite /q_calls/prf_cpa.q_calls/bounded_oracle.q_calls...
     rel_alloc_r counter_r as "counter_r"...
     rel_alloc_l counter_l as "counter_l"...
-    rel_alloc_l counter_l' as "counter_l'"...
+    (* rel_alloc_l counter_l' as "counter_l'"... *)
     unshelve rel_apply refines_app.
     { exact (interp (TMessage → TOption TCipher) []). }
     { replace (interp (TMessage → TOption TCipher) [] → lrel_bool)%lrel with (interp T_IND_CPA_Adv []) by easy.
@@ -579,7 +711,7 @@ Proof with (rel_pures_l ; rel_pures_r).
     (* more or less: (enc_prf rand_fun|Q)|Q = (enc_prf rand_fun)|Q *)
     iApply (refines_na_alloc
               ( ∃ (q : nat) (M : gmap nat val), counter_l ↦ #q
-                             ∗ counter_l' ↦ #q
+                             (* ∗ counter_l' ↦ #q *)
                              ∗ counter_r ↦ₛ #q
                              ∗ map_list map_l M
                              ∗ map_slist map_r M
@@ -598,32 +730,34 @@ Proof with (rel_pures_l ; rel_pures_r).
       rel_arrow_val.
       iIntros (??) "#(%msg&->&->)" ; rel_pures_l ; rel_pures_r.
       iApply (refines_na_inv with "[$Hinv]"); [done|].
-      iIntros "(> (%q & %M & counter_l & counter_l' & counter_r & map_l & map_r & %range_int & %dom_range) & Hclose)".
-      rel_load_l ; rel_load_r.
-      case_bool_decide as Hmsg_pos.
+      iIntros "(> (%q & %M & counter_l & counter_r & map_l & map_r & %range_int & %dom_range) & Hclose)".
+      (* rel_load_l ; *) rel_load_r.
+      (* case_bool_decide as Hmsg_pos. *)
       all: rel_pures_r ; rel_pures_l.
       (* TODO: the order of && in q_calls should be changed so that it properly
       evaluates left to right and evaluates lazily in all 3 arguments. *)
       all: rewrite /Message -H_in_out.
       all: case_bool_decide as qQ.
       all: simpl ; rel_pures_l ; rel_pures_r.
-      1: case_bool_decide as H_msg_max.
-      all: simpl ; rel_pures_l ; rel_pures_r.
-      2-5: rewrite /opt_mult...
-      2-5:iApply (refines_na_close with "[-]");
-      iFrame; repeat iSplitL ; try done ;
-       try (rel_values ; iExists _,_ ; iLeft ; done).
-      rel_load_l ; rel_load_r...
-      rel_store_l ; rel_store_r...
+      (* 1: case_bool_decide as H_msg_max. *)
+      2:{ rel_apply_l (refines_randU_l).
+          iIntros "%n %Hn". rel_pures_l.
+          rel_load_l. rel_pures_l.
+          case_bool_decide as qQ' ; try by exfalso.
+          rel_pures_l.
+          iApply (refines_na_close with "[-]");
+            iFrame; repeat iSplitL ; try done ;
+            try (rel_values ; iExists _,_ ; iLeft ; done).
+      }
+      all: simpl ; rel_load_r ; rel_pures_r ; rel_store_r ; rel_pures_r.
       rel_apply (refines_couple_UU Input id); first auto.
       iIntros (r) "!> %".
       simpl ; rel_pures_l ; rel_pures_r.
       rel_load_l. rel_pures_l.
       case_bool_decide. 2: by exfalso.
-      case_bool_decide.
-      1: case_bool_decide.
+      (* case_bool_decide.
+         1: case_bool_decide. *)
       all: simpl ; rel_pures_l ; rel_pures_r.
-      2,3: by exfalso ; lia.
 
       rel_load_l. rel_store_l. rel_pures_l.
       1: assert ((q+1)%Z = q+1) as -> by lia.
@@ -808,14 +942,13 @@ Proof with (rel_pures_l ; rel_pures_r).
       iIntros (??) "#(%msg&->&->)" ; rel_pures_l ; rel_pures_r.
       iApply (refines_na_inv with "[$Hinv]"); [done|].
       iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q & %dom_range) & Hclose)".
-      case_bool_decide as Hm.
-      - rel_load_l ; rel_load_r...
+      rel_load_l ; rel_load_r...
         rewrite /rf_rand_cipher.
-        rewrite -bool_decide_and.
+        (* rewrite -bool_decide_and. *)
         case_bool_decide as Hq.
         + rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
-          assert (Z.to_nat msg < S Message) as Hmsg by lia.
           pose proof nat_to_fin_list (elements(dom M)) dom_range as [l' Hl'].
+          (* assert (Z.to_nat msg < S Message) as Hmsg by lia. *)
           rel_apply (refines_couple_couple_avoid _ l').
           { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
             rewrite Hl'. apply NoDup_elements. }
@@ -858,11 +991,17 @@ Proof with (rel_pures_l ; rel_pures_r).
           }
           simpl...
           unshelve rel_apply (refines_couple_UU _ (xor_sem (Z.to_nat msg))); first auto.
+          { apply H_xor_dom.
+            (* WANT: Z.to_nat msg < S Message, where msg : Z. *)
+            admit. }
           iIntros (y) "!> %"...
           rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
           iIntros "mapref"...
           rel_bind_l (xor _ _).
-          rel_apply_l xor_correct_l; [done | done | lia |].
+          rel_apply_l xor_correct_l; [try done | try done | lia |].
+          (* WANT: 0 <= msg <= S Message, where msg : Z. *)
+          { admit. }
+          { admit. }
           iApply (refines_na_close with "[-]").
           iFrame.
           iSplitL.
@@ -894,15 +1033,16 @@ Proof with (rel_pures_l ; rel_pures_r).
           iSplit...
           { done. }
           rel_values. repeat iExists _. iLeft. done.
-      - rel_load_l ; rel_load_r...
-        rewrite /rf_rand_cipher.
-        rewrite andb_false_r...
-        iApply (refines_na_close with "[-]").
-        iFrame.
-        iSplit.
-        { done. }
-        rel_values. repeat iExists _. iLeft. done.
-    Qed.
+Admitted.
+    (*   - rel_load_l ; rel_load_r...
+           rewrite /rf_rand_cipher.
+           rewrite andb_false_r...
+           iApply (refines_na_close with "[-]").
+           iFrame.
+           iSplit.
+           { done. }
+           rel_values. repeat iExists _. iLeft. done.
+       Qed. *)
 
   (* Should be just syntactic since CPA_rand doesn't use the PRF. *)
   Lemma cpa_F :
@@ -915,7 +1055,7 @@ Proof with (rel_pures_l ; rel_pures_r).
     iApply refines_typed. tychk.
     1: done.
     -
-      rewrite /bounded_oracle.q_calls.
+      rewrite /q_calls.
       type_val 8 ; try by tychk.
       (* all: type_expr 1 ; try by tychk.
          all: apply Subsume_int_nat. all: tychk. *)
