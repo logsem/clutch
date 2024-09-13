@@ -263,9 +263,7 @@ Section impl2.
         wp_update E (∃ n, T (n) ∗ α◯↪N (true, 3%nat; ns++[n]) @ γ2).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-    rewrite wp_update_unfold.
-    iIntros (?? Hv) "Hcnt".
-    rewrite {2}pgl_wp_unfold /pgl_wp_pre /= Hv.
+    iApply wp_update_state_step_coupl.
     iIntros (σ ε) "((Hheap&Htapes)&Hε)".
     iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|].
     iDestruct (hocap_tapes_agree' with "[$][$]") as "%".
@@ -277,7 +275,7 @@ Section impl2.
     iDestruct (ec_supply_bound with "[$][$]") as "%".
     iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iApply (glm_iterM_state_adv_comp_con_prob_lang 2%nat); first done.
+    iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang 2%nat); first done.
     pose (f (l:list (fin 2)) := (match l with
                                        | x::[x'] => 2*fin_to_nat x + fin_to_nat x'
                                        | _ => 0
@@ -302,11 +300,10 @@ Section impl2.
     iIntros (sample ?).
     destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (f sample)))%R 1%R) as [Hdec|Hdec]; last first.
     { apply Rnot_lt_ge, Rge_le in Hdec.
-      iLeft.
-      iPureIntro.
+      iApply state_step_coupl_ret_err_ge_1.
       simpl. simpl in *. lra.
     }
-    iRight.
+    iApply state_step_coupl_ret.
     unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' (f sample)) _) with "Hε_supply") as "[Hε_supply Hε]".
     { apply Hpos. apply cond_nonneg. }
     { simpl. done. }
@@ -344,13 +341,10 @@ Section impl2.
       simpl. rewrite !fin_to_nat_to_fin.
       rewrite /expander bind_app -/(expander ns). simpl. by rewrite H1. 
     }
-    iSpecialize ("Hcnt" with "[$]").
-    setoid_rewrite pgl_wp_unfold.
-    rewrite /pgl_wp_pre /= Hv.
+    iApply fupd_mask_intro_subseteq; first set_solver.
     rewrite K.
-    iApply ("Hcnt" $! (state_upd_tapes <[α:= (1%nat; ns' ++ sample):tape]> σ) with "[$]").
+    iFrame. 
   Qed.
-
 
   Lemma read_counter_spec2 N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->

@@ -85,8 +85,30 @@ Section wp_update.
      (∀ e Φ, ⌜TCEq (to_val e) None⌝ -∗ (P -∗ WP e @ E {{ Φ }}) -∗ WP e @ E {{ Φ }}).
   Proof.
     by rewrite wp_update_unseal.
-  Qed. 
-    
+  Qed.
+
+  Lemma wp_update_state_step_coupl P E:
+    (∀ σ1 ε1, state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
+            state_step_coupl σ1 ε1
+              (λ σ2 ε2, |={∅, E}=> state_interp σ2 ∗ err_interp ε2 ∗ P))
+    -∗ wp_update E P.
+  Proof.
+    iIntros "H".
+    rewrite wp_update_unseal/wp_update_def.
+    iIntros (???) "H'".
+    iApply state_step_coupl_pgl_wp.
+    iIntros (??) "[??]".
+    iMod ("H" with "[$]") as "H".
+    iModIntro.
+    iApply (state_step_coupl_bind with "[H']"); last done.
+    simpl.
+    iIntros (??) "H".
+    iApply state_step_coupl_ret.
+    iMod "H" as "(?&?&?)".
+    iFrame.
+    by iApply "H'".
+  Qed.
+
   Global Instance from_modal_wp_update_wp_update P E :
     FromModal True modality_id (wp_update E P) (wp_update E P) P.
   Proof. iIntros (_) "HP /=". by iApply wp_update_ret. Qed.

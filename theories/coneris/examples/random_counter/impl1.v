@@ -172,9 +172,7 @@ Section impl1.
         wp_update E (∃ n, T (n) ∗ α◯↪N (3%nat; ns++[n]) @ γ2).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-    rewrite wp_update_unfold.
-    iIntros (?? Hv) "Hcnt".
-    rewrite {2}pgl_wp_unfold /pgl_wp_pre /= Hv.
+    iApply wp_update_state_step_coupl.
     iIntros (σ ε) "((Hheap&Htapes)&Hε)".
     iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|].
     iDestruct (hocap_tapes_agree with "[$][$]") as "%".
@@ -186,7 +184,7 @@ Section impl1.
     iDestruct (ec_supply_bound with "[$][$]") as "%".
     iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
     iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-    iApply glm_state_adv_comp_con_prob_lang; first done.
+    iApply state_step_coupl_state_adv_comp_con_prob_lang; first done.
     unshelve iExists (λ x, mknonnegreal (ε2 ε1' x) _).
     { apply Hpos. apply cond_nonneg. }
     iSplit.
@@ -197,11 +195,10 @@ Section impl1.
     
     destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' sample))%R 1%R) as [Hdec|Hdec]; last first.
     { apply Rnot_lt_ge, Rge_le in Hdec.
-      iLeft.
-      iPureIntro.
+      iApply state_step_coupl_ret_err_ge_1.
       simpl. simpl in *. lra.
     }
-    iRight.
+    iApply state_step_coupl_ret.
     unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' sample) _) with "Hε_supply") as "[Hε_supply Hε]".
     { apply Hpos. apply cond_nonneg. }
     { simpl. done. }
@@ -214,10 +211,8 @@ Section impl1.
     { iNext. iSplit; last done.
       rewrite big_sepM_insert_delete; iFrame.
     }
-    iSpecialize ("Hcnt" with "[$]").
-    setoid_rewrite pgl_wp_unfold.
-    rewrite /pgl_wp_pre /= Hv.
-    iApply ("Hcnt" $! (state_upd_tapes <[α:= (3%nat; ns' ++[sample]):tape]> σ) with "[$]").
+    iApply fupd_mask_intro_subseteq; first set_solver.
+    iFrame.
   Qed. 
 
   Lemma read_counter_spec1 N E c γ1 γ2 γ3 P Q:
