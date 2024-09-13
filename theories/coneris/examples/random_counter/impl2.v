@@ -77,10 +77,6 @@ Section tapes_lemmas.
 
 End tapes_lemmas.
 
-Section lemmas.
-  Context `{hocap_tapesGS' Σ}.
-End lemmas.
-
 Section impl2.
 
   Definition new_counter2 : val:= λ: "_", ref #0.
