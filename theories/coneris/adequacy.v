@@ -172,7 +172,6 @@ Section adequacy.
                              iPureIntro;apply pgl_trivial;simpl;lra|
                              ..].
         iIntros ([sch_σ sch_a] _).
-        rewrite step_fupd_fupdN_S.
         iMod "Hclose" as "_".
         simpl. rewrite Heq.
         destruct ((e::es)!!sch_a) as [chosen_e|] eqn:Hlookup; rewrite Hlookup; last first.
@@ -180,7 +179,7 @@ Section adequacy.
           rewrite dmap_dret dret_id_left'.
           iApply fupd_mask_intro; first done.
           iIntros "Hclose".
-          do 3 iModIntro. iMod "Hclose" as "_".
+          do 2 iModIntro. iMod "Hclose" as "_".
           iApply "IH". iFrame.
           iApply ec_supply_eq; last done.
           simpl. lra.
@@ -190,7 +189,7 @@ Section adequacy.
           rewrite dmap_dret dret_id_left'.
           iApply fupd_mask_intro; first done.
           iIntros "Hclose".
-          do 3 iModIntro. iMod "Hclose" as "_".
+          do 2 iModIntro. iMod "Hclose" as "_".
           iApply "IH". iFrame.
           iApply ec_supply_eq; last done.
           simpl. lra.
@@ -208,7 +207,6 @@ Section adequacy.
           iMod ("Hwp" with "[$]") as "Hlift".
           replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
           iApply (state_step_coupl_erasure' with "[$Hlift]"); [done..|].
-          iModIntro.
           iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
           iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
           { iPureIntro.
@@ -217,10 +215,9 @@ Section adequacy.
           replace (chosen_e) with e; last by (simpl in Hlookup; simplify_eq).
           iApply (pgl_dbind_adv' with "[][][][-]"); [done|naive_solver|done|].
           iIntros ([[??]?]?).
-          rewrite step_fupd_fupdN_S.
           iMod ("H" with "[//]") as "H".
           simpl.
-          do 4 iModIntro.
+          do 3 iModIntro.
           iApply (state_step_coupl_erasure with "[$][-]").
           iIntros (??) ">(?&?&?&?)".
           iApply ("IH" with "[-]"). iFrame.
@@ -238,7 +235,6 @@ Section adequacy.
             rewrite lookup_app_r//.
             by replace (_-_)%nat with 0%nat by lia.
           }
-          iModIntro.
           iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
           iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
           { iPureIntro.
@@ -246,10 +242,9 @@ Section adequacy.
           }
           iApply (pgl_dbind_adv' with "[][][][-]"); [done|naive_solver|done|].
           iIntros ([[??]?]?).
-          rewrite step_fupd_fupdN_S.
           iMod ("H" with "[//]") as "H".
           simpl.
-          do 4 iModIntro.
+          do 3 iModIntro.
           iApply (state_step_coupl_erasure with "[$][-]").
           iIntros (??) ">(?&?&?&?)".
           iApply ("IH" with "[-]"). iFrame.
