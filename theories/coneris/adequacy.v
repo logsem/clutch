@@ -25,14 +25,14 @@ Section adequacy.
     ⌜ 0 <= ε ⌝ -∗
     ⌜ 0 <= ε' ⌝ -∗
     ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜pgl (f a) T ε'⌝) -∗
-    |={∅}▷=>^(S n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+    (∀ a , ⌜R a⌝ ={∅}▷=∗^(n) ⌜pgl (f a) T ε'⌝) -∗
+    |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
   Proof.
     iIntros (???) "H".
     iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T ε')⌝)).
     { iIntros (?). iPureIntro. eapply pgl_dbind; eauto. }
     iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
+    iApply ("H" with "[//]"). 
   Qed.
   
   Lemma pgl_dbind_adv' `{Countable A, Countable A'}
@@ -40,14 +40,14 @@ Section adequacy.
     ⌜ 0 <= ε ⌝ -∗
     ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
     ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(S n) ⌜pgl (f a) T (ε' a)⌝) -∗
-    |={∅}▷=>^(S n) ⌜pgl (dbind f μ) T (ε + Expval μ ε')⌝ : iProp Σ.
+    (∀ a , ⌜R a⌝ ={∅}▷=∗^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + Expval μ ε')⌝ : iProp Σ.
   Proof.
     iIntros (???) "H".
     iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T (ε' a))⌝)).
     { iIntros (?). iPureIntro. eapply pgl_dbind_adv; eauto. }
     iIntros (???) "/=".
-    iMod ("H" with "[//]"); auto.
+    iApply ("H" with "[//]").
   Qed.
 
   Lemma wp_adequacy_val_fupd `{Countable sch_int_state}  (ζ : sch_int_state) e es (sch: scheduler con_prob_lang_mdp sch_int_state) n v σ ε φ `{!TapeOblivious sch_int_state sch}:
@@ -82,7 +82,7 @@ Section adequacy.
       by iMod ("H" with "[//]") as "[? _]".
   Qed.
 
-  Lemma state_step_coupl_erasure `{Countable sch_int_state} (ζ : sch_int_state) es σ ε Z n (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
+  Lemma state_step_coupl_erasure `{Countable sch_int_state} (ζ : sch_int_state) es σ ε Z n (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{H0 : !TapeOblivious sch_int_state sch}:
     state_step_coupl σ ε Z -∗
     (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(n)
                                ⌜pgl (sch_exec sch n (ζ, (es, σ2))) φ ε2⌝) -∗
@@ -91,7 +91,13 @@ Section adequacy.
   Proof.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%&%&%&%&H)]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%Herasable&%&%&%&H)]] Hcont".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro.
+      by apply pgl_1.
+    - by iMod ("Hcont" with "[$]").
+    - rewrite -Herasable.
+      admit.
   Admitted.
 
   Lemma state_step_coupl_erasure' `{Countable sch_int_state} (ζ : sch_int_state) e es e' σ ε Z n num (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
@@ -106,7 +112,12 @@ Section adequacy.
   Proof.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%&%&%&%&H)]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%&%&%&%&H)]] % % % Hcont".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro.
+      by apply pgl_1.
+    - by iMod ("Hcont" with "[$]").
+    - 
   Admitted.
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
@@ -135,7 +146,7 @@ Section adequacy.
         by iApply step_fupdN_intro.
       + rewrite {1}/sch_step. rewrite <-dbind_assoc.
         replace (ε) with (0+ε)%NNR; last (apply nnreal_ext;simpl; lra).
-        iApply pgl_dbind'; [done|
+        iApply (pgl_dbind' _ _ _ _ _ _ (S _)); [done|
                              iPureIntro; apply cond_nonneg|
                              iPureIntro;apply pgl_trivial;simpl;lra|
                              ..].
