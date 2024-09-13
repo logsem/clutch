@@ -251,8 +251,8 @@ Program Definition random_counter1 `{!conerisGS Σ}: random_counter :=
     is_counter _ N c γ1 γ2 γ3 := inv N (counter_inv_pred1 c γ1 γ2 γ3);
     counter_error_auth _ γ x := ●↯ x @ γ;
     counter_error_frag _ γ x := ◯↯ x @ γ;
-    counter_tapes_auth _ γ m := (●m@γ)%I;
-    counter_tapes_frag _ γ α N ns := (α◯↪N (N;ns) @ γ)%I;
+    counter_tapes_auth _ γ m := (●((λ ns, (3, ns))<$>m)@γ)%I;
+    counter_tapes_frag _ γ α ns := (α◯↪N (3%nat;ns) @ γ)%I;
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
     new_counter_spec _ := new_counter_spec1;
@@ -297,18 +297,23 @@ Next Obligation.
 Qed.
 Next Obligation.
   simpl. 
-  iIntros (?????????) "H1 H2".
+  iIntros (???????) "H1 H2".
   iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
   rewrite dfrac_op_own dfrac_valid_own. by intro.
 Qed.
 Next Obligation.
   simpl.
   iIntros.
-  iApply (hocap_tapes_agree with "[$][$]").
+  iDestruct (hocap_tapes_agree with "[$][$]") as "%H".
+  iPureIntro.
+  rewrite lookup_fmap_Some in H. destruct H as (?&?&?).
+  by simplify_eq.
 Qed.
 Next Obligation.
   iIntros.
-  iApply (hocap_tapes_presample with "[$][$]").
+  iMod (hocap_tapes_presample with "[$][$]") as "[??]".
+  iModIntro. iFrame.
+  by rewrite fmap_insert. 
 Qed.
 Next Obligation.
   simpl.

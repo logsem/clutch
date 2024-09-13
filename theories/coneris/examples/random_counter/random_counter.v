@@ -22,8 +22,8 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     (γ1: error_name) (γ2: tape_name) (γ3: counter_name): iProp Σ;
   counter_error_auth {L : counterG Σ} (γ: error_name) (x:R): iProp Σ;
   counter_error_frag {L : counterG Σ} (γ: error_name) (x:R): iProp Σ;
-  counter_tapes_auth {L : counterG Σ} (γ: tape_name) (m:gmap loc (nat*list nat)): iProp Σ;
-  counter_tapes_frag {L : counterG Σ} (γ: tape_name) (α:loc) (N:nat) (ns:list nat): iProp Σ;
+  counter_tapes_auth {L : counterG Σ} (γ: tape_name) (m:gmap loc (list nat)): iProp Σ;
+  counter_tapes_frag {L : counterG Σ} (γ: tape_name) (α:loc) (ns:list nat): iProp Σ;
   counter_content_auth {L : counterG Σ} (γ: counter_name) (z:nat): iProp Σ;
   counter_content_frag {L : counterG Σ} (γ: counter_name) (f:frac) (z:nat): iProp Σ;
   (** * General properties of the predicates *)
@@ -35,8 +35,8 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     Timeless (counter_error_frag (L:=L) γ x);
   #[global] counter_tapes_auth_timeless {L : counterG Σ} γ m ::
     Timeless (counter_tapes_auth (L:=L) γ m);
-  #[global] counter_tapes_frag_timeless {L : counterG Σ} γ α N ns ::
-    Timeless (counter_tapes_frag (L:=L) γ α N ns);
+  #[global] counter_tapes_frag_timeless {L : counterG Σ} γ α ns ::
+    Timeless (counter_tapes_frag (L:=L) γ α ns);
   #[global] counter_content_auth_timeless {L : counterG Σ} γ z ::
     Timeless (counter_content_auth (L:=L) γ z);
   #[global] counter_content_frag_timeless {L : counterG Σ} γ f z ::
@@ -58,13 +58,13 @@ Class random_counter `{!conerisGS Σ} := RandCounter
 
   counter_tapes_auth_exclusive {L : counterG Σ} γ m m':
   counter_tapes_auth (L:=L) γ m -∗ counter_tapes_auth (L:=L) γ m' -∗ False;
-  counter_tapes_frag_exclusive {L : counterG Σ} γ α N N' ns ns':
-  counter_tapes_frag (L:=L) γ α N ns -∗ counter_tapes_frag (L:=L) γ α N' ns' -∗ False;
-  counter_tapes_agree {L : counterG Σ} γ α m N ns:
-    counter_tapes_auth (L:=L) γ m -∗ counter_tapes_frag (L:=L) γ α N ns -∗ ⌜ m!! α = Some (N, ns) ⌝;
-  counter_tapes_update {L : counterG Σ} γ α m N ns n:
-    counter_tapes_auth (L:=L) γ m -∗ counter_tapes_frag (L:=L) γ α N ns ==∗
-    counter_tapes_auth (L:=L) γ (<[α := (N, ns ++[n])]> m) ∗ counter_tapes_frag (L:=L) γ α N (ns ++ [n]);
+  counter_tapes_frag_exclusive {L : counterG Σ} γ α ns ns':
+  counter_tapes_frag (L:=L) γ α ns -∗ counter_tapes_frag (L:=L) γ α ns' -∗ False;
+  counter_tapes_agree {L : counterG Σ} γ α m ns:
+    counter_tapes_auth (L:=L) γ m -∗ counter_tapes_frag (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝;
+  counter_tapes_update {L : counterG Σ} γ α m ns n:
+    counter_tapes_auth (L:=L) γ m -∗ counter_tapes_frag (L:=L) γ α ns ==∗
+    counter_tapes_auth (L:=L) γ (<[α := (ns ++[n])]> m) ∗ counter_tapes_frag (L:=L) γ α (ns ++ [n]);
 
   counter_content_auth_exclusive {L : counterG Σ} γ z1 z2:
     counter_content_auth (L:=L) γ z1 -∗ counter_content_auth (L:=L) γ z2 -∗ False;
@@ -91,17 +91,17 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     {{{ is_counter (L:=L) N c γ1 γ2 γ3 }}}
       allocate_tape #() @ E
       {{{ (v:val), RET v;
-          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ counter_tapes_frag (L:=L) γ2 α 3%nat []
+          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ counter_tapes_frag (L:=L) γ2 α []
       }}};
   incr_counter_tape_spec_some {L: counterG Σ} N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E -> 
     {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗
         □ (∀ (z:nat), P ∗ counter_content_auth (L:=L) γ3 z ={E∖↑N}=∗
                           counter_content_auth (L:=L) γ3 (z+n)%nat ∗ Q z) ∗
-        P ∗ counter_tapes_frag (L:=L) γ2 α 3%nat (n::ns)
+        P ∗ counter_tapes_frag (L:=L) γ2 α (n::ns)
     }}}
       incr_counter_tape c #lbl:α @ E
-                                 {{{ (z:nat), RET (#z, #n); Q z ∗ counter_tapes_frag (L:=L) γ2 α 3%nat ns}}};
+                                 {{{ (z:nat), RET (#z, #n); Q z ∗ counter_tapes_frag (L:=L) γ2 α ns}}};
   counter_presample_spec {L: counterG Σ} NS E ns α
      (ε2 : R -> nat -> R)
     (P : iProp Σ) T γ1 γ2 γ3 c:
@@ -112,8 +112,8 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     (□∀ (ε:R) n, (P ∗ counter_error_auth (L:=L) γ1 ε) ={E∖↑NS}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨ (counter_error_auth (L:=L) γ1 (ε2 ε n)  ∗ T (n)))) 
         -∗
-    P -∗ counter_tapes_frag (L:=L) γ2 α 3%nat ns-∗
-        wp_update E (∃ n, T (n) ∗ counter_tapes_frag (L:=L) γ2 α 3%nat (ns++[n]));
+    P -∗ counter_tapes_frag (L:=L) γ2 α ns-∗
+        wp_update E (∃ n, T (n) ∗ counter_tapes_frag (L:=L) γ2 α (ns++[n]));
   read_counter_spec {L: counterG Σ} N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
     {{{  is_counter (L:=L) N c γ1 γ2 γ3  ∗
@@ -139,10 +139,10 @@ Section lemmas.
                            ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨ counter_error_auth (L:=L) γ1 (ε2 ε n) ∗ T n) ) ∗
         □ (∀ (n:nat) (z:nat), T n ∗ counter_content_auth (L:=L) γ3 z  ={E∖↑N}=∗
                           counter_content_auth (L:=L) γ3 (z+n)%nat ∗ Q z n) ∗
-        P ∗ counter_tapes_frag (L:=L) γ2 α 3%nat []
+        P ∗ counter_tapes_frag (L:=L) γ2 α []
     }}}
       incr_counter_tape c #lbl:α @ E
-                                 {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ counter_tapes_frag (L:=L) γ2 α 3%nat [] }}}.
+                                 {{{ (z:nat) (n:nat), RET (#z, #n); Q z n ∗ counter_tapes_frag (L:=L) γ2 α [] }}}.
   Proof.
     iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP & Hα) HΦ".
     iMod (counter_presample_spec with "[//][//][$][$]") as "(%&HT&Hα)"; try done.
@@ -161,7 +161,7 @@ Section lemmas.
     (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R →
     {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗
         counter_error_frag (L:=L) γ1 ε ∗
-        counter_tapes_frag (L:=L) γ2 α 3%nat [] ∗
+        counter_tapes_frag (L:=L) γ2 α [] ∗
         counter_content_frag (L:=L) γ3 q z 
     }}}
       incr_counter_tape c #lbl:α @ E
@@ -169,7 +169,7 @@ Section lemmas.
                                        RET (#z', #n); ⌜(0<=n<4)%nat⌝ ∗
                                                       ⌜(z<=z')%nat⌝ ∗
                                                      counter_error_frag (L:=L) γ1 (ε2 ε n) ∗
-                                                     counter_tapes_frag (L:=L) γ2 α 3%nat [] ∗
+                                                     counter_tapes_frag (L:=L) γ2 α [] ∗
                                                      counter_content_frag (L:=L) γ3 q (z+n)%nat }}}.
   Proof.
     iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & Herr & Htapes & Hcontent) HΦ".

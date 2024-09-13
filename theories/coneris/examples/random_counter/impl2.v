@@ -9,11 +9,11 @@ Local Definition expander (l:list nat):=
   l ≫= (λ x, [Nat.div2 x; Nat.b2n (Nat.odd x)]).
 
 Class hocap_tapesGS' (Σ : gFunctors) := Hocap_tapesGS' {
-  hocap_tapesGS_inG' :: ghost_mapG Σ loc (bool* (nat*list nat))
+  hocap_tapesGS_inG' :: ghost_mapG Σ loc (bool* list nat)
                                          }.
-Definition hocap_tapesΣ' := ghost_mapΣ loc (bool*(nat*list nat)).
+Definition hocap_tapesΣ' := ghost_mapΣ loc (bool *list nat).
 
-Notation "α ◯↪N ( b ,  M ; ns ) @ γ":= (α ↪[ γ ] (b, (M,ns)))%I
+Notation "α ◯↪N ( b , ns ) @ γ":= (α ↪[ γ ] (b, ns))%I
                                     (at level 20) : bi_scope.
 
 Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
@@ -22,50 +22,50 @@ Section tapes_lemmas.
   Context `{!conerisGS Σ, !hocap_tapesGS' Σ}.
 
   Lemma hocap_tapes_alloc' m:
-    ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1, v.2.1; v.2.2) @ γ).
+    ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1, v.2) @ γ).
   Proof.
     iMod ghost_map_alloc as (γ) "[??]".
     iFrame. iModIntro.
     iApply big_sepM_mono; last done.
-    by iIntros (?[?[??]]).
+    by iIntros (?[??]).
   Qed.
 
-  Lemma hocap_tapes_agree' m b γ k N ns:
-    (● m @ γ) -∗ (k ◯↪N (b, N; ns) @ γ) -∗ ⌜ m!!k = Some (b, (N, ns)) ⌝.
+  Lemma hocap_tapes_agree' m b γ k ns:
+    (● m @ γ) -∗ (k ◯↪N (b, ns) @ γ) -∗ ⌜ m!!k = Some (b, ns) ⌝.
   Proof.
     iIntros "H1 H2".
     by iCombine "H1 H2" gives "%".
   Qed.
 
-  Lemma hocap_tapes_new' γ m k N ns b:
-    m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(b, (N,ns))]>m) @ γ) ∗ (k ◯↪N (b, N; ns) @ γ).
+  Lemma hocap_tapes_new' γ m k ns b:
+    m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(b, ns)]>m) @ γ) ∗ (k ◯↪N (b, ns) @ γ).
   Proof.
     iIntros (Hlookup) "H".
     by iApply ghost_map_insert.
   Qed.
 
-  Lemma hocap_tapes_presample' b γ m k N ns n:
-    (● m @ γ) -∗ (k ◯↪N (b, N; ns) @ γ) ==∗ (● (<[k:=(b, (N,ns++[n]))]>m) @ γ) ∗ (k ◯↪N (b, N; ns++[n]) @ γ).
+  Lemma hocap_tapes_presample' b γ m k ns n:
+    (● m @ γ) -∗ (k ◯↪N (b, ns) @ γ) ==∗ (● (<[k:=(b, ns++[n])]>m) @ γ) ∗ (k ◯↪N (b, ns++[n]) @ γ).
   Proof.
     iIntros "H1 H2".
     iApply (ghost_map_update with "[$][$]").
   Qed.
 
-  Lemma hocap_tapes_pop1' γ m k N ns:
-    (● m @ γ) -∗ (k ◯↪N (true, N; ns) @ γ) ==∗ (● (<[k:=(false, (N,ns))]>m) @ γ) ∗ (k ◯↪N (false, N; ns) @ γ).
+  Lemma hocap_tapes_pop1' γ m k ns:
+    (● m @ γ) -∗ (k ◯↪N (true, ns) @ γ) ==∗ (● (<[k:=(false, ns)]>m) @ γ) ∗ (k ◯↪N (false, ns) @ γ).
   Proof.
     iIntros "H1 H2".
     iApply (ghost_map_update with "[$][$]").
   Qed.
   
-  Lemma hocap_tapes_pop2' γ m k N ns n:
-    (● m @ γ) -∗ (k ◯↪N (false, N; n::ns) @ γ) ==∗ (● (<[k:=(true, (N,ns))]>m) @ γ) ∗ (k ◯↪N (true, N; ns) @ γ).
+  Lemma hocap_tapes_pop2' γ m k ns n:
+    (● m @ γ) -∗ (k ◯↪N (false, n::ns) @ γ) ==∗ (● (<[k:=(true, ns)]>m) @ γ) ∗ (k ◯↪N (true, ns) @ γ).
   Proof.
     iIntros "H1 H2".
     iApply (ghost_map_update with "[$][$]").
   Qed.
 
-  Lemma hocap_tapes_notin' α N ns m (f:(bool*(nat*list nat))-> nat) g:
+  Lemma hocap_tapes_notin' α N ns m (f:(bool*list nat)-> nat) g:
     α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝.
   Proof.
     destruct (m!!α) eqn:Heqn; last by iIntros.
@@ -98,9 +98,9 @@ Section impl2.
   
   
   Definition counter_inv_pred2 (c:val) γ1 γ2 γ3:=
-    (∃ (ε:R) (m:gmap loc (bool*(nat * list nat))) (l:loc) (z:nat),
+    (∃ (ε:R) (m:gmap loc (bool*list nat)) (l:loc) (z:nat),
         ↯ ε ∗ ●↯ ε @ γ1 ∗
-        ([∗ map] α ↦ t ∈ m, α ↪N ( t.2.1 `div` 2%nat ; if t.1:bool then expander t.2.2 else drop 1%nat (expander t.2.2)) )
+        ([∗ map] α ↦ t ∈ m, α ↪N ( 1%nat ; if t.1:bool then expander t.2 else drop 1%nat (expander t.2)) )
         ∗ ●m@γ2 ∗  
         ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z)
     )%I.
@@ -159,7 +159,7 @@ Section impl2.
     {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) }}}
       allocate_tape2 #() @ E
       {{{ (v:val), RET v;
-          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true, 3%nat; []) @ γ2
+          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true,  []) @ γ2
       }}}.
   Proof.
     iIntros (Hsubset Φ) "#Hinv HΦ".
@@ -168,7 +168,7 @@ Section impl2.
     wp_alloctape α as "Hα".
     iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
     iDestruct (hocap_tapes_notin' with "[$][$]") as "%".
-    iMod (hocap_tapes_new' _ _ _ 3%nat _ true with "[$]") as "[H4 H7]"; first done.
+    iMod (hocap_tapes_new' _ _ _ _ true with "[$]") as "[H4 H7]"; first done.
     replace ([]) with (expander []) by done.
     iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_".
     { iNext. iSplitL; last done.
@@ -183,10 +183,10 @@ Section impl2.
     {{{ inv N (counter_inv_pred2 c γ1 γ2 γ3) ∗
         □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                           own γ3 (●F(z+n)%nat)∗ Q z) ∗
-        P ∗ α ◯↪N (true, 3%nat; n::ns) @ γ2
+        P ∗ α ◯↪N (true, n::ns) @ γ2
     }}}
       incr_counter_tape2 c #lbl:α @ E
-      {{{ (z:nat), RET (#z, #n); Q z ∗ α ◯↪N (true, 3%nat; ns) @ γ2}}}.
+      {{{ (z:nat), RET (#z, #n); Q z ∗ α ◯↪N (true, ns) @ γ2}}}.
   Proof.
     iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ".
     rewrite /incr_counter_tape2.
@@ -255,8 +255,8 @@ Section impl2.
     (□∀ (ε:R) n, (P ∗ ●↯ ε@ γ1) ={E∖↑NS}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n))))
         -∗
-    P -∗ α ◯↪N (true, 3%nat; ns) @ γ2 -∗
-        wp_update E (∃ n, T (n) ∗ α◯↪N (true, 3%nat; ns++[n]) @ γ2).
+    P -∗ α ◯↪N (true, ns) @ γ2 -∗
+        wp_update E (∃ n, T (n) ∗ α◯↪N (true, ns++[n]) @ γ2).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
     iApply wp_update_state_step_coupl.
@@ -313,7 +313,7 @@ Section impl2.
     { edestruct (Nat.odd _); simpl; lia.  }
     rewrite -(list_fmap_singleton (fin_to_nat)) -fmap_app.
     iMod (tapeN_update_append _ _ _ _ (nat_to_fin K2) with "[$][$]") as "[Htapes Htape]".
-    iMod (hocap_tapes_presample' _ _ _ _ _ _ (f sample) with "[$][$]") as "[H4 Hfrag]".
+    iMod (hocap_tapes_presample' _ _ _ _ _ (f sample) with "[$][$]") as "[H4 Hfrag]".
     iMod "Hclose'" as "_".
     iMod ("Hvs" with "[$]") as "[%|[H2 HT]]".
     { iExFalso. iApply (ec_contradict with "[$]"). exact. }
@@ -377,8 +377,8 @@ Program Definition random_counter2 `{!conerisGS Σ}: random_counter :=
     is_counter _ N c γ1 γ2 γ3 := inv N (counter_inv_pred2 c γ1 γ2 γ3);
     counter_error_auth _ γ x := ●↯ x @ γ;
     counter_error_frag _ γ x := ◯↯ x @ γ;
-    counter_tapes_auth _ γ m := (●((λ '(n,ns), (true, (n, ns)))<$>m)@γ)%I;
-    counter_tapes_frag _ γ α N ns := (α◯↪N (true, N; ns) @ γ)%I;
+    counter_tapes_auth _ γ m := (●((λ ns, (true, ns))<$>m)@γ)%I;
+    counter_tapes_frag _ γ α ns := (α◯↪N (true, ns) @ γ)%I;
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
     new_counter_spec _ := new_counter_spec2;
@@ -423,7 +423,7 @@ Next Obligation.
 Qed.
 Next Obligation.
   simpl.
-  iIntros (?????????) "H1 H2".
+  iIntros (???????) "H1 H2".
   iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
   rewrite dfrac_op_own dfrac_valid_own. by intro.
 Qed.
@@ -431,7 +431,7 @@ Next Obligation.
   simpl.
   iIntros.
   iDestruct (hocap_tapes_agree' with "[$][$]") as "%H".
-  rewrite lookup_fmap_Some in H. destruct H as ([??]&?&?).
+  rewrite lookup_fmap_Some in H. destruct H as (?&?&?).
   by simplify_eq.
 Qed.
 Next Obligation.
