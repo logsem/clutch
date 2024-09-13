@@ -270,7 +270,10 @@ Section adequacy.
           iMod ("Hwp'" with "[$]") as "Hlift".
           replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
           iApply (state_step_coupl_erasure' _ e _ chosen_e with "[$][][//][//]").
-          { admit. }
+          { simpl.
+            iPureIntro. rewrite lookup_app_r//.
+            by replace (_-_)%nat with 0%nat by lia.
+          } 
           iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
           iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
           { iPureIntro.
@@ -285,8 +288,11 @@ Section adequacy.
           iApply (state_step_coupl_erasure with "[$][-]").
           iIntros (??) ">(?&?&?&?)".
           iApply ("IH" with "[-]"). iFrame.
-          admit.
-  Admitted.
+          rewrite insert_app_r_alt//.
+          replace (_-_)%nat with 0%nat by lia.
+          simpl.
+          iFrame.
+  Qed.
 
 End adequacy.
 
