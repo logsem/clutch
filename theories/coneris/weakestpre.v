@@ -250,7 +250,7 @@ Section modalities.
   Definition prog_coupl e1 σ1 ε Z : iProp Σ :=
     (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
            ⌜reducible e1 σ1⌝ ∗
-           ⌜∃ (r:nonnegreal), ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
+           ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
            ⌜(ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗
            ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
@@ -486,7 +486,7 @@ Section modalities.
     to_val e1 = None ->
     prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', Z (K e2) σ2 efs ε') -∗ prog_coupl (K e1) σ1 ε Z.
   Proof.
-    iIntros (Hv) "(%R&%ε1&%ε2&%&[%%]&%&%&H)".
+    iIntros (Hv) "(%R&%ε1&%ε2&%&[%r %]&%&%&H)".
     
     (** (classical) inverse of context [K] *)
     destruct (partial_inv_fun K) as (Kinv & HKinv).
@@ -500,9 +500,11 @@ Section modalities.
     iExists (λ '(e2, σ2, efs), ∃ e2', e2 = K e2' /\ R (e2', σ2, efs)), ε1, ε2'.
     repeat iSplit; try iPureIntro.
     - by apply reducible_fill.
-    - rewrite /ε2'. eexists _.
+    - rewrite /ε2'. eexists (Rmax 0%R r).
       intros [[??]?].
-      destruct (Kinv _); simpl; naive_solver.
+      destruct (Kinv _); simpl.
+      + etrans; last apply Rmax_r. done.
+      + apply Rmax_l.
     - rewrite fill_dmap// Expval_dmap//=; last first.
       + eapply ex_expval_bounded. simpl. intros [[??]?] => /=. by rewrite HKinv3/=.
       + etrans; last done.
@@ -677,7 +679,7 @@ Section modalities.
   Lemma prog_coupl_adv_comp e1 σ1 Z (ε : nonnegreal) :
       (∃ R (ε1 : nonnegreal) (ε2 : _ -> nonnegreal),
           ⌜reducible e1 σ1⌝ ∗
-          ⌜ exists (r:nonnegreal), forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
           ⌜ (ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
             ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ Z e2 σ2 efs (ε2 (e2, σ2, efs)))
     ⊢ prog_coupl e1 σ1 ε Z.

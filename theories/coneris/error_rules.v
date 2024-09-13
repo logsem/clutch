@@ -167,7 +167,8 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?& -> & He).
-  iApply glm_prim_step. 
+  iApply state_step_coupl_ret.
+  iApply prog_coupl_prim_step. 
   iExists
       (λ ρ ,
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1, [])), _, _.
@@ -195,6 +196,7 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   do 2 iModIntro.
+  iApply state_step_coupl_ret.
   iMod "Hclose'".
   iFrame.
   iModIntro.
@@ -217,7 +219,8 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
-  iApply glm_prim_step.
+  iApply state_step_coupl_ret.
+  iApply prog_coupl_prim_step.
   iExists
       (λ ρ ,
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1, [])),_,_.
@@ -241,6 +244,7 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   do 2 iModIntro.
+  iApply state_step_coupl_ret.
   iMod "Hclose'".
   iFrame.
   iModIntro.
@@ -263,7 +267,8 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?&->&He).
-  iApply glm_prim_step.
+  iApply state_step_coupl_ret.
+  iApply prog_coupl_prim_step.
   iExists
     (λ ρ ,
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1, [])),_,_.
@@ -284,6 +289,7 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   do 2 iModIntro.
+  iApply state_step_coupl_ret.
   iMod "Hclose'".
   iFrame.
   iModIntro.
@@ -307,7 +313,8 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
-  iApply glm_prim_step.
+  iApply state_step_coupl_ret.
+  iApply prog_coupl_prim_step.
   iExists
     (λ ρ,
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1, [])),_,_.
@@ -326,6 +333,7 @@ Proof.
   destruct H as (n & Hn1 & [=]); simplify_eq.
   iMod (ec_supply_decrease with "Hε Herr") as (????) "Hdec".
   do 2 iModIntro.
+  iApply state_step_coupl_ret.
   iMod "Hclose'".
   iFrame.
   iModIntro.
@@ -403,7 +411,8 @@ Proof.
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
-  iApply glm_adv_comp; simpl.
+  iApply state_step_coupl_ret.
+  iApply prog_coupl_adv_comp; simpl.
   (* iDestruct (ec_supply_bound with "Hε Herr") as %?. *)
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(ε1' & ε3 & Hε_now & Hε1').
   unshelve eset (foo := (λ (ρ : expr * state * list expr),
@@ -439,6 +448,7 @@ Proof.
   iSplit.
   {
     iPureIntro.
+    rewrite /Expval.
     rewrite /foo Rplus_0_l.
     setoid_rewrite Rmult_plus_distr_l.
     rewrite SeriesC_plus.
@@ -596,12 +606,11 @@ Proof.
   iModIntro.
   destruct (Rlt_decision (nonneg ε3 + (ε2 (nat_to_fin l)))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
-    iLeft.
-    iPureIntro.
+    iApply state_step_coupl_ret_err_ge_1.
     simpl.
     lra.
   }
-  iRight.
+  iApply state_step_coupl_ret.
   iModIntro.
   unshelve iMod (ec_supply_increase ε3 (mknonnegreal (ε2 (nat_to_fin l)) _) with "[Hε2]") as "[Hε2 Hcr]"; first done.
   { simpl. lra. }
@@ -849,22 +858,22 @@ Proof.
   split; [by apply elem_of_enum_uniform_list|done].
 Qed. 
 
-Lemma glm_iterM_state_adv_comp_con_prob_lang (p:nat) α e1 σ1 Z (ε ε_rem: nonnegreal) N ns:
+Lemma state_step_coupl_iterM_state_adv_comp_con_prob_lang (p:nat) α σ1 Z (ε ε_rem: nonnegreal) N ns:
   (σ1.(tapes)!!α=Some (N;ns) ->
    (∃ (ε2 : (list (fin (S N))) -> nonnegreal),
        ⌜ (SeriesC (λ n, if (length n =? p) then (1/((S N)^ p)) * ε2 n else 0%R) <= ε)%R ⌝ ∗
-       ∀ n, ⌜(length n = p)%nat⌝ -∗ |={∅}=> stutter (fun ε' => glm e1 (state_upd_tapes <[α:=(_; ns ++ n) : tape]> σ1) (ε')%NNR Z) (ε_rem+ε2 n)%NNR)
-   ⊢ glm e1 σ1 (ε_rem+ε)%NNR Z)%I.
+       ∀ n, ⌜(length n = p)%nat⌝ -∗ |={∅}=> state_step_coupl (state_upd_tapes <[α:=(_; ns ++ n) : tape]> σ1) (ε_rem+ε2 n)%NNR Z)
+   ⊢ state_step_coupl σ1 (ε_rem+ε)%NNR Z)%I.
 Proof.
   iIntros (Hin) "(%ε2 & %Hε & H)".
-  iApply (glm_iterM_state_adv_comp' p).
+  iApply state_step_coupl_iterM_state_adv_comp.
   { rewrite /=/con_prob_lang.get_active.
     by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
   assert (0<=1 / S N ^ p)%R as Hineq.
   { apply Rcomplements.Rdiv_le_0_compat; first lra. apply pow_lt. apply pos_INR_S. }
  (* R: predicate should hold iff tapes σ' at α is ns ++ [nx] where ns is in enum_uniform_list N p *) 
   unshelve iExists
-    (fun σ' : state => exists ns', ns' ∈ enum_uniform_list N p /\ σ' = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)),
+    (fun σ' : state => exists ns', ns' ∈ enum_uniform_list N p /\ σ' = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)), nnreal_zero,
              (fun ρ => (ε_rem +
                        match ClassicalEpsilon.excluded_middle_informative (exists ns', ns' ∈ enum_uniform_list N p /\ ρ = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)) with
                        | left p => mknonnegreal (ε2 (epsilon p)) _
@@ -897,6 +906,7 @@ Proof.
   - iPureIntro.
     simpl.
     setoid_rewrite iterM_state_step_unfold; last done.
+    rewrite /Expval.
     erewrite SeriesC_ext; last first.
     { intros. 
       by rewrite dmap_unfold_pmf -SeriesC_scal_r.
@@ -922,6 +932,7 @@ Proof.
         rewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
         rewrite enum_uniform_list_length.
         setoid_rewrite elem_of_enum_uniform_list'.
+        rewrite Rplus_0_l.
         rewrite Rplus_comm. apply Rplus_le_compat; last done.
         rewrite -pow_INR. simpl.
         assert (INR (S N ^ p) / INR (S N ^ p) * nonneg ε_rem  <= nonneg ε_rem)%R; try lra.
@@ -973,15 +984,15 @@ Proof.
 Qed.
 
 
-Lemma glm_state_adv_comp_con_prob_lang α e1 σ1 Z (ε ε_rem: nonnegreal) N ns:
+Lemma state_step_coupl_state_adv_comp_con_prob_lang α σ1 Z (ε ε_rem: nonnegreal) N ns:
   (σ1.(tapes)!!α=Some (N;ns) ->
    (∃ (ε2 : (fin (S N)) -> nonnegreal),
        ⌜ (SeriesC (λ n, (1/(S N)) * ε2 n) <= ε)%R ⌝ ∗
-       ∀ n, |={∅}=> stutter (fun ε' => glm e1 (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1) (ε')%NNR Z) (ε_rem+ε2 n)%NNR)
-   ⊢ glm e1 σ1 (ε_rem+ε)%NNR Z)%I.
+       ∀ n, |={∅}=> state_step_coupl (state_upd_tapes <[α:=(_; ns ++ [n]) : tape]> σ1) (ε_rem+ε2 n)%NNR Z)
+   ⊢ state_step_coupl σ1 (ε_rem+ε)%NNR Z)%I.
 Proof.
   iIntros (Hin) "(%ε2 & %Hε & H)".
-  iApply (glm_iterM_state_adv_comp_con_prob_lang 1%nat); first done.
+  iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang 1%nat); first done.
   iExists (λ ls, match ls with |[x] => ε2 x | _ => nnreal_zero end).
   iSplit; first iPureIntro.
   - etrans; last exact.
@@ -1021,26 +1032,29 @@ Proof.
   iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
   replace ε with (nnreal_zero + ε)%NNR by (apply nnreal_ext; simpl; lra).
-  iApply glm_state_step.
-  { rewrite /= /get_active.
-    by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
-  iExists _.
+  iApply state_step_coupl_state_adv_comp_con_prob_lang; first done.
+  iExists (λ _, ε).
   iSplitR.
-  { iPureIntro. apply pgl_state, Hlookup. }
-  iIntros (𝜎') "[%n %H𝜎']".
+  { iPureIntro. rewrite SeriesC_finite_mass fin_card. rewrite -Rmult_assoc.
+    rewrite Rdiv_1_l  Rinv_r; first lra.
+    pose proof pos_INR_S N; lra.
+  }
+  iIntros (n). 
   iDestruct (ghost_map_lookup with "Htapes H𝛼") as %?%lookup_total_correct.
   iMod (ghost_map_update ((N; ns' ++ [n]) : tape) with "Htapes H𝛼") as "[Htapes H𝛼]".
   iMod "Hclose'" as "_".
   iSpecialize ("Hwp" $! (fin_to_nat n) with "[H𝛼]").
   { iExists _. iFrame. iPureIntro. rewrite fmap_app; by f_equal. }
   rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
-  iSpecialize ("Hwp" $! 𝜎' ε).
+  iSpecialize ("Hwp" $! (state_upd_tapes <[𝛼:=(N; ns' ++ [n]):tape]> 𝜎) ε).
   iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
   { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
-    rewrite H𝜎'.
+    simpl.
     iFrame.
   }
-  iModIntro. iApply "Hwp".
+  iModIntro.
+  iApply state_step_coupl_mono_err; last done.
+  simpl; lra.
 Qed.
 
 
@@ -1063,14 +1077,13 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose".
   subst.
-  iApply (glm_state_adv_comp_con_prob_lang); first done.
+  iApply (state_step_coupl_state_adv_comp_con_prob_lang); first done.
   iExists (λ x, mknonnegreal (ε2 x) _).
   iSplit; first done.
   iIntros (sample).
   destruct (Rlt_decision (ε_rem + (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
   { apply Rnot_lt_ge, Rge_le in Hdec.
-    iLeft.
-    iPureIntro.
+    iApply state_step_coupl_ret_err_ge_1.
     simpl. simpl in *. lra.
   }
   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample) _) with "Hε_supply") as "[Hε_supply Hε]"; first done.
@@ -1090,8 +1103,7 @@ Proof.
     - rewrite /tapes_auth. iFrame.
     - iFrame. }
   iMod "Hclose"; iMod "Hwp"; iModIntro.
-  iRight.
-  iFrame.
+  done.
 Qed.
 
   Lemma wp_update_presample E α N ns :
@@ -1539,7 +1551,7 @@ End rules.
 (*     iApply fupd_mask_intro; [set_solver|]. *)
 (*     iIntros "Hclose'". *)
 (*     iDestruct (ec_supply_bound with "Hε He ") as %Hle. *)
-(*     iApply glm_prim_step. *)
+(*     iApply prog_coupl_prim_step. *)
 (*     iExists (λ _, False), nnreal_one, nnreal_zero. *)
 (*     iSplitR. *)
 (*     { iPureIntro. eauto. } *)
