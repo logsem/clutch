@@ -20,12 +20,15 @@ Delimit Scope val_scope with V.
 
 Module meas_lang.
 
+Context {R : realType}.
 
-(* MARKUSDE: Same as prob_lang for now, but will be extended w/ Real primitives
-   and infinite tapes. *)
-
-Inductive base_lit : Set :=
-  | LitInt (n : Z) | LitBool (b : bool) | LitUnit | LitLoc (l : loc) | LitLbl (l : loc).
+Inductive base_lit : Type :=
+  | LitInt (n : Z)
+  | LitBool (b : bool)
+  | LitUnit
+  | LitLoc (l : loc)
+  | LitLbl (l : loc)
+  | LitReal (r : R).
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
 Inductive bin_op : Set :=
@@ -81,72 +84,41 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
-(** We assume the following encoding of values to 64-bit words: The least 3
-significant bits of every word are a "tag", and we have 61 bits of payload,
-which is enough if all pointers are 8-byte-aligned (common on 64bit
-architectures). The tags have the following meaning:
 
-0: Payload is the data for a LitV (LitInt _).
-1: Payload is the data for a InjLV (LitV (LitInt _)).
-2: Payload is the data for a InjRV (LitV (LitInt _)).
-3: Payload is the data for a LitV (LitLoc _).
-4: Payload is the data for a InjLV (LitV (LitLoc _)).
-4: Payload is the data for a InjRV (LitV (LitLoc _)).
-6: Payload is one of the following finitely many values, which 61 bits are more
-   than enough to encode:
-   LitV LitUnit, InjLV (LitV LitUnit), InjRV (LitV LitUnit),
-   LitV LitPoison, InjLV (LitV LitPoison), InjRV (LitV LitPoison),
-   LitV (LitBool _), InjLV (LitV (LitBool _)), InjRV (LitV (LitBool _)).
-7: Value is boxed, i.e., payload is a pointer to some read-only memory area on
-   the heap which stores whether this is a RecV, PairV, InjLV or InjRV and the
-   relevant data for those cases. However, the boxed representation is never
-   used if any of the above representations could be used.
 
-Ignoring (as usual) the fact that we have to fit the infinite Z/loc into 61
-bits, this means every value is machine-word-sized and can hence be atomically
-read and written.  Also notice that the sets of boxed and unboxed values are
-disjoint. *)
-Definition lit_is_unboxed (l: base_lit) : Prop :=
-  match l with
-  (** Disallow comparing (erased) prophecies with (erased) prophecies, by
-  considering them boxed. *)
-  (* | LitProphecy _ | LitPoison => False *)
-  | LitInt _ | LitBool _  | LitLoc _ | LitLbl _ | LitUnit => True
-  end.
-Definition val_is_unboxed (v : val) : Prop :=
-  match v with
-  | LitV l => lit_is_unboxed l
-  | InjLV (LitV l) => lit_is_unboxed l
-  | InjRV (LitV l) => lit_is_unboxed l
-  | _ => False
-  end.
+Definition tape : Set := { n : nat & nat -> option (fin (S n)) }.
 
-Global Instance lit_is_unboxed_dec l : Decision (lit_is_unboxed l).
-Proof. destruct l; simpl; exact (decide _). Defined.
-Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
-Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined.
+Definition emptyTape (n : nat) : tape
+  := (n ; fun _ => None).
 
-(** We just compare the word-sized representation of two values, without looking
-into boxed data.  This works out fine if at least one of the to-be-compared
-values is unboxed (exploiting the fact that an unboxed and a boxed value can
-never be equal because these are disjoint sets). *)
-Definition vals_compare_safe (vl v1 : val) : Prop :=
-  val_is_unboxed vl ∨ val_is_unboxed v1.
-Global Arguments vals_compare_safe !_ !_ /.
+Definition getTape (t : tape) (n : nat) : option (fin (S (projT1 t)))
+  := (projT2 t) n.
 
-Definition tape := { n : nat & list (fin (S n)) }.
+(* Easier than using list lookup *)
+Fixpoint tapeHasSubtape (t : tape) (l : list (fin (S (projT1 t)))) (i0 : nat) : Prop
+  := match l with
+      | (l0 :: ls) => getTape t i0 = Some l0 /\ tapeHasSubtape t ls (S i0)
+      | [] => True
+      end.
 
-Global Instance tape_inhabited : Inhabited tape := populate (existT 0%nat []).
-Global Instance tape_eq_dec : EqDecision tape. Proof. apply _. Defined.
-Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed.
+Definition tapeHasPrefix t l : Prop := tapeHasSubtape t l 0.
+
+(* Here *)
+
+
+Definition EqDecisionClassical {T : Type} : EqDecision T.
+Proof. intros ? ?. apply ClassicalEpsilon.excluded_middle_informative. Defined.
+Global Instance tape_inhabited : Inhabited tape := populate (fin (existT 0%nat [])).
+Global Instance tape_eq_dec : EqDecision tape.
+Proof. apply EqDecisionClassical. Defined.
+Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed. (* ?? It's not a countable instance ?? *)
 
 Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
 Proof. apply map_lookup_total. Defined.
 Global Instance tapes_insert : Insert loc tape (gmap loc tape).
 Proof. apply map_insert. Defined.
 
-(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of
-    booleans. *)
+(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of fins. *)
 Record state : Type := {
   heap  : gmap loc val;
   tapes : gmap loc tape
@@ -162,176 +134,20 @@ Proof. destruct e=>//=. by intros [= <-]. Qed.
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
+(* MARKUSDE: I think I want to just replace all equalities with classical equality. *)
+
 Global Instance base_lit_eq_dec : EqDecision base_lit.
-Proof. solve_decision. Defined.
+Proof. apply EqDecisionClassical. Defined.
 Global Instance un_op_eq_dec : EqDecision un_op.
 Proof. solve_decision. Defined.
 Global Instance bin_op_eq_dec : EqDecision bin_op.
 Proof. solve_decision. Defined.
 Global Instance expr_eq_dec : EqDecision expr.
-Proof.
-  refine (
-   fix go (e1 e2 : expr) {struct e1} : Decision (e1 = e2) :=
-     match e1, e2 with
-     | Val v, Val v' => cast_if (decide (v = v'))
-     | Var x, Var x' => cast_if (decide (x = x'))
-     | Rec f x e, Rec f' x' e' =>
-        cast_if_and3 (decide (f = f')) (decide (x = x')) (decide (e = e'))
-     | App e1 e2, App e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | UnOp o e, UnOp o' e' => cast_if_and (decide (o = o')) (decide (e = e'))
-     | BinOp o e1 e2, BinOp o' e1' e2' =>
-        cast_if_and3 (decide (o = o')) (decide (e1 = e1')) (decide (e2 = e2'))
-     | If e0 e1 e2, If e0' e1' e2' =>
-        cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
-     | Pair e1 e2, Pair e1' e2' =>
-        cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Fst e, Fst e' => cast_if (decide (e = e'))
-     | Snd e, Snd e' => cast_if (decide (e = e'))
-     | InjL e, InjL e' => cast_if (decide (e = e'))
-     | InjR e, InjR e' => cast_if (decide (e = e'))
-     | Case e0 e1 e2, Case e0' e1' e2' =>
-        cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
-     | AllocN e1 e2, AllocN e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Load e, Load e' => cast_if (decide (e = e'))
-     | Store e1 e2, Store e1' e2' =>
-        cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | AllocTape e, AllocTape e' => cast_if (decide (e = e'))
-     | Rand e1 e2, Rand e1' e2' => cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | Tick e, Tick e' => cast_if (decide (e = e'))
-     | _, _ => right _
-     end
-   with gov (v1 v2 : val) {struct v1} : Decision (v1 = v2) :=
-     match v1 , v2 with
-     | LitV l, LitV l' => cast_if (decide (l = l'))
-     | RecV f x e, RecV f' x' e' =>
-        cast_if_and3 (decide (f = f')) (decide (x = x')) (decide (e = e'))
-     | PairV e1 e2, PairV e1' e2' =>
-        cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
-     | InjLV e, InjLV e' => cast_if (decide (e = e'))
-     | InjRV e, InjRV e' => cast_if (decide (e = e'))
-     | _, _ => right _
-     end
-   for go); try (clear go gov; abstract intuition congruence).
-Defined.
+Proof. apply EqDecisionClassical. Defined.
 Global Instance val_eq_dec : EqDecision val.
 Proof. solve_decision. Defined.
 Global Instance state_eq_dec : EqDecision state.
 Proof. solve_decision. Defined.
-
-Global Instance base_lit_countable : Countable base_lit.
-Proof.
- refine (inj_countable' (λ l, match l with
-  | LitInt n => inl (inl n)
-  | LitBool b => inl (inr b)
-  | LitUnit => inr (inl ())
-  | LitLoc l => inr (inr (inr l))
-  | LitLbl l => inr (inr (inl l))
-  end) (λ l, match l with
-  | inl (inl n) => LitInt n
-  | inl (inr b) => LitBool b
-  | inr (inl ()) => LitUnit
-  | inr (inr (inr l)) => LitLoc l
-  | inr (inr (inl l)) => LitLbl l
-  end) _); by intros [].
-Qed.
-Global Instance un_op_finite : Countable un_op.
-Proof.
- refine (inj_countable' (λ op, match op with NegOp => 0 | MinusUnOp => 1 end)
-  (λ n, match n with 0 => NegOp | _ => MinusUnOp end) _); by intros [].
-Qed.
-Global Instance bin_op_countable : Countable bin_op.
-Proof.
- refine (inj_countable' (λ op, match op with
-  | PlusOp => 0 | MinusOp => 1 | MultOp => 2 | QuotOp => 3 | RemOp => 4
-  | AndOp => 5 | OrOp => 6 | XorOp => 7 | ShiftLOp => 8 | ShiftROp => 9
-  | LeOp => 10 | LtOp => 11 | EqOp => 12 | OffsetOp => 13
-  end) (λ n, match n with
-  | 0 => PlusOp | 1 => MinusOp | 2 => MultOp | 3 => QuotOp | 4 => RemOp
-  | 5 => AndOp | 6 => OrOp | 7 => XorOp | 8 => ShiftLOp | 9 => ShiftROp
-  | 10 => LeOp | 11 => LtOp | 12 => EqOp | _ => OffsetOp
-  end) _); by intros [].
-Qed.
-Global Instance expr_countable : Countable expr.
-Proof.
- set (enc :=
-   fix go e :=
-     match e with
-     | Val v => GenNode 0 [gov v]
-     | Var x => GenLeaf (inl (inl x))
-     | Rec f x e => GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
-     | App e1 e2 => GenNode 2 [go e1; go e2]
-     | UnOp op e => GenNode 3 [GenLeaf (inr (inr (inl op))); go e]
-     | BinOp op e1 e2 => GenNode 4 [GenLeaf (inr (inr (inr op))); go e1; go e2]
-     | If e0 e1 e2 => GenNode 5 [go e0; go e1; go e2]
-     | Pair e1 e2 => GenNode 6 [go e1; go e2]
-     | Fst e => GenNode 7 [go e]
-     | Snd e => GenNode 8 [go e]
-     | InjL e => GenNode 9 [go e]
-     | InjR e => GenNode 10 [go e]
-     | Case e0 e1 e2 => GenNode 11 [go e0; go e1; go e2]
-     | AllocN e1 e2 => GenNode 12 [go e1; go e2]
-     | Load e => GenNode 13 [go e]
-     | Store e1 e2 => GenNode 14 [go e1; go e2]
-     | AllocTape e => GenNode 15 [go e]
-     | Rand e1 e2 => GenNode 16 [go e1; go e2]
-     | Tick e => GenNode 17 [go e]
-     end
-   with gov v :=
-     match v with
-     | LitV l => GenLeaf (inr (inl l))
-     | RecV f x e =>
-        GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); go e]
-     | PairV v1 v2 => GenNode 1 [gov v1; gov v2]
-     | InjLV v => GenNode 2 [gov v]
-     | InjRV v => GenNode 3 [gov v]
-     end
-   for go).
- set (dec :=
-   fix go e :=
-     match e with
-     | GenNode 0 [v] => Val (gov v)
-     | GenLeaf (inl (inl x)) => Var x
-     | GenNode 1 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => Rec f x (go e)
-     | GenNode 2 [e1; e2] => App (go e1) (go e2)
-     | GenNode 3 [GenLeaf (inr (inr (inl op))); e] => UnOp op (go e)
-     | GenNode 4 [GenLeaf (inr (inr (inr op))); e1; e2] => BinOp op (go e1) (go e2)
-     | GenNode 5 [e0; e1; e2] => If (go e0) (go e1) (go e2)
-     | GenNode 6 [e1; e2] => Pair (go e1) (go e2)
-     | GenNode 7 [e] => Fst (go e)
-     | GenNode 8 [e] => Snd (go e)
-     | GenNode 9 [e] => InjL (go e)
-     | GenNode 10 [e] => InjR (go e)
-     | GenNode 11 [e0; e1; e2] => Case (go e0) (go e1) (go e2)
-     | GenNode 12 [e1 ; e2] => AllocN (go e1) (go e2)
-     | GenNode 13 [e] => Load (go e)
-     | GenNode 14 [e1; e2] => Store (go e1) (go e2)
-     | GenNode 15 [e] => AllocTape (go e)
-     | GenNode 16 [e1; e2] => Rand (go e1) (go e2)
-     | GenNode 17 [e] => Tick (go e)
-     | _ => Val $ LitV LitUnit (* dummy *)
-     end
-   with gov v :=
-     match v with
-     | GenLeaf (inr (inl l)) => LitV l
-     | GenNode 0 [GenLeaf (inl (inr f)); GenLeaf (inl (inr x)); e] => RecV f x (go e)
-     | GenNode 1 [v1; v2] => PairV (gov v1) (gov v2)
-     | GenNode 2 [v] => InjLV (gov v)
-     | GenNode 3 [v] => InjRV (gov v)
-     | _ => LitV LitUnit (* dummy *)
-     end
-   for go).
- refine (inj_countable' enc dec _).
- refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | ]; simpl; f_equal;
-     [exact (gov v)|done..].
- - destruct v; by f_equal.
-Qed.
-Global Instance val_countable : Countable val.
-Proof. refine (inj_countable of_val to_val _); auto using to_of_val. Qed.
-Global Program Instance state_countable : Countable state :=
-  {| encode σ := encode (σ.(heap), σ.(tapes));
-     decode p := '(h, t) ← decode p; mret {|heap:=h; tapes:=t|} |}.
-Next Obligation. intros [h t]. rewrite decode_encode //=. Qed.
 
 Global Instance state_inhabited : Inhabited state :=
   populate {| heap := inhabitant; tapes := inhabitant |}.
@@ -520,7 +336,7 @@ Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option bas
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then
-    if decide (vals_compare_safe v1 v2) then
+    if decide (v1 = v2) then
       Some $ LitV $ LitBool $ bool_decide (v1 = v2)
     else
       None
@@ -540,12 +356,14 @@ Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : 
   {| heap := σ.(heap); tapes := f σ.(tapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
 
+(* FIXME: Specialized to finite tapes *)
 Lemma state_upd_tapes_twice σ l n xs ys :
-  state_upd_tapes <[l:=(n; ys)]> (state_upd_tapes <[l:=(n; xs)]> σ) = state_upd_tapes <[l:=(n; ys)]> σ.
+  state_upd_tapes <[l:= (fin (n; ys))]> (state_upd_tapes <[l:=(fin (n; xs))]> σ) = state_upd_tapes <[l:=(fin (n; ys))]> σ.
 Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
 
+(* FIXME: Specialized to finite tapes *)
 Lemma state_upd_tapes_same σ σ' l n xs ys :
-  state_upd_tapes <[l:=(n; ys)]> σ = state_upd_tapes <[l:=(n; xs)]> σ' -> xs = ys.
+  state_upd_tapes <[l:=(fin (n; ys))]> σ = state_upd_tapes <[l:=(fin (n; xs))]> σ' -> xs = ys.
 Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
        rewrite map_eq_iff in H.
        specialize (H l).
@@ -553,27 +371,26 @@ Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
        by simplify_eq.
 Qed.
 
-
+(* FIXME: Specialized to finite tapes *)
+(*
 Lemma state_upd_tapes_no_change σ l n ys :
   tapes σ !! l = Some (n; ys)-> 
-  state_upd_tapes <[l:=(n; ys)]> σ = σ .
+  state_upd_tapes <[l:=(fin (n; ys))]> σ = σ .
 Proof.
   destruct σ as [? t]. simpl.
   intros Ht.
   f_equal.
   apply insert_id. done.
 Qed.
+*)
 
-Lemma state_upd_tapes_same' σ σ' l n xs (x y : fin (S n)) :
-  state_upd_tapes <[l:=(n; xs++[x])]> σ = state_upd_tapes <[l:=(n; xs++[y])]> σ' -> x = y.
-Proof. intros H. apply state_upd_tapes_same in H.
-       by simplify_eq.
-Qed.
+Lemma state_upd_tapes_same' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
+  state_upd_tapes <[l:=(fin (n; xs++[x]))]> σ = state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ' -> x = y.
+Proof. intros H. apply state_upd_tapes_same in H. by simplify_eq. Qed.
 
-Lemma state_upd_tapes_neq' σ σ' l n xs (x y : fin (S n)) :
-  x≠y -> state_upd_tapes <[l:=(n; xs++[x])]> σ ≠ state_upd_tapes <[l:=(n; xs++[y])]> σ'.
-Proof. move => H /state_upd_tapes_same ?. simplify_eq.
-Qed.
+Lemma state_upd_tapes_neq' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
+  x≠y -> state_upd_tapes <[l:=(fin(n; xs++[x]))]> σ ≠ state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ'.
+Proof. move => H /state_upd_tapes_same ?. simplify_eq. Qed.
 
 Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
   match vs with
@@ -649,8 +466,8 @@ Proof.
 Qed.
 
 Lemma state_upd_tapes_heap σ l1 l2 n xs m v :
-  state_upd_tapes <[l2:=(n; xs)]> (state_upd_heap_N l1 m v σ) =
-  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=(n; xs)]> σ).
+  state_upd_tapes <[l2:=(fin (n; xs))]> (state_upd_heap_N l1 m v σ) =
+  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=(fin(n; xs))]> σ).
 Proof.
   by rewrite /state_upd_tapes /state_upd_heap_N /=.
 Qed.
@@ -774,7 +591,9 @@ Section meas_semantics.
           (giryM_unif (Z.to_nat N))
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (Z.to_nat z; []) ]> σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (fin (Z.to_nat z; [])) ]> σ1) : <<discr cfg>>)
+    (* FIXME: Decide on the representation and semantics of infinite tapes *)
+    (*
     (* Labelled sampling, conditional on tape contents *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
         match σ1.(tapes) !! l with
@@ -783,7 +602,7 @@ Section meas_semantics.
               match ns  with
               | n :: ns =>
                   (* the tape is non-empty so we consume the first number *)
-                  giryM_ret R ((Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(M; ns)]> σ1) : <<discr cfg>>)
+                  giryM_ret R ((Val $ LitV $ LitInt $ fin_to_nat n, state_upd_tapes <[l:=(fin(M; ns))]> σ1) : <<discr cfg>>)
               | [] =>
                   giryM_map
                     (m_discr (fun (n : 'I_(S (Z.to_nat M))) => ((Val $ LitV $ LitInt n, σ1) : <<discr cfg>>)))
@@ -796,6 +615,7 @@ Section meas_semantics.
                   (giryM_unif (Z.to_nat _))
         | None => mzero
         end
+        *)
     | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : <<discr cfg>>)
     | _ => giryM_zero
     end.
@@ -809,16 +629,19 @@ Section meas_semantics.
     := m_discr head_stepM_def.
 
   (* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
-  Definition fin_of_Im (m : nat) : 'I_m -> fin m.
+  Definition fin_of_Im (m : nat) : 'I_m -> stdpp.fin.fin m.
   Admitted.
 
   Definition state_stepM_def (c : state * loc) : giryM (<<discr state>>) :=
     let (σ1, α) := c in
     if bool_decide (α ∈ dom σ1.(tapes)) then
+      giryM_zero
+      (*
       let: (N; ns) := (σ1.(tapes) !!! α) in
       giryM_map
-        (m_discr (λ (n : 'I_(S N)), (state_upd_tapes (<[α := (N; ns ++ [ fin_of_Im _ n : fin (S N)])]>) σ1) : <<discr state>>))
+        (m_discr (λ (n : 'I_(S N)), (state_upd_tapes (<[α := fin (N; ns ++ [ fin_of_Im _ n : stdpp.fin.fin (S N)])]>) σ1) : <<discr state>>))
         (giryM_unif _)
+      *)
     else giryM_zero.
 
   Definition state_stepM : measurable_map <<discr (state * loc)>> (giryM <<discr state>>)
