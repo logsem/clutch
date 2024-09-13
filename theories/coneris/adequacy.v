@@ -330,4 +330,23 @@ Proof.
   by eapply wp_pgl.
 Qed.
 
-(* TODO limit stronger adequacy*)
+Theorem wp_pgl_lim_with_epsilon Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state)
+  (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
+  0 <= ε →
+  (∀ `{conerisGS Σ}, ⊢ epsilon_err -∗ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
+  pgl (sch_lim_exec sch (ζ, ([e], σ))) φ ε.
+Proof.
+  intros ? Hwp.
+  apply pgl_epsilon_limit; first lra.
+  intros ε' Hineq. 
+  apply pgl_closed_lim; first done.
+  intros.
+  eapply wp_pgl; [done..|lra|intros].
+  iIntros "H".
+  specialize (Hwp _).
+  replace (ε') with (ε + (ε'-ε))%R; last lra.
+  iDestruct (ec_split with "[$]") as "[H1 H2]"; [lra..|].
+  iApply (Hwp with "[-H1]H1").
+  iExists _. iFrame.
+  iPureIntro; lra.
+Qed.
