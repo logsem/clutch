@@ -632,7 +632,7 @@ Local Lemma force_first_thread_scheduler_lemma' `{Hcountable:Countable sch_int_�
   (e::es1)!!num=Some e1 ->
   to_val e = None ->
   to_val e1 = None ->
-  (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (initial, (<[num:=e']> (e::es1 ++ l), s))) = sch_exec (force_first_thread_scheduler sch num initial) (S n) (None, (e::es1, σ1)).
+  (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (initial, (<[num:=e']> (e::es1) ++ l, s))) = sch_exec (force_first_thread_scheduler sch num initial) (S n) (None, (e::es1, σ1)).
 Proof.
   intros H Hv Hv'.
   rewrite /force_first_thread_scheduler{2}/sch_exec.
@@ -643,9 +643,6 @@ Proof.
   rewrite !dret_id_left.
   erewrite force_first_thread_scheduler_lemma.
   repeat f_equal.
-  rewrite -insert_app_l.
-  - by rewrite app_comm_cons.
-  - by eapply lookup_lt_Some.
 Qed.
 
 
@@ -655,8 +652,8 @@ Lemma prim_coupl_step_prim_sch_erasable `{Hcountable:Countable sch_int_σ} e n e
   to_val e = None ->
   to_val e1 = None ->
   Rcoupl
-    (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s)))
-    (μ ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s))))
+    (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1) ++ l, s)))
+    (μ ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1) ++ l, s))))
     eq.
 Proof.
   intros H1 H2 H3 H4.
@@ -677,8 +674,8 @@ Lemma prim_coupl_step_prim' `{Hcountable:Countable sch_int_σ} e n es1 σ1 α bs
   to_val e = None ->
   to_val e1 = None ->
   Rcoupl
-    (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s)))
-    (state_step σ1 α ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1 ++ l), s))))
+    (prim_step e1 σ1 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1) ++ l, s)))
+    (state_step σ1 α ≫= (λ σ2, prim_step e1 σ2 ≫= λ '(e', s, l), sch_exec sch n (ζ, (<[num:=e']> (e::es1) ++ l, s))))
     eq.
 Proof.
   intros H1 H2 H3 H4.

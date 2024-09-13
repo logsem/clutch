@@ -25,8 +25,8 @@ Section adequacy.
     ⌜ 0 <= ε ⌝ -∗
     ⌜ 0 <= ε' ⌝ -∗
     ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(n) ⌜pgl (f a) T ε'⌝) -∗
-    |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+    (∀ a , ⌜R a⌝ ={∅}=∗ |={∅}▷=>^(n) ⌜pgl (f a) T ε'⌝) -∗
+    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
   Proof.
     iIntros (???) "H".
     iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T ε')⌝)).
@@ -40,8 +40,8 @@ Section adequacy.
     ⌜ 0 <= ε ⌝ -∗
     ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
     ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}▷=∗^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
-    |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + Expval μ ε')⌝ : iProp Σ.
+    (∀ a , ⌜R a⌝ ={∅}=∗ |={∅}▷=>^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + Expval μ ε')⌝ : iProp Σ.
   Proof.
     iIntros (???) "H".
     iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T (ε' a))⌝)).
@@ -97,28 +97,46 @@ Section adequacy.
       by apply pgl_1.
     - by iMod ("Hcont" with "[$]").
     - rewrite -Herasable.
-      admit.
-  Admitted.
+      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
+      { iPureIntro.
+        intros. eapply pgl_mon_grading; exact.
+      }
+      iApply (pgl_dbind_adv' with "[][][][-]"); [done|naive_solver|done|].
+      iIntros (??).
+      iMod ("H" with "[//]") as "[H _]".
+      simpl.
+      iApply ("H" with "[$]").
+  Qed.
 
   Lemma state_step_coupl_erasure' `{Countable sch_int_state} (ζ : sch_int_state) e es e' σ ε Z n num (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
+    ((e::es)!!num = Some e') ->
+    to_val e = None ->
+    to_val e' = None ->
     state_step_coupl σ ε Z -∗
-    ⌜((e::es)!!num = Some e')⌝ -∗
-    ⌜to_val e = None⌝ -∗
-    ⌜to_val e' = None⌝ -∗
     (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(S n)
                                ⌜pgl (prim_step e' σ2 ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) φ ε2⌝) -∗
     |={∅}=> |={∅}▷=>^(S n)
              ⌜pgl (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_exec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) φ ε⌝.
   Proof.
+    intros ???.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%&%&%&%&H)]] % % % Hcont".
+    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%&%&%&%&H)]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       by apply pgl_1.
     - by iMod ("Hcont" with "[$]").
-    - 
-  Admitted.
+    - unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); [done..|].
+      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
+      { iPureIntro.
+        intros. eapply pgl_mon_grading; exact.
+      }
+      iApply (pgl_dbind_adv'); [done|naive_solver|done|].
+      iIntros (??).
+      iMod ("H" with "[//]") as "[H _]".
+      simpl.
+      iApply ("H" with "[$]").
+  Qed.
 
   Lemma wp_refRcoupl_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
     (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
@@ -146,12 +164,13 @@ Section adequacy.
         by iApply step_fupdN_intro.
       + rewrite {1}/sch_step. rewrite <-dbind_assoc.
         replace (ε) with (0+ε)%NNR; last (apply nnreal_ext;simpl; lra).
+        iApply fupd_mask_intro; first done.
+        iIntros "Hclose".
+        rewrite -fupd_idemp.
         iApply (pgl_dbind' _ _ _ _ _ _ (S _)); [done|
                              iPureIntro; apply cond_nonneg|
                              iPureIntro;apply pgl_trivial;simpl;lra|
                              ..].
-        iApply fupd_mask_intro; first done.
-        iIntros "Hclose".
         iIntros ([sch_σ sch_a] _).
         rewrite step_fupd_fupdN_S.
         iMod "Hclose" as "_".
@@ -161,7 +180,7 @@ Section adequacy.
           rewrite dmap_dret dret_id_left'.
           iApply fupd_mask_intro; first done.
           iIntros "Hclose".
-          do 2 iModIntro. iMod "Hclose" as "_".
+          do 3 iModIntro. iMod "Hclose" as "_".
           iApply "IH". iFrame.
           iApply ec_supply_eq; last done.
           simpl. lra.
@@ -171,7 +190,7 @@ Section adequacy.
           rewrite dmap_dret dret_id_left'.
           iApply fupd_mask_intro; first done.
           iIntros "Hclose".
-          do 2 iModIntro. iMod "Hclose" as "_".
+          do 3 iModIntro. iMod "Hclose" as "_".
           iApply "IH". iFrame.
           iApply ec_supply_eq; last done.
           simpl. lra.
@@ -188,7 +207,8 @@ Section adequacy.
           rewrite pgl_wp_unfold /pgl_wp_pre. iSimpl in "Hwp". rewrite Heq.
           iMod ("Hwp" with "[$]") as "Hlift".
           replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
-          iApply (state_step_coupl_erasure' with "[$][//][//][//]").
+          iApply (state_step_coupl_erasure' with "[$Hlift]"); [done..|].
+          iModIntro.
           iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
           iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
           { iPureIntro.
@@ -200,7 +220,7 @@ Section adequacy.
           rewrite step_fupd_fupdN_S.
           iMod ("H" with "[//]") as "H".
           simpl.
-          do 3 iModIntro.
+          do 4 iModIntro.
           iApply (state_step_coupl_erasure with "[$][-]").
           iIntros (??) ">(?&?&?&?)".
           iApply ("IH" with "[-]"). iFrame.
@@ -213,11 +233,12 @@ Section adequacy.
           rewrite Hcheckval.
           iMod ("Hwp'" with "[$]") as "Hlift".
           replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
-          iApply (state_step_coupl_erasure' _ e _ chosen_e with "[$][][//][//]").
+          iApply (state_step_coupl_erasure' _ e _ chosen_e with "[$]"); [|done..|].
           { simpl.
-            iPureIntro. rewrite lookup_app_r//.
+            rewrite lookup_app_r//.
             by replace (_-_)%nat with 0%nat by lia.
-          } 
+          }
+          iModIntro.
           iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
           iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
           { iPureIntro.
@@ -228,7 +249,7 @@ Section adequacy.
           rewrite step_fupd_fupdN_S.
           iMod ("H" with "[//]") as "H".
           simpl.
-          do 3 iModIntro.
+          do 4 iModIntro.
           iApply (state_step_coupl_erasure with "[$][-]").
           iIntros (??) ">(?&?&?&?)".
           iApply ("IH" with "[-]"). iFrame.
