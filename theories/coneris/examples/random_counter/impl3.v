@@ -24,4 +24,5 @@ Section impl3.
                                    counterG2_frac_authR:: inG Σ (frac_authR natR) }.
 
   Context `{!conerisGS Σ, !hocap_errorGS Σ, !hocap_tapesGS Σ, !inG Σ (frac_authR natR)}.
+  
 End impl3. 

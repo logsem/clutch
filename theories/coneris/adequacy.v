@@ -63,13 +63,22 @@ Section adequacy.
     iRevert (σ ε) "H".
     iApply state_step_coupl_ind.
     iModIntro.
-    iIntros (??) "[%|[>(_&_&%)|(%R&%μ&%&%&%Herasable&%&%Hineq&%Hpgl&H)]]".
+    iIntros (??) "[%|[>(_&_&%)|[H|(%R&%μ&%&%&%Herasable&%&%Hineq&%Hpgl&H)]]]".
     - iPureIntro. by apply pgl_1.
     - iApply fupd_mask_intro; first done.
       iIntros "_".
       iPureIntro.
       erewrite sch_exec_is_final; last done.
       eapply pgl_mon_grading; last apply pgl_dret; auto.
+    - iApply (fupd_mono _ _ (⌜_⌝)%I).
+      { iPureIntro.
+        intros H'.
+        apply pgl_epsilon_limit; last exact.
+        by apply Rle_ge. 
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]"; [|done..].
+      pose proof cond_nonneg ε. lra.
     - erewrite <-Herasable; last done.
       iApply (fupd_mono _ _ (⌜_⌝)%I).
       { iPureIntro.
@@ -91,11 +100,20 @@ Section adequacy.
   Proof.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%Herasable&%&%&%&H)]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%Herasable&%&%&%&H)]]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       by apply pgl_1.
     - by iMod ("Hcont" with "[$]").
+    - iApply (step_fupdN_mono _ _ _ (⌜(∀ ε', _)⌝)).
+      { iPureIntro.
+        intros.
+        apply pgl_epsilon_limit; [simpl; by apply Rle_ge|done].
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
+        [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
+      iApply ("H" with "[$]").
     - rewrite -Herasable.
       iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
       { iPureIntro.
@@ -121,11 +139,20 @@ Section adequacy.
     intros ???.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|(%&%μ&%&%&%&%&%&%&H)]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%&%&%&%&H)]]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       by apply pgl_1.
     - by iMod ("Hcont" with "[$]").
+    - iApply (step_fupdN_mono _ _ _ (⌜(∀ ε', _)⌝)).
+      { iPureIntro.
+        intros.
+        apply pgl_epsilon_limit; [simpl; by apply Rle_ge|done].
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
+        [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
+      iApply ("H" with "[$]").
     - unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); [done..|].
       iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
       { iPureIntro.
@@ -328,25 +355,4 @@ Proof.
   apply pgl_closed_lim; first done.
   intros.
   by eapply wp_pgl.
-Qed.
-
-Theorem wp_pgl_lim_with_epsilon Σ `{conerisGpreS Σ} `{Countable sch_int_state} (ζ : sch_int_state)
-  (e : expr) (σ : state) (ε : R) (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{!TapeOblivious sch_int_state sch}:
-  0 <= ε →
-  (∀ `{conerisGS Σ}, ⊢ epsilon_err -∗ ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
-  pgl (sch_lim_exec sch (ζ, ([e], σ))) φ ε.
-Proof.
-  intros ? Hwp.
-  apply pgl_epsilon_limit; first lra.
-  intros ε' Hineq. 
-  apply pgl_closed_lim; first done.
-  intros.
-  eapply wp_pgl; [done..|lra|intros].
-  iIntros "H".
-  specialize (Hwp _).
-  replace (ε') with (ε + (ε'-ε))%R; last lra.
-  iDestruct (ec_split with "[$]") as "[H1 H2]"; [lra..|].
-  iApply (Hwp with "[-H1]H1").
-  iExists _. iFrame.
-  iPureIntro; lra.
 Qed.

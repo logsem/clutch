@@ -817,12 +817,12 @@ Section attempt3.
     { iFrame. }
     iDestruct "Hfrag_loc" as "[Hfrac_a Hfrac_b]".
     (** presample *)
-    wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_half else nnreal_one)); [done|..]; last iFrame "Hα Herr".
+    wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_half else nnreal_one)); last iFrame "Hα Herr".
     { intros; case_match; simpl; lra. }
     { simpl; lra. }
     iIntros ([|]) "[Herr Hα]"; last first.
     { iExFalso. by iApply ec_contradict. }
-    wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_zero else nnreal_one)); [done|..]; last iFrame "Hα' Herr".
+    wp_apply (wp_presample_bool_adv_comp _ _ _ _ _ _ (λ b, if b then nnreal_zero else nnreal_one)); last iFrame "Hα' Herr".
     { intros; case_match; simpl; lra. }
     { simpl; lra. }
     iIntros ([|]) "[? Hα']"; last first.

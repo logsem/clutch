@@ -12,27 +12,26 @@ Section wp_update.
   Context `{!conerisGS Σ}.
 
   Definition wp_update_def (E : coPset) (P : iProp Σ) : iProp Σ :=
-    ∀ e Φ, ⌜TCEq (to_val e) None⌝ -∗ (P -∗ WP e @ E {{ Φ }}) -∗ WP e @ E {{ Φ }}.
+    ∀ e Φ, (P -∗ WP e @ E {{ Φ }}) -∗ WP e @ E {{ Φ }}.
   Local Definition wp_update_aux : seal (@wp_update_def). Proof. by eexists. Qed.
   Definition wp_update := wp_update_aux.(unseal).
   Lemma wp_update_unseal : wp_update = wp_update_def.
   Proof. rewrite -wp_update_aux.(seal_eq) //. Qed.
 
   Global Instance elim_modal_wp_update_wp p e E P Φ :
-    ElimModal (TCEq (to_val e) None) p false (wp_update E P) P (WP e @ E {{ Φ }}) (WP e @ E {{ Φ }}).
+    ElimModal (True) p false (wp_update E P) P (WP e @ E {{ Φ }}) (WP e @ E {{ Φ }}).
   Proof.
     rewrite /ElimModal bi.intuitionistically_if_elim => Hv.
     rewrite wp_update_unseal.
     iIntros "[Hu Hw]".
-    iApply "Hu"; [|done].
-    rewrite Hv //.
+    by iApply "Hu". 
   Qed.
 
   Lemma wp_update_ret E P :
     P ⊢ wp_update E P.
   Proof.
     rewrite wp_update_unseal.
-    iIntros "HP" (e Φ Hv) "Hwp".
+    iIntros "HP" (e Φ) "Hwp".
     iApply ("Hwp" with "HP").
   Qed.
 
@@ -40,7 +39,7 @@ Section wp_update.
     wp_update E P ∗ (P -∗ wp_update E Q) ⊢ wp_update E Q.
   Proof.
     rewrite {3}wp_update_unseal.
-    iIntros "[HP HQ]" (e Φ Hv) "Hwp".
+    iIntros "[HP HQ]" (e Φ) "Hwp".
     iMod "HP".
     iMod ("HQ" with "HP") as "HQ".
     by iApply "Hwp".
@@ -50,7 +49,7 @@ Section wp_update.
     wp_update E P ∗ (P ={E}=∗ Q) ⊢ wp_update E Q.
   Proof.
     rewrite {2}wp_update_unseal.
-    iIntros "[HP Hwand]" (e Φ Hv) "Hwp".
+    iIntros "[HP Hwand]" (e Φ) "Hwp".
     iMod "HP".
     iMod ("Hwand" with "HP") as "HQ".
     by iApply "Hwp".
@@ -68,7 +67,7 @@ Section wp_update.
     (|={E}=> wp_update E P) ⊢ wp_update E P.
   Proof.
     rewrite wp_update_unseal.
-    iIntros "H" (e Φ Hv) "Hwp".
+    iIntros "H" (e Φ) "Hwp".
     iMod "H". by iApply "H".
   Qed.
 
@@ -82,7 +81,7 @@ Section wp_update.
 
   Lemma wp_update_unfold E (P:iProp Σ):
      wp_update E P ⊣⊢
-     (∀ e Φ, ⌜TCEq (to_val e) None⌝ -∗ (P -∗ WP e @ E {{ Φ }}) -∗ WP e @ E {{ Φ }}).
+     (∀ e Φ, (P -∗ WP e @ E {{ Φ }}) -∗ WP e @ E {{ Φ }}).
   Proof.
     by rewrite wp_update_unseal.
   Qed.
@@ -95,7 +94,7 @@ Section wp_update.
   Proof.
     iIntros "H".
     rewrite wp_update_unseal/wp_update_def.
-    iIntros (???) "H'".
+    iIntros (??) "H'".
     iApply state_step_coupl_pgl_wp.
     iIntros (??) "[??]".
     iMod ("H" with "[$]") as "H".
@@ -109,6 +108,27 @@ Section wp_update.
     by iApply "H'".
   Qed.
 
+  Lemma wp_update_epsilon_err E:
+    ⊢ wp_update E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε).
+  Proof.
+    iApply wp_update_state_step_coupl.
+    iIntros (? ε) "[Hstate Herr]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply state_step_coupl_ampl'.
+    iIntros (ε' ?).
+    iApply state_step_coupl_ret.
+    assert (ε<=ε')%R as H' by lra.
+    pose (diff :=((ε' - ε) H')%NNR).
+    replace (ε') with (ε + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+    iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+    { rewrite /diff. simpl. lra. }
+    iFrame. iMod "Hclose". iPureIntro.
+    rewrite /diff.
+    simpl.
+    lra.
+  Qed.
+  
   Global Instance from_modal_wp_update_wp_update P E :
     FromModal True modality_id (wp_update E P) (wp_update E P) P.
   Proof. iIntros (_) "HP /=". by iApply wp_update_ret. Qed.

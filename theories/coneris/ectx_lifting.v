@@ -17,7 +17,6 @@ Local Hint Resolve head_prim_reducible head_reducible_prim_step : core.
 Local Hint Resolve head_stuck_stuck : core.
 
 Lemma wp_lift_head_step_fupd {E Φ} e1 s :
-  to_val e1 = None →
   (∀ σ1 ε1,
     state_interp σ1 ∗ err_interp ε1
     ={E,∅}=∗
@@ -38,7 +37,7 @@ Lemma wp_lift_head_step_fupd {E Φ} e1 s :
   )
   ⊢ WP e1 @ s; E {{ Φ }}.
 Proof.
-  iIntros (?) "H". iApply wp_lift_step_fupd_glm; [done|].
+  iIntros "H". iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε) "Hσε".
   iMod ("H" with "Hσε") as "[% H]"; iModIntro; auto.
 Qed.

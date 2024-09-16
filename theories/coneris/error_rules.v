@@ -162,7 +162,7 @@ Lemma wp_rand_err (N : nat) (z : Z) (m : fin (S N)) E Φ s :
   ⊢ WP rand #z @ s; E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -214,7 +214,7 @@ Lemma wp_rand_err_nat (N : nat) (z : Z) (m : nat) E Φ s :
   ⊢ WP rand #z @ s; E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -262,7 +262,7 @@ Lemma wp_rand_err_list_nat (N : nat) (z : Z) (ns : list nat) E Φ :
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -308,7 +308,7 @@ Lemma wp_rand_err_list_int (N : nat) (z : Z) (zs : list Z) E Φ :
   ⊢ WP rand #z @ E {{ Φ }}.
 Proof.
   iIntros (->) "[Herr Hwp]".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -407,7 +407,7 @@ Lemma wp_couple_rand_adv_comp (N : nat) z E (ε1 : R) (ε2 : fin (S N) -> R) :
   {{{ ↯ ε1 }}} rand #z @ E {{{ n, RET #n; ↯ (ε2 n) }}}.
 Proof.
   iIntros (-> Hineq (r & Hε2) Hε1 Ψ) "Herr HΨ".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε_now) "[Hσ Hε]".
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
@@ -1020,13 +1020,12 @@ Proof.
 Qed. 
 
 Lemma wp_presample (N : nat) E e 𝛼 Φ ns :
-  to_val e = None →
   ▷ 𝛼 ↪N (N;ns) ∗
   (∀ n, 𝛼 ↪N (N; ns ++ [n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (He) "(>H𝛼&Hwp)".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iIntros "(>H𝛼&Hwp)".
+  iApply wp_lift_step_fupd_glm.
   iIntros (𝜎 ε) "((Hheap&Htapes)&Hε)".
   iDestruct "H𝛼" as (ns') "(%Hmap & H𝛼)".
   iDestruct (ghost_map_lookup with "Htapes H𝛼") as %Hlookup.
@@ -1045,7 +1044,7 @@ Proof.
   iMod "Hclose'" as "_".
   iSpecialize ("Hwp" $! (fin_to_nat n) with "[H𝛼]").
   { iExists _. iFrame. iPureIntro. rewrite fmap_app; by f_equal. }
-  rewrite !pgl_wp_unfold /pgl_wp_pre /= He.
+  rewrite !pgl_wp_unfold /pgl_wp_pre /=.
   iSpecialize ("Hwp" $! (state_upd_tapes <[𝛼:=(N; ns' ++ [n]):tape]> 𝜎) ε).
   iMod ("Hwp" with "[Hheap Htapes Hε]") as "Hwp".
   { replace (nnreal_zero + ε)%NNR with ε by (apply nnreal_ext; simpl; lra).
@@ -1059,7 +1058,6 @@ Qed.
 
 
 Lemma wp_presample_adv_comp (N : nat) E e α Φ ns (ε1 : R) (ε2 : fin (S N) -> R) :
-  to_val e = None →
   (∀ n, 0<=ε2 n)%R ->
   (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
   ▷α ↪N (N; ns) ∗
@@ -1067,8 +1065,8 @@ Lemma wp_presample_adv_comp (N : nat) E e α Φ ns (ε1 : R) (ε2 : fin (S N) ->
   (∀ n, ↯ (ε2 n) ∗ α ↪N (N; ns ++ [fin_to_nat n]) -∗ WP e @ E {{ Φ }})
   ⊢ WP e @ E {{ Φ }}.
 Proof.
-  iIntros (Hσ_red Hpos Hsum) "(>Hα & Hε & Hwp)".
-  iApply wp_lift_step_fupd_glm; [done|].
+  iIntros (Hpos Hsum) "(>Hα & Hε & Hwp)".
+  iApply wp_lift_step_fupd_glm.
   iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
   iDestruct "Hα" as (ns') "(%Hmap & Hα)".
   iDestruct (ghost_map_lookup with "Htapes Hα") as "%Hlookup".
@@ -1093,7 +1091,7 @@ Proof.
   rewrite pgl_wp_unfold /pgl_wp_pre.
   simpl.
   remember {| heap := heap (σ1); tapes := (<[α:=(N; ns' ++ [sample])]> (tapes σ1)) |} as σ2.
-  rewrite /= Hσ_red /=.
+  rewrite /=.
   iSpecialize ("Hwp" with "[Hε Hα]"); first iFrame.
   { iPureIntro. rewrite fmap_app; by f_equal. }
   iSpecialize ("Hwp" $! σ2 _).
@@ -1110,9 +1108,8 @@ Qed.
     α ↪N (N; ns) -∗ wp_update E (∃ n, α ↪N (N; ns ++ [n])).
   Proof.
     rewrite wp_update_unseal.
-    iIntros "Hα" (e Φ Hv) "Hwp".
+    iIntros "Hα" (e Φ) "Hwp".
     iApply wp_presample.
-    { rewrite Hv //. }
     iFrame. iIntros (n) "Hα".
     iApply ("Hwp" with "[$Hα]").
   Qed.
@@ -1123,8 +1120,8 @@ Qed.
     α ↪N (N; ns) ∗ ↯ ε1 -∗ wp_update E (∃ n, α ↪N (N; ns ++ [fin_to_nat n]) ∗ ↯ (ε2 n)).
   Proof.
     rewrite wp_update_unseal.
-    iIntros (? ?) "[Hα Hε1]". iIntros (e Φ Hv) "Hwp".
-    iApply (wp_presample_adv_comp _ _ _ _ _ _ _ ε2); [rewrite Hv//|done|done|..].
+    iIntros (? ?) "[Hα Hε1]". iIntros (e Φ) "Hwp".
+    iApply (wp_presample_adv_comp _ _ _ _ _ _ _ ε2); [done|done|..].
     iFrame. iIntros (n) "[Hα Hε2]".
     iApply ("Hwp" with "[$Hα $Hε2]").
   Qed.
