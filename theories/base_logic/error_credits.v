@@ -367,18 +367,6 @@ Section error_credit_theory.
     CombineSepAs (↯ r1) (↯ r2) (↯ (r1 + r2)) | 0.
   Proof. rewrite /CombineSepAs ec_combine //. Qed.
 
-  (* epsilon err *)
-  Definition epsilon_err :=  (∃ x, ⌜(0<x)%R⌝ ∗ ↯ x)%I.
-
-  Lemma epsilon_err_dup : epsilon_err -∗ epsilon_err ∗ epsilon_err.
-  Proof.
-    iIntros "(%&%&H)".
-    replace (x) with (x/2+x/2)%R; last lra.
-    iDestruct (ec_split with "[$]") as "[??]"; [lra..|].
-    iFrame.
-    iPureIntro. lra.
-  Qed.      
-
 End error_credit_theory.
 
 Lemma ec_alloc `{!ecGpreS Σ} (n : nonnegreal) :

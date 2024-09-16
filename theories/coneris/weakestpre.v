@@ -39,6 +39,7 @@ Section modalities.
       let '(σ1, ε) := x in
       ⌜(1<=ε)%R⌝ ∨
         Z σ1 ε ∨
+        (∀ (ε':nonnegreal), ⌜(ε<ε')%R⌝ -∗ Φ (σ1, ε')) ∨
       (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
@@ -58,10 +59,14 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([??]) "[H|[?|(%&%&%&%&%&%&%&%&H)]]".
+    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&%&%&%&H)]]]".
     - by iLeft.
     - iRight; by iLeft.
-    - do 2 iRight.
+    - iRight; iRight; iLeft.
+      iIntros (??).
+      iApply "Hwand".
+      by iApply "H".
+    - do 3 iRight.
       repeat iExists _; repeat (iSplit; [done|]).
       iIntros (??).
       iApply "Hwand".
@@ -74,7 +79,8 @@ Section modalities.
   Lemma state_step_coupl_unfold σ1 ε Z :
     state_step_coupl σ1 ε Z ≡
       (⌜(1 <= ε)%R⌝ ∨
-      (Z σ1 ε) ∨
+         (Z σ1 ε) ∨
+         (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) ∨
       (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
@@ -91,6 +97,23 @@ Section modalities.
     Z σ1 ε -∗ state_step_coupl σ1 ε Z.
   Proof. iIntros. rewrite state_step_coupl_unfold. by iRight; iLeft. Qed.
 
+  Lemma state_step_coupl_ampl σ1 Z ε:
+    (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) -∗ state_step_coupl σ1 ε Z.
+  Proof. iIntros. rewrite state_step_coupl_unfold.
+         do 2 iRight; by iLeft.
+  Qed. 
+
+  Lemma state_step_coupl_ampl' σ1 Z ε:
+    (∀ ε', ⌜(ε<ε'<1)%R⌝ -∗ state_step_coupl σ1 ε' Z) -∗ state_step_coupl σ1 ε Z.
+  Proof.
+    iIntros "H".
+    iApply state_step_coupl_ampl.
+    iIntros (ε' ?).
+    destruct (Rlt_or_le ε' 1)%R.
+    - iApply "H". iPureIntro. lra.
+    - by iApply state_step_coupl_ret_err_ge_1. 
+  Qed. 
+
   Lemma state_step_coupl_rec σ1 (ε : nonnegreal) Z :
     (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
@@ -99,7 +122,7 @@ Section modalities.
           ⌜pgl μ R ε1⌝ ∗
           ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ state_step_coupl σ2 (ε2 σ2) Z)%I
     ⊢ state_step_coupl σ1 ε Z.
-  Proof. iIntros "H". rewrite state_step_coupl_unfold. iRight; iRight. done. Qed.
+  Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed.
 
   Lemma state_step_coupl_ind (Ψ Z : state con_prob_lang → nonnegreal → iProp Σ) :
     ⊢ (□ (∀ σ ε,
@@ -143,9 +166,12 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [? | (% & % & % & % & % & % & % & % & H)]] Hw".
+      "[% | [? | [H|(% & % & % & % & % & % & % & % & H)]]] Hw".
     - iApply state_step_coupl_ret_err_ge_1. lra.
     - iApply state_step_coupl_ret. by iApply "Hw".
+    - iApply state_step_coupl_ampl.
+      iIntros (??).
+      by iApply "H".
     - iApply state_step_coupl_rec.
       repeat iExists _.
       repeat iSplit; try done.
@@ -179,9 +205,13 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [H | (% & % & % & % & % & % & % & % & H)]] HZ".
+      "[% | [H | [H|(% & % & % & % & % & % & % & % & H)]]] HZ".
     - by iApply state_step_coupl_ret_err_ge_1.
     - iApply ("HZ" with "H").
+    - iApply state_step_coupl_ampl.
+      iIntros (??).
+      iDestruct ("H" with "[//]") as "[H _]".
+      by iApply "H".
     - iApply state_step_coupl_rec.
       repeat iExists _.
       repeat iSplit; try done.

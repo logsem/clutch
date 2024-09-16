@@ -16,7 +16,6 @@ Section lifting.
   #[local] Open Scope R.
 
   Lemma wp_lift_step_fupd_glm E Φ e1 s :
-    to_val e1 = None →
     (∀ σ1 ε1,
      state_interp σ1 ∗ err_interp ε1 ={E, ∅}=∗
      state_step_coupl σ1 ε1
@@ -34,13 +33,13 @@ Section lifting.
        ))
     ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
-    by rewrite pgl_wp_unfold /pgl_wp_pre =>->.
+    by rewrite pgl_wp_unfold /pgl_wp_pre. 
   Qed.
 
 
 
   Lemma wp_lift_step_fupd E Φ e1 s :
-    to_val e1 = None →
+    to_val e1 = None ->
     (∀ σ1, state_interp σ1
            ={E,∅}=∗
            ⌜reducible e1 σ1⌝ ∗
@@ -49,8 +48,8 @@ Section lifting.
        state_interp σ2 ∗ WP e2 @ s; E {{ Φ }} ∗ [∗ list] ef ∈ efs, WP ef @ s ; ⊤ {{ fork_post }})
     ⊢ WP e1 @ s; E {{ Φ }}.
   Proof.
-    iIntros (?) "H".
-    iApply wp_lift_step_fupd_glm; [done|].
+    iIntros (H) "H".
+    iApply wp_lift_step_fupd_glm.
     iIntros (σ1 ε) "[Hσ Hε]".
     iMod ("H" with "Hσ") as "[%Hs H]". iModIntro.
     iApply state_step_coupl_ret.

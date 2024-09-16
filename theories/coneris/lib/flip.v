@@ -186,7 +186,6 @@ Section specs.
   Qed.
 
   Lemma wp_presample_bool_adv_comp E e α Φ bs (ε1 : R) (ε2 : bool -> R) :
-    to_val e = None →
     (∀ b, (0<=ε2 b)%R) -> 
     (((ε2 true) + (ε2 false))/2 <= ε1)%R →
     ▷α ↪B bs ∗
@@ -194,9 +193,9 @@ Section specs.
     (∀ b, ↯ (ε2 b) ∗ α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hval ? Hineq) "(>Hα & Herr & HΦ)".
+    iIntros (? Hineq) "(>Hα & Herr & HΦ)".
     rewrite tape_conversion_bool_nat.
-    wp_apply (wp_presample_adv_comp 1%nat _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [done| | |iFrame].
+    wp_apply (wp_presample_adv_comp 1%nat _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x =? 1%nat)));  [ | |iFrame].
     - intros; done. 
     - rewrite SeriesC_finite_foldr; simpl. etrans; last exact. lra.
     - iIntros (n) "[Herr Hα]".
@@ -208,14 +207,13 @@ Section specs.
   Qed.
 
   Lemma wp_presample_bool E e α Φ bs :
-    to_val e = None →
     ▷α ↪B bs ∗
     (∀ b, α ↪B (bs ++ [b]) -∗ WP e @ E {{ Φ }})
     ⊢ WP e @ E {{ Φ }}.
   Proof.
-    iIntros (Hval) "(>Hα & HΦ)".
+    iIntros "(>Hα & HΦ)".
     rewrite tape_conversion_bool_nat.
-    wp_apply (wp_presample 1%nat); [done|iFrame].
+    wp_apply (wp_presample 1%nat); iFrame.
     iIntros (n) "Hα".
     iApply ("HΦ" $! (n=? 1%nat)).
     iFrame.
