@@ -176,8 +176,7 @@ Section impl3.
         wp_update E (∃ n, T (n) ∗ α◯↪N (3%nat; ns++[n]) @ γ2).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-    (** why cant i do iMod? *)
-    (* iMod wp_update_epsilon_err as "H". *)
+    iMod wp_update_epsilon_err as "H".
   Admitted.
   (*   iApply wp_update_state_step_coupl. *)
   (*   iIntros (σ ε) "((Hheap&Htapes)&Hε)". *)
