@@ -221,3 +221,110 @@ Section impl3.
   Qed. 
     
 End impl3. 
+
+
+Program Definition random_counter3 `{!conerisGS Σ}: random_counter :=
+  {| new_counter := new_counter3;
+    allocate_tape:= allocate_tape3;
+    incr_counter_tape := incr_counter_tape3;
+    read_counter:=read_counter3;
+    counterG := counterG3;
+    error_name := gname;
+    tape_name := gname;
+    counter_name :=gname;
+    is_counter _ N c γ1 γ2 γ3 := inv N (counter_inv_pred3 c γ1 γ2 γ3);
+    counter_error_auth _ γ x := ●↯ x @ γ;
+    counter_error_frag _ γ x := ◯↯ x @ γ;
+    counter_tapes_auth _ γ m := (●((λ ns, (3, ns))<$>m)@γ)%I;
+    counter_tapes_frag _ γ α ns := (α◯↪N (3%nat;ns) @ γ)%I;
+    counter_content_auth _ γ z := own γ (●F z);
+    counter_content_frag _ γ f z := own γ (◯F{f} z);
+    new_counter_spec _ := new_counter_spec3;
+    allocate_tape_spec _ :=allocate_tape_spec3;
+    incr_counter_tape_spec_some _ :=incr_counter_tape_spec_some3;
+    counter_presample_spec _ :=counter_presample_spec3;
+    read_counter_spec _ :=read_counter_spec3
+  |}.
+Next Obligation.
+  simpl.
+  iIntros (??????) "(%&<-&H1)(%&<-&H2)".
+  iCombine "H1 H2" gives "%H". by rewrite excl_auth.excl_auth_auth_op_valid in H.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????) "(%&<-&H1)(%&<-&H2)".
+  iCombine "H1 H2" gives "%H". by rewrite excl_auth.excl_auth_frag_op_valid in H.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (?????) "H".
+  iApply (hocap_error_auth_pos with "[$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (?????) "H".
+  iApply (hocap_error_frag_pos with "[$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????) "H1 H2".
+  iApply (hocap_error_agree with "[$][$]").
+Qed.
+Next Obligation.
+  simpl. iIntros (???????) "??".
+  iApply (hocap_error_update with "[$][$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????) "H1 H2".
+  by iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "[%H _]".
+Qed.
+Next Obligation.
+  simpl. 
+  iIntros (???????) "H1 H2".
+  iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
+  rewrite dfrac_op_own dfrac_valid_own. by intro.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros.
+  iDestruct (hocap_tapes_agree with "[$][$]") as "%H".
+  iPureIntro.
+  rewrite lookup_fmap_Some in H. destruct H as (?&?&?).
+  by simplify_eq.
+Qed.
+Next Obligation.
+  iIntros.
+  iMod (hocap_tapes_presample with "[$][$]") as "[??]".
+  iModIntro. iFrame.
+  by rewrite fmap_insert. 
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????) "H1 H2".
+  iCombine "H1 H2" gives "%H". by rewrite auth_auth_op_valid in H.
+Qed.
+Next Obligation.
+  simpl. iIntros (???? z z' ?) "H1 H2".
+  iCombine "H1 H2" gives "%H".
+  apply frac_auth_included_total in H. iPureIntro.
+  by apply nat_included.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (????????).
+  rewrite frac_auth_frag_op. by rewrite own_op.
+Qed.
+Next Obligation.
+  simpl. iIntros (??????) "H1 H2".
+  iCombine "H1 H2" gives "%H".
+  iPureIntro.
+  by apply frac_auth_agree_L in H.
+Qed.
+Next Obligation.
+  simpl. iIntros (????????) "H1 H2".
+  iMod (own_update_2 _ _ _ (_ ⋅ _) with "[$][$]") as "[$$]"; last done.
+  apply frac_auth_update.
+  apply nat_local_update. lia.
+Qed.
+  
