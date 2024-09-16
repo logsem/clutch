@@ -7,7 +7,7 @@ From clutch.prob Require Export distribution.
 From clutch.common Require Export language ectx_language ectxi_language locations.
 From iris.prelude Require Import options.
 From HB Require Import structures.
-From mathcomp Require Import ssrbool all_algebra finmap.
+From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
@@ -18,6 +18,8 @@ From clutch.prob_lang Require Import lang.
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
+Global Instance classical_eq_dec {T : Type} : EqDecision T.
+Proof. intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
 
 Module meas_lang.
 
@@ -62,9 +64,12 @@ Inductive expr :=
   | AllocN (e1 e2 : expr) (* Array length and initial value *)
   | Load (e : expr)
   | Store (e1 : expr) (e2 : expr)
-  (* Probabilistic choice *)
+  (* Finite probabilistic choice *)
   | AllocTape (e : expr)
   | Rand (e1 e2 : expr)
+  (* Real probabilistic choice *)
+  | AllocUTape (e : expr)
+  | URand (e1 e2 : expr)
   (* No-op operator used for cost *)
   | Tick (e : expr)
 with val :=
@@ -85,10 +90,12 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
-(* MARKUSDE: This will be the only part of the sigma algebra which is not discrete *)
+(* This part of the sigma algebra is not discrete *)
 (* MARKUSDE: Externalizing the fin bound here also simplifies definitions *)
 Definition history : Type := nat -> option nat.
 
+
+(* Tapes in the computable fragment *)
 Record tape : Type := {
   tape_bound : nat;
   tape_state : nat;
@@ -178,20 +185,27 @@ Definition tapeHasEventually (t : tape) (l : list nat) : Prop
 
 
 Global Instance tape_inhabited : Inhabited tape := populate (emptyTape 0).
-
-Global Instance classical_eq_dec {T : Type} : EqDecision T.
-Proof. intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
-
-
 Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
 Proof. apply map_lookup_total. Defined.
 Global Instance tapes_insert : Insert loc tape (gmap loc tape).
 Proof. apply map_insert. Defined.
 
-(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes of fins. *)
+
+(* Tapes for the real-valued fragment *)
+Definition utape : Type := list R.
+Global Instance utape_inhabited : Inhabited utape := populate [].
+Global Instance utapes_lookup_total : LookupTotal loc utape (gmap loc utape).
+Proof. apply map_lookup_total. Defined.
+Global Instance utapes_insert : Insert loc utape (gmap loc utape).
+Proof. apply map_insert. Defined.
+
+
+
+(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
-  heap  : gmap loc val;
-  tapes : gmap loc tape
+  heap   : gmap loc val;
+  tapes  : gmap loc tape;
+  utapes : gmap loc utape
 }.
 
 (** Equality and other typeclass stuff *)
@@ -206,7 +220,7 @@ Proof. intros ??. congruence. Qed.
 
 
 Global Instance state_inhabited : Inhabited state :=
-  populate {| heap := inhabitant; tapes := inhabitant |}.
+  populate {| heap := inhabitant; tapes := inhabitant; utapes := inhabitant |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
 
@@ -237,8 +251,11 @@ Inductive ectx_item :=
   | StoreLCtx (v2 : val)
   | StoreRCtx (e1 : expr)
   | AllocTapeCtx
+  | AllocUTapeCtx
   | RandLCtx (v2 : val)
   | RandRCtx (e1 : expr)
+  | URandLCtx (v2 : val)
+  | URandRCtx (e1 : expr)
   | TickCtx.
 
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
@@ -262,8 +279,11 @@ Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   | StoreLCtx v2 => Store e (Val v2)
   | StoreRCtx e1 => Store e1 e
   | AllocTapeCtx => AllocTape e
+  | AllocUTapeCtx => AllocUTape e
   | RandLCtx v2 => Rand e (Val v2)
   | RandRCtx e1 => Rand e1 e
+  | URandLCtx v2 => URand e (Val v2)
+  | URandRCtx e1 => URand e1 e
   | TickCtx => Tick e
   end.
 
@@ -306,10 +326,16 @@ Definition decomp_item (e : expr) : option (ectx_item * expr) :=
       | _          => Some (StoreRCtx e1, e2)
       end
   | AllocTape e    => noval e AllocTapeCtx
+  | AllocUTape e   => noval e AllocUTapeCtx
   | Rand e1 e2     =>
       match e2 with
       | Val v      => noval e1 (RandLCtx v)
       | _          => Some (RandRCtx e1, e2)
+      end
+  | URand e1 e2    =>
+      match e2 with
+      | Val v      => noval e1 (URandLCtx v)
+      | _          => Some (URandRCtx e1, e2)
       end
   | Tick e         => noval e TickCtx
   | _              => None
@@ -336,13 +362,14 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | Load e => Load (subst x v e)
   | Store e1 e2 => Store (subst x v e1) (subst x v e2)
   | AllocTape e => AllocTape (subst x v e)
+  | AllocUTape e => AllocUTape (subst x v e)
   | Rand e1 e2 => Rand (subst x v e1) (subst x v e2)
+  | URand e1 e2 => URand (subst x v e1) (subst x v e2)
   | Tick e => Tick (subst x v e)
   end.
 
 Definition subst' (mx : binder) (v : val) : expr → expr :=
   match mx with BNamed x => subst x v | BAnon => λ x, x end.
-
 
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
@@ -421,12 +448,16 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     end.
 
 Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
-  {| heap := f σ.(heap); tapes := σ.(tapes) |}.
+  {| heap := f σ.(heap); tapes := σ.(tapes); utapes := σ.(utapes) |}.
 Global Arguments state_upd_heap _ !_ /.
 
 Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : state :=
-  {| heap := σ.(heap); tapes := f σ.(tapes) |}.
+  {| heap := σ.(heap); tapes := f σ.(tapes); utapes := σ.(utapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
+
+Definition state_upd_utapes (f : gmap loc utape → gmap loc utape) (σ : state) : state :=
+  {| heap := σ.(heap); tapes := σ.(tapes); utapes := f σ.(utapes) |}.
+Global Arguments state_upd_utapes _ !_ /.
 
 Lemma state_upd_tapes_twice σ l xs ys :
   state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
@@ -548,7 +579,7 @@ Qed.
 
 #[local] Open Scope R.
 
-(*
+
 Section pointed_instances.
   Local Open Scope classical_set_scope.
   (** states are pointed *)
@@ -641,6 +672,10 @@ Section meas_semantics.
           | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : <<discr cfg>>)
           | None => giryM_zero
         end
+
+    (* FIXME: Finish implementation for tapes *)
+
+    (*
     (* Uniform sampling from [0, 1 , ..., N] *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
         giryM_map
@@ -649,7 +684,8 @@ Section meas_semantics.
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
         giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := (fin (Z.to_nat z; [])) ]> σ1) : <<discr cfg>>)
-    (* FIXME: Decide on the representation and semantics of infinite tapes *)
+     *)
+
     (*
     (* Labelled sampling, conditional on tape contents *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
@@ -685,9 +721,10 @@ Section meas_semantics.
   Definition head_stepM : measurable_map <<discr cfg>> (giryM <<discr cfg>>)
     := m_discr head_stepM_def.
 
-  (* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m) *)
+  (* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m)
   Definition fin_of_Im (m : nat) : 'I_m -> stdpp.fin.fin m.
   Admitted.
+   *)
 
   Definition state_stepM_def (c : state * loc) : giryM (<<discr state>>) :=
     let (σ1, α) := c in
@@ -707,6 +744,7 @@ Section meas_semantics.
 End meas_semantics.
 
 
+(*
 (*
 Lemma state_step_unfold σ α N ns:
   tapes σ !! α = Some (N; ns) ->
