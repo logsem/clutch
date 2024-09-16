@@ -7,12 +7,13 @@ From clutch.prob Require Export distribution.
 From clutch.common Require Export language ectx_language ectxi_language locations.
 From iris.prelude Require Import options.
 From HB Require Import structures.
-From mathcomp Require Import all_ssreflect all_algebra finmap.
+From mathcomp Require Import ssrbool all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
 From clutch.prob.monad Require Export laws.
 From clutch.prob_lang Require Import lang.
+
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
@@ -419,7 +420,6 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
     | _, _ => None
     end.
 
-(*
 Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
   {| heap := f σ.(heap); tapes := σ.(tapes) |}.
 Global Arguments state_upd_heap _ !_ /.
@@ -428,14 +428,12 @@ Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : 
   {| heap := σ.(heap); tapes := f σ.(tapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
 
-(* FIXME: Specialized to finite tapes *)
-Lemma state_upd_tapes_twice σ l n xs ys :
-  state_upd_tapes <[l:= (fin (n; ys))]> (state_upd_tapes <[l:=(fin (n; xs))]> σ) = state_upd_tapes <[l:=(fin (n; ys))]> σ.
+Lemma state_upd_tapes_twice σ l xs ys :
+  state_upd_tapes <[ l := ys ]> (state_upd_tapes <[ l := xs ]> σ) = state_upd_tapes <[ l:= ys ]> σ.
 Proof. rewrite /state_upd_tapes /=. f_equal. apply insert_insert. Qed.
 
-(* FIXME: Specialized to finite tapes *)
-Lemma state_upd_tapes_same σ σ' l n xs ys :
-  state_upd_tapes <[l:=(fin (n; ys))]> σ = state_upd_tapes <[l:=(fin (n; xs))]> σ' -> xs = ys.
+Lemma state_upd_tapes_same σ σ' l xs ys :
+  state_upd_tapes <[l:=ys]> σ = state_upd_tapes <[l:=xs]> σ' -> xs = ys.
 Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
        rewrite map_eq_iff in H.
        specialize (H l).
@@ -443,19 +441,17 @@ Proof. rewrite /state_upd_tapes /=. intros K. simplify_eq.
        by simplify_eq.
 Qed.
 
-(* FIXME: Specialized to finite tapes *)
-(*
-Lemma state_upd_tapes_no_change σ l n ys :
-  tapes σ !! l = Some (n; ys)-> 
-  state_upd_tapes <[l:=(fin (n; ys))]> σ = σ .
+Lemma state_upd_tapes_no_change σ l ys :
+  tapes σ !! l = Some ys ->
+  state_upd_tapes <[l := ys]> σ = σ .
 Proof.
   destruct σ as [? t]. simpl.
   intros Ht.
   f_equal.
   apply insert_id. done.
 Qed.
-*)
 
+(*
 Lemma state_upd_tapes_same' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
   state_upd_tapes <[l:=(fin (n; xs++[x]))]> σ = state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ' -> x = y.
 Proof. intros H. apply state_upd_tapes_same in H. by simplify_eq. Qed.
@@ -463,6 +459,7 @@ Proof. intros H. apply state_upd_tapes_same in H. by simplify_eq. Qed.
 Lemma state_upd_tapes_neq' σ σ' l n xs (x y : stdpp.fin.fin (S n)) :
   x≠y -> state_upd_tapes <[l:=(fin(n; xs++[x]))]> σ ≠ state_upd_tapes <[l:=(fin(n; xs++[y]))]> σ'.
 Proof. move => H /state_upd_tapes_same ?. simplify_eq. Qed.
+*)
 
 Fixpoint heap_array (l : loc) (vs : list val) : gmap loc val :=
   match vs with
@@ -479,11 +476,7 @@ Proof.
   induction vs1; intro l.
   - simpl.
     rewrite map_empty_union loc_add_0 //.
-  - admit.
-Admitted.
-
-(*
-    rewrite -app_comm_cons /= IHvs1.
+  - rewrite -app_comm_cons /= IHvs1.
     rewrite map_union_assoc.
     do 2 f_equiv.
     rewrite Nat2Z.inj_succ /=.
@@ -491,16 +484,12 @@ Admitted.
       Z.add_comm
       loc_add_assoc //.
 Qed.
-*)
 
 Lemma heap_array_lookup l vs v k :
   heap_array l vs !! k = Some v ↔
   ∃ j, (0 ≤ j)%Z ∧ k = l +ₗ j ∧ vs !! (Z.to_nat j) = Some v.
 Proof.
-Admitted.
-
-(*
-  revert k l; induction vs as [|v' vs IH]=> l' l /=.
+  revert k l; induction vs as [|v' vs IH] => l' l /=.
   { rewrite lookup_empty. naive_solver lia. }
   rewrite -insert_union_singleton_l lookup_insert_Some IH. split.
   - intros [[-> ?] | (Hl & j & ? & -> & ?)].
@@ -516,7 +505,6 @@ Admitted.
     eexists (j - 1)%Z. rewrite loc_add_assoc Z.add_sub_assoc Z.add_simpl_l.
     auto with lia.
 Qed.
-*)
 
 Lemma heap_array_map_disjoint (h : gmap loc val) (l : loc) (vs : list val) :
   (∀ i, (0 ≤ i)%Z → (i < length vs)%Z → h !! (l +ₗ i) = None) →
@@ -537,9 +525,9 @@ Proof.
   rewrite right_id insert_union_singleton_l. done.
 Qed.
 
-Lemma state_upd_tapes_heap σ l1 l2 n xs m v :
-  state_upd_tapes <[l2:=(fin (n; xs))]> (state_upd_heap_N l1 m v σ) =
-  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=(fin(n; xs))]> σ).
+Lemma state_upd_tapes_heap σ l1 l2 xs m v :
+  state_upd_tapes <[l2:=xs]> (state_upd_heap_N l1 m v σ) =
+  state_upd_heap_N l1 m v (state_upd_tapes <[l2:=xs]> σ).
 Proof.
   by rewrite /state_upd_tapes /state_upd_heap_N /=.
 Qed.
@@ -552,18 +540,15 @@ Proof.
     rewrite map_union_empty.
     rewrite map_empty_union.
     by rewrite loc_add_0.
-  - admit.
-    (*
-    rewrite replicate_S_end
+  - rewrite replicate_S_end
      heap_array_app
      IHn /=.
     rewrite map_union_empty replicate_length //.
 Qed.
-*)
-Admitted.
 
 #[local] Open Scope R.
 
+(*
 Section pointed_instances.
   Local Open Scope classical_set_scope.
   (** states are pointed *)
