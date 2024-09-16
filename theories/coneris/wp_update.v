@@ -133,15 +133,13 @@ Section wp_update.
     FromModal True modality_id (wp_update E P) (wp_update E P) P.
   Proof. iIntros (_) "HP /=". by iApply wp_update_ret. Qed.
 
-  Global Instance elim_modal_wp_update_wp_update P Q E :
-    ElimModal True false false (wp_update E P) P (wp_update E Q) (wp_update E Q).
-  Proof. iIntros (?) "[HP Hcnt]". by iApply (wp_update_bind with "[$]"). Qed.
-
-  Global Instance elim_modal_wp_update_wp_update' P Q E :
-    ElimModal True true false (wp_update E P) P (wp_update E Q) (wp_update E Q).
-  Proof. iIntros (?) "[HP Hcnt]". iApply (wp_update_bind with "[HP $Hcnt]").
-         by iApply bi.intuitionistically_elim.
-  Qed.
+  Global Instance elim_modal_wp_update_wp_update b P Q E :
+    ElimModal True b false (wp_update E P) P (wp_update E Q) (wp_update E Q).
+  Proof. iIntros (?) "[HP Hcnt]".
+         destruct b.
+         - iApply (wp_update_bind); iFrame.
+           by iApply bi.intuitionistically_elim.
+         - by iApply (wp_update_bind with "[$]"). Qed.
 
   Global Instance frame_wp_update p E R P Q:
     Frame p R P Q → Frame p R (wp_update E P) (wp_update E Q).
