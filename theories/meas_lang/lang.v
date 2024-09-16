@@ -84,34 +84,103 @@ Definition to_val (e : expr) : option val :=
   | _ => None
   end.
 
+(* MARKUSDE: This will be the only part of the sigma algebra which is not discrete *)
+(* MARKUSDE: Externalizing the fin bound here also simplifies definitions *)
+Definition history : Type := nat -> option nat.
+
+Record tape : Type := {
+  tape_bound : nat;
+  tape_state : nat;
+  tape_histo : history
+}.
+
+(* All values of the tape are within the tape bound *)
+Definition tape_inbounds (t : tape) : Prop :=
+  forall n : nat,
+    tape_histo t n = None \/
+    exists v : nat, tape_histo t n = Some v /\ v < tape_bound t.
+
+(* All tape values prior to state have been determined *)
+Definition tape_history_deterministic (t : tape) : Prop :=
+  forall i : nat, i < tape_state t -> exists v : nat, tape_histo t i = Some v.
+
+(* External correctness of tapes *)
+Definition tape_wf (t : tape) : Prop := tape_inbounds t /\ tape_history_deterministic t.
+
+Definition emptyHistory : history := fun _ => None.
+
+Definition emptyTape (bound : nat) : tape :=
+  {| tape_bound := bound ;
+     tape_state := 0 ;
+     tape_histo := emptyHistory
+  |}.
+
+(* History lookup: look through absolute history *)
+Global Instance history_lookup : Lookup nat nat history := fun i => fun h => h i.
+
+(* Tape lookup: look relative to current index. t !! 0  will be the next sample. *)
+Global Instance tape_rel_lookup : Lookup nat nat tape := fun i => fun t => (tape_histo t (i + tape_state t)).
+
+Definition historyUpdateUnsafe (i : nat) (v : option nat) (h : history) : history
+  := fun i' => if i' =? i then v else h i'.
+
+Global Instance history_insert : Insert nat (option nat) history := historyUpdateUnsafe.
+
+Definition tapeUpdateUnsafe (i : nat) (v : option nat) (t : tape) : tape :=
+  {| tape_bound := tape_bound t;
+     tape_state := tape_state t;
+     tape_histo := <[ (i + tape_state t) := v ]> (tape_histo t)
+  |}.
+
+Global Instance tape_insert : Insert nat (option nat) tape := tapeUpdateUnsafe.
 
 
-Definition tape : Set := { n : nat & nat -> option (fin (S n)) }.
+(* Advance the tape by 1, returning an updated tape and the first sample on the tape. *)
+Program Definition tapeNext (t : tape) (H : isSome (t !! 0)) : nat * tape
+  := match (t !! 0) with
+     | None => _
+     | Some v =>
+         (v,
+          {| tape_bound := tape_bound t;
+             tape_state := 1 + tape_state t;
+             tape_histo := tape_histo t |})
+     end.
+Next Obligation. by move=>/= ? H1 H2; symmetry in H2; rewrite H2//= in H1. Defined.
 
-Definition emptyTape (n : nat) : tape
-  := (n ; fun _ => None).
+(* Representation predicates for common tape structures *)
 
-Definition getTape (t : tape) (n : nat) : option (fin (S (projT1 t)))
-  := (projT2 t) n.
+Definition tapeHasPrefix (t : tape) (l : list nat) : Prop
+  := forall i : nat, i < length l -> t !! i = l !! i.
 
-(* Easier than using list lookup *)
-Fixpoint tapeHasSubtape (t : tape) (l : list (fin (S (projT1 t)))) (i0 : nat) : Prop
-  := match l with
-      | (l0 :: ls) => getTape t i0 = Some l0 /\ tapeHasSubtape t ls (S i0)
-      | [] => True
-      end.
+Definition tapeEmptyAfter (t : tape) (b : nat) : Prop
+  := forall i : nat, i >= b -> t !! i = None.
 
-Definition tapeHasPrefix t l : Prop := tapeHasSubtape t l 0.
-
-(* Here *)
+(* Tapes a la base clutch *)
+Definition finiteTape (t : tape) (l : list nat) : Prop
+  :=   tapeHasPrefix t l
+     /\ tapeEmptyAfter t (length l)
+     /\ tape_wf t.
 
 
-Definition EqDecisionClassical {T : Type} : EqDecision T.
-Proof. intros ? ?. apply ClassicalEpsilon.excluded_middle_informative. Defined.
-Global Instance tape_inhabited : Inhabited tape := populate (fin (existT 0%nat [])).
-Global Instance tape_eq_dec : EqDecision tape.
-Proof. apply EqDecisionClassical. Defined.
-Global Instance tape_countable : EqDecision tape. Proof. apply _. Qed. (* ?? It's not a countable instance ?? *)
+
+(* TODO: realIsBinarySequence (cannonical form w/ 0-termination on dyadic numbers) *)
+
+Definition tapeHasInfinitePrefix (t : tape) (f : nat -> nat) : Prop
+  := forall i : nat, t !! i = Some (f i).
+
+(* TODO: tapeIsRealInRange (l : R) ... := bound = 1, tapeHasInfinitePrefic *)
+(* tapeOfReal ... ?*)
+
+(* Tape with "Junk" prefix *)
+Definition tapeHasEventually (t : tape) (l : list nat) : Prop
+  := exists offset: nat, forall i : nat, i < length l -> t !! (i + offset) = l !! i.
+
+
+Global Instance tape_inhabited : Inhabited tape := populate (emptyTape 0).
+
+Global Instance classical_eq_dec {T : Type} : EqDecision T.
+Proof. intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
+
 
 Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
 Proof. apply map_lookup_total. Defined.
@@ -134,20 +203,6 @@ Proof. destruct e=>//=. by intros [= <-]. Qed.
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
-(* MARKUSDE: I think I want to just replace all equalities with classical equality. *)
-
-Global Instance base_lit_eq_dec : EqDecision base_lit.
-Proof. apply EqDecisionClassical. Defined.
-Global Instance un_op_eq_dec : EqDecision un_op.
-Proof. solve_decision. Defined.
-Global Instance bin_op_eq_dec : EqDecision bin_op.
-Proof. solve_decision. Defined.
-Global Instance expr_eq_dec : EqDecision expr.
-Proof. apply EqDecisionClassical. Defined.
-Global Instance val_eq_dec : EqDecision val.
-Proof. solve_decision. Defined.
-Global Instance state_eq_dec : EqDecision state.
-Proof. solve_decision. Defined.
 
 Global Instance state_inhabited : Inhabited state :=
   populate {| heap := inhabitant; tapes := inhabitant |}.
@@ -159,6 +214,8 @@ Canonical Structure locO := leibnizO loc.
 Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
+
+(*
 (** Evaluation contexts *)
 Inductive ectx_item :=
   | AppLCtx (v2 : val)
@@ -963,6 +1020,7 @@ Proof.
     fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
+*)
 *)
 End meas_lang.
 (*
