@@ -215,7 +215,6 @@ Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
 
-(*
 (** Evaluation contexts *)
 Inductive ectx_item :=
   | AppLCtx (v2 : val)
@@ -343,14 +342,17 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
 Definition subst' (mx : binder) (v : val) : expr → expr :=
   match mx with BNamed x => subst x v | BAnon => λ x, x end.
 
+
 (** The stepping relation *)
 Definition un_op_eval (op : un_op) (v : val) : option val :=
   match op, v with
   | NegOp, LitV (LitBool b) => Some $ LitV $ LitBool (negb b)
   | NegOp, LitV (LitInt z) => Some $ LitV $ LitInt (Z.lnot z)
   | MinusUnOp, LitV (LitInt z) => Some $ LitV $ LitInt (- z)
+  | MinusUnOp, LitV (LitReal r) => Some $ LitV $ LitReal (- r)%R
   | _, _ => None
   end.
+
 
 Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
   match op with
@@ -369,6 +371,7 @@ Definition bin_op_eval_int (op : bin_op) (n1 n2 : Z) : base_lit :=
   | EqOp => LitBool (bool_decide (n1 = n2))
   | OffsetOp => LitInt (n1 + n2) (* Treat offsets as ints *)
   end%Z.
+
 
 Definition bin_op_eval_bool (op : bin_op) (b1 b2 : bool) : option base_lit :=
   match op with
@@ -390,6 +393,16 @@ Definition bin_op_eval_loc (op : bin_op) (l1 : loc) (v2 : base_lit) : option bas
   | _, _ => None
   end.
 
+Definition bin_op_eval_real (op : bin_op) (r1 r2 : R) : option base_lit :=
+  match op with
+  | PlusOp => Some $ LitReal (r1 + r2)
+  | MinusOp => Some $ LitReal (r1 - r2)
+  | MultOp => Some $ LitReal (r1 * r2)
+  | LeOp => Some $ LitBool (r1 <= r2)
+  | LtOp => Some $ LitBool (r1 < r2)
+  | EqOp => Some $ LitBool (decide (r1 = r2))
+  | _ => None
+  end%R.
 
 Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   if decide (op = EqOp) then
@@ -400,11 +413,13 @@ Definition bin_op_eval (op : bin_op) (v1 v2 : val) : option val :=
   else
     match v1 , v2 with
     | LitV (LitInt n1), LitV (LitInt n2) => Some $ LitV $ bin_op_eval_int op n1 n2
+    | LitV (LitReal r1), LitV (LitReal r2) => LitV <$> bin_op_eval_real op r1 r2
     | LitV (LitBool b1), LitV (LitBool b2) => LitV <$> bin_op_eval_bool op b1 b2
     | LitV (LitLoc l1), LitV v2 => LitV <$> bin_op_eval_loc op l1 v2
     | _, _ => None
     end.
 
+(*
 Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : state :=
   {| heap := f σ.(heap); tapes := σ.(tapes) |}.
 Global Arguments state_upd_heap _ !_ /.
