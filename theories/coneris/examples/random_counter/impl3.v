@@ -9,6 +9,19 @@ Section filter.
   Definition filtered_list (l:list _) := filter filter_f l.
 End filter.
 
+Section lemmas.
+  Context `{!conerisGS Σ}.
+  Lemma hocap_tapes_notin3 α N ns (m:gmap loc (nat*list nat)) :
+    α ↪N (N; ns) -∗ ([∗ map] α↦t ∈ m,∃ (ls:list nat), ⌜ (filter filter_f ls) = t.2⌝ ∗ α ↪N ( 4%nat ; ls)) -∗ ⌜m!!α=None ⌝.
+  Proof.
+    destruct (m!!α) eqn:Heqn; last by iIntros.
+    iIntros "Hα Hmap".
+    iDestruct (big_sepM_lookup with "[$]") as "(%&%&?)"; first done.
+    iExFalso.
+    iApply (tapeN_tapeN_contradict with "[$][$]").
+  Qed. 
+End lemmas.
+
 Section impl3.
 
   Definition new_counter3 : val:= λ: "_", ref #0.
@@ -56,6 +69,30 @@ Section impl3.
     { iSplit; last done. by iApply big_sepM_empty. }
     iApply "HΦ".
     iExists _, _, _. by iFrame.
-  Qed. 
+  Qed.
+
+  Lemma allocate_tape_spec3 N E c γ1 γ2 γ3:
+    ↑N ⊆ E->
+    {{{ inv N (counter_inv_pred3 c γ1 γ2 γ3) }}}
+      allocate_tape3 #() @ E
+      {{{ (v:val), RET v;
+          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (3%nat; []) @ γ2
+      }}}.
+  Proof.
+    iIntros (Hsubset Φ) "#Hinv HΦ".
+    rewrite /allocate_tape3.
+    wp_pures.
+    wp_alloctape α as "Hα".
+    iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose".
+    iDestruct (hocap_tapes_notin3 with "[$][$]") as "%".
+    iMod (hocap_tapes_new with "[$]") as "[H4 H7]"; first done.
+    iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_".
+    { iNext. iSplitL; last done.
+      rewrite big_sepM_insert; [simpl; iFrame|done].
+      by rewrite filter_nil.
+    }
+    iApply "HΦ".
+    by iFrame.
+  Qed.
     
 End impl3. 
