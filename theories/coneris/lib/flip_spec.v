@@ -6,21 +6,21 @@ Set Default Proof Using "Type*".
 Class flip_spec `{!conerisGS Σ} := FlipSpec
 {
   (** * Operations *)
-  allocate_tape : val;
+  flip_allocate_tape : val;
   flip_tape : val;
   (** * Ghost state *)
   (** The assumptions about [Σ] *)
   flipG : gFunctors → Type;
   (** [name] is used to associate [locked] with [is_lock] *)
-  error_name : Type;
-  tape_name: Type;
+  flip_error_name : Type;
+  flip_tape_name: Type;
   (** * Predicates *)
   is_flip {L : flipG Σ} (N:namespace) 
-    (γ1: error_name) (γ2: tape_name): iProp Σ;
-  flip_error_auth {L : flipG Σ} (γ: error_name) (x:R): iProp Σ;
-  flip_error_frag {L : flipG Σ} (γ: error_name) (x:R): iProp Σ;
-  flip_tapes_auth {L : flipG Σ} (γ: tape_name) (m:gmap loc (list bool)): iProp Σ;
-  flip_tapes_frag {L : flipG Σ} (γ: tape_name) (α:loc) (ns:list bool): iProp Σ;
+    (γ1: flip_error_name) (γ2: flip_tape_name): iProp Σ;
+  flip_error_auth {L : flipG Σ} (γ: flip_error_name) (x:R): iProp Σ;
+  flip_error_frag {L : flipG Σ} (γ: flip_error_name) (x:R): iProp Σ;
+  flip_tapes_auth {L : flipG Σ} (γ: flip_tape_name) (m:gmap loc (list bool)): iProp Σ;
+  flip_tapes_frag {L : flipG Σ} (γ: flip_tape_name) (α:loc) (ns:list bool): iProp Σ;
   (** * General properties of the predicates *)
   #[global] is_flip_persistent {L : flipG Σ} N γ1 γ2 ::
     Persistent (is_flip (L:=L) N γ1 γ2);
@@ -66,7 +66,7 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
   flip_allocate_tape_spec {L: flipG Σ} N E γ1 γ2:
     ↑N ⊆ E->
     {{{ is_flip (L:=L) N γ1 γ2 }}}
-      allocate_tape #() @ E
+      flip_allocate_tape #() @ E
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ flip_tapes_frag (L:=L) γ2 α []
       }}};
@@ -130,11 +130,11 @@ Local Definition flip_inv_pred1 `{!conerisGS Σ, !hocap_errorGS Σ, !hocap_tapes
     )%I.
 
 #[local] Program Definition flip_spec1 `{!conerisGS Σ}: flip_spec :=
-  {| allocate_tape:= (λ: <>, allocB);
+  {| flip_allocate_tape:= (λ: <>, allocB);
      flip_tape:= flipL;
      flipG := flipG1;
-    error_name := gname;
-    tape_name := gname;
+    flip_error_name := gname;
+    flip_tape_name := gname;
     is_flip _ N γ1 γ2 := inv N (flip_inv_pred1 γ1 γ2);
     flip_error_auth _ γ x := ●↯ x @ γ;
     flip_error_frag _ γ x := ◯↯ x @ γ;
