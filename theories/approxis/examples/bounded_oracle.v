@@ -1,4 +1,5 @@
 From clutch.approxis Require Import approxis map list.
+From clutch.approxis.examples Require Import security_aux.
 Set Default Proof Using "Type*".
 
 
@@ -13,6 +14,16 @@ Section bounded_oracle.
       λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ #MAX)))
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
+
+  Fact q_calls_typed (MAX : Z) (B : type) :
+    ⊢ᵥ q_calls MAX : (TInt → (TInt → B) → TInt → TOption B)%ty.
+  Proof.
+    rewrite /q_calls/bounded_oracle.q_calls.
+    type_val 8 ; try by tychk.
+    all: type_expr 1 ; try by tychk.
+    all: try apply Subsume_int_nat. all: tychk.
+  Qed.
+
 End bounded_oracle.
 
 Class MaxCalls := { Q : nat }.

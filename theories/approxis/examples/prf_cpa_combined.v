@@ -1,11 +1,8 @@
 From clutch.approxis Require Import approxis map list.
-From clutch.approxis.examples Require Import prf symmetric prf_cpa.
+From clutch.approxis.examples Require Import prf symmetric prf_cpa security_aux xor.
 Set Default Proof Using "Type*".
 
 Section combined.
-
-  (* TODO move *)
-  Definition TOption (T : type) : type := (TUnit + T)%ty.
 
   (** Parameters of the PRF. *)
   Variable Key : nat.
@@ -18,62 +15,76 @@ Section combined.
 
   Local Opaque INR.
 
+  (* The PRF: (keygen, F) *)
   Variable keygen : val.
   Variable F : val.
+
   Definition rand_output : val := λ:"_", rand #Output.
+
+  (* Max number of oracle calls *)
   Variable (Q : nat).
 
+  (* RandML types *)
+
+  (* PRF *)
   Definition TKey := TNat.
   Definition TInput := TNat.
   Definition TOutput := TNat.
   Definition TPRF : type := TKey → TInput → TOutput.
 
+  (* PRF adversary *)
   Definition T_PRF_Adv := ((TInput → (TOption TOutput)) → TBool)%ty.
 
+  (* Local definitions of the PRF games and PRF scheme. *)
   Definition PRF_rand := PRF_rand Input Output.
   Definition PRF_real := PRF_real Input.
   Definition PRF_scheme_F : val := (keygen, (F, rand_output)).
 
-  Variable xor : val.
 
-  Definition TKeygen : type := (TUnit → TKey)%ty.
+  (* Symmetric scheme based on the PRF *)
+  Let Message := Output.
+  Let Cipher := Input * Output.
 
   Definition TMessage := TInt.
-  Hypothesis xor_typed : (⊢ᵥ xor : (TMessage → TOutput → TOutput)).
+  Definition TKeygen : type := (TUnit → TKey)%ty.
+  Definition TCipher := (TInput * TOutput)%ty.
+
+  Context `{XOR Message Output}.
+
+  (* Variable xor : val.
+     (** Parameters of the generic PRF-based encryption scheme. *)
+     Variable (xor_sem : nat -> nat -> nat).
+     Variable H_xor : forall x, Bij (xor_sem x).
+     Variable H_xor_dom: forall x, x < S Message -> (∀ n : nat, n < S Output → xor_sem x n < S Output).
+     Definition XOR_CORRECT_L := forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
+                                (_: (0<=x)%Z)
+                                (_: ((Z.to_nat x) < S Message))
+                                (_: y < S Message) e A,
+       (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
+       -∗ REL (fill K (xor #x #y)) << e @ E : A.
+     Definition XOR_CORRECT_R := ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
+                                (_: (0<=x)%Z)
+                                (_: ((Z.to_nat x) < S Message))
+                                (_: y < S Message) e A,
+       (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
+       -∗ REL e << (fill K (xor #x #y)) @ E : A.
+     Variable (xor_correct_l: XOR_CORRECT_L).
+     Variable (xor_correct_r: XOR_CORRECT_R).
+     (* TODO: should xor be partial? `xor key input` may fail unless 0 <= key <=
+        Key /\ 0 <= input <= Input
+
+        If xor were to operate on strings / byte arrays / bit lists instead, it
+        may fail if `key` and `input` are of different lengths. *)
+     Hypothesis xor_typed : (⊢ᵥ xor : (TMessage → TOutput → TOutput)). *)
   Hypothesis keygen_typed : (⊢ᵥ keygen : TKeygen).
   Hypothesis F_typed : (⊢ᵥ F : TPRF).
   Hypothesis H_in_out : (Input = Output).
-
-  Definition TCipher := (TInput * TOutput)%ty.
 
 
   (* An IND$-CPA adversary. *)
   Variable adversary : val.
   Definition T_IND_CPA_Adv : type := (TMessage → TOption TCipher) → TBool.
   Variable adversary_typed : (⊢ᵥ adversary : T_IND_CPA_Adv).
-
-  Let Message := Output.
-  Let Cipher := Input * Output.
-
-
-  (** Parameters of the generic PRF-based encryption scheme. *)
-  Variable (xor_sem : nat -> nat -> nat).
-  Variable H_xor : forall x, Bij (xor_sem x).
-  Variable H_xor_dom: forall x, x < S Message -> (∀ n : nat, n < S Output → xor_sem x n < S Output).
-  Definition XOR_CORRECT_L := forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
-                             (_: (0<=x)%Z)
-                             (_: ((Z.to_nat x) < S Message))
-                             (_: y < S Message) e A,
-    (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
-    -∗ REL (fill K (xor #x #y)) << e @ E : A.
-  Definition XOR_CORRECT_R := ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
-                             (_: (0<=x)%Z)
-                             (_: ((Z.to_nat x) < S Message))
-                             (_: y < S Message) e A,
-    (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
-    -∗ REL e << (fill K (xor #x #y)) @ E : A.
-  Variable (xor_correct_l: XOR_CORRECT_L).
-  Variable (xor_correct_r: XOR_CORRECT_R).
 
 
   (** The reduction to PRF security. *)
@@ -130,16 +141,6 @@ Section combined.
 
    *)
 
-  Definition opt_mult : val :=
-    λ:"opt",
-      match: "opt" with
-      | NONE => NONE
-      | SOME "vopt" =>
-          match: "vopt" with
-          | NONE => NONE
-          | SOME "v" => SOME "v"
-          end
-      end.
   Definition R_prf : val :=
     λ:"prf_key",
       let: "prf_key_q" := q_calls #Q
@@ -304,17 +305,16 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
 
   Fact red_typed : (⊢ᵥ RED : T_PRF_Adv).
   Proof.
-    all: clear xor_correct_l xor_correct_r.
     rewrite /RED. tychk. 1: eauto.
     rewrite /R_prf. constructor.
     type_expr 4.
     all: try by tychk.
     Unshelve.
-    3: exact (TOption (TOption TCipher)).
+    1: constructor ; apply opt_mult_typed.
+    1: rewrite /q_calls/prf_cpa.q_calls. 1: apply (q_calls_typed Input (TOption TCipher)).
+    (* 3: exact (TOption (TOption TCipher)). *)
     all: tychk.
-    1,2: rewrite /opt_mult/q_calls/prf_cpa.q_calls/bounded_oracle.q_calls.
-    1: tychk ; simplify_map_eq.
-    tychk ; simplify_map_eq.
+    apply xor_typed.
   Qed.
 
   (* Should also prove that PPT(adversary) ⇒ PPT(RED). *)
@@ -348,7 +348,7 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
     rel_alloc_r counter_r as "counter_r". rel_pures_r.
     rewrite /R_prf. rel_pures_r. rewrite /q_calls/prf_cpa.q_calls.
     rewrite /Message.
-    rewrite -H_in_out.
+    rewrite -{1}H_in_out.
     rel_bind_l (bounded_oracle.q_calls _ _ _)%E.
     (* rel_bind_r (bounded_oracle.q_calls _ _ _)%E. *)
     rel_bind_r (let: _ := _ in _)%E.
@@ -426,8 +426,9 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
            1: constructor. 1: apply Nat_val_typed.
            1: type_expr 1.
            1: type_expr 1.
-           1: by constructor. all: tychk.
-           repeat constructor.
+           1: constructor ; apply xor_typed.
+           2: rewrite /xor.TInput.
+           all: tychk.
       }
       iIntros (??) "#( % & % & % & % & -> & -> & (% & -> & ->) & % & -> & ->)" ; rel_pures_l ; rel_pures_r.
       rel_values. iExists _,_. iPureIntro. right. repeat split.
@@ -534,7 +535,7 @@ Proof with (rel_pures_l ; rel_pures_r).
         - apply init_map_typed.
     }
     apply q_calls_typed_io.
-  Qed.
+Qed.
 
   Lemma rand_real :
     ⊢ (REL (RED (PRF_rand PRF_scheme_I #Q))
@@ -559,9 +560,9 @@ Proof with (rel_pures_l ; rel_pures_r).
          << (adversary (CPA_real sym_scheme_I #Q)) : lrel_bool).
 Proof
   using (CPA_rand CPA_real Cipher F F_keygen F_rand_cipher F_typed
-H_in_out H_xor H_xor_dom Input Message Output Q adversary adversary_typed
-approxisRGS0 keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem
-xor_typed Σ)
+H_in_out Input Message Output Q adversary adversary_typed
+approxisRGS0 keygen keygen_typed Σ
+)
   with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /F_keygen.
@@ -606,11 +607,13 @@ xor_typed Σ)
       iApply (refines_na_inv with "[$Hinv]"); [done|].
       iIntros "(> (%q & %M & counter_l & counter_l' & counter_r & map_l & map_r & %range_int & %dom_range) & Hclose)".
       rel_load_l ; rel_load_r.
+      rewrite /Message.
+      replace (bool_decide (msg ≤ Output))%bool%Z with
+        (bool_decide (msg ≤ Input))%bool%Z by (rewrite H_in_out ; auto).
       case_bool_decide as Hmsg_pos.
       all: rel_pures_r ; rel_pures_l.
       (* TODO: the order of && in q_calls should be changed so that it properly
       evaluates left to right and evaluates lazily in all 3 arguments. *)
-      all: rewrite /Message -H_in_out.
       all: case_bool_decide as qQ.
       all: simpl ; rel_pures_l ; rel_pures_r.
       1: case_bool_decide as H_msg_max.
@@ -655,11 +658,11 @@ xor_typed Σ)
            1: constructor. 1: apply Nat_val_typed.
            1: type_expr 1.
            1: type_expr 1.
-           1: by constructor. all: tychk.
-           repeat constructor.
+
+           1: constructor ; apply xor_typed.
+           all: tychk ; compute.
            opose proof (elem_of_map_img_2 M r y r_fresh) as hy.
            destruct (range_int y hy). subst. tychk.
-           constructor.
       }
       iIntros (??) "#( % & % & % & % & -> & -> & (% & -> & ->) & % & -> & ->)" ; rel_pures_l ; rel_pures_r.
       rewrite /opt_mult...
@@ -680,7 +683,7 @@ xor_typed Σ)
            destruct (range_int y hy). subst. tychk.
          } *)
 
-      rel_apply (refines_couple_UU Input id); first auto.
+      rel_apply (refines_couple_UU Output id); first auto.
       iIntros (y) "!> %"...
 
       rel_apply_r (refines_set_r with "[-map_r] [$map_r]").
@@ -720,7 +723,7 @@ xor_typed Σ)
            1: constructor. 1: apply Nat_val_typed.
            1: type_expr 1.
            1: type_expr 1.
-           1: by constructor. all: tychk.
+           1: by constructor ; apply xor_typed. all: tychk.
            repeat constructor.
       }
       iIntros (??) "#( % & % & % & % & -> & -> & (% & -> & ->) & % & -> & ->)" ; rel_pures_l ; rel_pures_r.
@@ -748,15 +751,14 @@ xor_typed Σ)
     Qed.
 
   (* This should be the result proven for the Approxis paper. *)
-  Lemma cpa_I :
+  Lemma cpa_I `{!XOR_spec} :
     ↯ (Q * Q / (2 * S Input))
     ⊢ (REL (adversary (CPA_real sym_scheme_I #Q))
          << (adversary (CPA_rand sym_scheme_I #Q)) : lrel_bool).
 Proof
-  using (CPA_rand CPA_real Cipher F F_rand_cipher F_typed H_in_out H_xor
-H_xor_dom Input Message Output Q adversary adversary_typed approxisRGS0
-keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed Σ
-)
+  using (CPA_rand CPA_real Cipher F F_rand_cipher F_typed H_in_out
+           Input Message Output Q adversary adversary_typed approxisRGS0
+keygen keygen_typed Σ)
   with (rel_pures_l ; rel_pures_r).
     iIntros "ε".
     rewrite /CPA_real/CPA_rand.
@@ -868,12 +870,13 @@ keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed Σ
             done.
           }
           simpl...
-          unshelve rel_apply (refines_couple_UU _ (xor_sem (Z.to_nat msg))); first auto.
+          unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ H (Z.to_nat msg))) ;
+            [apply xor_bij|apply xor_dom => //|..].
           iIntros (y) "!> %"...
           rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
           iIntros "mapref"...
           rel_bind_l (xor _ _).
-          rel_apply_l xor_correct_l; [done | done | lia |].
+          rel_apply_l xor_correct_l; [done | lia | lia |].
           iApply (refines_na_close with "[-]").
           iFrame.
           iSplitL.
@@ -1001,9 +1004,8 @@ keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed Σ
       (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ'))
       (=)
       0.
-  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom Input
-    Message Output Q adversary adversary_typed keygen keygen_typed xor
-    xor_correct_l xor_correct_r xor_sem xor_typed.
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out Input
+    Message Output Q adversary adversary_typed keygen keygen_typed.
     unshelve eapply approximates_coupling ; eauto.
     1: exact (fun _ => lrel_bool).
     1: lra.
@@ -1028,15 +1030,15 @@ keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed Σ
     }
   Qed.
 
-  Lemma cpa_I_ARC Σ `{approxisRGpreS Σ} σ σ' :
+  Lemma cpa_I_ARC Σ `{!approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H) σ σ' :
     ARcoupl
       (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ'))
       (=)
       ε_Q.
-Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom Input
-Message Output Q adversary adversary_typed keygen keygen_typed xor
-xor_correct_l xor_correct_r xor_sem xor_typed
+Proof using CPA_rand CPA_real Cipher F F_typed H_in_out Input
+Message Output Q adversary adversary_typed keygen keygen_typed
+
 .
     unshelve eapply approximates_coupling ; eauto.
     1: exact (fun _ => lrel_bool).
@@ -1051,9 +1053,8 @@ xor_correct_l xor_correct_r xor_sem xor_typed
       (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ'))
       (=)
       0.
-  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom Input
-    Message Output Q adversary adversary_typed keygen keygen_typed xor
-    xor_correct_l xor_correct_r xor_sem xor_typed.
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out Input
+    Message Output Q adversary adversary_typed keygen keygen_typed.
     unshelve eapply approximates_coupling ; eauto.
     1: exact (fun _ => lrel_bool).
     1: lra.
@@ -1163,9 +1164,12 @@ xor_correct_l xor_correct_r xor_sem xor_typed
     replace ε_Q with (ε_Q + 0)%R by lra.
     eapply ARcoupl_eq_trans_l => //.
     1: eapply cpa_I_ARC => //.
+    1:
+      (* TODO ugh *)
+      admit.
     eapply cpa_F_ARC => //.
     Unshelve. all: eauto.
-  Qed.
+  Admitted.
 
   (* The converse direction of the refinement. We expect it to hold with the
      same bound. *)
@@ -1192,9 +1196,9 @@ xor_correct_l xor_correct_r xor_sem xor_typed
       <=
       (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ') #true)
       + ((Q * Q / (2 * S Input)) + ε_F))%R.
-  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out
     H_ε_ARC H_ε_PRF Input Key Message Output Q adversary adversary_typed keygen
-    keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed ε_F
+    keygen_typed ε_F
   .
     apply ARcoupl_eq_elim.
     by eapply prf_cpa_ARC'.
@@ -1204,9 +1208,9 @@ xor_correct_l xor_correct_r xor_sem xor_typed
     (Rabs (((lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ)) #true) -
              ((lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ')) #true)) <=
        (Q * Q / (2 * S Input)) + ε_F)%R.
-  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out
     H_ε_ARC H_ε_PRF Input Key Message Output Q adversary adversary_typed keygen
-    keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed ε_F
+    keygen_typed ε_F
   .
     apply Rabs_le.
     pose proof CPA_bound_1 Σ σ σ' as h1.
@@ -1265,9 +1269,10 @@ xor_correct_l xor_correct_r xor_sem xor_typed
     replace ε_Q with (ε_Q + 0)%R by lra.
     eapply ARcoupl_eq_trans_l => //.
     1: eapply cpa_I_ARC => //.
+    1: admit.
     eapply cpa_F_ARC => //.
     Unshelve. all: eauto.
-  Qed.
+  Admitted.
 
   (* TODO prove this reverse direction *)
   Hypothesis red_from_prf' : forall Σ `{approxisRGpreS Σ} σ σ',
