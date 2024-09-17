@@ -1,25 +1,34 @@
-From Coq Require Import Reals Psatz.
-From stdpp Require Export binders strings.
-From stdpp Require Import gmap fin_maps countable fin.
+From HB Require Import structures.
+From Coq Require Import Logic.ClassicalEpsilon Psatz.
+From stdpp Require Import base numbers binders strings gmap.
+From mathcomp.analysis Require Import reals measure.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
+From clutch.common Require Export locations.
+From clutch.prob.monad Require Export laws.
+
+(*
+From Coq Require Import Reals Psatz.
+From stdpp Require Export binders strings.
+From stdpp Require Import fin.
+From stdpp Require Import gmap fin_maps countable fin.
 From clutch.prob Require Export distribution.
 From clutch.common Require Export language ectx_language ectxi_language locations.
 From iris.prelude Require Import options.
-From HB Require Import structures.
 From mathcomp Require Import ssrbool eqtype fintype choice all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
-From clutch.prob.monad Require Export laws.
-From clutch.prob_lang Require Import lang.
+*)
+
 
 
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
 Global Instance classical_eq_dec {T : Type} : EqDecision T.
-Proof. intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
+Proof.  intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
 
 Module meas_lang.
 
@@ -89,6 +98,8 @@ Definition to_val (e : expr) : option val :=
   | Val v => Some v
   | _ => None
   end.
+
+
 
 (* This part of the sigma algebra is not discrete *)
 (* MARKUSDE: Externalizing the fin bound here also simplifies definitions *)
@@ -218,11 +229,11 @@ Proof. destruct e=>//=. by intros [= <-]. Qed.
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
-
 Global Instance state_inhabited : Inhabited state :=
   populate {| heap := inhabitant; tapes := inhabitant; utapes := inhabitant |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
+
 
 Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
@@ -578,7 +589,6 @@ Proof.
 Qed.
 
 #[local] Open Scope R.
-
 
 Section pointed_instances.
   Local Open Scope classical_set_scope.
@@ -962,7 +972,7 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →
   fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
 Proof. destruct Ki2, Ki1; naive_solver eauto with f_equal. Qed.
-
+*)
 Fixpoint height (e : expr) : nat :=
   match e with
   | Val _ => 1
@@ -982,7 +992,9 @@ Fixpoint height (e : expr) : nat :=
   | Load e => 1 + height e
   | Store e1 e2 => 1 + height e1 + height e2
   | AllocTape e => 1 + height e
+  | AllocUTape e => 1 + height e
   | Rand e1 e2 => 1 + height e1 + height e2
+  | URand e1 e2 => 1 + height e1 + height e2
   | Tick e => 1 + height e
   end.
 
@@ -998,6 +1010,7 @@ Defined.
 
 Lemma expr_ord_wf : well_founded expr_ord.
 Proof. red; intro; eapply expr_ord_wf'; eauto. Defined.
+
 
 (* TODO: this proof is slow, but I do not see how to make it faster... *)
 Lemma decomp_expr_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e.
@@ -1020,6 +1033,7 @@ Proof.
 Qed.
 
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
+
 
 (*
 Lemma state_step_get_active_mass σ α :
@@ -1059,8 +1073,8 @@ Proof.
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
 *)
-*)
 End meas_lang.
+(*
 (*
 (** Language *)
 Canonical Structure meas_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
@@ -1070,4 +1084,5 @@ Canonical Structure meas_lang := LanguageOfEctx prob_ectx_lang.
 (* Prefer prob_lang names over ectx_language names. *)
 Export meas_lang.
 
+*)
 *)
