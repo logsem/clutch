@@ -176,50 +176,97 @@ Section impl3.
         wp_update E (∃ n, T (n) ∗ α◯↪N (3%nat; ns++[n]) @ γ2).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-    iMod wp_update_epsilon_err as "H".
+    iMod wp_update_epsilon_err as "(%epsilon_err&%H&?)".
+    iApply wp_update_state_step_coupl.
+    iRevert "HP Hfrag".
+    iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|].
+    iModIntro.
+    clear epsilon_err H.
+    iIntros (epsilon_err ?) "#IH Hepsilon_err HP Hfrag".
+    iIntros (σ ε) "((Hheap&Htapes)&Hε)".
+    iMod (inv_acc with "Hinv") as "[>(%ε0 & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|].
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    erewrite <-(insert_delete m) at 1; last done.
+    rewrite big_sepM_insert; last apply lookup_delete.
+    simpl.
+    iDestruct "H3" as "[(%ls & %Hls & Htape) H3]".
+    iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%)".
+    iDestruct (ec_valid with "H1") as "%".
+    iDestruct (ec_combine with "[$]") as "Htotal".
+    iDestruct (ec_supply_bound with "[$][$]") as "%".
+    iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    pose (ε2' := λ (x:nat), (if bool_decide (x<=3)%nat then ε2 ε0 x else
+                            if bool_decide (x=4)%nat then ε0 + 5 * epsilon_err
+                            else 0)%R
+         ).
+    iApply state_step_coupl_state_adv_comp_con_prob_lang; first done.
+    assert (forall x, 0<=ε2' x)%R.
+    { intros. rewrite /ε2'. repeat case_bool_decide; try done; first naive_solver.
+      apply Rplus_le_le_0_compat; simpl; [naive_solver|lra]. }
+    unshelve iExists (λ x, mknonnegreal (ε2' x) _); auto.
+    simpl.
+    iSplit.
+    { admit.
+      (* iPureIntro. *)
+      (* unshelve epose proof (Hineq ε1' _) as H1; first apply cond_nonneg. *)
+    (* by rewrite SeriesC_nat_bounded_fin in H1. *) }
+    iIntros (sample).
+    simpl.
+    destruct (Rlt_decision (nonneg ε_rem + (ε2' sample))%R 1%R) as [Hdec|Hdec]; last first.
+    { apply Rnot_lt_ge, Rge_le in Hdec.
+      iApply state_step_coupl_ret_err_ge_1.
+      simpl. simpl in *. lra.
+    }
+    destruct (Nat.lt_total (fin_to_nat sample) 4%nat) as [|[|]].
+    - (* we sample a value less than 4*)
+      iApply state_step_coupl_ret.
+      unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2' sample) _) with "Hε_supply") as "[Hε_supply Hε]"; auto.
+      iMod (tapeN_update_append _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
+      iMod (hocap_tapes_presample _ _ _ _ _ (fin_to_nat sample) with "[$][$]") as "[H4 Hfrag]".
+      iMod "Hclose'" as "_".
+      iMod ("Hvs" $! _ (fin_to_nat sample)%nat with "[$]") as "[%|[H2 HT]]".
+      { iExFalso. iApply (ec_contradict with "[$]").
+        simpl.
+        rewrite /ε2'.
+        by rewrite bool_decide_eq_true_2; last lia.
+      }
+      simpl.
+      iMod ("Hclose" with "[$Hε H2 Htape H3 $H4 $H5 $H6]") as "_".
+      { iNext.
+        rewrite /ε2'. rewrite bool_decide_eq_true_2; last lia.
+        iFrame.
+        rewrite big_sepM_insert_delete; iFrame. simpl. iPureIntro.
+        split; last done.
+        rewrite filter_app. f_equal.
+        rewrite filter_cons.
+        rewrite decide_True; first done.
+        rewrite /filter_f. by apply bool_decide_pack.
+      }
+      iApply fupd_mask_intro_subseteq; first set_solver.
+      iFrame.
+    - (* we sampled a 4, and hence löb *)
+      unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2' sample) _) with "Hε_supply") as "[Hε_supply Hε]"; auto.
+      iMod (tapeN_update_append _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
+      iMod "Hclose'" as "_".
+      simpl.
+      rewrite {2}/ε2'.
+      rewrite bool_decide_eq_false_2; last lia.
+      rewrite bool_decide_eq_true_2; last lia.
+      iDestruct (ec_split with "[$]") as "[Hε Hampl]"; simpl; [naive_solver|lra|].
+      simpl.
+      iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4 $H5 $H6]") as "_".
+      { iNext.
+        rewrite (big_sepM_delete _ m); [iFrame|done].
+        simpl. iPureIntro; split; last done.
+        rewrite filter_app filter_cons decide_False; simpl.
+        - by rewrite filter_nil app_nil_r.
+        - rewrite /filter_f. case_bool_decide; [lia|auto].
+      }
+      iDestruct ("IH" with "[$][$][$]") as "IH'".
+      by iMod ("IH'" $! (state_upd_tapes <[_:=_]> _) with "[$]") as "IH'".
+    - pose proof fin_to_nat_lt sample; lia.
   Admitted.
-  (*   iApply wp_update_state_step_coupl. *)
-  (*   iIntros (σ ε) "((Hheap&Htapes)&Hε)". *)
-  (*   iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|]. *)
-  (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[Htape H3]". *)
-  (*   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%)". *)
-  (*   iDestruct (ec_supply_bound with "[$][$]") as "%". *)
-  (*   iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst. *)
-  (*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
-  (*   iApply state_step_coupl_state_adv_comp_con_prob_lang; first done. *)
-  (*   unshelve iExists (λ x, mknonnegreal (ε2 ε1' x) _). *)
-  (*   { apply Hpos. apply cond_nonneg. } *)
-  (*   iSplit. *)
-  (*   { iPureIntro.  *)
-  (*     unshelve epose proof (Hineq ε1' _) as H1; first apply cond_nonneg. *)
-  (*     by rewrite SeriesC_nat_bounded_fin in H1. } *)
-  (*   iIntros (sample). *)
-    
-  (*   destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' sample))%R 1%R) as [Hdec|Hdec]; last first. *)
-  (*   { apply Rnot_lt_ge, Rge_le in Hdec. *)
-  (*     iApply state_step_coupl_ret_err_ge_1. *)
-  (*     simpl. simpl in *. lra. *)
-  (*   } *)
-  (*   iApply state_step_coupl_ret. *)
-  (*   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' sample) _) with "Hε_supply") as "[Hε_supply Hε]". *)
-  (*   { apply Hpos. apply cond_nonneg. } *)
-  (*   { simpl. done. } *)
-  (*   iMod (tapeN_update_append _ _ _ _ sample with "[$][$]") as "[Htapes Htape]". *)
-  (*   iMod (hocap_tapes_presample _ _ _ _ _ (fin_to_nat sample) with "[$][$]") as "[H4 Hfrag]". *)
-  (*   iMod "Hclose'" as "_". *)
-  (*   iMod ("Hvs" with "[$]") as "[%|[H2 HT]]". *)
-  (*   { iExFalso. iApply (ec_contradict with "[$]"). exact. } *)
-  (*   iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4 $H5 $H6]") as "_". *)
-  (*   { iNext. iSplit; last done. *)
-  (*     rewrite big_sepM_insert_delete; iFrame. *)
-  (*   } *)
-  (*   iApply fupd_mask_intro_subseteq; first set_solver. *)
-  (*   iFrame. *)
-  (* Qed.  *)
 
   Lemma read_counter_spec3 N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
