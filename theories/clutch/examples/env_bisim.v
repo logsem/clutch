@@ -4,6 +4,7 @@
    NB: This example was mentioned as open problem in Aleš Bizjak's thesis.
  *)
 
+From clutch.prob_lang.typing Require Import tychk.
 From clutch Require Export clutch clutch.lib.flip.
 Set Default Proof Using "Type*".
 

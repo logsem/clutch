@@ -1,3 +1,4 @@
+From clutch.prob_lang.typing Require Import tychk.
 From clutch.approxis Require Import approxis map list.
 (* From clutch.approxis.examples Require Import prf symmetric prf_cpa. *)
 Set Default Proof Using "Type*".

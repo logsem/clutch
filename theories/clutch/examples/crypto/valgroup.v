@@ -1,7 +1,7 @@
 From clutch.prelude Require Import base.
 From clutch.prob_lang Require Import notation lang.
 From clutch.clutch Require Import weakestpre model.
-From clutch.prob_lang.typing Require Import types.
+From clutch.prob_lang.typing Require Import types tychk.
 From clutch Require Import clutch.
 
 From mathcomp Require Import solvable.cyclic choice eqtype finset fintype seq

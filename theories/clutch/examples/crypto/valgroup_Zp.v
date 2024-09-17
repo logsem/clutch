@@ -1,4 +1,5 @@
 From clutch Require Import clutch.
+From clutch.prob_lang.typing Require Import tychk.
 
 #[warning="-hiding-delimiting-key,-overwriting-delimiting-key"] From mathcomp Require Import ssrnat.
 From mathcomp Require Import fingroup solvable.cyclic eqtype fintype ssrbool zmodp.

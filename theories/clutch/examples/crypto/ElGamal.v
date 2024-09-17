@@ -1,6 +1,7 @@
 (* ElGamal encryption has one-time secrecy against chosen plaintext attack, in
    the real/random paradigm. Following Rosulek's "The Joy of Crypto". *)
 From clutch Require Import clutch.
+From clutch.prob_lang.typing Require Import tychk.
 From clutch.clutch.examples.crypto Require Import valgroup.
 From clutch.clutch.examples.crypto Require ElGamal_bijection.
 
