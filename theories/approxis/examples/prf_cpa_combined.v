@@ -51,31 +51,6 @@ Section combined.
 
   Context `{XOR Message Output}.
 
-  (* Variable xor : val.
-     (** Parameters of the generic PRF-based encryption scheme. *)
-     Variable (xor_sem : nat -> nat -> nat).
-     Variable H_xor : forall x, Bij (xor_sem x).
-     Variable H_xor_dom: forall x, x < S Message -> (∀ n : nat, n < S Output → xor_sem x n < S Output).
-     Definition XOR_CORRECT_L := forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
-                                (_: (0<=x)%Z)
-                                (_: ((Z.to_nat x) < S Message))
-                                (_: y < S Message) e A,
-       (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
-       -∗ REL (fill K (xor #x #y)) << e @ E : A.
-     Definition XOR_CORRECT_R := ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
-                                (_: (0<=x)%Z)
-                                (_: ((Z.to_nat x) < S Message))
-                                (_: y < S Message) e A,
-       (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
-       -∗ REL e << (fill K (xor #x #y)) @ E : A.
-     Variable (xor_correct_l: XOR_CORRECT_L).
-     Variable (xor_correct_r: XOR_CORRECT_R).
-     (* TODO: should xor be partial? `xor key input` may fail unless 0 <= key <=
-        Key /\ 0 <= input <= Input
-
-        If xor were to operate on strings / byte arrays / bit lists instead, it
-        may fail if `key` and `input` are of different lengths. *)
-     Hypothesis xor_typed : (⊢ᵥ xor : (TMessage → TOutput → TOutput)). *)
   Hypothesis keygen_typed : (⊢ᵥ keygen : TKeygen).
   Hypothesis F_typed : (⊢ᵥ F : TPRF).
   Hypothesis H_in_out : (Input = Output).
@@ -88,58 +63,6 @@ Section combined.
 
 
   (** The reduction to PRF security. *)
-  (* PROOF SKETCH *)
-  (* CPA security starts from (adversary (CPA_real sym_scheme_F #Q)). *)
-  (* Via some administrative reductions, CPA_real sym_scheme_F #Q evaluates
-     to: *)
-  (* let: "key" := keygen #() in
-     q_calls #Q
-       ( let: "prf_key" := F "key" in
-         λ: "msg",
-           let: "r" := rand #Input in
-           let: "z" := "prf_key" "r" in
-           ("r", xor "msg" "z") ). *)
-  (* Goal: find R_prf s.t. this is equivalent to (R_prf (PRF_real PRF_scheme_F #Q)) *)
-  (* Reduce (PRF_real PRF_scheme_F #Q): *)
-  (* let: "key" := keygen #() in
-     q_calls #Q (F "key").
-     (* Let R_prf := *)
-     λ:"prf_key",
-         q_calls #Q
-           (λ: "msg"
-              let: "r" := rand #Input in
-              let: "z" := "prf_key" "r" in
-              ("r", xor "msg" "z")). *)
-  (* Now we have (R_prf (PRF_real PRF_scheme_F #Q)) ≈ *)
-  (* let: "key" := keygen #() in
-     q_calls #Q
-           (λ: "msg"
-              let: "r" := rand #Input in
-              let: "z" := (q_calls #Q (F "key")) "r" in
-              ("r", xor "msg" "z")). *)
-  (* We now compose adversary ∘ R_prf to obtain RED. *)
-
-  (* If the security definition of a PRF allowed an arbitrary context as
-  adversary (at what logical relation?) instead of a boolean-valued one, we
-  could use the assumption that F is an ε_F-secure PRF to directly conclude
-  that
-
-    R_prf PRF_real ~ R_prf PRF_rand
-
-  and derive from this, together with well-typedness of adversary, that
-
-    adversary (R_prf PRF_real) ~ adversary (R_prf PRF_rand)
-
-  However, with the current definition, we instead have to construct RED as
-  defined below, and prove
-
-    adversary (R_prf PRF_real) ~(1)~ RED PRF_real ~(2)~ RED PRF_rand ~(3)~
-    adversary (R_prf PRF_rand)
-
-  where (1) and (3) require some administrative work, and (2) follows from the
-  PRF assumption on F.
-
-   *)
 
   Definition R_prf : val :=
     λ:"prf_key",
@@ -161,18 +84,6 @@ Section combined.
   Section approxis_proofs.
 
   Context `{!approxisRGS Σ}.
-
-  Definition PRF_advantage_upper_bound (adversary : val) (ε_F : nonnegreal) :=
-    (↯ ε_F ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
-    /\
-      (↯ ε_F ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)).
-
-  (* Definition f_is_prf (ε_f : nonnegreal)
-       :=
-       forall (adversary : val) (adversary_typed : (⊢ᵥ adversary : T_PRF_Adv)),
-       (↯ ε_f ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
-       /\
-         (↯ ε_f ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)). *)
 
   (** Generic PRF-based symmetric encryption. *)
   (* Redefined here to make it parametrised by the PRF on the Coq level. *)
@@ -1068,7 +979,14 @@ Message Output Q adversary adversary_typed keygen keygen_typed
      against the symmetric scheme, is bounded by some number ε_F. *)
   Variable ε_F : nonnegreal.
 
-  (* We may assume that owning ↯ ε_F error credits allows to prove the
+  (* Predicate that states that `ε_F` is an upper bound on the PRF-advantage of
+  `adversary` (in the logical relation!).. *)
+  Definition PRF_advantage_upper_bound `{!approxisRGS Σ} (adversary : val) (ε_F : nonnegreal) :=
+    (↯ ε_F ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
+    /\
+      (↯ ε_F ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)).
+
+  (* This assumption states that owning ↯ ε_F error credits allows to prove the
      refinement about RED in Approxis. *)
   Hypothesis H_ε_PRF : forall `{approxisRGS Σ},
       PRF_advantage_upper_bound RED ε_F.
@@ -1099,14 +1017,8 @@ Message Output Q adversary adversary_typed keygen keygen_typed
       (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ'))
       eq ε_F.
 
-  From clutch.approxis.examples Require Import advantage.
-
-  Let ε_adv :=
-        advantage adversary
-          (RED (PRF_real PRF_scheme_F #Q))
-          (RED (PRF_rand PRF_scheme_F #Q)).
-
-  (* We shouldn't expect to use the same adversary on both sides. *)
+  (* TODO: upstream to advantage.v *)
+  (* Variant of the pr_dist def. that doesn't expect to use the same adversary on both sides. *)
   Definition pr_dist (X Y : expr)
     (σ σ' : state) (v : val) :=
     Rabs ( (( lim_exec (X, σ)) v) - (lim_exec (Y, σ') v) )%R.
@@ -1130,9 +1042,15 @@ Message Output Q adversary adversary_typed keygen keygen_typed
     apply Rplus_le_compat => //.
   Qed.
 
+  (* From clutch.approxis.examples Require Import advantage.
 
-  Fact adv_is_good : Rbar.Rbar_le ε_adv (Rbar.Finite ε_F).
-  Abort.
+     Let ε_adv :=
+           advantage adversary
+             (RED (PRF_real PRF_scheme_F #Q))
+             (RED (PRF_rand PRF_scheme_F #Q)).
+
+     Fact adv_is_good : Rbar.Rbar_le ε_adv (Rbar.Finite ε_F).
+     Abort. *)
 
   (* Compose lemmas and the assumption H_ε_ARC to get an ARC. *)
   Lemma prf_cpa_ARC Σ `{approxisRGpreS Σ} σ σ' :
