@@ -359,6 +359,8 @@ Ltac type_ctx :=
 
 Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
 
+(* BEGIN_FIXME
+
   Lemma red_typed : (⊢ᵥ RED : T_PRF_Adv).
   Proof.
     all: clear xor_correct_l xor_correct_r.
@@ -558,7 +560,7 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
       iIntros (??) "#( % & % & % & % & -> & -> & (% & -> & ->) & % & -> & ->)" ; rel_pures_l ; rel_pures_r.
       rel_values. iExists _,_. iPureIntro. right. repeat split.
       eexists _,_,_,_. repeat split. all: by eexists _.
-      } 
+      }
   Qed.
 
   Variable ε_F : nonnegreal.
@@ -1070,5 +1072,7 @@ Admitted.
        PRF_advantage adversary ε_f ->
        CPA_advantage (RED adversary) (Q*ε_f + Q*Q/2N) (enc_prf f). *)
 
+END_FIXME
+ *)
 
 End prf_assumption.

@@ -2,7 +2,7 @@ From clutch.approxis Require Import approxis map list.
 From clutch.approxis.examples Require Import prf symmetric prf_cpa.
 Set Default Proof Using "Type*".
 
-Section prf_assumption.
+Section combined.
 
   (* TODO move *)
   Definition TOption (T : type) : type := (TUnit + T)%ty.
@@ -56,56 +56,25 @@ Section prf_assumption.
   Let Cipher := Input * Output.
 
 
-  Context `{!approxisRGS Σ}.
-
-  Definition PRF_advantage_upper_bound (adversary : val) (ε_F : nonnegreal) :=
-    (↯ ε_F ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
-    /\
-      (↯ ε_F ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)).
-
-  (* Definition f_is_prf (ε_f : nonnegreal)
-       :=
-       forall (adversary : val) (adversary_typed : (⊢ᵥ adversary : T_PRF_Adv)),
-       (↯ ε_f ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
-       /\
-         (↯ ε_f ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)). *)
-
   (** Parameters of the generic PRF-based encryption scheme. *)
   Variable (xor_sem : nat -> nat -> nat).
   Variable H_xor : forall x, Bij (xor_sem x).
   Variable H_xor_dom: forall x, x < S Message -> (∀ n : nat, n < S Output → xor_sem x n < S Output).
-  Variable (xor_correct_l: forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
+  Definition XOR_CORRECT_L := forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
                              (_: (0<=x)%Z)
                              (_: ((Z.to_nat x) < S Message))
                              (_: y < S Message) e A,
     (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
-    -∗ REL (fill K (xor #x #y)) << e @ E : A).
-
-  Variable (xor_correct_r: ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
+    -∗ REL (fill K (xor #x #y)) << e @ E : A.
+  Definition XOR_CORRECT_R := ∀ `{!approxisRGS Σ} E K (x : Z) (y : nat)
                              (_: (0<=x)%Z)
                              (_: ((Z.to_nat x) < S Message))
                              (_: y < S Message) e A,
     (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
-    -∗ REL e << (fill K (xor #x #y)) @ E : A).
+    -∗ REL e << (fill K (xor #x #y)) @ E : A.
+  Variable (xor_correct_l: XOR_CORRECT_L).
+  Variable (xor_correct_r: XOR_CORRECT_R).
 
-  (** Generic PRF-based symmetric encryption. *)
-  (* Redefined here to make it parametrised by the PRF on the Coq level. *)
-  Definition prf_enc (prf : val) : val :=
-    λ:"key",
-      let: "prf_key" := prf "key" in
-      λ: "msg",
-        let: "r" := rand #Input in
-        let: "z" := "prf_key" "r" in
-        ("r", xor "msg" "z").
-
-  (* Let F_keygen := rf_keygen Key. *)
-  Let F_keygen := keygen.
-  Definition F_enc : val := prf_enc F.
-  Let F_rand_cipher := rf_rand_cipher Input Output.
-  Definition sym_scheme_F : val := (F_keygen, (F_enc, F_rand_cipher)).
-
-  Let CPA_real := CPA_real Message.
-  Let CPA_rand := CPA_rand Message.
 
   (** The reduction to PRF security. *)
   (* PROOF SKETCH *)
@@ -186,6 +155,42 @@ Section prf_assumption.
 
   Definition RED : val :=
     λ:"prf_key", adversary (R_prf "prf_key").
+
+
+  Section approxis_proofs.
+
+  Context `{!approxisRGS Σ}.
+
+  Definition PRF_advantage_upper_bound (adversary : val) (ε_F : nonnegreal) :=
+    (↯ ε_F ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
+    /\
+      (↯ ε_F ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)).
+
+  (* Definition f_is_prf (ε_f : nonnegreal)
+       :=
+       forall (adversary : val) (adversary_typed : (⊢ᵥ adversary : T_PRF_Adv)),
+       (↯ ε_f ⊢ (REL (adversary (PRF_real PRF_scheme_F #Q)) << (adversary (PRF_rand PRF_scheme_F #Q)) : lrel_bool))
+       /\
+         (↯ ε_f ⊢ (REL (adversary (PRF_rand PRF_scheme_F #Q)) << (adversary (PRF_real PRF_scheme_F #Q)) : lrel_bool)). *)
+
+  (** Generic PRF-based symmetric encryption. *)
+  (* Redefined here to make it parametrised by the PRF on the Coq level. *)
+  Definition prf_enc (prf : val) : val :=
+    λ:"key",
+      let: "prf_key" := prf "key" in
+      λ: "msg",
+        let: "r" := rand #Input in
+        let: "z" := "prf_key" "r" in
+        ("r", xor "msg" "z").
+
+  (* Let F_keygen := rf_keygen Key. *)
+  Let F_keygen := keygen.
+  Definition F_enc : val := prf_enc F.
+  Let F_rand_cipher := rf_rand_cipher Input Output.
+  Definition sym_scheme_F : val := (F_keygen, (F_enc, F_rand_cipher)).
+
+  Let CPA_real := CPA_real Message.
+  Let CPA_rand := CPA_rand Message.
 
 
 (* Simple-minded syntax-directed type checker. The econstructor tactic can go
@@ -297,7 +302,7 @@ Ltac type_ctx :=
 
 Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
 
-  Lemma red_typed : (⊢ᵥ RED : T_PRF_Adv).
+  Fact red_typed : (⊢ᵥ RED : T_PRF_Adv).
   Proof.
     all: clear xor_correct_l xor_correct_r.
     rewrite /RED. tychk. 1: eauto.
@@ -429,10 +434,6 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
       eexists _,_,_,_. repeat split. all: by eexists _.
   Qed.
 
-  Variable ε_F : nonnegreal.
-
-  Hypothesis H_ε_PRF : PRF_advantage_upper_bound RED ε_F.
-
   Definition I := random_function Output.
   Definition PRF_scheme_I := (λ:"_", #(), (I, rand_output))%V.
 
@@ -461,7 +462,7 @@ Ltac tychk := try type_ctx ; try type_expr 100 ; try type_val 100.
 
 
 Definition type_closed a := ∀ f, (a = a.[f])%ty.
-Lemma find_list_typed v : type_closed v -> ⊢ᵥ find_list : (TList (TInput * v) → TInput → TOption v).
+Fact find_list_typed v : type_closed v -> ⊢ᵥ find_list : (TList (TInput * v) → TInput → TOption v).
 Proof.
   clear. intros v_closed. set (k := TInput).
   rewrite /find_list. type_val 1.
@@ -493,10 +494,10 @@ Proof.
     eapply TUnfold ; tychk.
 Qed.
 
-Lemma get_typed : ⊢ᵥ get : (TMap TInput TOutput → TInput → () + TOutput)%ty.
+Fact get_typed : ⊢ᵥ get : (TMap TInput TOutput → TInput → () + TOutput)%ty.
 Proof. rewrite /get. tychk. apply find_list_typed. done. Qed.
 
-Lemma set_typed :
+Fact set_typed :
   ⊢ᵥ set : (TMap TInput TOutput → TInput → TOutput → TUnit)%ty.
 Proof.
   rewrite /set. tychk.
@@ -556,7 +557,12 @@ Proof with (rel_pures_l ; rel_pures_r).
   Lemma reduction' :
     ⊢ (REL (RED (PRF_rand PRF_scheme_I #Q))
          << (adversary (CPA_real sym_scheme_I #Q)) : lrel_bool).
-Proof with (rel_pures_l ; rel_pures_r).
+Proof
+  using (CPA_rand CPA_real Cipher F F_keygen F_rand_cipher F_typed
+H_in_out H_xor H_xor_dom Input Message Output Q adversary adversary_typed
+approxisRGS0 keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem
+xor_typed Σ)
+  with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /F_keygen.
 
@@ -725,7 +731,7 @@ Proof with (rel_pures_l ; rel_pures_r).
   Qed.
 
 
-    Lemma nat_to_fin_list (l:list nat):
+    Fact nat_to_fin_list (l:list nat):
       (∀ x, x ∈ l -> (x < S Input)%nat) ->
       ∃ l': (list (fin (S Input))), fin_to_nat <$> l' = l.
     Proof.
@@ -746,7 +752,12 @@ Proof with (rel_pures_l ; rel_pures_r).
     ↯ (Q * Q / (2 * S Input))
     ⊢ (REL (adversary (CPA_real sym_scheme_I #Q))
          << (adversary (CPA_rand sym_scheme_I #Q)) : lrel_bool).
-Proof with (rel_pures_l ; rel_pures_r).
+Proof
+  using (CPA_rand CPA_real Cipher F F_rand_cipher F_typed H_in_out H_xor
+H_xor_dom Input Message Output Q adversary adversary_typed approxisRGS0
+keygen keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed Σ
+)
+  with (rel_pures_l ; rel_pures_r).
     iIntros "ε".
     rewrite /CPA_real/CPA_rand.
     rewrite /symmetric.CPA_real/symmetric.CPA_rand...
@@ -922,13 +933,389 @@ Proof with (rel_pures_l ; rel_pures_r).
     - rewrite /F_rand_cipher/rf_rand_cipher. tychk.
   Qed.
 
-  Goal
-    (↯ (2*ε_F + Q*Q/(2*N)) ⊢ (REL (adversary (CPA_real sym_scheme_F #Q)) << (adversary (CPA_rand sym_scheme_F #Q)) : lrel_bool)).
-  Proof.
-  Abort.
+  (* Goal
+       (↯ (2*ε_F + Q*Q/(2*N)) ⊢ (REL (adversary (CPA_real sym_scheme_F #Q)) << (adversary (CPA_rand sym_scheme_F #Q)) : lrel_bool)).
+     Proof.
+     Abort. *)
   (* forall adversary ε_f,
        PRF_advantage adversary ε_f ->
        CPA_advantage (RED adversary) (Q*ε_f + Q*Q/2N) (enc_prf f). *)
 
+  End approxis_proofs.
 
-End prf_assumption.
+  (* PLAN:
+     - for each step of logical refinement, write the corresponding ARcoupling
+     - chain these together to obtain an ARcoupling for one direction
+     - admit the other direction
+     - combine both directions to get a bound on the difference of observing a #true
+   *)
+
+  Let CPA_real := CPA_real Message.
+  Let CPA_rand := CPA_rand Message.
+
+  Lemma reduction_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ))
+      (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ'))
+      (=)
+      0.
+  Proof.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: lra.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply reduction.
+  Qed.
+
+  Lemma F_I_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((RED (PRF_rand PRF_scheme_F #Q)), σ))
+      (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ'))
+      (=)
+      0.
+  Proof.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: lra.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply F_I.
+  Qed.
+
+  Lemma rand_real_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ))
+      (lim_exec ((RED (PRF_real PRF_scheme_I #Q)), σ'))
+      (=)
+      0.
+  Proof.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: lra.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply rand_real.
+  Qed.
+
+  Lemma reduction'_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ))
+      (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ'))
+      (=)
+      0.
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom Input
+    Message Output Q adversary adversary_typed keygen keygen_typed xor
+    xor_correct_l xor_correct_r xor_sem xor_typed.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: lra.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply reduction'.
+  Qed.
+
+
+  Let ε_Q := (INR Q * INR Q / (2 * INR (S Input)))%R.
+
+  Fact ε_collision_pos : (0 <= ε_Q)%R.
+  Proof.
+    { repeat apply Rmult_le_pos; try apply pos_INR.
+      rewrite -Rdiv_1_l.
+      pose proof Rdiv_INR_ge_0 (S Input).
+      cut ((0 <= (2*1) / (2 * INR (S Input))))%R; first lra.
+      rewrite Rmult_comm.
+      rewrite Rmult_div_swap.
+      rewrite (Rmult_comm 2%R).
+      rewrite Rdiv_mult_distr.
+      lra.
+    }
+  Qed.
+
+  Lemma cpa_I_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ))
+      (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ'))
+      (=)
+      ε_Q.
+Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom Input
+Message Output Q adversary adversary_typed keygen keygen_typed xor
+xor_correct_l xor_correct_r xor_sem xor_typed
+.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: apply ε_collision_pos.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply cpa_I. iFrame.
+  Qed.
+
+  Lemma cpa_F_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ))
+      (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ'))
+      (=)
+      0.
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom Input
+    Message Output Q adversary adversary_typed keygen keygen_typed xor
+    xor_correct_l xor_correct_r xor_sem xor_typed.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: lra.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros. iApply cpa_F.
+  Qed.
+
+  (* We will now explore different ways of stating the assumption that F is a
+     PRF. Concretely, we will need to assume that the advantage of the
+     adversary RED, which was constructed by reduction from the adversary
+     against the symmetric scheme, is bounded by some number ε_F. *)
+  Variable ε_F : nonnegreal.
+
+  (* We may assume that owning ↯ ε_F error credits allows to prove the
+     refinement about RED in Approxis. *)
+  Hypothesis H_ε_PRF : forall `{approxisRGS Σ},
+      PRF_advantage_upper_bound RED ε_F.
+
+  (* By adequacy, we deduce from the previous assumption that a corresponding
+     approximate refinement coupling holds up to ε_F. *)
+  Fact H_ε_ARC_from_LR Σ `{approxisRGpreS Σ} :
+    forall σ σ',
+    ARcoupl (lim_exec (RED (PRF_real PRF_scheme_F #Q), σ))
+      (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ'))
+      eq ε_F.
+  Proof.
+    intros.
+    unshelve eapply approximates_coupling ; eauto.
+    1: exact (fun _ => lrel_bool).
+    1: apply cond_nonneg.
+    1: by iIntros (???) "#(%b&->&->)".
+    iIntros.
+    by iApply (proj1 H_ε_PRF).
+  Qed.
+
+  (* Alternatively, we can directly make the (weaker) assumption that such an
+     ε_F-ARcoupling exists, since our only use for H_ε_PRF is to build this
+     ARcoupling. *)
+  Hypothesis H_ε_ARC :
+    forall σ σ',
+    ARcoupl (lim_exec (RED (PRF_real PRF_scheme_F #Q), σ))
+      (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ'))
+      eq ε_F.
+
+  From clutch.approxis.examples Require Import advantage.
+
+  Let ε_adv :=
+        advantage adversary
+          (RED (PRF_real PRF_scheme_F #Q))
+          (RED (PRF_rand PRF_scheme_F #Q)).
+
+  (* We shouldn't expect to use the same adversary on both sides. *)
+  Definition pr_dist (X Y : expr)
+    (σ σ' : state) (v : val) :=
+    Rabs ( (( lim_exec (X, σ)) v) - (lim_exec (Y, σ') v) )%R.
+
+  Fact pr_dist_triangle' X Y Z σ σ' σ'' v :
+    (pr_dist X Z σ σ'' v <= (pr_dist X Y σ σ' v) + (pr_dist Y Z σ' σ'' v))%R.
+  Proof.
+    rewrite /pr_dist. etrans. 2: apply Rabs_triang. right. f_equal. lra.
+  Qed.
+
+  Fact pr_dist_triangle X Y Z v ε1 ε2 ε3 :
+    ((∀ σ σ', pr_dist X Y σ σ' v <= ε1) →
+     (∀ σ σ', pr_dist Y Z σ σ' v <= ε2) →
+     (ε1 + ε2 <= ε3) →
+     ∀ σ σ', pr_dist X Z σ σ' v <= ε3)%R.
+  Proof.
+    clear.
+    intros. etrans.
+    1: eapply (pr_dist_triangle' _ Y _ _ σ).
+    etrans. 2: eauto.
+    apply Rplus_le_compat => //.
+  Qed.
+
+
+  Fact adv_is_good : Rbar.Rbar_le ε_adv (Rbar.Finite ε_F).
+  Abort.
+
+  (* Compose lemmas and the assumption H_ε_ARC to get an ARC. *)
+  Lemma prf_cpa_ARC Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ))
+      (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ'))
+      (=)
+      (ε_Q + ε_F).
+  Proof.
+    set (ε := (ε_Q + NNRbar_to_real (NNRbar.Finite ε_F))%R).
+    assert (0 <= ε_F)%R by apply cond_nonneg. pose proof ε_collision_pos.
+    assert (0 <= ε)%R.
+    { unfold ε. apply Rplus_le_le_0_compat ; auto. }
+    replace ε with (0+ε)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply reduction_ARC => //.
+    replace ε with (ε_F+ε_Q)%R by (unfold ε ; lra).
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply H_ε_ARC.
+    replace ε_Q with (0 + ε_Q)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply F_I_ARC => //.
+    replace ε_Q with (0 + ε_Q)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    (* 1: eapply rand_real_ARC => //.
+       replace ε_Q with (0 + ε_Q)%R by lra.
+       eapply ARcoupl_eq_trans_l => //. *)
+    1: eapply reduction'_ARC => //.
+    replace ε_Q with (ε_Q + 0)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply cpa_I_ARC => //.
+    eapply cpa_F_ARC => //.
+    Unshelve. all: eauto.
+  Qed.
+
+  (* The converse direction of the refinement. We expect it to hold with the
+     same bound. *)
+  Lemma prf_cpa_ARC' Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ))
+      (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ'))
+      (=)
+      ((Q * Q / (2 * S Input)) + ε_F).
+  Admitted.
+
+  Corollary CPA_bound_1 Σ `{approxisRGpreS Σ} σ σ' :
+    ( (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ) #true)
+      <=
+      (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ') #true)
+      + ((Q * Q / (2 * S Input)) + ε_F))%R.
+  Proof.
+    apply ARcoupl_eq_elim.
+    by eapply prf_cpa_ARC.
+  Qed.
+
+  Corollary CPA_bound_2 Σ `{approxisRGpreS Σ} σ σ' :
+    ( (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ) #true)
+      <=
+      (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ') #true)
+      + ((Q * Q / (2 * S Input)) + ε_F))%R.
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom
+    H_ε_ARC H_ε_PRF Input Key Message Output Q adversary adversary_typed keygen
+    keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed ε_F
+  .
+    apply ARcoupl_eq_elim.
+    by eapply prf_cpa_ARC'.
+  Qed.
+
+  Theorem CPA_bound Σ `{approxisRGpreS Σ} σ σ' :
+    (Rabs (((lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ)) #true) -
+             ((lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ')) #true)) <=
+       (Q * Q / (2 * S Input)) + ε_F)%R.
+  Proof using CPA_rand CPA_real Cipher F F_typed H_in_out H_xor H_xor_dom
+    H_ε_ARC H_ε_PRF Input Key Message Output Q adversary adversary_typed keygen
+    keygen_typed xor xor_correct_l xor_correct_r xor_sem xor_typed ε_F
+  .
+    apply Rabs_le.
+    pose proof CPA_bound_1 Σ σ σ' as h1.
+    pose proof CPA_bound_2 Σ σ' σ as h2.
+    split ; lra.
+  Qed.
+
+  (* Instead of making an assumption about F at the ARcoupl level, we can work
+  directly with pr_dist. We hence lower all the reduction lemmas to the pr_dist
+  level and compose there. *)
+  Lemma red_to_prf Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl (lim_exec (adversary (CPA_real sym_scheme_F #Q), σ))
+      (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ')) eq 0%R.
+  Proof.
+    eapply reduction_ARC => //.
+  Qed.
+
+  (* TODO prove this direction *)
+  Hypothesis red_to_prf' : forall Σ `{approxisRGpreS Σ} σ σ',
+    ARcoupl (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ'))
+      (lim_exec (adversary (CPA_real sym_scheme_F #Q), σ)) eq 0%R.
+
+  Lemma pr_dist_adv_F `{approxisRGpreS Σ} v σ σ' :
+    (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (RED (PRF_real PRF_scheme_F #Q)) σ σ' v
+     <= 0)%R.
+  Proof.
+    rewrite /pr_dist.
+    eapply Rabs_le.
+    split.
+    - opose proof (ARcoupl_eq_elim _ _ _ (red_to_prf' _ σ σ') v) as hred.
+      set (y := (lim_exec (adversary _, σ)) v).
+      set (x := lim_exec (RED _, σ') v).
+      assert (x <= y + 0)%R by easy.
+      lra.
+    - opose proof (ARcoupl_eq_elim _ _ _ (red_to_prf _ σ σ') v) as hred.
+      set (x := (lim_exec (adversary _, σ)) v).
+      set (y := lim_exec (RED _, σ') v).
+      assert (x <= y + 0)%R by easy.
+      lra.
+  Qed.
+
+  Lemma red_from_prf Σ `{approxisRGpreS Σ} σ σ' :
+    ARcoupl
+      (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ))
+      (lim_exec (adversary (CPA_rand sym_scheme_F #Q), σ'))
+      (=)
+      ε_Q.
+  Proof.
+    pose proof ε_collision_pos.
+    replace ε_Q with (0 + ε_Q)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply F_I_ARC => //.
+    replace ε_Q with (0 + ε_Q)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply reduction'_ARC => //.
+    replace ε_Q with (ε_Q + 0)%R by lra.
+    eapply ARcoupl_eq_trans_l => //.
+    1: eapply cpa_I_ARC => //.
+    eapply cpa_F_ARC => //.
+    Unshelve. all: eauto.
+  Qed.
+
+  (* TODO prove this reverse direction *)
+  Hypothesis red_from_prf' : forall Σ `{approxisRGpreS Σ} σ σ',
+    ARcoupl
+      (lim_exec (adversary (CPA_rand sym_scheme_F #Q), σ'))
+      (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ))
+      (=)
+      ε_Q.
+
+  Lemma pr_dist_F_adv `{approxisRGpreS Σ} v σ σ' :
+    (pr_dist (RED (PRF_rand PRF_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ' v
+     <= ε_Q)%R.
+  Proof.
+    rewrite /pr_dist.
+    eapply Rabs_le.
+    split.
+    - opose proof (ARcoupl_eq_elim _ _ _ (red_from_prf' _ σ σ') v) as hred.
+      set (x := lim_exec (RED _, σ) v).
+      set (y := (lim_exec (adversary _, σ')) v).
+      assert (y <= x + ε_Q)%R by easy.
+      lra.
+    - opose proof (ARcoupl_eq_elim _ _ _ (red_from_prf _ σ σ') v) as hred.
+      set (x := lim_exec (RED _, σ) v).
+      set (y := (lim_exec (adversary _, σ')) v).
+      assert (x <= y + ε_Q)%R by easy.
+      lra.
+  Qed.
+
+  Variable PPT : expr → Prop.
+  Hypothesis adv_in_PPT : PPT adversary.
+  Hypothesis RED_in_PPT : PPT adversary → PPT RED.
+
+  Hypothesis H_ε_pr_dist :
+    forall σ σ',
+      (pr_dist (RED (PRF_real PRF_scheme_F #Q)) (RED (PRF_rand PRF_scheme_F #Q)) σ σ' #true <= ε_F)%R.
+
+  Theorem CPA_bound' Σ `{approxisRGpreS Σ} σ σ' :
+    (Rabs (((lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ)) #true) -
+             ((lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ')) #true)) <=
+       (Q * Q / (2 * S Input)) + ε_F)%R.
+  Proof.
+    eapply pr_dist_triangle.
+    1: eapply pr_dist_adv_F.
+    1: eapply pr_dist_triangle.
+    1: eapply H_ε_pr_dist.
+    1: eapply pr_dist_F_adv.
+    1: right ; eauto.
+    unfold ε_Q. lra.
+  Qed.
+
+End combined.
