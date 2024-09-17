@@ -32,6 +32,10 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
     Timeless (flip_tapes_auth (L:=L) γ m);
   #[global] flip_tapes_frag_timeless {L : flipG Σ} γ α ns ::
     Timeless (flip_tapes_frag (L:=L) γ α ns);
+  #[global] flip_error_name_inhabited::
+    Inhabited flip_error_name;
+  #[global] flip_tape_name_inhabited::
+    Inhabited flip_tape_name;
 
   flip_error_auth_exclusive {L : flipG Σ} γ x1 x2:
     flip_error_auth (L:=L) γ x1 -∗ flip_error_auth (L:=L) γ x2 -∗ False;

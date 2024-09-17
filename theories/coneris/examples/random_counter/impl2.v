@@ -84,7 +84,7 @@ Section impl2.
   (*                                           let: "n'" := rand #1 in *)
   (*                                           let: "x" := #2 * "n" + "n'" in *)
   (*                                           (FAA "l" "x", "x"). *)
-  Definition allocate_tape2 : val := λ: "_", AllocTape #1.
+  Definition allocate_tape2 : val := flip_allocate_tape.
   Definition incr_counter_tape2 :val := λ: "l" "α", let: "n" :=
                                                       conversion.bool_to_int (flip_allocate_tape "α")
                                                     in
@@ -172,12 +172,14 @@ Section impl2.
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true,  []) @ γ2
       }}}.
   Proof.
+    iIntros (Hsubset Φ) "#Hinv HΦ".
+    rewrite /allocate_tape2.
+    iApply fupd_pgl_wp.
+    iApply (flip_allocate_tape_spec).
+    (** Spec not strong enough *)
   Admitted.
-  (*   iIntros (Hsubset Φ) "#Hinv HΦ". *)
-  (*   rewrite /allocate_tape2. *)
-  (*   wp_pures. *)
+  (*   iInv (N.@"counter") as "(%ε & %m & %l & %z & %γ1' & %γ2' & #Hinv' &  >H1 & >H2 & >H3 & >H4 & > (-> & H5 & H6))" "Hclose".  *)
   (*   wp_alloctape α as "Hα". *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
   (*   iDestruct (hocap_tapes_notin' with "[$][$]") as "%". *)
   (*   iMod (hocap_tapes_new' _ _ _ _ true with "[$]") as "[H4 H7]"; first done. *)
   (*   replace ([]) with (expander []) by done. *)
