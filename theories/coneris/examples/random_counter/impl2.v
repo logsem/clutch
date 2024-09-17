@@ -103,9 +103,8 @@ Section impl2.
   Context `{L:!flipG Σ, !hocap_errorGS Σ, !hocap_tapesGS' Σ, !inG Σ (frac_authR natR)}.
   
   
-  Definition counter_inv_pred2 N (c:val) γ1 γ2 γ3:=
-    (∃ (ε:R) (m:gmap loc (bool*list nat)) (l:loc) (z:nat) γ1' γ2',
-        is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
+  Definition counter_inv_pred2 (c:val) γ1 γ1' γ2 γ2' γ3:=
+    (∃ (ε:R) (m:gmap loc (bool*list nat)) (l:loc) (z:nat),
         flip_error_frag (L:=L) γ1' ε ∗ ●↯ ε @ γ1 ∗
         ([∗ map] α ↦ t ∈ m, flip_tapes_frag (L:=L) γ2' α (if t.1:bool then nat_to_bool <$> (expander t.2) else nat_to_bool <$> (drop 1%nat (expander t.2))) ) 
         ∗ ●m@γ2 ∗  
@@ -116,7 +115,8 @@ Section impl2.
     {{{ ↯ ε }}}
       new_counter2 #() @ E
       {{{ (c:val), RET c;
-          ∃ γ1 γ2 γ3, inv (N.@ "counter") (counter_inv_pred2 N c γ1 γ2 γ3) ∗
+          ∃ γ1 γ2 γ3, (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
+                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) ∗
                       ◯↯ε @ γ1 ∗ own γ3 (◯F 0%nat)
       }}}.
   Proof.
@@ -133,12 +133,13 @@ Section impl2.
     iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]".
     { by apply frac_auth_valid. }
     replace (#0) with (#0%nat) by done.
-    iMod (inv_alloc (N.@"counter") _ (counter_inv_pred2 N (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
-    { iNext. iExists _. iSplit; first done.
+    iMod (inv_alloc (N.@"counter") _ (counter_inv_pred2 (#l) γ1 γ1' γ2 γ2' γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
+    { iNext. 
       iSplit; last done.
       by iApply big_sepM_empty. }
     iApply "HΦ".
-    iExists _, _, _. by iFrame.
+    iExists _, _, _. iModIntro. iFrame.
+    iExists _, _. by iSplit.
   Qed.
 
 
@@ -166,7 +167,8 @@ Section impl2.
 
   Lemma allocate_tape_spec2 N E c γ1 γ2 γ3:
     ↑N ⊆ E->
-    {{{ inv (N.@ "counter") (counter_inv_pred2 N c γ1 γ2 γ3) }}}
+    {{{ (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
+                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) }}}
       allocate_tape2 #() @ E
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true,  []) @ γ2
@@ -193,7 +195,8 @@ Section impl2.
 
   Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E ->
-    {{{ inv (N.@ "counter") (counter_inv_pred2 N c γ1 γ2 γ3) ∗
+    {{{ (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
+                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) ∗
         □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                           own γ3 (●F(z+n)%nat)∗ Q z) ∗
         P ∗ α ◯↪N (true, n::ns) @ γ2
@@ -265,7 +268,8 @@ Section impl2.
     ↑N ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤3%nat)) then 1 / (S 3%nat) * ε2 ε n else 0%R)%R <= ε)%R->
-    inv (N.@ "counter") (counter_inv_pred2 N c γ1 γ2 γ3) -∗
+    (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
+                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) -∗
     (□∀ (ε:R) n, (P ∗ ●↯ ε@ γ1) ={E∖↑N}=∗
         (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n))))
         -∗
@@ -359,7 +363,8 @@ Section impl2.
 
   Lemma read_counter_spec2 N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
-    {{{  inv (N.@ "counter") (counter_inv_pred2 N c γ1 γ2 γ3) ∗
+    {{{  (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
+                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) ∗
         □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                     own γ3 (●F z)∗ Q z)
          ∗ P
@@ -390,7 +395,8 @@ Program Definition random_counter2 `{!conerisGS Σ, flip_spec Σ}: random_counte
     error_name := gname;
     tape_name := gname;
     counter_name :=gname;
-    is_counter _ N c γ1 γ2 γ3 := inv (N.@ "counter") (counter_inv_pred2 (L:=_) N c γ1 γ2 γ3);
+    is_counter _ N c γ1 γ2 γ3 := (∃ γ1' γ2', is_flip  (N.@"flip") γ1' γ2' ∗
+                                   inv (N.@ "counter") (counter_inv_pred2 (L:=_) c γ1 γ1' γ2 γ2' γ3))%I;
     counter_error_auth _ γ x := ●↯ x @ γ;
     counter_error_frag _ γ x := ◯↯ x @ γ;
     counter_tapes_auth _ γ m := (●((λ ns, (true, ns))<$>m)@γ)%I;
