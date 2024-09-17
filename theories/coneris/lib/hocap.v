@@ -195,39 +195,39 @@ Section HOCAP.
       intros n; inv_fin n.
   Qed.
 
-  (** With tapes *)
-  Context `{!hocap_tapesGS Σ}.
+  (* (** With tapes *) *)
+  (* Context `{!hocap_tapesGS Σ}. *)
 
-  Definition tapes_inv (γ :gname):=
-    inv hocap_tapes_nroot (∃ m, ●m@γ ∗ [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )  ).
-  Lemma wp_hocap_presample_adv_comp (N : nat)  z E ns α
-     (ε2 : R -> fin (S N) -> R)
-    (P : iProp Σ) (Q : val-> iProp Σ) T γ γ':
-    TCEq N (Z.to_nat z) →
-    ↑hocap_error_nroot ⊆ E ->
-    ↑hocap_tapes_nroot ⊆ E ->
-    (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
-    (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R →
-    error_inv γ -∗ tapes_inv γ' -∗
-    (□∀ (ε:R)  m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ ∗ ●m@γ') 
-                                                ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗
-        ∃ n, (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ T (n))))
-        -∗ P -∗ α ◯↪N (N; ns) @ γ' -∗
-        wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ').
-  Proof.
-    iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #Hshift HP Htape".
-    iApply fupd_wp_update.
-    iInv "Hinv" as ">(%ε' & Hε & Hauth)" "Hclose".
-    iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'".
-    iDestruct (ec_valid with "[$]") as "%".
-    iApply wp_update_mono_fupd. iApply fupd_frame_l.
-    iSplitL "Hε".
-    - iApply (wp_update_presample_exp _ α _ ns ε' (ε2 ε) with "[$Hε]").
-      + naive_solver.
-      + naive_solver.
-      + admit.
-    - iMod ("Hclose'" with "[$]"). 
-  Abort. 
+  (* Definition tapes_inv (γ :gname):= *)
+  (*   inv hocap_tapes_nroot (∃ m, ●m@γ ∗ [∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )  ). *)
+  (* Lemma wp_hocap_presample_adv_comp (N : nat)  z E ns α *)
+  (*    (ε2 : R -> fin (S N) -> R) *)
+  (*   (P : iProp Σ) (Q : val-> iProp Σ) T γ γ': *)
+  (*   TCEq N (Z.to_nat z) → *)
+  (*   ↑hocap_error_nroot ⊆ E -> *)
+  (*   ↑hocap_tapes_nroot ⊆ E -> *)
+  (*   (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R -> *)
+  (*   (∀ (ε:R), 0<= ε -> SeriesC (λ n, (1 / (S N)) * (ε2 ε n))%R <= ε)%R → *)
+  (*   error_inv γ -∗ tapes_inv γ' -∗ *)
+  (*   (□∀ (ε:R)  m, (⌜m!!α = Some (N, ns)⌝ ∗ P ∗ ●↯ ε @ γ ∗ ●m@γ')  *)
+  (*                                               ={E∖↑hocap_error_nroot∖↑hocap_tapes_nroot}=∗ *)
+  (*       ∃ n, (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ ∗ ●(<[α := (N, ns ++ [fin_to_nat n])]>m) @ γ' ∗ T (n)))) *)
+  (*       -∗ P -∗ α ◯↪N (N; ns) @ γ' -∗ *)
+  (*       wp_update E (∃ n, T (n) ∗ α◯↪N (N; ns++[fin_to_nat n]) @ γ'). *)
+  (* Proof. *)
+  (*   iIntros (-> Hval Hsubset Hubset' Hineq) "#Hinv #Hinv' #Hshift HP Htape". *)
+  (*   iApply fupd_wp_update. *)
+  (*   iInv "Hinv" as ">(%ε' & Hε & Hauth)" "Hclose". *)
+  (*   iInv "Hinv'" as ">(%m & Hm & Hmauth)" "Hclose'". *)
+  (*   iDestruct (ec_valid with "[$]") as "%". *)
+  (*   iApply wp_update_mono_fupd. iApply fupd_frame_l. *)
+  (*   iSplitL "Hε". *)
+  (*   - iApply (wp_update_presample_exp _ α _ ns ε' (ε2 ε) with "[$Hε]"). *)
+  (*     + naive_solver. *)
+  (*     + naive_solver. *)
+  (*     + admit. *)
+  (*   - iMod ("Hclose'" with "[$]").  *)
+  (* Abort.  *)
     
   (*   iApply (wp_presample_adv_comp); [done|exact|..]. *)
   (*   iApply fupd_frame_l. *)

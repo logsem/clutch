@@ -371,6 +371,22 @@ Section list.
     a ∈ l1 ∧ b ∈ l2 → (a, b) ∈ list_prod l1 l2.
   Proof. apply elem_of_list_prod. Qed.
 
+  Lemma fmap_inj (f:A -> B) (l1 l2: list A):
+    Inj (=) (=) f -> f<$>l1=f<$>l2 -> l1 = l2.
+  Proof.
+    intros H.
+    revert l2. 
+    induction l1.
+    - intros ? K. simpl in *.
+      by erewrite fmap_nil_inv.
+    - intros l2 K.
+      rewrite fmap_cons in K.
+      destruct l2.
+      + rewrite fmap_nil in K. simplify_eq.
+      + rewrite fmap_cons in K.
+        by simplify_eq.
+  Qed.
+  
 End list.
 
 Tactic Notation "case_match" "in" ident(H) "eqn" ":" ident(Hd) :=
