@@ -205,12 +205,17 @@ Section impl3.
     { intros. rewrite /ε2'. repeat case_bool_decide; try done; first naive_solver.
       apply Rplus_le_le_0_compat; simpl; [naive_solver|lra]. }
     unshelve iExists (λ x, mknonnegreal (ε2' x) _); auto.
-    simpl.
     iSplit.
-    { admit.
-      (* iPureIntro. *)
-      (* unshelve epose proof (Hineq ε1' _) as H1; first apply cond_nonneg. *)
-    (* by rewrite SeriesC_nat_bounded_fin in H1. *) }
+    { iPureIntro.
+      unshelve epose proof (Hineq ε0 _) as H'; first (by naive_solver).
+      rewrite SeriesC_nat_bounded_fin in H'.
+      replace (INR 5%nat) with 5%R by (simpl; lra).
+      replace (INR 4%nat) with 4%R in H' by (simpl; lra).
+      rewrite /=/ε2' Hε1'.
+      rewrite SeriesC_finite_foldr/=.
+      rewrite SeriesC_finite_foldr/= in H'.
+      lra.
+    }
     iIntros (sample).
     simpl.
     destruct (Rlt_decision (nonneg ε_rem + (ε2' sample))%R 1%R) as [Hdec|Hdec]; last first.
@@ -266,7 +271,7 @@ Section impl3.
       iDestruct ("IH" with "[$][$][$]") as "IH'".
       by iMod ("IH'" $! (state_upd_tapes <[_:=_]> _) with "[$]") as "IH'".
     - pose proof fin_to_nat_lt sample; lia.
-  Admitted.
+  Qed.
 
   Lemma read_counter_spec3 N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
