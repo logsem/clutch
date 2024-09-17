@@ -215,8 +215,52 @@ Next Obligation.
   by iFrame.
 Qed.
 Next Obligation.
-  Admitted.
+  simpl.
+  iIntros (???????? Φ) "#Hinv HΦ".
+  wp_pures.
+  rewrite /allocB.
+  iInv "Hinv" as "(%&%&?&?&?&?)" "Hclose".
+  wp_apply (wp_alloc_tape); first done.
+  iIntros (α) "Hα".
+  iDestruct (hocap_tapes_notin with "[$][$]") as "%".
+  iMod (hocap_tapes_new _ _ α 1%nat [] with "[$]") as "[?H]"; first done.
+  iMod ("Hclose" with "[-H HΦ]").
+  { iFrame. iModIntro.
+    rewrite big_sepM_insert; [iFrame|done].
+  }
+  iApply "HΦ".
+  by iFrame.
+Qed.
 Next Obligation.
-Admitted.
+  simpl.
+  iIntros (????????????? Φ) "(#Hinv & #Hvs & HP & Hfrag) HΦ".
+  rewrite /flipL.
+  wp_pures.
+  wp_bind (rand(_) _)%E.
+  iInv "Hinv" as ">(%&%&?&?&H3&?)" "Hclose".
+  iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+  erewrite <-(insert_delete m) at 1; last done.
+  rewrite big_sepM_insert; last apply lookup_delete.
+  iDestruct "H3" as "[Htape H3]".
+  simpl.
+  wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
+  iMod ("Hvs" with "[$]") as "HQ".
+  iMod (hocap_tapes_pop with "[$][$]") as "[H4 Hfrag]".
+  iMod ("Hclose" with "[-Hfrag HΦ HQ]") as "_".
+  { iFrame.
+    rewrite <-(insert_delete m) at 2; last done.
+    iNext.
+    rewrite insert_insert.
+    rewrite big_sepM_insert; last apply lookup_delete. iFrame.
+  }
+  iModIntro.
+  wp_apply conversion.wp_int_to_bool as "_"; first done.
+  replace (Z_to_bool _) with n.
+  - iApply "HΦ"; iFrame.
+  - destruct n; simpl.
+    + rewrite Z_to_bool_neq_0; [done|lia].
+    + by rewrite Z_to_bool_eq_0.
+Qed. 
 Next Obligation.
+  simpl.
 Admitted.
