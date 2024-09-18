@@ -109,7 +109,7 @@ Definition history : Type := nat -> option nat.
 (* Tapes in the computable fragment *)
 Record tape : Type := {
   tape_bound : nat;
-  tape_state : nat;
+  tape_state : nat; (* position, contents *)
   tape_histo : history
 }.
 
@@ -736,6 +736,7 @@ Section meas_semantics.
   Admitted.
    *)
 
+  (*
   Definition state_stepM_def (c : state * loc) : giryM (<<discr state>>) :=
     let (σ1, α) := c in
     if bool_decide (α ∈ dom σ1.(tapes)) then
@@ -750,11 +751,12 @@ Section meas_semantics.
 
   Definition state_stepM : measurable_map <<discr (state * loc)>> (giryM <<discr state>>)
     := m_discr state_stepM_def.
+   *)
+
 
 End meas_semantics.
 
 
-(*
 (*
 Lemma state_step_unfold σ α N ns:
   tapes σ !! α = Some (N; ns) ->
@@ -862,7 +864,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
-*)
+
 Create HintDb head_step.
 Global Hint Constructors head_step_rel : head_step.
 (* 0%fin always has non-zero mass, so propose this choice if the reduct is
@@ -894,8 +896,6 @@ Ltac inv_head_step :=
     | H : to_val _ = Some _ |- _ => apply of_to_val in H
     | H : is_Some (_ !! _) |- _ => destruct H
     end.
-
-(*
 Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
@@ -903,9 +903,7 @@ Proof.
   - intros ?. destruct e1; inv_head_step; eauto with head_step.
   - inversion 1; simplify_map_eq/=; try case_bool_decide; simplify_eq; solve_distr; done.
 Qed.
-*)
 
-(*
 Lemma state_step_support_equiv_rel σ1 α σ2 :
   state_step σ1 α σ2 > 0 ↔ state_step_rel σ1 α σ2.
 Proof.
@@ -916,8 +914,7 @@ Proof.
   - inversion_clear 1.
     rewrite bool_decide_eq_true_2 // H1. solve_distr.
 Qed.
-*)
-(*
+
 Lemma state_step_head_step_not_stuck e σ σ' α :
   state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0).
 Proof.
@@ -948,8 +945,7 @@ Proof.
         apply not_elem_of_dom_2 in H10. done.
       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
 Qed.
-*)
-(*
+
 Lemma state_step_mass σ α :
   α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
 Proof.
@@ -959,6 +955,7 @@ Proof.
   rewrite dmap_mass dunif_mass //.
 Qed.
 *)
+
 (*
 Lemma head_step_mass e σ :
   (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1.
@@ -972,7 +969,6 @@ Lemma fill_item_no_val_inj Ki1 Ki2 e1 e2 :
   to_val e1 = None → to_val e2 = None →
   fill_item Ki1 e1 = fill_item Ki2 e2 → Ki1 = Ki2.
 Proof. destruct Ki2, Ki1; naive_solver eauto with f_equal. Qed.
-*)
 Fixpoint height (e : expr) : nat :=
   match e with
   | Val _ => 1
