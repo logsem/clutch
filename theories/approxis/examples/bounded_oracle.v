@@ -16,13 +16,19 @@ Section bounded_oracle.
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 
-  Fact q_calls_typed (MAX : Z) (B : type) :
+  Fact q_calls_typed_int (MAX : Z) (B : type) :
     ⊢ᵥ q_calls MAX : (TInt → (TInt → B) → TInt → TOption B)%ty.
   Proof.
-    rewrite /q_calls/bounded_oracle.q_calls.
+    rewrite /q_calls. tychk.
+  Qed.
+
+  Fact q_calls_typed_nat (MAX : Z) (B : type) :
+    ⊢ᵥ q_calls MAX : (TInt → (TNat → B) → TNat → TOption B).
+  Proof.
+    rewrite /bounded_oracle.q_calls.
     type_val 8 ; try by tychk.
     all: type_expr 1 ; try by tychk.
-    all: try apply Subsume_int_nat. all: tychk.
+    all: apply Subsume_int_nat. all: tychk.
   Qed.
 
 End bounded_oracle.
