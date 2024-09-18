@@ -102,106 +102,110 @@ Definition to_val (e : expr) : option val :=
 
 
 (* This part of the sigma algebra is not discrete *)
-(* MARKUSDE: Externalizing the fin bound here also simplifies definitions *)
-Definition history : Type := nat -> option nat.
+(* MARKUSDE: Externalizing the fin bound here also simplifies definitions. *)
+(* Will need this to be a separate type for HB. Infinite product sigma algebra. *)
+Definition tape_content_t (A : Type) : Type := nat -> option A.
 
-
-(* Tapes in the computable fragment *)
-Record tape : Type := {
-  tape_bound : nat;
-  tape_state : nat; (* position, contents *)
-  tape_histo : history
+Record tape (A : Type) : Type := {
+  tape_position : nat;
+  tape_contents : tape_content_t A
 }.
 
+(* Tapes in the computable fragment *)
+Record btape : Type := {
+    btape_tape :> tape nat;
+    btape_bound : nat
+}.
+
+(* Tapes of real numbers *)
+Definition utape : Type := tape R.
+
+
 (* All values of the tape are within the tape bound *)
-Definition tape_inbounds (t : tape) : Prop :=
+Definition btape_inbounds (t : btape): Prop :=
   forall n : nat,
-    tape_histo t n = None \/
-    exists v : nat, tape_histo t n = Some v /\ v < tape_bound t.
+    tape_contents _ t n = None \/
+    exists v : nat, tape_contents _ t n = Some v /\ v < btape_bound t.
 
 (* All tape values prior to state have been determined *)
-Definition tape_history_deterministic (t : tape) : Prop :=
-  forall i : nat, i < tape_state t -> exists v : nat, tape_histo t i = Some v.
+Definition tape_history_deterministic {A} (t : tape A) : Prop :=
+  forall i : nat, i < tape_position _ t -> exists v : A, tape_contents _ t i = Some v.
 
-(* External correctness of tapes *)
-Definition tape_wf (t : tape) : Prop := tape_inbounds t /\ tape_history_deterministic t.
+Definition emptyTapeContents {A : Type} : tape_content_t A := fun _ => None.
 
-Definition emptyHistory : history := fun _ => None.
-
-Definition emptyTape (bound : nat) : tape :=
-  {| tape_bound := bound ;
-     tape_state := 0 ;
-     tape_histo := emptyHistory
+Definition emptyTape {A : Type} : tape A :=
+  {| tape_position := 0 ;
+     tape_contents := emptyTapeContents
   |}.
 
 (* History lookup: look through absolute history *)
-Global Instance history_lookup : Lookup nat nat history := fun i => fun h => h i.
+Global Instance tape_content_lookup {A} : Lookup nat A (tape_content_t A) := fun i => fun h => h i.
 
 (* Tape lookup: look relative to current index. t !! 0  will be the next sample. *)
-Global Instance tape_rel_lookup : Lookup nat nat tape := fun i => fun t => (tape_histo t (i + tape_state t)).
+Global Instance tape_rel_lookup {A} : Lookup nat A (tape A) := fun i => fun t => (tape_contents _ t (i + tape_position _ t)).
 
-Definition historyUpdateUnsafe (i : nat) (v : option nat) (h : history) : history
+Definition tape_content_update_unsafe {A} (i : nat) (v : option A) (h : tape_content_t A) : tape_content_t A
   := fun i' => if i' =? i then v else h i'.
 
-Global Instance history_insert : Insert nat (option nat) history := historyUpdateUnsafe.
+Global Instance tape_content_insert {A} : Insert nat (option A) (tape_content_t A) := tape_content_update_unsafe.
 
-Definition tapeUpdateUnsafe (i : nat) (v : option nat) (t : tape) : tape :=
-  {| tape_bound := tape_bound t;
-     tape_state := tape_state t;
-     tape_histo := <[ (i + tape_state t) := v ]> (tape_histo t)
+Definition tapeUpdateUnsafe {A} (i : nat) (v : option A) (t : tape A) : tape A :=
+  {| tape_position := tape_position _ t;
+     tape_contents := <[ (i + tape_position _ t) := v ]> (tape_contents _ t)
   |}.
 
-Global Instance tape_insert : Insert nat (option nat) tape := tapeUpdateUnsafe.
+Global Instance tape_insert {A} : Insert nat (option A) (tape A) := tapeUpdateUnsafe.
 
 
 (* Advance the tape by 1, returning an updated tape and the first sample on the tape. *)
-Program Definition tapeNext (t : tape) (H : isSome (t !! 0)) : nat * tape
+Program Definition tapeNext {A} (t : tape A) (H : isSome (t !! 0)) : A * (tape A)
   := match (t !! 0) with
      | None => _
      | Some v =>
          (v,
-          {| tape_bound := tape_bound t;
-             tape_state := 1 + tape_state t;
-             tape_histo := tape_histo t |})
+          {| tape_position := 1 + tape_position _ t;
+             tape_contents := tape_contents _ t |})
      end.
-Next Obligation. by move=>/= ? H1 H2; symmetry in H2; rewrite H2//= in H1. Defined.
+Next Obligation. by move=>/= ? ? H1 H2; symmetry in H2; rewrite H2//= in H1. Defined.
 
 (* Representation predicates for common tape structures *)
 
-Definition tapeHasPrefix (t : tape) (l : list nat) : Prop
+Definition tapeHasPrefix {A} (t : tape A) (l : list A) : Prop
   := forall i : nat, i < length l -> t !! i = l !! i.
 
-Definition tapeEmptyAfter (t : tape) (b : nat) : Prop
+Definition tapeEmptyAfter {A} (t : tape A) (b : nat) : Prop
   := forall i : nat, i >= b -> t !! i = None.
 
+
 (* Tapes a la base clutch *)
-Definition finiteTape (t : tape) (l : list nat) : Prop
+Definition isFiniteTape (t : btape) (l : list nat) : Prop
   :=   tapeHasPrefix t l
      /\ tapeEmptyAfter t (length l)
-     /\ tape_wf t.
-
+     /\ btape_inbounds t
+     /\ tape_history_deterministic t.
 
 
 (* TODO: realIsBinarySequence (cannonical form w/ 0-termination on dyadic numbers) *)
 
-Definition tapeHasInfinitePrefix (t : tape) (f : nat -> nat) : Prop
+Definition tapeHasInfinitePrefix {A} (t : tape A) (f : nat -> A) : Prop
   := forall i : nat, t !! i = Some (f i).
 
 (* TODO: tapeIsRealInRange (l : R) ... := bound = 1, tapeHasInfinitePrefic *)
 (* tapeOfReal ... ?*)
 
 (* Tape with "Junk" prefix *)
-Definition tapeHasEventually (t : tape) (l : list nat) : Prop
+Definition tapeHasEventually {A} (t : tape A) (l : list A) : Prop
   := exists offset: nat, forall i : nat, i < length l -> t !! (i + offset) = l !! i.
 
 
-Global Instance tape_inhabited : Inhabited tape := populate (emptyTape 0).
-Global Instance tapes_lookup_total : LookupTotal loc tape (gmap loc tape).
+
+Global Instance tape_inhabited {A} : Inhabited (tape A) := populate emptyTape.
+Global Instance tapes_lookup_total {A} : LookupTotal loc (tape A) (gmap loc (tape A)).
 Proof. apply map_lookup_total. Defined.
-Global Instance tapes_insert : Insert loc tape (gmap loc tape).
+Global Instance tapes_insert {A} : Insert loc (tape A) (gmap loc (tape A)).
 Proof. apply map_insert. Defined.
 
-
+(*
 (* Tapes for the real-valued fragment *)
 Definition utape : Type := list R.
 Global Instance utape_inhabited : Inhabited utape := populate [].
@@ -209,13 +213,13 @@ Global Instance utapes_lookup_total : LookupTotal loc utape (gmap loc utape).
 Proof. apply map_lookup_total. Defined.
 Global Instance utapes_insert : Insert loc utape (gmap loc utape).
 Proof. apply map_insert. Defined.
-
+*)
 
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
   heap   : gmap loc val;
-  tapes  : gmap loc tape;
+  tapes  : gmap loc btape;
   utapes : gmap loc utape
 }.
 
@@ -462,7 +466,7 @@ Definition state_upd_heap (f : gmap loc val → gmap loc val) (σ : state) : sta
   {| heap := f σ.(heap); tapes := σ.(tapes); utapes := σ.(utapes) |}.
 Global Arguments state_upd_heap _ !_ /.
 
-Definition state_upd_tapes (f : gmap loc tape → gmap loc tape) (σ : state) : state :=
+Definition state_upd_tapes (f : gmap loc btape → gmap loc btape) (σ : state) : state :=
   {| heap := σ.(heap); tapes := f σ.(tapes); utapes := σ.(utapes) |}.
 Global Arguments state_upd_tapes _ !_ /.
 
