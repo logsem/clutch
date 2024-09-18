@@ -1,110 +1,111 @@
-From Coq Require Import Reals Psatz.
+From HB Require Import structures.
+From Coq Require Import Logic.ClassicalEpsilon Psatz.
+From stdpp Require Import base numbers binders strings gmap.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
-From clutch.bi Require Export weakestpre.
-From clutch.prob Require Import distribution.
-From clutch.prob Require Export markov.
+From clutch.bi Require Import weakestpre.
+From mathcomp.analysis Require Import reals measure ereal.
+From clutch.prob.monad Require Export laws.
 
-(*
+
+
 Section language_mixin.
-  Context {expr val state state_idx : Type}.
-  Context `{Countable expr, Countable val, Countable state, Countable state_idx}.
+  Local Open Scope classical_set_scope.
+
+  Context (R : realType).
+  Notation giryM := (giryM (R := R)).
+
+  Context {d_expr d_val d_state : measure_display}.
+  Context {expr : measurableType d_expr}.
+  Context {val : measurableType d_val}.
+  Context {state : measurableType d_state}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
-  Context (prim_step  : expr → state → distr (expr * state)).
-  Context (state_step : state → state_idx → distr state).
-  (* For [prob_lang] this will just be [λ σ, elements (dom σ.(tapes))] - it'll
-     be nicer with just a set but there's no set-big_op for disjunction in Iris
-     at the moment, so lets stick to a list for now *)
-  Context (get_active : state → list state_idx).
+  Definition dead_cfg (s : giryM (expr * state)%type) : Prop
+    := s = giryM_zero.
 
-  Record LanguageMixin := {
+  Definition live_cfg (s : giryM (expr * state)%type) : Prop
+    := (@giryM_eval _ _ _ _ (@measurableT _ _) s = 1)%E.
+
+  Context (prim_step : measurable_map (expr * state)%type (giryM (expr * state)%type)).
+
+  Record MeasLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
-    mixin_val_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None;
-    (** [state_step] preserves reducibility *)
-    mixin_state_step_not_stuck e σ σ' α :
-      state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0);
-    (** The mass of active [state_step]s is 1 *)
-    mixin_state_step_mass σ α :
-      α ∈ get_active σ → SeriesC (state_step σ α) = 1;
-    (** The mass of reducible [prim_step]s is 1 *)
-    mixin_prim_step_mass e σ :
-      (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1;
+
+    (** If (e, σ) can step to a legal cfg, e is not a value *)
+    mixin_val_stuck e σ : (¬ dead_cfg (prim_step (e, σ))) → to_val e = None;
+
+    (** If (e, σ) can step to a legal cfg, its mass is 1 *)
+    mixin_prim_step_mass e σ : (¬ dead_cfg (prim_step (e, σ))) -> live_cfg (prim_step (e, σ))  ;
   }.
 End language_mixin.
 
 
-Structure language := Language {
-  expr : Type;
-  val : Type;
-  state : Type;
-  state_idx : Type;
+Structure meas_language := Language {
+  R : realType;
 
-  expr_eqdec : EqDecision expr;
-  val_eqdec : EqDecision val;
-  state_eqdec : EqDecision state;
-  state_idx_eqdec : EqDecision state_idx;
-  expr_countable : Countable expr;
-  val_countable : Countable val;
-  state_countable : Countable state;
-  state_idx_countable : Countable state_idx;
+  d_expr : measure_display;
+  d_val : measure_display;
+  d_state : measure_display;
+
+  expr : measurableType d_expr;
+  val : measurableType d_val;
+  state : measurableType d_state;
 
   of_val : val → expr;
   to_val : expr → option val;
-  prim_step : expr → state → distr (expr * state);
-  state_step : state → state_idx → distr state;
-  get_active : state → list state_idx;
 
-  language_mixin : LanguageMixin of_val to_val prim_step state_step get_active
+  prim_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
+
+  language_mixin : MeasLanguageMixin R of_val to_val prim_step
 }.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments Language {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ } _.
+Global Arguments Language {_ _ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
-Global Arguments state_step {_}.
-Global Arguments prim_step {_} _ _.
-Global Arguments get_active {_} _.
-
-#[global] Existing Instance expr_eqdec.
-#[global] Existing Instance val_eqdec.
-#[global] Existing Instance state_eqdec.
-#[global] Existing Instance expr_countable.
-#[global] Existing Instance val_countable.
-#[global] Existing Instance state_countable.
-#[global] Existing Instance state_idx_countable.
+Global Arguments prim_step {_}.
 
 Canonical Structure stateO Λ := leibnizO (state Λ).
 Canonical Structure valO Λ := leibnizO (val Λ).
 Canonical Structure exprO Λ := leibnizO (expr Λ).
 
-Definition cfg (Λ : language) := (expr Λ * state Λ)%type.
+Definition cfg (Λ : meas_language) := (expr Λ * state Λ)%type.
+
 
 Definition fill_lift {Λ} (K : expr Λ → expr Λ) : (expr Λ * state Λ) → (expr Λ * state Λ) :=
   λ '(e, σ), (K e, σ).
 
-Global Instance inj_fill_lift {Λ : language} (K : expr Λ → expr Λ) :
+Global Instance inj_fill_lift {Λ : meas_language} (K : expr Λ → expr Λ) :
   Inj (=) (=) K →
   Inj (=) (=) (fill_lift K).
 Proof. by intros ? [] [] [=->%(inj _) ->]. Qed.
 
-Class LanguageCtx {Λ : language} (K : expr Λ → expr Λ) := {
+Class MeasLanguageCtx {Λ : meas_language} (K : expr Λ → expr Λ) := {
+
+  (** To specify that fill_lift is measurable, give a different measurable_function,
+      and prove that it is measurable. *)
+  meas_fill_lift_K : measurable_map (expr Λ * state Λ)%type (expr Λ * state Λ)%type;
+  meas_fill_lift_spec : forall (ρ :  (expr Λ * state Λ)%type), meas_fill_lift_K ρ = fill_lift K ρ;
+
   fill_not_val e :
     to_val e = None → to_val (K e) = None;
   fill_inj : Inj (=) (=) K;
   fill_dmap e1 σ1 :
     to_val e1 = None →
-    prim_step (K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1)
+    prim_step ((K e1), σ1) = giryM_map meas_fill_lift_K (prim_step (e1, σ1))
 }.
 
 #[global] Existing Instance fill_inj.
 
-Definition lang_markov_mixin (Λ : language) :
+(*
+Definition lang_markov_mixin (Λ : meas_language) :
   MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1).
 Proof.
   constructor.
@@ -116,16 +117,18 @@ Proof.
 Qed.
 
 Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ).
-
+*)
 
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
 Section language.
-  Context {Λ : language}.
+  Context {Λ : meas_language}.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types σ : state Λ.
 
+
+  (*
   Lemma to_of_val v : to_val (of_val v) = Some v.
   Proof. apply language_mixin. Qed.
   Lemma of_to_val e v : to_val e = Some v → of_val v = e.
@@ -312,7 +315,9 @@ Section language.
     specialize (Hstep inhabitant) as [? Hval%val_stuck].
     by rewrite to_of_val in Hval.
   Qed.
+   *)
 End language.
 
+(*
 Global Hint Mode PureExec + - - ! - : typeclass_instances.
 *)

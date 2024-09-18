@@ -503,7 +503,7 @@ Section monad_laws.
     - by intro u; apply (measure_ge0 u).
     f_equal.
   Qed.
-*)
+   *)
 
   Lemma giryM_join_bind {d} {T : measurableType d} (m : giryM (giryM T)) :
     giryM_join m = giryM_bind m_id m.
