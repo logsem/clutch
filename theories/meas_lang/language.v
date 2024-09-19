@@ -128,32 +128,28 @@ Section language.
   Implicit Types σ : state Λ.
 
 
-  (*
   Lemma to_of_val v : to_val (of_val v) = Some v.
   Proof. apply language_mixin. Qed.
   Lemma of_to_val e v : to_val e = Some v → of_val v = e.
   Proof. apply language_mixin. Qed.
-  Lemma val_stuck e σ ρ : prim_step e σ ρ > 0 → to_val e = None.
+  Lemma val_stuck e σ : (¬ dead_cfg _ (prim_step (e, σ))) → to_val e = None.
   Proof. apply language_mixin. Qed.
-  Lemma state_step_not_stuck e σ σ' α :
-    state_step σ α σ' > 0 → (∃ ρ, prim_step e σ ρ > 0) ↔ (∃ ρ', prim_step e σ' ρ' > 0).
-  Proof. apply language_mixin. Qed.
-  Lemma state_step_mass σ α : α ∈ get_active σ → SeriesC (state_step σ α) = 1.
-  Proof. apply language_mixin. Qed.
-  Lemma prim_step_mass e σ :
-    (∃ ρ, prim_step e σ ρ > 0) → SeriesC (prim_step e σ) = 1.
+  Lemma prim_step_mass e σ : (¬ dead_cfg _ (prim_step (e, σ))) -> live_cfg _ (prim_step (e, σ)).
   Proof. apply language_mixin. Qed.
 
+  (*
   Class Atomic (a : atomicity) (e : expr Λ) : Prop :=
     atomic σ e' σ' :
       prim_step e σ (e', σ') > 0 →
       if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
+   *)
 
   Lemma of_to_val_flip v e : of_val v = e → to_val e = Some v.
   Proof. intros <-. by rewrite to_of_val. Qed.
   Global Instance of_val_inj : Inj (=) (=) (@of_val Λ).
   Proof. by intros v v' Hv; apply (inj Some); rewrite -!to_of_val Hv. Qed.
 
+  (*
   Lemma strongly_atomic_atomic e a :
     Atomic StronglyAtomic e → Atomic a e.
   Proof.
@@ -161,17 +157,42 @@ Section language.
     intros ?????. eapply is_final_irreducible.
     rewrite /is_final /to_final /=. eauto.
   Qed.
+  *)
 
-  Lemma fill_step e1 σ1 e2 σ2 `{!LanguageCtx K} :
-    prim_step e1 σ1 (e2, σ2) > 0 →
-    prim_step (K e1) σ1 (K e2, σ2) > 0.
+  (* Do we need a non-point analouge of this?  *)
+  Lemma fill_step e σ `{!MeasLanguageCtx K} :
+    (¬ dead_cfg _ (prim_step (e, σ))) ->
+    (¬ dead_cfg _ (prim_step (K e, σ))).
+  (* prim_step (e1, σ1) (e2, σ2) > 0 →
+    prim_step (K e1) σ1 (K e2, σ2) > 0. *)
   Proof.
     intros Hs.
+    rewrite fill_dmap; [| by eapply val_stuck].
+    move=> Hs'.
+    apply: Hs.
+    rewrite /dead_cfg; rewrite /dead_cfg in Hs'.
+
+    apply giryM_ext.
+    intro S.
+
+    (* FIXME *)
+    have X (d : measure_display) (T : measurableType d) (u1 u2 : giryM T) (S' : set T) : u1 = u2 -> u1 S' = u2 S'.
+    { by intro H; rewrite H. }
+    have X' := X _ _ _ _ _ S Hs'; clear X.
+
+    rewrite giryM_zero_eval in X'.
+    rewrite giryM_zero_eval.
+    (* rewrite /pushforward in X'. *)
+  Admitted.
+  (*
     rewrite fill_dmap; [|by eapply val_stuck].
     apply dbind_pos. eexists (_,_). split; [|done].
     rewrite dret_1_1 //. lra.
   Qed.
+  *)
 
+
+  (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :
     to_val e1' = None → prim_step (K e1') σ1 (e2, σ2) > 0 →
     ∃ e2', e2 = K e2' ∧ prim_step e1' σ1 (e2', σ2) > 0.
