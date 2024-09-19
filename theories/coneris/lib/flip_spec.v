@@ -60,6 +60,9 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
   flip_tapes_update {L : flipG Σ} γ α m ns n:
     flip_tapes_auth (L:=L) γ m -∗ flip_tapes_frag (L:=L) γ α ns ==∗
     flip_tapes_auth (L:=L) γ (<[α := (ns ++[n])]> m) ∗ flip_tapes_frag (L:=L) γ α (ns ++ [n]);
+  flip_tapes_pop {L : flipG Σ} γ α m ns n:
+    flip_tapes_auth (L:=L) γ m -∗ flip_tapes_frag (L:=L) γ α (n::ns) ==∗
+    flip_tapes_auth (L:=L) γ (<[α := (ns)]> m) ∗ flip_tapes_frag (L:=L) γ α (ns);
 
   (** * Program specs *)
   flip_inv_create_spec {L : flipG Σ} N E ε:
@@ -181,6 +184,13 @@ Next Obligation.
   iModIntro. iFrame.
   rewrite fmap_insert.
   rewrite fmap_app; iFrame.
+Qed.
+Next Obligation.
+  iIntros.
+  iMod (hocap_tapes_pop with "[$][$]") as "[??]".
+  iModIntro. iFrame.
+  rewrite fmap_insert.
+  iFrame.
 Qed.
 Next Obligation.
   simpl.
