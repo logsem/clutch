@@ -94,30 +94,28 @@ Section impl2.
                                                     let: "x" := #2 * "n" + "n'" in
                                                     (FAA "l" "x", "x").
   Definition read_counter2 : val := λ: "l", !"l".
-  Class counterG2 Σ := CounterG2 { counterG2_error::hocap_errorGS Σ;
-                                   counterG2_tapes:: hocap_tapesGS' Σ;
+  Class counterG2 Σ := CounterG2 { counterG2_tapes:: hocap_tapesGS' Σ;
                                    counterG2_frac_authR:: inG Σ (frac_authR natR);
                                    counterG2_flipG: flipG Σ
                          }.
   
-  Context `{L:!flipG Σ, !hocap_errorGS Σ, !hocap_tapesGS' Σ, !inG Σ (frac_authR natR)}.
+  Context `{L:!flipG Σ, !hocap_tapesGS' Σ, !inG Σ (frac_authR natR)}.
   
   
-  Definition counter_inv_pred2 (c:val) γ1 γ1' γ2 γ2' γ3:=
-    (∃ (ε:R) (m:gmap loc (bool*list nat)) (l:loc) (z:nat),
-        flip_error_frag (L:=L) γ1' ε ∗ ●↯ ε @ γ1 ∗
-        ([∗ map] α ↦ t ∈ m, flip_tapes_frag (L:=L) γ2' α (if t.1:bool then nat_to_bool <$> (expander t.2) else nat_to_bool <$> (drop 1%nat (expander t.2))) ) 
-        ∗ ●m@γ2 ∗  
-        ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z)
+  Definition counter_inv_pred2 (c:val) γ1 γ1' γ2 :=
+    (∃ (m:gmap loc (bool*list nat)) (l:loc) (z:nat),
+        ([∗ map] α ↦ t ∈ m, flip_tapes_frag (L:=L) γ1' α (if t.1:bool then nat_to_bool <$> (expander t.2) else nat_to_bool <$> (drop 1%nat (expander t.2))) ) 
+        ∗ ●m@γ1 ∗  
+        ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ2 (●F z)
     )%I.
 
   Lemma new_counter_spec2 E ε N:
     {{{ ↯ ε }}}
       new_counter2 #() @ E
       {{{ (c:val), RET c;
-          ∃ γ1 γ2 γ3, (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
-                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) ∗
-                      ◯↯ε @ γ1 ∗ own γ3 (◯F 0%nat)
+          ∃ γ1 γ2 γ3, (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
+                              inv (N.@ "counter") (counter_inv_pred2 c γ2 γ2' γ3)) ∗
+                      flip_error_frag (L:=L) γ1 ε ∗ own γ3 (◯F 0%nat)
       }}}.
   Proof.
     rewrite /new_counter2.
@@ -126,20 +124,18 @@ Section impl2.
     iDestruct (ec_valid with "[$]") as "%".
     iMod (flip_inv_create_spec with "[$]") as "(%γ1'&%γ2'&#?&Hε)".
     wp_alloc l as "Hl".
-    unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [H1 H2]]".
-    { lra. }
     simpl.
     iMod (hocap_tapes_alloc' (∅:gmap _ _)) as "[%γ2 [H3 H4]]".
     iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]".
     { by apply frac_auth_valid. }
     replace (#0) with (#0%nat) by done.
-    iMod (inv_alloc (N.@"counter") _ (counter_inv_pred2 (#l) γ1 γ1' γ2 γ2' γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv".
-    { iNext. 
+    iMod (inv_alloc (N.@"counter") _ (counter_inv_pred2 (#l) γ2 γ2' γ3) with "[$Hl $H3 $H5]") as "#Hinv".
+    { iNext.
       iSplit; last done.
       by iApply big_sepM_empty. }
     iApply "HΦ".
     iExists _, _, _. iModIntro. iFrame.
-    iExists _, _. by iSplit.
+    iExists _. by iSplit.
   Qed.
 
 
@@ -167,8 +163,8 @@ Section impl2.
 
   Lemma allocate_tape_spec2 N E c γ1 γ2 γ3:
     ↑N ⊆ E->
-    {{{ (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
-                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) }}}
+    {{{ (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
+                              inv (N.@ "counter") (counter_inv_pred2 c γ2 γ2' γ3)) }}}
       allocate_tape2 #() @ E
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true,  []) @ γ2
@@ -195,8 +191,8 @@ Section impl2.
 
   Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E ->
-    {{{ (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
-                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) ∗
+    {{{ (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
+                              inv (N.@ "counter") (counter_inv_pred2 c γ2 γ2' γ3)) ∗
         □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                           own γ3 (●F(z+n)%nat)∗ Q z) ∗
         P ∗ α ◯↪N (true, n::ns) @ γ2
@@ -204,10 +200,10 @@ Section impl2.
       incr_counter_tape2 c #lbl:α @ E
       {{{ (z:nat), RET (#z, #n); Q z ∗ α ◯↪N (true, ns) @ γ2}}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ". *)
-  (*   rewrite /incr_counter_tape2. *)
-  (*   wp_pures. *)
+    iIntros (Hsubset Φ) "((%γ2' & #Hinv) & #Hvs & HP & Hα) HΦ".
+    rewrite /incr_counter_tape2.
+    wp_pures.
+  Admitted. 
   (*   wp_bind (rand(_) _)%E. *)
   (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
   (*   iDestruct (hocap_tapes_agree' with "[$][$]") as "%". *)
@@ -255,7 +251,7 @@ Section impl2.
   (*   replace (#(z+n)) with (#(z+n)%nat); last first. *)
   (*   { by rewrite Nat2Z.inj_add. } *)
   (*   replace 2%Z with (Z.of_nat 2%nat) by done. *)
-  (*   rewrite -Nat2Z.inj_mul -Nat2Z.inj_add -Nat.div2_odd -Nat2Z.inj_add.  *)
+  (*   rewrite -Nat2Z.inj_mul -Nat2Z.inj_add -Nat.div2_odd -Nat2Z.inj_add. *)
   (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 H5 $H6]") as "_"; first by iFrame. *)
   (*   iModIntro. wp_pures. *)
   (*   iApply "HΦ". *)
@@ -268,10 +264,10 @@ Section impl2.
     ↑N ⊆ E ->
     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R ->
     (∀ (ε:R), 0<= ε ->SeriesC (λ n, if (bool_decide (n≤3%nat)) then 1 / (S 3%nat) * ε2 ε n else 0%R)%R <= ε)%R->
-    (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
-                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) -∗
-    (□∀ (ε:R) n, (P ∗ ●↯ ε@ γ1) ={E∖↑N}=∗
-        (⌜(1<=ε2 ε n)%R⌝ ∨(●↯ (ε2 ε n) @ γ1 ∗ T (n))))
+    (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
+                              inv (N.@ "counter") (counter_inv_pred2 c γ2 γ2' γ3)) -∗
+    (□∀ (ε:R) n, (P ∗ flip_error_auth (L:=L) γ1 ε) ={E∖↑N}=∗
+        (⌜(1<=ε2 ε n)%R⌝ ∨(flip_error_auth (L:=L) γ1 (ε2 ε n) ∗ T (n))))
         -∗
     P -∗ α ◯↪N (true, ns) @ γ2 -∗
         wp_update E (∃ n, T (n) ∗ α◯↪N (true, ns++[n]) @ γ2).
@@ -363,8 +359,8 @@ Section impl2.
 
   Lemma read_counter_spec2 N E c γ1 γ2 γ3 P Q:
     ↑N ⊆ E ->
-    {{{  (∃ γ1' γ2', is_flip (L:=L) (N.@"flip") γ1' γ2' ∗
-                                   inv (N.@ "counter") (counter_inv_pred2 c γ1 γ1' γ2 γ2' γ3)) ∗
+    {{{ (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
+                              inv (N.@ "counter") (counter_inv_pred2 c γ2 γ2' γ3)) ∗
         □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
                     own γ3 (●F z)∗ Q z)
          ∗ P
@@ -392,13 +388,13 @@ Program Definition random_counter2 `{!conerisGS Σ, flip_spec Σ}: random_counte
     incr_counter_tape := incr_counter_tape2;
     read_counter:=read_counter2;
     counterG := counterG2;
-    error_name := gname;
+    error_name := flip_error_name;
     tape_name := gname;
     counter_name :=gname;
-    is_counter _ N c γ1 γ2 γ3 := (∃ γ1' γ2', is_flip  (N.@"flip") γ1' γ2' ∗
-                                   inv (N.@ "counter") (counter_inv_pred2 (L:=_) c γ1 γ1' γ2 γ2' γ3))%I;
-    counter_error_auth _ γ x := ●↯ x @ γ;
-    counter_error_frag _ γ x := ◯↯ x @ γ;
+    is_counter _ N c γ1 γ2 γ3 := (∃ γ2', is_flip  (N.@"flip") γ1 γ2' ∗
+                                         inv (N.@ "counter") (counter_inv_pred2 (L:=_) c γ2 γ2' γ3))%I;
+    counter_error_auth _ γ x := flip_error_auth γ x;
+    counter_error_frag _ γ x := flip_error_frag γ x;
     counter_tapes_auth _ γ m := (●((λ ns, (true, ns))<$>m)@γ)%I;
     counter_tapes_frag _ γ α ns := (α◯↪N (true, ns) @ γ)%I;
     counter_content_auth _ γ z := own γ (●F z);
@@ -409,35 +405,35 @@ Program Definition random_counter2 `{!conerisGS Σ, flip_spec Σ}: random_counte
     counter_presample_spec _ :=counter_presample_spec2;
     read_counter_spec _ :=read_counter_spec2
   |}.
-Next Obligation.
-  simpl.
-  iIntros (????????) "(%&<-&H1)(%&<-&H2)".
-  iCombine "H1 H2" gives "%K". by rewrite excl_auth.excl_auth_auth_op_valid in K.
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (????????) "(%&<-&H1)(%&<-&H2)".
-  iCombine "H1 H2" gives "%K". by rewrite excl_auth.excl_auth_frag_op_valid in K.
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (???????) "H".
-  iApply (hocap_error_auth_pos with "[$]").
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (???????) "H".
-  iApply (hocap_error_frag_pos with "[$]").
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (????????) "H1 H2".
-  iApply (hocap_error_agree with "[$][$]").
-Qed.
-Next Obligation.
-  simpl. iIntros (?????????) "??".
-  iApply (hocap_error_update with "[$][$]").
-Qed.
+(* Next Obligation. *)
+(*   simpl. *)
+(*   iIntros (????????) "(%&<-&H1)(%&<-&H2)". *)
+(*   iCombine "H1 H2" gives "%K". by rewrite excl_auth.excl_auth_auth_op_valid in K. *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   simpl. *)
+(*   iIntros (????????) "(%&<-&H1)(%&<-&H2)". *)
+(*   iCombine "H1 H2" gives "%K". by rewrite excl_auth.excl_auth_frag_op_valid in K. *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   simpl. *)
+(*   iIntros (???????) "H". *)
+(*   iApply (hocap_error_auth_pos with "[$]"). *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   simpl. *)
+(*   iIntros (???????) "H". *)
+(*   iApply (hocap_error_frag_pos with "[$]"). *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   simpl. *)
+(*   iIntros (????????) "H1 H2". *)
+(*   iApply (hocap_error_agree with "[$][$]"). *)
+(* Qed. *)
+(* Next Obligation. *)
+(*   simpl. iIntros (?????????) "??". *)
+(*   iApply (hocap_error_update with "[$][$]"). *)
+(* Qed. *)
 Next Obligation.
   simpl.
   iIntros (????????) "H1 H2".
