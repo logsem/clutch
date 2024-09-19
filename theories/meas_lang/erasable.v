@@ -125,9 +125,9 @@ Section erasable.
     - by rewrite H1.
     - by rewrite H2.
   Qed.
-
+*)
 End erasable.
-
+(*
 Section erasable_functions.
 
   Lemma dret_erasable {Λ} (σ : state Λ) :
