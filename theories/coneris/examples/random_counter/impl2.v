@@ -190,7 +190,7 @@ Section impl2.
     ↑N⊆E ->
     {{{ (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
                               inv (N.@ "counter") (counter_inv_pred2 c γ2 γ2' γ3)) ∗
-        □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗
+        □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N.@"counter"}=∗
                           own γ3 (●F(z+n)%nat)∗ Q z) ∗
         P ∗ α ◯↪N (true, n::ns) @ γ2
     }}}
@@ -224,50 +224,50 @@ Section impl2.
       - iModIntro. simpl in *. iSplit; first done. iFrame.
     }
     iIntros "Hα".
-  Admitted.
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_". *)
-  (*   { iSplitL; last done. *)
-  (*     erewrite <-(insert_delete m) at 2; last done. *)
-  (*     iNext. *)
-  (*     rewrite insert_insert. *)
-  (*     rewrite big_sepM_insert; last apply lookup_delete. iFrame. *)
-  (*   } *)
-  (*   iModIntro. *)
-  (*   wp_pures. *)
-  (*   clear -Hsubset H1. *)
-  (*   wp_bind (rand(_) _)%E. *)
-  (*   iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_agree' with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[Htape H3]". *)
-  (*   wp_apply (wp_rand_tape with "[$]"). *)
-  (*   iIntros "[Htape %H2]". *)
-  (*   iMod (hocap_tapes_pop2' with "[$][$]") as "[H4 Hα]". *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_". *)
-  (*   { iSplitL; last done. *)
-  (*     erewrite <-(insert_delete m) at 2; last done. *)
-  (*     iNext. *)
-  (*     rewrite insert_insert. *)
-  (*     rewrite big_sepM_insert; last apply lookup_delete. iFrame. *)
-  (*   } *)
-  (*   iModIntro. *)
-  (*   wp_pures. *)
-  (*   clear -Hsubset H1 H2. *)
-  (*   wp_bind (FAA _ _). *)
-  (*   iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_faa. *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   replace (#(z+n)) with (#(z+n)%nat); last first. *)
-  (*   { by rewrite Nat2Z.inj_add. } *)
-  (*   replace 2%Z with (Z.of_nat 2%nat) by done. *)
-  (*   rewrite -Nat2Z.inj_mul -Nat2Z.inj_add -Nat.div2_odd -Nat2Z.inj_add. *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 H5 $H6]") as "_"; first by iFrame. *)
-  (*   iModIntro. wp_pures. *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-    (* Qed. *)
+    wp_apply (conversion.wp_bool_to_int) as "_"; first done.
+    wp_pures.
+    wp_apply (flip_tape_spec_some _ _ _ _ (α ◯↪N (false, n :: ns)@ γ2) (α ◯↪N (true, ns)@ γ2)with "[$Hα]"); [|iSplit; first done|].
+    { by apply nclose_subseteq'. }
+    { iModIntro. iIntros (m) "[Hfrag Hauth]".
+      iInv "Hinv'" as ">(%m'&%&%&H1&H2&?&?&?)" "Hclose".
+      iDestruct (hocap_tapes_agree' with "[$][$]") as "%".
+      iDestruct (flip_tapes_agree with "[$][H1]") as "%".
+      { iDestruct (big_sepM_lookup with "[$]") as "?"; first done.
+        iFrame.
+      }
+      erewrite <-(insert_delete m') at 1; last done.
+      rewrite big_sepM_insert; last apply lookup_delete.
+      simpl in *.
+      iDestruct "H1" as "[Htape H1]".
+      iMod (hocap_tapes_pop2' with "[$][$]") as "[H4 Hα]".
+      iMod (flip_tapes_pop with "[$][$]") as "[Hauth Htape]".
+      iMod ("Hclose" with "[-Hα Hauth]").
+      - iExists (<[_:=_]> _). iFrame.
+        iNext.
+        erewrite <-(insert_delete m') at 2; last done.
+        rewrite insert_insert.
+        rewrite big_sepM_insert; [iFrame|apply lookup_delete].
+      - iModIntro. simpl in *. iSplit; first done. iFrame.
+    }
+    iIntros "Hα".
+    wp_apply (conversion.wp_bool_to_int) as "_"; first done.
+    wp_pures.
+    wp_bind (FAA _ _).
+    iInv "Hinv'" as ">(%&%&%&?&?&->&?&?)" "Hclose".
+    wp_faa. simpl.
+    iMod ("Hvs" with "[$]") as "[H6 HQ]".
+    replace (#(z+n)) with (#(z+n)%nat); last first.
+    { by rewrite Nat2Z.inj_add. }
+    replace 2%Z with (Z.of_nat 2%nat) by done.
+    replace (_*_+_)%Z with (Z.of_nat n); last first.
+    { admit. (* rewrite -Nat2Z.inj_mul -Nat2Z.inj_add -Nat.div2_odd -Nat2Z.inj_add. *) }
+    iMod ("Hclose" with "[-HΦ HQ Hα]") as "_"; first iFrame.
+    { admit. }
+    iModIntro.
+    wp_pures.
+    iApply "HΦ".
+    by iFrame.
+  Admitted. 
 
   Lemma counter_presample_spec2 N  E ns α
      (ε2 : R -> nat -> R)
