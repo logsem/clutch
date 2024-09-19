@@ -86,10 +86,10 @@ Section impl2.
   (*                                           (FAA "l" "x", "x"). *)
   Definition allocate_tape2 : val := flip_allocate_tape.
   Definition incr_counter_tape2 :val := λ: "l" "α", let: "n" :=
-                                                      conversion.bool_to_int (flip_allocate_tape "α")
+                                                      conversion.bool_to_int (flip_tape "α")
                                                     in
                                                     let: "n'" :=
-                                                      conversion.bool_to_int (flip_allocate_tape "α")
+                                                      conversion.bool_to_int (flip_tape "α")
                                                     in
                                                     let: "x" := #2 * "n" + "n'" in
                                                     (FAA "l" "x", "x").
@@ -200,6 +200,8 @@ Section impl2.
     iIntros (Hsubset Φ) "((%γ2' & #Hinv) & #Hvs & HP & Hα) HΦ".
     rewrite /incr_counter_tape2.
     wp_pures.
+    wp_apply (flip_tape_spec_some).
+    (** spec not strong enough !*)
   Admitted. 
   (*   wp_bind (rand(_) _)%E. *)
   (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
@@ -366,16 +368,18 @@ Section impl2.
       {{{ (n':nat), RET #n'; Q n'
       }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP) HΦ". *)
-  (*   rewrite /read_counter2. *)
-  (*   wp_pure. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_load. *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]"); first done. *)
-  (*   iApply ("HΦ" with "[$]"). *)
-  (* Qed. *)
+    iIntros (Hsubset Φ) "((%γ2' & #Hinv & #Hinv') & #Hvs & HP) HΦ".
+    rewrite /read_counter2.
+    wp_pure.
+    iInv "Hinv'" as ">(%m&%l&%z &Hfrags & Hauth & -> & Hloc & Hcont)" "Hclose".
+    wp_load.
+    iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+    { apply difference_mono_l. by apply nclose_subseteq'. }
+    iMod ("Hvs" with "[$]") as "[Hcont HQ]".
+    iMod "Hclose'".
+    iMod ("Hclose" with "[$Hfrags $Hauth $Hloc $Hcont]"); first done.
+    iApply "HΦ". by iFrame.
+  Qed.
   
 End impl2.
 
