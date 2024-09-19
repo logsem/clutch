@@ -1,10 +1,26 @@
-From Coq Require Import Reals Psatz.
-From clutch.common Require Import language.
-From clutch.prob Require Export couplings distribution markov.
+From HB Require Import structures.
+From Coq Require Import Logic.ClassicalEpsilon Psatz.
+From stdpp Require Import base numbers binders strings gmap.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
+From iris.prelude Require Import options.
+From iris.algebra Require Import ofe.
+From clutch.bi Require Import weakestpre.
+From mathcomp.analysis Require Import reals measure ereal.
+From clutch.prob.monad Require Import laws.
+From clutch.meas_lang Require Import language.
+
+Section erasable.
+  Context {R : realType}.
+  Notation giryM := (giryM (R := R)).
+  Context {Λ : meas_language}.
+
+  (*
+  Definition meas_erasable (f : measurable_map (state Λ) (giryM (state Λ))) : Prop :=
+    forall e m,
+  *)
+
 
 (*
-Section erasable.
-  Context {Λ : language}.
 
   Definition erasable (μ : distr (state Λ)) σ:=
     ∀ e m, μ ≫= (λ σ', exec m (e, σ')) = exec m (e, σ).
