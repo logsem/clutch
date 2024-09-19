@@ -876,7 +876,7 @@ Section combined.
        #true
      <= ε_Q + ε_F)%R.
   Proof using prf_cpa_ARC' F_typed H_in_out H_ε_ARC H_ε_LR Key adversary_typed keygen_typed.
-    apply advantage_uniform'.
+    apply advantage_uniform.
     by eapply CPA_bound_st => //.
   Qed.
 

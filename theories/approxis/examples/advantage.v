@@ -29,74 +29,77 @@ Proof.
   apply Rplus_le_compat => //.
 Qed.
 
-Definition advantage_rbar (X Y : expr) (v : val) :=
-  Lub.Lub_Rbar (λ ε : R, ∃ (σ σ' : state), nonneg (pr_dist X Y σ σ' v) = ε)%R.
+Definition pr_dist_st X Y v := (λ ε : R, ∃ (σ σ' : state), nonneg (pr_dist X Y σ σ' v) = ε)%R.
 
-Fact advantage_0_1 X Y v : Rbar.Rbar_le (Rbar.Finite 0) (advantage_rbar X Y v) /\
-                           Rbar.Rbar_le (advantage_rbar X Y v) (Rbar.Finite 1).
+Fact pr_dist_st_bound X Y v : bound (pr_dist_st X Y v).
 Proof.
-  rewrite /advantage_rbar.
-  set (P := (λ ε : R, ∃ σ0 σ'0 : state, nonneg (pr_dist X Y σ0 σ'0 v) = ε)).
-  epose proof (Lub.Lub_Rbar_correct P) as [is_ub least_ub].
-  rewrite /Lub.is_ub_Rbar in is_ub.
-  split.
-Admitted.
+  assert (∀ (e : expr) (σ : state) (v : val), 0 <= lim_exec (e, σ) v <= 1)
+    as h by by intros ; split.
+  exists 1. intros ε (σ & σ' & <-). apply Rabs_le.
+  pose (h X σ v). pose (h Y σ' v). split ; lra.
+Qed.
 
-Fact advantage_finite X Y v : Rbar.is_finite (advantage_rbar X Y v).
+Fact pr_dist_st_inhabited : forall X Y v, (∃ x : R, pr_dist_st X Y v x).
+  intros.
+  rewrite /pr_dist_st.
+  exists (pr_dist X Y inhabitant inhabitant v) , inhabitant , inhabitant => //.
+Qed.
+
+Definition advantage_R X Y v :=
+  ` (completeness (pr_dist_st X Y v) (pr_dist_st_bound X Y v) (pr_dist_st_inhabited X Y v)).
+
+Fact advantage_R_pos X Y v : 0 <= advantage_R X Y v.
 Proof.
-  destruct (advantage_0_1 X Y v). by eapply (is_finite_bounded).
+  rewrite /advantage_R.
+  destruct completeness as [x [ub lub]] => /=.
+  rewrite /is_upper_bound in ub.
+  etrans. 2: apply ub.
+  2:{ rewrite /pr_dist_st. exists inhabitant , inhabitant => //. }
+  apply Rabs_pos.
 Qed.
 
 Definition advantage (X Y : expr) (v : val) : nonnegreal.
-Proof.
-  unshelve econstructor.
-  1: exact (epsilon ((proj1 (Rbar.is_finite_correct (advantage_rbar X Y v))) (advantage_finite _ _ _))).
-  set (h := (proj1 (Rbar.is_finite_correct (advantage_rbar X Y v)) (advantage_finite X Y v))).
-  opose proof (epsilon_correct _ h) as hh. simpl in hh.
-  simpl.
-  eapply (proj1 (rbar_le_rle _ _)).
-  rewrite -hh.
-  apply advantage_0_1.
+  econstructor ; apply (advantage_R_pos X Y v).
 Defined.
 
-Fact advantage_ub X Y v : forall σ σ', (pr_dist X Y σ σ' v <= advantage X Y v)%R.
-Proof.
-  intros. rewrite /advantage.
-  set (h := (proj1 (Rbar.is_finite_correct (advantage_rbar X Y v)) (advantage_finite X Y v))).
-  opose proof (epsilon_correct _ h) as hh. simpl in hh.
-  simpl.
-  eapply (proj1 (rbar_le_rle _ _)).
-  rewrite -hh.
-  rewrite /advantage_rbar.
-  set (P := (λ ε : R, ∃ σ0 σ'0 : state, nonneg (pr_dist X Y σ0 σ'0 v) = ε)).
-  epose proof (Lub.Lub_Rbar_correct P) as [is_ub least_ub].
-  rewrite /Lub.is_ub_Rbar in is_ub.
-  apply is_ub.
-  rewrite /P. exists σ, σ'.
-  done.
-Qed.
-
 Lemma advantage_uniform (X Y : expr) v (ε : R) :
-  (∀ (σ σ' : state), pr_dist X Y σ σ' v <= ε)%R ->
-  (Rbar.Rbar_le (advantage_rbar X Y v) (Rbar.Finite ε)).
-Proof.
-  intros hε.
-  rewrite /advantage_rbar.
-  set (E := (λ ε0 : R, ∃ (σ σ' : state), nonneg (pr_dist X Y σ σ' v) = ε0)).
-  opose proof (Lub.Lub_Rbar_correct E) as h.
-  rewrite /Lub.is_lub_Rbar in h.
-  destruct h as [h1 h2].
-  apply h2.
-  rewrite /Lub.is_ub_Rbar.
-  intros ε' (σ & σ' & hε').
-  apply rbar_le_rle.
-  rewrite -hε'. apply hε.
-Qed.
-
-Lemma advantage_uniform' (X Y : expr) v (ε : R) :
   (∀ (σ σ' : state), pr_dist X Y σ σ' v <= ε)%R →
   (advantage X Y v <= ε)%R.
 Proof.
-  intros h.
-  opose proof (advantage_uniform _ _ _ _ h).
-Admitted.
+  intros hε.
+  rewrite /advantage/advantage_R => /=.
+  destruct completeness as [x [ub lub]] => /=.
+  apply lub.
+  intros ε' (σ & σ' & hε').
+  rewrite -hε'. apply hε.
+Qed.
+
+Fact advantage_ub X Y v σ σ' : pr_dist X Y σ σ' v <= advantage X Y v.
+Proof.
+  rewrite /advantage/advantage_R => /=.
+  destruct completeness as [x [ub lub]] => /=.
+  apply ub. eexists _, _. done.
+Qed.
+
+Fact advantage_triangle' X Y Z v :
+  (advantage X Z v <= (advantage X Y v) + (advantage Y Z v))%R.
+Proof.
+  apply advantage_uniform.
+  intros.
+  transitivity (pr_dist X Y σ σ' v + (pr_dist Y Z σ' σ' v)).
+  1: apply pr_dist_triangle'.
+  eapply Rplus_le_compat => //.
+  all: apply advantage_ub.
+Qed.
+
+Fact advantage_triangle X Y Z v ε1 ε2 ε3 :
+  ((advantage X Y v <= ε1) →
+   (advantage Y Z v <= ε2) →
+   (ε1 + ε2 <= ε3) →
+   advantage X Z v <= ε3)%R.
+Proof.
+  intros. etrans.
+  1: eapply (advantage_triangle' _ Y _ _).
+  etrans. 2: eauto.
+  apply Rplus_le_compat => //.
+Qed.
