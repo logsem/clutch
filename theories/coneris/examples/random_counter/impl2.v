@@ -19,7 +19,7 @@ Notation "α ◯↪N ( b , ns ) @ γ":= (α ↪[ γ ] (b, ns))%I
 Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
 
 Section tapes_lemmas.
-  Context `{!conerisGS Σ, !hocap_tapesGS' Σ}.
+  Context `{!hocap_tapesGS' Σ}.
 
   Lemma hocap_tapes_alloc' m:
     ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1, v.2) @ γ).
@@ -65,14 +65,14 @@ Section tapes_lemmas.
     iApply (ghost_map_update with "[$][$]").
   Qed.
 
-  Lemma hocap_tapes_notin' α N ns m (f:(bool*list nat)-> nat) g:
-    α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝.
+  Lemma hocap_tapes_notin' `{F: flip_spec Σ} {L:flipG Σ} α ns m γ (f:(bool*list nat)-> (list bool)) :
+    flip_tapes_frag (L:=L) γ α ns -∗ ([∗ map] α0↦t ∈ m, flip_tapes_frag (L:=L) γ α0 (f t)) -∗ ⌜m!!α=None ⌝.
   Proof.
     destruct (m!!α) eqn:Heqn; last by iIntros.
     iIntros "Hα Hmap".
     iDestruct (big_sepM_lookup with "[$]") as "?"; first done.
     iExFalso.
-    iApply (tapeN_tapeN_contradict with "[$][$]").
+    by iDestruct (flip_tapes_frag_exclusive with "[$][$]") as "%".
   Qed.
 
 End tapes_lemmas.
@@ -170,25 +170,22 @@ Section impl2.
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ α ◯↪N (true,  []) @ γ2
       }}}.
   Proof.
-    iIntros (Hsubset Φ) "#Hinv HΦ".
+    iIntros (Hsubset Φ) "(%γ2' & #Hinv & #Hinv') HΦ".
     rewrite /allocate_tape2.
-    iApply fupd_pgl_wp.
-    iApply (flip_allocate_tape_spec).
-    (** Spec not strong enough *)
-  Admitted.
-  (*   iInv (N.@"counter") as "(%ε & %m & %l & %z & %γ1' & %γ2' & #Hinv' &  >H1 & >H2 & >H3 & >H4 & > (-> & H5 & H6))" "Hclose".  *)
-  (*   wp_alloctape α as "Hα". *)
-  (*   iDestruct (hocap_tapes_notin' with "[$][$]") as "%". *)
-  (*   iMod (hocap_tapes_new' _ _ _ _ true with "[$]") as "[H4 H7]"; first done. *)
-  (*   replace ([]) with (expander []) by done. *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_". *)
-  (*   { iNext. iSplitL; last done. *)
-  (*     rewrite big_sepM_insert; [iFrame|done]. *)
-  (*   } *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-  (* Qed. *)
-
+    iApply wptac_wp_fupd.
+    iApply (flip_allocate_tape_spec); [by eapply nclose_subseteq'|done|].
+    iNext.
+    iIntros (?) "(%α & -> & Hfrag)".
+    iInv "Hinv'" as ">(%m&%l&%z &Hfrags & Hauth & Hrest)" "Hclose".
+    iDestruct (hocap_tapes_notin' with "[$][$]") as "%".
+    iMod (hocap_tapes_new' _ _ _ [] true with "[$]") as "[Hauth H]"; first done.
+    iMod ("Hclose" with "[$Hrest $Hauth Hfrags Hfrag]") as "_".
+    { iNext. rewrite big_sepM_insert; last done.
+      iFrame. }
+    iApply "HΦ".
+    by iFrame.
+  Qed.
+  
   Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E ->
     {{{ (∃ γ2', is_flip (L:=L) (N.@"flip") γ1 γ2' ∗
