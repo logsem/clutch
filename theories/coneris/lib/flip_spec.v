@@ -77,11 +77,13 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
   flip_tape_spec_some {L: flipG Σ} N E γ1 γ2 (P: iProp Σ) (Q:iProp Σ) (α:loc) (n:bool) ns:
     ↑N⊆E -> 
     {{{ is_flip (L:=L) N γ1 γ2 ∗
-        □ (P ={E∖↑N}=∗ Q) ∗
-        P ∗ flip_tapes_frag (L:=L) γ2 α (n::ns)
+        □ (∀ m, P ∗
+           flip_tapes_auth (L:=L) γ2 m 
+            ={E∖↑N}=∗ ⌜m!!α=Some (n::ns)⌝ ∗ Q ∗ flip_tapes_auth (L:=L) γ2 (<[α:=ns]> m)) ∗
+        P 
     }}}
       flip_tape #lbl:α @ E
-                       {{{ RET #n; Q ∗ flip_tapes_frag (L:=L) γ2 α ns}}};
+                       {{{ RET #n; Q }}};
   flip_presample_spec {L: flipG Σ} NS E ns α
      (ε2 : R -> bool -> R)
     (P : iProp Σ) T γ1 γ2:
@@ -97,40 +99,15 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
 }.
 
 
-Section lemmas.
-  Context `{rc:flip_spec} {L: flipG Σ}.
-  
-  Lemma flip_tape_spec_none  N E γ1 γ2 (ε2:R -> bool -> R) (P: iProp Σ) (T: bool -> iProp Σ) (Q: bool -> iProp Σ)(α:loc):
-    ↑N ⊆ E->
-    (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R->
-    (∀ (ε:R), 0<=ε -> ((ε2 ε true) + (ε2 ε false))/2 <= ε)%R →
-    {{{ is_flip (L:=L) N γ1 γ2 ∗
-        □(∀ (ε:R) (n : bool), P ∗ flip_error_auth (L:=L) γ1 ε
-                           ={E∖↑N}=∗ (⌜(1<=ε2 ε n)%R⌝∨ flip_error_auth (L:=L) γ1 (ε2 ε n) ∗ T n) ) ∗
-        □ (∀ (n:bool), T n  ={E∖↑N}=∗ Q n) ∗
-        P ∗ flip_tapes_frag (L:=L) γ2 α []
-    }}}
-      flip_tape #lbl:α @ E
-                                 {{{ (b:bool), RET #b; Q b ∗ flip_tapes_frag (L:=L) γ2 α [] }}}.
-  Proof.
-    iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & #Hvs1 & #Hvs2 & HP & Hα) HΦ".
-    iMod (flip_presample_spec with "[//][//][$][$]") as "(%&HT&Hα)"; [done..|].
-    iApply (flip_tape_spec_some _ _ _ _ (T n) with "[$Hα $HT]"); try done.
-    { by iSplit. }
-    by iNext.
-  Qed.
-  
-End lemmas.
-
-
 (** Instantiate flip *)
 Class flipG1 Σ := FlipG1 { flipG1_error::hocap_errorGS Σ;
                                     flipG1_tapes:: hocap_tapesGS Σ;
                     }.
 Local Definition flip_inv_pred1 `{!conerisGS Σ, !hocap_errorGS Σ, !hocap_tapesGS Σ} γ1 γ2:=
-    (∃ (ε:R) (m:gmap loc (nat * list nat)) ,
-        ↯ ε ∗ ●↯ ε @ γ1 ∗
-        ([∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )) ∗ ●m@γ2 
+    (∃ (ε:R) (m:gmap loc (list bool)) ,
+        ↯ ε ∗ ●↯ ε @ γ1  ∗
+        ([∗ map] α ↦ t ∈ ((λ (ns:list bool), (1%nat, bool_to_nat<$>ns))<$>m), α ↪N ( t.1 ; t.2 )) ∗
+        ●(((λ (ns:list bool), (1, bool_to_nat<$>ns))<$>m):gmap _ _)@γ2
     )%I.
 
 #[local] Program Definition flip_spec1 `{!conerisGS Σ}: flip_spec :=
@@ -215,7 +192,10 @@ Next Obligation.
   simpl.
   iMod (hocap_tapes_alloc ∅) as "(%γ2 & H4 & H5)".
   iMod (inv_alloc _ _ (flip_inv_pred1 γ1 γ2) with "[H1 H2 H4]").
-  { iFrame. by iNext. }
+  { iFrame. iNext. iExists ∅.
+    iFrame.
+    by rewrite fmap_empty.
+  }
   by iFrame.
 Qed.
 Next Obligation.
@@ -229,7 +209,10 @@ Next Obligation.
   iDestruct (hocap_tapes_notin with "[$][$]") as "%".
   iMod (hocap_tapes_new _ _ α 1%nat [] with "[$]") as "[?H]"; first done.
   iMod ("Hclose" with "[-H HΦ]").
-  { iFrame. iModIntro.
+  { iModIntro.
+    iExists _, (<[α:=([])]> m).
+    iFrame.
+    rewrite fmap_insert.
     rewrite big_sepM_insert; [iFrame|done].
   }
   iApply "HΦ".
@@ -237,25 +220,27 @@ Next Obligation.
 Qed.
 Next Obligation.
   simpl.
-  iIntros (????????????? Φ) "(#Hinv & #Hvs & HP & Hfrag) HΦ".
+  iIntros (????????????? Φ) "(#Hinv & #Hvs & HP) HΦ".
   rewrite /flipL.
   wp_pures.
   wp_bind (rand(_) _)%E.
   iInv "Hinv" as ">(%&%&?&?&H3&?)" "Hclose".
-  iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+  iMod ("Hvs" with "[$]") as "(%&HQ&Hauth)".
   erewrite <-(insert_delete m) at 1; last done.
-  rewrite big_sepM_insert; last apply lookup_delete.
+  rewrite fmap_insert.
+  rewrite big_sepM_insert; last first.
+  { rewrite fmap_delete. apply lookup_delete. }
   iDestruct "H3" as "[Htape H3]".
   simpl.
   wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
-  iMod ("Hvs" with "[$]") as "HQ".
-  iMod (hocap_tapes_pop with "[$][$]") as "[H4 Hfrag]".
-  iMod ("Hclose" with "[-Hfrag HΦ HQ]") as "_".
-  { iFrame.
+  iMod ("Hclose" with "[- HΦ HQ]") as "_".
+  { iExists _, (<[α:=ns]> m).
+    iFrame.
     rewrite <-(insert_delete m) at 2; last done.
-    iNext.
-    rewrite insert_insert.
-    rewrite big_sepM_insert; last apply lookup_delete. iFrame.
+    rewrite insert_insert fmap_insert.
+    rewrite big_sepM_insert; first iFrame.
+    rewrite fmap_delete.
+    apply lookup_delete.
   }
   iModIntro.
   wp_apply conversion.wp_int_to_bool as "_"; first done.
@@ -264,16 +249,22 @@ Next Obligation.
   - destruct n; simpl.
     + rewrite Z_to_bool_neq_0; [done|lia].
     + by rewrite Z_to_bool_eq_0.
-Qed. 
+Qed.
 Next Obligation.
   simpl.
   iIntros (???????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
   iApply wp_update_state_step_coupl.
   iIntros (σ ε) "((Hheap&Htapes)&Hε)".
   iMod (inv_acc with "Hinv") as "[>(% & % & H1 & H2 & H3 & H4 ) Hclose]"; [done|].
-  iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+  iDestruct (hocap_tapes_agree with "[$][$]") as "%K".
+  rewrite lookup_fmap_Some in K. destruct K as (?&M&?).
+  simplify_eq.
+  unshelve epose proof fmap_inj _ _ _ _ M as ->.
+  { intros [][]?; by simplify_eq. }
   erewrite <-(insert_delete m) at 1; last done.
-  rewrite big_sepM_insert; last apply lookup_delete.
+  rewrite fmap_insert.
+  rewrite big_sepM_insert; last first.
+  { rewrite fmap_delete. apply lookup_delete. }
   simpl.
   iDestruct "H3" as "[Htape H3]".
   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
@@ -308,9 +299,14 @@ Next Obligation.
   iMod "Hclose'" as "_".
   iMod ("Hvs" with "[$]") as "[%|[H2 HT]]".
   { iExFalso. iApply (ec_contradict with "[$]"). exact. }
-  iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4]") as "_".
-  { iNext. 
-    rewrite big_sepM_insert_delete Heq/=; iFrame.
+  iMod ("Hclose" with "[$Hε $H2 Htape H3 H4]") as "_".
+  { iNext.
+    iExists (<[α:=(ns ++ [nat_to_bool sample])]>m).
+    rewrite fmap_insert.
+    rewrite big_sepM_insert_delete Heq/=.
+    rewrite fmap_delete. iFrame.
+    rewrite fmap_app/= nat_to_bool_to_nat; first iFrame.
+    pose proof fin_to_nat_lt sample. lia.
   }
   iApply fupd_mask_intro_subseteq; first set_solver.
   iFrame.
