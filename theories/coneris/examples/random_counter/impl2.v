@@ -271,8 +271,9 @@ Section impl2.
     P -∗ α ◯↪N (true, ns) @ γ2 -∗
         wp_update E (∃ n, T (n) ∗ α◯↪N (true, ns++[n]) @ γ2).
   Proof.
+    iIntros (Hsubset Hpos Hineq) "(%γ2' & #Hinv & #Hinv') #Hvs HP Hfrag".
   Admitted.
-  (*   iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag". *)
+  (*   iApply flip_presample_spec. *)
   (*   iApply wp_update_state_step_coupl. *)
   (*   iIntros (σ ε) "((Hheap&Htapes)&Hε)". *)
   (*   iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|]. *)
@@ -338,22 +339,22 @@ Section impl2.
   (*     destruct xs as [|x' xs]; first done. *)
   (*     destruct xs as [|]; last done. *)
   (*     pose proof fin_to_nat_lt x. pose proof fin_to_nat_lt x'. *)
-  (*     repeat f_equal; apply fin_to_nat_inj; rewrite fin_to_nat_to_fin.  *)
+  (*     repeat f_equal; apply fin_to_nat_inj; rewrite fin_to_nat_to_fin. *)
   (*     - rewrite /f. rewrite Nat.div2_div. *)
   (*       rewrite Nat.mul_comm Nat.div_add_l; last lia. rewrite Nat.div_small; lia. *)
   (*     - rewrite /f. rewrite Nat.add_comm Nat.odd_add_even. *)
   (*       + destruct (fin_to_nat x') as [|[|]]; simpl; lia. *)
-  (*       + by econstructor.  *)
+  (*       + by econstructor. *)
   (*   } *)
   (*   iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4 $H5 $H6]") as "_". *)
   (*   { iNext. iSplit; last done. *)
   (*     rewrite big_sepM_insert_delete; iFrame. *)
   (*     simpl. rewrite !fin_to_nat_to_fin. *)
-  (*     rewrite /expander bind_app -/(expander ns). simpl. by rewrite H1.  *)
+  (*     rewrite /expander bind_app -/(expander ns). simpl. by rewrite H1. *)
   (*   } *)
   (*   iApply fupd_mask_intro_subseteq; first set_solver. *)
   (*   rewrite K. *)
-  (*   iFrame.  *)
+  (*   iFrame. *)
   (* Qed. *)
 
   Lemma read_counter_spec2 N E c γ1 γ2 γ3 P Q:
