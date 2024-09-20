@@ -88,6 +88,22 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
       flip_tape #lbl:α @ E
                        {{{ RET #n; Q }}};
   flip_presample_spec {L: flipG Σ} NS E ns α
+     (ε2 : R -> list bool -> R)
+    (P : iProp Σ) num T γ1 γ2:
+    ↑NS ⊆ E ->
+    (∀ ε l, 0<= ε -> length l = num ->  0<=ε2 ε l)%R ->
+    (∀ (ε:R), 0<= ε -> SeriesC (λ l, if length l =? num then ε2 ε l else 0) /(2^num) <= ε)%R->
+    is_flip (L:=L) NS γ1 γ2 -∗
+    (□∀ (ε:R) n, (P ∗ flip_error_auth (L:=L) γ1 ε) ={E∖↑NS}=∗
+        (⌜(1<=ε2 ε n)%R⌝ ∨ (flip_error_auth (L:=L) γ1 (ε2 ε n)  ∗ T (n)))) 
+        -∗
+    P -∗ flip_tapes_frag (L:=L) γ2 α ns-∗
+        wp_update E (∃ n, T (n) ∗ flip_tapes_frag (L:=L) γ2 α (ns++n))
+}.
+
+Section test.
+  Context `{F:flip_spec}.
+  Lemma flip_presample_spec_simple {L: flipG Σ} NS E ns α
      (ε2 : R -> bool -> R)
     (P : iProp Σ) T γ1 γ2:
     ↑NS ⊆ E ->
@@ -98,8 +114,44 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
         (⌜(1<=ε2 ε n)%R⌝ ∨ (flip_error_auth (L:=L) γ1 (ε2 ε n)  ∗ T (n)))) 
         -∗
     P -∗ flip_tapes_frag (L:=L) γ2 α ns-∗
-        wp_update E (∃ n, T (n) ∗ flip_tapes_frag (L:=L) γ2 α (ns++[n]))
-}.
+        wp_update E (∃ n, T (n) ∗ flip_tapes_frag (L:=L) γ2 α (ns++[n])).
+  Proof.
+    iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
+    pose (ε2' ε l:= match l with
+                    | [b]=> ε2 ε b
+                    | _ => 1%R
+                    end
+         ).
+    iMod (flip_presample_spec _ _ _ _ ε2' P 1%nat (λ l, match l with | [b] => T b | _ => False end )%I with "[//][][$][$]") as "(%l & [??])"; first done.
+    - rewrite /ε2'.
+      intros. repeat case_match; try done. naive_solver.
+    - intros.
+      etrans; last apply Hineq; try done.
+      erewrite (SeriesC_subset (λ x, x ∈ [[true]; [false]])); last first.
+      + intros ? H'.
+        case_match eqn:K; last done.
+        rewrite Nat.eqb_eq in K.
+        exfalso.
+        apply H'.
+        destruct a as [|[|] [|]]; try (simpl in *; done).
+        all: set_solver.
+      + rewrite SeriesC_list; last first.
+        { rewrite !NoDup_cons; repeat split; last apply NoDup_nil; set_solver. }
+        simpl. lra.
+    - iModIntro. iIntros (ε n) "?".
+      destruct n as [?|b [|]].
+      + iLeft. iPureIntro.
+        by rewrite /ε2'.
+      + iMod ("Hvs" $! ε b with "[$]") as "[% | ?]".
+        * iLeft. iPureIntro. by rewrite /ε2'.
+        * iRight. by rewrite /ε2'.
+      + iLeft. iPureIntro.
+        by rewrite /ε2'.
+    - repeat case_match; try done.
+      iModIntro.
+      iFrame.
+  Qed.
+End test.
 
 
 (** Instantiate flip *)
@@ -261,65 +313,66 @@ Next Obligation.
     + by rewrite Z_to_bool_eq_0.
 Qed.
 Next Obligation.
-  simpl.
-  iIntros (???????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
-  iApply wp_update_state_step_coupl.
-  iIntros (σ ε) "((Hheap&Htapes)&Hε)".
-  iMod (inv_acc with "Hinv") as "[>(% & % & H1 & H2 & H3 & H4 ) Hclose]"; [done|].
-  iDestruct (hocap_tapes_agree with "[$][$]") as "%K".
-  rewrite lookup_fmap_Some in K. destruct K as (?&M&?).
-  simplify_eq.
-  unshelve epose proof fmap_inj _ _ _ _ M as ->.
-  { intros [][]?; by simplify_eq. }
-  erewrite <-(insert_delete m) at 1; last done.
-  rewrite fmap_insert.
-  rewrite big_sepM_insert; last first.
-  { rewrite fmap_delete. apply lookup_delete. }
-  simpl.
-  iDestruct "H3" as "[Htape H3]".
-  iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
-  iDestruct (ec_supply_bound with "[$][$]") as "%".
-  iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
-  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-  iApply state_step_coupl_state_adv_comp_con_prob_lang; first done.
-  unshelve iExists (λ x, mknonnegreal (ε2 ε1' (nat_to_bool (fin_to_nat x))) _).
-  { apply Hpos. apply cond_nonneg. }
-  iSplit.
-  { iPureIntro.
-    simpl.
-    unshelve epose proof (Hineq ε1' _) as H'; first apply cond_nonneg.
-    rewrite SeriesC_finite_foldr/=.
-    rewrite nat_to_bool_eq_0 nat_to_bool_neq_0; last lia.
-    simpl in *. lra.
-  }
-  iIntros (sample).
-  destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (nat_to_bool (fin_to_nat sample))))%R 1%R) as [Hdec|Hdec]; last first.
-  { apply Rnot_lt_ge, Rge_le in Hdec.
-    iApply state_step_coupl_ret_err_ge_1.
-    simpl. simpl in *. lra.
-  }
-  iApply state_step_coupl_ret.
-  unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' (nat_to_bool (fin_to_nat sample))) _) with "Hε_supply") as "[Hε_supply Hε]".
-  { apply Hpos. apply cond_nonneg. }
-  { simpl. done. }
-  simpl.
-  iMod (tapeN_update_append _ _ _ _ sample with "[$][Htape]") as "[Htapes Htape]".
-  { by erewrite Heq. }
-  iMod (hocap_tapes_presample _ _ _ _ _ (fin_to_nat sample) with "[$][$]") as "[H4 Hfrag]".
-  iMod "Hclose'" as "_".
-  iMod ("Hvs" with "[$]") as "[%|[H2 HT]]".
-  { iExFalso. iApply (ec_contradict with "[$]"). exact. }
-  iMod ("Hclose" with "[$Hε $H2 Htape H3 H4]") as "_".
-  { iNext.
-    iExists (<[α:=(ns ++ [nat_to_bool sample])]>m).
-    rewrite fmap_insert.
-    rewrite big_sepM_insert_delete Heq/=.
-    rewrite fmap_delete. iFrame.
-    rewrite fmap_app/= nat_to_bool_to_nat; first iFrame.
-    pose proof fin_to_nat_lt sample. lia.
-  }
-  iApply fupd_mask_intro_subseteq; first set_solver.
-  iFrame.
-  rewrite fmap_app/= nat_to_bool_to_nat; first done.
-  pose proof fin_to_nat_lt sample. lia.
-Qed.
+Admitted.
+(*   simpl. *)
+(*   iIntros (???????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag". *)
+(*   iApply wp_update_state_step_coupl. *)
+(*   iIntros (σ ε) "((Hheap&Htapes)&Hε)". *)
+(*   iMod (inv_acc with "Hinv") as "[>(% & % & H1 & H2 & H3 & H4 ) Hclose]"; [done|]. *)
+(*   iDestruct (hocap_tapes_agree with "[$][$]") as "%K". *)
+(*   rewrite lookup_fmap_Some in K. destruct K as (?&M&?). *)
+(*   simplify_eq. *)
+(*   unshelve epose proof fmap_inj _ _ _ _ M as ->. *)
+(*   { intros [][]?; by simplify_eq. } *)
+(*   erewrite <-(insert_delete m) at 1; last done. *)
+(*   rewrite fmap_insert. *)
+(*   rewrite big_sepM_insert; last first. *)
+(*   { rewrite fmap_delete. apply lookup_delete. } *)
+(*   simpl. *)
+(*   iDestruct "H3" as "[Htape H3]". *)
+(*   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)". *)
+(*   iDestruct (ec_supply_bound with "[$][$]") as "%". *)
+(*   iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst. *)
+(*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
+(*   iApply state_step_coupl_state_adv_comp_con_prob_lang; first done. *)
+(*   unshelve iExists (λ x, mknonnegreal (ε2 ε1' (nat_to_bool (fin_to_nat x))) _). *)
+(*   { apply Hpos. apply cond_nonneg. } *)
+(*   iSplit. *)
+(*   { iPureIntro. *)
+(*     simpl. *)
+(*     unshelve epose proof (Hineq ε1' _) as H'; first apply cond_nonneg. *)
+(*     rewrite SeriesC_finite_foldr/=. *)
+(*     rewrite nat_to_bool_eq_0 nat_to_bool_neq_0; last lia. *)
+(*     simpl in *. lra. *)
+(*   } *)
+(*   iIntros (sample). *)
+(*   destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (nat_to_bool (fin_to_nat sample))))%R 1%R) as [Hdec|Hdec]; last first. *)
+(*   { apply Rnot_lt_ge, Rge_le in Hdec. *)
+(*     iApply state_step_coupl_ret_err_ge_1. *)
+(*     simpl. simpl in *. lra. *)
+(*   } *)
+(*   iApply state_step_coupl_ret. *)
+(*   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' (nat_to_bool (fin_to_nat sample))) _) with "Hε_supply") as "[Hε_supply Hε]". *)
+(*   { apply Hpos. apply cond_nonneg. } *)
+(*   { simpl. done. } *)
+(*   simpl. *)
+(*   iMod (tapeN_update_append _ _ _ _ sample with "[$][Htape]") as "[Htapes Htape]". *)
+(*   { by erewrite Heq. } *)
+(*   iMod (hocap_tapes_presample _ _ _ _ _ (fin_to_nat sample) with "[$][$]") as "[H4 Hfrag]". *)
+(*   iMod "Hclose'" as "_". *)
+(*   iMod ("Hvs" with "[$]") as "[%|[H2 HT]]". *)
+(*   { iExFalso. iApply (ec_contradict with "[$]"). exact. } *)
+(*   iMod ("Hclose" with "[$Hε $H2 Htape H3 H4]") as "_". *)
+(*   { iNext. *)
+(*     iExists (<[α:=(ns ++ [nat_to_bool sample])]>m). *)
+(*     rewrite fmap_insert. *)
+(*     rewrite big_sepM_insert_delete Heq/=. *)
+(*     rewrite fmap_delete. iFrame. *)
+(*     rewrite fmap_app/= nat_to_bool_to_nat; first iFrame. *)
+(*     pose proof fin_to_nat_lt sample. lia. *)
+(*   } *)
+(*   iApply fupd_mask_intro_subseteq; first set_solver. *)
+(*   iFrame. *)
+(*   rewrite fmap_app/= nat_to_bool_to_nat; first done. *)
+(*   pose proof fin_to_nat_lt sample. lia. *)
+(* Qed. *)
