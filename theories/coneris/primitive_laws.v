@@ -127,6 +127,15 @@ Section tape_interface.
     iFrame.
     by rewrite fmap_app.
   Qed. 
+
+  Lemma tapeN_update_append' α N m (ns ns':list (fin (S N))):
+    tapes_auth 1 m -∗ α ↪N (N; fin_to_nat <$> ns) ==∗ tapes_auth 1 (<[α:=(N; ns ++ ns')]> m) ∗ α ↪N (N; (fin_to_nat <$> ns) ++ (fin_to_nat <$> ns')).
+  Proof.
+    iIntros "? (%&%&?)".
+    iMod (ghost_map_update with "[$][$]") as "[??]".
+    iFrame.
+    by rewrite fmap_app.
+  Qed. 
   
   (*
   Lemma spec_tapeN_to_empty l M :
