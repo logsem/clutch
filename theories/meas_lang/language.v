@@ -39,7 +39,7 @@ Section language_mixin.
 End language_mixin.
 
 
-Structure meas_language := Language {
+Structure meas_language := MeasLanguage {
   R : realType;
 
   d_expr : measure_display;
@@ -71,7 +71,7 @@ HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments Language {_ _ _ _ _ _ _ _ _ _ } _.
+Global Arguments MeasLanguage {_ _ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments prim_step {_}.

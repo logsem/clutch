@@ -1,37 +1,44 @@
 (** An axiomatization of languages based on evaluation context items, including
     a proof that these are instances of general ectx-based languages. *)
-From Coq Require Import Reals.
-From Coq.Program Require Import Wf.
-From iris.prelude Require Export prelude.
-From clutch.common Require Import language ectx_language.
-From clutch.prob Require Import distribution.
+From HB Require Import structures.
+From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf.
+From stdpp Require Import base numbers binders strings gmap.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
+From iris.prelude Require Import options.
+From iris.algebra Require Import ofe.
+From clutch.bi Require Import weakestpre.
+From mathcomp.analysis Require Import reals measure ereal.
+From clutch.prob.monad Require Export laws.
+From clutch.meas_lang Require Import language ectx_language.
 
-(*
+
 Section ectxi_language_mixin.
-  Context {expr val ectx_item state state_idx : Type}.
-  Context `{Countable expr, Countable val, Countable state, Countable state_idx}.
+  Local Open Scope classical_set_scope.
+
+  Context (R : realType).
+  Notation giryM := (giryM (R := R)).
+
+  Context {d_expr d_val d_state : measure_display}.
+  Context {expr : measurableType d_expr}.
+  Context {val : measurableType d_val}.
+  Context {state : measurableType d_state}.
+
+  Context {ectx_item : Type}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
-  Context (fill_item : ectx_item → expr → expr).
+  Context (fill_item : ectx_item → measurable_map expr expr).
   Context (decomp_item : expr → option (ectx_item * expr)).
   Context (expr_ord : expr → expr → Prop).
 
-  Context (head_step  : expr → state → distr (expr * state)).
-  Context (state_step : state → state_idx → distr state).
-  Context (get_active : state → list state_idx).
+  Context (head_step : measurable_map (expr * state)%type (giryM (expr * state)%type)).
 
-  Record EctxiLanguageMixin := {
+  Record MeasEctxiLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
-    mixin_val_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None;
-    mixin_state_step_head_not_stuck e σ σ' α :
-      state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0);
-    mixin_state_step_mass σ α :
-      α ∈ get_active σ → SeriesC (state_step σ α) = 1;
-    mixin_head_step_mass e σ :
-      (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1;
+    mixin_val_stuck e1 σ1 : (¬ (is_zero (head_step (e1, σ1)))) → to_val e1 = None;
+    mixin_prim_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ))  ;
 
     mixin_fill_item_val Ki e : is_Some (to_val (fill_item Ki e)) → is_Some (to_val e);
     (** [fill_item] is always injective on the expression for a fixed
@@ -48,7 +55,6 @@ Section ectxi_language_mixin.
     (** [decomp_item] produces "smaller" expressions (typically it will be
         structurally decreasing) *)
     mixin_decomp_ord Ki e e' : decomp_item e = Some (Ki, e') → expr_ord e' e;
-
     mixin_decomp_fill_item Ki e :
       to_val e = None → decomp_item (fill_item Ki e) = Some (Ki, e);
     mixin_decomp_fill_item_2 e e' Ki :
@@ -58,69 +64,53 @@ Section ectxi_language_mixin.
         [ectx_language], an empty context is impossible here).  In other words,
         if [e] is not a value then wrapping it in a context does not add new
         head redex positions. *)
-    mixin_head_ctx_step_val Ki e σ1 ρ :
-      head_step (fill_item Ki e) σ1 ρ > 0 → is_Some (to_val e);
+    mixin_head_ctx_step_val Ki e σ1 :
+      (¬ is_zero (head_step ((fill_item Ki e), σ1))) → is_Some (to_val e);
   }.
 End ectxi_language_mixin.
 
-Structure ectxiLanguage := EctxiLanguage {
-  expr : Type;
-  val : Type;
-  ectx_item : Type;
-  state : Type;
-  state_idx : Type;
 
-  expr_eqdec : EqDecision expr;
-  val_eqdec : EqDecision val;
-  state_eqdec : EqDecision state;
-  state_idx_eqdec : EqDecision state_idx;
-  expr_countable : Countable expr;
-  val_countable : Countable val;
-  state_countable : Countable state;
-  state_idx_countable : Countable state_idx;
+Structure meas_ectxiLanguage := MeasEctxiLanguage {
+  R : realType;
+
+  d_expr : measure_display;
+  d_val: measure_display;
+  d_state: measure_display;
+  expr : measurableType d_expr;
+  val : measurableType d_val;
+  state : measurableType d_state;
+  ectx_item : Type;
 
   of_val : val → expr;
   to_val : expr → option val;
 
-  fill_item : ectx_item → expr → expr;
+  fill_item : ectx_item → measurable_map expr expr;
   decomp_item : expr → option (ectx_item * expr);
   expr_ord : expr → expr → Prop;
 
-  head_step : expr → state → distr (expr * state);
-  state_step : state → state_idx → distr state;
-  get_active : state → list state_idx;
+  head_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
 
   ectxi_language_mixin :
-    EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord
-      head_step state_step get_active
+    MeasEctxiLanguageMixin R of_val to_val fill_item decomp_item expr_ord head_step
 }.
-
-#[global] Existing Instance expr_eqdec.
-#[global] Existing Instance val_eqdec.
-#[global] Existing Instance state_eqdec.
-#[global] Existing Instance state_idx_eqdec.
-#[global] Existing Instance expr_countable.
-#[global] Existing Instance val_countable.
-#[global] Existing Instance state_countable.
-#[global] Existing Instance state_idx_countable.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _ _.
+Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ } _ _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
-Global Arguments fill_item {_} _ _.
+Global Arguments fill_item {_} _.
 Global Arguments decomp_item {_} _.
 Global Arguments expr_ord {_} _ _.
-Global Arguments head_step {_} _ _.
-Global Arguments state_step {_} _.
-Global Arguments get_active {_} _.
+Global Arguments head_step {_}.
 
 Section ectxi_language.
-  Context {Λ : ectxiLanguage}.
+  Context {Λ : meas_ectxiLanguage}.
   Implicit Types (e : expr Λ) (Ki : ectx_item Λ).
   Notation ectx := (list (ectx_item Λ)).
+
+  (*
 
   (* Only project stuff out of the mixin that is not also in ectxLanguage *)
   Global Instance fill_item_inj Ki : Inj (=) (=) (fill_item Ki).
@@ -149,18 +139,36 @@ Section ectxi_language.
   Lemma fill_item_not_val K e : to_val e = None → to_val (fill_item K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_item_val. Qed.
 
-  Definition fill (K : ectx) (e : expr Λ) : expr Λ := foldl (flip fill_item) e K.
+   *)
 
+  Definition fill (K : ectx) : expr Λ -> expr Λ := fun e => foldl (flip fill_item) e K.
+
+  Lemma fill_measurable (K : ectx) : measurable_fun setT (fill K).
+  Proof.
+    (* |K|-fold composition of measurable functions *)
+    induction K; [by eapply measurable_id|].
+    rewrite /fill/=.
+  Admitted.
+
+  HB.instance Definition _ (K : ectx) :=
+    isMeasurableMap.Build _ _ (expr Λ) (expr Λ) (fill K) (fill_measurable K).
+
+
+  (*
   Lemma fill_app (K1 K2 : ectx) e : fill (K1 ++ K2) e = fill K2 (fill K1 e).
   Proof. apply foldl_app. Qed.
+  *)
 
   Program Fixpoint decomp (e : expr Λ) {wf expr_ord e} : ectx * expr Λ :=
     match decomp_item e with
     | Some (Ki, e') => let '(K, e'') := decomp e' in (K ++ [Ki], e'')
     | None => ([], e)
     end.
-  Solve Obligations with eauto using decomp_ord, expr_ord_wf.
+  Next Obligation. Admitted.
+  Next Obligation. Admitted.
+  (* Solve Obligations with eauto using decomp_ord, expr_ord_wf. *)
 
+  (*
   Lemma decomp_unfold e :
     decomp e =
       match decomp_item e with
@@ -204,10 +212,15 @@ Section ectxi_language.
     intros [= [<- <-]%list_snoc_singleton_inv ->].
     eauto.
   Qed.
+  *)
 
-  Definition ectxi_lang_ectx_mixin :
-    EctxLanguageMixin of_val to_val [] (flip (++)) fill decomp head_step state_step get_active.
-  Proof.
+
+
+  Definition meas_ectxi_lang_ectx_mixin :
+    MeasEctxLanguageMixin (R Λ) of_val to_val head_step [] (flip (++)) fill decomp.
+  Proof. Admitted.
+
+    (*
     assert (fill_val : ∀ K e, is_Some (to_val (fill K e)) → is_Some (to_val e)).
     { intros K. induction K as [|Ki K IH]=> e //=. by intros ?%IH%fill_item_val. }
     assert (fill_not_val : ∀ K e, to_val e = None → to_val (fill K e) = None).
@@ -256,11 +269,12 @@ Section ectxi_language.
       destruct K as [|Ki K _] using rev_ind; simpl; first by auto.
       rewrite fill_app /=.
       intros ?%head_ctx_step_val; eauto using fill_val.
-  Qed.
+  Qed.  *)
 
-  Canonical Structure ectxi_lang_ectx := EctxLanguage (get_active := get_active) ectxi_lang_ectx_mixin.
-  Canonical Structure ectxi_lang := LanguageOfEctx ectxi_lang_ectx.
+  Canonical Structure meas_ectxi_lang_ectx := MeasEctxLanguage meas_ectxi_lang_ectx_mixin.
+  Canonical Structure meas_ectxi_lang := MeasLanguageOfEctx meas_ectxi_lang_ectx.
 
+  (*
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
 
@@ -271,20 +285,20 @@ Section ectxi_language.
     intros Hsub K e' ->. destruct K as [|Ki K _] using @rev_ind=> //=.
     intros []%eq_None_not_Some. eapply fill_val, Hsub. by rewrite /= fill_app.
   Qed.
+  *)
 
-  Global Instance ectxi_lang_ctx_item Ki : LanguageCtx (fill_item Ki).
-  Proof. change (LanguageCtx (fill [Ki])). apply _. Qed.
+  Global Instance ectxi_lang_ctx_item Ki : MeasLanguageCtx (fill_item Ki).
+  Proof. Admitted.
+    (* change (LanguageCtx (fill [Ki])). apply _. Qed. *)
 End ectxi_language.
 
-Global Arguments ectxi_lang_ectx : clear implicits.
-Global Arguments ectxi_lang : clear implicits.
-Coercion ectxi_lang_ectx : ectxiLanguage >-> ectxLanguage.
-Coercion ectxi_lang : ectxiLanguage >-> language.
+Global Arguments meas_ectxi_lang_ectx : clear implicits.
+Global Arguments meas_ectxi_lang : clear implicits.
+Coercion meas_ectxi_lang_ectx : meas_ectxiLanguage >-> meas_ectxLanguage.
+Coercion meas_ectxi_lang : meas_ectxiLanguage >-> meas_language.
 
-Definition EctxLanguageOfEctxi (Λ : ectxiLanguage) : ectxLanguage :=
-  let '@EctxiLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val fill decomp expr_ord head state act mix := Λ in
-  @EctxLanguage E V (list C) St StI _ _ _ _ _ _ _ _ of_val to_val _ _ _ _ _ state act
-    (@ectxi_lang_ectx_mixin (@EctxiLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val fill decomp expr_ord head state act mix)).
+Program Definition MeasEctxLanguageOfEctxi (Λ : meas_ectxiLanguage) : meas_ectxLanguage :=
+ let '@MeasEctxiLanguage R _ _ _ expr val state ectx_item of_val to_val _ _ _ _ mix := Λ in
+ MeasEctxLanguage (@meas_ectxi_lang_ectx_mixin Λ).
 
-Global Arguments EctxLanguageOfEctxi : simpl never.
-*)
+Global Arguments MeasEctxLanguageOfEctxi : simpl never.

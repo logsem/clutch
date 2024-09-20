@@ -36,7 +36,7 @@ Section ectx_language_mixin.
   Context (fill : ectx → measurable_map expr expr).
   Context (decomp : expr → ectx * expr).
 
-  Record EctxLanguageMixin := {
+  Record MeasEctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
 
@@ -80,7 +80,7 @@ Section ectx_language_mixin.
   }.
 End ectx_language_mixin.
 
-Structure ectxLanguage := EctxLanguage {
+Structure meas_ectxLanguage := MeasEctxLanguage {
   R : realType;
 
   d_expr : measure_display;
@@ -102,13 +102,13 @@ Structure ectxLanguage := EctxLanguage {
   head_step : measurable_map (expr * state)%type (@giryM R _ (expr * state)%type);
 
   ectx_language_mixin :
-    EctxLanguageMixin R of_val to_val head_step empty_ectx comp_ectx fill decomp;
+    MeasEctxLanguageMixin R of_val to_val head_step empty_ectx comp_ectx fill decomp;
 }.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments MeasEctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
@@ -119,7 +119,7 @@ Global Arguments head_step {_}.
 
 (* From an ectx_language, we can construct a language. *)
 Section ectx_language.
-  Context {Λ : ectxLanguage}.
+  Context {Λ : meas_ectxLanguage}.
   Implicit Types v : val Λ.
   Implicit Types e : expr Λ.
   Implicit Types K : ectx Λ.
@@ -207,7 +207,7 @@ Section ectx_language.
   Definition ectx_lang_mixin : MeasLanguageMixin (R Λ) (@of_val Λ) to_val head_step.
   Proof. split; by apply ectx_language_mixin. Qed.
 
-  Canonical Structure ectx_lang : meas_language := Language ectx_lang_mixin.
+  Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
 
   (*
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
@@ -453,7 +453,7 @@ Section ectx_language.
 End ectx_language.
 
 Global Arguments ectx_lang : clear implicits.
-Coercion ectx_lang : ectxLanguage >-> meas_language.
+Coercion ectx_lang : meas_ectxLanguage >-> meas_language.
 
 (* This definition makes sure that the fields of the [language] record do not
 refer to the projections of the [ectxLanguage] record but to the actual fields
@@ -463,13 +463,13 @@ work.
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 
-Program Definition LanguageOfEctx (Λ : ectxLanguage) : meas_language :=
-  let '@EctxLanguage R _ _ _ expr val state _ of_val to_val _ _ _ _ head_step mix := Λ in
-  @Language R _ _ _ expr val state of_val to_val head_step _.
+Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
+  let '@MeasEctxLanguage R _ _ _ expr val state _ of_val to_val _ _ _ _ head_step mix := Λ in
+  @MeasLanguage R _ _ _ expr val state of_val to_val head_step _.
 Next Obligation.
   intros.
   destruct mix.
   split; try done.
 Defined.
 
-Global Arguments LanguageOfEctx : simpl never.
+Global Arguments MeasLanguageOfEctx : simpl never.

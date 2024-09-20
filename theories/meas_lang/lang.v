@@ -7,6 +7,7 @@ From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.prob.monad Require Export laws.
+From clutch.meas_lang Require Import ectxi_language.
 
 (*
 From Coq Require Import Reals Psatz.
@@ -596,6 +597,14 @@ Qed.
 
 Section pointed_instances.
   Local Open Scope classical_set_scope.
+  (** val are pointed *)
+
+  (* Fail Check (<<discr val>> : measurableType _).  *)
+  HB.instance Definition _ := gen_eqMixin val.
+  HB.instance Definition _ := gen_choiceMixin val.
+  HB.instance Definition _ := isPointed.Build val inhabitant.
+  (* Check (<<discr val>> : measurableType _). *)
+
   (** states are pointed *)
   (* Maybe define a builder for this? Any sdtpp inhabited type -> mathcomp pointed type *)
 
@@ -1037,9 +1046,19 @@ Qed.
 
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
 
+
+Local Open Scope classical_set_scope.
+(*
+Program Definition meas_lang_mixin : Type :=
+  @MeasEctxiLanguageMixin R _ _ _ <<discr expr>> <<discr val>> <<discr state>> ectx_item of_val to_val _ _ _ _.
+*)
+
+
+(* head_stepM_def. *)
+
 (*
 Lemma meas_lang_mixin :
-  EctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
+  MeasEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
 Proof.
   split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
     state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
@@ -1047,6 +1066,7 @@ Proof.
     decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
 Qed.
 *)
+
 End meas_lang.
 (*
 (*
