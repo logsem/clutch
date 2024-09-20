@@ -836,7 +836,7 @@ Lemma pgl_iterM_state N p σ α ns:
   pgl (iterM p (λ σ, state_step σ α) σ)
     (λ σ',
        ∃ ns' : list (fin (S N)),
-         ns' ∈ enum_uniform_list N p ∧ σ' = state_upd_tapes <[α:=(N; ns ++ ns')]> σ) 0.
+         ns' ∈ enum_uniform_fin_list N p ∧ σ' = state_upd_tapes <[α:=(N; ns ++ ns')]> σ) 0.
 Proof.
   intros H.
   rewrite /pgl.
@@ -855,7 +855,7 @@ Proof.
   rewrite -dunifv_pos in H1.
   apply H0.
   exists x.
-  split; [by apply elem_of_enum_uniform_list|done].
+  split; [by apply elem_of_enum_uniform_fin_list|done].
 Qed. 
 
 Lemma state_step_coupl_iterM_state_adv_comp_con_prob_lang (p:nat) α σ1 Z (ε ε_rem: nonnegreal) N ns:
@@ -871,11 +871,11 @@ Proof.
     by apply elem_of_list_In, elem_of_list_In, elem_of_elements, elem_of_dom. }
   assert (0<=1 / S N ^ p)%R as Hineq.
   { apply Rcomplements.Rdiv_le_0_compat; first lra. apply pow_lt. apply pos_INR_S. }
- (* R: predicate should hold iff tapes σ' at α is ns ++ [nx] where ns is in enum_uniform_list N p *) 
+ (* R: predicate should hold iff tapes σ' at α is ns ++ [nx] where ns is in enum_uniform_fin_list N p *) 
   unshelve iExists
-    (fun σ' : state => exists ns', ns' ∈ enum_uniform_list N p /\ σ' = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)), nnreal_zero,
+    (fun σ' : state => exists ns', ns' ∈ enum_uniform_fin_list N p /\ σ' = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)), nnreal_zero,
              (fun ρ => (ε_rem +
-                       match ClassicalEpsilon.excluded_middle_informative (exists ns', ns' ∈ enum_uniform_list N p /\ ρ = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)) with
+                       match ClassicalEpsilon.excluded_middle_informative (exists ns', ns' ∈ enum_uniform_fin_list N p /\ ρ = (state_upd_tapes <[α:=(_; ns ++ ns') : tape]> σ1)) with
                        | left p => mknonnegreal (ε2 (epsilon p)) _
                        |  _ => nnreal_zero
                        end))%NNR.
@@ -893,14 +893,14 @@ Proof.
       - apply Rlt_gt. apply pow_lt. pose proof pos_INR N; lra. 
       - rewrite -S_INR; simpl in *; lra.
     }
-    rewrite elem_of_enum_uniform_list in H1.
+    rewrite elem_of_enum_uniform_fin_list in H1.
     etrans; last exact.
     etrans; last apply (SeriesC_ge_elem _ (epsilon e)).
     + rewrite S_INR. rewrite H1. by rewrite Nat.eqb_refl.
     + intros; case_match; last lra.
       apply Rmult_le_pos; try done. by simpl.
-    + apply (ex_seriesC_ext (λ n, if bool_decide (n∈enum_uniform_list N p) then (1 / S N ^ p * ε2 n)%R else 0%R)); last apply ex_seriesC_list.
-      intros. case_bool_decide as H'; rewrite elem_of_enum_uniform_list in H'.
+    + apply (ex_seriesC_ext (λ n, if bool_decide (n∈enum_uniform_fin_list N p) then (1 / S N ^ p * ε2 n)%R else 0%R)); last apply ex_seriesC_list.
+      intros. case_bool_decide as H'; rewrite elem_of_enum_uniform_fin_list in H'.
       * subst. by rewrite Nat.eqb_refl.
       * rewrite -Nat.eqb_neq in H'. by rewrite H'.
   - iPureIntro.
@@ -912,13 +912,13 @@ Proof.
       by rewrite dmap_unfold_pmf -SeriesC_scal_r.
     }
     rewrite fubini_pos_seriesC'; last first.
-    + eapply (ex_seriesC_ext (λ a, if bool_decide (a ∈ enum_uniform_list N p) then _ else 0%R)); last apply ex_seriesC_list.
+    + eapply (ex_seriesC_ext (λ a, if bool_decide (a ∈ enum_uniform_fin_list N p) then _ else 0%R)); last apply ex_seriesC_list.
       intros n.
       case_bool_decide as H; first done.
       rewrite SeriesC_0; first done.
       intros x.
       rewrite dunifv_pmf bool_decide_eq_false_2; first lra.
-      by rewrite -elem_of_enum_uniform_list.
+      by rewrite -elem_of_enum_uniform_fin_list.
     + intros a.
       rewrite dunifv_pmf.
       eapply (ex_seriesC_ext (λ b, if bool_decide (b=state_upd_tapes <[α:=(N; ns ++ a)]> σ1) then _ else 0%R)); last apply ex_seriesC_singleton_dependent.
@@ -927,11 +927,11 @@ Proof.
     + intros.
       repeat apply Rmult_le_pos; repeat case_match; simpl; try lra; try done.
       all: apply Rplus_le_le_0_compat; by try lra.
-    + erewrite (SeriesC_ext _ (λ n, (if bool_decide (n∈enum_uniform_list N p) then 1 / S N ^ p * ε2 n else 0) + (if bool_decide (n∈enum_uniform_list N p) then 1 / S N ^ p * ε_rem else 0)))%R.
+    + erewrite (SeriesC_ext _ (λ n, (if bool_decide (n∈enum_uniform_fin_list N p) then 1 / S N ^ p * ε2 n else 0) + (if bool_decide (n∈enum_uniform_fin_list N p) then 1 / S N ^ p * ε_rem else 0)))%R.
       * rewrite SeriesC_plus; [|apply ex_seriesC_list..].
-        rewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
-        rewrite enum_uniform_list_length.
-        setoid_rewrite elem_of_enum_uniform_list'.
+        rewrite SeriesC_list_2; last apply NoDup_enum_uniform_fin_list.
+        rewrite enum_uniform_fin_list_length.
+        setoid_rewrite elem_of_enum_uniform_fin_list'.
         rewrite Rplus_0_l.
         rewrite Rplus_comm. apply Rplus_le_compat; last done.
         rewrite -pow_INR. simpl.
@@ -951,7 +951,7 @@ Proof.
              case_match; last first.
              { exfalso. apply n. naive_solver. }
              rewrite dunifv_pmf.
-             rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_list.
+             rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
              rewrite -pow_INR. simpl.
              pose proof epsilon_correct _ e as H'. simpl in H'.
              replace (epsilon e) with l; try lra.
@@ -962,7 +962,7 @@ Proof.
            intros.
            rewrite dunifv_pmf.
            rewrite bool_decide_eq_false_2; first lra.
-           by rewrite -elem_of_enum_uniform_list.
+           by rewrite -elem_of_enum_uniform_fin_list.
   - simpl.
     iPureIntro.
     eapply pgl_mon_pred; last first.
@@ -970,7 +970,7 @@ Proof.
     + done.
   - iIntros (σ2 [ns' [Helem ->]]).
     pose proof Helem as Helem'.
-    rewrite elem_of_enum_uniform_list in Helem. rewrite <- Helem.
+    rewrite elem_of_enum_uniform_fin_list in Helem. rewrite <- Helem.
     iMod ("H" with "[]") as "H"; first done.
     case_match; last first.
     + (* contradiction *)
@@ -1001,16 +1001,16 @@ Proof.
       * intros. split; repeat case_match; try rewrite S_INR; simpl; try rewrite Rmult_1_r; try lra.
         all: apply Rmult_le_pos; last done.
         all: rewrite -S_INR; apply Rdiv_INR_ge_0.
-      * eapply (ex_seriesC_ext (λ x, if (bool_decide (x∈enum_uniform_list N 1%nat)) then
+      * eapply (ex_seriesC_ext (λ x, if (bool_decide (x∈enum_uniform_fin_list N 1%nat)) then
                                      match x with |[x'] => (1 / S N * ε2 x')%R | _ => 0 end else 0));
           last apply ex_seriesC_list.
         intros [|n[|]].
         -- rewrite bool_decide_eq_false_2; first done.
-           by rewrite elem_of_enum_uniform_list.
+           by rewrite elem_of_enum_uniform_fin_list.
         -- rewrite bool_decide_eq_true_2; first done.
-           by rewrite elem_of_enum_uniform_list.
+           by rewrite elem_of_enum_uniform_fin_list.
         -- rewrite bool_decide_eq_false_2; first done.
-           by rewrite elem_of_enum_uniform_list.
+           by rewrite elem_of_enum_uniform_fin_list.
     + intros; apply Rmult_le_pos; last by simpl.
       apply Rdiv_INR_ge_0.
     + intros. repeat case_match; by simplify_eq.

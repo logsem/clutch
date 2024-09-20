@@ -6,19 +6,130 @@ From clutch.coneris Require Import coneris flip.
 Set Default Proof Using "Type*".
 
 Definition hocap_error_nroot:= nroot.@ "error".
-Definition hocap_error_RA := excl_authR NNRO.
+Definition hocap_error_RA := authR nonnegrealR.
 
 Class hocap_errorGS (Σ : gFunctors) := Hocap_errorGS {
   hocap_errorGS_inG :: inG Σ (hocap_error_RA);
 }.
 
 
-Definition hocap_errorΣ := #[GFunctor (excl_authR (nonnegrealUR))].
+Definition hocap_errorΣ := #[GFunctor (hocap_error_RA)].
 
-Notation "'●↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ own γ (●E x))%I
+Notation "'●↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ own γ (● x))%I
                          (at level 1).
-Notation "'◯↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ own γ (◯E x))%I
+Notation "'◯↯' ε '@' γ" := (∃ (x : nonnegreal), ⌜x.(nonneg) = ε%R⌝ ∗ own γ (◯ x))%I
                              (at level 1).
+
+
+Section error_lemmas.
+  Context `{!conerisGS Σ, !hocap_errorGS Σ}.
+
+  Lemma hocap_error_auth_exclusive b b' γ:
+    ●↯ b @ γ -∗ ●↯ b' @ γ -∗ False.
+  Proof.
+    iIntros "[%[% H1]] [%[% H2]]".
+    iCombine "H1 H2" gives "%H1".
+    compute in H1. destruct H1.
+    exfalso.
+    apply H1. done.
+  Qed.
+
+  Lemma hocap_error_frag_split (b b':nonnegreal) γ:
+    ◯↯ b @ γ ∗ ◯↯ b' @ γ ⊣⊢ ◯↯ (b+b') @ γ.
+  Proof.
+    iSplit.
+    - iIntros "[[%x1[% H1]] [%x2[% H2]]]".
+      iExists (x1 + x2)%NNR.
+      iSplit; [simpl; simpl in *; iPureIntro; lra|].
+      rewrite auth_frag_op own_op. iFrame.
+    - iIntros "[%x [% H]]".
+      simpl in *.
+      replace x with (b+b')%NNR; last (apply nnreal_ext; simpl; lra).
+      rewrite auth_frag_op own_op.
+      by iDestruct "H" as "[$ $]".
+  Qed.
+  
+  (* Helpful lemmas *)
+  Lemma hocap_error_auth_valid (b:R) γ:
+    (●↯ b @ γ) -∗ ⌜(0<=b<1)%R⌝.
+  Proof.
+    iIntros "[%x[<- H]]".
+    iDestruct (own_valid with "[$]") as "%H".
+    iPureIntro.
+    rewrite auth_auth_valid in H.
+    destruct x.
+    compute in H.
+    split; simpl; lra.
+  Qed. 
+
+  Lemma hocap_error_frag_valid (b:R) γ:
+    (◯↯ b @ γ) -∗ ⌜(0<=b<1)%R⌝.
+  Proof.
+    iIntros "[%[<- H]]".
+    iDestruct (own_valid with "[$]") as "%H".
+    iPureIntro.
+    rewrite auth_frag_valid in H.
+    destruct x.
+    compute in H.
+    split; simpl; lra.
+  Qed. 
+  
+  Lemma hocap_error_alloc (ε:nonnegreal):
+    (ε<1)%R -> ⊢ |==>∃ γ, (●↯ ε @ γ) ∗ (◯↯ ε @ γ).
+  Proof.
+    intros H.
+    iMod (own_alloc (● ε ⋅ ◯ ε)) as "[% [??]]".
+    - apply auth_both_valid_2.
+      + compute. destruct ε; simpl in H. lra.
+      + apply nonnegreal_included; lra.
+    - by eauto with iFrame.
+  Qed.
+
+  Lemma hocap_error_ineq γ (b c:R) :
+    (●↯ b @ γ) -∗ (◯↯ c @ γ) -∗ ⌜ (c<=b)%R ⌝.
+  Proof.
+    iIntros "[% [<- Hγ●]] [% [<-Hγ◯]]".
+    iCombine "Hγ● Hγ◯" gives "%Hop".
+    by eapply auth_both_valid_discrete in Hop as [Hlt%nonnegreal_included ?]. 
+  Qed.
+
+  Lemma hocap_error_decrease γ (b' b:nonnegreal) :
+     (●↯ (b+b') @ γ) -∗ (◯↯ b @ γ) ==∗ (●↯ b' @ γ).
+  Proof.
+    iIntros "H1 H2".
+    simpl.
+    iDestruct "H1" as "[% [% H1]]".
+    iDestruct "H2" as "[% [% H2]]".
+    iMod (own_update_2 with "H1 H2") as "Hown".
+    { eapply (auth_update_dealloc _ _ b'), nonnegreal_local_update.
+      - apply cond_nonneg.
+      - apply nnreal_ext =>/=. lra. }
+    iFrame. by iPureIntro.
+  Qed.
+   
+
+  Lemma hocap_error_increase γ (b b':nonnegreal) :
+     (b+b'<1)%R -> ⊢ (●↯ b @ γ) ==∗ (●↯ (b+b')%NNR @ γ) ∗ (◯↯ b' @ γ).
+  Proof.
+    iIntros (Hineq) "[% [% H]]".
+    iMod (own_update with "H") as "[$ $]"; last (iPureIntro; split; last done).
+    - apply auth_update_alloc.
+      apply (local_update_unital_discrete _ _ (b+b')%NNR) => z H1 H2.
+      split; first done.
+      apply nnreal_ext. simpl.
+      rewrite Rplus_comm.
+      apply Rplus_eq_compat_l.
+      simpl in *. rewrite -H H2. simpl. lra.
+    - done.
+  Qed.
+  
+  Lemma hocap_error_irrel γ (b c:R) :
+    (b=c)%R -> (●↯ b @ γ) -∗ (●↯ c @ γ).
+  Proof.
+    iIntros (->) "$".
+  Qed.
+
+End error_lemmas.
 
 Definition hocap_tapes_nroot:=nroot.@"tapes".
 Class hocap_tapesGS (Σ : gFunctors) := Hocap_tapesGS {
@@ -30,53 +141,6 @@ Notation "α ◯↪N ( M ; ns ) @ γ":= (α ↪[ γ ] (M,ns))%I
                                     (at level 20, format "α ◯↪N ( M ; ns ) @ γ") : bi_scope.
 
 Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
-
-Section error_lemmas.
-  Context `{!conerisGS Σ, !hocap_errorGS Σ}.
-  (* Helpful lemmas *)
-  Lemma hocap_error_auth_pos (b:R) γ:
-    (●↯ b @ γ) -∗ ⌜(0<=b)%R⌝.
-  Proof.
-    by iIntros "[%[<- H]]".
-  Qed. 
-
-  Lemma hocap_error_frag_pos (b:R) γ:
-    (◯↯ b @ γ) -∗ ⌜(0<=b)%R⌝.
-  Proof.
-    by iIntros "[%[<- H]]".
-  Qed. 
-  
-  Lemma hocap_error_alloc (ε:nonnegreal):
-    ⊢ |==>∃ γ, (●↯ ε @ γ) ∗ (◯↯ ε @ γ).
-  Proof.
-    iMod (own_alloc (●E ε ⋅ ◯E ε)) as "[% [??]]".
-    - by apply excl_auth_valid.
-    - by eauto with iFrame.
-  Qed.
-
-  Lemma hocap_error_agree γ (b c:R) :
-    (●↯ b @ γ) -∗ (◯↯ c @ γ) -∗ ⌜ b = c ⌝.
-  Proof.
-    iIntros "[% [<- Hγ●]] [% [<-Hγ◯]]".
-    by iCombine "Hγ● Hγ◯" gives %<-%excl_auth_agree_L.
-  Qed.
-
-  Lemma hocap_error_update γ (b':nonnegreal) (b c:R) :
-    (●↯ b @ γ) -∗ (◯↯ c @ γ) ==∗ (●↯ b' @ γ) ∗ (◯↯ b' @ γ).
-  Proof.
-    iIntros "[% [<- Hγ●]] [% [<-Hγ◯]]".
-    iMod (own_update_2 _ _ _ (_ ⋅ _) with "Hγ● Hγ◯") as "[$$]".
-    { by apply excl_auth_update. }
-    done.
-  Qed.
-
-  Lemma hocap_error_irrel γ (b c:R) :
-    (b=c)%R -> (●↯ b @ γ) -∗ (●↯ c @ γ).
-  Proof.
-    iIntros (->) "$".
-  Qed.
-
-End error_lemmas.
 
 Section tapes_lemmas.
   Context `{!conerisGS Σ, !hocap_tapesGS Σ}.

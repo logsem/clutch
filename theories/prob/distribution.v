@@ -2247,8 +2247,8 @@ Section uniform.
 
 End uniform.
 
-(** Uniform lists *)
-Section uniform_lists.
+(** Uniform fin lists *)
+Section uniform_fin_lists.
   Program Definition dunifv (N p: nat): distr (list (fin (S N))) :=
     MkDistr (λ x, if (bool_decide (length x = p)) then /(S N^p)%nat else 0) _ _ _.
   Next Obligation.
@@ -2264,19 +2264,19 @@ Section uniform_lists.
     intros.
     eapply ex_seriesC_ext; last apply ex_seriesC_list.
     simpl. intros. erewrite bool_decide_ext; first done.
-    by erewrite elem_of_enum_uniform_list.
+    by erewrite elem_of_enum_uniform_fin_list.
   Qed.
   Next Obligation.
     intros N p.
     erewrite SeriesC_ext. 
-    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
-      rewrite enum_uniform_list_length.
+    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_fin_list.
+      rewrite enum_uniform_fin_list_length.
       erewrite Rinv_l; first done.
       apply not_0_INR.
       apply Nat.pow_nonzero.
       lia.
     - intros. erewrite bool_decide_ext; first done.
-      by erewrite elem_of_enum_uniform_list.
+      by erewrite elem_of_enum_uniform_fin_list.
   Qed.
   
   Lemma dunifv_pmf N p v:
@@ -2287,15 +2287,15 @@ Section uniform_lists.
     SeriesC (dunifv N p) = 1.
   Proof.
     erewrite SeriesC_ext.
-    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_list.
-      rewrite enum_uniform_list_length.
+    - erewrite SeriesC_list_2; last apply NoDup_enum_uniform_fin_list.
+      rewrite enum_uniform_fin_list_length.
       erewrite Rinv_l; first done.
       apply not_0_INR.
       apply Nat.pow_nonzero. lia.
     - intros.
       rewrite /dunifv_pmf.
       erewrite bool_decide_ext; first done.
-      by erewrite elem_of_enum_uniform_list.
+      by erewrite elem_of_enum_uniform_fin_list.
   Qed. 
 
   Lemma dunifv_pos N p v:
@@ -2316,7 +2316,7 @@ Section uniform_lists.
       done.
   Qed.
   
-End uniform_lists.
+End uniform_fin_lists.
 
 Ltac inv_distr :=
   repeat

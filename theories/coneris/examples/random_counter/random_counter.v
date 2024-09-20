@@ -46,10 +46,10 @@ Class random_counter `{!conerisGS Σ} := RandCounter
     counter_error_auth (L:=L) γ x1 -∗ counter_error_auth (L:=L) γ x2 -∗ False;
   counter_error_frag_exclusive {L : counterG Σ} γ x1 x2:
   counter_error_frag (L:=L) γ x1 -∗ counter_error_frag (L:=L) γ x2 -∗ False;
-  counter_error_auth_pos {L : counterG Σ} γ x:
-    counter_error_auth (L:=L) γ x -∗ ⌜(0<=x)%R⌝;
-  counter_error_auth_frag {L : counterG Σ} γ x:
-    counter_error_frag (L:=L) γ x -∗ ⌜(0<=x)%R⌝;
+  counter_error_auth_valid {L : counterG Σ} γ x:
+    counter_error_auth (L:=L) γ x -∗ ⌜(0<=x<1)%R⌝;
+  counter_error_auth_valid {L : counterG Σ} γ x:
+    counter_error_frag (L:=L) γ x -∗ ⌜(0<=x<1)%R⌝;
   counter_error_agree {L : counterG Σ} γ x1 x2:
     counter_error_auth (L:=L) γ x1 -∗ counter_error_frag (L:=L) γ x2 -∗ ⌜x1 = x2 ⌝;
   counter_error_update {L : counterG Σ} γ x1 x2 (x3:nonnegreal):

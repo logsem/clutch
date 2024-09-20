@@ -710,6 +710,13 @@ Section filter.
 
 End filter.
 
+Lemma ex_seriesC_list_length `{Countable A} (f:list A -> R) num:
+  (forall x, (0<f x)%R -> length x = num) ->
+  ex_seriesC f.
+Proof.
+  intros.
+Admitted.
+
 Lemma SeriesC_Series_nat (f : nat → R)  :
   SeriesC f = Series f.
 Proof.
