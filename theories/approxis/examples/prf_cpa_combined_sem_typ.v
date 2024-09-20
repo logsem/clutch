@@ -104,8 +104,6 @@ Section combined.
   Definition lrel_cipher {Σ} : lrel Σ := lrel_input * lrel_output.
 
   (** Parameters required for the construction of sym_scheme_F *)
-  (* H_in_out is required to make sense of the assumption that xor is a bijection. *)
-  Hypothesis H_in_out : (Input = Output).
   (* An abstract `xor`, in RandML and in Coq. *)
   Context `{XOR Message Output}.
   (* TODO relax typing of xor to be semantic *)
@@ -173,7 +171,7 @@ Section combined.
   Context `{!approxisRGS Σ}.
 
   Fact red_sem_typed : (⊢ REL RED <<  RED : lrel_PRF_Adv).
-  Proof using (xor_sem_typed adversary_sem_typed H_in_out)
+  Proof using (xor_sem_typed adversary_sem_typed)
     with (rel_pures_r ; rel_pures_l).
     rel_arrow ; iIntros (f f') "#hff'" ; rel_pures_l ; rel_pures_r.
     unfold RED...
@@ -207,7 +205,7 @@ Section combined.
     iIntros (??) "(%r&->&->&%&%)"...
     rel_bind_l (f _). rel_bind_r (f' _). rel_apply refines_bind.
     { rel_apply refines_app. 1: done.
-      rel_values. iExists _. iPureIntro ; repeat split ; try rewrite H_in_out ; try lia. }
+      rel_values. iExists _. iPureIntro ; repeat split ; try lia. }
     iIntros (??) "#(%zopt&%zopt'&[(->&->&?) | (->&->&ttt)])"...
     1: rel_values ; iExists _, _ ; iLeft ; iPureIntro ; repeat split.
     rel_bind_l (xor _ _). rel_bind_r (xor _ _). rel_apply refines_bind.
@@ -223,7 +221,7 @@ Section combined.
   Lemma reduction :
     ⊢ (REL (adversary (CPA_real sym_scheme_F #Q))
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
-  Proof using (xor_sem_typed adversary_sem_typed H_in_out keygen_sem_typed Key F_sem_typed)
+  Proof using (xor_sem_typed adversary_sem_typed keygen_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_F/PRF_real/prf.PRF_real.
     rel_pures_r.
@@ -337,7 +335,7 @@ Section combined.
     ⊢ (REL (RED (PRF_rand PRF_scheme_F #Q))
          << (RED (PRF_rand PRF_scheme_I #Q)) : lrel_bool).
   Proof using (xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed adversary_typed
-adversary_sem_typed Key H_in_out F_typed F_sem_typed)
+adversary_sem_typed Key F_typed F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.PRF_rand...
     rel_apply refines_app.
@@ -451,7 +449,7 @@ adversary_sem_typed Key H_in_out F_typed F_sem_typed)
     ⊢ (REL (RED (PRF_rand PRF_scheme_I #Q))
          << (adversary (CPA_real sym_scheme_I #Q)) : lrel_bool).
   Proof
-    using (keygen_typed adversary_typed H_in_out refines_tape_couple_avoid F_typed
+    using (keygen_typed adversary_typed refines_tape_couple_avoid F_typed
              xor_sem_typed keygen_sem_typed adversary_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
@@ -589,18 +587,16 @@ adversary_sem_typed Key H_in_out F_typed F_sem_typed)
   Qed.
 
   (* This should be the result proven for the Approxis paper. *)
+  (* TODO actually isolate the part that does the "sampling without repetition"
+     into a reusable lemma. *)
   Lemma cpa_I `{!XOR_spec} :
     ↯ ε_Q
     ⊢ (REL (adversary (CPA_real sym_scheme_I #Q))
          << (adversary (CPA_rand sym_scheme_I #Q)) : lrel_bool).
   Proof
-    using (adversary_typed keygen_typed F_typed
-xor_sem_typed refines_tape_couple_avoid keygen_sem_typed adversary_sem_typed
-Key H_in_out
-F_sem_typed
-)
+    using (adversary_typed keygen_typed F_typed xor_sem_typed refines_tape_couple_avoid
+             keygen_sem_typed adversary_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
-    (* clear H_in_out. *)
     iIntros "ε".
     rewrite /CPA_real/CPA_rand.
     rewrite /symmetric.CPA_real/symmetric.CPA_rand...
@@ -775,20 +771,25 @@ F_sem_typed
     ARcoupl (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ))
       (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ'))
       eq 0.
-  Proof using (xor_sem_typed keygen_sem_typed adversary_sem_typed Key H_in_out
-F_sem_typed). lr_arc ; iApply reduction. Qed.
+  Proof using (xor_sem_typed keygen_sem_typed adversary_sem_typed Key
+F_sem_typed).
+    lr_arc ; iApply reduction.
+  Qed.
 
   Lemma F_I_ARC Σ `{approxisRGpreS Σ} σ σ' :
     ARcoupl (lim_exec ((RED (PRF_rand PRF_scheme_F #Q)), σ))
       (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ'))
       eq 0.
-  Proof. lr_arc ; iApply F_I. Qed.
+  Proof using xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed
+    adversary_typed adversary_sem_typed Key F_typed F_sem_typed.
+    lr_arc ; iApply F_I.
+  Qed.
 
   Lemma reduction'_ARC Σ `{approxisRGpreS Σ} σ σ' :
     ARcoupl (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ'))
       eq 0.
-  Proof using (keygen_typed F_typed adversary_typed H_in_out
+  Proof using (keygen_typed F_typed adversary_typed
                  xor_sem_typed refines_tape_couple_avoid keygen_sem_typed
                  adversary_sem_typed Key F_sem_typed).
     lr_arc ; iApply reduction'.
@@ -806,7 +807,7 @@ F_sem_typed). lr_arc ; iApply reduction. Qed.
     ARcoupl (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ'))
       eq ε_Q.
-  Proof using F_typed H_in_out adversary_typed keygen_typed xor_sem_typed
+  Proof using F_typed adversary_typed keygen_typed xor_sem_typed
     refines_tape_couple_avoid keygen_sem_typed adversary_sem_typed Key F_sem_typed.
     lr_arc. 1: apply ε_Q_pos. iApply cpa_I. iFrame.
   Qed.
@@ -815,7 +816,7 @@ F_sem_typed). lr_arc ; iApply reduction. Qed.
     ARcoupl (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ'))
       eq 0.
-  Proof using F_typed H_in_out adversary_typed keygen_typed
+  Proof using F_typed adversary_typed keygen_typed
   refines_tape_couple_avoid keygen_sem_typed adversary_sem_typed Key F_sem_typed.
     lr_arc ; iApply cpa_F. Qed.
 
@@ -914,7 +915,7 @@ F_sem_typed). lr_arc ; iApply reduction. Qed.
   Theorem CPA_bound_st Σ `{approxisRGpreS Σ} σ σ' :
     (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ' #true
      <= ε_Q + ε_F)%R.
-  Proof using F_typed H_in_out H_ε_ARC H_ε_LR adversary_typed keygen_typed prf_cpa_ARC'
+  Proof using F_typed H_ε_ARC H_ε_LR adversary_typed keygen_typed prf_cpa_ARC'
   refines_tape_couple_avoid keygen_sem_typed adversary_sem_typed Key F_sem_typed.
     apply Rabs_le.
     pose proof CPA_bound_1 Σ σ σ'.
@@ -935,7 +936,7 @@ F_sem_typed). lr_arc ; iApply reduction. Qed.
   Lemma red_to_prf Σ `{approxisRGpreS Σ} σ σ' :
     ARcoupl (lim_exec (adversary (CPA_real sym_scheme_F #Q), σ))
       (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ')) eq 0%R.
-  Proof using keygen_sem_typed adversary_sem_typed Key H_in_out
+  Proof using keygen_sem_typed adversary_sem_typed Key
 F_sem_typed xor_sem_typed.
     eapply reduction_ARC => //. Qed.
 
@@ -948,8 +949,7 @@ F_sem_typed xor_sem_typed.
   Lemma pr_dist_adv_F `{approxisRGpreS Σ} v σ σ' :
     (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (RED (PRF_real PRF_scheme_F #Q)) σ σ' v
      <= 0)%R.
-  Proof using xor_sem_typed red_to_prf' keygen_sem_typed adversary_sem_typed Key
-    H_in_out F_sem_typed.
+  Proof using xor_sem_typed red_to_prf' keygen_sem_typed adversary_sem_typed Key F_sem_typed.
     rewrite /pr_dist.
     eapply Rabs_le.
     split.
@@ -1014,7 +1014,7 @@ F_sem_typed xor_sem_typed.
      <= ε_Q + ε_F)%R.
   Proof using xor_sem_typed refines_tape_couple_avoid red_to_prf'
     red_from_prf' prf_cpa_ARC' keygen_typed keygen_sem_typed adversary_typed
-    adversary_sem_typed Key H_ε_LR H_ε_ARC H_in_out F_typed F_sem_typed.
+    adversary_sem_typed Key H_ε_LR H_ε_ARC F_typed F_sem_typed.
     eapply pr_dist_triangle.
     1: eapply pr_dist_adv_F.
     1: eapply pr_dist_triangle.
@@ -1030,7 +1030,7 @@ F_sem_typed xor_sem_typed.
        (adversary (CPA_rand sym_scheme_F #Q))
        #true
      <= ε_Q + ε_F)%R.
-  Proof using Cipher F F_keygen F_sem_typed F_typed H H_in_out H_ε_ARC H_ε_LR
+  Proof using Cipher F F_keygen F_sem_typed F_typed H H_ε_ARC H_ε_LR
     Input Key Message Output Q adversary adversary_sem_typed adversary_typed
     keygen keygen_sem_typed keygen_typed prf_cpa_ARC' refines_tape_couple_avoid
     ε_Q.
