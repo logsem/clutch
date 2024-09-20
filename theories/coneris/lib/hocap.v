@@ -111,6 +111,13 @@ Section tapes_lemmas.
     iApply (ghost_map_update with "[$][$]"). 
   Qed.
 
+  Lemma hocap_tapes_presample' γ m k N ns ns':
+    (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++ns')]>m) @ γ) ∗ (k ◯↪N (N; ns++ns') @ γ).
+  Proof.
+    iIntros "H1 H2".
+    iApply (ghost_map_update with "[$][$]"). 
+  Qed.
+
   Lemma hocap_tapes_pop γ m k N ns n:
     (● m @ γ) -∗ (k ◯↪N (N; n::ns) @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ).
   Proof.
