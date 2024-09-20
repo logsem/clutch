@@ -886,4 +886,59 @@ Section combined.
   Hypothesis adv_in_PPT : PPT adversary.
   Hypothesis RED_in_PPT : PPT adversary → PPT RED.
 
+  (*
+
+Recall that a function f is negligible if any n, there exists M_n, s.t. for all
+λ > M_n, f(λ) < 1/λ^n.
+
+Definition (Advantage).
+
+The distinguishing advantage between two programs X and Y is defined as
+
+advantage(X, Y) = max_(σ,σ') | lim_exec(X,σ)(true) - lim_exec(Y,σ')(true) | .
+
+
+Nota bene: In security statements, X and Y are typically of the form (A G_real)
+and (A G_rand), but in security reductions they may, for instance, be of the
+form (A G_real) and (RED H_rand) so rather than defining the advantage for a
+fixed adversary and two games, we instead define it directly for two programs.
+
+
+Definition (PRF security).
+
+Let F = (F)_λ be a family of functions indexed by a security parameter λ. F is
+a secure PRF if for all adversaries A, if A is PPT, then the function
+
+    f(λ) = advantage (A λ (PRF_real (F λ))) (A λ (PRF_rand (F λ)))
+
+is negligible.
+
+
+Definition (IND$-CPA security).
+
+Let Σ = (Σ)_λ be a family of symmetric encryption schemes indexed by a security
+parameter λ. Σ has IND$-CPA security if for all adversaries A, if A is PPT,
+then the function
+
+    f(λ) = advantage (A λ (IND$_CPA_real (Σ λ))) (A λ (IND$_CPA_rand (Σ λ)))
+
+is negligible.
+
+
+The theorem CPA_bound states that for any function F, the IND$-CPA advantage of
+any adversary A is bounded by ε = ε_F + ε_Q, where ε_Q = Q²/2N and ε_F is the
+PRF advantage of A against F [TODO "the PRF advantage of A" is undefined]
+
+If we want to conclude that Σ_F is secure against PPT CPA adversaries because F
+is, then we need to use the fact that RED is a PPT PRF adversary.
+[TODO spell this out]
+
+Note, however, that the PPT assumption plays no role in the concrete security
+setting. When λ is fixed to, say, 2048 bits, and ε_F is e.g. 1/2^128, then the
+ε_F + ε_Q bound
+
+   *)
+
+
+
 End combined.
