@@ -1,42 +1,53 @@
  (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
-From Coq Require Import Reals Psatz.
-From iris.prelude Require Export prelude.
-From clutch.common Require Import language.
-From clutch.prob Require Import distribution.
+From HB Require Import structures.
+From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality.
+From stdpp Require Import base numbers binders strings gmap.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
+From iris.prelude Require Import options.
+From iris.algebra Require Import ofe.
+From clutch.bi Require Import weakestpre.
+From mathcomp.analysis Require Import reals measure ereal.
+From clutch.prob.monad Require Export laws.
+From clutch.meas_lang Require Import language.
 
-(*
+
+
 Section ectx_language_mixin.
-  Context {expr val ectx state state_idx : Type}.
-  Context `{Countable expr, Countable val, Countable state, Countable state_idx}.
+  Local Open Scope classical_set_scope.
+
+  Context (R : realType).
+  Notation giryM := (giryM (R := R)).
+
+  Context {d_expr d_val d_state : measure_display}.
+  Context {expr : measurableType d_expr}.
+  Context {val : measurableType d_val}.
+  Context {state : measurableType d_state}.
+
+  Context {ectx : Type}.
 
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
+  Context (head_step : measurable_map (expr * state)%type (giryM (expr * state)%type)).
+
   Context (empty_ectx : ectx).
   Context (comp_ectx : ectx → ectx → ectx).
-  Context (fill : ectx → expr → expr).
+  Context (fill : ectx → measurable_map expr expr).
   Context (decomp : expr → ectx * expr).
-
-  Context (head_step  : expr → state → distr (expr * state)).
-  Context (state_step : state → state_idx → distr state).
-  Context (get_active : state → list state_idx).
 
   Record EctxLanguageMixin := {
     mixin_to_of_val v : to_val (of_val v) = Some v;
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
-    mixin_val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None;
-    mixin_state_step_head_not_stuck e σ σ' α :
-      state_step σ α σ' > 0 → (∃ ρ, head_step e σ ρ > 0) ↔ (∃ ρ', head_step e σ' ρ' > 0);
-    mixin_state_step_mass σ α :
-      α ∈ get_active σ → SeriesC (state_step σ α) = 1;
-    mixin_head_step_mass e σ :
-      (∃ ρ, head_step e σ ρ > 0) → SeriesC (head_step e σ) = 1;
+
+    mixin_head_stuck e σ : (¬ is_zero (head_step (e, σ))) → to_val e = None;
+    mixin_head_step_mass e σ : (¬ is_zero (head_step (e, σ))) -> is_prob (head_step (e, σ))  ;
 
     mixin_fill_empty e : fill empty_ectx e = e;
     mixin_fill_comp K1 K2 e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e;
     mixin_fill_inj K : Inj (=) (=) (fill K);
     mixin_fill_val K e : is_Some (to_val (fill K e)) → is_Some (to_val e);
+
 
     (** [decomp] decomposes an expression into an evaluation context and its head redex  *)
     mixin_decomp_fill K e e' :
@@ -54,76 +65,57 @@ Section ectx_language_mixin.
 
         This implies there can be only one head redex, see
         [head_redex_unique]. *)
-    mixin_step_by_val K' K_redex e1' e1_redex σ1 ρ :
+    mixin_step_by_val K' K_redex e1' e1_redex σ1 :
       fill K' e1' = fill K_redex e1_redex →
       to_val e1' = None →
-      head_step e1_redex σ1 ρ > 0 →
+      (¬ is_zero (head_step (e1_redex, σ1))) →
       ∃ K'', K_redex = comp_ectx K' K'';
 
-  (** If [fill K e] takes a head step, then either [e] is a value or [K] is
+    (** If [fill K e] takes a head step, then either [e] is a value or [K] is
       the empty evaluation context. In other words, if [e] is not a value
       wrapping it in a context does not add new head redex positions. *)
-    mixin_head_ctx_step_val K e σ1 ρ :
-      head_step (fill K e) σ1 ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx;
-
+    mixin_head_ctx_step_val K e σ1 :
+      (¬ is_zero (head_step ((fill K e), σ1))) →
+      is_Some (to_val e) ∨ K = empty_ectx;
   }.
 End ectx_language_mixin.
 
 Structure ectxLanguage := EctxLanguage {
-  expr : Type;
-  val : Type;
-  ectx : Type;
-  state : Type;
-  state_idx : Type;
+  R : realType;
 
-  expr_eqdec : EqDecision expr;
-  val_eqdec : EqDecision val;
-  state_eqdec : EqDecision state;
-  state_idx_eqdec : EqDecision state_idx;
-  expr_countable : Countable expr;
-  val_countable : Countable val;
-  state_countable : Countable state;
-  state_idx_countable : Countable state_idx;
+  d_expr : measure_display;
+  d_val: measure_display;
+  d_state: measure_display;
+  expr : measurableType d_expr;
+  val : measurableType d_val;
+  state : measurableType d_state;
+  ectx : Type;
 
   of_val : val → expr;
   to_val : expr → option val;
 
   empty_ectx : ectx;
   comp_ectx : ectx → ectx → ectx;
-  fill : ectx → expr → expr;
+  fill : ectx → measurable_map expr expr;
   decomp : expr → ectx * expr;
 
-  head_step : expr → state → distr (expr * state);
-  state_step : state → state_idx → distr state;
-  get_active : state → list state_idx;
+  head_step : measurable_map (expr * state)%type (@giryM R _ (expr * state)%type);
 
   ectx_language_mixin :
-    EctxLanguageMixin of_val to_val empty_ectx comp_ectx fill decomp
-      head_step state_step get_active
+    EctxLanguageMixin R of_val to_val head_step empty_ectx comp_ectx fill decomp;
 }.
-
-#[global] Existing Instance expr_eqdec.
-#[global] Existing Instance val_eqdec.
-#[global] Existing Instance state_eqdec.
-#[global] Existing Instance state_idx_eqdec.
-#[global] Existing Instance expr_countable.
-#[global] Existing Instance val_countable.
-#[global] Existing Instance state_countable.
-#[global] Existing Instance state_idx_countable.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments EctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
 Global Arguments comp_ectx {_} _ _.
 Global Arguments decomp {_} _.
-Global Arguments fill {_} _ _.
-Global Arguments head_step {_} _ _.
-Global Arguments state_step {_} _.
-Global Arguments get_active {_} _.
+Global Arguments fill {_} _.
+Global Arguments head_step {_}.
 
 (* From an ectx_language, we can construct a language. *)
 Section ectx_language.
@@ -132,6 +124,9 @@ Section ectx_language.
   Implicit Types e : expr Λ.
   Implicit Types K : ectx Λ.
 
+
+
+  (*
   (* Only project stuff out of the mixin that is not also in language *)
   Lemma val_head_stuck e1 σ1 ρ : head_step e1 σ1 ρ > 0 → to_val e1 = None.
   Proof. apply ectx_language_mixin. Qed.
@@ -166,14 +161,16 @@ Section ectx_language.
   Lemma head_ctx_step_val K e σ1 ρ :
     head_step (fill K e) σ1 ρ > 0 → is_Some (to_val e) ∨ K = empty_ectx.
   Proof. apply ectx_language_mixin. Qed.
+  *)
 
   Class head_reducible (e : expr Λ) (σ : state Λ) :=
-    head_reducible_step : ∃ ρ, head_step e σ ρ > 0.
+    head_reducible_step : ¬ is_zero (head_step (e, σ)).
   Definition head_irreducible (e : expr Λ) (σ : state Λ) :=
-    ∀ ρ, head_step e σ ρ = 0.
+    is_zero (head_step (e, σ)).
   Definition head_stuck (e : expr Λ) (σ : state Λ) :=
     to_val e = None ∧ head_irreducible e σ.
 
+  (*
   (* All non-value redexes are at the root. In other words, all sub-redexes are
      values. *)
   Definition sub_redexes_are_values (e : expr Λ) :=
@@ -205,48 +202,21 @@ Section ectx_language.
 
   Lemma fill_not_val K e : to_val e = None → to_val (fill K e) = None.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
+  *)
 
-  Definition ectx_lang_mixin : LanguageMixin (@of_val Λ) to_val prim_step state_step get_active.
-  Proof.
-    split.
-    - apply ectx_language_mixin.
-    - apply ectx_language_mixin.
-    - intros e1 σ1 [e2 σ2] =>/=. rewrite /prim_step.
-      destruct (decomp e1) as [K e1'] eqn:Heq.
-      intros [[e2' σ2'] [_ Hs]]%dmap_pos.
-      rewrite -(decomp_fill _ _ _ Heq).
-      eapply fill_not_val.
-      by eapply val_head_stuck.
-    - intros e1 σ1 σ1' α. rewrite /prim_step.
-      destruct (decomp e1) as [K e1'] eqn:Heq.
-      intros Hs. split.
-      + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
-        assert (∃ ρ, head_step e1' σ1' ρ > 0) as [[e2'' σ2''] Hs'].
-        { erewrite <-state_step_head_not_stuck; [|done]. eauto. }
-        eexists (fill K e2'', σ2'').
-        eapply dmap_pos.
-        eexists (_, _). eauto.
-      + intros [[e2 σ2] [[e2' σ2'] [_ Hh]]%dmap_pos].
-        assert (∃ ρ, head_step e1' σ1 ρ > 0) as [[e2'' σ2''] Hs'].
-        { erewrite state_step_head_not_stuck; [|done]. eauto. }
-        eexists (fill K e2'', σ2'').
-        eapply dmap_pos.
-        eexists (_, _); eauto.
-    - apply ectx_language_mixin.
-    - intros e σ [[e' σ'] Hs]. revert Hs. rewrite /prim_step.
-      destruct (decomp e) as [K e1'] eqn:Heq.
-      intros [[e2' σ2'] [? Hs]]%dmap_pos.
-      assert (SeriesC (head_step e1' σ) = 1) as Hsum; [eauto using head_step_mass|].
-      rewrite dmap_mass //.
-  Qed.
+  Definition ectx_lang_mixin : MeasLanguageMixin (R Λ) (@of_val Λ) to_val head_step.
+  Proof. split; by apply ectx_language_mixin. Qed.
 
-  Canonical Structure ectx_lang : language := Language (get_active := get_active) ectx_lang_mixin.
+  Canonical Structure ectx_lang : meas_language := Language ectx_lang_mixin.
 
+  (*
   Definition head_atomic (a : atomicity) (e : expr Λ) : Prop :=
     ∀ σ e' σ',
       head_step e σ (e', σ') > 0 →
       if a is WeaklyAtomic then irreducible (e', σ') else is_Some (to_val e').
+  *)
 
+  (*
   (** * Some lemmas about this language *)
   Lemma not_head_reducible e σ : ¬head_reducible e σ ↔ head_irreducible e σ.
   Proof.
@@ -256,7 +226,9 @@ Section ectx_language.
       pose proof (pmf_pos (head_step e σ) ρ). lra.
     - intros Hall [ρ ?]. specialize (Hall ρ). lra.
   Qed.
+  *)
 
+  (*
   (** The decomposition into head redex and context is unique.
       In all sensible instances, [comp_ectx K' empty_ectx] will be the same as
       [K'], so the conclusion is [K = K' ∧ e = e'], but we do not require a law
@@ -275,10 +247,12 @@ Section ectx_language.
     { by eapply val_head_stuck. }
     subst K''. rewrite fill_empty. done.
   Qed.
+  *)
 
+  (*
   Lemma fill_prim_step_dbind K e1 σ1 :
     to_val e1 = None →
-    prim_step (fill K e1) σ1 = dmap (fill_lift K) (prim_step e1 σ1).
+    prim_step (fill K e1) σ1 = dbind (fill_lift K) (prim_step e1 σ1).
   Proof.
     intros Hval. rewrite /prim_step.
     destruct (decomp e1) as [K1 e1'] eqn:Heq.
@@ -474,10 +448,12 @@ Section ectx_language.
     PureExec φ n e1 e2 →
     PureExec φ n (fill K e1) (fill K e2).
   Proof. apply: pure_exec_ctx. Qed.
+
+ *)
 End ectx_language.
 
 Global Arguments ectx_lang : clear implicits.
-Coercion ectx_lang : ectxLanguage >-> language.
+Coercion ectx_lang : ectxLanguage >-> meas_language.
 
 (* This definition makes sure that the fields of the [language] record do not
 refer to the projections of the [ectxLanguage] record but to the actual fields
@@ -486,10 +462,14 @@ work.
 
 Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
-Definition LanguageOfEctx (Λ : ectxLanguage) : language :=
-  let '@EctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix := Λ in
-  @Language E V St StI _ _ _ _ _ _ _ _ of_val to_val _ state act
-    (@ectx_lang_mixin (@EctxLanguage E V C St StI _ _ _ _ _ _ _ _ of_val to_val empty comp fill decomp head state act mix )).
+
+Program Definition LanguageOfEctx (Λ : ectxLanguage) : meas_language :=
+  let '@EctxLanguage R _ _ _ expr val state _ of_val to_val _ _ _ _ head_step mix := Λ in
+  @Language R _ _ _ expr val state of_val to_val head_step _.
+Next Obligation.
+  intros.
+  destruct mix.
+  split; try done.
+Defined.
 
 Global Arguments LanguageOfEctx : simpl never.
-*)
