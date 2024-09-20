@@ -24,12 +24,6 @@ Section language_mixin.
   Context (of_val : val → expr).
   Context (to_val : expr → option val).
 
-  Definition dead_cfg (s : giryM (expr * state)%type) : Prop
-    := measure_eq s giryM_zero.
-
-  Definition live_cfg (s : giryM (expr * state)%type) : Prop
-    := (@giryM_eval _ _ _ _ (@measurableT _ _) s = 1)%E.
-
   Context (prim_step : measurable_map (expr * state)%type (giryM (expr * state)%type)).
 
   Record MeasLanguageMixin := {
@@ -37,10 +31,10 @@ Section language_mixin.
     mixin_of_to_val e v : to_val e = Some v → of_val v = e;
 
     (** If (e, σ) can step to a legal cfg, e is not a value *)
-    mixin_val_stuck e σ : (¬ dead_cfg (prim_step (e, σ))) → to_val e = None;
+    mixin_val_stuck e σ : (¬ is_zero (prim_step (e, σ))) → to_val e = None;
 
     (** If (e, σ) can step to a legal cfg, its mass is 1 *)
-    mixin_prim_step_mass e σ : (¬ dead_cfg (prim_step (e, σ))) -> live_cfg (prim_step (e, σ))  ;
+    mixin_prim_step_mass e σ : (¬ is_zero (prim_step (e, σ))) -> is_prob (prim_step (e, σ))  ;
   }.
 End language_mixin.
 
@@ -124,21 +118,6 @@ Class MeasLanguageCtx {Λ : meas_language} (K : measurable_map (expr Λ) (expr �
 
 #[global] Existing Instance fill_inj.
 
-(*
-Definition lang_markov_mixin (Λ : meas_language) :
-  MarkovMixin (λ (ρ : expr Λ * state Λ), prim_step ρ.1 ρ.2) (λ (ρ : expr Λ * state Λ), to_val ρ.1).
-Proof.
-  constructor.
-  move=> [e σ] /= [v Hv] [e' σ'].
-  case (Rgt_dec (prim_step e σ (e', σ')) 0)
-    as [H | ?%pmf_eq_0_not_gt_0]; simplify_eq=>//=.
-  eapply mixin_val_stuck in H; [|eapply language_mixin].
-  simplify_eq.
-Qed.
-
-Canonical Structure lang_markov (Λ : language) := Markov _ _ (lang_markov_mixin Λ).
-*)
-
 Inductive atomicity := StronglyAtomic | WeaklyAtomic.
 
 Section language.
@@ -148,13 +127,14 @@ Section language.
   Implicit Types σ : state Λ.
 
 
+  (* From the mixin *)
   Lemma to_of_val v : to_val (of_val v) = Some v.
   Proof. apply language_mixin. Qed.
   Lemma of_to_val e v : to_val e = Some v → of_val v = e.
   Proof. apply language_mixin. Qed.
-  Lemma val_stuck e σ : (¬ dead_cfg _ (prim_step (e, σ))) → to_val e = None.
+  Lemma val_stuck e σ : (¬ is_zero (prim_step (e, σ))) → to_val e = None.
   Proof. apply language_mixin. Qed.
-  Lemma prim_step_mass e σ : (¬ dead_cfg _ (prim_step (e, σ))) -> live_cfg _ (prim_step (e, σ)).
+  Lemma prim_step_mass e σ : (¬ is_zero (prim_step (e, σ))) -> is_prob (prim_step (e, σ)).
   Proof. apply language_mixin. Qed.
 
   (*
@@ -179,39 +159,20 @@ Section language.
   Qed.
   *)
 
-  (* Do we need a non-point analouge of this?  *)
   Lemma fill_step e σ `{!MeasLanguageCtx K} :
-    (¬ dead_cfg _ (prim_step (e, σ))) ->
-    (¬ dead_cfg _ (prim_step (K e, σ))).
-  (* prim_step (e1, σ1) (e2, σ2) > 0 →
-    prim_step (K e1) σ1 (K e2, σ2) > 0. *)
+    (¬ is_zero (prim_step (e, σ))) ->
+    (¬ is_zero (prim_step (K e, σ))).
   Proof.
     intros Hs.
     rewrite fill_dmap; [| by eapply val_stuck].
-    move=> Hs'.
-    apply: Hs.
-    rewrite /dead_cfg; rewrite /dead_cfg in Hs'.
-
-    (*
-    apply giryM_ext.
-    intro S.
-
-    (* FIXME *)
-    have X (d : measure_display) (T : measurableType d) (u1 u2 : giryM T) (S' : set T) : u1 = u2 -> u1 S' = u2 S'.
-    { by intro H; rewrite H. }
-    have X' := X _ _ _ _ _ S Hs'; clear X.
-
-    rewrite giryM_zero_eval in X'.
-    rewrite giryM_zero_eval.
-     *)
-    (* rewrite /pushforward in X'. *)
-  Admitted.
-  (*
-    rewrite fill_dmap; [|by eapply val_stuck].
-    apply dbind_pos. eexists (_,_). split; [|done].
-    rewrite dret_1_1 //. lra.
+    pose HI := @inj_map_inj _ _ _ _ _ (fill_lift K) _.
+    move=> HZ.
+    apply Hs; clear Hs.
+    move: HI.
+    move /(_ (R Λ) _ (prim_step (e, σ)) giryM_zero).
+    rewrite /is_zero.
+    move ->; try done.
   Qed.
-  *)
 
 
   (*

@@ -798,8 +798,12 @@ Qed.
 
 *)
 
+
 (** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
+
+
+(* This gives the possible transitions (nothing re. measurablility) *)
 (*
 Inductive head_step_rel : expr → state → expr → state → Prop :=
 | RecS f x e σ :
@@ -847,11 +851,14 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
 | RandNoTapeS z N (n : fin (S N)) σ:
   N = Z.to_nat z →
   head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
+
+(*
 | AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
   N = Z.to_nat z →
   head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
     (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
+
 | RandTapeS l z N n ns σ :
   N = Z.to_nat z →
   σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
@@ -866,6 +873,7 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(tapes) !! l = Some ((M; ms) : tape) →
   N ≠ M →
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
+ *)
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
@@ -876,18 +884,21 @@ Global Hint Constructors head_step_rel : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
          eapply (RandNoTapeS _ _ 0%fin) : head_step.
+(*
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
-
+*)
+(*
 Inductive state_step_rel : state → loc → state → Prop :=
 | AddTapeS α N (n : fin (S N)) ns σ :
   α ∈ dom σ.(tapes) →
   σ.(tapes) !!! α = ((N; ns) : tape) →
   state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
+*)
 
 Ltac inv_head_step :=
   repeat
@@ -950,14 +961,6 @@ Proof.
       * rewrite lookup_insert_ne // in H7. rewrite H10 in H7. done.
 Qed.
 
-Lemma state_step_mass σ α :
-  α ∈ dom σ.(tapes) → SeriesC (state_step σ α) = 1.
-Proof.
-  intros Hdom.
-  rewrite /state_step bool_decide_eq_true_2 //=.
-  case_match.
-  rewrite dmap_mass dunif_mass //.
-Qed.
 *)
 
 (*
@@ -1033,35 +1036,6 @@ Proof.
 Qed.
 
 Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
-
-
-(*
-Lemma state_step_get_active_mass σ α :
-  α ∈ get_active σ → SeriesC (state_step σ α) = 1.
-Proof. rewrite elem_of_elements. apply state_step_mass. Qed.
-*)
-
-(*
-Lemma state_steps_mass σ αs :
-  αs ⊆ get_active σ →
-  SeriesC (foldlM state_step σ αs) = 1.
-Proof.
-  induction αs as [|α αs IH] in σ |-* ; intros Hact.
-  { rewrite /= dret_mass //. }
-  rewrite foldlM_cons.
-  rewrite dbind_det //.
-  - apply state_step_get_active_mass. set_solver.
-  - intros σ' Hσ'. apply IH.
-    apply state_step_support_equiv_rel in Hσ'.
-    inversion Hσ'; simplify_eq.
-    intros α' ?. rewrite /get_active /=.
-    apply elem_of_elements, elem_of_dom.
-    destruct (decide (α = α')); subst.
-    + eexists. rewrite lookup_insert //.
-    + rewrite lookup_insert_ne //.
-      apply elem_of_dom. eapply elem_of_elements, Hact. by right.
-Qed.
-*)
 
 (*
 Lemma meas_lang_mixin :

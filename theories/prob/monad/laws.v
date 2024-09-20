@@ -4,6 +4,7 @@ From mathcomp Require Import all_ssreflect all_algebra finmap.
 From mathcomp Require Import mathcomp_extra boolp classical_sets functions.
 From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed (* topology *) normedtype esum numfun measure lebesgue_measure lebesgue_integral.
+From stdpp Require Import base.
 From HB Require Import structures.
 
 From clutch.prob.monad Require Export types eval ret integrate const map zero compose join bind identity uniform discrete_mapout.
@@ -533,4 +534,54 @@ Section giry_iterM.
          O => giryM_ret R
        | (S n) => m_cmp (giryM_bind f) (giryM_iterN n f)
        end.
+
+
 End giry_iterM.
+
+
+Section is_zero.
+  Local Open Scope classical_set_scope.
+  Context `{R : realType}.
+  Notation giryM := (giryM (R := R)).
+  Context {d1 d2} {T1 : measurableType d1} {T2 : measurableType d2}.
+
+
+  Definition is_zero {d} {T : measurableType d} (s : giryM T) : Prop := s ≡μ giryM_zero.
+
+
+  Lemma is_zero_map (μ : giryM T1) (f : measurable_map T1 T2) : is_zero μ -> is_zero (giryM_map f μ).
+  Proof.
+    move=> HZ S HS.
+    rewrite giryM_map_eval/pushforward.
+    move: HZ.
+    move /(_ (f @^-1` S)) => HZ.
+    rewrite HZ; first by rewrite giryM_zero_eval giryM_zero_eval.
+    rewrite -(setTI (f @^-1` S)).
+    apply measurable_mapP; [by apply @measurableT | done].
+  Qed.
+
+
+  Global Instance inj_map_inj (f : measurable_map T1 T2) :
+    Inj (=) (=) f →
+    Inj (measure_eq) (measure_eq) (@giryM_map R _ _ _ _ f).
+  Proof.
+    move=> Hf x y + S HS.
+    move /(_ (f @` S)).
+    rewrite giryM_map_eval giryM_map_eval /pushforward.
+    have H_inj_lemma : (f @^-1` [set f x | x in S]) = S by admit. (* doable *)
+    rewrite H_inj_lemma.
+    move=> H1; apply H1.
+    (* Pushforward of measruable is measurable *)
+  Admitted.
+
+End is_zero.
+
+
+Section is_prob.
+  Local Open Scope classical_set_scope.
+  Context `{R : realType}.
+  Notation giryM := (giryM (R := R)).
+
+  Definition is_prob  {d} {T : measurableType d} (s : giryM T) : Prop := s [set: T] = 1%E.
+
+End is_prob.
