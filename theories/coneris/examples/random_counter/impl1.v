@@ -38,6 +38,7 @@ Section impl1.
     iDestruct (ec_valid with "[$]") as "%".
     unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [H1 H2]]".
     { lra. }
+    { simpl. lra. }
     simpl.
     iMod (hocap_tapes_alloc (∅:gmap _ _)) as "[%γ2 [H3 H4]]".
     iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]".

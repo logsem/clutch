@@ -39,17 +39,20 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
 
   flip_error_auth_exclusive {L : flipG Σ} γ x1 x2:
     flip_error_auth (L:=L) γ x1 -∗ flip_error_auth (L:=L) γ x2 -∗ False;
-  flip_error_frag_exclusive {L : flipG Σ} γ x1 x2:
-  flip_error_frag (L:=L) γ x1 -∗ flip_error_frag (L:=L) γ x2 -∗ False;
-  flip_error_auth_pos {L : flipG Σ} γ x:
-    flip_error_auth (L:=L) γ x -∗ ⌜(0<=x)%R⌝;
-  flip_error_auth_frag {L : flipG Σ} γ x:
-    flip_error_frag (L:=L) γ x -∗ ⌜(0<=x)%R⌝;
-  flip_error_agree {L : flipG Σ} γ x1 x2:
-    flip_error_auth (L:=L) γ x1 -∗ flip_error_frag (L:=L) γ x2 -∗ ⌜x1 = x2 ⌝;
-  flip_error_update {L : flipG Σ} γ x1 x2 (x3:nonnegreal):
-    flip_error_auth (L:=L) γ x1 -∗ flip_error_frag (L:=L) γ x2 ==∗
-    flip_error_auth (L:=L) γ x3 ∗ flip_error_frag (L:=L) γ x3;
+  flip_error_frag_split {L : flipG Σ} γ (x1 x2:nonnegreal):
+  flip_error_frag (L:=L) γ x1 ∗ flip_error_frag (L:=L) γ x2 ⊣⊢
+  flip_error_frag (L:=L) γ (x1+x2)%R ;
+  flip_error_auth_valid {L : flipG Σ} γ x:
+    flip_error_auth (L:=L) γ x -∗ ⌜(0<=x<1)%R⌝;
+  flip_error_frag_valid {L : flipG Σ} γ x:
+    flip_error_frag (L:=L) γ x -∗ ⌜(0<=x<1)%R⌝;
+  flip_error_ineq {L : flipG Σ} γ x1 x2:
+    flip_error_auth (L:=L) γ x1 -∗ flip_error_frag (L:=L) γ x2 -∗ ⌜(x2 <= x1)%R ⌝;
+  flip_error_decrease {L : flipG Σ} γ (x1 x2:nonnegreal):
+     flip_error_auth (L:=L) γ (x1 + x2)%NNR -∗ flip_error_frag (L:=L) γ x1 ==∗ flip_error_auth (L:=L) γ x2;
+  flip_error_increase {L : flipG Σ} γ (x1 x2:nonnegreal):
+    (x1+x2<1)%R -> ⊢ flip_error_auth (L:=L) γ x1 ==∗
+    flip_error_auth (L:=L) γ (x1+x2) ∗ flip_error_frag (L:=L) γ x2;
 
   flip_tapes_auth_exclusive {L : flipG Σ} γ m m':
   flip_tapes_auth (L:=L) γ m -∗ flip_tapes_auth (L:=L) γ m' -∗ False;
@@ -139,7 +142,7 @@ Section test.
         { rewrite !NoDup_cons; repeat split; last apply NoDup_nil; set_solver. }
         simpl. lra.
     - iModIntro. iIntros (ε n) "?".
-      destruct n as [?|b [|]].
+      destruct n as [|b [|]].
       + iLeft. iPureIntro.
         by rewrite /ε2'.
       + iMod ("Hvs" $! ε b with "[$]") as "[% | ?]".
@@ -180,32 +183,36 @@ Local Definition flip_inv_pred1 `{!conerisGS Σ, !hocap_errorGS Σ, !hocap_tapes
 
 Next Obligation.
   simpl.
-  iIntros (??????) "(%&<-&H1)(%&<-&H2)".
-  iCombine "H1 H2" gives "%H". by rewrite excl_auth.excl_auth_auth_op_valid in H.
+  iIntros.
+  iApply (hocap_error_auth_exclusive with "[$][$]").
 Qed.
 Next Obligation.
   simpl.
-  iIntros (??????) "(%&<-&H1)(%&<-&H2)".
-  iCombine "H1 H2" gives "%H". by rewrite excl_auth.excl_auth_frag_op_valid in H.
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (?????) "H".
-  iApply (hocap_error_auth_pos with "[$]").
+  iIntros.
+  iApply (hocap_error_frag_split).
 Qed.
 Next Obligation.
   simpl.
   iIntros (?????) "H".
-  iApply (hocap_error_frag_pos with "[$]").
+  iApply (hocap_error_auth_valid with "[$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (?????) "H".
+  iApply (hocap_error_frag_valid with "[$]").
 Qed.
 Next Obligation.
   simpl.
   iIntros (??????) "H1 H2".
-  iApply (hocap_error_agree with "[$][$]").
+  iApply (hocap_error_ineq with "[$][$]").
 Qed.
 Next Obligation.
-  simpl. iIntros (???????) "??".
-  iApply (hocap_error_update with "[$][$]").
+  iIntros.
+  iApply (hocap_error_decrease with "[$][$]").
+Qed.
+Next Obligation.
+  iIntros.
+  by iApply (hocap_error_increase with "[$]").
 Qed.
 Next Obligation.
   simpl.
@@ -250,7 +257,7 @@ Next Obligation.
   iApply fupd_wp_update.
   iApply wp_update_ret.
   iDestruct (ec_valid with "[$]") as "%".
-  unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "(%γ1 & H2 & H3)"; first naive_solver.
+  unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "(%γ1 & H2 & H3)"; simpl; [naive_solver..|].
   simpl.
   iMod (hocap_tapes_alloc ∅) as "(%γ2 & H4 & H5)".
   iMod (inv_alloc _ _ (flip_inv_pred1 γ1 γ2) with "[H1 H2 H4]").
@@ -333,6 +340,14 @@ Next Obligation.
   iDestruct (ec_supply_bound with "[$][$]") as "%".
   iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+  assert (∀ (x: list (fin (2))), bool_to_nat <$> (nat_to_bool <$> (fin_to_nat <$> x)) = fin_to_nat <$> x) as Hrewrite.
+  { intros l.
+  rewrite -list_fmap_compose.
+  rewrite <-list_fmap_id.
+  apply list_fmap_ext.
+  intros ?? K. simpl. rewrite nat_to_bool_to_nat; first done.
+  apply list_lookup_fmap_inv in K as (x'&->&?).
+  pose proof fin_to_nat_lt x'. lia. }
   iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang num α); first done.
   unshelve iExists (λ x, mknonnegreal (if length x =? num then ε2 ε1' (nat_to_bool <$> (fin_to_nat <$> x)) else 1) _).
   { case_match; last (simpl;lra). apply Hpos; first apply cond_nonneg.
@@ -343,10 +358,45 @@ Next Obligation.
   { iPureIntro.
     simpl.
     unshelve epose proof (Hineq ε1' _) as H'; first apply cond_nonneg.
-    admit. 
-    (* rewrite SeriesC_finite_foldr/=. *)
-    (* rewrite nat_to_bool_eq_0 nat_to_bool_neq_0; last lia. *)
-    (* simpl in *. lra. *)
+    etrans; last exact.
+    rewrite (Rdiv_def _ (2^_)) -SeriesC_scal_r.
+    etrans; last eapply (SeriesC_le_inj _ (λ x, Some (nat_to_bool <$> (fin_to_nat <$> x)))).
+    - apply SeriesC_le.
+      + simpl. intros n.
+        rewrite !fmap_length.
+        case_match.
+        * replace (1+1)%R with 2%R by lra.
+          rewrite -Rdiv_1_l. simpl.
+          split; last lra.
+          apply Rmult_le_pos.
+          -- apply Rcomplements.Rdiv_le_0_compat; first lra.
+             apply pow_lt; lra.
+          -- apply Hpos; first done.
+             rewrite !fmap_length.
+             by apply Nat.eqb_eq.
+        * lra.
+      + simpl.
+        apply (ex_seriesC_list_length _ num).
+        intros ?. rewrite !fmap_length.
+        case_match; last lra.
+        intros. by apply Nat.eqb_eq.
+    - intros. case_match; last lra.
+      apply Rmult_le_pos; first apply Hpos; simpl; auto.
+      + by apply Nat.eqb_eq.
+      + rewrite -Rdiv_1_l.
+        apply Rcomplements.Rdiv_le_0_compat; first lra.
+        apply pow_lt; lra.
+    - intros ??? <- K.
+      simplify_eq.
+      rewrite -!list_fmap_compose in K.
+      apply list_fmap_eq_inj in K; try done.
+      intros x x'.
+      repeat (inv_fin x; try intros x); 
+        repeat (inv_fin x'; try intros x'); done.
+    - apply (ex_seriesC_list_length _ num).
+        intros ?. 
+        case_match; last lra.
+        intros. by apply Nat.eqb_eq. 
   }
   iIntros (sample) "<-".
   destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (nat_to_bool <$> (fin_to_nat <$> sample))))%R 1%R) as [Hdec|Hdec]; last first.
@@ -365,14 +415,6 @@ Next Obligation.
   iMod "Hclose'" as "_".
   iMod ("Hvs" with "[$]") as "[%|[H2 HT]]".
   { iExFalso. iApply (ec_contradict with "[$]"). exact. }
-  assert (∀ (x: list (fin (2))), bool_to_nat <$> (nat_to_bool <$> (fin_to_nat <$> x)) = fin_to_nat <$> x) as Hrewrite.
-  { intros l.
-  rewrite -list_fmap_compose.
-  rewrite <-list_fmap_id.
-  apply list_fmap_ext.
-  intros ?? K. simpl. rewrite nat_to_bool_to_nat; first done.
-  apply list_lookup_fmap_inv in K as (x'&->&?).
-  pose proof fin_to_nat_lt x'. lia. }
   iMod ("Hclose" with "[$Hε $H2 Htape H3 H4]") as "_".
   { iNext.
     iExists (<[α:=(ns ++ (nat_to_bool<$>(fin_to_nat <$> sample)))]>m).
@@ -386,4 +428,4 @@ Next Obligation.
   iFrame. rewrite fmap_app/=Hrewrite. iFrame.
   erewrite (nnreal_ext _ _); first done.
   simpl. by rewrite Nat.eqb_refl.
-Admitted.
+Qed.

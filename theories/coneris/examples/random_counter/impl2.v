@@ -439,5 +439,36 @@ Next Obligation.
   apply frac_auth_update.
   apply nat_local_update. lia.
 Qed.
-  
-
+Next Obligation.  
+  intros ?? H ?.
+  apply counterG2_flipG.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (????????) "[? _] [? _]".
+  by iDestruct (flip_tapes_frag_exclusive with "[$][$]") as "%".
+Qed.
+Next Obligation.
+  simpl.
+  iIntros.
+  iApply (flip_error_update with "[$][$]").
+Qed.
+Next Obligation.
+  iIntros.
+  iApply (flip_error_agree with "[$][$]").
+Qed.
+Next Obligation.
+  iIntros.
+  iApply (flip_error_frag_valid with "[$]").
+Admitted.
+Next Obligation.
+Admitted.
+Next Obligation.
+Admitted.
+Next Obligation.
+Admitted.
+Next Obligation.
+  simpl.
+Admitted.
+Next Obligation.
+Admitted.
