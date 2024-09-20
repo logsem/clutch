@@ -9,12 +9,20 @@ Section bounded_oracle.
 
   (** Bounded Oracles. [q_calls MAX Q f x] calls [f x] for the first [Q] invocations
       if 0 <= x <= MAX, and returns None otherwise. *)
+  Definition q_calls_poly (MAX : Z) : val :=
+    Λ: λ:"Q" "f",
+      let: "counter" := ref #0 in
+      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ #MAX)))
+             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
+             else NONEV.
+
   Definition q_calls (MAX : Z) : val :=
     λ:"Q" "f",
       let: "counter" := ref #0 in
       λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ #MAX)))
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
+
 
   Fact q_calls_typed_int (MAX : Z) (B : type) :
     ⊢ᵥ q_calls MAX : (TInt → (TInt → B) → TInt → TOption B)%ty.
@@ -25,10 +33,18 @@ Section bounded_oracle.
   Fact q_calls_typed_nat (MAX : Z) (B : type) :
     ⊢ᵥ q_calls MAX : (TInt → (TNat → B) → TNat → TOption B).
   Proof.
-    rewrite /bounded_oracle.q_calls.
+    rewrite /q_calls.
     type_val 8 ; try by tychk.
     all: type_expr 1 ; try by tychk.
     all: apply Subsume_int_nat. all: tychk.
+  Qed.
+
+  Fact q_calls_poly_typed (MAX : Z) :
+    (⊢ᵥ q_calls_poly MAX : ∀: (TInt → (TInt → #0) → TInt → TOption #0))%ty.
+  Proof.
+    rewrite /q_calls_poly.
+    apply TLam_val_typed.
+    tychk.
   Qed.
 
 End bounded_oracle.
