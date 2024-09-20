@@ -9,12 +9,6 @@ Section bounded_oracle.
 
   (** Bounded Oracles. [q_calls MAX Q f x] calls [f x] for the first [Q] invocations
       if 0 <= x <= MAX, and returns None otherwise. *)
-  Definition q_calls_poly (MAX : Z) : val :=
-    Λ: λ:"Q" "f",
-      let: "counter" := ref #0 in
-      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ #MAX)))
-             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
-             else NONEV.
 
   Definition q_calls (MAX : Z) : val :=
     λ:"Q" "f",
@@ -23,6 +17,12 @@ Section bounded_oracle.
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 
+  Definition q_calls_poly : val :=
+    Λ: Λ: λ:"Q" "f",
+      let: "counter" := ref #0 in
+      λ:"x", if: (! "counter" < "Q")
+             then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
+             else NONEV.
 
   Fact q_calls_typed_int (MAX : Z) (B : type) :
     ⊢ᵥ q_calls MAX : (TInt → (TInt → B) → TInt → TOption B)%ty.
@@ -39,12 +39,22 @@ Section bounded_oracle.
     all: apply Subsume_int_nat. all: tychk.
   Qed.
 
-  Fact q_calls_poly_typed (MAX : Z) :
-    (⊢ᵥ q_calls_poly MAX : ∀: (TInt → (TInt → #0) → TInt → TOption #0))%ty.
+  Fact q_calls_poly_typed :
+    (⊢ᵥ q_calls_poly : ∀: ∀: (TInt → (#1 → #0) → #1 → TOption #0))%ty.
   Proof.
     rewrite /q_calls_poly.
-    apply TLam_val_typed.
+    apply TLam_val_typed. constructor. apply TLam_val_typed.
     tychk.
+  Qed.
+
+  Fact q_calls_poly_sem_typed `{!approxisRGS Σ} :
+    ⊢ (∀ A B : lrel Σ, lrel_int → (A → B) → A → lrel_option B)%lrel
+        q_calls_poly q_calls_poly.
+  Proof.
+    replace (∀ A B : lrel Σ, lrel_int → (A → B) → A → lrel_option B)%lrel
+      with (interp (∀: ∀: TInt → (#1 → #0) → #1 → TOption #0) []) by easy.
+    iApply fundamental_val.
+    rewrite /q_calls_poly. do 3 constructor. tychk.
   Qed.
 
 End bounded_oracle.
