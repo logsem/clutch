@@ -1,6 +1,6 @@
 From clutch.prob_lang.typing Require Import tychk.
 From clutch.approxis Require Import approxis map list.
-From clutch.approxis.examples Require Import prf symmetric (* prf_cpa *) security_aux xor advantage.
+From clutch.approxis.examples Require Import prf symmetric security_aux xor advantage.
 Set Default Proof Using "Type*".
 
 Section combined.
@@ -168,6 +168,24 @@ Section combined.
 
   Section approxis_proofs.
 
+  Ltac rel_vals' :=
+    lazymatch goal with
+    | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
+        iExists _,_ ; iRight ; iSplit ; [eauto|iSplit ; eauto]
+    | |- environments.envs_entails _ (_ (InjLV _) (InjLV _)) =>
+        iExists _,_ ; iLeft ; iSplit ; [eauto|iSplit ; eauto]
+    | |- environments.envs_entails _ (_ (_ , _)%V (_ , _)%V) =>
+        iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]
+    | |- environments.envs_entails _ (_ _ (lrel_int_bounded _ _) _ _) =>
+        iExists _ ; iPureIntro ; intuition lia
+    | |- environments.envs_entails _ (_ _ lrel_input _ _) =>
+        iExists _ ; iPureIntro ; intuition lia
+    | |- environments.envs_entails _ (_ _ lrel_output _ _) =>
+        iExists _ ; iPureIntro ; intuition lia
+    | _ => fail "rel_vals: case not covered"
+    end.
+  Ltac rel_vals := try rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto).
+
   Context `{!approxisRGS Σ}.
 
   Fact red_sem_typed : (⊢ REL RED <<  RED : lrel_PRF_Adv).
@@ -178,168 +196,194 @@ Section combined.
     rel_apply refines_app => //.
     1: iApply adversary_sem_typed.
     rewrite /R_prf...
-
     rel_alloctape_l α as "α".
     rel_alloctape_r α' as "α'"...
-
     iApply (refines_na_alloc ( α ↪N (Input; []) ∗ α' ↪ₛN (Input; []))%I
               (nroot.@"tapes")) ; iFrame.
     iIntros "#Hinv".
-
     rel_arrow_val ; iIntros (??) "(%msg & -> & -> & % & %)"...
     rel_bind_l (rand(_) _)%E. rel_bind_r (rand(_) _)%E. rel_apply (refines_bind _ _ _ lrel_input).
-    {
-      iApply (refines_na_inv with "[$Hinv]"); [done|].
+
+    { iApply (refines_na_inv with "[$Hinv]"); [done|].
       iIntros "(> (α & α') & Hclose)".
       iMod ec_zero.
-      rel_apply (refines_couple_TT_err Input Input _ _ _ _ _ _ _ _ 0%R); first auto.
-      1: lra.
+      rel_apply (refines_couple_TT_err Input Input _ _ _ _ _ _ _ _ 0%R) => // ; [lra|].
       iFrame. iIntros (?) "(?&?&%)"...
-      rel_apply (refines_rand_r with "[$]").
-      iIntros "α' %".
-      rel_apply (refines_rand_l).
-      iFrame. iIntros "!> α %".
-      iApply (refines_na_close with "[-]") ; iFrame ; iFrame.
-      rel_values ; iExists _ ; iPureIntro ; repeat split ; lia. }
+      rel_apply (refines_rand_r with "[$]"). iIntros "α' %".
+      rel_apply (refines_rand_l). iFrame. iIntros "!> α %".
+      iApply (refines_na_close with "[-]") ; iFrame ; iFrame. rel_vals. }
 
     iIntros (??) "(%r&->&->&%&%)"...
     rel_bind_l (f _). rel_bind_r (f' _). rel_apply refines_bind.
-    { rel_apply refines_app. 1: done.
-      rel_values. iExists _. iPureIntro ; repeat split ; try lia. }
+    { rel_apply refines_app. 1: done. rel_vals. }
     iIntros (??) "#(%zopt&%zopt'&[(->&->&?) | (->&->&ttt)])"...
-    1: rel_values ; iExists _, _ ; iLeft ; iPureIntro ; repeat split.
+    1: rel_vals.
     rel_bind_l (xor _ _). rel_bind_r (xor _ _). rel_apply refines_bind.
     { repeat rel_apply refines_app.
-      1: rel_values ; iApply xor_sem_typed.
-      all: rel_values. iExists _. iPureIntro ; repeat split ; lia. }
-    iIntros (??) "(%c&->&->&%&%)"...
-    rel_values.
-    iExists _,_ ; iRight ; iPureIntro ; repeat (try split ; try eexists _) ; lia.
+      1: rel_vals ; iApply xor_sem_typed. all: rel_vals. }
+    iIntros (??) "(%c&->&->&%&%)"... rel_vals.
   Qed.
-
 
   Lemma reduction :
     ⊢ (REL (adversary (CPA_real sym_scheme_F #Q))
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
   Proof using (xor_sem_typed adversary_sem_typed keygen_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_F/PRF_real/prf.PRF_real.
-    rel_pures_r.
+    rewrite /PRF_scheme_F/PRF_real/prf.PRF_real...
     rewrite /CPA_real/symmetric.CPA_real.
     rel_pures_l. rewrite /F_keygen.
-    rel_bind_l (keygen _)%E.
-    rel_bind_r (keygen _)%E.
-    unshelve iApply (refines_bind with "[-] []").
-    1: exact lrel_key.
+    rel_bind_l (keygen _)%E. rel_bind_r (keygen _)%E.
+    unshelve iApply (refines_bind _ _ _ lrel_key with "[-] []").
     1: rel_apply refines_app ; [iApply keygen_sem_typed|by rel_values].
     iIntros (??(key&->&->&?&?)) => /=...
     rewrite /F_enc/prf_enc...
     rel_bind_l (F #key)%E. rel_bind_r (F #key)%E.
-    unshelve iApply (refines_bind with "[-] []").
-    1: exact (lrel_input → lrel_output)%lrel.
+    iApply (refines_bind with "[-] []").
     1: rel_apply refines_app ; [iApply F_sem_typed|].
     1: rel_values ; iExists _ ; easy.
-    iIntros (F_key F_key') "#rel_prf_key".
-    simpl...
+    iIntros (F_key F_key') "#rel_prf_key". simpl...
     rewrite {2}/q_calls_poly. rel_pures_r.
     rel_alloc_r counter_r as "counter_r"...
     rewrite /RED. rel_pures_r.
-    rel_bind_l (q_calls_poly _ _ _ _)%E.
-    rel_bind_r (R_prf _)%E.
-    unshelve iApply (refines_bind with "[-] []").
-    1: exact (lrel_message → lrel_option lrel_cipher)%lrel.
+    rel_bind_l (q_calls_poly _ _ _ _). rel_bind_r (R_prf _).
+    iApply (refines_bind with "[-] []").
     2:{ simpl. iIntros (f f') "H_f_f'".
         rel_pures_r.
-        iApply refines_app. 2: rel_values.
-        iApply adversary_sem_typed.
-    }
-    simpl.
-    rewrite /R_prf...
-    rewrite /q_calls_poly...
-
+        iApply refines_app. 1: iApply adversary_sem_typed.
+        rel_values. }
+    simpl. rewrite /R_prf... rewrite /q_calls_poly...
     rel_alloctape_l α as "α".
     rel_alloctape_r α' as "α'"...
-
-    rel_alloc_l counter_l as "counter_l".
-    rel_pures_l ; rel_pures_r.
-    (* Invariant: all counters agree. *)
+    rel_alloc_l counter_l as "counter_l"...
     iApply (refines_na_alloc
-              ( ∃ (q : nat) xs ys, counter_l ↦ #q
-                                   ∗ counter_r ↦ₛ #q
-                                   ∗ (α ↪N (Input; xs))
-                                   ∗ (α' ↪ₛN (Input; []))
-                                   ∗ (⌜(q < Q)%Z⌝ -∗ ⌜xs = [] ∧ ys = []⌝)
+              ( ∃ (q : Z) xs ys, counter_l ↦ #q
+                                 ∗ counter_r ↦ₛ #q
+                                 ∗ (α ↪N (Input; xs))
+                                 ∗ (α' ↪ₛN (Input; []))
+                                 ∗ (⌜(q < Q)%Z⌝ -∗ ⌜xs = [] ∧ ys = []⌝)
               )%I
               (nroot.@"RED")).
-    iSplitL.
-    1: iExists 0 ; iFrame "counter_r counter_l" ; iFrame ; try done.
-    1: iExists [] ; done.
-
+    iSplitL ; [iFrame|]. 1: by iExists [].
     iIntros "#Hinv".
-    rel_arrow_val.
-    iIntros (??) "#(%msg&->&->&%&%)"...
+    rel_arrow_val. iIntros (??) "#(%msg&->&->&%&%)"...
     iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "(> (%q & %xs & %ys & counter_l & counter_r & α & α' & HqQ) & Hclose)".
-
     destruct_decide (@bool_decide_reflect (q < Q)%Z _) as qQ.
 
     - iDestruct ("HqQ" $! _) as "(-> & ->)".
-
       iMod ec_zero.
       rel_apply (refines_couple_TT_err Input Input _ _ _ _ _ _ _ _ 0%R) ; [auto|lra|].
       iFrame. iIntros (r) "(α&?&%)"...
       rel_apply (refines_rand_r with "[$]")...
       iIntros "α' %"...
-
       rel_load_l ; rel_load_r...
-
-      case_bool_decide as qQ'...
-      2: by exfalso.
-
-      rel_load_l. rel_load_r... rel_store_l ; rel_store_r...
-      rel_apply_l (refines_rand_l with "[-$α]")...
-      iIntros "!> α %"...
+      case_bool_decide as qQ' ; [|by exfalso]...
+      rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
+      rel_apply_l (refines_rand_l with "[-$α]") ; iIntros "!> α %"...
       iApply (refines_na_close with "[-]") ; iFrame ; iFrame.
-      iSplitL.
-      { iExists (q+1), []. iNext. iFrame.
-        replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
-        iFrame. done. }
+      iSplitL ; iFrame. 1: iExists [] ; iFrame ; done.
 
-      rel_bind_l (F_key #r)%E.
-      rel_bind_r (F_key' #r)%E.
+      rel_bind_l (F_key #r)%E. rel_bind_r (F_key' #r)%E.
       iApply (refines_bind with "[-] []") => /=.
-      { iApply "rel_prf_key". iExists _. iPureIntro ; repeat split ; lia. }
+      { iApply "rel_prf_key". rel_vals. }
       iIntros (??) "#(%z&->&->&%&%)"...
       rel_bind_l (xor _ _)%E. rel_bind_r (xor _ _)%E.
       iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
       { repeat rel_apply refines_app ; rel_values.
-        1: iApply xor_sem_typed.
-        all: iExists _ ; iPureIntro ; repeat split ; lia. }
-      iIntros (??) "(% & -> & -> & % & %)"... rel_values.
-      iExists _,_ ; iRight ; iPureIntro ; repeat (try split ; try eexists _) ; lia.
-
+        1: iApply xor_sem_typed. 1,2: rel_vals. }
+      iIntros (??) "(% & -> & -> & % & %)"... rel_vals.
     - rel_apply (refines_randT_empty_r with "[-$α']").
       iIntros (?) "α' %"...
       rel_load_l ; rel_load_r...
       case_bool_decide as qQ' ; [by exfalso|]...
       iApply (refines_na_close with "[-]").
-      iFrame. iFrame. rel_values. iExists _,_. iLeft. done.
-      Unshelve. 1: exact nat. done.
+      iFrame. iFrame. rel_vals. Unshelve. 1: exact nat. done.
   Qed.
 
   Definition I := random_function Output.
   Definition PRF_scheme_I := (λ:"_", #(), (I, rand_output))%V.
 
+  Lemma random_function_sem_typed A :
+    ⊢ REL random_function Output
+        <<
+        random_function Output : A → lrel_input → lrel_output.
+  Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
+                 Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
+                 keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
+    with (rel_pures_l ; rel_pures_r).
+    rel_arrow_val ; iIntros (??) "_".
+    rewrite /random_function...
+
+    rel_bind_r (init_map #()). iApply refines_init_map_r => /=... iIntros (map_r) "map_r".
+    rel_bind_l (init_map #()). iApply refines_init_map_l. iIntros (map_l) "map_l" => /=...
+
+    iApply (refines_na_alloc
+              ( ∃ (M : gmap nat val),
+                  map_list map_l M
+                  ∗ map_slist map_r M
+                  ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+                           → ∃ k : nat, y = #k ∧ k <= Output ⌝
+                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
+              )%I
+              (nroot.@"RED")) ; iFrame.
+    iSplitL ; iFrame.
+    1: { iPureIntro; split ; [|set_solver].
+         intros y hy. exfalso. clear -hy.
+         rewrite map_img_empty in hy.
+         opose proof (proj1 (elem_of_empty y) hy). done.
+    }
+    iIntros "#Hinv".
+    rel_arrow_val.
+    iIntros (??) "#(%r&->&->&%&%)" ; rel_pures_l ; rel_pures_r.
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
+    iIntros "(> (%M & map_l & map_r & %range_int & %dom_range) & Hclose)".
+
+    rel_bind_l (get _ _)%E.
+    rel_bind_r (get _ _)%E.
+    opose proof (IZN r _) as [r' ->] => //.
+    rename r' into r.
+    rel_apply_l (refines_get_l with "[-map_l] [$map_l]"). iIntros (?) "map_l #->"...
+    rel_apply_r (refines_get_r with "[-map_r] [$map_r]"). iIntros (?) "map_r #->"...
+
+    destruct (M !! r) as [y |] eqn:r_fresh ...
+    + iApply (refines_na_close with "[-]") ;
+        iFrame ; repeat iSplitL.
+      { iFrame. iNext. iFrame. iPureIntro. split. 2: set_solver. done. }
+      opose proof (elem_of_map_img_2 M r y r_fresh) as hy.
+      destruct (range_int y hy) as [x [??]]. subst. rel_vals.
+    + rel_apply (refines_couple_UU Output id); first auto.
+      iIntros (y) "!> %"...
+      rel_apply_r (refines_set_r with "[-map_r] [$map_r]"). iIntros "map_r"...
+      rel_apply_l (refines_set_l with "[-map_l] [$map_l]"). iIntros "map_l"...
+      iApply (refines_na_close with "[-]") ;
+        iFrame ; repeat iSplitL. 1: iExists _ ; iFrame.
+      1: { iPureIntro.
+           repeat split ; last first.
+           - rewrite -Forall_forall.
+             rewrite dom_insert.
+             rewrite elements_union_singleton.
+             + apply Forall_cons_2. 1: lia. rewrite Forall_forall. done.
+             + apply not_elem_of_dom_2. done.
+           - intros y' hy'. rewrite (map_img_insert M r (#y)) in hy'.
+             rewrite elem_of_union in hy'. destruct hy'.
+             + exists y. set_solver.
+             + apply range_int.
+               opose proof (delete_subseteq M r).
+               eapply map_img_delete_subseteq. done.
+      }
+      rel_vals.
+      Unshelve. all: apply _.
+  Qed.
+
   (* Should be just syntactic since PRF_rand doesn't use the PRF. *)
-  Lemma F_I :
-    ⊢ (REL (RED (PRF_rand PRF_scheme_F #Q))
-         << (RED (PRF_rand PRF_scheme_I #Q)) : lrel_bool).
-  Proof using (xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed adversary_typed
-adversary_sem_typed Key F_typed F_sem_typed)
+  Lemma PRF_F_I :
+    ⊢ (REL (PRF_rand PRF_scheme_F #Q)
+         << (PRF_rand PRF_scheme_I #Q) : (lrel_input → lrel_option lrel_output)).
+Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
+Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
+keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
     with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.PRF_rand...
-    rel_apply refines_app.
-    1: iApply red_sem_typed.
     unshelve rel_apply refines_app.
     1: exact (lrel_input → lrel_output)%lrel.
     - rel_arrow. iIntros (rf rf') "#hrf"...
@@ -354,93 +398,20 @@ adversary_sem_typed Key F_typed F_sem_typed)
       1: iApply "bla".
       iIntros (??) "#foo".
       iApply ("foo" $! lrel_output) => //.
-    - rewrite /random_function...
-
-      rel_bind_r (init_map #())%E.
-      iApply refines_init_map_r => /=...
-      iIntros (map_r) "map_r".
-      rel_bind_l (init_map #())%E.
-      iApply refines_init_map_l.
-      iIntros (map_l) "map_l" => /=...
-
-      iApply (refines_na_alloc
-                ( ∃ (q : nat) (M : gmap nat val), map_list map_l M
-                                                  ∗ map_slist map_r M
-                                                  ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M → ∃ k : nat, y = #k ∧ k <= Output ⌝
-                                                  (* ∗ ⌜ size (dom M) = q ⌝ *)
-                                                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
-                )%I
-                (nroot.@"RED")) ; iFrame.
-      iSplitL.
-      1: { iExists 0 ; iFrame. iPureIntro; split ; [|set_solver].
-           intros y hy. exfalso. clear -hy.
-           rewrite map_img_empty in hy.
-           opose proof (proj1 (elem_of_empty y)hy ). done.
-      }
-      iIntros "#Hinv".
-      rel_arrow_val.
-      iIntros (??) "#(%r&->&->&%&%)" ; rel_pures_l ; rel_pures_r.
-      iApply (refines_na_inv with "[$Hinv]"); [done|].
-      iIntros "(> (%q & %M & map_l & map_r & %range_int & %dom_range) & Hclose)".
-
-      rel_bind_l (get _ _)%E.
-      rel_bind_r (get _ _)%E.
-      opose proof (IZN r _) as [r' ->] => //.
-      rename r' into r.
-      rel_apply_l (refines_get_l with "[-map_l] [$map_l]").
-      iIntros (?) "map_l #->"...
-      rel_apply_r (refines_get_r with "[-map_r] [$map_r]").
-      iIntros (?) "map_r #->"...
-
-      destruct (M !! r) as [y |] eqn:r_fresh ...
-      + iApply (refines_na_close with "[-]") ;
-          iFrame ; repeat iSplitL. 1: iExists (q+1).
-        { iFrame.
-          iNext. iFrame.
-          iPureIntro. split. 2: set_solver. done.
-        }
-
-        opose proof (elem_of_map_img_2 M r y r_fresh) as hy.
-        destruct (range_int y hy) as [x [??]]. subst.
-        rel_values. iExists _. iPureIntro ; repeat split ; try eauto with lia.
-
-      + rel_apply (refines_couple_UU Output id); first auto.
-        iIntros (y) "!> %"...
-
-        rel_apply_r (refines_set_r with "[-map_r] [$map_r]").
-        iIntros "map_r"...
-        rel_apply_l (refines_set_l with "[-map_l] [$map_l]").
-        iIntros "map_l"...
-        iApply (refines_na_close with "[-]") ;
-          iFrame ; repeat iSplitL. 1: iExists _ ; iFrame.
-        1: {
-          replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
-          iNext. iFrame. iPureIntro.
-          repeat split ; last first.
-          - rewrite -Forall_forall.
-            rewrite dom_insert.
-            rewrite elements_union_singleton.
-            + apply Forall_cons_2.
-              1: lia.
-              rewrite Forall_forall.
-              done.
-            + apply not_elem_of_dom_2. done.
-          - intros y' hy'.
-            opose proof (map_img_insert M r (#y)) as eq.
-            rewrite eq in hy'.
-            rewrite elem_of_union in hy'.
-            destruct hy'.
-            + exists y. set_solver.
-            + apply range_int.
-              opose proof (delete_subseteq M r) as h.
-              eapply map_img_delete_subseteq. done.
-        }
-
-        rel_values.
-        iExists _ ; iPureIntro ; repeat (try split ; try eexists _) ; lia.
-        Unshelve. all: eauto. 1: exact []. all: apply _.
+    - rel_apply refines_app. 1: iApply (random_function_sem_typed lrel_unit).
+      rel_vals.
+      Unshelve. all: eauto. 1: exact [].
   Qed.
 
+  Lemma F_I :
+    ⊢ (REL (RED (PRF_rand PRF_scheme_F #Q))
+         << (RED (PRF_rand PRF_scheme_I #Q)) : lrel_bool).
+  Proof using (xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed adversary_typed
+adversary_sem_typed F_typed F_sem_typed).
+    rel_apply refines_app.
+    1: iApply red_sem_typed.
+    iApply PRF_F_I.
+  Qed.
 
   Definition I_enc := prf_enc I.
   Definition sym_scheme_I := (λ:"_", #(), (I_enc, F_rand_cipher))%V.
@@ -453,51 +424,36 @@ adversary_sem_typed Key F_typed F_sem_typed)
              xor_sem_typed keygen_sem_typed adversary_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
-    rewrite /F_keygen.
-
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
-    rewrite /random_function...
-    rel_bind_r (init_map #())%E.
-    iApply refines_init_map_r => /=...
-    iIntros (map_r) "map_r".
-    rel_bind_l (init_map #())%E.
-    iApply refines_init_map_l.
-    iIntros (map_l) "map_l" => /=...
-    rewrite /q_calls_poly...
+    rel_bind_l (random_function _ _). rel_bind_r (random_function _ _). rel_apply refines_bind.
+    1: rel_apply refines_app ; [iApply (random_function_sem_typed lrel_unit)|rel_vals].
+    iIntros (rf rf') "#rf"...
+
     rel_alloctape_r α' as "α'"...
-    rel_alloc_r counter_r as "counter_r"...
+    rewrite /q_calls_poly...
     rel_alloc_l counter_l as "counter_l"...
     rel_alloctape_l α as "α".
-    unshelve rel_apply refines_app.
-    2: iApply adversary_sem_typed.
+    rel_alloc_r counter_r as "counter_r"...
+    rel_apply refines_app.
+    1: iApply adversary_sem_typed.
     iApply (refines_na_alloc
-              ( ∃ (q : nat) (M : gmap nat val) (xs ys : list nat), counter_l ↦ #q
-                             ∗ counter_r ↦ₛ #q
-                             ∗ map_list map_l M
-                             ∗ map_slist map_r M
-                             ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M → ∃ k : nat, y = #k ∧ k <= Output ⌝
-                             ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
-                             ∗ (α ↪N (Input; []))
-                             ∗ (α' ↪ₛN (Input; ys))
-                             ∗ (⌜(q < Q)%Z⌝ -∗ ⌜xs = [] ∧ ys = []⌝)
+              ( ∃ (q : Z) (ys : list nat), counter_l ↦ #q
+                                                ∗ counter_r ↦ₛ #q
+                                                ∗ (α ↪N (Input; []))
+                                                ∗ (α' ↪ₛN (Input; ys))
+                                                ∗ (⌜(q < Q)%Z⌝ -∗ ⌜ys = []⌝)
               )%I
-              (nroot.@"RED")) ; iFrame.
-      iSplitL.
-      1: { iExists 0 ; iFrame. iExists []. iPureIntro; split ; [|set_solver].
-           intros y hy. exfalso. clear -hy.
-           rewrite map_img_empty in hy.
-           opose proof (proj1 (elem_of_empty y)hy ). done.
-      }
-      iIntros "#Hinv".
-      rel_arrow_val.
-      iIntros (??) "#(%msg&->&->&%&%)" ; rel_pures_l ; rel_pures_r.
-      iApply (refines_na_inv with "[$Hinv]"); [done|].
-      iIntros "(> (%q & %M & %xs & %ys & counter_l & counter_r & map_l & map_r & %range_int & %dom_range & α & α' & hα) & Hclose)".
+              (nroot.@"RED")).
+    iFrame ; iSplitL ; [by iFrame|].
+    iIntros "#Hinv".
+    rel_arrow_val.
+    iIntros (??) "#(%msg&->&->&%&%)"...
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
+    iIntros "(> (%q & %ys & counter_l & counter_r & α & α' & hα) & Hclose)".
 
-      destruct_decide (@bool_decide_reflect (q < Q)%Z _) as qQ.
+    destruct_decide (@bool_decide_reflect (q < Q)%Z _) as qQ.
 
-    - iDestruct ("hα" $! _) as "(-> & ->)".
-
+    - iDestruct ("hα" $! _) as "->".
       iMod ec_zero.
       rel_apply (refines_couple_TT_err Input Input _ _ _ _ _ _ _ _ 0%R) ; [auto|lra|].
       iFrame. iIntros (r) "(α&α'&%)"...
@@ -510,80 +466,29 @@ adversary_sem_typed Key F_typed F_sem_typed)
       rel_apply_r (refines_rand_r with "[$α']")...
       iIntros "α' %"...
 
-      rel_apply_r (refines_get_r with "[-map_r] [$map_r]").
-      iIntros (?) "map_r #->"...
-      rel_apply_l (refines_get_l with "[-map_l] [$map_l]").
-      iIntros (?) "map_l #->"...
-      destruct (M !! r) as [y |] eqn:r_fresh ...
-      + iApply (refines_na_close with "[-]") ;
-          iFrame ; repeat iSplitL. 1: iExists (q+1).
-        { iFrame.
-          replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
-          iExists []. iNext. iFrame.
-          iPureIntro. split. 2: set_solver. done.
-        }
+      iApply (refines_na_close with "[-]") ;
+        iFrame ; repeat iSplitL. 1: by iFrame.
 
-        opose proof (elem_of_map_img_2 M r y r_fresh) as hy.
-        destruct (range_int y hy) as [x [??]]. subst.
-
-        rel_bind_l (xor _ _)%E. rel_bind_r (xor _ _)%E.
-        iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
-        { repeat rel_apply refines_app ; rel_values.
-          1: iApply xor_sem_typed.
-          all: iExists _ ; iPureIntro ; repeat split ; try eauto with lia. }
-        iIntros (??) "(% & -> & -> & % & %)"... rel_values.
-        iExists _,_ ; iRight ; iPureIntro ; repeat (try split ; try eexists _) ; lia.
-
-      + rel_apply (refines_couple_UU Output id); first auto.
-        iIntros (y) "!> %"...
-
-        rel_apply_r (refines_set_r with "[-map_r] [$map_r]").
-        iIntros "map_r"...
-        rel_apply_l (refines_set_l with "[-map_l] [$map_l]").
-        iIntros "map_l"...
-        iApply (refines_na_close with "[-]") ;
-          iFrame ; repeat iSplitL. 1: iExists _ ; iFrame.
-        1: {
-          replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
-          iExists _. iNext. iFrame. iPureIntro.
-          repeat split ; last first.
-          - rewrite -Forall_forall.
-            rewrite dom_insert.
-            rewrite elements_union_singleton.
-            + apply Forall_cons_2.
-              1: lia.
-              rewrite Forall_forall.
-              done.
-            + apply not_elem_of_dom_2. done.
-          - intros y' hy'.
-            opose proof (map_img_insert M r (#y)) as eq.
-            rewrite eq in hy'.
-            rewrite elem_of_union in hy'.
-            destruct hy'.
-            + exists y. set_solver.
-            + apply range_int.
-              opose proof (delete_subseteq M r) as h.
-              eapply map_img_delete_subseteq. done.
-        }
-
-        rel_bind_l (xor _ _)%E. rel_bind_r (xor _ _)%E.
-        iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
-        { repeat rel_apply refines_app ; rel_values.
-          1: iApply xor_sem_typed.
-          all: iExists _ ; iPureIntro ; repeat split ; lia. }
-        iIntros (??) "(% & -> & -> & % & %)"... rel_values.
-        iExists _,_ ; iRight ; iPureIntro ; repeat (try split ; try eexists _) ; lia.
+      rel_bind_l (rf _). rel_bind_r (rf' _).
+      rel_apply refines_bind. 
+      1: iApply "rf" ; rel_vals.
+      iIntros (??) "(% & -> & -> & % & %)"...
+      rel_bind_l (xor _ _)%E. rel_bind_r (xor _ _)%E.
+      iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
+      { repeat rel_apply refines_app ; rel_vals.
+        1: iApply xor_sem_typed.
+        all: rel_vals. }
+      iIntros (??) "(% & -> & -> & % & %)"...
+      rel_vals.
 
     - rel_apply (refines_randT_empty_l with "[-$α]").
       iIntros "!>" (?) "α %"...
       rel_load_l ; rel_load_r...
       case_bool_decide as qQ' ; [by exfalso|]...
       iApply (refines_na_close with "[-]").
-      iFrame.
-      iSplitL.
-      { iFrame. iNext. iPureIntro. split. 2: set_solver. done. }
-      rel_values. iExists _,_. iLeft. done.
-      Unshelve. 1: assumption. all: apply _.
+      iFrame ; iFrame "α".
+      rel_vals.
+      Unshelve. 1: assumption.
   Qed.
 
   (* This should be the result proven for the Approxis paper. *)
@@ -626,121 +531,93 @@ adversary_sem_typed Key F_typed F_sem_typed)
       iApply adversary_sem_typed.
     }
 
-      iApply (refines_na_alloc
-                (∃ (q : nat) M,
-                    ↯ ((Q*Q-q*q) / (2 * S Input))
-                    ∗ counter_l ↦ #q
-                    ∗ counter_r ↦ₛ #q
-                    ∗ map_list map_l M
-                    ∗ ⌜ size (dom M) = q ⌝
-                    ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
-                    ∗ α ↪N (Input; [])
-                )%I
-                (nroot.@"cpa")); iFrame.
-      iSplitL.
-      1: { iExists 0.
-           rewrite INR_0.
-           replace (Q*Q-0*0)%R with (Q*Q)%R by lra.
-           iFrame. iPureIntro; set_solver.
-      }
-      iIntros "#Hinv".
-      rel_arrow_val.
-      iIntros (??) "#(%msg&->&->&%&%)" ; rel_pures_l ; rel_pures_r.
-      iApply (refines_na_inv with "[$Hinv]"); [done|].
-      iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q & %dom_range & α) & Hclose)".
-      (* case_bool_decide as Hm. *)
-      - rel_load_l ; rel_load_r...
-        (* rewrite -bool_decide_and. *)
-        case_bool_decide as Hq.
-        + rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
-          assert (Z.to_nat msg < S Message) as Hmsg by lia.
-          pose proof nat_to_fin_list _ (elements(dom M)) dom_range as [l' Hl'].
-
-
-          rel_apply (refines_tape_couple_avoid _ α l').
-          { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
-            rewrite Hl'. apply NoDup_elements. }
-          replace (length l') with q; last first.
-          { erewrite <-fmap_length, Hl'.
-            by replace (length (elements (dom M))) with (size (dom M)).
-          }
-          pose proof pos_INR_S (Input).
-          assert (0<=q/S Input)%R.
-          { apply Rcomplements.Rdiv_le_0_compat; last done.
-            apply pos_INR. }
-          assert (0<=(Q * Q - (q+1)%nat * (q+1)%nat)/(2*S Input))%R.
-          { apply Rcomplements.Rdiv_le_0_compat; last lra.
-            rewrite -!mult_INR. apply Rle_0_le_minus.
-            apply le_INR. rewrite -Nat.square_le_mono. lia. }
-          iDestruct (ec_weaken _ (q/S Input+((Q * Q - (q + 1)%nat * (q + 1)%nat))/ (2 * S Input)) with "[$]") as "ε".
-          { split; first lra.
-            apply Rcomplements.Rle_minus_r.
-            rewrite Rminus_def -Rdiv_opp_l -Rdiv_plus_distr.
-            rewrite Rdiv_mult_distr.
-            rewrite !Rdiv_def.
-            apply Rmult_le_compat_r.
-            { apply Rlt_le. by apply Rinv_0_lt_compat. }
-            rewrite -Rcomplements.Rle_div_r; last lra.
-            trans ((q + 1)%nat * (q + 1)%nat-q*q)%R; last lra.
-            rewrite plus_INR.
-            replace (INR 1) with 1%R by done. lra.
-          }
-          iDestruct (ec_split with "[$]") as "[ε ε']"; [done|done|].
-          iFrame.
-          iIntros (r_in) "!> %r_fresh α"...
-          rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
-          iIntros (?) "mapref #->"...
-          assert ((M !! fin_to_nat r_in) = None) as ->.
-          { apply not_elem_of_dom_1.
-            rewrite -elem_of_elements.
-            rewrite -Hl'.
-            intros K. apply elem_of_list_fmap_2_inj in K; last apply fin_to_nat_inj.
-            done.
-          }
-          simpl...
-          unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ H (Z.to_nat msg))) ;
-            [apply xor_bij|apply xor_dom => //|..].
-          iIntros (y) "!> %"...
-          rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
-          iIntros "mapref"...
-          rel_bind_l (xor _ _).
-          rel_apply_l xor_correct_l; [done | lia | lia |].
-          iApply (refines_na_close with "[-]").
-          iFrame.
-          iSplitL.
-          { replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
-            iFrame.
-            iModIntro.
-            iPureIntro; split.
-            - rewrite size_dom. rewrite size_dom in dom_q.
-              rewrite map_size_insert_None; first lia.
-              apply not_elem_of_dom_1.
-              rewrite -elem_of_elements.
-              rewrite -Hl'.
-              intros K.
-              apply elem_of_list_fmap_2_inj in K; last apply fin_to_nat_inj.
-              done.
-            - intros x.
-              rewrite elem_of_elements.
-              set_unfold.
-              intros [|]; last naive_solver.
-              subst. apply fin_to_nat_lt.
-          }
-          idtac...
-          rel_values.
-          repeat iExists _.
-          iModIntro. iRight. repeat iSplit ; iPureIntro ; eauto.
-          simpl. repeat unshelve eexists ; try by lia.
-          * assert (r_in <= Input). 2: lia. clear. apply fin.fin_to_nat_le.
-          * cut ((xor_sem (Z.to_nat msg) y < S Output)).
-            1: lia.
-            apply xor_dom ; lia.
-        + iApply (refines_na_close with "[-]").
-          iFrame.
-          iSplit...
-          { done. }
-          rel_values. repeat iExists _. iLeft. done.
-    Qed.
+    iApply (refines_na_alloc
+              (∃ (q : nat) M,
+                  ↯ ((Q*Q-q*q) / (2 * S Input))
+                  ∗ counter_l ↦ #q
+                  ∗ counter_r ↦ₛ #q
+                  ∗ map_list map_l M
+                  ∗ ⌜ size (dom M) = q ⌝
+                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
+                  ∗ α ↪N (Input; [])
+              )%I
+              (nroot.@"cpa")); iFrame.
+    iSplitL.
+    1: { iExists 0.
+         rewrite INR_0.
+         replace (Q*Q-0*0)%R with (Q*Q)%R by lra.
+         iFrame. iPureIntro; set_solver.
+    }
+    iIntros "#Hinv".
+    rel_arrow_val.
+    iIntros (??) "#(%msg&->&->&%&%)" ; rel_pures_l ; rel_pures_r.
+    iApply (refines_na_inv with "[$Hinv]"); [done|].
+    iIntros "(> (%q & %M & ε & counter & counter' & mapref & %dom_q & %dom_range & α) & Hclose)".
+    - rel_load_l ; rel_load_r...
+      case_bool_decide as Hq.
+      + rel_load_l ; rel_load_r... rel_store_l ; rel_store_r...
+        assert (Z.to_nat msg < S Message) as Hmsg by lia.
+        pose proof nat_to_fin_list _ (elements(dom M)) dom_range as [l' Hl'].
+        rel_apply (refines_tape_couple_avoid _ α l').
+        { apply NoDup_fmap with fin_to_nat; first apply fin_to_nat_inj.
+          rewrite Hl'. apply NoDup_elements. }
+        replace (length l') with q; last first.
+        { erewrite <-fmap_length, Hl'.
+          by replace (length (elements (dom M))) with (size (dom M)).
+        }
+        pose proof pos_INR_S (Input).
+        assert (0<=q/S Input)%R.
+        { apply Rcomplements.Rdiv_le_0_compat; last done.
+          apply pos_INR. }
+        assert (0<=(Q * Q - (q+1)%nat * (q+1)%nat)/(2*S Input))%R.
+        { apply Rcomplements.Rdiv_le_0_compat; last lra.
+          rewrite -!mult_INR. apply Rle_0_le_minus.
+          apply le_INR. rewrite -Nat.square_le_mono. lia. }
+        iDestruct (ec_weaken _ (q/S Input+((Q * Q - (q + 1)%nat * (q + 1)%nat))/ (2 * S Input)) with "[$]") as "ε".
+        { split; first lra.
+          apply Rcomplements.Rle_minus_r.
+          rewrite Rminus_def -Rdiv_opp_l -Rdiv_plus_distr.
+          rewrite Rdiv_mult_distr.
+          rewrite !Rdiv_def.
+          apply Rmult_le_compat_r.
+          { apply Rlt_le. by apply Rinv_0_lt_compat. }
+          rewrite -Rcomplements.Rle_div_r; last lra.
+          trans ((q + 1)%nat * (q + 1)%nat-q*q)%R; last lra.
+          rewrite plus_INR.
+          replace (INR 1) with 1%R by done. lra.
+        }
+        iDestruct (ec_split with "[$]") as "[ε ε']"; [done|done|].
+        iFrame.
+        iIntros (r_in) "!> %r_fresh α"...
+        rel_apply_l (refines_get_l with "[-mapref] [$mapref]").
+        iIntros (?) "mapref #->"...
+        assert ((M !! fin_to_nat r_in) = None) as r_fresh_M.
+        { apply not_elem_of_dom_1. rewrite -elem_of_elements. rewrite -Hl'.
+          intros K. apply elem_of_list_fmap_2_inj in K; [done | apply fin_to_nat_inj]. }
+        rewrite r_fresh_M...
+        unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ H (Z.to_nat msg))) ;
+          [apply xor_bij|apply xor_dom => //|..].
+        iIntros (y) "!> %"...
+        rel_apply_l (refines_set_l with "[-mapref] [$mapref]"). iIntros "mapref"...
+        rel_bind_l (xor _ _).
+        rel_apply_l xor_correct_l; [done | lia | lia |].
+        iApply (refines_na_close with "[-]") ; iFrame ; iSplitL.
+        { replace (Z.of_nat q + 1)%Z with (Z.of_nat (q+1)) by lia.
+          iFrame. iPureIntro; split.
+          - rewrite size_dom. rewrite size_dom in dom_q.
+            rewrite map_size_insert_None; first lia. assumption.
+          - intros x. rewrite elem_of_elements. set_unfold.
+            intros [|]; last naive_solver.
+            subst. apply fin_to_nat_lt. }
+        idtac... rel_values. repeat iExists _.
+        iModIntro. iRight. repeat iSplit ; iPureIntro ; eauto.
+        simpl. repeat unshelve eexists ; try by lia.
+        * assert (r_in <= Input). 2: lia. clear. apply fin.fin_to_nat_le.
+        * cut ((xor_sem (Z.to_nat msg) y < S Output)) ; [lia|].
+          apply xor_dom ; lia.
+      + iApply (refines_na_close with "[-]").
+        iFrame. iSplit ; [done|]... rel_vals.
+  Qed.
 
   (* Should be just syntactic since CPA_rand doesn't use the PRF. *)
   Lemma cpa_F :
