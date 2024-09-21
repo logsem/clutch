@@ -56,7 +56,6 @@ Section combined.
 
   Definition T_PRF_Adv := ((TInput → (TOption TOutput)) → TBool)%ty.
 
-  Definition lrel_int_bounded {Σ} min max : lrel Σ := LRel (λ w1 w2, ∃ k : Z, ⌜ w1 = #k ∧ w2 = #k ∧ min <=k ∧ k <= max ⌝)%Z%I.
 
   Definition lrel_key {Σ} : lrel Σ := lrel_int_bounded 0 Key.
   Definition lrel_input {Σ} : lrel Σ := lrel_int_bounded 0 Input.
@@ -166,8 +165,6 @@ Section combined.
     ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ α ↪N (Input; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
 
-  Section approxis_proofs.
-
   Ltac rel_vals' :=
     lazymatch goal with
     | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
@@ -185,6 +182,8 @@ Section combined.
     | _ => fail "rel_vals: case not covered"
     end.
   Ltac rel_vals := try rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto).
+
+  Section approxis_proofs.
 
   Context `{!approxisRGS Σ}.
 
@@ -371,8 +370,7 @@ Section combined.
                opose proof (delete_subseteq M r).
                eapply map_img_delete_subseteq. done.
       }
-      rel_vals.
-      Unshelve. all: apply _.
+      rel_vals. Unshelve. all: apply _.
   Qed.
 
   (* Should be just syntactic since PRF_rand doesn't use the PRF. *)
@@ -406,8 +404,8 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   Lemma F_I :
     ⊢ (REL (RED (PRF_rand PRF_scheme_F #Q))
          << (RED (PRF_rand PRF_scheme_I #Q)) : lrel_bool).
-  Proof using (xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed adversary_typed
-adversary_sem_typed F_typed F_sem_typed).
+  Proof using (xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed
+                 adversary_typed adversary_sem_typed F_typed F_sem_typed).
     rel_apply refines_app.
     1: iApply red_sem_typed.
     iApply PRF_F_I.
@@ -450,7 +448,6 @@ adversary_sem_typed F_typed F_sem_typed).
     iIntros (??) "#(%msg&->&->&%&%)"...
     iApply (refines_na_inv with "[$Hinv]"); [done|].
     iIntros "(> (%q & %ys & counter_l & counter_r & α & α' & hα) & Hclose)".
-
     destruct_decide (@bool_decide_reflect (q < Q)%Z _) as qQ.
 
     - iDestruct ("hα" $! _) as "->".
@@ -461,34 +458,24 @@ adversary_sem_typed F_typed F_sem_typed).
       iIntros "!> α %"...
       rel_load_l ; rel_load_r...
       case_bool_decide as qQ' ; [|by exfalso]...
-
       rel_load_l. rel_load_r... rel_store_l ; rel_store_r...
-      rel_apply_r (refines_rand_r with "[$α']")...
-      iIntros "α' %"...
-
+      rel_apply_r (refines_rand_r with "[$α']") ; iIntros "α' %"...
       iApply (refines_na_close with "[-]") ;
         iFrame ; repeat iSplitL. 1: by iFrame.
-
-      rel_bind_l (rf _). rel_bind_r (rf' _).
-      rel_apply refines_bind. 
+      rel_bind_l (rf _). rel_bind_r (rf' _). rel_apply refines_bind.
       1: iApply "rf" ; rel_vals.
       iIntros (??) "(% & -> & -> & % & %)"...
-      rel_bind_l (xor _ _)%E. rel_bind_r (xor _ _)%E.
+      rel_bind_l (xor _ _). rel_bind_r (xor _ _).
       iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
       { repeat rel_apply refines_app ; rel_vals.
-        1: iApply xor_sem_typed.
-        all: rel_vals. }
-      iIntros (??) "(% & -> & -> & % & %)"...
-      rel_vals.
+        1: iApply xor_sem_typed. all: rel_vals. }
+      iIntros (??) "(% & -> & -> & % & %)"... rel_vals.
 
-    - rel_apply (refines_randT_empty_l with "[-$α]").
-      iIntros "!>" (?) "α %"...
+    - rel_apply (refines_randT_empty_l with "[-$α]"). iIntros "!>" (?) "α %"...
       rel_load_l ; rel_load_r...
       case_bool_decide as qQ' ; [by exfalso|]...
       iApply (refines_na_close with "[-]").
-      iFrame ; iFrame "α".
-      rel_vals.
-      Unshelve. 1: assumption.
+      iFrame ; iFrame "α". rel_vals. Unshelve. 1: assumption.
   Qed.
 
   (* This should be the result proven for the Approxis paper. *)

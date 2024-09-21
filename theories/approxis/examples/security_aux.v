@@ -48,6 +48,7 @@ Proof.
   rewrite /opt_mult_poly. constructor. tychk.
 Qed.
 
+Definition lrel_int_bounded {Σ} min max : lrel Σ := LRel (λ w1 w2, ∃ k : Z, ⌜ w1 = #k ∧ w2 = #k ∧ min <=k ∧ k <= max ⌝)%Z%I.
 
 Definition TList α := (μ: (ref (() + α * #0)))%ty.
 Fact init_list_typed α : ⊢ᵥ init_list : (() → TList α).
