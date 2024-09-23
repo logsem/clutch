@@ -50,7 +50,7 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
   rand_error_ineq {L : randG Σ} γ x1 x2:
     rand_error_auth (L:=L) γ x1 -∗ rand_error_frag (L:=L) γ x2 -∗ ⌜(x2 <= x1)%R ⌝;
   rand_error_decrease {L : randG Σ} γ (x1 x2:nonnegreal):
-     rand_error_auth (L:=L) γ x1 -∗ rand_error_frag (L:=L) γ x2 ==∗ rand_error_auth (L:=L) γ (x2-x1)%R;
+     rand_error_auth (L:=L) γ x1 -∗ rand_error_frag (L:=L) γ x2 ==∗ rand_error_auth (L:=L) γ (x1-x2)%R;
   rand_error_increase {L : randG Σ} γ (x1 x2:nonnegreal):
     (x1+x2<1)%R -> ⊢ rand_error_auth (L:=L) γ x1 ==∗
     rand_error_auth (L:=L) γ (x1+x2) ∗ rand_error_frag (L:=L) γ x2;
@@ -69,11 +69,18 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
     rand_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ rand_tapes_frag (L:=L) γ α ns';
 
   (** * Program specs *)
-  rand_inv_create_spec {L : randG Σ} N E ε:
+  rand_inv_create_spec {L : randG Σ} N E:
+  ⊢ wp_update E (∃ γ1 γ2, is_rand (L:=L) N γ1 γ2);
+  rand_err_convert_spec1 {L : randG Σ} N E ε γ1 γ2:
+  ↑N ⊆ E->
+  is_rand (L:=L) N γ1 γ2 -∗
   ↯ ε -∗
-  wp_update E (∃ γ1 γ2, is_rand (L:=L) N γ1 γ2 ∗
-                        rand_error_frag (L:=L) γ1 ε);
-  
+  wp_update E (rand_error_frag (L:=L) γ1 ε);
+  rand_err_convert_spec2 {L : randG Σ} N E ε γ1 γ2:
+  ↑N ⊆ E->
+  is_rand (L:=L) N γ1 γ2 -∗
+  rand_error_frag (L:=L) γ1 ε -∗
+  wp_update E (↯ ε);
   rand_allocate_tape_spec {L: randG Σ} N E (tb:nat) γ1 γ2:
     ↑N ⊆ E->
     {{{ is_rand (L:=L) N γ1 γ2 }}}
@@ -105,3 +112,163 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
     P -∗ rand_tapes_frag (L:=L) γ2 α (tb, ns)-∗
         wp_update E (∃ n, T n ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns++(fin_to_nat <$> n)))
 }.
+
+Section impl.
+  Local Opaque INR.
+  (* (** Instantiate rand *) *)
+  Class randG1 Σ := RandG1 { flipG1_error::hocap_errorGS Σ;
+                             flipG1_tapes:: hocap_tapesGS Σ;
+                      }.
+  Local Definition rand_inv_pred1 `{!conerisGS Σ, !hocap_errorGS Σ, !hocap_tapesGS Σ} γ1 γ2:=
+    (∃ (ε:R) (m:gmap loc (nat * list nat)) ,
+        ↯ ε ∗ ●↯ ε @ γ1  ∗
+        ([∗ map] α ↦ t ∈ m, α ↪N ( t.1 ; t.2 )) ∗
+        ●m@γ2
+    )%I.
+
+  #[local] Program Definition rand_spec1 `{!conerisGS Σ}: rand_spec :=
+    {| rand_allocate_tape:= (λ: "N", alloc "N");
+      rand_tape:= (λ: "α" "N", rand("α") "N"); 
+      randG := randG1;
+      rand_error_name := gname;
+      rand_tape_name := gname;
+      is_rand _ N γ1 γ2 := inv N (rand_inv_pred1 γ1 γ2);
+      rand_error_auth _ γ x := ●↯ x @ γ;
+      rand_error_frag _ γ x := ◯↯ x @ γ;
+      rand_tapes_auth _ γ m := (●m@γ)%I;
+      rand_tapes_frag _ γ α ns := (α ◯↪N (ns.1; ns.2) @ γ)%I;
+    |}.
+  Next Obligation.
+    simpl.
+    iIntros.
+    iApply (hocap_error_auth_exclusive with "[$][$]").
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros.
+    iApply (hocap_error_frag_split).
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (?????) "H".
+    iApply (hocap_error_auth_valid with "[$]").
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (?????) "H".
+    iApply (hocap_error_frag_valid with "[$]").
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (??????) "H1 H2".
+    iApply (hocap_error_ineq with "[$][$]").
+  Qed.
+  Next Obligation.
+    iIntros.
+    iApply (hocap_error_decrease with "[$][$]"). 
+  Qed.
+  Next Obligation.
+    iIntros.
+    by iApply (hocap_error_increase with "[$]").
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (??????) "H1 H2".
+    by iDestruct (ghost_map_auth_valid_2 with "[$][$]") as "[%H _]".
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (???????) "H1 H2".
+    iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
+    rewrite dfrac_op_own dfrac_valid_own. by intro.
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (??????[]) "??".
+    by iDestruct (hocap_tapes_agree with "[$][$]") as "%H".
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (??????????) "(%&#Hinv&?)".
+    iInv "Hinv" as ">(%&%&?&?&?&?)" "Hclose".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    iDestruct (big_sepM_lookup_acc with "[$]") as "[H H']"; first done.
+    iDestruct (tapeN_ineq with "[$]") as "%".
+    iMod ("Hclose" with "[-]"); last done.
+    iFrame.
+    by iApply "H'".
+  Qed.
+  Next Obligation.
+    iIntros (???????[]) "??".
+    iMod (hocap_tapes_update with "[$][$]") as "[??]".
+    by iFrame.
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (?????).
+    iApply fupd_wp_update_ret.
+    unshelve iMod (hocap_error_alloc (nnreal_zero)) as "(%γ1 & ? & ?)"; simpl; [rewrite INR_0; lra|].
+    iMod ec_zero as "?".
+    iMod (hocap_tapes_alloc ∅) as "(%γ2 & H4 & H5)".
+    iMod (inv_alloc _ _ (rand_inv_pred1 γ1 γ2) with "[-]").
+    { iFrame. by iNext. }
+    by iFrame.
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (????? ε ???) "#Hinv Herr".
+    iApply fupd_wp_update_ret.
+    iInv "Hinv" as ">(%ε'&%&H1&?&?&?)" "Hclose".
+    iDestruct (ec_valid with "[$Herr]") as "%".
+    iCombine "Herr H1" as "?".
+    iDestruct (ec_valid with "[$]") as "[% %]".
+    simpl in *.
+    unshelve iMod (hocap_error_increase _ _ (mknonnegreal ε _) with "[$]") as "[? Hfrag]"; [naive_solver|simpl;lra|].
+    simpl.
+    iMod ("Hclose" with "[-Hfrag]") as "_"; last done.
+    iFrame. iApply (ec_eq with "[$]"). lra.
+  Qed.
+  Next Obligation. 
+    simpl.
+    iIntros (????? ε ???) "#Hinv Herr".
+    iApply fupd_wp_update_ret.
+    iInv "Hinv" as ">(%ε'&%&H1&?&?&?)" "Hclose".
+    iDestruct (hocap_error_frag_valid with "[$]") as "%".
+    iDestruct (ec_valid with "[$]") as "%".
+    iDestruct (hocap_error_ineq with "[$][$]") as "%".
+    unshelve iMod (hocap_error_decrease with "[$][$]") as "?".
+    iDestruct (ec_eq with "[$]") as "?"; last first.
+    { iDestruct (ec_split with "[$]") as "[? H]"; last first.
+      - iMod ("Hclose" with "[-H]") as "_"; last done.
+        iFrame.
+      - naive_solver.
+      - lra.
+    }
+    lra.
+  Qed.
+  Next Obligation.
+    simpl.
+    iIntros (????????? Φ) "#Hinv HΦ".
+    wp_pures.
+    iInv "Hinv" as "(%&%&?&?&?&?)" "Hclose".
+    wp_apply (wp_alloc_tape); first done.
+    iIntros (α) "Hα".
+    iDestruct (hocap_tapes_notin with "[$][$]") as "%".
+    iMod (hocap_tapes_new _ _ α tb [] with "[$]") as "[?H]"; first done.
+    iMod ("Hclose" with "[-H HΦ]").
+    { iModIntro. iFrame.
+      rewrite big_sepM_insert; [iFrame|done].
+    }
+    iApply "HΦ".
+    by iFrame.
+  Qed.
+  Next Obligation.
+    simpl.
+  Admitted.
+  Next Obligation.
+    simpl.
+  Admitted.
+  
+  
+End impl.
+
