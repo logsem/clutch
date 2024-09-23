@@ -137,6 +137,17 @@ Section tape_interface.
     by rewrite fmap_app.
   Qed. 
   
+  Lemma tapeN_ineq α N ns:
+    α↪N (N; ns) -∗ ⌜Forall (λ n, n<=N)%nat ns⌝.
+  Proof.
+    iIntros "(% & <- & H)".
+    iPureIntro.
+    eapply Forall_impl.
+    - apply fin.fin_forall_leq.
+    - simpl. intros.
+      lia.
+  Qed.
+          
   (*
   Lemma spec_tapeN_to_empty l M :
     (l ↪ₛN ( M ; [] ) -∗ l ↪ₛ ( M ; [] )).

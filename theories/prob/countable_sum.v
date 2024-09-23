@@ -2,7 +2,7 @@ From Coq Require Import Reals Psatz.
 From Coquelicot Require Import Series Hierarchy Lim_seq Rbar Lub.
 From stdpp Require Import option.
 From stdpp Require Export countable finite gmap.
-From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical fin.
+From clutch.prelude Require Import base Reals_ext Coquelicot_ext Series_ext stdpp_ext classical fin uniform_list.
 Set Default Proof Using "Type*".
 Import Hierarchy.
 
@@ -710,12 +710,20 @@ Section filter.
 
 End filter.
 
-Lemma ex_seriesC_list_length `{Countable A} (f:list A -> R) num:
-  (forall x, (0<f x)%R -> length x = num) ->
+Lemma ex_seriesC_list_length `{Finite A} (f:list A -> R) num:
+  (forall x, (0≠f x)%R -> length x = num) ->
   ex_seriesC f.
 Proof.
   intros.
-Admitted.
+  eapply (ex_seriesC_ext (λ x, if bool_decide(x∈enum_uniform_list num) then f x else 0))%R.
+  - intros n.
+    case_bool_decide as K; first done.
+    destruct (Req_dec (f n) 0); first done.
+    exfalso.
+    apply K. apply elem_of_enum_uniform_list.
+    naive_solver.
+  - apply ex_seriesC_list.
+Qed.
 
 Lemma SeriesC_Series_nat (f : nat → R)  :
   SeriesC f = Series f.

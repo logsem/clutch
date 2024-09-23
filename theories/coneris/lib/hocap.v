@@ -1,7 +1,7 @@
 (** * Hocap specs *)
 From stdpp Require Import namespaces.
 From iris Require Import excl_auth invariants list.
-From clutch.coneris Require Import coneris flip.
+From clutch.coneris Require Import coneris.
 
 Set Default Proof Using "Type*".
 
@@ -94,14 +94,16 @@ Section error_lemmas.
   Qed.
 
   Lemma hocap_error_decrease γ (b' b:nonnegreal) :
-     (●↯ (b+b') @ γ) -∗ (◯↯ b @ γ) ==∗ (●↯ b' @ γ).
+     (●↯ (b) @ γ) -∗ (◯↯ b' @ γ) ==∗ (●↯ (b-b') @ γ).
   Proof.
     iIntros "H1 H2".
     simpl.
+    iDestruct (hocap_error_ineq with "[$][$]") as "%".
     iDestruct "H1" as "[% [% H1]]".
     iDestruct "H2" as "[% [% H2]]".
     iMod (own_update_2 with "H1 H2") as "Hown".
-    { eapply (auth_update_dealloc _ _ b'), nonnegreal_local_update.
+    { unshelve eapply (auth_update_dealloc _ _ ((b-b') _)%NNR), nonnegreal_local_update.
+      - lra.
       - apply cond_nonneg.
       - apply nnreal_ext =>/=. lra. }
     iFrame. by iPureIntro.
@@ -123,8 +125,14 @@ Section error_lemmas.
     - done.
   Qed.
   
-  Lemma hocap_error_irrel γ (b c:R) :
+  Lemma hocap_error_auth_irrel γ (b c:R) :
     (b=c)%R -> (●↯ b @ γ) -∗ (●↯ c @ γ).
+  Proof.
+    iIntros (->) "$".
+  Qed.
+  
+  Lemma hocap_error_frag_irrel γ (b c:R) :
+    (b=c)%R -> (◯↯ b @ γ) -∗ (◯↯ c @ γ).
   Proof.
     iIntros (->) "$".
   Qed.
