@@ -7,7 +7,7 @@ From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
 From clutch.prob.monad Require Export laws.
-From clutch.meas_lang Require Import ectxi_language.
+From clutch.meas_lang Require Import ectxi_language ectx_language.
 
 (*
 From Coq Require Import Reals Psatz.
@@ -644,71 +644,72 @@ Section pointed_instances.
 
 End pointed_instances.
 
-Definition cfg : Type := expr * state.
 
 Section meas_semantics.
   Local Open Scope classical_set_scope.
   Notation giryM := (giryM (R := Real.sort meas_lang.R)).
   Local Open Scope expr_scope.
 
-  Definition head_stepM_def (c : cfg) : giryM <<discr cfg>> :=
+  Definition discr_cfg : measurableType _ := (<<discr expr>> * <<discr state>>)%type.
+
+  Definition head_stepM_def (c : discr_cfg) : giryM discr_cfg :=
     let (e1, σ1) := c in
     match e1 with
     | Rec f x e =>
-        giryM_ret R ((Val $ RecV f x e, σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ RecV f x e, σ1) : discr_cfg)
     | Pair (Val v1) (Val v2) =>
-        giryM_ret R ((Val $ PairV v1 v2, σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ PairV v1 v2, σ1) : discr_cfg)
     | InjL (Val v) =>
-        giryM_ret R ((Val $ InjLV v, σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ InjLV v, σ1) : discr_cfg)
     | InjR (Val v) =>
-        giryM_ret R ((Val $ InjRV v, σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ InjRV v, σ1) : discr_cfg)
     | App (Val (RecV f x e1)) (Val v2) =>
-        giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : <<discr cfg>>)
+        giryM_ret R ((subst' x v2 (subst' f (RecV f x e1) e1) , σ1) : discr_cfg)
     | UnOp op (Val v) =>
         match un_op_eval op v with
-          | Some w => giryM_ret R ((Val w, σ1) : <<discr cfg>>)
+          | Some w => giryM_ret R ((Val w, σ1) : discr_cfg)
           | _ => giryM_zero
         end
     | BinOp op (Val v1) (Val v2) =>
         match bin_op_eval op v1 v2 with
-          | Some w => giryM_ret R ((Val w, σ1) : <<discr cfg>>)
+          | Some w => giryM_ret R ((Val w, σ1) : discr_cfg)
           | _ => giryM_zero
         end
     | If (Val (LitV (LitBool true))) e1 e2  =>
-        giryM_ret R ((e1 , σ1) : <<discr cfg>>)
+        giryM_ret R ((e1 , σ1) : discr_cfg)
     | If (Val (LitV (LitBool false))) e1 e2 =>
-        giryM_ret R ((e2 , σ1) : <<discr cfg>>)
+        giryM_ret R ((e2 , σ1) : discr_cfg)
     | Fst (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v1 , σ1) : <<discr cfg>>) (* Syntax error when I remove the space between v1 and , *)
+        giryM_ret R ((Val v1 , σ1) : discr_cfg) (* Syntax error when I remove the space between v1 and , *)
     | Snd (Val (PairV v1 v2)) =>
-        giryM_ret R ((Val v2, σ1) : <<discr cfg>>)
+        giryM_ret R ((Val v2, σ1) : discr_cfg)
     | Case (Val (InjLV v)) e1 e2 =>
-        giryM_ret R ((App e1 (Val v), σ1) : <<discr cfg>>)
+        giryM_ret R ((App e1 (Val v), σ1) : discr_cfg)
     | Case (Val (InjRV v)) e1 e2 =>
-        giryM_ret R ((App e2 (Val v), σ1) : <<discr cfg>>)
+        giryM_ret R ((App e2 (Val v), σ1) : discr_cfg)
     | AllocN (Val (LitV (LitInt N))) (Val v) =>
         let ℓ := fresh_loc σ1.(heap) in
         if bool_decide (0 < Z.to_nat N)%nat
-          then giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : <<discr cfg>>)
+          then giryM_ret R ((Val $ LitV $ LitLoc ℓ, state_upd_heap_N ℓ (Z.to_nat N) v σ1) : discr_cfg)
           else giryM_zero
     | Load (Val (LitV (LitLoc l))) =>
         match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val v, σ1) : <<discr cfg>>)
+          | Some v => giryM_ret R ((Val v, σ1) : discr_cfg)
           | None => giryM_zero
         end
     | Store (Val (LitV (LitLoc l))) (Val w) =>
         match σ1.(heap) !! l with
-          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : <<discr cfg>>)
+          | Some v => giryM_ret R ((Val $ LitV LitUnit, state_upd_heap <[l:=w]> σ1) : discr_cfg)
           | None => giryM_zero
         end
     (* Uniform sampling from [0, 1 , ..., N] *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV LitUnit)) =>
         giryM_map
-          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : <<discr cfg>>)))
+          (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discr_cfg)))
           (giryM_unif (Z.to_nat N))
     | AllocTape (Val (LitV (LitInt z))) =>
         let ι := fresh_loc σ1.(tapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_tapes <[ι := {| btape_tape := emptyTape ; btape_bound := (Z.to_nat z) |} ]> σ1) : discr_cfg)
     (* Rand with a tape *)
     | Rand (Val (LitV (LitInt N))) (Val (LitV (LitLbl l))) =>
         match σ1.(tapes) !! l with
@@ -722,7 +723,7 @@ Section meas_semantics.
               | Some v =>
                   (* There is a next value on the tape *)
                   let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ); btape_bound := M |} ]> σ1 in
-                  (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : <<discr cfg>>))
+                  (giryM_ret R ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : discr_cfg))
               | None =>
                   (* Next slot on tape is empty *)
                   giryM_map
@@ -732,24 +733,24 @@ Section meas_semantics.
                        (* Advance the tape *)
                        let σ' := state_upd_tapes <[ l := {| btape_tape := (tapeAdvance τ'); btape_bound := M |} ]> σ1 in
                        (* Return the new sample and state *)
-                       ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : <<discr cfg>>)))
+                       ((Val $ LitV $ LitInt $ Z.of_nat v, σ') : discr_cfg)))
                    (giryM_unif (Z.to_nat N))
               end
             else
               (* Tape bounds do not match *)
               (* Do not advance the tape, but still generate a new sample *)
               giryM_map
-                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : <<discr cfg>>)))
+                (m_discr (fun (n : 'I_(S (Z.to_nat N))) => ((Val $ LitV $ LitInt n, σ1) : discr_cfg)))
                 (giryM_unif (Z.to_nat N))
         | None => giryM_zero
         end
     | AllocUTape =>
         let ι := fresh_loc σ1.(utapes) in
-        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : <<discr cfg>>)
+        giryM_ret R ((Val $ LitV $ LitLbl ι, state_upd_utapes <[ ι := emptyTape ]> σ1) : discr_cfg)
     (* Urand with no tape *)
     | URand (Val (LitV LitUnit)) =>
         giryM_map
-          (m_discr (fun u => ((Val $ LitV $ LitReal u, σ1) : <<discr cfg>>)))
+          (m_discr (fun u => ((Val $ LitV $ LitReal u, σ1) : discr_cfg)))
           giryM_zero
     (* Urand with a tape *)
     | URand (Val (LitV (LitLbl l))) =>
@@ -760,7 +761,7 @@ Section meas_semantics.
             | Some u =>
                 (* Head has a sample *)
                 let σ' := state_upd_utapes <[ l := (tapeAdvance τ) ]> σ1 in
-                (giryM_ret R ((Val $ LitV $ LitReal u, σ') : <<discr cfg>>))
+                (giryM_ret R ((Val $ LitV $ LitReal u, σ') : discr_cfg))
             | None =>
                 (* Head has no sample *)
                 giryM_map
@@ -770,46 +771,25 @@ Section meas_semantics.
                     (* Advance tape *)
                     let σ' := state_upd_utapes <[ l := (tapeAdvance τ') ]> σ1 in
                     (* Return the update value an state *)
-                    ((Val $ LitV $ LitReal u, σ') : <<discr cfg>>)))
+                    ((Val $ LitV $ LitReal u, σ') : discr_cfg)))
                   giryM_zero
             end
         | None => giryM_zero
         end
-    | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : <<discr cfg>>)
+    | Tick (Val (LitV (LitInt n))) => giryM_ret R ((Val $ LitV $ LitUnit, σ1) : discr_cfg)
     | _ => giryM_zero
     end.
 
+  (* I don't care if this this true; we will delete it soon and replace it with a proof for the real SA. *)
+  Local Lemma head_stepM_def_measurable :
+    @measurable_fun _ _ discr_cfg (giryM discr_cfg) setT head_stepM_def.
+  Proof. Admitted.
 
-  (* head_stepM is a measurable map because it is a function out of a discrete space.
+  HB.instance Definition _ :=
+    isMeasurableMap.Build _ _ _ _ _ head_stepM_def_measurable.
 
-     After we add continuous varaibles this argument gets more complex. It is not
-     true in general that the match-wise composition of measurable maps is measurable. *)
-
-  Definition head_stepM : measurable_map <<discr cfg>> (giryM <<discr cfg>>)
-    := m_discr head_stepM_def.
-
-  (* Instead, we may consider restructing the semantics to use 'I_m instead of (fin m)
-  Definition fin_of_Im (m : nat) : 'I_m -> stdpp.fin.fin m.
-  Admitted.
-   *)
-
-  (*
-  Definition state_stepM_def (c : state * loc) : giryM (<<discr state>>) :=
-    let (σ1, α) := c in
-    if bool_decide (α ∈ dom σ1.(tapes)) then
-      giryM_zero
-      (*
-      let: (N; ns) := (σ1.(tapes) !!! α) in
-      giryM_map
-        (m_discr (λ (n : 'I_(S N)), (state_upd_tapes (<[α := fin (N; ns ++ [ fin_of_Im _ n : stdpp.fin.fin (S N)])]>) σ1) : <<discr state>>))
-        (giryM_unif _)
-      *)
-    else giryM_zero.
-
-  Definition state_stepM : measurable_map <<discr (state * loc)>> (giryM <<discr state>>)
-    := m_discr state_stepM_def.
-   *)
-
+  Definition head_stepM : measurable_map (<<discr expr>> * <<discr state>>)%type (giryM (<<discr expr>> * <<discr state>>)%type) :=
+    head_stepM_def.
 
 End meas_semantics.
 
@@ -1088,41 +1068,27 @@ Proof.
     destruct Ki ; cbn ; repeat destruct_match ; intros [=] ; subst ; auto.
 Qed.
 
-Definition get_active (σ : state) : list loc := elements (dom σ.(tapes)).
-
-
 Local Open Scope classical_set_scope.
 
+Definition fill_item_mf K := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).
 
-(*
-Program Definition meas_lang_mixin : Type :=
-  @MeasEctxiLanguageMixin R _ _ _ <<discr expr>> <<discr val>> <<discr state>> ectx_item of_val to_val _ _ _ _.
-*)
-
-
-(* head_stepM_def. *)
-
-(*
-Lemma meas_lang_mixin :
-  MeasEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step state_step get_active.
+Definition meas_lang_mixin :
+  @MeasEctxiLanguageMixin R _ _ _ <<discr expr>> <<discr val>> <<discr state>> ectx_item
+    of_val to_val fill_item_mf decomp_item expr_ord head_stepM_def.
 Proof.
-  split; apply _ || eauto using to_of_val, of_to_val, val_head_stuck,
-    state_step_head_step_not_stuck, state_step_get_active_mass, head_step_mass,
-    fill_item_val, fill_item_no_val_inj, head_ctx_step_val,
-    decomp_fill_item, decomp_fill_item_2, expr_ord_wf, decomp_expr_ord.
-Qed.
-*)
+  split.
+Admitted.
+
 
 End meas_lang.
-(*
-(*
-(** Language *)
-Canonical Structure meas_ectxi_lang := EctxiLanguage prob_lang.get_active prob_lang.prob_lang_mixin.
-Canonical Structure meas_ectx_lang := EctxLanguageOfEctxi prob_ectxi_lang.
-Canonical Structure meas_lang := LanguageOfEctx prob_ectx_lang.
 
-(* Prefer prob_lang names over ectx_language names. *)
+(** Language *)
+
+
+Canonical Structure meas_ectxi_lang := MeasEctxiLanguage meas_lang.head_stepM meas_lang.meas_lang_mixin.
+Canonical Structure meas_ectx_lang := MeasEctxLanguageOfEctxi meas_ectxi_lang.
+Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
+
+(* Prefer meas_lang names over ectx_language names. *)
 Export meas_lang.
 
-*)
-*)
