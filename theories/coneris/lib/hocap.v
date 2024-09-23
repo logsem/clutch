@@ -93,36 +93,38 @@ Section error_lemmas.
     by eapply auth_both_valid_discrete in Hop as [Hlt%nonnegreal_included ?]. 
   Qed.
 
-  Lemma hocap_error_decrease γ (b' b:nonnegreal) :
+  Lemma hocap_error_decrease γ (b' b:R) :
      (●↯ (b) @ γ) -∗ (◯↯ b' @ γ) ==∗ (●↯ (b-b') @ γ).
   Proof.
     iIntros "H1 H2".
     simpl.
     iDestruct (hocap_error_ineq with "[$][$]") as "%".
-    iDestruct "H1" as "[% [% H1]]".
-    iDestruct "H2" as "[% [% H2]]".
+    iDestruct "H1" as "[%x [% H1]]".
+    iDestruct "H2" as "[%x' [% H2]]".
     iMod (own_update_2 with "H1 H2") as "Hown".
-    { unshelve eapply (auth_update_dealloc _ _ ((b-b') _)%NNR), nonnegreal_local_update.
+    { unshelve eapply (auth_update_dealloc _ _ ((x-x') _)%NNR), nonnegreal_local_update.
       - lra.
       - apply cond_nonneg.
       - apply nnreal_ext =>/=. lra. }
-    iFrame. by iPureIntro.
+    iFrame. simpl. iPureIntro.
+    by subst. 
   Qed.
    
 
-  Lemma hocap_error_increase γ (b b':nonnegreal) :
-     (b+b'<1)%R -> ⊢ (●↯ b @ γ) ==∗ (●↯ (b+b')%NNR @ γ) ∗ (◯↯ b' @ γ).
+  Lemma hocap_error_increase γ (b:R) (b':nonnegreal) :
+     (b+b'<1)%R -> ⊢ (●↯ b @ γ) ==∗ (●↯ (b+b')%R @ γ) ∗ (◯↯ b' @ γ).
   Proof.
-    iIntros (Hineq) "[% [% H]]".
+    iIntros (Hineq) "[%x [% H]]".
     iMod (own_update with "H") as "[$ $]"; last (iPureIntro; split; last done).
     - apply auth_update_alloc.
-      apply (local_update_unital_discrete _ _ (b+b')%NNR) => z H1 H2.
-      split; first done.
-      apply nnreal_ext. simpl.
-      rewrite Rplus_comm.
-      apply Rplus_eq_compat_l.
-      simpl in *. rewrite -H H2. simpl. lra.
-    - done.
+      apply (local_update_unital_discrete _ _ (x+b')%NNR) => z H1 H2.
+      split.
+      + destruct x, b'. compute. simpl in *. lra.
+      + apply nnreal_ext. simpl.
+        rewrite Rplus_comm.
+        apply Rplus_eq_compat_l.
+        simpl in *. rewrite H2. simpl. lra.
+    - simpl. lra. 
   Qed.
   
   Lemma hocap_error_auth_irrel γ (b c:R) :
@@ -139,76 +141,74 @@ Section error_lemmas.
 
 End error_lemmas.
 
-(* Definition hocap_tapes_nroot:=nroot.@"tapes". *)
-(* Class hocap_tapesGS (Σ : gFunctors) := Hocap_tapesGS { *)
-(*   hocap_tapesGS_inG :: ghost_mapG Σ loc (nat*list nat) *)
-(*                                          }. *)
-(* Definition hocap_tapesΣ := ghost_mapΣ loc (nat*list nat). *)
+Definition hocap_tapes_nroot:=nroot.@"tapes".
+Class hocap_tapesGS (Σ : gFunctors) := Hocap_tapesGS {
+  hocap_tapesGS_inG :: ghost_mapG Σ loc (nat*list nat)
+                                         }.
+Definition hocap_tapesΣ := ghost_mapΣ loc (nat*list nat).
 
-(* Notation "α ◯↪N ( M ; ns ) @ γ":= (α ↪[ γ ] (M,ns))%I *)
-(*                                     (at level 20, format "α ◯↪N ( M ; ns ) @ γ") : bi_scope. *)
+Notation "α ◯↪N ( M ; ns ) @ γ":= (α ↪[ γ ] (M,ns))%I
+                                    (at level 20, format "α ◯↪N ( M ; ns ) @ γ") : bi_scope.
 
-(* Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope. *)
+Notation "● m @ γ" := (ghost_map_auth γ 1 m) (at level 20) : bi_scope.
 
-(* Section tapes_lemmas. *)
-(*   Context `{!conerisGS Σ, !hocap_tapesGS Σ}. *)
+Section tapes_lemmas.
+  Context `{!conerisGS Σ, !hocap_tapesGS Σ}.
 
-(*   Lemma hocap_tapes_alloc m: *)
-(*     ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1; v.2) @ γ). *)
-(*   Proof. *)
-(*     iMod ghost_map_alloc as (γ) "[??]". *)
-(*     iFrame. iModIntro. *)
-(*     iApply big_sepM_mono; last done. *)
-(*     by iIntros (?[??]). *)
-(*   Qed. *)
+  Lemma hocap_tapes_alloc m:
+    ⊢ |==>∃ γ, (● m @ γ) ∗ [∗ map] k↦v ∈ m, (k ◯↪N (v.1; v.2) @ γ).
+  Proof.
+    iMod ghost_map_alloc as (γ) "[??]".
+    iFrame. iModIntro.
+    iApply big_sepM_mono; last done.
+    by iIntros (?[??]).
+  Qed.
 
-(*   Lemma hocap_tapes_agree m γ k N ns: *)
-(*     (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) -∗ ⌜ m!!k = Some (N, ns) ⌝. *)
-(*   Proof. *)
-(*     iIntros "H1 H2". *)
-(*     by iCombine "H1 H2" gives "%". *)
-(*   Qed. *)
+  Lemma hocap_tapes_agree m γ k N ns:
+    (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) -∗ ⌜ m!!k = Some (N, ns) ⌝.
+  Proof.
+    iIntros "H1 H2".
+    by iCombine "H1 H2" gives "%".
+  Qed.
 
-(*   Lemma hocap_tapes_new γ m k N ns : *)
-(*     m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
-(*   Proof. *)
-(*     iIntros (Hlookup) "H". *)
-(*     by iApply ghost_map_insert. *)
-(*   Qed. *)
+  Lemma hocap_tapes_new γ m k N ns :
+    m!!k=None -> ⊢ (● m @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ).
+  Proof.
+    iIntros (Hlookup) "H".
+    by iApply ghost_map_insert.
+  Qed.
 
-(*   Lemma hocap_tapes_presample γ m k N ns n: *)
-(*     (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++[n])]>m) @ γ) ∗ (k ◯↪N (N; ns++[n]) @ γ). *)
-(*   Proof. *)
-(*     iIntros "H1 H2". *)
-(*     iApply (ghost_map_update with "[$][$]").  *)
-(*   Qed. *)
+  Lemma hocap_tapes_update γ m k N N' ns ns':
+    (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N',ns')]>m) @ γ) ∗ (k ◯↪N (N'; ns') @ γ).
+  Proof.
+    iIntros "H1 H2".
+    iApply (ghost_map_update with "[$][$]").
+  Qed.
 
-(*   Lemma hocap_tapes_presample' γ m k N ns ns': *)
-(*     (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++ns')]>m) @ γ) ∗ (k ◯↪N (N; ns++ns') @ γ). *)
-(*   Proof. *)
-(*     iIntros "H1 H2". *)
-(*     iApply (ghost_map_update with "[$][$]").  *)
-(*   Qed. *)
+  (* Lemma hocap_tapes_presample γ m k N ns n: *)
+  (*   (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++[n])]>m) @ γ) ∗ (k ◯↪N (N; ns++[n]) @ γ). *)
+  (* Proof. *)
+  (*   iIntros "H1 H2". *)
+  (*   iApply (ghost_map_update with "[$][$]"). *)
+  (* Qed. *)
 
-(*   Lemma hocap_tapes_pop γ m k N ns n: *)
-(*     (● m @ γ) -∗ (k ◯↪N (N; n::ns) @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
-(*   Proof. *)
-(*     iIntros "H1 H2". *)
-(*     iApply (ghost_map_update with "[$][$]").  *)
-(*   Qed. *)
+  (* Lemma hocap_tapes_presample' γ m k N ns ns': *)
+  (*   (● m @ γ) -∗ (k ◯↪N (N; ns) @ γ) ==∗ (● (<[k:=(N,ns++ns')]>m) @ γ) ∗ (k ◯↪N (N; ns++ns') @ γ). *)
+  (* Proof. *)
+  (*   iIntros "H1 H2". *)
+  (*   iApply (ghost_map_update with "[$][$]"). *)
+  (* Qed. *)
 
-(*   Lemma hocap_tapes_notin α N ns m (f:(nat*list nat)-> nat) g: *)
-(*     α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝. *)
-(*   Proof. *)
-(*     destruct (m!!α) eqn:Heqn; last by iIntros. *)
-(*     iIntros "Hα Hmap". *)
-(*     iDestruct (big_sepM_lookup with "[$]") as "?"; first done. *)
-(*     iExFalso. *)
-(*     iApply (tapeN_tapeN_contradict with "[$][$]"). *)
-(*   Qed.  *)
+  (* Lemma hocap_tapes_pop γ m k N ns n: *)
+  (*   (● m @ γ) -∗ (k ◯↪N (N; n::ns) @ γ) ==∗ (● (<[k:=(N,ns)]>m) @ γ) ∗ (k ◯↪N (N; ns) @ γ). *)
+  (* Proof. *)
+  (*   iIntros "H1 H2". *)
+  (*   iApply (ghost_map_update with "[$][$]"). *)
+  (* Qed. *)
 
-(*   (** * TODO add*) *)
-(* End tapes_lemmas. *)
+  
+
+End tapes_lemmas.
 
 (* Section HOCAP. *)
 

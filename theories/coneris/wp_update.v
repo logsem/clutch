@@ -71,6 +71,14 @@ Section wp_update.
     iMod "H". by iApply "H".
   Qed.
 
+  Lemma fupd_wp_update_ret E P:
+    (|={E}=> P) ⊢ wp_update E P.
+  Proof.
+    iIntros "H".
+    iApply fupd_wp_update.
+    by iApply wp_update_ret.
+  Qed.
+
   Lemma wp_update_frame_l R E P :
     R ∗ wp_update E P ⊢ wp_update E (P ∗ R).
   Proof.

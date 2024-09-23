@@ -147,6 +147,16 @@ Section tape_interface.
     - simpl. intros.
       lia.
   Qed.
+
+  Lemma hocap_tapes_notin α N ns m (f:(nat*list nat)-> nat) g:
+    α ↪N (N; ns) -∗ ([∗ map] α0↦t ∈ m, α0 ↪N (f t; g t)) -∗ ⌜m!!α=None ⌝.
+  Proof.
+    destruct (m!!α) eqn:Heqn; last by iIntros.
+    iIntros "Hα Hmap".
+    iDestruct (big_sepM_lookup with "[$]") as "?"; first done.
+    iExFalso.
+    iApply (tapeN_tapeN_contradict with "[$][$]").
+  Qed.
           
   (*
   Lemma spec_tapeN_to_empty l M :
