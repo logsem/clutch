@@ -263,12 +263,116 @@ Section impl.
     by iFrame.
   Qed.
   Next Obligation.
-    simpl.
-  Admitted.
-  Next Obligation.
-    simpl.
-  Admitted.
-  
+  simpl.
+  iIntros (?????????????? Φ) "(#Hinv & #Hvs & HP) HΦ".
+  wp_pures.
+  wp_bind (rand(_) _)%E.
+  iInv "Hinv" as ">(%&%&H1&H2&H3&H4)" "Hclose".
+  iMod ("Hvs" with "[$]") as "(%&HQ&Hauth)".
+  iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
+  simpl.
+  wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
+  iMod ("Hclose" with "[- HΦ HQ]") as "_".
+  { iExists _, (<[α:=_]> m).
+    iFrame.
+    iApply "H3". by iNext.
+  }
+  by iApply "HΦ".
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag".
+  iApply wp_update_state_step_coupl.
+  iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
+  iMod (inv_acc with "Hinv") as "[>(%ε' & % & H1 & H2 & H3 & H4 ) Hclose]"; [done|].
+  iDestruct (hocap_tapes_agree with "[$][$]") as "%K".
+  iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
+  simpl.
+  iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
+  iDestruct (ec_supply_bound with "[$][$]") as "%".
+  iMod (ec_supply_decrease with "[$][$]") as (ε'' ε_rem -> Hε') "Hε_supply". subst.
+Admitted.
+(*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
+(*   iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang num α); first done. *)
+(*   pose (diff := (ε'' - ε)%R). *)
+(*   unshelve iExists (λ x, mknonnegreal (if length x =? num then ε2 x + (diff/ ((S tb) ^ num))else 1)%R _). *)
+(*   { case_match; last (simpl;lra). apply Hpos. by apply Nat.eqb_eq. } *)
+(*   iSplit. *)
+(*   { iPureIntro. *)
+(*     simpl. *)
+(*     unshelve epose proof (Hineq ε1' _) as H'; first apply cond_nonneg. *)
+(*     etrans; last exact. *)
+(*     rewrite (Rdiv_def _ (2^_)) -SeriesC_scal_r. *)
+(*     etrans; last eapply (SeriesC_le_inj _ (λ x, Some (nat_to_bool <$> (fin_to_nat <$> x)))). *)
+(*     - apply SeriesC_le. *)
+(*       + simpl. intros n. *)
+(*         rewrite !fmap_length. *)
+(*         case_match. *)
+(*         * replace (1+1)%R with 2%R by lra. *)
+(*           rewrite -Rdiv_1_l. simpl. *)
+(*           split; last lra. *)
+(*           apply Rmult_le_pos. *)
+(*           -- apply Rcomplements.Rdiv_le_0_compat; first lra. *)
+(*              apply pow_lt; lra. *)
+(*           -- apply Hpos; first done. *)
+(*              rewrite !fmap_length. *)
+(*              by apply Nat.eqb_eq. *)
+(*         * lra. *)
+(*       + simpl. *)
+(*         apply (ex_seriesC_list_length _ num). *)
+(*         intros ?. rewrite !fmap_length. *)
+(*         case_match; last lra. *)
+(*         intros. by apply Nat.eqb_eq. *)
+(*     - intros. case_match; last lra. *)
+(*       apply Rmult_le_pos; first apply Hpos; simpl; auto. *)
+(*       + by apply Nat.eqb_eq. *)
+(*       + rewrite -Rdiv_1_l. *)
+(*         apply Rcomplements.Rdiv_le_0_compat; first lra. *)
+(*         apply pow_lt; lra. *)
+(*     - intros ??? <- K. *)
+(*       simplify_eq. *)
+(*       rewrite -!list_fmap_compose in K. *)
+(*       apply list_fmap_eq_inj in K; try done. *)
+(*       intros x x'. *)
+(*       repeat (inv_fin x; try intros x); *)
+(*         repeat (inv_fin x'; try intros x'); done. *)
+(*     - apply (ex_seriesC_list_length _ num). *)
+(*         intros ?. *)
+(*         case_match; last lra. *)
+(*         intros. by apply Nat.eqb_eq. *)
+(*   } *)
+(*   iIntros (sample) "<-". *)
+(*   destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (nat_to_bool <$> (fin_to_nat <$> sample))))%R 1%R) as [Hdec|Hdec]; last first. *)
+(*   { apply Rnot_lt_ge, Rge_le in Hdec. *)
+(*     iApply state_step_coupl_ret_err_ge_1. *)
+(*     simpl. simpl in *. rewrite Nat.eqb_refl. lra. *)
+(*   } *)
+(*   iApply state_step_coupl_ret. *)
+(*   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' (nat_to_bool <$> (fin_to_nat <$> sample))) _) with "Hε_supply") as "[Hε_supply Hε]". *)
+(*   { apply Hpos; first apply cond_nonneg. by rewrite !fmap_length. } *)
+(*   { simpl. done. } *)
+(*   simpl. *)
+(*   iMod (tapeN_update_append' _ _ _ _ sample with "[$][Htape]") as "[Htapes Htape]". *)
+(*   { by erewrite Heq. } *)
+(*   iMod (hocap_tapes_presample' _ _ _ _ _ (fin_to_nat <$> sample) with "[$][$]") as "[H4 Hfrag]". *)
+(*   iMod "Hclose'" as "_". *)
+(*   iMod ("Hvs" with "[$]") as "[%|[H2 HT]]". *)
+(*   { iExFalso. iApply (ec_contradict with "[$]"). exact. } *)
+(*   iMod ("Hclose" with "[$Hε $H2 Htape H3 H4]") as "_". *)
+(*   { iNext. *)
+(*     iExists (<[α:=(ns ++ (nat_to_bool<$>(fin_to_nat <$> sample)))]>m). *)
+(*     rewrite fmap_insert. *)
+(*     rewrite big_sepM_insert_delete Heq/=. *)
+(*     rewrite fmap_delete. iFrame. *)
+(*     rewrite fmap_app/=. *)
+(*     rewrite !Hrewrite. iFrame. *)
+(*   } *)
+(*   iApply fupd_mask_intro_subseteq; first set_solver. *)
+(*   iFrame. rewrite fmap_app/=Hrewrite. iFrame. *)
+(*   erewrite (nnreal_ext _ _); first done. *)
+(*   simpl. by rewrite Nat.eqb_refl. *)
+(* Qed. *)
+
   
 End impl.
 
