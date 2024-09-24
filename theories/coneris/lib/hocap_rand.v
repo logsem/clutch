@@ -301,50 +301,31 @@ Next Obligation.
   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
   iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang num α); first done.
   unshelve iExists (λ x, mknonnegreal (if length x =? num then ε2 x + (ε''-ε) else 1)%R _).
-  { case_match; last (simpl;lra). admit. }
+  { case_match; last (simpl;lra).
+    apply Rplus_le_le_0_compat; last (simpl in *; lra).
+    apply Hpos. by apply Nat.eqb_eq.
+  } 
   iSplit.
   { iPureIntro.
-    simpl. admit.
-    (* unshelve epose proof (Hineq ε1' _) as H'; first apply cond_nonneg. *)
-    (* etrans; last exact. *)
-    (* rewrite (Rdiv_def _ (2^_)) -SeriesC_scal_r. *)
-    (* etrans; last eapply (SeriesC_le_inj _ (λ x, Some (nat_to_bool <$> (fin_to_nat <$> x)))). *)
-    (* - apply SeriesC_le. *)
-    (*   + simpl. intros n. *)
-    (*     rewrite !fmap_length. *)
-    (*     case_match. *)
-    (*     * replace (1+1)%R with 2%R by lra. *)
-    (*       rewrite -Rdiv_1_l. simpl. *)
-    (*       split; last lra. *)
-    (*       apply Rmult_le_pos. *)
-    (*       -- apply Rcomplements.Rdiv_le_0_compat; first lra. *)
-    (*          apply pow_lt; lra. *)
-    (*       -- apply Hpos; first done. *)
-    (*          rewrite !fmap_length. *)
-    (*          by apply Nat.eqb_eq. *)
-    (*     * lra. *)
-    (*   + simpl. *)
-    (*     apply (ex_seriesC_list_length _ num). *)
-    (*     intros ?. rewrite !fmap_length. *)
-    (*     case_match; last lra. *)
-    (*     intros. by apply Nat.eqb_eq. *)
-    (* - intros. case_match; last lra. *)
-    (*   apply Rmult_le_pos; first apply Hpos; simpl; auto. *)
-    (*   + by apply Nat.eqb_eq. *)
-    (*   + rewrite -Rdiv_1_l. *)
-    (*     apply Rcomplements.Rdiv_le_0_compat; first lra. *)
-    (*     apply pow_lt; lra. *)
-    (* - intros ??? <- K. *)
-    (*   simplify_eq. *)
-    (*   rewrite -!list_fmap_compose in K. *)
-    (*   apply list_fmap_eq_inj in K; try done. *)
-    (*   intros x x'. *)
-    (*   repeat (inv_fin x; try intros x); *)
-    (*     repeat (inv_fin x'; try intros x'); done. *)
-    (* - apply (ex_seriesC_list_length _ num). *)
-    (*     intros ?. *)
-    (*     case_match; last lra. *)
-    (*     intros. by apply Nat.eqb_eq. *)
+    simpl.
+    rewrite (SeriesC_subset (λ x, (x∈enum_uniform_fin_list tb num))); last first.
+    - intros a. intros K.
+      rewrite elem_of_enum_uniform_fin_list in K.
+      case_match eqn :H4; last done.
+      by rewrite Nat.eqb_eq in H4.
+    - erewrite (SeriesC_ext _ (λ a, 1/S tb ^ num * (if bool_decide (a ∈ enum_uniform_fin_list tb num) then ε2 a else 0) + (if bool_decide (a ∈ enum_uniform_fin_list tb num) then 1/S tb ^ num * (ε''-ε) else 0)))%R; last first.
+      + intros n.
+        case_bool_decide; last lra.
+        replace (_ =? _) with true; last first.
+        * symmetry. rewrite Nat.eqb_eq. by rewrite -elem_of_enum_uniform_fin_list.
+        * simpl. lra.
+      + rewrite SeriesC_plus; [|apply ex_seriesC_scal_l, ex_seriesC_list|apply ex_seriesC_list..].
+        rewrite SeriesC_list_2; last apply NoDup_enum_uniform_fin_list.
+        rewrite SeriesC_scal_l enum_uniform_fin_list_length pow_INR.
+        replace (1/_*_*_)%R with (ε''-ε)%R; first (simpl; lra).
+        rewrite Rmult_comm -Rmult_assoc Rdiv_1_l Rmult_inv_r; first lra.
+        apply pow_nonzero.
+        pose proof pos_INR_S tb; lra.
   }
   iIntros (sample) "<-".
   destruct (Rlt_decision (nonneg ε_rem + (ε2 sample + (ε''-ε))%R) 1%R) as [Hdec|Hdec]; last first.
@@ -354,7 +335,7 @@ Next Obligation.
   }
   iApply state_step_coupl_ret.
   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample + (ε''-ε))%R _) with "Hε_supply") as "[Hε_supply Hε]".
-  { admit. }
+  { apply Rplus_le_le_0_compat; simpl in *; [naive_solver|lra]. }
   { simpl. done. }
   simpl.
   iMod (tapeN_update_append' _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
@@ -370,8 +351,8 @@ Next Obligation.
   iFrame. 
   erewrite (nnreal_ext _ _); first done.
   simpl. by rewrite Nat.eqb_refl.
-Admitted.
-  
+Qed.
+
 End impl.
 
 
@@ -572,50 +553,17 @@ Next Obligation.
   { rewrite /ε_rem. apply nnreal_ext. simpl. lra. }
   iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang num α); first done.
   unshelve iExists (λ x, mknonnegreal (if length x =? num then ε2 x else 1)%R _).
-  { case_match; last (simpl;lra). admit. }
+  { case_match; last (simpl;lra). apply Hpos. by rewrite -Nat.eqb_eq. }
   iSplit.
   { iPureIntro.
-    simpl. admit.
-    (* unshelve epose proof (Hineq ε1' _) as H'; first apply cond_nonneg. *)
-    (* etrans; last exact. *)
-    (* rewrite (Rdiv_def _ (2^_)) -SeriesC_scal_r. *)
-    (* etrans; last eapply (SeriesC_le_inj _ (λ x, Some (nat_to_bool <$> (fin_to_nat <$> x)))). *)
-    (* - apply SeriesC_le. *)
-    (*   + simpl. intros n. *)
-    (*     rewrite !fmap_length. *)
-    (*     case_match. *)
-    (*     * replace (1+1)%R with 2%R by lra. *)
-    (*       rewrite -Rdiv_1_l. simpl. *)
-    (*       split; last lra. *)
-    (*       apply Rmult_le_pos. *)
-    (*       -- apply Rcomplements.Rdiv_le_0_compat; first lra. *)
-    (*          apply pow_lt; lra. *)
-    (*       -- apply Hpos; first done. *)
-    (*          rewrite !fmap_length. *)
-    (*          by apply Nat.eqb_eq. *)
-    (*     * lra. *)
-    (*   + simpl. *)
-    (*     apply (ex_seriesC_list_length _ num). *)
-    (*     intros ?. rewrite !fmap_length. *)
-    (*     case_match; last lra. *)
-    (*     intros. by apply Nat.eqb_eq. *)
-    (* - intros. case_match; last lra. *)
-    (*   apply Rmult_le_pos; first apply Hpos; simpl; auto. *)
-    (*   + by apply Nat.eqb_eq. *)
-    (*   + rewrite -Rdiv_1_l. *)
-    (*     apply Rcomplements.Rdiv_le_0_compat; first lra. *)
-    (*     apply pow_lt; lra. *)
-    (* - intros ??? <- K. *)
-    (*   simplify_eq. *)
-    (*   rewrite -!list_fmap_compose in K. *)
-    (*   apply list_fmap_eq_inj in K; try done. *)
-    (*   intros x x'. *)
-    (*   repeat (inv_fin x; try intros x); *)
-    (*     repeat (inv_fin x'; try intros x'); done. *)
-    (* - apply (ex_seriesC_list_length _ num). *)
-    (*     intros ?. *)
-    (*     case_match; last lra. *)
-    (*     intros. by apply Nat.eqb_eq. *)
+    simpl. etrans; last exact.
+    rewrite (Rdiv_def (SeriesC _)(S tb ^num)%R) -SeriesC_scal_r.
+    apply SeriesC_le; last apply ex_seriesC_scal_r, ex_seriesC_list.
+    intros. rewrite elem_of_enum_uniform_fin_list'.
+    case_match; last lra.
+    split; last lra.
+    apply Rmult_le_pos; last (apply Hpos; by rewrite -Nat.eqb_eq).
+    rewrite -pow_INR. apply Rdiv_INR_ge_0.
   }
   iIntros (sample) "<-".
   destruct (Rlt_decision (nonneg ε_rem + (ε2 sample)%R) 1%R) as [Hdec|Hdec]; last first.
@@ -639,7 +587,7 @@ Next Obligation.
   iFrame. 
   erewrite (nnreal_ext (_+_)%NNR _); first done.
   simpl. rewrite Nat.eqb_refl. simpl in *. lra.
-Admitted.
+Qed.
   
 End impl'.
 
