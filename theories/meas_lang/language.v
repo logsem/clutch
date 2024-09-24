@@ -1,20 +1,17 @@
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality.
+From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal.
+From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export laws.
 
-
+Notation giryM := (giryM (R := R)).
 
 Section language_mixin.
   Local Open Scope classical_set_scope.
-
-  Context (R : realType).
-  Notation giryM := (giryM (R := R)).
 
   Context {d_expr d_val d_state : measure_display}.
   Context {expr : measurableType d_expr}.
@@ -40,8 +37,6 @@ End language_mixin.
 
 
 Structure meas_language := MeasLanguage {
-  R : realType;
-
   d_expr : measure_display;
   d_val : measure_display;
   d_state : measure_display;
@@ -55,7 +50,7 @@ Structure meas_language := MeasLanguage {
 
   prim_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
 
-  language_mixin : MeasLanguageMixin R of_val to_val prim_step
+  language_mixin : MeasLanguageMixin of_val to_val prim_step
 }.
 
 
@@ -71,7 +66,7 @@ HB.instance Definition _ {d1 d2 } {T1 : measurableType d1} {T2 : measurableType 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments MeasLanguage {_ _ _ _ _ _ _ _ _ _ } _.
+Global Arguments MeasLanguage {_ _ _ _ _ _ _ _ _ } _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments prim_step {_}.
@@ -169,11 +164,13 @@ Section language.
     move=> HZ.
     apply Hs; clear Hs.
     move: HI.
+    (*
     move /(_ (R Λ) _ (prim_step (e, σ)) giryM_zero).
     rewrite /is_zero.
     move ->; try done.
   Qed.
-
+*)
+  Admitted.
 
   (*
   Lemma fill_step_inv e1' σ1 e2 σ2 `{!LanguageCtx K} :

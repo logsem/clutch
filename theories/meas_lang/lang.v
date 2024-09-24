@@ -6,8 +6,16 @@ From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_s
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
-From clutch.prob.monad Require Export laws.
 From clutch.meas_lang Require Import ectxi_language ectx_language.
+
+From Coq Require Export Reals.
+From clutch.prob.monad Require Export laws.
+From mathcomp.analysis Require Export Rstruct.
+
+(* Fix giryM to be the giry type with stdlib-valued real numbers *)
+Notation giryM := (giryM (R := R)).
+
+
 
 (*
 From Coq Require Import Reals Psatz.
@@ -23,8 +31,6 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
 *)
 
-
-
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
@@ -32,8 +38,6 @@ Global Instance classical_eq_dec {T : Type} : EqDecision T.
 Proof.  intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
 
 Module meas_lang.
-
-Context {R : realType}.
 
 Inductive base_lit : Type :=
   | LitInt (n : Z)
@@ -101,7 +105,6 @@ Definition to_val (e : expr) : option val :=
   end.
 
 
-
 (* This part of the sigma algebra is not discrete *)
 (* MARKUSDE: Externalizing the fin bound here also simplifies definitions. *)
 (* Will need this to be a separate type for HB. Infinite product sigma algebra. *)
@@ -120,7 +123,6 @@ Record btape : Type := {
 
 (* Tapes of real numbers *)
 Definition utape : Type := tape R.
-
 
 (* All values of the tape are within the tape bound *)
 Definition btape_inbounds (t : btape): Prop :=
@@ -200,24 +202,11 @@ Definition tapeHasInfinitePrefix {A} (t : tape A) (f : nat -> A) : Prop
 Definition tapeHasEventually {A} (t : tape A) (l : list A) : Prop
   := exists offset: nat, forall i : nat, i < length l -> t !! (i + offset) = l !! i.
 
-
-
 Global Instance tape_inhabited {A} : Inhabited (tape A) := populate emptyTape.
 Global Instance tapes_lookup_total {A} : LookupTotal loc (tape A) (gmap loc (tape A)).
 Proof. apply map_lookup_total. Defined.
 Global Instance tapes_insert {A} : Insert loc (tape A) (gmap loc (tape A)).
 Proof. apply map_insert. Defined.
-
-(*
-(* Tapes for the real-valued fragment *)
-Definition utape : Type := list R.
-Global Instance utape_inhabited : Inhabited utape := populate [].
-Global Instance utapes_lookup_total : LookupTotal loc utape (gmap loc utape).
-Proof. apply map_lookup_total. Defined.
-Global Instance utapes_insert : Insert loc utape (gmap loc utape).
-Proof. apply map_insert. Defined.
-*)
-
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
@@ -435,9 +424,9 @@ Definition bin_op_eval_real (op : bin_op) (r1 r2 : R) : option base_lit :=
   | PlusOp => Some $ LitReal (r1 + r2)
   | MinusOp => Some $ LitReal (r1 - r2)
   | MultOp => Some $ LitReal (r1 * r2)
-  | LeOp => Some $ LitBool (r1 <= r2)
-  | LtOp => Some $ LitBool (r1 < r2)
-  | EqOp => Some $ LitBool (decide (r1 = r2))
+  | LeOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 <= r2)%R
+  | LtOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 < r2)%R
+  | EqOp => Some $ LitBool $ bool_decide $ classical.make_decision (r1 = r2)%R
   | _ => None
   end%R.
 
@@ -586,7 +575,7 @@ Proof.
     rewrite map_union_empty replicate_length //.
 Qed.
 
-#[local] Open Scope R.
+(* #[local] Open Scope R.  *)
 
 Section pointed_instances.
   Local Open Scope classical_set_scope.
@@ -627,19 +616,7 @@ Section pointed_instances.
   (** state * loc is pointed (automatic) *)
   (* Check (<<discr (state * loc)>> : measurableType _). *)
 
-  (*
-  (** [0, 1] is pointed  *)
-  (* FIXME  Only used to build a discrete space over [0, 1], which we will delete *)
-  HB.instance Definition _ (R : realType) := isPointed.Build {i01 R} (0)%:i01.
-  (* Check (<<discr {i01 R}>> : measurableType _). *)
-  *)
-
-  (* FIXME: Super bad, casuses NFI, but I can't figure out any other way to get HB to *)
-  (* recognize R as a  pointedType for <<discr R>>. This is temporary, and will be deleted *)
-  (* or fixed when we move to the new sigma algebra. *)
   (** R is pointed *)
-  #[non_forgetful_inheritance]
-  HB.instance Definition _ (R : realType) := isPointed.Build R (0)%R.
   (* Check (<<discr R>> : measurableType _). *)
 
 End pointed_instances.
@@ -647,7 +624,6 @@ End pointed_instances.
 
 Section meas_semantics.
   Local Open Scope classical_set_scope.
-  Notation giryM := (giryM (R := Real.sort meas_lang.R)).
   Local Open Scope expr_scope.
 
   Definition discr_cfg : measurableType _ := (<<discr expr>> * <<discr state>>)%type.
@@ -1073,7 +1049,7 @@ Local Open Scope classical_set_scope.
 Definition fill_item_mf K := m_discr (fill_item K : <<discr expr>> -> <<discr expr>>).
 
 Definition meas_lang_mixin :
-  @MeasEctxiLanguageMixin R _ _ _ <<discr expr>> <<discr val>> <<discr state>> ectx_item
+  @MeasEctxiLanguageMixin _ _ _ <<discr expr>> <<discr val>> <<discr state>> ectx_item
     of_val to_val fill_item_mf decomp_item expr_ord head_stepM_def.
 Proof.
   split.

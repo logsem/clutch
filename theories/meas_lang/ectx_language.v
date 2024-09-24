@@ -1,23 +1,18 @@
  (** An axiomatization of evaluation-context based languages, including a proof
     that this gives rise to a "language" in our sense. *)
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality.
+From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Reals.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal.
-From clutch.prob.monad Require Export laws.
+From mathcomp.analysis Require Import reals measure ereal Rstruct.
+From clutch.prob.monad Require Import laws.
 From clutch.meas_lang Require Import language.
-
-
 
 Section ectx_language_mixin.
   Local Open Scope classical_set_scope.
-
-  Context (R : realType).
-  Notation giryM := (giryM (R := R)).
 
   Context {d_expr d_val d_state : measure_display}.
   Context {expr : measurableType d_expr}.
@@ -81,8 +76,6 @@ Section ectx_language_mixin.
 End ectx_language_mixin.
 
 Structure meas_ectxLanguage := MeasEctxLanguage {
-  R : realType;
-
   d_expr : measure_display;
   d_val: measure_display;
   d_state: measure_display;
@@ -99,16 +92,16 @@ Structure meas_ectxLanguage := MeasEctxLanguage {
   fill : ectx → measurable_map expr expr;
   decomp : expr → ectx * expr;
 
-  head_step : measurable_map (expr * state)%type (@giryM R _ (expr * state)%type);
+  head_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
 
   ectx_language_mixin :
-    MeasEctxLanguageMixin R of_val to_val head_step empty_ectx comp_ectx fill decomp;
+    MeasEctxLanguageMixin of_val to_val head_step empty_ectx comp_ectx fill decomp;
 }.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments MeasEctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Global Arguments MeasEctxLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments empty_ectx {_}.
@@ -204,7 +197,7 @@ Section ectx_language.
   Proof. rewrite !eq_None_not_Some. eauto using fill_val. Qed.
   *)
 
-  Definition ectx_lang_mixin : MeasLanguageMixin (R Λ) (@of_val Λ) to_val head_step.
+  Definition ectx_lang_mixin : MeasLanguageMixin (@of_val Λ) to_val head_step.
   Proof. split; by apply ectx_language_mixin. Qed.
 
   Canonical Structure ectx_lang : meas_language := MeasLanguage ectx_lang_mixin.
@@ -464,8 +457,8 @@ Note that this trick no longer works when we switch to canonical projections
 because then the pattern match [let '...] will be desugared into projections. *)
 
 Program Definition MeasLanguageOfEctx (Λ : meas_ectxLanguage) : meas_language :=
-  let '@MeasEctxLanguage R _ _ _ expr val state _ of_val to_val _ _ _ _ head_step mix := Λ in
-  @MeasLanguage R _ _ _ expr val state of_val to_val head_step _.
+  let '@MeasEctxLanguage _ _ _ expr val state _ of_val to_val _ _ _ _ head_step mix := Λ in
+  @MeasLanguage _ _ _ expr val state of_val to_val head_step _.
 Next Obligation.
   intros.
   destruct mix.

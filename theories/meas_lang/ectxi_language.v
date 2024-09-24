@@ -1,22 +1,19 @@
 (** An axiomatization of languages based on evaluation context items, including
     a proof that these are instances of general ectx-based languages. *)
 From HB Require Import structures.
-From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf.
+From Coq Require Import Logic.ClassicalEpsilon Psatz Logic.FunctionalExtensionality Program.Wf Reals.
 From stdpp Require Import base numbers binders strings gmap.
 From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets.
 From iris.prelude Require Import options.
 From iris.algebra Require Import ofe.
 From clutch.bi Require Import weakestpre.
-From mathcomp.analysis Require Import reals measure ereal.
+From mathcomp.analysis Require Import reals measure ereal Rstruct.
 From clutch.prob.monad Require Export laws.
 From clutch.meas_lang Require Import language ectx_language.
 
 
 Section ectxi_language_mixin.
   Local Open Scope classical_set_scope.
-
-  Context (R : realType).
-  Notation giryM := (giryM (R := R)).
 
   Context {d_expr d_val d_state : measure_display}.
   Context {expr : measurableType d_expr}.
@@ -71,8 +68,6 @@ End ectxi_language_mixin.
 
 
 Structure meas_ectxiLanguage := MeasEctxiLanguage {
-  R : realType;
-
   d_expr : measure_display;
   d_val: measure_display;
   d_state: measure_display;
@@ -91,13 +86,13 @@ Structure meas_ectxiLanguage := MeasEctxiLanguage {
   head_step : measurable_map (expr * state)%type (giryM (expr * state)%type);
 
   ectxi_language_mixin :
-    MeasEctxiLanguageMixin R of_val to_val fill_item decomp_item expr_ord head_step
+    MeasEctxiLanguageMixin of_val to_val fill_item decomp_item expr_ord head_step
 }.
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ _ } _ _.
+Global Arguments MeasEctxiLanguage {_ _ _ _ _ _ _ _ _ _ _ _ } _ _.
 Global Arguments of_val {_} _.
 Global Arguments to_val {_} _.
 Global Arguments fill_item {_} _.
@@ -217,7 +212,7 @@ Section ectxi_language.
 
 
   Definition meas_ectxi_lang_ectx_mixin :
-    MeasEctxLanguageMixin (R Λ) of_val to_val head_step [] (flip (++)) fill decomp.
+    MeasEctxLanguageMixin of_val to_val head_step [] (flip (++)) fill decomp.
   Proof. Admitted.
 
     (*
@@ -298,7 +293,7 @@ Coercion meas_ectxi_lang_ectx : meas_ectxiLanguage >-> meas_ectxLanguage.
 Coercion meas_ectxi_lang : meas_ectxiLanguage >-> meas_language.
 
 Program Definition MeasEctxLanguageOfEctxi (Λ : meas_ectxiLanguage) : meas_ectxLanguage :=
- let '@MeasEctxiLanguage R _ _ _ expr val state ectx_item of_val to_val _ _ _ _ mix := Λ in
+ let '@MeasEctxiLanguage _ _ _ expr val state ectx_item of_val to_val _ _ _ _ mix := Λ in
  MeasEctxLanguage (@meas_ectxi_lang_ectx_mixin Λ).
 
 Global Arguments MeasEctxLanguageOfEctxi : simpl never.

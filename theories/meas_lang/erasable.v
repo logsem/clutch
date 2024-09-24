@@ -10,8 +10,6 @@ From clutch.prob.monad Require Import laws.
 From clutch.meas_lang Require Import language.
 
 Section erasable.
-  Context {R : realType}.
-  Notation giryM := (giryM (R := R)).
   Context {Λ : meas_language}.
 
   (*
