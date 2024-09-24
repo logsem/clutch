@@ -201,6 +201,11 @@ Section wp_update.
     iApply HP. iFrame.
   Qed.
 
+  Global Instance is_except_0_pgl_wp E Q : IsExcept0 (wp_update E Q).
+  Proof.
+    by rewrite /IsExcept0 -{2}fupd_wp_update -except_0_fupd -fupd_intro.
+  Qed.
+  
   Global Instance elim_modal_fupd_wp p E P Q :
     ElimModal True p false (|={E}=> P) P (wp_update E Q) (wp_update E Q).
   Proof.

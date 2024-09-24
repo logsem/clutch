@@ -49,9 +49,9 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
     rand_error_frag (L:=L) γ x -∗ ⌜(0<=x<1)%R⌝;
   rand_error_ineq {L : randG Σ} γ x1 x2:
     rand_error_auth (L:=L) γ x1 -∗ rand_error_frag (L:=L) γ x2 -∗ ⌜(x2 <= x1)%R ⌝;
-  rand_error_decrease {L : randG Σ} γ (x1 x2:nonnegreal):
+  rand_error_decrease {L : randG Σ} γ (x1 x2:R):
      rand_error_auth (L:=L) γ x1 -∗ rand_error_frag (L:=L) γ x2 ==∗ rand_error_auth (L:=L) γ (x1-x2)%R;
-  rand_error_increase {L : randG Σ} γ (x1 x2:nonnegreal):
+  rand_error_increase {L : randG Σ} γ (x1:R) (x2:nonnegreal):
     (x1+x2<1)%R -> ⊢ rand_error_auth (L:=L) γ x1 ==∗
     rand_error_auth (L:=L) γ (x1+x2) ∗ rand_error_frag (L:=L) γ x2;
 
@@ -61,10 +61,11 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
   rand_tapes_frag (L:=L) γ α ns -∗ rand_tapes_frag (L:=L) γ α ns' -∗ False;
   rand_tapes_agree {L : randG Σ} γ α m ns:
   rand_tapes_auth (L:=L) γ m -∗ rand_tapes_frag (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝;
-  rand_tapes_valid {L : randG Σ} γ1 γ2 α N E tb ns:
-    ⌜↑N⊆E⌝ ∗ is_rand (L:=L) N γ1 γ2 ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns) ={E}=∗
+  rand_tapes_valid {L : randG Σ} γ2 α tb ns:
+    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗
     ⌜Forall (λ n, n<=tb)%nat ns⌝;
-  rand_tapes_update {L : randG Σ} γ α m ns ns':
+      rand_tapes_update {L : randG Σ} γ α m ns ns':
+      Forall (λ n, n<=ns'.1)%nat ns'.2 ->
     rand_tapes_auth (L:=L) γ m -∗ rand_tapes_frag (L:=L) γ α ns ==∗
     rand_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ rand_tapes_frag (L:=L) γ α ns';
 
@@ -94,7 +95,7 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
         □ (∀ (m:gmap loc (nat * list nat)), P ∗
            rand_tapes_auth (L:=L) γ2 m
             ={E∖↑N}=∗ ⌜m!!α=Some (tb, n::ns)⌝ ∗ Q ∗ rand_tapes_auth (L:=L) γ2 (<[α:=(tb, ns)]> m)) ∗
-        P
+        ▷P
     }}}
       rand_tape #lbl:α #tb @ E
                        {{{ RET #n; Q }}}; 
@@ -142,7 +143,7 @@ Section impl.
       rand_error_auth _ γ x := ●↯ x @ γ;
       rand_error_frag _ γ x := ◯↯ x @ γ;
       rand_tapes_auth _ γ m := (●m@γ)%I;
-      rand_tapes_frag _ γ α ns := (α ◯↪N (ns.1; ns.2) @ γ)%I;
+      rand_tapes_frag _ γ α ns := ((α ◯↪N (ns.1; ns.2) @ γ) ∗ ⌜Forall (λ x, x<=ns.1) ns.2⌝)%I;
     |}.
   Next Obligation.
     simpl.
@@ -184,28 +185,21 @@ Section impl.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (???????) "H1 H2".
+    iIntros (???????) "[H1 %] [H2 %]".
     iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
     rewrite dfrac_op_own dfrac_valid_own. by intro.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (??????[]) "??".
+    iIntros (??????[]) "? [??]".
     by iDestruct (hocap_tapes_agree with "[$][$]") as "%H".
   Qed.
   Next Obligation.
     simpl.
-    iIntros (??????????) "(%&#Hinv&?)".
-    iInv "Hinv" as ">(%&%&?&?&?&?)" "Hclose".
-    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
-    iDestruct (big_sepM_lookup_acc with "[$]") as "[H H']"; first done.
-    iDestruct (tapeN_ineq with "[$]") as "%".
-    iMod ("Hclose" with "[-]"); last done.
-    iFrame.
-    by iApply "H'".
+    by iIntros (???????) "[? $]". 
   Qed.
   Next Obligation.
-    iIntros (???????[]) "??".
+    iIntros (??????[??][??]?) "?[? %]".
     iMod (hocap_tapes_update with "[$][$]") as "[??]".
     by iFrame.
   Qed.
@@ -389,10 +383,11 @@ Class rand_spec' `{!conerisGS Σ} := RandSpec'
   rand_tapes_frag' (L:=L) γ α ns -∗ rand_tapes_frag' (L:=L) γ α ns' -∗ False;
   rand_tapes_agree' {L : randG' Σ} γ α m ns:
   rand_tapes_auth' (L:=L) γ m -∗ rand_tapes_frag' (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝;
-  rand_tapes_valid' {L : randG' Σ} γ2 α N E tb ns:
-    ⌜↑N⊆E⌝ ∗ is_rand' (L:=L) N γ2 ∗ rand_tapes_frag' (L:=L) γ2 α (tb, ns) ={E}=∗
-    ⌜Forall (λ n, n<=tb)%nat ns⌝;
+  rand_tapes_valid' {L : randG' Σ} γ2 α tb ns:
+    rand_tapes_frag' (L:=L) γ2 α (tb, ns) -∗
+    ⌜Forall (λ n, n<=tb)%nat ns⌝ ;
   rand_tapes_update' {L : randG' Σ} γ α m ns ns':
+  Forall (λ x, x<=ns'.1) ns'.2 ->
     rand_tapes_auth' (L:=L) γ m -∗ rand_tapes_frag' (L:=L) γ α ns ==∗
     rand_tapes_auth' (L:=L) γ (<[α := ns']> m) ∗ rand_tapes_frag' (L:=L) γ α ns';
 
@@ -412,7 +407,7 @@ Class rand_spec' `{!conerisGS Σ} := RandSpec'
         □ (∀ (m:gmap loc (nat * list nat)), P ∗
            rand_tapes_auth' (L:=L) γ2 m
             ={E∖↑N}=∗ ⌜m!!α=Some (tb, n::ns)⌝ ∗ Q ∗ rand_tapes_auth' (L:=L) γ2 (<[α:=(tb, ns)]> m)) ∗
-        P
+      ▷ P
     }}}
       rand_tape' #lbl:α #tb @ E
                        {{{ RET #n; Q }}};
@@ -458,7 +453,7 @@ Section impl'.
       rand_tape_name' := gname;
       is_rand' _ N γ2 := inv N (rand_inv_pred1' γ2);
       rand_tapes_auth' _ γ m := (●m@γ)%I;
-      rand_tapes_frag' _ γ α ns := (α ◯↪N (ns.1; ns.2) @ γ)%I;
+      rand_tapes_frag' _ γ α ns := (α ◯↪N (ns.1; ns.2) @ γ ∗ ⌜Forall (λ x, x<=ns.1) ns.2⌝)%I;
     |}.
   Next Obligation.
     simpl.
@@ -467,28 +462,21 @@ Section impl'.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (???????) "H1 H2".
+    iIntros (???????) "[H1 %] [H2 %]".
     iDestruct (ghost_map_elem_frac_ne with "[$][$]") as "%"; last done.
     rewrite dfrac_op_own dfrac_valid_own. by intro.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (??????[]) "??".
-    by iDestruct (hocap_tapes_agree with "[$][$]") as "%H".
+    iIntros (??????[]) "?[? %]".
+    by iDestruct (hocap_tapes_agree with "[$][$]") as "%".
   Qed.
   Next Obligation.
     simpl.
-    iIntros (?????????) "(%&#Hinv&?)".
-    iInv "Hinv" as ">(%&?&?)" "Hclose".
-    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
-    iDestruct (big_sepM_lookup_acc with "[$]") as "[H H']"; first done.
-    iDestruct (tapeN_ineq with "[$]") as "%".
-    iMod ("Hclose" with "[-]"); last done.
-    iFrame.
-    by iApply "H'".
+    by iIntros (???????) "[? $]".
   Qed.
   Next Obligation.
-    iIntros (???????[]) "??".
+    iIntros (??????[][]?) "?[? %]".
     iMod (hocap_tapes_update with "[$][$]") as "[??]".
     by iFrame.
   Qed.
@@ -591,3 +579,204 @@ Qed.
   
 End impl'.
 
+Section checks.
+  Context `{H: conerisGS Σ, r1:@rand_spec Σ H, r2:@rand_spec' Σ H, L:randG Σ, L': randG' Σ}.
+
+  Lemma wp_rand_alloc_tape NS (N:nat) E γ1 γ2 :
+    ↑NS ⊆ E ->
+    {{{ is_rand (L:=L) NS γ1 γ2 }}} rand_allocate_tape #N @ E {{{ α, RET #lbl:α; rand_tapes_frag (L:=L) γ2 α (N,[]) }}}.
+  Proof.
+    iIntros (Hsubset Φ) "#Hinv HΦ".
+    wp_apply (rand_allocate_tape_spec with "[//]"); first exact.
+    iIntros (?) "(%&->&?)".
+    by iApply "HΦ".
+  Qed.
+
+  Lemma wp_rand_alloc_tape' NS (N:nat) E γ2:
+    ↑NS ⊆ E ->
+    {{{ is_rand' (L:=L') NS γ2 }}} rand_allocate_tape' #N @ E {{{ α, RET #lbl:α; rand_tapes_frag' (L:=L') γ2 α (N,[]) }}}.
+  Proof.
+    iIntros (Hsubset Φ) "#Hinv HΦ".
+    wp_apply (rand_allocate_tape_spec' with "[//]"); first exact.
+    iIntros (?) "(%&->&?)".
+    by iApply "HΦ".
+  Qed.
+
+  Lemma wp_rand_tape_1 NS (N:nat) E γ1 γ2 n ns α:
+    ↑NS ⊆ E ->
+    {{{ is_rand (L:=L) NS γ1 γ2 ∗ ▷ rand_tapes_frag (L:=L) γ2 α (N, n :: ns) }}}
+      rand_tape #lbl:α #N@ E
+                       {{{ RET #(LitInt n); rand_tapes_frag (L:=L) γ2 α (N, ns) ∗ ⌜n <= N⌝ }}}.
+  Proof.
+    iIntros (Hsubset Φ) "(#Hinv & Hfrag) HΦ".
+    wp_apply (rand_tape_spec_some _ _ _ _ _ (⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
+    - iSplit; first done. iSplit; last iApply "Hfrag".
+      iModIntro.
+      iIntros (?) "[Hfrag Hauth]".
+      iDestruct (rand_tapes_agree with "[$][$]") as "%".
+      iDestruct (rand_tapes_valid with "[$Hfrag]") as "%K".
+      inversion K; subst. 
+      iMod (rand_tapes_update _ _ _ _  (N, ns) with "[$][$]") as "[Hauth Hfrag]"; first done.
+      iFrame "Hauth". iModIntro.
+      iFrame.
+      by iPureIntro.
+    - iIntros "[??]". iApply "HΦ".
+      iFrame.
+  Qed.
+
+  Lemma wp_rand_tape_2 NS (N:nat) E γ2 n ns α:
+    ↑NS ⊆ E ->
+    {{{ is_rand' (L:=L') NS γ2 ∗ ▷ rand_tapes_frag' (L:=L') γ2 α (N, n :: ns) }}}
+      rand_tape' #lbl:α #N@ E
+                       {{{ RET #(LitInt n); rand_tapes_frag' (L:=L') γ2 α (N, ns) ∗ ⌜n <= N⌝ }}}.
+  Proof.
+    iIntros (Hsubset Φ) "(#Hinv &>Hfrag) HΦ".
+    wp_apply (rand_tape_spec_some' _ _ _ _ (⌜n<=N⌝ ∗ rand_tapes_frag' _ _ _)%I with "[Hfrag]"); first exact.
+    - iSplit; first done. iSplit; last iApply "Hfrag".
+      iModIntro.
+      iIntros (?) "[Hfrag Hauth]".
+      iDestruct (rand_tapes_agree' with "[$][$]") as "%".
+      iDestruct (rand_tapes_valid' with "[$Hfrag]") as "%K".
+      inversion K; subst. 
+      iMod (rand_tapes_update' _ _ _ _  (N, ns) with "[$][$]") as "[Hauth Hfrag]"; first done.
+      iFrame "Hauth". iModIntro.
+      iFrame.
+      by iPureIntro.
+    - iIntros "[??]". iApply "HΦ".
+      iFrame.
+  Qed.
+
+  Lemma wp_presample_adv_comp_rand_tape (N : nat) NS E α ns (ε1 : R) (ε2 : fin (S N) -> R) γ1 γ2:
+    ↑NS ⊆ E ->
+    (∀ n, 0<=ε2 n)%R ->
+    (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
+    is_rand (L:=L) NS γ1 γ2 -∗
+    ▷ rand_tapes_frag (L:=L) γ2 α (N, ns) -∗
+    rand_error_frag (L:=L) γ1 ε1 -∗
+    wp_update E (∃ n, rand_error_frag (L:=L) γ1 (ε2 n) ∗ rand_tapes_frag (L:=L) γ2 α (N, ns ++[fin_to_nat n]))%I.
+  Proof.
+    iIntros (Hsubset Hpos Hineq) "#Hinv >Htape Herr".
+    iMod (rand_presample_spec _ _ _ _ _ (λ l, match l with
+                                              | [x] => ε2 x
+                                              | _ => 1%R
+                                              end
+            ) 
+            (rand_tapes_frag (L:=L) γ2 α (N, ns) ∗rand_error_frag (L:=L) γ1 ε1) 1%nat
+            (λ ls, ∃ n, ⌜ls=[n]⌝ ∗ rand_error_frag γ1 (ε2 n) ∗ rand_tapes_frag γ2 α (N, ns ++ [fin_to_nat n]))%I
+           with "[//][][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
+    - done.
+    - by intros [|?[|]].
+    - etrans; last exact.
+      etrans; last eapply (SeriesC_le_inj _ (λ l, match l with |[x] => Some x | _ => None end)).
+      + rewrite Rdiv_def -SeriesC_scal_r. apply Req_le_sym.
+        apply SeriesC_ext.
+        intros. case_match; subst.
+        * rewrite bool_decide_eq_false_2; first (simpl;lra).
+          by rewrite elem_of_enum_uniform_fin_list.
+        * case_match; last first.
+          { rewrite bool_decide_eq_false_2; first (simpl;lra).
+            by rewrite elem_of_enum_uniform_fin_list. }
+          rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
+          simpl.
+          rewrite Rdiv_def Rmult_1_r; lra.
+      + intros. apply Rmult_le_pos; last done.
+        apply Rdiv_INR_ge_0.
+      + intros. repeat case_match; by simplify_eq.
+      + apply ex_seriesC_finite.
+    - iModIntro.
+      iIntros (??) "([??]&?&?)".
+      iDestruct (rand_error_ineq with "[$][$]") as "%".
+      iDestruct (rand_tapes_agree with "[$][$]") as "%".
+      iModIntro. iFrame.
+      by iPureIntro.
+    - iModIntro.
+      iIntros (?[|sample[|]]?) "([??]&?&%&?)"; try done.
+      destruct (Rlt_decision (ε2 sample + (ε' - ε1))%R 1%R).
+      + iRight.
+        iMod (rand_error_decrease with "[$][$]") as "?".
+        unshelve iMod (rand_error_increase _ _ (mknonnegreal (ε2 sample) _) with "[$]") as "[? ?]"; first done.
+        * simpl. lra.
+        * simpl. iFrame.
+          iDestruct (rand_tapes_valid with "[$]") as "%".
+          iMod (rand_tapes_update with "[$][$]") as "[$?]".
+          -- rewrite Forall_app; split; first done.
+             rewrite Forall_singleton.
+             pose proof fin_to_nat_lt sample; simpl. lia.
+          -- iFrame.
+             iModIntro. iSplit; last done.
+             replace (_-_+_)%R with (ε2 sample + (ε' - ε1))%R; first done.
+             lra.
+      + iLeft.
+        iPureIntro. lra.
+    - iModIntro. iFrame.
+  Qed.
+
+  Lemma wp_presample_adv_comp_rand_tape' (N : nat) NS E α ns (ε1 : R) (ε2 : fin (S N) -> R) γ2:
+    ↑NS ⊆ E ->
+    (∀ n, 0<=ε2 n)%R ->
+    (SeriesC (λ n, (1 / (S N)) * ε2 n)%R <= ε1)%R →
+    is_rand' (L:=L') NS γ2 -∗
+    ▷ rand_tapes_frag' (L:=L') γ2 α (N, ns) -∗
+    ↯ ε1 -∗
+    wp_update E (∃ n, ↯ (ε2 n) ∗ rand_tapes_frag' (L:=L') γ2 α (N, ns ++[fin_to_nat n]))%I.
+  Proof.
+    iIntros (Hsubset Hpos Hineq) "#Hinv >Htape Herr".
+    iDestruct (ec_valid with "[$]") as "%Hpos'".
+    destruct Hpos' as [Hpos' ?].
+    iMod (rand_presample_spec' _ _ _ _ _ (λ l, match l with
+                                              | [x] => ε2 x
+                                              | _ => 1%R
+                                              end
+            ) 
+            (rand_tapes_frag' (L:=L') γ2 α (N, ns) ∗ ↯ ε1) 1%nat
+            (λ ls, ∃ n, ⌜ls=[n]⌝ ∗ ↯ (ε2 n) ∗ rand_tapes_frag' γ2 α (N, ns ++ [fin_to_nat n]))%I
+            _ (mknonnegreal ε1 Hpos')
+           with "[//][][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
+    - done.
+    - by intros [|?[|]].
+    - etrans; last eapply Hineq.
+      etrans; last eapply (SeriesC_le_inj _ (λ l, match l with |[x] => Some x | _ => None end)).
+      + rewrite Rdiv_def -SeriesC_scal_r. apply Req_le_sym.
+        apply SeriesC_ext.
+        intros. case_match; subst.
+        * rewrite bool_decide_eq_false_2; first (simpl;lra).
+          by rewrite elem_of_enum_uniform_fin_list.
+        * case_match; last first.
+          { rewrite bool_decide_eq_false_2; first (simpl;lra).
+            by rewrite elem_of_enum_uniform_fin_list. }
+          rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
+          simpl.
+          rewrite Rdiv_def Rmult_1_r; lra.
+      + intros. apply Rmult_le_pos; last done.
+        apply Rdiv_INR_ge_0.
+      + intros. repeat case_match; by simplify_eq.
+      + apply ex_seriesC_finite.
+    - iModIntro.
+      iIntros (??) "([??]&?&?)".
+      iDestruct (ec_supply_bound with "[$][$]") as "%".
+      iDestruct (rand_tapes_agree' with "[$][$]") as "%".
+      iModIntro. iFrame.
+      by iPureIntro.
+    - iModIntro.
+      iIntros (?[|sample[|]]?) "([??]&?&%&?)"; try done.
+      destruct (Rlt_decision (ε2 sample + (ε' - ε1))%R 1%R).
+      + iRight.
+        iMod (ec_supply_decrease with "[$][$]") as "(%&%&->&<-&?)".
+        unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample) _) with "[$]") as "[? ?]"; first done.
+        * simpl. simpl in *. lra.
+        * simpl. iFrame.
+          iDestruct (rand_tapes_valid' with "[$]") as "%".
+          iMod (rand_tapes_update' with "[$][$]") as "[$?]".
+          -- rewrite Forall_app; split; first done.
+             rewrite Forall_singleton.
+             pose proof fin_to_nat_lt sample; simpl. lia.
+          -- iFrame.
+             iModIntro. iSplit; last done.
+             simpl.
+             iPureIntro. lra.
+      + iLeft.
+        iPureIntro. simpl; simpl in *. lra.
+    - iModIntro. iFrame.
+  Qed.
+    
+End checks.
