@@ -770,5 +770,5 @@ Section checks.
         iPureIntro. simpl; simpl in *. lra.
     - iModIntro. iFrame.
   Qed.
-    
+
 End checks.
