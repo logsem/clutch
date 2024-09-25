@@ -233,7 +233,7 @@ End impl.
 
 Section checks.
   Context `{H: conerisGS Σ, r1:@rand_spec Σ H, L:randG Σ}.
-
+  
   Lemma wp_rand_tape_1 NS (N:nat) E γ1 n ns α:
     ↑NS ⊆ E ->
     {{{ is_rand (L:=L) NS γ1 ∗ ▷ rand_tapes_frag (L:=L) γ1 α (N, n :: ns) }}}
