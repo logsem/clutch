@@ -807,14 +807,12 @@ Qed.
 
 *)
 
+Local Open Scope classical_set_scope.
 
 (** A relational characterization of the support of [head_step] to make it easier to
     do inversion and prove reducibility easier c.f. lemma below *)
-
-
-(* This gives the possible transitions (nothing re. measurablility) *)
-(*
-Inductive head_step_rel : expr → state → expr → state → Prop :=
+Inductive head_step_rel : expr -> state -> expr -> state → Prop :=
+(* Values *)
 | RecS f x e σ :
   head_step_rel (Rec f x e) σ (Val $ RecV f x e) σ
 | PairS v1 v2 σ :
@@ -823,6 +821,8 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (InjL $ Val v) σ (Val $ InjLV v) σ
 | InjRS v σ :
   head_step_rel (InjR $ Val v) σ (Val $ InjRV v) σ
+
+(* Pure reductions *)
 | BetaS f x e1 v2 e' σ :
   e' = subst' x v2 (subst' f (RecV f x e1) e1) →
   head_step_rel (App (Val $ RecV f x e1) (Val v2)) σ e' σ
@@ -844,11 +844,14 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   head_step_rel (Case (Val $ InjLV v) e1 e2) σ (App e1 (Val v)) σ
 | CaseRS v e1 e2 σ :
   head_step_rel (Case (Val $ InjRV v) e1 e2) σ (App e2 (Val v)) σ
+
+(* Heap *)
 | AllocNS z N v σ l :
   l = fresh_loc σ.(heap) →
   N = Z.to_nat z →
   (0 < N)%nat ->
-  head_step_rel (AllocN (Val (LitV (LitInt z))) (Val v)) σ
+  head_step_rel
+    (AllocN (Val (LitV (LitInt z))) (Val v)) σ
     (Val $ LitV $ LitLoc l) (state_upd_heap_N l N v σ)
 | LoadS l v σ :
   σ.(heap) !! l = Some v →
@@ -857,32 +860,61 @@ Inductive head_step_rel : expr → state → expr → state → Prop :=
   σ.(heap) !! l = Some v →
   head_step_rel (Store (Val $ LitV $ LitLoc l) (Val w)) σ
     (Val $ LitV LitUnit) (state_upd_heap <[l:=w]> σ)
-| RandNoTapeS z N (n : fin (S N)) σ:
-  N = Z.to_nat z →
-  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n) σ
 
-(*
+(* Rand *)
+| RandNoTapeS z N (n_int : Z) (n_nat : nat) σ:
+  N = Z.to_nat z →
+  n_nat < N ->
+  Z.of_nat n_nat = n_int ->
+  head_step_rel (Rand (Val $ LitV $ LitInt z) (Val $ LitV LitUnit)) σ (Val $ LitV $ LitInt n_int) σ
 | AllocTapeS z N σ l :
   l = fresh_loc σ.(tapes) →
   N = Z.to_nat z →
   head_step_rel (AllocTape (Val (LitV (LitInt z)))) σ
-    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := (N; []) : tape]> σ)
-
-| RandTapeS l z N n ns σ :
+    (Val $ LitV $ LitLbl l) (state_upd_tapes <[l := {| btape_tape := emptyTape ; btape_bound := N |}]> σ)
+| RandTapeS l z N n b b' σ :
   N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; n :: ns) : tape)  →
+  σ.(tapes) !! l = Some {| btape_tape := b ; btape_bound := N |} ->
+  b !! 0 = Some (Z.to_nat n) ->
+  b' = tapeAdvance b ->
   head_step_rel (Rand (Val (LitV (LitInt z))) (Val (LitV (LitLbl l)))) σ
-    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := (N; ns) : tape]> σ)
-| RandTapeEmptyS l z N (n : fin (S N)) σ :
+    (Val $ LitV $ LitInt $ n) (state_upd_tapes <[l := {| btape_tape := b' ; btape_bound := N|}]> σ)
+| RandTapeEmptyS l z N (n_nat : nat) (n_int : Z) σ :
   N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((N; []) : tape) →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
-| RandTapeOtherS l z M N ms (n : fin (S N)) σ :
+  Z.of_nat n_nat = n_int ->
+  n_nat < N ->
+  σ.(tapes) !! l = Some {| btape_tape := emptyTape; btape_bound := N |} →
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n_nat) σ
+| RandTapeOtherS l z M N b (n_nat : nat) (n_int : Z) σ :
   N = Z.to_nat z →
-  σ.(tapes) !! l = Some ((M; ms) : tape) →
+  Z.of_nat n_nat = n_int ->
+  n_nat < N ->
+  σ.(tapes) !! l = Some {| btape_tape := b ; btape_bound := M |} →
   N ≠ M →
-  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n) σ
- *)
+  head_step_rel (Rand (Val (LitV (LitInt z))) (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitInt n_int) σ
+
+(* Urand *)
+| URandNoTapeS (r : R) σ :
+  (0 <= r)%R ->
+  (r <= 1)%R ->
+  head_step_rel (URand (Val $ LitV LitUnit)) σ (Val $ LitV $ LitReal r) σ
+| AllocUTapeS σ l :
+  l = fresh_loc σ.(tapes) →
+  head_step_rel AllocUTape σ
+    (Val $ LitV $ LitLbl l) (state_upd_utapes <[l := emptyTape]> σ)
+| URandTapeS l b b' r σ :
+  σ.(utapes) !! l = Some b ->
+  b !! 0 = Some r ->
+  b' = tapeAdvance b ->
+  head_step_rel (URand (Val (LitV (LitLbl l)))) σ
+    (Val $ LitV $ LitReal $ r) (state_upd_utapes <[l := b]> σ)
+| URandTapeEmptyS l (r : R) b σ :
+  (0 <= r)%R ->
+  (r <= 1)%R ->
+  σ.(utapes) !! l = Some b →
+  head_step_rel (URand (Val $ LitV $ LitLbl l)) σ (Val $ LitV $ LitReal r) σ
+
+(* Tick *)
 | TickS σ z :
   head_step_rel (Tick $ Val $ LitV $ LitInt z) σ (Val $ LitV $ LitUnit) σ.
 
@@ -893,22 +925,14 @@ Global Hint Constructors head_step_rel : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV LitUnit))) _ _ _) =>
          eapply (RandNoTapeS _ _ 0%fin) : head_step.
-(*
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeEmptyS _ _ _ 0%fin) : head_step.
 Global Hint Extern 1
   (head_step_rel (Rand (Val (LitV _)) (Val (LitV (LitLbl _)))) _ _ _) =>
          eapply (RandTapeOtherS _ _ _ _ _ 0%fin) : head_step.
-*)
-(*
-Inductive state_step_rel : state → loc → state → Prop :=
-| AddTapeS α N (n : fin (S N)) ns σ :
-  α ∈ dom σ.(tapes) →
-  σ.(tapes) !!! α = ((N; ns) : tape) →
-  state_step_rel σ α (state_upd_tapes <[α := (N; ns ++ [n]) : tape]> σ).
-*)
 
+(*
 Ltac inv_head_step :=
   repeat
     match goal with
