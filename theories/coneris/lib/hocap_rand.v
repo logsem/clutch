@@ -655,7 +655,7 @@ Section checks.
             ) 
             (rand_tapes_frag (L:=L) γ2 α (N, ns) ∗rand_error_frag (L:=L) γ1 ε1) 1%nat
             (λ ls, ∃ n, ⌜ls=[n]⌝ ∗ rand_error_frag γ1 (ε2 n) ∗ rand_tapes_frag γ2 α (N, ns ++ [fin_to_nat n]))%I
-           with "[//][][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
+           with "[//][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
     - done.
     - by intros [|?[|]].
     - etrans; last exact.
@@ -679,10 +679,10 @@ Section checks.
       iIntros (??) "([??]&?&?)".
       iDestruct (rand_error_ineq with "[$][$]") as "%".
       iDestruct (rand_tapes_agree with "[$][$]") as "%".
-      iModIntro. iFrame.
-      by iPureIntro.
-    - iModIntro.
-      iIntros (?[|sample[|]]?) "([??]&?&%&?)"; try done.
+      iModIntro.
+      iSplit; first (iPureIntro; lra).
+      iSplit; first done.
+      iIntros ([|sample[|]]?); try done.
       destruct (Rlt_decision (ε2 sample + (ε' - ε1))%R 1%R).
       + iRight.
         iMod (rand_error_decrease with "[$][$]") as "?".
@@ -723,7 +723,7 @@ Section checks.
             (rand_tapes_frag' (L:=L') γ2 α (N, ns) ∗ ↯ ε1) 1%nat
             (λ ls, ∃ n, ⌜ls=[n]⌝ ∗ ↯ (ε2 n) ∗ rand_tapes_frag' γ2 α (N, ns ++ [fin_to_nat n]))%I
             _ (mknonnegreal ε1 Hpos')
-           with "[//][][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
+           with "[//][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
     - done.
     - by intros [|?[|]].
     - etrans; last eapply Hineq.
@@ -747,10 +747,10 @@ Section checks.
       iIntros (??) "([??]&?&?)".
       iDestruct (ec_supply_bound with "[$][$]") as "%".
       iDestruct (rand_tapes_agree' with "[$][$]") as "%".
-      iModIntro. iFrame.
-      by iPureIntro.
-    - iModIntro.
-      iIntros (?[|sample[|]]?) "([??]&?&%&?)"; try done.
+      iModIntro.
+      iSplit; first (iPureIntro; simpl; lra).
+      iSplit; first done.
+      iIntros ([|sample[|]]?); try done.
       destruct (Rlt_decision (ε2 sample + (ε' - ε1))%R 1%R).
       + iRight.
         iMod (ec_supply_decrease with "[$][$]") as "(%&%&->&<-&?)".
