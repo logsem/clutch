@@ -106,16 +106,13 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
     (∀ l, length l = num ->  0<= ε2 l)%R ->
     (SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R->
     is_rand (L:=L) N γ1 γ2 -∗
-    □(∀ (ε': R) m, P ∗rand_error_auth (L:=L) γ1 (ε')%R ∗ rand_tapes_auth (L:=L) γ2 m ={E∖↑N}=∗
-                   ⌜(ε<=ε')%R⌝ ∗ ⌜(m!!α = Some (tb, ns))⌝ ∗
-                   P ∗rand_error_auth (L:=L) γ1 (ε')%R ∗ rand_tapes_auth (L:=L) γ2 m 
-      ) -∗
-    (□∀ (ε':R) ns' m, (P ∗ rand_error_auth (L:=L) γ1 (ε')%R ∗ ⌜length ns' = num⌝ ∗
-                     rand_tapes_auth (L:=L) γ2 m
-                    ) ={E∖↑N}=∗
-                             (⌜(1<=ε2 ns' + (ε'-ε))%R⌝ ∨ (rand_error_auth (L:=L) γ1 (ε2 ns' + (ε'-ε))%R ∗
-                                                       rand_tapes_auth (L:=L) γ2 (<[α:= (tb, ns++(fin_to_nat <$> ns'))]> m) ∗ T ns')))
-        -∗
+    (□∀ (ε':R) m, (P ∗ rand_error_auth (L:=L) γ1 (ε')%R ∗ rand_tapes_auth (L:=L) γ2 m ) ={E∖↑N}=∗
+                  ⌜(ε<=ε')%R⌝ ∗ ⌜(m!!α = Some (tb, ns))⌝ ∗
+                  (∀ ns', ⌜length ns' = num⌝ ={E∖↑N}=∗
+                          ⌜(1<=ε2 ns' + (ε'-ε))%R⌝ ∨
+                            (rand_error_auth (L:=L) γ1 (ε2 ns' + (ε'-ε))%R ∗
+                             rand_tapes_auth (L:=L) γ2 (<[α:= (tb, ns++(fin_to_nat <$> ns'))]> m) ∗
+                             T ns')))-∗
     P -∗ 
         wp_update E (∃ n, T n)
 }.
@@ -281,11 +278,11 @@ Section impl.
 Qed.
 Next Obligation.
   simpl.
-  iIntros (??????????????? Hsubset Hpos Hineq) "#Hinv #Hchange #Hvs HP".
+  iIntros (??????????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP".
   iApply wp_update_state_step_coupl.
   iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
   iMod (inv_acc with "Hinv") as "[>(%ε' & % & H1 & H2 & H3 & H4 ) Hclose]"; [done|].
-  iMod ("Hchange" with "[$]") as "(%&%&HP & H2 &H4)". 
+  iMod ("Hvs" with "[$]") as "(%&%&Hchange)". 
   (* iDestruct (hocap_tapes_agree with "[$][$]") as "%K". *)
   iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
   simpl.
@@ -335,7 +332,7 @@ Next Obligation.
   iMod (tapeN_update_append' _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
   (* iMod (hocap_tapes_update _ _ _ _ _ _ ((fin_to_nat <$> ns')++(fin_to_nat <$> sample)) with "[$][$]") as "[H4 Hfrag]". *)
   iMod "Hclose'" as "_".
-  iMod ("Hvs" $! ε'' sample  with "[$HP $H2 $H4]") as "[%|(Hauth & H2 & HT)]"; first done.
+  iMod ("Hchange" $! sample  with "[//]") as "[%|(Hauth & H2 & HT)]".
   { iExFalso. iApply (ec_contradict with "[$]"). exact. }
   iMod ("Hclose" with "[$Hε $Hauth Htape H3 $H2]") as "_".
   { iNext.
@@ -418,14 +415,9 @@ Class rand_spec' `{!conerisGS Σ} := RandSpec'
     (∀ l, length l = num ->  0<= ε2 l)%R ->
     (SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R->
     is_rand' (L:=L) N γ2 -∗
-    □(∀ (ε': nonnegreal) m, P ∗ err_interp ε' ∗ rand_tapes_auth' (L:=L) γ2 m ={E∖↑N}=∗
-                   ⌜(ε<=ε')%R⌝ ∗ ⌜(m!!α = Some (tb, ns))⌝ ∗
-                   P ∗err_interp ε' ∗ rand_tapes_auth' (L:=L) γ2 m
-      ) -∗
-    (□∀ (ε': nonnegreal) ns' m, (P ∗ err_interp ε' ∗ ⌜length ns' = num⌝ ∗
-                     rand_tapes_auth' (L:=L) γ2 m
-                    ) ={E∖↑N}=∗
-                                (⌜(1<=ε2 ns' + (ε'-ε))%R⌝ ∨ ∃ (ε_final:nonnegreal),
+    (□∀ (ε': nonnegreal) m, (P ∗ err_interp ε' ∗ rand_tapes_auth' (L:=L) γ2 m
+                            ) ={E∖↑N}=∗ ⌜(ε<=ε')%R⌝ ∗ ⌜(m!!α = Some (tb, ns))⌝ ∗
+                            (∀ ns', ⌜length ns' = num⌝ ={E∖↑N}=∗ ⌜(1<=ε2 ns' + (ε'-ε))%R⌝ ∨ ∃ (ε_final:nonnegreal),
                                     ⌜(nonneg ε_final = ε2 ns' + (ε'-ε))%R ⌝ ∗
                                     (err_interp ε_final ∗
                                                        rand_tapes_auth' (L:=L) γ2 (<[α:= (tb, ns++(fin_to_nat <$> ns'))]> m) ∗ T ns')))
@@ -524,11 +516,11 @@ Section impl'.
 Qed.
 Next Obligation.
   simpl.
-  iIntros (?????????????? Hsubset Hpos Hineq) "#Hinv #Hcheck #Hvs HP ".
+  iIntros (?????????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP ".
   iApply wp_update_state_step_coupl.
   iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
   iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|].
-  iMod ("Hcheck" with "[$]") as "(%&%&HP&Hε& H4)".
+  iMod ("Hvs" with "[$]") as "(%&%&Hchange)".
   iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
   simpl.
   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
@@ -564,7 +556,7 @@ Next Obligation.
   rewrite -Heq.
   iMod (tapeN_update_append' _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
   iMod "Hclose'" as "_".
-  iMod ("Hvs" $! _ sample  with "[$HP $H4 $Hε]") as "Hor"; first done.  
+  iMod ("Hchange" $! sample  with "[//]") as "Hor".
   iDestruct "Hor" as "[%|(%ε_final & %Heq' & Hε & Hauth & HT)]".
   { exfalso. simpl in *. lra. }
   iMod ("Hclose" with "[$Hauth Htape H3 ]") as "_".
