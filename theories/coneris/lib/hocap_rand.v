@@ -55,16 +55,15 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
   rand_tape_spec_some {L: randG Σ} N E γ2 (P: iProp Σ) (Q:iProp Σ) (α:loc) (n:nat) (tb:nat) ns:
     ↑N⊆E ->
     {{{ is_rand (L:=L) N γ2 ∗
-        □ (∀ (m:gmap loc (nat * list nat)), P ∗
-           rand_tapes_auth (L:=L) γ2 m
-            ={E∖↑N}=∗ ⌜m!!α=Some (tb, n::ns)⌝ ∗ Q ∗ rand_tapes_auth (L:=L) γ2 (<[α:=(tb, ns)]> m)) ∗
+        (□ (P ={E∖↑N, ∅}=∗ rand_tapes_frag (L:=L) γ2 α (tb, n::ns) ∗
+        (rand_tapes_frag (L:=L) γ2 α (tb, ns) ={∅, E∖↑N}=∗ Q))) ∗
       ▷ P
     }}}
       rand_tape #lbl:α #tb @ E
                        {{{ RET #n; Q }}};
   rand_presample_spec {L: randG Σ} N E ns α (tb:nat)
      (ε2 : list (fin (S tb)) -> R)
-    (P : iProp Σ) num T γ2 (ε:nonnegreal) :
+    (P : iProp Σ) num T γ2 (ε:R) :
     ↑N ⊆ E ->
     (∀ l, length l = num ->  0<= ε2 l)%R ->
     (SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R->
@@ -154,16 +153,21 @@ Section impl.
   wp_pures.
   wp_bind (rand(_) _)%E.
   iInv "Hinv" as ">(%&H3&H4)" "Hclose".
-  iMod ("Hvs" with "[$]") as "(%&HQ&Hauth)".
+  iMod ("Hvs" with "[$]") as "([Hfrag %] & Hrest)".
+  iDestruct (hocap_tapes_agree with "[$][$]") as "%".
   iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
   simpl.
   wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
-  iMod ("Hclose" with "[- HΦ HQ]") as "_".
-  { iExists (<[α:=_]> m).
-    iFrame.
-    iApply "H3". by iNext.
-  }
-  by iApply "HΦ".
+  iMod (hocap_tapes_update with "[$][$]") as "[? Hfrag]".
+  iMod ("Hrest" with "[$Hfrag]") as "HQ".
+  - iPureIntro. by eapply Forall_inv_tail.
+  - iModIntro.
+    iMod ("Hclose" with "[- HQ HΦ]") as "_".
+    { iExists (<[α:=_]> m).
+      iFrame.
+      iApply "H3". by iNext.
+    }
+    by iApply "HΦ".
 Qed.
 Next Obligation.
   simpl.
@@ -230,16 +234,6 @@ End impl.
 Section checks.
   Context `{H: conerisGS Σ, r1:@rand_spec Σ H, L:randG Σ}.
 
-  Lemma wp_rand_alloc_tape NS (N:nat) E γ1 :
-    ↑NS ⊆ E ->
-    {{{ is_rand (L:=L) NS γ1 }}} rand_allocate_tape #N @ E {{{ α, RET #lbl:α; rand_tapes_frag (L:=L) γ1 α (N,[]) }}}.
-  Proof.
-    iIntros (Hsubset Φ) "#Hinv HΦ".
-    wp_apply (rand_allocate_tape_spec with "[//]"); first exact.
-    iIntros (?) "(%&->&?)".
-    by iApply "HΦ".
-  Qed.
-
   Lemma wp_rand_tape_1 NS (N:nat) E γ1 n ns α:
     ↑NS ⊆ E ->
     {{{ is_rand (L:=L) NS γ1 ∗ ▷ rand_tapes_frag (L:=L) γ1 α (N, n :: ns) }}}
@@ -249,15 +243,16 @@ Section checks.
     iIntros (Hsubset Φ) "(#Hinv &>Hfrag) HΦ".
     wp_apply (rand_tape_spec_some _ _ _ _ (⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
     - iSplit; first done. iSplit; last iApply "Hfrag".
-      iModIntro.
-      iIntros (?) "[Hfrag Hauth]".
-      iDestruct (rand_tapes_agree with "[$][$]") as "%".
-      iDestruct (rand_tapes_valid with "[$Hfrag]") as "%K".
-      inversion K; subst.
-      iMod (rand_tapes_update _ _ _ _  (N, ns) with "[$][$]") as "[Hauth Hfrag]"; first done.
-      iFrame "Hauth". iModIntro.
+      iModIntro. iIntros "Hfrag".
+      iDestruct (rand_tapes_valid with "[$]") as "%H'".
       iFrame.
-      by iPureIntro.
+      iApply fupd_mask_intro; first set_solver.
+      iIntros "Hclose Hfrag".
+      iFrame.
+      iMod "Hclose".
+      iModIntro.
+      iPureIntro.
+      rewrite Forall_cons in H'. naive_solver.
     - iIntros "[??]". iApply "HΦ".
       iFrame.
   Qed.
