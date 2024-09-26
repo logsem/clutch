@@ -35,8 +35,7 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
   rand_tapes_agree {L : randG Σ} γ α m ns:
   rand_tapes_auth (L:=L) γ m -∗ rand_tapes_frag (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝;
   rand_tapes_valid {L : randG Σ} γ2 α tb ns:
-    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗
-    ⌜Forall (λ n, n<=tb)%nat ns⌝ ;
+    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗ ⌜Forall (λ n, n<=tb)%nat ns⌝ ;
   rand_tapes_update {L : randG Σ} γ α m ns ns':
   Forall (λ x, x<=ns'.1) ns'.2 ->
     rand_tapes_auth (L:=L) γ m -∗ rand_tapes_frag (L:=L) γ α ns ==∗
