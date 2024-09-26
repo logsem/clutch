@@ -67,7 +67,7 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
             ↯ ε ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns) ∗
             ⌜(∀ l, length l = num ->  0<= ε2 l)%R⌝ ∗
             ⌜(SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R⌝ ∗
-        (∀ ns', ⌜length ns' = num⌝ ∗ ↯ (ε2 ns') ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns'))
+        (∀ ns', ↯ (ε2 ns') ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns'))
                 ={∅, E∖↑N}=∗ T ε num tb ε2 α ns ns')) -∗
         wp_update E (∃ ε num tb ε2 α ns ns', T ε num tb ε2 α ns ns')
 }.
@@ -212,7 +212,7 @@ Section impl.
   { simpl; lra. }
   iMod (hocap_tapes_update with "[$][$]") as "[Hauth Hfrag]".
   iMod ("Hrest" $! sample  with "[$Herr $Hfrag]") as "HT".
-  { iPureIntro; split; first done.
+  { iPureIntro.
     rewrite Forall_app; split; subst; first done.
     eapply Forall_impl; first apply fin.fin_forall_leq.
     simpl; intros; lia.
@@ -298,8 +298,7 @@ Section checks.
           apply Rdiv_INR_ge_0.
         * intros. repeat case_match; by simplify_eq.
         * apply ex_seriesC_finite.
-      +  
-        iIntros ([|?[|]]) "(%&?&?)"; try done.
+      + iIntros ([|?[|]]) "(?&?)"; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"].
         iFrame.
         iMod "Hclose".
         iModIntro.
