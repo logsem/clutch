@@ -51,28 +51,28 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ rand_tapes_frag (L:=L) γ2 α (tb, [])
       }}};
-  rand_tape_spec_some {L: randG Σ} N E γ2 (P: iProp Σ) (Q:iProp Σ) (α:loc) (n:nat) (tb:nat) ns:
+  rand_tape_spec_some {L: randG Σ} N E γ2 (P: iProp Σ) (Q: nat ->list nat -> iProp Σ) (α:loc) (tb:nat) :
     ↑N⊆E ->
     {{{ is_rand (L:=L) N γ2 ∗
-        (□ (P ={E∖↑N, ∅}=∗ rand_tapes_frag (L:=L) γ2 α (tb, n::ns) ∗
-        (rand_tapes_frag (L:=L) γ2 α (tb, ns) ={∅, E∖↑N}=∗ Q))) ∗
+        (□ (P ={E∖↑N, ∅}=∗ ∃ n ns, rand_tapes_frag (L:=L) γ2 α (tb, n::ns) ∗
+        (rand_tapes_frag (L:=L) γ2 α (tb, ns) ={∅, E∖↑N}=∗ Q n ns))) ∗
       ▷ P
     }}}
       rand_tape #lbl:α #tb @ E
-                       {{{ RET #n; Q }}};
-  rand_presample_spec {L: randG Σ} N E ns α (tb:nat)
-     (ε2 : list (fin (S tb)) -> R)
-    (P : iProp Σ) num T γ2 (ε:R) :
+                       {{{ (n:nat), RET #n; ∃ ns, Q n ns}}};
+  rand_presample_spec {L: randG Σ} N E (P : iProp Σ) T γ2 :
     ↑N ⊆ E ->
-    (∀ l, length l = num ->  0<= ε2 l)%R ->
-    (SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R->
     is_rand (L:=L) N γ2 -∗
-    (□ (P ={E∖↑N, ∅}=∗  ↯ ε ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns) ∗
+    (□ (P ={E∖↑N, ∅}=∗
+        ∃ ε num tb (ε2 : list (fin (S tb)) -> R) α ns,
+            ↯ ε ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns) ∗
+            ⌜(∀ l, length l = num ->  0<= ε2 l)%R⌝ ∗
+            ⌜(SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R⌝ ∗
         (∀ ns', ⌜length ns' = num⌝ ∗ ↯ (ε2 ns') ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns'))
-                ={∅, E∖↑N}=∗ T ns')))
+                ={∅, E∖↑N}=∗ T ε num tb ε2 α ns ns')))
         -∗
     P -∗
-        wp_update E (∃ n, T n)
+        wp_update E (∃ ε num tb ε2 α ns ns', T ε num tb ε2 α ns ns')
 }.
 
 Section impl.
@@ -147,34 +147,34 @@ Section impl.
     by iFrame.
   Qed.
   Next Obligation.
-  simpl.
-  iIntros (????????????? Φ) "(#Hinv & #Hvs & HP) HΦ".
-  wp_pures.
-  wp_bind (rand(_) _)%E.
-  iInv "Hinv" as ">(%&H3&H4)" "Hclose".
-  iMod ("Hvs" with "[$]") as "([Hfrag %] & Hrest)".
-  iDestruct (hocap_tapes_agree with "[$][$]") as "%".
-  iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
-  simpl.
-  wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
-  iMod (hocap_tapes_update with "[$][$]") as "[? Hfrag]".
-  iMod ("Hrest" with "[$Hfrag]") as "HQ".
-  - iPureIntro. by eapply Forall_inv_tail.
-  - iModIntro.
-    iMod ("Hclose" with "[- HQ HΦ]") as "_".
-    { iExists (<[α:=_]> m).
-      iFrame.
-      iApply "H3". by iNext.
+    simpl.
+    iIntros (??????????? Φ) "(#Hinv & #Hvs & HP) HΦ".
+    wp_pures.
+    wp_bind (rand(_) _)%E.
+    iInv "Hinv" as ">(%&H3&H4)" "Hclose".
+    iMod ("Hvs" with "[$]") as "(%n & %ns & [Hfrag %] & Hrest)".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
+    simpl.
+    wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
+    iMod (hocap_tapes_update with "[$][$]") as "[? Hfrag]".
+    iMod ("Hrest" with "[$Hfrag]") as "HQ".
+    - iPureIntro. by eapply Forall_inv_tail.
+    - iModIntro.
+      iMod ("Hclose" with "[- HQ HΦ]") as "_".
+      { iExists (<[α:=_]> m).
+        iFrame.
+        iApply "H3". by iNext.
     }
-    by iApply "HΦ".
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (?????????????? Hsubset Hpos Hineq) "#Hinv #Hvs HP ".
+    iApply "HΦ". by iFrame.
+  Qed.
+  Next Obligation.
+    simpl.
+  iIntros (?????????) "#Hinv #Hvs HP ".
   iApply wp_update_state_step_coupl.
   iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
   iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|].
-  iMod ("Hvs" with "[$]") as "(Herr & [Hfrag %] & Hrest)".
+  iMod ("Hvs" with "[$]") as "(%err & %num & %tb & %ε2 & %α & %ns & Herr & [Hfrag %] & %Hpos & %Hineq & Hrest)".
   iDestruct (hocap_tapes_agree with "[$][$]") as "%".
   iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
@@ -240,7 +240,7 @@ Section checks.
                        {{{ RET #(LitInt n); rand_tapes_frag (L:=L) γ1 α (N, ns) ∗ ⌜n <= N⌝ }}}.
   Proof.
     iIntros (Hsubset Φ) "(#Hinv &>Hfrag) HΦ".
-    wp_apply (rand_tape_spec_some _ _ _ _ (⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
+    wp_apply (rand_tape_spec_some _ _ _ _ (λ n' ns', ⌜n=n'/\ns=ns'⌝ ∗ ⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
     - iSplit; first done. iSplit; last iApply "Hfrag".
       iModIntro. iIntros "Hfrag".
       iDestruct (rand_tapes_valid with "[$]") as "%H'".
@@ -252,10 +252,11 @@ Section checks.
       iModIntro.
       iPureIntro.
       rewrite Forall_cons in H'. naive_solver.
-    - iIntros "[??]". iApply "HΦ".
-      iFrame.
+    - iIntros (?) "(%&[-> ->]&%&?)". iApply "HΦ".
+      by iFrame.
   Qed.
 
+  Local Opaque enum_uniform_fin_list.
   Lemma wp_presample_adv_comp_rand_tape (N : nat) NS E α ns (ε1 : R) (ε2 : fin (S N) -> R) γ1:
     ↑NS ⊆ E ->
     (∀ n, 0<=ε2 n)%R ->
@@ -268,43 +269,52 @@ Section checks.
     iIntros (Hsubset Hpos Hineq) "#Hinv >Htape Herr".
     iDestruct (ec_valid with "[$]") as "%Hpos'".
     destruct Hpos' as [Hpos' ?].
-    iMod (rand_presample_spec _ _ _ _ _ (λ l, match l with
-                                              | [x] => ε2 x
-                                              | _ => 1%R
-                                              end
-            )
-            (rand_tapes_frag (L:=L) γ1 α (N, ns) ∗ ↯ ε1) 1%nat
-            (λ ls, ∃ n, ⌜ls=[n]⌝ ∗ ↯ (ε2 n) ∗ rand_tapes_frag γ1 α (N, ns ++ [fin_to_nat n]))%I
-            _ (mknonnegreal ε1 Hpos')
-           with "[//][][$Htape $Herr]") as "(%l&%sample & -> & Herr &Htape)".
+    iMod (rand_presample_spec _ _
+            (rand_tapes_frag (L:=L) γ1 α (N, ns) ∗ ↯ ε1)
+            (λ ε' (num':nat) tb' ε2' α' ns1 ns2,
+               ⌜ε1=ε'⌝ ∗ ⌜(1=num')%nat⌝ ∗ ⌜N=tb'⌝ ∗
+               ⌜∀ x y, fin_to_nat <$> x = fin_to_nat <$> y ->
+            ε2' x  = (λ l, match l with |[x] => ε2 x | _ => 1%R end) y⌝∗ ⌜α=α'⌝ ∗ ⌜ns1=ns⌝ ∗
+               ∃ (n:fin (S N)), ⌜fin_to_nat <$> ns2=[fin_to_nat n]⌝ ∗ ↯ (ε2 n) ∗ rand_tapes_frag γ1 α (N, ns ++ [fin_to_nat n]))%I
+           with "[//][][$Htape $Herr]") as "(%&%&%&%&%&%&%&->&<-&->&%&->&->&%&%&?&?)".
     - done.
-    - by intros [|?[|]].
-    - etrans; last eapply Hineq.
-      etrans; last eapply (SeriesC_le_inj _ (λ l, match l with |[x] => Some x | _ => None end)).
-      + rewrite Rdiv_def -SeriesC_scal_r. apply Req_le_sym.
-        apply SeriesC_ext.
-        intros. case_match; subst.
-        * rewrite bool_decide_eq_false_2; first (simpl;lra).
-          by rewrite elem_of_enum_uniform_fin_list.
-        * case_match; last first.
-          { rewrite bool_decide_eq_false_2; first (simpl;lra).
-            by rewrite elem_of_enum_uniform_fin_list. }
-          rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
-          simpl.
-          rewrite Rdiv_def Rmult_1_r; lra.
-      + intros. apply Rmult_le_pos; last done.
-        apply Rdiv_INR_ge_0.
-      + intros. repeat case_match; by simplify_eq.
-      + apply ex_seriesC_finite.
     - iModIntro.
-      iIntros "(?&?)".
-      simpl. iFrame.
+      iIntros "[Hfrag Herr]".
+      iFrame.
       iApply fupd_mask_intro; first set_solver.
       iIntros "Hclose".
-      iIntros ([|?[|]]) "(%&?&?)"; try done.
-      iMod "Hclose".
-      iFrame.
-      by iModIntro.
+      iExists 1, (λ l, match l with |[x] => ε2 x | _ => 1%R end). simpl.
+      repeat iSplit.
+      + iPureIntro. by intros [|?[|]].
+      + iPureIntro.  etrans; last eapply Hineq.
+        etrans; last eapply (SeriesC_le_inj _ (λ l, match l with |[x] => Some x | _ => None end)).
+        * rewrite Rdiv_def -SeriesC_scal_r. apply Req_le_sym.
+          apply SeriesC_ext.
+          intros. case_match; subst.
+          -- rewrite bool_decide_eq_false_2; first (simpl;lra).
+             by rewrite elem_of_enum_uniform_fin_list.
+          -- case_match; last first.
+             { rewrite bool_decide_eq_false_2; first (simpl;lra).
+               subst.
+               by rewrite elem_of_enum_uniform_fin_list.
+             }
+             rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
+             simpl.
+             rewrite Rdiv_def Rmult_1_r; lra.
+        * intros. apply Rmult_le_pos; last done.
+          apply Rdiv_INR_ge_0.
+        * intros. repeat case_match; by simplify_eq.
+        * apply ex_seriesC_finite.
+      +  
+        iIntros ([|?[|]]) "(%&?&?)"; try done.
+        iFrame.
+        iMod "Hclose".
+        iModIntro.
+        repeat iSplit; try done.
+        iPureIntro.
+        intros x y H'.
+        apply list_fmap_eq_inj in H'; first by simplify_eq.
+        apply fin_to_nat_inj.
     - iModIntro. iFrame.
   Qed.
 
