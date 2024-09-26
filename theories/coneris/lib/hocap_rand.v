@@ -51,27 +51,24 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ rand_tapes_frag (L:=L) γ2 α (tb, [])
       }}};
-  rand_tape_spec_some {L: randG Σ} N E γ2 (P: iProp Σ) (Q: nat ->list nat -> iProp Σ) (α:loc) (tb:nat) :
+  rand_tape_spec_some {L: randG Σ} N E γ2 (Q: nat ->list nat -> iProp Σ) (α:loc) (tb:nat) :
     ↑N⊆E ->
     {{{ is_rand (L:=L) N γ2 ∗
-        (□ (P ={E∖↑N, ∅}=∗ ∃ n ns, rand_tapes_frag (L:=L) γ2 α (tb, n::ns) ∗
-        (rand_tapes_frag (L:=L) γ2 α (tb, ns) ={∅, E∖↑N}=∗ Q n ns))) ∗
-      ▷ P
+        (|={E∖↑N, ∅}=> ∃ n ns, rand_tapes_frag (L:=L) γ2 α (tb, n::ns) ∗
+        (rand_tapes_frag (L:=L) γ2 α (tb, ns) ={∅, E∖↑N}=∗ Q n ns)) 
     }}}
       rand_tape #lbl:α #tb @ E
                        {{{ (n:nat), RET #n; ∃ ns, Q n ns}}};
-  rand_presample_spec {L: randG Σ} N E (P : iProp Σ) T γ2 :
+  rand_presample_spec {L: randG Σ} N E T γ2 :
     ↑N ⊆ E ->
     is_rand (L:=L) N γ2 -∗
-    (□ (P ={E∖↑N, ∅}=∗
+    (|={E∖↑N, ∅}=>
         ∃ ε num tb (ε2 : list (fin (S tb)) -> R) α ns,
             ↯ ε ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns) ∗
             ⌜(∀ l, length l = num ->  0<= ε2 l)%R⌝ ∗
             ⌜(SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R⌝ ∗
         (∀ ns', ⌜length ns' = num⌝ ∗ ↯ (ε2 ns') ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns'))
-                ={∅, E∖↑N}=∗ T ε num tb ε2 α ns ns')))
-        -∗
-    P -∗
+                ={∅, E∖↑N}=∗ T ε num tb ε2 α ns ns')) -∗
         wp_update E (∃ ε num tb ε2 α ns ns', T ε num tb ε2 α ns ns')
 }.
 
@@ -148,11 +145,11 @@ Section impl.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (??????????? Φ) "(#Hinv & #Hvs & HP) HΦ".
+    iIntros (?????????? Φ) "(#Hinv & Hvs) HΦ".
     wp_pures.
     wp_bind (rand(_) _)%E.
     iInv "Hinv" as ">(%&H3&H4)" "Hclose".
-    iMod ("Hvs" with "[$]") as "(%n & %ns & [Hfrag %] & Hrest)".
+    iMod ("Hvs") as "(%n & %ns & [Hfrag %] & Hrest)".
     iDestruct (hocap_tapes_agree with "[$][$]") as "%".
     iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
     simpl.
@@ -170,11 +167,11 @@ Section impl.
   Qed.
   Next Obligation.
     simpl.
-  iIntros (?????????) "#Hinv #Hvs HP ".
+  iIntros (????????) "#Hinv Hvs".
   iApply wp_update_state_step_coupl.
   iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
   iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|].
-  iMod ("Hvs" with "[$]") as "(%err & %num & %tb & %ε2 & %α & %ns & Herr & [Hfrag %] & %Hpos & %Hineq & Hrest)".
+  iMod "Hvs" as "(%err & %num & %tb & %ε2 & %α & %ns & Herr & [Hfrag %] & %Hpos & %Hineq & Hrest)".
   iDestruct (hocap_tapes_agree with "[$][$]") as "%".
   iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
@@ -240,9 +237,8 @@ Section checks.
                        {{{ RET #(LitInt n); rand_tapes_frag (L:=L) γ1 α (N, ns) ∗ ⌜n <= N⌝ }}}.
   Proof.
     iIntros (Hsubset Φ) "(#Hinv &>Hfrag) HΦ".
-    wp_apply (rand_tape_spec_some _ _ _ _ (λ n' ns', ⌜n=n'/\ns=ns'⌝ ∗ ⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
-    - iSplit; first done. iSplit; last iApply "Hfrag".
-      iModIntro. iIntros "Hfrag".
+    wp_apply (rand_tape_spec_some _ _ _ (λ n' ns', ⌜n=n'/\ns=ns'⌝ ∗ ⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
+    - iSplit; first done. 
       iDestruct (rand_tapes_valid with "[$]") as "%H'".
       iFrame.
       iApply fupd_mask_intro; first set_solver.
@@ -270,17 +266,14 @@ Section checks.
     iDestruct (ec_valid with "[$]") as "%Hpos'".
     destruct Hpos' as [Hpos' ?].
     iMod (rand_presample_spec _ _
-            (rand_tapes_frag (L:=L) γ1 α (N, ns) ∗ ↯ ε1)
             (λ ε' (num':nat) tb' ε2' α' ns1 ns2,
                ⌜ε1=ε'⌝ ∗ ⌜(1=num')%nat⌝ ∗ ⌜N=tb'⌝ ∗
                ⌜∀ x y, fin_to_nat <$> x = fin_to_nat <$> y ->
             ε2' x  = (λ l, match l with |[x] => ε2 x | _ => 1%R end) y⌝∗ ⌜α=α'⌝ ∗ ⌜ns1=ns⌝ ∗
                ∃ (n:fin (S N)), ⌜fin_to_nat <$> ns2=[fin_to_nat n]⌝ ∗ ↯ (ε2 n) ∗ rand_tapes_frag γ1 α (N, ns ++ [fin_to_nat n]))%I
-           with "[//][][$Htape $Herr]") as "(%&%&%&%&%&%&%&->&<-&->&%&->&->&%&%&?&?)".
+           with "[//][- ]") as "(%&%&%&%&%&%&%&->&<-&->&%&->&->&%&%&?&?)".
     - done.
-    - iModIntro.
-      iIntros "[Hfrag Herr]".
-      iFrame.
+    - iFrame.
       iApply fupd_mask_intro; first set_solver.
       iIntros "Hclose".
       iExists 1, (λ l, match l with |[x] => ε2 x | _ => 1%R end). simpl.

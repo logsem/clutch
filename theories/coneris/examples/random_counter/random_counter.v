@@ -74,36 +74,34 @@ Class random_counter `{!conerisGS Σ} := RandCounter
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ counter_tapes_frag (L:=L) γ1 α []
       }}};
-  incr_counter_tape_spec_some {L: counterG Σ} N E c γ1 γ2 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
+  incr_counter_tape_spec_some {L: counterG Σ} N E c γ1 γ2 (Q:nat->iProp Σ) (α:loc) (n:nat) ns:
     ↑N⊆E ->
     {{{ is_counter (L:=L) N c γ1 γ2 ∗
-        □ (∀ (z:nat), counter_content_auth (L:=L) γ2 z ∗ P ={E∖ ↑N, ∅}=∗
+        (∀ (z:nat), counter_content_auth (L:=L) γ2 z ={E∖ ↑N, ∅}=∗
                     counter_tapes_frag (L:=L) γ1 α (n::ns) ∗
                     (counter_tapes_frag (L:=L) γ1 α ns ={∅, E∖↑N}=∗
                      counter_content_auth (L:=L) γ2 (z+n) ∗ Q z)
-          ) ∗ P
+          ) 
     }}}
       incr_counter_tape c #lbl:α @ E
                                  {{{ (z:nat), RET (#z, #n); Q z}}}; 
   counter_presample_spec {L: counterG Σ} NS E ns α
-     (ε2 : list nat -> R)
-    (P : iProp Σ) T γ1 γ2 c num ε:
+     (ε2 : list nat -> R) T γ1 γ2 c num ε:
     ↑NS ⊆ E ->
     (∀ n, 0<=ε2 n)%R ->
     (SeriesC (λ l, if bool_decide (l∈fmap (λ x, fmap (FMap:=list_fmap) fin_to_nat x) (enum_uniform_fin_list 3%nat num)) then ε2 l else 0%R) / (4^num) <= ε)%R->
     is_counter (L:=L) NS c γ1 γ2 -∗
-    □(P ={E∖↑NS,∅}=∗ ↯ ε ∗ counter_tapes_frag (L:=L) γ1 α ns ∗
+    ( |={E∖↑NS,∅}=> ↯ ε ∗ counter_tapes_frag (L:=L) γ1 α ns ∗
       (∀ ns', ⌜length ns' = num⌝ ∗ ↯ (ε2 ns') ∗ counter_tapes_frag (L:=L) γ1 α (ns++ns')={∅,E∖↑NS}=∗
               T ns'
-      ))-∗
-    P -∗ 
+      ))-∗ 
         wp_update E (∃ n, T n); 
-  read_counter_spec {L: counterG Σ} N E c γ1 γ2 P Q:
+  read_counter_spec {L: counterG Σ} N E c γ1 γ2 Q:
     ↑N ⊆ E ->
     {{{  is_counter (L:=L) N c γ1 γ2 ∗
-        □ (∀ (z:nat), P ∗ counter_content_auth (L:=L) γ2 z ={E∖↑N}=∗
+         (∀ (z:nat), counter_content_auth (L:=L) γ2 z ={E∖↑N}=∗
                     counter_content_auth (L:=L) γ2 z∗ Q z)
-         ∗ P
+        
     }}}
       read_counter c @ E
       {{{ (n':nat), RET #n'; Q n'
