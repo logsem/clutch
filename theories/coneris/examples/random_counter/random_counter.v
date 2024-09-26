@@ -136,7 +136,7 @@ Section lemmas.
             (λ ε α' ε2 num ns ns',
                ∃ n z, 
                  ⌜num=1%nat⌝ ∗ ⌜α'=α⌝ ∗ ⌜ns=[]⌝ ∗ ⌜ns'=[n]⌝ ∗
-                 Q z n ε (λ x, ε2 [x])
+                 _
             )%I with "[//][-]") as "?"; try done.
   Admitted.
   (*   { iMod "Hvs" as "(%ε & %ε2 & Herr &Hfrag & %Hpos & %Hineq & Hrest)". *)
