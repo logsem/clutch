@@ -66,7 +66,7 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
         ∃ ε num ε2 α ns, ↯ ε ∗ flip_tapes_frag (L:=L) γ1 α ns ∗
                          ⌜(∀ l, length l = num ->  0<=ε2 l)%R⌝ ∗
                          ⌜(SeriesC (λ l, if length l =? num then ε2 l else 0) /(2^num) <= ε)%R⌝∗
-        (∀ ns', ⌜length ns' = num⌝ ∗ ↯ (ε2 ns') ∗ flip_tapes_frag (L:=L) γ1 α (ns ++ ns')
+        (∀ ns', ↯ (ε2 ns') ∗ flip_tapes_frag (L:=L) γ1 α (ns ++ ns')
                 ={∅, E∖↑NS}=∗ T ε num ε2 α ns ns'))
         -∗
         wp_update E (∃ ε num ε2 α ns ns', T ε num ε2 α ns ns')
@@ -203,11 +203,9 @@ Section instantiate_flip.
       + eapply ex_seriesC_list_length. intros.
         case_match; last done.
         by rewrite -Nat.eqb_eq.
-    - iIntros (ls) "(H1&H2&H3)".
-      iMod ("Hvs'" with "[H1 $H2 H3]") as "?".
-      + rewrite !fmap_length !fmap_app. 
-      iSplitL "H1"; first done.
-      rewrite -!list_fmap_compose.
+    - iIntros (ls) "(H2&H3)".
+      iMod ("Hvs'" with "[$H2 H3]") as "?".
+      + rewrite fmap_app. rewrite -!list_fmap_compose.
       erewrite (Forall_fmap_ext_1 (_∘_)); first done.
       apply Forall_true.
       intros x; by repeat (inv_fin x; simpl; try intros x).
