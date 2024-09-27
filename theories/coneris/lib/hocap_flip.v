@@ -49,27 +49,26 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ flip_tapes_frag (L:=L) γ1 α []
       }}};
   
-  flip_tape_spec_some {L: flipG Σ} N E γ1 (Q:bool -> list bool -> iProp Σ) (α:loc) :
+  flip_tape_spec_some {L: flipG Σ} N E γ1 (Q:bool -> list bool -> iProp Σ) (α:loc) n ns:
     ↑N⊆E ->
-    {{{ is_flip (L:=L) N γ1 ∗
-        (|={E∖↑N, ∅}=>
-            ∃ n ns, flip_tapes_frag (L:=L) γ1 α (n::ns) ∗
-        (flip_tapes_frag (L:=L) γ1 α ns ={∅, E∖↑N}=∗ Q n ns)) 
+    {{{ is_flip (L:=L) N γ1 ∗ flip_tapes_frag (L:=L) γ1 α (n::ns)
     }}}
       flip_tape #lbl:α @ E
-                       {{{ (n:bool), RET #n; ∃ ns, Q n ns}}};
+                       {{{ RET #n; flip_tapes_frag (L:=L) γ1 α ns }}};
   
-  flip_presample_spec {L: flipG Σ} NS E T γ1:
+  flip_presample_spec {L: flipG Σ} NS E γ1 α ns T:
     ↑NS ⊆ E ->
     is_flip (L:=L) NS γ1 -∗
+    flip_tapes_frag (L:=L) γ1 α ns -∗
     (|={E∖↑NS, ∅}=>
-        ∃ ε num ε2 α ns, ↯ ε ∗ flip_tapes_frag (L:=L) γ1 α ns ∗
-                         ⌜(∀ l, length l = num ->  0<=ε2 l)%R⌝ ∗
-                         ⌜(SeriesC (λ l, if length l =? num then ε2 l else 0) /(2^num) <= ε)%R⌝∗
-        (∀ ns', ↯ (ε2 ns') ∗ flip_tapes_frag (L:=L) γ1 α (ns ++ ns')
-                ={∅, E∖↑NS}=∗ T ε num ε2 α ns ns'))
+        ∃ ε num ε2, ↯ ε ∗ 
+                    ⌜(∀ l, length l = num ->  0<=ε2 l)%R⌝ ∗
+                    ⌜(SeriesC (λ l, if length l =? num then ε2 l else 0) /(2^num) <= ε)%R⌝∗
+                      (∀ ns', ↯ (ε2 ns') 
+                ={∅, E∖↑NS}=∗ T ε num ε2 ns'))
         -∗
-        wp_update E (∃ ε num ε2 α ns ns', T ε num ε2 α ns ns')
+          wp_update E (∃ ε num ε2 ns', T ε num ε2 ns' ∗
+                                            flip_tapes_frag (L:=L) γ1 α (ns ++ ns'))
 }.
 
 
@@ -138,45 +137,33 @@ Section instantiate_flip.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (???? Q ? ? Φ) "(#Hinv & Hvs) HΦ".
+    iIntros (???? Q ???? Φ) "(#Hinv & Hfrag) HΦ".
     wp_pures.
-    wp_apply (rand_tape_spec_some _ _ _ (λ n ns, ∃ b bs, ⌜n= bool_to_nat b⌝ ∗
-                                                           ⌜ns = bool_to_nat <$> bs⌝ ∗
-                                                           Q b bs
-                                                                           
-                )%I with "[-HΦ]"); [done|..].
-    - iFrame. iSplit; first done.
-      iMod ("Hvs") as "(%b & %bs & Hfrag & Hrest)".
-      iFrame.
-      iModIntro.
-      iIntros "?".
-      iMod ("Hrest" with "[$]").
-      by iFrame. 
-    - iIntros (n) "(%&%&%&%&%&HQ)".
+    wp_apply (rand_tape_spec_some  with "[-HΦ]"); [done|..].
+    - by iFrame. 
+    - iIntros "Hfrag". 
       wp_apply conversion.wp_int_to_bool as "_"; first done.
-      iApply "HΦ".
-      subst.
-      iFrame.
-      replace (Z_to_bool _) with b; first iFrame.
-      destruct b; simpl.
+      replace (Z_to_bool _) with n; first by iApply "HΦ".
+      destruct n; simpl.
       + rewrite Z_to_bool_neq_0; lia.
       + rewrite Z_to_bool_eq_0; lia.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (??? T ??) "#Hinv Hvs".
-    iMod (rand_presample_spec _ _
-            (λ ε num tb ε2 α ns ns',
-               ∃ bs bs' ε2', ⌜tb = 1%nat⌝ ∗ ⌜fmap (FMap:= list_fmap) bool_to_nat bs = ns⌝ ∗ ⌜fmap (FMap:= list_fmap) bool_to_nat bs'=fin_to_nat <$> ns'⌝ ∗
+    iIntros (?????? T ?) "#Hinv Hfrag Hvs".
+    iMod (rand_presample_spec _ _ _ _ _ _
+            (λ ε num ε2 ns',
+               ∃ bs' ε2',  ⌜fmap (FMap:= list_fmap) bool_to_nat bs'=fin_to_nat <$> ns'⌝ ∗
                              ⌜∀ xs ys, fmap (FMap:= list_fmap) bool_to_nat xs = fmap (FMap:= list_fmap)fin_to_nat ys -> ε2' xs = ε2 ys⌝ ∗
-               T ε num ε2' α bs bs'
+               T ε num ε2' bs'
             )%I
-           with "[][-]") as "(%&%&%&%&%&%&%&%&%&%&->&<-&%&%&HT)"; [exact|exact| |iModIntro; iFrame].
-    iMod "Hvs" as "(%&%&%&%&%&Herr&Hfrag&%Hpos&%Hineq&Hvs')".
+           with "[//][$][-]") as "(%&%&%&%&[(%&%&%K&%&?)?])"; [exact| |iModIntro; iFrame]; last first.
+    { by rewrite fmap_app K. }
+    iMod "Hvs" as "(%&%&%&Herr &%Hpos&%Hineq &Hrest)".
     iFrame.
-    iModIntro.
     iExists num, (λ ls, ε2 (nat_to_bool<$>(fin_to_nat <$> ls))).
-    repeat iSplit; try iPureIntro. 
+    iModIntro.
+    repeat iSplit; try iPureIntro.
     - intros. apply Hpos.
       by rewrite !fmap_length.
     - etrans; last exact.
@@ -203,26 +190,24 @@ Section instantiate_flip.
       + eapply ex_seriesC_list_length. intros.
         case_match; last done.
         by rewrite -Nat.eqb_eq.
-    - iIntros (ls) "(H2&H3)".
-      iMod ("Hvs'" with "[$H2 H3]") as "?".
-      + rewrite fmap_app. rewrite -!list_fmap_compose.
+    - iIntros (ls) "H2".
+      iMod ("Hrest" with "[$H2 ]") as "?".
+      iFrame.
+      iModIntro.
+      iSplit; iPureIntro.
+      + rewrite -!list_fmap_compose.
       erewrite (Forall_fmap_ext_1 (_∘_)); first done.
       apply Forall_true.
       intros x; by repeat (inv_fin x; simpl; try intros x).
-      + iFrame. iPureIntro; repeat split; try done.
-        * rewrite -!list_fmap_compose.
-          erewrite (Forall_fmap_ext_1 (_∘_)); first done.
-          apply Forall_true.
-          intros x; by repeat (inv_fin x; simpl; try intros x).
-        * intros ?? <-.
-          f_equal.
-          rewrite -!list_fmap_compose.
-          rewrite -{1}(list_fmap_id xs).
-          erewrite (Forall_fmap_ext_1 (_∘_)); first done.
-          apply Forall_true.
-          intros []; simpl.
-          -- by rewrite nat_to_bool_neq_0.
-          -- by rewrite nat_to_bool_eq_0.
+      + intros ?? <-.
+        f_equal.
+        rewrite -!list_fmap_compose.
+        rewrite -{1}(list_fmap_id xs).
+        erewrite (Forall_fmap_ext_1 (_∘_)); first done.
+        apply Forall_true.
+        intros []; simpl.
+        ** by rewrite nat_to_bool_neq_0.
+        ** by rewrite nat_to_bool_eq_0.
   Qed.
 End instantiate_flip.
 
