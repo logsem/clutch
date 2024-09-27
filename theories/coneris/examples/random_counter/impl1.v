@@ -8,8 +8,8 @@ Section impl1.
   Context `{H:conerisGS Σ, r1:@rand_spec Σ H, L:randG Σ, !inG Σ (frac_authR natR)}.
 
   Definition new_counter1 : val:= λ: "_", ref #0.
-  Definition allocate_tape1 : val := λ: "_", rand_allocate_tape #3.
-  Definition incr_counter_tape1 :val := λ: "l" "α", let: "n" := rand_tape "α" #3 in (FAA "l" "n", "n").
+  Definition allocate_tape1 : val := λ: "_", rand_allocate_tape #3%nat.
+  Definition incr_counter_tape1 :val := λ: "l" "α", let: "n" := rand_tape "α" #3%nat in (FAA "l" "n", "n").
   Definition read_counter1 : val := λ: "l", !"l".
   Class counterG1 Σ := CounterG1 { counterG1_randG : randG Σ;
                                    counterG1_frac_authR:: inG Σ (frac_authR natR) }.
@@ -91,38 +91,31 @@ Section impl1.
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ rand_tapes_frag (L:=L) γ1 α (3%nat, [])
       }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "#Hinv HΦ". *)
-  (*   rewrite /allocate_tape1. *)
-  (*   wp_pures. *)
-  (*   wp_alloctape α as "Hα". *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_notin with "[$][$]") as "%". *)
-  (*   iMod (hocap_tapes_new with "[$]") as "[H4 H7]"; first done. *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_". *)
-  (*   { iNext. iSplitL; last done. *)
-  (*     rewrite big_sepM_insert; [simpl; iFrame|done]. *)
-  (*   } *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-  (* Qed. *)
+    iIntros (Hsubset Φ) "[#Hinv #Hinv'] HΦ".    
+    rewrite /allocate_tape1.
+    wp_pures.
+    wp_apply rand_allocate_tape_spec; [by eapply nclose_subseteq'|done..].
+  Qed.
 
   Lemma incr_counter_tape_spec_some1 N E c γ1 γ2 (Q:nat->nat -> list nat -> iProp Σ) (α:loc) :
     ↑N⊆E ->
     {{{ is_counter1 N c γ1 γ2 ∗
-        (∀ (z:nat), own γ2 (●F z) ={E∖ ↑N, ∅}=∗
-                   ∃ n ns, rand_tapes_frag (L:=L) γ1 α (3%nat, n::ns) ∗
-                    (rand_tapes_frag (L:=L) γ1 α (3%nat, ns) ={∅, E∖↑N}=∗
-                     own γ2 (●F (z+n)%nat) ∗ Q z n ns)
+        ( |={E∖ ↑N, ∅}=>
+                   ∃ n ns, rand_tapes_frag (L:=L) γ1 α (3, n::ns) ∗
+                    (rand_tapes_frag (L:=L) γ1 α (3, ns) ={∅, E∖↑N}=∗
+                     ∀ (z:nat), own γ2 (●F z)
+                              ={E∖↑N}=∗
+                              own γ2 (●F (z+n)) ∗ Q z n ns)
           )
     }}}
       incr_counter_tape1 c #lbl:α @ E
       {{{ (z n:nat), RET (#z, #n); ∃ ns, Q z n ns}}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ". *)
-  (*   rewrite /incr_counter_tape1. *)
-  (*   wp_pures. *)
+    iIntros (Hsubset Φ) "([#Hinv #Hinv'] & Hvs) HΦ".
+    rewrite /incr_counter_tape1.
+    wp_pures.
+    wp_apply (rand_tape_spec_some with "[Hvs]"); [by eapply nclose_subseteq'|iSplit; first done|..].
+  (*   - iSplit *)
   (*   wp_bind (rand(_) _)%E. *)
   (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
   (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
@@ -153,7 +146,8 @@ Section impl1.
   (*   iModIntro. wp_pures. *)
   (*   iApply "HΦ". *)
   (*   by iFrame. *)
-  (* Qed. *)
+    (* Qed. *)
+  Admitted.
   
   Lemma counter_presample_spec1  NS E T γ1 γ2 c:
     ↑NS ⊆ E ->
