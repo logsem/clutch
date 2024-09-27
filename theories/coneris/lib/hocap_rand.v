@@ -50,26 +50,26 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
       rand_allocate_tape #tb @ E
       {{{ (v:val), RET v;
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ rand_tapes_frag (L:=L) γ2 α (tb, [])
-      }}};
-  rand_tape_spec_some {L: randG Σ} N E γ2 (Q: nat ->list nat -> iProp Σ) (α:loc) (tb:nat) :
+      }}}; 
+  rand_tape_spec_some {L: randG Σ} N E γ2 (α:loc) (tb:nat) n ns:
     ↑N⊆E ->
     {{{ is_rand (L:=L) N γ2 ∗
-        (|={E∖↑N, ∅}=> ∃ n ns, rand_tapes_frag (L:=L) γ2 α (tb, n::ns) ∗
-        (rand_tapes_frag (L:=L) γ2 α (tb, ns) ={∅, E∖↑N}=∗ Q n ns)) 
+        rand_tapes_frag (L:=L) γ2 α (tb, n::ns) 
     }}}
       rand_tape #lbl:α #tb @ E
-                       {{{ (n:nat), RET #n; ∃ ns, Q n ns}}};
-  rand_presample_spec {L: randG Σ} N E T γ2 :
+                       {{{ RET #n; rand_tapes_frag (L:=L) γ2 α (tb, ns) }}}; 
+  rand_presample_spec {L: randG Σ} N E γ2 α (tb:nat) ns T:
     ↑N ⊆ E ->
     is_rand (L:=L) N γ2 -∗
+    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗
     (|={E∖↑N, ∅}=>
-        ∃ ε num tb (ε2 : list (fin (S tb)) -> R) α ns,
-            ↯ ε ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns) ∗
+        ∃ ε num (ε2 : list (fin (S tb)) -> R),
+            ↯ ε ∗
             ⌜(∀ l, length l = num ->  0<= ε2 l)%R⌝ ∗
             ⌜(SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R⌝ ∗
-        (∀ ns', ↯ (ε2 ns') ∗ rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns'))
-                ={∅, E∖↑N}=∗ T ε num tb ε2 α ns ns')) -∗
-        wp_update E (∃ ε num tb ε2 α ns ns', T ε num tb ε2 α ns ns')
+        (∀ (ns':list (fin (S tb))), ↯ (ε2 ns') ={∅, E∖↑N}=∗ T ε num ε2 ns')) -∗
+    wp_update E (∃ ε num ε2 ns', T ε num ε2 ns' ∗
+                                 rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns')))
 }.
 
 Section impl.
@@ -145,85 +145,81 @@ Section impl.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (?????????? Φ) "(#Hinv & Hvs) HΦ".
+    iIntros (??????????? Φ) "(#Hinv & [Hvs %]) HΦ".
     wp_pures.
-    wp_bind (rand(_) _)%E.
     iInv "Hinv" as ">(%&H3&H4)" "Hclose".
-    iMod ("Hvs") as "(%n & %ns & [Hfrag %] & Hrest)".
     iDestruct (hocap_tapes_agree with "[$][$]") as "%".
     iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
     simpl.
     wp_apply (wp_rand_tape with "[$]") as "[Htape %]".
     iMod (hocap_tapes_update with "[$][$]") as "[? Hfrag]".
-    iMod ("Hrest" with "[$Hfrag]") as "HQ".
-    - iPureIntro. by eapply Forall_inv_tail.
-    - iModIntro.
-      iMod ("Hclose" with "[- HQ HΦ]") as "_".
-      { iExists (<[α:=_]> m).
-        iFrame.
-        iApply "H3". by iNext.
+    iMod ("Hclose" with "[- Hfrag HΦ]") as "_".
+    { iExists (<[α:=_]> m).
+      iFrame.
+      iApply "H3". by iNext.
     }
-    iApply "HΦ". by iFrame.
+    iApply "HΦ". iFrame.
+    iPureIntro. by eapply Forall_inv_tail.
   Qed.
   Next Obligation.
     simpl.
-  iIntros (????????) "#Hinv Hvs".
-  iApply wp_update_state_step_coupl.
-  iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
-  iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|].
-  iMod "Hvs" as "(%err & %num & %tb & %ε2 & %α & %ns & Herr & [Hfrag %] & %Hpos & %Hineq & Hrest)".
-  iDestruct (hocap_tapes_agree with "[$][$]") as "%".
-  iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
-  iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
-  iDestruct (ec_supply_bound with "[$][$]") as "%".
-  iMod (ec_supply_decrease with "[$][$]") as (ε'' ε_rem -> Heq') "Hε_supply".
-  iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
-  (* unshelve epose (ε_rem := mknonnegreal (ε_supply-ε) _). *)
-  (* { simpl in *. lra. } *)
-  (* replace (ε_supply) with (ε_rem + ε)%NNR; last first. *)
-  (* { rewrite /ε_rem. apply nnreal_ext. simpl. lra. } *)
-  iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang num α); first done.
-  unshelve iExists (λ x, mknonnegreal (if length x =? num then ε2 x else 1)%R _).
-  { case_match; last (simpl;lra). apply Hpos. by rewrite -Nat.eqb_eq. }
-  iSplit.
-  { iPureIntro.
-    simpl. rewrite Heq'. etrans; last exact.
-    rewrite (Rdiv_def (SeriesC _)(S tb ^num)%R) -SeriesC_scal_r.
-    apply SeriesC_le; last apply ex_seriesC_scal_r, ex_seriesC_list.
-    intros. rewrite elem_of_enum_uniform_fin_list'.
-    case_match; last lra.
-    split; last lra.
-    apply Rmult_le_pos; last (apply Hpos; by rewrite -Nat.eqb_eq).
-    rewrite -pow_INR. apply Rdiv_INR_ge_0.
-  }
-  iIntros (sample) "<-".
-  destruct (Rlt_decision (nonneg ε_rem + (ε2 sample)%R) 1%R) as [Hdec|Hdec]; last first.
-  { apply Rnot_lt_ge, Rge_le in Hdec.
-    iApply state_step_coupl_ret_err_ge_1.
-    simpl. simpl in *. rewrite Nat.eqb_refl. lra.
-  }
-  iApply state_step_coupl_ret.
-  simpl. simpl in *.
-  rewrite -Heq.
-  iMod (tapeN_update_append' _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
-  iMod "Hclose'" as "_".
-  unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample) _) with "[$]") as "[Hsupply Herr]".
-  { naive_solver. }
-  { simpl; lra. }
-  iMod (hocap_tapes_update with "[$][$]") as "[Hauth Hfrag]".
-  iMod ("Hrest" $! sample  with "[$Herr $Hfrag]") as "HT".
-  { iPureIntro.
-    rewrite Forall_app; split; subst; first done.
-    eapply Forall_impl; first apply fin.fin_forall_leq.
-    simpl; intros; lia.
-  }
-  iFrame.
-  iMod ("Hclose" with "[-Hsupply]") as "_".
-  { iNext. iFrame. by iApply "H3". }
-  iApply fupd_mask_intro_subseteq; first set_solver.
-  iApply ec_supply_eq; last done.
-  simpl. rewrite Nat.eqb_refl. lra.
-Qed.
+    iIntros (???????????) "#Hinv [Hfrag %] Hvs".
+    iApply wp_update_state_step_coupl.
+    iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
+    iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|].
+    iMod "Hvs" as "(%err & %num & %ε2 & Herr & %Hpos & %Hineq & Hrest)".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H3]"; first done.
+    iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%Heq)".
+    iDestruct (ec_supply_bound with "[$][$]") as "%".
+    iMod (ec_supply_decrease with "[$][$]") as (ε'' ε_rem -> Heq') "Hε_supply".
+    iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'".
+    (* unshelve epose (ε_rem := mknonnegreal (ε_supply-ε) _). *)
+    (* { simpl in *. lra. } *)
+    (* replace (ε_supply) with (ε_rem + ε)%NNR; last first. *)
+    (* { rewrite /ε_rem. apply nnreal_ext. simpl. lra. } *)
+    iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang num α); first done.
+    unshelve iExists (λ x, mknonnegreal (if length x =? num then ε2 x else 1)%R _).
+    { case_match; last (simpl;lra). apply Hpos. by rewrite -Nat.eqb_eq. }
+    iSplit.
+    { iPureIntro.
+      simpl. rewrite Heq'. etrans; last exact.
+      rewrite (Rdiv_def (SeriesC _)(S tb ^num)%R) -SeriesC_scal_r.
+      apply SeriesC_le; last apply ex_seriesC_scal_r, ex_seriesC_list.
+      intros. rewrite elem_of_enum_uniform_fin_list'.
+      case_match; last lra.
+      split; last lra.
+      apply Rmult_le_pos; last (apply Hpos; by rewrite -Nat.eqb_eq).
+      rewrite -pow_INR. apply Rdiv_INR_ge_0.
+    }
+    iIntros (sample) "<-".
+    destruct (Rlt_decision (nonneg ε_rem + (ε2 sample)%R) 1%R) as [Hdec|Hdec]; last first.
+    { apply Rnot_lt_ge, Rge_le in Hdec.
+      iApply state_step_coupl_ret_err_ge_1.
+      simpl. simpl in *. rewrite Nat.eqb_refl. lra.
+    }
+    iApply state_step_coupl_ret.
+    simpl. simpl in *.
+    rewrite -Heq.
+    iMod (tapeN_update_append' _ _ _ _ sample with "[$][$]") as "[Htapes Htape]".
+    iMod "Hclose'" as "_".
+    unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample) _) with "[$]") as "[Hsupply Herr]".
+    { naive_solver. }
+    { simpl; lra. }
+    iMod (hocap_tapes_update with "[$][$]") as "[Hauth Hfrag]".
+    iMod ("Hrest" $! sample  with "[$Herr]") as "HT".
+    iFrame.
+    iMod ("Hclose" with "[-Hsupply]") as "_".
+    { iNext. iFrame. by iApply "H3". }
+    iApply fupd_mask_intro_subseteq; first set_solver.
+    iSplit.
+    - iApply ec_supply_eq; last done.
+      simpl. rewrite Nat.eqb_refl. lra.
+    - iPureIntro.
+      rewrite Forall_app; split; subst; first done.
+      eapply Forall_impl; first apply fin.fin_forall_leq.
+      simpl; intros; lia.
+  Qed.
   
 End impl.
 
@@ -237,19 +233,14 @@ Section checks.
                        {{{ RET #(LitInt n); rand_tapes_frag (L:=L) γ1 α (N, ns) ∗ ⌜n <= N⌝ }}}.
   Proof.
     iIntros (Hsubset Φ) "(#Hinv &>Hfrag) HΦ".
-    wp_apply (rand_tape_spec_some _ _ _ (λ n' ns', ⌜n=n'/\ns=ns'⌝ ∗ ⌜n<=N⌝ ∗ rand_tapes_frag _ _ _)%I with "[Hfrag]"); first exact.
-    - iSplit; first done. 
-      iDestruct (rand_tapes_valid with "[$]") as "%H'".
+    iDestruct (rand_tapes_valid with "[$]") as "%H'". 
+    wp_apply (rand_tape_spec_some with "[Hfrag]"); first exact.
+    - by iFrame.
+    - iIntros.
+      iApply "HΦ".
       iFrame.
-      iApply fupd_mask_intro; first set_solver.
-      iIntros "Hclose Hfrag".
-      iFrame.
-      iMod "Hclose".
-      iModIntro.
       iPureIntro.
       rewrite Forall_cons in H'. naive_solver.
-    - iIntros (?) "(%&[-> ->]&%&?)". iApply "HΦ".
-      by iFrame.
   Qed.
 
   Local Opaque enum_uniform_fin_list.
@@ -265,17 +256,17 @@ Section checks.
     iIntros (Hsubset Hpos Hineq) "#Hinv >Htape Herr".
     iDestruct (ec_valid with "[$]") as "%Hpos'".
     destruct Hpos' as [Hpos' ?].
-    iMod (rand_presample_spec _ _
-            (λ ε' (num':nat) tb' ε2' α' ns1 ns2,
-               ⌜ε1=ε'⌝ ∗ ⌜(1=num')%nat⌝ ∗ ⌜N=tb'⌝ ∗
+    iMod (rand_presample_spec _ _ _ _ _ _
+            (λ ε' (num':nat) ε2' ns2,
+               ⌜ε1=ε'⌝ ∗ ⌜(1=num')%nat⌝ ∗
                ⌜∀ x y, fin_to_nat <$> x = fin_to_nat <$> y ->
-            ε2' x  = (λ l, match l with |[x] => ε2 x | _ => 1%R end) y⌝∗ ⌜α=α'⌝ ∗ ⌜ns1=ns⌝ ∗
-               ∃ (n:fin (S N)), ⌜fin_to_nat <$> ns2=[fin_to_nat n]⌝ ∗ ↯ (ε2 n) ∗ rand_tapes_frag γ1 α (N, ns ++ [fin_to_nat n]))%I
-           with "[//][- ]") as "(%&%&%&%&%&%&%&->&<-&->&%&->&->&%&%&?&?)".
+            ε2' x  = (λ l, match l with |[x] => ε2 x | _ => 1%R end) y⌝ ∗
+               ∃ (n:fin (S N)), ⌜fin_to_nat <$> ns2=[fin_to_nat n]⌝ ∗ ↯ (ε2 n))%I
+           with "[//][$ ][-]") as "H".
     - done.
-    - iFrame.
-      iApply fupd_mask_intro; first set_solver.
+    - iApply fupd_mask_intro; first set_solver.
       iIntros "Hclose".
+      iFrame.
       iExists 1, (λ l, match l with |[x] => ε2 x | _ => 1%R end). simpl.
       repeat iSplit.
       + iPureIntro. by intros [|?[|]].
@@ -298,7 +289,7 @@ Section checks.
           apply Rdiv_INR_ge_0.
         * intros. repeat case_match; by simplify_eq.
         * apply ex_seriesC_finite.
-      + iIntros ([|?[|]]) "(?&?)"; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"].
+      + iIntros ([|?[|]]) "?"; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"].
         iFrame.
         iMod "Hclose".
         iModIntro.
@@ -307,7 +298,9 @@ Section checks.
         intros x y H'.
         apply list_fmap_eq_inj in H'; first by simplify_eq.
         apply fin_to_nat_inj.
-    - iModIntro. iFrame.
+    - iModIntro.
+      iDestruct "H" as "(%&%&%&%&[(%&%&%&%&->&?) ?])".
+      iFrame.
   Qed.
 
 End checks.
