@@ -174,59 +174,68 @@ Section lemmas.
         iFrame.
   Qed.
   
-  (* Lemma incr_counter_tape_spec_none' N E c γ1 γ2 γ3 ε (ε2:R -> nat -> R)(α:loc) (ns:list nat) (q:Qp) (z:nat): *)
-  (*   ↑N ⊆ E-> *)
-  (*   (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R-> *)
-  (*   (∀ (ε:R), 0<=ε -> ((ε2 ε 0%nat) + (ε2 ε 1%nat)+ (ε2 ε 2%nat)+ (ε2 ε 3%nat))/4 <= ε)%R → *)
-  (*   {{{ is_counter (L:=L) N c γ1 γ2 γ3 ∗ *)
-  (*       counter_error_frag (L:=L) γ1 ε ∗ *)
-  (*       counter_tapes_frag (L:=L) γ2 α [] ∗ *)
-  (*       counter_content_frag (L:=L) γ3 q z *)
-  (*   }}} *)
-  (*     incr_counter_tape c #lbl:α @ E *)
-  (*                                {{{ (z':nat) (n:nat), *)
-  (*                                      RET (#z', #n); ⌜(0<=n<4)%nat⌝ ∗ *)
-  (*                                                     ⌜(z<=z')%nat⌝ ∗ *)
-  (*                                                    counter_error_frag (L:=L) γ1 (ε2 ε n) ∗ *)
-  (*                                                    counter_tapes_frag (L:=L) γ2 α [] ∗ *)
-  (*                                                    counter_content_frag (L:=L) γ3 q (z+n)%nat }}}. *)
-  (* Proof. *)
-  (*   iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & Herr & Htapes & Hcontent) HΦ". *)
-  (*   pose (ε2' := (λ ε x, if (x<=?3)%nat then ε2 ε x else 1%R)). *)
-  (*   wp_apply (incr_counter_tape_spec_none _ _ _ _ _ _ ε2' *)
-  (*               (counter_error_frag γ1 ε ∗ counter_content_frag γ3 q z)%I *)
-  (*               (λ n, ⌜0<=n<4⌝ ∗ counter_error_frag γ1 (ε2' ε n) ∗ counter_content_frag γ3 q z)%I *)
-  (*               (λ z' n, ⌜0<=n<4⌝ ∗ ⌜z<=z'⌝ ∗ counter_error_frag γ1 (ε2' ε n) ∗ counter_content_frag γ3 q (z+n)%nat)%I *)
-  (*              with "[$Herr $Htapes $Hcontent]"). *)
-  (*   - done. *)
-  (*   - rewrite /ε2'. intros. *)
-  (*     case_match; [naive_solver|lra]. *)
-  (*   - rewrite /ε2'. simpl. intros. naive_solver. *)
-  (*   - repeat iSplit; first done. *)
-  (*     + iModIntro. *)
-  (*       iIntros (εa εb n) "[(Herr &Hcontent) Herr_auth]". *)
-  (*       destruct (n<=?3) eqn:H; last first. *)
-  (*       { iLeft. iPureIntro. rewrite /ε2'. by rewrite H. } *)
-  (*       iRight. *)
-  (*       iFrame. *)
-  (*       iDestruct (counter_error_ineq with "[$][$]") as "%". *)
-  (*       iDestruct (counter_error_auth_valid with "[$]") as "%". *)
-  (*       iDestruct (counter_error_frag_valid with "[$]") as "%". *)
-  (*       unshelve iMod (counter_error_update _ _ _ (mknonnegreal (ε2' ε n) _) with "[$][$]") as "[$$]". *)
-  (*       { rewrite /ε2' H. *)
-  (*         naive_solver. } *)
-  (*       iPureIntro. split; first lia. *)
-  (*       apply leb_complete in H. lia. *)
-  (*     + iModIntro. *)
-  (*       iIntros (??) "[(%&Herr & Hcontent) Hcontent_auth]". *)
-  (*       iFrame. *)
-  (*       iDestruct (counter_content_less_than with "[$][$]") as "%". *)
-  (*       by iMod (counter_content_update with "[$][$]") as "[$ $]". *)
-  (*   - iIntros (??) "[(%&%&?&?)?]". *)
-  (*     iApply "HΦ". *)
-  (*     iFrame. *)
-  (*     rewrite /ε2'. case_match eqn: H2; first by iFrame. *)
-  (*     apply leb_iff_conv in H2. lia. *)
-  (* Qed. *)
+  Lemma incr_counter_tape_spec_none' N E c γ1 γ2 ε (ε2:nat -> R)(α:loc) (ns:list nat) (q:Qp) (z:nat):
+    ↑N ⊆ E->
+    (∀ n, 0<= ε2 n)%R->
+    (((ε2 0%nat) + (ε2 1%nat)+ (ε2 2%nat)+ (ε2 3%nat))/4 <= ε)%R →
+    {{{ is_counter (L:=L) N c γ1 γ2 ∗
+        ↯ ε ∗
+        counter_tapes_frag (L:=L) γ1 α [] ∗
+        counter_content_frag (L:=L) γ2 q z
+    }}}
+      incr_counter_tape c #lbl:α @ E
+                                 {{{ (z':nat) (n:nat),
+                                       RET (#z', #n); ⌜(0<=n<4)%nat⌝ ∗
+                                                      ⌜(z<=z')%nat⌝ ∗
+                                                      ↯(ε2 n) ∗
+                                                     counter_tapes_frag (L:=L) γ1 α [] ∗
+                                                     counter_content_frag (L:=L) γ2 q (z+n)%nat }}}.
+  Proof.
+    iIntros (Hsubset Hpos Hineq Φ) "(#Hinv & Herr & Htapes & Hcontent) HΦ".
+    pose (ε2' := (λ x, if (x<=?3)%nat then ε2 x else 1%R)).
+    wp_apply (incr_counter_tape_spec_none _ _ _ _ _ 
+                (λ z' n ε' ε2'', ⌜0<=n<4⌝ ∗ ⌜z<=z'⌝ ∗ ⌜ε=ε'⌝ ∗ ⌜ε2''=ε2'⌝ ∗
+                                 ↯ (ε2' n) ∗ counter_tapes_frag (L:=L) γ1 α [] ∗
+                                 counter_content_frag (L:=L) γ2 q (z+n)%nat
+                )%I
+               with "[-HΦ]").
+    - done.
+    - iSplit; first done.
+      iApply fupd_mask_intro; first set_solver.
+      iIntros "Hclose".
+      iFrame.
+      iExists ε2'.
+      repeat iSplit.
+      + iPureIntro. rewrite /ε2'. intros; case_match; [naive_solver|lra].
+      + done.
+      + iIntros (n) "[Herr Hfrag]".
+        iMod "Hclose" as "_".
+        iModIntro.
+        iIntros (z') "Hauth".
+        iApply fupd_mask_intro; first set_solver.
+        iIntros "Hclose".
+        rewrite /ε2'.
+        case_match eqn:H; last by (iDestruct (ec_contradict with "[$]") as "%").
+        iFrame.
+        iIntros "Hfrag'".
+        iDestruct (counter_content_less_than with "[$][$]") as "%".
+        iMod (counter_content_update with "[$][$]") as "[??]".
+        iMod "Hclose" as "_".
+        iFrame.
+        apply leb_complete in H.
+        iPureIntro; repeat split; try done; lia. 
+    - iIntros (z' n) "(%ε' & %ε2'' & % & % &-> & -> & Herr & Hfrag & Hfrag')".
+      iApply "HΦ".
+      iFrame.
+      iSplit; first done.
+      iSplit; first done.
+      iApply ec_eq; last done.
+      rewrite /ε2'.
+      case_match eqn :K; first done.
+      exfalso.
+      apply leb_complete_conv in K.
+      lia.
+  Qed.
   
 End lemmas.
+
