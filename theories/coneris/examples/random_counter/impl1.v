@@ -203,17 +203,19 @@ Section impl1.
       {{{ (n':nat), RET #n'; Q n'
       }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP) HΦ". *)
-  (*   rewrite /read_counter1. *)
-  (*   wp_pure. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_load. *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]"); first done. *)
-  (*   iApply ("HΦ" with "[$]"). *)
-  (* Qed. *)
-    
+    iIntros (Hsubset Φ) "([#Hinv #Hinv'] & Hvs) HΦ".
+    rewrite /read_counter1.
+    wp_pure.
+    iInv "Hinv'" as ">( %l & %z & -> & H5 & H6)" "Hclose".
+    wp_load.
+    iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+    { apply difference_mono_l.
+      by apply nclose_subseteq'. }
+    iMod ("Hvs" with "[$]") as "[? HQ]".
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[-HQ HΦ]"); first by iFrame.
+    iApply ("HΦ" with "[$]").
+  Qed.
   
 End impl1.
 
