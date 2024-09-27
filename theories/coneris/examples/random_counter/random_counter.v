@@ -121,12 +121,14 @@ Section lemmas.
               ↯ ε ∗ counter_tapes_frag (L:=L) γ1 α [] ∗
               ⌜(∀ n, 0<=ε2 n)%R⌝ ∗
               ⌜(((ε2 0%nat) + (ε2 1%nat)+ (ε2 2%nat)+ (ε2 3%nat))/4 <= ε)%R⌝ ∗
-              (∀ n, |={∅,E∖↑N}=>
-                 ∀ (z:nat), counter_content_auth (L:=L) γ2 z ={E∖↑N, ∅}=∗
-                          ↯ (ε2 n) ∗ counter_tapes_frag (L:=L) γ1 α [] ={∅, E∖↑N}=∗
+              (∀ n, ↯ (ε2 n) ∗ counter_tapes_frag (L:=L) γ1 α [n] ={∅,E∖↑N}=∗
+                    ∀ (z:nat), counter_content_auth (L:=L) γ2 z ={E∖↑N, ∅}=∗
+                             counter_tapes_frag (L:=L) γ1 α [n]∗
+                           (counter_tapes_frag (L:=L) γ1 α []={∅, E∖↑N}=∗
                     counter_content_auth (L:=L) γ2 (z+n) ∗ Q z n ε ε2
               )
-        )
+              )
+        ) 
     }}}
       incr_counter_tape c #lbl:α @ E
                                  {{{ (z n:nat), RET (#z, #n); ∃ ε ε2, Q z n ε ε2 }}}.
@@ -134,22 +136,44 @@ Section lemmas.
     iIntros (Hsubset Φ) "(#Hinv & Hvs) HΦ".
     iMod (counter_presample_spec _ _
             (λ ε α' ε2 num ns ns',
-               ∃ n z, 
+               ∃ n ε2', 
                  ⌜num=1%nat⌝ ∗ ⌜α'=α⌝ ∗ ⌜ns=[]⌝ ∗ ⌜ns'=[n]⌝ ∗
-                 _
-            )%I with "[//][-]") as "?"; try done.
-  Admitted.
-  (*   { iMod "Hvs" as "(%ε & %ε2 & Herr &Hfrag & %Hpos & %Hineq & Hrest)". *)
-  (*     iFrame. *)
-  (*     intros ε Hε. specialize (Hineq ε Hε). *)
-  (*     rewrite SeriesC_nat_bounded_fin SeriesC_finite_foldr /=. lra. *)
-  (*   } *)
-  (*   iApply (incr_counter_tape_spec_some _ _ _ _ _ _ (T n) (λ x, Q x n) with "[$Hα $HT]"); try done. *)
-  (*   { by iSplit. } *)
-  (*   iNext. *)
-  (*   iIntros. iApply ("HΦ" with "[$]"). *)
-  (* Qed. *)
-
+                 ⌜(ε2' = λ x, ε2 [x])%R⌝ ∗
+                 (∀ z : nat,
+                    counter_content_auth γ2 z ={E ∖ ↑N,∅}=∗
+                    counter_tapes_frag γ1 α [n] ∗
+                    (counter_tapes_frag γ1 α [] ={∅,E ∖ ↑N}=∗
+                    counter_content_auth γ2 (z + n) ∗ Q z n ε ε2'))
+            )%I with "[//][-HΦ]") as "(%ε & % & %ε2 & %num & %ns & %ns' & %n & %ε2' & -> & -> & -> & -> & -> & Hrest)"; try done.
+    - iMod "Hvs" as "(%ε & %ε2 & Herr & Hfrag & %Hpos & %Hineq & Hrest)".
+      iFrame. iModIntro.
+      iExists (λ l, match l with |[x] => ε2 x | _ => 1 end)%R, 1%nat.
+      repeat iSplit.
+      + iPureIntro. intros; repeat case_match; try lra. naive_solver.
+      + iPureIntro. etrans; last exact.
+        rewrite SeriesC_list.
+        * Local Transparent enum_uniform_fin_list.
+          simpl. lra.
+        * apply NoDup_fmap_2; last apply NoDup_enum_uniform_fin_list.
+          apply list_fmap_eq_inj, fin_to_nat_inj.
+      + iIntros (ns') "[Herr Hfrag]". destruct (ns') as [|n[|??]]; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"].
+        iMod ("Hrest" $! n with "[$]").
+        iFrame.
+        by iPureIntro.
+    - wp_apply (incr_counter_tape_spec_some _ _ _ _ _ (λ z n ns, ∃ ε ε2, Q z n ε ε2)%I with "[Hrest]"); first exact.
+      + iSplit; first done.
+        iIntros (z) "Hauth".
+        iMod ("Hrest" with "[$]") as "[Hfrag Hrest]".
+        iFrame.
+        iModIntro.
+        iIntros "Hfrag".
+        iMod ("Hrest" with "[$]") as "[Hauth HQ]".
+        by iFrame.
+      + iIntros (??) "(%&%&%&HQ)".
+        iApply "HΦ".
+        iFrame.
+  Qed.
+  
   (* Lemma incr_counter_tape_spec_none' N E c γ1 γ2 γ3 ε (ε2:R -> nat -> R)(α:loc) (ns:list nat) (q:Qp) (z:nat): *)
   (*   ↑N ⊆ E-> *)
   (*   (∀ ε n, 0<= ε -> 0<= ε2 ε n)%R-> *)
