@@ -4,6 +4,7 @@ From clutch.meas_lang Require Export lang.
 From stdpp Require Import binders.
 From iris.prelude Require Import options.
 
+(*
 (** Coercions to make programs easier to type. *)
 Coercion LitInt : Z >-> base_lit.
 Coercion LitBool : bool >-> base_lit.
@@ -245,3 +246,4 @@ Notation "'letrec:' f x y .. z := e1 'in' e2" :=
   (at level 200, f at level 1, x,y,z at level 1, e1, e2 at level 200,
    format "'[' 'letrec:'  f  x y .. z :=  '/  ' '[' e1 ']'  'in'  '/' e2 ']'")
   : expr_scope.
+*)

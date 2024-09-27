@@ -1,8 +1,8 @@
 From HB Require Import structures.
 From Coq Require Import Logic.ClassicalEpsilon Psatz.
 From stdpp Require Import base numbers binders strings gmap.
-From mathcomp.analysis Require Import reals measure itv.
-From mathcomp Require Import ssrbool all_algebra eqtype choice boolp classical_sets fintype.
+From mathcomp.analysis Require Import reals measure itv lebesgue_measure.
+From mathcomp Require Import ssrbool all_algebra eqtype choice boolp fintype.
 From iris.algebra Require Export ofe.
 From clutch.prelude Require Export stdpp_ext.
 From clutch.common Require Export locations.
@@ -12,10 +12,10 @@ From Coq Require Export Reals.
 From clutch.prob.monad Require Export laws.
 From mathcomp.analysis Require Export Rstruct.
 
+From mathcomp Require Import classical_sets.
+
 (* Fix giryM to be the giry type with stdlib-valued real numbers *)
 Notation giryM := (giryM (R := R)).
-
-
 
 (*
 From Coq Require Import Reals Psatz.
@@ -31,23 +31,36 @@ From mathcomp Require Import cardinality fsbigop.
 From mathcomp.analysis Require Import reals ereal signed normedtype sequences esum numfun measure lebesgue_measure lebesgue_integral.
 *)
 
+
 Delimit Scope expr_scope with E.
 Delimit Scope val_scope with V.
 
 Global Instance classical_eq_dec {T : Type} : EqDecision T.
 Proof.  intros ? ?; apply ClassicalEpsilon.excluded_middle_informative. Defined.
 
+(* Instances for Z *)
+HB.instance Definition _ := gen_eqMixin Z.
+HB.instance Definition _ := gen_choiceMixin Z.
+HB.instance Definition _ := isPointed.Build Z inhabitant.
+
+(* Instances for loc *)
+HB.instance Definition _ := gen_eqMixin loc.
+HB.instance Definition _ := gen_choiceMixin loc.
+HB.instance Definition _ := isPointed.Build loc inhabitant.
+
 Module meas_lang.
 
-Inductive base_lit : Type :=
+Inductive base_lit_pre : Type :=
   | LitInt (n : Z)
   | LitBool (b : bool)
   | LitUnit
   | LitLoc (l : loc)
   | LitLbl (l : loc)
-  | LitReal (r : R).
+  | LitReal (r : ((R : realType) : measurableType _)).
+
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
+
 Inductive bin_op : Set :=
   | PlusOp | MinusOp | MultOp | QuotOp | RemOp (* Arithmetic *)
   | AndOp | OrOp | XorOp (* Bitwise *)
@@ -55,48 +68,201 @@ Inductive bin_op : Set :=
   | LeOp | LtOp | EqOp (* Relations *)
   | OffsetOp. (* Pointer offset *)
 
-Inductive expr :=
+(* exprs, parameterized by type of base_lits B*)
+Inductive exprB (B : Type) :=
   (* Values *)
-  | Val (v : val)
+  | Val (v : valB B)
   (* Base lambda calculus *)
   | Var (x : string)
-  | Rec (f x : binder) (e : expr)
-  | App (e1 e2 : expr)
+  | Rec (f x : binder) (e : exprB B)
+  | App (e1 e2 : exprB B)
   (* Base types and their operations *)
-  | UnOp (op : un_op) (e : expr)
-  | BinOp (op : bin_op) (e1 e2 : expr)
-  | If (e0 e1 e2 : expr)
+  | UnOp (op : un_op) (e : exprB B)
+  | BinOp (op : bin_op) (e1 e2 : exprB B)
+  | If (e0 e1 e2 : exprB B)
   (* Products *)
-  | Pair (e1 e2 : expr)
-  | Fst (e : expr)
-  | Snd (e : expr)
+  | Pair (e1 e2 : exprB B)
+  | Fst (e : exprB B)
+  | Snd (e : exprB B)
   (* Sums *)
-  | InjL (e : expr)
-  | InjR (e : expr)
-  | Case (e0 : expr) (e1 : expr) (e2 : expr)
+  | InjL (e : exprB B)
+  | InjR (e : exprB B)
+  | Case (e0 : exprB B) (e1 : exprB B) (e2 : exprB B)
   (* Heap *)
-  | AllocN (e1 e2 : expr) (* Array length and initial value *)
-  | Load (e : expr)
-  | Store (e1 : expr) (e2 : expr)
+  | AllocN (e1 e2 : exprB B) (* Array length and initial value *)
+  | Load (e : exprB B)
+  | Store (e1 : exprB B) (e2 : exprB B)
   (* Finite probabilistic choice *)
-  | AllocTape (e : expr)
-  | Rand (e1 e2 : expr)
+  | AllocTape (e : exprB B)
+  | Rand (e1 e2 : exprB B)
   (* Real probabilistic choice *)
   | AllocUTape
-  | URand (e : expr)
+  | URand (e : exprB B)
   (* No-op operator used for cost *)
-  | Tick (e : expr)
-with val :=
-  | LitV (l : base_lit)
-  | RecV (f x : binder) (e : expr)
-  | PairV (v1 v2 : val)
-  | InjLV (v : val)
-  | InjRV (v : val).
+  | Tick (e : exprB B)
+with valB (B : Type) :=
+  | LitV (l : B)
+  | RecV (f x : binder) (e : exprB B)
+  | PairV (v1 v2 : valB B)
+  | InjLV (v : valB B)
+  | InjRV (v : valB B).
+
+Local Open Scope classical_set_scope.
+
+(** Define a sigma-algebra on base-lit *)
+
+(* s ∈ base_lit_generators iff s is a lifted measurable set of Z, bool, loc, lbl, unit, or R. *)
+Definition base_lit_generators : set (set (base_lit_pre)) :=
+    (image setT (fun M => image M LitInt)) `|`
+    (image setT (fun M => image M LitBool)) `|`
+    (image setT (fun M => image M LitLoc)) `|`
+    (image setT (fun M => image M LitLbl)) `|`
+    (image (@measurable _ (R : realType)) (fun M => image M LitReal)) `|`
+    [set [set LitUnit]].
+
+HB.instance Definition _ := gen_eqMixin base_lit_pre.
+HB.instance Definition _ := gen_choiceMixin base_lit_pre.
+HB.instance Definition _ := isPointed.Build base_lit_pre LitUnit.
+
+Local Lemma base_lit_meas_obligation : ∀ A : set base_lit_pre, <<s base_lit_generators >> A → <<s base_lit_generators  >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+(* There's got to be a way to delete this *)
+HB.instance Definition _ := @isMeasurable.Build (sigma_display base_lit_generators)
+  base_lit_pre
+  <<s base_lit_generators>> (@sigma_algebra0 _ setT base_lit_generators) base_lit_meas_obligation
+  (@sigma_algebra_bigcup _ setT base_lit_generators).
+
+Definition base_lit : measurableType _ := g_sigma_algebraType base_lit_generators.
+
+(** Lift sigma algebra on base lits to exprs *)
+
+(* expr_pre, val_pre: expressions with base_lit values *)
+Definition expr_pre : Type := exprB base_lit.
+Definition val_pre : Type := valB base_lit.
+
+(* exprS, valS: expressions with set of base_lit values *)
+Definition exprS : Type := exprB (set base_lit).
+Definition valS : Type := valB (set base_lit).
+
+
+(* True when e is an expression where all leaves are measurable sets *)
+Fixpoint is_expr_with_measurable_leaves (e : exprS) : Prop :=
+  match e with
+  | Val v          => is_val_with_measurable_leaves v
+  | Var x          => True
+  | Rec f x e      => is_expr_with_measurable_leaves e
+  | App e1 e2      => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
+  | UnOp op e      => is_expr_with_measurable_leaves e
+  | BinOp op e1 e2 => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
+  | If e0 e1 e2    => is_expr_with_measurable_leaves e0 /\ is_expr_with_measurable_leaves e1 /\
+                      is_expr_with_measurable_leaves e2
+  | Pair e1 e2     => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
+  | Fst e1         => is_expr_with_measurable_leaves e1
+  | Snd e1         => is_expr_with_measurable_leaves e1
+  | InjL e1        => is_expr_with_measurable_leaves e1
+  | InjR e1        => is_expr_with_measurable_leaves e1
+  | Case e0 e1 e2  => is_expr_with_measurable_leaves e0 /\ is_expr_with_measurable_leaves e1 /\
+                      is_expr_with_measurable_leaves e2
+  | AllocN e1 e2   => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
+  | Load e         => is_expr_with_measurable_leaves e
+  | Store e1 e2    => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
+  | AllocTape e    => is_expr_with_measurable_leaves e
+  | Rand e1 e2     => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
+  | AllocUTape     => True
+  | URand e        => is_expr_with_measurable_leaves e
+  | Tick e         => is_expr_with_measurable_leaves e
+  end
+  with
+    is_val_with_measurable_leaves (v : valS) : Prop :=
+    match v with
+    | LitV v       => @measurable _ base_lit v
+    | RecV f x e   => is_expr_with_measurable_leaves e
+    | PairV v1 v2  => is_val_with_measurable_leaves v1 /\ is_val_with_measurable_leaves v2
+    | InjLV v      => is_val_with_measurable_leaves v
+    | InjRV v      => is_val_with_measurable_leaves v
+    end.
+
+Definition all_expr_with_meas_leaves : set exprS := is_expr_with_measurable_leaves.
+Definition all_val_with_meas_leaves : set valS := is_val_with_measurable_leaves.
+
+(* Takes a tree with measurable sets of base_lit for litV and
+   returns a set of trees with base_lit for litV *)
+Fixpoint cylinder_tree (e : exprS) : set expr_pre :=
+  match e with
+  | Val v          => image (cylinder_tree_v v) (Val _)
+  | Var x          => [set (Var _ x)]
+  | Rec f x e      => set0
+  | App e1 e2      => set0
+  | UnOp op e      => set0
+  | BinOp op e1 e2 => set0
+  | If e0 e1 e2    => set0
+  | Pair e1 e2     => set0
+  | Fst e1         => set0
+  | Snd e1         => set0
+  | InjL e1        => set0
+  | InjR e1        => set0
+  | Case e0 e1 e2  => set0
+  | AllocN e1 e2   => set0
+  | Load e         => set0
+  | Store e1 e2    => set0
+  | AllocTape e    => set0
+  | Rand e1 e2     => set0
+  | AllocUTape     => set0
+  | URand e        => set0
+  | Tick e         => set0
+  end
+  with
+    cylinder_tree_v (v : valS) : set val_pre :=
+    match v with
+    | LitV b       => set0
+    | RecV f x e   => set0
+    | PairV v1 v2  => set0
+    | InjLV v      => set0
+    | InjRV v      => set0
+    end.
+
+(* The sigma algebra on exprs is generated by the set of all cylinder trees *)
+Definition expr_subbase : set (set expr_pre) := image all_expr_with_meas_leaves cylinder_tree.
+Definition val_subbase : set (set val_pre) := image all_val_with_meas_leaves cylinder_tree_v.
+
+Definition expr : Type := g_sigma_algebraType expr_subbase.
+Definition val : Type  := g_sigma_algebraType val_subbase.
+
+Local Open Scope classical_set_scope.
+
+HB.instance Definition _ := gen_eqMixin expr.
+HB.instance Definition _ := gen_choiceMixin expr.
+HB.instance Definition _ := isPointed.Build expr (Val base_lit (LitV _ LitUnit)).
+
+Local Lemma expr_meas_obligation : ∀ A : set expr, <<s expr_subbase >> A → <<s expr_subbase >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+(* There's got to be a way to delete this *)
+HB.instance Definition _ := @isMeasurable.Build (sigma_display expr_subbase)
+  expr
+  <<s expr_subbase>> (@sigma_algebra0 _ setT expr_subbase) expr_meas_obligation
+  (@sigma_algebra_bigcup _ setT expr_subbase).
+
+HB.instance Definition _ := gen_eqMixin val.
+HB.instance Definition _ := gen_choiceMixin val.
+HB.instance Definition _ := isPointed.Build val (LitV _ LitUnit).
+
+Local Lemma val_meas_obligation : ∀ A : set val, <<s val_subbase >> A → <<s val_subbase >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+
+(* There's got to be a way to delete this *)
+HB.instance Definition _ := @isMeasurable.Build (sigma_display val_subbase)
+  val
+  <<s val_subbase>> (@sigma_algebra0 _ setT val_subbase) val_meas_obligation
+  (@sigma_algebra_bigcup _ setT val_subbase).
+
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Notation of_val := Val (only parsing).
+Notation of_val := (@Val base_lit) (only parsing).
 
 Definition to_val (e : expr) : option val :=
   match e with
@@ -120,9 +286,6 @@ Record btape : Type := {
     btape_tape :> tape nat;
     btape_bound : nat
 }.
-
-(* Tapes of real numbers *)
-Definition utape : Type := tape R.
 
 (* All values of the tape are within the tape bound *)
 Definition btape_inbounds (t : btape): Prop :=
@@ -208,12 +371,102 @@ Proof. apply map_lookup_total. Defined.
 Global Instance tapes_insert {A} : Insert loc (tape A) (gmap loc (tape A)).
 Proof. apply map_insert. Defined.
 
+(* Tapes of real numbers *)
+Definition utape : Type := tape R.
+
+(* FIXME: Generalize, if it works *)
+Definition btape_generators : set (set btape) :=
+  (fun S => exists bound position index value : nat,
+      S = [set {| btape_tape :=
+                   {| tape_position := position ;
+                      tape_contents := (fun i => if (i =? index) then Some value else None) |} ;
+                  btape_bound := bound |}] \/
+      S = [set {| btape_tape :=
+                   {| tape_position := position ;
+                      tape_contents := (fun _ => None) |} ;
+                  btape_bound := bound |}]).
+
+HB.instance Definition _ := gen_eqMixin btape.
+HB.instance Definition _ := gen_choiceMixin btape.
+HB.instance Definition _ := isPointed.Build btape {| btape_tape := emptyTape; btape_bound := 0 |}.
+
+Local Lemma btape_meas_obligation : ∀ A : set btape, <<s btape_generators>> A → <<s btape_generators >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+(* There's got to be a way to delete this *)
+HB.instance Definition _ := @isMeasurable.Build (sigma_display btape_generators)
+  btape
+  <<s btape_generators>> (@sigma_algebra0 _ setT btape_generators) btape_meas_obligation
+  (@sigma_algebra_bigcup _ setT btape_generators).
+
+
+
+
+
+
+(* FIXME: Generalize, if it works *)
+Definition utape_generators : set (set utape) :=
+  (fun S : set utape => exists position index : nat, ∃ M : (set R),
+      (@measurable _ (R : realType) M) /\
+      S = image M
+            (fun r => {| tape_position := position;
+                       tape_contents := (fun i => if (i =? index) then Some r else None) |} : utape) \/
+      S = [set {| tape_position := position ; tape_contents := (fun _ => None )|}]).
+
+HB.instance Definition _ := gen_eqMixin utape.
+HB.instance Definition _ := gen_choiceMixin utape.
+HB.instance Definition _ := isPointed.Build utape emptyTape.
+
+Local Lemma utape_meas_obligation : ∀ A : set utape, <<s utape_generators>> A → <<s utape_generators >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+(* There's got to be a way to delete this *)
+HB.instance Definition _ := @isMeasurable.Build (sigma_display utape_generators)
+  utape
+  <<s utape_generators>> (@sigma_algebra0 _ setT utape_generators) utape_meas_obligation
+  (@sigma_algebra_bigcup _ setT utape_generators).
+
+
+
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
 Record state : Type := {
   heap   : gmap loc val;
   tapes  : gmap loc btape;
   utapes : gmap loc utape
 }.
+
+
+Definition state_generators : set (set state) := setT.
+  (* FIXME *)
+  (*
+  (fun S : set state =>
+     forall l : loc,
+      exists SV : set val,
+      exists ST : set btape,
+      exists SU : set utape,
+      measurable SV /\
+      measurable ST /\
+      measurable SU /\
+      image S (fun st => st.(heap) !! l) = SV ).
+*)
+
+HB.instance Definition _ := gen_eqMixin state.
+HB.instance Definition _ := gen_choiceMixin state.
+HB.instance Definition _ := isPointed.Build state {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
+
+Local Lemma state_meas_obligation : ∀ A : set state, <<s state_generators>> A → <<s state_generators >> (~` A).
+Proof. eapply sigma_algebraC. Qed.
+
+(* There's got to be a way to delete this *)
+HB.instance Definition _ := @isMeasurable.Build (sigma_display state_generators)
+  state
+  <<s state_generators>> (@sigma_algebra0 _ setT state_generators) state_meas_obligation
+  (@sigma_algebra_bigcup _ setT state_generators).
+
+
+
+
+
 
 (** Equality and other typeclass stuff *)
 Lemma to_of_val v : to_val (of_val v) = Some v.
@@ -225,11 +478,11 @@ Proof. destruct e=>//=. by intros [= <-]. Qed.
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
 
-Global Instance state_inhabited : Inhabited state :=
-  populate {| heap := inhabitant; tapes := inhabitant; utapes := inhabitant |}.
+(*
+Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
 Global Instance val_inhabited : Inhabited val := populate (LitV LitUnit).
 Global Instance expr_inhabited : Inhabited expr := populate (Val inhabitant).
-
+*)
 
 Canonical Structure stateO := leibnizO state.
 Canonical Structure locO := leibnizO loc.
@@ -263,6 +516,11 @@ Inductive ectx_item :=
   | URandCtx
   | TickCtx.
 
+
+(* FIXME: Hide cosntructors, so that we don't need to mention base_lit *)
+
+
+(*
 Definition fill_item (Ki : ectx_item) (e : expr) : expr :=
   match Ki with
   | AppLCtx v2 => App e (of_val v2)
@@ -577,38 +835,16 @@ Qed.
 
 (* #[local] Open Scope R.  *)
 
+
+
 Section pointed_instances.
   Local Open Scope classical_set_scope.
-  (** val are pointed *)
-
-  (* Fail Check (<<discr val>> : measurableType _).  *)
-  HB.instance Definition _ := gen_eqMixin val.
-  HB.instance Definition _ := gen_choiceMixin val.
-  HB.instance Definition _ := isPointed.Build val inhabitant.
-  (* Check (<<discr val>> : measurableType _). *)
-
-  (** states are pointed *)
-  (* Maybe define a builder for this? Any sdtpp inhabited type -> mathcomp pointed type *)
 
   (* Fail Check (<<discr state>> : measurableType _).  *)
   HB.instance Definition _ := gen_eqMixin state.
   HB.instance Definition _ := gen_choiceMixin state.
   HB.instance Definition _ := isPointed.Build state inhabitant.
   (* Check (<<discr state>> : measurableType _). *)
-
-  (** expr is pointed *)
-  (* Fail Check (<<discr expr>> : measurableType _).  *)
-  HB.instance Definition _ := gen_eqMixin expr.
-  HB.instance Definition _ := gen_choiceMixin expr.
-  HB.instance Definition _ := isPointed.Build expr inhabitant.
-  (* Check (<<discr expr>> : measurableType _).  *)
-
-  (** loc is pointed *)
-  (* Fail Check (<<discr loc>> : measurableType _).  *)
-  HB.instance Definition _ := gen_eqMixin loc.
-  HB.instance Definition _ := gen_choiceMixin loc.
-  HB.instance Definition _ := isPointed.Build loc inhabitant.
-  (* Check (<<discr loc>> : measurableType _).  *)
 
   (** cfg is pointed (automatic) *)
   (* Check (<<discr cfg>> : measurableType _).  *)
@@ -617,7 +853,7 @@ Section pointed_instances.
   (* Check (<<discr (state * loc)>> : measurableType _). *)
 
   (** R is pointed *)
-  (* Check (<<discr R>> : measurableType _). *)
+  Check (<<discr R>> : measurableType _).
 
 End pointed_instances.
 
@@ -944,6 +1180,7 @@ Ltac inv_head_step :=
     | H : to_val _ = Some _ |- _ => apply of_to_val in H
     | H : is_Some (_ !! _) |- _ => destruct H
     end.
+
 Lemma head_step_support_equiv_rel e1 e2 σ1 σ2 :
   head_step e1 σ1 (e2, σ2) > 0 ↔ head_step_rel e1 σ1 e2 σ2.
 Proof.
@@ -1079,8 +1316,9 @@ Proof.
   split.
 Admitted.
 
-
+***)
 End meas_lang.
+(*
 
 (** Language *)
 
@@ -1091,4 +1329,4 @@ Canonical Structure meas_lang := MeasLanguageOfEctx meas_ectx_lang.
 
 (* Prefer meas_lang names over ectx_language names. *)
 Export meas_lang.
-
+*)
