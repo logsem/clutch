@@ -114,40 +114,34 @@ Section impl1.
     iIntros (Hsubset Φ) "([#Hinv #Hinv'] & Hvs) HΦ".
     rewrite /incr_counter_tape1.
     wp_pures.
-    wp_apply (rand_tape_spec_some with "[Hvs]"); [by eapply nclose_subseteq'|iSplit; first done|..].
-  (*   - iSplit *)
-  (*   wp_bind (rand(_) _)%E. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[Htape H3]". *)
-  (*   wp_apply (wp_rand_tape with "[$]"). *)
-  (*   iIntros "[Htape %]". *)
-  (*   iMod (hocap_tapes_pop with "[$][$]") as "[H4 Hα]". *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_". *)
-  (*   { iSplitL; last done. *)
-  (*     erewrite <-(insert_delete m) at 2; last done. *)
-  (*     iNext. *)
-  (*     rewrite insert_insert. *)
-  (*     rewrite big_sepM_insert; last apply lookup_delete. iFrame. *)
-  (*   } *)
-  (*   iModIntro. *)
-  (*   wp_pures. *)
-  (*   clear -Hsubset. *)
-  (*   wp_bind (FAA _ _). *)
-  (*   iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_faa. *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   replace (#(z+n)) with (#(z+n)%nat); last first. *)
-  (*   { by rewrite Nat2Z.inj_add. } *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done. *)
-  (*   iModIntro. wp_pures. *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-    (* Qed. *)
-  Admitted.
+    wp_apply (rand_tape_spec_some _ _ _
+                (λ n ns, ∀ (z:nat), own γ2 (●F z)={E∖↑N}=∗
+                                  own γ2 (●F (z+n)) ∗ Q z n ns)%I with "[Hvs]"); [by eapply nclose_subseteq'|iSplit; first done|..].
+    - iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose".
+      + apply difference_mono_l.
+        by apply nclose_subseteq'.
+      + iMod "Hvs" as "(%n & %ns & Hfrag & Hrest)".
+        iModIntro.
+        iFrame.
+        iIntros "Hfrag".
+        iMod ("Hrest" with "[$]") as "Hrest".
+        by iMod "Hclose" as "_".
+    - iIntros (n) "(%ns & Hvs)".
+      wp_pures.
+      wp_bind (FAA _ _).
+      iInv "Hinv'" as ">(%&%&-> & ?&?)" "Hclose".
+      wp_faa.
+      iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+      + apply difference_mono_l.
+        by apply nclose_subseteq'.
+      + iMod ("Hvs" with "[$]") as "[? HQ]".
+        iMod "Hclose'" as "_".
+        rewrite -Nat2Z.inj_add.
+        iMod ("Hclose" with "[-HΦ HQ]") as "_"; first by iFrame.
+        iModIntro.
+        wp_pures.
+        iApply "HΦ". by iFrame.
+  Qed.
   
   Lemma counter_presample_spec1  NS E T γ1 γ2 c:
     ↑NS ⊆ E ->
