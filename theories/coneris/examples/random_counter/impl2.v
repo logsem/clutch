@@ -125,23 +125,20 @@ Section impl2.
           ∃ γ1 γ2, is_counter2 N c γ1 γ2 ∗ own γ2 (◯F 0%nat)
       }}}.
   Proof.
-  Admitted.
-  (*   rewrite /new_counter2. *)
-  (*   iIntros (Φ) "Hε HΦ". *)
-  (*   wp_pures. *)
-  (*   iDestruct (ec_valid with "[$]") as "%". *)
-  (*   iMod (flip_inv_create_spec with "[$]") as "(%γ1'&%γ2'&#?&Hε)". *)
-  (*   wp_alloc l as "Hl". *)
-  (*   simpl. *)
-  (*   (* iMod (hocap_tapes_alloc' (∅:gmap _ _)) as "[%γ2 [H3 H4]]". *) *)
-  (*   iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]". *)
-  (*   { by apply frac_auth_valid. } *)
-  (*   replace (#0) with (#0%nat) by done. *)
-  (*   iMod (inv_alloc (N.@"counter") _ (counter_inv_pred2 (#l) γ3) with "[$Hl $H5]") as "#Hinv"; first done. *)
-  (*   iApply "HΦ". *)
-  (*   iExists _, _, _. iModIntro. iFrame. *)
-  (*   by iSplit. *)
-  (* Qed. *)
+    rewrite /new_counter2.
+    iIntros (Φ) "_ HΦ".
+    wp_pures.
+    iMod (flip_inv_create_spec) as "(%γ1 & #Hinv)".
+    wp_alloc l as "Hl".
+    iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ2[H5 H6]]".
+    { by apply frac_auth_valid. }
+    replace (#0) with (#0%nat) by done.
+    iMod (inv_alloc _ _ (counter_inv_pred2 (#l) γ2) with "[$Hl $H5]") as "#Hinv'"; first done.
+    iApply "HΦ".
+    iFrame.
+    iModIntro.
+    iExists _. by iSplit.
+  Qed.
 
 
   (** This lemma is not possible as only one view shift*)
@@ -174,31 +171,32 @@ Section impl2.
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ (flip_tapes_frag (L:=L) γ1 α (expander []) ∗ ⌜Forall (λ x, x<4) []⌝)
       }}}.
   Proof.
+    iIntros (Hsubset Φ) "[#Hinv #Hinv'] HΦ".    
+    rewrite /allocate_tape2.
+    wp_pures.
+    wp_apply flip_allocate_tape_spec; [by eapply nclose_subseteq'|done|..].
+    iIntros (?) "(%&->&?)".
+    iApply "HΦ".
+    iFrame.
+    iPureIntro. split; first done.
+    by apply Forall_nil.
+  Qed.
+    
+  Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 (Q:nat->nat -> list nat -> iProp Σ) (α:loc) :
+    ↑N⊆E ->
+    {{{ is_counter2 N c γ1 γ2 ∗
+        ( |={E∖ ↑N, ∅}=>
+                   ∃ n ns, (flip_tapes_frag (L:=L) γ1 α (expander (n::ns)) ∗ ⌜Forall (λ x, x<4) (n::ns)⌝) ∗
+                    (flip_tapes_frag (L:=L) γ1 α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝) ={∅, E∖↑N}=∗
+                     ∀ (z:nat), own γ2 (●F z)
+                              ={E∖↑N}=∗
+                              own γ2 (●F (z+n)) ∗ Q z n ns)
+          
+    }}}
+      incr_counter_tape2 c #lbl:α @ E
+      {{{ (z n:nat), RET (#z, #n); ∃ ns, Q z n ns}}}.
+  Proof.
   Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hinv') HΦ". *)
-  (*   rewrite /allocate_tape2. *)
-  (*   iApply wptac_wp_fupd. *)
-  (*   iApply (flip_allocate_tape_spec); [by eapply nclose_subseteq'|done|]. *)
-  (*   iNext. *)
-  (*   iIntros (?) "(%α & -> & Hfrag)". *)
-  (*   iApply "HΦ". *)
-  (*   iFrame. *)
-  (*   iPureIntro. *)
-  (*   split; first done. *)
-  (*   by apply Forall_nil. *)
-  (* Qed. *)
-  
-  (* Lemma incr_counter_tape_spec_some2 N E c γ1 γ2 γ3 (P: iProp Σ) (Q:nat->iProp Σ) (α:loc) (n:nat) ns: *)
-  (*   ↑N⊆E -> *)
-  (*   {{{ (is_flip (L:=L) (N.@"flip") γ1 γ2 ∗ *)
-  (*                      inv (N.@ "counter") (counter_inv_pred2 c γ3)) ∗ *)
-  (*       □ (∀ (z:nat), P ∗ own γ3 (●F z) ={E∖↑N}=∗ *)
-  (*                         own γ3 (●F(z+n)%nat)∗ Q z) ∗ *)
-  (*       P ∗ (flip_tapes_frag (L:=L) γ2 α (expander (n::ns))∗ ⌜Forall (λ x, x<4) (n::ns)⌝) *)
-  (*   }}} *)
-  (*     incr_counter_tape2 c #lbl:α @ E *)
-  (*     {{{ (z:nat), RET (#z, #n); Q z ∗ (flip_tapes_frag (L:=L) γ2 α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝)}}}. *)
-  (* Proof. *)
   (*   iIntros (Hsubset Φ) "((#Hinv & #Hinv') & #Hvs & HP & [Hα %]) HΦ". *)
   (*   rewrite /incr_counter_tape2. *)
   (*   wp_pures. *)
