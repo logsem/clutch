@@ -32,6 +32,84 @@ Proof.
       repeat (destruct y as [|y]; try lia);
       simpl in *; simplify_eq.
 Qed.
+
+Local Fixpoint decoder (l:list bool) :=
+  match l with
+  |[] => Some []
+  | b::b'::ls =>
+      res← decoder ls;
+      Some (((bool_to_nat b)*2+(bool_to_nat b'))::res)
+  | _ => None
+end.
+
+(* Lemma decoder_unfold l: *)
+(*   decoder l =  *)
+(*   match l with *)
+(*   |[] => Some [] *)
+(*   | b::b'::ls => *)
+(*       res← decoder ls; *)
+(*       Some (((bool_to_nat b)*2+(bool_to_nat b'))::res) *)
+(* | _ => None end. *)
+(* Proof. *)
+(*   induction l; by rewrite {1}/decoder. *)
+(* Qed. *)
+
+Local Lemma decoder_correct bs ns: decoder bs = Some ns -> expander ns = bs.
+Proof.
+  revert bs.
+  induction ns.
+  - intros bs H. simpl. destruct bs as [|?[|??]]; try done.
+    simpl in *.
+    rewrite bind_Some in H.
+    destruct H as (?&?&?).
+    simplify_eq.
+  - intros [|b[|b' ?]]; simpl; try done.
+    intros H.
+    rewrite bind_Some in H.
+    destruct H as (?&?&?).
+    simplify_eq.
+    repeat f_equal; last naive_solver; destruct b; destruct b'; done.
+Qed.
+      
+    
+Local Lemma decoder_inj x y z: decoder x = Some z -> decoder y = Some z -> x= y.
+Proof.
+  intros H1 H2.
+  apply decoder_correct in H1, H2.
+  by subst.
+Qed.
+
+Local Lemma decoder_ineq bs xs: decoder bs = Some xs -> Forall (λ x : nat, x < 4) xs.
+Proof.
+  revert bs.
+  induction xs; first by (intros; apply Forall_nil).
+  intros [|b[|b'?]] H; try simplify_eq.
+  rewrite bind_Some in H.
+  destruct H as (?&?&?).
+  simplify_eq.
+  rewrite Forall_cons.
+  split; last naive_solver.
+  destruct b, b'; simpl; lia.
+Qed.
+
+Local Lemma decoder_None p bs : length bs = p -> decoder bs = None -> ¬ ∃ num, length bs = 2 * num.
+Proof.
+  revert bs.
+  induction (lt_wf p) as [x ? IH].
+  destruct x.
+  - intros []??; simplify_eq.
+  - intros [|?[|??]]; intros Hlen H'; simplify_eq.
+    + simpl in *. simplify_eq.
+      intros (num&?).
+      destruct num; lia.
+    + simpl in *.
+      simplify_eq.
+      rewrite bind_None in H'.
+      destruct H' as [|(?&?&?)]; last done.
+      unshelve epose proof IH (length l) _ l _ _ as H1; try lia; try done.
+      intros (num & ?). apply H1.
+      exists (num-1). lia.
+Qed.
 (* Local Definition expander (l:list nat):= *)
 (*   l ≫= (λ x, [Nat.div2 x; Nat.b2n (Nat.odd x)]). *)
 
@@ -264,94 +342,74 @@ Section impl2.
       ))-∗ 
         wp_update E (∃ ε ε2 num ns', (flip_tapes_frag (L:=L) γ1 α (expander (ns++ns')) ∗ ⌜Forall (λ x, x<4) (ns++ns')⌝) ∗ T ε ε2 num ns').
   Proof.
+    iIntros (Hsubset) "(#Hinv & #Hinv') [Hfrag %] Hvs".
+    iMod (flip_presample_spec _ _ _ _ _
+            (λ ε num' ε2' ns', ∃ num ε2 ns,
+                ⌜(2 * num = num')%nat⌝∗ ⌜expander ns = ns'⌝ ∗ ⌜Forall (λ x, x<4) ns⌝ ∗
+                (* ⌜ ∀ ls, Forall (λ x, x<4) ls -> ε2 ls = ε2' (expander ls)⌝ ∗ *)
+                T ε ε2 num ns
+            )%I with "[//][$][Hvs]") as "H"; first by apply nclose_subseteq'. 
+    - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose". 
+      { apply difference_mono; [done|by apply nclose_subseteq']. }
+      iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hvs)".
+      iExists ε, (2*num).
+      iFrame.
+      iModIntro.
+      iExists (λ ls, match (decoder ls) with | Some ls' => ε2 ls' | _ => 1%R end).
+      repeat iSplit.
+      + iPureIntro. intros. case_match; [done|lra].
+      + iPureIntro.
+        etrans; last exact.
+        rewrite !Rdiv_def -!SeriesC_scal_r.
+        etrans; last eapply (SeriesC_le_inj _ (λ bs, decoder bs)).
+        * apply Req_le.
+          apply SeriesC_ext.
+          intros bs.
+          destruct (decoder bs) eqn:K.
+          -- simpl. f_equal.
+             ++ case_match eqn:H0.
+                ** rewrite bool_decide_eq_true_2; first done.
+                   erewrite elem_of_list_fmap.
+                   rewrite Nat.eqb_eq in H0.
+                   admit.
+                ** rewrite bool_decide_eq_false_2; first done.
+                   rewrite elem_of_list_fmap.
+                   intros (?&->&K').
+                   rewrite elem_of_enum_uniform_fin_list in K'.
+                   rewrite Nat.eqb_neq in H0.
+                   exfalso. apply H0.
+                   admit.
+             ++ f_equal.
+                replace 4%R with (2^2)%R; last (simpl; lra).
+                by rewrite -pow_mult.
+          -- simpl.
+             eapply decoder_None in K; last done.
+             case_match eqn :H0; last lra.
+             rewrite Nat.eqb_eq in H0.
+             exfalso.
+             apply K.
+             exists num. lia.
+        * intros. rewrite -Rdiv_1_l.
+          replace 4%R with (INR 4); last (simpl; lra).
+          rewrite -pow_INR. apply Rmult_le_pos; last apply Rdiv_INR_ge_0.
+          case_bool_decide; [done|lra].
+        * intros. by eapply decoder_inj.
+        * apply ex_seriesC_scal_r, ex_seriesC_list.
+      + iIntros (ns') "Herr".
+        case_match eqn :Hdecoder; last (by iDestruct (ec_contradict with "[$]") as "%").
+        iMod ("Hvs" with "[$]") as "HT".
+        iMod "Hclose" as "_".
+        iFrame.
+        iPureIntro. repeat split.
+        * by apply decoder_correct. 
+        * by eapply decoder_ineq. 
+    - iDestruct "H" as "(%&%&%&%&?&%&%&%&<-&<-&%&?)".
+      iModIntro.
+      iFrame.
+      iSplit; last by rewrite Forall_app.
+      rewrite /expander.
+      by rewrite bind_app.
   Admitted.
-  (* Proof. *)
-  (*   iIntros (Hsubset Hpos Hineq) "(#Hinv & #Hinv') #Hvs HP Hfrag". *)
-  (*   iApply fupd_wp_update. *)
-  (* Admitted. *)
-  (*   iApply flip_presample_spec. *)
-  (*   iApply wp_update_state_step_coupl. *)
-  (*   iIntros (σ ε) "((Hheap&Htapes)&Hε)". *)
-  (*   iMod (inv_acc with "Hinv") as "[>(% & % & % & % & H1 & H2 & H3 & H4 & -> & H5 & H6) Hclose]"; [done|]. *)
-  (*   iDestruct (hocap_tapes_agree' with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[Htape H3]". *)
-  (*   iDestruct (tapeN_lookup with "[$][$]") as "(%&%&%H1)". *)
-  (*   iDestruct (ec_supply_bound with "[$][$]") as "%". *)
-  (*   iMod (ec_supply_decrease with "[$][$]") as (ε1' ε_rem -> Hε1') "Hε_supply". subst. *)
-  (*   iApply fupd_mask_intro; [set_solver|]; iIntros "Hclose'". *)
-  (*   iApply (state_step_coupl_iterM_state_adv_comp_con_prob_lang 2%nat); first done. *)
-  (*   pose (f (l:list (fin 2)) := (match l with *)
-  (*                                      | x::[x'] => 2*fin_to_nat x + fin_to_nat x' *)
-  (*                                      | _ => 0 *)
-  (*                                      end)). *)
-  (*   unshelve iExists *)
-  (*     (λ l, mknonnegreal (ε2 ε1' (f l) ) _). *)
-  (*   { apply Hpos; simpl. auto. } *)
-  (*   simpl. *)
-  (*   iSplit. *)
-  (*   { iPureIntro. *)
-  (*     etrans; last apply Hineq; last auto. *)
-  (*     pose (k:=(λ n, 1 / ((1 + 1) * ((1 + 1) * 1)) * ε2 ε1' (f n))%R). *)
-  (*     erewrite (SeriesC_ext _ (λ x, if bool_decide (x ∈ enum_uniform_list 1%nat 2%nat) *)
-  (*                                   then k x else 0%R))%R; last first. *)
-  (*     - intros. case_bool_decide as K. *)
-  (*       + rewrite elem_of_enum_uniform_list in K. by rewrite K /k. *)
-  (*       + rewrite elem_of_enum_uniform_list in K. *)
-  (*         case_match eqn:K'; [by rewrite Nat.eqb_eq in K'|done]. *)
-  (*     - rewrite SeriesC_list; last apply NoDup_enum_uniform_list. *)
-  (*       rewrite /k /=. rewrite SeriesC_nat_bounded'/=. lra. *)
-  (*   } *)
-  (*   iIntros (sample ?). *)
-  (*   destruct (Rlt_decision (nonneg ε_rem + (ε2 ε1' (f sample)))%R 1%R) as [Hdec|Hdec]; last first. *)
-  (*   { apply Rnot_lt_ge, Rge_le in Hdec. *)
-  (*     iApply state_step_coupl_ret_err_ge_1. *)
-  (*     simpl. simpl in *. lra. *)
-  (*   } *)
-  (*   iApply state_step_coupl_ret. *)
-  (*   unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 ε1' (f sample)) _) with "Hε_supply") as "[Hε_supply Hε]". *)
-  (*   { apply Hpos. apply cond_nonneg. } *)
-  (*   { simpl. done. } *)
-  (*   assert (Nat.div2 (f sample)<2)%nat as K1. *)
-  (*   { rewrite Nat.div2_div. apply Nat.Div0.div_lt_upper_bound. rewrite /f. *)
-  (*     simpl. repeat case_match; try lia. pose proof fin_to_nat_lt t. pose proof fin_to_nat_lt t0. lia. *)
-  (*   } *)
-  (*   rewrite -H1. *)
-  (*   iMod (tapeN_update_append _ _ _ _ (nat_to_fin K1) with "[$][$]") as "[Htapes Htape]". *)
-  (*   assert (Nat.b2n (Nat.odd (f sample))<2)%nat as K2. *)
-  (*   { edestruct (Nat.odd _); simpl; lia.  } *)
-  (*   rewrite -(list_fmap_singleton (fin_to_nat)) -fmap_app. *)
-  (*   iMod (tapeN_update_append _ _ _ _ (nat_to_fin K2) with "[$][$]") as "[Htapes Htape]". *)
-  (*   iMod (hocap_tapes_presample' _ _ _ _ _ (f sample) with "[$][$]") as "[H4 Hfrag]". *)
-  (*   iMod "Hclose'" as "_". *)
-  (*   iMod ("Hvs" with "[$]") as "[%|[H2 HT]]". *)
-  (*   { iExFalso. iApply (ec_contradict with "[$]"). exact. } *)
-  (*   rewrite insert_insert. *)
-  (*   rewrite fmap_app -!app_assoc /=. *)
-  (*   assert (([nat_to_fin K1;nat_to_fin K2]) = sample) as K. *)
-  (*   { destruct sample as [|x xs]; first done. *)
-  (*     destruct xs as [|x' xs]; first done. *)
-  (*     destruct xs as [|]; last done. *)
-  (*     pose proof fin_to_nat_lt x. pose proof fin_to_nat_lt x'. *)
-  (*     repeat f_equal; apply fin_to_nat_inj; rewrite fin_to_nat_to_fin. *)
-  (*     - rewrite /f. rewrite Nat.div2_div. *)
-  (*       rewrite Nat.mul_comm Nat.div_add_l; last lia. rewrite Nat.div_small; lia. *)
-  (*     - rewrite /f. rewrite Nat.add_comm Nat.odd_add_even. *)
-  (*       + destruct (fin_to_nat x') as [|[|]]; simpl; lia. *)
-  (*       + by econstructor. *)
-  (*   } *)
-  (*   iMod ("Hclose" with "[$Hε $H2 Htape H3 $H4 $H5 $H6]") as "_". *)
-  (*   { iNext. iSplit; last done. *)
-  (*     rewrite big_sepM_insert_delete; iFrame. *)
-  (*     simpl. rewrite !fin_to_nat_to_fin. *)
-  (*     rewrite /expander bind_app -/(expander ns). simpl. by rewrite H1. *)
-  (*   } *)
-  (*   iApply fupd_mask_intro_subseteq; first set_solver. *)
-  (*   rewrite K. *)
-  (*   iFrame. *)
-  (* Qed. *)
 
   Lemma read_counter_spec2 N E c γ1 γ2 Q:
     ↑N ⊆ E ->
