@@ -4,12 +4,33 @@ From clutch.coneris Require Import coneris hocap random_counter hocap_flip.
 
 Set Default Proof Using "Type*".
 
-
 Local Definition expander (l:list nat):=
   l ≫= (λ x, [2<=?x; (Nat.odd x)]).
 Local Lemma expander_eta x: x<4->(Z.of_nat x=  Z.of_nat 2*Z.b2z (2<=? x)%nat +  Z.b2z (Nat.odd x))%Z.
 Proof.
   destruct x as [|[|[|[|]]]]; last lia; intros; simpl; lia.
+Qed.
+
+Local Lemma expander_inj l1 l2: Forall (λ x, x<4) l1 ->
+                                   Forall (λ y, y<4) l2 ->
+                                   expander l1 = expander l2 ->
+                                   l1 = l2. 
+Proof.
+  rewrite /expander.
+  revert l2.
+  induction l1 as [|x xs IH].
+  - simpl.
+    by intros [] ???.
+  - simpl.
+    intros [|y ys]; simpl; first done.
+    rewrite !Forall_cons.
+    rewrite /Nat.odd.
+    intros [K1 H1] [K2 H2] H.
+    simplify_eq.
+    f_equal; last naive_solver.
+    repeat (destruct x as [|x]; try lia);
+      repeat (destruct y as [|y]; try lia);
+      simpl in *; simplify_eq.
 Qed.
 (* Local Definition expander (l:list nat):= *)
 (*   l ≫= (λ x, [Nat.div2 x; Nat.b2n (Nat.odd x)]). *)
@@ -377,6 +398,11 @@ Section impl2.
   (* Qed. *)
   
 End impl2.
+
+Program Definition counterG2_to_flipG `{conerisGS Σ, !flip_spec, !counterG2 Σ} : flipG Σ.
+Proof.
+  eapply counterG2_flipG.
+Qed.
   
 Program Definition random_counter2 `{flip_spec Σ}: random_counter :=
   {| new_counter := new_counter2;
@@ -387,8 +413,8 @@ Program Definition random_counter2 `{flip_spec Σ}: random_counter :=
     tape_name := flip_tape_name;
     counter_name :=gname;
     is_counter _ N c γ1 γ2 := is_counter2 N c γ1 γ2;
-    counter_tapes_auth _ γ m :=  flip_tapes_auth (L:=_) γ ((λ ns, expander ns)<$>m);
-    counter_tapes_frag _ γ α ns := (flip_tapes_frag (L:=_) γ α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝)%I;
+    counter_tapes_auth K γ m := (flip_tapes_auth (L:=counterG2_to_flipG) γ ((λ ns, expander ns)<$>m) ∗ ⌜map_Forall (λ _ ns, Forall (λ x, x<4) ns) m⌝)%I;
+    counter_tapes_frag K γ α ns := (flip_tapes_frag (L:=counterG2_to_flipG) γ α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝)%I;
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
     new_counter_spec _ := new_counter_spec2;
@@ -398,13 +424,44 @@ Program Definition random_counter2 `{flip_spec Σ}: random_counter :=
     read_counter_spec _ :=read_counter_spec2
   |}.
 Next Obligation.
-  intros ?? ? ???.
-  apply counterG2_flipG.
+  simpl.
+  iIntros (???????) "[H1 ?] [H2 ?]".
+  iApply (flip_tapes_auth_exclusive with "[$][$]").
 Qed.
 Next Obligation.
   simpl.
-  iIntros (???????) "H1 H2".
-  iApply (flip_tapes_auth_exclusive with "[$][$]").
+  iIntros (????????) "[??] [??]".
+  iApply (flip_tapes_frag_exclusive with "[$][$]").
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (????????) "[Hauth %H0] [Hfrag %]".
+  iDestruct (flip_tapes_agree γ α ((λ ns0 : list nat, expander ns0) <$> m) (expander ns) with "[$][$]") as "%K".
+  iPureIntro.
+  rewrite lookup_fmap_Some in K. destruct K as (?&K1&?).
+  replace ns with x; first done.
+  apply expander_inj; try done.
+  by eapply map_Forall_lookup_1 in H0.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (???????) "[? %]".
+  iPureIntro.
+  eapply Forall_impl; first done.
+  simpl. lia.
+Qed.
+Next Obligation.
+  simpl.
+  iIntros (??????????) "[H1 %] [H2 %]".
+  iMod (flip_tapes_update with "[$][$]") as "[??]".
+  iFrame.
+  iModIntro.
+  rewrite fmap_insert. iFrame.
+  iPureIntro. split.
+  - apply map_Forall_insert_2; last done.
+    eapply Forall_impl; first done. simpl; lia.
+  - eapply Forall_impl; first done.
+    simpl; lia.
 Qed.
 Next Obligation.
   simpl.
@@ -434,28 +491,3 @@ Next Obligation.
   apply frac_auth_update.
   apply nat_local_update. lia.
 Qed.
-Next Obligation.
-  intros ?? H ?.
-  apply counterG2_flipG.
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (???????) "[? %]".
-  iPureIntro.
-  eapply Forall_impl; first done.
-  simpl. lia.
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (????????) "[??] [??]".
-  iApply (flip_tapes_frag_exclusive with "[$][$]").
-Qed.
-Next Obligation.
-  simpl.
-  iIntros (????????) "Hauth [Hfrag ?]".
-  iDestruct (flip_tapes_agree γ α ((λ ns0 : list nat, expander ns0) <$> m) (expander ns) with "[$][Hfrag]") as "%".
-  - (* HUH? *)
-Admitted.
-Next Obligation.
-  simpl.
-Admitted.
