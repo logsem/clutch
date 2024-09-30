@@ -49,7 +49,7 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ flip_tapes_frag (L:=L) γ1 α []
       }}};
   
-  flip_tape_spec_some {L: flipG Σ} N E γ1 (Q:bool -> list bool -> iProp Σ) (α:loc) n ns:
+  flip_tape_spec_some {L: flipG Σ} N E γ1 (α:loc) n ns:
     ↑N⊆E ->
     {{{ is_flip (L:=L) N γ1 ∗ flip_tapes_frag (L:=L) γ1 α (n::ns)
     }}}
@@ -136,7 +136,7 @@ Section instantiate_flip.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (???? Q ???? Φ) "(#Hinv & Hfrag) HΦ".
+    iIntros (???? ???? Φ) "(#Hinv & Hfrag) HΦ".
     wp_pures.
     wp_apply (rand_tape_spec_some  with "[-HΦ]"); [done|..].
     - by iFrame. 
