@@ -215,59 +215,40 @@ Section impl2.
                                   {{{ (z:nat), RET (#z, #n);
                                       (flip_tapes_frag (L:=L) γ1 α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝) ∗ Q z }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "((#Hinv & #Hinv') & #Hvs & HP & [Hα %]) HΦ". *)
-  (*   rewrite /incr_counter_tape2. *)
-  (*   wp_pures. *)
-  (*   wp_apply (flip_tape_spec_some _ _ _ _ (flip_tapes_frag γ2 α (expander (n::ns)) ) (flip_tapes_frag γ2 α (drop 1%nat (expander (n::ns))))with "[$Hα]"); [|iSplit; first done|]. *)
-  (*   { by apply nclose_subseteq'. } *)
-  (*   { iModIntro. iIntros (m) "[Hfrag Hauth]". *)
-  (*     iDestruct (flip_tapes_agree with "[$][$]") as "%". *)
-  (*     simpl. *)
-  (*     iMod (flip_tapes_pop with "[$][$]") as "[Hauth Htape]". *)
-  (*     iModIntro. *)
-  (*     simpl in *. *)
-  (*     by iFrame. *)
-  (*   } *)
-  (*   iIntros "Hα". *)
-  (*   wp_apply (conversion.wp_bool_to_int) as "_"; first done. *)
-  (*   wp_pures. *)
-  (*   wp_apply (flip_tape_spec_some _ _ _ _ (flip_tapes_frag γ2 α (drop 1%nat (expander (n::ns)))) (flip_tapes_frag γ2 α (expander ns))with "[$Hα]"); [|iSplit; first done|]. *)
-  (*   { by apply nclose_subseteq'. } *)
-  (*   { iModIntro. iIntros (m) "[Hfrag Hauth]". *)
-  (*     iDestruct (flip_tapes_agree with "[$][$]") as "%". *)
-  (*     simpl. *)
-  (*     iMod (flip_tapes_pop with "[$][$]") as "[Hauth Htape]". *)
-  (*     iModIntro. *)
-  (*     simpl in *. *)
-  (*     by iFrame. *)
-  (*   } *)
-  (*   iIntros "Hα". *)
-  (*   wp_apply (conversion.wp_bool_to_int) as "_"; first done. *)
-  (*   wp_pures. *)
-  (*   wp_bind (FAA _ _). *)
-  (*   iInv "Hinv'" as ">(%&%&->&?&?)" "Hclose". *)
-  (*   wp_faa. simpl. *)
-  (*   iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'". *)
-  (*   { apply difference_mono; [done|by apply nclose_subseteq']. } *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   replace 2%Z with (Z.of_nat 2%nat) by done. *)
-  (*   replace (_*_+_)%Z with (Z.of_nat n); last first. *)
-  (*   { assert (n<4). *)
-  (*     - by eapply (@Forall_inv _ (λ x, x<4)). *)
-  (*     - by apply expander_eta. *)
-  (*   } *)
-  (*   replace (#(z+n)) with (#(z+n)%nat); last first. *)
-  (*   { by rewrite Nat2Z.inj_add. } *)
-  (*   iMod "Hclose'" as "_". *)
-  (*   iMod ("Hclose" with "[-HΦ HQ Hα]") as "_"; first by iFrame. *)
-  (*   iModIntro. *)
-  (*   wp_pures. *)
-  (*   iApply "HΦ". *)
-  (*   iFrame. *)
-  (*   iPureIntro. *)
-  (*   by eapply Forall_inv_tail. *)
-  (* Qed. *)
+    iIntros (Hsubset Φ) "((#Hinv & #Hinv') & [Hα %] & Hvs) HΦ".
+    rewrite /incr_counter_tape2.
+    wp_pures.
+    wp_apply (flip_tape_spec_some with "[$]") as "Hα".
+    { by apply nclose_subseteq'. }
+    wp_apply (conversion.wp_bool_to_int) as "_"; first done.
+    wp_pures.
+    wp_apply (flip_tape_spec_some with "[$]") as "Hα".
+    { by apply nclose_subseteq'. }
+    wp_apply (conversion.wp_bool_to_int) as "_"; first done.
+    wp_pures.
+    wp_bind (FAA _ _).
+    iInv "Hinv'" as ">(%&%&->&?&?)" "Hclose".
+    wp_faa. simpl.
+    iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+    { apply difference_mono; [done|by apply nclose_subseteq']. }
+    iMod ("Hvs" with "[$]") as "[H6 HQ]".
+    replace 2%Z with (Z.of_nat 2%nat) by done.
+    replace (_*_+_)%Z with (Z.of_nat n); last first.
+    { assert (n<4).
+      - by eapply (@Forall_inv _ (λ x, x<4)).
+      - by apply expander_eta.
+    }
+    replace (#(z+n)) with (#(z+n)%nat); last first.
+    { by rewrite Nat2Z.inj_add. }
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[-HΦ HQ Hα]") as "_"; first by iFrame.
+    iModIntro.
+    wp_pures.
+    iApply "HΦ".
+    iFrame.
+    iPureIntro.
+    by eapply Forall_inv_tail.
+  Qed.
 
   Lemma counter_presample_spec2 NS E T γ1 γ2 c α ns:
     ↑NS ⊆ E ->
@@ -383,19 +364,18 @@ Section impl2.
       {{{ (n':nat), RET #n'; Q n'
       }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "((#Hinv & #Hinv') & #Hvs & HP) HΦ". *)
-  (*   rewrite /read_counter2. *)
-  (*   wp_pure. *)
-  (*   iInv "Hinv'" as ">(%l&%z  & -> & Hloc & Hcont)" "Hclose". *)
-  (*   wp_load. *)
-  (*   iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'". *)
-  (*   { apply difference_mono_l. by apply nclose_subseteq'. } *)
-  (*   iMod ("Hvs" with "[$]") as "[Hcont HQ]". *)
-  (*   iMod "Hclose'". *)
-  (*   iMod ("Hclose" with "[ $Hloc $Hcont]"); first done. *)
-  (*   iApply "HΦ". by iFrame. *)
-  (* Qed. *)
+    iIntros (Hsubset Φ) "((#Hinv & #Hinv') & Hvs) HΦ".
+    rewrite /read_counter2.
+    wp_pure.
+    iInv "Hinv'" as ">(%l&%z  & -> & Hloc & Hcont)" "Hclose".
+    wp_load.
+    iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+    { apply difference_mono_l. by apply nclose_subseteq'. }
+    iMod ("Hvs" with "[$]") as "[Hcont HQ]".
+    iMod "Hclose'".
+    iMod ("Hclose" with "[ $Hloc $Hcont]"); first done.
+    iApply "HΦ". by iFrame.
+  Qed.
   
 End impl2.
 
