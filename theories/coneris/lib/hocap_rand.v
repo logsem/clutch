@@ -68,8 +68,8 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
             ⌜(∀ l, length l = num ->  0<= ε2 l)%R⌝ ∗
             ⌜(SeriesC (λ l, if bool_decide (l ∈ enum_uniform_fin_list tb num) then ε2 l else 0) /((S tb)^num) <= ε)%R⌝ ∗
         (∀ (ns':list (fin (S tb))), ↯ (ε2 ns') ={∅, E∖↑N}=∗ T ε num ε2 ns')) -∗
-    wp_update E (∃ ε num ε2 ns', T ε num ε2 ns' ∗
-                                 rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns')))
+    wp_update E (∃ ε num ε2 ns', rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> ns')) ∗
+                                 T ε num ε2 ns')
 }.
 
 Section impl.
@@ -299,7 +299,7 @@ Section checks.
         apply list_fmap_eq_inj in H'; first by simplify_eq.
         apply fin_to_nat_inj.
     - iModIntro.
-      iDestruct "H" as "(%&%&%&%&[(%&%&%&%&->&?) ?])".
+      iDestruct "H" as "(%&%&%&%&?&->&<-&%&%&->&?)". 
       iFrame.
   Qed.
 

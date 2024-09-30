@@ -67,8 +67,7 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
                       (∀ ns', ↯ (ε2 ns') 
                 ={∅, E∖↑NS}=∗ T ε num ε2 ns'))
         -∗
-          wp_update E (∃ ε num ε2 ns', T ε num ε2 ns' ∗
-                                            flip_tapes_frag (L:=L) γ1 α (ns ++ ns'))
+          wp_update E (∃ ε num ε2 ns', flip_tapes_frag (L:=L) γ1 α (ns ++ ns') ∗ T ε num ε2 ns')
 }.
 
 
@@ -157,7 +156,7 @@ Section instantiate_flip.
                              ⌜∀ xs ys, fmap (FMap:= list_fmap) bool_to_nat xs = fmap (FMap:= list_fmap)fin_to_nat ys -> ε2' xs = ε2 ys⌝ ∗
                T ε num ε2' bs'
             )%I
-           with "[//][$][-]") as "(%&%&%&%&[(%&%&%K&%&?)?])"; [exact| |iModIntro; iFrame]; last first.
+           with "[//][$][-]") as "(%&%&%&%&?&%&%&%K&%&?)"; [exact| |iModIntro; iFrame]; last first.
     { by rewrite fmap_app K. }
     iMod "Hvs" as "(%&%&%&Herr &%Hpos&%Hineq &Hrest)".
     iFrame.
