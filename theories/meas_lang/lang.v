@@ -304,8 +304,8 @@ Definition emptyTape {A : Type} : tape A :=
      tape_contents := emptyTapeContents
   |}.
 
-
-
+(* History lookup: look through absolute history *)
+Global Instance tape_content_lookup {A} : Lookup nat A (tape_content_t A) := fun i => fun h => h i.
 
 (**  Specialize tapes to btapes and utapes, construct siga algebra *)
 Section tapes_algebra.
@@ -330,21 +330,32 @@ Section tapes_algebra.
   Definition btape_basis_emp : set (set pre_btape) :=
     let bound_set : set nat := setT in
     let pos_set : set nat := setT in
+
+    (* The set of all btapes such that
+       - the bound is b
+       - the position is p
+       - the content is empty *)
     let construct b p :=
       [set {| btape_tape := {| tape_position := p; tape_contents := (fun _ => None) |} ;
               btape_bound := b |}] in
     image2 bound_set pos_set construct.
 
-  Definition btape_basis_full : set (set pre_btape) :=
+  Program Definition btape_basis_full : set (set pre_btape) :=
     let bound_set : set nat := setT in
     let pos_set   : set nat := setT in
     let index_set : set nat := setT in
     let value_set : set nat := setT in
+
+    (* The set of all btapes such that
+       - the bound is b
+       - the position is p
+       - the content at index i is set to the value v *)
     let construct b p i v :=
-      [set {| btape_tape :=
-               {| tape_position := p;
-                   tape_contents := fun x => if (x =? i) then Some v else None |} ;
-              btape_bound := b |}] in
+      (fun bt =>
+         exists contents,
+           bt = {| btape_tape := {| tape_position := p; tape_contents := contents |}; btape_bound := b|} /\
+           contents !! i = Some v) in
+
     image4 bound_set pos_set index_set value_set construct.
 
   Definition btape_basis := btape_basis_emp `|` btape_basis_full.
@@ -367,20 +378,29 @@ Section tapes_algebra.
 
   Definition utape_basis_emp : set (set pre_utape) :=
     let pos_set : set nat := setT in
+
+    (* The set of all utapes such that
+       - the position is p
+       - the content is empty *)
     let construct p :=
       [set {| tape_position := p; tape_contents := (fun _ => None) |}] in
     image pos_set construct.
 
+  (* FIXME: This should not return a singleton! *)
   Definition utape_basis_full : set (set pre_utape) :=
     let pos_set   : set nat := setT in
     let index_set : set nat := setT in
     let value_set : set (set (R : realType)) := 'measurable in
+
+    (* The set of all utapes such that
+       - the position is p
+       - the content at position i is set to some value in set_of_v *)
     let construct p i set_of_v :=
-      image
-        set_of_v
-        (fun v =>
-          {| tape_position := p;
-             tape_contents := fun x => if (x =? i) then Some v else None |}) in
+        (fun ut =>
+           exists contents r,
+             ut = {| tape_position := p; tape_contents := contents |} /\
+             contents !! i = Some r /\
+             set_of_v r) in
     image3 pos_set index_set value_set construct.
 
   Definition utape_basis : set (set pre_utape) := utape_basis_emp `|` utape_basis_full.
@@ -419,9 +439,6 @@ Definition btape_inbounds (t : btape): Prop :=
 (* All tape values prior to state have been determined *)
 Definition tape_history_deterministic {A} (t : tape A) : Prop :=
   forall i : nat, i < tape_position _ t -> exists v : A, tape_contents _ t i = Some v.
-
-(* History lookup: look through absolute history *)
-Global Instance tape_content_lookup {A} : Lookup nat A (tape_content_t A) := fun i => fun h => h i.
 
 (* Tape lookup: look relative to current index. t !! 0  will be the next sample. *)
 Global Instance tape_rel_lookup {A} : Lookup nat A (tape A) := fun i => fun t => (tape_contents _ t (i + tape_position _ t)).
@@ -500,47 +517,72 @@ Definition to_val (e : expr) : option val :=
 
 
 
+Section state_algebra.
+
+  Local Open Scope classical_set_scope.
+
+  (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
+  Record state_pre : Type := {
+    heap   : gmap loc val;
+    tapes  : gmap loc btape;
+    utapes : gmap loc utape
+  }.
+
+  Definition gmap_loc_cyl_emp d (T : measurableType d) : set (set (gmap loc T)) :=
+    [set (fun g => forall l, g !! l = None)].
+
+  Definition gmap_loc_cyl_full d (T : measurableType d) : set (set (gmap loc T)) :=
+    let loc_set   : set loc := setT in
+    let T_set     : set (set T) := d.-measurable in
+
+    (* The set of all gmaps such that
+        - the value at position l is set to an element in the set ts *)
+    let construct (l : loc) (ts : set T) : set (gmap loc T) :=
+      fun g => exists v : T, g !! l = Some v /\ ts v in
+    image2 loc_set T_set construct.
+
+  Definition gmap_loc_cyl d (T : measurableType d) : set (set (gmap loc T)) :=
+    gmap_loc_cyl_emp d T `|` gmap_loc_cyl_full d T.
+
+  (* The set of all states such that
+     each field is a gmap cylinder
+   *)
+  Program Definition state_cyl : set (set state_pre) :=
+    let hs_set := gmap_loc_cyl _ val in
+    let ts_set := gmap_loc_cyl _ btape in
+    let us_set := gmap_loc_cyl _ utape in
+    let construct (hs : set (gmap loc val)) (ht : set (gmap loc btape)) (hu : set (gmap loc utape)) : set state_pre :=
+      fun σ =>
+        exists g1 : gmap loc val,
+        exists g2 : gmap loc btape,
+        exists g3 : gmap loc utape,
+        σ = {| heap := g1; tapes := g2; utapes := g3|} /\
+        hs g1 /\
+        ht g2 /\
+        hu g3
+      in
+    image3 hs_set ts_set us_set construct.
+
+  HB.instance Definition _ := gen_eqMixin state_pre.
+  HB.instance Definition _ := gen_choiceMixin state_pre.
+  HB.instance Definition _ := isPointed.Build state_pre {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
 
 
-(*
+  Local Lemma state_pre_meas_obligation : ∀ A : set state_pre, <<s state_cyl>> A → <<s state_cyl>> (~` A).
+  Proof. eapply sigma_algebraC. Qed.
 
+  (* There's got to be a way to delete this *)
+  HB.instance Definition _ := @isMeasurable.Build
+    (sigma_display state_cyl)
+    state_pre
+    <<s state_cyl>>
+    (@sigma_algebra0 _ setT state_cyl)
+    state_pre_meas_obligation
+    (@sigma_algebra_bigcup _ setT state_cyl).
 
-(** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
-Record state : Type := {
-  heap   : gmap loc val;
-  tapes  : gmap loc btape;
-  utapes : gmap loc utape
-}.
+  Definition state : measurableType state_cyl.-sigma := state_pre.
 
-
-Definition state_generators : set (set state) := setT.
-  (* FIXME *)
-  (*
-  (fun S : set state =>
-     forall l : loc,
-      exists SV : set val,
-      exists ST : set btape,
-      exists SU : set utape,
-      measurable SV /\
-      measurable ST /\
-      measurable SU /\
-      image S (fun st => st.(heap) !! l) = SV ).
-*)
-
-HB.instance Definition _ := gen_eqMixin state.
-HB.instance Definition _ := gen_choiceMixin state.
-HB.instance Definition _ := isPointed.Build state {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
-
-Local Lemma state_meas_obligation : ∀ A : set state, <<s state_generators>> A → <<s state_generators >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
-
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build (sigma_display state_generators)
-  state
-  <<s state_generators>> (@sigma_algebra0 _ setT state_generators) state_meas_obligation
-  (@sigma_algebra_bigcup _ setT state_generators).
-
-
+End state_algebra.
 
 
 
@@ -552,8 +594,10 @@ Proof. by destruct v. Qed.
 Lemma of_to_val e v : to_val e = Some v → of_val v = e.
 Proof. destruct e=>//=. by intros [= <-]. Qed.
 
+(* FIXME
 Global Instance of_val_inj : Inj (=) (=) of_val.
 Proof. intros ??. congruence. Qed.
+*)
 
 (*
 Global Instance state_inhabited : Inhabited state := populate {| heap := gmap_empty; tapes := gmap_empty; utapes := gmap_empty |}.
@@ -1394,7 +1438,7 @@ Proof.
 Admitted.
 
 ***)
-*)
+
 End meas_lang.
 (*
 
