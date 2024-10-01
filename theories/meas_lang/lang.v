@@ -288,28 +288,8 @@ Section expr_algebra.
 
 End expr_algebra.
 
+(**  General lemmas about tapes *)
 
-Bind Scope expr_scope with expr.
-Bind Scope val_scope with val.
-
-Notation of_val := Val (only parsing).
-
-Definition to_val (e : expr) : option val :=
-  match e with
-  | Val v => Some v
-  | _ => None
-  end.
-
-
-
-
-
-(*
-
-
-(* This part of the sigma algebra is not discrete *)
-(* MARKUSDE: Externalizing the fin bound here also simplifies definitions. *)
-(* Will need this to be a separate type for HB. Infinite product sigma algebra. *)
 Definition tape_content_t (A : Type) : Type := nat -> option A.
 
 Record tape (A : Type) : Type := {
@@ -317,11 +297,118 @@ Record tape (A : Type) : Type := {
   tape_contents : tape_content_t A
 }.
 
-(* Tapes in the computable fragment *)
-Record btape : Type := {
-    btape_tape :> tape nat;
-    btape_bound : nat
-}.
+Definition emptyTapeContents {A : Type} : tape_content_t A := fun _ => None.
+
+Definition emptyTape {A : Type} : tape A :=
+  {| tape_position := 0 ;
+     tape_contents := emptyTapeContents
+  |}.
+
+
+
+
+(**  Specialize tapes to btapes and utapes, construct siga algebra *)
+Section tapes_algebra.
+  Local Open Scope classical_set_scope.
+
+
+  (* Tapes in the computable fragment *)
+  Record pre_btape : Type := {
+      btape_tape :> tape nat;
+      btape_bound : nat
+  }.
+
+  (* Tapes of real numbers *)
+ Definition pre_utape : Type := tape R.
+
+
+  (* FIXME: move *)
+  Definition image4 {TA TB TC TD rT} (A : set TA) (B : set TB) (C : set TC) (D : set TD) (f : TA -> TB -> TC -> TD -> rT) :=
+    [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & exists2 v, D v & f x y w v = z].
+  Arguments image4 _ _ _ _ _ _ _ _ _ /.
+
+  Definition btape_basis_emp : set (set pre_btape) :=
+    let bound_set : set nat := setT in
+    let pos_set : set nat := setT in
+    let construct b p :=
+      [set {| btape_tape := {| tape_position := p; tape_contents := (fun _ => None) |} ;
+              btape_bound := b |}] in
+    image2 bound_set pos_set construct.
+
+  Definition btape_basis_full : set (set pre_btape) :=
+    let bound_set : set nat := setT in
+    let pos_set   : set nat := setT in
+    let index_set : set nat := setT in
+    let value_set : set nat := setT in
+    let construct b p i v :=
+      [set {| btape_tape :=
+               {| tape_position := p;
+                   tape_contents := fun x => if (x =? i) then Some v else None |} ;
+              btape_bound := b |}] in
+    image4 bound_set pos_set index_set value_set construct.
+
+  Definition btape_basis := btape_basis_emp `|` btape_basis_full.
+
+  HB.instance Definition _ := gen_eqMixin pre_btape.
+  HB.instance Definition _ := gen_choiceMixin pre_btape.
+  HB.instance Definition _ := isPointed.Build pre_btape {| btape_tape := emptyTape ; btape_bound := 0 |}.
+
+  Local Lemma btape_meas_obligation : ∀ A : set pre_btape, <<s btape_basis>> A → <<s btape_basis>> (~` A).
+  Proof. eapply sigma_algebraC. Qed.
+
+  HB.instance Definition _ := @isMeasurable.Build
+    (sigma_display btape_basis)
+    pre_btape
+    <<s btape_basis>>
+    (@sigma_algebra0 _ setT btape_basis)
+    btape_meas_obligation
+    (@sigma_algebra_bigcup _ setT btape_basis).
+
+
+  Definition utape_basis_emp : set (set pre_utape) :=
+    let pos_set : set nat := setT in
+    let construct p :=
+      [set {| tape_position := p; tape_contents := (fun _ => None) |}] in
+    image pos_set construct.
+
+  Definition utape_basis_full : set (set pre_utape) :=
+    let pos_set   : set nat := setT in
+    let index_set : set nat := setT in
+    let value_set : set (set (R : realType)) := 'measurable in
+    let construct p i set_of_v :=
+      image
+        set_of_v
+        (fun v =>
+          {| tape_position := p;
+             tape_contents := fun x => if (x =? i) then Some v else None |}) in
+    image3 pos_set index_set value_set construct.
+
+  Definition utape_basis : set (set pre_utape) := utape_basis_emp `|` utape_basis_full.
+
+  HB.instance Definition _ := gen_eqMixin pre_utape.
+  HB.instance Definition _ := gen_choiceMixin pre_utape.
+  HB.instance Definition _ := isPointed.Build pre_utape emptyTape.
+
+  Local Lemma utape_meas_obligation : ∀ A : set pre_utape, <<s utape_basis>> A → <<s utape_basis>> (~` A).
+  Proof. eapply sigma_algebraC. Qed.
+
+  HB.instance Definition _ := @isMeasurable.Build
+    (sigma_display utape_basis)
+    pre_utape
+    <<s utape_basis>>
+    (@sigma_algebra0 _ setT utape_basis)
+    utape_meas_obligation
+    (@sigma_algebra_bigcup _ setT utape_basis).
+
+
+  (* User-facing types *)
+  Definition btape : measurableType btape_basis.-sigma := pre_btape.
+  Definition utape : measurableType utape_basis.-sigma := pre_utape.
+
+End tapes_algebra.
+
+
+(* btape and utape definitions *)
 
 (* All values of the tape are within the tape bound *)
 Definition btape_inbounds (t : btape): Prop :=
@@ -332,13 +419,6 @@ Definition btape_inbounds (t : btape): Prop :=
 (* All tape values prior to state have been determined *)
 Definition tape_history_deterministic {A} (t : tape A) : Prop :=
   forall i : nat, i < tape_position _ t -> exists v : A, tape_contents _ t i = Some v.
-
-Definition emptyTapeContents {A : Type} : tape_content_t A := fun _ => None.
-
-Definition emptyTape {A : Type} : tape A :=
-  {| tape_position := 0 ;
-     tape_contents := emptyTapeContents
-  |}.
 
 (* History lookup: look through absolute history *)
 Global Instance tape_content_lookup {A} : Lookup nat A (tape_content_t A) := fun i => fun h => h i.
@@ -407,61 +487,22 @@ Proof. apply map_lookup_total. Defined.
 Global Instance tapes_insert {A} : Insert loc (tape A) (gmap loc (tape A)).
 Proof. apply map_insert. Defined.
 
-(* Tapes of real numbers *)
-Definition utape : Type := tape R.
+Bind Scope expr_scope with expr.
+Bind Scope val_scope with val.
 
-(* FIXME: Generalize, if it works *)
-Definition btape_generators : set (set btape) :=
-  (fun S => exists bound position index value : nat,
-      S = [set {| btape_tape :=
-                   {| tape_position := position ;
-                      tape_contents := (fun i => if (i =? index) then Some value else None) |} ;
-                  btape_bound := bound |}] \/
-      S = [set {| btape_tape :=
-                   {| tape_position := position ;
-                      tape_contents := (fun _ => None) |} ;
-                  btape_bound := bound |}]).
+Notation of_val := Val (only parsing).
 
-HB.instance Definition _ := gen_eqMixin btape.
-HB.instance Definition _ := gen_choiceMixin btape.
-HB.instance Definition _ := isPointed.Build btape {| btape_tape := emptyTape; btape_bound := 0 |}.
-
-Local Lemma btape_meas_obligation : ∀ A : set btape, <<s btape_generators>> A → <<s btape_generators >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
-
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build (sigma_display btape_generators)
-  btape
-  <<s btape_generators>> (@sigma_algebra0 _ setT btape_generators) btape_meas_obligation
-  (@sigma_algebra_bigcup _ setT btape_generators).
+Definition to_val (e : expr) : option val :=
+  match e with
+  | Val v => Some v
+  | _ => None
+  end.
 
 
 
 
 
-
-(* FIXME: Generalize, if it works *)
-Definition utape_generators : set (set utape) :=
-  (fun S : set utape => exists position index : nat, ∃ M : (set R),
-      (@measurable _ (R : realType) M) /\
-      S = image M
-            (fun r => {| tape_position := position;
-                       tape_contents := (fun i => if (i =? index) then Some r else None) |} : utape) \/
-      S = [set {| tape_position := position ; tape_contents := (fun _ => None )|}]).
-
-HB.instance Definition _ := gen_eqMixin utape.
-HB.instance Definition _ := gen_choiceMixin utape.
-HB.instance Definition _ := isPointed.Build utape emptyTape.
-
-Local Lemma utape_meas_obligation : ∀ A : set utape, <<s utape_generators>> A → <<s utape_generators >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
-
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build (sigma_display utape_generators)
-  utape
-  <<s utape_generators>> (@sigma_algebra0 _ setT utape_generators) utape_meas_obligation
-  (@sigma_algebra_bigcup _ setT utape_generators).
-
+(*
 
 
 (** The state: a [loc]-indexed heap of [val]s, and [loc]-indexed tapes, and [loc]-indexed utapes *)
