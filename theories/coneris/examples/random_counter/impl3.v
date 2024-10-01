@@ -156,6 +156,27 @@ Section impl3.
       ))-∗ 
         wp_update E (∃ ε ε2 num ns', (∃ ls, ⌜filter filter_f ls = ns++ns'⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) ∗ T ε ε2 num ns').
   Proof.
+    iIntros (Hsubset) "[#Hinv #Hinv'] (%ls & %Hfilter & Hfrag) Hvs".
+    iMod wp_update_epsilon_err as "(%eps&%Heps&Heps)".
+    (* iRevert (ls Hfilter) "Hfrag Hvs". *)
+    (* iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|]. *)
+    (* clear eps Heps. *)
+    (* iModIntro. *)
+    (* iIntros (eps Heps) "#IH Heps %ls %Hfilter Hfrag Hvs". *)
+    iMod (rand_presample_spec _ _ _ _ _ _ (λ ε num ε2 ns',
+         _                                    
+            )%I with "[//][$][Heps Hvs]") as "H"; first by apply nclose_subseteq'.
+    - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose".
+      { apply difference_mono_l.
+        by apply nclose_subseteq'. }
+      iMod "Hvs" as "(%ε & %ε2 & %num & Herr &%Hpos & %Hineq & Hrest)".
+      iFrame.
+      admit.
+    - iDestruct "H" as "(%ε & %num & %ε2 & %ns' & Hfrag & HT)".
+      iModIntro.
+      iFrame.
+      rewrite filter_app.
+      admit.
   Admitted.
   (*   iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag". *)
   (*   iMod wp_update_epsilon_err as "(%epsilon_err&%H&?)". *)
