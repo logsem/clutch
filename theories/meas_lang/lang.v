@@ -50,13 +50,14 @@ HB.instance Definition _ := isPointed.Build loc inhabitant.
 
 Module meas_lang.
 
-Inductive base_lit_pre : Type :=
-  | LitInt (n : Z)
-  | LitBool (b : bool)
+(* Type of base_lit, parameterized by leaf types *)
+Inductive base_lit_pre {TZ TB TL TR : Type} : Type :=
+  | LitInt  (n : TZ)
+  | LitBool (b : TB)
   | LitUnit
-  | LitLoc (l : loc)
-  | LitLbl (l : loc)
-  | LitReal (r : ((R : realType) : measurableType _)).
+  | LitLoc  (l : TL)
+  | LitLbl  (l : TL)
+  | LitReal (r : TR).
 
 Inductive un_op : Set :=
   | NegOp | MinusUnOp.
@@ -68,207 +69,242 @@ Inductive bin_op : Set :=
   | LeOp | LtOp | EqOp (* Relations *)
   | OffsetOp. (* Pointer offset *)
 
-(* exprs, parameterized by type of base_lits B*)
-Inductive exprB (B : Type) :=
+Inductive expr_pre {TZ TB TL TR : Type} :=
   (* Values *)
-  | Val (v : valB B)
+  | Val (v : val_pre)
   (* Base lambda calculus *)
   | Var (x : string)
-  | Rec (f x : binder) (e : exprB B)
-  | App (e1 e2 : exprB B)
+  | Rec (f x : binder) (e : expr_pre)
+  | App (e1 e2 : expr_pre)
   (* Base types and their operations *)
-  | UnOp (op : un_op) (e : exprB B)
-  | BinOp (op : bin_op) (e1 e2 : exprB B)
-  | If (e0 e1 e2 : exprB B)
+  | UnOp (op : un_op) (e : expr_pre)
+  | BinOp (op : bin_op) (e1 e2 : expr_pre)
+  | If (e0 e1 e2 : expr_pre)
   (* Products *)
-  | Pair (e1 e2 : exprB B)
-  | Fst (e : exprB B)
-  | Snd (e : exprB B)
+  | Pair (e1 e2 : expr_pre)
+  | Fst (e : expr_pre)
+  | Snd (e : expr_pre)
   (* Sums *)
-  | InjL (e : exprB B)
-  | InjR (e : exprB B)
-  | Case (e0 : exprB B) (e1 : exprB B) (e2 : exprB B)
+  | InjL (e : expr_pre)
+  | InjR (e : expr_pre)
+  | Case (e0 e1 e2 : expr_pre)
   (* Heap *)
-  | AllocN (e1 e2 : exprB B) (* Array length and initial value *)
-  | Load (e : exprB B)
-  | Store (e1 : exprB B) (e2 : exprB B)
+  | AllocN (e1 e2 : expr_pre) (* Array length and initial value *)
+  | Load (e : expr_pre)
+  | Store (e1 e2 : expr_pre)
   (* Finite probabilistic choice *)
-  | AllocTape (e : exprB B)
-  | Rand (e1 e2 : exprB B)
+  | AllocTape (e : expr_pre)
+  | Rand (e1 e2 : expr_pre)
   (* Real probabilistic choice *)
   | AllocUTape
-  | URand (e : exprB B)
+  | URand (e : expr_pre)
   (* No-op operator used for cost *)
-  | Tick (e : exprB B)
-with valB (B : Type) :=
-  | LitV (l : B)
-  | RecV (f x : binder) (e : exprB B)
-  | PairV (v1 v2 : valB B)
-  | InjLV (v : valB B)
-  | InjRV (v : valB B).
-
-Local Open Scope classical_set_scope.
-
-(** Define a sigma-algebra on base-lit *)
-
-(* s ∈ base_lit_generators iff s is a lifted measurable set of Z, bool, loc, lbl, unit, or R. *)
-Definition base_lit_generators : set (set (base_lit_pre)) :=
-    (image setT (fun M => image M LitInt)) `|`
-    (image setT (fun M => image M LitBool)) `|`
-    (image setT (fun M => image M LitLoc)) `|`
-    (image setT (fun M => image M LitLbl)) `|`
-    (image (@measurable _ (R : realType)) (fun M => image M LitReal)) `|`
-    [set [set LitUnit]].
-
-HB.instance Definition _ := gen_eqMixin base_lit_pre.
-HB.instance Definition _ := gen_choiceMixin base_lit_pre.
-HB.instance Definition _ := isPointed.Build base_lit_pre LitUnit.
-
-Local Lemma base_lit_meas_obligation : ∀ A : set base_lit_pre, <<s base_lit_generators >> A → <<s base_lit_generators  >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
-
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build (sigma_display base_lit_generators)
-  base_lit_pre
-  <<s base_lit_generators>> (@sigma_algebra0 _ setT base_lit_generators) base_lit_meas_obligation
-  (@sigma_algebra_bigcup _ setT base_lit_generators).
-
-Definition base_lit : measurableType _ := g_sigma_algebraType base_lit_generators.
-
-(** Lift sigma algebra on base lits to exprs *)
-
-(* expr_pre, val_pre: expressions with base_lit values *)
-Definition expr_pre : Type := exprB base_lit.
-Definition val_pre : Type := valB base_lit.
-
-(* exprS, valS: expressions with set of base_lit values *)
-Definition exprS : Type := exprB (set base_lit).
-Definition valS : Type := valB (set base_lit).
+  | Tick (e : expr_pre )
+with val_pre {TZ TB TL TR : Type} :=
+  | LitV (l : @base_lit_pre TZ TB TL TR)
+  | RecV (f x : binder) (e : expr_pre)
+  | PairV (v1 v2 : val_pre)
+  | InjLV (v : val_pre)
+  | InjRV (v : val_pre).
 
 
-(* True when e is an expression where all leaves are measurable sets *)
-Fixpoint is_expr_with_measurable_leaves (e : exprS) : Prop :=
-  match e with
-  | Val v          => is_val_with_measurable_leaves v
-  | Var x          => True
-  | Rec f x e      => is_expr_with_measurable_leaves e
-  | App e1 e2      => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
-  | UnOp op e      => is_expr_with_measurable_leaves e
-  | BinOp op e1 e2 => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
-  | If e0 e1 e2    => is_expr_with_measurable_leaves e0 /\ is_expr_with_measurable_leaves e1 /\
-                      is_expr_with_measurable_leaves e2
-  | Pair e1 e2     => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
-  | Fst e1         => is_expr_with_measurable_leaves e1
-  | Snd e1         => is_expr_with_measurable_leaves e1
-  | InjL e1        => is_expr_with_measurable_leaves e1
-  | InjR e1        => is_expr_with_measurable_leaves e1
-  | Case e0 e1 e2  => is_expr_with_measurable_leaves e0 /\ is_expr_with_measurable_leaves e1 /\
-                      is_expr_with_measurable_leaves e2
-  | AllocN e1 e2   => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
-  | Load e         => is_expr_with_measurable_leaves e
-  | Store e1 e2    => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
-  | AllocTape e    => is_expr_with_measurable_leaves e
-  | Rand e1 e2     => is_expr_with_measurable_leaves e1 /\ is_expr_with_measurable_leaves e2
-  | AllocUTape     => True
-  | URand e        => is_expr_with_measurable_leaves e
-  | Tick e         => is_expr_with_measurable_leaves e
-  end
-  with
-    is_val_with_measurable_leaves (v : valS) : Prop :=
-    match v with
-    | LitV v       => @measurable _ base_lit v
-    | RecV f x e   => is_expr_with_measurable_leaves e
-    | PairV v1 v2  => is_val_with_measurable_leaves v1 /\ is_val_with_measurable_leaves v2
-    | InjLV v      => is_val_with_measurable_leaves v
-    | InjRV v      => is_val_with_measurable_leaves v
+
+Section expr_algebra.
+  (** Defines the sigma algebra over expressions *)
+  Local Open Scope classical_set_scope.
+
+  (* FIXME: move *)
+  Definition image3 {TA TB TC rT} (A : set TA) (B : set TB) (C : set TC) (f : TA -> TB -> TC -> rT) :=
+    [set z | exists2 x, A x & exists2 y, B y & exists2 w, C w & f x y w = z].
+  Arguments image3 _ _ _ _ _ _ _ _ /.
+
+  Definition TZ : measurableType default_measure_display := <<discr Z>>.
+  Definition TB : measurableType default_measure_display := <<discr bool>>.
+  Definition TL : measurableType default_measure_display := <<discr loc>>.
+  Definition TR : measurableType default_measure_display := (R : realType).
+
+  Definition base_lit_S : Type := @base_lit_pre (set TZ) (set TB) (set TL) (set TR).
+  Definition val_S      : Type := @val_pre      (set TZ) (set TB) (set TL) (set TR).
+  Definition expr_S     : Type := @expr_pre     (set TZ) (set TB) (set TL) (set TR).
+
+  Definition base_lit_T : Type := @base_lit_pre TZ TB TL TR.
+  Definition val_T      : Type := @val_pre      TZ TB TL TR.
+  Definition expr_T     : Type := @expr_pre     TZ TB TL TR.
+
+  (* Cylinder constructions *)
+
+  (* Trees with sets on their leaves -> sets of trees with values on their leaves *)
+  Definition base_lit_ST (b : base_lit_S) : set base_lit_T :=
+    match b with
+    | LitInt  s => image s LitInt
+    | LitBool s => image s LitBool
+    | LitUnit   => [set    LitUnit]
+    | LitLoc  s => image s LitLoc
+    | LitLbl  s => image s LitLbl
+    | LitReal s => image s LitReal
     end.
 
-Definition all_expr_with_meas_leaves : set exprS := is_expr_with_measurable_leaves.
-Definition all_val_with_meas_leaves : set valS := is_val_with_measurable_leaves.
+  Fixpoint expr_ST (e : expr_S) : set expr_T :=
+    match e with
+    | Val v          => image (val_ST v) Val
+    | Var x          => [set (Var x)]
+    | Rec f x e      => image  (expr_ST e)   (Rec f x)
+    | App e1 e2      => image2 (expr_ST e1) (expr_ST e2) App
+    | UnOp op e      => image  (expr_ST e)  (UnOp op)
+    | BinOp op e1 e2 => image2 (expr_ST e1) (expr_ST e2) (BinOp op)
+    | If e0 e1 e2    => image3 (expr_ST e0) (expr_ST e1) (expr_ST e2) If
+    | Pair e1 e2     => image2 (expr_ST e1) (expr_ST e2) Pair
+    | Fst e1         => image  (expr_ST e1) Fst
+    | Snd e1         => image  (expr_ST e1) Snd
+    | InjL e1        => image  (expr_ST e1) InjL
+    | InjR e1        => image  (expr_ST e1) InjR
+    | Case e0 e1 e2  => image3 (expr_ST e0) (expr_ST e1) (expr_ST e2) Case
+    | AllocN e1 e2   => image2 (expr_ST e1) (expr_ST e2) AllocN
+    | Load e         => image  (expr_ST e)  Load
+    | Store e1 e2    => image2 (expr_ST e1) (expr_ST e2) Store
+    | AllocTape e    => image  (expr_ST e)  AllocTape
+    | Rand e1 e2     => image2 (expr_ST e1) (expr_ST e2) Rand
+    | AllocUTape     => [set AllocUTape]
+    | URand e        => image  (expr_ST e)  URand
+    | Tick e         => image  (expr_ST e)  Tick
+    end
+    with
+      val_ST (v : val_S) : set val_T :=
+      match v with
+      | LitV b       => image  (base_lit_ST b) LitV
+      | RecV f x e   => image  (expr_ST e) (RecV f x)
+      | PairV v1 v2  => image2 (val_ST v1) (val_ST v2) PairV
+      | InjLV v      => image  (val_ST v) InjLV
+      | InjRV v      => image  (val_ST v) InjRV
+      end.
 
-(* Takes a tree with measurable sets of base_lit for litV and
-   returns a set of trees with base_lit for litV *)
-Fixpoint cylinder_tree (e : exprS) : set expr_pre :=
-  match e with
-  | Val v          => image (cylinder_tree_v v) (Val _)
-  | Var x          => [set (Var _ x)]
-  | Rec f x e      => set0
-  | App e1 e2      => set0
-  | UnOp op e      => set0
-  | BinOp op e1 e2 => set0
-  | If e0 e1 e2    => set0
-  | Pair e1 e2     => set0
-  | Fst e1         => set0
-  | Snd e1         => set0
-  | InjL e1        => set0
-  | InjR e1        => set0
-  | Case e0 e1 e2  => set0
-  | AllocN e1 e2   => set0
-  | Load e         => set0
-  | Store e1 e2    => set0
-  | AllocTape e    => set0
-  | Rand e1 e2     => set0
-  | AllocUTape     => set0
-  | URand e        => set0
-  | Tick e         => set0
-  end
+
+  (* All trees with measurable sets on their leaves *)
+  Definition base_lit_ML : set base_lit_S :=
+    fun b =>
+      match b with
+      | LitInt  s => measurable s
+      | LitBool s => measurable s
+      | LitUnit   => True
+      | LitLoc  s => measurable s
+      | LitLbl  s => measurable s
+      | LitReal s => measurable s
+      end.
+
+  Fixpoint expr_ML (e : expr_S) : Prop :=
+    match e with
+    | Val v          => val_ML v
+    | Var x          => True
+    | Rec f x e      => expr_ML e
+    | App e1 e2      => expr_ML e1 /\ expr_ML e2
+    | UnOp op e      => expr_ML e
+    | BinOp op e1 e2 => expr_ML e1 /\ expr_ML e2
+    | If e0 e1 e2    => expr_ML e0 /\ expr_ML e1 /\ expr_ML e2
+    | Pair e1 e2     => expr_ML e1 /\ expr_ML e2
+    | Fst e1         => expr_ML e1
+    | Snd e1         => expr_ML e1
+    | InjL e1        => expr_ML e1
+    | InjR e1        => expr_ML e1
+    | Case e0 e1 e2  => expr_ML e0 /\ expr_ML e1 /\ expr_ML e2
+    | AllocN e1 e2   => expr_ML e1 /\ expr_ML e2
+    | Load e         => expr_ML e
+    | Store e1 e2    => expr_ML e1 /\ expr_ML e2
+    | AllocTape e    => expr_ML e
+    | Rand e1 e2     => expr_ML e1 /\ expr_ML e2
+    | AllocUTape     => True
+    | URand e        => expr_ML e
+    | Tick e         => expr_ML e
+    end
   with
-    cylinder_tree_v (v : valS) : set val_pre :=
-    match v with
-    | LitV b       => set0
-    | RecV f x e   => set0
-    | PairV v1 v2  => set0
-    | InjLV v      => set0
-    | InjRV v      => set0
-    end.
+    val_ML (v : val_S) : Prop :=
+      match v with
+      | LitV b       => base_lit_ML b
+      | RecV f x e   => expr_ML e
+      | PairV v1 v2  => val_ML v1 /\ val_ML v2
+      | InjLV v      => val_ML v
+      | InjRV v      => val_ML v
+      end.
 
-(* The sigma algebra on exprs is generated by the set of all cylinder trees *)
-Definition expr_subbase : set (set expr_pre) := image all_expr_with_meas_leaves cylinder_tree.
-Definition val_subbase : set (set val_pre) := image all_val_with_meas_leaves cylinder_tree_v.
+  (* Cylinders: Generators for the sigma algebra *)
+  Definition base_lit_cyl : set (set base_lit_T) := image base_lit_ML base_lit_ST.
+  Definition expr_cyl     : set (set expr_T)     := image expr_ML     expr_ST.
+  Definition val_cyl      : set (set val_T)      := image val_ML      val_ST.
 
-Definition expr : Type := g_sigma_algebraType expr_subbase.
-Definition val : Type  := g_sigma_algebraType val_subbase.
+  (* Generate sigma algebras from the cylinders *)
 
-Local Open Scope classical_set_scope.
+  HB.instance Definition _ := gen_eqMixin base_lit_T.
+  HB.instance Definition _ := gen_choiceMixin base_lit_T.
+  HB.instance Definition _ := isPointed.Build base_lit_T LitUnit.
 
-HB.instance Definition _ := gen_eqMixin expr.
-HB.instance Definition _ := gen_choiceMixin expr.
-HB.instance Definition _ := isPointed.Build expr (Val base_lit (LitV _ LitUnit)).
+  HB.instance Definition _ := gen_eqMixin val_T.
+  HB.instance Definition _ := gen_choiceMixin val_T.
+  HB.instance Definition _ := isPointed.Build val_T (LitV LitUnit).
 
-Local Lemma expr_meas_obligation : ∀ A : set expr, <<s expr_subbase >> A → <<s expr_subbase >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
-
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build (sigma_display expr_subbase)
-  expr
-  <<s expr_subbase>> (@sigma_algebra0 _ setT expr_subbase) expr_meas_obligation
-  (@sigma_algebra_bigcup _ setT expr_subbase).
-
-HB.instance Definition _ := gen_eqMixin val.
-HB.instance Definition _ := gen_choiceMixin val.
-HB.instance Definition _ := isPointed.Build val (LitV _ LitUnit).
-
-Local Lemma val_meas_obligation : ∀ A : set val, <<s val_subbase >> A → <<s val_subbase >> (~` A).
-Proof. eapply sigma_algebraC. Qed.
+  HB.instance Definition _ := gen_eqMixin expr_T.
+  HB.instance Definition _ := gen_choiceMixin expr_T.
+  HB.instance Definition _ := isPointed.Build expr_T (Val (LitV LitUnit)).
 
 
-(* There's got to be a way to delete this *)
-HB.instance Definition _ := @isMeasurable.Build (sigma_display val_subbase)
-  val
-  <<s val_subbase>> (@sigma_algebra0 _ setT val_subbase) val_meas_obligation
-  (@sigma_algebra_bigcup _ setT val_subbase).
+  (* FIXME: Remove! *)
+  Local Lemma base_lit_meas_obligation :
+    ∀ A : set base_lit_T, <<s base_lit_cyl>> A → <<s base_lit_cyl >> (~` A).
+  Proof. eapply sigma_algebraC. Qed.
+  Local Lemma val_meas_obligation :
+    ∀ A : set val_T, <<s val_cyl>> A → <<s val_cyl >> (~` A).
+  Proof. eapply sigma_algebraC. Qed.
+  Local Lemma expr_meas_obligation :
+    ∀ A : set expr_T, <<s expr_cyl>> A → <<s expr_cyl >> (~` A).
+  Proof. eapply sigma_algebraC. Qed.
+
+  HB.instance Definition _ := @isMeasurable.Build
+    (sigma_display base_lit_cyl)
+    base_lit_T
+    <<s base_lit_cyl>>
+    (@sigma_algebra0 _ setT base_lit_cyl)
+    base_lit_meas_obligation
+    (@sigma_algebra_bigcup _ setT base_lit_cyl).
+
+  HB.instance Definition _ := @isMeasurable.Build
+    (sigma_display val_cyl)
+    val_T
+    <<s val_cyl>>
+    (@sigma_algebra0 _ setT val_cyl)
+    val_meas_obligation
+    (@sigma_algebra_bigcup _ setT val_cyl).
+
+  HB.instance Definition _ := @isMeasurable.Build
+    (sigma_display expr_cyl)
+    expr_T
+    <<s expr_cyl>>
+    (@sigma_algebra0 _ setT expr_cyl)
+    expr_meas_obligation
+    (@sigma_algebra_bigcup _ setT expr_cyl).
+
+
+  (* User-facing types *)
+  Definition base_lit : measurableType base_lit_cyl.-sigma := base_lit_T.
+  Definition expr : measurableType expr_cyl.-sigma := expr_T.
+  Definition val : measurableType val_cyl.-sigma := val_T.
+
+End expr_algebra.
 
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
 
-Notation of_val := (@Val base_lit) (only parsing).
+Notation of_val := Val (only parsing).
 
 Definition to_val (e : expr) : option val :=
   match e with
   | Val v => Some v
   | _ => None
   end.
+
+
+
+
+
+(*
 
 
 (* This part of the sigma algebra is not discrete *)
@@ -1317,6 +1353,7 @@ Proof.
 Admitted.
 
 ***)
+*)
 End meas_lang.
 (*
 
