@@ -74,12 +74,6 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
 (** Instantiate flip *)
 Section instantiate_flip.
   Context `{H: conerisGS Σ, r1:@rand_spec Σ H}.
-  (* Class flipG1 Σ := FlipG1 { flipG1_tapes:: hocap_tapesGS Σ}. *)
-  (* Local Definition flip_inv_pred1 `{!hocap_tapesGS Σ} γ1:= *)
-  (*   (∃ (m:gmap loc (list bool)) , *)
-  (*       ([∗ map] α ↦ t ∈ ((λ (ns:list bool), (1%nat, bool_to_nat<$>ns))<$>m), rand_tapes_auth γ1 α ( t.1 ; t.2 )) ∗ *)
-  (*       ●(((λ (ns:list bool), (1, bool_to_nat<$>ns))<$>m):gmap _ _)@γ2 *)
-  (*   )%I. *)
 
   #[local] Program Definition flip_spec1 : flip_spec :=
     {| flip_allocate_tape:= (λ: <>, rand_allocate_tape #1%nat); 
@@ -210,54 +204,41 @@ Section instantiate_flip.
   Qed.
 End instantiate_flip.
 
-(* Section test. *)
-(*   Context `{F:flip_spec}. *)
-(*   Lemma flip_presample_spec_simple {L: flipG Σ} NS E ns α *)
-(*      (ε2 : R -> bool -> R) *)
-(*     (P : iProp Σ) T γ1 γ2: *)
-(*     ↑NS ⊆ E -> *)
-(*     (∀ ε n, 0<= ε -> 0<=ε2 ε n)%R -> *)
-(*     (∀ (ε:R), 0<= ε -> (ε2 ε true + ε2 ε false)/2 <= ε)%R-> *)
-(*     is_flip (L:=L) NS γ1 γ2 -∗ *)
-(*     (□∀ (ε:R) n, (P ∗ flip_error_auth (L:=L) γ1 ε) ={E∖↑NS}=∗ *)
-(*         (⌜(1<=ε2 ε n)%R⌝ ∨ (flip_error_auth (L:=L) γ1 (ε2 ε n)  ∗ T (n)))) *)
-(*         -∗ *)
-(*     P -∗ flip_tapes_frag (L:=L) γ2 α ns-∗ *)
-(*         wp_update E (∃ n, T (n) ∗ flip_tapes_frag (L:=L) γ2 α (ns++[n])). *)
-(*   Proof. *)
-(*     iIntros (Hsubset Hpos Hineq) "#Hinv #Hvs HP Hfrag". *)
-(*     pose (ε2' ε l:= match l with *)
-(*                     | [b]=> ε2 ε b *)
-(*                     | _ => 1%R *)
-(*                     end *)
-(*          ). *)
-(*     iMod (flip_presample_spec _ _ _ _ ε2' P 1%nat (λ l, match l with | [b] => T b | _ => False end )%I with "[//][][$][$]") as "(%l & [??])"; first done. *)
-(*     - rewrite /ε2'. *)
-(*       intros. repeat case_match; try done. naive_solver. *)
-(*     - intros. *)
-(*       etrans; last apply Hineq; try done. *)
-(*       erewrite (SeriesC_subset (λ x, x ∈ [[true]; [false]])); last first. *)
-(*       + intros ? H'. *)
-(*         case_match eqn:K; last done. *)
-(*         rewrite Nat.eqb_eq in K. *)
-(*         exfalso. *)
-(*         apply H'. *)
-(*         destruct a as [|[|] [|]]; try (simpl in *; done). *)
-(*         all: set_solver. *)
-(*       + rewrite SeriesC_list; last first. *)
-(*         { rewrite !NoDup_cons; repeat split; last apply NoDup_nil; set_solver. } *)
-(*         simpl. lra. *)
-(*     - iModIntro. iIntros (ε n) "?". *)
-(*       destruct n as [|b [|]]. *)
-(*       + iLeft. iPureIntro. *)
-(*         by rewrite /ε2'. *)
-(*       + iMod ("Hvs" $! ε b with "[$]") as "[% | ?]". *)
-(*         * iLeft. iPureIntro. by rewrite /ε2'. *)
-(*         * iRight. by rewrite /ε2'. *)
-(*       + iLeft. iPureIntro. *)
-(*         by rewrite /ε2'. *)
-(*     - repeat case_match; try done. *)
-(*       iModIntro. *)
-(*       iFrame. *)
-(*   Qed. *)
-(* End test. *)
+Section test.
+  Context `{F:flip_spec}.
+  Lemma flip_presample_spec_simple {L: flipG Σ} NS E γ1 α ns ε ε2:
+    ↑NS ⊆ E ->
+    (∀ n, 0<=ε2 n)%R ->
+    ((ε2 true + ε2 false)/2<=ε)%R ->
+    is_flip (L:=L) NS γ1 -∗
+    flip_tapes_frag (L:=L) γ1 α ns -∗
+    ↯ ε -∗
+          wp_update E (∃ b, flip_tapes_frag (L:=L) γ1 α (ns ++ [b]) ∗ ↯ (ε2 b)).
+  Proof.
+    iIntros (Hsubset Hpos Hineq) "#Hinv Hfrag Herr".
+    pose (ε2' l:= match l with
+                    | [b]=> ε2 b
+                    | _ => 1%R
+                    end
+         ).
+    iMod (flip_presample_spec _ _ _ _ _
+            (λ ε' num ε2'' ns', ⌜ε=ε'⌝ ∗ ⌜num=1⌝ ∗ ⌜ε2' = ε2''⌝ ∗
+                                ∃ x, ⌜ns'=[x]⌝ ∗ ↯ (ε2 x)
+            )%I with "[//][$][Herr]") as "(%&%&%&%&?&%&%&%&%&%&?)"; first done.
+    - iFrame.
+      iApply fupd_mask_intro; first set_solver.
+      iIntros "Hclose".
+      iExists 1, ε2'.
+      repeat iSplit.
+      + iPureIntro.
+        intros [|?[|??]]; by simpl.
+      + iPureIntro.
+        setoid_rewrite <-elem_of_enum_uniform_list'.
+        rewrite SeriesC_list; last apply NoDup_enum_uniform_list.
+        simpl. lra.
+      + iIntros ([|?[|??]]) "Herr"; simpl; try (by iDestruct (ec_contradict with "[$]") as "%").
+        iMod "Hclose" as "_".
+        by iFrame.
+    - subst. by iFrame.
+  Qed.
+End test.
