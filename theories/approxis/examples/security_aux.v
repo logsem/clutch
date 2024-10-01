@@ -1,54 +1,35 @@
 From clutch.prob_lang.typing Require Import tychk.
-From clutch.approxis Require Import approxis map list.
-(* From clutch.approxis.examples Require Import prf symmetric prf_cpa. *)
+From clutch.approxis Require Import approxis map list option LR_tac.
 Set Default Proof Using "Type*".
 
-Definition TOption (T : type) : type := (TUnit + T)%ty.
-Definition lrel_option {Σ} (A : lrel Σ) := (() + A)%lrel.
-
-Definition opt_mult : val :=
-  λ:"opt",
-    match: "opt" with
-    | NONE => NONE
-    | SOME "vopt" =>
-        match: "vopt" with
-        | NONE => NONE
-        | SOME "v" => SOME "v"
-        end
-    end.
-
-Fact opt_mult_typed (A : type) : (⊢ᵥ opt_mult : (TOption (TOption A) → TOption A)%ty).
-Proof.
-  rewrite /opt_mult. tychk.
-Qed.
-
-Definition opt_mult_poly : val :=
-  Λ: λ:"opt",
-    match: "opt" with
-    | NONE => NONE
-    | SOME "vopt" =>
-        match: "vopt" with
-        | NONE => NONE
-        | SOME "v" => SOME "v"
-        end
-    end.
-
-Fact opt_mult_poly_typed : (⊢ᵥ opt_mult_poly : ∀: (TOption (TOption #0) → TOption #0)%ty).
-Proof.
-  rewrite /opt_mult_poly. constructor. tychk.
-Qed.
-
-Fact opt_mult_poly_sem_typed `{!approxisRGS Σ} :
-  ⊢ (∀ A : lrel Σ, lrel_option (lrel_option A) → lrel_option A)%lrel
-      opt_mult_poly opt_mult_poly.
-Proof.
-  replace (∀ A : lrel Σ, lrel_option (lrel_option A) → lrel_option A)%lrel
-    with (interp (∀: TOption (TOption #0) → TOption #0) []) by easy.
-  iApply fundamental_val.
-  rewrite /opt_mult_poly. constructor. tychk.
-Qed.
-
 Definition lrel_int_bounded {Σ} min max : lrel Σ := LRel (λ w1 w2, ∃ k : Z, ⌜ w1 = #k ∧ w2 = #k ∧ min <=k ∧ k <= max ⌝)%Z%I.
+
+Module LR_bounded.
+  Import Ltac2.
+  Export LR_tac.
+
+  Ltac2 bounded x :=
+    let s := constr:(append "(%" ($x ++ "&->&->&%" ++ $x ++ "_min&%" ++ $x ++ "_max)")) in
+    eval vm_compute in $s.
+
+  Ltac2 Set pattern_of_lr2 as previous :=
+    fun lr (xs : constr list) =>
+      lazy_match! lr with
+      | lrel_int_bounded _ _ => bounded (get_head_name xs)
+      | _ => previous lr xs
+      end.
+
+  Ltac2 Set rel_vals as previous :=
+    fun lr =>
+      lazy_match! lr with
+      | (_ _ (lrel_int_bounded _ _) _ _) =>
+          ltac1:(iExists _ ; iPureIntro ; intuition lia)
+      | _ => previous lr
+      end.
+
+End LR_bounded.
+
+Export LR_bounded.
 
 Definition TList α := (μ: (ref (() + α * #0)))%ty.
 Fact init_list_typed α : ⊢ᵥ init_list : (() → TList α).

@@ -1,18 +1,21 @@
+From Ltac2 Require Import Ltac2.
+Set Default Proof Mode "Classic".
 From clutch.prob_lang.typing Require Import tychk.
-From clutch.approxis Require Import approxis map list.
+From clutch.approxis Require Import approxis map list option.
 From clutch.approxis.examples Require Import prf symmetric security_aux xor advantage.
 Set Default Proof Using "Type*".
+
+Definition ε_bday Q N := (INR Q * INR Q / (2 * INR N))%R.
 
 Section combined.
 
   (*** A PRF *)
+  Context `{PRF}.
 
   (** PRF Parameters. *)
-  Variable Key : nat.
-  Variable Input : nat.
-  Variable Output : nat.
-
-  Definition N := S Input.
+  Let Key := card_key.
+  Let Input := card_input.
+  Let Output := card_output.
 
   Definition PRF_real : val :=
     let keygen PRF_scheme : expr := Fst PRF_scheme in
@@ -26,7 +29,7 @@ Section combined.
   Definition PRF_rand : val :=
     let rand_output PRF_scheme : expr := Snd (Snd PRF_scheme) in
     λ:"PRF_scheme" "Q",
-      let: "lookup" := random_function Output #() in
+      let: "lookup" := random_function #() in
       let: "oracle" := q_calls_poly #() #() "Q" "lookup" in
       "oracle".
 
@@ -36,7 +39,7 @@ Section combined.
   (* Max number of oracle calls *)
   Variable (Q : nat).
 
-  Let ε_Q := (INR Q * INR Q / (2 * INR N))%R.
+  Let ε_Q := ε_bday Q (S Input).
 
   Local Opaque INR.
 
@@ -101,6 +104,22 @@ Section combined.
   Definition TCipher := (TInput * TOutput)%ty.
   Definition lrel_message {Σ} : lrel Σ := lrel_int_bounded 0 Message.
   Definition lrel_cipher {Σ} : lrel Σ := lrel_input * lrel_output.
+
+  Ltac2 Set pattern_of_lr2 as previous :=
+    fun lr (xs : constr list) =>
+      lazy_match! lr with
+      | lrel_message => bounded (get_head_name xs)
+      | _ => previous lr xs
+      end.
+
+  Ltac2 Set rel_vals as previous :=
+    fun lr =>
+      lazy_match! lr with
+      | (_ lrel_message _ _) =>
+          ltac1:(rewrite /lrel_message ; rel_vals)
+      | _ => previous lr
+      end.
+
 
   (** Parameters required for the construction of sym_scheme_F *)
   (* An abstract `xor`, in RandML and in Coq. *)
@@ -187,31 +206,35 @@ Section combined.
 
   Context `{!approxisRGS Σ}.
 
-    Ltac pattern_of_lr lr x :=
-      (* idtac "hello " lr x ; *)
-      let bounded := constr:(append "(%" (x ++ "&->&->&%" ++ x ++ "_min&%" ++ x ++ "_max)")) in
-      lazymatch lr with
-      | lrel_input => bounded
-      | lrel_output => bounded
-      | lrel_message => bounded
-      | lrel_int_bounded _ _ => bounded
-      | lrel_key => bounded
-      | lrel_int => constr:("(%&->&->)")
-      | @lrel_unit => constr:("(->&->)")
-      | lrel_option ?A =>
-          let a := pattern_of_lr A x in
-          let u := pattern_of_lr lrel_unit x in
-          constr:(append "#(%" (" " ++ "&% &[(->&->&" ++ u ++ ") | (->&->&"++a++")])"))
-      | _ => fail 0 "lrintro: encountered unhandled logical relation: " lr
+  (* TODO this should not be needed *)
+  Ltac2 Set pattern_of_lr2 as previous :=
+    fun lr (xs : constr list) =>
+      lazy_match! lr with
+      | lrel_input => bounded (get_head_name xs)
+      | lrel_output => bounded (get_head_name xs)
+      (* | lrel_message => bounded (get_head_name xs) *)
+      | lrel_key => bounded (get_head_name xs)
+      | _ => previous lr xs
       end.
 
-  Local Tactic Notation "lrintro" constr(x) :=
-    try iIntros (??) ;
-    lazymatch goal with
-    | |- environments.envs_entails _ (lrel_car ?A _ _ -∗ _) =>
-        let x' := pattern_of_lr A x in
-        iIntros x'
-    end.
+  (* Ltac2 Set rel_vals as previous :=
+          fun lr =>
+            lazy_match! lr with
+            | (lrel_car lrel_output _ _) =>
+                ltac1:(iExists _ ; iPureIntro ; intuition lia)
+            | _ => previous lr
+            end. *)
+
+  Ltac2 Set pattern_of_lr2 as previous :=
+    fun lr (xs : constr list) =>
+      lazy_match! lr with
+      | lrel_option ?a =>
+          let aa := previous a xs in
+          let u := previous 'lrel_unit xs in
+          let s := '(append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
+          eval vm_compute in $s
+      | _ => previous lr xs
+      end.
 
   Fact R_prf_sem_typed :
     ⊢ REL R_prf << R_prf :
@@ -262,7 +285,7 @@ Section combined.
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
   Proof using (xor_sem_typed adversary_sem_typed keygen_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_F/PRF_real/prf.PRF_real...
+    rewrite /PRF_scheme_F/PRF_real/prf.sem.PRF_real...
     rewrite /CPA_real/symmetric.CPA_real.
     rel_pures_l. rewrite /F_keygen.
     rel_bind_l (keygen _)%E. rel_bind_r (keygen _)%E.
@@ -333,72 +356,72 @@ Section combined.
       iFrame. iFrame. rel_vals. Unshelve. 1: exact nat. done.
   Qed.
 
-  Definition I := random_function Output.
+  Definition I := random_function.
   Definition PRF_scheme_I := (λ:"_", #(), (I, rand_output))%V.
 
-  Fact random_function_sem_typed A :
-    ⊢ REL random_function Output
-        << random_function Output : A → lrel_input → lrel_output.
-  Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
-                 Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
-                 keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
-    with (rel_pures_l ; rel_pures_r).
-    rel_arrow_val ; iIntros (??) "_".
-    rewrite /random_function...
-    rel_bind_r (init_map #()). iApply refines_init_map_r => /=... iIntros (map_r) "map_r".
-    rel_bind_l (init_map #()). iApply refines_init_map_l. iIntros (map_l) "map_l" => /=...
-    iApply (refines_na_alloc
-              ( ∃ (M : gmap nat val),
-                  map_list map_l M
-                  ∗ map_slist map_r M
-                  ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
-                           → ∃ k : nat, y = #k ∧ k <= Output ⌝
-                  ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
-              )%I
-              (nroot.@"RED")) ; iFrame.
-    iSplitL ; iFrame.
-    1: { iPureIntro; split ; [|set_solver].
-         intros y hy. exfalso. clear -hy.
-         rewrite map_img_empty in hy.
-         opose proof (proj1 (elem_of_empty y) hy). done.
-    }
-    iIntros "#Hinv".
-    rel_arrow_val ; lrintro "x"...
-    iApply (refines_na_inv with "[$Hinv]"); [done|].
-    iIntros "(> (%M & map_l & map_r & %range_int & %dom_range) & Hclose)".
-    rel_bind_l (get _ _). rel_bind_r (get _ _).
-    opose proof (IZN x _) as [x' ->] => //. rename x' into x.
-    rel_apply_l (refines_get_l with "[-map_l] [$map_l]"). iIntros (?) "map_l #->"...
-    rel_apply_r (refines_get_r with "[-map_r] [$map_r]"). iIntros (?) "map_r #->"...
-
-    destruct (M !! x) as [y |] eqn:x_fresh ...
-    + iApply (refines_na_close with "[-]") ;
-        iFrame ; repeat iSplitL.
-      { iFrame. iNext. iFrame. iPureIntro. split. 2: set_solver. done. }
-      opose proof (elem_of_map_img_2 M x y x_fresh) as hy.
-      destruct (range_int y hy) as [y' [??]]. subst. rel_vals.
-    + rel_apply (refines_couple_UU Output id); first auto.
-      iIntros (y) "!> %"...
-      rel_apply_r (refines_set_r with "[-map_r] [$map_r]"). iIntros "map_r"...
-      rel_apply_l (refines_set_l with "[-map_l] [$map_l]"). iIntros "map_l"...
-      iApply (refines_na_close with "[-]") ;
-        iFrame ; repeat iSplitL. 1: iExists _ ; iFrame.
-      1: { iPureIntro.
-           repeat split ; last first.
-           - rewrite -Forall_forall.
-             rewrite dom_insert.
-             rewrite elements_union_singleton.
-             + apply Forall_cons_2. 1: lia. rewrite Forall_forall. done.
-             + apply not_elem_of_dom_2. done.
-           - intros y' hy'. rewrite (map_img_insert M x (#y)) in hy'.
-             rewrite elem_of_union in hy'. destruct hy'.
-             + exists y. set_solver.
-             + apply range_int.
-               opose proof (delete_subseteq M x).
-               eapply map_img_delete_subseteq. done.
-      }
-      rel_vals. Unshelve. all: apply _.
-  Qed.
+  (* Fact random_function_sem_typed A :
+       ⊢ REL random_function
+           << random_function : A → lrel_input → lrel_output.
+     Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
+                    Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
+                    keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
+       with (rel_pures_l ; rel_pures_r).
+       rel_arrow_val ; iIntros (??) "_".
+       rewrite /random_function...
+       rel_bind_r (init_map #()). iApply refines_init_map_r => /=... iIntros (map_r) "map_r".
+       rel_bind_l (init_map #()). iApply refines_init_map_l. iIntros (map_l) "map_l" => /=...
+       iApply (refines_na_alloc
+                 ( ∃ (M : gmap nat val),
+                     map_list map_l M
+                     ∗ map_slist map_r M
+                     ∗ ⌜ ∀ y, y ∈ @map_img nat val (gmap nat val) _ (gset val) _ _ _ M
+                              → ∃ k : nat, y = #k ∧ k <= Output ⌝
+                     ∗ ⌜ ∀ x, x ∈ elements (dom M) -> (x < S Input)%nat ⌝
+                 )%I
+                 (nroot.@"RED")) ; iFrame.
+       iSplitL ; iFrame.
+       1: { iPureIntro; split ; [|set_solver].
+            intros y hy. exfalso. clear -hy.
+            rewrite map_img_empty in hy.
+            opose proof (proj1 (elem_of_empty y) hy). done.
+       }
+       iIntros "#Hinv".
+       rel_arrow_val ; lrintro "x"...
+       iApply (refines_na_inv with "[$Hinv]"); [done|].
+       iIntros "(> (%M & map_l & map_r & %range_int & %dom_range) & Hclose)".
+       rel_bind_l (get _ _). rel_bind_r (get _ _).
+       opose proof (IZN x _) as [x' ->] => //. rename x' into x.
+       rel_apply_l (refines_get_l with "[-map_l] [$map_l]"). iIntros (?) "map_l #->"...
+       rel_apply_r (refines_get_r with "[-map_r] [$map_r]"). iIntros (?) "map_r #->"...
+     
+       destruct (M !! x) as [y |] eqn:x_fresh ...
+       + iApply (refines_na_close with "[-]") ;
+           iFrame ; repeat iSplitL.
+         { iFrame. iNext. iFrame. iPureIntro. split. 2: set_solver. done. }
+         opose proof (elem_of_map_img_2 M x y x_fresh) as hy.
+         destruct (range_int y hy) as [y' [??]]. subst. rel_vals.
+       + rel_apply (refines_couple_UU Output id); first auto.
+         iIntros (y) "!> %"...
+         rel_apply_r (refines_set_r with "[-map_r] [$map_r]"). iIntros "map_r"...
+         rel_apply_l (refines_set_l with "[-map_l] [$map_l]"). iIntros "map_l"...
+         iApply (refines_na_close with "[-]") ;
+           iFrame ; repeat iSplitL. 1: iExists _ ; iFrame.
+         1: { iPureIntro.
+              repeat split ; last first.
+              - rewrite -Forall_forall.
+                rewrite dom_insert.
+                rewrite elements_union_singleton.
+                + apply Forall_cons_2. 1: lia. rewrite Forall_forall. done.
+                + apply not_elem_of_dom_2. done.
+              - intros y' hy'. rewrite (map_img_insert M x (#y)) in hy'.
+                rewrite elem_of_union in hy'. destruct hy'.
+                + exists y. set_solver.
+                + apply range_int.
+                  opose proof (delete_subseteq M x).
+                  eapply map_img_delete_subseteq. done.
+         }
+         rel_vals. Unshelve. all: apply _.
+     Qed. *)
 
   (* Should be just syntactic since PRF_rand doesn't use the PRF. *)
   Lemma PRF_F_I :
@@ -408,7 +431,7 @@ Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
 Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
 keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
     with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.PRF_rand...
+    rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.sem.PRF_rand...
     unshelve rel_apply refines_app.
     1: exact (lrel_input → lrel_output)%lrel.
     - rel_arrow. iIntros (rf rf') "#hrf"...
@@ -450,10 +473,10 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
                  Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
                  keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
     with (rel_pures_r ; rel_pures_l).
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
+    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc.
     (* rewrite /RED/R_prf. rewrite /I... *)
-    rel_bind_l (random_function _ _). rel_bind_r (random_function _ _). rel_apply refines_bind.
+    rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: rel_apply refines_app ; [iApply (random_function_sem_typed lrel_unit)|rel_vals].
     iIntros (rf rf') "#rf"...
     rel_bind_l (q_calls_poly _ _ _ _). rel_bind_r (q_calls_poly _ _ _ _).
@@ -482,9 +505,9 @@ Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
 Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
 keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
  with (rel_pures_r ; rel_pures_l).
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
+    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
-    rel_bind_l (random_function _ _). rel_bind_r (random_function _ _). rel_apply refines_bind.
+    rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: rel_apply refines_app ; [iApply (random_function_sem_typed lrel_unit)|rel_vals].
     iIntros (rf rf') "#rf"...
 
@@ -523,6 +546,9 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
         iFrame ; repeat iSplitL. 1: by iFrame.
       rel_bind_l (rf _). rel_bind_r (rf' _). rel_apply refines_bind.
       1: iApply "rf" ; rel_vals.
+      (* TODO should not be needed. *)
+      1: rewrite /prf.lrel_input ; rel_vals.
+      rewrite /prf.lrel_output.
       lrintro "z"...
       rel_bind_l (xor _ _). rel_bind_r (xor _ _).
       iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
@@ -556,9 +582,9 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
              xor_sem_typed keygen_sem_typed adversary_sem_typed Key F_sem_typed)
     with (rel_pures_l ; rel_pures_r).
     rewrite /RED.
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
+    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
-    rel_bind_l (random_function _ _). rel_bind_r (random_function _ _). rel_apply refines_bind.
+    rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: rel_apply refines_app ; [iApply (random_function_sem_typed lrel_unit)|rel_vals].
     iIntros (rf rf') "#rf"...
 
@@ -599,6 +625,9 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
         iFrame ; repeat iSplitL. 1: by iFrame.
       rel_bind_l (rf _). rel_bind_r (rf' _). rel_apply refines_bind.
       1: iApply "rf" ; rel_vals.
+      (* TODO should not be needed. *)
+      1: rewrite /prf.lrel_input ; rel_vals.
+      rewrite /prf.lrel_output.
       lrintro "z"...
       rel_bind_l (xor _ _). rel_bind_r (xor _ _).
       iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
@@ -726,7 +755,7 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
       { apply not_elem_of_dom_1. rewrite -elem_of_elements. rewrite -Hl'.
         intros K. apply elem_of_list_fmap_2_inj in K; [done | apply fin_to_nat_inj]. }
       rewrite r_fresh_M...
-      unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ H (Z.to_nat msg))) ;
+      unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ H0 (Z.to_nat msg))) ;
         [apply xor_bij|apply xor_dom => //|..].
       iIntros (y) "!> %"...
       rel_apply_l (refines_set_l with "[-mapref] [$mapref]") ; iIntros "mapref"...
@@ -811,7 +840,7 @@ F_sem_typed).
     rewrite Rdiv_mult_distr. lra.
   Qed.
 
-  Lemma cpa_I_ARC Σ `{!approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H) σ σ' :
+  Lemma cpa_I_ARC Σ `{!approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H0) σ σ' :
     ARcoupl (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ'))
       eq ε_Q.
@@ -868,6 +897,146 @@ F_sem_typed).
       (lim_exec (RED (PRF_rand PRF_scheme_F #Q), σ'))
       eq ε_F.
 
+End combined.
+
+Section closed_example.
+  (* Definition bit:=64. *)
+  Variable bit : nat.
+  Definition Output' := 2^bit - 1.
+  Definition Input' := 2^bit-1.
+  Definition Key' := 2^bit-1.
+  Notation Message' := Output'.
+  Notation Output := (S Output').
+  Lemma Output_pos: 0<Output.
+  Proof. lia. Qed.
+
+  Definition xor:val :=
+    (λ: "x" "y", let: "sum" := "x" + "y" in
+                 if: "sum" < #Output then "sum" else "sum" - #Output)%V.
+
+  Definition xor_sem (x y : nat) :=
+    (if bool_decide (x ≥ Output)
+       then y
+       else if bool_decide (y ≥ Output)
+         then y
+         else if bool_decide(x + y < Output)
+           then x + y
+           else x + y - Output).
+
+  Lemma xor_sem_bij x: Bij (xor_sem x).
+  Proof.
+    split.
+    - intros y y'. rewrite /xor_sem.
+      intros H.
+      case_bool_decide; [lia |].
+      case_bool_decide; case_bool_decide; [ lia | | | ].
+      + case_bool_decide; lia.
+      + case_bool_decide; [lia | ].
+        case_bool_decide; lia.
+      + case_bool_decide; [lia | ].
+        case_bool_decide; lia.
+    - rewrite /xor_sem. intros y.
+      case_bool_decide; [eauto |].
+      destruct (decide (y ≥ Output)).
+      + exists y. case_bool_decide; lia.
+      + destruct (decide (x<=y)).
+        * exists (y-x).
+          case_bool_decide; [lia |].
+          case_bool_decide; lia.
+        * exists (Output+y-x).
+          case_bool_decide; [lia |].
+          case_bool_decide; lia.
+  Qed.
+
+  Lemma xor_sem_dom: forall x, x < S Message' -> (∀ n : nat, n < S Output' → xor_sem x n < S Output').
+  Proof.
+    intros.
+    rewrite /xor_sem.
+    case_bool_decide; [lia |].
+    case_bool_decide; [lia |].
+    case_bool_decide; lia.
+  Qed.
+
+
+  Lemma xor_correct_l `{!approxisRGS Σ} E K (x : Z) (y : nat)
+    (_: (0<=x)%Z)
+    (Hx : ((Z.to_nat x) < S Message'))
+    (_ : y < S Message' ) e A:
+    (REL (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) << e @ E : A)
+    -∗ REL (fill K (xor #x #y)) << e @ E : A.
+  Proof with rel_pures_l.
+    iIntros "H".
+    rewrite /xor...
+    rewrite /xor_sem.
+    rewrite bool_decide_eq_false_2; last lia.
+    rewrite bool_decide_eq_false_2; last lia.
+    case_bool_decide.
+    - rewrite bool_decide_eq_true_2; last lia.
+      rel_pures_l.
+      replace (Z.of_nat (Z.to_nat x + y))%Z with (x + Z.of_nat y)%Z by lia.
+      done.
+    - rewrite bool_decide_eq_false_2; last lia...
+      replace (Z.of_nat (Z.to_nat x + y - S Message'))%Z with (x + Z.of_nat y - Z.of_nat (S Message'))%Z by lia.
+      done.
+  Qed.
+
+  Lemma xor_correct_r  `{!approxisRGS Σ} E K (x : Z) (y : nat)
+    (_: (0<=x)%Z)
+    (Hx : ((Z.to_nat x) < S Message'))
+    (_: y < S Message') e A:
+    (REL e << (fill K (of_val #(xor_sem (Z.to_nat x) (y)))) @ E : A)
+    -∗ REL e << (fill K (xor #x #y)) @ E : A.
+  Proof with rel_pures_r.
+    iIntros "H".
+    rewrite /xor...
+    rewrite /xor_sem.
+    rewrite bool_decide_eq_false_2; last lia.
+    rewrite bool_decide_eq_false_2; last lia.
+    case_bool_decide.
+    - rewrite bool_decide_eq_true_2; last lia...
+      replace (Z.of_nat (Z.to_nat x + y))%Z with (x + Z.of_nat y)%Z; first done.
+      rewrite Nat2Z.inj_add. rewrite Z2Nat.id; lia.
+    - rewrite bool_decide_eq_false_2; last lia...
+      replace (Z.of_nat (Z.to_nat x + y - S Message'))%Z with (x + Z.of_nat y - Z.of_nat (S Message'))%Z by lia.
+      done.
+  Qed.
+
+  #[local] Instance mod_prf : @XOR Output' Output'.
+  Proof.
+    unshelve econstructor.
+    1: exact xor. 1: exact xor_sem. 1: exact xor_sem_bij.
+    1: apply xor_sem_dom.
+    rewrite /xor. constructor.
+    admit.
+  Admitted.
+
+  Fact xor_sem_typed : forall `{!approxisRGS Σ},
+    ⊢ (lrel_int_bounded 0 (S Key') → lrel_int_bounded 0 (S Input') → lrel_int_bounded 0 Output)%lrel
+        xor xor.
+  Proof with (rel_pures_r ; rel_pures_l).
+    rewrite /Key' /Input' /Output'.
+    iIntros.
+    iIntros (k k').
+    iModIntro. lrintro "x".
+    rewrite /xor...
+    rel_arrow_val. lrintro "y"...
+    case_bool_decide as h...
+    all:  rewrite /Output' in h ; rewrite /Output' ; rel_vals.
+  Qed.
+
+  Variable (Q : nat).
+
+  (* Definition N' := N Input'. *)
+  Let ε_Q := (INR Q * INR Q / (2 * INR (S Input')))%R.
+
+  Variable adversary : val.
+  Context `{Xor : XOR Message' Output'}.
+  Variable keygen : val.
+  Variable F : val.
+
+  Let sym_scheme_F := @sym_scheme_F Input' Output' keygen F Xor.
+  Let ε_F := ε_F Input' Output' Q keygen F adversary.
+
   (* Either way, we can compose the ARC-level reduction lemmas and the
      assumption H_ε_ARC to get an ARC. *)
   Lemma prf_cpa_ARC Σ `{approxisRGpreS Σ} σ σ' :
@@ -876,7 +1045,7 @@ F_sem_typed).
       eq (ε_Q + ε_F).
   Proof.
     set (ε := (ε_Q + NNRbar_to_real (NNRbar.Finite ε_F))%R).
-    assert (0 <= ε_F)%R by apply cond_nonneg. pose proof ε_Q_pos.
+    assert (0 <= ε_F)%R by apply cond_nonneg. pose proof (ε_Q_pos Input' Q).
     assert (0 <= ε)%R.
     { unfold ε. apply Rplus_le_le_0_compat ; auto. }
     replace ε with (0+ε)%R by lra.

@@ -30,7 +30,7 @@ Section prp_prf.
   Definition TAdv := ((TInput → (TUnit+ TOutput)) → TBool)%ty.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
   Definition q_calls := q_calls Input.
-  Definition PRF := PRF val_size val_size.
+  Definition PRF := PRF_real_rand val_size val_size.
   Definition PRP := PRP val_size.
   (* Definition PRP_PRF : val := λ:"b" "adv",
          if: "b" then PRP #false "adv" #() else PRF #false "adv" #(). *)
@@ -74,7 +74,7 @@ Section prp_prf.
       ↯ ε ⊢ (REL (PRP #false adv ((λ: "_", #()),#()) #Q) << (PRF #false adv ((λ: "_", #()),#()) #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros (<-) "Hε".
-      rewrite /PRP/PRF/prp.PRP/prf.PRF...
+      rewrite /PRP/PRF/prp.PRP/prf.PRF_real_rand...
       rewrite /random_permutation/random_function...
       rewrite /random_permutation_state...
       rel_apply_l refines_init_map_l.
@@ -308,7 +308,7 @@ Section prp_prf.
       ↯ ε ⊢ (REL (PRF #false adv ((λ: "_", #()),#()) #Q) << (PRP #false adv ((λ: "_", #()),#()) #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
     iIntros (<-) "Hε".
-      rewrite /PRP/PRF/prp.PRP/prf.PRF...
+      rewrite /PRP/PRF/prp.PRP/prf.PRF_real_rand...
       rewrite /random_permutation/random_function...
       rewrite /random_permutation_state...
       rel_apply_l refines_init_map_l.
@@ -541,7 +541,7 @@ Section prp_prf.
   Variable (Q : nat).
   Let ε := (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R.
 
-  Let PRF : expr := (PRF #false adv ((λ: "_", #()),#()) #Q)%E.
+  Let PRF : expr := (PRF_real_rand #false adv ((λ: "_", #()),#()) #Q)%E.
   Let PRP : expr := (PRP #false adv ((λ: "_", #()),#()) #Q)%E.
 
   Lemma PRF_PRP_ARC Σ `{approxisRGpreS Σ} σ σ' :
@@ -629,7 +629,7 @@ End prp_prf.
 
 Lemma switching_lemma N σ σ' (adv : val) (typed : ∅ ⊢ₜ adv : TAdv) (Q : nat) :
   (Rabs ( (( lim_exec (PRP N #false adv ((λ: "_", #()),#())%E #Q, σ)) #true) -
-            (lim_exec (PRF N #false adv ((λ: "_", #()),#())%E #Q, σ') #true) )
+            (lim_exec (PRF_real_rand N #false adv ((λ: "_", #()),#())%E #Q, σ') #true) )
    <= ((Q-1) * Q / (2 * S N)))%R.
 Proof.
   apply Rabs_le.

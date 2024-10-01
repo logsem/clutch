@@ -1,7 +1,5 @@
 From clutch.common Require Import inject.
 From clutch Require Import approxis.
-
-From clutch.approxis.examples Require Export map.
 Set Default Proof Using "Type*".
 
 Section list_code.
