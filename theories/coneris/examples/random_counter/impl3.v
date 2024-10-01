@@ -19,19 +19,6 @@ Section filter.
   Qed.
 End filter.
 
-(* Section lemmas. *)
-(*   Context `{!conerisGS Σ}. *)
-(*   Lemma hocap_tapes_notin3 α N ns (m:gmap loc (nat*list nat)) : *)
-(*     α ↪N (N; ns) -∗ ([∗ map] α↦t ∈ m,∃ (ls:list nat), ⌜ (filter filter_f ls) = t.2⌝ ∗ α ↪N ( 4%nat ; ls)) -∗ ⌜m!!α=None ⌝. *)
-(*   Proof. *)
-(*     destruct (m!!α) eqn:Heqn; last by iIntros. *)
-(*     iIntros "Hα Hmap". *)
-(*     iDestruct (big_sepM_lookup with "[$]") as "(%&%&?)"; first done. *)
-(*     iExFalso. *)
-(*     iApply (tapeN_tapeN_contradict with "[$][$]"). *)
-(*   Qed. *)
-(* End lemmas. *)
-
 Section impl3.
   Context `{H:conerisGS Σ, r1:@rand_spec Σ H, L:randG Σ, !inG Σ (frac_authR natR)}.
 
@@ -51,14 +38,6 @@ Section impl3.
   Definition is_counter3 N (c:val) γ1 γ2:=
     ((is_rand (L:=L) (N.@"rand") γ1) ∗
      inv (N.@"counter") (counter_inv_pred3 c γ2))%I.
-
-  
-    (* (∃ (ε:R) (m:gmap loc (nat * list nat)) (l:loc) (z:nat), *)
-    (*     ↯ ε ∗ ●↯ ε @ γ1 ∗ *)
-    (*     ([∗ map] α ↦ t ∈ m, ∃ (ls:list nat), ⌜ (filter filter_f ls) = t.2⌝ ∗ α ↪N ( 4%nat ; ls) ) *)
-    (*     ∗ ●m@γ2 ∗ *)
-    (*     ⌜c=#l⌝ ∗ l ↦ #z ∗ own γ3 (●F z) *)
-    (* )%I. *)
 
   Lemma new_counter_spec3 E N:
     {{{ True }}}
