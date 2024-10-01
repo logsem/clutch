@@ -110,6 +110,20 @@ Proof.
       intros (num & ?). apply H1.
       exists (num-1). lia.
 Qed.
+
+Local Lemma decoder_Some_length bs xs: decoder bs = Some xs -> length bs = 2 * length xs.
+Proof.
+  revert bs.
+  induction xs as [|x xs IH]; intros [|?[|??]] H; simpl in *; simplify_eq; try done.
+  - rewrite bind_Some in H.
+    destruct H as (?&?&?).
+    simplify_eq.
+  - rewrite bind_Some in H.
+    destruct H as (?&?&?).
+    simplify_eq.
+    f_equal. rewrite IH; [lia|done].
+Qed.
+
 (* Local Definition expander (l:list nat):= *)
 (*   l ≫= (λ x, [Nat.div2 x; Nat.b2n (Nat.odd x)]). *)
 
@@ -371,14 +385,23 @@ Section impl2.
                 ** rewrite bool_decide_eq_true_2; first done.
                    erewrite elem_of_list_fmap.
                    rewrite Nat.eqb_eq in H0.
-                   admit.
+                   apply decoder_ineq in K as K'.
+                   apply fin.nat_list_to_fin_list in K'.
+                   destruct K' as [xs K'].
+                   exists xs. split; first done.
+                   rewrite elem_of_enum_uniform_fin_list.
+                   apply decoder_Some_length in K.
+                   apply (f_equal length) in K'.
+                   rewrite fmap_length in K'. lia.
                 ** rewrite bool_decide_eq_false_2; first done.
                    rewrite elem_of_list_fmap.
                    intros (?&->&K').
                    rewrite elem_of_enum_uniform_fin_list in K'.
                    rewrite Nat.eqb_neq in H0.
                    exfalso. apply H0.
-                   admit.
+                   apply decoder_Some_length in K.
+                   rewrite fmap_length in K.
+                   lia.
              ++ f_equal.
                 replace 4%R with (2^2)%R; last (simpl; lra).
                 by rewrite -pow_mult.
@@ -409,7 +432,7 @@ Section impl2.
       iSplit; last by rewrite Forall_app.
       rewrite /expander.
       by rewrite bind_app.
-  Admitted.
+  Qed.
 
   Lemma read_counter_spec2 N E c γ1 γ2 Q:
     ↑N ⊆ E ->
@@ -529,3 +552,4 @@ Next Obligation.
   apply frac_auth_update.
   apply nat_local_update. lia.
 Qed.
+       

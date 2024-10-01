@@ -161,8 +161,20 @@ Section fin.
     rewrite f_inv_cancel_r //.
   Qed.
 
-
-
+  Lemma nat_list_to_fin_list xs N:
+    Forall (λ x, x < N) xs -> ∃ (xs' : list (fin N)), fin_to_nat <$> xs' = xs.
+  Proof.
+    induction xs.
+    - intros. by exists [].
+    - rewrite Forall_cons_iff.
+      intros [P H].
+      apply IHxs in H.
+      destruct H as [xs' <-].
+      eexists (nat_to_fin P :: _).
+      simpl. f_equal.
+      by rewrite fin_to_nat_to_fin.
+  Qed.
+  
  (* Adapted from Coq standard library FinFun *)
 
 Definition bFunNM n m (f:nat->nat) := forall x, x < n -> f x < m.
