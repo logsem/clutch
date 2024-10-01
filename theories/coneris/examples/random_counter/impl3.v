@@ -111,64 +111,37 @@ Section impl3.
                                       (∃ ls, ⌜filter filter_f ls = ns⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) ∗
                                                           Q z }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP & Hα) HΦ". *)
-  (*   rewrite /incr_counter_tape3. *)
-  (*   iLöb as "IH". *)
-  (*   wp_pures. *)
-  (*   wp_bind (rand(_) _)%E. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
-  (*   erewrite <-(insert_delete m) at 1; last done. *)
-  (*   rewrite big_sepM_insert; last apply lookup_delete. *)
-  (*   simpl. *)
-  (*   iDestruct "H3" as "[(%ls & %Hls & Htape) H3]". *)
-  (*   destruct ls as [|x ls]. *)
-  (*   { rewrite filter_nil in Hls. simplify_eq. } *)
-  (*   wp_apply (wp_rand_tape with "[$]") as "[Htape %Hineq]". *)
-  (*   rewrite Nat.le_lteq in Hineq. *)
-  (*   destruct Hineq as [? | ->]. *)
-  (*   - (* first value is valid *) *)
-  (*     iMod (hocap_tapes_pop with "[$][$]") as "[H4 Hα]". *)
-  (*     rewrite filter_cons /filter_f in Hls. *)
-  (*     rewrite bool_decide_eq_true_2 in Hls; last done. simpl in *. *)
-  (*     simplify_eq. *)
-  (*     iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_". *)
-  (*     { iSplitL; last done. *)
-  (*       erewrite <-(insert_delete m) at 2; last done. *)
-  (*       iNext. *)
-  (*       rewrite insert_insert. *)
-  (*       rewrite big_sepM_insert; last apply lookup_delete. by iFrame. *)
-  (*     } *)
-  (*     iModIntro. *)
-  (*     wp_pures. *)
-  (*     rewrite bool_decide_eq_true_2; last lia. *)
-  (*     clear -Hsubset. *)
-  (*     wp_pures. *)
-  (*     wp_bind (FAA _ _). *)
-  (*     iInv N as ">(%ε & %m & % & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*     wp_faa. *)
-  (*     iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*     replace (#(z+n)) with (#(z+n)%nat); last first. *)
-  (*     { by rewrite Nat2Z.inj_add. } *)
-  (*     iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]") as "_"; first done. *)
-  (*     iModIntro. wp_pures. *)
-  (*     iApply "HΦ". *)
-  (*     by iFrame. *)
-  (*   - (* we get a 5, do iLöb induction *) *)
-  (*     rewrite filter_cons /filter_f in Hls. *)
-  (*     rewrite bool_decide_eq_false_2 in Hls; last lia. simpl in *. *)
-  (*     iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Htape]") as "_". *)
-  (*     { iSplitL; last done. *)
-  (*       erewrite <-(insert_delete m) at 2; last done. *)
-  (*       iNext. *)
-  (*       rewrite big_sepM_insert; last apply lookup_delete. by iFrame. *)
-  (*     } *)
-  (*     iModIntro. *)
-  (*     do 4 wp_pure. *)
-  (*     by iApply ("IH" with "[$][$]"). *)
-  (* Qed. *)
-
+    iIntros (Hsubset Φ) "([#Hinv #Hinv'] & (%ls & %Hfilter & Hfrag) & Hvs) HΦ".
+    rewrite /incr_counter_tape3.
+    iLöb as "IH" forall (ls Hfilter Φ) "Hfrag".
+    wp_pures.
+    destruct ls as [|hd ls]; first simplify_eq.
+    wp_apply (rand_tape_spec_some with "[$]") as "Hfrag"; first by eapply nclose_subseteq'.
+    wp_pures.
+    case_bool_decide as K.
+    - wp_pures.
+      wp_bind (FAA _ _).
+      iInv "Hinv'" as ">(%&%&-> & ?&?)" "Hclose".
+      wp_faa.
+      iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+      + apply difference_mono_l.
+        by apply nclose_subseteq'.
+      + iMod ("Hvs" with "[$]") as "[? HQ]".
+        iMod "Hclose'" as "_".
+        rewrite -Nat2Z.inj_add.
+        rewrite filter_cons_True in Hfilter; last (rewrite /filter_f; lia).
+        simplify_eq.
+        iMod ("Hclose" with "[-HQ Hfrag HΦ]") as "_"; first by iFrame.
+        iModIntro.
+        wp_pures.
+        iApply "HΦ". by iFrame.
+    - wp_pure.
+      iApply ("IH" with "[][$][$][$]").
+      iPureIntro.
+      rewrite filter_cons_False in Hfilter; first done.
+      rewrite /filter_f. lia.
+  Qed.
+  
   Lemma counter_presample_spec3  NS E T γ1 γ2 c α ns:
     ↑NS ⊆ E ->
     is_counter3 NS c γ1 γ2 -∗
