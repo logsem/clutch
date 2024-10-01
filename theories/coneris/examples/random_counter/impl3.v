@@ -36,9 +36,9 @@ Section impl3.
   Context `{H:conerisGS Σ, r1:@rand_spec Σ H, L:randG Σ, !inG Σ (frac_authR natR)}.
 
   Definition new_counter3 : val:= λ: "_", ref #0.
-  Definition allocate_tape3 : val := λ: "_", rand_allocate_tape #4.
+  Definition allocate_tape3 : val := λ: "_", rand_allocate_tape #4%nat.
   Definition incr_counter_tape3 :val := rec: "f" "l" "α":=
-                                          let: "n" := rand_tape "α" #4 in
+                                          let: "n" := rand_tape "α" #4%nat in
                                           if: "n" < #4
                                           then (FAA "l" "n", "n")
                                           else "f" "l" "α".
@@ -67,24 +67,20 @@ Section impl3.
           ∃ γ1 γ2, is_counter3 N c γ1 γ2 ∗ own γ2 (◯F 0%nat)
       }}}.
   Proof.
-  Admitted.
-  (*   rewrite /new_counter3. *)
-  (*   iIntros (Φ) "Hε HΦ". *)
-  (*   wp_pures. *)
-  (*   wp_alloc l as "Hl". *)
-  (*   iDestruct (ec_valid with "[$]") as "%". *)
-  (*   unshelve iMod (hocap_error_alloc (mknonnegreal ε _)) as "[%γ1 [H1 H2]]". *)
-  (*   { lra. } *)
-  (*   simpl. *)
-  (*   iMod (hocap_tapes_alloc (∅:gmap _ _)) as "[%γ2 [H3 H4]]". *)
-  (*   iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ3[H5 H6]]". *)
-  (*   { by apply frac_auth_valid. } *)
-  (*   replace (#0) with (#0%nat) by done. *)
-  (*   iMod (inv_alloc N _ (counter_inv_pred3 (#l) γ1 γ2 γ3) with "[$Hε $Hl $H1 $H3 $H5]") as "#Hinv". *)
-  (*   { iSplit; last done. by iApply big_sepM_empty. } *)
-  (*   iApply "HΦ". *)
-  (*   iExists _, _, _. by iFrame. *)
-  (* Qed. *)
+    rewrite /new_counter3.
+    iIntros (Φ) "_ HΦ".
+    wp_pures.
+    iMod (rand_inv_create_spec) as "(%γ1 & #Hinv)".
+    wp_alloc l as "Hl".
+    iMod (own_alloc (●F 0%nat ⋅ ◯F 0%nat)) as "[%γ2[H5 H6]]".
+    { by apply frac_auth_valid. }
+    replace (#0) with (#0%nat) by done.
+    iMod (inv_alloc _ _ (counter_inv_pred3 (#l) γ2) with "[$Hl $H5]") as "#Hinv'"; first done.
+    iApply "HΦ".
+    iFrame.
+    iModIntro.
+    iExists _. by iSplit.
+  Qed.
 
   Lemma allocate_tape_spec3 N E c γ1 γ2:
     ↑N ⊆ E->
@@ -94,22 +90,13 @@ Section impl3.
           ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ (∃ ls, ⌜filter filter_f ls = []⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls))
       }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "#Hinv HΦ". *)
-  (*   rewrite /allocate_tape3. *)
-  (*   wp_pures. *)
-  (*   wp_alloctape α as "Hα". *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   iDestruct (hocap_tapes_notin3 with "[$][$]") as "%". *)
-  (*   iMod (hocap_tapes_new with "[$]") as "[H4 H7]"; first done. *)
-  (*   iMod ("Hclose" with "[$H1 $H2 H3 $H4 $H5 $H6 Hα]") as "_". *)
-  (*   { iNext. iSplitL; last done. *)
-  (*     rewrite big_sepM_insert; [simpl; iFrame|done]. *)
-  (*     by rewrite filter_nil. *)
-  (*   } *)
-  (*   iApply "HΦ". *)
-  (*   by iFrame. *)
-  (* Qed. *)
+    iIntros (Hsubset Φ) "[#Hinv #Hinv'] HΦ".
+    rewrite /allocate_tape3.
+    wp_pures.
+    wp_apply rand_allocate_tape_spec as (v) "(%α & -> & Hfrag)"; [by eapply nclose_subseteq'|done|].
+    iApply "HΦ".
+    by iFrame.
+  Qed.
 
   Lemma incr_counter_tape_spec_some3  N E c γ1 γ2 (Q:nat->iProp Σ) (α:loc) n ns:
     ↑N⊆E ->
@@ -306,16 +293,19 @@ Section impl3.
       {{{ (n':nat), RET #n'; Q n'
       }}}.
   Proof.
-  Admitted.
-  (*   iIntros (Hsubset Φ) "(#Hinv & #Hvs & HP) HΦ". *)
-  (*   rewrite /read_counter3. *)
-  (*   wp_pure. *)
-  (*   iInv N as ">(%ε & %m & %l & %z & H1 & H2 & H3 & H4 & -> & H5 & H6)" "Hclose". *)
-  (*   wp_load. *)
-  (*   iMod ("Hvs" with "[$]") as "[H6 HQ]". *)
-  (*   iMod ("Hclose" with "[$H1 $H2 $H3 $H4 $H5 $H6]"); first done. *)
-  (*   iApply ("HΦ" with "[$]"). *)
-  (* Qed. *)
+    iIntros (Hsubset Φ) "([#Hinv #Hinv'] & Hvs) HΦ".
+    rewrite /read_counter3.
+    wp_pure.
+    iInv "Hinv'" as ">( %l & %z & -> & H5 & H6)" "Hclose".
+    wp_load.
+    iMod (fupd_mask_subseteq (E ∖ ↑N)) as "Hclose'".
+    { apply difference_mono_l.
+      by apply nclose_subseteq'. }
+    iMod ("Hvs" with "[$]") as "[? HQ]".
+    iMod "Hclose'" as "_".
+    iMod ("Hclose" with "[-HQ HΦ]"); first by iFrame.
+    iApply ("HΦ" with "[$]").
+  Qed.
     
 End impl3.
 
