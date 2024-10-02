@@ -54,33 +54,17 @@ Section combined.
 
   Definition T_PRF_Adv := ((TInput → (TOption TOutput)) → TBool)%ty.
 
-
-  (* Definition lrel_key {Σ} : lrel Σ := lrel_int_bounded 0 Key.
-     Definition lrel_input {Σ} : lrel Σ := lrel_int_bounded 0 Input.
-     Definition lrel_output {Σ} : lrel Σ := lrel_int_bounded 0 Output.
-     Definition lrel_keygen `{!approxisRGS Σ} : lrel Σ := (lrel_unit → lrel_key).
-     Definition lrel_prf `{!approxisRGS Σ} : lrel Σ := lrel_key → lrel_input → lrel_output.
-
-     Definition lrel_PRF_Adv `{!approxisRGS Σ} := ((lrel_input → (lrel_option lrel_output)) → lrel_bool)%lrel. *)
-
   (** Assumption: the PRF is typed. *)
-  (* TODO: The type TPRF requires F to be safe for all inputs ; maybe this
-     assumption is unrealistic, and F should only be required to be safe only
-     for inputs in {0..Key}x{0..Input}. *)
-  (* Hypothesis prf_typed : (⊢ᵥ prf : TPRF).
-     Hypothesis keygen_typed : (⊢ᵥ keygen : TKeygen). *)
   Hypothesis F_sem_typed : forall `{!approxisRGS Σ}, (⊢ REL prf << prf : lrel_prf).
   Hypothesis keygen_sem_typed : forall `{!approxisRGS Σ}, (⊢ REL keygen << keygen : lrel_keygen).
 
 
-  (*** Symmetric scheme sym_scheme_F based on the PRF **)
+  (** Symmetric scheme sym_scheme_F based on the PRF **)
   (** Symmetric Scheme Parameters **)
   Let Message := Output.
   Let Cipher := Input * Output.
 
   (** Security for Symmetric Encryption *)
-  (* Let CPA_real := CPA_real Message.
-     Let CPA_rand := CPA_rand Message. *)
 
   Definition CPA_real : val :=
     let keygen scheme : expr := Fst scheme in
@@ -121,14 +105,10 @@ Section combined.
     lazy_match! typ with
     | (lrel_car lrel_message ?v1 ?v2) =>
         printf "found `lrel_message %t %t`, unfolding" v1 v2 ;
-        (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
-        let typ := eval unfold lrel_message in $typ in
-          k typ
+        let typ := eval unfold lrel_message in $typ in k typ
     | (lrel_car lrel_cipher ?v1 ?v2) =>
         printf "found `lrel_cipher %t %t`, unfolding" v1 v2 ;
-        (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
-        let typ := eval unfold lrel_cipher in $typ in
-          k typ
+        let typ := eval unfold lrel_cipher in $typ in k typ
     | _ => Stuck
     end.
   Ltac2 Set Basic.rel_val_tacs as prev := fun () => FMap.add "prf_cpa" prf_cpa_val (prev ()).
@@ -139,15 +119,6 @@ Section combined.
       | lrel_message => bounded (get_head_name xs)
       | _ => previous lr xs
       end.
-
-  (* Ltac2 Set rel_vals as previous :=
-       fun lr =>
-         lazy_match! lr with
-         | (_ lrel_message _ _) =>
-             ltac1:(rewrite /lrel_message ; rel_vals)
-         | _ => previous lr
-         end. *)
-
 
   (** Parameters required for the construction of sym_scheme_F *)
   (* An abstract `xor`, in RandML and in Coq. *)
@@ -229,38 +200,6 @@ Section combined.
 
   Context `{!approxisRGS Σ}.
   Context `{!XOR_spec}.
-
-  (* TODO this should not be needed *)
-  (* Ltac2 Set pattern_of_lr2 as previous :=
-       fun lr (xs : constr list) =>
-         lazy_match! lr with
-         | lrel_input => bounded (get_head_name xs)
-         | lrel_output => bounded (get_head_name xs)
-         (* | lrel_message => bounded (get_head_name xs) *)
-         | lrel_key => bounded (get_head_name xs)
-         | _ => previous lr xs
-         end.
-
-     Ltac2 Set rel_vals as previous :=
-          fun lr =>
-            lazy_match! lr with
-            | (lrel_car lrel_output _ _) =>
-                ltac1:(iExists _ ; iPureIntro ; intuition lia)
-            | (lrel_car lrel_input _ _) =>
-                ltac1:(iExists _ ; iPureIntro ; intuition lia)
-            | _ => previous lr
-            end.
-
-     Ltac2 Set pattern_of_lr2 as previous :=
-       fun lr (xs : constr list) =>
-         lazy_match! lr with
-         | lrel_option ?a =>
-             let aa := previous a xs in
-             let u := previous 'lrel_unit xs in
-             let s := '(append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
-             eval vm_compute in $s
-         | _ => previous lr xs
-         end. *)
 
   Fact R_prf_sem_typed :
     ⊢ REL R_prf << R_prf :
@@ -559,9 +498,6 @@ Proof with (rel_pures_r ; rel_pures_l).
         iFrame ; repeat iSplitL. 1: by iFrame.
       rel_bind_l (rf _). rel_bind_r (rf' _). rel_apply refines_bind.
       1: iApply "rf" ; rel_vals.
-      (* TODO should not be needed. *)
-      1: rewrite /prf.lrel_input ; rel_vals.
-      rewrite /prf.lrel_output.
       lrintro "z"...
       rel_bind_l (xor _ _). rel_bind_r (xor _ _).
       iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
@@ -632,9 +568,6 @@ Proof with (rel_pures_r ; rel_pures_l).
         iFrame ; repeat iSplitL. 1: by iFrame.
       rel_bind_l (rf _). rel_bind_r (rf' _). rel_apply refines_bind.
       1: iApply "rf" ; rel_vals.
-      (* TODO should not be needed. *)
-      1: rewrite /prf.lrel_input ; rel_vals.
-      rewrite /prf.lrel_output.
       lrintro "z"...
       rel_bind_l (xor _ _). rel_bind_r (xor _ _).
       iApply (refines_bind _ _ _ lrel_output with "[-] []") => /=.
