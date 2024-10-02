@@ -244,6 +244,60 @@ Section checks.
   Qed.
 
   Local Opaque enum_uniform_fin_list.
+
+  Lemma rand_presample_single_spec N E γ2 α (tb:nat) ns T:
+    ↑N ⊆ E ->
+    is_rand (L:=L) N γ2 -∗
+    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗
+    (|={E∖↑N, ∅}=>
+        ∃ ε (ε2 : fin (S tb) -> R),
+            ↯ ε ∗
+            ⌜(∀ x, 0<= ε2 x)%R⌝ ∗
+            ⌜(SeriesC ε2 /((S tb)) <= ε)%R⌝ ∗
+        (∀ x, ↯ (ε2 x) ={∅, E∖↑N}=∗ T ε ε2 x)) -∗
+    wp_update E (∃ ε ε2 x, rand_tapes_frag (L:=L) γ2 α (tb, ns ++ [fin_to_nat x]) ∗
+                           T ε ε2 x).
+  Proof.
+    iIntros (Hsubset) "#Hinv Hfrag Hvs".
+    iMod (rand_presample_spec _ _ _ _ _ _ (λ ε' num ε2' ns2,
+                                             ∃ x, ⌜ns2 = [x]⌝ ∗ T ε' (λ x, ε2' ([x])) x
+            ) with "[//][$][-]")%I as "H"; first done; last first.
+    - iDestruct "H" as "(%&%&%&%&Hfrag &%&%&HT)".
+      subst.
+      by iFrame.
+    - iMod "Hvs" as "(%&%ε2&$&%Hpos & %Hineq & Hrest)".
+      iModIntro.
+      iExists 1, (λ ls, match ls with |[x] => ε2 x | _ => 1 end)%R.
+      repeat iSplit.
+      + iPureIntro. by intros [|?[|]].
+      + iPureIntro.  etrans; last eapply Hineq.
+        rewrite !Rdiv_def pow_1.
+        apply Rmult_le_compat_r.
+        { rewrite -Rdiv_1_l.
+          apply Rdiv_INR_ge_0. }
+        etrans; last eapply (SeriesC_le_inj _ (λ l, match l with |[x] => Some x | _ => None end)).
+        * apply Req_le_sym.
+          apply SeriesC_ext.
+          intros. case_match; subst.
+          -- rewrite bool_decide_eq_false_2; first (simpl;lra).
+             by rewrite elem_of_enum_uniform_fin_list.
+          -- case_match; last first.
+             { rewrite bool_decide_eq_false_2; first (simpl;lra).
+               subst.
+               by rewrite elem_of_enum_uniform_fin_list.
+             }
+             rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
+             done.
+        * done.
+        * intros. repeat case_match; by simplify_eq.
+        * apply ex_seriesC_finite.
+      + iIntros ([|?[|]]) "?"; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"].
+        iFrame.
+        iMod ("Hrest" with "[$]").
+        by iFrame.
+  Qed.  
+
+              
   Lemma wp_presample_adv_comp_rand_tape (N : nat) NS E α ns (ε1 : R) (ε2 : fin (S N) -> R) γ1:
     ↑NS ⊆ E ->
     (∀ n, 0<=ε2 n)%R ->
@@ -256,51 +310,16 @@ Section checks.
     iIntros (Hsubset Hpos Hineq) "#Hinv >Htape Herr".
     iDestruct (ec_valid with "[$]") as "%Hpos'".
     destruct Hpos' as [Hpos' ?].
-    iMod (rand_presample_spec _ _ _ _ _ _
-            (λ ε' (num':nat) ε2' ns2,
-               ⌜ε1=ε'⌝ ∗ ⌜(1=num')%nat⌝ ∗
-               ⌜∀ x y, fin_to_nat <$> x = fin_to_nat <$> y ->
-            ε2' x  = (λ l, match l with |[x] => ε2 x | _ => 1%R end) y⌝ ∗
-               ∃ (n:fin (S N)), ⌜fin_to_nat <$> ns2=[fin_to_nat n]⌝ ∗ ↯ (ε2 n))%I
-           with "[//][$ ][-]") as "H".
+    iMod (rand_presample_single_spec _ _ _ _ _ _ (λ ε' ε2' n, ↯ (ε2 n)) with "[//][$][-]") as "(%&%&%&?&?)"; first done; last by iFrame.
+    iFrame.
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iExists ε2.
+    repeat iSplit.
     - done.
-    - iApply fupd_mask_intro; first set_solver.
-      iIntros "Hclose".
-      iFrame.
-      iExists 1, (λ l, match l with |[x] => ε2 x | _ => 1%R end). simpl.
-      repeat iSplit.
-      + iPureIntro. by intros [|?[|]].
-      + iPureIntro.  etrans; last eapply Hineq.
-        etrans; last eapply (SeriesC_le_inj _ (λ l, match l with |[x] => Some x | _ => None end)).
-        * rewrite Rdiv_def -SeriesC_scal_r. apply Req_le_sym.
-          apply SeriesC_ext.
-          intros. case_match; subst.
-          -- rewrite bool_decide_eq_false_2; first (simpl;lra).
-             by rewrite elem_of_enum_uniform_fin_list.
-          -- case_match; last first.
-             { rewrite bool_decide_eq_false_2; first (simpl;lra).
-               subst.
-               by rewrite elem_of_enum_uniform_fin_list.
-             }
-             rewrite bool_decide_eq_true_2; last by apply elem_of_enum_uniform_fin_list.
-             simpl.
-             rewrite Rdiv_def Rmult_1_r; lra.
-        * intros. apply Rmult_le_pos; last done.
-          apply Rdiv_INR_ge_0.
-        * intros. repeat case_match; by simplify_eq.
-        * apply ex_seriesC_finite.
-      + iIntros ([|?[|]]) "?"; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"].
-        iFrame.
-        iMod "Hclose".
-        iModIntro.
-        repeat iSplit; try done.
-        iPureIntro.
-        intros x y H'.
-        apply list_fmap_eq_inj in H'; first by simplify_eq.
-        apply fin_to_nat_inj.
-    - iModIntro.
-      iDestruct "H" as "(%&%&%&%&?&->&<-&%&%&->&?)". 
-      iFrame.
+    - iPureIntro. etrans; last apply Hineq.
+      rewrite SeriesC_scal_l.
+      lra.
+    - iIntros. iFrame.
   Qed.
-
 End checks.

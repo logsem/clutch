@@ -120,6 +120,7 @@ Section impl3.
       rewrite filter_cons_False in Hfilter; first done.
       rewrite /filter_f. lia.
   Qed.
+
   
   Lemma counter_presample_spec3  NS E T γ1 γ2 c α ns:
     ↑NS ⊆ E ->
@@ -135,13 +136,13 @@ Section impl3.
       ))-∗ 
         wp_update E (∃ ε ε2 num ns', (∃ ls, ⌜filter filter_f ls = ns++ns'⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) ∗ T ε ε2 num ns').
   Proof.
-    iIntros (Hsubset) "[#Hinv #Hinv'] (%ls & %Hfilter & Hfrag) Hvs".
+    iIntros (Hsubset) "[#Hinv #Hinv'] Hfrag Hvs".
     iMod wp_update_epsilon_err as "(%eps&%Heps&Heps)".
-    (* iRevert (ls Hfilter) "Hfrag Hvs". *)
-    (* iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|]. *)
-    (* clear eps Heps. *)
-    (* iModIntro. *)
-    (* iIntros (eps Heps) "#IH Heps %ls %Hfilter Hfrag Hvs". *)
+    iRevert "Hfrag Hvs".
+    iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|].
+    clear eps Heps.
+    iModIntro.
+    iIntros (eps Heps) "#IH Heps (%ls & %Hfilter & Hfrag) Hvs".
     iMod (rand_presample_spec _ _ _ _ _ _ (λ ε num ε2 ns',
          _                                    
             )%I with "[//][$][Heps Hvs]") as "H"; first by apply nclose_subseteq'.
