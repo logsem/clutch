@@ -43,7 +43,7 @@ End random_function.
 
 
 Module LR_prf.
-  Import Ltac2.
+  Import Ltac2 Printf.
   Export LR_bounded.
 
   Ltac2 Set pattern_of_lr2 as previous :=
@@ -56,13 +56,51 @@ Module LR_prf.
       | _ => previous lr xs
       end.
 
-  Ltac2 Set rel_vals as previous :=
-       fun lr =>
-         lazy_match! lr with
-         | (lrel_car lrel_output _ _) =>
-             ltac1:(iExists _ ; iPureIntro ; intuition lia)
-         | _ => previous lr
-         end.
+  Ltac2 prf_intro (typ : constr) xs k :=
+    printf "entering prf_intro, typ: %t" typ ;
+    lazy_match! typ with
+      | lrel_input =>
+          printf "found `lrel_input`, unfolding" ;
+          let typ := eval unfold lrel_input in $typ in
+            k typ xs
+      | lrel_output =>
+          printf "found `lrel_output`, unfolding" ;
+          let typ := eval unfold lrel_output in $typ in
+            k typ xs
+      | lrel_key =>
+          printf "found `lrel_key`, unfolding" ;
+          let typ := eval unfold lrel_key in $typ in
+            k typ xs
+    | _ => None
+    end.
+  Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "prf" prf_intro (prev ()).
+
+  Ltac2 prf_val typ k :=
+    printf "entering prf_val, typ: %t" typ ;
+    lazy_match! typ with
+    | (lrel_car lrel_input ?v1 ?v2) =>
+        printf "found `lrel_input %t %t`, unfolding" v1 v2 ;
+        (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
+        let typ := eval unfold lrel_input in $typ in
+          k typ
+    | (lrel_car lrel_output ?v1 ?v2) =>
+        printf "found `lrel_output %t %t`, unfolding" v1 v2 ;
+        (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
+        let typ := eval unfold lrel_output in $typ in
+          k typ
+    | _ => Stuck
+    end.
+  Ltac2 Set Basic.rel_val_tacs as prev := fun () => FMap.add "prf" prf_val (prev ()).
+
+  (* Ltac2 Set rel_vals as previous :=
+          fun lr =>
+            lazy_match! lr with
+            | (lrel_car lrel_output _ _) =>
+                ltac1:(iExists _ ; iPureIntro ; intuition lia)
+            | (lrel_car lrel_input _ _) =>
+                ltac1:(iExists _ ; iPureIntro ; intuition lia)
+            | _ => previous lr
+            end. *)
 
 End LR_prf.
 Export LR_prf.

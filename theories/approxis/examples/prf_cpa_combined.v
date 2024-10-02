@@ -1,6 +1,7 @@
 From clutch.prob_lang.typing Require Import tychk.
 From clutch.approxis Require Import approxis map list.
 From clutch.approxis.examples Require Import prf symmetric (* prf_cpa *) security_aux xor advantage.
+Import prf.bound_checks.
 Set Default Proof Using "Type*".
 
 Section combined.
@@ -68,6 +69,7 @@ Section combined.
   Hypothesis H_in_out : (Input = Output).
   (* An abstract `xor`, in RandML and in Coq. *)
   Context `{XOR Message Output}.
+  Hypothesis xor_typed : (⊢ᵥ xor : (TKey → TInput → TOutput)).
 
   (** Generic PRF-based symmetric encryption. *)
   (* Redefined here to make it parametrised by the PRF on the Coq level. *)

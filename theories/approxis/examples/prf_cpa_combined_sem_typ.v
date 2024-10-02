@@ -2,8 +2,8 @@ From Ltac2 Require Import Ltac2.
 Set Default Proof Mode "Classic".
 From clutch.prob_lang.typing Require Import tychk.
 From clutch.approxis Require Import approxis map list option.
-From clutch.approxis.examples Require Import prf symmetric security_aux xor advantage.
-Set Default Proof Using "Type*".
+From clutch.approxis.examples Require Import symmetric security_aux xor advantage prf.
+Set Default Proof Using "All".
 
 Definition ε_bday Q N := (INR Q * INR Q / (2 * INR N))%R.
 
@@ -60,13 +60,13 @@ Section combined.
   Definition T_PRF_Adv := ((TInput → (TOption TOutput)) → TBool)%ty.
 
 
-  Definition lrel_key {Σ} : lrel Σ := lrel_int_bounded 0 Key.
-  Definition lrel_input {Σ} : lrel Σ := lrel_int_bounded 0 Input.
-  Definition lrel_output {Σ} : lrel Σ := lrel_int_bounded 0 Output.
-  Definition lrel_keygen `{!approxisRGS Σ} : lrel Σ := (lrel_unit → lrel_key).
-  Definition lrel_prf `{!approxisRGS Σ} : lrel Σ := lrel_key → lrel_input → lrel_output.
+  (* Definition lrel_key {Σ} : lrel Σ := lrel_int_bounded 0 Key.
+     Definition lrel_input {Σ} : lrel Σ := lrel_int_bounded 0 Input.
+     Definition lrel_output {Σ} : lrel Σ := lrel_int_bounded 0 Output.
+     Definition lrel_keygen `{!approxisRGS Σ} : lrel Σ := (lrel_unit → lrel_key).
+     Definition lrel_prf `{!approxisRGS Σ} : lrel Σ := lrel_key → lrel_input → lrel_output.
 
-  Definition lrel_PRF_Adv `{!approxisRGS Σ} := ((lrel_input → (lrel_option lrel_output)) → lrel_bool)%lrel.
+     Definition lrel_PRF_Adv `{!approxisRGS Σ} := ((lrel_input → (lrel_option lrel_output)) → lrel_bool)%lrel. *)
 
   (** Assumption: the PRF is typed. *)
   (* TODO: The type TPRF requires F to be safe for all inputs ; maybe this
@@ -105,6 +105,39 @@ Section combined.
   Definition lrel_message {Σ} : lrel Σ := lrel_int_bounded 0 Message.
   Definition lrel_cipher {Σ} : lrel Σ := lrel_input * lrel_output.
 
+  Import Ltac2.Printf.
+  Ltac2 prf_cpa_intro (typ : constr) xs k :=
+    printf "entering prf_cpa_intro, typ: %t" typ ;
+    lazy_match! typ with
+      | lrel_message =>
+          printf "found `lrel_message`, unfolding" ;
+          let typ := eval unfold lrel_message in $typ in
+            k typ xs
+      | lrel_cipher =>
+          printf "found `lrel_cipher`, unfolding" ;
+          let typ := eval unfold lrel_cipher in $typ in
+            k typ xs
+    | _ => None
+    end.
+  Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "prf_cpa" prf_cpa_intro (prev ()).
+
+  Ltac2 prf_cpa_val typ k :=
+    printf "entering prf_cpa_val, typ: %t" typ ;
+    lazy_match! typ with
+    | (lrel_car lrel_message ?v1 ?v2) =>
+        printf "found `lrel_message %t %t`, unfolding" v1 v2 ;
+        (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
+        let typ := eval unfold lrel_message in $typ in
+          k typ
+    | (lrel_car lrel_cipher ?v1 ?v2) =>
+        printf "found `lrel_cipher %t %t`, unfolding" v1 v2 ;
+        (* ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed *)
+        let typ := eval unfold lrel_cipher in $typ in
+          k typ
+    | _ => Stuck
+    end.
+  Ltac2 Set Basic.rel_val_tacs as prev := fun () => FMap.add "prf_cpa" prf_cpa_val (prev ()).
+
   Ltac2 Set pattern_of_lr2 as previous :=
     fun lr (xs : constr list) =>
       lazy_match! lr with
@@ -112,23 +145,18 @@ Section combined.
       | _ => previous lr xs
       end.
 
-  Ltac2 Set rel_vals as previous :=
-    fun lr =>
-      lazy_match! lr with
-      | (_ lrel_message _ _) =>
-          ltac1:(rewrite /lrel_message ; rel_vals)
-      | _ => previous lr
-      end.
+  (* Ltac2 Set rel_vals as previous :=
+       fun lr =>
+         lazy_match! lr with
+         | (_ lrel_message _ _) =>
+             ltac1:(rewrite /lrel_message ; rel_vals)
+         | _ => previous lr
+         end. *)
 
 
   (** Parameters required for the construction of sym_scheme_F *)
   (* An abstract `xor`, in RandML and in Coq. *)
   Context `{XOR Message Output}.
-  (* TODO relax typing of xor to be semantic *)
-
-  Hypothesis xor_sem_typed : forall `{!approxisRGS Σ} (Key Support : nat) (xor_struct : @XOR Key Support),
-    ⊢ (lrel_int_bounded 0 Key → lrel_int_bounded 0 Support → lrel_int_bounded 0 Support)%lrel
-        (@xor _ _ xor_struct) (@xor _ _ xor_struct).
 
   (** Generic PRF-based symmetric encryption. *)
   (* Redefined here to make it parametrised by the PRF on the Coq level. *)
@@ -184,63 +212,65 @@ Section combined.
     ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ α ↪N (Input; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
 
-  Ltac rel_vals' :=
-    lazymatch goal with
-    | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
-        iExists _,_ ; iRight ; iSplit ; [eauto|iSplit ; eauto]
-    | |- environments.envs_entails _ (_ (InjLV _) (InjLV _)) =>
-        iExists _,_ ; iLeft ; iSplit ; [eauto|iSplit ; eauto]
-    | |- environments.envs_entails _ (_ (_ , _)%V (_ , _)%V) =>
-        iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]
-    | |- environments.envs_entails _ (_ _ (lrel_int_bounded _ _) _ _) =>
-        iExists _ ; iPureIntro ; intuition lia
-    | |- environments.envs_entails _ (_ _ lrel_input _ _) =>
-        iExists _ ; iPureIntro ; intuition lia
-    | |- environments.envs_entails _ (_ _ lrel_output _ _) =>
-        iExists _ ; iPureIntro ; intuition lia
-    | _ => fail "rel_vals: case not covered"
-    end.
-  Ltac rel_vals := try rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto).
+  (* Ltac rel_vals' :=
+       lazymatch goal with
+       | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
+           iExists _,_ ; iRight ; iSplit ; [eauto|iSplit ; eauto]
+       | |- environments.envs_entails _ (_ (InjLV _) (InjLV _)) =>
+           iExists _,_ ; iLeft ; iSplit ; [eauto|iSplit ; eauto]
+       | |- environments.envs_entails _ (_ (_ , _)%V (_ , _)%V) =>
+           iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]
+       | |- environments.envs_entails _ (_ _ (lrel_int_bounded _ _) _ _) =>
+           iExists _ ; iPureIntro ; intuition lia
+       | |- environments.envs_entails _ (_ _ lrel_input _ _) =>
+           iExists _ ; iPureIntro ; intuition lia
+       | |- environments.envs_entails _ (_ _ lrel_output _ _) =>
+           iExists _ ; iPureIntro ; intuition lia
+       | _ => fail "rel_vals: case not covered"
+       end.
+     Ltac rel_vals := try rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto). *)
 
   Section approxis_proofs.
 
   Context `{!approxisRGS Σ}.
+  Context `{!XOR_spec}.
 
   (* TODO this should not be needed *)
-  Ltac2 Set pattern_of_lr2 as previous :=
-    fun lr (xs : constr list) =>
-      lazy_match! lr with
-      | lrel_input => bounded (get_head_name xs)
-      | lrel_output => bounded (get_head_name xs)
-      (* | lrel_message => bounded (get_head_name xs) *)
-      | lrel_key => bounded (get_head_name xs)
-      | _ => previous lr xs
-      end.
+  (* Ltac2 Set pattern_of_lr2 as previous :=
+       fun lr (xs : constr list) =>
+         lazy_match! lr with
+         | lrel_input => bounded (get_head_name xs)
+         | lrel_output => bounded (get_head_name xs)
+         (* | lrel_message => bounded (get_head_name xs) *)
+         | lrel_key => bounded (get_head_name xs)
+         | _ => previous lr xs
+         end.
 
-  (* Ltac2 Set rel_vals as previous :=
+     Ltac2 Set rel_vals as previous :=
           fun lr =>
             lazy_match! lr with
             | (lrel_car lrel_output _ _) =>
                 ltac1:(iExists _ ; iPureIntro ; intuition lia)
+            | (lrel_car lrel_input _ _) =>
+                ltac1:(iExists _ ; iPureIntro ; intuition lia)
             | _ => previous lr
-            end. *)
+            end.
 
-  Ltac2 Set pattern_of_lr2 as previous :=
-    fun lr (xs : constr list) =>
-      lazy_match! lr with
-      | lrel_option ?a =>
-          let aa := previous a xs in
-          let u := previous 'lrel_unit xs in
-          let s := '(append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
-          eval vm_compute in $s
-      | _ => previous lr xs
-      end.
+     Ltac2 Set pattern_of_lr2 as previous :=
+       fun lr (xs : constr list) =>
+         lazy_match! lr with
+         | lrel_option ?a =>
+             let aa := previous a xs in
+             let u := previous 'lrel_unit xs in
+             let s := '(append "#(%" (" " ++ "&% &[(->&->&" ++ $u ++ ") | (->&->&"++$aa++")])")) in
+             eval vm_compute in $s
+         | _ => previous lr xs
+         end. *)
 
   Fact R_prf_sem_typed :
     ⊢ REL R_prf << R_prf :
       (lrel_input → lrel_option lrel_output) → lrel_message → lrel_option lrel_cipher.
-  Proof using (xor_sem_typed)
-    with (rel_pures_r ; rel_pures_l).
+  Proof with (rel_pures_r ; rel_pures_l).
     rel_arrow ; iIntros (f f') "#hff'" ; rel_pures_l ; rel_pures_r.
     rewrite /R_prf...
     rel_alloctape_l α as "α".
@@ -267,12 +297,11 @@ Section combined.
     rel_bind_l (xor _ _). rel_bind_r (xor _ _). rel_apply refines_bind.
     { repeat rel_apply refines_app.
       1: rel_vals ; iApply xor_sem_typed. all: rel_vals. }
-    iIntros (??) "(%c&->&->&%&%)"... rel_vals.
+    iIntros (??) "(%c&->&->&%&%)"... rel_vals. Unshelve. exact Σ.
   Qed.
 
   Fact red_sem_typed : (⊢ REL RED <<  RED : lrel_PRF_Adv).
-  Proof using (xor_sem_typed adversary_sem_typed)
-    with (rel_pures_r ; rel_pures_l).
+  Proof with (rel_pures_r ; rel_pures_l).
     rel_arrow ; iIntros (f f') "#hff'" ; rel_pures_l ; rel_pures_r.
     unfold RED...
     rel_apply refines_app => //.
@@ -283,8 +312,7 @@ Section combined.
   Lemma reduction :
     ⊢ (REL (adversary (CPA_real sym_scheme_F #Q))
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
-  Proof using (xor_sem_typed adversary_sem_typed keygen_sem_typed Key F_sem_typed)
-    with (rel_pures_l ; rel_pures_r).
+  Proof with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_F/PRF_real/prf.sem.PRF_real...
     rewrite /CPA_real/symmetric.CPA_real.
     rel_pures_l. rewrite /F_keygen.
@@ -364,7 +392,7 @@ Section combined.
            << random_function : A → lrel_input → lrel_output.
      Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
                     Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
-                    keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
+                    keygen_sem_typed keygen_typed refines_tape_couple_avoid Σ ε_Q)
        with (rel_pures_l ; rel_pures_r).
        rel_arrow_val ; iIntros (??) "_".
        rewrite /random_function...
@@ -427,10 +455,7 @@ Section combined.
   Lemma PRF_F_I :
     ⊢ (REL (PRF_rand PRF_scheme_F #Q)
          << (PRF_rand PRF_scheme_I #Q) : (lrel_input → lrel_option lrel_output)).
-Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
-Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
-keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
-    with (rel_pures_l ; rel_pures_r).
+Proof with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.sem.PRF_rand...
     unshelve rel_apply refines_app.
     1: exact (lrel_input → lrel_output)%lrel.
@@ -453,8 +478,7 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   Lemma F_I :
     ⊢ (REL (RED (PRF_rand PRF_scheme_F #Q))
          << (RED (PRF_rand PRF_scheme_I #Q)) : lrel_bool).
-  Proof using (xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed
-                 adversary_typed adversary_sem_typed F_typed F_sem_typed).
+  Proof.
     rel_apply refines_app.
     1: iApply red_sem_typed.
     iApply PRF_F_I.
@@ -469,10 +493,7 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
         <<
         (adversary (R_prf (PRF_rand PRF_scheme_I #Q)))%V
     : lrel_bool.
-  Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
-                 Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
-                 keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
-    with (rel_pures_r ; rel_pures_l).
+  Proof with (rel_pures_r ; rel_pures_l).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc.
     (* rewrite /RED/R_prf. rewrite /I... *)
@@ -501,10 +522,7 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   Fact r_prf_cpa_real :
     ⊢ REL (R_prf (PRF_rand PRF_scheme_I #Q))
         << (CPA_real sym_scheme_I #Q) : (lrel_message → lrel_option lrel_cipher).
-Proof using (Cipher F F_keygen F_sem_typed F_typed H Input Key Message Output
-Q adversary adversary_sem_typed adversary_typed approxisRGS0 keygen
-keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
- with (rel_pures_r ; rel_pures_l).
+Proof with (rel_pures_r ; rel_pures_l).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
     rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
@@ -566,10 +584,7 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   Lemma reduction'' :
     ⊢ REL adversary (R_prf (PRF_rand PRF_scheme_I #Q))
         << adversary (CPA_real sym_scheme_I #Q) : lrel_bool.
-  Proof
-    using (keygen_typed adversary_typed refines_tape_couple_avoid F_typed
-             xor_sem_typed keygen_sem_typed adversary_sem_typed Key F_sem_typed)
-    with (rel_pures_l ; rel_pures_r).
+  Proof with (rel_pures_l ; rel_pures_r).
     rel_apply refines_app. 1: iApply adversary_sem_typed.
     iApply r_prf_cpa_real.
   Qed.
@@ -577,10 +592,7 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   Lemma reduction' :
     ⊢ (REL (RED (PRF_rand PRF_scheme_I #Q))
          << (adversary (CPA_real sym_scheme_I #Q)) : lrel_bool).
-  Proof
-    using (keygen_typed adversary_typed refines_tape_couple_avoid F_typed
-             xor_sem_typed keygen_sem_typed adversary_sem_typed Key F_sem_typed)
-    with (rel_pures_l ; rel_pures_r).
+  Proof with (rel_pures_l ; rel_pures_r).
     rewrite /RED.
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
@@ -660,14 +672,11 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   (* This should be the result proven for the Approxis paper. *)
   (* TODO actually isolate the part that does the "sampling without repetition"
      into a reusable lemma. *)
-  Lemma cpa_I `{!XOR_spec} :
+  Lemma cpa_I :
     ↯ ε_Q
     ⊢ (REL (adversary (CPA_real sym_scheme_I #Q))
          << (adversary (CPA_rand sym_scheme_I #Q)) : lrel_bool).
-  Proof
-    using (adversary_typed keygen_typed F_typed xor_sem_typed refines_tape_couple_avoid
-             keygen_sem_typed adversary_sem_typed Key F_sem_typed)
-    with (rel_pures_l ; rel_pures_r).
+  Proof with (rel_pures_l ; rel_pures_r).
     iIntros "ε".
     rel_apply refines_app ; [iApply adversary_sem_typed|].
     rewrite /CPA_real/CPA_rand.
@@ -804,33 +813,23 @@ keygen_sem_typed keygen_typed refines_tape_couple_avoid xor_sem_typed Σ ε_Q)
   Ltac lr_arc := unshelve eapply approximates_coupling ; eauto ;
                  [apply (λ _, lrel_bool)|try lra|by iIntros (???) "#(%b&->&->)"|iIntros].
 
-  Lemma reduction_ARC Σ `{approxisRGpreS Σ} σ σ' :
+  Lemma reduction_ARC Σ `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H0) σ σ' :
     ARcoupl (lim_exec ((adversary (CPA_real sym_scheme_F #Q)), σ))
       (lim_exec ((RED (PRF_real PRF_scheme_F #Q)), σ'))
       eq 0.
-  Proof using (xor_sem_typed keygen_sem_typed adversary_sem_typed Key
-F_sem_typed).
-    lr_arc ; iApply reduction.
-  Qed.
+  Proof. lr_arc ; iApply reduction. Qed.
 
-  Lemma F_I_ARC Σ `{approxisRGpreS Σ} σ σ' :
+  Lemma F_I_ARC Σ `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H0) σ σ' :
     ARcoupl (lim_exec ((RED (PRF_rand PRF_scheme_F #Q)), σ))
       (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ'))
       eq 0.
-  Proof using xor_sem_typed refines_tape_couple_avoid keygen_typed keygen_sem_typed
-    adversary_typed adversary_sem_typed Key F_typed F_sem_typed.
-    lr_arc ; iApply F_I.
-  Qed.
+  Proof. lr_arc ; iApply F_I. Qed.
 
-  Lemma reduction'_ARC Σ `{approxisRGpreS Σ} σ σ' :
+  Lemma reduction'_ARC Σ `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H0) σ σ' :
     ARcoupl (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ'))
       eq 0.
-  Proof using (keygen_typed F_typed adversary_typed
-                 xor_sem_typed refines_tape_couple_avoid keygen_sem_typed
-                 adversary_sem_typed Key F_sem_typed).
-    lr_arc ; iApply reduction'.
-  Qed.
+  Proof. lr_arc ; iApply reduction'. Qed.
 
   Fact ε_Q_pos : (0 <= ε_Q)%R.
   Proof.
@@ -844,18 +843,13 @@ F_sem_typed).
     ARcoupl (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ'))
       eq ε_Q.
-  Proof using F_typed adversary_typed keygen_typed xor_sem_typed
-    refines_tape_couple_avoid keygen_sem_typed adversary_sem_typed Key F_sem_typed.
-    lr_arc. 1: apply ε_Q_pos. iApply cpa_I. iFrame.
-  Qed.
+  Proof. lr_arc. 1: apply ε_Q_pos. iApply cpa_I. iFrame. Qed.
 
-  Lemma cpa_F_ARC Σ `{approxisRGpreS Σ} σ σ' :
+  Lemma cpa_F_ARC Σ `{approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H0) σ σ' :
     ARcoupl (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ'))
       eq 0.
-  Proof using F_typed adversary_typed keygen_typed
-  refines_tape_couple_avoid keygen_sem_typed adversary_sem_typed Key F_sem_typed.
-    lr_arc ; iApply cpa_F. Qed.
+  Proof. lr_arc ; iApply cpa_F. Qed.
 
   (** The PRF advantage of RED against F. *)
   Definition ε_F :=
@@ -1004,29 +998,51 @@ Section closed_example.
   #[local] Instance mod_prf : @XOR Output' Output'.
   Proof.
     unshelve econstructor.
-    1: exact xor. 1: exact xor_sem. 1: exact xor_sem_bij.
+    2: exact xor. 1: exact xor_sem. 1: exact xor_sem_bij.
     1: apply xor_sem_dom.
-    rewrite /xor. constructor.
-    admit.
-  Admitted.
+  Defined.
 
   Fact xor_sem_typed : forall `{!approxisRGS Σ},
-    ⊢ (lrel_int_bounded 0 (S Key') → lrel_int_bounded 0 (S Input') → lrel_int_bounded 0 Output)%lrel
+    ⊢ (lrel_int_bounded 0 Key' → lrel_int_bounded 0 Input' → lrel_int_bounded 0 Output')%lrel
         xor xor.
   Proof with (rel_pures_r ; rel_pures_l).
-    rewrite /Key' /Input' /Output'.
     iIntros.
     iIntros (k k').
     iModIntro. lrintro "x".
     rewrite /xor...
     rel_arrow_val. lrintro "y"...
     case_bool_decide as h...
-    all:  rewrite /Output' in h ; rewrite /Output' ; rel_vals.
+    all: rel_values ; iModIntro ; iExists _ ; iPureIntro.
+    -
+      rewrite /Key' /Input' /Output'.
+      repeat split ;
+      rewrite /Output' in h ; rewrite /Output' ;
+        try lia.
+    - repeat split ; try lia.
+      assert (Output <= x + y)%Z as h' by lia.
+      cut (x + y <= Output' + Output')%Z. 1: by intros ; lia.
+      clear h.
+
+      transitivity (x + Output')%Z.
+      2: eapply Zplus_le_compat_r.
+      1: eapply Zplus_le_compat_l.
+      + rewrite /Output'. rewrite /Input' in y_max.
+        lia.
+      + rewrite /Output'. rewrite /Output' in h'.
+        rewrite /Key' in x_max.
+        lia.
+  Qed.
+
+  #[local] Instance mod_prf_spec `{!approxisRGS Σ} : @XOR_spec _ _ Output' Output' mod_prf.
+  Proof.
+    unshelve econstructor.
+    - eapply xor_correct_l.
+    - eapply xor_correct_r.
+    - eapply xor_sem_typed.
   Qed.
 
   Variable (Q : nat).
 
-  (* Definition N' := N Input'. *)
   Let ε_Q := (INR Q * INR Q / (2 * INR (S Input')))%R.
 
   Variable adversary : val.
@@ -1034,7 +1050,9 @@ Section closed_example.
   Variable keygen : val.
   Variable F : val.
 
-  Let sym_scheme_F := @sym_scheme_F Input' Output' keygen F Xor.
+  Context `{PRF}.
+
+  Let sym_scheme_F := @sym_scheme_F _ keygen F mod_prf.
   Let ε_F := ε_F Input' Output' Q keygen F adversary.
 
   (* Either way, we can compose the ARC-level reduction lemmas and the

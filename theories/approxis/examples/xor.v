@@ -1,4 +1,4 @@
-From clutch.approxis Require Import approxis map list.
+From clutch.approxis Require Import approxis map list security_aux.
 From clutch.approxis Require Export bounded_oracle.
 Set Default Proof Using "Type*".
 
@@ -17,7 +17,6 @@ Class XOR {Key Support : nat} :=
 
      If xor were to operate on strings / byte arrays / bit lists instead, it
      may fail if `key` and `input` are of different lengths. *)
-  ; xor_typed : (⊢ᵥ xor : (TKey → TInput → TOutput))
 
   } .
 
@@ -36,6 +35,9 @@ Class XOR_spec `{!approxisRGS Σ} `{XOR} :=
       -∗ REL e << (fill K (xor #x #y)) @ E : A
   ; xor_correct_l : XOR_CORRECT_L
   ; xor_correct_r : XOR_CORRECT_R
+  ; xor_sem_typed :
+    ⊢ (lrel_int_bounded 0 Key → lrel_int_bounded 0 Support → lrel_int_bounded 0 Support)%lrel
+        xor xor
   }.
 
 (* Definition XOR_CORRECT_L := forall `{!approxisRGS Σ} E K (x : Z) (y : nat)
