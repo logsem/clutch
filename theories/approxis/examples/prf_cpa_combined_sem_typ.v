@@ -26,6 +26,8 @@ Section combined.
       let: "oracle" := q_calls_poly #() #() "Q" "lookup" in
       "oracle".
 
+  Let random_function := random_function card_output.
+
   Definition PRF_rand : val :=
     let rand_output PRF_scheme : expr := Snd (Snd PRF_scheme) in
     λ:"PRF_scheme" "Q",
@@ -178,24 +180,6 @@ Section combined.
     ▷ (∀ (n : fin (S N)), ⌜n ∉ l⌝ -∗ α ↪N (Input; []) -∗ REL fill K (Val #n) << fill K' (Val #n) @ E : A)
     ⊢ REL fill K (rand(#lbl:α) #z) << fill K' (rand #z) @ E : A.
 
-  (* Ltac rel_vals' :=
-       lazymatch goal with
-       | |- environments.envs_entails _ (_ (InjRV _) (InjRV _)) =>
-           iExists _,_ ; iRight ; iSplit ; [eauto|iSplit ; eauto]
-       | |- environments.envs_entails _ (_ (InjLV _) (InjLV _)) =>
-           iExists _,_ ; iLeft ; iSplit ; [eauto|iSplit ; eauto]
-       | |- environments.envs_entails _ (_ (_ , _)%V (_ , _)%V) =>
-           iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]
-       | |- environments.envs_entails _ (_ _ (lrel_int_bounded _ _) _ _) =>
-           iExists _ ; iPureIntro ; intuition lia
-       | |- environments.envs_entails _ (_ _ lrel_input _ _) =>
-           iExists _ ; iPureIntro ; intuition lia
-       | |- environments.envs_entails _ (_ _ lrel_output _ _) =>
-           iExists _ ; iPureIntro ; intuition lia
-       | _ => fail "rel_vals: case not covered"
-       end.
-     Ltac rel_vals := try rel_values ; repeat iModIntro ; repeat (rel_vals' ; eauto). *)
-
   Section approxis_proofs.
 
   Context `{!approxisRGS Σ}.
@@ -247,7 +231,7 @@ Section combined.
     ⊢ (REL (adversary (CPA_real sym_scheme_F #Q))
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
   Proof with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_F/PRF_real/prf.sem.PRF_real...
+    rewrite /PRF_scheme_F/PRF_real...
     rewrite /CPA_real/symmetric.CPA_real.
     rel_pures_l. rewrite /F_keygen.
     rel_bind_l (keygen _)%E. rel_bind_r (keygen _)%E.
@@ -390,7 +374,7 @@ Section combined.
     ⊢ (REL (PRF_rand PRF_scheme_F #Q)
          << (PRF_rand PRF_scheme_I #Q) : (lrel_input → lrel_option lrel_output)).
 Proof with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.sem.PRF_rand...
+    rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand...
     unshelve rel_apply refines_app.
     1: exact (lrel_input → lrel_output)%lrel.
     - rel_arrow. iIntros (rf rf') "#hrf"...
@@ -428,7 +412,7 @@ Proof with (rel_pures_l ; rel_pures_r).
         (adversary (R_prf (PRF_rand PRF_scheme_I #Q)))%V
     : lrel_bool.
   Proof with (rel_pures_r ; rel_pures_l).
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
+    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc.
     (* rewrite /RED/R_prf. rewrite /I... *)
     rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
@@ -457,7 +441,7 @@ Proof with (rel_pures_l ; rel_pures_r).
     ⊢ REL (R_prf (PRF_rand PRF_scheme_I #Q))
         << (CPA_real sym_scheme_I #Q) : (lrel_message → lrel_option lrel_cipher).
 Proof with (rel_pures_r ; rel_pures_l).
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
+    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
     rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: rel_apply refines_app ; [iApply (random_function_sem_typed lrel_unit)|rel_vals].
@@ -525,7 +509,7 @@ Proof with (rel_pures_r ; rel_pures_l).
          << (adversary (CPA_real sym_scheme_I #Q)) : lrel_bool).
   Proof with (rel_pures_l ; rel_pures_r).
     rewrite /RED.
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.sem.PRF_rand/CPA_real/symmetric.CPA_real...
+    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/CPA_real/symmetric.CPA_real...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
     rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: rel_apply refines_app ; [iApply (random_function_sem_typed lrel_unit)|rel_vals].
@@ -613,7 +597,7 @@ Proof with (rel_pures_r ; rel_pures_l).
     rewrite /I_enc/I...
     (* should be more or less the old proof. *)
     rewrite /prf_enc...
-    rewrite /random_function...
+    rewrite /random_function/prf.random_function...
     rel_bind_l (init_map #())%E. iApply refines_init_map_l. iIntros (map_l) "map_l" => /=...
     rewrite /q_calls_poly...
     rel_alloc_r counter_r as "counter_r"...
