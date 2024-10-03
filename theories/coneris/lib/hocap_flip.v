@@ -144,64 +144,65 @@ Section instantiate_flip.
   Next Obligation.
     simpl.
     iIntros (?????? T ?) "#Hinv Hfrag Hvs".
-    iMod (rand_presample_spec _ _ _ _ _ _
-            (λ ε num ε2 ns',
-               ∃ bs' ε2',  ⌜fmap (FMap:= list_fmap) bool_to_nat bs'=fin_to_nat <$> ns'⌝ ∗
-                             ⌜∀ xs ys, fmap (FMap:= list_fmap) bool_to_nat xs = fmap (FMap:= list_fmap)fin_to_nat ys -> ε2' xs = ε2 ys⌝ ∗
-               T ε num ε2' bs'
-            )%I
-           with "[//][$][-]") as "(%&%&%&%&?&%&%&%K&%&?)"; [exact| |iModIntro; iFrame]; last first.
-    { by rewrite fmap_app K. }
-    iMod "Hvs" as "(%&%&%&Herr &%Hpos&%Hineq &Hrest)".
-    iFrame.
-    iExists num, (λ ls, ε2 (nat_to_bool<$>(fin_to_nat <$> ls))).
-    iModIntro.
-    repeat iSplit; try iPureIntro.
-    - intros. apply Hpos.
-      by rewrite !fmap_length.
-    - etrans; last exact.
-      replace 2%R with (INR 2); last (simpl; lra).
-      rewrite !Rdiv_def.
-      apply Rmult_le_compat_r.
-      { rewrite -Rdiv_1_l -pow_INR. apply Rdiv_INR_ge_0. }
-      etrans; last eapply (SeriesC_le_inj _ (λ l, Some ((λ x, nat_to_bool (fin_to_nat x)) <$> l))).
-      + apply Req_le_sym.
-        apply SeriesC_ext.
-        intros. simpl. rewrite fmap_length.
-        rewrite elem_of_enum_uniform_fin_list'. case_match; last lra.
-        rewrite -list_fmap_compose.
-        f_equal.
-      + intros. case_match; last lra.
-        apply Hpos.
-        by rewrite -Nat.eqb_eq.
-      + intros ??? H1 H2.
-        simplify_eq.
-        apply fmap_inj in H1; first done.
-        intros x y ?.
-        repeat (inv_fin x; simpl; try intros x);
-          by repeat (inv_fin y; simpl; try intros y).
-      + eapply ex_seriesC_list_length. intros.
-        case_match; last done.
-        by rewrite -Nat.eqb_eq.
-    - iIntros (ls) "H2".
-      iMod ("Hrest" with "[$H2 ]") as "?".
-      iFrame.
-      iModIntro.
-      iSplit; iPureIntro.
-      + rewrite -!list_fmap_compose.
-      erewrite (Forall_fmap_ext_1 (_∘_)); first done.
-      apply Forall_true.
-      intros x; by repeat (inv_fin x; simpl; try intros x).
-      + intros ?? <-.
-        f_equal.
-        rewrite -!list_fmap_compose.
-        rewrite -{1}(list_fmap_id xs).
-        erewrite (Forall_fmap_ext_1 (_∘_)); first done.
-        apply Forall_true.
-        intros []; simpl.
-        ** by rewrite nat_to_bool_neq_0.
-        ** by rewrite nat_to_bool_eq_0.
-  Qed.
+  Admitted.
+  (*   iMod (rand_presample_spec _ _ _ _ _ _ *)
+  (*           (λ ε num ε2 ns', *)
+  (*              ∃ bs' ε2',  ⌜fmap (FMap:= list_fmap) bool_to_nat bs'=fin_to_nat <$> ns'⌝ ∗ *)
+  (*                            ⌜∀ xs ys, fmap (FMap:= list_fmap) bool_to_nat xs = fmap (FMap:= list_fmap)fin_to_nat ys -> ε2' xs = ε2 ys⌝ ∗ *)
+  (*              T ε num ε2' bs' *)
+  (*           )%I *)
+  (*          with "[//][$][-]") as "(%&%&%&%&?&%&%&%K&%&?)"; [exact| |iModIntro; iFrame]; last first. *)
+  (*   { by rewrite fmap_app K. } *)
+  (*   iMod "Hvs" as "(%&%&%&Herr &%Hpos&%Hineq &Hrest)". *)
+  (*   iFrame. *)
+  (*   iExists num, (λ ls, ε2 (nat_to_bool<$>(fin_to_nat <$> ls))). *)
+  (*   iModIntro. *)
+  (*   repeat iSplit; try iPureIntro. *)
+  (*   - intros. apply Hpos. *)
+  (*     by rewrite !fmap_length. *)
+  (*   - etrans; last exact. *)
+  (*     replace 2%R with (INR 2); last (simpl; lra). *)
+  (*     rewrite !Rdiv_def. *)
+  (*     apply Rmult_le_compat_r. *)
+  (*     { rewrite -Rdiv_1_l -pow_INR. apply Rdiv_INR_ge_0. } *)
+  (*     etrans; last eapply (SeriesC_le_inj _ (λ l, Some ((λ x, nat_to_bool (fin_to_nat x)) <$> l))). *)
+  (*     + apply Req_le_sym. *)
+  (*       apply SeriesC_ext. *)
+  (*       intros. simpl. rewrite fmap_length. *)
+  (*       rewrite elem_of_enum_uniform_fin_list'. case_match; last lra. *)
+  (*       rewrite -list_fmap_compose. *)
+  (*       f_equal. *)
+  (*     + intros. case_match; last lra. *)
+  (*       apply Hpos. *)
+  (*       by rewrite -Nat.eqb_eq. *)
+  (*     + intros ??? H1 H2. *)
+  (*       simplify_eq. *)
+  (*       apply fmap_inj in H1; first done. *)
+  (*       intros x y ?. *)
+  (*       repeat (inv_fin x; simpl; try intros x); *)
+  (*         by repeat (inv_fin y; simpl; try intros y). *)
+  (*     + eapply ex_seriesC_list_length. intros. *)
+  (*       case_match; last done. *)
+  (*       by rewrite -Nat.eqb_eq. *)
+  (*   - iIntros (ls) "H2". *)
+  (*     iMod ("Hrest" with "[$H2 ]") as "?". *)
+  (*     iFrame. *)
+  (*     iModIntro. *)
+  (*     iSplit; iPureIntro. *)
+  (*     + rewrite -!list_fmap_compose. *)
+  (*     erewrite (Forall_fmap_ext_1 (_∘_)); first done. *)
+  (*     apply Forall_true. *)
+  (*     intros x; by repeat (inv_fin x; simpl; try intros x). *)
+  (*     + intros ?? <-. *)
+  (*       f_equal. *)
+  (*       rewrite -!list_fmap_compose. *)
+  (*       rewrite -{1}(list_fmap_id xs). *)
+  (*       erewrite (Forall_fmap_ext_1 (_∘_)); first done. *)
+  (*       apply Forall_true. *)
+  (*       intros []; simpl. *)
+  (*       ** by rewrite nat_to_bool_neq_0. *)
+  (*       ** by rewrite nat_to_bool_eq_0. *)
+  (* Qed. *)
 End instantiate_flip.
 
 Section test.
