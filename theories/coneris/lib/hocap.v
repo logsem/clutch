@@ -150,14 +150,14 @@ Section hocap_error_coupl.
   Local Canonical Structure ε2O := leibnizO (list (fin(S tb))->R).
 
 
-  Definition hocap_error_coupl_pre Z Φ : (R * R * list ((list (fin (S tb)) -> R) * (list (fin (S tb)))) -> iProp Σ) :=
+  Definition hocap_error_coupl_pre Z Φ : (R * R * list (nat * (list (fin (S tb)) -> R) * (list (fin (S tb)))) -> iProp Σ) :=
     (λ x,
        let '(ε, ε_initial, ls) := x in
        (Z ε ε_initial ls)∨
        ∃ num ε2,
          ⌜(∀ l, 0<=ε2 l)%R⌝ ∗
          ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗
-         (∀ ns, Φ (ε2 ns, ε_initial, ls ++ [(ε2, ns)]))
+         (∀ ns, Φ (ε2 ns, ε_initial, ls ++ [(num, ε2, ns)]))
     )%I.
   
   Local Instance hocap_error_coupl_pre_ne Z Φ :
@@ -187,7 +187,7 @@ Section hocap_error_coupl.
       ∃ num ε2,
         ⌜(∀ l, 0<=ε2 l)%R⌝ ∗
         ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗
-        (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(ε2, ns)]) Z))%I.
+        (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(num, ε2, ns)]) Z))%I.
   Proof.
     rewrite /hocap_error_coupl/hocap_error_coupl' least_fixpoint_unfold//. Qed.
 
@@ -201,12 +201,12 @@ Section hocap_error_coupl.
     (∃ num ε2,
         ⌜(∀ l, 0<=ε2 l)%R⌝ ∗
         ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗
-        (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(ε2, ns)]) Z)) -∗  hocap_error_coupl ε ε_initial ls Z.
+        (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(num, ε2, ns)]) Z)) -∗  hocap_error_coupl ε ε_initial ls Z.
   Proof.
     iIntros. rewrite hocap_error_coupl_unfold. by iRight.
   Qed.
 
-  Lemma hocap_error_coupl_ind (Ψ Z : R -> R -> list ((list (fin (S tb)) -> R) * (list (fin (S tb))))->iProp Σ):
+  Lemma hocap_error_coupl_ind (Ψ Z : R -> R -> list (nat * (list (fin (S tb)) -> R) * (list (fin (S tb))))->iProp Σ):
     ⊢ (□ (∀ ε ε_initial ls,
              hocap_error_coupl_pre Z (λ '(ε', ε_initial', ls'),
                  Ψ ε' ε_initial' ls' ∧ hocap_error_coupl ε' ε_initial' ls' Z)%I (ε, ε_initial, ls) -∗ Ψ ε ε_initial ls) →

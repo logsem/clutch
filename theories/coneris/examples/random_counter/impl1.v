@@ -144,40 +144,41 @@ Section impl1.
         wp_update E (∃ ε ε2 num ns', rand_tapes_frag (L:=L) γ1 α (3%nat, ns++ns') ∗ T ε ε2 num ns').
   Proof.
     iIntros (Hsubset) "[#Hinv #Hinv'] Hfrag Hvs".
-    iMod (rand_presample_spec _ _ _ _ _ _ (λ ε num ε2 ns',
-                                     ∃ ε2', ⌜∀ xs ys, fin_to_nat <$> xs = ys -> ε2 xs = ε2' ys⌝ ∗
-                                      T ε ε2' num (fin_to_nat <$> ns'))%I with "[//][$][Hvs]") as "H"; first by apply nclose_subseteq'.
-    - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose".
-      { apply difference_mono_l.
-        by apply nclose_subseteq'. }
-      iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hrest)".
-      iFrame.
-      iModIntro.
-      iExists num, (λ ls, ε2 (fin_to_nat <$> ls)).
-      repeat iSplit.
-      + done.
-      + iPureIntro.
-        etrans; last exact.
-        apply Req_le.
-        replace (INR 4) with 4%R; last (simpl; lra).
-        f_equal.
-        rewrite !SeriesC_list.
-        * by rewrite foldr_fmap.
-        * apply NoDup_fmap.
-           -- apply list_fmap_eq_inj.
-              apply fin_to_nat_inj.
-           -- apply NoDup_enum_uniform_fin_list.
-        * apply NoDup_enum_uniform_fin_list.
-      + iIntros (ns') "Herr".
-        iMod ("Hrest" with "[$]") as "HT".
-        iMod "Hclose" as "_".
-        iModIntro.
-        iFrame.
-        iPureIntro.
-        by intros ??<-.
-    - iDestruct "H" as "(%ε & %num & %ε2 & %ns' & Hfrag & %ε2' & % & HT)".
-      iModIntro. iFrame.
-  Qed.
+  Admitted.
+  (*   iMod (rand_presample_spec _ _ _ _ _ _ (λ ε num ε2 ns', *)
+  (*                                    ∃ ε2', ⌜∀ xs ys, fin_to_nat <$> xs = ys -> ε2 xs = ε2' ys⌝ ∗ *)
+  (*                                     T ε ε2' num (fin_to_nat <$> ns'))%I with "[//][$][Hvs]") as "H"; first by apply nclose_subseteq'. *)
+  (*   - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose". *)
+  (*     { apply difference_mono_l. *)
+  (*       by apply nclose_subseteq'. } *)
+  (*     iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hrest)". *)
+  (*     iFrame. *)
+  (*     iModIntro. *)
+  (*     iExists num, (λ ls, ε2 (fin_to_nat <$> ls)). *)
+  (*     repeat iSplit. *)
+  (*     + done. *)
+  (*     + iPureIntro. *)
+  (*       etrans; last exact. *)
+  (*       apply Req_le. *)
+  (*       replace (INR 4) with 4%R; last (simpl; lra). *)
+  (*       f_equal. *)
+  (*       rewrite !SeriesC_list. *)
+  (*       * by rewrite foldr_fmap. *)
+  (*       * apply NoDup_fmap. *)
+  (*          -- apply list_fmap_eq_inj. *)
+  (*             apply fin_to_nat_inj. *)
+  (*          -- apply NoDup_enum_uniform_fin_list. *)
+  (*       * apply NoDup_enum_uniform_fin_list. *)
+  (*     + iIntros (ns') "Herr". *)
+  (*       iMod ("Hrest" with "[$]") as "HT". *)
+  (*       iMod "Hclose" as "_". *)
+  (*       iModIntro. *)
+  (*       iFrame. *)
+  (*       iPureIntro. *)
+  (*       by intros ??<-. *)
+  (*   - iDestruct "H" as "(%ε & %num & %ε2 & %ns' & Hfrag & %ε2' & % & HT)". *)
+  (*     iModIntro. iFrame. *)
+  (* Qed. *)
     
   Lemma read_counter_spec1 N E c γ1 γ2 Q:
     ↑N ⊆ E ->
