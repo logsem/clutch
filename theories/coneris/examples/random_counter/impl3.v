@@ -176,13 +176,6 @@ Section impl3.
     - admit.
   Admitted.
     
-    (* iRevert "Hfrag Hvs". *)
-    (* iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|]. *)
-    (* clear eps Heps. *)
-    (* iModIntro. *)
-    (* iIntros (eps Heps) "#IH Heps (%ls & %Hfilter & Hfrag) Hvs". *)
-    (* iApply wp_update_state_step_coupl. *)
-    (* iIntros. *)
   
   Lemma counter_presample_spec3  NS E T γ1 γ2 c α ns:
     ↑NS ⊆ E ->
