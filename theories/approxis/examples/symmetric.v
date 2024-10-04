@@ -89,3 +89,17 @@ Our definition further differs from Katz/Lindell in that, depending on the value
   End CPA.
 
 End symmetric.
+
+Module CPA_sem.
+
+  Definition CPA_real : val :=
+    λ:"scheme" "Q",
+      let: "key" := get_keygen "scheme" #() in
+      q_calls_poly #() #() "Q" (get_enc "scheme" "key").
+
+  (* TODO this should just use `rand` instead of get_rand_cipher. *)
+  Definition CPA_rand : val :=
+    λ:"scheme" "Q",
+      q_calls_poly #() #() "Q" (get_rand_cipher "scheme").
+
+End CPA_sem.

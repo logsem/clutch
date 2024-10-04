@@ -4,6 +4,7 @@ From clutch.prob_lang.typing Require Import tychk.
 From clutch.approxis Require Import approxis map list option.
 From clutch.approxis.examples Require Import symmetric security_aux xor advantage prf.
 Import prf.sem.
+Import symmetric.CPA_sem.
 Set Default Proof Using "All".
 
 Definition ε_bday Q N := (INR Q * INR Q / (2 * INR N))%R.
@@ -28,7 +29,6 @@ Section combined.
   (** The PRF: (keygen, F, rand_output) *)
   Definition rand_output : val := λ:"_", rand #Output.
 
-  (* Definition PRF_scheme_F : val := (keygen, (prf, rand_output)). *)
   Definition PRF_scheme_F : val := prf_scheme.
 
   (** RandML types: PRF and PRF adversary *)
@@ -47,22 +47,12 @@ Section combined.
 
   (** Symmetric scheme sym_scheme_F based on the PRF **)
   (** Symmetric Scheme Parameters **)
+  #[local] Instance sym_params : SYM_params :=
+    { card_key := prf.card_key ;
+      card_message := prf.card_output ;
+      card_cipher := prf.card_input * prf.card_output }.
   Let Message := Output.
   Let Cipher := Input * Output.
-
-  (** Security for Symmetric Encryption *)
-
-  Definition CPA_real : val :=
-    let keygen scheme : expr := Fst scheme in
-    let enc scheme : expr := Fst (Snd scheme) in
-    λ:"scheme" "Q",
-      let: "key" := keygen "scheme" #() in
-      q_calls_poly #() #() "Q" (enc "scheme" "key").
-
-  Definition CPA_rand : val :=
-    let rand_cipher scheme : expr := Snd (Snd scheme) in
-    λ:"scheme" "Q",
-      q_calls_poly #() #() "Q" (rand_cipher "scheme").
 
   (** RandML typing *)
   Definition TMessage := TInt.
@@ -124,7 +114,12 @@ Section combined.
   Let F_keygen := keygen.
   Definition F_enc : val := prf_enc prf.
   Definition F_rand_cipher : val := λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
-  Definition sym_scheme_F : val := (F_keygen, (F_enc, F_rand_cipher)).
+  #[local] Instance sym : SYM :=
+    { keygen := prf.keygen ;
+      enc := F_enc ;
+      dec := #() ;
+      rand_cipher := F_rand_cipher }.
+  Definition sym_scheme_F : val := sym_scheme.
 
   (** An IND$-CPA adversary. *)
   Variable adversary : val.
@@ -216,12 +211,13 @@ Section combined.
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
   Proof with (rel_pures_l ; rel_pures_r).
     rewrite /PRF_scheme_F/PRF_real...
-    rewrite /CPA_real/symmetric.CPA_real.
+    rewrite /CPA_real/symmetric.CPA_real/symmetric.get_keygen.
     rel_pures_l. rewrite /F_keygen/get_keygen...
     rel_bind_l (keygen _)%E. rel_bind_r (keygen _)%E.
     unshelve iApply (refines_bind _ _ _ lrel_key with "[-] []").
     1: rel_apply refines_app ; [iApply keygen_sem_typed|by rel_values].
     lrintro "key" => /=...
+    rewrite /get_enc...
     rewrite /F_enc/prf_enc/get_prf...
     rel_bind_l (prf #key)%E. rel_bind_r (prf #key)%E.
     iApply (refines_bind with "[-] []").
@@ -387,7 +383,9 @@ Proof with (rel_pures_l ; rel_pures_r).
   Qed.
 
   Definition I_enc := prf_enc I.
-  Definition sym_scheme_I := (λ:"_", #card_output, (I_enc, F_rand_cipher))%V.
+  (* Definition sym_scheme_I := (λ:"_", #card_output, (I_enc, F_rand_cipher))%V. *)
+  Definition sym_scheme_I :=
+    (@symmetric.sym_params sym_params, (λ:"_", #card_output), I_enc, dec, F_rand_cipher)%V.
 
   Fact red_r_prf :
     ⊢ REL RED
@@ -426,6 +424,7 @@ Proof with (rel_pures_l ; rel_pures_r).
         << (CPA_real sym_scheme_I #Q) : (lrel_message → lrel_option lrel_cipher).
 Proof with (rel_pures_r ; rel_pures_l).
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/CPA_real/symmetric.CPA_real/get_card_output/get_param_card_output/get_params...
+    rewrite /symmetric.get_keygen/get_enc...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
     rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: iApply random_function_sem_typed.
@@ -494,6 +493,7 @@ Proof with (rel_pures_r ; rel_pures_l).
   Proof with (rel_pures_l ; rel_pures_r).
     rewrite /RED.
     rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/CPA_real/symmetric.CPA_real/get_card_output/get_params/get_param_card_output...
+    rewrite /symmetric.get_keygen/get_enc...
     rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
     rel_bind_l (random_function _). rel_bind_r (random_function _). rel_apply refines_bind.
     1: iApply random_function_sem_typed.
@@ -577,6 +577,7 @@ Proof with (rel_pures_r ; rel_pures_l).
     rel_apply refines_app ; [iApply adversary_sem_typed|].
     rewrite /CPA_real/CPA_rand.
     rewrite /symmetric.CPA_real/symmetric.CPA_rand...
+    rewrite /symmetric.get_keygen/get_enc/get_rand_cipher...
     rewrite /F_rand_cipher.
     rewrite /I_enc/I...
     (* should be more or less the old proof. *)
@@ -690,7 +691,7 @@ Proof with (rel_pures_r ; rel_pures_l).
          << (adversary (CPA_rand sym_scheme_F #Q)) : lrel_bool).
   Proof with (rel_pures_l ; rel_pures_r).
     rewrite /sym_scheme_I/sym_scheme_F/I_enc/F_enc/I.
-    rewrite /CPA_rand/symmetric.CPA_rand. idtac...
+    rewrite /CPA_rand/symmetric.CPA_rand/get_rand_cipher. idtac...
     replace lrel_bool with (interp TBool []) by auto.
     iApply refines_typed. rewrite /F_rand_cipher. tychk.
     1: apply adversary_typed.
