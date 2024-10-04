@@ -40,6 +40,15 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
   Forall (λ x, x<=ns'.1) ns'.2 ->
     rand_tapes_auth (L:=L) γ m -∗ rand_tapes_frag (L:=L) γ α ns ==∗
     rand_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ rand_tapes_frag (L:=L) γ α ns';
+  rand_tapes_presample {L:randG Σ} N E γ α tb ns ε (ε2 : fin (S tb) -> R):
+  ↑N ⊆ E ->
+  (∀ x, 0<=ε2 x)%R ->
+  (SeriesC (λ n, 1 / (S tb) * ε2 n)%R <= ε)%R ->
+  is_rand(L:=L) N γ -∗
+  rand_tapes_frag (L:=L) γ α (tb, ns) -∗
+  ↯ ε  -∗
+  state_update E (∃ n, ↯ (ε2 n) ∗ rand_tapes_frag (L:=L) γ α (tb, ns ++ [fin_to_nat n]));
+    
 
   (** * Program specs *)
   rand_inv_create_spec {L : randG Σ} N E:
@@ -58,21 +67,21 @@ Class rand_spec `{!conerisGS Σ} := RandSpec
     }}}
       rand_tape #lbl:α #tb @ E
                        {{{ RET #n; rand_tapes_frag (L:=L) γ2 α (tb, ns) }}}; 
-  rand_presample_spec {L: randG Σ} N E γ2 α (tb:nat) ns T:
-    ↑N ⊆ E ->
-    is_rand (L:=L) N γ2 -∗
-    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗
-    (|={E∖↑N, ∅}=>
-        ∃ ε,
-         ↯ ε ∗
-         hocap_error_coupl tb ε ε []
-           (λ ε_final ε_initial ls,
-             ↯ ε_final ={∅, E∖↑N}=∗ T ε_final ε_initial ls                           
-           )
-    ) -∗
-    wp_update E (∃ ε_final ε_initial (ls:list _),
-          rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> (mbind (MBind := list_bind) snd ls))) ∗
-          T ε_final ε_initial ls)
+  (* rand_presample_spec {L: randG Σ} N E γ2 α (tb:nat) ns T: *)
+  (*   ↑N ⊆ E -> *)
+  (*   is_rand (L:=L) N γ2 -∗ *)
+  (*   rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗ *)
+  (*   (|={E∖↑N, ∅}=> *)
+  (*       ∃ ε, *)
+  (*        ↯ ε ∗ *)
+  (*        hocap_error_coupl tb ε ε [] *)
+  (*          (λ ε_final ε_initial ls, *)
+  (*            ↯ ε_final ={∅, E∖↑N}=∗ T ε_final ε_initial ls                            *)
+  (*          ) *)
+  (*   ) -∗ *)
+  (*   wp_update E (∃ ε_final ε_initial (ls:list _), *)
+  (*         rand_tapes_frag (L:=L) γ2 α (tb, ns ++ (fin_to_nat <$> (mbind (MBind := list_bind) snd ls))) ∗ *)
+  (*         T ε_final ε_initial ls) *)
               
   (* rand_presample_spec {L: randG Σ} N E γ2 α (tb:nat) ns T: *)
   (*   ↑N ⊆ E -> *)
@@ -136,6 +145,21 @@ Section impl.
   Qed.
   Next Obligation.
     simpl.
+    iIntros (??????????????) "#H1 [H2 %] H3".
+    iInv "H1" as ">(%&?&?)" "Hclose".
+    iDestruct (hocap_tapes_agree with "[$][$]") as "%".
+    iDestruct (big_sepM_insert_acc with "[$]") as "[Htape H]"; first done.
+    iMod (state_update_presample_exp with "[$][$]") as "(%n & Htape & ?)"; try exact.
+    iMod (hocap_tapes_update with "[$][$]") as "[? ?]".
+    iModIntro. iFrame.
+    iMod ("Hclose" with "[-]").
+    { iNext. iFrame. by iApply "H". }
+    iPureIntro. rewrite Forall_app. split; first done.
+    apply Forall_singleton.
+    pose proof fin_to_nat_lt n. simpl in *. lia.
+  Qed.
+  Next Obligation.
+    simpl.
     iIntros (?????).
     iApply fupd_wp_update_ret.
     iMod (hocap_tapes_alloc ∅) as "(%γ2 & H4 & H5)".
@@ -177,14 +201,14 @@ Section impl.
     iApply "HΦ". iFrame.
     iPureIntro. by eapply Forall_inv_tail.
   Qed.
-  Next Obligation.
-    simpl.
-    iIntros (???????????) "#Hinv [Hfrag %] Hvs".
-    iApply wp_update_state_step_coupl.
-    iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)".
-    iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|].
-    iMod "Hvs" as "(%err & Herr & Hcoupl)".
-  Admitted.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros (???????????) "#Hinv [Hfrag %] Hvs". *)
+  (*   iApply wp_update_state_step_coupl. *)
+  (*   iIntros (σ1 ε_supply) "((Hheap&Htapes)&Hε)". *)
+  (*   iMod (inv_acc with "Hinv") as "[>(% & H3 & H4 ) Hclose]"; [done|]. *)
+  (*   iMod "Hvs" as "(%err & Herr & Hcoupl)". *)
+  (* Admitted. *)
     
   (*   iMod "Hvs" as "(%err & %num & %ε2 & Herr & %Hpos & %Hineq & Hrest)". *)
   (*   iDestruct (hocap_tapes_agree with "[$][$]") as "%". *)
@@ -264,21 +288,22 @@ Section checks.
 
   Local Opaque enum_uniform_fin_list.
 
-  Lemma rand_presample_single_spec N E γ2 α (tb:nat) ns T:
-    ↑N ⊆ E ->
-    is_rand (L:=L) N γ2 -∗
-    rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗
-    (|={E∖↑N, ∅}=>
-        ∃ ε (ε2 : fin (S tb) -> R),
-            ↯ ε ∗
-            ⌜(∀ x, 0<= ε2 x)%R⌝ ∗
-            ⌜(SeriesC ε2 /((S tb)) <= ε)%R⌝ ∗
-        (∀ x, ↯ (ε2 x) ={∅, E∖↑N}=∗ T ε ε2 x)) -∗
-    wp_update E (∃ ε ε2 x, rand_tapes_frag (L:=L) γ2 α (tb, ns ++ [fin_to_nat x]) ∗
-                           T ε ε2 x).
-  Proof.
-    iIntros (Hsubset) "#Hinv Hfrag Hvs".
-  Admitted.
+  (* Lemma rand_presample_single_spec N E γ2 α (tb:nat) ns T: *)
+  (*   ↑N ⊆ E -> *)
+  (*   is_rand (L:=L) N γ2 -∗ *)
+  (*   rand_tapes_frag (L:=L) γ2 α (tb, ns) -∗ *)
+  (*   (|={E∖↑N, ∅}=> *)
+  (*       ∃ ε (ε2 : fin (S tb) -> R), *)
+  (*           ↯ ε ∗ *)
+  (*           ⌜(∀ x, 0<= ε2 x)%R⌝ ∗ *)
+  (*           ⌜(SeriesC ε2 /((S tb)) <= ε)%R⌝ ∗ *)
+  (*       (∀ x, ↯ (ε2 x) ={∅, E∖↑N}=∗ T ε ε2 x)) -∗ *)
+  (*   wp_update E (∃ ε ε2 x, rand_tapes_frag (L:=L) γ2 α (tb, ns ++ [fin_to_nat x]) ∗ *)
+  (*                          T ε ε2 x). *)
+  (* Proof. *)
+  (*   iIntros (Hsubset) "#Hinv Hfrag Hvs". *)
+  (*   iApply wp_update_state_step_coupl. *)
+  (*   iIntros (??) "[??]". *)
   (*   iMod (rand_presample_spec _ _ _ _ _ _ (λ ε' num ε2' ns2, *)
   (*                                            ∃ x, ⌜ns2 = [x]⌝ ∗ T ε' (λ x, ε2' ([x])) x *)
   (*           ) with "[//][$][-]")%I as "H"; first done; last first. *)
@@ -330,17 +355,8 @@ Section checks.
     iIntros (Hsubset Hpos Hineq) "#Hinv >Htape Herr".
     iDestruct (ec_valid with "[$]") as "%Hpos'".
     destruct Hpos' as [Hpos' ?].
-    iMod (rand_presample_single_spec _ _ _ _ _ _ (λ ε' ε2' n, ↯ (ε2 n)) with "[//][$][-]") as "(%&%&%&?&?)"; first done; last by iFrame.
-    iFrame.
-    iApply fupd_mask_intro; first set_solver.
-    iIntros "Hclose".
-    iExists ε2.
-    repeat iSplit.
-    - done.
-    - iPureIntro. etrans; last apply Hineq.
-      rewrite SeriesC_scal_l.
-      lra.
-    - iIntros. iFrame.
+    iApply wp_update_state_update.
+    by iApply (rand_tapes_presample with "[$][$][$]").
   Qed.
       
 

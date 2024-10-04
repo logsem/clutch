@@ -1151,6 +1151,46 @@ Qed.
       iFrame.
   Qed.
 
+  Lemma state_update_presample_exp E α N ns (ε1 : R) (ε2 : fin (S N) → R) :
+    (∀ n, 0<=ε2 n)%R ->
+    (SeriesC (λ n, 1 / (S N) * ε2 n)%R <= ε1)%R →
+    α ↪N (N; ns) -∗ ↯ ε1 -∗ state_update E (∃ n, α ↪N (N; ns ++ [fin_to_nat n]) ∗ ↯ (ε2 n)).
+  Proof.
+    rewrite state_update_unseal/state_update_def.
+    iIntros (Hpos Hsum) "Hα Hε".
+    iIntros (σ1 ε_now) "[(Hheap&Htapes) Hε_supply]".
+    iDestruct "Hα" as (ns') "(%Hmap & Hα)".
+    iDestruct (ghost_map_lookup with "Htapes Hα") as "%Hlookup".
+    iDestruct (ec_supply_bound with "Hε_supply Hε") as %Hε1_ub.
+    iMod (ec_supply_decrease with "Hε_supply Hε") as (ε1' ε_rem -> Hε1') "Hε_supply".
+    iApply fupd_mask_intro; [set_solver|].
+    iIntros "Hclose".
+    subst.
+    iApply (state_step_coupl_state_adv_comp_con_prob_lang); first done.
+    iExists (λ x, mknonnegreal (ε2 x) _).
+    iSplit; first done.
+    iIntros (sample).
+    destruct (Rlt_decision (ε_rem + (ε2 sample))%R 1%R) as [Hdec|Hdec]; last first.
+    { apply Rnot_lt_ge, Rge_le in Hdec.
+      iApply state_step_coupl_ret_err_ge_1.
+      simpl. simpl in *. lra.
+    }
+    unshelve iMod (ec_supply_increase _ (mknonnegreal (ε2 sample) _) with "Hε_supply") as "[Hε_supply Hε]"; first done.
+    { simplify_eq. simpl. done. }
+    iMod (ghost_map_update ((N; ns' ++ [sample]) : tape) with "Htapes Hα") as "[Htapes Hα]".
+    (* iSpecialize ("Hwp" $! sample). *)
+    (* rewrite pgl_wp_unfold /pgl_wp_pre. *)
+    (* simpl. *)
+    remember {| heap := heap (σ1); tapes := (<[α:=(N; ns' ++ [sample])]> (tapes σ1)) |} as σ2.
+    rewrite /=.
+    iModIntro.
+    iApply state_step_coupl_ret.
+    iMod "Hclose".
+    iFrame.
+    iPureIntro. rewrite fmap_app; by f_equal.
+  Qed.
+
+
   Lemma wp_couple_empty_tape_adv_comp E α N (ε1 : R) (ε2 : nat → R) :
     (∀ (n:nat), 0<= ε2 n)%R ->
     (SeriesC (λ n, if (bool_decide (n≤N)) then 1 / (S N) * ε2 n else 0%R)%R <= ε1)%R →

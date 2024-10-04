@@ -36,6 +36,14 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
   flip_tapes_update {L : flipG Σ} γ α m ns ns':
     flip_tapes_auth (L:=L) γ m -∗ flip_tapes_frag (L:=L) γ α ns ==∗
     flip_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ flip_tapes_frag (L:=L) γ α ns';
+  flip_tapes_presample {L:flipG Σ} N E γ α ns ε (ε2 : bool -> R):
+    ↑N ⊆ E ->
+    (∀ x, 0<=ε2 x)%R ->
+    ((ε2 true + ε2 false)/2 <= ε)%R ->
+    is_flip (L:=L) N γ -∗
+    flip_tapes_frag (L:=L) γ α (ns) -∗
+    ↯ ε  -∗
+    state_update E (∃ n, ↯ (ε2 n) ∗ flip_tapes_frag (L:=L) γ α (ns ++ [n]));
 
   (** * Program specs *)
   flip_inv_create_spec {L : flipG Σ} N E:
@@ -56,18 +64,18 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
       flip_tape #lbl:α @ E
                        {{{ RET #n; flip_tapes_frag (L:=L) γ1 α ns }}};
   
-  flip_presample_spec {L: flipG Σ} NS E γ1 α ns T:
-    ↑NS ⊆ E ->
-    is_flip (L:=L) NS γ1 -∗
-    flip_tapes_frag (L:=L) γ1 α ns -∗
-    (|={E∖↑NS, ∅}=>
-        ∃ ε num ε2, ↯ ε ∗ 
-                    ⌜(∀ l, length l = num ->  0<=ε2 l)%R⌝ ∗
-                    ⌜(SeriesC (λ l, if length l =? num then ε2 l else 0) /(2^num) <= ε)%R⌝∗
-                      (∀ ns', ↯ (ε2 ns') 
-                ={∅, E∖↑NS}=∗ T ε num ε2 ns'))
-        -∗
-          wp_update E (∃ ε num ε2 ns', flip_tapes_frag (L:=L) γ1 α (ns ++ ns') ∗ T ε num ε2 ns')
+  (* flip_presample_spec {L: flipG Σ} NS E γ1 α ns T: *)
+  (*   ↑NS ⊆ E -> *)
+  (*   is_flip (L:=L) NS γ1 -∗ *)
+  (*   flip_tapes_frag (L:=L) γ1 α ns -∗ *)
+  (*   (|={E∖↑NS, ∅}=> *)
+  (*       ∃ ε num ε2, ↯ ε ∗  *)
+  (*                   ⌜(∀ l, length l = num ->  0<=ε2 l)%R⌝ ∗ *)
+  (*                   ⌜(SeriesC (λ l, if length l =? num then ε2 l else 0) /(2^num) <= ε)%R⌝∗ *)
+  (*                     (∀ ns', ↯ (ε2 ns')  *)
+  (*               ={∅, E∖↑NS}=∗ T ε num ε2 ns')) *)
+  (*       -∗ *)
+  (*         wp_update E (∃ ε num ε2 ns', flip_tapes_frag (L:=L) γ1 α (ns ++ ns') ∗ T ε num ε2 ns') *)
 }.
 
 
@@ -119,6 +127,18 @@ Section instantiate_flip.
   Qed.
   Next Obligation.
     simpl.
+    iIntros (???????????) "#Hinv Hfrag Hε".
+    iMod (rand_tapes_presample _ _ _ _ _ _ _ (λ x, ε2 (nat_to_bool (fin_to_nat x)))with "[$][$][$]") as "(%n&?&?)"; try done.
+    - rewrite SeriesC_finite_foldr/=.
+      rewrite nat_to_bool_eq_0 nat_to_bool_neq_0; last lia.
+      lra.
+    - iFrame.
+      iModIntro.
+      rewrite fmap_app.
+      by repeat (inv_fin n; try (intros n)); simpl.
+  Qed.
+  Next Obligation.
+    simpl.
     iIntros (???).
     iApply rand_inv_create_spec.
   Qed.
@@ -141,10 +161,9 @@ Section instantiate_flip.
       + rewrite Z_to_bool_neq_0; lia.
       + rewrite Z_to_bool_eq_0; lia.
   Qed.
-  Next Obligation.
-    simpl.
-    iIntros (?????? T ?) "#Hinv Hfrag Hvs".
-  Admitted.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros (?????? T ?) "#Hinv Hfrag Hvs". *)
   (*   iMod (rand_presample_spec _ _ _ _ _ _ *)
   (*           (λ ε num ε2 ns', *)
   (*              ∃ bs' ε2',  ⌜fmap (FMap:= list_fmap) bool_to_nat bs'=fin_to_nat <$> ns'⌝ ∗ *)
@@ -217,29 +236,8 @@ Section test.
           wp_update E (∃ b, flip_tapes_frag (L:=L) γ1 α (ns ++ [b]) ∗ ↯ (ε2 b)).
   Proof.
     iIntros (Hsubset Hpos Hineq) "#Hinv Hfrag Herr".
-    pose (ε2' l:= match l with
-                    | [b]=> ε2 b
-                    | _ => 1%R
-                    end
-         ).
-    iMod (flip_presample_spec _ _ _ _ _
-            (λ ε' num ε2'' ns', ⌜ε=ε'⌝ ∗ ⌜num=1⌝ ∗ ⌜ε2' = ε2''⌝ ∗
-                                ∃ x, ⌜ns'=[x]⌝ ∗ ↯ (ε2 x)
-            )%I with "[//][$][Herr]") as "(%&%&%&%&?&%&%&%&%&%&?)"; first done.
-    - iFrame.
-      iApply fupd_mask_intro; first set_solver.
-      iIntros "Hclose".
-      iExists 1, ε2'.
-      repeat iSplit.
-      + iPureIntro.
-        intros [|?[|??]]; by simpl.
-      + iPureIntro.
-        setoid_rewrite <-elem_of_enum_uniform_list'.
-        rewrite SeriesC_list; last apply NoDup_enum_uniform_list.
-        simpl. lra.
-      + iIntros ([|?[|??]]) "Herr"; simpl; try (by iDestruct (ec_contradict with "[$]") as "%").
-        iMod "Hclose" as "_".
-        by iFrame.
-    - subst. by iFrame.
+    iApply wp_update_state_update.
+    iMod (flip_tapes_presample with "[$][$][$]") as "(%&?&?)"; try done.
+    by iFrame.
   Qed.
 End test.

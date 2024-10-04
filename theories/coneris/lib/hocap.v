@@ -142,103 +142,102 @@ Set Default Proof Using "Type*".
 (* End error_lemmas. *)
 
 
-Section hocap_error_coupl.
-  Context `{conerisGS Σ}.
-  Context (tb:nat).
-  Local Canonical Structure finO := leibnizO (fin (S tb)).
-  Local Canonical Structure RO := leibnizO R.
-  Local Canonical Structure ε2O := leibnizO (list (fin(S tb))->R).
-
-
-  Definition hocap_error_coupl_pre Z Φ : (R * R * list (nat * (list (fin (S tb)) -> R) * (list (fin (S tb)))) -> iProp Σ) :=
-    (λ x,
-       let '(ε, ε_initial, ls) := x in
-       (Z ε ε_initial ls)∨
-       ∃ num ε2,
-         ⌜(∀ l, 0<=ε2 l)%R⌝ ∗
-         ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗
-         (∀ ns, Φ (ε2 ns, ε_initial, ls ++ [(num, ε2, ns)]))
-    )%I.
+(* Section hocap_error_coupl. *)
+(*   Context `{conerisGS Σ}. *)
+(*   Context (tb:nat). *)
+(*   Local Canonical Structure finO := leibnizO (fin (S tb)). *)
+(*   Local Canonical Structure RO := leibnizO R. *)
+(*   Local Canonical Structure ε2O := leibnizO (list (fin(S tb))->R). *)
   
-  Local Instance hocap_error_coupl_pre_ne Z Φ :
-    NonExpansive (hocap_error_coupl_pre Z Φ).
-  Proof.
-    solve_contractive.
-  Qed.
+(*   Definition hocap_error_coupl_pre Z Φ : (R * R * list (nat * (list (fin (S tb)) -> R) * (list (fin (S tb)))) -> iProp Σ) := *)
+(*     (λ x, *)
+(*        let '(ε, ε_initial, ls) := x in *)
+(*        (Z ε ε_initial ls)∨ *)
+(*        ∃ num ε2, *)
+(*          ⌜(∀ l, 0<=ε2 l)%R⌝ ∗ *)
+(*          ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗ *)
+(*          (∀ ns, Φ (ε2 ns, ε_initial, ls ++ [(num, ε2, ns)])) *)
+(*     )%I. *)
+  
+(*   Local Instance hocap_error_coupl_pre_ne Z Φ : *)
+(*     NonExpansive (hocap_error_coupl_pre Z Φ). *)
+(*   Proof. *)
+(*     solve_contractive. *)
+(*   Qed. *)
 
-  Local Instance hocap_error_coupl_pre_mono Z : BiMonoPred (hocap_error_coupl_pre Z).
-  Proof.
-    split; last apply _.
-    iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([[??]?]) "[H|(%&%&%&%&H)]".
-    - by iLeft.
-    - iRight.
-      iExists _, _.
-      repeat iSplit; try done.
-      iIntros. by iApply "Hwand".
-  Qed.
+(*   Local Instance hocap_error_coupl_pre_mono Z : BiMonoPred (hocap_error_coupl_pre Z). *)
+(*   Proof. *)
+(*     split; last apply _. *)
+(*     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand". *)
+(*     iIntros ([[??]?]) "[H|(%&%&%&%&H)]". *)
+(*     - by iLeft. *)
+(*     - iRight. *)
+(*       iExists _, _. *)
+(*       repeat iSplit; try done. *)
+(*       iIntros. by iApply "Hwand". *)
+(*   Qed. *)
 
-  Definition hocap_error_coupl' Z := bi_least_fixpoint (hocap_error_coupl_pre Z).
-  Definition hocap_error_coupl ε_current ε_initial ls Z := hocap_error_coupl' Z (ε_current, ε_initial, ls).
+(*   Definition hocap_error_coupl' Z := bi_least_fixpoint (hocap_error_coupl_pre Z). *)
+(*   Definition hocap_error_coupl ε_current ε_initial ls Z := hocap_error_coupl' Z (ε_current, ε_initial, ls). *)
 
-  Lemma hocap_error_coupl_unfold ε ε_initial ls Z :
-    hocap_error_coupl ε ε_initial ls Z ≡
-      ((Z ε ε_initial ls)∨
-      ∃ num ε2,
-        ⌜(∀ l, 0<=ε2 l)%R⌝ ∗
-        ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗
-        (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(num, ε2, ns)]) Z))%I.
-  Proof.
-    rewrite /hocap_error_coupl/hocap_error_coupl' least_fixpoint_unfold//. Qed.
+(*   Lemma hocap_error_coupl_unfold ε ε_initial ls Z : *)
+(*     hocap_error_coupl ε ε_initial ls Z ≡ *)
+(*       ((Z ε ε_initial ls)∨ *)
+(*       ∃ num ε2, *)
+(*         ⌜(∀ l, 0<=ε2 l)%R⌝ ∗ *)
+(*         ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗ *)
+(*         (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(num, ε2, ns)]) Z))%I. *)
+(*   Proof. *)
+(*     rewrite /hocap_error_coupl/hocap_error_coupl' least_fixpoint_unfold//. Qed. *)
 
-  Lemma hocap_error_coupl_ret ε ε_initial ls Z:
-    Z ε ε_initial ls -∗  hocap_error_coupl ε ε_initial ls Z.
-  Proof.
-    iIntros. rewrite hocap_error_coupl_unfold. by iLeft.
-  Qed.
+(*   Lemma hocap_error_coupl_ret ε ε_initial ls Z: *)
+(*     Z ε ε_initial ls -∗  hocap_error_coupl ε ε_initial ls Z. *)
+(*   Proof. *)
+(*     iIntros. rewrite hocap_error_coupl_unfold. by iLeft. *)
+(*   Qed. *)
 
-  Lemma hocap_error_coupl_rec ε ε_initial ls Z:
-    (∃ num ε2,
-        ⌜(∀ l, 0<=ε2 l)%R⌝ ∗
-        ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗
-        (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(num, ε2, ns)]) Z)) -∗  hocap_error_coupl ε ε_initial ls Z.
-  Proof.
-    iIntros. rewrite hocap_error_coupl_unfold. by iRight.
-  Qed.
+(*   Lemma hocap_error_coupl_rec ε ε_initial ls Z: *)
+(*     (∃ num ε2, *)
+(*         ⌜(∀ l, 0<=ε2 l)%R⌝ ∗ *)
+(*         ⌜(SeriesC (λ l, if bool_decide (length l = num) then ε2 l else 0)/((S tb)^num) <= ε)%R⌝ ∗ *)
+(*         (∀ ns, hocap_error_coupl (ε2 ns) ε_initial (ls ++ [(num, ε2, ns)]) Z)) -∗  hocap_error_coupl ε ε_initial ls Z. *)
+(*   Proof. *)
+(*     iIntros. rewrite hocap_error_coupl_unfold. by iRight. *)
+(*   Qed. *)
 
-  Lemma hocap_error_coupl_ind (Ψ Z : R -> R -> list (nat * (list (fin (S tb)) -> R) * (list (fin (S tb))))->iProp Σ):
-    ⊢ (□ (∀ ε ε_initial ls,
-             hocap_error_coupl_pre Z (λ '(ε', ε_initial', ls'),
-                 Ψ ε' ε_initial' ls' ∧ hocap_error_coupl ε' ε_initial' ls' Z)%I (ε, ε_initial, ls) -∗ Ψ ε ε_initial ls) →
-       ∀ ε ε_initial ls, hocap_error_coupl ε ε_initial ls Z -∗ Ψ ε ε_initial ls)%I.
-  Proof.
-    iIntros "#IH" (ε ε_initial ls) "H".
-    set (Ψ' := (λ '(ε, ε_initial, ls), Ψ ε ε_initial ls) : (prodO _ _->iProp Σ)).
-    assert (NonExpansive Ψ') by solve_contractive.
-    iApply (least_fixpoint_ind _ Ψ' with "[] H").
-    iIntros "!#" ([[??]?]) "H". by iApply "IH".
-  Qed.
+(*   Lemma hocap_error_coupl_ind (Ψ Z : R -> R -> list (nat * (list (fin (S tb)) -> R) * (list (fin (S tb))))->iProp Σ): *)
+(*     ⊢ (□ (∀ ε ε_initial ls, *)
+(*              hocap_error_coupl_pre Z (λ '(ε', ε_initial', ls'), *)
+(*                  Ψ ε' ε_initial' ls' ∧ hocap_error_coupl ε' ε_initial' ls' Z)%I (ε, ε_initial, ls) -∗ Ψ ε ε_initial ls) → *)
+(*        ∀ ε ε_initial ls, hocap_error_coupl ε ε_initial ls Z -∗ Ψ ε ε_initial ls)%I. *)
+(*   Proof. *)
+(*     iIntros "#IH" (ε ε_initial ls) "H". *)
+(*     set (Ψ' := (λ '(ε, ε_initial, ls), Ψ ε ε_initial ls) : (prodO _ _->iProp Σ)). *)
+(*     assert (NonExpansive Ψ') by solve_contractive. *)
+(*     iApply (least_fixpoint_ind _ Ψ' with "[] H"). *)
+(*     iIntros "!#" ([[??]?]) "H". by iApply "IH". *)
+(*   Qed. *)
 
-  Lemma hocap_error_coupl_bind ε ε_initial ls Z1 Z2 :
-    (∀ ε' ε_initial' ls', Z1 ε' ε_initial' ls' -∗ hocap_error_coupl ε' ε_initial' ls' Z2) -∗
-    hocap_error_coupl ε ε_initial ls Z1 -∗
-    hocap_error_coupl ε ε_initial ls Z2.
-  Proof.
-    iIntros "HZ H".
-    iRevert "HZ".
-    iRevert (ε ε_initial ls) "H".
-    iApply hocap_error_coupl_ind.
-    iIntros "!#" (ε ε_initial ls) "[H|H] HZ".
-    - by iApply "HZ".
-    - iApply hocap_error_coupl_rec.
-      iDestruct "H" as "(%&%&%&%&Hrest)".
-      iExists _,_. repeat iSplit; try done.
-      iIntros (?).
-      iDestruct ("Hrest" $! _) as "[Hrest _]".
-      by iApply "Hrest".
-  Qed.
+(*   Lemma hocap_error_coupl_bind ε ε_initial ls Z1 Z2 : *)
+(*     (∀ ε' ε_initial' ls', Z1 ε' ε_initial' ls' -∗ hocap_error_coupl ε' ε_initial' ls' Z2) -∗ *)
+(*     hocap_error_coupl ε ε_initial ls Z1 -∗ *)
+(*     hocap_error_coupl ε ε_initial ls Z2. *)
+(*   Proof. *)
+(*     iIntros "HZ H". *)
+(*     iRevert "HZ". *)
+(*     iRevert (ε ε_initial ls) "H". *)
+(*     iApply hocap_error_coupl_ind. *)
+(*     iIntros "!#" (ε ε_initial ls) "[H|H] HZ". *)
+(*     - by iApply "HZ". *)
+(*     - iApply hocap_error_coupl_rec. *)
+(*       iDestruct "H" as "(%&%&%&%&Hrest)". *)
+(*       iExists _,_. repeat iSplit; try done. *)
+(*       iIntros (?). *)
+(*       iDestruct ("Hrest" $! _) as "[Hrest _]". *)
+(*       by iApply "Hrest". *)
+(*   Qed. *)
       
-End hocap_error_coupl.
+(* End hocap_error_coupl. *)
   
 Definition hocap_tapes_nroot:=nroot.@"tapes".
 Class hocap_tapesGS (Σ : gFunctors) := Hocap_tapesGS {
