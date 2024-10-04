@@ -9,11 +9,41 @@ Section symmetric.
 The set of keys, messages, and ciphertexts are modelled by finite sets of integers [0, Key], [0, Input], and [0, Output].
    *)
 
-  Variable Key Message Cipher : nat.
+  Class SYM_params :=
+    { card_key : nat
+    ; card_message : nat
+    ; card_cipher : nat
+    ; sym_params : val := (#card_key, #card_message, #card_cipher) }.
 
-  Let keygen scheme : expr := Fst scheme.
-  Let enc scheme : expr := Fst (Snd scheme).
-  Let rand_cipher scheme : expr := Snd (Snd scheme).
+  (* Variable Key Message Cipher : nat. *)
+
+  (* Let keygen scheme : expr := Fst scheme.
+     Let enc scheme : expr := Fst (Snd scheme).
+     Let rand_cipher scheme : expr := Snd (Snd scheme). *)
+
+  Definition get_param_card_key : val := λ:"sym_params", Fst (Fst "sym_params").
+  Definition get_param_card_message : val := λ:"sym_params", Snd (Fst "sym_params").
+  Definition get_param_card_cipher : val := λ:"sym_params", Snd "sym_params".
+
+  (* rand_cipher is currently unused ; it would be useful if a SYM module had
+   abstract types. *)
+  Class SYM `{SYM_params} :=
+    { keygen : val
+    ; enc : val
+    ; dec : val
+    ; rand_cipher : val
+    ; sym_scheme : val := (sym_params, keygen, enc, dec, rand_cipher)%V
+    }.
+
+  Definition get_params : val := λ:"sym_scheme", Fst (Fst (Fst (Fst "sym_scheme"))).
+  Definition get_card_key : val := λ:"sym_scheme", Fst (Fst (Fst (Fst (Fst (Fst "sym_scheme"))))).
+  Definition get_card_message : val := λ:"sym_scheme", Snd (Fst (Fst (Fst (Fst (Fst "sym_scheme"))))).
+  Definition get_card_cipher : val := λ:"sym_scheme", Snd (Fst (Fst (Fst (Fst "sym_scheme")))).
+  Definition get_keygen : val := λ:"sym_scheme", Snd (Fst (Fst (Fst "sym_scheme"))).
+  Definition get_enc : val := λ:"sym_scheme", Snd (Fst (Fst ("sym_scheme"))).
+  Definition get_dec : val := λ:"sym_scheme", Snd (Fst "sym_scheme").
+  Definition get_rand_cipher : val := λ:"sym_scheme", Snd "sym_scheme".
+
 
   Section CPA.
 
@@ -32,29 +62,29 @@ Our definition further differs from Katz/Lindell in that, depending on the value
      *)
 
 
-    Let q_calls := q_calls Message.
     Definition CPA : val :=
       λ:"b" "adv" "scheme" "Q",
         let: "rr_key_b" :=
-          let: "key" := keygen "scheme" #() in
+          let: "key" := get_keygen "scheme" #() in
           (* let: "enc_key" := enc "scheme" "key" in *)
           if: "b" then
             (* "enc_key" *)
-            enc "scheme" "key"
+            get_enc "scheme" "key"
           else
-            rand_cipher "scheme" in
-        let: "oracle" := q_calls "Q" "rr_key_b" in
+            get_rand_cipher "scheme" in
+        let: "oracle" := q_calls (get_card_message "scheme") "Q" "rr_key_b" in
         let: "b'" := "adv" "oracle" in
         "b'".
 
     Definition CPA_real : val :=
       λ:"scheme" "Q",
-        let: "key" := keygen "scheme" #() in
-        q_calls "Q" (enc "scheme" "key").
+        let: "key" := get_keygen "scheme" #() in
+        q_calls (get_card_message "scheme") "Q" (get_enc "scheme" "key").
 
+    (* TODO this should just use `rand` instead of get_rand_cipher. *)
     Definition CPA_rand : val :=
       λ:"scheme" "Q",
-        q_calls "Q" (rand_cipher "scheme").
+        q_calls (get_card_message "scheme") "Q" (get_rand_cipher "scheme").
 
   End CPA.
 

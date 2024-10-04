@@ -1,4 +1,4 @@
-From clutch.common Require Import inject.
+From clutch.common Require Export inject.
 From clutch Require Import approxis.
 Set Default Proof Using "Type*".
 

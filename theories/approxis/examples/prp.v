@@ -2,15 +2,35 @@ From clutch.approxis Require Import approxis map list.
 From clutch.approxis Require Export bounded_oracle.
 Set Default Proof Using "Type*".
 
+Class PRP_params :=
+  { card_key : nat
+  ; card_support : nat
+  ; prp_params : val := (#card_key, #card_support) }.
+
+Definition get_param_card_key : val := λ:"prp_params", Fst "prp_params".
+Definition get_param_card_support : val := λ:"prp_params", Snd "prp_params".
+
+(* rand_output is currently unused ; it would be useful if a PRP module had
+   abstract types. *)
+Class PRP `{PRP_params} :=
+  { keygen : val
+  ; prp : val
+  ; rand_output : val
+  ; prp_scheme : val := (prp_params, keygen, prp, rand_output)%V
+  }.
+
+Definition get_params : val := λ:"prp_scheme", Fst (Fst (Fst "prp_scheme")).
+Definition get_card_key : val := λ:"prp_scheme", Fst (Fst (Fst (Fst "prp_scheme"))).
+Definition get_card_support : val := λ:"prp_scheme", Snd (Fst (Fst (Fst "prp_scheme"))).
+Definition get_keygen : val := λ:"prp_scheme", Snd (Fst (Fst "prp_scheme")).
+Definition get_prp : val := λ:"prp_scheme", Snd (Fst ("prp_scheme")).
+Definition get_rand_output : val := λ:"prp_scheme", Snd "prp_scheme".
 
 Section PRP.
 
   Context `{!approxisGS Σ}.
 
   Variable val_size : nat.
-
-  Let keygen PRP_scheme : expr := Fst PRP_scheme.
-  Let prp PRP_scheme : expr := Fst (Snd PRP_scheme).
 
   (* A prp's internal state is a tuple of:
        - a map from previously queried keys to their value, and
@@ -69,14 +89,14 @@ Section PRP.
       let: "p" := random_permutation_state #() in
       query_prp (Fst "p") (Snd "p").
 
-  Let q_calls := q_calls val_size.
+  Let q_calls := q_calls #val_size.
 
-  Definition PRP : val :=
+  Definition PRP_real_rand : val :=
     λ:"b" "adv" "PRP_scheme" "Q",
-      let: "key" := keygen "PRP_scheme" #() in
+      let: "key" := get_keygen "PRP_scheme" #() in
       let: "prp_key_b" :=
         if: "b" then
-          prp "PRP_scheme" "key"
+          get_prp "PRP_scheme" "key"
         else
           random_permutation "key" in
       let: "oracle" := q_calls "Q" "prp_key_b" in
@@ -85,10 +105,10 @@ Section PRP.
 
   Definition wPRP : val :=
     λ:"b" "PRP_scheme" "Q",
-      let: "key" := keygen "PRP_scheme" #() in
+      let: "key" := get_keygen "PRP_scheme" #() in
       let: "prp_key_b" :=
         if: "b" then
-          prp "PRP_scheme" "key"
+          get_prp "PRP_scheme" "key"
         else
           random_permutation "key" in
       let: "res" := ref list_nil in

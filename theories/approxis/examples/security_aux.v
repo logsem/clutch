@@ -5,7 +5,7 @@ Set Default Proof Using "Type*".
 Definition lrel_int_bounded {Σ} min max : lrel Σ := LRel (λ w1 w2, ∃ k : Z, ⌜ w1 = #k ∧ w2 = #k ∧ min <=k ∧ k <= max ⌝)%Z%I.
 
 Module LR_bounded.
-  Import Ltac2 Ltac2.Printf.
+  Import Ltac2 (* Ltac2.Printf *).
   Export LR_tac.
 
   Ltac2 bounded x :=
@@ -20,20 +20,20 @@ Module LR_bounded.
       end.
 
   Ltac2 int_bounded_intro (typ : constr) xs k :=
-    printf "entering int_bounded_intro, typ: %t" typ ;
+    (* printf "entering int_bounded_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_int_bounded _ _ =>
-        printf "found `lrel_int_bounded`, done" ;
+        (* printf "found `lrel_int_bounded`, done" ; *)
         Some (bounded (get_head_name xs))
     | _ => None
     end.
   Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "int_bounded" int_bounded_intro (prev ()).
 
   Ltac2 int_bounded_val typ k :=
-    printf "entering int_bounded_val, typ: %t" typ ;
+    (* printf "entering int_bounded_val, typ: %t" typ ; *)
     lazy_match! typ with
     | (lrel_car (lrel_int_bounded _ _) ?v1 ?v2) =>
-        printf "found `lrel_int_bounded %t %t`, trying lia" v1 v2 ;
+        (* printf "found `lrel_int_bounded %t %t`, trying lia" v1 v2 ; *)
         ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed
     | _ => Stuck
     end.

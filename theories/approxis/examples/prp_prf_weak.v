@@ -1,4 +1,5 @@
 From clutch.approxis Require Export approxis map list prf prp sum_seq.
+Import prf.bounds_check.
 Set Default Proof Using "Type*".
 
 Section prp_prf.
@@ -14,9 +15,9 @@ Section prp_prf.
   Variable val_size : nat.
 
   Definition wPRP := wPRP val_size.
-  Definition wPRF := wPRF val_size val_size.
+  Definition wPRF := wPRF.
   Definition random_permutation := random_permutation val_size.
-  Definition random_function := random_function val_size.
+  Definition random_function := random_function #val_size.
 
 Section Approxis.
   (* We derive the logical refinement in Approxis, in order to then conclude
@@ -29,6 +30,11 @@ Section Approxis.
   Definition is_sprp := is_sprp val_size.
   Definition is_random_function := is_random_function val_size.
   Definition is_srandom_function := is_srandom_function val_size.
+
+  (* We compare the "ideal" wPRP and wPRF games (as indicated by the #false
+     argument below); to ignore the "real" games (wPRP #true and wPRF #true),
+     we provide a dummy scheme. *)
+  Definition dummy_scheme : val := ((#val_size, #val_size, #val_size), (λ: "_", #()), (λ:<> <>, #()), #()).
 
 
   Lemma wp_prf_prp_couple_eq_Some E K (k:Z) (f : val) (m : gmap nat Z) (sf : val) (sr : list Z) (n : nat) :
@@ -382,6 +388,14 @@ Section Approxis.
  Definition loop (f : val) (res : loc) :=
    (rec: "loop" "i" :=
       if: "i" = #0 then #()
+      else let: "x" := rand (get_card_input dummy_scheme) in
+           let: "y" := f "x" in
+           #res <- list_cons ("x", "y") ! #res;;
+           "loop" ("i" - #1))%V.
+
+ Definition loop' (f : val) (res : loc) :=
+   (rec: "loop" "i" :=
+      if: "i" = #0 then #()
       else let: "x" := rand #val_size in
            let: "y" := f "x" in
            #res <- list_cons ("x", "y") ! #res;;
@@ -397,7 +411,7 @@ Section Approxis.
     ((INR(fold_left (Nat.add) (seq (n-k) k) 0%nat) / INR (S val_size))%R <= ε)%R ->
     {{{ ↯ ε ∗
         is_random_function rf m ∗
-        ⤇ fill K (loop rp res' #k) ∗
+        ⤇ fill K (loop' rp res' #k) ∗
         is_sprp rp m l ∗
         ∃ lres, ∃ vres : val, ⌜is_list lres vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres
     }}}
@@ -414,19 +428,20 @@ Section Approxis.
     iInduction k as [|Q'] "IH" forall (ε m l).
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
-      rewrite /loop.
+      rewrite /loop/loop'.
       tp_pures.
       1: by (simpl ; auto).
       wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "rf rp".
       iFrame. by iExists _.
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
-      rewrite /loop.
+      rewrite /loop/loop'.
       wp_pures.
       tp_pures.
       1: by (simpl ; auto).
-      rewrite -/(loop rf res) -/(loop rp res').
+      rewrite -/(loop rf res) -/(loop' rp res').
       iMod (ec_zero) as "H0".
+      rewrite /get_card_input...
       wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size with "[spec H0]") => //.
       { iSplitL "spec".
         - tp_bind (rand _)%E. done.
@@ -563,7 +578,7 @@ Section Approxis.
         is_prp rp m l ∗
         ∃ lres, ∃ vres : val, ⌜is_list lres vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres
     }}}
-      loop rp res #k
+      loop' rp res #k
       @ E
       {{{ RET #();
           ∃ m l,
@@ -576,18 +591,19 @@ Section Approxis.
     iInduction k as [|Q'] "IH" forall (ε m l).
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
-      rewrite /loop.
+      rewrite /loop/loop'.
       tp_pures.
       1: by (simpl ; auto).
       wp_pures. iApply "HΦ". iModIntro. iExists _,_. iFrame "spec rf rp".
       iFrame. by iExists _.
     - iIntros (Hn Hlen HNoDup Hsubseteq Hdom Hdom' Hε Φ)
         "(ε & rf & spec & rp & %lres & %vres & %list_vres & res & res') HΦ".
-      rewrite /loop.
+      rewrite /loop/loop'.
       wp_pures.
       tp_pures ; [by (simpl ; auto)|].
       rewrite -/(loop rf res') -/(loop rp res).
       iMod (ec_zero) as "H0".
+      rewrite /get_card_input...
       wp_apply (wp_couple_rand_rand_leq val_size val_size val_size val_size with "[spec H0]") => //.
       { iSplitL "spec".
         - tp_bind (rand _)%E. done.
@@ -711,11 +727,6 @@ Section Approxis.
   Qed.
 
 
-  (* We compare the "ideal" wPRP and wPRF games (as indicated by the #false
-     argument below); to ignore the "real" games (wPRP #true and wPRF #true),
-     we provide a dummy scheme. *)
-  Definition dummy_scheme : val := ((λ: "_", #()),#()).
-
   Lemma wp_wPRF_wPRP
     E K (Q : nat) (ε : R) :
     ((fold_left Nat.add (seq 0 Q) 0%nat / S val_size)%R = ε) →
@@ -723,10 +734,12 @@ Section Approxis.
       wPRF #false dummy_scheme #Q @ E
       {{{ (vres : val), RET vres; ⤇ fill K vres }}}.
   Proof with (wp_pures ; tp_pures).
-    rewrite /wPRF/wPRP/prf.wPRF/prp.wPRP. iIntros (Hε) "%Φ (ε & spec) HΦ"...
+    rewrite /wPRF/bounds_check.wPRF/wPRP/prp.wPRP. iIntros (Hε) "%Φ (ε & spec) HΦ"...
+    rewrite /prp.get_keygen/prf.get_keygen...
     tp_bind (prp.random_permutation _ #()).
     iMod (spec_random_permutation with "spec") as (rp) "(spec & rp)" ; iSimpl in "spec".
-    wp_bind (random_function _).
+    rewrite /get_card_output/prf.get_keygen/prp.get_keygen. wp_pures.
+    wp_bind (prf.random_function _).
     wp_apply (wp_random_function); first done.
     iIntros (rf) "rf" ; simpl. wp_pure. wp_pure.
     wp_apply wp_list_nil => //.
@@ -744,6 +757,7 @@ Section Approxis.
     tp_bind ((rec: "loop" _ := _) _)%V.
     iAssert (∃ l vres, ⌜is_list l vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres)%I
       with "[res res']" as "res". 1: (iExists _,_ ; by iFrame).
+    fold get_card_input.
     fold (loop rf res).
     fold (loop rp res').
 
@@ -772,8 +786,9 @@ Section Approxis.
       (wPRP #false dummy_scheme #Q) @ E
       {{{ (vres : val), RET vres; ⤇ fill K vres }}}.
   Proof with (wp_pures ; tp_pures).
-    rewrite /wPRF/wPRP/prf.wPRF/prp.wPRP. iIntros (Hε) "%Φ (ε & spec) HΦ"...
-    tp_bind (prf.random_function _ #()).
+    rewrite /wPRF/wPRP/prf.bounds_check.wPRF/prp.wPRP. iIntros (Hε) "%Φ (ε & spec) HΦ"...
+    rewrite /prp.get_keygen/prf.get_keygen/get_card_output...
+    tp_bind (prf.random_function _).
     iMod (spec_random_function with "spec") as (rf) "(spec & rf)".
     wp_bind (random_permutation _).
     wp_apply (wp_random_permutation); first done.
@@ -794,7 +809,7 @@ Section Approxis.
     iAssert (∃ lres vres, ⌜is_list lres vres⌝ ∗ res ↦ vres ∗ res' ↦ₛ vres)%I
       with "[res res']" as "res". 1: (iExists _,_ ; by iFrame).
     fold (loop rf res').
-    fold (loop rp res).
+    fold (loop' rp res).
     iApply (wp_wPRP_wPRF_err_ind with "[-HΦ $ε $rf $rp $spec]").
     - split; first lia. done.
     - simpl. rewrite fmap_length seq_length. lia.

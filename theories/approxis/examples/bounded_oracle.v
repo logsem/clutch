@@ -10,10 +10,10 @@ Section bounded_oracle.
   (** Bounded Oracles. [q_calls MAX Q f x] calls [f x] for the first [Q] invocations
       if 0 <= x <= MAX, and returns None otherwise. *)
 
-  Definition q_calls (MAX : Z) : val :=
-    λ:"Q" "f",
+  Definition q_calls : val :=
+    λ:"MAX" "Q" "f",
       let: "counter" := ref #0 in
-      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ #MAX)))
+      λ:"x", if: (BinOp AndOp (! "counter" < "Q") (BinOp AndOp (#0 ≤ "x") ("x" ≤ "MAX")))
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 
@@ -24,17 +24,17 @@ Section bounded_oracle.
              then ("counter" <- !"counter" + #1 ;; SOME ("f" "x"))
              else NONEV.
 
-  Fact q_calls_typed_int (MAX : Z) (B : type) :
-    ⊢ᵥ q_calls MAX : (TInt → (TInt → B) → TInt → TOption B)%ty.
+  Fact q_calls_typed_int (B : type) :
+    ⊢ᵥ q_calls : (TInt → TInt → (TInt → B) → TInt → TOption B)%ty.
   Proof.
     rewrite /q_calls. tychk.
   Qed.
 
-  Fact q_calls_typed_nat (MAX : Z) (B : type) :
-    ⊢ᵥ q_calls MAX : (TInt → (TNat → B) → TNat → TOption B).
+  Fact q_calls_typed_nat (B : type) :
+    ⊢ᵥ q_calls : (TNat → TInt → (TNat → B) → TNat → TOption B).
   Proof.
     rewrite /q_calls.
-    type_val 8 ; try by tychk.
+    type_val 9 ; try by tychk.
     all: type_expr 1 ; try by tychk.
     all: apply Subsume_int_nat. all: tychk.
   Qed.
@@ -66,7 +66,7 @@ Section link.
   Context {max_calls : MaxCalls}.
   Context {upper_bound : DomainUpperBound}.
   Definition compose (g f : expr) := (λ:"x", g (f "x"))%E.
-  Definition restr (F : expr) := (q_calls (Q) (Val #F_MAX) F).
+  Definition restr (F : expr) := (q_calls (#Q) (Val #F_MAX) F).
   Definition link (A F : expr) := compose A (restr F).
 End link.
 

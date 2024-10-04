@@ -1,25 +1,23 @@
 From clutch.prob_lang.typing Require Import tychk.
-From clutch.approxis Require Import approxis map list.
-From clutch.approxis.examples Require Import prf symmetric (* prf_cpa *) security_aux xor advantage.
-Import prf.bound_checks.
+From clutch.approxis Require Import approxis map list option.
+From clutch.approxis.examples Require Import symmetric security_aux xor advantage prf.
+Import prf.bounds_check.
 Set Default Proof Using "Type*".
 
 Section combined.
 
   (*** A PRF *)
+  Context `{PRF}.
 
   (** PRF Parameters. *)
-  Variable Key : nat.
-  Variable Input : nat.
-  Variable Output : nat.
+  Let Key := card_key.
+  Let Input := card_input.
+  Let Output := card_output.
 
-  Definition q_calls := q_calls Input.
+  Definition q_calls := q_calls #Input.
 
   Definition N := S Input.
 
-  (** PRF Security: Local instances of the PRF games. **)
-  Definition PRF_rand := PRF_rand Input Output.
-  Definition PRF_real := PRF_real Input.
   (* Max number of oracle calls *)
   Variable (Q : nat).
 
@@ -28,14 +26,15 @@ Section combined.
   Local Opaque INR.
 
   (** The PRF: (keygen, F, rand_output) *)
-  Variable keygen : val.
-  Variable F : val.
+  (* Variable keygen : val. *)
+  Let F := prf.
   Definition rand_output : val := λ:"_", rand #Output.
 
-  Definition PRF_scheme_F : val := (keygen, (F, rand_output)).
+  (* Definition PRF_scheme_F : val := (keygen, (F, rand_output)). *)
+  Definition PRF_scheme_F : val := prf_scheme.
 
   (** RandML types: PRF and PRF adversary *)
-  Definition TKey := TNat.
+  Definition TKey := TInt.
   Definition TInput := TNat.
   Definition TOutput := TNat.
   Definition TKeygen : type := (TUnit → TKey)%ty.
@@ -53,12 +52,17 @@ Section combined.
 
   (*** Symmetric scheme sym_scheme_F based on the PRF **)
   (** Symmetric Scheme Parameters **)
+  #[local] Instance sym_params : SYM_params :=
+    { card_key := prf.card_key ;
+      card_message := prf.card_output ;
+      card_cipher := prf.card_input * prf.card_output }.
   Let Message := Output.
   Let Cipher := Input * Output.
 
+
   (** Security for Symmetric Encryption *)
-  Let CPA_real := CPA_real Message.
-  Let CPA_rand := CPA_rand Message.
+  (* Let CPA_real := CPA_real Message.
+     Let CPA_rand := CPA_rand Message. *)
 
   (** RandML typing *)
   Definition TMessage := TInt.
@@ -68,7 +72,7 @@ Section combined.
   (* H_in_out is required to make sense of the assumption that xor is a bijection. *)
   Hypothesis H_in_out : (Input = Output).
   (* An abstract `xor`, in RandML and in Coq. *)
-  Context `{XOR Message Output}.
+  Context `{xor_struct : XOR Message Output}.
   Hypothesis xor_typed : (⊢ᵥ xor : (TKey → TInput → TOutput)).
 
   (** Generic PRF-based symmetric encryption. *)
@@ -84,7 +88,13 @@ Section combined.
   Let F_keygen := keygen.
   Definition F_enc : val := prf_enc F.
   Definition F_rand_cipher : val := λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
-  Definition sym_scheme_F : val := (F_keygen, (F_enc, F_rand_cipher)).
+  (* Definition sym_scheme_F : val := (F_keygen, (F_enc, F_rand_cipher)). *)
+  Local Instance sym : SYM :=
+    { keygen := prf.keygen ;
+      enc := F_enc ;
+      dec := #() ;
+      rand_cipher := F_rand_cipher }.
+  Definition sym_scheme_F : val := sym_scheme.
 
   (** An IND$-CPA adversary. *)
   Variable adversary : val.
@@ -116,8 +126,7 @@ Section combined.
     type_expr 4.
     all: try by tychk.
     1: constructor ; apply opt_mult_typed.
-    1: rewrite /q_calls. 1: eapply q_calls_typed_int.
-    tychk. apply xor_typed.
+    rewrite /q_calls. tychk. eapply q_calls_typed_int.
   Qed.
 
   Section approxis_proofs.
@@ -127,20 +136,22 @@ Section combined.
   Lemma reduction :
     ⊢ (REL (adversary (CPA_real sym_scheme_F #Q))
          << (RED (PRF_real PRF_scheme_F #Q)) : lrel_bool).
-  Proof.
+  Proof with (rel_pures_l ; rel_pures_r).
     rewrite /RED. rel_pures_r.
-    rewrite /PRF_scheme_F/PRF_real/prf.PRF_real.
+    rewrite /PRF_scheme_F/PRF_real.
     rel_pures_r.
-    rewrite /CPA_real/symmetric.CPA_real.
-    rel_pures_l. rewrite /F_keygen.
-    rel_bind_l (keygen _)%E.
-    rel_bind_r (keygen _)%E.
+    rewrite /get_keygen...
+    rewrite /CPA_real/symmetric.CPA_real/sym_scheme_F.
+    rel_pures_l. rewrite /symmetric.get_keygen...
+    rel_bind_l (prf.keygen _)%E.
+    rel_bind_r (prf.keygen _)%E.
     unshelve iApply (refines_bind with "[-] []").
     1: exact (interp TKey []).
-    { iApply refines_typed. by tychk. }
+    { iApply refines_typed. tychk.  apply keygen_typed. }
     iIntros (??(key&->&->)). simpl.
+    rewrite /get_enc...
+    rewrite /F_enc/prf_enc/get_prf/F. rel_pures_l.
     rel_pures_l. rel_pures_r.
-    rewrite /F_enc/prf_enc. rel_pures_l.
     rel_bind_l (F #key)%E.
     rel_bind_r (F #key)%E.
     unshelve iApply (refines_bind with "[-] []").
@@ -149,11 +160,13 @@ Section combined.
     rewrite /TInput/TOutput.
     iIntros (F_key F_key') "#rel_prf_key". iSimpl in "rel_prf_key".
     simpl. rel_pures_l ; rel_pures_r.
-    rewrite {2}/bounded_oracle.q_calls. rel_pures_r.
+    rewrite {2}/bounded_oracle.q_calls. rewrite /get_card_input... rel_pures_r.
     rel_alloc_r counter_r as "counter_r". rel_pures_r.
-    rewrite /R_prf. rel_pures_r. rewrite /q_calls.
+    rewrite /R_prf. rel_pures_r.
+    rewrite /get_card_message...
     rewrite /Message.
-    rewrite -{1}H_in_out.
+    assert (card_output = card_input) as ->. { cbv in H_in_out. done. }
+    (* rewrite -{1}H_in_out. *)
     rel_bind_l (bounded_oracle.q_calls _ _ _)%E.
     (* rel_bind_r (bounded_oracle.q_calls _ _ _)%E. *)
     rel_bind_r (let: _ := _ in _)%E.
@@ -190,14 +203,18 @@ Section combined.
       iApply (refines_na_inv with "[$Hinv]"); [done|].
       iIntros "(> (%q & counter_l & counter_r & counter_r') & Hclose)".
       rel_load_l ; rel_load_r.
+      assert (card_input = Input) as h_card_in by easy.
       case_bool_decide as Hmsg_pos.
       all: case_bool_decide as H_msg_max.
+      all: rewrite h_card_in in H_msg_max.
       all: simpl ; rel_pures_l ; rel_pures_r.
       all: try case_bool_decide as qQ.
       all: simpl ; rel_pures_l ; rel_pures_r.
       2-8: iApply (refines_na_close with "[-]") ;
-      iFrame ; rel_values ;
-      iExists _,_ ; iLeft ; done.
+      iFrame ; try (rel_values ;
+      iExists _,_ ; iLeft ; done).
+      all: (case_bool_decide ; rel_pures_r ; try by exfalso).
+      2: rel_values ; iExists _,_ ; iLeft ; done.
       rel_load_l ; rel_load_r.
       simpl ; rel_pures_l ; rel_pures_r.
       rel_store_l ; rel_store_r.
@@ -233,48 +250,80 @@ Section combined.
            1: type_expr 1.
            1: constructor ; apply xor_typed.
            2: rewrite /xor.TInput.
-           all: tychk.
+           all: tychk. repeat constructor.
       }
       iIntros (??) "#( % & % & % & % & -> & -> & (% & -> & ->) & % & -> & ->)" ; rel_pures_l ; rel_pures_r.
       rel_values. iExists _,_. iPureIntro. right. repeat split.
       eexists _,_,_,_. repeat split. all: by eexists _.
   Qed.
 
-  Definition I := random_function Output.
-  Definition PRF_scheme_I := (λ:"_", #(), (I, rand_output))%V.
+  Definition I := random_function.
+  (* Definition PRF_scheme_I := (λ:"_", #(), (I, rand_output))%V. *)
+  Definition PRF_scheme_I := (prf_params, keygen, I, rand_output)%V.
 
   (* Should be just syntactic since PRF_rand doesn't use the PRF. *)
+  Lemma PRF_F_I :
+    ⊢ (REL (PRF_rand PRF_scheme_F #Q)
+         << (PRF_rand PRF_scheme_I #Q) : interp (TInput → TOption TOutput)%ty []).
+Proof with (rel_pures_l ; rel_pures_r).
+    rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand...
+    unshelve rel_apply refines_app.
+    1: exact (interp (TInput → TOutput)%ty []).
+    - rel_arrow. iIntros (rf rf') "#hrf"...
+      rel_apply refines_app => //.
+      { rel_arrow. iIntros... done. }
+      rel_apply refines_app => //.
+      rel_apply refines_app. 2: iApply refines_typed ; tychk. simpl.
+      (* iPoseProof (q_calls_poly_sem_typed $! lrel_input #() #() _) as "bla". *)
+      rewrite /get_card_input...
+      replace (lrel_int → (lrel_nat → lrel_nat) → lrel_nat → lrel_option lrel_nat)%lrel
+        with (interp (TInt → (TNat → TNat) → TInput → TOption TOutput) [])%ty by auto.
+      iApply refines_typed.
+      rewrite /TInput/TOutput.
+      econstructor.
+      1: constructor ; eapply q_calls_typed_nat.
+      tychk.
+    - rewrite /get_card_output/get_param_card_output/get_params...
+      replace (lrel_nat → lrel_nat)%lrel with (interp (TNat → TNat)%ty []) by easy.
+      iApply refines_typed.
+      unshelve type_expr 1. 1: exact TNat. 2: tychk.
+      rewrite /random_function. tychk.
+      + eapply get_typed => //. constructor.
+      + apply set_typed => //.
+      + apply init_map_typed.
+      Unshelve. exact [].
+  Qed.
+
   Lemma F_I :
     ⊢ (REL (RED (PRF_rand PRF_scheme_F #Q))
          << (RED (PRF_rand PRF_scheme_I #Q)) : lrel_bool).
-  Proof with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_F/PRF_scheme_I/PRF_rand/prf.PRF_rand...
-    replace lrel_bool with (interp TBool []) by auto.
-    iApply refines_typed. unshelve tychk.
-    3: apply red_typed.
-    1: exact (TInput → TOutput)%ty.
-    2:{ rewrite /random_function.
-        tychk.
-        - eapply get_typed => //. constructor.
-        - apply set_typed => //.
-        - apply init_map_typed.
-    }
-    apply q_calls_typed_nat.
+  Proof.
+    unshelve rel_apply refines_app.
+    1: exact (interp (TInput → TOption TOutput)%ty []).
+    1: replace (interp (TInput → TOption TOutput) [] → lrel_bool)%lrel with
+      (interp ((TInput → TOption TOutput) → TBool) []) by auto.
+    1: iApply refines_typed. 1: unshelve tychk.
+    1: apply red_typed.
+    iApply PRF_F_I.
   Qed.
 
+
   Definition I_enc := prf_enc I.
-  Definition sym_scheme_I := (λ:"_", #(), (I_enc, F_rand_cipher))%V.
+  (* Definition sym_scheme_I := (λ:"_", #(), (I_enc, F_rand_cipher))%V. *)
+  (* Definition sym_scheme_I := (λ:"_", #card_output, (I_enc, F_rand_cipher))%V. *)
+  Definition sym_scheme_I :=
+    (@symmetric.sym_params sym_params, (λ:"_", #card_output), I_enc, dec, F_rand_cipher)%V.
 
   Lemma reduction' :
     ⊢ (REL (RED (PRF_rand PRF_scheme_I #Q))
          << (adversary (CPA_real sym_scheme_I #Q)) : lrel_bool).
   Proof
-    using (F_typed keygen_typed adversary_typed H_in_out)
+    using (F_typed keygen_typed adversary_typed H_in_out xor_typed)
     with (rel_pures_l ; rel_pures_r).
-    rewrite /PRF_scheme_I/sym_scheme_I/PRF_rand/prf.PRF_rand/CPA_real/symmetric.CPA_real...
-    rewrite /F_keygen.
-
-    rewrite /I_enc. rewrite /prf_enc. rewrite /RED/R_prf. rewrite /I...
+    rewrite /PRF_rand/get_card_output...
+    rewrite /sym_scheme_I/CPA_real/symmetric.CPA_real/symmetric.get_keygen...
+    rewrite /get_enc...
+    rewrite /I_enc. rewrite {2}/prf_enc. rewrite /RED/R_prf. rewrite /I...
     rewrite /random_function...
     rel_bind_r (init_map #())%E.
     iApply refines_init_map_r => /=...
@@ -283,6 +332,7 @@ Section combined.
     iApply refines_init_map_l.
     iIntros (map_l) "map_l" => /=...
     rewrite /q_calls/bounded_oracle.q_calls...
+    rewrite /get_card_message/get_card_input...
     rel_alloc_r counter_r as "counter_r"...
     rel_alloc_l counter_l as "counter_l"...
     rel_alloc_l counter_l' as "counter_l'"...
@@ -390,7 +440,7 @@ Section combined.
            destruct (range_int y hy). subst. tychk.
          } *)
 
-      rel_apply (refines_couple_UU Output id); first auto.
+      rel_apply (refines_couple_UU card_output id); first auto.
       iIntros (y) "!> %"...
 
       rel_apply_r (refines_set_r with "[-map_r] [$map_r]").
@@ -447,12 +497,13 @@ Section combined.
     ⊢ (REL (adversary (CPA_real sym_scheme_I #Q))
          << (adversary (CPA_rand sym_scheme_I #Q)) : lrel_bool).
   Proof
-    using (adversary_typed keygen_typed F_typed)
+    using (adversary_typed keygen_typed F_typed xor_typed)
     with (rel_pures_l ; rel_pures_r).
     clear H_in_out.
     iIntros "ε".
     rewrite /CPA_real/CPA_rand.
     rewrite /symmetric.CPA_real/symmetric.CPA_rand...
+    rewrite /symmetric.get_keygen/get_enc/get_rand_cipher...
     rewrite /F_rand_cipher.
     rewrite /I_enc/I...
     (* should be more or less the old proof. *)
@@ -461,6 +512,7 @@ Section combined.
     rel_bind_l (init_map #())%E.
     iApply refines_init_map_l.
     iIntros (map_l) "map_l" => /=...
+    rewrite /get_card_message...
     rewrite /q_calls/bounded_oracle.q_calls...
     rel_alloc_r counter_r as "counter_r"...
     rel_alloc_l counter_l as "counter_l"...
@@ -559,7 +611,7 @@ Section combined.
             done.
           }
           simpl...
-          unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ H (Z.to_nat msg))) ;
+          unshelve rel_apply (refines_couple_UU _ (@xor_sem _ _ xor_struct (Z.to_nat msg))) ;
             [apply xor_bij|apply xor_dom => //|..].
           iIntros (y) "!> %"...
           rel_apply_l (refines_set_l with "[-mapref] [$mapref]").
@@ -613,6 +665,7 @@ Section combined.
   Proof with (rel_pures_l ; rel_pures_r).
     rewrite /sym_scheme_I/sym_scheme_F/I_enc/F_enc/I.
     rewrite /CPA_rand/symmetric.CPA_rand. idtac...
+    rewrite /get_rand_cipher... rewrite /get_card_message...
     replace lrel_bool with (interp TBool []) by auto.
     iApply refines_typed. rewrite /F_rand_cipher. tychk.
     1: apply adversary_typed.
@@ -647,7 +700,7 @@ Section combined.
     ARcoupl (lim_exec ((RED (PRF_rand PRF_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ'))
       eq 0.
-  Proof using (keygen_typed F_typed adversary_typed H_in_out).
+  Proof using (keygen_typed F_typed adversary_typed H_in_out xor_typed).
     lr_arc ; iApply reduction'.
   Qed.
 
@@ -659,11 +712,11 @@ Section combined.
     rewrite Rdiv_mult_distr. lra.
   Qed.
 
-  Lemma cpa_I_ARC Σ `{!approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output H) σ σ' :
+  Lemma cpa_I_ARC Σ `{!approxisRGpreS Σ} (bla : forall (HΣ' : approxisRGS Σ), @XOR_spec Σ HΣ' Message Output xor_struct) σ σ' :
     ARcoupl (lim_exec ((adversary (CPA_real sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ'))
       eq ε_Q.
-  Proof using F_typed H_in_out adversary_typed keygen_typed.
+  Proof using F_typed H_in_out adversary_typed keygen_typed xor_typed.
     lr_arc. 1: apply ε_Q_pos. iApply cpa_I. iFrame.
   Qed.
 
@@ -671,7 +724,7 @@ Section combined.
     ARcoupl (lim_exec ((adversary (CPA_rand sym_scheme_I #Q)), σ))
       (lim_exec ((adversary (CPA_rand sym_scheme_F #Q)), σ'))
       eq 0.
-  Proof using F_typed H_in_out adversary_typed keygen_typed. lr_arc ; iApply cpa_F. Qed.
+  Proof using F_typed H_in_out adversary_typed keygen_typed xor_typed. lr_arc ; iApply cpa_F. Qed.
 
   (** The PRF advantage of RED against F. *)
   Let ε_F := advantage (RED (PRF_real PRF_scheme_F #Q)) (RED (PRF_rand PRF_scheme_F #Q)) #true.
@@ -767,7 +820,7 @@ Section combined.
   Theorem CPA_bound_st Σ `{approxisRGpreS Σ} σ σ' :
     (pr_dist (adversary (CPA_real sym_scheme_F #Q)) (adversary (CPA_rand sym_scheme_F #Q)) σ σ' #true
      <= ε_Q + ε_F)%R.
-  Proof using F_typed H_in_out H_ε_ARC H_ε_LR adversary_typed keygen_typed prf_cpa_ARC'.
+  Proof using F_typed H_in_out H_ε_ARC H_ε_LR adversary_typed keygen_typed prf_cpa_ARC' xor_typed.
     apply Rabs_le.
     pose proof CPA_bound_1 Σ σ σ'.
     pose proof CPA_bound_2 Σ σ' σ.
@@ -877,7 +930,7 @@ Section combined.
        (adversary (CPA_rand sym_scheme_F #Q))
        #true
      <= ε_Q + ε_F)%R.
-  Proof using prf_cpa_ARC' F_typed H_in_out H_ε_ARC H_ε_LR Key adversary_typed keygen_typed.
+  Proof using prf_cpa_ARC' F_typed H_in_out H_ε_ARC H_ε_LR Key adversary_typed keygen_typed xor_typed.
     apply advantage_uniform.
     by eapply CPA_bound_st => //.
   Qed.

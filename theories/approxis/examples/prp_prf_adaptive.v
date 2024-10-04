@@ -10,6 +10,7 @@ Our definition deviates from Rosulek's and Boneh/Shoup in that we wrap the encry
      *)
 
 From clutch.approxis Require Import approxis map list prf prp sum_seq.
+Import prf.bounds_check.
 Set Default Proof Using "Type*".
 
 Section prp_prf.
@@ -18,6 +19,19 @@ Section prp_prf.
   Variable val_size : nat.
   Let Input := val_size.
   Let Output := val_size.
+
+  #[local] Instance dummy_prf_params : PRF_params := {
+      card_key := Key;
+      card_input := Input;
+      card_output := Output;
+    }.
+
+  #[local] Instance dummy_prf : PRF :=
+    {|
+      prf.keygen := (λ: "_", #())%V;
+      prf := (λ:<> <>, #())%V;
+      prf.rand_output := #()%V
+    |}.
 
   (** RandML types of the scheme. *)
   Definition TKey := TInt.
@@ -29,9 +43,9 @@ Section prp_prf.
   Variable adv : val.
   Definition TAdv := ((TInput → (TUnit+ TOutput)) → TBool)%ty.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
-  Definition q_calls := q_calls Input.
-  Definition PRF := PRF_real_rand val_size val_size.
-  Definition PRP := PRP val_size.
+  Definition q_calls := q_calls #Input.
+  Definition PRF := PRF_real_rand.
+  Definition PRP := PRP_real_rand val_size.
   (* Definition PRP_PRF : val := λ:"b" "adv",
          if: "b" then PRP #false "adv" #() else PRF #false "adv" #(). *)
 
@@ -71,10 +85,10 @@ Section prp_prf.
     Theorem PRP_PRF (Q : nat) ε :
       (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R = ε
       →
-      ↯ ε ⊢ (REL (PRP #false adv ((λ: "_", #()),#()) #Q) << (PRF #false adv ((λ: "_", #()),#()) #Q) : lrel_bool).
+      ↯ ε ⊢ (REL (PRP #false adv prf_scheme #Q) << (PRF #false adv prf_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros (<-) "Hε".
-      rewrite /PRP/PRF/prp.PRP/prf.PRF_real_rand...
+      rewrite /PRP/PRP_real_rand/PRF/prp.PRP/prf.bounds_check.PRF_real_rand/prf.get_keygen/prp.get_keygen/get_card_output/get_card_input...
       rewrite /random_permutation/random_function...
       rewrite /random_permutation_state...
       rel_apply_l refines_init_map_l.
@@ -85,9 +99,9 @@ Section prp_prf.
       rel_apply_l (refines_list_seq_l _ _ _ _ 0%nat).
       iIntros (?) "%"...
       rel_alloc_l unused as "unused"...
-      rewrite /query_prp... 
-      rel_bind_l (q_calls _ _).
-      rel_bind_r (q_calls _ _).
+      rewrite /query_prp... rewrite {2}/bounded_oracle.q_calls.
+      rel_bind_l (bounded_oracle.q_calls _ _ _).
+      rel_bind_r (bounded_oracle.q_calls _ _ _).
       unshelve iApply (refines_bind with "[-][]").
       { exact (interp (TInput → (TUnit + TOutput)) []). }
       2: {
@@ -305,10 +319,10 @@ Section prp_prf.
     Theorem PRF_PRP (Q : nat) ε :
       (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R = ε
       →
-      ↯ ε ⊢ (REL (PRF #false adv ((λ: "_", #()),#()) #Q) << (PRP #false adv ((λ: "_", #()),#()) #Q) : lrel_bool).
+      ↯ ε ⊢ (REL (PRF #false adv prf_scheme #Q) << (PRP #false adv prf_scheme #Q) : lrel_bool).
     Proof with (rel_pures_l ; rel_pures_r).
     iIntros (<-) "Hε".
-      rewrite /PRP/PRF/prp.PRP/prf.PRF_real_rand...
+      rewrite /PRP/PRP_real_rand/PRF/prp.PRP/prf.bounds_check.PRF_real_rand/prf.get_keygen/prp.get_keygen/get_card_output/get_card_input...
       rewrite /random_permutation/random_function...
       rewrite /random_permutation_state...
       rel_apply_l refines_init_map_l.
@@ -541,8 +555,8 @@ Section prp_prf.
   Variable (Q : nat).
   Let ε := (INR (fold_left (Nat.add) (seq 0 Q) 0%nat) / INR (S val_size))%R.
 
-  Let PRF : expr := (PRF_real_rand #false adv ((λ: "_", #()),#()) #Q)%E.
-  Let PRP : expr := (PRP #false adv ((λ: "_", #()),#()) #Q)%E.
+  Let PRF : expr := (PRF_real_rand #false adv prf_scheme #Q)%E.
+  Let PRP : expr := (PRP #false adv prf_scheme #Q)%E.
 
   Lemma PRF_PRP_ARC Σ `{approxisRGpreS Σ} σ σ' :
     ARcoupl
@@ -626,14 +640,13 @@ Section prp_prf.
 
 End prp_prf.
 
-
-Lemma switching_lemma N σ σ' (adv : val) (typed : ∅ ⊢ₜ adv : TAdv) (Q : nat) :
-  (Rabs ( (( lim_exec (PRP N #false adv ((λ: "_", #()),#())%E #Q, σ)) #true) -
-            (lim_exec (PRF_real_rand N #false adv ((λ: "_", #()),#())%E #Q, σ') #true) )
+Lemma switching_lemma (K N : nat) σ σ' (adv : val) (typed : ∅ ⊢ₜ adv : TAdv) (Q : nat) :
+  (Rabs ( (( lim_exec (PRP N #false adv (@prf_scheme _ (dummy_prf K N)) #Q, σ)) #true) -
+            (lim_exec (PRF_real_rand #false adv (@prf_scheme _ (dummy_prf K N)) #Q, σ') #true) )
    <= ((Q-1) * Q / (2 * S N)))%R.
 Proof.
   apply Rabs_le.
-  opose proof (PRF_PRP_bound N adv typed Q approxisRΣ σ' σ) as h => //.
-  opose proof (PRP_PRF_bound N adv typed Q approxisRΣ σ σ') as h' => //.
+  opose proof (PRF_PRP_bound K N adv typed Q approxisRΣ σ' σ) as h => //.
+  opose proof (PRP_PRF_bound K N adv typed Q approxisRΣ σ σ') as h' => //.
   split ; lra.
 Qed.

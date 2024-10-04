@@ -38,13 +38,13 @@ Module Basic.
     printst st.
 
   Ltac2 rec lr_intro typ xs :=
-    printf "entering lr_intro, typ: %t" typ ;
+    (* printf "entering lr_intro, typ: %t" typ ; *)
     FMap.fold
       (fun name f finished =>
          match finished with
          | Some s => finished
          | None =>
-             (printf "trying %s" name ;
+             ((* printf "trying %s" name ; *)
               f typ xs lr_intro)
          end)
       (lrintro_tacs ())
@@ -61,13 +61,13 @@ Module Basic.
     FMap.empty (FSet.Tags.string_tag).
 
   Ltac2 rec f_rel_vals typ :=
-    printf "entering lr_intro, typ: %t" typ ;
+    (* printf "entering lr_intro, typ: %t" typ ; *)
     FMap.fold
       (fun name f finished =>
          match finished with
          | Progressed => finished
          | Stuck =>
-             (printf "trying %s" name ;
+             ((* printf "trying %s" name ; *)
               f typ f_rel_vals)
          end)
       (rel_val_tacs ())
@@ -120,7 +120,7 @@ Module Basic.
      | |- environments.envs_entails _ (_ _ lrel_output _ _) =>
          iExists _ ; iPureIntro ; intuition lia *)
     | |- environments.envs_entails _ ?lr =>
-        idtac "trying lr " lr ;
+        (* idtac "trying lr " lr ; *)
         let f := ltac2:(lr |- rel_vals (Option.get (Ltac1.to_constr lr))) in
         f lr
     | _ => fail "rel_vals: case not covered"
@@ -134,10 +134,10 @@ Ltac2 get_head_name xs := match xs with [] => '"" | x :: _ => x end.
 
 Module LR_unit.
   Ltac2 unit_intro typ xs k :=
-    printf "entering unit_intro, typ: %t" typ ;
+    (* printf "entering unit_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_unit =>
-        printf "found `lrel_unit`, done" ;
+        (* printf "found `lrel_unit`, done" ; *)
         Some '"(->&->)"
     | _ => None
     end.
@@ -147,13 +147,13 @@ Export LR_unit.
 
 Module LR_prod.
   Ltac2 prod_val typ k :=
-    printf "entering prod_val, typ: %t" typ ;
+    (* printf "entering prod_val, typ: %t" typ ; *)
     lazy_match! typ with
     | (lrel_car lrel_prod ?v1 ?v2) =>
-        printf "found `lrel_prod %t %t`, splitting" v1 v2 ;
+        (* printf "found `lrel_prod %t %t`, splitting" v1 v2 ; *)
         ltac1:(iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]) ; Progressed
     | (lrel_car _ (?v1 , ?v2)%V (?v3 , ?v4)%V) =>
-        printf "found `_ (%t, %t) (%t, %t)`, splitting" v1 v2 v3 v4 ;
+        (* printf "found `_ (%t, %t) (%t, %t)`, splitting" v1 v2 v3 v4 ; *)
         ltac1:(iExists _,_,_,_ ; iSplit ; [eauto|iSplit ; [eauto | iSplit]]) ; Progressed
     | _ => Stuck
     end.
@@ -163,10 +163,10 @@ Export LR_prod.
 
 Module LR_int.
   Ltac2 int_intro typ xs k :=
-    printf "entering int_intro, typ: %t" typ ;
+    (* printf "entering int_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_int =>
-        printf "found `lrel_int`, done" ;
+        (* printf "found `lrel_int`, done" ; *)
         match xs with
         | [] => Some '"(%&->&->)"
         | x :: _ => let s := '(append "(%" ($x ++ "&->&->)")) in
@@ -177,10 +177,10 @@ Module LR_int.
   Ltac2 Set Basic.lrintro_tacs as prev := fun () => FMap.add "int" int_intro (prev ()).
 
   Ltac2 int_val typ k :=
-    printf "entering int_val, typ: %t" typ ;
+    (* printf "entering int_val, typ: %t" typ ; *)
     lazy_match! typ with
     | (lrel_car lrel_int ?v1 ?v2) =>
-        printf "found `lrel_int %t %t`, trying lia" v1 v2 ;
+        (* printf "found `lrel_int %t %t`, trying lia" v1 v2 ; *)
         ltac1:(iExists _ ; iPureIntro ; (intuition lia || eauto)) ; Progressed
     | _ => Stuck
     end.
@@ -190,10 +190,10 @@ Export LR_int.
 
 Module LR_option.
   Ltac2 option_intro typ xs k :=
-    printf "entering option_intro, typ: %t" typ ;
+    (* printf "entering option_intro, typ: %t" typ ; *)
     lazy_match! typ with
     | lrel_option ?a =>
-        printf "found `option %t`, continuing" a ;
+        (* printf "found `option %t`, continuing" a ; *)
         Option.bind
           (k a xs)
           (fun aa =>
@@ -217,13 +217,13 @@ Module LR_option.
          end. *)
 
   Ltac2 option_val typ k :=
-    printf "entering option_val, typ: %t" typ ;
+    (* printf "entering option_val, typ: %t" typ ; *)
     lazy_match! typ with
     | (lrel_car _ (InjLV _) (InjLV _)) =>
-        printf "found `InjLV`, continuing left" ;
+        (* printf "found `InjLV`, continuing left" ; *)
         ltac1:(iExists _,_ ; iLeft ; iSplit ; [eauto | iSplit ; eauto]) ; Progressed
     | (lrel_car _ (InjRV _) (InjRV _)) =>
-        printf "found `InjRV`, continuing right" ;
+        (* printf "found `InjRV`, continuing right" ; *)
         ltac1:(iExists _,_ ; iRight ; iSplit ; [eauto | iSplit ; eauto]) ; Progressed
     | _ => Stuck
     end.
@@ -236,11 +236,11 @@ Export LR_option.
 Goal forall Σ, ⊢ ∀ v1 v2, @lrel_option Σ (@lrel_int Σ) v1 v2 -∗ ⌜v1 = v2⌝.
   ltac1:(iIntros (?) ; iStartProof ; lrintro "").
   1:ltac1:(done).
-  lr_printst ().
-  printf "%a" fmt_constr_opt (lr_intro '(lrel_int) ['"x"]).
-  printf "%t" (pattern_of_lr2 'lrel_int ['"x"]).
+  (* lr_printst (). *)
+  (* printf "%a" fmt_constr_opt (lr_intro '(lrel_int) ['"x"]). *)
+  (* printf "%t" (pattern_of_lr2 'lrel_int ['"x"]). *)
   (* printf "%t" (pattern_of_lr2 '(lrel_option lrel_int) ['"x"]). *)
-  printf "%a" fmt_constr_opt (lr_intro '(lrel_option lrel_int) ['"x"]).
+  (* printf "%a" fmt_constr_opt (lr_intro '(lrel_option lrel_int) ['"x"]). *)
   auto.
 Abort.
 

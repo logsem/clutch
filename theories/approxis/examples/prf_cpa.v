@@ -61,9 +61,13 @@ We prove the portions of the above theorems that are concerned with the reductio
   (** We specialize the construction to an idealized random function family. *)
   (* Definition rf_keygen : val := λ:<>, rand #Key. *)
   Definition rf_keygen : val := λ:<>, rand #Key.
-  Definition rf_enc : expr := prf_enc (random_function Output).
+  Definition rf_enc : val := λ:"key", prf_enc (λ:<>, random_function #Output) "key".
   Definition rf_rand_cipher : val := λ:<>, let:"i" := rand #Input in let:"o" := rand #Output in ("i", "o").
-  Definition rf_scheme : expr := (rf_keygen, (rf_enc, rf_rand_cipher)).
+  Definition rf_dec : val := #().
+  Local Instance SYM_param : SYM_params := {| card_key := Key ; card_message := Message ; card_cipher := Cipher |}.
+  Local Instance sym_rf_scheme : SYM :=
+    {| keygen := rf_keygen ; enc := rf_enc ; rand_cipher := rf_rand_cipher ; dec := rf_dec |}.
+  Definition rf_scheme : val := sym_scheme.
 
   (** RandML types of the scheme. *)
   Definition TMessage := TInt.
@@ -77,8 +81,8 @@ We prove the portions of the above theorems that are concerned with the reductio
   Variable adv : val.
   Definition TAdv := ((TMessage → (TUnit + TCipher)) → TBool)%ty.
   Variable adv_typed : (∅ ⊢ₜ adv : TAdv).
-  Definition q_calls := q_calls Message.
-  Definition CPA := CPA Message.
+  Definition q_calls := q_calls #Message.
+  (* Definition CPA := CPA Message. *)
 
 
   Section proofs.
@@ -105,17 +109,21 @@ We prove the portions of the above theorems that are concerned with the reductio
     Proof with (rel_pures_l ; rel_pures_r).
       iIntros "ε".
       rel_pures_l.
-      rewrite /CPA/symmetric.CPA.
+      rewrite /CPA/symmetric.CPA...
       rewrite /rf_scheme/rf_enc/prf_enc.
       idtac...
-      rewrite /rf_keygen...
+      rewrite /get_keygen... rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key id); first done.
       iIntros (key) "!> %"...
+      rewrite /get_enc/get_rand_cipher...
+      rewrite /rf_enc...
+      rewrite /prf_enc.
       rewrite /random_function...
       rel_apply_l refines_init_map_l.
-      iIntros (mapref) "mapref"...
-      rel_bind_l (q_calls _ _)%E.
-      rel_bind_r (q_calls _ _)%E.
+      iIntros (mapref) "mapref". idtac...
+      rewrite /prf_enc/get_card_message...
+      rel_bind_l (bounded_oracle.q_calls _ _ _)%E.
+      rel_bind_r (bounded_oracle.q_calls _ _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
       1:{ exact (interp (TMessage → (TUnit + TCipher)) []). }
       2:{
@@ -265,14 +273,16 @@ We prove the portions of the above theorems that are concerned with the reductio
       rel_pures_l.
       rewrite /CPA/symmetric.CPA.
       rewrite /rf_scheme/rf_enc/prf_enc...
-      rewrite /rf_keygen...
+      rewrite /get_keygen... rewrite /rf_keygen...
       rel_apply (refines_couple_UU Key id); first auto.
       iIntros (key) "!> %"...
-      rewrite /random_function...
+      rewrite /get_rand_cipher/get_enc... rewrite /rf_enc...
+      rewrite /prf_enc... rewrite /random_function...
       rel_apply_r refines_init_map_r.
       iIntros (mapref) "mapref"...
-      rel_bind_l (q_calls _ _)%E.
-      rel_bind_r (q_calls _ _)%E.
+      rewrite /get_card_message...
+      rel_bind_l (bounded_oracle.q_calls _ _ _)%E.
+      rel_bind_r (bounded_oracle.q_calls _ _ _)%E.
       unshelve iApply (refines_bind with "[-] []").
       1:{ exact ((interp (TMessage → (TUnit + TCipher))) []). }
       2:{
@@ -616,8 +626,8 @@ Section implementation.
   Qed.
 
   Lemma CPA_bound_realistic σ σ' (Q : nat) :
-    (Rabs (((lim_exec (((CPA Output') #true adv (rf_scheme Key' Input' Output' xor) #Q), σ)) #true) -
-             ((lim_exec (((CPA Output') #false adv (rf_scheme Key' Input' Output' xor) #Q), σ')) #true)) <= (Q * Q / (2 * S Input')))%R.
+    (Rabs (((lim_exec ((CPA #true adv (rf_scheme Key' Input' Output' xor) #Q), σ)) #true) -
+             ((lim_exec ((CPA #false adv (rf_scheme Key' Input' Output' xor) #Q), σ')) #true)) <= (Q * Q / (2 * S Input')))%R.
   Proof.
     unshelve epose proof CPA_bound Key' Input' Output' xor xor_sem _ _ _ _ adv _ _ σ σ' Q as H.
     - apply xor_sem_bij.

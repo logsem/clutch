@@ -24,7 +24,7 @@ Section prp_prf_test.
 
   Definition test_prf: val :=
     λ: "n",
-      let: "f" := random_function #() in
+      let: "f" := random_function in
       letrec: "aux" "f" "i" :=
       (if: "i" ≤ #0
        then  "f"
@@ -196,7 +196,6 @@ Section prp_prf_test.
 
     rewrite /test_prf.
     wp_pure.
-    wp_bind (random_function _).
     wp_apply (wp_random_function); first done.
     iIntros (f) "Hf".
     do 2 wp_pure.
@@ -220,4 +219,3 @@ Section prp_prf_test.
 
 
 End prp_prf_test.
-
