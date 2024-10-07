@@ -106,16 +106,16 @@ Class random_counter `{!conerisGS Σ} := RandCounter
   (*             T ε ε2 num ns' *)
   (*     ))-∗  *)
   (*       wp_update E (∃ ε ε2 num ns', counter_tapes_frag (L:=L) γ1 α (ns++ns') ∗ T ε ε2 num ns');  *)
-  (* read_counter_spec {L: counterG Σ} N E c γ1 γ2 Q: *)
-  (*   ↑N ⊆ E -> *)
-  (*   {{{  is_counter (L:=L) N c γ1 γ2 ∗ *)
-  (*        (∀ (z:nat), counter_content_auth (L:=L) γ2 z ={E∖↑N}=∗ *)
-  (*                   counter_content_auth (L:=L) γ2 z∗ Q z) *)
+  read_counter_spec {L: counterG Σ} N E c γ1 γ2 Q:
+    ↑N ⊆ E ->
+    {{{  is_counter (L:=L) N c γ1 γ2 ∗
+         (∀ (z:nat), counter_content_auth (L:=L) γ2 z ={E∖↑N}=∗
+                    counter_content_auth (L:=L) γ2 z∗ Q z)
         
-  (*   }}} *)
-  (*     read_counter c @ E *)
-  (*     {{{ (n':nat), RET #n'; Q n' *)
-  (*     }}} *)
+    }}}
+      read_counter c @ E
+      {{{ (n':nat), RET #n'; Q n'
+      }}}
 }.
 
 
@@ -153,60 +153,25 @@ Section lemmas.
       iApply "HΦ".
       iFrame.
     }
-    iMod (fupd_mask_frame _ (↑N) (E∖↑N) ∅ with "[Hvs]"); first set_solver.
+    iMod (fupd_mask_frame _ (↑N) (E∖↑N) ∅ with "[Hvs]") as "H"; first set_solver.
     - iMod "Hvs" as "H".
       iModIntro.
+      (* mask change *)
       rewrite left_id_L.
-      replace (_∖(_∖_)) with ((nclose N)); last first.
-      + set_unfold. clear -Hsubset. firstorder. set_solver.
-      + iModIntro. iExact "H".
-    - 
-    (* iMod (fupd_mask_weaken (E1:=E) (E3:=E) (E∖↑N) with "[]"). *)
-    (* (* iModIntro. *) *)
-    (* (* iApply state_update_fupd. *) *)
-    (* iDestruct (fupd_mask_frame_r _ _ (↑N) with "[$Hvs]") as "Hvs"; first set_solver. *)
-    (* rewrite left_id_L. *)
-    (* replace (E∖_∪_) with E; last first. *)
-    (* { set_unfold. admit. } *)
-      (* iMod (counter_tapes_presample N E with "[$][$][Hvs]"). *)
-  Admitted.
-      
-      
-  (*     iMod "Hvs". *)
-  (*   iMod (counter_presample_spec _ _ *)
-  (*           (λ ε ε2 num ns', *)
-  (*              ∃ n ε2',  *)
-  (*                ⌜num=1%nat⌝ ∗ ⌜ns'=[n]⌝ ∗ *)
-  (*                ⌜(ε2' = λ x, ε2 [x])%R⌝ ∗  *)
-  (*                 ( ∀ (z:nat), counter_content_auth (L:=L) γ2 z *)
-  (*                             ={E∖↑N}=∗ *)
-  (*                             counter_content_auth (L:=L) γ2 (z+n) ∗ Q z n ε ε2') *)
-  (*           ) %I with "[//][$][-HΦ]") as "(%ε & %ε2 & %num & %ns' & Hfrag & %n & %ε2' & -> & -> & -> & Hrest)"; first done. *)
-  (*   - iMod "Hvs" as "(%ε & %ε2 & Herr & %Hpos & %Hineq & Hrest)". *)
-  (*     iFrame. iModIntro. *)
-  (*     iExists (λ l, match l with |[x] => ε2 x | _ => 1 end)%R, 1%nat. *)
-  (*     repeat iSplit. *)
-  (*     + iPureIntro. intros; repeat case_match; try lra. naive_solver. *)
-  (*     + iPureIntro. etrans; last exact. *)
-  (*       rewrite SeriesC_list. *)
-  (*       * Local Transparent enum_uniform_fin_list. *)
-  (*         simpl. lra. *)
-  (*       * apply NoDup_fmap_2; last apply NoDup_enum_uniform_fin_list. *)
-  (*         apply list_fmap_eq_inj, fin_to_nat_inj. *)
-  (*     + iIntros (ns') "Herr". destruct (ns') as [|n[|??]]; [by iDestruct (ec_contradict with "[$]") as "%"| |by iDestruct (ec_contradict with "[$]") as "%"]. *)
-  (*       iMod ("Hrest" $! n with "[$]") as "?". *)
-  (*       iModIntro. *)
-  (*       by iFrame. *)
-  (*   - wp_apply (incr_counter_tape_spec_some _ _ _ _ _ (λ z, ∃ ε ε2, Q z n ε ε2)%I with "[$Hfrag Hrest]"); first exact. *)
-  (*     + iSplit; first done. *)
-  (*       iIntros (?) "?". *)
-  (*       iMod ("Hrest" with "[$]") as "[$ ?]". *)
-  (*       iModIntro. *)
-  (*       iFrame. *)
-  (*     + iIntros (?) "[?(%&%&?)]". *)
-  (*       iApply "HΦ". *)
-  (*       iFrame. *)
-  (* Qed. *)
+      replace (_∖(_∖_)) with ((nclose N)); first (iModIntro; iExact "H").
+      set_unfold. clear -Hsubset. firstorder. set_solver.
+    - iDestruct "H" as "(%ε & %ε2 & Herr & %Hpos & %Hineq & Hrest)".
+      iMod (counter_tapes_presample _ _ _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x)) with "[//][$][$Herr]") as "(%n & Herr & ?)"; try done.
+      { rewrite SeriesC_finite_foldr/=. lra. }
+      iModIntro.
+      iMod (fupd_mask_frame _ (E) ∅ (E∖↑N) with "[Hrest Herr]") as "H"; first set_solver.
+      + iMod ("Hrest" with "[$]") as "H". iModIntro.
+        replace (_∖_∪_) with E; first (iModIntro; iExact "H").
+        clear -Hsubset.
+        set_unfold. intros x. firstorder.
+        destruct (decide (x∈nclose N)); set_solver.
+      + iModIntro. iFrame.
+  Qed.
   
   Lemma incr_counter_tape_spec_none' N E c γ1 γ2 ε (ε2:nat -> R)(α:loc) (ns:list nat) (q:Qp) (z:nat):
     ↑N ⊆ E->

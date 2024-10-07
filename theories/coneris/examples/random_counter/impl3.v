@@ -121,99 +121,54 @@ Section impl3.
       rewrite /filter_f. lia.
   Qed.
 
-  (** * test *)
-  Lemma counter_presample_spec3_test  NS E T γ1 γ2 c α ns:
-    ↑NS ⊆ E ->
-    is_counter3 NS c γ1 γ2 -∗
+  Lemma counter_tapes_presample3 N E γ1 γ2 c α ns ε (ε2 : fin 4%nat -> R):
+    ↑N ⊆ E ->
+    (∀ x, 0<=ε2 x)%R ->
+    (SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ->
+    is_counter3 N c γ1 γ2  -∗
     (∃ ls, ⌜filter filter_f ls = ns⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) -∗
-    ( |={E∖↑NS,∅}=>
-        ∃ ε ε2,
-        ↯ ε ∗ 
-        ⌜(∀ n, 0<=ε2 n)%R⌝ ∗
-        ⌜(SeriesC (λ x, if bool_decide (x<4)%nat then ε2 x else 0)%R / (4) <= ε)%R⌝ ∗
-      (∀ x, ↯ (ε2 x) ={∅,E∖↑NS}=∗
-              T ε ε2 x
-      ))-∗ 
-    wp_update E (∃ ε ε2 x, (∃ ls, ⌜filter filter_f ls = ns++[x]⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) ∗ T ε ε2 x).
-  Proof. 
-    iIntros (Hsubset) "[#Hinv #Hinv'] Hfrag Hvs".
-    iMod wp_update_epsilon_err as "(%eps&%Heps&Heps)".
-    (* iRevert "Hfrag Hvs". *)
-    (* iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|]. *)
-    (* clear eps Heps. *)
-    (* iModIntro. *)
-    (* iIntros (eps Heps) "#IH Heps (%ls & <- & Hfrag) Hrest". *)
-
-    iDestruct "Hfrag" as "(%ls & <- & Hfrag)".
-     
-    
-    iMod (rand_presample_single_spec _ _ _ _ _ _
-            (λ ε' ε2' x',
-               ∃ (ε2:nat -> R),
-                 ⌜ε2' = (λ x, if bool_decide (fin_to_nat x <4)%nat then ε2 x
-                              else if bool_decide (fin_to_nat x = 4)%nat then ε'+5*eps
-                                   else 1)%R⌝ ∗
-                 if bool_decide (fin_to_nat x' = 4)%nat
-                 then _ 
-                 else T (ε'-eps)%R ε2 (fin_to_nat x')
-            )%I with "[//][$][-]") as "Hvs".
-    - by apply nclose_subseteq'.
-    - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose".
-      + apply difference_mono_l.
-        by apply nclose_subseteq'.
-      + iMod "Hvs" as "(%ε & %ε2 & Hε & %Hpos & %Hineq & Hvs)".
-        iModIntro.
-        iDestruct (ec_combine with "[$]") as "Herr".
-        iFrame.
-        iExists (λ x, if bool_decide (fin_to_nat x <4)%nat then ε2 x
-                              else if bool_decide (fin_to_nat x = 4)%nat then ε+5*eps
-                                   else 1)%R.
-        repeat iSplit.
-        * admit.
-        * admit.
-        * iIntros (x) "Herr".
-          admit.
-    - admit.
-  Admitted.
-    
-  
-  Lemma counter_presample_spec3  NS E T γ1 γ2 c α ns:
-    ↑NS ⊆ E ->
-    is_counter3 NS c γ1 γ2 -∗
-    (∃ ls, ⌜filter filter_f ls = ns⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) -∗
-    ( |={E∖↑NS,∅}=>
-        ∃ ε ε2 num,
-        ↯ ε ∗ 
-        ⌜(∀ n, 0<=ε2 n)%R⌝ ∗
-        ⌜(SeriesC (λ l, if bool_decide (l∈fmap (λ x, fmap (FMap:=list_fmap) fin_to_nat x) (enum_uniform_fin_list 3%nat num)) then ε2 l else 0%R) / (4^num) <= ε)%R⌝ ∗
-      (∀ ns', ↯ (ε2 ns') ={∅,E∖↑NS}=∗
-              T ε ε2 num ns'
-      ))-∗ 
-        wp_update E (∃ ε ε2 num ns', (∃ ls, ⌜filter filter_f ls = ns++ns'⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) ∗ T ε ε2 num ns').
+    ↯ ε  -∗
+    state_update E (∃ n, ↯ (ε2 n) ∗
+                         (∃ ls, ⌜filter filter_f ls = (ns++[fin_to_nat n])⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls))).
   Proof.
-    iIntros (Hsubset) "[#Hinv #Hinv'] Hfrag Hvs".
-    iMod wp_update_epsilon_err as "(%eps&%Heps&Heps)".
-    iApply fupd_wp_update.
-    iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose"; first set_solver.
-    iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hrest)".
-    iInduction num as [|num] "IH" forall (eps Heps ε ε2 Hpos Hineq T) "Heps Hfrag Herr Hrest Hclose".
-    { iDestruct (ec_weaken _ (ε2 []) with "[$Herr]") as "Hε".
-      - split; first done.
-        etrans; last exact.
-        rewrite -SeriesC_singleton_dependent.
-        rewrite Rdiv_1_r.
-        apply Req_le.
-        apply SeriesC_ext.
-        intros.
-        simpl.
-        repeat case_bool_decide; set_solver.
-      - iMod ("Hrest" with "[$]").
-        iMod "Hclose" as "_".
-        iFrame.
-        rewrite app_nil_r. by iFrame.
-    }
+  Admitted.
+  (* Lemma counter_presample_spec3  NS E T γ1 γ2 c α ns: *)
+  (*   ↑NS ⊆ E -> *)
+  (*   is_counter3 NS c γ1 γ2 -∗ *)
+  (*   (∃ ls, ⌜filter filter_f ls = ns⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) -∗ *)
+  (*   ( |={E∖↑NS,∅}=> *)
+  (*       ∃ ε ε2 num, *)
+  (*       ↯ ε ∗  *)
+  (*       ⌜(∀ n, 0<=ε2 n)%R⌝ ∗ *)
+  (*       ⌜(SeriesC (λ l, if bool_decide (l∈fmap (λ x, fmap (FMap:=list_fmap) fin_to_nat x) (enum_uniform_fin_list 3%nat num)) then ε2 l else 0%R) / (4^num) <= ε)%R⌝ ∗ *)
+  (*     (∀ ns', ↯ (ε2 ns') ={∅,E∖↑NS}=∗ *)
+  (*             T ε ε2 num ns' *)
+  (*     ))-∗  *)
+  (*       wp_update E (∃ ε ε2 num ns', (∃ ls, ⌜filter filter_f ls = ns++ns'⌝ ∗ rand_tapes_frag (L:=L) γ1 α (4, ls)) ∗ T ε ε2 num ns'). *)
+  (* Proof. *)
+  (*   iIntros (Hsubset) "[#Hinv #Hinv'] Hfrag Hvs". *)
+  (*   iMod wp_update_epsilon_err as "(%eps&%Heps&Heps)". *)
+  (*   iApply fupd_wp_update. *)
+  (*   iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose"; first set_solver. *)
+  (*   iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hrest)". *)
+  (*   iInduction num as [|num] "IH" forall (eps Heps ε ε2 Hpos Hineq T) "Heps Hfrag Herr Hrest Hclose". *)
+  (*   { iDestruct (ec_weaken _ (ε2 []) with "[$Herr]") as "Hε". *)
+  (*     - split; first done. *)
+  (*       etrans; last exact. *)
+  (*       rewrite -SeriesC_singleton_dependent. *)
+  (*       rewrite Rdiv_1_r. *)
+  (*       apply Req_le. *)
+  (*       apply SeriesC_ext. *)
+  (*       intros. *)
+  (*       simpl. *)
+  (*       repeat case_bool_decide; set_solver. *)
+  (*     - iMod ("Hrest" with "[$]"). *)
+  (*       iMod "Hclose" as "_". *)
+  (*       iFrame. *)
+  (*       rewrite app_nil_r. by iFrame. *)
+  (*   } *)
     
-    Admitted.
+  (*   Admitted. *)
   (*   iMod "Hvs". *)
   (*   iRevert "Hfrag Hvs". *)
   (*   iApply (ec_ind_amp _ 5%R with "[][$]"); [done|lra|]. *)
@@ -377,10 +332,10 @@ Program Definition random_counter3 `{F:rand_spec}: random_counter :=
       (∃ ls, ⌜filter filter_f ls = ns⌝ ∗ rand_tapes_frag (L:=counterG3_randG) γ α (4, ls))%I;
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
+    counter_tapes_presample _ := counter_tapes_presample3;
     new_counter_spec _ := new_counter_spec3;
     allocate_tape_spec _ :=allocate_tape_spec3;
     incr_counter_tape_spec_some _ :=incr_counter_tape_spec_some3;
-    counter_presample_spec _ :=counter_presample_spec3;
     read_counter_spec _ :=read_counter_spec3
   |}.
 

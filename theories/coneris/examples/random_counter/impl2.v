@@ -271,98 +271,50 @@ Section impl2.
     by eapply Forall_inv_tail.
   Qed.
 
-  Lemma counter_presample_spec2 NS E T γ1 γ2 c α ns:
-    ↑NS ⊆ E ->
-    is_counter2 NS c γ1 γ2 -∗
+  Lemma counter_tapes_presample2 N E γ1 γ2 c α ns ε (ε2 : fin 4%nat -> R):
+    ↑N ⊆ E ->
+    (∀ x, 0<=ε2 x)%R ->
+    (SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ->
+    is_counter2 N c γ1 γ2  -∗
     (flip_tapes_frag (L:=L) γ1 α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝) -∗
-    ( |={E∖↑NS,∅}=>
-        ∃ ε ε2 num,
-        ↯ ε ∗ 
-        ⌜(∀ n, 0<=ε2 n)%R⌝ ∗
-        ⌜(SeriesC (λ l, if bool_decide (l∈fmap (λ x, fmap (FMap:=list_fmap) fin_to_nat x) (enum_uniform_fin_list 3%nat num)) then ε2 l else 0%R) / (4^num) <= ε)%R⌝ ∗
-      (∀ ns', ↯ (ε2 ns') ={∅,E∖↑NS}=∗
-              T ε ε2 num ns'
-      ))-∗ 
-        wp_update E (∃ ε ε2 num ns', (flip_tapes_frag (L:=L) γ1 α (expander (ns++ns')) ∗ ⌜Forall (λ x, x<4) (ns++ns')⌝) ∗ T ε ε2 num ns').
+    ↯ ε  -∗
+    state_update E (∃ n, ↯ (ε2 n) ∗
+                         (flip_tapes_frag (L:=L) γ1 α (expander (ns++[fin_to_nat n])) ∗ ⌜Forall (λ x, x<4) (ns++[fin_to_nat n])⌝)).
   Proof.
-    iIntros (Hsubset) "(#Hinv & #Hinv') [Hfrag %] Hvs".
-    iMod (flip_presample_spec _ _ _ _ _
-            (λ ε num' ε2' ns', ∃ num ε2 ns,
-                ⌜(2 * num = num')%nat⌝∗ ⌜expander ns = ns'⌝ ∗ ⌜Forall (λ x, x<4) ns⌝ ∗
-                (* ⌜ ∀ ls, Forall (λ x, x<4) ls -> ε2 ls = ε2' (expander ls)⌝ ∗ *)
-                T ε ε2 num ns
-            )%I with "[//][$][Hvs]") as "H"; first by apply nclose_subseteq'. 
-    - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose". 
-      { apply difference_mono; [done|by apply nclose_subseteq']. }
-      iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hvs)".
-      iExists ε, (2*num).
-      iFrame.
-      iModIntro.
-      iExists (λ ls, match (decoder ls) with | Some ls' => ε2 ls' | _ => 1%R end).
-      repeat iSplit.
-      + iPureIntro. intros. case_match; [done|lra].
-      + iPureIntro.
-        etrans; last exact.
-        rewrite !Rdiv_def -!SeriesC_scal_r.
-        etrans; last eapply (SeriesC_le_inj _ (λ bs, decoder bs)).
-        * apply Req_le.
-          apply SeriesC_ext.
-          intros bs.
-          destruct (decoder bs) eqn:K.
-          -- simpl. f_equal.
-             ++ case_match eqn:H0.
-                ** rewrite bool_decide_eq_true_2; first done.
-                   erewrite elem_of_list_fmap.
-                   rewrite Nat.eqb_eq in H0.
-                   apply decoder_ineq in K as K'.
-                   apply fin.nat_list_to_fin_list in K'.
-                   destruct K' as [xs K'].
-                   exists xs. split; first done.
-                   rewrite elem_of_enum_uniform_fin_list.
-                   apply decoder_Some_length in K.
-                   apply (f_equal length) in K'.
-                   rewrite fmap_length in K'. lia.
-                ** rewrite bool_decide_eq_false_2; first done.
-                   rewrite elem_of_list_fmap.
-                   intros (?&->&K').
-                   rewrite elem_of_enum_uniform_fin_list in K'.
-                   rewrite Nat.eqb_neq in H0.
-                   exfalso. apply H0.
-                   apply decoder_Some_length in K.
-                   rewrite fmap_length in K.
-                   lia.
-             ++ f_equal.
-                replace 4%R with (2^2)%R; last (simpl; lra).
-                by rewrite -pow_mult.
-          -- simpl.
-             eapply decoder_None in K; last done.
-             case_match eqn :H0; last lra.
-             rewrite Nat.eqb_eq in H0.
-             exfalso.
-             apply K.
-             exists num. lia.
-        * intros. rewrite -Rdiv_1_l.
-          replace 4%R with (INR 4); last (simpl; lra).
-          rewrite -pow_INR. apply Rmult_le_pos; last apply Rdiv_INR_ge_0.
-          case_bool_decide; [done|lra].
-        * intros. by eapply decoder_inj.
-        * apply ex_seriesC_scal_r, ex_seriesC_list.
-      + iIntros (ns') "Herr".
-        case_match eqn :Hdecoder; last (by iDestruct (ec_contradict with "[$]") as "%").
-        iMod ("Hvs" with "[$]") as "HT".
-        iMod "Hclose" as "_".
-        iFrame.
-        iPureIntro. repeat split.
-        * by apply decoder_correct. 
-        * by eapply decoder_ineq. 
-    - iDestruct "H" as "(%&%&%&%&?&%&%&%&<-&<-&%&?)".
-      iModIntro.
-      iFrame.
-      iSplit; last by rewrite Forall_app.
-      rewrite /expander.
-      by rewrite bind_app.
+    iIntros (Hsubset Hpos Hineq) "[#Hinv #Hinv'] [Hfrag %Hforall] Herr".
+    iMod (flip_tapes_presample _ _ _ _ _ _ (λ b, 1/2 *if b then (ε2 2%fin + ε2 3%fin) else (ε2 0%fin + ε2 1%fin))%R with "[//][$][$]") as "(%b & Herr & Hfrag)"; first by apply nclose_subseteq'.
+    { intros []; apply Rmult_le_pos; try lra.
+      all: by apply Rplus_le_le_0_compat. } 
+    { etrans; last exact.
+      rewrite SeriesC_finite_foldr/=. lra. }
+    destruct b.
+    - iMod (flip_tapes_presample _ _ _ _ _ _ (λ b, if b then ε2 3%fin else ε2 2%fin)%R with "[//][$][$]") as "(%b & Herr & Hfrag)"; first by apply nclose_subseteq'.
+      { intros []; by try lra. }
+      { simpl. lra. }
+      destruct b.
+      + iFrame. rewrite /expander bind_app -!app_assoc/=.
+        rewrite Nat.OddT_odd; last (constructor 1 with (x:=1); lia). iFrame.
+        iPureIntro.
+        rewrite Forall_app; naive_solver.
+      + iFrame. rewrite /expander bind_app -!app_assoc/=.
+        rewrite Nat.odd_2. iFrame.
+        iPureIntro.
+        rewrite Forall_app; naive_solver.
+    - iMod (flip_tapes_presample _ _ _ _ _ _ (λ b, if b then ε2 1%fin else ε2 0%fin)%R with "[//][$][$]") as "(%b & Herr & Hfrag)"; first by apply nclose_subseteq'.
+      { intros []; by try lra. }
+      { simpl. lra. }
+      destruct b.
+      + iFrame. rewrite /expander bind_app -!app_assoc/=.
+        rewrite Nat.OddT_odd; last (constructor 1 with (x:=0); lia). iFrame.
+        iPureIntro.
+        rewrite Forall_app; naive_solver.
+      + iFrame. rewrite /expander bind_app -!app_assoc/=.
+        rewrite Nat.odd_0. iFrame.
+        iPureIntro.
+        rewrite Forall_app; split; first done.
+        rewrite Forall_singleton. lia.
   Qed.
-
+  
   Lemma read_counter_spec2 N E c γ1 γ2 Q:
     ↑N ⊆ E ->
     {{{  is_counter2 N c γ1 γ2 ∗
@@ -407,10 +359,10 @@ Program Definition random_counter2 `{flip_spec Σ}: random_counter :=
     counter_tapes_frag K γ α ns := (flip_tapes_frag (L:=counterG2_to_flipG) γ α (expander ns) ∗ ⌜Forall (λ x, x<4) ns⌝)%I;
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
+    counter_tapes_presample _ := counter_tapes_presample2;
     new_counter_spec _ := new_counter_spec2;
     allocate_tape_spec _ :=allocate_tape_spec2;
     incr_counter_tape_spec_some _ :=incr_counter_tape_spec_some2;
-    counter_presample_spec _ :=counter_presample_spec2;
     read_counter_spec _ :=read_counter_spec2
   |}.
 Next Obligation.
