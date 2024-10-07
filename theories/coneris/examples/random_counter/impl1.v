@@ -128,58 +128,23 @@ Section impl1.
       wp_pures.
       iApply "HΦ". by iFrame.
   Qed.
-  
-  Lemma counter_presample_spec1  NS E T γ1 γ2 c α ns:
-    ↑NS ⊆ E ->
-    is_counter1 NS c γ1 γ2 -∗
+
+  Lemma counter_tapes_presample1 N E γ1 γ2 c α ns ε (ε2 : fin 4%nat -> R):
+    ↑N ⊆ E ->
+    (∀ x, 0<=ε2 x)%R ->
+    (SeriesC (λ n, 1 / 4 * ε2 n)%R <= ε)%R ->
+    is_counter1 N c γ1 γ2  -∗
     rand_tapes_frag (L:=L) γ1 α (3%nat, ns) -∗
-    ( |={E∖↑NS,∅}=>
-        ∃ ε ε2 num,
-        ↯ ε ∗ 
-        ⌜(∀ n, 0<=ε2 n)%R⌝ ∗
-        ⌜(SeriesC (λ l, if bool_decide (l∈fmap (λ x, fmap (FMap:=list_fmap) fin_to_nat x) (enum_uniform_fin_list 3%nat num)) then ε2 l else 0%R) / (4^num) <= ε)%R⌝ ∗
-      (∀ ns', ↯ (ε2 ns') ={∅,E∖↑NS}=∗
-              T ε ε2 num ns'
-      ))-∗ 
-        wp_update E (∃ ε ε2 num ns', rand_tapes_frag (L:=L) γ1 α (3%nat, ns++ns') ∗ T ε ε2 num ns').
+    ↯ ε  -∗
+    state_update E (∃ n, ↯ (ε2 n) ∗ rand_tapes_frag (L:=L) γ1 α (3%nat, ns++[fin_to_nat n])).
   Proof.
-    iIntros (Hsubset) "[#Hinv #Hinv'] Hfrag Hvs".
-  Admitted.
-  (*   iMod (rand_presample_spec _ _ _ _ _ _ (λ ε num ε2 ns', *)
-  (*                                    ∃ ε2', ⌜∀ xs ys, fin_to_nat <$> xs = ys -> ε2 xs = ε2' ys⌝ ∗ *)
-  (*                                     T ε ε2' num (fin_to_nat <$> ns'))%I with "[//][$][Hvs]") as "H"; first by apply nclose_subseteq'. *)
-  (*   - iMod (fupd_mask_subseteq (E ∖ ↑NS)) as "Hclose". *)
-  (*     { apply difference_mono_l. *)
-  (*       by apply nclose_subseteq'. } *)
-  (*     iMod "Hvs" as "(%ε & %ε2 & %num & Herr & %Hpos & %Hineq & Hrest)". *)
-  (*     iFrame. *)
-  (*     iModIntro. *)
-  (*     iExists num, (λ ls, ε2 (fin_to_nat <$> ls)). *)
-  (*     repeat iSplit. *)
-  (*     + done. *)
-  (*     + iPureIntro. *)
-  (*       etrans; last exact. *)
-  (*       apply Req_le. *)
-  (*       replace (INR 4) with 4%R; last (simpl; lra). *)
-  (*       f_equal. *)
-  (*       rewrite !SeriesC_list. *)
-  (*       * by rewrite foldr_fmap. *)
-  (*       * apply NoDup_fmap. *)
-  (*          -- apply list_fmap_eq_inj. *)
-  (*             apply fin_to_nat_inj. *)
-  (*          -- apply NoDup_enum_uniform_fin_list. *)
-  (*       * apply NoDup_enum_uniform_fin_list. *)
-  (*     + iIntros (ns') "Herr". *)
-  (*       iMod ("Hrest" with "[$]") as "HT". *)
-  (*       iMod "Hclose" as "_". *)
-  (*       iModIntro. *)
-  (*       iFrame. *)
-  (*       iPureIntro. *)
-  (*       by intros ??<-. *)
-  (*   - iDestruct "H" as "(%ε & %num & %ε2 & %ns' & Hfrag & %ε2' & % & HT)". *)
-  (*     iModIntro. iFrame. *)
-  (* Qed. *)
-    
+    iIntros (Hsubset Hpos Hineq) "[#Hinv #Hinv'] Hfrag Herr".
+    iMod (rand_tapes_presample with "[//][$][$]") as "(%&$&$)"; try done; first by apply nclose_subseteq'.
+    etrans; last exact.
+    apply Req_le.
+    apply SeriesC_ext; intros. simpl. lra.
+  Qed.
+  
   Lemma read_counter_spec1 N E c γ1 γ2 Q:
     ↑N ⊆ E ->
     {{{  is_counter1 N c γ1 γ2  ∗
@@ -220,10 +185,10 @@ Program Definition random_counter1 `{!conerisGS Σ, F:rand_spec}: random_counter
     counter_tapes_frag _ γ α ns := rand_tapes_frag (L:= counterG1_randG)γ α (3%nat, ns);
     counter_content_auth _ γ z := own γ (●F z);
     counter_content_frag _ γ f z := own γ (◯F{f} z);
+    counter_tapes_presample _ := counter_tapes_presample1;
     new_counter_spec _ := new_counter_spec1;
     allocate_tape_spec _ :=allocate_tape_spec1;
     incr_counter_tape_spec_some _ :=incr_counter_tape_spec_some1;
-    counter_presample_spec _ :=counter_presample_spec1;
     read_counter_spec _ :=read_counter_spec1
   |}.
 Next Obligation.

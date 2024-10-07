@@ -327,6 +327,28 @@ Section state_update.
     by iIntros.
   Qed.
 
+  
+  Lemma state_update_epsilon_err E:
+    ⊢ state_update E (∃ ε, ⌜(0<ε)%R⌝ ∗ ↯ ε).
+  Proof.
+    rewrite state_update_unseal/state_update_def.
+    iIntros (? ε) "[Hstate Herr]".
+    iApply fupd_mask_intro; first set_solver.
+    iIntros "Hclose".
+    iApply state_step_coupl_ampl'.
+    iIntros (ε' ?).
+    iApply state_step_coupl_ret.
+    assert (ε<=ε')%R as H' by lra.
+    pose (diff :=((ε' - ε) H')%NNR).
+    replace (ε') with (ε + diff)%NNR; last (apply nnreal_ext; rewrite /diff; simpl; lra).
+    iMod (ec_supply_increase _ diff with "[$]") as "[??]".
+    { rewrite /diff. simpl. lra. }
+    iFrame. iMod "Hclose". iPureIntro.
+    rewrite /diff.
+    simpl.
+    lra.
+  Qed.
+  
   Lemma state_update_fupd_change E1 E2 P Q:
     (|={E1, E2}=> P) -∗ (P-∗ state_update E2 (|={E2, E1}=> Q)) -∗ state_update E1 Q.
   Proof.
