@@ -93,19 +93,6 @@ Class random_counter `{!conerisGS Σ} := RandCounter
       incr_counter_tape c #lbl:α @ E
                                  {{{ (z:nat), RET (#z, #n); counter_tapes_frag (L:=L) γ1 α ns ∗
                                                           Q z }}}; 
-  (* counter_presample_spec {L: counterG Σ} NS E T γ1 γ2 c α ns: *)
-  (*   ↑NS ⊆ E -> *)
-  (*   is_counter (L:=L) NS c γ1 γ2 -∗ *)
-  (*   counter_tapes_frag (L:=L) γ1 α ns -∗ *)
-  (*   ( |={E∖↑NS,∅}=> *)
-  (*       ∃ ε ε2 num, *)
-  (*       ↯ ε ∗  *)
-  (*       ⌜(∀ n, 0<=ε2 n)%R⌝ ∗ *)
-  (*       ⌜(SeriesC (λ l, if bool_decide (l∈fmap (λ x, fmap (FMap:=list_fmap) fin_to_nat x) (enum_uniform_fin_list 3%nat num)) then ε2 l else 0%R) / (4^num) <= ε)%R⌝ ∗ *)
-  (*     (∀ ns', ↯ (ε2 ns') ={∅,E∖↑NS}=∗ *)
-  (*             T ε ε2 num ns' *)
-  (*     ))-∗  *)
-  (*       wp_update E (∃ ε ε2 num ns', counter_tapes_frag (L:=L) γ1 α (ns++ns') ∗ T ε ε2 num ns');  *)
   read_counter_spec {L: counterG Σ} N E c γ1 γ2 Q:
     ↑N ⊆ E ->
     {{{  is_counter (L:=L) N c γ1 γ2 ∗
@@ -159,7 +146,7 @@ Section lemmas.
       (* mask change *)
       rewrite left_id_L.
       replace (_∖(_∖_)) with ((nclose N)); first (iModIntro; iExact "H").
-      set_unfold. clear -Hsubset. firstorder. set_solver.
+      rewrite difference_difference_r_L. set_solver.
     - iDestruct "H" as "(%ε & %ε2 & Herr & %Hpos & %Hineq & Hrest)".
       iMod (counter_tapes_presample _ _ _ _ _ _ _ _ (λ x, ε2 (fin_to_nat x)) with "[//][$][$Herr]") as "(%n & Herr & ?)"; try done.
       { rewrite SeriesC_finite_foldr/=. lra. }
@@ -167,9 +154,7 @@ Section lemmas.
       iMod (fupd_mask_frame _ (E) ∅ (E∖↑N) with "[Hrest Herr]") as "H"; first set_solver.
       + iMod ("Hrest" with "[$]") as "H". iModIntro.
         replace (_∖_∪_) with E; first (iModIntro; iExact "H").
-        clear -Hsubset.
-        set_unfold. intros x. firstorder.
-        destruct (decide (x∈nclose N)); set_solver.
+        by rewrite difference_empty_L union_comm_L -union_difference_L. 
       + iModIntro. iFrame.
   Qed.
   
