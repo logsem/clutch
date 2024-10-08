@@ -19,14 +19,17 @@ Section concurrent_hash.
   Definition hash_once_prog : val :=
     λ: "h" "lock" "_",
       acquire "lock";;
-      "h" (rand #val_size);;
-      release "lock"
+      let: "input" := (rand #val_size) in
+      let: "output" := "h" "input" in
+      release "lock";;
+      ("input", "output")
   .
 
   Definition multiple_parallel : val :=
     rec: "multiple_parallel" "num" "f" :=
-      if: "num" ≤ #0 then #() else
-       "f" #() ||| "multiple_parallel" ("num"-#1) "f"
+      if: "num" ≤ #0 then list_nil else
+        let, ("hd", "tl") :=  ("f" #() ||| "multiple_parallel" ("num"-#1) "f") in
+        list_cons "hd" "tl"
   .
 
   Definition concurrent_hash_prog : expr :=
@@ -34,7 +37,7 @@ Section concurrent_hash.
     let: "lock" := newlock #() in
     ("h", multiple_parallel #insert_num (hash_once_prog "h" "lock")).
 
-  Context `{!conerisGS Σ, !spawnG Σ, !lockG Σ, inG Σ (authR natR)}.
+  Context `{!conerisGS Σ, !spawnG Σ, !lockG Σ, inG Σ (authR natR)}. 
 
   Lemma hash_once_prog_spec γlock γ l f:
     {{{ is_lock γlock l (∃ m, coll_free_hashfun_amortized val_size max_hash_size f m γ) ∗ ↯ err ∗ own γ (◯ 1%nat) }}}
@@ -48,20 +51,14 @@ Section concurrent_hash.
     wp_pures.
     wp_apply wp_rand; first done.
     iIntros.
+    wp_pures.
     wp_apply (wp_insert_amortized with "[$]").
     iIntros (?) "(%&?&%)". wp_pures.
     wp_apply (release_spec with "[-HΦ]").
     - iFrame. iSplitR; first iApply "H". iFrame.
-    - done.
-  Qed.
-
-  (* Lemma hash_once_prog_spec' γ (l:val) (f:val) E: *)
-  (*   ⊢ <<{ is_lock γ l (∃ m, coll_free_hashfun_amortized val_size max_hash_size f m) ∗ ↯ err }>> *)
-  (*     hash_once_prog f l #() @ E *)
-  (*     <<{ ∃∃ (v:val), True | RET v }>>. *)
-  (* Proof. *)
-  (* Admitted.  *)
-        
+  Admitted.
+  (*   - done. *)
+  (* Qed. *)
   
   Lemma concurrent_hash_spec :
     {{{ ↯ (INR insert_num * err)%R }}}
