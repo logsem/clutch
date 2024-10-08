@@ -1,5 +1,6 @@
 From iris.base_logic.lib Require Import invariants.
 From clutch.coneris Require Import coneris par spawn spin_lock hash atomic lock.
+From clutch.coneris.lib Require Import list.
 
 Set Default Proof Using "Type*".
 
@@ -31,8 +32,7 @@ Section concurrent_hash.
   Definition concurrent_hash_prog : expr :=
     let: "h" := init_hash val_size #() in
     let: "lock" := newlock #() in
-    multiple_parallel #insert_num (hash_once_prog "h" "lock");;
-    "h".
+    ("h", multiple_parallel #insert_num (hash_once_prog "h" "lock")).
 
   Context `{!conerisGS Σ, !spawnG Σ, !lockG Σ, inG Σ (authR natR)}.
 
