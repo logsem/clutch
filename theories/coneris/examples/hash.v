@@ -1,4 +1,5 @@
 From clutch.coneris Require Export coneris lib.map.
+From iris.algebra Require Import excl_auth numbers.
 From stdpp Require Export fin_maps.
 Import Hierarchy.
 Set Default Proof Using "Type*".
@@ -235,7 +236,7 @@ End simple_bit_hash.
 
 
 Section amortized_hash.
-  Context `{!conerisGS Σ}.
+  Context `{!conerisGS Σ, HinG: inG Σ (authR natR)}.
   Variable val_size:nat.
   Variable max_hash_size : nat.
   Hypothesis max_hash_size_pos: (0<max_hash_size)%nat.
@@ -250,36 +251,38 @@ Section amortized_hash.
     replace 1 with (INR 1); last simpl; [by apply le_INR|done].
   Qed.
 
-  Definition hashfun_amortized f m : iProp Σ :=
+  Definition hashfun_amortized f m γ: iProp Σ :=
     ∃ (k : nat) (ε : nonnegreal),
       hashfun val_size f m ∗
       ⌜k = size m⌝ ∗
       ⌜ (ε.(nonneg) = (((max_hash_size-1) * k)/2 - sum_n_m (λ x, INR x) 0%nat (k-1)) / (val_size + 1))%R⌝ ∗
-      ↯ ε
+      ↯ ε ∗
+      own γ (● max_hash_size) ∗
+      own γ (◯ k)
   .
 
-  Definition coll_free_hashfun_amortized f m: iProp Σ :=
-    hashfun_amortized f m ∗ ⌜coll_free m⌝.
+  Definition coll_free_hashfun_amortized f m γ: iProp Σ :=
+    hashfun_amortized f m γ ∗ ⌜coll_free m⌝.
 
-  #[global] Instance timeless_coll_free_hashfun_amortized f m :
-    Timeless (hashfun_amortized f m).
+  #[global] Instance timeless_coll_free_hashfun_amortized f m γ:
+    Timeless (hashfun_amortized f m γ).
   Proof. apply _. Qed.
 
-  Lemma coll_free_hashfun_amortized_implies_coll_free f m:
-    coll_free_hashfun_amortized f m -∗ ⌜coll_free m⌝.
+  Lemma coll_free_hashfun_amortized_implies_coll_free f m γ:
+    coll_free_hashfun_amortized f m γ -∗ ⌜coll_free m⌝.
   Proof.
     by iIntros "[??]".
   Qed.
 
-  Lemma hashfun_amortized_implies_bounded_range f m idx x:
-    hashfun_amortized f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
+  Lemma hashfun_amortized_implies_bounded_range f m γ idx x:
+    hashfun_amortized f m γ -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
   Proof.
     iIntros "H %".
     iApply (hashfun_implies_bounded_range with "[H]"); [by iDestruct "H" as "(%&%&H&H')"|done].
   Qed.
 
-  Lemma coll_free_hashfun_amortized_implies_bounded_range f m idx x:
-    coll_free_hashfun_amortized f m -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
+  Lemma coll_free_hashfun_amortized_implies_bounded_range f m γ idx x:
+    coll_free_hashfun_amortized f m γ -∗ ⌜m!!idx = Some x⌝ -∗ ⌜(0<=x<=val_size)%nat⌝.
   Proof.
     iIntros "(H&%) %".
     by iApply (hashfun_amortized_implies_bounded_range with "[$]").
@@ -288,7 +291,7 @@ Section amortized_hash.
   Lemma wp_init_hash_amortized E :
     {{{ True }}}
       init_hash val_size #() @ E
-      {{{ f, RET f; |={E}=> coll_free_hashfun_amortized f ∅ }}}.
+      {{{ f, RET f; |={E}=> ∃ γ,  coll_free_hashfun_amortized f ∅ γ ∗ own γ (◯ max_hash_size) }}}.
   Proof.
     iIntros (Φ) "_ HΦ".
     wp_apply wp_init_hash; first done.
@@ -296,7 +299,10 @@ Section amortized_hash.
     iApply "HΦ".
     iMod ec_zero.
     iMod "H".
+    iMod (own_alloc (● max_hash_size ⋅ ◯ (0+max_hash_size)%nat)) as (γ) "[H● [? H◯]]"; first (simpl; by apply auth_both_valid_2).
     iModIntro.
+    iExists _.
+    iSplitR "H◯"; last done.
     iSplit; last by iApply coll_free_hashfun_implies_coll_free.
     iDestruct "H" as "[??]".
     iExists 0%nat, nnreal_zero.
@@ -309,16 +315,16 @@ Section amortized_hash.
   Qed.
 
 
-  Lemma hashfun_amortized_hashfun f m: ⊢ hashfun_amortized f m -∗ hashfun val_size f m.
+  Lemma hashfun_amortized_hashfun f m γ: ⊢ hashfun_amortized f m γ -∗ hashfun val_size f m.
   Proof.
     by iIntros "(%&%&?&?)".
   Qed.
 
-  Lemma wp_hashfun_prev_amortized E f m (n : nat) (b : nat) :
+  Lemma wp_hashfun_prev_amortized E f m γ (n : nat) (b : nat) :
     m !! n = Some b →
-    {{{ hashfun_amortized f m }}}
+    {{{ hashfun_amortized f m γ }}}
       f #n @ E
-      {{{ RET #b; hashfun_amortized f m }}}.
+      {{{ RET #b; hashfun_amortized f m γ }}}.
   Proof.
     iIntros (Hlookup Φ) "(%&%&Hhash&->&%&Herr) HΦ".
     wp_apply (wp_hashfun_prev with "[$Hhash]"); [done|].
@@ -326,11 +332,11 @@ Section amortized_hash.
     iExists _, _. iFrame. naive_solver.
   Qed.
 
-  Lemma wp_coll_free_hashfun_prev_amortized E f m (n : nat) (b : nat) :
+  Lemma wp_coll_free_hashfun_prev_amortized E f m γ (n : nat) (b : nat) :
     m !! n = Some b →
-    {{{ coll_free_hashfun_amortized f m }}}
+    {{{ coll_free_hashfun_amortized f m γ }}}
       f #n @ E
-      {{{ RET #b; coll_free_hashfun_amortized f m }}}.
+      {{{ RET #b; coll_free_hashfun_amortized f m γ }}}.
   Proof.
     iIntros (Hlookup Φ) "[H %Hcoll_free] HΦ".
     wp_apply (wp_hashfun_prev_amortized with "[$]"); [done|].
@@ -380,15 +386,29 @@ Section amortized_hash.
       by apply le_INR.
   Qed.
 
-  Lemma wp_insert_new_amortized E f m (n : nat) :
+  Lemma hashfun_amortized_token_ineq f m γ:
+    hashfun_amortized f m γ -∗ own γ (◯ 1%nat) -∗ ⌜(size m < max_hash_size)%nat⌝.
+  Proof.
+    iIntros "H1 H2".
+    destruct (Nat.lt_ge_cases (size m) max_hash_size); first done.
+    iDestruct "H1" as "(%&%&_&->&_&_&H1&H3)".
+    iCombine "H2 H3" as "H2".
+    iCombine "H1 H2" gives "H'".
+    rewrite auth_both_validI.
+    iDestruct "H'" as "[[% %H']_]". simpl in *.
+    rewrite nat_op in H'. lia.
+  Qed.
+
+  Lemma wp_insert_new_amortized E f m γ (n : nat) :
     m !! n = None →
     (size m < max_hash_size)%nat ->
-    {{{ coll_free_hashfun_amortized f m ∗ ↯ amortized_error }}}
+    {{{ coll_free_hashfun_amortized f m γ∗ ↯ amortized_error ∗ own γ (◯ 1%nat)}}}
       f #n @ E
-      {{{ (v : nat), RET #v; coll_free_hashfun_amortized f (<[ n := v ]>m) }}}.
+      {{{ (v : nat), RET #v; coll_free_hashfun_amortized f (<[ n := v ]>m) γ }}}.
   Proof.
-    iIntros (Hlookup Hsize Φ) "([Hhash %Hcoll_free] & Herr) HΦ".
-    iDestruct "Hhash" as (k ε) "(H&->&%H0&Herr')".
+    iIntros (Hlookup Hineq Φ) "([Hhash %Hcoll_free] & Herr & Htoken) HΦ".
+    iDestruct (hashfun_amortized_token_ineq with "[$Hhash][$]") as "%".
+    iDestruct "Hhash" as (k ε) "(H&->&%H0&Herr'& Hauth &Hfrag)".
     set (ε' := (((max_hash_size-1) * size (<[n:=0%nat]> m) / 2 -
                    sum_n_m (λ x, INR x) 0%nat (size (<[n:=0%nat]> m) - 1)) / (val_size + 1))).
     assert (0 <= ε') as Hε'.
@@ -449,26 +469,29 @@ Section amortized_hash.
       + iIntros (v) "[H %]".
         iApply "HΦ".
         iSplitL; last done.
+        iCombine "Hfrag Htoken" as "Hfrag".
         iExists _, _.
         iFrame.
-        repeat (iSplitR); try done.
-        iPureIntro. simpl. do 3 f_equal.
-        all: by repeat rewrite map_size_insert.
+        rewrite !map_size_insert Hlookup.
+        iPureIntro. split; first lia.
+        rewrite /ε''. simpl. rewrite /ε'. do 3 f_equal.
+        all: repeat rewrite map_size_insert Hlookup; try (simpl; lia).
+        rewrite S_INR plus_INR; simpl; lra.
   Qed.
 
-  Lemma wp_insert_amortized E f m (n : nat) :
-    (size m < max_hash_size)%nat ->
-    {{{ coll_free_hashfun_amortized f m ∗ ↯ amortized_error }}}
+  Lemma wp_insert_amortized E f m γ (n : nat) :
+    {{{ coll_free_hashfun_amortized f m γ ∗ ↯ amortized_error ∗ own γ (◯ 1%nat)}}}
       f #n @ E
-      {{{ (v : nat), RET #v; ∃ m', coll_free_hashfun_amortized f m' ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= S $ size(m))%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
+      {{{ (v : nat), RET #v; ∃ m', coll_free_hashfun_amortized f m' γ ∗ ⌜m'!!n = Some v⌝ ∗ ⌜(size m' <= S $ size(m))%nat⌝ ∗ ⌜m⊆m'⌝ }}}.
   Proof.
-    iIntros (Hsize Φ) "[[Hh %Hc]Herr] HΦ".
+    iIntros (Φ) "([Hh %Hc]& Herr & Hfrag) HΦ".
+    iDestruct (hashfun_amortized_token_ineq with "[$Hh][$]") as "%".
     destruct (m!!n) eqn:Heq.
     - wp_apply (wp_hashfun_prev_amortized with "[$Hh]"); first done.
       iIntros. iApply "HΦ".
       iExists _; iFrame.
       repeat iSplit; try done. iPureIntro; lia.
-    - wp_apply (wp_insert_new_amortized with "[$Hh $Herr]"); try done.
+    - wp_apply (wp_insert_new_amortized with "[$Hh $Herr $Hfrag]"); try done.
       iIntros (?) "[??]"; iApply "HΦ".
       iExists _; iFrame. iPureIntro. repeat split.
       + rewrite lookup_insert_Some. naive_solver.
