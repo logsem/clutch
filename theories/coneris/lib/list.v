@@ -1350,15 +1350,13 @@ Section list_specs_extra.
       { do 3 f_equal. lia. }
       wp_apply "IHm".
       iIntros (v Hv).
-      (** * HUHUHUUH ? *)
-  Admitted.
-  (*     wp_apply (wp_list_cons with "[//]"). *)
-  (*     iIntros (v' Hv'). *)
-  (*     iApply "Hφ". *)
-  (*     iPureIntro. *)
-  (*     apply (is_list_inject) in Hv' as ->. *)
-  (*     by apply is_list_inject. *)
-  (* Qed. *)
+      wp_apply (wp_list_cons _ (seq (S n) p) with "[//]").
+      iIntros (v' Hv').
+      iApply "Hφ".
+      iPureIntro.
+      apply (is_list_inject) in Hv' as ->.
+      by apply is_list_inject.
+  Qed.
 
 
 
