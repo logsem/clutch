@@ -302,7 +302,7 @@ Qed.
 Section list_specs.
 
   Context `{!conerisGS Σ}.
-  Context `{!Inject A val}.
+  Context `[!Inject A val].
 
   Fixpoint is_list (l : list A) (v : val) :=
     match l with
@@ -1346,11 +1346,12 @@ Section list_specs_extra.
       assert (#(S p - 1) = #p) as ->.
       { do 3 f_equal. lia. }
       fold list_seq.
-      assert (#(n + 1) = #(Z.of_nat (S n))) as ->.
+      assert (#(n + 1) =
+              #(Z.of_nat (S n))) as ->.
       { do 3 f_equal. lia. }
       wp_apply "IHm".
       iIntros (v Hv).
-      wp_apply (wp_list_cons _ (seq (S n) p) with "[//]").
+      wp_apply (wp_list_cons with "[//]").
       iIntros (v' Hv').
       iApply "Hφ".
       iPureIntro.
