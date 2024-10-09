@@ -9,9 +9,9 @@ All of the logics are built using the [Iris](https://iris-project.org) program l
 *Philipp G. Haselwarter, Kwing Hei Li, Alejandro Aguirre, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
 arXiv:2407.14107
 
-[**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://arxiv.org/abs/2405.20083)<br>
+[**Tachis: Higher-Order Separation Logic with Credits for Expected Costs**](https://doi.org/10.1145/3689753)<br>
 *Philipp G. Haselwarter, Kwing Hei Li, Markus de Medeiros, Simon Oddershede Gregersen, Alejandro Aguirre, Joseph Tassarotti, Lars Birkedal*<br>
-To appear in OOPSLA 2024: ACM SIGPLAN Conference on Object-Oriented Programming, Systems, Languages, and Applications
+In OOPSLA 2024: ACM SIGPLAN Conference on Object-Oriented Programming, Systems, Languages, and Applications
 
 [**Error Credits: Resourceful Reasoning about Error Bounds for Higher-Order Probabilistic Programs**](https://doi.org/10.1145/3674635)<br>
 *Alejandro Aguirre, Philipp G. Haselwarter, Markus de Medeiros, Kwing Hei Li, Simon Oddershede Gregersen, Joseph Tassarotti, Lars Birkedal*<br>
