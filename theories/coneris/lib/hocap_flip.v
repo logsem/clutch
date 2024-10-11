@@ -1,5 +1,5 @@
 From clutch.coneris Require Import coneris.
-From clutch.coneris Require Import flip hocap hocap_rand.
+From clutch.coneris Require Import flip hocap_rand.
 
 Set Default Proof Using "Type*".
 
@@ -12,62 +12,57 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
   (** The assumptions about [Σ] *)
   flipG : gFunctors → Type;
   (** [name] is used to associate [locked] with [is_lock] *)
-  flip_tape_name: Type;
   (** * Predicates *)
-  is_flip {L : flipG Σ} (N:namespace) (γ2: flip_tape_name): iProp Σ;
-  flip_tapes_auth {L : flipG Σ} (γ: flip_tape_name) (m:gmap loc (list bool)): iProp Σ;
-  flip_tapes_frag {L : flipG Σ} (γ: flip_tape_name) (α:loc) (ns:list bool): iProp Σ;
+  (* is_flip {L : flipG Σ} (N:namespace) (γ2: flip_tape_name): iProp Σ; *)
+  (* flip_tapes_auth {L : flipG Σ} (γ: flip_tape_name) (m:gmap loc (list bool)): iProp Σ; *)
+  flip_tapes {L : flipG Σ} (α:val) (ns:list bool): iProp Σ;
   (** * General properties of the predicates *)
-  #[global] is_flip_persistent {L : flipG Σ} N γ1 ::
-    Persistent (is_flip (L:=L) N γ1);
-  #[global] flip_tapes_auth_timeless {L : flipG Σ} γ m ::
-    Timeless (flip_tapes_auth (L:=L) γ m);
-  #[global] flip_tapes_frag_timeless {L : flipG Σ} γ α ns ::
-    Timeless (flip_tapes_frag (L:=L) γ α ns);
-  #[global] flip_tape_name_inhabited::
-    Inhabited flip_tape_name;
+  (* #[global] is_flip_persistent {L : flipG Σ} N γ1 :: *)
+  (*   Persistent (is_flip (L:=L) N γ1); *)
+  (* #[global] flip_tapes_auth_timeless {L : flipG Σ} γ m :: *)
+  (*   Timeless (flip_tapes_auth (L:=L) γ m); *)
+  #[global] flip_tapes_timeless {L : flipG Σ} α ns ::
+    Timeless (flip_tapes (L:=L) α ns);
+  (* #[global] flip_tape_name_inhabited:: *)
+  (*   Inhabited flip_tape_name; *)
 
-  flip_tapes_auth_exclusive {L : flipG Σ} γ m m':
-  flip_tapes_auth (L:=L) γ m -∗ flip_tapes_auth (L:=L) γ m' -∗ False;
-  flip_tapes_frag_exclusive {L : flipG Σ} γ α ns ns':
-  flip_tapes_frag (L:=L) γ α ns -∗ flip_tapes_frag (L:=L) γ α ns' -∗ False;
-  flip_tapes_agree {L : flipG Σ} γ α m ns:
-    flip_tapes_auth (L:=L) γ m -∗ flip_tapes_frag (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝;
-  flip_tapes_update {L : flipG Σ} γ α m ns ns':
-    flip_tapes_auth (L:=L) γ m -∗ flip_tapes_frag (L:=L) γ α ns ==∗
-    flip_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ flip_tapes_frag (L:=L) γ α ns';
-  flip_tapes_presample {L:flipG Σ} N E γ α ns ε (ε2 : bool -> R):
-    ↑N ⊆ E ->
+  (* flip_tapes_auth_exclusive {L : flipG Σ} γ m m': *)
+  (* flip_tapes_auth (L:=L) γ m -∗ flip_tapes_auth (L:=L) γ m' -∗ False; *)
+  flip_tapes_exclusive {L : flipG Σ} α ns ns':
+  flip_tapes (L:=L) α ns -∗ flip_tapes (L:=L) α ns' -∗ False;
+  (* flip_tapes_agree {L : flipG Σ} γ α m ns: *)
+  (*   flip_tapes_auth (L:=L) γ m -∗ flip_tapes (L:=L) γ α ns -∗ ⌜ m!! α = Some (ns) ⌝; *)
+  (* flip_tapes_update {L : flipG Σ} γ α m ns ns': *)
+  (*   flip_tapes_auth (L:=L) γ m -∗ flip_tapes (L:=L) γ α ns ==∗ *)
+  (*   flip_tapes_auth (L:=L) γ (<[α := ns']> m) ∗ flip_tapes (L:=L) γ α ns'; *)
+  flip_tapes_presample {L:flipG Σ} E α ns ε (ε2 : bool -> R):
     (∀ x, 0<=ε2 x)%R ->
     ((ε2 true + ε2 false)/2 <= ε)%R ->
-    is_flip (L:=L) N γ -∗
-    flip_tapes_frag (L:=L) γ α (ns) -∗
+    (* is_flip (L:=L) N γ -∗ *)
+    flip_tapes (L:=L) α (ns) -∗
     ↯ ε  -∗
-    state_update E (∃ n, ↯ (ε2 n) ∗ flip_tapes_frag (L:=L) γ α (ns ++ [n]));
+    state_update E (∃ n, ↯ (ε2 n) ∗ flip_tapes (L:=L) α (ns ++ [n]));
 
   (** * Program specs *)
-  flip_inv_create_spec {L : flipG Σ} N E:
-  ⊢ wp_update E (∃ γ1, is_flip (L:=L) N γ1);
+  (* flip_inv_create_spec {L : flipG Σ} N E: *)
+  (* ⊢ wp_update E (∃ γ1, is_flip (L:=L) N γ1); *)
   
-  flip_allocate_tape_spec {L: flipG Σ} N E γ1:
-    ↑N ⊆ E->
-    {{{ is_flip (L:=L) N γ1 }}}
+  flip_allocate_tape_spec {L: flipG Σ} E:
+    {{{ True }}}
       flip_allocate_tape #() @ E
-      {{{ (v:val), RET v;
-          ∃ (α:loc), ⌜v=#lbl:α⌝ ∗ flip_tapes_frag (L:=L) γ1 α []
+      {{{ (v:val), RET v; flip_tapes (L:=L) v []
       }}};
   
-  flip_tape_spec_some {L: flipG Σ} N E γ1 (α:loc) n ns:
-    ↑N⊆E ->
-    {{{ is_flip (L:=L) N γ1 ∗ flip_tapes_frag (L:=L) γ1 α (n::ns)
+  flip_tape_spec_some {L: flipG Σ} E α n ns:
+    {{{ flip_tapes (L:=L) α (n::ns)
     }}}
-      flip_tape #lbl:α @ E
-                       {{{ RET #n; flip_tapes_frag (L:=L) γ1 α ns }}};
+      flip_tape α @ E
+                       {{{ RET #n; flip_tapes (L:=L) α ns }}};
   
   (* flip_presample_spec {L: flipG Σ} NS E γ1 α ns T: *)
   (*   ↑NS ⊆ E -> *)
   (*   is_flip (L:=L) NS γ1 -∗ *)
-  (*   flip_tapes_frag (L:=L) γ1 α ns -∗ *)
+  (*   flip_tapes (L:=L) γ1 α ns -∗ *)
   (*   (|={E∖↑NS, ∅}=> *)
   (*       ∃ ε num ε2, ↯ ε ∗  *)
   (*                   ⌜(∀ l, length l = num ->  0<=ε2 l)%R⌝ ∗ *)
@@ -75,7 +70,7 @@ Class flip_spec `{!conerisGS Σ} := FlipSpec
   (*                     (∀ ns', ↯ (ε2 ns')  *)
   (*               ={∅, E∖↑NS}=∗ T ε num ε2 ns')) *)
   (*       -∗ *)
-  (*         wp_update E (∃ ε num ε2 ns', flip_tapes_frag (L:=L) γ1 α (ns ++ ns') ∗ T ε num ε2 ns') *)
+  (*         wp_update E (∃ ε num ε2 ns', flip_tapes (L:=L) γ1 α (ns ++ ns') ∗ T ε num ε2 ns') *)
 }.
 
 
@@ -87,48 +82,48 @@ Section instantiate_flip.
     {| flip_allocate_tape:= (λ: <>, rand_allocate_tape #1%nat); 
       flip_tape:= (λ: "α", conversion.int_to_bool (rand_tape "α" #1%nat));
       flipG := randG;
-      flip_tape_name := rand_tape_name;
-      is_flip L N γ1 := is_rand (L:=L) N γ1;
-      flip_tapes_auth L γ m := rand_tapes_auth (L:=L) γ ((λ ns, (1, bool_to_nat<$>ns))<$>m);
-      flip_tapes_frag L γ α ns := rand_tapes_frag (L:=L) γ α (1, (fmap (FMap:=list_fmap) bool_to_nat ns));
+      (* flip_tape_name := rand_tape_name; *)
+      (* is_flip L N γ1 := is_rand (L:=L) N γ1; *)
+      (* flip_tapes_auth L γ m := rand_tapes_auth (L:=L) γ ((λ ns, (1, bool_to_nat<$>ns))<$>m); *)
+      flip_tapes L α ns := rand_tapes (L:=L) α (1, (fmap (FMap:=list_fmap) bool_to_nat ns));
     |}.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros (????) "H1 H2". *)
+  (*   by iDestruct (rand_tapes_auth_exclusive with "[$][$]") as "?". *)
+  (* Qed. *)
   Next Obligation.
     simpl.
     iIntros (????) "H1 H2".
-    by iDestruct (rand_tapes_auth_exclusive with "[$][$]") as "?".
+    by iDestruct (rand_tapes_exclusive with "[$][$]") as "?".
   Qed.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros. *)
+  (*   iDestruct (rand_tapes_agree with "[$][$]") as "%H'". *)
+  (*   rewrite lookup_fmap_Some in H'. destruct H' as (?&?&K). *)
+  (*   simplify_eq. *)
+  (*   rewrite K. *)
+  (*   iPureIntro. *)
+  (*   f_equal. *)
+  (*   eapply fmap_inj; last done. *)
+  (*   intros [][]?; by simplify_eq. *)
+  (* Qed. *)
+  (* Next Obligation. *)
+  (*   iIntros. *)
+  (*   iMod (rand_tapes_update with "[$][$]") as "[??]"; last iFrame. *)
+  (*   - simpl. *)
+  (*     rewrite Forall_fmap. *)
+  (*     apply Forall_true. *)
+  (*     simpl. *)
+  (*     intros []; simpl; lia. *)
+  (*   - iModIntro.  *)
+  (*     rewrite fmap_insert; iFrame. *)
+  (* Qed. *)
   Next Obligation.
     simpl.
-    iIntros (?????) "H1 H2".
-    by iDestruct (rand_tapes_frag_exclusive with "[$][$]") as "?".
-  Qed.
-  Next Obligation.
-    simpl.
-    iIntros.
-    iDestruct (rand_tapes_agree with "[$][$]") as "%H'".
-    rewrite lookup_fmap_Some in H'. destruct H' as (?&?&K).
-    simplify_eq.
-    rewrite K.
-    iPureIntro.
-    f_equal.
-    eapply fmap_inj; last done.
-    intros [][]?; by simplify_eq.
-  Qed.
-  Next Obligation.
-    iIntros.
-    iMod (rand_tapes_update with "[$][$]") as "[??]"; last iFrame.
-    - simpl.
-      rewrite Forall_fmap.
-      apply Forall_true.
-      simpl.
-      intros []; simpl; lia.
-    - iModIntro. 
-      rewrite fmap_insert; iFrame.
-  Qed.
-  Next Obligation.
-    simpl.
-    iIntros (???????????) "#Hinv Hfrag Hε".
-    iMod (rand_tapes_presample _ _ _ _ _ _ _ (λ x, ε2 (nat_to_bool (fin_to_nat x)))with "[$][$][$]") as "(%n&?&?)"; try done.
+    iIntros (????????) "Hfrag Hε".
+    iMod (rand_tapes_presample _ _ _ _ _ (λ x, ε2 (nat_to_bool (fin_to_nat x)))with "[$][$]") as "(%n&?&?)"; try done.
     - rewrite SeriesC_finite_foldr/=.
       rewrite nat_to_bool_eq_0 nat_to_bool_neq_0; last lia.
       lra.
@@ -137,11 +132,11 @@ Section instantiate_flip.
       rewrite fmap_app.
       by repeat (inv_fin n; try (intros n)); simpl.
   Qed.
-  Next Obligation.
-    simpl.
-    iIntros (???).
-    iApply rand_inv_create_spec.
-  Qed.
+  (* Next Obligation. *)
+  (*   simpl. *)
+  (*   iIntros (???). *)
+  (*   iApply rand_inv_create_spec. *)
+  (* Qed. *)
   Next Obligation.
     simpl.
     iIntros. 
@@ -150,16 +145,15 @@ Section instantiate_flip.
   Qed.
   Next Obligation.
     simpl.
-    iIntros (???? ???? Φ) "(#Hinv & Hfrag) HΦ".
+    iIntros (??? ?? Φ) "Hfrag HΦ".
     wp_pures.
-    wp_apply (rand_tape_spec_some  with "[-HΦ]"); [done|..].
-    - by iFrame. 
-    - iIntros "Hfrag". 
-      wp_apply conversion.wp_int_to_bool as "_"; first done.
-      replace (Z_to_bool _) with n; first by iApply "HΦ".
-      destruct n; simpl.
-      + rewrite Z_to_bool_neq_0; lia.
-      + rewrite Z_to_bool_eq_0; lia.
+    wp_apply (rand_tape_spec_some  with "[-HΦ]"); first done.
+    iIntros "Hfrag". 
+    wp_apply conversion.wp_int_to_bool as "_"; first done.
+    replace (Z_to_bool _) with n; first by iApply "HΦ".
+    destruct n; simpl.
+    - rewrite Z_to_bool_neq_0; lia.
+    - rewrite Z_to_bool_eq_0; lia.
   Qed.
   (* Next Obligation. *)
   (*   simpl. *)
@@ -226,18 +220,17 @@ End instantiate_flip.
 
 Section test.
   Context `{F:flip_spec}.
-  Lemma flip_presample_spec_simple {L: flipG Σ} NS E γ1 α ns ε ε2:
-    ↑NS ⊆ E ->
+  Lemma flip_presample_spec_simple {L: flipG Σ} E α ns ε ε2:
     (∀ n, 0<=ε2 n)%R ->
     ((ε2 true + ε2 false)/2<=ε)%R ->
-    is_flip (L:=L) NS γ1 -∗
-    flip_tapes_frag (L:=L) γ1 α ns -∗
+    (* is_flip (L:=L) NS γ1 -∗ *)
+    flip_tapes (L:=L) α ns -∗
     ↯ ε -∗
-          wp_update E (∃ b, flip_tapes_frag (L:=L) γ1 α (ns ++ [b]) ∗ ↯ (ε2 b)).
+          wp_update E (∃ b, flip_tapes (L:=L) α (ns ++ [b]) ∗ ↯ (ε2 b)).
   Proof.
-    iIntros (Hsubset Hpos Hineq) "#Hinv Hfrag Herr".
+    iIntros (Hpos Hineq) "Hfrag Herr".
     iApply wp_update_state_update.
-    iMod (flip_tapes_presample with "[$][$][$]") as "(%&?&?)"; try done.
+    iMod (flip_tapes_presample with "[$][$]") as "(%&?&?)"; try done.
     by iFrame.
   Qed.
 End test.
