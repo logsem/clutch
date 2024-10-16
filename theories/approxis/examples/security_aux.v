@@ -12,13 +12,6 @@ Module LR_bounded.
     let s := constr:(append "(%" ($x ++ "&->&->&%" ++ $x ++ "_min&%" ++ $x ++ "_max)")) in
     eval vm_compute in $s.
 
-  Ltac2 Set pattern_of_lr2 as previous :=
-    fun lr (xs : constr list) =>
-      lazy_match! lr with
-      | lrel_int_bounded _ _ => bounded (get_head_name xs)
-      | _ => previous lr xs
-      end.
-
   Ltac2 int_bounded_intro (typ : constr) xs k :=
     (* printf "entering int_bounded_intro, typ: %t" typ ; *)
     lazy_match! typ with

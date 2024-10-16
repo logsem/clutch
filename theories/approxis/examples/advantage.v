@@ -44,10 +44,10 @@ Fact pr_dist_st_inhabited : forall X Y v, (∃ x : R, pr_dist_st X Y v x).
   exists (pr_dist X Y inhabitant inhabitant v) , inhabitant , inhabitant => //.
 Qed.
 
-Definition advantage_R X Y v :=
-  ` (completeness (pr_dist_st X Y v) (pr_dist_st_bound X Y v) (pr_dist_st_inhabited X Y v)).
+Definition advantage_R (A : expr) X Y v :=
+  ` (completeness (pr_dist_st (A X) (A Y) v) (pr_dist_st_bound (A X) (A Y) v) (pr_dist_st_inhabited (A X) (A Y) v)).
 
-Fact advantage_R_pos X Y v : 0 <= advantage_R X Y v.
+Fact advantage_R_pos A X Y v : 0 <= advantage_R A X Y v.
 Proof.
   rewrite /advantage_R.
   destruct completeness as [x [ub lub]] => /=.
@@ -57,13 +57,13 @@ Proof.
   apply Rabs_pos.
 Qed.
 
-Definition advantage (X Y : expr) (v : val) : nonnegreal.
-  econstructor ; apply (advantage_R_pos X Y v).
+Definition advantage (A X Y : expr) (v : val) : nonnegreal.
+  econstructor ; apply (advantage_R_pos A X Y v).
 Defined.
 
-Lemma advantage_uniform (X Y : expr) v (ε : R) :
-  (∀ (σ σ' : state), pr_dist X Y σ σ' v <= ε) →
-  (advantage X Y v <= ε).
+Lemma advantage_uniform (A X Y : expr) v (ε : R) :
+  (∀ (σ σ' : state), pr_dist (A X) (A Y) σ σ' v <= ε) →
+  (advantage A X Y v <= ε).
 Proof.
   intros hε. rewrite /advantage/advantage_R => /=.
   destruct completeness as [x [ub lub]] => /=.
@@ -71,31 +71,31 @@ Proof.
   rewrite -hε'. apply hε.
 Qed.
 
-Fact advantage_ub X Y v σ σ' : pr_dist X Y σ σ' v <= advantage X Y v.
+Fact advantage_ub (A X Y : expr) v σ σ' : pr_dist (A X) (A Y) σ σ' v <= advantage A X Y v.
 Proof.
   rewrite /advantage/advantage_R => /=.
   destruct completeness as [x [ub lub]] => /=.
   apply ub. eexists _, _. done.
 Qed.
 
-Fact advantage_triangle' X Y Z v :
-  (advantage X Z v <= (advantage X Y v) + (advantage Y Z v)).
+Fact advantage_triangle' A X Y Z v :
+  (advantage A X Z v <= (advantage A X Y v) + (advantage A Y Z v)).
 Proof.
   apply advantage_uniform. intros.
-  transitivity (pr_dist X Y σ σ' v + (pr_dist Y Z σ' σ' v)).
+  transitivity (pr_dist (A X) (A Y) σ σ' v + (pr_dist (A Y) (A Z) σ' σ' v)).
   1: apply pr_dist_triangle'.
   eapply Rplus_le_compat => //.
   all: apply advantage_ub.
 Qed.
 
-Fact advantage_triangle X Y Z v ε1 ε2 ε3 :
-  ((advantage X Y v <= ε1) →
-   (advantage Y Z v <= ε2) →
+Fact advantage_triangle A X Y Z v ε1 ε2 ε3 :
+  ((advantage A X Y v <= ε1) →
+   (advantage A Y Z v <= ε2) →
    (ε1 + ε2 <= ε3) →
-   advantage X Z v <= ε3).
+   advantage A X Z v <= ε3).
 Proof.
   intros. etrans.
-  1: eapply (advantage_triangle' _ Y _ _).
+  1: eapply (advantage_triangle' _ _ Y _ _).
   etrans. 2: eauto.
   apply Rplus_le_compat => //.
 Qed.

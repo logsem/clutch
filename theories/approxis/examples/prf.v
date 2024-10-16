@@ -153,16 +153,6 @@ Module LR_prf.
   Import Ltac2 (* Printf *).
   Export LR_bounded.
 
-  Ltac2 Set pattern_of_lr2 as previous :=
-    fun lr (xs : constr list) =>
-      lazy_match! lr with
-      | lrel_input => bounded (get_head_name xs)
-      | lrel_output => bounded (get_head_name xs)
-      (* | lrel_message => bounded (get_head_name xs) *)
-      | lrel_key => bounded (get_head_name xs)
-      | _ => previous lr xs
-      end.
-
   Ltac2 prf_intro (typ : constr) xs k :=
     (* printf "entering prf_intro, typ: %t" typ ; *)
     lazy_match! typ with
