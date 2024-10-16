@@ -42,6 +42,6 @@ clean:
 	rm -f .coqdeps.d
 
 tar:
-	git archive --format=tar.gz -o coq-clutch.tar.gz HEAD
+	git archive --format=tar.gz -o coq-approxis.tar.gz HEAD
 
 .PHONY: clean zip
