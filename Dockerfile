@@ -5,7 +5,7 @@ ARG NJOBS=4
 WORKDIR /home/coq/approxis
 
 COPY --chown=coq:coq coq-approxis.tar.gz .
-RUN tar -xvf coq-approxis.tar.gz
+RUN set -x && sudo tar xvf coq-approxis.tar.gz
 
 RUN set -x \
     && opam repo add iris-dev https://gitlab.mpi-sws.org/iris/opam.git \
