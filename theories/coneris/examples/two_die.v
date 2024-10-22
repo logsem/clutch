@@ -117,8 +117,94 @@ Section complex.
       wp_apply (wp_par (λ x, ∃ (n:nat), ⌜x = #n ⌝ ∗ own γ1 (◯E (Some n)))%I
                   (λ x, ∃ (n:nat), ⌜x = #n ⌝ ∗ own γ2 (◯E (Some n)))%I with "[Hfrag1][Hfrag2]").
       + iInv "I" as ">(%&%&Hauth1&Hauth2&Herr)" "Hclose".
-        admit.
-      + admit.
+        iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+        case_bool_decide as H.
+        * wp_apply wp_rand; first done.
+          iIntros (n) "_".
+          iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Herr ]"); last by iFrame.
+          iNext. rewrite bool_decide_eq_true_2; first done.
+          right.
+          by destruct H as [(?&?&?)|].
+        * iDestruct "Herr" as "(%&Herr&->)".
+          rewrite bool_decide_eq_false_2; last done.
+          simpl.
+          wp_apply (wp_couple_rand_adv_comp1' _ _ _ _
+                      (λ x, if bool_decide (fin_to_nat x = 0)%nat
+                            then (Rpower 6 (bool_to_nat (bool_decide (n2 = Some 0%nat)) - 2 + 1))%R
+                            else 0%R
+                      ) with "[$]") as (n) "Herr".
+          -- intros. case_match; last done.
+             rewrite /Rpower.
+             apply Rlt_le, exp_pos.
+          -- rewrite SeriesC_finite_foldr. simpl.
+             rewrite Rpower_plus Rpower_1; last lra.
+             lra.
+          -- iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+             iMod ("Hclose" with "[$Hauth1 $Hauth2 Herr ]"); last by iFrame.
+             iNext.
+             case_bool_decide as H1; subst.
+             ++ rewrite (bool_decide_eq_false_2 (_\/_)); last first.
+                { intros [(?&?&?)|(?&?&?)].
+                  - simplify_eq. lia.
+                  - simplify_eq.
+                    apply H.
+                    naive_solver.
+                }
+                iExists _. iSplit; last done.
+                rewrite (bool_decide_eq_true_2 (Some _ = Some _)); last by f_equal.
+                iApply (ec_eq with "[$]").
+                f_equal.
+                rewrite plus_INR.
+                simpl. lra.
+             ++ rewrite (bool_decide_eq_true_2 (_\/_)); first done.
+                left. eexists _. split; first done.
+                lia.
+      + iInv "I" as ">(%&%&Hauth1&Hauth2&Herr)" "Hclose".
+        iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+        case_bool_decide as H.
+        * wp_apply wp_rand; first done.
+          iIntros (n) "_".
+          iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Herr ]"); last by iFrame.
+          iNext. rewrite bool_decide_eq_true_2; first done.
+          left.
+          by destruct H as [|(?&?&?)].
+        * iDestruct "Herr" as "(%&Herr&->)".
+          rewrite (bool_decide_eq_false_2 (None = _)); last done.
+          rewrite Nat.add_0_r.
+          simpl.
+          wp_apply (wp_couple_rand_adv_comp1' _ _ _ _
+                      (λ x, if bool_decide (fin_to_nat x = 0)%nat
+                            then (Rpower 6 (bool_to_nat (bool_decide (n1 = Some 0%nat)) - 2 + 1))%R
+                            else 0%R
+                      ) with "[$]") as (n) "Herr".
+          -- intros. case_match; last done.
+             rewrite /Rpower.
+             apply Rlt_le, exp_pos.
+          -- rewrite SeriesC_finite_foldr. simpl.
+             rewrite Rpower_plus Rpower_1; last lra.
+             lra.
+          -- iMod (ghost_var_update _ (Some (fin_to_nat n)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+             iMod ("Hclose" with "[$Hauth1 $Hauth2 Herr ]"); last by iFrame.
+             iNext.
+             case_bool_decide as H1; subst.
+             ++ rewrite (bool_decide_eq_false_2 (_\/_)); last first.
+                { intros [(?&?&?)|(?&?&?)].
+                  - simplify_eq.
+                    apply H.
+                    naive_solver.
+                  - simplify_eq. lia.
+                }
+                iExists _. iSplit; last done.
+                rewrite (bool_decide_eq_true_2 (Some _ = Some _)); last by f_equal.
+                iApply (ec_eq with "[$]").
+                f_equal.
+                rewrite plus_INR.
+                simpl. lra.
+             ++ rewrite (bool_decide_eq_true_2 (_\/_)); first done.
+                right. eexists _. split; first done.
+                lia.
       + iIntros (??) "[(%n&->&Hfrag1) (%n'&->&Hfrag2)]".
         iNext.
         wp_pures.
@@ -142,7 +228,7 @@ Section complex.
         iMod ("Hclose" with "[$Herr $Hauth1 $Hauth2]").
         rewrite -Nat2Z.inj_add. iApply "HΦ".
         iPureIntro. lia.
-  Admitted.
+  Qed.
 End complex.
 
 
