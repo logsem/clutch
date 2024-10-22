@@ -34,6 +34,24 @@ Section adequacy.
       by iApply "H".
   Qed.
 
+
+  Lemma wp_adequacy_prog_coupl n m e1 σ1 e1' σ1' Z φ ε :
+    to_val e1 = None ->
+    prog_coupl e1 σ1 e1' σ1' ε Z -∗
+    (∀ e2 σ2 e2' σ2' ε', Z e2 σ2 e2' σ2' ε' ={∅}=∗ |={∅}▷=>^n ⌜ARcoupl (exec m (e2, σ2)) (lim_exec (e2', σ2')) φ ε'⌝) -∗
+    |={∅}=> |={∅}▷=>^n ⌜ARcoupl (exec (S m) (e1, σ1)) (lim_exec (e1', σ1')) φ ε⌝.
+  Proof.
+    iIntros (Hnone).
+    rewrite exec_Sn.
+    rewrite /step_or_final /= Hnone.
+    iIntros "(%R & %k & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) Hcoupl /=".
+    iApply (step_fupdN_mono _ _ _ ⌜_⌝).
+    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
+    iIntros (e2 σ2 e2' σ2' ε2).
+    iMod ("Hcnt" with "[//]") as "Hcnt".
+    by iApply "Hcoupl".
+  Qed.
+
   Lemma wp_adequacy_val_fupd (e e' : expr) (σ σ' : state) n φ v ε:
     to_val e = Some v →
     state_interp σ ∗ spec_interp (e', σ') ∗ err_interp ε ∗
@@ -71,17 +89,12 @@ Section adequacy.
     iEval (rewrite wp_unfold /wp_pre /= He) in "Hwp".
     iMod ("Hwp" with "[$]") as "Hwp".
     iApply (wp_adequacy_spec_coupl with "Hwp").
-    iIntros (σ2 e2' σ2' ε') "(%R & %m & %μ1' & %ε1 & %X2 & %r & % & % & % & % & % & Hcnt) /=".
-    iEval (rewrite He).
-    rewrite -step_fupdN_Sn.
-    iApply (step_fupdN_mono _ _ _ ⌜_⌝).
-    { iPureIntro. intros. eapply ARcoupl_erasure_erasable_exp_lhs; [..|done]; eauto. }
-    iIntros (e2 σ3 e3' σ3' HR).
-    iMod ("Hcnt" with "[//]") as "Hcnt".
-    clear.
+    iIntros (σ2 e2' σ2' ε') "Hprog".
+    iApply (wp_adequacy_prog_coupl with "Hprog"); [done|].
+    iIntros (e3 σ3 e3' σ3' ε3) "Hspec".
     iIntros "!> !> !>".
-    iApply (wp_adequacy_spec_coupl with "Hcnt").
-    iIntros (σ4 e4' σ4' ε) ">(Hσ & Hs & Hε & Hcnt)".
+    iApply (wp_adequacy_spec_coupl with "Hspec").
+    iIntros (σ4 e4' σ4' ε4) ">(Hσ & Hs & Hε & Hcnt)".
     iApply ("IH" with "Hσ Hs Hε Hcnt").
   Qed.
 
