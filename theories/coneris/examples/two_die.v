@@ -326,3 +326,79 @@ Qed.
   
 End properties.
 
+Section simple'.
+  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ ra_stateR}.
+
+  Definition simple_parallel_add_inv' l γ :=
+    (∃ (n:nat), l ↦#n ∗ (own γ Start ∨ own γ Final ∗ ⌜(0<n)%nat⌝))%I.
+    
+  Lemma simple_parallel_add_spec':
+    {{{ ↯ (1/6) }}}
+      two_die_prog'
+      {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
+  Proof.
+    iIntros (Φ) "Herr HΦ".
+    rewrite /two_die_prog'.
+    wp_pures.
+    wp_alloc l as "Hl".
+    wp_pures.
+    iMod (alloc_Start) as "(%γ & Hra)".
+    iMod (inv_alloc nroot _ (simple_parallel_add_inv' _ _) with "[Hra Hl]") as "#I".
+    { iExists 0%nat. iFrame. }
+    wp_apply (wp_par (λ _, own γ Final )%I
+                (λ x, True)%I with "[Herr][]").
+    - wp_apply (wp_rand_err_nat _ _ 0%nat).
+      iSplitL.
+      { iApply (ec_eq with "[$]"). simpl. lra. }
+      iIntros (??).
+      wp_pures.
+      rewrite bool_decide_eq_true_2; last lia.
+      wp_pures.
+      wp_bind (! _)%E.
+      iInv "I" as ">(%&?&?)" "Hclose".
+      wp_load.
+      iMod ("Hclose" with "[$]") as "_".
+      iModIntro. wp_pures.
+      iInv "I" as ">(%&Hl&H)" "Hclose".
+      wp_store.
+      iDestruct "H" as "[H|H]".
+      + iMod (ra_state_bupd with "[$]") as "#H".
+        iMod ("Hclose" with "[Hl]"); last done.
+        iExists (n+1)%nat. iNext.
+        rewrite Nat2Z.inj_add. iFrame.
+        iRight. iSplit; first done.
+        iPureIntro. lia.
+      + iDestruct "H" as "[#H %]". iMod ("Hclose" with "[Hl]"); last done.
+        iExists (n+1)%nat. iNext.
+        rewrite Nat2Z.inj_add. iFrame.
+        iRight. iSplit; first done.
+        iPureIntro. lia.
+    - wp_apply (wp_rand); first done.
+      iIntros (??).
+      wp_pures.
+      case_bool_decide.
+      + wp_pures.
+        wp_bind (! _)%E.
+        iInv "I" as ">(%&?&?)" "Hclose".
+        wp_load.
+        iMod ("Hclose" with "[$]") as "_".
+        iModIntro. wp_pures.
+        iInv "I" as ">(%&Hl&H)" "Hclose".
+        wp_store.
+        iMod ("Hclose" with "[Hl H]"); last done. 
+        iExists (_+1)%nat. iNext.
+        rewrite Nat2Z.inj_add. iFrame.
+        iDestruct "H" as "[H|[H %]]"; iFrame.
+        iRight. iFrame. iPureIntro. lia.
+      + by wp_pures.
+    - iIntros (??) "[H _]".
+      iNext.
+      wp_pures.
+      iInv "I" as ">(%n&Hl&[H'|[H' %]])" "Hclose".
+      { iCombine "H H'" gives "%H". by cbv in H. }
+      wp_load.
+      iMod ("Hclose" with "[H Hl]") as "_".
+      + iFrame. iRight. iFrame. by iPureIntro.
+      + iApply "HΦ". by iPureIntro.
+  Qed.
+End simple'.
