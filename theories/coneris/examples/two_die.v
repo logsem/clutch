@@ -1,4 +1,4 @@
-From iris.algebra Require Import excl_auth.
+From iris.algebra Require Import excl_auth cmra.
 From iris.base_logic.lib Require Import invariants.
 From clutch.coneris Require Import coneris par spawn.
 
@@ -42,26 +42,22 @@ Definition two_die_prog : expr :=
 Section simple.
   Context `{!conerisGS Σ, !spawnG Σ}.
   Lemma simple_parallel_add_spec:
-    {{{ ↯ (1/3) }}}
+    {{{ ↯ (1/6) }}}
       two_die_prog
       {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
   Proof.
     iIntros (Φ) "Herr HΦ".
-    replace (1/3)%R with (1/6+1/6)%R by lra.
-    iDestruct (ec_split with "[$]") as "[Herr Herr']"; [lra..|].
     rewrite /two_die_prog.
     wp_pures.
     wp_apply (wp_par (λ x, ∃ (n:nat), ⌜x=#n⌝ ∗ ⌜(0<n)%nat⌝)%I
-                (λ x, ∃ (n:nat), ⌜x=#n⌝ ∗ ⌜(0<n)%nat⌝)%I with "[Herr][Herr']").
+                (λ x, ∃ (n:nat), ⌜x=#n⌝ ∗ ⌜(0<=n)%nat⌝)%I with "[Herr][]").
     - wp_apply (wp_rand_err_nat _ _ 0%nat).
       iSplitL.
       { iApply (ec_eq with "[$]"). simpl. lra. }
       iIntros (??).
       iPureIntro. simpl. eexists _; split; first done.
       lia.
-    - wp_apply (wp_rand_err_nat _ _ 0%nat).
-      iSplitL.
-      { iApply (ec_eq with "[$]"). simpl. lra. }
+    - wp_apply (wp_rand); first done.
       iIntros (??).
       iPureIntro. simpl. eexists _; split; first done.
       lia.
@@ -231,7 +227,102 @@ Section complex.
   Qed.
 End complex.
 
+Definition two_die_prog' : expr :=
+  let: "l" := ref #0 in
+  ((if: #0 < rand #5
+    then "l"<-!"l"+#1
+    else #()
+   ) |||
+     (if: #0 < rand #5
+    then "l"<-!"l"+#1
+    else #()));;
+  !"l".
 
+Inductive ra_state:=
+|Start
+|Final
+|Invalid.
 
+Section ra_state.
+  Global Instance ra_state_equiv_instance: Equiv ra_state :=eq.
+  Global Instance ra_state_equiv_equivalence : Equivalence (≡@{ra_state}) := _.
+  Global Instance ra_state_leibniz_equiv : LeibnizEquiv ra_state := _.
+  Canonical ra_stateO := Ofe ra_state (discrete_ofe_mixin _).
+  Local Instance ra_state_op_instance : Op ra_state := λ s1 s2,
+                                                   match s1, s2 with
+                                                   | Final, Final => Final
+                                                   | _, _ => Invalid
+                                                   end.
 
-           
+  Local Instance ra_state_pcore_instance : PCore ra_state := λ s,
+                                                         match s with
+                                                         | Start => None
+                                                         | _ => Some s
+                                                         end.
+
+  Local Instance ra_state_valid_instance : Valid ra_state := λ s,
+                                                         match s with
+                                                         | Start | Final => True
+                                                         | Invalid => False
+                                                         end.
+  
+  Lemma ra_state_ra_mixin : RAMixin ra_state.
+  Proof.
+    split.
+    - solve_proper.
+    - naive_solver.
+    - solve_proper.
+    - by intros [] [] [].
+    - by intros [] [].
+    - by intros [] [].
+    - by intros [] [].
+    - intros [] _ [] [[] ->] e; try done.
+      all: eexists; split; first done.
+      all: try by exists Invalid.
+                    by exists Final.
+                         - by intros [] [].
+  Qed.
+  Canonical Structure ra_stateR := discreteR ra_state ra_state_ra_mixin.
+
+  Global Instance ra_state_cmra_discrete : CmraDiscrete ra_state.
+  Proof. apply discrete_cmra_discrete. Qed.
+
+End ra_state.
+
+Global Instance Start_exclusive : Exclusive Start.
+Proof. by intros []. Qed.
+
+Global Instance Final_core_id : CoreId Final.
+Proof. red. done. Qed.
+
+Lemma ra_state_update s : s ~~> Final.
+Proof.
+  rewrite cmra_discrete_update.
+  intros mz H.
+  by destruct s, mz as [[| |]|].
+Qed.
+
+Section properties.
+  Context `{!inG Σ ra_stateR}.
+  
+Lemma alloc_Start : ⊢ |==> ∃ γ, own γ Start.
+Proof.
+  iApply own_alloc.
+  done.
+Qed.
+
+Lemma ra_state_valid γ (s : ra_state) : own γ s ⊢ ⌜✓ s⌝.
+Proof.
+  iIntros "H".
+  iPoseProof (own_valid with "H") as "%H".
+  done.
+Qed.
+
+Lemma ra_state_bupd γ (s : ra_state) : own γ s ==∗ own γ Final.
+Proof.
+  iApply own_update.
+  apply ra_state_update.
+Qed.
+  
+End properties.
+
