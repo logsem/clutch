@@ -230,11 +230,11 @@ End complex.
 Definition two_die_prog' : expr :=
   let: "l" := ref #0 in
   ((if: #0 < rand #5
-    then "l"<-!"l"+#1
+    then FAA "l" #1
     else #()
    ) |||
      (if: #0 < rand #5
-    then "l"<-!"l"+#1
+    then FAA "l" #1
     else #()));;
   !"l".
 
@@ -367,13 +367,8 @@ Section simple'.
       wp_pures.
       rewrite bool_decide_eq_true_2; last lia.
       wp_pures.
-      wp_bind (! _)%E.
-      iInv "I" as ">(%&?&?)" "Hclose".
-      wp_load.
-      iMod ("Hclose" with "[$]") as "_".
-      iModIntro. wp_pures.
       iInv "I" as ">(%&Hl&H)" "Hclose".
-      wp_store.
+      wp_faa.
       iDestruct "H" as "[H|H]".
       + iMod (ra_state_bupd with "[$]") as "#H".
         iMod ("Hclose" with "[Hl]"); last done.
@@ -391,13 +386,8 @@ Section simple'.
       wp_pures.
       case_bool_decide.
       + wp_pures.
-        wp_bind (! _)%E.
-        iInv "I" as ">(%&?&?)" "Hclose".
-        wp_load.
-        iMod ("Hclose" with "[$]") as "_".
-        iModIntro. wp_pures.
         iInv "I" as ">(%&Hl&H)" "Hclose".
-        wp_store.
+        wp_faa.
         iMod ("Hclose" with "[Hl H]"); last done. 
         iExists (_+1)%nat. iNext.
         rewrite Nat2Z.inj_add. iFrame.
@@ -427,7 +417,7 @@ Section complex'.
 
   Definition added_1 s n:=
     match (s, n) with
-    | (Final, Some (S _)) => true
+    | (Final, Some (S _)) | (Final, None)=> true
     | _ => false
     end.
 
@@ -480,8 +470,221 @@ Section complex'.
     }
     wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ own γ3 Final)%I
                 (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ own γ4 Final)%I with "[Hfrag1][Hfrag2]").
-    - admit.
-    - admit.
+    - wp_bind (rand _)%E.
+      iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+      iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+      destruct (one_positive _ _) eqn:H1.
+      + wp_apply (wp_rand with "[//]") as (x) "_".
+        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+        destruct n2 as [[|n2]|]; simplify_eq.
+        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
+        { iNext.
+          case_match eqn:H2.
+          - rewrite orb_true_iff in H2. destruct H2 as [H2|H2].
+            + destruct s1; simplify_eq.
+              case_match; (iSplit; first done); by destruct x.
+            + rewrite H2. rewrite orb_true_r. iSplit; first done.
+              by destruct x.
+          - rewrite orb_false_iff in H2. destruct H2 as [H2 ->].
+            rewrite orb_false_r.
+            case_match; last (iSplit; first done); first destruct s1; simplify_eq.
+            by destruct x.
+        }
+        iModIntro.
+        wp_pures.
+        clear n n2 H1 s1 s2.
+        case_bool_decide as H2; wp_pures.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+          wp_faa.
+          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 H Herr]") as "_".
+          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
+            iExists _. iSplitR; first done.
+            iNext. destruct (added_1 Final _||_); last done.
+            iPureIntro. lia.
+          }
+          by iFrame.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra2 H $Herr]") as "_".
+          { iExists _. iSplitR; first done.
+            iNext.
+            case_match eqn :H1; first by case_match.
+            case_match eqn:H3; last done.
+            assert (fin_to_nat x=0)%nat as K by lia.
+            rewrite K in H1 H3.
+            destruct s1, s2, n2 as [[|]|]; simplify_eq. 
+          }
+          by iFrame.
+      + iDestruct "Herr" as "(%&Herr&->)".
+        simpl.
+        wp_apply (wp_couple_rand_adv_comp1' _ _ _ _
+                    (λ x, if bool_decide(fin_to_nat x = 0)%nat
+                          then (Rpower 6 (bool_to_nat (bool_decide (n2 = Some 0%nat)) - 2 +1))
+                          else 0)%R with "[$]") as (x) "Herr".
+        { intros. case_match; last done.
+          rewrite /Rpower.
+          apply Rlt_le, exp_pos.
+        }
+        { rewrite SeriesC_finite_foldr. simpl.
+          rewrite Rpower_plus Rpower_1; lra.
+        }
+        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth1][$]") as "[Hauth1 Hfrag1]".
+        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
+        { iNext.
+          iSplitL "H".
+          - case_match eqn:H2; first by case_match.
+            case_match eqn:H3; last done.
+            destruct s1, s2, (fin_to_nat x), n2 as [[|]|]; simplify_eq.
+          - case_bool_decide as K.
+            + case_match.
+              * iApply (ec_weaken with "[$]").
+                split; first done.
+                rewrite /Rpower.
+                apply Rlt_le, exp_pos.
+              * rewrite K. simpl.
+                iExists _; iSplit; last done. rewrite S_INR.
+                iApply (ec_eq with "[$]"). f_equal. lra.
+            + case_match; first done.
+              destruct (fin_to_nat x); simplify_eq.
+        }
+        iModIntro.
+        wp_pures.
+        clear n n2 H1 s1 s2.
+        case_bool_decide as H2; wp_pures.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+          wp_faa.
+          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 H Herr]") as "_".
+          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
+            iExists _. iSplitR; first done.
+            iNext. destruct (added_1 Final _||_); last done.
+            iPureIntro. lia.
+          }
+          by iFrame.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra2 H $Herr]") as "_".
+          { iExists _. iSplitR; first done.
+            iNext.
+            case_match eqn :H1; first by case_match.
+            case_match eqn:H3; last done.
+            assert (fin_to_nat x=0)%nat as K by lia.
+            rewrite K in H1 H3.
+            destruct s1, s2, n2 as [[|]|]; simplify_eq. 
+          }
+          by iFrame.
+    - wp_bind (rand _)%E.
+      iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+      iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+      destruct (one_positive _ _) eqn:H1.
+      + wp_apply (wp_rand with "[//]") as (x) "_".
+        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+        destruct n1 as [[|n1]|]; simplify_eq.
+        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
+        { iNext.
+          case_match eqn:H2.
+          - rewrite orb_true_iff in H2. destruct H2 as [H2|H2].
+            + destruct s1; simplify_eq.
+              case_match; (iSplit; first done); by destruct x.
+            + iSplitL "H"; first by case_match.
+              by simpl.
+          - rewrite orb_false_iff in H2. destruct H2 as [-> H2].
+            rewrite orb_false_l.
+            case_match; last (iSplit; first done); first destruct s2; simplify_eq.
+            by destruct x.
+        }
+        iModIntro.
+        wp_pures.
+        clear n n1 H1 s1 s2.
+        case_bool_decide as H2; wp_pures.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+          wp_faa.
+          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 $Hra1 H Herr]") as "_".
+          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
+            iNext. destruct (_||added_1 Final _); last done.
+            iPureIntro. lia.
+          }
+          by iFrame.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 H $Herr]") as "_".
+          { iExists _. iSplitR; first done.
+            iNext.
+            case_match eqn :H1; first by case_match.
+            case_match eqn:H3; last done.
+            assert (fin_to_nat x=0)%nat as K by lia.
+            rewrite K in H1 H3.
+            destruct s1, s2, n1 as [[|]|]; simplify_eq. 
+          }
+          by iFrame.
+      + iDestruct "Herr" as "(%&Herr&->)".
+        simpl.
+        wp_apply (wp_couple_rand_adv_comp1' _ _ _ _
+                    (λ x, if bool_decide(fin_to_nat x = 0)%nat
+                          then (Rpower 6 (bool_to_nat (bool_decide (n1 = Some 0%nat)) - 2 +1))
+                          else 0)%R with "[$]") as (x) "Herr".
+        { intros. case_match; last done.
+          rewrite /Rpower.
+          apply Rlt_le, exp_pos.
+        }
+        { rewrite SeriesC_finite_foldr. simpl.
+          rewrite -plus_n_O Rpower_plus Rpower_1; lra. 
+        }
+        iMod (ghost_var_update _ (Some (fin_to_nat x)) with "[$Hauth2][$]") as "[Hauth2 Hfrag2]".
+        iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hra1 $Hra2 $Hl H Herr]") as "_".
+        { iNext.
+          iSplitL "H".
+          - case_match eqn:H2; first by case_match.
+            case_match eqn:H3; last done.
+            destruct s1, s2, (fin_to_nat x), n1 as [[|]|]; simplify_eq.
+          - case_bool_decide as K.
+            + case_match.
+              * iApply (ec_weaken with "[$]").
+                split; first done.
+                rewrite /Rpower.
+                apply Rlt_le, exp_pos.
+              * rewrite K. simpl.
+                iExists _; iSplit; last done. rewrite plus_INR. 
+                iApply (ec_eq with "[$]"). f_equal. simpl. lra.
+            + case_match; first done.
+              destruct n1 as [[|]|], (fin_to_nat x); simplify_eq.
+        }
+        iModIntro.
+        wp_pures.
+        clear n n1 H1 s1 s2.
+        case_bool_decide as H2; wp_pures.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+          wp_faa.
+          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra1 H Herr]") as "_".
+          { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
+            iExists _. iSplitR; first done.
+            iNext. destruct (_||added_1 Final _); last done.
+            iPureIntro. lia.
+          }
+          by iFrame.
+        * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
+          iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 H $Herr]") as "_".
+          { iExists _. iSplitR; first done.
+            iNext.
+            case_match eqn :H1; first by case_match.
+            case_match eqn:H3; last done.
+            assert (fin_to_nat x=0)%nat as K by lia.
+            rewrite K in H1 H3.
+            destruct s1, s2, n1 as [[|]|]; simplify_eq. 
+          }
+          by iFrame.
     - iIntros (??) "[(%n1&Hfrag1&#Hfinal1) (%n2&Hfrag2&#Hfinal2)]".
       iNext.
       wp_pures.
@@ -501,5 +704,5 @@ Section complex'.
       + iMod ("Hclose" with "[$]") as "_".
         iApply "HΦ".
         by iPureIntro.
-  Admitted.
+  Qed.
 End complex'.
