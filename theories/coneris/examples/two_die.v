@@ -402,3 +402,80 @@ Section simple'.
       + iApply "HΦ". by iPureIntro.
   Qed.
 End simple'.
+
+Section complex'.
+  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ ra_stateR}.
+
+  Definition parallel_add_inv' (γ1 γ2 γ3: gname) l: iProp Σ :=
+    ∃ (n1 n2 : option nat) (n:nat),
+      let p:= bool_decide ((∃ x, n1 = Some x /\ (0<x)%nat)\/ (∃ x, n2 = Some x /\ (0<x)%nat)) in
+      own γ1 (●E n1) ∗ own γ2 (●E n2) ∗
+      l↦#n ∗
+      (own γ3 Start ∨ own γ3 Final ∗ if p then ⌜(0<n)%nat⌝ else True) ∗
+      if p
+      then ↯ 0%R
+      else
+        ∃ (flip_num:nat),
+          ↯ (Rpower 6%R (INR flip_num-2))%R ∗
+          ⌜(flip_num = bool_to_nat (bool_decide (n1=Some 0%nat)) +bool_to_nat (bool_decide (n2=Some 0%nat)))%nat⌝.
+  
+  Lemma complex_parallel_add_spec':
+    {{{ ↯ (1/36) }}}
+      two_die_prog'
+      {{{ (n:nat), RET #n; ⌜(0<n)%nat⌝ }}}.
+  Proof.
+    iIntros (Φ) "Herr HΦ".
+    iMod (ghost_var_alloc None) as (γ1) "[Hauth1 Hfrag1]".
+    iMod (ghost_var_alloc None) as (γ2) "[Hauth2 Hfrag2]".
+    iMod (alloc_Start) as "(%γ3 & Hra)".
+    rewrite /two_die_prog'.
+    wp_alloc l as "Hl".
+    wp_pures.
+    iMod (inv_alloc nroot _ (parallel_add_inv' γ1 γ2 γ3 l) with "[Hauth1 Hauth2 Herr Hra Hl]") as "#I".
+    { iNext.
+      iFrame.
+      iExists 0%nat. iFrame.
+      rewrite bool_decide_eq_false_2.
+      - iExists _. iSplit; last done.
+        iApply (ec_eq with "[$]").
+        rewrite bool_decide_eq_false_2/=; last done.
+        replace (0-2)%R with (-2)%R by lra.
+        rewrite Rpower_Ropp.
+        rewrite Rdiv_1_l; f_equal.
+        rewrite /Rpower.
+        erewrite <-(exp_ln _); last lra.
+        f_equal.
+        replace (IPR 2) with (INR 2); last first.
+        { by rewrite -INR_IPR. }
+        erewrite <-ln_pow; [|lra].
+        f_equal. lra.
+      - by intros [(?&?&?)|(?&?&?)].
+    }
+    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ own γ3 Final)%I
+                (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ own γ3 Final)%I with "[Hfrag1][Hfrag2]").
+    - admit.
+    - admit.
+    - iIntros (??) "[(%n1&Hfrag1&#Hfinal) (%n2&Hfrag2&_)]".
+      iNext.
+      wp_pures.
+      iInv "I" as ">(%&%&%n&Hauth1&Hauth2&Hl&Hra&Herr)" "Hclose".
+      iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
+      iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+      wp_load.
+      iAssert (⌜(0<n)%nat⌝)%I as "%".
+      + iDestruct "Hra" as "[Hra|[_ Hra]]"; first (iCombine "Hfinal Hra" gives "%K"; by cbv in K).
+        case_bool_decide as H1; first done.
+        iDestruct "Herr" as "(%&Herr&->)".
+        iDestruct (ec_contradict with "[$]") as "[]".
+        rewrite !bool_decide_eq_true_2/=.
+        * replace (_+_-_)%R with 0%R by lra.
+          rewrite Rpower_O; lra.
+        * destruct n2; first done.
+          exfalso. apply H1. right. eexists _; split; [done|lia].
+        * destruct n1; first done.
+          exfalso. apply H1. left. eexists _; split; [done|lia].
+      + iMod ("Hclose" with "[$]") as "_".
+        iApply "HΦ".
+        by iPureIntro.
+  Admitted.
+End complex'.
