@@ -549,5 +549,22 @@ Section state_update.
   Global Instance from_assumption_state_update p E P Q :
     FromAssumption p P Q → KnownRFromAssumption p P (state_update E Q).
   Proof. rewrite /KnownRFromAssumption /FromAssumption=>->. iApply state_update_ret. Qed.
+
+
+  (** state_update works for allocation of invariants and ghost resources *)
+  Lemma state_update_inv_alloc E P N:
+    ▷ P -∗ state_update E (inv N P).
+  Proof.
+    iIntros "HP".
+    by iMod (inv_alloc with "[$]").
+  Qed.
+
+  Context {A : cmra} `{i : inG Σ A}.
+  Lemma state_update_ra_alloc E (a:A):
+    ✓ a -> ⊢ state_update E (∃ γ, own γ a).
+  Proof.
+    iIntros "%H".
+    by iMod (own_alloc).
+  Qed.
   
 End state_update.
