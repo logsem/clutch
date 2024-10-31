@@ -559,6 +559,17 @@ Section state_update.
     by iMod (inv_alloc with "[$]").
   Qed.
 
+  Lemma state_update_inv_acc P E I N:
+    ↑N ⊆ E -> inv N I -∗ (▷I -∗ state_update (E∖↑N) (P∗▷I)) -∗ state_update E P.
+  Proof.
+    iIntros (Hsubset) "#Hinv H".
+    iInv "Hinv" as "?" "Hclose".
+    iMod ("H" with "[$]") as "[??]".
+    iFrame. iMod ("Hclose" with "[$]") as "_".
+    iModIntro.
+    iApply fupd_mask_intro_subseteq; [set_solver|done].
+  Qed.
+  
   Context {A : cmra} `{i : inG Σ A}.
   Lemma state_update_ra_alloc E (a:A):
     ✓ a -> ⊢ state_update E (∃ γ, own γ a).
