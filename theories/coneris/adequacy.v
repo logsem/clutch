@@ -553,8 +553,41 @@ Section safety.
           iApply (state_step_coupl_erasure_safety with "[$]").
           iIntros (??) ">(?&?&?&?)". iApply "IH". iFrame.
       + simpl in Hlookup.
-        
-  Admitted.
+        apply elem_of_list_split_length in Hlookup as (l1 & l2 & -> & ->).
+        iDestruct "Hwps" as "[Hl1 [Hwp' Hl2]]".
+        rewrite (pgl_wp_unfold _ _ chosen_e)/pgl_wp_pre.
+        iSimpl in "Hwp'".
+        rewrite Hcheckval.
+        iMod "Hclose".
+        iMod ("Hwp'" with "[$]") as "Hlift".
+        rewrite -fupd_idemp.
+        iApply (state_step_coupl_erasure_safety'  with "[$]"); try done.
+        { simpl. by apply list_lookup_middle. }
+        iIntros (σ2 ε2). simpl. rewrite /prog_coupl. 
+        iIntros "(%R&%εa & %εb & %Hred &%Hbound & %Hineq & %Hpgl & Hlift)".
+        iApply (step_fupdN_mono _ _ _ (⌜SeriesC
+           (prim_step chosen_e σ2 ≫= λ '(e3, σ3, efs),
+                 sch_pexec sch n (ζ', (e :: <[length l1:=e3]> (l1 ++ chosen_e :: l2) ++ efs, σ3))) >=
+                                         1 - (εa + Expval (prim_step chosen_e σ2) εb)⌝)).
+        { iPureIntro. simpl in *.
+          intros. etrans; first exact.
+          apply Rle_ge.
+          apply Ropp_le_cancel.
+          rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r. }
+        iApply (safety_dbind_adv' _ _ _ _ (S n) with "[][][]").
+        * iPureIntro. eapply mixin_prim_step_mass; [apply con_language_mixin|done].
+        * iPureIntro. naive_solver.
+        * done.
+        * iIntros (((e' & σ') & efs) HR).
+          iMod ("Hlift" with "[//]").
+          simpl.
+          do 3 iModIntro.
+          iApply (state_step_coupl_erasure_safety with "[$]").
+          iIntros (??) ">(?&?&?&?)". iApply "IH". iFrame.
+          rewrite insert_app_r_alt//.
+          replace (_-_)%nat with 0%nat by lia.
+          simpl. iFrame.
+  Qed.
   
 End safety.
 
