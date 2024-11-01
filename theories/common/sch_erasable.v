@@ -12,8 +12,8 @@ Section sch_erasable.
     ∀ (sch_state:Type) `(H:Countable sch_state) (sch : scheduler (con_lang_mdp Λ) sch_state) es ζ m,
     P sch_state sch ->
     μ ≫= (λ σ', sch_exec sch m (ζ, (es, σ'))) = sch_exec sch m (ζ, (es, σ)).
-
-  Definition sch_erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
+  
+  Lemma sch_erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
     sch_erasable μ1 σ → (∀ σ', μ1 σ' > 0 → sch_erasable (μ2 σ') σ') → sch_erasable (μ1 ≫= μ2) σ.
   Proof.
     intros H1 H2.

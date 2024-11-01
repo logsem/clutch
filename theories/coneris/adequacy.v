@@ -454,6 +454,19 @@ Section safety.
       by rewrite Hmass Rmult_1_r.
   Qed.
 
+  Lemma sch_erasable_mass `{Countable sch_int_state} (ζ : sch_int_state) (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch} μ σ:
+    sch_erasable (λ (t : Type) _ _ 
+                   (sch : scheduler con_prob_lang_mdp t), TapeOblivious t sch) μ σ ->
+    SeriesC μ = 1.
+  Proof.
+    rewrite /sch_erasable.
+    intros H0.
+    cut (SeriesC (μ≫=(λ σ', sch_exec sch 0 (ζ, ([Val (#())], σ')))) = SeriesC (sch_exec sch 0 (ζ, ([Val (#())], σ)))).
+    - rewrite dbind_mass. simpl. rewrite dret_mass. rewrite SeriesC_scal_r.
+      lra.
+    - by rewrite H0.
+  Qed.
+  
   Lemma state_step_coupl_erasure_safety `{Countable sch_int_state} (ζ : sch_int_state) es σ ε Z n (sch: scheduler con_prob_lang_mdp sch_int_state) `{H0 : !TapeOblivious sch_int_state sch}:
     state_step_coupl σ ε Z -∗
     (∀ σ2 ε2, Z σ2 ε2 ={∅}=∗ |={∅}▷=>^(n)
@@ -461,6 +474,31 @@ Section safety.
     |={∅}=> |={∅}▷=>^(n)
              ⌜SeriesC (sch_pexec sch n (ζ, (es, σ))) >= 1- nonneg ε⌝.
   Proof.
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%Herasable&%&%&%&H)]]] Hcont".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro.
+      trans 0; try lra.
+      by apply Rle_ge.
+    - by iMod ("Hcont" with "[$]").
+    - iApply (step_fupdN_mono _ _ _ (⌜(∀ ε', ε<ε'-> SeriesC (sch_pexec sch n (ζ, (es, σ))) >= 1 - ε')⌝)).
+      { iPureIntro.
+        intros H1.
+        apply Rle_ge.
+        apply Rle_plus_epsilon.
+        intros eps Heps.
+        assert (SeriesC (sch_pexec sch n (ζ, (es, σ))) >= 1 - (ε+eps)) as H2.
+        - apply H1. lra.
+        - apply Rge_le in H2. rewrite Rminus_plus_distr in H2.
+          by rewrite Rcomplements.Rle_minus_l in H2.
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
+        [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
+      iApply ("H" with "[$]").
+    - admit.
+        
   Admitted.
 
   Lemma state_step_coupl_erasure_safety' `{Countable sch_int_state} (ζ : sch_int_state) e es e' σ ε Z n num (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
