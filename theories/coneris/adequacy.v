@@ -466,6 +466,15 @@ Section safety.
       lra.
     - by rewrite H0.
   Qed.
+
+  (* Lemma sch_erasable_dbind_mass `{Countable sch_int_state} (ζ : sch_int_state) (sch: scheduler con_prob_lang_mdp sch_int_state) `{H0 : !TapeOblivious sch_int_state sch} μ σ n es: *)
+  (* sch_erasable (λ (t : Type) _ _  *)
+  (*                  (sch : scheduler con_prob_lang_mdp t), TapeOblivious t sch) μ σ -> *)
+  (* SeriesC (μ≫=(λ σ', sch_pexec sch n (ζ, (es, σ')))) = SeriesC (sch_pexec sch n (ζ, (es, σ))). *)
+  (* Proof. *)
+  (*   intros H'. *)
+  (*   epose proof H' _ _ _ _ _ _ n H0 as H1. *)
+  (* Admitted. *)
   
   Lemma state_step_coupl_erasure_safety `{Countable sch_int_state} (ζ : sch_int_state) es σ ε Z n (sch: scheduler con_prob_lang_mdp sch_int_state) `{H0 : !TapeOblivious sch_int_state sch}:
     state_step_coupl σ ε Z -∗
@@ -500,6 +509,7 @@ Section safety.
     - admit.
         
   Admitted.
+
 
   Lemma state_step_coupl_erasure_safety' `{Countable sch_int_state} (ζ : sch_int_state) e es e' σ ε Z n num (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
     ((e::es)!!num = Some e') ->
