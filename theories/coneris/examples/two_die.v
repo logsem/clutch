@@ -35,6 +35,35 @@ Section lemmas.
   Qed.
 End lemmas.
 
+Section lemmas'.
+  Context `{!inG Σ (excl_authR (boolO))}.
+
+  (* Helpful lemmas *)
+  Lemma ghost_var_alloc' b :
+    ⊢ |==> ∃ γ, own γ (●E b) ∗ own γ (◯E b).
+  Proof.
+    iMod (own_alloc (●E b ⋅ ◯E b)) as (γ) "[??]".
+    - by apply excl_auth_valid.
+    - by eauto with iFrame.
+  Qed.
+
+  Lemma ghost_var_agree' γ b c :
+    own γ (●E b) -∗ own γ (◯E c) -∗ ⌜ b = c ⌝.
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    by iCombine "Hγ● Hγ◯" gives %->%excl_auth_agree_L.
+  Qed.
+
+  Lemma ghost_var_update' γ b' b c :
+    own γ (●E b) -∗ own γ (◯E c) ==∗ own γ (●E b') ∗ own γ (◯E b').
+  Proof.
+    iIntros "Hγ● Hγ◯".
+    iMod (own_update_2 _ _ _ (●E b' ⋅ ◯E b') with "Hγ● Hγ◯") as "[$$]".
+    { by apply excl_auth_update. }
+    done.
+  Qed.
+End lemmas'.
+
 Definition two_die_prog : expr :=
   let, ("v1", "v2") := ((rand #5) ||| rand #5) in
   "v1" + "v2".
@@ -238,112 +267,112 @@ Definition two_die_prog' : expr :=
     else #()));;
   !"l".
 
-Inductive ra_state:=
-|Start
-|Final
-|Invalid.
+(* Inductive ra_state:= *)
+(* |Start *)
+(* |Final *)
+(* |Invalid. *)
 
-Section ra_state.
-  Global Instance ra_state_equiv_instance: Equiv ra_state :=eq.
-  Global Instance ra_state_equiv_equivalence : Equivalence (≡@{ra_state}) := _.
-  Global Instance ra_state_leibniz_equiv : LeibnizEquiv ra_state := _.
-  Canonical ra_stateO := Ofe ra_state (discrete_ofe_mixin _).
-  Local Instance ra_state_op_instance : Op ra_state := λ s1 s2,
-                                                   match s1, s2 with
-                                                   | Final, Final => Final
-                                                   | _, _ => Invalid
-                                                   end.
+(* Section ra_state. *)
+(*   Global Instance ra_state_equiv_instance: Equiv ra_state :=eq. *)
+(*   Global Instance ra_state_equiv_equivalence : Equivalence (≡@{ra_state}) := _. *)
+(*   Global Instance ra_state_leibniz_equiv : LeibnizEquiv ra_state := _. *)
+(*   Canonical ra_stateO := Ofe ra_state (discrete_ofe_mixin _). *)
+(*   Local Instance ra_state_op_instance : Op ra_state := λ s1 s2, *)
+(*                                                    match s1, s2 with *)
+(*                                                    | Final, Final => Final *)
+(*                                                    | _, _ => Invalid *)
+(*                                                    end. *)
 
-  Local Instance ra_state_pcore_instance : PCore ra_state := λ s,
-                                                         match s with
-                                                         | Start => None
-                                                         | _ => Some s
-                                                         end.
+(*   Local Instance ra_state_pcore_instance : PCore ra_state := λ s, *)
+(*                                                          match s with *)
+(*                                                          | Start => None *)
+(*                                                          | _ => Some s *)
+(*                                                          end. *)
 
-  Local Instance ra_state_valid_instance : Valid ra_state := λ s,
-                                                         match s with
-                                                         | Start | Final => True
-                                                         | Invalid => False
-                                                         end.
+(*   Local Instance ra_state_valid_instance : Valid ra_state := λ s, *)
+(*                                                          match s with *)
+(*                                                          | Start | Final => True *)
+(*                                                          | Invalid => False *)
+(*                                                          end. *)
   
-  Lemma ra_state_ra_mixin : RAMixin ra_state.
-  Proof.
-    split.
-    - solve_proper.
-    - naive_solver.
-    - solve_proper.
-    - by intros [] [] [].
-    - by intros [] [].
-    - by intros [] [].
-    - by intros [] [].
-    - intros [] _ [] [[] ->] e; try done.
-      all: eexists; split; first done.
-      all: try by exists Invalid.
-                    by exists Final.
-                         - by intros [] [].
-  Qed.
-  Canonical Structure ra_stateR := discreteR ra_state ra_state_ra_mixin.
+(*   Lemma ra_state_ra_mixin : RAMixin ra_state. *)
+(*   Proof. *)
+(*     split. *)
+(*     - solve_proper. *)
+(*     - naive_solver. *)
+(*     - solve_proper. *)
+(*     - by intros [] [] []. *)
+(*     - by intros [] []. *)
+(*     - by intros [] []. *)
+(*     - by intros [] []. *)
+(*     - intros [] _ [] [[] ->] e; try done. *)
+(*       all: eexists; split; first done. *)
+(*       all: try by exists Invalid. *)
+(*                     by exists Final. *)
+(*                          - by intros [] []. *)
+(*   Qed. *)
+(*   Canonical Structure ra_stateR := discreteR ra_state ra_state_ra_mixin. *)
 
-  Global Instance ra_state_cmra_discrete : CmraDiscrete ra_state.
-  Proof. apply discrete_cmra_discrete. Qed.
+(*   Global Instance ra_state_cmra_discrete : CmraDiscrete ra_state. *)
+(*   Proof. apply discrete_cmra_discrete. Qed. *)
 
-End ra_state.
+(* End ra_state. *)
 
-Global Instance Start_exclusive : Exclusive Start.
-Proof. by intros []. Qed.
+(* Global Instance Start_exclusive : Exclusive Start. *)
+(* Proof. by intros []. Qed. *)
 
-Global Instance Final_core_id : CoreId Final.
-Proof. red. done. Qed.
+(* Global Instance Final_core_id : CoreId Final. *)
+(* Proof. red. done. Qed. *)
 
-Lemma ra_state_update s : s ~~> Final.
-Proof.
-  rewrite cmra_discrete_update.
-  intros mz H.
-  by destruct s, mz as [[| |]|].
-Qed.
+(* Lemma ra_state_update s : s ~~> Final. *)
+(* Proof. *)
+(*   rewrite cmra_discrete_update. *)
+(*   intros mz H. *)
+(*   by destruct s, mz as [[| |]|]. *)
+(* Qed. *)
 
-Section properties.
-  Context `{!inG Σ ra_stateR}.
+(* Section properties. *)
+(*   Context `{!inG Σ ra_stateR}. *)
   
-Lemma alloc_Start : ⊢ |==> ∃ γ, own γ Start.
-Proof.
-  iApply own_alloc.
-  done.
-Qed.
+(* Lemma alloc_Start : ⊢ |==> ∃ γ, own γ Start. *)
+(* Proof. *)
+(*   iApply own_alloc. *)
+(*   done. *)
+(* Qed. *)
 
-Lemma ra_state_valid γ (s : ra_state) : own γ s ⊢ ⌜✓ s⌝.
-Proof.
-  iIntros "H".
-  iPoseProof (own_valid with "H") as "%H".
-  done.
-Qed.
+(* Lemma ra_state_valid γ (s : ra_state) : own γ s ⊢ ⌜✓ s⌝. *)
+(* Proof. *)
+(*   iIntros "H". *)
+(*   iPoseProof (own_valid with "H") as "%H". *)
+(*   done. *)
+(* Qed. *)
 
-Lemma ra_state_bupd γ (s : ra_state) : own γ s ==∗ own γ Final.
-Proof.
-  iApply own_update.
-  apply ra_state_update.
-Qed.
+(* Lemma ra_state_bupd γ (s : ra_state) : own γ s ==∗ own γ Final. *)
+(* Proof. *)
+(*   iApply own_update. *)
+(*   apply ra_state_update. *)
+(* Qed. *)
 
-Lemma ra_state_contradict γ : own γ Start -∗ own γ Final -∗ False.
-Proof.
-  iIntros "H1 H2".
-  iCombine "H1 H2" gives "%K"; by cbv in K.
-Qed.
+(* Lemma ra_state_contradict γ : own γ Start -∗ own γ Final -∗ False. *)
+(* Proof. *)
+(*   iIntros "H1 H2". *)
+(*   iCombine "H1 H2" gives "%K"; by cbv in K. *)
+(* Qed. *)
 
-Lemma ra_state_final γ s: own γ Final -∗ own γ s -∗ ⌜s=Final⌝.
-Proof.
-  iIntros "H1 H2".
-  destruct s; [|done|].
-  all: iCombine "H1 H2" gives "%K"; by cbv in K.
-Qed.
+(* Lemma ra_state_final γ s: own γ Final -∗ own γ s -∗ ⌜s=Final⌝. *)
+(* Proof. *)
+(*   iIntros "H1 H2". *)
+(*   destruct s; [|done|]. *)
+(*   all: iCombine "H1 H2" gives "%K"; by cbv in K. *)
+(* Qed. *)
   
-End properties.
+(* End properties. *)
 
 Section simple'.
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ ra_stateR}.
+  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR boolO)}.
 
   Definition simple_parallel_add_inv' l γ :=
-    (∃ (n:nat), l ↦#n ∗ (own γ Start ∨ own γ Final ∗ ⌜(0<n)%nat⌝))%I.
+    (∃ (n:nat), l ↦#n ∗ (own γ (●E false) ∨ own γ (●E true) ∗ ⌜(0<n)%nat⌝))%I.
     
   Lemma simple_parallel_add_spec':
     {{{ ↯ (1/6) }}}
@@ -355,13 +384,13 @@ Section simple'.
     wp_pures.
     wp_alloc l as "Hl".
     wp_pures.
-    iMod (alloc_Start) as "(%γ & Hra)".
-    iMod (inv_alloc nroot _ (simple_parallel_add_inv' _ _) with "[Hra Hl]") as "#I".
+    iMod (ghost_var_alloc' false) as "(%γ & Hauth & Hfrag)".
+    iMod (inv_alloc nroot _ (simple_parallel_add_inv' _ _) with "[Hauth Hl]") as "#I".
     { iExists 0%nat. iFrame. }
-    wp_apply (wp_par (λ _, own γ Final )%I
-                (λ x, True)%I with "[Herr][]").
+    wp_apply (wp_par (λ _, own γ (◯E true) )%I
+                (λ x, True)%I with "[Herr Hfrag][]").
     - wp_apply (wp_rand_err_nat _ _ 0%nat).
-      iSplitL.
+      iSplitL "Herr".
       { iApply (ec_eq with "[$]"). simpl. lra. }
       iIntros (??).
       wp_pures.
@@ -370,17 +399,14 @@ Section simple'.
       iInv "I" as ">(%&Hl&H)" "Hclose".
       wp_faa.
       iDestruct "H" as "[H|H]".
-      + iMod (ra_state_bupd with "[$]") as "#H".
-        iMod ("Hclose" with "[Hl]"); last done.
+      + iMod (ghost_var_update' _ true with "[$][$]") as "[Hauth Hfrag]".
+        iMod ("Hclose" with "[Hl Hauth]"); last done.
         iExists (n+1)%nat. iNext.
         rewrite Nat2Z.inj_add. iFrame.
         iRight. iSplit; first done.
         iPureIntro. lia.
-      + iDestruct "H" as "[#H %]". iMod ("Hclose" with "[Hl]"); last done.
-        iExists (n+1)%nat. iNext.
-        rewrite Nat2Z.inj_add. iFrame.
-        iRight. iSplit; first done.
-        iPureIntro. lia.
+      + iDestruct "H" as "[H %]".
+        by iDestruct (ghost_var_agree' with "[$][$]") as "%".
     - wp_apply (wp_rand); first done.
       iIntros (??).
       wp_pures.
@@ -397,17 +423,17 @@ Section simple'.
     - iIntros (??) "[H _]".
       iNext.
       wp_pures.
-      iInv "I" as ">(%n&Hl&[H'|[H' %]])" "Hclose".
-      { iCombine "H H'" gives "%H". by cbv in H. }
+      iInv "I" as ">(%n&Hl&[H'|[H' %]])" "Hclose";
+        first by iDestruct (ghost_var_agree' with "[$][$]") as "%".
       wp_load.
-      iMod ("Hclose" with "[H Hl]") as "_".
+      iMod ("Hclose" with "[H' Hl]") as "_".
       + iFrame. iRight. iFrame. by iPureIntro.
       + iApply "HΦ". by iPureIntro.
   Qed.
 End simple'.
 
 Section complex'.
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ ra_stateR}.
+  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR (option natO)), !inG Σ (excl_authR (boolO))}.
 
   Definition one_positive n1 n2:=
     match (n1, n2) with
@@ -417,7 +443,7 @@ Section complex'.
 
   Definition added_1 s n:=
     match (s, n) with
-    | (Final, Some (S _)) | (Final, None)=> true
+    | (true, Some (S _)) | (true, None)=> true
     | _ => false
     end.
 
@@ -426,7 +452,7 @@ Section complex'.
       let p:= one_positive n1 n2 in
       own γ1 (●E n1) ∗ own γ2 (●E n2) ∗
       l↦#n ∗
-      own γ3 s1 ∗ own γ4 s2 ∗
+      own γ3 (●E s1) ∗ own γ4 (●E s2) ∗
       (if (added_1 s1 n1 || added_1 s2 n2) then ⌜(0<n)%nat⌝ else True) ∗
       if p
       then ↯ 0%R
@@ -443,12 +469,12 @@ Section complex'.
     iIntros (Φ) "Herr HΦ".
     iMod (ghost_var_alloc None) as (γ1) "[Hauth1 Hfrag1]".
     iMod (ghost_var_alloc None) as (γ2) "[Hauth2 Hfrag2]".
-    iMod (alloc_Start) as "(%γ3 & Hra)".
-    iMod (alloc_Start) as "(%γ4 & Hra')".
+    iMod (ghost_var_alloc' false) as (γ1') "[Hauth1' Hfrag1']".
+    iMod (ghost_var_alloc' false) as (γ2') "[Hauth2' Hfrag2']".
     rewrite /two_die_prog'.
     wp_alloc l as "Hl".
     wp_pures.
-    iMod (inv_alloc nroot _ (parallel_add_inv' γ1 γ2 γ3 γ4 l) with "[Hauth1 Hauth2 Herr Hra Hra' Hl]") as "#I".
+    iMod (inv_alloc nroot _ (parallel_add_inv' γ1 γ2 γ1' γ2' l) with "[Hauth1 Hauth2 Herr Hauth1' Hauth2' Hl]") as "#I".
     { iNext.
       iFrame.
       simpl.
@@ -468,8 +494,8 @@ Section complex'.
       erewrite <-ln_pow; [|lra].
       f_equal. lra.
     }
-    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ own γ3 Final)%I
-                (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ own γ4 Final)%I with "[Hfrag1][Hfrag2]").
+    wp_apply (wp_par (λ _, ∃ (n:nat), own γ1 (◯E (Some n)) ∗ own γ1' (◯E true))%I
+                (λ _, ∃ (n:nat), own γ2 (◯E (Some n)) ∗ own γ2' (◯E true))%I with "[Hfrag1 Hfrag1'][Hfrag2 Hfrag2']").
     - wp_bind (rand _)%E.
       iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
       iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
@@ -497,20 +523,18 @@ Section complex'.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
           wp_faa.
-          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 H Herr]") as "_".
+          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl Hra1 $Hra2 H Herr]") as "_".
           { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iExists _. iSplitR; first done.
-            iNext. destruct (added_1 Final _||_); last done.
+            iNext. destruct (added_1 true _||_); last done.
             iPureIntro. lia.
           }
           by iFrame.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra2 H $Herr]") as "_".
-          { iExists _. iSplitR; first done.
-            iNext.
+          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 $Hra2 H $Herr]") as "_".
+          { iNext.
             case_match eqn :H1; first by case_match.
             case_match eqn:H3; last done.
             assert (fin_to_nat x=0)%nat as K by lia.
@@ -557,20 +581,18 @@ Section complex'.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
           wp_faa.
-          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 H Herr]") as "_".
+          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra1 $Hra2 H Herr]") as "_".
           { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iExists _. iSplitR; first done.
-            iNext. destruct (added_1 Final _||_); last done.
+            iNext. destruct (added_1 true _||_); last done.
             iPureIntro. lia.
           }
           by iFrame.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
-          iMod (ra_state_bupd with "[$Hra1]") as "#Hra1".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra2 H $Herr]") as "_".
-          { iExists _. iSplitR; first done.
-            iNext.
+          iMod (ghost_var_update' _ true with "[$Hra1][$]") as "[Hra1 Hfrag1']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 $Hra2 H $Herr]") as "_".
+          { iNext.
             case_match eqn :H1; first by case_match.
             case_match eqn:H3; last done.
             assert (fin_to_nat x=0)%nat as K by lia.
@@ -605,19 +627,18 @@ Section complex'.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
           wp_faa.
-          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
+          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
           iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra2 $Hra1 H Herr]") as "_".
           { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iNext. destruct (_||added_1 Final _); last done.
+            iNext. destruct (_||added_1 true _); last done.
             iPureIntro. lia.
           }
           by iFrame.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 H $Herr]") as "_".
-          { iExists _. iSplitR; first done.
-            iNext.
+          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra2 $Hra1 H $Herr]") as "_".
+          { iNext.
             case_match eqn :H1; first by case_match.
             case_match eqn:H3; last done.
             assert (fin_to_nat x=0)%nat as K by lia.
@@ -664,20 +685,18 @@ Section complex'.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
           wp_faa.
-          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra1 H Herr]") as "_".
+          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 Hl $Hra1 $Hra2 H Herr]") as "_".
           { iExists (n+1)%nat. iFrame. rewrite Nat2Z.inj_add. iFrame.
-            iExists _. iSplitR; first done.
-            iNext. destruct (_||added_1 Final _); last done.
+            iNext. destruct (_||added_1 true _); last done.
             iPureIntro. lia.
           }
           by iFrame.
         * iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
           iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
-          iMod (ra_state_bupd with "[$Hra2]") as "#Hra2".
-          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 H $Herr]") as "_".
-          { iExists _. iSplitR; first done.
-            iNext.
+          iMod (ghost_var_update' _ true with "[$Hra2][$]") as "[Hra2 Hfrag2']".
+          iMod ("Hclose" with "[$Hauth1 $Hauth2 $Hl $Hra1 $Hra2 H $Herr]") as "_".
+          { iNext.
             case_match eqn :H1; first by case_match.
             case_match eqn:H3; last done.
             assert (fin_to_nat x=0)%nat as K by lia.
@@ -685,17 +704,17 @@ Section complex'.
             destruct s1, s2, n1 as [[|]|]; simplify_eq. 
           }
           by iFrame.
-    - iIntros (??) "[(%n1&Hfrag1&#Hfinal1) (%n2&Hfrag2&#Hfinal2)]".
+    - iIntros (??) "[(%n1&Hfrag1&Hfrag1') (%n2&Hfrag2&Hfrag2')]".
       iNext.
       wp_pures.
       iInv "I" as ">(%&%&%n&%s1&%s2&Hauth1&Hauth2&Hl&Hra1&Hra2&H&Herr)" "Hclose".
       iDestruct (ghost_var_agree with "[$Hauth1][$]") as "->".
       iDestruct (ghost_var_agree with "[$Hauth2][$]") as "->".
+      iDestruct (ghost_var_agree' with "[$Hra1][$]") as "->".
+      iDestruct (ghost_var_agree' with "[$Hra2][$]") as "->".
       wp_load.
       iAssert (⌜(0<n)%nat⌝)%I as "%".
-      + iDestruct (ra_state_final γ3 with "[//][$]") as "->".
-        iDestruct (ra_state_final γ4 with "[//][$]") as "->".
-        destruct n1, n2; simpl; try done.
+      + destruct n1, n2; simpl; try done.
         iDestruct "Herr" as "(%&Herr&->)".
         iDestruct (ec_contradict with "[$]") as "[]".
         simpl.
