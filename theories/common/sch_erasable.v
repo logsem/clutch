@@ -7,19 +7,52 @@ Section sch_erasable.
   Variable (P : ∀ t {Heq: EqDecision t} {Hcount: Countable t}, scheduler (con_lang_mdp Λ) t -> Prop).
   Global Arguments P (_) {_ _} (_).
 
-  
   Definition sch_erasable (μ : distr (state Λ)) σ:=
     ∀ (sch_state:Type) `(H:Countable sch_state) (sch : scheduler (con_lang_mdp Λ) sch_state) es ζ m,
     P sch_state sch ->
-    μ ≫= (λ σ', sch_exec sch m (ζ, (es, σ'))) = sch_exec sch m (ζ, (es, σ)).
+    dmap (λ x, x.2.1) (μ ≫= (λ σ', sch_pexec sch m (ζ, (es, σ')))) = dmap (λ x, x.2.1) (sch_pexec sch m (ζ, (es, σ))).
   
+  Definition sch_erasable_val (μ : distr (state Λ)) σ:=
+    ∀ (sch_state:Type) `(H:Countable sch_state) (sch : scheduler (con_lang_mdp Λ) sch_state) es ζ m,
+    P sch_state sch ->
+    μ ≫= (λ σ', sch_exec sch m (ζ, (es, σ'))) = sch_exec sch m (ζ, (es, σ)).
+
+  Lemma sch_erasable_sch_erasable_val μ σ :
+    sch_erasable μ σ -> sch_erasable_val μ σ.
+  Proof.
+    rewrite /sch_erasable/sch_erasable_val.
+    intros H0 sch_state H1 H2 sch es ζ n HP.
+    specialize (H0 sch_state H1 H2 sch es ζ n HP) as H.
+    setoid_rewrite sch_exec_pexec_relate.
+    simpl.
+    set (g:= λ es2: list (expr Λ), match option_bind _ _ to_val ((es2!!(0%nat)): option _) with | Some b => dret b | None => dzero end).
+    erewrite (distr_ext (sch_pexec _ _ _ ≫=_) (dmap (λ ρ, ρ.2.1) (sch_pexec sch n (ζ, (es, σ))) ≫= g )); last first.
+    { intros. rewrite /dmap.
+      rewrite -dbind_assoc. simpl.
+      apply dbind_pmf_ext; try done.
+      intros [? []]. rewrite dret_id_left.
+      rewrite /con_lang_mdp_to_final. intros.
+      simpl. rewrite /option_bind. done.
+    }
+    rewrite -H.
+    rewrite /dmap.
+    rewrite -!dbind_assoc. simpl.
+    apply dbind_ext_right.
+    intros. apply dbind_ext_right; try done.
+    intros [?[??]].
+    rewrite dret_id_left. simpl.
+    rewrite /option_bind. rewrite /con_lang_mdp_to_final. done.
+  Qed.
+    
   Lemma sch_erasable_dbind (μ1 : distr(state Λ)) (μ2 : state Λ → distr (state Λ)) σ:
     sch_erasable μ1 σ → (∀ σ', μ1 σ' > 0 → sch_erasable (μ2 σ') σ') → sch_erasable (μ1 ≫= μ2) σ.
   Proof.
     intros H1 H2.
     rewrite /sch_erasable.
     intros. rewrite -dbind_assoc'.
-    rewrite -H1; last done. apply dbind_eq; last naive_solver.
+    rewrite -H1; last done. rewrite /dmap.
+    rewrite -!dbind_assoc.
+    apply dbind_eq; last naive_solver.
     intros. by apply H2.
   Qed.
 
@@ -29,8 +62,10 @@ Section sch_erasable.
     P sch_state sch ->
     μ ≫= (λ σ', sch_lim_exec sch (ζ, (es, σ'))) = sch_lim_exec sch (ζ, (es, σ)).
   Proof.
-    rewrite /sch_erasable.
-    intros He HP. apply distr_ext. intros c.
+    intros Hs.
+    apply sch_erasable_sch_erasable_val in Hs as He.
+    rewrite /sch_erasable_val in He.
+    intros HP. apply distr_ext. intros c.
     rewrite /dbind{1}/pmf/dbind_pmf. simpl.
     rewrite /sch_lim_exec. rewrite lim_distr_pmf.
     assert ((Rbar.real (Lim_seq.Sup_seq (λ n : nat, Rbar.Finite (sch_exec sch n (ζ, (es, σ)) c)))) =
@@ -95,6 +130,7 @@ Section sch_erasable.
     (σ' ← μ; sch_pexec sch n (ζ, (e, σ'))) ≫= sch_lim_exec sch = sch_lim_exec sch  (ζ, (e, σ)).
   Proof.     
     intros Hμ HP.
+    apply sch_erasable_sch_erasable_val in Hμ as Hμ'.
     rewrite -(sch_erasable_sch_lim_exec μ) //.
     setoid_rewrite (sch_lim_exec_pexec sch n).
     rewrite -dbind_assoc //.
@@ -109,11 +145,12 @@ Section sch_erasable.
     rewrite /sch_erasable.
     intros Hsum H1 H2.
     intros ζ ? ? sch e m ac HP. rewrite -dbind_assoc'.
-    rewrite {1}/dbind/dbind_pmf/=.
-    apply distr_ext. intros v. rewrite {1}/pmf/=.
-    erewrite (SeriesC_ext _ (λ a : A, μ a * sch_exec sch ac (m, (e, σ)) v)).
-    { rewrite SeriesC_scal_r. rewrite Hsum. apply Rmult_1_l. }
-    intros. case_match.
+    apply distr_ext. intros v.
+    rewrite /dmap -!dbind_assoc.
+    rewrite {1}/dbind{1}/dbind_pmf{1}/pmf/=.
+    erewrite (SeriesC_ext _ (λ a : A, μ a * ((sch_pexec sch ac (m, (e, σ)) ≫= λ a : ζ * (list (expr Λ) * state Λ), dret a.2.1) v))).
+    { erewrite SeriesC_scal_r. rewrite Hsum. apply Rmult_1_l. }
+    intros. rewrite /dmap in H1 H2. case_match.
     - by rewrite H1.
     - by rewrite H2.
   Qed.
