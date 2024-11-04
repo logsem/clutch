@@ -509,10 +509,31 @@ Section safety.
       unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
         [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
       iApply ("H" with "[$]").
-    - admit.
-        
-  Admitted.
-
+    - replace (SeriesC _) with (SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ')))); last first.
+      { rewrite /sch_erasable in Herasable.
+        epose proof Herasable _ _ _ sch es ζ n _ as H4.
+        assert (SeriesC (dmap
+         (λ x, x.2.1)
+         (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ')))) =
+       SeriesC (dmap
+         (λ x, x.2.1)
+         (sch_pexec sch n (ζ, (es, σ))))) as H5.
+        - f_equal. by rewrite H4.
+        - by rewrite !dmap_mass in H5.
+      }
+      iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ'))) >= 1 - (ε1 + Expval μ ε2)⌝)).
+      { iPureIntro. intros. etrans; first exact.
+        apply Rle_ge.
+        apply Ropp_le_cancel.
+        rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r. 
+      }
+      iApply (safety_dbind_adv' _ _ _ (_)); [| |done|].
+      { iPureIntro. eapply sch_erasable_mass; last first; done. }
+      { iPureIntro. naive_solver. }
+      iIntros (a HR).
+      iMod ("H" with "[//]") as "[H _]".
+      by iMod ("H" with "[$]").
+  Qed. 
 
   Lemma state_step_coupl_erasure_safety' `{Countable sch_int_state} (ζ : sch_int_state) e es e' σ ε Z n num (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
     ((e::es)!!num = Some e') ->
