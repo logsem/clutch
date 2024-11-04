@@ -474,37 +474,6 @@ Proof.
   intros. naive_solver.
 Qed.
 
-Lemma prim_coupl_step_prim `{Hcountable:Countable sch_int_σ} m es1 σ1 α bs ζ `{HTO: TapeOblivious sch_int_σ sch} :
-  σ1.(tapes) !! α = Some bs →
-  Rcoupl
-    (sch_exec sch m (ζ, (es1, σ1)))
-    (state_step σ1 α ≫= (λ σ2, sch_exec sch m (ζ, (es1, σ2))))
-    eq.
-Proof.
-  intros Hα.
-  epose proof pexec_coupl_step_pexec _ _ _ _ _ _ Hα as H'.
-  setoid_rewrite sch_exec_pexec_relate.
-  simpl.
-  set (g:= λ es2: list expr, match option_bind _ _ to_val ((es2!!(0%nat)): option expr) with | Some b => dret b | None => dzero end).
-  erewrite (distr_ext _ (dmap (λ ρ, ρ.2.1) (sch_pexec sch m (ζ, (es1, σ1))) ≫= g )); last first.
-  { intros. rewrite /dmap.
-    rewrite -dbind_assoc. simpl.
-    apply dbind_pmf_ext; try done.
-    intros [? []]. rewrite dret_id_left.
-    rewrite /con_lang_mdp_to_final. intros.
-    simpl. rewrite /option_bind. done.
-  }
-  erewrite (distr_ext (state_step _ _ ≫= _) _).
-  - eapply Rcoupl_dbind; last exact.
-    intros. subst. apply Rcoupl_eq.
-  - intros. rewrite /dmap.
-    rewrite -!dbind_assoc. simpl.
-    apply dbind_pmf_ext; [|done|done].
-    intros. apply dbind_pmf_ext; try done.
-    intros [?[]]?.
-    rewrite dret_id_left. simpl.
-    rewrite /option_bind. done.
-Qed.
 
 Lemma state_step_sch_erasable σ1 α bs :
   σ1.(tapes) !! α = Some bs →
@@ -514,8 +483,34 @@ Proof.
   intros.
   symmetry.
   apply Rcoupl_eq_elim.
+  by eapply pexec_coupl_step_pexec.
+Qed.
+
+Lemma prim_coupl_step_prim `{Hcountable:Countable sch_int_σ} m es1 σ1 α bs ζ `{HTO: TapeOblivious sch_int_σ sch} :
+  σ1.(tapes) !! α = Some bs →
+  Rcoupl
+    (sch_exec sch m (ζ, (es1, σ1)))
+    (state_step σ1 α ≫= (λ σ2, sch_exec sch m (ζ, (es1, σ2))))
+    eq.
+Proof.
+  intros Hα.
+  erewrite (distr_ext _ _); first apply Rcoupl_eq.
+  intros.
+  erewrite sch_erasable_sch_erasable_val; [done|by eapply state_step_sch_erasable|done].
+Qed.
+
+
+Lemma state_step_sch_erasable_val σ1 α bs :
+  σ1.(tapes) !! α = Some bs →
+  sch_erasable_val (λ t Heq Hcount sch', TapeOblivious t sch') (state_step σ1 α) σ1.
+Proof.
+  intros. rewrite /sch_erasable_val.
+  intros.
+  symmetry.
+  apply Rcoupl_eq_elim.
   by eapply prim_coupl_step_prim.
 Qed.
+
 
 Lemma iterM_state_step_sch_erasable
   σ1 α bs n:
@@ -657,6 +652,7 @@ Lemma prim_coupl_step_prim_sch_erasable `{Hcountable:Countable sch_int_σ} e n e
     eq.
 Proof.
   intros H1 H2 H3 H4.
+  apply sch_erasable_sch_erasable_val in H1.
   erewrite force_first_thread_scheduler_lemma'; try done.
   eapply Rcoupl_eq_trans.
   - erewrite <-H1; last apply force_first_thread_scheduler_tape_oblivious.
