@@ -570,32 +570,33 @@ Section safety.
       unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
         [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
       iApply ("H" with "[$]").
-    -
-      admit. 
-      (* replace (SeriesC _) with (SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ')))); last first. *)
-      (* { rewrite /sch_erasable in Herasable. *)
-      (*   epose proof Herasable _ _ _ sch es ζ n _ as H4. *)
-      (*   assert (SeriesC (dmap *)
-      (*                      (λ x, x.2.1) *)
-      (*                      (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ')))) = *)
-      (*           SeriesC (dmap *)
-      (*                      (λ x, x.2.1) *)
-      (*                      (sch_pexec sch n (ζ, (es, σ))))) as H5. *)
-      (*   - f_equal. by rewrite H4. *)
-      (*   - by rewrite !dmap_mass in H5. *)
-      (* } *)
-      (* iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ'))) >= 1 - (ε1 + Expval μ ε2)⌝)). *)
-      (* { iPureIntro. intros. etrans; first exact. *)
-      (*   apply Rle_ge. *)
-      (*   apply Ropp_le_cancel. *)
-      (*   rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r.  *)
-      (* } *)
-      (* iApply (safety_dbind_adv' _ _ _ (_)); [| |done|]. *)
-      (* { iPureIntro. eapply sch_erasable_mass; last first; done. } *)
-      (* { iPureIntro. naive_solver. } *)
-      (* iIntros (a HR). *)
-      (* iMod ("H" with "[//]") as "[H _]". *)
-      (* by iMod ("H" with "[$]"). *)
+    - replace (SeriesC _) with (SeriesC (μ ≫= (λ σ', prim_step e' σ' ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))))); last first.
+      { (* rewrite /sch_erasable in Herasable. *)
+        (* epose proof Herasable _ _ _ sch es ζ n _ as H4. *)
+        assert (SeriesC (dmap
+                           (λ x, x.2.1)
+                           (μ
+     ≫= λ σ', prim_step e' σ'
+          ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3)))) =
+                SeriesC (dmap
+                           (λ x, x.2.1)
+                           (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))))) as K.
+        - unshelve epose proof prim_coupl_step_prim_pexec_sch_erasable e n es σ ζ e' num μ _ _ _ _ as K'; try done.
+          apply Rcoupl_eq_elim in K'. by rewrite K'.
+        - by rewrite !dmap_mass in K.
+      }
+      iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= (λ σ', prim_step e' σ' ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3)))) >= 1 - (ε1 + Expval μ ε2)⌝)).
+      { iPureIntro. intros. etrans; first exact.
+        apply Rle_ge.
+        apply Ropp_le_cancel.
+        rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r.
+      }
+      iApply (safety_dbind_adv' _ _ _ (_)); [| |done|].
+      { iPureIntro. eapply sch_erasable_mass; last first; done. }
+      { iPureIntro. naive_solver. }
+      iIntros (a HR).
+      iMod ("H" with "[//]") as "[H _]".
+      by iMod ("H" with "[$]").
   Qed.
   
   Lemma wp_safety_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
