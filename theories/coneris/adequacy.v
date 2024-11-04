@@ -79,7 +79,8 @@ Section adequacy.
       iIntros (ε' ?).
       unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]"; [|done..].
       pose proof cond_nonneg ε. lra.
-    - erewrite <-Herasable; last done.
+    - apply sch_erasable_sch_erasable_val in Herasable.
+      erewrite <-Herasable; last done.
       iApply (fupd_mono _ _ (⌜_⌝)%I).
       { iPureIntro.
         intros H'.
@@ -114,7 +115,8 @@ Section adequacy.
       unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
         [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
       iApply ("H" with "[$]").
-    - rewrite -Herasable.
+    - apply sch_erasable_sch_erasable_val in Herasable.
+      rewrite -Herasable.
       iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
       { iPureIntro.
         intros. eapply pgl_mon_grading; exact.
@@ -464,7 +466,8 @@ Section safety.
     cut (SeriesC (μ≫=(λ σ', sch_exec sch 0 (ζ, ([Val (#())], σ')))) = SeriesC (sch_exec sch 0 (ζ, ([Val (#())], σ)))).
     - rewrite dbind_mass. simpl. rewrite dret_mass. rewrite SeriesC_scal_r.
       lra.
-    - by rewrite H0.
+    - apply sch_erasable_sch_erasable_val in H0.
+      by rewrite H0.
   Qed.
 
   (* Lemma sch_erasable_dbind_mass `{Countable sch_int_state} (ζ : sch_int_state) (sch: scheduler con_prob_lang_mdp sch_int_state) `{H0 : !TapeOblivious sch_int_state sch} μ σ n es: *)
