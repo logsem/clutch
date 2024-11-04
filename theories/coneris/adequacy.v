@@ -545,7 +545,58 @@ Section safety.
     |={∅}=> |={∅}▷=>^(S n)
              ⌜SeriesC (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) >= 1- nonneg ε⌝.
   Proof.
-  Admitted.
+    intros ???.
+    iRevert (σ ε).
+    iApply state_step_coupl_ind.
+    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%Herasable&%&%&%&H)]]] Hcont".
+    - iApply step_fupdN_intro; first done.
+      iPureIntro.
+      trans 0; try lra.
+      by apply Rle_ge.
+    - by iMod ("Hcont" with "[$]").
+    - iApply (step_fupdN_mono _ _ _
+                (⌜(∀ ε', ε<ε'-> SeriesC (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) >= 1 - ε')⌝)).
+      { iPureIntro.
+        intros K1.
+        apply Rle_ge.
+        apply Rle_plus_epsilon.
+        intros eps Heps.
+        assert (SeriesC (prim_step e' σ ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3))) >= 1 - (ε+eps)) as K2.
+        - apply K1. lra.
+        - apply Rge_le in K2. rewrite Rminus_plus_distr in K2.
+          by rewrite Rcomplements.Rle_minus_l in K2.
+      }
+      iIntros (ε' ?).
+      unshelve iDestruct ("H" $! (mknonnegreal ε' _) with "[]") as "[H _]";
+        [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
+      iApply ("H" with "[$]").
+    -
+      admit. 
+      (* replace (SeriesC _) with (SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ')))); last first. *)
+      (* { rewrite /sch_erasable in Herasable. *)
+      (*   epose proof Herasable _ _ _ sch es ζ n _ as H4. *)
+      (*   assert (SeriesC (dmap *)
+      (*                      (λ x, x.2.1) *)
+      (*                      (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ')))) = *)
+      (*           SeriesC (dmap *)
+      (*                      (λ x, x.2.1) *)
+      (*                      (sch_pexec sch n (ζ, (es, σ))))) as H5. *)
+      (*   - f_equal. by rewrite H4. *)
+      (*   - by rewrite !dmap_mass in H5. *)
+      (* } *)
+      (* iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ'))) >= 1 - (ε1 + Expval μ ε2)⌝)). *)
+      (* { iPureIntro. intros. etrans; first exact. *)
+      (*   apply Rle_ge. *)
+      (*   apply Ropp_le_cancel. *)
+      (*   rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r.  *)
+      (* } *)
+      (* iApply (safety_dbind_adv' _ _ _ (_)); [| |done|]. *)
+      (* { iPureIntro. eapply sch_erasable_mass; last first; done. } *)
+      (* { iPureIntro. naive_solver. } *)
+      (* iIntros (a HR). *)
+      (* iMod ("H" with "[//]") as "[H _]". *)
+      (* by iMod ("H" with "[$]"). *)
+  Qed.
   
   Lemma wp_safety_step_fupdN `{Countable sch_int_state} (ζ : sch_int_state) (ε : nonnegreal)
     (e : expr) es (σ : state) n φ (sch: scheduler con_prob_lang_mdp sch_int_state) `{!TapeOblivious sch_int_state sch}:
