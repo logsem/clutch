@@ -40,12 +40,11 @@ Section modalities.
       ⌜(1<=ε)%R⌝ ∨
         Z σ1 ε ∨
         (∀ (ε':nonnegreal), ⌜(ε<ε')%R⌝ -∗ Φ (σ1, ε')) ∨
-      (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+      (∃ μ (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + Expval μ ε2 <= ε)%R ⌝ ∗
-          ⌜pgl μ R ε1⌝ ∗
-          ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ Φ (σ2, ε2 σ2)))%I.
+          ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗
+          ∀ σ2, |={∅}=> Φ (σ2, ε2 σ2)))%I.
 
     
   #[local] Instance state_step_coupl_pre_ne Z Φ :
@@ -59,7 +58,7 @@ Section modalities.
   Proof.
     split; [|apply _].
     iIntros (Φ Ψ HNEΦ HNEΨ) "#Hwand".
-    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&%&%&%&H)]]]".
+    iIntros ([??]) "[H|[?|[H|(%&%&%&%&%&H)]]]".
     - by iLeft.
     - iRight; by iLeft.
     - iRight; iRight; iLeft.
@@ -68,7 +67,7 @@ Section modalities.
       by iApply "H".
     - do 3 iRight.
       repeat iExists _; repeat (iSplit; [done|]).
-      iIntros (??).
+      iIntros (?).
       iApply "Hwand".
       by iApply "H".
   Qed.
@@ -81,12 +80,11 @@ Section modalities.
       (⌜(1 <= ε)%R⌝ ∨
          (Z σ1 ε) ∨
          (∀ ε', ⌜(ε<ε')%R⌝ -∗ state_step_coupl σ1 ε' Z) ∨
-      (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+      (∃ μ (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
-          ⌜pgl μ R ε1⌝ ∗
-          ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ state_step_coupl σ2 (ε2 σ2) Z))%I.
+          ⌜ (SeriesC (λ ρ, (μ ρ) * ε2 ρ) <= ε)%R ⌝ ∗
+          ∀ σ2, |={∅}=> state_step_coupl σ2 (ε2 σ2) Z))%I.
   Proof. rewrite /state_step_coupl /state_step_coupl' least_fixpoint_unfold //. Qed.
 
   Lemma state_step_coupl_ret_err_ge_1 σ1 Z (ε : nonnegreal) :
@@ -115,6 +113,76 @@ Section modalities.
   Qed. 
 
   Lemma state_step_coupl_rec σ1 (ε : nonnegreal) Z :
+    (∃ μ (ε2 : state con_prob_lang -> nonnegreal),
+          ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+          ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗
+          ∀ σ2, |={∅}=> state_step_coupl σ2 (ε2 σ2) Z)%I
+    ⊢ state_step_coupl σ1 ε Z.
+  Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed.
+
+  Lemma state_step_coupl_rec_equiv σ1 (ε : nonnegreal) Z :
+    (∃ μ (ε2 : state con_prob_lang -> nonnegreal),
+        ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+                    ⌜ (Expval μ ε2 <= ε)%R ⌝ ∗
+                    ∀ σ2, |={∅}=> state_step_coupl σ2 (ε2 σ2) Z)%I ⊣⊢
+    (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
+        ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
+        ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+                    ⌜ (ε1 + Expval μ ε2 <= ε)%R ⌝ ∗
+                    ⌜pgl μ R ε1⌝ ∗
+                    ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ state_step_coupl σ2 (ε2 σ2) Z)%I.
+  Proof.
+    iSplit.
+    - iIntros "H".
+      iDestruct "H" as "(%μ & %ε2 & % & [%r %] & %Hineq  &H)".
+      iExists (λ _, True), μ, 0, (λ σ, if bool_decide (μ σ > 0)%R then ε2 σ else 1).
+      repeat iSplit; first done.
+      + iPureIntro. exists (Rmax r 1).
+        intros; case_bool_decide.
+        * etrans; last apply Rmax_l. done.
+        * simpl. apply Rmax_r.
+      + simpl. iPureIntro. rewrite Rplus_0_l. etrans; last exact.
+        rewrite /Expval. apply Req_le.
+        apply SeriesC_ext.
+        intros n. case_bool_decide; first done.
+        destruct (pmf_pos μ n) as [K|K].
+        * exfalso. apply Rlt_gt in K. naive_solver.
+        * simpl. rewrite -K. lra.
+      + iPureIntro. by apply pgl_trivial.
+      + iIntros. case_bool_decide; first done.
+        by iApply state_step_coupl_ret_err_ge_1.
+    - iIntros "H".
+      iDestruct "H" as "(%R & %μ & %ε1 & %ε2 & % & [%r %] & %Hineq & %Hpgl &H)".
+      iExists μ, (λ σ, if bool_decide(R σ) then ε2 σ else 1).
+      repeat iSplit; try done.
+      + iPureIntro. exists (Rmax r 1).
+        intros; case_bool_decide.
+        * etrans; last apply Rmax_l. done.
+        * simpl. apply Rmax_r.
+      + rewrite /Expval in Hineq. rewrite /Expval. iPureIntro.
+        rewrite /pgl/prob in Hpgl. etrans; last exact.
+        etrans; last (apply Rplus_le_compat_r; exact).
+        rewrite -SeriesC_plus.
+        * apply SeriesC_le.
+          -- intros. split; first (case_bool_decide; real_solver).
+             case_bool_decide; simpl; try lra.
+             rewrite Rmult_1_r. apply Rplus_le_0_compat.
+             real_solver.
+          -- apply ex_seriesC_plus.
+             ++ apply (ex_seriesC_le _ μ); last done.
+                intros. case_bool_decide; by simpl.
+             ++ apply pmf_ex_seriesC_mult_fn. naive_solver.
+        * apply (ex_seriesC_le _ μ); last done.
+          intros. case_bool_decide; by simpl.
+        * apply pmf_ex_seriesC_mult_fn. naive_solver.
+      + iIntros. case_bool_decide.
+        * iApply ("H" with "[//]").
+        * by iApply state_step_coupl_ret_err_ge_1.
+  Qed.
+
+  Lemma state_step_coupl_rec' σ1 (ε : nonnegreal) Z :
     (∃ R μ (ε1 : nonnegreal) (ε2 : state con_prob_lang -> nonnegreal),
           ⌜ sch_erasable (λ t _ _ sch, TapeOblivious t sch) μ σ1 ⌝ ∗
           ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
@@ -122,7 +190,10 @@ Section modalities.
           ⌜pgl μ R ε1⌝ ∗
           ∀ σ2, ⌜ R σ2 ⌝ ={∅}=∗ state_step_coupl σ2 (ε2 σ2) Z)%I
     ⊢ state_step_coupl σ1 ε Z.
-  Proof. iIntros "H". rewrite state_step_coupl_unfold. repeat iRight. done. Qed.
+  Proof.
+    iIntros. iApply state_step_coupl_rec. by rewrite state_step_coupl_rec_equiv.
+  Qed.
+      
 
   Lemma state_step_coupl_ind (Ψ Z : state con_prob_lang → nonnegreal → iProp Σ) :
     ⊢ (□ (∀ σ ε,
@@ -145,7 +216,7 @@ Section modalities.
     (|={∅}=> state_step_coupl σ1 ε Z) ⊢ state_step_coupl σ1 ε Z.
   Proof.
     iIntros "H".
-    iApply state_step_coupl_rec.
+    iApply state_step_coupl_rec'.
     iExists (λ x, x= σ1), (dret σ1), nnreal_zero, (λ _, ε).
     repeat iSplit.
     - iPureIntro. apply dret_sch_erasable.
@@ -166,7 +237,7 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [? | [H|(% & % & % & % & % & % & % & % & H)]]] Hw".
+      "[% | [? | [H|(% & % & % & % & % & H)]]] Hw".
     - iApply state_step_coupl_ret_err_ge_1. lra.
     - iApply state_step_coupl_ret. by iApply "Hw".
     - iApply state_step_coupl_ampl.
@@ -175,8 +246,8 @@ Section modalities.
     - iApply state_step_coupl_rec.
       repeat iExists _.
       repeat iSplit; try done.
-      iIntros (??).
-      iMod ("H" with "[//]") as "[IH _]".
+      iIntros (?).
+      iMod ("H" $! σ2) as "[IH _]".
       by iApply "IH".
   Qed.
 
@@ -184,7 +255,7 @@ Section modalities.
     (ε1 <= ε2)%R → state_step_coupl σ1 ε1 Z -∗ state_step_coupl σ1 ε2 Z.
   Proof.
     iIntros (Heps) "Hs".
-    iApply state_step_coupl_rec.
+    iApply state_step_coupl_rec'.
     set (ε' := nnreal_minus ε2 ε1 Heps).
     iExists (λ x, x=σ1), (dret σ1), nnreal_zero, (λ _, ε1).
     repeat iSplit.
@@ -205,7 +276,7 @@ Section modalities.
     iRevert (σ1 ε) "Hs".
     iApply state_step_coupl_ind.
     iIntros "!#" (σ ε)
-      "[% | [H | [H|(% & % & % & % & % & % & % & % & H)]]] HZ".
+      "[% | [H | [H|(% & % & % & % & % & H)]]] HZ".
     - by iApply state_step_coupl_ret_err_ge_1.
     - iApply ("HZ" with "H").
     - iApply state_step_coupl_ampl.
@@ -215,8 +286,8 @@ Section modalities.
     - iApply state_step_coupl_rec.
       repeat iExists _.
       repeat iSplit; try done.
-      iIntros (??).
-      iMod ("H" with "[//]") as "[H _]".
+      iIntros (?).
+      iMod ("H" $! _) as "[H _]".
       by iApply "H".
   Qed.
   
@@ -227,7 +298,7 @@ Section modalities.
     ⊢ state_step_coupl σ1 (ε + ε') Z.
   Proof.
     iIntros (Hin) "(%R&%&H)".
-    iApply state_step_coupl_rec.
+    iApply state_step_coupl_rec'.
     iExists R, (state_step σ1 α), ε, (λ _, ε').
     repeat iSplit; try done.
     - iPureIntro.
@@ -249,7 +320,7 @@ Section modalities.
       ⊢ state_step_coupl σ1 ε Z)%I.
   Proof.
     iIntros (Hin) "(%R & %ε1 & %ε2 & % & %Hε & % & H)".
-    iApply state_step_coupl_rec.
+    iApply state_step_coupl_rec'.
     iExists R, _, ε1, ε2.
     repeat iSplit; try done.
     - iPureIntro.
@@ -278,6 +349,17 @@ Section modalities.
   (** * One step prog coupl *)
 
   Definition prog_coupl e1 σ1 ε Z : iProp Σ :=
+    (∃ (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
+           ⌜reducible e1 σ1⌝ ∗
+           ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
+           ⌜(Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗
+           (∀ e2 σ2 efs, |={∅}=>
+                         Z e2 σ2 efs (ε2 (e2, σ2, efs)))
+       )%I.
+  
+  Definition prog_coupl_equiv1 e1 σ1 ε Z:
+    (∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+    prog_coupl e1 σ1 ε Z -∗
     (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
            ⌜reducible e1 σ1⌝ ∗
            ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
@@ -285,8 +367,66 @@ Section modalities.
            ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
            (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
                          Z e2 σ2 efs (ε2 (e2, σ2, efs)))
-       )%I.
-  
+    )%I.
+  Proof.
+    rewrite /prog_coupl.
+    iIntros "H1 H".
+    iDestruct "H" as "(%ε2 & % & [%r %] & %Hineq  &H)".
+    iExists (λ _, True), 0, (λ x, if bool_decide (prim_step e1 σ1 x > 0)%R then ε2 x else 1).
+    repeat iSplit; first done.
+    - iPureIntro. exists (Rmax r 1).
+      intros; case_bool_decide.
+      + etrans; last apply Rmax_l. done.
+      + simpl. apply Rmax_r.
+    - simpl. iPureIntro. rewrite Rplus_0_l. etrans; last exact.
+      rewrite /Expval. apply Req_le.
+      apply SeriesC_ext.
+      intros n. case_bool_decide; first done.
+      destruct (pmf_pos (prim_step e1 σ1) n) as [K|K].
+      + exfalso. apply Rlt_gt in K. naive_solver.
+      + simpl. rewrite -K. lra.
+    - iPureIntro. by apply pgl_trivial.
+    - iIntros. case_bool_decide; done.
+  Qed.
+
+  Definition prog_coupl_equiv2 e1 σ1 ε Z:
+    (∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+    (∃ R (ε1 : nonnegreal) (ε2 : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal),
+        ⌜reducible e1 σ1⌝ ∗
+        ⌜∃ r, ∀ ρ, (ε2 ρ <= r)%R ⌝ ∗
+                   ⌜(ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R⌝ ∗
+                   ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
+                   (∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗
+                                 Z e2 σ2 efs (ε2 (e2, σ2, efs)))
+    )%I-∗
+    prog_coupl e1 σ1 ε Z.
+    iIntros "H1 H".
+    iDestruct "H" as "(%R & %ε1 & %ε2 & % & [%r %] & %Hineq & %Hpgl &H)".
+    iExists (λ σ, if bool_decide(R σ) then ε2 σ else 1).
+    repeat iSplit; try done.
+    - iPureIntro. exists (Rmax r 1).
+      intros; case_bool_decide.
+      + etrans; last apply Rmax_l. done.
+      + simpl. apply Rmax_r.
+    - rewrite /Expval in Hineq. rewrite /Expval. iPureIntro.
+      rewrite /pgl/prob in Hpgl. etrans; last exact.
+      etrans; last (apply Rplus_le_compat_r; exact).
+      rewrite -SeriesC_plus.
+      + apply SeriesC_le.
+        * intros. split; first (case_bool_decide; real_solver).
+          case_bool_decide; simpl; try lra.
+          rewrite Rmult_1_r. apply Rplus_le_0_compat.
+          real_solver.
+        * apply ex_seriesC_plus.
+          -- apply (ex_seriesC_le _ (prim_step e1 σ1)); last done.
+             intros. case_bool_decide; by simpl.
+          -- apply pmf_ex_seriesC_mult_fn. naive_solver.
+      + apply (ex_seriesC_le _ (prim_step e1 σ1)); last done.
+        intros. case_bool_decide; by simpl.
+      + apply pmf_ex_seriesC_mult_fn. naive_solver.
+    - iIntros. case_bool_decide; last done.
+      iApply ("H" with "[//]").
+  Qed. 
   (* Definition glm_pre *)
   (*   (Z : (expr con_prob_lang * state con_prob_lang * list (expr con_prob_lang)) -> nonnegreal -> iProp Σ) (Φ : partial_cfg con_prob_lang * nonnegreal -> iProp Σ) := *)
   (*   (λ (x : partial_cfg con_prob_lang * nonnegreal), *)
@@ -366,7 +506,7 @@ Section modalities.
   Lemma prog_coupl_mono_err e σ Z ε ε':
     (ε<=ε')%R -> prog_coupl e σ ε Z -∗ prog_coupl e σ ε' Z.
   Proof.
-    iIntros (?) "(%&%&%&%&%&%&%&H)".
+    iIntros (?) "(%&%&%&%&H)".
     repeat iExists _.
     repeat iSplit; try done.
     iPureIntro.
@@ -374,19 +514,30 @@ Section modalities.
   Qed.
 
   Lemma prog_coupl_strong_mono e1 σ1 Z1 Z2 ε :
+    □(∀ e2 σ2 efs, Z2 e2 σ2 efs 1) -∗
     (∀ e2 σ2 ε' efs, ⌜∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R⌝ ∗ Z1 e2 σ2 efs ε' -∗ Z2 e2 σ2 efs ε') -∗
     prog_coupl e1 σ1 ε Z1 -∗ prog_coupl e1 σ1 ε Z2.
   Proof.
-    iIntros "Hm (%&%&%&%&%&%&% & Hcnt) /=".
-    repeat iExists _. repeat iSplit.
+    iIntros "#H1 Hm (%&%&[%r %]&%Hineq & Hcnt) /=".
+    rewrite /prog_coupl.
+    iExists (λ x, if bool_decide (∃ σ, prim_step e1 σ x >0)%R then ε2 x else 1).
+    repeat iSplit.
     - done.
-    - done.
-    - done.
-    - iPureIntro; by apply pgl_pos_R.
-    - simpl. iIntros (???[??]).
-      iApply "Hm".
-      iSplitR; [by iExists _|].
-      by iApply "Hcnt".
+    - iPureIntro. exists (Rmax r 1).
+      intros; case_bool_decide.
+      + etrans; last apply Rmax_l. done.
+      + simpl. apply Rmax_r.
+    - rewrite /Expval in Hineq. rewrite /Expval. iPureIntro.
+      rewrite /Expval. etrans; last exact. apply Req_le.
+      apply SeriesC_ext.
+      intros n. case_bool_decide; first done.
+      destruct (pmf_pos (prim_step e1 σ1) n) as [K|K].
+      + exfalso. apply Rlt_gt in K. naive_solver.
+      + simpl. rewrite -K. lra.
+    - simpl. iIntros (???).
+      case_bool_decide; last done.
+      iApply "Hm". iMod ("Hcnt" $! _ _ _).
+      by iFrame.
   Qed.
 
   Lemma prog_coupl_mono e1 σ1 Z1 Z2 ε :
@@ -394,8 +545,10 @@ Section modalities.
     prog_coupl e1 σ1 ε Z1 -∗ prog_coupl e1 σ1 ε Z2.
   Proof.
     iIntros "Hm".
-    iApply prog_coupl_strong_mono.
-    iIntros (????) "[_ H]". by iApply "Hm".
+    rewrite /prog_coupl.
+    iIntros "(%&%&%&%&?)".
+    repeat iExists _; repeat iSplit; try done.
+    iIntros. by iApply "Hm".
   Qed.
   
   (* Lemma glm_mono_grading e σ Z ε ε' : *)
@@ -498,10 +651,33 @@ Section modalities.
   (* Qed. *)
 
   Lemma prog_coupl_strengthen e1 σ1 Z ε :
+    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
     prog_coupl e1 σ1 ε Z -∗
-    prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', ⌜∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R⌝ ∧ Z e2 σ2 efs ε').
+    prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', ⌜(∃ σ, (prim_step e1 σ (e2, σ2, efs) > 0)%R)\/ (1<=ε')%R⌝ ∧ Z e2 σ2 efs ε').
   Proof.
-    iApply prog_coupl_strong_mono. iIntros (????) "[$ $]".
+    iIntros "#Hmono (%&%&[%r %]&%Hineq & Hcnt) /=".
+    rewrite /prog_coupl.
+    iExists (λ x, if bool_decide (∃ σ, prim_step e1 σ x >0)%R then ε2 x else 1).
+    repeat iSplit.
+    - done.
+    - iPureIntro. exists (Rmax r 1).
+      intros; case_bool_decide.
+      + etrans; last apply Rmax_l. done.
+      + simpl. apply Rmax_r.
+    - rewrite /Expval in Hineq. rewrite /Expval. iPureIntro.
+      rewrite /Expval. etrans; last exact. apply Req_le.
+      apply SeriesC_ext.
+      intros n. case_bool_decide; first done.
+      destruct (pmf_pos (prim_step e1 σ1) n) as [K|K].
+      + exfalso. apply Rlt_gt in K. naive_solver.
+      + simpl. rewrite -K. lra.
+    - simpl. iIntros (???).
+      case_bool_decide.
+      + iMod ("Hcnt" $! _ _ _).
+        iFrame. iPureIntro. naive_solver.
+      + iMod ("Hcnt" $! e2 σ2 efs ).
+        iModIntro. iSplit; last iApply "Hmono".
+        iPureIntro. naive_solver.
   Qed.
   
   (* Lemma glm_strengthen e1 σ1 Z ε : *)
@@ -516,7 +692,7 @@ Section modalities.
     to_val e1 = None ->
     prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', Z (K e2) σ2 efs ε') -∗ prog_coupl (K e1) σ1 ε Z.
   Proof.
-    iIntros (Hv) "(%R&%ε1&%ε2&%&[%r %]&%&%&H)".
+    iIntros (Hv) "(%ε2&%&[%r %]&%&H)".
     
     (** (classical) inverse of context [K] *)
     destruct (partial_inv_fun K) as (Kinv & HKinv).
@@ -527,7 +703,8 @@ Section modalities.
     set (ε2' := (λ '(e, σ, efs), from_option (λ e', ε2 (e', σ, efs)) 0%NNR (Kinv e))).
     assert (∀ e2 σ2 efs, ε2' (K e2, σ2, efs) = ε2 (e2, σ2, efs)) as Hε2'.
     { intros. rewrite /ε2' HKinv3 //. }
-    iExists (λ '(e2, σ2, efs), ∃ e2', e2 = K e2' /\ R (e2', σ2, efs)), ε1, ε2'.
+    (* iExists (λ '(e2, σ2, efs), ∃ e2', e2 = K e2' /\ R (e2', σ2, efs)), ε1, ε2'. *)
+    iExists ε2'.
     repeat iSplit; try iPureIntro.
     - by apply reducible_fill.
     - rewrite /ε2'. eexists (Rmax 0%R r).
@@ -538,18 +715,17 @@ Section modalities.
     - rewrite fill_dmap// Expval_dmap//=; last first.
       + eapply ex_expval_bounded. simpl. intros [[??]?] => /=. by rewrite HKinv3/=.
       + etrans; last done.
-        apply Rle_plus_plus; first done.
-        right.
+        rewrite /Expval. apply Req_le.
         apply SeriesC_ext.
         intros [[??]?]. simpl. by rewrite HKinv3/=.
-    - rewrite fill_dmap//.
-      replace (ε1) with (ε1+0)%NNR; last (apply nnreal_ext; simpl; lra).
-      eapply pgl_dbind; try done.
-      intros a ?. apply pgl_dret.
-      destruct a as [[??]?] => /=.
-      naive_solver.
-    - iIntros (???(?&->&?)).
-      rewrite /ε2'. rewrite HKinv3/=.
+    (* - rewrite fill_dmap//. *)
+    (*   replace (ε1) with (ε1+0)%NNR; last (apply nnreal_ext; simpl; lra). *)
+    (*   eapply pgl_dbind; try done. *)
+    (*   intros a ?. apply pgl_dret. *)
+    (*   destruct a as [[??]?] => /=. *)
+    (*   naive_solver. *)
+    - iIntros (???).
+      rewrite /ε2'. simpl. rewrite HKinv3/=.
       by iApply "H".
   Qed.
 
