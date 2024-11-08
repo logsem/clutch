@@ -168,7 +168,7 @@ Proof.
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?& -> & He).
   iApply state_step_coupl_ret.
-  iApply prog_coupl_prim_step. 
+  iApply prog_coupl_prim_step; first (iModIntro; iIntros; by iApply state_step_coupl_ret_err_ge_1).
   iExists
       (λ ρ ,
         ∃ (n : fin (S (Z.to_nat z))), n ≠ m /\ ρ = (Val #n, σ1, [])), _, _.
@@ -220,7 +220,7 @@ Proof.
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
   iApply state_step_coupl_ret.
-  iApply prog_coupl_prim_step.
+  iApply prog_coupl_prim_step; first (iModIntro; iIntros; by iApply state_step_coupl_ret_err_ge_1).
   iExists
       (λ ρ ,
         ∃ (n : fin (S (Z.to_nat z))), fin_to_nat n ≠ m /\ ρ = (Val #n, σ1, [])),_,_.
@@ -268,7 +268,7 @@ Proof.
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(?&?&->&He).
   iApply state_step_coupl_ret.
-  iApply prog_coupl_prim_step.
+  iApply prog_coupl_prim_step; first (iModIntro; iIntros; by iApply state_step_coupl_ret_err_ge_1).
   iExists
     (λ ρ ,
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, fin_to_nat n ≠ m) ns /\ ρ = (Val #n, σ1, [])),_,_.
@@ -314,7 +314,7 @@ Proof.
   iIntros "Hclose'".
   iDestruct (ec_supply_ec_inv with "Hε Herr ") as %(?&?&->&He).
   iApply state_step_coupl_ret.
-  iApply prog_coupl_prim_step.
+  iApply prog_coupl_prim_step; first (iModIntro; iIntros; by iApply state_step_coupl_ret_err_ge_1).
   iExists
     (λ ρ,
       ∃ (n : fin (S (Z.to_nat z))), Forall (λ m, Z.of_nat (fin_to_nat n) ≠ m) zs /\ ρ = (Val #n, σ1, [])),_,_.
@@ -412,7 +412,7 @@ Proof.
   iApply fupd_mask_intro; [set_solver|].
   iIntros "Hclose'".
   iApply state_step_coupl_ret.
-  iApply prog_coupl_adv_comp; simpl.
+  iApply prog_coupl_adv_comp; simpl; first (iModIntro; iIntros; by iApply state_step_coupl_ret_err_ge_1).
   (* iDestruct (ec_supply_bound with "Hε Herr") as %?. *)
   iDestruct (ec_supply_ec_inv with "Hε Herr") as %(ε1' & ε3 & Hε_now & Hε1').
   unshelve eset (foo := (λ (ρ : expr * state * list expr),

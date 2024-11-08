@@ -21,33 +21,32 @@ Section adequacy.
   Proof. iSplit; iIntros; simpl; iApply fupd_idemp; iFrame. Qed.
   
   Lemma pgl_dbind' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
+    (f : A → distr A') (μ : distr A) (T : A' → Prop) ε' n :
     ⌜ 0 <= ε' ⌝ -∗
-    ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}=∗ |={∅}▷=>^(n) ⌜pgl (f a) T ε'⌝) -∗
-    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + ε')⌝ : iProp Σ.
+    (∀ a , |={∅}=>|={∅}▷=>^(n) ⌜pgl (f a) T ε'⌝) -∗
+    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε')⌝ : iProp Σ.
   Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T ε')⌝)).
-    { iIntros (?). iPureIntro. eapply pgl_dbind; eauto. }
-    iIntros (???) "/=".
-    iApply ("H" with "[//]"). 
+    iIntros (?) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a, pgl (f a) T ε')⌝)).
+    { iIntros (?). iPureIntro.
+      rewrite <-Rplus_0_l. eapply pgl_dbind; try done.
+      by apply pgl_trivial. }
+    iIntros (?) "/=".
+    iApply "H". 
   Qed.
   
   Lemma pgl_dbind_adv' `{Countable A, Countable A'}
-    (f : A → distr A') (μ : distr A) (R : A → Prop) (T : A' → Prop) ε ε' n :
-    ⌜ 0 <= ε ⌝ -∗
+    (f : A → distr A') (μ : distr A) (T : A' → Prop) ε' n :
     ⌜ exists r, forall a, 0 <= ε' a <= r ⌝ -∗
-    ⌜pgl μ R ε⌝ -∗
-    (∀ a , ⌜R a⌝ ={∅}=∗ |={∅}▷=>^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
-    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T (ε + Expval μ ε')⌝ : iProp Σ.
+    (∀ a , |={∅}=> |={∅}▷=>^(n) ⌜pgl (f a) T (ε' a)⌝) -∗
+    |={∅}=> |={∅}▷=>^(n) ⌜pgl (dbind f μ) T ( Expval μ ε')⌝ : iProp Σ.
   Proof.
-    iIntros (???) "H".
-    iApply (step_fupdN_mono _ _ _ (⌜(∀ a b, R a → pgl (f a) T (ε' a))⌝)).
-    { iIntros (?). iPureIntro. eapply pgl_dbind_adv; eauto. }
-    iIntros (???) "/=".
-    iApply ("H" with "[//]").
+    iIntros (?) "H".
+    iApply (step_fupdN_mono _ _ _ (⌜(∀ a, pgl (f a) T (ε' a))⌝)).
+    { iIntros (?). iPureIntro. rewrite <-Rplus_0_l. eapply pgl_dbind_adv; try done.
+      by apply pgl_trivial.
+    }
+    by iIntros (?) "/=".
   Qed.
 
   Lemma wp_adequacy_val_fupd `{Countable sch_int_state}  (ζ : sch_int_state) e es (sch: scheduler con_prob_lang_mdp sch_int_state) n v σ ε φ `{!TapeOblivious sch_int_state sch}:
@@ -63,7 +62,7 @@ Section adequacy.
     iRevert (σ ε) "H".
     iApply state_step_coupl_ind.
     iModIntro.
-    iIntros (??) "[%|[>(_&_&%)|[H|(%R&%μ&%&%&%Herasable&%&%Hineq&%Hpgl&H)]]]".
+    iIntros (??) "[%|[>(_&_&%)|[H|(%μ&%&%Herasable&%&%Hineq&H)]]]".
     - iPureIntro. by apply pgl_1.
     - iApply fupd_mask_intro; first done.
       iIntros "_".
@@ -85,11 +84,11 @@ Section adequacy.
       { iPureIntro.
         intros H'.
         eapply pgl_mon_grading; first apply Hineq.
-        eapply pgl_dbind_adv; [auto| |exact H'|exact].
-        naive_solver.
+        rewrite <-Rplus_0_l.
+        eapply pgl_dbind_adv; [| |exact H'|by apply pgl_trivial]; naive_solver.
       }
       iIntros (??).
-      by iMod ("H" with "[//]") as "[? _]".
+      by iMod ("H" $! _) as "[? _]".
   Qed.
 
   Lemma state_step_coupl_erasure `{Countable sch_int_state} (ζ : sch_int_state) es σ ε Z n (sch: scheduler con_prob_lang_mdp sch_int_state) φ `{H0 : !TapeOblivious sch_int_state sch}:
@@ -101,7 +100,7 @@ Section adequacy.
   Proof.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%Herasable&%&%&%&H)]]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|[H|(%μ&%&%Herasable&%&%Hineq&H)]]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       by apply pgl_1.
@@ -117,13 +116,13 @@ Section adequacy.
       iApply ("H" with "[$]").
     - apply sch_erasable_sch_erasable_val in Herasable.
       rewrite -Herasable.
-      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
+      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_)⌝)%I).
       { iPureIntro.
-        intros. eapply pgl_mon_grading; exact.
+        intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
       }
-      iApply (pgl_dbind_adv' with "[][][][-]"); [done|naive_solver|done|].
-      iIntros (??).
-      iMod ("H" with "[//]") as "[H _]".
+      iApply (pgl_dbind_adv' with "[][-]"); first (iPureIntro; naive_solver).
+      iIntros (?).
+      iMod ("H"$!_) as "[H _]".
       simpl.
       iApply ("H" with "[$]").
   Qed.
@@ -141,7 +140,7 @@ Section adequacy.
     intros ???.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%&%&%&%&H)]]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|[H|(%μ&%&%Herasable&%&%Hineq&H)]]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       by apply pgl_1.
@@ -156,13 +155,13 @@ Section adequacy.
         [pose proof cond_nonneg ε; simpl in *; lra|done|simpl].
       iApply ("H" with "[$]").
     - unshelve erewrite (Rcoupl_eq_elim _ _ (prim_coupl_step_prim_sch_erasable _ _ _ _ _ _ _ μ _ _ _ _)); [done..|].
-      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
+      iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I).
       { iPureIntro.
-        intros. eapply pgl_mon_grading; exact.
+        intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
       }
-      iApply (pgl_dbind_adv'); [done|naive_solver|done|].
-      iIntros (??).
-      iMod ("H" with "[//]") as "[H _]".
+      iApply (pgl_dbind_adv'); first (iPureIntro; naive_solver).
+      iIntros (?).
+      iMod ("H" $! _) as "[H _]".
       simpl.
       iApply ("H" with "[$]").
   Qed.
@@ -192,15 +191,12 @@ Section adequacy.
         repeat iModIntro.
         by iApply step_fupdN_intro.
       + rewrite {1}/sch_step. rewrite <-dbind_assoc.
-        replace (ε) with (0+ε)%NNR; last (apply nnreal_ext;simpl; lra).
+        (* replace (ε) with (0+ε)%NNR; last (apply nnreal_ext;simpl; lra). *)
         iApply fupd_mask_intro; first done.
         iIntros "Hclose".
         rewrite -fupd_idemp.
-        iApply (pgl_dbind' _ _ _ _ _ _ (S _)); [done|
-                             iPureIntro; apply cond_nonneg|
-                             iPureIntro;apply pgl_trivial;simpl;lra|
-                             ..].
-        iIntros ([sch_σ sch_a] _).
+        iApply (pgl_dbind' _ _ _ _ (S _)); first done.
+        iIntros ([sch_σ sch_a]).
         iMod "Hclose" as "_".
         simpl. rewrite Heq.
         destruct ((e::es)!!sch_a) as [chosen_e|] eqn:Hlookup; rewrite Hlookup; last first.
@@ -210,8 +206,6 @@ Section adequacy.
           iIntros "Hclose".
           do 2 iModIntro. iMod "Hclose" as "_".
           iApply "IH". iFrame.
-          iApply ec_supply_eq; last done.
-          simpl. lra.
         }
         case_match eqn:Hcheckval.
         { (* step a thread thats a value *)
@@ -220,8 +214,6 @@ Section adequacy.
           iIntros "Hclose".
           do 2 iModIntro. iMod "Hclose" as "_".
           iApply "IH". iFrame.
-          iApply ec_supply_eq; last done.
-          simpl. lra.
         }
         rewrite dmap_comp/dmap-dbind_assoc.
         erewrite (distr_ext _ _); last first.
@@ -234,17 +226,17 @@ Section adequacy.
         *  (* step main thread *)
           rewrite pgl_wp_unfold /pgl_wp_pre. iSimpl in "Hwp". rewrite Heq.
           iMod ("Hwp" with "[$]") as "Hlift".
-          replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
+          (* replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra]. *)
           iApply (state_step_coupl_erasure' with "[$Hlift]"); [done..|].
-          iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
-          iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
+          iIntros (σ2 ε2) "(%&%&%&%Hineq&H)".
+          iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I).
           { iPureIntro.
-            intros. eapply pgl_mon_grading; exact.
+            intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
           }
           replace (chosen_e) with e; last by (simpl in Hlookup; simplify_eq).
-          iApply (pgl_dbind_adv' with "[][][][-]"); [done|naive_solver|done|].
-          iIntros ([[??]?]?).
-          iMod ("H" with "[//]") as "H".
+          iApply (pgl_dbind_adv' with "[][-]"); first (iPureIntro; naive_solver).
+          iIntros ([[??]?]).
+          iMod ("H" $! _ _ _ ) as "H".
           simpl.
           do 3 iModIntro.
           iApply (state_step_coupl_erasure with "[$][-]").
@@ -258,20 +250,20 @@ Section adequacy.
           iSimpl in "Hwp'".
           rewrite Hcheckval.
           iMod ("Hwp'" with "[$]") as "Hlift".
-          replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra].
+          (* replace (0+ε)%NNR with ε; [|apply nnreal_ext; simpl; lra]. *)
           iApply (state_step_coupl_erasure' _ e _ chosen_e with "[$]"); [|done..|].
           { simpl.
             rewrite lookup_app_r//.
             by replace (_-_)%nat with 0%nat by lia.
           }
-          iIntros (σ2 ε2) "(%&%&%&%&%&%&%&H)".
-          iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ (_+_)⌝)%I).
+          iIntros (σ2 ε2) "(%&%&%&%Hineq&H)".
+          iApply (step_fupdN_mono _ _ _ (⌜pgl _ _ _⌝)%I).
           { iPureIntro.
-            intros. eapply pgl_mon_grading; exact.
+            intros. eapply pgl_mon_grading; first (simpl; apply Hineq). exact.
           }
-          iApply (pgl_dbind_adv' with "[][][][-]"); [done|naive_solver|done|].
-          iIntros ([[??]?]?).
-          iMod ("H" with "[//]") as "H".
+          iApply (pgl_dbind_adv' with "[][-]"); first (iPureIntro; naive_solver). 
+          iIntros ([[??]?]).
+          iMod ("H" $! _ _ _) as "H".
           simpl.
           do 3 iModIntro.
           iApply (state_step_coupl_erasure with "[$][-]").
@@ -488,7 +480,7 @@ Section safety.
   Proof.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%Herasable&%&%&%&H)]]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|[H|(%μ&%&%Herasable&%&%&H)]]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       trans 0; try lra.
@@ -521,17 +513,17 @@ Section safety.
         - f_equal. by rewrite H4.
         - by rewrite !dmap_mass in H5.
       }
-      iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ'))) >= 1 - (ε1 + Expval μ ε2)⌝)).
+      iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= λ σ', sch_pexec sch n (ζ, (es, σ'))) >= 1 - (0 + Expval μ ε2)⌝)).
       { iPureIntro. intros. etrans; first exact.
         apply Rle_ge.
         apply Ropp_le_cancel.
-        rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r. 
+        rewrite !Ropp_minus_distr. rewrite Rplus_0_l. by apply Rplus_le_compat_r. 
       }
-      iApply (safety_dbind_adv' _ _ _ (_)); [| |done|].
+      iApply (safety_dbind_adv' _ _ _ (_)); [| |iPureIntro; by apply pgl_trivial|].
       { iPureIntro. eapply sch_erasable_mass; last first; done. }
       { iPureIntro. naive_solver. }
       iIntros (a HR).
-      iMod ("H" with "[//]") as "[H _]".
+      iMod ("H" $! _) as "[H _]".
       by iMod ("H" with "[$]").
   Qed. 
 
@@ -548,7 +540,7 @@ Section safety.
     intros ???.
     iRevert (σ ε).
     iApply state_step_coupl_ind.
-    iIntros "!>" (σ ε) "[%|[?|[H|(%&%μ&%&%&%Herasable&%&%&%&H)]]] Hcont".
+    iIntros "!>" (σ ε) "[%|[?|[H|(%μ&%&%Herasable&%&%&H)]]] Hcont".
     - iApply step_fupdN_intro; first done.
       iPureIntro.
       trans 0; try lra.
@@ -585,17 +577,17 @@ Section safety.
           apply Rcoupl_eq_elim in K'. by rewrite K'.
         - by rewrite !dmap_mass in K.
       }
-      iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= (λ σ', prim_step e' σ' ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3)))) >= 1 - (ε1 + Expval μ ε2)⌝)).
+      iApply (step_fupdN_mono _ _ _ (⌜SeriesC (μ ≫= (λ σ', prim_step e' σ' ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ, (<[num:=e3]> (e :: es) ++ efs, σ3)))) >= 1 - (0 + Expval μ ε2)⌝)).
       { iPureIntro. intros. etrans; first exact.
         apply Rle_ge.
         apply Ropp_le_cancel.
-        rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r.
+        rewrite !Ropp_minus_distr. rewrite Rplus_0_l. by apply Rplus_le_compat_r.
       }
-      iApply (safety_dbind_adv' _ _ _ (_)); [| |done|].
+      iApply (safety_dbind_adv' _ _ _ (_)); [| |iPureIntro; by apply pgl_trivial|].
       { iPureIntro. eapply sch_erasable_mass; last first; done. }
       { iPureIntro. naive_solver. }
       iIntros (a HR).
-      iMod ("H" with "[//]") as "[H _]".
+      iMod ("H" $! _) as "[H _]".
       by iMod ("H" with "[$]").
   Qed.
   
@@ -654,24 +646,24 @@ Section safety.
         iApply (state_step_coupl_erasure_safety'  with "[$Hwp]"); try done.
         iIntros (σ2 ε2). simpl. rewrite Hval.
         rewrite /prog_coupl.
-        iIntros "(%R&%εa & %εb & %Hred &%Hbound & %Hineq & %Hpgl & Hlift)".
+        iIntros "( %εb & %Hred &%Hbound & %Hineq &  Hlift)".
         assert (e = chosen_e) as ?; last simplify_eq.
         { simpl in Hlookup. by simplify_eq. }
         iApply (step_fupdN_mono _ _ _ (⌜SeriesC
            (prim_step chosen_e σ2 ≫= λ '(e3, σ3, efs), sch_pexec sch n (ζ', (e3 :: es ++ efs, σ3))) >=
-                                         1 - (εa + Expval (prim_step chosen_e σ2) εb)⌝)).
+                                         1 - (0 + Expval (prim_step chosen_e σ2) εb)⌝)).
         { iPureIntro. simpl in *.
           intros. etrans; first exact.
           apply Rle_ge.
           apply Ropp_le_cancel.
-          rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r. 
+          rewrite !Ropp_minus_distr. rewrite Rplus_0_l. by apply Rplus_le_compat_r. 
         }
         iApply (safety_dbind_adv' _ _ _ _ (S n) with "[][][]").
         * iPureIntro. eapply mixin_prim_step_mass; [apply con_language_mixin|done].
         * iPureIntro. naive_solver.
-        * done.
-        * iIntros (((e' & σ') & efs) HR).
-          iMod ("Hlift" with "[//]").
+        * iPureIntro; by apply pgl_trivial.
+        * iIntros (((e' & σ') & efs) _).
+          iMod ("Hlift"$! _ _ _).
           simpl.
           do 3 iModIntro.
           iApply (state_step_coupl_erasure_safety with "[$]").
@@ -688,22 +680,23 @@ Section safety.
         iApply (state_step_coupl_erasure_safety'  with "[$]"); try done.
         { simpl. by apply list_lookup_middle. }
         iIntros (σ2 ε2). simpl. rewrite /prog_coupl. 
-        iIntros "(%R&%εa & %εb & %Hred &%Hbound & %Hineq & %Hpgl & Hlift)".
+        iIntros "( %εb & %Hred &%Hbound & %Hineq &  Hlift)".
         iApply (step_fupdN_mono _ _ _ (⌜SeriesC
            (prim_step chosen_e σ2 ≫= λ '(e3, σ3, efs),
                  sch_pexec sch n (ζ', (e :: <[length l1:=e3]> (l1 ++ chosen_e :: l2) ++ efs, σ3))) >=
-                                         1 - (εa + Expval (prim_step chosen_e σ2) εb)⌝)).
+                                         1 - (0 + Expval (prim_step chosen_e σ2) εb)⌝)).
         { iPureIntro. simpl in *.
           intros. etrans; first exact.
           apply Rle_ge.
           apply Ropp_le_cancel.
-          rewrite !Ropp_minus_distr. by apply Rplus_le_compat_r. }
+          rewrite !Ropp_minus_distr.
+          rewrite Rplus_0_l. by apply Rplus_le_compat_r. }
         iApply (safety_dbind_adv' _ _ _ _ (S n) with "[][][]").
         * iPureIntro. eapply mixin_prim_step_mass; [apply con_language_mixin|done].
         * iPureIntro. naive_solver.
-        * done.
+        * iPureIntro. by apply pgl_trivial.
         * iIntros (((e' & σ') & efs) HR).
-          iMod ("Hlift" with "[//]").
+          iMod ("Hlift" $! _ _ _).
           simpl.
           do 3 iModIntro.
           iApply (state_step_coupl_erasure_safety with "[$]").

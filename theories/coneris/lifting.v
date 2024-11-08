@@ -55,6 +55,7 @@ Section lifting.
     iApply state_step_coupl_ret.
     rewrite H.
     iApply prog_coupl_prim_step.
+    { iModIntro. iIntros. by iApply state_step_coupl_ret_err_ge_1. }
     iExists _.
     iExists nnreal_zero.
     iExists ε.
