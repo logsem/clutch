@@ -400,6 +400,7 @@ Section modalities.
                                  Z e2 σ2 efs (ε2 (e2, σ2, efs)))
     )%I-∗
     prog_coupl e1 σ1 ε Z.
+  Proof. 
     iIntros "H1 H".
     iDestruct "H" as "(%R & %ε1 & %ε2 & % & [%r %] & %Hineq & %Hpgl &H)".
     iExists (λ σ, if bool_decide(R σ) then ε2 σ else 1).
@@ -690,24 +691,27 @@ Section modalities.
 
   Lemma prog_coupl_ctx_bind K `{!ConLanguageCtx K} e1 σ1 Z ε:
     to_val e1 = None ->
+    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
     prog_coupl e1 σ1 ε (λ e2 σ2 efs ε', Z (K e2) σ2 efs ε') -∗ prog_coupl (K e1) σ1 ε Z.
   Proof.
-    iIntros (Hv) "(%ε2&%&[%r %]&%&H)".
-    
+    iIntros (Hv) "#H' H".
+    (* iDestruct (prog_coupl_strengthen with "[][$]") as "H". *)
+    (* { iModIntro. by iIntros. } *)
+    iDestruct "H" as "(%ε2&%&[%r %]&%&H)".
     (** (classical) inverse of context [K] *)
     destruct (partial_inv_fun K) as (Kinv & HKinv).
     assert (∀ e, Kinv (K e) = Some e) as HKinv3.
     { intro e.
       destruct (Kinv (K e)) eqn:Heq;
         eapply HKinv in Heq; by simplify_eq. }
-    set (ε2' := (λ '(e, σ, efs), from_option (λ e', ε2 (e', σ, efs)) 0%NNR (Kinv e))).
+    set (ε2' := (λ '(e, σ, efs), from_option (λ e', ε2 (e', σ, efs)) 1%NNR (Kinv e))).
     assert (∀ e2 σ2 efs, ε2' (K e2, σ2, efs) = ε2 (e2, σ2, efs)) as Hε2'.
     { intros. rewrite /ε2' HKinv3 //. }
     (* iExists (λ '(e2, σ2, efs), ∃ e2', e2 = K e2' /\ R (e2', σ2, efs)), ε1, ε2'. *)
     iExists ε2'.
     repeat iSplit; try iPureIntro.
     - by apply reducible_fill.
-    - rewrite /ε2'. eexists (Rmax 0%R r).
+    - rewrite /ε2'. eexists (Rmax 1%R r).
       intros [[??]?].
       destruct (Kinv _); simpl.
       + etrans; last apply Rmax_r. done.
@@ -725,14 +729,15 @@ Section modalities.
     (*   destruct a as [[??]?] => /=. *)
     (*   naive_solver. *)
     - iIntros (???).
-      rewrite /ε2'. simpl. rewrite HKinv3/=.
-      by iApply "H".
+      rewrite /ε2'.
+      destruct (Kinv e2) eqn:H'; simpl; last done.
+      apply HKinv in H'. by subst.
   Qed.
 
   
   Lemma prog_coupl_reducible e σ Z ε :
     prog_coupl e σ ε Z -∗ ⌜reducible e σ⌝.
-  Proof. by iIntros "(%&%&%&%&%&%&%& _)". Qed.
+  Proof. by iIntros "(%&%&%&%& _)". Qed.
   
   (* Lemma glm_bind K `{!ConLanguageCtx K} e1 σ1 Z ε : *)
   (*   to_val e1 = None → *)
@@ -869,31 +874,34 @@ Section modalities.
   (* Qed. *)
 
 
-  Lemma prog_coupl_prim_step e1 σ1 Z ε :
-    (∃ R ε1 ε2, ⌜reducible e1 σ1⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-          ∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ Z e2 σ2 efs ε2)
-    ⊢ prog_coupl e1 σ1 ε Z.
+  Lemma prog_coupl_adv_comp e1 σ1 Z (ε : nonnegreal) :
+    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+      (∃ R (ε1 : nonnegreal) (ε2 : _ -> nonnegreal),
+          ⌜reducible e1 σ1⌝ ∗
+          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
+          ⌜ (ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
+          ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ Z e2 σ2 efs (ε2 (e2, σ2, efs))) -∗
+        prog_coupl e1 σ1 ε Z.
   Proof.
-    iIntros "(%R&%ε1&%ε2&%&%&%&H)".
+    iIntros "#H' H".
+    by iApply prog_coupl_equiv2.
+  Qed.
+
+  Lemma prog_coupl_prim_step e1 σ1 Z ε :
+    □(∀ e2 σ2 efs, Z e2 σ2 efs 1) -∗
+    (∃ R ε1 ε2, ⌜reducible e1 σ1⌝ ∗ ⌜ (ε1 + ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
+          ∀ e2 σ2 efs, ⌜R (e2, σ2, efs)⌝ ={∅}=∗ Z e2 σ2 efs ε2) -∗
+     prog_coupl e1 σ1 ε Z.
+  Proof.
+    iIntros "#H' H".
+    iApply prog_coupl_adv_comp; first done.
+    iDestruct "H" as "(%R&%ε1 & %ε2 & % & %& % & H)".
     iExists R, ε1, (λ _, ε2).
     repeat iSplit; try done.
     - iPureIntro. naive_solver.
     - iPureIntro. rewrite Expval_const; last done.
       rewrite prim_step_mass; [lra|done].
   Qed. 
-
-  Lemma prog_coupl_adv_comp e1 σ1 Z (ε : nonnegreal) :
-      (∃ R (ε1 : nonnegreal) (ε2 : _ -> nonnegreal),
-          ⌜reducible e1 σ1⌝ ∗
-          ⌜ exists r, forall ρ, (ε2 ρ <= r)%R ⌝ ∗
-          ⌜ (ε1 + Expval (prim_step e1 σ1) ε2 <= ε)%R ⌝ ∗ ⌜pgl (prim_step e1 σ1) R ε1⌝ ∗
-            ∀ e2 σ2 efs, ⌜ R (e2, σ2, efs) ⌝ ={∅}=∗ Z e2 σ2 efs (ε2 (e2, σ2, efs)))
-    ⊢ prog_coupl e1 σ1 ε Z.
-  Proof.
-    iIntros "(% & % & % & % & % & % & % & H)".
-    iExists _,_,_.
-    by repeat iSplit.
-  Qed.
 
 
   (* Lemma glm_strong_ind (Ψ : expr con_prob_lang → state con_prob_lang → nonnegreal → iProp Σ) Z : *)
@@ -946,7 +954,7 @@ Proof.
   rewrite /state_step_coupl_pre.
   do 3 f_equiv.
   rewrite /prog_coupl.
-  do 18 f_equiv.
+  do 12 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[??]?].
@@ -988,7 +996,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
   rewrite /prog_coupl.
-  do 21 f_equiv.
+  do 15 f_equiv.
   f_contractive.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
@@ -1011,7 +1019,7 @@ Proof.
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
   rewrite /prog_coupl.
-  do 20 f_equiv.
+  do 14 f_equiv.
   f_contractive. 
   apply least_fixpoint_ne_outer; [|done].
   intros ? [[]?]. rewrite /state_step_coupl_pre.
@@ -1123,9 +1131,11 @@ Proof.
   destruct (to_val e) as [v|] eqn:He.
   - iIntros ">(?&?&>?)". by iFrame.
   - iIntros "H".
-    iDestruct (prog_coupl_strengthen with "H") as "H".
+    iDestruct (prog_coupl_strengthen with "[]H") as "H".
+    { iModIntro. iIntros. by iApply state_step_coupl_ret_err_ge_1. }
     iApply (prog_coupl_mono with "[] [$]").
-    iIntros (????) "[[%%Hstep]?]!>".
+    iIntros (????) "[[[%%H]|%]?]!>"; last first.
+    { by iApply state_step_coupl_ret_err_ge_1. }
     iApply (state_step_coupl_bind with "[][$]").
     iIntros (??) "H".
     iApply fupd_state_step_coupl.
@@ -1135,12 +1145,12 @@ Proof.
     iMod "H". iModIntro.
     iApply (state_step_coupl_mono with "[-H]H").
     iIntros (??).
-    case_match eqn:H.
+    case_match eqn:H'.
     + iIntros ">(?&?&>?)".
       iFrame. iModIntro.
-      rewrite -(of_to_val _ _ H).
+      rewrite -(of_to_val _ _ H').
       by iApply pgl_wp_value_fupd'.
-    + pose proof (atomic _ _ _ _ Hstep) as [??].
+    + pose proof (atomic _ _ _ _ H) as [??].
       congruence.
 Qed. 
 
@@ -1185,7 +1195,8 @@ Proof.
   }
   rewrite fill_not_val; last done.
   iApply state_step_coupl_ret.
-  iApply prog_coupl_ctx_bind; first done.
+  iApply prog_coupl_ctx_bind; [done|..].
+  { iModIntro; iIntros. by iApply state_step_coupl_ret_err_ge_1. }
   iApply (prog_coupl_mono with "[] [$]").
   iIntros (????) "H!>".
   iApply (state_step_coupl_mono with "[][$]").
