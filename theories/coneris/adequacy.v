@@ -13,6 +13,7 @@ From clutch.prob Require Import distribution.
 Import uPred.
 
 Notation con_prob_lang_mdp := (con_lang_mdp con_prob_lang).
+(** *NOTE: In future logics, the adequacy theorem should be generalized to ARBITRARY concurrent prob languages, not just con_prob_lang *)
 (** Normal adequacy *)
 Section adequacy.
   Context `{!conerisGS Σ}.

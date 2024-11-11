@@ -705,13 +705,19 @@ Proof.
 Qed.
 
 Lemma prim_step_finite_options (e:expr) σ:
-  reducible e σ ->  
   ∃ (lis : list _), ∀ x, (prim_step e σ x > 0)%R -> x ∈ lis.
 Proof.
-  rewrite /reducible/=/prim_step.
+  pose proof ExcludedMiddle (reducible e σ) as [H|H]; last first.
+  { exists [].
+    intros ? H'.
+    rewrite not_reducible in H.
+    rewrite /irreducible in H.
+    rewrite H in H'.
+    lra.
+  }
+  rewrite /reducible/=/prim_step in H *.
   destruct (con_ectx_language.decomp e) as [K e'] eqn:H'.
-  simpl in *. setoid_rewrite H'.
-  intros H.
+  simpl in *. rewrite H' in H.
   assert (head_reducible e' σ).
   { destruct H as [??].
     rewrite dmap_pos in H.
@@ -808,6 +814,19 @@ Proof.
     destruct H4 as (?&?& H4).
     rewrite dzero_0 in H4.
     lra.
+Qed.
+
+Lemma ex_seriesC_prim_step_mult_fn_con_prob_lang (e:expr) σ (f : _ -> nonnegreal):
+  ex_seriesC (λ x, prim_step e σ x * f x).
+Proof.
+  pose proof prim_step_finite_options e σ as [lis H].
+  simpl in *.
+  eapply ex_seriesC_ext; last apply (ex_seriesC_list lis).
+  simpl. intros n.
+  case_bool_decide as H0; first done.
+  destruct (pmf_pos (prim_step e σ) n) as [H'|H'].
+  - exfalso. apply H0. apply H. simpl in *. lra.
+  - rewrite -H'. lra.
 Qed.
   
 
