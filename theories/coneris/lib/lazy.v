@@ -4,11 +4,12 @@ From iris.proofmode Require Import
   coq_tactics ltac_tactics sel_patterns environments reduction proofmode.
 From clutch.coneris Require Import coneris lib.conversion par spawn lib.flip.
 
+Set Default Proof Using "Type*".
 
 Section defs.
 
 
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR boolO)}.
+  Context `{!conerisGS Σ}.
 
   (** A lazy rand *)
   Definition new_lazyrand : expr :=
@@ -78,7 +79,7 @@ Section defs.
     wp_pures.
     wp_load.
     wp_pures.
-    wp_apply (wp_couple_rand_adv_comp1 N _ _ ε F with "Herr"); auto.
+    wp_apply (wp_couple_rand_adv_comp1 N _ _ ε F with "Herr"); [naive_solver|auto|].
     iIntros (n) "Herr".
     wp_pures.
     wp_store.
@@ -95,7 +96,7 @@ End defs.
 Section applications.
 
 
-  Context `{!conerisGS Σ, !spawnG Σ, !inG Σ (excl_authR boolO)}.
+  Context `{!conerisGS Σ, !spawnG Σ}.
 
   Definition foo : expr :=
     let: "r" := ref #0 in
@@ -121,7 +122,7 @@ Section applications.
     iMod (inv_alloc nroot _ (foo_inv r) with "[Hr]") as "#I".
     { iModIntro. by iLeft. }
     rewrite -/new_lazyrand.
-    wp_apply (wp_par _ (λ _, ⊤) with "[Herr][]").
+    wp_apply (wp_par (λ _, ⊤) (λ _, ⊤) with "[Herr][]").
     - wp_apply (new_lazyrand_spec 1); auto.
       iIntros (v) "Hv".
       wp_pures.
@@ -133,14 +134,34 @@ Section applications.
         do 2 wp_pure.
         rewrite -/read_lazyrand.
         wp_bind (read_lazyrand _).
-        wp_apply (read_lazyrand_fresh_spec v 1 with "[Herr Hv]"); admit.
+        wp_apply (read_lazyrand_fresh_spec v 1 nnreal_half
+                                           (λ x, if fin_to_nat x =? 0%nat then nnreal_one else nnreal_zero)
+                   with "[Herr Hv]"); [|iFrame|].
+        { rewrite SeriesC_finite_foldr/=.
+          lra.
+        }
+        iIntros (n).
+        repeat (inv_fin n; try intros n); last first.
+        * iIntros. by wp_pures.
+        * iIntros "(%&<-&?&?)".
+          simpl. by iDestruct (ec_contradict with "[$]") as "[]".
       + wp_load.
         iMod ("Hclose" with "[Hr1]") as "_"; first by iRight.
         iModIntro.
         do 2 wp_pure.
         rewrite -/read_lazyrand.
         wp_bind (read_lazyrand _).
-        wp_apply (read_lazyrand_fresh_spec v 1 with "[Herr Hv]"); admit.
+        wp_apply (read_lazyrand_fresh_spec v 1 nnreal_half
+                                           (λ x, if fin_to_nat x =? 1%nat then nnreal_one else nnreal_zero)
+                   with "[Herr Hv]"); [|iFrame|].
+        { rewrite SeriesC_finite_foldr/=.
+          lra.
+        }
+        iIntros (n).
+        repeat (inv_fin n; try intros n); last first.
+        * iIntros "(%&<-&?&?)".
+          simpl. by iDestruct (ec_contradict with "[$]") as "[]".
+        * iIntros. by wp_pures.
     - iInv "I" as "[Hr | Hr]" "Hclose".
       + wp_store.
         iMod ("Hclose" with "[Hr]") as "_"; first by iRight.
@@ -150,7 +171,7 @@ Section applications.
         done.
     - iIntros (??) "? !>".
       by iApply "HΦ".
-  Admitted.
+  Qed.
 
 
 End applications.
