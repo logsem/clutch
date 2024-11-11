@@ -704,6 +704,65 @@ Proof.
   - apply H2.
 Qed.
 
+
+Lemma twp_rand_err_amp (N : nat) (z : Z) (m : nat) (ε0 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  ↯ ε0 ∗
+  (∀ x : fin (S N), (⌜fin_to_nat x ≠ m⌝ ∨ ↯ (nnreal_mult ε0 (nnreal_nat (N + 1)))) -∗ Φ #x)
+  ⊢ WP rand #z @ E [{ Φ }].
+Proof.
+  iIntros (?) "(Herr&Hwp)".
+  destruct (le_lt_dec (S N) m) as [H1 | H2].
+  - wp_apply (twp_rand); auto.
+    iIntros (n) "?".
+    iApply "Hwp".
+    iLeft.
+    iPureIntro.
+    intros ?.
+    pose proof (fin_to_nat_lt n).
+    lia.
+  -
+  set (ε2 := (λ x : fin (S N), if bool_decide ((fin_to_nat x) =  (Fin.of_nat_lt H2))
+                               then (nnreal_mult ε0 (nnreal_nat (N + 1)))
+                               else nnreal_zero)).
+  wp_apply (twp_couple_rand_adv_comp1 _ _ _ ε0 ε2 with "Herr").
+  {
+    rewrite -(SeriesC_singleton (Fin.of_nat_lt H2) (nonneg ε0)) /ε2.
+    apply SeriesC_ext.
+    intro n.
+    case_bool_decide; case_bool_decide; simplify_eq; [| simpl; lra].
+    rewrite S_INR /= plus_INR /=.
+    rewrite /Rdiv Rmult_1_l Rmult_comm Rmult_assoc Rmult_inv_r; [lra | ].
+    intros Heq.
+    pose proof (pos_INR N).
+    lra.
+  }
+  iIntros (n) "Herr".
+  iApply "Hwp".
+  rewrite /ε2.
+  case_bool_decide as Hdec.
+  + by iRight.
+  + iLeft.
+    iPureIntro.
+    intros H3.
+    simplify_eq.
+    apply Hdec.
+    f_equal.
+    rewrite nat_to_fin_to_nat //.
+Qed.
+
+
+Lemma wp_rand_err_amp (N : nat) (z : Z) (m : nat) (ε0 : nonnegreal) E Φ :
+  TCEq N (Z.to_nat z) →
+  ↯ ε0 ∗
+  (∀ x : fin (S N), (⌜fin_to_nat x ≠ m⌝ ∨ ↯ (nnreal_mult ε0 (nnreal_nat (N + 1)))) -∗ Φ #x)
+  ⊢ WP rand #z @ E {{ Φ }}.
+Proof.
+  iIntros (?) "[Herr Hwp]".
+  iApply tgl_wp_pgl_wp'.
+  iApply (twp_rand_err_amp with "[$Herr Hwp]"); done.
+Qed.
+
 Lemma twp_rand_err_list_adv (N : nat) (z : Z) (ns : list nat) (ε0 ε1 : nonnegreal) E Φ :
   TCEq N (Z.to_nat z) →
   (ε1 * (length ns) <= ε0 * (N + 1))%R ->
@@ -976,6 +1035,7 @@ Proof.
   wp_apply twp_rand_err_filter_adv; eauto.
   iFrame.
 Qed.
+
 
 
 Lemma wp_bind_err_simpl e `{Hctx:!LanguageCtx K} s E (ε1 ε2 : R) P (Q : val -> iProp Σ) Φ:
